@@ -2,9 +2,18 @@
 FROM php:8.2-apache
 
 # ------------------------------------------------------------------------
-# Install required PHP extensions for Laravel and database interaction
+# This step updates the package repositories to ensure that all package
+# information is current and then installs essential tools:
+#   - git: for version control,
+#   - zip and unzip: for handling compressed files.
 # ------------------------------------------------------------------------
-RUN docker-php-ext-install pdo pdo_mysql bcmath
+RUN apt-get update && apt-get install -y git zip unzip
+
+# ------------------------------------------------------------------------
+# Install Composer
+# ------------------------------------------------------------------------
+RUN curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer
 
 # ------------------------------------------------------------------------
 # Configure Apache to serve the Laravel application from the "public" folder

@@ -1,0 +1,219 @@
+/* ===== Theme Variables ===== */
+:root {
+  --bg: #e0e5ec;
+  --surface: #e0e5ec;
+  --text: #222;
+  --muted: #666;
+  --shadow: #c2c8d0;
+  --highlight: #ffffff;
+  --inset-shadow: #c8ccd1;
+  --inset-highlight: #f0f5fa;
+}
+
+.dark {
+  --bg: #0e1116;
+  --surface: #0f141b;
+  --text: #e9eef6;
+  --muted: #a9b3c1;
+  --shadow: #0a0d11;
+  --highlight: #151a22;
+  --inset-shadow: #0a0e13;
+  --inset-highlight: #161c23;
+}
+
+/* ===== Base ===== */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* ===== Theme Toggle Button ===== */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  inset-inline-end: 20px; /* سازگار با راست‌به‌چپ */
+  width: 60px;
+  height: 34px;
+  border-radius: 17px;
+  border: none;
+  background: var(--surface);
+  box-shadow: inset 2px 2px 4px var(--inset-shadow), inset -2px -2px 4px var(--inset-highlight);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px;
+  transition: background 0.3s ease;
+  overflow: hidden;
+}
+
+.theme-toggle .slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 85%, #fff 15%);
+  box-shadow: 2px 2px 5px var(--shadow), -2px -2px 5px var(--highlight);
+  transition: transform 0.3s ease;
+}
+
+.dark .theme-toggle .slider {
+  transform: translateX(26px);
+}
+
+.theme-toggle .icon {
+  font-size: 16px;
+  color: var(--text);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.theme-toggle .sun {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.theme-toggle .moon {
+  opacity: 0.3;
+  transform: scale(0.9);
+}
+
+.dark .theme-toggle .sun {
+  opacity: 0.3;
+  transform: scale(0.9);
+}
+
+.dark .theme-toggle .moon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* بقیه استایل‌ها بدون تغییر */
+.container {
+  background: var(--surface);
+  color: var(--text);
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 10px 10px 30px var(--shadow), -10px -10px 30px var(--highlight);
+  width: 300px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.tabs button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: 0.3s;
+}
+.tabs button.active {
+  background: color-mix(in srgb, var(--surface) 85%, #fff 15%);
+  box-shadow: inset 2px 2px 5px var(--inset-shadow), inset -2px -2px 5px var(--inset-highlight);
+}
+
+.form { display: none; flex-direction: column; }
+.form.active { display: flex; }
+
+input {
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: inset 4px 4px 6px var(--inset-shadow), inset -4px -4px 6px var(--inset-highlight);
+}
+
+.btn {
+  margin-top: 10px;
+  padding: 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 6px 6px 10px var(--shadow), -6px -6px 10px var(--highlight);
+  transition: 0.3s;
+}
+.btn:hover {
+  background: color-mix(in srgb, var(--surface) 85%, #fff 15%);
+}
+
+.or {
+  text-align: center;
+  margin: 15px 0 10px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.socials {
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.social {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface);
+  box-shadow: 6px 6px 10px var(--shadow), -6px -6px 10px var(--highlight);
+  font-size: 1.2em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.social.google { color: #DB4437; }
+.social.facebook { color: #1877F2; }
+.social.twitter { color: #1DA1F2; }
+
+/* یکپارچگی رنگ در AutoFill (Chrome/Edge/Safari) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text) !important;
+  /* سطح زمینه را دقیقاً مثل خود input نگه می‌داریم */
+  -webkit-box-shadow:
+    0 0 0px 1000px var(--surface) inset,
+    inset 4px 4px 6px var(--inset-shadow),
+    inset -4px -4px 6px var(--inset-highlight) !important;
+  transition: background-color 0s 600000s, color 0s 600000s !important; /* جلوگیری از فلش سفید */
+  caret-color: var(--text);
+}
+
+/* فایرفاکس */
+input:-moz-autofill {
+  box-shadow:
+    inset 0 0 0 1000px var(--surface),
+    inset 4px 4px 6px var(--inset-shadow),
+    inset -4px -4px 6px var(--inset-highlight) !important;
+  -moz-text-fill-color: var(--text) !important;
+}
+
+/* احترام به تم سیستم برای کنترل autofill داخلی مرورگر */
+:root { color-scheme: light dark; }
+.dark { color-scheme: dark; }
+
+/* برای جلوگیری از bleed رنگ */
+input { background-clip: padding-box; }
