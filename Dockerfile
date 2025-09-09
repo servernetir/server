@@ -58,6 +58,7 @@ RUN set -eux; \
 # Set correct ownership for project files to Apache user (www-data)
 # ------------------------------------------------------------------------
 RUN chown -R www-data:www-data /var/www/html
+RUN docker-php-ext-install pdo_mysql
 
 # ------------------------------------------------------------------------
 # Define entrypoint and default command
