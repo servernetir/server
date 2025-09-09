@@ -16,7 +16,7 @@ services:
     container_name: servernet-db-1
     platform: linux/amd64
     environment:
-      MYSQL_ROOT_PASSWORD: SuperStrongPass123
+      MYSQL_ROOT_PASSWORD: SuperStrongPass456
       MYSQL_DATABASE: servernet_db
       MYSQL_USER: serveruser
       MYSQL_PASSWORD: SuperStrongPass456
