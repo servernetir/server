@@ -2,9 +2,23 @@
 FROM php:8.2-apache
 
 # ------------------------------------------------------------------------
+# Install system dependencies
+# ------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------------
 # Install required PHP extensions for Laravel and database interaction
 # ------------------------------------------------------------------------
 RUN docker-php-ext-install pdo pdo_mysql bcmath
+
+# ------------------------------------------------------------------------
+# Install Composer
+# ------------------------------------------------------------------------
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # ------------------------------------------------------------------------
 # Configure Apache to serve the Laravel application from the "public" folder
