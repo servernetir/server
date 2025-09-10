@@ -47,4 +47,11 @@ return [
         'redirect' => env('TWITTER_REDIRECT_URL', 'http://localhost:8000/auth/x/callback'),
     ],
 
+
+    'hetzner' => [
+        'token' => env('HETZNER_API_TOKEN'),
+    ],
+
 ];
+
+
