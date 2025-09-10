@@ -63,6 +63,8 @@ RUN set -eux; \
 # Set correct ownership for project files to Apache user (www-data)
 # ------------------------------------------------------------------------
 RUN chown -R www-data:www-data /var/www/html
+RUN chmod -R 755 /var/www/html/app/storage
+RUN chmod -R 755 /var/www/html/app/bootstrap/cache
 
 # ------------------------------------------------------------------------
 # Define entrypoint and default command
