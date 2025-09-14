@@ -11,18 +11,13 @@ use App\Http\Controllers\VpnController;
 use App\Http\Controllers\SoftController;
 use App\Http\Controllers\ProfileController;
 
-// میهمان (کاربر لاگین‌نشده)
-// Route::middleware('guest')->group(function () {
-    Route::get('/auth/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/auth/login', [LoginController::class, 'auth'])->name('auth');
-// });
-
-// Route::get('/auth/{provider}/redirect', [LoginController::class, 'redirectToProvider'])->name('social.redirect');
-// Route::get('/auth/{provider}/callback', [LoginController::class, 'handleProviderCallback'])->name('social.callback');
+Route::get('/login', [LoginController::class, 'index'])->name('login');
+Route::post('/login', [LoginController::class, 'auth'])->name('auth');
+Route::post('/register', [LoginController::class, 'register'])->name('register');
 
 Route::middleware('check.login')->group(function () {
-    Route::post('/auth/logout', [LoginController::class, 'logout'])->name('logout');
-    Route::get('/', [HomeController::class, 'home'])->name('home');
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
 
     Route::prefix('order')->group(function () {

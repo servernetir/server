@@ -2,130 +2,72 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Laravel\Socialite\Facades\Socialite;
-use App\Models\User;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
     /**
-     * Display the login/register view.
+     * نمایش فرم لاگین / ثبت‌نام
      */
-    public function showLoginForm()
+    public function index()
     {
         return view('login');
     }
 
     /**
-     * Handle user authentication.
+     * لاگین کاربر
      */
     public function auth(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended(route('home'));
+            return redirect()->intended(route('home'))
+                ->with('success', 'Welcome back 👋');
         }
 
-        throw ValidationException::withMessages([
-            'email' => __('auth.failed'),
-        ]);
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ])->withInput();
     }
 
     /**
-     * Log the user out.
+     * ثبت‌نام کاربر جدید
+     */
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'email'                 => ['required', 'email', 'unique:users,email'],
+            'password'              => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $user = User::create([
+            'name'     => $request->email, // می‌تونی بعداً اسم رو جدا بگیری
+            'email'    => $validated['email'],
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        Auth::login($user);
+
+        return redirect()->route('home')->with('success', 'Your account has been created 🎉');
+    }
+
+    /**
+     * خروج کاربر
      */
     public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('login');
-    }
 
-    /**
-     * Return current session data (for debugging).
-     */
-    public function session()
-    {
-        return response()->json(session()->all());
-    }
-
-    /**
-     * Redirect to social provider.
-     */
-    public function redirectToProvider($provider)
-    {
-        $allowedProviders = ['google', 'facebook', 'x'];
-        if (!in_array($provider, $allowedProviders)) {
-            return redirect()->route('login')->with('error', 'Invalid provider.');
-        }
-
-        return Socialite::driver($provider)->redirect();
-    }
-
-    /**
-     * Handle social provider callback.
-     */
-    public function handleProviderCallback($provider)
-    {
-        try {
-            $socialUser = Socialite::driver($provider)->user();
-
-            $user = User::updateOrCreate(
-                ['email' => $socialUser->getEmail()],
-                [
-                    'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
-                    'provider' => $provider,
-                    'provider_id' => $socialUser->getId(),
-                    'provider_token' => $socialUser->token,
-                    'password' => Hash::make(Str::random(16)),
-                    'email_verified_at' => now(),
-                ]
-            );
-
-            Auth::login($user, true);
-            return redirect()->intended(route('home'));
-        } catch (\Exception $e) {
-            return redirect()->route('login')->with('error', 'Social login failed: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Display the registration form (same view as login).
-     */
-    public function showRegisterForm()
-    {
-        return view('auth-login');
-    }
-
-    /**
-     * Handle user registration.
-     */
-    public function register(Request $request)
-    {
-        $data = $request->validate([
-            'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'min:8', 'confirmed'],
-        ]);
-
-        $user = User::create([
-            'name' => $data['name'] ?? 'User',
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'email_verified_at' => now(),
-        ]);
-
-        Auth::login($user, true);
-        return redirect()->intended(route('home'));
+        return redirect()->route('login')->with('success', 'You have been logged out.');
     }
 }

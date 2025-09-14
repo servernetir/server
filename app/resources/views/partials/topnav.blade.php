@@ -1,5 +1,5 @@
 <nav class="topnav navbar navbar-light">
-    <button type="button" class="navbar-toggler text-muted mt-2 p-0 mr-3 collapseSidebar d-sm-none">
+    <button type="button" class="navbar-toggler text-muted mt-2 p-0 mr-3 collapseSidebar d-lg-none">
         <i class="ti ti-menu navbar-toggler-icon"></i>
     </button>
     <ul class="nav ml-auto">

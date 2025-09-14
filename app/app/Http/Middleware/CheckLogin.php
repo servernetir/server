@@ -10,15 +10,19 @@ class CheckLogin
 {
     /**
      * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
-     * @return mixed
      */
     public function handle(Request $request, Closure $next)
     {
         if (!Auth::check()) {
-            return redirect('/auth/login');
+            // اگر درخواست از نوع API / AJAX باشه
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Unauthorized. Please login first.'
+                ], 401);
+            }
+
+            // اگر درخواست معمولی وب باشه → بره به صفحه لاگین
+            return redirect()->route('login');
         }
 
         return $next($request);
