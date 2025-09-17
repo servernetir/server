@@ -8,6 +8,6 @@ class VpsController extends Controller
 {
     public function index(Request $request)
     {
-        return view('order-vps');
+        return view('vps');
     }
 }

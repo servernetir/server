@@ -5,8 +5,11 @@
     <ul class="nav ml-auto">
         <li class="nav-item">
             <button type="button" class="btn my-2 mr-1 btn-dark btn-sm">0 $</button>
-            <button type="button" class="btn my-2 mr-1 btn-dark btn-sm">Your profile</button>
-            <button type="button" class="btn my-2 btn-outline-danger btn-sm">Logoute</button>
+            <a href="{{ route('profile') }}" class="btn my-2 mr-1 btn-dark btn-sm">Your profile</a>
+            <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                @csrf
+                <button type="submit" class="btn my-2 btn-outline-danger btn-sm">Logout</button>
+            </form>
         </li>
     </ul>
 </nav>

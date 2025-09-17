@@ -6,8 +6,8 @@ use Illuminate\Http\Request;
 
 class VpnController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        return view('order-vpn');
+        return view('vpn');
     }
 }

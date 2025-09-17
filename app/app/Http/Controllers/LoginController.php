@@ -6,68 +6,82 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    /**
-     * نمایش فرم لاگین / ثبت‌نام
-     */
     public function index()
     {
         return view('login');
     }
 
-    /**
-     * لاگین کاربر
-     */
-    public function auth(Request $request)
+    protected function throttleKey(Request $request): string
     {
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            return redirect()->intended(route('home'))
-                ->with('success', 'Welcome back 👋');
-        }
-
-        return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
-        ])->withInput();
+        return Str::lower($request->input('email')).'|'.$request->ip();
     }
 
-    /**
-     * ثبت‌نام کاربر جدید
-     */
+    public function auth(Request $request)
+    {
+        $request->validate([
+            'email'    => ['required','email'],
+            'password' => ['required','string'],
+        ]);
+
+        $key = $this->throttleKey($request);
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            throw ValidationException::withMessages([
+                'email' => "Login timeout. Try again in $seconds seconds"
+            ]);
+        }
+
+        $remember = $request->boolean('remember');
+
+        if (! Auth::attempt($request->only('email','password'), $remember)) {
+            RateLimiter::hit($key, 60);
+            throw ValidationException::withMessages([
+                'email' => 'Incorrect email or password'
+            ])->redirectTo(route('login'));
+        }
+
+        RateLimiter::clear($key);
+
+        $request->session()->regenerate();
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $user->last_login_at = now();
+        $user->save();
+
+        return redirect()->intended(route('home'))->with('success', 'Welcome');
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'email'                 => ['required', 'email', 'unique:users,email'],
-            'password'              => ['required', 'string', 'min:6', 'confirmed'],
+            'email'    => ['required','email','unique:users,email'],
+            'password' => ['required','string','min:6','confirmed'],
         ]);
 
         $user = User::create([
-            'name'     => $request->email, // می‌تونی بعداً اسم رو جدا بگیری
+            'name'     => $validated['email'],
             'email'    => $validated['email'],
             'password' => Hash::make($validated['password']),
         ]);
 
         Auth::login($user);
+        $request->session()->regenerate();
 
-        return redirect()->route('home')->with('success', 'Your account has been created 🎉');
+        return redirect()->route('home')->with('success', 'Account created 🎉');
     }
 
-    /**
-     * خروج کاربر
-     */
     public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return redirect()->route('login')->with('success', 'You have been logged out.');
+        return redirect()->route('login')->with('success', 'you are out');
     }
 }

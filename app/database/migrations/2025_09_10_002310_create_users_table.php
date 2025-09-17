@@ -23,8 +23,9 @@ return new class extends Migration
             $table->foreignId('referred_by')->nullable()->constrained('users')->nullOnDelete()->comment('شناسه کاربری که این کاربر را دعوت کرده است');
             $table->decimal('wallet_balance', 15, 2)->default(0)->comment('موجودی کیف پول کاربر');
             $table->enum('status', ['active', 'inactive', 'banned'])->default('active')->comment('وضعیت حساب: فعال، غیرفعال، مسدود');
+            $table->rememberToken()->comment('توکن Remember Me برای لاگین طولانی‌مدت');
             $table->timestamp('last_login_at')->nullable()->comment('آخرین زمان ورود کاربر');
-            $table->timestamps(0); // created_at و updated_at با دقت ثانیه و مدیریت خودکار
+            $table->timestamps(0);
         });
     }
 

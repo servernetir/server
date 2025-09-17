@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html>
-
 @include('partials.head')
-
 <body class="vertical dark">
     <div class="wrapper">
         @include('partials.topnav')
@@ -15,5 +13,4 @@
     </div>
     @include('partials.scripts')
 </body>
-
 </html>

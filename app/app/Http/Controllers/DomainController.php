@@ -8,6 +8,6 @@ class DomainController extends Controller
 {
     public function index(Request $request)
     {
-        return view('order-domain');
+        return view('domain');
     }
 }

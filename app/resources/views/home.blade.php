@@ -1,7 +1,7 @@
 @extends('master')
 
 @section('title')
-    available
+    home
 @endsection
 
 @section('content')
@@ -68,7 +68,7 @@
                         <div class="col-md-3 mb-4">
                             <div class="card shadow">
                                 <div class="card-header">
-                                    <strong class="card-title">License ispmanager</strong>
+                                    <strong class="card-title">Control-panel License</strong>
                                 </div>
                                 <div class="card-body">
                                     <button type="button" class="btn btn-outline-primary">Order</button>

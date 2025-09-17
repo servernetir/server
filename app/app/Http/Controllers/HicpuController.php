@@ -6,8 +6,8 @@ use Illuminate\Http\Request;
 
 class HicpuController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        return view('order-hicpu');
+        return view('hi-cpu');
     }
 }
