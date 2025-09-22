@@ -1,7 +1,7 @@
 @extends('master')
 
-@section('title')
-  dedicated
+@section('title', 'dedicated')
+
 @endsection
 
 @section('content')

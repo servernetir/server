@@ -1,15 +1,14 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 @include('partials.head')
-<body class="vertical dark">
-    <div class="wrapper">
-        @include('partials.topnav')
+<body>
+    <div class="app">
         @include('partials.sidebar')
-        <div id="main-content" style="position: relative;">
+        <main class="content">
             <meta name="csrf-token" content="{{ csrf_token() }}">
+            @include('partials.topnav')
             @yield('content')
-        </div>
-        @include('partials.modal-notif')
+        </main>
     </div>
     @include('partials.scripts')
 </body>

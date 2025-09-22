@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  virtual-server
-@endsection
+@section('title', 'vps')
 
 @section('content')
 

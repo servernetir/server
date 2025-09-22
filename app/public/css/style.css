@@ -1,0 +1,43 @@
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#05070f;          /* page background */
+  --panel:#05070f;       /* sidebar background */
+  --muted:#8b93a1;       /* secondary text */
+  --text:#e5e7eb;        /* primary text */
+  --hover:#1f2430a9;       /* hover state */
+  --chip:#1f2430;        /* chips top-right */
+  --badge-red:#ff003d;
+  --badge-blue:#5aa9ff;
+}
+html,body{height:100%}
+body{margin:0;font:18px/1.4 system-ui;color:var(--text);background:var(--bg);letter-spacing:0.2px;}
+/* --- Layout --- */
+.app{display:flex; min-height:100vh;}
+.sidebar{width:230px; flex:0 0 230px;background:var(--panel);display:flex; flex-direction:column;padding:14px 10px;}
+.content{flex:1; position:relative;}
+/* --- Brand --- */
+.brand{font-weight:700; font-size:14px; letter-spacing:1px; margin:4px 6px 18px; opacity:.95; text-align: center}
+.brand a{color:var(--text); text-decoration:none}
+/* --- Section headers in sidebar --- */
+.section-title{color:var(--muted); font-size:14px; text-transform:lowercase; margin:14px 6px 8px}
+/* --- Sidebar items --- */
+.nav{list-style:none; margin:0; padding:0}
+.item{display:flex; align-items:center; justify-content:space-between; gap:10px; color:#e6e6e6; text-decoration:none; padding-left:16px}
+.item:hover{color:rgb(24, 201, 225); text-decoration:underline}
+.item-title{font-size:18px; line-height:44px; font-weight: 500;}
+/* --- Badges --- */
+.badge{min-width:42px; padding:2px 8px; border-radius:20px; font-size:14px; font-weight:700; color:#fff; text-align:center;}
+.badge.red{background:var(--badge-red)}
+.badge.blue{background:var(--badge-blue)}
+/* --- Sidebar footer --- */
+.side-footer{margin-top:auto;}
+.mini-link{display:flex; align-items:center; gap:8px; line-height:44px; font-weight:700; color:#e6e6e6; text-decoration:none}
+.mini-link:hover{color:rgb(24, 201, 225); text-decoration:underline}
+/* --- Top controls (right side) --- */
+.topbar{position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:10px}
+.topbar form {margin:0;}
+.badge-money{background:var(--chip); color:#d6dbe6; padding:6px 12px; border-radius:999px; font-size:12px; display:inline-flex; align-items:center; text-decoration:none}
+.chip{background:var(--chip); color:#d6dbe6; padding:6px 12px; border-radius:999px; font-size:14px; display:inline-flex; align-items:center; text-decoration:none}
+.chip:hover{background:var(--hover)}
+.logout {background:none;border:none;color:#ff4b5f;padding:6px 12px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;line-height:1; cursor:pointer;}
+.logout:hover {color: #ff4b60a1;}

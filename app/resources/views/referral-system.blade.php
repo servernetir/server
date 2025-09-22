@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  referral-system
-@endsection
+@section('title', 'referral-system')
 
 @section('content')
 

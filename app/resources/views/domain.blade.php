@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  domain
-@endsection
+@section('title', 'domain')
 
 @section('content')
 

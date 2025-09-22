@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  limits
-@endsection
+@section('title', 'limits')
 
 @section('content')
 

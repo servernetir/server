@@ -30,12 +30,23 @@ Route::middleware('check.login')->group(function () {
     });
 
     Route::prefix('order')->group(function () {
-        Route::get('/vps', [VpsController::class, 'index'])->name('order.vps');
-        Route::get('/hi-cpu', [HicpuController::class, 'index'])->name('order.hi-cpu');
-        Route::get('/dedicated', [DedicatedController::class, 'index'])->name('order.dedicated');
-        Route::get('/domain', [DomainController::class, 'index'])->name('order.domain');
-        Route::get('/vpn', [VpnController::class, 'index'])->name('order.vpn');
-        Route::get('/Cp-manager', [CpController::class, 'index'])->name('order.cp-manager');
+        Route::get('/vps', [VpsController::class, 'index'])->name('vps');
+        Route::get('/vps-submit', [VpsController::class, 'submit'])->name('vps.submit');
+
+        Route::get('/hi-cpu', [HicpuController::class, 'index'])->name('hi-cpu');
+
+        Route::get('/dedicated', [DedicatedController::class, 'index'])->name('dedicated');
+
+        Route::get('/domain', [DomainController::class, 'index'])->name('domain');
+        Route::post('/domain/order', [DomainController::class, 'submit'])->name('domain.submit');
+        Route::get('/api/domain/check', [DomainController::class, 'check'])->name('api.domain.check');
+        Route::post('/api/domain/bulk-check', [DomainController::class, 'bulkCheck'])->name('api.domain.bulk');
+
+        Route::get('/vpn', [VpnController::class, 'index'])->name('vpn');
+        Route::get('/vpn-submit', [VpnController::class, 'submit'])->name('vpn.submit');
+
+        Route::get('/icense', [CpController::class, 'index'])->name('icense');
+        Route::get('/icense-submit', [CpController::class, 'submit'])->name('icense.submit');
     });
 
     Route::get('/services', [ServicesController::class, 'index'])->name('services');

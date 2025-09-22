@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  vpn
-@endsection
+@section('title', 'vpn')
 
 @section('content')
 

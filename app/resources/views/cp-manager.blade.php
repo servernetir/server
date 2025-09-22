@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  license-ispmanager
-@endsection
+@section('title', 'license')
 
 @section('content')
 

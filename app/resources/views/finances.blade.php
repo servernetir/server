@@ -1,8 +1,6 @@
 @extends('master')
 
-@section('title')
-  finances
-@endsection
+@section('title', 'finances')
 
 @section('content')
 

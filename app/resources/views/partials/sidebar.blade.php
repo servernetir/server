@@ -1,122 +1,48 @@
-<aside class="sidebar-left border-right bg-white shadow" id="leftSidebar" data-simplebar>
-    <a href="#" class="btn collapseSidebar toggle-btn d-lg-none text-muted ml-2 mt-3" data-toggle="toggle">
-        <i class="ti ti-x"></i>
-    </a>
-    <nav class="vertnav navbar navbar-light">
-        <div class="w-100 my-2 d-flex">
-            <a class="navbar-brand mx-auto flex-fill text-center" href="{{ route('home') }}">ServerNet <i class="ti ti-cloud-computing"></i></a>
-        </div>
-        <p class="text-muted nav-heading mt-2 mb-1">
-            <span>Create</span>
-        </p>
-        <ul class="navbar-nav flex-fill mb-2">
-            <li class="nav-item">
-                <a href="{{ route('order.vps') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Virtual server</span>
-                        <span class="badge badge-pill badge-danger ml-4 my-1">-15%</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('order.hi-cpu') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Hi-CPU server</span>
-                        <span class="badge badge-pill badge-danger ml-3 my-1">-15%</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('order.dedicated') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Dedicated server</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('order.domain') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Domain</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('order.vpn') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">VPN</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('order.cp-manager') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Control-panel License</span>
-                    </p>
-                </a>
-            </li>
-        </ul>
-        <p class="text-muted nav-heading mt-3 mb-1">
-            <span>My services</span>
-        </p>
-        <ul class="navbar-nav flex-fill mb-2">
-            <li class="nav-item">
-                <a href="{{ route('services') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Services</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('finances') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Finances</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('referral-system') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Referral system</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('profile') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Settings</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('limits') }}" class="nav-link">
-                    <p class="nav-heading mt-1 mb-1">
-                        <span class="item-text">Limits</span>
-                    </p>
-                </a>
-            </li>
-        </ul>
-        <ul class="navbar-nav fix">
-            <li class="nav-item">
-                <a href="https://server.net/" target="_blank" class="nav-link">
-                    <p class="nav-heading mb-1">
-                        🤓<span class="ml-2 item-text">Support</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="https://server.net/" target="_blank" class="nav-link">
-                    <p class="nav-heading mb-1">
-                        🤖<span class="ml-2 item-text">Terminator</span>
-                    </p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="https://server.net/" target="_blank" class="nav-link">
-                    <p class="nav-heading mb-0">
-                        🌏<span class="ml-2 item-text">server.net</span>
-                    </p>
-                </a>
-            </li>
-        </ul>
-    </nav>
+<aside class="sidebar">
+    <div class="brand"><a href="{{ route('home') }}">SERVERNET</a></div>
+    <div class="section">
+        <div class="section-title">create</div>
+        <nav>
+            <ul class="nav">
+                <li><a class="item" href="{{ route('vps') }}">
+                        <span class="item-title">Virtual server</span>
+                        <span class="badge red">-15%</span>
+                    </a></li>
+                <li><a class="item" href="{{ route('hi-cpu') }}">
+                        <span class="item-title">Hi-CPU server</span>
+                        <span class="badge red">-15%</span>
+                    </a></li>
+                <li><a class="item" href="{{ route('dedicated') }}">
+                        <span class="item-title">Dedicated Server</span>
+                    </a></li>
+                <li><a class="item" href="{{ route('domain') }}">
+                        <span class="item-title">Domain</span>
+                    </a></li>
+                <li><a class="item" href="{{ route('vpn') }}">
+                        <span class="item-title">VPN</span>
+                    </a></li>
+                <li><a class="item" href="{{ route('icense') }}">
+                        <span class="item-title">License</span>
+                        <span class="badge blue">-40%</span>
+                    </a></li>
+            </ul>
+        </nav>
+    </div>
+    <div class="section">
+        <div class="section-title">my services</div>
+        <nav>
+            <ul class="nav">
+                <li><a class="item" href="{{ route('services') }}"><span class="item-title">Services</span></a></li>
+                <li><a class="item" href="{{ route('finances') }}"><span class="item-title">Finances</span></a></li>
+                <li><a class="item" href="{{ route('referral-system') }}"><span class="item-title">Referral system</span></a></li>
+                <li><a class="item" href="{{ route('profile') }}"><span class="item-title">Settings</span></a></li>
+                <li><a class="item" href="{{ route('limits') }}"><span class="item-title">Limits</span></a></li>
+            </ul>
+        </nav>
+    </div>
+    <div class="side-footer">
+        <a class="mini-link" href="https://server.net/">😎 Support</a>
+        <a class="mini-link" href="https://server.net/">🤖 Terminator</a>
+        <a class="mini-link" href="https://server.net/">🌐 aeza.net</a>
+    </div>
 </aside>
