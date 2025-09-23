@@ -140,7 +140,7 @@ input[type=number] {-moz-appearance: textfield;}
 .tab { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 .tab.is-active { border-color: var(--accent-2); box-shadow: var(--ring); }
 .os-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-.os-card {display:flex;flex-direction:column;justify-content:space-between;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease,background .12s ease;min-height:120px;}
+.os-card {display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg, #0f1217, #0c0e12);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease,background .12s ease;min-height:120px;}
 .os-card:hover {border-color:#3a404a;background:#171a20;}
 .os-card input { display: none; }
 .os-card:has(input:checked) {border-color:var(--accent-2);box-shadow:var(--ring);}
@@ -175,6 +175,13 @@ input[type=number] {-moz-appearance: textfield;}
 .btn--primary:active { transform: translateY(1px); }
 .autoprolong { grid-column: 1/-1; justify-self: start; }
 .builder a:focus, .builder button:focus, .builder [role="tab"]:focus, .builder input[type="radio"]:focus + *, .builder input[type="checkbox"]:focus, .builder select:focus { outline: none; box-shadow: var(--ring); }
+fieldset.section {
+  border: none;              /* کل کادر رو حذف کن */
+  border-top: 1px solid var(--line); /* فقط خط بالا بمونه */
+  padding-top: 12px;         /* کمی فاصله بده که متن به خط نچسبه */
+  margin-top: 16px;
+}
+
 @media (max-width: 720px) {
   .plan-card__head { grid-template-columns: 1fr; gap: 6px; }
   .plan-price { text-align: left; }
