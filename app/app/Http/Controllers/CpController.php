@@ -8,6 +8,6 @@ class CpController extends Controller
 {
     public function index()
     {
-        return view('cp-manager');
+        return view('license');
     }
 }

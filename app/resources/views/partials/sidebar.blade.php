@@ -6,11 +6,11 @@
             <ul class="nav">
                 <li><a class="item" href="{{ route('vps') }}">
                         <span class="item-title">Virtual server</span>
-                        <span class="badge red">-15%</span>
+                        <span class="badge--red">-15%</span>
                     </a></li>
                 <li><a class="item" href="{{ route('hi-cpu') }}">
                         <span class="item-title">Hi-CPU server</span>
-                        <span class="badge red">-15%</span>
+                        <span class="badge--red">-15%</span>
                     </a></li>
                 <li><a class="item" href="{{ route('dedicated') }}">
                         <span class="item-title">Dedicated Server</span>
@@ -21,9 +21,9 @@
                 <li><a class="item" href="{{ route('vpn') }}">
                         <span class="item-title">VPN</span>
                     </a></li>
-                <li><a class="item" href="{{ route('icense') }}">
+                <li><a class="item" href="{{ route('license') }}">
                         <span class="item-title">License</span>
-                        <span class="badge blue">-40%</span>
+                        <span class="badge--blue">-40%</span>
                     </a></li>
             </ul>
         </nav>

@@ -45,8 +45,8 @@ Route::middleware('check.login')->group(function () {
         Route::get('/vpn', [VpnController::class, 'index'])->name('vpn');
         Route::get('/vpn-submit', [VpnController::class, 'submit'])->name('vpn.submit');
 
-        Route::get('/icense', [CpController::class, 'index'])->name('icense');
-        Route::get('/icense-submit', [CpController::class, 'submit'])->name('icense.submit');
+        Route::get('/license', [CpController::class, 'index'])->name('license');
+        Route::get('/license-submit', [CpController::class, 'submit'])->name('license.submit');
     });
 
     Route::get('/services', [ServicesController::class, 'index'])->name('services');
