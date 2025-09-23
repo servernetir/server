@@ -166,31 +166,24 @@
     const input = state.planEl?.querySelector('input[name="plan"]');
     if (!input) return null;
     const m = Number(input.dataset.priceMonth || 0);
-    const h = Number(input.dataset.priceHour || 0);
     const monthAddon = Number($('[name="backups"]')?.dataset.addonMonth || (m * 0.2));
-    return { m, h, monthAddon };
+    return { m, monthAddon };
   }
 
   function updateBackupPriceDisplay(plan, months, discount) {
   const out = $('[data-backup-price]');
   if (!out || !plan) return;
 
-  if (state.billing === 'hour') {
-    const hoursInMonth = 30 * 24;
-    const priceHour = plan.monthAddon / hoursInMonth;
-    out.textContent = `${nf2.format(priceHour)} €/hour`;
-  } else {
-    const baseAddon = plan.monthAddon * months;
-    const finalAddon = baseAddon;
-    out.textContent = `${nf2.format(finalAddon)} €`;
-  }
+  const baseAddon = plan.monthAddon * months;
+  const finalAddon = baseAddon;
+  out.textContent = `${nf2.format(finalAddon)} €`;
 }
 
   function computeTotal() {
     const plan = getSelectedPlanNumbers();
     if (!plan) return;
 
-    const monthsMap = { hour: 0, month: 1, '3months': 3, '6months': 6, year: 12 };
+    const monthsMap = { month: 1, '3months': 3, '6months': 6, year: 12 };
     const discount = Number(($(`[name="billing"][value="${state.billing}"]`)?.dataset.discount) || 0);
     const months = monthsMap[state.billing] ?? 1;
 
@@ -198,26 +191,18 @@
     let baseTotalOriginal = 0;
     let addonTotal = 0;
 
-    if (state.billing === 'hour') {
-      const hoursInMonth = 30 * 24;
-      baseTotal = plan.h;
-      addonTotal = state.backups ? (plan.monthAddon / hoursInMonth) : 0;
-    } else {
-      baseTotalOriginal = plan.m * months;
-      baseTotal = baseTotalOriginal * (1 - discount / 100);
-      addonTotal = state.backups ? (plan.monthAddon * months) : 0;
-    }
+    baseTotalOriginal = plan.m * months;
+    baseTotal = baseTotalOriginal * (1 - discount / 100);
+    addonTotal = state.backups ? (plan.monthAddon * months) : 0;
 
-    const totalPerUnit = (state.billing === 'hour')
-      ? (baseTotal + addonTotal)
-      : (baseTotal + addonTotal);
+    const totalPerUnit = baseTotal + addonTotal;
 
     const total = totalPerUnit * state.qty;
 
     const out = $('#total-price');
     if (!out) return;
 
-    if (state.billing !== 'hour' && discount > 0 && months > 1) {
+    if (discount > 0 && months > 1) {
       const totalOriginal = (baseTotalOriginal + addonTotal) * state.qty;
       out.innerHTML =
         `<span class="price-old" style="opacity:.8;margin-inline-end:.5rem;"><s>${nf2.format(totalOriginal)} €</s></span>` +

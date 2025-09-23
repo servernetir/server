@@ -181,7 +181,7 @@
     out.textContent = `${nf2.format(priceHour)} €/hour`;
   } else {
     const baseAddon = plan.monthAddon * months;
-    const finalAddon = baseAddon; // بکاپ تخفیف نمی‌خوره
+    const finalAddon = baseAddon;
     out.textContent = `${nf2.format(finalAddon)} €`;
   }
 }
