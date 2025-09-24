@@ -38,9 +38,8 @@ Route::middleware('check.login')->group(function () {
         Route::get('/dedicated', [DedicatedController::class, 'index'])->name('dedicated');
 
         Route::get('/domain', [DomainController::class, 'index'])->name('domain');
-        Route::post('/domain/order', [DomainController::class, 'submit'])->name('domain.submit');
-        Route::get('/api/domain/check', [DomainController::class, 'check'])->name('api.domain.check');
-        Route::post('/api/domain/bulk-check', [DomainController::class, 'bulkCheck'])->name('api.domain.bulk');
+        Route::post('/domain/check', [DomainController::class, 'check'])->name('domain.check');
+        Route::post('/domain/order', [DomainController::class, 'order'])->name('domain.order');
 
         Route::get('/vpn', [VpnController::class, 'index'])->name('vpn');
         Route::get('/vpn-submit', [VpnController::class, 'submit'])->name('vpn.submit');

@@ -14,6 +14,12 @@ return [
     |
     */
 
+    'domain' => [
+        'provider' => env('DOMAIN_API_PROVIDER', 'domainr'),
+        'rapidapi_key' => env('RAPIDAPI_KEY'),
+        'rapidapi_host' => env('RAPIDAPI_HOST', 'domainr.p.rapidapi.com'),
+    ],
+
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
@@ -53,5 +59,3 @@ return [
     ],
 
 ];
-
-
