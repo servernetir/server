@@ -15,6 +15,9 @@
                 <li><a class="item" href="{{ route('dedicated') }}">
                         <span class="item-title">Dedicated Server</span>
                     </a></li>
+                <li><a class="item" href="{{ route('host') }}">
+                        <span class="item-title">Host</span>
+                    </a></li>
                 <li><a class="item" href="{{ route('domain') }}">
                         <span class="item-title">Domain</span>
                     </a></li>

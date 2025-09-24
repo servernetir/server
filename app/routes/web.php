@@ -5,6 +5,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VpsController;
 use App\Http\Controllers\HicpuController;
+use App\Http\Controllers\HostController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DedicatedController;
 use App\Http\Controllers\VpnController;
@@ -36,6 +37,8 @@ Route::middleware('check.login')->group(function () {
         Route::get('/hi-cpu', [HicpuController::class, 'index'])->name('hi-cpu');
 
         Route::get('/dedicated', [DedicatedController::class, 'index'])->name('dedicated');
+
+        Route::get('/host', [HostController::class, 'index'])->name('host');
 
         Route::get('/domain', [DomainController::class, 'index'])->name('domain');
         Route::post('/domain/check', [DomainController::class, 'check'])->name('domain.check');

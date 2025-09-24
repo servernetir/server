@@ -13,7 +13,7 @@
   --chip: #1a1e24;
   --chip-line: #2b313a;
   --warning: #f59e0b;
-  --hover: #1f2430a9;
+  --hover: #20637ea9;
   --badge-red: #ff003d;
   --badge-blue: #5aa9ff;
   --radius-s: 8px;
@@ -78,7 +78,6 @@ input[type=number] {-moz-appearance: textfield;}
 @media (max-width: 800px) { .cards { grid-template-columns: repeat(2, 1fr); } }
 .header { margin-bottom: 18px; }
 .title { margin: 0 0 8px 0; font-size: clamp(26px, 2.8vw, 40px); font-weight: 800; }
-.section { margin: 18px 0; }
 .legend, .label, .subtitle { font-weight: 700; }
 .legend { margin-bottom: 12px; font-size: 16px; }
 .label { display: block; margin-bottom: 8px; color: var(--text); }
@@ -113,7 +112,6 @@ input[type=number] {-moz-appearance: textfield;}
 .price { font-size: 18px; font-weight: 800; }
 .price--small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .specs { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { display: inline-block; background: var(--chip); border: 1px solid var(--chip-line); padding: 6px 10px; border-radius: 999px; font-size: 13px; color: #d2d7e1; }
 .tabs { display: inline-flex; gap: 8px; margin-bottom: 12px; }
 .tab { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 .tab.is-active { border-color: var(--accent-2); box-shadow: var(--ring); }
