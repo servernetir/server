@@ -35,11 +35,11 @@
         <div class="section-title">my services</div>
         <nav>
             <ul class="nav">
-                <li><a class="item" href="{{ route('services') }}"><span class="item-title">Services</span></a></li>
+                <li><a class="item" href="{{ route('home') }}"><span class="item-title">Services</span></a></li>
                 <li><a class="item" href="{{ route('finances') }}"><span class="item-title">Finances</span></a></li>
-                <li><a class="item" href="{{ route('referral-system') }}"><span class="item-title">Referral system</span></a></li>
                 <li><a class="item" href="{{ route('profile') }}"><span class="item-title">Settings</span></a></li>
-                <li><a class="item" href="{{ route('limits') }}"><span class="item-title">Limits</span></a></li>
+                {{-- <li><a class="item" href="{{ route('referral-system') }}"><span class="item-title">Referral system</span></a></li> --}}
+                {{-- <li><a class="item" href="{{ route('limits') }}"><span class="item-title">Limits</span></a></li> --}}
             </ul>
         </nav>
     </div>

@@ -269,9 +269,9 @@
             </div>
             <!-- Preinstalled apps -->
             <div id="apps-list" class="apps-grid" role="tabpanel" aria-labelledby="Preinstalled programs" hidden>
-                <label class="check"><input type="checkbox" name="apps[]" value="docker" /><span>Docker</span></label>
-                <label class="check"><input type="checkbox" name="apps[]" value="lamp" /><span>LAMP stack</span></label>
-                <label class="check"><input type="checkbox" name="apps[]" value="wireguard" /><span>WireGuard VPN</span></label>
+                <label class="check"><input type="checkbox" name="apps[]" value="docker" /><span>Docker</span></label><br>
+                <label class="check"><input type="checkbox" name="apps[]" value="lamp" /><span>LAMP stack</span></label><br>
+                <label class="check"><input type="checkbox" name="apps[]" value="wireguard" /><span>WireGuard VPN</span></label><br>
                 <label class="check"><input type="checkbox" name="apps[]" value="hestiacp" /><span>HestiaCP</span></label>
             </div>
             <p class="note" data-os-note>

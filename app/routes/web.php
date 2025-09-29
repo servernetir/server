@@ -11,7 +11,7 @@ use App\Http\Controllers\DedicatedController;
 use App\Http\Controllers\VpnController;
 use App\Http\Controllers\CpController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ServicesController;
+// use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\FinancesController;
 use App\Http\Controllers\ReferralSystemController;
 use App\Http\Controllers\LimitsController;
@@ -19,6 +19,8 @@ use App\Http\Controllers\LimitsController;
 Route::get('/login', [LoginController::class, 'index'])->name('login');
 Route::post('/login', [LoginController::class, 'auth'])->name('auth');
 Route::post('/register', [LoginController::class, 'register'])->name('register');
+Route::post('/verify', [LoginController::class,'verifyCode'])->name('verify.post');
+Route::post('/verify/resend', [LoginController::class,'resendCode'])->name('verify.resend');
 
 Route::middleware('check.login')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -51,7 +53,7 @@ Route::middleware('check.login')->group(function () {
         Route::get('/license-submit', [CpController::class, 'submit'])->name('license.submit');
     });
 
-    Route::get('/services', [ServicesController::class, 'index'])->name('services');
+    // Route::get('/services', [ServicesController::class, 'index'])->name('services');
     Route::get('/finances', [FinancesController::class, 'index'])->name('finances');
     Route::get('/referral-system', [ReferralSystemController::class, 'index'])->name('referral-system');
     Route::get('/limits', [LimitsController::class, 'index'])->name('limits');
