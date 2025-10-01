@@ -33,9 +33,9 @@
             </button>
             <p class="or">Or continue with</p>
             <div class="socials">
-                <a class="social google"><i class="fab fa-google"></i></a>
-                <a class="social facebook"><i class="fab fa-facebook-f"></i></a>
-                <a class="social"><i class="fab fa-x-twitter"></i></a>
+                <a class="social google" href="{{ url('auth/google') }}"><i class="fab fa-google"></i></a>
+                <a class="social facebook" href="{{ url('auth/facebook') }}"><i class="fab fa-facebook-f"></i></a>
+                <a class="social twitter" href="{{ url('auth/twitter') }}"><i class="fab fa-x-twitter"></i></a>
             </div>
         </form>
         <!-- Register Form -->
@@ -51,9 +51,9 @@
             </button>
             <p class="or">Or sign up with</p>
             <div class="socials">
-                <a class="social google"><i class="fab fa-google"></i></a>
-                <a class="social facebook"><i class="fab fa-facebook-f"></i></a>
-                <a class="social"><i class="fab fa-x-twitter"></i></a>
+                <a class="social google" href="{{ url('auth/google') }}"><i class="fab fa-google"></i></a>
+                <a class="social facebook" href="{{ url('auth/facebook') }}"><i class="fab fa-facebook-f"></i></a>
+                <a class="social twitter" href="{{ url('auth/twitter') }}"><i class="fab fa-x-twitter"></i></a>
             </div>
         </form>
 

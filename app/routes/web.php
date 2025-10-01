@@ -14,6 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\FinancesController;
 use App\Http\Controllers\ReferralSystemController;
 use App\Http\Controllers\LimitsController;
+use App\Http\Controllers\SocialController;
 
 Route::get('/login', [LoginController::class, 'index'])->name('login');
 Route::post('/register/start', [LoginController::class, 'startRegistration'])->name('register.start');
@@ -22,6 +23,8 @@ Route::post('/register/resend', [LoginController::class, 'resendCode'])->name('r
 Route::post('/register/cancel', [LoginController::class, 'cancelVerification'])->name('register.cancel');
 
 Route::post('/login', [LoginController::class, 'loginExisting'])->name('auth');
+Route::get('auth/{provider}', [SocialController::class, 'redirect']);
+Route::get('auth/{provider}/callback', [SocialController::class, 'callback']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('check.login')->group(function () {
