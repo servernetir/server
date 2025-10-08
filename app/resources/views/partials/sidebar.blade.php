@@ -44,8 +44,8 @@
         </nav>
     </div>
     <div class="side-footer">
-        <a class="mini-link" href="https://server.net/">😎 Support</a>
-        <a class="mini-link" href="https://server.net/">🤖 Terminator</a>
-        <a class="mini-link" href="https://server.net/">🌐 aeza.net</a>
+        <a class="mini-link">😎 Support</a>
+        <a class="mini-link" href="https://servernet.cloud/">🤖 Terminator</a>
+        <a class="mini-link" href="https://servernet.cloud/">🌐 servernet.cloud</a>
     </div>
 </aside>

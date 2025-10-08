@@ -58,4 +58,10 @@ return [
         'token' => env('HETZNER_API_TOKEN'),
     ],
 
+    'whmcs' => [
+        'url'         => env('WHMCS_URL', env('WHMCS_URL')),
+        'identifier'  => env('WHMCS_IDENTIFIER', env('WHMCS_IDENTIFIER')),
+        'secret'      => env('WHMCS_SECRET', env('WHMCS_SECRET')),
+    ],
+
 ];
