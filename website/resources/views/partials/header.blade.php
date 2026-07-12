@@ -111,7 +111,7 @@
       <div class="container">
         <div class="drop-grid cols-3">
           @foreach($toolsMenu as $t)
-          <a class="drop-card" href="#">
+          <a class="drop-card" href="{{ isset($t['slug']) ? lroute('tools', $t['slug']) : '#' }}">
             <span class="dc-icon tool"><svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg></span>
             <span class="dc-txt"><b>{{ lc($t)['t'] }} <span class="free-badge">{{ __('ui.nav_free') }}</span></b><small>{{ lc($t)['d'] }}</small></span>
           </a>
@@ -168,7 +168,7 @@
     <div class="acc">
       <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-zap"/></svg></span>{{ __('ui.nav_tools') }}<span class="free-badge">{{ __('ui.nav_free') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
-        @foreach($toolsMenu as $t)<a href="#"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endforeach
+        @foreach($toolsMenu as $t)<a href="{{ isset($t['slug']) ? lroute('tools', $t['slug']) : '#' }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endforeach
       </div></div>
     </div>
     <div class="acc">

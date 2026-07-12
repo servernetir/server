@@ -338,11 +338,11 @@ return [
     |----------------------------------------------------------------------
     */
     'tools_menu' => [
-        ['icon' => 'gauge',      'fa' => ['t' => 'بررسی سئو سایت', 'd' => 'تحلیل رایگان سئو و سرعت وب‌سایت شما'],          'en' => ['t' => 'SEO Analyzer', 'd' => 'Free SEO & speed analysis for any site'],            'tr' => ['t' => 'SEO Analizi', 'd' => 'Siteniz için ücretsiz SEO ve hız analizi']],
-        ['icon' => 'monitor',    'fa' => ['t' => 'ریموت آنلاین', 'd' => 'اتصال از راه دور به سیستم‌ها از طریق مرورگر'],    'en' => ['t' => 'Online Remote', 'd' => 'Remote access to systems from your browser'],       'tr' => ['t' => 'Online Uzak Erişim', 'd' => 'Tarayıcıdan sistemlere uzaktan bağlanın']],
-        ['icon' => 'video',      'fa' => ['t' => 'جلسات آنلاین', 'd' => 'برگزاری جلسات ویدیویی بدون نصب نرم‌افزار'],       'en' => ['t' => 'Online Meetings', 'd' => 'Video meetings with zero installation'],          'tr' => ['t' => 'Online Toplantı', 'd' => 'Kurulum gerektirmeyen görüntülü toplantılar']],
-        ['icon' => 'smartphone', 'fa' => ['t' => 'اپلیکیشن‌ساز', 'd' => 'ساخت اپلیکیشن موبایل بدون کدنویسی'],              'en' => ['t' => 'App Builder', 'd' => 'Build mobile apps without code'],                     'tr' => ['t' => 'Uygulama Oluşturucu', 'd' => 'Kod yazmadan mobil uygulama oluşturun']],
-        ['icon' => 'search',     'fa' => ['t' => 'ابزار Whois', 'd' => 'اطلاعات دامنه‌ها و آدرس‌های IP'],                   'en' => ['t' => 'Whois Lookup', 'd' => 'Domain & IP address information'],                   'tr' => ['t' => 'Whois Sorgu', 'd' => 'Alan adı ve IP adresi bilgileri']],
+        ['icon' => 'gauge',      'slug' => 'seo',         'fa' => ['t' => 'بررسی سئو و سلامت سایت', 'd' => 'تحلیل رایگان سئو، سرعت، امنیت و موبایل'], 'en' => ['t' => 'SEO & Site Checker', 'd' => 'Free SEO, speed, security & mobile analysis'], 'tr' => ['t' => 'SEO ve Site Denetleyici', 'd' => 'Ücretsiz SEO, hız ve güvenlik analizi']],
+        ['icon' => 'search',     'slug' => 'whois',       'fa' => ['t' => 'استعلام Whois', 'd' => 'اطلاعات کامل ثبت هر دامنه'],                       'en' => ['t' => 'Whois Lookup', 'd' => 'Full registration data for any domain'],          'tr' => ['t' => 'Whois Sorgu', 'd' => 'Her alan adının tam kayıt verisi']],
+        ['icon' => 'globe',      'slug' => 'ip',          'fa' => ['t' => 'بررسی IP', 'd' => 'موقعیت، ISP و اطلاعات کامل هر IP'],                     'en' => ['t' => 'IP Checker', 'd' => 'Location, ISP and full details of any IP'],          'tr' => ['t' => 'IP Sorgu', 'd' => 'Her IP\'nin konumu ve detayları']],
+        ['icon' => 'video',      'slug' => 'meet',        'fa' => ['t' => 'جلسات آنلاین', 'd' => 'ویدیوکنفرانس امن بدون نصب نرم‌افزار'],              'en' => ['t' => 'Online Meetings', 'd' => 'Secure video meetings, zero installation'],      'tr' => ['t' => 'Online Toplantı', 'd' => 'Kurulumsuz güvenli görüntülü toplantı']],
+        ['icon' => 'smartphone', 'slug' => 'app-builder', 'fa' => ['t' => 'اپلیکیشن‌ساز', 'd' => 'ساخت اپ اندروید و iOS بدون کدنویسی'],               'en' => ['t' => 'App Builder', 'd' => 'Build Android & iOS apps without code'],             'tr' => ['t' => 'Uygulama Oluşturucu', 'd' => 'Kodsuz Android ve iOS uygulaması']],
     ],
 
     /*
