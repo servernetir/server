@@ -1,0 +1,106 @@
+<?php
+
+return [
+    'meta_title' => 'ServerNet Cloud — Bulut Altyapısı, Hosting ve Kurumsal Çözümler',
+    'meta_desc'  => 'ServerNet; bulut sunucular, VPS, fiziksel sunucular, web hosting, alan adları ve kurumsal altyapıyı 11+ veri merkezinde 7/24 uzman desteğiyle sunar.',
+
+    'skip' => 'İçeriğe atla',
+
+    'topbar_support' => '7/24 Destek',
+    'topbar_status'  => 'Tüm sistemler çalışıyor',
+
+    'nav_hosting' => 'Hosting', 'nav_servers' => 'Sunucular', 'nav_domains' => 'Alan Adları',
+    'nav_enterprise' => 'Kurumsal', 'nav_support' => 'Destek', 'nav_login' => 'Müşteri Paneli',
+
+    'hero_badge' => "2009'dan beri · 11+ veri merkezi · %99,9 uptime",
+    'hero_h1a' => 'Büyümenizi güçlendiren', 'hero_h1b' => 'altyapı.',
+    'hero_lead' => "Yüksek performanslı bulut sunucular ve hosting'den fabrikalar ve kuruluşlar için kurumsal altyapıya — güvenli, ölçeklenebilir ve 7/24 uzman destekli.",
+    'hero_cta1' => 'Paketleri Gör', 'hero_cta2' => 'Kurumsal Çözümler',
+    'hero_domain_ph' => 'Alan adınızı bulun — sirketim.com', 'hero_domain_btn' => 'Ara',
+    'stat_years' => 'Yıllık deneyim', 'stat_services' => 'Teslim edilen hizmet', 'stat_dc' => 'Veri merkezi', 'stat_uptime' => 'Uptime SLA',
+
+    'logos_label' => "10.000+ işletmenin güvendiği",
+
+    'prod_badge' => 'Ürünler', 'prod_title' => 'İşletmenizin online ihtiyacı olan her şey',
+    'prod_sub' => 'Hosting, sunucu, alan adı ve bulut için tek sağlayıcı — şeffaf fiyatlarla.',
+    'from' => 'başlangıç', 'mo' => '/ay', 'order' => 'Sipariş ver',
+
+    'vps_badge' => 'Bulut VPS', 'vps_title' => 'Yüksek performans, dürüst fiyatlar',
+    'vps_sub' => 'NVMe depolama, anında kurulum, İran ve Avrupa lokasyonları.',
+    'popular' => 'En popüler', 'traffic' => 'Trafik', 'choose' => 'Paketi seç',
+
+    'ent_badge' => 'Kurumsal', 'ent_title' => 'Kuruluşlar için altyapı ve dijital dönüşüm',
+    'ent_sub' => 'Uzmanlığımız: her ölçekte fabrika, şirket ve kuruluş için altyapı tedariki ve kurulumu.',
+    'ent_cta' => 'Çözüm ekibiyle görüşün',
+
+    'why_badge' => 'Neden ServerNet', 'why_title' => 'Güvenilirlik bizim itibarımızdır',
+    'loc_title' => 'Küresel veri merkezi lokasyonları',
+    'faq_badge' => 'SSS', 'faq_title' => 'Sıkça sorulan sorular',
+
+    'cta_title' => 'Başlamaya hazır mısınız? Biz barındırmaya hazırız.',
+    'cta_sub' => 'Ücretsiz uzman danışmanlığı alın — veya ilk hizmetinizi dakikalar içinde başlatın.',
+    'cta_btn' => 'Hemen Başla',
+
+    'f_about' => "ServerNet, 2009'dan beri kuruluşlara hosting, tasarım, uygulama ve altyapı desteği sunuyor — hızlı, profesyonel ve ihtiyacınıza özel.",
+    'f_products' => 'Ürünler', 'f_p1' => 'Web Hosting', 'f_p2' => 'VPS', 'f_p3' => 'Fiziksel Sunucu', 'f_p4' => 'Alan Adı', 'f_p5' => 'Bulut Hizmetleri',
+    'f_solutions' => 'Çözümler', 'f_s1' => 'Kurumsal Altyapı', 'f_s2' => 'AI Ajanları', 'f_s3' => 'BPMN & ERP', 'f_s4' => 'Web Tasarım', 'f_s5' => 'SEO Hizmetleri',
+    'f_contact' => 'Bize ulaşın',
+    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli',
+    'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
+
+    'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Ücretsiz Araçlar',
+    'nav_knowledge' => 'Bilgi Merkezi', 'nav_contact' => 'İletişim', 'nav_free' => 'ÜCRETSİZ',
+    'mega_cta' => 'Ücretsiz satın alma danışmanlığı', 'mega_note' => 'Anında aktivasyon · 7/24 destek',
+    'menu' => 'Menü',
+
+    'domain_title' => 'Kaydetmek veya transfer etmek istediğiniz alan adını girin',
+    'domain_ph' => 'sirketim.com',
+    'domain_btn' => 'Sorgula',
+    'domain_checking' => 'Uygunluk kontrol ediliyor…',
+    'domain_free' => 'kayıt için uygun!',
+    'domain_taken' => 'zaten kayıtlı',
+    'domain_suggest' => 'Bu uzantılar kayıt için uygun:',
+    'domain_cart' => 'Sepete ekle',
+    'domain_year' => '/ yıl',
+    'domain_error' => 'Sorgu başarısız oldu; lütfen tekrar deneyin.',
+
+    'bill_monthly' => 'Aylık',
+    'bill_yearly' => 'Yıllık',
+    'bill_save' => '%:percent İNDİRİM',
+    'bill_yearly_note' => '/ay · yıllık ödeme',
+
+    'brand' => 'ServerNet Cloud',
+
+    /* Hosting sayfaları */
+    'hp_consult' => 'Ücretsiz danışmanlık',
+    'hp_plans_badge' => 'Planlar ve fiyatlar',
+    'hp_plans_title' => 'Size uygun planı seçin',
+    'hp_plans_sub' => 'İstediğiniz an kesintisiz yükseltin — yıllık ödemede %20 daha az ödeyin.',
+    'hp_inc_title' => 'Tüm planlara dahil:',
+    'hp_inc1' => 'Ücretsiz SSL',
+    'hp_inc2' => 'Günlük yedekleme',
+    'hp_inc3' => 'Anında aktivasyon',
+    'hp_inc4' => 'Ücretsiz taşıma',
+    'hp_inc5' => '14 gün para iade garantisi',
+    'hp_inc6' => '7/24 destek',
+    'hp_feat_badge' => 'Özellikler',
+    'hp_feat_title' => 'Neden ServerNet :name?',
+    'hp_infra_badge' => 'Altyapı',
+    'hp_infra_title' => 'Dünya çapında Grade-1 veri merkezi sınıfı',
+    'hp_infra_sub' => 'Hizmetiniz, İran ve Avrupa\'daki Tier III+ veri merkezlerinde son nesil donanım üzerinde çalışır — ServerNet mühendisleri tarafından 7/24 izlenir.',
+    'hp_infra1' => 'Sertifikalı veri merkezleri',
+    'hp_infra2' => 'Yüksek hızlı depolama',
+    'hp_infra3' => 'SLA ile çalışma süresi',
+    'hp_infra4' => 'Saldırı koruması',
+    'hp_related_title' => 'ServerNet\'in diğer hizmetleri',
+    'hp_sig_badge' => 'Neden ServerNet',
+    'hp_contact_price' => 'Satışla iletişime geçin',
+
+    'chat_title' => 'ServerNet AI Asistanı',
+    'chat_online' => 'Çevrimiçi — saniyeler içinde yanıt',
+    'chat_hello' => 'Merhaba! 👋 Ben ServerNet AI asistanıyım. Hosting, sunucular, alan adları veya fiyatlar hakkında bana sorabilirsiniz.',
+    'chat_ph' => 'Mesajınızı yazın…',
+    'chat_send' => 'Gönder',
+    'chat_error' => 'Bir sorun oluştu; lütfen tekrar deneyin.',
+    'chat_open' => 'AI asistanla sohbet et',
+];
