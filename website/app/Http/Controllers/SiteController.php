@@ -35,6 +35,50 @@ class SiteController extends Controller
         ]);
     }
 
+    public function page(string $slug): View
+    {
+        $pages = config('pages');
+        abort_unless(isset($pages[$slug]), 404);
+
+        return view('pages.content', ['slug' => $slug, 'page' => $pages[$slug]]);
+    }
+
+    public function sitemap(): \Illuminate\Http\Response
+    {
+        $locales = \App\Providers\AppServiceProvider::LOCALES;
+        $urls = [];
+        $add = function (string $name, string|array $params = []) use (&$urls, $locales) {
+            foreach ($locales as $prefix) {
+                $urls[] = route($prefix.$name, $params);
+            }
+        };
+
+        $add('home');
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms'] as $n) {
+            $add($n);
+        }
+        foreach (['seo', 'whois', 'ip', 'meet', 'app-builder'] as $slug) {
+            $add('tools', $slug);
+        }
+        foreach (array_keys(config('hosting.products')) as $slug) {
+            $add('hosting', $slug);
+        }
+        foreach (config('catalog') as $category => $products) {
+            foreach (array_keys($products) as $slug) {
+                $add('catalog', ['category' => $category, 'slug' => $slug]);
+            }
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
+            .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+        foreach ($urls as $u) {
+            $xml .= '  <url><loc>'.htmlspecialchars($u, ENT_XML1).'</loc></url>'."\n";
+        }
+        $xml .= '</urlset>'."\n";
+
+        return response($xml, 200, ['Content-Type' => 'application/xml']);
+    }
+
     /** قیمت زنده از WHMCS؛ اگر API تنظیم/در دسترس نبود، نمونه‌های config */
     private function tlds(): array
     {

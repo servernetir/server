@@ -199,6 +199,11 @@ return [
     'tl_app_cta_t' => 'Uygulama oluşturucuyu satmak ister misiniz?',
     'tl_app_cta_d' => 'Oluşturucuyu kendi markanızla satın ve yinelenen gelir oluşturun — bayilik şartlarını sorun.',
 
+    /* 404 sayfası */
+    'e404_h1a' => 'Bu sayfa', 'e404_h1b' => 'bulunamadı.',
+    'e404_lead' => 'Aradığınız adres taşınmış veya kaldırılmış görünüyor. Endişelenmeyin — altyapımızın geri kalanı tam yerinde.',
+    'e404_home' => 'Ana sayfaya dön',
+
     'chat_title' => 'ServerNet AI Asistanı',
     'chat_online' => 'Çevrimiçi — saniyeler içinde yanıt',
     'chat_hello' => 'Merhaba! 👋 Ben ServerNet AI asistanıyım. Hosting, sunucular, alan adları veya fiyatlar hakkında bana sorabilirsiniz.',

@@ -17,6 +17,9 @@ $site = function (): void {
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
+    Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
+    Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
+    Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
 
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit');
@@ -31,3 +34,5 @@ $site = function (): void {
 Route::middleware('locale:fa')->group($site);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
+
+Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);

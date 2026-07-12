@@ -13,11 +13,11 @@
       <div class="f-col">
         <h5 class="f-head">{{ __('ui.f_products') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
-          <a href="{{ $homeUrl }}#products">{{ __('ui.f_p1') }}</a>
-          <a href="{{ $homeUrl }}#pricing">{{ __('ui.f_p2') }}</a>
-          <a href="{{ $homeUrl }}#products">{{ __('ui.f_p3') }}</a>
-          <a href="{{ $homeUrl }}#products">{{ __('ui.f_p4') }}</a>
-          <a href="{{ $homeUrl }}#products">{{ __('ui.f_p5') }}</a>
+          <a href="{{ lroute('hosting', 'linux') }}">{{ __('ui.f_p1') }}</a>
+          <a href="{{ lroute('catalog', ['category'=>'vps','slug'=>'iran']) }}">{{ __('ui.f_p2') }}</a>
+          <a href="{{ lroute('catalog', ['category'=>'dedicated','slug'=>'iran']) }}">{{ __('ui.f_p3') }}</a>
+          <a href="{{ lroute('catalog', ['category'=>'domain','slug'=>'popular-tlds']) }}">{{ __('ui.f_p4') }}</a>
+          <a href="{{ lroute('catalog', ['category'=>'cloud','slug'=>'iaas']) }}">{{ __('ui.f_p5') }}</a>
         </div></div>
       </div>
       <div class="f-col">
@@ -34,9 +34,9 @@
         <h5 class="f-head">{{ __('ui.f_company') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
           <a href="{{ $homeUrl }}#contact">{{ __('ui.f_c2') }}</a>
-          <a href="#">{{ __('ui.f_c1') }}</a>
-          <a href="#">{{ __('ui.f_c3') }}</a>
-          <a href="#">{{ __('ui.f_c4') }}</a>
+          <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
+          <a href="{{ lroute('knowledge') }}#blog">{{ __('ui.f_c3') }}</a>
+          <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           <a href="{{ whmcs_url('clientarea.php') }}">{{ __('ui.f_c5') }}</a>
         </div></div>
       </div>

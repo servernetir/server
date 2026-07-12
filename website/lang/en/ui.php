@@ -199,6 +199,11 @@ return [
     'tl_app_cta_t' => 'Want to resell the app builder?',
     'tl_app_cta_d' => 'Sell the builder under your own brand and build recurring revenue — ask us about reseller terms.',
 
+    /* 404 page */
+    'e404_h1a' => 'This page', 'e404_h1b' => 'was not found.',
+    'e404_lead' => "The URL you were looking for seems to have moved or been removed. Don't worry — the rest of our infrastructure is right where it should be.",
+    'e404_home' => 'Back to home',
+
     'chat_title' => 'ServerNet AI Assistant',
     'chat_online' => 'Online — replies in seconds',
     'chat_hello' => "Hi! 👋 I'm the ServerNet AI assistant. Ask me about hosting, servers, domains or pricing.",
