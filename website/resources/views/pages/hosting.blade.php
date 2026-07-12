@@ -31,6 +31,11 @@
   </div>
 </section>
 
+{{-- ============ AI SITE BUILDER (المان اختصاصی صفحه سایت‌ساز) ============ --}}
+@if(($product['signature']['type'] ?? '') === 'ai-builder')
+  @include('partials.sig-ai-builder', ['product' => $product])
+@endif
+
 {{-- ============ PLANS ============ --}}
 <section class="section" id="pricing" style="padding-top:30px">
   <div class="container">
@@ -113,11 +118,13 @@
 
 {{-- ============ SIGNATURE (المان اختصاصی هر محصول) ============ --}}
 @isset($product['signature'])
+@if($product['signature']['type'] !== 'ai-builder')
 <section class="section" style="padding-top:0">
   <div class="container">
     @includeIf('partials.sig-'.$product['signature']['type'], ['sig' => $product['signature']])
   </div>
 </section>
+@endif
 @endisset
 
 {{-- ============ INFRASTRUCTURE ============ --}}

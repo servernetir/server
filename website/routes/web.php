@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiBuilderController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
@@ -29,6 +30,8 @@ $site = function (): void {
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat');
     Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check');
+    Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat');
+    Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save');
 };
 
 Route::middleware('locale:fa')->group($site);

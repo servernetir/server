@@ -23,7 +23,8 @@ return [
         'tr' => ['t' => 'Site Oluşturucu', 'tag' => 'Kodsuz · Bir günde yayında',
             'hero_t' => 'Tek satır kod yazmadan', 'hero_g' => 'profesyonel bir site.',
             'hero_d' => 'Hazır şablonlar ve sürükle-bırak editörle şirket veya mağaza sitenizi bugün açın — hosting, alan adı ve SSL dahil.'],
-        'chips' => ['Drag & Drop', '100+ RTL Templates', 'SEO-Ready', 'Free SSL + Hosting', 'Mobile Perfect'],
+        'chips' => ['AI Builder', 'Drag & Drop', '100+ RTL Templates', 'SEO-Ready', 'Free SSL + Hosting'],
+        'signature' => ['type' => 'ai-builder'],
         'plans' => [
             $mk('Personal', 210, 290000, 2.90, [
                 ['fa' => 'قالب‌های شخصی و رزومه', 'en' => 'Personal & resume templates', 'tr' => 'Kişisel ve özgeçmiş şablonları'],

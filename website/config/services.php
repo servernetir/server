@@ -44,4 +44,12 @@ return [
         'key' => env('PAGESPEED_API_KEY'),
     ],
 
+    // سازنده سایت با هوش مصنوعی (GapGPT، سازگار با OpenAI)
+    'gapgpt' => [
+        'key'       => env('GAPGPT_API_KEY'),
+        'base'      => env('GAPGPT_BASE_URL', 'https://api.gapgpt.app/v1'),
+        'model'     => env('GAPGPT_BUILDER_MODEL', 'claude-sonnet-5'),
+        'model_pro' => env('GAPGPT_BUILDER_MODEL_PRO', 'claude-opus-4-8'),
+    ],
+
 ];
