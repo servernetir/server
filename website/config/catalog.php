@@ -13,4 +13,5 @@ return [
     'dedicated' => require __DIR__.'/catalog/dedicated.php',
     'cloud'     => require __DIR__.'/catalog/cloud.php',
     'domain'    => require __DIR__.'/catalog/domain.php',
+    'services'  => require __DIR__.'/catalog/services.php',
 ];

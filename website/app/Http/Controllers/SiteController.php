@@ -21,6 +21,20 @@ class SiteController extends Controller
         ]);
     }
 
+    public function contact(): View
+    {
+        return view('pages.contact', [
+            'faqs' => config('servernet.faqs'),
+        ]);
+    }
+
+    public function knowledge(): View
+    {
+        return view('pages.knowledge', [
+            'kb' => config('knowledge'),
+        ]);
+    }
+
     /** قیمت زنده از WHMCS؛ اگر API تنظیم/در دسترس نبود، نمونه‌های config */
     private function tlds(): array
     {

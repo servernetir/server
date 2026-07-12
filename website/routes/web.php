@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\Route;
 $site = function (): void {
     Route::get('/', [SiteController::class, 'home'])->name('home');
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
+    Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
+    Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
-        ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain'])->where('slug', '[a-z0-9-]+');
+        ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat');
     Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check');
 };

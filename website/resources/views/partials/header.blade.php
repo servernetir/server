@@ -44,7 +44,7 @@
         <div class="nav-item" data-menu="knowledge">
           <button class="nav-link" aria-expanded="false">{{ __('ui.nav_knowledge') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
         </div>
-        <a class="nav-link" href="{{ $homeUrl }}#contact">{{ __('ui.nav_contact') }}</a>
+        <a class="nav-link" href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>
       </nav>
 
       <div class="header-actions">
@@ -97,7 +97,7 @@
       <div class="container">
         <div class="drop-grid cols-3">
           @foreach($servicesMenu as $s)
-          <a class="drop-card" href="#">
+          <a class="drop-card" href="{{ isset($s['slug']) ? (($s['cat'] ?? null) === 'hosting' ? lroute('hosting', $s['slug']) : lroute('catalog', ['category' => 'services', 'slug' => $s['slug']])) : '#' }}">
             <span class="dc-icon"><svg class="icon"><use href="#i-{{ $s['icon'] }}"/></svg></span>
             <span class="dc-txt"><b>{{ lc($s)['t'] }}</b><small>{{ lc($s)['d'] }}</small></span>
           </a>
@@ -125,7 +125,7 @@
       <div class="container">
         <div class="drop-grid cols-3">
           @foreach($knowledgeMenu as $k)
-          <a class="drop-card" href="#">
+          <a class="drop-card" href="{{ lroute('knowledge').(isset($k['anchor']) ? '#'.$k['anchor'] : '') }}">
             <span class="dc-icon know"><svg class="icon"><use href="#i-{{ $k['icon'] }}"/></svg></span>
             <span class="dc-txt"><b>{{ lc($k)['t'] }}</b><small>{{ lc($k)['d'] }}</small></span>
           </a>
@@ -162,7 +162,7 @@
     <div class="acc">
       <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-wrench"/></svg></span>{{ __('ui.nav_services') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
-        @foreach($servicesMenu as $s)<a href="#"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $s['icon'] }}"/></svg>{{ lc($s)['t'] }}</b><small>{{ lc($s)['d'] }}</small></a>@endforeach
+        @foreach($servicesMenu as $s)<a href="{{ isset($s['slug']) ? (($s['cat'] ?? null) === 'hosting' ? lroute('hosting', $s['slug']) : lroute('catalog', ['category' => 'services', 'slug' => $s['slug']])) : '#' }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $s['icon'] }}"/></svg>{{ lc($s)['t'] }}</b><small>{{ lc($s)['d'] }}</small></a>@endforeach
       </div></div>
     </div>
     <div class="acc">
@@ -174,10 +174,10 @@
     <div class="acc">
       <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-book"/></svg></span>{{ __('ui.nav_knowledge') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
-        @foreach($knowledgeMenu as $k)<a href="#"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $k['icon'] }}"/></svg>{{ lc($k)['t'] }}</b><small>{{ lc($k)['d'] }}</small></a>@endforeach
+        @foreach($knowledgeMenu as $k)<a href="{{ lroute('knowledge').(isset($k['anchor']) ? '#'.$k['anchor'] : '') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $k['icon'] }}"/></svg>{{ lc($k)['t'] }}</b><small>{{ lc($k)['d'] }}</small></a>@endforeach
       </div></div>
     </div>
-    <a class="drawer-link" href="{{ $homeUrl }}#contact"><span class="dc-icon sm"><svg class="icon"><use href="#i-message"/></svg></span>{{ __('ui.nav_contact') }}</a>
+    <a class="drawer-link" href="{{ lroute('contact') }}"><span class="dc-icon sm"><svg class="icon"><use href="#i-message"/></svg></span>{{ __('ui.nav_contact') }}</a>
   </div>
   <div class="drawer-foot">
     <a class="btn btn-primary" href="{{ whmcs_url('clientarea.php') }}" style="width:100%;justify-content:center"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg>{{ __('ui.nav_login') }}</a>
