@@ -49,7 +49,7 @@ return [
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
 
     'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Ücretsiz Araçlar',
-    'nav_knowledge' => 'Bilgi Merkezi', 'nav_contact' => 'İletişim', 'nav_free' => 'ÜCRETSİZ',
+    'nav_knowledge' => 'Bilgi Merkezi', 'nav_contact' => 'İletişim', 'nav_free' => 'ÜCRETSİZ', 'nav_new' => 'YENİ',
     'mega_cta' => 'Ücretsiz satın alma danışmanlığı', 'mega_note' => 'Anında aktivasyon · 7/24 destek',
     'menu' => 'Menü',
 

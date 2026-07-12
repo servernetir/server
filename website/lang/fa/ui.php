@@ -49,7 +49,7 @@ return [
     'f_copy' => '© ۱۴۰۵ سرورنت. تمامی حقوق محفوظ است.',
 
     'nav_products' => 'محصولات', 'nav_services' => 'خدمات', 'nav_tools' => 'ابزارهای رایگان',
-    'nav_knowledge' => 'پایگاه دانش', 'nav_contact' => 'تماس با ما', 'nav_free' => 'رایگان',
+    'nav_knowledge' => 'پایگاه دانش', 'nav_contact' => 'تماس با ما', 'nav_free' => 'رایگان', 'nav_new' => 'جدید',
     'mega_cta' => 'مشاوره رایگان خرید', 'mega_note' => 'تحویل آنی سرویس‌ها · پشتیبانی ۲۴/۷',
     'menu' => 'منو',
 

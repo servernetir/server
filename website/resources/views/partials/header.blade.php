@@ -39,7 +39,7 @@
           <button class="nav-link" aria-expanded="false">{{ __('ui.nav_services') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
         </div>
         <div class="nav-item" data-menu="tools">
-          <button class="nav-link" aria-expanded="false">{{ __('ui.nav_tools') }}<span class="free-badge">{{ __('ui.nav_free') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
+          <button class="nav-link" aria-expanded="false">{{ __('ui.nav_tools') }}<span class="free-badge new-badge">{{ __('ui.nav_new') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
         </div>
         <div class="nav-item" data-menu="knowledge">
           <button class="nav-link" aria-expanded="false">{{ __('ui.nav_knowledge') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
@@ -166,7 +166,7 @@
       </div></div>
     </div>
     <div class="acc">
-      <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-zap"/></svg></span>{{ __('ui.nav_tools') }}<span class="free-badge">{{ __('ui.nav_free') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
+      <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-zap"/></svg></span>{{ __('ui.nav_tools') }}<span class="free-badge new-badge">{{ __('ui.nav_new') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
         @foreach($toolsMenu as $t)<a href="{{ isset($t['slug']) ? lroute('tools', $t['slug']) : '#' }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endforeach
       </div></div>

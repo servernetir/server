@@ -49,7 +49,7 @@ return [
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
 
     'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Free Tools',
-    'nav_knowledge' => 'Knowledge Base', 'nav_contact' => 'Contact', 'nav_free' => 'FREE',
+    'nav_knowledge' => 'Knowledge Base', 'nav_contact' => 'Contact', 'nav_free' => 'FREE', 'nav_new' => 'NEW',
     'mega_cta' => 'Free purchase consultation', 'mega_note' => 'Instant activation · 24/7 support',
     'menu' => 'Menu',
 
