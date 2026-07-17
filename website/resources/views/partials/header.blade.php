@@ -139,6 +139,14 @@
                 </a>
                 @endif
               @endforeach
+              <a class="tmega-link" href="{{ lroute('solution', 'remote') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-monitor"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_remote') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_remote_d') }}</small></span>
+              </a>
+              <a class="tmega-link" href="https://bpmn.servernet.cloud" target="_blank" rel="noopener">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-flow"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></span>
+              </a>
             </div>
           </div>
 
@@ -235,6 +243,8 @@
         @foreach($lkTypes as $k => $t)@if(($t['group'] ?? '') === 'network')<a href="{{ lroute('lookup', $k) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b></a>@endif @endforeach
         <span class="acc-group">{{ __('ui.tb_platforms') }}</span>
         @foreach(['meet', 'app-builder'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
+        <a href="{{ lroute('solution', 'remote') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-monitor"/></svg>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></a>
+        <a href="https://bpmn.servernet.cloud" target="_blank" rel="noopener"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-flow"/></svg>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></a>
       </div></div>
     </div>
     <div class="acc">

@@ -51,6 +51,8 @@ return [
     'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Toolbox',
     'nav_knowledge' => 'Knowledge Base', 'nav_contact' => 'Contact', 'nav_free' => 'FREE', 'nav_new' => 'NEW',
     'tb_general' => 'SEO & Domain', 'tb_platforms' => 'Platforms', 'tb_all' => 'Browse all tools',
+    'tb_remote' => 'Remote Desktop', 'tb_remote_d' => 'Fast, secure remote computer control',
+    'tb_bpmn' => 'BPMN Process Designer', 'tb_bpmn_d' => 'Model processes online, export standard BPMN',
     'mega_cta' => 'Free purchase consultation', 'mega_note' => 'Instant activation · 24/7 support',
     'menu' => 'Menu',
 

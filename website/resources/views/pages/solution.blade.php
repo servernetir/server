@@ -85,7 +85,7 @@
 
 {{-- ============ STEPS ============ --}}
 @if(!empty($s['steps']))
-<section class="section sol-steps-sec">
+<section class="section sol-steps-sec" id="steps">
   <div class="container">
     <div class="section-head reveal">
       @if(!empty($s['steps_badge']))<span class="kicker">{{ $s['steps_badge'] }}</span>@endif
@@ -99,6 +99,29 @@
         <h3>{{ $st['t'] }}</h3>
         <p>{{ $st['d'] }}</p>
       </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ DOWNLOADS ============ --}}
+@if(!empty($s['downloads']))
+<section class="section" id="download">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['downloads_badge']))<span class="kicker">{{ $s['downloads_badge'] }}</span>@endif
+      <h2>{{ $s['downloads_t'] ?? '' }}</h2>
+      @if(!empty($s['downloads_d']))<p>{{ $s['downloads_d'] }}</p>@endif
+    </div>
+    <div class="sol-dl-grid">
+      @foreach($s['downloads'] as $d)
+      <a class="sol-dl reveal" href="{{ $hrefOf($d['href'] ?? '') }}" @if($isExt($d['href'] ?? '')) target="_blank" rel="noopener" @endif>
+        <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
+        <b>{{ $d['t'] }}</b>
+        <small>{{ $d['meta'] }}</small>
+        <span class="sol-dl-btn">{{ $d['btn'] ?? ($s['downloads_btn'] ?? '') }}</span>
+      </a>
       @endforeach
     </div>
   </div>

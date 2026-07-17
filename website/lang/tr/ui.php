@@ -51,6 +51,8 @@ return [
     'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Araç Kutusu',
     'nav_knowledge' => 'Bilgi Merkezi', 'nav_contact' => 'İletişim', 'nav_free' => 'ÜCRETSİZ', 'nav_new' => 'YENİ',
     'tb_general' => 'SEO & Alan Adı', 'tb_platforms' => 'Platformlar', 'tb_all' => 'Tüm araçları gör',
+    'tb_remote' => 'Uzak Masaüstü', 'tb_remote_d' => 'Hızlı, güvenli uzaktan bilgisayar kontrolü',
+    'tb_bpmn' => 'BPMN Süreç Tasarımcısı', 'tb_bpmn_d' => 'Süreçleri çevrimiçi modelleyin, BPMN dışa aktarın',
     'mega_cta' => 'Ücretsiz satın alma danışmanlığı', 'mega_note' => 'Anında aktivasyon · 7/24 destek',
     'menu' => 'Menü',
 
