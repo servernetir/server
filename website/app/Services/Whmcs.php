@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Log;
  */
 class Whmcs
 {
+    /** نشانه‌ی «تماس اخیر شکست خورد» در کش، تا تماس بلاک‌کننده تکرار نشود */
+    private const FAILED = 'failed';
+
+    /** چند ثانیه پس از شکست، دوباره WHMCS را امتحان کن */
+    private const FAIL_TTL = 60;
+
     /** هندل curl بازمصرف‌شونده — keep-alive، بدون اتصال‌های موازی که سرور drop می‌کند */
     private ?\CurlHandle $handle = null;
 
@@ -46,7 +52,7 @@ class Whmcs
     }
 
     /** فراخوانی خام API — در خطا null برمی‌گرداند تا fallback فعال شود */
-    public function call(string $action, array $params = [], int $timeout = 10): ?array
+    public function call(string $action, array $params = [], int $timeout = 10, int $connectTimeout = 5): ?array
     {
         if (! $this->enabled()) {
             return null;
@@ -65,7 +71,7 @@ class Whmcs
             ], $params)),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => $connectTimeout,
         ]);
         $raw = curl_exec($ch);
         $err = curl_error($ch);
@@ -92,6 +98,9 @@ class Whmcs
      * قیمت ثبت یک‌ساله‌ی همه‌ی پسوندها + ارز WHMCS.
      * خروجی: ['prices' => ['.com' => 2175000.0, ...], 'currency' => ['code','prefix','suffix']]
      * ۱۰ دقیقه کش می‌شود؛ پس تغییر قیمت در WHMCS حداکثر ۱۰ دقیقه بعد روی سایت است.
+     *
+     * این تماس رندر صفحه‌ی اصلی را بلاک می‌کند، پس شکست هم کوتاه‌مدت کش می‌شود:
+     * وگرنه با WHMCS در دسترس‌نبودن، هر بازدید پشت تایم‌اوت اتصال منتظر می‌ماند.
      */
     public function tldPricing(): ?array
     {
@@ -102,13 +111,17 @@ class Whmcs
         $key = 'whmcs.tld_pricing.'.md5($this->url.'|'.$this->currencyId);
         $cached = Cache::get($key);
         if ($cached !== null) {
-            return $cached;
+            // sentinel شکست: تا انقضای کش دوباره تلاش نکن و مستقیم fallback بده
+            return $cached === self::FAILED ? null : $cached;
         }
 
         $params = $this->currencyId ? ['currencyid' => $this->currencyId] : [];
-        $resp = $this->call('GetTLDPricing', $params);
+        // مهلت کوتاه چون قیمت‌های config به‌عنوان fallback داریم و صفحه نباید معطل بماند
+        $resp = $this->call('GetTLDPricing', $params, timeout: 4, connectTimeout: 2);
         if ($resp === null) {
-            return null; // خطا کش نمی‌شود تا دفعه بعد دوباره تلاش شود
+            Cache::put($key, self::FAILED, self::FAIL_TTL);
+
+            return null;
         }
 
         $prices = [];
@@ -121,6 +134,8 @@ class Whmcs
         }
 
         if ($prices === []) {
+            Cache::put($key, self::FAILED, self::FAIL_TTL);
+
             return null;
         }
 
