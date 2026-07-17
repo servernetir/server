@@ -31,7 +31,7 @@ return [
 
     'ent_badge' => 'Enterprise', 'ent_title' => 'Infrastructure & digital transformation for organizations',
     'ent_sub' => 'Our core expertise: supplying and building infrastructure for factories, enterprises, and organizations of every size.',
-    'ent_cta' => 'Talk to our solutions team',
+    'ent_cta' => 'Talk to our solutions team', 'ent_learn' => 'Learn more',
 
     'why_badge' => 'Why ServerNet', 'why_title' => 'Reliability is our reputation',
     'loc_title' => 'Global datacenter locations',

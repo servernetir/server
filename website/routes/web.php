@@ -6,6 +6,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SolutionController;
 use App\Http\Controllers\ToolController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,9 @@ $site = function (): void {
     Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
     Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');
+
+    // صفحات راهکار سازمانی
+    Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat');

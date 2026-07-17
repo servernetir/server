@@ -139,13 +139,15 @@
     </div>
     <div class="bento">
       @foreach($enterprise as $i => $e)
-      <article class="bcard {{ ($e['wide'] ?? false) ? 'wide' : '' }} reveal" style="transition-delay:{{ $i * 60 }}ms">
+      @php $solHref = (isset($e['slug']) && config('solutions.'.$e['slug'])) ? lroute('solution', $e['slug']) : null; @endphp
+      <{{ $solHref ? 'a' : 'article' }} @if($solHref) href="{{ $solHref }}" @endif class="bcard {{ ($e['wide'] ?? false) ? 'wide' : '' }} {{ $solHref ? 'bcard-link' : '' }} reveal" style="transition-delay:{{ $i * 60 }}ms">
         <div class="glow"></div>
         @if($e['tag'] ?? false)<span class="tag">{{ $e['tag'] }}</span>@endif
         <div class="bicon"><svg class="icon"><use href="#i-{{ $e['icon'] }}"/></svg></div>
         <h3>{{ lc($e)['t'] }}</h3>
         <p>{{ lc($e)['d'] }}</p>
-      </article>
+        @if($solHref)<span class="bcard-more">{{ __('ui.ent_learn') }}<svg class="icon dir"><use href="#i-arrow"/></svg></span>@endif
+      </{{ $solHref ? 'a' : 'article' }}>
       @endforeach
     </div>
     <div style="text-align:center;margin-top:44px" class="reveal">

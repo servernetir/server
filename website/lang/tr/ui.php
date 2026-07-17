@@ -31,7 +31,7 @@ return [
 
     'ent_badge' => 'Kurumsal', 'ent_title' => 'Kuruluşlar için altyapı ve dijital dönüşüm',
     'ent_sub' => 'Uzmanlığımız: her ölçekte fabrika, şirket ve kuruluş için altyapı tedariki ve kurulumu.',
-    'ent_cta' => 'Çözüm ekibiyle görüşün',
+    'ent_cta' => 'Çözüm ekibiyle görüşün', 'ent_learn' => 'Daha fazla bilgi',
 
     'why_badge' => 'Neden ServerNet', 'why_title' => 'Güvenilirlik bizim itibarımızdır',
     'loc_title' => 'Küresel veri merkezi lokasyonları',
