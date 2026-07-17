@@ -106,17 +106,75 @@
       </div>
     </div>
 
-    {{-- ===== منوی ابزارهای رایگان ===== --}}
+    {{-- ===== منوی ابزارهای تخصصی (مگامنوی گروه‌بندی‌شده) ===== --}}
+    @php
+      $tbOther = collect($toolsMenu)->keyBy(fn ($t) => $t['slug'] ?? '');
+      $lkTypes = config('lookup.types');
+      $lkGroups = config('lookup.groups');
+    @endphp
     <div class="menu-panel" id="menu-tools" role="region">
       <div class="container">
-        <div class="drop-grid cols-3">
-          @foreach($toolsMenu as $t)
-          @php $href = isset($t['route']) ? lroute($t['route'], $t['param'] ?? []) : (isset($t['slug']) ? lroute('tools', $t['slug']) : '#'); @endphp
-          <a class="drop-card" href="{{ $href }}">
-            <span class="dc-icon tool"><svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg></span>
-            <span class="dc-txt"><b>{{ lc($t)['t'] }} <span class="free-badge">{{ __('ui.nav_free') }}</span></b><small>{{ lc($t)['d'] }}</small></span>
-          </a>
-          @endforeach
+        <div class="tools-mega">
+
+          {{-- ستون ۱: سئو و دامنه + پلتفرم‌ها --}}
+          <div class="tmega-col">
+            <div class="tmega-group">
+              <span class="tmega-h">{{ __('ui.tb_general') }}</span>
+              @foreach(['seo', 'whois', 'ip'] as $slug)
+                @if($t = $tbOther[$slug] ?? null)
+                <a class="tmega-link" href="{{ lroute('tools', $slug) }}">
+                  <span class="tmega-ic tool"><svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg></span>
+                  <span class="tmega-tx"><b>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></span>
+                </a>
+                @endif
+              @endforeach
+            </div>
+            <div class="tmega-group">
+              <span class="tmega-h">{{ __('ui.tb_platforms') }}</span>
+              @foreach(['meet', 'app-builder'] as $slug)
+                @if($t = $tbOther[$slug] ?? null)
+                <a class="tmega-link" href="{{ lroute('tools', $slug) }}">
+                  <span class="tmega-ic tool"><svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg></span>
+                  <span class="tmega-tx"><b>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></span>
+                </a>
+                @endif
+              @endforeach
+            </div>
+          </div>
+
+          {{-- ستون ۲: رکوردهای DNS --}}
+          <div class="tmega-col">
+            <div class="tmega-group">
+              <span class="tmega-h">{{ lc($lkGroups['records']) }}</span>
+              <div class="tmega-compact">
+                @foreach($lkTypes as $k => $t)
+                  @if(($t['group'] ?? '') === 'records')
+                  <a class="tmega-chip" href="{{ lroute('lookup', $k) }}">
+                    <svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg><span>{{ lc($t)['t'] }}</span>
+                  </a>
+                  @endif
+                @endforeach
+              </div>
+            </div>
+          </div>
+
+          {{-- ستون ۳: شبکه و امنیت --}}
+          <div class="tmega-col">
+            <div class="tmega-group">
+              <span class="tmega-h">{{ lc($lkGroups['network']) }}</span>
+              <div class="tmega-compact">
+                @foreach($lkTypes as $k => $t)
+                  @if(($t['group'] ?? '') === 'network')
+                  <a class="tmega-chip" href="{{ lroute('lookup', $k) }}">
+                    <svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg><span>{{ lc($t)['t'] }}</span>
+                  </a>
+                  @endif
+                @endforeach
+              </div>
+              <a class="tmega-all" href="{{ lroute('lookup', 'a') }}">{{ __('ui.tb_all') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -169,7 +227,14 @@
     <div class="acc">
       <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-zap"/></svg></span>{{ __('ui.nav_tools') }}<span class="free-badge new-badge">{{ __('ui.nav_new') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
-        @foreach($toolsMenu as $t)@php $href = isset($t['route']) ? lroute($t['route'], $t['param'] ?? []) : (isset($t['slug']) ? lroute('tools', $t['slug']) : '#'); @endphp<a href="{{ $href }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endforeach
+        <span class="acc-group">{{ __('ui.tb_general') }}</span>
+        @foreach(['seo', 'whois', 'ip'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
+        <span class="acc-group">{{ lc($lkGroups['records']) }}</span>
+        @foreach($lkTypes as $k => $t)@if(($t['group'] ?? '') === 'records')<a href="{{ lroute('lookup', $k) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b></a>@endif @endforeach
+        <span class="acc-group">{{ lc($lkGroups['network']) }}</span>
+        @foreach($lkTypes as $k => $t)@if(($t['group'] ?? '') === 'network')<a href="{{ lroute('lookup', $k) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b></a>@endif @endforeach
+        <span class="acc-group">{{ __('ui.tb_platforms') }}</span>
+        @foreach(['meet', 'app-builder'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
       </div></div>
     </div>
     <div class="acc">

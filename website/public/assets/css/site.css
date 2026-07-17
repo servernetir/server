@@ -1303,3 +1303,41 @@ html[data-theme="light"] .lk-faq-item{background:#FFFFFF}
 html[data-theme="light"] .lk-tile{background:#FFFFFF}
 .lk-tile:hover{border-color:var(--cyan);transform:translateY(-2px)}
 .lk-tile .icon{width:18px;height:18px;color:var(--cyan);flex:none}
+
+/* ============ TOOLBOX MEGA MENU ============ */
+.tools-mega{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:34px}
+.tmega-col{display:flex;flex-direction:column;gap:22px;min-width:0}
+.tmega-group{min-width:0}
+.tmega-h{display:block;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:12px;padding-inline-start:4px}
+html[dir="rtl"] .tmega-h{letter-spacing:0}
+
+/* لینک کامل (آیکون + عنوان + توضیح) — ستون عمومی */
+.tmega-link{display:flex;align-items:flex-start;gap:12px;padding:9px 10px;border-radius:13px;border:1px solid transparent;transition:.18s}
+.tmega-link:hover{background:var(--surface-2);border-color:var(--line)}
+.tmega-ic{width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;
+  background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.22);color:var(--green)}
+.tmega-ic .icon{width:17px;height:17px}
+.tmega-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tmega-tx b{font-size:13.5px;font-weight:600;color:var(--text)}
+.tmega-tx small{font-size:12px;color:var(--dim);line-height:1.5}
+
+/* چیپ فشرده (آیکون + نام) — ستون رکوردها و شبکه */
+.tmega-compact{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tmega-chip{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:11px;border:1px solid transparent;
+  font-size:13px;font-weight:600;color:var(--text);transition:.18s;min-width:0}
+.tmega-chip:hover{background:var(--surface-2);border-color:var(--cyan)}
+.tmega-chip .icon{width:16px;height:16px;flex:none;color:var(--cyan)}
+.tmega-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tmega-all{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding-inline-start:4px;
+  font-size:13px;font-weight:600;color:var(--cyan)}
+.tmega-all .icon{width:14px;height:14px}
+html[dir="rtl"] .tmega-all .dir{transform:scaleX(-1)}
+
+@media(max-width:960px){.tools-mega{grid-template-columns:1fr 1fr}}
+
+/* زیرعنوان گروه در آکاردئون موبایل */
+.acc-group{display:block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);margin:14px 4px 6px}
+html[dir="rtl"] .acc-group{letter-spacing:0}
+.acc-in>.acc-group:first-child{margin-top:2px}

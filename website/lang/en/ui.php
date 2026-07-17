@@ -48,8 +48,9 @@ return [
     'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area',
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
 
-    'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Free Tools',
+    'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Toolbox',
     'nav_knowledge' => 'Knowledge Base', 'nav_contact' => 'Contact', 'nav_free' => 'FREE', 'nav_new' => 'NEW',
+    'tb_general' => 'SEO & Domain', 'tb_platforms' => 'Platforms', 'tb_all' => 'Browse all tools',
     'mega_cta' => 'Free purchase consultation', 'mega_note' => 'Instant activation · 24/7 support',
     'menu' => 'Menu',
 

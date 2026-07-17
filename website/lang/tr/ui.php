@@ -48,8 +48,9 @@ return [
     'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli',
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
 
-    'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Ücretsiz Araçlar',
+    'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Araç Kutusu',
     'nav_knowledge' => 'Bilgi Merkezi', 'nav_contact' => 'İletişim', 'nav_free' => 'ÜCRETSİZ', 'nav_new' => 'YENİ',
+    'tb_general' => 'SEO & Alan Adı', 'tb_platforms' => 'Platformlar', 'tb_all' => 'Tüm araçları gör',
     'mega_cta' => 'Ücretsiz satın alma danışmanlığı', 'mega_note' => 'Anında aktivasyon · 7/24 destek',
     'menu' => 'Menü',
 
