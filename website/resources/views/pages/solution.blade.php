@@ -7,6 +7,7 @@
     $hrefOf = function ($h) {
         if (! $h) return lroute('contact');
         if (str_starts_with($h, '#') || str_starts_with($h, 'http')) return $h;
+        if (str_contains($h, ':')) { [$n, $p] = explode(':', $h, 2); return lroute($n, $p); }
         return lroute($h);
     };
     $isExt = fn ($h) => is_string($h) && str_starts_with($h, 'http');
