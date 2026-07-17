@@ -4,6 +4,7 @@ use App\Http\Controllers\AiBuilderController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
+use App\Http\Controllers\LookupController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\ToolController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,11 @@ $site = function (): void {
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois');
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip');
+
+    // مجموعه ابزار DNS و شبکه (Lookup)
+    Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
+    Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
+    Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat');

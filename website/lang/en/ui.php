@@ -199,6 +199,25 @@ return [
     'tl_app_cta_t' => 'Want to resell the app builder?',
     'tl_app_cta_d' => 'Sell the builder under your own brand and build recurring revenue — ask us about reseller terms.',
 
+    /* DNS & Network lookup tools */
+    'lk_badge' => 'DNS & Network tools', 'lk_check' => 'Check', 'lk_type' => 'Check type',
+    'lk_copy' => 'Copy', 'lk_copied' => 'Copied!', 'lk_json' => 'Raw JSON', 'lk_download' => 'Download', 'lk_clear' => 'Clear',
+    'lk_more' => 'All DNS & network tools', 'lk_about' => 'About this tool', 'lk_faq' => 'Frequently asked questions',
+    'lk_err_invalid_domain' => 'That domain name is not valid.', 'lk_err_invalid_ip' => 'That IP address is not valid.',
+    'lk_err_unreachable' => 'Could not complete the lookup; please try again.', 'lk_err_empty' => 'Please enter a value.',
+    'lk_err_generic' => 'Something went wrong; please try again.', 'lk_err_no_records' => 'No records of this type were found.',
+    'lk_err_no_ssl' => 'No SSL certificate could be read from this host.',
+    'lk_ttl' => 'TTL', 'lk_value' => 'Value', 'lk_type_col' => 'Type', 'lk_records' => 'records', 'lk_result' => 'Result', 'lk_ip' => 'IP',
+    'lk_ssl_valid' => 'Valid', 'lk_ssl_expired' => 'Expired', 'lk_ssl_issuer' => 'Issued by', 'lk_ssl_expires' => 'Expires',
+    'lk_ssl_from' => 'Issued on', 'lk_ssl_days' => 'days left', 'lk_ssl_covers' => 'Covers', 'lk_ssl_algo' => 'Signature', 'lk_ssl_subject' => 'Issued to',
+    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Avg', 'lk_ping_max' => 'Max', 'lk_ping_loss' => 'Packet loss', 'lk_ping_port' => 'Tested on port', 'lk_ping_ms' => 'ms',
+    'lk_port_open' => 'Open', 'lk_port_closed' => 'Closed', 'lk_port_filtered' => 'Filtered', 'lk_ports_open' => 'open ports',
+    'lk_dnssec_on' => 'DNSSEC is enabled', 'lk_dnssec_off' => 'DNSSEC is not enabled', 'lk_dnssec_auth' => 'Authenticated (AD)',
+    'lk_dnssec_ds' => 'DS record', 'lk_dnssec_key' => 'DNSKEY record', 'lk_yes' => 'Yes', 'lk_no' => 'No',
+    'lk_prop_consistent' => 'Consistent across all resolvers', 'lk_prop_pending' => 'Still propagating — resolvers disagree', 'lk_prop_resolver' => 'Resolver', 'lk_prop_noanswer' => 'No answer',
+    'lk_rev_ptr' => 'PTR query', 'lk_rev_names' => 'Resolves to', 'lk_rev_none' => 'No PTR record found for this IP.',
+    'lk_cta_t' => 'Need help fixing this?', 'lk_cta_d' => 'ServerNet\'s team sets up DNS, email, SSL and servers for you — fast, reliable and fully managed.', 'lk_cta_btn' => 'Talk to an expert',
+
     /* 404 page */
     'e404_h1a' => 'This page', 'e404_h1b' => 'was not found.',
     'e404_lead' => "The URL you were looking for seems to have moved or been removed. Don't worry — the rest of our infrastructure is right where it should be.",

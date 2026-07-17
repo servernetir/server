@@ -60,6 +60,9 @@ class SiteController extends Controller
         foreach (['seo', 'whois', 'ip', 'meet', 'app-builder'] as $slug) {
             $add('tools', $slug);
         }
+        foreach (array_keys(config('lookup.types')) as $type) {
+            $add('lookup', $type);
+        }
         foreach (array_keys(config('hosting.products')) as $slug) {
             $add('hosting', $slug);
         }

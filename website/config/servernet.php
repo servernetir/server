@@ -11,11 +11,11 @@
 return [
 
     'contact' => [
-        'phone'         => env('SITE_SUPPORT_PHONE', '+98 21 9130 0000'),
-        'phone_link'    => env('SITE_SUPPORT_PHONE_LINK', '+982191300000'),
+        'phone'         => env('SITE_SUPPORT_PHONE', '+1 (716) 666 0425'),
+        'phone_link'    => env('SITE_SUPPORT_PHONE_LINK', '+17166660425'),
         'email'         => env('SITE_SUPPORT_EMAIL', 'support@servernet.cloud'),
         'sales_email'   => env('SITE_SALES_EMAIL', 'sales@servernet.cloud'),
-        'whatsapp'      => env('SITE_WHATSAPP', '+447393089150'),
+        'whatsapp'      => env('SITE_WHATSAPP', '17166660425'),
     ],
 
     'whmcs' => [
@@ -339,6 +339,7 @@ return [
     */
     'tools_menu' => [
         ['icon' => 'gauge',      'slug' => 'seo',         'fa' => ['t' => 'بررسی سئو و سلامت سایت', 'd' => 'تحلیل رایگان سئو، سرعت، امنیت و موبایل'], 'en' => ['t' => 'SEO & Site Checker', 'd' => 'Free SEO, speed, security & mobile analysis'], 'tr' => ['t' => 'SEO ve Site Denetleyici', 'd' => 'Ücretsiz SEO, hız ve güvenlik analizi']],
+        ['icon' => 'server',     'route' => 'lookup', 'param' => 'a', 'fa' => ['t' => 'ابزارهای DNS و شبکه', 'd' => 'استعلام رکورد، SSL، پینگ، پورت و DNSSEC'], 'en' => ['t' => 'DNS & Network Tools', 'd' => 'Records, SSL, ping, port scan & DNSSEC lookups'], 'tr' => ['t' => 'DNS ve Ağ Araçları', 'd' => 'Kayıt, SSL, ping, port ve DNSSEC sorgu']],
         ['icon' => 'search',     'slug' => 'whois',       'fa' => ['t' => 'استعلام Whois', 'd' => 'اطلاعات کامل ثبت هر دامنه'],                       'en' => ['t' => 'Whois Lookup', 'd' => 'Full registration data for any domain'],          'tr' => ['t' => 'Whois Sorgu', 'd' => 'Her alan adının tam kayıt verisi']],
         ['icon' => 'globe',      'slug' => 'ip',          'fa' => ['t' => 'بررسی IP', 'd' => 'موقعیت، ISP و اطلاعات کامل هر IP'],                     'en' => ['t' => 'IP Checker', 'd' => 'Location, ISP and full details of any IP'],          'tr' => ['t' => 'IP Sorgu', 'd' => 'Her IP\'nin konumu ve detayları']],
         ['icon' => 'video',      'slug' => 'meet',        'fa' => ['t' => 'جلسات آنلاین', 'd' => 'ویدیوکنفرانس امن بدون نصب نرم‌افزار'],              'en' => ['t' => 'Online Meetings', 'd' => 'Secure video meetings, zero installation'],      'tr' => ['t' => 'Online Toplantı', 'd' => 'Kurulumsuz güvenli görüntülü toplantı']],

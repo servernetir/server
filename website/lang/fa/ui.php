@@ -199,6 +199,25 @@ return [
     'tl_app_cta_t' => 'می‌خواهید نماینده فروش اپ‌ساز شوید؟',
     'tl_app_cta_d' => 'با برند خودتان اپ‌ساز بفروشید و درآمد تکرارشونده بسازید — شرایط نمایندگی را از ما بپرسید.',
 
+    /* ابزارهای DNS و شبکه */
+    'lk_badge' => 'ابزارهای DNS و شبکه', 'lk_check' => 'بررسی', 'lk_type' => 'نوع بررسی',
+    'lk_copy' => 'کپی', 'lk_copied' => 'کپی شد!', 'lk_json' => 'خروجی JSON', 'lk_download' => 'دانلود', 'lk_clear' => 'پاک کردن',
+    'lk_more' => 'همه‌ی ابزارهای DNS و شبکه', 'lk_about' => 'درباره‌ی این ابزار', 'lk_faq' => 'پرسش‌های پرتکرار',
+    'lk_err_invalid_domain' => 'نام دامنه معتبر نیست.', 'lk_err_invalid_ip' => 'آدرس IP معتبر نیست.',
+    'lk_err_unreachable' => 'بررسی کامل نشد؛ لطفاً دوباره تلاش کنید.', 'lk_err_empty' => 'لطفاً یک مقدار وارد کنید.',
+    'lk_err_generic' => 'خطایی رخ داد؛ دوباره تلاش کنید.', 'lk_err_no_records' => 'هیچ رکوردی از این نوع پیدا نشد.',
+    'lk_err_no_ssl' => 'گواهی SSL از این میزبان خوانده نشد.',
+    'lk_ttl' => 'TTL', 'lk_value' => 'مقدار', 'lk_type_col' => 'نوع', 'lk_records' => 'رکورد', 'lk_result' => 'نتیجه', 'lk_ip' => 'IP',
+    'lk_ssl_valid' => 'معتبر', 'lk_ssl_expired' => 'منقضی‌شده', 'lk_ssl_issuer' => 'صادرکننده', 'lk_ssl_expires' => 'انقضا',
+    'lk_ssl_from' => 'تاریخ صدور', 'lk_ssl_days' => 'روز باقی‌مانده', 'lk_ssl_covers' => 'دامنه‌های تحت پوشش', 'lk_ssl_algo' => 'الگوریتم امضا', 'lk_ssl_subject' => 'صادرشده برای',
+    'lk_ping_min' => 'کمینه', 'lk_ping_avg' => 'میانگین', 'lk_ping_max' => 'بیشینه', 'lk_ping_loss' => 'از دست‌رفتن بسته', 'lk_ping_port' => 'روی پورت', 'lk_ping_ms' => 'میلی‌ثانیه',
+    'lk_port_open' => 'باز', 'lk_port_closed' => 'بسته', 'lk_port_filtered' => 'فیلترشده', 'lk_ports_open' => 'پورت باز',
+    'lk_dnssec_on' => 'DNSSEC فعال است', 'lk_dnssec_off' => 'DNSSEC فعال نیست', 'lk_dnssec_auth' => 'تأییدشده (AD)',
+    'lk_dnssec_ds' => 'رکورد DS', 'lk_dnssec_key' => 'رکورد DNSKEY', 'lk_yes' => 'بله', 'lk_no' => 'خیر',
+    'lk_prop_consistent' => 'یکسان در همه‌ی resolverها', 'lk_prop_pending' => 'در حال انتشار — پاسخ‌ها متفاوت‌اند', 'lk_prop_resolver' => 'Resolver', 'lk_prop_noanswer' => 'بدون پاسخ',
+    'lk_rev_ptr' => 'پرس‌وجوی PTR', 'lk_rev_names' => 'بازمی‌گردد به', 'lk_rev_none' => 'برای این IP رکورد PTR پیدا نشد.',
+    'lk_cta_t' => 'برای رفع مشکل کمک می‌خواهید؟', 'lk_cta_d' => 'تیم سرورنت DNS، ایمیل، SSL و سرور را برایتان راه‌اندازی می‌کند — سریع، پایدار و کاملاً مدیریت‌شده.', 'lk_cta_btn' => 'گفتگو با کارشناس',
+
     /* صفحه ۴۰۴ */
     'e404_h1a' => 'این صفحه', 'e404_h1b' => 'پیدا نشد.',
     'e404_lead' => 'به نظر می‌رسد آدرسی که دنبالش بودید جابه‌جا یا حذف شده. اما نگران نباشید — بقیه زیرساخت ما سرجایش است.',

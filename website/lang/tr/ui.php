@@ -199,6 +199,25 @@ return [
     'tl_app_cta_t' => 'Uygulama oluşturucuyu satmak ister misiniz?',
     'tl_app_cta_d' => 'Oluşturucuyu kendi markanızla satın ve yinelenen gelir oluşturun — bayilik şartlarını sorun.',
 
+    /* DNS ve Ağ araçları */
+    'lk_badge' => 'DNS ve Ağ araçları', 'lk_check' => 'Kontrol et', 'lk_type' => 'Kontrol türü',
+    'lk_copy' => 'Kopyala', 'lk_copied' => 'Kopyalandı!', 'lk_json' => 'Ham JSON', 'lk_download' => 'İndir', 'lk_clear' => 'Temizle',
+    'lk_more' => 'Tüm DNS ve ağ araçları', 'lk_about' => 'Bu araç hakkında', 'lk_faq' => 'Sıkça sorulan sorular',
+    'lk_err_invalid_domain' => 'Bu alan adı geçerli değil.', 'lk_err_invalid_ip' => 'Bu IP adresi geçerli değil.',
+    'lk_err_unreachable' => 'Sorgu tamamlanamadı; lütfen tekrar deneyin.', 'lk_err_empty' => 'Lütfen bir değer girin.',
+    'lk_err_generic' => 'Bir şeyler ters gitti; lütfen tekrar deneyin.', 'lk_err_no_records' => 'Bu türde kayıt bulunamadı.',
+    'lk_err_no_ssl' => 'Bu ana bilgisayardan SSL sertifikası okunamadı.',
+    'lk_ttl' => 'TTL', 'lk_value' => 'Değer', 'lk_type_col' => 'Tür', 'lk_records' => 'kayıt', 'lk_result' => 'Sonuç', 'lk_ip' => 'IP',
+    'lk_ssl_valid' => 'Geçerli', 'lk_ssl_expired' => 'Süresi dolmuş', 'lk_ssl_issuer' => 'Veren', 'lk_ssl_expires' => 'Bitiş',
+    'lk_ssl_from' => 'Veriliş', 'lk_ssl_days' => 'gün kaldı', 'lk_ssl_covers' => 'Kapsam', 'lk_ssl_algo' => 'İmza', 'lk_ssl_subject' => 'Verilen',
+    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Ort', 'lk_ping_max' => 'Maks', 'lk_ping_loss' => 'Paket kaybı', 'lk_ping_port' => 'Port', 'lk_ping_ms' => 'ms',
+    'lk_port_open' => 'Açık', 'lk_port_closed' => 'Kapalı', 'lk_port_filtered' => 'Filtreli', 'lk_ports_open' => 'açık port',
+    'lk_dnssec_on' => 'DNSSEC etkin', 'lk_dnssec_off' => 'DNSSEC etkin değil', 'lk_dnssec_auth' => 'Doğrulanmış (AD)',
+    'lk_dnssec_ds' => 'DS kaydı', 'lk_dnssec_key' => 'DNSKEY kaydı', 'lk_yes' => 'Evet', 'lk_no' => 'Hayır',
+    'lk_prop_consistent' => 'Tüm çözümleyicilerde tutarlı', 'lk_prop_pending' => 'Hâlâ yayılıyor — sonuçlar farklı', 'lk_prop_resolver' => 'Çözümleyici', 'lk_prop_noanswer' => 'Yanıt yok',
+    'lk_rev_ptr' => 'PTR sorgusu', 'lk_rev_names' => 'Çözümlendiği ad', 'lk_rev_none' => 'Bu IP için PTR kaydı bulunamadı.',
+    'lk_cta_t' => 'Düzeltmek için yardım mı lazım?', 'lk_cta_d' => 'ServerNet ekibi DNS, e-posta, SSL ve sunucuları sizin için kurar — hızlı ve tam yönetilen.', 'lk_cta_btn' => 'Uzmanla görüşün',
+
     /* 404 sayfası */
     'e404_h1a' => 'Bu sayfa', 'e404_h1b' => 'bulunamadı.',
     'e404_lead' => 'Aradığınız adres taşınmış veya kaldırılmış görünüyor. Endişelenmeyin — altyapımızın geri kalanı tam yerinde.',
