@@ -62,6 +62,10 @@ class SiteController extends Controller
         }
         $add('hub.dns');
         $add('hub.network');
+        $add('blog.index');
+        foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
+            $add('blog', $post['slug']);
+        }
         foreach (array_keys(config('lookup.types')) as $type) {
             $add('lookup', $type);
         }

@@ -224,6 +224,24 @@ return [
     'lk_rev_ptr' => 'PTR sorgusu', 'lk_rev_names' => 'Çözümlendiği ad', 'lk_rev_none' => 'Bu IP için PTR kaydı bulunamadı.',
     'lk_cta_t' => 'Düzeltmek için yardım mı lazım?', 'lk_cta_d' => 'ServerNet ekibi DNS, e-posta, SSL ve sunucuları sizin için kurar — hızlı ve tam yönetilen.', 'lk_cta_btn' => 'Uzmanla görüşün',
 
+    /* Blog */
+    'bl_badge' => 'Blog & Öğren', 'bl_title' => 'Blog', 'bl_h1a' => 'Bilgi, eğitim ve', 'bl_h1b' => 'teknoloji haberleri',
+    'bl_sub' => 'Hosting, sunucu, güvenlik, SEO ve online iş üzerine pratik makaleler — sade ve faydalı bir dille.',
+    'bl_meta_d' => 'ServerNet blog: hosting, bulut sunucu, güvenlik, SEO ve online iş üzerine uzman makaleler ve eğitimler.',
+    'bl_search_ph' => 'Makalelerde ara…', 'bl_search_btn' => 'Ara', 'bl_all' => 'Tümü',
+    'bl_read_more' => 'Devamı', 'bl_min' => 'dk', 'bl_categories' => 'Kategoriler',
+    'bl_recent' => 'Son yazılar', 'bl_tags' => 'Etiketler',
+    'bl_cta_t' => 'Sitenizi bizimle barındırın', 'bl_cta_d' => 'Hızlı NVMe hosting, ücretsiz SSL ve 7/24 destek.', 'bl_cta_btn' => 'Paketleri gör',
+    'bl_in_category' => 'Kategori', 'bl_tagged' => 'Etiketli yazılar', 'bl_results_for' => 'Sonuçlar',
+    'bl_prev' => 'Önceki', 'bl_next' => 'Sonraki', 'bl_none' => 'Yazı bulunamadı.', 'bl_home' => 'Ana sayfa',
+    'bl_share' => 'Paylaş:', 'bl_related' => 'İlgili yazılar',
+    'bl_comments' => 'Yorumlar', 'bl_no_comments' => 'Henüz yorum yok — ilk siz olun!',
+    'bl_leave' => 'Yorum bırakın', 'bl_name' => 'Adınız', 'bl_email' => 'E-posta (gösterilmez)',
+    'bl_your' => 'Yorumunuz…', 'bl_submit' => 'Yorum gönder',
+    'bl_pending' => 'Yorumunuz gönderildi ve onaydan sonra görünecek. Teşekkürler!',
+    'bl_busy' => 'Çok fazla yorum; lütfen birazdan tekrar deneyin.',
+    'bl_err' => 'Lütfen geçerli bir ad ve yorum girin.',
+
     /* 404 sayfası */
     'e404_h1a' => 'Bu sayfa', 'e404_h1b' => 'bulunamadı.',
     'e404_lead' => 'Aradığınız adres taşınmış veya kaldırılmış görünüyor. Endişelenmeyin — altyapımızın geri kalanı tam yerinde.',

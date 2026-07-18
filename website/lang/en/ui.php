@@ -224,6 +224,24 @@ return [
     'lk_rev_ptr' => 'PTR query', 'lk_rev_names' => 'Resolves to', 'lk_rev_none' => 'No PTR record found for this IP.',
     'lk_cta_t' => 'Need help fixing this?', 'lk_cta_d' => 'ServerNet\'s team sets up DNS, email, SSL and servers for you — fast, reliable and fully managed.', 'lk_cta_btn' => 'Talk to an expert',
 
+    /* Blog */
+    'bl_badge' => 'Blog & Learn', 'bl_title' => 'Blog', 'bl_h1a' => 'Knowledge, tutorials &', 'bl_h1b' => 'tech news',
+    'bl_sub' => 'Practical articles on hosting, servers, security, SEO and online business — in plain, useful language.',
+    'bl_meta_d' => 'The ServerNet blog: expert articles and tutorials on hosting, cloud servers, security, SEO and online business.',
+    'bl_search_ph' => 'Search articles…', 'bl_search_btn' => 'Search', 'bl_all' => 'All',
+    'bl_read_more' => 'Read more', 'bl_min' => 'min', 'bl_categories' => 'Categories',
+    'bl_recent' => 'Recent posts', 'bl_tags' => 'Tags',
+    'bl_cta_t' => 'Host your site with us', 'bl_cta_d' => 'Fast NVMe hosting, free SSL and 24/7 support.', 'bl_cta_btn' => 'View plans',
+    'bl_in_category' => 'Category', 'bl_tagged' => 'Posts tagged', 'bl_results_for' => 'Results for',
+    'bl_prev' => 'Prev', 'bl_next' => 'Next', 'bl_none' => 'No posts found.', 'bl_home' => 'Home',
+    'bl_share' => 'Share:', 'bl_related' => 'Related posts',
+    'bl_comments' => 'Comments', 'bl_no_comments' => 'No comments yet — be the first!',
+    'bl_leave' => 'Leave a comment', 'bl_name' => 'Your name', 'bl_email' => 'Email (not shown)',
+    'bl_your' => 'Your comment…', 'bl_submit' => 'Post comment',
+    'bl_pending' => 'Your comment was submitted and will appear after approval. Thanks!',
+    'bl_busy' => 'Too many comments; please try again shortly.',
+    'bl_err' => 'Please enter a valid name and comment.',
+
     /* 404 page */
     'e404_h1a' => 'This page', 'e404_h1b' => 'was not found.',
     'e404_lead' => "The URL you were looking for seems to have moved or been removed. Don't worry — the rest of our infrastructure is right where it should be.",

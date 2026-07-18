@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiBuilderController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
@@ -39,6 +40,12 @@ $site = function (): void {
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
     Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');
 
+    // بلاگ
+    Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+    Route::get('/blog/mod/{comment}/{action}', [BlogController::class, 'moderate'])->name('blog.moderate')->where('action', 'approve|delete');
+    Route::post('/blog/{slug}/comment', [BlogController::class, 'comment'])->name('blog.comment')->where('slug', '[a-z0-9-]+');
+    Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog')->where('slug', '[a-z0-9-]+');
+
     // صفحات راهکار سازمانی
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
@@ -54,3 +61,11 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+
+// موقت: اجرای migration روی سرور بدون بازتولید دیتابیس (پس از استفاده حذف شود)
+Route::get('/system/db/{token}', function (string $token) {
+    abort_unless($token === 'mig7Kd92QpZ4', 404);
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+
+    return '<pre>'.e(\Illuminate\Support\Facades\Artisan::output()).'</pre>';
+});
