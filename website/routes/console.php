@@ -2,7 +2,35 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+|--------------------------------------------------------------------------
+| زمان‌بندی محتوا
+|--------------------------------------------------------------------------
+| با یک خط کران روی سرور همه‌ی این‌ها اجرا می‌شوند:
+|
+|   * * * * * cd /home/servernetcloud/servernet_app \
+|     && /opt/cpanel/ea-php84/root/usr/bin/php artisan schedule:run >/dev/null 2>&1
+|
+| withoutOverlapping جلوی هم‌پوشانی را می‌گیرد (تولید هر مقاله چند دقیقه طول می‌کشد).
+*/
+
+// انتشار پیش‌نویس‌هایی که زمانشان رسیده — ساعتی، تا انتشار در طول روز پخش شود
+Schedule::command('content:publish-due')
+    ->hourly()
+    ->withoutOverlapping();
+
+// تولید مقاله‌های تازه از برنامه — روزی ۳ مقاله
+Schedule::command('content:generate --limit=3 --days=2')
+    ->dailyAt('10:00')
+    ->withoutOverlapping(30);
+
+// تکمیل ترجمه‌هایی که در تولید جا مانده‌اند
+Schedule::command('content:translate-missing --limit=2')
+    ->dailyAt('12:30')
+    ->withoutOverlapping(30);
