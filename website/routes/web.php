@@ -61,11 +61,3 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
-
-// موقت: اجرای migration روی سرور بدون بازتولید دیتابیس (پس از استفاده حذف شود)
-Route::get('/system/db/{token}', function (string $token) {
-    abort_unless($token === 'mig7Kd92QpZ4', 404);
-    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-
-    return '<pre>'.e(\Illuminate\Support\Facades\Artisan::output()).'</pre>';
-});
