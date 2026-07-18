@@ -235,6 +235,11 @@ return [
     'bl_in_category' => 'Kategori', 'bl_tagged' => 'Etiketli yazılar', 'bl_results_for' => 'Sonuçlar',
     'bl_prev' => 'Önceki', 'bl_next' => 'Sonraki', 'bl_none' => 'Yazı bulunamadı.', 'bl_home' => 'Ana sayfa',
     'bl_share' => 'Paylaş:', 'bl_related' => 'İlgili yazılar',
+    'bl_published' => 'Yorumunuz yayınlandı. Katkınız için teşekkürler!',
+    'bl_translated' => 'otomatik çeviri', 'bl_translated_t' => 'Bu yorum başka bir dilde yazılmış ve otomatik olarak çevrilmiştir.',
+    'bl_reply_by' => 'ServerNet Destek', 'bl_ai_badge' => 'Yapay zeka yanıtı',
+    'bl_toc' => 'İçindekiler', 'bl_author_bio' => 'ServerNet mühendislik ve yayın ekibi — altyapı, ağ ve web barındırma uzmanları.',
+    'bl_updated' => 'Güncellendi', 'bl_copied' => 'Kopyalandı!', 'bl_back_top' => 'Başa dön',
     'bl_comments' => 'Yorumlar', 'bl_no_comments' => 'Henüz yorum yok — ilk siz olun!',
     'bl_leave' => 'Yorum bırakın', 'bl_name' => 'Adınız', 'bl_email' => 'E-posta (gösterilmez)',
     'bl_your' => 'Yorumunuz…', 'bl_submit' => 'Yorum gönder',
@@ -300,4 +305,15 @@ return [
     'chat_send' => 'Gönder',
     'chat_error' => 'Bir sorun oluştu; lütfen tekrar deneyin.',
     'chat_open' => 'Destek ile sohbet et',
+
+    /* Dokümantasyon */
+    'dc_badge' => 'Dokümantasyon', 'dc_title' => 'ServerNet Dokümanları',
+    'dc_h1a' => 'Her ServerNet hizmeti için', 'dc_h1b' => 'eksiksiz kılavuzlar',
+    'dc_sub' => 'Tüm ServerNet hizmetlerini kurma, yönetme ve sorun giderme adım adım kılavuzları — mühendislik ekibimiz tarafından yazıldı.',
+    'dc_search_ph' => 'Dokümanlarda arayın…', 'dc_filter_ph' => 'Başlıkları filtrele…',
+    'dc_more' => 've :n tane daha', 'dc_noresult' => 'Bu aramayla eşleşen bir şey yok.',
+    'dc_none' => 'Henüz doküman yayınlanmadı.',
+    'dc_onpage' => 'Bu sayfada', 'dc_prev' => 'Önceki', 'dc_next' => 'Sonraki',
+    'dc_helpful' => 'Bu sayfa yardımcı oldu mu?', 'dc_yes' => 'Evet', 'dc_no' => 'Hayır',
+    'dc_thanks' => 'Geri bildiriminiz için teşekkürler!', 'dc_ask' => 'Hâlâ takıldınız mı? Bize sorun',
 ];

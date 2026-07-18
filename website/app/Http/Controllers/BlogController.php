@@ -82,13 +82,64 @@ class BlogController extends Controller
             'name'      => strip_tags($data['name']),
             'email'     => $data['email'] ?? null,
             'body'      => strip_tags($data['body']),
+            'locale'    => app()->getLocale(),
             'approved'  => false,
             'ip'        => $request->ip(),
         ]);
 
-        $this->notifyModeration($comment, $slug);
+        $status = $this->screen($comment, $slug);
 
-        return back()->with('comment_status', 'pending')->withFragment('comments');
+        // اسپم بی‌سروصدا حذف شد — به فرستنده همان پیام عادی نشان بده تا بازخوردِ دورزدن نگیرد
+        if ($status === 'spam') {
+            return back()->with('comment_status', 'pending')->withFragment('comments');
+        }
+
+        if ($status !== 'approved') {
+            $this->notifyModeration($comment, $slug);
+        }
+
+        return back()->with('comment_status', $status === 'approved' ? 'published' : 'pending')->withFragment('comments');
+    }
+
+    /**
+     * داوری هوشمند کامنت. خروجی: approved | pending | spam
+     * در هر خطا یا ابهام، کامنت برای بررسی مدیر باقی می‌ماند (هرگز تأیید خودکارِ مشکوک).
+     */
+    private function screen(Comment $comment, string $slug): string
+    {
+        $post = $this->blog->find($slug);
+        $ai = app(\App\Services\AiComments::class)->review($comment, $post['title'] ?? '');
+
+        if ($ai === null) {
+            return 'pending'; // AI در دسترس نبود → بررسی دستی
+        }
+
+        $comment->ai_verdict = $ai['verdict'];
+        $comment->ai_score = $ai['score'];
+        $comment->ai_reason = $ai['reason'];
+
+        if ($ai['verdict'] === 'spam') {
+            $comment->delete();
+
+            return 'spam';
+        }
+
+        $comment->locale = $ai['locale'];
+        $comment->translations = $ai['translations'] ?: null;
+
+        if ($ai['verdict'] === 'approve') {
+            $comment->approved = true;
+            if (! empty($ai['reply'])) {
+                $orig = $ai['reply'][$ai['locale']] ?? reset($ai['reply']);
+                $comment->reply = $orig;
+                $comment->reply_translations = $ai['reply'];
+                $comment->replied_at = now();
+            }
+        }
+
+        $comment->save();
+
+        return $comment->approved ? 'approved' : 'pending';
     }
 
     /** مدیریت کامنت با لینک امضاشده (approve|delete) — بدون نیاز به لاگین */

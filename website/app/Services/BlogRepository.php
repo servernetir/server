@@ -2,79 +2,85 @@
 
 namespace App\Services;
 
+use App\Models\Post;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\File;
 
 /**
- * مخزن بلاگ flat-file — هر پست یک فایل JSON در resources/blog/posts.
- * فهرست (متادیتا) کش می‌شود؛ محتوای کامل فقط در صفحه‌ی تک‌پست خوانده می‌شود.
- * ساختار پست: slug,title,date,category,tags[],excerpt,cover,icon,reading,author,content
+ * مخزن بلاگ — از دیتابیس (posts + post_translations) می‌خواند.
+ * خروجی به‌صورت آرایه است تا قالب‌های موجود بدون تغییر کار کنند.
+ * type=blog فقط برای بلاگ؛ پایگاه دانش با type=kb مدیریت می‌شود.
  */
 class BlogRepository
 {
-    private string $dir;
+    private string $type = 'blog';
 
-    public function __construct()
-    {
-        $this->dir = resource_path('blog/posts');
-    }
-
-    /** فهرست همه‌ی پست‌ها (فقط متادیتا) مرتب‌شده بر اساس تاریخ نزول */
+    /** فهرست پست‌های منتشرشده (فقط متادیتا) برای زبان جاری */
     public function index(): array
     {
-        return Cache::remember('blog.index.v1', 600, function () {
-            if (! File::isDirectory($this->dir)) {
-                return [];
-            }
-            $posts = [];
-            foreach (File::files($this->dir) as $file) {
-                if ($file->getExtension() !== 'json') {
-                    continue;
-                }
-                $p = json_decode(File::get($file->getPathname()), true);
-                if (! is_array($p) || empty($p['slug'])) {
-                    continue;
-                }
-                unset($p['content']); // فهرست سبک بماند
-                $p['reading'] = $p['reading'] ?? 5;
-                $posts[] = $p;
-            }
-            usort($posts, fn ($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
+        $locale = app()->getLocale();
 
-            return $posts;
-        });
+        try {
+            return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () {
+                return Post::query()
+                    ->where('type', $this->type)->where('status', 'published')
+                    ->with('translations')
+                    ->orderByDesc('published_at')->orderByDesc('id')
+                    ->get()
+                    ->map(fn (Post $p) => $this->toArray($p, false))
+                    ->all();
+            });
+        } catch (\Throwable $e) {
+            // جدول هنوز مهاجرت نشده یا اختلال موقت دیتابیس — به‌جای 500 خالیِ سالم (شکست کش نمی‌شود)
+            return [];
+        }
     }
 
     /** یک پست کامل با محتوا */
     public function find(string $slug): ?array
     {
         $slug = preg_replace('~[^a-zA-Z0-9\-_]~', '', $slug);
-        $path = $this->dir.'/'.$slug.'.json';
-        if ($slug === '' || ! File::exists($path)) {
+        if ($slug === '') {
             return null;
         }
-        $p = json_decode(File::get($path), true);
-        if (! is_array($p) || empty($p['slug'])) {
-            return null;
+        try {
+            $post = Post::query()->where('slug', $slug)->where('status', 'published')->with('translations')->first();
+        } catch (\Throwable $e) {
+            return null; // جدول هنوز مهاجرت نشده — 404 به‌جای 500
         }
-        $p['reading'] = $p['reading'] ?? $this->readingTime($p['content'] ?? '');
 
-        return $p;
+        return $post ? $this->toArray($post, true) : null;
     }
 
-    /** صفحه‌بندی فهرست */
+    private function toArray(Post $p, bool $withContent): array
+    {
+        $t = $p->tr();
+        $out = [
+            'slug'     => $p->slug,
+            'title'    => $t?->title ?? $p->slug,
+            'date'     => optional($p->published_at ?? $p->created_at)->toDateString(),
+            'category' => $p->category,
+            'tags'     => $t?->tags ?? [],
+            'excerpt'  => $t?->excerpt ?? '',
+            'cover'    => $p->cover,
+            'image'    => $p->image,
+            'icon'     => $p->icon,
+            'reading'  => $p->reading ?: 5,
+            'author'   => optional($p->author)->name ?? 'تیم سرورنت',
+        ];
+        if ($withContent) {
+            $out['content'] = $t?->content ?? '';
+        }
+
+        return $out;
+    }
+
     public function paginate(array $posts, int $page, int $perPage = 9): array
     {
         $total = count($posts);
         $pages = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($page, $pages));
 
-        return [
-            'items' => array_slice($posts, ($page - 1) * $perPage, $perPage),
-            'page'  => $page,
-            'pages' => $pages,
-            'total' => $total,
-        ];
+        return ['items' => array_slice($posts, ($page - 1) * $perPage, $perPage), 'page' => $page, 'pages' => $pages, 'total' => $total];
     }
 
     public function byCategory(string $cat): array
@@ -101,7 +107,6 @@ class BlogRepository
         }));
     }
 
-    /** پست‌های مرتبط: هم‌دسته، به‌جز خودش */
     public function related(array $post, int $n = 3): array
     {
         $same = array_values(array_filter($this->index(), fn ($p) => ($p['category'] ?? '') === ($post['category'] ?? '') && $p['slug'] !== $post['slug']));
@@ -124,7 +129,6 @@ class BlogRepository
         return array_slice($this->index(), 0, $n);
     }
 
-    /** دسته‌ها با تعداد پست */
     public function categoryCounts(): array
     {
         $counts = [];
@@ -136,7 +140,6 @@ class BlogRepository
         return $counts;
     }
 
-    /** تگ‌های پرتکرار */
     public function popularTags(int $n = 16): array
     {
         $counts = [];
@@ -150,10 +153,13 @@ class BlogRepository
         return array_slice(array_keys($counts), 0, $n);
     }
 
-    private function readingTime(string $html): int
+    /** پاک‌سازی کش فهرست (پس از ساخت/ویرایش پست) */
+    public static function flush(): void
     {
-        $words = str_word_count(strip_tags($html)) ?: mb_strlen(strip_tags($html)) / 5;
-
-        return max(1, (int) ceil($words / 200));
+        foreach (['blog', 'kb'] as $type) {
+            foreach (['fa', 'en', 'tr'] as $loc) {
+                Cache::forget("blog.index.{$type}.{$loc}");
+            }
+        }
     }
 }

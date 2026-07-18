@@ -235,6 +235,11 @@ return [
     'bl_in_category' => 'Category', 'bl_tagged' => 'Posts tagged', 'bl_results_for' => 'Results for',
     'bl_prev' => 'Prev', 'bl_next' => 'Next', 'bl_none' => 'No posts found.', 'bl_home' => 'Home',
     'bl_share' => 'Share:', 'bl_related' => 'Related posts',
+    'bl_published' => 'Your comment has been published. Thanks for joining in!',
+    'bl_translated' => 'auto-translated', 'bl_translated_t' => 'This comment was written in another language and translated automatically.',
+    'bl_reply_by' => 'ServerNet Support', 'bl_ai_badge' => 'AI reply',
+    'bl_toc' => 'Table of contents', 'bl_author_bio' => 'ServerNet engineering & editorial team — specialists in infrastructure, networking and web hosting.',
+    'bl_updated' => 'Updated', 'bl_copied' => 'Copied!', 'bl_back_top' => 'Back to top',
     'bl_comments' => 'Comments', 'bl_no_comments' => 'No comments yet — be the first!',
     'bl_leave' => 'Leave a comment', 'bl_name' => 'Your name', 'bl_email' => 'Email (not shown)',
     'bl_your' => 'Your comment…', 'bl_submit' => 'Post comment',
@@ -300,4 +305,15 @@ return [
     'chat_send' => 'Send',
     'chat_error' => 'Something went wrong; please try again.',
     'chat_open' => 'Chat with support',
+
+    /* Documentation */
+    'dc_badge' => 'Documentation', 'dc_title' => 'ServerNet Docs',
+    'dc_h1a' => 'Complete guides for', 'dc_h1b' => 'every ServerNet service',
+    'dc_sub' => 'Step-by-step guides for setting up, managing and troubleshooting every ServerNet service — written by our engineering team.',
+    'dc_search_ph' => 'Search the documentation…', 'dc_filter_ph' => 'Filter titles…',
+    'dc_more' => 'and :n more', 'dc_noresult' => 'Nothing matched that search.',
+    'dc_none' => 'No documentation published yet.',
+    'dc_onpage' => 'On this page', 'dc_prev' => 'Previous', 'dc_next' => 'Next',
+    'dc_helpful' => 'Was this page helpful?', 'dc_yes' => 'Yes', 'dc_no' => 'No',
+    'dc_thanks' => 'Thanks for the feedback!', 'dc_ask' => 'Still stuck? Ask us',
 ];

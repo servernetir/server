@@ -42,6 +42,10 @@ $site = function (): void {
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
     Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');
 
+    // مستندات
+    Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');
+    Route::get('/docs/{slug}', [\App\Http\Controllers\DocsController::class, 'show'])->name('docs')->where('slug', '[a-z0-9-]+');
+
     // بلاگ
     Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
     Route::get('/blog/mod/{comment}/{action}', [BlogController::class, 'moderate'])->name('blog.moderate')->where('action', 'approve|delete');
@@ -63,3 +67,103 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+
+// تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
+Route::get('/system/content/{token}', function (string $token) {
+    abort_unless(hash_equals('ea73b509d9bae9297e25b508163c737a', $token), 404);
+    @set_time_limit(600);
+    $n = max(0, min(5, (int) request('n', 1)));
+    $out = [];
+
+    // پیش‌نمایش کیفیت آخرین مقاله‌های ساخته‌شده (فقط خواندنی)
+    if (request()->boolean('preview')) {
+        return response()->json(\App\Models\Post::with('translations')->latest('id')->take(3)->get()
+            ->map(fn ($p) => [
+                'slug'    => $p->slug,
+                'status'  => $p->status,
+                'due'     => optional($p->published_at)->toDateTimeString(),
+                'locales' => $p->translations->pluck('locale')->all(),
+                'fa'      => ($t = $p->translations->firstWhere('locale', 'fa')) ? [
+                    'title'    => $t->title,
+                    'excerpt'  => $t->excerpt,
+                    'words'    => str_word_count(strip_tags($t->content)),
+                    'chars'    => mb_strlen(strip_tags($t->content)),
+                    'h2'       => substr_count($t->content, '<h2'),
+                    'code'     => substr_count($t->content, '<pre'),
+                    'tags'     => $t->tags,
+                    'opening'  => mb_substr(trim(strip_tags($t->content)), 0, 220),
+                ] : null,
+            ]), 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    if (request()->boolean('fill')) {
+        \Illuminate\Support\Facades\Artisan::call('content:translate-missing', ['--limit' => 3]);
+        $out['fill'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    }
+
+    if ($n > 0) {
+        \Illuminate\Support\Facades\Artisan::call('content:generate', ['--limit' => $n]);
+        $out['generate'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    }
+    \Illuminate\Support\Facades\Artisan::call('content:publish-due');
+    $out['publish'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    $out['stats'] = [
+        'published' => \App\Models\Post::where('type', 'blog')->where('status', 'published')->count(),
+        'scheduled' => \App\Models\Post::where('type', 'blog')->where('status', 'draft')->count(),
+    ];
+
+    return response()->json($out, 200, [], JSON_UNESCAPED_UNICODE);
+});
+
+// موقتی: اجرای امن مهاجرت + سیدِ دیتابیس روی پروداکشن (بعد از دیپلوی حذف می‌شود)
+Route::get('/system/db/{token}', function (string $token) {
+    abort_unless(hash_equals('ea73b509d9bae9297e25b508163c737a', $token), 404);
+    $out = [];
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $out['migrate'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    \Illuminate\Support\Facades\Artisan::call('blog:seed-db');
+    $out['seed'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    \Illuminate\Support\Facades\Artisan::call('docs:seed');
+    $out['docs'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    $out['counts'] = ['posts' => \App\Models\Post::count(), 'users' => \App\Models\User::count()];
+
+    return response()->json($out);
+});
+
+/*
+| پنل مدیریت محتوا (/admin) — احراز هویت با سشن، غیرلوکالایز
+*/
+use App\Http\Controllers\Admin\AuthController as AdminAuth;
+use App\Http\Controllers\Admin\CommentController as AdminComment;
+use App\Http\Controllers\Admin\DashboardController as AdminDash;
+use App\Http\Controllers\Admin\PostController as AdminPost;
+use App\Http\Controllers\Admin\UserController as AdminUser;
+
+Route::prefix('admin')->group(function () {
+    Route::get('/setup', [AdminAuth::class, 'showSetup']);
+    Route::post('/setup', [AdminAuth::class, 'setup']);
+    Route::get('/login', [AdminAuth::class, 'showLogin'])->name('login');
+    Route::post('/login', [AdminAuth::class, 'login']);
+    Route::post('/logout', [AdminAuth::class, 'logout']);
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/', [AdminDash::class, 'index']);
+        Route::get('/posts', [AdminPost::class, 'index']);
+        Route::get('/posts/new', [AdminPost::class, 'edit']);
+        Route::get('/posts/{post}/edit', [AdminPost::class, 'edit']);
+        Route::post('/posts', [AdminPost::class, 'save']);
+        Route::post('/posts/{post}', [AdminPost::class, 'save']);
+        Route::post('/posts/{post}/delete', [AdminPost::class, 'destroy']);
+        Route::post('/ai/translate', [AdminPost::class, 'translate']);
+        Route::post('/ai/seo', [AdminPost::class, 'seo']);
+        Route::get('/comments', [AdminComment::class, 'index']);
+        Route::post('/comments/{comment}/approve', [AdminComment::class, 'approve']);
+        Route::post('/comments/{comment}/delete', [AdminComment::class, 'destroy']);
+        Route::post('/comments/{comment}/drop-reply', [AdminComment::class, 'dropReply']);
+        Route::get('/users', [AdminUser::class, 'index']);
+        Route::post('/users', [AdminUser::class, 'store']);
+        Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+    });
+});

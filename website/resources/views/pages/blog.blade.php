@@ -61,8 +61,12 @@
           @foreach($paged['items'] as $i => $p)
           @php $c = $cats[$p['category']] ?? null; @endphp
           <article class="blog-card reveal" style="transition-delay:{{ $i * 50 }}ms">
-            <a class="blog-card-cover" href="{{ lroute('blog', $p['slug']) }}" style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}">
-              <svg class="icon"><use href="#i-{{ $p['icon'] ?? 'book' }}"/></svg>
+            <a class="blog-card-cover {{ !empty($p['image']) ? 'has-img' : '' }}" href="{{ lroute('blog', $p['slug']) }}" @empty($p['image']) style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}" @endempty>
+              @if(!empty($p['image']))
+                <img src="{{ $p['image'] }}" alt="{{ $p['title'] }}" loading="lazy" decoding="async">
+              @else
+                <svg class="icon"><use href="#i-{{ $p['icon'] ?? 'book' }}"/></svg>
+              @endif
               @if($c)<span class="blog-card-cat">{{ lc($c) }}</span>@endif
             </a>
             <div class="blog-card-body">

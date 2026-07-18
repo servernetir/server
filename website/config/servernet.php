@@ -358,9 +358,9 @@ return [
     |----------------------------------------------------------------------
     */
     'knowledge_menu' => [
-        ['icon' => 'book',   'anchor' => 'blog', 'fa' => ['t' => 'بلاگ', 'd' => 'داستان‌های دنیای تکنولوژی و دیجیتال'],                 'en' => ['t' => 'Blog', 'd' => 'Stories from the tech & digital world'],       'tr' => ['t' => 'Blog', 'd' => 'Teknoloji ve dijital dünyadan hikayeler']],
+        ['icon' => 'book',   'route' => 'blog.index', 'fa' => ['t' => 'بلاگ', 'd' => 'داستان‌های دنیای تکنولوژی و دیجیتال'],             'en' => ['t' => 'Blog', 'd' => 'Stories from the tech & digital world'],       'tr' => ['t' => 'Blog', 'd' => 'Teknoloji ve dijital dünyadan hikayeler']],
         ['icon' => 'mic',    'anchor' => 'webinars', 'fa' => ['t' => 'وبینارها', 'd' => 'آخرین وبینارهای سرورنت'],                           'en' => ['t' => 'Webinars', 'd' => 'Latest ServerNet webinars'],               'tr' => ['t' => 'Webinarlar', 'd' => 'ServerNet\'in son webinarları']],
-        ['icon' => 'layout', 'anchor' => 'docs', 'fa' => ['t' => 'مستندات', 'd' => 'راهنمای استفاده از محصولات سرورنت'],                'en' => ['t' => 'Documentation', 'd' => 'Product guides & how-tos'],           'tr' => ['t' => 'Dokümantasyon', 'd' => 'Ürün kullanım kılavuzları']],
+        ['icon' => 'layout', 'route' => 'docs.index', 'fa' => ['t' => 'مستندات', 'd' => 'راهنمای استفاده از محصولات سرورنت'],           'en' => ['t' => 'Documentation', 'd' => 'Product guides & how-tos'],           'tr' => ['t' => 'Dokümantasyon', 'd' => 'Ürün kullanım kılavuzları']],
         ['icon' => 'cap',    'anchor' => 'learning', 'fa' => ['t' => 'سایر موارد آموزشی', 'd' => 'رویداد، دوره آموزشی، پادکست و…'],          'en' => ['t' => 'Learning & Events', 'd' => 'Events, courses, podcasts & more'], 'tr' => ['t' => 'Eğitim & Etkinlikler', 'd' => 'Etkinlik, kurs, podcast ve daha fazlası']],
         ['icon' => 'code',   'anchor' => 'developers', 'fa' => ['t' => 'ابزار توسعه‌دهندگان', 'd' => 'مستندات فنی برای آشنایی با API محصولات'], 'en' => ['t' => 'Developer API', 'd' => 'Technical docs for our product APIs'], 'tr' => ['t' => 'Geliştirici API', 'd' => 'Ürün API\'leri için teknik dokümanlar']],
     ],

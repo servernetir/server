@@ -66,6 +66,12 @@ class SiteController extends Controller
         foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
             $add('blog', $post['slug']);
         }
+        $add('docs.index');
+        foreach (app(\App\Services\DocsRepository::class)->tree() as $sec) {
+            foreach ($sec['items'] as $item) {
+                $add('docs', $item['slug']);
+            }
+        }
         foreach (array_keys(config('lookup.types')) as $type) {
             $add('lookup', $type);
         }

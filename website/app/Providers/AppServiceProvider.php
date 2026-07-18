@@ -36,9 +36,12 @@ class AppServiceProvider extends ServiceProvider
                 $baseRoute = preg_replace('/^(en|tr)\./', '', $routeName);
                 $params = request()->route()?->parameters() ?? [];
 
+                // برخی روت‌ها (مثل پنل ادمین) نسخه‌ی زبانی ندارند؛ در آن صورت به خانه fallback می‌شود
                 $localeUrls = [];
                 foreach (self::LOCALES as $code => $prefix) {
-                    $localeUrls[$code] = route($prefix.$baseRoute, $params);
+                    $localeUrls[$code] = \Illuminate\Support\Facades\Route::has($prefix.$baseRoute)
+                        ? route($prefix.$baseRoute, $params)
+                        : url($prefix === '' ? '/' : '/'.rtrim($prefix, '.'));
                 }
 
                 $routePrefix = self::LOCALES[$locale] ?? '';

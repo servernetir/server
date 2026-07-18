@@ -7,6 +7,14 @@
 @endphp
 <aside class="blog-side">
 
+  {{-- فهرست مطالب (فقط در صفحه‌ی تک‌پست؛ با JS از تیترهای محتوا ساخته می‌شود) --}}
+  @if(!empty($showToc))
+  <div class="bs-card bp-toc-card" id="bp-toc-card" hidden>
+    <h3 class="bs-title"><svg class="icon"><use href="#i-list"/></svg>{{ __('ui.bl_toc') }}</h3>
+    <nav><ul class="bp-toc" id="bp-toc"></ul></nav>
+  </div>
+  @endif
+
   {{-- جستجو --}}
   <div class="bs-card">
     <form class="bs-search" action="{{ lroute('blog.index') }}" method="get">
@@ -36,7 +44,9 @@
     <ul class="bs-recent">
       @foreach($recent as $r)
       <li><a href="{{ lroute('blog', $r['slug']) }}">
-        <span class="bs-recent-cover" style="background:{{ config('blog.covers.'.($r['cover'] ?? 'a')) }}"><svg class="icon"><use href="#i-{{ $r['icon'] ?? 'book' }}"/></svg></span>
+        <span class="bs-recent-cover {{ !empty($r['image']) ? 'has-img' : '' }}" @empty($r['image']) style="background:{{ config('blog.covers.'.($r['cover'] ?? 'a')) }}" @endempty>
+          @if(!empty($r['image']))<img src="{{ $r['image'] }}" alt="" loading="lazy" decoding="async">@else<svg class="icon"><use href="#i-{{ $r['icon'] ?? 'book' }}"/></svg>@endif
+        </span>
         <span class="bs-recent-tx"><b>{{ $r['title'] }}</b><small>{{ blog_date($r['date'] ?? '') }}</small></span>
       </a></li>
       @endforeach
