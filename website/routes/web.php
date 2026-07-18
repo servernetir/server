@@ -21,6 +21,8 @@ $site = function (): void {
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
+    Route::get('/careers', [\App\Http\Controllers\CareersController::class, 'show'])->name('careers');
+    Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply');
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');

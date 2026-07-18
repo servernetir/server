@@ -54,7 +54,7 @@ class SiteController extends Controller
         };
 
         $add('home');
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers'] as $n) {
             $add($n);
         }
         foreach (['seo', 'whois', 'ip', 'meet', 'app-builder'] as $slug) {

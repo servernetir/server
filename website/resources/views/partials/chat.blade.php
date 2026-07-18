@@ -1,12 +1,12 @@
 {{-- دستیار هوشمند — بک‌اند: ChatController --}}
 <button class="chat-fab" id="chat-fab" aria-label="{{ __('ui.chat_open') }}" aria-expanded="false">
-  <svg class="icon"><use href="#i-bot"/></svg>
+  <svg class="icon"><use href="#i-headset"/></svg>
   <span class="dot"></span>
 </button>
 
 <div class="chat-panel" id="chat-panel" role="dialog" aria-label="{{ __('ui.chat_title') }}">
   <div class="chat-head">
-    <div class="avatar"><svg class="icon"><use href="#i-sparkles"/></svg></div>
+    <div class="avatar"><svg class="icon"><use href="#i-headset"/></svg></div>
     <div>
       <h4>{{ __('ui.chat_title') }}</h4>
       <p>{{ __('ui.chat_online') }}</p>

@@ -45,7 +45,7 @@ return [
     'f_products' => 'Products', 'f_p1' => 'Web Hosting', 'f_p2' => 'VPS', 'f_p3' => 'Dedicated Servers', 'f_p4' => 'Domains', 'f_p5' => 'Cloud Services',
     'f_solutions' => 'Solutions', 'f_s1' => 'Enterprise Infrastructure', 'f_s2' => 'AI Agents', 'f_s3' => 'BPMN & ERP', 'f_s4' => 'Web Design', 'f_s5' => 'SEO Services',
     'f_contact' => 'Contact us',
-    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area',
+    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service',
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
 
     'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Toolbox',
@@ -242,6 +242,22 @@ return [
     'bl_busy' => 'Too many comments; please try again shortly.',
     'bl_err' => 'Please enter a valid name and comment.',
 
+    /* Careers */
+    'cr_title' => 'Careers', 'cr_meta_d' => 'Join the ServerNet team — open roles in servers, networking, development, support, sales and content.',
+    'cr_badge' => 'Careers', 'cr_h1a' => 'Join the', 'cr_h1b' => 'ServerNet team.',
+    'cr_lead' => 'We\'re looking for people who love doing things right and want to grow on real infrastructure. If this is you, we\'d love to meet you.',
+    'cr_see_jobs' => 'See open roles',
+    'cr_perks_t' => 'Why ServerNet?', 'cr_perks_d' => 'A place where you learn, are seen, and grow.',
+    'cr_open_badge' => 'Open roles', 'cr_open_t' => 'We\'re hiring now', 'cr_fulltime' => 'Full-time', 'cr_req' => 'What we look for',
+    'cr_apply_this' => 'Apply for this role',
+    'cr_apply_t' => 'Apply to join', 'cr_apply_d' => 'Fill in the form; we\'ll get back to you soon.',
+    'cr_ok' => 'Your application was submitted. Thank you — we\'ll be in touch soon!',
+    'cr_busy' => 'Too many submissions; please try again shortly.',
+    'cr_err' => 'Please fill in the required fields correctly.',
+    'cr_f_name' => 'Full name', 'cr_f_email' => 'Email', 'cr_f_phone' => 'Phone', 'cr_f_position' => 'Position',
+    'cr_other' => 'Other / open application', 'cr_f_resume' => 'Resume link', 'cr_resume_note' => 'Link to your resume, LinkedIn or portfolio (Google Drive, Dropbox, etc.)',
+    'cr_f_message' => 'Tell us about yourself', 'cr_submit' => 'Send application', 'cr_or_email' => 'or email your resume to',
+
     /* 404 page */
     'e404_h1a' => 'This page', 'e404_h1b' => 'was not found.',
     'e404_lead' => "The URL you were looking for seems to have moved or been removed. Don't worry — the rest of our infrastructure is right where it should be.",
@@ -277,11 +293,11 @@ return [
     'aib_deploy_note' => 'Hosting monthly + domain yearly',
     'aib_deploy_btn' => 'Deploy & pay',
 
-    'chat_title' => 'ServerNet AI Assistant',
-    'chat_online' => 'Online — replies in seconds',
+    'chat_title' => 'ServerNet Support',
+    'chat_online' => 'Online — here to help',
     'chat_hello' => "Hi! 👋 I'm the ServerNet AI assistant. Ask me about hosting, servers, domains or pricing.",
     'chat_ph' => 'Type your message…',
     'chat_send' => 'Send',
     'chat_error' => 'Something went wrong; please try again.',
-    'chat_open' => 'Chat with AI assistant',
+    'chat_open' => 'Chat with support',
 ];

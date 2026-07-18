@@ -33,9 +33,10 @@
       <div class="f-col">
         <h5 class="f-head">{{ __('ui.f_company') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
-          <a href="{{ $homeUrl }}#contact">{{ __('ui.f_c2') }}</a>
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
-          <a href="{{ lroute('knowledge') }}#blog">{{ __('ui.f_c3') }}</a>
+          <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
+          <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
+          <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           <a href="{{ whmcs_url('clientarea.php') }}">{{ __('ui.f_c5') }}</a>
         </div></div>

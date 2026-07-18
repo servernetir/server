@@ -45,7 +45,7 @@ return [
     'f_products' => 'Ürünler', 'f_p1' => 'Web Hosting', 'f_p2' => 'VPS', 'f_p3' => 'Fiziksel Sunucu', 'f_p4' => 'Alan Adı', 'f_p5' => 'Bulut Hizmetleri',
     'f_solutions' => 'Çözümler', 'f_s1' => 'Kurumsal Altyapı', 'f_s2' => 'AI Ajanları', 'f_s3' => 'BPMN & ERP', 'f_s4' => 'Web Tasarım', 'f_s5' => 'SEO Hizmetleri',
     'f_contact' => 'Bize ulaşın',
-    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli',
+    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları',
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
 
     'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Araç Kutusu',
@@ -242,6 +242,22 @@ return [
     'bl_busy' => 'Çok fazla yorum; lütfen birazdan tekrar deneyin.',
     'bl_err' => 'Lütfen geçerli bir ad ve yorum girin.',
 
+    /* Kariyer */
+    'cr_title' => 'Kariyer', 'cr_meta_d' => 'ServerNet ekibine katılın — sunucu, ağ, geliştirme, destek, satış ve içerik alanlarında açık pozisyonlar.',
+    'cr_badge' => 'Kariyer', 'cr_h1a' => 'ServerNet ekibine', 'cr_h1b' => 'katılın.',
+    'cr_lead' => 'İşi doğru yapmayı seven ve gerçek altyapıda büyümek isteyen insanlar arıyoruz. Bu sizseniz, sizinle tanışmak isteriz.',
+    'cr_see_jobs' => 'Açık pozisyonları gör',
+    'cr_perks_t' => 'Neden ServerNet?', 'cr_perks_d' => 'Öğrendiğiniz, görüldüğünüz ve büyüdüğünüz bir yer.',
+    'cr_open_badge' => 'Açık pozisyonlar', 'cr_open_t' => 'Şimdi işe alıyoruz', 'cr_fulltime' => 'Tam zamanlı', 'cr_req' => 'Aradıklarımız',
+    'cr_apply_this' => 'Bu pozisyona başvur',
+    'cr_apply_t' => 'Başvur', 'cr_apply_d' => 'Formu doldurun; en kısa sürede size döneceğiz.',
+    'cr_ok' => 'Başvurunuz gönderildi. Teşekkürler — yakında iletişime geçeceğiz!',
+    'cr_busy' => 'Çok fazla gönderim; lütfen birazdan tekrar deneyin.',
+    'cr_err' => 'Lütfen gerekli alanları doğru doldurun.',
+    'cr_f_name' => 'Ad soyad', 'cr_f_email' => 'E-posta', 'cr_f_phone' => 'Telefon', 'cr_f_position' => 'Pozisyon',
+    'cr_other' => 'Diğer / açık başvuru', 'cr_f_resume' => 'Özgeçmiş bağlantısı', 'cr_resume_note' => 'Özgeçmiş, LinkedIn veya portföy bağlantısı (Google Drive, Dropbox vb.)',
+    'cr_f_message' => 'Kendinizden bahsedin', 'cr_submit' => 'Başvuru gönder', 'cr_or_email' => 'veya özgeçmişinizi şu adrese gönderin',
+
     /* 404 sayfası */
     'e404_h1a' => 'Bu sayfa', 'e404_h1b' => 'bulunamadı.',
     'e404_lead' => 'Aradığınız adres taşınmış veya kaldırılmış görünüyor. Endişelenmeyin — altyapımızın geri kalanı tam yerinde.',
@@ -277,11 +293,11 @@ return [
     'aib_deploy_note' => 'Aylık hosting + yıllık alan adı',
     'aib_deploy_btn' => 'Yayına al & öde',
 
-    'chat_title' => 'ServerNet AI Asistanı',
-    'chat_online' => 'Çevrimiçi — saniyeler içinde yanıt',
+    'chat_title' => 'ServerNet Destek',
+    'chat_online' => 'Çevrimiçi — yardıma hazır',
     'chat_hello' => 'Merhaba! 👋 Ben ServerNet AI asistanıyım. Hosting, sunucular, alan adları veya fiyatlar hakkında bana sorabilirsiniz.',
     'chat_ph' => 'Mesajınızı yazın…',
     'chat_send' => 'Gönder',
     'chat_error' => 'Bir sorun oluştu; lütfen tekrar deneyin.',
-    'chat_open' => 'AI asistanla sohbet et',
+    'chat_open' => 'Destek ile sohbet et',
 ];
