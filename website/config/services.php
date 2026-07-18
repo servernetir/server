@@ -45,11 +45,13 @@ return [
     ],
 
     // سازنده سایت با هوش مصنوعی (GapGPT، سازگار با OpenAI)
+    // نام مدل اینجا ثابت است چون در اکانت GapGPT فقط claude-fable-5 تأمین شده؛
+    // key/base از .env می‌آیند تا رمز در کد نباشد.
     'gapgpt' => [
         'key'       => env('GAPGPT_API_KEY'),
         'base'      => env('GAPGPT_BASE_URL', 'https://api.gapgpt.app/v1'),
-        'model'     => env('GAPGPT_BUILDER_MODEL', 'claude-sonnet-5'),
-        'model_pro' => env('GAPGPT_BUILDER_MODEL_PRO', 'claude-opus-4-8'),
+        'model'     => 'claude-fable-5',
+        'model_pro' => 'claude-fable-5',
     ],
 
 ];
