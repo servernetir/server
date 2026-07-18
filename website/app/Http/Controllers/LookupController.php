@@ -81,4 +81,28 @@ class LookupController extends Controller
 
         return response()->json($result);
     }
+
+    /** صفحه‌ی ابزار جامع (dns | network) — همه‌ی زیرابزارها در یک صفحه */
+    public function hub(string $hub, Request $request): View
+    {
+        $hubs = config('toolhub');
+        abort_unless(isset($hubs[$hub]), 404);
+
+        return view('pages.toolhub', [
+            'hub' => $hub,
+            'cfg' => $hubs[$hub],
+        ]);
+    }
+
+    /** POST /api/dns-report — گزارش کامل همه‌ی رکوردهای DNS یک دامنه */
+    public function dnsReport(Request $request): JsonResponse
+    {
+        $data = $request->validate(['query' => 'nullable|string|max:255']);
+        $q = trim($data['query'] ?? '');
+        if ($q === '') {
+            return response()->json(['ok' => false, 'error' => 'empty']);
+        }
+
+        return response()->json($this->net->allDns($q));
+    }
 }

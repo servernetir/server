@@ -53,6 +53,9 @@ return [
     'tb_general' => 'SEO & Domain', 'tb_platforms' => 'Platforms', 'tb_all' => 'Browse all tools',
     'tb_remote' => 'Remote Desktop', 'tb_remote_d' => 'Fast, secure remote computer control',
     'tb_bpmn' => 'BPMN Process Designer', 'tb_bpmn_d' => 'Model processes online, export standard BPMN',
+    'tb_dns' => 'Full DNS Lookup', 'tb_dns_d' => 'All of a domain\'s records in one report',
+    'tb_net' => 'Network & Security', 'tb_net_d' => 'SSL, ports, ping, DNSSEC and more',
+    'hub_individual' => 'Check a single item', 'hub_dns_all' => 'Full record report',
     'mega_cta' => 'Free purchase consultation', 'mega_note' => 'Instant activation · 24/7 support',
     'menu' => 'Menu',
 

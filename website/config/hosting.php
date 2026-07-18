@@ -511,6 +511,27 @@ return [
                     'en' => ['t' => 'Smart Anti-Spam & Antivirus', 'd' => 'Multi-layer ML filtering, safe quarantine and daily digests — without losing legitimate mail.'],
                     'tr' => ['t' => 'Akıllı Anti-Spam ve Antivirüs', 'd' => 'Çok katmanlı ML filtreleme, güvenli karantina ve günlük özet — gerçek postaları kaybetmeden.']],
             ],
+            'band' => [
+                'icon' => 'send', 'badge_key' => 'Amazon SES',
+                'fa' => [
+                    't' => 'به ارسال انبوه و تراکنشی هم نیاز دارید؟',
+                    'd' => 'علاوه بر صندوق‌های ایمیل سازمانی، سرویس ایمیل تراکنشی ما روی زیرساخت Amazon SES ارسال انبوه، خبرنامه و ایمیل‌های خودکار (تأیید سفارش، بازیابی رمز، فاکتور) را با بالاترین نرخ تحویل ممکن می‌کند. با افتخار نماینده‌ی آمازون هستیم.',
+                    'points' => ['مبتنی بر زیرساخت جهانی Amazon SES', 'اتصال با SMTP و REST API', 'راه‌اندازی کامل SPF/DKIM/DMARC', 'IP اختصاصی گرم‌شده برای حجم بالا'],
+                    'cta' => 'مشاوره‌ی ایمیل تراکنشی',
+                ],
+                'en' => [
+                    't' => 'Need bulk & transactional sending too?',
+                    'd' => 'Beyond business mailboxes, our transactional email service on Amazon SES powers bulk sends, newsletters and automated email (order confirmations, password resets, invoices) at the highest possible delivery rate. We\'re a proud Amazon partner.',
+                    'points' => ['Built on Amazon SES global infrastructure', 'Connect via SMTP and REST API', 'Full SPF/DKIM/DMARC setup', 'Warmed-up dedicated IP for high volume'],
+                    'cta' => 'Transactional email consulting',
+                ],
+                'tr' => [
+                    't' => 'Toplu ve işlemsel gönderim de mi lazım?',
+                    'd' => 'Kurumsal posta kutularının yanı sıra, Amazon SES üzerindeki işlemsel e-posta hizmetimiz toplu gönderim, bülten ve otomatik e-postaları (sipariş onayı, şifre sıfırlama, fatura) mümkün olan en yüksek teslim oranıyla sağlar. Gururlu bir Amazon iş ortağıyız.',
+                    'points' => ['Amazon SES küresel altyapısı üzerine kurulu', 'SMTP ve REST API ile bağlantı', 'Tam SPF/DKIM/DMARC kurulumu', 'Yüksek hacim için ısıtılmış özel IP'],
+                    'cta' => 'İşlemsel e-posta danışmanlığı',
+                ],
+            ],
             'faqs' => ['activation',
                 ['fa' => ['q' => 'چرا ایمیل را از هاست سایت جدا کنم؟', 'a' => 'چون اگر سایت دچار مشکل یا آلودگی شود، ایمیل سازمانی شما قطع نمی‌شود و اعتبار (Reputation) ارسال ایمیل‌تان مستقل از سایت حفظ می‌شود — استاندارد شرکت‌های حرفه‌ای دنیا همین است.'],
                  'en' => ['q' => 'Why separate email from my website hosting?', 'a' => 'If your site ever has issues or gets compromised, your business email keeps working — and your sending reputation stays independent of the site. That\'s how professional companies do it.'],

@@ -53,6 +53,9 @@ return [
     'tb_general' => 'SEO & Alan Adı', 'tb_platforms' => 'Platformlar', 'tb_all' => 'Tüm araçları gör',
     'tb_remote' => 'Uzak Masaüstü', 'tb_remote_d' => 'Hızlı, güvenli uzaktan bilgisayar kontrolü',
     'tb_bpmn' => 'BPMN Süreç Tasarımcısı', 'tb_bpmn_d' => 'Süreçleri çevrimiçi modelleyin, BPMN dışa aktarın',
+    'tb_dns' => 'Tam DNS Sorgu', 'tb_dns_d' => 'Bir alan adının tüm kayıtları tek raporda',
+    'tb_net' => 'Ağ & Güvenlik', 'tb_net_d' => 'SSL, port, ping, DNSSEC ve daha fazlası',
+    'hub_individual' => 'Tek bir öğeyi kontrol et', 'hub_dns_all' => 'Tam kayıt raporu',
     'mega_cta' => 'Ücretsiz satın alma danışmanlığı', 'mega_note' => 'Anında aktivasyon · 7/24 destek',
     'menu' => 'Menü',
 

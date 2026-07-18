@@ -60,6 +60,64 @@ class NetworkTools
         ];
     }
 
+    /**
+     * گزارش کامل DNS — همه‌ی رکوردهای پرکاربرد یک دامنه.
+     * درخواست‌ها موازی (curl_multi) اجرا می‌شوند تا کل زمان ≈ کندترین درخواست
+     * باشد نه مجموع ۸ درخواست.
+     */
+    public function allDns(string $domain): array
+    {
+        $host = $this->host($domain);
+        if ($host === null) {
+            return ['ok' => false, 'error' => 'invalid_domain'];
+        }
+
+        $types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA', 'CAA'];
+        $endpoint = self::RESOLVERS['google']['url'];
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($types as $type) {
+            $ch = curl_init($endpoint.'?name='.urlencode($host).'&type='.urlencode($type));
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_HTTPHEADER     => ['Accept: application/dns-json'],
+                CURLOPT_USERAGENT      => 'ServerNet-Lookup/1.0',
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$type] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh, 1.0);
+            }
+        } while ($running && $status === CURLM_OK);
+
+        $groups = [];
+        $total = 0;
+        foreach ($handles as $type => $ch) {
+            $raw = curl_multi_getcontent($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $recs = [];
+            if ($raw !== null && $code === 200) {
+                $data = json_decode($raw, true);
+                if (is_array($data)) {
+                    $recs = $this->extract($data, $type);
+                }
+            }
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            $groups[] = ['type' => $type, 'records' => $recs, 'count' => count($recs)];
+            $total += count($recs);
+        }
+        curl_multi_close($mh);
+
+        return ['ok' => true, 'domain' => $host, 'groups' => $groups, 'total' => $total];
+    }
+
     /** بررسی DNSSEC — flag امنیتی AD و وجود رکوردهای DS/DNSKEY/RRSIG */
     public function dnssec(string $domain): array
     {

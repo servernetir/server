@@ -116,7 +116,22 @@
       <div class="container">
         <div class="tools-mega">
 
-          {{-- ستون ۱: سئو و دامنه + پلتفرم‌ها --}}
+          {{-- ستون ۱: بررسی و عیب‌یابی (ابزارهای جامع) --}}
+          <div class="tmega-col">
+            <div class="tmega-group">
+              <span class="tmega-h">{{ lc($lkGroups['records']) }} · {{ lc($lkGroups['network']) }}</span>
+              <a class="tmega-link" href="{{ lroute('hub.dns') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-db"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_dns') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_dns_d') }}</small></span>
+              </a>
+              <a class="tmega-link" href="{{ lroute('hub.network') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-shield"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_net') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_net_d') }}</small></span>
+              </a>
+            </div>
+          </div>
+
+          {{-- ستون ۲: سئو و دامنه --}}
           <div class="tmega-col">
             <div class="tmega-group">
               <span class="tmega-h">{{ __('ui.tb_general') }}</span>
@@ -129,6 +144,10 @@
                 @endif
               @endforeach
             </div>
+          </div>
+
+          {{-- ستون ۳: پلتفرم‌ها --}}
+          <div class="tmega-col">
             <div class="tmega-group">
               <span class="tmega-h">{{ __('ui.tb_platforms') }}</span>
               @foreach(['meet', 'app-builder'] as $slug)
@@ -141,45 +160,12 @@
               @endforeach
               <a class="tmega-link" href="{{ lroute('solution', 'remote') }}">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-monitor"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_remote') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_remote_d') }}</small></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></span>
               </a>
               <a class="tmega-link" href="https://bpmn.servernet.cloud" target="_blank" rel="noopener">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-flow"/></svg></span>
                 <span class="tmega-tx"><b>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></span>
               </a>
-            </div>
-          </div>
-
-          {{-- ستون ۲: رکوردهای DNS --}}
-          <div class="tmega-col">
-            <div class="tmega-group">
-              <span class="tmega-h">{{ lc($lkGroups['records']) }}</span>
-              <div class="tmega-compact">
-                @foreach($lkTypes as $k => $t)
-                  @if(($t['group'] ?? '') === 'records')
-                  <a class="tmega-chip" href="{{ lroute('lookup', $k) }}">
-                    <svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg><span>{{ lc($t)['t'] }}</span>
-                  </a>
-                  @endif
-                @endforeach
-              </div>
-            </div>
-          </div>
-
-          {{-- ستون ۳: شبکه و امنیت --}}
-          <div class="tmega-col">
-            <div class="tmega-group">
-              <span class="tmega-h">{{ lc($lkGroups['network']) }}</span>
-              <div class="tmega-compact">
-                @foreach($lkTypes as $k => $t)
-                  @if(($t['group'] ?? '') === 'network')
-                  <a class="tmega-chip" href="{{ lroute('lookup', $k) }}">
-                    <svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg><span>{{ lc($t)['t'] }}</span>
-                  </a>
-                  @endif
-                @endforeach
-              </div>
-              <a class="tmega-all" href="{{ lroute('lookup', 'a') }}">{{ __('ui.tb_all') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
             </div>
           </div>
 
@@ -235,12 +221,11 @@
     <div class="acc">
       <button class="acc-head"><span class="dc-icon sm"><svg class="icon"><use href="#i-zap"/></svg></span>{{ __('ui.nav_tools') }}<span class="free-badge new-badge">{{ __('ui.nav_new') }}</span><svg class="icon chev"><use href="#i-chev"/></svg></button>
       <div class="acc-body"><div class="acc-in">
+        <span class="acc-group">{{ lc($lkGroups['records']) }} · {{ lc($lkGroups['network']) }}</span>
+        <a href="{{ lroute('hub.dns') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-db"/></svg>{{ __('ui.tb_dns') }}</b><small>{{ __('ui.tb_dns_d') }}</small></a>
+        <a href="{{ lroute('hub.network') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-shield"/></svg>{{ __('ui.tb_net') }}</b><small>{{ __('ui.tb_net_d') }}</small></a>
         <span class="acc-group">{{ __('ui.tb_general') }}</span>
         @foreach(['seo', 'whois', 'ip'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
-        <span class="acc-group">{{ lc($lkGroups['records']) }}</span>
-        @foreach($lkTypes as $k => $t)@if(($t['group'] ?? '') === 'records')<a href="{{ lroute('lookup', $k) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b></a>@endif @endforeach
-        <span class="acc-group">{{ lc($lkGroups['network']) }}</span>
-        @foreach($lkTypes as $k => $t)@if(($t['group'] ?? '') === 'network')<a href="{{ lroute('lookup', $k) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b></a>@endif @endforeach
         <span class="acc-group">{{ __('ui.tb_platforms') }}</span>
         @foreach(['meet', 'app-builder'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
         <a href="{{ lroute('solution', 'remote') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-monitor"/></svg>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></a>

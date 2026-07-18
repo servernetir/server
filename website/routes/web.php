@@ -29,7 +29,12 @@ $site = function (): void {
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois');
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip');
 
-    // مجموعه ابزار DNS و شبکه (Lookup)
+    // ابزارهای جامع DNS و شبکه (هاب)
+    Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
+    Route::get('/network-scan', [LookupController::class, 'hub'])->name('hub.network')->defaults('hub', 'network');
+    Route::post('/api/dns-report', [LookupController::class, 'dnsReport'])->name('api.dnsreport');
+
+    // مجموعه ابزار DNS و شبکه (Lookup) — صفحات تکی سئویی
     Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
     Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');

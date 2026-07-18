@@ -116,6 +116,30 @@
   </div>
 </section>
 
+{{-- ============ BAND (پیشنهاد مرتبط، مثل ایمیل تراکنشی) ============ --}}
+@isset($product['band'])
+@php $band = $product['band']; $bl = lc($band); @endphp
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="hp-band reveal">
+      <div class="hp-band-glow"></div>
+      <div class="hp-band-main">
+        <span class="hp-band-ic"><svg class="icon"><use href="#i-{{ $band['icon'] }}"/></svg></span>
+        <div>
+          @if(!empty($band['badge_key']))<span class="hp-band-badge">{{ $band['badge_key'] }}</span>@endif
+          <h3>{{ $bl['t'] }}</h3>
+          <p>{{ $bl['d'] }}</p>
+        </div>
+      </div>
+      <ul class="hp-band-points">
+        @foreach($bl['points'] as $pt)<li><svg class="icon"><use href="#i-check"/></svg>{{ $pt }}</li>@endforeach
+      </ul>
+      <a class="btn btn-primary" href="{{ lroute('contact') }}"><span>{{ $bl['cta'] }}</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
+    </div>
+  </div>
+</section>
+@endisset
+
 {{-- ============ SIGNATURE (المان اختصاصی هر محصول) ============ --}}
 @isset($product['signature'])
 @if($product['signature']['type'] !== 'ai-builder')
