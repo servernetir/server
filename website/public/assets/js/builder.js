@@ -106,7 +106,7 @@
       finishProgress();
       loading.hidden = true;
       if (!d.ok) {
-        addMsg(d.error === 'not_configured' ? I.notConfigured : d.error === 'limit' ? I.limit : I.err, 'bot');
+        addMsg(d.error === 'not_configured' ? I.notConfigured : d.error === 'limit' ? I.limit : d.error === 'ai_busy' ? (I.busy || I.err) : I.err, 'bot');
         if (d.html) { setPreview(d.html); } else if (currentHtml) { frame.hidden = false; } else { empty.hidden = false; }
         busy = false; return;
       }

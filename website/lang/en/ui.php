@@ -249,6 +249,7 @@ return [
     'aib_err' => 'Something went wrong while building; please try again.',
     'aib_not_configured' => 'The AI builder isn\'t enabled yet. Please try later or contact support.',
     'aib_limit' => 'You\'ve reached this session\'s request limit. Deploy this site to continue, or refresh the page.',
+    'aib_busy' => 'The AI service is busy right now; please try again in a moment.',
     'aib_saved' => 'Your site is saved ✓ Reference: :ref — our team will deploy it after payment.',
     'aib_deploy_t' => 'Love it? Let\'s put it live now!',
     'aib_deploy_d' => 'Pick your domain and a hosting plan; after payment we deploy this exact site and take it online for you.',

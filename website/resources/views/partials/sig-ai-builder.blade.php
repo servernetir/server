@@ -110,7 +110,7 @@ window.AIB_I18N = {
   building: @json(__('ui.aib_building')), thinking: @json(__('ui.aib_thinking')),
   steps: [@json(__('ui.aib_step1')), @json(__('ui.aib_step2')), @json(__('ui.aib_step3')), @json(__('ui.aib_step4')), @json(__('ui.aib_step5'))],
   err: @json(__('ui.aib_err')), notConfigured: @json(__('ui.aib_not_configured')),
-  limit: @json(__('ui.aib_limit')), left: @json(__('ui.aib_left')),
+  limit: @json(__('ui.aib_limit')), busy: @json(__('ui.aib_busy')), left: @json(__('ui.aib_left')),
   domainChecking: @json(__('ui.domain_checking')), domainFree: @json(__('ui.domain_free')),
   domainTaken: @json(__('ui.domain_taken')), perMo: @json(__('ui.mo')), perYr: @json(__('ui.domain_year')),
   saved: @json(__('ui.aib_saved')), download: @json(__('ui.aib_download')),

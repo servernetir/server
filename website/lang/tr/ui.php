@@ -249,6 +249,7 @@ return [
     'aib_err' => 'Oluşturulurken bir sorun oluştu; lütfen tekrar deneyin.',
     'aib_not_configured' => 'Yapay zeka oluşturucu henüz etkin değil. Lütfen sonra deneyin veya destekle iletişime geçin.',
     'aib_limit' => 'Bu oturumun istek sınırına ulaştınız. Devam etmek için bu siteyi yayına alın veya sayfayı yenileyin.',
+    'aib_busy' => 'Yapay zeka hizmeti şu anda meşgul; lütfen birazdan tekrar deneyin.',
     'aib_saved' => 'Siteniz kaydedildi ✓ Referans: :ref — ekibimiz ödeme sonrası yayına alacak.',
     'aib_deploy_t' => 'Beğendiniz mi? Hemen yayına alalım!',
     'aib_deploy_d' => 'Alan adınızı ve bir hosting planı seçin; ödemeden sonra tam da bu siteyi yayına alıyoruz.',

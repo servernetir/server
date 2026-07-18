@@ -18,6 +18,9 @@ class AiBuilderController extends Controller
     private const MAX_TURNS = 16;      // سقف پیام کاربر در یک نشست (کنترل هزینه)
     private const SESSION_TTL = 7200;  // ۲ ساعت
 
+    /** آخرین خطای API برای عیب‌یابی (http + بخشی از بدنه) */
+    private ?array $lastError = null;
+
     public function chat(Request $request): JsonResponse
     {
         // تولید یک صفحه‌ی کامل می‌تواند تا ~۲ دقیقه طول بکشد؛ نگذاریم PHP
@@ -50,7 +53,15 @@ class AiBuilderController extends Controller
 
         $reply = $this->call($messages, ! empty($data['pro']));
         if ($reply === null) {
-            return response()->json(['ok' => false, 'error' => 'ai_error', 'html' => $state['html']]);
+            // اگر خطا از سقف/اعتبار سرویس هوش مصنوعی بود، پیام مناسب بده
+            $isLimit = ($this->lastError['http'] ?? 0) === 429
+                || str_contains(json_encode($this->lastError), 'api_limit');
+
+            return response()->json([
+                'ok'    => false,
+                'error' => $isLimit ? 'ai_busy' : 'ai_error',
+                'html'  => $state['html'],
+            ]);
         }
 
         [$chat, $html] = $this->split($reply);
@@ -150,8 +161,9 @@ class AiBuilderController extends Controller
             CURLOPT_CONNECTTIMEOUT => 20,
         ]);
         $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if ($raw === false) {
-            Log::warning('AI builder: '.curl_error($ch));
+            Log::warning('AI builder curl: '.curl_error($ch));
             curl_close($ch);
 
             return null;
@@ -161,7 +173,15 @@ class AiBuilderController extends Controller
         $d = json_decode($raw, true);
         $content = $d['choices'][0]['message']['content'] ?? null;
 
-        return is_string($content) && trim($content) !== '' ? $content : null;
+        if (! is_string($content) || trim($content) === '') {
+            // خطای API را برای عیب‌یابی نگه دار (کلید نامعتبر، مدل ناشناخته و…)
+            $this->lastError = ['http' => $code, 'model' => $model, 'body' => mb_substr((string) $raw, 0, 300)];
+            Log::warning('AI builder API', $this->lastError);
+
+            return null;
+        }
+
+        return $content;
     }
 
     /** جدا کردن متن گفتگو از بلوک HTML */
