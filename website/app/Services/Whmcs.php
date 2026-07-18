@@ -148,7 +148,7 @@ class Whmcs
             ],
         ];
 
-        Cache::put($key, $out, 600);
+        Cache::put($key, $out, 3600); // ۱ ساعت — صفحه‌ی اصلی تقریباً همیشه از کش سرو می‌شود
 
         return $out;
     }
