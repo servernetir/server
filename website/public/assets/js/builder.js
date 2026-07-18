@@ -24,6 +24,34 @@
   const deploy = document.getElementById('aib-deploy');
   const dlBtn = document.getElementById('aib-download');
 
+  const progBar = document.getElementById('aib-progress-bar');
+  const progPct = document.getElementById('aib-progress-pct');
+
+  /* نوار پیشرفت شبیه‌سازی‌شده — تولید یک عملیات نامعین است، پس تا ~۹۲٪
+     نرم پیش می‌رود و با رسیدن پاسخ به ۱۰۰٪ می‌رسد (بازخورد به کاربر منتظر). */
+  let progTimer = null, progVal = 0;
+  function startProgress() {
+    progVal = 0;
+    const steps = I.steps || [I.building];
+    let si = -1;
+    if (progBar) progBar.style.width = '0%';
+    if (progPct) progPct.textContent = faNum(0) + '٪';
+    clearInterval(progTimer);
+    progTimer = setInterval(() => {
+      progVal += Math.max(0.35, (92 - progVal) * 0.045);
+      if (progVal > 92) progVal = 92;
+      if (progBar) progBar.style.width = progVal.toFixed(1) + '%';
+      if (progPct) progPct.textContent = faNum(Math.floor(progVal)) + '٪';
+      const ni = Math.min(steps.length - 1, Math.floor(progVal / (93 / steps.length)));
+      if (ni !== si) { si = ni; loadTxt.textContent = steps[si]; }
+    }, 420);
+  }
+  function finishProgress() {
+    clearInterval(progTimer); progTimer = null;
+    if (progBar) progBar.style.width = '100%';
+    if (progPct) progPct.textContent = faNum(100) + '٪';
+  }
+
   const scrollDown = () => { messages.scrollTop = messages.scrollHeight; };
   function addMsg(txt, who) {
     const d = document.createElement('div');
@@ -65,6 +93,7 @@
     const typing = addMsg(I.thinking, 'bot typing');
     empty.hidden = true; loading.hidden = false; frame.hidden = true;
     loadTxt.textContent = I.building;
+    startProgress();
 
     try {
       const res = await fetch(root.dataset.chat, {
@@ -74,6 +103,7 @@
       });
       const d = await res.json();
       typing.remove();
+      finishProgress();
       loading.hidden = true;
       if (!d.ok) {
         addMsg(d.error === 'not_configured' ? I.notConfigured : d.error === 'limit' ? I.limit : I.err, 'bot');
@@ -84,7 +114,7 @@
       setPreview(d.html);
       if (typeof d.left === 'number') leftEl.textContent = d.left <= 5 ? I.left.replace(':n', faNum(d.left)) : '';
     } catch {
-      typing.remove(); loading.hidden = true;
+      typing.remove(); finishProgress(); loading.hidden = true;
       if (currentHtml) frame.hidden = false; else empty.hidden = false;
       addMsg(I.err, 'bot');
     }

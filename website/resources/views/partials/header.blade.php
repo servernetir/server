@@ -76,7 +76,11 @@
             <div class="mega-group">
               <h6>{{ lc($group) }}</h6>
               @foreach($group['items'] as $item)
-              <a href="{{ isset($item['slug']) ? ($key === 'hosting' ? lroute('hosting', $item['slug']) : lroute('catalog', ['category' => $key, 'slug' => $item['slug']])) : '#' }}">{{ lc($item) }}</a>
+              @php
+                $mHref = isset($item['route']) ? lroute($item['route'][0], $item['route'][1] ?? [])
+                    : (isset($item['slug']) ? ($key === 'hosting' ? lroute('hosting', $item['slug']) : lroute('catalog', ['category' => $key, 'slug' => $item['slug']])) : '#');
+              @endphp
+              <a href="{{ $mHref }}">{{ lc($item) }}@if(!empty($item['new']))<span class="free-badge new-badge" style="margin-inline-start:6px">{{ __('ui.nav_new') }}</span>@endif</a>
               @endforeach
             </div>
             @endforeach

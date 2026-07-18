@@ -151,8 +151,10 @@ nav.mobile a{color:var(--muted);padding:13px 4px;border-bottom:1px solid var(--l
 .pcard p{color:var(--muted);font-size:14.5px;flex:1}
 .pcard .price{margin:20px 0 16px;font-size:13.5px;color:var(--muted)}
 .pcard .price b{font-family:var(--font-disp);font-size:25px;color:var(--text);font-weight:700;margin-inline:5px}
-.pcard a.buy{display:inline-flex;align-items:center;gap:7px;color:var(--cyan);font-weight:600;font-size:14.5px;transition:gap .25s var(--ease)}
-.pcard a.buy:hover{gap:12px}
+.pcard .buy{display:inline-flex;align-items:center;gap:7px;color:var(--cyan);font-weight:600;font-size:14.5px;transition:gap .25s var(--ease)}
+.pcard:hover .buy{gap:12px}
+a.pcard-link{text-decoration:none;color:inherit;cursor:pointer}
+html[dir="rtl"] .pcard .buy .dir{transform:scaleX(-1)}
 
 /* ============ PRICING ============ */
 .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
@@ -1490,3 +1492,12 @@ html[data-theme="light"] .hub-tab{background:#fff}
 .hp-band>.btn{position:relative;white-space:nowrap}
 html[dir="rtl"] .hp-band .dir{transform:scaleX(-1)}
 @media(max-width:900px){.hp-band{grid-template-columns:1fr;gap:22px}.hp-band>.btn{width:100%;justify-content:center}}
+
+/* نوار پیشرفت سایت‌ساز هوش مصنوعی */
+.aib-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center}
+.aib-orb.building{animation:aibpulse 1.4s ease-in-out infinite}
+@keyframes aibpulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+.aib-progress{width:min(320px,80%);height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.aib-progress span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(100deg,#22D3EE,#8B5CF6);transition:width .42s cubic-bezier(.4,0,.2,1)}
+.aib-progress-pct{font-family:var(--font-disp);font-weight:800;font-size:18px;color:var(--cyan);letter-spacing:.02em}
+@media(prefers-reduced-motion:reduce){.aib-orb.building{animation:none}.aib-progress span{transition:none}}

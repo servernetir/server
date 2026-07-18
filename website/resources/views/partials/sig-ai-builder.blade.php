@@ -58,7 +58,10 @@
             <p>{{ __('ui.aib_empty') }}</p>
           </div>
           <div class="aib-loading" id="aib-loading" hidden>
-            <span class="dr-spin"></span><p id="aib-loading-txt">{{ __('ui.aib_building') }}</p>
+            <span class="aib-orb building"><svg class="icon"><use href="#i-sparkles"/></svg></span>
+            <p id="aib-loading-txt">{{ __('ui.aib_building') }}</p>
+            <div class="aib-progress"><span id="aib-progress-bar"></span></div>
+            <div class="aib-progress-pct" id="aib-progress-pct">۰٪</div>
           </div>
           <iframe id="aib-frame" title="preview" sandbox="allow-same-origin" hidden></iframe>
         </div>
@@ -105,6 +108,7 @@
 window.AIB_I18N = {
   fa: {{ $isFa ? 'true' : 'false' }},
   building: @json(__('ui.aib_building')), thinking: @json(__('ui.aib_thinking')),
+  steps: [@json(__('ui.aib_step1')), @json(__('ui.aib_step2')), @json(__('ui.aib_step3')), @json(__('ui.aib_step4')), @json(__('ui.aib_step5'))],
   err: @json(__('ui.aib_err')), notConfigured: @json(__('ui.aib_not_configured')),
   limit: @json(__('ui.aib_limit')), left: @json(__('ui.aib_left')),
   domainChecking: @json(__('ui.domain_checking')), domainFree: @json(__('ui.domain_free')),

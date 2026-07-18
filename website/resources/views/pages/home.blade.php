@@ -79,13 +79,14 @@
     </div>
     <div class="products-grid">
       @foreach($products as $i => $p)
-      <article class="pcard reveal" style="transition-delay:{{ $i * 70 }}ms">
+      @php $pHref = isset($p['link']) ? lroute($p['link'][0], $p['link'][1] ?? []) : buy_url($p['pid']); @endphp
+      <a class="pcard pcard-link reveal" href="{{ $pHref }}" style="transition-delay:{{ $i * 70 }}ms">
         <div class="picon"><svg class="icon"><use href="#i-{{ $p['icon'] }}"/></svg></div>
         <h3>{{ lc($p)['t'] }}</h3>
         <p>{{ lc($p)['d'] }}</p>
         <div class="price">{{ __('ui.from') }}<b>{{ site_price($p) }}</b>{{ __('ui.mo') }}</div>
-        <a class="buy" href="{{ buy_url($p['pid']) }}" target="_blank" rel="noopener">{{ __('ui.order') }} <svg class="icon dir"><use href="#i-arrow"/></svg></a>
-      </article>
+        <span class="buy">{{ __('ui.prod_view') }} <svg class="icon dir"><use href="#i-arrow"/></svg></span>
+      </a>
       @endforeach
     </div>
   </div>

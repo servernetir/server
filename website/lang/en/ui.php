@@ -23,7 +23,7 @@ return [
 
     'prod_badge' => 'Products', 'prod_title' => 'Everything your business needs online',
     'prod_sub' => 'One provider for hosting, servers, domains, and cloud — with transparent pricing.',
-    'from' => 'from', 'mo' => '/mo', 'order' => 'Order now',
+    'from' => 'from', 'mo' => '/mo', 'order' => 'Order now', 'prod_view' => 'View plans',
 
     'vps_badge' => 'Cloud VPS', 'vps_title' => 'High performance, honest prices',
     'vps_sub' => 'NVMe storage, instant deployment, and datacenter locations in Iran & Europe.',
@@ -242,6 +242,7 @@ return [
     'aib_left' => 'Only :n requests left in this session',
     'aib_empty' => 'Your live site preview will appear here',
     'aib_building' => 'Building your site…',
+    'aib_step1' => 'Understanding your needs…', 'aib_step2' => 'Designing structure & sections…', 'aib_step3' => 'Crafting the look & colors…', 'aib_step4' => 'Writing content & optimizing…', 'aib_step5' => 'Preparing the preview…',
     'aib_thinking' => 'Thinking…',
     'aib_reset' => 'Reload preview',
     'aib_download' => 'Download HTML file',

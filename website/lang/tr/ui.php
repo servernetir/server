@@ -23,7 +23,7 @@ return [
 
     'prod_badge' => 'Ürünler', 'prod_title' => 'İşletmenizin online ihtiyacı olan her şey',
     'prod_sub' => 'Hosting, sunucu, alan adı ve bulut için tek sağlayıcı — şeffaf fiyatlarla.',
-    'from' => 'başlangıç', 'mo' => '/ay', 'order' => 'Sipariş ver',
+    'from' => 'başlangıç', 'mo' => '/ay', 'order' => 'Sipariş ver', 'prod_view' => 'Paketleri gör',
 
     'vps_badge' => 'Bulut VPS', 'vps_title' => 'Yüksek performans, dürüst fiyatlar',
     'vps_sub' => 'NVMe depolama, anında kurulum, İran ve Avrupa lokasyonları.',
@@ -242,6 +242,7 @@ return [
     'aib_left' => 'Bu oturumda yalnızca :n istek kaldı',
     'aib_empty' => 'Canlı site önizlemeniz burada görünecek',
     'aib_building' => 'Siteniz oluşturuluyor…',
+    'aib_step1' => 'İhtiyacınız anlaşılıyor…', 'aib_step2' => 'Yapı ve bölümler tasarlanıyor…', 'aib_step3' => 'Görünüm ve renkler oluşturuluyor…', 'aib_step4' => 'İçerik yazılıyor ve optimize ediliyor…', 'aib_step5' => 'Önizleme hazırlanıyor…',
     'aib_thinking' => 'Düşünüyor…',
     'aib_reset' => 'Önizlemeyi yenile',
     'aib_download' => 'HTML dosyasını indir',

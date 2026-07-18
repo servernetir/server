@@ -20,6 +20,10 @@ class AiBuilderController extends Controller
 
     public function chat(Request $request): JsonResponse
     {
+        // تولید یک صفحه‌ی کامل می‌تواند تا ~۲ دقیقه طول بکشد؛ نگذاریم PHP
+        // با محدودیت پیش‌فرض ۳۰ ثانیه request را وسط کار بکشد.
+        @set_time_limit(150);
+
         $data = $request->validate([
             'session' => 'required|string|max:64',
             'message' => 'required|string|max:2000',
