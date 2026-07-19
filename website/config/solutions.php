@@ -1551,4 +1551,268 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | طراح فرایند BPMN — صفحه‌ی اختصاصی ابزار (bpmn.servernet.cloud)
+    |--------------------------------------------------------------------------
+    | این صفحه معرفی خودِ ابزار است؛ صفحه‌ی bpmn-erp درباره‌ی خدمات مشاوره و
+    | پیاده‌سازی ERP است و جای دیگری دارد.
+    */
+    'bpmn-designer' => [
+        'icon'   => 'flow',
+        'accent' => 'cyan',
+
+        'fa' => [
+            'meta_t' => 'طراح فرایند BPMN سرورنت — مدل‌سازی آنلاین و رایگان فرایند',
+            'meta_d' => 'ابزار آنلاین ترسیم نمودار BPMN 2.0 سرورنت: بدون نصب، بدون ثبت‌نام، با خروجی استاندارد XML و تصویر. فرایندهای سازمان خود را در مرورگر مدل کنید.',
+            'badge'  => 'ابزار رایگان',
+            'h1a'    => 'فرایندهای سازمانت را',
+            'h1b'    => 'در مرورگر بکش.',
+            'lead'   => 'طراح BPMN سرورنت یک ابزار آنلاین برای ترسیم نمودار فرایند کسب‌وکار بر پایه‌ی استاندارد جهانی BPMN 2.0 است. بدون نصب، بدون ثبت‌نام و بدون هزینه — کافی است بازش کنید و شروع کنید.',
+            'cta1'   => ['label' => 'باز کردن طراح BPMN', 'href' => 'https://bpmn.servernet.cloud'],
+            'cta2'   => ['label' => 'مشاوره‌ی پیاده‌سازی فرایند', 'href' => 'contact'],
+
+            'stats' => [
+                ['n' => 'BPMN ۲.۰', 'l' => 'استاندارد بین‌المللی'],
+                ['n' => '۰ ریال',   'l' => 'هزینه‌ی استفاده'],
+                ['n' => 'بدون نصب', 'l' => 'کاملاً در مرورگر'],
+                ['n' => 'XML + SVG', 'l' => 'فرمت‌های خروجی'],
+            ],
+
+            'trust' => [
+                ['icon' => 'lock',  't' => 'داده روی دستگاه شما'],
+                ['icon' => 'globe', 't' => 'بدون نیاز به ثبت‌نام'],
+                ['icon' => 'check', 't' => 'خروجی استاندارد و قابل‌انتقال'],
+                ['icon' => 'pin',   't' => 'زیرساخت داخل ایران'],
+            ],
+
+            'features_badge' => 'امکانات',
+            'features_t'     => 'هر چیزی که برای مستندسازی یک فرایند لازم دارید',
+            'features_d'     => 'ابزار روی موتور متن‌باز bpmn.io ساخته شده و روی زیرساخت سرورنت میزبانی می‌شود؛ یعنی همان استاندارد جهانی، با دسترسی سریع از داخل ایران.',
+            'features' => [
+                ['icon' => 'flow',   't' => 'ترسیم کشیدنی و رهاکردنی',
+                 'd' => 'رویداد، فعالیت، دروازه‌ی تصمیم، استخر و لِین را از پالت بردارید و روی بوم بگذارید. اتصال‌ها خودکار مسیریابی می‌شوند و نمودار همیشه مرتب می‌ماند.'],
+                ['icon' => 'check',  't' => 'اعتبارسنجی زنده‌ی استاندارد',
+                 'd' => 'ابزار همان‌جا به شما می‌گوید کدام عنصر ناقص است یا کدام اتصال با قواعد BPMN 2.0 نمی‌خواند — پیش از آنکه نمودار به دست تیم فنی برسد.'],
+                ['icon' => 'code',   't' => 'خروجی XML استاندارد',
+                 'd' => 'فایل خروجی BPMN 2.0 XML است؛ یعنی همان فایل را می‌توانید در موتورهای اجرای فرایند مثل Camunda یا Flowable و هر ابزار سازگار دیگری باز کنید.'],
+                ['icon' => 'box',    't' => 'خروجی تصویر برای مستندات',
+                 'd' => 'نمودار را به SVG یا تصویر بگیرید و مستقیم در مستندات، ارائه یا صورت‌جلسه استفاده کنید — بدون افت کیفیت در بزرگ‌نمایی.'],
+                ['icon' => 'lock',   't' => 'کار روی مرورگر خودتان',
+                 'd' => 'مدل‌سازی داخل مرورگر شما انجام می‌شود و فایل روی دستگاه خودتان ذخیره می‌شود. برای فرایندهای محرمانه‌ی سازمانی این تفاوت مهمی است.'],
+                ['icon' => 'restore', 't' => 'باز کردن فایل‌های موجود',
+                 'd' => 'اگر از قبل فایل BPMN دارید — از هر ابزار دیگری — همین‌جا بازش کنید، ویرایش کنید و دوباره خروجی بگیرید.'],
+            ],
+
+            'steps_badge' => 'شروع کار',
+            'steps_t'     => 'در سه قدم اولین فرایندتان را مدل کنید',
+            'steps' => [
+                ['t' => 'ابزار را باز کنید', 'd' => 'روی «باز کردن طراح BPMN» بزنید. صفحه در مرورگر باز می‌شود؛ نه نصبی لازم است نه حسابی.'],
+                ['t' => 'فرایند را بکشید',   'd' => 'از رویداد شروع آغاز کنید، فعالیت‌ها را پشت‌سرهم بگذارید و تصمیم‌ها را با دروازه مدل کنید. برای مسئولیت‌ها از استخر و لِین استفاده کنید.'],
+                ['t' => 'خروجی بگیرید',      'd' => 'فایل XML را برای تیم فنی و تصویر SVG را برای مستندات ذخیره کنید. فایل XML بعداً دوباره قابل ویرایش است.'],
+            ],
+
+            'compare_t'     => 'چرا طراح سرورنت؟',
+            'compare_col0'  => 'ویژگی',
+            'compare_us'    => 'طراح BPMN سرورنت',
+            'compare_them'  => 'ابزارهای خارجی مشابه',
+            'compare' => [
+                ['f' => 'دسترسی بدون تحریم و بدون فیلتر از ایران', 'us' => 'بله', 'them' => 'اغلب خیر'],
+                ['f' => 'رایگان و بدون محدودیت تعداد نمودار',      'us' => 'بله', 'them' => 'معمولاً پلن پولی'],
+                ['f' => 'بدون نیاز به ثبت‌نام',                    'us' => 'بله', 'them' => 'اغلب اجباری'],
+                ['f' => 'خروجی استاندارد BPMN 2.0 XML',            'us' => 'بله', 'them' => 'بله'],
+                ['f' => 'پشتیبانی فارسی و راست‌به‌چپ',             'us' => 'بله', 'them' => 'خیر'],
+                ['f' => 'امکان مشاوره و پیاده‌سازی فرایند',        'us' => 'بله', 'them' => 'خیر'],
+            ],
+
+            'faq_t' => 'سوالات متداول',
+            'faq' => [
+                ['q' => 'BPMN دقیقاً چیست و به چه دردی می‌خورد؟',
+                 'a' => 'BPMN زبان استاندارد و تصویری مدل‌سازی فرایند کسب‌وکار است. به‌جای اینکه گردش کار سازمان در ذهن چند نفر بماند، آن را به نموداری تبدیل می‌کند که هم مدیر می‌فهمد هم برنامه‌نویس. نتیجه‌اش کاهش سوءتفاهم بین واحدها و امکان خودکارسازی فرایند است.'],
+                ['q' => 'استفاده از این ابزار هزینه دارد؟',
+                 'a' => 'خیر. طراح BPMN سرورنت رایگان است و برای استفاده نیازی به ثبت‌نام یا خرید سرویس ندارید.'],
+                ['q' => 'فایل‌های من روی سرور شما ذخیره می‌شود؟',
+                 'a' => 'مدل‌سازی در مرورگر خودتان انجام می‌شود و خروجی را روی دستگاه خودتان ذخیره می‌کنید. برای فرایندهای محرمانه، این یعنی نمودار از دستگاه شما خارج نمی‌شود.'],
+                ['q' => 'خروجی را در نرم‌افزارهای دیگر می‌توانم باز کنم؟',
+                 'a' => 'بله. خروجی، فایل استاندارد BPMN 2.0 XML است و در ابزارها و موتورهای اجرای فرایند سازگار با این استاندارد باز می‌شود.'],
+                ['q' => 'اگر بخواهیم فرایند را واقعاً در سازمان پیاده کنیم چه؟',
+                 'a' => 'ترسیم نمودار قدم اول است. تیم سرورنت در تحلیل فرایند، طراحی گردش کار و پیاده‌سازی روی سامانه‌های BPMS و ERP همراهی می‌کند؛ برای این کار از فرم تماس درخواست مشاوره ثبت کنید.'],
+            ],
+
+            'cta_t'    => 'همین حالا اولین فرایندتان را مدل کنید',
+            'cta_d'    => 'ابزار رایگان است و در چند ثانیه بالا می‌آید. اگر برای پیاده‌سازی فرایند در سازمانتان به تیم متخصص نیاز داشتید، ما همین‌جاییم.',
+            'cta_btn'  => 'باز کردن طراح BPMN',
+            'cta_href' => 'https://bpmn.servernet.cloud',
+            'cta_btn2' => 'درخواست مشاوره',
+        ],
+
+        'en' => [
+            'meta_t' => 'ServerNet BPMN Designer — free online process modelling',
+            'meta_d' => 'ServerNet\'s online BPMN 2.0 diagram editor: no install, no signup, standard XML and image export. Model your organisation\'s processes right in the browser.',
+            'badge'  => 'Free tool',
+            'h1a'    => 'Draw your business processes',
+            'h1b'    => 'right in the browser.',
+            'lead'   => 'The ServerNet BPMN Designer is an online editor for business process diagrams built on the international BPMN 2.0 standard. No install, no signup, no cost — open it and start modelling.',
+            'cta1'   => ['label' => 'Open the BPMN designer', 'href' => 'https://bpmn.servernet.cloud'],
+            'cta2'   => ['label' => 'Process implementation consulting', 'href' => 'contact'],
+
+            'stats' => [
+                ['n' => 'BPMN 2.0',  'l' => 'International standard'],
+                ['n' => 'Free',      'l' => 'Cost to use'],
+                ['n' => 'No install', 'l' => 'Runs in the browser'],
+                ['n' => 'XML + SVG', 'l' => 'Export formats'],
+            ],
+
+            'trust' => [
+                ['icon' => 'lock',  't' => 'Your data stays on your device'],
+                ['icon' => 'globe', 't' => 'No signup required'],
+                ['icon' => 'check', 't' => 'Standard, portable output'],
+                ['icon' => 'pin',   't' => 'Hosted on Iranian infrastructure'],
+            ],
+
+            'features_badge' => 'Features',
+            'features_t'     => 'Everything you need to document a process',
+            'features_d'     => 'The tool is built on the open-source bpmn.io engine and hosted on ServerNet infrastructure — the same global standard, with fast access from inside Iran.',
+            'features' => [
+                ['icon' => 'flow',   't' => 'Drag-and-drop modelling',
+                 'd' => 'Pull events, activities, gateways, pools and lanes from the palette onto the canvas. Connections route themselves, so the diagram stays readable as it grows.'],
+                ['icon' => 'check',  't' => 'Live standard validation',
+                 'd' => 'The editor tells you which element is incomplete or which connection breaks BPMN 2.0 rules — before the diagram ever reaches your engineering team.'],
+                ['icon' => 'code',   't' => 'Standard XML export',
+                 'd' => 'Output is BPMN 2.0 XML, so the same file opens in process engines such as Camunda or Flowable and any other compatible tool.'],
+                ['icon' => 'box',    't' => 'Image export for documentation',
+                 'd' => 'Export the diagram as SVG or an image and drop it straight into documentation, slides or meeting minutes — sharp at any zoom level.'],
+                ['icon' => 'lock',   't' => 'Runs in your own browser',
+                 'd' => 'Modelling happens locally and the file is saved on your own machine. For confidential internal processes, that distinction matters.'],
+                ['icon' => 'restore', 't' => 'Open existing files',
+                 'd' => 'Already have BPMN files from another tool? Open them here, edit, and export again.'],
+            ],
+
+            'steps_badge' => 'Getting started',
+            'steps_t'     => 'Model your first process in three steps',
+            'steps' => [
+                ['t' => 'Open the tool',      'd' => 'Click "Open the BPMN designer". It loads in your browser — nothing to install, no account to create.'],
+                ['t' => 'Draw the process',   'd' => 'Start with a start event, chain your activities, and model decisions with gateways. Use pools and lanes to show who owns what.'],
+                ['t' => 'Export',             'd' => 'Save the XML for your engineering team and the SVG for documentation. The XML stays editable later.'],
+            ],
+
+            'compare_t'     => 'Why the ServerNet designer?',
+            'compare_col0'  => 'Feature',
+            'compare_us'    => 'ServerNet BPMN Designer',
+            'compare_them'  => 'Comparable foreign tools',
+            'compare' => [
+                ['f' => 'Reachable from Iran without sanctions or blocks', 'us' => 'Yes', 'them' => 'Often no'],
+                ['f' => 'Free, with no cap on diagrams',                   'us' => 'Yes', 'them' => 'Usually paid'],
+                ['f' => 'No signup required',                              'us' => 'Yes', 'them' => 'Usually required'],
+                ['f' => 'Standard BPMN 2.0 XML export',                    'us' => 'Yes', 'them' => 'Yes'],
+                ['f' => 'Persian and right-to-left support',               'us' => 'Yes', 'them' => 'No'],
+                ['f' => 'Process consulting and implementation available', 'us' => 'Yes', 'them' => 'No'],
+            ],
+
+            'faq_t' => 'Frequently asked questions',
+            'faq' => [
+                ['q' => 'What exactly is BPMN, and why would I use it?',
+                 'a' => 'BPMN is the standard visual language for modelling business processes. Instead of a workflow living in a few people\'s heads, it becomes a diagram that both managers and developers read the same way. The payoff is fewer misunderstandings between teams and a path to automating the process later.'],
+                ['q' => 'Does the tool cost anything?',
+                 'a' => 'No. The ServerNet BPMN Designer is free, and you do not need an account or an active service to use it.'],
+                ['q' => 'Are my files stored on your servers?',
+                 'a' => 'Modelling happens in your own browser and you save the output to your own device. For confidential processes, that means the diagram never leaves your machine.'],
+                ['q' => 'Can I open the export in other software?',
+                 'a' => 'Yes. The export is a standard BPMN 2.0 XML file and opens in any tool or process engine that supports the standard.'],
+                ['q' => 'What if we want to actually implement the process?',
+                 'a' => 'Drawing the diagram is step one. The ServerNet team can help with process analysis, workflow design and implementation on BPMS and ERP platforms — request a consultation through the contact form.'],
+            ],
+
+            'cta_t'    => 'Model your first process now',
+            'cta_d'    => 'The tool is free and loads in seconds. If you need a specialist team to implement the process across your organisation, we are right here.',
+            'cta_btn'  => 'Open the BPMN designer',
+            'cta_href' => 'https://bpmn.servernet.cloud',
+            'cta_btn2' => 'Request consulting',
+        ],
+
+        'tr' => [
+            'meta_t' => 'ServerNet BPMN Tasarımcısı — ücretsiz çevrimiçi süreç modelleme',
+            'meta_d' => 'ServerNet\'in çevrimiçi BPMN 2.0 diyagram editörü: kurulum yok, kayıt yok, standart XML ve görsel dışa aktarma. Kurumsal süreçlerinizi doğrudan tarayıcıda modelleyin.',
+            'badge'  => 'Ücretsiz araç',
+            'h1a'    => 'İş süreçlerinizi',
+            'h1b'    => 'doğrudan tarayıcıda çizin.',
+            'lead'   => 'ServerNet BPMN Tasarımcısı, uluslararası BPMN 2.0 standardına dayalı iş süreci diyagramları için çevrimiçi bir editördür. Kurulum yok, kayıt yok, ücret yok — açın ve modellemeye başlayın.',
+            'cta1'   => ['label' => 'BPMN tasarımcısını aç', 'href' => 'https://bpmn.servernet.cloud'],
+            'cta2'   => ['label' => 'Süreç uygulama danışmanlığı', 'href' => 'contact'],
+
+            'stats' => [
+                ['n' => 'BPMN 2.0',   'l' => 'Uluslararası standart'],
+                ['n' => 'Ücretsiz',   'l' => 'Kullanım maliyeti'],
+                ['n' => 'Kurulumsuz', 'l' => 'Tarayıcıda çalışır'],
+                ['n' => 'XML + SVG',  'l' => 'Dışa aktarma biçimleri'],
+            ],
+
+            'trust' => [
+                ['icon' => 'lock',  't' => 'Verileriniz cihazınızda kalır'],
+                ['icon' => 'globe', 't' => 'Kayıt gerektirmez'],
+                ['icon' => 'check', 't' => 'Standart, taşınabilir çıktı'],
+                ['icon' => 'pin',   't' => 'İran altyapısında barındırılır'],
+            ],
+
+            'features_badge' => 'Özellikler',
+            'features_t'     => 'Bir süreci belgelemek için gereken her şey',
+            'features_d'     => 'Araç, açık kaynaklı bpmn.io motoru üzerine kurulu ve ServerNet altyapısında barındırılıyor — aynı küresel standart, İran içinden hızlı erişimle.',
+            'features' => [
+                ['icon' => 'flow',   't' => 'Sürükle-bırak modelleme',
+                 'd' => 'Olayları, etkinlikleri, ağ geçitlerini, havuzları ve şeritleri paletten tuvale sürükleyin. Bağlantılar kendi yolunu bulur, diyagram büyüdükçe okunabilir kalır.'],
+                ['icon' => 'check',  't' => 'Canlı standart doğrulama',
+                 'd' => 'Editör, hangi öğenin eksik olduğunu veya hangi bağlantının BPMN 2.0 kurallarını bozduğunu anında söyler — diyagram mühendislik ekibine ulaşmadan önce.'],
+                ['icon' => 'code',   't' => 'Standart XML dışa aktarma',
+                 'd' => 'Çıktı BPMN 2.0 XML\'dir; aynı dosya Camunda veya Flowable gibi süreç motorlarında ve uyumlu diğer araçlarda açılır.'],
+                ['icon' => 'box',    't' => 'Belgeler için görsel dışa aktarma',
+                 'd' => 'Diyagramı SVG veya görsel olarak dışa aktarın ve doğrudan dokümanlara, sunumlara veya toplantı notlarına ekleyin — her yakınlaştırmada net.'],
+                ['icon' => 'lock',   't' => 'Kendi tarayıcınızda çalışır',
+                 'd' => 'Modelleme yerel olarak yapılır ve dosya kendi makinenize kaydedilir. Gizli iç süreçler için bu fark önemlidir.'],
+                ['icon' => 'restore', 't' => 'Mevcut dosyaları açın',
+                 'd' => 'Başka bir araçtan BPMN dosyalarınız mı var? Burada açın, düzenleyin ve yeniden dışa aktarın.'],
+            ],
+
+            'steps_badge' => 'Başlangıç',
+            'steps_t'     => 'İlk sürecinizi üç adımda modelleyin',
+            'steps' => [
+                ['t' => 'Aracı açın',        'd' => '"BPMN tasarımcısını aç"a tıklayın. Tarayıcınızda yüklenir — kurulacak bir şey yok, hesap açmak gerekmiyor.'],
+                ['t' => 'Süreci çizin',      'd' => 'Bir başlangıç olayıyla başlayın, etkinlikleri sıralayın ve kararları ağ geçitleriyle modelleyin. Sorumlulukları göstermek için havuz ve şeritleri kullanın.'],
+                ['t' => 'Dışa aktarın',      'd' => 'XML\'i mühendislik ekibiniz, SVG\'yi belgeleriniz için kaydedin. XML daha sonra düzenlenebilir kalır.'],
+            ],
+
+            'compare_t'     => 'Neden ServerNet tasarımcısı?',
+            'compare_col0'  => 'Özellik',
+            'compare_us'    => 'ServerNet BPMN Tasarımcısı',
+            'compare_them'  => 'Benzer yabancı araçlar',
+            'compare' => [
+                ['f' => 'Yaptırım ve engel olmadan İran\'dan erişilebilir', 'us' => 'Evet', 'them' => 'Genelde hayır'],
+                ['f' => 'Ücretsiz, diyagram sınırı yok',                    'us' => 'Evet', 'them' => 'Genelde ücretli'],
+                ['f' => 'Kayıt gerektirmez',                                'us' => 'Evet', 'them' => 'Genelde zorunlu'],
+                ['f' => 'Standart BPMN 2.0 XML dışa aktarma',               'us' => 'Evet', 'them' => 'Evet'],
+                ['f' => 'Farsça ve sağdan sola desteği',                    'us' => 'Evet', 'them' => 'Hayır'],
+                ['f' => 'Süreç danışmanlığı ve uygulama desteği',           'us' => 'Evet', 'them' => 'Hayır'],
+            ],
+
+            'faq_t' => 'Sıkça sorulan sorular',
+            'faq' => [
+                ['q' => 'BPMN tam olarak nedir ve neden kullanmalıyım?',
+                 'a' => 'BPMN, iş süreçlerini modellemek için kullanılan standart görsel dildir. Bir iş akışı birkaç kişinin zihninde kalmak yerine, hem yöneticilerin hem geliştiricilerin aynı şekilde okuduğu bir diyagrama dönüşür. Kazancı, ekipler arası yanlış anlaşılmaların azalması ve süreci daha sonra otomatikleştirebilmektir.'],
+                ['q' => 'Aracın bir maliyeti var mı?',
+                 'a' => 'Hayır. ServerNet BPMN Tasarımcısı ücretsizdir; kullanmak için hesap veya aktif bir hizmet gerekmez.'],
+                ['q' => 'Dosyalarım sunucularınızda saklanıyor mu?',
+                 'a' => 'Modelleme kendi tarayıcınızda yapılır ve çıktıyı kendi cihazınıza kaydedersiniz. Gizli süreçler için bu, diyagramın makinenizden hiç çıkmadığı anlamına gelir.'],
+                ['q' => 'Çıktıyı başka yazılımlarda açabilir miyim?',
+                 'a' => 'Evet. Çıktı standart bir BPMN 2.0 XML dosyasıdır ve standardı destekleyen her araç veya süreç motorunda açılır.'],
+                ['q' => 'Süreci gerçekten hayata geçirmek istersek?',
+                 'a' => 'Diyagramı çizmek ilk adımdır. ServerNet ekibi süreç analizi, iş akışı tasarımı ve BPMS ile ERP platformlarında uygulama konusunda destek verir — iletişim formundan danışmanlık talep edin.'],
+            ],
+
+            'cta_t'    => 'İlk sürecinizi şimdi modelleyin',
+            'cta_d'    => 'Araç ücretsizdir ve saniyeler içinde yüklenir. Süreci kuruluşunuzda hayata geçirmek için uzman bir ekibe ihtiyacınız varsa, buradayız.',
+            'cta_btn'  => 'BPMN tasarımcısını aç',
+            'cta_href' => 'https://bpmn.servernet.cloud',
+            'cta_btn2' => 'Danışmanlık talep et',
+        ],
+    ],
+
 ];
