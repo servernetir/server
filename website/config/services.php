@@ -66,13 +66,19 @@ return [
 
     /*
     | کدام ارائه‌دهنده برای کدام کار.
-    | اگر کلید ارائه‌دهنده‌ی انتخابی تنظیم نشده باشد، خودکار به gapgpt برمی‌گردد.
+    |
+    |   پنل مدیریت (نگارش، ترجمه، سئو) و داوری کامنت  → DeepSeek
+    |   دستیار چت سایت                                → ورک‌فلوی n8n (در ChatController)
+    |   سایت‌ساز هوشمند                                → GapGPT (در AiBuilderController)
+    |
+    | اگر کلید ارائه‌دهنده‌ی انتخابی تنظیم نشده باشد، خودکار به gapgpt برمی‌گردد
+    | تا هیچ بخشی به‌خاطر نبودن کلید از کار نیفتد.
     */
     'ai_routing' => [
         'translate' => env('AI_PROVIDER_TRANSLATE', 'deepseek'),
-        'article'   => env('AI_PROVIDER_ARTICLE', 'gapgpt'),
+        'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
         'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
-        'seo'       => env('AI_PROVIDER_SEO', 'gapgpt'),
+        'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
     ],
 
 ];
