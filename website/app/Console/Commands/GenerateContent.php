@@ -18,6 +18,8 @@ class GenerateContent extends Command
     protected $signature = 'content:generate
                             {--limit=3    : چند مقاله در این اجرا}
                             {--days=2     : بازه‌ی زمان‌بندی انتشار (روز از امروز)}
+                            {--plan=plan  : نام فایل برنامه در resources/content}
+                            {--daily      : هر مقاله در یک روز جداگانه منتشر شود}
                             {--slug=      : تولید یک عنوان مشخص}
                             {--dry        : فقط نشان بده چه چیزی تولید می‌شود}';
 
@@ -81,15 +83,18 @@ class GenerateContent extends Command
                 continue;
             }
 
+            $type = $p['type'] ?? 'blog';
             $post = Post::create([
                 'slug'         => $p['slug'],
-                'type'         => 'blog',
+                'type'         => $type,
                 'category'     => $p['category'],
                 'status'       => 'draft',                  // انتشار با زمان‌بندی
                 'cover'        => $p['cover'] ?? ['a', 'b', 'c', 'd'][array_rand(['a', 'b', 'c', 'd'])],
                 'icon'         => $p['icon'] ?? 'book',
                 'reading'      => $this->readingTime($fa['content']),
-                'published_at' => $this->slot((int) $this->option('days')),
+                'published_at' => $this->option('daily')
+                    ? $this->nextFreeDay($type)
+                    : $this->slot((int) $this->option('days')),
             ]);
 
             PostTranslation::create([
@@ -135,6 +140,26 @@ class GenerateContent extends Command
             ->setTime(random_int(9, 20), random_int(0, 59));
     }
 
+    /**
+     * روز آزاد بعدی برای این نوع محتوا — یعنی روزی که هنوز هیچ مطلبی برایش
+     * زمان‌بندی نشده. نتیجه: دقیقاً یک انتشار در هر روز.
+     */
+    private function nextFreeDay(string $type): \Illuminate\Support\Carbon
+    {
+        $taken = Post::where('type', $type)
+            ->whereNotNull('published_at')
+            ->pluck('published_at')
+            ->map(fn ($d) => $d->toDateString())
+            ->flip();
+
+        $day = now()->addDay()->startOfDay();
+        while ($taken->has($day->toDateString())) {
+            $day->addDay();
+        }
+
+        return $day->setTime(random_int(9, 18), random_int(0, 59));
+    }
+
     private function readingTime(string $html): int
     {
         $text = trim(strip_tags($html));
@@ -145,7 +170,8 @@ class GenerateContent extends Command
 
     private function plan(): array
     {
-        $file = resource_path('content/plan.php');
+        $name = preg_replace('~[^a-z0-9\-_]~i', '', (string) $this->option('plan')) ?: 'plan';
+        $file = resource_path('content/'.$name.'.php');
 
         return is_file($file) ? (array) require $file : [];
     }

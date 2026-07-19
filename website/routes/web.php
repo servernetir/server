@@ -102,7 +102,12 @@ Route::get('/system/content/{token}', function (string $token) {
     }
 
     if ($n > 0) {
-        \Illuminate\Support\Facades\Artisan::call('content:generate', ['--limit' => $n]);
+        $plan = request('plan') === 'docs' ? 'docs-plan' : 'plan';
+        $args = ['--limit' => $n, '--plan' => $plan];
+        if ($plan === 'docs-plan') {
+            $args['--daily'] = true;      // پایگاه دانش: هر مطلب در یک روز جداگانه
+        }
+        \Illuminate\Support\Facades\Artisan::call('content:generate', $args);
         $out['generate'] = trim(\Illuminate\Support\Facades\Artisan::output());
     }
     \Illuminate\Support\Facades\Artisan::call('content:publish-due');
@@ -145,7 +150,8 @@ Route::prefix('admin')->group(function () {
     Route::get('/setup', [AdminAuth::class, 'showSetup']);
     Route::post('/setup', [AdminAuth::class, 'setup']);
     Route::get('/login', [AdminAuth::class, 'showLogin'])->name('login');
-    Route::post('/login', [AdminAuth::class, 'login']);
+    // محدودیت نرخ: جلوگیری از حمله‌ی جستجوی فراگیر روی رمز مدیر
+    Route::post('/login', [AdminAuth::class, 'login'])->middleware('throttle:5,1');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
     Route::middleware('auth')->group(function () {

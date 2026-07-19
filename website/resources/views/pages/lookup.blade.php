@@ -112,7 +112,7 @@
 
 {{-- ============ JSON-LD schema ============ --}}
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org',
+    '@'.'context' => 'https://schema.org',
     '@type' => 'WebApplication',
     'name' => $c['meta_t'],
     'url' => url()->current(),
@@ -123,7 +123,7 @@
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @if(!empty($c['faq']))
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org',
+    '@'.'context' => 'https://schema.org',
     '@type' => 'FAQPage',
     'mainEntity' => array_map(fn ($f) => [
         '@type' => 'Question',

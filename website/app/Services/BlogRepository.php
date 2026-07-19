@@ -43,7 +43,10 @@ class BlogRepository
             return null;
         }
         try {
-            $post = Post::query()->where('slug', $slug)->where('status', 'published')->with('translations')->first();
+            // فیلتر type ضروری است: بدون آن مقاله‌های پایگاه دانش زیر /blog/ هم
+            // سرو می‌شدند و گوگل آن را محتوای تکراری می‌دید.
+            $post = Post::query()->where('slug', $slug)->where('type', $this->type)
+                ->where('status', 'published')->with('translations')->first();
         } catch (\Throwable $e) {
             return null; // جدول هنوز مهاجرت نشده — 404 به‌جای 500
         }
@@ -65,7 +68,8 @@ class BlogRepository
             'image'    => $p->image,
             'icon'     => $p->icon,
             'reading'  => $p->reading ?: 5,
-            'author'   => optional($p->author)->name ?? 'تیم سرورنت',
+            // نام پیش‌فرض باید ترجمه‌شده باشد، وگرنه «تیم سرورنت» در نسخه‌ی en/tr هم ظاهر می‌شود
+            'author'   => optional($p->author)->name ?? __('ui.bl_reply_by'),
         ];
         if ($withContent) {
             $out['content'] = $t?->content ?? '';

@@ -210,7 +210,7 @@
 {{-- ============ JSON-LD ============ --}}
 @if(!empty($s['faq']))
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org', '@type' => 'FAQPage',
+    '@'.'context' => 'https://schema.org', '@type' => 'FAQPage',
     'mainEntity' => array_map(fn ($f) => ['@type' => 'Question', 'name' => $f['q'], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f['a']]], $s['faq']),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @endif

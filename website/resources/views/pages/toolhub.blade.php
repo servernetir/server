@@ -86,7 +86,7 @@
 
 {{-- ============ JSON-LD ============ --}}
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org', '@type' => 'WebApplication',
+    '@'.'context' => 'https://schema.org', '@type' => 'WebApplication',
     'name' => $c['meta_t'], 'url' => url()->current(),
     'applicationCategory' => 'UtilitiesApplication', 'operatingSystem' => 'Any',
     'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'USD'],
@@ -94,7 +94,7 @@
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @if(!empty($c['faq']))
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org', '@type' => 'FAQPage',
+    '@'.'context' => 'https://schema.org', '@type' => 'FAQPage',
     'mainEntity' => array_map(fn ($f) => ['@type' => 'Question', 'name' => $f['q'], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f['a']]], $c['faq']),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @endif

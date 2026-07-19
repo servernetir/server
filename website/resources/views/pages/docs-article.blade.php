@@ -104,7 +104,7 @@
 </section>
 
 <script type="application/ld+json">{!! json_encode(array_filter([
-    '@context' => 'https://schema.org', '@type' => 'TechArticle',
+    '@'.'context' => 'https://schema.org', '@type' => 'TechArticle',
     'headline' => $doc['title'], 'description' => $doc['excerpt'] ?: null,
     'dateModified' => $doc['date'], 'inLanguage' => app()->getLocale(),
     'articleSection' => $sec ? lc($sec)['t'] : null,

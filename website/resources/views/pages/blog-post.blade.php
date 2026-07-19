@@ -208,11 +208,11 @@
 
 {{-- ============ Article schema ============ --}}
 <script type="application/ld+json">{!! json_encode(array_filter([
-    '@context' => 'https://schema.org', '@type' => 'BlogPosting',
+    '@'.'context' => 'https://schema.org', '@type' => 'BlogPosting',
     'headline' => $post['title'], 'description' => $post['excerpt'] ?? '',
     'image' => $img ? url($img) : null,
     'datePublished' => $post['date'] ?? null, 'inLanguage' => app()->getLocale(),
-    'wordCount' => str_word_count(strip_tags($post['content'] ?? '')) ?: null,
+    'wordCount' => word_count_fa($post['content'] ?? '') ?: null,
     'author' => ['@type' => 'Organization', 'name' => 'ServerNet'],
     'publisher' => ['@type' => 'Organization', 'name' => 'ServerNet', 'url' => config('app.url')],
     'mainEntityOfPage' => $url,

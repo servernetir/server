@@ -33,7 +33,7 @@
 <script>(function(){try{if(localStorage.getItem('snet-theme')==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
 <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}?v={{ filemtime(public_path('assets/css/site.css')) }}">
 <script type="application/ld+json">{!! json_encode([
-    '@context' => 'https://schema.org',
+    '@'.'context' => 'https://schema.org',
     '@type' => 'Organization',
     'name' => 'ServerNet',
     'url' => config('app.url'),

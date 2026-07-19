@@ -143,3 +143,31 @@ if (! function_exists('buy_url')) {
         return whmcs_url('cart.php?a=add&pid='.$pid);
     }
 }
+
+if (! function_exists('schema_ld')) {
+    /**
+     * ساخت JSON-LD معتبر برای schema.org.
+     *
+     * چرا این هلپر لازم است: اگر کلید '@context' مستقیماً داخل فایل Blade نوشته شود،
+     * کامپایلر Blade آن را به‌عنوان دایرکتیو @context تفسیر و حذف می‌کند و خروجی بدون
+     * @context تولید می‌شود — یعنی داده‌ی ساختاریافته برای گوگل بی‌اعتبار است.
+     * چون این تابع در فایل PHP تعریف شده، Blade هرگز این رشته را نمی‌بیند.
+     */
+    function schema_ld(array $data, string $type): string
+    {
+        $payload = array_merge(
+            ['@'.'context' => 'https://schema.org', '@'.'type' => $type],
+            array_filter($data, fn ($v) => $v !== null && $v !== '' && $v !== [])
+        );
+
+        return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+}
+
+if (! function_exists('word_count_fa')) {
+    /** شمارش کلمه که با فارسی و ترکی هم کار می‌کند (str_word_count فقط لاتین را می‌شمارد) */
+    function word_count_fa(string $text): int
+    {
+        return (int) preg_match_all('/[\p{L}\p{N}]+/u', strip_tags($text));
+    }
+}
