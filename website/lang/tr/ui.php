@@ -324,6 +324,7 @@ return [
     'wt_privacy' => 'Tüm araçlar tarayıcınızda çalışır; sunucularımıza hiçbir veri gönderilmez.',
     'wt_search_ph' => ':n araç içinde ara…', 'wt_noresult' => 'Bu aramayla eşleşen araç yok.',
     'wt_free' => 'Ücretsiz', 'wt_related' => 'İlgili araçlar', 'wt_all' => 'Tüm araçları gör',
+    'wt_about' => ':tool hakkında', 'wt_howto' => ':tool nasıl kullanılır', 'wt_faq' => 'Sıkça sorulan sorular',
     'wt_input' => 'Girdi', 'wt_output' => 'Çıktı', 'wt_copy' => 'Kopyala', 'wt_copy_all' => 'Tümünü kopyala',
     'wt_copied' => 'Kopyalandı', 'wt_clear' => 'Temizle', 'wt_generate' => 'Üret',
     'wt_format' => 'Biçimlendir', 'wt_minify' => 'Küçült', 'wt_encode' => 'Kodla', 'wt_decode' => 'Çöz',

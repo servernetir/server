@@ -39,6 +39,43 @@
       @includeIf('webtools.'.$slug)
     </div>
 
+    {{-- ============ محتوای صفحه (برای کاربر و برای گوگل) ============ --}}
+    @if($seo['intro'] || count($seo['steps']) || count($seo['faq']))
+    <div class="wt-content">
+      @if($seo['intro'])
+      <section class="wt-sec">
+        <h2>{{ __('ui.wt_about', ['tool' => $t['t']]) }}</h2>
+        <p>{{ $seo['intro'] }}</p>
+      </section>
+      @endif
+
+      @if(count($seo['steps']))
+      <section class="wt-sec">
+        <h2>{{ __('ui.wt_howto', ['tool' => $t['t']]) }}</h2>
+        <ol class="wt-steps">
+          @foreach($seo['steps'] as $step)
+          <li><span>{{ $loop->iteration }}</span><p>{{ $step }}</p></li>
+          @endforeach
+        </ol>
+      </section>
+      @endif
+
+      @if(count($seo['faq']))
+      <section class="wt-sec">
+        <h2>{{ __('ui.wt_faq') }}</h2>
+        <div class="wt-faq">
+          @foreach($seo['faq'] as $item)
+          <details>
+            <summary>{{ $item['q'] }}</summary>
+            <p>{{ $item['a'] }}</p>
+          </details>
+          @endforeach
+        </div>
+      </section>
+      @endif
+    </div>
+    @endif
+
     {{-- ابزارهای هم‌گروه --}}
     @if(count($siblings))
     <div class="wt-more">
@@ -66,6 +103,39 @@
     'operatingSystem' => 'Any', 'inLanguage' => app()->getLocale(),
     'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'IRR'],
     'publisher' => ['@type' => 'Organization', 'name' => 'ServerNet', 'url' => config('app.url')],
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+
+{{-- پرسش‌های متداول — گوگل این را به شکل آکاردئون در نتایج نشان می‌دهد --}}
+@if(count($seo['faq']))
+<script type="application/ld+json">{!! json_encode([
+    '@'.'context' => 'https://schema.org', '@type' => 'FAQPage',
+    'mainEntity' => array_map(fn ($f) => [
+        '@type' => 'Question', 'name' => $f['q'],
+        'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f['a']],
+    ], $seo['faq']),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endif
+
+{{-- راهنمای گام‌به‌گام --}}
+@if(count($seo['steps']))
+<script type="application/ld+json">{!! json_encode([
+    '@'.'context' => 'https://schema.org', '@type' => 'HowTo',
+    'name' => __('ui.wt_howto', ['tool' => $t['t']]),
+    'totalTime' => 'PT2M',
+    'step' => array_map(fn ($s, $i) => [
+        '@type' => 'HowToStep', 'position' => $i + 1, 'text' => $s,
+    ], $seo['steps'], array_keys($seo['steps'])),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endif
+
+{{-- مسیر راهنما — تا گوگل به جای آدرس خام، مسیر دسته را نشان دهد --}}
+<script type="application/ld+json">{!! json_encode([
+    '@'.'context' => 'https://schema.org', '@type' => 'BreadcrumbList',
+    'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'name' => __('ui.bl_home'), 'item' => lroute('home')],
+        ['@type' => 'ListItem', 'position' => 2, 'name' => __('ui.wt_title'), 'item' => lroute('webtools.index')],
+        ['@type' => 'ListItem', 'position' => 3, 'name' => $t['t'], 'item' => $url],
+    ],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
 <script>

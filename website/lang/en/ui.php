@@ -324,6 +324,7 @@ return [
     'wt_privacy' => 'Every tool runs inside your browser; no data is ever sent to our servers.',
     'wt_search_ph' => 'Search :n tools…', 'wt_noresult' => 'No tool matched that search.',
     'wt_free' => 'Free', 'wt_related' => 'Related tools', 'wt_all' => 'Browse all tools',
+    'wt_about' => 'About :tool', 'wt_howto' => 'How to use :tool', 'wt_faq' => 'Frequently asked questions',
     'wt_input' => 'Input', 'wt_output' => 'Output', 'wt_copy' => 'Copy', 'wt_copy_all' => 'Copy all',
     'wt_copied' => 'Copied', 'wt_clear' => 'Clear', 'wt_generate' => 'Generate',
     'wt_format' => 'Format', 'wt_minify' => 'Minify', 'wt_encode' => 'Encode', 'wt_decode' => 'Decode',

@@ -26,7 +26,31 @@ class WebToolsController extends Controller
             'catKey'   => $catKey,
             'cat'      => $cat,
             'siblings' => $this->siblings($catKey, $slug),
+            'seo'      => $this->seo($slug),
         ]);
+    }
+
+    /**
+     * محتوای سئوی ابزار (مقدمه، گام‌ها، پرسش‌های متداول) در زبان جاری.
+     * از resources/content/webtools-seo.php خوانده می‌شود؛ اگر ابزاری هنوز
+     * محتوا نداشته باشد، آرایه‌ی خالی برمی‌گردد و قالب آن بخش را نمایش نمی‌دهد.
+     */
+    private function seo(string $slug): array
+    {
+        static $all = null;
+        if ($all === null) {
+            $file = resource_path('content/webtools-seo.php');
+            $all = is_file($file) ? (array) require $file : [];
+        }
+
+        $locale = app()->getLocale();
+        $entry = $all[$slug][$locale] ?? $all[$slug]['fa'] ?? [];
+
+        return [
+            'intro' => $entry['intro'] ?? '',
+            'steps' => $entry['steps'] ?? [],
+            'faq'   => $entry['faq'] ?? [],
+        ];
     }
 
     /** پیدا کردن ابزار و دسته‌اش */
