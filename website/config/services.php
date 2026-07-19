@@ -54,4 +54,25 @@ return [
         'model_pro' => 'claude-fable-5',
     ],
 
+    /*
+    | DeepSeek — درگاه سازگار با OpenAI. برای ترجمه‌ها استفاده می‌شود چون
+    | به‌مراتب ارزان‌تر است و روی این سرور تحریم نیست.
+    */
+    'deepseek' => [
+        'key'   => env('DEEPSEEK_API_KEY'),
+        'base'  => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
+    ],
+
+    /*
+    | کدام ارائه‌دهنده برای کدام کار.
+    | اگر کلید ارائه‌دهنده‌ی انتخابی تنظیم نشده باشد، خودکار به gapgpt برمی‌گردد.
+    */
+    'ai_routing' => [
+        'translate' => env('AI_PROVIDER_TRANSLATE', 'deepseek'),
+        'article'   => env('AI_PROVIDER_ARTICLE', 'gapgpt'),
+        'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
+        'seo'       => env('AI_PROVIDER_SEO', 'gapgpt'),
+    ],
+
 ];

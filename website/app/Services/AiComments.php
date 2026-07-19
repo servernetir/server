@@ -24,6 +24,7 @@ class AiComments extends AiContent
      */
     public function review(Comment $comment, string $postTitle = ''): ?array
     {
+        $this->purpose = 'comments';
         if (! $this->enabled()) {
             return null;
         }

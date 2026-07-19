@@ -9,9 +9,34 @@ use Illuminate\Support\Facades\Log;
  */
 class AiContent
 {
+    /** کاری که الان در حال انجام است — تعیین می‌کند کدام ارائه‌دهنده استفاده شود */
+    protected string $purpose = 'article';
+
     public function enabled(): bool
     {
-        return (bool) config('services.gapgpt.key');
+        return (bool) (config('services.gapgpt.key') || config('services.deepseek.key'));
+    }
+
+    /**
+     * ارائه‌دهنده‌ی این کار: از config/services.ai_routing خوانده می‌شود.
+     * اگر کلیدش تنظیم نشده باشد به gapgpt برمی‌گردد تا چیزی از کار نیفتد.
+     */
+    protected function provider(string $purpose): array
+    {
+        $name = (string) config('services.ai_routing.'.$purpose, 'gapgpt');
+        $cfg = config('services.'.$name);
+
+        if (! is_array($cfg) || empty($cfg['key'])) {
+            $name = 'gapgpt';
+            $cfg = config('services.gapgpt');
+        }
+
+        return [
+            'name'  => $name,
+            'key'   => $cfg['key'] ?? '',
+            'base'  => $cfg['base'] ?? '',
+            'model' => $cfg['model'] ?? '',
+        ];
     }
 
     /**
@@ -19,6 +44,7 @@ class AiContent
      */
     public function translate(array $fa, string $target): ?array
     {
+        $this->purpose = 'translate';
         $lang = ['en' => 'English', 'tr' => 'Turkish'][$target] ?? 'English';
         $sys = "You are a professional translator and localizer for a web-hosting company (ServerNet). "
             ."Translate the given blog post from Persian to {$lang}. Keep every HTML tag and the structure "
@@ -75,6 +101,7 @@ class AiContent
      */
     public function article(array $brief): ?array
     {
+        $this->purpose = 'article';
         $sys = <<<'TXT'
 You are a senior technical writer for ServerNet (سرورنت), an Iranian web-hosting and cloud-infrastructure
 company. Write ONE complete, original blog article in PERSIAN (Farsi) from the brief you are given.
@@ -136,6 +163,7 @@ TXT;
      */
     public function seo(array $fa): ?array
     {
+        $this->purpose = 'seo';
         $sys = "You are an expert SEO reviewer. Analyze the given blog post (Persian) and return STRICT JSON: "
             ."{\"score\": <0-100 integer>, \"items\": [{\"type\": \"ok|warn|bad\", \"text\": \"<short actionable note in Persian>\"}]}. "
             ."Check: title length (ideal 30-65 chars), meta/excerpt length (ideal 70-160), heading structure (H2/H3), "
@@ -181,11 +209,12 @@ TXT;
     protected function call(string $system, string $user, int $maxTokens, int $timeout = 140, bool $stream = false): ?string
     {
         @set_time_limit($timeout + 20);
-        $url = rtrim(config('services.gapgpt.base'), '/').'/chat/completions';
+        $p = $this->provider($this->purpose);
+        $url = rtrim($p['base'], '/').'/chat/completions';
         $ch = curl_init($url);
 
         $payload = [
-            'model'       => config('services.gapgpt.model'),
+            'model'       => $p['model'],
             'messages'    => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $user]],
             'temperature' => 0.3,
             'max_tokens'  => $maxTokens,
@@ -196,7 +225,7 @@ TXT;
 
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Authorization: Bearer '.config('services.gapgpt.key')],
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Authorization: Bearer '.$p['key']],
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $timeout,
@@ -233,6 +262,7 @@ TXT;
         curl_close($ch);
         if ($raw === false) {
             Log::error('AiContent: curl failed', [
+                'provider' => $p['name'],
                 'error' => $err, 'seconds' => round($spent, 1), 'timeout' => $timeout, 'max_tokens' => $maxTokens,
             ]);
 
@@ -251,7 +281,7 @@ TXT;
         $d = json_decode($raw, true);
         $content = $d['choices'][0]['message']['content'] ?? null;
         if (! is_string($content) || trim($content) === '') {
-            Log::error('AiContent', ['http' => $code, 'body' => mb_substr((string) $raw, 0, 200)]);
+            Log::error('AiContent', ['provider' => $p['name'], 'http' => $code, 'body' => mb_substr((string) $raw, 0, 200)]);
 
             return null;
         }
