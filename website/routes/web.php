@@ -42,6 +42,10 @@ $site = function (): void {
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
     Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup')->middleware('throttle:30,1');
 
+    // ابزارهای رایگان وب‌مستر (همه سمت کاربر)
+    Route::get('/webtools', [\App\Http\Controllers\WebToolsController::class, 'index'])->name('webtools.index');
+    Route::get('/webtools/{slug}', [\App\Http\Controllers\WebToolsController::class, 'show'])->name('webtools')->where('slug', '[a-z0-9-]+');
+
     // مستندات
     Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');
     Route::get('/docs/{slug}', [\App\Http\Controllers\DocsController::class, 'show'])->name('docs')->where('slug', '[a-z0-9-]+');

@@ -66,6 +66,10 @@ class SiteController extends Controller
         foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
             $add('blog', $post['slug']);
         }
+        $add('webtools.index');
+        foreach (\App\Http\Controllers\WebToolsController::slugs() as $wt) {
+            $add('webtools', $wt);
+        }
         $add('docs.index');
         foreach (app(\App\Services\DocsRepository::class)->tree() as $sec) {
             foreach ($sec['items'] as $item) {

@@ -170,6 +170,11 @@
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-flow"/></svg></span>
                 <span class="tmega-tx"><b>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></span>
               </a>
+              {{-- یک لینک به هاب ابزارهای وب‌مستر؛ خودِ ابزارها آنجا گروه‌بندی شده‌اند تا منو شلوغ نشود --}}
+              <a class="tmega-link" href="{{ lroute('webtools.index') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-wrench"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.wt_title') }}</b><small>{{ __('ui.wt_sub') }}</small></span>
+              </a>
             </div>
           </div>
 
@@ -234,6 +239,7 @@
         @foreach(['meet', 'app-builder'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
         <a href="{{ lroute('solution', 'remote') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-monitor"/></svg>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></a>
         <a href="{{ lroute('solution', 'bpmn-designer') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-flow"/></svg>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></a>
+        <a href="{{ lroute('webtools.index') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-wrench"/></svg>{{ __('ui.wt_title') }}</b><small>{{ __('ui.wt_sub') }}</small></a>
       </div></div>
     </div>
     <div class="acc">

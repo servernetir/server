@@ -232,11 +232,20 @@ TXT;
             CURLOPT_CONNECTTIMEOUT => 15,
         ]);
 
-        // حالت استریم: تکه‌های SSE را همان لحظه بچسبان
+        // حالت استریم: تکه‌های SSE را همان لحظه بچسبان.
+        // ارائه‌دهنده‌ها فیلد متن را یکسان نمی‌فرستند؛ مدل‌های استدلالی زنجیره‌ی فکر را
+        // در reasoning_content می‌گذارند و پاسخ نهایی را در content. فقط content را
+        // به‌عنوان خروجی می‌پذیریم، ولی reasoning را می‌شماریم تا اگر متن خالی درآمد
+        // بتوانیم دقیقاً بگوییم چرا.
         $streamed = '';
+        $reasoning = 0;
+        $rawSample = '';
         if ($stream) {
             $buf = '';
-            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($c, string $chunk) use (&$buf, &$streamed): int {
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($c, string $chunk) use (&$buf, &$streamed, &$reasoning, &$rawSample): int {
+                if (strlen($rawSample) < 800) {
+                    $rawSample .= substr($chunk, 0, 800 - strlen($rawSample));
+                }
                 $buf .= $chunk;
                 while (($nl = strpos($buf, "\n")) !== false) {
                     $line = trim(substr($buf, 0, $nl));
@@ -249,7 +258,23 @@ TXT;
                         continue;
                     }
                     $j = json_decode($data, true);
-                    $streamed .= $j['choices'][0]['delta']['content'] ?? '';
+                    if (! is_array($j)) {
+                        continue;
+                    }
+                    $choice = $j['choices'][0] ?? [];
+
+                    // ترتیب اهمیت: delta.content → message.content → text
+                    $piece = $choice['delta']['content']
+                        ?? $choice['message']['content']
+                        ?? $choice['text']
+                        ?? null;
+
+                    if (is_string($piece)) {
+                        $streamed .= $piece;
+                    }
+                    if (! empty($choice['delta']['reasoning_content'])) {
+                        $reasoning++;
+                    }
                 }
 
                 return strlen($chunk);
@@ -270,7 +295,14 @@ TXT;
         }
         if ($stream) {
             if (trim($streamed) === '') {
-                Log::error('AiContent: empty stream', ['http' => $code, 'seconds' => round($spent, 1)]);
+                Log::error('AiContent: empty stream', [
+                    'provider'       => $p['name'],
+                    'model'          => $p['model'],
+                    'http'           => $code,
+                    'seconds'        => round($spent, 1),
+                    'reasoning_only' => $reasoning > 0,   // مدل استدلالی: همه‌ی توکن‌ها صرف «فکر کردن» شد
+                    'raw'            => mb_substr($rawSample, 0, 500),
+                ]);
 
                 return null;
             }
