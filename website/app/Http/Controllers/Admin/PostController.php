@@ -84,7 +84,7 @@ class PostController extends Controller
                 [
                     'title'   => $title,
                     'excerpt' => trim((string) ($data[$loc.'_excerpt'] ?? '')),
-                    'content' => (string) ($data[$loc.'_content'] ?? ''),
+                    'content' => \App\Services\HtmlSanitizer::clean((string) ($data[$loc.'_content'] ?? '')),
                     'tags'    => array_values(array_filter(array_map('trim', explode(',', (string) ($data[$loc.'_tags'] ?? ''))))),
                     'auto'    => (bool) $request->boolean($loc.'_auto'),
                 ]

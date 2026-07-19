@@ -22,25 +22,25 @@ $site = function (): void {
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
     Route::get('/careers', [\App\Http\Controllers\CareersController::class, 'show'])->name('careers');
-    Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply');
+    Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply')->middleware('throttle:5,10');
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
 
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
-    Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit');
-    Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois');
-    Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip');
+    Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:10,1');
+    Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:20,1');
+    Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:20,1');
 
     // ابزارهای جامع DNS و شبکه (هاب)
     Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
     Route::get('/network-scan', [LookupController::class, 'hub'])->name('hub.network')->defaults('hub', 'network');
-    Route::post('/api/dns-report', [LookupController::class, 'dnsReport'])->name('api.dnsreport');
+    Route::post('/api/dns-report', [LookupController::class, 'dnsReport'])->name('api.dnsreport')->middleware('throttle:15,1');
 
     // مجموعه ابزار DNS و شبکه (Lookup) — صفحات تکی سئویی
     Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
-    Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup');
+    Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup')->middleware('throttle:30,1');
 
     // مستندات
     Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');
@@ -49,17 +49,17 @@ $site = function (): void {
     // بلاگ
     Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
     Route::get('/blog/mod/{comment}/{action}', [BlogController::class, 'moderate'])->name('blog.moderate')->where('action', 'approve|delete');
-    Route::post('/blog/{slug}/comment', [BlogController::class, 'comment'])->name('blog.comment')->where('slug', '[a-z0-9-]+');
+    Route::post('/blog/{slug}/comment', [BlogController::class, 'comment'])->name('blog.comment')->where('slug', '[a-z0-9-]+')->middleware('throttle:6,10');
     Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog')->where('slug', '[a-z0-9-]+');
 
     // صفحات راهکار سازمانی
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
-    Route::post('/api/chat', ChatController::class)->name('chat');
-    Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check');
-    Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat');
-    Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save');
+    Route::post('/api/chat', ChatController::class)->name('chat')->middleware('throttle:12,1');
+    Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check')->middleware('throttle:30,1');
+    Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat')->middleware('throttle:5,1');
+    Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:10,1');
 };
 
 Route::middleware('locale:fa')->group($site);
@@ -69,8 +69,11 @@ Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
 // تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
-Route::get('/system/content/{token}', function (string $token) {
-    abort_unless(hash_equals('ea73b509d9bae9297e25b508163c737a', $token), 404);
+Route::middleware('throttle:6,1')->get('/system/content/{token}', function (string $token) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    // بدون DEPLOY_TOKEN در .env این روت اصلاً وجود ندارد — توکن هاردکد یعنی
+    // هرکس به مخزن دسترسی دارد می‌تواند مهاجرت و تولید محتوای پولی را اجرا کند.
+    abort_if($expected === '' || ! hash_equals($expected, $token), 404);
     @set_time_limit(600);
     $n = max(0, min(5, (int) request('n', 1)));
     $out = [];
@@ -121,8 +124,11 @@ Route::get('/system/content/{token}', function (string $token) {
 });
 
 // موقتی: اجرای امن مهاجرت + سیدِ دیتابیس روی پروداکشن (بعد از دیپلوی حذف می‌شود)
-Route::get('/system/db/{token}', function (string $token) {
-    abort_unless(hash_equals('ea73b509d9bae9297e25b508163c737a', $token), 404);
+Route::middleware('throttle:6,1')->get('/system/db/{token}', function (string $token) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    // بدون DEPLOY_TOKEN در .env این روت اصلاً وجود ندارد — توکن هاردکد یعنی
+    // هرکس به مخزن دسترسی دارد می‌تواند مهاجرت و تولید محتوای پولی را اجرا کند.
+    abort_if($expected === '' || ! hash_equals($expected, $token), 404);
     $out = [];
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
     $out['migrate'] = trim(\Illuminate\Support\Facades\Artisan::output());

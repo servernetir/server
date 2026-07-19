@@ -30,6 +30,11 @@ class SiteAudit
         }
         $this->host = parse_url($this->url, PHP_URL_HOST) ?: '';
 
+        // نگهبان SSRF: مقصد باید عمومی باشد، وگرنه سرور ما به شبکه‌ی داخلی درخواست می‌زند
+        if (! SafeUrl::allowed($this->url)) {
+            return ['ok' => false, 'error' => 'invalid_url'];
+        }
+
         if (! $this->fetch()) {
             return ['ok' => false, 'error' => 'unreachable', 'url' => $this->url];
         }
@@ -85,14 +90,49 @@ class SiteAudit
         return $in;
     }
 
+    /** فقط هدر را می‌گیرد و در صورت ریدایرکت، مقصد بعدی را برمی‌گرداند */
+    private function peekRedirect(string $url): ?string
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_NOBODY         => true,
+            CURLOPT_HEADER         => true,
+            CURLOPT_TIMEOUT        => 12,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; ServerNetBot/1.0; +https://servernet.cloud/tools)',
+        ]);
+        $raw = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($raw === false || $code < 300 || $code > 399) {
+            return null;
+        }
+        if (preg_match('~^\s*location:\s*(\S+)~im', (string) $raw, $m)) {
+            return trim($m[1]);
+        }
+
+        return null;
+    }
+
     private function fetch(): bool
     {
+        // ریدایرکت را خودمان دنبال می‌کنیم تا هر پرش دوباره اعتبارسنجی شود؛
+        // با FOLLOWLOCATION یک دامنه‌ی عمومی می‌توانست به آدرس داخلی بپرد.
+        $final = SafeUrl::resolveRedirects($this->url, fn (string $u) => $this->peekRedirect($u));
+        if ($final === null) {
+            return false;
+        }
+        $this->url = $final;
+        $this->host = parse_url($final, PHP_URL_HOST) ?: $this->host;
+
         $ch = curl_init($this->url);
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, SafeUrl::curlOptions() + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 4,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_CONNECTTIMEOUT => 12,
             CURLOPT_ENCODING       => '',

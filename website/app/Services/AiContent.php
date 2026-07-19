@@ -64,7 +64,8 @@ class AiContent
         return [
             'title'   => mb_substr($part('TITLE', 'EXCERPT'), 0, 200),
             'excerpt' => mb_substr($part('EXCERPT', 'TAGS'), 0, 500),
-            'content' => $part('CONTENT'),
+            // خروجی مدل قابل‌اعتماد نیست: تزریق پرامپت می‌تواند <script> تولید کند
+            'content' => HtmlSanitizer::clean($part('CONTENT')),
             'tags'    => array_values(array_filter(array_map('trim', explode(',', $part('TAGS', 'CONTENT'))))),
         ];
     }
