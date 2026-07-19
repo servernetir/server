@@ -1970,3 +1970,21 @@ html[dir="rtl"] .docs-card-list .icon{transform:scaleX(-1)}
 .wt-more{margin-top:44px}
 .wt-more h2{font-size:19px;font-family:var(--font-disp);margin-bottom:16px}
 .wt-all{margin-top:18px}
+
+/* ابزارهای جدید */
+.wt-mini{margin-inline-start:auto;flex:none;font-size:11.5px;padding:4px 11px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);cursor:pointer;font-family:var(--font-body)}
+.wt-mini:hover{border-color:var(--cyan);color:var(--cyan)}
+.wt-mini.ok{background:rgba(52,211,153,.16);color:var(--green);border-color:rgba(52,211,153,.4)}
+.wt-color{width:100%;height:52px;border:1px solid var(--line-2);border-radius:12px;background:var(--surface-2);cursor:pointer;padding:4px}
+.wt-color.sm{width:52px;height:32px;padding:2px;vertical-align:middle}
+.wt-swatch{height:80px;border-radius:14px;border:1px solid var(--line-2);margin:16px 0}
+.wt-shadow-demo{display:grid;place-items:center;height:190px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);margin-bottom:18px}
+.wt-shadow-demo>div{width:120px;height:120px;border-radius:18px;background:linear-gradient(135deg,#22d3ee,#8b5cf6)}
+.wt-grad-demo{height:170px;border-radius:16px;border:1px solid var(--line-2);margin-bottom:18px;background:linear-gradient(100deg,#22d3ee,#8b5cf6)}
+.wt-preview{margin-top:18px;padding:16px 18px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}
+.wt-prev-h{display:block;font-size:12px;color:var(--dim);margin-bottom:12px}
+.wt-serp{display:flex;flex-direction:column;gap:3px;max-width:600px}
+.wt-serp-u{font-size:12.5px;color:var(--green)}
+.wt-serp-t{font-size:18px;color:#8ab4f8;line-height:1.4}
+.wt-serp-d{font-size:13px;color:var(--muted);line-height:1.7}
+html[data-theme="light"] .wt-serp-t{color:#1a0dab}

@@ -104,11 +104,11 @@ return [
                     'en' => ['t' => 'UTM Link Builder', 'd' => 'Build campaign links with standard Google Analytics parameters.'],
                     'tr' => ['t' => 'UTM Bağlantı Oluşturucu', 'd' => 'Standart Google Analytics parametreleriyle kampanya bağlantısı oluşturun.'],
                 ],
-                'qr-generator' => [
-                    'icon' => 'box',
-                    'fa' => ['t' => 'سازنده‌ی کد QR', 'd' => 'ساخت QR برای لینک، متن، وای‌فای و شماره تماس — بدون ارسال به سرور.'],
-                    'en' => ['t' => 'QR Code Generator', 'd' => 'QR codes for links, text, Wi-Fi and phone numbers — nothing leaves your browser.'],
-                    'tr' => ['t' => 'QR Kod Üreteci', 'd' => 'Bağlantı, metin, Wi-Fi ve telefon için QR kodları — tarayıcınızdan çıkmaz.'],
+                'html-entities' => [
+                    'icon' => 'code',
+                    'fa' => ['t' => 'تبدیل موجودیت‌های HTML', 'd' => 'تبدیل کاراکترهای خاص به entity و برعکس — برای نمایش امن کد در صفحه.'],
+                    'en' => ['t' => 'HTML Entity Encoder & Decoder', 'd' => 'Convert special characters to entities and back — for safely showing code on a page.'],
+                    'tr' => ['t' => 'HTML Entity Kodlayıcı & Çözücü', 'd' => "Özel karakterleri entity'lere çevirin ve geri alın."],
                 ],
             ],
         ],
