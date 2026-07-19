@@ -20,6 +20,9 @@
       <span>{{ $c['t'] }}</span>
     </nav>
 
+    <div class="wt-layout">
+    <div class="wt-main">
+
     <div class="wt-head">
       <span class="wt-head-ic"><svg class="icon"><use href="#i-{{ $tool['icon'] }}"/></svg></span>
       <div>
@@ -92,6 +95,12 @@
       <a class="btn btn-glass wt-all" href="{{ lroute('webtools.index') }}">{{ __('ui.wt_all') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
     </div>
     @endif
+
+    </div>{{-- /.wt-main --}}
+
+    @include('partials.webtool-sidebar')
+
+    </div>{{-- /.wt-layout --}}
 
   </div>
 </section>
