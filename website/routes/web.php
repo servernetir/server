@@ -93,7 +93,9 @@ Route::middleware('throttle:6,1')->get('/system/content/{token}', function (stri
                 'fa'      => ($t = $p->translations->firstWhere('locale', 'fa')) ? [
                     'title'    => $t->title,
                     'excerpt'  => $t->excerpt,
-                    'words'    => str_word_count(strip_tags($t->content)),
+                    // str_word_count روی فارسی همیشه صفر می‌دهد چون فقط حروف لاتین را
+                    // کلمه می‌شناسد؛ با آن، پیش‌نمایشِ کیفیت هر مقاله‌ی سالم را «خالی» نشان می‌داد.
+                    'words'    => word_count_fa($t->content),
                     'chars'    => mb_strlen(strip_tags($t->content)),
                     'h2'       => substr_count($t->content, '<h2'),
                     'code'     => substr_count($t->content, '<pre'),
