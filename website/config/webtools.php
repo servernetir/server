@@ -1,18 +1,5 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| ابزارهای رایگان وب‌مستر
-|--------------------------------------------------------------------------
-| همه‌ی این ابزارها سمت کاربر (JavaScript) اجرا می‌شوند: هیچ داده‌ای به سرور
-| نمی‌رود، هزینه‌ی سروری ندارند و آنی جواب می‌دهند.
-|
-| افزودن ابزار جدید:
-|   ۱) یک آیتم اینجا اضافه کنید
-|   ۲) یک partial با همان slug در resources/views/webtools/ بسازید
-| مسیر /webtools/{slug} و ثبت در sitemap خودکار انجام می‌شود.
-*/
-
 return [
 
     'categories' => [
@@ -88,6 +75,12 @@ return [
                     'fa' => ['t' => 'قالب‌بند و مرتب‌کننده HTML', 'd' => 'تورفتگی مرتب HTML با حفظ کامل pre و textarea و هشدار تگ‌های بسته‌نشده.'],
                     'en' => ['t' => 'HTML Formatter & Beautifier', 'd' => 'Re-indent HTML, keep pre and textarea byte-exact, and flag unbalanced tags.'],
                     'tr' => ['t' => 'HTML Biçimlendirici ve Düzenleyici', 'd' => 'HTML girintisini düzenleyin; pre ve textarea korunur, açık etiketler bildirilir.'],
+                ],
+                'html-minifier' => [
+                    'icon' => 'code',
+                    'fa' => ['t' => 'فشرده‌ساز HTML', 'd' => 'حذف کامنت، فشرده‌سازی فاصله‌ها و ویژگی‌های زائد، بدون دست‌زدن به pre و script'],
+                    'en' => ['t' => 'HTML Minifier', 'd' => 'Strip comments, collapse whitespace and drop redundant attributes — safely.'],
+                    'tr' => ['t' => 'HTML Kucultucu', 'd' => 'Yorumlari, fazla bosluklari ve gereksiz ozellikleri guvenle temizleyin.'],
                 ],
             ],
         ],
@@ -196,6 +189,24 @@ return [
                     'fa' => ['t' => 'تولید پالت رنگ', 'd' => 'ساخت پالت رنگ از روی هارمونی: مکمل، مشابه، سه‌گانه، چهارگانه و تک‌فام'],
                     'en' => ['t' => 'Colour Palette Generator', 'd' => 'Build palettes from hue geometry: complementary, analogous, triadic, tetradic, mono.'],
                     'tr' => ['t' => 'Renk Paleti Oluşturucu', 'd' => 'Renk uyumundan palet üretin: tamamlayıcı, benzer, üçlü, dörtlü ve tek renkli.'],
+                ],
+                'bg-pattern' => [
+                    'icon' => 'layout',
+                    'fa' => ['t' => 'سازندهٔ الگوی پس‌زمینه CSS', 'd' => 'الگوی هندسی پس‌زمینه فقط با گرادیان CSS؛ رنگ، اندازه و زاویه را تنظیم و کد را کپی کنید.'],
+                    'en' => ['t' => 'CSS Background Pattern Generator', 'd' => 'Build geometric CSS background patterns from gradients and copy the ready-to-use CSS.'],
+                    'tr' => ['t' => 'CSS Arka Plan Deseni Oluşturucu', 'd' => 'Gradyanlarla geometrik CSS arka plan desenleri oluşturun ve hazır kodu kopyalayın.'],
+                ],
+                'color-mixer' => [
+                    'icon' => 'sparkles',
+                    'fa' => ['t' => 'ترکیب رنگ (sRGB و OKLab)', 'd' => 'ترکیب دو رنگ در sRGB و OKLab کنار هم، با پله‌های میانی و خروجی هگز و CSS'],
+                    'en' => ['t' => 'Colour Mixer (sRGB vs OKLab)', 'd' => 'Mix two colours in plain sRGB and in OKLab side by side, with a hex ramp.'],
+                    'tr' => ['t' => 'Renk Karıştırıcı (sRGB ve OKLab)', 'd' => 'İki rengi sRGB ve OKLab uzaylarında yan yana karıştırın, hex rampası alın.'],
+                ],
+                'glassmorphism' => [
+                    'icon' => 'box',
+                    'fa' => ['t' => 'سازنده‌ی افکت شیشه‌ای CSS', 'd' => 'افکت شیشه‌ی مات را زنده تنظیم کنید و CSS آماده با پیشوند webkit بگیرید.'],
+                    'en' => ['t' => 'CSS Glassmorphism Generator', 'd' => 'Dial in a frosted-glass card live and copy ready CSS with the -webkit- prefix.'],
+                    'tr' => ['t' => 'CSS Glassmorphism Üreteci', 'd' => 'Buzlu cam kartı canlı ayarlayın, webkit önekli hazır CSS kodunu kopyalayın.'],
                 ],
             ],
         ],

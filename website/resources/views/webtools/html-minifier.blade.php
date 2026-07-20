@@ -191,7 +191,7 @@
         i = g1stop; continue;
       }
 
-      if (c1 === 63) {                                    // "<?" processing instruction / PHP
+      if (c1 === 63) {                                    // processing instruction / PHP (question-mark tag)
         var g2 = s.indexOf(GT, lt);
         if (g2 < 0) broken = true;
         var g2stop = g2 < 0 ? n : g2 + 1;

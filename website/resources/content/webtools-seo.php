@@ -1860,4 +1860,208 @@ return [
             ],
         ],
     ],
+
+    'bg-pattern' => [
+        'fa' => [
+            'intro' => 'همهٔ الگوهای این ابزار فقط از گرادیان ساخته می‌شوند؛ نه فایل تصویری دارند نه SVG، پس هیچ درخواست شبکه‌ای اضافه نمی‌کنند و در هر بزرگ‌نمایی تیز می‌مانند. یک نکته که خیلی‌ها را گیر می‌اندازد: repeating-linear-gradient روی محور خودِ گرادیان تکرار می‌شود، نه روی کادر عنصر؛ برای همین الگوی صفر درجه از لبهٔ پایین شروع می‌شود و با بلندتر شدن عنصر می‌لغزد. به همین دلیل زاویهٔ خطوط الگوی شبکه اینجا روی ۹۰ و ۱۸۰ درجه قفل شده تا همیشه به لبهٔ بالا و ابتدای کادر بچسبند.',
+            'steps' => [
+                'یکی از هفت الگو را از نوار بالا انتخاب کنید: راه‌راه، شطرنجی، نقطه‌ای، زیگزاگ، هاشور مورب، شبکه یا کربن.',
+                'رنگ پس‌زمینه و رنگ نقش را با دو انتخابگر رنگ تعیین کنید؛ دکمهٔ «جابه‌جایی رنگ» جای این دو را عوض می‌کند.',
+                'اندازهٔ کاشی، ضخامت و زاویه را با لغزنده‌ها تنظیم کنید؛ لغزنده‌هایی که روی الگوی انتخابی اثری ندارند خودکار غیرفعال می‌شوند.',
+                'اگر می‌خواهید خروجی داخل یک انتخابگر بیاید، تیک «بسته‌بندی در کلاس CSS» را بزنید.',
+                'کد CSS تولیدشده را کپی کنید و مستقیم روی عنصر دلخواهتان بگذارید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا لغزندهٔ زاویه برای شطرنجی، نقطه‌ای، زیگزاگ، شبکه و کربن غیرفعال است؟', 'a' => 'چون هندسهٔ این پنج الگو با conic-gradient، radial-gradient یا چند لایهٔ لینیر با موقعیت ثابت ساخته شده و چرخاندنشان فقط با خصوصیت‌های background شدنی نیست. برای چرخش واقعی باید روی خود عنصر transform: rotate بگذارید که کادر را هم می‌چرخاند. اگر الگوی زاویه‌دار می‌خواهید، «راه‌راه» و «هاشور مورب» زاویه را کامل پشتیبانی می‌کنند.'],
+                ['q' => 'آیا الگوی CSS واقعاً از تصویر پس‌زمینه سبک‌تر است؟', 'a' => 'از نظر شبکه بله: صفر بایت دانلود، صفر درخواست HTTP و مستقل از رزولوشن. ولی «رایگان» نیست؛ هر لایهٔ گرادیان در هر بار رنگ‌آمیزی دوباره محاسبه می‌شود. الگوی کربن شش لایه دارد و اگر آن را روی یک عنصر تمام‌صفحهٔ متحرک بگذارید افت فریم می‌بینید. برای پس‌زمینهٔ ثابت هیچ مشکلی ندارد.'],
+                ['q' => 'چرا خانه‌های شطرنجی نصفِ اندازه‌ای است که تنظیم کرده‌ام؟', 'a' => 'عددی که تنظیم می‌کنید اندازهٔ کاشی تکرارشونده است و هر کاشی دقیقاً چهار خانه دارد. پس با اندازهٔ ۴۰ پیکسل، هر خانه ۲۰ در ۲۰ پیکسل می‌شود. خانهٔ گوشه هم همیشه رنگ پس‌زمینه را می‌گیرد، نه رنگ نقش را.'],
+                ['q' => 'در مرورگرهای قدیمی چه اتفاقی می‌افتد؟', 'a' => 'شش الگو از هفت الگو فقط از linear-gradient و radial-gradient استفاده می‌کنند که سال‌هاست همه‌جا کار می‌کنند. تنها الگوی شطرنجی به conic-gradient نیاز دارد که از سال ۲۰۲۰ در کروم، فایرفاکس و سافاری هست؛ در مرورگرهای قدیمی‌تر به جای شطرنج فقط رنگ پس‌زمینهٔ ساده دیده می‌شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Every pattern here is built from gradients alone: no image file and no SVG, so it costs zero HTTP requests and stays sharp at any zoom level. One detail catches people out — repeating-linear-gradient repeats along its own gradient axis, not along the element box, so a 0deg pattern starts at the bottom edge and slides as the element gets taller. That is why the grid pattern here is locked to 90deg and 180deg, which anchor the lines to the top and inline-start edges instead.',
+            'steps' => [
+                'Pick one of seven patterns from the row at the top: stripes, checks, dots, zigzag, diagonal crosshatch, grid or carbon.',
+                'Set the background colour and the pattern colour; the swap button exchanges the two.',
+                'Adjust tile size, thickness and angle with the sliders — sliders that do nothing for the selected pattern are disabled automatically.',
+                'Tick "wrap in a CSS class" if you want the output inside a .pattern selector.',
+                'Copy the generated CSS and paste it straight onto your element.',
+            ],
+            'faq' => [
+                ['q' => 'Why is the angle slider disabled for checks, dots, zigzag, grid and carbon?', 'a' => 'Those five are built from conic-gradient, radial-gradient or fixed-position stacked linear layers, and none of them can be rotated using background properties alone. Real rotation needs transform: rotate on the element, which rotates the box as well. If you want an angled pattern, stripes and diagonal crosshatch support the full 0-360 degree range.'],
+                ['q' => 'Is a CSS pattern really lighter than a background image?', 'a' => 'On the network, yes: zero bytes downloaded, zero requests, and resolution independent. It is not free though. Every gradient layer is recomputed on each paint, and the carbon pattern uses six layers — put that on a full-screen animated element and you will see frame drops. For a static background it costs nothing you will notice.'],
+                ['q' => 'Why are the checkerboard squares half the size I set?', 'a' => 'The value you set is the size of the repeating tile, and each tile holds exactly four squares. So a 40px tile gives 20x20px squares. The corner square always takes the background colour, not the pattern colour.'],
+                ['q' => 'What happens in older browsers?', 'a' => 'Six of the seven patterns use only linear-gradient and radial-gradient, which have worked everywhere for years. Only checks needs conic-gradient, supported in Chrome, Firefox and Safari since 2020. In anything older the checkerboard degrades to the flat background colour.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Buradaki desenlerin tamamı yalnızca gradyanlardan üretilir; ne resim dosyası ne de SVG vardır, bu yüzden sıfır HTTP isteği maliyeti taşır ve her yakınlaştırma düzeyinde keskin kalır. Çoğu kişiyi yanıltan bir ayrıntı var: repeating-linear-gradient kutu boyunca değil kendi gradyan ekseni boyunca tekrar eder, bu yüzden 0 derecelik bir desen alt kenardan başlar ve öğe uzadıkça kayar. Bu nedenle ızgara deseni burada 90 ve 180 dereceye sabitlenmiştir; böylece çizgiler üst ve başlangıç kenarına demirlenir.',
+            'steps' => [
+                'Üstteki şeritten yedi desenden birini seçin: çizgili, dama, nokta, zikzak, çapraz tarama, ızgara veya karbon.',
+                'Arka plan rengini ve desen rengini iki renk seçiciyle belirleyin; renk takas düğmesi ikisinin yerini değiştirir.',
+                'Karo boyutunu, kalınlığı ve açıyı kaydırıcılarla ayarlayın; seçili desende etkisi olmayan kaydırıcılar otomatik olarak kapanır.',
+                'Çıktının bir .pattern seçicisi içinde gelmesini istiyorsanız CSS sınıfı içine sar kutusunu işaretleyin.',
+                'Üretilen CSS kodunu kopyalayıp doğrudan öğenize yapıştırın.',
+            ],
+            'faq' => [
+                ['q' => 'Açı kaydırıcısı neden dama, nokta, zikzak, ızgara ve karbon desenlerinde kapalı?', 'a' => 'Bu beş desenin geometrisi conic-gradient, radial-gradient veya sabit konumlu üst üste linear katmanlarla kurulur ve hiçbiri yalnızca background özellikleriyle döndürülemez. Gerçek bir döndürme için öğeye transform: rotate uygulamanız gerekir, bu da kutunun kendisini döndürür. Açılı bir desen istiyorsanız çizgili ve çapraz tarama seçenekleri 0-360 derece aralığını tam destekler.'],
+                ['q' => 'CSS deseni gerçekten arka plan resminden daha mı hafif?', 'a' => 'Ağ tarafında evet: sıfır bayt indirme, sıfır istek ve çözünürlükten bağımsız keskinlik. Ama bedava değildir; her gradyan katmanı her boyama işleminde yeniden hesaplanır. Karbon deseni altı katman kullanır ve bunu tam ekran hareketli bir öğeye verirseniz kare düşüşü görürsünüz. Sabit bir arka planda ise fark edeceğiniz bir maliyeti yoktur.'],
+                ['q' => 'Dama desenindeki kareler neden ayarladığım boyutun yarısı?', 'a' => 'Ayarladığınız değer tekrarlanan karonun boyutudur ve her karo tam olarak dört kare içerir. Yani 40 piksellik bir karoda her kare 20x20 piksel olur. Köşedeki kare de her zaman desen rengini değil arka plan rengini alır.'],
+                ['q' => 'Eski tarayıcılarda ne olur?', 'a' => 'Yedi desenin altısı yalnızca linear-gradient ve radial-gradient kullanır; bunlar yıllardır her yerde çalışır. Sadece dama deseni conic-gradient gerektirir ve bu da Chrome, Firefox ile Safari tarafında 2020 yılından beri desteklenir. Daha eski tarayıcılarda dama yerine düz arka plan rengi görünür.'],
+            ],
+        ],
+    ],
+
+    'color-mixer' => [
+        'fa' => [
+            'intro' => 'میانگین‌گرفتن از دو کد هگز، در واقع میانگین‌گرفتن از عددهای گامادار sRGB است، نه از مقدار نور. آبی #0000ff را با زرد #ffff00 این‌طور ترکیب کنید و به خاکستری بی‌جان #808080 می‌رسید؛ همان ترکیب در فضای OKLab نتیجه‌اش #6cabc7 است. این ابزار هر دو مسیر را همزمان و کنار هم حساب می‌کند تا اختلاف را با چشم ببینید، به‌علاوهٔ یک نسخهٔ OKLCH که فام را از کوتاه‌ترین کمان می‌چرخاند.',
+            'steps' => [
+                'دو رنگ را با انتخابگر رنگ بردارید یا کد هگز آن‌ها را در کادر کناری بنویسید.',
+                'لغزندهٔ سهم رنگ دوم را روی درصد دلخواه ببرید؛ صفر یعنی فقط رنگ اول و صد یعنی فقط رنگ دوم.',
+                'سه کارت sRGB، OKLab و OKLCH را کنار هم مقایسه کنید و کد هگز هرکدام را با دکمهٔ کپی بردارید.',
+                'تعداد پله‌ها را تغییر دهید و روی هر پله از نوارهای طیف بزنید تا کد هگزش کپی شود.',
+                'کادر خروجی CSS را بردارید؛ متغیرها، معادل color-mix و گرادیان OKLab آماده‌اند.',
+            ],
+            'faq' => [
+                ['q' => 'چرا نتیجهٔ sRGB و OKLab این‌قدر با هم فرق دارد؟', 'a' => 'چون کد هگز مقدار نور نیست؛ عددی است که با گامای حدوداً ۲٫۲ رمزگذاری شده. میانگین دو عدد گامادار، وسطِ ادراکیِ دو رنگ نیست. نمونهٔ گویا: وسط سیاه و سفید در sRGB می‌شود #808080، ولی خاکستری‌ای که چشم دقیقاً وسط می‌بیند #636363 است — همان چیزی که OKLab با L=۵۰٪ می‌دهد.'],
+                ['q' => 'خروجی این ابزار با color-mix(in oklab, …) مرورگر یکی است؟', 'a' => 'برای رنگ‌های مات بله؛ هر دو همان درون‌یابی خطی در OKLab را انجام می‌دهند و ماتریس‌های پیاده‌شده اینجا دقیقاً ماتریس‌های اصلی OKLab هستند. تنها اختلاف ممکن در رنگ‌های بیرون از گاموت است: ما هر کانال را ساده می‌بُریم (clip) در حالی که بعضی مرورگرها gamut mapping دقیق‌تری انجام می‌دهند.'],
+                ['q' => 'پس همیشه باید OKLCH را انتخاب کرد؟', 'a' => 'نه. OKLCH برای طیف‌های تک‌فام یا رنگ‌های نزدیک به هم عالی است، اما وسطِ قرمز و آبی از سمت صورتی رد می‌شود و به #ba00c2 می‌رسد که بیرون از گاموت sRGB است و بریده می‌شود؛ کارت مربوطه همین را هشدار می‌دهد. برای دو رنگ دور از هم، OKLab معمولاً نتیجهٔ امن‌تری دارد.'],
+                ['q' => 'آلفا و رنگ‌های نیمه‌شفاف پشتیبانی می‌شوند؟', 'a' => 'نه. ورودی فقط هگز مات سه یا شش‌رقمی است و کانال آلفا نادیده گرفته می‌شود. اگر لایه‌ای نیمه‌شفاف دارید، اول رنگ نهایی روی پس‌زمینه را حساب کنید و بعد آن را اینجا ترکیب کنید. تمام محاسبه هم داخل مرورگر خودتان انجام می‌شود و چیزی به سرور نمی‌رود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Averaging two hex codes averages gamma-encoded sRGB numbers, not light. Blend #0000ff with #ffff00 that way and you land on dead grey #808080; the same blend in OKLab gives #6cabc7. This tool runs both paths at once and shows them side by side, plus an OKLCH version that rotates hue along the shortest arc.',
+            'steps' => [
+                'Pick two colours with the swatch pickers, or type their hex codes in the field next to each one.',
+                'Drag the share slider to the percentage you want — 0 is pure first colour, 100 is pure second colour.',
+                'Compare the sRGB, OKLab and OKLCH cards side by side and copy whichever hex you need.',
+                "Change the step count and click any swatch in the ramps to copy that step's hex code.",
+                'Take the CSS box: it holds the variables, the equivalent color-mix() call and an OKLab gradient.',
+            ],
+            'faq' => [
+                ['q' => 'Why do the sRGB and OKLab results differ so much?', 'a' => 'A hex code is not a light value — it is a number encoded with roughly a 2.2 gamma. Averaging two gamma-encoded numbers does not land on the perceptual midpoint. Concrete case: the midpoint of black and white in sRGB is #808080, but the grey the eye reads as halfway is #636363, which is exactly what OKLab gives at L=50%.'],
+                ['q' => "Does this match the browser's color-mix(in oklab, …)?", 'a' => 'For opaque colours, yes. Both do a linear interpolation in OKLab, and the matrices implemented here are the original OKLab ones. The only possible difference is out-of-gamut results: this tool clips each channel, whereas some browsers apply a more careful gamut mapping.'],
+                ['q' => 'So should I always use OKLCH?', 'a' => 'No. OKLCH is excellent for single-hue ramps or colours close on the wheel, but red to blue travels through magenta and the midpoint comes out as #ba00c2, which falls outside sRGB and gets clipped — the card warns you when that happens. For two distant colours, OKLab is usually the safer result.'],
+                ['q' => 'Are alpha and semi-transparent colours supported?', 'a' => 'No. The inputs accept opaque 3- or 6-digit hex only, and any alpha channel is ignored. If you are mixing a translucent layer, first compute the flattened colour over its background, then mix that here. Everything runs in your own browser; nothing is uploaded.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'İki hex kodunun ortalamasını almak, ışığın değil gama kodlu sRGB sayılarının ortalamasını alır. #0000ff ile #ffff00 rengini böyle karıştırırsanız cansız bir gri olan #808080 çıkar; aynı karışım OKLab uzayında #6cabc7 verir. Bu araç iki yolu aynı anda hesaplar ve yan yana gösterir, ayrıca renk tonunu en kısa yay boyunca döndüren bir OKLCH sürümü ekler.',
+            'steps' => [
+                'İki rengi renk seçicilerden alın ya da yanlarındaki kutuya hex kodlarını yazın.',
+                'İkinci rengin payı kaydırıcısını istediğiniz yüzdeye getirin; 0 sadece birinci rengi, 100 sadece ikinci rengi verir.',
+                'sRGB, OKLab ve OKLCH kartlarını yan yana karşılaştırın ve istediğiniz hex kodunu kopyalayın.',
+                'Basamak sayısını değiştirin ve rampalardaki herhangi bir kareye tıklayarak o basamağın hex kodunu kopyalayın.',
+                'CSS kutusunu alın: değişkenler, eşdeğer color-mix() çağrısı ve bir OKLab gradyanı hazır.',
+            ],
+            'faq' => [
+                ['q' => 'sRGB ile OKLab sonuçları neden bu kadar farklı?', 'a' => 'Hex kodu bir ışık değeri değil, yaklaşık 2.2 gama ile kodlanmış bir sayıdır. İki gama kodlu sayının ortalaması algısal orta noktaya denk gelmez. Somut örnek: siyah ile beyazın sRGB ortası #808080 çıkar, ama gözün tam orta olarak okuduğu gri #636363 rengidir ve OKLab L=%50 tam olarak bunu verir.'],
+                ['q' => 'Sonuç tarayıcının color-mix(in oklab, …) çıktısıyla aynı mı?', 'a' => 'Opak renkler için evet. İkisi de OKLab içinde doğrusal ara değerleme yapar ve burada uygulanan matrisler özgün OKLab matrisleridir. Tek olası fark gamut dışına taşan sonuçlardadır: bu araç her kanalı basitçe kırpar, bazı tarayıcılar ise daha dikkatli bir gamut eşleme uygular.'],
+                ['q' => 'Yani her zaman OKLCH mi seçmeliyim?', 'a' => 'Hayır. OKLCH tek tonlu rampalarda veya çarkta birbirine yakın renklerde çok iyidir, ama kırmızıdan maviye geçiş macenta tarafından döner ve orta nokta #ba00c2 çıkar; bu renk sRGB dışında kaldığı için kırpılır ve kart sizi uyarır. Birbirinden uzak iki renkte OKLab genelde daha güvenli sonuç verir.'],
+                ['q' => 'Alfa kanalı ve yarı saydam renkler destekleniyor mu?', 'a' => 'Hayır. Girdiler yalnızca opak 3 veya 6 haneli hex kabul eder, alfa kanalı yok sayılır. Yarı saydam bir katman karıştırıyorsanız önce arka plan üzerindeki düzleştirilmiş rengi hesaplayın, sonra onu burada karıştırın. Tüm hesaplama kendi tarayıcınızda çalışır, hiçbir veri gönderilmez.'],
+            ],
+        ],
+    ],
+
+    'glassmorphism' => [
+        'fa' => [
+            'intro' => 'backdrop-filter آنچه را پشت عنصر رسم شده تار می‌کند، نه خود عنصر را؛ به همین دلیل کارتی که پس‌زمینه‌ی کدر دارد هر قدر هم بلور را بالا ببرید شیشه‌ای نمی‌شود و حتماً باید rgba با آلفای پایین بگیرد. نکته‌ی دوم اینکه تار کردن رنگ‌ها را بی‌جان می‌کند؛ برای همین در کدهای حرفه‌ای تقریباً همیشه saturate بین ۱۵۰ تا ۱۸۰ درصد کنار blur می‌آید. این ابزار هر دو را همراه خط دور، سایه، خط نور داخلی و یک بلوک جایگزین اختیاری برای مرورگرهای قدیمی می‌نویسد.',
+            'steps' => [
+                'یکی از پنج پس‌زمینه‌ی رنگی بالای صفحه را انتخاب کنید تا افکت واقعاً دیده شود؛ گزینه‌ی راه‌راه برای سنجیدن دقیق میزان تاری بهترین است.',
+                'تاری، شفافیت لایه، رنگ لایه، اشباع و روشنایی را با اسلایدرها تنظیم کنید؛ کارت نمونه بلافاصله تغییر می‌کند.',
+                'ضخامت و رنگ خط دور، گردی گوشه، سایه‌ی بیرونی و خط نور داخلی را تنظیم کنید یا از یکی از پنج پیش‌تنظیم آماده شروع کنید.',
+                'اگر پشتیبانی از مرورگرهای قدیمی برایتان مهم است، تیک بلوک جایگزین را بزنید تا شرط پشتیبانی با پس‌زمینه‌ی کدرتر به خروجی اضافه شود.',
+                'نام کلاس دلخواه را در فیلد سلکتور بنویسید و CSS نهایی را کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا افکت شیشه‌ای من در پروژه هیچ اثری ندارد؟', 'a' => 'سه دلیل رایج دارد: پس‌زمینه‌ی خود عنصر کاملاً کدر است و چیزی از پشت پیدا نیست؛ پشت عنصر فقط یک رنگ تخت است و تار کردن رنگ تخت هیچ تفاوتی نمی‌سازد؛ یا یکی از عنصرهای والد خاصیت filter دارد که ریشه‌ی پس‌زمینه را جابه‌جا می‌کند و blur را خنثی می‌کند.'],
+                ['q' => 'پیشوند -webkit- هنوز لازم است؟', 'a' => 'برای سافاری بله. کروم و اج از نسخه‌ی ۷۶ و فایرفاکس از نسخه‌ی ۱۰۳ شکل بدون پیشوند را می‌فهمند، ولی سافاری سال‌ها فقط نسخه‌ی webkit را می‌شناخت. نگه داشتن هر دو خط هزینه‌ای ندارد و ترتیب درست این است که اول خط پیشوند‌دار بیاید و بعد خط استاندارد.'],
+                ['q' => 'این افکت روی کارایی سایت اثر می‌گذارد؟', 'a' => 'بله، backdrop-filter یکی از گران‌ترین خاصیت‌های CSS است چون مرورگر باید ناحیه‌ی پشت عنصر را جداگانه رندر و تار کند. روی یک هدر یا چند کارت مشکلی پیش نمی‌آید، ولی گذاشتن آن روی ده‌ها آیتم یک لیست یا روی عنصری که مدام اسکرول می‌شود، مخصوصاً در موبایل، افت محسوس فریم می‌دهد.'],
+                ['q' => 'خروجی این ابزار خوانایی متن را تضمین می‌کند؟', 'a' => 'خیر و این محدودیت واقعی ابزار است: اینجا فقط ظاهر کارت ساخته می‌شود و کنتراست متن اصلاً سنجیده نمی‌شود. چون زمینه‌ی پشت کارت در صفحه‌ی واقعی شما متغیر است، متن ممکن است روی نواحی روشن به حد استاندارد WCAG نرسد؛ در این حالت شفافیت لایه را بالاتر ببرید یا به متن سایه بدهید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'backdrop-filter blurs whatever is painted behind an element, never the element itself, so a card with an opaque background will never look like glass no matter how far you push the blur — it needs an rgba fill with a low alpha. Blurring also drains colour, which is why production glass CSS nearly always pairs blur() with saturate(150%-180%). This generator writes both, plus the border, drop shadow, inner highlight and an optional fallback block for browsers without support.',
+            'steps' => [
+                'Pick one of the five colourful backdrops at the top so the effect is actually visible; the stripes backdrop makes the exact blur radius easy to judge.',
+                'Set blur, layer opacity, tint colour, saturation and brightness with the sliders; the sample card updates instantly.',
+                'Tune the border width and colour, corner radius, drop shadow and inner highlight, or start from one of the five presets.',
+                'If you need older browsers to degrade gracefully, tick the fallback option to append a feature-query block with a more opaque background.',
+                'Type your own class name in the selector field and copy the finished CSS.',
+            ],
+            'faq' => [
+                ['q' => 'Why does my glass effect do nothing?', 'a' => "Three usual causes: the element's own background is fully opaque so nothing shows through; there is only a flat colour behind it, and blurring a flat colour changes nothing; or an ancestor element has a filter, which creates a new backdrop root and cancels the blur entirely."],
+                ['q' => 'Is the -webkit- prefix still needed?', 'a' => 'For Safari, yes. Chrome and Edge accept the unprefixed property from version 76 and Firefox from version 103, but Safari shipped only the webkit form for years. Keeping both lines costs nothing; put the prefixed declaration first and the standard one second.'],
+                ['q' => 'Does backdrop-filter hurt performance?', 'a' => 'Yes, it is one of the more expensive CSS properties because the browser has to render and blur the region behind the element separately. One header or a handful of cards is fine, but applying it to dozens of list items or to something that scrolls constantly will drop frames, especially on mobile.'],
+                ['q' => 'Does the generated CSS guarantee readable text?', 'a' => "No, and that is a real limitation of this tool: it only produces the card's appearance and never measures text contrast. Because the backdrop behind the card varies on a real page, text can fall below the WCAG contrast threshold over bright areas, so raise the layer opacity or add a text shadow."],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'backdrop-filter öğenin arkasına çizilen şeyi bulanıklaştırır, öğenin kendisini değil; bu yüzden arka planı tamamen opak olan bir kart, bulanıklığı ne kadar artırırsanız artırın cam gibi görünmez, düşük alfalı bir rgba dolgusu şarttır. Bulanıklaştırma renkleri de soldurur; üretimde kullanılan cam CSS kodu neredeyse her zaman blur ile birlikte saturate(150%-180%) içerir. Bu üreteç ikisini de yazar, ayrıca kenarlık, dış gölge, iç parlama ve destek vermeyen tarayıcılar için isteğe bağlı bir yedek blok üretir.',
+            'steps' => [
+                'Efektin gerçekten görünmesi için üstteki beş renkli arka plandan birini seçin; çizgili arka plan bulanıklık yarıçapını ölçmek için en uygunudur.',
+                'Bulanıklık, katman opaklığı, renk tonu, doygunluk ve parlaklığı kaydırıcılarla ayarlayın; örnek kart anında güncellenir.',
+                'Kenarlık kalınlığı ve rengini, köşe yarıçapını, dış gölgeyi ve iç parlamayı ayarlayın veya beş hazır ayardan biriyle başlayın.',
+                'Eski tarayıcıların düzgün davranması gerekiyorsa yedek seçeneğini işaretleyin; çıktıya daha opak bir arka planla bir özellik sorgusu bloku eklenir.',
+                'Seçici alanına kendi sınıf adınızı yazın ve hazır CSS kodunu kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'Cam efektim neden hiçbir şey yapmıyor?', 'a' => 'Üç yaygın neden var: öğenin kendi arka planı tamamen opaktır ve arkadaki hiçbir şey görünmez; arkada yalnızca düz bir renk vardır ve düz rengi bulanıklaştırmak hiçbir fark yaratmaz; ya da üst öğelerden birinde filter vardır, bu yeni bir backdrop kökü oluşturur ve bulanıklığı tamamen iptal eder.'],
+                ['q' => '-webkit- öneki hâlâ gerekli mi?', 'a' => 'Safari için evet. Chrome ve Edge sürüm 76 ile, Firefox sürüm 103 ile öneksiz özelliği kabul eder, ancak Safari yıllarca yalnızca webkit biçimini destekledi. İki satırı da tutmanın maliyeti yoktur; önce önekli bildirim, sonra standart bildirim gelmelidir.'],
+                ['q' => 'backdrop-filter performansı düşürür mü?', 'a' => 'Evet, en pahalı CSS özelliklerinden biridir çünkü tarayıcı öğenin arkasındaki bölgeyi ayrı işleyip bulanıklaştırmak zorundadır. Tek bir başlık veya birkaç kart sorun değildir, ancak onlarca liste öğesine veya sürekli kaydırılan bir yapıya uygulamak özellikle mobilde kare kaybına yol açar.'],
+                ['q' => 'Üretilen CSS metnin okunabilirliğini garanti eder mi?', 'a' => 'Hayır ve bu, aracın gerçek bir sınırıdır: yalnızca kartın görünümünü üretir, metin kontrastını hiç ölçmez. Gerçek bir sayfada kartın arkasındaki zemin değiştiği için metin, açık bölgelerde WCAG kontrast eşiğinin altına düşebilir; katman opaklığını artırın veya metne gölge ekleyin.'],
+            ],
+        ],
+    ],
+
+    'html-minifier' => [
+        'fa' => [
+            'intro' => 'مرورگر هر دنبالهٔ فاصله را داخل متن به یک فاصله تبدیل می‌کند، اما همان یک فاصله بین دو تگ inline مثل دو span پشت سر هم، محتوای واقعی است و اگر حذفش کنید دو کلمه به هم می‌چسبند. این ابزار دقیقاً همین مرز را رعایت می‌کند: فاصله را فقط کنار عناصر بلوکی حذف می‌کند و محتوای pre، textarea، script و style را بایت‌به‌بایت عبور می‌دهد. تمام پردازش داخل مرورگر شما انجام می‌شود و کد به هیچ سروری ارسال نمی‌شود.',
+            'steps' => [
+                'کد HTML را در کادر ورودی بچسبانید یا دکمهٔ نمونه را بزنید.',
+                'تیک حذف کامنت‌ها، فشرده‌سازی فاصله‌ها و حذف ویژگی‌های زائد را مطابق نیاز پروژه تنظیم کنید.',
+                'برای خروجی کوتاه‌تر، گزینهٔ حذف کوتیشن‌های غیرضروری را هم فعال کنید.',
+                'حجم اولیه، حجم فشرده و درصد کاهش را در کارت‌های آمار بررسی کنید.',
+                'خروجی را با دکمهٔ کپی بردارید و در پروژه جایگزین کنید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا این ابزار ممکن است ظاهر صفحه را خراب کند؟', 'a' => 'فاصله فقط جایی حذف می‌شود که مرورگر آن را نمایش نمی‌دهد؛ یعنی کنار تگ‌های بلوکی مثل div، p، li و td. بین تگ‌های inline مثل span، a و b همیشه یک فاصله باقی می‌ماند و تگ‌های ناشناخته یا سفارشی مثل my-widget هم عمداً inline در نظر گرفته می‌شوند تا فاصله‌شان از بین نرود.'],
+                ['q' => 'آیا کد داخل script و style هم فشرده می‌شود؟', 'a' => 'نه، و این عمدی است. محتوای pre، textarea، script و style بایت‌به‌بایت کپی می‌شود. فشرده‌سازی جاوااسکریپت و CSS به پارسر جداگانهٔ خودش نیاز دارد و مخلوط‌کردن آن با مینیفای HTML یکی از رایج‌ترین منابع باگ است. تعداد بلوک‌های محافظت‌شده کنار نوار وضعیت نمایش داده می‌شود.'],
+                ['q' => 'چرا درصد کاهش من پایین است؟', 'a' => 'مینیفای HTML روی متن خام معمولاً ۵ تا ۲۵ درصد کم می‌کند و بیشترین سود را در فایل‌های پر از تورفتگی می‌دهد. اگر سرور شما gzip یا brotli فعال دارد، همان فاصله‌های تکراری از قبل خوب فشرده می‌شدند؛ پس مینیفای را مکمل فشرده‌سازی سرور بدانید نه جایگزین آن.'],
+                ['q' => 'محدودیت شناخته‌شدهٔ این ابزار چیست؟', 'a' => 'با فعال بودن حذف ویژگی‌های زائد، type=text از input برداشته می‌شود چون مقدار پیش‌فرض HTML است؛ اگر در CSS یا جاوااسکریپت خود سلکتور input[type=text] دارید این تیک را بردارید. ضمناً ورودی تا ۲ مگابایت پردازش می‌شود و محتوای داخل pre هرگز فشرده نمی‌شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'A browser already collapses any run of whitespace inside text down to a single space — but the one space between two adjacent inline tags is real content, and deleting it glues two words together. This minifier respects that boundary: it only drops whitespace beside block-level elements, and it passes the contents of pre, textarea, script and style through byte-for-byte. Everything runs in your browser and the markup is never uploaded.',
+            'steps' => [
+                'Paste your HTML into the input box, or press Sample to load a test snippet.',
+                'Toggle remove comments, collapse whitespace and strip redundant attributes to suit the project.',
+                'Enable unquote safe attribute values when you want a shorter output.',
+                'Read the original size, minified size and reduction percentage in the stat cards.',
+                'Copy the result and drop it into your build.',
+            ],
+            'faq' => [
+                ['q' => 'Can this break my page layout?', 'a' => 'Whitespace is only removed where the browser would not render it — next to block-level tags such as div, p, li and td. One space always survives between inline tags such as span, a and b, and unknown or custom elements like my-widget are deliberately treated as inline so their spacing is never lost.'],
+                ['q' => 'Does it minify the JavaScript and CSS inside script and style tags?', 'a' => 'No, deliberately. The contents of pre, textarea, script and style are copied byte-for-byte. Minifying JS or CSS needs its own parser, and folding that into an HTML minifier is a classic source of broken builds. The status line reports how many protected blocks were kept.'],
+                ['q' => 'Why did my file only shrink a few percent?', 'a' => 'HTML minification typically saves 5-25% of raw bytes, and most of that comes from indentation. If your server already sends gzip or brotli, those repeated spaces were compressing well anyway — treat minification as a complement to transport compression, not a replacement.'],
+                ['q' => 'What are the known limitations?', 'a' => 'With strip redundant attributes on, type=text is removed from input elements because it is the HTML default — turn that toggle off if your CSS or JS relies on an input[type=text] selector. Input is capped at 2 MB, and anything inside pre is never compacted.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Tarayici metin icindeki ardisik bosluklari zaten tek bosluga indirir, ancak yan yana duran iki satir ici etiketin arasindaki o tek bosluk gercek bir icerik sayilir ve silinirse iki kelime birbirine yapisir. Bu arac tam olarak o siniri gozetir: boslugu yalnizca blok seviyesindeki etiketlerin yaninda siler, pre, textarea, script ve style iceriklerini bayt bayt aynen gecirir. Tum islem tarayicinizda yapilir, kod hicbir sunucuya gonderilmez.',
+            'steps' => [
+                'HTML kodunuzu giris kutusuna yapistirin veya Ornek dugmesine basin.',
+                'Yorumlari kaldir, bosluklari daralt ve gereksiz ozellikleri sil seceneklerini projenize gore ayarlayin.',
+                'Daha kisa bir cikti icin guvenli tirnaklari kaldir secenegini de isaretleyin.',
+                'Ozgun boyut, kucultulmus boyut ve azalma yuzdesini istatistik kartlarindan okuyun.',
+                'Sonucu kopyala dugmesiyle alip projenize yerlestirin.',
+            ],
+            'faq' => [
+                ['q' => 'Bu arac sayfamin gorunumunu bozabilir mi?', 'a' => 'Bosluk yalnizca tarayicinin zaten gostermedigi yerlerden silinir; yani div, p, li ve td gibi blok etiketlerin yaninda. span, a ve b gibi satir ici etiketler arasinda her zaman tek bosluk kalir. Bilinmeyen veya ozel etiketler de bilerek satir ici kabul edilir, boylece bosluklari kaybolmaz.'],
+                ['q' => 'script ve style icindeki JavaScript ve CSS de kucultuluyor mu?', 'a' => 'Hayir, bilerek. pre, textarea, script ve style icerikleri bayt bayt kopyalanir. JavaScript veya CSS kucultmek ayri bir cozumleyici ister ve bunu HTML kucultmeyle karistirmak klasik bir hata kaynagidir. Durum satiri kac korumali blok birakildigini bildirir.'],
+                ['q' => 'Dosyam neden sadece birkac yuzde kuculdu?', 'a' => 'HTML kucultme genelde ham baytlarin yuzde 5 ile 25 arasini kazandirir ve bunun buyuk kismi girintilerden gelir. Sunucunuz zaten gzip veya brotli gonderiyorsa o tekrarli bosluklar hali hazirda iyi sikisiyordu; kucultmeyi tasima sikistirmasinin yerine degil tamamlayicisi olarak dusunun.'],
+                ['q' => 'Bilinen sinirlari neler?', 'a' => 'Gereksiz ozellikleri sil acikken input etiketinden type=text kaldirilir cunku HTML varsayilanidir; CSS veya JavaScript tarafinda input[type=text] secicisi kullaniyorsaniz bu kutuyu isaretsiz birakin. Girdi 2 MB ile sinirlidir ve pre icindeki hicbir sey sikistirilmaz.'],
+            ],
+        ],
+    ],
 ];
