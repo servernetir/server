@@ -70,7 +70,7 @@
 
   function mk(list) {
     var o = {}, a = list.toLowerCase().split(' ');
-    for (var i = 0; i < a.length; i++) { if (a[i]) o[a[i]] = 1; }
+    for (var i = 0; i < a.length; i++) { if (a[i]) { o[a[i]] = 1; } }
     return o;
   }
 
@@ -78,8 +78,11 @@
   var RULELIST = mk('media supports container layer scope document -moz-document ' +
                     'keyframes -webkit-keyframes -moz-keyframes -o-keyframes');
 
-  // functions where a space around + and - is part of the syntax and must survive
+  // functions where the space around + and - is part of the syntax and must survive
   var MATHFN = mk('calc min max clamp -webkit-calc -moz-calc');
+
+  // characters that never need a space beside them inside [ ... ]
+  var ATTROP = { '[': 1, ']': 1, '=': 1, '~': 1, '|': 1, '^': 1, '$': 1, '*': 1 };
 
   // ---- tokenizer -----------------------------------------------------------
   // Strings, url() bodies and comments are lifted out as whole tokens, so no
@@ -92,7 +95,7 @@
   function isName(c) { return isNameStart(c) || isDig(c); }
 
   function tokenize(s) {
-    var T = [], n = s.length, i = 0;
+    var out = [], n = s.length, i = 0;
 
     function identEnd(j) {
       while (j < n) {
@@ -124,7 +127,7 @@
       var num = s.slice(i, j), u = '';
       if (s.charCodeAt(j) === 37) { u = '%'; j++; }
       else if (isNameStart(s.charCodeAt(j))) { var m = identEnd(j); u = s.slice(j, m); j = m; }
-      T.push({ t: 'num', v: num, u: u });
+      out.push({ t: 'num', v: num, u: u });
       return j > i ? j : i + 1;
     }
 
@@ -134,14 +137,14 @@
       if (isWS(c)) {
         j = i;
         while (j < n && isWS(s.charCodeAt(j))) { j++; }
-        T.push({ t: 'ws' }); i = j; continue;
+        out.push({ t: 'ws' }); i = j; continue;
       }
 
       if (c === 47 && s.charCodeAt(i + 1) === 42) {          // comment
         j = s.indexOf(CE, i + 2);
         var closed = j >= 0;
         j = closed ? j + 2 : n;
-        T.push({ t: 'com', v: s.slice(i, j), open: !closed });
+        out.push({ t: 'com', v: s.slice(i, j), open: !closed });
         i = j; continue;
       }
 
@@ -154,7 +157,7 @@
           if (d === q) { j++; done = true; break; }
           j++;
         }
-        T.push({ t: 'str', v: s.slice(i, j), open: !done });
+        out.push({ t: 'str', v: s.slice(i, j), open: !done });
         i = j; continue;
       }
 
@@ -170,7 +173,7 @@
           var k = j + 1, inner = '', m2;
           while (k < n && isWS(s.charCodeAt(k))) { k++; }
           var qc = s.charCodeAt(k);
-          if (qc === 34 || qc === 39) {                      // url("…")
+          if (qc === 34 || qc === 39) {                      // url("...")
             m2 = k + 1;
             while (m2 < n) {
               var d2 = s.charCodeAt(m2);
@@ -193,18 +196,18 @@
           }
           while (k < n && isWS(s.charCodeAt(k))) { k++; }
           if (s.charCodeAt(k) === 41) { k++; }
-          T.push({ t: 'url', v: 'url(' + inner + ')' });
+          out.push({ t: 'url', v: 'url(' + inner + ')' });
           i = k > i ? k : i + 1; continue;
         }
-        T.push({ t: 'ident', v: id }); i = j > i ? j : i + 1; continue;
+        out.push({ t: 'ident', v: id }); i = j > i ? j : i + 1; continue;
       }
 
-      if (c === 35) { j = identEnd(i + 1); T.push({ t: 'hash', v: s.slice(i, j) }); i = j > i ? j : i + 1; continue; }
-      if (c === 64) { j = identEnd(i + 1); T.push({ t: 'at',   v: s.slice(i, j) }); i = j > i ? j : i + 1; continue; }
+      if (c === 35) { j = identEnd(i + 1); out.push({ t: 'hash', v: s.slice(i, j) }); i = j > i ? j : i + 1; continue; }
+      if (c === 64) { j = identEnd(i + 1); out.push({ t: 'at',   v: s.slice(i, j) }); i = j > i ? j : i + 1; continue; }
 
-      T.push({ t: 'p', v: s.charAt(i) }); i++;
+      out.push({ t: 'p', v: s.charAt(i) }); i++;
     }
-    return T;
+    return out;
   }
 
   // ---- value rewrites ------------------------------------------------------
@@ -241,26 +244,26 @@
 
   // ---- minifier ------------------------------------------------------------
   function minify(css, opt) {
-    var raw = tokenize(css), T2 = [], warn = false, i, tk;
+    var raw = tokenize(css), tk2 = [], warn = false, i, tk;
 
     for (i = 0; i < raw.length; i++) {
       tk = raw[i];
       if (tk.open) { warn = true; }
       if (tk.t === 'com') {
-        if (opt.bang && tk.v.charAt(2) === '!') { T2.push({ t: 'keep', v: tk.v }); }
-        else if (T2.length && T2[T2.length - 1].t !== 'ws') { T2.push({ t: 'ws' }); }
+        if (opt.bang && tk.v.charAt(2) === '!') { tk2.push({ t: 'keep', v: tk.v }); }
+        else if (tk2.length && tk2[tk2.length - 1].t !== 'ws') { tk2.push({ t: 'ws' }); }
         continue;                                  // a comment separates tokens, never joins them
       }
       if (tk.t === 'ws') {
-        if (!T2.length || T2[T2.length - 1].t === 'ws') { continue; }
-        T2.push(tk); continue;
+        if (!tk2.length || tk2[tk2.length - 1].t === 'ws') { continue; }
+        tk2.push(tk); continue;
       }
-      T2.push(tk);
+      tk2.push(tk);
     }
-    while (T2.length && T2[T2.length - 1].t === 'ws') { T2.pop(); }
+    while (tk2.length && tk2[tk2.length - 1].t === 'ws') { tk2.pop(); }
 
     var out = [], stack = [{ type: 'rules' }], blocks = [];
-    var parens = [], mode = 'sel', atName = '', prop = '', lastIdent = '';
+    var parens = [], mode = 'sel', atName = '', prop = '';
     var stmtStart = 0, brk = 0, kept = 0, dropped = 0;
 
     function emit(t) { out.push(t); }
@@ -273,8 +276,11 @@
       if (xc === '{' || xc === '}' || xc === ';') { return false; }
       if (pc === '{' || pc === '}' || pc === ';') { return false; }
       if (pc === ',' || xc === ',') { return false; }
-      // inside [attr = "x"] whitespace is never significant
-      if (brk > 0 && (mode === 'sel' || mode === 'prop')) { return false; }
+
+      // inside [ ... ]: only the operators lose their padding. The space in
+      // [href$=".pdf" i] and between grid line names [col-a col-b] is load-bearing.
+      if (brk > 0) { return !(ATTROP[pc] || ATTROP[xc]); }
+
       if (parens.length && parens[parens.length - 1].math) {
         if (pc === '(' || xc === ')') { return false; }
         return true;                               // calc(100% - 20px) keeps its spaces
@@ -282,7 +288,7 @@
       if (mode === 'val') {
         if (pc === '(' || xc === ')') { return false; }
         if (pc === ':') { return false; }
-        if (xc === '!') { return false; }
+        if (pc === '!' || xc === '!') { return false; }
         if (pc === '/' || xc === '/') { return false; }
         return true;                               // margin: 0 auto — the gap is data
       }
@@ -295,20 +301,20 @@
           if (pc === '(' || xc === ')' || pc === ':' || xc === ':') { return false; }
           return true;
         }
-        return true;                               // "screen and (…)" needs its spaces
+        return true;                               // "screen and (...)" needs its spaces
       }
       // selector: only combinators may swallow the space; "li :first-child" must not
-      if (pc === '(' || xc === ')') { return false; }
+      if (pc === '(' || xc === ')' || xc === '(') { return false; }
       if (pc === '>' || pc === '+' || pc === '~') { return false; }
       if (xc === '>' || xc === '+' || xc === '~') { return false; }
       return true;
     }
 
-    for (i = 0; i < T2.length; i++) {
-      tk = T2[i];
+    for (i = 0; i < tk2.length; i++) {
+      tk = tk2[i];
 
       if (tk.t === 'ws') {
-        var p = T2[i - 1], x = T2[i + 1];
+        var p = tk2[i - 1], x = tk2[i + 1];
         if (p && x && decide(p, x)) { emit(' '); }
         continue;
       }
@@ -351,20 +357,22 @@
       }
 
       if (c === '(') {
+        // math context is read off the token immediately before "(", never off a
+        // stale identifier, so a media query following a calc() is not treated as math
+        var pv = tk2[i - 1], fn = (pv && pv.t === 'ident') ? pv.v.toLowerCase() : '';
         var parentMath = parens.length ? parens[parens.length - 1].math : false;
-        parens.push({ math: parentMath || !!MATHFN[lastIdent] });
+        parens.push({ math: parentMath || !!MATHFN[fn] });
         emit('('); continue;
       }
       if (c === ')') { parens.pop(); emit(')'); continue; }
       if (c === '[') { brk++; emit('['); continue; }
       if (c === ']') { if (brk > 0) { brk--; } emit(']'); continue; }
 
-      if (c === ':' && mode === 'prop' && !parens.length) { emit(':'); mode = 'val'; continue; }
+      if (c === ':' && mode === 'prop' && !parens.length && !brk) { emit(':'); mode = 'val'; continue; }
 
       if (tk.t === 'at')    { atName = tk.v.slice(1).toLowerCase(); mode = 'at'; emit(tk.v); continue; }
       if (tk.t === 'ident') {
-        lastIdent = tk.v.toLowerCase();
-        if (mode === 'prop') { prop = lastIdent; }
+        if (mode === 'prop') { prop = tk.v.toLowerCase(); }
         emit(tk.v); continue;
       }
 
@@ -471,13 +479,16 @@
       '    opacity : 0.80 ;',
       '}',
       '',
+      '.card a[href$=".pdf" i] { color : red !important ; }',
+      '',
       '.is-empty { }',
       '',
       AT + 'media screen and (min-width: 768px) {',
       '    .card { width : calc( 100% - 2rem ) ; }',
       '}',
       '',
-      '.card::after { content : "  keep  me  /* not a comment */  " ; }'
+      '.card::after { content : "  keep  me  /* not a comment */  " ; }',
+      '.card::before { background : url( img/hero pic.png ) no-repeat ; }'
     ].join(LF);
     run();
   };

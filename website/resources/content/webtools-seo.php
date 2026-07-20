@@ -1005,4 +1005,859 @@ return [
         ],
     ],
 
+
+    'barcode-generator' => [
+        'fa' => [
+            'intro' => 'کدست C در استاندارد Code 128 هر دو رقم را در یک نماد ۱۱ ماژولی جا می‌دهد؛ به همین دلیل یک عدد ۱۲ رقمی به‌جای ۱۲ نماد فقط ۶ نماد می‌گیرد. این ابزار خودش بین کدست‌های A، B و C سوییچ می‌کند و کاراکتر کنترلی مبنای ۱۰۳ را حساب می‌کند. رایج‌ترین اشتباه هم بریدن حاشیه سفید کنار بارکد است؛ بدون دست‌کم ۱۰ ماژول فضای خالی، اسکنر اصلاً بارکد را پیدا نمی‌کند.',
+            'steps' => [
+                'متن یا عدد را در کادر ورودی بنویسید.',
+                'استاندارد را روی Code 128 یا EAN-13 بگذارید.',
+                'عرض ماژول و ارتفاع میله را با اسلایدرها تنظیم کنید.',
+                'تیک متن خوانا را بزنید تا داده زیر میله‌ها چاپ شود.',
+                'با دکمه دانلود، خروجی را به صورت PNG ذخیره کنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا با متن فارسی بارکد ساخته نمی‌شود؟', 'a' => 'Code 128 فقط نویسه‌های ASCII با کد ۰ تا ۱۲۷ را پوشش می‌دهد و حروف فارسی در این محدوده نیستند. ابزار به‌جای تولید بارکد خرابی که هیچ اسکنری درست نمی‌خواند، خطا می‌دهد و همان نویسه غیرمجاز را نشان می‌دهد. برای داده فارسی باید سراغ QR Code بروید.'],
+                ['q' => 'فرق کدست A، B و C چیست و کدام را انتخاب کنم؟', 'a' => 'کدست A حروف بزرگ و نویسه‌های کنترلی، کدست B حروف بزرگ و کوچک، و کدست C فقط جفت‌رقم را پوشش می‌دهد. لازم نیست خودتان انتخاب کنید؛ ابزار برای هر بخش از داده کوتاه‌ترین حالت را برمی‌دارد و توالی سوییچ‌ها را زیر بارکد نشان می‌دهد.'],
+                ['q' => 'برای EAN-13 باید رقم کنترل را هم وارد کنم؟', 'a' => 'نه. اگر ۱۲ رقم بدهید، رقم سیزدهم با فرمول وزنی ۱ و ۳ محاسبه و اضافه می‌شود. اگر هر ۱۳ رقم را وارد کنید، ابزار رقم کنترل شما را بررسی می‌کند و اگر غلط باشد مقدار درست را نشان می‌دهد.'],
+                ['q' => 'چرا بارکدی که چاپ کردم اسکن نمی‌شود؟', 'a' => 'معمولاً به‌خاطر کوچک‌شدن تصویر موقع چاپ یا حذف حاشیه سفید است. فایل PNG را با ابعاد اصلی چاپ کنید و عرض ماژول را دست‌کم روی ۲ بگذارید. توجه کنید که خروجی این ابزار بیت‌مپ است نه وکتور؛ برای چاپ در ابعاد بزرگ، به‌جای بزرگ‌کردن تصویر، عرض ماژول را بالاتر ببرید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Code set C in Code 128 packs two digits into a single 11-module symbol, so a 12-digit number costs 6 symbols instead of 12. This generator switches between code sets A, B and C on its own and computes the modulo-103 check character for you. The most common failure is cropping the white margin: without at least 10 modules of quiet zone, a scanner will not even locate the barcode.',
+            'steps' => [
+                'Type the text or number you want to encode.',
+                'Choose Code 128 or EAN-13 as the symbology.',
+                'Set the module width and bar height with the sliders.',
+                'Tick the readable-text option to print the data under the bars.',
+                'Hit Download PNG to save the barcode.',
+            ],
+            'faq' => [
+                ['q' => 'Why does my accented or non-Latin text fail?', 'a' => 'Code 128 covers only ASCII characters 0-127, so accented letters and non-Latin scripts fall outside it. Rather than silently emitting a barcode no scanner decodes correctly, the tool raises an error and shows you the offending character. Use a QR code for that data instead.'],
+                ['q' => 'What is the difference between code sets A, B and C?', 'a' => 'Set A carries uppercase letters and control characters, set B carries upper and lowercase, and set C carries pairs of digits only. You never pick one manually: the tool takes the shortest option for each run of data and prints the resulting switch sequence under the barcode.'],
+                ['q' => 'Do I have to supply the EAN-13 check digit myself?', 'a' => 'No. Enter 12 digits and the thirteenth is derived with the alternating 1 and 3 weighting. Enter all 13 and the tool validates your check digit instead, reporting the correct value when it disagrees.'],
+                ['q' => 'My printed barcode will not scan. What went wrong?', 'a' => 'Usually the image was scaled down on the way to the printer, or the white margin was trimmed. Print the PNG at its native pixel size and keep module width at 2 or above. Note the output is a bitmap, not vector: for large-format printing raise the module width rather than enlarging the image.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Code 128 standardındaki C kod seti iki rakamı tek bir 11 modüllük sembole sığdırır; bu yüzden 12 haneli bir sayı 12 yerine yalnızca 6 sembol tutar. Bu araç A, B ve C kod setleri arasında kendisi geçiş yapar ve modulo-103 kontrol karakterini sizin yerinize hesaplar. En sık yapılan hata kenardaki beyaz boşluğu kırpmaktır: en az 10 modüllük sessiz bölge olmadan okuyucu barkodu bulamaz bile.',
+            'steps' => [
+                'Kodlamak istediğiniz metni veya sayıyı yazın.',
+                'Standart olarak Code 128 veya EAN-13 seçin.',
+                'Modül genişliğini ve çubuk yüksekliğini kaydırıcılarla ayarlayın.',
+                'Verinin çubukların altına yazılması için okunabilir metin kutusunu işaretleyin.',
+                'PNG indir düğmesiyle barkodu kaydedin.',
+            ],
+            'faq' => [
+                ['q' => 'Türkçe karakterli metin neden çalışmıyor?', 'a' => 'Code 128 yalnızca 0-127 aralığındaki ASCII karakterlerini kapsar; ç, ğ, ı, ö, ş ve ü bu aralığın dışında kalır. Araç hiçbir okuyucunun doğru çözemeyeceği bozuk bir barkod üretmek yerine hata verir ve sorunlu karakteri gösterir. Bu karakterler gerekiyorsa QR kod kullanın.'],
+                ['q' => 'A, B ve C kod setleri arasındaki fark nedir?', 'a' => 'A seti büyük harfleri ve kontrol karakterlerini, B seti büyük ve küçük harfleri, C seti ise yalnızca rakam çiftlerini taşır. Elle seçim yapmanız gerekmez: araç verinin her bölümü için en kısa seçeneği kullanır ve ortaya çıkan geçiş sırasını barkodun altında gösterir.'],
+                ['q' => 'EAN-13 kontrol hanesini kendim girmeli miyim?', 'a' => 'Hayır. 12 hane girerseniz on üçüncü hane, dönüşümlü 1 ve 3 ağırlıklandırmasıyla hesaplanıp eklenir. 13 hanenin tamamını girerseniz araç sizin kontrol hanenizi doğrular ve uyuşmadığında doğru değeri bildirir.'],
+                ['q' => 'Yazdırdığım barkod neden okunmuyor?', 'a' => 'Genellikle görsel yazdırılırken küçültülmüştür ya da beyaz kenar boşluğu kırpılmıştır. PNG dosyasını kendi piksel boyutunda yazdırın ve modül genişliğini en az 2 tutun. Çıktının vektör değil bitmap olduğunu unutmayın: büyük boyutlu baskı için görseli büyütmek yerine modül genişliğini artırın.'],
+            ],
+        ],
+    ],
+
+    'border-radius-generator' => [
+        'fa' => [
+            'intro' => 'در CSS مقدارهای درصدی border-radius نسبت به هر محور جداگانه محاسبه می‌شوند؛ یعنی ۵۰٪ روی یک مستطیل به‌جای دایره یک بیضی می‌سازد. با نویسهٔ اسلش (/) هم می‌توانید شعاع افقی و عمودی هر گوشه را جدا تعیین کنید و همین راز ساختن شکل‌های ارگانیک و حبابی است. این ابزار هر چهار گوشه و حالت هشت‌مقداری بیضوی را با پیش‌نمایش زنده در اختیارتان می‌گذارد و کد آمادهٔ کپی را همان لحظه می‌سازد.',
+            'steps' => [
+                'حالت ساده یا بیضوی را انتخاب کنید و واحد px یا درصد را تعیین کنید.',
+                'اسلایدرِ هر گوشه را بکشید و تغییر شکل جعبه را زنده ببینید.',
+                'برای شروع سریع یکی از شکل‌های آماده مثل قرصی، مربع‌گِرد یا حبابی را بزنید.',
+                'با گزینهٔ قفل گوشه‌ها هر چهار گوشه را هم‌زمان و یکسان تنظیم کنید.',
+                'کد border-radius تولیدشده را با دکمهٔ کپی بردارید و در پروژه بگذارید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا border-radius: 50% روی دکمهٔ مستطیلی دایره نمی‌سازد؟', 'a' => 'چون درصدها نسبت به عرض و ارتفاع به‌طور جداگانه اعمال می‌شوند و روی عنصر غیرمربع نتیجه بیضی است. برای گوشهٔ کاملاً گرد (شکل قرصی) از مقدار px بزرگ‌تر از نصف کوچک‌ترین ضلع استفاده کنید یا شکل آمادهٔ «قرصی» را بزنید.'],
+                ['q' => 'اسلش (/) در مقدار border-radius چه‌کار می‌کند؟', 'a' => 'مقدارهای پیش از اسلش شعاع افقیِ گوشه‌ها و مقدارهای پس از آن شعاع عمودی آن‌ها هستند. همین جداسازی است که ساخت گوشه‌های حبابی و ارگانیک را ممکن می‌کند.'],
+                ['q' => 'آیا این شکل‌های حبابی همان squircle واقعی اپل هستند؟', 'a' => 'خیر. squircle واقعی یک اَبَربیضی (superellipse) است و با border-radius دقیق ساخته نمی‌شود؛ خروجی این ابزار تقریبی نزدیک و کاملاً سازگار با مرورگرهاست، بدون نیاز به SVG یا clip-path.'],
+                ['q' => 'ترتیب چهار مقدار border-radius چگونه است؟', 'a' => 'به‌ترتیب بالا-چپ، بالا-راست، پایین-راست، پایین-چپ و ساعت‌گرد از گوشهٔ بالا-چپ. هرگاه بعضی مقدارها برابر باشند، ابزار به‌صورت خودکار کد را کوتاه می‌کند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'In CSS, percentage border-radius values are resolved against each axis independently, so 50% on a rectangle produces an ellipse rather than a circle. The slash syntax (/) lets you set the horizontal and vertical radius of every corner separately, which is exactly how organic blob shapes are built. This generator exposes all four corners plus the 8-value elliptical mode with a live preview and copy-ready CSS.',
+            'steps' => [
+                'Pick Simple or Elliptical mode and choose px or % as the unit.',
+                'Drag each corner slider and watch the preview box reshape live.',
+                'Hit a preset shape — pill, squircle or blob — for an instant starting point.',
+                'Turn on Link corners to move all four corners together in lockstep.',
+                'Copy the generated border-radius rule straight into your stylesheet.',
+            ],
+            'faq' => [
+                ['q' => "Why doesn't border-radius: 50% make my rectangular button a circle?", 'a' => 'Percentages apply to width and height separately, so on a non-square element you get an ellipse. For a true stadium/pill shape use a px value larger than half the shorter side, or click the Pill preset.'],
+                ['q' => 'What does the slash (/) do in a border-radius value?', 'a' => 'Values before the slash are the horizontal radii and values after it are the vertical radii of each corner. That split is what makes organic, blob-like corners possible.'],
+                ['q' => 'Are these blobs real Apple squircles?', 'a' => 'No. A true squircle is a superellipse and cannot be reproduced exactly with border-radius; this tool gives a close, fully browser-native approximation with no SVG or clip-path needed.'],
+                ['q' => 'What order are the four values in?', 'a' => 'Top-left, top-right, bottom-right, bottom-left — clockwise from the top-left corner. When some values match, the tool automatically shortens the output.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'CSS icinde yuzde cinsinden border-radius degerleri her ekseni ayri hesaplar; yani bir dikdortgende yuzde 50 daire degil elips uretir. Egik cizgi (/) soz dizimiyle her kosenin yatay ve dikey yaricapini ayri ayri verebilir, organik damla sekilleri tam olarak boyle olusturulur. Bu arac dort koseyi ve sekiz degerli eliptik modu canli onizleme ve kopyalanabilir CSS ile sunar.',
+            'steps' => [
+                'Basit veya Eliptik modu secin ve birim olarak px ya da yuzde belirleyin.',
+                'Her kose kaydiricisini surukleyin ve onizleme kutusunun canli degistigini gorun.',
+                'Hap, kare-daire veya damla gibi hazir bir sekle tiklayarak hizli baslayin.',
+                'Koseleri bagla secenegini acarak dort koseyi ayni anda ve esit ayarlayin.',
+                'Uretilen border-radius kuralini kopyalayip stil dosyaniza yapistirin.',
+            ],
+            'faq' => [
+                ['q' => 'border-radius: 50% neden dikdortgen dugmemi daire yapmiyor?', 'a' => 'Yuzdeler genislik ve yukseklige ayri uygulanir, bu yuzden kare olmayan bir ogede elips elde edersiniz. Gercek hap sekli icin kisa kenarin yarisindan buyuk bir px degeri kullanin ya da Hap hazir seklini secin.'],
+                ['q' => 'border-radius degerindeki egik cizgi (/) ne ise yarar?', 'a' => 'Egik cizgiden onceki degerler yatay yaricap, sonraki degerler dikey yaricaptir. Bu ayrim organik damla koselerini mumkun kilar.'],
+                ['q' => 'Bu damlalar gercek Apple kare-daireleri mi?', 'a' => 'Hayir. Gercek bir squircle bir superelipstir ve border-radius ile birebir uretilemez; bu arac SVG veya clip-path olmadan tarayiciya tam uyumlu yakin bir yaklasim verir.'],
+                ['q' => 'Dort deger hangi sirada yazilir?', 'a' => 'Ust sol, ust sag, alt sag, alt sol — ust sol koseden saat yonunde. Bazi degerler esit oldugunda arac ciktiyi otomatik kisaltir.'],
+            ],
+        ],
+    ],
+
+    'clip-path-generator' => [
+        'fa' => [
+            'intro' => 'خصوصیت clip-path فقط ناحیهٔ نمایش یک عنصر را می‌بُرد و در چیدمان صفحه هیچ فضایی آزاد نمی‌کند؛ پس بخش‌های بریده‌شده همچنان کلیک و هاور را دریافت می‌کنند مگر آنکه pointer-events را مدیریت کنید. با این ابزار رأس‌های چندضلعی را مستقیم روی پیش‌نمایش می‌کشید و کد دقیق clip-path را برای پالیگون، دایره، بیضی و inset می‌گیرید. مقادیر بر حسب درصدِ خودِ عنصر خروجی می‌شوند تا شکل واکنش‌گرا بماند.',
+            'steps' => [
+                'حالت را انتخاب کنید: چندضلعی، دایره، بیضی یا inset؛ یا شکل آماده‌ای مثل ستاره و حباب گفتار را بارگذاری کنید.',
+                'دستگیره‌ها را روی پیش‌نمایش بکشید تا شکل دلخواه ساخته شود.',
+                'در حالت چندضلعی با دابل‌کلیک نقطه اضافه و با راست‌کلیک روی دستگیره آن را حذف کنید.',
+                'در صورت نیاز تصویر خودتان را بارگذاری کنید تا برش روی محتوای واقعی دیده شود.',
+                'کد clip-path را کپی و در استایل عنصر خود قرار دهید.',
+            ],
+            'faq' => [
+                ['q' => 'تفاوت clip-path با overflow: hidden چیست؟', 'a' => 'overflow فقط می‌تواند محتوا را در یک مستطیل ببُرد، اما clip-path هر مسیر هندسی مانند چندضلعی، دایره یا بیضی را می‌پذیرد و ناحیهٔ بیرون کاملاً شفاف می‌شود؛ در عوض clip-path برخلاف overflow اسکرول محتوا را کنترل نمی‌کند.'],
+                ['q' => 'چرا سایهٔ box-shadow روی عنصر بریده‌شده ناپدید می‌شود؟', 'a' => 'چون clip-path سایه را هم همراه با عنصر می‌بُرد. برای سایه‌ای که لبهٔ برش را دنبال کند باید به‌جای box-shadow از filter: drop-shadow() روی همان عنصر یا والد آن استفاده کنید.'],
+                ['q' => 'آیا می‌توان clip-path را انیمیشن داد؟', 'a' => 'بله، اما فقط زمانی که نوع شکل و تعداد نقاط بین دو حالت یکسان بماند؛ می‌توان بین دو پالیگون با شمار نقاط برابر transition گذاشت، ولی تبدیل دایره به پالیگون یا تغییر تعداد رأس‌ها انیمیشن‌پذیر نیست.'],
+                ['q' => 'مقادیر درصدی نسبت به چه چیزی حساب می‌شوند؟', 'a' => 'نسبت به border-box خودِ عنصر، نه صفحه یا ویوپورت. در circle شعاعِ درصدی به یک قطر مرجع بر پایهٔ ابعاد عنصر گره می‌خورد؛ به همین دلیل پیش‌نمایش این ابزار مربع است تا دایره دقیق نمایش داده شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'The clip-path property only trims where an element paints; it never frees up layout space, so clipped-away regions still capture clicks and hovers unless you also set pointer-events. This generator lets you drag polygon vertices straight over the preview and copy exact clip-path code for polygon, circle, ellipse and inset. All values are emitted as percentages of the element itself, so the shape stays responsive.',
+            'steps' => [
+                'Pick a mode — polygon, circle, ellipse or inset — or load a preset such as star or speech bubble.',
+                'Drag the handles over the preview until the shape looks right.',
+                'In polygon mode, double-click to add a vertex and right-click a handle to remove it.',
+                'Optionally upload your own image so you can see the clip against real content.',
+                "Copy the clip-path code and paste it into your element's CSS.",
+            ],
+            'faq' => [
+                ['q' => 'What is the difference between clip-path and overflow: hidden?', 'a' => 'overflow can only cut content to a rectangle, while clip-path accepts any geometric path — polygon, circle or ellipse — and makes everything outside fully transparent; the trade-off is that clip-path does not clip scrolling the way overflow does.'],
+                ['q' => 'Why does my box-shadow disappear on a clipped element?', 'a' => 'clip-path removes the shadow along with the element. To keep a shadow that follows the clipped edge, use filter: drop-shadow() on the element or its parent instead of box-shadow.'],
+                ['q' => 'Can clip-path be animated?', 'a' => 'Yes, but only when the shape function and point count stay identical between states — you can transition between two polygons with the same number of points, but morphing a circle into a polygon or changing the vertex count is not animatable.'],
+                ['q' => 'What are the percentage values relative to?', 'a' => "They resolve against the element's own border-box, not the page or viewport. For circle() the percentage radius is tied to a reference diameter derived from the element's size, which is why this preview is square so the circle renders accurately."],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'clip-path ozelligi bir ogenin yalnizca boyandigi alani kirpar ve sayfa yerlesiminde hic bosluk birakmaz; bu yuzden kirpilan bolgeler pointer-events ayarlanmadikca tiklama ve hover almaya devam eder. Bu arac ile cokgen noktalarini dogrudan onizleme uzerinde surukler ve cokgen, daire, elips ve inset icin tam clip-path kodunu alirsiniz. Tum degerler ogenin kendi boyutuna gore yuzde olarak uretilir, boylece sekil duyarli kalir.',
+            'steps' => [
+                'Bir mod secin: cokgen, daire, elips veya inset; ya da yildiz veya konusma balonu gibi hazir bir sekil yukleyin.',
+                'Sekli istediginiz gibi ayarlamak icin tutamaklari onizleme uzerinde surukleyin.',
+                'Cokgen modunda nokta eklemek icin cift tiklayin, silmek icin tutamaga sag tiklayin.',
+                'Isterseniz kendi resminizi yukleyin, boylece kirpmayi gercek icerik uzerinde gorursunuz.',
+                'clip-path kodunu kopyalayip ogenizin CSS koduna yapistirin.',
+            ],
+            'faq' => [
+                ['q' => 'clip-path ile overflow: hidden arasindaki fark nedir?', 'a' => 'overflow icerigi yalnizca bir dikdortgene kirpabilir, oysa clip-path cokgen, daire veya elips gibi her geometrik yolu kabul eder ve disarida kalan alan tamamen saydam olur; buna karsilik clip-path kaydirmayi overflow gibi kirpmaz.'],
+                ['q' => 'Kirpilan ogede box-shadow neden kayboluyor?', 'a' => 'clip-path golgeyi de oge ile birlikte keser. Kirpilan kenari izleyen bir golge icin box-shadow yerine oge veya ust ogesi uzerinde filter: drop-shadow() kullanin.'],
+                ['q' => 'clip-path animasyonlu olabilir mi?', 'a' => 'Evet, ancak yalnizca sekil turu ve nokta sayisi iki durum arasinda ayni kaldiginda; ayni sayida noktaya sahip iki cokgen arasinda gecis yapabilirsiniz ama daireyi cokgene donusturmek veya nokta sayisini degistirmek animasyonlu olmaz.'],
+                ['q' => 'Yuzde degerleri neye gore hesaplanir?', 'a' => 'Sayfaya veya goruntu alanina degil, ogenin kendi border-box degerine gore cozulur. circle() icin yuzde yaricap, ogenin boyutundan turetilen bir referans capa baglidir; bu nedenle bu onizleme kareyi kullanir ki daire dogru gorunsun.'],
+            ],
+        ],
+    ],
+
+    'color-shades' => [
+        'fa' => [
+            'intro' => 'در فضای رنگی HSL، روشناییِ ۵۰٪ برای زرد و آبی دقیقاً یک عدد است، اما چشم زردِ ۵۰٪ را چند برابر روشن‌تر از آبیِ ۵۰٪ می‌بیند؛ به همین دلیل طیفی که فقط روی مؤلفه‌ی L حرکت می‌کند، لزوماً پله‌های بصریِ یکنواخت نمی‌دهد. این ابزار رمپ استاندارد ۵۰ تا ۹۰۰ را با درون‌یابی رنگ پایه به سمت سفید و سیاه می‌سازد و کنار هر پله نسبت کنتراست واقعی WCAG را می‌نویسد تا به‌جای حدس زدن، با عدد تصمیم بگیرید. فام (Hue) در تمام ده پله ثابت می‌ماند، پس طیف از هویت رنگی برند خارج نمی‌شود.',
+            'steps' => [
+                'رنگ پایه را با انتخابگر بردارید یا کد آن را به شکل HEX، RGB یا HSL در کادر بنویسید.',
+                'نام متغیر را بگذارید؛ همین نام در خروجی CSS و Tailwind به کار می‌رود و کاراکترهای غیرمجاز خودکار به خط تیره تبدیل می‌شود.',
+                'اگر تینت‌ها و شیدها بیش از حد سیر به نظر می‌رسند، گزینه‌ی ملایم‌کردن دو سر طیف را بزنید تا اشباع در پله‌های انتهایی کم شود.',
+                'در هر ردیف کد HEX و نسبت کنتراست روی سفید و سیاه را ببینید و با کلیک روی کد، آن را کپی کنید.',
+                'در پایان، بلوک متغیرهای CSS یا قطعه‌ی تنظیمات Tailwind را یکجا کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا فاصله‌ی بصری پله‌ها یکنواخت نیست؟', 'a' => 'چون HSL فضای ادراکی نیست. اختلاف روشنایی عددی با اختلافی که چشم می‌بیند یکی نیست، مخصوصاً در زرد و فیروزه‌ای که در روشنایی یکسان بسیار درخشان‌تر به نظر می‌رسند. اگر فاصله‌ی کاملاً یکنواخت می‌خواهید باید سراغ فضاهایی مثل OKLCH بروید؛ در این ابزار ملاک عملی شما همان ستون نسبت کنتراست است که عدد واقعی و قابل استناد می‌دهد.'],
+                ['q' => 'برای متن اصلی سایت کدام پله را بردارم؟', 'a' => 'تصور رایج این است که پله‌ی ۵۰۰ یعنی رنگ برند، پس برای متن هم مناسب است؛ این معمولاً غلط است. مثلاً فیروزه‌ای ‎#22d3ee‎ روی سفید فقط ۱٫۸۱:۱ کنتراست دارد و حتی برای متن درشت هم رد می‌شود. روی پس‌زمینه‌ی سفید معمولاً باید تا پله‌ی ۶۰۰ یا ۷۰۰ پایین بروید تا به ۴٫۵:۱ برسید — ستون «روی سفید» دقیقاً همین را نشان می‌دهد.'],
+                ['q' => 'چرا وقتی رنگ پایه‌ام روشن است، پله‌های ۵۰ تا ۳۰۰ تقریباً یکسان درمی‌آیند؟', 'a' => 'این محدودیت واقعی روش کار است: رنگ پایه همیشه روی پله‌ی ۵۰۰ می‌نشیند، پس اگر روشنایی آن مثلاً ۹۰٪ باشد، تا سفید فقط ۱۰٪ فضا باقی می‌ماند و چهار پله‌ی بالایی ناچار در هم می‌روند. برای گرفتن رمپ متعادل، رنگی با روشنایی حدود ۴۵ تا ۶۰ درصد را به‌عنوان پایه بدهید؛ عدد HSL زیر کادر ورودی همین را به شما نشان می‌دهد.'],
+                ['q' => 'خروجی با پالت‌های خود Tailwind یکی می‌شود؟', 'a' => 'خیر. پالت‌های پیش‌فرض Tailwind دستی و چشمی تنظیم شده‌اند و فام‌شان در طول طیف کمی جابه‌جا می‌شود. این ابزار یک رمپ ریاضی و یکدست از رنگ خودتان می‌سازد که فام ثابتی دارد. قطعه‌ی خروجی زیر theme.extend.colors قرار می‌گیرد و پالت‌های پیش‌فرض را حذف نمی‌کند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'In HSL, 50% lightness is literally the same number for yellow and for blue, yet the eye reads 50% yellow as far brighter than 50% blue — so a ramp built by moving the L channel alone will not give visually even steps. This generator builds the standard 50-900 scale by interpolating your base colour toward white and black, and prints the real WCAG contrast ratio beside every step so you choose by number rather than by eye. Hue is held fixed across all ten steps, so the scale never drifts off-brand.',
+            'steps' => [
+                'Pick the base colour with the picker, or type it as HEX, RGB or HSL in the text field.',
+                'Set the variable name; it is reused in both outputs and any illegal characters are folded to hyphens automatically.',
+                'If the tints and shades look too saturated, enable softening to pull saturation down at the ends of the ramp.',
+                'Read each row for its HEX and its contrast against white and black, and click a HEX to copy that single step.',
+                'Copy the whole CSS custom-property block or the Tailwind config snippet from the panes below.',
+            ],
+            'faq' => [
+                ['q' => 'Why are the steps not evenly spaced to my eye?', 'a' => 'Because HSL is not a perceptual colour space. A fixed numeric lightness gap does not correspond to a fixed perceived gap, which is most obvious with yellows and cyans that look far more luminous than blues at identical L. For truly even spacing you would need a perceptual space such as OKLCH; here the contrast-ratio column is your practical, objective check.'],
+                ['q' => 'Which step should I use for body text?', 'a' => 'A common assumption is that 500 is the brand colour and therefore safe for text. It usually is not. Cyan #22d3ee scores only 1.81:1 on white, which fails even the large-text threshold. On a white background you typically have to go down to 600 or 700 to clear 4.5:1 — the on-white column tells you exactly where that happens.'],
+                ['q' => 'Why do 50-300 look almost identical when I start from a light colour?', 'a' => 'That is a genuine limitation of the method. The base always lands on step 500, so if its lightness is already around 90% there is only 10% of headroom left toward white and the top four steps necessarily bunch up. Feed it a mid-tone with roughly 45-60% lightness for a balanced ramp; the HSL readout under the input shows you where you are.'],
+                ['q' => "Will the output match Tailwind's own palettes?", 'a' => "No. Tailwind's default palettes are hand-tuned and deliberately shift hue slightly along the scale. This tool produces a mathematically consistent, fixed-hue ramp from your own colour. The snippet goes under theme.extend.colors, so it adds your scale without removing the built-in palettes."],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'HSL icinde %50 aciklik sari ve mavi icin birebir ayni sayidir, ama goz %50 sariyi %50 maviden cok daha parlak okur; bu yuzden yalnizca L kanali uzerinde ilerleyen bir rampa gorsel olarak esit araliklar vermez. Bu urec standart 50-900 olcegini ana renginizi beyaza ve siyaha dogru enterpole ederek kurar ve her adimin yanina gercek WCAG kontrast oranini yazar, boylece goz kararyla degil sayiyla secersiniz. Renk tonu on adim boyunca sabit tutulur, yani olcek marka kimliginden sapmaz.',
+            'steps' => [
+                'Ana rengi seciciyle alin veya metin kutusuna HEX, RGB ya da HSL olarak yazin.',
+                'Degisken adini belirleyin; ayni ad iki ciktida da kullanilir ve gecersiz karakterler otomatik olarak tireye cevrilir.',
+                'Acik ve koyu tonlar fazla doygun gorunuyorsa yumusatma secenegini acin, boylece uc adimlarda doygunluk duser.',
+                'Her satirda HEX kodunu ve beyaza ile siyaha karsi kontrasti okuyun; tek bir adimi kopyalamak icin koda tiklayin.',
+                'Alttaki panellerden CSS degisken blogunu veya Tailwind yapilandirma parcasini toptan kopyalayin.',
+            ],
+            'faq' => [
+                ['q' => 'Adimlar neden gozume esit araliklarda gorunmuyor?', 'a' => 'Cunku HSL algisal bir renk uzayi degildir. Sabit bir sayisal aciklik farki sabit bir algilanan farka karsilik gelmez; bu ozellikle ayni L degerinde mavilerden cok daha parlak gorunen sari ve turkuazlarda belirgindir. Gercekten esit aralik icin OKLCH gibi algisal bir uzay gerekir; burada pratik ve nesnel olcutunuz kontrast orani sutunudur.'],
+                ['q' => 'Govde metni icin hangi adimi kullanmaliyim?', 'a' => 'Yaygin bir varsayim 500 adiminin marka rengi oldugu ve dolayisiyla metin icin guvenli oldugudur. Genelde degildir. Turkuaz #22d3ee beyaz uzerinde yalnizca 1.81:1 alir ve buyuk metin esigini bile gecemez. Beyaz zeminde 4.5:1 degerini yakalamak icin cogunlukla 600 veya 700 adimina inmeniz gerekir; beyaz uzerinde sutunu bunun tam olarak nerede gerceklestigini soyler.'],
+                ['q' => 'Acik bir renkle basladigimda 50-300 neden neredeyse ayni gorunuyor?', 'a' => 'Bu yontemin gercek bir sinirlamasidir. Ana renk her zaman 500 adimina oturur; acikligi zaten %90 civarindaysa beyaza dogru yalnizca %10 pay kalir ve ustteki dort adim zorunlu olarak birbirine yaklasir. Dengeli bir rampa icin acikligi kabaca %45-60 arasinda olan bir orta ton verin; giris kutusunun altindaki HSL degeri nerede oldugunuzu gosterir.'],
+                ['q' => 'Cikti Tailwind paletleriyle ayni olur mu?', 'a' => 'Hayir. Tailwind varsayilan paletleri elle ayarlanmistir ve olcek boyunca renk tonunu bilerek biraz kaydirir. Bu arac kendi renginizden matematiksel olarak tutarli, sabit tonlu bir rampa uretir. Parca theme.extend.colors altina girer, yani yerlesik paletleri silmeden kendi olceginizi ekler.'],
+            ],
+        ],
+    ],
+
+    'css-formatter' => [
+        'fa' => [
+            'intro' => 'در یک data URI مثل url(data:image/svg+xml;base64,...) سمی‌کالن بخشی از خود آدرس است، نه جداکنندهٔ اعلان. فرمترهایی که فقط روی { و } و ; برش می‌زنند دقیقاً همین‌جا استایل‌شیت را دو نیم می‌کنند و همین اتفاق برای content: "a { b" هم می‌افتد. این ابزار به‌جای برش متنی، CSS را توکن‌به‌توکن می‌خواند، بنابراین رشته‌ها، کامنت‌ها و محتوای url() دست‌نخورده باقی می‌مانند.',
+            'steps' => [
+                'CSS فشرده را در کادر ورودی بچسبانید؛ خروجی بی‌درنگ ساخته می‌شود.',
+                'تورفتگی را روی ۲ فاصله، ۴ فاصله یا Tab بگذارید.',
+                'جای آکولاد باز را روی «همان خط» یا «خط بعد» تنظیم کنید.',
+                'تیک‌های «هر انتخابگر در یک خط»، «خط خالی بین قاعده‌ها» و «نگه‌داشتن کامنت‌ها» را مطابق سلیقه‌تان بزنید.',
+                'شمارندهٔ قاعده و اعلان را چک کنید و با دکمهٔ کپی خروجی را بردارید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا کد من جایی آپلود می‌شود؟', 'a' => 'نه. کل تجزیه و بازسازی با JavaScript داخل همان تبِ مرورگر انجام می‌شود و ابزار هیچ درخواست شبکه‌ای نمی‌زند. می‌توانید تب Network در ابزار توسعه‌دهنده را باز بگذارید و ببینید که هنگام مرتب‌سازی هیچ درخواستی ثبت نمی‌شود.'],
+                ['q' => 'آیا مرتب‌سازی می‌تواند ظاهر سایت را عوض کند؟', 'a' => 'این تصور که «فاصله در CSS بی‌معناست» غلط است. فاصله در انتخابگر معنا دارد؛ ‎.a .b‎ یعنی نواده و ‎.a.b‎ یعنی هر دو کلاس روی یک عنصر. داخل calc() هم فاصلهٔ اطراف + و - اجباری است، وگرنه مقدار نامعتبر می‌شود. این ابزار همین فاصله‌های معنادار را از منبع حفظ می‌کند و فقط فاصلهٔ اطراف کاما، دونقطه و ترکیب‌گرهای > و + و ~ را یکدست می‌کند.'],
+                ['q' => 'وقتی «نگه‌داشتن کامنت‌ها» را خاموش کنم چه اتفاقی می‌افتد؟', 'a' => 'این تنها جایی است که خروجی صد در صد هم‌ارز منبع نیست. کامنت حذف‌شده با یک فاصله جایگزین می‌شود تا توکن‌های دو طرفش به هم نچسبند؛ در نتیجه ‎.a/*x*/.b‎ به ‎.a .b‎ تبدیل می‌شود که معنایش با ‎.a.b‎ فرق دارد. اگر در استایل‌شیت‌تان کامنت وسط انتخابگر دارید، این گزینه را روشن نگه دارید.'],
+                ['q' => 'از CSS تودرتو و at-rule های جدید پشتیبانی می‌کند؟', 'a' => 'بله. پارسر عمومی است و هر بلوکی را که با { باز شود دنبال می‌کند، پس تودرتویی بومی CSS با ‎&‎ و همچنین media@، supports@، container@، layer@، keyframes@، font-face@ و page@ به‌درستی تورفتگی می‌گیرند. اگر آکولاد یا رشته‌ای بسته نشده باشد، ابزار خروجی را ترمیم می‌کند و پیام هشدار نشان می‌دهد.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'In a data URI like url(data:image/svg+xml;base64,...) the semicolon is part of the address, not a declaration separator. Formatters that simply split on {, } and ; cut the stylesheet in half right there, and the same happens to content: "a { b". This tool tokenises the CSS instead of slicing the text, so strings, comments and url() contents survive untouched.',
+            'steps' => [
+                'Paste your minified CSS into the input box; the output is rebuilt as you type.',
+                'Set the indent to 2 spaces, 4 spaces or a tab.',
+                'Choose whether the opening brace sits on the same line or the next line.',
+                'Toggle one selector per line, blank line between rules, and keep comments.',
+                'Check the rule and declaration counters, then hit Copy.',
+            ],
+            'faq' => [
+                ['q' => 'Is my CSS uploaded anywhere?', 'a' => 'No. All parsing and re-emitting happens in JavaScript inside your own browser tab, and the tool makes no network requests at all. Leave the Network panel of your devtools open while you format and you will see zero requests logged.'],
+                ['q' => 'Can beautifying change how my page renders?', 'a' => 'The common belief that whitespace in CSS is always meaningless is wrong. Whitespace is significant in selectors: .a .b is a descendant match while .a.b requires both classes on one element, and inside calc() the spaces around + and - are mandatory or the value is invalid. This formatter preserves those meaningful gaps from the source and only normalises spacing around commas, colons and the >, + and ~ combinators.'],
+                ['q' => 'What happens when I turn off Keep comments?', 'a' => 'That is the one setting where output is not byte-equivalent to the source. A removed comment is replaced with a single space so the tokens on either side cannot fuse, which means .a/*x*/.b becomes .a .b — semantically different from .a.b. If your sheet has comments inside a selector or a value, leave the option on.'],
+                ['q' => 'Does it handle nested CSS and modern at-rules?', 'a' => 'Yes. The parser is generic and follows any block opened with {, so native CSS nesting with & is indented correctly, along with @media, @supports, @container, @layer, @keyframes, @font-face and @page. If a brace, string or comment is left unclosed, the tool repairs the output and shows a warning instead of silently producing garbage.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'url(data:image/svg+xml;base64,...) gibi bir data URI içinde noktalı virgül adresin parçasıdır, bildirim ayırıcısı değildir. Yalnızca {, } ve ; karakterlerinden bölen biçimlendiriciler stil dosyasını tam burada ikiye ayırır; aynı sorun content: "a { b" için de geçerlidir. Bu araç metni kesmek yerine CSS kodunu token token okur, böylece metinler, yorumlar ve url() içerikleri hiç bozulmadan kalır.',
+            'steps' => [
+                'Küçültülmüş CSS kodunu giriş kutusuna yapıştırın; çıktı siz yazarken yeniden oluşturulur.',
+                'Girintiyi 2 boşluk, 4 boşluk veya sekme olarak seçin.',
+                'Açılış parantezinin aynı satırda mı yoksa sonraki satırda mı duracağını belirleyin.',
+                'Satır başına tek seçici, kurallar arasında boş satır ve yorumları koru seçeneklerini ihtiyacınıza göre açıp kapatın.',
+                'Kural ve bildirim sayaçlarını kontrol edip Kopyala düğmesine basın.',
+            ],
+            'faq' => [
+                ['q' => 'CSS kodum bir yere yükleniyor mu?', 'a' => 'Hayır. Tüm ayrıştırma ve yeniden yazma işlemi kendi tarayıcı sekmenizde JavaScript ile yapılır ve araç hiçbir ağ isteği göndermez. Biçimlendirme sırasında geliştirici araçlarının Network sekmesini açık bırakırsanız hiçbir istek kaydedilmediğini görürsünüz.'],
+                ['q' => 'Biçimlendirme sayfamın görünümünü değiştirebilir mi?', 'a' => 'CSS içinde boşlukların her zaman anlamsız olduğu yaygın inancı yanlıştır. Seçicilerde boşluk anlamlıdır: .a .b torun eşleşmesi demektir, .a.b ise iki sınıfın da aynı öğede olmasını ister. calc() içinde de + ve - çevresindeki boşluklar zorunludur, yoksa değer geçersiz olur. Bu araç kaynaktaki bu anlamlı boşlukları korur ve yalnızca virgül, iki nokta ile >, + ve ~ birleştiricilerinin çevresindeki aralığı standartlaştırır.'],
+                ['q' => 'Yorumları koru seçeneğini kapatırsam ne olur?', 'a' => 'Çıktının kaynakla bayt bazında eşdeğer olmadığı tek ayar budur. Silinen yorumun yerine tek bir boşluk konur ki iki yanındaki tokenlar birbirine yapışmasın; bu da .a/*x*/.b ifadesini .a .b haline getirir ve bu .a.b ile aynı anlama gelmez. Stil dosyanızda seçici ya da değer ortasında yorum varsa bu seçeneği açık bırakın.'],
+                ['q' => 'İç içe CSS ve yeni at-rule yapıları destekleniyor mu?', 'a' => 'Evet. Ayrıştırıcı geneldir ve { ile açılan her bloğu izler; bu yüzden & ile yazılan yerleşik CSS iç içe kullanımı doğru girintilenir, ayrıca @media, @supports, @container, @layer, @keyframes, @font-face ve @page da desteklenir. Kapatılmamış bir parantez, metin veya yorum varsa araç sessizce bozuk çıktı üretmek yerine sonucu onarır ve uyarı gösterir.'],
+            ],
+        ],
+    ],
+
+    'css-loader' => [
+        'fa' => [
+            'intro' => 'چرخاندن یک اسپینر با transform: rotate روی لایه‌ی compositor مرورگر انجام می‌شود و رشته‌ی اصلی را اشغال نمی‌کند؛ اما اگر همان حرکت را با تغییر width یا margin بسازید، مرورگر مجبور است در هر فریم دوباره layout بگیرد و لودر دقیقاً وقتی صفحه شلوغ است کند می‌شود. هر ۱۲ لودر این ابزار با CSS خالص نوشته شده‌اند و به‌جز «موج دایره‌ای»، همگی فقط transform و opacity را انیمیت می‌کنند. اندازه، ضخامت، مدت هر دور و دو رنگ را تنظیم می‌کنید و کد HTML و CSS آماده را برمی‌دارید.',
+            'steps' => [
+                'از گالری یکی از ۱۲ لودر را انتخاب کنید؛ کارت انتخاب‌شده با حاشیه‌ی فیروزه‌ای مشخص می‌شود.',
+                'اندازه، ضخامت خط و مدت هر دور را با کشویی‌ها تنظیم کنید؛ هر ۱۲ نمونه هم‌زمان با همان مقادیر به‌روز می‌شوند.',
+                'رنگ اصلی و رنگ دوم را انتخاب کنید و پس‌زمینه‌ی پیش‌نمایش را روی تیره و روشن بگذارید تا کنتراست را در هر دو تم ببینید.',
+                'اگر لازم است متن aria-label را عوض کنید و گزینه‌ی prefers-reduced-motion را بزنید.',
+                'کد HTML و CSS را جداگانه یا با هم کپی کنید و مستقیم در پروژه بگذارید.',
+            ],
+            'faq' => [
+                ['q' => 'این لودرها به جاوااسکریپت یا فایل تصویری نیاز دارند؟', 'a' => 'نه. خروجی یک div ساده به‌همراه چند قاعده‌ی CSS و بلوک keyframes است؛ هیچ SVG، GIF، فونت آیکونی یا اسکریپتی لازم نیست. چون انیمیشن سمت CSS اجرا می‌شود، حتی وقتی جاوااسکریپت صفحه هنوز اجرا نشده هم لودر می‌چرخد — که معمولاً دقیقاً همان لحظه‌ای است که به لودر نیاز دارید.'],
+                ['q' => 'چرا گزینه‌ی prefers-reduced-motion انیمیشن را کاملاً خاموش نمی‌کند؟', 'a' => 'خیلی‌ها animation: none می‌نویسند، ولی این کار عنصر را روی فریم صفر قفل می‌کند؛ در «موج دایره‌ای» فریم صفر عرض صفر دارد و در «تپش» مقیاس و شفافیت پایین است، یعنی نشانگر عملاً ناپدید می‌شود و کاربر فکر می‌کند صفحه هنگ کرده. این ابزار به‌جای خاموش‌کردن، مدت انیمیشن را چهار برابر می‌کند تا حرکت آرام شود ولی نشانگر دیده بماند.'],
+                ['q' => 'کدام لودر برای موبایل‌های ضعیف مناسب‌تر است؟', 'a' => 'حلقه، پره‌ها، میله‌ها و نقطه‌های محوشونده فقط transform و opacity را انیمیت می‌کنند و روی GPU اجرا می‌شوند. «موج دایره‌ای» عمداً width و height را انیمیت می‌کند، چون شکلش بدون آن ساخته نمی‌شود؛ همین باعث layout مجدد در هر فریم است، پس آن را در اندازه‌ی کوچک و فقط یک‌بار در صفحه به کار ببرید.'],
+                ['q' => 'می‌توانم رنگ را به متغیر CSS برندم وصل کنم؟', 'a' => 'بله. انتخابگر رنگ مرورگر فقط با کد هگز کار می‌کند، بنابراین خروجی مقدار ثابتی مثل #22d3ee دارد؛ بعد از کپی کافی است آن را با var(--brand) جایگزین کنید. به‌جای rgba(...) هم می‌توانید color-mix(in srgb, var(--brand) 22%, transparent) بنویسید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "Spinning an element with transform: rotate is handled on the browser's compositor and never blocks the main thread; build the same motion by animating width or margin and the browser re-runs layout on every frame, so the loader stutters exactly when the page is busiest. All 12 loaders here are pure CSS, and apart from Ripple every one animates only transform and opacity. Set the size, thickness, cycle duration and two colours, then take the ready HTML and CSS.",
+            'steps' => [
+                'Pick one of the 12 loaders in the gallery — the selected card gets a cyan border.',
+                'Set the size, line thickness and cycle duration with the sliders; all 12 previews update together.',
+                'Choose the main and second colour, then flip the preview background between dark and light to check contrast in both themes.',
+                'Change the aria-label text and tick the prefers-reduced-motion option if you need them.',
+                'Copy the HTML and the CSS separately or together and paste them straight into your project.',
+            ],
+            'faq' => [
+                ['q' => 'Do these loaders need JavaScript or an image file?', 'a' => "No. The output is a plain div plus a few CSS rules and a keyframes block — no SVG, GIF, icon font or script. Because the animation runs in CSS, the loader spins even before the page's JavaScript has executed, which is usually the exact moment you need a loader."],
+                ['q' => 'Why does the prefers-reduced-motion option not switch the animation off completely?', 'a' => 'Most people write animation: none, but that freezes the element on its 0% frame. For Ripple that frame has zero width and for Pulse it is scaled down and semi-transparent, so the indicator disappears and users assume the page has hung. Instead of stopping it, this tool multiplies the duration by four: the motion becomes gentle but the indicator stays visible.'],
+                ['q' => 'Which loader is safest on low-end phones?', 'a' => 'Ring, Spokes, Bars and Fading dots animate only transform and opacity, so they stay on the GPU. Ripple deliberately animates width and height because the expanding-circle shape cannot be built otherwise, and that forces a layout pass every frame — use it at small sizes and only once per page.'],
+                ['q' => 'Can I wire the colours to my own CSS variables?', 'a' => 'Yes. The browser colour picker only speaks hex, so the output contains a literal value such as #22d3ee; after copying, swap it for var(--brand). The rgba(...) track can become color-mix(in srgb, var(--brand) 22%, transparent).'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Bir ögeyi transform: rotate ile döndürdüğünüzde iş tarayıcının compositor katmanında yapılır ve ana iş parçacığı meşgul edilmez; aynı hareketi width veya margin değiştirerek kurarsanız tarayıcı her karede yeniden yerleşim hesaplar ve yükleyici tam da sayfa yoğunken takılır. Buradaki 12 yükleyicinin tamamı saf CSS ile yazıldı ve Dalga dışında hepsi yalnızca transform ile opacity canlandırır. Boyutu, kalınlığı, tur süresini ve iki rengi ayarlayıp hazır HTML ve CSS kodunu alırsınız.',
+            'steps' => [
+                'Galerideki 12 yükleyiciden birine tıklayın; seçili kart turkuaz çerçeveyle işaretlenir.',
+                'Boyut, çizgi kalınlığı ve tur süresini kaydırıcılarla ayarlayın; 12 örnek de aynı anda güncellenir.',
+                'Ana rengi ve ikinci rengi seçin, önizleme arka planını koyu ve açık yaparak kontrastı iki temada da görün.',
+                'Gerekirse aria-label metnini değiştirin ve prefers-reduced-motion kuralını ekleyin.',
+                'HTML ve CSS kodunu ayrı ayrı veya birlikte kopyalayıp doğrudan projenize yapıştırın.',
+            ],
+            'faq' => [
+                ['q' => 'Bu yükleyiciler JavaScript veya görsel dosyası gerektirir mi?', 'a' => 'Hayır. Çıktı sade bir div ile birkaç CSS kuralı ve bir keyframes bloğundan ibarettir; SVG, GIF, ikon fontu ya da betik gerekmez. Animasyon CSS tarafında çalıştığı için sayfanın JavaScript kodu henüz yürütülmemişken bile döner, ki yükleyiciye genellikle tam o anda ihtiyaç duyarsınız.'],
+                ['q' => 'prefers-reduced-motion seçeneği animasyonu neden tümüyle kapatmıyor?', 'a' => 'Çoğu kişi animation: none yazar; bu, ögeyi sıfırıncı kareye kilitler. Dalga yükleyicisinde o karede genişlik sıfırdır, Nabız yükleyicisinde ise küçültülmüş ve yarı saydamdır; yani gösterge kaybolur ve kullanıcı sayfanın donduğunu sanır. Bu araç kapatmak yerine süreyi dört katına çıkarır, hareket yumuşar ama gösterge görünür kalır.'],
+                ['q' => 'Düşük donanımlı telefonlar için hangisi daha uygun?', 'a' => 'Halka, Işınlar, Çubuklar ve Solan noktalar yalnızca transform ve opacity canlandırdığı için GPU üzerinde kalır. Dalga ise büyüyen daire biçimi başka türlü kurulamadığından bilerek width ve height değerlerini canlandırır ve her karede yeniden yerleşime yol açar; onu küçük boyutta ve sayfada yalnızca bir kez kullanın.'],
+                ['q' => 'Renkleri kendi CSS değişkenlerime bağlayabilir miyim?', 'a' => 'Evet. Tarayıcının renk seçicisi yalnızca hex ile çalıştığından çıktıda #22d3ee gibi sabit bir değer bulunur; kopyaladıktan sonra bunu var(--brand) ile değiştirin. rgba(...) ile yazılan iz rengi yerine de color-mix(in srgb, var(--brand) 22%, transparent) kullanabilirsiniz.'],
+            ],
+        ],
+    ],
+
+    'css-minifier' => [
+        'fa' => [
+            'intro' => 'اگر یک فشرده‌ساز فاصله‌های اطراف منها را در calc(100% - 20px) بردارد، مرورگر کل آن اعلان را دور می‌اندازد؛ همین یک مورد فرق یک ابزار واقعی با چند replace ساده‌ی regex است. این فشرده‌ساز کد را نویسه‌به‌نویسه توکن می‌کند، بنابراین رشته‌ها، محتوای url() و شرط‌های مدیا کوئری سالم می‌مانند و فقط بایت‌های بی‌اثر حذف می‌شوند. همه‌چیز داخل مرورگر شما اجرا می‌شود و فایل جایی آپلود نمی‌شود.',
+            'steps' => [
+                'کد CSS را در کادر ورودی بچسبانید، یا دکمه‌ی نمونه را بزنید تا یک شیت آزمایشی بارگذاری شود.',
+                'چهار گزینه‌ی پایین را تنظیم کنید: کوتاه‌سازی رنگ، حذف صفرهای بی‌اثر، حذف قواعد خالی و نگه‌داشتن کامنت مجوز.',
+                'خروجی همان لحظه ساخته می‌شود؛ کارت‌های بالا حجم اولیه، حجم نهایی، بایت صرفه‌جویی‌شده و درصد کاهش را نشان می‌دهند.',
+                'دکمه‌ی کپی را بزنید و نتیجه را در فایل style.min.css خودتان بریزید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا 0px به 0 تبدیل نشد؟', 'a' => 'چون همیشه امن نیست. داخل calc() عدد بدون واحد نامعتبر است و مقادیر زمانی مثل 0s هم حتماً باید واحد داشته باشند. به همین دلیل فقط صفرهای بی‌اثر برداشته می‌شوند: 0.50em می‌شود .5em و 1.0 می‌شود 1، ولی 0px همان 0px می‌ماند.'],
+                ['q' => 'چرا فاصله‌ی بین li و first-child حذف نشد؟', 'a' => 'چون در انتخابگر، خودِ فاصله یک ترکیب‌گر است. li :first-child یعنی فرزندِ اولِ داخلِ li، ولی li:first-child یعنی خودِ li که فرزند اول باشد. ابزار فاصله را فقط کنار ترکیب‌گرهای > و + و ~ و کنار کاما، آکولاد و پرانتز برمی‌دارد.'],
+                ['q' => 'همه‌ی رنگ‌های شش‌رقمی کوتاه می‌شوند؟', 'a' => 'نه. فقط وقتی هر سه جفت رقم یکسان باشند: aabbcc# می‌شود abc# اما aabbcd# دست‌نخورده می‌ماند. رنگ هشت‌رقمی دارای آلفا هم با همین قاعده به چهار رقم می‌رسد و حروف بزرگ هگز به کوچک تبدیل می‌شود.'],
+                ['q' => 'این ابزار چه کارهایی نمی‌کند؟', 'a' => 'قواعد تکراری را ادغام نمی‌کند، شورت‌هند نمی‌سازد و پیشوندهای قدیمی مرورگرها را پاک نمی‌کند؛ کارش فقط حذف بایت‌های بی‌اثر است. سقف ورودی هم ۲ میلیون کاراکتر است تا مرورگر قفل نکند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Delete the spaces around the minus in calc(100% - 20px) and the browser throws the whole declaration away — that single case is the difference between a real minifier and a few regex replacements. This tool tokenises the stylesheet character by character, so strings, url() bodies and media query conditions survive intact while only the dead bytes go. Everything runs in your browser; nothing is uploaded.',
+            'steps' => [
+                'Paste your CSS into the input box, or press Sample to load a test sheet.',
+                'Set the four options: shorten colours, trim redundant zeros, drop empty rules, keep licence comments.',
+                'The output appears instantly; the cards show original size, minified size, bytes saved and the percentage cut.',
+                'Hit Copy and drop the result into your style.min.css.',
+            ],
+            'faq' => [
+                ['q' => 'Why was 0px not turned into 0?', 'a' => 'Because it is not always safe. A unitless number is invalid inside calc(), and time values such as 0s must keep their unit. So only dead zeros are removed: 0.50em becomes .5em and 1.0 becomes 1, but 0px stays 0px.'],
+                ['q' => 'Why is the space between li and first-child still there?', 'a' => 'In a selector the space is itself a combinator. li :first-child means the first child inside an li, while li:first-child means the li that is a first child. Space is only removed next to the > + and ~ combinators and next to commas, braces and parentheses.'],
+                ['q' => 'Do all six-digit colours get shortened?', 'a' => 'No. Only when all three pairs repeat: #aabbcc becomes #abc, but #aabbcd is left alone. Eight-digit colours with alpha follow the same rule down to four digits, and uppercase hex is lowercased.'],
+                ['q' => 'What does this tool not do?', 'a' => 'It does not merge duplicate rules, build shorthand properties, or strip old vendor prefixes — it only removes bytes that have no effect. Input is capped at 2 million characters so the tab never locks up.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'calc(100% - 20px) ifadesindeki eksi isaretinin iki yanindaki bosluklari silerseniz tarayici o bildirimin tamamini atar; gercek bir kucultucu ile birkac regex degistirme arasindaki fark tam olarak budur. Bu arac stil dosyasini karakter karakter parcalara ayirir, boylece metin degerleri, url() icerigi ve medya sorgusu kosullari bozulmadan kalir, sadece etkisiz baytlar gider. Her sey tarayicinizda calisir, hicbir dosya yuklenmez.',
+            'steps' => [
+                'CSS kodunuzu giris kutusuna yapistirin veya Ornek dugmesine basip deneme sayfasini yukleyin.',
+                'Alttaki dort secenegi ayarlayin: renk kisaltma, gereksiz sifirlari kirpma, bos kurallari atma ve lisans yorumlarini koruma.',
+                'Cikti aninda olusur; ustteki kartlar orijinal boyutu, kucultulmus boyutu, kazanilan bayti ve yuzde azalmayi gosterir.',
+                'Kopyala dugmesine basip sonucu style.min.css dosyaniza yapistirin.',
+            ],
+            'faq' => [
+                ['q' => '0px neden 0 olmadi?', 'a' => 'Cunku bu her zaman guvenli degil. calc() icinde birimsiz sayi gecersizdir ve 0s gibi sure degerleri birimini korumak zorundadir. Bu yuzden yalnizca etkisiz sifirlar silinir: 0.50em degeri .5em, 1.0 degeri 1 olur ama 0px oldugu gibi kalir.'],
+                ['q' => 'li ile first-child arasindaki bosluk neden duruyor?', 'a' => 'Secicide bosluk basli basina bir birlestiricidir. li :first-child bir li icindeki ilk cocugu, li:first-child ise ilk cocuk olan li ogesini anlatir. Bosluk sadece > + ve ~ birlestiricilerinin, virgulun, suslu parantezin ve normal parantezin yanindan kaldirilir.'],
+                ['q' => 'Alti haneli her renk kisalir mi?', 'a' => 'Hayir. Yalnizca uc cift de kendi icinde ayni oldugunda: #aabbcc rengi #abc olur ama #aabbcd aynen kalir. Alfa iceren sekiz haneli renkler ayni kurala gore dort haneye iner ve buyuk harfli hex kucuk harfe cevrilir.'],
+                ['q' => 'Bu arac neleri yapmaz?', 'a' => 'Ayni kurallari birlestirmez, kisa yazim ozellikleri uretmez ve eski uretici on eklerini temizlemez; sadece hicbir etkisi olmayan baytlari kaldirir. Sekmenin kilitlenmemesi icin girdi siniri 2 milyon karakterdir.'],
+            ],
+        ],
+    ],
+
+    'css-triangle' => [
+        'fa' => [
+            'intro' => 'مثلث CSS در واقع شکل نیست؛ یکی از چهار حاشیهٔ یک عنصر صفر در صفر است. وقتی width و height صفر باشند، چهار حاشیه در یک نقطه به هم می‌رسند و مرورگر هرکدام را به صورت یک گوهٔ مثلثی رسم می‌کند؛ سه‌تا را transparent کنید، یکی باقی می‌ماند. به همین دلیل برای مثلث رو به بالا با عرض ۸۰ پیکسل باید حاشیهٔ چپ و راست را ۴۰ پیکسل بدهید، نه ۸۰.',
+            'steps' => [
+                'جهت را از شبکهٔ سه در سه انتخاب کنید؛ چهار جهت اصلی و چهار مثلث گوشه‌ای در دسترس است.',
+                'عرض و ارتفاع را با اسلایدر یا کادر عددی تنظیم کنید، یا قفل تناسب را بزنید تا مثلث متساوی‌الاضلاع (و در حالت گوشه‌ای، ۴۵ درجه) شود.',
+                'رنگ را از انتخابگر بردارید یا کد هگز را مستقیم تایپ کنید و در صورت نیاز نام کلاس خروجی را عوض کنید.',
+                'اگر مثلث باید در صفحهٔ راست‌به‌چپ قرینه شود، خصوصیت‌های منطقی را روشن کنید.',
+                'کد روش border یا نسخهٔ clip-path کنارش را کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا مثلث CSS من نمایش داده نمی‌شود؟', 'a' => 'تقریباً همیشه به این دلیل که عنصر هنوز width و height دارد. اندازهٔ مثلث فقط از ضخامت حاشیه‌ها می‌آید؛ اگر عنصر ابعاد واقعی داشته باشد، به جای مثلث یک کادر با گوشه‌های اریب می‌بینید. ضمناً حاشیه‌های استفاده‌نشده باید transparent باشند، نه حذف‌شده.'],
+                ['q' => 'می‌شود به مثلث border گرادیان یا کادر داد؟', 'a' => 'نه. این مثلث با رنگ حاشیه رنگ می‌گیرد، پس فقط یک رنگ ثابت می‌پذیرد و border-radius هم رویش اثری ندارد. برای گرادیان یا تصویر از خروجی clip-path همین ابزار استفاده کنید؛ برای مثلث خط‌دار باید یک مثلث کمی بزرگ‌تر را پشت مثلث کوچک‌تر بگذارید.'],
+                ['q' => 'مثلث در صفحهٔ فارسی برعکس می‌شود؟', 'a' => 'با خروجی پیش‌فرض نه، چون border-left و border-right فیزیکی‌اند و هرگز جابه‌جا نمی‌شوند. اگر می‌خواهید فلش با جهت متن بچرخد، گزینهٔ خصوصیت‌های منطقی را روشن کنید تا border-inline-start و border-inline-end تولید شود.'],
+                ['q' => 'محدودیت این ابزار چیست؟', 'a' => 'فقط مثلث‌های تک‌رنگ تا ۳۰۰ پیکسل و در همان هشت جهت ثابت تولید می‌کند. زاویهٔ دلخواه، نوک گِرد و مثلث چرخیده خارج از دامنهٔ کار آن است؛ برای این‌ها باید سراغ SVG یا transform بروید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'A CSS triangle is not a shape at all — it is one border of a zero-sized box. Set width and height to 0 and the four borders collapse to a single point, so the browser paints each one as a wedge; make three transparent and a single triangle is left. That is why an 80px-wide upward triangle needs left and right borders of 40px each, not 80px.',
+            'steps' => [
+                'Pick a direction in the 3×3 grid — four straight arrows plus four corner triangles.',
+                'Set width and height with the sliders or number boxes, or tick lock proportion for an equilateral triangle (45 degrees for the corner shapes).',
+                'Choose a fill color with the picker or type a hex code, and rename the output selector if you want.',
+                'Turn on logical properties if the arrow must mirror on RTL pages.',
+                'Copy the border CSS, or the clip-path version next to it.',
+            ],
+            'faq' => [
+                ['q' => 'Why is my CSS triangle not showing up?', 'a' => "Almost always because the element still has a width and a height. The triangle's size comes only from the border widths, so with real dimensions you get a box with bevelled corners instead. Also make sure the unused borders are transparent rather than removed."],
+                ['q' => 'Can I put a gradient or an outline on a CSS border triangle?', 'a' => 'No. The triangle is painted by a border color, so it accepts exactly one flat color and border-radius has no effect on it. Use the clip-path output for gradients and images; for an outlined triangle, stack a slightly larger triangle behind a smaller one.'],
+                ['q' => 'Does the triangle flip on RTL pages?', 'a' => 'Not with the default output — border-left and border-right are physical and never swap. Enable logical properties and the tool emits border-inline-start and border-inline-end, which mirror with the text direction.'],
+                ['q' => 'What are the limits of this generator?', 'a' => 'It produces flat single-color triangles up to 300px in eight fixed directions. Arbitrary angles, rounded tips and rotated triangles are out of scope — use SVG or a CSS transform for those.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'CSS üçgeni aslında bir şekil değil, sıfır boyutlu bir kutunun tek bir kenarlığıdır. width ve height sıfır olunca dört kenarlık tek bir noktada buluşur ve tarayıcı her birini bir kama olarak boyar; üçünü transparent yaparsanız geriye tek üçgen kalır. Bu yüzden 80 piksel genişliğinde yukarı bakan bir üçgende sol ve sağ kenarlıklar 80 değil, 40 piksel olmalıdır.',
+            'steps' => [
+                '3×3 ızgaradan bir yön seçin: dört düz ok ve dört köşe üçgeni.',
+                'Genişlik ve yüksekliği kaydırıcı veya sayı kutusuyla ayarlayın ya da eşkenar üçgen (köşelerde 45 derece) için oran kilidini işaretleyin.',
+                'Rengi seçiciden alın veya hex kodunu yazın, isterseniz çıktıdaki seçici adını değiştirin.',
+                'Ok RTL sayfalarda aynalanmalıysa mantıksal özellikleri açın.',
+                'border kodunu veya yanındaki clip-path sürümünü kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'CSS üçgenim neden görünmüyor?', 'a' => 'Neredeyse her zaman öğenin hâlâ bir genişliği ve yüksekliği olduğu için. Üçgenin boyutu yalnızca kenarlık kalınlıklarından gelir; gerçek boyutlar verirseniz üçgen yerine köşeleri pahlanmış bir kutu elde edersiniz. Ayrıca kullanılmayan kenarlıklar kaldırılmış değil, transparent olmalıdır.'],
+                ['q' => 'CSS üçgenine degrade veya çerçeve eklenebilir mi?', 'a' => 'Hayır. Üçgen bir kenarlık rengiyle boyanır, bu yüzden tek bir düz renk kabul eder ve border-radius üzerinde etkisizdir. Degrade veya görsel için clip-path çıktısını kullanın; çerçeveli üçgen içinse biraz daha büyük bir üçgenin önüne küçüğünü yerleştirin.'],
+                ['q' => 'Üçgen RTL sayfalarda ters döner mi?', 'a' => 'Varsayılan çıktıda dönmez, çünkü border-left ve border-right fizikseldir ve asla yer değiştirmez. Mantıksal özellikleri açarsanız araç border-inline-start ve border-inline-end üretir; bunlar metin yönüyle birlikte aynalanır.'],
+                ['q' => 'Bu aracın sınırları neler?', 'a' => 'Sekiz sabit yönde, 300 piksele kadar düz tek renkli üçgenler üretir. Serbest açılar, yuvarlatılmış uçlar ve döndürülmüş üçgenler kapsam dışıdır; bunlar için SVG veya CSS transform gerekir.'],
+            ],
+        ],
+    ],
+
+    'cubic-bezier' => [
+        'fa' => [
+            'intro' => 'مقدار ease در CSS همان cubic-bezier(0.25, 0.1, 0.25, 1) است و برخلاف تصور رایج، در نیمهٔ زمان انیمیشن حدود ۸۰ درصد مسیر را طی کرده است. دو سر منحنی روی نقاط (0,0) و (1,1) قفل‌اند و فقط دو نقطهٔ کنترل در اختیار شماست. مقدار x باید بین ۰ و ۱ بماند وگرنه مرورگر کل قاعده را نامعتبر می‌شمارد و کنار می‌گذارد، اما y می‌تواند از این بازه بیرون بزند و حرکت را پرشی کند.',
+            'steps' => [
+                'نقطه‌های کنترل فیروزه‌ای و بنفش را روی شبکه بکشید، یا با Tab روی یکی بایستید و با کلیدهای جهت‌دار جابه‌جایش کنید.',
+                'یا از فهرست کشویی یک پیش‌تنظیم آماده انتخاب کنید: linear، ease، easeOutBack، material-standard و موارد دیگر.',
+                'برای بارگذاری منحنی موجود، مقدار cubic-bezier() را در کادر ورودی بچسبانید و دکمهٔ اعمال را بزنید؛ دکمهٔ معکوس، منحنی را وارونه می‌کند.',
+                'سه نوار پیش‌نمایش یعنی جابه‌جایی، نوار پیشرفت و محو شدن را ببینید و لغزندهٔ مدت را روی زمان واقعی انیمیشن خود تنظیم کنید.',
+                'با لغزندهٔ نمونه‌بردار مقدار f(x) را در هر نقطه بخوانید، سپس مقدار cubic-bezier() یا قطعهٔ کامل CSS را کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا x فقط می‌تواند بین ۰ و ۱ باشد ولی y آزاد است؟', 'a' => 'چون x همان زمان است. اگر x از این بازه بیرون بزند، منحنی روی خودش تا می‌خورد و یک لحظه از زمان به دو مقدار پیشرفت نگاشت می‌شود؛ به همین دلیل استاندارد x1 و x2 را به بازهٔ ۰ تا ۱ محدود کرده و مرورگرها کل اعلان را نامعتبر می‌شمارند. y چنین محدودیتی ندارد و مقادیر بزرگ‌تر از ۱ یا کوچک‌تر از ۰ باعث پرش از مقصد یا عقب‌نشینی اولیه می‌شوند. این ابزار هم x را به همین دلیل محدود می‌کند و ورودی خارج از بازه را رد می‌کند.'],
+                ['q' => 'آیا کلیدواژه‌هایی مثل ease-in-out رفتار ویژه‌ای دارند؟', 'a' => 'خیر، این کلیدواژه‌ها صرفاً نام مستعار هستند. در استاندارد، ease-in-out دقیقاً برابر cubic-bezier(0.42, 0, 0.58, 1) تعریف شده است، همان‌طور که ease برابر (0.25, 0.1, 0.25, 1)، ease-in برابر (0.42, 0, 1, 1)، ease-out برابر (0, 0, 0.58, 1) و linear برابر (0, 0, 1, 1) است. هیچ منطق پنهانی پشت آن‌ها نیست.'],
+                ['q' => 'می‌توانم با این ابزار حرکت فنری یا جهشی بسازم؟', 'a' => 'نه، و این محدودیت خودِ cubic-bezier است نه این ابزار. یک منحنی بزیه درجه سه هر مقدار x را فقط یک بار قطع می‌کند و حداکثر یک بار می‌تواند از مقصد رد شود. جهش یا فنر واقعی به نوسان‌های پیاپی نیاز دارد که فقط با تابع linear() و ده‌ها نقطه، یا با keyframes و جاوااسکریپت شدنی است. بیشترین کاری که اینجا می‌شود کرد یک پرش واحد مثل easeOutBack است که در حدود x=0.573 به اوج y=1.0978 می‌رسد.'],
+                ['q' => 'حلقهٔ توخالی بنفش در پیش‌نمایش چه فرقی با نقطهٔ پر دارد؟', 'a' => 'نقطهٔ پر را کد خود ابزار با حل معادلهٔ منحنی در هر فریم رسم می‌کند، ولی حلقهٔ توخالی را موتور CSS مرورگر و مستقیماً از روی مقدار تولیدشده حرکت می‌دهد. اگر نمونه‌برداری ما درست باشد این دو باید روی هم بیفتند، پس این حلقه در عمل یک آزمون صحت زنده است. اختلاف کوچک فقط وقتی دیده می‌شود که ترنزیشن یک فریم دیرتر شروع شود یا مرورگر تب پس‌زمینه را کند کند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'CSS ease is not a gentle curve — it is cubic-bezier(0.25, 0.1, 0.25, 1), and at the halfway point in time it has already covered 80.2% of the distance. The two endpoints are locked at (0,0) and (1,1), so only the two control points are yours to move. x must stay within 0–1 or the browser throws the whole declaration away as invalid, while y is free to leave that range and produce overshoot.',
+            'steps' => [
+                'Drag the cyan and violet control points on the grid, or focus one with Tab and nudge it with the arrow keys.',
+                'Or pick a named preset from the dropdown — linear, ease, easeOutBack, material-standard and more.',
+                'Paste an existing cubic-bezier() into the import box and press Apply to load it; Reverse mirrors the curve into its opposite.',
+                'Watch the movement, progress bar and fade lanes, and set the duration slider to the length your real animation uses.',
+                'Drag the sampler slider to read f(x) at any progress point, then copy the cubic-bezier() value or the full CSS snippet.',
+            ],
+            'faq' => [
+                ['q' => 'Why can x only be between 0 and 1 when y is unrestricted?', 'a' => 'Because x is time. If x left that range the curve could fold back on itself and map a single instant to two progress values, so the spec restricts x1 and x2 to 0–1 and browsers treat anything else as an invalid declaration and drop it. y has no such limit: values above 1 overshoot the target and values below 0 pull back before starting. This tool clamps x for the same reason and rejects out-of-range x on import.'],
+                ['q' => 'Do keywords like ease-in-out behave differently from a raw cubic-bezier?', 'a' => 'No, they are pure shorthand. The spec defines ease-in-out as exactly cubic-bezier(0.42, 0, 0.58, 1), just as ease is (0.25, 0.1, 0.25, 1), ease-in is (0.42, 0, 1, 1), ease-out is (0, 0, 0.58, 1) and linear is (0, 0, 1, 1). There is no hidden behaviour behind the names.'],
+                ['q' => 'Can I build a bounce or spring with this?', 'a' => 'No, and that is a limitation of cubic-bezier itself rather than this tool. A cubic bezier crosses each x exactly once and can overshoot at most once. A real bounce or spring needs repeated oscillations, which requires the linear() function with many stops, keyframes, or JavaScript. The most you can do here is a single overshoot like easeOutBack, which peaks at y=1.0978 around x=0.573.'],
+                ['q' => 'What is the hollow violet ring in the preview for?', 'a' => 'The filled dot is positioned by our own code, solving the curve on every frame. The hollow ring is moved by the browser CSS engine directly from the generated value. If our sampling is correct the two overlap, so the ring is a live correctness check on the maths. A small gap appears only when the transition restarts a frame late or the browser throttles a background tab.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'CSS ease değeri aslında cubic-bezier(0.25, 0.1, 0.25, 1) demektir ve sürenin tam yarısında mesafenin yüzde 80 kadarını çoktan almış olur. Eğrinin iki ucu (0,0) ve (1,1) noktalarına sabitlenmiştir, yalnızca iki kontrol noktası sizin elinizdedir. x değeri 0 ile 1 arasında kalmak zorundadır, yoksa tarayıcı kuralın tamamını geçersiz sayıp atar; y ise bu aralığın dışına çıkıp taşma etkisi üretebilir.',
+            'steps' => [
+                'Izgara üzerindeki turkuaz ve mor kontrol noktalarını sürükleyin ya da Tab ile birini seçip yön tuşlarıyla kaydırın.',
+                'Veya açılır listeden hazır bir eğri seçin: linear, ease, easeOutBack, material-standard ve diğerleri.',
+                'Mevcut bir eğriyi yüklemek için cubic-bezier() değerini içe aktarma kutusuna yapıştırıp Uygula düğmesine basın; Ters çevir düğmesi eğrinin tersini üretir.',
+                'Hareket, ilerleme çubuğu ve solma şeritlerini izleyin ve süre kaydırıcısını gerçek animasyonunuzun süresine ayarlayın.',
+                'Örnekleyici kaydırıcısıyla herhangi bir noktadaki f(x) değerini okuyun, ardından cubic-bezier() değerini veya tam CSS parçasını kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'y serbestken x neden yalnızca 0 ile 1 arasında olabiliyor?', 'a' => 'Çünkü x zamandır. x bu aralığın dışına çıksaydı eğri kendi üzerine katlanır ve tek bir an iki farklı ilerleme değerine karşılık gelirdi. Bu yüzden standart x1 ve x2 değerlerini 0–1 aralığıyla sınırlar ve tarayıcılar bunun dışındaki bildirimi geçersiz sayıp tamamen atar. y için böyle bir sınır yoktur: 1 üzerindeki değerler hedefi aşar, 0 altındaki değerler ise başlamadan önce geri çeker. Bu araç da aynı nedenle x değerini sınırlar ve aralık dışı girdiyi reddeder.'],
+                ['q' => 'ease-in-out gibi anahtar kelimeler farklı mı davranır?', 'a' => 'Hayır, bunlar tamamen kısayoldur. Standart ease-in-out değerini tam olarak cubic-bezier(0.42, 0, 0.58, 1) diye tanımlar; aynı şekilde ease (0.25, 0.1, 0.25, 1), ease-in (0.42, 0, 1, 1), ease-out (0, 0, 0.58, 1) ve linear (0, 0, 1, 1) demektir. İsimlerin arkasında gizli bir davranış yoktur.'],
+                ['q' => 'Bununla zıplama veya yay efekti yapabilir miyim?', 'a' => 'Hayır ve bu, aracın değil cubic-bezier fonksiyonunun sınırıdır. Kübik bir bezier her x değerini tam olarak bir kez keser ve en fazla bir kez taşabilir. Gerçek bir zıplama veya yay art arda salınım gerektirir; bunun için çok sayıda duraklı linear() fonksiyonu, keyframes veya JavaScript gerekir. Burada yapılabilecek en fazla şey easeOutBack gibi tek bir taşmadır, ki bu eğri x=0.573 dolayında y=1.0978 tepe değerine ulaşır.'],
+                ['q' => 'Önizlemedeki içi boş mor halka ne işe yarar?', 'a' => 'İçi dolu nokta, her karede eğriyi çözen kendi kodumuz tarafından konumlandırılır. İçi boş halkayı ise doğrudan üretilen değerden yola çıkarak tarayıcının CSS motoru hareket ettirir. Örneklememiz doğruysa ikisi üst üste biner, yani halka matematiğin canlı bir doğruluk testidir. Küçük bir kayma yalnızca geçiş bir kare geç başladığında veya tarayıcı arka plandaki sekmeyi yavaşlattığında görünür.'],
+            ],
+        ],
+    ],
+
+    'html-formatter' => [
+        'fa' => [
+            'intro' => 'در HTML همه‌ی فاصله‌ها بی‌اثر نیستند: داخل pre و textarea هر فاصله و هر خط تازه دقیقاً همان چیزی است که مرورگر روی صفحه می‌کشد، پس ابزاری که کورکورانه به آن‌ها تورفتگی بدهد ظاهر خروجی را عوض می‌کند. از طرف دیگر li و td و p در استاندارد HTML تگ پایانی اختیاری دارند؛ فهرستی که هیچ بستن li ندارد کاملاً معتبر است و یک تورفتگی‌دهنده‌ی ساده که فقط علامت کوچک‌تر و بزرگ‌تر را می‌شمارد آن را به تودرتویی بی‌معنی تبدیل می‌کند. این ابزار به‌جای شمردن نویسه، درخت واقعی سند را می‌سازد.',
+            'steps' => [
+                'کد HTML را در کادر ورودی بچسبانید؛ قالب‌بندی همان لحظه انجام می‌شود.',
+                'تورفتگی را انتخاب کنید: ۲، ۳، ۴ یا ۸ فاصله، یا تب.',
+                'اگر تگ‌های باز طولانی دارید گزینه‌ی شکستن تگ باز را روشن کنید تا هر ویژگی روی خط خودش بیفتد.',
+                'شمارنده‌های پایین را ببینید: خط خروجی، تعداد عنصر و بیشترین عمق تودرتویی؛ هشدارهای ساختاری هم با شماره‌ی خط نمایش داده می‌شوند.',
+                'خروجی را با دکمه‌ی کپی بردارید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا محتوای داخل pre من تورفته نشد؟', 'a' => 'عمدی است. فاصله‌های داخل pre و textarea معنادار هستند و مرورگر عیناً نشانشان می‌دهد، پس تورفتگی دادن به آن‌ها ظاهر صفحه را تغییر می‌داد. محتوای این دو تگ بایت‌به‌بایت کپی می‌شود. محتوای script و style فرق دارد: با روشن بودن گزینه‌اش دوباره تورفتگی می‌گیرد، مگر آنکه داخلش رشته‌ی قالبی با بک‌تیک باشد که در آن صورت دست‌نخورده می‌ماند.'],
+                ['q' => 'چرا برای br یا img تگ بسته اضافه نمی‌شود؟', 'a' => 'چون این‌ها عنصر تهی هستند. area، base، br، col، embed، hr، img، input، link، meta، param، source، track و wbr اصلاً تگ پایانی ندارند و نوشتن یک بستن br نامعتبر است. ابزار هر چهارده مورد را می‌شناسد و اگر خودتان اسلش پایانی به سبک XHTML نوشته باشید، همان را نگه می‌دارد.'],
+                ['q' => 'هشدار تگ بسته‌نشده حتماً یعنی کد من خراب است؟', 'a' => 'نه. عنصرهایی که تگ پایانی اختیاری دارند مثل li، td، tr، p، option و dd هرگز به‌عنوان بسته‌نشده گزارش نمی‌شوند، چون پارسر HTML خودش آن‌ها را می‌بندد. هشدار فقط برای تگ‌هایی می‌آید که واقعاً باید بسته می‌شدند، برای تگ‌های بسته‌ای که هیچ تگ بازی ندارند، و برای تگ‌هایی که به‌جای تودرتو شدن روی هم افتاده‌اند.'],
+                ['q' => 'محدودیت‌های این ابزار چیست؟', 'a' => 'ورودی تا ۸۰۰ هزار نویسه و تودرتویی تا ۵۱۲ سطح پذیرفته می‌شود. ضمناً این یک قالب‌بند است نه اعتبارسنج کامل W3C: نام ویژگی‌ها یا رعایت قواعد معنایی را بررسی نمی‌کند و متن طولانی داخل یک پاراگراف را هم به چند خط نمی‌شکند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Whitespace is not always cosmetic in HTML: inside pre and textarea every space and newline is exactly what the browser paints, so a formatter that blindly re-indents them changes how the page looks. In the other direction, li, td and p have optional end tags in the standard, so a list written without a single closing li is perfectly valid, and a naive indenter that just counts angle brackets turns it into nonsense nesting. This tool builds a real document tree instead of counting characters.',
+            'steps' => [
+                'Paste your HTML into the input box; formatting runs as you type.',
+                'Pick the indent: 2, 3, 4 or 8 spaces, or a tab.',
+                'Turn on the long-opening-tag option to give each attribute its own line.',
+                'Read the counters below for output lines, element count and maximum nesting depth, and check any structure warnings with their line numbers.',
+                'Copy the result with the copy button.',
+            ],
+            'faq' => [
+                ['q' => 'Why was the content of my pre block left un-indented?', 'a' => 'On purpose. Whitespace inside pre and textarea is significant and rendered literally, so re-indenting it would visibly change the page. Those two elements are copied through byte for byte. Script and style bodies are different: they get re-indented when that option is on, unless they contain a backtick template literal, in which case the tool leaves them alone.'],
+                ['q' => 'Why does the tool never add a closing tag for br or img?', 'a' => 'They are void elements. area, base, br, col, embed, hr, img, input, link, meta, param, source, track and wbr have no end tag at all, and writing a closing br is invalid HTML. All fourteen are recognised, and if you already write the XHTML-style trailing slash it is preserved rather than stripped.'],
+                ['q' => 'Does an unbalanced-tag warning always mean my HTML is broken?', 'a' => 'No. Elements with optional end tags such as li, td, tr, p, option and dd are never reported as unclosed, because the HTML parser closes them for you. Warnings are raised only for tags that genuinely needed a closing tag, for closing tags with no matching opener, and for tags that overlap instead of nesting.'],
+                ['q' => 'What are the limits?', 'a' => 'Input is capped at 800,000 characters and nesting at 512 levels. It is a formatter, not a full W3C validator: it does not check attribute names or semantic rules, and it does not re-wrap a long run of text inside a paragraph.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'HTML kodunda boşluk her zaman süs değildir: pre ve textarea içindeki her boşluk ve her satır sonu tarayıcının ekrana çizdiği şeyin ta kendisidir, bu yüzden onları körü körüne girintileyen bir araç sayfanın görünümünü bozar. Öte yandan li, td ve p standartta isteğe bağlı kapanış etiketine sahiptir; tek bir kapanış li içermeyen bir liste tamamen geçerlidir ve yalnızca açı parantezi sayan basit bir düzenleyici onu anlamsız bir iç içe yapıya çevirir. Bu araç karakter saymak yerine gerçek bir belge ağacı kurar.',
+            'steps' => [
+                'HTML kodunu giriş kutusuna yapıştırın; biçimlendirme siz yazarken çalışır.',
+                'Girintiyi seçin: 2, 3, 4 veya 8 boşluk ya da sekme.',
+                'Uzun açılış etiketleri seçeneğini açarak her özniteliği kendi satırına indirin.',
+                'Alttaki sayaçlardan çıktı satırını, öğe sayısını ve en fazla iç içe derinliği görün; yapı uyarılarını satır numarasıyla okuyun.',
+                'Sonucu kopyala düğmesiyle alın.',
+            ],
+            'faq' => [
+                ['q' => 'pre bloğumun içi neden girintilenmedi?', 'a' => 'Bilerek. pre ve textarea içindeki boşluklar anlamlıdır ve tarayıcı bunları olduğu gibi gösterir; girintilemek sayfanın görünümünü değiştirirdi. Bu iki öğenin içeriği bayt bayt kopyalanır. script ve style ise seçenek açıkken yeniden girintilenir; ancak içinde ters tırnaklı şablon dizesi varsa araç onlara dokunmaz.'],
+                ['q' => 'br veya img için neden kapanış etiketi eklenmiyor?', 'a' => 'Bunlar void öğelerdir. area, base, br, col, embed, hr, img, input, link, meta, param, source, track ve wbr hiçbir zaman kapanış etiketi almaz; kapanan bir br yazmak geçersiz HTML olur. Araç bu on dört öğeyi tanır ve XHTML tarzı sondaki eğik çizgiyi yazdıysanız onu silmez, korur.'],
+                ['q' => 'Kapanmayan etiket uyarısı her zaman kodumun bozuk olduğu anlamına mı gelir?', 'a' => 'Hayır. li, td, tr, p, option ve dd gibi kapanışı isteğe bağlı öğeler asla kapanmamış olarak bildirilmez, çünkü HTML çözümleyicisi onları sizin yerinize kapatır. Uyarı yalnızca gerçekten kapatılması gereken etiketler, karşılığı olmayan kapanış etiketleri ve iç içe geçmek yerine çakışan etiketler için verilir.'],
+                ['q' => 'Sınırlar neler?', 'a' => 'Girdi 800.000 karakter, iç içe geçme 512 seviye ile sınırlıdır. Bu bir biçimlendiricidir, tam bir W3C doğrulayıcısı değildir: öznitelik adlarını veya anlamsal kuralları denetlemez ve bir paragraf içindeki uzun metni satırlara bölmez.'],
+            ],
+        ],
+    ],
+
+    'image-compressor' => [
+        'fa' => [
+            'intro' => 'یک عکس ذخیره‌شده با کیفیت ۱۰۰ درصد تقریباً هیچ صرفه‌ای در حجم ندارد، در حالی که تفاوت دیداری‌اش با کیفیت ۸۰ برای چشم عادی محسوس نیست؛ به همین دلیل بیشتر حجم یک تصویر را می‌توان بدون افت واقعی کیفیت حذف کرد. این ابزار عکس را در همان مرورگر شما دوباره با فرمت JPEG یا WebP کدگذاری می‌کند و هیچ فایلی به سرور فرستاده نمی‌شود.',
+            'steps' => [
+                'تصویر را روی کادر بکشید و رها کنید، یا برای انتخاب فایل روی آن کلیک کنید.',
+                'فرمت خروجی را JPEG یا WebP انتخاب و کیفیت را با لغزنده تنظیم کنید.',
+                'در صورت نیاز گزینه‌ی محدودکردن بزرگ‌ترین ضلع را فعال کنید تا ابعاد هم کوچک شود.',
+                'درصد کاهش حجم و مقایسه‌ی کنارِ‌هم تصویر اصلی و فشرده را ببینید.',
+                'فایل فشرده‌شده را دانلود کنید.',
+            ],
+            'faq' => [
+                ['q' => 'کیفیت مناسب برای وب چقدر است؟', 'a' => 'برای عکس‌های معمولی وب، کیفیت بین ۷۰ تا ۸۰ تعادل خوبی بین حجم و ظاهر است. بالای ۹۰ حجم به‌سرعت زیاد می‌شود بدون آنکه تفاوت دیداری قابل‌توجهی بدهد.'],
+                ['q' => 'آیا فشرده‌سازی دوباره‌ی یک JPEG کیفیت را برمی‌گرداند؟', 'a' => 'خیر. JPEG فشرده‌سازی «با اتلاف» است؛ هر بار ذخیره‌ی مجدد اطلاعات بیشتری را حذف می‌کند و راه بازگشتی ندارد. همیشه از فایل اصلی و باکیفیت شروع کنید.'],
+                ['q' => 'WebP بهتر است یا JPEG؟', 'a' => 'در کیفیت یکسان، WebP معمولاً حدود ۲۵ تا ۳۵ درصد کوچک‌تر از JPEG است و شفافیت را هم نگه می‌دارد؛ اما توجه کنید که هنگام تبدیل یک PNG شفاف به JPEG، پس‌زمینه سفید می‌شود.'],
+                ['q' => 'چرا خروجی من گاهی بزرگ‌تر از فایل اصلی شد؟', 'a' => 'اگر تصویر از قبل فشرده و بهینه باشد، کدگذاری دوباره می‌تواند حجم را بیشتر کند. در این حالت ابزار هشدار می‌دهد؛ کیفیت را پایین بیاورید یا همان فایل اصلی را نگه دارید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "A JPEG saved at quality 100 is barely smaller than uncompressed, yet at quality 80 the difference is usually invisible to the eye — so most of an image's weight can be removed with no real loss. This tool re-encodes your picture to JPEG or WebP inside the browser; the file is never sent to a server.",
+            'steps' => [
+                'Drop an image onto the box, or click it to choose a file.',
+                'Pick JPEG or WebP output and set the quality slider.',
+                'Optionally turn on the largest-side limit to shrink the dimensions too.',
+                'Read the percent saved and compare the original and compressed side by side.',
+                'Download the compressed file.',
+            ],
+            'faq' => [
+                ['q' => 'What quality should I use for the web?', 'a' => 'For typical web photos, quality 70 to 80 is a good balance of size and appearance. Above 90 the file grows quickly with little visible gain.'],
+                ['q' => 'Does re-compressing a JPEG restore quality?', 'a' => 'No. JPEG is lossy: every re-save discards more detail and there is no way back. Always start from the original, high-quality file.'],
+                ['q' => 'WebP or JPEG?', 'a' => 'At the same quality WebP is usually 25 to 35 percent smaller than JPEG and keeps transparency — but note that converting a transparent PNG to JPEG fills the background with white.'],
+                ['q' => 'Why was my output sometimes larger than the original?', 'a' => 'If the image is already compressed and optimised, re-encoding can increase its size. The tool warns you when this happens; lower the quality or keep the original.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Kalite 100 ile kaydedilen bir JPEG, sıkıştırılmamış halinden neredeyse hiç küçük değildir; oysa kalite 80 seviyesinde fark çoğu zaman gözle görülmez, yani bir görselin boyutunun büyük kısmı gerçek bir kayıp olmadan atılabilir. Bu araç resmi tarayıcı içinde JPEG veya WebP olarak yeniden kodlar ve dosya hiçbir sunucuya gönderilmez.',
+            'steps' => [
+                'Bir görseli kutuya bırakın veya dosya seçmek için üzerine tıklayın.',
+                'JPEG veya WebP çıktısını seçin ve kalite kaydırıcısını ayarlayın.',
+                'Boyutları da küçültmek için en uzun kenar sınırını isteğe bağlı açın.',
+                'Kazanılan yüzdeyi okuyun ve orijinal ile sıkıştırılmışı yan yana karşılaştırın.',
+                'Sıkıştırılmış dosyayı indirin.',
+            ],
+            'faq' => [
+                ['q' => 'Web için hangi kaliteyi kullanmalıyım?', 'a' => 'Tipik web fotoğrafları için 70 ila 80 kalite, boyut ile görünüm arasında iyi bir dengedir. 90 üzerinde dosya, gözle görülür bir kazanç olmadan hızla büyür.'],
+                ['q' => 'Bir JPEG yeniden sıkıştırmak kaliteyi geri getirir mi?', 'a' => 'Hayır. JPEG kayıplı bir biçimdir: her yeniden kaydetme daha fazla ayrıntı atar ve geri dönüşü yoktur. Her zaman orijinal, yüksek kaliteli dosyadan başlayın.'],
+                ['q' => 'WebP mi JPEG mi?', 'a' => 'Aynı kalitede WebP genellikle JPEG biçiminden yüzde 25 ila 35 daha küçüktür ve saydamlığı korur; ancak saydam bir PNG görselini JPEG olarak kaydederken arka plan beyaza döner.'],
+                ['q' => 'Çıktım neden bazen orijinalden büyük oldu?', 'a' => 'Görsel zaten sıkıştırılmış ve optimize edilmişse yeniden kodlama boyutu artırabilir. Araç bu durumda sizi uyarır; kaliteyi düşürün veya orijinali saklayın.'],
+            ],
+        ],
+    ],
+
+    'image-filters' => [
+        'fa' => [
+            'intro' => 'موتور فیلتر canvas همان موتور فیلتر CSS است؛ به‌محض اینکه ctx.filter را روی grayscale(100%) بگذارید، ماتریس روشنایی 0.2126R + 0.7152G + 0.0722B اجرا می‌شود و قرمز خالص #FF0000 به rgb(54,54,54) تبدیل می‌شود، نه به خاکستری وسط. ترتیب فیلترها هم مهم است: blur(4px) saturate(200%) با saturate(200%) blur(4px) یک نتیجه نمی‌دهد. این ابزار هشت فیلتر را با ترتیب ثابت و مشخص اعمال می‌کند و دقیقاً همان رشته‌ای را که به کار برده نشان می‌دهد.',
+            'steps' => [
+                'تصویر را روی کادر بالا بکشید یا کلیک کنید تا انتخاب شود؛ اگر عجله دارید همان چارت رنگ ۶۰۰×۴۰۰ که پیش‌فرض بارگذاری شده کافی است.',
+                'یکی از پیش‌تنظیم‌ها — نوآر، قدیمی، رنگ زنده، محو، رؤیایی، نگاتیو یا نئون — را بزنید تا نقطه‌ی شروع بگیرید.',
+                'هشت اسلایدر روشنایی، کنتراست، اشباع رنگ، سیاه‌وسفید، سپیا، چرخش رنگ، معکوس و تاری را تا رسیدن به نتیجه‌ی دلخواه تنظیم کنید.',
+                'دکمه‌ی «مقایسه با اصل» را بزنید تا بوم بین تصویر فیلترشده و تصویر دست‌نخورده جابه‌جا شود.',
+                'رشته‌ی filter را برای استفاده در استایل‌شیت کپی کنید یا خروجی را در ابعاد واقعی تصویر به‌صورت PNG دانلود کنید.',
+            ],
+            'faq' => [
+                ['q' => 'سیاه‌وسفید کردن یعنی میانگین گرفتن از سه کانال رنگ؟', 'a' => 'نه، و همین اشتباه رایج است. grayscale از ماتریس روشنایی استفاده می‌کند: 0.2126 قرمز + 0.7152 سبز + 0.0722 آبی. به همین دلیل قرمز خالص به rgb(54,54,54) و سبز خالص به rgb(182,182,182) تبدیل می‌شود، در حالی که میانگین ساده هر دو را ۸۵ می‌کرد. برای دیدنش کافی است چارت رنگ نمونه را بارگذاری کنید و اسلایدر سیاه‌وسفید را روی ۱۰۰ بگذارید.'],
+                ['q' => 'رشته‌ی CSS دقیقاً همان چیزی را می‌سازد که در پیش‌نمایش می‌بینم؟', 'a' => 'برای فیلترهای رنگی بله؛ brightness، contrast، saturate، grayscale، sepia، hue-rotate و invert مستقل از اندازه‌اند و همان مقدار پیکسل را می‌دهند. اما blur برحسب پیکسل است و به اندازه‌ی رندرشده‌ی عنصر بستگی دارد: blur(5px) روی تصویری که در ابعاد واقعی‌اش نمایش داده شود با همان تصویر که در نصف اندازه رندر شده یکسان نیست.'],
+                ['q' => 'تصویر من جایی آپلود می‌شود؟ محدودیت اندازه چقدر است؟', 'a' => 'هیچ فایلی ارسال نمی‌شود؛ خواندن فایل، رسم روی canvas و ساخت PNG همه داخل مرورگر شما انجام می‌شود و این صفحه اصلاً درخواست شبکه‌ای نمی‌فرستد. تنها محدودیت واقعی این است که اگر ضلع بلند تصویر بیشتر از ۲۴۰۰ پیکسل باشد، برای اینکه پیش‌نمایش زنده کند نشود کوچک می‌شود؛ بنابراین خروجی PNG هم حداکثر ۲۴۰۰ پیکسل خواهد بود.'],
+                ['q' => 'چرا بعد از اعمال تاری، لبه‌های تصویر کم‌رنگ و شفاف می‌شوند؟', 'a' => 'چون blur برای هر پیکسل از پیکسل‌های اطرافش میانگین می‌گیرد و بیرون از مرز بوم چیزی جز شفافیت وجود ندارد. این رفتار استاندارد فیلتر است، نه ایراد ابزار. اگر لبه‌ی تمیز می‌خواهید، بعد از دانلود چند پیکسل از هر طرف را برش بزنید یا مقدار تاری کمتری بگذارید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "Canvas 2D and CSS share one filter engine: set ctx.filter = 'grayscale(100%)' and you get the luminance matrix 0.2126R + 0.7152G + 0.0722B, which turns pure red #FF0000 into rgb(54,54,54) rather than mid grey. Order matters as well — blur(4px) saturate(200%) and saturate(200%) blur(4px) are two different images. This studio applies the eight filters in one fixed, documented order and prints the exact string it used.",
+            'steps' => [
+                'Drop an image on the box or click to pick one — or just start on the 600×400 colour chart that loads by default.',
+                'Hit a preset — Noir, Vintage, Vivid, Faded, Dreamy, Negative or Neon — to get a starting point.',
+                'Tune the eight sliders: brightness, contrast, saturation, grayscale, sepia, hue-rotate, invert and blur.',
+                'Press Compare to flip the canvas between the filtered result and the untouched original.',
+                "Copy the filter string into your stylesheet, or download the result as a PNG at the image's own pixel size.",
+            ],
+            'faq' => [
+                ['q' => 'Is grayscale just the average of the three channels?', 'a' => 'No, and that is the usual misconception. grayscale uses the luminance matrix 0.2126 red + 0.7152 green + 0.0722 blue, so pure red becomes rgb(54,54,54) and pure green becomes rgb(182,182,182), where a plain average would make both 85. Load the sample colour chart and push the grayscale slider to 100 to see it for yourself.'],
+                ['q' => 'Does the CSS string reproduce exactly what the preview shows?', 'a' => 'For the colour functions, yes: brightness, contrast, saturate, grayscale, sepia, hue-rotate and invert are resolution independent and give identical pixel values. blur is not — it is measured in pixels and depends on how large the element is actually rendered, so blur(5px) on an image shown at native size differs from the same image rendered at half size.'],
+                ['q' => 'Is my image uploaded anywhere, and is there a size limit?', 'a' => 'Nothing is sent: reading the file, drawing to the canvas and encoding the PNG all happen in your browser, and the page makes no network request at all. The one real limit is that images larger than 2400px on the long side are scaled down so the live preview stays responsive, which means the exported PNG is also capped at 2400px.'],
+                ['q' => 'Why do the edges go transparent when I add blur?', 'a' => 'Because blur averages each pixel with its neighbours, and beyond the edge of the bitmap there is nothing but transparency. That is standard filter behaviour, not a bug in the tool. If you need clean edges, crop a few pixels off each side after downloading, or use a smaller blur radius.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Canvas 2D ile CSS aynı filtre motorunu kullanır: ctx.filter değerini grayscale(100%) yaptığınızda 0.2126R + 0.7152G + 0.0722B parlaklık matrisi çalışır ve saf kırmızı #FF0000 orta gri yerine rgb(54,54,54) olur. Sıra da önemlidir: blur(4px) saturate(200%) ile saturate(200%) blur(4px) aynı görüntüyü vermez. Bu araç sekiz filtreyi sabit ve belgelenmiş bir sırayla uygular ve kullandığı dizeyi aynen yazar.',
+            'steps' => [
+                'Görseli kutuya sürükleyin veya tıklayıp seçin; acele ediyorsanız varsayılan olarak yüklenen 600×400 renk kartı da yeterlidir.',
+                'Noir, Eski, Canlı, Soluk, Rüya, Negatif veya Neon hazır ayarlarından birine basarak bir başlangıç noktası alın.',
+                'Sekiz kaydırıcıyı ayarlayın: parlaklık, kontrast, doygunluk, gri ton, sepya, renk döndürme, ters çevirme ve bulanıklık.',
+                'Karşılaştır düğmesiyle tuvali filtreli sonuç ile dokunulmamış orijinal arasında değiştirin.',
+                'Filtre dizesini stil dosyanıza kopyalayın veya sonucu görselin kendi piksel boyutunda PNG olarak indirin.',
+            ],
+            'faq' => [
+                ['q' => 'Gri tonlama üç kanalın ortalaması mıdır?', 'a' => 'Hayır, ve en sık yapılan yanlış budur. grayscale parlaklık matrisini kullanır: 0.2126 kırmızı + 0.7152 yeşil + 0.0722 mavi. Bu yüzden saf kırmızı rgb(54,54,54), saf yeşil ise rgb(182,182,182) olur; basit ortalama ikisini de 85 yapardı. Örnek renk kartını yükleyip gri ton kaydırıcısını 100 yaparak kendiniz görebilirsiniz.'],
+                ['q' => 'CSS dizesi önizlemede gördüğüm sonucun aynısını verir mi?', 'a' => 'Renk fonksiyonları için evet: brightness, contrast, saturate, grayscale, sepia, hue-rotate ve invert çözünürlükten bağımsızdır ve aynı piksel değerlerini üretir. Ancak blur piksel cinsindendir ve öğenin ekranda kaç piksel genişlikte çizildiğine bağlıdır; yarı boyutta gösterilen bir görselde blur(5px) daha güçlü görünür.'],
+                ['q' => 'Görselim bir yere yükleniyor mu, boyut sınırı var mı?', 'a' => 'Hiçbir dosya gönderilmez; dosyayı okuma, tuvale çizme ve PNG üretme işlemlerinin tamamı tarayıcınızda olur, sayfa tek bir ağ isteği bile yapmaz. Tek gerçek sınır şudur: uzun kenarı 2400 pikselden büyük görseller canlı önizleme akıcı kalsın diye küçültülür, dolayısıyla indirilen PNG de en fazla 2400 piksel olur.'],
+                ['q' => 'Bulanıklık verince kenarlar neden saydamlaşıyor?', 'a' => 'Çünkü blur her pikseli komşularıyla ortalar ve tuvalin kenarının ötesinde saydamlıktan başka bir şey yoktur. Bu, filtrenin standart davranışıdır, aracın hatası değildir. Temiz kenar isterseniz indirdikten sonra her kenardan birkaç piksel kırpın veya daha düşük bir bulanıklık yarıçapı kullanın.'],
+            ],
+        ],
+    ],
+
+    'image-palette' => [
+        'fa' => [
+            'intro' => 'میانگین سادهٔ کانال‌های RGB یک تصویر تقریباً همیشه به یک خاکستریِ گل‌آلود می‌رسد که هیچ ربطی به رنگی که واقعاً «غالب» می‌بینید ندارد. این ابزار به‌جای میانگین‌گیری، پیکسل‌های تصویر را داخل مرورگر نمونه‌برداری و با الگوریتم برش میانه (median-cut) به ۶ تا ۱۰ خوشهٔ رنگی تقسیم می‌کند و سهم درصدی هر رنگ را کنار کد HEX نشان می‌دهد. تمام پردازش روی دستگاه خودتان انجام می‌شود و هیچ تصویری آپلود نمی‌شود.',
+            'steps' => [
+                'تصویر را داخل کادر رها کنید یا برای انتخاب فایل روی آن کلیک کنید.',
+                'با لغزنده، تعداد رنگ‌های خروجی را بین ۶ تا ۱۰ تنظیم کنید.',
+                'روی هر نمونه بزنید تا کد HEX آن کپی شود.',
+                'بلوک متغیرهای CSS یا میانگین رنگ را برای استفاده در طرح خود کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا تصویر من روی سرور آپلود می‌شود؟', 'a' => 'خیر. تصویر با FileReader داخل مرورگر خوانده و روی canvas پردازش می‌شود و هیچ داده‌ای به سرور فرستاده نمی‌شود؛ به همین دلیل ابزار حتی بدون اتصال به اینترنت هم کار می‌کند.'],
+                ['q' => 'تفاوت «رنگ غالب» با «میانگین رنگ» چیست؟', 'a' => 'رنگ غالب مرکز بزرگ‌ترین خوشهٔ پیکسل‌هاست و برای ساخت پالت مناسب است، اما میانگین رنگ برایند ریاضی همهٔ پیکسل‌هاست و معمولاً کدر و بی‌روح درمی‌آید؛ برای طراحی از رنگ‌های غالب استفاده کنید نه از میانگین.'],
+                ['q' => 'چرا گاهی به‌جای ۱۰ رنگ، تعداد کمتری نمایش داده می‌شود؟', 'a' => 'اگر تصویر تنوع رنگی کافی نداشته باشد — مثلاً یک لوگوی دو رنگ — الگوریتم خوشهٔ معناداری برای تفکیک بیشتر پیدا نمی‌کند و فقط رنگ‌هایی را که واقعاً وجود دارند نشان می‌دهد.'],
+                ['q' => 'درصدها دقیقاً چه چیزی را نشان می‌دهند؟', 'a' => 'سهم پیکسل‌های هر خوشه از کل پیکسل‌های مات، پس از کوچک‌سازی تصویر تا حداکثر ۱۶۰ پیکسل در بزرگ‌ترین بعد؛ پیکسل‌های شفاف و نیمه‌شفاف در محاسبه کنار گذاشته می‌شوند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "A plain RGB channel average of an image almost always collapses into a muddy grey that has nothing to do with the color you actually perceive as dominant. Instead of averaging, this tool samples the pixels in your browser and splits them into 6 to 10 color clusters with a median-cut algorithm, showing each color's share percentage next to its HEX code. Everything runs on your own device and no image is uploaded.",
+            'steps' => [
+                'Drop an image into the box, or click it to choose a file.',
+                'Use the slider to set how many colors to extract, from 6 to 10.',
+                'Click any swatch to copy its HEX code.',
+                'Copy the CSS variables block or the average color for your design.',
+            ],
+            'faq' => [
+                ['q' => 'Is my image uploaded to a server?', 'a' => 'No. The image is read with FileReader and processed on a canvas entirely inside your browser, and nothing is sent to any server — which is why the tool keeps working even with no internet connection.'],
+                ['q' => 'What is the difference between the dominant color and the average color?', 'a' => 'A dominant color is the center of a large pixel cluster and is what you want for a palette, while the average color is the mathematical mean of every pixel and usually comes out dull and washed out; use the dominant colors for design work, not the average.'],
+                ['q' => 'Why do I sometimes get fewer than 10 colors?', 'a' => 'If the image lacks enough color variety — a two-color logo, for example — the algorithm cannot find more meaningful clusters to split, so it shows only the colors that are actually present.'],
+                ['q' => 'What exactly do the percentages mean?', 'a' => "Each is the share of that cluster's pixels out of all opaque pixels, measured after the image is downsampled to at most 160 pixels on its longest side; transparent and semi-transparent pixels are excluded."],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Bir görselin düz RGB kanal ortalaması neredeyse her zaman çamurlu bir griye dönüşür ve baskın olarak algıladığınız renkle hiçbir ilgisi yoktur. Bu araç ortalama almak yerine pikselleri tarayıcınızda örnekler ve median-cut algoritmasıyla 6 ila 10 renk kümesine ayırır, her rengin pay yüzdesini HEX kodunun yanında gösterir. Tüm işlem kendi cihazınızda çalışır ve hiçbir görsel yüklenmez.',
+            'steps' => [
+                'Bir görseli kutuya bırakın veya dosya seçmek için üzerine tıklayın.',
+                'Kaydırıcıyla çıkarılacak renk sayısını 6 ile 10 arasında ayarlayın.',
+                'HEX kodunu kopyalamak için herhangi bir örneğe tıklayın.',
+                'CSS değişkenleri bloğunu veya ortalama rengi tasarımınız için kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'Görselim bir sunucuya yüklenir mi?', 'a' => 'Hayır. Görsel FileReader ile okunur ve tamamen tarayıcınızda bir canvas üzerinde işlenir, hiçbir veri sunucuya gönderilmez; bu yüzden araç internet bağlantısı olmadan da çalışır.'],
+                ['q' => 'Baskın renk ile ortalama renk arasındaki fark nedir?', 'a' => 'Baskın renk büyük bir piksel kümesinin merkezidir ve palet için uygundur, ortalama renk ise tüm piksellerin matematiksel ortalamasıdır ve genellikle donuk ve soluk çıkar; tasarım için ortalamayı değil baskın renkleri kullanın.'],
+                ['q' => 'Neden bazen 10 yerine daha az renk görüyorum?', 'a' => 'Görselde yeterli renk çeşitliliği yoksa — örneğin iki renkli bir logo — algoritma bölünecek daha anlamlı küme bulamaz ve yalnızca gerçekten var olan renkleri gösterir.'],
+                ['q' => 'Yüzdeler tam olarak neyi ifade eder?', 'a' => 'Her biri, görsel en uzun kenarında en fazla 160 piksele küçültüldükten sonra o kümenin piksellerinin tüm opak pikseller içindeki payıdır; saydam ve yarı saydam pikseller hesaba katılmaz.'],
+            ],
+        ],
+    ],
+
+    'image-to-base64' => [
+        'fa' => [
+            'intro' => 'کدگذاری Base64 حجم هر فایل را حدود ۳۳٪ بزرگ‌تر می‌کند و رشته‌ی حاصل در HTML یا CSS به‌صورت جداگانه کش نمی‌شود؛ به همین دلیل data URI فقط برای تصویرهای کوچک مثل آیکون، لوگو یا الگوی پس‌زمینه به‌صرفه است. این ابزار تصویر را کاملاً داخل مرورگر شما می‌خواند، رشته‌ی data: را می‌سازد و همان‌جا قطعه‌کدهای آماده‌ی <img>، background-image و Markdown را در اختیارتان می‌گذارد. هیچ فایلی جایی آپلود نمی‌شود.',
+            'steps' => [
+                'تصویر را داخل کادر بکشید و رها کنید یا روی آن کلیک کنید تا فایل را انتخاب کنید.',
+                'حجم اصلی، طول رشته‌ی data URI و درصد افزایش حجم را در جدول مشخصات ببینید.',
+                'به هشدار توجه کنید؛ اگر رشته بیش از حد بزرگ شد، به‌جای درج مستقیم فایل را لینک کنید.',
+                'قطعه‌کد موردنظر را — <img>، background-image یا Markdown — با یک کلیک کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'data URI تا چه حجمی مناسب است؟', 'a' => 'مرورگرهای امروزی محدودیت سختی ندارند و رشته‌های چندمگابایتی را هم می‌پذیرند، اما IE قدیمی سقف ۳۲ کیلوبایتی داشت. در عمل بهتر است data URI را زیر چند کیلوبایت نگه دارید، چون Base64 حدود ۳۳٪ به حجم اضافه می‌کند و مرورگر نمی‌تواند تصویر را جداگانه کش کند؛ برای عکس‌های بزرگ لینک مستقیم بهتر است.'],
+                ['q' => 'آیا تصویر من روی سرور آپلود می‌شود؟', 'a' => 'خیر. تبدیل با FileReader و به‌صورت محلی داخل مرورگر انجام می‌شود و فایل هیچ‌گاه از دستگاه شما خارج نمی‌شود.'],
+                ['q' => 'چرا حجم data URI از فایل اصلی بیشتر است؟', 'a' => 'Base64 هر ۳ بایت را به ۴ کاراکتر تبدیل می‌کند، یعنی حدود ۳۳٪ سربار، به‌علاوه‌ی چند کاراکتر سرآیند مثل data:image/png;base64,.'],
+                ['q' => 'آیا SVG را هم باید Base64 کرد؟', 'a' => 'لزوماً نه. برای SVG می‌توانید از data URI بدون Base64 و به‌صورت URL-encoded استفاده کنید که معمولاً کوچک‌تر و خواناتر است؛ این ابزار برای سازگاری همه‌ی فرمت‌ها همه‌چیز را Base64 می‌کند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "Base64 encoding makes a file about 33% larger, and the resulting string can't be cached separately by the browser — so a data URI only pays off for small images like icons, logos, or background patterns. This tool reads the image entirely inside your browser, builds the data: string, and hands you ready-to-paste snippets for <img>, CSS background-image, and Markdown. Nothing is uploaded.",
+            'steps' => [
+                'Drop an image into the box, or click it to pick a file.',
+                'Check the stats table for the original size, data URI length, and percentage size increase.',
+                'Watch the warning — if the string is too large, link the file instead of inlining it.',
+                'Copy the snippet you need — <img>, background-image, or Markdown — with one click.',
+            ],
+            'faq' => [
+                ['q' => 'How large can a data URI be?', 'a' => "Modern browsers have no hard limit and handle multi-megabyte URIs, but old IE capped them at 32 KB. Practically, keep data URIs under a few KB: base64 adds ~33% and the image can't be cached on its own, so large photos are better linked than inlined."],
+                ['q' => 'Is my image uploaded anywhere?', 'a' => "No. Conversion runs locally with the browser's FileReader; the file never leaves your device."],
+                ['q' => 'Why is the data URI bigger than the original file?', 'a' => 'Base64 turns every 3 bytes into 4 characters, a ~33% overhead, plus a short data:...;base64, header prepended to the payload.'],
+                ['q' => 'Should I base64-encode SVGs?', 'a' => 'Not necessarily. SVGs also work as URL-encoded data URIs (no base64), which is usually smaller and stays human-readable. This tool base64-encodes everything for format-agnostic reliability.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Base64 kodlama bir dosyayi yaklasik yuzde 33 buyutur ve olusan dizge tarayici tarafindan ayri olarak onbellege alinamaz; bu yuzden data URI yalnizca simge, logo veya arka plan deseni gibi kucuk gorseller icin mantiklidir. Bu arac gorseli tamamen tarayicinizin icinde okur, data: dizgesini olusturur ve <img>, CSS background-image ve Markdown icin hazir kod parcalarini verir. Hicbir dosya yuklenmez.',
+            'steps' => [
+                'Bir gorseli kutunun icine surukleyip birakin veya dosya secmek icin uzerine tiklayin.',
+                'Ozgun boyutu, data URI uzunlugunu ve yuzde boyut artisini ozellikler tablosunda gorun.',
+                'Uyariya dikkat edin; dizge cok buyukse gomme yerine dosyayi baglanti olarak verin.',
+                'Ihtiyaciniz olan kod parcasini — <img>, background-image veya Markdown — tek tiklamayla kopyalayin.',
+            ],
+            'faq' => [
+                ['q' => 'Bir data URI ne kadar buyuk olabilir?', 'a' => 'Modern tarayicilarda kesin bir sinir yoktur ve megabaytlarca URI islenebilir, ancak eski IE bunu 32 KB ile sinirlardi. Pratikte data URI degerlerini birkac KB altinda tutun; base64 yaklasik yuzde 33 ekler ve gorsel tek basina onbellege alinamaz, bu yuzden buyuk fotograflari gommek yerine baglamak daha iyidir.'],
+                ['q' => 'Gorselim bir yere yuklenir mi?', 'a' => 'Hayir. Donusum tarayicinin FileReader ozelligiyle yerel olarak calisir; dosya cihazinizdan cikmaz.'],
+                ['q' => 'data URI neden ozgun dosyadan daha buyuk?', 'a' => 'Base64 her 3 bayti 4 karaktere cevirir, bu da yaklasik yuzde 33 ek yuk demektir; ayrica veriye kisa bir data...;base64 basligi eklenir.'],
+                ['q' => 'SVG dosyalarini base64 yapmali miyim?', 'a' => 'Sart degil. SVG dosyalari URL kodlu data URI olarak da calisir (base64 olmadan) ve bu genellikle daha kucuk ve okunabilir kalir. Bu arac tum formatlarda guvenilirlik icin her seyi base64 ile kodlar.'],
+            ],
+        ],
+    ],
+
+    'palette-generator' => [
+        'fa' => [
+            'intro' => 'در فضای HSL رنگ مکمل چیز پیچیده‌ای نیست: همان فام پایه به‌علاوه‌ی ۱۸۰ درجه؛ سه‌گانه با گام‌های ۱۲۰ درجه و چهارگانه با گام‌های ۹۰ درجه ساخته می‌شود. تله‌ی واقعی اینجاست که HSL ادراکی نیست؛ زرد و آبی با روشنایی یکسان ۵۳٪ روی کاغذ برابرند اما چشم زرد را به‌مراتب روشن‌تر می‌بیند، برای همین کنار هر سواچ نسبت کنتراست WCAG هم نوشته شده است. تمام محاسبه‌ها داخل مرورگر شما انجام می‌شود و هیچ رنگی جایی ارسال نمی‌گردد.',
+            'steps' => [
+                'رنگ پایه را با انتخابگر رنگ بردارید یا کد هگز آن را در کادر بچسبانید؛ لغزنده‌های فام، اشباع و روشنایی همان لحظه هماهنگ می‌شوند.',
+                'یکی از شش الگو را انتخاب کنید: مکمل، مشابه، سه‌گانه، مکمل شکسته، چهارگانه یا تک‌فام.',
+                'برای الگوهای مشابه، مکمل شکسته و چهارگانه، لغزنده‌ی زاویه را جابه‌جا کنید تا بازشدگی فام‌ها کم یا زیاد شود.',
+                'قفل هر سواچی را که پسندیده‌اید ببندید و دکمه‌ی رنگ تصادفی را بزنید تا فقط بقیه دوباره ساخته شوند.',
+                'پیشوند متغیر را بنویسید، قالب CSS، SCSS، JSON یا HEX را انتخاب کنید و بلوک خروجی را کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا رنگ مکمل همیشه بهترین گزینه برای رنگ تأکیدی است؟', 'a' => 'نه. دو فام دقیقاً ۱۸۰ درجه از هم، وقتی هر دو اشباع بالا داشته باشند، روی لبه‌ی مشترکشان ارتعاش بصری می‌سازند و چشم را خسته می‌کنند. برای رنگ تأکیدی معمولاً مکمل شکسته (۱۵۰ و ۲۱۰ درجه) نتیجه‌ی آرام‌تری می‌دهد، یا اشباع رنگ مکمل را با لغزنده پایین بیاورید.'],
+                ['q' => 'چرا در بیشتر الگوها اشباع و روشنایی ثابت می‌ماند؟', 'a' => 'چون تعریف کلاسیک هارمونی رنگ فقط درباره‌ی چرخش فام است و ثابت نگه‌داشتن S و L باعث می‌شود رنگ‌ها هم‌وزن به نظر برسند. تنها استثنا الگوی تک‌فام است که فام را قفل می‌کند و پنج پله‌ی روشنایی با فاصله‌ی ۱۵ واحد می‌سازد؛ اگر رنگ پایه خیلی روشن یا خیلی تیره باشد، کل این پنجره‌ی ۶۰ واحدی جابه‌جا می‌شود تا هر پنج پله متمایز بمانند.'],
+                ['q' => 'پالت هارمونیک یعنی پالت دسترس‌پذیر؟', 'a' => 'خیر، و این رایج‌ترین سوءبرداشت است. هارمونی فقط درباره‌ی فاصله‌ی فام‌هاست و هیچ تضمینی برای خوانایی نمی‌دهد. عددی که کنار هر سواچ می‌بینید نسبت کنتراست همان رنگ با مشکی یا سفیدِ انتخاب‌شده روی خودش است، نه با پس‌زمینه‌ی سایت شما؛ برای متن روی پس‌زمینه‌ی واقعی باید جداگانه اندازه بگیرید.'],
+                ['q' => 'چرا با عوض کردن الگو، قفل‌ها پاک می‌شوند؟', 'a' => 'چون تعداد خانه‌های هر الگو فرق دارد: مکمل دو، مشابه و سه‌گانه سه، چهارگانه چهار و تک‌فام پنج خانه. نگه‌داشتن قفل خانه‌ی چهارم در الگویی که فقط دو خانه دارد بی‌معنی است، پس با هر تغییر الگو قفل‌ها صفر می‌شوند. رنگ پایه اما دست‌نخورده باقی می‌ماند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'In HSL a complementary colour is nothing exotic: it is the base hue plus 180 degrees, triadic steps by 120, tetradic by 90. The real trap is that HSL is not perceptually uniform — yellow and blue at an identical 53% lightness measure the same but read as wildly different brightness, which is why every swatch here also carries its WCAG contrast ratio. All the maths runs in your browser; no colour is ever sent anywhere.',
+            'steps' => [
+                'Pick a base colour with the colour input, or paste a HEX code — the hue, saturation and lightness sliders sync instantly.',
+                'Choose one of six schemes: complementary, analogous, triadic, split-complementary, tetradic or monochromatic.',
+                'For analogous, split-complementary and tetradic, drag the angle slider to widen or tighten the hue spread.',
+                'Lock any swatch you want to keep, then hit Randomise so only the unlocked slots are rebuilt.',
+                'Set a variable prefix, choose CSS, SCSS, JSON or plain HEX, and copy the exported block.',
+            ],
+            'faq' => [
+                ['q' => 'Is the complementary colour always the best accent?', 'a' => 'No. Two hues exactly 180 degrees apart, both at high saturation, vibrate along their shared edge and tire the eye. For an accent, split-complementary (150 and 210 degrees) usually lands softer, or simply drop the saturation of the complement with the slider.'],
+                ['q' => 'Why do saturation and lightness stay fixed across most schemes?', 'a' => 'Because classical colour harmony is defined purely as a hue rotation, and holding S and L constant is what makes the results feel evenly weighted. The one exception is monochromatic, which locks the hue and builds five lightness stops 15 points apart; if the base is very light or very dark the whole 60-point window slides instead of clipping, so all five stops stay distinct.'],
+                ['q' => 'Does a harmonious palette mean an accessible palette?', 'a' => 'No, and this is the most common misconception. Harmony is only about hue spacing and guarantees nothing about legibility. The number beside each swatch is that colour against the black or white label auto-picked for the chip itself, not against your site background — measure text on your real background separately.'],
+                ['q' => 'Why do my locks disappear when I switch scheme?', 'a' => 'Because the slot count differs per scheme: complementary has two, analogous and triadic three, tetradic four, monochromatic five. Keeping a lock on slot four inside a two-slot scheme is meaningless, so locks reset on every scheme change. The base colour itself is untouched.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'HSL uzayında tamamlayıcı renk hiç de gizemli değildir: ana tonun 180 derece dönmüş halidir, üçlü şema 120, dörtlü şema 90 derecelik adımlarla ilerler. Asıl tuzak, HSL uzayının algısal olarak eşit olmamasıdır; aynı yüzde 53 açıklık değerindeki sarı ile mavi ölçümde eşittir ama göze çok farklı parlaklıkta görünür, bu yüzden her örneğin yanında WCAG kontrast oranı da yazar. Tüm hesaplar tarayıcınızda çalışır, hiçbir renk dışarı gönderilmez.',
+            'steps' => [
+                'Renk seçiciyle ana rengi belirleyin veya HEX kodunu kutuya yapıştırın; ton, doygunluk ve açıklık kaydırıcıları anında eşitlenir.',
+                'Altı şemadan birini seçin: tamamlayıcı, benzer, üçlü, bölünmüş tamamlayıcı, dörtlü veya tek renkli.',
+                'Benzer, bölünmüş tamamlayıcı ve dörtlü şemalarda açı kaydırıcısını sürükleyerek ton aralığını genişletin veya daraltın.',
+                'Beğendiğiniz örneği kilitleyin, ardından Rastgele düğmesine basın; yalnızca kilitsiz kutular yeniden üretilir.',
+                'Değişken önekini yazın, CSS, SCSS, JSON veya düz HEX biçimini seçin ve çıktı bloğunu kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'Vurgu rengi için her zaman tamamlayıcı renk mi seçilmeli?', 'a' => 'Hayır. Tam 180 derece uzaktaki iki ton, ikisi de yüksek doygunluktaysa ortak kenarlarında titreşim yaratır ve gözü yorar. Vurgu için bölünmüş tamamlayıcı (150 ve 210 derece) genellikle daha yumuşak sonuç verir; ya da tamamlayıcı rengin doygunluğunu kaydırıcıyla düşürün.'],
+                ['q' => 'Şemaların çoğunda doygunluk ve açıklık neden sabit kalıyor?', 'a' => 'Çünkü klasik renk uyumu yalnızca ton döndürmesi olarak tanımlanır ve S ile L değerlerini sabit tutmak renklerin eşit ağırlıkta görünmesini sağlar. Tek istisna, tonu kilitleyip 15 birim aralıklı beş açıklık basamağı üreten tek renkli şemadır; ana renk çok açık veya çok koyuysa 60 birimlik pencere kırpılmak yerine kayar, böylece beş basamak da ayırt edilebilir kalır.'],
+                ['q' => 'Uyumlu palet erişilebilir palet demek midir?', 'a' => 'Hayır, en yaygın yanlış anlama budur. Uyum sadece tonlar arasındaki açıyla ilgilidir ve okunabilirlik konusunda hiçbir güvence vermez. Her örneğin yanındaki sayı, o rengin kendi üzerine otomatik seçilen siyah veya beyaz etikete göre kontrastıdır; sitenizin arka planına göre değil. Gerçek arka plan üzerindeki metni ayrıca ölçmelisiniz.'],
+                ['q' => 'Şemayı değiştirince kilitlerim neden siliniyor?', 'a' => 'Çünkü her şemanın kutu sayısı farklıdır: tamamlayıcı iki, benzer ve üçlü üç, dörtlü dört, tek renkli beş kutu içerir. İki kutulu bir şemada dördüncü kutunun kilidini korumak anlamsız olacağından her şema değişiminde kilitler sıfırlanır. Ana renk ise olduğu gibi kalır.'],
+            ],
+        ],
+    ],
+
+    'qr-generator' => [
+        'fa' => [
+            'intro' => 'در یک کد QR نسخه‌ی ۲ با سطح تصحیح خطای M، از مجموع ۴۴ کدواژه، ۱۶ کدواژه صرف پاریتی رید-سالومون می‌شود؛ یعنی بیش از یک‌سوم نقش‌ونگار کد فقط برای زنده‌ماندن در برابر خط‌وخش و چروک آنجاست. شایع‌ترین دلیل خوانده‌نشدن یک کد چاپ‌شده هم کیفیت چاپ نیست، بلکه حذف حاشیه‌ی سفید دور آن است: استاندارد چهار ماژول فضای خالی در هر چهار طرف را الزامی می‌کند. این ابزار کد را کامل در مرورگر شما می‌سازد و همان حاشیه را داخل خروجی PNG نگه می‌دارد.',
+            'steps' => [
+                'متن یا نشانی موردنظر را در کادر محتوا بنویسید؛ کد با هر بار تایپ بی‌درنگ بازسازی می‌شود.',
+                'سطح تصحیح خطا را انتخاب کنید: L برای نمایش روی صفحه و H برای چاپ روی سطحی که در معرض ساییدگی است.',
+                'اندازه‌ی هر ماژول را با لغزنده تنظیم کنید تا ابعاد نهایی تصویر به کار چاپ یا وب بخورد.',
+                'ماسک را روی «خودکار» بگذارید تا کم‌جریمه‌ترین الگو از میان هشت الگو انتخاب شود؛ عدد ثابت فقط برای بررسی و اشکال‌زدایی است.',
+                'دکمه‌ی دانلود PNG را بزنید؛ حاشیه‌ی چهار ماژولی داخل خود تصویر قرار دارد.',
+            ],
+            'faq' => [
+                ['q' => 'آیا سطح تصحیح خطای بالاتر همیشه کد را مطمئن‌تر می‌کند؟', 'a' => 'نه. سطح H حدود ۳۰٪ از کد را بازیابی می‌کند، اما ظرفیت داده را به‌شدت کم می‌کند؛ همان متن مجبور می‌شود به نسخه‌ی بالاتری برود و ماژول‌ها ریزتر شوند. اگر ابعاد چاپ ثابت باشد، H گاهی بدتر از M خوانده می‌شود چون هر ماژول فیزیکی کوچک‌تر است. برای بیشتر کاربردها M تعادل درستی است.'],
+                ['q' => 'این ابزار تا چه اندازه داده را پشتیبانی می‌کند؟', 'a' => 'نسخه‌های ۱ تا ۱۰ پیاده‌سازی شده‌اند، یعنی حداکثر ۲۷۱ بایت در سطح L، ۲۱۳ بایت در M، ۱۵۱ بایت در Q و ۱۱۹ بایت در H. این برای نشانی اینترنتی، اطلاعات وای‌فای و متن کوتاه کافی است، اما یک vCard طولانی پیام خطای ظرفیت می‌گیرد. حالت کدگذاری هم فقط Byte است؛ حالت‌های عددی و الفبایی-عددی که رقم‌های خالص را فشرده‌تر ذخیره می‌کنند پیاده نشده‌اند.'],
+                ['q' => 'متن فارسی چطور کدگذاری می‌شود؟', 'a' => 'متن به UTF-8 تبدیل و در حالت Byte نوشته می‌شود. تقریباً همه‌ی اپلیکیشن‌های اسکنر امروزی UTF-8 را خودکار تشخیص می‌دهند، اما استاندارد به‌طور پیش‌فرض ISO-8859-1 را فرض می‌کند و این ابزار نشانگر ECI درج نمی‌کند؛ بنابراین روی بارکدخوان‌های صنعتی قدیمی ممکن است متن فارسی درست نمایش داده نشود. ضمناً هر حرف فارسی دو بایت مصرف می‌کند و ظرفیت را زودتر پر می‌کند.'],
+                ['q' => 'آیا محتوای کد به جایی ارسال می‌شود؟', 'a' => 'خیر. کل مسیر — از کدگذاری و محاسبه‌ی رید-سالومون روی GF(256) تا انتخاب ماسک و رسم روی canvas — در مرورگر شما اجرا می‌شود و هیچ درخواست شبکه‌ای زده نمی‌شود. می‌توانید اتصال را قطع کنید و ابزار همچنان کار می‌کند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'In a version-2 QR code at error correction level M, 16 of the 44 codewords are Reed-Solomon parity — more than a third of the symbol exists purely to survive damage. The most common reason a printed code fails to scan is not print resolution but a missing quiet zone: the standard requires four empty modules on all four sides. This generator builds the symbol entirely in your browser and keeps that margin inside the exported PNG.',
+            'steps' => [
+                'Type or paste your text or URL into the content box; the code redraws on every keystroke.',
+                'Pick an error correction level: L for on-screen use, H when the code will be printed on something that gets scuffed.',
+                'Set the module size slider to match the output dimensions you need for print or web.',
+                'Leave the mask on Auto so the lowest-penalty pattern of the eight wins; pin a fixed 0-7 only when debugging or comparing output.',
+                'Click Download PNG — the 4-module quiet zone is baked into the image.',
+            ],
+            'faq' => [
+                ['q' => 'Does a higher error correction level always make the code more reliable?', 'a' => 'No. Level H recovers about 30% of the symbol but cuts data capacity sharply, pushing the same text into a larger version with smaller modules. At a fixed print size H can scan worse than M, because each physical module is tinier. M is the right balance for most jobs.'],
+                ['q' => 'How much data can this tool encode?', 'a' => 'Versions 1 through 10 are implemented: at most 271 bytes at level L, 213 at M, 151 at Q and 119 at H. That covers URLs, WiFi credentials and short text, but a long vCard will trigger the capacity error. Only byte mode is implemented — numeric and alphanumeric modes, which pack pure digits far more tightly, are not.'],
+                ['q' => 'How is non-Latin text handled?', 'a' => 'Text is converted to UTF-8 and written in byte mode. Virtually every modern scanner app auto-detects UTF-8, but the standard assumes ISO-8859-1 by default and this tool does not emit an ECI header, so older industrial scanners may render non-Latin text incorrectly. Each Persian or accented character also costs two bytes, so capacity fills faster than the character count suggests.'],
+                ['q' => 'Is the content uploaded anywhere?', 'a' => 'No. The whole pipeline — encoding, Reed-Solomon over GF(256), mask selection and canvas rendering — runs in your browser and makes no network requests. Disconnect the machine and the tool still works.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Sürüm 2 bir QR kodunda M hata düzeltme seviyesinde 44 kod sözcüğünün 16 tanesi Reed-Solomon paritesidir; yani desenin üçte birinden fazlası yalnızca hasara dayanmak için oradadır. Basılı bir kodun okunmama sebebi çoğu zaman baskı kalitesi değil, kaldırılmış sessiz alandır: standart dört kenarın her birinde 4 modüllük boşluk ister. Bu araç kodu tamamen tarayıcınızda üretir ve o boşluğu PNG çıktısının içinde korur.',
+            'steps' => [
+                'Metninizi veya bağlantınızı içerik kutusuna yazın; kod her tuş vuruşunda yeniden çizilir.',
+                'Hata düzeltme seviyesini seçin: ekran kullanımı için L, aşınmaya açık bir yüzeye basılacaksa H.',
+                'Modül boyutu kaydırıcısını baskı veya web için ihtiyacınız olan çıktı boyutuna göre ayarlayın.',
+                'Maskeyi Otomatik bırakın ki sekiz desen arasından en düşük cezalı olan seçilsin; sabit 0-7 değerini yalnızca hata ayıklarken veya çıktı karşılaştırırken sabitleyin.',
+                'PNG indir düğmesine basın; 4 modüllük sessiz alan görüntünün içindedir.',
+            ],
+            'faq' => [
+                ['q' => 'Daha yüksek hata düzeltme seviyesi kodu her zaman daha güvenilir yapar mı?', 'a' => 'Hayır. H seviyesi desenin yaklaşık %30 kadarını kurtarır ama veri kapasitesini ciddi biçimde düşürür; aynı metin daha büyük bir sürüme taşınır ve modüller küçülür. Sabit bir baskı boyutunda H, M seviyesinden daha kötü okunabilir çünkü her fiziksel modül daha ufaktır. Çoğu iş için M dengeli seçimdir.'],
+                ['q' => 'Bu araç ne kadar veri kodlayabilir?', 'a' => 'Sürüm 1 ile 10 arası uygulanmıştır: L seviyesinde en fazla 271 bayt, M seviyesinde 213, Q seviyesinde 151 ve H seviyesinde 119 bayt. Bu bağlantılar, WiFi bilgileri ve kısa metinler için yeterlidir, ancak uzun bir vCard kapasite hatası verir. Yalnızca byte modu uygulanmıştır; saf rakamları çok daha sıkı paketleyen sayısal ve alfanumerik modlar bulunmaz.'],
+                ['q' => 'Latin dışı karakterler nasıl işlenir?', 'a' => 'Metin UTF-8 olarak kodlanır ve byte modunda yazılır. Modern tarayıcı uygulamalarının neredeyse tamamı bu kodlamayı otomatik algılar, ancak standart varsayılan olarak ISO-8859-1 kabul eder ve bu araç ECI başlığı eklemez; bu yüzden eski endüstriyel okuyucularda Latin dışı metin bozuk görünebilir. Ayrıca Türkçe özel karakterlerin her biri iki bayt tuttuğu için kapasite karakter sayısının ima ettiğinden daha hızlı dolar.'],
+                ['q' => 'İçerik bir yere gönderiliyor mu?', 'a' => 'Hayır. Kodlama, GF(256) üzerinde Reed-Solomon hesabı, maske seçimi ve canvas çizimi dahil tüm işlem tarayıcınızda çalışır ve hiçbir ağ isteği yapılmaz. Makinenin bağlantısını kesseniz bile araç çalışmaya devam eder.'],
+            ],
+        ],
+    ],
+
+    'svg-to-png' => [
+        'fa' => [
+            'intro' => 'کیفیت PNG خروجی از یک SVG به اندازه‌ای که رستر می‌کنید بستگی دارد: اگر تگ <svg> صفت width و height نداشته باشد، مرورگرها آن را ۳۰۰×۱۵۰ فرض می‌کنند مگر اینکه viewBox موجود باشد. این ابزار viewBox را می‌خواند، تصویر را روی بوم در مقیاس ۱x تا ۴x یا عرض دلخواه رسم می‌کند و فایل PNG می‌دهد. همهٔ کار در مرورگر شما و به‌صورت آفلاین انجام می‌شود و هیچ فایلی آپلود نمی‌شود.',
+            'steps' => [
+                'کد SVG را بچسبانید یا فایل ‎.svg‎ را بارگذاری کنید.',
+                'مقیاس ۱x/۲x/۴x یا «عرض دلخواه» را بر حسب پیکسل انتخاب کنید.',
+                'در صورت نیاز «پس‌زمینهٔ سفید» را فعال کنید تا شفافیت با سفید پر شود.',
+                'اندازهٔ خروجی را در پیش‌نمایش ببینید و روی «دانلود PNG» بزنید.',
+            ],
+            'faq' => [
+                ['q' => 'چرا PNG من تار یا پیکسلی است؟', 'a' => 'PNG یک قالب رستری است؛ در مقیاس ۱x همان ابعاد پیکسلی viewBox رسم می‌شود. برای نمایشگرهای رتینا مقیاس ۲x یا ۴x را انتخاب کنید یا عرض دلخواه بزرگ‌تری بدهید.'],
+                ['q' => 'چرا بعضی SVGها با خطای «ارجاع بیرونی» رد می‌شوند؟', 'a' => 'اگر SVG به تصویر، فونت یا فایل بیرونی (آدرس http یا مسیر نسبی مثل logo.png) ارجاع دهد، مرورگر بوم را «آلوده» می‌کند و گرفتن خروجی ممنوع می‌شود. منبع را به‌صورت data: درون‌خطی کنید تا محدودیت برطرف شود.'],
+                ['q' => 'پس‌زمینهٔ PNG شفاف است یا سفید؟', 'a' => 'به‌طور پیش‌فرض شفاف است، چون PNG کانال آلفا دارد. برای پس‌زمینهٔ سفید، گزینهٔ «پس‌زمینهٔ سفید» را فعال کنید.'],
+                ['q' => 'آیا فایل من جایی آپلود می‌شود؟', 'a' => 'خیر؛ تبدیل کاملاً در مرورگر و به‌صورت محلی انجام می‌شود و چیزی به سرور فرستاده نمی‌شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'A PNG exported from an SVG is only as sharp as the pixel size you render at: if the <svg> tag has no width and height, browsers assume 300×150 unless a viewBox is present. This converter reads the viewBox, rasterizes to a canvas at 1x–4x or a custom width, and hands you a PNG — all locally, with nothing uploaded.',
+            'steps' => [
+                'Paste your SVG markup or upload a .svg file.',
+                'Pick a 1x/2x/4x multiplier, or choose Custom width in pixels.',
+                'Optionally turn on White background to flatten transparency.',
+                'Check the output size in the preview, then click Download PNG.',
+            ],
+            'faq' => [
+                ['q' => 'Why does my PNG look blurry or pixelated?', 'a' => 'PNG is a raster format. At 1x it renders the viewBox pixel size; for retina screens pick 2x or 4x, or give a larger custom width.'],
+                ['q' => 'Why are some SVGs rejected with an "external reference" error?', 'a' => 'If the SVG links to an external image, font, or file (an http URL or a relative path like logo.png), the browser taints the canvas and blocks export. Inline the resource as a data: URI to get around the limit.'],
+                ['q' => 'Is the PNG background transparent or white?', 'a' => 'Transparent by default, because PNG has an alpha channel. Enable White background to flatten it to a solid white fill.'],
+                ['q' => 'Are my files uploaded anywhere?', 'a' => 'No. Conversion runs entirely in your browser, offline — nothing is sent to a server.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Bir SVG dosyasindan alinan PNG cozunurlugu render ettiginiz piksel boyutuna baglidir: <svg> etiketinde width ve height yoksa tarayicilar viewBox olmadikca 300x150 varsayar. Bu arac viewBox degerini okur, tuval uzerinde 1x-4x veya ozel genislikte rasterize eder ve size PNG verir; her sey tarayicida, cevrimdisi ve hicbir dosya yuklenmeden calisir.',
+            'steps' => [
+                'SVG kodunu yapistirin veya bir .svg dosyasi yukleyin.',
+                '1x/2x/4x carpanini secin ya da piksel cinsinden Ozel genislik girin.',
+                'Saydamligi beyazla doldurmak icin istege bagli Beyaz arka plan secenegini acin.',
+                'Onizlemede cikti boyutunu gorun ve PNG indir dugmesine basin.',
+            ],
+            'faq' => [
+                ['q' => 'PNG neden bulanik veya pikselli gorunuyor?', 'a' => 'PNG raster bir bicimdir. 1x degerinde viewBox piksel boyutunda render edilir; retina ekranlar icin 2x veya 4x secin ya da daha buyuk bir ozel genislik verin.'],
+                ['q' => 'Bazi SVGler neden dis referans hatasiyla reddediliyor?', 'a' => 'SVG dis bir goruntu, yazi tipi veya dosyaya (http adresi ya da logo.png gibi goreli bir yol) baglaniyorsa tarayici tuvali kirletir ve disa aktarmayi engeller. Sinirlamayi asmak icin kaynagi data: URI olarak satir icine alin.'],
+                ['q' => 'PNG arka plani saydam mi beyaz mi?', 'a' => 'Varsayilan olarak saydamdir cunku PNG bir alfa kanali icerir. Duz beyaz dolguya cevirmek icin Beyaz arka plan secenegini acin.'],
+                ['q' => 'Dosyalarim bir yere yukleniyor mu?', 'a' => 'Hayir. Donusturme tamamen tarayicinizda, cevrimdisi calisir; sunucuya hicbir sey gonderilmez.'],
+            ],
+        ],
+    ],
 ];

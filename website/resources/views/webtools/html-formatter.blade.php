@@ -215,7 +215,7 @@ html[data-theme="light"] .hff-wtitle{color:#b91c1c}
         i = g1s; continue;
       }
 
-      if (c1 === 63) {                                    // "<?" processing instruction
+      if (c1 === 63) {                                    // processing instruction (question-mark tag)
         var g2 = s.indexOf('>', lt);
         var g2s = g2 < 0 ? n : g2 + 1;
         toks.push({ t: 'keep', v: s.slice(lt, g2s), i: lt });

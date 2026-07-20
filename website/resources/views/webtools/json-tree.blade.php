@@ -1,6 +1,4 @@
 <style>
-  .jt-wrap{margin-top:16px}
-
   .jt-toolrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
   .jt-find{display:flex;align-items:center;gap:8px;flex:1;min-width:240px;background:var(--surface-2);
     border:1px solid var(--line-2);border-radius:12px;padding:0 12px;transition:border-color .2s}
@@ -23,11 +21,12 @@
   .jt-stat.warn b{color:#f0a02a}
 
   .jt-tree{position:relative;margin-top:14px;background:#0B111C;border:1px solid var(--line-2);border-radius:14px;
-    max-height:540px;min-height:220px;overflow:auto;padding:8px 0;
+    max-height:540px;min-height:220px;overflow:auto;padding:8px 0;outline:none;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.55;
     --jt-str:#7EE7A0; --jt-num:#79C0FF; --jt-bool:#D2A8FF; --jt-null:#8B95A6;
     --jt-key:#E3EAF5; --jt-punc:#7E8899; --jt-idx:#9AA6BA; --jt-hover:rgba(255,255,255,.05);
     --jt-sel:rgba(34,211,238,.14); --jt-selb:rgba(34,211,238,.55); --jt-hit:rgba(240,160,42,.11)}
+  .jt-tree:focus-visible{border-color:var(--cyan)}
   html[data-theme="light"] .jt-tree{background:#FCFDFF;border-color:var(--line);
     --jt-str:#0A7A34; --jt-num:#0B57AD; --jt-bool:#6D28D9; --jt-null:#64748B;
     --jt-key:#0B1220; --jt-punc:#7A869A; --jt-idx:#5B6478; --jt-hover:rgba(15,23,42,.05);
@@ -41,7 +40,7 @@
   .jt-row.is-sel{background:var(--jt-sel);border-inline-start-color:var(--jt-selb)}
 
   .jt-tw{width:15px;height:15px;flex:none;display:grid;place-items:center;color:var(--jt-punc);cursor:pointer;
-    border-radius:4px;transition:transform .15s,color .15s}
+    border-radius:4px;transition:color .15s}
   .jt-tw .icon{width:12px;height:12px;stroke-width:2.4;transform:rotate(-90deg);transition:transform .15s}
   .jt-tw.is-open .icon{transform:rotate(0deg)}
   .jt-tw:hover{color:var(--cyan)}
@@ -63,6 +62,7 @@
   .jt-empty{padding:52px 20px;text-align:center;color:var(--jt-null);font-size:13px;
     font-family:var(--font-body);line-height:1.9}
   .jt-note{padding:9px 14px;color:#F0A02A;font-size:12px;font-family:var(--font-body)}
+  .jt-hint{margin-top:9px;font-size:12px;color:var(--dim);line-height:1.8}
 
   .jt-sel-box{margin-top:14px;background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:13px 15px}
   .jt-sel-h{display:block;font-size:12px;color:var(--dim);margin-bottom:9px}
@@ -104,7 +104,8 @@
 
 <div class="jt-stats" id="jt-stats"></div>
 
-<div class="jt-tree" id="jt-tree" dir="ltr"></div>
+<div class="jt-tree" id="jt-tree" dir="ltr" tabindex="0"></div>
+<p class="jt-hint">{{ __('ui.wt_jt_hint') }}</p>
 
 <div class="jt-sel-box" id="jt-selbox" hidden>
   <label class="jt-sel-h" for="jt-path">{{ __('ui.wt_jt_path') }}</label>
@@ -180,6 +181,7 @@
   var tree = $('jt-tree'), msg = $('jt-msg'), statsEl = $('jt-stats');
   var root = null, nodes = [], stats = null;
   var expanded = Object.create(null);
+  var visIds = [];           /* node ids currently painted, in visual order */
   var selId = -1, lq = '', hitIds = [], hitSet = Object.create(null), hitAt = -1;
   var timer = null;
 
@@ -242,7 +244,7 @@
               if (d < 0) fail(L.eEscape);
               cp = cp * 16 + d;
             }
-            out += String.fromCharCode(cp);
+            out += String.fromCharCode(cp);   /* a surrogate pair arrives as two escapes and rejoins here */
             i += 4;
           } else fail(L.eEscape);
           i++;
@@ -531,6 +533,7 @@
   }
 
   function render() {
+    visIds = [];
     if (!root) {
       tree.innerHTML = '<div class="jt-empty">' + esc(L.empty) + '</div>';
       return;
@@ -540,6 +543,7 @@
     (function walk(nd, depth) {
       if (out.length >= MAX_ROWS) { cut = true; return; }
       out.push(rowHtml(nd, depth));
+      visIds.push(nd.id);
       if (nd.kids && nd.kids.length && expanded[nd.id]) {
         for (var i = 0; i < nd.kids.length; i++) {
           if (out.length >= MAX_ROWS) { cut = true; return; }
@@ -552,11 +556,20 @@
     tree.innerHTML = out.join('');
   }
 
-  function scrollToId(id) {
-    var el = tree.querySelector('[data-id="' + id + '"]');
+  function rowEl(id) { return tree.querySelector('[data-id="' + id + '"]'); }
+
+  function scrollToId(id, center) {
+    var el = rowEl(id);
     if (!el) return;
-    var want = el.offsetTop - tree.clientHeight / 2 + el.offsetHeight / 2;
-    tree.scrollTop = want < 0 ? 0 : want;
+    var top = el.offsetTop, bot = top + el.offsetHeight;
+    if (center) {
+      var want = top - tree.clientHeight / 2 + el.offsetHeight / 2;
+      tree.scrollTop = want < 0 ? 0 : want;
+      return;
+    }
+    var vt = tree.scrollTop, vb = vt + tree.clientHeight;   /* keyboard moves scroll the minimum needed */
+    if (top < vt + 8) tree.scrollTop = top - 8 < 0 ? 0 : top - 8;
+    else if (bot > vb - 8) tree.scrollTop = bot - tree.clientHeight + 8;
   }
 
   /* ───────────────────────── selection panel ───────────────────────── */
@@ -575,6 +588,23 @@
     if (nd.t === 'number') bits.push('<span>' + esc(L.mRaw) + ' <b dir="ltr">' + esc(nd.raw) + '</b></span>');
     if (!nd.parent) bits.push('<span><b>' + esc(L.root) + '</b></span>');
     $('jt-meta').innerHTML = bits.join('');
+  }
+
+  /* moving the selection repaints two rows instead of the whole tree, which matters
+     once a large payload has thousands of rows on screen */
+  function setSel(id) {
+    if (id === selId) { updateSel(); return; }
+    var old = selId;
+    selId = id;
+    if (old >= 0) {
+      var a = rowEl(old);
+      if (a) { a.classList.remove('is-sel'); if (hitSet[old]) a.classList.add('is-hit'); }
+    }
+    if (id >= 0) {
+      var b = rowEl(id);
+      if (b) { b.classList.remove('is-hit'); b.classList.add('is-sel'); }
+    }
+    updateSel();
   }
 
   /* ───────────────────────── search ───────────────────────── */
@@ -609,17 +639,15 @@
     }
     updateHitLabel();
     render();
-    if (jump && hitAt >= 0) scrollToId(hitIds[0]);
+    if (jump && hitAt >= 0) { setSel(hitIds[0]); scrollToId(hitIds[0], true); }
   }
 
   function navHit(dir) {
     if (!hitIds.length) return;
     hitAt = (hitAt + dir + hitIds.length) % hitIds.length;
-    selId = hitIds[hitAt];
     updateHitLabel();
-    render();
-    updateSel();
-    scrollToId(selId);
+    setSel(hitIds[hitAt]);
+    scrollToId(selId, true);
   }
 
   /* ───────────────────────── stats ───────────────────────── */
@@ -664,33 +692,30 @@
     })(root, 0);
   }
 
+  function bail(text) {
+    root = null; nodes = []; stats = null;
+    selId = -1; hitIds = []; hitSet = Object.create(null); hitAt = -1;
+    statsEl.innerHTML = '';
+    $('jt-selbox').hidden = true;
+    msg.textContent = text;
+    msg.className = 'wt-status err';
+    updateHitLabel();
+    render();
+  }
+
   function run() {
     var src = $('jt-in').value;
     if (!src.trim()) { reset(); return; }
-    if (src.length > MAX_CHARS) {
-      root = null; nodes = []; stats = null; statsEl.innerHTML = '';
-      $('jt-selbox').hidden = true;
-      msg.textContent = L.eSize;
-      msg.className = 'wt-status err';
-      render();
-      return;
-    }
+    if (src.length > MAX_CHARS) { bail(L.eSize); return; }
 
     var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
     var res;
     try {
       res = parse(src);
     } catch (e) {
-      root = null; nodes = []; stats = null;
-      selId = -1; hitIds = []; hitSet = Object.create(null); hitAt = -1;
-      statsEl.innerHTML = '';
-      $('jt-selbox').hidden = true;
       var at = lineCol(src, e instanceof ParseErr ? e.pos : 0);
       var text = e instanceof ParseErr ? e.msg : String(e.message || e);
-      msg.textContent = fill(fill(fill(L.eAt, ':l', at.line), ':c', at.col), ':m', text);
-      msg.className = 'wt-status err';
-      updateHitLabel();
-      render();
+      bail(fill(fill(fill(L.eAt, ':l', at.line), ':c', at.col), ':m', text));
       return;
     }
 
@@ -720,23 +745,23 @@
     render();
   }
 
+  function toggle(id) {
+    if (expanded[id]) delete expanded[id]; else expanded[id] = true;
+    selId = id;
+    render();
+    updateSel();
+  }
+
   /* ───────────────────────── events ───────────────────────── */
 
   tree.addEventListener('click', function (ev) {
     var row = ev.target.closest ? ev.target.closest('.jt-row') : null;
     if (!row) return;
     var id = +row.getAttribute('data-id');
-    var nd = nodes[id];
-    if (!nd) return;
+    if (!nodes[id]) return;
     var tw = ev.target.closest('.jt-tw');
-    if (tw && !tw.classList.contains('jt-tw-e')) {
-      if (expanded[id]) delete expanded[id]; else expanded[id] = true;
-      selId = id;
-      render(); updateSel();
-      return;
-    }
-    selId = id;
-    render(); updateSel();
+    if (tw && !tw.classList.contains('jt-tw-e')) { toggle(id); return; }
+    setSel(id);
   });
 
   tree.addEventListener('dblclick', function (ev) {
@@ -745,9 +770,39 @@
     var id = +row.getAttribute('data-id');
     var nd = nodes[id];
     if (!nd || !nd.kids || !nd.kids.length) return;
-    if (expanded[id]) delete expanded[id]; else expanded[id] = true;
-    selId = id;
-    render(); updateSel();
+    toggle(id);
+  });
+
+  function visIndex(id) {
+    for (var i = 0; i < visIds.length; i++) if (visIds[i] === id) return i;
+    return -1;
+  }
+
+  /* the tree is dir="ltr" on purpose, so left always means "towards the parent" */
+  tree.addEventListener('keydown', function (ev) {
+    if (!root) return;
+    var k = ev.key;
+    if (k !== 'ArrowDown' && k !== 'ArrowUp' && k !== 'ArrowLeft' && k !== 'ArrowRight'
+        && k !== 'Enter' && k !== ' ') return;
+    ev.preventDefault();
+    if (selId < 0 || !nodes[selId]) { setSel(root.id); scrollToId(selId, false); return; }
+
+    var nd = nodes[selId], at = visIndex(selId);
+    var box = !!(nd.kids && nd.kids.length);
+
+    if (k === 'ArrowDown') {
+      if (at >= 0 && at + 1 < visIds.length) { setSel(visIds[at + 1]); scrollToId(selId, false); }
+    } else if (k === 'ArrowUp') {
+      if (at > 0) { setSel(visIds[at - 1]); scrollToId(selId, false); }
+    } else if (k === 'ArrowRight') {
+      if (box && !expanded[selId]) { toggle(selId); scrollToId(selId, false); }
+      else if (box) { setSel(nd.kids[0].id); scrollToId(selId, false); }
+    } else if (k === 'ArrowLeft') {
+      if (box && expanded[selId]) { toggle(selId); scrollToId(selId, false); }
+      else if (nd.parent) { setSel(nd.parent.id); scrollToId(selId, false); }
+    } else if (box) {
+      toggle(selId); scrollToId(selId, false);
+    }
   });
 
   $('jt-in').addEventListener('input', function () {

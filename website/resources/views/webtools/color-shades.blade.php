@@ -43,11 +43,11 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
 
 <div class="wt-two">
   <div class="wt-pane">
-    <label>{{ __('ui.wt_cs_base') }}</label>
+    <label for="cs-pick">{{ __('ui.wt_cs_base') }}</label>
     <input type="color" id="cs-pick" class="wt-color" value="#22d3ee">
   </div>
   <div class="wt-pane">
-    <label>{{ __('ui.wt_cs_any') }}</label>
+    <label for="cs-in">{{ __('ui.wt_cs_any') }}</label>
     <input type="text" id="cs-in" class="wt-input-lg" dir="ltr" spellcheck="false"
            placeholder="#22d3ee / rgb(34,211,238) / hsl(188,86%,53%)">
     <div class="cs-meta">
@@ -58,11 +58,11 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
 </div>
 
 <div class="wt-fields">
-  <label class="wt-range">{{ __('ui.wt_cs_name') }}
+  <label class="wt-range" for="cs-name">{{ __('ui.wt_cs_name') }}
     <input type="text" id="cs-name" class="cs-name" dir="ltr" spellcheck="false" value="brand" maxlength="24">
   </label>
-  <label class="wt-chk"><input type="checkbox" id="cs-pure"> {{ __('ui.wt_cs_pure') }}</label>
-  <button class="btn btn-glass" id="cs-rand" style="padding:8px 15px;font-size:13px">{{ __('ui.wt_cs_random') }}</button>
+  <label class="wt-chk"><input type="checkbox" id="cs-soft"> {{ __('ui.wt_cs_soft') }}</label>
+  <button type="button" class="btn btn-glass" id="cs-rand" style="padding:8px 15px;font-size:13px">{{ __('ui.wt_cs_random') }}</button>
 </div>
 
 <div class="cs-legend">
@@ -74,17 +74,17 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
 
 <div class="wt-io cs-outs">
   <div class="wt-pane">
-    <label>{{ __('ui.wt_cs_css') }}</label>
+    <label for="cs-css">{{ __('ui.wt_cs_css') }}</label>
     <textarea id="cs-css" class="wt-ta" rows="13" readonly dir="ltr"></textarea>
     <div class="wt-bar">
-      <button class="btn btn-glass" id="cs-css-c" data-done="{{ __('ui.wt_copied') }}">{{ __('ui.wt_copy') }}</button>
+      <button type="button" class="btn btn-glass" id="cs-css-c" data-done="{{ __('ui.wt_copied') }}">{{ __('ui.wt_copy') }}</button>
     </div>
   </div>
   <div class="wt-pane">
-    <label>{{ __('ui.wt_cs_tw') }}</label>
+    <label for="cs-tw">{{ __('ui.wt_cs_tw') }}</label>
     <textarea id="cs-tw" class="wt-ta" rows="13" readonly dir="ltr"></textarea>
     <div class="wt-bar">
-      <button class="btn btn-glass" id="cs-tw-c" data-done="{{ __('ui.wt_copied') }}">{{ __('ui.wt_copy') }}</button>
+      <button type="button" class="btn btn-glass" id="cs-tw-c" data-done="{{ __('ui.wt_copied') }}">{{ __('ui.wt_copy') }}</button>
     </div>
   </div>
 </div>
@@ -92,6 +92,9 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
+
+  /* a lone backslash in a JS string is stripped by the build step — build newlines by code */
+  var NL = String.fromCharCode(10);
 
   var L = {
     base:   @json(__('ui.wt_cs_basetag')),
@@ -101,6 +104,7 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
     large:  @json(__('ui.wt_cs_glarge')),
     fail:   @json(__('ui.wt_cs_gfail')),
     bad:    @json(__('ui.wt_cs_bad')),
+    ctitle: @json(__('ui.wt_cs_copyhex')),
     copied: @json(__('ui.wt_copied'))
   };
 
@@ -175,21 +179,23 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
     return null;
   }
 
-  /* ---- build the 10-step ramp from one base colour ---- */
-  function buildRamp(rgb, pure) {
+  /* ---- build the 10-step ramp from one base colour ----
+     step 500 is the untouched base; below it we interpolate L toward 100%,
+     above it toward 0%. "soften" additionally pulls saturation down at the
+     extremes so tints/shades do not read as neon. Hue never moves.        */
+  function buildRamp(rgb, soft) {
     var hsl = rgb2hsl(rgb[0], rgb[1], rgb[2]);
     var h = hsl[0], s = hsl[1], l = hsl[2];
     return STEPS.map(function (step, i) {
       var m = MIX[i], nl, ns = s;
-      if (step < 500) { nl = l + (100 - l) * m; if (pure) ns = s * (1 - m); }
+      if (step < 500) { nl = l + (100 - l) * m; if (soft) ns = s * (1 - m); }
       else if (step === 500) { nl = l; }
-      else { nl = l * (1 - m); if (pure) ns = s * (1 - m); }
+      else { nl = l * (1 - m); if (soft) ns = s * (1 - m); }
       var c = hsl2rgb(h, ns / 100, nl / 100).map(function (v) { return clamp(Math.round(v), 0, 255); });
       return {
         step: step,
         rgb: c,
         hex: '#' + hx(c[0]) + hx(c[1]) + hx(c[2]),
-        l: nl,
         w: ratio(c, [255, 255, 255]),
         k: ratio(c, [0, 0, 0])
       };
@@ -224,8 +230,7 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
     $('cs-hsl').textContent = 'hsl(' + Math.round(hsl[0]) + ', ' + Math.round(hsl[1]) + '%, '
                             + Math.round(hsl[2]) + '%)';
 
-    var pure = $('cs-pure').checked;
-    var ramp = buildRamp(rgb, pure);
+    var ramp = buildRamp(rgb, $('cs-soft').checked);
 
     $('cs-ramp').innerHTML = ramp.map(function (r) {
       return '<div class="cs-row' + (r.step === 500 ? ' is-base' : '') + '">'
@@ -236,7 +241,8 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
         + '<div class="cs-lab"><b dir="ltr">' + r.step + '</b>'
         +   (r.step === 500 ? '<i>' + esc(L.base) + '</i>' : '') + '</div>'
         + '<button type="button" class="cs-hexbtn" dir="ltr" data-v="' + r.hex
-        +   '" data-done="' + esc(L.copied) + '">' + r.hex + '</button>'
+        +   '" title="' + esc(L.ctitle) + '" aria-label="' + esc(L.ctitle) + ' ' + r.hex + '"'
+        +   ' data-done="' + esc(L.copied) + '">' + r.hex + '</button>'
         + '<span class="cs-sp"></span>'
         + crCell(L.white, r.w)
         + crCell(L.black, r.k)
@@ -255,7 +261,7 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
       css.push('  --' + name + '-' + pad(r.step) + ' ' + r.hex + ';');
     });
     css.push('}');
-    $('cs-css').value = css.join('\n');
+    $('cs-css').value = css.join(NL);
 
     var key = /^[a-z_$][a-z0-9_$]*$/i.test(name) ? name : "'" + name + "'";
     var tw = ['// tailwind.config.js', 'module.exports = {', '  theme: {', '    extend: {', '      colors: {'];
@@ -264,12 +270,12 @@ html[data-theme="light"] .cs-g.no{color:#b32424;background:rgba(255,107,107,.15)
       tw.push('          ' + r.step + ": '" + r.hex + "',");
     });
     tw.push('        },', '      },', '    },', '  },', '};');
-    $('cs-tw').value = tw.join('\n');
+    $('cs-tw').value = tw.join(NL);
   }
 
   $('cs-pick').addEventListener('input', function () { $('cs-in').value = $('cs-pick').value; render(); });
   ['cs-in', 'cs-name'].forEach(function (id) { $(id).addEventListener('input', render); });
-  $('cs-pure').addEventListener('change', render);
+  $('cs-soft').addEventListener('change', render);
   $('cs-rand').addEventListener('click', function () {
     var h = Math.floor(Math.random() * 360),
         s = 45 + Math.floor(Math.random() * 45),

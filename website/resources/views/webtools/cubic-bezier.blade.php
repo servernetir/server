@@ -259,6 +259,7 @@
 
   var s = { x1: 0.25, y1: 0.1, x2: 0.25, y2: 1 };
   var Y_MIN = -1.5, Y_MAX = 2.5;
+  var cssValue = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
   var clamp = function (v, a, b) { return v < a ? a : (v > b ? b : v); };
 
   /* ---------- bezier maths ----------
@@ -540,8 +541,7 @@
   /* ---------- preview ---------- */
   var track = $('cb-track'), mv = $('cb-mv'), ring = $('cb-ring'), tick = $('cb-tick');
   var bar = $('cb-bar'), fade = $('cb-fade'), live = $('cb-live');
-  var cssValue = value();
-  var travel = 200, playing = true, cycStart = -1, pending = true, lastP = 0, raf = 0;
+  var travel = 200, playing = true, lastP = 0, raf = 0, t0 = 0, lastEl = -1;
   var PAUSE = 480;
 
   function measure() {

@@ -43,6 +43,7 @@
   .pc-sel{position:absolute;box-sizing:border-box;border:1px dashed #fff;background:rgba(34,211,238,.22);
     pointer-events:none}
   .pc-hint{margin-top:2px;line-height:1.9}
+  .pc-busy{opacity:.55}
 
   .pc-note{display:flex;align-items:flex-start;gap:9px;margin-top:16px;padding:12px 14px;border-radius:12px;
     background:rgba(34,211,238,.07);border:1px solid var(--line-2);font-size:12.5px;color:var(--muted);line-height:1.85}
@@ -88,6 +89,7 @@
     </div>
 
     <p class="wt-status pc-hint">{{ __('ui.wt_pc_hint') }}</p>
+    <p class="wt-status pc-hint">{{ __('ui.wt_pc_applies') }}</p>
     <p class="wt-status pc-hint" id="pc-scaled" hidden></p>
 
     <div class="pc-note">
@@ -128,9 +130,10 @@
   const $ = function (id) { return document.getElementById(id); };
   const T = @json($pcTxt);
 
-  const MAX_PIXELS  = 24000000;   /* حداکثر مساحت بوم برای جلوگیری از پرشدن حافظه */
-  const MAX_PREVIEW = 1200;       /* حداکثر ضلع پیش‌نمایش */
+  const MAX_PIXELS  = 24000000;   /* سقف مساحت بوم کاری برای جلوگیری از پرشدن حافظه */
+  const MAX_PREVIEW = 1200;       /* حداکثر ضلع بوم پیش‌نمایش */
   const MAX_REGIONS = 40;
+  const MAX_BLUR_PX = 6000000;    /* بالاتر از این مساحت، پاس‌های محو کم می‌شود */
 
   const root   = $('pc');
   const drop   = $('pc-drop');
@@ -149,13 +152,15 @@
   const strLab = $('pc-str-label');
   const strWrap= $('pc-str-wrap');
 
-  /* بوم اصل تصویر (دست‌نخورده) و بوم کاری (سانسورشده) */
+  /* base = تصویر اصل و دست‌نخورده · full = بوم کاری که سانسور روی آن پخته می‌شود */
   const base = document.createElement('canvas');
   const bctx = base.getContext('2d');
   const full = document.createElement('canvas');
   const fctx = full.getContext('2d', { willReadFrequently: true });
-  const tmp  = document.createElement('canvas');
-  const tctx = tmp.getContext('2d');
+  const tmpA = document.createElement('canvas');
+  const tcA  = tmpA.getContext('2d');
+  const tmpB = document.createElement('canvas');
+  const tcB  = tmpB.getContext('2d');
 
   let ready = false, nw = 0, nh = 0;
   let regions = [];
@@ -192,7 +197,10 @@
     if (f) loadFile(f);
   });
 
-  function fail() { errEl.hidden = false; }
+  function fail() {
+    errEl.hidden = false;
+    if (!ready) { editor.hidden = true; drop.hidden = false; }
+  }
 
   function loadFile(f) {
     if (!f.type || f.type.indexOf('image/') !== 0) { fail(); return; }
@@ -220,6 +228,7 @@
 
     base.width = nw; base.height = nh;
     bctx.clearRect(0, 0, nw, nh);
+    bctx.imageSmoothingEnabled = true;
     bctx.drawImage(img, 0, 0, nw, nh);
 
     full.width = nw; full.height = nh;
@@ -229,8 +238,12 @@
     pcan.height = Math.max(1, Math.round(nh * ps));
 
     const sc = $('pc-scaled');
-    if (k < 1) { sc.textContent = T.scaled + ' ' + nw + ' × ' + nh + ' ' + T.px; sc.hidden = false; }
-    else { sc.hidden = true; }
+    if (k < 1) {
+      sc.textContent = T.scaled + ' ' + nw + ' × ' + nh + ' ' + T.px;
+      sc.hidden = false;
+    } else {
+      sc.hidden = true;
+    }
 
     regions = [];
     ready = true;
@@ -241,7 +254,35 @@
 
   /* ─────────────────── الگوریتم‌های پوشاندن ─────────────────── */
 
-  /* پیکسلی: ناحیه در ابعاد کوچک ترسیم و با خاموش‌بودن نرم‌سازی دوباره بزرگ می‌شود */
+  /* کوچک‌سازی پلکانی (هر بار نصف) تا میانگین بلوک‌های بزرگ دقیق دربیاید.
+     تغییر اندازه‌ی بوم، وضعیت context را صفر می‌کند؛ پس تنظیم‌ها بعد از width/height می‌آید. */
+  function shrink(sx, sy, sw, sh, dw, dh) {
+    let cw = (sw > dw * 2) ? Math.max(dw, Math.ceil(sw / 2)) : dw;
+    let ch = (sh > dh * 2) ? Math.max(dh, Math.ceil(sh / 2)) : dh;
+
+    tmpA.width = cw; tmpA.height = ch;
+    tcA.imageSmoothingEnabled = true;
+    tcA.imageSmoothingQuality = 'high';
+    tcA.drawImage(full, sx, sy, sw, sh, 0, 0, cw, ch);
+
+    let srcCan = tmpA, srcCtx = tcA, dstCan = tmpB, dstCtx = tcB;
+    let guard = 0;
+    while ((cw > dw || ch > dh) && guard++ < 24) {
+      const nwid = Math.max(dw, Math.ceil(cw / 2));
+      const nhei = Math.max(dh, Math.ceil(ch / 2));
+      dstCan.width = nwid; dstCan.height = nhei;
+      dstCtx.imageSmoothingEnabled = true;
+      dstCtx.imageSmoothingQuality = 'high';
+      dstCtx.drawImage(srcCan, 0, 0, cw, ch, 0, 0, nwid, nhei);
+      cw = nwid; ch = nhei;
+      const kc = srcCan, kx = srcCtx;
+      srcCan = dstCan; srcCtx = dstCtx;
+      dstCan = kc; dstCtx = kx;
+    }
+    return srcCan;   /* ابعادش دقیقا dw × dh است */
+  }
+
+  /* پیکسلی: ناحیه در ابعاد کوچک ترسیم و با خاموش‌بودن نرم‌سازی دقیقا b برابر بزرگ می‌شود */
   function applyPixelate(r, block) {
     const b  = Math.max(2, Math.round(block));
     const sw = Math.max(1, Math.ceil(r.w / b));
@@ -249,21 +290,18 @@
     const gw = Math.min(sw * b, nw - r.x);
     const gh = Math.min(sh * b, nh - r.y);
 
-    tmp.width = sw; tmp.height = sh;
-    tctx.imageSmoothingEnabled = true;
-    tctx.clearRect(0, 0, sw, sh);
-    tctx.drawImage(full, r.x, r.y, gw, gh, 0, 0, sw, sh);
+    const small = shrink(r.x, r.y, gw, gh, sw, sh);
 
     fctx.save();
     fctx.beginPath();
     fctx.rect(r.x, r.y, r.w, r.h);
     fctx.clip();
     fctx.imageSmoothingEnabled = false;
-    fctx.drawImage(tmp, 0, 0, sw, sh, r.x, r.y, sw * b, sh * b);
+    fctx.drawImage(small, 0, 0, sw, sh, r.x, r.y, sw * b, sh * b);
     fctx.restore();
   }
 
-  /* محو: سه پاس فیلتر جعبه‌ای (تقریب گاوسی) فقط روی پیکسل‌های همان ناحیه */
+  /* محو: فیلتر جعبه‌ای با جمع لغزان (تقریب گاوسی) فقط روی پیکسل‌های همان ناحیه */
   function hPass(src, dst, w, h, r) {
     const win = 2 * r + 1;
     for (let y = 0; y < h; y++) {
@@ -297,7 +335,7 @@
     if (w < 2 || h < 2) return;
     let rad = Math.round(radius);
     rad = Math.max(1, Math.min(rad, Math.max(1, Math.floor(Math.min(w, h) / 2) - 1)));
-    const passes = (w * h > 3000000) ? 1 : 3;
+    const passes = (w * h > MAX_BLUR_PX) ? 1 : 3;
     const id = fctx.getImageData(r.x, r.y, w, h);
     const a = id.data;
     const b = new Uint8ClampedArray(a.length);
@@ -308,6 +346,7 @@
   function applyRegion(r) {
     if (r.mode === 'solid') {
       fctx.save();
+      fctx.globalCompositeOperation = 'source-over';
       fctx.fillStyle = '#000000';
       fctx.fillRect(r.x, r.y, r.w, r.h);
       fctx.restore();
@@ -323,6 +362,7 @@
   function render() {
     if (!ready) return;
     fctx.setTransform(1, 0, 0, 1, 0, 0);
+    fctx.globalAlpha = 1;
     fctx.clearRect(0, 0, nw, nh);
     fctx.imageSmoothingEnabled = true;
     fctx.drawImage(base, 0, 0);
@@ -383,7 +423,9 @@
     s.dir = 'ltr';
     s.textContent = 'X ' + r.x + ' · Y ' + r.y + ' · ' + r.w + ' × ' + r.h + ' ' + T.px;
     last.appendChild(s);
-    last.appendChild(document.createTextNode(' · ' + (T[r.mode] || r.mode)));
+    let tail = ' · ' + (T[r.mode] || r.mode);
+    if (r.mode !== 'solid') tail += ' ' + r.val;
+    last.appendChild(document.createTextNode(tail));
   }
 
   /* ─────────────────── تنظیمات ─────────────────── */
@@ -483,17 +525,28 @@
 
   /* ─────────────────── واگرد / پاک‌کردن ─────────────────── */
 
-  $('pc-undo').addEventListener('click', function () {
-    if (!regions.length) return;
+  function undo() {
+    if (!ready || !regions.length) return;
     regions.pop();
     limitEl.hidden = true;
     render();
-  });
+  }
+  $('pc-undo').addEventListener('click', undo);
   $('pc-clear').addEventListener('click', function () {
     if (!regions.length) return;
     regions = [];
     limitEl.hidden = true;
     render();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (editor.hidden) return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey) return;
+    if (String(e.key).toLowerCase() !== 'z') return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (!regions.length) return;
+    e.preventDefault();
+    undo();
   });
 
   /* ─────────────────── دانلود (پیکسل‌های پخته‌شده) ─────────────────── */

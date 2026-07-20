@@ -14,7 +14,7 @@
 <div class="wt-io">
   <div class="wt-pane">
     <label>{{ __('ui.wt_input') }}</label>
-    <textarea id="hm-in" class="wt-ta" rows="15" dir="ltr" spellcheck="false" placeholder="<div  class=&quot;box&quot;>   <!-- c -->   <p>x</p>  </div>"></textarea>
+    <textarea id="hm-in" class="wt-ta" rows="15" dir="ltr" spellcheck="false" placeholder="{{ __('ui.wt_hm_ph') }}"></textarea>
   </div>
   <div class="wt-pane">
     <label>{{ __('ui.wt_output') }}</label>
@@ -57,22 +57,38 @@
 
   var T = {
     done:     @json(__('ui.wt_hm_done')),
-    prot:     @json(__('ui.wt_hm_protected')),
     nochange: @json(__('ui.wt_hm_nochange')),
-    toobig:   @json(__('ui.wt_hm_toobig')),
-    xhtml:    @json(__('ui.wt_hm_xhtml'))
+    prot:     @json(__('ui.wt_hm_protected')),
+    removed:  @json(__('ui.wt_hm_removed')),
+    verified: @json(__('ui.wt_hm_verified')),
+    xhtml:    @json(__('ui.wt_hm_xhtml')),
+    broken:   @json(__('ui.wt_hm_broken')),
+    guard:    @json(__('ui.wt_hm_guard')),
+    toobig:   @json(__('ui.wt_hm_toobig'))
   };
 
-  var MAX = 2000000;                // hard cap: 2M chars, keeps the tab responsive
-  var LF  = String.fromCharCode(10);
+  var MAX = 2000000;                       // hard cap: 2M chars, keeps the tab responsive
 
-  // Built by concatenation on purpose: a literal comment or script marker written
-  // inside an inline script block flips the HTML tokenizer into escaped state.
-  var LT = String.fromCharCode(60);
-  var CO = LT + '!--';              // comment open
-  var CC = '--' + String.fromCharCode(62);   // comment close
-  var CD = LT + '![CDATA[';
+  // Built by concatenation on purpose: a literal comment opener, or a closing
+  // script marker typed out inside an inline script, flips the HTML tokenizer
+  // state and would truncate this block.
+  var LT    = String.fromCharCode(60);
+  var GT    = String.fromCharCode(62);
+  var LF    = String.fromCharCode(10);
+  var CO    = LT + '!--';                  // comment open
+  var CC    = '--' + GT;                   // comment close
+  var CD    = LT + '![CDATA[';
   var ENDIF = LT + '![endif]';
+  var SEP   = String.fromCharCode(1);      // signature field separator
+
+  // HTML whitespace is exactly these five code points. U+00A0 (nbsp) is NOT one
+  // of them and must never be collapsed.
+  var WSC = String.fromCharCode(32) + String.fromCharCode(9) + String.fromCharCode(10) +
+            String.fromCharCode(13) + String.fromCharCode(12);
+  var RE_WS = new RegExp('[' + WSC + ']+', 'g');
+
+  function collapseWS(s) { return s.replace(RE_WS, ' '); }
+  function stripWS(s)    { return s.replace(RE_WS, ''); }
 
   function mk(list) {
     var o = {}, a = list.toLowerCase().split(' ');
@@ -80,26 +96,29 @@
     return o;
   }
 
-  // HTML void elements — never have a closing tag
+  // Void elements: never have a closing tag, so a trailing slash is pure noise.
   var VOID = mk('area base br col embed hr img input link meta param source track wbr');
 
-  // Elements whose text content must survive byte-for-byte
+  // Elements whose text content must survive byte for byte.
   var RAWEL = mk('script style pre textarea');
 
   // Elements next to which whitespace is NOT rendered, so it can be dropped.
-  // Anything absent from this list (including custom / unknown elements) is
-  // treated as inline and keeps one space — the conservative side.
+  // Anything absent from this list — including custom and unknown elements — is
+  // treated as inline and keeps one space, which is the conservative side.
+  // script/style/noscript/template are deliberately absent: they render nothing
+  // themselves, but the text nodes on either side still collapse to ONE space,
+  // not zero, so "a" + a script element + "b" must not become "ab".
   var BLOCK = mk(
-    'html head body base link meta title style script noscript template ' +
+    'html head body base link meta title ' +
     'address article aside blockquote caption col colgroup dd details dialog div dl dt ' +
     'fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr legend li ' +
-    'main menu nav ol optgroup option p param pre search section source summary ' +
-    'table tbody td tfoot th thead tr track ul area ' +
-    'defs g path circle ellipse rect line polyline polygon symbol use desc metadata ' +
+    'main menu nav ol optgroup option p pre search section summary ' +
+    'table tbody td tfoot th thead tr ul ' +
+    'svg defs g path circle ellipse rect line polyline polygon symbol use desc metadata ' +
     'clippath mask filter marker pattern lineargradient radialgradient stop'
   );
 
-  // Boolean attributes: value may be dropped when it is empty or equal to the name
+  // Boolean attributes: the value may be dropped when it is empty or equals the name.
   var BOOL = mk(
     'allowfullscreen async autofocus autoplay checked controls default defer disabled ' +
     'formnovalidate inert ismap itemscope loop multiple muted nomodule novalidate open ' +
@@ -115,10 +134,26 @@
     return s.slice(a, b);
   }
 
+  // Find the matching close tag of a raw-text element. Mirrors the HTML tokenizer:
+  // the body ends at the first "</name" followed by whitespace, "/" or ">", even
+  // when that sequence sits inside a JS string.
+  function findClose(s, from, lname) {
+    var p = from, n = s.length;
+    while (true) {
+      var k = s.indexOf(LT, p);
+      if (k < 0) return -1;
+      if (s.charCodeAt(k + 1) === 47 && s.substr(k + 2, lname.length).toLowerCase() === lname) {
+        var e = k + 2 + lname.length, a = s.charCodeAt(e);
+        if (e >= n || a === 62 || a === 47 || isWS(a)) return k;
+      }
+      p = k + 1;
+    }
+  }
+
   // ---- tokenizer -----------------------------------------------------------
   // token kinds: text | comment | decl (doctype) | keep (verbatim) | tag
   function tokenize(s) {
-    var toks = [], i = 0, n = s.length, prot = 0;
+    var toks = [], i = 0, n = s.length, prot = 0, broken = false;
 
     function pushText(v) {
       if (!v) return;
@@ -127,12 +162,13 @@
     }
 
     while (i < n) {
-      var lt = s.indexOf('<', i);
+      var lt = s.indexOf(LT, i);
       if (lt < 0) { pushText(s.slice(i)); break; }
       if (lt > i) pushText(s.slice(i, lt));
 
-      if (s.substr(lt, 4) === CO) {
+      if (s.substr(lt, 4) === CO) {                       // comment
         var ce = s.indexOf(CC, lt + 4);
+        if (ce < 0) broken = true;
         var cstop = ce < 0 ? n : ce + 3;
         toks.push({ t: 'comment', v: s.slice(lt, cstop) });
         i = cstop; continue;
@@ -140,43 +176,46 @@
 
       var c1 = s.charCodeAt(lt + 1);
 
-      if (c1 === 33) {                                   // "<!"  doctype / CDATA
+      if (c1 === 33) {                                    // "<!" doctype or CDATA
         if (s.substr(lt, 9) === CD) {
-          var de = s.indexOf(']]>', lt);
+          var de = s.indexOf(']]' + GT, lt);
+          if (de < 0) broken = true;
           var dstop = de < 0 ? n : de + 3;
           toks.push({ t: 'keep', v: s.slice(lt, dstop) });
           i = dstop; continue;
         }
-        var g1 = s.indexOf('>', lt);
+        var g1 = s.indexOf(GT, lt);
+        if (g1 < 0) broken = true;
         var g1stop = g1 < 0 ? n : g1 + 1;
         toks.push({ t: 'decl', v: s.slice(lt, g1stop) });
         i = g1stop; continue;
       }
 
-      if (c1 === 63) {                                   // "<?"  processing instruction
-        var g2 = s.indexOf('>', lt);
+      if (c1 === 63) {                                    // "<?" processing instruction / PHP
+        var g2 = s.indexOf(GT, lt);
+        if (g2 < 0) broken = true;
         var g2stop = g2 < 0 ? n : g2 + 1;
         toks.push({ t: 'keep', v: s.slice(lt, g2stop) });
         i = g2stop; continue;
       }
 
       var close = false, p = lt + 1;
-      if (c1 === 47) { close = true; p++; }              // "</"
+      if (c1 === 47) { close = true; p++; }               // "</"
       var ns = p;
       while (p < n) { var nc = s.charCodeAt(p); if (isWS(nc) || nc === 62 || nc === 47) break; p++; }
       var name = s.slice(ns, p);
-      if (!name || !isAlpha(name.charCodeAt(0))) {       // a stray "<" in text
-        pushText('<'); i = lt + 1; continue;
+      if (!name || !isAlpha(name.charCodeAt(0))) {        // a stray "<" sitting in text
+        pushText(LT); i = lt + 1; continue;
       }
 
       // ---- attributes
-      var attrs = [], self = false;
+      var attrs = [], self = false, closed = false;
       while (p < n) {
         var c2 = s.charCodeAt(p);
         if (isWS(c2)) { p++; continue; }
-        if (c2 === 62) { p++; break; }                   // ">"
-        if (c2 === 47) {                                 // "/"
-          if (s.charCodeAt(p + 1) === 62) { self = true; p += 2; break; }
+        if (c2 === 62) { p++; closed = true; break; }     // ">"
+        if (c2 === 47) {                                  // "/"
+          if (s.charCodeAt(p + 1) === 62) { self = true; p += 2; closed = true; break; }
           p++; continue;
         }
         var as = p;
@@ -185,39 +224,41 @@
         if (!an) { p++; continue; }
         var q = p;
         while (q < n && isWS(s.charCodeAt(q))) q++;
-        if (s.charCodeAt(q) === 61) {                    // "="
+        if (s.charCodeAt(q) === 61) {                     // "="
           q++;
           while (q < n && isWS(s.charCodeAt(q))) q++;
           var qc = s.charCodeAt(q);
-          if (qc === 34 || qc === 39) {                  // quoted value
+          if (qc === 34 || qc === 39) {                   // quoted value
             var quote = s.charAt(q);
             var ve = s.indexOf(quote, q + 1);
-            if (ve < 0) { attrs.push({ n: an, v: s.slice(q + 1) }); p = n; }
+            if (ve < 0) { attrs.push({ n: an, v: s.slice(q + 1) }); p = n; broken = true; }
             else { attrs.push({ n: an, v: s.slice(q + 1, ve) }); p = ve + 1; }
-          } else {                                       // unquoted value
+          } else {                                        // unquoted value: only WS and ">" end it
             var vs = q;
             while (q < n) { var c4 = s.charCodeAt(q); if (isWS(c4) || c4 === 62) break; q++; }
             attrs.push({ n: an, v: s.slice(vs, q) });
             p = q;
           }
         } else {
-          attrs.push({ n: an, v: null });                // valueless attribute
+          attrs.push({ n: an, v: null });                 // valueless attribute
         }
       }
+      if (!closed) broken = true;
 
       var lname = name.toLowerCase();
 
       // ---- raw-text element: copy the body through untouched
       if (!close && RAWEL[lname] && !self) {
         var k = findClose(s, p, lname), inner, after;
-        if (k < 0) { inner = s.slice(p); after = n; }
+        if (k < 0) { inner = s.slice(p); after = n; broken = true; }
         else {
           inner = s.slice(p, k);
-          var g3 = s.indexOf('>', k);
+          var g3 = s.indexOf(GT, k);
           after = g3 < 0 ? n : g3 + 1;
         }
         toks.push({ t: 'tag', close: false, name: name, attrs: attrs, self: false });
-        if (inner) { toks.push({ t: 'keep', v: inner }); prot++; }
+        if (inner) toks.push({ t: 'keep', v: inner });
+        prot++;
         if (k >= 0) toks.push({ t: 'tag', close: true, name: s.substr(k + 2, lname.length), attrs: [], self: false });
         i = after; continue;
       }
@@ -226,34 +267,22 @@
       i = p;
     }
 
-    return { toks: toks, prot: prot };
-  }
-
-  function findClose(s, from, lname) {
-    var p = from;
-    while (true) {
-      var k = s.indexOf('<', p);
-      if (k < 0) return -1;
-      if (s.charCodeAt(k + 1) === 47 && s.substr(k + 2, lname.length).toLowerCase() === lname) {
-        var a = s.charCodeAt(k + 2 + lname.length);
-        if (a === 62 || isWS(a) || isNaN(a)) return k;
-      }
-      p = k + 1;
-    }
+    return { toks: toks, prot: prot, broken: broken };
   }
 
   // ---- passes --------------------------------------------------------------
   function dropComments(toks) {
-    var out = [];
+    var out = [], removed = 0;
     for (var i = 0; i < toks.length; i++) {
       var t = toks[i];
       if (t.t === 'comment') {
         var v = t.v, c = v.charAt(4);
-        // keep downlevel/conditional comments and "bang" license comments
+        // downlevel/conditional comments and "bang" licence comments stay
         if (c === '[' || c === '!' || v.indexOf(ENDIF) >= 0) { out.push(t); }
+        else { removed++; }
         continue;
       }
-      if (t.t === 'text') {
+      if (t.t === 'text') {                               // texts around a dropped comment merge
         var last = out[out.length - 1];
         if (last && last.t === 'text') { last.v += t.v; continue; }
         out.push({ t: 'text', v: t.v });
@@ -261,27 +290,15 @@
       }
       out.push(t);
     }
-    return out;
-  }
-
-  function collapseWS(t) {
-    var out = '', pend = false;
-    for (var i = 0; i < t.length; i++) {
-      var c = t.charCodeAt(i);
-      if (isWS(c)) { pend = true; continue; }            // note: nbsp (160) is NOT whitespace here
-      if (pend) { out += ' '; pend = false; }
-      out += t.charAt(i);
-    }
-    if (pend) out += ' ';
-    return out;
+    return { toks: out, removed: removed };
   }
 
   // Is the neighbouring token a boundary where whitespace is not rendered?
   function blockSide(t) {
-    if (!t) return true;                                 // start / end of document
+    if (!t) return true;                                  // start / end of document
     if (t.t === 'tag') return !!BLOCK[t.name.toLowerCase()];
     if (t.t === 'decl') return true;
-    return false;                                        // comment / verbatim -> keep the space
+    return false;                                         // comment / verbatim -> keep the space
   }
 
   function squeeze(toks) {
@@ -297,6 +314,8 @@
     return out;
   }
 
+  // Attributes whose value equals the browser default. input[type=text] is
+  // deliberately NOT here: dropping it silently breaks input[type="text"] in CSS.
   function redundant(tag, a, attrs) {
     if (a.v === null) return false;
     var nm = a.n.toLowerCase(), v = trimWS(a.v).toLowerCase();
@@ -309,12 +328,12 @@
       if (nm === 'language') return v === 'javascript';
     }
     if (tag === 'style') {
-      if (nm === 'type') return v === 'text/css';
+      if (nm === 'type')  return v === 'text/css';
       if (nm === 'media') return v === 'all';
     }
     if (tag === 'link') {
       if (nm === 'media') return v === 'all';
-      if (nm === 'type' && v === 'text/css') {
+      if (nm === 'type' && v === 'text/css') {            // only valid on a real stylesheet link
         for (var i = 0; i < attrs.length; i++) {
           if (attrs[i].n.toLowerCase() === 'rel' && attrs[i].v &&
               attrs[i].v.toLowerCase().indexOf('stylesheet') >= 0) return true;
@@ -322,9 +341,8 @@
         return false;
       }
     }
-    if (tag === 'form'  && nm === 'method') return v === 'get';
-    if (tag === 'input' && nm === 'type')   return v === 'text';
-    if (tag === 'area'  && nm === 'shape')  return v === 'rect';
+    if (tag === 'form' && nm === 'method') return v === 'get';
+    if (tag === 'area' && nm === 'shape')  return v === 'rect';
     if ((tag === 'td' || tag === 'th') && (nm === 'colspan' || nm === 'rowspan')) return v === '1';
     return false;
   }
@@ -335,24 +353,23 @@
       var c = v.charCodeAt(i);
       if (isWS(c) || c === 34 || c === 39 || c === 96 || c === 61 || c === 60 || c === 62) return false;
     }
-    return v.charCodeAt(v.length - 1) !== 47;            // a trailing "/" would fuse with ">"
+    return v.charCodeAt(v.length - 1) !== 47;             // a trailing "/" would fuse with ">"
   }
 
-  var lastUnq = false;
-
-  function serAttr(a, opt) {
-    lastUnq = false;
+  function serAttr(a, opt, box) {
+    box.unq = false;
     if (a.v === null) return a.n;
     var nm = a.n.toLowerCase(), v = a.v;
+    if (opt.attrs && nm === 'class') v = trimWS(collapseWS(v));   // class is token-separated
     if (opt.attrs && BOOL[nm] && (v === '' || v.toLowerCase() === nm)) return a.n;
-    if (opt.quotes && canUnquote(v)) { lastUnq = true; return a.n + '=' + v; }
+    if (opt.quotes && canUnquote(v)) { box.unq = true; return a.n + '=' + v; }
     if (v.indexOf('"') < 0) return a.n + '="' + v + '"';
     if (v.indexOf("'") < 0) return a.n + "='" + v + "'";
     return a.n + '="' + v.split('"').join('&#34;') + '"';
   }
 
   function serialize(toks, opt, xhtml) {
-    var buf = [];
+    var buf = [], box = { unq: false };
     for (var i = 0; i < toks.length; i++) {
       var t = toks[i];
 
@@ -363,44 +380,106 @@
         if (opt.ws) {
           d = collapseWS(d);
           if (d.length > 2 && d.charCodeAt(d.length - 2) === 32 && d.charCodeAt(d.length - 1) === 62) {
-            d = d.slice(0, d.length - 2) + '>';
+            d = d.slice(0, d.length - 2) + GT;
           }
         }
         buf.push(d); continue;
       }
 
-      if (t.close) { buf.push('</' + t.name + '>'); continue; }
+      if (t.close) { buf.push(LT + '/' + t.name + GT); continue; }
 
-      var tl = t.name.toLowerCase(), s = '<' + t.name, unq = false;
+      var tl = t.name.toLowerCase(), s = LT + t.name, unq = false;
       for (var j = 0; j < t.attrs.length; j++) {
         var a = t.attrs[j];
         if (opt.attrs && redundant(tl, a, t.attrs)) continue;
-        s += ' ' + serAttr(a, opt);
-        unq = lastUnq;
+        s += ' ' + serAttr(a, opt, box);
+        unq = box.unq;
       }
       // keep the self-closing slash for foreign content (svg/math) and for XHTML;
-      // drop it on plain HTML void elements where it is pure noise
+      // drop it on plain HTML void elements where it means nothing
       if (t.self && (xhtml || !VOID[tl])) s += (unq ? ' /' : '/');
-      buf.push(s + '>');
+      buf.push(s + GT);
     }
     return buf.join('');
   }
 
   function detectXhtml(s) {
     var head = s.slice(0, 4000);
-    if (head.indexOf('<?xml') >= 0) return true;
-    var u = head.toUpperCase(), d = u.indexOf('<!DOCTYPE');
+    if (head.indexOf(LT + '?xml') >= 0) return true;
+    var u = head.toUpperCase(), d = u.indexOf(LT + '!DOCTYPE');
     if (d < 0) return false;
-    var e = u.indexOf('>', d);
+    var e = u.indexOf(GT, d);
     return u.slice(d, e < 0 ? d + 300 : e).indexOf('XHTML') >= 0;
+  }
+
+  // ---- integrity guard -----------------------------------------------------
+  // The output is re-parsed and compared with the input. Minifying may only ever
+  // remove whitespace, comments and redundant attributes, so the tag sequence,
+  // the non-whitespace text and every protected block must come back identical.
+  function sig(toks) {
+    var a = [], buf = '';
+    function flush() { if (buf) { a.push('t' + buf); buf = ''; } }
+    for (var i = 0; i < toks.length; i++) {
+      var t = toks[i];
+      if (t.t === 'comment') continue;                    // comments are removed on purpose
+      if (t.t === 'text') { buf += stripWS(t.v); continue; }
+      flush();
+      if (t.t === 'keep')      a.push('k' + t.v);         // byte for byte
+      else if (t.t === 'decl') a.push('d' + stripWS(t.v).toLowerCase());
+      else                     a.push((t.close ? '/' : '<') + t.name.toLowerCase());
+    }
+    flush();
+    return a.join(SEP);
+  }
+
+  function openTags(toks) {
+    var a = [];
+    for (var i = 0; i < toks.length; i++) { if (toks[i].t === 'tag' && !toks[i].close) a.push(toks[i]); }
+    return a;
+  }
+
+  function normVal(nm, v) {
+    var x = v.split('&#34;').join('"');
+    return nm === 'class' ? trimWS(collapseWS(x)) : x;
+  }
+
+  // every attribute in the output must trace back to an identical one in the input
+  function attrsOk(inT, outT) {
+    var A = openTags(inT), B = openTags(outT);
+    if (A.length !== B.length) return false;
+    for (var i = 0; i < A.length; i++) {
+      var src = A[i].attrs, dst = B[i].attrs;
+      for (var j = 0; j < dst.length; j++) {
+        var d = dst[j], nm = d.n.toLowerCase(), hit = false;
+        for (var k = 0; k < src.length; k++) {
+          var sa = src[k];
+          if (sa.n.toLowerCase() !== nm) continue;
+          if (d.v === null) {
+            if (sa.v === null || sa.v === '' || sa.v.toLowerCase() === nm) hit = true;
+          } else if (sa.v !== null && normVal(nm, sa.v) === normVal(nm, d.v)) {
+            hit = true;
+          }
+          if (hit) break;
+        }
+        if (!hit) return false;
+      }
+    }
+    return true;
   }
 
   function minify(src, opt) {
     var xhtml = detectXhtml(src);
     var r = tokenize(src);
-    var toks = opt.comments ? dropComments(r.toks) : r.toks;
+    var toks = r.toks, removed = 0;
+    if (opt.comments) { var dc = dropComments(toks); toks = dc.toks; removed = dc.removed; }
     if (opt.ws) toks = squeeze(toks);
-    return { out: serialize(toks, opt, xhtml), prot: r.prot, xhtml: xhtml };
+    var out = serialize(toks, opt, xhtml);
+
+    var back = tokenize(out);
+    var ok = (sig(r.toks) === sig(back.toks)) && attrsOk(r.toks, back.toks);
+
+    // guard: if anything drifted, hand back the untouched source rather than risk it
+    return { out: ok ? out : src, prot: r.prot, removed: removed, xhtml: xhtml, broken: r.broken, ok: ok };
   }
 
   // ---- sizes ---------------------------------------------------------------
@@ -417,8 +496,7 @@
   }
   function fmtPct(x) {
     var v = Math.round(x * 10) / 10;
-    var s = (v === Math.round(v)) ? String(Math.round(v)) : v.toFixed(1);
-    return s + '%';
+    return ((v === Math.round(v)) ? String(Math.round(v)) : v.toFixed(1)) + '%';
   }
 
   // ---- wiring --------------------------------------------------------------
@@ -434,6 +512,8 @@
     $('hm-fill').style.width = '0';
   }
 
+  function fill(tpl, n) { return tpl.split(':n').join(String(n)); }
+
   function run() {
     var src = $('hm-in').value;
     if (!src) { $('hm-out').value = ''; reset(); setMsg(''); return; }
@@ -448,7 +528,7 @@
 
     var res;
     try { res = minify(src, opt); }
-    catch (err) { $('hm-out').value = ''; reset(); setMsg(String(err && err.message || err), 'err'); return; }
+    catch (err) { $('hm-out').value = ''; reset(); setMsg(String((err && err.message) || err), 'err'); return; }
 
     $('hm-out').value = res.out;
 
@@ -461,11 +541,15 @@
     $('hm-fill').style.width = Math.max(0, Math.min(100, pct)) + '%';
 
     var parts = [];
-    if (saved > 0) parts.push(T.done.split(':n').join(String(saved)));
-    else parts.push(T.nochange);
-    if (res.prot > 0) parts.push(T.prot.split(':n').join(String(res.prot)));
-    if (res.xhtml) parts.push(T.xhtml);
-    setMsg(parts.join(' · '), saved > 0 ? 'ok' : '');
+    parts.push(saved > 0 ? fill(T.done, saved) : T.nochange);
+    if (res.removed > 0) parts.push(fill(T.removed, res.removed));
+    if (res.prot > 0)    parts.push(fill(T.prot, res.prot));
+    if (res.xhtml)       parts.push(T.xhtml);
+    if (res.ok)          parts.push(T.verified);
+    else                 parts.push(T.guard);
+    if (res.broken)      parts.push(T.broken);
+
+    setMsg(parts.join(' · '), (!res.ok || res.broken) ? 'err' : (saved > 0 ? 'ok' : ''));
   }
 
   var tmr = null;
@@ -478,16 +562,17 @@
   };
   $('hm-sample').onclick = function () {
     $('hm-in').value = [
-      CO + ' card ' + CC,
-      '<div   class="card"    id="a" >',
-      '    <p>Alpha   <b>Beta</b>  Gamma</p>',
-      '    <pre>   x',
-      '     y   </pre>',
-      '    <input type="text" disabled="disabled">',
-      '    ' + LT + 'script type="text/javascript">',
+      CO + ' product card ' + CC,
+      LT + 'div   class="  card   is-open  "    id="a" ' + GT,
+      '    ' + LT + 'p' + GT + 'Alpha   ' + LT + 'b' + GT + 'Beta' + LT + '/b' + GT + '  Gamma' + LT + '/p' + GT,
+      '    ' + LT + 'pre' + GT + '   keep',
+      '     me   ' + LT + '/pre' + GT,
+      '    ' + LT + 'p' + GT + LT + 'input type="checkbox" checked="checked"' + GT + ' ' +
+        LT + 'label' + GT + 'Yes' + LT + '/label' + GT + LT + '/p' + GT,
+      '    ' + LT + 'script type="text/javascript"' + GT,
       '      var   n  =  1;',
-      '    ' + LT + '/script>',
-      '</div>'
+      '    ' + LT + '/script' + GT,
+      LT + '/div' + GT
     ].join(LF);
     run();
   };

@@ -156,8 +156,9 @@
   const clamp = v => Math.min(300, Math.max(2, Math.round(v)));
   const W = () => +$('ctg-w').value;
   const H = () => +$('ctg-h').value;
-  const setW = v => { $('ctg-w').value = v; $('ctg-wn').value = v; };
-  const setH = v => { $('ctg-h').value = v; $('ctg-hn').value = v; };
+  // quiet = do not echo back into the number field the user is typing in
+  const setW = (v, quiet) => { $('ctg-w').value = v; if (!quiet) $('ctg-wn').value = v; };
+  const setH = (v, quiet) => { $('ctg-h').value = v; if (!quiet) $('ctg-hn').value = v; };
 
   // straight triangles lock to equilateral, diagonals lock to a 45 degree right triangle
   function ratio() {
@@ -171,7 +172,8 @@
     const map = $('ctg-logical').checked ? LOG : PHYS;
     const list = sides(dir, w, h, hex);
     const decls = list.map(s => map[s[0]] + ': ' + fmt(s[1]) + 'px solid ' + (s[2] || 'transparent') + ';');
-    const sel = ($('ctg-sel').value.trim() || '.triangle');
+    // braces would break the emitted rule, so drop them
+    const sel = ($('ctg-sel').value.replace(/[{}]/g, '').trim() || '.triangle');
 
     $('ctg-out').value = sel + ' {' + NL + '  ' +
       ['width: 0;', 'height: 0;'].concat(decls).join(NL + '  ') + NL + '}';
@@ -190,10 +192,10 @@
       : ($('ctg-logical').checked ? note.dataset.log : note.dataset.phys);
   }
 
-  function resize(which, val) {
+  function resize(which, val, quiet) {
     const v = clamp(val);
-    if (which === 'w') { setW(v); if ($('ctg-lock').checked) setH(clamp(v * ratio())); }
-    else { setH(v); if ($('ctg-lock').checked) setW(clamp(v / ratio())); }
+    if (which === 'w') { setW(v, quiet); if ($('ctg-lock').checked) setH(clamp(v * ratio())); }
+    else { setH(v, quiet); if ($('ctg-lock').checked) setW(clamp(v / ratio())); }
     render();
   }
 
@@ -217,11 +219,25 @@
 
   $('ctg-w').addEventListener('input', () => resize('w', +$('ctg-w').value));
   $('ctg-h').addEventListener('input', () => resize('h', +$('ctg-h').value));
+  // While typing, only apply in-range values and never rewrite the field being
+  // typed in (otherwise clamping "1" to "2" turns an intended "10" into "20").
+  // Out-of-range or empty input is reconciled on blur / change.
   ['wn', 'hn'].forEach(k => {
     const el = $('ctg-' + k);
-    const go = () => { if (el.value !== '') resize(k.charAt(0), +el.value); };
-    el.addEventListener('input', go);
-    el.addEventListener('change', () => { if (el.value === '') el.value = k === 'wn' ? W() : H(); go(); });
+    const which = k.charAt(0);
+    el.addEventListener('input', () => {
+      const raw = el.value.trim();
+      if (raw === '') return;
+      const v = +raw;
+      if (!isFinite(v) || v < 2 || v > 300) return;
+      resize(which, v, true);
+    });
+    const settle = () => {
+      const raw = el.value.trim();
+      resize(which, raw === '' ? (which === 'w' ? W() : H()) : +raw);
+    };
+    el.addEventListener('change', settle);
+    el.addEventListener('blur', settle);
   });
 
   $('ctg-lock').addEventListener('change', () => {

@@ -1,5 +1,13 @@
+@php
+$gmStrings = [
+    'nofilter' => __('ui.wt_gm_nofilter'),
+    'toosolid' => __('ui.wt_gm_toosolid'),
+    'supYes'   => __('ui.wt_gm_sup_yes'),
+    'supNo'    => __('ui.wt_gm_sup_no'),
+];
+@endphp
 <style>
-.gm-stage{position:relative;display:grid;place-items:center;min-height:300px;border-radius:18px;border:1px solid var(--line);overflow:hidden;padding:36px 22px;isolation:isolate}
+.gm-stage{position:relative;display:grid;place-items:center;min-block-size:310px;border-radius:18px;border:1px solid var(--line);overflow:hidden;padding:38px 22px;isolation:isolate}
 .gm-bd-aurora{background:radial-gradient(circle at 18% 22%,#22d3ee 0,transparent 46%),radial-gradient(circle at 84% 26%,#8b5cf6 0,transparent 46%),radial-gradient(circle at 50% 92%,#3b82f6 0,transparent 52%),linear-gradient(135deg,#0b1220,#141b36)}
 .gm-bd-sunset{background:radial-gradient(circle at 20% 82%,#f97316 0,transparent 50%),radial-gradient(circle at 80% 18%,#ec4899 0,transparent 50%),radial-gradient(circle at 52% 48%,#7c3aed 0,transparent 58%),linear-gradient(160deg,#1c0f2b,#2b1030)}
 .gm-bd-mesh{background:radial-gradient(circle at 14% 30%,#34d399 0,transparent 46%),radial-gradient(circle at 86% 66%,#22d3ee 0,transparent 46%),radial-gradient(circle at 56% 8%,#a3e635 0,transparent 42%),linear-gradient(120deg,#052e2b,#083344)}
@@ -16,13 +24,15 @@
 .gm-inp{background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px;color:var(--text);padding:6px 10px;font-family:ui-monospace,monospace;font-size:13px;inline-size:170px;outline:none}
 .gm-inp:focus{border-color:var(--cyan)}
 .gm-note{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);border-inline-start:3px solid var(--cyan);font-size:12.5px;line-height:1.95;color:var(--muted)}
-.gm-note .icon{inline-size:16px;block-size:16px;margin-top:5px;color:var(--cyan)}
+.gm-note .icon{inline-size:16px;block-size:16px;margin-top:5px;flex:0 0 auto;color:var(--cyan)}
 .gm-presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .gm-presets .btn{font-size:12.5px;padding:7px 13px}
 .gm-off{opacity:.4}
+.gm-hint{margin-top:10px}
 html[data-theme="light"] .gm-stage{border-color:rgba(0,0,0,.14)}
 html[data-theme="light"] .gm-chip{border-color:rgba(0,0,0,.16)}
 html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.08);border-inline-start-color:var(--cyan)}
+html[data-theme="light"] .gm-inp{background:#fff;border-color:rgba(0,0,0,.16)}
 </style>
 
 <div class="gm-stage gm-bd-aurora" id="gm-stage">
@@ -95,7 +105,10 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
 <div class="wt-bar">
   <button type="button" class="btn btn-glass" id="gm-copy" data-done="{{ __('ui.wt_copied') }}">{{ __('ui.wt_copy') }}</button>
   <button type="button" class="btn btn-glass" id="gm-reset">{{ __('ui.wt_gm_reset') }}</button>
+  <span class="wt-status gm-hint" id="gm-sup"></span>
 </div>
+
+<p class="wt-status gm-hint" id="gm-hint" style="min-block-size:18px"></p>
 
 <div class="gm-note">
   <svg class="icon"><use href="#i-globe"/></svg>
@@ -105,12 +118,13 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  const AT = String.fromCharCode(64);   // at-sign, kept out of the Blade parser
-  const NL = String.fromCharCode(10);   // newline, kept out of the Blade string escaper
+  const T  = @json($gmStrings);
+  const AT = String.fromCharCode(64);   // at-sign, kept away from the Blade directive parser
+  const NL = String.fromCharCode(10);   // newline
 
   const BACKDROPS = ['aurora', 'sunset', 'mesh', 'stripes', 'grid'];
 
-  // 0-100 -> css alpha, trimmed:  15 -> "0.15", 8 -> "0.08", 100 -> "1", 0 -> "0"
+  // 0-100 -> css alpha string, trimmed:  15 -> "0.15", 8 -> "0.08", 100 -> "1", 0 -> "0"
   const al = v => String(parseFloat((Math.max(0, Math.min(100, v)) / 100).toFixed(3)));
 
   function rgba(hex, pct) {
@@ -121,12 +135,21 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
     return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + al(pct) + ')';
   }
 
+  // keep the selector harmless: no braces, no semicolons, no angle brackets
   function selector() {
     const raw = String($('gm-sel').value || '')
       .replace(/[<>;{}]/g, '')
-      .split(' ').filter(Boolean).join(' ');
+      .split(/\s+/).filter(Boolean).join(' ');
     return raw.length ? raw : '.glass-card';
   }
+
+  const supported = (function () {
+    try {
+      return (window.CSS && CSS.supports &&
+        (CSS.supports('backdrop-filter', 'blur(2px)') ||
+         CSS.supports('-webkit-backdrop-filter', 'blur(2px)'))) === true;
+    } catch (e) { return false; }
+  })();
 
   function run() {
     const blur = +$('gm-blur').value;
@@ -209,6 +232,19 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
     }
 
     $('gm-out').value = L.join(NL);
+
+    // hints
+    const hint = $('gm-hint');
+    if (!filt) {
+      hint.textContent = T.nofilter;
+      hint.className = 'wt-status err gm-hint';
+    } else if (op >= 70) {
+      hint.textContent = T.toosolid;
+      hint.className = 'wt-status err gm-hint';
+    } else {
+      hint.textContent = '';
+      hint.className = 'wt-status gm-hint';
+    }
   }
 
   const PRESETS = {
@@ -222,13 +258,13 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
   function applyPreset(name) {
     const p = PRESETS[name];
     if (!p) return;
-    $('gm-blur').value = p.blur; $('gm-op').value  = p.op;
-    $('gm-sat').value  = p.sat;  $('gm-bri').value = p.bri;
-    $('gm-tint').value = p.tint; $('gm-bw').value  = p.bw;
-    $('gm-bop').value  = p.bop;  $('gm-bc').value  = p.bc;
-    $('gm-rad').value  = p.rad;  $('gm-sy').value  = p.sy;
-    $('gm-sb').value   = p.sb;   $('gm-sop').value = p.sop;
-    $('gm-hl').checked = p.hl;   $('gm-hlop').value = p.hlop;
+    $('gm-blur').value = p.blur;  $('gm-op').value   = p.op;
+    $('gm-sat').value  = p.sat;   $('gm-bri').value  = p.bri;
+    $('gm-tint').value = p.tint;  $('gm-bw').value   = p.bw;
+    $('gm-bop').value  = p.bop;   $('gm-bc').value   = p.bc;
+    $('gm-rad').value  = p.rad;   $('gm-sy').value   = p.sy;
+    $('gm-sb').value   = p.sb;    $('gm-sop').value  = p.sop;
+    $('gm-hl').checked = p.hl;    $('gm-hlop').value = p.hlop;
     run();
   }
 
@@ -261,7 +297,11 @@ html[data-theme="light"] .gm-note{background:rgba(0,0,0,.03);border-color:rgba(0
     applyPreset('frosted');
   });
 
-  $('gm-copy').onclick = e => wtCopy(e.target, $('gm-out').value);
+  $('gm-copy').addEventListener('click', e => wtCopy(e.currentTarget, $('gm-out').value));
+
+  const sup = $('gm-sup');
+  sup.textContent = supported ? T.supYes : T.supNo;
+  if (!supported) sup.className = 'wt-status err gm-hint';
 
   run();
 })();
