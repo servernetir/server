@@ -25,6 +25,28 @@ class NetworkTools
         46 => 'RRSIG', 48 => 'DNSKEY', 257 => 'CAA',
     ];
 
+    /**
+     * نام سرویس برای پورت‌های دلخواهی که در فهرست پیش‌فرض نیستند.
+     * فقط برای برچسب‌گذاری نتیجه است — روی خود اسکن اثری ندارد.
+     */
+    private const KNOWN_PORTS = [
+        20 => 'FTP-data', 23 => 'Telnet', 69 => 'TFTP', 111 => 'RPC', 123 => 'NTP',
+        135 => 'MS-RPC', 137 => 'NetBIOS', 139 => 'NetBIOS-SSN', 161 => 'SNMP',
+        389 => 'LDAP', 445 => 'SMB', 514 => 'Syslog', 636 => 'LDAPS',
+        873 => 'rsync', 990 => 'FTPS', 1080 => 'SOCKS', 1194 => 'OpenVPN',
+        1433 => 'MSSQL', 1521 => 'Oracle', 1723 => 'PPTP', 2049 => 'NFS',
+        2082 => 'cPanel', 2083 => 'cPanel SSL', 2086 => 'WHM', 2087 => 'WHM SSL',
+        2095 => 'Webmail', 2096 => 'Webmail SSL', 2181 => 'ZooKeeper',
+        2375 => 'Docker', 2376 => 'Docker TLS', 3000 => 'Node/Grafana',
+        4444 => 'Metasploit', 5000 => 'UPnP/Flask', 5060 => 'SIP', 5432 => 'PostgreSQL',
+        5672 => 'AMQP', 5900 => 'VNC', 5985 => 'WinRM', 6379 => 'Redis',
+        6660 => 'IRC', 7000 => 'Cassandra', 8000 => 'HTTP-alt', 8006 => 'Proxmox',
+        8081 => 'HTTP-alt', 8086 => 'InfluxDB', 8888 => 'HTTP-alt',
+        9000 => 'PHP-FPM/SonarQube', 9090 => 'Prometheus', 9200 => 'Elasticsearch',
+        9300 => 'Elasticsearch', 10000 => 'Webmin', 11211 => 'Memcached',
+        15672 => 'RabbitMQ UI', 25565 => 'Minecraft', 27017 => 'MongoDB',
+    ];
+
     /** پورت‌های پرکاربرد برای اسکن */
     private const PORTS = [
         21 => 'FTP', 22 => 'SSH', 25 => 'SMTP', 53 => 'DNS', 80 => 'HTTP',
@@ -287,44 +309,123 @@ class NetworkTools
 
     /* ============================================================= Ports / Ping */
 
+    /** حداکثر پورت در یک درخواست دلخواه — بالاتر از این، پاسخ به مهلت وب‌سرور می‌خورد */
+    private const MAX_PORTS = 32;
+
+    /** سقف زمان کل اسکن (ثانیه). میزبان فایروال‌دار هر پورت را تا آخر مهلت نگه می‌دارد. */
+    private const SCAN_BUDGET = 24.0;
+
     /**
-     * اسکن پورت‌های پرکاربرد.
+     * اسکن پورت.
+     *
+     * بدون ورودی دلخواه، فهرست پورت‌های پرکاربرد را می‌زند؛ با ورودی، دقیقاً
+     * همان پورت‌هایی که کاربر خواسته: «80»، «80,443,3306» یا بازه‌ی «8000-8010».
      *
      * از اتصال سینک با مهلت کوتاه استفاده می‌کنیم: پورت باز فوری وصل می‌شود،
      * پورت بسته فوری refused می‌شود؛ فقط پورت فایروال‌شده تا سقف مهلت صبر می‌کند.
      * این روش برخلاف async-connect نتیجه‌ی مثبت کاذب نمی‌دهد.
      */
-    public function ports(string $domain): array
+    public function ports(string $domain, ?string $spec = null): array
     {
         $ip = $this->resolveIp($domain);
         if ($ip === null) {
             return ['ok' => false, 'error' => 'invalid_domain'];
         }
 
+        $custom = $spec !== null && trim($spec) !== '';
+        $list = $custom ? $this->parsePorts($spec) : self::PORTS;
+
+        if ($custom && $list === []) {
+            return ['ok' => false, 'error' => 'bad_ports'];
+        }
+
+        // با فهرست دلخواه مهلت کوتاه‌تر می‌گیریم تا پورت‌های بیشتری در بودجه جا شود
+        $timeout = $custom ? 1.0 : 1.4;
+        $started = microtime(true);
+
         $result = [];
-        foreach (self::PORTS as $port => $name) {
+        $skipped = 0;
+        foreach ($list as $port => $name) {
+            // بودجه تمام شد: بقیه را «اسکن‌نشده» علامت می‌زنیم، نه «بسته».
+            // گزارش بسته بودنِ پورتی که اصلاً امتحان نشده، بدتر از نگفتن است.
+            if ((microtime(true) - $started) >= self::SCAN_BUDGET) {
+                $result[] = ['port' => $port, 'name' => $name, 'open' => false, 'state' => 'skipped'];
+                $skipped++;
+                continue;
+            }
+
             $t0 = microtime(true);
-            $sock = @stream_socket_client('tcp://'.$ip.':'.$port, $errno, $errstr, 1.4);
+            $sock = @stream_socket_client('tcp://'.$ip.':'.$port, $errno, $errstr, $timeout);
             $open = false;
             $state = 'closed';
             if ($sock) {
                 $open = true;
                 $state = 'open';
                 fclose($sock);
-            } elseif ((microtime(true) - $t0) >= 1.3) {
+            } elseif ((microtime(true) - $t0) >= $timeout - 0.1) {
                 $state = 'filtered'; // مهلت تمام شد → احتمالاً فایروال
             }
             $result[] = ['port' => $port, 'name' => $name, 'open' => $open, 'state' => $state];
         }
-        $open = array_filter($result, fn ($r) => $r['open']);
 
         return [
             'ok'         => true,
             'domain'     => $this->host($domain) ?? $domain,
             'ip'         => $ip,
             'ports'      => $result,
-            'open_count' => count($open),
+            'open_count' => count(array_filter($result, fn ($r) => $r['open'])),
+            'custom'     => $custom,
+            'skipped'    => $skipped,
+            'max_ports'  => self::MAX_PORTS,
         ];
+    }
+
+    /**
+     * تبدیل ورودی کاربر به فهرست [پورت => نام سرویس].
+     *
+     * می‌پذیرد: «443» ، «80,443,3306» ، «8000-8010» و ترکیبشان.
+     * جداکننده می‌تواند ویرگول انگلیسی یا فارسی، فاصله یا خط جدید باشد.
+     * ارقام فارسی و عربی هم به لاتین برگردانده می‌شوند.
+     */
+    private function parsePorts(string $spec): array
+    {
+        $spec = strtr($spec, [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '،' => ',', '–' => '-', '—' => '-',
+        ]);
+
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', trim($spec), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) {
+            if (count($out) >= self::MAX_PORTS) {
+                break;
+            }
+
+            if (preg_match('/^(\d{1,5})\s*-\s*(\d{1,5})$/', $token, $m)) {
+                $from = (int) $m[1];
+                $to = (int) $m[2];
+                if ($from < 1 || $to > 65535 || $from > $to) {
+                    continue;
+                }
+                for ($p = $from; $p <= $to && count($out) < self::MAX_PORTS; $p++) {
+                    $out[$p] = self::PORTS[$p] ?? self::KNOWN_PORTS[$p] ?? '';
+                }
+                continue;
+            }
+
+            if (preg_match('/^\d{1,5}$/', $token)) {
+                $p = (int) $token;
+                if ($p >= 1 && $p <= 65535) {
+                    $out[$p] = self::PORTS[$p] ?? self::KNOWN_PORTS[$p] ?? '';
+                }
+            }
+        }
+
+        ksort($out);
+
+        return $out;
     }
 
     /** پینگ TCP — تأخیر اتصال به پورت 443 (fallback 80) در ۴ تلاش */

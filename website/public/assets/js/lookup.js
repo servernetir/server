@@ -42,10 +42,20 @@
       `<div class="lkr-pings ${cls}">${stat(T.ping_min + ' (' + T.ping_ms + ')', d.min)}${stat(T.ping_avg + ' (' + T.ping_ms + ')', d.avg)}${stat(T.ping_max + ' (' + T.ping_ms + ')', d.max)}${stat(T.ping_loss + ' %', d.loss)}</div>`;
   }
   function renderPorts(d) {
-    const cell = (p) => `<div class="lkr-port ${p.open ? 'open' : (p.state === 'filtered' ? 'filt' : 'closed')}">
+    const klass = (p) => p.open ? 'open'
+      : p.state === 'filtered' ? 'filt'
+      : p.state === 'skipped'  ? 'skip' : 'closed';
+    const label = (p) => p.open ? T.port_open
+      : p.state === 'filtered' ? T.port_filtered
+      : p.state === 'skipped'  ? T.port_skipped : T.port_closed;
+    const cell = (p) => `<div class="lkr-port ${klass(p)}">
       <b dir="ltr">${faNum(p.port)}</b><small>${esc(p.name)}</small>
-      <span>${p.open ? T.port_open : (p.state === 'filtered' ? T.port_filtered : T.port_closed)}</span></div>`;
-    return head(d.domain, d.ip + ' · ' + faNum(d.open_count) + ' ' + T.ports_open) + `<div class="lkr-ports">${d.ports.map(cell).join('')}</div>`;
+      <span>${label(p)}</span></div>`;
+    // اگر بودجه‌ی زمانی تمام شده باشد، صریح بگوییم چند پورت اصلاً امتحان نشد
+    const note = d.skipped > 0
+      ? `<p class="lkr-note">${T.ports_skipped_note.replace(':n', faNum(d.skipped))}</p>` : '';
+    return head(d.domain, d.ip + ' · ' + faNum(d.open_count) + ' ' + T.ports_open) +
+      `<div class="lkr-ports">${d.ports.map(cell).join('')}</div>` + note;
   }
   function renderDnssec(d) {
     const yn = (b) => `<span class="lkr-yn ${b ? 'y' : 'n'}">${b ? T.yes : T.no}</span>`;
@@ -81,7 +91,7 @@
     }
   }
   function errMsg(code) {
-    return ({ invalid_domain: T.invalid_domain, invalid_ip: T.invalid_ip, empty: T.empty, unreachable: T.unreachable, no_ssl: T.no_ssl, no_cert: T.no_ssl, no_records: T.no_records })[code] || T.generic;
+    return ({ invalid_domain: T.invalid_domain, invalid_ip: T.invalid_ip, empty: T.empty, unreachable: T.unreachable, no_ssl: T.no_ssl, no_cert: T.no_ssl, no_records: T.no_records, bad_ports: T.bad_ports })[code] || T.generic;
   }
   const actionsBar = () => `<div class="lkr-actions">
     <button type="button" class="lkr-act" data-act="copy"><svg class="icon"><use href="#i-code"/></svg>${esc(T.json)}</button>
@@ -128,7 +138,10 @@
     if (!q && L.input !== 'ip') { showErr(T.empty); return; }
     errBox.hidden = true; spin(true);
     try {
-      const res = await fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() }, body: JSON.stringify({ type: L.type, query: q }) });
+      const pEl = document.getElementById('lk-ports');
+      const payload = { type: L.type, query: q };
+      if (pEl && pEl.value.trim()) payload.ports = pEl.value.trim();
+      const res = await fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() }, body: JSON.stringify(payload) });
       const d = await res.json();
       if (!d.ok) { showErr(errMsg(d.error)); return; }
       renderResult(box, L.kind, d, L.type + '-' + (d.domain || d.ip || 'result'));

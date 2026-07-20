@@ -1271,6 +1271,21 @@ html[data-theme="light"] .lk-result{background:#FFFFFF}
 .lkr-port.open span{color:#34D399;background:rgba(52,211,153,.12)}
 .lkr-port.closed span{color:var(--dim);background:var(--surface)}
 .lkr-port.filt span{color:#FBBF24;background:rgba(251,191,36,.12)}
+.lkr-port.skip{opacity:.5;border-style:dashed}
+.lkr-port.skip span{color:var(--dim);background:var(--surface)}
+.lkr-note{margin-top:14px;font-size:12.5px;line-height:1.9;color:#FBBF24;
+  background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);
+  border-radius:11px;padding:10px 14px}
+
+/* ورودی پورت دلخواه (فقط ابزار اسکن پورت) */
+.lk-ports-in{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.lk-ports-in label{font-size:13px;color:var(--muted);flex:none}
+.lk-ports-in input{flex:1;min-width:190px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:11px;color:var(--text);font-family:var(--font-body);font-size:13.5px;
+  padding:10px 13px;outline:none;transition:border-color .18s}
+.lk-ports-in input:focus{border-color:var(--cyan)}
+.lk-ports-in input::placeholder{color:var(--dim)}
+.lk-ports-hint{flex-basis:100%;font-size:12px;color:var(--dim);line-height:1.8}
 
 .lkr-nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .lkr-node{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px}

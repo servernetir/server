@@ -43,6 +43,16 @@
                  spellcheck="false" dir="ltr" value="{{ $prefill }}" @if($cfg['input']!=='ip') required @endif>
           <button class="btn btn-primary" type="submit"><span class="tsb-label">{{ __('ui.lk_check') }}</span><span class="dr-spin" hidden></span></button>
         </div>
+
+        {{-- فقط برای اسکن پورت: فهرست دلخواه کاربر --}}
+        @if($cfg['kind'] === 'ports')
+        <div class="lk-ports-in">
+          <label for="lk-ports">{{ __('ui.lk_ports_custom') }}</label>
+          <input type="text" id="lk-ports" dir="ltr" autocomplete="off" spellcheck="false"
+                 inputmode="numeric" placeholder="{{ __('ui.lk_ports_ph') }}">
+          <span class="lk-ports-hint">{{ __('ui.lk_ports_hint') }}</span>
+        </div>
+        @endif
       </form>
       <div class="tool-error" id="lk-error" hidden></div>
     </div>
@@ -147,6 +157,7 @@ window.LOOKUP = {
     ssl_from: @json(__('ui.lk_ssl_from')), ssl_days: @json(__('ui.lk_ssl_days')), ssl_covers: @json(__('ui.lk_ssl_covers')), ssl_algo: @json(__('ui.lk_ssl_algo')), ssl_subject: @json(__('ui.lk_ssl_subject')),
     ping_min: @json(__('ui.lk_ping_min')), ping_avg: @json(__('ui.lk_ping_avg')), ping_max: @json(__('ui.lk_ping_max')), ping_loss: @json(__('ui.lk_ping_loss')), ping_port: @json(__('ui.lk_ping_port')), ping_ms: @json(__('ui.lk_ping_ms')),
     port_open: @json(__('ui.lk_port_open')), port_closed: @json(__('ui.lk_port_closed')), port_filtered: @json(__('ui.lk_port_filtered')), ports_open: @json(__('ui.lk_ports_open')),
+    port_skipped: @json(__('ui.lk_port_skipped')), ports_skipped_note: @json(__('ui.lk_ports_skipped_note')), bad_ports: @json(__('ui.lk_bad_ports')),
     dnssec_on: @json(__('ui.lk_dnssec_on')), dnssec_off: @json(__('ui.lk_dnssec_off')), dnssec_auth: @json(__('ui.lk_dnssec_auth')), dnssec_ds: @json(__('ui.lk_dnssec_ds')), dnssec_key: @json(__('ui.lk_dnssec_key')), yes: @json(__('ui.lk_yes')), no: @json(__('ui.lk_no')),
     prop_consistent: @json(__('ui.lk_prop_consistent')), prop_pending: @json(__('ui.lk_prop_pending')), prop_resolver: @json(__('ui.lk_prop_resolver')), prop_noanswer: @json(__('ui.lk_prop_noanswer')),
     rev_ptr: @json(__('ui.lk_rev_ptr')), rev_names: @json(__('ui.lk_rev_names')), rev_none: @json(__('ui.lk_rev_none')),

@@ -47,6 +47,11 @@ class LookupController extends Controller
         $data = $request->validate([
             'type'  => 'required|string|max:20',
             'query' => 'nullable|string|max:255',
+            // فقط طول را محدود می‌کنیم. اعتبارسنجی معنایی با parsePorts است که
+            // تنها رقم و بازه را بیرون می‌کشد و بقیه را دور می‌ریزد — پس ورودی
+            // نامعتبر خطرناک نیست، ولی باید پیام راهنمای خودمان را بگیرد نه
+            // خطای خام لاراول که ترجمه هم نمی‌شود.
+            'ports' => ['nullable', 'string', 'max:200'],
         ]);
 
         $types = config('lookup.types');
@@ -74,7 +79,8 @@ class LookupController extends Controller
             'propagation' => $this->net->propagation($q, $request->input('rr', 'A')),
             'reverse'     => $this->net->reverse($q),
             'ssl'         => $this->net->ssl($q),
-            'ports'       => $this->net->ports($q),
+            // فهرست پورت دلخواه؛ خود سرویس اعتبارسنجی و محدود می‌کند
+            'ports'       => $this->net->ports($q, (string) $request->input('ports', '')),
             'ping'        => $this->net->ping($q),
             default       => ['ok' => false, 'error' => 'unknown_kind'],
         };
