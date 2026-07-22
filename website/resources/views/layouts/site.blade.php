@@ -32,6 +32,8 @@
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-Bold-web.woff2') }}" as="font" type="font/woff2" crossorigin>
 <script>(function(){try{if(localStorage.getItem('snet-theme')==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
 <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}?v={{ filemtime(public_path('assets/css/site.css')) }}">
+{{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
+@stack('head')
 <script type="application/ld+json">{!! json_encode([
     '@'.'context' => 'https://schema.org',
     '@type' => 'Organization',

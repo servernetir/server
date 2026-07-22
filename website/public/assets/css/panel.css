@@ -1,0 +1,176 @@
+/* ============================================================================
+   پنل کاربری سرورنت
+   ----------------------------------------------------------------------------
+   روی توکن‌های site.css سوار است و فقط چیزهایی را اضافه می‌کند که پنل لازم دارد.
+   فلسفه: سایت اصلی می‌فروشد (گرادیان، درخشش)؛ پنل کار می‌کند — آرام، متراکم،
+   رنگ فقط برای وضعیت و عمل. اینجا یک کلیک اشتباه سرور را خاموش می‌کند.
+   ========================================================================== */
+
+:root{
+  /* رنگ‌های وضعیت — دو تای اول از قبل در سایت استفاده می‌شدند */
+  --ok:#34D399;      --ok-bg:rgba(52,211,153,.10);   --ok-line:rgba(52,211,153,.32);
+  --warn:#FBBF24;    --warn-bg:rgba(251,191,36,.10); --warn-line:rgba(251,191,36,.32);
+  --danger:#F87171;  --danger-bg:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.32);
+  --info:#22D3EE;    --info-bg:rgba(34,211,238,.10); --info-line:rgba(34,211,238,.30);
+
+  --pnl-side:248px;
+  --pnl-gap:22px;
+}
+html[data-theme="light"]{
+  --ok:#059669;      --ok-bg:rgba(5,150,105,.09);
+  --warn:#B45309;    --warn-bg:rgba(180,83,9,.09);
+  --danger:#DC2626;  --danger-bg:rgba(220,38,38,.08);
+  --info:#0891B2;    --info-bg:rgba(8,145,178,.09);
+}
+
+/* اعداد جدولی: بدون این، ستون مبلغ در جدول تراز نمی‌شود */
+.pnl-num, .pnl-table td, .pnl-money, .pnl-stat b{
+  font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
+}
+
+/* ============================ چیدمان ============================ */
+.pnl-wrap{padding:118px 0 60px}
+.pnl-layout{display:grid;grid-template-columns:var(--pnl-side) minmax(0,1fr);gap:var(--pnl-gap);align-items:start}
+.pnl-main{min-width:0;display:flex;flex-direction:column;gap:var(--pnl-gap)}
+/* محتوا اول در DOM است (کاربر صفحه‌کلید زودتر به کار اصلی برسد)، ولی سایدبار
+   باید در ستون اول بنشیند — بدون این، عرض دو ستون جابه‌جا می‌شود. */
+.pnl-side{order:-1}
+
+/* ============================ سایدبار ============================ */
+.pnl-side{position:sticky;top:96px}
+.pnl-card{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:18px}
+html[data-theme="light"] .pnl-card{background:#fff}
+
+.pnl-me{display:flex;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.pnl-avatar{width:42px;height:42px;flex:none;border-radius:12px;background:var(--grad);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px}
+.pnl-me-t{min-width:0;flex:1}
+.pnl-me-t b{display:block;font-size:14px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnl-me-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px}
+
+.pnl-nav{display:flex;flex-direction:column;gap:2px}
+.pnl-nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;
+  font-size:13.5px;color:var(--muted);border-inline-start:2px solid transparent;transition:.16s}
+.pnl-nav a .icon{width:16px;height:16px;flex:none;opacity:.7}
+.pnl-nav a span{flex:1;min-width:0}
+.pnl-nav a em{font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;
+  background:var(--danger-bg);color:var(--danger);flex:none}
+.pnl-nav a:hover{background:var(--surface-2);color:var(--text)}
+.pnl-nav a:hover .icon{opacity:1}
+.pnl-nav a.on{background:rgba(34,211,238,.09);color:var(--info);border-inline-start-color:var(--info);font-weight:600}
+.pnl-nav a.on .icon{opacity:1}
+.pnl-nav a:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.pnl-nav-sep{margin:12px 0 6px;padding-inline-start:11px;font-size:10.5px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;color:var(--dim)}
+
+/* ============================ سربرگ صفحه ============================ */
+.pnl-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pnl-head h1{font-size:clamp(20px,2.4vw,26px);font-family:var(--font-disp);line-height:1.3}
+.pnl-head p{font-size:13.5px;color:var(--muted);margin-top:5px}
+
+/* ============================ کارت آمار ============================ */
+.pnl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pnl-stat{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:16px 18px}
+html[data-theme="light"] .pnl-stat{background:#fff}
+.pnl-stat-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:10px}
+.pnl-stat-h .icon{width:14px;height:14px}
+.pnl-stat b{display:block;font-size:26px;font-family:var(--font-disp);line-height:1.1;letter-spacing:-.5px}
+.pnl-stat small{display:block;font-size:11.5px;color:var(--muted);margin-top:5px}
+.pnl-stat.is-warn b{color:var(--warn)}
+.pnl-stat.is-danger b{color:var(--danger)}
+
+/* ============================ بخش ============================ */
+.pnl-sec{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden}
+html[data-theme="light"] .pnl-sec{background:#fff}
+.pnl-sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 18px;border-bottom:1px solid var(--line)}
+.pnl-sec-h h2{font-size:15px;font-family:var(--font-disp)}
+.pnl-sec-h .pnl-more{font-size:12.5px;color:var(--info)}
+.pnl-sec-b{padding:18px}
+.pnl-sec-b.flush{padding:0}
+
+/* ============================ توجه لازم ============================ */
+/* مهم‌ترین بخش پنل: چیزی که اگر نبیند، سرویسش قطع می‌شود */
+.pnl-alert{border-color:var(--warn-line)}
+.pnl-alert .pnl-sec-h{background:var(--warn-bg)}
+.pnl-alert .pnl-sec-h h2{color:var(--warn)}
+
+.pnl-todo{display:flex;flex-direction:column}
+.pnl-todo li{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pnl-todo li:last-child{border-bottom:0}
+.pnl-todo-ic{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center}
+.pnl-todo-ic .icon{width:16px;height:16px}
+.pnl-todo-ic.w{background:var(--warn-bg);color:var(--warn)}
+.pnl-todo-ic.d{background:var(--danger-bg);color:var(--danger)}
+.pnl-todo-t{flex:1;min-width:0}
+.pnl-todo-t b{display:block;font-size:13.5px;line-height:1.5}
+.pnl-todo-t small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ============================ جدول ============================ */
+.pnl-tw{overflow-x:auto}
+.pnl-table{width:100%;border-collapse:collapse;font-size:13.2px}
+.pnl-table th{text-align:start;font-size:11.5px;font-weight:700;letter-spacing:.3px;
+  text-transform:uppercase;color:var(--dim);padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap}
+.pnl-table td{padding:14px 18px;border-bottom:1px solid var(--line);vertical-align:middle}
+.pnl-table tbody tr:last-child td{border-bottom:0}
+.pnl-table tbody tr:hover{background:var(--surface-2)}
+.pnl-table .num{text-align:end;white-space:nowrap}
+.pnl-svc{display:flex;align-items:center;gap:11px;min-width:0}
+.pnl-svc-ic{width:32px;height:32px;flex:none;border-radius:9px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center}
+.pnl-svc-ic .icon{width:15px;height:15px;color:var(--info)}
+.pnl-svc-t{min-width:0}
+.pnl-svc-t b{display:block;font-size:13.5px;line-height:1.4}
+.pnl-svc-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:1px;direction:ltr;text-align:start}
+
+/* ============================ نشان وضعیت ============================ */
+.pnl-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+  padding:4px 11px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
+.pnl-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.pnl-pill.ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.pnl-pill.warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.pnl-pill.danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.pnl-pill.info{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+.pnl-pill.mute{color:var(--dim);background:var(--surface-2);border-color:var(--line)}
+
+/* ============================ دکمه‌ها ============================ */
+.pnl-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:10px;
+  font-family:var(--font-body);font-size:12.8px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);transition:.16s}
+.pnl-btn:hover{border-color:var(--info);color:var(--info)}
+.pnl-btn .icon{width:14px;height:14px}
+.pnl-btn.primary{background:var(--grad);border-color:transparent;color:#fff}
+.pnl-btn.primary:hover{color:#fff;filter:brightness(1.08)}
+/* عمل خطرناک: هرگز به‌طور پیش‌فرض قرمزِ پررنگ نیست — قرمز فقط موقع تأیید */
+.pnl-btn.danger{color:var(--danger);border-color:var(--danger-line)}
+.pnl-btn.danger:hover{background:var(--danger-bg);color:var(--danger)}
+.pnl-btn:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.pnl-acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ============================ حالت خالی ============================ */
+.pnl-empty{padding:44px 20px;text-align:center}
+.pnl-empty .icon{width:34px;height:34px;color:var(--dim);opacity:.5}
+.pnl-empty b{display:block;font-size:14.5px;margin:12px 0 6px}
+.pnl-empty p{font-size:13px;color:var(--muted);line-height:1.9;max-width:38ch;margin:0 auto 16px}
+
+/* ============================ کارت سرور ============================ */
+.pnl-res{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px}
+.pnl-res-i{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.pnl-res-i small{display:block;font-size:11.5px;color:var(--dim);margin-bottom:6px}
+.pnl-res-i b{font-size:15px;font-variant-numeric:tabular-nums}
+.pnl-bar{height:5px;border-radius:99px;background:var(--surface);overflow:hidden;margin-top:8px}
+.pnl-bar span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+.pnl-bar.hot span{background:linear-gradient(100deg,#FBBF24,#F87171)}
+
+/* ============================ ریسپانسیو ============================ */
+@media(max-width:1000px){
+  .pnl-layout{grid-template-columns:1fr}
+  .pnl-side{position:static;order:2}
+  .pnl-stats{grid-template-columns:repeat(2,1fr)}
+  .pnl-res{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .pnl-wrap{padding-top:100px}
+  .pnl-stats{grid-template-columns:1fr}
+  .pnl-table th,.pnl-table td{padding:11px 13px}
+}

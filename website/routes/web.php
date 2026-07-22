@@ -46,6 +46,11 @@ $site = function (): void {
     Route::get('/webtools', [\App\Http\Controllers\WebToolsController::class, 'index'])->name('webtools.index');
     Route::get('/webtools/{slug}', [\App\Http\Controllers\WebToolsController::class, 'show'])->name('webtools')->where('slug', '[a-z0-9-]+');
 
+    // پیش‌نمایش طراحی پنل کاربری — موقتی، بدون داده و بدون احراز هویت.
+    // با ساخت پنل واقعی حذف می‌شود.
+    Route::get('/panel-preview', [\App\Http\Controllers\PanelPreviewController::class, 'dashboard'])->name('panel.preview');
+    Route::get('/panel-preview/server', [\App\Http\Controllers\PanelPreviewController::class, 'server'])->name('panel.preview.server');
+
     // مستندات
     Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');
     Route::get('/docs/{slug}', [\App\Http\Controllers\DocsController::class, 'show'])->name('docs')->where('slug', '[a-z0-9-]+');
