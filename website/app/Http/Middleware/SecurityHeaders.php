@@ -40,7 +40,11 @@ class SecurityHeaders
                 "script-src 'self' 'unsafe-inline'",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com data:",
-                "img-src 'self' data: https:",
+                // blob: لازم است چون ابزارهای تصویرِ /webtools فایل کاربر را با
+                // URL.createObjectURL() در canvas می‌خوانند. یک blob فقط به داده‌ای
+                // اشاره می‌کند که خود همین صفحه ساخته و از جای دیگری قابل بارگذاری
+                // نیست، پس اجازه‌دادنش سطح حمله را باز نمی‌کند.
+                "img-src 'self' data: blob: https:",
                 "connect-src 'self'",
                 "frame-src 'self' https://www.openstreetmap.org",
                 "frame-ancestors 'self'",
