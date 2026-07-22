@@ -30,6 +30,13 @@ Schedule::command('content:generate --limit=3 --days=2')
     ->dailyAt('10:00')
     ->withoutOverlapping(30);
 
+// تولید مطالب پایگاه دانش — روزی ۲ مطلب از docs-plan.
+// بدون این، ۱۰۱ موضوع پایگاه دانش هرگز ساخته نمی‌شدند: زمان‌بندی بالا فقط
+// برنامه‌ی پیش‌فرض (بلاگ) را می‌سازد. --daily یعنی هر مطلب در یک روز جدا منتشر شود.
+Schedule::command('content:generate --limit=2 --plan=docs-plan --daily')
+    ->dailyAt('14:00')
+    ->withoutOverlapping(30);
+
 // تکمیل ترجمه‌هایی که در تولید جا مانده‌اند
 Schedule::command('content:translate-missing --limit=2')
     ->dailyAt('12:30')
