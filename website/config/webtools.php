@@ -82,6 +82,18 @@ return [
                     'en' => ['t' => 'HTML Minifier', 'd' => 'Strip comments, collapse whitespace and drop redundant attributes — safely.'],
                     'tr' => ['t' => 'HTML Kucultucu', 'd' => 'Yorumlari, fazla bosluklari ve gereksiz ozellikleri guvenle temizleyin.'],
                 ],
+                'whitespace-remover' => [
+                    'icon' => 'sparkles',
+                    'fa' => ['t' => 'حذف فاصله‌های اضافه', 'd' => 'پاک‌سازی فاصله‌ی اضافه، تب و خط خالی بدون آسیب‌زدن به نیم‌فاصله‌ی فارسی'],
+                    'en' => ['t' => 'Whitespace Remover', 'd' => 'Collapse extra spaces, drop blank lines and fix tabs without breaking Persian ZWNJ'],
+                    'tr' => ['t' => 'Boşluk Temizleyici', 'd' => 'Fazla boşlukları, sekmeleri ve boş satırları Farsça ZWNJ karakterine dokunmadan temizler'],
+                ],
+                'json-tree' => [
+                    'icon' => 'flow',
+                    'fa' => ['t' => 'نمایشگر درختی JSON', 'd' => 'پیمایش JSON بزرگ در درخت بازشونده، با جست‌وجو و کپی مسیر JSONPath هر گره.'],
+                    'en' => ['t' => 'JSON Tree Viewer', 'd' => "Browse large JSON as a collapsible tree, search it, and copy any node's JSONPath."],
+                    'tr' => ['t' => 'JSON Ağaç Görüntüleyici', 'd' => 'Büyük JSON verisini katlanabilir ağaçta gezin, arayın ve JSONPath yolunu kopyalayın.'],
+                ],
             ],
         ],
 
@@ -303,6 +315,24 @@ return [
                     'fa' => ['t' => 'تبدیل SVG به PNG', 'd' => 'SVG را در مرورگر به PNG با مقیاس ۱x تا ۴x یا عرض دلخواه تبدیل کنید؛ کاملاً محلی و بدون آپلود.'],
                     'en' => ['t' => 'SVG to PNG Converter', 'd' => 'Rasterize SVG to PNG at 1x–4x or a custom pixel width, entirely in your browser — nothing is uploaded.'],
                     'tr' => ['t' => 'SVG to PNG Donusturucu', 'd' => 'SVG dosyalarini tarayicida 1x-4x veya ozel piksel genisliginde PNG olarak kaydedin; hicbir sey yuklenmez.'],
+                ],
+                'image-color-picker' => [
+                    'icon' => 'monitor',
+                    'fa' => ['t' => 'انتخاب رنگ از تصویر', 'd' => 'رنگ هر پیکسل تصویر را بردارید و کد HEX، RGB و HSL آن را کپی کنید.'],
+                    'en' => ['t' => 'Image Colour Picker', 'd' => 'Pick any pixel colour from an image and copy its HEX, RGB and HSL values.'],
+                    'tr' => ['t' => 'Görselden Renk Seçici', 'd' => 'Görseldeki herhangi bir pikselin rengini alın, HEX, RGB ve HSL kodunu kopyalayın.'],
+                ],
+                'photo-censor' => [
+                    'icon' => 'shield',
+                    'fa' => ['t' => 'سانسور و پوشاندن تصویر', 'd' => 'روی هر بخش از عکس کادر بکشید و آن را پیکسلی، محو یا سیاه کنید؛ همه در مرورگر.'],
+                    'en' => ['t' => 'Photo Censor', 'd' => 'Draw boxes on an image to pixelate, blur, or black them out - all in your browser.'],
+                    'tr' => ['t' => 'Fotoğraf Sansürleme', 'd' => 'Görüntü üzerine kutu çizip pikselleyin, bulanıklaştırın veya siyahlayın; tarayıcıda.'],
+                ],
+                'image-cropper' => [
+                    'icon' => 'layout',
+                    'fa' => ['t' => 'برش تصویر آنلاین', 'd' => 'برش عکس با کادر کشیدنی و نسبت‌های آماده، بدون آپلود روی سرور'],
+                    'en' => ['t' => 'Image Cropper', 'd' => 'Crop images with a draggable frame and aspect presets, in your browser.'],
+                    'tr' => ['t' => 'Görsel Kırpma Aracı', 'd' => 'Sürüklenebilir çerçeve ve hazır oranlarla görselleri tarayıcıda kırpın.'],
                 ],
             ],
         ],

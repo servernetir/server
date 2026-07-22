@@ -2064,4 +2064,256 @@ return [
             ],
         ],
     ],
+
+    'image-color-picker' => [
+        'fa' => [
+            'intro' => 'مرورگر تصویر شما را داخل یک canvas می‌کشد و مقدار هر پیکسل مستقیماً از حافظهٔ همان canvas خوانده می‌شود؛ بنابراین فایل هرگز به سرور فرستاده نمی‌شود. نکته‌ای که اغلب نادیده گرفته می‌شود این است که فشرده‌سازی JPEG رنگ‌های همسایه را کمی جابه‌جا می‌کند، پس رنگی که از یک اسکرین‌شات JPEG برمی‌دارید می‌تواند چند واحد با رنگ اصلی فایل طراحی فرق داشته باشد. برای کد رنگ دقیق، همیشه از نسخهٔ PNG یا خروجی بدون افت کیفیت استفاده کنید.',
+            'steps' => [
+                'تصویر را روی کادر بکشید و رها کنید یا دکمهٔ «انتخاب تصویر» را بزنید؛ برای آزمایش سریع، دکمهٔ «تصویر نمونه» چهار نوار رنگی می‌سازد.',
+                'تیک «نمایش ذره‌بین» را نگه دارید تا با حرکت نشانگر، ناحیه‌ای ۱۶ در ۱۶ پیکسل با بزرگ‌نمایی هشت برابر و کد HEX زیر آن نشان داده شود.',
+                'روی نقطهٔ موردنظر کلیک کنید؛ نوار وضعیت، کد HEX و مختصات همان پیکسل را گزارش می‌دهد.',
+                'در جدول زیر تصویر، مقدار HEX، RGB و HSL را با دکمهٔ کپی روبه‌روی هر ردیف بردارید.',
+                'رنگ‌های انتخاب‌شده در تاریخچه می‌مانند؛ کلیک روی هر مربع کد آن را کپی می‌کند و دکمهٔ «پاک‌کردن» فهرست را خالی می‌کند.',
+            ],
+            'faq' => [
+                ['q' => 'آیا رنگ برداشته‌شده میانگین یک ناحیه است؟', 'a' => 'خیر. دقیقاً مقدار همان یک پیکسلی است که زیر نشانگر قرار داشته. روی لبه‌های نرم‌شده (anti-alias)، متن‌ها و گرادیان‌ها، پیکسل‌های کنار هم رنگ‌های متفاوتی دارند؛ برای رسیدن به رنگ واقعی، از وسط یک ناحیهٔ یکدست انتخاب کنید و از ذره‌بین کمک بگیرید.'],
+                ['q' => 'چرا روی بخش شفاف تصویر ‎#000000‎ می‌گیرم؟', 'a' => 'این ابزار فقط سه کانال قرمز، سبز و آبی را گزارش می‌کند و کانال آلفا را کنار می‌گذارد. پیکسل کاملاً شفاف در PNG معمولاً هر سه کانال را صفر دارد، پس سیاه دیده می‌شود. اگر رنگ نهایی روی پس‌زمینه را می‌خواهید، تصویر را روی پس‌زمینهٔ دلخواه فلت کنید و بعد بارگذاری کنید.'],
+                ['q' => 'با تصاویر خیلی بزرگ چه می‌کند؟', 'a' => 'تصاویری که هر ضلعشان از ۴۰۹۶ پیکسل بیشتر باشد پیش از رسم کوچک می‌شوند. رنگ نواحی یکدست تغییر نمی‌کند، اما مختصاتی که در نوار وضعیت می‌بینید مربوط به همان نسخهٔ کوچک‌شده است، نه فایل اصلی.'],
+                ['q' => 'تاریخچهٔ رنگ‌ها تا کی نگه داشته می‌شود؟', 'a' => 'فقط تا زمانی که صفحه باز است. حداکثر ۳۲ رنگ آخر ذخیره می‌شود، رنگ تکراری به ابتدای فهرست منتقل می‌شود و با تازه‌سازی صفحه یا زدن «پاک‌کردن» همه‌چیز از بین می‌رود؛ چیزی روی سرور یا در حساب شما ذخیره نمی‌شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'The browser draws your image into a canvas and reads each pixel straight out of that canvas memory, so the file never leaves your machine. What most people forget is that JPEG compression shifts neighbouring colours slightly, so a swatch picked from a JPEG screenshot can be a few units off the value in the original design file. For exact codes, always pick from a PNG or another lossless export.',
+            'steps' => [
+                'Drag an image onto the drop area or press Choose image; the Sample image button paints four colour bands if you just want to try it.',
+                'Leave Show magnifier ticked so hovering reveals a 16x16 pixel region at eight times zoom with its HEX code underneath.',
+                'Click the spot you want. The status line reports the HEX code together with the exact pixel coordinates.',
+                'Copy the HEX, RGB or HSL value from the readout table using the copy button on each row.',
+                'Every pick is kept in the history strip; click a swatch to copy its code, or press Clear to empty the list.',
+            ],
+            'faq' => [
+                ['q' => 'Is the picked colour an average of the surrounding area?', 'a' => 'No. It is the value of the single pixel under the cursor. On anti-aliased edges, text and gradients, adjacent pixels carry blended colours, so pick from the middle of a flat region and use the magnifier to confirm what is under the crosshair.'],
+                ['q' => 'Why do transparent areas give me #000000?', 'a' => 'The tool reports only the red, green and blue channels and ignores alpha. A fully transparent PNG pixel usually stores zero in all three channels, so it reads as black. If you need the composited colour, flatten the image onto your intended background first, then load it.'],
+                ['q' => 'What happens with very large images?', 'a' => 'Anything larger than 4096 pixels on a side is scaled down before drawing. Colours in flat areas are unaffected, but the coordinates shown in the status line refer to that resized copy, not to the original file.'],
+                ['q' => 'How long is the colour history kept?', 'a' => 'Only while the page is open. The last 32 colours are held in memory, a repeated colour moves back to the front, and refreshing the page or pressing Clear wipes it. Nothing is stored on a server or in your account.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Tarayıcı görselinizi bir canvas üzerine çizer ve her pikselin değerini doğrudan o canvas belleğinden okur; dosya hiçbir zaman bilgisayarınızdan çıkmaz. Çoğu kişinin atladığı nokta şudur: JPEG sıkıştırması komşu renkleri hafifçe kaydırır, bu yüzden bir JPEG ekran görüntüsünden alınan renk, orijinal tasarım dosyasındaki değerden birkaç birim sapabilir. Kesin kod için her zaman PNG veya kayıpsız bir dışa aktarım kullanın.',
+            'steps' => [
+                'Görseli bırakma alanına sürükleyin ya da Görsel seç düğmesine basın; sadece denemek isterseniz Örnek görsel düğmesi dört renk bandı çizer.',
+                'Büyüteci göster kutusunu işaretli bırakın; imleç gezdikçe 16x16 piksellik bir bölge sekiz kat büyütmeyle ve altında HEX koduyla görünür.',
+                'İstediğiniz noktaya tıklayın. Durum satırı HEX kodunu ve tam piksel koordinatlarını bildirir.',
+                'Alt taraftaki tabloda HEX, RGB ve HSL değerlerini her satırın yanındaki kopyala düğmesiyle alın.',
+                'Her seçim geçmiş şeridinde tutulur; kodunu kopyalamak için bir kareye tıklayın, listeyi boşaltmak için Temizle düğmesine basın.',
+            ],
+            'faq' => [
+                ['q' => 'Alınan renk çevredeki bölgenin ortalaması mıdır?', 'a' => 'Hayır. İmlecin altındaki tek pikselin değeridir. Yumuşatılmış (anti-alias) kenarlarda, metinlerde ve gradyanlarda komşu pikseller karışık renkler taşır; gerçek rengi almak için düz bir alanın ortasından seçin ve büyüteçle kontrol edin.'],
+                ['q' => 'Saydam alanlarda neden #000000 çıkıyor?', 'a' => 'Bu araç yalnızca kırmızı, yeşil ve mavi kanalları bildirir, alfa kanalını yok sayar. Tamamen saydam bir PNG pikseli genellikle üç kanalda da sıfır tutar, bu yüzden siyah okunur. Birleşmiş rengi istiyorsanız görseli önce istediğiniz arka planla düzleştirin, sonra yükleyin.'],
+                ['q' => 'Çok büyük görsellerde ne olur?', 'a' => 'Bir kenarı 4096 pikseli aşan görseller çizilmeden önce küçültülür. Düz alanlardaki renkler değişmez, ancak durum satırında gördüğünüz koordinatlar orijinal dosyaya değil, küçültülmüş kopyaya aittir.'],
+                ['q' => 'Renk geçmişi ne kadar süre saklanır?', 'a' => 'Yalnızca sayfa açık kaldığı sürece. Son 32 renk bellekte tutulur, tekrarlanan bir renk listenin başına taşınır, sayfayı yenilemek veya Temizle düğmesine basmak her şeyi siler. Sunucuda ya da hesabınızda hiçbir şey saklanmaz.'],
+            ],
+        ],
+    ],
+
+    'photo-censor' => [
+        'fa' => [
+            'intro' => 'پوشاندن با پیکسل فقط تا جایی امن است که اندازه بلوک بزرگ باشد؛ روی متن ریز با قلم شناخته‌شده، بلوک‌های ۴ یا ۶ پیکسلی را می‌شود با آزمون‌وخطا حدس زد. اشتباه رایج‌تر این است که کاربر یک مستطیل سیاه را در نرم‌افزار ویرایش «روی» عکس می‌گذارد و لایه زیرش دست‌نخورده باقی می‌ماند. این ابزار ناحیه‌ها را مستقیم روی پیکسل‌های خروجی می‌پزد و همه‌ی کار داخل مرورگر و بدون ارسال فایل به سرور انجام می‌شود.',
+            'steps' => [
+                'تصویر را روی کادر رها کنید یا با دکمه «انتخاب تصویر» بازش کنید؛ فایل فقط در حافظه‌ی مرورگر خوانده می‌شود.',
+                'حالت پوشاندن را از میان پیکسلی، محو یا سیاه انتخاب کنید و اگر لازم بود لغزنده‌ی اندازه بلوک (۴ تا ۸۰) یا شعاع محو (۲ تا ۴۰) را تنظیم کنید؛ حالت سیاه لغزنده ندارد.',
+                'روی تصویر کلیک کنید و بکشید تا کادر ساخته شود. هر کادر با همان تنظیمات لحظه‌ی کشیدن ثبت می‌شود؛ می‌توانید تا ۴۰ ناحیه بسازید.',
+                'برای اصلاح، ضربدر گوشه‌ی هر ناحیه را بزنید یا از «واگرد» و کلید Ctrl+Z استفاده کنید؛ «پاک‌کردن همه» تصویر را به حالت اول برمی‌گرداند.',
+                'قالب خروجی را PNG یا JPEG کنید و «دانلود تصویر» را بزنید تا فایل با پیکسل‌های سانسورشده ذخیره شود.',
+            ],
+            'faq' => [
+                ['q' => 'عکس من روی سرور شما آپلود می‌شود؟', 'a' => 'خیر. فایل با FileReader داخل مرورگر خوانده و روی canvas پردازش می‌شود و خروجی هم از همان‌جا دانلود می‌شود. هیچ درخواستی با محتوای تصویر به سرور فرستاده نمی‌شود، بنابراین ابزار آفلاین هم کار می‌کند.'],
+                ['q' => 'می‌شود پیکسلی‌شدن را برگرداند؟', 'a' => 'از روی فایل خروجی نه، چون اطلاعات اصلی حذف شده و تصویر اولیه جایی داخل فایل نگهداری نمی‌شود. اما «برگشت‌ناپذیر» به معنای «غیرقابل حدس» نیست: اگر بلوک‌ها کوچک باشند و محتوا قابل پیش‌بینی باشد (مثل شماره کارت یا پلاک)، می‌توان با ساخت نمونه و مقایسه به آن رسید. برای داده‌های حساس بلوک بزرگ یا حالت سیاه را انتخاب کنید.'],
+                ['q' => 'چرا نمی‌توانم ناحیه‌ای را جابه‌جا یا تغییر اندازه بدهم؟', 'a' => 'ناحیه‌ها ویرایش‌پذیر نیستند؛ فقط می‌شود حذفشان کرد یا با واگرد به عقب برگشت و دوباره کشید. سقف تعداد ناحیه ۴۰ است و تصاویر بزرگ‌تر از حدود ۲۴ مگاپیکسل پیش از پردازش کوچک می‌شوند تا حافظه‌ی مرورگر پر نشود؛ در این حالت ابعاد جدید زیر تصویر نشان داده می‌شود.'],
+                ['q' => 'PNG بهتر است یا JPEG؟', 'a' => 'PNG بدون افت کیفیت است و شفافیت را نگه می‌دارد. JPEG حجم کمتری دارد ولی پس‌زمینه‌ی شفاف را سفید می‌کند و با کیفیت ۹۲٪ فشرده می‌شود. در هر دو حالت چون تصویر از canvas دوباره ساخته می‌شود، متادیتای اصلی مثل EXIF و موقعیت GPS در خروجی باقی نمی‌ماند.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'A pixelated region is only as safe as its block size: on small text in a known font, 4 or 6 pixel blocks can be brute-forced back into readable characters. The more common mistake is drawing a black rectangle as a layer in an editor and shipping a file where the original pixels still sit underneath. This tool bakes each region straight into the exported pixels, and does the whole job inside your browser with no upload.',
+            'steps' => [
+                'Drop an image onto the panel or open it with the choose button; the file is read only into browser memory.',
+                'Pick a censor mode - pixelate, blur or solid black - and adjust the block size slider (4 to 80) or blur radius slider (2 to 40). Solid mode has no slider.',
+                'Click and drag on the image to draw a region. Each region locks in the mode and strength active at that moment, and you can add up to 40 of them.',
+                'Fix mistakes with the × on a region, the Undo button, or Ctrl+Z; Clear all returns the image to its untouched state.',
+                'Choose PNG or JPEG as the output format and press download to save the file with the censoring already baked into the pixels.',
+            ],
+            'faq' => [
+                ['q' => 'Is my photo uploaded to your server?', 'a' => 'No. The file is read with FileReader, processed on a canvas element, and the result is downloaded from the same page. No request carrying the image is ever sent, so the tool keeps working with the network disconnected.'],
+                ['q' => 'Can the pixelation be undone?', 'a' => 'Not from the exported file - the original data is discarded and no copy is embedded. But irreversible is not the same as unguessable: with small blocks and predictable content such as a card number or a licence plate, an attacker can render candidates and match them against the blocks. For sensitive data use a large block size or solid black.'],
+                ['q' => 'Why can I not move or resize a region after drawing it?', 'a' => 'Regions are not editable - you can only delete them or undo and redraw. There is also a hard limit of 40 regions, and images larger than about 24 megapixels are scaled down before processing so the browser does not run out of memory; the new dimensions are shown below the image when that happens.'],
+                ['q' => 'Should I export PNG or JPEG?', 'a' => 'PNG is lossless and keeps transparency. JPEG is smaller but flattens any transparent background to white and re-encodes at 92% quality. Either way the image is rebuilt from a canvas, so original metadata such as EXIF and GPS coordinates does not survive into the exported file.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Piksellenmiş bir alan, ancak blok boyutu kadar güvenlidir: bilinen bir yazı tipiyle yazılmış küçük metinde 4 veya 6 piksellik bloklar deneme yanılmayla okunabilir hale getirilebilir. Daha yaygın hata ise, düzenleyicide siyah bir dikdörtgeni katman olarak üste koyup orijinal piksellerin altta durduğu bir dosya paylaşmaktır. Bu araç her bölgeyi doğrudan dışa aktarılan piksellere işler ve tüm işi hiçbir yükleme yapmadan tarayıcınızda yürütür.',
+            'steps' => [
+                'Görüntüyü panele bırakın veya seçme düğmesiyle açın; dosya yalnızca tarayıcı belleğine okunur.',
+                'Sansür modunu seçin - pikselle, bulanıklaştır veya düz siyah - ve gerekirse blok boyutu kaydırıcısını (4 ile 80) ya da bulanıklık yarıçapı kaydırıcısını (2 ile 40) ayarlayın. Siyah modda kaydırıcı bulunmaz.',
+                'Bölge çizmek için görüntü üzerinde tıklayıp sürükleyin. Her bölge o andaki mod ve şiddet değerini sabitler; en fazla 40 bölge ekleyebilirsiniz.',
+                'Hataları bölgenin köşesindeki × işaretiyle, Geri al düğmesiyle veya Ctrl+Z ile düzeltin; Tümünü temizle görüntüyü ilk haline döndürür.',
+                'Çıktı biçimi olarak PNG veya JPEG seçin ve indir düğmesine basarak sansürü piksellere işlenmiş dosyayı kaydedin.',
+            ],
+            'faq' => [
+                ['q' => 'Fotoğrafım sunucunuza yükleniyor mu?', 'a' => 'Hayır. Dosya FileReader ile okunur, canvas üzerinde işlenir ve sonuç aynı sayfadan indirilir. Görüntüyü taşıyan hiçbir istek gönderilmez, bu yüzden araç ağ bağlantısı olmadan da çalışır.'],
+                ['q' => 'Piksellenmiş alan geri alınabilir mi?', 'a' => 'Dışa aktarılan dosyadan alınamaz; orijinal veri atılır ve dosyanın içine kopyası gömülmez. Ancak geri alınamaz olması tahmin edilemez olması demek değildir: küçük bloklar ve kart numarası ya da plaka gibi öngörülebilir içerikte saldırgan adayları üretip bloklarla eşleştirebilir. Hassas veriler için büyük blok boyutu veya düz siyahı tercih edin.'],
+                ['q' => 'Çizdikten sonra bir bölgeyi neden taşıyamıyor veya yeniden boyutlandıramıyorum?', 'a' => 'Bölgeler düzenlenebilir değildir; yalnızca silinebilir ya da geri alınıp yeniden çizilebilir. Ayrıca 40 bölgelik kesin bir sınır vardır ve yaklaşık 24 megapiksel üzerindeki görüntüler bellek dolmasın diye işlemden önce küçültülür; bu durumda yeni boyutlar görüntünün altında gösterilir.'],
+                ['q' => 'PNG mi yoksa JPEG mi seçmeliyim?', 'a' => 'PNG kayıpsızdır ve saydamlığı korur. JPEG daha küçüktür ama saydam arka planı beyaza çevirir ve yüzde 92 kalitede yeniden kodlar. Her iki durumda da görüntü canvas üzerinden yeniden oluşturulduğu için EXIF ve GPS konumu gibi orijinal meta veriler çıktı dosyasına taşınmaz.'],
+            ],
+        ],
+    ],
+
+    'whitespace-remover' => [
+        'fa' => [
+            'intro' => 'بیشتر ابزارهای «حذف فاصله‌ی اضافه» نیم‌فاصله (U+200C) را هم یک نوع فاصله می‌بینند و پاکش می‌کنند؛ نتیجه این است که «می‌شود» به «میشود» و «کتاب‌ها» به «کتابها» تبدیل می‌شود. این ابزار نیم‌فاصله و اتصال‌دهنده‌ی صفرعرض (U+200D) را به‌صورت پیش‌فرض دست‌نخورده نگه می‌دارد و حذفشان فقط با یک گزینه‌ی جداگانه و هشداردار ممکن است. تمام پردازش هم داخل مرورگر خودتان انجام می‌شود و متن جایی ارسال نمی‌شود.',
+            'steps' => [
+                'متن را در کادر ورودی بچسبانید؛ خروجی هم‌زمان با تایپ ساخته می‌شود و نیازی به زدن دکمه نیست.',
+                'گزینه‌های پاک‌سازی را انتخاب کنید: ادغام فاصله‌های پشت‌سرهم، پیرایش ابتدا و انتهای هر خط، پیرایش کل متن، تبدیل تب به فاصله با عرض ۱، ۲، ۴ یا ۸، و یکسان‌سازی NBSP و فاصله‌های یونیکدی.',
+                'در صورت نیاز حذف خطوط خالی، تبدیل کل متن به یک خط، یا حذف نویسه‌های نامرئی مثل ZWSP و BOM و نشانگرهای جهت را فعال کنید.',
+                'تیک «نمایش نویسه‌های نامرئی» را بزنید تا فاصله، تب، شکست خط، NBSP، نیم‌فاصله و نویسه‌های نامرئی با نماد رنگی روی خروجی دیده شوند.',
+                'آمار پایین صفحه شامل حجم پیش و پس، نویسه‌های حذف‌شده، شمار خط‌ها و تعداد نیم‌فاصله‌های باقی‌مانده را بررسی کنید و بعد خروجی را کپی کنید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا این ابزار نیم‌فاصله‌ی فارسی را حذف می‌کند؟', 'a' => 'نه، به‌صورت پیش‌فرض نه. نیم‌فاصله (U+200C) و U+200D در هیچ‌کدام از قاعده‌های فاصله‌ی این ابزار به‌عنوان «فاصله» شناخته نمی‌شوند و دست‌نخورده باقی می‌مانند. فقط اگر تیک جداگانه‌ی «حذف نیم‌فاصله (پرخطر)» را خودتان بزنید حذف می‌شوند و در همان لحظه هم یک هشدار زرد بالای دکمه‌ها ظاهر می‌شود.'],
+                ['q' => 'تفاوت «حذف نویسه‌های نامرئی» با گزینه‌ی نیم‌فاصله چیست؟', 'a' => 'گزینه‌ی نویسه‌های نامرئی فقط U+200B، U+2060، U+FEFF، U+00AD و نشانگرهای جهت U+200E، U+200F و U+061C را برمی‌دارد و هرگز به U+200C و U+200D دست نمی‌زند. این دو گزینه کاملاً مستقل‌اند؛ برای متن فارسی می‌توانید اولی را با خیال راحت روشن کنید.'],
+                ['q' => 'چرا خطی که فقط نیم‌فاصله دارد با «حذف خطوط خالی» پاک نمی‌شود؟', 'a' => 'این رفتار عمدی است. خط خالی یعنی خطی که فقط فاصله، تب یا فاصله‌های یونیکدی دارد؛ نیم‌فاصله محتوای متنی حساب می‌شود و آن خط دست‌نخورده می‌ماند. اگر واقعاً می‌خواهید چنین خطی حذف شود، اول باید گزینه‌ی پرخطر حذف نیم‌فاصله را فعال کنید.'],
+                ['q' => 'محدودیت‌های ابزار چیست؟', 'a' => 'پردازش تا ۵۰۰٬۰۰۰ نویسه انجام می‌شود و متن بلندتر برش می‌خورد و پیام اخطار نشان داده می‌شود. پیش‌نمایش نویسه‌های نامرئی هم تا ۲۰٬۰۰۰ نویسه رندر می‌شود. ضمناً پایان‌خط‌ها همیشه به LF یکدست می‌شوند، پس اگر فایل شما حتماً باید CRLF ویندوزی داشته باشد، بعد از کپی آن را در ویرایشگر خودتان تنظیم کنید.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'Most "remove extra spaces" tools treat the Persian zero-width non-joiner (U+200C) as whitespace and strip it, which silently turns «می‌شود» into «میشود» and «کتاب‌ها» into «کتابها». This cleaner excludes U+200C and U+200D from every whitespace rule it applies, and only removes them if you tick a separate, clearly flagged option. Everything runs in your browser; the text is never uploaded.',
+            'steps' => [
+                'Paste your text into the input box. The cleaned result is rebuilt as you type, with no button to press.',
+                'Pick the cleanup options: collapse repeated spaces, trim each line, trim the whole text, convert tabs to spaces at width 1, 2, 4 or 8, and normalize NBSP and Unicode spaces.',
+                'Optionally turn on removing blank lines, joining everything into one line, or stripping invisible characters such as ZWSP, BOM and direction marks.',
+                'Tick "Reveal invisible characters" to see spaces, tabs, line breaks, NBSP, ZWNJ and invisibles marked with colored symbols on the output.',
+                'Check the stats row (characters before and after, characters removed, line counts and how many ZWNJ survived), then copy the output.',
+            ],
+            'faq' => [
+                ['q' => 'Does this tool delete the Persian ZWNJ?', 'a' => 'Not by default. U+200C and U+200D are deliberately excluded from every whitespace class the cleaner uses, so they pass through untouched. They are only removed if you tick the separate "Remove ZWNJ and ZWJ (risky)" box, and a yellow warning appears the moment you do.'],
+                ['q' => 'How is "remove invisible characters" different from the ZWNJ option?', 'a' => 'The invisible-characters option removes U+200B, U+2060, U+FEFF, U+00AD and the direction marks U+200E, U+200F and U+061C, and never touches U+200C or U+200D. The two options are independent, so it is safe to enable the invisible-character cleanup on Persian text.'],
+                ['q' => 'Why does "remove blank lines" keep a line that contains only a ZWNJ?', 'a' => 'That is intentional. A line counts as blank only when it contains nothing but spaces, tabs or Unicode spaces; a ZWNJ is treated as real content, so the line survives. To drop such a line you would first have to enable the risky ZWNJ removal option.'],
+                ['q' => 'What are the limits?', 'a' => 'Processing is capped at 500,000 characters; longer input is truncated and a warning is shown. The invisible-character preview renders at most 20,000 characters. Line endings are always normalized to LF, so if a file must keep Windows CRLF endings, restore them in your editor after copying.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Çoğu "fazla boşlukları sil" aracı Farsça sıfır genişlikli birleştirmeyen karakteri (U+200C) boşluk sanıp siler; bu da «می‌شود» kelimesini sessizce «میشود» hâline getirir. Bu temizleyici U+200C ve U+200D karakterlerini uyguladığı hiçbir boşluk kuralına dahil etmez ve onları yalnızca ayrı, açıkça işaretlenmiş bir seçenek işaretlendiğinde kaldırır. Tüm işlem tarayıcınızda yapılır, metin hiçbir yere gönderilmez.',
+            'steps' => [
+                'Metni girdi kutusuna yapıştırın. Sonuç siz yazarken yeniden hesaplanır, ayrıca bir düğmeye basmanız gerekmez.',
+                'Temizlik seçeneklerini seçin: art arda boşlukları birleştirme, her satırı kırpma, metnin tamamını kırpma, sekmeleri 1, 2, 4 veya 8 genişlikte boşluğa çevirme ve NBSP ile Unicode boşlukları normalleştirme.',
+                'İsterseniz boş satırları kaldırma, her şeyi tek satırda birleştirme veya ZWSP, BOM ve yön işaretleri gibi görünmez karakterleri silme seçeneklerini açın.',
+                '"Görünmez karakterleri göster" kutusunu işaretleyerek boşluk, sekme, satır sonu, NBSP, ZWNJ ve görünmez karakterleri çıktı üzerinde renkli simgelerle görün.',
+                'Alttaki istatistikleri (önceki ve sonraki karakter sayısı, silinen karakterler, satır sayıları ve korunan ZWNJ adedi) kontrol edin, sonra çıktıyı kopyalayın.',
+            ],
+            'faq' => [
+                ['q' => 'Bu araç Farsça ZWNJ karakterini siler mi?', 'a' => 'Varsayılan olarak hayır. U+200C ve U+200D, aracın kullandığı boşluk sınıflarının hiçbirine bilerek dahil edilmemiştir ve dokunulmadan geçer. Yalnızca ayrı duran "ZWNJ ve ZWJ karakterlerini kaldır (riskli)" kutusunu işaretlerseniz silinirler ve o anda sarı bir uyarı görünür.'],
+                ['q' => '"Görünmez karakterleri kaldır" seçeneğinin ZWNJ seçeneğinden farkı nedir?', 'a' => 'Görünmez karakter seçeneği U+200B, U+2060, U+FEFF, U+00AD ile U+200E, U+200F ve U+061C yön işaretlerini kaldırır; U+200C veya U+200D karakterine asla dokunmaz. İki seçenek birbirinden bağımsızdır, bu yüzden Farsça metinde görünmez karakter temizliğini rahatça açabilirsiniz.'],
+                ['q' => 'Neden yalnızca ZWNJ içeren bir satır "boş satırları kaldır" ile silinmiyor?', 'a' => 'Bu bilinçli bir davranıştır. Bir satır ancak sadece boşluk, sekme veya Unicode boşluk içeriyorsa boş sayılır; ZWNJ gerçek içerik kabul edilir ve satır korunur. Böyle bir satırı silmek için önce riskli ZWNJ kaldırma seçeneğini açmanız gerekir.'],
+                ['q' => 'Aracın sınırları neler?', 'a' => 'İşlem 500.000 karakterle sınırlıdır; daha uzun girdi kısaltılır ve bir uyarı gösterilir. Görünmez karakter önizlemesi en fazla 20.000 karakter çizer. Ayrıca satır sonları her zaman LF olarak normalleştirilir, bu nedenle dosyanız Windows CRLF satır sonlarını korumak zorundaysa kopyaladıktan sonra kendi düzenleyicinizde geri ayarlayın.'],
+            ],
+        ],
+    ],
+
+    'json-tree' => [
+        'fa' => [
+            'intro' => 'JSON.parse مرورگر ترتیب کلیدهایی که شبیه عدد هستند را جابه‌جا می‌کند، از دو کلید هم‌نام فقط آخری را نگه می‌دارد و هر عدد صحیح بزرگ‌تر از ۲ به توان ۵۳ را گرد می‌کند؛ یعنی یک payload می‌تواند در کنسول سالم به نظر برسد و باز هم غلط باشد. این ابزار پارسر RFC 8259 خودش را دارد، پس درخت ترتیب اصلی اعضا را نشان می‌دهد، کلید تکراری را برچسب می‌زند و رقم‌های عدد بزرگ را دست‌نخورده چاپ می‌کند. همه‌ی کار هم داخل مرورگر انجام می‌شود.',
+            'steps' => [
+                'JSON را در کادر ورودی بچسبانید یا دکمهٔ «نمونه» را بزنید؛ درخت بدون دکمهٔ اجرا و با کمی تأخیر پس از تایپ ساخته می‌شود.',
+                'نوار آمار بالای درخت تعداد گره، عمق، کلید، شیء، آرایه و زمان تجزیه را نشان می‌دهد و اگر کلید تکراری باشد، پیل نارنجی شمار آن را اضافه می‌کند.',
+                'برای باز و بسته کردن هر شاخه روی مثلث کنارش کلیک کنید یا روی سطر دوبار بزنید؛ دکمه‌های «باز کردن همه» و «بستن همه» کل درخت را کنترل می‌کنند و کلیدهای جهت‌دار هم داخل درخت کار می‌کنند.',
+                'در کادر جست‌وجو عبارت را بنویسید؛ هر کلید و مقدار منطبق هایلایت می‌شود، شاخه‌های والدش خودکار باز می‌شوند و با Enter یا دکمه‌های بالا و پایین بین نتایج می‌چرخید.',
+                'روی گرهٔ موردنظر کلیک کنید تا مسیر JSONPath و نوع، طول یا تعداد فرزندش پایین صفحه بیاید، سپس «کپی مسیر» یا «کپی مقدار» را بزنید.',
+            ],
+            'faq' => [
+                ['q' => 'آیا JSON من جایی آپلود می‌شود؟', 'a' => 'خیر. تجزیه، رسم درخت، جست‌وجو و کپی همگی با جاوااسکریپت در همان مرورگر شما انجام می‌شود و هیچ درخواستی با محتوای ورودی به سرور فرستاده نمی‌شود. برای payload های حاوی داده‌ی مشتری هم بی‌خطر است.'],
+                ['q' => 'چرا کنار عدد بزرگم برچسب «صحیح ناامن» خورده؟', 'a' => 'چون آن عدد از محدودهٔ امن اعداد صحیح در جاوااسکریپت (۲ به توان ۵۳ منهای ۱) گذشته است. این ابزار رقم‌های اصلی را از متن ورودی نگه می‌دارد و «کپی مقدار» هم همان لیترال دست‌نخورده را می‌دهد، اما اگر همان داده را در کد خودتان با JSON.parse بخوانید رقم‌های آخر تغییر می‌کند؛ راه‌حل معمول این است که سمت API آن شناسه را رشته بفرستید.'],
+                ['q' => 'کادر جست‌وجو عبارت JSONPath قبول می‌کند؟', 'a' => 'نه، و این رایج‌ترین سوءتفاهم دربارهٔ این ابزار است. جست‌وجو یک تطبیق زیررشته‌ای ساده و بدون حساسیت به بزرگی و کوچکی حروف روی نام کلیدها و مقادیر است؛ JSONPath فقط خروجی است، یعنی مسیر گره‌ای که انتخاب کرده‌اید تا در کد یا در jq استفاده کنید.'],
+                ['q' => 'برای فایل‌های خیلی بزرگ چه محدودیتی دارد؟', 'a' => 'ورودی تا ۲ میلیون کاراکتر، حداکثر ۱۵۰٬۰۰۰ گره و ۲۰۰ سطح تودرتو پذیرفته می‌شود و در هر لحظه فقط ۶۰۰۰ سطر رسم می‌شود؛ بقیه پس از بستن شاخه‌ها یا جست‌وجو دیده می‌شوند. رشته‌های بلندتر از ۱۶۰ کاراکتر هم در درخت کوتاه‌شده نمایش داده می‌شوند، ولی «کپی مقدار» همیشه مقدار کامل را می‌دهد.'],
+            ],
+        ],
+        'en' => [
+            'intro' => "The browser's JSON.parse silently reorders keys that look like integers, keeps only the last of two same-named members, and rounds any integer past 2^53 — so a payload can look fine in devtools and still be wrong. This viewer ships its own RFC 8259 parser, so the tree preserves original member order, tags duplicate keys, and prints big integers with their exact digits. Everything runs in your browser.",
+            'steps' => [
+                'Paste your JSON into the input box or hit Sample; the tree builds itself shortly after you stop typing, with no run button to press.',
+                'Read the stat pills above the tree: node count, depth, keys, objects, arrays and parse time — plus an orange pill counting duplicate keys when the payload has any.',
+                'Expand or collapse a branch by clicking its twisty or double-clicking the row; Expand all and Collapse all handle the whole tree, and the arrow keys work once the tree has focus.',
+                'Type in the search box to highlight every matching key and value; parent branches open automatically, and Enter or the up/down buttons cycle through the hit counter.',
+                'Click a node to reveal its JSONPath plus its type, length or child count, then use Copy path or Copy value.',
+            ],
+            'faq' => [
+                ['q' => 'Is my JSON uploaded anywhere?', 'a' => 'No. Parsing, rendering, searching and copying all happen in JavaScript in your own browser, and no request carrying the input is ever sent to a server. That makes it safe for payloads containing customer data.'],
+                ['q' => 'Why is my large number tagged as an unsafe int?', 'a' => "Because it sits outside JavaScript's safe integer range (2^53 minus 1). The viewer keeps the original digits from your input text and Copy value returns that untouched literal, but if your own code reads the same data with JSON.parse the trailing digits will change. The usual fix is to have the API send that identifier as a string."],
+                ['q' => 'Can the search box take a JSONPath expression?', 'a' => 'No, and that is the most common misconception about this tool. Search is a plain case-insensitive substring match over key names and values. JSONPath is output only: it is the path of the node you selected, ready to paste into code or jq.'],
+                ['q' => 'What are the limits on very large files?', 'a' => 'The input is capped at 2 million characters, 150,000 nodes and 200 nesting levels, and only 6,000 rows are painted at a time — the rest appear once you collapse branches or search. Strings longer than 160 characters are shown truncated in the tree, but Copy value always yields the full value.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Tarayıcıdaki JSON.parse, tam sayıya benzeyen anahtarların sırasını sessizce değiştirir, aynı adlı iki üyeden yalnızca sonuncusunu tutar ve 2^53 sınırını aşan tam sayıları yuvarlar; yani bir payload geliştirici konsolunda düzgün görünüp yine de hatalı olabilir. Bu görüntüleyici kendi RFC 8259 ayrıştırıcısını kullanır: ağaç özgün üye sırasını korur, yinelenen anahtarları etiketler ve büyük tam sayıları tam basamaklarıyla yazar. Her şey tarayıcınızda çalışır.',
+            'steps' => [
+                'JSON verinizi girdi kutusuna yapıştırın ya da Örnek düğmesine basın; yazmayı bıraktıktan kısa süre sonra ağaç kendiliğinden oluşur, ayrıca bir çalıştır düğmesi yoktur.',
+                'Ağacın üstündeki istatistik rozetlerini okuyun: düğüm sayısı, derinlik, anahtar, nesne, dizi ve ayrıştırma süresi; yinelenen anahtar varsa turuncu bir rozet bunların sayısını gösterir.',
+                'Bir dalı açmak veya kapatmak için yanındaki oka tıklayın ya da satıra çift tıklayın; Tümünü aç ve Tümünü kapat düğmeleri ağacın tamamını yönetir, ağaç odaktayken ok tuşları da çalışır.',
+                'Arama kutusuna yazdığınızda eşleşen tüm anahtar ve değerler vurgulanır, üst dallar kendiliğinden açılır; Enter ya da yukarı/aşağı düğmeleriyle sonuçlar arasında dolaşırsınız.',
+                'Bir düğüme tıklayarak JSONPath yolunu ve türünü, uzunluğunu veya alt öğe sayısını görün, sonra Yolu kopyala ya da Değeri kopyala düğmesini kullanın.',
+            ],
+            'faq' => [
+                ['q' => 'JSON verim bir yere yükleniyor mu?', 'a' => 'Hayır. Ayrıştırma, ağacın çizimi, arama ve kopyalama tamamen kendi tarayıcınızdaki JavaScript ile yapılır ve girdiyi taşıyan hiçbir istek sunucuya gitmez. Bu nedenle müşteri verisi içeren payload verileri için de güvenlidir.'],
+                ['q' => 'Büyük sayım neden güvensiz tam sayı olarak etiketlendi?', 'a' => 'Çünkü o sayı JavaScript güvenli tam sayı aralığının (2^53 eksi 1) dışında kalıyor. Görüntüleyici basamakları girdi metninden olduğu gibi korur ve Değeri kopyala bu ham değeri verir; ancak aynı veriyi kendi kodunuzda JSON.parse ile okursanız son basamaklar değişir. Alışılmış çözüm, bu kimliği API tarafında metin olarak göndermektir.'],
+                ['q' => 'Arama kutusuna JSONPath ifadesi yazılabilir mi?', 'a' => 'Hayır ve bu araç hakkındaki en yaygın yanlış anlama budur. Arama, anahtar adları ve değerler üzerinde büyük küçük harf ayrımı olmayan düz bir alt dizi eşleşmesidir. JSONPath yalnızca çıktıdır: seçtiğiniz düğümün koda veya jq komutuna yapıştırılmaya hazır yoludur.'],
+                ['q' => 'Çok büyük dosyalarda sınırlar neler?', 'a' => 'Girdi 2 milyon karakter, 150.000 düğüm ve 200 iç içe seviye ile sınırlıdır; aynı anda yalnızca 6.000 satır çizilir, kalanı dalları kapattığınızda veya arama yaptığınızda görünür. 160 karakterden uzun metinler ağaçta kısaltılmış gösterilir, ancak Değeri kopyala her zaman tam değeri verir.'],
+            ],
+        ],
+    ],
+
+    'image-cropper' => [
+        'fa' => [
+            'intro' => 'پیش‌نمایش این ابزار برای روان ماندن کار تا حداکثر ۱۴۰۰ پیکسل کوچک می‌شود، اما برش نهایی همیشه از فایل اصلی و با رزولوشن کامل گرفته می‌شود. تصور رایج این است که چون کادر را روی یک پیش‌نمایش کوچک کشیده‌اید، خروجی هم کم‌کیفیت می‌شود؛ این‌طور نیست. کل کار داخل مرورگر و روی Canvas انجام می‌شود و فایل شما به هیچ سروری فرستاده نمی‌شود.',
+            'steps' => [
+                'تصویر را روی کادر نقطه‌چین رها کنید یا روی «انتخاب تصویر» بزنید.',
+                'نسبت ابعاد را از میان آزاد، ۱:۱، ۴:۳ یا ۱۶:۹ انتخاب کنید.',
+                'کادر سفید را بکشید تا جابه‌جا شود و با هشت دستگیره اندازه‌اش را تنظیم کنید؛ موقعیت و ابعاد خروجی لحظه‌ای زیر تصویر نمایش داده می‌شود.',
+                'قالب PNG یا JPEG را انتخاب کنید و روی دانلود بزنید؛ فایل با نامی مثل cropped-800x600.png ذخیره می‌شود.',
+            ],
+            'faq' => [
+                ['q' => 'آیا برش باعث افت کیفیت تصویر می‌شود؟', 'a' => 'نه. پیش‌نمایش فقط برای نمایش کوچک شده و برش از فایل اصلی برداشته می‌شود، پس تراکم پیکسل خروجی همان تصویر ورودی است. تنها در حالت JPEG فشرده‌سازی با کیفیت حدود ۹۲ درصد اعمال می‌شود.'],
+                ['q' => 'شفافیت تصویر حفظ می‌شود؟', 'a' => 'در خروجی PNG بله. اگر JPEG بگیرید، چون این قالب کانال آلفا ندارد، ناحیه‌های شفاف با رنگ سفید پر می‌شوند.'],
+                ['q' => 'می‌توانم تصویر را بچرخانم، آینه کنم یا ابعاد خروجی را تغییر بدهم؟', 'a' => 'خیر. این ابزار فقط برش می‌دهد؛ چرخش، آینه‌کردن، زوم و تغییر اندازه ندارد و کوچک‌ترین کادر ممکن حدود ۴ درصد ضلع کوتاه‌تر تصویر است.'],
+                ['q' => 'فایل من جایی آپلود می‌شود؟', 'a' => 'خیر. تصویر با FileReader در مرورگر خوانده و روی Canvas پردازش می‌شود؛ هیچ داده‌ای به سرور ما ارسال نمی‌شود.'],
+            ],
+        ],
+        'en' => [
+            'intro' => 'The on-screen preview is downscaled to at most 1400 px so dragging stays smooth, but the actual crop is always taken from the original file at full resolution. People often assume that cropping a scaled preview throws away pixels — it does not. Everything runs on a Canvas inside your browser, so the file never leaves your machine.',
+            'steps' => [
+                'Drop an image onto the dashed area, or click Choose image.',
+                'Pick an aspect ratio: Free, 1:1, 4:3 or 16:9.',
+                'Drag the white frame to reposition it and use the eight handles to resize; the crop position and output size update live below the image.',
+                'Choose PNG or JPEG, then click download — the file is saved as something like cropped-800x600.png.',
+            ],
+            'faq' => [
+                ['q' => 'Does cropping reduce image quality?', 'a' => 'No. The preview is only scaled for display; the crop is copied from the original image, so the output keeps the same pixel density. Only JPEG adds compression, at roughly 92% quality.'],
+                ['q' => 'Is transparency preserved?', 'a' => 'With PNG output, yes. JPEG has no alpha channel, so transparent areas are filled with white before the file is written.'],
+                ['q' => 'Can I rotate, flip, zoom or resize the result?', 'a' => "No. This tool only crops — there is no rotation, mirroring, zoom or output resizing, and the smallest possible frame is about 4% of the image's shorter side."],
+                ['q' => 'Is my file uploaded anywhere?', 'a' => 'No. The image is read with FileReader and processed on a Canvas locally; nothing is sent to our server.'],
+            ],
+        ],
+        'tr' => [
+            'intro' => 'Ekrandaki önizleme, sürükleme akıcı kalsın diye en fazla 1400 piksele küçültülür; ancak kırpma her zaman orijinal dosyadan tam çözünürlükte alınır. Küçültülmüş bir önizleme üzerinde kırpınca piksel kaybedildiği sanılır, oysa durum böyle değildir. Tüm işlem tarayıcı içinde Canvas üzerinde yapılır ve dosya cihazınızdan çıkmaz.',
+            'steps' => [
+                'Görseli kesik çizgili alana bırakın veya Görsel seç düğmesine tıklayın.',
+                'En boy oranını seçin: Serbest, 1:1, 4:3 veya 16:9.',
+                'Beyaz çerçeveyi sürükleyerek konumlandırın ve sekiz tutamaçla boyutlandırın; kırpma konumu ile çıktı boyutu görselin altında anlık güncellenir.',
+                'PNG veya JPEG seçip indirin; dosya cropped-800x600.png benzeri bir adla kaydedilir.',
+            ],
+            'faq' => [
+                ['q' => 'Kırpmak görsel kalitesini düşürür mü?', 'a' => 'Hayır. Önizleme yalnızca gösterim için küçültülür, kırpma orijinal görselden alınır ve piksel yoğunluğu korunur. Sadece JPEG seçilirse yaklaşık yüzde 92 kalitede sıkıştırma uygulanır.'],
+                ['q' => 'Saydamlık korunur mu?', 'a' => 'PNG çıktısında evet. JPEG biçiminde alfa kanalı bulunmadığı için saydam alanlar beyazla doldurulur.'],
+                ['q' => 'Görseli döndürebilir, aynalayabilir veya boyutunu değiştirebilir miyim?', 'a' => 'Hayır. Bu araç yalnızca kırpar; döndürme, aynalama, yakınlaştırma veya çıktı boyutlandırma yoktur ve en küçük çerçeve, kısa kenarın yaklaşık yüzde 4 kadarıdır.'],
+                ['q' => 'Dosyam bir yere yükleniyor mu?', 'a' => 'Hayır. Görsel FileReader ile okunur ve Canvas üzerinde yerel olarak işlenir; sunucumuza hiçbir veri gönderilmez.'],
+            ],
+        ],
+    ],
 ];
