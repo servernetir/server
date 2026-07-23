@@ -18,11 +18,56 @@ class AccountController extends Controller
     public function home(): View
     {
         $customer = Auth::guard('customer')->user();
+        $identity = $customer->identityVerification;
+        $bank     = $customer->bankAccounts()->where('status', 'verified')->first();
+
+        $openInvoices = $customer->invoices()
+            ->whereIn('status', ['unpaid', 'draft'])
+            ->orderBy('due_at')
+            ->get();
+
+        /*
+         * «کارهای باقی‌مانده» عمداً از وضعیت واقعی ساخته می‌شود، نه از یک
+         * فهرست ثابت. داشبوردی که همیشه همان سه کارت را نشان می‌دهد، بعد از
+         * دو بار دیدن نامرئی می‌شود.
+         */
+        $todo = [];
+
+        if ($customer->locale === 'fa' && $identity?->status !== 'verified') {
+            $todo[] = [
+                'icon' => 'user', 'tone' => 'd',
+                'title' => __('ui.auth_kyc_title'),
+                'note'  => __('ui.auth_kyc_sub'),
+                'url'   => lroute('account.profile'),
+            ];
+        }
+
+        if ($identity?->status === 'verified' && $bank === null) {
+            $todo[] = [
+                'icon' => 'db', 'tone' => 'w',
+                'title' => __('ui.pnl_bank_add'),
+                'note'  => __('ui.pnl_bank_why'),
+                'url'   => lroute('account.bank'),
+            ];
+        }
+
+        foreach ($openInvoices as $inv) {
+            $todo[] = [
+                'icon' => 'coins', 'tone' => 'w',
+                'title' => __('ui.pnl_invoice_due', ['number' => $inv->number]),
+                'note'  => fa_num(number_format($inv->due())).' '.__('ui.pnl_toman'),
+                'url'   => lroute('account.invoice', $inv),
+            ];
+        }
 
         return view('account.home', $this->shell('dash') + [
-            'customer' => $customer,
-            'identity' => $customer->identityVerification,
-            'bank'     => $customer->bankAccounts()->where('status', 'verified')->first(),
+            'customer'     => $customer,
+            'identity'     => $identity,
+            'bank'         => $bank,
+            'todo'         => $todo,
+            'openInvoices' => $openInvoices,
+            'credit'       => $customer->creditBalance(),
+            'recent'       => $customer->payments()->latest('id')->limit(5)->get(),
         ]);
     }
 
@@ -46,8 +91,10 @@ class AccountController extends Controller
         return [
             'pnlActive' => $active,
             'pnlUser'   => [
-                'name' => $customer?->displayName() ?? '',
-                'code' => $customer?->code ?? '',
+                'name'   => $customer?->displayName() ?? '',
+                'code'   => $customer?->code ?? '',
+                'email'  => $customer?->email,
+                'avatar' => avatar_url($customer?->email),
             ],
             'pnlNav' => [
                 ['label' => null, 'items' => [

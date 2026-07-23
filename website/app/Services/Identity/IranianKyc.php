@@ -153,16 +153,21 @@ class IranianKyc
             return BankAccount::updateOrCreate(
                 ['customer_id' => $customer->id, 'iban' => $result->iban],
                 [
-                    'card_bin'       => substr($card, 0, 6),
-                    'card_last4'     => substr($card, -4),
-                    'bank_name'      => $result->bankName,
-                    'account_number' => $accountNumber,
-                    'owner_name'     => $result->ownerName,
-                    'name_matched'   => true,
-                    'status'         => 'verified',
-                    'reject_reason'  => null,
-                    'is_default'     => $isFirst,
-                    'verified_at'    => now(),
+                    'card_bin'   => substr($card, 0, 6),
+                    'card_last4' => substr($card, -4),
+                    // ⚠ PAN کامل — به درخواست صریح کارفرما. cast مدل آن را
+                    // رمزنگاری می‌کند، پس مقدار خام وارد دیتابیس نمی‌شود.
+                    'card_number_enc' => $card,
+                    'bank_name'       => $result->bankName,
+                    // تشخیص محلی از BIN: املایش یکدست است و به سرویس وابسته نیست
+                    'bank_slug'       => \App\Support\IranianBank::fromBin($card)['slug'] ?? null,
+                    'account_number'  => $accountNumber,
+                    'owner_name'      => $result->ownerName,
+                    'name_matched'    => true,
+                    'status'          => 'verified',
+                    'reject_reason'   => null,
+                    'is_default'      => $isFirst,
+                    'verified_at'     => now(),
                 ],
             );
         });

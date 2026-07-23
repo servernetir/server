@@ -202,3 +202,67 @@ html[data-theme="light"] .pnl-sec{background:#fff}
   .pnl-stats{grid-template-columns:1fr}
   .pnl-table th,.pnl-table td{padding:11px 13px}
 }
+
+/* ============================================================================
+   آواتار و خروج — افزوده شده با پنل واقعی
+   ========================================================================== */
+
+/* آواتار: حرف اول همیشه زیر است، تصویر گراواتار رویش می‌نشیند.
+   اگر تصویر ۴۰۴ بدهد onerror حذفش می‌کند و حرف سر جایش می‌ماند —
+   بدون پرش چیدمان. رنگ از نام مشتق می‌شود، پس هر کاربر رنگ ثابت خودش
+   را دارد و آواتارها در فهرست از هم قابل تفکیک‌اند. */
+.pnl-avatar{
+  position:relative; overflow:hidden; flex:none;
+  display:grid; place-items:center;
+  background:
+    linear-gradient(140deg,
+      hsl(var(--av-h,200) 62% 52% / .30),
+      hsl(calc(var(--av-h,200) + 40) 62% 48% / .16));
+  border:1px solid hsl(var(--av-h,200) 60% 60% / .28);
+}
+.pnl-avatar i{
+  font-style:normal; font-weight:700;
+  font-family:var(--font-disp); line-height:1;
+  color:hsl(var(--av-h,200) 70% 82%);
+}
+html[data-theme="light"] .pnl-avatar i{ color:hsl(var(--av-h,200) 55% 32%); }
+.pnl-avatar img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0;
+  transition:opacity .35s var(--ease);
+}
+.pnl-avatar img.on{ opacity:1; }
+@media(prefers-reduced-motion:reduce){ .pnl-avatar img{ transition:none } }
+
+/* دکمهٔ خروج — انتهای سایدبار، جدا از منو با یک خط */
+.pnl-signout{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.pnl-signout button{
+  display:flex; align-items:center; gap:10px; width:100%;
+  background:none; border:0; cursor:pointer;
+  padding:10px 12px; border-radius:10px;
+  font:inherit; font-size:13px; color:var(--muted);
+  transition:background .16s var(--ease), color .16s var(--ease);
+}
+.pnl-signout button:hover{ background:var(--danger-bg); color:var(--danger); }
+.pnl-signout button:focus-visible{ outline:2px solid var(--line-2); outline-offset:1px; }
+.pnl-signout .icon{ width:16px; height:16px; transform:scaleX(-1); }
+
+/* ── نشان بانک ───────────────────────────────────────────────────────────
+   رنگ از config/banks.php می‌آید. زمینه و حاشیه از همان رنگ با شفافیت
+   ساخته می‌شوند تا در تم روشن و تیره هر دو خوانا بماند — رنگ ثابت روشن
+   روی زمینهٔ تیره می‌درخشد و برعکس. */
+.bank-mark{
+  width:34px; height:34px; flex:none; border-radius:10px;
+  display:grid; place-items:center;
+  background:color-mix(in srgb, var(--bk, #64748B) 18%, transparent);
+  border:1px solid color-mix(in srgb, var(--bk, #64748B) 42%, transparent);
+}
+.bank-mark i{
+  font-style:normal; font-size:11px; font-weight:700; line-height:1;
+  color:color-mix(in srgb, var(--bk, #64748B) 72%, var(--text));
+}
+.bank-mark .icon{ width:15px; height:15px; color:var(--dim); }
+
+/* عنوان بخش با نشان کنارش */
+.bank-head{ display:flex; align-items:center; gap:11px; min-width:0; }
+.bank-head h2{ margin:0; }

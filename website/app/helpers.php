@@ -29,6 +29,44 @@ if (! function_exists('fa_num')) {
     }
 }
 
+if (! function_exists('avatar_url')) {
+    /**
+     * نشانی تصویر گراواتار برای یک ایمیل.
+     *
+     * `d=404` عمدی است: اگر کاربر گراواتار نداشته باشد به‌جای تصویر پیش‌فرضِ
+     * بی‌ربط، ۴۰۴ می‌گیریم و قالب روی حرف اول نام می‌ماند. یعنی هیچ‌وقت
+     * آواتار ژنریک و بی‌روح نشان داده نمی‌شود.
+     *
+     * نکته: هش ایمیل به گراواتار می‌رود، پس آن‌ها می‌فهمند این ایمیل روی
+     * سایت ما فعال است. برای حساب کاربری قابل قبول است، ولی جای عمومی سایت
+     * استفاده نشود.
+     *
+     * تصویر واقعی گوگل فقط بعد از «ورود با گوگل» در دسترس می‌آید؛ تا آن
+     * موقع گراواتار نزدیک‌ترین چیز است.
+     */
+    function avatar_url(?string $email, int $size = 160): ?string
+    {
+        if (blank($email)) {
+            return null;
+        }
+
+        $hash = hash('sha256', mb_strtolower(trim($email)));
+
+        return 'https://www.gravatar.com/avatar/'.$hash.'?s='.$size.'&d=404';
+    }
+}
+
+if (! function_exists('initials')) {
+    /** حرف اول برای آواتار متنی — با نام رسمی، وگرنه با ایمیل */
+    function initials(?string $name, ?string $email = null): string
+    {
+        $source = filled($name) ? $name : (string) $email;
+        $source = trim($source);
+
+        return $source === '' ? '؟' : mb_strtoupper(mb_substr($source, 0, 1));
+    }
+}
+
 if (! function_exists('blog_date')) {
     /** تاریخ پست: شمسی برای فارسی، میلادی خوانا برای en/tr */
     function blog_date(string $iso): string

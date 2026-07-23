@@ -137,6 +137,20 @@ return [
         */
         'test_numbers' => env('OTP_TEST_NUMBERS', ''),
 
+        /*
+        | رابط سرور ایران.
+        |
+        | آی‌پی‌پنل به آی‌پی خارج از ایران سرویس نمی‌دهد و سرور اصلی ما در
+        | آلمان است. با پر کردن این دو، درخواست پیامک به‌جای مسیر مستقیم —
+        | که همیشه ۵۰۲ می‌گیرد — از سرور ایران رد می‌شود.
+        |
+        |   SMS_RELAY_URL=https://servernet.ir/sms-relay.php
+        |   SMS_RELAY_SECRET=«همان رشته‌ای که در sms-relay-secret.php گذاشتید»
+        */
+        'relay_url'    => env('SMS_RELAY_URL'),
+        'relay_secret' => env('SMS_RELAY_SECRET'),
+
+
         'ippanel' => [
             // IPPANEL_KEY نامی است که در .env استفاده شده؛ IPPANEL_TOKEN هم
             // پذیرفته می‌شود تا اگر جایی نام دیگری گذاشته شد از کار نیفتد.

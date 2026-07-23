@@ -38,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
                     config('services.sms.ippanel.from'),
                     array_filter((array) config('services.sms.ippanel.patterns', [])),
                     (string) config('services.sms.ippanel.variable', 'code'),
+                    config('services.sms.relay_url'),
+                    config('services.sms.relay_secret'),
                 ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),

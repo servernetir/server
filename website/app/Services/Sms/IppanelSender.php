@@ -43,7 +43,21 @@ class IppanelSender implements SmsSender, SupportsPatterns
         private array $patterns = [],
         /** نام متغیر پیش‌فرض داخل الگو — در پنل آی‌پی‌پنل تعریف می‌شود */
         private string $variable = 'code',
+        /**
+         * رابط روی سرور ایران.
+         *
+         * آی‌پی‌پنل به آی‌پی‌های خارج از ایران سرویس نمی‌دهد و سرور اصلی ما
+         * در آلمان است. وقتی این دو تنظیم پر باشند، درخواست به‌جای مسیر
+         * مستقیم — که همیشه شکست می‌خورد — از رابط رد می‌شود.
+         */
+        private ?string $relayUrl = null,
+        private ?string $relaySecret = null,
     ) {}
+
+    private function relayEnabled(): bool
+    {
+        return filled($this->relayUrl) && filled($this->relaySecret);
+    }
 
     public function enabled(): bool
     {
@@ -179,6 +193,10 @@ class IppanelSender implements SmsSender, SupportsPatterns
             : (string) $this->token;
 
         try {
+            if ($this->relayEnabled()) {
+                return $this->viaRelay($header, $body);
+            }
+
             return Http::withHeaders([
                     'Authorization' => $header,
                     'Accept'        => 'application/json',
@@ -196,6 +214,37 @@ class IppanelSender implements SmsSender, SupportsPatterns
 
             return null;
         }
+    }
+
+    /**
+     * ارسال از راه رابطِ سرور ایران.
+     *
+     * بدنه دقیقاً همان چیزی است که مستقیم می‌رفت — رابط فقط عبورش می‌دهد و
+     * پاسخ آی‌پی‌پنل را عیناً برمی‌گرداند. پس هیچ منطقی اینجا دوباره نوشته
+     * نمی‌شود و همان کد خواندن پاسخ برای هر دو مسیر کار می‌کند.
+     *
+     * امضا روی بدنهٔ **خام** زده می‌شود، نه روی آرایه: اگر دو طرف JSON را
+     * حتی با فاصله‌ای متفاوت بسازند، امضا نمی‌خواند. پس همان رشته‌ای که
+     * امضا شد، همان فرستاده می‌شود.
+     */
+    private function viaRelay(string $auth, array $body): \Illuminate\Http\Client\Response
+    {
+        $raw   = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $ts    = (string) time();
+        $nonce = bin2hex(random_bytes(12));
+
+        return Http::withHeaders([
+                'Content-Type'          => 'application/json',
+                'Accept'                => 'application/json',
+                'X-Relay-Timestamp'     => $ts,
+                'X-Relay-Nonce'         => $nonce,
+                'X-Relay-Signature'     => hash_hmac('sha256', $ts."\n".$nonce."\n".$raw, (string) $this->relaySecret),
+                // توکن آی‌پی‌پنل فقط عبور می‌کند؛ رابط ذخیره‌اش نمی‌کند
+                'X-Relay-Authorization' => $auth,
+            ])
+            ->timeout(25)   // یک پرش شبکه بیشتر از مسیر مستقیم
+            ->withBody($raw, 'application/json')
+            ->post((string) $this->relayUrl);
     }
 
     /** برای تشخیص: خط فرستنده دقیقاً به چه شکلی فرستاده می‌شود */

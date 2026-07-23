@@ -15,7 +15,7 @@
     {{-- نوار موبایل: فقط زیر ۱۰۰۰px دیده می‌شود --}}
     <div class="pnl-mobar">
       <div class="pnl-mobar-me">
-        <span class="pnl-avatar">{{ mb_substr($pnlUser['name'] ?? '؟', 0, 1) }}</span>
+        @include('panel.avatar', ['user' => $pnlUser])
         <b>{{ $pnlUser['name'] ?? '' }}</b>
       </div>
       <button class="pnl-menu-btn" id="pnl-menu" aria-label="منو">
@@ -34,7 +34,7 @@
         <div class="pnl-card">
 
           <div class="pnl-me">
-            <span class="pnl-avatar">{{ mb_substr($pnlUser['name'] ?? '؟', 0, 1) }}</span>
+            @include('panel.avatar', ['user' => $pnlUser])
             <span class="pnl-me-t">
               <b>{{ $pnlUser['name'] ?? '' }}</b>
               <small dir="ltr">{{ $pnlUser['code'] ?? '' }}</small>
@@ -55,6 +55,19 @@
               @endforeach
             @endforeach
           </nav>
+
+          {{-- خروج: تا امروز هیچ راهی برای بیرون آمدن از حساب نبود.
+               POST و نه لینک — خروج با GET یعنی هر تصویر یا لینکی در یک
+               سایت دیگر می‌تواند کاربر را بی‌اجازه بیرون بیندازد. --}}
+          @auth('customer')
+            <form method="POST" action="{{ lroute('logout') }}" class="pnl-signout">
+              @csrf
+              <button type="submit">
+                <svg class="icon"><use href="#i-arrow"/></svg>
+                <span>{{ __('ui.auth_logout') }}</span>
+              </button>
+            </form>
+          @endauth
 
         </div>
       </aside>
