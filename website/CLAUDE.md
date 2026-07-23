@@ -110,22 +110,38 @@ cache و session و queue همگی روی `database` هستند، یعنی دا�
 
 ```
 app/
-  Http/Controllers/     Site, Catalog, Solution, Blog, Docs, WebTools,
-                        Lookup, Tool, Chat, DomainCheck, AiBuilder, Careers, Admin/
+  Http/Controllers/     Site, Catalog, Solution, Blog, Docs, WebTools, Lookup,
+                        Tool, Chat, DomainCheck, DomainSearch, AiBuilder,
+                        Careers, PanelPreview, Admin/
   Services/             AiContent, AiComments, BlogRepository, DocsRepository,
                         NetworkTools, DomainTools, Whmcs, SafeUrl,
-                        HtmlSanitizer, SiteAudit
+                        HtmlSanitizer, SiteAudit, ExchangeRate
+    Domain/             OpenProviderClient, DomainSearch
+    Identity/           IdentityProvider (قرارداد), ZohalProvider, IranianKyc
   Models/               Post, PostTranslation, Comment, User
+                        ── CMS جدید ──
+                        Customer, CustomerProfile, CustomerDocument,
+                        CustomerIdentity, CustomerIpRule, RegistryHandle,
+                        IdentityVerification, BankAccount,
+                        Currency, TaxRate, DomainQuote
   Console/Commands/     GenerateContent, PublishDue, TranslateMissing, AiStatus,
-                        SeedBlogDb, SeedDocs, ImportWpBlog
+                        SeedBlogDb, SeedDocs, ImportWpBlog,
+                        FetchDollar, SetupMariadb, PortLegacyData
 config/                 ۲۳ فایل — سایت عمدتاً config-driven است
+database/migrations/    ۹ قدیمی + ۱۰ تا با پیشوند 2026_08_01_* (CMS)
+database/seeders/       BillingFoundationSeeder (ارز و مالیات)
 resources/views/
   layouts/site.blade.php   تنها layout سایت عمومی
   pages/                   یک view به ازای هر بخش
+  panel/                   پیش‌نمایش پنل کاربری و مدیریت
+  system/setup.blade.php   ابزار آماده‌سازی دیتابیس (موقتی)
   partials/                header, footer, blog-sidebar, webtool-sidebar
   webtools/                ۴۸ ویجت ابزار
 resources/content/       plan.php, docs-plan.php, webtools-seo.php
-public/assets/           css/site.css, css/admin.css, js/*.js, font/ (IRANSans)
+docs/billing/            طراحی CMS — ۱۰ سند
+public/assets/           css/site.css, css/admin.css, css/panel.css,
+                         js/*.js, font/ (IRANSans)
+tests/Feature/           CustomerIdentity, DomainSearch, IranianKyc, ZohalProvider
 ```
 
 ---
@@ -271,61 +287,118 @@ DNS، DNSSEC، انتشار، reverse، SSL، **اسکن پورت**، پینگ.
 
 ---
 
-## ۱۰. قدم بعدی: CMS اختصاصی (جایگزین WHMCS)
+## ۱۰. CMS اختصاصی (جایگزین WHMCS) — وضعیت زنده
 
-> **تصمیم گرفته‌شده:** WHMCS کنار گذاشته می‌شود و یک سیستم فروش/تحویل/صورت‌حساب
-> اختصاصی در همین لاراول ساخته می‌شود.
->
-> 📐 **طراحی کامل در `docs/billing/` است — قبل از هر کاری آن را بخوان.**
-> `00-overview.md` نمای کلی، چهار اصل بنیادی، ترتیب ساخت و ریسک‌ها را دارد.
-> ۱۲۹ جدول در ۶ سند تفکیک‌شده.
->
-> **کد WHMCS تا جایگزینی کامل دست‌نخورده می‌ماند** — هنوز دو کار زنده می‌کند.
+> 📐 طراحی کامل در `docs/billing/` است. این بخش می‌گوید **چه چیزی واقعاً ساخته
+> شده** و **چه چیزی مانده**. اگر با کد نمی‌خواند، کد درست است.
 
-### وضعیت فعلی (نقطهٔ شروع)
+### وضعیت یک‌نگاهی
 
-- **احراز هویت فقط ادمین است.** مدل `User` ستون `role` دارد و `/admin/login`
-  کار می‌کند، ولی **ثبت‌نام یا ورود کاربر عادی وجود ندارد**.
-- WHMCS الان دو کار می‌کند و تا جایگزینی نباید حذف شود:
-  1. `whmcs_url()` / `buy_url()` → دکمه‌های «خرید» به `my.servernet.ir` و
-     `my.servernet.cloud` لینک می‌دهند (در سراسر صفحات محصول)
-  2. `Whmcs::tldPricing()` و `domainAvailable()` → قیمت و موجودی دامنه
-     در جستجوگر دامنه
-- کد مربوطه: `app/Services/Whmcs.php`، `config/servernet.php → whmcs` و
-  `whmcs_api`، و کمک‌تابع‌های `whmcs_url()` / `whmcs_price()` / `buy_url()`.
-
-### آنچه ساختنش لازم می‌شود (پیش‌نویس، منتظر تأیید)
-
-پرتالی که جای WHMCS را بگیرد حداقل این‌ها را می‌خواهد:
-
-| حوزه | چه چیزی لازم است |
+| | |
 |---|---|
-| حساب کاربری | ثبت‌نام، ورود، بازیابی رمز، تأیید ایمیل، پروفایل |
-| محصولات | تعریف سرویس‌ها و پلن‌ها و دوره‌های صورت‌حساب |
-| سفارش | سبد خرید، ثبت سفارش، تمدید |
-| مالی | فاکتور، پرداخت، تراکنش، اعتبار حساب |
-| درگاه پرداخت | اتصال به درگاه ایرانی (باید مشخص شود) |
-| سرویس‌ها | فهرست سرویس‌های کاربر، وضعیت، تاریخ سررسید |
-| پشتیبانی | تیکت، پیوست، اعلان |
-| دامنه | ثبت، تمدید، انتقال، مدیریت DNS |
-| تحویل خودکار | اتصال به cPanel/WHM یا هر پنل دیگر برای ساخت سرویس |
+| تست | ۴۰ تست · ۱۰۸ ادعا · همه سبز |
+| مهاجرت | ۱۰ فایل نوشته و تست‌شده |
+| دیتابیس سایت | **هنوز SQLite** — سوییچ انجام نشده |
+| MariaDB | متصل، ولی جدول‌های فاز اول رویش ساخته نشده |
 
-### سؤال‌هایی که قبل از شروع باید پاسخ بگیرند
+### ✅ ساخته و تست‌شده
 
-۱. **دامنهٔ کار:** همه‌ی موارد بالا، یا فاز اول فقط بخشی (مثلاً حساب + تیکت +
-   نمایش سرویس‌ها و پرداخت دستی)؟
-۲. **داده‌های موجود:** مشتریان و سرویس‌های فعلی از WHMCS منتقل شوند یا نه؟
-۳. **درگاه پرداخت:** کدام؟ (زرین‌پال، آیدی‌پی، …)
-۴. **تحویل خودکار:** سرویس‌ها خودکار روی cPanel/WHM ساخته شوند یا دستی؟
-۵. **مهاجرت:** WHMCS یک‌باره خاموش شود یا مدتی موازی کار کند؟
+**پایهٔ پول** — `currencies` · `exchange_rates` · `tax_rates`
+هر مبلغ `BIGINT` در واحد فرعی. تومان (exponent 0، گرد به ۱۰٬۰۰۰) و یورو
+(exponent 2). هیچ float و هیچ DECIMAL برای پول. مالیات داده‌محور: ایران ۱۰٪،
+خارج ۰٪، **مستقل از روش پرداخت**.
 
-### نکات فنی که از الان معلوم است
+**هویت مشتری** — `customers` · `customer_profiles` · `customer_documents` ·
+`registry_handles` · `customer_identities` · `customer_ip_rules` ·
+`legal_documents` · `legal_acceptances` · `customer_sessions`
 
-- **دیتابیس SQLite است.** پرتال یعنی نوشتن همزمان (session + cache + سفارش +
-  فاکتور) روی یک فایل. با `busy_timeout` صفر، این جدی است — احتمالاً باید به
-  MySQL/MariaDB مهاجرت کنیم یا حداقل SQLite را با WAL و busy_timeout تنظیم کنیم.
-  **این را قبل از نوشتن اولین جدول تصمیم بگیریم.**
-- احراز هویت کاربر باید از ادمین جدا بماند (guard جدا یا حداقل تفکیک نقش روشن).
-- هر صفحهٔ پرتال هم باید سه‌زبانه باشد و از همان قرارداد `$site` پیروی کند.
-- پرداخت یعنی نگهداری داده‌ی مالی → بازبینی امنیتی جدی لازم است، نه در حد
-  همان بازبینی بخش عمومی.
+- guard جدای `customer` از guard ادمین. تستی هست که ثابت می‌کند ورود مشتری
+  هیچ دسترسی‌ای در guard `web` نمی‌دهد.
+- حقیقی/حقوقی در `customer_profiles` جدا از `customers`، چون یک انسان می‌تواند
+  هم شخص حقیقی باشد هم نمایندهٔ شرکت.
+- کد ملی رمزنگاری‌شده + HMAC کلیددار برای ایندکس یکتا و جستجو بدون رمزگشایی.
+- شناسهٔ عمومی `SN-104829` — `id` عددی هرگز به مشتری نشان داده نمی‌شود.
+- پذیرش شرایط با **متن کامل و نسخه‌بندی**، تا بشود ثابت کرد کاربر دقیقاً چه
+  چیزی را پذیرفته.
+
+**احراز هویت ایرانی (زحل)** — `identity_verifications` · `bank_accounts`
+
+جریان ثبت‌نام: کد ملی + تاریخ تولد + موبایل → شاهکار → استعلام هویت →
+**نام از ثبت احوال می‌آید، از کاربر پرسیده نمی‌شود.**
+
+جریان بانکی: کارت ۱۶ رقمی → استعلام صاحب کارت → تطبیق با نام رسمی →
+اگر نخواند رد و هیچ‌چیز ذخیره نمی‌شود؛ اگر بخواند شبا و شماره حساب ذخیره و
+**نام قفل می‌شود**.
+
+**دامنه (OpenProvider)** — `domain_quotes`
+جستجو → استعلام زنده → تبدیل به تومان با نرخ روز → درصد سود → استعلام با
+پنجرهٔ اعتبار ۱۵ دقیقه.
+
+**نرخ ارز زنده** — `ExchangeRate` از alanchand.com، کران ساعتی، USD و EUR.
+
+### ⏳ در دست کار / مانده
+
+| کار | وضعیت |
+|---|---|
+| سوییچ به MariaDB | جدول‌های فاز اول باید روی MariaDB ساخته شوند |
+| فرم ثبت‌نام و احراز هویت | موتورش آماده، **رابط کاربری ساخته نشده** |
+| صفحهٔ حساب بانکی | موتورش آماده، رابط نشده |
+| اتصال OpenProvider | کد ۱۹۶ — اعتبارنامه یا IP `65.109.176.14` |
+| بقیهٔ پنل کاربری | فقط پیش‌نمایش طراحی است، بدون دیتابیس |
+| پنل مدیریت | فقط پیش‌نمایش |
+| کاتالوگ، سفارش، فاکتور، پرداخت | فاز بعد |
+| تحویل خودکار (WHM/Proxmox/Hetzner) | فاز بعد |
+| زیردامنهٔ `console.` | DNS ست شده، در cPanel اضافه نشده |
+
+---
+
+### 🔴 چیزهایی که قبل از باز کردن ثبت‌نام حتماً لازم است
+
+**۱) هر ثبت‌نام ۸۱٬۰۰۰ تومان خرج دارد**
+شاهکار ۱۳٬۰۰۰ + استعلام هویت ۶۸٬۰۰۰. بدون محافظ، ثبت‌نام جعلی مستقیم پول
+می‌سوزاند. لازم است:
+- تأیید موبایل با OTP **قبل** از هر تماس پولی
+- محدودیت نرخ روی IP
+- استعلام هویت شاید فقط موقع اولین خرید، نه لحظهٔ ثبت‌نام
+
+**۲) SQLite برای فروشگاه کافی نیست**
+session و cache و صف روی همان فایل‌اند. زیر بار همزمان `database is locked`
+می‌دهد نه صبر.
+
+---
+
+### قراردادهای این حوزه (تله‌های واقعی)
+
+**زحل روی خطا هم HTTP 200 می‌دهد.** نتیجهٔ واقعی در فیلد `result` است:
+۱ موفق · ۴ توکن غیرفعال · ۵ سرویس در دسترس نیست · ۶ پارامتر نادرست.
+هرگز به کد HTTP تکیه نکن.
+
+**OpenProvider هم روی خطا HTTP 500 می‌دهد** با خطای واقعی در فیلد `code`.
+`196` یعنی احراز هویت رد شد (یا IP مجاز نیست).
+
+**قیمت پرمیوم دامنه در شاخهٔ جداگانه است:** `premium.price.create`، نه
+`price.reseller`. اگر شاخهٔ اشتباه را بخوانی، دامنهٔ ۲۵۰۰ دلاری را ۱۲ دلار
+می‌فروشی.
+
+**فرق «سرویس خراب» با «کاربر رد شد» را نگه دار.** به کسی نگو هویتش رد شد
+وقتی فقط توکن ما غیرفعال است.
+
+**هر تماس با زحل پول است.** ورودی نامعتبر را محلی رد کن؛ شماره حساب را فقط
+بعد از تأیید تطابق نام بگیر؛ `card_to_iban` خودش نام صاحب کارت را می‌دهد پس
+استعلام جداگانه لازم نیست.
+
+**PAN کامل کارت ذخیره نمی‌شود** — فقط BIN و چهار رقم آخر. نگهداری شماره کارت
+کامل ما را مشمول الزامات PCI می‌کند بدون هیچ سودی.
+
+### کلیدهای .env این حوزه
+
+```
+MARIADB_HOST / MARIADB_PORT / MARIADB_DATABASE / MARIADB_USERNAME / MARIADB_PASSWORD
+   ← عمداً جدا از DB_* تا آماده‌سازی سایت را نیندازد
+
+ZOHAL_TOKEN              احراز هویت ایرانی
+OPENPROVIDER_USERNAME    ایمیل ورود، نه RID
+OPENPROVIDER_PASSWORD
+DOMAIN_MARGIN_PCT        پیش‌فرض ۲۵
+DEPLOY_TOKEN             فقط حروف انگلیسی و رقم
+```
