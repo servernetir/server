@@ -203,6 +203,30 @@ Route::get('/system/setup', fn () => response(view('system.setup'))
  * اتصال برقرار است و چند جدول و چند ردیف دارد. این‌قدر بی‌خطر هست که بدون
  * توکن باشد، و اجازه می‌دهد آمادگی را بدون فرستادن رمز در هیچ کانالی بسنجیم.
  */
+/*
+| وضعیت پیامک — فقط بولین و نام رویداد. هیچ توکن، شماره یا متنی برنمی‌گرداند،
+| پس بی‌خطر است. لازم است چون به SSH سرور دسترسی نداریم و بدون آن نمی‌شود
+| فهمید «کد نرفت» یعنی کلید غلط است یا الگو تعریف نشده.
+*/
+Route::middleware('throttle:tools')->get('/system/sms-status', function () {
+    $cfg    = (array) config('services.sms.ippanel');
+    $sender = app(\App\Services\Sms\SmsSender::class);
+    $active = $sender->name();
+
+    return response()->json([
+        'driver_requested' => (string) config('services.sms.driver'),
+        'driver_active'    => $active,
+        // «log» یعنی پیامک واقعی نمی‌رود و کد فقط در فایل لاگ می‌نشیند
+        'sends_real_sms'   => $active !== 'log',
+        'has_key'          => filled($cfg['token'] ?? null),
+        'has_from'         => filled($cfg['from'] ?? null),
+        'pattern_variable' => (string) ($cfg['variable'] ?? 'code'),
+        'patterns_defined' => array_keys(array_filter((array) ($cfg['patterns'] ?? []))),
+        // اگر false باشد، کد ورود از مسیر پیام آزاد می‌رود و ممکن است دیر برسد
+        'otp_uses_pattern' => filled($cfg['patterns']['otp'] ?? null),
+    ]);
+});
+
 Route::get('/system/db-status', function () {
     $out = ['site_driver' => \Illuminate\Support\Facades\DB::connection()->getDriverName()];
 

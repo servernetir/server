@@ -65,7 +65,7 @@ class RegisterController extends Controller
 
         return view('auth.register.start', [
             'iranian' => $this->isIranianFlow(),
-        ]);
+        ] + $this->shell('contact', $this->isIranianFlow()));
     }
 
     public function start(Request $request): RedirectResponse
@@ -146,7 +146,7 @@ class RegisterController extends Controller
             'reg'     => $reg,
             'masked'  => $this->mask($reg),
             'iranian' => $reg['iranian'],
-        ]);
+        ] + $this->shell('verify', $reg['iranian']));
     }
 
     public function verify(Request $request): RedirectResponse
@@ -208,7 +208,7 @@ class RegisterController extends Controller
             return redirect()->route($this->rp().'register.finish');
         }
 
-        return view('auth.register.identity', ['reg' => $reg]);
+        return view('auth.register.identity', ['reg' => $reg] + $this->shell('identity', true));
     }
 
     public function identity(Request $request): RedirectResponse
@@ -292,7 +292,7 @@ class RegisterController extends Controller
             return redirect()->route($this->rp().'register.identity');
         }
 
-        return view('auth.register.finish', ['reg' => $reg]);
+        return view('auth.register.finish', ['reg' => $reg] + $this->shell('password', $reg['iranian']));
     }
 
     public function finish(Request $request): RedirectResponse
@@ -335,6 +335,29 @@ class RegisterController extends Controller
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────
+
+    /**
+     * فهرست گام‌ها برای ریل کنار فرم.
+     *
+     * ایرانی چهار گام دارد و خارجی سه — چون احراز هویت ثبت احوال برای کسی
+     * که کد ملی ندارد بی‌معنی است. شماره‌گذاری در قالب خودکار است تا حذف
+     * یک گام، شمارهٔ بقیه را دستی نشکند.
+     */
+    private function shell(string $current, bool $iranian): array
+    {
+        $steps = [
+            ['key' => 'contact', 'title' => 'اطلاعات تماس', 'desc' => 'ایمیل و شمارهٔ موبایل'],
+            ['key' => 'verify',  'title' => 'تأیید شماره',  'desc' => 'کد پیامکی شش‌رقمی'],
+        ];
+
+        if ($iranian) {
+            $steps[] = ['key' => 'identity', 'title' => 'احراز هویت', 'desc' => 'کد ملی و تاریخ تولد'];
+        }
+
+        $steps[] = ['key' => 'password', 'title' => 'رمز عبور', 'desc' => 'ساخت حساب و ورود'];
+
+        return ['authSteps' => $steps, 'authStep' => $current];
+    }
 
     /** نشست ثبت‌نام؛ null یعنی از ابتدا شروع کند */
     private function reg(Request $request, bool $needVerified = false): ?array

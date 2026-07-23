@@ -1,34 +1,33 @@
 @extends('auth.shell')
 @section('title', 'تأیید شماره — سرورنت')
 
-@section('steps')
-  <li class="done"><b>✓</b><span>تماس</span></li>
-  <li class="on"><b>۲</b><span>تأیید</span></li>
-  @if($iranian)<li><b>۳</b><span>احراز هویت</span></li>@endif
-  <li><b>{{ $iranian ? '۴' : '۳' }}</b><span>رمز عبور</span></li>
-@endsection
-
 @section('heading', 'کد تأیید را وارد کنید')
 @section('sub')
   کد شش‌رقمی به <b dir="ltr">{{ $masked }}</b> فرستاده شد.
 @endsection
 
 @section('form')
-<form method="POST" action="{{ lroute('register.verify') }}" class="auth-f">
+<form method="POST" action="{{ lroute('register.verify') }}" class="auth-f" id="otp-form">
   @csrf
+  <input type="hidden" name="code" id="code">
 
-  <div class="auth-field auth-otp">
-    <label for="code">کد تأیید</label>
-    <input type="text" id="code" name="code" dir="ltr" inputmode="numeric"
-           autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"
-           placeholder="······" required autofocus>
-    <small>کد تا ۳ دقیقه معتبر است.</small>
+  <div class="auth-field">
+    <label for="d1" class="visually-hidden" style="text-align:center">کد تأیید</label>
+    {{-- شش خانهٔ جدا: خواندن و تصحیح یک رقم اشتباه ساده‌تر از یک فیلد بلند است --}}
+    <div class="otp" id="otp" dir="ltr">
+      @for($i = 1; $i <= 6; $i++)
+        <input type="text" id="d{{ $i }}" inputmode="numeric" maxlength="1"
+               autocomplete="{{ $i === 1 ? 'one-time-code' : 'off' }}"
+               aria-label="رقم {{ fa_num($i) }} از ۶" {{ $i === 1 ? 'autofocus' : '' }}>
+      @endfor
+    </div>
+    <small style="text-align:center">کد تا ۳ دقیقه معتبر است.</small>
   </div>
 
-  <button type="submit" class="auth-btn">تأیید و ادامه</button>
+  <button type="submit" class="auth-btn"><span class="spin"></span><span>تأیید و ادامه</span></button>
 </form>
 
-<div class="auth-row" style="margin-top:16px">
+<div class="auth-row">
   <form method="POST" action="{{ lroute('register.resend') }}">
     @csrf
     <button type="submit" class="auth-ghost" id="resend" disabled>
@@ -40,21 +39,74 @@
 
 <script>
 (function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#otp input')),
+      hidden = document.getElementById('code'),
+      form = document.getElementById('otp-form');
+
+  function collect() { return boxes.map(function (b) { return b.value; }).join(''); }
+
+  function sync() {
+    hidden.value = collect();
+    boxes.forEach(function (b) { b.classList.toggle('filled', b.value !== ''); });
+  }
+
+  boxes.forEach(function (box, i) {
+    box.addEventListener('input', function () {
+      // ارقام فارسی و عربی هم پذیرفته می‌شوند — کاربر با کیبورد فارسی تایپ می‌کند
+      var v = this.value
+        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
+        .replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; })
+        .replace(/[^0-9]/g, '');
+      this.value = v.slice(-1);
+      sync();
+      if (this.value && i < boxes.length - 1) boxes[i + 1].focus();
+      if (collect().length === 6) form.requestSubmit();
+    });
+
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Backspace' && !this.value && i > 0) { boxes[i - 1].focus(); }
+      if (e.key === 'ArrowLeft' && i > 0) { boxes[i - 1].focus(); e.preventDefault(); }
+      if (e.key === 'ArrowRight' && i < boxes.length - 1) { boxes[i + 1].focus(); e.preventDefault(); }
+    });
+
+    // چسباندن کل کد در هر خانه‌ای باید کار کند، نه فقط اولی
+    box.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var t = (e.clipboardData || window.clipboardData).getData('text')
+        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
+        .replace(/[^0-9]/g, '').slice(0, 6);
+      for (var k = 0; k < t.length && k < boxes.length; k++) boxes[k].value = t[k];
+      sync();
+      (boxes[Math.min(t.length, 5)] || boxes[5]).focus();
+      if (collect().length === 6) form.requestSubmit();
+    });
+  });
+
+  form.addEventListener('submit', function () {
+    sync();
+    var b = form.querySelector('.auth-btn');
+    b.classList.add('busy');
+    b.disabled = true;
+  });
+
   // شمارش معکوس فقط برای راحتی چشم است؛ سقف واقعی سمت سرور اعمال می‌شود
   var btn = document.getElementById('resend'), cd = document.getElementById('cd'), n = 60;
   var fa = function (x) { return String(x).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
   var t = setInterval(function () {
-    n--;
-    if (n <= 0) { clearInterval(t); btn.disabled = false; cd.textContent = ''; return; }
+    if (--n <= 0) { clearInterval(t); btn.disabled = false; cd.textContent = ''; return; }
     cd.textContent = '(' + fa(n) + ')';
   }, 1000);
-
-  // شش رقم که کامل شد، خودکار بفرست — یک کلیک کمتر روی موبایل
-  var input = document.getElementById('code');
-  input.addEventListener('input', function () {
-    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-    if (this.value.length === 6) this.form.requestSubmit();
-  });
 })();
 </script>
+@endsection
+
+@section('assure')
+  <div>
+    <svg class="icon"><use href="#i-lock"/></svg>
+    <span>کد شما <b>ذخیره نمی‌شود</b> — فقط اثر رمزنگاری‌شده‌اش نگه داشته می‌شود.</span>
+  </div>
+  <div>
+    <svg class="icon"><use href="#i-clock"/></svg>
+    <span>هر کد <b>یک بار</b> و تا ۳ دقیقه معتبر است.</span>
+  </div>
 @endsection
