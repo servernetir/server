@@ -36,6 +36,22 @@ html[data-theme="light"]{
 
 .auth-wrap .container{ max-width:900px; }
 
+/* ── عنوان صفحه: وسط، بیرون از قاب، زیر منوی سایت ────────────────────────
+   ⚠ این بلوک عمداً <div> است نه <header>. در site.css خط ۶۸ یک قاعده روی خودِ
+   تگ هست: header{position:fixed;top:0;left:0;right:0} — که هر <header> را،
+   هر جای صفحه، به گوشهٔ بالای viewport می‌چسباند. یک بار همین عنوان را برد
+   بالای صفحه. اگر لازم شد <header> بگذارید، position را صریح خنثی کنید. */
+.auth-title{
+  position:static;                     /* بیمه در برابر همان قاعدهٔ سراسری */
+  text-align:center; max-width:600px; margin:0 auto clamp(24px,3vw,32px);
+}
+.auth-title h1{
+  font-family:var(--font-disp); font-size:clamp(22px,3.6vw,30px);
+  margin:0 0 10px; line-height:1.45; letter-spacing:-.3px;
+}
+.auth-title p{ margin:0; font-size:14px; color:var(--muted); line-height:2; }
+.auth-title p b{ color:var(--text); font-weight:600; }
+
 /* ── قاب دو ستونه ────────────────────────────────────────────────────────── */
 .auth-shell{
   display:grid; grid-template-columns:minmax(0,1fr) 296px;
@@ -110,15 +126,6 @@ html[data-theme="light"]{
 .auth-prog-bar{ height:3px; border-radius:99px; background:var(--line); overflow:hidden; }
 .auth-prog-bar i{ display:block; height:100%; background:var(--grad); border-radius:99px;
                   transition:width .45s var(--ease); }
-
-/* ── سرصفحه ─────────────────────────────────────────────────────────────── */
-.auth-head{ margin-bottom:26px; }
-.auth-head h1{
-  font-family:var(--font-disp); font-size:clamp(20px,3.2vw,26px);
-  margin:0 0 8px; line-height:1.45; letter-spacing:-.2px;
-}
-.auth-head p{ margin:0; font-size:13.5px; color:var(--muted); line-height:2; }
-.auth-head p b{ color:var(--text); font-weight:600; }
 
 /* ── پیام‌ها ────────────────────────────────────────────────────────────── */
 .auth-note{
