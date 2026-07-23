@@ -70,6 +70,13 @@ $site = function (): void {
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat')->middleware('throttle:12,1');
     Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check')->middleware('throttle:30,1');
+
+    // جستجوی دامنه از رسیلری (OpenProvider) — مسیر جدید، جدا از مسیر WHMCS بالا
+    Route::get('/domains', [\App\Http\Controllers\DomainSearchController::class, 'page'])->name('domain.search');
+    Route::post('/api/domains/search', [\App\Http\Controllers\DomainSearchController::class, 'check'])
+        ->name('domain.search.check')->middleware('throttle:20,1');
+    Route::get('/api/domains/status', [\App\Http\Controllers\DomainSearchController::class, 'status'])
+        ->name('domain.status')->middleware('throttle:10,1');
     Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat')->middleware('throttle:5,1');
     Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:10,1');
 };

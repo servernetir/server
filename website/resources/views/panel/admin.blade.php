@@ -55,6 +55,63 @@
   </div>
 </section>
 
+{{-- ============ وضعیت رسیلری دامنه ============ --}}
+<section class="pnl-sec" id="op-card">
+  <div class="pnl-sec-h">
+    <h2>رسیلری دامنه — OpenProvider</h2>
+    <span id="op-badge" class="pnl-pill mute">در حال بررسی…</span>
+  </div>
+  <div class="pnl-sec-b">
+    <p id="op-msg" style="font-size:13.5px;color:var(--muted);line-height:2">
+      در حال بررسی اتصال به رسیلری…
+    </p>
+    <div class="pnl-acts" style="margin-top:12px">
+      <button class="pnl-btn" id="op-retry"><svg class="icon"><use href="#i-restore"/></svg>بررسی دوباره</button>
+      <a class="pnl-btn" href="{{ lroute('domain.search') }}"><svg class="icon"><use href="#i-search"/></svg>صفحهٔ جستجوی دامنه</a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  var badge = document.getElementById('op-badge'),
+      msg = document.getElementById('op-msg'),
+      card = document.getElementById('op-card');
+
+  async function check() {
+    badge.className = 'pnl-pill mute';
+    badge.textContent = 'در حال بررسی…';
+    msg.textContent = 'در حال بررسی اتصال به رسیلری…';
+    try {
+      var d = await (await fetch(@json(lroute('domain.status')))).json();
+      if (d.connected) {
+        badge.className = 'pnl-pill ok';
+        badge.textContent = 'متصل';
+        card.style.borderColor = 'var(--ok-line)';
+        msg.textContent = 'اتصال برقرار است. جستجو و استعلام قیمت دامنه فعال است.';
+      } else if (!d.configured) {
+        badge.className = 'pnl-pill warn';
+        badge.textContent = 'تنظیم نشده';
+        card.style.borderColor = 'var(--warn-line)';
+        msg.textContent = d.reason;
+      } else {
+        badge.className = 'pnl-pill danger';
+        badge.textContent = 'قطع';
+        card.style.borderColor = 'var(--danger-line)';
+        msg.textContent = d.reason + (d.code ? ' (کد ' + d.code + ')' : '');
+      }
+    } catch (e) {
+      badge.className = 'pnl-pill danger';
+      badge.textContent = 'خطا';
+      msg.textContent = 'بررسی وضعیت انجام نشد.';
+    }
+  }
+
+  document.getElementById('op-retry').addEventListener('click', check);
+  check();
+})();
+</script>
+
 {{-- ============ KPI ============ --}}
 <div class="pnl-stats">
   <div class="pnl-stat">
