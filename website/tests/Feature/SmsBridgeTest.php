@@ -43,7 +43,7 @@ class SmsBridgeTest extends TestCase
 
     private function queueOne(int $ttl = 4): SmsOutbox
     {
-        (new QueuedSmsSender(['otp' => 'p-otp'], 'code'))->sendOtp('09121234567', '123456');
+        (new QueuedSmsSender())->sendOtp('09121234567', '123456');
 
         return SmsOutbox::latest('id')->firstOrFail();
     }

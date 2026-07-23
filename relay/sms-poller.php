@@ -28,8 +28,29 @@
  *            'secret' => 'همان SMS_RELAY_SECRET سرور آلمان',
  *            'token'  => 'کلید API آی‌پی‌پنل',
  *            'from'   => '+983000505',
- *            'patterns' => ['otp' => 'کد الگوی کد ورود'],
+ *            'patterns' => [
+ *                'otp' => 'abc123',
+ *            ],
  *        ];
+ *
+ * ═══ چند الگو برای یک رویداد ═══
+ *
+ * کد الگو هرچیزی می‌تواند باشد و لازم نیست هر بار یکی باشد. با کاما چند
+ * الگو بدهید و هر بار یکی‌شان تصادفی انتخاب می‌شود:
+ *
+ *        'otp' => 'abc123, def456, ghi789'
+ *
+ * اگر نام متغیر داخل الگوها یکی نیست، بعد از دونقطه بنویسیدش:
+ *
+ *        'otp' => 'abc123:code, def456:otp, ghi789:verification'
+ *
+ * سرور آلمان همیشه مقدار را با کلید قراردادی می‌فرستد (برای کد ورود:
+ * `code`) و اینجا به نام متغیرِ همان الگو تغییر نام می‌دهد. یعنی الگوی
+ * تازه فقط یک تغییر در همین فایل است و سمت لاراول هیچ کاری لازم نیست.
+ *
+ * چرا انتخاب اینجاست و نه سمت لاراول: الگوها را شما در پنل آی‌پی‌پنل
+ * می‌سازید و عوض می‌کنید. اگر فهرستشان در دو جا بود، دیر یا زود یکی کهنه
+ * می‌شد و پیامک بی‌صدا نمی‌رفت.
  *
  *   ۳) کران هر دقیقه:
  *        * * * * * /usr/local/bin/php /home/servernetir/public_html/file/sms-poller.php >/dev/null 2>&1
@@ -156,24 +177,100 @@ function report(array $cfg, array $results): void
     }
 }
 
+/**
+ * انتخاب الگو برای یک رویداد.
+ *
+ * پیکربندی می‌تواند یک الگو یا چند الگوی جداشده با کاما باشد، و هر الگو
+ * می‌تواند نام متغیر خودش را با دونقطه اعلام کند:
+ *
+ *     'abc123'                          → متغیر همان کلید قراردادی
+ *     'abc123:otp'                      → متغیر «otp»
+ *     'abc123, def456:otp, ghi789'      → هر بار یکی، تصادفی
+ *
+ * @return array{0:string,1:?string}|null  [کد الگو، نام متغیر]
+ */
+function pickPattern(array $cfg, ?string $event): ?array
+{
+    if ($event === null) {
+        return null;
+    }
+
+    $raw = $cfg['patterns'][$event] ?? null;
+
+    if (is_array($raw)) {
+        $raw = implode(',', $raw);
+    }
+
+    if (! is_string($raw) || trim($raw) === '') {
+        return null;
+    }
+
+    $choices = [];
+
+    foreach (explode(',', $raw) as $part) {
+        $part = trim($part);
+
+        if ($part === '') {
+            continue;
+        }
+
+        // «کد:متغیر» یا فقط «کد»
+        [$id, $var] = array_pad(explode(':', $part, 2), 2, null);
+        $id  = trim((string) $id);
+        $var = $var === null ? null : trim($var);
+
+        if ($id !== '') {
+            $choices[] = [$id, $var === '' ? null : $var];
+        }
+    }
+
+    if ($choices === []) {
+        return null;
+    }
+
+    // تصادفی و نه چرخشی: چرخشی به حافظهٔ بین اجراها نیاز دارد و با کران
+    // که هر بار فرآیند تازه می‌سازد، عملاً همیشه اولی انتخاب می‌شد
+    return $choices[random_int(0, count($choices) - 1)];
+}
+
+/**
+ * تغییر نام متغیرها به آنچه الگوی انتخاب‌شده می‌خواهد.
+ *
+ * سرور آلمان با کلید قراردادی می‌فرستد (مثلاً `code`). اگر الگو نام دیگری
+ * می‌خواهد و پیام فقط یک متغیر دارد، همان یکی تغییر نام می‌گیرد. با چند
+ * متغیر، تغییر نام حدسی است و خطرناک — پس دست‌نخورده می‌ماند.
+ */
+function mapParams(array $params, ?string $var): array
+{
+    $params = array_map('strval', $params);
+
+    if ($var === null || $params === [] || count($params) !== 1) {
+        return $params;
+    }
+
+    return [$var => reset($params)];
+}
+
 /** یک پیام را به آی‌پی‌پنل بده */
 function deliver(array $cfg, array $m): array
 {
-    $to      = e164((string) ($m['destination'] ?? ''));
-    $pattern = $m['event'] ? ($cfg['patterns'][$m['event']] ?? null) : null;
+    $to     = e164((string) ($m['destination'] ?? ''));
+    $picked = pickPattern($cfg, $m['event'] ?? null);
 
     if ($to === '') {
         return ['id' => $m['id'], 'ok' => false, 'code' => 'bad_dest', 'message' => 'شمارهٔ نامعتبر'];
     }
 
-    if ($pattern !== null) {
+    if ($picked !== null) {
+        [$patternId, $var] = $picked;
+
         // مسیر الگو — تحویل فوری، برای کد ورود حیاتی است
         $body = [
             'sending_type' => 'pattern',
             'from_number'  => e164((string) $cfg['from']),
-            'code'         => $pattern,
+            'code'         => $patternId,
             'recipients'   => [$to],          // در حالت pattern بیرون params است
-            'params'       => array_map('strval', (array) ($m['params'] ?? [])),
+            'params'       => mapParams((array) ($m['params'] ?? []), $var),
         ];
     } elseif (! empty($m['body'])) {
         $body = [

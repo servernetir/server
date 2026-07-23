@@ -44,10 +44,10 @@ class AppServiceProvider extends ServiceProvider
                 // صف: سرور ایران خودش می‌آید و خالی‌اش می‌کند.
                 // لازم است چون آی‌پی‌پنل به آی‌پی آلمان سرویس نمی‌دهد و سرور
                 // ایران هم اتصال ورودی از آلمان را نمی‌پذیرد.
-                'queue' => new \App\Services\Sms\QueuedSmsSender(
-                    array_filter((array) config('services.sms.ippanel.patterns', [])),
-                    (string) config('services.sms.ippanel.variable', 'code'),
-                ),
+                // بدون فهرست الگو: انتخاب الگو کار سرور ایران است، و
+                // نگه داشتن همان فهرست در دو جا یعنی دیر یا زود یکی کهنه
+                // می‌شود و پیامک بی‌صدا نمی‌رود.
+                'queue' => new \App\Services\Sms\QueuedSmsSender(),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),
                     config('services.sms.kavenegar.template'),
