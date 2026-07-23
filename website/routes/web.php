@@ -144,6 +144,148 @@ Route::middleware('throttle:6,1')->get('/system/content/{token}', function (stri
     return response()->json($out, 200, [], JSON_UNESCAPED_UNICODE);
 });
 
+/*
+ * صفحهٔ آماده‌سازی دیتابیس.
+ *
+ * توکن با POST گرفته می‌شود نه در مسیر URL — چون هر چیزی که در URL بیاید در
+ * لاگ سرور و Cloudflare و تاریخچهٔ مرورگر ثبت می‌شود. یک بار سر کلید DeepSeek
+ * همین اتفاق افتاد.
+ *
+ * خودِ صفحه بدون توکن هیچ کاری نمی‌کند، پس عمومی بودنش خطری ندارد.
+ */
+Route::get('/system/setup', fn () => view('system.setup'))->middleware('throttle:20,1');
+
+/*
+ * وضعیت آمادگی MariaDB — فقط خواندنی و بدون توکن.
+ *
+ * عمداً هیچ اعتبارنامه، نام دیتابیس یا نام کاربری برنمی‌گرداند؛ فقط اینکه
+ * اتصال برقرار است و چند جدول و چند ردیف دارد. این‌قدر بی‌خطر هست که بدون
+ * توکن باشد، و اجازه می‌دهد آمادگی را بدون فرستادن رمز در هیچ کانالی بسنجیم.
+ */
+Route::get('/system/db-status', function () {
+    $out = ['site_driver' => \Illuminate\Support\Facades\DB::connection()->getDriverName()];
+
+    $db   = env('MARIADB_DATABASE');
+    $user = env('MARIADB_USERNAME');
+
+    if (blank($db) || blank($user)) {
+        return response()->json($out + ['mariadb' => 'MARIADB_* در .env تنظیم نشده']);
+    }
+
+    config(['database.connections.status_mariadb' => [
+        'driver' => 'mariadb', 'host' => env('MARIADB_HOST', '127.0.0.1'),
+        'port' => env('MARIADB_PORT', '3306'), 'database' => $db,
+        'username' => $user, 'password' => env('MARIADB_PASSWORD'),
+        'charset' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci',
+        'prefix' => '', 'strict' => true, 'engine' => 'InnoDB',
+    ]]);
+
+    try {
+        $c = \Illuminate\Support\Facades\DB::connection('status_mariadb');
+        $tables = $c->getSchemaBuilder()->getTableListing();
+
+        $counts = [];
+        foreach (['posts', 'post_translations', 'comments', 'users', 'customers', 'currencies', 'tax_rates'] as $t) {
+            if ($c->getSchemaBuilder()->hasTable($t)) {
+                $counts[$t] = $c->table($t)->count();
+            }
+        }
+
+        return response()->json($out + [
+            'mariadb'   => 'connected',
+            'tables'    => count($tables),
+            'row_counts'=> $counts,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    } catch (\Throwable $e) {
+        // پیام خام درایور ممکن است نام کاربر را داشته باشد — فقط نوع خطا را می‌دهیم
+        $msg = $e->getMessage();
+        $kind = match (true) {
+            str_contains($msg, 'Access denied')    => 'اعتبارنامه رد شد',
+            str_contains($msg, 'Unknown database') => 'دیتابیس با این نام وجود ندارد',
+            str_contains($msg, 'Connection refused') => 'سرویس MariaDB در دسترس نیست',
+            default => 'خطای اتصال',
+        };
+
+        return response()->json($out + ['mariadb' => 'failed', 'reason' => $kind], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+})->middleware('throttle:20,1');
+
+Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
+    $expected = trim((string) env('DEPLOY_TOKEN', ''));
+    $given    = trim((string) $r->input('token', ''));
+
+    if ($expected === '') {
+        return response()->json([
+            'message' => "DEPLOY_TOKEN در فایل .env سرور تنظیم نشده است.\n\n".
+                         "یک خط به .env اضافه کنید:\n  DEPLOY_TOKEN=یک_رشتهٔ_تصادفی_بلند\n\n".
+                         "فقط از حروف انگلیسی و رقم استفاده کنید.",
+        ]);
+    }
+
+    // تلهٔ رایج: متن نمونه عیناً کپی شده باشد
+    if (! preg_match('/^[A-Za-z0-9_\-]{8,}$/', $expected)) {
+        return response()->json([
+            'message' => "مقدار DEPLOY_TOKEN معتبر نیست — احتمالاً متن نمونه را عیناً کپی کرده‌اید.\n\n".
+                         "باید فقط حروف انگلیسی، رقم، خط تیره یا زیرخط باشد و دست‌کم ۸ نویسه.\n".
+                         "مقدار فعلی شامل نویسه‌های دیگری است (مثلاً فارسی یا « »).",
+        ]);
+    }
+
+    if (! hash_equals($expected, $given)) {
+        return response()->json([
+            'message' => "توکن اشتباه است.\n\nمقدار روبه‌روی DEPLOY_TOKEN در .env را دقیقاً کپی کنید ".
+                         "(بدون فاصله یا گیومهٔ اضافه).",
+        ]);
+    }
+
+    @set_time_limit(300);
+
+    $step = (string) $r->input('step', 'check');
+    $flags = match ($step) {
+        'migrate' => ['--migrate' => true],
+        'port'    => ['--port' => true],
+        'verify'  => ['--verify' => true],
+        default   => ['--check' => true],
+    };
+
+    \Illuminate\Support\Facades\Artisan::call('db:setup-mariadb', $flags);
+
+    return response()->json([
+        'step'   => $step,
+        'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
+    ], 200, [], JSON_UNESCAPED_UNICODE);
+})->middleware('throttle:20,1');
+
+/*
+ * آماده‌سازی MariaDB بدون قطعی سایت.
+ *
+ * روی اتصال جداگانه (MARIADB_*) کار می‌کند، پس تا وقتی DB_CONNECTION سایت
+ * عوض نشده، هیچ ریسکی برای سایت زنده ندارد. ترتیب:
+ *   ?step=check → ?step=migrate → ?step=port → ?step=verify
+ * و تنها بعد از verify موفق، .env سوییچ می‌شود.
+ */
+Route::middleware('throttle:10,1')->get('/system/mariadb/{token}', function (string $token) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    abort_if($expected === '' || ! hash_equals($expected, $token), 404);
+    @set_time_limit(300);
+
+    $step = request('step', 'check');
+    $flags = match ($step) {
+        'migrate' => ['--migrate' => true],
+        'port'    => ['--port' => true],
+        'verify'  => ['--verify' => true],
+        'all'     => ['--migrate' => true, '--port' => true, '--verify' => true],
+        default   => ['--check' => true],
+    };
+
+    \Illuminate\Support\Facades\Artisan::call('db:setup-mariadb', $flags);
+
+    return response(
+        "گام: {$step}\n\n".\Illuminate\Support\Facades\Artisan::output(),
+        200, ['Content-Type' => 'text/plain; charset=utf-8']
+    );
+});
+
 // موقتی: اجرای امن مهاجرت + سیدِ دیتابیس روی پروداکشن (بعد از دیپلوی حذف می‌شود)
 Route::middleware('throttle:6,1')->get('/system/db/{token}', function (string $token) {
     $expected = (string) env('DEPLOY_TOKEN', '');
