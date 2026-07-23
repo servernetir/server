@@ -20,16 +20,26 @@
       <a href="/admin/posts?type=kb" class="@yield('nav_kb')"><svg class="icon"><use href="#i-lifebuoy"/></svg>پایگاه دانش</a>
       @php $pendingComments = \App\Models\Comment::where('approved', false)->count(); @endphp
       <a href="/admin/comments" class="@yield('nav_comments')"><svg class="icon"><use href="#i-message"/></svg>کامنت‌ها@if($pendingComments)<span class="ad-pill">{{ $pendingComments }}</span>@endif</a>
-      {{-- نگهبان hasTable: تا وقتی جدول tickets روی سرور ساخته نشده، این
-           شمارش نباید کل پنل را ۵۰۰ کند --}}
+
+      <div class="ad-nav-sep">کسب‌وکار</div>
+      {{-- نگهبان hasTable همه‌جا: روی سروری که هنوز جدول‌های CMS را نساخته،
+           این شمارش‌ها نباید کل پنل را ۵۰۰ کنند --}}
+      @php $custCount = \Illuminate\Support\Facades\Schema::hasTable('customers')
+              ? \App\Models\Customer::count() : 0; @endphp
+      <a href="/admin/customers" class="@yield('nav_customers')"><svg class="icon"><use href="#i-users"/></svg>مشتریان@if($custCount)<span class="ad-pill" style="background:rgba(34,211,238,.18);color:#22d3ee">{{ $custCount }}</span>@endif</a>
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
+      <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
+
+      <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
+      <a href="/admin/costs" class="@yield('nav_costs')"><svg class="icon"><use href="#i-tag"/></svg>هزینه‌های سرویس‌ها</a>
+      <div class="ad-nav-sep">سیستم</div>
       @php $errCount = \App\Support\ErrorTracker::recent(150); $errCount = count(array_filter($errCount, fn($e)=>($e['type']??'')==='error')); @endphp
       <a href="/admin/errors" class="@yield('nav_errors')"><svg class="icon"><use href="#i-zap"/></svg>ردیاب خطا@if($errCount)<span class="ad-pill">{{ $errCount }}</span>@endif</a>
       @if(auth()->user()->isAdmin())
-      <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران</a>
+      <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif
       <a href="/" target="_blank"><svg class="icon"><use href="#i-globe"/></svg>مشاهده‌ی سایت</a>
     </nav>

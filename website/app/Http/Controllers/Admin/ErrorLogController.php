@@ -17,9 +17,12 @@ class ErrorLogController extends Controller
     {
         $all = ErrorTracker::recent(150);
 
+        // نام «errors» ممنوع است: لاراول $errors را برای کیف خطاهای اعتبارسنجی
+        // (ViewErrorBag) رزرو کرده و لایوت $errors->any() صدا می‌زند. اگر اینجا
+        // یک آرایه با همان نام بفرستیم، آن را می‌پوشاند و کل پنل ۵۰۰ می‌شود.
         return view('admin.errors', [
-            'errors' => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error'),
-            'nf'     => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'notfound'),
+            'serverErrors' => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error'),
+            'nf'           => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'notfound'),
         ]);
     }
 

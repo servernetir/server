@@ -1,0 +1,72 @@
+@extends('admin.layout')
+@section('title', 'مشتریان')
+@section('nav_customers', 'on')
+@section('content')
+
+<div class="ad-toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div class="ad-tabs">
+    <a href="/admin/customers?status=all"       class="{{ $status === 'all' ? 'on' : '' }}">همه ({{ fa_num($counts['all']) }})</a>
+    <a href="/admin/customers?status=active"    class="{{ $status === 'active' ? 'on' : '' }}">فعال ({{ fa_num($counts['active']) }})</a>
+    <a href="/admin/customers?status=pending"   class="{{ $status === 'pending' ? 'on' : '' }}">در انتظار ({{ fa_num($counts['pending']) }})</a>
+    <a href="/admin/customers?status=suspended" class="{{ $status === 'suspended' ? 'on' : '' }}">معلق ({{ fa_num($counts['suspended']) }})</a>
+  </div>
+  <form method="get" action="/admin/customers" style="display:flex;gap:8px">
+    <input type="hidden" name="status" value="{{ $status }}">
+    <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام…"
+           style="background:#0f1522;border:1px solid #1e2637;border-radius:9px;color:#e7edf7;padding:8px 12px;min-width:240px;font:inherit">
+    <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
+  </form>
+</div>
+
+@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
+
+@if($notReady)
+  <div class="ad-panel"><p style="padding:20px;color:#fbbf24">جدول مشتریان روی این سرور هنوز ساخته نشده. پس از اجرای مهاجرت، مشتریان این‌جا نمایش داده می‌شوند.</p></div>
+@else
+<div class="ad-panel">
+  <div class="ad-panel-h"><h2>مشتریان</h2></div>
+  @if($customers->isEmpty())
+    <p style="padding:20px;color:#96a3ba">{{ $q !== '' ? 'مشتری‌ای با این جستجو پیدا نشد.' : 'هنوز مشتری‌ای ثبت‌نام نکرده.' }}</p>
+  @else
+    <table class="ad-table">
+      <thead>
+        <tr><th>مشتری</th><th>تماس</th><th>احراز هویت</th><th>فاکتور</th><th>تیکت</th><th>وضعیت</th><th>عضویت</th></tr>
+      </thead>
+      <tbody>
+        @foreach($customers as $c)
+          <tr onclick="location='/admin/customers/{{ $c->id }}'" style="cursor:pointer">
+            <td>
+              <span class="t">{{ $c->displayName() }}</span>
+              <div style="font-size:12px;color:#5f6c82" dir="ltr">{{ $c->code }}</div>
+            </td>
+            <td dir="ltr" style="color:#96a3ba">
+              {{ $c->phone ?: '—' }}
+              <div style="font-size:12px;color:#5f6c82">{{ $c->email }}</div>
+            </td>
+            <td>
+              @if($c->identityVerification && $c->identityVerification->status === 'verified')
+                <span class="ad-badge" style="background:rgba(52,211,153,.15);color:#34d399">احرازشده</span>
+              @elseif($c->identityVerification)
+                <span class="ad-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">ناقص</span>
+              @else
+                <span class="ad-badge" style="background:rgba(95,108,130,.15);color:#96a3ba">—</span>
+              @endif
+            </td>
+            <td>{{ fa_num($c->invoices_count) }}</td>
+            <td>{{ fa_num($c->tickets_count) }}</td>
+            <td>
+              @php $st = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['معلق','#ff6b6b'],'closed'=>['بسته','#5f6c82']][$c->status] ?? [$c->status,'#96a3ba']; @endphp
+              <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }}">{{ $st[0] }}</span>
+            </td>
+            <td dir="ltr" style="color:#96a3ba">{{ optional($c->created_at)->format('Y/m/d') }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+  @endif
+</div>
+
+{{ $customers->links() }}
+@endif
+
+@endsection

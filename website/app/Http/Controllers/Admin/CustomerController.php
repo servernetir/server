@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\View\View;
+
+/**
+ * مدیریت مشتریان — سمت کارکنان (جایگزین این بخش از WHMCS).
+ *
+ * روی گارد «web» می‌نشیند. این‌جا مدیر همهٔ مشتریان را می‌بیند، پروندهٔ کامل
+ * هرکدام (هویت، بانک، فاکتور، پرداخت، اعتبار، تیکت) را باز می‌کند و وضعیت
+ * حساب را عوض می‌کند. هیچ داده‌ی حساسی (کد ملی، شمارهٔ کامل کارت) این‌جا خام
+ * نشان داده نمی‌شود — همان سیاست ذخیره‌سازیِ رمزنگاری‌شده.
+ */
+class CustomerController extends Controller
+{
+    public function index(Request $request): View
+    {
+        // نگهبان: تا جدول customers روی سرور ساخته نشده، پنل نباید ۵۰۰ شود
+        if (! Schema::hasTable('customers')) {
+            return view('admin.customers', [
+                'customers' => collect()->paginate(30),
+                'q'         => '',
+                'status'    => 'all',
+                'counts'    => ['all' => 0, 'active' => 0, 'pending' => 0, 'suspended' => 0],
+                'notReady'  => true,
+            ]);
+        }
+
+        $q      = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', 'all');
+
+        $query = Customer::query()
+            ->withCount(['invoices', 'tickets'])
+            ->with('identityVerification')
+            ->orderByDesc('id');
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('code', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%")
+                    ->orWhereHas('identityVerification', function ($iv) use ($q) {
+                        $iv->where('first_name', 'like', "%{$q}%")
+                            ->orWhere('last_name', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        if (in_array($status, ['active', 'pending', 'suspended', 'closed'], true)) {
+            $query->where('status', $status);
+        }
+
+        return view('admin.customers', [
+            'customers' => $query->paginate(30)->withQueryString(),
+            'q'         => $q,
+            'status'    => $status,
+            'counts'    => [
+                'all'       => Customer::count(),
+                'active'    => Customer::where('status', 'active')->count(),
+                'pending'   => Customer::where('status', 'pending')->count(),
+                'suspended' => Customer::where('status', 'suspended')->count(),
+            ],
+            'notReady'  => false,
+        ]);
+    }
+
+    public function show(Customer $customer): View
+    {
+        $customer->load([
+            'identityVerification',
+            'bankAccounts',
+            'profiles',
+            'ipRules',
+            'invoices'      => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'payments'      => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'creditEntries' => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'tickets'       => fn ($q) => $q->orderByDesc('last_reply_at')->limit(50),
+        ]);
+
+        return view('admin.customer', [
+            'c'             => $customer,
+            'creditBalance' => $customer->creditBalance(),
+            'invoiceTotals' => [
+                'count'  => $customer->invoices->count(),
+                'unpaid' => $customer->invoices->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
+                'paid'   => $customer->invoices->where('status', 'paid')->sum('total'),
+            ],
+        ]);
+    }
+
+    /**
+     * تغییر وضعیت حساب مشتری — فعال / معلق / بسته.
+     *
+     * معلق‌سازی سرویس را قطع نمی‌کند (آن جای دیگری است)، فقط دسترسیِ ورود و
+     * خریدِ تازه را می‌بندد. عمل برگشت‌پذیر است، پس تأیید کافی است نه بیشتر.
+     */
+    public function status(Request $request, Customer $customer): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:active,pending,suspended,closed'],
+        ]);
+
+        $customer->status = $data['status'];
+        $customer->save();
+
+        $labels = [
+            'active' => 'فعال', 'pending' => 'در انتظار',
+            'suspended' => 'معلق', 'closed' => 'بسته',
+        ];
+
+        return back()->with('ok', 'وضعیت مشتری به «'.$labels[$data['status']].'» تغییر کرد.');
+    }
+}

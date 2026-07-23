@@ -796,8 +796,16 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     \Illuminate\Support\Facades\Artisan::call('view:clear');
     \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
+    // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
+    // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
+    // سرو می‌شود. این‌جا کنار مهاجرت ریست می‌کنیم تا هر دپلوی با یک migrate
+    // زنده شود.
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+    }
+
     // تأیید اینکه جدول‌های تازه واقعاً ساخته شدند
-    $tables = ['tickets', 'ticket_messages', 'invoices', 'payments', 'sms_outbox', 'bank_accounts'];
+    $tables = ['tickets', 'invoices', 'payments', 'service_costs', 'broadcasts'];
     $present = [];
     foreach ($tables as $t) {
         $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
@@ -806,6 +814,27 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     return response()->json([
         'migrate' => $migrate,
         'tables'  => $present,
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+})->middleware('throttle:6,1');
+
+/*
+| ریست opcache — بدون مهاجرت.
+|
+| سرور opcache را با validate_timestamps=0 اجرا می‌کند، پس فایل PHPِ
+| ویرایش‌شده تا ریست شدنِ opcache زنده نمی‌شود. این روت برای دپلوی‌هایی است
+| که فقط کد عوض می‌کنند و مهاجرت ندارند. توکن‌دار و POST، مثل بقیهٔ system.
+*/
+Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    $reset = function_exists('opcache_reset') ? @opcache_reset() : null;
+
+    return response()->json([
+        'opcache_reset' => $reset,
+        'note'          => $reset ? 'opcache پاک شد؛ کدِ تازه زنده است.' : 'opcache در دسترس نبود.',
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:6,1');
 
@@ -864,5 +893,20 @@ Route::prefix('admin')->group(function () {
         Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
         Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
         Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
+
+        // مدیریت مشتریان — بخشِ شبیه‌WHMCS
+        Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
+        Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
+        Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
+
+        // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
+        Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');
+        Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);
+
+        // هزینه‌های ثابت سرویس‌ها — که خودِ مدیر تعیین می‌کند
+        Route::get('/costs', [\App\Http\Controllers\Admin\CostController::class, 'index'])->name('admin.costs');
+        Route::post('/costs', [\App\Http\Controllers\Admin\CostController::class, 'update']);
+        Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store']);
+        Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy']);
     });
 });

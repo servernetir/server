@@ -7,9 +7,9 @@
 
 <div class="ad-toolbar" style="justify-content:space-between">
   <div style="color:#96a3ba;font-size:13px">
-    {{ fa_num(count($errors)) }} خطای سرور · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
+    {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
   </div>
-  @if(count($errors) || count($nf))
+  @if(count($serverErrors) || count($nf))
     <form method="post" action="/admin/errors/clear" onsubmit="return confirm('پاک کردن همهٔ رکوردها؟')">
       @csrf<button type="submit" class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b;border:0;padding:8px 16px;cursor:pointer;font:inherit">پاک کردن</button>
     </form>
@@ -19,11 +19,11 @@
 {{-- ══ خطاهای ۵۰۰ ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>خطاهای سرور (۵۰۰)</h2></div>
-  @if(empty($errors))
+  @if(empty($serverErrors))
     <p style="padding:20px;color:#34d399">هیچ خطای سروری ثبت نشده — عالی.</p>
   @else
     <div style="display:flex;flex-direction:column">
-      @foreach($errors as $e)
+      @foreach($serverErrors as $e)
         <div class="err-row">
           <div class="err-top">
             <span class="err-badge">{{ $e['status'] ?? 500 }}</span>

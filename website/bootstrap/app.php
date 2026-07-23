@@ -44,6 +44,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // بله یک سرور است، نشست ندارد؛ محافظش توکن در مسیر است
             'bale/webhook/*',
             'system/bale-setup',
+            // ریست opcache/کش بعد از دپلوی — محافظش DEPLOY_TOKEN است، نه نشست
+            'system/opcache',
         ]);
 
         // دو ورود مستقل داریم: مدیر (/admin) و مشتری (/login با نسخهٔ زبانی).
