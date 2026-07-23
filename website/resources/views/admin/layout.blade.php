@@ -20,8 +20,12 @@
       <a href="/admin/posts?type=kb" class="@yield('nav_kb')"><svg class="icon"><use href="#i-lifebuoy"/></svg>پایگاه دانش</a>
       @php $pendingComments = \App\Models\Comment::where('approved', false)->count(); @endphp
       <a href="/admin/comments" class="@yield('nav_comments')"><svg class="icon"><use href="#i-message"/></svg>کامنت‌ها@if($pendingComments)<span class="ad-pill">{{ $pendingComments }}</span>@endif</a>
-      @php $openTickets = \App\Models\Ticket::where('status', 'open')->count(); @endphp
+      {{-- نگهبان hasTable: تا وقتی جدول tickets روی سرور ساخته نشده، این
+           شمارش نباید کل پنل را ۵۰۰ کند --}}
+      @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
+              ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
+      <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
       @if(auth()->user()->isAdmin())
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران</a>
       @endif

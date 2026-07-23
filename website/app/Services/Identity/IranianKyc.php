@@ -27,7 +27,12 @@ use Illuminate\Support\Facades\DB;
  */
 class IranianKyc
 {
-    public function __construct(private IdentityProvider $provider) {}
+    // BusinessLedger اختیاری است تا تست‌های موجود (که فقط provider می‌دهند)
+    // نشکنند؛ در تولید، container خودش تزریقش می‌کند.
+    public function __construct(
+        private IdentityProvider $provider,
+        private ?\App\Services\Finance\BusinessLedger $ledger = null,
+    ) {}
 
     /**
      * احراز هویت در ثبت‌نام.
@@ -41,6 +46,8 @@ class IranianKyc
     ): IdentityOutcome {
         // ۱) شاهکار — اگر موبایل مال این کد ملی نیست، جلوتر نمی‌رویم
         $shahkar = $this->provider->shahkar($nationalId, $mobile);
+        // خرج واقعی، چه تطابق داشته باشد چه نه — همان لحظه ثبت می‌شود
+        $this->cost('api_kyc', 'shahkar', 'مشتری '.$customer->code);
 
         if (! $shahkar->matched) {
             return new IdentityOutcome(
@@ -52,6 +59,7 @@ class IranianKyc
 
         // ۲) استعلام هویت — نام رسمی
         $identity = $this->provider->identity($nationalId, $birthDate);
+        $this->cost('api_kyc', 'identity', 'مشتری '.$customer->code);
 
         if (! $identity->ok) {
             return new IdentityOutcome(
@@ -111,6 +119,7 @@ class IranianKyc
 
         $card = $this->digits($cardNumber);
         $result = $this->provider->cardOwner($card);
+        $this->cost('api_kyc', 'card_owner', 'مشتری '.$customer->code);
 
         if (! $result->ok) {
             return new BankOutcome(false, $result->error ?? 'استعلام کارت ناموفق بود', serviceDown: $result->serviceDown);
@@ -195,6 +204,21 @@ class IranianKyc
     public function namesMatch(string $a, string $b): bool
     {
         return $this->normalizeName($a) === $this->normalizeName($b);
+    }
+
+    /**
+     * ثبت هزینهٔ یک تماس API در دفتر مالی — اگر دفتر تزریق شده باشد.
+     * هرگز نباید احراز هویت را بشکند: خطای ثبت مالی بلعیده می‌شود.
+     */
+    private function cost(string $category, string $service, string $ref): void
+    {
+        try {
+            $this->ledger?->recordApiCost($category, $service, $ref);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ثبت هزینهٔ API انجام نشد', [
+                'service' => $service, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function normalizeName(string $s): string

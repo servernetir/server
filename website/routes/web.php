@@ -640,24 +640,60 @@ Route::middleware('throttle:tools')->get('/system/mariadb/{token}', function (st
 });
 
 // موقتی: اجرای امن مهاجرت + سیدِ دیتابیس روی پروداکشن (بعد از دیپلوی حذف می‌شود)
-Route::middleware('throttle:6,1')->get('/system/db/{token}', function (string $token) {
+/*
+| اجرای مهاجرت‌های جاری روی دیتابیس زنده.
+|
+| توکن با POST می‌آید، نه در مسیر URL — چون توکن در مسیر، در لاگ سرور و
+| Cloudflare و تاریخچهٔ مرورگر ثبت می‌شود. یک بار کلید DeepSeek همین‌طور
+| لو رفت. جایگزین مسیر قدیمی /system/db/{token} است که همین کار را با
+| توکن در URL می‌کرد.
+|
+| فرم سبک زیر GET است تا بشود در مرورگر بازش کرد؛ ولی خودِ اجرا فقط با POST.
+*/
+Route::get('/system/migrate', fn () => response(
+    '<!doctype html><meta charset=utf-8><title>مهاجرت دیتابیس</title>'
+    .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+    .'<h2>اجرای مهاجرت‌های جدید</h2>'
+    .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید. مهاجرت‌های اجرانشده روی دیتابیس زنده اجرا می‌شوند.</p>'
+    .'<form method=post><input name=token style="width:100%;padding:10px;font-size:15px" '
+    .'placeholder="DEPLOY_TOKEN" autocomplete=off> '
+    .'<input type=hidden name=_token value="">'
+    .'<button style="margin-top:12px;padding:10px 22px;font-size:15px;cursor:pointer">اجرا</button></form>'
+    .'<pre id=out style="background:#111;color:#0f0;padding:14px;border-radius:8px;white-space:pre-wrap;margin-top:20px"></pre>'
+    .'<script>document.querySelector("form").addEventListener("submit",async e=>{e.preventDefault();'
+    .'var o=document.getElementById("out");o.textContent="در حال اجرا…";'
+    .'var r=await fetch("",{method:"POST",headers:{"Content-Type":"application/json"},'
+    .'body:JSON.stringify({token:e.target.token.value})});'
+    .'o.textContent=JSON.stringify(await r.json(),null,2)});</script>'
+))->name('system.migrate');
+
+Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    // بدون DEPLOY_TOKEN در .env این روت اصلاً وجود ندارد — توکن هاردکد یعنی
-    // هرکس به مخزن دسترسی دارد می‌تواند مهاجرت و تولید محتوای پولی را اجرا کند.
-    abort_if($expected === '' || ! hash_equals($expected, $token), 404);
-    $out = [];
+    $given    = (string) $r->input('token', '');
+
+    // بدون DEPLOY_TOKEN این مسیر عملاً وجود ندارد
+    abort_if($expected === '' || ! hash_equals($expected, $given), 404);
+
+    @set_time_limit(300);
+
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    $out['migrate'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    \Illuminate\Support\Facades\Artisan::call('blog:seed-db');
-    $out['seed'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    \Illuminate\Support\Facades\Artisan::call('docs:seed');
-    $out['docs'] = trim(\Illuminate\Support\Facades\Artisan::output());
+    $migrate = trim(\Illuminate\Support\Facades\Artisan::output());
+
     \Illuminate\Support\Facades\Artisan::call('view:clear');
     \Illuminate\Support\Facades\Artisan::call('cache:clear');
-    $out['counts'] = ['posts' => \App\Models\Post::count(), 'users' => \App\Models\User::count()];
 
-    return response()->json($out);
-});
+    // تأیید اینکه جدول‌های تازه واقعاً ساخته شدند
+    $tables = ['tickets', 'ticket_messages', 'invoices', 'payments', 'sms_outbox', 'bank_accounts'];
+    $present = [];
+    foreach ($tables as $t) {
+        $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
+    }
+
+    return response()->json([
+        'migrate' => $migrate,
+        'tables'  => $present,
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+})->middleware('throttle:6,1');
 
 /*
 | پنل مدیریت محتوا (/admin) — احراز هویت با سشن، غیرلوکالایز
@@ -699,6 +735,11 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+
+        // داشبورد مالی کسب‌وکار — سرمایه، سود، مالیات
+        Route::get('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance');
+        Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store']);
+        Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy']);
 
         // تیکت پشتیبانی — روی همان احراز هویت کارکنان
         Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');

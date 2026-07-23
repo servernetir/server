@@ -140,6 +140,16 @@ class SmsBridgeController extends Controller
                 'claimed_at'       => null,
             ])->save();
 
+            // پیامکِ واقعاً رفته یک خرج واقعی است — همان‌جا در دفتر مالی ثبت شود
+            if ($ok) {
+                try {
+                    app(\App\Services\Finance\BusinessLedger::class)
+                        ->recordApiCost('api_sms', 'sms', 'پیامک '.$m->event);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('ثبت هزینهٔ پیامک انجام نشد', ['error' => $e->getMessage()]);
+                }
+            }
+
             $updated++;
         }
 

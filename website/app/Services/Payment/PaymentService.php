@@ -203,6 +203,20 @@ class PaymentService
             return new SettleOutcome(true, $fresh, alreadySettled: $result->alreadyVerified);
         });
 
+        // ثبت درآمد در دفتر مالی کسب‌وکار — بیرون از تراکنش پرداخت، چون
+        // نباید بتواند تسویه‌ای که موفق شده را برگرداند. idempotent است، پس
+        // اگر این settle قبلاً هم اجرا شده باشد، درآمد دوباره ثبت نمی‌شود.
+        // نگهبان ready() یعنی اگر جدول هنوز ساخته نشده، پرداخت نمی‌شکند.
+        if ($outcome->ok && $outcome->payment !== null) {
+            try {
+                app(\App\Services\Finance\BusinessLedger::class)->recordPayment($outcome->payment);
+            } catch (\Throwable $e) {
+                Log::warning('ثبت درآمد در دفتر مالی انجام نشد', [
+                    'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $outcome;
     }
 
