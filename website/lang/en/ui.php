@@ -1122,4 +1122,6 @@ return [
     'auth_do_register' => 'Create one',
     'auth_lockout' => 'After several failed attempts the account is <b>temporarily locked</b>.',
     'auth_terms_accept' => 'I have read and accept the :terms and the :privacy.',
+    'auth_pw_show' => 'Show password',
+    'auth_pw_hide' => 'Hide password',
 ];

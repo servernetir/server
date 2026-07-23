@@ -1122,4 +1122,6 @@ return [
     'auth_do_register' => 'ثبت‌نام کنید',
     'auth_lockout' => 'پس از چند تلاش ناموفق، حساب <b>موقتاً قفل</b> می‌شود.',
     'auth_terms_accept' => '«:terms» و «:privacy» را خوانده‌ام و می‌پذیرم.',
+    'auth_pw_show' => 'نمایش رمز عبور',
+    'auth_pw_hide' => 'پنهان کردن رمز عبور',
 ];

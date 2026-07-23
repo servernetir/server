@@ -284,6 +284,50 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
     ]);
 });
 
+/*
+| در دسترس بودن سرویس‌های بیرونی — از دید خود سرور.
+|
+| لازم است چون هر سه سرویس ایرانی‌اند و گاهی قطع می‌شوند، و ماشین توسعه
+| شبکهٔ قابل اتکایی ندارد (به هر پورتی «وصل» می‌شود). بدون این، «کار نکرد»
+| را نمی‌شود از «سرویس پایین است» تفکیک کرد.
+|
+| فقط HEAD/GET سبک می‌زند و هیچ استعلام پولی انجام نمی‌دهد.
+*/
+Route::middleware('throttle:tools')->get('/system/health', function () {
+    $targets = [
+        'ippanel'  => 'https://edge.ippanel.com/v1/api/send',
+        'zohal'    => rtrim((string) config('services.zohal.base_url'), '/').'/api/v0/services/',
+        'zarinpal' => 'https://api.zarinpal.com/pg/v4/payment/request.json',
+    ];
+
+    $out = [];
+
+    foreach ($targets as $name => $url) {
+        $started = microtime(true);
+
+        try {
+            // POST با بدنهٔ خالی: هیچ تراکنشی نمی‌سازد ولی نشان می‌دهد
+            // سرویس زنده است یا جلوی دروازه‌اش خطا می‌دهد
+            $res  = \Illuminate\Support\Facades\Http::timeout(12)->asJson()->post($url, []);
+            $code = $res->status();
+            // ۵۰۲/۵۰۳ یعنی خود سرویس پایین است؛ ۴۰۰/۴۰۱/۴۲۲ یعنی زنده است و
+            // فقط ورودی ما را نپذیرفته — که برای این بررسی «سالم» است
+            $up = $code < 500;
+        } catch (\Throwable $e) {
+            $code = 0;
+            $up   = false;
+        }
+
+        $out[$name] = [
+            'up'     => $up,
+            'http'   => $code,
+            'ms'     => (int) ((microtime(true) - $started) * 1000),
+        ];
+    }
+
+    return response()->json($out);
+});
+
 Route::get('/system/db-status', function () {
     $out = ['site_driver' => \Illuminate\Support\Facades\DB::connection()->getDriverName()];
 

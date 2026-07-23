@@ -263,6 +263,50 @@ class RegistrationFlowTest extends TestCase
         $this->assertNotNull($second->retryAfter);
     }
 
+    /**
+     * شمارهٔ آزمایشی: کد بدون ارسال پیامک صادر می‌شود و روی صفحه می‌نشیند.
+     * لازم است چون سرویس پیامک ایرانی قطع می‌شود و بدون این، کل ثبت‌نام
+     * غیرقابل تست می‌ماند.
+     */
+    public function test_a_listed_test_number_gets_its_code_on_screen_without_an_sms(): void
+    {
+        config(['services.sms.test_numbers' => '09121234567']);
+
+        $sent = 0;
+        $this->app->instance(SmsSender::class, new class($sent) implements SmsSender {
+            public function __construct(public int &$sent) {}
+            public function enabled(): bool { return true; }
+            public function name(): string { return 'fake'; }
+            public function send(string $m, string $t): bool { $this->sent++; return true; }
+            public function sendOtp(string $m, string $c): bool { $this->sent++; return true; }
+        });
+
+        $this->post('/register', [
+            'email' => 'tester@example.com', 'phone' => '09121234567', 'type' => 'individual',
+        ])->assertRedirect('/register/verify')
+          ->assertSessionHas('otp_debug');
+
+        $this->assertSame(0, $sent, 'برای شمارهٔ آزمایشی نباید پیامکی فرستاده شود');
+
+        // و همان کد باید واقعاً کار کند
+        $code = session('otp_debug');
+        $this->assertMatchesRegularExpression('/^\d{6}$/', (string) $code);
+
+        $this->post('/register/verify', ['code' => $code])
+            ->assertRedirect('/register/identity');
+    }
+
+    /** شماره‌ای که در فهرست نیست باید مسیر واقعی پیامک را برود */
+    public function test_a_number_not_on_the_list_still_goes_through_sms(): void
+    {
+        config(['services.sms.test_numbers' => '09121234567']);
+
+        $this->post('/register', [
+            'email' => 'other@example.com', 'phone' => '09350001122', 'type' => 'individual',
+        ])->assertRedirect('/register/verify')
+          ->assertSessionMissing('otp_debug');
+    }
+
     public function test_mobile_numbers_are_normalized_to_one_shape(): void
     {
         $otp = app(OtpService::class);

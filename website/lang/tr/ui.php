@@ -1122,4 +1122,6 @@ return [
     'auth_do_register' => 'Hesap oluşturun',
     'auth_lockout' => 'Birkaç başarısız denemeden sonra hesap <b>geçici olarak kilitlenir</b>.',
     'auth_terms_accept' => ':terms ve :privacy metinlerini okudum ve kabul ediyorum.',
+    'auth_pw_show' => 'Parolayı göster',
+    'auth_pw_hide' => 'Parolayı gizle',
 ];

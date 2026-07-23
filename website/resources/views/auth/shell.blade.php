@@ -121,4 +121,60 @@
     </div>
   </div>
 </section>
+
+<script>
+/*
+  دکمهٔ نمایش رمز — یک بار برای همهٔ صفحه‌های احراز هویت.
+
+  دکمه با جاوااسکریپت ساخته می‌شود و نه در قالب، به دو دلیل: بدون
+  جاوااسکریپت دکمه‌ای که کار نکند نمایش داده نمی‌شود، و هر فیلد رمزی که
+  بعداً اضافه شود خودکار آن را می‌گیرد.
+
+  رمز موقع ارسال فرم دوباره پنهان می‌شود تا اگر مرورگر صفحه را در تاریخچه
+  نگه داشت، رمز آشکار روی صفحه نماند.
+*/
+(function () {
+  var SHOW = @json(__('ui.auth_pw_show')),
+      HIDE = @json(__('ui.auth_pw_hide'));
+
+  document.querySelectorAll('.auth-f input[type="password"]').forEach(function (input) {
+    var wrap = document.createElement('div');
+    wrap.className = 'auth-pw';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'auth-pw-eye';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', SHOW);
+    btn.title = SHOW;
+    btn.innerHTML =
+      '<svg class="icon on" aria-hidden="true"><use href="#i-eye"/></svg>' +
+      '<svg class="icon off" aria-hidden="true"><use href="#i-eye-off"/></svg>';
+
+    btn.addEventListener('click', function () {
+      var shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      btn.setAttribute('aria-pressed', shown ? 'false' : 'true');
+      btn.setAttribute('aria-label', shown ? SHOW : HIDE);
+      btn.title = btn.getAttribute('aria-label');
+      // مکان‌نما همان‌جا که بود بماند، نه ابتدای فیلد
+      var end = input.value.length;
+      input.focus();
+      try { input.setSelectionRange(end, end); } catch (e) {}
+    });
+
+    wrap.appendChild(btn);
+
+    var form = input.form;
+    if (form) {
+      form.addEventListener('submit', function () {
+        input.type = 'password';
+        btn.setAttribute('aria-pressed', 'false');
+      });
+    }
+  });
+})();
+</script>
 @endsection
