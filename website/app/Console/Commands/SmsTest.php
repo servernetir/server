@@ -80,10 +80,11 @@ class SmsTest extends Command
         $cfg = config('services.sms.ippanel');
 
         $rows = [
-            ['IPPANEL_TOKEN',        $this->mask($cfg['token'] ?? null)],
+            ['IPPANEL_KEY',          $this->mask($cfg['token'] ?? null)],
             ['IPPANEL_FROM',         $cfg['from'] ?: '— (لازم است)'],
-            ['IPPANEL_OTP_PATTERN',  $cfg['otp_pattern'] ?: '— (بدون آن کد از مسیر آزاد می‌رود و ممکن است دیر برسد)'],
-            ['IPPANEL_OTP_VARIABLE', $cfg['otp_variable'] ?: 'code'],
+            ['IPPANEL_PATTERN_OTP',  $cfg['patterns']['otp'] ?? null ?: '— (بدون آن کد از مسیر آزاد می‌رود و ممکن است دیر برسد)'],
+            ['متغیر الگو',          $cfg['variable'] ?: 'code'],
+            ['الگوهای تعریف‌شده',    implode('، ', array_keys(array_filter((array) ($cfg['patterns'] ?? [])))) ?: '— هیچ‌کدام'],
         ];
 
         $this->line('');

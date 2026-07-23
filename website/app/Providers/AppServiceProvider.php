@@ -36,8 +36,8 @@ class AppServiceProvider extends ServiceProvider
                 'ippanel' => new \App\Services\Sms\IppanelSender(
                     config('services.sms.ippanel.token'),
                     config('services.sms.ippanel.from'),
-                    config('services.sms.ippanel.otp_pattern'),
-                    config('services.sms.ippanel.otp_variable', 'code'),
+                    array_filter((array) config('services.sms.ippanel.patterns', [])),
+                    (string) config('services.sms.ippanel.variable', 'code'),
                 ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),

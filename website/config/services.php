@@ -2,7 +2,87 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Third Party Services
+    |--------------------------------------------------------------------------
+    |
+    | This file is for storing the credentials for third party services such
+    | as Mailgun, Postmark, AWS and more. This file provides the de facto
+    | location for this type of information, allowing packages to have
+    | a conventional file to locate the various service credentials.
+    |
+    */
 
+    'postmark' => [
+        'key' => env('POSTMARK_API_KEY'),
+    ],
+
+    // وب‌هوک دستیار هوشمند در n8n (flow.servernet.cloud)
+    'n8n' => [
+        'chat_webhook' => env('N8N_CHAT_WEBHOOK_URL'),
+    ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+    ],
+
+    'ses' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+    ],
+
+    'slack' => [
+        'notifications' => [
+            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
+    ],
+
+    'pagespeed' => [
+        'key' => env('PAGESPEED_API_KEY'),
+    ],
+
+    // سازنده سایت با هوش مصنوعی (GapGPT، سازگار با OpenAI)
+    // نام مدل اینجا ثابت است چون در اکانت GapGPT فقط claude-fable-5 تأمین شده؛
+    // key/base از .env می‌آیند تا رمز در کد نباشد.
+    'gapgpt' => [
+        'key'       => env('GAPGPT_API_KEY'),
+        'base'      => env('GAPGPT_BASE_URL', 'https://api.gapgpt.app/v1'),
+        'model'     => 'claude-fable-5',
+        'model_pro' => 'claude-fable-5',
+    ],
+
+    /*
+    | DeepSeek — درگاه سازگار با OpenAI. برای ترجمه و نگارش استفاده می‌شود چون
+    | به‌مراتب ارزان‌تر است و روی این سرور تحریم نیست.
+    |
+    | دیپ‌سیک هر دو شکل base را می‌پذیرد (با /v1 و بدون آن)، پس اگر در .env
+    | یکی را گذاشتید هر دو کار می‌کنند.
+    */
+    'deepseek' => [
+        'key'   => env('DEEPSEEK_API_KEY'),
+        'base'  => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
+    ],
+
+    /*
+    | کدام ارائه‌دهنده برای کدام کار.
+    |
+    |   پنل مدیریت (نگارش، ترجمه، سئو) و داوری کامنت  → DeepSeek
+    |   دستیار چت سایت                                → ورک‌فلوی n8n (در ChatController)
+    |   سایت‌ساز هوشمند                                → GapGPT (در AiBuilderController)
+    |
+    | اگر کلید ارائه‌دهنده‌ی انتخابی تنظیم نشده باشد، خودکار به gapgpt برمی‌گردد
+    | تا هیچ بخشی به‌خاطر نبودن کلید از کار نیفتد.
+    */
+    'ai_routing' => [
+        'translate' => env('AI_PROVIDER_TRANSLATE', 'deepseek'),
+        'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
+        'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
+        'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
+    ],
 
     /*
     |----------------------------------------------------------------------
@@ -18,31 +98,52 @@ return [
 
     /*
     |----------------------------------------------------------------------
-    | پیامک — آی‌پی‌پنل (پیش‌فرض)
+    | پیامک — آی‌پی‌پنل
     |----------------------------------------------------------------------
-    | برای فعال شدن، هر دو لازم‌اند: توکن و خط فرستنده. تا وقتی نباشند،
-    | درایور «log» می‌نشیند — کد در لاگ نوشته می‌شود و جریان ثبت‌نام قابل تست
-    | می‌ماند، ولی هیچ پیامک واقعی نمی‌رود و هیچ پولی خرج نمی‌شود.
+    | برای فعال شدن دو چیز لازم است: کلید و خط فرستنده. تا وقتی نباشند درایور
+    | «log» می‌نشیند — پیام در لاگ نوشته می‌شود، هیچ پیامکی نمی‌رود و هیچ پولی
+    | خرج نمی‌شود.
     |
-    | IPPANEL_OTP_PATTERN اختیاری ولی اکیداً توصیه‌شده است: پیام آزاد ممکن است
-    | چند دقیقه در صف اپراتور بماند و کد سه‌دقیقه‌ای ما منقضی شود.
+    | «patterns» مهم‌ترین بخش است: پیام آزاد ممکن است دقایقی در صف اپراتور
+    | بماند، ولی پیام الگو مسیر خدماتی دارد و فوری می‌رسد. هر رویدادی که کاربر
+    | منتظرش است باید الگوی خودش را داشته باشد. کد الگو را در پنل آی‌پی‌پنل
+    | می‌سازید و همان‌جا نام متغیرها را تعیین می‌کنید.
     |
     | .env:
     |   SMS_DRIVER=ippanel
-    |   IPPANEL_TOKEN=...                 ← از پنل آی‌پی‌پنل، بخش کلید API
-    |   IPPANEL_FROM=+983000505           ← خط خدماتی شما
-    |   IPPANEL_OTP_PATTERN=abcd1234      ← کد الگوی «کد ورود»
-    |   IPPANEL_OTP_VARIABLE=code         ← نام متغیر داخل همان الگو
+    |   IPPANEL_KEY=...                    ← کلید API از پنل
+    |   IPPANEL_FROM=+983000505            ← خط خدماتی شما
+    |   IPPANEL_PATTERN_OTP=abcd1234       ← «کد ورود شما %code% است»
+    |   IPPANEL_PATTERN_WELCOME=...        ← خوش‌آمد بعد از ثبت‌نام
+    |   IPPANEL_PATTERN_INVOICE=...        ← صدور فاکتور
+    |   IPPANEL_PATTERN_PAID=...           ← تأیید پرداخت
+    |   IPPANEL_PATTERN_SERVICE_READY=...  ← تحویل سرویس
+    |   IPPANEL_PATTERN_EXPIRING=...       ← هشدار انقضا
+    |   IPPANEL_PATTERN_TICKET_REPLY=...   ← پاسخ پشتیبانی
     */
     'sms' => [
         'driver'      => env('SMS_DRIVER', 'log'),
         'log_channel' => env('SMS_LOG_CHANNEL', 'stack'),
 
         'ippanel' => [
-            'token'        => env('IPPANEL_TOKEN'),
-            'from'         => env('IPPANEL_FROM'),
-            'otp_pattern'  => env('IPPANEL_OTP_PATTERN'),
-            'otp_variable' => env('IPPANEL_OTP_VARIABLE', 'code'),
+            // IPPANEL_KEY نامی است که در .env استفاده شده؛ IPPANEL_TOKEN هم
+            // پذیرفته می‌شود تا اگر جایی نام دیگری گذاشته شد از کار نیفتد.
+            'token' => env('IPPANEL_KEY', env('IPPANEL_TOKEN')),
+            'from'  => env('IPPANEL_FROM'),
+
+            // نام متغیر پیش‌فرض داخل الگوها. اگر در پنل نام دیگری گذاشتید،
+            // اینجا عوضش کنید — یا برای هر الگو جداگانه در patterns.
+            'variable' => env('IPPANEL_PATTERN_VARIABLE', 'code'),
+
+            'patterns' => [
+                'otp'           => env('IPPANEL_PATTERN_OTP'),
+                'welcome'       => env('IPPANEL_PATTERN_WELCOME'),
+                'invoice'       => env('IPPANEL_PATTERN_INVOICE'),
+                'paid'          => env('IPPANEL_PATTERN_PAID'),
+                'service_ready' => env('IPPANEL_PATTERN_SERVICE_READY'),
+                'expiring'      => env('IPPANEL_PATTERN_EXPIRING'),
+                'ticket_reply'  => env('IPPANEL_PATTERN_TICKET_REPLY'),
+            ],
         ],
 
         // جایگزین — اگر روزی از آی‌پی‌پنل رفتیم
@@ -51,6 +152,44 @@ return [
             'template' => env('KAVENEGAR_OTP_TEMPLATE'),
             'sender'   => env('KAVENEGAR_SENDER'),
         ],
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | زرین‌پال — درگاه پرداخت ریالی
+    |----------------------------------------------------------------------
+    | «merchant_id» یک UUID ۳۶ نویسه‌ای است که زرین‌پال می‌دهد.
+    |
+    | ⚠ مبلغ در API زرین‌پال بر حسب **ریال** است، ولی همهٔ قیمت‌های ما تومان
+    | ذخیره می‌شوند. تبدیل فقط در یک جا (ZarinPalGateway) انجام می‌شود تا
+    | هیچ‌وقت ضریب ۱۰ جا نیفتد یا دوبار اعمال نشود.
+    |
+    | .env:
+    |   ZARINPAL_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    |   ZARINPAL_SANDBOX=false
+    */
+    'zarinpal' => [
+        'merchant_id' => env('ZARINPAL_KEY', env('ZARINPAL_MERCHANT_ID')),
+        'sandbox'     => (bool) env('ZARINPAL_SANDBOX', false),
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | ترون — دریافت رمزارز (فقط خواندنی)
+    |----------------------------------------------------------------------
+    | ⚠ اینجا هرگز کلید خصوصی یا seed نمی‌نشیند. فقط xpub که با آن می‌شود
+    | آدرس ساخت ولی نمی‌شود خرج کرد. برداشت وجه دستی و آفلاین انجام می‌شود.
+    |
+    | .env:
+    |   TRONGRID_API_KEY=...
+    |   TRON_XPUB=xpub...                  ← از کیف پول آفلاین شما
+    |   TRON_USDT_CONTRACT=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+    */
+    'tron' => [
+        'api_key'       => env('TRONGRID_API_KEY'),
+        'base_url'      => env('TRONGRID_BASE_URL', 'https://api.trongrid.io'),
+        'xpub'          => env('TRON_XPUB'),
+        'usdt_contract' => env('TRON_USDT_CONTRACT', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'),
     ],
 
 ];

@@ -20,7 +20,12 @@ html[data-theme="light"]{
   --danger:#DC2626;  --danger-bg:rgba(220,38,38,.08);
 }
 
-.auth-wrap{ padding:clamp(28px,6vw,72px) 0 clamp(48px,8vw,96px); }
+/* هدر سایت position:fixed است و روی محتوا شناور می‌ماند. هر صفحه باید خودش
+   جایش را باز کند — قرارداد پروژه همین است (.wt-wrap 140px، .docs-wrap 130px،
+   .pnl-wrap 118px). بدون این، منوی سایت روی کارت ورود می‌افتد. */
+.auth-wrap{ padding:150px 0 72px; }
+@media(max-width:640px){ .auth-wrap{ padding-top:132px; } }
+
 .auth-wrap .container{ max-width:520px; }
 
 .auth-card{

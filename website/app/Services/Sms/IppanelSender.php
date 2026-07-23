@@ -31,16 +31,17 @@ use Illuminate\Support\Facades\Log;
  * اعتبار دارد؛ با مسیر آزاد، کاربر کدِ منقضی دریافت می‌کند. پترن مسیر خدماتی
  * است و بلافاصله می‌رسد.
  */
-class IppanelSender implements SmsSender
+class IppanelSender implements SmsSender, SupportsPatterns
 {
     private const BASE = 'https://edge.ippanel.com/v1';
 
     public function __construct(
         private ?string $token,
         private ?string $fromNumber,
-        private ?string $otpPattern = null,
-        /** نام متغیر داخل الگو — در پنل آی‌پی‌پنل تعریف می‌شود */
-        private string $otpVariable = 'code',
+        /** نام رویداد → کد الگو، مثلاً ['otp' => 'ab12', 'invoice' => 'cd34'] */
+        private array $patterns = [],
+        /** نام متغیر پیش‌فرض داخل الگو — در پنل آی‌پی‌پنل تعریف می‌شود */
+        private string $variable = 'code',
     ) {}
 
     public function enabled(): bool
@@ -69,22 +70,40 @@ class IppanelSender implements SmsSender
 
     public function sendOtp(string $mobile, string $code): bool
     {
-        if (! $this->enabled()) {
-            return false;
-        }
+        return $this->sendPattern($mobile, 'otp', [$this->variable => $code])
+            ?? $this->send($mobile, "کد ورود سرورنت: {$code}");
+    }
 
-        // بدون الگوی تعریف‌شده، مسیر آزاد تنها گزینه است
-        if (blank($this->otpPattern)) {
-            return $this->send($mobile, "کد ورود سرورنت: {$code}");
+    /**
+     * ارسال با الگو.
+     *
+     * null یعنی «الگویی برای این رویداد تعریف نشده» — که با false (یعنی
+     * «تلاش کردیم و نشد») فرق دارد. کد بالادست از این تفاوت برای تصمیم به
+     * برگشت به پیام آزاد استفاده می‌کند.
+     *
+     * @param  array<string,string|int>  $values  متغیرهای داخل الگو
+     */
+    public function sendPattern(string $mobile, string $event, array $values): ?bool
+    {
+        $pattern = $this->patterns[$event] ?? null;
+
+        if (! $this->enabled() || blank($pattern)) {
+            return null;
         }
 
         return $this->post([
             'sending_type' => 'pattern',
             'from_number'  => $this->e164($this->fromNumber),
-            'code'         => $this->otpPattern,
+            'code'         => $pattern,
             'recipients'   => [$this->e164($mobile)],   // اینجا بیرون params است
-            'params'       => [$this->otpVariable => $code],
+            'params'       => array_map(strval(...), $values),
         ]);
+    }
+
+    /** آیا برای این رویداد الگو تعریف شده؟ */
+    public function hasPattern(string $event): bool
+    {
+        return filled($this->patterns[$event] ?? null);
     }
 
     private function post(array $body): bool
@@ -139,7 +158,7 @@ class IppanelSender implements SmsSender
     public static function explain(?string $messageCode): ?string
     {
         return match ($messageCode) {
-            '400-1' => 'توکن نامعتبر یا منقضی است (IPPANEL_TOKEN را بررسی کنید)',
+            '400-1' => 'توکن نامعتبر یا منقضی است (IPPANEL_KEY را بررسی کنید)',
             '400-2' => 'ورودی نامعتبر است — معمولاً خط فرستنده یا کد الگو اشتباه است',
             default => null,
         };

@@ -17,7 +17,7 @@ class IppanelSenderTest extends TestCase
 {
     private function sender(?string $pattern = null): IppanelSender
     {
-        return new IppanelSender('tok-123456', '+983000505', $pattern, 'code');
+        return new IppanelSender('tok-123456', '+983000505', array_filter(['otp' => $pattern]), 'code');
     }
 
     private function okResponse(): array
@@ -134,6 +134,74 @@ class IppanelSenderTest extends TestCase
         $this->assertFalse((new IppanelSender(null, '+983000505'))->enabled());
         $this->assertFalse((new IppanelSender('tok', null))->enabled());
         $this->assertTrue((new IppanelSender('tok', '+983000505'))->enabled());
+    }
+
+    /**
+     * پیامک‌های رویدادی (فاکتور، تحویل، تیکت) هم باید از مسیر الگو بروند،
+     * نه فقط کد ورود — همان دلیل: تحویل فوری.
+     */
+    public function test_event_messages_go_through_their_own_pattern(): void
+    {
+        Http::fake(['edge.ippanel.com/*' => Http::response($this->okResponse())]);
+
+        $sender = new IppanelSender('tok', '+983000505', [
+            'otp'     => 'p-otp',
+            'invoice' => 'p-invoice',
+        ], 'code');
+
+        $dispatcher = new \App\Services\Sms\SmsDispatcher($sender);
+
+        $this->assertTrue($dispatcher->event(
+            '09121234567', 'invoice', ['amount' => '2490000'], 'متن پشتیبان',
+        ));
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+            $this->assertSame('pattern', $body['sending_type']);
+            $this->assertSame('p-invoice', $body['code']);
+            $this->assertSame(['amount' => '2490000'], $body['params']);
+
+            return true;
+        });
+    }
+
+    public function test_an_event_without_a_pattern_falls_back_to_plain_text(): void
+    {
+        Http::fake(['edge.ippanel.com/*' => Http::response($this->okResponse())]);
+
+        $dispatcher = new \App\Services\Sms\SmsDispatcher(
+            new IppanelSender('tok', '+983000505', ['otp' => 'p-otp'], 'code'),
+        );
+
+        $this->assertTrue($dispatcher->event(
+            '09121234567', 'ticket_reply', ['id' => '42'], 'به تیکت شما پاسخ داده شد',
+        ));
+
+        Http::assertSent(function ($request) {
+            $this->assertSame('webservice', $request->data()['sending_type']);
+            $this->assertSame('به تیکت شما پاسخ داده شد', $request->data()['message']);
+
+            return true;
+        });
+    }
+
+    /**
+     * الگو تعریف شده ولی ارسال شکست خورد → نباید دوباره با پیام آزاد
+     * فرستاده شود، وگرنه یک پیام ناموفق دو بار هزینه می‌کند.
+     */
+    public function test_a_failed_pattern_send_is_not_retried_as_plain_text(): void
+    {
+        Http::fake(['edge.ippanel.com/*' => Http::response([
+            'meta' => ['status' => false, 'message' => 'اعتبار کافی نیست', 'message_code' => '400-2'],
+        ], 200)]);
+
+        $dispatcher = new \App\Services\Sms\SmsDispatcher(
+            new IppanelSender('tok', '+983000505', ['invoice' => 'p-invoice'], 'code'),
+        );
+
+        $this->assertFalse($dispatcher->event('09121234567', 'invoice', ['a' => '1'], 'پشتیبان'));
+
+        Http::assertSentCount(1);
     }
 
     /** شکل‌های مختلفی که کاربر ممکن است شماره را وارد کند، همه یک خروجی */
