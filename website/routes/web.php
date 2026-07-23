@@ -124,6 +124,14 @@ $site = function (): void {
         Route::get('/topup', [Account\PaymentController::class, 'topupForm'])->name('topup');
         Route::post('/topup', [Account\PaymentController::class, 'topup'])
             ->name('topup.start')->middleware('throttle:pay');
+
+        // تیکت پشتیبانی
+        Route::get('/tickets', [Account\TicketController::class, 'index'])->name('tickets');
+        Route::get('/tickets/new', [Account\TicketController::class, 'create'])->name('ticket.new');
+        Route::post('/tickets', [Account\TicketController::class, 'store'])->name('ticket.store')->middleware('throttle:forms');
+        Route::get('/tickets/{ticket}', [Account\TicketController::class, 'show'])->name('ticket');
+        Route::post('/tickets/{ticket}/reply', [Account\TicketController::class, 'reply'])->name('ticket.reply')->middleware('throttle:forms');
+        Route::post('/tickets/{ticket}/close', [Account\TicketController::class, 'close'])->name('ticket.close');
     });
 };
 
@@ -691,5 +699,11 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+
+        // تیکت پشتیبانی — روی همان احراز هویت کارکنان
+        Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
+        Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
+        Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
+        Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
     });
 });

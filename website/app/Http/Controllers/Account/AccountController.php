@@ -98,20 +98,20 @@ class AccountController extends Controller
             ],
             'pnlNav' => [
                 ['label' => null, 'items' => [
-                    ['key' => 'dash',     'icon' => 'gauge',  'label' => 'داشبورد',  'url' => lroute('account.home')],
-                    ['key' => 'services', 'icon' => 'server', 'label' => 'سرویس‌ها'],
-                    ['key' => 'domains',  'icon' => 'globe',  'label' => 'دامنه‌ها'],
+                    ['key' => 'dash', 'icon' => 'gauge', 'label' => __('ui.nav_dash'), 'url' => lroute('account.home')],
+                    ['key' => 'services', 'icon' => 'server', 'label' => __('ui.nav_services')],
+                    ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains')],
                 ]],
-                ['label' => 'مالی', 'items' => [
-                    ['key' => 'invoices', 'icon' => 'coins', 'label' => 'فاکتورها و اعتبار', 'url' => lroute('account.invoices')],
-                    ['key' => 'bank',     'icon' => 'db',    'label' => 'حساب بانکی', 'url' => lroute('account.bank')],
+                ['label' => __('ui.nav_finance'), 'items' => [
+                    ['key' => 'invoices', 'icon' => 'coins', 'label' => __('ui.nav_invoices'), 'url' => lroute('account.invoices')],
+                    ['key' => 'bank', 'icon' => 'db', 'label' => __('ui.nav_bank'), 'url' => lroute('account.bank')],
                 ]],
-                ['label' => 'پشتیبانی', 'items' => [
-                    ['key' => 'tickets', 'icon' => 'lifebuoy', 'label' => 'تیکت‌ها'],
+                ['label' => __('ui.tk_title'), 'items' => [
+                    ['key' => 'tickets', 'icon' => 'lifebuoy', 'label' => __('ui.tk_title'), 'url' => lroute('account.tickets')],
                 ]],
-                ['label' => 'حساب', 'items' => [
-                    ['key' => 'profile',  'icon' => 'user',   'label' => 'پروفایل و احراز هویت', 'url' => lroute('account.profile')],
-                    ['key' => 'security', 'icon' => 'shield', 'label' => 'امنیت'],
+                ['label' => __('ui.nav_account'), 'items' => [
+                    ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
+                    ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security')],
                 ]],
             ],
         ];
