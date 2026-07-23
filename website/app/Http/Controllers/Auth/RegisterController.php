@@ -112,6 +112,23 @@ class RegisterController extends Controller
         $channel     = $iranian ? 'sms' : 'email';
         $destination = $iranian ? $phone : $email;
 
+        /*
+         * اگر کاربر برگشته و مقصد را عوض کرده، کد قبلی باید بمیرد.
+         *
+         * شمارهٔ قبلی ممکن است غلط تایپی و مال کس دیگری باشد؛ کد زنده ماندنش
+         * یعنی سه دقیقه پنجرهٔ سوءاستفاده. ضمناً خنک‌کنندهٔ آن شماره نباید
+         * جلوی شمارهٔ تازه را بگیرد — همان چیزی که کاربر گزارش کرد.
+         */
+        $previous = $request->session()->get('reg');
+
+        if (is_array($previous)) {
+            $old = $previous['iranian'] ?? true ? ($previous['phone'] ?? null) : ($previous['email'] ?? null);
+
+            if (filled($old) && $old !== $destination) {
+                $this->otp->abandon($previous['channel'] ?? $channel, (string) $old, 'register');
+            }
+        }
+
         $issue = $this->otp->issue($channel, $destination, 'register', $request->ip());
 
         if (! $issue->ok) {

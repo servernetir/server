@@ -318,6 +318,45 @@ class RegistrationFlowTest extends TestCase
         $this->assertSame('', $otp->normalize('sms', '021445566'), 'شمارهٔ ثابت نباید موبایل شمرده شود');
     }
 
+    /**
+     * کاربر شماره را عوض می‌کند: کد قبلی باید بمیرد و شمارهٔ تازه بدون
+     * انتظار کد بگیرد. دقیقاً همان چیزی که کارفرما گزارش کرد.
+     */
+    public function test_changing_the_number_kills_the_old_code_and_issues_a_new_one(): void
+    {
+        $this->post('/register', [
+            'email' => 'x@example.com', 'phone' => '09121111111', 'type' => 'individual',
+        ])->assertRedirect('/register/verify');
+
+        $firstCode = $this->currentCode('09121111111');
+
+        // بلافاصله برمی‌گردد و شماره را عوض می‌کند — بدون انتظار خنک‌کننده
+        $this->post('/register', [
+            'email' => 'x@example.com', 'phone' => '09122222222', 'type' => 'individual',
+        ])->assertRedirect('/register/verify')
+          ->assertSessionHasNoErrors();
+
+        // کد شمارهٔ قبلی دیگر کار نمی‌کند
+        $this->post('/register/verify', ['code' => $firstCode])
+            ->assertSessionHasErrors('code');
+
+        // کد شمارهٔ تازه کار می‌کند
+        $this->post('/register/verify', ['code' => $this->currentCode('09122222222')])
+            ->assertRedirect('/register/identity');
+    }
+
+    /** همان شماره در فاصلهٔ کوتاه، هنوز باید خنک‌کننده بخورد */
+    public function test_the_same_number_still_waits_for_the_cooldown(): void
+    {
+        $this->post('/register', [
+            'email' => 'y@example.com', 'phone' => '09123333333', 'type' => 'individual',
+        ])->assertRedirect('/register/verify');
+
+        $this->post('/register', [
+            'email' => 'y@example.com', 'phone' => '09123333333', 'type' => 'individual',
+        ])->assertSessionHasErrors('phone');
+    }
+
     // ─────────────────────────────────────────────────────────────────────
 
     /** مرحلهٔ ۱ و ۲ را واقعی طی می‌کند تا نشست معتبر باشد */

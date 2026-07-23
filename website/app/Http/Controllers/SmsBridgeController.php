@@ -41,6 +41,15 @@ class SmsBridgeController extends Controller
             return $deny;
         }
 
+        /*
+         * ردِ زندهٔ فرستنده.
+         *
+         * بدون این، «پیامک نرفت» دو علت کاملاً متفاوت دارد که از بیرون یکی
+         * دیده می‌شوند: یا فرستندهٔ ایران اصلاً بالا نیامده، یا آمده و
+         * آی‌پی‌پنل ردش کرده. این مهر زمانی آن دو را از هم جدا می‌کند.
+         */
+        cache()->put('smsbridge:last_pull', now()->toIso8601String(), now()->addDay());
+
         $token = (string) Str::uuid();
         $limit = min(20, max(1, (int) $request->input('limit', 10)));
 
@@ -99,7 +108,7 @@ class SmsBridgeController extends Controller
         $results = $request->input('results', []);
 
         if (! is_array($results)) {
-            return response()->json(['ok' => false, 'reason' => 'bad_results'], 422);
+            return $this->deny('bad_results', 422);
         }
 
         $updated = 0;
@@ -137,15 +146,32 @@ class SmsBridgeController extends Controller
         return response()->json(['ok' => true, 'updated' => $updated]);
     }
 
+    /** رد کردن، با ثبت علت برای تشخیص از راه دور */
+    private function deny(string $reason, int $status): JsonResponse
+    {
+        cache()->put('smsbridge:last_deny', $reason.' @ '.now()->toIso8601String(), now()->addDay());
+
+        return response()->json(['ok' => false, 'reason' => $reason], $status);
+    }
+
     // ───────────────────────────── احراز هویت ─────────────────────────────
 
     /** null یعنی مجاز؛ در غیر این صورت پاسخ خطا */
     private function authorize(Request $request): ?JsonResponse
     {
+        /*
+         * ثبت *هر* تماس، حتی ردشده.
+         *
+         * بدون این، «فرستنده اصلاً نیامده» و «آمده ولی کلیدش غلط بوده» از
+         * بیرون یکسان دیده می‌شوند — و آن دو راه‌حل کاملاً متفاوتی دارند.
+         * اینجا قبل از بررسی امضاست تا حتی تماس نامعتبر هم دیده شود.
+         */
+        cache()->put('smsbridge:last_attempt', now()->toIso8601String(), now()->addDay());
+
         $secret = (string) config('services.sms.relay_secret');
 
         if ($secret === '' || strlen($secret) < 24) {
-            return response()->json(['ok' => false, 'reason' => 'bridge_not_configured'], 503);
+            return $this->deny('bridge_not_configured', 503);
         }
 
         $ts    = (string) $request->header('X-Relay-Timestamp', '');
@@ -153,27 +179,27 @@ class SmsBridgeController extends Controller
         $sig   = (string) $request->header('X-Relay-Signature', '');
 
         if ($ts === '' || $nonce === '' || $sig === '') {
-            return response()->json(['ok' => false, 'reason' => 'missing_signature'], 401);
+            return $this->deny('missing_signature', 401);
         }
 
         if (! ctype_digit($ts) || abs(time() - (int) $ts) > self::MAX_SKEW) {
-            return response()->json(['ok' => false, 'reason' => 'stale_timestamp'], 401);
+            return $this->deny('stale_timestamp', 401);
         }
 
         if (preg_match('/^[A-Za-z0-9._-]{8,64}$/', $nonce) !== 1) {
-            return response()->json(['ok' => false, 'reason' => 'bad_nonce'], 400);
+            return $this->deny('bad_nonce', 400);
         }
 
         $expected = hash_hmac('sha256', $ts."\n".$nonce."\n".$request->getContent(), $secret);
 
         if (! hash_equals($expected, $sig)) {
-            return response()->json(['ok' => false, 'reason' => 'bad_signature'], 401);
+            return $this->deny('bad_signature', 401);
         }
 
         // nonce یک‌بارمصرف — درخواست ضبط‌شده دوباره کار نکند.
         // add() اتمی است: اگر کلید باشد false می‌دهد.
         if (! cache()->add('smsbridge:nonce:'.hash('sha256', $nonce), 1, now()->addSeconds(self::MAX_SKEW * 3))) {
-            return response()->json(['ok' => false, 'reason' => 'nonce_replayed'], 409);
+            return $this->deny('nonce_replayed', 409);
         }
 
         return null;

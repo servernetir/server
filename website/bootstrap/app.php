@@ -21,6 +21,22 @@ return Application::configure(basePath: dirname(__DIR__))
         // هدرهای امنیتی روی همه‌ی پاسخ‌ها
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        /*
+         * پل پیامک از CSRF مستثناست.
+         *
+         * تماس‌گیرنده یک سرور است نه مرورگر: نه نشستی دارد نه توکنی. بدون
+         * این استثنا هر تماس با «CSRF token mismatch» رد می‌شود — و چون
+         * middleware پیش از کنترلر رد می‌کند، حتی در لاگ تشخیصی هم نمی‌افتد
+         * و «فرستنده نمی‌آید» به نظر می‌رسد.
+         *
+         * جای CSRF را امضای HMAC گرفته است: کلید مشترک، پنجرهٔ زمانی ۱۲۰
+         * ثانیه‌ای و nonce یک‌بارمصرف — که برای تماس سرور-به-سرور محافظ
+         * قوی‌تری هم هست.
+         */
+        $middleware->validateCsrfTokens(except: [
+            'api/sms/*',
+        ]);
+
         // دو ورود مستقل داریم: مدیر (/admin) و مشتری (/login با نسخهٔ زبانی).
         // بدون این تفکیک، مشتریِ وارد نشده به صفحهٔ ورود مدیر پرتاب می‌شود.
         $middleware->redirectGuestsTo(function (Request $request) {

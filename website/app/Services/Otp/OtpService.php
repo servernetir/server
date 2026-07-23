@@ -63,12 +63,17 @@ class OtpService
         $active = $this->activeChallenge($destination, $purpose);
 
         if ($active !== null) {
-            $since = $active->updated_at?->diffInSeconds(now()) ?? PHP_INT_MAX;
+            $since = (int) abs($active->updated_at?->diffInSeconds(now()) ?? PHP_INT_MAX);
 
             if ($since < self::RESEND_COOLDOWN) {
+                $wait = self::RESEND_COOLDOWN - $since;
+
+                // شماره در پیام می‌آید تا اگر کاربر شماره‌اش را عوض کرده و
+                // باز این را دید، بفهمد پیام دربارهٔ کدام شماره است
                 return OtpIssue::fail(
-                    'کد قبلی هنوز معتبر است. '.(self::RESEND_COOLDOWN - (int) $since).' ثانیه دیگر می‌توانید کد تازه بخواهید.',
-                    retryAfter: self::RESEND_COOLDOWN - (int) $since,
+                    'کد قبلی برای '.$destination.' هنوز معتبر است. '
+                    .$wait.' ثانیه دیگر می‌توانید کد تازه بخواهید.',
+                    retryAfter: $wait,
                 );
             }
         }
@@ -149,6 +154,34 @@ class OtpService
         $challenge->forceFill(['verified_at' => now()])->save();
 
         return new OtpCheck(true, challenge: $challenge);
+    }
+
+    /**
+     * باطل کردن کدهای فعال یک مقصد.
+     *
+     * وقتی کاربر شماره‌اش را عوض می‌کند، کدی که به شمارهٔ قبلی رفته باید
+     * همان‌جا بمیرد. دو دلیل:
+     *
+     *   • آن شماره ممکن است اصلاً مال کس دیگری باشد (غلط تایپی)، و کد زنده
+     *     ماندنش یعنی سه دقیقه پنجرهٔ سوءاستفاده
+     *   • خنک‌کنندهٔ شمارهٔ قدیمی نباید جلوی شمارهٔ تازه را بگیرد
+     *
+     * منقضی می‌کنیم و حذف نمی‌کنیم، تا سقف شمارش و ردِ بازرسی دست‌نخورده
+     * بماند — وگرنه کسی می‌توانست با عوض‌کردن پیاپی شماره، سقف را دور بزند.
+     */
+    public function abandon(string $channel, string $destination, string $purpose): void
+    {
+        $destination = $this->normalize($channel, $destination);
+
+        if ($destination === '') {
+            return;
+        }
+
+        OtpChallenge::where('destination', $destination)
+            ->where('purpose', $purpose)
+            ->whereNull('verified_at')
+            ->where('expires_at', '>', now())
+            ->update(['expires_at' => now()->subSecond(), 'updated_at' => now()]);
     }
 
     /**

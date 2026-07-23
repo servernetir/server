@@ -295,6 +295,30 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 
         // آخرین خطای واقعی خود سرویس. بدون توکن و بدون شمارهٔ گیرنده.
         'last_error'       => \Illuminate\Support\Facades\Cache::get('sms:last_error'),
+
+        /*
+        | وضعیت پل — وقتی درایور «queue» است، این مهم‌ترین بخش است.
+        |
+        | last_pull  آخرین باری که فرستندهٔ ایران سر زد. اگر خالی یا کهنه
+        |            باشد، یعنی کران آن‌طرف اجرا نمی‌شود یا نمی‌تواند به ما
+        |            برسد — و هیچ پیامکی نخواهد رفت.
+        | queue      شمارش وضعیت‌های صف. «failed» یعنی رسید ولی آی‌پی‌پنل
+        |            ردش کرد (معمولاً نام متغیر الگو).
+        */
+        'bridge' => [
+            'last_attempt' => \Illuminate\Support\Facades\Cache::get('smsbridge:last_attempt'),
+            'last_deny'    => \Illuminate\Support\Facades\Cache::get('smsbridge:last_deny'),
+            'last_pull'    => \Illuminate\Support\Facades\Cache::get('smsbridge:last_pull'),
+            'poller_alive' => (function () {
+                $at = \Illuminate\Support\Facades\Cache::get('smsbridge:last_pull');
+
+                return $at !== null && \Illuminate\Support\Carbon::parse($at)->gt(now()->subMinutes(3));
+            })(),
+            'queue' => \Illuminate\Support\Facades\Schema::hasTable('sms_outbox')
+                ? \App\Models\SmsOutbox::selectRaw('status, count(*) as n')
+                    ->groupBy('status')->pluck('n', 'status')
+                : null,
+        ],
     ]);
 });
 
