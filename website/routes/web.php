@@ -146,6 +146,20 @@ Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\Payment
     ->where('gateway', '[a-z]+')
     ->middleware('throttle:pay');
 
+/*
+| پل پیامک — سرور ایران این دو را صدا می‌زند.
+|
+| بیرون از گروه‌های زبانی و بدون احراز هویت نشستی: تماس‌گیرنده یک سرور است
+| نه مرورگر. محافظت با امضای HMAC داخل کنترلر انجام می‌شود.
+|
+| throttle سخاوتمند است چون فرستنده هر ۳ ثانیه سر می‌زند — و اگر ۴۲۹ بگیرد،
+| پیامک کاربر معطل می‌ماند.
+*/
+Route::middleware('throttle:60,1')->prefix('api/sms')->group(function () {
+    Route::post('/pull', [\App\Http\Controllers\SmsBridgeController::class, 'pull']);
+    Route::post('/report', [\App\Http\Controllers\SmsBridgeController::class, 'report']);
+});
+
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
 // تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
@@ -298,6 +312,9 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
         'ippanel'  => 'https://edge.ippanel.com/v1/api/send',
         'zohal'    => rtrim((string) config('services.zohal.base_url'), '/').'/api/v0/services/',
         'zarinpal' => 'https://api.zarinpal.com/pg/v4/payment/request.json',
+        // آیا سرور ایرانی خودمان اصلاً از آلمان در دسترس است؟ اگر نه، هیچ
+        // مسیر رابطی کار نمی‌کند و باید جهت اتصال برعکس شود.
+        'servernet_ir' => 'https://servernet.ir/',
     ];
 
     $out = [];
@@ -323,6 +340,74 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
             'http'   => $code,
             'ms'     => (int) ((microtime(true) - $started) * 1000),
         ];
+    }
+
+    /*
+    | رابط سرور ایران — سه لایه، از ارزان به گران:
+    |
+    |   guard   درخواست بدون امضا باید رد شود. یعنی فایل نصب است و
+    |           نگهبانی می‌کند. هیچ تماسی با آی‌پی‌پنل نمی‌گیرد.
+    |   signed  درخواست امضاشده با بدنه‌ای که آی‌پی‌پنل قطعاً رد می‌کند.
+    |           یعنی کل تونل کار می‌کند — بدون اینکه پیامکی برود.
+    |
+    | عمداً هیچ پیامک واقعی فرستاده نمی‌شود؛ sending_type بی‌معنی است.
+    */
+    $relayUrl    = (string) config('services.sms.relay_url');
+    $relaySecret = (string) config('services.sms.relay_secret');
+
+    if ($relayUrl !== '' && $relaySecret !== '') {
+        $probe = ['guard' => null, 'signed' => null];
+
+        // آدرس عمومی است و رازی نیست؛ نمایشش تشخیص غلط‌بودن مسیر را ممکن می‌کند
+        $probe['url'] = $relayUrl;
+
+        try {
+            $r = \Illuminate\Support\Facades\Http::timeout(15)->asJson()->post($relayUrl, []);
+            // ۴۰۱ یعنی دقیقاً همان چیزی که باید: امضا نداشتی، رد شدی
+            $probe['guard'] = ['ok' => $r->status() === 401, 'http' => $r->status(),
+                               'reason' => data_get($r->json(), 'reason'),
+                               'body' => mb_substr(strip_tags($r->body()), 0, 120)];
+        } catch (\Throwable $e) {
+            // پیام واقعی cURL — بدون آن «unreachable» هیچ نمی‌گوید
+            $probe['guard'] = ['ok' => false, 'http' => 0,
+                               'reason' => mb_substr($e->getMessage(), 0, 200)];
+        }
+
+        try {
+            $raw   = json_encode(['sending_type' => 'healthcheck'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $ts    = (string) time();
+            $nonce = bin2hex(random_bytes(12));
+
+            $r = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Content-Type'          => 'application/json',
+                    'X-Relay-Timestamp'     => $ts,
+                    'X-Relay-Nonce'         => $nonce,
+                    'X-Relay-Signature'     => hash_hmac('sha256', $ts."\n".$nonce."\n".$raw, $relaySecret),
+                    'X-Relay-Authorization' => (string) config('services.sms.ippanel.token'),
+                ])
+                ->timeout(25)
+                ->withBody($raw, 'application/json')
+                ->post($relayUrl);
+
+            $json = $r->json();
+            // اگر «relay:false» برگشت یعنی خودِ رابط رد کرد (امضا/کلید).
+            // هر چیز دیگری یعنی به آی‌پی‌پنل رسید و پاسخش برگشت.
+            $reachedUpstream = ! (is_array($json) && ($json['relay'] ?? null) === false);
+
+            $probe['signed'] = [
+                'ok'       => $reachedUpstream,
+                'http'     => $r->status(),
+                'via'      => $r->header('X-Relay') ?: null,
+                'reason'   => data_get($json, 'reason'),
+                'upstream' => data_get($json, 'meta.message_code') ?? data_get($json, 'meta.message'),
+            ];
+        } catch (\Throwable $e) {
+            $probe['signed'] = ['ok' => false, 'http' => 0, 'reason' => 'unreachable'];
+        }
+
+        $out['relay'] = $probe;
+    } else {
+        $out['relay'] = ['configured' => false];
     }
 
     return response()->json($out);

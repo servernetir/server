@@ -41,6 +41,13 @@ class AppServiceProvider extends ServiceProvider
                     config('services.sms.relay_url'),
                     config('services.sms.relay_secret'),
                 ),
+                // صف: سرور ایران خودش می‌آید و خالی‌اش می‌کند.
+                // لازم است چون آی‌پی‌پنل به آی‌پی آلمان سرویس نمی‌دهد و سرور
+                // ایران هم اتصال ورودی از آلمان را نمی‌پذیرد.
+                'queue' => new \App\Services\Sms\QueuedSmsSender(
+                    array_filter((array) config('services.sms.ippanel.patterns', [])),
+                    (string) config('services.sms.ippanel.variable', 'code'),
+                ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),
                     config('services.sms.kavenegar.template'),
