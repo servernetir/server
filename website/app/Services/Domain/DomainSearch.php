@@ -113,9 +113,15 @@ class DomainSearch
             ]);
         }
 
-        // قیمت پرمیوم فقط از همین پاسخ می‌آید، نه از فهرست قیمت TLD
-        $cost   = $this->extractPrice($raw, 'reseller') ?? $this->extractPrice($raw, 'product');
-        $renew  = $this->extractPrice($raw, 'reseller', 'renewal') ?? $cost;
+        // قیمت پرمیوم فقط از همین پاسخ می‌آید، نه از فهرست قیمت TLD.
+        // و مهم‌تر: طبق مشخصات رسمی OpenProvider، قیمت پرمیوم در شاخهٔ جداگانهٔ
+        // `premium` می‌نشیند نه در `price.reseller`. اگر آن را نخوانیم، برای
+        // دامنهٔ پرمیوم قیمت پایه نشان می‌دهیم — همان فاجعه‌ای که این طراحی
+        // برای جلوگیری از آن ساخته شد.
+        $cost  = $this->premiumPrice($raw)
+              ?? $this->extractPrice($raw, 'reseller')
+              ?? $this->extractPrice($raw, 'product');
+        $renew = $this->extractPrice($raw, 'reseller', 'renewal') ?? $cost;
 
         if ($cost === null) {
             // آزاد است ولی قیمت نداریم → قیمت نمی‌سازیم
@@ -168,8 +174,28 @@ class DomainSearch
     }
 
     /**
+     * قیمت پرمیوم، طبق مشخصات رسمی OpenProvider:
+     *   premium: { currency: "USD", price: { create: 2500.0 } }
+     *
+     * این شاخه از price.reseller جداست و برای دامنهٔ پرمیوم حرف آخر را می‌زند.
+     */
+    private function premiumPrice(array $raw): ?array
+    {
+        $amount = data_get($raw, 'premium.price.create');
+
+        if (! is_numeric($amount) || (float) $amount <= 0) {
+            return null;
+        }
+
+        return [
+            'amount'   => (float) $amount,
+            'currency' => strtoupper((string) (data_get($raw, 'premium.currency') ?: 'USD')),
+        ];
+    }
+
+    /**
      * قیمت را از ساختار تودرتوی OpenProvider بیرون می‌کشد.
-     * شکل معمول: price.reseller.price / price.reseller.currency
+     * شکل رسمی: price.reseller.price / price.reseller.currency
      */
     private function extractPrice(array $raw, string $who, string $kind = 'create'): ?array
     {

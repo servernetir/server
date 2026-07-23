@@ -82,7 +82,7 @@ class DomainSearchTest extends TestCase
         // پرمیوم: قیمت خیلی بالاتر از استاندارد، و فقط از پاسخ check می‌آید
         $this->fakeOp([[
             'domain' => 'cars.com', 'status' => 'free', 'is_premium' => true,
-            'price' => ['reseller' => ['price' => 2000.0, 'currency' => 'USD']],
+            'premium' => ['currency' => 'USD', 'price' => ['create' => 2000.0]],
         ]]);
 
         $r = app(DomainSearch::class)->search('cars.com', ['com'])[0];
@@ -91,6 +91,32 @@ class DomainSearchTest extends TestCase
         $this->assertSame('premium', $r['status']);
         // ۲۰۰۰ × ۱۰۰٬۰۰۰ × ۱٫۲۵ = ۲۵۰٬۰۰۰٬۰۰۰ — نه قیمت استاندارد
         $this->assertSame(250_000_000, $r['price_toman']);
+    }
+
+    /**
+     * حیاتی‌ترین تست این فایل.
+     *
+     * OpenProvider برای دامنهٔ پرمیوم هر دو شاخه را برمی‌گرداند: price.reseller
+     * که قیمت پایهٔ TLD است، و premium.price.create که قیمت واقعی است.
+     * اگر شاخهٔ اشتباه را بخوانیم، دامنهٔ ۲۵۰۰ دلاری را ۱۲ دلار می‌فروشیم.
+     */
+    public function test_premium_price_wins_over_the_base_reseller_price(): void
+    {
+        $this->fakeOp([[
+            'domain' => 'cars.com', 'status' => 'free', 'is_premium' => true,
+            // قیمت پایهٔ TLD — طعمه
+            'price'   => ['reseller' => ['price' => 12.0, 'currency' => 'USD']],
+            // قیمت واقعی پرمیوم
+            'premium' => ['currency' => 'USD', 'price' => ['create' => 2500.0]],
+        ]]);
+
+        $r = app(DomainSearch::class)->search('cars.com', ['com'])[0];
+
+        // ۲۵۰۰ × ۱۰۰٬۰۰۰ × ۱٫۲۵ = ۳۱۲٬۵۰۰٬۰۰۰
+        $this->assertSame(312_500_000, $r['price_toman'],
+            'قیمت پرمیوم باید بر قیمت پایهٔ رسیلری اولویت داشته باشد');
+        // اگر قیمت پایه خوانده شده بود، عدد ۱٬۵۰۰٬۰۰۰ می‌شد
+        $this->assertNotSame(1_500_000, $r['price_toman']);
     }
 
     public function test_no_price_from_registrar_means_no_price_shown(): void
