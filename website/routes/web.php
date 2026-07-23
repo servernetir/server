@@ -260,6 +260,77 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
 })->middleware('throttle:20,1');
 
 /*
+ * بررسی نهایی پیش از سوییچ به MariaDB.
+ *
+ * سوییچ .env عملاً بازگشت‌ناپذیر است (یک بار سایت را انداخت)، پس قبلش
+ * همه‌چیز را می‌سنجیم: جدول‌ها، کامل بودن داده، نوشتن واقعی، و سالم بودن فارسی.
+ * فقط بولین برمی‌گرداند تا عمومی بودنش چیزی لو ندهد.
+ */
+Route::get('/system/preflight', function () {
+    $db = env('MARIADB_DATABASE');
+    $user = env('MARIADB_USERNAME');
+
+    if (blank($db) || blank($user)) {
+        return response()->json(['ok' => false, 'why' => 'MARIADB_* تنظیم نشده'], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    config(['database.connections.pf' => [
+        'driver' => 'mariadb', 'host' => env('MARIADB_HOST', '127.0.0.1'),
+        'port' => env('MARIADB_PORT', '3306'), 'database' => $db,
+        'username' => $user, 'password' => env('MARIADB_PASSWORD'),
+        'charset' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci',
+        'prefix' => '', 'strict' => true, 'engine' => 'InnoDB',
+    ]]);
+
+    try {
+        $m = \Illuminate\Support\Facades\DB::connection('pf');
+        $s = \Illuminate\Support\Facades\DB::connection();
+        $checks = [];
+
+        // ۱) هر جدولی که سایت برای بالا آمدن لازم دارد
+        $need = ['posts', 'post_translations', 'comments', 'users', 'sessions', 'cache', 'jobs',
+                 'customers', 'customer_profiles', 'currencies', 'tax_rates',
+                 'identity_verifications', 'bank_accounts', 'domain_quotes'];
+        $miss = array_values(array_filter($need, fn ($t) => ! $m->getSchemaBuilder()->hasTable($t)));
+        $checks['tables'] = $miss === [];
+
+        // ۲) داده کمتر از مبدأ نباشد
+        $checks['posts'] = $m->table('posts')->count() >= $s->table('posts')->count();
+        $checks['translations'] = $m->table('post_translations')->count() >= $s->table('post_translations')->count();
+        $checks['users'] = $m->table('users')->count() >= $s->table('users')->count();
+
+        // ۳) دادهٔ پایه پر شده
+        $checks['currencies_seeded'] = $m->table('currencies')->count() >= 2;
+        $checks['tax_seeded'] = $m->table('tax_rates')->count() >= 2;
+
+        // ۴) نوشتن واقعاً کار می‌کند — با تراکنشی که عمداً برگردانده می‌شود
+        try {
+            $m->transaction(function () use ($m) {
+                $m->table('currencies')->where('code', 'ZZZ')->delete();
+                $m->table('currencies')->insert(['code' => 'ZZZ', 'exponent' => 0, 'rounding_step' => 1, 'symbol' => '']);
+                throw new \RuntimeException('rollback');
+            });
+        } catch (\Throwable) {
+            // عمدی
+        }
+        $checks['writable'] = $m->table('currencies')->where('code', 'ZZZ')->count() === 0;
+
+        // ۵) فارسی سالم ذخیره شده؟ کولیشن غلط، متن را خراب می‌کند
+        $t = $m->table('post_translations')->where('locale', 'fa')->first();
+        $checks['utf8'] = $t === null
+            || (mb_check_encoding($t->title ?? '', 'UTF-8') && preg_match('/\p{Arabic}/u', $t->title ?? '') === 1);
+
+        return response()->json([
+            'ok'      => ! in_array(false, $checks, true),
+            'checks'  => $checks,
+            'missing' => $miss,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    } catch (\Throwable $e) {
+        return response()->json(['ok' => false, 'why' => 'خطای اتصال'], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+})->middleware('throttle:20,1');
+
+/*
  * آماده‌سازی MariaDB بدون قطعی سایت.
  *
  * روی اتصال جداگانه (MARIADB_*) کار می‌کند، پس تا وقتی DB_CONNECTION سایت
