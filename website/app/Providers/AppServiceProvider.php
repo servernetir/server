@@ -19,6 +19,36 @@ class AppServiceProvider extends ServiceProvider
     {
         // خروجی JSON اعداد اعشاری را با کوتاه‌ترین نمایش تولید کن (جلوگیری از 1.69999…)
         ini_set('serialize_precision', '-1');
+
+        // احراز هویت ایرانی — پیاده‌سازی فعلی زحل است
+        $this->app->singleton(
+            \App\Services\Identity\IdentityProvider::class,
+            \App\Services\Identity\ZohalProvider::class,
+        );
+
+        // پیامک — درایور انتخابی فقط وقتی می‌نشیند که واقعاً پیکربندی شده باشد.
+        // نیم‌پیکربندی (توکن هست، خط فرستنده نیست) بی‌سروصدا به لاگ برمی‌گردد
+        // تا ثبت‌نام نشکند؛ دستور `sms:test` این حالت را صریح گزارش می‌کند.
+        $this->app->singleton(\App\Services\Sms\SmsSender::class, function () {
+            $driver = config('services.sms.driver');
+
+            $sender = match ($driver) {
+                'ippanel' => new \App\Services\Sms\IppanelSender(
+                    config('services.sms.ippanel.token'),
+                    config('services.sms.ippanel.from'),
+                    config('services.sms.ippanel.otp_pattern'),
+                    config('services.sms.ippanel.otp_variable', 'code'),
+                ),
+                'kavenegar' => new \App\Services\Sms\KavenegarSender(
+                    config('services.sms.kavenegar.key'),
+                    config('services.sms.kavenegar.template'),
+                    config('services.sms.kavenegar.sender'),
+                ),
+                default => null,
+            };
+
+            return $sender?->enabled() ? $sender : new \App\Services\Sms\LogSmsSender();
+        });
     }
 
     /**
@@ -26,6 +56,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->defineRateLimiters();
+
         // متغیرهای مشترک همه‌ی ویوها: زبان جاری، لینک سوییچ زبان‌ها و اطلاعات تماس
         View::composer('*', function (ViewInstance $view) {
             static $shared = null;
@@ -61,5 +93,41 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with($shared);
         });
+    }
+
+    /**
+     * محدودکننده‌های نام‌دار.
+     *
+     * چرا لازم است: `throttle:5,60` بی‌نام، کلیدش فقط «دامنه|IP» است — نه مسیر.
+     * یعنی همهٔ روت‌های throttle‌دار یک شمارنده مشترک دارند و سخت‌گیرترین سقف
+     * روی همه اعمال می‌شود. نتیجه‌اش این بود که کاربری که مسیر عادی ثبت‌نام را
+     * می‌رفت (ارسال شماره، تأیید کد، یک بار ارسال دوباره، احراز هویت) پیش از
+     * رسیدن به مرحلهٔ آخر با ۴۲۹ روبه‌رو می‌شد.
+     *
+     * با نام دادن و by() صریح، هر گروه سطل جدای خودش را دارد.
+     */
+    private function defineRateLimiters(): void
+    {
+        $buckets = [
+            // ثبت‌نام و ورود
+            'reg'    => [8, 10],    // شروع ثبت‌نام
+            'otp'    => [6, 10],    // تأیید و ارسال دوبارهٔ کد
+            'kyc'    => [5, 60],    // استعلام پولی هویت
+            'signin' => [12, 10],   // ورود
+            'bank'   => [6, 60],    // استعلام پولی کارت بانکی
+
+            // بقیهٔ سایت
+            'tools'  => [40, 1],    // ابزارهای وب‌مستر و DNS
+            'forms'  => [6, 10],    // فرم‌های عمومی (نظر، رزومه)
+            'ai'     => [12, 1],    // چت و سازندهٔ هوشمند
+        ];
+
+        foreach ($buckets as $name => [$max, $minutes]) {
+            \Illuminate\Support\Facades\RateLimiter::for(
+                $name,
+                fn (\Illuminate\Http\Request $request) => \Illuminate\Cache\RateLimiting\Limit::perMinutes($minutes, $max)
+                    ->by($name.'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())),
+            );
+        }
     }
 }

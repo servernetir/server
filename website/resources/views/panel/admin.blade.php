@@ -26,8 +26,9 @@
     <div class="adm-fx">
       <div class="adm-fx-main">
         <small>دلار آمریکا</small>
-        @if(!empty($usd['usd_irt']))
-          <b class="pnl-num">{{ fa_num(number_format($usd['usd_irt'])) }}</b>
+        {{-- کلید rate_toman است؛ وقتی ExchangeRate چندارزی شد نامش عوض شد --}}
+        @if(!empty($usd['rate_toman']))
+          <b class="pnl-num">{{ fa_num(number_format($usd['rate_toman'])) }}</b>
           <span class="adm-fx-unit">تومان</span>
         @else
           <b class="pnl-num" style="font-size:22px;color:var(--dim)">—</b>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -83,5 +84,36 @@ class Customer extends Authenticatable
     public function isVerified(): bool
     {
         return $this->profiles()->where('status', 'verified')->exists();
+    }
+
+    public function identityVerification(): HasOne
+    {
+        return $this->hasOne(IdentityVerification::class);
+    }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    /**
+     * نام رسمی — از ثبت احوال، نه از فرم.
+     * برای خارجی‌ها هنوز نام نداریم، پس ایمیل جای آن می‌نشیند.
+     */
+    public function displayName(): string
+    {
+        $iv = $this->identityVerification;
+
+        if ($iv !== null && filled($iv->first_name)) {
+            return trim($iv->first_name.' '.$iv->last_name);
+        }
+
+        return Str::before((string) $this->email, '@');
+    }
+
+    /** بعد از ثبت حساب بانکی تأییدشده، نام قابل تغییر نیست */
+    public function isNameLocked(): bool
+    {
+        return $this->bankAccounts()->where('status', 'verified')->exists();
     }
 }

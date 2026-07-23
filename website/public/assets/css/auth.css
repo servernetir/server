@@ -1,0 +1,183 @@
+/* ============================================================================
+   ورود و ثبت‌نام سرورنت
+   ----------------------------------------------------------------------------
+   روی توکن‌های site.css سوار است. هیچ متغیر تازه‌ای اختراع نمی‌کند جز رنگ‌های
+   وضعیت که panel.css هم همان‌ها را دارد — چون این صفحه‌ها panel.css را بار
+   نمی‌کنند و بدون این تعریف، متن روی زمینهٔ شفاف نامرئی می‌شود.
+
+   منطق: RTL-اول با ویژگی‌های منطقی (inline-start/end) تا نسخهٔ en/tr بدون
+   هیچ override برعکس شود.
+   ========================================================================== */
+
+:root{
+  --ok:#34D399;      --ok-bg:rgba(52,211,153,.10);      --ok-line:rgba(52,211,153,.32);
+  --warn:#FBBF24;    --warn-bg:rgba(251,191,36,.10);    --warn-line:rgba(251,191,36,.32);
+  --danger:#F87171;  --danger-bg:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.32);
+}
+html[data-theme="light"]{
+  --ok:#059669;      --ok-bg:rgba(5,150,105,.09);
+  --warn:#B45309;    --warn-bg:rgba(180,83,9,.09);
+  --danger:#DC2626;  --danger-bg:rgba(220,38,38,.08);
+}
+
+.auth-wrap{ padding:clamp(28px,6vw,72px) 0 clamp(48px,8vw,96px); }
+.auth-wrap .container{ max-width:520px; }
+
+.auth-card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-lg); padding:clamp(22px,4vw,34px);
+  backdrop-filter:blur(8px);
+}
+
+/* ── نوار مراحل ─────────────────────────────────────────────────────────── */
+.auth-steps{
+  display:flex; align-items:center; gap:0; list-style:none;
+  margin:0 0 26px; padding:0;
+}
+.auth-steps li{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:7px;
+  position:relative; font-size:11.5px; color:var(--dim); text-align:center;
+}
+/* خط رابط بین دایره‌ها — با ویژگی منطقی تا در LTR هم درست بیفتد */
+.auth-steps li::before{
+  content:""; position:absolute; top:12px; height:2px;
+  inset-inline-start:-50%; width:100%;
+  background:var(--line); z-index:0;
+}
+.auth-steps li:first-child::before{ display:none; }
+.auth-steps li b{
+  position:relative; z-index:1;
+  width:26px; height:26px; border-radius:50%;
+  display:grid; place-items:center;
+  background:var(--bg); border:1.5px solid var(--line);
+  font-size:12px; font-weight:700; color:var(--dim);
+  font-variant-numeric:tabular-nums;
+}
+.auth-steps li.on b{ background:var(--grad); border-color:transparent; color:#04121f; }
+.auth-steps li.on{ color:var(--text); }
+.auth-steps li.done b{ border-color:var(--ok); color:var(--ok); }
+.auth-steps li.done::before,
+.auth-steps li.on::before{ background:var(--ok); }
+
+/* ── سرصفحه ─────────────────────────────────────────────────────────────── */
+.auth-head{ margin-bottom:22px; }
+.auth-head h1{
+  font-family:var(--font-disp); font-size:clamp(19px,3.4vw,24px);
+  margin:0 0 7px; line-height:1.5;
+}
+.auth-head p{ margin:0; font-size:13px; color:var(--muted); line-height:2; }
+
+/* ── پیام‌ها ────────────────────────────────────────────────────────────── */
+.auth-note{
+  display:flex; flex-direction:column; gap:5px;
+  border-radius:12px; padding:11px 14px; margin-bottom:18px;
+  font-size:12.5px; line-height:1.9; border:1px solid;
+}
+.auth-note.ok{  background:var(--ok-bg);     border-color:var(--ok-line);     color:var(--ok); }
+.auth-note.bad{ background:var(--danger-bg); border-color:var(--danger-line); color:var(--danger); }
+
+/* ── فرم ────────────────────────────────────────────────────────────────── */
+.auth-f{ display:flex; flex-direction:column; gap:16px; }
+.auth-field label{
+  display:block; font-size:12.5px; font-weight:600;
+  margin-bottom:7px; color:var(--text);
+}
+.auth-field input[type=text],
+.auth-field input[type=email],
+.auth-field input[type=tel],
+.auth-field input[type=password]{
+  width:100%; box-sizing:border-box;
+  background:var(--surface-2); border:1px solid var(--line);
+  border-radius:12px; padding:12px 14px;
+  font:inherit; font-size:14px; color:var(--text);
+  transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.auth-field input:focus{
+  outline:none; border-color:var(--line-2);
+  box-shadow:0 0 0 3px rgba(34,211,238,.14);
+}
+.auth-field input::placeholder{ color:var(--dim); }
+.auth-field small{
+  display:block; margin-top:6px;
+  font-size:11.5px; color:var(--dim); line-height:1.85;
+}
+/* اعداد همیشه چپ‌به‌راست، حتی در فرم فارسی */
+.auth-field input[dir=ltr]{
+  text-align:start; font-variant-numeric:tabular-nums; letter-spacing:.04em;
+}
+
+/* کد یک‌بارمصرف: بزرگ، فاصله‌دار، وسط */
+.auth-otp input{
+  text-align:center !important; font-size:26px !important;
+  letter-spacing:.5em !important; padding-inline-start:.5em !important;
+  font-family:var(--font-disp);
+}
+
+/* ── انتخاب نوع حساب ─────────────────────────────────────────────────────── */
+.auth-pick{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.auth-pick label{
+  display:flex; flex-direction:column; gap:3px; cursor:pointer;
+  border:1px solid var(--line); border-radius:12px; padding:13px 14px;
+  background:var(--surface-2); transition:border-color .18s var(--ease);
+  margin:0;
+}
+.auth-pick label b{ font-size:13px; }
+.auth-pick label span{ font-size:11px; color:var(--dim); line-height:1.7; }
+.auth-pick input{ position:absolute; opacity:0; pointer-events:none; }
+.auth-pick input:checked + label{
+  border-color:var(--ok); background:var(--ok-bg);
+}
+.auth-pick input:focus-visible + label{ box-shadow:0 0 0 3px rgba(34,211,238,.18); }
+
+/* ── تیک شرایط ──────────────────────────────────────────────────────────── */
+.auth-check{
+  display:flex; align-items:flex-start; gap:9px;
+  font-size:12.5px; color:var(--muted); line-height:1.95;
+}
+.auth-check input{ margin-top:5px; flex:none; accent-color:#22D3EE; }
+.auth-check a{ color:var(--text); text-decoration:underline; text-underline-offset:3px; }
+
+/* ── دکمه ───────────────────────────────────────────────────────────────── */
+.auth-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; border:0; cursor:pointer;
+  background:var(--grad); color:#04121f;
+  border-radius:12px; padding:13px 18px;
+  font:inherit; font-size:14.5px; font-weight:700;
+  transition:transform .16s var(--ease), opacity .16s var(--ease);
+}
+.auth-btn:hover{ transform:translateY(-1px); }
+.auth-btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+
+.auth-ghost{
+  background:none; border:0; padding:0; cursor:pointer;
+  font:inherit; font-size:12.5px; color:var(--muted);
+  text-decoration:underline; text-underline-offset:3px;
+}
+.auth-ghost:disabled{ opacity:.5; cursor:default; text-decoration:none; }
+
+.auth-row{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  font-size:12.5px; color:var(--muted); flex-wrap:wrap;
+}
+
+.auth-alt{
+  text-align:center; margin:20px 0 0;
+  font-size:13px; color:var(--muted); line-height:2;
+}
+.auth-alt a{ color:var(--text); font-weight:600; }
+
+/* ── جعبهٔ توضیح هزینه/امنیت ─────────────────────────────────────────────── */
+.auth-info{
+  border:1px solid var(--line); border-inline-start:3px solid var(--ok);
+  border-radius:10px; padding:12px 14px; margin-bottom:20px;
+  background:var(--surface-2);
+  font-size:12px; color:var(--muted); line-height:2;
+}
+.auth-info b{ color:var(--text); font-weight:600; }
+
+@media (max-width:420px){
+  .auth-pick{ grid-template-columns:1fr; }
+  .auth-steps li{ font-size:0; gap:0; }
+  .auth-steps li b{ font-size:12px; }
+}

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Account;
 use App\Http\Controllers\AiBuilderController;
+use App\Http\Controllers\Auth;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChatController;
@@ -22,25 +24,25 @@ $site = function (): void {
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
     Route::get('/careers', [\App\Http\Controllers\CareersController::class, 'show'])->name('careers');
-    Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply')->middleware('throttle:5,10');
+    Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply')->middleware('throttle:forms');
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
 
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
-    Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:10,1');
-    Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:20,1');
-    Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:20,1');
+    Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
+    Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
+    Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:tools');
 
     // ابزارهای جامع DNS و شبکه (هاب)
     Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
     Route::get('/network-scan', [LookupController::class, 'hub'])->name('hub.network')->defaults('hub', 'network');
-    Route::post('/api/dns-report', [LookupController::class, 'dnsReport'])->name('api.dnsreport')->middleware('throttle:15,1');
+    Route::post('/api/dns-report', [LookupController::class, 'dnsReport'])->name('api.dnsreport')->middleware('throttle:tools');
 
     // مجموعه ابزار DNS و شبکه (Lookup) — صفحات تکی سئویی
     Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
     Route::get('/lookup/{type}', [LookupController::class, 'show'])->name('lookup')->where('type', '[a-z-]+');
-    Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup')->middleware('throttle:30,1');
+    Route::post('/api/lookup', [LookupController::class, 'run'])->name('api.lookup')->middleware('throttle:tools');
 
     // ابزارهای رایگان وب‌مستر (همه سمت کاربر)
     Route::get('/webtools', [\App\Http\Controllers\WebToolsController::class, 'index'])->name('webtools.index');
@@ -61,24 +63,59 @@ $site = function (): void {
     // بلاگ
     Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
     Route::get('/blog/mod/{comment}/{action}', [BlogController::class, 'moderate'])->name('blog.moderate')->where('action', 'approve|delete');
-    Route::post('/blog/{slug}/comment', [BlogController::class, 'comment'])->name('blog.comment')->where('slug', '[a-z0-9-]+')->middleware('throttle:6,10');
+    Route::post('/blog/{slug}/comment', [BlogController::class, 'comment'])->name('blog.comment')->where('slug', '[a-z0-9-]+')->middleware('throttle:forms');
     Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog')->where('slug', '[a-z0-9-]+');
 
     // صفحات راهکار سازمانی
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
-    Route::post('/api/chat', ChatController::class)->name('chat')->middleware('throttle:12,1');
-    Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check')->middleware('throttle:30,1');
+    Route::post('/api/chat', ChatController::class)->name('chat')->middleware('throttle:ai');
+    Route::post('/api/domain-check', DomainCheckController::class)->name('domain.check')->middleware('throttle:tools');
 
     // جستجوی دامنه از رسیلری (OpenProvider) — مسیر جدید، جدا از مسیر WHMCS بالا
     Route::get('/domains', [\App\Http\Controllers\DomainSearchController::class, 'page'])->name('domain.search');
     Route::post('/api/domains/search', [\App\Http\Controllers\DomainSearchController::class, 'check'])
-        ->name('domain.search.check')->middleware('throttle:20,1');
+        ->name('domain.search.check')->middleware('throttle:tools');
     Route::get('/api/domains/status', [\App\Http\Controllers\DomainSearchController::class, 'status'])
-        ->name('domain.status')->middleware('throttle:10,1');
-    Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat')->middleware('throttle:5,1');
-    Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:10,1');
+        ->name('domain.status')->middleware('throttle:tools');
+    Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat')->middleware('throttle:ai');
+    Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:tools');
+
+    /*
+    |------------------------------------------------------------------------
+    | حساب مشتری — ثبت‌نام، ورود، پنل
+    |------------------------------------------------------------------------
+    | throttle روی هر POST که یا پول خرج می‌کند یا قابل حدس زدن است.
+    | اعداد سخت‌گیرانه‌اند چون هر ثبت‌نام ایرانی ۸۱٬۰۰۰ تومان استعلام دارد؛
+    | سقف واقعی داخل OtpService و RegisterController است و این فقط لایهٔ اول.
+    */
+    Route::middleware('guest:customer')->group(function () {
+        Route::get('/register', [Auth\RegisterController::class, 'showStart'])->name('register');
+        Route::post('/register', [Auth\RegisterController::class, 'start'])->name('register.start')->middleware('throttle:reg');
+
+        Route::get('/register/verify', [Auth\RegisterController::class, 'showVerify'])->name('register.verify.form');
+        Route::post('/register/verify', [Auth\RegisterController::class, 'verify'])->name('register.verify')->middleware('throttle:otp');
+        Route::post('/register/resend', [Auth\RegisterController::class, 'resend'])->name('register.resend')->middleware('throttle:otp');
+
+        Route::get('/register/identity', [Auth\RegisterController::class, 'showIdentity'])->name('register.identity.form');
+        Route::post('/register/identity', [Auth\RegisterController::class, 'identity'])->name('register.identity')->middleware('throttle:kyc');
+
+        Route::get('/register/finish', [Auth\RegisterController::class, 'showFinish'])->name('register.finish.form');
+        Route::post('/register/finish', [Auth\RegisterController::class, 'finish'])->name('register.finish')->middleware('throttle:reg');
+
+        Route::get('/login', [Auth\LoginController::class, 'show'])->name('login');
+        Route::post('/login', [Auth\LoginController::class, 'login'])->name('login.post')->middleware('throttle:signin');
+    });
+
+    Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
+
+    Route::middleware('auth:customer')->prefix('account')->name('account.')->group(function () {
+        Route::get('/', [Account\AccountController::class, 'home'])->name('home');
+        Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
+        Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
+        Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
+    });
 };
 
 Route::middleware('locale:fa')->group($site);
@@ -157,7 +194,7 @@ Route::get('/system/setup', fn () => response(view('system.setup'))
     // این صفحه نباید در گوگل بیاید و نباید در کش واسطه‌ها بماند
     ->header('X-Robots-Tag', 'noindex, nofollow, noarchive')
     ->header('Cache-Control', 'no-store, private')
-)->middleware('throttle:20,1');
+)->middleware('throttle:tools');
 
 /*
  * وضعیت آمادگی MariaDB — فقط خواندنی و بدون توکن.
@@ -211,7 +248,7 @@ Route::get('/system/db-status', function () {
 
         return response()->json($out + ['mariadb' => 'failed', 'reason' => $kind], 200, [], JSON_UNESCAPED_UNICODE);
     }
-})->middleware('throttle:20,1');
+})->middleware('throttle:tools');
 
 Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
     $expected = trim((string) env('DEPLOY_TOKEN', ''));
@@ -257,7 +294,7 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
         'step'   => $step,
         'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
     ], 200, [], JSON_UNESCAPED_UNICODE);
-})->middleware('throttle:20,1');
+})->middleware('throttle:tools');
 
 /*
  * بررسی نهایی پیش از سوییچ به MariaDB.
@@ -328,7 +365,7 @@ Route::get('/system/preflight', function () {
     } catch (\Throwable $e) {
         return response()->json(['ok' => false, 'why' => 'خطای اتصال'], 200, [], JSON_UNESCAPED_UNICODE);
     }
-})->middleware('throttle:20,1');
+})->middleware('throttle:tools');
 
 /*
  * آماده‌سازی MariaDB بدون قطعی سایت.
@@ -338,7 +375,7 @@ Route::get('/system/preflight', function () {
  *   ?step=check → ?step=migrate → ?step=port → ?step=verify
  * و تنها بعد از verify موفق، .env سوییچ می‌شود.
  */
-Route::middleware('throttle:10,1')->get('/system/mariadb/{token}', function (string $token) {
+Route::middleware('throttle:tools')->get('/system/mariadb/{token}', function (string $token) {
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, $token), 404);
     @set_time_limit(300);
@@ -392,12 +429,18 @@ use App\Http\Controllers\Admin\UserController as AdminUser;
 Route::prefix('admin')->group(function () {
     Route::get('/setup', [AdminAuth::class, 'showSetup']);
     Route::post('/setup', [AdminAuth::class, 'setup']);
-    Route::get('/login', [AdminAuth::class, 'showLogin'])->name('login');
+    // نام «admin.login» و نه «login» — چون «login» مال ورود مشتری است و اگر
+    // هر دو یک نام داشته باشند، route('login') بی‌سروصدا یکی را می‌پوشاند و
+    // مشتری به صفحهٔ ورود مدیر هدایت می‌شود. هدایت مهمان‌ها در bootstrap/app.php
+    // تفکیک شده است.
+    Route::get('/login', [AdminAuth::class, 'showLogin'])->name('admin.login');
     // محدودیت نرخ: جلوگیری از حمله‌ی جستجوی فراگیر روی رمز مدیر
-    Route::post('/login', [AdminAuth::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/login', [AdminAuth::class, 'login'])->middleware('throttle:signin');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
-    Route::middleware('auth')->group(function () {
+    // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست
+    // عوض شود؛ پنل مدیریت باید همیشه دقیقاً گارد کارکنان را بخواهد.
+    Route::middleware('auth:web')->group(function () {
         Route::get('/', [AdminDash::class, 'index']);
         Route::get('/posts', [AdminPost::class, 'index']);
         Route::get('/posts/new', [AdminPost::class, 'edit']);
