@@ -253,6 +253,32 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
         // رایج‌ترین علت‌های رد شدن، خط فرستندهٔ اشتباه است
         'from_as_sent'     => $cfg['from'] ? \App\Services\Sms\IppanelSender::preview((string) $cfg['from']) : null,
 
+        /*
+        | تشخیص شماره‌های آزمایشی.
+        |
+        | خود شماره‌ها برنمی‌گردند (اطلاعات شخصی‌اند). سه عدد کافی است تا
+        | بفهمیم مشکل کجاست:
+        |   raw_len = 0            → متغیر اصلاً در .env نیست یا نامش فرق دارد
+        |   raw_len > 0, valid = 0 → هست ولی قالبش اشتباه است (جداکننده یا شکل شماره)
+        |   valid > 0              → سالم
+        */
+        'test_numbers' => (function () {
+            $raw   = (string) config('services.sms.test_numbers', '');
+            $otp   = app(\App\Services\Otp\OtpService::class);
+            $parts = array_filter(array_map('trim', explode(',', $raw)));
+
+            return [
+                'raw_len' => strlen($raw),
+                'entries' => count($parts),
+                'valid'   => count(array_filter($parts, fn ($n) => $otp->normalize('sms', $n) !== '')),
+
+                // false یعنی فایل config روی سرور قدیمی است (تقصیر دیپلوی من)
+                'key_in_config' => array_key_exists('test_numbers', (array) config('services.sms')),
+                // طول مقدار مستقیم از .env، بدون عبور از config
+                'env_len'       => strlen((string) env('OTP_TEST_NUMBERS')),
+            ];
+        })(),
+
         // آخرین خطای واقعی خود سرویس. بدون توکن و بدون شمارهٔ گیرنده.
         'last_error'       => \Illuminate\Support\Facades\Cache::get('sms:last_error'),
     ]);

@@ -1,39 +1,38 @@
 @extends('auth.shell')
-@section('title', 'احراز هویت — سرورنت')
+@section('title', __('ui.auth_kyc_title').' — ServerNet')
 
-@section('heading', 'احراز هویت')
-@section('sub', 'طبق قوانین، پیش از ارائهٔ سرویس باید هویت شما تأیید شود.')
+@section('heading', __('ui.auth_kyc_title'))
+@section('sub', __('ui.auth_kyc_sub'))
 
 @section('form')
 <div class="auth-info">
-  <b>چرا نام و نام خانوادگی نمی‌پرسیم؟</b><br>
-  نام شما مستقیم از ثبت احوال خوانده می‌شود — هم غلط تایپی پیش نمی‌آید، هم بعداً
-  که حساب بانکی اضافه کنید، تطابق نام خودکار انجام می‌شود.
+  <b>{{ __('ui.auth_kyc_why') }}</b><br>
+  {{ __('ui.auth_kyc_why_d') }}
 </div>
 
 <form method="POST" action="{{ lroute('register.identity') }}" class="auth-f" id="idf" novalidate>
   @csrf
 
   <div class="auth-field" data-check="nid">
-    <label for="national_id">کد ملی</label>
+    <label for="national_id">{{ __('ui.auth_nid') }}</label>
     <input type="text" id="national_id" name="national_id" dir="ltr" inputmode="numeric"
-           maxlength="10" placeholder="۰۰۸۴۵۷۵۹۴۸" value="{{ old('national_id') }}"
+           maxlength="10" placeholder="0084575948" value="{{ old('national_id') }}"
            required autofocus aria-describedby="hint-nid">
-    <span class="msg">این کد ملی معتبر نیست؛ رقم‌ها را دوباره بررسی کنید.</span>
-    <small id="hint-nid">ده رقم، بدون خط تیره.</small>
+    <span class="msg">{{ __('ui.auth_nid_bad') }}</span>
+    <small id="hint-nid">{{ __('ui.auth_nid_hint') }}</small>
   </div>
 
   <div class="auth-field" data-check="birth">
-    <label for="birth_date">تاریخ تولد (شمسی)</label>
+    <label for="birth_date">{{ __('ui.auth_birth') }}</label>
     <input type="text" id="birth_date" name="birth_date" dir="ltr" inputmode="numeric"
-           maxlength="10" placeholder="۱۳۷۰/۰۵/۱۲" value="{{ old('birth_date') }}"
+           maxlength="10" placeholder="1370/05/12" value="{{ old('birth_date') }}"
            required aria-describedby="hint-birth">
-    <span class="msg">تاریخ را به شکل ۱۳۷۰/۰۵/۱۲ وارد کنید.</span>
-    <small id="hint-birth">همان تاریخی که در شناسنامه یا کارت ملی ثبت شده است.</small>
+    <span class="msg">{{ __('ui.auth_birth_bad') }}</span>
+    <small id="hint-birth">{{ __('ui.auth_birth_hint') }}</small>
   </div>
 
   <button type="submit" class="auth-btn" id="go">
-    <span class="spin"></span><span class="txt">تأیید هویت</span>
+    <span class="spin"></span><span class="txt">{{ __('ui.auth_kyc_submit') }}</span>
   </button>
 </form>
 
@@ -41,7 +40,8 @@
 (function () {
   var nid = document.getElementById('national_id'),
       bd  = document.getElementById('birth_date'),
-      form = document.getElementById('idf');
+      form = document.getElementById('idf'),
+      WORKING = @json(__('ui.auth_kyc_working'));
 
   var toEn = function (s) {
     return s.replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
@@ -89,7 +89,7 @@
     var b = document.getElementById('go');
     b.classList.add('busy');
     b.disabled = true;
-    b.querySelector('.txt').textContent = 'در حال استعلام…';
+    b.querySelector('.txt').textContent = WORKING;
   });
 })();
 </script>
@@ -98,14 +98,14 @@
 @section('assure')
   <div>
     <svg class="icon"><use href="#i-lock"/></svg>
-    <span>کد ملی <b>رمزنگاری‌شده</b> ذخیره می‌شود.</span>
+    <span>{!! __('ui.auth_nid_enc') !!}</span>
   </div>
   <div>
     <svg class="icon"><use href="#i-check"/></svg>
-    <span>استعلام <b>رسمی</b> است — نیازی به آپلود مدرک نیست.</span>
+    <span>{!! __('ui.auth_kyc_official') !!}</span>
   </div>
   <div>
     <svg class="icon"><use href="#i-shield"/></svg>
-    <span>هیچ اطلاعاتی برای <b>بازاریابی</b> استفاده نمی‌شود.</span>
+    <span>{!! __('ui.auth_no_marketing') !!}</span>
   </div>
 @endsection

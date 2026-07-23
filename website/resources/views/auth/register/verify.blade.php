@@ -1,9 +1,9 @@
 @extends('auth.shell')
-@section('title', 'تأیید شماره — سرورنت')
+@section('title', __('ui.auth_code_title').' — ServerNet')
 
-@section('heading', 'کد تأیید را وارد کنید')
+@section('heading', __('ui.auth_code_title'))
 @section('sub')
-  کد شش‌رقمی به <b dir="ltr">{{ $masked }}</b> فرستاده شد.
+  {!! __('ui.auth_code_sub', ['dest' => '<b dir="ltr">'.e($masked).'</b>']) !!}
 @endsection
 
 @section('form')
@@ -11,7 +11,7 @@
   {{-- فقط برای شماره‌هایی که در OTP_TEST_NUMBERS هستند. شمارهٔ واقعی مشتری
        هرگز به اینجا نمی‌رسد. --}}
   <div class="auth-note" style="background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)">
-    <span><b>حالت آزمایشی</b> — برای این شماره پیامکی فرستاده نشد.</span>
+    <span>{!! __('ui.auth_test_mode') !!}</span>
     <span style="font-family:var(--font-disp);font-size:20px;letter-spacing:.35em;user-select:all">
       {{ session('otp_debug') }}
     </span>
@@ -23,29 +23,32 @@
   <input type="hidden" name="code" id="code">
 
   <div class="auth-field">
-    <label for="d1" class="visually-hidden" style="text-align:center">کد تأیید</label>
+    <label for="d1" class="visually-hidden">{{ __('ui.auth_code') }}</label>
     {{-- شش خانهٔ جدا: خواندن و تصحیح یک رقم اشتباه ساده‌تر از یک فیلد بلند است --}}
     <div class="otp" id="otp" dir="ltr">
       @for($i = 1; $i <= 6; $i++)
         <input type="text" id="d{{ $i }}" inputmode="numeric" maxlength="1"
                autocomplete="{{ $i === 1 ? 'one-time-code' : 'off' }}"
-               aria-label="رقم {{ fa_num($i) }} از ۶" {{ $i === 1 ? 'autofocus' : '' }}>
+               aria-label="{{ __('ui.auth_code_digit', ['n' => fa_num($i)]) }}"
+               {{ $i === 1 ? 'autofocus' : '' }}>
       @endfor
     </div>
-    <small style="text-align:center">کد تا ۳ دقیقه معتبر است.</small>
+    <small style="text-align:center">{{ __('ui.auth_code_ttl') }}</small>
   </div>
 
-  <button type="submit" class="auth-btn"><span class="spin"></span><span>تأیید و ادامه</span></button>
+  <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ __('ui.auth_code_submit') }}</span></button>
 </form>
 
 <div class="auth-row">
   <form method="POST" action="{{ lroute('register.resend') }}">
     @csrf
     <button type="submit" class="auth-ghost" id="resend" disabled>
-      ارسال دوباره <span id="cd">(۶۰)</span>
+      {{ __('ui.auth_resend') }} <span id="cd">(۶۰)</span>
     </button>
   </form>
-  <a class="auth-ghost" href="{{ lroute('register') }}">تغییر {{ $iranian ? 'شماره' : 'ایمیل' }}</a>
+  <a class="auth-ghost" href="{{ lroute('register') }}">
+    {{ $iranian ? __('ui.auth_change_mobile') : __('ui.auth_change_email') }}
+  </a>
 </div>
 
 <script>
@@ -102,7 +105,13 @@
 
   // شمارش معکوس فقط برای راحتی چشم است؛ سقف واقعی سمت سرور اعمال می‌شود
   var btn = document.getElementById('resend'), cd = document.getElementById('cd'), n = 60;
-  var fa = function (x) { return String(x).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
+  var LOCALE = @json(app()->getLocale());
+  var fa = function (x) {
+    return LOCALE === 'fa'
+      ? String(x).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; })
+      : String(x);
+  };
+  cd.textContent = '(' + fa(n) + ')';
   var t = setInterval(function () {
     if (--n <= 0) { clearInterval(t); btn.disabled = false; cd.textContent = ''; return; }
     cd.textContent = '(' + fa(n) + ')';
@@ -114,10 +123,10 @@
 @section('assure')
   <div>
     <svg class="icon"><use href="#i-lock"/></svg>
-    <span>کد شما <b>ذخیره نمی‌شود</b> — فقط اثر رمزنگاری‌شده‌اش نگه داشته می‌شود.</span>
+    <span>{!! __('ui.auth_code_nostore') !!}</span>
   </div>
   <div>
     <svg class="icon"><use href="#i-clock"/></svg>
-    <span>هر کد <b>یک بار</b> و تا ۳ دقیقه معتبر است.</span>
+    <span>{!! __('ui.auth_code_once') !!}</span>
   </div>
 @endsection

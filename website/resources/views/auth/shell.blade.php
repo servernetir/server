@@ -52,7 +52,7 @@
           <div class="auth-prog">
             <div class="auth-prog-h">
               <b>{{ $steps[$index]['title'] }}</b>
-              <span>گام {{ fa_num($index + 1) }} از {{ fa_num($total) }}</span>
+              <span>{{ __('ui.auth_step_of', ['n' => fa_num($index + 1), 'total' => fa_num($total)]) }}</span>
             </div>
             <div class="auth-prog-bar">
               <i style="width:{{ round((($index + 1) / $total) * 100) }}%"></i>
@@ -80,7 +80,7 @@
       <aside class="auth-rail">
         @if($total)
           <div>
-            <div class="auth-rail-t">مراحل</div>
+            <div class="auth-rail-t">{{ __('ui.auth_steps') }}</div>
             <ol class="stp" style="margin-top:16px">
               @foreach($steps as $i => $s)
                 <li class="{{ $i < $index ? 'done' : ($i === $index ? 'on' : '') }}">
@@ -93,10 +93,9 @@
           </div>
         @else
           <div>
-            <div class="auth-rail-t">سرورنت</div>
+            <div class="auth-rail-t">ServerNet</div>
             <p style="margin:14px 0 0;font-size:13px;color:var(--muted);line-height:2">
-              پنل کاربری سرورنت — مدیریت سرویس‌ها، دامنه‌ها، فاکتورها و تیکت‌های
-              پشتیبانی در یک جا.
+              {{ __('ui.auth_panel_intro') }}
             </p>
           </div>
         @endif
@@ -109,11 +108,11 @@
           @else
             <div>
               <svg class="icon"><use href="#i-shield"/></svg>
-              <span>ارتباط شما <b>رمزنگاری‌شده</b> است.</span>
+              <span>{!! __('ui.auth_secure') !!}</span>
             </div>
             <div>
               <svg class="icon"><use href="#i-check"/></svg>
-              <span>اطلاعات هویتی فقط برای <b>احراز هویت</b> استفاده می‌شود.</span>
+              <span>{!! __('ui.auth_identity_use') !!}</span>
             </div>
           @endif
         </div>

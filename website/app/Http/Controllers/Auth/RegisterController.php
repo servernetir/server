@@ -359,15 +359,15 @@ class RegisterController extends Controller
     private function shell(string $current, bool $iranian): array
     {
         $steps = [
-            ['key' => 'contact', 'title' => 'اطلاعات تماس', 'desc' => 'ایمیل و شمارهٔ موبایل'],
-            ['key' => 'verify',  'title' => 'تأیید شماره',  'desc' => 'کد پیامکی شش‌رقمی'],
+            ['key' => 'contact', 'title' => __('ui.auth_s_contact'), 'desc' => __('ui.auth_s_contact_d')],
+            ['key' => 'verify',  'title' => __('ui.auth_s_verify'),  'desc' => __('ui.auth_s_verify_d')],
         ];
 
         if ($iranian) {
-            $steps[] = ['key' => 'identity', 'title' => 'احراز هویت', 'desc' => 'کد ملی و تاریخ تولد'];
+            $steps[] = ['key' => 'identity', 'title' => __('ui.auth_s_identity'), 'desc' => __('ui.auth_s_identity_d')];
         }
 
-        $steps[] = ['key' => 'password', 'title' => 'رمز عبور', 'desc' => 'ساخت حساب و ورود'];
+        $steps[] = ['key' => 'password', 'title' => __('ui.auth_s_password'), 'desc' => __('ui.auth_s_password_d')];
 
         return ['authSteps' => $steps, 'authStep' => $current];
     }
