@@ -168,6 +168,42 @@ Route::middleware('throttle:60,1')->prefix('api/sms')->group(function () {
     Route::post('/report', [\App\Http\Controllers\SmsBridgeController::class, 'report']);
 });
 
+/*
+| وب‌هوک بله — این‌جا chat_id کاربران به دست می‌آید.
+|
+| بیرون از گروه‌های زبانی و بدون احراز هویت (بله یک سرور است). محافظت با
+| توکن در مسیر که هش توکن ربات است — فقط بله آن را دارد. CSRF هم معاف است.
+*/
+/*
+| راه‌اندازی وب‌هوک بله — یک بار اجرا می‌شود تا بله بداند updateها را کجا
+| بفرستد. آدرس وب‌هوک شامل هش توکن ربات است، پس قابل حدس نیست.
+*/
+Route::post('/system/bale-setup', function (\Illuminate\Http\Request $r) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token')), 404);
+
+    $bot = (string) config('services.bale.token');
+    if ($bot === '') {
+        return response()->json(['ok' => false, 'reason' => 'BALE_BOT_TOKEN در .env نیست'], 422, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    $hook = url('/bale/webhook/'.substr(hash('sha256', $bot), 0, 32));
+    $base = rtrim((string) config('services.bale.base', 'https://tapi.bale.ai'), '/');
+
+    $set = \Illuminate\Support\Facades\Http::timeout(15)->asJson()
+        ->post($base.'/bot'.$bot.'/setWebhook', ['url' => $hook]);
+    $me  = \Illuminate\Support\Facades\Http::timeout(15)->get($base.'/bot'.$bot.'/getMe');
+
+    return response()->json([
+        'webhook_url' => $hook,
+        'set_result'  => $set->json(),
+        'bot'         => $me->json('result'),
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+})->middleware('throttle:6,1');
+
+Route::post('/bale/webhook/{token}', \App\Http\Controllers\BaleWebhookController::class)
+    ->middleware('throttle:60,1')->where('token', '[a-f0-9]{32}');
+
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
 // تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
@@ -347,6 +383,7 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
         // آیا سرور ایرانی خودمان اصلاً از آلمان در دسترس است؟ اگر نه، هیچ
         // مسیر رابطی کار نمی‌کند و باید جهت اتصال برعکس شود.
         'servernet_ir' => 'https://servernet.ir/',
+        'bale' => 'https://tapi.bale.ai/bot000:test/getMe',
     ];
 
     $out = [];
@@ -773,6 +810,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+
+        // ردیاب خطای سرور و ۴۰۴
+        Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
+        Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
 
         // داشبورد مالی کسب‌وکار — سرمایه، سود، مالیات
         Route::get('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance');

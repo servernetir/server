@@ -83,18 +83,28 @@ class SmsBridgeController extends Controller
             ->where('expires_at', '<=', now())
             ->update(['status' => 'expired', 'updated_at' => now()]);
 
+        $cols = ['id', 'destination', 'event', 'body', 'params'];
+
+        // ستون bale_chat_id فقط بعد از مهاجرت بله وجود دارد — نگهبان تا روی
+        // سروری که هنوز مهاجرت نکرده pull نشکند
+        $hasBale = \Illuminate\Support\Facades\Schema::hasColumn('sms_outbox', 'bale_chat_id');
+        if ($hasBale) {
+            $cols[] = 'bale_chat_id';
+        }
+
         $messages = SmsOutbox::where('claim_token', $token)
             ->orderBy('id')
-            ->get(['id', 'destination', 'event', 'body', 'params']);
+            ->get($cols);
 
         return response()->json([
             'claim'    => $token,
             'messages' => $messages->map(fn (SmsOutbox $m) => [
-                'id'          => $m->id,
-                'destination' => $m->destination,
-                'event'       => $m->event,
-                'body'        => $m->body,
-                'params'      => $m->params,
+                'id'           => $m->id,
+                'destination'  => $m->destination,
+                'event'        => $m->event,
+                'body'         => $m->body,
+                'params'       => $m->params,
+                'bale_chat_id' => $hasBale ? $m->bale_chat_id : null,
             ])->all(),
         ]);
     }

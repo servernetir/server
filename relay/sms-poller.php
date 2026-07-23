@@ -114,6 +114,12 @@ while (time() < $deadline) {
     $results = [];
 
     foreach ($batch['messages'] as $m) {
+        // ردیف «فقط‌بله» = آلمان نتوانست بله بفرستد، از ایران می‌فرستیم
+        if (($m['event'] ?? '') === 'bale_only' && ! empty($m['bale_chat_id'])) {
+            $results[] = deliverBale($cfg, $m);
+            continue;
+        }
+
         $results[] = deliver($cfg, $m);
     }
 
@@ -249,6 +255,32 @@ function mapParams(array $params, ?string $var): array
     }
 
     return [$var => reset($params)];
+}
+
+
+/** ردیف فقط‌بله را از ایران بفرست (وقتی آلمان نتوانست) */
+function deliverBale(array $cfg, array $m): array
+{
+    $token = $cfg["bale_token"] ?? null;
+    if (empty($token)) {
+        return ["id" => $m["id"], "ok" => false, "code" => "no_bale_token", "message" => "توکن بله در config نیست"];
+    }
+
+    $ch = curl_init("https://tapi.bale.ai/bot".$token."/sendMessage");
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode(["chat_id" => $m["bale_chat_id"], "text" => (string)($m["body"] ?? "")], JSON_UNESCAPED_UNICODE),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
+    ]);
+    $out = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $json = $out === false ? [] : (json_decode((string)$out, true) ?: []);
+    $ok = ($json["ok"] ?? null) === true;
+
+    return ["id" => $m["id"], "ok" => $ok, "code" => (string)$status, "message" => (string)($json["description"] ?? "")];
 }
 
 /** یک پیام را به آی‌پی‌پنل بده */

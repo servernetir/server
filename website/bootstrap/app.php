@@ -21,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // هدرهای امنیتی روی همه‌ی پاسخ‌ها
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        // ثبت ۴۰۴ها بر اساس وضعیت پاسخ — چون ۴۰۴ استثنایی است که report()
+        // نمی‌گیردش. ۵۰۰ها از مسیر withExceptions پایین ثبت می‌شوند.
+        $middleware->append(\App\Http\Middleware\TrackNotFound::class);
+
         /*
          * پل پیامک از CSRF مستثناست.
          *
@@ -37,6 +41,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/sms/*',
             // محافظش DEPLOY_TOKEN است، نه نشست؛ فرم بی‌نشست هم باید کار کند
             'system/migrate',
+            // بله یک سرور است، نشست ندارد؛ محافظش توکن در مسیر است
+            'bale/webhook/*',
+            'system/bale-setup',
         ]);
 
         // دو ورود مستقل داریم: مدیر (/admin) و مشتری (/login با نسخهٔ زبانی).
@@ -62,4 +69,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        // هر ۵۰۰ در ردیاب خطا ثبت می‌شود — فایل‌محور، تا حتی وقتی علتِ خطا
+        // خودِ دیتابیس است هم گرفته شود. جزئیات (کلاس، پیام، فایل:خط، اولین
+        // قاب در کد خودمان) نوشته می‌شود تا بشود مستقیم رفت سراغ رفعش.
+        $exceptions->report(function (\Throwable $e) {
+            \App\Support\ErrorTracker::exception($e, request());
+        });
     })->create();

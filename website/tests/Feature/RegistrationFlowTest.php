@@ -264,12 +264,14 @@ class RegistrationFlowTest extends TestCase
     }
 
     /**
-     * شمارهٔ آزمایشی: کد بدون ارسال پیامک صادر می‌شود و روی صفحه می‌نشیند.
-     * لازم است چون سرویس پیامک ایرانی قطع می‌شود و بدون این، کل ثبت‌نام
-     * غیرقابل تست می‌ماند.
+     * ⚠ کد هرگز روی صفحه نمایش داده نمی‌شود.
+     *
+     * کارفرما خواست مسیر «حالت آزمایشی» (نمایش کد روی صفحه) کاملاً حذف شود.
+     * حالا همه‌ی شماره‌ها پیامک واقعی می‌گیرند و هیچ کدی در نشست فلش نمی‌شود.
      */
-    public function test_a_listed_test_number_gets_its_code_on_screen_without_an_sms(): void
+    public function test_the_code_is_never_shown_on_screen(): void
     {
+        // حتی اگر شماره در فهرست آزمایشی قدیمی باشد، باز هم کد نمایش داده نمی‌شود
         config(['services.sms.test_numbers' => '09121234567']);
 
         $sent = 0;
@@ -284,27 +286,10 @@ class RegistrationFlowTest extends TestCase
         $this->post('/register', [
             'email' => 'tester@example.com', 'phone' => '09121234567', 'type' => 'individual',
         ])->assertRedirect('/register/verify')
-          ->assertSessionHas('otp_debug');
-
-        $this->assertSame(0, $sent, 'برای شمارهٔ آزمایشی نباید پیامکی فرستاده شود');
-
-        // و همان کد باید واقعاً کار کند
-        $code = session('otp_debug');
-        $this->assertMatchesRegularExpression('/^\d{6}$/', (string) $code);
-
-        $this->post('/register/verify', ['code' => $code])
-            ->assertRedirect('/register/identity');
-    }
-
-    /** شماره‌ای که در فهرست نیست باید مسیر واقعی پیامک را برود */
-    public function test_a_number_not_on_the_list_still_goes_through_sms(): void
-    {
-        config(['services.sms.test_numbers' => '09121234567']);
-
-        $this->post('/register', [
-            'email' => 'other@example.com', 'phone' => '09350001122', 'type' => 'individual',
-        ])->assertRedirect('/register/verify')
           ->assertSessionMissing('otp_debug');
+
+        // پیامک واقعی رفت (نه دور زدن)
+        $this->assertSame(1, $sent, 'باید پیامک واقعی فرستاده شود، نه نمایش روی صفحه');
     }
 
     public function test_mobile_numbers_are_normalized_to_one_shape(): void

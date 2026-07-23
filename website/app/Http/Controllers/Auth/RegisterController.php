@@ -143,11 +143,6 @@ class RegisterController extends Controller
             $this->mailCode($email);
         }
 
-        // فقط برای شماره‌های آزمایشی پر است؛ روی شماره‌های واقعی همیشه null
-        if ($issue->debugCode !== null) {
-            $request->session()->flash('otp_debug', $issue->debugCode);
-        }
-
         $request->session()->put('reg', [
             'email'    => $email,
             'phone'    => $phone,
@@ -217,10 +212,6 @@ class RegisterController extends Controller
 
         if (! $reg['iranian']) {
             $this->mailCode($reg['email']);
-        }
-
-        if ($issue->debugCode !== null) {
-            $request->session()->flash('otp_debug', $issue->debugCode);
         }
 
         return back()->with('ok', 'کد تازه فرستاده شد.');

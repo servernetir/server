@@ -59,6 +59,12 @@ class AppServiceProvider extends ServiceProvider
             return $sender?->enabled() ? $sender : new \App\Services\Sms\LogSmsSender();
         });
 
+        // بله — کانال دوم موازی پیامک
+        $this->app->singleton(\App\Services\Bale\BaleSender::class, fn () => new \App\Services\Bale\BaleSender(
+            config('services.bale.token'),
+            (string) config('services.bale.base', 'https://tapi.bale.ai'),
+        ));
+
         // درگاه‌های پرداخت — افزودن درگاه بعدی فقط یک register اینجاست
         $this->app->singleton(\App\Services\Payment\GatewayRegistry::class, function () {
             $registry = new \App\Services\Payment\GatewayRegistry();

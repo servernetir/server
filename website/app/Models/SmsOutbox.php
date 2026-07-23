@@ -11,6 +11,7 @@ class SmsOutbox extends Model
     protected $fillable = [
         'destination', 'event', 'body', 'params', 'status', 'attempts',
         'claim_token', 'claimed_at', 'expires_at', 'sent_at',
+        'bale_chat_id', 'bale_sent',
         'provider_code', 'provider_message',
     ];
 
