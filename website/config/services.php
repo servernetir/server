@@ -81,4 +81,22 @@ return [
         'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
     ],
 
+
+    /*
+    |----------------------------------------------------------------------
+    | OpenProvider — اولین رسیلری دامنه
+    |----------------------------------------------------------------------
+    | اعتبارنامه فقط در .env سرور. margin درصد سود روی قیمت خرید است و
+    | می‌تواند per-TLD تنظیم شود.
+    */
+    'openprovider' => [
+        'base_url' => env('OPENPROVIDER_BASE', 'https://api.openprovider.eu/v1beta'),
+        'username' => env('OPENPROVIDER_USERNAME'),
+        'password' => env('OPENPROVIDER_PASSWORD'),
+        'suggest_tlds' => ['com', 'net', 'org', 'info', 'shop', 'site'],
+        'margin' => [
+            'default' => (float) env('DOMAIN_MARGIN_PCT', 25),
+        ],
+    ],
+
 ];

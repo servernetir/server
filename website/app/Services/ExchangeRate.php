@@ -2,66 +2,99 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * نرخ دلار آزاد از alanchand.com — مبنای قیمت‌گذاری دامنه.
+ * نرخ ارز آزاد از alanchand.com — مبنای تبدیل قیمت رسیلری به تومان.
  *
- * سایت React است ولی صفحهٔ /currencies-price/usd سرور-رندر است و قیمت
- * ده‌ها بار در آن تکرار می‌شود (سربرگ، جدول، نمودار). پس به‌جای سلکتور
- * شکننده، «پرتکرارترین عدد کامادار در بازهٔ منطقی» را برمی‌داریم — این به
- * تغییر قالب سایت مقاوم است.
+ * سایت React است ولی صفحهٔ هر ارز سرور-رندر است و قیمت ده‌ها بار در آن
+ * تکرار می‌شود (سربرگ، جدول، نمودار). پس به‌جای سلکتور شکننده،
+ * «پرتکرارترین عدد کامادار در بازهٔ منطقی» را برمی‌داریم — این به تغییر
+ * قالب سایت مقاوم است.
  *
- * اعتبارسنجی حیاتی است: قیمت دلار غلط، کل کاتالوگ را غلط قیمت‌گذاری می‌کند.
- * پس اگر استخراج مطمئن نبود، به‌جای ذخیرهٔ زباله، مقدار قبلی حفظ و خطا ثبت
- * می‌شود.
+ * اعتبارسنجی حیاتی است: نرخ غلط، کل کاتالوگ را غلط قیمت‌گذاری می‌کند.
+ * اگر استخراج مطمئن نبود، به‌جای ذخیرهٔ زباله مقدار قبلی حفظ و خطا ثبت می‌شود.
  */
 class ExchangeRate
 {
-    private const URL = 'https://alanchand.com/currencies-price/usd';
-    private const CACHE_KEY = 'fx.usd_irt';
+    /** ارزهایی که می‌توانیم نرخشان را بگیریم → مسیر صفحه در alanchand */
+    private const SOURCES = [
+        'USD' => 'usd',
+        'EUR' => 'eur',
+    ];
 
-    /** بازهٔ عاقلانه برای دلار به تومان — بیرون از این یعنی استخراج اشتباه */
+    /** بازهٔ عاقلانه به تومان — بیرون از این یعنی استخراج اشتباه */
     private const MIN_TOMAN = 20_000;
-    private const MAX_TOMAN = 2_000_000;
+    private const MAX_TOMAN = 5_000_000;
 
-    /** آخرین نرخ ذخیره‌شده + زمانش، یا null اگر هنوز چیزی نداریم */
-    public function current(): ?array
+    private function key(string $currency): string
     {
-        return Cache::get(self::CACHE_KEY);
+        return 'fx.'.strtolower($currency).'_irt';
+    }
+
+    /** آخرین نرخ ذخیره‌شده، یا null */
+    public function current(string $currency = 'USD'): ?array
+    {
+        return Cache::get($this->key($currency));
     }
 
     /**
-     * دریافت زنده، اعتبارسنجی و ذخیره. مقدار جدید را برمی‌گرداند یا در صورت
-     * شکست، مقدار قبلی را دست‌نخورده نگه می‌دارد و null برمی‌گرداند.
+     * نرخ فعلی به تومان. اگر کش خالی بود یک بار می‌گیرد.
+     * null یعنی واقعاً در دسترس نیست — فراخوان باید تصمیم بگیرد چه کند.
      */
-    public function refresh(): ?array
+    public function toToman(string $currency = 'USD'): ?int
     {
+        $currency = strtoupper($currency);
+
+        // تومان به تومان
+        if (in_array($currency, ['IRT', 'IRR'], true)) {
+            return $currency === 'IRR' ? 10 : 1;
+        }
+
+        $row = $this->current($currency) ?? $this->refresh($currency);
+
+        return $row['rate_toman'] ?? null;
+    }
+
+    /** دریافت زنده، اعتبارسنجی و ذخیره. در صورت شکست مقدار قبلی دست‌نخورده می‌ماند. */
+    public function refresh(string $currency = 'USD'): ?array
+    {
+        $currency = strtoupper($currency);
+        $slug = self::SOURCES[$currency] ?? null;
+
+        if ($slug === null) {
+            Log::warning('ExchangeRate: currency not supported', ['currency' => $currency]);
+            return null;
+        }
+
         try {
             $html = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (compatible; ServerNetBot/1.0)',
+                'User-Agent'      => 'Mozilla/5.0 (compatible; ServerNetBot/1.0)',
                 'Accept-Language' => 'fa,en;q=0.8',
-            ])->timeout(12)->retry(2, 500)->get(self::URL)->body();
+            ])->timeout(12)->retry(2, 500)
+              ->get("https://alanchand.com/currencies-price/{$slug}")
+              ->body();
         } catch (\Throwable $e) {
-            Log::warning('ExchangeRate fetch failed', ['err' => $e->getMessage()]);
+            Log::warning('ExchangeRate fetch failed', ['currency' => $currency, 'err' => $e->getMessage()]);
             return null;
         }
 
         $toman = $this->extract($html);
         if ($toman === null) {
-            Log::warning('ExchangeRate parse failed — keeping last value');
+            Log::warning('ExchangeRate parse failed — keeping last value', ['currency' => $currency]);
             return null;
         }
 
         $row = [
-            'usd_irt' => $toman,          // تومان
-            'source'  => 'alanchand.com',
-            'at'      => now()->toIso8601String(),
+            'currency'   => $currency,
+            'rate_toman' => $toman,
+            'source'     => 'alanchand.com',
+            'at'         => now()->toIso8601String(),
         ];
-        // ۲ ساعت TTL: اگر کران یک بار جا افتاد، مقدار قدیمی هنوز هست ولی «کهنه» پیداست
-        Cache::put(self::CACHE_KEY, $row, now()->addHours(6));
+
+        Cache::put($this->key($currency), $row, now()->addHours(6));
 
         return $row;
     }
@@ -69,7 +102,6 @@ class ExchangeRate
     /** استخراج قیمت از HTML — عمومی برای تست‌پذیری */
     public function extract(string $html): ?int
     {
-        // ارقام فارسی/عربی به لاتین
         $html = strtr($html, [
             '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
             '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
@@ -80,7 +112,6 @@ class ExchangeRate
             return null;
         }
 
-        // شمارش تکرار هر عدد که در بازهٔ منطقی است
         $counts = [];
         foreach ($m[1] as $raw) {
             $n = (int) str_replace(',', '', $raw);
@@ -92,16 +123,10 @@ class ExchangeRate
             return null;
         }
 
-        // پرتکرارترین برنده است؛ اگر مساوی شد، بزرگ‌ترین (قیمت جاری معمولاً بالاتر)
         arsort($counts);
         $top = array_key_first($counts);
-        $topCount = $counts[$top];
 
-        // اطمینان: باید دست‌کم چند بار تکرار شده باشد، وگرنه احتمالاً عدد رندوم است
-        if ($topCount < 3) {
-            return null;
-        }
-
-        return $top;
+        // باید چند بار تکرار شده باشد وگرنه احتمالاً عدد رندوم صفحه است
+        return $counts[$top] >= 3 ? $top : null;
     }
 }
