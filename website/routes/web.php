@@ -153,7 +153,11 @@ Route::middleware('throttle:6,1')->get('/system/content/{token}', function (stri
  *
  * خودِ صفحه بدون توکن هیچ کاری نمی‌کند، پس عمومی بودنش خطری ندارد.
  */
-Route::get('/system/setup', fn () => view('system.setup'))->middleware('throttle:20,1');
+Route::get('/system/setup', fn () => response(view('system.setup'))
+    // این صفحه نباید در گوگل بیاید و نباید در کش واسطه‌ها بماند
+    ->header('X-Robots-Tag', 'noindex, nofollow, noarchive')
+    ->header('Cache-Control', 'no-store, private')
+)->middleware('throttle:20,1');
 
 /*
  * وضعیت آمادگی MariaDB — فقط خواندنی و بدون توکن.
@@ -182,19 +186,18 @@ Route::get('/system/db-status', function () {
 
     try {
         $c = \Illuminate\Support\Facades\DB::connection('status_mariadb');
-        $tables = $c->getSchemaBuilder()->getTableListing();
+        $schema = $c->getSchemaBuilder();
 
-        $counts = [];
-        foreach (['posts', 'post_translations', 'comments', 'users', 'customers', 'currencies', 'tax_rates'] as $t) {
-            if ($c->getSchemaBuilder()->hasTable($t)) {
-                $counts[$t] = $c->table($t)->count();
-            }
-        }
+        // عمداً هیچ شمارشی برنمی‌گردانیم. تعداد کاربر و موجودی محتوا، اطلاعاتی
+        // است که نباید عمومی باشد. اینجا فقط «آماده هست یا نه» را می‌گوییم؛
+        // جزئیات پشت توکن در صفحهٔ /system/setup است.
+        $required = ['posts', 'post_translations', 'customers', 'currencies', 'tax_rates'];
+        $missing = array_values(array_filter($required, fn ($t) => ! $schema->hasTable($t)));
 
         return response()->json($out + [
-            'mariadb'   => 'connected',
-            'tables'    => count($tables),
-            'row_counts'=> $counts,
+            'mariadb' => 'connected',
+            'ready'   => $missing === [],
+            'missing' => $missing,
         ], 200, [], JSON_UNESCAPED_UNICODE);
     } catch (\Throwable $e) {
         // پیام خام درایور ممکن است نام کاربر را داشته باشد — فقط نوع خطا را می‌دهیم

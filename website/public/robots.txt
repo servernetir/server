@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /system/
+Disallow: /panel-preview
 
 Sitemap: https://servernet.cloud/sitemap.xml
