@@ -30,6 +30,11 @@ Schedule::command('content:generate --limit=3 --days=2')
     ->dailyAt('10:00')
     ->withoutOverlapping(30);
 
+// نرخ دلار آزاد — هر ساعت، مبنای قیمت‌گذاری دامنه
+Schedule::command('fx:dollar')
+    ->hourly()
+    ->withoutOverlapping();
+
 // تولید مطالب پایگاه دانش — روزی ۲ مطلب از docs-plan.
 // بدون این، ۱۰۱ موضوع پایگاه دانش هرگز ساخته نمی‌شدند: زمان‌بندی بالا فقط
 // برنامه‌ی پیش‌فرض (بلاگ) را می‌سازد. --daily یعنی هر مطلب در یک روز جدا منتشر شود.

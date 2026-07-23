@@ -92,7 +92,7 @@
             <td>تهران</td>
             <td>۱۲ شهریور ۱۴۰۴</td>
             <td class="num pnl-money">۲٬۴۹۰٬۰۰۰</td>
-            <td><a class="pnl-btn" href="#">مدیریت</a></td>
+            <td><a class="pnl-btn" href="{{ lroute('panel.preview.server') }}">مدیریت</a></td>
           </tr>
           <tr>
             <td>
@@ -105,7 +105,7 @@
             <td>آلمان — فالکنشتاین</td>
             <td>۲۸ مرداد ۱۴۰۴</td>
             <td class="num pnl-money">۱٬۱۵۰٬۰۰۰</td>
-            <td><a class="pnl-btn" href="#">مدیریت</a></td>
+            <td><a class="pnl-btn" href="{{ lroute('panel.preview.server') }}">مدیریت</a></td>
           </tr>
           <tr>
             <td>
@@ -118,7 +118,7 @@
             <td>ایران</td>
             <td>۳ مرداد ۱۴۰۴</td>
             <td class="num pnl-money">۱٬۲۹۰٬۰۰۰</td>
-            <td><a class="pnl-btn" href="#">مدیریت</a></td>
+            <td><a class="pnl-btn" href="{{ lroute('panel.preview.server') }}">مدیریت</a></td>
           </tr>
         </tbody>
       </table>

@@ -12,6 +12,17 @@
 @section('content')
 <section class="pnl-wrap">
   <div class="container">
+    {{-- نوار موبایل: فقط زیر ۱۰۰۰px دیده می‌شود --}}
+    <div class="pnl-mobar">
+      <div class="pnl-mobar-me">
+        <span class="pnl-avatar">{{ mb_substr($pnlUser['name'] ?? '؟', 0, 1) }}</span>
+        <b>{{ $pnlUser['name'] ?? '' }}</b>
+      </div>
+      <button class="pnl-menu-btn" id="pnl-menu" aria-label="منو">
+        <svg class="icon"><use href="#i-list"/></svg>
+      </button>
+    </div>
+
     <div class="pnl-layout">
 
       {{-- محتوا اول در DOM، سایدبار دوم: کاربر صفحه‌کلید زودتر به کار اصلی می‌رسد --}}
@@ -49,6 +60,23 @@
       </aside>
 
     </div>
+
+    <div class="pnl-drawer-bd" id="pnl-bd"></div>
   </div>
 </section>
+
+<script>
+(function () {
+  var btn = document.getElementById('pnl-menu'),
+      side = document.querySelector('.pnl-side'),
+      bd = document.getElementById('pnl-bd');
+  if (!btn || !side) return;
+  function toggle(open){ side.classList.toggle('open', open); bd.classList.toggle('open', open); }
+  btn.addEventListener('click', function(){ toggle(!side.classList.contains('open')); });
+  bd.addEventListener('click', function(){ toggle(false); });
+  // با کلیک روی هر لینک منو، کشو بسته شود
+  side.querySelectorAll('a').forEach(function(a){ a.addEventListener('click', function(){ toggle(false); }); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') toggle(false); });
+})();
+</script>
 @endsection

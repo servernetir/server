@@ -82,7 +82,8 @@
 </section>
 
 {{-- ============ گفت‌وگوی تأیید ============ --}}
-<div id="pnl-confirm" hidden style="position:fixed;inset:0;z-index:400;display:grid;place-items:center;
+{{-- z-index 600: بالای ویجت چت سایت (۴۰۰) تا کلیک را نبلعد --}}
+<div id="pnl-confirm" hidden style="position:fixed;inset:0;z-index:600;display:grid;place-items:center;
      background:rgba(0,0,0,.6);backdrop-filter:blur(3px);padding:20px">
   <div class="pnl-card" style="max-width:440px;width:100%;border-color:var(--danger-line)">
     <h3 id="pc-title" style="font-size:17px;font-family:var(--font-disp);margin-bottom:10px"></h3>
@@ -137,7 +138,14 @@
   document.getElementById('pc-cancel').onclick=close;
   box.addEventListener('click', function(e){ if(e.target===box) close(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !box.hidden) close(); });
-  ok.onclick=function(){ if(!ok.disabled) close(); };   // نمونهٔ طراحی — عمل واقعی بعداً
+  // پیش‌نمایش است: به‌جای اجرای واقعی، بازخورد نشان می‌دهد تا کاربر بداند کلیکش کار کرد
+  ok.onclick=function(){
+    if(ok.disabled) return;
+    elB.textContent='این یک پیش‌نمایش طراحی است؛ در نسخهٔ واقعی همین‌جا عملیات روی سرور اجرا می‌شود.';
+    wrap.hidden=true;
+    ok.textContent='باشه';
+    ok.onclick=close;
+  };
 })();
 </script>
 

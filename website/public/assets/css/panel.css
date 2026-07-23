@@ -162,12 +162,40 @@ html[data-theme="light"] .pnl-sec{background:#fff}
 .pnl-bar span{display:block;height:100%;border-radius:99px;background:var(--grad)}
 .pnl-bar.hot span{background:linear-gradient(100deg,#FBBF24,#F87171)}
 
+/* ============================ نوار موبایل ============================ */
+/* در دسکتاپ پنهان است؛ در موبایل جای سایدبار ثابت را می‌گیرد. */
+.pnl-mobar{display:none}
+.pnl-drawer-bd{display:none}
+
 /* ============================ ریسپانسیو ============================ */
 @media(max-width:1000px){
   .pnl-layout{grid-template-columns:1fr}
-  .pnl-side{position:static;order:2}
   .pnl-stats{grid-template-columns:repeat(2,1fr)}
   .pnl-res{grid-template-columns:1fr}
+
+  /* نوار بالای موبایل: نام کاربر + دکمهٔ منو، همیشه در دسترس */
+  .pnl-mobar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-bottom:16px;padding:12px 14px;background:var(--surface);
+    border:1px solid var(--line-2);border-radius:var(--r)}
+  html[data-theme="light"] .pnl-mobar{background:#fff}
+  .pnl-mobar-me{display:flex;align-items:center;gap:10px;min-width:0}
+  .pnl-mobar-me .pnl-avatar{width:34px;height:34px;font-size:14px}
+  .pnl-mobar-me b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pnl-menu-btn{flex:none;width:40px;height:40px;border-radius:11px;border:1px solid var(--line-2);
+    background:var(--surface-2);color:var(--text);display:grid;place-items:center;cursor:pointer}
+  .pnl-menu-btn .icon{width:20px;height:20px}
+
+  /* سایدبار می‌شود کشوی روییِ تمام‌عرض که از بالا می‌آید */
+  .pnl-side{position:fixed;inset-inline:0;top:0;z-index:395;
+    max-height:88vh;overflow-y:auto;transform:translateY(-100%);
+    transition:transform .28s var(--ease);padding:14px}
+  .pnl-side.open{transform:translateY(0)}
+  .pnl-side .pnl-card{border-radius:0 0 var(--r) var(--r)}
+  .pnl-drawer-bd{position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .28s}
+  .pnl-drawer-bd.open{opacity:1;pointer-events:auto}
+  /* روی موبایل کارت پروفایلِ داخل سایدبار تکراری است چون بالای نوار هست */
+  .pnl-side .pnl-me{display:none}
 }
 @media(max-width:560px){
   .pnl-wrap{padding-top:100px}

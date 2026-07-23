@@ -50,6 +50,9 @@ $site = function (): void {
     // با ساخت پنل واقعی حذف می‌شود.
     Route::get('/panel-preview', [\App\Http\Controllers\PanelPreviewController::class, 'dashboard'])->name('panel.preview');
     Route::get('/panel-preview/server', [\App\Http\Controllers\PanelPreviewController::class, 'server'])->name('panel.preview.server');
+    Route::get('/panel-preview/admin', [\App\Http\Controllers\PanelPreviewController::class, 'adminDashboard'])->name('panel.preview.admin');
+    Route::get('/panel-preview/tickets', [\App\Http\Controllers\PanelPreviewController::class, 'tickets'])->name('panel.preview.tickets');
+    Route::get('/panel-preview/admin/tickets', [\App\Http\Controllers\PanelPreviewController::class, 'adminTickets'])->name('panel.preview.admin.tickets');
 
     // مستندات
     Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');

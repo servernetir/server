@@ -38,9 +38,17 @@ return [
     */
 
     'guards' => [
+        // کارکنان و ادمین — دست‌نخورده
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        // مشتریان پنل. عمداً guard و جدول جدا: یک باگ در منطق نقش نباید
+        // بتواند مشتری را به پنل مدیریت برساند و برعکس.
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'customers',
         ],
     ],
 
@@ -65,6 +73,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Customer::class,
         ],
 
         // 'users' => [
