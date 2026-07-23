@@ -70,6 +70,17 @@ class TicketController extends Controller
             $ticket->forceFill(['status' => 'closed', 'closed_at' => now()])->save();
         }
 
+        // اعلان به مشتری — پیامک و بله. یادداشت داخلی اعلان ندارد (مشتری
+        // نمی‌بیندش، پس نباید خبردار شود).
+        if (! $internal && $ticket->customer) {
+            app(\App\Services\Notify\CustomerNotifier::class)->event(
+                $ticket->customer,
+                'ticket_reply',
+                ['number' => $ticket->number],
+                'پاسخ جدیدی به تیکت '.$ticket->number.' شما داده شد. برای مشاهده به پنل کاربری مراجعه کنید.',
+            );
+        }
+
         return back()->with('ok', $internal ? 'یادداشت داخلی ثبت شد.' : 'پاسخ ثبت شد.');
     }
 

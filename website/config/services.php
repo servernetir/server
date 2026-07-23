@@ -198,6 +198,11 @@ return [
         'token'    => env('BALE_BOT_TOKEN'),
         'username' => env('BALE_BOT_USERNAME'),
         'base'     => env('BALE_BASE_URL', 'https://tapi.bale.ai'),
+
+        // توکن پرداخت کیف پول — جدا از توکن ربات، از @botfather بخش پرداخت.
+        // نام env همان است که کارفرما گذاشت: BALE_BOT_WALLET
+        // برای تست: WALLET-TEST-1111111111111111
+        'wallet' => env('BALE_BOT_WALLET', env('BALE_PROVIDER_TOKEN')),
     ],
 
     /*

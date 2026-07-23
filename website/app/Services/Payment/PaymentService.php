@@ -140,6 +140,35 @@ class PaymentService
     }
 
     /**
+     * تسویهٔ پرداختی که ارائه‌دهنده خودش تأیید کرده — بدون verify.
+     *
+     * برای درگاه‌های وب‌هوکی مثل بله: وقتی SuccessfulPayment می‌رسد، بله
+     * قبلاً پول را از کیف پول کاربر برداشته. پس verify معنی ندارد؛ همان
+     * رویداد، خودِ تأیید است. همان applyPaid و همان ثبت درآمد استفاده می‌شود
+     * تا هیچ منطق تسویهٔ موازی‌ای نباشد.
+     */
+    public function settleConfirmed(Payment $payment, ?string $refId, ?string $cardMask = null): SettleOutcome
+    {
+        if ($payment->isPaid()) {
+            return new SettleOutcome(true, $payment, alreadySettled: true);
+        }
+
+        $outcome = $this->applyPaid($payment, VerifyResult::paid($refId, $cardMask));
+
+        if ($outcome->ok && $outcome->payment !== null) {
+            try {
+                app(\App\Services\Finance\BusinessLedger::class)->recordPayment($outcome->payment);
+            } catch (\Throwable $e) {
+                Log::warning('ثبت درآمد بله در دفتر مالی انجام نشد', [
+                    'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $outcome;
+    }
+
+    /**
      * ثبت پرداخت موفق — تنها جایی که وضعیت فاکتور و اعتبار عوض می‌شود.
      *
      * همه‌چیز داخل یک تراکنش با قفل سطر است. بررسی «قبلاً paid شده؟» عمداً
@@ -214,6 +243,21 @@ class PaymentService
                 Log::warning('ثبت درآمد در دفتر مالی انجام نشد', [
                     'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
                 ]);
+            }
+
+            // اعلان تأیید پرداخت — پیامک و بله. فقط تسویهٔ واقعی، نه تکرار
+            // (رفرش صفحه یا رویداد دوبارهٔ بله) — alreadySettled این را می‌گیرد.
+            if (! $outcome->alreadySettled && ($customer = $outcome->payment->customer) !== null) {
+                try {
+                    app(\App\Services\Notify\CustomerNotifier::class)->event(
+                        $customer,
+                        'paid',
+                        ['amount' => number_format($outcome->payment->amount)],
+                        'پرداخت شما به مبلغ '.number_format($outcome->payment->amount).' تومان با موفقیت ثبت شد.',
+                    );
+                } catch (\Throwable) {
+                    // اعلان هرگز تسویه را نمی‌شکند
+                }
             }
         }
 

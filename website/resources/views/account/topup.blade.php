@@ -65,7 +65,7 @@
                             background:var(--surface-2)">
                 <input type="radio" name="gateway" value="{{ $key }}" {{ $loop->first ? 'checked' : '' }}
                        style="accent-color:#22D3EE">
-                <b style="font-size:13px">{{ $key === 'zarinpal' ? 'زرین‌پال — کارت بانکی' : $key }}</b>
+                <b style="font-size:13px">{{ ['zarinpal'=>'زرین‌پال — کارت بانکی', 'bale'=>'بله — کیف پول (بدون کارت)'][$key] ?? $key }}</b>
               </label>
             @endforeach
           </div>

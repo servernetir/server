@@ -56,8 +56,31 @@ class PaymentController extends Controller
 
         return view('account.invoice', AccountController::shell('invoices') + [
             'invoice'  => $invoice->load('items', 'payments'),
-            'gateways' => $this->gateways->availableFor($invoice->currency_code),
+            'gateways' => $this->gatewaysFor($invoice->currency_code),
         ]);
+    }
+
+    /**
+     * درگاه‌های قابل نمایش برای این مشتری.
+     *
+     * بله فقط به مشتری‌ای نشان داده می‌شود که بله را وصل کرده — وگرنه گزینه‌ای
+     * می‌بیند که با انتخابش خطای «اول بله را وصل کنید» می‌گیرد. بهتر است اصلاً
+     * نبیندش تا وقتی آماده است.
+     */
+    private function gatewaysFor(string $currency): array
+    {
+        $gateways = $this->gateways->availableFor($currency);
+
+        $customer = Auth::guard('customer')->user();
+        $hasBale  = \Illuminate\Support\Facades\Schema::hasTable('bale_contacts')
+            && filled($customer?->phone)
+            && \App\Models\BaleContact::chatIdFor((string) $customer->phone) !== null;
+
+        if (! $hasBale) {
+            unset($gateways['bale']);
+        }
+
+        return $gateways;
     }
 
     // ───────────────────────────── پرداخت ─────────────────────────────
@@ -70,13 +93,27 @@ class PaymentController extends Controller
 
         $outcome = $this->payments->begin($invoice, $request->string('gateway')->toString(), $request);
 
+        return $this->afterBegin($outcome, $invoice);
+    }
+
+    /**
+     * بعد از شروع پرداخت: درگاه هدایتی (زرین‌پال) → away؛ درگاه دستوری
+     * (بله: فاکتور در چت کاربر) → برگشت با پیام «در بله پرداخت کنید».
+     */
+    private function afterBegin(\App\Services\Payment\StartOutcome $outcome, Invoice $invoice): RedirectResponse
+    {
         if (! $outcome->ok) {
             return back()->withErrors(['gateway' => $outcome->error]);
         }
 
-        // درگاه‌های هدایتی (زرین‌پال). درگاه‌هایی که دستور نمایش می‌دهند
-        // (رمزارز) در فاز بعد به صفحهٔ اختصاصی می‌روند.
-        return redirect()->away($outcome->redirectUrl);
+        if ($outcome->redirectUrl !== null) {
+            return redirect()->away($outcome->redirectUrl);
+        }
+
+        // بله: فاکتور به چت کاربر رفت؛ تسویه با وب‌هوک انجام می‌شود
+        $message = $outcome->instructions['message'] ?? 'فاکتور فرستاده شد؛ برای تکمیل، پرداخت را انجام دهید.';
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)->with('ok', $message);
     }
 
     /**
@@ -118,7 +155,7 @@ class PaymentController extends Controller
 
         return view('account.topup', AccountController::shell('invoices') + [
             'balance'  => $this->balance($customer->id),
-            'gateways' => $this->gateways->availableFor('IRT'),
+            'gateways' => $this->gatewaysFor('IRT'),
         ]);
     }
 
@@ -167,14 +204,16 @@ class PaymentController extends Controller
 
         $outcome = $this->payments->begin($invoice, $request->string('gateway')->toString(), $request);
 
-        if (! $outcome->ok) {
-            return back()->withInput()->withErrors(['gateway' => $outcome->error]);
-        }
-
-        return redirect()->away($outcome->redirectUrl);
+        // بله فاکتور را به چت می‌فرستد (redirectUrl ندارد)؛ زرین‌پال away
+        return $this->afterBegin($outcome, $invoice);
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────
+
+    private function rp(): string
+    {
+        return \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
+    }
 
     /** موجودی = جمع سطرهای دفتر، نه یک ستون قابل‌تغییر */
     private function balance(int $customerId, string $currency = 'IRT'): int

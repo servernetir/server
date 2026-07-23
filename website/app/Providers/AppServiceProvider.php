@@ -74,6 +74,12 @@ class AppServiceProvider extends ServiceProvider
                 (bool) config('services.zarinpal.sandbox'),
             ));
 
+            // درگاه بله — از کیف پول بله، برای مشتریانی که بله را وصل کرده‌اند
+            $registry->register(new \App\Services\Payment\BaleGateway(
+                $this->app->make(\App\Services\Bale\BaleSender::class),
+                config('services.bale.wallet'),
+            ));
+
             return $registry;
         });
     }

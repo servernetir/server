@@ -42,8 +42,23 @@ class BaleWebhookController extends Controller
         }
 
         $update = $request->all();
+
+        // ── پرداخت: تأیید پیش از تسویه (باید ظرف ۱۰ ثانیه پاسخ داده شود) ──
+        if (isset($update['pre_checkout_query'])) {
+            $this->preCheckout($update['pre_checkout_query'], $sender);
+
+            return response()->json(['ok' => true]);
+        }
+
         $message = $update['message'] ?? [];
         $chatId  = (string) ($message['chat']['id'] ?? $message['from']['id'] ?? '');
+
+        // ── پرداخت: تسویهٔ نهایی ──
+        if (isset($message['successful_payment'])) {
+            $this->successfulPayment($message['successful_payment']);
+
+            return response()->json(['ok' => true]);
+        }
 
         if ($chatId === '') {
             return response()->json(['ok' => true]);
@@ -61,6 +76,82 @@ class BaleWebhookController extends Controller
         $this->promptForContact($sender, $chatId, str_starts_with($text, '/start'));
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * PreCheckoutQuery — بله قبل از برداشت پول می‌پرسد «تأیید می‌کنی؟».
+     *
+     * باید مبلغ و payload را با پرداختِ منتظر بسنجیم. اگر نخواند، رد می‌کنیم
+     * تا پول برداشته نشود. این تنها فرصت است؛ بعد از تأیید، پول رفته.
+     */
+    private function preCheckout(array $query, BaleSender $sender): void
+    {
+        $queryId = (string) ($query['id'] ?? '');
+        $payload = (string) ($query['invoice_payload'] ?? '');
+        $amount  = (int) ($query['total_amount'] ?? 0);
+
+        if ($queryId === '') {
+            return;
+        }
+
+        $payment = $this->paymentFromPayload($payload);
+
+        if ($payment === null || ! $payment->isVerifiable()) {
+            $sender->answerPreCheckout($queryId, false, 'این پرداخت معتبر یا فعال نیست.');
+
+            return;
+        }
+
+        // مبلغی که بله می‌گوید باید دقیقاً برابر مبلغ مورد انتظار ما باشد
+        $registry = app(\App\Services\Payment\GatewayRegistry::class);
+        $gateway  = $registry->get('bale');
+        $expected = $gateway instanceof \App\Services\Payment\BaleGateway
+            ? $gateway->expectedRial($payment)
+            : $payment->amount * 10;
+
+        if ($amount !== $expected) {
+            $sender->answerPreCheckout($queryId, false, 'مبلغ پرداخت با فاکتور نمی‌خواند.');
+
+            return;
+        }
+
+        $sender->answerPreCheckout($queryId, true);
+    }
+
+    /**
+     * SuccessfulPayment — پول از کیف پول کاربر برداشته شده. تسویه کن.
+     *
+     * این خودِ تأیید است (بله قبلاً برداشته)، پس settleConfirmed بدون verify.
+     * idempotent است: اگر بله رویداد را دو بار بفرستد، پرداخت دو بار تسویه
+     * نمی‌شود.
+     */
+    private function successfulPayment(array $sp): void
+    {
+        $payment = $this->paymentFromPayload((string) ($sp['invoice_payload'] ?? ''));
+
+        if ($payment === null) {
+            \Illuminate\Support\Facades\Log::warning('پرداخت موفق بله با payload ناشناخته', ['sp' => $sp]);
+
+            return;
+        }
+
+        $refId = (string) ($sp['provider_payment_charge_id']
+            ?? $sp['telegram_payment_charge_id']
+            ?? '') ?: null;
+
+        app(\App\Services\Payment\PaymentService::class)->settleConfirmed($payment, $refId);
+    }
+
+    /** پرداخت را از روی payload پیدا کن — payload برابر external_ref است */
+    private function paymentFromPayload(string $payload): ?\App\Models\Payment
+    {
+        if ($payload === '') {
+            return null;
+        }
+
+        return \App\Models\Payment::where('gateway', 'bale')
+            ->where('external_ref', $payload)
+            ->first();
     }
 
     /** ذخیرهٔ نگاشت شماره → chat_id و پیام تأیید */
