@@ -96,6 +96,27 @@ class Customer extends Authenticatable
         return $this->hasMany(BankAccount::class);
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function creditEntries(): HasMany
+    {
+        return $this->hasMany(CreditEntry::class);
+    }
+
+    /** موجودی اعتبار — جمع دفتر، نه ستون ذخیره‌شده */
+    public function creditBalance(string $currency = 'IRT'): int
+    {
+        return (int) $this->creditEntries()->where('currency_code', $currency)->sum('amount');
+    }
+
     /**
      * نام رسمی — از ثبت احوال، نه از فرم.
      * برای خارجی‌ها هنوز نام نداریم، پس ایمیل جای آن می‌نشیند.

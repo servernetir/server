@@ -49,6 +49,18 @@ class AppServiceProvider extends ServiceProvider
 
             return $sender?->enabled() ? $sender : new \App\Services\Sms\LogSmsSender();
         });
+
+        // درگاه‌های پرداخت — افزودن درگاه بعدی فقط یک register اینجاست
+        $this->app->singleton(\App\Services\Payment\GatewayRegistry::class, function () {
+            $registry = new \App\Services\Payment\GatewayRegistry();
+
+            $registry->register(new \App\Services\Payment\ZarinPalGateway(
+                config('services.zarinpal.merchant_id'),
+                (bool) config('services.zarinpal.sandbox'),
+            ));
+
+            return $registry;
+        });
     }
 
     /**
@@ -115,6 +127,10 @@ class AppServiceProvider extends ServiceProvider
             'kyc'    => [5, 60],    // استعلام پولی هویت
             'signin' => [12, 10],   // ورود
             'bank'   => [6, 60],    // استعلام پولی کارت بانکی
+            // پرداخت: سخاوتمندتر از بقیه، چون بازگشت از درگاه هم از همین
+            // سطل می‌خورد و کاربری که چند بار refresh کند نباید ۴۲۹ بگیرد
+            // درست وقتی می‌خواهد ببیند پولش رسید یا نه
+            'pay'    => [30, 10],
 
             // بقیهٔ سایت
             'tools'  => [40, 1],    // ابزارهای وب‌مستر و DNS

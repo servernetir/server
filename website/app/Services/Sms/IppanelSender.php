@@ -2,6 +2,7 @@
 
 namespace App\Services\Sms;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -106,12 +107,80 @@ class IppanelSender implements SmsSender, SupportsPatterns
         return filled($this->patterns[$event] ?? null);
     }
 
+    /**
+     * دو شکل هدر احراز هویت.
+     *
+     * آی‌پی‌پنل دو نسل API دارد و کلیدها بینشان جابه‌جا نمی‌شوند:
+     *   Edge (جدید)   → Authorization: <token>
+     *   REST (قدیمی)  → Authorization: AccessKey <apikey>
+     *
+     * کلیدی که از پنل کاربری گرفته می‌شود معمولاً از نوع دوم است. چون از
+     * بیرون نمی‌شود تشخیص داد کدام است، اولی امتحان می‌شود و اگر ۴۰۱ داد
+     * دومی. نتیجهٔ موفق تا پایان درخواست به خاطر سپرده می‌شود تا هر پیامک
+     * دو بار تلاش نکند.
+     */
+    private static ?string $workingScheme = null;
+
     private function post(array $body): bool
     {
+        $schemes = self::$workingScheme !== null
+            ? [self::$workingScheme]
+            : ['raw', 'accesskey'];
+
+        $last = null;
+
+        foreach ($schemes as $scheme) {
+            $res = $this->attempt($scheme, $body);
+
+            if ($res === null) {
+                return false;   // شبکه قطع — امتحان دوباره بی‌فایده است
+            }
+
+            $json = $res->json();
+
+            if (data_get($json, 'meta.status') === true) {
+                self::$workingScheme = $scheme;
+
+                return true;
+            }
+
+            $last = [$scheme, $res];
+
+            // ۴۰۱/۴۰۳ یعنی «شاید شکل هدر اشتباه است» — بقیهٔ خطاها یعنی
+            // هدر درست بوده و مشکل جای دیگر است، پس تکرار بی‌مورد نکن
+            if (! in_array($res->status(), [401, 403], true)) {
+                break;
+            }
+        }
+
+        [$scheme, $res] = $last;
+        $json = $res->json();
+
+        $detail = [
+            'http'    => $res->status(),
+            'scheme'  => $scheme,
+            'code'    => data_get($json, 'meta.message_code'),
+            'message' => data_get($json, 'meta.message') ?: mb_substr($res->body(), 0, 200),
+        ];
+
+        Log::warning('آی‌پی‌پنل پیامک را رد کرد', $detail);
+
+        // برای تشخیص از راه دور: بدون SSH نمی‌شود لاگ سرور را خواند.
+        // هیچ توکن و شماره‌ای اینجا نیست — فقط کد و پیام خود سرویس.
+        Cache::put('sms:last_error', $detail + ['at' => now()->toIso8601String()], now()->addDay());
+
+        return false;
+    }
+
+    private function attempt(string $scheme, array $body): ?\Illuminate\Http\Client\Response
+    {
+        $header = $scheme === 'accesskey'
+            ? 'AccessKey '.$this->token
+            : (string) $this->token;
+
         try {
-            $res = Http::withHeaders([
-                    // بدون Bearer — عمدی
-                    'Authorization' => (string) $this->token,
+            return Http::withHeaders([
+                    'Authorization' => $header,
                     'Accept'        => 'application/json',
                 ])
                 ->timeout(15)
@@ -119,23 +188,20 @@ class IppanelSender implements SmsSender, SupportsPatterns
                 ->post(self::BASE.'/api/send', $body);
         } catch (\Throwable $e) {
             Log::warning('آی‌پی‌پنل در دسترس نبود', ['error' => $e->getMessage()]);
+            Cache::put('sms:last_error', [
+                'http' => 0, 'scheme' => $scheme, 'code' => 'network',
+                'message' => mb_substr($e->getMessage(), 0, 200),
+                'at' => now()->toIso8601String(),
+            ], now()->addDay());
 
-            return false;
+            return null;
         }
+    }
 
-        $json = $res->json();
-
-        if (data_get($json, 'meta.status') === true) {
-            return true;
-        }
-
-        Log::warning('آی‌پی‌پنل پیامک را رد کرد', [
-            'http'    => $res->status(),
-            'code'    => data_get($json, 'meta.message_code'),
-            'message' => data_get($json, 'meta.message') ?: $res->body(),
-        ]);
-
-        return false;
+    /** برای تشخیص: خط فرستنده دقیقاً به چه شکلی فرستاده می‌شود */
+    public static function preview(string $number): string
+    {
+        return (new self(null, null))->e164($number);
     }
 
     /** 09121234567 → +989121234567 ; شماره‌ای که از قبل +98 دارد دست‌نخورده می‌ماند */

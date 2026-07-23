@@ -115,11 +115,20 @@ class RegisterController extends Controller
         $issue = $this->otp->issue($channel, $destination, 'register', $request->ip());
 
         if (! $issue->ok) {
-            return back()->withInput()->withErrors(['phone' => $issue->error, 'email' => $issue->error]);
+            // فقط روی فیلدی که واقعاً مقصد بود — قبلاً روی هر دو می‌نشست و
+            // کاربر یک خطا را دو بار می‌دید
+            return back()->withInput()->withErrors([
+                $iranian ? 'phone' : 'email' => $issue->error,
+            ]);
         }
 
         if (! $iranian) {
             $this->mailCode($email);
+        }
+
+        // فقط برای شماره‌های آزمایشی پر است؛ روی شماره‌های واقعی همیشه null
+        if ($issue->debugCode !== null) {
+            $request->session()->flash('otp_debug', $issue->debugCode);
         }
 
         $request->session()->put('reg', [
@@ -191,6 +200,10 @@ class RegisterController extends Controller
 
         if (! $reg['iranian']) {
             $this->mailCode($reg['email']);
+        }
+
+        if ($issue->debugCode !== null) {
+            $request->session()->flash('otp_debug', $issue->debugCode);
         }
 
         return back()->with('ok', 'کد تازه فرستاده شد.');

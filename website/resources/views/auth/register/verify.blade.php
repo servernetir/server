@@ -7,6 +7,17 @@
 @endsection
 
 @section('form')
+@if(session('otp_debug'))
+  {{-- فقط برای شماره‌هایی که در OTP_TEST_NUMBERS هستند. شمارهٔ واقعی مشتری
+       هرگز به اینجا نمی‌رسد. --}}
+  <div class="auth-note" style="background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)">
+    <span><b>حالت آزمایشی</b> — برای این شماره پیامکی فرستاده نشد.</span>
+    <span style="font-family:var(--font-disp);font-size:20px;letter-spacing:.35em;user-select:all">
+      {{ session('otp_debug') }}
+    </span>
+  </div>
+@endif
+
 <form method="POST" action="{{ lroute('register.verify') }}" class="auth-f" id="otp-form">
   @csrf
   <input type="hidden" name="code" id="code">

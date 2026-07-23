@@ -1,0 +1,250 @@
+<?php
+
+namespace App\Services\Payment;
+
+use App\Models\CreditEntry;
+use App\Models\Invoice;
+use App\Models\Payment;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * شروع و تسویهٔ پرداخت.
+ *
+ * تمام منطقی که «پول را جابه‌جا می‌کند» اینجاست و نه در کنترلر — چون این
+ * منطق باید دقیقاً یک بار اجرا شود و کنترلر جای تضمین آن نیست.
+ *
+ * ═══ سه حمله/حادثه‌ای که این کلاس باید تاب بیاورد ═══
+ *
+ * ۱) رفرش صفحهٔ بازگشت. کاربر بعد از پرداخت F5 می‌زند. زرین‌پال کد ۱۰۱
+ *    («قبلاً تأیید شده») می‌دهد. باید موفق نشان دهیم ولی **دوباره** به
+ *    فاکتور اعتبار ندهیم.
+ *
+ * ۲) دو callback هم‌زمان. مرورگر و یک تب دیگر با هم برمی‌گردند. قفل سطر
+ *    پرداخت + بررسی دوبارهٔ وضعیت **داخل** تراکنش، نه بیرونش.
+ *
+ * ۳) بیش‌پرداخت. تا کاربر در درگاه بود، فاکتور از راه دیگری تسویه شد.
+ *    پول را پس نمی‌فرستیم و نادیده هم نمی‌گیریم — به اعتبار حسابش می‌رود.
+ */
+class PaymentService
+{
+    /** پنجرهٔ اعتبار یک تلاش پرداخت */
+    private const WINDOW_MINUTES = 30;
+
+    public function __construct(private GatewayRegistry $gateways) {}
+
+    /**
+     * شروع یک تلاش پرداخت.
+     *
+     * تلاش‌های نیمه‌کارهٔ قبلی همان فاکتور باطل می‌شوند تا فهرست پرداخت‌ها
+     * پر از ردیف‌های سرگردان نشود و مشتری نتواند دو Authority فعال داشته باشد.
+     */
+    public function begin(Invoice $invoice, string $gatewayKey, Request $request): StartOutcome
+    {
+        $gateway = $this->gateways->get($gatewayKey);
+
+        if ($gateway === null || ! $gateway->enabled()) {
+            return new StartOutcome(false, error: 'این روش پرداخت در دسترس نیست.');
+        }
+
+        if (! $invoice->isPayable()) {
+            return new StartOutcome(false, error: 'این فاکتور قابل پرداخت نیست.');
+        }
+
+        if ($invoice->currency_code !== $gateway->currency()) {
+            return new StartOutcome(false, error: 'ارز این فاکتور با این درگاه نمی‌خواند.');
+        }
+
+        $amount = $invoice->due();
+
+        if ($amount < $gateway->minimum()) {
+            return new StartOutcome(false, error:
+                'کمترین مبلغ قابل پرداخت '.number_format($gateway->minimum()).' تومان است.');
+        }
+
+        // تلاش‌های باز قبلی را ببند
+        Payment::where('invoice_id', $invoice->id)
+            ->whereIn('status', ['pending', 'redirected'])
+            ->update(['status' => 'canceled', 'updated_at' => now()]);
+
+        $payment = Payment::create([
+            'invoice_id'    => $invoice->id,
+            'customer_id'   => $invoice->customer_id,
+            'gateway'       => $gateway->key(),
+            'currency_code' => $invoice->currency_code,
+            'amount'        => $amount,
+            'status'        => 'pending',
+            'expires_at'    => now()->addMinutes(self::WINDOW_MINUTES),
+            'ip'            => $request->ip(),
+            'user_agent'    => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        $result = $gateway->start($payment, route('payment.callback', ['gateway' => $gateway->key()]));
+
+        if (! $result->ok) {
+            $payment->forceFill([
+                'status'        => 'failed',
+                'error_code'    => $result->errorCode,
+                'error_message' => $result->error,
+            ])->save();
+
+            return new StartOutcome(false, error: $result->error);
+        }
+
+        $payment->forceFill([
+            'status'       => 'redirected',
+            'external_ref' => $result->externalRef,
+        ])->save();
+
+        return new StartOutcome(true, payment: $payment, redirectUrl: $result->redirectUrl,
+            instructions: $result->instructions);
+    }
+
+    /**
+     * تسویه بعد از بازگشت از درگاه.
+     *
+     * @param  array<string,mixed>  $callback  پارامترهای بازگشت — داده، نه حکم
+     */
+    public function settle(Payment $payment, array $callback): SettleOutcome
+    {
+        // قبلاً تسویه شده؟ هیچ تماس دوباره‌ای با درگاه لازم نیست
+        if ($payment->isPaid()) {
+            return new SettleOutcome(true, $payment, alreadySettled: true);
+        }
+
+        if (! $payment->isVerifiable()) {
+            return new SettleOutcome(false, $payment, error:
+                'مهلت این پرداخت تمام شده است. اگر مبلغ از حساب شما کم شده، با پشتیبانی تماس بگیرید.');
+        }
+
+        $gateway = $this->gateways->get($payment->gateway);
+
+        if ($gateway === null) {
+            return new SettleOutcome(false, $payment, error: 'درگاه این پرداخت شناخته نشد.');
+        }
+
+        $result = $gateway->verify($payment, $callback);
+
+        if (! $result->paid) {
+            $payment->forceFill([
+                'status'        => $result->canceled ? 'canceled' : 'failed',
+                'error_code'    => $result->errorCode,
+                'error_message' => $result->error,
+            ])->save();
+
+            return new SettleOutcome(false, $payment, error: $result->error, canceled: $result->canceled);
+        }
+
+        return $this->applyPaid($payment, $result);
+    }
+
+    /**
+     * ثبت پرداخت موفق — تنها جایی که وضعیت فاکتور و اعتبار عوض می‌شود.
+     *
+     * همه‌چیز داخل یک تراکنش با قفل سطر است. بررسی «قبلاً paid شده؟» عمداً
+     * **داخل** قفل تکرار می‌شود: بین بررسی بیرونی و رسیدن به اینجا، یک
+     * درخواست موازی می‌تواند همین کار را کرده باشد.
+     */
+    private function applyPaid(Payment $payment, VerifyResult $result): SettleOutcome
+    {
+        $outcome = DB::transaction(function () use ($payment, $result) {
+            /** @var Payment $fresh */
+            $fresh = Payment::whereKey($payment->id)->lockForUpdate()->first();
+
+            if ($fresh->isPaid()) {
+                return new SettleOutcome(true, $fresh, alreadySettled: true);
+            }
+
+            $fresh->forceFill([
+                'status'    => 'paid',
+                'ref_id'    => $result->refId,
+                'card_mask' => $result->cardMask,
+                'fee'       => $result->fee,
+                'fee_type'  => $result->feeType,
+                'paid_at'   => now(),
+            ])->save();
+
+            /** @var Invoice $invoice */
+            $invoice = Invoice::whereKey($fresh->invoice_id)->lockForUpdate()->first();
+
+            $due       = $invoice->due();
+            $toInvoice = min($fresh->amount, $due);
+            $surplus   = $fresh->amount - $toInvoice;
+
+            if ($toInvoice > 0) {
+                $invoice->paid += $toInvoice;
+
+                if ($invoice->due() === 0) {
+                    $invoice->status  = 'paid';
+                    $invoice->paid_at = now();
+                }
+
+                $invoice->save();
+            }
+
+            // فاکتور «افزایش اعتبار» خودش پول را به دفتر می‌برد
+            if ($invoice->kind === 'topup' && $toInvoice > 0) {
+                $this->credit($invoice->customer_id, $invoice->currency_code, $toInvoice,
+                    'topup', $invoice, 'افزایش اعتبار با پرداخت آنلاین');
+            }
+
+            // بیش‌پرداخت: تا کاربر در درگاه بود فاکتور از راه دیگری بسته شد.
+            // پول نه برمی‌گردد نه گم می‌شود — به اعتبارش می‌نشیند.
+            if ($surplus > 0) {
+                $this->credit($fresh->customer_id, $fresh->currency_code, $surplus,
+                    'adjustment', $fresh, 'مازاد پرداخت فاکتور '.$invoice->number);
+
+                Log::info('بیش‌پرداخت به اعتبار منتقل شد', [
+                    'payment' => $fresh->id, 'surplus' => $surplus,
+                ]);
+            }
+
+            return new SettleOutcome(true, $fresh, alreadySettled: $result->alreadyVerified);
+        });
+
+        return $outcome;
+    }
+
+    /** یک سطر دفتر اعتبار با موجودیِ پس از آن */
+    private function credit(int $customerId, string $currency, int $amount, string $reason, $source, string $note): void
+    {
+        $balance = (int) CreditEntry::where('customer_id', $customerId)
+            ->where('currency_code', $currency)
+            ->sum('amount');
+
+        CreditEntry::create([
+            'customer_id'   => $customerId,
+            'currency_code' => $currency,
+            'amount'        => $amount,
+            'balance_after' => $balance + $amount,
+            'reason'        => $reason,
+            'source_type'   => $source::class,
+            'source_id'     => $source->id,
+            'note'          => $note,
+        ]);
+    }
+}
+
+final readonly class StartOutcome
+{
+    public function __construct(
+        public bool $ok,
+        public ?Payment $payment = null,
+        public ?string $redirectUrl = null,
+        public ?array $instructions = null,
+        public ?string $error = null,
+    ) {}
+}
+
+final readonly class SettleOutcome
+{
+    public function __construct(
+        public bool $ok,
+        public ?Payment $payment = null,
+        public ?string $error = null,
+        /** پرداخت از قبل تسویه بود — موفق است ولی چیزی دوباره اعمال نشد */
+        public bool $alreadySettled = false,
+        public bool $canceled = false,
+    ) {}
+}

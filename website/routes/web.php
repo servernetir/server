@@ -115,12 +115,36 @@ $site = function (): void {
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
+
+        Route::get('/invoices', [Account\PaymentController::class, 'index'])->name('invoices');
+        Route::get('/invoices/{invoice}', [Account\PaymentController::class, 'show'])->name('invoice');
+        Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
+            ->name('invoice.pay')->middleware('throttle:pay');
+
+        Route::get('/topup', [Account\PaymentController::class, 'topupForm'])->name('topup');
+        Route::post('/topup', [Account\PaymentController::class, 'topup'])
+            ->name('topup.start')->middleware('throttle:pay');
     });
 };
 
 Route::middleware('locale:fa')->group($site);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
+
+/*
+| بازگشت از درگاه پرداخت.
+|
+| عمداً بیرون از گروه‌های زبانی و بیرون از auth:customer:
+|   • آدرس بازگشت موقع ساخت تراکنش به درگاه داده می‌شود و باید ثابت بماند؛
+|     اگر با پیشوند زبان ساخته شود، کاربری که زبانش را عوض کند سر از ۴۰۴
+|     درمی‌آورد و پرداختش معلق می‌ماند.
+|   • کاربر ممکن است در مرورگر دیگری یا با نشستِ منقضی برگردد. پرداخت فقط
+|     از روی Authority پیدا می‌شود که ستونی یکتاست.
+*/
+Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
+    ->name('payment.callback')
+    ->where('gateway', '[a-z]+')
+    ->middleware('throttle:pay');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
@@ -224,6 +248,13 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
         'patterns_defined' => array_keys(array_filter((array) ($cfg['patterns'] ?? []))),
         // اگر false باشد، کد ورود از مسیر پیام آزاد می‌رود و ممکن است دیر برسد
         'otp_uses_pattern' => filled($cfg['patterns']['otp'] ?? null),
+
+        // شکل خط فرستنده همان‌طور که واقعاً به آی‌پی‌پنل می‌رود — یکی از
+        // رایج‌ترین علت‌های رد شدن، خط فرستندهٔ اشتباه است
+        'from_as_sent'     => $cfg['from'] ? \App\Services\Sms\IppanelSender::preview((string) $cfg['from']) : null,
+
+        // آخرین خطای واقعی خود سرویس. بدون توکن و بدون شمارهٔ گیرنده.
+        'last_error'       => \Illuminate\Support\Facades\Cache::get('sms:last_error'),
     ]);
 });
 

@@ -5,6 +5,7 @@ namespace App\Services\Otp;
 use App\Models\OtpChallenge;
 use App\Services\Sms\SmsSender;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * کد یک‌بارمصرف — دروازهٔ قبل از هر کار پرهزینه.
@@ -85,6 +86,27 @@ class OtpService
             'expires_at'  => now()->addMinutes(self::TTL_MINUTES),
         ]);
 
+        /*
+         * شماره‌های آزمایشی.
+         *
+         * برای این شماره‌ها هیچ پیامکی فرستاده نمی‌شود و کد مستقیم روی صفحه
+         * نشان داده می‌شود. لازم است چون بدون آن، هر بار که سرویس پیامک قطع
+         * باشد کل جریان ثبت‌نام غیرقابل تست می‌شود.
+         *
+         * چرا «فهرست شماره» و نه یک کلید بولین: کلید بولین اگر روی تولید جا
+         * بماند، کد ورودِ **هر** کاربری را روی صفحه می‌اندازد. با فهرست
+         * شماره، بدترین حالتِ جاماندن این است که چند شمارهٔ خودمان بی‌اثر
+         * شوند — و حساب‌های واقعی هیچ‌وقت تحت تأثیر قرار نمی‌گیرند.
+         */
+        if ($this->isTestDestination($destination)) {
+            Log::warning('کد یک‌بارمصرف بدون ارسال پیامک صادر شد (شمارهٔ آزمایشی)', [
+                'destination' => $destination,
+            ]);
+
+            return new OtpIssue(true, challengeId: $challenge->id,
+                expiresAt: $challenge->expires_at, debugCode: $code);
+        }
+
         // sendOtp و نه send — مسیر الگو، که اپراتور فوری تحویل می‌دهد.
         // با مسیر پیام آزاد، کد سه‌دقیقه‌ای ما اغلب منقضی می‌رسید.
         $sent = $channel === 'sms'
@@ -94,7 +116,9 @@ class OtpService
         if (! $sent) {
             $challenge->delete();
 
-            return OtpIssue::fail('ارسال پیامک انجام نشد. کمی بعد دوباره تلاش کنید.');
+            return OtpIssue::fail(
+                'ارسال پیامک انجام نشد. سرویس پیامک موقتاً در دسترس نیست؛ کمی بعد دوباره تلاش کنید.'
+            );
         }
 
         return new OtpIssue(true, challengeId: $challenge->id, expiresAt: $challenge->expires_at);
@@ -191,6 +215,27 @@ class OtpService
         return str_pad((string) random_int(0, 10 ** self::LENGTH - 1), self::LENGTH, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * آیا این مقصد در فهرست شماره‌های آزمایشی است؟
+     * فهرست از .env می‌آید (OTP_TEST_NUMBERS) و پیش‌فرض خالی است — یعنی
+     * روی نصب تازه هیچ شماره‌ای این مسیر را نمی‌رود.
+     */
+    public function isTestDestination(string $destination): bool
+    {
+        $raw = (string) config('services.sms.test_numbers', '');
+
+        if ($raw === '') {
+            return false;
+        }
+
+        $list = array_filter(array_map(
+            fn (string $n) => $this->normalize('sms', trim($n)),
+            explode(',', $raw),
+        ));
+
+        return in_array($destination, $list, true);
+    }
+
     private function hash(string $code): string
     {
         return hash_hmac('sha256', $code, config('app.key'));
@@ -215,6 +260,8 @@ final readonly class OtpIssue
         public ?int $challengeId = null,
         public ?Carbon $expiresAt = null,
         public ?int $retryAfter = null,
+        /** فقط برای شماره‌های آزمایشی — روی شماره‌های واقعی همیشه null است */
+        public ?string $debugCode = null,
     ) {}
 
     public static function fail(string $error, ?int $retryAfter = null): self

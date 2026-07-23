@@ -56,7 +56,7 @@ class AccountController extends Controller
                     ['key' => 'domains',  'icon' => 'globe',  'label' => 'دامنه‌ها'],
                 ]],
                 ['label' => 'مالی', 'items' => [
-                    ['key' => 'invoices', 'icon' => 'coins', 'label' => 'فاکتورها'],
+                    ['key' => 'invoices', 'icon' => 'coins', 'label' => 'فاکتورها و اعتبار', 'url' => lroute('account.invoices')],
                     ['key' => 'bank',     'icon' => 'db',    'label' => 'حساب بانکی', 'url' => lroute('account.bank')],
                 ]],
                 ['label' => 'پشتیبانی', 'items' => [
