@@ -172,6 +172,25 @@ if (! function_exists('lroute')) {
     }
 }
 
+if (! function_exists('console_lroute')) {
+    /**
+     * همان lroute ولی روی میزبان کنسول.
+     *
+     * برای لینک‌هایی که از سایت اصلی به پنل می‌روند (دکمهٔ ورود در منو). با
+     * این، کاربر مستقیم به console.servernet.cloud می‌رود و یک پرش ریدایرکت
+     * اضافه ندارد. ConsoleHost هم پشتیبان است: اگر لینکی جا ماند و به دامنهٔ
+     * اصلی رفت، آن‌جا ۳۰۱ به کنسول می‌خورد.
+     */
+    function console_lroute(string $name, mixed $params = []): string
+    {
+        $prefix = \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
+        // route(..., absolute:false) مسیر بدون میزبان می‌دهد؛ میزبان کنسول را جلو می‌گذاریم
+        $path = route($prefix.$name, $params, false);
+
+        return 'https://console.servernet.cloud'.$path;
+    }
+}
+
 if (! function_exists('whmcs_url')) {
     /** آدرس WHMCS متناسب با زبان جاری (fa → my.servernet.ir / en → my.servernet.cloud) */
     function whmcs_url(string $path = ''): string

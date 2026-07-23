@@ -52,7 +52,7 @@
           <svg class="icon tt-sun"><use href="#i-sun"/></svg>
           <svg class="icon tt-moon"><use href="#i-moon"/></svg>
         </button>
-        <a class="login-btn" href="{{ lroute('login') }}"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg><span>{{ __('ui.nav_login') }}</span></a>
+        <a class="login-btn" href="{{ console_lroute('login') }}"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg><span>{{ __('ui.nav_login') }}</span></a>
         <button class="hamburger" id="hamburger" aria-label="{{ __('ui.menu') }}" aria-expanded="false"><span></span><span></span><span></span></button>
       </div>
     </div>
@@ -251,7 +251,7 @@
     <a class="drawer-link" href="{{ lroute('contact') }}"><span class="dc-icon sm"><svg class="icon"><use href="#i-message"/></svg></span>{{ __('ui.nav_contact') }}</a>
   </div>
   <div class="drawer-foot">
-    <a class="btn btn-primary" href="{{ lroute('login') }}" style="width:100%;justify-content:center"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg>{{ __('ui.nav_login') }}</a>
+    <a class="btn btn-primary" href="{{ console_lroute('login') }}" style="width:100%;justify-content:center"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg>{{ __('ui.nav_login') }}</a>
     <div class="drawer-meta">
       <a href="tel:{{ $contact['phone_link'] }}" dir="ltr"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
       <nav class="lang-links">
