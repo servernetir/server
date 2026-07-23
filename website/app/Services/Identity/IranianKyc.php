@@ -131,6 +131,13 @@ class IranianKyc
             return new BankOutcome(false, 'شمارهٔ شبای این کارت دریافت نشد؛ لطفاً بعداً تلاش کنید');
         }
 
+        // شماره حساب استعلام جداگانه و پولی است (۶٬۰۰۰ تومان)، پس فقط حالا که
+        // مطمئنیم کارت به نام کاربر است می‌گیریمش — نه قبل از تطبیق نام.
+        $accountNumber = $result->accountNumber;
+        if (blank($accountNumber) && method_exists($this->provider, 'accountNumber')) {
+            $accountNumber = $this->provider->accountNumber($card);
+        }
+
         // یک شبا روی چند حساب ننشیند
         $taken = BankAccount::where('iban', $result->iban)
             ->where('customer_id', '!=', $customer->id)->exists();
@@ -139,7 +146,7 @@ class IranianKyc
             return new BankOutcome(false, 'این حساب بانکی قبلاً روی حساب کاربری دیگری ثبت شده است');
         }
 
-        $account = DB::transaction(function () use ($customer, $card, $result, $official) {
+        $account = DB::transaction(function () use ($customer, $card, $result, $accountNumber) {
             $isFirst = ! BankAccount::where('customer_id', $customer->id)
                 ->where('status', 'verified')->exists();
 
@@ -149,7 +156,7 @@ class IranianKyc
                     'card_bin'       => substr($card, 0, 6),
                     'card_last4'     => substr($card, -4),
                     'bank_name'      => $result->bankName,
-                    'account_number' => $result->accountNumber,
+                    'account_number' => $accountNumber,
                     'owner_name'     => $result->ownerName,
                     'name_matched'   => true,
                     'status'         => 'verified',
