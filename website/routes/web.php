@@ -445,6 +445,44 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
     return response()->json($out);
 });
 
+/*
+| کدام جدول‌های CMS ساخته شده‌اند — فقط بولین، بدون توکن، مثل db-status.
+| برای تشخیص «کدام مهاجرت اجرا نشده» بدون دسترسی SSH.
+*/
+Route::middleware('throttle:tools')->get('/system/tables', function () {
+    $expected = [
+        // فاز اول
+        'currencies', 'tax_rates', 'customers', 'customer_profiles',
+        'identity_verifications', 'bank_accounts', 'domain_quotes',
+        // پرداخت و فاکتور
+        'invoices', 'invoice_items', 'payments', 'credit_ledger',
+        // پیامک، تیکت، مالی
+        'otp_challenges', 'sms_outbox', 'tickets', 'ticket_messages', 'business_ledger',
+    ];
+
+    $present = [];
+    $missing = [];
+    foreach ($expected as $t) {
+        if (\Illuminate\Support\Facades\Schema::hasTable($t)) {
+            $present[] = $t;
+        } else {
+            $missing[] = $t;
+        }
+    }
+
+    // آخرین مهاجرت‌های ثبت‌شده در جدول migrations — می‌گوید کجا متوقف شده
+    $lastMigrations = \Illuminate\Support\Facades\Schema::hasTable('migrations')
+        ? \Illuminate\Support\Facades\DB::table('migrations')->orderByDesc('id')->limit(8)->pluck('migration')
+        : [];
+
+    return response()->json([
+        'driver'          => config('database.default'),
+        'present_count'   => count($present),
+        'missing'         => $missing,
+        'last_migrations' => $lastMigrations,
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+});
+
 Route::get('/system/db-status', function () {
     $out = ['site_driver' => \Illuminate\Support\Facades\DB::connection()->getDriverName()];
 
