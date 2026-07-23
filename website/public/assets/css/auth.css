@@ -175,10 +175,14 @@ html[data-theme="light"]{
 .auth-field.is-bad .msg{ display:block; color:var(--danger); }
 
 /* ── نمایش/پنهان کردن رمز ───────────────────────────────────────────────
-   دکمه داخل خود فیلد می‌نشیند، در انتهای منطقی (چپ در فارسی، راست در en/tr).
-   فیلد به اندازهٔ دکمه padding می‌گیرد تا متن زیرش نرود — رمزهای بلند وگرنه
-   پشت آیکن پنهان می‌شوند. */
-.auth-pw{ position:relative; }
+   ⚠ فیلد رمز dir="ltr" است (رمز چپ‌به‌راست تایپ می‌شود). قبلاً دکمه در
+   wrapper با جهت RTL سمت چپ می‌نشست ولی padding سمت راست رزرو می‌شد —
+   نامتقارن، پس دکمه روی متن می‌افتاد.
+
+   راه‌حل: wrapper هم dir=ltr شود تا دکمه و padding هر دو یک سمت (راستِ فیلد)
+   باشند. برای فیلد رمزِ چپ‌به‌راست، آیکن در انتهای همان فیلد می‌نشیند و با
+   متن تداخل ندارد — چه صفحه فارسی باشد چه انگلیسی. */
+.auth-pw{ position:relative; direction:ltr; }
 .auth-pw input{ padding-inline-end:46px !important; }
 .auth-pw-eye{
   position:absolute; inset-inline-end:6px; top:50%; transform:translateY(-50%);

@@ -486,6 +486,45 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
 | کدام جدول‌های CMS ساخته شده‌اند — فقط بولین، بدون توکن، مثل db-status.
 | برای تشخیص «کدام مهاجرت اجرا نشده» بدون دسترسی SSH.
 */
+/*
+| بررسی بارگذاری کلاس‌ها روی سرور — تأیید اینکه فایل مدل‌ها واقعاً هستند.
+| بدون این، «Class not found» فقط با ورود واقعی دیده می‌شود.
+*/
+Route::middleware('throttle:tools')->get('/system/classcheck', function () {
+    $classes = [
+        \App\Models\Invoice::class, \App\Models\InvoiceItem::class, \App\Models\Payment::class,
+        \App\Models\CreditEntry::class, \App\Models\BusinessEntry::class, \App\Models\Ticket::class,
+        \App\Models\TicketMessage::class, \App\Models\SmsOutbox::class, \App\Models\BaleContact::class,
+        \App\Services\Finance\BusinessLedger::class, \App\Services\Notify\CustomerNotifier::class,
+        \App\Services\Bale\BaleNotifier::class, \App\Services\Payment\BaleGateway::class,
+    ];
+
+    $missing = array_values(array_filter($classes, fn ($c) => ! class_exists($c)));
+
+    // تلاش برای ساختن یک Customer و صدا زدن رابطه‌هایش — همان کاری که /account می‌کند
+    $relations = 'not_tested';
+    try {
+        $c = \App\Models\Customer::query()->first();
+        if ($c) {
+            $c->invoices()->count();
+            $c->payments()->count();
+            $c->tickets()->count();
+            $c->creditBalance();
+            $relations = 'ok';
+        } else {
+            $relations = 'no_customer_yet';
+        }
+    } catch (\Throwable $e) {
+        $relations = 'ERROR: '.mb_substr($e->getMessage(), 0, 120);
+    }
+
+    return response()->json([
+        'all_classes_present' => $missing === [],
+        'missing'             => $missing,
+        'account_relations'   => $relations,
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+});
+
 Route::middleware('throttle:tools')->get('/system/tables', function () {
     $expected = [
         // فاز اول
