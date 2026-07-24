@@ -117,6 +117,7 @@ $site = function (): void {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
         Route::get('/services/{service}/cpanel', [Account\ServiceController::class, 'cpanel'])->name('services.cpanel');
+        Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats');
         // خرید — از دکمهٔ خریدِ سایت اصلی مستقیم به تسویهٔ همان پکیج در پنل
         Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
