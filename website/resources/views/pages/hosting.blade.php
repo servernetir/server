@@ -54,9 +54,9 @@
       @foreach($product['plans'] as $i => $p)
       @php
         $isContact = $p['contact'] ?? false;
-        // خرید داخلی: پکیجِ فروشگاه با slug = «محصول-شمارهٔ‌پلن» (فقط برای هاست
-        // که در DB seed شده؛ VPS/اختصاصی هنوز به WHMCS خارجی می‌روند)
-        $storeHref = ($category === 'hosting') ? lroute('account.store').'#pkg-'.$slug.'-'.($i + 1) : null;
+        // خرید داخلی: مستقیم به تسویهٔ همان پکیج در پنل (slug = «محصول-شمارهٔ‌پلن»).
+        // فقط برای هاست که در DB seed شده؛ VPS/اختصاصی هنوز به WHMCS خارجی می‌روند.
+        $storeHref = ($category === 'hosting') ? lroute('account.order', $slug.'-'.($i + 1)) : null;
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif

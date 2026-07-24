@@ -116,9 +116,10 @@ $site = function (): void {
     Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
-        // فروشگاه — خریدِ آنلاینِ پکیج‌ها (سفارش → پیش‌فاکتور → پرداخت → تحویلِ خودکار)
-        Route::get('/store', [Account\StoreController::class, 'index'])->name('store');
-        Route::post('/order/{product}', [Account\StoreController::class, 'order'])->name('order')->middleware('throttle:12,1');
+        // خرید — از دکمهٔ خریدِ سایت اصلی مستقیم به تسویهٔ همان پکیج در پنل
+        Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
+        Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
+        Route::post('/order/{product:slug}', [Account\StoreController::class, 'order'])->name('order.place')->middleware('throttle:12,1');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');

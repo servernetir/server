@@ -40,7 +40,7 @@ class StoreOrderTest extends TestCase
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->id}", ['domain' => 'client-site.com'])
+            ->post("/account/order/{$product->slug}", ['domain_mode' => 'have', 'domain' => 'client-site.com'])
             ->assertRedirect();
 
         $service = Service::where('customer_id', $customer->id)->firstOrFail();
@@ -59,7 +59,9 @@ class StoreOrderTest extends TestCase
         $product = $this->product(['setup_fee' => 100000]);
         $customer = $this->customer();
 
-        $this->actingAs($customer, 'customer')->post("/account/order/{$product->id}")->assertRedirect();
+        $this->actingAs($customer, 'customer')
+            ->post("/account/order/{$product->slug}", ['domain_mode' => 'subdomain', 'subdomain' => 'mysite'])
+            ->assertRedirect();
 
         $invoice = Invoice::where('service_id', Service::first()->id)->firstOrFail();
         // (250000 + 100000) + 10% = 385000
@@ -73,7 +75,7 @@ class StoreOrderTest extends TestCase
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->id}", [])
+            ->post("/account/order/{$product->slug}", ['domain_mode' => 'have'])   // بدونِ دامنه
             ->assertSessionHasErrors('domain');
 
         $this->assertSame(0, Service::count());   // سرویسی ساخته نشد
@@ -85,7 +87,7 @@ class StoreOrderTest extends TestCase
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->id}")
+            ->post("/account/order/{$product->slug}", ['domain_mode' => 'have', 'domain' => 'x.com'])
             ->assertSessionHasErrors();
 
         $this->assertSame(0, Service::count());
@@ -94,7 +96,8 @@ class StoreOrderTest extends TestCase
     public function test_guest_cannot_order(): void
     {
         $product = $this->product();
-        $this->post("/account/order/{$product->id}")->assertRedirect();   // به ورود
+        $this->post("/account/order/{$product->slug}", ['domain_mode' => 'have', 'domain' => 'x.com'])
+            ->assertRedirect();   // به ورود
         $this->assertSame(0, Service::count());
     }
 }
