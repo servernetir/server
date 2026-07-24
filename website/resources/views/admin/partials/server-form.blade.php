@@ -1,7 +1,7 @@
 @php
   /** @var \App\Models\Server|null $server */
   $isEdit = $server !== null;
-  $types = ['whm'=>'WHM / cPanel (خودکار)','plesk'=>'Plesk (دستی)','directadmin'=>'DirectAdmin (دستی)','vps'=>'VPS (دستی)','dedicated'=>'سرور اختصاصی (دستی)','generic'=>'عمومی (دستی)'];
+  $types = ['whm'=>'WHM / cPanel (خودکار)','directadmin'=>'DirectAdmin (خودکار)','plesk'=>'Plesk (دستی)','vps'=>'VPS (دستی)','dedicated'=>'سرور اختصاصی (دستی)','generic'=>'عمومی (دستی)'];
 @endphp
 <form method="post" action="{{ $action }}" class="srv-f">
   @csrf

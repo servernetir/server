@@ -20,9 +20,14 @@ class ProvisioningService
 {
     public function driverFor(Server $server): Provisioner
     {
-        return $server->isAutoProvisioned()
-            ? new WhmProvisioner()
-            : new ManualProvisioner();
+        if (! $server->isAutoProvisioned()) {
+            return new ManualProvisioner();
+        }
+
+        return match ($server->type) {
+            'directadmin' => new DirectAdminProvisioner(),
+            default       => new WhmProvisioner(),
+        };
     }
 
     /**

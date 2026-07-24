@@ -102,6 +102,43 @@ class ProvisioningTest extends TestCase
         $this->assertStringContainsString('DNS entry', $service->provision_error);
     }
 
+    public function test_directadmin_account_is_created(): void
+    {
+        Http::fake([
+            '*/CMD_API_SHOW_USER_CONFIG*' => Http::response('error=1&text=unknown+user', 200),
+            '*/CMD_API_ACCOUNT_USER*'     => Http::response('error=0&text=Account+Created', 200),
+        ]);
+
+        $server = Server::create(['name' => 'DA-1', 'type' => 'directadmin', 'hostname' => 'da.test', 'port' => 2222, 'username' => 'admin', 'api_token' => 'pw', 'verify_tls' => false, 'status' => 'active']);
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertTrue($ok);
+        $service->refresh();
+        $this->assertSame('done', $service->provision_status);
+        $this->assertSame('active', $service->status);
+        $this->assertNotEmpty($service->username);
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'CMD_API_ACCOUNT_USER'));
+    }
+
+    public function test_directadmin_failure_marks_failed(): void
+    {
+        Http::fake([
+            '*/CMD_API_SHOW_USER_CONFIG*' => Http::response('error=1&text=unknown', 200),
+            '*/CMD_API_ACCOUNT_USER*'     => Http::response('error=1&text=Cannot+Create&details=domain+exists', 200),
+        ]);
+
+        $server = Server::create(['name' => 'DA-2', 'type' => 'directadmin', 'hostname' => 'da2.test', 'username' => 'admin', 'api_token' => 'pw', 'verify_tls' => false, 'status' => 'active']);
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertFalse($ok);
+        $this->assertSame('failed', $service->fresh()->provision_status);
+        $this->assertStringContainsString('Cannot', $service->fresh()->provision_error);
+    }
+
     public function test_manual_server_flags_for_manual_delivery(): void
     {
         Http::fake();   // نباید تماسی برود

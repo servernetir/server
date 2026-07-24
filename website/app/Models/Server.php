@@ -30,7 +30,7 @@ class Server extends Model
     }
 
     /** نوع‌هایی که تحویلِ خودکار دارند (درایورِ API) در مقابلِ دستی */
-    public const AUTO_TYPES = ['whm'];
+    public const AUTO_TYPES = ['whm', 'directadmin'];
 
     public const TYPES = ['whm', 'plesk', 'directadmin', 'vps', 'dedicated', 'generic'];
 
