@@ -34,11 +34,15 @@
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
+      @php $pendingBank = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
+              ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
+      <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>
       <a href="/admin/costs" class="@yield('nav_costs')"><svg class="icon"><use href="#i-tag"/></svg>هزینه‌های سرویس‌ها</a>
       <div class="ad-nav-sep">سیستم</div>
       @php $errCount = \App\Support\ErrorTracker::recent(150); $errCount = count(array_filter($errCount, fn($e)=>($e['type']??'')==='error')); @endphp
       <a href="/admin/errors" class="@yield('nav_errors')"><svg class="icon"><use href="#i-zap"/></svg>ردیاب خطا@if($errCount)<span class="ad-pill">{{ $errCount }}</span>@endif</a>
       @if(auth()->user()->isAdmin())
+      <a href="/admin/settings" class="@yield('nav_settings')"><svg class="icon"><use href="#i-wrench"/></svg>تنظیمات</a>
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif
       <a href="/" target="_blank"><svg class="icon"><use href="#i-globe"/></svg>مشاهده‌ی سایت</a>

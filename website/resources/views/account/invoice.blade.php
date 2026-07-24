@@ -68,33 +68,102 @@
 </section>
 
 @if($invoice->isPayable())
+@if(session('ok'))
+  <div class="pnl-sec" style="border-color:var(--ok-line)">
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ session('ok') }}</div>
+  </div>
+@endif
+
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>پرداخت</h2></div>
-  <div class="pnl-sec-b">
-    @if(count($gateways) === 0)
-      <p style="font-size:13.5px;color:var(--warn);line-height:2;margin:0">
-        هیچ درگاه پرداختی هنوز فعال نیست.
-      </p>
-    @else
-      <form method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}"
-            style="display:flex;flex-direction:column;gap:14px;max-width:420px">
+  <div class="pnl-sec-h"><h2>انتخاب روش پرداخت</h2>
+    <span class="pnl-num" style="font-size:15px">{{ fa_num(number_format($invoice->due())) }} تومان</span>
+  </div>
+  <div class="pnl-sec-b" style="display:flex;flex-direction:column;gap:14px">
+
+    {{-- ۱) پرداخت آنلاین + بله --}}
+    @if(count($gateways) > 0)
+      <form method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" class="pay-card">
         @csrf
-        @foreach($gateways as $key => $g)
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
-                        border:1px solid var(--line);border-radius:12px;padding:13px 15px;
-                        background:var(--surface-2)">
-            <input type="radio" name="gateway" value="{{ $key }}" {{ $loop->first ? 'checked' : '' }}
-                   style="accent-color:#22D3EE">
-            <b style="font-size:13px">{{ ['zarinpal'=>'زرین‌پال — کارت بانکی', 'bale'=>'بله — کیف پول (بدون کارت)'][$key] ?? $key }}</b>
-          </label>
-        @endforeach
-        <button type="submit" class="pnl-btn primary" style="justify-content:center">
-          پرداخت {{ fa_num(number_format($invoice->due())) }} تومان
-        </button>
+        <div class="pay-card-h"><svg class="icon"><use href="#i-coins"/></svg><b>پرداخت آنلاین</b></div>
+        <div class="pay-methods">
+          @foreach($gateways as $key => $g)
+            <label class="pay-radio">
+              <input type="radio" name="gateway" value="{{ $key }}" {{ $loop->first ? 'checked' : '' }}>
+              <span>{{ ['zarinpal'=>'زرین‌پال — کارت بانکی', 'bale'=>'بله — کیف پول (بدون کارت)'][$key] ?? $key }}</span>
+            </label>
+          @endforeach
+        </div>
+        <button type="submit" class="pnl-btn primary" style="justify-content:center">پرداخت آنلاین</button>
       </form>
     @endif
+
+    {{-- ۲) واریز به حساب --}}
+    <div class="pay-card">
+      <div class="pay-card-h"><svg class="icon"><use href="#i-db"/></svg><b>واریز به حساب (کارت به کارت / شبا)</b></div>
+      @if($pendingBank)
+        <div style="font-size:13px;color:var(--warn);line-height:2">
+          رسید واریز شما با شناسهٔ <b dir="ltr">{{ $pendingBank->reference }}</b> ثبت شده و در انتظار تأیید پشتیبانی است.
+        </div>
+      @elseif($bank === null)
+        <div style="font-size:13px;color:var(--muted)">این روش فعلاً در دسترس نیست.</div>
+      @else
+        <div class="bank-box">
+          @if($bank['holder'])<div><span>به نام</span><b>{{ $bank['holder'] }}</b></div>@endif
+          @if($bank['bank'])<div><span>بانک</span><b>{{ $bank['bank'] }}</b></div>@endif
+          @if($bank['card'])<div><span>شمارهٔ کارت</span><b dir="ltr" class="copyable">{{ $bank['card'] }}</b></div>@endif
+          @if($bank['sheba'])<div><span>شبا</span><b dir="ltr" class="copyable">IR{{ ltrim($bank['sheba'],'IRir') }}</b></div>@endif
+          @if($bank['account'])<div><span>شمارهٔ حساب</span><b dir="ltr" class="copyable">{{ $bank['account'] }}</b></div>@endif
+          @if($bank['note'])<div><span>توضیح</span><b>{{ $bank['note'] }}</b></div>@endif
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);line-height:2;margin:10px 0 4px">
+          مبلغ <b class="pnl-num">{{ fa_num(number_format($invoice->due())) }}</b> تومان را واریز کنید، سپس شناسهٔ پیگیری/پرداخت را این‌جا ثبت کنید:
+        </p>
+        <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          @csrf
+          <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="شناسهٔ پرداخت / شمارهٔ پیگیری" class="bank-input">
+          <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="شمارهٔ کارت مبدأ (اختیاری)" class="bank-input">
+          <button type="submit" class="pnl-btn" style="justify-content:center">ثبت رسید واریز</button>
+        </form>
+      @endif
+    </div>
+
+    {{-- ۳) کریپتو — به‌زودی --}}
+    <div class="pay-card disabled">
+      <div class="pay-card-h"><svg class="icon"><use href="#i-coins"/></svg><b>پرداخت با رمزارز (کریپتو)</b>
+        <span class="pnl-pill mute" style="margin-inline-start:auto">به‌زودی</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--dim)">این روش به‌زودی اضافه می‌شود.</div>
+    </div>
+
   </div>
 </section>
+
+<style>
+.pay-card{ border:1px solid var(--line); border-radius:14px; padding:15px; background:var(--surface-2); }
+.pay-card.disabled{ opacity:.6; }
+.pay-card-h{ display:flex; align-items:center; gap:9px; margin-bottom:12px; font-size:14px; }
+.pay-card-h .icon{ width:18px; height:18px; color:var(--muted); }
+.pay-methods{ display:flex; flex-direction:column; gap:9px; margin-bottom:14px; }
+.pay-radio{ display:flex; align-items:center; gap:9px; cursor:pointer; border:1px solid var(--line); border-radius:11px; padding:11px 14px; font-size:13px; }
+.pay-radio:has(input:checked){ border-color:var(--info); background:rgba(34,211,238,.06); }
+.pay-radio input{ accent-color:#22D3EE; }
+.bank-box{ display:grid; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 15px; }
+.bank-box > div{ display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+.bank-box span{ color:var(--muted); }
+.bank-box b{ color:var(--text); }
+.bank-input{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 13px; font:inherit; font-size:13px; color:var(--text); }
+.copyable{ cursor:copy; }
+</style>
+<script>
+document.querySelectorAll('.copyable').forEach(function(el){
+  el.addEventListener('click', function(){
+    var t=(this.textContent||'').replace(/\s/g,'');
+    if(navigator.clipboard) navigator.clipboard.writeText(t);
+    var o=this.textContent; this.textContent='کپی شد ✓'; var s=this;
+    setTimeout(function(){ s.textContent=o; }, 1200);
+  });
+});
+</script>
 @endif
 
 @if($invoice->payments->isNotEmpty())

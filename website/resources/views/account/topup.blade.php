@@ -22,12 +22,6 @@
   <div class="pnl-sec-h"><h2>مبلغ را انتخاب کنید</h2></div>
   <div class="pnl-sec-b">
 
-    @if(count($gateways) === 0)
-      <p style="font-size:13.5px;color:var(--warn);line-height:2;margin:0">
-        هیچ درگاه پرداختی هنوز فعال نیست.
-      </p>
-
-    @else
       <form method="POST" action="{{ lroute('account.topup.start') }}"
             style="display:flex;flex-direction:column;gap:18px;max-width:460px">
         @csrf
@@ -56,23 +50,8 @@
           @endforeach
         </div>
 
-        <div>
-          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:8px">روش پرداخت</label>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            @foreach($gateways as $key => $g)
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
-                            border:1px solid var(--line);border-radius:12px;padding:13px 15px;
-                            background:var(--surface-2)">
-                <input type="radio" name="gateway" value="{{ $key }}" {{ $loop->first ? 'checked' : '' }}
-                       style="accent-color:#22D3EE">
-                <b style="font-size:13px">{{ ['zarinpal'=>'زرین‌پال — کارت بانکی', 'bale'=>'بله — کیف پول (بدون کارت)'][$key] ?? $key }}</b>
-              </label>
-            @endforeach
-          </div>
-        </div>
-
         <button type="submit" class="pnl-btn primary" style="justify-content:center">
-          <svg class="icon"><use href="#i-coins"/></svg>انتقال به درگاه
+          <svg class="icon"><use href="#i-coins"/></svg>ادامه و انتخاب روش پرداخت
         </button>
       </form>
 
@@ -98,7 +77,6 @@
         if (real.value) render(real.value);
       })();
       </script>
-    @endif
 
   </div>
 </section>

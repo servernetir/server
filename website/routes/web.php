@@ -124,6 +124,8 @@ $site = function (): void {
         Route::get('/invoices/{invoice}', [Account\PaymentController::class, 'show'])->name('invoice');
         Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
             ->name('invoice.pay')->middleware('throttle:pay');
+        Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
+            ->name('invoice.bank')->middleware('throttle:forms');
 
         Route::get('/topup', [Account\PaymentController::class, 'topupForm'])->name('topup');
         Route::post('/topup', [Account\PaymentController::class, 'topup'])
@@ -407,7 +409,12 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
     $enabled = $client->enabled();
     $auth = 'skipped'; $sampleCode = null; $sampleDesc = null;
 
-    if ($enabled) {
+    // مهم: به‌صورت پیش‌فرض هیچ درخواستی به اوپن‌پروایدر نمی‌زنیم. تلاش‌های
+    // ورودِ ناموفقِ پیاپی می‌تواند حساب را حساس/قفل کند. فقط با ?probe=1
+    // یک تلاش زده می‌شود، آن هم دستی.
+    $probe = request()->boolean('probe');
+
+    if ($enabled && $probe) {
         // ورودِ خام تا کد واقعیِ پاسخ را ببینیم (196 = IP یا رمز رد شد). فقط
         // کد و توضیح برمی‌گردد، نه رمز.
         try {
@@ -428,7 +435,7 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
     // authority می‌سازد ولی تا کاربر پرداخت نکند هیچ پولی جابه‌جا نمی‌شود.
     $zarin = null;
     $zMerchant = (string) config('services.zarinpal.merchant_id', '');
-    if ($zMerchant !== '') {
+    if ($zMerchant !== '' && $probe) {
         try {
             $zr = \Illuminate\Support\Facades\Http::timeout(15)->asJson()->post(
                 'https://api.zarinpal.com/pg/v4/payment/request.json',
@@ -1011,5 +1018,14 @@ Route::prefix('admin')->group(function () {
         Route::post('/costs', [\App\Http\Controllers\Admin\CostController::class, 'update']);
         Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store']);
         Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy']);
+
+        // واریز به حساب — صف تأیید پرداخت‌های دستی
+        Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers');
+        Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve']);
+        Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject']);
+
+        // تنظیمات — مشخصات حساب بانکی شرکت
+        Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings');
+        Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update']);
     });
 });

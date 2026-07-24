@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\BankTransferReceipt;
 use App\Models\CreditEntry;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
+use App\Models\Setting;
 use App\Services\Payment\GatewayRegistry;
 use App\Services\Payment\PaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * فاکتور، پرداخت، اعتبار.
@@ -55,9 +58,77 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         return view('account.invoice', AccountController::shell('invoices') + [
-            'invoice'  => $invoice->load('items', 'payments'),
-            'gateways' => $this->gatewaysFor($invoice->currency_code),
+            'invoice'      => $invoice->load('items', 'payments'),
+            'gateways'     => $this->gatewaysFor($invoice->currency_code),
+            'bank'         => $this->bankDetails(),
+            // آخرین رسیدِ در انتظارِ همین فاکتور — تا کاربر بداند ثبت شده
+            'pendingBank'  => Schema::hasTable('bank_transfer_receipts')
+                ? BankTransferReceipt::where('invoice_id', $invoice->id)->where('status', 'pending')->latest('id')->first()
+                : null,
+            'cryptoSoon'   => true,   // گزینهٔ کریپتو، فعلاً غیرفعال
         ]);
+    }
+
+    /** مشخصات حساب شرکت برای «واریز به حساب» — از تنظیماتِ قابل‌ویرایشِ مدیر */
+    private function bankDetails(): ?array
+    {
+        if (! Schema::hasTable('settings') || ! Setting::bankReady()) {
+            return null;
+        }
+
+        return [
+            'holder'  => Setting::get('bank_holder'),
+            'bank'    => Setting::get('bank_name'),
+            'account' => Setting::get('bank_account'),
+            'sheba'   => Setting::get('bank_sheba'),
+            'card'    => Setting::get('bank_card'),
+            'note'    => Setting::get('bank_note'),
+        ];
+    }
+
+    /**
+     * ثبت رسیدِ «واریز به حساب».
+     *
+     * پول همین‌جا تسویه نمی‌شود — فقط یک رسیدِ «در انتظار» ساخته می‌شود تا
+     * مدیر تأییدش کند. بدون تأیید، پول واقعاً به حساب ما نرسیده و نباید سرویس
+     * فعال شود.
+     */
+    public function bankTransfer(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice);
+
+        if (! $invoice->isPayable()) {
+            return back()->withErrors(['reference' => 'این فاکتور قابل پرداخت نیست.']);
+        }
+
+        if ($this->bankDetails() === null) {
+            return back()->withErrors(['reference' => 'واریز به حساب فعلاً در دسترس نیست.']);
+        }
+
+        $data = $request->validate([
+            'reference' => ['required', 'string', 'max:120'],
+            'paid_from' => ['nullable', 'string', 'max:120'],
+            'note'      => ['nullable', 'string', 'max:500'],
+        ], [], ['reference' => 'شناسهٔ پرداخت']);
+
+        // رسیدِ باز تکراری نساز
+        $exists = BankTransferReceipt::where('invoice_id', $invoice->id)
+            ->where('status', 'pending')->exists();
+
+        if (! $exists) {
+            BankTransferReceipt::create([
+                'customer_id' => $invoice->customer_id,
+                'invoice_id'  => $invoice->id,
+                'amount'      => $invoice->due(),
+                'reference'   => $data['reference'],
+                'paid_from'   => $data['paid_from'] ?? null,
+                'note'        => $data['note'] ?? null,
+                'status'      => 'pending',
+            ]);
+        }
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)
+            ->with('ok', 'رسید واریز شما ثبت شد و در انتظار تأیید پشتیبانی است. پس از تأیید، فاکتور تسویه و سرویس فعال می‌شود.');
     }
 
     /**
@@ -69,18 +140,10 @@ class PaymentController extends Controller
      */
     private function gatewaysFor(string $currency): array
     {
-        $gateways = $this->gateways->availableFor($currency);
-
-        $customer = Auth::guard('customer')->user();
-        $hasBale  = \Illuminate\Support\Facades\Schema::hasTable('bale_contacts')
-            && filled($customer?->phone)
-            && \App\Models\BaleContact::chatIdFor((string) $customer->phone) !== null;
-
-        if (! $hasBale) {
-            unset($gateways['bale']);
-        }
-
-        return $gateways;
+        // بله هم نشان داده می‌شود حتی اگر کاربر هنوز وصل نکرده باشد — کارفرما
+        // خواست کنار زرین‌پال گزینه‌اش باشد. اگر وصل نبود، هنگام انتخاب پیامِ
+        // «اول حسابتان را در ربات بله وصل کنید» می‌گیرد (در BaleGateway).
+        return $this->gateways->availableFor($currency);
     }
 
     // ───────────────────────────── پرداخت ─────────────────────────────
@@ -153,14 +216,16 @@ class PaymentController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
+        // روش پرداخت دیگر این‌جا انتخاب نمی‌شود؛ فقط مبلغ. بعد به صفحهٔ فاکتور
+        // می‌رود که همهٔ روش‌ها (آنلاین، بله، واریز به حساب، کریپتو) آن‌جاست.
         return view('account.topup', AccountController::shell('invoices') + [
-            'balance'  => $this->balance($customer->id),
-            'gateways' => $this->gatewaysFor('IRT'),
+            'balance' => $this->balance($customer->id),
         ]);
     }
 
     /**
-     * افزایش اعتبار یک فاکتور می‌سازد و مستقیم به درگاه می‌برد.
+     * افزایش اعتبار یک فاکتور می‌سازد و به صفحهٔ فاکتور می‌برد تا کاربر روش
+     * پرداخت را انتخاب کند (آنلاین/بله/واریز به حساب).
      *
      * چرا فاکتور و نه پرداخت مستقیم: تا هر ریالی که وارد سیستم می‌شود یک
      * سند داشته باشد. حسابداریِ بدون سند، همان چیزی است که بعداً قابل
@@ -171,8 +236,7 @@ class PaymentController extends Controller
         $customer = Auth::guard('customer')->user();
 
         $request->validate([
-            'amount'  => ['required', 'integer', 'min:1000', 'max:'.self::MAX_TOPUP],
-            'gateway' => ['required', 'string', 'max:24'],
+            'amount' => ['required', 'integer', 'min:1000', 'max:'.self::MAX_TOPUP],
         ], [], ['amount' => 'مبلغ']);
 
         $amount = (int) $request->integer('amount');
@@ -202,10 +266,8 @@ class PaymentController extends Controller
             return $invoice;
         });
 
-        $outcome = $this->payments->begin($invoice, $request->string('gateway')->toString(), $request);
-
-        // بله فاکتور را به چت می‌فرستد (redirectUrl ندارد)؛ زرین‌پال away
-        return $this->afterBegin($outcome, $invoice);
+        // به صفحهٔ فاکتور که همهٔ روش‌های پرداخت آن‌جاست
+        return redirect()->route($this->rp().'account.invoice', $invoice);
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────
