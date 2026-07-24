@@ -10,11 +10,20 @@
   </div>
   <div class="pnl-acts">
     <a class="pnl-btn {{ $invoice->status === 'paid' ? 'primary' : '' }}" href="{{ lroute('account.invoice.print', $invoice) }}" target="_blank" rel="noopener">
-      <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? 'دانلود رسید (PDF)' : 'دانلود فاکتور (PDF)' }}
+      <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? 'دانلود رسید (PDF)' : 'دانلود پیش‌فاکتور (PDF)' }}
     </a>
     <a class="pnl-btn" href="{{ lroute('account.invoices') }}">
       <svg class="icon"><use href="#i-arrow"/></svg>بازگشت
     </a>
+    @if($invoice->status !== 'paid' && $invoice->status !== 'canceled' && $invoice->status !== 'void' && $invoice->paid == 0)
+      <form method="POST" action="{{ lroute('account.invoice.cancel', $invoice) }}" style="display:inline"
+            onsubmit="return confirm('این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود.')">
+        @csrf
+        <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">
+          <svg class="icon"><use href="#i-x"/></svg>لغو فاکتور
+        </button>
+      </form>
+    @endif
   </div>
 </div>
 

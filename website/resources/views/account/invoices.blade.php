@@ -43,14 +43,23 @@
                 <td>
                   @if($inv->status === 'paid')
                     <span class="pnl-pill ok">پرداخت شد</span>
-                  @elseif($inv->status === 'void')
-                    <span class="pnl-pill mute">باطل</span>
+                  @elseif($inv->status === 'void' || $inv->status === 'canceled')
+                    <span class="pnl-pill mute">{{ $inv->status === 'canceled' ? 'لغو شده' : 'باطل' }}</span>
                   @else
                     <span class="pnl-pill warn">در انتظار پرداخت</span>
                   @endif
                 </td>
                 <td class="num pnl-num">{{ fa_num(number_format($inv->total)) }}</td>
-                <td><a class="pnl-btn" href="{{ lroute('account.invoice', $inv) }}">مشاهده</a></td>
+                <td style="white-space:nowrap">
+                  <a class="pnl-btn" href="{{ lroute('account.invoice', $inv) }}">مشاهده</a>
+                  @if($inv->status !== 'paid' && $inv->status !== 'canceled' && $inv->status !== 'void' && $inv->paid == 0)
+                    <form method="POST" action="{{ lroute('account.invoice.cancel', $inv) }}" style="display:inline"
+                          onsubmit="return confirm('این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود.')">
+                      @csrf
+                      <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">لغو</button>
+                    </form>
+                  @endif
+                </td>
               </tr>
             @endforeach
           </tbody>

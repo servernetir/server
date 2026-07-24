@@ -71,8 +71,67 @@ class PaymentController extends Controller
             'invoice'   => $invoice,
             'paid'      => $invoice->payments->firstWhere('status', 'paid'),
             'contact'   => config('servernet.contact'),
-            'legalName' => \App\Models\Setting::get('bank_holder'),
+            'legalName' => Setting::get('bank_holder'),
+            // مهر فقط روی فاکتورِ پرداخت‌شده (رسمی)، نه پیش‌فاکتور — به‌صورت
+            // data-uri جاسازی می‌شود تا در PDF هم بیاید
+            'stamp'     => (function () use ($invoice) {
+                if ($invoice->status !== 'paid' || ! Schema::hasTable('settings')) {
+                    return null;
+                }
+                $p = Setting::get('stamp_path');
+                if (! $p || ! \Illuminate\Support\Facades\Storage::disk('local')->exists($p)) {
+                    return null;
+                }
+
+                return 'data:'.(Setting::get('stamp_mime') ?: 'image/png').';base64,'
+                    .base64_encode(\Illuminate\Support\Facades\Storage::disk('local')->get($p));
+            })(),
         ]);
+    }
+
+    /**
+     * لغو/حذف یک فاکتورِ در انتظار پرداخت توسط مشتری — برای تمیز کردن کارتابل.
+     *
+     * منافع شرکت: فقط فاکتورِ **پرداخت‌نشده** (paid == 0) لغو می‌شود؛ فاکتوری
+     * که پولی رویش آمده هرگز با یک کلیک پاک نمی‌شود. با لغو:
+     *   • تلاش‌های پرداختِ باز و رسیدهای واریزِ در انتظار باطل می‌شوند
+     *     (تا مدیر رسیدِ یک فاکتورِ لغوشده را تأیید نکند)
+     *   • اگر فاکتورِ یک سرویسِ هنوز فعال‌نشده بود، آن سرویس لغو می‌شود
+     *   • سرویسِ فعالِ در حال تمدید دست‌نخورده می‌ماند (لغوِ فاکتورِ تمدید ≠
+     *     قطعِ سرویسِ فعال)
+     */
+    public function cancel(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice);
+
+        if ($invoice->status === 'paid' || $invoice->paid > 0) {
+            return back()->withErrors(['invoice' => 'فاکتوری که پرداخت روی آن انجام شده قابل حذف نیست.']);
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->forceFill(['status' => 'canceled'])->save();
+
+            Payment::where('invoice_id', $invoice->id)
+                ->whereIn('status', ['pending', 'redirected'])
+                ->update(['status' => 'canceled', 'updated_at' => now()]);
+
+            if (Schema::hasTable('bank_transfer_receipts')) {
+                BankTransferReceipt::where('invoice_id', $invoice->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'rejected', 'reject_reason' => 'فاکتور توسط مشتری لغو شد', 'updated_at' => now()]);
+            }
+
+            // سرویسِ هنوز-فعال‌نشده → لغو. سرویسِ فعال (تمدید) → دست‌نخورده.
+            if ($invoice->service_id !== null && Schema::hasTable('services')) {
+                $service = \App\Models\Service::find($invoice->service_id);
+                if ($service !== null && $service->status === 'pending') {
+                    $service->forceFill(['status' => 'cancelled', 'cancelled_at' => now()])->save();
+                }
+            }
+        });
+
+        return redirect()->route($this->rp().'account.invoices')
+            ->with('ok', 'فاکتور لغو شد.'.($invoice->service_id ? ' سرویس مربوطه هم غیرفعال شد.' : ''));
     }
 
     public function show(Invoice $invoice)

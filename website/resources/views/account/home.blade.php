@@ -63,13 +63,6 @@
   </a>
 </div>
 
-{{-- ══ امنیت: ورود و IP ══ --}}
-<div class="sec-strip">
-  <svg class="icon"><use href="#i-shield"/></svg>
-  <span>آخرین ورود: <b>{{ $customer->last_login_at ? stime($customer->last_login_at) : '—' }}</b>@if($customer->last_login_ip) از <b dir="ltr">{{ $customer->last_login_ip }}</b>@endif</span>
-  <span class="sec-strip-now">IP فعلی شما: <b dir="ltr">{{ $currentIp }}</b></span>
-</div>
-
 {{-- ══ کارهای معلق — فقط وقتی واقعاً کاری هست ══ --}}
 @if($todo)
 <section class="pnl-sec pnl-alert">
@@ -147,11 +140,40 @@
   @endif
 </section>
 
-{{-- ══ فعالیت حساب (لاگ با IP) ══ --}}
-@if($activity->isNotEmpty())
+{{-- ══ فعالیت و امنیت حساب ══ --}}
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>فعالیت حساب</h2></div>
-  <div class="pnl-sec-b flush">
+  <div class="pnl-sec-h"><h2>فعالیت و امنیت حساب</h2></div>
+
+  {{-- نوار جلسه: ساعت زندهٔ شمسی + IP فعلی + آخرین ورود --}}
+  <div class="pnl-sec-b">
+    <div class="sess-bar">
+      <div class="sess-tile sess-clock">
+        <span class="sess-ic"><svg class="icon"><use href="#i-clock"/></svg></span>
+        <div class="sess-t">
+          <b id="sess-time">—</b>
+          <span id="sess-date">—</span>
+        </div>
+      </div>
+      <div class="sess-tile">
+        <span class="sess-ic"><svg class="icon"><use href="#i-globe"/></svg></span>
+        <div class="sess-t">
+          <span>IP فعلی شما</span>
+          <b dir="ltr">{{ $currentIp }}</b>
+        </div>
+      </div>
+      <div class="sess-tile">
+        <span class="sess-ic ok"><svg class="icon"><use href="#i-shield"/></svg></span>
+        <div class="sess-t">
+          <span>آخرین ورود</span>
+          <b>{{ $customer->last_login_at ? stime($customer->last_login_at) : '—' }}</b>
+          @if($customer->last_login_ip)<span dir="ltr">از {{ $customer->last_login_ip }}</span>@endif
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if($activity->isNotEmpty())
+  <div class="pnl-sec-b flush" style="border-top:1px solid var(--line)">
     <ul class="act-list">
       @foreach($activity as $a)
         <li>
@@ -165,20 +187,48 @@
       @endforeach
     </ul>
   </div>
+  @endif
 </section>
-@endif
+
+<script>
+(function () {
+  var elT = document.getElementById('sess-time'), elD = document.getElementById('sess-date');
+  if (!elT) return;
+  var isFa = @json(app()->getLocale()) === 'fa';
+  var loc = isFa ? 'fa-IR-u-ca-persian-nu-arabext' : (@json(app()->getLocale()) === 'tr' ? 'tr-TR' : 'en-GB');
+  var tz = isFa ? 'Asia/Tehran' : undefined;
+  var tf, df;
+  try {
+    tf = new Intl.DateTimeFormat(loc, { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:tz });
+    df = new Intl.DateTimeFormat(loc, { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:tz });
+  } catch(e){ return; }
+  function tick(){ var n = new Date(); elT.textContent = tf.format(n); elD.textContent = df.format(n); }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
 
 <style>
 /* عنوان داشبورد عمداً کوچک‌تر از قبل — اسم کاربر در سایدبار هست و
    تکرارش با فونت بزرگ فقط فضا می‌خورد */
 .dash-h{ font-size:clamp(17px,2.4vw,21px) !important; }
 
-.sec-strip{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:var(--pnl-gap);
-  padding:11px 15px; border:1px solid var(--line); border-radius:12px; background:var(--surface-2);
-  font-size:12.5px; color:var(--muted); }
-.sec-strip .icon{ width:16px; height:16px; color:var(--ok); flex:0 0 auto; }
-.sec-strip b{ color:var(--text); font-variant-numeric:tabular-nums; }
-.sec-strip-now{ margin-inline-start:auto; }
+/* نوار جلسه — ساعت زنده + IP + آخرین ورود، حرفه‌ای و کارتی */
+.sess-bar{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+@media(max-width:640px){ .sess-bar{ grid-template-columns:1fr; } }
+.sess-tile{ display:flex; align-items:center; gap:12px; padding:14px 16px;
+  border:1px solid var(--line); border-radius:14px; background:var(--surface-2); }
+.sess-tile.sess-clock{ background:linear-gradient(135deg, rgba(34,211,238,.10), var(--surface-2)); border-color:var(--info-line); }
+.sess-ic{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center; flex:0 0 auto;
+  background:var(--surface); border:1px solid var(--line); }
+.sess-ic .icon{ width:19px; height:19px; color:var(--info); }
+.sess-ic.ok .icon{ color:var(--ok); }
+.sess-t{ display:flex; flex-direction:column; gap:1px; min-width:0; line-height:1.5; }
+.sess-t > span{ font-size:11px; color:var(--muted); }
+.sess-t > b{ font-size:15px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sess-clock #sess-time{ font-size:20px; letter-spacing:1px; }
+.sess-clock #sess-date{ font-size:12px; color:var(--muted); }
+
 .act-list{ list-style:none; margin:0; padding:0; }
 .act-list li{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 .act-list li:last-child{ border-bottom:0; }

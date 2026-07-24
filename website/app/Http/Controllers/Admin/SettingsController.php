@@ -28,9 +28,17 @@ class SettingsController extends Controller
             $bank[$k] = $ready ? Setting::get($k) : null;
         }
 
+        // پیش‌نمایش مهر (data-uri) اگر آپلود شده
+        $stampData = null;
+        if ($ready && ($p = Setting::get('stamp_path')) && \Illuminate\Support\Facades\Storage::disk('local')->exists($p)) {
+            $mime = Setting::get('stamp_mime') ?: 'image/png';
+            $stampData = 'data:'.$mime.';base64,'.base64_encode(\Illuminate\Support\Facades\Storage::disk('local')->get($p));
+        }
+
         return view('admin.settings', [
-            'bank'     => $bank,
-            'notReady' => ! $ready,
+            'bank'      => $bank,
+            'stampData' => $stampData,
+            'notReady'  => ! $ready,
         ]);
     }
 
@@ -43,12 +51,37 @@ class SettingsController extends Controller
             'bank_sheba'   => ['nullable', 'string', 'max:34'],
             'bank_card'    => ['nullable', 'string', 'max:20'],
             'bank_note'    => ['nullable', 'string', 'max:300'],
+            // مهر شرکت — PNG (شفاف بهتر) یا JPG، تا ۲ مگابایت
+            'stamp'        => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
+            'remove_stamp' => ['nullable', 'boolean'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
             Setting::put($k, isset($data[$k]) ? trim((string) $data[$k]) : null);
         }
 
-        return back()->with('ok', 'مشخصات حساب بانکی ذخیره شد. حالا گزینهٔ «واریز به حساب» در پرداخت فعال است.');
+        // مهر: بیرون webroot در storage ذخیره می‌شود؛ روی فاکتور به‌صورت
+        // data-uri جاسازی می‌شود، پس نه لینک عمومی لازم است نه symlink.
+        if ($request->boolean('remove_stamp')) {
+            $this->deleteStamp();
+        } elseif ($request->hasFile('stamp') && $request->file('stamp')->isValid()) {
+            $this->deleteStamp();
+            $file = $request->file('stamp');
+            $path = $file->storeAs('company', 'stamp.'.$file->extension(), 'local');
+            Setting::put('stamp_path', $path);
+            Setting::put('stamp_mime', $file->getClientMimeType());
+        }
+
+        return back()->with('ok', 'تنظیمات ذخیره شد.');
+    }
+
+    private function deleteStamp(): void
+    {
+        $old = Setting::get('stamp_path');
+        if ($old && \Illuminate\Support\Facades\Storage::disk('local')->exists($old)) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+        Setting::put('stamp_path', null);
+        Setting::put('stamp_mime', null);
     }
 }

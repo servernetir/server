@@ -14,7 +14,7 @@
   @if($notReady)
     <p style="padding:18px;color:#fbbf24">جدول تنظیمات روی این سرور هنوز ساخته نشده. پس از مهاجرت فعال می‌شود.</p>
   @else
-  <form method="post" action="/admin/settings" style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px">
+  <form method="post" action="/admin/settings" enctype="multipart/form-data" style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px">
     @csrf
     <label class="set-f" style="grid-column:1/3">نام صاحب حساب
       <input type="text" name="bank_holder" value="{{ $bank['bank_holder'] }}" maxlength="120" placeholder="اطمینان داده‌پردازان دانش"></label>
@@ -28,6 +28,25 @@
       <input type="text" name="bank_account" value="{{ $bank['bank_account'] }}" maxlength="40" dir="ltr"></label>
     <label class="set-f" style="grid-column:1/3">توضیح (اختیاری)
       <input type="text" name="bank_note" value="{{ $bank['bank_note'] }}" maxlength="300" placeholder="مثلاً: پس از واریز، شناسهٔ پرداخت را ثبت کنید"></label>
+
+    {{-- مهر شرکت --}}
+    <div style="grid-column:1/3;border-top:1px solid #1e2637;padding-top:14px;margin-top:4px">
+      <label style="font-size:13px;color:#e7edf7;font-weight:600;display:block;margin-bottom:8px">مهر شرکت (روی فاکتورهای پرداخت‌شده چاپ می‌شود)</label>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="width:96px;height:96px;border:1px dashed #2b3548;border-radius:12px;display:grid;place-items:center;background:#0f1522;overflow:hidden">
+          @if($stampData)<img src="{{ $stampData }}" alt="مهر" style="max-width:100%;max-height:100%">
+          @else<span style="font-size:11px;color:#5f6c82">بدون مهر</span>@endif
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="file" name="stamp" accept="image/png,image/jpeg" style="font:inherit;font-size:12.5px;color:#96a3ba">
+          <small style="color:#5f6c82;font-size:12px">PNG با پس‌زمینهٔ شفاف بهتر است — تا ۲ مگابایت.</small>
+          @if($stampData)
+            <label style="display:flex;align-items:center;gap:7px;color:#ff6b6b;font-size:12.5px"><input type="checkbox" name="remove_stamp" value="1"> حذف مهر فعلی</label>
+          @endif
+        </div>
+      </div>
+    </div>
+
     <div style="grid-column:1/3;display:flex;justify-content:flex-end">
       <button type="submit" class="btn btn-primary"><svg class="icon"><use href="#i-check"/></svg>ذخیره</button>
     </div>

@@ -81,7 +81,7 @@ tbody tr:last-child td{ border-bottom:0 }
   <div class="head">
     <div class="brand">سرورنت<small>servernet.cloud · زیرساخت ابری</small></div>
     <div class="doc">
-      <h1>{{ $invoice->kind === 'topup' ? 'رسید افزایش اعتبار' : 'فاکتور فروش' }}</h1>
+      <h1>{{ $invoice->kind === 'topup' ? 'رسید افزایش اعتبار' : ($paid ? 'فاکتور فروش' : 'پیش‌فاکتور') }}</h1>
       <div class="num">{{ $invoice->number }}</div>
     </div>
   </div>
@@ -150,6 +150,15 @@ tbody tr:last-child td{ border-bottom:0 }
     <div class="pay due">
       <h4>در انتظار پرداخت</h4>
       <div class="grid"><span>این فاکتور هنوز پرداخت نشده است. مبلغ قابل پرداخت: <b>{{ fa_num(number_format($invoice->due())) }} تومان</b></span></div>
+    </div>
+  @endif
+
+  @if($stamp)
+    <div style="padding:6px 32px 22px; text-align:left;">
+      <div style="display:inline-block; text-align:center;">
+        <img src="{{ $stamp }}" alt="مهر شرکت" style="max-width:150px; max-height:120px;">
+        <div style="font-size:10.5px; color:#8a93a6; margin-top:2px;">مهر و امضای مجاز</div>
+      </div>
     </div>
   @endif
 

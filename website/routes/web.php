@@ -127,6 +127,8 @@ $site = function (): void {
             ->name('invoice.pay')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
             ->name('invoice.bank')->middleware('throttle:forms');
+        Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])
+            ->name('invoice.cancel')->middleware('throttle:forms');
 
         Route::get('/topup', [Account\PaymentController::class, 'topupForm'])->name('topup');
         Route::post('/topup', [Account\PaymentController::class, 'topup'])
