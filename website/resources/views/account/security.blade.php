@@ -1,12 +1,12 @@
 @extends('panel.layout')
-@section('title', 'امنیت حساب — ServerNet')
+@section('title', __('ui.sec_h').' — ServerNet')
 
 @section('panel')
 
 <div class="pnl-head">
   <div>
-    <h1 class="dash-h">امنیت حساب</h1>
-    <p>رمز عبور، محدودسازیِ IP و دسترسیِ API را این‌جا مدیریت کنید.</p>
+    <h1 class="dash-h">{{ __('ui.sec_h') }}</h1>
+    <p>{{ __('ui.sec_sub') }}</p>
   </div>
 </div>
 
@@ -25,29 +25,29 @@
 
 {{-- ══ رمز عبور ══ --}}
 <section class="pnl-sec" id="sec-pw">
-  <div class="pnl-sec-h"><h2>رمز عبور</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.sec_pw_h') }}</h2></div>
   <div class="pnl-sec-b">
-    <p class="sec-note">ورود به حساب با <b>کدِ یک‌بارمصرف</b> است و به رمز نیازی ندارد. اگر می‌خواهید رمز هم داشته باشید، این‌جا با تأییدِ کد تنظیمش کنید — خودِ کد اثباتِ هویت است.</p>
+    <p class="sec-note">{{ __('ui.sec_pw_note') }}</p>
 
     @if($pwReady)
       <form method="POST" action="{{ lroute('account.security.pw') }}" class="sec-form">
         @csrf
-        <label>کد تأیید
-          <input type="text" name="code" dir="ltr" inputmode="numeric" required autocomplete="one-time-code" placeholder="۶ رقم">
+        <label>{{ __('ui.sec_pw_code') }}
+          <input type="text" name="code" dir="ltr" inputmode="numeric" required autocomplete="one-time-code" placeholder="{{ __('ui.auth_code') }}">
         </label>
-        <label>رمز عبور جدید
-          <input type="password" name="password" required minlength="8" placeholder="حداقل ۸ نویسه">
+        <label>{{ __('ui.sec_pw_new') }}
+          <input type="password" name="password" required minlength="8" placeholder="{{ __('ui.sec_min8') }}">
         </label>
-        <label>تکرار رمز عبور
+        <label>{{ __('ui.sec_pw_repeat') }}
           <input type="password" name="password_confirmation" required>
         </label>
-        <button class="pnl-btn primary" style="justify-content:center">ثبت رمز جدید</button>
+        <button class="pnl-btn primary" style="justify-content:center">{{ __('ui.sec_pw_submit') }}</button>
       </form>
     @else
       <form method="POST" action="{{ lroute('account.security.pw.start') }}">
         @csrf
-        <p class="sec-note" style="margin-bottom:12px">کد تأیید به {{ $customer->phone ? 'موبایلِ ثبت‌شده' : 'ایمیلِ ثبت‌شده' }} فرستاده می‌شود.</p>
-        <button class="pnl-btn primary" style="justify-content:center">{{ $hasPassword ? 'تغییر رمز عبور' : 'تنظیم رمز عبور' }}</button>
+        <p class="sec-note" style="margin-bottom:12px">{{ __('ui.sec_pw_sent', ['dest' => $customer->phone ? __('ui.sec_dest_mobile') : __('ui.sec_dest_email')]) }}</p>
+        <button class="pnl-btn primary" style="justify-content:center">{{ $hasPassword ? __('ui.sec_pw_change') : __('ui.sec_pw_set') }}</button>
       </form>
     @endif
   </div>
@@ -55,14 +55,14 @@
 
 {{-- ══ محدودسازی IP ══ --}}
 <section class="pnl-sec" id="sec-ip">
-  <div class="pnl-sec-h"><h2>محدودسازیِ IP</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.sec_ip_h') }}</h2></div>
   <div class="pnl-sec-b">
-    <p class="sec-note">می‌توانید IPهای <b>مجاز</b> (سفید) یا <b>مسدود</b> (سیاه) تعریف کنید. IP فعلی شما: <b dir="ltr">{{ $currentIp }}</b></p>
+    <p class="sec-note">{{ __('ui.sec_ip_note') }} {{ __('ui.sec_ip_current') }}: <b dir="ltr">{{ $currentIp }}</b></p>
 
     <form method="POST" action="{{ lroute('account.security.ipmode') }}">
       @csrf
       <div class="sec-modes">
-        @foreach(['off'=>['خاموش','هیچ محدودیتی اعمال نمی‌شود'],'warn'=>['هشدار','فقط اطلاع؛ ورود بلاک نمی‌شود'],'enforce'=>['سخت‌گیرانه','ورود از IPِ غیرمجاز بلاک می‌شود']] as $m => $info)
+        @foreach(['off'=>[__('ui.sec_ip_off'),__('ui.sec_ip_off_d')],'warn'=>[__('ui.sec_ip_warnl'),__('ui.sec_ip_warn_d')],'enforce'=>[__('ui.sec_ip_enf'),__('ui.sec_ip_enf_d')]] as $m => $info)
           <label class="sec-mode-opt {{ $ipMode === $m ? 'on' : '' }}">
             <input type="radio" name="mode" value="{{ $m }}" {{ $ipMode === $m ? 'checked' : '' }} onchange="this.form.submit()">
             <b>{{ $info[0] }}</b><small>{{ $info[1] }}</small>
@@ -72,52 +72,52 @@
     </form>
 
     @if($ipMode === 'enforce')
-      <p class="sec-warn">⚠️ حالتِ سخت‌گیرانه فعال است. اگر IP فعلی‌تان در فهرستِ «مجاز» نباشد، در ورودِ بعدی قفل می‌شوید و باید با پشتیبانی تماس بگیرید. مطمئن شوید <b dir="ltr">{{ $currentIp }}</b> را به‌عنوان «مجاز» اضافه کرده‌اید.</p>
+      <p class="sec-warn">⚠️ {{ __('ui.sec_ip_enf_warn', ['ip' => $currentIp]) }}</p>
     @endif
 
     @if($ipRules->isNotEmpty())
       <div class="sec-rules">
         @foreach($ipRules as $r)
           <div class="sec-rule">
-            <span class="sec-badge {{ $r->action === 'deny' ? 'deny' : 'allow' }}">{{ $r->action === 'deny' ? 'مسدود' : 'مجاز' }}</span>
+            <span class="sec-badge {{ $r->action === 'deny' ? 'deny' : 'allow' }}">{{ $r->action === 'deny' ? __('ui.sec_deny') : __('ui.sec_allow') }}</span>
             <span dir="ltr" class="sec-cidr">{{ $r->cidr }}</span>
             @if($r->label)<span class="sec-lbl">{{ $r->label }}</span>@endif
-            <form method="POST" action="{{ lroute('account.security.ip.delete', $r) }}" data-confirm="این قاعده حذف شود؟" data-confirm-danger style="margin-inline-start:auto;display:flex">
-              @csrf<button type="submit" class="sec-x" title="حذف"><svg class="icon"><use href="#i-x"/></svg></button>
+            <form method="POST" action="{{ lroute('account.security.ip.delete', $r) }}" data-confirm="{{ __('ui.sec_ip_del') }}" data-confirm-danger style="margin-inline-start:auto;display:flex">
+              @csrf<button type="submit" class="sec-x" title="{{ __('ui.sec_deny') }}"><svg class="icon"><use href="#i-x"/></svg></button>
             </form>
           </div>
         @endforeach
       </div>
     @else
-      <p class="sec-note" style="margin-top:12px">هنوز قاعده‌ای ندارید.</p>
+      <p class="sec-note" style="margin-top:12px">{{ __('ui.sec_ip_none') }}</p>
     @endif
 
     <form method="POST" action="{{ lroute('account.security.ip') }}" class="sec-form sec-inline">
       @csrf
-      <label>IP یا رنج
-        <input type="text" name="cidr" dir="ltr" placeholder="1.2.3.4 یا 1.2.3.0/24" required>
+      <label>{{ __('ui.sec_ip_field') }}
+        <input type="text" name="cidr" dir="ltr" placeholder="1.2.3.4 / 1.2.3.0/24" required>
       </label>
-      <label>نوع
-        <select name="action"><option value="allow">مجاز (سفید)</option><option value="deny">مسدود (سیاه)</option></select>
+      <label>{{ __('ui.sec_type') }}
+        <select name="action"><option value="allow">{{ __('ui.sec_allow_opt') }}</option><option value="deny">{{ __('ui.sec_deny_opt') }}</option></select>
       </label>
-      <label>برچسب (اختیاری)
-        <input type="text" name="label" placeholder="خانه / اداره" maxlength="64">
+      <label>{{ __('ui.sec_label') }}
+        <input type="text" name="label" placeholder="{{ __('ui.sec_label_ph') }}" maxlength="64">
       </label>
-      <button class="pnl-btn" style="justify-content:center">افزودن</button>
+      <button class="pnl-btn" style="justify-content:center">{{ __('ui.sec_add') }}</button>
     </form>
   </div>
 </section>
 
 {{-- ══ دسترسی API ══ --}}
 <section class="pnl-sec" id="sec-api">
-  <div class="pnl-sec-h"><h2>دسترسیِ API</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.sec_api_h') }}</h2></div>
   <div class="pnl-sec-b">
-    <p class="sec-note">با توکنِ API می‌توانید وضعیت حساب، سرویس‌ها، فاکتورها و اعتبارتان را برنامه‌نویسی بخوانید. <b>فعلاً فقط‌خواندنی</b>؛ ساختِ سرویس و دامنه به‌زودی اضافه می‌شود.</p>
+    <p class="sec-note">{{ __('ui.sec_api_note') }}</p>
 
     @if(session('new_token'))
       <div class="sec-newtok">
-        <b>توکنِ شما ساخته شد — همین حالا کپی کنید، دیگر نشان داده نمی‌شود:</b>
-        <code dir="ltr" class="copyable" title="برای کپی کلیک کنید">{{ session('new_token') }}</code>
+        <b>{{ __('ui.sec_api_new') }}</b>
+        <code dir="ltr" class="copyable" title="{{ __('ui.sec_copied') }}">{{ session('new_token') }}</code>
       </div>
     @endif
 
@@ -127,31 +127,31 @@
           <div class="sec-token">
             <div class="sec-token-t">
               <b>{{ $t->name }}</b>
-              <small>ساخته‌شده {{ stime($t->created_at) }}@if($t->last_used_at) · آخرین استفاده {{ stime($t->last_used_at) }}@else · هنوز استفاده نشده @endif</small>
+              <small>{{ __('ui.sec_api_created') }} {{ stime($t->created_at) }}@if($t->last_used_at) · {{ __('ui.sec_api_lastuse') }} {{ stime($t->last_used_at) }}@else · {{ __('ui.sec_api_neveruse') }} @endif</small>
             </div>
-            <form method="POST" action="{{ lroute('account.security.token.delete', $t) }}" data-confirm="این توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند از کار می‌افتند." data-confirm-danger style="margin-inline-start:auto">
-              @csrf<button type="submit" class="sec-revoke">باطل کردن</button>
+            <form method="POST" action="{{ lroute('account.security.token.delete', $t) }}" data-confirm="{{ __('ui.sec_api_revoke_c') }}" data-confirm-danger style="margin-inline-start:auto">
+              @csrf<button type="submit" class="sec-revoke">{{ __('ui.sec_api_revoke') }}</button>
             </form>
           </div>
         @endforeach
       </div>
     @else
-      <p class="sec-note" style="margin-top:12px">هنوز توکنی نساخته‌اید.</p>
+      <p class="sec-note" style="margin-top:12px">{{ __('ui.sec_api_none') }}</p>
     @endif
 
     <form method="POST" action="{{ lroute('account.security.token') }}" class="sec-form sec-inline">
       @csrf
-      <label>نام توکن
-        <input type="text" name="name" placeholder="مثلاً اسکریپت مانیتورینگ" maxlength="80" required>
+      <label>{{ __('ui.sec_api_name') }}
+        <input type="text" name="name" placeholder="{{ __('ui.sec_api_name_ph') }}" maxlength="80" required>
       </label>
-      <button class="pnl-btn primary" style="justify-content:center">ساخت توکن</button>
+      <button class="pnl-btn primary" style="justify-content:center">{{ __('ui.sec_api_create') }}</button>
     </form>
 
     <details class="sec-doc">
-      <summary>نمونهٔ استفاده</summary>
+      <summary>{{ __('ui.sec_api_example') }}</summary>
       <pre dir="ltr">curl -H "Authorization: Bearer sn_..." \
      https://servernet.cloud/api/v1/me</pre>
-      <p class="sec-note">endpointها: <code dir="ltr">/api/v1/me</code> · <code dir="ltr">/api/v1/services</code> · <code dir="ltr">/api/v1/invoices</code> · <code dir="ltr">/api/v1/credit</code></p>
+      <p class="sec-note">{{ __('ui.sec_api_endpoints') }} <code dir="ltr">/api/v1/me</code> · <code dir="ltr">/api/v1/services</code> · <code dir="ltr">/api/v1/invoices</code> · <code dir="ltr">/api/v1/credit</code></p>
     </details>
   </div>
 </section>
@@ -198,7 +198,7 @@ document.querySelectorAll('.copyable').forEach(function (el) {
   el.addEventListener('click', function () {
     var t = (this.textContent || '').trim();
     if (navigator.clipboard) navigator.clipboard.writeText(t);
-    if (window.snToast) snToast('کپی شد ✓', 'ok');
+    if (window.snToast) snToast(@json(__('ui.sec_copied')), 'ok');
   });
 });
 </script>
