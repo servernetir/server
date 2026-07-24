@@ -32,6 +32,7 @@
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
       <a href="/admin/servers" class="@yield('nav_servers')"><svg class="icon"><use href="#i-server"/></svg>سرورهای تحویل</a>
+      <a href="/admin/products" class="@yield('nav_products')"><svg class="icon"><use href="#i-box"/></svg>پکیج‌های فروش</a>
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>

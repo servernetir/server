@@ -116,6 +116,9 @@ $site = function (): void {
     Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
+        // فروشگاه — خریدِ آنلاینِ پکیج‌ها (سفارش → پیش‌فاکتور → پرداخت → تحویلِ خودکار)
+        Route::get('/store', [Account\StoreController::class, 'index'])->name('store');
+        Route::post('/order/{product}', [Account\StoreController::class, 'order'])->name('order')->middleware('throttle:12,1');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
@@ -1197,6 +1200,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/servers/{server}', [\App\Http\Controllers\Admin\ServerController::class, 'update']);
         Route::post('/servers/{server}/test', [\App\Http\Controllers\Admin\ServerController::class, 'test']);
         Route::post('/servers/{server}/delete', [\App\Http\Controllers\Admin\ServerController::class, 'destroy']);
+
+        // پکیج‌های فروش — کاتالوگی که مشتری از آن آنلاین می‌خرد
+        Route::get('/products', [\App\Http\Controllers\Admin\ProductController::class, 'index'])->name('admin.products');
+        Route::post('/products', [\App\Http\Controllers\Admin\ProductController::class, 'store']);
+        Route::post('/products/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update']);
+        Route::post('/products/{product}/delete', [\App\Http\Controllers\Admin\ProductController::class, 'destroy']);
 
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);
