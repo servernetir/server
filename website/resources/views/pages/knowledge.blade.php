@@ -119,7 +119,7 @@
   <div class="container">
     <div class="sig-panel sig-term reveal">
       <div class="section-head">
-        <span class="badge">{{ lc(config('servernet.knowledge_menu')[4])['t'] }}</span>
+        <span class="badge">{{ __('ui.kb_dev_badge') }}</span>
         <h2>{{ __('ui.kb_dev_title') }}</h2>
         <p>{{ __('ui.kb_dev_sub') }}</p>
       </div>

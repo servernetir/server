@@ -131,7 +131,7 @@ return [
     'kb_docs_title' => 'Product documentation', 'kb_docs_sub' => 'Step-by-step guides for every ServerNet service',
     'kb_articles' => 'articles',
     'kb_learn_title' => 'Learning & events',
-    'kb_dev_title' => 'Developer tools', 'kb_dev_sub' => 'Manage every ServerNet service through one REST API',
+    'kb_dev_title' => 'Developer tools', 'kb_dev_sub' => 'Manage every ServerNet service through one REST API', 'kb_dev_badge' => 'Developers',
     'kb_dev_cta' => 'View API docs',
     'kb_nl_title' => 'The ServerNet technical newsletter',
     'kb_nl_sub' => 'Two emails a month: the best articles and webinars — no spam, one-click unsubscribe.',

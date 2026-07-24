@@ -131,7 +131,7 @@ return [
     'kb_docs_title' => 'Ürün dokümantasyonu', 'kb_docs_sub' => 'Tüm ServerNet hizmetleri için adım adım kılavuzlar',
     'kb_articles' => 'makale',
     'kb_learn_title' => 'Eğitim ve etkinlikler',
-    'kb_dev_title' => 'Geliştirici araçları', 'kb_dev_sub' => 'Tüm ServerNet hizmetlerini tek REST API ile yönetin',
+    'kb_dev_title' => 'Geliştirici araçları', 'kb_dev_sub' => 'Tüm ServerNet hizmetlerini tek REST API ile yönetin', 'kb_dev_badge' => 'Geliştiriciler',
     'kb_dev_cta' => 'API dokümanlarını gör',
     'kb_nl_title' => 'ServerNet teknik bülteni',
     'kb_nl_sub' => 'Ayda iki e-posta: en iyi makaleler ve webinarlar — spam yok, tek tıkla ayrılma.',

@@ -20,10 +20,26 @@ class TrackNotFound
     {
         $response = $next($request);
 
-        if ($response->getStatusCode() === 404) {
+        // ۴۰۴های واقعی (لینکِ خرابِ خودمان) ثبت می‌شوند؛ کاوشِ ربات‌ها/اسکنرها
+        // (xmlrpc، wp-login، .env، .git و…) نه — تا لاگ سیگنال بماند نه نویز.
+        if ($response->getStatusCode() === 404 && ! $this->isProbe($request)) {
             ErrorTracker::notFound($request);
         }
 
         return $response;
+    }
+
+    /** آیا این ۴۰۴ کاوشِ خودکارِ رباتی است (نه لینکِ خرابِ واقعی)؟ */
+    private function isProbe(Request $request): bool
+    {
+        $path = '/'.ltrim($request->path(), '/');
+
+        return (bool) preg_match(
+            '~(xmlrpc\.php|wp-login|wp-admin|wp-includes|wp-content|wordpress'
+            .'|/\.env|/\.git|/\.aws|/\.ssh|/\.svn|/\.hg|/\.vscode|/\.idea|/\.DS_Store'
+            .'|phpmyadmin|/pma|adminer|eval-stdin|boaform|hnap1|/cgi-bin|/actuator|/solr'
+            .'|config\.json|\.gitlab-ci|id_rsa|/\.well-known/(?!security\.txt|acme))~i',
+            $path
+        );
     }
 }
