@@ -50,7 +50,11 @@ class SecurityHeaders
                 "frame-ancestors 'self'",
                 "object-src 'none'",
                 "base-uri 'self'",
-                "form-action 'self'",
+                // زرین‌پال: بعد از submitِ فرمِ پرداخت، سرور به درگاه زرین‌پال
+                // ۳۰۲ می‌دهد. مرورگرها form-action را روی ریدایرکتِ بعد از submit
+                // هم اعمال می‌کنند، پس بدون این دامنه‌ها، هدایت به درگاه بی‌صدا
+                // بلاک می‌شد و «هیچ اتفاقی نمی‌افتاد».
+                "form-action 'self' https://*.zarinpal.com https://zarinpal.com",
                 'upgrade-insecure-requests',
             ]);
             $response->headers->set('Content-Security-Policy', $csp);
