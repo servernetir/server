@@ -442,13 +442,57 @@ nav.desktop{display:flex;gap:2px;align-items:center}
 .dc-txt b{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
 .dc-txt small{font-size:12.5px;color:var(--dim);line-height:1.6}
 
-/* ============ HAMBURGER (animated) ============ */
-.hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;
-  background:none;border:1px solid var(--line-2);border-radius:11px;padding:0 10px}
-.hamburger span{display:block;height:2px;border-radius:2px;background:var(--text);transition:transform .3s var(--ease),opacity .2s}
-.hamburger.active span:nth-child(1){transform:translateY(7px) rotate(45deg)}
-.hamburger.active span:nth-child(2){opacity:0}
-.hamburger.active span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+/* ============ HAMBURGER — "Signal Node" (theme-aware, CSS-only) ============ */
+/* Three neutral bars converge to the button's center and cross into an X whose
+   intersection ignites as a pulsing cyan→violet node. JS toggles .active. */
+.hamburger{
+  position:relative;
+  display:none;                 /* re-asserted to flex at <=1020px (below + later media) */
+  align-items:center;justify-content:center;
+  width:44px;height:44px;padding:0;
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-radius:13px;
+  color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:border-color .3s var(--ease),background .3s var(--ease),box-shadow .3s var(--ease);
+}
+.hamburger:hover{background:var(--surface-2);border-color:var(--line-2)}
+.hamburger:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--cyan)}
+.hb-bar{
+  position:absolute;top:50%;inset-inline-start:50%;
+  width:20px;height:2px;margin-top:-1px;margin-inline-start:-10px;
+  border-radius:2px;background:var(--text);
+  transition:transform .45s var(--ease),opacity .3s var(--ease),background .45s var(--ease);
+}
+.hb-bar-1{transform:translateY(-6px)}
+.hb-bar-2{transform:translateY(0)}
+.hb-bar-3{transform:translateY(6px)}
+.hb-node{
+  position:absolute;top:50%;inset-inline-start:50%;
+  width:7px;height:7px;margin-top:-3.5px;margin-inline-start:-3.5px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  opacity:0;transform:scale(0);
+  transition:opacity .3s var(--ease),transform .45s var(--ease);
+}
+.hamburger.active{
+  border-color:transparent;background:var(--surface-2);
+  box-shadow:0 0 0 1px rgba(34,211,238,.40),0 8px 24px -10px rgba(139,92,246,.55);
+}
+.hamburger.active .hb-bar{width:20px;margin-inline-start:-10px}
+.hamburger.active .hb-bar-1{transform:translateY(0) rotate(45deg);background:linear-gradient(90deg,var(--cyan),var(--blue))}
+.hamburger.active .hb-bar-2{transform:translateY(0) scaleX(.2);opacity:0}
+.hamburger.active .hb-bar-3{transform:translateY(0) rotate(-45deg);background:linear-gradient(90deg,var(--violet),var(--blue))}
+.hamburger.active .hb-node{opacity:1;transform:scale(1);animation:hbPulse 2.1s var(--ease) .35s infinite}
+@keyframes hbPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.55)}
+  55%{box-shadow:0 0 0 6px rgba(34,211,238,0)}
+}
+@media(max-width:1020px){.hamburger{display:flex}}
+@media (prefers-reduced-motion:reduce){
+  .hb-bar,.hb-node{transition-duration:.01ms}
+  .hamburger.active .hb-node{animation:none}
+}
 
 /* ============ MOBILE DRAWER ============ */
 .drawer-backdrop{position:fixed;inset:0;z-index:390;background:rgba(3,5,10,.6);backdrop-filter:blur(6px);
@@ -2112,3 +2156,131 @@ html[data-theme="light"] .wt-side-all{background:#fff}
   .wt-main .wt-stats{grid-template-columns:repeat(3,1fr)}
   .wt-main .wt-grid{grid-template-columns:repeat(3,1fr)}
 }
+
+/* ===================================================================
+   LOGGED-IN IDENTITY MENU — "Aperture Node" (header, all pages).
+   Replaces the old inline <style> in header.blade.php (which carried the
+   --card bug). Theme-aware via var(--bg2)/surface/line tokens; RTL-first.
+   Opens on .usr-menu.open (site header JS toggles it + mirrors aria).
+   =================================================================== */
+.usr-menu{position:relative}
+.usr-btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding-block:5px;padding-inline-start:5px;padding-inline-end:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  color:var(--text);font:inherit;line-height:1;cursor:pointer;
+  transition:background .2s var(--ease),border-color .2s var(--ease),box-shadow .2s var(--ease);
+}
+.usr-btn:hover{background:var(--surface-2);border-color:var(--line-2)}
+.usr-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.usr-menu.open .usr-btn{background:var(--surface-2);border-color:color-mix(in srgb,var(--cyan) 45%,var(--line-2))}
+
+.usr-av{
+  position:relative;flex:0 0 auto;overflow:hidden;
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--cyan),var(--blue) 55%,var(--violet));
+  color:#fff;font-size:12px;font-weight:700;line-height:1;
+}
+.usr-av i{font-style:normal;letter-spacing:.3px}
+.usr-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.usr-av.lg{width:44px;height:44px;border-radius:12px;font-size:16px}
+.usr-av.xl{width:52px;height:52px;border-radius:15px;font-size:19px}
+
+.usr-nm{font-size:13.5px;font-weight:600;color:var(--text);max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usr-cv{width:15px;height:15px;color:var(--muted);transition:transform .25s var(--ease),color .2s var(--ease)}
+.usr-menu.open .usr-cv{transform:rotate(180deg);color:var(--text)}
+
+.usr-drop{
+  position:absolute;top:calc(100% + 10px);inset-inline-end:0;z-index:400;
+  width:264px;padding:7px;
+  background:var(--bg2);              /* was var(--card,#0f1522) — undefined → always dark. This flips per theme. */
+  border:1px solid var(--line-2);border-radius:16px;
+  box-shadow:0 18px 50px -12px rgba(3,5,12,.7);
+  opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);
+  transition:opacity .2s var(--ease),transform .24s var(--ease),visibility .2s;
+}
+html[dir="rtl"] .usr-drop{transform-origin:top left}
+html[dir="ltr"] .usr-drop{transform-origin:top right}
+.usr-menu.open .usr-drop{opacity:1;visibility:visible;transform:none}
+
+.usr-hd{display:flex;align-items:center;gap:11px;padding:11px 11px 12px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.usr-hd-tx{min-width:0}
+.usr-hd-tx b{display:block;font-size:14px;font-weight:600;color:var(--text);line-height:1.3;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usr-hd-tx small{display:block;margin-top:2px;font-size:11.5px;color:var(--muted);letter-spacing:.4px}
+
+.usr-drop a,.usr-out button{
+  position:relative;display:flex;align-items:center;gap:11px;width:100%;
+  padding:9px 11px;border-radius:11px;
+  font:inherit;font-size:13.5px;font-weight:600;color:var(--text);
+  text-decoration:none;background:none;border:0;cursor:pointer;text-align:start;
+  transition:background .16s var(--ease),color .16s var(--ease);
+}
+.usr-drop a .icon,.usr-out button .icon{width:16px;height:16px;color:var(--muted);flex:none;transition:color .16s var(--ease)}
+.usr-drop a:hover{background:var(--surface)}
+.usr-drop a:hover .icon{color:var(--cyan)}
+.usr-drop a:focus-visible,.usr-out button:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px;background:var(--surface)}
+/* leading-edge accent bar on hover (RTL-safe via inset-inline-start) */
+.usr-drop a::before{
+  content:"";position:absolute;inset-block:8px;inset-inline-start:0;
+  width:3px;border-radius:3px;background:linear-gradient(var(--cyan),var(--violet));
+  opacity:0;transform:scaleY(.4);transition:opacity .18s var(--ease),transform .18s var(--ease);
+}
+.usr-drop a:hover::before{opacity:1;transform:scaleY(1)}
+.usr-out{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+.usr-out button{color:var(--muted)}
+.usr-out button:hover{background:var(--surface);color:var(--text)}
+.usr-out button:hover .icon{color:var(--text)}
+@media (prefers-reduced-motion:reduce){.usr-drop{transition:opacity .15s,visibility .15s}}
+
+/* ---- <=640px: collapse the pill to an avatar-only circle so it never
+        crowds the hamburger; full identity lives in the drawer card. ---- */
+@media(max-width:640px){
+  .usr-btn{gap:0;padding:5px;border-radius:50%}
+  .usr-nm,.usr-cv{display:none}
+  .usr-drop{width:min(264px,calc(100vw - 28px))}
+}
+
+/* ===================================================================
+   MOBILE DRAWER IDENTITY CARD — gradient-hairline hero (logged-in).
+   Sits between .drawer-head and .drawer-body; whole card links to panel.
+   =================================================================== */
+.drawer-id{
+  position:relative;isolation:isolate;overflow:hidden;display:block;
+  margin:14px 18px 2px;padding:16px;border-radius:20px;border:1px solid transparent;
+  background:
+    linear-gradient(var(--bg2),var(--bg2)) padding-box,
+    linear-gradient(135deg,var(--cyan),var(--blue) 50%,var(--violet)) border-box;
+  color:var(--text);transition:transform .2s var(--ease);
+}
+.drawer-id:active{transform:scale(.985)}
+.drawer-id:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.drawer-id::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(150px 95px at 50% -14%,color-mix(in srgb,var(--violet) 22%,transparent),transparent 70%);
+}
+.drawer-id-top{display:flex;align-items:center;gap:13px}
+.drawer-id .usr-av.xl{box-shadow:0 6px 18px -8px rgba(34,211,238,.55)}
+.drawer-id-meta{min-width:0}
+.drawer-id-name{display:block;font-size:16px;font-weight:700;line-height:1.25;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer-id-code{display:block;margin-top:3px;font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--muted)}
+.drawer-id-cta{
+  display:flex;align-items:center;gap:9px;margin-top:14px;padding:11px 14px;border-radius:13px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue) 55%,var(--violet));color:#fff;font-size:13.5px;font-weight:700;
+}
+.drawer-id-cta .icon{width:17px;height:17px;color:#fff;flex:none}
+.drawer-id-cta>span{margin-inline-end:auto}
+.drawer-id-chev{width:15px;height:15px}
+html[dir="ltr"] .drawer-id-chev{transform:rotate(-90deg)}
+html[dir="rtl"] .drawer-id-chev{transform:rotate(90deg)}
+.drawer.open .drawer-id{animation:drawerItem .5s var(--ease) both;animation-delay:.03s}
+@media (prefers-reduced-motion:reduce){.drawer.open .drawer-id{animation:none}.drawer-id{transition-duration:.01ms}}
+
+/* ===================================================================
+   LIGHT THEME OVERRIDES — only raw rgba() shadows/glows need tuning;
+   every surface/border/text token already flips via the light vars.
+   =================================================================== */
+html[data-theme="light"] .usr-drop{box-shadow:0 18px 46px -16px rgba(15,23,42,.22),0 3px 12px -6px rgba(15,23,42,.12)}
+html[data-theme="light"] .hamburger:focus-visible{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--cyan)}
+html[data-theme="light"] .hamburger.active{box-shadow:0 0 0 1px rgba(59,130,246,.45),0 10px 26px -12px rgba(139,92,246,.5)}
+html[data-theme="light"] .drawer-id{box-shadow:0 10px 30px -18px rgba(15,23,42,.26)}
+html[data-theme="light"] .drawer-id .usr-av.xl{box-shadow:0 6px 16px -8px rgba(59,130,246,.4)}
