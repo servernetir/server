@@ -89,7 +89,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->shareSessionAcrossSubdomains();
         $this->defineRateLimiters();
+        // ↑ ترتیب مهم است: تنظیمِ دامنهٔ کوکی باید پیش از میدل‌ورِ StartSession
+        //   انجام شود، و boot()ِ provider همیشه قبل از میدل‌ورها اجرا می‌شود.
 
         // متغیرهای مشترک همه‌ی ویوها: زبان جاری، لینک سوییچ زبان‌ها و اطلاعات تماس
         View::composer('*', function (ViewInstance $view) {
@@ -139,6 +142,56 @@ class AppServiceProvider extends ServiceProvider
      *
      * با نام دادن و by() صریح، هر گروه سطل جدای خودش را دارد.
      */
+    /**
+     * نشستِ مشترک بین دامنهٔ اصلی و کنسول.
+     *
+     * پنل روی `console.servernet.cloud` است و سایت روی `servernet.cloud`؛ اگر
+     * کوکیِ نشست host-only بماند، کاربرِ واردشده در پنل روی سایتِ اصلی «مهمان»
+     * دیده می‌شود و هدر به‌جای نامش «ورود» نشان می‌دهد.
+     *
+     * چرا این‌جا و نه فقط با SESSION_DOMAIN در .env: در .env سرور یک خطِ
+     * `SESSION_DOMAIN=null` از قالبِ اولیه وجود داشت و phpDotenv **اولین** مقدارِ
+     * هر کلید را نگه می‌دارد، پس خطِ دومی که بعداً اضافه شد بی‌اثر بود
+     * (تشخیص با /system/whoami: session_domain=null در حالی که config_cached=false).
+     * این‌جا در زمانِ اجرا ست می‌شود، پس قطعی است و به .env وابسته نیست.
+     *
+     * فقط برای میزبان‌های servernet.cloud اعمال می‌شود؛ روی localhost دست نمی‌زند
+     * (کوکی با دامنهٔ دیگر روی localhost پذیرفته نمی‌شود و ورودِ محلی می‌شکست).
+     */
+    private function shareSessionAcrossSubdomains(): void
+    {
+        if ($this->app->runningInConsole()) {
+            return;                                   // کرون/artisan میزبان واقعی ندارد
+        }
+
+        if ($domain = self::cookieDomainFor((string) request()->getHost())) {
+            config([
+                'session.domain' => $domain,
+                // نامِ تازه عمداً: مرورگرِ کاربر کوکیِ host-only قدیمی با نامِ قبلی
+                // دارد و اگر نام یکی می‌ماند، دو کوکیِ هم‌نام هم‌زمان فرستاده می‌شد و
+                // اینکه کدام برنده شود قطعی نبود (ورود «قبول» می‌شد ولی روی دامنهٔ
+                // دیگر مهمان می‌ماند). با نامِ نو، کوکی‌های کهنه بی‌اثر می‌شوند و
+                // نیازی به پاک‌کردنِ دستیِ کوکی‌ها نیست. هزینه‌اش یک‌بار خروجِ همه است.
+                'session.cookie' => 'snet_session',
+            ]);
+        }
+    }
+
+    /**
+     * دامنهٔ کوکی برای این میزبان، یا null اگر نباید دست بزنیم.
+     *
+     * تطبیق سخت‌گیرانه است: فقط خودِ `servernet.cloud` و زیردامنه‌هایش. میزبانی
+     * مثل `evil-servernet.cloud` نباید کوکیِ ما را بگیرد، پس با نقطه می‌سنجیم.
+     */
+    public static function cookieDomainFor(string $host): ?string
+    {
+        $host = strtolower(trim($host));
+
+        return ($host === 'servernet.cloud' || str_ends_with($host, '.servernet.cloud'))
+            ? '.servernet.cloud'
+            : null;
+    }
+
     private function defineRateLimiters(): void
     {
         $buckets = [
