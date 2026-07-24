@@ -271,13 +271,10 @@ class OtpService
         try {
             // mailer('smtp') صریح، نه میلرِ پیش‌فرض: روی سرور MAIL_MAILER اغلب
             // log است (برای بقیهٔ اعلان‌ها)، ولی کدِ ورود باید حتماً واقعی برود.
-            // اگر SMTP پیکربندی نشده باشد، این throw می‌کند و false برمی‌گردانیم.
-            \Illuminate\Support\Facades\Mail::mailer('smtp')->raw(
-                "کد ورود سرورنت شما: {$code}\n\nاین کد تا ".self::TTL_MINUTES." دقیقه معتبر است.\n"
-                ."اگر شما این درخواست را نداده‌اید، این پیام را نادیده بگیرید.",
-                function ($m) use ($email) {
-                    $m->to($email)->subject('کد ورود سرورنت');
-                },
+            // قالبِ برنددارِ سرورنت، به زبانِ جاری. اگر SMTP پیکربندی نباشد
+            // throw می‌کند و false برمی‌گردانیم.
+            \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)->send(
+                new \App\Mail\OtpMail($code, self::TTL_MINUTES, app()->getLocale()),
             );
 
             return true;

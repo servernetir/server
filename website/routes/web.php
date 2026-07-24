@@ -186,6 +186,23 @@ Route::middleware('throttle:60,1')->prefix('api/sms')->group(function () {
 | راه‌اندازی وب‌هوک بله — یک بار اجرا می‌شود تا بله بداند updateها را کجا
 | بفرستد. آدرس وب‌هوک شامل هش توکن ربات است، پس قابل حدس نیست.
 */
+Route::get('/system/bale-setup', fn () => response(
+    '<!doctype html><meta charset=utf-8><title>ثبت وب‌هوک بله</title>'
+    .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+    .'<h2>ثبت وب‌هوک بله روی سرورنت</h2>'
+    .'<p>وب‌هوک ربات بله را به اپِ سرورنت وصل می‌کند تا «اتصال حساب» و «پرداخت» کار کند '
+    .'(وب‌هوک فعلی به n8n وصل است و باید بازنویسی شود). توکن <code>DEPLOY_TOKEN</code> را وارد کنید.</p>'
+    .'<form method=post><input name=token style="width:100%;padding:10px;font-size:15px" '
+    .'placeholder="DEPLOY_TOKEN" autocomplete=off>'
+    .'<button style="margin-top:12px;padding:10px 22px;font-size:15px;cursor:pointer">ثبت وب‌هوک</button></form>'
+    .'<pre id=out style="background:#111;color:#0f0;padding:14px;border-radius:8px;white-space:pre-wrap;margin-top:20px"></pre>'
+    .'<script>document.querySelector("form").addEventListener("submit",async e=>{e.preventDefault();'
+    .'var o=document.getElementById("out");o.textContent="در حال ثبت…";'
+    .'var r=await fetch("",{method:"POST",headers:{"Content-Type":"application/json"},'
+    .'body:JSON.stringify({token:e.target.token.value})});'
+    .'o.textContent=JSON.stringify(await r.json(),null,2)});</script>'
+))->name('system.bale_setup');
+
 Route::post('/system/bale-setup', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token')), 404);
@@ -467,6 +484,49 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         $gateways = ['error' => $e->getMessage()];
     }
 
+    $zarinpal_sandbox = (bool) config('services.zarinpal.sandbox');
+
+    // آزمونِ مسیرِ واقعیِ گیت‌وی زرین‌پال (همان کدی که کاربر می‌زند) — با ?probe=1
+    $gw_start = null;
+    if ($probe) {
+        try {
+            $cust = new \App\Models\Customer(['phone' => '09120000000', 'email' => 't@servernet.cloud']);
+            $inv  = new \App\Models\Invoice(['kind' => 'service', 'number' => 'DIAG-TEST', 'currency_code' => 'IRT']);
+            $pay  = new \App\Models\Payment(['amount' => 10000, 'currency_code' => 'IRT']);
+            $pay->setRelation('customer', $cust);
+            $pay->setRelation('invoice', $inv);
+            $z = app(\App\Services\Payment\GatewayRegistry::class)->get('zarinpal');
+            $r = $z?->start($pay, 'https://console.servernet.cloud/payment/callback/zarinpal');
+            $gw_start = $r === null ? 'gateway zarinpal ثبت نشده' : [
+                'ok'          => $r->ok,
+                'has_redirect' => $r->redirectUrl !== null,
+                'redirect_host' => $r->redirectUrl ? parse_url($r->redirectUrl, PHP_URL_HOST) : null,
+                'error'       => $r->error,
+                'error_code'  => $r->errorCode ?? null,
+            ];
+        } catch (\Throwable $e) {
+            $gw_start = ['exception' => $e->getMessage()];
+        }
+    }
+
+    // وضعیت وب‌هوک بله — اگر url خالی باشد، ربات به /start جواب نمی‌دهد و
+    // دکمهٔ اشتراک شماره نمی‌آید (علتِ «گزینه‌ای نمی‌بینم»)
+    $bale_webhook = null;
+    if ($probe && filled(config('services.bale.token'))) {
+        try {
+            $tok  = config('services.bale.token');
+            $base = rtrim((string) config('services.bale.base', 'https://tapi.bale.ai'), '/');
+            $wh   = \Illuminate\Support\Facades\Http::timeout(12)->get("{$base}/bot{$tok}/getWebhookInfo");
+            $bale_webhook = [
+                'url_set'  => filled(data_get($wh->json(), 'result.url')),
+                'url_host' => ($u = data_get($wh->json(), 'result.url')) ? parse_url($u, PHP_URL_HOST).parse_url($u, PHP_URL_PATH) : null,
+                'pending'  => data_get($wh->json(), 'result.pending_update_count'),
+            ];
+        } catch (\Throwable $e) {
+            $bale_webhook = ['error' => $e->getMessage()];
+        }
+    }
+
     return response()->json([
         'creds_present'      => $enabled,
         'server_outgoing_ip' => $outIp,
@@ -475,6 +535,9 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         'sample_desc'        => $sampleDesc,
         'gateways'           => $gateways,     // enabled=false یعنی اعتبارنامه‌اش ناقص است
         'zarinpal_test'      => $zarin,        // code 100 = merchant_id سالم است
+        'zarinpal_sandbox'   => $zarinpal_sandbox,   // اگر true با merchantِ واقعی، درگاه باز نمی‌شود!
+        'zarinpal_gw_start'  => $gw_start,     // آزمونِ مسیرِ واقعیِ کد (?probe=1)
+        'bale_webhook'       => $bale_webhook, // url_set=false یعنی ربات جواب نمی‌دهد (?probe=1)
         // پیکربندی ارسال کد ورود — نام درایورها (نه رمز). برای عیب‌یابیِ
         // «ورود گیر می‌کند / کد نمی‌رود»
         'otp_channels'       => [
@@ -492,6 +555,32 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         // ?mailtest=1 یک ایمیل تستِ واقعی فقط به آدرسِ فرستندهٔ خودمان می‌فرستد
         // (نه به آدرس دلخواه، تا رله‌ی اسپم نشود) و نتیجه را می‌گوید — تأیید
         // اینکه SMTP (هاست/رمز) واقعاً کار می‌کند، نه فقط سوییچ.
+        // کلیدهای MAIL که واقعاً در محیط بارگذاری شده‌اند — فقط نامِ کلید به hex
+        // (نه مقدار، نه رمز). اگر hex یک کلید با e2808e/e2808f شروع شود یعنی
+        // کاراکتر نامرئیِ RTL چسبیده؛ اگر هیچ کلیدی نباشد یعنی خطوط بارگذاری نشده.
+        'mail_env_keys'      => (function () {
+            $out = [];
+            foreach (array_merge($_ENV, $_SERVER) as $k => $v) {
+                if (is_string($k) && stripos($k, 'MAIL') !== false) {
+                    $out[] = ['key' => preg_replace('/[^\x20-\x7E]/', '?', $k), 'hex' => bin2hex($k)];
+                }
+            }
+
+            return $out ?: 'هیچ کلیدِ MAIL در محیط نیست — خطوط MAIL بارگذاری نشده‌اند (فایل/ذخیره را چک کنید)';
+        })(),
+        // مقدارِ خامِ کلیدهای غیرمحرمانه (نه یوزر/رمز) — از env() و از $_ENV
+        // مستقیم، تا معلوم شود env() چه می‌بیند
+        'mail_env_values'    => [
+            'env(MAIL_MAILER)'   => env('MAIL_MAILER'),
+            'env(MAIL_HOST)'     => env('MAIL_HOST'),
+            'env(MAIL_PORT)'     => env('MAIL_PORT'),
+            'env(MAIL_ENCRYPTION)' => env('MAIL_ENCRYPTION'),
+            'env(MAIL_SCHEME)'   => env('MAIL_SCHEME'),
+            'env(MAIL_FROM_ADDRESS)' => env('MAIL_FROM_ADDRESS'),
+            'ENV[MAIL_HOST]'     => $_ENV['MAIL_HOST'] ?? '(غایب در $_ENV)',
+            'SERVER[MAIL_HOST]'  => $_SERVER['MAIL_HOST'] ?? '(غایب در $_SERVER)',
+            'getenv(MAIL_HOST)'  => getenv('MAIL_HOST') === false ? '(getenv=false)' : getenv('MAIL_HOST'),
+        ],
         'mail_test'          => request()->boolean('mailtest') ? (function () {
             $to = config('mail.from.address');
             if (! filled($to)) {
