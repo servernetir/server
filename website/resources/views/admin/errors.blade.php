@@ -9,7 +9,7 @@
     {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
   </div>
   @if(count($serverErrors) || count($nf))
-    <form method="post" action="/admin/errors/clear" onsubmit="return confirm('پاک کردن همهٔ رکوردها؟')">
+    <form method="post" action="/admin/errors/clear" data-confirm="پاک کردن همهٔ رکوردها؟" data-confirm-danger>
       @csrf<button type="submit" class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b;border:0;padding:8px 16px;cursor:pointer;font:inherit">پاک کردن</button>
     </form>
   @endif

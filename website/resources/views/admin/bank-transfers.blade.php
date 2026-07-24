@@ -36,7 +36,7 @@
           <td class="ad-row-act" style="white-space:nowrap">
             @if($r->status === 'pending')
               <form method="post" action="/admin/bank-transfers/{{ $r->id }}/approve" style="display:inline"
-                    onsubmit="return confirm('تأیید واریز؟ فاکتور تسویه و سرویس فعال می‌شود.')">@csrf
+                    data-confirm="تأیید واریز؟ فاکتور تسویه و سرویس فعال می‌شود." data-confirm-title="تأیید واریز">@csrf
                 <button type="submit" style="background:#22d3ee;color:#04121f;border:0;border-radius:7px;padding:6px 12px;cursor:pointer;font:inherit;font-size:12px">تأیید</button>
               </form>
               <button type="button" class="del" onclick="document.getElementById('rej-{{ $r->id }}').style.display='flex'">رد</button>

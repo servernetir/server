@@ -1157,6 +1157,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store']);
         Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy']);
 
+        // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
+        Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions');
+
         // تیکت پشتیبانی — روی همان احراز هویت کارکنان
         Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
         Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');

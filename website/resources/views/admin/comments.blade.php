@@ -53,7 +53,7 @@
     @if($c->reply)
       <div class="ad-cm-reply">
         <div class="ad-cm-reply-h"><svg class="icon"><use href="#i-headset"/></svg><b>پاسخ خودکار</b>
-          <form method="post" action="/admin/comments/{{ $c->id }}/drop-reply" onsubmit="return confirm('پاسخ هوش مصنوعی حذف شود؟')">@csrf<button type="submit">حذف پاسخ</button></form>
+          <form method="post" action="/admin/comments/{{ $c->id }}/drop-reply" data-confirm="پاسخ هوش مصنوعی حذف شود؟" data-confirm-danger>@csrf<button type="submit">حذف پاسخ</button></form>
         </div>
         <p>{{ $c->reply }}</p>
       </div>
@@ -64,7 +64,7 @@
       @unless($c->approved)
       <form method="post" action="/admin/comments/{{ $c->id }}/approve">@csrf<button class="ok" type="submit">تأیید و انتشار</button></form>
       @endunless
-      <form method="post" action="/admin/comments/{{ $c->id }}/delete" onsubmit="return confirm('این کامنت حذف شود؟')">@csrf<button class="del" type="submit">حذف</button></form>
+      <form method="post" action="/admin/comments/{{ $c->id }}/delete" data-confirm="این کامنت حذف شود؟" data-confirm-danger>@csrf<button class="del" type="submit">حذف</button></form>
     </div>
   </div>
   @empty

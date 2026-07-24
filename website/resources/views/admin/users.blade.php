@@ -15,7 +15,7 @@
           <td><span class="ad-badge {{ $u->role === 'admin' ? 'pub' : 'draft' }}">{{ $u->role === 'admin' ? 'مدیر' : 'نویسنده' }}</span></td>
           <td class="ad-row-act">
             @if($u->id !== auth()->id())
-            <form method="post" action="/admin/users/{{ $u->id }}/delete" onsubmit="return confirm('حذف این کاربر؟')" style="display:inline">@csrf<button class="del" type="submit">حذف</button></form>
+            <form method="post" action="/admin/users/{{ $u->id }}/delete" data-confirm="حذف این کاربر؟" data-confirm-danger style="display:inline">@csrf<button class="del" type="submit">حذف</button></form>
             @else<span style="font-size:12px;color:var(--dim)">شما</span>@endif
           </td>
         </tr>

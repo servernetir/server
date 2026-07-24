@@ -176,7 +176,7 @@
           <td style="text-align:left;width:40px">
             @if($inv->isDeletable())
               <form method="post" action="/admin/invoices/{{ $inv->id }}/delete" style="margin:0"
-                    onsubmit="return confirm('فاکتور {{ $inv->number }} حذف شود؟ اگر برای سرویسی باشد، آن سرویس هم لغو می‌شود.')">
+                    data-confirm="فاکتور {{ $inv->number }} حذف شود؟ اگر برای سرویسی باشد، آن سرویس هم لغو می‌شود." data-confirm-danger data-confirm-title="حذف فاکتور">
                 @csrf
                 <button type="submit" title="حذف فاکتور"
                         style="background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.32);color:#ff6b6b;border-radius:8px;padding:5px 8px;cursor:pointer;line-height:0;display:inline-grid;place-items:center">
@@ -287,7 +287,7 @@
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>تغییر رمز عبور</h3></div>
     <form method="post" action="/admin/customers/{{ $c->id }}/password" style="padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"
-          onsubmit="return confirm('رمز عبور این مشتری تغییر کند و به او اطلاع داده شود؟')">
+          data-confirm="رمز عبور این مشتری تغییر کند و به او اطلاع داده شود؟" data-confirm-title="تغییر رمز مشتری">
       @csrf
       <input type="text" name="password" required minlength="8" placeholder="رمز عبور جدید (حداقل ۸ نویسه)" dir="ltr"
              style="background:#0f1522;border:1px solid #1e2637;border-radius:9px;color:#e7edf7;padding:8px 12px;font:inherit;flex:1;min-width:200px;text-align:left">
@@ -311,7 +311,7 @@
         حذفِ مشتری بازگشت‌ناپذیر است و همهٔ فاکتورها، سرویس‌ها و سوابقِ او را برای همیشه پاک می‌کند.
       </p>
       <form method="post" action="/admin/customers/{{ $c->id }}/delete" style="margin:0"
-            onsubmit="return confirm('مطمئنید؟ مشتری {{ $c->code }} و همهٔ سوابقش برای همیشه حذف می‌شود.')">
+            data-confirm="مطمئنید؟ مشتری {{ $c->code }} و همهٔ سوابقش برای همیشه حذف می‌شود." data-confirm-danger data-confirm-title="حذف کامل مشتری" data-confirm-ok="حذف کن">
         @csrf
         <button type="submit" class="btn" style="background:#ff6b6b;color:#0b1220;font-weight:700">
           <svg class="icon"><use href="#i-x"/></svg> حذف کامل مشتری

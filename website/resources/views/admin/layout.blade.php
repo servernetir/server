@@ -34,6 +34,7 @@
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
+      <a href="/admin/transactions" class="@yield('nav_transactions')"><svg class="icon"><use href="#i-list"/></svg>تراکنش‌ها و اعتبار</a>
       @php $pendingBank = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
               ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
       <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>
@@ -63,5 +64,6 @@
 <div class="ad-auth">@yield('content')</div>
 @endauth
 @yield('scripts')
+@include('partials.ui-dialog')
 </body>
 </html>

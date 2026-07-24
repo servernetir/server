@@ -16,7 +16,7 @@
     ارسال گروهی هزینهٔ پیامک دارد و بازگشت‌ناپذیر است — پیش از ارسال تعداد گیرنده را می‌بینید.
   </p>
 
-  <form method="post" action="/admin/broadcasts" style="padding:16px" id="bc-form">
+  <form method="post" action="/admin/broadcasts" style="padding:16px" id="bc-form" data-confirm="اعلان برای مخاطب انتخاب‌شده ارسال شود؟ (پیامک هزینه دارد)" data-confirm-title="ارسال اعلان" data-confirm-ok="بله، بفرست">
     @csrf
     <div style="margin-bottom:14px">
       <label style="font-size:13px;color:#96a3ba;display:block;margin-bottom:8px">مخاطب</label>
@@ -48,8 +48,7 @@
     </div>
 
     <div style="display:flex;justify-content:flex-end">
-      <button class="btn btn-primary" type="submit"
-              onclick="return confirm('اعلان برای مخاطب انتخاب‌شده ارسال شود؟ (پیامک هزینه دارد)')">
+      <button class="btn btn-primary" type="submit">
         <svg class="icon"><use href="#i-send"/></svg>ارسال اعلان
       </button>
     </div>

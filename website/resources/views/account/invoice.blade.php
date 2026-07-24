@@ -17,7 +17,7 @@
     </a>
     @if($invoice->status !== 'paid' && $invoice->status !== 'canceled' && $invoice->status !== 'void' && $invoice->paid == 0)
       <form method="POST" action="{{ lroute('account.invoice.cancel', $invoice) }}" style="display:inline"
-            onsubmit="return confirm('این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود.')">
+            data-confirm="این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود." data-confirm-danger data-confirm-title="لغو فاکتور" data-confirm-ok="بله، لغو کن">
         @csrf
         <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">
           <svg class="icon"><use href="#i-x"/></svg>لغو فاکتور

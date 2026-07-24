@@ -54,7 +54,7 @@
                   <a class="pnl-btn" href="{{ lroute('account.invoice', $inv) }}">مشاهده</a>
                   @if($inv->status !== 'paid' && $inv->status !== 'canceled' && $inv->status !== 'void' && $inv->paid == 0)
                     <form method="POST" action="{{ lroute('account.invoice.cancel', $inv) }}" style="display:inline"
-                          onsubmit="return confirm('این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود.')">
+                          data-confirm="این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود." data-confirm-danger data-confirm-title="لغو فاکتور" data-confirm-ok="بله، لغو کن">
                       @csrf
                       <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">لغو</button>
                     </form>

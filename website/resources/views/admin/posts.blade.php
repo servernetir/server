@@ -25,7 +25,7 @@
         <td class="ad-row-act">
           @if($p->status === 'published')<a href="/blog/{{ $p->slug }}" target="_blank">مشاهده</a>@endif
           <a href="/admin/posts/{{ $p->id }}/edit">ویرایش</a>
-          <form method="post" action="/admin/posts/{{ $p->id }}/delete" onsubmit="return confirm('حذف این مطلب؟')" style="display:inline">@csrf<button class="del" type="submit">حذف</button></form>
+          <form method="post" action="/admin/posts/{{ $p->id }}/delete" data-confirm="حذف این مطلب؟" data-confirm-danger style="display:inline">@csrf<button class="del" type="submit">حذف</button></form>
         </td>
       </tr>
       @empty

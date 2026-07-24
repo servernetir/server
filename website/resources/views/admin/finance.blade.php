@@ -204,7 +204,7 @@
             </td>
             <td>
               @unless($e->isAuto())
-                <form method="post" action="/admin/finance/{{ $e->id }}/delete" onsubmit="return confirm('حذف این ردیف؟')">
+                <form method="post" action="/admin/finance/{{ $e->id }}/delete" data-confirm="حذف این ردیف؟" data-confirm-danger>
                   @csrf<button type="submit" style="background:none;border:0;color:#ff6b6b;cursor:pointer">حذف</button>
                 </form>
               @endunless

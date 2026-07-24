@@ -36,7 +36,7 @@
           </td>
           <td class="ad-row-act">
             @unless($cost->is_system)
-              <button form="del-{{ $cost->id }}" class="del" type="submit" onclick="return confirm('حذف این هزینه؟')">حذف</button>
+              <button form="del-{{ $cost->id }}" class="del" type="submit">حذف</button>
             @endunless
           </td>
         </tr>
@@ -51,7 +51,7 @@
   {{-- فرم‌های حذف جدا، چون داخل فرم اصلی nest نمی‌شوند --}}
   @foreach($costs as $cost)
     @unless($cost->is_system)
-      <form id="del-{{ $cost->id }}" method="post" action="/admin/costs/{{ $cost->id }}/delete" style="display:none">@csrf</form>
+      <form id="del-{{ $cost->id }}" method="post" action="/admin/costs/{{ $cost->id }}/delete" style="display:none" data-confirm="حذف این هزینه؟" data-confirm-danger>@csrf</form>
     @endunless
   @endforeach
   @endif

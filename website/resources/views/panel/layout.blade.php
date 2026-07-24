@@ -94,4 +94,5 @@
 })();
 
 </script>
+@include('partials.ui-dialog')
 @endsection
