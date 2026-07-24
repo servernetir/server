@@ -376,6 +376,97 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 |
 | فقط HEAD/GET سبک می‌زند و هیچ استعلام پولی انجام نمی‌دهد.
 */
+/*
+| تشخیص OpenProvider — موقتی.
+|
+| خروجی فقط بولین و آی‌پی است (نه رمز، نه توکن)، پس بدون DEPLOY_TOKEN هم امن
+| است و کارفرما/ما می‌توانیم مستقیم صدایش بزنیم. دو چیز را جواب می‌دهد:
+|   • آی‌پی خروجیِ سرور — همانی که باید در allowlistِ API اوپن‌پروایدر باشد
+|   • آیا با اعتبارنامهٔ .env احراز هویت می‌شود (code 0) یا رد (196=IP/رمز)
+*/
+Route::middleware('throttle:tools')->get('/system/openprovider', function () {
+    $client = app(\App\Services\Domain\OpenProviderClient::class);
+
+    // آی‌پی خروجی: از چند سرویس، اولین جوابِ معتبر
+    $outIp = null;
+    foreach (['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://icanhazip.com'] as $svc) {
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(8)->get($svc);
+            if ($resp->ok() && filter_var(trim($resp->body()), FILTER_VALIDATE_IP)) {
+                $outIp = trim($resp->body());
+                break;
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    $enabled = $client->enabled();
+    $auth = 'skipped'; $sampleCode = null; $sampleDesc = null;
+
+    if ($enabled) {
+        // ورودِ خام تا کد واقعیِ پاسخ را ببینیم (196 = IP یا رمز رد شد). فقط
+        // کد و توضیح برمی‌گردد، نه رمز.
+        try {
+            $login = \Illuminate\Support\Facades\Http::timeout(15)->asJson()->post(
+                rtrim((string) config('services.openprovider.base_url'), '/').'/auth/login',
+                ['username' => config('services.openprovider.username'), 'password' => config('services.openprovider.password')],
+            );
+            $sampleCode = (int) data_get($login->json(), 'code', -1);
+            $sampleDesc = (string) data_get($login->json(), 'desc', '');
+            $auth = $sampleCode === 0 ? 'ok' : 'failed';
+        } catch (\Throwable $e) {
+            $auth = 'error';
+            $sampleDesc = 'network: '.$e->getMessage();
+        }
+    }
+
+    // آزمون واقعیِ زرین‌پال — آیا merchant_id واقعاً پرداخت می‌سازد؟ (code 100 = بله)
+    // authority می‌سازد ولی تا کاربر پرداخت نکند هیچ پولی جابه‌جا نمی‌شود.
+    $zarin = null;
+    $zMerchant = (string) config('services.zarinpal.merchant_id', '');
+    if ($zMerchant !== '') {
+        try {
+            $zr = \Illuminate\Support\Facades\Http::timeout(15)->asJson()->post(
+                'https://api.zarinpal.com/pg/v4/payment/request.json',
+                ['merchant_id' => $zMerchant, 'amount' => 10000, 'callback_url' => 'https://console.servernet.cloud/payment/callback/zarinpal', 'description' => 'آزمون اتصال'],
+            );
+            $j = $zr->json();
+            $zarin = [
+                'code'    => data_get($j, 'data.code', data_get($j, 'errors.code', 'n/a')),
+                'message' => data_get($j, 'data.message', data_get($j, 'errors.message', '')),
+                'got_authority' => filled(data_get($j, 'data.authority')),
+            ];
+        } catch (\Throwable $e) {
+            $zarin = ['error' => $e->getMessage()];
+        }
+    }
+
+    // وضعیت درگاه‌های پرداخت — چرا زرین‌پال ۳۰۲ می‌دهد و بله دیده نمی‌شود
+    $gateways = [];
+    try {
+        $reg = app(\App\Services\Payment\GatewayRegistry::class);
+        foreach ($reg->all() as $g) {
+            $gateways[$g->key()] = [
+                'enabled'  => $g->enabled(),
+                'currency' => $g->currency(),
+            ];
+        }
+    } catch (\Throwable $e) {
+        $gateways = ['error' => $e->getMessage()];
+    }
+
+    return response()->json([
+        'creds_present'      => $enabled,
+        'server_outgoing_ip' => $outIp,
+        'auth'               => $auth,
+        'sample_code'        => $sampleCode,   // 0=موفق، 196=رد (IP یا رمز)
+        'sample_desc'        => $sampleDesc,
+        'gateways'           => $gateways,     // enabled=false یعنی اعتبارنامه‌اش ناقص است
+        'zarinpal_test'      => $zarin,        // code 100 = merchant_id سالم است
+        'hint'               => 'اوپن‌پروایدر: sample_code=0 یعنی وصل شد، 196 یعنی IP/رمز رد شد. زرین‌پال: code=100 یعنی درگاه سالم و ۳۰۲ همان هدایت درست به صفحهٔ پرداخت است.',
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+});
+
 Route::middleware('throttle:tools')->get('/system/health', function () {
     $targets = [
         'ippanel'  => 'https://edge.ippanel.com/v1/api/send',

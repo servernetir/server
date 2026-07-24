@@ -28,7 +28,7 @@
             @if($cost->is_system)<small style="color:#5f6c82;display:block" dir="ltr">{{ $cost->key }}</small>@endif
           </td>
           <td>
-            <input type="number" name="amount[{{ $cost->id }}]" value="{{ $cost->amount }}" min="0" step="1000"
+            <input type="number" name="amount[{{ $cost->id }}]" value="{{ $cost->amount }}" min="0" step="1"
                    dir="ltr" style="width:170px;background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:7px 10px;font:inherit;text-align:left">
           </td>
           <td>
@@ -67,7 +67,7 @@
     <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#96a3ba">عنوان
       <input type="text" name="label" required placeholder="مثلاً لایسنس ماهانه cPanel" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;min-width:240px"></label>
     <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#96a3ba">مبلغ (تومان)
-      <input type="number" name="amount" required min="0" step="1000" dir="ltr" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;width:160px;text-align:left"></label>
+      <input type="number" name="amount" required min="0" step="1" dir="ltr" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;width:160px;text-align:left"></label>
     <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#96a3ba">توضیح
       <input type="text" name="note" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;min-width:200px"></label>
     <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>افزودن</button>

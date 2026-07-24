@@ -226,6 +226,26 @@ return [
 
     /*
     |----------------------------------------------------------------------
+    | OpenProvider — رجیستری دامنه (ریسلر)
+    |----------------------------------------------------------------------
+    | نامِ ورود، نه RID. API فقط از IPهای allowlist‌شده جواب می‌دهد؛ IP خروجیِ
+    | سرور را در پنل اوپن‌پروایدر ثبت کنید وگرنه کد ۱۹۶ (رد) می‌گیرید.
+    |   OPENPROVIDER_USERNAME=ایمیل ورود
+    |   OPENPROVIDER_PASSWORD=رمز
+    |   DOMAIN_MARGIN_PCT=۲۵ (درصد سود پیش‌فرض)
+    */
+    'openprovider' => [
+        'base_url'     => env('OPENPROVIDER_BASE_URL', 'https://api.openprovider.eu/v1beta'),
+        'username'     => env('OPENPROVIDER_USERNAME'),
+        'password'     => env('OPENPROVIDER_PASSWORD'),
+        'suggest_tlds' => ['com', 'net', 'org', 'ir'],
+        'margin'       => [
+            'default' => (float) env('DOMAIN_MARGIN_PCT', 25),
+        ],
+    ],
+
+    /*
+    |----------------------------------------------------------------------
     | ترون — دریافت رمزارز (فقط خواندنی)
     |----------------------------------------------------------------------
     | ⚠ اینجا هرگز کلید خصوصی یا seed نمی‌نشیند. فقط xpub که با آن می‌شود
