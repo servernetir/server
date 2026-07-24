@@ -35,10 +35,21 @@ class SettingsController extends Controller
             $stampData = 'data:'.$mime.';base64,'.base64_encode(\Illuminate\Support\Facades\Storage::disk('local')->get($p));
         }
 
+        // قیمت‌گذاریِ منعطف — نرخِ مبنا، override دستی، و حاشیهٔ سود
+        $pricing = [
+            'pricing_baseline_rate' => $ready ? Setting::get('pricing_baseline_rate') : null,
+            'pricing_rate_override' => $ready ? Setting::get('pricing_rate_override') : null,
+            'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
+        ];
+        $liveRate = app(\App\Services\ExchangeRate::class)->toToman('EUR');
+
         return view('admin.settings', [
-            'bank'      => $bank,
-            'stampData' => $stampData,
-            'notReady'  => ! $ready,
+            'bank'        => $bank,
+            'stampData'   => $stampData,
+            'pricing'     => $pricing,
+            'liveRate'    => $liveRate,
+            'priceFactor' => $ready ? price_factor() : 1.0,
+            'notReady'    => ! $ready,
         ]);
     }
 
@@ -54,10 +65,18 @@ class SettingsController extends Controller
             // مهر شرکت — PNG (شفاف بهتر) یا JPG، تا ۲ مگابایت
             'stamp'        => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
             'remove_stamp' => ['nullable', 'boolean'],
+            // قیمت‌گذاری
+            'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
             Setting::put($k, isset($data[$k]) ? trim((string) $data[$k]) : null);
+        }
+
+        foreach (['pricing_baseline_rate', 'pricing_rate_override', 'price_margin_pct'] as $k) {
+            Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }
 
         // مهر: بیرون webroot در storage ذخیره می‌شود؛ روی فاکتور به‌صورت

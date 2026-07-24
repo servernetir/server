@@ -47,6 +47,24 @@
       </div>
     </div>
 
+    {{-- قیمت‌گذاریِ منعطف — اتصال به نرخِ یورو --}}
+    <div style="grid-column:1/3;border-top:1px solid #1e2637;padding-top:14px;margin-top:4px">
+      <label style="font-size:13px;color:#e7edf7;font-weight:600;display:block;margin-bottom:4px">قیمت‌گذاری خودکار (اتصال به نرخِ یورو)</label>
+      <p style="margin:0 0 12px;color:#96a3ba;font-size:12.5px;line-height:1.9">
+        قیمت‌های پایه (تومان) لنگرند. اگر «نرخِ مبنا» را برابرِ نرخِ فعلیِ یورو بگذارید، از این پس همهٔ قیمت‌های سایت و فروشگاه خودکار با نرخِ روزِ یورو بالا/پایین می‌روند. برای تغییرِ کلی هم فقط این یک عدد را عوض کنید.
+        @if($liveRate)<br>نرخِ زندهٔ یورو الان: <b dir="ltr">{{ number_format($liveRate) }}</b> تومان · ضریبِ فعلیِ قیمت‌ها: <b dir="ltr">{{ number_format($priceFactor, 3) }}×</b>@endif
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <label class="set-f">نرخِ مبنای یورو (تومان)
+          <input type="number" name="pricing_baseline_rate" dir="ltr" min="0" value="{{ $pricing['pricing_baseline_rate'] }}" placeholder="خالی = خاموش"></label>
+        <label class="set-f">نرخِ دستی (به‌جای نرخِ زنده)
+          <input type="number" name="pricing_rate_override" dir="ltr" min="0" value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
+        <label class="set-f">حاشیهٔ سود (٪)
+          <input type="number" name="price_margin_pct" dir="ltr" step="0.1" value="{{ $pricing['price_margin_pct'] }}" placeholder="۰"></label>
+      </div>
+      <p style="margin:8px 0 0;color:#5f6c82;font-size:12px">تا وقتی «نرخِ مبنا» خالی باشد، هیچ قیمتی تغییر نمی‌کند (حالتِ امن).</p>
+    </div>
+
     <div style="grid-column:1/3;display:flex;justify-content:flex-end">
       <button type="submit" class="btn btn-primary"><svg class="icon"><use href="#i-check"/></svg>ذخیره</button>
     </div>

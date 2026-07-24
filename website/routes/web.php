@@ -1070,6 +1070,18 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     } catch (\Throwable) {
     }
 
+    // کاتالوگِ هاست را فقط اگر جدولِ products خالی است یک‌بار می‌سازد (پکیج‌های
+    // ویرایش‌شدهٔ بعدی را پاک نمی‌کند). ~۵۲ پکیج از config/hosting.php.
+    $seeded = null;
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('products') && \App\Models\Product::count() === 0) {
+            \Illuminate\Support\Facades\Artisan::call('products:seed-hosting');
+            $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
+        }
+    } catch (\Throwable $e) {
+        $seeded = 'seed error: '.$e->getMessage();
+    }
+
     // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
     // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
     // سرو می‌شود. این‌جا کنار مهاجرت ریست می‌کنیم تا هر دپلوی با یک migrate
@@ -1079,7 +1091,7 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     }
 
     // تأیید اینکه جدول‌های تازه واقعاً ساخته شدند
-    $tables = ['services', 'settings', 'bank_transfer_receipts', 'activity_logs', 'ticket_attachments', 'invoices'];
+    $tables = ['services', 'settings', 'servers', 'products', 'customer_api_tokens', 'activity_logs', 'invoices'];
     $present = [];
     foreach ($tables as $t) {
         $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
@@ -1089,6 +1101,7 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         'ok'      => $migrateError === null,
         'error'   => $migrateError,
         'migrate' => $migrate,
+        'seeded'  => $seeded,
         'tables'  => $present,
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:6,1');

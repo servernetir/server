@@ -204,7 +204,8 @@ if (! function_exists('site_price')) {
     function site_price(array $item): string
     {
         if (app()->getLocale() === 'fa') {
-            return fa_num(number_format($item['irt'])).' تومان';
+            // قیمتِ تومانی با نرخِ زندهٔ یورو مقیاس می‌شود (پیش‌فرض: بدونِ تغییر)
+            return fa_num(number_format(price_toman((int) ($item['irt'] ?? 0)))).' تومان';
         }
 
         $eur = $item['eur'];
@@ -318,6 +319,49 @@ if (! function_exists('word_count_fa')) {
     function word_count_fa(string $text): int
     {
         return (int) preg_match_all('/[\p{L}\p{N}]+/u', strip_tags($text));
+    }
+}
+
+if (! function_exists('price_factor')) {
+    /**
+     * ضریبِ قیمت‌گذاری — قیمتِ پایهٔ تومانی را با نرخِ زندهٔ یورو مقیاس می‌کند.
+     *
+     * قیمت‌های پایه (تومان) لنگرند؛ وقتی مدیر «نرخِ مبنا» را تنظیم کند
+     * (pricing_baseline_rate = نرخِ یورویی که این قیمت‌ها با آن درست‌اند)، همهٔ
+     * قیمت‌ها خودکار با نرخِ روزِ یورو بالا/پایین می‌روند. تا وقتی مبنا تنظیم
+     * نشده، ضریب = ۱ است و هیچ قیمتی عوض نمی‌شود (پیش‌فرضِ امن). محاسبه یک‌بار
+     * در هر درخواست کش می‌شود.
+     */
+    function price_factor(): float
+    {
+        static $f = null;
+        if ($f !== null) {
+            return $f;
+        }
+
+        $baseline = (int) \App\Models\Setting::get('pricing_baseline_rate', '0');
+        if ($baseline <= 0) {
+            return $f = 1.0;
+        }
+
+        $override = (int) \App\Models\Setting::get('pricing_rate_override', '0');
+        $rate = $override > 0
+            ? $override
+            : (app(\App\Services\ExchangeRate::class)->toToman('EUR') ?: $baseline);
+
+        $margin = (float) \App\Models\Setting::get('price_margin_pct', '0');
+
+        return $f = ($rate / $baseline) * (1 + $margin / 100);
+    }
+}
+
+if (! function_exists('price_toman')) {
+    /** قیمتِ پایهٔ تومان → قیمتِ نهاییِ گردشده (به نزدیک‌ترین ۱۰٬۰۰۰ تومان) */
+    function price_toman(int|float $baseToman): int
+    {
+        $v = (int) round($baseToman * price_factor(), -4);
+
+        return $v > 0 ? $v : (int) $baseToman;   // اگر گرد شدن صفر داد، خودِ پایه
     }
 }
 

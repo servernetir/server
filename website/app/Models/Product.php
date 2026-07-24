@@ -54,16 +54,28 @@ class Product extends Model
         return $this->belongsTo(Server::class);
     }
 
-    /** مالیاتِ هر دوره */
+    /** قیمتِ مؤثرِ دوره — پایهٔ تومان پس از اعمالِ ضریبِ نرخِ ارز */
+    public function effectivePrice(): int
+    {
+        return price_toman($this->price);
+    }
+
+    /** هزینهٔ راه‌اندازیِ مؤثر */
+    public function effectiveSetup(): int
+    {
+        return price_toman($this->setup_fee);
+    }
+
+    /** مالیاتِ هر دوره (روی قیمتِ مؤثر) */
     public function taxAmount(): int
     {
-        return (int) round($this->price * $this->tax_percent / 100);
+        return (int) round($this->effectivePrice() * $this->tax_percent / 100);
     }
 
     /** مبلغِ کلِ اولین صورت‌حساب (دوره + راه‌اندازی + مالیاتِ هردو) */
     public function firstTotal(): int
     {
-        $base = $this->price + $this->setup_fee;
+        $base = $this->effectivePrice() + $this->effectiveSetup();
 
         return $base + (int) round($base * $this->tax_percent / 100);
     }
@@ -71,7 +83,7 @@ class Product extends Model
     /** مبلغِ دوره‌ایِ بعدی (بدونِ راه‌اندازی) */
     public function recurringTotal(): int
     {
-        return $this->price + $this->taxAmount();
+        return $this->effectivePrice() + $this->taxAmount();
     }
 
     public function cycleLabel(): string

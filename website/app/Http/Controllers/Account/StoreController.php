@@ -55,7 +55,7 @@ class StoreController extends Controller
                 'name'          => $product->name,
                 'description'   => $product->description,
                 'currency_code' => $product->currency_code,
-                'price'         => $product->price,
+                'price'         => $product->effectivePrice(),   // با نرخِ روز، در لحظهٔ سفارش قفل می‌شود
                 'tax_percent'   => $product->tax_percent,
                 'cycle'         => $product->cycle,
                 'status'        => 'pending',
@@ -79,8 +79,12 @@ class StoreController extends Controller
     {
         $lineTax = fn (int $amount) => (int) round($amount * $service->tax_percent / 100);
 
-        $subtotal = $product->price + $product->setup_fee;
-        $tax      = $lineTax($product->price) + $lineTax($product->setup_fee);
+        // قیمتِ مؤثر (تبدیل‌شده) — همان که روی سرویس قفل شد + راه‌اندازیِ مؤثر
+        $unitPrice = (int) $service->price;
+        $setupFee  = $product->effectiveSetup();
+
+        $subtotal = $unitPrice + $setupFee;
+        $tax      = $lineTax($unitPrice) + $lineTax($setupFee);
 
         $invoice = Invoice::create([
             'customer_id'   => $service->customer_id,
@@ -101,21 +105,21 @@ class StoreController extends Controller
             'title'       => $product->name.' ('.$service->cycleLabel().')',
             'description' => $product->description,
             'quantity'    => 1,
-            'unit_price'  => $product->price,
-            'line_total'  => $product->price,
+            'unit_price'  => $unitPrice,
+            'line_total'  => $unitPrice,
             'tax_rate_bp' => $service->tax_percent * 100,
-            'tax_amount'  => $lineTax($product->price),
+            'tax_amount'  => $lineTax($unitPrice),
         ]);
 
-        if ($product->setup_fee > 0) {
+        if ($setupFee > 0) {
             InvoiceItem::create([
                 'invoice_id'  => $invoice->id,
                 'title'       => 'هزینهٔ راه‌اندازی — '.$product->name,
                 'quantity'    => 1,
-                'unit_price'  => $product->setup_fee,
-                'line_total'  => $product->setup_fee,
+                'unit_price'  => $setupFee,
+                'line_total'  => $setupFee,
                 'tax_rate_bp' => $service->tax_percent * 100,
-                'tax_amount'  => $lineTax($product->setup_fee),
+                'tax_amount'  => $lineTax($setupFee),
             ]);
         }
 
