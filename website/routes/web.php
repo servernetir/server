@@ -1134,13 +1134,22 @@ Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
 
-    \Illuminate\Support\Facades\Artisan::call('view:clear');
-    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    // config/route را هم پاک کن تا تغییرِ .env (مثل SESSION_DOMAIN) و روت‌های تازه
+    // واقعاً خوانده شوند؛ اگر کش نشده باشند، این‌ها بی‌ضررند.
+    $cleared = [];
+    foreach (['config:clear', 'route:clear', 'view:clear', 'cache:clear'] as $cmd) {
+        try {
+            \Illuminate\Support\Facades\Artisan::call($cmd);
+            $cleared[] = $cmd;
+        } catch (\Throwable) {
+        }
+    }
     $reset = function_exists('opcache_reset') ? @opcache_reset() : null;
 
     return response()->json([
         'opcache_reset' => $reset,
-        'note'          => $reset ? 'opcache پاک شد؛ کدِ تازه زنده است.' : 'opcache در دسترس نبود.',
+        'cleared'       => $cleared,
+        'note'          => $reset ? 'opcache و کشِ config/route/view پاک شد؛ کدِ تازه و .env زنده است.' : 'opcache در دسترس نبود.',
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:6,1');
 
