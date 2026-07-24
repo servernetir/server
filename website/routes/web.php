@@ -844,8 +844,18 @@ Route::get('/system/db-status', function () {
         })();
 
         $newTables = [];
-        foreach (['services', 'settings', 'bank_transfer_receipts', 'activity_logs', 'ticket_attachments'] as $t) {
+        foreach (['services', 'settings', 'servers', 'products', 'customer_api_tokens', 'activity_logs'] as $t) {
             $newTables[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
+        }
+
+        // شمارشِ پکیج‌ها و سرورها — برای تأییدِ seed و آمادگیِ فروشگاه
+        $counts = [];
+        foreach (['products' => \App\Models\Product::class, 'servers' => \App\Models\Server::class] as $k => $model) {
+            try {
+                $counts[$k] = \Illuminate\Support\Facades\Schema::hasTable($k) ? $model::count() : 0;
+            } catch (\Throwable) {
+                $counts[$k] = 0;
+            }
         }
 
         return response()->json($out + [
@@ -854,6 +864,7 @@ Route::get('/system/db-status', function () {
             'missing' => $missing,
             'pending_migrations' => $pending,
             'new_tables' => $newTables,
+            'counts' => $counts,
         ], 200, [], JSON_UNESCAPED_UNICODE);
     } catch (\Throwable $e) {
         // پیام خام درایور ممکن است نام کاربر را داشته باشد — فقط نوع خطا را می‌دهیم

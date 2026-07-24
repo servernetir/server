@@ -52,7 +52,12 @@
     @endunless
     <div class="plans {{ count($product['plans']) === 3 ? 'plans-3' : '' }} {{ count($product['plans']) >= 5 ? 'plans-many' : '' }}" id="plans">
       @foreach($product['plans'] as $i => $p)
-      @php $isContact = $p['contact'] ?? false; @endphp
+      @php
+        $isContact = $p['contact'] ?? false;
+        // خرید داخلی: پکیجِ فروشگاه با slug = «محصول-شمارهٔ‌پلن» (فقط برای هاست
+        // که در DB seed شده؛ VPS/اختصاصی هنوز به WHMCS خارجی می‌روند)
+        $storeHref = ($category === 'hosting') ? lroute('account.store').'#pkg-'.$slug.'-'.($i + 1) : null;
+      @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
         <h3>{{ $p['name'] }}</h3>
@@ -73,6 +78,8 @@
         </ul>
         @if($isContact)
         <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
+        @elseif($storeHref)
+        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}">{{ __('ui.choose') }}</a>
         @elseif($yearlyOnly)
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
            href="{{ isset($p['url']) ? whmcs_url($p['url']) : buy_url($p['pid']) }}"
