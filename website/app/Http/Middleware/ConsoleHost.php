@@ -35,11 +35,11 @@ class ConsoleHost
 
     /** مسیرهای پنلی — روی کنسول مجازند، روی دامنهٔ اصلی به کنسول می‌روند */
     private const PANEL = [
-        'login', 'logout', 'register', 'register/*',
+        'login', 'login/*', 'logout', 'register', 'register/*',
         'account', 'account/*',
         'admin', 'admin/*',
-        'en/login', 'en/logout', 'en/register', 'en/register/*', 'en/account', 'en/account/*',
-        'tr/login', 'tr/logout', 'tr/register', 'tr/register/*', 'tr/account', 'tr/account/*',
+        'en/login', 'en/login/*', 'en/logout', 'en/register', 'en/register/*', 'en/account', 'en/account/*',
+        'tr/login', 'tr/login/*', 'tr/logout', 'tr/register', 'tr/register/*', 'tr/account', 'tr/account/*',
     ];
 
     /** روی کنسول اینها هم مجازند (علاوه بر پنل) */

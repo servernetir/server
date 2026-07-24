@@ -475,6 +475,14 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         'sample_desc'        => $sampleDesc,
         'gateways'           => $gateways,     // enabled=false یعنی اعتبارنامه‌اش ناقص است
         'zarinpal_test'      => $zarin,        // code 100 = merchant_id سالم است
+        // پیکربندی ارسال کد ورود — نام درایورها (نه رمز). برای عیب‌یابیِ
+        // «ورود گیر می‌کند / کد نمی‌رود»
+        'otp_channels'       => [
+            'sms_driver'          => config('services.sms.driver'),      // queue = غیرمسدود، ippanel = تماس مستقیم
+            'sms_relay_set'       => filled(config('services.sms.relay_url')) && filled(config('services.sms.relay_secret')),
+            'mail_mailer'         => config('mail.default'),             // log = ارسال نمی‌شود، smtp = واقعی
+            'bale_token_set'      => filled(config('services.bale.token')),
+        ],
         'hint'               => 'اوپن‌پروایدر: sample_code=0 یعنی وصل شد، 196 یعنی IP/رمز رد شد. زرین‌پال: code=100 یعنی درگاه سالم و ۳۰۲ همان هدایت درست به صفحهٔ پرداخت است.',
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
