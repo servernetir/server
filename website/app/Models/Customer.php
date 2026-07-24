@@ -116,6 +116,11 @@ class Customer extends Authenticatable
         return $this->hasMany(Ticket::class);
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class);
+    }
+
     /** موجودی اعتبار — جمع دفتر، نه ستون ذخیره‌شده */
     public function creditBalance(string $currency = 'IRT'): int
     {

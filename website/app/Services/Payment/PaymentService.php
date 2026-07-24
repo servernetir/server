@@ -218,6 +218,22 @@ class PaymentService
                     'topup', $invoice, 'افزایش اعتبار با پرداخت آنلاین');
             }
 
+            // فاکتورِ یک سرویس تسویه شد → سرویس فعال/تمدید می‌شود. داخل همین
+            // تراکنش، چون مشتری پول داده و سرویس باید حتماً فعال شود — نه
+            // best-effort. تمدید سررسید را یک دوره جلو می‌برد.
+            if ($invoice->status === 'paid' && $invoice->service_id !== null) {
+                $service = \App\Models\Service::whereKey($invoice->service_id)->lockForUpdate()->first();
+
+                if ($service !== null && $service->status !== 'cancelled') {
+                    $service->status = 'active';
+                    $service->activated_at ??= now();
+                    if ($service->isRecurring()) {
+                        $service->next_due_at = $service->nextDueFrom(now());
+                    }
+                    $service->save();
+                }
+            }
+
             // بیش‌پرداخت: تا کاربر در درگاه بود فاکتور از راه دیگری بسته شد.
             // پول نه برمی‌گردد نه گم می‌شود — به اعتبارش می‌نشیند.
             if ($surplus > 0) {

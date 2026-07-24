@@ -90,6 +90,70 @@
 </div>
 @endif
 
+{{-- ══ سرویس‌ها ══ --}}
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>سرویس‌ها و خدمات</h3></div>
+  @if($services->isEmpty())
+    <p style="padding:16px;color:#5f6c82">سرویسی برای این مشتری ثبت نشده. از فرم زیر می‌توانید یک سرویس بفروشید.</p>
+  @else
+    <table class="ad-table">
+      <thead><tr><th>سرویس</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>سررسید</th><th></th></tr></thead>
+      <tbody>
+        @foreach($services as $s)
+        @php $sb = $s->statusBadge(); @endphp
+        <tr>
+          <td><b>{{ $s->name }}</b>@if($s->description)<div style="font-size:12px;color:#5f6c82;margin-top:2px">{{ \Illuminate\Support\Str::limit($s->description, 60) }}</div>@endif</td>
+          <td>{{ $s->cycleLabel() }}</td>
+          <td>{{ $money($s->total()) }}</td>
+          <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
+          <td dir="ltr" style="color:#96a3ba">{{ $s->next_due_at ? $s->next_due_at->format('Y/m/d') : '—' }}</td>
+          <td class="ad-row-act" style="white-space:nowrap">
+            <form method="post" action="/admin/services/{{ $s->id }}/status" style="display:inline">@csrf
+              <select name="status" onchange="this.form.submit()" style="background:#0f1522;border:1px solid #1e2637;border-radius:7px;color:#e7edf7;padding:5px 8px;font:inherit;font-size:12px">
+                <option value="">تغییر…</option>
+                <option value="active">فعال</option>
+                <option value="suspended">تعلیق</option>
+                <option value="cancelled">لغو</option>
+              </select>
+            </form>
+            @if($s->isRecurring() && $s->status === 'active')
+              <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
+            @endif
+          </td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+  @endif
+
+  {{-- فروش سرویس جدید --}}
+  <div style="border-top:1px solid #1e2637;padding:16px">
+    <h4 style="margin:0 0 12px;font-size:14px;color:#e7edf7">فروش سرویس جدید به این مشتری</h4>
+    <form method="post" action="/admin/customers/{{ $c->id }}/services" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      @csrf
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba;grid-column:1/3">نام سرویس
+        <input type="text" name="name" required maxlength="150" placeholder="مثلاً پشتیبانی ویژه ماهانه" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit"></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba;grid-column:1/3">توضیحات (اختیاری)
+        <textarea name="description" rows="2" maxlength="2000" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;resize:vertical"></textarea></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">مبلغ (تومان، پیش از مالیات)
+        <input type="number" name="price" required min="0" step="1000" dir="ltr" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;text-align:left"></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">مالیات (٪)
+        <input type="number" name="tax_percent" value="10" min="0" max="100" dir="ltr" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;text-align:left"></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">دورهٔ پرداخت
+        <select name="cycle" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit">
+          <option value="once">یک‌بار</option>
+          <option value="monthly">ماهانه</option>
+          <option value="quarterly">سه‌ماهه</option>
+          <option value="yearly">سالانه</option>
+        </select></label>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>صدور پیش‌فاکتور</button>
+      </div>
+    </form>
+    <p style="margin:10px 0 0;font-size:12px;color:#5f6c82">یک پیش‌فاکتور صادر می‌شود؛ پس از پرداخت مشتری، سرویس خودکار فعال می‌شود و در پنل او دیده می‌شود.</p>
+  </div>
+</div>
+
 {{-- ══ فاکتورها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فاکتورها</h3></div>
@@ -168,20 +232,33 @@
   </div>
 </div>
 
-{{-- ══ تغییر وضعیت حساب ══ --}}
-<div class="ad-panel">
-  <div class="ad-panel-h"><h3>مدیریت حساب</h3></div>
-  <form method="post" action="/admin/customers/{{ $c->id }}/status" style="padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    @csrf
-    <label style="color:#96a3ba;font-size:14px">وضعیت حساب:</label>
-    <select name="status" style="background:#0f1522;border:1px solid #1e2637;border-radius:9px;color:#e7edf7;padding:8px 12px;font:inherit">
-      <option value="active"    @selected($c->status==='active')>فعال</option>
-      <option value="pending"   @selected($c->status==='pending')>در انتظار</option>
-      <option value="suspended" @selected($c->status==='suspended')>معلق (بستن ورود و خرید)</option>
-      <option value="closed"    @selected($c->status==='closed')>بسته</option>
-    </select>
-    <button class="btn btn-primary" type="submit">ثبت تغییر</button>
-  </form>
+{{-- ══ مدیریت حساب: وضعیت + رمز عبور ══ --}}
+<div class="ad-grid2">
+  <div class="ad-panel" style="margin:0">
+    <div class="ad-panel-h"><h3>وضعیت حساب</h3></div>
+    <form method="post" action="/admin/customers/{{ $c->id }}/status" style="padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      @csrf
+      <select name="status" style="background:#0f1522;border:1px solid #1e2637;border-radius:9px;color:#e7edf7;padding:8px 12px;font:inherit">
+        <option value="active"    @selected($c->status==='active')>فعال</option>
+        <option value="pending"   @selected($c->status==='pending')>در انتظار</option>
+        <option value="suspended" @selected($c->status==='suspended')>معلق (بستن ورود و خرید)</option>
+        <option value="closed"    @selected($c->status==='closed')>بسته</option>
+      </select>
+      <button class="btn btn-primary" type="submit">ثبت</button>
+    </form>
+  </div>
+
+  <div class="ad-panel" style="margin:0">
+    <div class="ad-panel-h"><h3>تغییر رمز عبور</h3></div>
+    <form method="post" action="/admin/customers/{{ $c->id }}/password" style="padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"
+          onsubmit="return confirm('رمز عبور این مشتری تغییر کند و به او اطلاع داده شود؟')">
+      @csrf
+      <input type="text" name="password" required minlength="8" placeholder="رمز عبور جدید (حداقل ۸ نویسه)" dir="ltr"
+             style="background:#0f1522;border:1px solid #1e2637;border-radius:9px;color:#e7edf7;padding:8px 12px;font:inherit;flex:1;min-width:200px;text-align:left">
+      <button class="btn btn-primary" type="submit">تغییر رمز</button>
+    </form>
+    <p style="padding:0 16px 14px;margin:0;font-size:12px;color:#5f6c82">مشتری با پیامک و بله از تغییر رمز خبردار می‌شود.</p>
+  </div>
 </div>
 
 <style>

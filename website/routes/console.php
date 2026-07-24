@@ -46,3 +46,8 @@ Schedule::command('content:generate --limit=2 --plan=docs-plan --daily')
 Schedule::command('content:translate-missing --limit=2')
     ->dailyAt('12:30')
     ->withoutOverlapping(30);
+
+// صدور فاکتور تمدید برای سرویس‌های دوره‌ای سررسیدشده — روزی یک‌بار
+Schedule::command('services:renew-due')
+    ->dailyAt('07:00')
+    ->withoutOverlapping();

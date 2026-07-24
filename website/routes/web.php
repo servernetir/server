@@ -112,6 +112,7 @@ $site = function (): void {
 
     Route::middleware('auth:customer')->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
+        Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
@@ -898,6 +899,12 @@ Route::prefix('admin')->group(function () {
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
         Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
+        Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
+
+        // فروش و مدیریت سرویس‌های مشتری
+        Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);
+        Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);
+        Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
 
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');

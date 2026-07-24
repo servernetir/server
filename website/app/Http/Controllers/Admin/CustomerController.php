@@ -72,7 +72,7 @@ class CustomerController extends Controller
 
     public function show(Customer $customer): View
     {
-        $customer->load([
+        $load = [
             'identityVerification',
             'bankAccounts',
             'profiles',
@@ -81,11 +81,20 @@ class CustomerController extends Controller
             'payments'      => fn ($q) => $q->orderByDesc('id')->limit(50),
             'creditEntries' => fn ($q) => $q->orderByDesc('id')->limit(50),
             'tickets'       => fn ($q) => $q->orderByDesc('last_reply_at')->limit(50),
-        ]);
+        ];
+
+        // نگهبان: جدول services تازه اضافه شده؛ روی سروری که هنوز مهاجرت
+        // نکرده نباید پرونده ۵۰۰ شود
+        if (Schema::hasTable('services')) {
+            $load['services'] = fn ($q) => $q->orderByDesc('id');
+        }
+
+        $customer->load($load);
 
         return view('admin.customer', [
             'c'             => $customer,
             'creditBalance' => $customer->creditBalance(),
+            'services'      => $customer->relationLoaded('services') ? $customer->services : collect(),
             'invoiceTotals' => [
                 'count'  => $customer->invoices->count(),
                 'unpaid' => $customer->invoices->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
@@ -115,5 +124,35 @@ class CustomerController extends Controller
         ];
 
         return back()->with('ok', 'وضعیت مشتری به «'.$labels[$data['status']].'» تغییر کرد.');
+    }
+
+    /**
+     * تغییر رمز عبور مشتری توسط مدیر.
+     *
+     * رمز به‌صورت متن وارد فرم می‌شود ولی هرگز خام ذخیره نمی‌شود — cast مدل
+     * (password => hashed) آن را هش می‌کند. مشتری با پیامک و بله خبردار می‌شود
+     * که رمزش عوض شده؛ اگر کار خودش نبوده، فوراً می‌فهمد.
+     */
+    public function password(Request $request, Customer $customer): RedirectResponse
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'max:200'],
+        ], [], ['password' => 'رمز عبور']);
+
+        $customer->password = $data['password'];   // cast خودش hash می‌کند
+        $customer->save();
+
+        try {
+            app(\App\Services\Notify\CustomerNotifier::class)->event(
+                $customer,
+                'password_changed',
+                [],
+                'رمز عبور حساب سرورنت شما توسط پشتیبانی تغییر کرد. اگر این کار را درخواست نکرده‌اید، فوراً با ما تماس بگیرید.',
+            );
+        } catch (\Throwable) {
+            // اعلان نباید تغییر رمز را بشکند
+        }
+
+        return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
     }
 }
