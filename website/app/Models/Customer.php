@@ -74,6 +74,11 @@ class Customer extends Authenticatable
         return $this->hasMany(CustomerIpRule::class);
     }
 
+    public function apiTokens(): HasMany
+    {
+        return $this->hasMany(CustomerApiToken::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active'

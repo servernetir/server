@@ -39,6 +39,9 @@ return Application::configure(basePath: dirname(__DIR__))
          */
         $middleware->validateCsrfTokens(except: [
             'api/sms/*',
+            // APIِ مشتری با توکنِ Bearer احراز می‌شود، نه نشست/CSRF (فعلاً GET،
+            // ولی برای روت‌های نوشتنیِ آینده از الان مستثنا می‌کنیم)
+            'api/v1/*',
             // محافظش DEPLOY_TOKEN است، نه نشست؛ فرم بی‌نشست هم باید کار کند
             'system/migrate',
             // بله یک سرور است، نشست ندارد؛ محافظش توکن در مسیر است

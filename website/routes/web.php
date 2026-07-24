@@ -120,6 +120,16 @@ $site = function (): void {
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
 
+        // امنیت حساب — رمز (با OTP)، قوانین IP، توکن‌های API
+        Route::get('/security', [Account\SecurityController::class, 'index'])->name('security');
+        Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:otp');
+        Route::post('/security/password', [Account\SecurityController::class, 'passwordVerify'])->name('security.pw')->middleware('throttle:otp');
+        Route::post('/security/ip', [Account\SecurityController::class, 'ipStore'])->name('security.ip')->middleware('throttle:forms');
+        Route::post('/security/ip/{rule}/delete', [Account\SecurityController::class, 'ipDestroy'])->name('security.ip.delete');
+        Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
+        Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
+        Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
+
         Route::get('/invoices', [Account\PaymentController::class, 'index'])->name('invoices');
         Route::get('/invoices/{invoice}', [Account\PaymentController::class, 'show'])->name('invoice');
         Route::get('/invoices/{invoice}/print', [Account\PaymentController::class, 'printInvoice'])->name('invoice.print');
@@ -1201,3 +1211,18 @@ Route::prefix('admin')->group(function () {
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update']);
     });
 });
+
+/*
+ * APIِ مشتری — نسخهٔ ۱، احراز با توکنِ Bearer (بدونِ نشست). خطاها JSON‌اند
+ * (bootstrap: shouldRenderJsonWhen is('api/*')). فعلاً فقط‌خواندنی؛ زیرساختِ
+ * ability طوری است که بعداً روت‌های نوشتنی (ساختِ سرویس/دامنه) با توکنِ
+ * دارای دسترسیِ نوشتن اضافه شوند.
+ */
+Route::prefix('api/v1')
+    ->middleware(\App\Http\Middleware\CustomerApiToken::class.':read')
+    ->group(function () {
+        Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);
+        Route::get('/services', [\App\Http\Controllers\Api\CustomerApiController::class, 'services']);
+        Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
+        Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
+    });

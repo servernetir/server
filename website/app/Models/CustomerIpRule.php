@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** قاعدهٔ محدودسازی IP برای ورود. */
 class CustomerIpRule extends Model
 {
-    protected $fillable = ['customer_id', 'cidr', 'label', 'is_active'];
+    protected $fillable = ['customer_id', 'cidr', 'action', 'label', 'is_active'];
 
     protected function casts(): array
     {

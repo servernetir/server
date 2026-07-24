@@ -121,7 +121,7 @@ class AccountController extends Controller
                 ]],
                 ['label' => __('ui.nav_account'), 'items' => [
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
-                    ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security')],
+                    ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],
         ];
