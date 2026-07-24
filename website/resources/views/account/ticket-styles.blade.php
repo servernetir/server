@@ -39,5 +39,28 @@
 /* یادداشت داخلی (فقط پنل مدیریت) */
 .tk-msg.internal{ background:var(--warn-bg); border-color:var(--warn-line); align-self:stretch; max-width:100%; }
 .tk-msg.internal .tk-msg-who{ color:var(--warn); }
+
+/* پیوست‌ها */
+.tk-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.tk-att{ display:inline-flex; align-items:center; gap:7px; text-decoration:none;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+  padding:7px 11px; font-size:12.5px; color:var(--text); max-width:220px; }
+.tk-att:hover{ border-color:var(--line-2); }
+.tk-att .icon{ width:16px; height:16px; flex:0 0 auto; color:var(--muted); }
+.tk-att span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tk-att i{ font-style:normal; color:var(--dim); font-size:11px; flex:0 0 auto; }
+.tk-att-img{ display:block; border-radius:12px; overflow:hidden; border:1px solid var(--line); line-height:0; }
+.tk-att-img img{ max-width:180px; max-height:150px; object-fit:cover; display:block; }
+
+/* انتخاب فایل در فرم پاسخ */
+.tk-file{ display:flex; align-items:center; gap:9px; cursor:pointer;
+  border:1px dashed var(--line-2); border-radius:12px; padding:11px 14px;
+  font-size:12.5px; color:var(--muted); background:var(--surface-2); }
+.tk-file:hover{ border-color:var(--info); color:var(--text); }
+.tk-file .icon{ width:17px; height:17px; }
+.tk-file input[type=file]{ display:none; }
+.tk-file-list{ display:flex; flex-wrap:wrap; gap:6px; }
+.tk-file-chip{ background:var(--info-bg); color:var(--info); border-radius:8px;
+  padding:4px 9px; font-size:11.5px; }
 </style>
 @endonce

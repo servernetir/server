@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
+use App\Models\TicketAttachment;
+use App\Services\Ticket\AttachmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * تیکت پشتیبانی — سمت کارکنان.
@@ -48,7 +51,11 @@ class TicketController extends Controller
     {
         return view('admin.ticket', [
             'ticket'   => $ticket->load('customer'),
-            'messages' => $ticket->messages()->orderBy('id')->get(),  // شامل یادداشت داخلی
+            // نگهبان hasTable: تا مهاجرت ticket_attachments روی سرور نرفته، ۵۰۰ نشود
+            'messages' => $ticket->messages()
+                ->when(\Illuminate\Support\Facades\Schema::hasTable('ticket_attachments'),
+                    fn ($q) => $q->with('attachments'))
+                ->orderBy('id')->get(),  // شامل یادداشت داخلی
         ]);
     }
 
@@ -58,12 +65,13 @@ class TicketController extends Controller
             'body'     => ['required', 'string', 'max:'.self::MAX_BODY],
             'internal' => ['nullable', 'boolean'],
             'close'    => ['nullable', 'boolean'],
-        ]);
+        ] + AttachmentService::rules());
 
         $user     = $request->user();
         $internal = (bool) ($data['internal'] ?? false);
 
-        $ticket->addMessage('staff', $user->id, $user->name, $data['body'], internal: $internal);
+        $message = $ticket->addMessage('staff', $user->id, $user->name, $data['body'], internal: $internal);
+        app(AttachmentService::class)->store($message, $request->file('attachments', []));
 
         // «پاسخ و بستن» در یک حرکت — کار رایج پشتیبانی
         if (! empty($data['close']) && ! $internal) {
@@ -103,5 +111,13 @@ class TicketController extends Controller
         $ticket->save();
 
         return back()->with('ok', 'تیکت به‌روزرسانی شد.');
+    }
+
+    /** دانلود پیوست — کارکنان همه‌چیز را می‌بینند، حتی پیوستِ یادداشت داخلی */
+    public function attachment(Ticket $ticket, TicketAttachment $attachment): StreamedResponse
+    {
+        abort_if($attachment->ticket_id !== $ticket->id, 404);
+
+        return app(AttachmentService::class)->download($attachment);
     }
 }

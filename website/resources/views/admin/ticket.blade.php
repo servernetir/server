@@ -29,6 +29,18 @@
               <span dir="ltr" style="color:#5f6c82;font-size:11px">{{ $m->created_at->format('Y/m/d H:i') }}</span>
             </div>
             <div class="tka-msg-b">{!! nl2br(e($m->body)) !!}</div>
+            @if($m->relationLoaded('attachments') && $m->attachments->isNotEmpty())
+              <div class="tka-atts">
+                @foreach($m->attachments as $att)
+                  @php $url = '/admin/tickets/'.$ticket->id.'/attachments/'.$att->id; @endphp
+                  @if($att->isImage())
+                    <a class="tka-att-img" href="{{ $url }}" target="_blank" title="{{ $att->original_name }}"><img src="{{ $url }}" alt="" loading="lazy"></a>
+                  @else
+                    <a class="tka-att" href="{{ $url }}" target="_blank"><svg class="icon"><use href="#i-file"/></svg><span>{{ $att->original_name }}</span><i>{{ $att->humanSize() }}</i></a>
+                  @endif
+                @endforeach
+              </div>
+            @endif
           </div>
         @endforeach
       </div>
@@ -37,9 +49,15 @@
     {{-- پاسخ --}}
     <div class="ad-panel" style="margin-top:16px">
       <div class="ad-panel-h"><h2>پاسخ</h2></div>
-      <form method="post" action="/admin/tickets/{{ $ticket->id }}/reply" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <form method="post" action="/admin/tickets/{{ $ticket->id }}/reply" enctype="multipart/form-data" style="padding:16px;display:flex;flex-direction:column;gap:12px">
         @csrf
         <textarea name="body" rows="6" required class="ad-input" style="resize:vertical" placeholder="پاسخ به مشتری…">{{ old('body') }}</textarea>
+        <label class="tka-file">
+          <svg class="icon"><use href="#i-paperclip"/></svg>
+          <span>افزودن تصویر یا PDF (حداکثر ۵ فایل، هرکدام تا ۵ مگابایت)</span>
+          <input type="file" name="attachments[]" multiple accept="image/*,application/pdf" onchange="var b=document.getElementById('tka-fl');b.innerHTML='';for(var i=0;i&lt;this.files.length;i++){var s=document.createElement('span');s.className='tka-fchip';s.textContent=this.files[i].name;b.appendChild(s);}">
+        </label>
+        <div class="tka-file-list" id="tka-fl"></div>
         <label style="display:flex;align-items:center;gap:8px;color:#96a3ba;font-size:13px">
           <input type="checkbox" name="internal" value="1"> یادداشت داخلی (مشتری نمی‌بیند)
         </label>
@@ -91,6 +109,19 @@
 .tka-msg.internal{ align-self:stretch; max-width:100%; background:rgba(251,191,36,.07); border-color:rgba(251,191,36,.3) }
 .tka-msg-h{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px }
 .tka-msg-b{ font-size:13.5px; line-height:1.95; color:#e7edf7; word-break:break-word }
+.tka-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+.tka-att{ display:inline-flex; align-items:center; gap:7px; text-decoration:none; background:#0f1522; border:1px solid #1e2637; border-radius:9px; padding:6px 10px; font-size:12px; color:#e7edf7; max-width:200px }
+.tka-att .icon{ width:15px; height:15px; color:#96a3ba; flex:0 0 auto }
+.tka-att span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.tka-att i{ font-style:normal; color:#5f6c82; font-size:11px }
+.tka-att-img{ display:block; border-radius:10px; overflow:hidden; border:1px solid #1e2637; line-height:0 }
+.tka-att-img img{ max-width:170px; max-height:140px; object-fit:cover; display:block }
+.tka-file{ display:flex; align-items:center; gap:8px; cursor:pointer; border:1px dashed #2b3548; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#96a3ba; background:#0f1522 }
+.tka-file:hover{ border-color:#22d3ee; color:#e7edf7 }
+.tka-file .icon{ width:16px; height:16px }
+.tka-file input[type=file]{ display:none }
+.tka-file-list{ display:flex; flex-wrap:wrap; gap:6px }
+.tka-fchip{ background:rgba(34,211,238,.15); color:#22d3ee; border-radius:7px; padding:3px 8px; font-size:11px }
 </style>
 
 @endsection

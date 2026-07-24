@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
+use App\Models\TicketAttachment;
+use App\Services\Ticket\AttachmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * تیکت پشتیبانی — سمت مشتری.
@@ -46,7 +49,7 @@ class TicketController extends Controller
             'department' => ['required', 'in:technical,billing,sales'],
             'priority'   => ['required', 'in:low,normal,high,urgent'],
             'body'       => ['required', 'string', 'max:'.self::MAX_BODY],
-        ], [], [
+        ] + AttachmentService::rules(), [], [
             'subject' => __('ui.tk_subject'),
             'body'    => __('ui.tk_message'),
         ]);
@@ -60,7 +63,8 @@ class TicketController extends Controller
             'last_reply_at'   => now(),
         ]);
 
-        $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
+        $message = $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
+        app(AttachmentService::class)->store($message, $request->file('attachments', []));
 
         return redirect()->route($this->rp().'account.ticket', $ticket)
             ->with('ok', __('ui.tk_created'));
@@ -72,7 +76,12 @@ class TicketController extends Controller
 
         return view('account.ticket', AccountController::shell('tickets') + [
             'ticket'   => $ticket,
-            'messages' => $ticket->visibleMessages()->orderBy('id')->get(),
+            // نگهبان: تا جدول ticket_attachments روی سرور ساخته نشده، eager-load
+            // نکن وگرنه باز کردن تیکت ۵۰۰ می‌شود
+            'messages' => $ticket->visibleMessages()
+                ->when(\Illuminate\Support\Facades\Schema::hasTable('ticket_attachments'),
+                    fn ($q) => $q->with('attachments'))
+                ->orderBy('id')->get(),
         ]);
     }
 
@@ -84,13 +93,28 @@ class TicketController extends Controller
         // برگشته نباید مجبور به ساختن تیکت تازه و از دست دادن سابقه شود.
         $data = $request->validate([
             'body' => ['required', 'string', 'max:'.self::MAX_BODY],
-        ], [], ['body' => __('ui.tk_message')]);
+        ] + AttachmentService::rules(), [], ['body' => __('ui.tk_message')]);
 
         $customer = Auth::guard('customer')->user();
-        $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
+        $message  = $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
+        app(AttachmentService::class)->store($message, $request->file('attachments', []));
 
         return redirect()->route($this->rp().'account.ticket', $ticket)
             ->with('ok', __('ui.tk_reply_sent'));
+    }
+
+    /**
+     * دانلود پیوست — فقط اگر تیکت مالِ همین مشتری باشد و پیام داخلی نباشد.
+     * یادداشت داخلیِ کارکنان (و پیوستش) هرگز به مشتری نمی‌رسد.
+     */
+    public function attachment(Ticket $ticket, TicketAttachment $attachment): StreamedResponse
+    {
+        $this->authorizeTicket($ticket);
+
+        abort_if($attachment->ticket_id !== $ticket->id, 404);
+        abort_if($attachment->message?->is_internal === true, 404);
+
+        return app(AttachmentService::class)->download($attachment);
     }
 
     public function close(Ticket $ticket): RedirectResponse

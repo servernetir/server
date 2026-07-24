@@ -23,7 +23,7 @@
 
 <section class="pnl-sec">
   <div class="pnl-sec-b">
-    <form method="POST" action="{{ lroute('account.ticket.store') }}" class="tk-form">
+    <form method="POST" action="{{ lroute('account.ticket.store') }}" class="tk-form" enctype="multipart/form-data">
       @csrf
 
       <div class="tk-field">
@@ -56,10 +56,23 @@
                   placeholder="{{ __('ui.tk_body_ph') }}">{{ old('body') }}</textarea>
       </div>
 
+      <label class="tk-file">
+        <svg class="icon"><use href="#i-paperclip"/></svg>
+        <span>افزودن تصویر یا PDF (اختیاری — حداکثر ۵ فایل، هرکدام تا ۵ مگابایت)</span>
+        <input type="file" name="attachments[]" multiple accept="image/*,application/pdf" onchange="tkFiles(this)">
+      </label>
+      <div class="tk-file-list" id="tk-file-list"></div>
+
       <button type="submit" class="pnl-btn primary" style="justify-content:center;align-self:flex-start">
         <svg class="icon"><use href="#i-send"/></svg>{{ __('ui.tk_send') }}
       </button>
     </form>
+    <script>
+      function tkFiles(inp){
+        var box=document.getElementById('tk-file-list'); box.innerHTML='';
+        for(var i=0;i<inp.files.length;i++){var s=document.createElement('span');s.className='tk-file-chip';s.textContent=inp.files[i].name;box.appendChild(s);}
+      }
+    </script>
   </div>
 </section>
 

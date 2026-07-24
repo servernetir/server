@@ -133,6 +133,7 @@ $site = function (): void {
         Route::get('/tickets/{ticket}', [Account\TicketController::class, 'show'])->name('ticket');
         Route::post('/tickets/{ticket}/reply', [Account\TicketController::class, 'reply'])->name('ticket.reply')->middleware('throttle:forms');
         Route::post('/tickets/{ticket}/close', [Account\TicketController::class, 'close'])->name('ticket.close');
+        Route::get('/tickets/{ticket}/att/{attachment}', [Account\TicketController::class, 'attachment'])->name('ticket.attachment');
     });
 };
 
@@ -985,6 +986,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
         Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
         Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
+        Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
 
         // مدیریت مشتریان — بخشِ شبیه‌WHMCS
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
