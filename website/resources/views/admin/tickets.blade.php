@@ -12,7 +12,6 @@
   </div>
 </div>
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>تیکت‌ها</h2></div>

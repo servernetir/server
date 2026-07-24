@@ -812,10 +812,33 @@ Route::get('/system/db-status', function () {
         $required = ['posts', 'post_translations', 'customers', 'currencies', 'tax_rates'];
         $missing = array_values(array_filter($required, fn ($t) => ! $schema->hasTable($t)));
 
+        // مهاجرت‌های اجرانشده روی اتصالِ پیش‌فرض (همان که migrate استفاده می‌کند) —
+        // برای عیب‌یابیِ «migrate هنگ می‌کند»
+        $pending = (function () {
+            try {
+                if (! \Illuminate\Support\Facades\Schema::hasTable('migrations')) {
+                    return ['(جدول migrations نیست)'];
+                }
+                $ran   = \Illuminate\Support\Facades\DB::table('migrations')->pluck('migration')->all();
+                $files = array_map(fn ($p) => basename($p, '.php'), glob(database_path('migrations/*.php')));
+
+                return array_values(array_diff($files, $ran));
+            } catch (\Throwable $e) {
+                return ['error' => $e->getMessage()];
+            }
+        })();
+
+        $newTables = [];
+        foreach (['services', 'settings', 'bank_transfer_receipts', 'activity_logs', 'ticket_attachments'] as $t) {
+            $newTables[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
+        }
+
         return response()->json($out + [
             'mariadb' => 'connected',
             'ready'   => $missing === [],
             'missing' => $missing,
+            'pending_migrations' => $pending,
+            'new_tables' => $newTables,
         ], 200, [], JSON_UNESCAPED_UNICODE);
     } catch (\Throwable $e) {
         // پیام خام درایور ممکن است نام کاربر را داشته باشد — فقط نوع خطا را می‌دهیم
@@ -1015,11 +1038,22 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
 
     @set_time_limit(300);
 
-    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    $migrate = trim(\Illuminate\Support\Facades\Artisan::output());
+    // اگر یک مهاجرت خطا دهد، بدون try/catch کل روت ۵۰۰ (HTML) می‌شد و JSِ
+    // فرم روی «در حال اجرا…» هنگ می‌کرد. حالا خطا را برمی‌گردانیم تا دیده شود.
+    $migrateError = null;
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $migrate = trim(\Illuminate\Support\Facades\Artisan::output());
+    } catch (\Throwable $e) {
+        $migrate = trim(\Illuminate\Support\Facades\Artisan::output());
+        $migrateError = $e->getMessage();
+    }
 
-    \Illuminate\Support\Facades\Artisan::call('view:clear');
-    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    try {
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    } catch (\Throwable) {
+    }
 
     // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
     // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
@@ -1030,13 +1064,15 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     }
 
     // تأیید اینکه جدول‌های تازه واقعاً ساخته شدند
-    $tables = ['tickets', 'invoices', 'payments', 'service_costs', 'broadcasts'];
+    $tables = ['services', 'settings', 'bank_transfer_receipts', 'activity_logs', 'ticket_attachments', 'invoices'];
     $present = [];
     foreach ($tables as $t) {
         $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
     }
 
     return response()->json([
+        'ok'      => $migrateError === null,
+        'error'   => $migrateError,
         'migrate' => $migrate,
         'tables'  => $present,
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

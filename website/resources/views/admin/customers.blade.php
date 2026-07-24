@@ -18,7 +18,6 @@
   </form>
 </div>
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 @if($notReady)
   <div class="ad-panel"><p style="padding:20px;color:#fbbf24">جدول مشتریان روی این سرور هنوز ساخته نشده. پس از اجرای مهاجرت، مشتریان این‌جا نمایش داده می‌شوند.</p></div>

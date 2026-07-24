@@ -11,7 +11,6 @@
   </div>
 </div>
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 <div class="ad-panel">
   @forelse($comments as $c)

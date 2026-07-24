@@ -3,7 +3,6 @@
 @section('nav_costs', 'on')
 @section('content')
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>هزینه‌های ثابت سرویس‌ها</h2></div>

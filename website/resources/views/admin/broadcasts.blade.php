@@ -3,7 +3,6 @@
 @section('nav_broadcasts', 'on')
 @section('content')
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 @if($errors->any())<div class="ad-note err">{{ $errors->first() }}</div>@endif
 
 @if($notReady)

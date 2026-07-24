@@ -7,7 +7,6 @@
   <a href="/admin/tickets" style="color:#96a3ba">← بازگشت به فهرست</a>
 </div>
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 @if($errors->any())<div class="ad-note" style="border-color:#ff6b6b;color:#ff6b6b">{{ $errors->first() }}</div>@endif
 
 <div class="tka-grid">

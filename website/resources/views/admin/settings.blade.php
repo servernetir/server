@@ -3,7 +3,6 @@
 @section('nav_settings', 'on')
 @section('content')
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>حساب بانکی شرکت — برای «واریز به حساب»</h2></div>

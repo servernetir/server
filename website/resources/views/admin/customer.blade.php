@@ -12,7 +12,6 @@
 
 <div style="margin-bottom:14px"><a href="/admin/customers" style="color:#96a3ba;font-size:13px">→ بازگشت به مشتریان</a></div>
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 {{-- ══ سربرگ پرونده ══ --}}
 <div class="cust-head">

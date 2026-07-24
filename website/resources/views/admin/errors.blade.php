@@ -3,7 +3,6 @@
 @section('nav_errors', 'on')
 @section('content')
 
-@if(session('ok'))<div class="ad-note ok">{{ session('ok') }}</div>@endif
 
 <div class="ad-toolbar" style="justify-content:space-between">
   <div style="color:#96a3ba;font-size:13px">
