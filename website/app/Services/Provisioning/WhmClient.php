@@ -94,6 +94,19 @@ class WhmClient
         return $this->call('listpkgs');
     }
 
+    /** ساختِ package (پلن) در WHM — quota/bwlimit بر حسب MB (۰ = نامحدود) */
+    public function addPackage(array $params): array
+    {
+        $p = array_merge([
+            'quota'    => 0, 'bwlimit' => 0,
+            'maxpop'   => 'unlimited', 'maxftp'  => 'unlimited', 'maxsql'  => 'unlimited',
+            'maxsub'   => 'unlimited', 'maxpark' => 'unlimited', 'maxaddon' => 'unlimited',
+            'hasshell' => 'n', 'cgi' => 'y',
+        ], $params);
+
+        return $this->call('addpkg', $p);
+    }
+
     /**
      * ساختِ نشستِ ورودِ یک‌بارمصرف به cPanelِ کاربر — برای «ورودِ یک‌کلیکی».
      * خروجی data.url یک آدرسِ ورودِ ازپیش‌احرازشده است.

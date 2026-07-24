@@ -14,6 +14,13 @@
     <p style="padding:18px;color:#fbbf24">جدول پکیج‌ها هنوز روی این سرور ساخته نشده. پس از اجرای مهاجرت فعال می‌شود.</p>
   @else
 
+  <div style="padding:2px 18px 10px">
+    <form method="post" action="/admin/products-whm-sync-all" style="display:inline" data-confirm="package همهٔ پکیج‌هایِ متصل به سرورِ WHM ساخته/به‌روزرسانی و وصل شود؟">
+      @csrf<button class="btn btn-glass" style="font-size:12.5px"><svg class="icon"><use href="#i-server"/></svg>ساخت همهٔ package ها در WHM</button>
+    </form>
+    <small style="color:#5f6c82;margin-inline-start:8px">حدومرزها از مشخصاتِ هر پکیج حدس زده می‌شوند؛ در WHM قابلِ تنظیم‌اند.</small>
+  </div>
+
   @if($products->isEmpty())
     <p style="padding:16px;color:#5f6c82">هنوز پکیجی نساخته‌اید.</p>
   @else
@@ -33,6 +40,11 @@
           <details class="srv-edit">
             <summary style="cursor:pointer;color:#22d3ee;font-size:12.5px;padding:6px 0">ویرایش / حذف</summary>
             @include('admin.partials.product-form', ['product' => $p, 'action' => "/admin/products/{$p->id}"])
+            @if($p->server && $p->server->type === 'whm')
+              <form method="post" action="/admin/products/{{ $p->id }}/whm-sync" style="margin-top:8px;display:inline-block">
+                @csrf<button class="btn btn-glass" style="font-size:12.5px"><svg class="icon"><use href="#i-server"/></svg>ساخت package این پکیج در WHM</button>
+              </form>
+            @endif
             <form method="post" action="/admin/products/{{ $p->id }}/delete" style="margin-top:8px" data-confirm="پکیج «{{ $p->name }}» حذف شود؟" data-confirm-danger>
               @csrf<button class="btn" style="background:#ff6b6b;color:#0b1220;font-size:12.5px;padding:7px 13px">حذف پکیج</button>
             </form>

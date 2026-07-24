@@ -1232,6 +1232,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/products', [\App\Http\Controllers\Admin\ProductController::class, 'store']);
         Route::post('/products/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update']);
         Route::post('/products/{product}/delete', [\App\Http\Controllers\Admin\ProductController::class, 'destroy']);
+        // ساختِ package در WHM از روی پکیج
+        Route::post('/products/{product}/whm-sync', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhm']);
+        Route::post('/products-whm-sync-all', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhmAll']);
 
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);
