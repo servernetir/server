@@ -105,7 +105,10 @@ $site = function (): void {
         Route::post('/register/finish', [Auth\RegisterController::class, 'finish'])->name('register.finish')->middleware('throttle:reg');
 
         Route::get('/login', [Auth\LoginController::class, 'show'])->name('login');
-        Route::post('/login', [Auth\LoginController::class, 'login'])->name('login.post')->middleware('throttle:signin');
+        Route::post('/login', [Auth\LoginController::class, 'start'])->name('login.start')->middleware('throttle:signin');
+        Route::get('/login/code', [Auth\LoginController::class, 'code'])->name('login.code');
+        Route::post('/login/verify', [Auth\LoginController::class, 'verify'])->name('login.verify')->middleware('throttle:otp');
+        Route::post('/login/resend', [Auth\LoginController::class, 'resend'])->name('login.resend')->middleware('throttle:otp');
     });
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');

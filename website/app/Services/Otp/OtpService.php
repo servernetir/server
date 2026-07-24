@@ -45,8 +45,8 @@ class OtpService
     {
         $destination = $this->normalize($channel, $destination);
 
-        if ($destination === '') {
-            return OtpIssue::fail('شمارهٔ موبایل معتبر نیست');
+        if ($destination === '' || ($channel === 'email' && ! filter_var($destination, FILTER_VALIDATE_EMAIL))) {
+            return OtpIssue::fail($channel === 'email' ? 'ایمیل معتبر نیست' : 'شمارهٔ موبایل معتبر نیست');
         }
 
         // ۱) سقف IP — قبل از هر چیز، چون ارزان‌ترین بررسی است
@@ -98,16 +98,18 @@ class OtpService
         // «به هیچ عنوان» روی صفحه نیاید. حالا همه‌ی شماره‌ها پیامک واقعی
         // می‌گیرند و درایور صف، اگر chat_id بله موجود باشد، هم‌زمان بله هم
         // می‌فرستد.
-        $sent = $channel === 'sms'
-            ? $this->sms->sendOtp($destination, $code)
-            : true; // ایمیل در فاز بعد
+        $sent = match ($channel) {
+            'sms'   => $this->sms->sendOtp($destination, $code),
+            'email' => $this->sendEmail($destination, $code),
+            default => false,
+        };
 
         if (! $sent) {
             $challenge->delete();
 
-            return OtpIssue::fail(
-                'ارسال پیامک انجام نشد. سرویس پیامک موقتاً در دسترس نیست؛ کمی بعد دوباره تلاش کنید.'
-            );
+            return OtpIssue::fail($channel === 'email'
+                ? 'ارسال ایمیل انجام نشد. کمی بعد دوباره تلاش کنید یا از موبایل استفاده کنید.'
+                : 'ارسال پیامک انجام نشد. سرویس پیامک موقتاً در دسترس نیست؛ کمی بعد دوباره تلاش کنید.');
         }
 
         // بله موازی — اگر کاربر بله را وصل کرده باشد، کد آن‌جا هم می‌رود.
@@ -257,6 +259,30 @@ class OtpService
         ));
 
         return in_array($destination, $list, true);
+    }
+
+    /**
+     * ارسال کد با ایمیل — جایگزینِ موبایل وقتی کاربر به شماره‌اش دسترسی ندارد.
+     * اگر میلر پیکربندی نشده باشد throw می‌شود و false برمی‌گردانیم تا کاربر
+     * پیام روشن بگیرد، نه یک شکستِ خاموش.
+     */
+    private function sendEmail(string $email, string $code): bool
+    {
+        try {
+            \Illuminate\Support\Facades\Mail::raw(
+                "کد ورود سرورنت شما: {$code}\n\nاین کد تا ".self::TTL_MINUTES." دقیقه معتبر است.\n"
+                ."اگر شما این درخواست را نداده‌اید، این پیام را نادیده بگیرید.",
+                function ($m) use ($email) {
+                    $m->to($email)->subject('کد ورود سرورنت');
+                },
+            );
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('ارسال ایمیل کد ورود انجام نشد', ['error' => $e->getMessage()]);
+
+            return false;
+        }
     }
 
     private function hash(string $code): string

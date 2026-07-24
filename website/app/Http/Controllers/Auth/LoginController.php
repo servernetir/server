@@ -4,29 +4,30 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Services\Otp\OtpService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 
 /**
- * ورود مشتری — guard «customer»، جدا از ادمین.
+ * ورود مشتری با کد یک‌بارمصرف — بدون رمز.
  *
- * سه محافظ روی هم:
- *   throttle روی روت      → حجم درخواست
- *   RateLimiter روی IP    → حدس زدن رمز یک کاربر خاص از یک شبکه
- *   locked_until روی حساب → قفل خود حساب بعد از تلاش‌های پیاپی
+ * قاعدهٔ کارفرما: موبایل اولویت است؛ اگر کاربر به موبایلش دسترسی نداشت، با
+ * ایمیل و همان‌جور کدِ یک‌بارمصرف وارد شود. دو مرحله:
  *
- * پیام خطا عمداً یکسان است («ایمیل یا رمز عبور درست نیست») تا نشود فهمید کدام
- * ایمیل‌ها در سیستم حساب دارند.
+ *   ۱) شناسه (موبایل یا ایمیل) → کد فرستاده می‌شود
+ *   ۲) کد → ورود
+ *
+ * ضدِّ برشماری: چه حساب باشد چه نباشد، به مرحلهٔ کد می‌رویم؛ کد فقط وقتی
+ * فرستاده می‌شود که حساب واقعاً وجود داشته باشد. مقصدِ مرحلهٔ دو از نشست
+ * می‌آید نه از فرم، پس کاربر نمی‌تواند با کدِ یک حساب، وارد حساب دیگری شود.
  */
 class LoginController extends Controller
 {
-    private const MAX_ATTEMPTS = 5;
-    private const LOCK_MINUTES = 15;
+    public function __construct(private OtpService $otp) {}
 
-    public function show(Request $request)
+    public function show(Request $request): View|RedirectResponse
     {
         if (Auth::guard('customer')->check()) {
             return redirect()->route($this->rp().'account.home');
@@ -35,62 +36,127 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request): RedirectResponse
+    /** مرحلهٔ ۱: شناسه → ارسال کد → صفحهٔ کد */
+    public function start(Request $request): View|RedirectResponse
     {
         $data = $request->validate([
-            'email'    => ['required', 'string', 'max:190'],
-            'password' => ['required', 'string', 'max:200'],
-        ], [], ['email' => 'ایمیل', 'password' => 'رمز عبور']);
+            'method'     => ['required', 'in:mobile,email'],
+            'identifier' => ['required', 'string', 'max:190'],
+        ], [], ['identifier' => 'شناسه']);
 
-        $email = mb_strtolower(trim($data['email']));
-        $key   = 'login:'.$request->ip().'|'.sha1($email);
+        $channel = $data['method'] === 'email' ? 'email' : 'sms';
+        $destination = $this->otp->normalize($channel, $data['identifier']);
 
-        if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
-            $seconds = RateLimiter::availableIn($key);
-
-            return back()->withInput($request->except('password'))->withErrors([
-                'email' => 'تلاش‌های ناموفق زیاد بود. '.ceil($seconds / 60).' دقیقه دیگر تلاش کنید.',
+        if ($destination === '' || ($channel === 'email' && ! filter_var($destination, FILTER_VALIDATE_EMAIL))) {
+            return back()->withInput()->withErrors([
+                'identifier' => $channel === 'email' ? 'ایمیل معتبر نیست.' : 'شمارهٔ موبایل معتبر نیست (مثل ۰۹۱۲۳۴۵۶۷۸۹).',
             ]);
         }
 
-        $customer = Customer::where('email', $email)->first();
+        $customer = $this->find($channel, $destination);
 
-        // مقایسه همیشه انجام می‌شود — حتی وقتی کاربر وجود ندارد — تا از روی
-        // زمان پاسخ نشود فهمید کدام ایمیل ثبت شده است
-        $hash = $customer?->password ?? '$2y$12$'.str_repeat('.', 53);
-        $ok   = Hash::check($data['password'], $hash) && $customer !== null;
+        // کد فقط برای حسابِ موجود و غیرِ در-انتظار فرستاده می‌شود
+        if ($customer !== null && $customer->status !== 'pending') {
+            $issue = $this->otp->issue($channel, $destination, 'login', $request->ip());
 
-        if (! $ok) {
-            RateLimiter::hit($key, self::LOCK_MINUTES * 60);
-            $customer?->increment('failed_login_count');
+            // شکستِ سختِ ارسال (سرویس پیامک/ایمیل پایین) — برخلاف cooldown که
+            // یعنی کد قبلی هنوز هست — باید به کاربر گفته شود
+            if (! $issue->ok && $issue->retryAfter === null) {
+                return back()->withInput()->withErrors(['identifier' => $issue->error]);
+            }
+        }
 
-            return back()->withInput($request->except('password'))
-                ->withErrors(['email' => 'ایمیل یا رمز عبور درست نیست.']);
+        // مقصد در نشست — مرحلهٔ ۲ نمی‌تواند دستکاری‌اش کند
+        $request->session()->put('login_otp', ['channel' => $channel, 'destination' => $destination]);
+
+        // Post-Redirect-Get: به مرحلهٔ کد هدایت می‌شویم تا رفرش دوباره POST نکند
+        // و خطاهای اعتبارسنجی از نشست بیایند
+        return redirect()->route($this->rp().'login.code');
+    }
+
+    /** مرحلهٔ ۲ (نمایش): فرم کد، از روی نشست */
+    public function code(Request $request): View|RedirectResponse
+    {
+        $ctx = $request->session()->get('login_otp');
+
+        if (! is_array($ctx)) {
+            return redirect()->route($this->rp().'login');
+        }
+
+        return view('auth.login-code', [
+            'channel' => $ctx['channel'],
+            'masked'  => $this->mask($ctx['channel'], $ctx['destination']),
+        ]);
+    }
+
+    /** مرحلهٔ ۲ (ثبت): کد → ورود */
+    public function verify(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:12']]);
+
+        $ctx = $request->session()->get('login_otp');
+
+        if (! is_array($ctx)) {
+            return redirect()->route($this->rp().'login')
+                ->withErrors(['identifier' => 'نشست منقضی شد. دوباره وارد شوید.']);
+        }
+
+        $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'login', $data['code']);
+
+        if (! $check->ok) {
+            return redirect()->route($this->rp().'login.code')->withErrors(['code' => $check->error]);
+        }
+
+        $customer = $this->find($ctx['channel'], $ctx['destination']);
+
+        if ($customer === null) {
+            $request->session()->forget('login_otp');
+
+            return redirect()->route($this->rp().'login')
+                ->withErrors(['identifier' => 'حسابی با این مشخصات پیدا نشد.']);
         }
 
         if ($customer->status === 'pending') {
-            return back()->withInput($request->except('password'))->withErrors([
-                'email' => 'ثبت‌نام این حساب کامل نشده است. دوباره ثبت‌نام را از ابتدا شروع کنید.',
-            ]);
+            return redirect()->route($this->rp().'register')
+                ->withErrors(['mobile' => 'ثبت‌نام این حساب کامل نشده است. دوباره از ابتدا شروع کنید.']);
         }
 
         if (! $customer->isActive()) {
-            return back()->withInput($request->except('password'))->withErrors([
-                'email' => 'این حساب فعال نیست. با پشتیبانی تماس بگیرید.',
-            ]);
+            return redirect()->route($this->rp().'login.code')
+                ->withErrors(['code' => 'این حساب فعال نیست. با پشتیبانی تماس بگیرید.']);
         }
 
-        RateLimiter::clear($key);
+        // ورود موفق
+        $request->session()->forget('login_otp');
 
         $customer->forceFill([
-            'last_login_at'     => now(),
+            'last_login_at'      => now(),
+            'last_login_ip'      => $request->ip(),
             'failed_login_count' => 0,
         ])->save();
 
-        Auth::guard('customer')->login($customer, $request->boolean('remember'));
+        Auth::guard('customer')->login($customer, true);
         $request->session()->regenerate();
 
         return redirect()->intended(route($this->rp().'account.home'));
+    }
+
+    /** ارسال دوبارهٔ کد */
+    public function resend(Request $request): RedirectResponse
+    {
+        $ctx = $request->session()->get('login_otp');
+
+        if (! is_array($ctx)) {
+            return redirect()->route($this->rp().'login');
+        }
+
+        $customer = $this->find($ctx['channel'], $ctx['destination']);
+
+        if ($customer !== null && $customer->status !== 'pending') {
+            $this->otp->issue($ctx['channel'], $ctx['destination'], 'login', $request->ip());
+        }
+
+        return redirect()->route($this->rp().'login.code')->with('ok', 'کد دوباره فرستاده شد.');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -100,6 +166,33 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route($this->rp().'home');
+    }
+
+    // ───────────────────────────── کمکی‌ها ─────────────────────────────
+
+    private function find(string $channel, string $destination): ?Customer
+    {
+        return $channel === 'email'
+            ? Customer::where('email', $destination)->first()
+            : Customer::where('phone', $destination)->first();
+    }
+
+    /** نمایش نیمه‌پنهانِ مقصد — کاربر بشناسدش ولی روی صفحه کامل نیفتد */
+    private function mask(string $channel, string $destination): string
+    {
+        if ($channel === 'email') {
+            $at = strpos($destination, '@');
+            if ($at === false || $at < 1) {
+                return $destination;
+            }
+            $name = substr($destination, 0, $at);
+            $head = mb_substr($name, 0, 1);
+
+            return $head.str_repeat('*', max(1, mb_strlen($name) - 1)).substr($destination, $at);
+        }
+
+        // 0912***4567
+        return mb_substr($destination, 0, 4).'***'.mb_substr($destination, -4);
     }
 
     private function rp(): string
