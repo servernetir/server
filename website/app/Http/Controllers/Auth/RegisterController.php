@@ -439,13 +439,17 @@ class RegisterController extends Controller
     private function ensureProfile(Customer $customer, array $reg): void
     {
         $identity = $customer->identityVerification;
+        $isCompany = ($reg['type'] ?? 'individual') === 'company';
 
+        // کاربرِ حقوقی حتی با احراز هویتِ شخصیِ نماینده هم «تأییدشده» نمی‌شود؛
+        // شرکت باید مدارک (معرفی‌نامه + اساسنامه) را در بخش احراز هویت آپلود کند
+        // تا تیمِ پشتیبانی تأیید کند. احراز شخصی فقط هویتِ نماینده را تأیید می‌کند.
         CustomerProfile::updateOrCreate(
             ['customer_id' => $customer->id, 'is_default' => true],
             array_filter([
                 'type'             => $reg['type'] ?? 'individual',
-                'status'           => $identity?->status === 'verified' ? 'verified' : 'draft',
-                'verified_at'      => $identity?->verified_at,
+                'status'           => (! $isCompany && $identity?->status === 'verified') ? 'verified' : 'draft',
+                'verified_at'      => $isCompany ? null : $identity?->verified_at,
                 'mobile'           => $reg['phone'] ?? null,
                 'email'            => $reg['email'],
                 'country'          => $reg['iranian'] ? 'IR' : null,

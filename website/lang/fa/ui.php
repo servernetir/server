@@ -1282,6 +1282,7 @@ return [
     'nav_invoices' => 'فاکتورها و اعتبار',
     'nav_bank' => 'حساب بانکی',
     'nav_account' => 'حساب',
+    'nav_verify' => 'احراز هویت',
     'nav_profile' => 'پروفایل و احراز هویت',
     'nav_security' => 'امنیت',
 ];

@@ -16,6 +16,8 @@ return [
         'email'         => env('SITE_SUPPORT_EMAIL', 'support@servernet.cloud'),
         'sales_email'   => env('SITE_SALES_EMAIL', 'sales@servernet.cloud'),
         'whatsapp'      => env('SITE_WHATSAPP', '17166660425'),
+        // شمارهٔ موبایلِ پشتیبانی برای اعلانِ بله (تأییدِ کاربرِ حقوقی و…) — 09xxxxxxxxx
+        'notify_phone'  => env('SUPPORT_NOTIFY_PHONE', ''),
     ],
 
     'whmcs' => [

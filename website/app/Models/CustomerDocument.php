@@ -11,6 +11,7 @@ class CustomerDocument extends Model
     protected $fillable = [
         'customer_profile_id', 'kind', 'status', 'requested_note',
         'disk_path', 'original_name', 'mime', 'size_bytes', 'sha256',
+        'scan_status', 'uploaded_at',
     ];
 
     protected function casts(): array

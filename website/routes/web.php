@@ -123,6 +123,9 @@ $site = function (): void {
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
         Route::post('/order/{product:slug}', [Account\StoreController::class, 'order'])->name('order.place')->middleware('throttle:12,1');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
+        // احراز هویت — به‌ویژه کاربرِ حقوقی (اطلاعات شرکت + معرفی‌نامه + اساسنامه)
+        Route::get('/verify', [Account\VerificationController::class, 'show'])->name('verify');
+        Route::post('/verify', [Account\VerificationController::class, 'submit'])->name('verify.submit')->middleware('throttle:forms');
         Route::get('/bank', [Account\BankAccountController::class, 'index'])->name('bank');
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
 
@@ -1222,6 +1225,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
 
         // سرورهای تحویل (WHM/cPanel/…)
+        // احراز هویتِ مشتریان — صفِ بررسی، تأیید/رد، دانلودِ امنِ مدارک
+        Route::get('/verifications', [\App\Http\Controllers\Admin\VerificationController::class, 'index'])->name('admin.verifications');
+        Route::get('/verifications/{profile}/doc/{document}', [\App\Http\Controllers\Admin\VerificationController::class, 'document'])->name('admin.verification.doc');
+        Route::post('/verifications/{profile}/approve', [\App\Http\Controllers\Admin\VerificationController::class, 'approve']);
+        Route::post('/verifications/{profile}/reject', [\App\Http\Controllers\Admin\VerificationController::class, 'reject']);
+
         Route::get('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'index'])->name('admin.servers');
         Route::post('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'store']);
         Route::post('/servers/{server}', [\App\Http\Controllers\Admin\ServerController::class, 'update']);
