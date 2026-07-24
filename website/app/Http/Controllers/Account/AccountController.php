@@ -68,6 +68,16 @@ class AccountController extends Controller
             'openInvoices' => $openInvoices,
             'credit'       => $customer->creditBalance(),
             'recent'       => $customer->payments()->latest('id')->limit(5)->get(),
+            // لاگ فعالیت و IP — حس پویایی و امنیت
+            'activity'     => \Illuminate\Support\Facades\Schema::hasTable('activity_logs')
+                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(8)->get()
+                : collect(),
+            'currentIp'    => request()->ip(),
+            // شمارش واقعی به‌جای صفرِ ثابت
+            'serviceCount' => \Illuminate\Support\Facades\Schema::hasTable('services')
+                ? $customer->services()->whereIn('status', ['active', 'pending'])->count() : 0,
+            'ticketOpen'   => \Illuminate\Support\Facades\Schema::hasTable('tickets')
+                ? $customer->tickets()->whereIn('status', ['open', 'answered'])->count() : 0,
         ]);
     }
 

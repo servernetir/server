@@ -61,7 +61,7 @@
 
             <div class="pay-row">
               <span>زمان</span>
-              <b>{{ fa_num(($payment->paid_at ?? $payment->updated_at)->format('Y/m/d — H:i')) }}</b>
+              <b>{{ stime($payment->paid_at ?? $payment->updated_at) }}</b>
             </div>
           </div>
 

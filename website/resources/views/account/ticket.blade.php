@@ -37,7 +37,7 @@
     <div class="tk-msg {{ $m->fromStaff() ? 'staff' : 'me' }}">
       <div class="tk-msg-h">
         <span class="tk-msg-who">{{ $m->fromStaff() ? __('ui.tk_staff') : __('ui.tk_you') }}</span>
-        <span class="tk-msg-t">{{ fa_num($m->created_at->format('Y/m/d H:i')) }}</span>
+        <span class="tk-msg-t">{{ stime($m->created_at) }}</span>
       </div>
       <div class="tk-msg-b">{!! nl2br(e($m->body)) !!}</div>
       @if($m->relationLoaded('attachments') && $m->attachments->isNotEmpty())

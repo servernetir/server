@@ -138,6 +138,9 @@ class LoginController extends Controller
         Auth::guard('customer')->login($customer, true);
         $request->session()->regenerate();
 
+        \App\Models\ActivityLog::record($customer->id, 'login',
+            'ورود موفق با '.($ctx['channel'] === 'email' ? 'ایمیل' : 'موبایل'), $request, 'customer');
+
         return redirect()->intended(route($this->rp().'account.home'));
     }
 

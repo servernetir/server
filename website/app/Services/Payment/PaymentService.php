@@ -274,6 +274,10 @@ class PaymentService
                 } catch (\Throwable) {
                     // اعلان هرگز تسویه را نمی‌شکند
                 }
+
+                \App\Models\ActivityLog::record($customer->id, 'payment',
+                    'پرداخت '.number_format($outcome->payment->amount).' تومان از طریق '
+                    .($outcome->payment->gateway ?? '').' انجام شد', null, 'customer');
             }
         }
 

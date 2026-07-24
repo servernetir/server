@@ -39,7 +39,7 @@
               <tr>
                 <td dir="ltr">{{ $inv->number }}</td>
                 <td>{{ $inv->kind === 'topup' ? 'افزایش اعتبار' : 'سرویس' }}</td>
-                <td>{{ fa_num(optional($inv->issued_at ?? $inv->created_at)->format('Y/m/d')) }}</td>
+                <td>{{ sdate($inv->issued_at ?? $inv->created_at) }}</td>
                 <td>
                   @if($inv->status === 'paid')
                     <span class="pnl-pill ok">پرداخت شد</span>

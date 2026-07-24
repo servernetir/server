@@ -39,7 +39,7 @@
               @elseif($t->status === 'answered')<span class="ad-badge" style="background:rgba(52,211,153,.15);color:#34d399">پاسخ‌داده</span>
               @else<span class="ad-badge" style="background:rgba(95,108,130,.15);color:#96a3ba">بسته</span>@endif
             </td>
-            <td dir="ltr">{{ optional($t->last_reply_at)->format('Y/m/d H:i') }} <small style="color:#5f6c82">{{ $t->last_reply_role === 'staff' ? '(ما)' : '(مشتری)' }}</small></td>
+            <td dir="ltr">{{ stime($t->last_reply_at) }} <small style="color:#5f6c82">{{ $t->last_reply_role === 'staff' ? '(ما)' : '(مشتری)' }}</small></td>
           </tr>
         @endforeach
       </tbody>

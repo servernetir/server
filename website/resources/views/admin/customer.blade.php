@@ -18,7 +18,7 @@
 <div class="cust-head">
   <div>
     <h2 style="margin:0;font-size:22px">{{ $c->displayName() }}</h2>
-    <div style="color:#5f6c82;margin-top:4px" dir="ltr">{{ $c->code }} · عضویت {{ optional($c->created_at)->format('Y/m/d') }}</div>
+    <div style="color:#5f6c82;margin-top:4px" dir="ltr">{{ $c->code }} · عضویت {{ sdate($c->created_at) }}</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }};font-size:13px;padding:6px 14px">{{ $st[0] }}</span>
@@ -63,9 +63,9 @@
       <div><span>موبایل</span><b dir="ltr">{{ $c->phone ?: '—' }} @if($c->phone_verified_at)<i style="color:#34d399;font-style:normal">✓</i>@endif</b></div>
       <div><span>ایمیل</span><b dir="ltr">{{ $c->email ?: '—' }} @if($c->email_verified_at)<i style="color:#34d399;font-style:normal">✓</i>@endif</b></div>
       <div><span>زبان</span><b>{{ ['fa'=>'فارسی','en'=>'انگلیسی','tr'=>'ترکی'][$c->locale] ?? $c->locale }}</b></div>
-      <div><span>آخرین ورود</span><b dir="ltr">{{ optional($c->last_login_at)->format('Y/m/d H:i') ?: '—' }}</b></div>
+      <div><span>آخرین ورود</span><b dir="ltr">{{ stime($c->last_login_at) ?: '—' }}</b></div>
       <div><span>آخرین IP</span><b dir="ltr">{{ $c->last_login_ip ?: '—' }}</b></div>
-      @if($c->locked_until && $c->locked_until->isFuture())<div><span>قفل تا</span><b style="color:#ff6b6b" dir="ltr">{{ $c->locked_until->format('Y/m/d H:i') }}</b></div>@endif
+      @if($c->locked_until && $c->locked_until->isFuture())<div><span>قفل تا</span><b style="color:#ff6b6b" dir="ltr">{{ stime($c->locked_until) }}</b></div>@endif
     </div>
   </div>
 </div>
@@ -106,7 +106,7 @@
           <td>{{ $s->cycleLabel() }}</td>
           <td>{{ $money($s->total()) }}</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
-          <td dir="ltr" style="color:#96a3ba">{{ $s->next_due_at ? $s->next_due_at->format('Y/m/d') : '—' }}</td>
+          <td dir="ltr" style="color:#96a3ba">{{ $s->next_due_at ? sdate($s->next_due_at) : '—' }}</td>
           <td class="ad-row-act" style="white-space:nowrap">
             <form method="post" action="/admin/services/{{ $s->id }}/status" style="display:inline">@csrf
               <select name="status" onchange="this.form.submit()" style="background:#0f1522;border:1px solid #1e2637;border-radius:7px;color:#e7edf7;padding:5px 8px;font:inherit;font-size:12px">
@@ -173,7 +173,7 @@
             @php $ist = ['paid'=>['پرداخت‌شده','#34d399'],'unpaid'=>['پرداخت‌نشده','#fbbf24'],'partial'=>['جزئی','#22d3ee'],'overdue'=>['معوق','#ff6b6b'],'canceled'=>['لغو','#5f6c82']][$inv->status] ?? [$inv->status,'#96a3ba']; @endphp
             <span class="ad-badge" style="background:{{ $ist[1] }}22;color:{{ $ist[1] }}">{{ $ist[0] }}</span>
           </td>
-          <td dir="ltr" style="color:#96a3ba">{{ optional($inv->issued_at)->format('Y/m/d') }}</td>
+          <td dir="ltr" style="color:#96a3ba">{{ sdate($inv->issued_at) }}</td>
         </tr>
         @endforeach
       </tbody>
@@ -199,7 +199,7 @@
               @php $pst = ['paid'=>['موفق','#34d399'],'pending'=>['در انتظار','#fbbf24'],'redirected'=>['هدایت‌شده','#22d3ee'],'failed'=>['ناموفق','#ff6b6b'],'canceled'=>['لغو','#5f6c82']][$p->status] ?? [$p->status,'#96a3ba']; @endphp
               <span style="color:{{ $pst[1] }}">{{ $pst[0] }}</span>
             </td>
-            <td dir="ltr" style="color:#96a3ba">{{ optional($p->paid_at ?? $p->created_at)->format('Y/m/d H:i') }}</td>
+            <td dir="ltr" style="color:#96a3ba">{{ stime($p->paid_at ?? $p->created_at) }}</td>
           </tr>
           @endforeach
         </tbody>
@@ -231,6 +231,25 @@
     @endif
   </div>
 </div>
+
+{{-- ══ فعالیت (لاگ با IP) ══ --}}
+@if($activity->isNotEmpty())
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>فعالیت اخیر</h3></div>
+  <table class="ad-table">
+    <tbody>
+      @foreach($activity as $a)
+      <tr>
+        <td style="width:34px"><svg class="icon" style="width:16px;height:16px;color:#96a3ba"><use href="#{{ $a->icon() }}"/></svg></td>
+        <td>{{ $a->description }}@if($a->actor === 'staff')<span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee;margin-inline-start:6px">پشتیبانی</span>@endif</td>
+        <td dir="ltr" style="color:#96a3ba">{{ $a->ip ?: '—' }}</td>
+        <td dir="ltr" style="color:#5f6c82">{{ stime($a->created_at) }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+</div>
+@endif
 
 {{-- ══ مدیریت حساب: وضعیت + رمز عبور ══ --}}
 <div class="ad-grid2">

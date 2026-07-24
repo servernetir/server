@@ -56,7 +56,7 @@
                   @elseif($t->status === 'closed')<span class="pnl-pill mute">{{ __('ui.tk_st_closed') }}</span>
                   @else<span class="pnl-pill warn">{{ __('ui.tk_st_open') }}</span>@endif
                 </td>
-                <td>{{ fa_num(optional($t->last_reply_at)->format('Y/m/d H:i')) }}</td>
+                <td>{{ stime($t->last_reply_at) }}</td>
                 <td><a class="pnl-btn" href="{{ lroute('account.ticket', $t) }}">{{ __('ui.pnl_open') }}</a></td>
               </tr>
             @endforeach

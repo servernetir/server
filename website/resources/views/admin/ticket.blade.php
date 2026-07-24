@@ -26,7 +26,7 @@
             <div class="tka-msg-h">
               <b>{{ $m->author_name ?: ($m->fromStaff() ? 'کارمند' : 'مشتری') }}</b>
               @if($m->is_internal)<span class="ad-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">یادداشت داخلی</span>@endif
-              <span dir="ltr" style="color:#5f6c82;font-size:11px">{{ $m->created_at->format('Y/m/d H:i') }}</span>
+              <span dir="ltr" style="color:#5f6c82;font-size:11px">{{ stime($m->created_at) }}</span>
             </div>
             <div class="tka-msg-b">{!! nl2br(e($m->body)) !!}</div>
             @if($m->relationLoaded('attachments') && $m->attachments->isNotEmpty())
@@ -76,7 +76,7 @@
       <div><span style="color:#5f6c82">مشتری</span><br><b>{{ $ticket->customer?->displayName() }}</b>
         <small style="color:#5f6c82;font-size:12px" dir="ltr">{{ $ticket->customer?->code }}</small></div>
       <div><span style="color:#5f6c82">بخش</span><br>{{ ['technical'=>'فنی','billing'=>'مالی','sales'=>'فروش'][$ticket->department] ?? $ticket->department }}</div>
-      <div><span style="color:#5f6c82">ساخته‌شده</span><br dir="ltr">{{ $ticket->created_at->format('Y/m/d H:i') }}</div>
+      <div><span style="color:#5f6c82">ساخته‌شده</span><br dir="ltr">{{ stime($ticket->created_at) }}</div>
 
       <form method="post" action="/admin/tickets/{{ $ticket->id }}/update" style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #1e2637;padding-top:14px">
         @csrf

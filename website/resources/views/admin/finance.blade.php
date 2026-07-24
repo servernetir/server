@@ -196,7 +196,7 @@
         @php $kindLabel = ['capital'=>'سرمایه','revenue'=>'درآمد','tax_collected'=>'مالیات گرفته','expense'=>'هزینه','tax_paid'=>'مالیات داده','withdrawal'=>'برداشت','refund'=>'بازگشت وجه']; @endphp
         @foreach($recent as $e)
           <tr>
-            <td dir="ltr">{{ $e->occurred_at->format('Y/m/d') }}</td>
+            <td dir="ltr">{{ sdate($e->occurred_at) }}</td>
             <td>{{ $kindLabel[$e->kind] ?? $e->kind }}{{ $e->category ? ' · '.($catLabels[$e->category] ?? $e->category) : '' }}</td>
             <td>{{ $e->note ?: '—' }}</td>
             <td>{{ $e->isAuto() ? 'خودکار' : 'دستی' }}</td>

@@ -114,6 +114,91 @@ if (! function_exists('blog_date')) {
     }
 }
 
+if (! function_exists('jalali_ymd')) {
+    /**
+     * میلادی → [jy, jm, jd] (جلالی). همان الگوریتم blog_date، جدا تا هرجا
+     * فرمت عددی لازم بود دوباره‌نویسی نشود.
+     *
+     * @return array{0:int,1:int,2:int}
+     */
+    function jalali_ymd(int $gy, int $gm, int $gd): array
+    {
+        $g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        $gy2 = $gy - 1600;
+        $gm2 = $gm - 1;
+        $gd2 = $gd - 1;
+        $g_day_no = 365 * $gy2 + intdiv($gy2 + 3, 4) - intdiv($gy2 + 99, 100) + intdiv($gy2 + 399, 400);
+        $g_day_no += $g_d_m[$gm2] + $gd2;
+        if ($gm2 > 1 && (($gy % 4 === 0 && $gy % 100 !== 0) || $gy % 400 === 0)) {
+            $g_day_no++;
+        }
+        $j_day_no = $g_day_no - 79;
+        $j_np = intdiv($j_day_no, 12053);
+        $j_day_no %= 12053;
+        $jy = 979 + 33 * $j_np + 4 * intdiv($j_day_no, 1461);
+        $j_day_no %= 1461;
+        if ($j_day_no >= 366) {
+            $jy += intdiv($j_day_no - 1, 365);
+            $j_day_no = ($j_day_no - 1) % 365;
+        }
+        $j_days_in_month = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+        $jm = 0;
+        for ($i = 0; $i < 12 && $j_day_no >= $j_days_in_month[$i]; $i++) {
+            $j_day_no -= $j_days_in_month[$i];
+            $jm++;
+        }
+
+        return [$jy, $jm + 1, $j_day_no + 1];
+    }
+}
+
+if (! function_exists('sdate')) {
+    /**
+     * تاریخ نمایشی: شمسیِ عددی (۱۴۰۳/۰۵/۱۲) برای fa، میلادی برای بقیه.
+     *
+     * دیتابیس میلادی و UTC می‌ماند؛ این فقط لایهٔ نمایش است. برای fa به وقت
+     * تهران تبدیل می‌شود تا ساعت و حتی روز درست باشد (نه UTC).
+     *
+     * @param  \DateTimeInterface|string|null  $date
+     */
+    function sdate($date, bool $withTime = false): string
+    {
+        if ($date === null || $date === '') {
+            return '—';
+        }
+
+        try {
+            $c = $date instanceof \DateTimeInterface
+                ? \Illuminate\Support\Carbon::instance($date)
+                : \Illuminate\Support\Carbon::parse((string) $date);
+        } catch (\Throwable) {
+            return '—';
+        }
+
+        if (app()->getLocale() !== 'fa') {
+            return $c->format($withTime ? 'Y/m/d H:i' : 'Y/m/d');
+        }
+
+        $c = $c->copy()->setTimezone('Asia/Tehran');
+        [$jy, $jm, $jd] = jalali_ymd((int) $c->format('Y'), (int) $c->format('m'), (int) $c->format('d'));
+        $out = sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
+
+        if ($withTime) {
+            $out .= ' '.$c->format('H:i');
+        }
+
+        return fa_num($out);
+    }
+}
+
+if (! function_exists('stime')) {
+    /** میان‌بر: تاریخ + ساعتِ شمسی */
+    function stime($date): string
+    {
+        return sdate($date, true);
+    }
+}
+
 if (! function_exists('site_price')) {
     /** قیمت نمایشی بر اساس زبان جاری: تومان برای fa، یورو برای en */
     function site_price(array $item): string

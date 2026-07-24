@@ -6,7 +6,7 @@
 <div class="pnl-head">
   <div>
     <h1>فاکتور <span dir="ltr">{{ $invoice->number }}</span></h1>
-    <p>{{ fa_num(optional($invoice->issued_at ?? $invoice->created_at)->format('Y/m/d')) }}</p>
+    <p>{{ sdate($invoice->issued_at ?? $invoice->created_at) }}</p>
   </div>
   <div class="pnl-acts">
     <a class="pnl-btn" href="{{ lroute('account.invoices') }}">
@@ -176,7 +176,7 @@ document.querySelectorAll('.copyable').forEach(function(el){
         <tbody>
           @foreach($invoice->payments->sortByDesc('id') as $p)
             <tr>
-              <td>{{ fa_num($p->created_at->format('Y/m/d H:i')) }}</td>
+              <td>{{ stime($p->created_at) }}</td>
               <td>{{ $p->gateway }}</td>
               <td>
                 @if($p->status === 'paid')<span class="pnl-pill ok">موفق</span>

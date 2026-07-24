@@ -46,21 +46,28 @@
     <b class="pnl-num">{{ fa_num(number_format($credit)) }}</b>
     <small>{{ __('ui.pnl_toman') }}</small>
   </div>
-  <div class="pnl-stat">
+  <a class="pnl-stat" href="{{ lroute('account.services') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-server"/></svg>{{ __('ui.pnl_services') }}</div>
-    <b class="pnl-num">{{ fa_num(0) }}</b>
-    <small>—</small>
-  </div>
-  <div class="pnl-stat {{ $openInvoices->count() ? 'is-warn' : '' }}">
+    <b class="pnl-num">{{ fa_num($serviceCount) }}</b>
+    <small>@if($serviceCount)فعال@else—@endif</small>
+  </a>
+  <a class="pnl-stat {{ $openInvoices->count() ? 'is-warn' : '' }}" href="{{ lroute('account.invoices') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-box"/></svg>{{ __('ui.pnl_invoices_open') }}</div>
     <b class="pnl-num">{{ fa_num($openInvoices->count()) }}</b>
     <small>@if($openInvoices->count()){{ fa_num(number_format($openInvoices->sum(fn ($i) => $i->due()))) }} {{ __('ui.pnl_toman') }}@else—@endif</small>
-  </div>
-  <div class="pnl-stat">
+  </a>
+  <a class="pnl-stat" href="{{ lroute('account.tickets') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-lifebuoy"/></svg>{{ __('ui.pnl_tickets_open') }}</div>
-    <b class="pnl-num">{{ fa_num(0) }}</b>
-    <small>—</small>
-  </div>
+    <b class="pnl-num">{{ fa_num($ticketOpen) }}</b>
+    <small>@if($ticketOpen)باز@else—@endif</small>
+  </a>
+</div>
+
+{{-- ══ امنیت: ورود و IP ══ --}}
+<div class="sec-strip">
+  <svg class="icon"><use href="#i-shield"/></svg>
+  <span>آخرین ورود: <b>{{ $customer->last_login_at ? stime($customer->last_login_at) : '—' }}</b>@if($customer->last_login_ip) از <b dir="ltr">{{ $customer->last_login_ip }}</b>@endif</span>
+  <span class="sec-strip-now">IP فعلی شما: <b dir="ltr">{{ $currentIp }}</b></span>
 </div>
 
 {{-- ══ کارهای معلق — فقط وقتی واقعاً کاری هست ══ --}}
@@ -122,7 +129,7 @@
           <tbody>
             @foreach($recent as $p)
               <tr>
-                <td>{{ fa_num($p->created_at->format('Y/m/d H:i')) }}</td>
+                <td>{{ stime($p->created_at) }}</td>
                 <td>{{ $p->description() }}</td>
                 <td>
                   @if($p->status === 'paid')<span class="pnl-pill ok">{{ __('ui.pnl_paid') }}</span>
@@ -140,10 +147,47 @@
   @endif
 </section>
 
+{{-- ══ فعالیت حساب (لاگ با IP) ══ --}}
+@if($activity->isNotEmpty())
+<section class="pnl-sec">
+  <div class="pnl-sec-h"><h2>فعالیت حساب</h2></div>
+  <div class="pnl-sec-b flush">
+    <ul class="act-list">
+      @foreach($activity as $a)
+        <li>
+          <span class="act-ic"><svg class="icon"><use href="#{{ $a->icon() }}"/></svg></span>
+          <span class="act-body">
+            <b>{{ $a->description }}</b>
+            <small dir="ltr">{{ stime($a->created_at) }}@if($a->ip) · {{ $a->ip }}@endif</small>
+          </span>
+          @if($a->actor === 'staff')<span class="pnl-pill mute">پشتیبانی</span>@endif
+        </li>
+      @endforeach
+    </ul>
+  </div>
+</section>
+@endif
+
 <style>
 /* عنوان داشبورد عمداً کوچک‌تر از قبل — اسم کاربر در سایدبار هست و
    تکرارش با فونت بزرگ فقط فضا می‌خورد */
 .dash-h{ font-size:clamp(17px,2.4vw,21px) !important; }
+
+.sec-strip{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:var(--pnl-gap);
+  padding:11px 15px; border:1px solid var(--line); border-radius:12px; background:var(--surface-2);
+  font-size:12.5px; color:var(--muted); }
+.sec-strip .icon{ width:16px; height:16px; color:var(--ok); flex:0 0 auto; }
+.sec-strip b{ color:var(--text); font-variant-numeric:tabular-nums; }
+.sec-strip-now{ margin-inline-start:auto; }
+.act-list{ list-style:none; margin:0; padding:0; }
+.act-list li{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
+.act-list li:last-child{ border-bottom:0; }
+.act-ic{ width:32px; height:32px; border-radius:9px; display:grid; place-items:center;
+  background:var(--surface-2); border:1px solid var(--line); flex:0 0 auto; }
+.act-ic .icon{ width:16px; height:16px; color:var(--muted); }
+.act-body{ display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.act-body b{ font-size:13px; font-weight:600; color:var(--text); }
+.act-body small{ font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
 
 .dash-quick{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
 .dash-quick a{

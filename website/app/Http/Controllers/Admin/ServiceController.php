@@ -57,6 +57,9 @@ class ServiceController extends Controller
             return $service;
         });
 
+        \App\Models\ActivityLog::record($customer->id, 'service',
+            'سرویس «'.$service->name.'» فروخته شد و پیش‌فاکتور صادر گردید', $request, 'staff');
+
         return redirect("/admin/customers/{$customer->id}")
             ->with('ok', 'سرویس «'.$service->name.'» ساخته شد و پیش‌فاکتور صادر گردید. پس از پرداخت مشتری، خودکار فعال می‌شود.');
     }

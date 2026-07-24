@@ -58,7 +58,7 @@
               @php $st = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['معلق','#ff6b6b'],'closed'=>['بسته','#5f6c82']][$c->status] ?? [$c->status,'#96a3ba']; @endphp
               <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }}">{{ $st[0] }}</span>
             </td>
-            <td dir="ltr" style="color:#96a3ba">{{ optional($c->created_at)->format('Y/m/d') }}</td>
+            <td dir="ltr" style="color:#96a3ba">{{ sdate($c->created_at) }}</td>
           </tr>
         @endforeach
       </tbody>

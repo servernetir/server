@@ -75,6 +75,9 @@ class BankTransferController extends Controller
             'reviewed_at' => now(),
         ])->save();
 
+        \App\Models\ActivityLog::record($receipt->customer_id, 'bank_approved',
+            'واریز به حساب با شناسهٔ '.$receipt->reference.' تأیید شد', $request, 'staff');
+
         return back()->with('ok', 'واریز تأیید شد؛ فاکتور تسویه و سرویس/اعتبار مربوطه اعمال شد.');
     }
 

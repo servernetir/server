@@ -39,7 +39,7 @@
                 </td>
                 <td>{{ $s->cycleLabel() }}</td>
                 <td><span class="pnl-pill" style="background:{{ $badge[1] }}22;color:{{ $badge[1] }}">{{ $badge[0] }}</span></td>
-                <td>{{ $s->next_due_at ? fa_num($s->next_due_at->format('Y/m/d')) : '—' }}</td>
+                <td>{{ sdate($s->next_due_at) }}</td>
                 <td class="num pnl-num">{{ fa_num(number_format($s->total())) }}</td>
                 <td>
                   @if($unpaid)

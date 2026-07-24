@@ -33,7 +33,7 @@
           <td>{{ fa_num(number_format($r->amount)) }} ت</td>
           <td dir="ltr" style="color:#e7edf7">{{ $r->reference }}</td>
           <td dir="ltr" style="color:#96a3ba">{{ $r->paid_from ?: '—' }}</td>
-          <td dir="ltr" style="color:#96a3ba">{{ optional($r->created_at)->format('Y/m/d H:i') }}</td>
+          <td dir="ltr" style="color:#96a3ba">{{ stime($r->created_at) }}</td>
           <td class="ad-row-act" style="white-space:nowrap">
             @if($r->status === 'pending')
               <form method="post" action="/admin/bank-transfers/{{ $r->id }}/approve" style="display:inline"

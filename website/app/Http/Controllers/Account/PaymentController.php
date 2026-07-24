@@ -127,6 +127,9 @@ class PaymentController extends Controller
             ]);
         }
 
+        \App\Models\ActivityLog::record($invoice->customer_id, 'bank_receipt',
+            'رسید واریز برای فاکتور '.$invoice->number.' با شناسهٔ '.$data['reference'].' ثبت شد', $request, 'customer');
+
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'رسید واریز شما ثبت شد و در انتظار تأیید پشتیبانی است. پس از تأیید، فاکتور تسویه و سرویس فعال می‌شود.');
     }

@@ -72,7 +72,7 @@
           <td>{{ $b->audienceLabel() }}@if($b->customer) <small style="color:#5f6c82" dir="ltr">{{ $b->customer->code }}</small>@endif</td>
           <td>{{ fa_num($b->recipients) }}</td>
           <td style="color:#96a3ba">{{ $b->sender?->name ?? '—' }}</td>
-          <td dir="ltr" style="color:#96a3ba">{{ optional($b->created_at)->format('Y/m/d H:i') }}</td>
+          <td dir="ltr" style="color:#96a3ba">{{ stime($b->created_at) }}</td>
         </tr>
         @endforeach
       </tbody>

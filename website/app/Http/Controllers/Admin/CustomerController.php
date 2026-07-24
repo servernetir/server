@@ -95,6 +95,9 @@ class CustomerController extends Controller
             'c'             => $customer,
             'creditBalance' => $customer->creditBalance(),
             'services'      => $customer->relationLoaded('services') ? $customer->services : collect(),
+            'activity'      => Schema::hasTable('activity_logs')
+                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(20)->get()
+                : collect(),
             'invoiceTotals' => [
                 'count'  => $customer->invoices->count(),
                 'unpaid' => $customer->invoices->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
@@ -152,6 +155,9 @@ class CustomerController extends Controller
         } catch (\Throwable) {
             // اعلان نباید تغییر رمز را بشکند
         }
+
+        \App\Models\ActivityLog::record($customer->id, 'password',
+            'رمز عبور توسط پشتیبانی تغییر کرد', $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
     }
