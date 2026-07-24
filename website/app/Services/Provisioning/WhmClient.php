@@ -94,6 +94,15 @@ class WhmClient
         return $this->call('listpkgs');
     }
 
+    /**
+     * ساختِ نشستِ ورودِ یک‌بارمصرف به cPanelِ کاربر — برای «ورودِ یک‌کلیکی».
+     * خروجی data.url یک آدرسِ ورودِ ازپیش‌احرازشده است.
+     */
+    public function createUserSession(string $user, string $service = 'cpaneld'): array
+    {
+        return $this->call('create_user_session', ['user' => $user, 'service' => $service]);
+    }
+
     /** آیا حساب از قبل روی سرور هست؟ (برای idempotency) */
     public function accountExists(string $user): bool
     {

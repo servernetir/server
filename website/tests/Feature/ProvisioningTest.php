@@ -17,6 +17,12 @@ class ProvisioningTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Mail::fake();   // ایمیلِ «سرویس آماده شد» SMTP واقعی نزند
+    }
+
     private function whmServer(): Server
     {
         return Server::create([

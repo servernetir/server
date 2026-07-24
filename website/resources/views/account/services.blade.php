@@ -51,6 +51,9 @@
                 <tr class="svc-detail-row"><td colspan="6" style="padding:0;border:0">
                   <div class="svc-detail">
                     @if($s->provision_status === 'done')
+                      <a class="pnl-btn primary svc-login" href="{{ lroute('account.services.cpanel', $s) }}" target="_blank" rel="noopener">
+                        <svg class="icon"><use href="#i-key"/></svg> ورود به کنترل‌پنل با یک کلیک
+                      </a>
                       <div class="svc-cred">
                         <div><span>آدرس ورود کنترل‌پنل</span>
                           @if($s->panel_url)<a href="{{ $s->panel_url }}" target="_blank" rel="noopener" dir="ltr">{{ $s->panel_url }}</a>
@@ -79,6 +82,8 @@
 
 <style>
 .svc-detail{ padding:14px 16px; background:var(--surface-2); border-top:1px solid var(--line); }
+.svc-login{ display:inline-flex; margin-bottom:12px; }
+.svc-login .icon{ width:16px; height:16px; }
 .svc-cred{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px 22px; }
 .svc-cred > div{ display:flex; flex-direction:column; gap:3px; font-size:13px; }
 .svc-cred span{ font-size:11px; color:var(--muted); }

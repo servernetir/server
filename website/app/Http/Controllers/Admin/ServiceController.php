@@ -153,8 +153,25 @@ class ServiceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
+        // اگر سرویس هنوز سرور/پلن/دامنه ندارد، همین‌جا تعیین می‌شود (رفعِ سفارشی
+        // که بدونِ سرور خریداری شده)
+        $data = $request->validate([
+            'server_id' => ['nullable', 'integer', 'exists:servers,id'],
+            'plan'      => ['nullable', 'string', 'max:80'],
+            'domain'    => ['nullable', 'string', 'max:190'],
+        ]);
+        $assign = array_filter([
+            'server_id' => $data['server_id'] ?? null,
+            'plan'      => $data['plan'] ?? null,
+            'domain'    => $data['domain'] ?? null,
+        ], fn ($v) => filled($v));
+        if ($assign) {
+            $service->update($assign);
+            $service->refresh();
+        }
+
         if (! $service->server_id) {
-            return back()->withErrors('این سرویس به سروری متصل نیست.');
+            return back()->withErrors('اول یک سرورِ تحویل انتخاب کنید.');
         }
 
         // شکست‌خورده/آماده را دوباره در صف بگذار، بعد همین حالا اجرا کن

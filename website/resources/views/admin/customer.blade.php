@@ -127,9 +127,19 @@
             @if($s->isRecurring() && $s->status === 'active')
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
             @endif
-            @if($s->server_id)
+            @if($s->server_id || $s->domain)
               @if($s->provision_status !== 'done')
-                <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:inline">@csrf<button class="del" style="color:#34d399" type="submit">{{ $s->provision_status === 'failed' ? 'تلاش دوباره' : 'ساخت روی سرور' }}</button></form>
+                {{-- نیاز به ساخت — اگر سروری نخورده، همین‌جا سرور/پلن را تعیین کن و بساز --}}
+                <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px">@csrf
+                  @unless($s->server_id)
+                    <select name="server_id" required style="background:#0f1522;border:1px solid #1e2637;border-radius:7px;color:#e7edf7;padding:5px 7px;font:inherit;font-size:12px">
+                      <option value="">سرور…</option>@foreach($servers as $srv)<option value="{{ $srv->id }}">{{ $srv->name }}</option>@endforeach
+                    </select>
+                    <input type="text" name="plan" value="{{ $s->plan }}" placeholder="plan (WHM)" style="width:100px;background:#0f1522;border:1px solid #1e2637;border-radius:7px;color:#e7edf7;padding:5px 7px;font:inherit;font-size:12px">
+                  @endunless
+                  @unless($s->domain)<input type="text" name="domain" dir="ltr" placeholder="domain" style="width:130px;background:#0f1522;border:1px solid #1e2637;border-radius:7px;color:#e7edf7;padding:5px 7px;font:inherit;font-size:12px">@endunless
+                  <button class="del" style="color:#34d399" type="submit">{{ $s->provision_status === 'failed' ? 'تلاش دوباره' : 'ساخت روی سرور' }}</button>
+                </form>
               @else
                 @if($s->status === 'suspended')
                   <form method="post" action="/admin/services/{{ $s->id }}/unsuspend" style="display:inline">@csrf<button class="del" style="color:#34d399" type="submit">رفع تعلیق</button></form>

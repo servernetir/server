@@ -231,6 +231,26 @@ class ProvisioningService
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
         }
+
+        // ایمیلِ اطلاعاتِ سرویس (نام‌کاربری/رمز/آدرسِ ورود) — best-effort
+        try {
+            $customer = $service->customer;
+            if ($customer && filled($customer->email)) {
+                \Illuminate\Support\Facades\Mail::mailer('smtp')->to($customer->email)->send(
+                    new \App\Mail\ServiceReadyMail(
+                        $service->name,
+                        $service->domain,
+                        $service->panel_url,
+                        $service->username,
+                        (string) $service->password ?: null,
+                        $customer->locale ?: 'fa',
+                    )
+                );
+            }
+        } catch (\Throwable) {
+            // ایمیل نباید تحویل را بشکند
+        }
+
         \App\Models\ActivityLog::record($service->customer_id, 'service', $text, null, 'system');
     }
 

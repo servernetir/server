@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\Service;
+use App\Services\Provisioning\WhmClient;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -18,11 +22,40 @@ class ServiceController extends Controller
         $customer = Auth::guard('customer')->user();
 
         $services = Schema::hasTable('services')
-            ? $customer->services()->with(['invoices' => fn ($q) => $q->latest('id')])->latest('id')->get()
+            ? $customer->services()->with(['invoices' => fn ($q) => $q->latest('id'), 'server'])->latest('id')->get()
             : collect();
 
         return view('account.services', AccountController::shell('services') + [
             'services' => $services,
         ]);
+    }
+
+    /**
+     * ورودِ یک‌کلیکِ مشتری به cPanelِ خودش — WHM یک نشستِ ازپیش‌احرازشده می‌سازد
+     * و مشتری مستقیم واردِ کنترل‌پنل می‌شود (بدونِ نیاز به نام‌کاربری/رمز).
+     */
+    public function cpanel(Request $request, Service $service): RedirectResponse
+    {
+        $customer = Auth::guard('customer')->user();
+        abort_unless($service->customer_id === $customer->id, 404);
+
+        if ($service->provision_status !== 'done' || ! $service->server || blank($service->username)) {
+            return back()->withErrors('ورودِ یک‌کلیک برای این سرویس هنوز در دسترس نیست.');
+        }
+
+        // فقط WHM نشستِ ورود دارد؛ بقیه به آدرسِ کنترل‌پنل هدایت می‌شوند
+        if ($service->server->type !== 'whm') {
+            return $service->panel_url ? redirect()->away($service->panel_url)
+                : back()->withErrors('آدرسِ کنترل‌پنل تعیین نشده است.');
+        }
+
+        $res = (new WhmClient($service->server))->createUserSession($service->username);
+        $url = $res['data']['url'] ?? ($res['raw']['data']['url'] ?? null);
+
+        if ($res['ok'] && $url) {
+            return redirect()->away($url);
+        }
+
+        return back()->withErrors('ورود به cPanel ناموفق بود: '.($res['reason'] ?? 'نامشخص'));
     }
 }

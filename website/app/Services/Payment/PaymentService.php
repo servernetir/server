@@ -229,10 +229,16 @@ class PaymentService
                     // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
                     // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
                     // مالی (بدونِ سرور) مثلِ قبل مستقیم فعال می‌شود.
-                    $needsDelivery = $service->server_id !== null && $service->provision_status !== 'done';
-                    $service->status = $needsDelivery ? 'awaiting_provision' : 'active';
+                    // نیازِ تحویل: سرور دارد (تحویلِ خودکار) یا دامنه دارد (هاست که
+                    // هنوز سرور نخورده → تحویلِ دستیِ ادمین). سرویسِ صرفاً مالی
+                    // (بدونِ سرور و دامنه، مثلِ پشتیبانی) مستقیم فعال می‌شود.
+                    $needsDelivery = $service->provision_status !== 'done'
+                        && ($service->server_id !== null || filled($service->domain));
                     if ($needsDelivery) {
-                        $service->provision_status = 'pending';
+                        $service->status = 'awaiting_provision';
+                        $service->provision_status = $service->server_id !== null ? 'pending' : 'manual';
+                    } else {
+                        $service->status = 'active';
                     }
                     $service->activated_at ??= now();
                     if ($service->isRecurring()) {
