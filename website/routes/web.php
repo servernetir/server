@@ -122,6 +122,7 @@ $site = function (): void {
 
         Route::get('/invoices', [Account\PaymentController::class, 'index'])->name('invoices');
         Route::get('/invoices/{invoice}', [Account\PaymentController::class, 'show'])->name('invoice');
+        Route::get('/invoices/{invoice}/print', [Account\PaymentController::class, 'printInvoice'])->name('invoice.print');
         Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
             ->name('invoice.pay')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])

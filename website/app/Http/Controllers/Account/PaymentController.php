@@ -53,6 +53,28 @@ class PaymentController extends Controller
         ]);
     }
 
+    /**
+     * نسخهٔ چاپیِ فاکتور — صفحهٔ مستقل و بهینه برای چاپ/ذخیرهٔ PDF.
+     *
+     * چرا صفحهٔ چاپ و نه PDF سمت سرور: تولید PDF فارسی سمت سرور به mPDF نیاز
+     * دارد که هزاران فایل vendor است و بدون SSH روی این سرور نصب نمی‌شود؛ و
+     * dompdf حروف فارسی را جدا/برعکس می‌کند. مرورگر فارسی را بی‌نقص رندر
+     * می‌کند، پس «ذخیره به‌صورت PDF»ِ خودِ مرورگر یک PDF واقعی و درست می‌دهد.
+     */
+    public function printInvoice(Invoice $invoice)
+    {
+        $this->authorizeInvoice($invoice);
+
+        $invoice->load('items', 'payments', 'customer.identityVerification');
+
+        return view('account.invoice-print', [
+            'invoice'   => $invoice,
+            'paid'      => $invoice->payments->firstWhere('status', 'paid'),
+            'contact'   => config('servernet.contact'),
+            'legalName' => \App\Models\Setting::get('bank_holder'),
+        ]);
+    }
+
     public function show(Invoice $invoice)
     {
         $this->authorizeInvoice($invoice);

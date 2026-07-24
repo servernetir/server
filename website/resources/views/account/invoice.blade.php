@@ -9,6 +9,9 @@
     <p>{{ sdate($invoice->issued_at ?? $invoice->created_at) }}</p>
   </div>
   <div class="pnl-acts">
+    <a class="pnl-btn {{ $invoice->status === 'paid' ? 'primary' : '' }}" href="{{ lroute('account.invoice.print', $invoice) }}" target="_blank" rel="noopener">
+      <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? 'دانلود رسید (PDF)' : 'دانلود فاکتور (PDF)' }}
+    </a>
     <a class="pnl-btn" href="{{ lroute('account.invoices') }}">
       <svg class="icon"><use href="#i-arrow"/></svg>بازگشت
     </a>
