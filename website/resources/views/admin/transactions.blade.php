@@ -53,6 +53,26 @@
   </div>
 @endif
 
+{{-- ══ درآمد به تفکیک ارز (گزارشِ چندارزی) ══ --}}
+@if($revenueByCurrency->isNotEmpty())
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>درآمد به تفکیک ارز</h3></div>
+  <table class="ad-table">
+    <thead><tr><th>ارز</th><th>درآمد (پرداختِ موفق)</th><th>تعداد تراکنش</th></tr></thead>
+    <tbody>
+      @foreach($revenueByCurrency as $row)
+      <tr>
+        <td><b>{{ $row->currency_code === 'IRT' ? 'تومان (IRT)' : $row->currency_code }}</b></td>
+        <td style="color:#34d399;font-weight:700">{{ $money($row->total, $row->currency_code) }}</td>
+        <td dir="ltr" style="color:#96a3ba">{{ fa_num($row->cnt) }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+  <p style="padding:10px 16px 14px;margin:0;font-size:12px;color:#5f6c82">تومان و یورو جدا نمایش داده می‌شوند؛ چون واحدشان هم‌مقیاس نیست، جمعِ خام معنا ندارد. این «درآمدِ واقعی» است (بدونِ افزایش اعتبار).</p>
+</div>
+@endif
+
 {{-- ══ مشتریانِ دارای اعتبار ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>مشتریانِ دارای اعتبار</h3></div>

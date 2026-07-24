@@ -31,6 +31,7 @@ class TransactionController extends Controller
                 'ready'            => false,
                 'kpis'             => ['credit' => 0, 'topups' => 0, 'paidSum' => 0, 'creditCustomers' => 0],
                 'creditByCurrency' => collect(),
+                'revenueByCurrency' => collect(),
                 'topCredit'        => collect(),
                 'credit'           => collect(),
                 'payments'         => collect(),
@@ -58,6 +59,14 @@ class TransactionController extends Controller
         // اعتبارِ کلِ مشتریان به تفکیکِ ارز — این «بدهیِ» شرکت است
         $creditByCurrency = CreditEntry::selectRaw('currency_code, SUM(amount) as bal')
             ->groupBy('currency_code')->pluck('bal', 'currency_code');
+
+        // درآمدِ واقعی (پرداختِ موفق) به تفکیکِ ارز — تومان و یورو جدا، چون
+        // واحدِ فرعی‌شان هم‌مقیاس نیست و جمعِ خام بی‌معنی است.
+        $revenueByCurrency = Payment::where('status', 'paid')
+            ->selectRaw('currency_code, SUM(amount) as total, COUNT(*) as cnt')
+            ->groupBy('currency_code')
+            ->orderByRaw("(currency_code = 'IRT') desc")
+            ->get();
 
         // مشتریانِ دارای اعتبارِ مثبت — تومان (ارزِ اصلی) اول، بعد به‌ترتیبِ مبلغ.
         // (مرتب‌سازیِ خام روی مبلغ بینِ ارزها بی‌معنی است چون واحدِ فرعیِ EUR و
@@ -92,6 +101,7 @@ class TransactionController extends Controller
             'ready'            => true,
             'kpis'             => $kpis,
             'creditByCurrency' => $creditByCurrency,
+            'revenueByCurrency' => $revenueByCurrency,
             'topCredit'        => $topCredit,
             'credit'           => $credit,
             'payments'         => $payments,
