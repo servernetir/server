@@ -101,7 +101,16 @@
         @foreach($services as $s)
         @php $sb = $s->statusBadge(); @endphp
         <tr>
-          <td><b>{{ $s->name }}</b>@if($s->description)<div style="font-size:12px;color:#5f6c82;margin-top:2px">{{ \Illuminate\Support\Str::limit($s->description, 60) }}</div>@endif</td>
+          <td><b>{{ $s->name }}</b>@if($s->description)<div style="font-size:12px;color:#5f6c82;margin-top:2px">{{ \Illuminate\Support\Str::limit($s->description, 60) }}</div>@endif
+            @if($s->server_id)
+              @php $pb = $s->provisionBadge(); @endphp
+              <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <span class="ad-badge" style="background:{{ $pb[1] }}22;color:{{ $pb[1] }}">{{ $pb[0] }}</span>
+                @if($s->server)<small dir="ltr" style="color:#5f6c82">{{ $s->server->name }}@if($s->username) · {{ $s->username }}@endif</small>@endif
+              </div>
+              @if($s->provision_status === 'failed' && $s->provision_error)<div style="font-size:11px;color:#ff6b6b;margin-top:3px">{{ $s->provision_error }}</div>@endif
+            @endif
+          </td>
           <td>{{ $s->cycleLabel() }}</td>
           <td>{{ $money($s->total()) }}</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
@@ -117,6 +126,19 @@
             </form>
             @if($s->isRecurring() && $s->status === 'active')
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
+            @endif
+            @if($s->server_id)
+              @if($s->provision_status !== 'done')
+                <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:inline">@csrf<button class="del" style="color:#34d399" type="submit">{{ $s->provision_status === 'failed' ? 'تلاش دوباره' : 'ساخت روی سرور' }}</button></form>
+              @else
+                @if($s->status === 'suspended')
+                  <form method="post" action="/admin/services/{{ $s->id }}/unsuspend" style="display:inline">@csrf<button class="del" style="color:#34d399" type="submit">رفع تعلیق</button></form>
+                @else
+                  <form method="post" action="/admin/services/{{ $s->id }}/suspend" style="display:inline">@csrf<button class="del" style="color:#fbbf24" type="submit">تعلیق سرور</button></form>
+                @endif
+                <form method="post" action="/admin/services/{{ $s->id }}/terminate" style="display:inline"
+                      data-confirm="حساب «{{ $s->username }}» از سرور حذف شود؟ برگشت‌ناپذیر است." data-confirm-danger>@csrf<button class="del" style="color:#ff6b6b" type="submit">حذف از سرور</button></form>
+              @endif
             @endif
           </td>
         </tr>
@@ -145,6 +167,24 @@
           <option value="quarterly">سه‌ماهه</option>
           <option value="yearly">سالانه</option>
         </select></label>
+      {{-- تحویل خودکار (اختیاری) --}}
+      <details style="grid-column:1/3;border:1px solid #1e2637;border-radius:10px;padding:10px 13px">
+        <summary style="cursor:pointer;font-size:13px;color:#22d3ee">تحویل خودکار روی سرور (اختیاری) — WHM/cPanel و…</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">سرور تحویل
+            <select name="server_id" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit">
+              <option value="">— بدون تحویل خودکار —</option>
+              @foreach($servers as $srv)<option value="{{ $srv->id }}">{{ $srv->name }} ({{ $srv->typeLabel() }})</option>@endforeach
+            </select></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">پکیج/پلن (نام package در WHM)
+            <input type="text" name="plan" maxlength="80" dir="ltr" placeholder="مثلاً WP-5 — خالی=default" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit"></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">نام‌کاربری (اختیاری)
+            <input type="text" name="username" maxlength="16" dir="ltr" placeholder="خالی = خودکار ساخته می‌شود" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit"></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">دامنه
+            <input type="text" name="domain" maxlength="190" dir="ltr" placeholder="client-site.com" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit"></label>
+        </div>
+        <p style="font-size:11.5px;color:#5f6c82;margin:8px 0 0">اگر سروری انتخاب شود، پس از پرداختِ مشتری، حساب <b>خودکار</b> روی سرور ساخته و اطلاعاتِ ورود در پنلِ مشتری نمایش داده می‌شود (تا یک دقیقه بعد از پرداخت). برای WHM نام‌کاربری و رمز خودکار تولید می‌شوند.</p>
+      </details>
       <div style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>صدور پیش‌فاکتور</button>
       </div>

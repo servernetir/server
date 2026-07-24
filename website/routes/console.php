@@ -51,3 +51,9 @@ Schedule::command('content:translate-missing --limit=2')
 Schedule::command('services:renew-due')
     ->dailyAt('07:00')
     ->withoutOverlapping();
+
+// صفِ تحویلِ سرویس — سرویس‌هایِ پرداخت‌شده که منتظرِ ساختِ خودکار روی سرورند.
+// هر دقیقه، جدا از درخواستِ پرداخت (تماسِ WHM نباید وب‌هوکِ درگاه را کند کند).
+Schedule::command('provision:run')
+    ->everyMinute()
+    ->withoutOverlapping();

@@ -225,7 +225,15 @@ class PaymentService
                 $service = \App\Models\Service::whereKey($invoice->service_id)->lockForUpdate()->first();
 
                 if ($service !== null && $service->status !== 'cancelled') {
-                    $service->status = 'active';
+                    // سرویسی که روی سروری تحویل می‌شود و هنوز ساخته نشده →
+                    // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
+                    // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
+                    // مالی (بدونِ سرور) مثلِ قبل مستقیم فعال می‌شود.
+                    $needsDelivery = $service->server_id !== null && $service->provision_status !== 'done';
+                    $service->status = $needsDelivery ? 'awaiting_provision' : 'active';
+                    if ($needsDelivery) {
+                        $service->provision_status = 'pending';
+                    }
                     $service->activated_at ??= now();
                     if ($service->isRecurring()) {
                         $service->next_due_at = $service->nextDueFrom(now());

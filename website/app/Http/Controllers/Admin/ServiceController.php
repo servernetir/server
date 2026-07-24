@@ -33,8 +33,15 @@ class ServiceController extends Controller
             'price'       => ['required', 'integer', 'min:0', 'max:100000000000'],
             'tax_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'cycle'       => ['required', 'in:once,monthly,quarterly,yearly'],
+            // تحویلِ خودکار (اختیاری): اگر سروری انتخاب شود، پس از پرداخت خودکار
+            // روی آن ساخته می‌شود. نام‌کاربری/رمز اگر خالی باشند خودکار ساخته می‌شوند.
+            'server_id'   => ['nullable', 'integer', 'exists:servers,id'],
+            'plan'        => ['nullable', 'string', 'max:80'],
+            'username'    => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9]{0,15}$/'],
+            'domain'      => ['nullable', 'string', 'max:190'],
         ], [], [
             'name' => 'نام سرویس', 'price' => 'مبلغ', 'cycle' => 'دوره',
+            'username' => 'نام‌کاربری', 'domain' => 'دامنه',
         ]);
 
         $taxPct = (int) ($data['tax_percent'] ?? 0);
@@ -50,6 +57,10 @@ class ServiceController extends Controller
                 'cycle'         => $data['cycle'],
                 'status'        => 'pending',
                 'created_by'    => $request->user()?->id,
+                'server_id'     => $data['server_id'] ?? null,
+                'plan'          => $data['plan'] ?? null,
+                'username'      => $data['username'] ?? null,
+                'domain'        => $data['domain'] ?? null,
             ]);
 
             $this->issueInvoice($service);
@@ -135,5 +146,55 @@ class ServiceController extends Controller
         $this->issueInvoice($service);
 
         return back()->with('ok', 'فاکتور تمدید صادر شد؛ پس از پرداخت، سررسید سرویس یک دوره جلو می‌رود.');
+    }
+
+    /** ساختِ فوری/تلاشِ دوبارهٔ تحویل روی سرور (بدونِ صبر برای کرون) */
+    public function provision(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! $service->server_id) {
+            return back()->withErrors('این سرویس به سروری متصل نیست.');
+        }
+
+        // شکست‌خورده/آماده را دوباره در صف بگذار، بعد همین حالا اجرا کن
+        if (in_array($service->provision_status, [null, 'failed', 'manual'], true)) {
+            $service->update(['provision_status' => 'pending']);
+        }
+
+        $ok = app(\App\Services\Provisioning\ProvisioningService::class)->provision($service->fresh());
+
+        return $ok
+            ? back()->with('ok', 'سرویس روی سرور ساخته و تحویل شد.')
+            : back()->withErrors('تحویل انجام نشد: '.($service->fresh()->provision_error ?: 'روی این سرور تحویلِ خودکار نیست یا خطا رخ داد.'));
+    }
+
+    public function suspend(Request $request, Service $service): RedirectResponse
+    {
+        $r = app(\App\Services\Provisioning\ProvisioningService::class)->suspend($service);
+
+        return ($r->ok || $r->manual)
+            ? back()->with('ok', 'سرویس معلق شد'.($r->manual ? ' (تعلیقِ سرور را دستی انجام دهید).' : ' و روی سرور غیرفعال شد.'))
+            : back()->withErrors('تعلیق ناموفق: '.$r->error);
+    }
+
+    public function unsuspend(Request $request, Service $service): RedirectResponse
+    {
+        $r = app(\App\Services\Provisioning\ProvisioningService::class)->unsuspend($service);
+
+        return ($r->ok || $r->manual)
+            ? back()->with('ok', 'سرویس فعال شد.')
+            : back()->withErrors('رفعِ تعلیق ناموفق: '.$r->error);
+    }
+
+    public function terminate(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
+
+        return ($r->ok || $r->manual)
+            ? back()->with('ok', 'سرویس لغو شد'.($r->manual ? ' (حذفِ سرور را دستی انجام دهید).' : ' و حساب از سرور حذف شد.'))
+            : back()->withErrors('حذف ناموفق: '.$r->error);
     }
 }

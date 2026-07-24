@@ -1191,6 +1191,19 @@ Route::prefix('admin')->group(function () {
         Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
 
+        // سرورهای تحویل (WHM/cPanel/…)
+        Route::get('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'index'])->name('admin.servers');
+        Route::post('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'store']);
+        Route::post('/servers/{server}', [\App\Http\Controllers\Admin\ServerController::class, 'update']);
+        Route::post('/servers/{server}/test', [\App\Http\Controllers\Admin\ServerController::class, 'test']);
+        Route::post('/servers/{server}/delete', [\App\Http\Controllers\Admin\ServerController::class, 'destroy']);
+
+        // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
+        Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);
+        Route::post('/services/{service}/suspend', [\App\Http\Controllers\Admin\ServiceController::class, 'suspend']);
+        Route::post('/services/{service}/unsuspend', [\App\Http\Controllers\Admin\ServiceController::class, 'unsuspend']);
+        Route::post('/services/{service}/terminate', [\App\Http\Controllers\Admin\ServiceController::class, 'terminate']);
+
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');
         Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);

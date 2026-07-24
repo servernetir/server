@@ -100,6 +100,9 @@ class CustomerController extends Controller
             'activity'      => Schema::hasTable('activity_logs')
                 ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(20)->get()
                 : collect(),
+            'servers'       => Schema::hasTable('servers')
+                ? \App\Models\Server::where('status', 'active')->orderBy('name')->get()
+                : collect(),
             'invoiceTotals' => [
                 'count'  => $customer->invoices->count(),
                 'unpaid' => $customer->invoices->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
