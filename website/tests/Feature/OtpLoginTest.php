@@ -75,10 +75,24 @@ class OtpLoginTest extends TestCase
         $this->assertFalse(Auth::guard('customer')->check());
     }
 
-    public function test_unknown_number_still_shows_code_step_but_sends_nothing(): void
+    public function test_unknown_number_redirects_to_signup_and_sends_nothing(): void
     {
+        // شماره‌ای که هیچ حسابی ندارد: کد فرستاده نمی‌شود و کاربر با موبایلِ
+        // پرشده به صفحهٔ ثبت‌نام هدایت می‌شود (رفتارِ خواسته‌شدهٔ کارفرما).
         $this->post('/login', ['method' => 'mobile', 'identifier' => '09120000000'])
-            ->assertRedirect('/login/code');
+            ->assertRedirect('/register')
+            ->assertSessionHas('reg_notice');
+
+        $this->assertEmpty($this->codes);
+    }
+
+    public function test_pending_registration_is_sent_to_signup(): void
+    {
+        // ثبت‌نامِ نیمه‌کاره (status=pending) هم به‌جای کد، به ثبت‌نام می‌رود
+        $c = $this->customer(['status' => 'pending']);
+
+        $this->post('/login', ['method' => 'mobile', 'identifier' => $c->phone])
+            ->assertRedirect('/register');
 
         $this->assertEmpty($this->codes);
     }
@@ -97,15 +111,15 @@ class OtpLoginTest extends TestCase
         ]);
     }
 
-    public function test_suspended_customer_cannot_log_in_even_with_valid_code(): void
+    public function test_suspended_customer_is_blocked_at_start_without_sending_code(): void
     {
+        // حسابِ معلق پیش از ارسالِ کد رد می‌شود تا کدِ پولی هدر نرود
         $c = $this->customer(['status' => 'suspended']);
-        $this->post('/login', ['method' => 'mobile', 'identifier' => $c->phone])->assertRedirect('/login/code');
 
-        $code = $this->codes[$c->phone] ?? null;
-        $this->assertNotNull($code);
+        $this->post('/login', ['method' => 'mobile', 'identifier' => $c->phone])
+            ->assertSessionHasErrors('identifier');
 
-        $this->post('/login/verify', ['code' => $code])->assertSessionHasErrors('code');
+        $this->assertEmpty($this->codes);
         $this->assertFalse(Auth::guard('customer')->check());
     }
 

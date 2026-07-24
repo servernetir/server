@@ -1120,6 +1120,12 @@ Route::prefix('admin')->group(function () {
     Route::get('/login', [AdminAuth::class, 'showLogin'])->name('admin.login');
     // محدودیت نرخ: جلوگیری از حمله‌ی جستجوی فراگیر روی رمز مدیر
     Route::post('/login', [AdminAuth::class, 'login'])->middleware('throttle:signin');
+    // ورود دومرحله‌ای مدیر: بعد از تأیید درست رمز، یک کد یک‌بارمصرف به ایمیل مدیر
+    // می‌رود و تا تأیید نشود، نشستِ مدیر برقرار نمی‌شود. این روت‌ها بیرونِ
+    // «auth:web» هستند چون کاربر هنوز وارد نشده است.
+    Route::get('/login/otp', [AdminAuth::class, 'showOtp'])->name('admin.login.otp');
+    Route::post('/login/otp', [AdminAuth::class, 'verifyOtp'])->middleware('throttle:otp');
+    Route::post('/login/otp/resend', [AdminAuth::class, 'resendOtp'])->middleware('throttle:otp');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
     // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست
@@ -1163,6 +1169,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
+        Route::post('/customers/{customer}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
+        // حذف فاکتورِ پرداخت‌نشده (فاکتورِ پرداخت‌شده هرگز حذف نمی‌شود)
+        Route::post('/invoices/{invoice}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroyInvoice']);
 
         // فروش و مدیریت سرویس‌های مشتری
         Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);

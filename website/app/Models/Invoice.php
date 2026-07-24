@@ -72,6 +72,16 @@ class Invoice extends Model
         return in_array($this->status, ['unpaid', 'draft'], true) && $this->due() > 0;
     }
 
+    /**
+     * آیا این فاکتور قابلِ حذف است؟ فقط فاکتوری که هیچ پولی رویش ننشسته و
+     * پرداخت‌شده/جزئی نیست — تا سابقهٔ مالی و مالیاتی هرگز پاک نشود.
+     */
+    public function isDeletable(): bool
+    {
+        return $this->paid <= 0
+            && in_array($this->status, ['draft', 'unpaid', 'overdue', 'canceled'], true);
+    }
+
     /** مانده — هرگز منفی */
     public function due(): int
     {

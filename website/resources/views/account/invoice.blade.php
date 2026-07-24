@@ -144,6 +144,17 @@
         @csrf<input type="hidden" name="gateway" value="bale">
         <div class="pm-pane-h"><b>پرداخت با کیف پول بله</b></div>
         <p class="pm-note">به ربات پرداخت بله منتقل می‌شوید و بدون نیاز به کارت، از موجودی کیف پول بله پرداخت می‌کنید.</p>
+        @php $baleUser = config('services.bale.username'); @endphp
+        @if($baleUser)
+          <div class="bale-hint">
+            <b>نکته:</b> برای پرداخت باید اول وارد ربات بلهٔ سرورنت شده باشید. اگر خطای
+            «ابتدا وارد ربات شوید» گرفتید، این دکمه را بزنید، ربات را <b>Start</b> کنید،
+            بعد برگردید و «ادامه در بله» را بزنید.
+            <a href="https://ble.ir/{{ $baleUser }}" target="_blank" rel="noopener" class="bale-bot-btn">
+              <svg class="icon"><use href="#i-bot"/></svg> ورود به ربات بلهٔ سرورنت
+            </a>
+          </div>
+        @endif
         <button type="submit" class="pnl-btn primary" style="justify-content:center">ادامه در بله</button>
       </form>
     @endif
@@ -213,6 +224,13 @@
   animation:pmIn .22s ease; }
 .pm-pane-h{ font-size:14px; margin-bottom:10px; }
 .pm-note{ font-size:12.5px; color:var(--muted); line-height:2; margin:0 0 12px; }
+.bale-hint{ font-size:12.5px; color:var(--muted); line-height:2; margin:0 0 14px; padding:12px 14px;
+  border:1px solid var(--warn-line,rgba(251,191,36,.3)); border-radius:12px; background:rgba(251,191,36,.06); }
+.bale-hint b{ color:var(--text); }
+.bale-bot-btn{ display:inline-flex; align-items:center; gap:8px; margin-top:10px; text-decoration:none;
+  background:linear-gradient(135deg,#22c55e,#15a34a); color:#fff; font-size:13px; font-weight:700;
+  border-radius:11px; padding:10px 16px; }
+.bale-bot-btn .icon{ width:17px; height:17px; }
 @keyframes pmIn{ from{ opacity:0; transform:translateY(6px) } to{ opacity:1; transform:none } }
 .bank-box{ display:grid; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:4px; }
 .bank-box > div{ display:flex; justify-content:space-between; gap:12px; font-size:13px; }

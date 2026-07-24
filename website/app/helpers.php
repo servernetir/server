@@ -320,3 +320,85 @@ if (! function_exists('word_count_fa')) {
         return (int) preg_match_all('/[\p{L}\p{N}]+/u', strip_tags($text));
     }
 }
+
+if (! function_exists('ua_parse')) {
+    /**
+     * تجزیهٔ user-agent به مرورگر + سیستم‌عامل + نوعِ دستگاه — سبک و بدون وابستگی.
+     *
+     * برای نمایشِ لاگِ ورودِ کاربر («با چه مرورگر/سیستمی وارد شدی»). دقتِ کامل
+     * هدف نیست؛ پوششِ حالت‌های رایج کافی است. خروجی:
+     *   ['browser'=>string, 'os'=>string, 'device'=>'mobile'|'tablet'|'desktop'|'bot',
+     *    'icon'=>string, 'label'=>string]
+     */
+    function ua_parse(?string $ua): array
+    {
+        $ua = trim((string) $ua);
+        if ($ua === '') {
+            return ['browser' => '', 'os' => '', 'device' => 'desktop', 'icon' => 'i-monitor', 'label' => '—'];
+        }
+
+        // مرورگر — ترتیب مهم است (Edge خودش را Chrome هم معرفی می‌کند)
+        $browser = '';
+        $map = [
+            'Edg'            => 'Edge',
+            'OPR'            => 'Opera',
+            'Opera'          => 'Opera',
+            'SamsungBrowser' => 'Samsung Internet',
+            'YaBrowser'      => 'Yandex',
+            'Vivaldi'        => 'Vivaldi',
+            'Brave'          => 'Brave',
+            'CriOS'          => 'Chrome',
+            'FxiOS'          => 'Firefox',
+            'Firefox'        => 'Firefox',
+            'Chrome'         => 'Chrome',
+            'Safari'         => 'Safari',
+            'MSIE'           => 'Internet Explorer',
+            'Trident'        => 'Internet Explorer',
+        ];
+        foreach ($map as $needle => $name) {
+            if (stripos($ua, $needle) !== false) {
+                $browser = $name;
+                break;
+            }
+        }
+
+        // سیستم‌عامل
+        $os = '';
+        if (preg_match('/Windows NT/i', $ua)) {
+            $os = 'Windows';
+        } elseif (preg_match('/iPhone|iPad|iPod/i', $ua)) {
+            $os = 'iOS';
+        } elseif (preg_match('/Android/i', $ua)) {
+            $os = 'Android';
+        } elseif (preg_match('/Mac OS X|Macintosh/i', $ua)) {
+            $os = 'macOS';
+        } elseif (preg_match('/Ubuntu/i', $ua)) {
+            $os = 'Ubuntu';
+        } elseif (preg_match('/Linux/i', $ua)) {
+            $os = 'Linux';
+        } elseif (preg_match('/CrOS/i', $ua)) {
+            $os = 'ChromeOS';
+        }
+
+        // نوع دستگاه + آیکن
+        $device = 'desktop';
+        if (preg_match('/bot|crawl|spider|slurp|curl|wget|python-requests|headless/i', $ua)) {
+            $device = 'bot';
+        } elseif (preg_match('/iPad|Tablet/i', $ua) || (preg_match('/Android/i', $ua) && ! preg_match('/Mobile/i', $ua))) {
+            $device = 'tablet';
+        } elseif (preg_match('/Mobile|iPhone|iPod|Android.*Mobile/i', $ua)) {
+            $device = 'mobile';
+        }
+        $icon = match ($device) {
+            'mobile' => 'i-smartphone',
+            'bot'    => 'i-bot',
+            default  => 'i-monitor',   // desktop + tablet
+        };
+
+        // برچسبِ خوانا
+        $parts = array_filter([$browser, $os]);
+        $label = $parts ? implode(' · ', $parts) : '—';
+
+        return compact('browser', 'os', 'device', 'icon', 'label');
+    }
+}

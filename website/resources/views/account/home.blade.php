@@ -144,7 +144,11 @@
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>فعالیت و امنیت حساب</h2></div>
 
-  {{-- نوار جلسه: ساعت زندهٔ شمسی + IP فعلی + آخرین ورود --}}
+  {{-- نوار جلسه: ساعت زندهٔ شمسی + IP و مکانِ فعلی + دستگاه + آخرین ورود --}}
+  @php
+    $cgeo = app(\App\Services\GeoIp::class)->locate($currentIp);
+    $cdev = ua_parse(request()->userAgent());
+  @endphp
   <div class="pnl-sec-b">
     <div class="sess-bar">
       <div class="sess-tile sess-clock">
@@ -157,8 +161,16 @@
       <div class="sess-tile">
         <span class="sess-ic"><svg class="icon"><use href="#i-globe"/></svg></span>
         <div class="sess-t">
-          <span>IP فعلی شما</span>
+          <span>IP و مکانِ فعلی شما</span>
           <b dir="ltr">{{ $currentIp }}</b>
+          @if($cgeo)<span>{{ $cgeo['flag'] }} {{ $cgeo['country'] }}{{ $cgeo['region'] ? '، '.$cgeo['region'] : '' }}</span>@endif
+        </div>
+      </div>
+      <div class="sess-tile">
+        <span class="sess-ic"><svg class="icon"><use href="#{{ $cdev['icon'] }}"/></svg></span>
+        <div class="sess-t">
+          <span>دستگاه فعلی</span>
+          <b>{{ $cdev['label'] !== '—' ? $cdev['label'] : 'نامشخص' }}</b>
         </div>
       </div>
       <div class="sess-tile">
@@ -181,6 +193,13 @@
           <span class="act-body">
             <b>{{ $a->description }}</b>
             <small dir="ltr">{{ stime($a->created_at) }}@if($a->ip) · {{ $a->ip }}@endif</small>
+            @php $dev = $a->device(); $geo = $a->geoLabel(); @endphp
+            @if($dev['label'] !== '—' || $geo)
+              <small class="act-meta">
+                @if($dev['label'] !== '—')<svg class="icon"><use href="#{{ $dev['icon'] }}"/></svg><span>{{ $dev['label'] }}</span>@endif
+                @if($geo)<span class="act-geo">{{ $geo }}</span>@endif
+              </small>
+            @endif
           </span>
           @if($a->actor === 'staff')<span class="pnl-pill mute">پشتیبانی</span>@endif
         </li>
@@ -212,9 +231,9 @@
    تکرارش با فونت بزرگ فقط فضا می‌خورد */
 .dash-h{ font-size:clamp(17px,2.4vw,21px) !important; }
 
-/* نوار جلسه — ساعت زنده + IP + آخرین ورود، حرفه‌ای و کارتی */
-.sess-bar{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-@media(max-width:640px){ .sess-bar{ grid-template-columns:1fr; } }
+/* نوار جلسه — ساعت زنده + IP/مکان + دستگاه + آخرین ورود، حرفه‌ای و کارتی */
+.sess-bar{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+@media(max-width:520px){ .sess-bar{ grid-template-columns:1fr; } }
 .sess-tile{ display:flex; align-items:center; gap:12px; padding:14px 16px;
   border:1px solid var(--line); border-radius:14px; background:var(--surface-2); }
 .sess-tile.sess-clock{ background:linear-gradient(135deg, rgba(34,211,238,.10), var(--surface-2)); border-color:var(--info-line); }
@@ -238,6 +257,9 @@
 .act-body{ display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
 .act-body b{ font-size:13px; font-weight:600; color:var(--text); }
 .act-body small{ font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
+.act-meta{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; color:var(--muted) !important; }
+.act-meta .icon{ width:13px; height:13px; color:var(--muted); flex:0 0 auto; }
+.act-meta .act-geo{ padding-inline-start:6px; border-inline-start:1px solid var(--line); }
 
 .dash-quick{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
 .dash-quick a{

@@ -5,6 +5,9 @@
 @section('sub', __('ui.auth_reg_sub'))
 
 @section('form')
+@if(session('reg_notice'))
+  <div style="margin-bottom:14px;padding:11px 14px;border-radius:11px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.28);color:#22a5bd;font-size:13px;line-height:1.9">{{ session('reg_notice') }}</div>
+@endif
 <form method="POST" action="{{ lroute('register.start') }}" class="auth-f" novalidate>
   @csrf
 

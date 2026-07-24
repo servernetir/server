@@ -26,7 +26,8 @@ class AdminBroadcastTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Http::fake();   // هیچ تماس شبکه‌ای واقعی نباید برود
+        Http::fake();                                    // هیچ تماس شبکه‌ای واقعی نباید برود
+        \Illuminate\Support\Facades\Mail::fake();        // و هیچ SMTP واقعی هم (ارسالِ ایمیلِ اعلان)
     }
 
     private function staff(): User
@@ -46,17 +47,32 @@ class AdminBroadcastTest extends TestCase
         ], $over));
     }
 
-    public function test_broadcast_to_all_excludes_customers_without_phone(): void
+    public function test_broadcast_to_all_reaches_customers_by_phone_or_email(): void
     {
-        $this->customer();
-        $this->customer();
-        $this->customer(['phone' => null]);   // بدون موبایل
+        $this->customer();                    // موبایل + ایمیل
+        $this->customer();                    // موبایل + ایمیل
+        $this->customer(['phone' => null]);   // فقط ایمیل — حالا با کانالِ ایمیل به او هم می‌رسد
 
         $this->actingAs($this->staff(), 'web')
             ->post('/admin/broadcasts', ['audience' => 'all', 'body' => 'پیام همگانی'])
             ->assertRedirect();
 
-        $this->assertSame(2, Broadcast::latest('id')->first()->recipients);
+        // هر سه گیرنده‌اند: دو نفر با پیامک/بله/ایمیل و یک نفر فقط با ایمیل
+        $this->assertSame(3, Broadcast::latest('id')->first()->recipients);
+    }
+
+    public function test_broadcast_also_emails_recipients(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->customer();
+        $this->customer();
+
+        $this->actingAs($this->staff(), 'web')
+            ->post('/admin/broadcasts', ['audience' => 'all', 'title' => 'خبر', 'body' => 'متنِ اعلان'])
+            ->assertRedirect();
+
+        // به هر مشتریِ دارای ایمیل، یک ایمیلِ اعلان با قالبِ برنددار فرستاده می‌شود
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BroadcastMail::class, 2);
     }
 
     public function test_broadcast_without_title_does_not_fail(): void

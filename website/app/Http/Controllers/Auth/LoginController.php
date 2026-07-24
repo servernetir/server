@@ -19,9 +19,10 @@ use Illuminate\Support\Facades\Auth;
  *   ۱) شناسه (موبایل یا ایمیل) → کد فرستاده می‌شود
  *   ۲) کد → ورود
  *
- * ضدِّ برشماری: چه حساب باشد چه نباشد، به مرحلهٔ کد می‌رویم؛ کد فقط وقتی
- * فرستاده می‌شود که حساب واقعاً وجود داشته باشد. مقصدِ مرحلهٔ دو از نشست
- * می‌آید نه از فرم، پس کاربر نمی‌تواند با کدِ یک حساب، وارد حساب دیگری شود.
+ * اگر شناسه به هیچ حسابی نخورد (یا ثبت‌نامش نیمه‌کاره باشد)، کد فرستاده
+ * نمی‌شود؛ کاربر با همان شناسهٔ پرشده به صفحهٔ ثبت‌نام هدایت می‌شود. مقصدِ
+ * مرحلهٔ دو از نشست می‌آید نه از فرم، پس کاربر نمی‌تواند با کدِ یک حساب،
+ * وارد حساب دیگری شود.
  */
 class LoginController extends Controller
 {
@@ -55,15 +56,29 @@ class LoginController extends Controller
 
         $customer = $this->find($channel, $destination);
 
-        // کد فقط برای حسابِ موجود و غیرِ در-انتظار فرستاده می‌شود
-        if ($customer !== null && $customer->status !== 'pending') {
-            $issue = $this->otp->issue($channel, $destination, 'login', $request->ip());
+        // حسابِ ناموجود یا نیمه‌ثبت‌نام: کد نفرست (پول و سردرگمی)، بلکه کاربر را
+        // با شناسهٔ پرشده به صفحهٔ ثبت‌نام ببر تا کار حرفه‌ای باشد. این عمداً
+        // جایگزینِ رفتار قدیمیِ «ضدِّ برشماری» است — کارفرما نمایشِ صریحِ
+        // «چنین حسابی نیست» و هدایت به ثبت‌نام را خواست.
+        if ($customer === null || $customer->status === 'pending') {
+            $prefill = $channel === 'email' ? ['email' => $destination] : ['phone' => $destination];
 
-            // شکستِ سختِ ارسال (سرویس پیامک/ایمیل پایین) — برخلاف cooldown که
-            // یعنی کد قبلی هنوز هست — باید به کاربر گفته شود
-            if (! $issue->ok && $issue->retryAfter === null) {
-                return back()->withInput()->withErrors(['identifier' => $issue->error]);
-            }
+            return redirect()->route($this->rp().'register')
+                ->withInput($prefill)
+                ->with('reg_notice', __('ui.auth_no_account_signup'));
+        }
+
+        // حساب هست ولی فعال نیست (معلق/بسته): کدِ پولی نفرست، شفاف بگو.
+        if (! $customer->isActive()) {
+            return back()->withInput()->withErrors(['identifier' => __('ui.auth_account_blocked')]);
+        }
+
+        $issue = $this->otp->issue($channel, $destination, 'login', $request->ip());
+
+        // شکستِ سختِ ارسال (سرویس پیامک/ایمیل پایین) — برخلاف cooldown که
+        // یعنی کد قبلی هنوز هست — باید به کاربر گفته شود
+        if (! $issue->ok && $issue->retryAfter === null) {
+            return back()->withInput()->withErrors(['identifier' => $issue->error]);
         }
 
         // مقصد در نشست — مرحلهٔ ۲ نمی‌تواند دستکاری‌اش کند
@@ -155,9 +170,15 @@ class LoginController extends Controller
 
         $customer = $this->find($ctx['channel'], $ctx['destination']);
 
-        if ($customer !== null && $customer->status !== 'pending') {
-            $this->otp->issue($ctx['channel'], $ctx['destination'], 'login', $request->ip());
+        // اگر حساب نیست/نیمه‌ثبت‌نام است، اصلاً نباید روی صفحهٔ کد باشد —
+        // به ورود برگردان (هم‌راستا با start که دیگر برای این حالت کد نمی‌فرستد).
+        if ($customer === null || $customer->status === 'pending') {
+            $request->session()->forget('login_otp');
+
+            return redirect()->route($this->rp().'login');
         }
+
+        $this->otp->issue($ctx['channel'], $ctx['destination'], 'login', $request->ip());
 
         return redirect()->route($this->rp().'login.code')->with('ok', 'کد دوباره فرستاده شد.');
     }

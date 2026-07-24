@@ -16,6 +16,7 @@ class ActivityLog extends Model
 
     protected $fillable = [
         'customer_id', 'actor', 'action', 'description', 'ip', 'user_agent',
+        'geo_cc', 'geo_country', 'geo_region',
     ];
 
     public function customer(): BelongsTo
@@ -41,17 +42,55 @@ class ActivityLog extends Model
 
             $request ??= request();
 
-            static::create([
+            $row = [
                 'customer_id' => $customerId,
                 'actor'       => $actor,
                 'action'      => $action,
                 'description' => mb_substr($description, 0, 400),
                 'ip'          => $request?->ip(),
                 'user_agent'  => mb_substr((string) $request?->userAgent(), 0, 200) ?: null,
-            ]);
+            ];
+
+            // مکانِ IP فقط اگر ستون‌هایش ساخته شده باشند (روی سرورِ ازقبل‌مهاجرت
+            // نکرده، این بخش بی‌صدا رد می‌شود و لاگ همچنان ثبت می‌شود).
+            if (Schema::hasColumn('activity_logs', 'geo_cc')) {
+                $geo = [];
+                try {
+                    $geo = app(\App\Services\GeoIp::class)->locate($request?->ip());
+                } catch (\Throwable) {
+                    // مکان‌یابی نباید لاگ را بشکند
+                }
+                $row['geo_cc']      = $geo['cc'] ?? null;
+                $row['geo_country'] = $geo['country'] ?? null;
+                $row['geo_region']  = $geo['region'] ?? null;
+            }
+
+            static::create($row);
         } catch (\Throwable) {
             // لاگ نباید خودش منبع خطا شود
         }
+    }
+
+    /** تجزیهٔ دستگاه/مرورگر از user-agent — برای نمایش */
+    public function device(): array
+    {
+        return ua_parse($this->user_agent);
+    }
+
+    /** رشتهٔ مکان: پرچم + کشور (و استان)، یا '' اگر نداریم */
+    public function geoLabel(): string
+    {
+        if (blank($this->geo_country)) {
+            return '';
+        }
+
+        $place = $this->geo_region
+            ? $this->geo_country.'، '.$this->geo_region
+            : $this->geo_country;
+
+        $flag = $this->geo_cc ? \App\Services\GeoIp::flag($this->geo_cc).' ' : '';
+
+        return $flag.$place;
     }
 
     /** آیکن مناسب هر action برای نمایش */

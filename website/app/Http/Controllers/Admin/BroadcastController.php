@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BroadcastMail;
 use App\Models\Broadcast;
 use App\Models\Customer;
 use App\Services\Notify\CustomerNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -87,6 +89,19 @@ class BroadcastController extends Controller
             } catch (\Throwable) {
                 // یک گیرندهٔ خراب نباید کل ارسال را متوقف کند
             }
+
+            // ایمیل هم بفرست (کانالِ مستقل) — قاعدهٔ کارفرما: همهٔ اعلان‌ها ایمیل
+            // هم بشوند. با قالبِ برنددارِ سه‌زبانه، به زبانِ خودِ مشتری. try/catch
+            // جدا تا شکستِ ایمیل نه مسیر پیامک/بله را بشکند نه شمارش را.
+            if (filled($customer->email)) {
+                try {
+                    Mail::mailer('smtp')->to($customer->email)->send(
+                        new BroadcastMail($title !== '' ? $title : null, $data['body'], $customer->locale ?: 'fa')
+                    );
+                } catch (\Throwable) {
+                    // ایمیلِ خراب هم نباید ارسال را متوقف کند
+                }
+            }
         }
 
         Broadcast::create([
@@ -100,7 +115,7 @@ class BroadcastController extends Controller
             'sent_by'     => $request->user()?->id,
         ]);
 
-        return back()->with('ok', 'اعلان به '.number_format($sent).' مشتری ارسال شد (پیامک و بله).');
+        return back()->with('ok', 'اعلان به '.number_format($sent).' مشتری ارسال شد (پیامک، بله و ایمیل).');
     }
 
     /**
@@ -110,7 +125,16 @@ class BroadcastController extends Controller
      */
     private function targets(string $audience, ?int $customerId)
     {
-        $q = Customer::query()->whereNotNull('phone')->where('phone', '!=', '');
+        // گیرنده = هرکس که دستِ‌کم یک راهِ تماس دارد: موبایل (برای پیامک/بله) یا
+        // ایمیل (برای ایمیل). قبلاً فقط موبایل‌دارها هدف بودند؛ حالا که ایمیل هم
+        // اضافه شده، مشتریِ فقط‌ایمیل‌دار هم باید اعلان بگیرد.
+        $q = Customer::query()->where(function ($w) {
+            $w->where(function ($p) {
+                $p->whereNotNull('phone')->where('phone', '!=', '');
+            })->orWhere(function ($e) {
+                $e->whereNotNull('email')->where('email', '!=', '');
+            });
+        });
 
         return match ($audience) {
             'one'      => Customer::where('id', $customerId)->get(),

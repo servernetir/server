@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -160,5 +162,77 @@ class CustomerController extends Controller
             'رمز عبور توسط پشتیبانی تغییر کرد', $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
+    }
+
+    /**
+     * حذف کامل مشتری.
+     *
+     * ⚠️ بازگشت‌ناپذیر و بدون soft-delete. برای حفظِ منافعِ شرکت، مشتریِ دارای
+     * سابقهٔ مالی (فاکتورِ پرداخت‌شده یا ماندهٔ اعتبار) هرگز حذف نمی‌شود — به‌جایش
+     * باید حسابش «بسته» شود. حذفِ واقعی فقط برای مشتریِ بدونِ سابقهٔ مالی است و
+     * در یک تراکنش انجام می‌شود؛ جدول‌هایِ بدونِ کلیدِ خارجیِ آبشاری دستی پاک
+     * می‌شوند تا سطرِ یتیم نماند.
+     */
+    public function destroy(Request $request, Customer $customer): RedirectResponse
+    {
+        $hasPaid = $customer->invoices()->where('status', 'paid')->exists();
+
+        if ($hasPaid || $customer->creditBalance() !== 0) {
+            return back()->withErrors(
+                'این مشتری سابقهٔ مالی (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) دارد و حذف نمی‌شود. '
+                .'برای مسدودسازی، وضعیت حساب را روی «بسته» بگذارید.'
+            );
+        }
+
+        $code = $customer->code;
+
+        DB::transaction(function () use ($customer) {
+            // جدول‌های بدونِ FK آبشاری — دستی پاک می‌شوند (services / bank_transfer_receipts / activity_logs)
+            if (Schema::hasTable('services')) {
+                \App\Models\Service::where('customer_id', $customer->id)->delete();
+            }
+            if (Schema::hasTable('bank_transfer_receipts')) {
+                \App\Models\BankTransferReceipt::where('customer_id', $customer->id)->delete();
+            }
+            if (Schema::hasTable('activity_logs')) {
+                \App\Models\ActivityLog::where('customer_id', $customer->id)->delete();
+            }
+
+            // بقیه (فاکتور، آیتم، پرداخت، پروفایل، هویت، تیکت، اعتبار، …) با FK آبشاری پاک می‌شوند
+            $customer->delete();
+        });
+
+        return redirect()->route('admin.customers')->with('ok', 'مشتری '.$code.' به‌طور کامل حذف شد.');
+    }
+
+    /**
+     * حذف یک فاکتور توسط مدیر.
+     *
+     * فقط فاکتورِ پرداخت‌نشده (بدونِ هیچ پولِ نشسته) حذف می‌شود؛ فاکتورِ
+     * پرداخت‌شده/جزئی هرگز — تا سابقهٔ مالی/مالیاتی محفوظ بماند. اگر فاکتور
+     * برای سرویسی بوده که هنوز فعال نشده، آن سرویس هم لغو می‌شود.
+     */
+    public function destroyInvoice(Request $request, Invoice $invoice): RedirectResponse
+    {
+        if (! $invoice->isDeletable()) {
+            return back()->withErrors('این فاکتور پرداخت‌شده یا جزئی است و حذف نمی‌شود. فقط فاکتورِ پرداخت‌نشده حذف می‌شود.');
+        }
+
+        $customerId = $invoice->customer_id;
+        $number = $invoice->number;
+
+        // سرویسِ منتظرِ همین فاکتور را هم لغو کن (سرویسِ فعال دست‌نخورده می‌ماند)
+        if ($invoice->service_id && Schema::hasTable('services')) {
+            $service = \App\Models\Service::find($invoice->service_id);
+            if ($service && in_array($service->status, ['pending', 'awaiting_provision'], true)) {
+                $service->status = 'cancelled';
+                $service->save();
+            }
+        }
+
+        // آیتم‌ها و تلاش‌های پرداختِ ناموفق با FK آبشاری پاک می‌شوند
+        $invoice->delete();
+
+        return redirect()->route('admin.customer', $customerId)->with('ok', 'فاکتور '.$number.' حذف شد.');
     }
 }

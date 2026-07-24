@@ -160,7 +160,7 @@
     <p style="padding:16px;color:#5f6c82">فاکتوری ندارد.</p>
   @else
     <table class="ad-table">
-      <thead><tr><th>شماره</th><th>نوع</th><th>مبلغ</th><th>پرداخت‌شده</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
+      <thead><tr><th>شماره</th><th>نوع</th><th>مبلغ</th><th>پرداخت‌شده</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
       <tbody>
         @foreach($c->invoices as $inv)
         <tr>
@@ -173,6 +173,18 @@
             <span class="ad-badge" style="background:{{ $ist[1] }}22;color:{{ $ist[1] }}">{{ $ist[0] }}</span>
           </td>
           <td dir="ltr" style="color:#96a3ba">{{ sdate($inv->issued_at) }}</td>
+          <td style="text-align:left;width:40px">
+            @if($inv->isDeletable())
+              <form method="post" action="/admin/invoices/{{ $inv->id }}/delete" style="margin:0"
+                    onsubmit="return confirm('فاکتور {{ $inv->number }} حذف شود؟ اگر برای سرویسی باشد، آن سرویس هم لغو می‌شود.')">
+                @csrf
+                <button type="submit" title="حذف فاکتور"
+                        style="background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.32);color:#ff6b6b;border-radius:8px;padding:5px 8px;cursor:pointer;line-height:0;display:inline-grid;place-items:center">
+                  <svg class="icon" style="width:14px;height:14px"><use href="#i-x"/></svg>
+                </button>
+              </form>
+            @endif
+          </td>
         </tr>
         @endforeach
       </tbody>
@@ -241,7 +253,13 @@
       <tr>
         <td style="width:34px"><svg class="icon" style="width:16px;height:16px;color:#96a3ba"><use href="#{{ $a->icon() }}"/></svg></td>
         <td>{{ $a->description }}@if($a->actor === 'staff')<span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee;margin-inline-start:6px">پشتیبانی</span>@endif</td>
-        <td dir="ltr" style="color:#96a3ba">{{ $a->ip ?: '—' }}</td>
+        <td dir="ltr" style="color:#96a3ba">
+          {{ $a->ip ?: '—' }}
+          @php $adev = $a->device(); $ageo = $a->geoLabel(); @endphp
+          @if($adev['label'] !== '—' || $ageo)
+            <div dir="rtl" style="color:#5f6c82;font-size:11.5px;margin-top:2px">{{ $adev['label'] !== '—' ? $adev['label'] : '' }}{{ $ageo ? (($adev['label'] !== '—' ? ' · ' : '').$ageo) : '' }}</div>
+          @endif
+        </td>
         <td dir="ltr" style="color:#5f6c82">{{ stime($a->created_at) }}</td>
       </tr>
       @endforeach
@@ -276,6 +294,30 @@
       <button class="btn btn-primary" type="submit">تغییر رمز</button>
     </form>
     <p style="padding:0 16px 14px;margin:0;font-size:12px;color:#5f6c82">مشتری با پیامک و بله از تغییر رمز خبردار می‌شود.</p>
+  </div>
+</div>
+
+{{-- ══ منطقهٔ خطر: حذف کامل مشتری ══ --}}
+<div class="ad-panel" style="border-color:rgba(255,107,107,.28)">
+  <div class="ad-panel-h"><h3 style="color:#ff6b6b">حذف مشتری</h3></div>
+  <div style="padding:16px">
+    @if($invoiceTotals['paid'] > 0 || $creditBalance != 0)
+      <p style="margin:0;color:#96a3ba;font-size:13px;line-height:1.9">
+        این مشتری سابقهٔ مالی دارد (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) و برای حفظِ سوابقِ حسابداری قابلِ حذف نیست.
+        برای مسدودسازی، از بخشِ «وضعیت حساب» گزینهٔ «بسته» را انتخاب کنید.
+      </p>
+    @else
+      <p style="margin:0 0 12px;color:#96a3ba;font-size:13px;line-height:1.9">
+        حذفِ مشتری بازگشت‌ناپذیر است و همهٔ فاکتورها، سرویس‌ها و سوابقِ او را برای همیشه پاک می‌کند.
+      </p>
+      <form method="post" action="/admin/customers/{{ $c->id }}/delete" style="margin:0"
+            onsubmit="return confirm('مطمئنید؟ مشتری {{ $c->code }} و همهٔ سوابقش برای همیشه حذف می‌شود.')">
+        @csrf
+        <button type="submit" class="btn" style="background:#ff6b6b;color:#0b1220;font-weight:700">
+          <svg class="icon"><use href="#i-x"/></svg> حذف کامل مشتری
+        </button>
+      </form>
+    @endif
   </div>
 </div>
 

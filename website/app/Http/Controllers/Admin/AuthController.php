@@ -4,14 +4,26 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Otp\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
+/**
+ * ورود مدیر — دومرحله‌ای.
+ *
+ * مرحلهٔ ۱: ایمیل + رمز. رمز درست تأیید می‌شود ولی نشست هنوز برقرار نمی‌شود.
+ * مرحلهٔ ۲: یک کد یک‌بارمصرف به ایمیلِ مدیر می‌رود؛ فقط بعد از تأیید کد،
+ * نشستِ مدیر ساخته می‌شود. کلیدِ گذارِ مرحله‌ها در نشست است تا مرحلهٔ دو
+ * دستکاری‌ناپذیر باشد. (کاربران users شماره‌موبایل ندارند، پس کانالِ کد ایمیل
+ * است — همان موتور OtpService که ورود مشتری استفاده می‌کند، با purpose جدا.)
+ */
 class AuthController extends Controller
 {
+    public function __construct(private OtpService $otp) {}
+
     /** راه‌اندازی اولین مدیر — فقط وقتی هیچ کاربری وجود ندارد (خودغیرفعال‌شونده) */
     public function showSetup(): View|RedirectResponse
     {
@@ -52,6 +64,7 @@ class AuthController extends Controller
         return view('admin.login');
     }
 
+    /** مرحلهٔ ۱: تأیید رمز → ارسال کد به ایمیل → صفحهٔ کد */
     public function login(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -59,13 +72,89 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (Auth::attempt($data, $request->boolean('remember'))) {
-            $request->session()->regenerate();
+        $user = User::where('email', $data['email'])->first();
 
-            return redirect()->intended('/admin');
+        // رمز را بدون ورود بررسی می‌کنیم؛ نشست هنوز ساخته نمی‌شود
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
+            return back()->withErrors(['email' => 'ایمیل یا رمز عبور نادرست است.'])->onlyInput('email');
         }
 
-        return back()->withErrors(['email' => 'ایمیل یا رمز عبور نادرست است.'])->onlyInput('email');
+        // نشانگرِ گذار در نشست — مرحلهٔ دو نمی‌تواند کاربر را عوض کند
+        $request->session()->put('admin_2fa', [
+            'user_id'  => $user->id,
+            'email'    => $user->email,
+            'remember' => $request->boolean('remember'),
+        ]);
+
+        $issue = $this->otp->issue('email', $user->email, 'admin_login', $request->ip());
+
+        // شکستِ سختِ ارسال (سرویس ایمیل پایین) — cooldown یعنی کد قبلی هنوز هست
+        // و اشکالی ندارد، پس فقط شکستِ واقعی را متوقف می‌کنیم
+        if (! $issue->ok && $issue->retryAfter === null) {
+            $request->session()->forget('admin_2fa');
+
+            return back()->withErrors(['email' => $issue->error])->onlyInput('email');
+        }
+
+        return redirect()->route('admin.login.otp');
+    }
+
+    /** مرحلهٔ ۲ (نمایش): فرم کد، از روی نشست */
+    public function showOtp(Request $request): View|RedirectResponse
+    {
+        $ctx = $request->session()->get('admin_2fa');
+
+        if (! is_array($ctx)) {
+            return redirect('/admin/login');
+        }
+
+        return view('admin.login-otp', ['masked' => $this->maskEmail($ctx['email'])]);
+    }
+
+    /** مرحلهٔ ۲ (ثبت): کد → ورود واقعی */
+    public function verifyOtp(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:12']]);
+
+        $ctx = $request->session()->get('admin_2fa');
+
+        if (! is_array($ctx)) {
+            return redirect('/admin/login')->withErrors(['email' => 'نشست منقضی شد. دوباره وارد شوید.']);
+        }
+
+        $check = $this->otp->verify('email', $ctx['email'], 'admin_login', $data['code']);
+
+        if (! $check->ok) {
+            return back()->withErrors(['code' => $check->error]);
+        }
+
+        $user = User::find($ctx['user_id']);
+
+        if (! $user) {
+            $request->session()->forget('admin_2fa');
+
+            return redirect('/admin/login')->withErrors(['email' => 'حساب مدیر پیدا نشد.']);
+        }
+
+        Auth::login($user, (bool) ($ctx['remember'] ?? false));
+        $request->session()->regenerate();
+        $request->session()->forget('admin_2fa');
+
+        return redirect()->intended('/admin');
+    }
+
+    /** ارسال دوبارهٔ کد */
+    public function resendOtp(Request $request): RedirectResponse
+    {
+        $ctx = $request->session()->get('admin_2fa');
+
+        if (! is_array($ctx)) {
+            return redirect('/admin/login');
+        }
+
+        $this->otp->issue('email', $ctx['email'], 'admin_login', $request->ip());
+
+        return redirect()->route('admin.login.otp')->with('ok', 'کد دوباره به ایمیل شما فرستاده شد.');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -75,5 +164,17 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/admin/login');
+    }
+
+    /** نمایشِ نیمه‌پنهانِ ایمیل — مدیر بشناسدش ولی کامل روی صفحه نیفتد */
+    private function maskEmail(string $email): string
+    {
+        $at = strpos($email, '@');
+        if ($at === false || $at < 1) {
+            return $email;
+        }
+        $name = substr($email, 0, $at);
+
+        return mb_substr($name, 0, 1).str_repeat('*', max(1, mb_strlen($name) - 1)).substr($email, $at);
     }
 }

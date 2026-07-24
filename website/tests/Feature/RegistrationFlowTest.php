@@ -233,11 +233,10 @@ class RegistrationFlowTest extends TestCase
         $customer = Customer::where('email', 'ali@example.com')->firstOrFail();
         $this->assertSame('pending', $customer->status);
 
-        // ورود حالا با کد یک‌بارمصرف است؛ برای حساب pending کدی صادر نمی‌شود،
-        // پس حتی با تلاش هم وارد نمی‌شود.
+        // ورود حالا با کد یک‌بارمصرف است؛ برای حساب pending کدی صادر نمی‌شود و
+        // کاربر به‌جای صفحهٔ کد، به ثبت‌نام هدایت می‌شود تا کارش را تمام کند.
         $this->post('/login', ['method' => 'mobile', 'identifier' => $customer->phone])
-            ->assertRedirect('/login/code');
-        $this->post('/login/verify', ['code' => '000000'])->assertRedirect();
+            ->assertRedirect('/register');
 
         $this->assertGuest('customer');
     }
