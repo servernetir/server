@@ -113,7 +113,7 @@ $site = function (): void {
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
-    Route::middleware('auth:customer')->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
@@ -1219,6 +1219,15 @@ Route::prefix('admin')->group(function () {
  * دارای دسترسیِ نوشتن اضافه شوند.
  */
 Route::prefix('api/v1')
+    // بی‌نشست: تماس‌گیرنده با توکنِ Bearer می‌آید نه کوکی؛ بدونِ حذفِ این‌ها،
+    // StartSession روی هر تماسِ بی‌کوکی یک ردیفِ نشستِ تازه در SQLite می‌نویسد.
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        // CSRF به نشست وابسته است؛ چون نشست را برداشتیم و احراز با توکن است، این هم می‌رود
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
     ->middleware(\App\Http\Middleware\CustomerApiToken::class.':read')
     ->group(function () {
         Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);

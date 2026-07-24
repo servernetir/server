@@ -132,6 +132,29 @@ class SecurityPageTest extends TestCase
         $this->assertTrue(Auth::guard('customer')->check());
     }
 
+    public function test_enforce_mode_logs_out_active_session_from_blocked_ip(): void
+    {
+        // اعمالِ پیوسته: حتی نشستِ فعال (بدونِ گذر از ورود) هم باید در حالتِ
+        // enforce از IPِ غیرمجاز خارج شود — تا کوکیِ remember دور نزند.
+        $c = $this->customer();
+        $c->ipRules()->create(['cidr' => '10.0.0.0/8', 'action' => 'allow', 'is_active' => true]);
+        $c->forceFill(['ip_restriction_mode' => 'enforce'])->save();
+
+        // IP تست 127.0.0.1 در فهرستِ مجاز نیست → میدل‌ور خارجش می‌کند
+        $this->actingAs($c, 'customer')->get('/account')->assertRedirect('/login');
+        $this->assertGuest('customer');
+    }
+
+    public function test_enforce_does_not_lock_out_from_allowed_ip(): void
+    {
+        // 127.0.0.1 مجاز است → نشست باقی می‌ماند
+        $c = $this->customer();
+        $c->ipRules()->create(['cidr' => '127.0.0.1/32', 'action' => 'allow', 'is_active' => true]);
+        $c->forceFill(['ip_restriction_mode' => 'enforce'])->save();
+
+        $this->actingAs($c, 'customer')->get('/account')->assertOk();
+    }
+
     public function test_api_token_create_and_use(): void
     {
         $c = $this->customer();

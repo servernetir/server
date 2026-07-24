@@ -142,7 +142,7 @@ class LoginController extends Controller
         }
 
         // قوانین IP (فقط اگر خودِ کاربر «سخت‌گیرانه» را روشن کرده باشد)
-        if ($this->ipBlocked($customer, $request->ip())) {
+        if ($customer->ipBlocks($request->ip())) {
             $request->session()->forget('login_otp');
 
             return redirect()->route($this->rp().'login')
@@ -225,49 +225,6 @@ class LoginController extends Controller
 
         // 0912***4567
         return mb_substr($destination, 0, 4).'***'.mb_substr($destination, -4);
-    }
-
-    /**
-     * آیا قوانینِ IPِ کاربر این ورود را مسدود می‌کنند؟
-     *
-     * فقط در حالتِ «enforce» مسدود می‌کند: قاعدهٔ deny که بخورد → مسدود؛ اگر
-     * قاعدهٔ allow وجود داشته باشد و IP با هیچ‌کدام نخورد → مسدود. «off» و
-     * «warn» هرگز مسدود نمی‌کنند (پیش‌فرض off است، پس تا کاربر خودش روشن نکند
-     * هیچ‌کس قفل نمی‌شود).
-     */
-    private function ipBlocked(Customer $customer, ?string $ip): bool
-    {
-        if (($customer->ip_restriction_mode ?? 'off') !== 'enforce' || ! $ip) {
-            return false;
-        }
-
-        $rules = $customer->ipRules()->where('is_active', true)->get();
-        if ($rules->isEmpty()) {
-            return false;
-        }
-
-        $match = fn ($cidr) => \Symfony\Component\HttpFoundation\IpUtils::checkIp($ip, (string) $cidr);
-
-        // قاعدهٔ deny که بخورد → مسدود
-        foreach ($rules->where('action', 'deny') as $r) {
-            if ($match($r->cidr)) {
-                return true;
-            }
-        }
-
-        // اگر قاعدهٔ allow داریم، IP باید با یکی بخورد وگرنه مسدود
-        $allow = $rules->where('action', 'allow');
-        if ($allow->isNotEmpty()) {
-            foreach ($allow as $r) {
-                if ($match($r->cidr)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        return false;
     }
 
     private function rp(): string

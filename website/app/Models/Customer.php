@@ -79,6 +79,47 @@ class Customer extends Authenticatable
         return $this->hasMany(CustomerApiToken::class);
     }
 
+    /**
+     * آیا قوانینِ IP این ورود/درخواست را مسدود می‌کنند؟
+     *
+     * فقط در حالتِ «enforce»: قاعدهٔ deny که بخورد → مسدود؛ اگر قاعدهٔ allow
+     * وجود داشته باشد و IP با هیچ‌کدام نخورد → مسدود. «off»/«warn» هرگز مسدود
+     * نمی‌کنند (پیش‌فرض off). این هم در ورود و هم در هر درخواستِ پنل (میدل‌ور)
+     * استفاده می‌شود تا نشستِ فعال/کوکیِ «مرا به‌خاطر بسپار» هم دور نزنند.
+     */
+    public function ipBlocks(?string $ip): bool
+    {
+        if (($this->ip_restriction_mode ?? 'off') !== 'enforce' || ! $ip) {
+            return false;
+        }
+
+        $rules = $this->ipRules()->where('is_active', true)->get();
+        if ($rules->isEmpty()) {
+            return false;
+        }
+
+        $match = fn ($cidr) => \Symfony\Component\HttpFoundation\IpUtils::checkIp($ip, (string) $cidr);
+
+        foreach ($rules->where('action', 'deny') as $r) {
+            if ($match($r->cidr)) {
+                return true;
+            }
+        }
+
+        $allow = $rules->where('action', 'allow');
+        if ($allow->isNotEmpty()) {
+            foreach ($allow as $r) {
+                if ($match($r->cidr)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active'

@@ -175,9 +175,14 @@ class CustomerController extends Controller
      */
     public function destroy(Request $request, Customer $customer): RedirectResponse
     {
-        $hasPaid = $customer->invoices()->where('status', 'paid')->exists();
+        // حذفِ برگشت‌ناپذیر فقط برای مدیر (نه نویسنده) — مثلِ مدیریتِ کاربرانِ پنل
+        abort_unless($request->user()->isAdmin(), 403);
 
-        if ($hasPaid || $customer->creditBalance() !== 0) {
+        $hasPaid = $customer->invoices()->where('status', 'paid')->exists();
+        // اعتبار در هر ارزی (نه فقط تومان) — برای اطمینان از نبودِ سابقهٔ مالی
+        $anyCredit = (int) \App\Models\CreditEntry::where('customer_id', $customer->id)->sum('amount');
+
+        if ($hasPaid || $anyCredit !== 0) {
             return back()->withErrors(
                 'این مشتری سابقهٔ مالی (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) دارد و حذف نمی‌شود. '
                 .'برای مسدودسازی، وضعیت حساب را روی «بسته» بگذارید.'
@@ -214,6 +219,8 @@ class CustomerController extends Controller
      */
     public function destroyInvoice(Request $request, Invoice $invoice): RedirectResponse
     {
+        abort_unless($request->user()->isAdmin(), 403);
+
         if (! $invoice->isDeletable()) {
             return back()->withErrors('این فاکتور پرداخت‌شده یا جزئی است و حذف نمی‌شود. فقط فاکتورِ پرداخت‌نشده حذف می‌شود.');
         }

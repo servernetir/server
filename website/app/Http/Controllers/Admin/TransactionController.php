@@ -59,11 +59,21 @@ class TransactionController extends Controller
         $creditByCurrency = CreditEntry::selectRaw('currency_code, SUM(amount) as bal')
             ->groupBy('currency_code')->pluck('bal', 'currency_code');
 
-        // مشتریانِ دارای اعتبارِ مثبت (بیشترین اول)
+        // مشتریانِ دارای اعتبارِ مثبت — تومان (ارزِ اصلی) اول، بعد به‌ترتیبِ مبلغ.
+        // (مرتب‌سازیِ خام روی مبلغ بینِ ارزها بی‌معنی است چون واحدِ فرعیِ EUR و
+        // IRT هم‌مقیاس نیست.)
         $topCredit = CreditEntry::selectRaw('customer_id, currency_code, SUM(amount) as bal')
             ->groupBy('customer_id', 'currency_code')
             ->having('bal', '>', 0)
+            ->orderByRaw("(currency_code = 'IRT') desc")
             ->orderByDesc('bal')->limit(50)->get();
+
+        // تعدادِ مشتریانِ متمایزِ دارای اعتبار — بدونِ سقفِ ۵۰ و بدونِ شمارشِ
+        // مضاعفِ زوجِ (مشتری، ارز)
+        $creditCustomerCount = CreditEntry::selectRaw('customer_id, SUM(amount) as bal')
+            ->groupBy('customer_id')
+            ->having('bal', '>', 0)
+            ->get()->count();
 
         $custMap = Customer::whereIn('id', $topCredit->pluck('customer_id')->unique()->all())
             ->get()->keyBy('id');
@@ -75,7 +85,7 @@ class TransactionController extends Controller
             'credit'          => (int) ($creditByCurrency['IRT'] ?? 0),                                   // بدهیِ اعتبار (تومان)
             'topups'          => (int) Invoice::where('kind', 'topup')->where('status', 'paid')->sum('total'),
             'paidSum'         => (int) Payment::where('status', 'paid')->where('currency_code', 'IRT')->sum('amount'),
-            'creditCustomers' => $topCredit->count(),
+            'creditCustomers' => $creditCustomerCount,
         ];
 
         return view('admin.transactions', [

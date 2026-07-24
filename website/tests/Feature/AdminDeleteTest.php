@@ -40,6 +40,26 @@ class AdminDeleteTest extends TestCase
         ]);
     }
 
+    public function test_author_staff_cannot_delete_customer_or_invoice(): void
+    {
+        $author = User::create([
+            'name' => 'نویسنده', 'email' => 'a'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'author',
+        ]);
+        $c = $this->customer();
+        $inv = Invoice::create([
+            'customer_id' => $c->id, 'kind' => 'service', 'currency_code' => 'IRT',
+            'subtotal' => 100000, 'tax' => 0, 'total' => 100000, 'paid' => 0,
+            'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+
+        $this->actingAs($author, 'web')->post("/admin/customers/{$c->id}/delete")->assertForbidden();
+        $this->actingAs($author, 'web')->post("/admin/invoices/{$inv->id}/delete")->assertForbidden();
+
+        $this->assertNotNull(Customer::find($c->id));
+        $this->assertNotNull(Invoice::find($inv->id));
+    }
+
     public function test_admin_can_delete_customer_without_financial_history(): void
     {
         $c = $this->customer();
