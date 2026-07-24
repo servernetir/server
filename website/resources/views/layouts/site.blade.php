@@ -30,7 +30,7 @@
 <link rel="apple-touch-icon" href="{{ asset('assets/img/og.png') }}">
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-web.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-Bold-web.woff2') }}" as="font" type="font/woff2" crossorigin>
-<script>(function(){try{if(localStorage.getItem('snet-theme')==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
+<script>(function(){try{var m=document.cookie.match(/(?:^|;\s*)snet-theme=(light|dark)/);var t=m?m[1]:localStorage.getItem('snet-theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
 <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}?v={{ filemtime(public_path('assets/css/site.css')) }}">
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')

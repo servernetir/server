@@ -1154,6 +1154,28 @@ Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
 })->middleware('throttle:6,1');
 
 /*
+| تشخیصِ نشست/دامنه — برای فهمِ اینکه چرا نامِ کاربر روی سایتِ اصلی نمی‌افتد.
+| هیچ رازی فاش نمی‌شود: app_fingerprint یک هَشِ یک‌طرفه است، کوکی‌ها فقط «نام»
+| (نه مقدار). این را روی هر دو دامنه (servernet.cloud و console.servernet.cloud)
+| در حالتِ واردشده باز کنید و JSON را مقایسه کنید. بعد از تشخیص حذف می‌شود.
+*/
+Route::get('/system/whoami', function (\Illuminate\Http\Request $r) {
+    return response()->json([
+        'host'              => $r->getHost(),
+        'secure'            => $r->isSecure(),
+        'app_fingerprint'   => substr(hash('sha256', (string) config('app.key')), 0, 12),
+        'session_domain'    => config('session.domain'),      // باید .servernet.cloud باشد؛ اگر null یعنی .env خوانده نشده (کشِ config)
+        'session_cookie'    => config('session.cookie'),
+        'session_secure'    => config('session.secure'),
+        'session_same_site' => config('session.same_site'),
+        'customer_auth'     => auth('customer')->check(),
+        'customer_code'     => optional(auth('customer')->user())->code,
+        'cookies_present'   => array_keys($r->cookies->all()),
+        'config_cached'     => app()->configurationIsCached(),
+    ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+})->middleware('throttle:30,1');
+
+/*
 | پنل مدیریت محتوا (/admin) — احراز هویت با سشن، غیرلوکالایز
 */
 use App\Http\Controllers\Admin\AuthController as AdminAuth;

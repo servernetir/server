@@ -447,6 +447,13 @@
     const light = document.documentElement.dataset.theme === 'light';
     if (light) delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = 'light';
-    try { localStorage.setItem('snet-theme', light ? 'dark' : 'light'); } catch (e) {}
+    const val = light ? 'dark' : 'light';
+    try { localStorage.setItem('snet-theme', val); } catch (e) {}
+    // کوکیِ تم روی دامنهٔ ریشه ست می‌شود تا بین سایت و کنسول (زیردامنه) یکی بماند؛
+    // روی localhost بدونِ domain (host-only) تا محلی هم کار کند.
+    try {
+      var h = location.hostname, d = /(^|\.)servernet\.cloud$/i.test(h) ? '; domain=.servernet.cloud' : '';
+      document.cookie = 'snet-theme=' + val + '; path=/; max-age=31536000; samesite=lax' + d + (location.protocol === 'https:' ? '; secure' : '');
+    } catch (e) {}
   });
 })();
