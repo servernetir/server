@@ -481,8 +481,32 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
             'sms_driver'          => config('services.sms.driver'),      // queue = غیرمسدود، ippanel = تماس مستقیم
             'sms_relay_set'       => filled(config('services.sms.relay_url')) && filled(config('services.sms.relay_secret')),
             'mail_mailer'         => config('mail.default'),             // log = ارسال نمی‌شود، smtp = واقعی
+            // کد ورود صریحاً از میلر smtp می‌رود؛ این‌ها می‌گویند آن پیکربندی هست یا نه
+            'smtp_host_set'       => filled(config('mail.mailers.smtp.host')),
+            'smtp_host'           => config('mail.mailers.smtp.host'),   // هاست راز نیست
+            'smtp_port'           => config('mail.mailers.smtp.port'),
+            'smtp_user_set'       => filled(config('mail.mailers.smtp.username')),
+            'mail_from'           => config('mail.from.address'),
             'bale_token_set'      => filled(config('services.bale.token')),
         ],
+        // ?mailtest=1 یک ایمیل تستِ واقعی فقط به آدرسِ فرستندهٔ خودمان می‌فرستد
+        // (نه به آدرس دلخواه، تا رله‌ی اسپم نشود) و نتیجه را می‌گوید — تأیید
+        // اینکه SMTP (هاست/رمز) واقعاً کار می‌کند، نه فقط سوییچ.
+        'mail_test'          => request()->boolean('mailtest') ? (function () {
+            $to = config('mail.from.address');
+            if (! filled($to)) {
+                return 'MAIL_FROM_ADDRESS تنظیم نشده';
+            }
+            try {
+                \Illuminate\Support\Facades\Mail::mailer('smtp')->raw('تست اتصال SMTP سرورنت', function ($m) use ($to) {
+                    $m->to($to)->subject('تست SMTP');
+                });
+
+                return 'OK — ایمیل تست به '.$to.' فرستاده شد (اینباکس/اسپم را ببینید)';
+            } catch (\Throwable $e) {
+                return 'خطا: '.$e->getMessage();
+            }
+        })() : 'برای تست ارسال ?mailtest=1 اضافه کنید',
         'hint'               => 'اوپن‌پروایدر: sample_code=0 یعنی وصل شد، 196 یعنی IP/رمز رد شد. زرین‌پال: code=100 یعنی درگاه سالم و ۳۰۲ همان هدایت درست به صفحهٔ پرداخت است.',
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
