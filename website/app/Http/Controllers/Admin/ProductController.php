@@ -74,17 +74,50 @@ class ProductController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
+        $servers = $this->whmServers();
+
+        // اگر ارتباط با سرورها برقرار نیست، ۵۲ بار تلاشِ بی‌فایده نکن — یک‌بار
+        // آزمون کن و همان خطا را نشان بده. (قبلاً دلیلِ خطا دور ریخته می‌شد و
+        // پیام فقط می‌گفت «۵۲ ناموفق» که با آن نمی‌شد کاری کرد.)
+        $probe = [];
+        foreach ($servers as $server) {
+            $v = (new WhmClient($server))->call('version');
+            if (! $v['ok']) {
+                $probe[] = $server->name.' → '.mb_substr($v['reason'], 0, 120);
+            }
+        }
+
+        if ($probe !== [] && count($probe) === $servers->count()) {
+            return back()->withErrors(
+                'به هیچ سرورِ WHM وصل نشدیم، پس package ساخته نشد. خطای هر سرور: '.implode(' ⟪|⟫ ', $probe)
+                .' — توکنِ API و دسترسیِ پورتِ '.($servers->first()?->effectivePort() ?? 2087).' را بررسی کنید.'
+            );
+        }
+
         $products = Product::where('is_active', true)->get();
         $done = 0;
         $fail = 0;
+        $reasons = [];
         foreach ($products as $p) {
-            [$ok] = $this->createWhmPackage($p);
-            $ok ? $done++ : $fail++;
+            [$ok, $msg] = $this->createWhmPackage($p);
+            if ($ok) {
+                $done++;
+            } else {
+                $fail++;
+                $reasons[$msg] = ($reasons[$msg] ?? 0) + 1;   // دلیل‌های یکسان را یکی کن
+            }
         }
 
-        $servers = $this->whmServers()->count();
+        $summary = "ساختِ package روی {$servers->count()} سرورِ WHM: {$done} پکیجِ موفق، {$fail} ناموفق (از {$products->count()}).";
 
-        return back()->with('ok', "ساختِ package روی {$servers} سرورِ WHM: {$done} پکیجِ موفق، {$fail} ناموفق (از {$products->count()}).");
+        if ($fail > 0) {
+            arsort($reasons);
+            $top = array_slice(array_keys($reasons), 0, 2);
+
+            return back()->withErrors($summary.' دلیل: '.implode(' ⟪|⟫ ', $top));
+        }
+
+        return back()->with('ok', $summary);
     }
 
     /** سرورهای WHMِ فعال — مقصدهای ساختِ package */

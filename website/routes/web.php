@@ -864,6 +864,21 @@ Route::get('/system/db-status', function () {
             }
         }
 
+        // آمادگیِ سرورهای تحویل — فقط بولین/تعداد، بدونِ نام و میزبان و توکن.
+        // برای تشخیصِ «توکن ندارد» از «وصل نمی‌شود» بی‌آنکه رازی فاش شود.
+        $whm = ['servers' => 0, 'with_token' => 0, 'with_country' => 0, 'active' => 0];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('servers')) {
+                foreach (\App\Models\Server::where('type', 'whm')->get() as $s) {
+                    $whm['servers']++;
+                    $whm['with_token'] += filled($s->api_token) ? 1 : 0;
+                    $whm['with_country'] += filled($s->country) ? 1 : 0;
+                    $whm['active'] += $s->status === 'active' ? 1 : 0;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
         return response()->json($out + [
             'mariadb' => 'connected',
             'ready'   => $missing === [],
@@ -871,6 +886,7 @@ Route::get('/system/db-status', function () {
             'pending_migrations' => $pending,
             'new_tables' => $newTables,
             'counts' => $counts,
+            'whm'    => $whm,
         ], 200, [], JSON_UNESCAPED_UNICODE);
     } catch (\Throwable $e) {
         // پیام خام درایور ممکن است نام کاربر را داشته باشد — فقط نوع خطا را می‌دهیم
