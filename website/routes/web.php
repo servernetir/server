@@ -169,6 +169,25 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 /*
+| پیشوندِ زبان با حروفِ بزرگ → هدایتِ ۳۰۱ به نسخهٔ کوچک.
+|
+| در ردیابِ ۴۰۴ دیدیم لینکِ بیوی اینستاگرام «/TR» است و ۴۰۴ می‌گرفت — یعنی
+| ترافیکِ واقعیِ تبلیغات دور می‌ریخت. پیشوندها فقط با حروفِ کوچک ثبت شده‌اند.
+|
+| بعد از گروه‌های $site ثبت می‌شود تا مسیرهای واقعی را سایه نیندازد، و فقط
+| زبان‌های شناخته‌شده را قبول می‌کند (وگرنه هر مسیرِ دوحرفی را می‌قاپید).
+*/
+Route::get('/{loc}/{rest?}', function (string $loc, ?string $rest = null) {
+    $lower = strtolower($loc);
+
+    abort_if($lower === $loc || ! array_key_exists($lower, \App\Providers\AppServiceProvider::LOCALES), 404);
+
+    $target = $lower === 'fa' ? '/' : '/'.$lower;
+
+    return redirect($target.($rest !== null ? '/'.$rest : ''), 301);
+})->where('loc', '[A-Za-z]{2}')->where('rest', '.*');
+
+/*
 | بازگشت از درگاه پرداخت.
 |
 | عمداً بیرون از گروه‌های زبانی و بیرون از auth:customer:

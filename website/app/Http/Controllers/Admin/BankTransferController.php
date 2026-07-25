@@ -56,17 +56,27 @@ class BankTransferController extends Controller
 
         // فاکتور هنوز قابل پرداخت است → تسویه‌اش کن؛ وگرنه فقط رسید را ببند
         if ($invoice !== null && $invoice->isPayable()) {
-            $payment = Payment::create([
-                'invoice_id'    => $invoice->id,
-                'customer_id'   => $invoice->customer_id,
-                'gateway'       => 'bank_transfer',
-                'currency_code' => $invoice->currency_code,
-                'amount'        => $invoice->due(),
-                'status'        => 'redirected',
-                'external_ref'  => $receipt->reference,
-            ]);
+            // ⚠️ firstOrCreate و نه create: اگر تلاشِ قبلیِ تأیید وسطِ راه شکست
+            // خورده باشد، ردیفِ Payment ساخته و **کامیت** شده (بیرونِ تراکنشِ
+            // تسویه) ولی رسید هنوز pending مانده. با create، هر تلاشِ دوباره به
+            // یکتاییِ external_ref می‌خورد و ۵۰۰ می‌داد — یعنی تأییدِ آن رسید
+            // برای همیشه قفل می‌شد. حالا همان پرداخت بازاستفاده می‌شود.
+            $payment = Payment::firstOrCreate(
+                ['external_ref' => $receipt->reference],
+                [
+                    'invoice_id'    => $invoice->id,
+                    'customer_id'   => $invoice->customer_id,
+                    'gateway'       => 'bank_transfer',
+                    'currency_code' => $invoice->currency_code,
+                    'amount'        => $invoice->due(),
+                    'status'        => 'redirected',
+                ],
+            );
 
-            app(PaymentService::class)->settleConfirmed($payment, $receipt->reference);
+            // پرداختِ قبلاً تسویه‌شده را دوباره تسویه نمی‌کنیم (اعتبارِ دوباره ندهد)
+            if (! $payment->isPaid()) {
+                app(PaymentService::class)->settleConfirmed($payment, $receipt->reference);
+            }
         }
 
         $receipt->forceFill([
