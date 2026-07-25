@@ -97,8 +97,11 @@ class WhmClient
     /** ساختِ package (پلن) در WHM — quota/bwlimit بر حسب MB (۰ = نامحدود) */
     public function addPackage(array $params): array
     {
+        // ⚠️ برای «نامحدود» رشتهٔ 'unlimited' لازم است، نه 0.
+        // WHM دقیقاً این را برمی‌گرداند: Invalid value "0" for the "bwlimit" setting.
+        // (برای quota خودِ 0 پذیرفته می‌شود و معنایش نامحدود است — همان می‌ماند.)
         $p = array_merge([
-            'quota'    => 0, 'bwlimit' => 0,
+            'quota'    => 0, 'bwlimit' => 'unlimited',
             'maxpop'   => 'unlimited', 'maxftp'  => 'unlimited', 'maxsql'  => 'unlimited',
             'maxsub'   => 'unlimited', 'maxpark' => 'unlimited', 'maxaddon' => 'unlimited',
             'hasshell' => 'n', 'cgi' => 'y',

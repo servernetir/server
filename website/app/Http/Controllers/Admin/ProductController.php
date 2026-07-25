@@ -192,7 +192,9 @@ class ProductController extends Controller
 
             if (! isset($limits['bwlimit']) && preg_match('/(پهنای|ترافیک|bandwidth|transfer)/u', $t)) {
                 if (preg_match('/(نامحدود|unlimited)/u', $t)) {
-                    $limits['bwlimit'] = 0;
+                    // رشته، نه 0 — WHM مقدارِ «0» را برای bwlimit رد می‌کند و
+                    // مشخصاتِ کاتالوگ «ترافیک نامحدود» دارد، پس این مسیر داغ است.
+                    $limits['bwlimit'] = 'unlimited';
                 } elseif (preg_match('/(\d+(?:\.\d+)?)\s*(tb|ترابایت)/u', $t, $m)) {
                     $limits['bwlimit'] = (int) round($m[1] * 1024 * 1024);
                 } elseif (preg_match('/(\d+(?:\.\d+)?)\s*(gb|گیگ)/u', $t, $m)) {
