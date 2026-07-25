@@ -224,6 +224,12 @@ class PaymentService
             if ($invoice->status === 'paid' && $invoice->service_id !== null) {
                 $service = \App\Models\Service::whereKey($invoice->service_id)->lockForUpdate()->first();
 
+                // ⚠️ کلِ فعال‌سازی در try است: مشتری پول داده و پرداخت **باید** ثبت
+                // شود. اگر این بخش خطا بدهد (مثلاً پس از یک دپلوی، بایت‌کدِ کهنهٔ
+                // opcache باعثِ «متدِ ناموجود» شود)، قبلاً کلِ تراکنش برمی‌گشت:
+                // ۵۰۰ به مشتری، فاکتور پرداخت‌نشده، سرویس ساخته‌نشده — بدترین حالت.
+                // حالا خطا بلعیده و لاگ می‌شود و سرویس دستِ‌کم در صفِ تحویل می‌نشیند.
+                try {
                 if ($service !== null && $service->status !== 'cancelled') {
                     // سرویسی که روی سروری تحویل می‌شود و هنوز ساخته نشده →
                     // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
@@ -260,6 +266,38 @@ class PaymentService
                         $service->next_due_at = $next;
                     }
                     $service->save();
+                }
+                } catch (\Throwable $e) {
+                    // پرداخت سرِجایش می‌ماند؛ فقط فعال‌سازی مشکل داشت.
+                    Log::error('فعال‌سازیِ سرویس پس از پرداخت خطا داد', [
+                        'invoice' => $invoice->id,
+                        'service' => $invoice->service_id,
+                        'error'   => $e::class.': '.mb_substr($e->getMessage(), 0, 300),
+                    ]);
+
+                    // حداقلِ لازم تا کرونِ provision:run سرویس را بسازد و مشتری
+                    // معطل نماند — با UPDATEِ خام تا هیچ متد/کستی نتواند باز خطا بدهد.
+                    try {
+                        if ($invoice->service_id !== null) {
+                            // NULL != 'done' در SQL نتیجه‌اش NULL است، نه true —
+                            // بدونِ whereNull ردیفِ تازه (با provision_status نال)
+                            // هرگز به‌روزرسانی نمی‌شد.
+                            $base = fn () => \Illuminate\Support\Facades\DB::table('services')
+                                ->where('id', $invoice->service_id)
+                                ->whereNotIn('status', ['cancelled'])
+                                ->where(fn ($q) => $q->whereNull('provision_status')
+                                    ->orWhere('provision_status', '!=', 'done'));
+
+                            // با سرور → صفِ تحویلِ خودکار؛ بی‌سرور → صفِ دستیِ ادمین
+                            $base()->whereNotNull('server_id')->update([
+                                'status' => 'awaiting_provision', 'provision_status' => 'pending', 'updated_at' => now(),
+                            ]);
+                            $base()->whereNull('server_id')->update([
+                                'status' => 'awaiting_provision', 'provision_status' => 'manual', 'updated_at' => now(),
+                            ]);
+                        }
+                    } catch (\Throwable) {
+                    }
                 }
             }
 
