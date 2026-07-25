@@ -20,12 +20,13 @@
     <p style="padding:16px;color:#5f6c82">هنوز سروری اضافه نکرده‌اید.</p>
   @else
     <table class="ad-table">
-      <thead><tr><th>نام</th><th>نوع</th><th>میزبان</th><th>وضعیت</th><th>حساب‌ها</th><th></th></tr></thead>
+      <thead><tr><th>نام</th><th>نوع</th><th>مکان</th><th>میزبان</th><th>وضعیت</th><th>حساب‌ها</th><th></th></tr></thead>
       <tbody>
         @foreach($servers as $s)
         <tr>
           <td><b>{{ $s->name }}</b></td>
           <td>{{ $s->typeLabel() }}@if($s->isAutoProvisioned())<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399;margin-inline-start:6px">خودکار</span>@else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:#96a3ba;margin-inline-start:6px">دستی</span>@endif</td>
+          <td style="color:#96a3ba;white-space:nowrap">@if($s->locationLabel()){{ $s->locationLabel() }}@else<span style="color:#fbbf24" title="بدونِ کشور، در صفحهٔ خرید انتخاب نمی‌شود">— تعیین نشده</span>@endif</td>
           <td dir="ltr" style="color:#96a3ba">{{ $s->hostname ?: '—' }}@if($s->hostname):{{ $s->effectivePort() }}@endif</td>
           <td>@php $sb=$s->statusBadge(); @endphp<span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
           <td dir="ltr" style="color:#96a3ba">{{ $s->services_count }}@if($s->max_accounts) / {{ $s->max_accounts }}@endif</td>
@@ -35,7 +36,7 @@
             @endif
           </td>
         </tr>
-        <tr><td colspan="6" style="padding:0 12px 12px">
+        <tr><td colspan="7" style="padding:0 12px 12px">
           <details class="srv-edit">
             <summary style="cursor:pointer;color:#22d3ee;font-size:12.5px;padding:6px 0">ویرایش / حذف</summary>
             @include('admin.partials.server-form', ['server' => $s, 'action' => "/admin/servers/{$s->id}"])

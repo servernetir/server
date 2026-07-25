@@ -172,10 +172,9 @@
         <input type="number" name="tax_percent" value="10" min="0" max="100" dir="ltr" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit;text-align:left"></label>
       <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#96a3ba">دورهٔ پرداخت
         <select name="cycle" style="background:#0f1522;border:1px solid #1e2637;border-radius:8px;color:#e7edf7;padding:8px 12px;font:inherit">
-          <option value="once">یک‌بار</option>
-          <option value="monthly">ماهانه</option>
-          <option value="quarterly">سه‌ماهه</option>
-          <option value="yearly">سالانه</option>
+          @foreach(\App\Models\Service::cycles() as $cv)
+            <option value="{{ $cv }}" @selected($cv === 'monthly')>{{ \App\Models\Service::labelFor($cv) }}</option>
+          @endforeach
         </select></label>
       {{-- تحویل خودکار (اختیاری) --}}
       <details style="grid-column:1/3;border:1px solid #1e2637;border-radius:10px;padding:10px 13px">

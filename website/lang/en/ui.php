@@ -1282,6 +1282,7 @@ return [
     'nav_invoices' => 'Invoices & credit',
     'nav_bank' => 'Bank account',
     'nav_account' => 'Account',
+    'cycle_once' => 'One-time',
     'nav_verify' => 'Identity verification',
     'nav_profile' => 'Profile & identity',
     'nav_security' => 'Security',

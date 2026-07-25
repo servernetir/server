@@ -32,7 +32,7 @@ class ServiceController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'price'       => ['required', 'integer', 'min:0', 'max:100000000000'],
             'tax_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'cycle'       => ['required', 'in:once,monthly,quarterly,yearly'],
+            'cycle'       => ['required', \Illuminate\Validation\Rule::in(\App\Models\Service::cycles())],
             // تحویلِ خودکار (اختیاری): اگر سروری انتخاب شود، پس از پرداخت خودکار
             // روی آن ساخته می‌شود. نام‌کاربری/رمز اگر خالی باشند خودکار ساخته می‌شوند.
             'server_id'   => ['nullable', 'integer', 'exists:servers,id'],

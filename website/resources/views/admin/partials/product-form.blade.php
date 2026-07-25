@@ -36,8 +36,9 @@
   </label>
   <label>دوره
     <select name="cycle">
-      @foreach(['monthly'=>'ماهانه','quarterly'=>'سه‌ماهه','yearly'=>'سالانه','once'=>'یک‌بار'] as $v => $t)
-        <option value="{{ $v }}" @selected(old('cycle', $product->cycle ?? 'monthly') === $v)>{{ $t }}</option>
+      {{-- از config/billing.php می‌آید تا دورهٔ تازه خودکار همه‌جا بیفتد --}}
+      @foreach(\App\Models\Service::cycles() as $v)
+        <option value="{{ $v }}" @selected(old('cycle', $product->cycle ?? 'monthly') === $v)>{{ \App\Models\Service::labelFor($v) }}</option>
       @endforeach
     </select>
   </label>

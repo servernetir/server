@@ -63,12 +63,18 @@ class ProductController extends Controller
         return $ok ? back()->with('ok', $msg) : back()->withErrors($msg);
     }
 
-    /** ساختِ package همهٔ پکیج‌هایِ متصل به سرورِ WHM */
+    /**
+     * ساختِ package همهٔ پکیج‌های فعال روی **همهٔ** سرورهای WHM.
+     *
+     * چرا همهٔ سرورها: مشتری در لحظهٔ خرید مکان (ایران/آلمان) را انتخاب می‌کند،
+     * پس همان packageName باید روی هر دو سرور موجود باشد؛ وگرنه خریدِ یک مکان
+     * در مرحلهٔ تحویل با «package نیست» شکست می‌خورد.
+     */
     public function syncWhmAll(Request $request): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $products = Product::whereHas('server', fn ($q) => $q->where('type', 'whm'))->get();
+        $products = Product::where('is_active', true)->get();
         $done = 0;
         $fail = 0;
         foreach ($products as $p) {
@@ -76,37 +82,62 @@ class ProductController extends Controller
             $ok ? $done++ : $fail++;
         }
 
-        return back()->with('ok', "ساختِ package در WHM: {$done} موفق، {$fail} ناموفق (از {$products->count()}).");
+        $servers = $this->whmServers()->count();
+
+        return back()->with('ok', "ساختِ package روی {$servers} سرورِ WHM: {$done} پکیجِ موفق، {$fail} ناموفق (از {$products->count()}).");
+    }
+
+    /** سرورهای WHMِ فعال — مقصدهای ساختِ package */
+    private function whmServers()
+    {
+        return \App\Models\Server::where('type', 'whm')->where('status', '!=', 'maintenance')->get();
     }
 
     /** @return array{0:bool,1:string} */
     private function createWhmPackage(Product $product): array
     {
-        $server = $product->server;
-        if (! $server || $server->type !== 'whm') {
-            return [false, 'برای ساختِ package، پکیج باید به یک سرورِ WHM وصل باشد.'];
+        $servers = $this->whmServers();
+
+        if ($servers->isEmpty()) {
+            return [false, 'هیچ سرورِ WHMِ فعالی ثبت نشده؛ اول از «سرورهای تحویل» اضافه کنید.'];
         }
 
         $name = $this->whmPackageName($product);
-        $res = (new WhmClient($server))->addPackage(['name' => $name] + $this->parseLimits($product->specs ?? []));
+        $limits = $this->parseLimits($product->specs ?? []);
 
-        // اگر package از قبل هست، خطا نیست — فقط وصلش می‌کنیم (حدومرزش را دست نمی‌زنیم)
-        $exists = ! $res['ok'] && str_contains(strtolower($res['reason'] ?? ''), 'exist');
-        if (! $res['ok'] && ! $exists) {
-            return [false, 'ساختِ package «'.$name.'» ناموفق: '.$res['reason']];
+        $okOn = [];
+        $failOn = [];
+
+        foreach ($servers as $server) {
+            $res = (new WhmClient($server))->addPackage(['name' => $name] + $limits);
+
+            // «از قبل هست» خطا نیست — idempotent است و حدومرزِ موجود دست نمی‌خورد
+            $exists = ! $res['ok'] && str_contains(strtolower($res['reason'] ?? ''), 'exist');
+
+            if ($res['ok'] || $exists) {
+                $okOn[] = $server->name;
+            } else {
+                $failOn[] = $server->name.': '.$res['reason'];
+            }
         }
 
-        $product->update(['plan' => $name]);
+        // نامِ package روی خودِ پکیج قفل می‌شود تا تحویل بداند چه بخواهد
+        if ($okOn !== []) {
+            $product->update(['plan' => $name]);
+        }
 
-        return [true, $exists
-            ? 'package «'.$name.'» از قبل بود؛ به پکیج وصل شد.'
-            : 'package «'.$name.'» در WHM ساخته و به پکیج وصل شد.'];
+        if ($okOn === []) {
+            return [false, 'ساختِ package «'.$name.'» روی هیچ سروری موفق نبود — '.implode(' | ', $failOn)];
+        }
+
+        return [true, 'package «'.$name.'» روی '.implode('، ', $okOn).' آماده است.'
+            .($failOn !== [] ? ' ناموفق: '.implode(' | ', $failOn) : '')];
     }
 
     /** نامِ معتبرِ package در WHM (حروف/رقم/زیرخط) */
     private function whmPackageName(Product $product): string
     {
-        return 'sn_'.substr(preg_replace('/[^a-z0-9]+/i', '_', $product->slug), 0, 40);
+        return $product->packageName();      // منبعِ یگانه روی خودِ مدل
     }
 
     /** استخراجِ حدومرزِ WHM از مشخصاتِ نمایشیِ پکیج — best-effort (نبود = نامحدود) */
@@ -157,7 +188,7 @@ class ProductController extends Controller
             'plan'            => ['nullable', 'string', 'max:80'],
             'price'           => ['required', 'integer', 'min:0', 'max:100000000000'],
             'setup_fee'       => ['nullable', 'integer', 'min:0', 'max:100000000000'],
-            'cycle'           => ['required', 'in:once,monthly,quarterly,yearly'],
+            'cycle'           => ['required', \Illuminate\Validation\Rule::in(\App\Models\Service::cycles())],
             'tax_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
             'description'     => ['nullable', 'string', 'max:2000'],
             'requires_domain' => ['nullable', 'boolean'],

@@ -15,6 +15,19 @@
       @endforeach
     </select>
   </label>
+  {{-- مکان: مشتری در لحظهٔ خرید همین را انتخاب می‌کند. بدونِ کشور، این سرور در
+       فهرستِ انتخابِ مشتری نمی‌آید. --}}
+  <label>کشور (محلِ سرور)
+    <select name="country">
+      <option value="">— انتخاب نشده (در خرید نمایش داده نمی‌شود) —</option>
+      @foreach(config('billing.locations', []) as $code => $loc)
+        <option value="{{ $code }}" @selected(old('country', $server->country ?? '') === $code)>{{ ($loc['flag'] ?? '').' '.($loc['label']['fa'] ?? $code) }}</option>
+      @endforeach
+    </select>
+  </label>
+  <label>شهر (نمایشی)
+    <input type="text" name="city" value="{{ old('city', $server->city ?? '') }}" maxlength="60" placeholder="تهران / فرانکفورت">
+  </label>
   <label>میزبان (hostname)
     <input type="text" name="hostname" dir="ltr" value="{{ old('hostname', $server->hostname ?? '') }}" maxlength="190" placeholder="server1.servernet.cloud">
   </label>

@@ -35,7 +35,49 @@ class Service extends Model
         ];
     }
 
-    public const CYCLES = ['once', 'monthly', 'quarterly', 'yearly'];
+    /**
+     * دوره‌های مجاز — از config/billing.php می‌آید تا افزودنِ یک دوره (مثلِ
+     * «شش‌ماهه») در یک جا انجام شود، نه پخش در مدل و کنترلر و کرون و Blade.
+     * «once» دورهٔ صورت‌حساب نیست (سررسیدِ بعدی ندارد) و همیشه آخر می‌آید.
+     *
+     * @return list<string>
+     */
+    public static function cycles(): array
+    {
+        $fromConfig = array_keys((array) config('billing.cycles', []));
+
+        // اگر config در دسترس نبود، به نقشهٔ پشتیبان برگرد تا اعتبارسنجیِ
+        // فرم‌ها و dropdownها خالی نشوند
+        return [...($fromConfig ?: array_keys(self::MONTHS_FALLBACK)), 'once'];
+    }
+
+    /**
+     * پشتیبانِ سخت‌کد برای طولِ دوره‌ها.
+     *
+     * ⚠️ اگر فقط به config تکیه کنیم، یک غلطِ تایپی یا فایلِ آپلودنشدهٔ config
+     * باعث می‌شود monthsIn صفر برگردد، next_due_at نال شود و کرونِ تمدید
+     * (که whereNotNull('next_due_at') دارد) آن اشتراک را **برای همیشه** بی‌صدا
+     * رها کند. این نقشه آخرین سنگر است.
+     */
+    public const MONTHS_FALLBACK = ['monthly' => 1, 'quarterly' => 3, 'semiannual' => 6, 'yearly' => 12];
+
+    /** تعدادِ ماهِ یک دوره؛ 0 برای «یک‌بار» */
+    public static function monthsIn(string $cycle): int
+    {
+        $months = (int) (config('billing.cycles.'.$cycle.'.months') ?? 0);
+
+        return $months > 0 ? $months : (self::MONTHS_FALLBACK[$cycle] ?? 0);
+    }
+
+    /** برچسبِ دوره به زبانِ جاری */
+    public static function labelFor(string $cycle): string
+    {
+        $label = config('billing.cycles.'.$cycle.'.label');
+
+        return is_array($label)
+            ? ($label[app()->getLocale()] ?? $label['fa'] ?? $cycle)
+            : (string) ($label ?? __('ui.cycle_once'));
+    }
 
     public function customer(): BelongsTo
     {
@@ -99,22 +141,15 @@ class Service extends Model
      */
     public function nextDueFrom(Carbon $from): ?Carbon
     {
-        return match ($this->cycle) {
-            'monthly'   => $from->copy()->addMonthNoOverflow(),
-            'quarterly' => $from->copy()->addMonthsNoOverflow(3),
-            'yearly'    => $from->copy()->addYearNoOverflow(),
-            default     => null,
-        };
+        $months = self::monthsIn((string) $this->cycle);
+
+        // NoOverflow لازم است: ۳۱ فروردین + ۱ ماه نباید به دو ماه بعد بپرد.
+        return $months > 0 ? $from->copy()->addMonthsNoOverflow($months) : null;
     }
 
     public function cycleLabel(): string
     {
-        return match ($this->cycle) {
-            'monthly'   => 'ماهانه',
-            'quarterly' => 'سه‌ماهه',
-            'yearly'    => 'سالانه',
-            default     => 'یک‌بار',
-        };
+        return self::labelFor((string) $this->cycle);
     }
 
     /** @return array{0:string,1:string} برچسب و رنگ */

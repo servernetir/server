@@ -31,9 +31,11 @@ class GenerateServiceRenewals extends Command
 
         $threshold = now()->addDays((int) $this->option('days'))->toDateString();
 
+        // دوره‌ها از config می‌آید: با فهرستِ دستی، افزودنِ «شش‌ماهه» یعنی
+        // سرویسِ شش‌ماهه هرگز فاکتورِ تمدید نمی‌گرفت و بی‌صدا رایگان می‌شد.
         $due = Service::query()
             ->where('status', 'active')
-            ->whereIn('cycle', ['monthly', 'quarterly', 'yearly'])
+            ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))
             ->whereNotNull('next_due_at')
             ->whereDate('next_due_at', '<=', $threshold)
             ->get();

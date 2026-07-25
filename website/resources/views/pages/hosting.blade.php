@@ -47,7 +47,7 @@
     @unless($yearlyOnly)
     <div class="bill-toggle reveal" role="group" aria-label="Billing cycle">
       <button type="button" class="active" data-bill="monthly">{{ __('ui.bill_monthly') }}</button>
-      <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('servernet.yearly_discount')) : config('servernet.yearly_discount')]) }}</span></button>
+      <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('billing.cycles.yearly.discount_pct')) : config('billing.cycles.yearly.discount_pct')]) }}</span></button>
     </div>
     @endunless
     <div class="plans {{ count($product['plans']) === 3 ? 'plans-3' : '' }} {{ count($product['plans']) >= 5 ? 'plans-many' : '' }}" id="plans">

@@ -36,7 +36,9 @@ class StoreController extends Controller
         }
 
         return view('account.checkout', AccountController::shell('') + [
-            'product' => $product,
+            'product'   => $product,
+            'countries' => $product->availableCountries(),
+            'cycles'    => array_keys((array) config('billing.cycles', [])),
         ]);
     }
 
@@ -47,12 +49,22 @@ class StoreController extends Controller
             return back()->withErrors('این پکیج در دسترس نیست.');
         }
 
+        // مکان‌های واقعاً موجود در همین لحظه — مشتری نباید مکانی را بخرد که
+        // سرورِ آماده ندارد، وگرنه پول داده و سرویسش روی هوا می‌ماند.
+        $countries = $product->availableCountries();
+        $cycles = array_keys((array) config('billing.cycles', []));
+
         $data = $request->validate([
+            'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
+            'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],
             'domain_mode' => ['required', 'in:have,buy,subdomain'],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'subdomain'   => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9-]+$/i'],
-        ], [], ['domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه']);
+        ], [], [
+            'country' => 'محلِ سرور', 'cycle' => 'دورهٔ پرداخت',
+            'domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه',
+        ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
         [$domain, $note] = $this->resolveDomain($data);
@@ -61,18 +73,31 @@ class StoreController extends Controller
         }
 
         $customer = Auth::guard('customer')->user();
+        $country = $data['country'] ?? null;
+        $cycle = $data['cycle'];
 
-        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note) {
+        // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
+        $server = $country ? \App\Models\Server::pickForCountry($country) : null;
+        if ($country && $server === null) {
+            return back()->withInput()->withErrors(['country' => 'ظرفیتِ این مکان همین حالا پر شد؛ مکانِ دیگری را انتخاب کنید.']);
+        }
+
+        // مبلغِ دوره در لحظهٔ سفارش قفل می‌شود؛ تغییرِ بعدیِ تخفیف‌ها یا نرخِ ارز
+        // این سرویس و تمدیدهایش را عوض نمی‌کند.
+        $cyclePrice = $product->priceForCycle($cycle, $country);
+        $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
+
+        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
-                'description'   => trim(($product->description ? $product->description."\n" : '').$note),
+                'description'   => trim(implode("\n", array_filter([$product->description, $locNote, $note]))),
                 'currency_code' => $product->currency_code,
-                'price'         => $product->effectivePrice(),   // قیمت با نرخِ روز، قفل در لحظهٔ سفارش
+                'price'         => $cyclePrice,
                 'tax_percent'   => $product->tax_percent,
-                'cycle'         => $product->cycle,
+                'cycle'         => $cycle,
                 'status'        => 'pending',
-                'server_id'     => $product->server_id,
+                'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
                 'domain'        => $domain,
             ]);
@@ -81,7 +106,8 @@ class StoreController extends Controller
         });
 
         \App\Models\ActivityLog::record($customer->id, 'service',
-            'سفارشِ آنلاینِ پکیج «'.$product->name.'» ('.$domain.') ثبت شد', $request, 'customer');
+            'سفارشِ آنلاینِ پکیج «'.$product->name.'» ('.$domain.') — '
+            .Service::labelFor($cycle).($country ? ' · '.$country : '').' ثبت شد', $request, 'customer');
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');

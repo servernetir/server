@@ -62,6 +62,20 @@ class ProvisioningService
             return false;
         }
 
+        // ظرفیت/وضعیت را همین‌جا (نه فقط سرِ سفارش) دوباره بسنج: بین ثبتِ سفارش و
+        // پرداخت ممکن است سرور به «تعمیر» رفته یا پر شده باشد. اگر بسازیم، حسابِ
+        // مشتری روی سروری می‌نشیند که نباید. وضعیت را pending نگه می‌داریم تا
+        // کرونِ بعدی دوباره تلاش کند و مدیر در پنل ببیند.
+        if (! $server->canAcceptNew()) {
+            $service->forceFill([
+                'provision_status' => 'pending',
+                'status'           => 'awaiting_provision',
+                'provision_error'  => 'سرورِ «'.$server->name.'» فعلاً ظرفیت/دسترسِ پذیرشِ حسابِ تازه ندارد ('.$server->status.').',
+            ])->save();
+
+            return false;
+        }
+
         // اطلاعاتِ لازم را آماده کن (نام‌کاربری/رمز) و پیش از تماس ذخیره کن تا
         // اجرای دوباره همان‌ها را دوباره استفاده کند (idempotency).
         $this->ensureCredentials($service, $server);
@@ -152,7 +166,24 @@ class ProvisioningService
             : ProvisionResult::success(null, null, null);
 
         if ($r->ok || $r->manual) {
-            $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            // ظرفیتِ آزادشده را برگردان — وگرنه شمارنده فقط بالا می‌رفت و
+            // سرور برای همیشه «پر» می‌ماند؛ آن‌وقت هیچ مکانی در صفحهٔ خرید
+            // نمایش داده نمی‌شد. فقط برای حسابی که واقعاً شمرده شده بود، و
+            // با کرانِ صفر تا منفی نشود.
+            $counted = $service->provision_status === 'done'
+                && ! ($service->provision_meta['reused'] ?? false);
+
+            if ($counted && $service->server_id) {
+                Server::whereKey($service->server_id)
+                    ->where('active_accounts', '>', 0)
+                    ->decrement('active_accounts');
+            }
+
+            $service->update([
+                'status'           => 'cancelled',
+                'cancelled_at'     => now(),
+                'provision_status' => 'none',      // دوباره شمرده نشود
+            ]);
         }
 
         return $r;

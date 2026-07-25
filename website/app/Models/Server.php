@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Server extends Model
 {
     protected $fillable = [
-        'name', 'type', 'hostname', 'port', 'username', 'api_token', 'verify_tls',
+        'name', 'type', 'country', 'city', 'hostname', 'port', 'username', 'api_token', 'verify_tls',
         'server_ip', 'nameservers', 'status', 'max_accounts', 'active_accounts', 'note', 'meta',
     ];
 
@@ -88,5 +88,65 @@ class Server extends Model
             'dedicated'   => 'سرور اختصاصی',
             default       => 'عمومی',
         };
+    }
+
+    // ─────────────────────────── مکان (ایران/آلمان) ───────────────────────────
+
+    /** برچسبِ کشور به زبانِ جاری؛ اگر کشور ست نشده باشد خالی */
+    public function locationLabel(): string
+    {
+        if (blank($this->country)) {
+            return '';
+        }
+
+        $loc = config('billing.locations.'.strtoupper((string) $this->country));
+        $label = is_array($loc['label'] ?? null)
+            ? ($loc['label'][app()->getLocale()] ?? $loc['label']['fa'] ?? $this->country)
+            : (string) $this->country;
+
+        return trim(($loc['flag'] ?? '').' '.$label.($this->city ? ' — '.$this->city : ''));
+    }
+
+    /**
+     * کشورهایی که همین حالا می‌توانند سرویسِ تازه بپذیرند.
+     *
+     * فقط سرورهای فعالِ غیرِپر و دارای تحویلِ خودکار حساب می‌شوند — اگر مکانی
+     * سرورِ آماده ندارد، نباید در صفحهٔ خرید نمایش داده شود، وگرنه مشتری پول
+     * می‌دهد و سرویسش روی هوا می‌ماند.
+     *
+     * @return list<string>
+     */
+    public static function availableCountries(): array
+    {
+        return static::query()
+            // فعلاً فقط WHM: پکیج‌های کاتالوگ (sn_<slug>) روی WHM ساخته می‌شوند،
+            // پس تبلیغِ مکانی که فقط سرورِ DirectAdmin دارد به شکستِ تحویل می‌رسد.
+            ->where('type', 'whm')
+            ->where('status', 'active')
+            ->whereNotNull('country')
+            ->get()
+            ->filter(fn (self $s) => $s->canAcceptNew())
+            ->map(fn (self $s) => strtoupper((string) $s->country))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * کم‌بارترین سرورِ آمادهٔ یک کشور — مقصدِ تحویلِ این خرید.
+     *
+     * lockForUpdate عمداً نیست: انتخاب فقط یک پیشنهاد است و خودِ ProvisioningService
+     * پیش از ساختِ حساب دوباره وضعیت را می‌سنجد؛ قفلِ بلندمدت روی جدولِ سرورها
+     * زیرِ بارِ همزمان بیشتر ضرر داشت.
+     */
+    public static function pickForCountry(string $country): ?self
+    {
+        return static::query()
+            ->where('type', 'whm')                  // همان قیدِ availableCountries()
+            ->where('status', 'active')
+            ->whereRaw('UPPER(country) = ?', [strtoupper($country)])
+            ->orderBy('active_accounts')
+            ->get()
+            ->first(fn (self $s) => $s->canAcceptNew());
     }
 }

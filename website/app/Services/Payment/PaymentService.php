@@ -242,7 +242,22 @@ class PaymentService
                     }
                     $service->activated_at ??= now();
                     if ($service->isRecurring()) {
-                        $service->next_due_at = $service->nextDueFrom(now());
+                        // سررسیدِ بعدی از «پایانِ دورهٔ خریداری‌شده» جلو می‌رود، نه از
+                        // لحظهٔ پرداخت. فاکتورِ تمدید چند روز پیش از سررسید صادر
+                        // می‌شود؛ اگر از now() حساب می‌کردیم هر دوره چند روز کوتاه‌تر
+                        // می‌شد و مشتری در سال بیش از ۱۲ ماه پول می‌داد (روی دورهٔ
+                        // شش‌ماهه/سالانه این خطا ۶ و ۱۲ برابر می‌شد).
+                        $anchor = $service->next_due_at ?? $service->activated_at ?? now();
+                        $next = $service->nextDueFrom($anchor);
+
+                        // اگر سرویس مدتی معلق/عقب‌افتاده بوده، تا آینده جلو می‌آید
+                        // (حلقه کران‌دار است چون هر گام حداقل یک ماه جلو می‌رود)
+                        $guard = 0;
+                        while ($next !== null && $next->isPast() && $guard++ < 120) {
+                            $next = $service->nextDueFrom($next);
+                        }
+
+                        $service->next_due_at = $next;
                     }
                     $service->save();
                 }

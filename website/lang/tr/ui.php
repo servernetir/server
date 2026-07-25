@@ -1282,6 +1282,7 @@ return [
     'nav_invoices' => 'Faturalar ve bakiye',
     'nav_bank' => 'Banka hesabı',
     'nav_account' => 'Hesap',
+    'cycle_once' => 'Tek seferlik',
     'nav_verify' => 'Kimlik doğrulama',
     'nav_profile' => 'Profil ve kimlik',
     'nav_security' => 'Güvenlik',

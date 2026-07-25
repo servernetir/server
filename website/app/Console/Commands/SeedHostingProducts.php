@@ -48,7 +48,10 @@ class SeedHostingProducts extends Command
                     'cycle'           => 'monthly',
                     'tax_percent'     => 10,
                     'specs'           => $this->specs($plan['specs'] ?? []),
-                    'plan'            => (string) ($plan['name'] ?? ''),   // نامِ package در WHM (قابلِ‌ویرایش)
+                    // نامِ package در WHM — همان چیزی که createacct می‌فرستد.
+                    // قبلاً نامِ پلنِ کاتالوگ («WP-5») نوشته می‌شد که هیچ packageای
+                    // در WHM با آن نام نبود و تحویلِ خودکار شکست می‌خورد.
+                    'plan'            => 'sn_'.substr(preg_replace('/[^a-z0-9]+/i', '_', $pkgSlug), 0, 40),
                     'requires_domain' => true,
                     'is_active'       => true,
                     'sort'            => $i,
@@ -57,10 +60,13 @@ class SeedHostingProducts extends Command
                 $existing = Product::where('slug', $pkgSlug)->first();
                 if ($existing) {
                     if ($this->option('force')) {
-                        // فقط قیمت/مشخصات را تازه کن، سرورِ انتخاب‌شده را دست نزن
+                        // فقط قیمت/مشخصات را تازه کن، سرورِ انتخاب‌شده را دست نزن.
+                        // plan هم اصلاح می‌شود چون ردیف‌های قدیمی نامِ پلنِ کاتالوگ
+                        // را دارند و با آن، تحویلِ خودکار روی WHM شکست می‌خورد.
                         $existing->update([
                             'name' => $attrs['name'], 'price' => $attrs['price'],
                             'specs' => $attrs['specs'], 'category' => $attrs['category'],
+                            'plan' => $attrs['plan'],
                         ]);
                         $updated++;
                     }

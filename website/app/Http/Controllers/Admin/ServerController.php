@@ -93,6 +93,9 @@ class ServerController extends Controller
         return $request->validate([
             'name'         => ['required', 'string', 'max:80'],
             'type'         => ['required', 'in:'.implode(',', Server::TYPES)],
+            // کشور از config/billing.php می‌آید؛ خالی مجاز است (در خرید نمایش نمی‌شود)
+            'country'      => ['nullable', \Illuminate\Validation\Rule::in(array_keys((array) config('billing.locations', [])))],
+            'city'         => ['nullable', 'string', 'max:60'],
             'hostname'     => ['nullable', 'string', 'max:190'],
             'port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
             'username'     => ['nullable', 'string', 'max:60'],
