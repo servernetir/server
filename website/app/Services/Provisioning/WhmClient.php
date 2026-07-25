@@ -97,17 +97,31 @@ class WhmClient
     /** ساختِ package (پلن) در WHM — quota/bwlimit بر حسب MB (۰ = نامحدود) */
     public function addPackage(array $params): array
     {
-        // ⚠️ برای «نامحدود» رشتهٔ 'unlimited' لازم است، نه 0.
-        // WHM دقیقاً این را برمی‌گرداند: Invalid value "0" for the "bwlimit" setting.
-        // (برای quota خودِ 0 پذیرفته می‌شود و معنایش نامحدود است — همان می‌ماند.)
+        // ⚠️ WHM برای «نامحدود» رشتهٔ 'unlimited' می‌خواهد و مقدارِ 0 را برای
+        // **هر دو**ِ quota و bwlimit رد می‌کند:
+        //   Invalid value "0" for the "bwlimit" setting.
+        //   Invalid value "0" for the "quota" setting.
+        // پس هیچ‌وقت 0 نمی‌فرستیم؛ اگر از مشخصات چیزی درنیامد، unlimited.
         $p = array_merge([
-            'quota'    => 0, 'bwlimit' => 'unlimited',
+            'quota'    => 'unlimited', 'bwlimit' => 'unlimited',
             'maxpop'   => 'unlimited', 'maxftp'  => 'unlimited', 'maxsql'  => 'unlimited',
             'maxsub'   => 'unlimited', 'maxpark' => 'unlimited', 'maxaddon' => 'unlimited',
             'hasshell' => 'n', 'cgi' => 'y',
         ], $params);
 
         return $this->call('addpkg', $p);
+    }
+
+    /**
+     * اصلاحِ packageِ موجود با همان حدومرزها.
+     *
+     * لازم است چون addpkg روی packageِ موجود «exists» می‌دهد و اگر فقط ردش کنیم،
+     * packageی که یک‌بار با حدومرزِ غلط ساخته شده تا ابد غلط می‌ماند و اجرای
+     * دوبارهٔ sync اصلاحش نمی‌کند.
+     */
+    public function editPackage(array $params): array
+    {
+        return $this->call('editpkg', $params);
     }
 
     /**

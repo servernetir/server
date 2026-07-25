@@ -142,12 +142,21 @@ class ProductController extends Controller
         $failOn = [];
 
         foreach ($servers as $server) {
-            $res = (new WhmClient($server))->addPackage(['name' => $name] + $limits);
+            $client = new WhmClient($server);
+            $res = $client->addPackage(['name' => $name] + $limits);
 
-            // «از قبل هست» خطا نیست — idempotent است و حدومرزِ موجود دست نمی‌خورد
             $exists = ! $res['ok'] && str_contains(strtolower($res['reason'] ?? ''), 'exist');
 
-            if ($res['ok'] || $exists) {
+            // اگر از قبل هست، **اصلاحش کن**. قبلاً فقط رد می‌شد، پس packageی که
+            // یک‌بار با حدومرزِ غلط ساخته شده بود با اجرای دوباره درست نمی‌شد.
+            if ($exists) {
+                $edit = $client->editPackage(['name' => $name] + $limits);
+                $okOn[] = $server->name.($edit['ok'] ? ' (به‌روزرسانی شد)' : ' (بود، اصلاح نشد)');
+
+                continue;
+            }
+
+            if ($res['ok']) {
                 $okOn[] = $server->name;
             } else {
                 $failOn[] = $server->name.': '.$res['reason'];
@@ -180,13 +189,32 @@ class ProductController extends Controller
         foreach ($specs as $spec) {
             $t = $this->latinDigits(mb_strtolower((string) ($spec['label'] ?? '')));
 
-            if (! isset($limits['quota']) && preg_match('/(فضا|گیگابایت|disk|storage|space|ssd|nvme)/u', $t)) {
+            // چیزهایی که «فضای دیسک» نیستند و نباید با quota اشتباه شوند
+            $notDisk = preg_match('/(پهنای|ترافیک|bandwidth|transfer|ram|رم|cpu|core|هسته|vcpu|صندوق|mailbox|سایت|دامنه|اسنپ|snapshot|روزه)/u', $t);
+
+            // یا کلیدواژهٔ دیسک دارد («5 GB NVMe»)، یا خودش صرفاً یک اندازه است
+            // («10 GB» در پکیج‌های ایمیل/بکاپ). بدونِ حالتِ دوم، ۹ پکیج quota
+            // نمی‌گرفتند و WHM با «Invalid value "0" for quota» ردشان می‌کرد.
+            $hasDiskWord = preg_match('/(فضا|گیگابایت|disk|storage|space|ssd|nvme|هارد)/u', $t);
+            $bareSize = preg_match('/^\s*\d+(?:\.\d+)?\s*(tb|gb|mb|ترابایت|گیگ|مگ)\b/u', $t);
+
+            if (! isset($limits['quota']) && ! $notDisk && ($hasDiskWord || $bareSize)) {
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(tb|ترابایت)/u', $t, $m)) {
                     $limits['quota'] = (int) round($m[1] * 1024 * 1024);
                 } elseif (preg_match('/(\d+(?:\.\d+)?)\s*(gb|گیگ|مگ|mb)/u', $t, $m)) {
                     $limits['quota'] = str_contains($m[2], 'م') || $m[2] === 'mb'
                         ? (int) round($m[1])
                         : (int) round($m[1] * 1024);
+                }
+            }
+
+            // تعدادِ صندوقِ ایمیل → maxpop (پکیج‌های ایمیل روی همین می‌فروشند؛
+            // پیش‌فرضِ unlimited یعنی مشتریِ پلنِ ۲۰ صندوقی نامحدود می‌گرفت)
+            if (! isset($limits['maxpop']) && preg_match('/(صندوق|mailbox)/u', $t)) {
+                if (preg_match('/(نامحدود|unlimited)/u', $t)) {
+                    $limits['maxpop'] = 'unlimited';
+                } elseif (preg_match('/(\d+)/', $t, $m)) {
+                    $limits['maxpop'] = (int) $m[1];
                 }
             }
 

@@ -105,6 +105,87 @@ class WhmPackageSyncTest extends TestCase
         $this->assertSame('sn_wordpress_2', $product->fresh()->plan);
     }
 
+    /**
+     * پکیج‌های ایمیل/بکاپ فضا را «۱۰ GB» خالی می‌نویسند (بدونِ واژهٔ فضا/NVMe).
+     * قبلاً quota استخراج نمی‌شد و 0 می‌رفت که WHM ردش می‌کرد:
+     * Invalid value "0" for the "quota" setting.
+     */
+    public function test_bare_size_spec_becomes_the_disk_quota(): void
+    {
+        Http::fake([
+            '*/json-api/version*' => Http::response(['metadata' => ['result' => 1]]),
+            '*/json-api/addpkg*'  => Http::response(['metadata' => ['result' => 1]]),
+        ]);
+
+        $this->whm('WHM-IR-01', 'IR');
+        Product::create([
+            'name' => 'ایمیل', 'slug' => 'email-1', 'category' => 'shared',
+            'price' => 190000, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
+            'specs' => [
+                ['label' => '10 GB', 'value' => ''],
+                ['label' => '۲۰ صندوق ایمیل', 'value' => ''],
+            ],
+        ]);
+
+        $this->actingAs($this->staff(), 'web')->post('/admin/products-whm-sync-all')->assertRedirect();
+
+        $url = collect(Http::recorded())->map(fn ($p) => rawurldecode((string) $p[0]->url()))
+            ->first(fn ($u) => str_contains($u, 'addpkg'));
+
+        $this->assertNotNull($url);
+        $this->assertStringContainsString('quota=10240', $url);   // ۱۰ گیگ = ۱۰۲۴۰ مگ
+        $this->assertStringContainsString('maxpop=20', $url);     // ۲۰ صندوق، نه نامحدود
+        $this->assertStringNotContainsString('quota=0', $url);
+    }
+
+    /** هیچ‌وقت quota=0 نمی‌رود، حتی وقتی پکیج هیچ مشخصاتی ندارد */
+    public function test_product_without_specs_never_sends_zero_quota(): void
+    {
+        Http::fake([
+            '*/json-api/version*' => Http::response(['metadata' => ['result' => 1]]),
+            '*/json-api/addpkg*'  => Http::response(['metadata' => ['result' => 1]]),
+        ]);
+
+        $this->whm('WHM-IR-01', 'IR');
+        Product::create([
+            'name' => 'بی‌مشخصات', 'slug' => 'nospec-1', 'category' => 'shared',
+            'price' => 100000, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
+        ]);
+
+        $this->actingAs($this->staff(), 'web')->post('/admin/products-whm-sync-all')->assertRedirect();
+
+        $url = collect(Http::recorded())->map(fn ($p) => rawurldecode((string) $p[0]->url()))
+            ->first(fn ($u) => str_contains($u, 'addpkg'));
+
+        $this->assertStringContainsString('quota=unlimited', $url);
+        $this->assertStringNotContainsString('quota=0', $url);
+    }
+
+    /** packageِ موجود باید اصلاح شود، نه اینکه بی‌صدا رد شود */
+    public function test_existing_package_is_corrected_with_editpkg(): void
+    {
+        Http::fake([
+            '*/json-api/version*' => Http::response(['metadata' => ['result' => 1]]),
+            '*/json-api/addpkg*'  => Http::response(['metadata' => ['result' => 0, 'reason' => 'Package already exists']]),
+            '*/json-api/editpkg*' => Http::response(['metadata' => ['result' => 1]]),
+        ]);
+
+        $this->whm('WHM-IR-01', 'IR');
+        Product::create([
+            'name' => 'وردپرس', 'slug' => 'wordpress-9', 'category' => 'shared',
+            'price' => 250000, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
+            'specs' => [['label' => '5 GB NVMe', 'value' => '']],
+        ]);
+
+        $this->actingAs($this->staff(), 'web')->post('/admin/products-whm-sync-all')->assertRedirect();
+
+        $edit = collect(Http::recorded())->map(fn ($p) => rawurldecode((string) $p[0]->url()))
+            ->filter(fn ($u) => str_contains($u, 'editpkg'));
+
+        $this->assertTrue($edit->isNotEmpty(), 'باید editpkg زده شود تا حدومرزِ غلط اصلاح شود');
+        $this->assertStringContainsString('quota=5120', $edit->first());
+    }
+
     /** اگر به هیچ سروری وصل نشدیم، دلیل را بگو — نه «۵۲ ناموفق» بی‌توضیح */
     public function test_connection_failure_reports_the_real_reason(): void
     {
