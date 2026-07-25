@@ -46,6 +46,27 @@ class VerificationTest extends TestCase
         return UploadedFile::fake()->create($name, 120, 'application/pdf');
     }
 
+    /** صفحهٔ جدای احراز هویت با پروفایل ادغام شد — لینکِ قدیمی باید هدایت شود */
+    public function test_old_verify_url_redirects_to_the_merged_profile_page(): void
+    {
+        $c = $this->customer();
+
+        $this->actingAs($c, 'customer')->get('/account/verify')
+            ->assertRedirect('/account/profile');
+    }
+
+    /** فرمِ مدارکِ شرکت روی همان صفحهٔ پروفایل دیده می‌شود */
+    public function test_profile_page_contains_the_company_document_form(): void
+    {
+        $c = $this->customer();
+
+        $this->actingAs($c, 'customer')->get('/account/profile')
+            ->assertOk()
+            ->assertSee('اساسنامه', false)
+            ->assertSee('معرفی‌نامهٔ نماینده', false)
+            ->assertSee('doc_articles', false);
+    }
+
     public function test_company_customer_submits_company_info_and_documents(): void
     {
         $c = $this->customer();

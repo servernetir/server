@@ -12,7 +12,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
 
 /**
  * احراز هویتِ مشتری — به‌ویژه حقوقی (شرکت).
@@ -24,16 +23,15 @@ use Illuminate\View\View;
  */
 class VerificationController extends Controller
 {
-    public function show(): View
+    /**
+     * صفحهٔ جدا حذف شد و با «پروفایل و احراز هویت» ادغام شد.
+     * روت می‌ماند تا لینک‌ها/بوکمارک‌های قدیمی نشکنند.
+     */
+    public function show(): RedirectResponse
     {
-        $customer = Auth::guard('customer')->user();
-        $profile = $this->profileFor($customer);
-        $docs = CustomerDocument::where('customer_profile_id', $profile->id)->latest('id')->get()->keyBy('kind');
-
-        return view('account.verify', AccountController::shell('verify') + [
-            'profile' => $profile,
-            'docs'    => $docs,
-        ]);
+        return redirect()->route(
+            (\App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '').'account.profile'
+        );
     }
 
     public function submit(Request $request): RedirectResponse
@@ -90,10 +88,13 @@ class VerificationController extends Controller
         \App\Models\ActivityLog::record($customer->id, 'service',
             'درخواستِ تأییدِ هویت'.($isCompany ? 'ِ حقوقی' : '').' ثبت شد', $request, 'customer');
 
-        return back()->with('ok', 'اطلاعات و مدارک ثبت و برای بررسیِ پشتیبانی ارسال شد. پس از تأیید، پروفایلتان تأیید می‌شود.');
+        // به بخشِ حقوقیِ همان صفحهٔ پروفایل برمی‌گردد (صفحهٔ جدا حذف شده)
+        return redirect()->to(lroute('account.profile').'#company')
+            ->with('ok', 'اطلاعات و مدارک ثبت و برای بررسیِ پشتیبانی ارسال شد. پس از تأیید، پروفایلتان تأیید می‌شود.');
     }
 
-    private function profileFor(Customer $customer): CustomerProfile
+    /** پروفایلِ پیش‌فرضِ مشتری را برمی‌گرداند یا می‌سازد (AccountController هم استفاده می‌کند) */
+    public function profileFor(Customer $customer): CustomerProfile
     {
         return $customer->profiles()->orderByDesc('is_default')->orderBy('id')->first()
             ?: CustomerProfile::create([

@@ -81,15 +81,25 @@ class AccountController extends Controller
         ]);
     }
 
+    /**
+     * پروفایل + احراز هویت در **یک** صفحه.
+     *
+     * قبلاً /account/profile و /account/verify دو صفحهٔ جدا بودند و کاربر
+     * نمی‌فهمید تفاوتشان چیست. حالا این صفحه هم وضعیتِ هویتِ شخصی را نشان
+     * می‌دهد و هم فرمِ مدارکِ شرکت (برای مشتریِ حقوقی) را در خودش دارد.
+     */
     public function profile(): View
     {
         $customer = Auth::guard('customer')->user();
+        $profile = app(VerificationController::class)->profileFor($customer);
 
         return view('account.profile', $this->shell('profile') + [
             'customer'   => $customer,
             'identity'   => $customer->identityVerification,
-            'profile'    => $customer->defaultProfile(),
+            'profile'    => $profile,
             'nameLocked' => $customer->isNameLocked(),
+            'docs'       => \App\Models\CustomerDocument::where('customer_profile_id', $profile->id)
+                ->latest('id')->get()->keyBy('kind'),
         ]);
     }
 
@@ -121,8 +131,9 @@ class AccountController extends Controller
                     ['key' => 'tickets', 'icon' => 'lifebuoy', 'label' => __('ui.tk_title'), 'url' => lroute('account.tickets')],
                 ]],
                 ['label' => __('ui.nav_account'), 'items' => [
+                    // «پروفایل و احراز هویت» یک صفحه است؛ آیتمِ جدای verify حذف شد
+                    // چون کاربر نمی‌فهمید تفاوتش با پروفایل چیست.
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
-                    ['key' => 'verify', 'icon' => 'shield', 'label' => __('ui.nav_verify'), 'url' => lroute('account.verify')],
                     ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],
