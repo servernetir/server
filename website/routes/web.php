@@ -1175,6 +1175,32 @@ Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
 | (نه مقدار). این را روی هر دو دامنه (servernet.cloud و console.servernet.cloud)
 | در حالتِ واردشده باز کنید و JSON را مقایسه کنید. بعد از تشخیص حذف می‌شود.
 */
+/*
+| آخرین خطاهای ۵۰۰ به‌صورت JSON — برای عیب‌یابی بدون دسترسیِ SSH.
+| توکن‌دار و POST. فقط کلاس/پیام/فایل/فریمِ خطا برمی‌گردد؛ هیچ ورودیِ کاربر و
+| هیچ اعتبارنامه‌ای در tracker ذخیره نمی‌شود.
+*/
+Route::post('/system/errors', function (\Illuminate\Http\Request $r) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+
+    $rows = collect(\App\Support\ErrorTracker::recent(200))
+        ->filter(fn ($e) => ($e['type'] ?? '') === 'error')
+        ->take((int) $r->input('limit', 8))
+        ->map(fn ($e) => [
+            'at'      => $e['at'] ?? null,
+            'url'     => $e['url'] ?? null,
+            'method'  => $e['method'] ?? null,
+            'class'   => $e['class'] ?? null,
+            'message' => $e['message'] ?? null,
+            'file'    => $e['file'] ?? null,
+            'frame'   => $e['frame'] ?? null,
+        ])->values();
+
+    return response()->json(['count' => $rows->count(), 'errors' => $rows],
+        200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+})->middleware('throttle:12,1');
+
 Route::get('/system/whoami', function (\Illuminate\Http\Request $r) {
     return response()->json([
         'host'              => $r->getHost(),
