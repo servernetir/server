@@ -69,6 +69,10 @@ class SettingsController extends Controller
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
+            // Cloudflare — برای رکوردِ DNS زیردامنهٔ رایگان
+            'cloudflare_token'      => ['nullable', 'string', 'max:200'],
+            'cloudflare_zone_id'    => ['nullable', 'string', 'max:64', 'regex:/^[a-f0-9]*$/i'],
+            'cloudflare_forget'     => ['nullable', 'boolean'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
@@ -77,6 +81,20 @@ class SettingsController extends Controller
 
         foreach (['pricing_baseline_rate', 'pricing_rate_override', 'price_margin_pct'] as $k) {
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
+        }
+
+        // Cloudflare: توکن **رمزنگاری‌شده** و هرگز به فرم برنمی‌گردد. اگر خالی
+        // بفرستد یعنی «دست نزن»؛ برای حذف، تیکِ جداگانه هست (مثلِ توکنِ WHM).
+        if ($request->boolean('cloudflare_forget')) {
+            Setting::putSecret('cloudflare_token', null);
+            Setting::put('cloudflare_zone_id', null);
+        } elseif (filled($data['cloudflare_token'] ?? null)) {
+            Setting::putSecret('cloudflare_token', trim((string) $data['cloudflare_token']));
+            Setting::put('cloudflare_zone_id', null);      // با توکنِ تازه دوباره کشف شود
+        }
+
+        if (filled($data['cloudflare_zone_id'] ?? null)) {
+            Setting::put('cloudflare_zone_id', trim((string) $data['cloudflare_zone_id']));
         }
 
         // مهر: بیرون webroot در storage ذخیره می‌شود؛ روی فاکتور به‌صورت

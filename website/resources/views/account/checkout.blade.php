@@ -148,8 +148,26 @@
         </div>
         <div class="co-field" data-for="subdomain" hidden>
           <label>زیردامنهٔ دلخواه
-            <div class="co-sub"><input type="text" name="subdomain" dir="ltr" placeholder="mysite"><span dir="ltr">.servernet.cloud</span></div>
+            {{-- کلِ کنترل یک «جزیرهٔ LTR» است: کاربر اول نام را می‌نویسد و بعد
+                 .servernet.cloud در ادامه‌اش می‌آید — همان‌طور که یک دامنه خوانده
+                 می‌شود. قبلاً input با dir=ltr داخلِ جریانِ RTL بود و متن از
+                 پسوند جدا می‌افتاد. --}}
+            <div class="co-sub" dir="ltr">
+              <input type="text" name="subdomain" value="{{ old('subdomain') }}" placeholder="mysite"
+                     minlength="3" maxlength="40" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?"
+                     autocapitalize="off" autocomplete="off" spellcheck="false">
+              <span>.{{ config('servernet.subdomain_zone', 'servernet.cloud') }}</span>
+            </div>
           </label>
+          @php $dnsAuto = app(\App\Services\Dns\CloudflareDns::class)->isConfigured(); @endphp
+          <p class="co-note">
+            @if($dnsAuto)
+              ✅ رکوردِ DNS این زیردامنه پس از تحویل <b>خودکار</b> تنظیم می‌شود و سایتتان بالا می‌آید.
+            @else
+              پس از پرداخت، تنظیمِ DNS این زیردامنه توسط پشتیبانی انجام می‌شود.
+            @endif
+            نام‌های عمومی (مثل www یا mail) رزرو شده‌اند.
+          </p>
         </div>
 
         <button type="submit" class="pnl-btn primary" style="justify-content:center;width:100%;margin-top:8px" @if(count($countries) === 0) disabled @endif>
@@ -189,9 +207,12 @@
 .co-tt small{ font-size:11.5px; color:var(--muted); }
 .co-field label{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--muted); }
 .co-field input{ background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:11px 13px; font:inherit; font-size:14px; color:var(--text); }
-.co-sub{ display:flex; align-items:center; gap:0; }
-.co-sub input{ border-radius:0 11px 11px 0; flex:1; }
-.co-sub span{ background:var(--surface-2); border:1px solid var(--line); border-inline-start:0; border-radius:11px 0 0 11px; padding:11px 12px; font-size:13px; color:var(--muted); }
+/* جزیرهٔ LTR: نام اول (چپ)، پسوند چسبیده در ادامه (راست) */
+.co-sub{ display:flex; align-items:stretch; gap:0; }
+.co-sub input{ flex:1; min-width:0; border-radius:11px 0 0 11px; text-align:left; }
+.co-sub span{ display:flex; align-items:center; white-space:nowrap; background:var(--surface-2);
+  border:1px solid var(--line); border-left:0; border-radius:0 11px 11px 0; padding:0 12px; font-size:13px; color:var(--muted); }
+.co-sub:focus-within input{ outline:2px solid #22D3EE; outline-offset:-2px; }
 .co-note{ font-size:12px; color:var(--muted); line-height:1.9; margin:10px 0 0; }
 .co-warn{ font-size:13px; color:var(--warn); line-height:2; margin:0 0 12px; }
 .co-price-row i{ font-style:normal; color:var(--text); }

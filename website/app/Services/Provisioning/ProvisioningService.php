@@ -124,9 +124,72 @@ class ProvisioningService
             }
         });
 
+        // زیردامنهٔ رایگان تا وقتی رکوردِ DNS نداشته باشد بالا نمی‌آید (nameserverها
+        // روی Cloudflare است و zoneِ محلیِ WHM را دنیا نمی‌بیند). بیرونِ تراکنش و
+        // «بی‌صدا» است: اگر DNS نشد، سرویس نباید شکست‌خورده اعلام شود.
+        $this->pointFreeSubdomain($service, $server);
+
         $this->notify($service, 'سرویسِ «'.$service->name.'» شما آماده شد و در پنل قابل مشاهده است.');
 
         return true;
+    }
+
+    /**
+     * اگر دامنهٔ سرویس زیردامنهٔ خودمان است، رکوردِ A را روی Cloudflare بنشان.
+     *
+     * دامنهٔ اختصاصیِ مشتری دست‌کاری نمی‌شود — DNSِ آن مالِ خودش است.
+     */
+    private function pointFreeSubdomain(Service $service, Server $server): void
+    {
+        $zone = (string) config('servernet.subdomain_zone', 'servernet.cloud');
+        $fqdn = strtolower((string) $service->domain);
+
+        if ($fqdn === '' || ! str_ends_with($fqdn, '.'.$zone)) {
+            return;                                   // دامنهٔ خودِ مشتری
+        }
+
+        $dns = app(\App\Services\Dns\CloudflareDns::class);
+
+        if (! $dns->isConfigured()) {
+            $this->noteDns($service, 'توکنِ Cloudflare تنظیم نشده؛ رکوردِ DNS دستی لازم است.');
+
+            return;
+        }
+
+        // IPِ حسابِ ساخته‌شده: اول IPِ ثبت‌شدهٔ سرور، وگرنه از میزبان resolve کن
+        $ip = filled($server->server_ip)
+            ? (string) $server->server_ip
+            : (string) @gethostbyname((string) $server->hostname);
+
+        if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+            $this->noteDns($service, 'IPِ سرور مشخص نشد؛ رکوردِ DNS دستی لازم است.');
+
+            return;
+        }
+
+        try {
+            $res = $dns->pointSubdomain($fqdn, $ip);
+        } catch (\Throwable $e) {
+            $res = ['ok' => false, 'reason' => mb_substr($e->getMessage(), 0, 140)];
+        }
+
+        $this->noteDns($service, $res['ok']
+            ? 'رکوردِ DNS زیردامنه روی '.$ip.' تنظیم شد.'
+            : 'تنظیمِ DNS زیردامنه ناموفق: '.($res['reason'] ?? '—'));
+    }
+
+    /** نتیجهٔ DNS در provision_meta و لاگِ فعالیت می‌نشیند تا مدیر ببیند */
+    private function noteDns(Service $service, string $message): void
+    {
+        $meta = (array) ($service->provision_meta ?? []);
+        $meta['dns'] = $message;
+        $service->forceFill(['provision_meta' => $meta])->save();
+
+        try {
+            \App\Models\ActivityLog::record($service->customer_id, 'service',
+                'DNS زیردامنه — '.$message, null, 'system');
+        } catch (\Throwable) {
+        }
     }
 
     public function suspend(Service $service): ProvisionResult

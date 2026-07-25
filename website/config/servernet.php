@@ -20,6 +20,28 @@ return [
         'notify_phone'  => env('SUPPORT_NOTIFY_PHONE', ''),
     ],
 
+    /*
+    | دامنه‌ای که زیردامنهٔ رایگانِ مشتری زیرش ساخته می‌شود. رکوردِ A آن روی
+    | Cloudflare ست می‌شود (app/Services/Dns/CloudflareDns.php) — توکنش را مدیر
+    | در تنظیماتِ پنل وارد می‌کند، رمزنگاری‌شده.
+    |
+    | برچسب‌های ممنوعه: اگر مشتری بتواند «console» یا «mail» را بگیرد، زیردامنهٔ
+    | حساسِ خودمان را به هاستِ او می‌نشانیم و راه برای فیشینگ باز می‌شود.
+    */
+    'subdomain_zone' => env('SUBDOMAIN_ZONE', 'servernet.cloud'),
+
+    'subdomain_reserved' => [
+        'www', 'mail', 'smtp', 'imap', 'pop', 'webmail', 'ftp', 'sftp', 'ssh',
+        'ns1', 'ns2', 'ns', 'dns', 'mx', 'cpanel', 'whm', 'webdisk', 'cpcalendars', 'cpcontacts',
+        'console', 'panel', 'admin', 'my', 'billing', 'client', 'clients', 'portal',
+        'api', 'app', 'cdn', 'static', 'assets', 'img', 'images', 'files', 'download', 'downloads',
+        'blog', 'docs', 'doc', 'kb', 'help', 'support', 'status', 'monitor', 'stats',
+        'dev', 'test', 'staging', 'stage', 'demo', 'beta', 'sandbox', 'local', 'localhost',
+        'shop', 'store', 'pay', 'payment', 'checkout', 'invoice', 'secure', 'login', 'auth', 'sso',
+        'vpn', 'proxy', 'git', 'mysql', 'db', 'database', 'backup', 'server', 'servers', 'host',
+        'autodiscover', 'autoconfig', '_domainkey', 'dkim', 'spf', 'dmarc',
+    ],
+
     'whmcs' => [
         'fa' => env('WHMCS_URL_FA', 'https://my.servernet.ir'),
         'en' => env('WHMCS_URL_EN', 'https://my.servernet.cloud'),

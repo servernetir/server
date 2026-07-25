@@ -43,10 +43,13 @@ class WhmPackageTest extends TestCase
         // پکیج به package وصل شد
         $this->assertStringStartsWith('sn_', (string) $product->fresh()->plan);
 
-        // addpkg با فضای ۵ گیگ (=۵۱۲۰ مگ) و پهنای باندِ نامحدود (۰) فرستاده شد
+        // addpkg با فضای ۵ گیگ (=۵۱۲۰ مگ) و پهنای باندِ «unlimited».
+        // ⚠️ این ادعا قبلاً bwlimit=0 بود — یعنی همان چیزی که WHM ردش می‌کند:
+        //   Invalid value "0" for the "bwlimit" setting.
+        // تست، رفتارِ غلط را قفل کرده بود؛ حالا مقدارِ درست را می‌سنجد.
         Http::assertSent(fn ($r) => str_contains($r->url(), 'addpkg')
             && str_contains($r->url(), 'quota=5120')
-            && str_contains($r->url(), 'bwlimit=0'));
+            && str_contains(rawurldecode($r->url()), 'bwlimit=unlimited'));
     }
 
     public function test_existing_package_is_treated_as_connected(): void

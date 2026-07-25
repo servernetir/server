@@ -60,7 +60,28 @@ class StoreController extends Controller
             'domain_mode' => ['required', 'in:have,buy,subdomain'],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
-            'subdomain'   => ['nullable', 'string', 'max:40', 'regex:/^[a-z0-9-]+$/i'],
+            // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
+            // ممنوعه. بدونِ این، مشتری می‌توانست console/mail/pay را بگیرد و
+            // زیردامنهٔ حساسِ ما به هاستِ او می‌نشست (راهِ فیشینگ).
+            'subdomain'   => [
+                'nullable', 'string', 'min:3', 'max:40',
+                'regex:/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i',
+                function ($attr, $value, $fail) {
+                    $label = strtolower(trim((string) $value));
+
+                    if (in_array($label, array_map('strtolower', (array) config('servernet.subdomain_reserved', [])), true)) {
+                        $fail('این زیردامنه رزرو شده است؛ نام دیگری انتخاب کنید.');
+
+                        return;
+                    }
+
+                    // دو مشتری نباید یک زیردامنه بگیرند
+                    $fqdn = $label.'.'.config('servernet.subdomain_zone', 'servernet.cloud');
+                    if (Service::where('domain', $fqdn)->whereNotIn('status', ['cancelled'])->exists()) {
+                        $fail('این زیردامنه قبلاً گرفته شده است؛ نام دیگری انتخاب کنید.');
+                    }
+                },
+            ],
         ], [], [
             'country' => 'محلِ سرور', 'cycle' => 'دورهٔ پرداخت',
             'domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه',

@@ -65,6 +65,36 @@
       <p style="margin:8px 0 0;color:#5f6c82;font-size:12px">تا وقتی «نرخِ مبنا» خالی باشد، هیچ قیمتی تغییر نمی‌کند (حالتِ امن).</p>
     </div>
 
+    {{-- Cloudflare — رکوردِ DNS زیردامنهٔ رایگان --}}
+    @php $cfOn = \App\Models\Setting::getSecret('cloudflare_token') !== null; @endphp
+    <div style="grid-column:1/3;border-top:1px solid #1e2637;padding-top:14px;margin-top:4px">
+      <label style="font-size:13px;color:#e7edf7;font-weight:600;display:block;margin-bottom:4px">
+        DNS زیردامنهٔ رایگان (Cloudflare)
+        @if($cfOn)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399;margin-inline-start:6px">فعال</span>
+        @else<span class="ad-badge" style="background:rgba(251,191,36,.12);color:#fbbf24;margin-inline-start:6px">تنظیم نشده</span>@endif
+      </label>
+      <p style="margin:0 0 12px;color:#96a3ba;font-size:12.5px;line-height:1.9">
+        وقتی مشتری «زیردامنهٔ رایگان» می‌گیرد، پس از تحویل رکوردِ <b>A</b> آن خودکار به IPِ سرور ست می‌شود
+        (بدونِ این، سایتش بالا نمی‌آید چون nameserverها روی Cloudflare است).
+        در Cloudflare یک <b>API Token</b> بسازید با دسترسیِ <b dir="ltr">Zone → DNS → Edit</b> و فقط برای zoneِ
+        <b dir="ltr">{{ config('servernet.subdomain_zone') }}</b>.
+        توکن <b>رمزنگاری‌شده</b> ذخیره می‌شود و دیگر نمایش داده نمی‌شود.
+      </p>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <label class="set-f">API Token @if($cfOn)<span style="color:#5f6c82">(خالی = بدونِ تغییر)</span>@endif
+          <input type="password" name="cloudflare_token" dir="ltr" autocomplete="new-password" maxlength="200"
+                 placeholder="{{ $cfOn ? '••••••••••  ذخیره‌شده' : 'توکن را این‌جا بچسبانید' }}"></label>
+        <label class="set-f">Zone ID <span style="color:#5f6c82">(اختیاری)</span>
+          <input type="text" name="cloudflare_zone_id" dir="ltr" maxlength="64"
+                 value="{{ \App\Models\Setting::get('cloudflare_zone_id') }}" placeholder="خالی = خودکار پیدا می‌شود"></label>
+      </div>
+      @if($cfOn)
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;color:#ff6b6b;font-size:12.5px">
+          <input type="checkbox" name="cloudflare_forget" value="1"> حذفِ توکنِ ذخیره‌شده
+        </label>
+      @endif
+    </div>
+
     <div style="grid-column:1/3;display:flex;justify-content:flex-end">
       <button type="submit" class="btn btn-primary"><svg class="icon"><use href="#i-check"/></svg>ذخیره</button>
     </div>
