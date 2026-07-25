@@ -164,5 +164,5 @@ window.LOOKUP = {
   },
 };
 </script>
-<script src="{{ asset('assets/js/lookup.js') }}?v={{ filemtime(public_path('assets/js/lookup.js')) }}" defer></script>
+<script src="{{ asset_ver('assets/js/lookup.js') }}" defer></script>
 @endsection

@@ -6,7 +6,7 @@
 @extends('layouts.site')
 
 @push('head')
-<link rel="stylesheet" href="{{ asset('assets/css/panel.css') }}?v={{ filemtime(public_path('assets/css/panel.css')) }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
 @endpush
 
 @section('content')

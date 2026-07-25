@@ -11,7 +11,7 @@
 @section('title', $ok ? 'پرداخت موفق — سرورنت' : 'نتیجهٔ پرداخت — سرورنت')
 
 @push('head')
-<link rel="stylesheet" href="{{ asset('assets/css/auth.css') }}?v={{ filemtime(public_path('assets/css/auth.css')) }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/auth.css') }}">
 <meta name="robots" content="noindex,nofollow">
 @endpush
 

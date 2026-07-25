@@ -365,6 +365,27 @@ if (! function_exists('price_toman')) {
     }
 }
 
+if (! function_exists('asset_ver')) {
+    /**
+     * آدرسِ فایلِ استاتیک با مهرِ نسخه — **امن در برابرِ فایلِ نبود**.
+     *
+     * ⚠️ چرا لازم است: قبلاً ویوها مستقیم `filemtime(public_path(...))` می‌زدند.
+     * اگر فایلی روی سرور نبود (دپلوی فایل‌به‌فایل است و یک فایل جا افتاده بود، یا
+     * مسیرِ public روی cPanel فرق داشت)، PHP اخطار می‌داد، لاراول اخطار را به
+     * ErrorException تبدیل می‌کرد و **کلِ صفحه ۵۰۰** می‌شد — فقط به‌خاطرِ یک
+     * لینکِ CSS. حالا اگر فایل نبود، نسخه از هشِ نام ساخته می‌شود و صفحه سالم
+     * می‌ماند (فایلِ نبود در مرورگر ۴۰۴ می‌دهد، ولی صفحه بالا می‌آید).
+     */
+    function asset_ver(string $rel): string
+    {
+        $rel = ltrim($rel, '/');
+        $path = public_path($rel);
+        $stamp = is_file($path) ? @filemtime($path) : false;
+
+        return asset($rel).'?v='.($stamp !== false ? $stamp : substr(md5($rel), 0, 8));
+    }
+}
+
 if (! function_exists('ua_parse')) {
     /**
      * تجزیهٔ user-agent به مرورگر + سیستم‌عامل + نوعِ دستگاه — سبک و بدون وابستگی.

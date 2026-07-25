@@ -119,6 +119,6 @@ window.LOOKUP = {
 };
 window.TOOLHUB = { mode: @json($mode), dnsEndpoint: @json(lroute('api.dnsreport')), lookupEndpoint: @json(lroute('api.lookup')), dnsAll: @json(__('ui.hub_dns_all')) };
 </script>
-<script src="{{ asset('assets/js/lookup.js') }}?v={{ filemtime(public_path('assets/js/lookup.js')) }}" defer></script>
-<script src="{{ asset('assets/js/toolhub.js') }}?v={{ filemtime(public_path('assets/js/toolhub.js')) }}" defer></script>
+<script src="{{ asset_ver('assets/js/lookup.js') }}" defer></script>
+<script src="{{ asset_ver('assets/js/toolhub.js') }}" defer></script>
 @endsection

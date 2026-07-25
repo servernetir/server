@@ -117,4 +117,4 @@ window.AIB_I18N = {
   currency: {{ $isFa ? "'تومان'" : "'€'" }}, faNum: {{ $isFa ? 'true' : 'false' }},
 };
 </script>
-<script src="{{ asset('assets/js/builder.js') }}?v={{ filemtime(public_path('assets/js/builder.js')) }}" defer></script>
+<script src="{{ asset_ver('assets/js/builder.js') }}" defer></script>

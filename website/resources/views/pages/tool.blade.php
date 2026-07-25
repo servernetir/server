@@ -36,5 +36,5 @@
   </div>
 </section>
 
-<script src="{{ asset('assets/js/tools.js') }}?v={{ filemtime(public_path('assets/js/tools.js')) }}" defer></script>
+<script src="{{ asset_ver('assets/js/tools.js') }}" defer></script>
 @endsection
