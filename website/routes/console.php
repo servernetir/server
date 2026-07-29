@@ -65,3 +65,18 @@ Schedule::command('services:lifecycle')
 Schedule::command('provision:run')
     ->everyMinute()
     ->withoutOverlapping();
+
+// کاتالوگِ سرورِ ابری — کارفرما: «دو روز یک‌بار قیمت‌ها آپدیت شود».
+// روزهای زوجِ ماه، ۰۳:۱۵ UTC (≈ ۰۶:۴۵ تهران) — ساعتِ کم‌ترافیک، چون کشیدنِ
+// کاتالوگِ همهٔ مکان‌ها چند ده تماسِ API است.
+Schedule::command('cloud:sync')
+    ->cron('15 3 */2 * *')
+    ->withoutOverlapping(60);
+
+// بازمحاسبهٔ قیمتِ تومانی با نرخِ روزِ یورو — روزانه و بی‌تماسِ API.
+// جدا از سینکِ کامل است چون نرخِ ارز روزانه می‌جنبد ولی مشخصاتِ پلن‌ها ماه‌ها
+// ثابت می‌مانند؛ بی‌این، قیمتِ تومانی تا سینکِ بعدی کهنه می‌ماند.
+// fx:dollar ساعتی می‌دود، پس نرخ همیشه تازه است.
+Schedule::command('cloud:sync --prices')
+    ->dailyAt('05:40')
+    ->withoutOverlapping();

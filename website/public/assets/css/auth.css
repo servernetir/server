@@ -312,3 +312,16 @@ html[data-theme="light"]{
   .auth-btn:hover{ transform:none; }
   .auth-btn .spin{ animation:none; }
 }
+
+/* راهنمای ربات بله در صفحهٔ کد ورود — کد هم‌زمان از پیامک/ایمیل/بله می‌رود،
+   پس اگر پیامک نرسید کاربر راهِ دیگری دارد و پشتِ درِ بسته نمی‌ماند. */
+.auth-bale{
+  display:flex; align-items:flex-start; gap:9px; margin-top:14px;
+  padding:11px 13px; border-radius:12px;
+  background:color-mix(in srgb, var(--cyan,#22D3EE) 8%, transparent);
+  border:1px solid color-mix(in srgb, var(--cyan,#22D3EE) 26%, transparent);
+  font-size:12.5px; line-height:1.95; color:var(--muted,#8A94AC);
+}
+.auth-bale .icon{ width:16px; height:16px; flex:0 0 auto; margin-top:3px; color:var(--cyan,#22D3EE); }
+.auth-bale a{ color:var(--cyan,#22D3EE); font-weight:700; text-decoration:none; }
+.auth-bale a:hover{ text-decoration:underline; }

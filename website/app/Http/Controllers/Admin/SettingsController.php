@@ -43,12 +43,24 @@ class SettingsController extends Controller
         ];
         $liveRate = app(\App\Services\ExchangeRate::class)->toToman('EUR');
 
+        // ارائه‌دهندگانِ سرورِ ابری — فقط «تنظیم‌شده یا نه». خودِ توکن هرگز به
+        // فرم برنمی‌گردد (مثلِ توکنِ WHM و Cloudflare).
+        $cloud = [
+            'hetzner' => $ready && filled(Setting::getSecret('hetzner_api_token')),
+            'aeza'    => $ready && filled(Setting::getSecret('aeza_api_token')),
+            'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
+            'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
+            'plans'   => $ready && Schema::hasTable('cloud_plans')
+                ? \App\Models\CloudPlan::where('is_active', true)->count() : 0,
+        ];
+
         return view('admin.settings', [
             'bank'        => $bank,
             'stampData'   => $stampData,
             'pricing'     => $pricing,
             'liveRate'    => $liveRate,
             'priceFactor' => $ready ? price_factor() : 1.0,
+            'cloud'       => $cloud,
             'notReady'    => ! $ready,
         ]);
     }
@@ -73,6 +85,13 @@ class SettingsController extends Controller
             'cloudflare_token'      => ['nullable', 'string', 'max:200'],
             'cloudflare_zone_id'    => ['nullable', 'string', 'max:64', 'regex:/^[a-f0-9]*$/i'],
             'cloudflare_forget'     => ['nullable', 'boolean'],
+            // ارائه‌دهندگانِ سرورِ ابری — توکن را **خودِ مدیر** وارد می‌کند
+            'hetzner_api_token'     => ['nullable', 'string', 'max:300'],
+            'hetzner_forget'        => ['nullable', 'boolean'],
+            'aeza_api_token'        => ['nullable', 'string', 'max:300'],
+            'aeza_forget'           => ['nullable', 'boolean'],
+            'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
@@ -95,6 +114,20 @@ class SettingsController extends Controller
 
         if (filled($data['cloudflare_zone_id'] ?? null)) {
             Setting::put('cloudflare_zone_id', trim((string) $data['cloudflare_zone_id']));
+        }
+
+        // توکنِ ارائه‌دهندگانِ ابری — همان الگو: رمزنگاری‌شده، هرگز برنمی‌گردد،
+        // خالی‌فرستادن یعنی «دست نزن» و برای حذف تیکِ جدا هست.
+        foreach (['hetzner', 'aeza'] as $p) {
+            if ($request->boolean($p.'_forget')) {
+                Setting::putSecret($p.'_api_token', null);
+            } elseif (filled($data[$p.'_api_token'] ?? null)) {
+                Setting::putSecret($p.'_api_token', trim((string) $data[$p.'_api_token']));
+            }
+        }
+
+        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents'] as $k) {
+            Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }
 
         // مهر: بیرون webroot در storage ذخیره می‌شود؛ روی فاکتور به‌صورت

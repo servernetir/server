@@ -1381,6 +1381,13 @@ Route::prefix('admin')->group(function () {
         // تغییرِ قیمتِ گروهی (درصدی/مبلغی) با گردکردنِ رو به بالا
         Route::post('/products-reprice', [\App\Http\Controllers\Admin\ProductController::class, 'reprice']);
 
+        // زیرساختِ سرورِ ابری — کاتالوگ، آزمونِ اتصال، همگام‌سازی
+        Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud');
+        Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test']);
+        Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync']);
+        // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
+        Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe']);
+
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);
         Route::post('/services/{service}/suspend', [\App\Http\Controllers\Admin\ServiceController::class, 'suspend']);
