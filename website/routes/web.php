@@ -1378,6 +1378,8 @@ Route::prefix('admin')->group(function () {
         // ساختِ package در WHM از روی پکیج
         Route::post('/products/{product}/whm-sync', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhm']);
         Route::post('/products-whm-sync-all', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhmAll']);
+        // تغییرِ قیمتِ گروهی (درصدی/مبلغی) با گردکردنِ رو به بالا
+        Route::post('/products-reprice', [\App\Http\Controllers\Admin\ProductController::class, 'reprice']);
 
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);

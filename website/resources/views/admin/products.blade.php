@@ -57,6 +57,85 @@
   @endif
 </div>
 
+{{-- ══ تغییرِ قیمتِ گروهی ══
+     کارِ روزمرهٔ کارفرما «۱۰٪ به همهٔ هاست‌های لینوکس اضافه کن» است؛ انجامِ
+     دستی‌اش ۵۲ بار فرصتِ خطای انسانی است. --}}
+@unless($notReady)
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>تغییرِ قیمتِ گروهی</h3></div>
+  <p style="padding:0 18px;color:var(--muted);font-size:13.5px;line-height:1.9">
+    قیمتِ <b>همهٔ پکیج‌های یک گروه</b> را با هم عوض کنید. نتیجه همیشه <b>رو به بالا</b> گرد
+    می‌شود تا عددها تمیز بمانند (۲۴۰٬۰۰۰ نه ۲۳۷٬۴۵۰).
+    <br>این قیمتِ <b>پایه</b> است؛ ضریبِ نرخِ یورو و تخفیفِ دوره‌ها سرِ جای خود می‌مانند.
+    تغییر بلافاصله در <b>سایت اصلی</b> هم دیده می‌شود.
+  </p>
+  <form method="post" action="/admin/products-reprice" class="rp-f"
+        data-confirm="قیمتِ همهٔ پکیج‌های این گروه عوض شود؟" data-confirm-title="تغییرِ قیمتِ گروهی">
+    @csrf
+    <label>گروه
+      <select name="group" required>
+        @foreach($groups as $items)
+          @if($items->first()->group)
+            <option value="{{ $items->first()->group }}">{{ $items->first()->groupLabel() }} — {{ fa_num($items->count()) }} پکیج</option>
+          @endif
+        @endforeach
+      </select>
+    </label>
+    <label>نوعِ تغییر
+      <select name="mode">
+        <option value="percent">درصدی (۱۰ یا ۵-)</option>
+        <option value="amount">مبلغِ ثابت (تومان)</option>
+        <option value="set">قیمتِ یکسان برای همه</option>
+      </select>
+    </label>
+    <label>مقدار
+      <input type="number" name="value" step="0.01" required dir="ltr" placeholder="10">
+    </label>
+    <label>گردکردن به
+      <select name="round">
+        <option value="10000">۱۰٬۰۰۰ تومان</option>
+        <option value="50000">۵۰٬۰۰۰ تومان</option>
+        <option value="100000">۱۰۰٬۰۰۰ تومان</option>
+        <option value="1000">۱٬۰۰۰ تومان</option>
+      </select>
+    </label>
+    <label class="chk"><input type="checkbox" name="also_eur" value="1" checked> یورو هم به همان نسبت</label>
+    <div><button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-coins"/></svg>اعمال روی گروه</button></div>
+  </form>
+</div>
+
+{{-- ══ نمای گروه‌بندی‌شده ══ --}}
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>پکیج‌ها بر اساس گروه</h3></div>
+  @foreach($groups as $items)
+    <details class="rp-g" @if($loop->first) open @endif>
+      <summary>
+        <b>{{ $items->first()->groupLabel() }}</b>
+        <span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee">{{ fa_num($items->count()) }}</span>
+        <small dir="ltr" style="color:var(--dim)">{{ $items->first()->group ?: '—' }}</small>
+        <small style="color:var(--muted);margin-inline-start:auto">
+          {{ fa_num(number_format($items->min('price'))) }} – {{ fa_num(number_format($items->max('price'))) }} تومان
+        </small>
+      </summary>
+      <table class="ad-table">
+        <thead><tr><th>پکیج</th><th>تومان</th><th>یورو</th><th>package در WHM</th><th>وضعیت</th></tr></thead>
+        <tbody>
+          @foreach($items as $p)
+          <tr>
+            <td>{{ $p->name }}</td>
+            <td dir="ltr">{{ fa_num(number_format($p->price)) }}</td>
+            <td dir="ltr">{{ $p->price_eur !== null ? '€'.number_format($p->price_eur / 100, 2) : '—' }}</td>
+            <td dir="ltr" style="color:var(--muted);font-size:12px">{{ $p->plan ?: '—' }}</td>
+            <td>@if($p->is_active)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">فعال</span>@else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">غیرفعال</span>@endif</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </details>
+  @endforeach
+</div>
+@endunless
+
 @unless($notReady)
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>افزودن پکیج</h3></div>
@@ -72,6 +151,17 @@
 .srv-f .col2{ grid-column:1/3 }
 .srv-f .chk{ flex-direction:row; align-items:center; gap:8px }
 .srv-edit summary::-webkit-details-marker{ display:none }
+
+/* تغییرِ قیمتِ گروهی */
+.rp-f{ padding:16px 18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:12px; align-items:end }
+.rp-f label{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--muted) }
+.rp-f input, .rp-f select{ background:var(--surface2); border:1px solid var(--line); border-radius:9px; color:var(--text); padding:9px 12px; font:inherit; font-size:13px }
+.rp-f .chk{ flex-direction:row; align-items:center; gap:8px }
+.rp-g{ border-top:1px solid var(--line) }
+.rp-g summary{ display:flex; align-items:center; gap:10px; padding:13px 18px; cursor:pointer; font-size:13.5px }
+.rp-g summary::-webkit-details-marker{ display:none }
+.rp-g summary:hover, .rp-g[open] summary{ background:var(--surface) }
+
 @media(max-width:640px){ .srv-f{ grid-template-columns:1fr } .srv-f .col2{ grid-column:1 } }
 </style>
 @endsection

@@ -12,8 +12,8 @@ use Illuminate\Support\Str;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'category', 'server_id', 'locations', 'plan', 'currency_code',
-        'price', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
+        'name', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
+        'price', 'price_eur', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
         'requires_domain', 'is_active', 'sort',
     ];
 
@@ -21,6 +21,7 @@ class Product extends Model
     {
         return [
             'price'           => 'integer',
+            'price_eur'       => 'integer',   // سنت — یورو exponent=2
             'setup_fee'       => 'integer',
             'tax_percent'     => 'integer',
             'specs'           => 'array',
@@ -107,6 +108,40 @@ class Product extends Model
         $raw = $this->monthlyBase() * $months * (100 - $discount) / 100 * $mult;
 
         return price_toman((int) round($raw));
+    }
+
+    /**
+     * گردکردنِ قیمتِ تومانی **رو به بالا** تا نزدیک‌ترین پله.
+     *
+     * خواستهٔ کارفرما: بعد از تغییرِ گروهی، عددها باید تمیز بمانند (۲۴۰٬۰۰۰ نه
+     * ۲۳۷٬۴۵۰). رو به بالا هم عمدی است: گردکردنِ پایین یعنی تخفیفِ ناخواسته روی
+     * کلِ کاتالوگ.
+     */
+    public static function roundUpToman(int|float $value, int $step = 10000): int
+    {
+        $step = max(1, $step);
+
+        return (int) (ceil($value / $step) * $step);
+    }
+
+    /** گردکردنِ یورو رو به بالا تا نزدیک‌ترین ۱۰ سنت (۴٫۹۰ نه ۴٫۸۷) */
+    public static function roundUpEur(int|float $cents, int $step = 10): int
+    {
+        $step = max(1, $step);
+
+        return (int) (ceil($cents / $step) * $step);
+    }
+
+    /** برچسبِ فارسیِ گروه — از کاتالوگِ سایت اصلی می‌آید تا یکی بماند */
+    public function groupLabel(): string
+    {
+        if (blank($this->group)) {
+            return '—';
+        }
+
+        $cat = config('hosting.products.'.$this->group);
+
+        return $cat ? (lc($cat)['t'] ?? $this->group) : $this->group;
     }
 
     /**

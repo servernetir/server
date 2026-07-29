@@ -42,8 +42,14 @@ class SeedHostingProducts extends Command
                 $attrs = [
                     'name'            => $title.' — '.($plan['name'] ?? ('پلن '.($i + 1))),
                     'category'        => $category,
+                    // گروه = کلیدِ کاتالوگ (wordpress، backup، reseller-linux…)
+                    // تا تغییرِ قیمتِ گروهی در پنل روی همان دسته کار کند.
+                    'group'           => $slug,
                     'currency_code'  => 'IRT',
                     'price'           => (int) ($plan['irt'] ?? 0),
+                    // یورو به **سنت** — نسخهٔ انگلیسی/ترکی همین را نشان می‌دهد و
+                    // با این ستون، جدولِ products تنها منبعِ حقیقتِ قیمت می‌شود.
+                    'price_eur'       => isset($plan['eur']) ? (int) round(((float) $plan['eur']) * 100) : null,
                     'setup_fee'       => 0,
                     'cycle'           => 'monthly',
                     'tax_percent'     => 10,
@@ -66,7 +72,8 @@ class SeedHostingProducts extends Command
                         $existing->update([
                             'name' => $attrs['name'], 'price' => $attrs['price'],
                             'specs' => $attrs['specs'], 'category' => $attrs['category'],
-                            'plan' => $attrs['plan'],
+                            'plan' => $attrs['plan'], 'group' => $attrs['group'],
+                            'price_eur' => $attrs['price_eur'],
                         ]);
                         $updated++;
                     }

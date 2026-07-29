@@ -30,6 +30,14 @@ class CatalogController extends Controller
         abort_unless(is_array($products) && isset($products[$slug]), 404);
 
         $product = $products[$slug];
+
+        // قیمت‌ها از جدولِ products سوار می‌شوند تا سایت و تسویه یک عدد نشان
+        // دهند. بدونِ این، تغییرِ قیمت در پنلِ مدیریت روی صفحهٔ محصول اثر نداشت.
+        if ($category === 'hosting' && ! empty($product['plans'])) {
+            $product['plans'] = app(\App\Services\CatalogPricing::class)
+                ->applyToPlans($slug, $product['plans']);
+        }
+
         $featurePool = config('hosting.feature_pool');
         $faqPool = config('hosting.faq_pool');
 

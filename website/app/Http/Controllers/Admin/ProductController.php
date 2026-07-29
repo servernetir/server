@@ -20,29 +20,125 @@ class ProductController extends Controller
     {
         $ready = Schema::hasTable('products');
 
+        $products = $ready
+            ? Product::with('server')->orderBy('group')->orderBy('sort')->orderBy('id')->get()
+            : collect();
+
         return view('admin.products', [
-            'products' => $ready ? Product::with('server')->orderBy('category')->orderBy('sort')->get() : collect(),
+            'products' => $products,
+            // گروه‌بندی برای تغییرِ قیمتِ گروهی: «همهٔ هاست‌های وردپرس» یک‌جا
+            'groups'   => $products->groupBy(fn (Product $p) => $p->group ?: 'بدون گروه'),
             'servers'  => Schema::hasTable('servers') ? Server::orderBy('name')->get() : collect(),
             'notReady' => ! $ready,
         ]);
+    }
+
+    /**
+     * تغییرِ قیمتِ **گروهی** — درصدی یا مبلغِ ثابت، با گردکردنِ رو به بالا.
+     *
+     * چرا این‌جا و نه ویرایشِ تک‌تکِ ۵۲ پکیج: کارفنی روزمرهٔ کارفرما «۱۰٪ به همهٔ
+     * هاست‌های لینوکس اضافه کن» است. دستیِ آن، ۵۲ بار خطای انسانی است.
+     *
+     * ⚠️ فقط قیمتِ **پایه** عوض می‌شود. ضریبِ نرخِ ارز (price_factor) و تخفیفِ
+     * دوره‌ها جای خودشان می‌مانند، پس محاسبهٔ نهایی دست‌نخورده است.
+     */
+    public function reprice(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'group'     => ['required', 'string', 'max:60'],
+            'mode'      => ['required', 'in:percent,amount,set'],
+            'value'     => ['required', 'numeric'],
+            'round'     => ['nullable', 'integer', 'min:1000', 'max:1000000'],
+            'also_eur'  => ['nullable', 'boolean'],
+            'confirm'   => ['nullable', 'boolean'],
+        ], [], [
+            'group' => 'گروه', 'mode' => 'نوعِ تغییر', 'value' => 'مقدار',
+        ]);
+
+        $step = (int) ($data['round'] ?? 10000);
+        $items = Product::where('group', $data['group'])->get();
+
+        if ($items->isEmpty()) {
+            return back()->withErrors('در گروهِ «'.$data['group'].'» پکیجی نیست.');
+        }
+
+        $changed = 0;
+        $preview = [];
+
+        foreach ($items as $p) {
+            $old = (int) $p->price;
+
+            $new = match ($data['mode']) {
+                'percent' => $old * (1 + ((float) $data['value'] / 100)),
+                'amount'  => $old + (float) $data['value'],
+                'set'     => (float) $data['value'],
+            };
+
+            $new = Product::roundUpToman(max(0, $new), $step);
+
+            // یورو هم به همان نسبت (فقط در حالتِ درصدی معنا دارد)
+            $newEur = $p->price_eur;
+            if (! empty($data['also_eur']) && $p->price_eur !== null && $data['mode'] === 'percent') {
+                $newEur = Product::roundUpEur($p->price_eur * (1 + ((float) $data['value'] / 100)));
+            }
+
+            $preview[] = $p->name.': '.number_format($old).' → '.number_format($new);
+
+            if ($new !== $old || $newEur !== $p->price_eur) {
+                $p->forceFill(['price' => $new, 'price_eur' => $newEur])->save();
+                $changed++;
+            }
+        }
+
+        // کشِ قیمتِ کاتالوگ را بریز تا سایت فوراً عددِ تازه را نشان دهد
+        \App\Services\CatalogPricing::forget();
+
+        \App\Models\ActivityLog::record(null, 'pricing',
+            'قیمتِ گروهِ «'.$data['group'].'» تغییر کرد ('.$data['mode'].' '.$data['value'].') — '
+            .$changed.' پکیج', $request, 'staff');
+
+        return back()->with('ok', $changed.' پکیج در گروهِ «'.$data['group'].'» به‌روزرسانی شد. '
+            .'نمونه: '.implode(' · ', array_slice($preview, 0, 3)));
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
         $data['specs'] = $this->parseSpecs($request->input('specs_raw'));
-        Product::create($data);
+        $product = Product::create($data);
 
-        return back()->with('ok', 'پکیج «'.$data['name'].'» اضافه شد.');
+        \App\Services\CatalogPricing::forget();
+
+        // پکیجِ تازه بی‌درنگ روی WHM ساخته می‌شود. نگرانیِ درست کارفرما: پکیجی که
+        // در سایت هست ولی در WHM نیست، در لحظهٔ سفارشِ مشتری با خطا می‌خورد.
+        [, $whm] = $this->createWhmPackage($product);
+
+        return back()->with('ok', 'پکیج «'.$data['name'].'» اضافه شد. '.$whm);
     }
 
     public function update(Request $request, Product $product): RedirectResponse
     {
         $data = $this->validated($request);
         $data['specs'] = $this->parseSpecs($request->input('specs_raw'));
+
+        // آیا مشخصاتِ فنی عوض شد؟ اگر بله، حدومرزِ packageِ WHM هم باید عوض شود
+        $specsChanged = json_encode($data['specs']) !== json_encode($product->specs);
+
         $product->update($data);
 
-        return back()->with('ok', 'پکیج «'.$product->name.'» به‌روزرسانی شد.');
+        \App\Services\CatalogPricing::forget();
+
+        $note = '';
+        if ($specsChanged) {
+            // editpkg روی همهٔ سرورهای WHM — وگرنه سایت و سرور از هم می‌پاشند:
+            // مشتری «۱۰ گیگ» می‌خرد و روی سرور همان ۵ گیگِ قبلی را می‌گیرد.
+            [, $note] = $this->createWhmPackage($product);
+            $note = ' مشخصات عوض شد → '.$note;
+        }
+
+        return back()->with('ok', 'پکیج «'.$product->name.'» به‌روزرسانی شد.'.$note);
     }
 
     public function destroy(Request $request, Product $product): RedirectResponse
@@ -247,9 +343,13 @@ class ProductController extends Controller
         return $request->validate([
             'name'            => ['required', 'string', 'max:150'],
             'category'        => ['required', 'in:'.implode(',', array_keys(Product::CATEGORIES))],
+            // گروه: برای تغییرِ قیمتِ گروهی و نمایشِ دسته‌بندی‌شده
+            'group'           => ['nullable', 'string', 'max:60', 'regex:/^[a-z0-9-]*$/'],
             'server_id'       => ['nullable', 'integer', 'exists:servers,id'],
             'plan'            => ['nullable', 'string', 'max:80'],
             'price'           => ['required', 'integer', 'min:0', 'max:100000000000'],
+            // یورو به سنت — نسخهٔ انگلیسی/ترکی همین را نشان می‌دهد
+            'price_eur'       => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'setup_fee'       => ['nullable', 'integer', 'min:0', 'max:100000000000'],
             'cycle'           => ['required', \Illuminate\Validation\Rule::in(\App\Models\Service::cycles())],
             'tax_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
