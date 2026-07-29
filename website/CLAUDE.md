@@ -506,3 +506,4 @@ OPENPROVIDER_PASSWORD
 DOMAIN_MARGIN_PCT        پیش‌فرض ۲۵
 DEPLOY_TOKEN             فقط حروف انگلیسی و رقم
 ```
+
