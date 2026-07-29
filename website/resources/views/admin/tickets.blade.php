@@ -16,7 +16,7 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>تیکت‌ها</h2></div>
   @if($tickets->isEmpty())
-    <p style="padding:20px;color:#96a3ba">تیکتی در این وضعیت نیست.</p>
+    <p style="padding:20px;color:var(--muted)">تیکتی در این وضعیت نیست.</p>
   @else
     <table class="ad-table">
       <thead>
@@ -27,18 +27,18 @@
           <tr onclick="location='/admin/tickets/{{ $t->id }}'" style="cursor:pointer">
             <td dir="ltr">{{ $t->number }}</td>
             <td>{{ $t->subject }}</td>
-            <td>{{ $t->customer?->displayName() }} <small style="color:#5f6c82" dir="ltr">{{ $t->customer?->code }}</small></td>
+            <td>{{ $t->customer?->displayName() }} <small style="color:var(--dim)" dir="ltr">{{ $t->customer?->code }}</small></td>
             <td>{{ ['technical'=>'فنی','billing'=>'مالی','sales'=>'فروش'][$t->department] ?? $t->department }}</td>
             <td>
-              @php $pr = ['low'=>['کم','#5f6c82'],'normal'=>['عادی','#96a3ba'],'high'=>['زیاد','#fbbf24'],'urgent'=>['فوری','#ff6b6b']][$t->priority] ?? ['—','#5f6c82']; @endphp
+              @php $pr = ['low'=>['کم','var(--dim)'],'normal'=>['عادی','var(--muted)'],'high'=>['زیاد','#fbbf24'],'urgent'=>['فوری','#ff6b6b']][$t->priority] ?? ['—','var(--dim)']; @endphp
               <span style="color:{{ $pr[1] }}">{{ $pr[0] }}</span>
             </td>
             <td>
               @if($t->status === 'open')<span class="ad-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">در انتظار</span>
               @elseif($t->status === 'answered')<span class="ad-badge" style="background:rgba(52,211,153,.15);color:#34d399">پاسخ‌داده</span>
-              @else<span class="ad-badge" style="background:rgba(95,108,130,.15);color:#96a3ba">بسته</span>@endif
+              @else<span class="ad-badge" style="background:rgba(95,108,130,.15);color:var(--muted)">بسته</span>@endif
             </td>
-            <td dir="ltr">{{ stime($t->last_reply_at) }} <small style="color:#5f6c82">{{ $t->last_reply_role === 'staff' ? '(ما)' : '(مشتری)' }}</small></td>
+            <td dir="ltr">{{ stime($t->last_reply_at) }} <small style="color:var(--dim)">{{ $t->last_reply_role === 'staff' ? '(ما)' : '(مشتری)' }}</small></td>
           </tr>
         @endforeach
       </tbody>

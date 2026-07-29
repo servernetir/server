@@ -17,7 +17,7 @@
   <a class="ad-kpi" href="/admin/finance">
     <span class="ad-kpi-ic" style="background:rgba(255,107,107,.14);color:#ff6b6b"><svg class="icon"><use href="#i-coins"/></svg></span>
     <b>{{ fa_num($biz['invoices_unpaid']) }}</b>
-    <span>فاکتور پرداخت‌نشده@if($biz['unpaid_amount'])<i style="color:#96a3ba"> ({{ fa_num(number_format($biz['unpaid_amount'])) }} ت)</i>@endif</span>
+    <span>فاکتور پرداخت‌نشده@if($biz['unpaid_amount'])<i style="color:var(--muted)"> ({{ fa_num(number_format($biz['unpaid_amount'])) }} ت)</i>@endif</span>
   </a>
   <a class="ad-kpi" href="/admin/finance">
     <span class="ad-kpi-ic" style="background:rgba(52,211,153,.14);color:#34d399"><svg class="icon"><use href="#i-coins"/></svg></span>
@@ -35,8 +35,8 @@
         @forelse($newCustomers as $c)
         <tr>
           <td><a class="t" href="/admin/customers/{{ $c->id }}">{{ $c->displayName() }}</a>
-            <div style="font-size:12px;color:#5f6c82" dir="ltr">{{ $c->code }}</div></td>
-          <td dir="ltr" style="color:#96a3ba">{{ $c->phone ?: $c->email }}</td>
+            <div style="font-size:12px;color:var(--dim)" dir="ltr">{{ $c->code }}</div></td>
+          <td dir="ltr" style="color:var(--muted)">{{ $c->phone ?: $c->email }}</td>
           <td>
             @php $st = ['active'=>['فعال','pub'],'pending'=>['در انتظار','draft'],'suspended'=>['معلق','draft'],'closed'=>['بسته','draft']][$c->status] ?? [$c->status,'draft']; @endphp
             <span class="ad-badge {{ $st[1] }}">{{ $st[0] }}</span>
@@ -80,12 +80,12 @@
 
 <style>
 .ad-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px }
-.ad-kpi{ display:flex; flex-direction:column; gap:4px; padding:16px; background:var(--panel,#141b2b); border:1px solid #1e2637; border-radius:14px; text-decoration:none; transition:border-color .15s }
+.ad-kpi{ display:flex; flex-direction:column; gap:4px; padding:16px; background:var(--panel,var(--surface)); border:1px solid var(--line); border-radius:14px; text-decoration:none; transition:border-color .15s }
 .ad-kpi:hover{ border-color:#334155 }
 .ad-kpi-ic{ width:38px; height:38px; border-radius:10px; display:grid; place-items:center; margin-bottom:6px }
 .ad-kpi-ic .icon{ width:20px; height:20px }
-.ad-kpi b{ font-size:26px; color:#e7edf7; font-variant-numeric:tabular-nums; line-height:1 }
-.ad-kpi span{ font-size:12.5px; color:#96a3ba }
+.ad-kpi b{ font-size:26px; color:var(--text); font-variant-numeric:tabular-nums; line-height:1 }
+.ad-kpi span{ font-size:12.5px; color:var(--muted) }
 .ad-kpi span i{ font-style:normal; font-size:11px }
 .ad-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
 @media(max-width:900px){ .ad-kpis{ grid-template-columns:repeat(2,1fr) } .ad-grid2{ grid-template-columns:1fr } }

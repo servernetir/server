@@ -9,7 +9,7 @@
     if ($cur === 'EUR') return '€'.number_format($amount / 100, 2);
     return fa_num(number_format((int) $amount)).' '.$cur;
   };
-  $payStatus = ['paid'=>['موفق','#34d399'],'pending'=>['در انتظار','#fbbf24'],'redirected'=>['هدایت‌شده','#22d3ee'],'failed'=>['ناموفق','#ff6b6b'],'canceled'=>['لغو','#5f6c82'],'expired'=>['منقضی','#5f6c82']];
+  $payStatus = ['paid'=>['موفق','#34d399'],'pending'=>['در انتظار','#fbbf24'],'redirected'=>['هدایت‌شده','#22d3ee'],'failed'=>['ناموفق','#ff6b6b'],'canceled'=>['لغو','var(--dim)'],'expired'=>['منقضی','var(--dim)']];
   $gwLabel = ['zarinpal'=>'زرین‌پال','bale'=>'بله','bank_transfer'=>'واریز به حساب'];
   $reasonLabel = ['topup'=>'افزایش اعتبار','invoice'=>'پرداخت فاکتور','refund'=>'بازگشت وجه','adjustment'=>'اصلاح دستی'];
 @endphp
@@ -64,12 +64,12 @@
       <tr>
         <td><b>{{ $row->currency_code === 'IRT' ? 'تومان (IRT)' : $row->currency_code }}</b></td>
         <td style="color:#34d399;font-weight:700">{{ $money($row->total, $row->currency_code) }}</td>
-        <td dir="ltr" style="color:#96a3ba">{{ fa_num($row->cnt) }}</td>
+        <td dir="ltr" style="color:var(--muted)">{{ fa_num($row->cnt) }}</td>
       </tr>
       @endforeach
     </tbody>
   </table>
-  <p style="padding:10px 16px 14px;margin:0;font-size:12px;color:#5f6c82">تومان و یورو جدا نمایش داده می‌شوند؛ چون واحدشان هم‌مقیاس نیست، جمعِ خام معنا ندارد. این «درآمدِ واقعی» است (بدونِ افزایش اعتبار).</p>
+  <p style="padding:10px 16px 14px;margin:0;font-size:12px;color:var(--dim)">تومان و یورو جدا نمایش داده می‌شوند؛ چون واحدشان هم‌مقیاس نیست، جمعِ خام معنا ندارد. این «درآمدِ واقعی» است (بدونِ افزایش اعتبار).</p>
 </div>
 @endif
 
@@ -77,14 +77,14 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>مشتریانِ دارای اعتبار</h3></div>
   @if($topCredit->isEmpty())
-    <p style="padding:16px;color:#5f6c82">هیچ مشتری‌ای اعتبار ندارد.</p>
+    <p style="padding:16px;color:var(--dim)">هیچ مشتری‌ای اعتبار ندارد.</p>
   @else
     <table class="ad-table">
       <thead><tr><th>مشتری</th><th>ارز</th><th>موجودی اعتبار</th></tr></thead>
       <tbody>
         @foreach($topCredit as $row)
         <tr @if($row->customer) onclick="location='/admin/customers/{{ $row->customer_id }}'" style="cursor:pointer" @endif>
-          <td>{{ $row->customer?->displayName() ?? '—' }} <span dir="ltr" style="color:#5f6c82;font-size:12px">{{ $row->customer?->code }}</span></td>
+          <td>{{ $row->customer?->displayName() ?? '—' }} <span dir="ltr" style="color:var(--dim);font-size:12px">{{ $row->customer?->code }}</span></td>
           <td>{{ $row->currency_code }}</td>
           <td style="color:#34d399;font-weight:700">{{ $money($row->bal, $row->currency_code) }}</td>
         </tr>
@@ -105,7 +105,7 @@
     </div>
   </div>
   @if($payments->isEmpty())
-    <p style="padding:16px;color:#5f6c82">تراکنشی با این فیلتر نیست.</p>
+    <p style="padding:16px;color:var(--dim)">تراکنشی با این فیلتر نیست.</p>
   @else
     <div style="overflow-x:auto">
     <table class="ad-table">
@@ -113,19 +113,19 @@
       <tbody>
         @foreach($payments as $p)
         <tr>
-          <td dir="ltr" style="color:#96a3ba;white-space:nowrap">{{ stime($p->paid_at ?? $p->created_at) }}</td>
+          <td dir="ltr" style="color:var(--muted);white-space:nowrap">{{ stime($p->paid_at ?? $p->created_at) }}</td>
           <td @if($p->customer) style="cursor:pointer" onclick="location='/admin/customers/{{ $p->customer_id }}'" @endif>
             {{ $p->customer?->displayName() ?? '—' }}
           </td>
           <td>{{ $gwLabel[$p->gateway] ?? $p->gateway }}</td>
           <td style="white-space:nowrap">{{ $money($p->amount, $p->currency_code ?? 'IRT') }}</td>
           <td>
-            @php $ps = $payStatus[$p->status] ?? [$p->status, '#96a3ba']; @endphp
+            @php $ps = $payStatus[$p->status] ?? [$p->status, 'var(--muted)']; @endphp
             <span class="ad-badge" style="background:{{ $ps[1] }}22;color:{{ $ps[1] }}">{{ $ps[0] }}</span>
           </td>
-          <td dir="ltr" style="color:#96a3ba;font-size:12px">
+          <td dir="ltr" style="color:var(--muted);font-size:12px">
             {{ $p->ref_id ?: $p->external_ref ?: '—' }}
-            @if($p->card_mask)<div style="color:#5f6c82">{{ $p->card_mask }}</div>@endif
+            @if($p->card_mask)<div style="color:var(--dim)">{{ $p->card_mask }}</div>@endif
           </td>
         </tr>
         @endforeach
@@ -139,7 +139,7 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>دفترِ اعتبار — گردشِ کیف پول</h3></div>
   @if($credit->isEmpty())
-    <p style="padding:16px;color:#5f6c82">هنوز گردشِ اعتباری ثبت نشده.</p>
+    <p style="padding:16px;color:var(--dim)">هنوز گردشِ اعتباری ثبت نشده.</p>
   @else
     <div style="overflow-x:auto">
     <table class="ad-table">
@@ -147,13 +147,13 @@
       <tbody>
         @foreach($credit as $e)
         <tr>
-          <td dir="ltr" style="color:#96a3ba;white-space:nowrap">{{ stime($e->created_at) }}</td>
+          <td dir="ltr" style="color:var(--muted);white-space:nowrap">{{ stime($e->created_at) }}</td>
           <td @if($e->customer) style="cursor:pointer" onclick="location='/admin/customers/{{ $e->customer_id }}'" @endif>{{ $e->customer?->displayName() ?? '—' }}</td>
           <td>{{ $reasonLabel[$e->reason] ?? $e->reason }}</td>
           <td style="white-space:nowrap;font-weight:700;color:{{ $e->amount >= 0 ? '#34d399' : '#ff6b6b' }}">
             {{ $e->amount >= 0 ? '+' : '−' }}{{ $money(abs($e->amount), $e->currency_code) }}
           </td>
-          <td dir="ltr" style="color:#96a3ba">{{ $money($e->balance_after, $e->currency_code) }}</td>
+          <td dir="ltr" style="color:var(--muted)">{{ $money($e->balance_after, $e->currency_code) }}</td>
         </tr>
         @endforeach
       </tbody>
@@ -166,11 +166,11 @@
 .tx-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px }
 @media(max-width:900px){ .tx-kpis{ grid-template-columns:repeat(2,1fr) } }
 @media(max-width:520px){ .tx-kpis{ grid-template-columns:1fr } }
-.tx-kpi{ background:#141b2b; border:1px solid #1e2637; border-radius:14px; padding:16px 18px }
-.tx-kpi.accent{ background:linear-gradient(135deg,rgba(34,211,238,.10),#141b2b); border-color:rgba(34,211,238,.3) }
-.tx-kpi-l{ display:block; font-size:12.5px; color:#96a3ba; margin-bottom:8px }
-.tx-kpi-v{ display:block; font-size:22px; font-weight:800; color:#e7edf7; font-variant-numeric:tabular-nums; letter-spacing:.3px }
+.tx-kpi{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px }
+.tx-kpi.accent{ background:linear-gradient(135deg,rgba(34,211,238,.10),var(--surface)); border-color:rgba(34,211,238,.3) }
+.tx-kpi-l{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:8px }
+.tx-kpi-v{ display:block; font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:.3px }
 .tx-kpi.accent .tx-kpi-v{ color:#22d3ee }
-.tx-kpi small{ display:block; margin-top:6px; font-size:11px; color:#5f6c82; line-height:1.7 }
+.tx-kpi small{ display:block; margin-top:6px; font-size:11px; color:var(--dim); line-height:1.7 }
 </style>
 @endsection

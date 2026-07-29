@@ -117,7 +117,7 @@
         <tr><td>پرداخت‌شده به دولت</td><td class="fin-num">− {{ $t($s['tax_paid']) }}</td><td></td></tr>
         <tr class="fin-total"><td>بدهی به دولت</td><td class="fin-num" style="color:#fbbf24">{{ $t($s['tax_liability']) }}</td><td></td></tr>
       </table>
-      <p style="padding:0 16px 14px;margin:0;font-size:12px;color:#5f6c82;line-height:1.9">
+      <p style="padding:0 16px 14px;margin:0;font-size:12px;color:var(--dim);line-height:1.9">
         مالیات پول شما نیست؛ از مشتری می‌گیرید و به دولت می‌دهید. برای همین در «سود» نمی‌آید.
       </p>
     </div>
@@ -187,7 +187,7 @@
 <div class="ad-panel" style="margin-top:16px">
   <div class="ad-panel-h"><h2>آخرین رویدادها</h2></div>
   @if($recent->isEmpty())
-    <p style="padding:20px;color:#5f6c82">هنوز رویدادی ثبت نشده. با «ثبت رویداد مالی» شروع کنید یا منتظر اولین پرداخت مشتری بمانید.</p>
+    <p style="padding:20px;color:var(--dim)">هنوز رویدادی ثبت نشده. با «ثبت رویداد مالی» شروع کنید یا منتظر اولین پرداخت مشتری بمانید.</p>
   @else
     <table class="ad-table">
       <thead><tr><th>تاریخ</th><th>نوع</th><th>شرح</th><th>منبع</th><th class="fin-num">مبلغ</th><th></th></tr></thead>
@@ -219,25 +219,25 @@
 <style>
 .fin-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px }
 @media(max-width:900px){ .fin-kpis{ grid-template-columns:1fr 1fr } }
-.fin-kpi{ background:#111725; border:1px solid #1e2637; border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; gap:5px }
-.fin-kpi-l{ font-size:12.5px; color:#96a3ba }
+.fin-kpi{ background:#111725; border:1px solid var(--line); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; gap:5px }
+.fin-kpi-l{ font-size:12.5px; color:var(--muted) }
 .fin-kpi-v{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; line-height:1.2 }
-.fin-kpi small{ font-size:11px; color:#5f6c82 }
+.fin-kpi small{ font-size:11px; color:var(--dim) }
 
 .fin-cols{ display:grid; grid-template-columns:1fr 380px; gap:16px; align-items:start }
 @media(max-width:1000px){ .fin-cols{ grid-template-columns:1fr } }
 
 .fin-pl{ width:100%; border-collapse:collapse }
-.fin-pl td{ padding:12px 16px; border-bottom:1px solid #1e2637; font-size:13.5px }
+.fin-pl td{ padding:12px 16px; border-bottom:1px solid var(--line); font-size:13.5px }
 .fin-pl tr:last-child td{ border-bottom:0 }
-.fin-pl .fin-total td{ font-weight:800; background:#0d1320 }
+.fin-pl .fin-total td{ font-weight:800; background:var(--surface2) }
 .fin-num{ text-align:end; font-variant-numeric:tabular-nums; white-space:nowrap }
-.fin-src{ text-align:end; font-size:11px; color:#5f6c82; width:1%; white-space:nowrap }
+.fin-src{ text-align:end; font-size:11px; color:var(--dim); width:1%; white-space:nowrap }
 
-.fin-cat{ padding:14px 16px; border-top:1px solid #1e2637 }
-.fin-cat-h{ font-size:12px; color:#96a3ba; margin-bottom:10px }
+.fin-cat{ padding:14px 16px; border-top:1px solid var(--line) }
+.fin-cat-h{ font-size:12px; color:var(--muted); margin-bottom:10px }
 .fin-cat-row{ display:grid; grid-template-columns:130px 1fr auto; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px }
-.fin-cat-bar{ height:7px; background:#1e2637; border-radius:99px; overflow:hidden }
+.fin-cat-bar{ height:7px; background:var(--line); border-radius:99px; overflow:hidden }
 .fin-cat-bar i{ display:block; height:100%; background:#ff6b6b; border-radius:99px }
 
 .fin-chart{ display:flex; align-items:flex-end; gap:10px; height:170px; padding:16px 16px 8px }
@@ -246,12 +246,12 @@
 .fin-bar{ flex:1; border-radius:4px 4px 0 0; min-height:2px; transition:height .3s }
 .fin-bar.rev{ background:#34d399 }
 .fin-bar.exp{ background:#ff6b6b }
-.fin-bar-x{ font-size:10px; color:#5f6c82 }
-.fin-legend{ display:flex; gap:16px; justify-content:center; padding:0 0 14px; font-size:12px; color:#96a3ba }
+.fin-bar-x{ font-size:10px; color:var(--dim) }
+.fin-legend{ display:flex; gap:16px; justify-content:center; padding:0 0 14px; font-size:12px; color:var(--muted) }
 .fin-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:middle; margin-inline-end:5px }
 
 .fin-form{ padding:16px; display:flex; flex-direction:column; gap:8px }
-.fin-form label{ font-size:12px; color:#96a3ba; margin-top:6px }
+.fin-form label{ font-size:12px; color:var(--muted); margin-top:6px }
 .fin-submit{ margin-top:14px; background:#22d3ee; color:#04121f; border:0; border-radius:10px; padding:11px; font:inherit; font-weight:700; cursor:pointer }
 </style>
 

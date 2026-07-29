@@ -7,6 +7,9 @@
 <title>@yield('title', 'مدیریت') — ServerNet</title>
 <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/admin.css') }}">
+{{-- تم پیش از رنگ‌آمیزی ست می‌شود تا «فلاشِ» تمِ اشتباه نبینیم. همان کوکیِ
+     snet-theme سایت اصلی، پس تمِ مدیر بین سایت و کنسول یکی می‌ماند. --}}
+<script>(function(){try{var m=document.cookie.match(/(?:^|;\s*)snet-theme=(light|dark)/);var t=m?m[1]:localStorage.getItem('snet-theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
 </head>
 <body>
 @include('partials.icons')
@@ -58,7 +61,13 @@
   <main class="ad-main">
     <header class="ad-top">
       <h1>@yield('title', 'مدیریت')</h1>
-      <div class="ad-user"><span>{{ auth()->user()->name }}</span><b>{{ auth()->user()->isAdmin() ? 'مدیر' : 'نویسنده' }}</b></div>
+      <div class="ad-top-side">
+        <button type="button" class="ad-theme" id="ad-theme" aria-label="تمِ روشن / تاریک" title="تمِ روشن / تاریک">
+          <svg class="icon tt-sun"><use href="#i-sun"/></svg>
+          <svg class="icon tt-moon"><use href="#i-moon"/></svg>
+        </button>
+        <div class="ad-user"><span>{{ auth()->user()->name }}</span><b>{{ auth()->user()->isAdmin() ? 'مدیر' : 'نویسنده' }}</b></div>
+      </div>
     </header>
     @if(session('ok'))<div class="ad-flash ok">{{ session('ok') }}</div>@endif
     @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
@@ -69,6 +78,26 @@
 <div class="ad-auth">@yield('content')</div>
 @endauth
 @yield('scripts')
+<script>
+(function(){
+  var b = document.getElementById('ad-theme');
+  if (!b) return;
+  b.addEventListener('click', function(){
+    var light = document.documentElement.dataset.theme === 'light';
+    if (light) delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = 'light';
+    var val = light ? 'dark' : 'light';
+    try { localStorage.setItem('snet-theme', val); } catch (e) {}
+    // کوکی روی دامنهٔ ریشه تا بین سایت و کنسول مشترک بماند
+    try {
+      var h = location.hostname,
+          d = /(^|\.)servernet\.cloud$/i.test(h) ? '; domain=.servernet.cloud' : '';
+      document.cookie = 'snet-theme=' + val + '; path=/; max-age=31536000; samesite=lax'
+        + d + (location.protocol === 'https:' ? '; secure' : '');
+    } catch (e) {}
+  });
+})();
+</script>
 @include('partials.ui-dialog')
 </body>
 </html>

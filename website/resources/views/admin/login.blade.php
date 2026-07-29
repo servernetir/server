@@ -12,7 +12,7 @@
       <div style="position:relative;direction:ltr">
         <input class="ad-input" type="password" name="password" id="ad-pw" required style="padding-inline-end:44px">
         <button type="button" id="ad-pw-eye" aria-label="نمایش رمز عبور"
-                style="position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;color:#96a3ba;padding:6px;display:grid;place-items:center;line-height:0">
+                style="position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;color:var(--muted);padding:6px;display:grid;place-items:center;line-height:0">
           <svg class="icon" style="width:18px;height:18px"><use href="#i-eye" id="ad-pw-icon"/></svg>
         </button>
       </div>

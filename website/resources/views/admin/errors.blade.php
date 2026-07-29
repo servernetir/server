@@ -5,7 +5,7 @@
 
 
 <div class="ad-toolbar" style="justify-content:space-between">
-  <div style="color:#96a3ba;font-size:13px">
+  <div style="color:var(--muted);font-size:13px">
     {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
   </div>
   @if(count($serverErrors) || count($nf))
@@ -35,12 +35,12 @@
           </div>
           <div class="err-meta">
             @if(!empty($e['frame']))<span dir="ltr">📍 {{ $e['frame'] }}</span>@endif
-            @if(!empty($e['file']))<span dir="ltr" style="color:#5f6c82">{{ $e['file'] }}</span>@endif
+            @if(!empty($e['file']))<span dir="ltr" style="color:var(--dim)">{{ $e['file'] }}</span>@endif
           </div>
           <div class="err-meta err-who">
             <span>{{ $e['who'] ?? 'guest' }}</span>
             @if(!empty($e['ip']))<span dir="ltr">{{ $e['ip'] }}</span>@endif
-            @if(!empty($e['referer']))<span dir="ltr" style="color:#5f6c82">از: {{ $e['referer'] }}</span>@endif
+            @if(!empty($e['referer']))<span dir="ltr" style="color:var(--dim)">از: {{ $e['referer'] }}</span>@endif
           </div>
         </div>
       @endforeach
@@ -52,7 +52,7 @@
 <div class="ad-panel" style="margin-top:16px">
   <div class="ad-panel-h"><h2>صفحه‌های یافت‌نشده (۴۰۴)</h2></div>
   @if(empty($nf))
-    <p style="padding:20px;color:#96a3ba">۴۰۴ای ثبت نشده.</p>
+    <p style="padding:20px;color:var(--muted)">۴۰۴ای ثبت نشده.</p>
   @else
     <table class="ad-table">
       <thead><tr><th>زمان</th><th>آدرس</th><th>از کجا آمد</th><th>کاربر</th></tr></thead>
@@ -61,7 +61,7 @@
           <tr>
             <td dir="ltr">{{ \Carbon\Carbon::parse($e['at'])->format('m/d H:i') }}</td>
             <td dir="ltr"><b>{{ $e['method'] ?? '' }}</b> {{ $e['url'] ?? '' }}</td>
-            <td dir="ltr" style="color:#5f6c82">{{ $e['referer'] ?? '—' }}</td>
+            <td dir="ltr" style="color:var(--dim)">{{ $e['referer'] ?? '—' }}</td>
             <td>{{ $e['who'] ?? 'guest' }}</td>
           </tr>
         @endforeach
@@ -71,16 +71,16 @@
 </div>
 
 <style>
-.err-row{ padding:14px 16px; border-bottom:1px solid #1e2637 }
+.err-row{ padding:14px 16px; border-bottom:1px solid var(--line) }
 .err-row:last-child{ border-bottom:0 }
 .err-top{ display:flex; align-items:center; gap:10px; margin-bottom:7px }
 .err-badge{ background:rgba(255,107,107,.15); color:#ff6b6b; font-weight:800; padding:2px 9px; border-radius:6px; font-size:12px }
 .err-class{ color:#fbbf24; font-size:14px }
-.err-time{ margin-inline-start:auto; color:#5f6c82; font-size:12px; font-variant-numeric:tabular-nums }
-.err-msg{ font-size:13.5px; color:#e7edf7; line-height:1.8; margin-bottom:7px; word-break:break-word }
-.err-meta{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#96a3ba; margin-top:3px }
+.err-time{ margin-inline-start:auto; color:var(--dim); font-size:12px; font-variant-numeric:tabular-nums }
+.err-msg{ font-size:13.5px; color:var(--text); line-height:1.8; margin-bottom:7px; word-break:break-word }
+.err-meta{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:3px }
 .err-meta b{ color:#22d3ee }
-.err-who{ color:#5f6c82 }
+.err-who{ color:var(--dim) }
 </style>
 
 @endsection
