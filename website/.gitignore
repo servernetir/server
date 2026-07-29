@@ -25,3 +25,7 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Graphify — گرافِ دانشِ پروژه. مشتق و بازتولیدشدنی است (~۳۰ ثانیه، بدون هزینهٔ توکن)
+# پس در گیت نمی‌ماند تا مخزن ۵ مگابایت سنگین‌تر نشود.
+graphify-out/
