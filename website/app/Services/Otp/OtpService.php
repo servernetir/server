@@ -116,6 +116,18 @@ class OtpService
         // best-effort و بی‌خطر: هرگز جریان ثبت‌نام را نمی‌شکند.
         if ($channel === 'sms') {
             app(\App\Services\Bale\BaleNotifier::class)->notify($destination, "کد ورود سرورنت: {$code}");
+
+            // ایمیلِ موازی هم: پیامک گاهی نمی‌رسد (اپراتور/فیلتر) و کاربر پشتِ
+            // درِ بسته می‌ماند. اگر این شماره مشتریِ ثبت‌شده‌ای با ایمیل باشد،
+            // همان کد به ایمیلش هم می‌رود. کاملاً best-effort.
+            try {
+                $email = \App\Models\Customer::where('phone', $destination)->value('email');
+
+                if (filled($email)) {
+                    $this->sendEmail((string) $email, $code);
+                }
+            } catch (\Throwable) {
+            }
         }
 
         return new OtpIssue(true, challengeId: $challenge->id, expiresAt: $challenge->expires_at);

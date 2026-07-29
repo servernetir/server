@@ -155,8 +155,11 @@
       </{{ $solHref ? 'a' : 'article' }}>
       @endforeach
     </div>
-    <div style="text-align:center;margin-top:44px" class="reveal">
+    <div style="text-align:center;margin-top:44px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap" class="reveal">
       <a class="btn btn-primary" href="#contact"><span>{{ __('ui.ent_cta') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
+      {{-- لینک به هابِ راهکارها: کاربری که کارت‌ها را دید و تصمیم نگرفت، مسیرِ
+           بعدی‌اش فهرستِ کاملِ راهکارهاست، نه بن‌بست. --}}
+      <a class="btn btn-glass" href="{{ lroute('solutions.index') }}">{{ __('ui.f_s_all') }}</a>
     </div>
   </div>
 </section>

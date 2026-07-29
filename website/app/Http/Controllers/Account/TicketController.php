@@ -66,6 +66,18 @@ class TicketController extends Controller
         $message = $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
         app(AttachmentService::class)->store($message, $request->file('attachments', []));
 
+        // اعلان به مدیر — تیکت باید سریع دیده شود. best-effort: اگر بله/SMTP
+        // قطع باشد، ثبتِ تیکتِ مشتری نباید شکست بخورد.
+        $depts = ['technical' => 'فنی', 'billing' => 'مالی', 'sales' => 'فروش'];
+        $prios = ['low' => 'کم', 'normal' => 'معمولی', 'high' => 'زیاد', 'urgent' => 'فوری'];
+
+        app(\App\Services\Notify\AdminNotifier::class)->event('تیکتِ جدید', [
+            'مشتری'  => $customer->displayName().' ('.$customer->code.')',
+            'موضوع'  => $data['subject'],
+            'بخش'    => $depts[$data['department']] ?? $data['department'],
+            'اولویت' => $prios[$data['priority']] ?? $data['priority'],
+        ], url('/admin/tickets/'.$ticket->id), '🎫');
+
         return redirect()->route($this->rp().'account.ticket', $ticket)
             ->with('ok', __('ui.tk_created'));
     }

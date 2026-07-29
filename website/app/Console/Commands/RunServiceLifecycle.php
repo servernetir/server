@@ -1,0 +1,261 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\Invoice;
+use App\Models\Service;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\CustomerNotifier;
+use App\Services\Provisioning\ProvisioningService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * چرخهٔ کاملِ تمدیدِ سرویس — یادآوری، تعلیقِ خودکار، مهلتِ ۳۰ روزه.
+ *
+ * روزی یک‌بار اجرا می‌شود و برای **هر** سرویسِ دوره‌ای (هاست، دامنه، سرورِ
+ * اختصاصی، هر چیزی که فاکتورِ دوره‌ای دارد) این مسیر را می‌رود:
+ *
+ *   ۷ روز مانده  → یادآوری + مطمئن‌شدن از وجودِ فاکتورِ تمدید
+ *   ۳ روز مانده  → یادآوری
+ *   ۱ روز مانده  → یادآوریِ آخر
+ *   سررسید گذشت و پرداخت نشد → **تعلیقِ خودکار** + اعلان به مشتری و مدیر
+ *   ۳۰ روز پس از تعلیق → به مدیر می‌گوییم «تصمیم بگیر» (terminate دستیِ خودش)
+ *   پرداخت شد          → رفعِ تعلیق روی سرور + صفرکردنِ شمارندهٔ یادآوری
+ *
+ * ═══ قواعدِ طراحی ═══
+ *
+ * • **idempotent**: ستونِ reminder_stage جلوی پیامِ تکراری را می‌گیرد. اگر کرون
+ *   روزی چند بار اجرا شود، مشتری چند بار «۳ روز مانده» نمی‌گیرد.
+ * • terminate **هرگز خودکار نیست**. داده و سایتِ مشتری پاک‌کردنی نیست؛ فقط
+ *   مدیر تصمیم می‌گیرد. ما تعلیق می‌کنیم (برگشت‌پذیر) و اطلاع می‌دهیم.
+ * • خطای یک سرویس نباید بقیه را زمین بزند: هر سرویس در try/catch خودش است.
+ * • تماسِ شبکه‌ای (تعلیق روی WHM) بیرونِ هر تراکنش است.
+ */
+class RunServiceLifecycle extends Command
+{
+    protected $signature = 'services:lifecycle
+        {--dry : فقط گزارش بده، هیچ‌چیز را عوض نکن}
+        {--grace=30 : چند روز پس از تعلیق به مدیر بگوییم تصمیم بگیرد}';
+
+    protected $description = 'یادآوریِ تمدید، تعلیقِ خودکارِ سرویسِ پرداخت‌نشده و اعلانِ مهلتِ پایان‌یافته';
+
+    /** مراحلِ یادآوری — از دور به نزدیک */
+    private const STAGES = [7, 3, 1];
+
+    public function handle(
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        ProvisioningService $provisioner,
+    ): int {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'reminder_stage')) {
+            $this->warn('ستون‌های چرخهٔ تمدید ساخته نشده‌اند؛ اول مهاجرت را اجرا کنید.');
+
+            return self::SUCCESS;
+        }
+
+        $dry = (bool) $this->option('dry');
+        $graceDays = max(1, (int) $this->option('grace'));
+
+        $cycles = array_keys((array) config('billing.cycles', []));
+        $today = now()->startOfDay();
+
+        $services = Service::query()
+            ->whereIn('cycle', $cycles)
+            ->whereIn('status', ['active', 'suspended'])
+            ->whereNotNull('next_due_at')
+            ->with('customer')
+            ->get();
+
+        $stats = ['reminded' => 0, 'suspended' => 0, 'restored' => 0, 'grace' => 0];
+
+        foreach ($services as $service) {
+            try {
+                $this->handleOne($service, $today, $graceDays, $dry, $stats, $customers, $admin, $provisioner);
+            } catch (\Throwable $e) {
+                // یک سرویسِ خراب نباید کلِ کرون را بخواباند
+                Log::error('چرخهٔ تمدیدِ سرویس خطا داد', [
+                    'service' => $service->id,
+                    'error'   => $e::class.': '.mb_substr($e->getMessage(), 0, 200),
+                ]);
+            }
+        }
+
+        $this->info(sprintf(
+            'یادآوری: %d · تعلیق: %d · رفعِ تعلیق: %d · اعلانِ مهلت: %d%s',
+            $stats['reminded'], $stats['suspended'], $stats['restored'], $stats['grace'],
+            $dry ? '  (آزمایشی — چیزی عوض نشد)' : ''
+        ));
+
+        return self::SUCCESS;
+    }
+
+    private function handleOne(
+        Service $service,
+        \Illuminate\Support\Carbon $today,
+        int $graceDays,
+        bool $dry,
+        array &$stats,
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        ProvisioningService $provisioner,
+    ): void {
+        $due = $service->next_due_at->copy()->startOfDay();
+        $daysLeft = $today->diffInDays($due, false);   // منفی = گذشته
+        $unpaid = $this->openInvoice($service);
+
+        // ── ۱) پرداخت شد و سرویس معلق بود → برگردانش ────────────────────────
+        if ($unpaid === null && $service->suspended_at !== null && $daysLeft >= 0) {
+            if (! $dry) {
+                $provisioner->unsuspend($service);
+                $service->forceFill([
+                    'status'         => 'active',
+                    'suspended_at'   => null,
+                    'grace_alert_at' => null,
+                    'reminder_stage' => null,
+                ])->save();
+
+                $customers->message($service->customer, 'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
+            }
+            $stats['restored']++;
+
+            return;
+        }
+
+        // ── ۲) سررسید نگذشته → یادآوریِ ۷/۳/۱ روز ───────────────────────────
+        if ($daysLeft >= 0) {
+            $stage = $this->stageFor($daysLeft);
+
+            if ($stage === null) {
+                return;
+            }
+
+            // فقط اگر این مرحله (یا نزدیک‌ترش) قبلاً نرفته باشد
+            $sent = $service->reminder_stage;
+            if ($sent !== null && (int) $sent <= $stage) {
+                return;
+            }
+
+            if (! $dry) {
+                // ۷ روز مانده: مطمئن شو فاکتورِ تمدید هست (اگر نبود، بساز)
+                if ($stage === 7 && $unpaid === null) {
+                    app(\App\Http\Controllers\Admin\ServiceController::class)->issueInvoice($service);
+                    $unpaid = $this->openInvoice($service);
+                }
+
+                $this->remindCustomer($service, $unpaid, $stage, $customers);
+
+                $service->forceFill(['reminder_stage' => $stage])->save();
+            }
+
+            $stats['reminded']++;
+
+            return;
+        }
+
+        // ── ۳) سررسید گذشته ────────────────────────────────────────────────
+        $daysOverdue = abs($daysLeft);
+
+        // پرداخت‌شده ولی سررسید عقب مانده؟ کارِ ما نیست (پرداخت سررسید را جلو می‌برد)
+        if ($unpaid === null) {
+            return;
+        }
+
+        // ۳-الف) هنوز معلق نشده → تعلیقِ خودکار
+        if ($service->suspended_at === null) {
+            if (! $dry) {
+                $provisioner->suspend($service);
+
+                $service->forceFill([
+                    'status'       => 'suspended',
+                    'suspended_at' => now(),
+                ])->save();
+
+                $customers->message($service->customer,
+                    '⚠️ سرویسِ «'.$service->name.'» به‌دلیلِ پرداخت‌نشدنِ فاکتورِ تمدید موقتاً غیرفعال شد. '
+                    .'اطلاعات و فایل‌هایتان محفوظ است؛ با پرداختِ فاکتور بلافاصله برمی‌گردد.');
+
+                $this->alertAdmin($admin, $service, 'سرویس به‌خاطرِ عدمِ تمدید غیرفعال شد', '⛔');
+            }
+            $stats['suspended']++;
+
+            return;
+        }
+
+        // ۳-ب) مهلتِ ۳۰ روزه تمام شد → یک‌بار به مدیر بگو تصمیم بگیرد
+        $suspendedDays = $service->suspended_at->copy()->startOfDay()->diffInDays($today);
+
+        if ($suspendedDays >= $graceDays && $service->grace_alert_at === null) {
+            if (! $dry) {
+                $this->alertAdmin($admin, $service,
+                    'مهلتِ '.$graceDays.' روزه تمام شد — برای حذف (terminate) خودتان تصمیم بگیرید', '🗑');
+
+                $service->forceFill(['grace_alert_at' => now()])->save();
+            }
+            $stats['grace']++;
+        }
+    }
+
+    /** فاکتورِ بازِ همین سرویس (پرداخت‌نشده) */
+    private function openInvoice(Service $service): ?Invoice
+    {
+        return Invoice::where('service_id', $service->id)
+            ->whereIn('status', ['unpaid', 'draft', 'partial'])
+            ->latest('id')
+            ->first();
+    }
+
+    /** کدام مرحلهٔ یادآوری به این تعدادِ روزِ باقی‌مانده می‌خورد؟ */
+    private function stageFor(int $daysLeft): ?int
+    {
+        foreach (self::STAGES as $s) {
+            if ($daysLeft === $s) {
+                return $s;
+            }
+        }
+
+        return null;
+    }
+
+    /** یادآوری به مشتری از هر سه کانال (پیامک/بله + ایمیل) */
+    private function remindCustomer(Service $service, ?Invoice $invoice, int $stage, CustomerNotifier $customers): void
+    {
+        $when = $stage === 1 ? 'فردا' : $stage.' روز دیگر';
+        $amount = $invoice ? fa_num(number_format((int) $invoice->total)).' تومان' : null;
+
+        $text = '⏰ سرویسِ «'.$service->name.'» '.$when.' سررسید می‌شود'
+            .($amount ? ' (مبلغِ تمدید: '.$amount.')' : '').'. '
+            .'برای جلوگیری از قطعِ سرویس، از پنل کاربری پرداخت کنید: '
+            .console_lroute('account.invoices');
+
+        $customers->message($service->customer, $text);
+
+        // ایمیل هم — یادآوریِ مالی نباید فقط به یک کانال بند باشد
+        try {
+            if (filled($service->customer?->email)) {
+                Mail::mailer('smtp')->raw($text, fn ($m) => $m
+                    ->to($service->customer->email)
+                    ->subject('یادآوریِ تمدید — '.$service->name));
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    /** اعلانِ مدیر با جزئیاتی که برای تصمیم لازم دارد */
+    private function alertAdmin(AdminNotifier $admin, Service $service, string $title, string $emoji): void
+    {
+        $c = $service->customer;
+
+        $admin->event($title, [
+            'مشتری'  => trim(($c?->displayName() ?? '—').' ('.($c?->code ?? '—').')'),
+            'سرویس'  => $service->name,
+            'دامنه'  => $service->domain,
+            'دوره'   => $service->cycleLabel(),
+            'مبلغ'   => fa_num(number_format((int) $service->total())).' تومان',
+            'سررسید' => sdate($service->next_due_at),
+            'تلفن'   => $c?->phone,
+        ], $c ? url('/admin/customers/'.$c->id) : null, $emoji);
+    }
+}

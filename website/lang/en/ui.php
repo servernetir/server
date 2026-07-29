@@ -12,9 +12,9 @@ return [
     'nav_hosting' => 'Hosting', 'nav_servers' => 'Servers', 'nav_domains' => 'Domains',
     'nav_enterprise' => 'Enterprise', 'nav_support' => 'Support', 'nav_login' => 'Client Area',
 
-    'hero_badge' => 'Since 2009 · 11+ datacenters · 99.9% uptime',
-    'hero_h1a' => 'Infrastructure that powers', 'hero_h1b' => 'your growth.',
-    'hero_lead' => 'From high-performance cloud servers and hosting to enterprise infrastructure for factories and organizations — secure, scalable, and backed by 24/7 expert support.',
+    'hero_badge' => 'Since 2009 · 11 datacenters on 3 continents · 99.9% uptime · 24/7 support',
+    'hero_h1a' => 'From a single website to an AI cluster,', 'hero_h1b' => 'on infrastructure that never blinks.',
+    'hero_lead' => 'ServerNet is the safe home for your online business — cloud hosting to get started, dedicated and GPU infrastructure for enterprises, factories and AI teams. Built for the day your traffic multiplies tenfold.',
     'hero_cta1' => 'View Plans', 'hero_cta2' => 'Enterprise Solutions',
     'hero_domain_ph' => 'Find your perfect domain — mycompany.com', 'hero_domain_btn' => 'Search',
     'stat_years' => 'Years in market', 'stat_services' => 'Services delivered', 'stat_dc' => 'Datacenters', 'stat_uptime' => 'Uptime SLA',
@@ -29,8 +29,8 @@ return [
     'vps_sub' => 'NVMe storage, instant deployment, and datacenter locations in Iran & Europe.',
     'popular' => 'Most popular', 'traffic' => 'Traffic', 'choose' => 'Choose plan',
 
-    'ent_badge' => 'Enterprise', 'ent_title' => 'Infrastructure & digital transformation for organizations',
-    'ent_sub' => 'Our core expertise: supplying and building infrastructure for factories, enterprises, and organizations of every size.',
+    'ent_badge' => 'Enterprise', 'ent_title' => 'From the production line to the language model — we build the infrastructure',
+    'ent_sub' => 'Building infrastructure for factories, enterprises and organizations is what we do best — from virtualization and storage to GPU servers for training and serving AI models. You focus on growth; the infrastructure is on us.',
     'ent_cta' => 'Talk to our solutions team', 'ent_learn' => 'Learn more',
 
     'why_badge' => 'Why ServerNet', 'why_title' => 'Reliability is our reputation',
@@ -44,6 +44,16 @@ return [
     'f_about' => 'Since 2009, ServerNet has provided hosting, design, implementation, and infrastructure support for organizations — fast, professional, and tailored to your needs.',
     'f_products' => 'Products', 'f_p1' => 'Web Hosting', 'f_p2' => 'VPS', 'f_p3' => 'Dedicated Servers', 'f_p4' => 'Domains', 'f_p5' => 'Cloud Services',
     'f_solutions' => 'Solutions', 'f_s1' => 'Enterprise Infrastructure', 'f_s2' => 'AI Agents', 'f_s3' => 'BPMN & ERP', 'f_s4' => 'Web Design', 'f_s5' => 'SEO Services',
+    'f_s6' => 'Managed Services', 'f_s7' => 'Cloud Phone',
+    'f_s_all' => 'All solutions',
+
+    // Solutions hub (/solutions)
+    'sol_meta_t' => 'ServerNet Enterprise Solutions — Infrastructure, AI, ERP and Web Design',
+    'sol_meta_d' => 'From enterprise infrastructure and managed servers to AI agents, BPMN & ERP, web design, SEO services and cloud telephony. Pick your solution or talk to our specialists.',
+    'sol_badge'  => 'Solutions',
+    'sol_h1'     => 'Enterprise solutions',
+    'sol_lead'   => 'Every business has its own bottleneck — some need infrastructure, some automation, some visibility. These are the solutions we implement for organizations, factories and growing teams.',
+    'sol_cross_t' => 'Looking for a specific service?',
     'f_contact' => 'Contact us',
     'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service',
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
@@ -1070,6 +1080,7 @@ return [
     'auth_code_sub' => 'We sent a six-digit code to :dest.',
     'auth_code' => 'Verification code',
     'auth_code_digit' => 'Digit :n of 6',
+    'auth_bale_hint' => 'The code is sent by SMS, email and our Bale bot at the same time. If the SMS does not arrive, open the bot and share your number:',
     'auth_code_ttl' => 'The code is valid for 3 minutes.',
     'auth_code_submit' => 'Verify and continue',
     'auth_resend' => 'Send again',

@@ -192,6 +192,12 @@
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-flow"/></svg></span>
                 <span class="tmega-tx"><b>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></span>
               </a>
+              {{-- هابِ راهکارها: والدِ موضوعیِ صفحاتِ راهکار. از منو لینک می‌شود
+                   تا از هر صفحهٔ سایت یک کلیک فاصله داشته باشد. --}}
+              <a class="tmega-link" href="{{ lroute('solutions.index') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-box"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.sol_h1') }}</b><small>{{ __('ui.f_s_all') }}</small></span>
+              </a>
               {{-- یک لینک به هاب ابزارهای وب‌مستر؛ خودِ ابزارها آنجا گروه‌بندی شده‌اند تا منو شلوغ نشود --}}
               <a class="tmega-link" href="{{ lroute('webtools.index') }}">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-wrench"/></svg></span>

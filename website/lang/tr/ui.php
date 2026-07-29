@@ -12,9 +12,9 @@ return [
     'nav_hosting' => 'Hosting', 'nav_servers' => 'Sunucular', 'nav_domains' => 'Alan Adları',
     'nav_enterprise' => 'Kurumsal', 'nav_support' => 'Destek', 'nav_login' => 'Müşteri Paneli',
 
-    'hero_badge' => "2009'dan beri · 11+ veri merkezi · %99,9 uptime",
-    'hero_h1a' => 'Büyümenizi güçlendiren', 'hero_h1b' => 'altyapı.',
-    'hero_lead' => "Yüksek performanslı bulut sunucular ve hosting'den fabrikalar ve kuruluşlar için kurumsal altyapıya — güvenli, ölçeklenebilir ve 7/24 uzman destekli.",
+    'hero_badge' => "2009'dan beri · 3 kıtada 11 veri merkezi · %99,9 uptime · 7/24 destek",
+    'hero_h1a' => 'Tek bir web sitesinden yapay zekâ kümesine,', 'hero_h1b' => 'hiç sarsılmayan bir altyapı.',
+    'hero_lead' => "ServerNet, çevrimiçi işinizin güvenli evi: başlamak için bulut hosting, kurumlar, fabrikalar ve yapay zekâ ekipleri için özel sunucu ve GPU altyapısı. Trafiğinizin on katına çıktığı gün için tasarlandı.",
     'hero_cta1' => 'Paketleri Gör', 'hero_cta2' => 'Kurumsal Çözümler',
     'hero_domain_ph' => 'Alan adınızı bulun — sirketim.com', 'hero_domain_btn' => 'Ara',
     'stat_years' => 'Yıllık deneyim', 'stat_services' => 'Teslim edilen hizmet', 'stat_dc' => 'Veri merkezi', 'stat_uptime' => 'Uptime SLA',
@@ -29,8 +29,8 @@ return [
     'vps_sub' => 'NVMe depolama, anında kurulum, İran ve Avrupa lokasyonları.',
     'popular' => 'En popüler', 'traffic' => 'Trafik', 'choose' => 'Paketi seç',
 
-    'ent_badge' => 'Kurumsal', 'ent_title' => 'Kuruluşlar için altyapı ve dijital dönüşüm',
-    'ent_sub' => 'Uzmanlığımız: her ölçekte fabrika, şirket ve kuruluş için altyapı tedariki ve kurulumu.',
+    'ent_badge' => 'Kurumsal', 'ent_title' => 'Üretim hattından dil modeline — altyapıyı biz kuruyoruz',
+    'ent_sub' => 'En iyi yaptığımız iş: fabrikalar, şirketler ve kuruluşlar için altyapı kurmak — sanallaştırma ve depolamadan, yapay zekâ modellerini eğitmek ve çalıştırmak için GPU sunuculara kadar. Siz büyümeye odaklanın, altyapı bizden.',
     'ent_cta' => 'Çözüm ekibiyle görüşün', 'ent_learn' => 'Daha fazla bilgi',
 
     'why_badge' => 'Neden ServerNet', 'why_title' => 'Güvenilirlik bizim itibarımızdır',
@@ -44,6 +44,16 @@ return [
     'f_about' => "ServerNet, 2009'dan beri kuruluşlara hosting, tasarım, uygulama ve altyapı desteği sunuyor — hızlı, profesyonel ve ihtiyacınıza özel.",
     'f_products' => 'Ürünler', 'f_p1' => 'Web Hosting', 'f_p2' => 'VPS', 'f_p3' => 'Fiziksel Sunucu', 'f_p4' => 'Alan Adı', 'f_p5' => 'Bulut Hizmetleri',
     'f_solutions' => 'Çözümler', 'f_s1' => 'Kurumsal Altyapı', 'f_s2' => 'AI Ajanları', 'f_s3' => 'BPMN & ERP', 'f_s4' => 'Web Tasarım', 'f_s5' => 'SEO Hizmetleri',
+    'f_s6' => 'Yönetilen Hizmetler', 'f_s7' => 'Bulut Telefon',
+    'f_s_all' => 'Tüm çözümler',
+
+    // Çözümler merkezi (/solutions)
+    'sol_meta_t' => 'ServerNet Kurumsal Çözümler — Altyapı, Yapay Zekâ, ERP ve Web Tasarım',
+    'sol_meta_d' => 'Kurumsal altyapı ve sunucu yönetiminden yapay zekâ ajanlarına, BPMN & ERP, web tasarım, SEO hizmetleri ve bulut telefona kadar. Çözümünüzü seçin veya uzmanlarımızla görüşün.',
+    'sol_badge'  => 'Çözümler',
+    'sol_h1'     => 'Kurumsal çözümler',
+    'sol_lead'   => 'Her işletmenin kendi darboğazı vardır — biri altyapı, biri otomasyon, biri görünürlük ister. Bunlar kuruluşlar, fabrikalar ve büyüyen ekipler için hayata geçirdiğimiz çözümlerdir.',
+    'sol_cross_t' => 'Belirli bir hizmet mi arıyorsunuz?',
     'f_contact' => 'Bize ulaşın',
     'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları',
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
@@ -1070,6 +1080,7 @@ return [
     'auth_code_sub' => ':dest adresine altı haneli bir kod gönderdik.',
     'auth_code' => 'Doğrulama kodu',
     'auth_code_digit' => ':n / 6 hane',
+    'auth_bale_hint' => 'Kod aynı anda SMS, e-posta ve Bale botumuz ile gönderilir. SMS gelmezse bota girip numaranızı paylaşın:',
     'auth_code_ttl' => 'Kod 3 dakika geçerlidir.',
     'auth_code_submit' => 'Doğrula ve devam et',
     'auth_resend' => 'Tekrar gönder',

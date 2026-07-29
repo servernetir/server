@@ -26,6 +26,18 @@
     <small style="text-align:center">{{ __('ui.auth_code_ttl') }}</small>
   </div>
 
+  {{-- کد هم‌زمان از پیامک، بله و ایمیل می‌رود. اگر پیامک نرسید (که گاهی
+       اپراتور نمی‌رساند)، کاربر نباید پشتِ درِ بسته بماند. --}}
+  @if($channel !== 'email')
+  <div class="auth-bale">
+    <svg class="icon"><use href="#i-message"/></svg>
+    <span>
+      {{ __('ui.auth_bale_hint') }}
+      <a href="https://ble.ir/servernetbot" target="_blank" rel="noopener" dir="ltr">@servernetbot</a>
+    </span>
+  </div>
+  @endif
+
   <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ __('ui.auth_code_submit') }}</span></button>
 </form>
 

@@ -38,9 +38,31 @@ class CustomerController extends Controller
         $status = (string) $request->query('status', 'all');
 
         $query = Customer::query()
-            ->withCount(['invoices', 'tickets'])
+            // ⚠️ صریح لازم است: با addSelectِ زیرپرس‌وجو و بدونِ این، ستون‌ها فقط
+            // همان زیرپرس‌وجو می‌شد و بقیهٔ فیلدهای مشتری از دست می‌رفت.
+            ->select('customers.*')
+            ->withCount([
+                'invoices',
+                'tickets',
+                // سرویسِ «فعال» = آنچه واقعاً در دستِ مشتری است (فعال یا در حالِ
+                // تحویل). لغوشده/منقضی شمرده نمی‌شود.
+                'services as active_services_count' => fn ($q) => $q->whereIn('status', ['active', 'awaiting_provision']),
+            ])
             ->with('identityVerification')
             ->orderByDesc('id');
+
+        // تعدادِ دامنه: فعلاً دامنه جدولِ مستقل ندارد و روی خودِ سرویس می‌نشیند،
+        // پس دامنه‌های **یکتا**ی سرویس‌های فعال شمرده می‌شود (یک مشتری ممکن است
+        // دو سرویس روی یک دامنه داشته باشد).
+        if (Schema::hasTable('services')) {
+            $query->addSelect([
+                'active_domains_count' => \App\Models\Service::selectRaw('COUNT(DISTINCT domain)')
+                    ->whereColumn('services.customer_id', 'customers.id')
+                    ->whereIn('status', ['active', 'awaiting_provision'])
+                    ->whereNotNull('domain')
+                    ->where('domain', '!=', ''),
+            ]);
+        }
 
         if ($q !== '') {
             $query->where(function ($w) use ($q) {

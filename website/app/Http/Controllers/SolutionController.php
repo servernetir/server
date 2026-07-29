@@ -14,6 +14,42 @@ class SolutionController extends Controller
     /** راهکارهایی که با صفحه‌ی محصول یکی شده‌اند → ریدایرکت دائمی */
     private const MERGED = ['email' => 'email']; // solution slug => hosting slug
 
+    /**
+     * هابِ راهکارها (/solutions) — والدِ موضوعیِ همهٔ صفحات راهکار.
+     *
+     * چرا لازم بود: تا پیش از این، صفحات راهکار فقط از کارت‌های صفحهٔ اول و
+     * مگامنو لینک می‌گرفتند و هیچ صفحهٔ «والد» نداشتند. برای گوگل، دسته‌ای که
+     * صفحهٔ فهرست ندارد یعنی ساختارِ سیلوِ ناقص؛ و یکی از راهکارها
+     * (تلفن ابری) عملاً یتیم مانده بود.
+     */
+    public function index(): View
+    {
+        // ترتیب عمداً از config می‌آید نه الفبایی: مهم‌ترین‌ها بالا بمانند.
+        // راهکارهای ادغام‌شده (email) این‌جا نمی‌آیند چون صفحهٔ خودشان ۳۰۱ می‌شود.
+        $solutions = collect(config('solutions'))
+            ->except(array_keys(self::MERGED))
+            ->map(function (array $s, string $slug) {
+                $t = lc($s);
+
+                // عنوانِ کارت از meta_t گرفته می‌شود ولی تا نخستین «—» بریده
+                // می‌شود: «تلفن ابری سرورنت — منشی گویا و…» → «تلفن ابری سرورنت».
+                // h1a برای کارت بلند است و meta_d از lead خلاصه‌تر و سئونوشته‌تر.
+                $title = trim(explode('—', (string) ($t['meta_t'] ?? $slug))[0]);
+
+                return [
+                    'slug'   => $slug,
+                    'icon'   => $s['icon'] ?? 'box',
+                    'accent' => $s['accent'] ?? 'cyan',
+                    'title'  => $title !== '' ? $title : $slug,
+                    'lead'   => (string) ($t['meta_d'] ?? ''),
+                    'badge'  => $t['badge'] ?? null,
+                ];
+            })
+            ->values();
+
+        return view('pages.solutions', ['solutions' => $solutions]);
+    }
+
     public function show(string $slug): View|RedirectResponse
     {
         if (isset(self::MERGED[$slug])) {

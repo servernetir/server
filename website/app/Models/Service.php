@@ -19,6 +19,8 @@ class Service extends Model
         // تحویل/فراهم‌سازی
         'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
+        // چرخهٔ تمدید (یادآوری/تعلیق/مهلت)
+        'reminder_stage', 'suspended_at', 'grace_alert_at',
     ];
 
     protected function casts(): array
@@ -32,6 +34,9 @@ class Service extends Model
             'password'       => 'encrypted',   // رمزِ کنترل‌پنل — هرگز خام
             'provisioned_at' => 'datetime',
             'provision_meta' => 'array',
+            'reminder_stage' => 'integer',
+            'suspended_at'   => 'datetime',
+            'grace_alert_at' => 'datetime',
         ];
     }
 

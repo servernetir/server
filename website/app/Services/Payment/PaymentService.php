@@ -264,6 +264,14 @@ class PaymentService
                         }
 
                         $service->next_due_at = $next;
+
+                        // شمارندهٔ یادآوری برای دورهٔ تازه صفر می‌شود، وگرنه
+                        // «۱ روز مانده»ِ دورهٔ قبل جلوی یادآوریِ دورهٔ بعد را
+                        // می‌گرفت. تعلیقِ خودکار هم با پرداخت برداشته می‌شود
+                        // (رفعِ تعلیق روی سرور را کرونِ services:lifecycle می‌زند).
+                        if (\Illuminate\Support\Facades\Schema::hasColumn('services', 'reminder_stage')) {
+                            $service->reminder_stage = null;
+                        }
                     }
                     $service->save();
                 }
@@ -345,6 +353,22 @@ class PaymentService
                 \App\Models\ActivityLog::record($customer->id, 'payment',
                     'پرداخت '.number_format($outcome->payment->amount).' تومان از طریق '
                     .($outcome->payment->gateway ?? '').' انجام شد', null, 'customer');
+
+                // اعلان به **مدیر**: پول رسید. بیرونِ تراکنش و در try، تا خطای
+                // بله/SMTP نتواند تسویه‌ای که موفق شده را برگرداند.
+                try {
+                    $inv = $outcome->payment->invoice;
+
+                    app(\App\Services\Notify\AdminNotifier::class)->event('پرداختِ موفق', [
+                        'مشتری'  => $customer->displayName().' ('.$customer->code.')',
+                        'مبلغ'   => fa_num(number_format((int) $outcome->payment->amount)).' تومان',
+                        'درگاه'  => $outcome->payment->gateway,
+                        'فاکتور' => $inv?->number,
+                        'بابت'   => $inv?->service?->name ?? ($inv?->kind === 'topup' ? 'افزایش اعتبار' : null),
+                        'پیگیری' => $outcome->payment->ref_id,
+                    ], url('/admin/customers/'.$customer->id), '💰');
+                } catch (\Throwable) {
+                }
             }
         }
 

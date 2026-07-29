@@ -22,12 +22,20 @@
       </div>
       <div class="f-col">
         <h5 class="f-head">{{ __('ui.f_solutions') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
+        {{-- ⚠️ قبلاً هر پنج لینک به «#enterprise» صفحهٔ اول می‌رفت: کاربر با پنج
+             کلیکِ مختلف به یک جا می‌رسید و پنج فرصتِ لینک‌سازیِ داخلی هدر می‌شد،
+             در حالی که برای هرکدام صفحهٔ اختصاصیِ کامل داریم. حالا هر برچسب به
+             صفحهٔ خودش می‌رود. «تلفن ابری» هم اضافه شد چون تنها راهکاری بود که
+             از هیچ‌جای سایت لینک نداشت (orphan) و گوگل پیدایش نمی‌کرد. --}}
         <div class="f-links"><div class="f-in">
-          <a href="{{ $homeUrl }}#enterprise">{{ __('ui.f_s1') }}</a>
-          <a href="{{ $homeUrl }}#enterprise">{{ __('ui.f_s2') }}</a>
-          <a href="{{ $homeUrl }}#enterprise">{{ __('ui.f_s3') }}</a>
-          <a href="{{ $homeUrl }}#enterprise">{{ __('ui.f_s4') }}</a>
-          <a href="{{ $homeUrl }}#enterprise">{{ __('ui.f_s5') }}</a>
+          <a href="{{ lroute('solution', 'infrastructure') }}">{{ __('ui.f_s1') }}</a>
+          <a href="{{ lroute('solution', 'ai-agents') }}">{{ __('ui.f_s2') }}</a>
+          <a href="{{ lroute('solution', 'bpmn-erp') }}">{{ __('ui.f_s3') }}</a>
+          <a href="{{ lroute('solution', 'web-design') }}">{{ __('ui.f_s4') }}</a>
+          <a href="{{ lroute('solution', 'seo-services') }}">{{ __('ui.f_s5') }}</a>
+          <a href="{{ lroute('solution', 'managed') }}">{{ __('ui.f_s6') }}</a>
+          <a href="{{ lroute('solution', 'cloud-phone') }}">{{ __('ui.f_s7') }}</a>
+          <a href="{{ lroute('solutions.index') }}"><b>{{ __('ui.f_s_all') }} →</b></a>
         </div></div>
       </div>
       <div class="f-col">

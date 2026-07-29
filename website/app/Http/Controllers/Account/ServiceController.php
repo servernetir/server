@@ -23,8 +23,14 @@ class ServiceController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
+        // سرویسی که فاکتورش پرداخت نشده هنوز مالِ مشتری نیست و نباید در فهرستِ
+        // «سرویس‌های من» بیاید — وگرنه کاربر فکر می‌کند خریدش انجام شده. تا
+        // پرداخت، همان پیش‌فاکتور در بخشِ فاکتورها منتظرِ اوست.
         $services = Schema::hasTable('services')
-            ? $customer->services()->with(['invoices' => fn ($q) => $q->latest('id'), 'server'])->latest('id')->get()
+            ? $customer->services()
+                ->where('status', '!=', 'pending')
+                ->with(['invoices' => fn ($q) => $q->latest('id'), 'server'])
+                ->latest('id')->get()
             : collect();
 
         return view('account.services', AccountController::shell('services') + [

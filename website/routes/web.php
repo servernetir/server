@@ -67,6 +67,9 @@ $site = function (): void {
     Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog')->where('slug', '[a-z0-9-]+');
 
     // صفحات راهکار سازمانی
+    // هابِ راهکارها — والدِ موضوعیِ صفحات راهکار. پیش از روتِ {slug} ثبت می‌شود
+    // تا «/solutions» را خودش بگیرد نه الگوی slug.
+    Route::get('/solutions', [SolutionController::class, 'index'])->name('solutions.index');
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
@@ -1165,6 +1168,31 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
 | ویرایش‌شده تا ریست شدنِ opcache زنده نمی‌شود. این روت برای دپلوی‌هایی است
 | که فقط کد عوض می‌کنند و مهاجرت ندارند. توکن‌دار و POST، مثل بقیهٔ system.
 */
+/*
+| فرمِ مرورگری برای ریستِ opcache.
+|
+| ⚠️ چرا لازم شد: خودِ عمل فقط POST است (توکن نباید در URL برود). ولی وقتی
+| کارفرما آدرس را در مرورگر باز می‌کرد، مرورگر GET می‌فرستاد و «۴۰۵ Method Not
+| Allowed» می‌گرفت — دقیقاً همان تجربه‌ای که پیش آمد. /system/migrate این صفحه
+| را داشت و کار می‌کرد؛ opcache نداشت. حالا هر دو یک‌شکل‌اند.
+*/
+Route::get('/system/opcache', fn () => response(
+    '<!doctype html><meta charset=utf-8><title>ریست opcache</title>'
+    .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+    .'<h2>ریست opcache</h2>'
+    .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید. کشِ بایت‌کد و کشِ config/route/view پاک می‌شود '
+    .'تا کدِ تازه دپلوی‌شده زنده شود.</p>'
+    .'<form method=post><input name=token style="width:100%;padding:10px;font-size:15px" '
+    .'placeholder="DEPLOY_TOKEN" autocomplete=off> '
+    .'<button style="margin-top:12px;padding:10px 22px;font-size:15px;cursor:pointer">اجرا</button></form>'
+    .'<pre id=out style="background:#111;color:#0f0;padding:14px;border-radius:8px;white-space:pre-wrap;margin-top:20px"></pre>'
+    .'<script>document.querySelector("form").addEventListener("submit",async e=>{e.preventDefault();'
+    .'var o=document.getElementById("out");o.textContent="در حال اجرا…";'
+    .'var r=await fetch("",{method:"POST",headers:{"Content-Type":"application/json"},'
+    .'body:JSON.stringify({token:e.target.token.value})});'
+    .'o.textContent=JSON.stringify(await r.json(),null,2)});</script>'
+))->name('system.opcache');
+
 Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
@@ -1245,6 +1273,16 @@ use App\Http\Controllers\Admin\DashboardController as AdminDash;
 use App\Http\Controllers\Admin\PostController as AdminPost;
 use App\Http\Controllers\Admin\UserController as AdminUser;
 
+/*
+| پایانِ «جای مشتری نشستن».
+|
+| عمداً بیرونِ گروهِ auth:web است: مدیر در این لحظه با گاردِ customer در پنل
+| نشسته و ممکن است نشستِ webش منقضی شده باشد؛ باز هم باید بتواند خارج شود.
+| خودِ کنترلر هر دو حالت را مدیریت می‌کند.
+*/
+Route::post('/admin/impersonate/stop', [\App\Http\Controllers\Admin\ImpersonateController::class, 'stop'])
+    ->name('admin.impersonate.stop');
+
 Route::prefix('admin')->group(function () {
     Route::get('/setup', [AdminAuth::class, 'showSetup']);
     Route::post('/setup', [AdminAuth::class, 'setup']);
@@ -1317,6 +1355,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
 
         // سرورهای تحویل (WHM/cPanel/…)
+        // ورودِ مدیر به پنلِ مشتری (جای او نشستن) — فقط نقشِ مدیر، با لاگ
+        Route::post('/customers/{customer}/impersonate', [\App\Http\Controllers\Admin\ImpersonateController::class, 'start']);
+
         // احراز هویتِ مشتریان — صفِ بررسی، تأیید/رد، دانلودِ امنِ مدارک
         Route::get('/verifications', [\App\Http\Controllers\Admin\VerificationController::class, 'index'])->name('admin.verifications');
         Route::get('/verifications/{profile}/doc/{document}', [\App\Http\Controllers\Admin\VerificationController::class, 'document'])->name('admin.verification.doc');

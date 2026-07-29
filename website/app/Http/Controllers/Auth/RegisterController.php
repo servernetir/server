@@ -347,6 +347,15 @@ class RegisterController extends Controller
         $this->ensureProfile($customer, $reg);
         $this->recordAcceptance($customer, $request);
 
+        // اعلانِ «مشتریِ جدید» به مدیر — best-effort، ثبت‌نام را نمی‌شکند
+        app(\App\Services\Notify\AdminNotifier::class)->event('مشتریِ جدید ثبت‌نام کرد', [
+            'نام'    => $customer->displayName(),
+            'شناسه'  => $customer->code,
+            'موبایل' => $customer->phone,
+            'ایمیل'  => $customer->email,
+            'نوع'    => ($reg['type'] ?? 'individual') === 'company' ? 'حقوقی' : 'حقیقی',
+        ], url('/admin/customers/'.$customer->id), '🙋');
+
         $request->session()->forget('reg');
         Auth::guard('customer')->login($customer, remember: true);
         $request->session()->regenerate();

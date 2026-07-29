@@ -29,7 +29,28 @@
       <h2>{{ __('ui.kb_blog_title') }}</h2>
       <p>{{ __('ui.kb_blog_sub') }}</p>
     </div>
+    {{-- نوشته‌های **واقعیِ** بلاگ از دیتابیس (همان‌ها که در پنل مدیریت منتشر
+         می‌شوند). اگر هنوز نوشته‌ای نیست، کارت‌های نمونهٔ config نشان داده
+         می‌شود تا صفحه خالی نماند. --}}
     <div class="kb-grid" id="kb-articles">
+      @forelse($posts as $i => $p)
+      @php $tag = $p['tags'][0] ?? ($p['category'] ?? ''); @endphp
+      <article class="kb-card reveal" style="transition-delay:{{ $i * 60 }}ms" data-search="{{ $p['title'] }} {{ $tag }} {{ $p['excerpt'] }}">
+        <div class="kb-card-top">
+          @if($tag)<span class="kb-tag">{{ $tag }}</span>@endif
+          <span class="kb-min"><svg class="icon"><use href="#i-clock"/></svg>{{ $isFa ? fa_num($p['reading']) : $p['reading'] }} {{ __('ui.kb_min') }}</span>
+        </div>
+        <span class="kb-ico"><svg class="icon"><use href="#i-{{ $p['icon'] ?: 'book' }}"/></svg></span>
+        <h3><a href="{{ lroute('blog', $p['slug']) }}">{{ $p['title'] }}</a></h3>
+        <p>{{ \Illuminate\Support\Str::limit($p['excerpt'], 120) }}</p>
+        <div class="kb-card-foot">
+          <time>{{ blog_date($p['date']) }}</time>
+          {{-- لینکِ واقعی به نوشته؛ قبلاً href="#" بود و هم کاربر را به جایی
+               نمی‌برد هم برای گوگل لینکِ مرده بود --}}
+          <a class="buy" href="{{ lroute('blog', $p['slug']) }}">{{ __('ui.kb_read') }} <svg class="icon dir"><use href="#i-arrow"/></svg></a>
+        </div>
+      </article>
+      @empty
       @foreach($kb['articles'] as $i => $a)
       <article class="kb-card reveal" style="transition-delay:{{ $i * 60 }}ms" data-search="{{ lc($a)['t'] }} {{ $a['tag'] }}">
         <div class="kb-card-top">
@@ -41,11 +62,21 @@
         <p>{{ lc($a)['d'] }}</p>
         <div class="kb-card-foot">
           <time>{{ lc($a)['date'] }}</time>
-          <a class="buy" href="#">{{ __('ui.kb_read') }} <svg class="icon dir"><use href="#i-arrow"/></svg></a>
+          <a class="buy" href="{{ lroute('blog.index') }}">{{ __('ui.kb_read') }} <svg class="icon dir"><use href="#i-arrow"/></svg></a>
         </div>
       </article>
       @endforeach
+      @endforelse
     </div>
+
+    {{-- لینک به آرشیوِ کاملِ بلاگ — هم برای کاربر و هم لینک‌سازیِ داخلی --}}
+    @if(!empty($posts))
+    <div style="text-align:center;margin-top:26px">
+      <a class="btn btn-glass" href="{{ lroute('blog.index') }}">
+        {{ __('ui.bl_all') }} <svg class="icon dir"><use href="#i-arrow"/></svg>
+      </a>
+    </div>
+    @endif
   </div>
 </section>
 

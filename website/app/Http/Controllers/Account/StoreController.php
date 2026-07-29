@@ -130,6 +130,16 @@ class StoreController extends Controller
             'سفارشِ آنلاینِ پکیج «'.$product->name.'» ('.$domain.') — '
             .Service::labelFor($cycle).($country ? ' · '.$country : '').' ثبت شد', $request, 'customer');
 
+        // اعلانِ سفارشِ تازه به مدیر (هنوز پرداخت نشده — پرداختش اعلانِ جدا دارد)
+        app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ جدید (در انتظارِ پرداخت)', [
+            'مشتری' => $customer->displayName().' ('.$customer->code.')',
+            'پکیج'  => $product->name,
+            'دامنه' => $domain,
+            'دوره'  => Service::labelFor($cycle),
+            'مکان'  => $country,
+            'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
+        ], url('/admin/customers/'.$customer->id), '🛒');
+
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');
     }

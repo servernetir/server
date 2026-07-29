@@ -29,7 +29,7 @@
   @else
     <table class="ad-table">
       <thead>
-        <tr><th>مشتری</th><th>تماس</th><th>احراز هویت</th><th>فاکتور</th><th>تیکت</th><th>وضعیت</th><th>عضویت</th></tr>
+        <tr><th>مشتری</th><th>تماس</th><th>احراز هویت</th><th>سرویس فعال</th><th>دامنه</th><th>فاکتور</th><th>تیکت</th><th>وضعیت</th><th>عضویت</th><th></th></tr>
       </thead>
       <tbody>
         @foreach($customers as $c)
@@ -51,6 +51,16 @@
                 <span class="ad-badge" style="background:rgba(95,108,130,.15);color:var(--muted)">—</span>
               @endif
             </td>
+            <td>
+              @if(($c->active_services_count ?? 0) > 0)
+                <b style="color:#34d399">{{ fa_num($c->active_services_count) }}</b>
+              @else<span style="color:var(--dim)">—</span>@endif
+            </td>
+            <td>
+              @if(($c->active_domains_count ?? 0) > 0)
+                <b style="color:#22d3ee">{{ fa_num($c->active_domains_count) }}</b>
+              @else<span style="color:var(--dim)">—</span>@endif
+            </td>
             <td>{{ fa_num($c->invoices_count) }}</td>
             <td>{{ fa_num($c->tickets_count) }}</td>
             <td>
@@ -58,6 +68,17 @@
               <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }}">{{ $st[0] }}</span>
             </td>
             <td dir="ltr" style="color:var(--muted)">{{ sdate($c->created_at) }}</td>
+            {{-- عملیات: onclick ردیف نباید فعال شود، پس جلوی انتشارش گرفته می‌شود --}}
+            <td class="cust-act" onclick="event.stopPropagation()" style="white-space:nowrap;text-align:left">
+              <a class="cust-a" href="/admin/customers/{{ $c->id }}" title="پرونده"><svg class="icon"><use href="#i-list"/></svg></a>
+              @if(auth()->user()->isAdmin() && $c->status !== 'closed')
+                <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
+                      data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
+                  @csrf<button class="cust-a" type="submit" title="ورود به پنل کاربری"><svg class="icon"><use href="#i-key"/></svg></button>
+                </form>
+              @endif
+              <a class="cust-a" href="/admin/broadcasts?customer={{ $c->id }}" title="ارسال اعلان"><svg class="icon"><use href="#i-message"/></svg></a>
+            </td>
           </tr>
         @endforeach
       </tbody>
@@ -68,4 +89,12 @@
 {{ $customers->links() }}
 @endif
 
+<style>
+.cust-act{display:flex;gap:4px;align-items:center;justify-content:flex-end}
+.cust-a{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--muted);cursor:pointer;transition:.15s}
+.cust-a:hover{border-color:var(--cyan);color:var(--cyan)}
+.cust-a .icon{width:15px;height:15px}
+@media(max-width:900px){ .cust-act{justify-content:flex-start} }
+</style>
 @endsection
