@@ -110,7 +110,9 @@ class CustomerController extends Controller
         // نگهبان: جدول services تازه اضافه شده؛ روی سروری که هنوز مهاجرت
         // نکرده نباید پرونده ۵۰۰ شود
         if (Schema::hasTable('services')) {
-            $load['services'] = fn ($q) => $q->orderByDesc('id');
+            // invoices و server را با هم می‌آوریم: صفحه برای هر سرویس «آخرین
+            // پرداخت» و IP را نشان می‌دهد و بدونِ این، N+1 می‌شد.
+            $load['services'] = fn ($q) => $q->with(['invoices', 'server'])->orderByDesc('id');
         }
 
         $customer->load($load);

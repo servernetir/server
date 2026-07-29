@@ -25,14 +25,57 @@
   </div>
 </div>
 
-{{-- ══ آمار سریع ══ --}}
+{{-- ══ آمار سریع ══
+     «در یک نگاه» یعنی همین ردیف: چه چیزی از ما دارد، چقدر بدهکار است و
+     نزدیک‌ترین سررسیدش کِی است — بدونِ باز کردنِ هیچ تبی. --}}
+@php
+  $activeSvc  = $services->whereIn('status', ['active', 'awaiting_provision']);
+  $domains    = $services->whereIn('status', ['active', 'awaiting_provision'])
+                         ->pluck('domain')->filter()->unique();
+  $nextDue    = $activeSvc->whereNotNull('next_due_at')->sortBy('next_due_at')->first();
+  $unpaidSum  = $c->invoices->whereIn('status', ['unpaid', 'partial'])->sum(fn ($i) => (int) $i->due());
+  $openTickets = $c->tickets->where('status', 'open')->count();
+@endphp
 <div class="cust-kpis">
+  <div class="cust-kpi"><b style="color:#22d3ee">{{ fa_num($activeSvc->count()) }}</b><span>سرویس فعال</span></div>
+  <div class="cust-kpi"><b>{{ fa_num($domains->count()) }}</b><span>دامنه</span></div>
+  <div class="cust-kpi">
+    <b style="color:{{ $unpaidSum > 0 ? '#fbbf24' : 'var(--text)' }}">{{ $money($unpaidSum) }}</b>
+    <span>بدهی پرداخت‌نشده</span>
+  </div>
   <div class="cust-kpi"><b style="color:#34d399">{{ $money($creditBalance) }}</b><span>موجودی اعتبار</span></div>
-  <div class="cust-kpi"><b>{{ fa_num($invoiceTotals['count']) }}</b><span>فاکتور ({{ fa_num($invoiceTotals['unpaid']) }} پرداخت‌نشده)</span></div>
+  <div class="cust-kpi">
+    <b>{{ $nextDue?->next_due_at ? sdate($nextDue->next_due_at) : '—' }}</b>
+    <span>نزدیک‌ترین سررسید</span>
+  </div>
   <div class="cust-kpi"><b>{{ $money($invoiceTotals['paid']) }}</b><span>مجموع پرداخت‌شده</span></div>
-  <div class="cust-kpi"><b>{{ fa_num($c->tickets->count()) }}</b><span>تیکت</span></div>
 </div>
 
+{{-- ══ تب‌ها ══
+     صفحه شلوغ شده بود و «هویت و احراز» بالای صفحه جای زیادی می‌گرفت در حالی
+     که روزمره لازم نیست. همه‌چیز در DOM می‌ماند (پس Ctrl+F کار می‌کند) و فقط
+     یکی دیده می‌شود؛ پیش‌فرض «سرویس‌ها» است. --}}
+<div class="ct-tabs" role="tablist">
+  <button type="button" class="ct-tab on" data-tab="services" role="tab">
+    <svg class="icon"><use href="#i-server"/></svg>سرویس‌ها
+    @if($activeSvc->count())<i class="ct-n">{{ fa_num($activeSvc->count()) }}</i>@endif
+  </button>
+  <button type="button" class="ct-tab" data-tab="finance" role="tab">
+    <svg class="icon"><use href="#i-coins"/></svg>مالی
+    @if($invoiceTotals['unpaid'])<i class="ct-n warn">{{ fa_num($invoiceTotals['unpaid']) }}</i>@endif
+  </button>
+  <button type="button" class="ct-tab" data-tab="support" role="tab">
+    <svg class="icon"><use href="#i-lifebuoy"/></svg>پشتیبانی
+    @if($openTickets)<i class="ct-n warn">{{ fa_num($openTickets) }}</i>@endif
+  </button>
+  <button type="button" class="ct-tab" data-tab="account" role="tab">
+    <svg class="icon"><use href="#i-user"/></svg>هویت و حساب
+  </button>
+</div>
+
+{{-- هر تب می‌تواند چند تکهٔ جدا در صفحه داشته باشد؛ JS همهٔ تکه‌های هم‌نام را
+     با هم نشان/پنهان می‌کند. این‌طور لازم نشد بلوک‌های بزرگ را جابه‌جا کنم. --}}
+<div class="ct-pane" data-pane="account">
 <div class="ad-grid2">
   {{-- ══ هویت و احراز ══ --}}
   <div class="ad-panel" style="margin:0">
@@ -89,6 +132,10 @@
 </div>
 @endif
 
+</div>{{-- /pane account (بخشِ اولش) --}}
+
+{{-- ─────────── تبِ سرویس‌ها (پیش‌فرض) ─────────── --}}
+<div class="ct-pane on" data-pane="services">
 {{-- ══ سرویس‌ها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>سرویس‌ها و خدمات</h3></div>
@@ -102,6 +149,22 @@
         @php $sb = $s->statusBadge(); @endphp
         <tr>
           <td><b>{{ $s->name }}</b>@if($s->description)<div style="font-size:12px;color:var(--dim);margin-top:2px">{{ \Illuminate\Support\Str::limit($s->description, 60) }}</div>@endif
+            {{-- «در یک نگاه»: پکیج، دامنه، IP و آخرین پرداخت — بدونِ کلیکِ اضافه.
+                 برای هاست دامنه مهم است و برای سرور، IP. --}}
+            @php
+              $lastPaid = $s->invoices->where('status', 'paid')->sortByDesc('paid_at')->first();
+              // ⚠️ provision_meta ممکن است null باشد؛ null['ip'] در PHP ۸ اخطار
+              // می‌دهد و لاراول اخطار را به استثنا تبدیل می‌کند → ۵۰۰.
+              $meta  = is_array($s->provision_meta) ? $s->provision_meta : [];
+              $svcIp = $meta['ip'] ?? $s->server?->server_ip;
+            @endphp
+            <div class="svc-meta">
+              @if($s->plan)<i><b>پکیج:</b> <span dir="ltr">{{ $s->plan }}</span></i>@endif
+              @if($s->domain)<i><b>دامنه:</b> <a href="http://{{ $s->domain }}" target="_blank" rel="noopener" dir="ltr" style="color:#22d3ee">{{ $s->domain }}</a></i>@endif
+              @if($svcIp)<i><b>IP:</b> <span dir="ltr">{{ $svcIp }}</span></i>@endif
+              @if($s->username)<i><b>کاربر:</b> <span dir="ltr">{{ $s->username }}</span></i>@endif
+              @if($lastPaid)<i><b>آخرین پرداخت:</b> {{ sdate($lastPaid->paid_at) }}</i>@endif
+            </div>
             @if($s->server_id)
               @php $pb = $s->provisionBadge(); @endphp
               <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -202,6 +265,10 @@
   </div>
 </div>
 
+</div>{{-- /pane services --}}
+
+{{-- ─────────── تبِ مالی ─────────── --}}
+<div class="ct-pane" data-pane="finance">
 {{-- ══ فاکتورها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فاکتورها</h3></div>
@@ -249,11 +316,19 @@
       <p style="padding:16px;color:var(--dim)">پرداختی ندارد.</p>
     @else
       <table class="ad-table">
-        <thead><tr><th>درگاه</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
+        <thead><tr><th>درگاه</th><th>شناسهٔ پیگیری</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
         <tbody>
           @foreach($c->payments as $p)
           <tr>
-            <td>{{ ['zarinpal'=>'زرین‌پال','bale'=>'بله'][$p->gateway] ?? $p->gateway }}</td>
+            <td>{{ ['zarinpal'=>'زرین‌پال','bale'=>'بله','bank_transfer'=>'واریز به حساب'][$p->gateway] ?? $p->gateway }}</td>
+            {{-- شناسهٔ پیگیری: تنها چیزی که با آن می‌شود پرداخت را در بانک/درگاه
+                 ردیابی کرد و اولین چیزی که پشتیبانی از مشتری می‌پرسد. --}}
+            <td dir="ltr" style="font-size:12px">
+              @if($p->ref_id)
+                <span class="copyable" title="کلیک = کپی">{{ $p->ref_id }}</span>
+              @else<span style="color:var(--dim)">—</span>@endif
+              @if($p->card_mask)<div style="color:var(--dim);font-size:11px">{{ $p->card_mask }}</div>@endif
+            </td>
             <td>{{ $money($p->amount) }}</td>
             <td>
               @php $pst = ['paid'=>['موفق','#34d399'],'pending'=>['در انتظار','#fbbf24'],'redirected'=>['هدایت‌شده','#22d3ee'],'failed'=>['ناموفق','#ff6b6b'],'canceled'=>['لغو','var(--dim)']][$p->status] ?? [$p->status,'var(--muted)']; @endphp
@@ -267,6 +342,11 @@
     @endif
   </div>
 
+</div>{{-- /ad-grid2 --}}
+</div>{{-- /pane finance --}}
+
+{{-- ─────────── تبِ پشتیبانی ─────────── --}}
+<div class="ct-pane" data-pane="support">
   {{-- ══ تیکت‌ها ══ --}}
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>تیکت‌ها</h3></div>
@@ -292,7 +372,8 @@
   </div>
 </div>
 
-{{-- ══ فعالیت (لاگ با IP) ══ --}}
+{{-- ══ فعالیت (لاگ با IP) ══ — تکهٔ دومِ همان تبِ پشتیبانی --}}
+<div class="ct-pane" data-pane="support">
 @if($activity->isNotEmpty())
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فعالیت اخیر</h3></div>
@@ -317,6 +398,10 @@
 </div>
 @endif
 
+</div>{{-- /pane support (تکهٔ فعالیت) --}}
+
+{{-- ─────────── تبِ هویت و حساب: تکهٔ دوم (مدیریت) ─────────── --}}
+<div class="ct-pane" data-pane="account">
 {{-- ══ مدیریت حساب: وضعیت + رمز عبور ══ --}}
 <div class="ad-grid2">
   <div class="ad-panel" style="margin:0">
@@ -370,17 +455,64 @@
   </div>
 </div>
 
+</div>{{-- /pane account (تکهٔ مدیریت) --}}
+
 <style>
 .cust-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px }
-.cust-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px }
+.cust-kpis{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:16px }
 .cust-kpi{ padding:14px 16px; background:var(--panel,var(--surface)); border:1px solid var(--line); border-radius:12px }
-.cust-kpi b{ display:block; font-size:19px; color:var(--text); font-variant-numeric:tabular-nums }
-.cust-kpi span{ font-size:12px; color:var(--muted) }
+.cust-kpi b{ display:block; font-size:18px; color:var(--text); font-variant-numeric:tabular-nums }
+.cust-kpi span{ font-size:11.5px; color:var(--muted) }
 .kv{ padding:8px 16px 16px }
-.kv > div{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid #161d2b }
+.kv > div{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line) }
 .kv > div:last-child{ border-bottom:0 }
 .kv span{ color:var(--muted); font-size:13px }
 .kv b{ color:var(--text); font-size:13.5px; font-weight:600; text-align:left }
-@media(max-width:900px){ .cust-kpis{ grid-template-columns:repeat(2,1fr) } }
+
+/* ── تب‌ها ─────────────────────────────────────────────────────────────── */
+.ct-tabs{ display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--line); flex-wrap:wrap }
+.ct-tab{ display:inline-flex; align-items:center; gap:8px; background:none; border:0; cursor:pointer;
+  font:inherit; font-size:13.5px; font-weight:600; color:var(--muted); padding:11px 16px;
+  border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s, border-color .15s }
+.ct-tab:hover{ color:var(--text) }
+.ct-tab.on{ color:var(--cyan); border-bottom-color:var(--cyan) }
+.ct-tab .icon{ width:16px; height:16px }
+.ct-n{ font-style:normal; font-size:11px; font-weight:700; background:var(--surface2);
+  border:1px solid var(--line); border-radius:20px; padding:1px 7px; color:var(--muted) }
+.ct-tab.on .ct-n{ background:rgba(34,211,238,.12); border-color:rgba(34,211,238,.3); color:var(--cyan) }
+.ct-n.warn{ background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.32); color:var(--amber) }
+.ct-pane{ display:none }
+.ct-pane.on{ display:block }
+
+/* ردیفِ سرویس: مشخصاتِ فنی زیرِ نامِ سرویس */
+.svc-meta{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px }
+.svc-meta i{ font-style:normal; font-size:11.5px; color:var(--dim); display:inline-flex; align-items:center; gap:4px }
+.svc-meta i b{ color:var(--muted); font-weight:600 }
+
+@media(max-width:1100px){ .cust-kpis{ grid-template-columns:repeat(3,1fr) } }
+@media(max-width:640px){ .cust-kpis{ grid-template-columns:repeat(2,1fr) } .ct-tab{ padding:10px 12px; font-size:13px } }
 </style>
+
+<script>
+(function () {
+  var tabs  = document.querySelectorAll('.ct-tab');
+  var panes = document.querySelectorAll('.ct-pane');
+  if (!tabs.length) return;
+
+  function show(name) {
+    tabs.forEach(function (t) { t.classList.toggle('on', t.dataset.tab === name); });
+    // هر تب می‌تواند چند تکه داشته باشد، پس همهٔ هم‌نام‌ها با هم روشن می‌شوند
+    panes.forEach(function (p) { p.classList.toggle('on', p.dataset.pane === name); });
+    try { history.replaceState(null, '', '#' + name); } catch (e) {}
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { show(t.dataset.tab); });
+  });
+
+  // با لینکِ #finance یا رفرش، همان تب باز بماند
+  var initial = (location.hash || '').replace('#', '');
+  if (initial && document.querySelector('.ct-pane[data-pane="' + initial + '"]')) show(initial);
+})();
+</script>
 @endsection
