@@ -394,6 +394,51 @@ if (! function_exists('price_toman')) {
     }
 }
 
+if (! function_exists('cloud_price')) {
+    /**
+     * قیمتِ سرورِ ابری در ارزِ درستِ زبانِ جاری.
+     *
+     * ورودی همیشه **تومانِ نهایی** است (خروجیِ `CloudStore::priceForCycle`، که
+     * از `cloud_plans.price_irt` می‌آید و حاشیهٔ سود رویش خورده). پس این‌جا
+     * دیگر `price_factor` نمی‌خورد — فقط نمایش:
+     *   · فارسی → همان تومان.
+     *   · انگلیسی/ترکی → یورو، با نرخِ زندهٔ همان کلاسی که قیمت‌ها را ساخته
+     *     (`CloudPricing::eurToToman`)، تا عددِ نمایش با بهایِ واقعی هم‌خوان بماند.
+     *
+     * ⚠️ درگاهِ زندهٔ یورو هنوز نیست؛ این فقط **نمایش** است. مشتریِ en/tr مبلغ را
+     * به یورو می‌بیند ولی روش‌های پرداختِ یورو/کریپتو «به‌زودی»‌اند (بی‌شارژِ
+     * تومانِ ناخواسته). فارسی مثلِ همیشه تومان می‌پردازد.
+     */
+    function cloud_price(int|float $toman): string
+    {
+        $t = (int) round($toman);
+
+        if (app()->getLocale() === 'fa') {
+            return fa_num(number_format($t)).' تومان';
+        }
+
+        $rate = cloud_eur_rate();
+
+        if ($rate > 0) {
+            return '€'.number_format($t / $rate, 2);
+        }
+
+        return number_format($t);   // نرخ نبود: عددِ خام، بی‌واحدِ گمراه‌کننده
+    }
+}
+
+if (! function_exists('cloud_eur_rate')) {
+    /** نرخِ یورو→تومانِ همان کلاسی که قیمتِ ابری را می‌سازد (۰ اگر نبود). */
+    function cloud_eur_rate(): int
+    {
+        try {
+            return app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+}
+
 if (! function_exists('asset_ver')) {
     /**
      * آدرسِ فایلِ استاتیک با مهرِ نسخه — **امن در برابرِ فایلِ نبود**.

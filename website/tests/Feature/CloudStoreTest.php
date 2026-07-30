@@ -572,4 +572,48 @@ class CloudStoreTest extends TestCase
         $name = (string) Service::where('customer_id', $customer->id)->value('name');
         $this->assertMatchesRegularExpression('/^سرور مجازی vps-[a-z0-9]{6}$/u', $name);
     }
+
+    // ═══════════════════ زبان و ارز (باگی که کارفرما در ترکی دید) ═══════════════════
+
+    /**
+     * 🔴 کارفرما: «در ترکی، مبلغ به تومان بود و صفحه جاهایی فارسی». کنسول با
+     * پیشوندِ زبان کار می‌کند (‎/en/account‎، ‎/tr/account‎)، پس زبان و ارز باید
+     * از همان پیروی کنند: فارسی تومان، انگلیسی/ترکی یورو، و **هیچ نشتِ فارسی**
+     * در نسخهٔ خارجی.
+     */
+    public function test_builder_currency_and_labels_follow_the_console_locale(): void
+    {
+        $this->catalog();
+
+        // ⚠️ money() جاوااسکریپت هر دو واحدِ «€» و « تومان» را به‌عنوانِ literal در
+        // سورس دارد (در ران‌تایم شاخه می‌زند)، پس سنجشِ ارز روی HTMLِ خام گمراه
+        // است. اسکریپت‌ها را کنار می‌گذاریم و روی متنِ **دیداریِ** رندرشده
+        // (خروجیِ cloud_price در PHP) قضاوت می‌کنیم.
+        $vis = fn (string $h) => preg_replace('~<script\b[^>]*>.*?</script>~is', '', $h);
+
+        // فارسی: تومان، بی‌یورو
+        $fa = $vis($this->actingAs($this->customer(), 'customer')
+            ->get(route('account.cloud.store', [], false))->assertOk()->getContent());
+        $this->assertStringContainsString('تومان', $fa);
+        $this->assertStringContainsString('سرور مجازی بساز', $fa);
+        $this->assertStringNotContainsString('€', $fa, 'فارسی نباید یورو نشان دهد');
+
+        // انگلیسی: یورو، بی‌تومان، بی‌نشتِ فارسی
+        $en = $vis($this->actingAs($this->customer(), 'customer')
+            ->get(route('en.account.cloud.store', [], false))->assertOk()->getContent());
+        $this->assertStringContainsString('€', $en);
+        $this->assertStringNotContainsString('تومان', $en, 'نسخهٔ انگلیسی نباید تومان داشته باشد');
+        $this->assertStringContainsString('Build your VPS', $en);
+        $this->assertStringContainsString('Order summary', $en);
+        $this->assertStringNotContainsString('سرور مجازی بساز', $en, 'نشتِ فارسی در انگلیسی');
+        $this->assertStringNotContainsString('ui.cvb', $en, 'کلیدِ خام نباید چاپ شود');
+
+        // ترکی: یورو، بی‌تومان، بی‌نشتِ فارسی
+        $tr = $vis($this->actingAs($this->customer(), 'customer')
+            ->get(route('tr.account.cloud.store', [], false))->assertOk()->getContent());
+        $this->assertStringContainsString('€', $tr);
+        $this->assertStringNotContainsString('تومان', $tr, 'نسخهٔ ترکی نباید تومان داشته باشد');
+        $this->assertStringContainsString('Sipariş özeti', $tr);
+        $this->assertStringNotContainsString('سرور مجازی بساز', $tr, 'نشتِ فارسی در ترکی');
+    }
 }

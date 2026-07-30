@@ -1,5 +1,5 @@
 @extends('panel.layout')
-@section('title', 'ساخت سرور مجازی — سرورنت کلاود')
+@section('title', __('ui.cvb_title'))
 
 {{-- سرورساز: مکان ← پلن ← سیستم‌عامل/نرم‌افزار ← دوره ← نام ← پیش‌فاکتور.
 
@@ -14,13 +14,13 @@
 <div class="pnl-head">
   <div>
     <nav class="blog-crumbs" style="margin-bottom:8px">
-      <a href="{{ lroute('account.home') }}">پنل</a><span>/</span>
-      <span>ساخت سرور مجازی</span>
+      <a href="{{ lroute('account.home') }}">{{ __('ui.cvb_crumb_panel') }}</a><span>/</span>
+      <span>{{ __('ui.cvb_crumb') }}</span>
     </nav>
-    <h1 class="dash-h">سرور مجازی بساز</h1>
-    <p>کشور، مشخصات، سیستم‌عامل و دورهٔ پرداخت را انتخاب کنید؛ پس از پرداخت، سرور خودکار ساخته و تحویل می‌شود.</p>
+    <h1 class="dash-h">{{ __('ui.cvb_h1') }}</h1>
+    <p>{{ __('ui.cvb_intro') }}</p>
   </div>
-  <span class="pnl-pill info" style="font-size:12.5px;padding:7px 15px">تحویل خودکار · کمتر از دو دقیقه</span>
+  <span class="pnl-pill info" style="font-size:12.5px;padding:7px 15px">{{ __('ui.cvb_pill') }}</span>
 </div>
 
 @if(session('ok'))
@@ -41,10 +41,9 @@
   <section class="pnl-sec">
     <div class="pnl-sec-b" style="text-align:center;padding:34px 20px">
       <div style="font-size:34px;margin-bottom:10px">☁️</div>
-      <h2 style="font-size:17px;margin:0 0 8px">فهرست سرورهای مجازی همین حالا در دسترس نیست</h2>
+      <h2 style="font-size:17px;margin:0 0 8px">{{ __('ui.cvb_empty_h') }}</h2>
       <p style="color:var(--muted);font-size:13.5px;line-height:2;margin:0">
-        در حال به‌روزرسانی موجودی هستیم. کمی بعد همین صفحه را باز کنید یا برای انتخاب
-        پکیج با <a href="{{ lroute('account.tickets') }}">پشتیبانی</a> در تماس باشید.
+        {{ __('ui.cvb_empty_p1') }}<a href="{{ lroute('account.tickets') }}">{{ __('ui.cvb_empty_support') }}</a>{{ __('ui.cvb_empty_p2') }}
       </p>
     </div>
   </section>
@@ -86,8 +85,8 @@
     {{-- ═══ گام ۱: کشور و مکان ═══ --}}
     <section class="pnl-sec">
       <div class="pnl-sec-h">
-        <h2><span class="cvb-step">۱</span> سرور در کدام کشور باشد؟</h2>
-        <span class="cvb-hint">{{ fa_num(count($groups)) }} کشور</span>
+        <h2><span class="cvb-step">۱</span> {{ __('ui.cvb_s1') }}</h2>
+        <span class="cvb-hint">{{ fa_num(count($groups)) }} {{ __('ui.cvb_countries_unit') }}</span>
       </div>
       <div class="pnl-sec-b">
         @foreach($groups as $g)
@@ -107,7 +106,7 @@
         @endforeach
         <p class="cvb-note">
           <svg class="icon"><use href="#i-pin"/></svg>
-          مکان را نمی‌توان بعد از ساخت عوض کرد؛ نزدیک‌ترین کشور به کاربرانتان را انتخاب کنید.
+          {{ __('ui.cvb_loc_note') }}
         </p>
       </div>
     </section>
@@ -115,12 +114,12 @@
     {{-- ═══ گام ۲: پلن ═══ --}}
     <section class="pnl-sec">
       <div class="pnl-sec-h">
-        <h2><span class="cvb-step">۲</span> مشخصات سرور</h2>
+        <h2><span class="cvb-step">۲</span> {{ __('ui.cvb_s2') }}</h2>
         <span class="cvb-hint">{{ $location?->label() ?? '' }}</span>
       </div>
       <div class="pnl-sec-b">
         @if(count($planCards) === 0)
-          <p class="cvb-warn">برای این مکان همین حالا پلن موجودی نداریم؛ کشور دیگری را انتخاب کنید.</p>
+          <p class="cvb-warn">{{ __('ui.cvb_no_plans') }}</p>
         @else
           <div class="cvb-plans">
             @foreach($planCards as $p)
@@ -128,13 +127,13 @@
                 <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
                 <span class="cvb-pn">{{ $p['name'] }}</span>
                 <span class="cvb-specs">
-                  <span><svg class="icon"><use href="#i-cpu"/></svg>{{ fa_num($p['vcpu']) }} هسته</span>
-                  <span><svg class="icon"><use href="#i-server"/></svg>{{ fa_num($p['ram']) }} رم</span>
+                  <span><svg class="icon"><use href="#i-cpu"/></svg>{{ fa_num($p['vcpu']) }} {{ __('ui.cvb_cores') }}</span>
+                  <span><svg class="icon"><use href="#i-server"/></svg>{{ fa_num($p['ram']) }} {{ __('ui.cvb_ram') }}</span>
                   <span><svg class="icon"><use href="#i-hdd"/></svg>{{ fa_num($p['disk']) }}</span>
-                  <span><svg class="icon"><use href="#i-globe"/></svg>{{ fa_num($p['traffic']) }} ترافیک</span>
+                  <span><svg class="icon"><use href="#i-globe"/></svg>{{ fa_num($p['traffic']) }} {{ __('ui.cvb_traffic') }}</span>
                 </span>
                 <span class="cvb-cpukind">{{ $p['cpu'] }}</span>
-                <span class="cvb-pp" data-pp>{{ fa_num(number_format($priceMap[$p['slug']][$curCycle]['cycle'] ?? 0)) }} تومان</span>
+                <span class="cvb-pp" data-pp>{{ cloud_price($priceMap[$p['slug']][$curCycle]['cycle'] ?? 0) }}</span>
               </label>
             @endforeach
           </div>
@@ -145,10 +144,10 @@
     {{-- ═══ گام ۳: سیستم‌عامل یا نرم‌افزار آماده ═══ --}}
     <section class="pnl-sec">
       <div class="pnl-sec-h">
-        <h2><span class="cvb-step">۳</span> سیستم‌عامل یا نرم‌افزار آماده</h2>
+        <h2><span class="cvb-step">۳</span> {{ __('ui.cvb_s3') }}</h2>
         <div class="cvb-tabs">
-          <button type="button" class="cvb-tab on" data-tab="os">سیستم‌عامل</button>
-          <button type="button" class="cvb-tab" data-tab="app">نرم‌افزار آماده</button>
+          <button type="button" class="cvb-tab on" data-tab="os">{{ __('ui.cvb_os') }}</button>
+          <button type="button" class="cvb-tab" data-tab="app">{{ __('ui.cvb_app') }}</button>
         </div>
       </div>
       <div class="pnl-sec-b">
@@ -159,7 +158,7 @@
           @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
           @forelse($osByFam as $fam => $rows)
             <div class="cvb-fam" data-fam="{{ $fam }}">
-              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : __('ui.cvb_other') }}</div>
               <div class="cvb-opts">
                 @foreach($rows as $img)
                   <label class="cvb-img @if($img->key === $curImage) on @endif"
@@ -172,16 +171,16 @@
               </div>
             </div>
           @empty
-            <p class="cvb-warn">فهرست سیستم‌عامل‌ها همین حالا در دسترس نیست.</p>
+            <p class="cvb-warn">{{ __('ui.cvb_os_na') }}</p>
           @endforelse
-          <p class="cvb-empty" data-empty="os" hidden>برای این پلن سیستم‌عاملی در دسترس نیست؛ پلن دیگری را انتخاب کنید.</p>
+          <p class="cvb-empty" data-empty="os" hidden>{{ __('ui.cvb_os_empty') }}</p>
         </div>
 
         <div class="cvb-imgs" data-pane="app" hidden>
           @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
           @forelse($appByFam as $fam => $rows)
             <div class="cvb-fam" data-fam="{{ $fam }}">
-              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : __('ui.cvb_other') }}</div>
               <div class="cvb-opts">
                 @foreach($rows as $img)
                   <label class="cvb-img @if($img->key === $curImage) on @endif"
@@ -194,21 +193,21 @@
               </div>
             </div>
           @empty
-            <p class="cvb-warn">نرم‌افزار آماده‌ای برای نصب خودکار ثبت نشده است.</p>
+            <p class="cvb-warn">{{ __('ui.cvb_app_na') }}</p>
           @endforelse
-          <p class="cvb-empty" data-empty="app" hidden>برای این پلن نرم‌افزار آماده‌ای در دسترس نیست.</p>
+          <p class="cvb-empty" data-empty="app" hidden>{{ __('ui.cvb_app_empty') }}</p>
         </div>
 
         <p class="cvb-note">
           <svg class="icon"><use href="#i-key"/></svg>
-          پس از تحویل می‌توانید از پنل، سیستم‌عامل را عوض کنید — با نصب دوباره کل دیسک پاک می‌شود.
+          {{ __('ui.cvb_os_note') }}
         </p>
       </div>
     </section>
 
     {{-- ═══ گام ۴: دورهٔ پرداخت ═══ --}}
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2><span class="cvb-step">۴</span> دورهٔ پرداخت</h2></div>
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۴</span> {{ __('ui.cvb_s4') }}</h2></div>
       <div class="pnl-sec-b">
         <div class="cvb-cycles">
           @foreach($cycles as $cy)
@@ -216,10 +215,10 @@
             <label class="cvb-cyc @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}">
               <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle)>
               <span class="cvb-cyc-t">{{ $cycleLabels[$cy] ?? $cy }}</span>
-              <span class="cvb-cyc-p" data-p>{{ fa_num(number_format($row['cycle'])) }}</span>
-              <span class="cvb-cyc-m" data-m>ماهی {{ fa_num(number_format($row['per'])) }}</span>
+              <span class="cvb-cyc-p" data-p>{{ cloud_price($row['cycle']) }}</span>
+              <span class="cvb-cyc-m" data-m>{{ __('ui.cvb_per_before') }}{{ cloud_price($row['per']) }}{{ __('ui.cvb_per_after') }}</span>
               @if(($row['save'] ?? 0) > 0)
-                <span class="cvb-cyc-s">{{ fa_num($row['save']) }}٪ ارزان‌تر</span>
+                <span class="cvb-cyc-s">{{ fa_num($row['save']) }}{{ __('ui.cvb_save_suf') }}</span>
               @endif
             </label>
           @endforeach
@@ -232,29 +231,29 @@
          می‌شود که این مکان واقعاً بتواند تحویلش دهد — گزینه‌ای که سرِ ثبتِ
          سفارش رد شود، بدترین نوعِ رابطِ کاربری است. --}}
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2><span class="cvb-step">۵</span> امکانات بیشتر <small style="font-weight:400;color:var(--dim);font-size:12px">(اختیاری)</small></h2></div>
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۵</span> {{ __('ui.cvb_s5') }} <small style="font-weight:400;color:var(--dim);font-size:12px">{{ __('ui.cvb_optional') }}</small></h2></div>
       <div class="pnl-sec-b">
 
         {{-- ورود با کلید SSH --}}
         <label class="cvb-field">
-          <span>ورود با کلید SSH <b style="color:var(--ok)">رایگان</b></span>
+          <span>{{ __('ui.cvb_ssh') }} <b style="color:var(--ok)">{{ __('ui.cvb_free') }}</b></span>
           <select name="ssh_key_id" id="cvb-ssh-pick">
-            <option value="">با رمز عبور وارد می‌شوم</option>
+            <option value="">{{ __('ui.cvb_ssh_pw') }}</option>
             @foreach($sshKeys as $k)
               <option value="{{ $k->id }}" @selected((string) old('ssh_key_id') === (string) $k->id)>{{ $k->label() }}</option>
             @endforeach
-            <option value="__new" @selected(old('ssh_key_new') !== null)>+ افزودن کلید تازه</option>
+            <option value="__new" @selected(old('ssh_key_new') !== null)>{{ __('ui.cvb_ssh_add') }}</option>
           </select>
         </label>
 
         <div id="cvb-ssh-new" style="display:none">
           <label class="cvb-field">
-            <span>نام کلید</span>
+            <span>{{ __('ui.cvb_ssh_name') }}</span>
             <input type="text" name="ssh_key_name" value="{{ old('ssh_key_name') }}"
-                   placeholder="کلید لپ‌تاپ" maxlength="60" autocomplete="off">
+                   placeholder="{{ __('ui.cvb_ssh_name_ph') }}" maxlength="60" autocomplete="off">
           </label>
           <label class="cvb-field">
-            <span>کلید عمومی</span>
+            <span>{{ __('ui.cvb_ssh_pub') }}</span>
             <textarea name="ssh_key_new" dir="ltr" rows="3" maxlength="6000"
                       placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@laptop"
                       autocapitalize="off" autocomplete="off" spellcheck="false"
@@ -262,29 +261,28 @@
           </label>
           <p class="cvb-note">
             <svg class="icon"><use href="#i-shield"/></svg>
-            محتوای فایل <span dir="ltr">.pub</span> را بچسبانید. کلید <b>خصوصی</b> خود را
-            هرگز جایی نفرستید — ما هم قبولش نمی‌کنیم.
+            {!! __('ui.cvb_ssh_note1') !!}
           </p>
           <p class="cvb-note">
             <svg class="icon"><use href="#i-info"/></svg>
-            با انتخاب کلید، ورود با رمز غیرفعال می‌شود و رمز root ساخته نمی‌شود — امن‌تر است.
+            {{ __('ui.cvb_ssh_note2') }}
           </p>
         </div>
 
         @if($addonOk)
           <label class="cvb-field" style="margin-top:14px">
-            <span>IP اضافه (IPv4) — هر عدد ماهی {{ fa_num(number_format($extraIpPrice)) }} تومان</span>
+            <span>{{ __('ui.cvb_ip_pre') }}{{ cloud_price($extraIpPrice) }}{{ __('ui.cvb_ip_suf') }}</span>
             <select name="extra_ipv4" id="cvb-extra-ip">
               @for($i = 0; $i <= $maxExtraIp; $i++)
                 <option value="{{ $i }}" @selected((int) old('extra_ipv4', 0) === $i)>
-                  {{ $i === 0 ? 'نمی‌خواهم' : fa_num($i).' عدد — ماهی '.fa_num(number_format($i * $extraIpPrice)).' تومان' }}
+                  {{ $i === 0 ? __('ui.cvb_ip_none') : fa_num($i).__('ui.cvb_ip_opt_mid').cloud_price($i * $extraIpPrice).__('ui.cvb_ip_opt_suf') }}
                 </option>
               @endfor
             </select>
           </label>
           <p class="cvb-note">
             <svg class="icon"><use href="#i-globe"/></svg>
-            برای وقتی چند سایت با SSL جدا، یا سرویسی که IP اختصاصی می‌خواهد، روی یک سرور دارید.
+            {{ __('ui.cvb_ip_note') }}
           </p>
         @endif
       </div>
@@ -292,17 +290,17 @@
 
     {{-- ═══ گام ۶: نام سرور ═══ --}}
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2><span class="cvb-step">۶</span> نام دلخواه سرور</h2></div>
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۶</span> {{ __('ui.cvb_s6') }}</h2></div>
       <div class="pnl-sec-b">
         <label class="cvb-field">
-          <span>نامی که در پنل خودتان می‌بینید (اختیاری)</span>
+          <span>{{ __('ui.cvb_label') }}</span>
           <input type="text" name="label" dir="ltr" value="{{ old('label') }}"
                  placeholder="{{ $autoLabel }}" maxlength="64"
                  autocapitalize="off" autocomplete="off" spellcheck="false">
         </label>
         <p class="cvb-note">
           <svg class="icon"><use href="#i-info"/></svg>
-          فقط حروف انگلیسی، رقم و خط تیره. خالی بگذارید تا خودکار نام بگیرد.
+          {{ __('ui.cvb_label_note') }}
         </p>
       </div>
     </section>
@@ -311,25 +309,24 @@
   {{-- ═══ خلاصه و پرداخت ═══ --}}
   <aside class="cvb-side">
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2>خلاصهٔ سفارش</h2></div>
+      <div class="pnl-sec-h"><h2>{{ __('ui.cvb_sum') }}</h2></div>
       <div class="pnl-sec-b">
-        <div class="cvb-row"><span>مکان</span><b>{{ $location ? $location->flagEmoji().' '.$location->label() : '—' }}</b></div>
-        <div class="cvb-row"><span>پلن</span><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b></div>
-        <div class="cvb-row"><span>سیستم‌عامل</span><b id="cvb-s-img">{{ $jsImgLbl[$curImage] ?? '—' }}</b></div>
-        <div class="cvb-row"><span>دوره</span><b id="cvb-s-cyc">{{ $cycleLabels[$curCycle] ?? '—' }}</b></div>
-        <div class="cvb-row" id="cvb-s-ip-row" style="display:none"><span>IP اضافه</span><b class="pnl-num" id="cvb-s-ip">—</b></div>
-        <div class="cvb-row"><span>مبلغ دوره</span><b class="pnl-num" id="cvb-s-price">{{ fa_num(number_format($initial['cycle'])) }} تومان</b></div>
-        <div class="cvb-row"><span>معادل ماهانه</span><b class="pnl-num" id="cvb-s-per">{{ fa_num(number_format($initial['per'])) }} تومان</b></div>
-        <div class="cvb-row"><span>مالیات بر ارزش افزوده</span><b class="pnl-num">{{ fa_num($taxPct) }}٪</b></div>
-        <div class="cvb-row cvb-total"><span>پرداخت همین حالا</span><b class="pnl-num" id="cvb-s-first">{{ fa_num(number_format($initial['first'])) }} تومان</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_loc') }}</span><b>{{ $location ? $location->flagEmoji().' '.$location->label() : '—' }}</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_plan') }}</span><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_os') }}</span><b id="cvb-s-img">{{ $jsImgLbl[$curImage] ?? '—' }}</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_cycle') }}</span><b id="cvb-s-cyc">{{ $cycleLabels[$curCycle] ?? '—' }}</b></div>
+        <div class="cvb-row" id="cvb-s-ip-row" style="display:none"><span>{{ __('ui.cvb_ip') }}</span><b class="pnl-num" id="cvb-s-ip">—</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_amount') }}</span><b class="pnl-num" id="cvb-s-price">{{ cloud_price($initial['cycle']) }}</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_monthly') }}</span><b class="pnl-num" id="cvb-s-per">{{ cloud_price($initial['per']) }}</b></div>
+        <div class="cvb-row"><span>{{ __('ui.cvb_tax') }}</span><b class="pnl-num">{{ fa_num($taxPct) }}٪</b></div>
+        <div class="cvb-row cvb-total"><span>{{ __('ui.cvb_pay_now') }}</span><b class="pnl-num" id="cvb-s-first">{{ cloud_price($initial['first']) }}</b></div>
 
         <button type="submit" class="pnl-btn primary cvb-go" @disabled(count($planCards) === 0)>
           <svg class="icon"><use href="#i-rocket"/></svg>
-          ثبت سفارش و پرداخت — <span id="cvb-s-btn">{{ fa_num(number_format($initial['first'])) }}</span> تومان
+          {{ __('ui.cvb_submit') }} — <span id="cvb-s-btn">{{ cloud_price($initial['first']) }}</span>
         </button>
         <p class="cvb-note" style="text-align:center">
-          پیش‌فاکتور صادر می‌شود؛ با پرداخت آن، سرور خودکار ساخته می‌شود و مشخصات
-          ورود در همین پنل نشان داده می‌شود.
+          {{ __('ui.cvb_submit_note') }}
         </p>
       </div>
     </section>
@@ -437,6 +434,11 @@
     'cycles' => $jsCycles,
     'plans'  => $jsPlans,
     'imgLbl' => $jsImgLbl,
+    // ارز: فارسی تومان، بقیه یورو با نرخِ زندهٔ همان کلاسی که قیمت‌ها را ساخته.
+    'fa'   => app()->getLocale() === 'fa',
+    'rate' => cloud_eur_rate(),
+    'perB' => __('ui.cvb_per_before'),
+    'perA' => __('ui.cvb_per_after'),
   ];
 @endphp
 <script>
@@ -444,7 +446,13 @@
   var D = @json($jsData);
 
   var faN = function(x){ return String(x).replace(/[0-9]/g, function(g){ return '۰۱۲۳۴۵۶۷۸۹'[g]; }); };
-  var money = function(n){ return faN(Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')); };
+  var comma = function(n){ return Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  // money() خودش واحد را می‌چسبانَد؛ هیچ‌جای دیگر « تومان» دستی اضافه نشود.
+  var money = function(n){
+    if (D.fa) { return faN(comma(n)) + ' تومان'; }
+    if (D.rate > 0) { return '€' + ((n || 0) / D.rate).toFixed(2); }
+    return comma(n);
+  };
   var set = function(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; };
   var val = function(name){ var el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; };
 
@@ -501,7 +509,7 @@
     document.querySelectorAll('.cvb-plan').forEach(function(card){
       var row = (D.prices[card.getAttribute('data-slug')] || {})[cyc];
       var el = card.querySelector('[data-pp]');
-      if (row && el) el.textContent = money(row.cycle) + ' تومان';
+      if (row && el) el.textContent = money(row.cycle);
     });
 
     // قیمت روی کارت هر دوره = همان پلن انتخابی
@@ -510,7 +518,7 @@
       if (!row) return;
       var p = card.querySelector('[data-p]'), m = card.querySelector('[data-m]');
       if (p) p.textContent = money(row.cycle);
-      if (m) m.textContent = 'ماهی ' + money(row.per);
+      if (m) m.textContent = D.perB + money(row.per) + D.perA;
     });
 
     set('cvb-s-plan', D.plans[slug] || '—');
@@ -519,9 +527,9 @@
 
     var row = bucket[cyc];
     if (!row) return;
-    set('cvb-s-price', money(row.cycle) + ' تومان');
-    set('cvb-s-per', money(row.per) + ' تومان');
-    set('cvb-s-first', money(row.first) + ' تومان');
+    set('cvb-s-price', money(row.cycle));
+    set('cvb-s-per', money(row.per));
+    set('cvb-s-first', money(row.first));
     set('cvb-s-btn', money(row.first));
   };
 
