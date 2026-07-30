@@ -20,6 +20,23 @@ class CloudManager
         'aeza'    => AezaClient::class,
     ];
 
+    /**
+     * نامِ واقعیِ هر زیرساخت — **فقط برای پنلِ مدیریت**.
+     *
+     * ⚠️ چرا لازم شد: تا امروز همه‌جا «زیرساختِ ۱/۲» می‌نوشتیم تا نامِ واقعی
+     * تصادفی به مشتری نرسد. ولی خودِ مدیر هم نمی‌فهمید کدام کدام است و سرِ
+     * عیب‌یابی قاطی می‌کرد — یعنی محافظی که برای مشتری گذاشته بودیم، کارِ
+     * صاحبِ کار را سخت کرده بود.
+     *
+     * پس دو واژگان داریم و مرزشان روشن است:
+     *   `label()`     → «زیرساختِ ۱» — هر جا که ممکن است مشتری ببیند
+     *   `realLabel()` → «Hetzner» — فقط صفحاتِ پشتِ گیتِ مدیر
+     */
+    public const REAL_NAMES = [
+        'hetzner' => 'Hetzner Cloud',
+        'aeza'    => 'Aeza',
+    ];
+
     /** @var array<string, CloudProvider> */
     private array $cache = [];
 
@@ -73,6 +90,57 @@ class CloudManager
         $i = array_search((string) $provider, array_keys(self::DRIVERS), true);
 
         return $i === false ? '—' : 'زیرساختِ '.fa_num($i + 1);
+    }
+
+    /**
+     * نامِ واقعیِ زیرساخت با شمارهٔ آشنایش: «زیرساختِ ۱ — Hetzner Cloud».
+     *
+     * هر دو را با هم می‌دهد چون مدیر در تنظیمات «زیرساختِ ۱» را پر کرده و باید
+     * بتواند وصلش کند؛ نامِ تنها، همان سرگردانی را از سمتِ دیگر می‌سازد.
+     */
+    public function realLabel(?string $provider): string
+    {
+        $key = (string) $provider;
+        $name = self::REAL_NAMES[$key] ?? $key;
+
+        return $name === '' ? '—' : $this->label($key).' — '.$name;
+    }
+
+    /**
+     * مکان‌هایی که هر زیرساخت واقعاً در آنها پلنِ فعال دارد.
+     *
+     * برای پنلِ مدیریت: «زیرساختِ ۱ کجاست» یک سؤالِ روزمره است و تا امروز
+     * جوابش را باید از دیتابیس درمی‌آورد.
+     *
+     * @return array<string, array<int, string>>  slug => ['آلمان — فالکن‌اشتاین', …]
+     */
+    public function locationsByProvider(): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_plans')) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (array_keys(self::DRIVERS) as $slug) {
+            $codes = CloudPlan::query()
+                ->where('provider', $slug)
+                ->where('is_active', true)
+                ->distinct()
+                ->pluck('location_code');
+
+            if ($codes->isEmpty()) {
+                continue;
+            }
+
+            $out[$slug] = \App\Models\CloudLocation::whereIn('code', $codes)
+                ->orderBy('country')->orderBy('city')
+                ->get()
+                ->map(fn ($l) => $l->flagEmoji().' '.$l->label('fa'))
+                ->all();
+        }
+
+        return $out;
     }
 
     public function forPlan(CloudPlan $plan): ?CloudProvider

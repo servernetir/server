@@ -543,10 +543,16 @@ class CloudCatalogTest extends TestCase
 
     /**
      * «کدِ ۲۰۰ یعنی هیچ» — درسِ همین پروژه. پس صفحه را واقعاً رندر می‌کنیم و
-     * محتوایش را می‌سنجیم، نه فقط وضعیتش را. یک `@` سرگردان در کامنتِ Blade
-     * قبلاً کلِ بدنهٔ یک صفحه را بلعیده بود بی‌آنکه کد ۲۰۰ عوض شود.
+     * محتوایش را می‌سنجیم، نه فقط وضعیتش را.
+     *
+     * ⚠️ تغییرِ آگاهانهٔ قاعده: تا امروز حتی در پنلِ مدیریت هم «زیرساختِ ۱/۲»
+     * می‌نوشتیم. ولی کارفرما صریح خواست که **خودش** بداند کدام کدام است تا
+     * سرِ عیب‌یابی قاطی نکند («برای من در پنل مدیریت بدونم زیرساخت ۱ یا ۲
+     * کجاست»). پس نامِ واقعی حالا در پنلِ مدیریت **عمداً** دیده می‌شود، و
+     * سفیدبرچسبی فقط برای صفحاتِ **مشتری** برقرار است (تستِ
+     * CloudProvisionTest::test_panel_page_never_leaks_the_provider آن را می‌سنجد).
      */
-    public function test_admin_cloud_page_renders_without_leaking_provider_names(): void
+    public function test_admin_cloud_page_renders_and_shows_real_provider_names(): void
     {
         $this->fakeHetzner();
         app(CloudCatalogSync::class)->sync();
@@ -561,10 +567,9 @@ class CloudCatalogTest extends TestCase
         $this->assertStringContainsString('عرضه‌های عمومی', $html);
         $this->assertStringContainsString('CV-2-4', $html, 'نامِ عمومیِ پلن باید دیده شود');
 
-        // ⚠️ حتی در پنلِ مدیریت هم نامِ ارائه‌دهنده نوشته نمی‌شود («زیرساختِ ۱/۲»)
-        foreach (['hetzner', 'Hetzner', 'aeza', 'Aeza', 'cx22', 'CX22'] as $secret) {
-            $this->assertStringNotContainsString($secret, $html, "«{$secret}» نباید در HTML باشد");
-        }
+        // مدیر باید نامِ واقعی را ببیند تا زیرساخت را وصل کند
+        $this->assertStringContainsString('Hetzner', $html, 'مدیر باید بداند زیرساختِ ۱ کدام است');
+        $this->assertStringContainsString('زیرساختِ ۱', $html, 'شمارهٔ آشنا هم کنارش بماند');
     }
 
     public function test_admin_settings_page_renders_with_cloud_section(): void

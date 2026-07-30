@@ -64,6 +64,13 @@ class CloudCatalogSync
         // منوی سایت از همین کاتالوگ ساخته می‌شود؛ بی‌این، مکانِ تازه تا ۱۰ دقیقه
         // در منو دیده نمی‌شد و مدیر فکر می‌کرد همگام‌سازی کار نکرده.
         \App\Services\SiteMenu::forget();
+        \App\Services\Cloud\CloudCountry::forget();
+
+        $costAlert = $this->alertOnCostIncrease();
+
+        if ($costAlert !== null) {
+            $report['__cost'] = $costAlert;
+        }
 
         $warning = $this->crossProviderSanity();
 
@@ -205,6 +212,26 @@ class CloudCatalogSync
 
             $price = $this->pricing->priceFor($cost);
 
+            // ── ردگیریِ تغییرِ بها ──
+            // ⚠️ چرا لازم است: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
+            // خودکار تمدید می‌شود. اگر زیرساخت بها را بالا ببرد و ما نفهمیم،
+            // هر تمدید ضررِ خالص است و هیچ‌جا صدا در نمی‌آورد.
+            $existing = CloudPlan::query()
+                ->where('provider', $provider)
+                ->where('provider_ref', $ref)
+                ->where('location_code', $code)
+                ->first(['id', 'cost_eur_cents']);
+
+            $costTrack = [];
+
+            if ($existing !== null && (int) $existing->cost_eur_cents !== $cost
+                && (int) $existing->cost_eur_cents > 0) {
+                $costTrack = [
+                    'previous_cost_eur_cents' => (int) $existing->cost_eur_cents,
+                    'cost_changed_at'         => now(),
+                ];
+            }
+
             CloudPlan::updateOrCreate(
                 ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
                 [
@@ -227,7 +254,10 @@ class CloudCatalogSync
                     // پلنِ ۸هسته/۱۶گیگ بعد از ۸هسته/۸گیگ بیاید.
                     'sort'              => min(65535, $vcpu * 1000 + (int) ($ram / 1024)),
                     'synced_at'         => now(),
-                ]
+                    // ⚠️ `admin_disabled` و `admin_note` عمداً این‌جا **نیستند**.
+                    // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
+                    // عمداً بسته، دو روز بعد خودش باز می‌شد.
+                ] + $costTrack
             );
 
             $seen[] = $ref.'@'.$code;
@@ -247,6 +277,79 @@ class CloudCatalogSync
         }
 
         return $n;
+    }
+
+    /**
+     * هشدارِ گران‌شدنِ بهایِ تمام‌شده — محافظِ قیمتِ تمدید.
+     *
+     * ═══ چرا این مهم‌ترین هشدارِ این حوزه است ═══
+     *
+     * قیمتِ فروشِ مشتری سرِ سفارش **قفل** می‌شود و سرویس خودکار تمدید می‌شود.
+     * اگر زیرساخت بها را بالا ببرد، ما همان قیمتِ قدیم را فاکتور می‌کنیم و از آن
+     * لحظه هر تمدید **ضررِ خالص** است — ماه‌به‌ماه، بی‌صدا، چون سرور کار می‌کند و
+     * مشتری راضی است و هیچ خطایی تولید نمی‌شود.
+     *
+     * پس دو چیز گزارش می‌شود: کدام پلن‌ها گران شدند، و **چند سرویسِ فعال** روی
+     * آنها نشسته است. عددِ دوم است که فوریت را می‌سازد: «۳ پلن گران شد» یعنی
+     * چیزی؛ «۳ پلن گران شد و ۴۱ سرویسِ فعال رویشان است» یعنی همین امروز.
+     *
+     * عمداً قیمتِ فروش را **خودکار بالا نمی‌بریم**: بالا بردنِ قیمتِ سرویسِ فعالِ
+     * مشتری بی‌اطلاعِ او، تصمیمی تجاری و حقوقی است نه فنی. مدیر تصمیم می‌گیرد.
+     */
+    private function alertOnCostIncrease(): ?string
+    {
+        if (! Schema::hasTable('cloud_plans')) {
+            return null;
+        }
+
+        $risen = CloudPlan::query()
+            ->whereNotNull('previous_cost_eur_cents')
+            ->whereColumn('cost_eur_cents', '>', 'previous_cost_eur_cents')
+            ->where('cost_changed_at', '>=', now()->subMinutes(30))
+            ->get();
+
+        if ($risen->isEmpty()) {
+            return null;
+        }
+
+        // چند سرویسِ فعال روی این پلن‌ها نشسته؟ همین عدد فوریت را می‌سازد.
+        $exposed = 0;
+
+        if (Schema::hasTable('services') && Schema::hasColumn('services', 'cloud_plan_id')) {
+            $exposed = \App\Models\Service::query()
+                ->whereIn('cloud_plan_id', $risen->pluck('id'))
+                ->whereIn('status', ['active', 'awaiting_provision'])
+                ->count();
+        }
+
+        $worst = $risen->sortByDesc(fn (CloudPlan $p) => $p->costChangePct())->first();
+
+        $message = sprintf(
+            '🔴 بهایِ %s پلن گران شد (بیشترین: %s٪ روی %s). %s سرویسِ فعال روی این پلن‌هاست '
+            .'و با قیمتِ قفل‌شدهٔ قدیم تمدید می‌شود — یعنی از تمدیدِ بعد ضرر. '
+            .'در /admin/cloud ببینید و تصمیم بگیرید.',
+            fa_num((string) $risen->count()),
+            fa_num((string) $worst->costChangePct()),
+            (string) $worst->public_name,
+            fa_num((string) $exposed)
+        );
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event(
+                'بهایِ زیرساخت گران شد',
+                [
+                    'پلن‌های گران‌شده' => fa_num((string) $risen->count()),
+                    'سرویسِ در معرض'   => fa_num((string) $exposed),
+                    'بیشترین افزایش'   => fa_num((string) $worst->costChangePct()).'٪ · '.$worst->public_name,
+                ],
+                url('/admin/cloud'),
+                '🔴'
+            );
+        } catch (\Throwable) {
+            // اعلان نباید همگام‌سازی را بشکند
+        }
+
+        return $message;
     }
 
     /**

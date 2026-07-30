@@ -1427,6 +1427,13 @@ Route::prefix('admin')->group(function () {
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
         Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe'])->middleware('admin');
+        // خاموش/روشنِ پکیج/مکان/کشور/زیرساخت — همه POST و پشتِ گیتِ مدیر.
+        // روی admin_disabled می‌نویسند نه is_active، تا کرونِ سینک تصمیم را
+        // بی‌صدا برنگرداند.
+        Route::post('/cloud/plans/{plan}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'togglePlan'])->middleware('admin');
+        Route::post('/cloud/locations/{code}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleLocation'])->middleware('admin');
+        Route::post('/cloud/countries/{iso}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleCountry'])->middleware('admin');
+        Route::post('/cloud/providers/{provider}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleProvider'])->middleware('admin');
 
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);

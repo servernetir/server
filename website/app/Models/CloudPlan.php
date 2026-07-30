@@ -24,15 +24,24 @@ class CloudPlan extends Model
         'public_name', 'slug', 'vcpu', 'ram_mb', 'disk_gb', 'disk_type',
         'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'price_eur_cents',
         'price_irt', 'is_active', 'in_stock', 'sort', 'synced_at',
+        'previous_cost_eur_cents', 'cost_changed_at',
+        'admin_disabled', 'admin_note',
     ];
 
     /** حفاظِ سفیدبرچسبی: این ستون‌ها در هیچ JSONای بیرون نمی‌روند */
-    protected $hidden = ['provider', 'provider_ref', 'provider_location', 'cost_eur_cents'];
+    protected $hidden = [
+        'provider', 'provider_ref', 'provider_location',
+        // بهایِ تمام‌شده و تاریخِ تغییرش دادهٔ داخلیِ ما است؛ مشتری نباید
+        // بتواند حاشیهٔ سودمان را حساب کند.
+        'cost_eur_cents', 'previous_cost_eur_cents', 'cost_changed_at',
+    ];
 
     protected $casts = [
-        'is_active'  => 'bool',
-        'in_stock'   => 'bool',
-        'synced_at'  => 'datetime',
+        'is_active'       => 'bool',
+        'in_stock'        => 'bool',
+        'synced_at'       => 'datetime',
+        'cost_changed_at' => 'datetime',
+        'admin_disabled'  => 'bool',
     ];
 
     public function location()
@@ -42,10 +51,61 @@ class CloudPlan extends Model
 
     // ───────────────────────── انتخابِ عرضه ─────────────────────────
 
-    /** پلن‌های قابلِ فروش */
+    /**
+     * پلن‌های قابلِ فروش.
+     *
+     * چهار شرط، و هر کدام از یک تصمیم‌گیرندهٔ متفاوت می‌آید — به همین دلیل هم
+     * جدا نگه داشته شده‌اند:
+     *
+     *  `is_active`      واقعیتِ ارائه‌دهنده (سینک می‌نویسد)
+     *  `in_stock`       ظرفیتِ ارائه‌دهنده (سینک می‌نویسد)
+     *  `price_irt > 0`  قیمت‌گذاری موفق بوده (نرخِ ارز در دسترس بود)
+     *  `admin_disabled` تصمیمِ **مدیر** — سینک هرگز لمسش نمی‌کند
+     *
+     * ⚠️ اگر مدیر روی `is_active` می‌نوشت، کرونِ دو روزه کارش را بی‌صدا
+     * برمی‌گرداند: پکیجی که عمداً بسته بود، خودش باز می‌شد و فروخته می‌شد.
+     *
+     * زیرساختِ خاموش‌شده هم این‌جا فیلتر می‌شود، پس هیچ لایهٔ بالاتری لازم
+     * نیست یادش بماند — همان درسِ «فراموش‌شدن در یکی از سه جا».
+     */
     public function scopeSellable(Builder $q): Builder
     {
-        return $q->where('is_active', true)->where('in_stock', true)->where('price_irt', '>', 0);
+        $off = self::disabledProviders();
+
+        return $q->where('is_active', true)
+            ->where('in_stock', true)
+            ->where('price_irt', '>', 0)
+            ->where('admin_disabled', false)
+            ->when($off !== [], fn ($qq) => $qq->whereNotIn('provider', $off));
+    }
+
+    /**
+     * زیرساخت‌هایی که مدیر خاموش کرده.
+     *
+     * @return array<int, string>
+     */
+    public static function disabledProviders(): array
+    {
+        $raw = (string) (Setting::get('cloud_disabled_providers') ?? '');
+
+        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+    }
+
+    public static function providerIsDisabled(string $provider): bool
+    {
+        return in_array($provider, self::disabledProviders(), true);
+    }
+
+    /** خاموش/روشن کردنِ یک زیرساخت */
+    public static function setProviderDisabled(string $provider, bool $disabled): void
+    {
+        $list = self::disabledProviders();
+
+        $list = $disabled
+            ? array_values(array_unique([...$list, $provider]))
+            : array_values(array_diff($list, [$provider]));
+
+        Setting::put('cloud_disabled_providers', implode(',', $list));
     }
 
     /**
@@ -124,6 +184,30 @@ class CloudPlan extends Model
             'tr' => $dedicated ? 'Ayrılmış vCPU' : 'Paylaşımlı vCPU',
             default => $dedicated ? 'پردازندهٔ اختصاصی' : 'پردازندهٔ اشتراکی',
         };
+    }
+
+    /**
+     * آیا بهایِ تمام‌شده از آخرین همگام‌سازی **گران‌تر** شده؟
+     *
+     * سرویس‌های فعالی که روی این پلن نشسته‌اند با قیمتِ قفل‌شدهٔ قدیم تمدید
+     * می‌شوند، پس هر «true» این‌جا یعنی ضررِ در جریان.
+     */
+    public function costRose(): bool
+    {
+        return $this->previous_cost_eur_cents !== null
+            && (int) $this->cost_eur_cents > (int) $this->previous_cost_eur_cents;
+    }
+
+    /** درصدِ تغییرِ بها — برای پیامِ هشدار */
+    public function costChangePct(): int
+    {
+        $old = (int) $this->previous_cost_eur_cents;
+
+        if ($old <= 0) {
+            return 0;
+        }
+
+        return (int) round((((int) $this->cost_eur_cents - $old) / $old) * 100);
     }
 
     /** قیمت در ارزِ زبانِ جاری */
