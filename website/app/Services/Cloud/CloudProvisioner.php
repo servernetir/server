@@ -54,7 +54,12 @@ class CloudProvisioner
         // ── لایهٔ ۱: قفلِ اتمی ──
         $claimed = Service::whereKey($service->id)
             ->where(function ($q) {
-                $q->whereIn('provision_status', ['pending', 'failed', 'manual'])->orWhereNull('provision_status');
+                $q->whereIn('provision_status', ['pending', 'failed', 'manual'])
+                    ->orWhereNull('provision_status')
+                    // قفلِ کهنه: پروسهٔ قبلی وسطِ کار مرده است. بی‌این، سرویس
+                    // تا ابد در 'running' گیر می‌کرد و هیچ‌کس بیرونش نمی‌آورد.
+                    ->orWhere(fn ($s) => $s->where('provision_status', 'running')
+                        ->where('updated_at', '<', now()->subMinutes(15)));
             })
             ->update(['provision_status' => 'running']);
 
@@ -148,6 +153,21 @@ class CloudProvisioner
         ]);
         $instance->save();
 
+        // ── لایهٔ ۲الف: اگر از قبل سرور خریده‌ایم، دوباره نخر ──
+        //
+        // 🔴 چرا صریح لازم است: محافظِ «نامِ تکراری» فقط روی زیرساختی کار می‌کند
+        // که نامِ سرور را یکتا می‌گیرد و خطای uniqueness می‌دهد. زیرساختِ دوم
+        // سفارش‌محور است و هر POST یک **سفارشِ تازه و پولِ تازه** است. سناریوی
+        // واقعی: تماسِ اول در سمتِ آنها موفق می‌شود ولی پاسخ به ما نمی‌رسد
+        // (تایم‌اوت) → ما 'failed' ثبت می‌کنیم → ادمین «تلاش دوباره» می‌زند →
+        // سرورِ دوم خریده می‌شود و سرورِ اول یتیم می‌مانَد و اجاره‌اش تا ابد از
+        // حسابِ ما کم می‌شود، بی‌آنکه کسی بفهمد.
+        //
+        // پس اگر شناسه‌ای داریم، فقط وضعیت را می‌گیریم و همان را ادامه می‌دهیم.
+        if (filled($instance->provider_ref)) {
+            return $this->adoptExisting($service, $instance, $plan, $driver);
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'name'         => $this->serverName($service),
@@ -189,7 +209,20 @@ class CloudProvisioner
 
         $instance->save();
 
-        // ── سرویس: فعال ──
+        $this->finalize($service, $instance, $plan, $password);
+
+        return true;
+    }
+
+    /**
+     * ثبتِ نهاییِ تحویل — تنها جایی که سرویس «done» می‌شود.
+     *
+     * عمداً یک متدِ مشترک است تا مسیرِ ساختِ تازه و مسیرِ «به فرزندی گرفتن» دقیقاً
+     * یک کار بکنند. دو نسخهٔ موازیِ این منطق، همان‌جایی است که تفاوت‌های ریز
+     * (مثلاً یادنکردنِ panel_url در یک شاخه) بی‌صدا می‌نشینند.
+     */
+    private function finalize(Service $service, CloudInstance $instance, CloudPlan $plan, ?string $password): void
+    {
         DB::transaction(function () use ($service, $instance, $plan, $password) {
             $service->forceFill([
                 'cloud_plan_id'    => $plan->id,      // زیرساختِ واقعیِ تحویل
@@ -213,8 +246,6 @@ class CloudProvisioner
         });
 
         $this->notify($service, $instance);
-
-        return true;
     }
 
     /**
@@ -268,6 +299,21 @@ class CloudProvisioner
 
                     $instance->update(['provider_ref' => $real]);
                     $out['resolved']++;
+
+                    // 🔴 رمز: سفارشِ دومرحله‌ای لحظهٔ ساخت رمز نمی‌گیرد (سرور هنوز
+                    // وجود ندارد). اگر همین‌جا نسازیم، مشتری سرورِ روشن و IP دارد
+                    // ولی **هیچ رمزی** — نه در ایمیل نه در پنل — و بلوکِ رمز در
+                    // ویو هم چون hasPassword نادرست است اصلاً رندر نمی‌شود.
+                    if (! $instance->hasPassword()) {
+                        $pw = $driver->resetPassword($real);
+
+                        if (filled($pw['root_password'] ?? null)) {
+                            $instance->setPassword($pw['root_password']);
+                            $instance->save();
+
+                            $instance->service?->forceFill(['password' => $pw['root_password']])->save();
+                        }
+                    }
                 }
 
                 // ② وضعیتِ زنده
@@ -324,6 +370,66 @@ class CloudProvisioner
         }
 
         return $out;
+    }
+
+    /**
+     * سرورِ ازقبل‌خریده‌شده را «به فرزندی بگیر» به‌جای خریدنِ دوباره.
+     *
+     * برای سفارشِ نیمه‌کارهٔ دومرحله‌ای (`order:…`) هم کار می‌کند: اول تلاش
+     * می‌کند شناسهٔ واقعی را بگیرد، و اگر هنوز آماده نیست، `pending` می‌گذارد تا
+     * `cloud:sync-instances` پی‌اش را بگیرد.
+     */
+    private function adoptExisting(Service $service, CloudInstance $instance, CloudPlan $plan, CloudProvider $driver): bool
+    {
+        $ref = (string) $instance->provider_ref;
+
+        if (str_starts_with($ref, 'order:') && $driver instanceof AezaClient) {
+            $real = $driver->resolveOrder($ref);
+
+            if ($real === null) {
+                $this->retryLater($service, 'سرور در حالِ آماده‌سازیِ زیرساخت است؛ پی‌گیری خودکار ادامه دارد.');
+
+                return false;
+            }
+
+            $instance->update(['provider_ref' => $real]);
+            $ref = $real;
+        }
+
+        $info = $driver->serverStatus($ref);
+
+        if (! ($info['ok'] ?? false)) {
+            $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
+
+            return false;
+        }
+
+        // رمز اگر نداریم، همین‌جا یکی بساز — وگرنه مشتری سرور دارد و راهی
+        // به داخلش ندارد.
+        $password = null;
+
+        if (! $instance->hasPassword()) {
+            $pw = $driver->resetPassword($ref);
+            $password = $pw['root_password'] ?? null;
+
+            if (filled($password)) {
+                $instance->setPassword($password);
+            }
+        }
+
+        $instance->fill([
+            'ipv4'       => $info['ipv4'] ?: $instance->ipv4,
+            'ipv6'       => $info['ipv6'] ?: $instance->ipv6,
+            'status'     => $info['status'],
+            'last_error' => null,
+            'synced_at'  => now(),
+        ])->save();
+
+        $this->finalize($service, $instance, $plan, $password);
+
+        Log::info('cloud.provision.adopted', ['service' => $service->id, 'ref' => $ref]);
+
+        return true;
     }
 
     /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */

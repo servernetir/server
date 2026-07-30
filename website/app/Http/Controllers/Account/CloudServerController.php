@@ -35,7 +35,10 @@ use Illuminate\View\View;
  */
 class CloudServerController extends Controller
 {
-    public function __construct(private CloudManager $manager) {}
+    public function __construct(
+        private CloudManager $manager,
+        private \App\Services\Cloud\CloudOperations $ops,
+    ) {}
 
     private function ownedService(Service $service): Service
     {
@@ -43,6 +46,43 @@ class CloudServerController extends Controller
         abort_unless($customer && $service->customer_id === $customer->id, 404);
 
         return $service;
+    }
+
+    /**
+     * گیتِ عملیاتِ **نوشتنی** — سرویسِ تعلیق‌شده نباید دستکاری شود.
+     *
+     * 🔴 چرا حیاتی است: «تعلیقِ سرورِ ابری» یعنی **خاموش کردن** (نه بستنِ
+     * دسترسی مثلِ cPanel). بی‌این گیت، مشتریِ بدهکاری که سرورش به‌خاطر
+     * پرداخت‌نشدن خاموش شده، فقط با زدنِ دکمهٔ «روشن کردن» تعلیق را خودش لغو
+     * می‌کند و تا ابد سرورِ ما را می‌چرخانَد؛ یعنی کلِ سازوکارِ تعلیق بی‌اثر
+     * می‌شود و اجارهٔ سرور را ما می‌دهیم.
+     *
+     * خواندن (show/status/metrics) باز می‌ماند تا مشتری بتواند وضعیت و فاکتورِ
+     * بازش را ببیند — بستنِ آن فقط سردرگمی می‌سازد.
+     */
+    private function denyIfNotWritable(Service $service): ?RedirectResponse
+    {
+        if (in_array($service->status, ['suspended', 'cancelled', 'expired', 'terminated', 'pending'], true)) {
+            return back()->withErrors(
+                'این سرور در حالِ حاضر تعلیق است. برای استفاده، فاکتورِ بازمانده را پرداخت کنید.'
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * پیامِ خطای زیرساخت را پیش از نمایش به مشتری پاک‌سازی کن.
+     *
+     * ⚠️ پیامِ خامِ ارائه‌دهنده معمولاً شناسه‌های بومی دارد؛ مثلاً
+     * «Server 55443322 (cx22 in fsn1) is locked» — یعنی شناسهٔ سرور، نامِ بومیِ
+     * پلن و کدِ دیتاسنتر، هر سه در صفحهٔ مشتری. همین سه ستون در `$hidden` مدل‌ها
+     * پنهان شده‌اند، پس چاپشان در پیامِ خطا همان قاعده را از درِ پشتی می‌شکند.
+     * متنِ خام فقط در `last_error` و لاگ می‌مانَد که مدیر می‌بیند.
+     */
+    private function safeMessage(string $raw, ?CloudInstance $instance): string
+    {
+        return $this->ops->scrub($raw, $instance);
     }
 
     private function instanceOf(Service $service): ?CloudInstance
@@ -102,7 +142,17 @@ class CloudServerController extends Controller
             return response()->json(['ok' => false, 'status' => $instance->status]);
         }
 
-        $r = $driver->serverStatus((string) $instance->provider_ref);
+        // ⚠️ کش لازم است، نه تجملی: این متد را صفحه هر ۳۰ ثانیه می‌پرسد و هر
+        // تماس یک درخواستِ واقعی روی **توکنِ مشترکِ کلِ پروژه** است. سهمیهٔ
+        // ساعتیِ زیرساخت مشترک است، پس یک تبِ رهاشده (یا یک حلقهٔ ساده با
+        // کوکیِ نشست) می‌تواند سهمیه را بسوزاند و از آن لحظه **تحویلِ سرورِ
+        // همهٔ مشتریانِ دیگر** شکست بخورد. ۲۰ ثانیه برای نشانگرِ روشن/خاموش
+        // کافی است و بار را ~۹۰٪ کم می‌کند.
+        $r = \Illuminate\Support\Facades\Cache::remember(
+            'cloud-st:'.$instance->id,
+            now()->addSeconds(20),
+            fn () => $driver->serverStatus((string) $instance->provider_ref)
+        );
 
         if ($r['ok']) {
             $instance->update([
@@ -137,8 +187,14 @@ class CloudServerController extends Controller
         $window = in_array($request->query('window'), ['1h', '24h', '7d', '30d'], true)
             ? (string) $request->query('window') : '24h';
 
-        $r = $driver?->metrics((string) $instance->provider_ref, $window)
-            ?? ['ok' => false, 'series' => [], 'message' => ''];
+        // نمودار گران‌ترین تماسِ این حوزه است (بازهٔ زمانی + گامِ نمونه‌برداری)
+        // و دادهٔ ۲۴ ساعت با دو دقیقه تأخیر هیچ تفاوتی برای کاربر ندارد.
+        $r = \Illuminate\Support\Facades\Cache::remember(
+            'cloud-mx:'.$instance->id.':'.$window,
+            now()->addMinutes(2),
+            fn () => $driver?->metrics((string) $instance->provider_ref, $window)
+                ?? ['ok' => false, 'series' => [], 'message' => '']
+        );
 
         return response()->json(['ok' => (bool) $r['ok'], 'series' => $r['series'] ?? []]);
     }
@@ -159,6 +215,10 @@ class CloudServerController extends Controller
 
         if (! in_array($action, ['on', 'off', 'reboot'], true)) {
             return back()->withErrors('عملیاتِ نامعتبر.');
+        }
+
+        if ($denied = $this->denyIfNotWritable($service)) {
+            return $denied;
         }
 
         if ($limited = $this->rateLimit($service, 'power', 12)) {
@@ -184,6 +244,10 @@ class CloudServerController extends Controller
     public function rebuild(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
+
+        if ($denied = $this->denyIfNotWritable($service)) {
+            return $denied;
+        }
 
         $data = $request->validate([
             'image'   => ['required', 'string', 'max:64'],
@@ -223,7 +287,7 @@ class CloudServerController extends Controller
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
-            return back()->withErrors('نصبِ دوباره انجام نشد: '.$r['message']);
+            return back()->withErrors('نصبِ دوباره انجام نشد: '.$this->safeMessage((string) $r['message'], $instance));
         }
 
         $instance->fill(['status' => 'building', 'image_key' => $data['image'], 'last_error' => null]);
@@ -244,6 +308,10 @@ class CloudServerController extends Controller
     {
         $this->ownedService($service);
 
+        if ($denied = $this->denyIfNotWritable($service)) {
+            return $denied;
+        }
+
         if ($limited = $this->rateLimit($service, 'password', 5)) {
             return $limited;
         }
@@ -258,7 +326,7 @@ class CloudServerController extends Controller
         $r = $driver->resetPassword((string) $instance->provider_ref);
 
         if (! ($r['ok'] ?? false) || blank($r['root_password'] ?? null)) {
-            return back()->withErrors('رمزِ تازه ساخته نشد: '.($r['message'] ?: '—'));
+            return back()->withErrors('رمزِ تازه ساخته نشد: '.$this->safeMessage((string) ($r['message'] ?: '—'), $instance));
         }
 
         $instance->setPassword($r['root_password']);
@@ -288,17 +356,38 @@ class CloudServerController extends Controller
             return back()->withErrors('کنسول برای این سرور در دسترس نیست.');
         }
 
+        // 🔴 عمداً آدرسِ کنسول به مشتری داده **نمی‌شود** — دو دلیلِ مستقل:
+        //
+        // ۱) **نشتِ سفیدبرچسبی.** آدرسی که ارائه‌دهنده می‌دهد میزبانِ خودش است
+        //    (`wss://console.<برند>.cloud/?server_id=…&token=…`). اگر در href
+        //    بنشیند، مشتری با یک hover یا «مشاهدهٔ سورس» هم نامِ برند را می‌بیند
+        //    هم شناسهٔ داخلیِ سرور — دو چیزی که در `$hidden` مدل‌ها پنهان کرده‌ایم.
+        //
+        // ۲) **در عمل کار نمی‌کند.** یک نشانیِ `wss://` در تگ `a` در هیچ مرورگری
+        //    باز نمی‌شود؛ کنسولِ واقعی به یک صفحهٔ noVNC روی دامنهٔ خودمان نیاز
+        //    دارد که به آن سوکت وصل شود.
+        //
+        // پس تا ساختِ آن واسط، پیامِ صادقانه می‌دهیم. آدرسِ خام فقط در لاگِ
+        // سمتِ سرور می‌مانَد تا پشتیبانی بتواند دستی کمک کند.
         $r = $driver->console((string) $instance->provider_ref);
 
         if (! ($r['ok'] ?? false) || blank($r['url'] ?? null)) {
-            return back()->withErrors($r['message'] ?: 'کنسول برای این سرور در دسترس نیست.');
+            return back()->withErrors($this->safeMessage(
+                (string) ($r['message'] ?: 'کنسول برای این سرور در دسترس نیست.'), $instance
+            ));
         }
 
-        $this->log($service, 'کنسولِ تحتِ وب باز شد.');
+        \Illuminate\Support\Facades\Log::info('cloud.console.requested', [
+            'service' => $service->id,
+            'url'     => $r['url'],           // فقط لاگِ سرور، هرگز پاسخِ HTTP
+        ]);
 
-        // آدرس و رمزِ کنسول یک‌بارمصرف‌اند و در نشست می‌نشینند، نه در URL
-        // (URL در تاریخچهٔ مرورگر و لاگِ Cloudflare می‌ماند).
-        return back()->with('console', ['url' => $r['url'], 'password' => $r['password']]);
+        $this->log($service, 'درخواستِ کنسولِ تحتِ وب.');
+
+        return back()->with('ok',
+            'درخواستِ شما ثبت شد. کنسولِ تحتِ وب به‌زودی از همین صفحه فعال می‌شود؛ '
+            .'اگر همین حالا نیاز دارید، یک تیکت بزنید تا پشتیبانی بی‌درنگ بازش کند.'
+        );
     }
 
     // ───────────────────────── کمکی ─────────────────────────
@@ -317,7 +406,7 @@ class CloudServerController extends Controller
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
-            return back()->withErrors('انجام نشد: '.$r['message']);
+            return back()->withErrors('انجام نشد: '.$this->safeMessage((string) $r['message'], $instance));
         }
 
         $instance->update(['last_error' => null, 'synced_at' => now()]);

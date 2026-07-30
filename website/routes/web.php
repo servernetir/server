@@ -71,6 +71,14 @@ $site = function (): void {
     // تا «/solutions» را خودش بگیرد نه الگوی slug.
     Route::get('/solutions', [SolutionController::class, 'index'])->name('solutions.index');
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
+
+    // سرورِ مجازی — کاتالوگِ عمومی و صفحهٔ اختصاصیِ هر مکان.
+    // داخلِ همین closure است، پس خودکار در سه زبان ساخته می‌شود (/cloud، /en/cloud،
+    // /tr/cloud). دکمهٔ خرید به سرورسازِ پنل می‌رود، نه سبدِ خریدِ بیرونی.
+    // ⚠️ ترتیب مهم است: مسیرِ ثابت پیش از الگوی {location} تا خودش را بگیرد.
+    Route::get('/cloud', [\App\Http\Controllers\CloudCatalogController::class, 'index'])->name('cloud.index');
+    Route::get('/cloud/{location}', [\App\Http\Controllers\CloudCatalogController::class, 'location'])
+        ->name('cloud.location')->where('location', '[a-z0-9-]+');
     Route::get('/{category}/{slug}', [CatalogController::class, 'show'])->name('catalog')
         ->whereIn('category', ['vps', 'dedicated', 'cloud', 'domain', 'services'])->where('slug', '[a-z0-9-]+');
     Route::post('/api/chat', ChatController::class)->name('chat')->middleware('throttle:ai');
@@ -122,11 +130,25 @@ $site = function (): void {
         Route::get('/services/{service}/cpanel', [Account\ServiceController::class, 'cpanel'])->name('services.cpanel');
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats');
 
+        // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
+        // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.
+        // صفحاتِ عمومیِ سایت با ?location=…&plan=… به همین‌جا لینک می‌دهند، پس
+        // مسیر و نامِ روت‌ها را عوض نکنید. ثبتِ سفارش محدودیتِ نرخ دارد چون هر
+        // سفارش یک سرویسِ pending و یک پیش‌فاکتورِ واقعی می‌سازد.
+        Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store');
+        Route::post('/cloud-store', [Account\CloudStoreController::class, 'order'])
+            ->name('cloud.store.place')->middleware('throttle:12,1');
+
         // مدیریتِ سرورِ ابری — روشن/خاموش، نصبِ دوباره، رمز، کنسول، نمودارِ مصرف.
         // عملیاتِ حساس همه POST‌اند تا با یک لینکِ جعلی (CSRF/prefetch) اجرا نشوند.
         Route::get('/cloud/{service}', [Account\CloudServerController::class, 'show'])->name('cloud.show');
-        Route::get('/cloud/{service}/status', [Account\CloudServerController::class, 'status'])->name('cloud.status');
-        Route::get('/cloud/{service}/metrics', [Account\CloudServerController::class, 'metrics'])->name('cloud.metrics');
+        // ⚠️ این دو GET با زیرساخت تماس می‌گیرند، پس مثلِ POSTها سقف دارند.
+        // بی‌سقف، یک حلقهٔ ساده با کوکیِ نشست سهمیهٔ APIِ **مشترکِ کلِ پروژه** را
+        // می‌سوزاند و از آن لحظه تحویلِ سرورِ همهٔ مشتریانِ دیگر شکست می‌خورد.
+        Route::get('/cloud/{service}/status', [Account\CloudServerController::class, 'status'])
+            ->name('cloud.status')->middleware('throttle:60,1');
+        Route::get('/cloud/{service}/metrics', [Account\CloudServerController::class, 'metrics'])
+            ->name('cloud.metrics')->middleware('throttle:30,1');
         Route::post('/cloud/{service}/power', [Account\CloudServerController::class, 'power'])->name('cloud.power');
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');

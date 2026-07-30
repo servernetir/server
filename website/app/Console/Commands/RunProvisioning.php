@@ -35,7 +35,19 @@ class RunProvisioning extends Command
         // اتفاق نمی‌افتد» بدترین نوعِ خرابی است، چون هیچ خطایی تولید نمی‌کند.
         $hasCloud = Schema::hasColumn('services', 'cloud_plan_id');
 
-        $due = Service::where('provision_status', 'pending')
+        // ⚠️ 'running' هم بازپس‌گیری می‌شود، ولی **فقط اگر کهنه باشد**.
+        // قفلِ وضعیتی سرویس را به 'running' می‌برد؛ اگر پروسه در همان لحظه کشته
+        // شود (دپلوی، ری‌استارتِ PHP-FPM، max_execution_time، OOM)، سرویس تا ابد
+        // در 'running' گیر می‌کرد: کرون نمی‌دیدش، خطایی هم تولید نمی‌شد، و پولِ
+        // مشتری گرفته‌شده بود. کرانِ ۱۵ دقیقه‌ای امن است چون تحویلِ سالم چند ثانیه
+        // طول می‌کشد، و ساختِ دوباره با نامِ قطعیِ سرور (idempotency) پوشش دارد.
+        $staleLock = now()->subMinutes(15);
+
+        $due = Service::where(function ($q) use ($staleLock) {
+            $q->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s->where('provision_status', 'running')
+                    ->where('updated_at', '<', $staleLock));
+        })
             ->where(function ($q) use ($hasCloud) {
                 $q->whereNotNull('server_id');
 

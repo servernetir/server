@@ -162,28 +162,6 @@
   </div>
 </section>
 
-{{-- ═══ کنسول ═══ لینکِ یک‌بارمصرف است، پس فقط بعد از درخواست نشان داده می‌شود --}}
-@if(session('console'))
-  <section class="pnl-sec">
-    <div class="pnl-sec-h"><h2>کنسولِ تحتِ وب</h2></div>
-    <div class="pnl-sec-b">
-      <p style="font-size:13px;color:var(--muted);line-height:1.9;margin:0 0 12px">
-        این لینک <b>یک‌بارمصرف</b> و کوتاه‌عمر است. با آن می‌توانید حتی اگر شبکهٔ سرور خراب شد،
-        مثلِ نشستن پشتِ خودِ سرور واردش شوید.
-      </p>
-      <a class="pnl-btn" href="{{ session('console.url') }}" target="_blank" rel="noopener noreferrer">
-        <svg class="icon"><use href="#i-monitor"/></svg>بازکردنِ کنسول
-      </a>
-      @if(session('console.password'))
-        <div class="cs-ssh" style="margin-top:12px">
-          <small>رمزِ کنسول</small>
-          <code dir="ltr" class="cs-copy" data-copy="{{ session('console.password') }}">{{ session('console.password') }}</code>
-        </div>
-      @endif
-    </div>
-  </section>
-@endif
-
 {{-- ═══ مشخصات ═══ --}}
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>مشخصاتِ سرور</h2></div>

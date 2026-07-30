@@ -52,7 +52,11 @@ class ProvisioningService
         $claimed = Service::whereKey($service->id)
             ->where(function ($q) {
                 $q->whereIn('provision_status', ['pending', 'failed', 'manual'])
-                    ->orWhereNull('provision_status');
+                    ->orWhereNull('provision_status')
+                    // قفلِ کهنه (پروسهٔ قبلی وسطِ کار مرده) — وگرنه سرویس تا ابد
+                    // در 'running' می‌مانَد بی‌آنکه خطایی تولید شود.
+                    ->orWhere(fn ($s) => $s->where('provision_status', 'running')
+                        ->where('updated_at', '<', now()->subMinutes(15)));
             })
             ->update(['provision_status' => 'running']);
 

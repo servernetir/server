@@ -818,4 +818,150 @@ class CloudCatalogTest extends TestCase
         $this->assertSame('products', $probe['products']['winner'] ?? null);
         $this->assertSame('products', Setting::get('aeza_path_products'));
     }
+
+    // ═══════════════ تبدیلِ روبل و صافیِ «فقط سرورِ مجازی» ═══════════════
+
+    /** فهرستِ محصولِ آیزا با مسیرهای ازقبل‌کشف‌شده */
+    private function fakeAeza(array $products, ?array $currencyBody = null): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+        Setting::put('aeza_path_products', 'services/products');
+        Setting::put('aeza_path_os', 'os');
+        Setting::put('aeza_path_recipe', 'vm/recipe');
+        Setting::put('aeza_path_currencies', 'payment/currencies');
+
+        Http::fake(function ($request) use ($products, $currencyBody) {
+            $url = $request->url();
+
+            if (str_contains($url, 'payment/currencies')) {
+                return Http::response($currencyBody ?? ['data' => ['items' => [
+                    ['code' => 'EUR', 'multiplier' => 0.01],      // ۱۰۰ روبل = ۱ یورو
+                ]]], 200);
+            }
+
+            if (str_contains($url, 'services/products')) {
+                return Http::response(['data' => ['items' => $products, 'total' => count($products)]], 200);
+            }
+
+            return Http::response(['data' => ['items' => []]], 200);
+        });
+    }
+
+    private function aezaVps(array $over = []): array
+    {
+        return array_merge([
+            'id' => 77, 'name' => 'EPs-1', 'type' => 'vm',
+            'cpu' => 2, 'ram' => 4096, 'disk' => 60,
+            'location' => ['country' => 'DE', 'city' => 'Frankfurt', 'id' => 'de-1'],
+            'prices' => ['month' => 500.0],                       // ۵۰۰ روبل = ۵ یورو
+        ], $over);
+    }
+
+    public function test_ruble_price_is_converted_to_euro_cents(): void
+    {
+        $this->fakeAeza([$this->aezaVps()]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
+        $this->assertCount(1, $cat['plans']);
+        // ۵۰۰ روبل × ۰٫۰۱ = ۵ یورو = ۵۰۰ سنت
+        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
+    }
+
+    /**
+     * نرخِ دستیِ مدیر باید **اولویت** داشته باشد و بی‌تماس با نرخِ آنها کار کند —
+     * چون مدیر می‌داند واقعاً چند پرداخته، ولی ضریبِ صرافیِ آنها می‌تواند حاشیه
+     * داشته باشد.
+     */
+    public function test_manual_rub_per_eur_setting_wins(): void
+    {
+        Setting::put('aeza_rub_per_eur', '125');                   // ۱ یورو = ۱۲۵ روبل
+        $this->fakeAeza([$this->aezaVps()]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        // ۵۰۰ روبل ÷ ۱۲۵ = ۴ یورو = ۴۰۰ سنت
+        $this->assertSame(400, $cat['plans'][0]['cost_eur_cents']);
+    }
+
+    /**
+     * ⚠️ اگر ارائه‌دهنده ضریب را در جهتِ عکس بدهد («۱۰۰ روبل به‌ازای یورو»
+     * به‌جای «۰٫۰۱ یورو به‌ازای روبل»)، ضربِ مستقیم قیمت را ۱۰٬۰۰۰ برابر
+     * می‌کند و سرورِ ۵ یورویی را چند صد یورو می‌فروشیم.
+     */
+    public function test_inverted_multiplier_is_normalized(): void
+    {
+        $this->fakeAeza([$this->aezaVps()], ['data' => ['items' => [
+            ['code' => 'EUR', 'multiplier' => 100],                // جهتِ عکس
+        ]]]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents'], 'باید ۵ یورو بشود، نه ۵۰٬۰۰۰');
+    }
+
+    /** نگاشتِ سادهٔ کد→ضریب هم پذیرفته شود */
+    public function test_flat_currency_map_is_understood(): void
+    {
+        $this->fakeAeza([$this->aezaVps()], ['data' => ['EUR' => 0.01, 'USD' => 0.011]]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
+        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
+    }
+
+    /** بی‌نرخ، هیچ قیمتی ساخته نشود و پیام راهِ حل را بگوید */
+    public function test_no_rate_means_no_catalog_with_an_actionable_message(): void
+    {
+        $this->fakeAeza([$this->aezaVps()], ['data' => ['items' => []]]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertFalse($cat['ok']);
+        $this->assertSame([], $cat['plans']);
+        $this->assertStringContainsString('روبل', $cat['message']);
+        $this->assertStringContainsString('چند روبل', $cat['message'], 'پیام باید بگوید چه کار کنیم');
+    }
+
+    /**
+     * کارفرما: «فعلاً فقط سرورِ مجازی». محصولِ نامربوط نباید روی سایت بنشیند —
+     * وگرنه مشتری چیزی می‌خرد که نه صفحه‌اش را ساخته‌ایم نه تحویلش را.
+     */
+    public function test_only_vps_products_enter_the_catalog(): void
+    {
+        Setting::put('aeza_rub_per_eur', '100');
+
+        $this->fakeAeza([
+            $this->aezaVps(),
+            ['id' => 1, 'name' => 'SOCKS5 Proxy', 'type' => 'proxy', 'cpu' => 1, 'ram' => 512, 'disk' => 10,
+             'location' => ['country' => 'DE', 'city' => 'Frankfurt'], 'prices' => ['month' => 100]],
+            ['id' => 2, 'name' => 'Proxy Pack 10', 'cpu' => 1, 'ram' => 512, 'disk' => 10,
+             'location' => ['country' => 'DE', 'city' => 'Frankfurt'], 'prices' => ['month' => 100]],
+            ['id' => 3, 'name' => 'Dedicated Server AMD', 'cpu' => 32, 'ram' => 131072, 'disk' => 2000,
+             'location' => ['country' => 'DE', 'city' => 'Frankfurt'], 'prices' => ['month' => 9000]],
+            ['id' => 4, 'name' => 'WAF Protection', 'cpu' => 1, 'ram' => 1024, 'disk' => 5,
+             'location' => ['country' => 'DE', 'city' => 'Frankfurt'], 'prices' => ['month' => 300]],
+            ['id' => 5, 'name' => 'Mystery Box', 'type' => 'vm', 'cpu' => 0, 'ram' => 0, 'disk' => 0,
+             'location' => ['country' => 'DE', 'city' => 'Frankfurt'], 'prices' => ['month' => 100]],
+        ]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertCount(1, $cat['plans'], 'فقط یک سرورِ مجازیِ سالم باید بماند');
+        $this->assertSame('77', $cat['plans'][0]['provider_ref']);
+    }
+
+    /** شهرِ یکسان از دو زیرساخت باید به یک مکان برسد — با دادهٔ واقعیِ هر دو */
+    public function test_aeza_and_hetzner_share_a_location_code(): void
+    {
+        Setting::put('aeza_rub_per_eur', '100');
+        $this->fakeAeza([$this->aezaVps(['location' => ['country' => 'DE', 'city' => 'Falkenstein']])]);
+
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertSame('de-falkenstein', $cat['plans'][0]['location_code']);
+        $this->assertSame('de-falkenstein', CloudNaming::locationCode('DE', '', 'fsn1'));
+    }
 }

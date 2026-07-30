@@ -58,6 +58,7 @@ class AezaClient implements CloudProvider
         'products' => ['services/products', 'products'],
         'os'       => ['os', 'services/os', 'vm/os'],
         'recipe'   => ['vm/recipe', 'services/recipe', 'recipes'],
+        'currencies' => ['payment/currencies', 'currencies', 'payments/currencies'],
     ];
 
     public function slug(): string
@@ -260,32 +261,73 @@ class AezaClient implements CloudProvider
     // ───────────────────────── نرخِ ارز ─────────────────────────
 
     /**
-     * ضریبِ روبل → یورو.
+     * ضریبِ روبل → یورو (چند روبل = یک یورو، به‌صورتِ ضریبِ ضرب‌شدنی).
      *
-     * داکیومنت: «قیمت‌ها سمتِ سرور به روبل ذخیره می‌شوند» و برای تبدیل باید
-     * ضریب را از `payment/currencies` گرفت. اگر نشد، به نرخِ زندهٔ خودمان
-     * برمی‌گردیم؛ و اگر آن هم نبود، ۰ برمی‌گردانیم تا **قیمتِ غلط ساخته نشود**
-     * (پلنی که قیمتش را نمی‌دانیم نباید روی سایت برود).
+     * ⚠️ روبل انتخابِ ما نیست: **API این ارائه‌دهنده قیمت را به روبل می‌دهد**،
+     * هر ارزی که حسابِ ما باشد. داکیومنتشان می‌گوید ضریبِ تبدیل را از
+     * `payment/currencies` بگیر.
+     *
+     * سه منبع، به ترتیبِ اولویت:
+     *
+     *  ۱) **نرخِ دستیِ مدیر** (`aeza_rub_per_eur`). عمداً اولِ صف است: نرخِ خودِ
+     *     ارائه‌دهنده گاهی حاشیهٔ صرافیِ خودشان را دارد، ولی مدیر می‌داند واقعاً
+     *     چند پرداخته. یک عدد است و ماه‌ها تغییرِ محسوس ندارد.
+     *  ۲) ضریبِ خودِ ارائه‌دهنده از `payment/currencies`.
+     *  ۳) نرخِ زندهٔ خودمان — ولی سرویسِ نرخِ ما فقط دلار و یورو دارد و **روبل
+     *     ندارد**، پس این راه عملاً بسته است و فقط برای روزی است که اضافه شود.
+     *
+     * اگر هیچ‌کدام نشد **۰** برمی‌گردد و کاتالوگ ساخته نمی‌شود. این عمدی است:
+     * پلنی که بهایِ تمام‌شده‌اش را نمی‌دانیم نباید قیمت بخورد و روی سایت برود.
      */
     private function rubToEurRate(): float
     {
-        $r = $this->req('GET', '/payment/currencies');
+        // ① نرخِ دستیِ مدیر: «۱ یورو چند روبل» → ضریبِ ضرب‌شدنی = ۱/آن
+        $perEur = (float) Setting::get('aeza_rub_per_eur', '0');
+
+        if ($perEur > 0) {
+            return 1 / $perEur;
+        }
+
+        // ② ضریبِ خودِ ارائه‌دهنده
+        $path = $this->resolvePath('currencies');
+        $r = $path === null
+            ? ['ok' => false, 'body' => []]
+            : $this->req('GET', '/'.$path);
 
         if ($r['ok']) {
-            foreach ($this->items($r['body']) as $c) {
+            $rows = $this->items($r['body']);
+
+            // بعضی پاسخ‌ها فهرست نیستند و نگاشتِ کد→ضریب‌اند: {"EUR": 0.0098, …}
+            if ($rows === []) {
+                $flat = (array) (data_get($r['body'], 'data') ?? $r['body']);
+
+                foreach ($flat as $code => $val) {
+                    if (strtoupper((string) $code) === 'EUR') {
+                        $m = is_array($val)
+                            ? (float) ($val['multiplier'] ?? $val['rate'] ?? $val['value'] ?? 0)
+                            : (float) $val;
+
+                        if ($m > 0) {
+                            return $this->normalizeMultiplier($m);
+                        }
+                    }
+                }
+            }
+
+            foreach ($rows as $c) {
                 $code = strtoupper((string) ($c['code'] ?? $c['currency'] ?? $c['name'] ?? ''));
 
                 if ($code === 'EUR') {
                     $m = (float) ($c['multiplier'] ?? $c['rate'] ?? $c['value'] ?? 0);
 
                     if ($m > 0) {
-                        return $m;
+                        return $this->normalizeMultiplier($m);
                     }
                 }
             }
         }
 
-        // پشتیبان: نرخِ زندهٔ خودمان (تومان) — RUB→EUR = تومانِ روبل ÷ تومانِ یورو
+        // ③ نرخِ زندهٔ خودمان — سرویسِ ما فعلاً روبل ندارد، پس معمولاً بی‌نتیجه
         try {
             $ex = app(\App\Services\ExchangeRate::class);
             $eur = (float) ($ex->toToman('EUR') ?: 0);
@@ -299,6 +341,20 @@ class AezaClient implements CloudProvider
         }
 
         return 0.0;
+    }
+
+    /**
+     * ضریب را در جهتِ درست نگه دار.
+     *
+     * ما «یورو به‌ازای هر روبل» می‌خواهیم — عددی خیلی کوچک (~۰٫۰۱). اگر
+     * ارائه‌دهنده جهتِ عکس را بدهد («روبل به‌ازای هر یورو»، ~۱۰۰)، ضربِ مستقیم
+     * قیمت را **۱۰٬۰۰۰ برابر** می‌کند و ما سرورِ ۵ یورویی را چند صد یورو
+     * می‌فروشیم. مرزِ ۱ برای تشخیص کافی است: هیچ ارزِ واقعی‌ای نسبتِ ۱:۱ با روبل
+     * ندارد.
+     */
+    private function normalizeMultiplier(float $m): float
+    {
+        return $m > 1 ? 1 / $m : $m;
     }
 
     // ───────────────────────── کاتالوگ ─────────────────────────
@@ -326,16 +382,22 @@ class AezaClient implements CloudProvider
         $rate = $this->rubToEurRate();
 
         if ($rate <= 0) {
-            return ['ok' => false, 'message' => 'نرخِ تبدیلِ روبل به یورو به دست نیامد؛ قیمت‌گذاری انجام نشد.'] + $empty;
+            return ['ok' => false, 'message' =>
+                'قیمت‌های این زیرساخت در API به **روبل** می‌آیند و ضریبِ تبدیل به یورو به دست نیامد، '
+                .'پس عمداً هیچ قیمتی ساخته نشد (قیمتِ حدسی از نبودِ قیمت بدتر است). '
+                .'راهِ حل: در تنظیمات، «۱ یورو چند روبل» را وارد کنید.',
+            ] + $empty;
         }
 
         $locations = [];
         $plans = [];
 
         foreach ($this->items($r['body']) as $p) {
-            // فقط سرورِ مجازی. Aeza دامنه و پروکسی و WAF هم می‌فروشد.
-            $type = strtolower((string) ($p['type'] ?? $p['serviceType'] ?? ''));
-            if ($type !== '' && ! in_array($type, ['vm', 'vps', 'server'], true)) {
+            // ⚠️ فقط **سرورِ مجازی** — خواستهٔ صریحِ کارفرما «فعلاً فقط سرور مجازی».
+            // این ارائه‌دهنده پروکسی و WAF و دامنه و سرورِ فیزیکی هم می‌فروشد؛
+            // اگر همه را بیاوریم، محصولی روی سایت می‌نشیند که نه صفحه‌اش را
+            // ساخته‌ایم نه تحویلش را — و مشتری می‌تواند بخردش.
+            if (! $this->isVpsProduct($p)) {
                 continue;
             }
 
@@ -395,6 +457,54 @@ class AezaClient implements CloudProvider
             'plans'     => $plans,
             'images'    => $this->fetchImages(),
         ];
+    }
+
+    /**
+     * آیا این محصول یک **سرورِ مجازی** است؟
+     *
+     * سه صافیِ پشتِ‌سرِهم، چون نمی‌شود به یک فیلد تکیه کرد:
+     *
+     *  ۱) اگر فیلدِ نوع هست، باید نوعِ سرورِ مجازی باشد.
+     *  ۲) واژه‌های مشخصاً غیرِ VPS در نام/گروه (پروکسی، WAF، دامنه، ایمیل، …)
+     *     ردش می‌کنند — حتی اگر فیلدِ نوع نداشته باشد.
+     *  ۳) سرورِ **فیزیکی** هم رد می‌شود: مشخصاتش شبیهِ VPS است ولی محصولِ
+     *     دیگری است، صفحهٔ فروشش را نساخته‌ایم و تحویلش خودکار نیست. (کارفرما
+     *     برای سرورِ فیزیکی فروشگاهِ جداگانه‌ای می‌خواهد.)
+     *
+     * صافیِ چهارم در جای دیگری است و مهم‌ترینشان: `specsOf` مشخصاتِ ناقص را رد
+     * می‌کند، پس محصولی که هسته/رم/دیسک ندارد هرگز پلن نمی‌شود.
+     */
+    private function isVpsProduct(array $p): bool
+    {
+        $type = strtolower((string) ($p['type'] ?? $p['serviceType'] ?? ''));
+
+        if ($type !== '' && ! in_array($type, ['vm', 'vps', 'server'], true)) {
+            return false;
+        }
+
+        $haystack = strtolower(trim(
+            ((string) ($p['name'] ?? '')).' '
+            .((string) data_get($p, 'group.name', '')).' '
+            .((string) ($p['groupName'] ?? ''))
+        ));
+
+        foreach ([
+            'proxy', 'پروکسی', 'socks', 'waf', 'ddos protection', 'domain', 'دامنه',
+            'ssl', 'mail', 'email', 'storage box', 'backup space', 'hosting', 'cdn',
+            'license', 'panel only',
+        ] as $bad) {
+            if ($haystack !== '' && str_contains($haystack, $bad)) {
+                return false;
+            }
+        }
+
+        foreach (['dedicated server', 'bare metal', 'baremetal', 'اختصاصی', 'physical'] as $bad) {
+            if ($haystack !== '' && str_contains($haystack, $bad)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

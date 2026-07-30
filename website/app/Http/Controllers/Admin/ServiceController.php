@@ -170,12 +170,22 @@ class ServiceController extends Controller
             $service->refresh();
         }
 
-        if (! $service->server_id) {
+        // ⚠️ سرورِ ابری هرگز `server_id` ندارد (پیش از خرید وجود ندارد). بی‌این
+        // استثنا، تحویلِ شکست‌خوردهٔ ابری **هیچ راهِ بازیابی** نداشت: کرون فقط
+        // `pending` را برمی‌دارد و `failed` را نمی‌بیند، و دکمهٔ «تلاش دوباره»ی
+        // ادمین هم با پیامِ «اول یک سرورِ تحویل انتخاب کنید» بیرون می‌زد. یعنی
+        // مشتری پول داده، سرور ندارد، و تنها راه ویرایشِ دستیِ دیتابیس بود.
+        $isCloud = \App\Services\Cloud\CloudProvisioner::handles($service);
+
+        if (! $isCloud && ! $service->server_id) {
             return back()->withErrors('اول یک سرورِ تحویل انتخاب کنید.');
         }
 
-        // شکست‌خورده/آماده را دوباره در صف بگذار، بعد همین حالا اجرا کن
-        if (in_array($service->provision_status, [null, 'failed', 'manual'], true)) {
+        // شکست‌خورده/آماده را دوباره در صف بگذار، بعد همین حالا اجرا کن.
+        // 'running' هم برمی‌گردد: اگر پروسه بینِ قفل و پایانِ ساخت کشته شود
+        // (دپلوی، ری‌استارتِ FPM، تایم‌اوت)، سرویس تا ابد در 'running' گیر
+        // می‌کرد و هیچ مسیری بیرونش نمی‌آورد.
+        if (in_array($service->provision_status, [null, 'failed', 'manual', 'running'], true)) {
             $service->update(['provision_status' => 'pending']);
         }
 

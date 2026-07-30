@@ -1,0 +1,488 @@
+@extends('panel.layout')
+@section('title', 'ساخت سرور مجازی — سرورنت کلاود')
+
+{{-- سرورساز: مکان ← پلن ← سیستم‌عامل/نرم‌افزار ← دوره ← نام ← پیش‌فاکتور.
+
+     سه نکتهٔ این فایل:
+     ۱) هیچ نام یا شناسهٔ زیرساختی این‌جا نیست — فقط نام عمومی پلن و کد مکان خودمان.
+     ۲) مبلغ‌های نمایشی فقط نمایشی‌اند؛ مبلغ نهایی سمت سرور از دیتابیس خوانده می‌شود.
+     ۳) کلاس تازه‌ای به panel.css اضافه نشده؛ استایل همین‌جاست (همان الگوی
+        account/checkout.blade.php) تا کلاس بی‌استایل رندر نشود. --}}
+
+@section('panel')
+
+<div class="pnl-head">
+  <div>
+    <nav class="blog-crumbs" style="margin-bottom:8px">
+      <a href="{{ lroute('account.home') }}">پنل</a><span>/</span>
+      <span>ساخت سرور مجازی</span>
+    </nav>
+    <h1 class="dash-h">سرور مجازی بساز</h1>
+    <p>کشور، مشخصات، سیستم‌عامل و دورهٔ پرداخت را انتخاب کنید؛ پس از پرداخت، سرور خودکار ساخته و تحویل می‌شود.</p>
+  </div>
+  <span class="pnl-pill info" style="font-size:12.5px;padding:7px 15px">تحویل خودکار · کمتر از دو دقیقه</span>
+</div>
+
+@if(session('ok'))
+  <div class="pnl-sec" style="border-color:var(--ok-line)">
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+  </div>
+@endif
+@if($errors->any())
+  <div class="pnl-sec" style="border-color:var(--danger-line)">
+    <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">
+      @foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+    </div>
+  </div>
+@endif
+
+@if(count($groups) === 0)
+  {{-- کاتالوگ خالی است. سکوت بدترین حالت است: مشتری فکر می‌کند پنل خراب شده. --}}
+  <section class="pnl-sec">
+    <div class="pnl-sec-b" style="text-align:center;padding:34px 20px">
+      <div style="font-size:34px;margin-bottom:10px">☁️</div>
+      <h2 style="font-size:17px;margin:0 0 8px">فهرست سرورهای مجازی همین حالا در دسترس نیست</h2>
+      <p style="color:var(--muted);font-size:13.5px;line-height:2;margin:0">
+        در حال به‌روزرسانی موجودی هستیم. کمی بعد همین صفحه را باز کنید یا برای انتخاب
+        پکیج با <a href="{{ lroute('account.tickets') }}">پشتیبانی</a> در تماس باشید.
+      </p>
+    </div>
+  </section>
+@else
+
+@php
+  // دادهٔ امن برای جاوااسکریپت — همه از پیش ساخته می‌شوند، چون json با آرایهٔ
+  // درون‌خطی پارسر Blade را می‌شکند. هیچ ستون زیرساختی این‌جا نیست.
+  $jsPrices = $priceMap;
+  $jsImages = $imageMap;
+  $jsCycles = $cycleLabels;
+  $jsPlans  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] => $p['name']])->all();
+  $jsImgLbl = $osCatalog->concat($appCatalog)->mapWithKeys(fn ($i) => [$i->key => $i->icon().' '.$i->label])->all();
+
+  // انتخاب‌های اولیه: با old() تا بازگشت خطا انتخاب کاربر را دور نریزد
+  $curSlug  = (string) old('plan', $selectedSlug);
+  if (! isset($imageMap[$curSlug])) { $curSlug = $selectedSlug; }
+
+  $okOs  = (array) ($imageMap[$curSlug]['os'] ?? []);
+  $okApp = (array) ($imageMap[$curSlug]['app'] ?? []);
+
+  // پیش‌فرض سیستم‌عامل: اوبونتو اگر بود، وگرنه اولین گزینهٔ ممکن
+  $defImage = collect($okOs)->first(fn ($k) => str_starts_with($k, 'ubuntu')) ?? ($okOs[0] ?? ($okApp[0] ?? ''));
+  $curImage = (string) old('image', $defImage);
+  if (! in_array($curImage, array_merge($okOs, $okApp), true)) { $curImage = (string) $defImage; }
+
+  $curCycle = (string) old('cycle', $defCycle);
+  if (! in_array($curCycle, $cycles, true)) { $curCycle = $defCycle; }
+
+  $initial = $priceMap[$curSlug][$curCycle] ?? ['cycle' => 0, 'per' => 0, 'first' => 0, 'save' => 0];
+@endphp
+
+<form method="POST" action="{{ lroute('account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
+  @csrf
+  <input type="hidden" name="location" value="{{ $locCode }}">
+
+  <div class="cvb-main">
+
+    {{-- ═══ گام ۱: کشور و مکان ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h">
+        <h2><span class="cvb-step">۱</span> سرور در کدام کشور باشد؟</h2>
+        <span class="cvb-hint">{{ fa_num(count($groups)) }} کشور</span>
+      </div>
+      <div class="pnl-sec-b">
+        @foreach($groups as $g)
+          <div class="cvb-cgroup">
+            <div class="cvb-chead"><span class="cvb-flag">{{ $g['flag'] }}</span><b>{{ $g['label'] }}</b></div>
+            <div class="cvb-cities">
+              @foreach($g['locations'] as $l)
+                {{-- لینک ساده و نه رادیو: با عوض شدن مکان، پلن‌ها هم عوض می‌شوند و
+                     سرور باید فهرست تازه را بدهد. بی‌جاوااسکریپت هم کار می‌کند. --}}
+                <a class="cvb-city @if((string) $l->code === (string) $locCode) on @endif"
+                   href="{{ lroute('account.cloud.store') }}?location={{ urlencode($l->code) }}">
+                  {{ $l->cityLabel() !== '' ? $l->cityLabel() : $l->countryLabel() }}
+                </a>
+              @endforeach
+            </div>
+          </div>
+        @endforeach
+        <p class="cvb-note">
+          <svg class="icon"><use href="#i-pin"/></svg>
+          مکان را نمی‌توان بعد از ساخت عوض کرد؛ نزدیک‌ترین کشور به کاربرانتان را انتخاب کنید.
+        </p>
+      </div>
+    </section>
+
+    {{-- ═══ گام ۲: پلن ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h">
+        <h2><span class="cvb-step">۲</span> مشخصات سرور</h2>
+        <span class="cvb-hint">{{ $location?->label() ?? '' }}</span>
+      </div>
+      <div class="pnl-sec-b">
+        @if(count($planCards) === 0)
+          <p class="cvb-warn">برای این مکان همین حالا پلن موجودی نداریم؛ کشور دیگری را انتخاب کنید.</p>
+        @else
+          <div class="cvb-plans">
+            @foreach($planCards as $p)
+              <label class="cvb-plan @if($p['slug'] === $curSlug) on @endif" data-slug="{{ $p['slug'] }}">
+                <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
+                <span class="cvb-pn">{{ $p['name'] }}</span>
+                <span class="cvb-specs">
+                  <span><svg class="icon"><use href="#i-cpu"/></svg>{{ fa_num($p['vcpu']) }} هسته</span>
+                  <span><svg class="icon"><use href="#i-server"/></svg>{{ fa_num($p['ram']) }} رم</span>
+                  <span><svg class="icon"><use href="#i-hdd"/></svg>{{ fa_num($p['disk']) }}</span>
+                  <span><svg class="icon"><use href="#i-globe"/></svg>{{ fa_num($p['traffic']) }} ترافیک</span>
+                </span>
+                <span class="cvb-cpukind">{{ $p['cpu'] }}</span>
+                <span class="cvb-pp" data-pp>{{ fa_num(number_format($priceMap[$p['slug']][$curCycle]['cycle'] ?? 0)) }} تومان</span>
+              </label>
+            @endforeach
+          </div>
+        @endif
+      </div>
+    </section>
+
+    {{-- ═══ گام ۳: سیستم‌عامل یا نرم‌افزار آماده ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h">
+        <h2><span class="cvb-step">۳</span> سیستم‌عامل یا نرم‌افزار آماده</h2>
+        <div class="cvb-tabs">
+          <button type="button" class="cvb-tab on" data-tab="os">سیستم‌عامل</button>
+          <button type="button" class="cvb-tab" data-tab="app">نرم‌افزار آماده</button>
+        </div>
+      </div>
+      <div class="pnl-sec-b">
+        {{-- گزینه‌های ناسازگار با پلن انتخابی پنهان می‌شوند (سمت سرور محاسبه شده،
+             جاوااسکریپت فقط با عوض شدن پلن به‌روزش می‌کند). گزینه‌ای که تحویلش
+             نشدنی است هرگز نباید دیده شود. --}}
+        <div class="cvb-imgs" data-pane="os">
+          @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
+          @forelse($osByFam as $fam => $rows)
+            <div class="cvb-fam" data-fam="{{ $fam }}">
+              <div class="cvb-famh">{{ $rows->first()->icon() }} {{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-opts">
+                @foreach($rows as $img)
+                  <label class="cvb-img @if($img->key === $curImage) on @endif"
+                         data-key="{{ $img->key }}" @if(! in_array($img->key, $okOs, true)) hidden @endif>
+                    <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                    <b>{{ $img->label }}</b>
+                  </label>
+                @endforeach
+              </div>
+            </div>
+          @empty
+            <p class="cvb-warn">فهرست سیستم‌عامل‌ها همین حالا در دسترس نیست.</p>
+          @endforelse
+          <p class="cvb-empty" data-empty="os" hidden>برای این پلن سیستم‌عاملی در دسترس نیست؛ پلن دیگری را انتخاب کنید.</p>
+        </div>
+
+        <div class="cvb-imgs" data-pane="app" hidden>
+          @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
+          @forelse($appByFam as $fam => $rows)
+            <div class="cvb-fam" data-fam="{{ $fam }}">
+              <div class="cvb-famh">{{ $rows->first()->icon() }} {{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-opts">
+                @foreach($rows as $img)
+                  <label class="cvb-img @if($img->key === $curImage) on @endif"
+                         data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
+                    <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                    <b>{{ $img->label }}</b>
+                  </label>
+                @endforeach
+              </div>
+            </div>
+          @empty
+            <p class="cvb-warn">نرم‌افزار آماده‌ای برای نصب خودکار ثبت نشده است.</p>
+          @endforelse
+          <p class="cvb-empty" data-empty="app" hidden>برای این پلن نرم‌افزار آماده‌ای در دسترس نیست.</p>
+        </div>
+
+        <p class="cvb-note">
+          <svg class="icon"><use href="#i-key"/></svg>
+          پس از تحویل می‌توانید از پنل، سیستم‌عامل را عوض کنید — با نصب دوباره کل دیسک پاک می‌شود.
+        </p>
+      </div>
+    </section>
+
+    {{-- ═══ گام ۴: دورهٔ پرداخت ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۴</span> دورهٔ پرداخت</h2></div>
+      <div class="pnl-sec-b">
+        <div class="cvb-cycles">
+          @foreach($cycles as $cy)
+            @php $row = $priceMap[$curSlug][$cy] ?? ['cycle' => 0, 'per' => 0, 'save' => 0]; @endphp
+            <label class="cvb-cyc @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}">
+              <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle)>
+              <span class="cvb-cyc-t">{{ $cycleLabels[$cy] ?? $cy }}</span>
+              <span class="cvb-cyc-p" data-p>{{ fa_num(number_format($row['cycle'])) }}</span>
+              <span class="cvb-cyc-m" data-m>ماهی {{ fa_num(number_format($row['per'])) }}</span>
+              @if(($row['save'] ?? 0) > 0)
+                <span class="cvb-cyc-s">{{ fa_num($row['save']) }}٪ ارزان‌تر</span>
+              @endif
+            </label>
+          @endforeach
+        </div>
+      </div>
+    </section>
+
+    {{-- ═══ گام ۵: نام سرور ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۵</span> نام دلخواه سرور</h2></div>
+      <div class="pnl-sec-b">
+        <label class="cvb-field">
+          <span>نامی که در پنل خودتان می‌بینید (اختیاری)</span>
+          <input type="text" name="label" dir="ltr" value="{{ old('label') }}"
+                 placeholder="{{ $autoLabel }}" maxlength="64"
+                 autocapitalize="off" autocomplete="off" spellcheck="false">
+        </label>
+        <p class="cvb-note">
+          <svg class="icon"><use href="#i-info"/></svg>
+          فقط حروف انگلیسی، رقم و خط تیره. خالی بگذارید تا خودکار نام بگیرد.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  {{-- ═══ خلاصه و پرداخت ═══ --}}
+  <aside class="cvb-side">
+    <section class="pnl-sec">
+      <div class="pnl-sec-h"><h2>خلاصهٔ سفارش</h2></div>
+      <div class="pnl-sec-b">
+        <div class="cvb-row"><span>مکان</span><b>{{ $location ? $location->flagEmoji().' '.$location->label() : '—' }}</b></div>
+        <div class="cvb-row"><span>پلن</span><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b></div>
+        <div class="cvb-row"><span>سیستم‌عامل</span><b id="cvb-s-img">{{ $jsImgLbl[$curImage] ?? '—' }}</b></div>
+        <div class="cvb-row"><span>دوره</span><b id="cvb-s-cyc">{{ $cycleLabels[$curCycle] ?? '—' }}</b></div>
+        <div class="cvb-row"><span>مبلغ دوره</span><b class="pnl-num" id="cvb-s-price">{{ fa_num(number_format($initial['cycle'])) }} تومان</b></div>
+        <div class="cvb-row"><span>معادل ماهانه</span><b class="pnl-num" id="cvb-s-per">{{ fa_num(number_format($initial['per'])) }} تومان</b></div>
+        <div class="cvb-row"><span>مالیات بر ارزش افزوده</span><b class="pnl-num">{{ fa_num($taxPct) }}٪</b></div>
+        <div class="cvb-row cvb-total"><span>پرداخت همین حالا</span><b class="pnl-num" id="cvb-s-first">{{ fa_num(number_format($initial['first'])) }} تومان</b></div>
+
+        <button type="submit" class="pnl-btn primary cvb-go" @disabled(count($planCards) === 0)>
+          <svg class="icon"><use href="#i-rocket"/></svg>
+          ثبت سفارش و پرداخت — <span id="cvb-s-btn">{{ fa_num(number_format($initial['first'])) }}</span> تومان
+        </button>
+        <p class="cvb-note" style="text-align:center">
+          پیش‌فاکتور صادر می‌شود؛ با پرداخت آن، سرور خودکار ساخته می‌شود و مشخصات
+          ورود در همین پنل نشان داده می‌شود.
+        </p>
+      </div>
+    </section>
+  </aside>
+</form>
+
+<style>
+.cvb-wrap{ display:grid; grid-template-columns:1fr 330px; gap:16px; align-items:start; }
+.cvb-main{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+.cvb-side .pnl-sec{ position:sticky; top:16px; }
+@media(max-width:900px){ .cvb-wrap{ grid-template-columns:1fr; } .cvb-side .pnl-sec{ position:static; } }
+
+.cvb-step{ display:inline-grid; place-items:center; width:21px; height:21px; border-radius:50%;
+  background:var(--info-bg); color:var(--info); border:1px solid var(--info-line);
+  font-size:11.5px; font-weight:700; margin-inline-end:7px; }
+.cvb-hint{ font-size:12px; color:var(--muted); }
+.cvb-note{ display:flex; align-items:flex-start; gap:7px; font-size:12px; color:var(--muted); line-height:1.9; margin:12px 0 0; }
+.cvb-note .icon{ width:14px; height:14px; flex:0 0 auto; margin-top:3px; color:var(--info); }
+.cvb-warn{ font-size:13px; color:var(--warn); line-height:2; margin:0; }
+.cvb-empty{ font-size:12.5px; color:var(--warn); margin:8px 0 0; }
+
+/* مکان‌ها، گروه‌بندی‌شده بر اساس کشور */
+.cvb-cgroup{ padding:9px 0; border-top:1px solid var(--line); }
+.cvb-cgroup:first-child{ border-top:0; padding-top:0; }
+.cvb-chead{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); margin-bottom:8px; }
+.cvb-flag{ font-size:19px; line-height:1; }
+.cvb-cities{ display:flex; flex-wrap:wrap; gap:7px; }
+.cvb-city{ font-size:12.5px; color:var(--muted); border:1.5px solid var(--line); border-radius:10px;
+  padding:6px 12px; transition:.16s; }
+.cvb-city:hover{ border-color:var(--info); color:var(--info); }
+.cvb-city.on{ border-color:var(--info); background:var(--info-bg); color:var(--info); font-weight:700; }
+
+/* پلن‌ها */
+.cvb-plans{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+.cvb-plan{ position:relative; display:flex; flex-direction:column; gap:7px; cursor:pointer;
+  border:1.5px solid var(--line); border-radius:13px; padding:13px; transition:border-color .16s, background .16s; }
+.cvb-plan.on{ border-color:var(--info); background:var(--info-bg); }
+/* رادیو «پنهان دیداری» است نه display:none — وگرنه از ترتیب Tab بیرون می‌افتد
+   و کاربر صفحه‌کلید نمی‌تواند انتخاب کند. */
+.cvb-plan input, .cvb-cyc input, .cvb-img input{ position:absolute; width:1px; height:1px; opacity:0; margin:0; pointer-events:none; }
+.cvb-plan:has(input:focus-visible), .cvb-cyc:has(input:focus-visible), .cvb-img:has(input:focus-visible){
+  outline:2px solid var(--info); outline-offset:2px; }
+.cvb-pn{ font-size:14px; font-weight:700; color:var(--text); }
+.cvb-specs{ display:flex; flex-direction:column; gap:4px; }
+.cvb-specs span{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+.cvb-specs .icon{ width:13px; height:13px; color:var(--dim); }
+.cvb-cpukind{ font-size:11px; color:var(--dim); }
+.cvb-pp{ font-size:13.5px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;
+  border-top:1px solid var(--line); padding-top:7px; }
+.cvb-plan.on .cvb-pp{ color:var(--info); }
+
+/* سیستم‌عامل و نرم‌افزار */
+.cvb-tabs{ display:flex; gap:6px; }
+.cvb-tab{ background:none; border:1.5px solid var(--line); border-radius:9px; padding:5px 11px;
+  font:inherit; font-size:12px; color:var(--muted); cursor:pointer; }
+.cvb-tab.on{ border-color:var(--info); background:var(--info-bg); color:var(--info); font-weight:700; }
+.cvb-fam{ padding:9px 0; border-top:1px solid var(--line); }
+.cvb-fam:first-child{ border-top:0; padding-top:0; }
+.cvb-famh{ font-size:12.5px; color:var(--muted); margin-bottom:7px; }
+.cvb-opts{ display:flex; flex-wrap:wrap; gap:7px; }
+.cvb-img{ cursor:pointer; border:1.5px solid var(--line); border-radius:10px; padding:6px 12px; transition:.16s; }
+.cvb-img b{ font-size:12.5px; font-weight:400; color:var(--muted); }
+.cvb-img:hover{ border-color:var(--info); }
+.cvb-img.on{ border-color:var(--info); background:var(--info-bg); }
+.cvb-img.on b{ color:var(--info); font-weight:700; }
+
+/* دوره‌ها */
+.cvb-cycles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.cvb-cyc{ position:relative; display:flex; flex-direction:column; gap:2px; cursor:pointer;
+  border:1.5px solid var(--line); border-radius:13px; padding:12px 13px; transition:border-color .16s, background .16s; }
+.cvb-cyc.on{ border-color:var(--info); background:var(--info-bg); }
+.cvb-cyc-t{ font-size:13px; font-weight:700; color:var(--text); }
+.cvb-cyc-p{ font-size:15px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.cvb-cyc-m{ font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.cvb-cyc-s{ position:absolute; top:-9px; inset-inline-end:10px; font-size:10.5px; font-weight:700;
+  color:#04121a; background:linear-gradient(135deg,#34D399,#22D3EE); padding:2px 8px; border-radius:20px; }
+.cvb-cyc.on .cvb-cyc-p{ color:var(--info); }
+
+/* نام سرور */
+.cvb-field{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--muted); }
+.cvb-field input{ background:var(--surface); border:1px solid var(--line); border-radius:11px;
+  padding:11px 13px; font:inherit; font-size:14px; color:var(--text); text-align:left; }
+.cvb-field input:focus-visible{ outline:2px solid var(--info); outline-offset:-2px; }
+
+/* خلاصه */
+.cvb-row{ display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:9px 0; font-size:12.5px; color:var(--muted); border-top:1px solid var(--line); }
+.cvb-row:first-child{ border-top:0; padding-top:0; }
+.cvb-row b{ color:var(--text); font-size:13px; text-align:left; }
+.cvb-total{ border-top:2px solid var(--line-2); margin-top:4px; }
+.cvb-total span{ color:var(--text); font-weight:600; }
+.cvb-total b{ font-size:16px; color:var(--info); }
+.cvb-go{ justify-content:center; width:100%; margin-top:12px; }
+</style>
+
+@php
+  $jsData = [
+    'prices' => $jsPrices,
+    'images' => $jsImages,
+    'cycles' => $jsCycles,
+    'plans'  => $jsPlans,
+    'imgLbl' => $jsImgLbl,
+  ];
+@endphp
+<script>
+(function(){
+  var D = @json($jsData);
+
+  var faN = function(x){ return String(x).replace(/[0-9]/g, function(g){ return '۰۱۲۳۴۵۶۷۸۹'[g]; }); };
+  var money = function(n){ return faN(Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')); };
+  var set = function(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; };
+  var val = function(name){ var el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; };
+
+  var mark = function(sel, node){
+    document.querySelectorAll(sel).forEach(function(o){ o.classList.remove('on'); });
+    if (node) node.classList.add('on');
+  };
+
+  // ── گزینه‌های سیستم‌عامل/نرم‌افزار را با پلن انتخابی هم‌تراز کن ──
+  // گزینه‌ای که روی این پلن تحویل نمی‌شود پنهان می‌شود؛ اگر همان انتخاب شده
+  // بود، اولین گزینهٔ ممکن جایش را می‌گیرد تا فرم هرگز با انتخاب نشدنی ارسال نشود.
+  var syncImages = function(){
+    var slug = val('plan');
+    var allow = D.images[slug] || { os: [], app: [] };
+    var chosen = val('image');
+    var first = null, stillOk = false;
+
+    ['os', 'app'].forEach(function(kind){
+      var ok = allow[kind] || [];
+      var pane = document.querySelector('[data-pane="' + kind + '"]');
+      if (!pane) return;
+      var shown = 0;
+
+      pane.querySelectorAll('.cvb-img').forEach(function(lab){
+        var can = ok.indexOf(lab.getAttribute('data-key')) !== -1;
+        lab.hidden = !can;
+        if (can) {
+          shown++;
+          if (!first) first = lab;
+          if (lab.getAttribute('data-key') === chosen) stillOk = true;
+        }
+      });
+
+      pane.querySelectorAll('.cvb-fam').forEach(function(fam){
+        fam.hidden = fam.querySelectorAll('.cvb-img:not([hidden])').length === 0;
+      });
+
+      var empty = pane.querySelector('[data-empty]');
+      if (empty) empty.hidden = shown > 0;
+    });
+
+    if (!stillOk && first) {
+      var r = first.querySelector('input');
+      if (r) { r.checked = true; }
+      mark('.cvb-img', first);
+    }
+  };
+
+  var render = function(){
+    var slug = val('plan'), cyc = val('cycle');
+    var bucket = D.prices[slug] || {};
+
+    // قیمت روی کارت هر پلن = همان دورهٔ انتخابی
+    document.querySelectorAll('.cvb-plan').forEach(function(card){
+      var row = (D.prices[card.getAttribute('data-slug')] || {})[cyc];
+      var el = card.querySelector('[data-pp]');
+      if (row && el) el.textContent = money(row.cycle) + ' تومان';
+    });
+
+    // قیمت روی کارت هر دوره = همان پلن انتخابی
+    document.querySelectorAll('.cvb-cyc').forEach(function(card){
+      var row = bucket[card.getAttribute('data-cyc')];
+      if (!row) return;
+      var p = card.querySelector('[data-p]'), m = card.querySelector('[data-m]');
+      if (p) p.textContent = money(row.cycle);
+      if (m) m.textContent = 'ماهی ' + money(row.per);
+    });
+
+    set('cvb-s-plan', D.plans[slug] || '—');
+    set('cvb-s-cyc', D.cycles[cyc] || '—');
+    set('cvb-s-img', D.imgLbl[val('image')] || '—');
+
+    var row = bucket[cyc];
+    if (!row) return;
+    set('cvb-s-price', money(row.cycle) + ' تومان');
+    set('cvb-s-per', money(row.per) + ' تومان');
+    set('cvb-s-first', money(row.first) + ' تومان');
+    set('cvb-s-btn', money(row.first));
+  };
+
+  document.querySelectorAll('.cvb-plan input').forEach(function(r){
+    r.addEventListener('change', function(){
+      mark('.cvb-plan', r.closest('.cvb-plan'));
+      syncImages();
+      render();
+    });
+  });
+
+  document.querySelectorAll('.cvb-cyc input').forEach(function(r){
+    r.addEventListener('change', function(){ mark('.cvb-cyc', r.closest('.cvb-cyc')); render(); });
+  });
+
+  document.querySelectorAll('.cvb-img input').forEach(function(r){
+    r.addEventListener('change', function(){ mark('.cvb-img', r.closest('.cvb-img')); render(); });
+  });
+
+  document.querySelectorAll('.cvb-tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var kind = btn.getAttribute('data-tab');
+      document.querySelectorAll('.cvb-tab').forEach(function(b){ b.classList.toggle('on', b === btn); });
+      document.querySelectorAll('[data-pane]').forEach(function(p){
+        p.hidden = p.getAttribute('data-pane') !== kind;
+      });
+    });
+  });
+
+  syncImages();
+  render();
+})();
+</script>
+@endif
+@endsection

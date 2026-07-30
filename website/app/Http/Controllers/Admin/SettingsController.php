@@ -50,6 +50,7 @@ class SettingsController extends Controller
             'aeza'    => $ready && filled(Setting::getSecret('aeza_api_token')),
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
+            'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
             'plans'   => $ready && Schema::hasTable('cloud_plans')
                 ? \App\Models\CloudPlan::where('is_active', true)->count() : 0,
         ];
@@ -92,6 +93,9 @@ class SettingsController extends Controller
             'aeza_forget'           => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
+            // «۱ یورو چند روبل» — چون API زیرساختِ دوم قیمت را به روبل می‌دهد.
+            // کرانِ ۱۰ تا ۵۰۰۰ جلوی اشتباهِ جهت را می‌گیرد (کسی ۰٫۰۱ وارد نکند).
+            'aeza_rub_per_eur'      => ['nullable', 'numeric', 'min:10', 'max:5000'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
@@ -126,7 +130,7 @@ class SettingsController extends Controller
             }
         }
 
-        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents'] as $k) {
+        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'aeza_rub_per_eur'] as $k) {
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }
 

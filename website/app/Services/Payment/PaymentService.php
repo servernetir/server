@@ -235,14 +235,29 @@ class PaymentService
                     // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
                     // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
                     // مالی (بدونِ سرور) مثلِ قبل مستقیم فعال می‌شود.
-                    // نیازِ تحویل: سرور دارد (تحویلِ خودکار) یا دامنه دارد (هاست که
-                    // هنوز سرور نخورده → تحویلِ دستیِ ادمین). سرویسِ صرفاً مالی
-                    // (بدونِ سرور و دامنه، مثلِ پشتیبانی) مستقیم فعال می‌شود.
+                    // نیازِ تحویل: سرور دارد (تحویلِ خودکار)، **پلنِ ابری دارد**
+                    // (تحویلِ خودکار با API)، یا دامنه دارد (هاست که هنوز سرور
+                    // نخورده → تحویلِ دستیِ ادمین). سرویسِ صرفاً مالی (بدونِ
+                    // هیچ‌کدام، مثلِ پشتیبانی) مستقیم فعال می‌شود.
+                    //
+                    // 🔴 این‌جا سه بار به یک تله خوردیم و هر بار **بی‌صدا**:
+                    // کد فرض می‌کرد «مقصدِ تحویل = server_id». سرورِ ابری پیش از
+                    // خرید وجود ندارد، پس نه server_id دارد نه دامنه — و همین
+                    // شرط، سرویس را مستقیم `active` می‌کرد با provision_status
+                    // نال. کرونِ تحویل هم فقط `pending` را برمی‌دارد. نتیجه:
+                    // مشتری پول می‌داد، هیچ خطایی در هیچ لاگی نبود، و سرور
+                    // **هرگز** ساخته نمی‌شد.
+                    //
+                    // هر مسیرِ تحویلِ تازه‌ای که اضافه شد، باید **هر سه جا** به‌روز
+                    // شود: همین شرط، UPDATEِ خامِ داخلِ catch پایین، و پرس‌وجوی
+                    // کرون در RunProvisioning.
+                    $autoDelivered = $service->server_id !== null || $service->isCloud();
+
                     $needsDelivery = $service->provision_status !== 'done'
-                        && ($service->server_id !== null || filled($service->domain));
+                        && ($autoDelivered || filled($service->domain));
                     if ($needsDelivery) {
                         $service->status = 'awaiting_provision';
-                        $service->provision_status = $service->server_id !== null ? 'pending' : 'manual';
+                        $service->provision_status = $autoDelivered ? 'pending' : 'manual';
                     } else {
                         $service->status = 'active';
                     }
@@ -296,11 +311,32 @@ class PaymentService
                                 ->where(fn ($q) => $q->whereNull('provision_status')
                                     ->orWhere('provision_status', '!=', 'done'));
 
-                            // با سرور → صفِ تحویلِ خودکار؛ بی‌سرور → صفِ دستیِ ادمین
-                            $base()->whereNotNull('server_id')->update([
+                            // تحویلِ خودکار (سرورِ خودمان **یا** سرورِ ابری) → صفِ
+                            // کرون؛ بقیه → صفِ دستیِ ادمین.
+                            //
+                            // ⚠️ اگر ستونِ ابری روی این نصب نباشد (مهاجرتِ نزده)،
+                            // پرس‌وجوی خام خطا می‌دهد و **هیچ** ردیفی به‌روز
+                            // نمی‌شود — یعنی همان خرابیِ بی‌صدا از راهِ دیگر. پس
+                            // اول وجودِ ستون را می‌سنجیم.
+                            $hasCloud = \Illuminate\Support\Facades\Schema::hasColumn('services', 'cloud_plan_id');
+
+                            $base()->where(function ($q) use ($hasCloud) {
+                                $q->whereNotNull('server_id');
+
+                                if ($hasCloud) {
+                                    $q->orWhereNotNull('cloud_plan_id');
+                                }
+                            })->update([
                                 'status' => 'awaiting_provision', 'provision_status' => 'pending', 'updated_at' => now(),
                             ]);
-                            $base()->whereNull('server_id')->update([
+
+                            $manual = $base()->whereNull('server_id');
+
+                            if ($hasCloud) {
+                                $manual->whereNull('cloud_plan_id');
+                            }
+
+                            $manual->update([
                                 'status' => 'awaiting_provision', 'provision_status' => 'manual', 'updated_at' => now(),
                             ]);
                         }

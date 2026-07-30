@@ -130,7 +130,18 @@
         <label class="set-f">هزینهٔ IPv4 (سنتِ یورو، ماهانه)
           <input type="number" name="cloud_ipv4_eur_cents" dir="ltr" step="1" min="-1" max="10000"
                  value="{{ $cloud['ipv4'] }}" placeholder="خالی = خودکار از زیرساخت"></label>
+        <label class="set-f">۱ یورو چند روبل؟ <span style="color:var(--dim)">(برای زیرساختِ ۲)</span>
+          <input type="number" name="aeza_rub_per_eur" dir="ltr" step="0.01" min="10" max="5000"
+                 value="{{ $cloud['rub'] }}" placeholder="مثلاً ۱۰۰"></label>
       </div>
+
+      <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px;line-height:1.9">
+        <b>چرا روبل؟</b> API زیرساختِ ۲ قیمت‌ها را — هر ارزی که حسابِ شما باشد — به <b>روبل</b>
+        برمی‌گرداند. ما برای رسیدن به تومان اول باید به یورو تبدیلش کنیم.
+        اگر این کادر خالی باشد، ضریب از خودِ آنها خوانده می‌شود؛ و اگر آن هم نشد،
+        <b>هیچ قیمتی ساخته نمی‌شود</b> (قیمتِ حدسی از نبودِ قیمت بدتر است).
+        <br>عددی که این‌جا می‌گذارید <b>اولویت دارد</b> — چون شما می‌دانید واقعاً چند پرداخته‌اید.
+      </p>
 
       @if($cloud['hetzner'] || $cloud['aeza'])
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px">
