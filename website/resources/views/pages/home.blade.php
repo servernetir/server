@@ -10,6 +10,21 @@
     <div>
       <span class="badge reveal"><span class="pulse"></span><span>{{ __('ui.hero_badge') }}</span></span>
       <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.hero_h1a') }}<br><span class="grad">{{ __('ui.hero_h1b') }}</span></h1>
+
+      {{-- شعارِ چرخانِ دیتاسنتر — کارفرما: «ثابت نباشد، هر چند ثانیه یک شعارِ
+           کوتاه بیاید». جمله‌ها از lang می‌آیند (سه‌زبانه) و در یک آرایهٔ JS
+           برای چرخش. اولین جمله در HTML رندر می‌شود تا پیش از اجرای JS و برای
+           موتورِ جست‌وجو هم متنی باشد (no-JS و SEO). --}}
+      @php
+        $rotators = array_values(array_filter([
+          __('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'),
+          __('ui.hero_rot4'), __('ui.hero_rot5'),
+        ]));
+      @endphp
+      <div class="hero-rotator reveal" style="transition-delay:.12s" aria-live="polite">
+        <span class="dot"></span>
+        <span class="rot-txt" id="hero-rot">{{ $rotators[0] ?? '' }}</span>
+      </div>
       <p class="lead reveal" style="transition-delay:.16s">{{ __('ui.hero_lead') }}</p>
       <div class="hero-ctas reveal" style="transition-delay:.24s">
         <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
@@ -227,4 +242,32 @@
     </div>
   </div>
 </section>
+{{-- چرخشِ شعارِ دیتاسنتر — سبک، بی‌کتابخانه (CSP هر منبعِ بیرونی را می‌بندد).
+     جمله‌ها از data-rot خوانده می‌شوند که Blade سه‌زبانه پرش کرده. --}}
+<script>
+(function(){
+  'use strict';
+  var el = document.getElementById('hero-rot');
+  if (!el) { return; }
+
+  // ⚠️ لیست را با Js::from می‌دهیم نه data-attribute: کدگذاریِ دستیِ JSON در
+  // یک صفت، با نقل‌قول‌های فارسی و entityها دردسر می‌شود. Js::from خودش امن و
+  // درست escape می‌کند.
+  var list = {{ Illuminate\Support\Js::from($rotators) }};
+  if (!Array.isArray(list) || list.length < 2) { return; }
+
+  // احترام به کاربری که انیمیشن نمی‌خواهد
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+
+  var i = 0;
+  setInterval(function(){
+    el.classList.add('out');                 // محو شو
+    setTimeout(function(){
+      i = (i + 1) % list.length;
+      el.textContent = list[i];
+      el.classList.remove('out');            // با متنِ تازه ظاهر شو
+    }, 450);                                  // برابرِ مدتِ transition در CSS
+  }, 3500);
+})();
+</script>
 @endsection

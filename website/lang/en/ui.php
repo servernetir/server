@@ -14,7 +14,12 @@ return [
 
     'hero_badge' => 'Since 2009 · 11 datacenters on 3 continents · 99.9% uptime · 24/7 support',
     'hero_h1a' => 'From a single website to an AI cluster,', 'hero_h1b' => 'on infrastructure that never blinks.',
-    'hero_lead' => 'ServerNet is the safe home for your online business — cloud hosting to get started, dedicated and GPU infrastructure for enterprises, factories and AI teams. Built for the day your traffic multiplies tenfold.',
+    'hero_lead' => 'Cloud hosting to start, dedicated and GPU infrastructure for enterprises and AI teams — on infrastructure that never runs short.',
+    'hero_rot1' => 'Virtual servers deployed in under 90 seconds',
+    'hero_rot2' => 'DDoS-protected network across every datacenter',
+    'hero_rot3' => 'NVMe storage and latest-gen CPUs on every plan',
+    'hero_rot4' => 'Free migration from your old host or server',
+    'hero_rot5' => '24/7 support, even at 3 a.m.',
     'hero_cta1' => 'View Plans', 'hero_cta2' => 'Enterprise Solutions',
     'hero_domain_ph' => 'Find your perfect domain — mycompany.com', 'hero_domain_btn' => 'Search',
     'stat_years' => 'Years in market', 'stat_services' => 'Services delivered', 'stat_dc' => 'Datacenters', 'stat_uptime' => 'Uptime SLA',

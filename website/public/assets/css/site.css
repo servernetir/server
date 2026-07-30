@@ -2361,3 +2361,22 @@ html[data-theme="light"] .imp-bar{border-bottom-color:rgba(0,0,0,.32);
   .imp-lb{display:none}
   .imp-tx{gap:6px}
 }
+
+/* ══ اصلاحِ ابعادِ hero + شعارِ چرخانِ دیتاسنتر ══
+   کارفرما: «متنِ اول خیلی بزرگ است و کلِ صفحه را گرفته». دو علت:
+   min-height:92vh کلِ ارتفاعِ صفحه را می‌گرفت، و clamp تا 62px روی نمایشگرِ
+   پهن غول‌پیکر می‌شد. این‌جا (انتهای فایل، پس برنده) هر دو مهار می‌شوند. */
+.hero{min-height:auto;padding:130px 0 84px}
+.hero h1{font-size:clamp(30px,3.6vw,46px);line-height:1.14;letter-spacing:-1px;margin:18px 0 16px;max-width:16ch}
+.hero p.lead{font-size:16.5px;max-width:500px;margin-bottom:26px}
+
+/* شعارِ چرخان: هر چند ثانیه یک جملهٔ کوتاهِ دیتاسنتر عوض می‌شود.
+   ارتفاعِ ثابت تا با تعویضِ متن، کلِ صفحه نپرد (layout shift). */
+.hero-rotator{display:flex;align-items:center;gap:9px;min-height:26px;margin:2px 0 6px;
+  font-size:14px;color:var(--muted);font-weight:500}
+.hero-rotator .dot{width:7px;height:7px;border-radius:50%;background:var(--brand,#22d3ee);flex:none;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--brand,#22d3ee) 20%,transparent)}
+.hero-rotator .rot-txt{position:relative;display:inline-block;transition:opacity .45s ease,transform .45s ease}
+.hero-rotator .rot-txt.out{opacity:0;transform:translateY(-6px)}
+@media(prefers-reduced-motion:reduce){.hero-rotator .rot-txt{transition:none}}
+@media(max-width:900px){.hero h1{max-width:none}.hero-rotator{font-size:13px}}

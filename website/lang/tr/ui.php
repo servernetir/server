@@ -14,7 +14,12 @@ return [
 
     'hero_badge' => "2009'dan beri · 3 kıtada 11 veri merkezi · %99,9 uptime · 7/24 destek",
     'hero_h1a' => 'Tek bir web sitesinden yapay zekâ kümesine,', 'hero_h1b' => 'hiç sarsılmayan bir altyapı.',
-    'hero_lead' => "ServerNet, çevrimiçi işinizin güvenli evi: başlamak için bulut hosting, kurumlar, fabrikalar ve yapay zekâ ekipleri için özel sunucu ve GPU altyapısı. Trafiğinizin on katına çıktığı gün için tasarlandı.",
+    'hero_lead' => 'Başlamak için bulut hosting, kurumlar ve yapay zekâ ekipleri için özel sunucu ve GPU altyapısı — asla yetersiz kalmayan altyapıda.',
+    'hero_rot1' => 'Sanal sunucular 90 saniyeden kısa sürede hazır',
+    'hero_rot2' => 'Her veri merkezinde DDoS korumalı ağ',
+    'hero_rot3' => 'Tüm planlarda NVMe disk ve yeni nesil CPU',
+    'hero_rot4' => 'Eski hosting veya sunucunuzdan ücretsiz taşıma',
+    'hero_rot5' => 'Gece yarısı bile 7/24 destek',
     'hero_cta1' => 'Paketleri Gör', 'hero_cta2' => 'Kurumsal Çözümler',
     'hero_domain_ph' => 'Alan adınızı bulun — sirketim.com', 'hero_domain_btn' => 'Ara',
     'stat_years' => 'Yıllık deneyim', 'stat_services' => 'Teslim edilen hizmet', 'stat_dc' => 'Veri merkezi', 'stat_uptime' => 'Uptime SLA',
