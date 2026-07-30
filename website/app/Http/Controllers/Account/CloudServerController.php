@@ -340,10 +340,32 @@ class CloudServerController extends Controller
         return back()->with('ok', 'رمزِ تازه ساخته شد و پایینِ صفحه نمایش داده می‌شود.');
     }
 
-    /** کنسولِ تحتِ وب — لینکِ یک‌بارمصرف */
+    /**
+     * کنسولِ تحتِ وب — سه‌مرحله‌ای، تا آدرسِ زیرساخت هرگز در HTML نباشد.
+     *
+     * ۱) `console()`  : از زیرساخت آدرس می‌گیرد، در کشِ کوتاه‌عمر می‌گذارد و یک
+     *                   **بلیتِ یک‌بارمصرف** می‌سازد، بعد به صفحهٔ نمایش می‌رود.
+     * ۲) `consoleView()`: صفحهٔ کنسول روی **دامنهٔ خودمان** با noVNC خودمیزبان.
+     * ۳) `consoleTicket()`: تنها جایی که آدرسِ واقعی برمی‌گردد — پاسخِ JSON
+     *                   same-origin که بعد از یک بار خواندن **پاک می‌شود**.
+     *
+     * چرا این‌طور و نه یک `href` ساده: آدرسِ خامِ زیرساخت هم نامِ برند را لو
+     * می‌داد هم شناسهٔ داخلیِ سرور، و در تاریخچهٔ مرورگر و لاگِ Cloudflare
+     * می‌نشست. با بلیت، آدرس فقط یک بار و فقط به جاوااسکریپتِ همان صفحه می‌رسد.
+     *
+     * ⚠️ صداقتِ لازم: مرورگر در نهایت **مستقیم** به ماشینِ مجازیِ مشتری وصل
+     * می‌شود، پس کسی که کنسولِ توسعه‌دهندهٔ مرورگر را باز کند می‌تواند میزبان را
+     * ببیند. پنهان‌سازیِ کامل به یک رله‌ی WebSocket روی دامنهٔ خودمان نیاز دارد
+     * (یک پروسهٔ همیشه‌روشن که cPanel نمی‌تواند نگه دارد). در HTML، هدرها،
+     * تاریخچه و لینک‌ها هیچ نشانی نیست.
+     */
     public function console(Service $service): RedirectResponse
     {
         $this->ownedService($service);
+
+        if ($denied = $this->denyIfNotWritable($service)) {
+            return $denied;
+        }
 
         if ($limited = $this->rateLimit($service, 'console', 10)) {
             return $limited;
@@ -356,19 +378,6 @@ class CloudServerController extends Controller
             return back()->withErrors('کنسول برای این سرور در دسترس نیست.');
         }
 
-        // 🔴 عمداً آدرسِ کنسول به مشتری داده **نمی‌شود** — دو دلیلِ مستقل:
-        //
-        // ۱) **نشتِ سفیدبرچسبی.** آدرسی که ارائه‌دهنده می‌دهد میزبانِ خودش است
-        //    (`wss://console.<برند>.cloud/?server_id=…&token=…`). اگر در href
-        //    بنشیند، مشتری با یک hover یا «مشاهدهٔ سورس» هم نامِ برند را می‌بیند
-        //    هم شناسهٔ داخلیِ سرور — دو چیزی که در `$hidden` مدل‌ها پنهان کرده‌ایم.
-        //
-        // ۲) **در عمل کار نمی‌کند.** یک نشانیِ `wss://` در تگ `a` در هیچ مرورگری
-        //    باز نمی‌شود؛ کنسولِ واقعی به یک صفحهٔ noVNC روی دامنهٔ خودمان نیاز
-        //    دارد که به آن سوکت وصل شود.
-        //
-        // پس تا ساختِ آن واسط، پیامِ صادقانه می‌دهیم. آدرسِ خام فقط در لاگِ
-        // سمتِ سرور می‌مانَد تا پشتیبانی بتواند دستی کمک کند.
         $r = $driver->console((string) $instance->provider_ref);
 
         if (! ($r['ok'] ?? false) || blank($r['url'] ?? null)) {
@@ -377,17 +386,68 @@ class CloudServerController extends Controller
             ));
         }
 
-        \Illuminate\Support\Facades\Log::info('cloud.console.requested', [
-            'service' => $service->id,
-            'url'     => $r['url'],           // فقط لاگِ سرور، هرگز پاسخِ HTTP
-        ]);
+        // بلیت: تصادفی، کوتاه‌عمر، و گره‌خورده به همین سرویس تا با بلیتِ سرویسِ
+        // دیگری قابلِ استفاده نباشد.
+        $ticket = bin2hex(random_bytes(16));
 
-        $this->log($service, 'درخواستِ کنسولِ تحتِ وب.');
-
-        return back()->with('ok',
-            'درخواستِ شما ثبت شد. کنسولِ تحتِ وب به‌زودی از همین صفحه فعال می‌شود؛ '
-            .'اگر همین حالا نیاز دارید، یک تیکت بزنید تا پشتیبانی بی‌درنگ بازش کند.'
+        \Illuminate\Support\Facades\Cache::put(
+            $this->ticketKey($service, $ticket),
+            ['url' => $r['url'], 'password' => $r['password'] ?? null],
+            now()->addSeconds(90)
         );
+
+        $this->log($service, 'کنسولِ تحتِ وب باز شد.');
+
+        return redirect()->route('account.cloud.console.view', [$service, 't' => $ticket]);
+    }
+
+    /** صفحهٔ کنسول — روی دامنهٔ خودمان، با noVNC خودمیزبان (CSP اجازهٔ CDN نمی‌دهد) */
+    public function consoleView(Request $request, Service $service): View|RedirectResponse
+    {
+        $this->ownedService($service);
+
+        $ticket = (string) $request->query('t', '');
+
+        if ($ticket === '' || ! \Illuminate\Support\Facades\Cache::has($this->ticketKey($service, $ticket))) {
+            return redirect()->route('account.cloud.show', $service)
+                ->withErrors('نشستِ کنسول منقضی شده است. دوباره «کنسولِ تحتِ وب» را بزنید.');
+        }
+
+        return view('account.cloud-console', AccountController::shell('services') + [
+            'service'  => $service,
+            'instance' => $this->instanceOf($service),
+            'ticket'   => $ticket,
+        ]);
+    }
+
+    /**
+     * بلیت را **یک بار** به آدرسِ واقعی تبدیل می‌کند و بعد پاکش می‌کند.
+     *
+     * `pull` نه `get`: اگر آدرس در کش بماند، بازکردنِ دوبارهٔ تبِ کنسول با همان
+     * بلیت کار می‌کند و «یک‌بارمصرف» فقط یک ادعا می‌شود.
+     */
+    public function consoleTicket(Request $request, Service $service): JsonResponse
+    {
+        $this->ownedService($service);
+
+        $data = \Illuminate\Support\Facades\Cache::pull(
+            $this->ticketKey($service, (string) $request->query('t', ''))
+        );
+
+        if (! is_array($data) || blank($data['url'] ?? null)) {
+            return response()->json(['ok' => false, 'message' => 'نشستِ کنسول منقضی شده است.'], 410);
+        }
+
+        return response()->json([
+            'ok'       => true,
+            'url'      => $data['url'],
+            'password' => $data['password'],
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    private function ticketKey(Service $service, string $ticket): string
+    {
+        return 'cloud-console:'.$service->id.':'.$ticket;
     }
 
     // ───────────────────────── کمکی ─────────────────────────

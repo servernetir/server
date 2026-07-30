@@ -53,6 +53,100 @@ class HetznerClient implements CloudProvider
             'console' => true, 'rebuild' => true, 'resize' => true,
             'snapshot' => true, 'metrics' => true, 'reset_password' => true,
             'ipv6' => true, 'rescue' => true,
+            'ssh_key' => true, 'extra_ip' => true,
+        ];
+    }
+
+    /**
+     * بارگذاریِ کلیدِ SSH — idempotent روی اثرِ انگشت.
+     *
+     * ⚠️ اگر کلید از قبل در حساب باشد، خطای «تکراری» می‌آید. آن خطا **موفقیت**
+     * است نه شکست: یعنی همان کلید هست. بی‌این تفسیر، دومین سرورِ همان مشتری
+     * هرگز تحویل نمی‌شد.
+     */
+    public function uploadSshKey(string $name, string $publicKey): array
+    {
+        $r = $this->req('POST', '/ssh_keys', [
+            'name'       => $name,
+            'public_key' => $publicKey,
+        ]);
+
+        if ($r['ok']) {
+            return ['ok' => true, 'message' => '', 'ref' => (string) data_get($r['body'], 'ssh_key.id', '')];
+        }
+
+        // تکراری → همان کلیدِ موجود را پیدا کن
+        if (str_contains($r['message'], 'uniqueness_error')) {
+            $found = $this->findSshKey($publicKey);
+
+            if ($found !== null) {
+                return ['ok' => true, 'message' => 'کلید از قبل ثبت شده بود.', 'ref' => $found];
+            }
+        }
+
+        return ['ok' => false, 'message' => $r['message'], 'ref' => null];
+    }
+
+    /** جستجوی کلید با اثرِ انگشت — چون نامش می‌تواند فرق کند */
+    private function findSshKey(string $publicKey): ?string
+    {
+        $parts = explode(' ', trim(preg_replace('/\s+/', ' ', $publicKey) ?? ''));
+        $body = base64_decode($parts[1] ?? '', true);
+
+        if ($body === false) {
+            return null;
+        }
+
+        $fingerprint = implode(':', str_split(md5($body), 2));
+        $r = $this->req('GET', '/ssh_keys', ['fingerprint' => $fingerprint]);
+
+        $id = data_get($r['body'], 'ssh_keys.0.id');
+
+        return $r['ok'] && filled($id) ? (string) $id : null;
+    }
+
+    /**
+     * IP اضافه = Floating IP که به سرور بسته می‌شود.
+     *
+     * چرا Floating و نه Primary: Primary IP خودِ آدرسِ اصلیِ سرور است و یکی
+     * بیشتر نمی‌شود. Floating IP آدرسِ مستقلی است که می‌توان به سرور بست و
+     * بعداً به سرورِ دیگری منتقل کرد — همان چیزی که مشتری از «IP اضافه»
+     * می‌خواهد.
+     *
+     * هر IP جدا ساخته می‌شود و اگر یکی نشد، همان‌هایی که شدند برگردانده
+     * می‌شوند؛ گزارشِ نیمه از شکستِ کامل بهتر است چون مشتری بخشی از آنچه خریده
+     * را دارد و پشتیبانی می‌داند دقیقاً کجا مانده.
+     */
+    public function addExtraIps(string $ref, int $count): array
+    {
+        $ips = [];
+        $lastError = '';
+
+        for ($i = 0; $i < max(0, $count); $i++) {
+            $r = $this->req('POST', '/floating_ips', [
+                'type'      => 'ipv4',
+                'server'    => (int) $ref,
+                'labels'    => ['snet' => 'extra'],
+            ]);
+
+            if ($r['ok']) {
+                $ip = (string) data_get($r['body'], 'floating_ip.ip', '');
+
+                if ($ip !== '') {
+                    $ips[] = $ip;
+                }
+
+                continue;
+            }
+
+            $lastError = $r['message'];
+            break;
+        }
+
+        return [
+            'ok'      => $ips !== [] && count($ips) === max(0, $count),
+            'message' => $ips === [] ? $lastError : ($lastError !== '' ? 'بخشی از IPها ساخته شد: '.$lastError : ''),
+            'ips'     => $ips,
         ];
     }
 

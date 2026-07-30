@@ -45,7 +45,16 @@ class SecurityHeaders
                 // اشاره می‌کند که خود همین صفحه ساخته و از جای دیگری قابل بارگذاری
                 // نیست، پس اجازه‌دادنش سطح حمله را باز نمی‌کند.
                 "img-src 'self' data: blob: https:",
-                "connect-src 'self'",
+                // ⚠️ صفحهٔ کنسولِ سرورِ ابری تنها جایی است که به یک WebSocketِ
+                // بیرونی وصل می‌شود (خودِ ماشینِ مجازیِ مشتری). بی‌این استثنا،
+                // مرورگر اتصال را **بی‌صدا** بلاک می‌کند و صفحه فقط «در حالِ
+                // اتصال…» می‌مانَد — دقیقاً همان تلهٔ CSP که در این پروژه سابقه
+                // دارد.
+                //
+                // عمداً `wss:` کلی است و نامِ میزبانِ زیرساخت در هدر نمی‌آید؛
+                // وگرنه هدرِ پاسخِ همان صفحه، تأمین‌کننده را لو می‌داد. دامنه هم
+                // فقط روی همین مسیر باز می‌شود، نه سراسرِ سایت.
+                $this->isCloudConsole($request) ? "connect-src 'self' wss:" : "connect-src 'self'",
                 "frame-src 'self' https://www.openstreetmap.org",
                 "frame-ancestors 'self'",
                 "object-src 'none'",
@@ -61,5 +70,18 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /**
+     * آیا این درخواست صفحهٔ کنسولِ سرورِ ابری است؟
+     *
+     * دقیقاً یک مسیر، با الگوی بسته — نه پیشوندِ باز. اگر روزی مسیرِ تازه‌ای
+     * اضافه شد، آگاهانه این‌جا هم اضافه شود؛ باز کردنِ `wss:` روی کلِ `/account`
+     * یعنی هر صفحهٔ پنل بتواند به هر جایی سوکت بزند.
+     */
+    private function isCloudConsole(Request $request): bool
+    {
+        return $request->is('account/cloud/*/console/view')
+            || $request->is('*/account/cloud/*/console/view');
     }
 }

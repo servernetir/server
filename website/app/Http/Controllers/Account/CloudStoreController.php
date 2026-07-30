@@ -7,11 +7,13 @@ use App\Models\ActivityLog;
 use App\Models\CloudImage;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\TaxRate;
+use App\Services\Cloud\CloudAddons;
 use App\Services\Notify\AdminNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,7 +103,7 @@ class CloudStoreController extends Controller
      * گردکردن همیشه **رو به بالا** است (قاعدهٔ پولِ پروژه): گردکردنِ پایین روی
      * حاشیهٔ نازکِ سرورِ ابری یعنی تخفیفِ ناخواسته.
      */
-    public static function priceForCycle(CloudPlan $plan, string $cycle): int
+    public static function priceForCycle(CloudPlan $plan, string $cycle, array $addons = []): int
     {
         $months = Service::monthsIn($cycle);
 
@@ -114,7 +116,11 @@ class CloudStoreController extends Controller
 
         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
 
-        return Product::roundUpToman($raw);
+        // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
+        // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
+        $extra = $addons === [] ? 0 : app(CloudAddons::class)->forCycle($addons, $cycle);
+
+        return Product::roundUpToman($raw) + $extra;
     }
 
     /** معادلِ ماهانهٔ یک دوره — برای برچسبِ «ماهی X تومان» */
@@ -123,6 +129,66 @@ class CloudStoreController extends Controller
         $months = max(1, Service::monthsIn($cycle));
 
         return (int) ceil(self::priceForCycle($plan, $cycle) / $months);
+    }
+
+    /**
+     * کلیدِ SSH انتخابی یا تازه — یا خطای اعتبارسنجی.
+     *
+     * ⚠️ کلیدِ عمومی راز نیست، ولی کلیدِ **خصوصی** هست. اگر مشتری اشتباهی کلیدِ
+     * خصوصی‌اش را بچسباند و ما ذخیره کنیم، رازش در دیتابیسِ ما می‌نشیند. پس
+     * `CloudSshKey::inspect()` صریح ردش می‌کند و می‌گوید چه چیزی باید بچسباند.
+     *
+     * @return \App\Models\CloudSshKey|\Illuminate\Http\RedirectResponse|null
+     */
+    private function resolveSshKey(Customer $customer, array $data)
+    {
+        // کلیدِ ذخیره‌شدهٔ خودش
+        if (filled($data['ssh_key_id'] ?? null)) {
+            $key = \App\Models\CloudSshKey::where('customer_id', $customer->id)
+                ->whereKey((int) $data['ssh_key_id'])->first();
+
+            if ($key === null) {
+                return back()->withInput()->withErrors(['ssh_key_id' => 'کلیدِ انتخابی پیدا نشد.']);
+            }
+
+            return $key;
+        }
+
+        if (blank($data['ssh_key_new'] ?? null)) {
+            return null;                          // کلیدی نخواسته — با رمز جلو می‌رود
+        }
+
+        $check = \App\Models\CloudSshKey::inspect((string) $data['ssh_key_new']);
+
+        if (! $check['ok']) {
+            return back()->withInput()->withErrors(['ssh_key_new' => $check['message']]);
+        }
+
+        // کلیدِ تکراریِ همان مشتری دوباره ساخته نمی‌شود
+        $existing = \App\Models\CloudSshKey::where('customer_id', $customer->id)
+            ->where('fingerprint', $check['fingerprint'])->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        // نامِ تکراری (یکتا در سطحِ مشتری) را با شماره یکتا کن، وگرنه ذخیره با
+        // خطای یکتایی می‌شکند و کلِ سفارش ۵۰۰ می‌شود.
+        $base = mb_substr(trim((string) ($data['ssh_key_name'] ?? '')) ?: 'کلیدِ من', 0, 55);
+        $name = $base;
+
+        for ($i = 2; $i < 50 && \App\Models\CloudSshKey::where('customer_id', $customer->id)
+            ->where('name', $name)->exists(); $i++) {
+            $name = $base.' '.$i;
+        }
+
+        return \App\Models\CloudSshKey::create([
+            'customer_id' => $customer->id,
+            'name'        => $name,
+            'public_key'  => $check['normalized'],
+            'fingerprint' => $check['fingerprint'],
+            'key_type'    => $check['type'],
+        ]);
     }
 
     /**
@@ -437,10 +503,15 @@ class CloudStoreController extends Controller
             'cycle' => ['required', 'string', Rule::in(self::cycles())],
             // نامِ دلخواه: پاک‌سازی می‌شود، پس اعتبارسنجی‌اش سخت‌گیر نیست
             'label' => ['nullable', 'string', 'max:64'],
+            // افزودنی‌ها — تعدادِ IP اضافه و کلیدِ SSH
+            'extra_ipv4' => ['nullable', 'integer', 'min:0', 'max:'.CloudAddons::MAX_EXTRA_IP],
+            'ssh_key_id' => ['nullable', 'integer'],
+            'ssh_key_new' => ['nullable', 'string', 'max:6000'],
+            'ssh_key_name' => ['nullable', 'string', 'max:60'],
         ], [], [
             'location' => 'مکانِ سرور', 'plan' => 'پلن',
             'image' => 'سیستم‌عامل', 'cycle' => 'دورهٔ پرداخت',
-            'label' => 'نامِ سرور',
+            'label' => 'نامِ سرور', 'extra_ipv4' => 'تعدادِ IP اضافه',
         ]);
 
         // ── مکان باید همین حالا موجودی داشته باشد ──
@@ -479,8 +550,31 @@ class CloudStoreController extends Controller
         $image = CloudImage::query()->usable()->where('key', $data['image'])->first();
         $cycle = (string) $data['cycle'];
 
+        // ── افزودنی‌ها ──
+        // ⚠️ تعداد از ورودی می‌آید ولی **قیمت هرگز**؛ قیمت را CloudAddons از
+        // تنظیمات و نرخِ روز می‌سازد. عددِ منفی/اعشاری/رشته هم در sanitize
+        // کران‌دار می‌شود، وگرنه یک `extra_ipv4 = -3` مبلغِ کل را کم می‌کرد.
+        $addonSvc = app(CloudAddons::class);
+        $addons = $addonSvc->sanitize(['extra_ipv4' => $data['extra_ipv4'] ?? 0]);
+
+        // اگر افزودنیِ پولی خواسته، باید زیرساختی باشد که بتواند تحویلش دهد —
+        // وگرنه پول گرفته‌ایم و وعده‌ای داده‌ایم که انجام نمی‌شود.
+        if (! $addonSvc->isEmpty($addons)
+            && $addonSvc->bestPlanFor((string) $offer->slug, $addons, app(\App\Services\Cloud\CloudManager::class)) === null) {
+            return back()->withInput()->withErrors([
+                'extra_ipv4' => 'برای این پلن و مکان، IP اضافه در دسترس نیست. می‌توانید بی‌IP اضافه سفارش دهید.',
+            ]);
+        }
+
+        // ── کلیدِ SSH ──
+        $sshKey = $this->resolveSshKey($customer, $data);
+
+        if ($sshKey instanceof \Illuminate\Http\RedirectResponse) {
+            return $sshKey;                        // خطای اعتبارسنجیِ کلید
+        }
+
         // ── مبلغ از دیتابیس، نه از ورودی ──
-        $price = self::priceForCycle($offer, $cycle);
+        $price = self::priceForCycle($offer, $cycle, $addons);
 
         if ($price <= 0) {
             return back()->withInput()->withErrors(['plan' => 'قیمتِ این پلن در دسترس نیست؛ لطفاً بعداً تلاش کنید.']);
@@ -500,9 +594,13 @@ class CloudStoreController extends Controller
             'مکان: '.$locText,
             'سیستم‌عامل: '.($image?->label ?: $data['image']),
             'نامِ سرور: '.$label,
+            ($addons['extra_ipv4'] ?? 0) > 0
+                ? 'IP اضافه: '.fa_num((int) $addons['extra_ipv4']).' عدد'
+                : null,
+            $sshKey !== null ? 'ورود با کلیدِ SSH: '.$sshKey->label() : null,
         ]));
 
-        $invoice = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description) {
+        $invoice = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
             $service = Service::create([
                 'customer_id' => $customer->id,
                 'name' => mb_substr('سرور مجازی '.$label, 0, 150),
@@ -519,6 +617,10 @@ class CloudStoreController extends Controller
                 // واقعی برای سفارشِ پرداخت‌نشده. صف بعد از پرداخت پر می‌شود.
                 'cloud_plan_id' => $offer->id,
                 'cloud_image_key' => (string) $data['image'],
+                'cloud_ssh_key_id' => $sshKey?->id,
+                // فقط **تعداد** ذخیره می‌شود، نه قیمت — تا دو منبعِ حقیقت نداشته
+                // باشیم. قیمت همیشه از CloudAddons خوانده می‌شود.
+                'cloud_addons' => $addons,
                 // نامِ عمومیِ پلن (سفیدبرچسب) — به‌کارِ نمایش و پشتیبانی می‌آید
                 'plan' => (string) $offer->public_name,
             ]);

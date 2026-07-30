@@ -32,7 +32,10 @@ use Illuminate\Support\Facades\Log;
  */
 class CloudProvisioner
 {
-    public function __construct(private CloudManager $manager) {}
+    public function __construct(
+        private CloudManager $manager,
+        private CloudAddons $addons,
+    ) {}
 
     /** آیا این سرویس، سرورِ ابری است؟ */
     public static function handles(Service $service): bool
@@ -92,7 +95,15 @@ class CloudProvisioner
             return false;
         }
 
-        $plan = CloudPlan::bestForSlug((string) $ordered->slug) ?? $ordered;
+        // انتخابِ دیرهنگامِ زیرساخت — با دو قید: موجودی، و توانِ تحویلِ
+        // **افزودنی‌های خریده‌شده**. اگر مشتری IP اضافه خریده و ارزان‌ترین
+        // زیرساخت آن را نمی‌دهد، سراغِ بعدی می‌رویم؛ وگرنه پولِ چیزی را گرفته‌ایم
+        // که تحویلش ممکن نیست.
+        $wanted = $this->addons->sanitize($service->cloud_addons);
+
+        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager)
+            ?? CloudPlan::bestForSlug((string) $ordered->slug)
+            ?? $ordered;
 
         $driver = $this->manager->forPlan($plan);
 
@@ -168,12 +179,18 @@ class CloudProvisioner
             return $this->adoptExisting($service, $instance, $plan, $driver);
         }
 
+        // ── کلیدِ SSH ──
+        // باید **پیش** از ساختِ سرور در حسابِ ما نزدِ زیرساخت باشد، چون سرِ ساخت
+        // فقط اشاره به کلیدِ موجود پذیرفته می‌شود نه متنِ کلید.
+        $sshRefs = $this->sshKeyRefs($service, $plan);
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'name'         => $this->serverName($service),
             'plan_ref'     => (string) $plan->provider_ref,
             'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
             'image_ref'    => $imageRef,
+            'ssh_keys'     => $sshRefs,
             'labels'       => ['snet-service' => (string) $service->id],
         ]);
 
@@ -189,7 +206,13 @@ class CloudProvisioner
         // یکی ست می‌کنیم. بی‌این، مشتری سرور دارد ولی راهی به داخلش ندارد.
         $password = $result['root_password'] ?? null;
 
-        if (blank($password) && filled($result['ref'] ?? null) && ! str_starts_with((string) $result['ref'], 'order:')) {
+        // ⚠️ اگر کلیدِ SSH داده شده، زیرساخت عمداً رمز نمی‌سازد — و ما هم نباید
+        // بسازیم. ساختنِ رمز برای سروری که کلید دارد، همان امنیتی را که مشتری با
+        // انتخابِ کلید خواسته بود پس می‌گیرد (ورودِ رمزی باز می‌مانَد).
+        $keyOnly = $sshRefs !== [];
+
+        if (! $keyOnly && blank($password) && filled($result['ref'] ?? null)
+            && ! str_starts_with((string) $result['ref'], 'order:')) {
             $pw = $driver->resetPassword((string) $result['ref']);
             $password = $pw['root_password'] ?? null;
         }
@@ -209,9 +232,99 @@ class CloudProvisioner
 
         $instance->save();
 
+        // ── IP اضافه ──
+        // بعد از ساختِ سرور، چون به شناسه‌اش بسته می‌شود. شکستش تحویل را
+        // شکست‌خورده **نمی‌کند** (سرور کار می‌کند و مشتری منتظرش است)، ولی مدیر
+        // خبردار می‌شود تا دستی کامل کند — وگرنه چیزی که پولش گرفته شده بی‌صدا
+        // تحویل نمی‌شود.
+        $this->attachExtraIps($service, $instance, $driver, $wanted);
+
         $this->finalize($service, $instance, $plan, $password);
 
         return true;
+    }
+
+    /**
+     * شناسهٔ کلیدِ SSH مشتری نزدِ این زیرساخت — با بارگذاریِ یک‌بارهٔ تنبل.
+     *
+     * @return array<int,string>
+     */
+    private function sshKeyRefs(Service $service, CloudPlan $plan): array
+    {
+        if (blank($service->cloud_ssh_key_id)) {
+            return [];
+        }
+
+        $key = \App\Models\CloudSshKey::find($service->cloud_ssh_key_id);
+
+        if ($key === null || (int) $key->customer_id !== (int) $service->customer_id) {
+            return [];                       // کلیدِ حذف‌شده یا مالِ کسِ دیگر
+        }
+
+        $provider = (string) $plan->provider;
+
+        // از قبل بارگذاری شده؟ همان را بزن.
+        if ($ref = $key->refFor($provider)) {
+            return [$ref];
+        }
+
+        $driver = $this->manager->forPlan($plan);
+
+        if ($driver === null || ! ($driver->capabilities()['ssh_key'] ?? false)) {
+            return [];
+        }
+
+        // نامِ یکتا نزدِ زیرساخت: نامِ دلخواهِ مشتری می‌تواند با نامِ مشتریِ
+        // دیگری یکی باشد و «تکراری» بخورد.
+        $r = $driver->uploadSshKey('snet-'.$key->customer_id.'-'.$key->id, (string) $key->public_key);
+
+        if (! ($r['ok'] ?? false) || blank($r['ref'] ?? null)) {
+            Log::warning('cloud.sshkey.upload', ['key' => $key->id, 'err' => $r['message'] ?? '']);
+
+            return [];
+        }
+
+        $key->rememberRef($provider, (string) $r['ref']);
+        $key->update(['last_used_at' => now()]);
+
+        return [(string) $r['ref']];
+    }
+
+    /** IPهای اضافهٔ خریداری‌شده را به سرور ببند و در نمونه ثبت کن */
+    private function attachExtraIps(Service $service, CloudInstance $instance, CloudProvider $driver, array $wanted): void
+    {
+        $count = (int) ($wanted['extra_ipv4'] ?? 0);
+
+        if ($count < 1 || blank($instance->provider_ref)
+            || str_starts_with((string) $instance->provider_ref, 'order:')) {
+            return;
+        }
+
+        $r = $driver->addExtraIps((string) $instance->provider_ref, $count);
+        $ips = (array) ($r['ips'] ?? []);
+
+        $meta = (array) ($instance->meta ?? []);
+        $meta['extra_ips'] = $ips;
+        $instance->update(['meta' => $meta]);
+
+        if (count($ips) === $count) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event(
+                'IP اضافه کامل تحویل نشد',
+                [
+                    'سرویس'       => $service->name.' (#'.$service->id.')',
+                    'خریداری‌شده' => (string) $count,
+                    'تحویل‌شده'   => (string) count($ips),
+                    'علت'         => mb_substr((string) ($r['message'] ?? '—'), 0, 160),
+                ],
+                url('/admin/services'),
+                '⚠️'
+            );
+        } catch (\Throwable) {
+        }
     }
 
     /**

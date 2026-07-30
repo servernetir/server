@@ -85,7 +85,10 @@ class CloudCatalogSync
         $plans     = $this->syncPlans($provider, (array) $cat['plans']);
 
         return [
-            'ok' => true, 'message' => '',
+            // پیامِ توضیحیِ درایور را نگه می‌داریم: «۴۰ محصول خوانده شد ولی هیچ
+            // پلنی ساخته نشد چون…». بی‌این، گزارش فقط «۰ پلن» می‌گفت و هیچ
+            // سرنخی از علت نمی‌داد.
+            'ok' => true, 'message' => (string) ($cat['message'] ?? ''),
             'locations' => $locations, 'plans' => $plans, 'images' => $images,
         ];
     }

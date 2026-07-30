@@ -102,9 +102,20 @@ class CloudController extends Controller
 
         foreach ($report['providers'] as $r) {
             $i++;
-            $lines[] = $r['ok']
-                ? "زیرساختِ {$i}: {$r['plans']} پلن، {$r['locations']} مکان، {$r['images']} سیستم‌عامل"
-                : "زیرساختِ {$i}: خطا — {$r['message']}";
+            if (! $r['ok']) {
+                $lines[] = "زیرساختِ {$i}: خطا — {$r['message']}";
+
+                continue;
+            }
+
+            $line = "زیرساختِ {$i}: {$r['plans']} پلن، {$r['locations']} مکان، {$r['images']} سیستم‌عامل";
+
+            // توضیحِ «چرا صفر» — اگر درایور دلیلی داشت، همان‌جا نشان بده
+            if (filled($r['message'] ?? null)) {
+                $line .= ' ⚠️ '.$r['message'];
+            }
+
+            $lines[] = $line;
         }
 
         if (($report['rate'] ?? 0) <= 0) {

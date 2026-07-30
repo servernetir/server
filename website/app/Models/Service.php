@@ -20,7 +20,7 @@ class Service extends Model
         'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
         // سرورِ ابری — به پلن اشاره می‌کند نه به سرور (پیش از خرید وجود ندارد)
-        'cloud_plan_id', 'cloud_image_key',
+        'cloud_plan_id', 'cloud_image_key', 'cloud_ssh_key_id', 'cloud_addons',
         // چرخهٔ تمدید (یادآوری/تعلیق/مهلت)
         'reminder_stage', 'suspended_at', 'grace_alert_at',
     ];
@@ -36,6 +36,7 @@ class Service extends Model
             'password'       => 'encrypted',   // رمزِ کنترل‌پنل — هرگز خام
             'provisioned_at' => 'datetime',
             'provision_meta' => 'array',
+            'cloud_addons'   => 'array',
             'reminder_stage' => 'integer',
             'suspended_at'   => 'datetime',
             'grace_alert_at' => 'datetime',

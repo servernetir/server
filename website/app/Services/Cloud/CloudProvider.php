@@ -107,9 +107,31 @@ interface CloudProvider
     public function resize(string $ref, string $planRef, bool $upgradeDisk = true): array;
 
     /**
+     * بارگذاریِ کلیدِ عمومیِ SSH در حسابِ ما نزدِ ارائه‌دهنده.
+     *
+     * ⚠️ چرا لازم است: ارائه‌دهنده‌ها سرِ ساختِ سرور فقط **اشاره** به کلیدِ
+     * ازقبل‌بارگذاری‌شده می‌پذیرند، نه متنِ کلید. پس یک‌بار بارگذاری می‌شود و
+     * شناسه‌اش نگه داشته می‌شود.
+     *
+     * idempotent: اگر کلید (با همان اثرِ انگشت) از قبل باشد، همان شناسهٔ موجود
+     * برگردانده می‌شود نه خطا — وگرنه دومین سرورِ همان مشتری تحویل نمی‌شد.
+     *
+     * @return array{ok:bool,message:string,ref:?string}
+     */
+    public function uploadSshKey(string $name, string $publicKey): array;
+
+    /**
+     * افزودنِ IPv4 اضافه به یک سرورِ ساخته‌شده.
+     *
+     * @return array{ok:bool,message:string,ips:array<int,string>}
+     */
+    public function addExtraIps(string $ref, int $count): array;
+
+    /**
      * توانایی‌های این ارائه‌دهنده تا رابطِ کاربری دکمهٔ بی‌فایده نشان ندهد.
      *
-     * @return array<string,bool> کلیدها: console, rebuild, resize, snapshot, metrics, reset_password, ipv6
+     * @return array<string,bool> کلیدها: console, rebuild, resize, snapshot,
+     *                            metrics, reset_password, ipv6, ssh_key, extra_ip
      */
     public function capabilities(): array;
 }

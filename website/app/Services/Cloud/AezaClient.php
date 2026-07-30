@@ -82,7 +82,20 @@ class AezaClient implements CloudProvider
             'console' => false, 'rebuild' => true, 'resize' => false,
             'snapshot' => false, 'metrics' => false, 'reset_password' => true,
             'ipv6' => true, 'rescue' => false,
+            // این دو را در API عمومی‌شان نداریم، پس صریح false — تا سرورساز
+            // چیزی نفروشد که تحویلش ممکن نیست.
+            'ssh_key' => false, 'extra_ip' => false,
         ];
+    }
+
+    public function uploadSshKey(string $name, string $publicKey): array
+    {
+        return ['ok' => false, 'message' => 'کلیدِ SSH برای این سرور در دسترس نیست.', 'ref' => null];
+    }
+
+    public function addExtraIps(string $ref, int $count): array
+    {
+        return ['ok' => false, 'message' => 'IP اضافه برای این سرور در دسترس نیست.', 'ips' => []];
     }
 
     // ───────────────────────── لایهٔ تماس ─────────────────────────
@@ -145,14 +158,70 @@ class AezaClient implements CloudProvider
             $v = data_get($body, implode('.', $path));
 
             if (is_array($v) && $v !== [] && array_is_list($v)) {
-                return $v;
+                return $this->flattenGroups($v);
             }
             if (is_array($v) && isset($v['items']) && is_array($v['items'])) {
-                return $v['items'];
+                return $this->flattenGroups($v['items']);
             }
         }
 
         return [];
+    }
+
+    /**
+     * فهرستِ **گروه‌بندی‌شده** را به فهرستِ محصول تبدیل کن.
+     *
+     * ⚠️ چرا لازم شد: زیرساختِ ۲ محصولات را گروه‌به‌گروه می‌دهد (هر ردیف یک
+     * دسته با آرایهٔ `products` درونش). بی‌این باز کردن، ما **گروه‌ها** را
+     * محصول می‌فهمیدیم و چون گروه هسته/رم/دیسک ندارد، همه‌شان رد می‌شدند و
+     * گزارش «۰ پلن» می‌داد — درحالی‌که سیستم‌عامل‌ها درست خوانده می‌شدند و همین
+     * تناقض، سرنخِ ماجرا بود.
+     *
+     * ویژگی‌های خودِ گروه (مثلِ مکان) به فرزندان ارث می‌رسد، چون معمولاً مکان
+     * روی گروه است نه روی هر محصول.
+     */
+    private function flattenGroups(array $rows): array
+    {
+        $out = [];
+        $nested = false;
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $children = null;
+
+            foreach (['products', 'items', 'tariffs', 'plans'] as $key) {
+                if (isset($row[$key]) && is_array($row[$key]) && $row[$key] !== [] && array_is_list($row[$key])) {
+                    $children = $row[$key];
+                    break;
+                }
+            }
+
+            if ($children === null) {
+                $out[] = $row;
+
+                continue;
+            }
+
+            $nested = true;
+            $parent = $row;
+
+            // خودِ آرایهٔ فرزندان از والد حذف می‌شود تا ارث‌بری آلوده نشود
+            foreach (['products', 'items', 'tariffs', 'plans'] as $key) {
+                unset($parent[$key]);
+            }
+
+            foreach ($children as $child) {
+                if (is_array($child)) {
+                    // فیلدهای خودِ محصول اولویت دارند؛ والد فقط جای خالی را پر می‌کند
+                    $out[] = $child + ['group' => $parent] + $parent;
+                }
+            }
+        }
+
+        return $nested ? $out : $rows;
     }
 
     /**
@@ -392,17 +461,29 @@ class AezaClient implements CloudProvider
         $locations = [];
         $plans = [];
 
+        // ⚠️ چرا شمارنده: قبلاً اگر همهٔ محصولات فیلتر می‌شدند، گزارش فقط
+        // «۰ پلن» می‌گفت و هیچ سرنخی نبود که مشکل کدام صافی است — نامِ فیلد؟
+        // نبودِ مکان؟ نبودِ قیمت؟ این شمارنده «هیچی نیاورد» را به «۴۰ محصول
+        // خوانده شد، ۴۰ تا بی‌فیلدِ مکان رد شد» تبدیل می‌کند.
+        $seen = 0;
+        $why = ['not_vps' => 0, 'no_id' => 0, 'bad_specs' => 0, 'no_price' => 0, 'no_location' => 0];
+
         foreach ($this->items($r['body']) as $p) {
+            $seen++;
             // ⚠️ فقط **سرورِ مجازی** — خواستهٔ صریحِ کارفرما «فعلاً فقط سرور مجازی».
             // این ارائه‌دهنده پروکسی و WAF و دامنه و سرورِ فیزیکی هم می‌فروشد؛
             // اگر همه را بیاوریم، محصولی روی سایت می‌نشیند که نه صفحه‌اش را
             // ساخته‌ایم نه تحویلش را — و مشتری می‌تواند بخردش.
             if (! $this->isVpsProduct($p)) {
+                $why['not_vps']++;
+
                 continue;
             }
 
             $ref = (string) ($p['id'] ?? '');
             if ($ref === '') {
+                $why['no_id']++;
+
                 continue;
             }
 
@@ -410,16 +491,22 @@ class AezaClient implements CloudProvider
 
             // مشخصاتِ ناقص = رد. پلنِ «۰ هسته / ۰ گیگ» روی سایت، فاجعهٔ اعتماد است.
             if ($specs['vcpu'] < 1 || $specs['ram_mb'] < 128 || $specs['disk_gb'] < 1) {
+                $why['bad_specs']++;
+
                 continue;
             }
 
             $rub = $this->monthlyRub($p);
             if ($rub <= 0) {
+                $why['no_price']++;
+
                 continue;
             }
 
             [$country, $city, $locRef] = $this->locationOf($p);
             if ($country === '') {
+                $why['no_location']++;
+
                 continue;
             }
 
@@ -451,8 +538,31 @@ class AezaClient implements CloudProvider
             ];
         }
 
+        // اگر چیزی خوانده شد ولی هیچ پلنی نساخت، **دلیلش** را بگو. پیامِ
+        // «۰ پلن» بی‌دلیل، عیب‌یابی را به حدس‌وگمان تبدیل می‌کند.
+        $note = '';
+
+        if ($plans === [] && $seen > 0) {
+            $parts = [];
+
+            foreach (array_filter($why) as $reason => $count) {
+                $parts[] = match ($reason) {
+                    'not_vps'     => $count.' غیرِ سرورِ مجازی',
+                    'no_id'       => $count.' بی‌شناسه',
+                    'bad_specs'   => $count.' با مشخصاتِ ناخوانا (نامِ فیلدِ هسته/رم/دیسک نخواند)',
+                    'no_price'    => $count.' بی‌قیمتِ ماهانه',
+                    'no_location' => $count.' بی‌مکانِ قابلِ تشخیص',
+                    default       => $count.' '.$reason,
+                };
+            }
+
+            $note = $seen.' محصول خوانده شد ولی هیچ پلنی ساخته نشد — '
+                .implode(' · ', $parts)
+                .'. صفحهٔ «ساختارِ خامِ پاسخ» نامِ واقعیِ فیلدها را نشان می‌دهد.';
+        }
+
         return [
-            'ok' => true, 'message' => '',
+            'ok' => true, 'message' => $note,
             'locations' => array_values($locations),
             'plans'     => $plans,
             'images'    => $this->fetchImages(),

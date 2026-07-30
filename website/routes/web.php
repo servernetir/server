@@ -153,6 +153,14 @@ $site = function (): void {
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
         Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
+        // صفحهٔ کنسولِ زنده روی **دامنهٔ خودمان** + بلیتِ یک‌بارمصرفِ آدرسِ اتصال.
+        // ⚠️ الگوی مسیرِ view در SecurityHeaders هم آمده (تنها جایی که CSP اجازهٔ
+        // wss: می‌دهد). اگر مسیر را عوض کردی، آن‌جا را هم عوض کن وگرنه مرورگر
+        // اتصال را بی‌صدا بلاک می‌کند و صفحه تا ابد «در حالِ اتصال» می‌مانَد.
+        Route::get('/cloud/{service}/console/view', [Account\CloudServerController::class, 'consoleView'])
+            ->name('cloud.console.view');
+        Route::get('/cloud/{service}/console/ticket', [Account\CloudServerController::class, 'consoleTicket'])
+            ->name('cloud.console.ticket')->middleware('throttle:20,1');
         // خرید — از دکمهٔ خریدِ سایت اصلی مستقیم به تسویهٔ همان پکیج در پنل
         Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
