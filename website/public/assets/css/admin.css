@@ -56,10 +56,18 @@ a{color:inherit;text-decoration:none}
 .ad-side::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
 .ad-side::-webkit-scrollbar-track{background:transparent}
 .ad-nav{min-height:0}
-.ad-logo{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:800;padding:6px 8px 20px}
+.ad-logo{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:800;padding:6px 8px 20px;flex-shrink:0}
 .ad-logo b{font-weight:500;color:var(--dim);font-size:14px}
 .ad-logo-m{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#22d3ee,#8b5cf6);color:#04121a}
-.ad-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+/* 🔴 flex:1 (یعنی flex:1 1 0%) نزن: با flex-basis:0 نوار به‌جای ارتفاعِ
+   محتوایش، به اندازهٔ فضای خالی کش می‌آید. وقتی آیتم‌ها از صفحه بیشتر شدند،
+   جعبهٔ nav صفر-پایه پُر می‌شد، آیتم‌های اضافه از جعبه بیرون می‌زدند و روی
+   دکمهٔ «خروج» می‌افتادند (خروج «وسطِ منو» دیده می‌شد)، و چون کانتینر فکر
+   می‌کرد همه‌چیز جا شده، overflow-y هم اسکرول نمی‌داد. `flex:1 0 auto` یعنی
+   پایه = ارتفاعِ واقعیِ محتوا (پس .ad-side درست اسکرول می‌شود) + رشد برای پُر
+   کردنِ فضای اضافه در صفحاتِ بلند (پس «خروج» ته می‌چسبد) + بدونِ کوچک‌شدن. */
+.ad-nav{display:flex;flex-direction:column;gap:3px;flex:1 0 auto}
+.ad-logout{flex-shrink:0}
 .ad-nav a{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--muted);font-weight:600;transition:.18s}
 .ad-nav a:hover{background:var(--surface);color:var(--text)}
 .ad-nav a.on{background:linear-gradient(100deg,rgba(34,211,238,.15),rgba(139,92,246,.15));color:var(--text)}
