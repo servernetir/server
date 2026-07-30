@@ -100,6 +100,9 @@ class CloudController extends Controller
         $lines = [];
         $i = 0;
 
+        $sanity = $report['providers']['__sanity'] ?? null;
+        unset($report['providers']['__sanity']);
+
         foreach ($report['providers'] as $r) {
             $i++;
             if (! $r['ok']) {
@@ -116,6 +119,11 @@ class CloudController extends Controller
             }
 
             $lines[] = $line;
+        }
+
+        // دامِ «واحدِ قیمت اشتباه» — پیش از هر چیزِ دیگر دیده شود
+        if (is_string($sanity) && $sanity !== '') {
+            $lines[] = $sanity;
         }
 
         if (($report['rate'] ?? 0) <= 0) {

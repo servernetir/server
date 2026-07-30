@@ -133,7 +133,22 @@
         <label class="set-f">۱ یورو چند روبل؟ <span style="color:var(--dim)">(برای زیرساختِ ۲)</span>
           <input type="number" name="aeza_rub_per_eur" dir="ltr" step="0.01" min="10" max="5000"
                  value="{{ $cloud['rub'] }}" placeholder="مثلاً ۱۰۰"></label>
+        <label class="set-f">واحدِ عددِ قیمتِ زیرساختِ ۲
+          <select name="aeza_price_divisor" dir="rtl">
+            <option value="100" @selected((string) $cloud['divisor'] !== '1')>کوپک — عدد بر ۱۰۰ تقسیم شود (پیش‌فرض)</option>
+            <option value="1" @selected((string) $cloud['divisor'] === '1')>روبل — عدد همان‌طور خوانده شود</option>
+          </select></label>
       </div>
+
+      <p style="margin:10px 0 0;color:var(--warn);font-size:12.5px;line-height:1.9">
+        <b>⚠️ این یک تنظیم است چون از داده قابلِ حدس نیست.</b> عددِ ۵۰٬۰۰۰ اگر کوپک باشد
+        ۵۰۰ روبل است و اگر روبل باشد ۵۰٬۰۰۰ روبل — و هر دو برای یک سرورِ مجازی قیمتِ
+        منطقی‌اند، پس هیچ الگوریتمی نمی‌تواند تشخیص دهد.
+        <br>اگر قیمت‌ها <b>خیلی ارزان</b> افتادند، این را روی «روبل» بگذارید؛ اگر
+        <b>خیلی گران</b>، روی «کوپک». صفحهٔ
+        <a href="/admin/cloud/probe" style="color:#22d3ee">ساختارِ خامِ پاسخ</a>
+        عددِ خام را کنارِ قیمتِ تفسیرشده نشان می‌دهد تا با فاکتورِ خودتان مقایسه کنید.
+      </p>
 
       <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px;line-height:1.9">
         <b>چرا روبل؟</b> API زیرساختِ ۲ قیمت‌ها را — هر ارزی که حسابِ شما باشد — به <b>روبل</b>

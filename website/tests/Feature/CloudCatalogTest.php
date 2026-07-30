@@ -853,7 +853,8 @@ class CloudCatalogTest extends TestCase
             'id' => 77, 'name' => 'EPs-1', 'type' => 'vm',
             'cpu' => 2, 'ram' => 4096, 'disk' => 60,
             'location' => ['country' => 'DE', 'city' => 'Frankfurt', 'id' => 'de-1'],
-            'prices' => ['month' => 500.0],                       // ۵۰۰ روبل = ۵ یورو
+            // ⚠️ به **کوپک** — واحدِ واقعیِ این API. ۵۰٬۰۰۰ کوپک = ۵۰۰ روبل = ۵ یورو
+            'prices' => ['month' => 50000.0],
         ], $over);
     }
 

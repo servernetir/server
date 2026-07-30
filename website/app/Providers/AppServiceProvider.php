@@ -97,9 +97,21 @@ class AppServiceProvider extends ServiceProvider
      *
      * روی composer و نه boot(): پرس‌وجوی دیتابیس فقط وقتی انجام شود که هدر
      * واقعاً رندر می‌شود — نه در هر درخواستِ API یا فرمانِ کرون.
+     *
+     * 🔴 و چرا **عکسِ** منو جدا نگه داشته می‌شود: چون همین‌جا روی
+     * `servernet.mega` می‌نویسیم، اگر `SiteMenu::mega()` هم از همان کلید بخواند،
+     * خروجی‌اش ورودیِ پاسِ بعدی می‌شود و ترنسفورم روی خودش می‌دود (برچسبِ
+     * دوباره، لینکِ فراگیرِ تکراری، مکان‌های دوبرابر). پس نسخهٔ دست‌نخورده را
+     * **پیش از هر رندر** در کلیدِ جدا می‌گذاریم و `mega()` از آن می‌خواند.
+     *
+     * ⚠️ اینجا و نه تنبل‌وار داخلِ خودِ `mega()`: boot همیشه قبل از ویوها اجرا
+     * می‌شود، پس این عکس قطعاً دست‌نخورده است. عکسِ تنبل، «اولین صدا زدن» را
+     * تعیین‌کننده می‌کرد و همان ترتیب‌حساسی از درِ دیگر برمی‌گشت.
      */
     private function syncSiteMenu(): void
     {
+        config([\App\Services\SiteMenu::SOURCE => config('servernet.mega')]);
+
         View::composer('partials.header', function () {
             try {
                 config(['servernet.mega' => app(\App\Services\SiteMenu::class)->mega()]);

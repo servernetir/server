@@ -466,6 +466,87 @@ class SiteMenuSyncTest extends TestCase
         $this->assertSame('همهٔ سرورهای مجازی', end($fa), 'و آخرِ همه بمانَد');
     }
 
+    /**
+     * 🔴 این تست از همهٔ تست‌های بالا حساس‌تر است — و دلیلش را بخوان قبل از
+     * دست‌زدن به `mega()`:
+     *
+     * دو محافظِ **مستقل** روی این باگ نشسته است:
+     *   ۱) `mega()` از عکسِ دست‌نخورده می‌خواند (`SiteMenu::SOURCE`)، نه از
+     *      کلیدی که composer رویش می‌نویسد.
+     *   ۲) `soldOutItems()` برچسبِ از قبل چسبیده را دوباره نمی‌چسباند.
+     *
+     * محافظِ ۲ به‌تنهایی جلوی برچسبِ تکراری را می‌گیرد، پس اگر محافظِ ۱ را
+     * برداری **همهٔ تست‌های بالا سبز می‌مانند** (خودم امتحان کردم: ۲۲ تست سبز
+     * با محافظِ ۱ برداشته‌شده). یعنی آنها ادعای «خالص‌بودنِ نسبت به config» را
+     * اثبات نمی‌کنند، فقط عوارضش را می‌پوشانند.
+     *
+     * این تست دقیقاً محافظِ ۱ را می‌سنجد: کلیدِ `servernet.mega` را آلوده
+     * می‌کنیم؛ اگر `mega()` از آن بخواند، آلودگی در خروجی ظاهر می‌شود.
+     */
+    public function test_mega_reads_the_pristine_snapshot_not_the_key_it_writes_into(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        // همان کلیدی که composerِ هدر رویش می‌نویسد را دستی آلوده می‌کنیم
+        $polluted = config('servernet.mega');
+
+        foreach ($polluted['vps']['groups'] as $i => $group) {
+            if (($group['en'] ?? '') === 'Locations') {
+                $polluted['vps']['groups'][$i]['items'][] = [
+                    'slug' => 'atlantis',
+                    'fa'   => 'سرور مجازی آتلانتیس',
+                    'en'   => 'Atlantis VPS',
+                    'tr'   => 'Atlantis VPS',
+                ];
+            }
+        }
+
+        config(['servernet.mega' => $polluted]);
+
+        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
+
+        $this->assertStringNotContainsString('آتلانتیس', $joined,
+            'mega() باید از عکسِ دست‌نخورده بخواند، نه از کلیدی که خودش رویش نوشته می‌شود');
+    }
+
+    /**
+     * و کمربندِ دوم (`soldOutItems()`) هم تستِ خودش را لازم دارد.
+     *
+     * روی مسیرِ عادی هرگز صدا نمی‌دهد — چون محافظِ ۱ همیشه از عکسِ دست‌نخورده
+     * می‌سازد — پس بی‌این تست، برداشتنش هیچ تستی را قرمز نمی‌کرد. همان تلهٔ
+     * «محافظِ نانوشته» که یک بار خوردیم، فقط از سمتِ دیگر.
+     *
+     * پس مسیرِ fallback را عمداً می‌سازیم: کلیدِ عکس را برمی‌داریم و
+     * `servernet.mega` را با خروجیِ خودِ `mega()` آلوده می‌کنیم.
+     */
+    public function test_label_never_doubles_even_on_the_fallback_path(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $once = app(SiteMenu::class)->mega();
+
+        // کلیدِ عکس باید **واقعاً حذف** شود؛ ست‌کردنش به null بی‌فایده است چون
+        // null هم یک مقدارِ معتبر است و `config($key, $default)` را بی‌اثر می‌کند.
+        $servernet = config('servernet');
+        unset($servernet['mega_source']);
+        config(['servernet' => $servernet, 'servernet.mega' => $once]);
+
+        $twice = app(SiteMenu::class)->mega();
+
+        foreach ($twice['vps']['groups'] as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                $fa = (string) ($item['fa'] ?? '');
+
+                $this->assertLessThanOrEqual(1, substr_count($fa, 'اتمام ظرفیت'),
+                    "برچسب در «{$fa}» تکرار شده است");
+            }
+        }
+
+        $this->assertSame($once, $twice, 'حتی روی مسیرِ fallback هم خروجی باید پایدار بمانَد');
+    }
+
     /** مکان‌های زنده هم با رندرهای بیشتر تکرار نشوند */
     public function test_live_locations_are_not_duplicated_by_extra_renders(): void
     {

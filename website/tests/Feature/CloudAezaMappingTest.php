@@ -216,17 +216,43 @@ class CloudAezaMappingTest extends TestCase
     }
 
     /**
-     * ⚠️ محافظِ جهتِ خطرناک: اگر روزی قیمت را روبلِ خالص بدهند، تفسیرِ کوپک
-     * سرورِ ۵ یورویی را ۵ سنت می‌کند و ما زیرِ قیمتِ خرید می‌فروشیم. عددی که با
-     * تفسیرِ کوپک بی‌معنا کوچک شود، روبل حساب می‌شود.
+     * واحدِ قیمت یک **تنظیم** است، نه یک حدس.
+     *
+     * 🔴 چرا تستِ قبلی حذف شد: فرض می‌کرد می‌شود از بزرگیِ عدد فهمید کوپک است
+     * یا روبل. این ریاضیاتاً نشدنی است — عددِ ۵۰٬۰۰۰ اگر کوپک باشد ۵۰۰ روبل و
+     * اگر روبل باشد ۵۰٬۰۰۰ روبل، و **هر دو** برای یک سرورِ مجازی منطقی‌اند.
+     * هیچ بازه‌ای این دو را جدا نمی‌کند، پس حدس‌زدن یعنی گاهی ۱۰۰ برابر ارزان
+     * فروختن — و درست همین اتفاق روی حسابِ واقعی افتاد.
      */
-    public function test_plain_ruble_price_is_not_divided_into_nonsense(): void
+    public function test_price_divisor_is_an_explicit_setting(): void
     {
+        // پیش‌فرض: کوپک (÷۱۰۰) — از داکیومنتِ Terraform همان ارائه‌دهنده
+        $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
+
+        \App\Models\Setting::put('aeza_price_divisor', '1');
+        $this->assertSame(1.0, \App\Services\Cloud\AezaClient::priceDivisor());
+
+        // مقدارِ بی‌معنا نباید بی‌صدا قیمت را خراب کند
+        \App\Models\Setting::put('aeza_price_divisor', '7');
+        $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
+    }
+
+    /** با مقسومِ ۱، همان عدد روبل خوانده می‌شود */
+    public function test_divisor_one_reads_the_number_as_rubles(): void
+    {
+        \App\Models\Setting::put('aeza_price_divisor', '1');
+        \App\Models\Setting::put('aeza_rub_per_eur', '100');
+
+        // هر دو کیف را عوض کن: rawPrices اول خوانده می‌شود
         $this->fake([$this->vps(['prices' => ['month' => 500], 'rawPrices' => ['month' => 500]])]);
 
-        $this->assertSame(500, $this->catalog()['plans'][0]['cost_eur_cents'] ?? null,
-            '۵۰۰ روبل باید ۵ یورو بماند، نه ۵ سنت');
+        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        $this->assertCount(1, $cat['plans'], (string) ($cat['message'] ?? ''));
+        // ۵۰۰ روبل ÷ ۱۰۰ = ۵ یورو = ۵۰۰ سنت
+        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
     }
+
 
     /** قیمتِ بی‌معنا در هر دو تفسیر ⇒ **هیچ** قیمتی ساخته نشود */
     public function test_implausible_price_is_rejected_rather_than_guessed(): void
@@ -440,7 +466,8 @@ class CloudAezaMappingTest extends TestCase
             'id' => 77, 'name' => 'EPs-1', 'type' => 'vm',
             'cpu' => 2, 'ram' => 4096, 'disk' => 60,
             'location' => ['country' => 'DE', 'city' => 'Frankfurt', 'id' => 'de-1'],
-            'prices' => ['month' => 500.0],
+            // به کوپک، مثلِ بقیه — ۵۰٬۰۰۰ کوپک = ۵۰۰ روبل
+            'prices' => ['month' => 50000.0],
         ]]);
 
         $plan = $this->catalog()['plans'][0] ?? null;

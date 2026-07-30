@@ -65,6 +65,12 @@ class CloudCatalogSync
         // در منو دیده نمی‌شد و مدیر فکر می‌کرد همگام‌سازی کار نکرده.
         \App\Services\SiteMenu::forget();
 
+        $warning = $this->crossProviderSanity();
+
+        if ($warning !== null) {
+            $report['__sanity'] = $warning;
+        }
+
         return [
             'ok'        => $report !== [] && collect($report)->contains('ok', true),
             'providers' => $report,
@@ -241,6 +247,72 @@ class CloudCatalogSync
         }
 
         return $n;
+    }
+
+    /**
+     * راستی‌آزماییِ متقابلِ زیرساخت‌ها — دامِ خودکارِ «واحدِ قیمت اشتباه».
+     *
+     * ═══ چرا لازم شد ═══
+     * قیمت‌های زیرساختِ ۲ یک بار **۱۰۰ برابر ارزان** خوانده شدند (عددِ روبل
+     * به‌جای کوپک تفسیر شد) و هیچ‌چیز در سیستم صدا در نیاورد. کارفرما با چشم
+     * دید که «خیلی ارزان افتاده‌اند». یک اشتباهِ واحد که فقط با چشمِ انسان دیده
+     * شود، دیر یا زود از دست می‌رود.
+     *
+     * منطق: بهایِ تمام‌شدهٔ هر گیگابایتِ رم را در دو زیرساخت مقایسه کن. سرورِ
+     * مجازی کالای کم‌وبیش یکسانی است؛ اختلافِ ۲۰–۳۰ درصد طبیعی است، اختلافِ
+     * چند برابر یعنی چیزی در نگاشتِ واحد شکسته.
+     *
+     * عمداً **هشدار** است و نه توقف: ممکن است واقعاً ارزان‌تر باشند. ولی مدیر
+     * باید ببیندش و یک‌بار با فاکتورِ خودش بسنجد.
+     */
+    private function crossProviderSanity(): ?string
+    {
+        if (! Schema::hasTable('cloud_plans')) {
+            return null;
+        }
+
+        $perGb = [];
+
+        foreach (array_keys(CloudManager::DRIVERS) as $provider) {
+            $rows = CloudPlan::query()
+                ->where('provider', $provider)
+                ->where('is_active', true)
+                ->where('cost_eur_cents', '>', 0)
+                ->where('ram_mb', '>', 0)
+                ->get(['cost_eur_cents', 'ram_mb']);
+
+            if ($rows->count() < 3) {
+                continue;                  // نمونهٔ کم، مقایسه بی‌معنا
+            }
+
+            // میانه و نه میانگین: یک پلنِ عجیب میانگین را می‌برد
+            $values = $rows->map(fn ($r) => $r->cost_eur_cents / ($r->ram_mb / 1024))
+                ->sort()->values();
+
+            $perGb[$provider] = (float) $values[intdiv($values->count(), 2)];
+        }
+
+        if (count($perGb) < 2) {
+            return null;
+        }
+
+        $min = min($perGb);
+        $max = max($perGb);
+
+        if ($min <= 0 || $max / $min < 4) {
+            return null;                   // اختلافِ طبیعیِ بازار
+        }
+
+        $cheapest = array_search($min, $perGb, true);
+        $label = app(CloudManager::class)->label((string) $cheapest);
+
+        return sprintf(
+            '⚠️ %s حدودِ %s برابر ارزان‌تر از دیگری درآمده (بهایِ هر گیگ رم). '
+            .'احتمالِ قوی: واحدِ عددِ قیمت اشتباه خوانده شده. در تنظیمات «واحدِ '
+            .'عددِ قیمت» را عوض کنید و قیمتِ یک پلن را با فاکتورِ خودتان بسنجید.',
+            $label,
+            fa_num((string) round($max / $min))
+        );
     }
 
     /**
