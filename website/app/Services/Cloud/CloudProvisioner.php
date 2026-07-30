@@ -217,6 +217,115 @@ class CloudProvisioner
         return true;
     }
 
+    /**
+     * تازه‌کردنِ وضعیتِ نمونه‌های زنده + **بستنِ سفارش‌های نیمه‌کاره**.
+     *
+     * ⚠️ چرا حیاتی است: زیرساختِ ۲ دومرحله‌ای است — `POST orders` یک سفارش
+     * می‌سازد و شناسهٔ سرویس چند لحظه بعد در `createdServiceIds` ظاهر می‌شود.
+     * اگر در همان چند ثانیه نرسد، `provider_ref` با پیشوندِ `order:` ذخیره
+     * می‌شود. بی‌این متد، آن ref **برای همیشه** `order:…` می‌ماند:
+     * `isActionable()` نادرست است، پس مشتری سرورِ پول‌داده‌اش را هرگز نمی‌تواند
+     * روشن/خاموش کند و IP هم ندارد. یک تحویلِ «موفقِ» بی‌فایده.
+     *
+     * هم‌زمان وضعیتِ `building` را پی می‌گیرد تا وقتی سرور بالا آمد، IP و
+     * وضعیتِ درست در پنل بنشیند بی‌آنکه مشتری منتظرِ کلیکِ خودش بماند.
+     *
+     * @return array{resolved:int,refreshed:int,failed:int}
+     */
+    public function syncInstances(int $limit = 40): array
+    {
+        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0];
+
+        // ⚠️ گروه‌بندیِ شرط لازم است: بی‌آن، اگر روزی شرطِ دیگری (مثلِ محدودکردن
+        // به یک مشتری) اضافه شود، `OR` آن را دور می‌زند و روی **همهٔ** ردیف‌ها
+        // می‌دود.
+        $rows = CloudInstance::query()
+            ->where(function ($q) {
+                $q->whereIn('status', ['building', 'unknown'])
+                    ->orWhere('provider_ref', 'like', 'order:%');
+            })
+            ->whereNotIn('status', ['deleted'])
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get();
+
+        foreach ($rows as $instance) {
+            $driver = $this->manager->forInstance($instance);
+
+            if ($driver === null || blank($instance->provider_ref)) {
+                continue;
+            }
+
+            try {
+                // ① سفارشِ نیمه‌کاره → شناسهٔ سرویسِ واقعی
+                if (str_starts_with((string) $instance->provider_ref, 'order:')
+                    && $driver instanceof AezaClient) {
+                    $real = $driver->resolveOrder((string) $instance->provider_ref);
+
+                    if ($real === null) {
+                        continue;               // هنوز آماده نیست؛ دفعهٔ بعد
+                    }
+
+                    $instance->update(['provider_ref' => $real]);
+                    $out['resolved']++;
+                }
+
+                // ② وضعیتِ زنده
+                $r = $driver->serverStatus((string) $instance->provider_ref);
+
+                if (! ($r['ok'] ?? false)) {
+                    $out['failed']++;
+
+                    continue;
+                }
+
+                $wasBuilding = $instance->status === 'building';
+
+                $instance->update([
+                    'status'    => $r['status'],
+                    'ipv4'      => $r['ipv4'] ?: $instance->ipv4,
+                    'ipv6'      => $r['ipv6'] ?: $instance->ipv6,
+                    'synced_at' => now(),
+                ]);
+                $out['refreshed']++;
+
+                // تازه بالا آمد و IP گرفت → مشخصاتِ سرویس را کامل کن.
+                if ($wasBuilding && $r['status'] === 'running' && filled($instance->ipv4)) {
+                    $service = $instance->service;
+
+                    if ($service) {
+                        $meta = (array) ($service->provision_meta ?? []);
+
+                        // ⚠️ اعلانِ «آماده شد» لحظهٔ تحویل فرستاده شده است. اگر
+                        // این‌جا بی‌قید دوباره بفرستیم، هر مشتری **دو ایمیل**
+                        // می‌گیرد. فقط وقتی می‌فرستیم که اعلانِ اول IP نداشته
+                        // باشد (حالتِ سفارشِ دومرحله‌ای) — یعنی مشتری هنوز
+                        // آدرسِ سرورش را ندیده.
+                        $hadIp = filled($meta['ip'] ?? null);
+
+                        $meta['ip'] = $instance->ipv4;
+                        $meta['ipv6'] = $instance->ipv6;
+
+                        $service->forceFill([
+                            'domain'         => $service->domain ?: $instance->ipv4,
+                            'provision_meta' => $meta,
+                        ])->save();
+
+                        if (! $hadIp) {
+                            $this->notify($service, $instance);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // یک نمونهٔ خراب نباید بقیه را بخواباند
+                Log::warning('cloud.sync-instance', ['id' => $instance->id, 'err' => $e->getMessage()]);
+                $out['failed']++;
+            }
+        }
+
+        return $out;
+    }
+
     /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */
     private function planWithImage(string $slug, string $imageKey): ?CloudPlan
     {

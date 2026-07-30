@@ -715,4 +715,125 @@ class CloudProvisionTest extends TestCase
 
         $this->assertFalse($sent);
     }
+
+    // ═══════════════════ سفارشِ دومرحله‌ای (زیرساختِ ۲) ═══════════════════
+
+    /**
+     * ⚠️ رگرسیونِ یک نقصِ واقعی: زیرساختِ دوم اول «سفارش» می‌سازد و شناسهٔ
+     * سرویس چند لحظه بعد می‌آید. اگر نرسد، ref با پیشوندِ `order:` ذخیره
+     * می‌شود. بی‌فرمانِ `cloud:sync-instances` آن ref **هرگز** به شناسهٔ واقعی
+     * تبدیل نمی‌شد: مشتری پول داده، سرویس «فعال» است، ولی نه IP دارد نه
+     * می‌تواند روشن/خاموش کند — تحویلِ «موفقِ» بی‌فایده.
+     */
+    public function test_pending_order_is_resolved_into_a_real_server(): void
+    {
+        Setting::putSecret('aeza_api_token', 'aeza-key');
+
+        $plan = $this->plan('aeza', ['provider_ref' => '77']);
+        $this->image('aeza', '1042');
+        $service = $this->service($plan);
+
+        $inst = new CloudInstance([
+            'service_id' => $service->id, 'provider' => 'aeza',
+            'provider_ref' => 'order:5150', 'location_code' => $plan->location_code,
+            'image_key' => 'ubuntu-24.04', 'status' => 'building',
+        ]);
+        $inst->save();
+
+        $service->forceFill(['provision_status' => 'done', 'status' => 'active'])->save();
+
+        Http::fake(function ($request) {
+            // پی‌گیریِ سفارش → شناسهٔ سرویسِ واقعی
+            if (str_contains($request->url(), '/services/orders/5150')) {
+                return Http::response(['data' => ['createdServiceIds' => [8801]]], 200);
+            }
+
+            // وضعیتِ سرویسِ تازه
+            return Http::response(['data' => [
+                'id' => 8801, 'currentStatus' => 'active', 'name' => 'sn-svc-1',
+                'ip' => ['185.51.200.9'],
+            ]], 200);
+        });
+
+        $r = app(CloudProvisioner::class)->syncInstances();
+
+        $this->assertSame(1, $r['resolved'], 'سفارش باید به شناسهٔ واقعی تبدیل شود');
+
+        $inst->refresh();
+        $this->assertSame('8801', $inst->provider_ref);
+        $this->assertStringNotContainsString('order:', (string) $inst->provider_ref);
+        $this->assertSame('running', $inst->status);
+        $this->assertSame('185.51.200.9', $inst->ipv4);
+        $this->assertTrue($inst->isActionable(), 'حالا مشتری باید بتواند مدیریتش کند');
+    }
+
+    /** سفارشی که هنوز آماده نیست، دست‌نخورده می‌مانَد تا اجرای بعدی */
+    public function test_unready_order_is_left_for_the_next_run(): void
+    {
+        Setting::putSecret('aeza_api_token', 'aeza-key');
+
+        $plan = $this->plan('aeza', ['provider_ref' => '77']);
+        $service = $this->service($plan);
+
+        $inst = new CloudInstance([
+            'service_id' => $service->id, 'provider' => 'aeza',
+            'provider_ref' => 'order:5150', 'status' => 'building',
+        ]);
+        $inst->save();
+
+        Http::fake(fn () => Http::response(['data' => ['createdServiceIds' => []]], 200));
+
+        $r = app(CloudProvisioner::class)->syncInstances();
+
+        $this->assertSame(0, $r['resolved']);
+        $this->assertSame('order:5150', $inst->fresh()->provider_ref, 'باید برای تلاشِ بعدی بماند');
+    }
+
+    /**
+     * سرورِ آماده‌شده نباید ایمیلِ «آماده شد» را **دو بار** بفرستد.
+     * اعلانِ اول لحظهٔ تحویل رفته؛ اعلانِ دوم فقط وقتی مجاز است که اعلانِ اول
+     * IP نداشته باشد.
+     */
+    public function test_ready_notification_is_not_sent_twice(): void
+    {
+        $service = $this->delivered();
+
+        // شبیه‌سازیِ حالتِ واقعی: تحویل با IP انجام شده و اعلان رفته است
+        $service->forceFill(['provision_meta' => ['kind' => 'cloud', 'ip' => '203.0.113.7']])->save();
+        CloudInstance::where('service_id', $service->id)->update(['status' => 'building']);
+
+        Http::fake(fn () => Http::response([
+            'server' => [
+                'id' => 999, 'status' => 'running',
+                'public_net' => ['ipv4' => ['ip' => '203.0.113.7'], 'ipv6' => ['ip' => null]],
+            ],
+        ], 200));
+
+        Mail::fake();
+        app(CloudProvisioner::class)->syncInstances();
+
+        Mail::assertNothingOutgoing();
+        $this->assertSame('running', CloudInstance::where('service_id', $service->id)->first()->status);
+    }
+
+    /** نمونهٔ حذف‌شده نباید دوباره پی‌گیری شود */
+    public function test_deleted_instances_are_skipped(): void
+    {
+        $service = $this->delivered();
+        CloudInstance::where('service_id', $service->id)->update(['status' => 'deleted']);
+
+        Http::fake();
+        $r = app(CloudProvisioner::class)->syncInstances();
+
+        $this->assertSame(0, $r['refreshed']);
+        Http::assertNothingSent();
+    }
+
+    /** فرمانِ کرون باید بی‌خطا بدود حتی وقتی چیزی برای کار نیست */
+    public function test_sync_instances_command_runs_clean_when_idle(): void
+    {
+        Http::fake();
+        $this->artisan('cloud:sync-instances')->assertSuccessful();
+        Http::assertNothingSent();
+    }
 }
