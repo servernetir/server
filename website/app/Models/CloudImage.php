@@ -47,6 +47,40 @@ class CloudImage extends Model
     }
 
     /**
+     * خانواده‌هایی که لوگوی SVGِ خودمیزبان دارند: `public/assets/os/{family}.svg`.
+     *
+     * چرا SVGِ خودمیزبان و نه PNGِ خارجی: CSP منابعِ بیرونی را بی‌صدا بلاک می‌کند
+     * (`img-src 'self'`)، و PNGِ رَستر در رتینا محو می‌شود. SVG همان «لوگوی
+     * تصویریِ هم‌اندازه»‌ای است که کارفرما خواست، ولی خط‌تیز در هر مقیاس و بی‌هیچ
+     * درخواستِ بیرونی. هر خانوادهٔ ناموجود به لوگوی عمومی می‌افتد، نه ۴۰۴.
+     */
+    public const LOGOS = [
+        'ubuntu', 'debian', 'fedora', 'opensuse', 'linux',
+        'centos', 'rocky', 'almalinux', 'alpine', 'arch',
+        'windows', 'freebsd', 'app',
+        'cpanel', 'plesk', 'mysql', 'postgresql', 'redis', 'mongodb',
+        'docker', 'wordpress', 'nginx', 'gitlab', 'nextcloud', 'n8n',
+    ];
+
+    /**
+     * نشانیِ لوگوی تصویریِ این ایمیج — همیشه هم‌اندازه، خودمیزبان.
+     *
+     * ریشه‌نسبی (`/assets/...`) عمداً: مستقل از پیشوندِ زبان و APP_URL درست
+     * می‌مانَد. خانوادهٔ بی‌لوگو به `linux` (سیستم‌عامل) یا `app` (نرم‌افزار)
+     * می‌افتد تا هیچ‌گاه تصویرِ شکسته نشود.
+     */
+    public function logo(): string
+    {
+        $fam = (string) $this->family;
+
+        if (in_array($fam, self::LOGOS, true)) {
+            return "/assets/os/{$fam}.svg";
+        }
+
+        return '/assets/os/'.($this->kind === 'app' ? 'app' : 'linux').'.svg';
+    }
+
+    /**
      * فهرستِ یکسان‌شده برای نمایش به مشتری — بی‌تکرار، بی‌نامِ ارائه‌دهنده.
      *
      * فقط ایمیج‌هایی می‌آیند که **دستِ‌کم یکی** از ارائه‌دهنده‌ها داشته باشد؛

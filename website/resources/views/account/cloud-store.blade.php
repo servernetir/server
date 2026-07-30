@@ -159,12 +159,13 @@
           @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
           @forelse($osByFam as $fam => $rows)
             <div class="cvb-fam" data-fam="{{ $fam }}">
-              <div class="cvb-famh">{{ $rows->first()->icon() }} {{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
               <div class="cvb-opts">
                 @foreach($rows as $img)
                   <label class="cvb-img @if($img->key === $curImage) on @endif"
                          data-key="{{ $img->key }}" @if(! in_array($img->key, $okOs, true)) hidden @endif>
                     <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                    <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
                     <b>{{ $img->label }}</b>
                   </label>
                 @endforeach
@@ -180,12 +181,13 @@
           @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
           @forelse($appByFam as $fam => $rows)
             <div class="cvb-fam" data-fam="{{ $fam }}">
-              <div class="cvb-famh">{{ $rows->first()->icon() }} {{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
+              <div class="cvb-famh"><img class="cvb-logo sm" src="{{ $rows->first()->logo() }}" alt="" loading="lazy" width="18" height="18">{{ $fam !== '' ? ucfirst($fam) : 'سایر' }}</div>
               <div class="cvb-opts">
                 @foreach($rows as $img)
                   <label class="cvb-img @if($img->key === $curImage) on @endif"
                          data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
                     <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                    <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
                     <b>{{ $img->label }}</b>
                   </label>
                 @endforeach
@@ -386,10 +388,15 @@
 .cvb-tab.on{ border-color:var(--info); background:var(--info-bg); color:var(--info); font-weight:700; }
 .cvb-fam{ padding:9px 0; border-top:1px solid var(--line); }
 .cvb-fam:first-child{ border-top:0; padding-top:0; }
-.cvb-famh{ font-size:12.5px; color:var(--muted); margin-bottom:7px; }
+.cvb-famh{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); margin-bottom:7px; }
 .cvb-opts{ display:flex; flex-wrap:wrap; gap:7px; }
-.cvb-img{ cursor:pointer; border:1.5px solid var(--line); border-radius:10px; padding:6px 12px; transition:.16s; }
+.cvb-img{ display:inline-flex; align-items:center; gap:8px; cursor:pointer; border:1.5px solid var(--line); border-radius:10px; padding:6px 11px; transition:.16s; }
 .cvb-img b{ font-size:12.5px; font-weight:400; color:var(--muted); }
+/* لوگوی سیستم‌عامل/نرم‌افزار — همه **دقیقاً هم‌اندازه** (خواستهٔ کارفرما). SVGِ
+   خودمیزبان است، پس خط‌تیز و بی‌درخواستِ بیرونی؛ object-fit تا اگر نسبتِ یکی
+   فرق داشت، کادر نشکند. */
+.cvb-logo{ width:20px; height:20px; flex:none; border-radius:5px; object-fit:contain; }
+.cvb-logo.sm{ width:18px; height:18px; }
 .cvb-img:hover{ border-color:var(--info); }
 .cvb-img.on{ border-color:var(--info); background:var(--info-bg); }
 .cvb-img.on b{ color:var(--info); font-weight:700; }
