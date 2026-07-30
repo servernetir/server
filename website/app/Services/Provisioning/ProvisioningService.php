@@ -37,6 +37,12 @@ class ProvisioningService
      */
     public function provision(Service $service): bool
     {
+        // سرورِ ابری مسیرِ خودش را دارد: پیش از خرید وجود ندارد، پس نه
+        // `server_id` دارد و نه ظرفیتی که بشود از قبل سنجید.
+        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
+            return app(\App\Services\Cloud\CloudProvisioner::class)->provision($service);
+        }
+
         if ($service->server_id === null || $service->provision_status === 'done') {
             return $service->provision_status === 'done';
         }
@@ -194,6 +200,17 @@ class ProvisioningService
 
     public function suspend(Service $service): ProvisionResult
     {
+        // سرورِ ابری: «تعلیق» = خاموش کردن. داده می‌ماند، هزینه‌اش هم برای ما
+        // می‌ماند — ولی حذفِ خودکارِ دادهٔ مشتریِ بدهکار را عمداً نمی‌کنیم.
+        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
+            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->suspend($service);
+            $service->update(['status' => 'suspended']);
+
+            return $ok
+                ? ProvisionResult::success(null, null, null)
+                : ProvisionResult::fail('سرور خاموش نشد؛ وضعیتِ سرویس معلق ثبت شد.');
+        }
+
         if (! $service->server) {
             $service->update(['status' => 'suspended']);
 
@@ -209,6 +226,15 @@ class ProvisioningService
 
     public function unsuspend(Service $service): ProvisionResult
     {
+        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
+            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->unsuspend($service);
+            $service->update(['status' => 'active']);
+
+            return $ok
+                ? ProvisionResult::success(null, null, null)
+                : ProvisionResult::fail('سرور روشن نشد؛ از پنل دستی روشنش کنید.');
+        }
+
         if (! $service->server) {
             $service->update(['status' => 'active']);
 
@@ -224,6 +250,20 @@ class ProvisioningService
 
     public function terminate(Service $service): ProvisionResult
     {
+        // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
+        // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
+        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
+            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service);
+
+            if ($ok) {
+                $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
+                return ProvisionResult::success(null, null, null);
+            }
+
+            return ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
+        }
+
         $r = $service->server
             ? $this->driverFor($service->server)->terminate($service)
             : ProvisionResult::success(null, null, null);

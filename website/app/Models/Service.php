@@ -19,6 +19,8 @@ class Service extends Model
         // تحویل/فراهم‌سازی
         'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
+        // سرورِ ابری — به پلن اشاره می‌کند نه به سرور (پیش از خرید وجود ندارد)
+        'cloud_plan_id', 'cloud_image_key',
         // چرخهٔ تمدید (یادآوری/تعلیق/مهلت)
         'reminder_stage', 'suspended_at', 'grace_alert_at',
     ];
@@ -102,6 +104,24 @@ class Service extends Model
     public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
+    }
+
+    /** پلنِ ابریِ سفارش‌شده (اگر این سرویس سرورِ مجازی باشد) */
+    public function cloudPlan(): BelongsTo
+    {
+        return $this->belongsTo(CloudPlan::class, 'cloud_plan_id');
+    }
+
+    /** سرورِ ابریِ ساخته‌شده — ۱:۱ */
+    public function cloudInstance()
+    {
+        return $this->hasOne(CloudInstance::class, 'service_id');
+    }
+
+    /** آیا این سرویس سرورِ ابری است؟ */
+    public function isCloud(): bool
+    {
+        return filled($this->cloud_plan_id);
     }
 
     /** سرویسی که باید روی سروری تحویل شود (نه یک خدمتِ صرفاً مالی مثل پشتیبانی) */

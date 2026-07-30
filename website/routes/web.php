@@ -121,6 +121,16 @@ $site = function (): void {
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
         Route::get('/services/{service}/cpanel', [Account\ServiceController::class, 'cpanel'])->name('services.cpanel');
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats');
+
+        // مدیریتِ سرورِ ابری — روشن/خاموش، نصبِ دوباره، رمز، کنسول، نمودارِ مصرف.
+        // عملیاتِ حساس همه POST‌اند تا با یک لینکِ جعلی (CSRF/prefetch) اجرا نشوند.
+        Route::get('/cloud/{service}', [Account\CloudServerController::class, 'show'])->name('cloud.show');
+        Route::get('/cloud/{service}/status', [Account\CloudServerController::class, 'status'])->name('cloud.status');
+        Route::get('/cloud/{service}/metrics', [Account\CloudServerController::class, 'metrics'])->name('cloud.metrics');
+        Route::post('/cloud/{service}/power', [Account\CloudServerController::class, 'power'])->name('cloud.power');
+        Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
+        Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
+        Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
         // خرید — از دکمهٔ خریدِ سایت اصلی مستقیم به تسویهٔ همان پکیج در پنل
         Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
