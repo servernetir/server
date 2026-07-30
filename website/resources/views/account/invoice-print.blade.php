@@ -1,10 +1,14 @@
+@php
+    $loc = app()->getLocale();
+    $rtl = $loc === 'fa';
+@endphp
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="{{ $loc }}" dir="{{ $rtl ? 'rtl' : 'ltr' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>فاکتور {{ $invoice->number }} — سرورنت</title>
+<title>{{ __('ui.invp_title_prefix') }} {{ $invoice->number }} — {{ __('ui.invp_brand') }}</title>
 <style>
 @font-face{font-family:'IRANSans';src:url('/assets/font/woff2/IRANSans-web.woff2') format('woff2'),url('/assets/font/woff/IRANSans-web.woff') format('woff');font-weight:400;font-display:swap}
 @font-face{font-family:'IRANSans';src:url('/assets/font/woff2/IRANSans-Medium-web.woff2') format('woff2'),url('/assets/font/woff/IRANSans-Medium-web.woff') format('woff');font-weight:500;font-display:swap}
@@ -73,97 +77,97 @@ tbody tr:last-child td{ border-bottom:0 }
 <body>
 
 <div class="bar">
-  <button class="p" onclick="window.print()">چاپ / ذخیره به‌صورت PDF</button>
-  <a class="b" href="{{ lroute('account.invoice', $invoice) }}">بازگشت</a>
+  <button class="p" onclick="window.print()">{{ __('ui.invp_print_pdf') }}</button>
+  <a class="b" href="{{ lroute('account.invoice', $invoice) }}">{{ __('ui.invp_back') }}</a>
 </div>
 
 <div class="sheet">
   <div class="head">
-    <div class="brand">سرورنت<small>servernet.cloud · زیرساخت ابری</small></div>
+    <div class="brand">{{ __('ui.invp_brand') }}<small>servernet.cloud · {{ __('ui.invp_brand_tagline') }}</small></div>
     <div class="doc">
-      <h1>{{ $invoice->kind === 'topup' ? 'رسید افزایش اعتبار' : ($paid ? 'فاکتور فروش' : 'پیش‌فاکتور') }}</h1>
+      <h1>{{ $invoice->kind === 'topup' ? __('ui.invp_doc_topup') : ($paid ? __('ui.invp_doc_sales') : __('ui.invp_doc_proforma')) }}</h1>
       <div class="num">{{ $invoice->number }}</div>
     </div>
   </div>
 
   <div class="meta">
     <div class="party">
-      <h3>فروشنده</h3>
-      <b>{{ $legalName ?: 'سرورنت' }}</b>
+      <h3>{{ __('ui.invp_seller') }}</h3>
+      <b>{{ $legalName ?: __('ui.invp_brand') }}</b>
       <div class="ltr">{{ $contact['phone'] ?? '' }}</div>
       <div class="ltr">{{ $contact['email'] ?? '' }}</div>
     </div>
     <div class="party">
-      <h3>خریدار</h3>
+      <h3>{{ __('ui.invp_buyer') }}</h3>
       <b>{{ $invoice->customer?->displayName() ?? '—' }}</b>
       <div class="ltr">{{ $invoice->customer?->code }}</div>
       @if($invoice->customer?->phone)<div class="ltr">{{ $invoice->customer->phone }}</div>@endif
     </div>
     <div class="party">
-      <h3>تاریخ صدور</h3>
+      <h3>{{ __('ui.invp_issue_date') }}</h3>
       <b>{{ sdate($invoice->issued_at ?? $invoice->created_at) }}</b>
-      @if($paid)<div>تاریخ پرداخت: {{ sdate($paid->paid_at) }}</div>@endif
+      @if($paid)<div>{{ __('ui.invp_paid_date') }} {{ sdate($paid->paid_at) }}</div>@endif
     </div>
   </div>
 
   <table>
     <thead>
-      <tr><th>شرح</th><th class="num">تعداد</th><th class="num">مبلغ واحد</th><th class="num">جمع (تومان)</th></tr>
+      <tr><th>{{ __('ui.invp_col_desc') }}</th><th class="num">{{ __('ui.invp_col_qty') }}</th><th class="num">{{ __('ui.invp_col_unit') }}</th><th class="num">{{ __('ui.invp_col_total') }}</th></tr>
     </thead>
     <tbody>
       @foreach($invoice->items as $item)
         <tr>
           <td>{{ $item->title }}@if($item->description)<div class="desc">{{ $item->description }}</div>@endif</td>
           <td class="num">{{ fa_num($item->quantity) }}</td>
-          <td class="num">{{ fa_num(number_format($item->unit_price)) }}</td>
-          <td class="num">{{ fa_num(number_format($item->line_total)) }}</td>
+          <td class="num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
+          <td class="num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>
         </tr>
       @endforeach
     </tbody>
   </table>
 
   <div class="totals">
-    <div><span>جمع</span><span class="num">{{ fa_num(number_format($invoice->subtotal)) }}</span></div>
+    <div><span>{{ __('ui.invp_subtotal') }}</span><span class="num">{{ invoice_money($invoice->subtotal, $invoice->currency_code) }}</span></div>
     @if($invoice->tax > 0)
-      <div><span>مالیات بر ارزش افزوده</span><span class="num">{{ fa_num(number_format($invoice->tax)) }}</span></div>
+      <div><span>{{ __('ui.invp_vat') }}</span><span class="num">{{ invoice_money($invoice->tax, $invoice->currency_code) }}</span></div>
     @endif
-    <div class="grand"><span>مبلغ کل</span><span class="num">{{ fa_num(number_format($invoice->total)) }} تومان</span></div>
+    <div class="grand"><span>{{ __('ui.invp_grand_total') }}</span><span class="num">{{ invoice_money($invoice->total, $invoice->currency_code) }}</span></div>
     @if($invoice->paid > 0)
-      <div><span>پرداخت‌شده</span><span class="num">{{ fa_num(number_format($invoice->paid)) }}</span></div>
+      <div><span>{{ __('ui.invp_paid') }}</span><span class="num">{{ invoice_money($invoice->paid, $invoice->currency_code) }}</span></div>
     @endif
     @if($invoice->due() > 0)
-      <div><span>مانده</span><span class="num">{{ fa_num(number_format($invoice->due())) }}</span></div>
+      <div><span>{{ __('ui.invp_due') }}</span><span class="num">{{ invoice_money($invoice->due(), $invoice->currency_code) }}</span></div>
     @endif
   </div>
 
   @if($paid)
     <div class="pay ok">
-      <h4><span class="stamp">پرداخت شد</span> رسید پرداخت</h4>
+      <h4><span class="stamp">{{ __('ui.invp_stamp_paid') }}</span> {{ __('ui.invp_receipt_title') }}</h4>
       <div class="grid">
-        <span>روش پرداخت: <b>{{ ['zarinpal'=>'زرین‌پال','bale'=>'بله','bank_transfer'=>'واریز به حساب'][$paid->gateway] ?? $paid->gateway }}</b></span>
-        <span>مبلغ: <b>{{ fa_num(number_format($paid->amount)) }} تومان</b></span>
-        @if($paid->ref_id)<span>شمارهٔ پیگیری: <b class="ltr">{{ $paid->ref_id }}</b></span>@endif
-        <span>زمان: <b>{{ stime($paid->paid_at) }}</b></span>
+        <span>{{ __('ui.invp_pay_method') }} <b>{{ ['zarinpal'=>__('ui.invp_gw_zarinpal'),'bale'=>__('ui.invp_gw_bale'),'bank_transfer'=>__('ui.invp_gw_bank_transfer')][$paid->gateway] ?? $paid->gateway }}</b></span>
+        <span>{{ __('ui.invp_amount') }} <b>{{ invoice_money($paid->amount, $invoice->currency_code) }}</b></span>
+        @if($paid->ref_id)<span>{{ __('ui.invp_ref_no') }} <b class="ltr">{{ $paid->ref_id }}</b></span>@endif
+        <span>{{ __('ui.invp_time') }} <b>{{ stime($paid->paid_at) }}</b></span>
       </div>
     </div>
   @elseif($invoice->due() > 0)
     <div class="pay due">
-      <h4>در انتظار پرداخت</h4>
-      <div class="grid"><span>این فاکتور هنوز پرداخت نشده است. مبلغ قابل پرداخت: <b>{{ fa_num(number_format($invoice->due())) }} تومان</b></span></div>
+      <h4>{{ __('ui.invp_awaiting') }}</h4>
+      <div class="grid"><span>{{ __('ui.invp_unpaid_notice') }} <b>{{ invoice_money($invoice->due(), $invoice->currency_code) }}</b></span></div>
     </div>
   @endif
 
   @if($stamp)
     <div style="padding:6px 32px 22px; text-align:left;">
       <div style="display:inline-block; text-align:center;">
-        <img src="{{ $stamp }}" alt="مهر شرکت" style="max-width:150px; max-height:120px;">
-        <div style="font-size:10.5px; color:#8a93a6; margin-top:2px;">مهر و امضای مجاز</div>
+        <img src="{{ $stamp }}" alt="{{ __('ui.invp_company_seal_alt') }}" style="max-width:150px; max-height:120px;">
+        <div style="font-size:10.5px; color:#8a93a6; margin-top:2px;">{{ __('ui.invp_authorized_seal') }}</div>
       </div>
     </div>
   @endif
 
   <div class="foot">
-    <span>این فاکتور به‌صورت الکترونیکی صادر شده و بدون مهر و امضا معتبر است.</span>
+    <span>{{ __('ui.invp_foot_note') }}</span>
     <span class="ltr">servernet.cloud</span>
   </div>
 </div>

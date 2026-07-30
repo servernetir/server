@@ -114,7 +114,7 @@
     </div>
     <div class="kb-docs">
       @foreach($kb['docs'] as $i => $d)
-      <a class="kb-doc reveal" style="transition-delay:{{ $i * 50 }}ms" href="#">
+      <a class="kb-doc reveal" style="transition-delay:{{ $i * 50 }}ms" href="{{ lroute('docs.index') }}">
         <span class="dc-icon"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
         <b>{{ lc($d) }}</b>
         <small>{{ $isFa ? fa_num($d['count']) : $d['count'] }} {{ __('ui.kb_articles') }}</small>

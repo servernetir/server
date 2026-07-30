@@ -251,7 +251,15 @@
   var PRICES = @json($priceJson);
   var LABELS = @json($cycleLabels);
   var faN = function(x){ return String(x).replace(/[0-9]/g, function(g){ return '۰۱۲۳۴۵۶۷۸۹'[g]; }); };
-  var money = function(n){ return faN(Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')); };
+  // ارز زبان‌محور مثلِ سرورساز: فارسی «تومان»، en/tr «€» با نرخِ زنده. money()
+  // خودش واحد را می‌چسبانَد؛ « تومان»ِ دستی نزن (وگرنه en/tr هم تومان می‌شد).
+  var CUR = { fa: {{ app()->getLocale() === 'fa' ? 'true' : 'false' }}, rate: {{ cloud_eur_rate() }}, perB: @json(__('ui.cvb_per_before')), perA: @json(__('ui.cvb_per_after')) };
+  var comma = function(n){ return Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var money = function(n){
+    if (CUR.fa) { return faN(comma(n)) + ' تومان'; }
+    if (CUR.rate > 0) { return '€' + ((n || 0) / CUR.rate).toFixed(2); }
+    return comma(n);
+  };
 
   var pick = function(){
     var c = document.querySelector('input[name="country"]:checked');
@@ -271,12 +279,12 @@
       if (!row) return;
       var p = card.querySelector('[data-p]'), m = card.querySelector('[data-m]');
       if (p) p.textContent = money(row.cycle);
-      if (m) m.textContent = 'ماهی ' + money(row.per);
+      if (m) m.textContent = CUR.perB + money(row.per) + CUR.perA;
     });
     if (!s.row) return;
-    set('sum-cycle', money(s.row.cycle) + ' تومان');
-    set('sum-per',   money(s.row.per)   + ' تومان');
-    set('sum-first', money(s.row.first) + ' تومان');
+    set('sum-cycle', money(s.row.cycle));
+    set('sum-per',   money(s.row.per));
+    set('sum-first', money(s.row.first));
     set('co-btn-total', money(s.row.first));
     set('sum-cyclename', LABELS[s.cycle] || '');
     var rn = document.querySelector('#sum-renew span');

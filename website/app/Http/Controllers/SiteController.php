@@ -67,6 +67,8 @@ class SiteController extends Controller
         };
 
         $add('home');
+        // /domains صفحهٔ فرودِ «ثبت دامنه» با کلیدواژهٔ ارزشمند است و جا افتاده بود
+        $add('domain.search');
         foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers'] as $n) {
             $add($n);
         }

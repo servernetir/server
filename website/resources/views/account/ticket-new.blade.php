@@ -58,7 +58,7 @@
 
       <label class="tk-file">
         <svg class="icon"><use href="#i-paperclip"/></svg>
-        <span>افزودن تصویر یا PDF (اختیاری — حداکثر ۵ فایل، هرکدام تا ۵ مگابایت)</span>
+        <span>{{ __('ui.tk_attach_opt') }}</span>
         <input type="file" name="attachments[]" multiple accept="image/*,application/pdf" onchange="tkFiles(this)">
       </label>
       <div class="tk-file-list" id="tk-file-list"></div>

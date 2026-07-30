@@ -26,7 +26,7 @@
     </select>
   </label>
   <label>پکیج WHM (plan)
-    <input type="text" name="plan" dir="ltr" value="{{ old('plan', $product->plan ?? '') }}" maxlength="80" placeholder="مثلاً WP-5">
+    <input type="text" name="plan" dir="ltr" value="{{ old('plan', $product->plan ?? '') }}" maxlength="80" placeholder="خالی = خودکار (sn_…)">
   </label>
   <label>قیمت دوره‌ای (تومان)
     <input type="number" name="price" dir="ltr" value="{{ old('price', $product->price ?? 0) }}" required min="0" step="1000">

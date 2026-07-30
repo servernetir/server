@@ -267,7 +267,7 @@
 <aside class="drawer" id="drawer" aria-label="{{ __('ui.menu') }}">
   <div class="drawer-head">
     <a href="{{ $homeUrl }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
-    <button class="drawer-close" id="drawer-close" aria-label="✕"><svg class="icon"><use href="#i-x"/></svg></button>
+    <button class="drawer-close" id="drawer-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
   </div>
   {{-- کارتِ هویتِ کاربرِ واردشده — بالای کشو، لینک مستقیم به پنل (RTL-first) --}}
   @if($cust ?? null)

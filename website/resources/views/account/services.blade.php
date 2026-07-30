@@ -71,7 +71,7 @@
                         @if($s->username)<div><span>{{ __('ui.svc_cred_username') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>@endif
                         @if($s->password)<div><span>{{ __('ui.svc_cred_password') }}</span>
                           <b dir="ltr" class="svc-pw"><span class="pw-mask">••••••••••</span><span class="pw-val" hidden>{{ $s->password }}</span>
-                            <button type="button" class="pw-eye">{{ __('ui.svc_show') }}</button></b></div>@endif
+                            <button type="button" class="pw-eye" data-show="{{ __('ui.svc_show') }}" data-hide="{{ __('ui.svc_hide') }}">{{ __('ui.svc_show') }}</button></b></div>@endif
                         @if($s->domain)<div><span>{{ __('ui.svc_cred_domain') }}</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
                       </div>
                     @elseif($s->provision_status === 'failed')
@@ -124,14 +124,14 @@ document.querySelectorAll('.pw-eye').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var box = this.closest('.svc-pw'), mask = box.querySelector('.pw-mask'), val = box.querySelector('.pw-val');
     var show = val.hidden;
-    val.hidden = !show; mask.hidden = show; this.textContent = show ? 'پنهان' : 'نمایش';
+    val.hidden = !show; mask.hidden = show; this.textContent = this.getAttribute(show ? 'data-hide' : 'data-show');
   });
 });
 document.querySelectorAll('.svc-cred .copyable').forEach(function (el) {
   el.addEventListener('click', function () {
     var t = (this.textContent || '').trim();
     if (navigator.clipboard) navigator.clipboard.writeText(t);
-    if (window.snToast) snToast('کپی شد ✓', 'ok');
+    if (window.snToast) snToast(@json(__('ui.svc_copied')) + ' ✓', 'ok');
   });
 });
 

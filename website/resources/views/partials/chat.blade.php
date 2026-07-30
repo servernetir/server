@@ -11,7 +11,7 @@
       <h4>{{ __('ui.chat_title') }}</h4>
       <p>{{ __('ui.chat_online') }}</p>
     </div>
-    <button class="chat-close" id="chat-close" aria-label="✕"><svg class="icon"><use href="#i-x"/></svg></button>
+    <button class="chat-close" id="chat-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
   </div>
   <div class="chat-body" id="chat-body"
        data-endpoint="{{ route($routePrefix.'chat') }}"

@@ -1,20 +1,44 @@
 @extends('layouts.site')
-@section('title', 'ثبت دامنه — جستجو و خرید آنلاین — سرورنت کلاود')
-@section('description', 'دامنهٔ دلخواه خود را جستجو کنید، قیمت لحظه‌ای را ببینید و آنلاین ثبت کنید.')
+@section('title', __('ui.dsr_title'))
+@section('description', __('ui.dsr_meta_desc'))
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
 @endpush
 
 @section('content')
+
+{{-- ============ رشته‌های موردنیازِ جاوااسکریپت (سه‌زبانه) ============ --}}
+@php
+$T = [
+  'taken_note'         => __('ui.dsr_taken_note'),
+  'taken_pill'         => __('ui.dsr_taken_pill'),
+  'fx_unavailable'     => __('ui.dsr_fx_unavailable'),
+  'no_price'           => __('ui.dsr_no_price'),
+  'not_orderable_pill' => __('ui.dsr_not_orderable_pill'),
+  'premium_note'       => __('ui.dsr_premium_note'),
+  'free_note'          => __('ui.dsr_free_note'),
+  'premium_pill'       => __('ui.dsr_premium_pill'),
+  'free_pill'          => __('ui.dsr_free_pill'),
+  'price_unit'         => __('ui.dsr_price_unit'),
+  'register_btn'       => __('ui.dsr_register_btn'),
+  'err_empty'          => __('ui.dsr_err_empty'),
+  'err_conn'           => __('ui.dsr_err_conn'),
+  'is_fa'              => app()->getLocale() === 'fa',
+  'eur_rate'           => cloud_eur_rate(),
+  'cart'               => whmcs_url('cart.php'),
+];
+@endphp
+<script>window.T = @json($T);</script>
+
 <section class="wt-wrap">
   <div class="container">
 
     <div class="wt-head">
       <span class="wt-head-ic"><svg class="icon"><use href="#i-globe"/></svg></span>
       <div>
-        <h1>ثبت دامنه</h1>
-        <p>نام دلخواه را بنویسید تا موجودی و قیمت لحظه‌ای را ببینید.</p>
+        <h1>{{ __('ui.dsr_h1') }}</h1>
+        <p>{{ __('ui.dsr_lead') }}</p>
       </div>
     </div>
 
@@ -23,13 +47,13 @@
       <div class="dm-in">
         <svg class="icon"><use href="#i-search"/></svg>
         <input type="text" id="dm-q" dir="ltr" autocomplete="off" spellcheck="false"
-               placeholder="example.com یا فقط example">
+               placeholder="{{ __('ui.dsr_input_ph') }}">
         <button class="btn btn-primary" id="dm-go">
-          <span class="dm-go-t">جستجو</span>
+          <span class="dm-go-t">{{ __('ui.dsr_search_btn') }}</span>
           <span class="dm-spin" hidden></span>
         </button>
       </div>
-      <p class="dm-hint">قیمت‌ها بر اساس نرخ لحظه‌ای ارز محاسبه می‌شوند و تا ۱۵ دقیقه معتبرند.</p>
+      <p class="dm-hint">{{ __('ui.dsr_hint') }}</p>
     </div>
 
     <div id="dm-error" class="tool-error" hidden></div>
@@ -40,8 +64,8 @@
     {{-- حالت اولیه --}}
     <div id="dm-idle" class="pnl-empty" style="margin-top:30px">
       <svg class="icon"><use href="#i-globe"/></svg>
-      <b>دامنه‌ای جستجو نکرده‌اید</b>
-      <p>نام مورد نظرتان را بالا بنویسید. اگر پسوند ننویسید، چند پسوند پرکاربرد را هم بررسی می‌کنیم.</p>
+      <b>{{ __('ui.dsr_idle_title') }}</b>
+      <p>{{ __('ui.dsr_idle_text') }}</p>
     </div>
 
   </div>
@@ -83,6 +107,8 @@ html[data-theme="light"] .dm-row{background:#fff}
 
 <script>
 (function () {
+  var T = window.T || {};
+
   var q = document.getElementById('dm-q'),
       go = document.getElementById('dm-go'),
       box = document.getElementById('dm-results'),
@@ -95,7 +121,12 @@ html[data-theme="light"] .dm-row{background:#fff}
     return String(s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
   };
   var money = function (n) {
-    return faDigits(Number(n).toLocaleString('en-US'));
+    n = Number(n);
+    if (T.is_fa) { return faDigits(n.toLocaleString('en-US')); }
+    if (T.eur_rate > 0) {
+      return (n / T.eur_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return n.toLocaleString('en-US');
   };
   var esc = function (s) {
     var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
@@ -111,25 +142,24 @@ html[data-theme="light"] .dm-row{background:#fff}
     // سه وضعیت مجزا که کارفرما خواست
     if (!r.available) {
       return '<div class="dm-row no">' +
-        '<div class="dm-name" dir="ltr">' + esc(r.domain) + '<small>این دامنه قبلاً ثبت شده است</small></div>' +
-        '<span class="pnl-pill mute">ثبت‌شده</span></div>';
+        '<div class="dm-name" dir="ltr">' + esc(r.domain) + '<small>' + T.taken_note + '</small></div>' +
+        '<span class="pnl-pill mute">' + T.taken_pill + '</span></div>';
     }
     if (!r.orderable) {
-      var why = r.reason === 'fx_unavailable'
-        ? 'قیمت لحظه‌ای در دسترس نیست — چند دقیقه بعد دوباره امتحان کنید'
-        : 'قیمت این دامنه از رسیلری دریافت نشد';
+      var why = r.reason === 'fx_unavailable' ? T.fx_unavailable : T.no_price;
       return '<div class="dm-row no">' +
         '<div class="dm-name" dir="ltr">' + esc(r.domain) + '<small>' + why + '</small></div>' +
-        '<span class="pnl-pill warn">فعلاً قابل سفارش نیست</span></div>';
+        '<span class="pnl-pill warn">' + T.not_orderable_pill + '</span></div>';
     }
     var premium = r.is_premium;
+    var buy = T.cart + '?a=add&domain=register&query=' + encodeURIComponent(r.domain);
     return '<div class="dm-row ' + (premium ? 'premium' : 'ok') + '">' +
       '<div class="dm-name" dir="ltr">' + esc(r.domain) +
-        (premium ? '<small>دامنهٔ ویژه — قیمت متفاوت با نرخ عادی</small>' : '<small>آزاد و قابل ثبت</small>') +
+        (premium ? '<small>' + T.premium_note + '</small>' : '<small>' + T.free_note + '</small>') +
       '</div>' +
-      '<span class="pnl-pill ' + (premium ? 'warn' : 'ok') + '">' + (premium ? 'ویژه' : 'آزاد') + '</span>' +
-      '<div class="dm-price"><b>' + money(r.price_toman) + '</b><small>تومان / سال</small></div>' +
-      '<a class="pnl-btn primary" href="#">ثبت دامنه</a></div>';
+      '<span class="pnl-pill ' + (premium ? 'warn' : 'ok') + '">' + (premium ? T.premium_pill : T.free_pill) + '</span>' +
+      '<div class="dm-price"><b>' + money(r.price_toman) + '</b><small>' + T.price_unit + '</small></div>' +
+      '<a class="pnl-btn primary" target="_blank" rel="noopener" href="' + buy + '">' + T.register_btn + '</a></div>';
   }
 
   async function run() {
@@ -152,7 +182,7 @@ html[data-theme="light"] .dm-row{background:#fff}
       var d = await res.json();
 
       if (!d.ok || !d.results || !d.results.length) {
-        err.textContent = 'نتیجه‌ای برنگشت. لطفاً دوباره تلاش کنید.';
+        err.textContent = T.err_empty;
         err.hidden = false;
         box.hidden = true;
         return;
@@ -161,7 +191,7 @@ html[data-theme="light"] .dm-row{background:#fff}
       box.innerHTML = d.results.map(row).join('');
       box.hidden = false;
     } catch (e) {
-      err.textContent = 'ارتباط با سرور برقرار نشد.';
+      err.textContent = T.err_conn;
       err.hidden = false;
     } finally {
       busy(false);

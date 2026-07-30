@@ -1,5 +1,5 @@
 @extends('panel.layout')
-@section('title', 'کنسول سرور — سرورنت کلاود')
+@section('title', __('ui.vnc_title'))
 
 {{-- کنسولِ زندهٔ سرور، **داخلِ پنلِ خودمان**.
 
@@ -11,37 +11,55 @@
 
 @php
   $specs = (array) ($instance->specs ?? []);
+
+  // لینکِ «صفحهٔ سرور» برای متنِ نکته‌ها؛ در @php ساخته می‌شود تا route داخلِ
+  // رشتهٔ زبان نرود و {!! !!} امن بماند.
+  $serverPageLink = '<a href="'.e(route('account.cloud.show', $service)).'" style="color:var(--info)">'.e(__('ui.vnc_link_server_page')).'</a>';
+
+  // متونِ داینامیکِ JS (پیام‌های وضعیت/خطای اتصال) — از همین‌جا سرور-رندر و به
+  // window.T داده می‌شوند تا هیچ متنِ فارسیِ سخت‌کد در جاوااسکریپت نماند.
+  $vncT = [
+    'disconnected' => __('ui.vnc_state_disconnected'),
+    'connected'    => __('ui.vnc_state_connected'),
+    'err_expired'  => __('ui.vnc_err_expired'),
+    'err_connect'  => __('ui.vnc_err_connect'),
+    'msg_closed'   => __('ui.vnc_msg_closed'),
+    'err_dropped'  => __('ui.vnc_err_dropped'),
+    'err_auth'     => __('ui.vnc_err_auth'),
+  ];
 @endphp
+
+<script>window.T = @json($vncT);</script>
 
 <div class="pnl-head">
   <div>
     <nav class="blog-crumbs" style="margin-bottom:8px">
-      <a href="{{ route('account.home') }}">پنل</a><span>/</span>
-      <a href="{{ route('account.services') }}">سرویس‌ها</a><span>/</span>
+      <a href="{{ route('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
+      <a href="{{ route('account.services') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
       <a href="{{ route('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
-      <span>کنسول</span>
+      <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>
-    <h1>کنسولِ زندهٔ سرور</h1>
+    <h1>{{ __('ui.vnc_h1') }}</h1>
     <p>
-      مثلِ نشستن پشتِ خودِ سرور — حتی اگر شبکه یا فایروالش خراب باشد.
+      {{ __('ui.vnc_lead') }}
       @if($instance?->ipv4)<span dir="ltr">{{ $instance->ipv4 }}</span>@endif
     </p>
   </div>
-  <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">در حالِ اتصال…</span>
+  <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">{{ __('ui.vnc_state_connecting') }}</span>
 </div>
 
 <section class="pnl-sec">
   <div class="pnl-sec-h">
-    <h2>صفحهٔ سرور</h2>
+    <h2>{{ __('ui.vnc_sec_screen') }}</h2>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="pnl-btn" id="vnc-cad" type="button" style="font-size:12px;padding:6px 11px">
         <svg class="icon"><use href="#i-key"/></svg>Ctrl+Alt+Del
       </button>
       <button class="pnl-btn" id="vnc-full" type="button" style="font-size:12px;padding:6px 11px">
-        <svg class="icon"><use href="#i-monitor"/></svg>تمام‌صفحه
+        <svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.vnc_btn_fullscreen') }}
       </button>
       <button class="pnl-btn" id="vnc-again" type="button" style="font-size:12px;padding:6px 11px;display:none">
-        <svg class="icon"><use href="#i-restore"/></svg>اتصالِ دوباره
+        <svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.vnc_btn_reconnect') }}
       </button>
     </div>
   </div>
@@ -55,7 +73,7 @@
       <div id="vnc-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#cbd5e1;font-size:13.5px;line-height:2">
         <div>
           <div style="font-size:30px;margin-bottom:10px">🖥️</div>
-          <div id="vnc-msg-text">در حالِ برقراریِ اتصالِ امن به سرور…</div>
+          <div id="vnc-msg-text">{{ __('ui.vnc_overlay_connecting') }}</div>
         </div>
       </div>
     </div>
@@ -64,12 +82,10 @@
 
 <section class="pnl-sec">
   <div class="pnl-sec-b" style="font-size:12.5px;color:var(--muted);line-height:2">
-    <b>چند نکته:</b>
-    کنسول برای وقتی است که SSH کار نمی‌کند — فایروالِ اشتباه، رمزِ گم‌شده، یا سیستمی که بالا نمی‌آید.
-    <br>کلیدهای ترکیبیِ مرورگر (مثلِ <span dir="ltr">Ctrl+W</span>) به سرور نمی‌روند؛ برای ورود به سیستم از دکمهٔ
-    <span dir="ltr">Ctrl+Alt+Del</span> بالا استفاده کنید.
-    <br>نشستِ کنسول کوتاه‌عمر است. اگر قطع شد، «اتصالِ دوباره» را بزنید یا از
-    <a href="{{ route('account.cloud.show', $service) }}" style="color:var(--info)">صفحهٔ سرور</a> دوباره بازش کنید.
+    <b>{{ __('ui.vnc_notes_label') }}</b>
+    {{ __('ui.vnc_notes_1') }}
+    <br>{!! __('ui.vnc_notes_2') !!}
+    <br>{!! __('ui.vnc_notes_3', ['link' => $serverPageLink]) !!}
   </div>
 </section>
 
@@ -103,7 +119,7 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
   }
 
   function fail(text){
-    state('قطع', '#ff6b6b', true, text);
+    state(window.T.disconnected, '#ff6b6b', true, text);
     againBtn.style.display = '';
   }
 
@@ -116,14 +132,14 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
       connect(d.url, d.password);
     })
     .catch(function(){
-      fail('نشستِ کنسول منقضی شده است. برای بازکردنِ دوباره به صفحهٔ سرور برگردید.');
+      fail(window.T.err_expired);
     });
 
   function connect(url, password){
     try {
       rfb = new RFB(screenEl, url, { credentials: { password: password || '' } });
     } catch (e) {
-      fail('اتصال برقرار نشد. چند لحظه بعد دوباره تلاش کنید.');
+      fail(window.T.err_connect);
       return;
     }
 
@@ -133,18 +149,18 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
     rfb.background = '#0b0f14';
 
     rfb.addEventListener('connect', function(){
-      state('متصل', '#34d399', false);
+      state(window.T.connected, '#34d399', false);
       againBtn.style.display = 'none';
     });
 
     rfb.addEventListener('disconnect', function(e){
       fail(e && e.detail && e.detail.clean
-        ? 'اتصال بسته شد.'
-        : 'اتصال قطع شد. ممکن است سرور خاموش باشد یا نشست منقضی شده باشد.');
+        ? window.T.msg_closed
+        : window.T.err_dropped);
     });
 
     rfb.addEventListener('securityfailure', function(){
-      fail('احراز هویتِ کنسول رد شد. از صفحهٔ سرور دوباره بازش کنید.');
+      fail(window.T.err_auth);
     });
   }
 
