@@ -60,6 +60,32 @@ class SiteMenuSyncTest extends TestCase
         return [];
     }
 
+    /** آیا کشوری (با نام فارسی) در منو هست؟ منو کشورمحور است، پس نام کشور را می‌جوییم نه شهر. */
+    private function menuHasCountry(string $faName): bool
+    {
+        foreach ($this->locationItems() as $item) {
+            if (str_contains((string) ($item['fa'] ?? ''), $faName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** آیا کشوری «اتمام ظرفیت» خورده؟ */
+    private function menuCountrySoldOut(string $faName): bool
+    {
+        foreach ($this->locationItems() as $item) {
+            $fa = (string) ($item['fa'] ?? '');
+
+            if (str_contains($fa, $faName) && str_contains($fa, 'اتمام ظرفیت')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // ═══════════════ همگامی ═══════════════
 
     public function test_menu_lists_locations_that_actually_have_sellable_plans(): void
@@ -69,13 +95,15 @@ class SiteMenuSyncTest extends TestCase
         $this->plan('de-falkenstein');
         $this->plan('sg-singapore');
 
-        $items = $this->locationItems();
-        $fa = array_column($items, 'fa');
+        // منو کشورمحور است: «آلمان»، نه «فالکن‌اشتاین»
+        $this->assertTrue($this->menuHasCountry('آلمان'), 'کشوری که پلن دارد باید در منو باشد');
+        $this->assertTrue($this->menuHasCountry('سنگاپور'));
 
-        $this->assertContains('سرور مجازی فالکن‌اشتاین', $fa);
-        $this->assertContains('سرور مجازی سنگاپور', $fa, 'مکانی که داریم باید در منو باشد');
+        // شمارشِ پلن در برچسب می‌آید
+        $fa = array_column($this->locationItems(), 'fa');
+        $this->assertStringContainsString('پلن', implode(' ', $fa));
 
-        // لینکِ فراگیر باید **آخرِ همه** باشد، بعد از مکان‌های اتمام‌ظرفیت
+        // لینکِ فراگیر آخرِ همه
         $this->assertSame('همهٔ سرورهای مجازی', end($fa));
     }
 
@@ -96,11 +124,19 @@ class SiteMenuSyncTest extends TestCase
         $this->location('ca-toronto', 'CA', 'Toronto');
         $this->plan('ca-toronto', ['in_stock' => false]);
 
-        $fa = array_column($this->locationItems(), 'fa');
+        // آلمان زنده است؛ فرانسه (بی‌قیمت) و کانادا (ناموجود) نباید **زنده** بیایند.
+        // چون در config صفحهٔ فرانسه هست، ممکن است «اتمام ظرفیت» بخورد — ولی
+        // نباید به‌عنوان کشورِ دارایِ پلن نمایش داده شود.
+        $this->assertTrue($this->menuHasCountry('آلمان'));
 
-        $this->assertContains('سرور مجازی فالکن‌اشتاین', $fa);
-        $this->assertNotContains('سرور مجازی پاریس', $fa, 'پلنِ بی‌قیمت نباید تبلیغ شود');
-        $this->assertNotContains('سرور مجازی تورنتو', $fa, 'پلنِ ناموجود نباید تبلیغ شود');
+        // فرانسه اگر بیاید فقط اتمام‌ظرفیت است، نه با شمارشِ پلن
+        foreach ($this->locationItems() as $item) {
+            $fa = (string) ($item['fa'] ?? '');
+
+            if (str_contains($fa, 'فرانسه') || str_contains($fa, 'کانادا')) {
+                $this->assertStringNotContainsString('پلن', $fa, 'کشورِ بی‌پلن نباید شمارشِ پلن داشته باشد');
+            }
+        }
     }
 
     /** مکانِ غیرفعالِ دستی هم بیرون بمانَد */
@@ -113,9 +149,14 @@ class SiteMenuSyncTest extends TestCase
         $this->plan('us-ashburn');
         $hidden->update(['is_active' => false]);
 
-        $fa = array_column($this->locationItems(), 'fa');
+        // اشبرن تنها مکانِ آمریکاست و غیرفعال شده؛ پس آمریکا نباید **زنده** بیاید
+        foreach ($this->locationItems() as $item) {
+            $fa = (string) ($item['fa'] ?? '');
 
-        $this->assertNotContains('سرور مجازی اشبرن', $fa);
+            if (str_contains($fa, 'آمریکا')) {
+                $this->assertStringNotContainsString('پلن', $fa, 'کشورِ بی‌مکانِ فعال نباید زنده باشد');
+            }
+        }
     }
 
     // ═══════════════ محافظه‌کاری ═══════════════
@@ -163,8 +204,10 @@ class SiteMenuSyncTest extends TestCase
         $before = config('servernet.mega');
         $after = app(SiteMenu::class)->mega();
 
+        // vps کشورمحور شده و dedicated برچسبِ «اتمام ظرفیت» می‌خورد (کاتالوگِ
+        // فیزیکی هنوز نیست) — پس این دو عمداً عوض می‌شوند. بقیه نباید.
         foreach (array_keys($before) as $key) {
-            if ($key === 'vps') {
+            if (in_array($key, ['vps', 'dedicated'], true)) {
                 continue;
             }
 
@@ -180,15 +223,15 @@ class SiteMenuSyncTest extends TestCase
         $this->location('de-falkenstein', 'DE', 'Falkenstein');
         $this->plan('de-falkenstein');
 
-        // فقط مکان‌های **زنده** شمرده می‌شوند: آیتمی که به cloud.location لینک دارد
+        // کشورهای **زنده** شمرده می‌شوند: آیتمی که کلیدِ iso دارد (نه اتمام‌ظرفیتِ config)
         $liveCount = fn () => count(array_filter(
             $this->locationItems(),
-            fn ($i) => ($i['route'][0] ?? '') === 'cloud.location'
+            fn ($i) => isset($i['iso'])
         ));
 
         $this->assertSame(1, $liveCount());
 
-        // مکانِ تازه اضافه می‌شود ولی کش هنوز کهنه است
+        // کشورِ تازه اضافه می‌شود ولی کش هنوز کهنه است
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
 
@@ -211,8 +254,9 @@ class SiteMenuSyncTest extends TestCase
 
         $html = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('سرور مجازی سنگاپور', $html);
-        // لینک باید به صفحهٔ همان مکان برود
+        // منو کشورمحور است: نامِ کشور در برچسب، و لینک به صفحهٔ مکانش
+        // (سنگاپور صفحهٔ بازاریابی ندارد، پس به /cloud/{code} می‌رود)
+        $this->assertStringContainsString('سنگاپور', $html);
         $this->assertStringContainsString('/cloud/sg-singapore', $html);
     }
 
@@ -224,7 +268,9 @@ class SiteMenuSyncTest extends TestCase
 
         $html = $this->get('/en')->assertOk()->getContent();
 
-        $this->assertStringContainsString('Singapore VPS', $html);
+        // نامِ انگلیسیِ کشور + شمارشِ پلن به انگلیسی
+        $this->assertStringContainsString('Singapore', $html);
+        $this->assertStringContainsString('plans', $html);
         $this->assertStringContainsString('/en/cloud/sg-singapore', $html);
     }
 
@@ -254,13 +300,14 @@ class SiteMenuSyncTest extends TestCase
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
 
-        $fa = array_column($this->locationItems(), 'fa');
-        $joined = implode(' | ', $fa);
+        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
 
-        // زندهٔ قابلِ خرید
-        $this->assertContains('سرور مجازی سنگاپور', $fa);
+        // زندهٔ قابلِ خرید — کشور با شمارشِ پلن
+        $this->assertTrue($this->menuHasCountry('سنگاپور'));
+        $this->assertStringContainsString('سنگاپور', $joined);
+        $this->assertStringContainsString('پلن', $joined);
 
-        // و مکان‌های تبلیغاتی هنوز هستند، ولی علامت‌دار
+        // و کشورهای تبلیغاتیِ config هنوز هستند، ولی علامت‌دار
         $this->assertStringContainsString('اتمام ظرفیت', $joined);
         $this->assertStringContainsString('سرور مجازی ایران — اتمام ظرفیت', $joined);
         $this->assertStringContainsString('سرور مجازی فرانسه — اتمام ظرفیت', $joined);
@@ -281,12 +328,13 @@ class SiteMenuSyncTest extends TestCase
 
         $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
 
-        $this->assertStringContainsString('فالکن‌اشتاین', $joined);
-        $this->assertStringContainsString('نورنبرگ', $joined);
+        // آلمان زنده است (با شمارشِ پلن)، نه اتمام‌ظرفیت
+        $this->assertTrue($this->menuHasCountry('آلمان'));
         $this->assertStringNotContainsString('آلمان — اتمام ظرفیت', $joined,
             'آلمان را داریم، پس نباید اتمام ظرفیت بخورد');
 
-        // ولی ایران را نداریم
+        // شهرها در منو نیستند (کشورمحور شد)؛ داخلِ صفحهٔ کشور می‌آیند
+        // ولی ایران را نداریم، پس اتمام‌ظرفیت است
         $this->assertStringContainsString('ایران — اتمام ظرفیت', $joined);
     }
 
@@ -343,7 +391,8 @@ class SiteMenuSyncTest extends TestCase
 
         $html = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('سرور مجازی سنگاپور', $html);
+        // کشورِ زنده (سنگاپور) + کشورِ اتمام‌ظرفیت (ایرانِ config)
+        $this->assertStringContainsString('سنگاپور', $html);
         $this->assertStringContainsString('اتمام ظرفیت', $html);
     }
 
@@ -560,9 +609,9 @@ class SiteMenuSyncTest extends TestCase
 
         $live = array_filter(
             $this->locationItems(),
-            fn ($i) => ($i['route'][0] ?? '') === 'cloud.location'
+            fn ($i) => isset($i['iso'])
         );
 
-        $this->assertCount(2, $live, 'دو مکانِ زنده داریم، نه بیشتر');
+        $this->assertCount(2, $live, 'دو کشورِ زنده داریم، نه بیشتر');
     }
 }

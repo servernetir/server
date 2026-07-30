@@ -73,38 +73,55 @@ class SiteMenu
             return $mega;
         }
 
-        $live = $this->vpsLocationItems();
+        // ═══ منوی **کشورمحور** (خواستهٔ کارفرما) ═══
+        // تا امروز زیرمنو در سطحِ **شهر** بود (فالکن‌اشتاین، نورنبرگ…) و شلوغ.
+        // حالا در سطحِ کشور است و شهرها داخلِ صفحهٔ همان کشور می‌آیند.
+        $countries = $this->countryItems();
 
-        if ($live === []) {
+        if ($countries === []) {
             return $mega;                        // قاعدهٔ ۱: منوی خالی نده
         }
 
-        foreach ($mega['vps']['groups'] as $i => $group) {
-            // گروهِ مکان را با شناسهٔ چندزبانه‌اش پیدا کن، نه با ایندکسِ ثابت —
-            // اگر روزی ترتیبِ گروه‌ها عوض شود، این نباید بشکند.
+        // «سرور مجازی» = پردازندهٔ اشتراکی. گروهِ «موقعیت مکانی»‌اش با کشورها پر
+        // می‌شود؛ گروه‌های بازاریابیِ دیگر (کاربرد/سیستم‌عامل) دست‌نخورده می‌مانند.
+        $this->fillLocationsGroup($mega['vps'], $countries, 'cloud.index',
+            'همهٔ سرورهای مجازی', 'All virtual servers', 'Tüm sanal sunucular');
+
+        // «سرور اختصاصی» هم به تفکیکِ کشور — ولی صفحاتش هنوز از config می‌آیند
+        // (کاتالوگِ سرورِ فیزیکی هنوز ساخته نشده). پس فقط برچسبِ «اتمام ظرفیت»
+        // به کشورهای نداشته می‌خورد، بی‌آنکه چیزی به قیمتِ زنده وصل شود.
+        if (isset($mega['dedicated'])) {
+            $this->markDedicatedSoldOut($mega['dedicated']);
+        }
+
+        return $mega;
+    }
+
+    /**
+     * گروهِ «موقعیت مکانی» را با کشورها پر کن: زنده‌ها اول، اتمام‌ظرفیت‌ها بعد،
+     * لینکِ فراگیر آخر.
+     *
+     * @param  array<string, mixed>  $section  به ارجاع
+     * @param  array<int, array<string, mixed>>  $countries
+     */
+    private function fillLocationsGroup(array &$section, array $countries, string $allRoute, string $allFa, string $allEn, string $allTr): void
+    {
+        foreach ($section['groups'] as $i => $group) {
             if (($group['en'] ?? '') !== 'Locations') {
                 continue;
             }
 
-            // مکان‌های زندهٔ **قابلِ خرید** اول، بعد مکان‌های تبلیغاتیِ config که
-            // فعلاً موجودی نداریم، با برچسبِ «اتمام ظرفیت».
-            // ترتیب مهم است: اول آنچه می‌شود خرید، بعد آنچه موجودی نداریم، و
-            // «همهٔ سرورها» **آخرِ همه** — یک لینکِ فراگیر وسطِ فهرست، جای
-            // اشتباهی است و کاربر فکر می‌کند فهرست تمام شده.
-            $mega['vps']['groups'][$i]['items'] = array_merge(
-                $live,
+            $section['groups'][$i]['items'] = array_merge(
+                $countries,
                 $this->soldOutItems((array) ($group['items'] ?? [])),
                 [[
-                    'route' => ['cloud.index', []],
-                    'fa'    => 'همهٔ سرورهای مجازی',
-                    'en'    => 'All virtual servers',
-                    'tr'    => 'Tüm sanal sunucular',
+                    'route' => [$allRoute, []],
+                    'fa'    => $allFa, 'en' => $allEn, 'tr' => $allTr,
                 ]]
             );
-            break;
-        }
 
-        return $mega;
+            return;
+        }
     }
 
     /**
@@ -158,6 +175,9 @@ class SiteMenu
             if ($served) {
                 continue;                      // زنده‌اش را بالاتر نشان داده‌ایم
             }
+
+            // برچسبِ اتمام‌ظرفیت را روی متنِ **خامِ** config بگذار، نه روی
+            // چیزی که ممکن است شمارشِ پلن به آن چسبیده باشد.
 
             foreach (['fa', 'en', 'tr'] as $lang) {
                 if (! isset($item[$lang]) || ! is_string($item[$lang])) {
@@ -221,42 +241,117 @@ class SiteMenu
     }
 
     /**
-     * مکان‌هایی که پلنِ قابلِ فروش دارند، به شکلِ آیتمِ منو.
+     * کشورهایی که پلنِ قابلِ فروش دارند، به شکلِ آیتمِ منو.
      *
-     * برچسبِ هر زبان از `CloudLocation` می‌آید که خودش سه‌زبانه است، و به
-     * `/cloud/{code}` لینک می‌شود (صفحهٔ اختصاصیِ همان مکان).
+     * ⚠️ **کشور** و نه شهر — خواستهٔ کارفرما. با ۶ لوکیشنِ شهری منو شلوغ بود؛
+     * حالا «آلمان» یک ردیف است و دو شهرش داخلِ صفحه می‌آید. شمارشِ پلن و
+     * ارزان‌ترین قیمت در برچسب می‌آید تا کاربر پیش از کلیک بداند چه می‌بیند.
+     *
+     * لینک به صفحهٔ کشور (`CloudCountry::url`) که همان صفحهٔ سئودارِ موجود است،
+     * نه یک URL تازه — تا رتبهٔ صفحه شکسته نشود.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function vpsLocationItems(): array
+    private function countryItems(): array
     {
         return Cache::remember(self::KEY, self::TTL, function () {
-            if (! Schema::hasTable('cloud_locations') || ! Schema::hasTable('cloud_plans')) {
-                return [];
-            }
+            $served = \App\Services\Cloud\CloudCountry::served();
 
-            // فقط مکان‌هایی که **الان** می‌شود در آنها سرور فروخت
-            $codes = CloudPlan::query()->sellable()->distinct()->pluck('location_code');
-
-            if ($codes->isEmpty()) {
+            if ($served === []) {
                 return [];
             }
 
             $items = [];
 
-            foreach (CloudLocation::whereIn('code', $codes)->where('is_active', true)
-                ->orderBy('sort')->orderBy('country')->orderBy('city')->get() as $loc) {
+            foreach ($served as $iso => $row) {
+                $name = CloudLocation::COUNTRIES[$iso] ?? null;
+                $flag = $name['flag'] ?? '🏳️';
+
+                // «۲۴ پلن · از ۵۷۰٬۰۰۰ تومان» — دو عددِ تصمیم‌ساز کنارِ هم.
+                // قیمتِ فارسی تومان، بقیه یورو (قاعدهٔ site_price).
+                $fa = $flag.' '.($name['fa'] ?? $iso).' — '
+                    .fa_num((string) $row['plans']).' پلن'
+                    .($row['cheapest_irt'] > 0 ? ' · از '.fa_num(number_format($row['cheapest_irt'])).' تومان' : '');
+
+                $eur = $row['cheapest_eur_cents'] > 0
+                    ? ' · from €'.number_format($row['cheapest_eur_cents'] / 100, 2) : '';
+
                 $items[] = [
-                    // مسیرِ صفحهٔ مکان — با `route` تا سه‌زبانه ساخته شود
-                    'route' => ['cloud.location', ['location' => $loc->code]],
-                    'fa'    => 'سرور مجازی '.$loc->cityLabel('fa'),
-                    'en'    => $loc->cityLabel('en').' VPS',
-                    'tr'    => $loc->cityLabel('tr').' VPS',
+                    'iso'   => $iso,               // برای soldOutItems که تکرار نشود
+                    'route' => $this->countryRoute($iso),
+                    'fa'    => $fa,
+                    'en'    => $flag.' '.($name['en'] ?? $iso).' — '.$row['plans'].' plans'.$eur,
+                    'tr'    => $flag.' '.($name['tr'] ?? $iso).' — '.$row['plans'].' plan'.$eur,
                 ];
             }
 
             return $items;
         });
+    }
+
+    /**
+     * مسیرِ صفحهٔ کشور برای منو.
+     *
+     * اگر کشور صفحهٔ بازاریابیِ سئودار دارد (`/vps/germany`)، به همان می‌رود؛
+     * وگرنه به صفحهٔ اولین مکانش. `CloudCountry::url` را نمی‌شود مستقیم در آیتمِ
+     * منو گذاشت چون آیتم‌ها با `route`ِ سه‌زبانه ساخته می‌شوند، پس این‌جا به
+     * ساختارِ مناسبِ منو ترجمه‌اش می‌کنیم.
+     *
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    private function countryRoute(string $iso): array
+    {
+        $slug = \App\Services\Cloud\CloudCountry::marketingSlug($iso);
+
+        if ($slug !== null) {
+            return ['catalog', ['category' => 'vps', 'slug' => $slug]];
+        }
+
+        $code = CloudLocation::where('country', $iso)->where('is_active', true)
+            ->orderBy('sort')->value('code');
+
+        return $code
+            ? ['cloud.location', ['location' => $code]]
+            : ['cloud.index', []];
+    }
+
+    /**
+     * منوی «سرور اختصاصی» — کشورهای نداشته «اتمام ظرفیت» بخورند.
+     *
+     * ⚠️ چرا فقط برچسب و نه قیمتِ زنده: کاتالوگِ سرورِ فیزیکی هنوز وجود ندارد،
+     * پس چیزی برای وصل‌کردن نیست. ولی همان قاعدهٔ صداقت برقرار است: کشوری که
+     * موجودی نداریم نباید مثلِ کشوری که داریم به نظر برسد.
+     *
+     * @param  array<string, mixed>  $section  به ارجاع
+     */
+    private function markDedicatedSoldOut(array &$section): void
+    {
+        // فعلاً هیچ کشوری سرورِ فیزیکیِ زنده ندارد، پس **همه** اتمام‌ظرفیت‌اند.
+        // وقتی کاتالوگِ فیزیکی ساخته شد، این‌جا از یک منبعِ زنده می‌خوانَد.
+        $served = [];   // TODO: DedicatedCatalog::servedCountries() وقتی ساخته شد
+
+        $labels = $this->soldOutLabels();
+
+        foreach ($section['groups'] as $gi => $group) {
+            if (($group['en'] ?? '') !== 'Locations') {
+                continue;
+            }
+
+            foreach ($group['items'] as $ii => $item) {
+                $iso = self::SLUG_COUNTRY[$item['slug'] ?? ''] ?? null;
+
+                if ($iso !== null && in_array($iso, $served, true)) {
+                    continue;
+                }
+
+                foreach (['fa', 'en', 'tr'] as $lang) {
+                    if (isset($item[$lang]) && is_string($item[$lang])
+                        && ! str_ends_with($item[$lang], ' — '.$labels[$lang])) {
+                        $section['groups'][$gi]['items'][$ii][$lang] = $item[$lang].' — '.$labels[$lang];
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -275,5 +370,10 @@ class SiteMenu
     {
         Cache::forget(self::KEY);
         Cache::forget(self::KEY.'.countries');
+
+        // 🔴 منو حالا از CloudCountry::served() تغذیه می‌شود؛ اگر کشِ آن پاک
+        // نشود، کشورِ تازه تا ۱۰ دقیقه در منو دیده نمی‌شود و مدیر فکر می‌کند
+        // سینک کار نکرده — همان drift که این کلاس برای بستنش هست.
+        \App\Services\Cloud\CloudCountry::forget();
     }
 }
