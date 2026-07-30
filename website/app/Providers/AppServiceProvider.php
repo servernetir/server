@@ -87,10 +87,33 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
+    /**
+     * منوی سایت را با کاتالوگِ زنده همگام کن.
+     *
+     * ⚠️ چرا با بازنویسیِ config و نه ویرایشِ ویو: `partials/header.blade.php`
+     * در خطِ اول خودش `config('servernet.mega')` را می‌خواند. اگر متغیرِ مشترک
+     * بفرستیم، همان خط رویش را می‌نویسد. پس مقدارِ config را **درست پیش از
+     * رندرِ هدر** جایگزین می‌کنیم؛ ویو دست‌نخورده می‌مانَد و منو زنده می‌شود.
+     *
+     * روی composer و نه boot(): پرس‌وجوی دیتابیس فقط وقتی انجام شود که هدر
+     * واقعاً رندر می‌شود — نه در هر درخواستِ API یا فرمانِ کرون.
+     */
+    private function syncSiteMenu(): void
+    {
+        View::composer('partials.header', function () {
+            try {
+                config(['servernet.mega' => app(\App\Services\SiteMenu::class)->mega()]);
+            } catch (\Throwable) {
+                // منو هرگز نباید صفحه را بشکند؛ در بدترین حالت همان config می‌مانَد
+            }
+        });
+    }
+
     public function boot(): void
     {
         $this->shareSessionAcrossSubdomains();
         $this->defineRateLimiters();
+        $this->syncSiteMenu();
         // ↑ ترتیب مهم است: تنظیمِ دامنهٔ کوکی باید پیش از میدل‌ورِ StartSession
         //   انجام شود، و boot()ِ provider همیشه قبل از میدل‌ورها اجرا می‌شود.
 

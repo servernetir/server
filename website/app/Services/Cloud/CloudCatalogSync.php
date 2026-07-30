@@ -61,6 +61,10 @@ class CloudCatalogSync
             }
         }
 
+        // منوی سایت از همین کاتالوگ ساخته می‌شود؛ بی‌این، مکانِ تازه تا ۱۰ دقیقه
+        // در منو دیده نمی‌شد و مدیر فکر می‌کرد همگام‌سازی کار نکرده.
+        \App\Services\SiteMenu::forget();
+
         return [
             'ok'        => $report !== [] && collect($report)->contains('ok', true),
             'providers' => $report,

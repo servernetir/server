@@ -294,6 +294,35 @@ if (! function_exists('buy_url')) {
     }
 }
 
+if (! function_exists('cloud_buy_url')) {
+    /**
+     * لینکِ خریدِ سرورِ مجازی — **درونِ سایتِ خودمان**.
+     *
+     * ⚠️ چرا لازم شد: دکمه‌های «انتخاب» صفحاتِ بازاریابی به سبدِ خریدِ WHMCS
+     * بیرونی می‌رفتند — همان سیستمی که داریم جایش را می‌گیریم. یعنی مشتری از
+     * سایتِ ما بیرون پرت می‌شد به سیستمی که سرورِ مجازیِ تازه در آن وجود ندارد.
+     *
+     * حالا به سرورسازِ پنل می‌رود. اگر کاتالوگِ ابری خالی باشد (مهاجرت نزده،
+     * همگام‌سازی نشده، یا نرخِ ارز نبوده) به WHMCS برمی‌گردیم — چون دکمهٔ مرده
+     * از دکمهٔ قدیمی بدتر است.
+     */
+    function cloud_buy_url(?string $locationCode = null, ?string $planSlug = null): string
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('cloud_plans')
+                && \App\Models\CloudPlan::query()->sellable()->exists()) {
+                $q = array_filter(['location' => $locationCode, 'plan' => $planSlug]);
+
+                return lroute('account.cloud.store').($q !== [] ? '?'.http_build_query($q) : '');
+            }
+        } catch (\Throwable) {
+            // پایین به پشتیبان می‌رویم
+        }
+
+        return whmcs_url('cart.php');
+    }
+}
+
 if (! function_exists('schema_ld')) {
     /**
      * ساخت JSON-LD معتبر برای schema.org.
