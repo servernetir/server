@@ -1366,12 +1366,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
 
         // داشبورد مالی کسب‌وکار — سرمایه، سود، مالیات
-        Route::get('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance');
-        Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store']);
-        Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy']);
+        Route::get('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance')->middleware('admin');
+        Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store'])->middleware('admin');
+        Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->middleware('admin');
 
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
-        Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions');
+        Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
         // تیکت پشتیبانی — روی همان احراز هویت کارکنان
         Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
@@ -1396,7 +1396,7 @@ Route::prefix('admin')->group(function () {
 
         // سرورهای تحویل (WHM/cPanel/…)
         // ورودِ مدیر به پنلِ مشتری (جای او نشستن) — فقط نقشِ مدیر، با لاگ
-        Route::post('/customers/{customer}/impersonate', [\App\Http\Controllers\Admin\ImpersonateController::class, 'start']);
+        Route::post('/customers/{customer}/impersonate', [\App\Http\Controllers\Admin\ImpersonateController::class, 'start'])->middleware('admin');
 
         // احراز هویتِ مشتریان — صفِ بررسی، تأیید/رد، دانلودِ امنِ مدارک
         Route::get('/verifications', [\App\Http\Controllers\Admin\VerificationController::class, 'index'])->name('admin.verifications');
@@ -1404,29 +1404,29 @@ Route::prefix('admin')->group(function () {
         Route::post('/verifications/{profile}/approve', [\App\Http\Controllers\Admin\VerificationController::class, 'approve']);
         Route::post('/verifications/{profile}/reject', [\App\Http\Controllers\Admin\VerificationController::class, 'reject']);
 
-        Route::get('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'index'])->name('admin.servers');
-        Route::post('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'store']);
-        Route::post('/servers/{server}', [\App\Http\Controllers\Admin\ServerController::class, 'update']);
-        Route::post('/servers/{server}/test', [\App\Http\Controllers\Admin\ServerController::class, 'test']);
-        Route::post('/servers/{server}/delete', [\App\Http\Controllers\Admin\ServerController::class, 'destroy']);
+        Route::get('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'index'])->name('admin.servers')->middleware('admin');
+        Route::post('/servers', [\App\Http\Controllers\Admin\ServerController::class, 'store'])->middleware('admin');
+        Route::post('/servers/{server}', [\App\Http\Controllers\Admin\ServerController::class, 'update'])->middleware('admin');
+        Route::post('/servers/{server}/test', [\App\Http\Controllers\Admin\ServerController::class, 'test'])->middleware('admin');
+        Route::post('/servers/{server}/delete', [\App\Http\Controllers\Admin\ServerController::class, 'destroy'])->middleware('admin');
 
         // پکیج‌های فروش — کاتالوگی که مشتری از آن آنلاین می‌خرد
-        Route::get('/products', [\App\Http\Controllers\Admin\ProductController::class, 'index'])->name('admin.products');
-        Route::post('/products', [\App\Http\Controllers\Admin\ProductController::class, 'store']);
-        Route::post('/products/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update']);
-        Route::post('/products/{product}/delete', [\App\Http\Controllers\Admin\ProductController::class, 'destroy']);
+        Route::get('/products', [\App\Http\Controllers\Admin\ProductController::class, 'index'])->name('admin.products')->middleware('admin');
+        Route::post('/products', [\App\Http\Controllers\Admin\ProductController::class, 'store'])->middleware('admin');
+        Route::post('/products/{product}', [\App\Http\Controllers\Admin\ProductController::class, 'update'])->middleware('admin');
+        Route::post('/products/{product}/delete', [\App\Http\Controllers\Admin\ProductController::class, 'destroy'])->middleware('admin');
         // ساختِ package در WHM از روی پکیج
-        Route::post('/products/{product}/whm-sync', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhm']);
-        Route::post('/products-whm-sync-all', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhmAll']);
+        Route::post('/products/{product}/whm-sync', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhm'])->middleware('admin');
+        Route::post('/products-whm-sync-all', [\App\Http\Controllers\Admin\ProductController::class, 'syncWhmAll'])->middleware('admin');
         // تغییرِ قیمتِ گروهی (درصدی/مبلغی) با گردکردنِ رو به بالا
-        Route::post('/products-reprice', [\App\Http\Controllers\Admin\ProductController::class, 'reprice']);
+        Route::post('/products-reprice', [\App\Http\Controllers\Admin\ProductController::class, 'reprice'])->middleware('admin');
 
         // زیرساختِ سرورِ ابری — کاتالوگ، آزمونِ اتصال، همگام‌سازی
-        Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud');
-        Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test']);
-        Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync']);
+        Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
+        Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
+        Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
-        Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe']);
+        Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe'])->middleware('admin');
 
         // اقداماتِ تحویلِ سرویس — ساخت/تلاش دوباره، تعلیق، حذف روی سرور
         Route::post('/services/{service}/provision', [\App\Http\Controllers\Admin\ServiceController::class, 'provision']);
@@ -1439,19 +1439,19 @@ Route::prefix('admin')->group(function () {
         Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);
 
         // هزینه‌های ثابت سرویس‌ها — که خودِ مدیر تعیین می‌کند
-        Route::get('/costs', [\App\Http\Controllers\Admin\CostController::class, 'index'])->name('admin.costs');
-        Route::post('/costs', [\App\Http\Controllers\Admin\CostController::class, 'update']);
-        Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store']);
-        Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy']);
+        Route::get('/costs', [\App\Http\Controllers\Admin\CostController::class, 'index'])->name('admin.costs')->middleware('admin');
+        Route::post('/costs', [\App\Http\Controllers\Admin\CostController::class, 'update'])->middleware('admin');
+        Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store'])->middleware('admin');
+        Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy'])->middleware('admin');
 
         // واریز به حساب — صف تأیید پرداخت‌های دستی
-        Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers');
-        Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve']);
-        Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject']);
+        Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
+        Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');
+        Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject'])->middleware('admin');
 
         // تنظیمات — مشخصات حساب بانکی شرکت
-        Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings');
-        Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update']);
+        Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings')->middleware('admin');
+        Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
     });
 });
 

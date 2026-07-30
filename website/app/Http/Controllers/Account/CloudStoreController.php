@@ -464,6 +464,19 @@ class CloudStoreController extends Controller
             'defCycle' => self::defaultCycle(),
             'taxPct' => $taxPct,
             'autoLabel' => self::serverLabel(null),
+
+            // ── افزودنی‌ها ──
+            // `addonOk` می‌گوید آیا **این مکان** اصلاً IP اضافه دارد؛ اگر نه،
+            // کارتش نمایش داده نمی‌شود. نشان‌دادنِ گزینه‌ای که سرِ ثبتِ سفارش رد
+            // می‌شود، بدترین نوعِ رابطِ کاربری است.
+            'addonOk' => $selectedSlug !== null
+                && app(CloudAddons::class)->bestPlanFor(
+                    $selectedSlug, ['extra_ipv4' => 1], app(\App\Services\Cloud\CloudManager::class)
+                ) !== null,
+            'extraIpPrice' => app(CloudAddons::class)->extraIpMonthlyToman(),
+            'maxExtraIp' => CloudAddons::MAX_EXTRA_IP,
+            'sshKeys' => \App\Models\CloudSshKey::where('customer_id', (int) (\Illuminate\Support\Facades\Auth::guard('customer')->id() ?? 0))
+                ->orderByDesc('last_used_at')->orderBy('name')->get(),
         ]);
     }
 

@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'locale' => \App\Http\Middleware\SetLocale::class,
+            // فقط مدیر — روی مسیرهای پرهزینه/حساسِ پنلِ مدیریت. مدیریتِ محتوا
+            // عمداً برای نقشِ نویسنده باز می‌مانَد.
+            'admin'  => \App\Http\Middleware\EnsureAdmin::class,
         ]);
         // کنسول قبل از هر چیز — تا ریدایرکت میزبان زودتر از رندر انجام شود
         $middleware->prepend(\App\Http\Middleware\ConsoleHost::class);

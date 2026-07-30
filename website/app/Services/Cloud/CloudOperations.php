@@ -860,12 +860,36 @@ class CloudOperations
     /** قیمتِ سرویس در ارزِ خودش — عددِ صحیح در واحدِ فرعی، از خودِ پلن */
     private function priceFor(Service $service, CloudPlan $plan): int
     {
-        // ⚠️ هیچ محاسبهٔ قیمتی این‌جا انجام نمی‌شود. `price_irt` و
-        // `price_eur_cents` را CloudPricing با گردکردنِ **رو به بالا** ساخته؛
-        // ضرب/تقسیمِ دوباره فقط ریسکِ گردکردنِ پایین و سودِ صفر است.
-        return strtoupper((string) ($service->currency_code ?: 'IRT')) === 'IRT'
-            ? (int) $plan->price_irt
-            : (int) $plan->price_eur_cents;
+        $cycle = (string) ($service->cycle ?: 'monthly');
+        $isIrt = strtoupper((string) ($service->currency_code ?: 'IRT')) === 'IRT';
+
+        // 🔴 اشتباهِ قبلی و گرانیِ آن: این‌جا قیمتِ **ماهانه** برگردانده می‌شد،
+        // ولی `services.price` مبلغِ **یک دورهٔ کامل** است. روی سرویسِ سالانه،
+        // ارتقا به پلنِ بزرگ‌تر قیمت را از «۱۲ ماه پلنِ کوچک» به «۱ ماه پلنِ
+        // بزرگ» می‌شکست — یعنی ارتقای پلن به تخفیفِ ~۹۲٪ تبدیل می‌شد، و فاکتورِ
+        // تمدیدِ سالِ بعد هم همان عددِ غلط را می‌گرفت. تست‌های موجود نگرفتنش چون
+        // همه سرویسِ ماهانه بودند و ۱ ماه با ۱ ماه یکی است.
+        if ($isIrt) {
+            // از همان منبعِ یگانهٔ سرورساز می‌خوانیم تا تخفیفِ دوره و افزودنی‌ها
+            // هم یک‌جا و یکسان حساب شوند.
+            return \App\Http\Controllers\Account\CloudStoreController::priceForCycle(
+                $plan,
+                $cycle,
+                app(CloudAddons::class)->sanitize($service->cloud_addons)
+            );
+        }
+
+        // مسیرِ یورویی: همان قاعده، ولی گردکردن به پلهٔ ۱۰ سنت
+        $months = Service::monthsIn($cycle);
+
+        if ($months <= 0) {
+            return (int) $plan->price_eur_cents;      // «یک‌بار» دوره ندارد
+        }
+
+        $discount = max(0, min(90, (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0)));
+        $raw = (int) $plan->price_eur_cents * $months * (100 - $discount) / 100;
+
+        return \App\Models\Product::roundUpEur((int) ceil($raw));
     }
 
     /** برچسبِ اسنپ‌شات: ورودیِ کاربر پاک‌سازی‌شده، یا نامِ قطعیِ پیش‌فرض */

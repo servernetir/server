@@ -225,9 +225,72 @@
       </div>
     </section>
 
-    {{-- ═══ گام ۵: نام سرور ═══ --}}
+    {{-- ═══ گام ۵: افزودنی‌ها ═══
+         کلیدِ SSH رایگان است و IP اضافه پولی. کارتِ IP فقط وقتی نشان داده
+         می‌شود که این مکان واقعاً بتواند تحویلش دهد — گزینه‌ای که سرِ ثبتِ
+         سفارش رد شود، بدترین نوعِ رابطِ کاربری است. --}}
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2><span class="cvb-step">۵</span> نام دلخواه سرور</h2></div>
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۵</span> امکانات بیشتر <small style="font-weight:400;color:var(--dim);font-size:12px">(اختیاری)</small></h2></div>
+      <div class="pnl-sec-b">
+
+        {{-- ورود با کلید SSH --}}
+        <label class="cvb-field">
+          <span>ورود با کلید SSH <b style="color:var(--ok)">رایگان</b></span>
+          <select name="ssh_key_id" id="cvb-ssh-pick">
+            <option value="">با رمز عبور وارد می‌شوم</option>
+            @foreach($sshKeys as $k)
+              <option value="{{ $k->id }}" @selected((string) old('ssh_key_id') === (string) $k->id)>{{ $k->label() }}</option>
+            @endforeach
+            <option value="__new" @selected(old('ssh_key_new') !== null)>+ افزودن کلید تازه</option>
+          </select>
+        </label>
+
+        <div id="cvb-ssh-new" style="display:none">
+          <label class="cvb-field">
+            <span>نام کلید</span>
+            <input type="text" name="ssh_key_name" value="{{ old('ssh_key_name') }}"
+                   placeholder="کلید لپ‌تاپ" maxlength="60" autocomplete="off">
+          </label>
+          <label class="cvb-field">
+            <span>کلید عمومی</span>
+            <textarea name="ssh_key_new" dir="ltr" rows="3" maxlength="6000"
+                      placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@laptop"
+                      autocapitalize="off" autocomplete="off" spellcheck="false"
+                      style="font-family:var(--mono,monospace);font-size:12px">{{ old('ssh_key_new') }}</textarea>
+          </label>
+          <p class="cvb-note">
+            <svg class="icon"><use href="#i-shield"/></svg>
+            محتوای فایل <span dir="ltr">.pub</span> را بچسبانید. کلید <b>خصوصی</b> خود را
+            هرگز جایی نفرستید — ما هم قبولش نمی‌کنیم.
+          </p>
+          <p class="cvb-note">
+            <svg class="icon"><use href="#i-info"/></svg>
+            با انتخاب کلید، ورود با رمز غیرفعال می‌شود و رمز root ساخته نمی‌شود — امن‌تر است.
+          </p>
+        </div>
+
+        @if($addonOk)
+          <label class="cvb-field" style="margin-top:14px">
+            <span>IP اضافه (IPv4) — هر عدد ماهی {{ fa_num(number_format($extraIpPrice)) }} تومان</span>
+            <select name="extra_ipv4" id="cvb-extra-ip">
+              @for($i = 0; $i <= $maxExtraIp; $i++)
+                <option value="{{ $i }}" @selected((int) old('extra_ipv4', 0) === $i)>
+                  {{ $i === 0 ? 'نمی‌خواهم' : fa_num($i).' عدد — ماهی '.fa_num(number_format($i * $extraIpPrice)).' تومان' }}
+                </option>
+              @endfor
+            </select>
+          </label>
+          <p class="cvb-note">
+            <svg class="icon"><use href="#i-globe"/></svg>
+            برای وقتی چند سایت با SSL جدا، یا سرویسی که IP اختصاصی می‌خواهد، روی یک سرور دارید.
+          </p>
+        @endif
+      </div>
+    </section>
+
+    {{-- ═══ گام ۶: نام سرور ═══ --}}
+    <section class="pnl-sec">
+      <div class="pnl-sec-h"><h2><span class="cvb-step">۶</span> نام دلخواه سرور</h2></div>
       <div class="pnl-sec-b">
         <label class="cvb-field">
           <span>نامی که در پنل خودتان می‌بینید (اختیاری)</span>
@@ -252,6 +315,7 @@
         <div class="cvb-row"><span>پلن</span><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b></div>
         <div class="cvb-row"><span>سیستم‌عامل</span><b id="cvb-s-img">{{ $jsImgLbl[$curImage] ?? '—' }}</b></div>
         <div class="cvb-row"><span>دوره</span><b id="cvb-s-cyc">{{ $cycleLabels[$curCycle] ?? '—' }}</b></div>
+        <div class="cvb-row" id="cvb-s-ip-row" style="display:none"><span>IP اضافه</span><b class="pnl-num" id="cvb-s-ip">—</b></div>
         <div class="cvb-row"><span>مبلغ دوره</span><b class="pnl-num" id="cvb-s-price">{{ fa_num(number_format($initial['cycle'])) }} تومان</b></div>
         <div class="cvb-row"><span>معادل ماهانه</span><b class="pnl-num" id="cvb-s-per">{{ fa_num(number_format($initial['per'])) }} تومان</b></div>
         <div class="cvb-row"><span>مالیات بر ارزش افزوده</span><b class="pnl-num">{{ fa_num($taxPct) }}٪</b></div>
@@ -485,4 +549,46 @@
 })();
 </script>
 @endif
+
+{{-- انتخابگرِ کلیدِ SSH: «افزودن کلید تازه» کادرِ چسباندن را باز می‌کند.
+     ⚠️ وقتی کادر بسته است، فیلدهایش `disabled` می‌شوند نه فقط پنهان — وگرنه
+     متنِ نیمه‌تمامِ یک تلاشِ قبلی همراهِ فرم می‌رفت و اعتبارسنجی رد می‌کرد. --}}
+<script>
+(function(){
+  'use strict';
+
+  var pick = document.getElementById('cvb-ssh-pick');
+  var box  = document.getElementById('cvb-ssh-new');
+
+  if (!pick || !box) { return; }
+
+  function sync(){
+    var isNew = pick.value === '__new';
+    box.style.display = isNew ? '' : 'none';
+
+    box.querySelectorAll('input, textarea').forEach(function(el){
+      el.disabled = !isNew;
+    });
+
+    // مقدارِ '__new' نباید به سرور برود؛ سرور یا شناسهٔ عددی می‌خواهد یا خالی
+    pick.querySelectorAll('option').forEach(function(o){
+      if (o.value === '__new') { o.disabled = false; }
+    });
+  }
+
+  pick.addEventListener('change', sync);
+  sync();
+
+  // سرِ ارسال، مقدارِ نشانه‌ایِ '__new' را خالی کن تا اعتبارسنجیِ عددیِ
+  // ssh_key_id نشکند.
+  var form = document.getElementById('cvb-form');
+
+  if (form) {
+    form.addEventListener('submit', function(){
+      if (pick.value === '__new') { pick.value = ''; }
+    });
+  }
+})();
+</script>
+
 @endsection
