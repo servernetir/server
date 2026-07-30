@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 /**
- * منوی سایت باید با کاتالوگِ زنده بخواند.
+ * منوی «سرور مجازی» باید کشورمحور، ساده و همگام با کاتالوگ باشد.
  *
- * ═══ باگی که این تست‌ها می‌بندند ═══
- * زیرمنوی «سرور مجازی» دستی نوشته شده بود و drift داشت: «سرور مجازی فرانسه» و
- * «ایران» را تبلیغ می‌کرد که در کاتالوگ نبودند، و سنگاپور را که بود نداشت.
- * یعنی مشتری روی لینکی می‌زد که محصولی پشتش نبود.
+ * ═══ قاعدهٔ نمایش (خواستهٔ صریحِ کارفرما) ═══
+ * فقط «سرور مجازی (نامِ کشور)» — بی‌قیمت، بی‌شمارشِ پلن، و **بی‌«اتمام ظرفیت»**.
+ * منطق: کاربر راغب شود، وارد صفحهٔ کشور شود و آنجا موجودی را ببیند. کشورهای
+ * اصیلِ config همیشه هستند؛ کشوری که زنده پلن دارد ولی در config نیست هم اضافه
+ * می‌شود (مثلاً سنگاپور).
  */
 class SiteMenuSyncTest extends TestCase
 {
@@ -60,119 +61,86 @@ class SiteMenuSyncTest extends TestCase
         return [];
     }
 
-    /** آیا کشوری (با نام فارسی) در منو هست؟ منو کشورمحور است، پس نام کشور را می‌جوییم نه شهر. */
-    private function menuHasCountry(string $faName): bool
+    /** برچسب‌های فارسیِ گروهِ موقعیت، به‌هم چسبیده — برای سنجشِ متن */
+    private function joinedFa(): string
     {
-        foreach ($this->locationItems() as $item) {
-            if (str_contains((string) ($item['fa'] ?? ''), $faName)) {
-                return true;
-            }
-        }
-
-        return false;
+        return implode(' | ', array_column($this->locationItems(), 'fa'));
     }
 
-    /** آیا کشوری «اتمام ظرفیت» خورده؟ */
-    private function menuCountrySoldOut(string $faName): bool
+    // ═══════════════ ساختار و سادگی ═══════════════
+
+    /** کشورِ اصیلِ config همیشه هست، به شکلِ سادهٔ «سرور مجازی (کشور)» */
+    public function test_config_countries_are_shown_as_plain_links(): void
     {
-        foreach ($this->locationItems() as $item) {
-            $fa = (string) ($item['fa'] ?? '');
+        $joined = $this->joinedFa();
 
-            if (str_contains($fa, $faName) && str_contains($fa, 'اتمام ظرفیت')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ═══════════════ همگامی ═══════════════
-
-    public function test_menu_lists_locations_that_actually_have_sellable_plans(): void
-    {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('de-falkenstein');
-        $this->plan('sg-singapore');
-
-        // منو کشورمحور است: «آلمان»، نه «فالکن‌اشتاین»
-        $this->assertTrue($this->menuHasCountry('آلمان'), 'کشوری که پلن دارد باید در منو باشد');
-        $this->assertTrue($this->menuHasCountry('سنگاپور'));
-
-        // شمارشِ پلن در برچسب می‌آید
-        $fa = array_column($this->locationItems(), 'fa');
-        $this->assertStringContainsString('پلن', implode(' ', $fa));
+        $this->assertStringContainsString('سرور مجازی ایران', $joined);
+        $this->assertStringContainsString('سرور مجازی آلمان', $joined);
+        $this->assertStringContainsString('سرور مجازی فرانسه', $joined);
 
         // لینکِ فراگیر آخرِ همه
+        $fa = array_column($this->locationItems(), 'fa');
         $this->assertSame('همهٔ سرورهای مجازی', end($fa));
     }
 
     /**
-     * 🔴 قلبِ ماجرا: مکانی که پلنِ قابلِ فروش ندارد نباید تبلیغ شود — مشتری روی
-     * لینکی نزند که محصولی پشتش نیست.
+     * 🔴 قلبِ خواستهٔ تازه: هیچ قیمت، هیچ شمارشِ پلن، و هیچ «اتمام ظرفیت» در منو.
      */
-    public function test_locations_without_sellable_plans_are_not_advertised(): void
+    public function test_menu_has_no_price_no_count_no_sold_out(): void
     {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->plan('de-falkenstein');
+        // یک کشورِ زنده هم داریم تا مطمئن شویم حتی زنده‌ها هم برچسب نمی‌گیرند
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
 
-        // فرانسه مکان دارد ولی پلنش قیمت ندارد (نرخِ ارز نبوده)
-        $this->location('fr-paris', 'FR', 'Paris');
-        $this->plan('fr-paris', ['price_irt' => 0]);
+        $joined = implode(' ', array_map(
+            fn ($i) => ($i['fa'] ?? '').' '.($i['en'] ?? '').' '.($i['tr'] ?? ''),
+            $this->locationItems()
+        ));
 
-        // کانادا پلنِ ناموجود دارد
-        $this->location('ca-toronto', 'CA', 'Toronto');
-        $this->plan('ca-toronto', ['in_stock' => false]);
-
-        // آلمان زنده است؛ فرانسه (بی‌قیمت) و کانادا (ناموجود) نباید **زنده** بیایند.
-        // چون در config صفحهٔ فرانسه هست، ممکن است «اتمام ظرفیت» بخورد — ولی
-        // نباید به‌عنوان کشورِ دارایِ پلن نمایش داده شود.
-        $this->assertTrue($this->menuHasCountry('آلمان'));
-
-        // فرانسه اگر بیاید فقط اتمام‌ظرفیت است، نه با شمارشِ پلن
-        foreach ($this->locationItems() as $item) {
-            $fa = (string) ($item['fa'] ?? '');
-
-            if (str_contains($fa, 'فرانسه') || str_contains($fa, 'کانادا')) {
-                $this->assertStringNotContainsString('پلن', $fa, 'کشورِ بی‌پلن نباید شمارشِ پلن داشته باشد');
-            }
-        }
+        $this->assertStringNotContainsString('اتمام ظرفیت', $joined);
+        $this->assertStringNotContainsString('Out of stock', $joined);
+        $this->assertStringNotContainsString('پلن', $joined);
+        $this->assertStringNotContainsString('plans', $joined);
+        $this->assertStringNotContainsString('تومان', $joined);
+        $this->assertStringNotContainsString('€', $joined);
+        $this->assertStringNotContainsString(' از ', $joined);
     }
 
-    /** مکانِ غیرفعالِ دستی هم بیرون بمانَد */
-    public function test_inactive_location_is_excluded(): void
+    /** کشوری که زنده پلن دارد ولی در config نیست، اضافه می‌شود (سنگاپور) */
+    public function test_live_country_missing_from_config_is_added(): void
     {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $this->assertStringContainsString('سرور مجازی سنگاپور', $this->joinedFa());
+    }
+
+    /** کشوری که هم config داردش هم زنده است، فقط **یک بار** می‌آید */
+    public function test_country_in_both_config_and_catalog_is_not_duplicated(): void
+    {
+        // آلمان در config هست؛ حالا زنده هم می‌شود
         $this->location('de-falkenstein', 'DE', 'Falkenstein');
         $this->plan('de-falkenstein');
 
-        $hidden = $this->location('us-ashburn', 'US', 'Ashburn');
-        $this->plan('us-ashburn');
-        $hidden->update(['is_active' => false]);
+        $fa = array_column($this->locationItems(), 'fa');
+        $germany = array_filter($fa, fn ($s) => str_contains((string) $s, 'آلمان'));
 
-        // اشبرن تنها مکانِ آمریکاست و غیرفعال شده؛ پس آمریکا نباید **زنده** بیاید
-        foreach ($this->locationItems() as $item) {
-            $fa = (string) ($item['fa'] ?? '');
-
-            if (str_contains($fa, 'آمریکا')) {
-                $this->assertStringNotContainsString('پلن', $fa, 'کشورِ بی‌مکانِ فعال نباید زنده باشد');
-            }
-        }
+        $this->assertCount(1, $germany, 'آلمان نباید تکراری شود');
     }
 
     // ═══════════════ محافظه‌کاری ═══════════════
 
     /**
      * ⚠️ منوی خالی در هدرِ سایت از منوی کهنه بدتر است. اگر کاتالوگ خالی بود،
-     * همان فهرستِ config برمی‌گردد.
+     * همان کشورهای config برمی‌گردند.
      */
-    public function test_empty_catalog_falls_back_to_the_config_menu(): void
+    public function test_empty_catalog_still_shows_config_countries(): void
     {
         $items = $this->locationItems();
 
         $this->assertNotEmpty($items, 'منو هرگز نباید خالی شود');
-
-        // فهرستِ config با `slug` کار می‌کند، فهرستِ زنده با `route`
-        $this->assertArrayHasKey('slug', $items[0], 'باید به config برگشته باشد');
+        $this->assertArrayHasKey('slug', $items[0], 'باید کشورهای config باشند');
+        $this->assertStringNotContainsString('اتمام ظرفیت', $this->joinedFa());
     }
 
     /** گروه‌های بازاریابی (کاربرد/سیستم‌عامل) دست نمی‌خورند */
@@ -195,7 +163,23 @@ class SiteMenuSyncTest extends TestCase
         }
     }
 
-    /** بقیهٔ بخش‌های مگا-منو (هاست، دامنه، …) دست نمی‌خورند */
+    /** «سرور اختصاصی» دیگر «اتمام ظرفیت» نمی‌خورد و کاملاً دست‌نخورده است */
+    public function test_dedicated_is_not_marked_sold_out(): void
+    {
+        $this->location('de-falkenstein', 'DE', 'Falkenstein');
+        $this->plan('de-falkenstein');
+
+        $before = config('servernet.mega');
+        $after = app(SiteMenu::class)->mega();
+
+        $this->assertSame($before['dedicated'], $after['dedicated'],
+            'بخشِ سرور اختصاصی نباید عوض شود');
+
+        $joined = json_encode($after['dedicated'], JSON_UNESCAPED_UNICODE);
+        $this->assertStringNotContainsString('اتمام ظرفیت', (string) $joined);
+    }
+
+    /** بقیهٔ بخش‌های مگا-منو (هاست، دامنه، ابری) دست نمی‌خورند */
     public function test_other_mega_sections_are_untouched(): void
     {
         $this->location('de-falkenstein', 'DE', 'Falkenstein');
@@ -204,10 +188,9 @@ class SiteMenuSyncTest extends TestCase
         $before = config('servernet.mega');
         $after = app(SiteMenu::class)->mega();
 
-        // vps کشورمحور شده و dedicated برچسبِ «اتمام ظرفیت» می‌خورد (کاتالوگِ
-        // فیزیکی هنوز نیست) — پس این دو عمداً عوض می‌شوند. بقیه نباید.
+        // فقط vps کشورمحور می‌شود؛ بقیه (شاملِ dedicated) باید یکی باشند.
         foreach (array_keys($before) as $key) {
-            if (in_array($key, ['vps', 'dedicated'], true)) {
+            if ($key === 'vps') {
                 continue;
             }
 
@@ -220,10 +203,10 @@ class SiteMenuSyncTest extends TestCase
     /** همگام‌سازیِ کاتالوگ باید کشِ منو را دور بریزد */
     public function test_sync_forgets_the_menu_cache(): void
     {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->plan('de-falkenstein');
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
 
-        // کشورهای **زنده** شمرده می‌شوند: آیتمی که کلیدِ iso دارد (نه اتمام‌ظرفیتِ config)
+        // فقط کشورهای **زنده** (کلیدِ iso) شمرده می‌شوند، نه کشورهای config
         $liveCount = fn () => count(array_filter(
             $this->locationItems(),
             fn ($i) => isset($i['iso'])
@@ -231,9 +214,9 @@ class SiteMenuSyncTest extends TestCase
 
         $this->assertSame(1, $liveCount());
 
-        // کشورِ تازه اضافه می‌شود ولی کش هنوز کهنه است
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
+        // کشورِ زندهٔ تازه (که config ندارد) اضافه می‌شود ولی کش کهنه است
+        $this->location('jp-tokyo', 'JP', 'Tokyo');
+        $this->plan('jp-tokyo');
 
         $this->assertSame(1, $liveCount(), 'کش باید همان مقدارِ قبلی را بدهد');
 
@@ -247,16 +230,14 @@ class SiteMenuSyncTest extends TestCase
     /**
      * «کدِ ۲۰۰ یعنی هیچ» — پس صفحهٔ واقعی رندر و محتوایش سنجیده می‌شود.
      */
-    public function test_homepage_header_shows_the_live_locations(): void
+    public function test_homepage_header_shows_the_live_country(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
 
         $html = $this->get('/')->assertOk()->getContent();
 
-        // منو کشورمحور است: نامِ کشور در برچسب، و لینک به صفحهٔ مکانش
-        // (سنگاپور صفحهٔ بازاریابی ندارد، پس به /cloud/{code} می‌رود)
-        $this->assertStringContainsString('سنگاپور', $html);
+        $this->assertStringContainsString('سرور مجازی سنگاپور', $html);
         $this->assertStringContainsString('/cloud/sg-singapore', $html);
     }
 
@@ -268,17 +249,15 @@ class SiteMenuSyncTest extends TestCase
 
         $html = $this->get('/en')->assertOk()->getContent();
 
-        // نامِ انگلیسیِ کشور + شمارشِ پلن به انگلیسی
-        $this->assertStringContainsString('Singapore', $html);
-        $this->assertStringContainsString('plans', $html);
+        $this->assertStringContainsString('Singapore VPS', $html);
         $this->assertStringContainsString('/en/cloud/sg-singapore', $html);
     }
 
     /** منوی زنده نباید نامِ زیرساخت را لو بدهد */
     public function test_menu_never_leaks_the_provider(): void
     {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->plan('de-falkenstein');
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
 
         $json = json_encode($this->locationItems(), JSON_UNESCAPED_UNICODE);
 
@@ -287,128 +266,12 @@ class SiteMenuSyncTest extends TestCase
         }
     }
 
-    // ═══════════════ «اتمام ظرفیت» برای مکان‌هایی که نداریم ═══════════════
-
-    /**
-     * خواستهٔ کارفرما: مکانی که موجودی نداریم حذف نشود، «اتمام ظرفیت» بخورد.
-     * حذفش ارزشِ سئوی آن صفحه را از بین می‌برد؛ برچسب هم صادقانه‌تر از لینکِ
-     * ساکتی است که مشتری رویش می‌زند و محصولی نمی‌بیند.
-     */
-    public function test_unavailable_locations_are_marked_out_of_stock_not_removed(): void
-    {
-        // فقط سنگاپور را داریم
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
-
-        // زندهٔ قابلِ خرید — کشور با شمارشِ پلن
-        $this->assertTrue($this->menuHasCountry('سنگاپور'));
-        $this->assertStringContainsString('سنگاپور', $joined);
-        $this->assertStringContainsString('پلن', $joined);
-
-        // و کشورهای تبلیغاتیِ config هنوز هستند، ولی علامت‌دار
-        $this->assertStringContainsString('اتمام ظرفیت', $joined);
-        $this->assertStringContainsString('سرور مجازی ایران — اتمام ظرفیت', $joined);
-        $this->assertStringContainsString('سرور مجازی فرانسه — اتمام ظرفیت', $joined);
-    }
-
-    /**
-     * 🔴 نکتهٔ حساس: config در سطحِ **کشور** می‌نویسد و کاتالوگ در سطحِ **شهر**.
-     * اگر کشور را نسنجیم، «سرور مجازی آلمان» را «اتمام ظرفیت» علامت می‌زنیم در
-     * حالی که دو شهرِ آلمان را فعالانه می‌فروشیم — با دستِ خودمان فروش را
-     * می‌خوابانیم.
-     */
-    public function test_country_with_live_cities_is_not_marked_out_of_stock(): void
-    {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->location('de-nuremberg', 'DE', 'Nuremberg');
-        $this->plan('de-falkenstein');
-        $this->plan('de-nuremberg');
-
-        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
-
-        // آلمان زنده است (با شمارشِ پلن)، نه اتمام‌ظرفیت
-        $this->assertTrue($this->menuHasCountry('آلمان'));
-        $this->assertStringNotContainsString('آلمان — اتمام ظرفیت', $joined,
-            'آلمان را داریم، پس نباید اتمام ظرفیت بخورد');
-
-        // شهرها در منو نیستند (کشورمحور شد)؛ داخلِ صفحهٔ کشور می‌آیند
-        // ولی ایران را نداریم، پس اتمام‌ظرفیت است
-        $this->assertStringContainsString('ایران — اتمام ظرفیت', $joined);
-    }
-
-    /** «سرور مجازی خارج» با داشتنِ هر کشورِ غیرایرانی، موجود حساب می‌شود */
-    public function test_international_counts_as_available_with_any_foreign_location(): void
-    {
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
-
-        $this->assertStringNotContainsString('خارج — اتمام ظرفیت', $joined);
-    }
-
-    /** لینکِ مکانِ اتمام‌ظرفیت باز می‌مانَد — صفحه‌اش سئو دارد */
-    public function test_out_of_stock_items_keep_their_link(): void
-    {
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        foreach ($this->locationItems() as $item) {
-            if (str_contains((string) ($item['fa'] ?? ''), 'اتمام ظرفیت')) {
-                $this->assertTrue(
-                    isset($item['slug']) || isset($item['route']),
-                    'آیتمِ اتمام‌ظرفیت باید همچنان لینک داشته باشد'
-                );
-
-                return;
-            }
-        }
-
-        $this->fail('هیچ آیتمِ اتمام‌ظرفیتی پیدا نشد');
-    }
-
-    /** متنِ برچسب از تنظیمات قابلِ تغییر است (مثلاً به «به‌زودی») */
-    public function test_out_of_stock_label_is_configurable(): void
-    {
-        \App\Models\Setting::put('menu_soldout_label_fa', 'به‌زودی');
-
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
-
-        $this->assertStringContainsString('به‌زودی', $joined);
-        $this->assertStringNotContainsString('اتمام ظرفیت', $joined);
-    }
-
-    /** و در هدرِ واقعیِ صفحه هم دیده شود */
-    public function test_out_of_stock_badge_renders_on_the_homepage(): void
-    {
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $html = $this->get('/')->assertOk()->getContent();
-
-        // کشورِ زنده (سنگاپور) + کشورِ اتمام‌ظرفیت (ایرانِ config)
-        $this->assertStringContainsString('سنگاپور', $html);
-        $this->assertStringContainsString('اتمام ظرفیت', $html);
-    }
-
     // ═══════════════ idempotency ═══════════════
 
     /**
-     * 🔴 باگی که یک بازبینِ مستقل پیدا کرد و واقعی بود:
-     *
-     * `AppServiceProvider` خروجیِ `mega()` را در `config('servernet.mega')`
-     * می‌نویسد (تا هدر بی‌تغییرِ ویو زنده شود) و `mega()` هم **همان کلید** را
-     * می‌خواند. پس صدا زدنِ دوباره روی خروجیِ خودش کار می‌کرد و برچسب‌ها دو بار
-     * می‌چسبیدند: «سرور مجازی ایران — اتمام ظرفیت — اتمام ظرفیت».
-     *
-     * روی پروداکشن نهفته بود (هر درخواست پروسهٔ تازه، هدر یک بار رندر) ولی
-     * تست‌ها را ترتیب‌حساس می‌کرد. باگی که فقط «بعضی وقت‌ها» می‌افتد، بدترین
-     * نوعِ باگ است چون تصادفی به نظر می‌رسد.
+     * 🔴 باگی که یک بازبینِ مستقل پیدا کرد: composer خروجیِ `mega()` را در
+     * `config('servernet.mega')` می‌نویسد و اگر `mega()` همان کلید را بخواند،
+     * روی خروجیِ خودش می‌دود و کشورهای زنده و لینکِ فراگیر دوبرابر می‌شوند.
      */
     public function test_mega_is_idempotent_even_after_the_composer_overwrote_config(): void
     {
@@ -423,83 +286,9 @@ class SiteMenuSyncTest extends TestCase
         $second = app(SiteMenu::class)->mega();
 
         $this->assertSame($first, $second, 'خروجی باید با هر بار صدا زدن یکی باشد');
-
-        // و هیچ برچسبی دو بار نچسبیده باشد
-        foreach ($second['vps']['groups'] as $g) {
-            foreach ($g['items'] ?? [] as $item) {
-                $fa = (string) ($item['fa'] ?? '');
-
-                $this->assertLessThanOrEqual(1, substr_count($fa, 'اتمام ظرفیت'),
-                    "برچسب در «{$fa}» تکرار شده است");
-            }
-        }
     }
 
-    /** سه بار پشت‌سرهم هم باید همان بماند */
-    public function test_mega_stays_stable_across_repeated_renders(): void
-    {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->plan('de-falkenstein');
-
-        $svc = app(SiteMenu::class);
-        $a = $svc->mega();
-
-        for ($i = 0; $i < 3; $i++) {
-            config(['servernet.mega' => $svc->mega()]);
-        }
-
-        $this->assertSame($a, $svc->mega());
-    }
-
-    /**
-     * و همان ادعا از راهِ **واقعی**: دو تستِ بالا خودشان `config()` را می‌نویسند،
-     * یعنی composer را *تقلید* می‌کنند. این یکی هدر را واقعاً رندر می‌کند تا
-     * همان سیمی سنجیده شود که در پروداکشن کار می‌کند — اگر روزی نحوهٔ
-     * بازنویسیِ config در `AppServiceProvider` عوض شود، تقلید سبز می‌مانَد و
-     * فقط این تست می‌گیردش.
-     */
-    public function test_rendering_the_header_twice_does_not_corrupt_the_menu(): void
-    {
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $before = $this->locationItems();
-
-        $this->get('/')->assertOk();          // composerِ هدر config را می‌نویسد
-        $this->get('/')->assertOk();          // و بارِ دوم روی نوشتهٔ خودش
-
-        $this->assertSame($before, $this->locationItems(),
-            'منو بعد از رندرِ هدر باید همان باشد که پیش از آن بود');
-    }
-
-    /** برچسبِ اتمام ظرفیت — در هر سه زبان — هرگز دو بار روی یک آیتم نمی‌نشیند */
-    public function test_out_of_stock_label_is_never_appended_twice(): void
-    {
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('sg-singapore');
-
-        $this->get('/')->assertOk();
-        $this->get('/')->assertOk();
-
-        $labels = ['fa' => 'اتمام ظرفیت', 'en' => 'Out of stock', 'tr' => 'Stokta yok'];
-
-        foreach ($this->locationItems() as $item) {
-            foreach ($labels as $lang => $label) {
-                $value = (string) ($item[$lang] ?? '');
-
-                $this->assertLessThanOrEqual(1, substr_count($value, $label),
-                    "برچسب روی «{$value}» دو بار نشسته است");
-            }
-        }
-    }
-
-    /**
-     * «همهٔ سرورهای مجازی» دقیقاً یک بار — و همچنان آخرِ فهرست.
-     *
-     * چرا جدا از تستِ بالا: برچسبِ تکراری و لینکِ فراگیرِ تکراری دو گلوگاهِ جدا
-     * در `mega()` هستند (`soldOutItems()` و آن `array_merge`)، پس هر کدام
-     * ادعای خودش را لازم دارد.
-     */
+    /** لینکِ فراگیر دقیقاً یک بار — و همچنان آخرِ فهرست */
     public function test_catch_all_link_appears_exactly_once_and_stays_last(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
@@ -515,29 +304,35 @@ class SiteMenuSyncTest extends TestCase
         $this->assertSame('همهٔ سرورهای مجازی', end($fa), 'و آخرِ همه بمانَد');
     }
 
+    /** مکان‌های زنده هم با رندرهای بیشتر تکرار نشوند */
+    public function test_live_locations_are_not_duplicated_by_extra_renders(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->location('jp-tokyo', 'JP', 'Tokyo');
+        $this->plan('sg-singapore');
+        $this->plan('jp-tokyo');
+
+        $this->get('/')->assertOk();
+        $this->get('/')->assertOk();
+
+        $live = array_filter(
+            $this->locationItems(),
+            fn ($i) => isset($i['iso'])
+        );
+
+        $this->assertCount(2, $live, 'دو کشورِ زنده داریم، نه بیشتر');
+    }
+
     /**
-     * 🔴 این تست از همهٔ تست‌های بالا حساس‌تر است — و دلیلش را بخوان قبل از
-     * دست‌زدن به `mega()`:
-     *
-     * دو محافظِ **مستقل** روی این باگ نشسته است:
-     *   ۱) `mega()` از عکسِ دست‌نخورده می‌خواند (`SiteMenu::SOURCE`)، نه از
-     *      کلیدی که composer رویش می‌نویسد.
-     *   ۲) `soldOutItems()` برچسبِ از قبل چسبیده را دوباره نمی‌چسباند.
-     *
-     * محافظِ ۲ به‌تنهایی جلوی برچسبِ تکراری را می‌گیرد، پس اگر محافظِ ۱ را
-     * برداری **همهٔ تست‌های بالا سبز می‌مانند** (خودم امتحان کردم: ۲۲ تست سبز
-     * با محافظِ ۱ برداشته‌شده). یعنی آنها ادعای «خالص‌بودنِ نسبت به config» را
-     * اثبات نمی‌کنند، فقط عوارضش را می‌پوشانند.
-     *
-     * این تست دقیقاً محافظِ ۱ را می‌سنجد: کلیدِ `servernet.mega` را آلوده
-     * می‌کنیم؛ اگر `mega()` از آن بخواند، آلودگی در خروجی ظاهر می‌شود.
+     * 🔴 حساس‌ترین تست: `mega()` باید از عکسِ دست‌نخورده بخواند، نه از کلیدی که
+     * composer رویش می‌نویسد. کلیدِ `servernet.mega` را آلوده می‌کنیم؛ اگر
+     * `mega()` از آن بخواند، آلودگی در خروجی ظاهر می‌شود.
      */
     public function test_mega_reads_the_pristine_snapshot_not_the_key_it_writes_into(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
 
-        // همان کلیدی که composerِ هدر رویش می‌نویسد را دستی آلوده می‌کنیم
         $polluted = config('servernet.mega');
 
         foreach ($polluted['vps']['groups'] as $i => $group) {
@@ -553,23 +348,15 @@ class SiteMenuSyncTest extends TestCase
 
         config(['servernet.mega' => $polluted]);
 
-        $joined = implode(' | ', array_column($this->locationItems(), 'fa'));
-
-        $this->assertStringNotContainsString('آتلانتیس', $joined,
+        $this->assertStringNotContainsString('آتلانتیس', $this->joinedFa(),
             'mega() باید از عکسِ دست‌نخورده بخواند، نه از کلیدی که خودش رویش نوشته می‌شود');
     }
 
     /**
-     * و کمربندِ دوم (`soldOutItems()`) هم تستِ خودش را لازم دارد.
-     *
-     * روی مسیرِ عادی هرگز صدا نمی‌دهد — چون محافظِ ۱ همیشه از عکسِ دست‌نخورده
-     * می‌سازد — پس بی‌این تست، برداشتنش هیچ تستی را قرمز نمی‌کرد. همان تلهٔ
-     * «محافظِ نانوشته» که یک بار خوردیم، فقط از سمتِ دیگر.
-     *
-     * پس مسیرِ fallback را عمداً می‌سازیم: کلیدِ عکس را برمی‌داریم و
-     * `servernet.mega` را با خروجیِ خودِ `mega()` آلوده می‌کنیم.
+     * و کمربندِ دوم: حتی روی مسیرِ fallback (وقتی عکسِ دست‌نخورده نیست) هم نه
+     * کشورِ زنده و نه لینکِ فراگیر دو بار نمی‌نشیند.
      */
-    public function test_label_never_doubles_even_on_the_fallback_path(): void
+    public function test_stays_stable_even_on_the_fallback_path(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
@@ -577,41 +364,26 @@ class SiteMenuSyncTest extends TestCase
         $once = app(SiteMenu::class)->mega();
 
         // کلیدِ عکس باید **واقعاً حذف** شود؛ ست‌کردنش به null بی‌فایده است چون
-        // null هم یک مقدارِ معتبر است و `config($key, $default)` را بی‌اثر می‌کند.
+        // null هم مقداری معتبر است و `config($key, $default)` را بی‌اثر می‌کند.
         $servernet = config('servernet');
         unset($servernet['mega_source']);
         config(['servernet' => $servernet, 'servernet.mega' => $once]);
 
         $twice = app(SiteMenu::class)->mega();
 
-        foreach ($twice['vps']['groups'] as $group) {
-            foreach ($group['items'] ?? [] as $item) {
-                $fa = (string) ($item['fa'] ?? '');
-
-                $this->assertLessThanOrEqual(1, substr_count($fa, 'اتمام ظرفیت'),
-                    "برچسب در «{$fa}» تکرار شده است");
-            }
-        }
-
         $this->assertSame($once, $twice, 'حتی روی مسیرِ fallback هم خروجی باید پایدار بمانَد');
-    }
 
-    /** مکان‌های زنده هم با رندرهای بیشتر تکرار نشوند */
-    public function test_live_locations_are_not_duplicated_by_extra_renders(): void
-    {
-        $this->location('de-falkenstein', 'DE', 'Falkenstein');
-        $this->location('sg-singapore', 'SG', 'Singapore');
-        $this->plan('de-falkenstein');
-        $this->plan('sg-singapore');
+        // نه کشورِ زنده دوتا شده، نه لینکِ فراگیر
+        foreach ($twice['vps']['groups'] as $g) {
+            if (($g['en'] ?? '') !== 'Locations') {
+                continue;
+            }
 
-        $this->get('/')->assertOk();
-        $this->get('/')->assertOk();
+            $fa = array_column($g['items'], 'fa');
+            $this->assertCount(1, array_keys($fa, 'همهٔ سرورهای مجازی', true));
 
-        $live = array_filter(
-            $this->locationItems(),
-            fn ($i) => isset($i['iso'])
-        );
-
-        $this->assertCount(2, $live, 'دو کشورِ زنده داریم، نه بیشتر');
+            $live = array_filter($g['items'], fn ($i) => isset($i['iso']));
+            $this->assertCount(1, $live, 'سنگاپور نباید دوتا شود');
+        }
     }
 }

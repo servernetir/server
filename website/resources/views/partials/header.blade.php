@@ -298,7 +298,7 @@
       <div class="acc-body"><div class="acc-in">
         @foreach($cat['groups'] as $group)
         <h6>{{ lc($group) }}</h6>
-        @foreach($group['items'] as $item)<a href="{{ isset($item['slug']) ? ($key === 'hosting' ? lroute('hosting', $item['slug']) : lroute('catalog', ['category' => $key, 'slug' => $item['slug']])) : '#' }}">{{ lc($item) }}</a>@endforeach
+        @foreach($group['items'] as $item)<a href="{{ isset($item['route']) ? lroute($item['route'][0], $item['route'][1] ?? []) : (isset($item['slug']) ? ($key === 'hosting' ? lroute('hosting', $item['slug']) : lroute('catalog', ['category' => $key, 'slug' => $item['slug']])) : '#') }}">{{ lc($item) }}</a>@endforeach
         @endforeach
       </div></div>
     </div>
