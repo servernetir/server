@@ -126,9 +126,10 @@ class StoreController extends Controller
             return $this->issueOrderInvoice($service, $product);
         });
 
-        \App\Models\ActivityLog::record($customer->id, 'service',
+        \App\Models\ActivityLog::record($customer->id, 'purchase',
             'سفارشِ آنلاینِ پکیج «'.$product->name.'» ('.$domain.') — '
-            .Service::labelFor($cycle).($country ? ' · '.$country : '').' ثبت شد', $request, 'customer');
+            .Service::labelFor($cycle).($country ? ' · '.$country : '').' توسط مشتری ثبت شد',
+            $request, 'customer', $invoice->service_id);
 
         // اعلانِ سفارشِ تازه به مدیر (هنوز پرداخت نشده — پرداختش اعلانِ جدا دارد)
         app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ جدید (در انتظارِ پرداخت)', [

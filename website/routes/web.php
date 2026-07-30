@@ -1441,6 +1441,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/services/{service}/unsuspend', [\App\Http\Controllers\Admin\ServiceController::class, 'unsuspend']);
         Route::post('/services/{service}/terminate', [\App\Http\Controllers\Admin\ServiceController::class, 'terminate']);
 
+        // تاریخچهٔ مالکیتِ یک سرویس: کی خرید، کی تمدید کرد، کی تعلیق/حذف شد
+        Route::get('/services/{service}/history', [\App\Http\Controllers\Admin\ServiceController::class, 'history'])->name('admin.service.history');
+
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');
         Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);

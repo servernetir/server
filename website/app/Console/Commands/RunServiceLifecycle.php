@@ -118,6 +118,9 @@ class RunServiceLifecycle extends Command
                 ])->save();
 
                 $customers->message($service->customer, 'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
+
+                \App\Models\ActivityLog::forService($service, 'reactivate',
+                    'رفعِ تعلیقِ خودکار — فاکتورِ تمدید پرداخت شد', 'system');
             }
             $stats['restored']++;
 
@@ -178,6 +181,9 @@ class RunServiceLifecycle extends Command
                     .'اطلاعات و فایل‌هایتان محفوظ است؛ با پرداختِ فاکتور بلافاصله برمی‌گردد.');
 
                 $this->alertAdmin($admin, $service, 'سرویس به‌خاطرِ عدمِ تمدید غیرفعال شد', '⛔');
+
+                \App\Models\ActivityLog::forService($service, 'suspend',
+                    'تعلیقِ خودکار — فاکتورِ سررسیدشده ('.$daysOverdue.' روز) پرداخت نشد', 'system');
             }
             $stats['suspended']++;
 

@@ -642,9 +642,9 @@ class CloudStoreController extends Controller
         });
 
         try {
-            ActivityLog::record($customer->id, 'service',
+            ActivityLog::forService($service, 'purchase',
                 'سفارشِ سرورِ مجازی «'.$label.'» — '.$offer->public_name.' · '.$locText
-                .' · '.Service::labelFor($cycle).' ثبت شد', $request, 'customer');
+                .' · '.Service::labelFor($cycle).' توسط مشتری ثبت شد', 'customer', $request);
         } catch (\Throwable) {
             // لاگ نباید سفارش را بشکند
         }

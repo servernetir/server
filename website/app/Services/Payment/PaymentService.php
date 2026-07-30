@@ -261,6 +261,9 @@ class PaymentService
                     } else {
                         $service->status = 'active';
                     }
+                    // پیش از ثبتِ activated_at می‌سنجیم: اگر از قبل فعال بوده،
+                    // این پرداخت «تمدید» است؛ وگرنه «فعال‌سازیِ اولِ» خرید.
+                    $wasActivated = $service->activated_at !== null;
                     $service->activated_at ??= now();
                     if ($service->isRecurring()) {
                         // سررسیدِ بعدی از «پایانِ دورهٔ خریداری‌شده» جلو می‌رود، نه از
@@ -289,6 +292,20 @@ class PaymentService
                         }
                     }
                     $service->save();
+
+                    // لاگِ سرویس‌محور: خرید (فعال‌سازیِ اول) یا تمدید. actor از
+                    // زمینه: اگر مشتری در نشست باشد 'customer'، وگرنه (تمدیدِ
+                    // خودکار از اعتبار/کرون) 'system'.
+                    try {
+                        \App\Models\ActivityLog::forService($service,
+                            $wasActivated ? 'renew' : 'purchase',
+                            $wasActivated
+                                ? 'سرویس با پرداختِ فاکتور تمدید شد'.($service->next_due_at ? ' (سررسیدِ بعدی: '.$service->next_due_at->format('Y-m-d').')' : '')
+                                : 'سرویس با پرداختِ فاکتور فعال شد',
+                            auth('customer')->check() ? 'customer' : 'system');
+                    } catch (\Throwable) {
+                        // لاگ نباید تسویه را بشکند
+                    }
                 }
                 } catch (\Throwable $e) {
                     // پرداخت سرِجایش می‌ماند؛ فقط فعال‌سازی مشکل داشت.

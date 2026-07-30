@@ -68,8 +68,9 @@ class ServiceController extends Controller
             return $service;
         });
 
-        \App\Models\ActivityLog::record($customer->id, 'service',
-            'سرویس «'.$service->name.'» فروخته شد و پیش‌فاکتور صادر گردید', $request, 'staff');
+        \App\Models\ActivityLog::forService($service, 'purchase',
+            'سرویس «'.$service->name.'» توسط مدیر ('.($request->user()?->name ?: 'مدیر').') فروخته و پیش‌فاکتور صادر شد',
+            'staff', $request);
 
         return redirect("/admin/customers/{$customer->id}")
             ->with('ok', 'سرویس «'.$service->name.'» ساخته شد و پیش‌فاکتور صادر گردید. پس از پرداخت مشتری، خودکار فعال می‌شود.');
@@ -133,6 +134,11 @@ class ServiceController extends Controller
         }
         $service->save();
 
+        \App\Models\ActivityLog::forService($service,
+            match ($data['status']) { 'suspended' => 'suspend', 'cancelled' => 'terminate', default => 'reactivate' },
+            'وضعیت سرویس به «'.$data['status'].'» تغییر کرد — توسط '.($request->user()?->name ?: 'مدیر'),
+            'staff', $request);
+
         return back()->with('ok', 'وضعیت سرویس به‌روزرسانی شد.');
     }
 
@@ -144,6 +150,9 @@ class ServiceController extends Controller
         }
 
         $this->issueInvoice($service);
+
+        \App\Models\ActivityLog::forService($service, 'renew',
+            'فاکتور تمدید توسط مدیر ('.(request()->user()?->name ?: 'مدیر').') صادر شد', 'staff');
 
         return back()->with('ok', 'فاکتور تمدید صادر شد؛ پس از پرداخت، سررسید سرویس یک دوره جلو می‌رود.');
     }
@@ -191,6 +200,11 @@ class ServiceController extends Controller
 
         $ok = app(\App\Services\Provisioning\ProvisioningService::class)->provision($service->fresh());
 
+        if ($ok) {
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'تحویلِ دستیِ روی سرور توسط مدیر ('.($request->user()?->name ?: 'مدیر').')', 'staff', $request);
+        }
+
         return $ok
             ? back()->with('ok', 'سرویس روی سرور ساخته و تحویل شد.')
             : back()->withErrors('تحویل انجام نشد: '.($service->fresh()->provision_error ?: 'روی این سرور تحویلِ خودکار نیست یا خطا رخ داد.'));
@@ -199,6 +213,11 @@ class ServiceController extends Controller
     public function suspend(Request $request, Service $service): RedirectResponse
     {
         $r = app(\App\Services\Provisioning\ProvisioningService::class)->suspend($service);
+
+        if ($r->ok || $r->manual) {
+            \App\Models\ActivityLog::forService($service, 'suspend',
+                'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') معلق شد', 'staff', $request);
+        }
 
         return ($r->ok || $r->manual)
             ? back()->with('ok', 'سرویس معلق شد'.($r->manual ? ' (تعلیقِ سرور را دستی انجام دهید).' : ' و روی سرور غیرفعال شد.'))
@@ -209,9 +228,27 @@ class ServiceController extends Controller
     {
         $r = app(\App\Services\Provisioning\ProvisioningService::class)->unsuspend($service);
 
+        if ($r->ok || $r->manual) {
+            \App\Models\ActivityLog::forService($service, 'reactivate',
+                'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') از تعلیق درآمد', 'staff', $request);
+        }
+
         return ($r->ok || $r->manual)
             ? back()->with('ok', 'سرویس فعال شد.')
             : back()->withErrors('رفعِ تعلیق ناموفق: '.$r->error);
+    }
+
+    /**
+     * تاریخچهٔ مالکیتِ یک سرویس — خواستهٔ کارفرما: «باید بدانم این سرور در فلان
+     * زمان دستِ کی بود». همهٔ رویدادهای service-محور به‌ترتیبِ زمان.
+     */
+    public function history(Service $service): \Illuminate\View\View
+    {
+        $service->load('customer');
+
+        $logs = \App\Models\ActivityLog::ofService($service->id)->limit(300)->get();
+
+        return view('admin.service-history', compact('service', 'logs'));
     }
 
     public function terminate(Request $request, Service $service): RedirectResponse
@@ -219,6 +256,11 @@ class ServiceController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
+
+        if ($r->ok || $r->manual) {
+            \App\Models\ActivityLog::forService($service, 'terminate',
+                'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') لغو و از سرور حذف شد', 'staff', $request);
+        }
 
         return ($r->ok || $r->manual)
             ? back()->with('ok', 'سرویس لغو شد'.($r->manual ? ' (حذفِ سرور را دستی انجام دهید).' : ' و حساب از سرور حذف شد.'))

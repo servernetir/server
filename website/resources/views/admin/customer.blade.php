@@ -179,6 +179,7 @@
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
           <td dir="ltr" style="color:var(--muted)">{{ $s->next_due_at ? sdate($s->next_due_at) : '—' }}</td>
           <td class="ad-row-act" style="white-space:nowrap">
+            <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)" title="تاریخچهٔ مالکیت: کی خرید، تمدید، تعلیق یا حذف کرد">تاریخچه</a>
             <form method="post" action="/admin/services/{{ $s->id }}/status" style="display:inline">@csrf
               <select name="status" onchange="this.form.submit()" style="background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 8px;font:inherit;font-size:12px">
                 <option value="">تغییر…</option>

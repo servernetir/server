@@ -15,13 +15,30 @@ class ActivityLog extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'customer_id', 'actor', 'action', 'description', 'ip', 'user_agent',
+        'customer_id', 'service_id', 'actor', 'action', 'description', 'ip', 'user_agent',
         'geo_cc', 'geo_country', 'geo_region',
     ];
 
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * فقط رویدادهای یک سرویسِ مشخص، تازه‌ترین اول — تایم‌لاینِ پنلِ مدیریت.
+     *
+     * ⚠️ نامش عمداً `ofService` است نه `forService`: متدِ استاتیکِ `forService()`
+     * (ثبت‌کننده) بر اسکوپِ هم‌نام سایه می‌انداخت و `ActivityLog::forService($id)`
+     * به‌جای پرس‌وجو، ثبت‌کننده را صدا می‌زد.
+     */
+    public function scopeOfService($q, int $serviceId)
+    {
+        return $q->where('service_id', $serviceId)->orderByDesc('id');
     }
 
     /**
@@ -34,6 +51,7 @@ class ActivityLog extends Model
         string $description,
         ?Request $request = null,
         string $actor = 'customer',
+        ?int $serviceId = null,
     ): void {
         try {
             if (! Schema::hasTable('activity_logs')) {
@@ -50,6 +68,12 @@ class ActivityLog extends Model
                 'ip'          => $request?->ip(),
                 'user_agent'  => mb_substr((string) $request?->userAgent(), 0, 200) ?: null,
             ];
+
+            // service_id فقط اگر ستونش ساخته شده باشد (روی سرورِ ازقبل‌مهاجرت
+            // نکرده، رویداد همچنان ثبت می‌شود، فقط بی‌پیوندِ سرویس).
+            if ($serviceId !== null && Schema::hasColumn('activity_logs', 'service_id')) {
+                $row['service_id'] = $serviceId;
+            }
 
             // مکانِ IP فقط اگر ستون‌هایش ساخته شده باشند (روی سرورِ ازقبل‌مهاجرت
             // نکرده، این بخش بی‌صدا رد می‌شود و لاگ همچنان ثبت می‌شود).
@@ -69,6 +93,24 @@ class ActivityLog extends Model
         } catch (\Throwable) {
             // لاگ نباید خودش منبع خطا شود
         }
+    }
+
+    /**
+     * ثبتِ یک رویدادِ **سرویس‌محور** — با customer_id و service_id هر دو، تا
+     * تاریخچهٔ همان سرور بعداً قابلِ پرس‌وجو باشد.
+     *
+     * actor پیش‌فرض 'staff' است چون بیشترِ رویدادهای چرخهٔ عمر از پنلِ مدیریت
+     * می‌آیند؛ خریدِ خودِ مشتری 'customer' و کارِ خودکارِ کرون 'system' پاس
+     * داده می‌شوند. best-effort مثلِ record().
+     */
+    public static function forService(
+        \App\Models\Service $service,
+        string $action,
+        string $description,
+        string $actor = 'staff',
+        ?Request $request = null,
+    ): void {
+        self::record($service->customer_id, $action, $description, $request, $actor, $service->id);
     }
 
     /** تجزیهٔ دستگاه/مرورگر از user-agent — برای نمایش */
@@ -102,6 +144,13 @@ class ActivityLog extends Model
             'service'     => 'i-server',
             'password'    => 'i-lock',
             'bank_receipt', 'bank_approved' => 'i-db',
+            // چرخهٔ عمرِ سرویس — برای تایم‌لاینِ سرور
+            'purchase'    => 'i-rocket',
+            'renew'       => 'i-coins',
+            'suspend'     => 'i-shield',
+            'reactivate'  => 'i-server',
+            'terminate'   => 'i-x',
+            'provision'   => 'i-server',
             default       => 'i-flow',
         };
     }
