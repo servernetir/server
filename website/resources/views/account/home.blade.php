@@ -43,23 +43,22 @@
 <div class="pnl-stats">
   <div class="pnl-stat {{ $credit > 0 ? 'is-ok' : '' }}">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-coins"/></svg>{{ __('ui.pnl_credit') }}</div>
-    <b class="pnl-num">{{ fa_num(number_format($credit)) }}</b>
-    <small>{{ __('ui.pnl_toman') }}</small>
+    <b class="pnl-num">{{ invoice_money($credit) }}</b>
   </div>
   <a class="pnl-stat" href="{{ lroute('account.services') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-server"/></svg>{{ __('ui.pnl_services') }}</div>
     <b class="pnl-num">{{ fa_num($serviceCount) }}</b>
-    <small>@if($serviceCount)فعال@else—@endif</small>
+    <small>@if($serviceCount){{ __('ui.ahome_svc_active') }}@else—@endif</small>
   </a>
   <a class="pnl-stat {{ $openInvoices->count() ? 'is-warn' : '' }}" href="{{ lroute('account.invoices') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-box"/></svg>{{ __('ui.pnl_invoices_open') }}</div>
     <b class="pnl-num">{{ fa_num($openInvoices->count()) }}</b>
-    <small>@if($openInvoices->count()){{ fa_num(number_format($openInvoices->sum(fn ($i) => $i->due()))) }} {{ __('ui.pnl_toman') }}@else—@endif</small>
+    <small>@if($openInvoices->count()){{ invoice_money($openInvoices->sum(fn ($i) => $i->due())) }}@else—@endif</small>
   </a>
   <a class="pnl-stat" href="{{ lroute('account.tickets') }}" style="text-decoration:none;color:inherit">
     <div class="pnl-stat-h"><svg class="icon"><use href="#i-lifebuoy"/></svg>{{ __('ui.pnl_tickets_open') }}</div>
     <b class="pnl-num">{{ fa_num($ticketOpen) }}</b>
-    <small>@if($ticketOpen)باز@else—@endif</small>
+    <small>@if($ticketOpen){{ __('ui.ahome_ticket_open') }}@else—@endif</small>
   </a>
 </div>
 
@@ -130,7 +129,7 @@
                   @elseif($p->status === 'failed')<span class="pnl-pill danger">✕</span>
                   @else<span class="pnl-pill warn">…</span>@endif
                 </td>
-                <td class="num pnl-num">{{ fa_num(number_format($p->amount)) }}</td>
+                <td class="num pnl-num">{{ invoice_money($p->amount, $p->currency_code) }}</td>
               </tr>
             @endforeach
           </tbody>
@@ -142,7 +141,7 @@
 
 {{-- ══ فعالیت و امنیت حساب ══ --}}
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>فعالیت و امنیت حساب</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.ahome_sec_title') }}</h2></div>
 
   {{-- نوار جلسه: ساعت زندهٔ شمسی + IP و مکانِ فعلی + دستگاه + آخرین ورود --}}
   @php
@@ -161,7 +160,7 @@
       <div class="sess-tile">
         <span class="sess-ic"><svg class="icon"><use href="#i-globe"/></svg></span>
         <div class="sess-t">
-          <span>IP و مکانِ فعلی شما</span>
+          <span>{{ __('ui.ahome_your_ip') }}</span>
           <b dir="ltr">{{ $currentIp }}</b>
           @if($cgeo)<span>{{ $cgeo['flag'] }} {{ $cgeo['country'] }}{{ $cgeo['region'] ? '، '.$cgeo['region'] : '' }}</span>@endif
         </div>
@@ -169,16 +168,16 @@
       <div class="sess-tile">
         <span class="sess-ic"><svg class="icon"><use href="#{{ $cdev['icon'] }}"/></svg></span>
         <div class="sess-t">
-          <span>دستگاه فعلی</span>
-          <b>{{ $cdev['label'] !== '—' ? $cdev['label'] : 'نامشخص' }}</b>
+          <span>{{ __('ui.ahome_current_device') }}</span>
+          <b>{{ $cdev['label'] !== '—' ? $cdev['label'] : __('ui.ahome_unknown') }}</b>
         </div>
       </div>
       <div class="sess-tile">
         <span class="sess-ic ok"><svg class="icon"><use href="#i-shield"/></svg></span>
         <div class="sess-t">
-          <span>آخرین ورود</span>
+          <span>{{ __('ui.ahome_last_login') }}</span>
           <b>{{ $customer->last_login_at ? stime($customer->last_login_at) : '—' }}</b>
-          @if($customer->last_login_ip)<span dir="ltr">از {{ $customer->last_login_ip }}</span>@endif
+          @if($customer->last_login_ip)<span dir="ltr">{{ __('ui.ahome_from') }} {{ $customer->last_login_ip }}</span>@endif
         </div>
       </div>
     </div>
@@ -201,7 +200,7 @@
               </small>
             @endif
           </span>
-          @if($a->actor === 'staff')<span class="pnl-pill mute">پشتیبانی</span>@endif
+          @if($a->actor === 'staff')<span class="pnl-pill mute">{{ __('ui.ahome_staff') }}</span>@endif
         </li>
       @endforeach
     </ul>

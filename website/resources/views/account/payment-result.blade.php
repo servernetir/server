@@ -8,7 +8,7 @@
   پرداختش را پیگیری کند، و اولین چیزی که پشتیبانی از او می‌پرسد.
 --}}
 @extends('layouts.site')
-@section('title', $ok ? 'پرداخت موفق — سرورنت' : 'نتیجهٔ پرداخت — سرورنت')
+@section('title', $ok ? __('ui.pres_title_ok') : __('ui.pres_title_result'))
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/auth.css') }}">
@@ -21,9 +21,9 @@
 
     <div class="auth-title">
       <h1>
-        @if($ok) پرداخت انجام شد
-        @elseif($canceled ?? false) پرداخت لغو شد
-        @else پرداخت ناموفق بود @endif
+        @if($ok) {{ __('ui.pres_status_ok') }}
+        @elseif($canceled ?? false) {{ __('ui.pres_status_canceled') }}
+        @else {{ __('ui.pres_status_failed') }} @endif
       </h1>
       <p>{{ $message }}</p>
     </div>
@@ -35,46 +35,43 @@
           <div class="pay-rows">
             @if($payment->ref_id)
               <div class="pay-row hero">
-                <span>شمارهٔ پیگیری</span>
+                <span>{{ __('ui.pres_ref') }}</span>
                 <b dir="ltr">{{ $payment->ref_id }}</b>
               </div>
             @endif
 
             <div class="pay-row">
-              <span>مبلغ</span>
-              <b>{{ fa_num(number_format($payment->amount)) }} تومان</b>
+              <span>{{ __('ui.pres_amount') }}</span>
+              <b>{{ invoice_money($payment->amount, $payment->currency_code) }}</b>
             </div>
 
             @if($payment->invoice)
               <div class="pay-row">
-                <span>فاکتور</span>
+                <span>{{ __('ui.pres_invoice') }}</span>
                 <b dir="ltr">{{ $payment->invoice->number }}</b>
               </div>
             @endif
 
             @if($payment->card_mask)
               <div class="pay-row">
-                <span>کارت</span>
+                <span>{{ __('ui.pres_card') }}</span>
                 <b dir="ltr">{{ $payment->card_mask }}</b>
               </div>
             @endif
 
             <div class="pay-row">
-              <span>زمان</span>
+              <span>{{ __('ui.pres_time') }}</span>
               <b>{{ stime($payment->paid_at ?? $payment->updated_at) }}</b>
             </div>
           </div>
 
           @if($ok)
             <p class="pay-note ok">
-              شمارهٔ پیگیری را نگه دارید. اگر لازم شد پرداخت را پیگیری کنید،
-              همین شماره کافی است.
+              {{ __('ui.pres_note_ok') }}
             </p>
           @else
             <p class="pay-note">
-              اگر مبلغی از حساب شما کم شده، طبق قوانین بانکی حداکثر تا ۷۲ ساعت
-              به‌صورت خودکار برمی‌گردد. اگر برنگشت، شمارهٔ پیگیری بالا را برای
-              پشتیبانی بفرستید.
+              {{ __('ui.pres_note_fail') }}
             </p>
           @endif
         @endif
@@ -83,12 +80,12 @@
           @auth('customer')
             <a class="auth-btn" style="width:auto;flex:1;min-width:180px"
                href="{{ $payment?->invoice ? lroute('account.invoice', $payment->invoice) : lroute('account.invoices') }}">
-              مشاهدهٔ فاکتور
+              {{ __('ui.pres_view_invoice') }}
             </a>
-            <a class="auth-ghost" style="align-self:center" href="{{ lroute('account.home') }}">پنل کاربری</a>
+            <a class="auth-ghost" style="align-self:center" href="{{ lroute('account.home') }}">{{ __('ui.pres_panel') }}</a>
           @else
             <a class="auth-btn" style="width:auto;flex:1;min-width:180px" href="{{ lroute('login') }}">
-              ورود به پنل کاربری
+              {{ __('ui.pres_login') }}
             </a>
           @endauth
         </div>

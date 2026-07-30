@@ -1,12 +1,12 @@
 @extends('panel.layout')
-@section('title', 'افزایش اعتبار — سرورنت')
+@section('title', __('ui.top_page_title'))
 
 @section('panel')
 
 <div class="pnl-head">
   <div>
-    <h1>افزایش اعتبار</h1>
-    <p>موجودی فعلی: <b class="pnl-num">{{ fa_num(number_format($balance)) }}</b> تومان</p>
+    <h1>{{ __('ui.top_heading') }}</h1>
+    <p>{{ __('ui.top_current_balance') }} <b class="pnl-num">{{ cloud_price($balance) }}</b></p>
   </div>
 </div>
 
@@ -19,7 +19,7 @@
 @endif
 
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>مبلغ را انتخاب کنید</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.top_choose_amount') }}</h2></div>
   <div class="pnl-sec-b">
 
       <form method="POST" action="{{ lroute('account.topup.start') }}"
@@ -28,30 +28,30 @@
 
         <div>
           <label for="amount" style="display:block;font-size:12.5px;font-weight:600;margin-bottom:8px">
-            مبلغ (تومان)
+            {{ __('ui.top_amount_label') }}
           </label>
           <input type="text" id="amount-view" dir="ltr" inputmode="numeric" required
-                 placeholder="۵۰۰٬۰۰۰"
+                 placeholder="{{ __('ui.top_amount_placeholder') }}"
                  style="width:100%;box-sizing:border-box;background:var(--surface-2);
                         border:1px solid var(--line);border-radius:12px;padding:13px 15px;
                         font:inherit;font-size:17px;color:var(--text);
                         font-variant-numeric:tabular-nums;letter-spacing:.03em">
           <input type="hidden" name="amount" id="amount" value="{{ old('amount') }}">
           <small style="display:block;margin-top:8px;font-size:11.5px;color:var(--dim);line-height:1.85">
-            کمترین مبلغ ۱٬۰۰۰ تومان.
+            {{ __('ui.top_min_note') }}
           </small>
         </div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           @foreach([200000, 500000, 1000000, 2000000] as $q)
             <button type="button" class="pnl-btn quick" data-v="{{ $q }}">
-              {{ fa_num(number_format($q)) }}
+              {{ cloud_price($q) }}
             </button>
           @endforeach
         </div>
 
         <button type="submit" class="pnl-btn primary" style="justify-content:center">
-          <svg class="icon"><use href="#i-coins"/></svg>ادامه و انتخاب روش پرداخت
+          <svg class="icon"><use href="#i-coins"/></svg>{{ __('ui.top_continue_btn') }}
         </button>
       </form>
 

@@ -106,12 +106,12 @@
 @php
   $st = $profile->status ?? 'draft';
   $isCompany = ($profile->type ?? 'individual') === 'company';
-  $vb = ['verified'=>['تأییدشده','var(--ok)'],'pending'=>['در حال بررسی','var(--warn)'],'rejected'=>['رد شده','var(--danger)']][$st] ?? ['تکمیل‌نشده','var(--muted)'];
+  $vb = ['verified'=>[__('ui.prof_st_verified'),'var(--ok)'],'pending'=>[__('ui.prof_st_pending'),'var(--warn)'],'rejected'=>[__('ui.prof_st_rejected'),'var(--danger)']][$st] ?? [__('ui.prof_st_none'),'var(--muted)'];
 @endphp
 
 <section class="pnl-sec" id="company">
   <div class="pnl-sec-h">
-    <h2>اطلاعات و مدارکِ حقوقی</h2>
+    <h2>{{ __('ui.prof_legal_h') }}</h2>
     <span class="pnl-pill" style="background:{{ $vb[1] }}22;color:{{ $vb[1] }}">{{ $vb[0] }}</span>
   </div>
   <div class="pnl-sec-b">
@@ -124,52 +124,52 @@
     @endif
 
     @if($st === 'verified')
-      <p class="vf-note ok">✅ هویتِ {{ $isCompany ? 'شرکتِ' : '' }} شما تأیید شده است. برای تغییرِ مدارک با پشتیبانی هماهنگ کنید.</p>
+      <p class="vf-note ok">✅ {{ $isCompany ? __('ui.prof_vf_ok_company') : __('ui.prof_vf_ok_individual') }}</p>
     @elseif($st === 'pending')
-      <p class="vf-note">⏳ مدارکِ شما ثبت شده و در صفِ بررسیِ تیمِ پشتیبانی است. می‌توانید تا پیش از بررسی، مدارک را به‌روزرسانی کنید.</p>
+      <p class="vf-note">⏳ {{ __('ui.prof_vf_pending') }}</p>
     @elseif($st === 'rejected')
-      <p class="vf-note bad">❌ مدارک تأیید نشد@if($profile->reject_reason ?? null): {{ $profile->reject_reason }}@endif. لطفاً اصلاح و دوباره ارسال کنید.</p>
+      <p class="vf-note bad">❌ {{ __('ui.prof_vf_rejected') }}@if($profile->reject_reason ?? null): {{ $profile->reject_reason }}@endif. {{ __('ui.prof_vf_resubmit') }}</p>
     @else
-      <p class="vf-note">اگر به‌صورت <b>حقوقی (شرکت)</b> خرید می‌کنید، اطلاعاتِ شرکت به‌همراه <b>معرفی‌نامهٔ نماینده</b> و <b>اساسنامه</b> را این‌جا بفرستید تا پروفایلتان تأیید شود.</p>
+      <p class="vf-note">{!! __('ui.prof_vf_intro') !!}</p>
     @endif
 
     @if($st !== 'verified')
     <form method="POST" action="{{ lroute('account.verify.submit') }}" enctype="multipart/form-data" class="vf-form">
       @csrf
-      <label class="vf-f">نوعِ حساب
+      <label class="vf-f">{{ __('ui.prof_acct_type') }}
         <select name="type" id="vf-type">
-          <option value="individual" @selected(! $isCompany)>حقیقی (شخصی)</option>
-          <option value="company" @selected($isCompany)>حقوقی (شرکت)</option>
+          <option value="individual" @selected(! $isCompany)>{{ __('ui.prof_type_individual') }}</option>
+          <option value="company" @selected($isCompany)>{{ __('ui.prof_type_company') }}</option>
         </select>
       </label>
 
       <div id="vf-company" @unless($isCompany) hidden @endunless>
         <div class="vf-grid">
-          <label class="vf-f">نامِ شرکت<input type="text" name="company_name" value="{{ old('company_name', $profile->company_name) }}" maxlength="190" placeholder="نامِ رسمیِ ثبت‌شده"></label>
-          <label class="vf-f">شمارهٔ ثبت<input type="text" name="registration_number" dir="ltr" value="{{ old('registration_number', $profile->registration_number) }}" maxlength="60"></label>
-          <label class="vf-f">کدِ اقتصادی<input type="text" name="economic_code" dir="ltr" value="{{ old('economic_code', $profile->economic_code) }}" maxlength="60"></label>
-          <label class="vf-f">سِمَتِ نماینده<input type="text" name="rep_position" value="{{ old('rep_position', $profile->rep_position) }}" maxlength="80" placeholder="مدیرعامل / …"></label>
-          <label class="vf-f">نامِ نماینده<input type="text" name="rep_first_name" value="{{ old('rep_first_name', $profile->rep_first_name) }}" maxlength="80"></label>
-          <label class="vf-f">نام‌خانوادگیِ نماینده<input type="text" name="rep_last_name" value="{{ old('rep_last_name', $profile->rep_last_name) }}" maxlength="80"></label>
+          <label class="vf-f">{{ __('ui.prof_company_name') }}<input type="text" name="company_name" value="{{ old('company_name', $profile->company_name) }}" maxlength="190" placeholder="{{ __('ui.prof_company_name_ph') }}"></label>
+          <label class="vf-f">{{ __('ui.prof_reg_number') }}<input type="text" name="registration_number" dir="ltr" value="{{ old('registration_number', $profile->registration_number) }}" maxlength="60"></label>
+          <label class="vf-f">{{ __('ui.prof_econ_code') }}<input type="text" name="economic_code" dir="ltr" value="{{ old('economic_code', $profile->economic_code) }}" maxlength="60"></label>
+          <label class="vf-f">{{ __('ui.prof_rep_position') }}<input type="text" name="rep_position" value="{{ old('rep_position', $profile->rep_position) }}" maxlength="80" placeholder="{{ __('ui.prof_rep_position_ph') }}"></label>
+          <label class="vf-f">{{ __('ui.prof_rep_first') }}<input type="text" name="rep_first_name" value="{{ old('rep_first_name', $profile->rep_first_name) }}" maxlength="80"></label>
+          <label class="vf-f">{{ __('ui.prof_rep_last') }}<input type="text" name="rep_last_name" value="{{ old('rep_last_name', $profile->rep_last_name) }}" maxlength="80"></label>
         </div>
 
         <div class="vf-docs">
           <label class="vf-doc">
-            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>معرفی‌نامهٔ نماینده</b></span>
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_letter') }}</b></span>
             @if($docs->has('rep_letter'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['rep_letter']->original_name, 26) }}</span>@endif
             <input type="file" name="doc_letter" accept="application/pdf,image/png,image/jpeg">
-            <small>PDF یا تصویر، تا ۵ مگابایت</small>
+            <small>{{ __('ui.prof_doc_hint') }}</small>
           </label>
           <label class="vf-doc">
-            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>اساسنامهٔ شرکت</b></span>
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_articles') }}</b></span>
             @if($docs->has('articles'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['articles']->original_name, 26) }}</span>@endif
             <input type="file" name="doc_articles" accept="application/pdf,image/png,image/jpeg">
-            <small>PDF یا تصویر، تا ۵ مگابایت</small>
+            <small>{{ __('ui.prof_doc_hint') }}</small>
           </label>
         </div>
       </div>
 
-      <button type="submit" class="pnl-btn primary" style="justify-content:center">ثبت و ارسال برای بررسی</button>
+      <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.prof_submit') }}</button>
     </form>
     @endif
   </div>

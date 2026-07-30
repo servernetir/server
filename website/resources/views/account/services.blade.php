@@ -1,22 +1,22 @@
 @extends('panel.layout')
-@section('title', 'سرویس‌ها — سرورنت')
+@section('title', __('ui.svc_page_title'))
 
 @section('panel')
 
 <div class="pnl-head">
   <div>
-    <h1>سرویس‌های من</h1>
-    <p>سرویس‌ها و خدماتی که تهیه کرده‌اید.</p>
+    <h1>{{ __('ui.svc_heading') }}</h1>
+    <p>{{ __('ui.svc_subtitle') }}</p>
   </div>
 </div>
 
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>سرویس‌ها</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.svc_section_title') }}</h2></div>
 
   @if($services->isEmpty())
     <div class="pnl-sec-b">
       <p style="font-size:13.5px;color:var(--muted);line-height:2;margin:0">
-        هنوز سرویسی ندارید. وقتی سرویسی برایتان صادر شود، اینجا نمایش داده می‌شود.
+        {{ __('ui.svc_empty') }}
       </p>
     </div>
   @else
@@ -24,7 +24,7 @@
       <div class="pnl-tw">
         <table class="pnl-table">
           <thead>
-            <tr><th>سرویس</th><th>دوره</th><th>وضعیت</th><th>سررسید بعدی</th><th class="num">مبلغ دوره</th><th></th></tr>
+            <tr><th>{{ __('ui.svc_th_service') }}</th><th>{{ __('ui.svc_th_cycle') }}</th><th>{{ __('ui.svc_th_status') }}</th><th>{{ __('ui.svc_th_due') }}</th><th class="num">{{ __('ui.svc_th_amount') }}</th><th></th></tr>
           </thead>
           <tbody>
             @foreach($services as $s)
@@ -40,10 +40,10 @@
                 <td>{{ $s->cycleLabel() }}</td>
                 <td><span class="pnl-pill" style="background:{{ $badge[1] }}22;color:{{ $badge[1] }}">{{ $badge[0] }}</span></td>
                 <td>{{ sdate($s->next_due_at) }}</td>
-                <td class="num pnl-num">{{ fa_num(number_format($s->total())) }}</td>
+                <td class="num pnl-num">{{ invoice_money($s->total(), $s->currency_code) }}</td>
                 <td>
                   @if($unpaid)
-                    <a class="pnl-btn primary" href="{{ lroute('account.invoice', $unpaid) }}">پرداخت</a>
+                    <a class="pnl-btn primary" href="{{ lroute('account.invoice', $unpaid) }}">{{ __('ui.svc_pay') }}</a>
                   @endif
                 </td>
               </tr>
@@ -53,31 +53,31 @@
                     @if($s->provision_status === 'done')
                       {{-- دسترسیِ سریع — همه از پنل، بدونِ لاگین دستی --}}
                       <div class="svc-quick">
-                        <a class="svc-qbtn primary" href="{{ lroute('account.services.cpanel', $s) }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>ورود به cPanel</span></a>
-                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=files" target="_blank" rel="noopener"><svg class="icon"><use href="#i-file"/></svg><span>فایل منیجر</span></a>
-                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=db" target="_blank" rel="noopener"><svg class="icon"><use href="#i-db"/></svg><span>دیتابیس‌ها</span></a>
-                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=email" target="_blank" rel="noopener"><svg class="icon"><use href="#i-mail"/></svg><span>ایمیل‌ها</span></a>
+                        <a class="svc-qbtn primary" href="{{ lroute('account.services.cpanel', $s) }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.svc_cpanel_login') }}</span></a>
+                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=files" target="_blank" rel="noopener"><svg class="icon"><use href="#i-file"/></svg><span>{{ __('ui.svc_file_manager') }}</span></a>
+                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=db" target="_blank" rel="noopener"><svg class="icon"><use href="#i-db"/></svg><span>{{ __('ui.svc_databases') }}</span></a>
+                        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=email" target="_blank" rel="noopener"><svg class="icon"><use href="#i-mail"/></svg><span>{{ __('ui.svc_emails') }}</span></a>
                       </div>
 
                       {{-- آمارِ زندهٔ سرویس (از پنل، بدونِ ورود به cPanel) --}}
                       <div class="svc-usage" data-stats="{{ lroute('account.services.stats', $s) }}">
-                        <div class="svc-usage-load">در حال دریافتِ آمارِ سرویس…</div>
+                        <div class="svc-usage-load">{{ __('ui.svc_loading_stats') }}</div>
                       </div>
 
                       <div class="svc-cred">
-                        <div><span>آدرس ورود کنترل‌پنل</span>
+                        <div><span>{{ __('ui.svc_cred_panel_url') }}</span>
                           @if($s->panel_url)<a href="{{ $s->panel_url }}" target="_blank" rel="noopener" dir="ltr">{{ $s->panel_url }}</a>
                           @elseif($s->server?->hostname)<b dir="ltr">{{ $s->server->hostname }}</b>@else<b>—</b>@endif</div>
-                        @if($s->username)<div><span>نام‌کاربری</span><b dir="ltr" class="copyable" title="کپی">{{ $s->username }}</b></div>@endif
-                        @if($s->password)<div><span>رمز عبور</span>
+                        @if($s->username)<div><span>{{ __('ui.svc_cred_username') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>@endif
+                        @if($s->password)<div><span>{{ __('ui.svc_cred_password') }}</span>
                           <b dir="ltr" class="svc-pw"><span class="pw-mask">••••••••••</span><span class="pw-val" hidden>{{ $s->password }}</span>
-                            <button type="button" class="pw-eye">نمایش</button></b></div>@endif
-                        @if($s->domain)<div><span>دامنه</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
+                            <button type="button" class="pw-eye">{{ __('ui.svc_show') }}</button></b></div>@endif
+                        @if($s->domain)<div><span>{{ __('ui.svc_cred_domain') }}</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
                       </div>
                     @elseif($s->provision_status === 'failed')
-                      <p class="svc-note warn">در آماده‌سازیِ سرویس مشکلی پیش آمد؛ پشتیبانی در حالِ بررسی است. به‌زودی حل می‌شود.</p>
+                      <p class="svc-note warn">{{ __('ui.svc_provision_failed') }}</p>
                     @else
-                      <p class="svc-note">🔧 سرویسِ شما در حالِ آماده‌سازیِ خودکار است و اطلاعاتِ ورود تا لحظاتی دیگر همین‌جا نمایش داده می‌شود.</p>
+                      <p class="svc-note">{{ __('ui.svc_provision_pending') }}</p>
                     @endif
                   </div>
                 </td></tr>

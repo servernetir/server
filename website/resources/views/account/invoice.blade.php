@@ -1,26 +1,26 @@
 @extends('panel.layout')
-@section('title', 'فاکتور '.$invoice->number.' — سرورنت')
+@section('title', __('ui.inv_invoice').' '.$invoice->number.' — '.__('ui.inv_brand'))
 
 @section('panel')
 
 <div class="pnl-head">
   <div>
-    <h1>فاکتور <span dir="ltr">{{ $invoice->number }}</span></h1>
+    <h1>{{ __('ui.inv_invoice') }} <span dir="ltr">{{ $invoice->number }}</span></h1>
     <p>{{ sdate($invoice->issued_at ?? $invoice->created_at) }}</p>
   </div>
   <div class="pnl-acts">
     <a class="pnl-btn {{ $invoice->status === 'paid' ? 'primary' : '' }}" href="{{ lroute('account.invoice.print', $invoice) }}" target="_blank" rel="noopener">
-      <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? 'دانلود رسید (PDF)' : 'دانلود پیش‌فاکتور (PDF)' }}
+      <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? __('ui.inv_download_receipt') : __('ui.inv_download_proforma') }}
     </a>
     <a class="pnl-btn" href="{{ lroute('account.invoices') }}">
-      <svg class="icon"><use href="#i-arrow"/></svg>بازگشت
+      <svg class="icon"><use href="#i-arrow"/></svg>{{ __('ui.inv_back') }}
     </a>
     @if($invoice->status !== 'paid' && $invoice->status !== 'canceled' && $invoice->status !== 'void' && $invoice->paid == 0)
       <form method="POST" action="{{ lroute('account.invoice.cancel', $invoice) }}" style="display:inline"
-            data-confirm="این فاکتورِ در انتظار پرداخت لغو شود؟ اگر مربوط به سرویس باشد، آن سرویس هم غیرفعال می‌شود." data-confirm-danger data-confirm-title="لغو فاکتور" data-confirm-ok="بله، لغو کن">
+            data-confirm="{{ __('ui.inv_cancel_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.inv_cancel') }}" data-confirm-ok="{{ __('ui.inv_cancel_ok') }}">
         @csrf
         <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">
-          <svg class="icon"><use href="#i-x"/></svg>لغو فاکتور
+          <svg class="icon"><use href="#i-x"/></svg>{{ __('ui.inv_cancel') }}
         </button>
       </form>
     @endif
@@ -37,41 +37,41 @@
 
 <section class="pnl-sec">
   <div class="pnl-sec-h">
-    <h2>ردیف‌ها</h2>
+    <h2>{{ __('ui.inv_items') }}</h2>
     @if($invoice->status === 'paid')
-      <span class="pnl-pill ok">پرداخت شد</span>
+      <span class="pnl-pill ok">{{ __('ui.inv_paid_pill') }}</span>
     @else
-      <span class="pnl-pill warn">در انتظار پرداخت</span>
+      <span class="pnl-pill warn">{{ __('ui.inv_unpaid_pill') }}</span>
     @endif
   </div>
   <div class="pnl-sec-b flush">
     <div class="pnl-tw">
       <table class="pnl-table">
         <thead>
-          <tr><th>شرح</th><th class="num">تعداد</th><th class="num">مبلغ واحد</th><th class="num">جمع</th></tr>
+          <tr><th>{{ __('ui.inv_col_desc') }}</th><th class="num">{{ __('ui.inv_col_qty') }}</th><th class="num">{{ __('ui.inv_col_unit') }}</th><th class="num">{{ __('ui.inv_col_linetotal') }}</th></tr>
         </thead>
         <tbody>
           @foreach($invoice->items as $item)
             <tr>
               <td>{{ $item->title }}</td>
               <td class="num pnl-num">{{ fa_num($item->quantity) }}</td>
-              <td class="num pnl-num">{{ fa_num(number_format($item->unit_price)) }}</td>
-              <td class="num pnl-num">{{ fa_num(number_format($item->line_total)) }}</td>
+              <td class="num pnl-num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
+              <td class="num pnl-num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>
             </tr>
           @endforeach
-          <tr><td colspan="3" style="color:var(--muted)">جمع</td>
-              <td class="num pnl-num">{{ fa_num(number_format($invoice->subtotal)) }}</td></tr>
+          <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_subtotal') }}</td>
+              <td class="num pnl-num">{{ invoice_money($invoice->subtotal, $invoice->currency_code) }}</td></tr>
           @if($invoice->tax > 0)
-            <tr><td colspan="3" style="color:var(--muted)">مالیات بر ارزش افزوده</td>
-                <td class="num pnl-num">{{ fa_num(number_format($invoice->tax)) }}</td></tr>
+            <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_tax') }}</td>
+                <td class="num pnl-num">{{ invoice_money($invoice->tax, $invoice->currency_code) }}</td></tr>
           @endif
-          <tr><td colspan="3"><b>قابل پرداخت</b></td>
-              <td class="num pnl-num"><b>{{ fa_num(number_format($invoice->total)) }}</b> تومان</td></tr>
+          <tr><td colspan="3"><b>{{ __('ui.inv_payable') }}</b></td>
+              <td class="num pnl-num"><b>{{ invoice_money($invoice->total, $invoice->currency_code) }}</b></td></tr>
           @if($invoice->paid > 0 && $invoice->due() > 0)
-            <tr><td colspan="3" style="color:var(--muted)">پرداخت‌شده تا کنون</td>
-                <td class="num pnl-num">{{ fa_num(number_format($invoice->paid)) }}</td></tr>
-            <tr><td colspan="3"><b>مانده</b></td>
-                <td class="num pnl-num"><b>{{ fa_num(number_format($invoice->due())) }}</b></td></tr>
+            <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_paid_so_far') }}</td>
+                <td class="num pnl-num">{{ invoice_money($invoice->paid, $invoice->currency_code) }}</td></tr>
+            <tr><td colspan="3"><b>{{ __('ui.inv_remaining') }}</b></td>
+                <td class="num pnl-num"><b>{{ invoice_money($invoice->due(), $invoice->currency_code) }}</b></td></tr>
           @endif
         </tbody>
       </table>
@@ -87,106 +87,114 @@
 @endif
 
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>پرداخت فاکتور</h2>
-    <span class="pnl-num" style="font-size:15px">{{ fa_num(number_format($invoice->due())) }} تومان</span>
+  <div class="pnl-sec-h"><h2>{{ __('ui.inv_pay_heading') }}</h2>
+    <span class="pnl-num" style="font-size:15px">{{ invoice_money($invoice->due(), $invoice->currency_code) }}</span>
   </div>
   <div class="pnl-sec-b">
 
     {{-- گام ۱: انتخاب روش (کارتی) --}}
-    <p class="pm-lead">روش پرداخت را انتخاب کنید:</p>
+    <p class="pm-lead">{{ __('ui.inv_choose_method') }}</p>
     <div class="pm-grid">
-      @if(isset($gateways['zarinpal']))
-        <label class="pm-card" data-m="zarinpal">
-          <input type="radio" name="pm" value="zarinpal" hidden>
-          <span class="pm-badge zp"><svg class="icon"><use href="#i-coins"/></svg></span>
-          <span class="pm-tt"><b>پرداخت آنلاین</b><small>کارت بانکی · زرین‌پال</small></span>
+      @if(app()->getLocale() === 'fa')
+        @if(isset($gateways['zarinpal']))
+          <label class="pm-card" data-m="zarinpal">
+            <input type="radio" name="pm" value="zarinpal" hidden>
+            <span class="pm-badge zp"><svg class="icon"><use href="#i-coins"/></svg></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_zp_title') }}</b><small>{{ __('ui.inv_zp_sub') }}</small></span>
+            <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+          </label>
+        @endif
+        @if(isset($gateways['bale']))
+          <label class="pm-card" data-m="bale">
+            <input type="radio" name="pm" value="bale" hidden>
+            <span class="pm-badge bl"><svg class="icon"><use href="#i-bot"/></svg></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_bale_title') }}</b><small>{{ __('ui.inv_bale_sub') }}</small></span>
+            <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+          </label>
+        @endif
+        <label class="pm-card" data-m="bank">
+          <input type="radio" name="pm" value="bank" hidden>
+          <span class="pm-badge bk"><svg class="icon"><use href="#i-db"/></svg></span>
+          <span class="pm-tt"><b>{{ __('ui.inv_bank_title') }}</b><small>{{ __('ui.inv_bank_sub') }}</small></span>
           <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
         </label>
       @endif
-      @if(isset($gateways['bale']))
-        <label class="pm-card" data-m="bale">
-          <input type="radio" name="pm" value="bale" hidden>
-          <span class="pm-badge bl"><svg class="icon"><use href="#i-bot"/></svg></span>
-          <span class="pm-tt"><b>پرداخت با بله</b><small>کیف پول بله · بدون کارت</small></span>
-          <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
-        </label>
-      @endif
-      <label class="pm-card" data-m="bank">
-        <input type="radio" name="pm" value="bank" hidden>
-        <span class="pm-badge bk"><svg class="icon"><use href="#i-db"/></svg></span>
-        <span class="pm-tt"><b>واریز به حساب</b><small>کارت به کارت / شبا</small></span>
-        <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+      <label class="pm-card is-off" data-m="eur" title="{{ __('ui.inv_soon') }}">
+        <input type="radio" name="pm" value="eur" hidden disabled>
+        <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
+        <span class="pm-tt"><b>{{ __('ui.inv_eur_title') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
+        <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
       </label>
-      <label class="pm-card is-off" data-m="crypto" title="به‌زودی">
+      <label class="pm-card is-off" data-m="crypto" title="{{ __('ui.inv_soon') }}">
         <input type="radio" name="pm" value="crypto" hidden disabled>
         <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
-        <span class="pm-tt"><b>رمزارز</b><small>به‌زودی فعال می‌شود</small></span>
-        <span class="pm-soon">به‌زودی</span>
+        <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
+        <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
       </label>
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
     <div class="pm-hint" id="pm-hint">
-      <svg class="icon"><use href="#i-info"/></svg> پس از انتخاب روش، اطلاعات پرداخت این‌جا نمایش داده می‌شود.
+      <svg class="icon"><use href="#i-info"/></svg> {{ __('ui.inv_pm_hint') }}
     </div>
 
-    @if(isset($gateways['zarinpal']))
-      <form class="pm-pane" id="pane-zarinpal" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-        @csrf<input type="hidden" name="gateway" value="zarinpal">
-        <div class="pm-pane-h"><b>پرداخت آنلاین با زرین‌پال</b></div>
-        <p class="pm-note">به درگاه امنِ زرین‌پال منتقل می‌شوید و مبلغ را با کارت بانکی پرداخت می‌کنید. پس از پرداخت، فاکتور به‌صورت خودکار تسویه می‌شود.</p>
-        <button type="submit" class="pnl-btn primary" style="justify-content:center">پرداخت {{ fa_num(number_format($invoice->due())) }} تومان</button>
-      </form>
-    @endif
-
-    @if(isset($gateways['bale']))
-      <form class="pm-pane" id="pane-bale" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-        @csrf<input type="hidden" name="gateway" value="bale">
-        <div class="pm-pane-h"><b>پرداخت با کیف پول بله</b></div>
-        <p class="pm-note">به ربات پرداخت بله منتقل می‌شوید و بدون نیاز به کارت، از موجودی کیف پول بله پرداخت می‌کنید.</p>
-        @php $baleUser = config('services.bale.username'); @endphp
-        @if($baleUser)
-          <div class="bale-hint">
-            <b>نکته:</b> برای پرداخت باید اول وارد ربات بلهٔ سرورنت شده باشید. اگر خطای
-            «ابتدا وارد ربات شوید» گرفتید، این دکمه را بزنید، ربات را <b>Start</b> کنید،
-            بعد برگردید و «ادامه در بله» را بزنید.
-            <a href="https://ble.ir/{{ $baleUser }}" target="_blank" rel="noopener" class="bale-bot-btn">
-              <svg class="icon"><use href="#i-bot"/></svg> ورود به ربات بلهٔ سرورنت
-            </a>
-          </div>
-        @endif
-        <button type="submit" class="pnl-btn primary" style="justify-content:center">ادامه در بله</button>
-      </form>
-    @endif
-
-    <div class="pm-pane" id="pane-bank" hidden>
-      <div class="pm-pane-h"><b>واریز به حساب شرکت</b></div>
-      @if($pendingBank)
-        <div class="pm-note" style="color:var(--warn)">
-          رسید واریز شما با شناسهٔ <b dir="ltr">{{ $pendingBank->reference }}</b> ثبت شده و در انتظار تأیید پشتیبانی است.
-        </div>
-      @elseif($bank === null)
-        <div class="pm-note">این روش فعلاً در دسترس نیست.</div>
-      @else
-        <div class="bank-box">
-          @if($bank['holder'])<div><span>به نام</span><b>{{ $bank['holder'] }}</b></div>@endif
-          @if($bank['bank'])<div><span>بانک</span><b>{{ $bank['bank'] }}</b></div>@endif
-          @if($bank['card'])<div><span>شمارهٔ کارت</span><b dir="ltr" class="copyable">{{ $bank['card'] }}</b></div>@endif
-          @if($bank['sheba'])<div><span>شبا</span><b dir="ltr" class="copyable">IR{{ ltrim($bank['sheba'],'IRir') }}</b></div>@endif
-          @if($bank['account'])<div><span>شمارهٔ حساب</span><b dir="ltr" class="copyable">{{ $bank['account'] }}</b></div>@endif
-          @if($bank['note'])<div><span>توضیح</span><b>{{ $bank['note'] }}</b></div>@endif
-        </div>
-        <p class="pm-note">
-          مبلغ <b class="pnl-num">{{ fa_num(number_format($invoice->due())) }}</b> تومان را واریز کنید، سپس شناسهٔ پیگیری/پرداخت را این‌جا ثبت کنید:
-        </p>
-        <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
-          @csrf
-          <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="شناسهٔ پرداخت / شمارهٔ پیگیری" class="bank-input">
-          <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="شمارهٔ کارت مبدأ (اختیاری)" class="bank-input">
-          <button type="submit" class="pnl-btn" style="justify-content:center">ثبت رسید واریز</button>
+    @if(app()->getLocale() === 'fa')
+      @if(isset($gateways['zarinpal']))
+        <form class="pm-pane" id="pane-zarinpal" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
+          @csrf<input type="hidden" name="gateway" value="zarinpal">
+          <div class="pm-pane-h"><b>{{ __('ui.inv_zp_pane_title') }}</b></div>
+          <p class="pm-note">{{ __('ui.inv_zp_note') }}</p>
+          <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
         </form>
       @endif
-    </div>
+
+      @if(isset($gateways['bale']))
+        <form class="pm-pane" id="pane-bale" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
+          @csrf<input type="hidden" name="gateway" value="bale">
+          <div class="pm-pane-h"><b>{{ __('ui.inv_bale_pane_title') }}</b></div>
+          <p class="pm-note">{{ __('ui.inv_bale_note') }}</p>
+          @php $baleUser = config('services.bale.username'); @endphp
+          @if($baleUser)
+            <div class="bale-hint">
+              {!! __('ui.inv_bale_hint') !!}
+              <a href="https://ble.ir/{{ $baleUser }}" target="_blank" rel="noopener" class="bale-bot-btn">
+                <svg class="icon"><use href="#i-bot"/></svg> {{ __('ui.inv_bale_bot_link') }}
+              </a>
+            </div>
+          @endif
+          <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_bale_continue') }}</button>
+        </form>
+      @endif
+
+      <div class="pm-pane" id="pane-bank" hidden>
+        <div class="pm-pane-h"><b>{{ __('ui.inv_bank_pane_title') }}</b></div>
+        @if($pendingBank)
+          <div class="pm-note" style="color:var(--warn)">
+            {!! __('ui.inv_bank_pending', ['ref' => '<b dir="ltr">'.e($pendingBank->reference).'</b>']) !!}
+          </div>
+        @elseif($bank === null)
+          <div class="pm-note">{{ __('ui.inv_bank_unavailable') }}</div>
+        @else
+          <div class="bank-box">
+            @if($bank['holder'])<div><span>{{ __('ui.inv_bank_holder') }}</span><b>{{ $bank['holder'] }}</b></div>@endif
+            @if($bank['bank'])<div><span>{{ __('ui.inv_bank_name') }}</span><b>{{ $bank['bank'] }}</b></div>@endif
+            @if($bank['card'])<div><span>{{ __('ui.inv_bank_card') }}</span><b dir="ltr" class="copyable">{{ $bank['card'] }}</b></div>@endif
+            @if($bank['sheba'])<div><span>{{ __('ui.inv_bank_sheba') }}</span><b dir="ltr" class="copyable">IR{{ ltrim($bank['sheba'],'IRir') }}</b></div>@endif
+            @if($bank['account'])<div><span>{{ __('ui.inv_bank_account') }}</span><b dir="ltr" class="copyable">{{ $bank['account'] }}</b></div>@endif
+            @if($bank['note'])<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $bank['note'] }}</b></div>@endif
+          </div>
+          <p class="pm-note">
+            {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
+          </p>
+          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+            @csrf
+            <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_ref_ph') }}" class="bank-input">
+            <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_from_ph') }}" class="bank-input">
+            <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
+          </form>
+        @endif
+      </div>
+    @endif
 
   </div>
 </section>
@@ -242,6 +250,7 @@
 </style>
 <script>
 (function(){
+  var COPIED = @json(__('ui.inv_copied').' ✓');
   var cards = document.querySelectorAll('.pm-card input'), hint = document.getElementById('pm-hint');
   cards.forEach(function(r){
     r.addEventListener('change', function(){
@@ -255,7 +264,7 @@
     el.addEventListener('click', function(){
       var t=(this.textContent||'').replace(/\s/g,'');
       if(navigator.clipboard) navigator.clipboard.writeText(t);
-      var o=this.textContent; this.textContent='کپی شد ✓'; var s=this;
+      var o=this.textContent; this.textContent=COPIED; var s=this;
       setTimeout(function(){ s.textContent=o; }, 1200);
     });
   });
@@ -265,24 +274,24 @@
 
 @if($invoice->payments->isNotEmpty())
 <section class="pnl-sec">
-  <div class="pnl-sec-h"><h2>تلاش‌های پرداخت</h2></div>
+  <div class="pnl-sec-h"><h2>{{ __('ui.inv_attempts') }}</h2></div>
   <div class="pnl-sec-b flush">
     <div class="pnl-tw">
       <table class="pnl-table">
-        <thead><tr><th>تاریخ</th><th>درگاه</th><th>وضعیت</th><th>پیگیری</th><th class="num">مبلغ</th></tr></thead>
+        <thead><tr><th>{{ __('ui.inv_col_date') }}</th><th>{{ __('ui.inv_col_gateway') }}</th><th>{{ __('ui.inv_col_status') }}</th><th>{{ __('ui.inv_col_ref') }}</th><th class="num">{{ __('ui.inv_col_amount') }}</th></tr></thead>
         <tbody>
           @foreach($invoice->payments->sortByDesc('id') as $p)
             <tr>
               <td>{{ stime($p->created_at) }}</td>
               <td>{{ $p->gateway }}</td>
               <td>
-                @if($p->status === 'paid')<span class="pnl-pill ok">موفق</span>
-                @elseif($p->status === 'canceled')<span class="pnl-pill mute">لغو شد</span>
-                @elseif($p->status === 'failed')<span class="pnl-pill danger">ناموفق</span>
-                @else<span class="pnl-pill warn">ناتمام</span>@endif
+                @if($p->status === 'paid')<span class="pnl-pill ok">{{ __('ui.inv_pay_success') }}</span>
+                @elseif($p->status === 'canceled')<span class="pnl-pill mute">{{ __('ui.inv_pay_canceled') }}</span>
+                @elseif($p->status === 'failed')<span class="pnl-pill danger">{{ __('ui.inv_pay_failed') }}</span>
+                @else<span class="pnl-pill warn">{{ __('ui.inv_pay_incomplete') }}</span>@endif
               </td>
               <td dir="ltr" style="font-size:12px">{{ $p->ref_id ?: '—' }}</td>
-              <td class="num pnl-num">{{ fa_num(number_format($p->amount)) }}</td>
+              <td class="num pnl-num">{{ invoice_money($p->amount, $invoice->currency_code) }}</td>
             </tr>
           @endforeach
         </tbody>

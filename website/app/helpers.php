@@ -427,6 +427,26 @@ if (! function_exists('cloud_price')) {
     }
 }
 
+if (! function_exists('invoice_money')) {
+    /**
+     * مبلغِ فاکتور/سرویس در ارزِ **خودِ فاکتور**، با نمایشِ زبان‌محور.
+     *
+     * · فاکتورِ یورو (EUR) → همیشه «€X» (واحدِ فرعی سنت است، پس ÷۱۰۰).
+     * · فاکتورِ تومانی (IRT) → فارسی «تومان»؛ en/tr «€» با نرخِ زنده
+     *   (`cloud_price`). ⚠️ این تبدیل فقط **نمایشی** است: شارژِ واقعیِ فاکتورِ
+     *   IRT تومان است. برای همین در مسیرِ پرداختِ en/tr فقط روش‌های «به‌زودی»
+     *   (یورو/کریپتو) نشان داده می‌شوند تا کسی یوروببیند و تومان شارژ نشود.
+     */
+    function invoice_money(int|float $amount, string $currency = 'IRT'): string
+    {
+        if (strtoupper(trim($currency)) === 'EUR') {
+            return '€'.number_format($amount / 100, 2);
+        }
+
+        return cloud_price($amount);
+    }
+}
+
 if (! function_exists('cloud_eur_rate')) {
     /** نرخِ یورو→تومانِ همان کلاسی که قیمتِ ابری را می‌سازد (۰ اگر نبود). */
     function cloud_eur_rate(): int

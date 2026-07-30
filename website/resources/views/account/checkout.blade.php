@@ -1,12 +1,12 @@
 @extends('panel.layout')
-@section('title', 'خرید '.$product->name.' — سرورنت')
+@section('title', __('ui.chk_title', ['name' => $product->name]))
 
 @section('panel')
 
 <div class="pnl-head">
   <div>
-    <h1 class="dash-h">تکمیل خرید</h1>
-    <p>پکیج انتخاب‌شده را نهایی کنید؛ پس از پرداخت، سرویس خودکار ساخته و تحویل می‌شود.</p>
+    <h1 class="dash-h">{{ __('ui.chk_heading') }}</h1>
+    <p>{{ __('ui.chk_subtitle') }}</p>
   </div>
 </div>
 
@@ -53,34 +53,34 @@
         </ul>
       @endif
       <div class="co-price-row">
-        <span>مبلغِ دوره <i id="sum-cyclename">{{ \App\Models\Service::labelFor($defCycle) }}</i></span>
-        <b class="pnl-num" id="sum-cycle">{{ fa_num(number_format($initial['cycle'])) }} تومان</b>
+        <span>{{ __('ui.chk_period_amount') }} <i id="sum-cyclename">{{ \App\Models\Service::labelFor($defCycle) }}</i></span>
+        <b class="pnl-num" id="sum-cycle">{{ cloud_price($initial['cycle']) }}</b>
       </div>
       <div class="co-price-row">
-        <span>معادلِ ماهانه</span>
-        <b class="pnl-num" id="sum-per">{{ fa_num(number_format($initial['per'])) }} تومان</b>
+        <span>{{ __('ui.chk_monthly_equiv') }}</span>
+        <b class="pnl-num" id="sum-per">{{ cloud_price($initial['per']) }}</b>
       </div>
       @if($setupFee > 0)
-        <div class="co-price-row"><span>هزینهٔ راه‌اندازی (یک‌بار)</span><b class="pnl-num">{{ fa_num(number_format($setupFee)) }} تومان</b></div>
+        <div class="co-price-row"><span>{{ __('ui.chk_setup_fee') }}</span><b class="pnl-num">{{ cloud_price($setupFee) }}</b></div>
       @endif
-      <div class="co-price-row"><span>مالیات بر ارزش افزوده</span><b class="pnl-num">{{ fa_num($product->tax_percent) }}٪</b></div>
-      <div class="co-price-row co-total"><span>پرداختِ همین حالا</span><b class="pnl-num" id="sum-first">{{ fa_num(number_format($initial['first'])) }} تومان</b></div>
-      <p class="co-note" id="sum-renew">پس از آن، هر <span>{{ \App\Models\Service::labelFor($defCycle) }}</span> همین مبلغِ دوره تمدید می‌شود.</p>
+      <div class="co-price-row"><span>{{ __('ui.chk_vat') }}</span><b class="pnl-num">{{ fa_num($product->tax_percent) }}٪</b></div>
+      <div class="co-price-row co-total"><span>{{ __('ui.chk_pay_now') }}</span><b class="pnl-num" id="sum-first">{{ cloud_price($initial['first']) }}</b></div>
+      <p class="co-note" id="sum-renew">{!! __('ui.chk_renew_note', ['cycle' => '<span>'.e(\App\Models\Service::labelFor($defCycle)).'</span>']) !!}</p>
     </div>
   </section>
 
   {{-- فرمِ سفارش --}}
   <section class="pnl-sec co-form">
-    <div class="pnl-sec-h"><h2>تنظیماتِ سرویس</h2></div>
+    <div class="pnl-sec-h"><h2>{{ __('ui.chk_service_settings') }}</h2></div>
     <div class="pnl-sec-b">
       <form method="POST" action="{{ lroute('account.order.place', $product->slug) }}" id="co-form">
         @csrf
 
         {{-- ۱) محلِ سرور --}}
         @if(count($countries) === 0)
-          <p class="co-warn">⚠️ در حال حاضر سرورِ آماده‌ای برای این پکیج نداریم. لطفاً با پشتیبانی تماس بگیرید.</p>
+          <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
         @else
-          <p class="co-q">سرورِ شما در کدام کشور باشد؟</p>
+          <p class="co-q">{{ __('ui.chk_q_country') }}</p>
           <div class="co-opts co-locs">
             @foreach($countries as $cc)
               @php $loc = config('billing.locations.'.$cc, []); @endphp
@@ -97,57 +97,57 @@
         @endif
 
         {{-- ۲) دورهٔ پرداخت --}}
-        <p class="co-q">دورهٔ پرداخت را انتخاب کنید</p>
+        <p class="co-q">{{ __('ui.chk_q_cycle') }}</p>
         <div class="co-cycles">
           @foreach($cycles as $cy)
             @php $row = $priceMatrix[$defCountry ?: '-'][$cy] ?? null; @endphp
             <label class="co-cyc @if($cy === $defCycle) on @endif" data-cyc="{{ $cy }}">
               <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $defCycle)>
               <span class="co-cyc-t">{{ \App\Models\Service::labelFor($cy) }}</span>
-              <span class="co-cyc-p" data-p>{{ fa_num(number_format($row['cycle'] ?? 0)) }}</span>
-              <span class="co-cyc-m" data-m>ماهی {{ fa_num(number_format($row['per'] ?? 0)) }}</span>
+              <span class="co-cyc-p" data-p>{{ cloud_price($row['cycle'] ?? 0) }}</span>
+              <span class="co-cyc-m" data-m>{{ __('ui.chk_per_month') }} {{ cloud_price($row['per'] ?? 0) }}</span>
               @if(($row['save'] ?? 0) > 0)
-                <span class="co-cyc-save">{{ fa_num($row['save']) }}٪ ارزان‌تر</span>
+                <span class="co-cyc-save">{{ fa_num($row['save']) }}٪ {{ __('ui.chk_cheaper') }}</span>
               @endif
             </label>
           @endforeach
         </div>
 
         {{-- ۳) دامنه --}}
-        <p class="co-q">برای این هاست، دامنه‌ای دارید یا می‌خواهید تهیه کنید؟</p>
+        <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
         <div class="co-opts">
           <label class="co-opt on" data-m="have">
             <input type="radio" name="domain_mode" value="have" checked>
             <span class="co-ic"><svg class="icon"><use href="#i-globe"/></svg></span>
-            <span class="co-tt"><b>دامنه دارم</b><small>دامنهٔ خودم را وصل می‌کنم</small></span>
+            <span class="co-tt"><b>{{ __('ui.chk_dom_have_t') }}</b><small>{{ __('ui.chk_dom_have_d') }}</small></span>
           </label>
           <label class="co-opt" data-m="buy">
             <input type="radio" name="domain_mode" value="buy">
             <span class="co-ic"><svg class="icon"><use href="#i-tag"/></svg></span>
-            <span class="co-tt"><b>می‌خواهم دامنه بخرم</b><small>دامنهٔ دلخواه را برایم ثبت کنید</small></span>
+            <span class="co-tt"><b>{{ __('ui.chk_dom_buy_t') }}</b><small>{{ __('ui.chk_dom_buy_d') }}</small></span>
           </label>
           <label class="co-opt" data-m="subdomain">
             <input type="radio" name="domain_mode" value="subdomain">
             <span class="co-ic"><svg class="icon"><use href="#i-zap"/></svg></span>
-            <span class="co-tt"><b>زیردامنهٔ رایگان</b><small>فعلاً روی servernet.cloud</small></span>
+            <span class="co-tt"><b>{{ __('ui.chk_dom_sub_t') }}</b><small>{{ __('ui.chk_dom_sub_d') }}</small></span>
           </label>
         </div>
 
         {{-- ورودی‌ها بر اساس انتخاب --}}
         <div class="co-field" data-for="have">
-          <label>دامنهٔ شما
+          <label>{{ __('ui.chk_lbl_your_domain') }}
             <input type="text" name="domain" dir="ltr" placeholder="your-domain.com" value="{{ old('domain') }}">
           </label>
         </div>
         <div class="co-field" data-for="buy" hidden>
-          <label>دامنه‌ای که می‌خواهید
+          <label>{{ __('ui.chk_lbl_want_domain') }}
             <input type="text" name="domain_buy" dir="ltr" placeholder="new-domain.com">
           </label>
-          <p class="co-note">پس از پرداخت، ثبتِ این دامنه توسط پشتیبانی انجام و روی هاست تنظیم می‌شود.</p>
+          <p class="co-note">{{ __('ui.chk_buy_note') }}</p>
         </div>
         <div class="co-field" data-for="subdomain" hidden>
-          <label>زیردامنهٔ دلخواه
+          <label>{{ __('ui.chk_lbl_sub') }}
             {{-- کلِ کنترل یک «جزیرهٔ LTR» است: کاربر اول نام را می‌نویسد و بعد
                  .servernet.cloud در ادامه‌اش می‌آید — همان‌طور که یک دامنه خوانده
                  می‌شود. قبلاً input با dir=ltr داخلِ جریانِ RTL بود و متن از
@@ -162,18 +162,18 @@
           @php $dnsAuto = app(\App\Services\Dns\CloudflareDns::class)->isConfigured(); @endphp
           <p class="co-note">
             @if($dnsAuto)
-              ✅ رکوردِ DNS این زیردامنه پس از تحویل <b>خودکار</b> تنظیم می‌شود و سایتتان بالا می‌آید.
+              ✅ {!! __('ui.chk_dns_auto') !!}
             @else
-              پس از پرداخت، تنظیمِ DNS این زیردامنه توسط پشتیبانی انجام می‌شود.
+              {{ __('ui.chk_dns_manual') }}
             @endif
-            نام‌های عمومی (مثل www یا mail) رزرو شده‌اند.
+            {{ __('ui.chk_reserved_names') }}
           </p>
         </div>
 
         <button type="submit" class="pnl-btn primary" style="justify-content:center;width:100%;margin-top:8px" @if(count($countries) === 0) disabled @endif>
-          ادامه و پرداخت — <span id="co-btn-total">{{ fa_num(number_format($initial['first'])) }}</span> تومان
+          {{ __('ui.chk_continue_pay') }} — <span id="co-btn-total">{{ cloud_price($initial['first']) }}</span>
         </button>
-        <p class="co-note" style="text-align:center">پیش‌فاکتور صادر می‌شود؛ پس از پرداخت، سرویس خودکار ساخته می‌شود.</p>
+        <p class="co-note" style="text-align:center">{{ __('ui.chk_proforma_note') }}</p>
       </form>
     </div>
   </section>
