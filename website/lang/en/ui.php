@@ -13,7 +13,7 @@ return [
     'nav_enterprise' => 'Enterprise', 'nav_support' => 'Support', 'nav_login' => 'Client Area',
 
     'hero_badge' => 'Since 2009 · 11 datacenters on 3 continents · 99.9% uptime · 24/7 support',
-    'hero_h1a' => 'From a single website to an AI cluster,', 'hero_h1b' => 'on infrastructure that never blinks.',
+    'hero_h1a' => 'The safe home for your online dreams,', 'hero_h1b' => 'on infrastructure that never blinks.',
     'hero_lead' => 'Cloud hosting to start, dedicated and GPU infrastructure for enterprises and AI teams — on infrastructure that never runs short.',
     'hero_rot1' => 'Virtual servers deployed in under 90 seconds',
     'hero_rot2' => 'DDoS-protected network across every datacenter',

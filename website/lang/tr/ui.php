@@ -13,7 +13,7 @@ return [
     'nav_enterprise' => 'Kurumsal', 'nav_support' => 'Destek', 'nav_login' => 'Müşteri Paneli',
 
     'hero_badge' => "2009'dan beri · 3 kıtada 11 veri merkezi · %99,9 uptime · 7/24 destek",
-    'hero_h1a' => 'Tek bir web sitesinden yapay zekâ kümesine,', 'hero_h1b' => 'hiç sarsılmayan bir altyapı.',
+    'hero_h1a' => 'Çevrimiçi hayallerinizin güvenli yuvası,', 'hero_h1b' => 'hiç sarsılmayan bir altyapı.',
     'hero_lead' => 'Başlamak için bulut hosting, kurumlar ve yapay zekâ ekipleri için özel sunucu ve GPU altyapısı — asla yetersiz kalmayan altyapıda.',
     'hero_rot1' => 'Sanal sunucular 90 saniyeden kısa sürede hazır',
     'hero_rot2' => 'Her veri merkezinde DDoS korumalı ağ',
