@@ -229,8 +229,9 @@ class SiteMenuSyncTest extends TestCase
 
     /**
      * «کدِ ۲۰۰ یعنی هیچ» — پس صفحهٔ واقعی رندر و محتوایش سنجیده می‌شود.
+     * کشوری که صفحهٔ بازاریابی دارد (سنگاپور) باید به همان صفحه لینک شود.
      */
-    public function test_homepage_header_shows_the_live_country(): void
+    public function test_homepage_header_links_a_country_to_its_marketing_page(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
         $this->plan('sg-singapore');
@@ -238,10 +239,25 @@ class SiteMenuSyncTest extends TestCase
         $html = $this->get('/')->assertOk()->getContent();
 
         $this->assertStringContainsString('سرور مجازی سنگاپور', $html);
-        $this->assertStringContainsString('/cloud/sg-singapore', $html);
+        $this->assertStringContainsString('/vps/singapore', $html);
     }
 
-    /** و در نسخهٔ انگلیسی هم برچسبِ درست را بدهد */
+    /**
+     * کشوری که هنوز صفحهٔ بازاریابی ندارد (ژاپن) به صفحهٔ مکانش برمی‌گردد،
+     * نه ۴۰۴ — همان قاعدهٔ CloudCountry::marketingSlug.
+     */
+    public function test_country_without_marketing_page_falls_back_to_location(): void
+    {
+        $this->location('jp-tokyo', 'JP', 'Tokyo');
+        $this->plan('jp-tokyo');
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString('سرور مجازی ژاپن', $html);
+        $this->assertStringContainsString('/cloud/jp-tokyo', $html);
+    }
+
+    /** و در نسخهٔ انگلیسی هم برچسبِ درست و لینکِ صفحهٔ بازاریابی را بدهد */
     public function test_english_header_uses_english_labels(): void
     {
         $this->location('sg-singapore', 'SG', 'Singapore');
@@ -250,7 +266,7 @@ class SiteMenuSyncTest extends TestCase
         $html = $this->get('/en')->assertOk()->getContent();
 
         $this->assertStringContainsString('Singapore VPS', $html);
-        $this->assertStringContainsString('/en/cloud/sg-singapore', $html);
+        $this->assertStringContainsString('/en/vps/singapore', $html);
     }
 
     /** منوی زنده نباید نامِ زیرساخت را لو بدهد */

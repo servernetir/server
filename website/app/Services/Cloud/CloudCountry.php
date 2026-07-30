@@ -42,6 +42,15 @@ class CloudCountry
         'FI' => 'finland',
         'FR' => 'france',
         'US' => 'usa',
+        // کشورهایی که پلنِ زنده داشتیم ولی صفحهٔ فروش نداشتیم — حالا هرکدام یک
+        // صفحهٔ سه‌زبانه در config/catalog/vps.php دارند تا جستجوی «سرور مجازی
+        // + نامِ کشور» به ما برسد، نه به رقیب.
+        'RU' => 'russia',
+        'SG' => 'singapore',
+        'SE' => 'sweden',
+        'NL' => 'netherlands',
+        'AT' => 'austria',
+        'GB' => 'england',
     ];
 
     /** اسلاگِ صفحهٔ بازاریابیِ این کشور، یا null اگر صفحه‌ای ندارد */
