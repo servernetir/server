@@ -649,4 +649,173 @@ class CloudCatalogTest extends TestCase
         $this->assertSame(1140000, (int) $plan->fresh()->price_irt);
         Http::assertNothingSent();
     }
+
+    // ═══════════════ کشفِ مسیرِ زیرساختِ ۲ ═══════════════
+
+    /**
+     * ⚠️ چرا این تست هست: داکیومنت آن ارائه‌دهنده در متن `/products` می‌نویسد و
+     * در نمونهٔ curl `…/services/products`. گیت‌وی‌شان هم برای مسیرِ ناموجود
+     * ۴۰۴ نمی‌دهد، «Proxy internal server error» می‌دهد — یعنی خطای «مسیر غلط»
+     * شکلِ خطای «سرورشان خراب است» را دارد. روی حسابِ واقعیِ کارفرما همین رخ
+     * داد و آزمونِ اتصال شکست خورد.
+     */
+    public function test_aeza_discovers_the_working_products_path(): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+
+        $tried = [];
+        Http::fake(function ($request) use (&$tried) {
+            $url = $request->url();
+            $tried[] = $url;
+
+            // مسیرِ غلط: همان خطای واقعیِ گیت‌وی
+            if (str_contains($url, '/api/products')) {
+                return Http::response(['error' => ['message' => 'Proxy internal server error (see traceId)']], 500);
+            }
+
+            if (str_contains($url, '/api/services/products')) {
+                return Http::response(['data' => ['items' => [['id' => 1, 'name' => 'X']], 'total' => 1]], 200);
+            }
+
+            return Http::response(['data' => ['items' => []]], 200);
+        });
+
+        $r = app(\App\Services\Cloud\AezaClient::class)->testConnection();
+
+        $this->assertTrue($r['ok'], 'باید مسیرِ درست را پیدا کند: '.($r['message'] ?? ''));
+        $this->assertSame('services/products', $r['meta']['path'] ?? null);
+
+        // و آن را ذخیره کرده باشد تا دفعهٔ بعد دوباره نگردد
+        $this->assertSame('services/products', Setting::get('aeza_path_products'));
+    }
+
+    /** مسیرِ ذخیره‌شده دوباره کشف نمی‌شود — نه درخواستِ اضافه، نه تأخیر */
+    public function test_saved_path_is_reused_without_rediscovery(): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+        Setting::put('aeza_path_products', 'services/products');
+        Setting::put('aeza_path_os', 'os');
+        Setting::put('aeza_path_recipe', 'vm/recipe');
+
+        $urls = [];
+        Http::fake(function ($request) use (&$urls) {
+            $urls[] = $request->url();
+
+            if (str_contains($request->url(), 'payment/currencies')) {
+                return Http::response(['data' => ['items' => [['code' => 'EUR', 'multiplier' => 0.01]]]], 200);
+            }
+
+            return Http::response(['data' => ['items' => [], 'total' => 0]], 200);
+        });
+
+        app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
+
+        foreach ($urls as $u) {
+            $this->assertStringNotContainsString('/api/products', $u, 'نباید مسیرِ نامزدِ غلط را دوباره امتحان کند');
+        }
+    }
+
+    /**
+     * توکنِ غلط (۴۰۱/۴۰۳) یعنی مسیر درست است ولی احراز هویت نه. ادامهٔ امتحانِ
+     * نامزدها فقط درخواستِ بی‌فایده می‌فرستد و می‌تواند شبیهِ کاوشِ مشکوک شود —
+     * درسِ حسابِ OpenProvider که با تلاش‌های پشت‌سرهم پرچم خورد.
+     */
+    public function test_auth_failure_stops_probing_further_paths(): void
+    {
+        Setting::putSecret('aeza_api_token', 'bad');
+
+        $calls = 0;
+        Http::fake(function () use (&$calls) {
+            $calls++;
+
+            return Http::response(['error' => ['message' => 'Unauthorized']], 401);
+        });
+
+        $r = app(\App\Services\Cloud\AezaClient::class)->testConnection();
+
+        $this->assertFalse($r['ok']);
+        // یک تلاشِ کشف + یک تلاشِ گرفتنِ پیامِ خطا = ۲. نه بیشتر.
+        $this->assertLessThanOrEqual(2, $calls, 'با خطای احراز هویت نباید مسیرها را یکی‌یکی امتحان کند');
+    }
+
+    /** اگر هیچ مسیری کار نکرد، پیام باید مدیر را به صفحهٔ عیب‌یابی بفرستد */
+    public function test_unknown_path_gives_an_actionable_message(): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+
+        Http::fake(fn () => Http::response(
+            ['error' => ['message' => 'Proxy internal server error (see traceId)']], 500
+        ));
+
+        $r = app(\App\Services\Cloud\AezaClient::class)->testConnection();
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('Proxy internal server error', $r['message']);
+        $this->assertStringContainsString('ساختارِ خامِ پاسخ', $r['message'], 'باید بگوید کجا را ببیند');
+        $this->assertStringContainsString('500', $r['message'], 'کدِ HTTP لازم است');
+    }
+
+    /**
+     * صفحهٔ عیب‌یابی باید نمونهٔ خامِ ردیف را بدهد — همان چیزی که نگاشتِ
+     * فیلدها (هسته/رم/دیسک) را از حدس در می‌آورد، چون داکیومنت نمونهٔ کامل نداشت.
+     *
+     * توجه: به‌محضِ پیدا شدنِ نامزدِ درست، بقیه امتحان **نمی‌شوند** — درخواستِ
+     * بی‌فایده نمی‌فرستیم.
+     */
+    public function test_probe_returns_a_raw_sample_row_for_field_mapping(): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/api/services/products')) {
+                return Http::response(['data' => ['items' => [
+                    ['id' => 9, 'name' => 'EPs-1', 'cpu' => 2, 'ram' => 4096, 'disk' => 60],
+                ]]], 200);
+            }
+
+            return Http::response(['data' => ['items' => []]], 200);
+        });
+
+        $probe = app(\App\Services\Cloud\AezaClient::class)->rawProbe();
+
+        $this->assertSame('services/products', $probe['products']['winner'] ?? null);
+
+        $sample = $probe['products']['tried']['services/products']['sample'][0] ?? [];
+        $this->assertSame('EPs-1', $sample['name'] ?? null);
+        $this->assertSame(4096, $sample['ram'] ?? null, 'ردیفِ خام باید کاملاً برگردد');
+
+        $this->assertArrayNotHasKey('products', $probe['products']['tried'],
+            'نامزدِ اول جواب داد، پس نامزدِ دوم نباید امتحان شود');
+    }
+
+    /**
+     * مکانیزمِ جایگزینی: اگر نامزدِ اول خطای گیت‌وی بدهد، نامزدِ بعدی امتحان
+     * شود و همان ذخیره گردد. بی‌این، یک اشتباهِ داکیومنت کلِ زیرساخت را از کار
+     * می‌انداخت.
+     */
+    public function test_probe_falls_back_to_the_next_candidate(): void
+    {
+        Setting::putSecret('aeza_api_token', 'k');
+
+        Http::fake(function ($request) {
+            // نامزدِ اول (طبقِ نمونهٔ curl) این‌جا خراب است
+            if (str_contains($request->url(), '/api/services/products')) {
+                return Http::response(['error' => ['message' => 'Proxy internal server error']], 500);
+            }
+
+            // نامزدِ دوم (طبقِ متنِ داکیومنت) کار می‌کند
+            if (str_contains($request->url(), '/api/products')) {
+                return Http::response(['data' => ['items' => [['id' => 3, 'name' => 'Y']]]], 200);
+            }
+
+            return Http::response(['data' => ['items' => []]], 200);
+        });
+
+        $probe = app(\App\Services\Cloud\AezaClient::class)->rawProbe();
+
+        $this->assertSame(500, $probe['products']['tried']['services/products']['http'] ?? null);
+        $this->assertSame(200, $probe['products']['tried']['products']['http'] ?? null);
+        $this->assertSame('products', $probe['products']['winner'] ?? null);
+        $this->assertSame('products', Setting::get('aeza_path_products'));
+    }
 }

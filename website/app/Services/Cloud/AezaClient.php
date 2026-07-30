@@ -36,6 +36,30 @@ class AezaClient implements CloudProvider
 {
     private const BASE = 'https://my.aeza.net/api';
 
+    /**
+     * ⚠️ چرا «نامزدِ مسیر» و نه مسیرِ ثابت.
+     *
+     * متنِ داکیومنت مسیرِ فهرستِ محصولات را `/products` می‌نویسد، ولی نمونهٔ
+     * `curl` همان صفحه `…/api/services/products` است. یکی از این دو غلط است و
+     * ما از بیرون نمی‌دانیم کدام.
+     *
+     * بدتر: گیت‌وی این ارائه‌دهنده برای مسیرِ ناموجود **۴۰۴ تمیز نمی‌دهد**؛
+     * «Proxy internal server error» می‌دهد. یعنی خطای «مسیر را غلط زدی» شکلِ
+     * خطای «سرورشان خراب است» را دارد و ساعت‌ها می‌شود دنبالِ توکن و شبکه گشت.
+     * دقیقاً همین اتفاق افتاد.
+     *
+     * راهِ درست: یک‌بار نامزدها را امتحان کن، برندهٔ درست را **ذخیره کن** و از
+     * آن به بعد فقط همان را بزن. نه حدس می‌زنیم، نه هر بار چند درخواستِ اضافه
+     * می‌فرستیم.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const PATH_CANDIDATES = [
+        'products' => ['services/products', 'products'],
+        'os'       => ['os', 'services/os', 'vm/os'],
+        'recipe'   => ['vm/recipe', 'services/recipe', 'recipes'],
+    ];
+
     public function slug(): string
     {
         return 'aeza';
@@ -130,22 +154,65 @@ class AezaClient implements CloudProvider
         return [];
     }
 
-    public function testConnection(): array
+    /**
+     * مسیرِ درستِ یک منبع — یک‌بار کشف، بعد از آن از تنظیمات خوانده می‌شود.
+     *
+     * `$force` برای صفحهٔ عیب‌یابی است تا کشف را از نو انجام دهد.
+     */
+    private function resolvePath(string $key, bool $force = false): ?string
     {
-        $r = $this->req('GET', '/products', ['count' => 5]);
+        $settingKey = 'aeza_path_'.$key;
 
-        if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']];
+        if (! $force && filled($saved = Setting::get($settingKey))) {
+            return (string) $saved;
         }
 
+        foreach (self::PATH_CANDIDATES[$key] ?? [] as $candidate) {
+            $r = $this->req('GET', '/'.$candidate, ['count' => 1]);
+
+            // «موفق» یعنی مسیر وجود دارد. پاسخِ خالی هم قبول است (شاید حساب
+            // فعلاً محصولی ندارد) — مهم این است که خطا نداد.
+            if ($r['ok']) {
+                Setting::put($settingKey, $candidate);
+
+                return $candidate;
+            }
+
+            // ۴۰۱/۴۰۳ یعنی مسیر درست است ولی **توکن** مشکل دارد؛ ادامهٔ امتحانِ
+            // مسیرها بی‌فایده است و فقط درخواستِ اضافه می‌فرستد.
+            if (in_array($r['status'], [401, 403], true)) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    public function testConnection(): array
+    {
+        $path = $this->resolvePath('products', true);
+
+        if ($path === null) {
+            // پیامِ خامِ آخرین تلاش را بده — بی‌آن، مدیر نمی‌داند توکن غلط است
+            // یا مسیر یا شبکه.
+            $r = $this->req('GET', '/'.self::PATH_CANDIDATES['products'][0], ['count' => 1]);
+
+            return [
+                'ok' => false,
+                'message' => $r['message'].' (کدِ HTTP: '.$r['status'].') — اگر «Proxy internal server error» است، '
+                    .'یعنی مسیر روی گیت‌وی آنها شناخته نشد؛ صفحهٔ «ساختارِ خامِ پاسخ» را ببینید.',
+            ];
+        }
+
+        $r = $this->req('GET', '/'.$path, ['count' => 5]);
         $n = count($this->items($r['body']));
 
         return [
             'ok' => true,
             'message' => $n > 0
-                ? "اتصال برقرار است — {$n} محصول خوانده شد."
-                : 'اتصال برقرار است ولی هیچ محصولی برنگشت (شاید حساب محصولی ندارد).',
-            'meta' => ['products' => $n],
+                ? "اتصال برقرار است — {$n} محصول خوانده شد (مسیر: {$path})."
+                : "اتصال برقرار است ولی محصولی برنگشت (مسیر: {$path}).",
+            'meta' => ['products' => $n, 'path' => $path],
         ];
     }
 
@@ -159,9 +226,32 @@ class AezaClient implements CloudProvider
     {
         $out = [];
 
-        foreach (['products' => '/products', 'os' => '/os', 'recipe' => '/vm/recipe'] as $k => $path) {
-            $r = $this->req('GET', $path, ['count' => 3]);
-            $out[$k] = $r['ok'] ? array_slice($this->items($r['body']), 0, 2) : ['error' => $r['message']];
+        foreach (self::PATH_CANDIDATES as $key => $candidates) {
+            $out[$key] = ['tried' => []];
+
+            foreach ($candidates as $path) {
+                $r = $this->req('GET', '/'.$path, ['count' => 2]);
+                $items = $r['ok'] ? $this->items($r['body']) : [];
+
+                // برای هر نامزد: کدِ HTTP، پیام، و **دو ردیفِ خامِ اول**.
+                // ردیفِ خام همان چیزی است که نگاشتِ فیلدها را قطعی می‌کند
+                // (نامِ کلیدهای هسته/رم/دیسک/مکان در داکیومنت نبود).
+                $out[$key]['tried'][$path] = [
+                    'http'    => $r['status'],
+                    'ok'      => $r['ok'],
+                    'message' => $r['message'] ?: null,
+                    'count'   => count($items),
+                    'sample'  => array_slice($items, 0, 2),
+                    // اگر ساختار را نشناختیم، کلیدهای سطحِ اولِ بدنه را نشان بده
+                    'body_keys' => $items === [] && is_array($r['body']) ? array_keys($r['body']) : null,
+                ];
+
+                if ($r['ok'] && $items !== []) {
+                    $out[$key]['winner'] = $path;
+                    Setting::put('aeza_path_'.$key, $path);
+                    break;
+                }
+            }
         }
 
         return $out;
@@ -221,7 +311,13 @@ class AezaClient implements CloudProvider
             return ['ok' => false, 'message' => 'توکنِ Aeza تنظیم نشده.'] + $empty;
         }
 
-        $r = $this->req('GET', '/products', ['count' => 500, 'extra' => 1]);
+        $path = $this->resolvePath('products');
+
+        if ($path === null) {
+            return ['ok' => false, 'message' => 'مسیرِ فهرستِ محصولات شناخته نشد — صفحهٔ «ساختارِ خامِ پاسخ» را ببینید.'] + $empty;
+        }
+
+        $r = $this->req('GET', '/'.$path, ['count' => 500, 'extra' => 1]);
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message']] + $empty;
@@ -442,7 +538,10 @@ class AezaClient implements CloudProvider
         $out = [];
 
         // سیستم‌عامل
-        $r = $this->req('GET', '/os', ['count' => 300]);
+        $osPath = $this->resolvePath('os');
+        $r = $osPath === null
+            ? ['ok' => false, 'body' => []]
+            : $this->req('GET', '/'.$osPath, ['count' => 300]);
 
         if ($r['ok']) {
             foreach ($this->items($r['body']) as $os) {
@@ -469,7 +568,10 @@ class AezaClient implements CloudProvider
         }
 
         // نرم‌افزارهای آماده (recipe)
-        $r = $this->req('GET', '/vm/recipe', ['count' => 300]);
+        $recipePath = $this->resolvePath('recipe');
+        $r = $recipePath === null
+            ? ['ok' => false, 'body' => []]
+            : $this->req('GET', '/'.$recipePath, ['count' => 300]);
 
         if ($r['ok']) {
             foreach ($this->items($r['body']) as $rec) {
