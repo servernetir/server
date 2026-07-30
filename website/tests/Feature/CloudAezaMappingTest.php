@@ -572,4 +572,76 @@ class CloudAezaMappingTest extends TestCase
         $this->assertSame(['ident', 'title', 'hardware'], $shape['keys'] ?? null);
         $this->assertSame(0, $shape['parsed']['specs']['vcpu'] ?? null, 'و صریح بگوید که چیزی نخواند');
     }
+
+    // ═══════════════════ پلنِ تشویقی (PROMO) ═══════════════════
+
+    /**
+     * 🔴 کارفرما دید: «قیمتِ پکیجِ PROMO سوئد خیلی ارزون افتاده».
+     *
+     * قیمتش واقعاً پایین است — ولی **موقت**. چون ما قیمتِ مشتری را سرِ سفارش
+     * قفل می‌کنیم و سرویس خودکار تمدید می‌شود، از دورهٔ دوم هر تمدید ضررِ خالص
+     * است و ماه‌به‌ماه بی‌صدا تکرار می‌شود. پس پیش‌فرض کنار می‌رود.
+     */
+    public function test_promo_named_plan_is_skipped_by_default(): void
+    {
+        $this->fake([
+            $this->vps(),
+            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 9000], 'rawPrices' => ['month' => 9000]]),
+        ]);
+
+        $cat = $this->catalog();
+
+        $refs = array_column($cat['plans'], 'provider_ref');
+
+        $this->assertContains('181', $refs, 'پلنِ عادی باید بماند');
+        $this->assertNotContains('900', $refs, 'پلنِ تشویقی نباید فروخته شود');
+    }
+
+    /**
+     * نشانهٔ قطعی‌تر از نام: خودِ ارائه‌دهنده می‌گوید نرخِ دورهٔ اول پایین‌تر است.
+     * حتی بی‌کلمهٔ PROMO در نام، این یعنی قیمت موقتی است.
+     */
+    public function test_plan_with_a_cheaper_first_period_is_treated_as_promo(): void
+    {
+        $this->fake([
+            $this->vps([
+                'id' => 901, 'name' => 'NLs-9',
+                'prices'      => ['month' => 50000],
+                'rawPrices'   => ['month' => 50000],
+                'firstPrices' => ['month' => 9000],   // دورهٔ اول ارزان‌تر
+            ]),
+        ]);
+
+        $cat = $this->catalog();
+
+        $this->assertSame([], $cat['plans'], 'قیمتِ دورهٔ اولِ ارزان‌تر = نرخِ موقت');
+        $this->assertStringContainsString('تشویقی', (string) ($cat['message'] ?? ''),
+            'گزارش باید دلیلش را بگوید، نه فقط «۰ پلن»');
+    }
+
+    /** نرخِ برابرِ دورهٔ اول و عادی، تشویقی نیست */
+    public function test_equal_first_and_normal_price_is_not_promo(): void
+    {
+        $this->fake([
+            $this->vps([
+                'prices'      => ['month' => 50000],
+                'rawPrices'   => ['month' => 50000],
+                'firstPrices' => ['month' => 50000],
+            ]),
+        ]);
+
+        $this->assertCount(1, $this->catalog()['plans']);
+    }
+
+    /** مدیر می‌تواند آگاهانه برشان گرداند */
+    public function test_admin_can_opt_into_promo_plans(): void
+    {
+        \App\Models\Setting::put('aeza_include_promo', '1');
+
+        $this->fake([
+            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 9000], 'rawPrices' => ['month' => 9000]]),
+        ]);
+
+        $this->assertCount(1, $this->catalog()['plans'], 'با تنظیمِ صریح باید بیاید');
+    }
 }

@@ -560,7 +560,7 @@ class AezaClient implements CloudProvider
         $why = [
             'not_vps_type' => 0, 'not_vps_handler' => 0, 'not_vps_name' => 0,
             'no_id' => 0, 'no_specs' => 0, 'partial_specs' => 0,
-            'no_price' => 0, 'ambiguous_price' => 0, 'no_location' => 0,
+            'no_price' => 0, 'ambiguous_price' => 0, 'promo' => 0, 'no_location' => 0,
         ];
 
         foreach ($this->items($r['body']) as $p) {
@@ -596,6 +596,15 @@ class AezaClient implements CloudProvider
                 // (پروکسی، لایسنس، …). تفکیکشان عیب‌یابی را کوتاه می‌کند.
                 $nothing = $specs['vcpu'] < 1 && $specs['ram_mb'] < 128 && $specs['disk_gb'] < 1;
                 $why[$nothing ? 'no_specs' : 'partial_specs']++;
+
+                continue;
+            }
+
+            // پلنِ تشویقی: قیمتش پایدار نیست، پس فروشش تعهدی است که نمی‌توانیم
+            // نگه داریم (سرِ سفارش قیمت قفل می‌شود ولی بهایِ ما بالا می‌رود).
+            // پیش‌فرض کنار می‌رود و در گزارش شمرده می‌شود.
+            if ($this->isPromoProduct($p)) {
+                $why['promo']++;
 
                 continue;
             }
@@ -654,6 +663,7 @@ class AezaClient implements CloudProvider
                     'not_vps_type'    => $count.' با نوعِ محصولِ غیرِ سرورِ مجازی',
                     'not_vps_handler' => $count.' با دستگیرهٔ سرویسِ غیرِ سرورِ مجازی (دامنه/فضا/لایسنس/فیزیکی)',
                     'not_vps_name'    => $count.' با نامِ مشخصاً غیرِ سرورِ مجازی',
+                    'promo'           => $count.' تشویقی/موقت — قیمتِ تمدیدشان پایدار نیست، پس عمداً فروخته نمی‌شوند (در تنظیمات قابلِ روشن‌کردن)',
                     'no_id'           => $count.' بی‌شناسه',
                     'no_specs'        => $count.' که هیچ مشخصه‌ای نداشت (نامِ فیلدِ هسته/رم/دیسک نخواند)',
                     'partial_specs'   => $count.' با مشخصاتِ ناقص (بخشی خوانده شد)',
@@ -1053,6 +1063,69 @@ class AezaClient implements CloudProvider
      * روبلِ خالص بدهند و ما تقسیم کنیم، سرورِ ۵۰ یورویی را نیم‌یورو می‌فروشیم.
      * پس اگر تفسیرِ کوپک عددی بی‌معنا کوچک بدهد، همان عدد را روبل می‌گیریم.
      */
+    /**
+     * آیا این محصول **تشویقی** (promo) است؟
+     *
+     * ═══ چرا این خطرناک است و به چشم نمی‌آید ═══
+     *
+     * این ارائه‌دهنده خطِ محصولِ «PROMO» دارد که قیمتِ ماهانه‌اش واقعاً پایین
+     * است — ولی تشویقی است: موجودیِ محدود، یا نرخِ **تمدید** بالاتر.
+     *
+     * مشکل این‌جاست که ما قیمتِ مشتری را **سرِ سفارش قفل می‌کنیم** و تا وقتی
+     * سرویس زنده است همان را فاکتور می‌کنیم. اگر بهایِ تمام‌شدهٔ ما از دورهٔ دوم
+     * بالا برود، از آن لحظه **هر تمدید ضرر خالص است** — و چون سرویس خودکار
+     * تمدید می‌شود، ضرر ماه‌به‌ماه بی‌صدا تکرار می‌شود.
+     *
+     * پس پیش‌فرض: کنارشان می‌گذاریم. اگر مدیر مطمئن شد قیمت واقعاً پایدار است،
+     * با یک تنظیم برشان می‌گرداند. این همان قاعدهٔ همیشگیِ این پروژه است:
+     * چیزی که نمی‌دانیم پایدار است، نباید بی‌خبر فروخته شود.
+     */
+    private function isPromoProduct(array $p): bool
+    {
+        if (\App\Models\Setting::get('aeza_include_promo') === '1') {
+            return false;
+        }
+
+        $hay = mb_strtolower(trim(
+            ((string) ($p['name'] ?? '')).' '
+            .((string) data_get($p, 'group.name', '')).' '
+            .((string) data_get($p, 'group.payload.label', ''))
+        ));
+
+        foreach (['promo', 'акци', 'sale', 'discount', 'special offer', 'trial'] as $needle) {
+            if ($hay !== '' && str_contains($hay, $needle)) {
+                return true;
+            }
+        }
+
+        // نشانهٔ دومِ قطعی‌تر از نام: قیمتِ دورهٔ اول از قیمتِ عادی کمتر است.
+        // یعنی خودِ ارائه‌دهنده می‌گوید این نرخ موقتی است.
+        $first = $this->rawTermValue($p, ['firstPrices', 'first_prices']);
+        $normal = $this->rawTermValue($p, ['prices', 'rawPrices', 'raw_prices']);
+
+        return $first > 0 && $normal > 0 && $first < $normal * 0.9;
+    }
+
+    /** عددِ خامِ قیمتِ ماهانه از یک فهرستِ ظرفِ مشخص (بی‌تفسیرِ واحد) */
+    private function rawTermValue(array $p, array $bags): float
+    {
+        foreach ($bags as $bag) {
+            foreach (['month', 'monthly', '1_month', 'mo'] as $term) {
+                $v = data_get($p, $bag.'.'.$term);
+
+                if (is_array($v)) {
+                    $v = $v['value'] ?? $v['amount'] ?? null;
+                }
+
+                if (is_numeric($v) && (float) $v > 0) {
+                    return (float) $v;
+                }
+            }
+        }
+
+        return 0.0;
+    }
+
     private function monthlyRub(array $p): float
     {
         $raw = 0.0;

@@ -52,6 +52,7 @@ class SettingsController extends Controller
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
             'divisor' => $ready ? Setting::get('aeza_price_divisor') : null,
+            'promo'   => $ready && Setting::get('aeza_include_promo') === '1',
             'plans'   => $ready && Schema::hasTable('cloud_plans')
                 ? \App\Models\CloudPlan::where('is_active', true)->count() : 0,
         ];
@@ -99,6 +100,8 @@ class SettingsController extends Controller
             'aeza_rub_per_eur'      => ['nullable', 'numeric', 'min:10', 'max:5000'],
             // واحدِ عددِ قیمت در API زیرساختِ ۲: ۱۰۰ = کوپک · ۱ = روبل
             'aeza_price_divisor'    => ['nullable', 'in:1,100'],
+            // پلنِ تشویقی: پیش‌فرض کنار می‌رود چون قیمتِ تمدیدش پایدار نیست
+            'aeza_include_promo'     => ['nullable', 'boolean'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
@@ -148,6 +151,8 @@ class SettingsController extends Controller
             Setting::put('stamp_path', $path);
             Setting::put('stamp_mime', $file->getClientMimeType());
         }
+
+        Setting::put('aeza_include_promo', $request->boolean('aeza_include_promo') ? '1' : null);
 
         return back()->with('ok', 'تنظیمات ذخیره شد.');
     }
