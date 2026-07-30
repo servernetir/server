@@ -191,6 +191,8 @@ class CloudProvisioner
             'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
             'image_ref'    => $imageRef,
             'ssh_keys'     => $sshRefs,
+            // بعضی زیرساخت‌ها (آروان) اندازهٔ دیسک را جدا می‌خواهند
+            'disk_gb'      => (int) $plan->disk_gb,
             'labels'       => ['snet-service' => (string) $service->id],
         ]);
 

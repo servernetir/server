@@ -124,6 +124,12 @@
           <input type="password" name="aeza_api_token" dir="ltr" autocomplete="new-password" maxlength="300"
                  placeholder="{{ $cloud['aeza'] ? '••••••••••  خالی = بدونِ تغییر' : 'کلید را این‌جا بچسبانید' }}">
         </label>
+        <label class="set-f">
+          زیرساختِ ۳ — API Key <span style="color:var(--dim)">(ایرانی)</span>
+          @if($cloud['arvan'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">ذخیره‌شده</span>@endif
+          <input type="password" name="arvan_api_token" dir="ltr" autocomplete="new-password" maxlength="400"
+                 placeholder="{{ $cloud['arvan'] ? '••••••••••  خالی = بدونِ تغییر' : 'کلید را با پیشوندِ Apikey بچسبانید' }}">
+        </label>
         <label class="set-f">حاشیهٔ سودِ سرورِ ابری (٪)
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>

@@ -48,6 +48,7 @@ class SettingsController extends Controller
         $cloud = [
             'hetzner' => $ready && filled(Setting::getSecret('hetzner_api_token')),
             'aeza'    => $ready && filled(Setting::getSecret('aeza_api_token')),
+            'arvan'   => $ready && filled(Setting::getSecret('arvan_api_token')),
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
@@ -93,6 +94,8 @@ class SettingsController extends Controller
             'hetzner_forget'        => ['nullable', 'boolean'],
             'aeza_api_token'        => ['nullable', 'string', 'max:300'],
             'aeza_forget'           => ['nullable', 'boolean'],
+            'arvan_api_token'       => ['nullable', 'string', 'max:400'],
+            'arvan_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
             // «۱ یورو چند روبل» — چون API زیرساختِ دوم قیمت را به روبل می‌دهد.
@@ -128,7 +131,7 @@ class SettingsController extends Controller
 
         // توکنِ ارائه‌دهندگانِ ابری — همان الگو: رمزنگاری‌شده، هرگز برنمی‌گردد،
         // خالی‌فرستادن یعنی «دست نزن» و برای حذف تیکِ جدا هست.
-        foreach (['hetzner', 'aeza'] as $p) {
+        foreach (['hetzner', 'aeza', 'arvan'] as $p) {
             if ($request->boolean($p.'_forget')) {
                 Setting::putSecret($p.'_api_token', null);
             } elseif (filled($data[$p.'_api_token'] ?? null)) {

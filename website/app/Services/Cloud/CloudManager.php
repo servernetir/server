@@ -18,6 +18,7 @@ class CloudManager
     public const DRIVERS = [
         'hetzner' => HetznerClient::class,
         'aeza'    => AezaClient::class,
+        'arvan'   => ArvanClient::class,
     ];
 
     /**
@@ -35,6 +36,7 @@ class CloudManager
     public const REAL_NAMES = [
         'hetzner' => 'Hetzner Cloud',
         'aeza'    => 'Aeza',
+        'arvan'   => 'ArvanCloud (ابرآروان)',
     ];
 
     /** @var array<string, CloudProvider> */
