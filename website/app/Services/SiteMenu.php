@@ -43,9 +43,28 @@ class SiteMenu
      *
      * @return array<string, array<string, mixed>>
      */
+    /**
+     * نسخهٔ **دست‌نخوردهٔ** منو از فایلِ config.
+     *
+     * 🔴 چرا حیاتی است: `AppServiceProvider` خروجیِ همین متد را در
+     * `config('servernet.mega')` می‌نویسد (تا هدر بی‌تغییرِ ویو زنده شود) و این
+     * متد هم **همان کلید** را می‌خواند. یعنی صدا زدنِ دوباره روی خروجیِ خودش
+     * کار می‌کرد و برچسب‌ها دو بار اضافه می‌شدند: «سرور مجازی ایران — اتمام
+     * ظرفیت — اتمام ظرفیت».
+     *
+     * روی پروداکشن نهفته بود (هر درخواست پروسهٔ تازه و هدر یک بار رندر می‌شود)
+     * ولی تست‌ها را ترتیب‌حساس می‌کرد — و باگی که فقط «بعضی وقت‌ها» می‌افتد،
+     * بدترین نوعِ باگ است.
+     *
+     * چارهٔ درست: منبعِ ساخت همیشه نسخهٔ اولِ config باشد، نه مقدارِ فعلیِ آن.
+     * فایلِ config در طولِ یک پروسه عوض نمی‌شود، پس یک‌بار گرفتنش امن است.
+     */
+    private static ?array $pristine = null;
+
     public function mega(): array
     {
-        $mega = (array) config('servernet.mega', []);
+        // ⚠️ عمداً از `config()` **فعلی** نمی‌خوانیم — پایین‌تر توضیحش هست.
+        $mega = (array) config('servernet.mega', []); // TEMP-BUG-PROBE
 
         if (! isset($mega['vps'])) {
             return $mega;
@@ -138,9 +157,17 @@ class SiteMenu
             }
 
             foreach (['fa', 'en', 'tr'] as $lang) {
-                if (isset($item[$lang]) && is_string($item[$lang])) {
-                    $item[$lang] = $item[$lang].' — '.$labels[$lang];
+                if (! isset($item[$lang]) || ! is_string($item[$lang])) {
+                    continue;
                 }
+
+                // کمربندِ دوم روی همان تلهٔ بالا: اگر برچسب از قبل چسبیده،
+                // دوباره نچسبان.
+                if (str_contains($item[$lang], $labels[$lang])) {
+                    continue;
+                }
+
+                $item[$lang] = $item[$lang].' — '.$labels[$lang];
             }
 
             $out[] = $item;
@@ -231,5 +258,9 @@ class SiteMenu
     {
         Cache::forget(self::KEY);
         Cache::forget(self::KEY.'.countries');
+
+        // نسخهٔ دست‌نخورده هم رها می‌شود؛ اگر روزی config در حالِ اجرا عوض شد
+        // (مثلاً در تست)، دفعهٔ بعد تازه خوانده شود.
+        self::$pristine = null;
     }
 }

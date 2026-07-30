@@ -1,4 +1,20 @@
 {{-- $isFa / $faUrl / $enUrl / $homeUrl / $contact / $social از AppServiceProvider می‌آیند --}}
+@php
+    /*
+    | نوارِ «جای مشتری نشسته‌اید» (impersonation) — یک‌جا برای کلِ سایت.
+    |
+    | اینجا و نه در panel/layout.blade.php: مدیرِ واردشده در حسابِ مشتری در
+    | صفحاتِ سایتِ اصلی هم می‌گردد (فروشگاه، کاتالوگ، بلاگ) و باید همه‌جا راهِ
+    | بازگشت داشته باشد. خودِ نوار در partials/header.blade.php رندر می‌شود.
+    |
+    | هر دو شرط لازم است: کلیدِ نشست **و** مشتریِ واقعاً واردشده. اگر نشستِ
+    | گاردِ customer از بین رفته باشد، نوارِ بی‌نام و بی‌فایده نباید رندر شود.
+    */
+    $impCust = session(\App\Http\Controllers\Admin\ImpersonateController::SESSION_KEY)
+        ? auth('customer')->user()
+        : null;
+    $impBar = $impCust !== null;
+@endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" dir="{{ $isFa ? 'rtl' : 'ltr' }}">
 <head>
@@ -50,7 +66,10 @@
     ],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 </head>
-<body>
+{{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
+     محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)
+     دست‌نخورده بمانند. قاعده‌هایش انتهای site.css است. --}}
+<body @class(['imp-on' => $impBar])>
 
 <a class="skip-link" href="#main">{{ __('ui.skip') }}</a>
 <div id="progress"></div>

@@ -6,6 +6,42 @@
     $knowledgeMenu = config('servernet.knowledge_menu');
 @endphp
 <div class="site-header-wrap" id="header-wrap">
+  {{-- ══════ نوارِ «جای مشتری نشسته‌اید» (impersonation) ══════
+       عمداً **داخلِ** .site-header-wrap و اولین فرزندِ آن است. آن wrap خودش
+       position:fixed;top:0;z-index:200 دارد (site.css:289)، پس نوار:
+         · همیشه روی صفحه است (اسکرول هرچقدر برود),
+         · هیچ‌چیز رویش نمی‌افتد ⇒ همیشه کلیک‌پذیر,
+         · و چون هدر را از پایین جلو می‌راند، با body.imp-on{padding-top}
+           هیچ محتوایی زیرش پنهان نمی‌ماند.
+
+       🔴 باگی که این جایگزینش کرد: نوار قبلاً داخلِ بخشِ content (یعنی
+       داخلِ تگِ main) با position:sticky;top:0;z-index:120 بود — دقیقاً همان
+       مستطیلی که هدرِ ثابت اشغال می‌کند، و چون ۱۲۰ < ۲۰۰ هدر رویش می‌افتاد و
+       کلیک را می‌بلعید. نتیجه: مدیر بعد از ورود به حسابِ مشتری راهِ بازگشت
+       نداشت. ⚠️ فقط z-index را زیاد نکن — آن‌وقت نوار روی لوگو و منو می‌افتد.
+
+       dir="rtl" روی خودِ نوار: متنش فارسی است و در صفحاتِ en/tr هم باید درست
+       بنشیند. --}}
+  @if($impBar ?? false)
+  <div class="imp-bar" dir="rtl">
+    <div class="container imp-in">
+      <span class="imp-tx">
+        <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+        <span class="imp-lb">نمایِ مشتری —</span>
+        <b class="imp-nm">{{ $impCust->displayName() }}</b>
+        <span class="imp-code" dir="ltr">{{ $impCust->code }}</span>
+      </span>
+      <form method="post" action="/admin/impersonate/stop" class="imp-f">@csrf
+        <button type="submit" class="imp-out">
+          <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+          <span class="imp-out-lg">بازگشت به پنل مدیریت</span>
+          <span class="imp-out-sm">بازگشت</span>
+        </button>
+      </form>
+    </div>
+  </div>
+  @endif
+
   {{-- نوار اعتماد: تلفن، ایمیل، وضعیت + زبان --}}
   <div class="topbar">
     <div class="container">

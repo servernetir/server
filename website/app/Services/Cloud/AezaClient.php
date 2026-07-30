@@ -21,13 +21,23 @@ use Illuminate\Support\Facades\Log;
  *    `DELETE /services/{id}`، پاسخِ فهرستی با `items`/`total`، و اینکه
  *    **قیمت‌ها سمتِ سرور به روبل‌اند** و ضریبِ تبدیل از `payment/currencies`.
  *
- *  • **استنتاجی**: نامِ دقیقِ فیلدهای داخلِ هر محصول (هسته/رم/دیسک/مکان). داکیومنت
- *    نمونهٔ کاملِ JSON نداشت. پس اینجا هر مقدار از **چند مسیرِ ممکن** خوانده
- *    می‌شود و اگر هیچ‌کدام نبود، آن محصول رد می‌شود نه اینکه با عددِ صفر ذخیره
- *    شود (پلنِ صفرهسته/صفرگیگ روی سایت، از نبودنِ پلن بدتر است).
+ *  • **از SDKهای تایپ‌شده** (نه از داکیومنت، که نمونهٔ کاملِ JSON ندارد): نامِ
+ *    فیلدهای محصول. `configuration[]{slug,base,max}` · `summaryConfiguration`
+ *    `{cpu,ram,rom}` — **دیسک `rom` است نه `disk`** · `prices|rawPrices|
+ *    individualPrices` با دوره‌های `hour|month|year|half_year|quarter_year` و
+ *    واحدِ **کوپک** · `type ∈ {vps,vds,hicpu,storage,gpu,dedicated,domain}` ·
+ *    `serviceHandler ∈ {vm6,manual,feru,s3,ispmgr}` · مکان روی **گروه**:
+ *    `group.payload.{code,label,mode,isDisabled}`. جزئیات و منبعِ هر کدام،
+ *    بالای بخشِ «نگاشتِ فیلدهای محصول» پایین‌تر آمده.
  *
- *  • برای بستنِ همین شکاف، `rawProbe()` هست: در پنلِ مدیریت یک دکمه، ساختارِ
- *    واقعیِ JSON را نشان می‌دهد تا بی‌حدس‌وگمان دقیق شود.
+ *  • **همچنان استنتاجی**: واحدِ رم و دیسک (مگابایت یا گیگابایت) در هیچ منبعی
+ *    صریح نبود؛ از بزرگیِ عدد تشخیص داده می‌شود. اگر هیچ مقداری خوانده نشد،
+ *    محصول **رد** می‌شود نه اینکه با صفر ذخیره شود (پلنِ صفرهسته/صفرگیگ روی
+ *    سایت، از نبودنِ پلن بدتر است).
+ *
+ *  • برای بستنِ هر شکافِ باقی‌مانده، `rawProbe()` هست: در پنلِ مدیریت یک دکمه،
+ *    ساختارِ واقعیِ JSON را **به‌همراه** اسلاگ‌های مشخصات و نتیجهٔ نگاشت روی
+ *    همان ردیف نشان می‌دهد.
  *
  * Aeza کنسولِ تحتِ وب و نمودارِ مصرف را در API عمومی‌اش ندارد، پس
  * `capabilities()` آنها را false می‌گوید و رابطِ کاربری دکمهٔ بی‌فایده نمی‌سازد.
@@ -314,6 +324,15 @@ class AezaClient implements CloudProvider
                     'sample'  => array_slice($items, 0, 2),
                     // اگر ساختار را نشناختیم، کلیدهای سطحِ اولِ بدنه را نشان بده
                     'body_keys' => $items === [] && is_array($r['body']) ? array_keys($r['body']) : null,
+                    // ⚠️ اگر فهرست خوانده شد ولی چیزی نگاشت نشد، **این** بخش کار را
+                    // در می‌آورد: اسلاگ‌های واقعیِ مشخصات، دوره‌های قیمت، کلیدهای
+                    // payloadِ گروه، و اینکه هر پنج متدِ نگاشت روی همان ردیف چه
+                    // خواندند. با یک نگاه معلوم می‌شود کدام نام عوض شده.
+                    'shape' => $items === [] ? null : $this->describeRow($items[0]),
+                    // نگاشتِ عمیقِ بدنه وقتی `items` پیدا نشد — «data» تو در تو بوده؟
+                    'body_shape' => $items === [] && is_array($r['body'])
+                        ? $this->shallowKeyTree($r['body'])
+                        : null,
                 ];
 
                 if ($r['ok'] && $items !== []) {
@@ -325,6 +344,78 @@ class AezaClient implements CloudProvider
         }
 
         return $out;
+    }
+
+    /**
+     * کارتِ تشخیصِ یک ردیفِ نمونه — «چه دیدم و از آن چه فهمیدم».
+     *
+     * چرا لازم شد: گزارشِ «۳۸۹ محصول خوانده شد، ۰ پلن ساخته شد» به مدیر
+     * نمی‌گفت کدام نام نخوانده. این متد **اسلاگ‌های واقعی** و خروجیِ هر پنج
+     * متدِ نگاشت را کنارِ هم می‌گذارد؛ عیب‌یابی از حدس‌وگمان در می‌آید.
+     */
+    private function describeRow(mixed $row): array
+    {
+        if (! is_array($row)) {
+            return ['not_an_object' => gettype($row)];
+        }
+
+        $keysOf = static fn (string $path) => is_array($v = data_get($row, $path)) ? array_keys($v) : null;
+
+        $slugs = [];
+
+        foreach (['summaryConfiguration', 'configuration'] as $bag) {
+            $rows = data_get($row, $bag);
+
+            if (! is_array($rows)) {
+                continue;
+            }
+
+            $slugs[$bag] = [];
+
+            foreach ($rows as $k => $item) {
+                $slugs[$bag][] = is_string($k)
+                    ? $k
+                    : (string) (data_get($item, 'slug') ?? data_get($item, 'key') ?? '?');
+            }
+        }
+
+        return [
+            'keys'                => array_keys($row),
+            'type'                => data_get($row, 'type'),
+            'service_handler'     => data_get($row, 'serviceHandler'),
+            'config_slugs'        => $slugs,
+            'price_terms'         => array_filter([
+                'prices'           => $keysOf('prices'),
+                'rawPrices'        => $keysOf('rawPrices'),
+                'individualPrices' => $keysOf('individualPrices'),
+            ]),
+            'group_keys'          => $keysOf('group'),
+            'group_payload'       => data_get($row, 'group.payload'),
+            'payload_keys'        => $keysOf('payload'),
+            // و این‌که نگاشتِ فعلی روی همین ردیف چه نتیجه‌ای می‌دهد
+            'parsed' => [
+                'is_vps'      => $this->isVpsProduct($row),
+                'vps_verdict' => $this->vpsVerdict($row) ?: 'ok',
+                'specs'       => $this->specsOf($row),
+                'monthly_rub' => $this->monthlyRub($row),
+                'location'    => $this->locationOf($row),
+                'in_stock'    => $this->inStock($row),
+            ],
+        ];
+    }
+
+    /** درختِ کم‌عمقِ کلیدها — برای وقتی `items` پیدا نشد و باید بدانیم کجاست */
+    private function shallowKeyTree(array $body, int $depth = 2): array
+    {
+        $out = [];
+
+        foreach ($body as $k => $v) {
+            $out[$k] = is_array($v)
+                ? ($depth > 1 ? $this->shallowKeyTree($v, $depth - 1) : array_slice(array_keys($v), 0, 20))
+                : gettype($v);
+        }
+
+        return array_slice($out, 0, 20, true);
     }
 
     // ───────────────────────── نرخِ ارز ─────────────────────────
@@ -466,7 +557,11 @@ class AezaClient implements CloudProvider
         // نبودِ مکان؟ نبودِ قیمت؟ این شمارنده «هیچی نیاورد» را به «۴۰ محصول
         // خوانده شد، ۴۰ تا بی‌فیلدِ مکان رد شد» تبدیل می‌کند.
         $seen = 0;
-        $why = ['not_vps' => 0, 'no_id' => 0, 'bad_specs' => 0, 'no_price' => 0, 'no_location' => 0];
+        $why = [
+            'not_vps_type' => 0, 'not_vps_handler' => 0, 'not_vps_name' => 0,
+            'no_id' => 0, 'no_specs' => 0, 'partial_specs' => 0,
+            'no_price' => 0, 'no_location' => 0,
+        ];
 
         foreach ($this->items($r['body']) as $p) {
             $seen++;
@@ -474,8 +569,13 @@ class AezaClient implements CloudProvider
             // این ارائه‌دهنده پروکسی و WAF و دامنه و سرورِ فیزیکی هم می‌فروشد؛
             // اگر همه را بیاوریم، محصولی روی سایت می‌نشیند که نه صفحه‌اش را
             // ساخته‌ایم نه تحویلش را — و مشتری می‌تواند بخردش.
-            if (! $this->isVpsProduct($p)) {
-                $why['not_vps']++;
+            //
+            // دلیلِ رد **تفکیک‌شده** شمرده می‌شود: «۲۷۸ غیرِ سرورِ مجازی» به مدیر
+            // نمی‌گفت که مشکل نوعِ محصول است یا سخت‌گیریِ صافیِ نام. حالا می‌گوید.
+            $verdict = $this->vpsVerdict($p);
+
+            if ($verdict !== '') {
+                $why[$verdict]++;
 
                 continue;
             }
@@ -491,7 +591,11 @@ class AezaClient implements CloudProvider
 
             // مشخصاتِ ناقص = رد. پلنِ «۰ هسته / ۰ گیگ» روی سایت، فاجعهٔ اعتماد است.
             if ($specs['vcpu'] < 1 || $specs['ram_mb'] < 128 || $specs['disk_gb'] < 1) {
-                $why['bad_specs']++;
+                // «هیچی نخواند» با «نصفش خواند» دو عیبِ متفاوت‌اند: اولی یعنی
+                // نامِ فیلد عوض شده، دومی یعنی این محصول واقعاً مشخصات ندارد
+                // (پروکسی، لایسنس، …). تفکیکشان عیب‌یابی را کوتاه می‌کند.
+                $nothing = $specs['vcpu'] < 1 && $specs['ram_mb'] < 128 && $specs['disk_gb'] < 1;
+                $why[$nothing ? 'no_specs' : 'partial_specs']++;
 
                 continue;
             }
@@ -547,12 +651,15 @@ class AezaClient implements CloudProvider
 
             foreach (array_filter($why) as $reason => $count) {
                 $parts[] = match ($reason) {
-                    'not_vps'     => $count.' غیرِ سرورِ مجازی',
-                    'no_id'       => $count.' بی‌شناسه',
-                    'bad_specs'   => $count.' با مشخصاتِ ناخوانا (نامِ فیلدِ هسته/رم/دیسک نخواند)',
-                    'no_price'    => $count.' بی‌قیمتِ ماهانه',
-                    'no_location' => $count.' بی‌مکانِ قابلِ تشخیص',
-                    default       => $count.' '.$reason,
+                    'not_vps_type'    => $count.' با نوعِ محصولِ غیرِ سرورِ مجازی',
+                    'not_vps_handler' => $count.' با دستگیرهٔ سرویسِ غیرِ سرورِ مجازی (دامنه/فضا/لایسنس/فیزیکی)',
+                    'not_vps_name'    => $count.' با نامِ مشخصاً غیرِ سرورِ مجازی',
+                    'no_id'           => $count.' بی‌شناسه',
+                    'no_specs'        => $count.' که هیچ مشخصه‌ای نداشت (نامِ فیلدِ هسته/رم/دیسک نخواند)',
+                    'partial_specs'   => $count.' با مشخصاتِ ناقص (بخشی خوانده شد)',
+                    'no_price'        => $count.' بی‌قیمتِ ماهانه',
+                    'no_location'     => $count.' بی‌مکانِ قابلِ تشخیص',
+                    default           => $count.' '.$reason,
                 };
             }
 
@@ -569,147 +676,504 @@ class AezaClient implements CloudProvider
         ];
     }
 
+    // ═════════════════ نگاشتِ فیلدهای محصول ═════════════════
+    //
+    // 🔴 چرا این بخش بازنویسی شد — خرابیِ واقعی روی حسابِ کارفرما:
+    // ۳۸۹ محصول خوانده شد و **صفر** پلن ساخته شد (۲۷۸ «غیرِ VPS» + ۱۱۱ «مشخصاتِ
+    // ناخوانا»). علتش این بود که نام‌های اینجا **حدسی** بودند. داکیومنتِ رسمی
+    // نمونهٔ کاملِ JSON ندارد، پس نام‌های واقعی از SDKهای **تایپ‌شده** درآمد:
+    //
+    //  • carlsmei/go-aeza-sdk (Go) — `Product{ id, type, groupId, name,
+    //    configuration []Configuration{max,base,slug,type}, rawPrices map[string]int,
+    //    prices map[string]Price{value,suffix,defaultCurrency,slug}, group, serviceHandler }`
+    //  • scinfra-pro/terraform-provider-aeza (Go) — همان + `summaryConfiguration`،
+    //    `group.payload.{code,label,mode,isDisabled}`، دوره‌های قیمت
+    //    `hour|month|year|half_year|quarter_year`، `type ∈ {vps,vds,hicpu,storage,gpu,
+    //    dedicated,domain}`، `serviceHandler ∈ {vm6=سرورِ ابری, manual=فیزیکی,
+    //    feru=دامنه, s3=فضا, ispmgr=لایسنس}`، و صریحاً: «Prices are specified in the
+    //    smallest currency units (kopecks, cents, etc.)»
+    //  • nikolai-in/aeza1password (Python) — `summaryConfiguration.{cpu,ram,rom}.count`
+    //    و `locationCode` که کدِ **دو حرفیِ کشور** است
+    //  • AezaGroup/aeza-net-sdk (رسمی، Node) — `id`, `name`, `payload.oslist`, `prices`
+    //
+    // دو کشفی که تمامِ ماجرا را توضیح می‌دهد:
+    //  ۱) «دیسک» در این API `disk` نیست، **`rom`** است.
+    //  ۲) مشخصات در یک **فهرست** است (`configuration[] = {slug, base, max}`)، نه
+    //     فیلدهای صافِ `configuration.cpu`. پس مسیرهای قبلی هیچ‌وقت مقدار نمی‌دادند.
+    //
+    // ⚠️ نام‌های حدسیِ قبلی **حذف نشده‌اند**، فقط بعد از نام‌های واقعی صف کشیده‌اند.
+    // این API یک‌بار عوض شده (core.aeza.net → my.aeza.net) و باز هم عوض می‌شود.
+
     /**
-     * آیا این محصول یک **سرورِ مجازی** است؟
+     * نوعِ محصولاتی که «سرورِ مجازی» حساب می‌شوند.
      *
-     * سه صافیِ پشتِ‌سرِهم، چون نمی‌شود به یک فیلد تکیه کرد:
+     * `hicpu` و `vds` هم سرورِ مجازی‌اند و قبلاً **به‌غلط رد می‌شدند** — بخشِ
+     * بزرگی از آن ۲۷۸ محصولِ ردشده همین‌ها بودند. `dedicated`/`gpu`/`storage`/
+     * `domain` عمداً اینجا نیستند.
+     */
+    private const VPS_TYPES = [
+        'vps', 'vds', 'hicpu', 'hi-cpu', 'highcpu', 'vm', 'virtual', 'cloud', 'cloudserver', 'server',
+    ];
+
+    /**
+     * دستگیرهٔ سرویس — قطعی‌ترین نشانهٔ «این VPS نیست».
      *
-     *  ۱) اگر فیلدِ نوع هست، باید نوعِ سرورِ مجازی باشد.
-     *  ۲) واژه‌های مشخصاً غیرِ VPS در نام/گروه (پروکسی، WAF، دامنه، ایمیل، …)
-     *     ردش می‌کنند — حتی اگر فیلدِ نوع نداشته باشد.
-     *  ۳) سرورِ **فیزیکی** هم رد می‌شود: مشخصاتش شبیهِ VPS است ولی محصولِ
-     *     دیگری است، صفحهٔ فروشش را نساخته‌ایم و تحویلش خودکار نیست. (کارفرما
-     *     برای سرورِ فیزیکی فروشگاهِ جداگانه‌ای می‌خواهد.)
-     *
-     * صافیِ چهارم در جای دیگری است و مهم‌ترینشان: `specsOf` مشخصاتِ ناقص را رد
-     * می‌کند، پس محصولی که هسته/رم/دیسک ندارد هرگز پلن نمی‌شود.
+     * `manual` یعنی تحویلِ دستی (سرورِ فیزیکی)، `feru` ثبتِ دامنه، `s3` فضای
+     * ابری، `ispmgr` لایسنسِ پنل. سرورِ مجازی `vm6` است.
+     */
+    private const NON_VPS_HANDLERS = [
+        'manual', 'feru', 's3', 'ispmgr', 'waf', 'vpn', 'soft', 'proxy', 'domain', 'dns', 'ssl',
+    ];
+
+    /** کف قیمتِ ماهانهٔ باورپذیر به روبل — پایین‌تر از ارزان‌ترین VPSِ واقعی */
+    private const MIN_PLAUSIBLE_MONTHLY_RUB = 50.0;
+
+    /**
+     * آیا این محصول یک **سرورِ مجازی** است؟ (پوشش برای `vpsVerdict`)
      */
     private function isVpsProduct(array $p): bool
     {
-        $type = strtolower((string) ($p['type'] ?? $p['serviceType'] ?? ''));
+        return $this->vpsVerdict($p) === '';
+    }
 
-        if ($type !== '' && ! in_array($type, ['vm', 'vps', 'server'], true)) {
-            return false;
+    /**
+     * `''` یعنی سرورِ مجازی است؛ وگرنه **دلیلِ رد** برمی‌گردد.
+     *
+     * سه صافیِ پشتِ‌سرِهم، به ترتیبِ قطعیت:
+     *
+     *  ۱) **دستگیرهٔ سرویس** (`serviceHandler`) — اگر `manual`/`feru`/`s3`/… باشد
+     *     قطعاً سرورِ مجازی نیست، هرچه فیلدِ نوع بگوید.
+     *  ۲) **نوعِ محصول** — اگر فیلدِ نوع هست، حرفِ آخر را می‌زند. با نوعِ صریحِ
+     *     `vps`/`hicpu`/`vds` سراغِ صافیِ نام نمی‌رویم؛ آن صافی حدسی است و
+     *     می‌تواند VPSِ واقعی را به‌خاطرِ یک واژه در نامش بی‌دلیل رد کند.
+     *  ۳) فقط **وقتی نوع نداریم**: واژه‌های مشخصاً غیرِ VPS در نام/گروه/برچسب.
+     *
+     * صافیِ چهارم و مهم‌ترین جای دیگری است: `specsOf` مشخصاتِ ناقص را رد می‌کند،
+     * پس محصولی که هسته/رم/دیسک ندارد (پروکسی، لایسنس، دامنه) هرگز پلن نمی‌شود.
+     */
+    private function vpsVerdict(array $p): string
+    {
+        $handler = '';
+
+        foreach (['serviceHandler', 'service_handler', 'typeObject.serviceHandler',
+            'type.serviceHandler', 'group.serviceHandler', 'group.type.serviceHandler'] as $k) {
+            $v = data_get($p, $k);
+
+            if (is_string($v) && trim($v) !== '') {
+                $handler = strtolower(trim($v));
+                break;
+            }
         }
 
-        $haystack = strtolower(trim(
-            ((string) ($p['name'] ?? '')).' '
-            .((string) data_get($p, 'group.name', '')).' '
-            .((string) ($p['groupName'] ?? ''))
-        ));
+        if ($handler !== '' && in_array($handler, self::NON_VPS_HANDLERS, true)) {
+            return 'not_vps_handler';
+        }
+
+        // نوعِ **خودِ محصول** حرفِ آخر است
+        foreach (['type', 'type.slug', 'typeObject.slug', 'serviceType', 'productType'] as $k) {
+            $v = data_get($p, $k);
+
+            if (is_string($v) && trim($v) !== '') {
+                return in_array(strtolower(trim($v)), self::VPS_TYPES, true) ? '' : 'not_vps_type';
+            }
+        }
+
+        // نوعِ **گروه** نشانهٔ ضعیف‌تری است: گروهِ مکان می‌تواند `vps` باشد ولی
+        // محصولِ درونش پروکسیِ همان مکان. پس فقط برای **رد کردن** به‌کار می‌آید،
+        // نه برای دور زدنِ صافیِ نام.
+        foreach (['group.type.slug', 'group.typeObject.slug', 'group.type'] as $k) {
+            $v = data_get($p, $k);
+
+            if (is_string($v) && trim($v) !== '' && ! in_array(strtolower(trim($v)), self::VPS_TYPES, true)) {
+                return 'not_vps_type';
+            }
+        }
+
+        $haystack = strtolower(trim(implode(' ', array_filter([
+            (string) ($p['name'] ?? ''),
+            (string) (data_get($p, 'group.name') ?? ''),
+            (string) ($p['groupName'] ?? ''),
+            (string) (data_get($p, 'group.payload.label') ?? ''),
+        ], 'strlen'))));
+
+        if ($haystack === '') {
+            return '';
+        }
 
         foreach ([
             'proxy', 'پروکسی', 'socks', 'waf', 'ddos protection', 'domain', 'دامنه',
             'ssl', 'mail', 'email', 'storage box', 'backup space', 'hosting', 'cdn',
             'license', 'panel only',
+            // سرورِ **فیزیکی**: مشخصاتش شبیهِ VPS است ولی محصولِ دیگری است، صفحهٔ
+            // فروشش را نساخته‌ایم و تحویلش خودکار نیست.
+            'dedicated server', 'bare metal', 'baremetal', 'اختصاصی', 'physical',
         ] as $bad) {
-            if ($haystack !== '' && str_contains($haystack, $bad)) {
-                return false;
+            if (str_contains($haystack, $bad)) {
+                return 'not_vps_name';
             }
         }
 
-        foreach (['dedicated server', 'bare metal', 'baremetal', 'اختصاصی', 'physical'] as $bad) {
-            if ($haystack !== '' && str_contains($haystack, $bad)) {
-                return false;
-            }
-        }
-
-        return true;
+        return '';
     }
 
     /**
-     * مشخصات از محصول. کلیدها بین نسخه‌های API فرق کرده‌اند، پس چند مسیر
-     * امتحان می‌شود. رم ممکن است مگابایت یا گیگابایت باشد — با بزرگیِ عدد
-     * تشخیص داده می‌شود (کمتر از ۱۰۲۴ یعنی گیگابایت).
+     * مشخصاتِ محصول را از **همهٔ** شکل‌های شناخته‌شده بیرون بکش.
+     *
+     * ⚠️ گرانبهاترین درسِ این فایل: مشخصات در این API **فیلدِ صاف نیست**. یک
+     * فهرست از آیتم‌هاست که هر آیتم `slug` دارد:
+     *
+     *     "configuration": [
+     *        {"slug":"cpu","base":2,"max":8,"type":"..."},
+     *        {"slug":"ram","base":4096,"max":16384},
+     *        {"slug":"rom","base":60,"max":400}
+     *     ]
+     *
+     * و روی سرویس (نه محصول) همان داده نگاشتِ `summaryConfiguration` است:
+     * `{"cpu":{"count":2},"ram":{"count":4096},"rom":{"count":60}}`.
+     *
+     * **دیسک `rom` است، نه `disk`.** این یک کلمه، علتِ «۱۱۱ محصول با مشخصاتِ
+     * ناخوانا» بود.
      */
     private function specsOf(array $p): array
     {
-        $get = function (array $keys, $default = 0) use ($p) {
-            foreach ($keys as $k) {
-                $v = data_get($p, $k);
-                if ($v !== null && $v !== '' && $v !== []) {
-                    return $v;
-                }
-            }
+        $cfg = $this->configOf($p);
 
-            return $default;
-        };
+        // ① نام‌های واقعی (از SDKها) ② نام‌های حدسیِ قبلی به‌عنوان پشتیبان
+        $vcpu = (int) round($this->pick($cfg, ['cpu', 'cores', 'core', 'vcpu', 'cpu_count', 'processor'])
+            ?: $this->flat($p, ['cpu', 'cores', 'vcpu', 'configuration.cpu', 'configuration.cores', 'parameters.cpu', 'specs.cpu']));
 
-        $vcpu = (int) $get(['cpu', 'cores', 'vcpu', 'configuration.cpu', 'configuration.cores', 'parameters.cpu', 'specs.cpu']);
-        $ramRaw = (float) $get(['ram', 'memory', 'configuration.ram', 'configuration.memory', 'parameters.ram', 'specs.ram']);
-        $disk = (int) $get(['disk', 'storage', 'configuration.disk', 'configuration.storage', 'parameters.disk', 'specs.disk']);
-        $traffic = (int) $get(['traffic', 'bandwidth', 'configuration.traffic', 'parameters.traffic'], 0);
+        $ramRaw = $this->pick($cfg, ['ram', 'memory', 'mem'])
+            ?: $this->flat($p, ['ram', 'memory', 'configuration.ram', 'configuration.memory', 'parameters.ram', 'specs.ram']);
 
-        $ramMb = $ramRaw > 0 && $ramRaw < 1024 ? (int) round($ramRaw * 1024) : (int) round($ramRaw);
+        [$diskSlug, $diskRaw] = $this->pickWithKey($cfg, ['rom', 'disk', 'storage', 'nvme', 'ssd', 'hdd', 'space']);
+
+        if ($diskRaw <= 0) {
+            $diskRaw = $this->flat($p, ['disk', 'storage', 'configuration.disk', 'configuration.storage', 'parameters.disk', 'specs.disk']);
+        }
+
+        $traffic = (int) round($this->pick($cfg, ['traffic', 'bandwidth', 'transfer'])
+            ?: $this->flat($p, ['traffic', 'bandwidth', 'configuration.traffic', 'parameters.traffic']));
+
+        // ⚠️ واحدِ رم در هیچ منبعی صریح نبود، پس از بزرگیِ عدد تشخیص می‌دهیم.
+        // مرزِ ۵۱۲: پلنِ نیم‌گیگ به‌صورت `512` (مگابایت) می‌آید و پلنِ ۵۱۲ گیگ رم
+        // سرورِ مجازی نیست. هر دو تفسیر برای ۱ و ۱۰۲۴ به همان جواب می‌رسند.
+        $ramMb = $ramRaw > 0 && $ramRaw < 512 ? (int) round($ramRaw * 1024) : (int) round($ramRaw);
+
+        // دیسک تقریباً همیشه گیگابایت است؛ عددِ بی‌معنا بزرگ یعنی مگابایت
+        // (۱۵ گیگ = ۱۵۳۶۰). دیسکِ ۱۰ ترابایتیِ سرورِ مجازی وجود ندارد.
+        $diskGb = (int) round($diskRaw >= 10240 ? $diskRaw / 1024 : $diskRaw);
 
         // ترافیک اگر بزرگ بود احتمالاً به گیگ است؛ اگر کوچک، به ترابایت
         if ($traffic > 0 && $traffic < 100) {
             $traffic *= 1024;
         }
 
-        $diskType = strtolower((string) $get(['diskType', 'disk_type', 'configuration.diskType'], 'nvme'));
-
         return [
             'vcpu'       => $vcpu,
             'ram_mb'     => $ramMb,
-            'disk_gb'    => $disk,
-            'disk_type'  => str_contains($diskType, 'hdd') ? 'hdd' : (str_contains($diskType, 'ssd') ? 'ssd' : 'nvme'),
+            'disk_gb'    => $diskGb,
+            'disk_type'  => $this->diskTypeOf($p, $diskSlug),
             'traffic_gb' => $traffic,
-            'cpu_kind'   => str_contains(strtolower((string) ($p['name'] ?? '')), 'dedicat') ? 'dedicated' : 'shared',
+            'cpu_kind'   => $this->cpuKindOf($p),
         ];
     }
 
-    /** قیمتِ ماهانه به روبل */
-    private function monthlyRub(array $p): float
+    /**
+     * نگاشتِ `slug ⇒ عدد` از تمامِ شکل‌های ممکنِ مشخصات.
+     *
+     * ترتیبِ خواندنِ مقدار درونِ هر آیتم مهم است: `count` مقدارِ واقعیِ یک سرویسِ
+     * موجود است، `base` مقدارِ پایهٔ تعرفه، و `max` سقفِ ارتقا. `max` فقط آخرین
+     * چاره است — وگرنه پلنِ «۲ هسته با سقفِ ۸» را ۸ هسته می‌فروشیم.
+     *
+     * @return array<string, float>
+     */
+    private function configOf(array $p): array
     {
-        foreach ([
-            'prices.month.value', 'prices.month', 'price.month', 'payment.month',
-            'prices.monthly', 'priceMonth', 'monthPrice', 'price',
-        ] as $path) {
-            $v = data_get($p, $path);
+        $out = [];
 
-            if (is_array($v)) {
-                $v = $v['value'] ?? $v['amount'] ?? null;
+        $take = function ($slug, $item) use (&$out): void {
+            $slug = is_string($slug) ? strtolower(trim($slug)) : '';
+
+            if ($slug === '' || isset($out[$slug])) {
+                return;
             }
 
-            if (is_numeric($v) && (float) $v > 0) {
-                $f = (float) $v;
+            $val = 0.0;
 
-                // بعضی نقاطِ API قیمت را در «کوپک» (صدمِ روبل) می‌دهند. عددِ
-                // بی‌معنا بزرگ (بیش از ۵۰۰٫۰۰۰ روبل در ماه برای یک VPS) نشانهٔ
-                // همین است؛ تقسیم بر ۱۰۰ منطقی‌ترین تفسیر است.
-                return $f > 500000 ? $f / 100 : $f;
+            if (is_array($item)) {
+                foreach (['count', 'base', 'value', 'amount', 'quantity', 'max'] as $k) {
+                    if (isset($item[$k]) && is_numeric($item[$k]) && (float) $item[$k] > 0) {
+                        $val = (float) $item[$k];
+                        break;
+                    }
+                }
+            } elseif (is_numeric($item)) {
+                $val = (float) $item;
+            }
+
+            if ($val > 0) {
+                $out[$slug] = $val;
+            }
+        };
+
+        // ① `summaryConfiguration` — نگاشتِ slug ⇒ آیتم (سرویس و محصول، هر دو)
+        // ② `configuration` — روی محصول **فهرست** است، روی سرویس نگاشت
+        foreach (['summaryConfiguration', 'summary_configuration', 'configuration', 'specs', 'params'] as $bag) {
+            $rows = data_get($p, $bag);
+
+            if (! is_array($rows)) {
+                continue;
+            }
+
+            foreach ($rows as $k => $item) {
+                // فهرست ⇒ اسلاگ درونِ آیتم است؛ نگاشت ⇒ اسلاگ همان کلید است
+                $take(is_string($k) ? $k : (data_get($item, 'slug') ?? data_get($item, 'key')), $item);
+            }
+        }
+
+        return $out;
+    }
+
+    /** اولین اسلاگی که مقدار دارد */
+    private function pick(array $cfg, array $slugs): float
+    {
+        return $this->pickWithKey($cfg, $slugs)[1];
+    }
+
+    /** @return array{0:string,1:float} اسلاگِ برنده و مقدارش */
+    private function pickWithKey(array $cfg, array $slugs): array
+    {
+        foreach ($slugs as $s) {
+            if (($cfg[$s] ?? 0) > 0) {
+                return [$s, (float) $cfg[$s]];
+            }
+        }
+
+        return ['', 0.0];
+    }
+
+    /** نام‌های صافِ حدسیِ قبلی — پشتیبانِ چندمسیره، چون API عوض می‌شود */
+    private function flat(array $p, array $paths): float
+    {
+        foreach ($paths as $path) {
+            $v = data_get($p, $path);
+
+            if (is_numeric($v) && (float) $v > 0) {
+                return (float) $v;
             }
         }
 
         return 0.0;
     }
 
-    /** @return array{0:string,1:string,2:string} کشور، شهر، شناسهٔ مکانِ ارائه‌دهنده */
+    /** nvme/ssd/hdd — از اسلاگِ دیسک، فیلدِ صریح، یا متنِ نام/ویژگی‌ها */
+    private function diskTypeOf(array $p, string $diskSlug): string
+    {
+        $hay = strtolower(implode(' ', array_filter([
+            $diskSlug,
+            (string) (data_get($p, 'diskType') ?? data_get($p, 'disk_type') ?? ''),
+            (string) ($p['name'] ?? ''),
+            (string) (data_get($p, 'group.name') ?? ''),
+        ], 'strlen')));
+
+        if (str_contains($hay, 'hdd') || str_contains($hay, 'sata')) {
+            return 'hdd';
+        }
+
+        if (str_contains($hay, 'ssd') && ! str_contains($hay, 'nvme')) {
+            return 'ssd';
+        }
+
+        return 'nvme';
+    }
+
+    /**
+     * هستهٔ اشتراکی یا اختصاصی.
+     *
+     * `group.payload.mode ∈ {shared, dedicated}` و برچسبِ گروه (`NL-SHARED`،
+     * `US-DEDICATED`) این را می‌گوید — و `hicpu` هم به‌معنای هستهٔ اختصاصی است.
+     * ⚠️ این «سرورِ فیزیکی» نیست؛ VPS با هستهٔ اختصاصی است و باید فروخته شود.
+     */
+    private function cpuKindOf(array $p): string
+    {
+        $mode = strtolower((string) (data_get($p, 'group.payload.mode') ?? data_get($p, 'payload.mode') ?? ''));
+
+        if ($mode === 'dedicated') {
+            return 'dedicated';
+        }
+
+        if ($mode === 'shared') {
+            return 'shared';
+        }
+
+        $type = strtolower((string) (data_get($p, 'type') ?: ''));
+
+        if (in_array($type, ['hicpu', 'hi-cpu', 'highcpu'], true)) {
+            return 'dedicated';
+        }
+
+        $hay = strtolower(implode(' ', array_filter([
+            (string) ($p['name'] ?? ''),
+            (string) (data_get($p, 'group.payload.label') ?? ''),
+        ], 'strlen')));
+
+        return str_contains($hay, 'dedicat') ? 'dedicated' : 'shared';
+    }
+
+    /**
+     * قیمتِ ماهانه به **روبل**.
+     *
+     * ترتیبِ ظرف‌ها اتفاقی نیست:
+     *  ۱) `individualPrices` — قیمتِ اختصاصیِ حسابِ ما (اگر گذاشته باشند، همان
+     *     است که واقعاً می‌پردازیم).
+     *  ۲) `rawPrices` — قیمت به ارزِ **پایه**، بی‌تبدیلِ نمایشی. «raw» یعنی همین.
+     *  ۳) `prices` — قیمتِ عادی (ممکن است ضریبِ نمایشیِ ارزِ حساب خورده باشد).
+     *
+     * `firstPrices` عمداً استفاده نمی‌شود: قیمتِ تشویقیِ دورهٔ اول است و اگر
+     * بهایِ تمام‌شده حسابش کنیم، از تمدیدِ دوم به بعد زیرِ قیمتِ خرید می‌فروشیم.
+     *
+     * ⚠️ واحد: داکیومنتِ ترافورم‌پروایدر صریح می‌گوید «Prices are specified in the
+     * smallest currency units (kopecks)» و خودش هم سه جا بر ۱۰۰ تقسیم می‌کند.
+     * پس عددِ API **کوپک** است. ولی اشتباه در جهتِ تقسیم گران است — اگر روزی
+     * روبلِ خالص بدهند و ما تقسیم کنیم، سرورِ ۵۰ یورویی را نیم‌یورو می‌فروشیم.
+     * پس اگر تفسیرِ کوپک عددی بی‌معنا کوچک بدهد، همان عدد را روبل می‌گیریم.
+     */
+    private function monthlyRub(array $p): float
+    {
+        $raw = 0.0;
+
+        foreach (['individualPrices', 'individual_prices', 'rawPrices', 'raw_prices',
+            'prices', 'price', 'payment'] as $bag) {
+            foreach (['month', 'monthly', '1_month', 'mo'] as $term) {
+                $v = data_get($p, $bag.'.'.$term);
+
+                if (is_array($v)) {
+                    $v = $v['value'] ?? $v['amount'] ?? null;
+                }
+
+                if (is_numeric($v) && (float) $v > 0) {
+                    $raw = (float) $v;
+                    break 2;
+                }
+            }
+        }
+
+        if ($raw <= 0) {
+            foreach (['priceMonth', 'monthPrice', 'monthlyPrice', 'price'] as $k) {
+                $v = data_get($p, $k);
+
+                if (is_numeric($v) && (float) $v > 0) {
+                    $raw = (float) $v;
+                    break;
+                }
+            }
+        }
+
+        if ($raw <= 0) {
+            return 0.0;
+        }
+
+        $asRub = $raw / 100;
+
+        if ($asRub < self::MIN_PLAUSIBLE_MONTHLY_RUB) {
+            // تفسیرِ کوپک بی‌معناست ⇒ عدد از اول روبل بوده. اگر آن هم بی‌معناست،
+            // **هیچ** قیمتی نساز (قیمتِ حدسی از نبودِ قیمت بدتر است).
+            return $raw >= self::MIN_PLAUSIBLE_MONTHLY_RUB ? $raw : 0.0;
+        }
+
+        return $asRub;
+    }
+
+    /**
+     * @return array{0:string,1:string,2:string} کشور، شهر، شناسهٔ مکانِ ارائه‌دهنده
+     *
+     * ⚠️ مکان روی **محصول** نیست، روی **گروهِ** محصول است:
+     * `group.payload.code` کدِ دوحرفیِ کشور (`nl`, `de`, `fr`) و
+     * `group.payload.label` برچسبِ مکان (`NL-SHARED`, `US-DEDICATED`).
+     * روی سرویسِ ساخته‌شده هم `locationCode` همان کدِ دوحرفیِ کشور است.
+     *
+     * این ارائه‌دهنده **شهر نمی‌دهد**، فقط کشور. پس شهر را از هر متنی که در
+     * دست است بیرون می‌کشیم؛ اگر نشد، کدِ مکان کشوری می‌ماند. این ناخوشایند
+     * است ولی صادقانه — شهرِ ساختگی، گروه‌بندیِ عرضه‌ها را دروغ می‌کند.
+     */
     private function locationOf(array $p): array
     {
-        $country = (string) (data_get($p, 'location.country')
-            ?? data_get($p, 'country')
-            ?? data_get($p, 'group.country')
-            ?? '');
+        $country = '';
 
-        $city = (string) (data_get($p, 'location.city')
-            ?? data_get($p, 'city')
-            ?? data_get($p, 'location.name')
-            ?? data_get($p, 'group.name')
-            ?? '');
+        foreach (['group.payload.code', 'payload.code', 'locationCode', 'location_code',
+            'location.country', 'country', 'group.country', 'group.payload.country'] as $k) {
+            $v = data_get($p, $k);
 
-        $ref = (string) (data_get($p, 'location.id')
-            ?? data_get($p, 'locationId')
-            ?? data_get($p, 'groupId')
-            ?? '');
+            if (is_string($v) && trim($v) !== '') {
+                $country = trim($v);
+                break;
+            }
+        }
 
-        // اگر کشور نبود ولی شهر بود، از شهر حدس بزن (کدِ کشور برای گروه‌بندی لازم است)
+        $city = '';
+
+        foreach (['location.city', 'city', 'group.payload.city', 'payload.city',
+            'group.names.en', 'location.name'] as $k) {
+            $v = data_get($p, $k);
+
+            if (is_string($v) && trim($v) !== '') {
+                $city = trim($v);
+                break;
+            }
+        }
+
+        $label = (string) (data_get($p, 'group.payload.label') ?? data_get($p, 'payload.label') ?? '');
+        $groupName = (string) (data_get($p, 'group.name') ?? '');
+
+        // شهر در فیلدِ خودش نبود؟ از متنِ گروه/برچسب/نام دربیاور — فقط شهرهای
+        // شناخته‌شده، تا «فرانکفورتِ» دو زیرساخت به یک کدِ مکان برسند.
+        if ($city === '') {
+            $city = self::cityFromText($groupName.' '.$label.' '.((string) ($p['name'] ?? '')));
+        }
+
+        // برچسبِ گروه با کدِ کشور شروع می‌شود (`NL-SHARED`) — آخرین راهِ کشور
+        if ($country === '' && preg_match('/^([A-Za-z]{2})[-_\s]/', $label, $m) === 1) {
+            $country = $m[1];
+        }
+
         if ($country === '' && $city !== '') {
             $country = self::countryOfCity($city);
         }
 
+        $ref = '';
+
+        foreach (['group.payload.label', 'location.id', 'locationId', 'group.id', 'groupId'] as $k) {
+            $v = data_get($p, $k);
+
+            if ((is_string($v) && trim($v) !== '') || is_int($v)) {
+                $ref = (string) $v;
+                break;
+            }
+        }
+
+        // کشورِ دوحرفی ولی بی‌شهر: کدِ مکان `nl-nl` می‌شود. زشت است ولی پایدار و
+        // بی‌دروغ؛ عوض کردنش یعنی جعلِ شهر.
         return [$country, $city, $ref];
+    }
+
+    /** شهرِ شناخته‌شده در یک متنِ آزاد — فقط برای بهبودِ گروه‌بندی، نه حدسِ داده */
+    private static function cityFromText(string $text): string
+    {
+        $t = strtolower($text);
+
+        foreach ([
+            'frankfurt', 'falkenstein', 'nuremberg', 'düsseldorf', 'amsterdam', 'helsinki',
+            'stockholm', 'london', 'paris', 'warsaw', 'istanbul', 'moscow', 'saint petersburg',
+            'kazan', 'yekaterinburg', 'novosibirsk', 'almaty', 'yerevan', 'tbilisi', 'dubai',
+            'singapore', 'tokyo', 'ashburn', 'los angeles', 'new york', 'miami', 'dallas',
+            'hillsboro',
+        ] as $city) {
+            if (str_contains($t, $city)) {
+                return $city;
+            }
+        }
+
+        return '';
     }
 
     /** حدسِ کشور از نامِ شهر — فقط برای وقتی ارائه‌دهنده کشور را نداده */
@@ -737,10 +1201,27 @@ class AezaClient implements CloudProvider
         return '';
     }
 
+    /**
+     * موجودی — جایی که پول برمی‌گردد.
+     *
+     * `group.payload.isDisabled` تنها نشانهٔ صریحی است که در SDKها پیدا شد
+     * (ترافورم‌پروایدر آن را `is_disabled` گروه می‌کند): یعنی آن مکان/سرور
+     * موقتاً بسته است. بی‌خواندنش پلنِ تمام‌شده را می‌فروشیم و تحویل شکست
+     * می‌خورد — پولِ گرفته‌شده و تحویلِ ناممکن.
+     */
     private function inStock(array $p): bool
     {
-        foreach (['available', 'inStock', 'in_stock', 'stock'] as $k) {
-            $v = $p[$k] ?? null;
+        foreach (['group.payload.isDisabled', 'payload.isDisabled', 'isDisabled',
+            'disabled', 'outOfStock', 'out_of_stock', 'soldOut'] as $k) {
+            $v = data_get($p, $k);
+
+            if ($v === true || (is_numeric($v) && (int) $v > 0)) {
+                return false;
+            }
+        }
+
+        foreach (['available', 'isAvailable', 'inStock', 'in_stock', 'stock', 'enabled', 'isEnabled'] as $k) {
+            $v = data_get($p, $k);
 
             if (is_bool($v)) {
                 return $v;

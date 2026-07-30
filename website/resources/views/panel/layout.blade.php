@@ -10,30 +10,12 @@
 @endpush
 
 @section('content')
-{{-- نوارِ «جای مشتری نشسته‌اید» — همیشه دیده می‌شود تا مدیر به‌اشتباه عملی
-     به‌نامِ مشتری انجام ندهد و راهِ بازگشت همیشه یک کلیک باشد. --}}
-@if(session(\App\Http\Controllers\Admin\ImpersonateController::SESSION_KEY))
-<div class="imp-bar">
-  <div class="container imp-in">
-    <span class="imp-tx">
-      <svg class="icon"><use href="#i-shield"/></svg>
-      شما به‌عنوان <b>{{ auth('customer')->user()?->displayName() }}</b>
-      (<span dir="ltr">{{ auth('customer')->user()?->code }}</span>) وارد شده‌اید — نمایِ مشتری
-    </span>
-    <form method="post" action="/admin/impersonate/stop">@csrf
-      <button type="submit" class="imp-out">بازگشت به پنل مدیریت</button>
-    </form>
-  </div>
-</div>
-<style>
-.imp-bar{position:sticky;top:0;z-index:120;background:linear-gradient(90deg,#fbbf24,#f59e0b);color:#1a1200}
-.imp-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;flex-wrap:wrap}
-.imp-tx{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
-.imp-tx .icon{width:16px;height:16px}
-.imp-out{background:#1a1200;color:#fbbf24;border:0;border-radius:9px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
-.imp-out:hover{filter:brightness(1.15)}
-</style>
-@endif
+{{-- نوارِ «جای مشتری نشسته‌اید» اینجا نیست — به partials/header.blade.php منتقل
+     شد تا در صفحاتِ سایتِ اصلی هم دیده شود و زیرِ هدرِ ثابت نرود.
+     تاریخ‌نگاری: نسخهٔ قبلی همین‌جا sticky با top صفر و z-indexِ ۱۲۰ بود و چون
+     هدرِ سایت fixed با top صفر و z-indexِ ۲۰۰ است، کاملاً پشتِ هدر می‌افتاد —
+     نه دیده می‌شد و نه کلیک را می‌گرفت؛ مدیر راهِ بازگشت نداشت.
+     نگهبانش: tests/Feature/ImpersonateBannerTest.php --}}
 <section class="pnl-wrap">
   <div class="container">
     {{-- نوار موبایل: فقط زیر ۱۰۰۰px دیده می‌شود --}}

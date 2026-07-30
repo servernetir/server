@@ -346,4 +346,142 @@ class SiteMenuSyncTest extends TestCase
         $this->assertStringContainsString('سرور مجازی سنگاپور', $html);
         $this->assertStringContainsString('اتمام ظرفیت', $html);
     }
+
+    // ═══════════════ idempotency ═══════════════
+
+    /**
+     * 🔴 باگی که یک بازبینِ مستقل پیدا کرد و واقعی بود:
+     *
+     * `AppServiceProvider` خروجیِ `mega()` را در `config('servernet.mega')`
+     * می‌نویسد (تا هدر بی‌تغییرِ ویو زنده شود) و `mega()` هم **همان کلید** را
+     * می‌خواند. پس صدا زدنِ دوباره روی خروجیِ خودش کار می‌کرد و برچسب‌ها دو بار
+     * می‌چسبیدند: «سرور مجازی ایران — اتمام ظرفیت — اتمام ظرفیت».
+     *
+     * روی پروداکشن نهفته بود (هر درخواست پروسهٔ تازه، هدر یک بار رندر) ولی
+     * تست‌ها را ترتیب‌حساس می‌کرد. باگی که فقط «بعضی وقت‌ها» می‌افتد، بدترین
+     * نوعِ باگ است چون تصادفی به نظر می‌رسد.
+     */
+    public function test_mega_is_idempotent_even_after_the_composer_overwrote_config(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $first = app(SiteMenu::class)->mega();
+
+        // همان کاری که view composer می‌کند
+        config(['servernet.mega' => $first]);
+
+        $second = app(SiteMenu::class)->mega();
+
+        $this->assertSame($first, $second, 'خروجی باید با هر بار صدا زدن یکی باشد');
+
+        // و هیچ برچسبی دو بار نچسبیده باشد
+        foreach ($second['vps']['groups'] as $g) {
+            foreach ($g['items'] ?? [] as $item) {
+                $fa = (string) ($item['fa'] ?? '');
+
+                $this->assertLessThanOrEqual(1, substr_count($fa, 'اتمام ظرفیت'),
+                    "برچسب در «{$fa}» تکرار شده است");
+            }
+        }
+    }
+
+    /** سه بار پشت‌سرهم هم باید همان بماند */
+    public function test_mega_stays_stable_across_repeated_renders(): void
+    {
+        $this->location('de-falkenstein', 'DE', 'Falkenstein');
+        $this->plan('de-falkenstein');
+
+        $svc = app(SiteMenu::class);
+        $a = $svc->mega();
+
+        for ($i = 0; $i < 3; $i++) {
+            config(['servernet.mega' => $svc->mega()]);
+        }
+
+        $this->assertSame($a, $svc->mega());
+    }
+
+    /**
+     * و همان ادعا از راهِ **واقعی**: دو تستِ بالا خودشان `config()` را می‌نویسند،
+     * یعنی composer را *تقلید* می‌کنند. این یکی هدر را واقعاً رندر می‌کند تا
+     * همان سیمی سنجیده شود که در پروداکشن کار می‌کند — اگر روزی نحوهٔ
+     * بازنویسیِ config در `AppServiceProvider` عوض شود، تقلید سبز می‌مانَد و
+     * فقط این تست می‌گیردش.
+     */
+    public function test_rendering_the_header_twice_does_not_corrupt_the_menu(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $before = $this->locationItems();
+
+        $this->get('/')->assertOk();          // composerِ هدر config را می‌نویسد
+        $this->get('/')->assertOk();          // و بارِ دوم روی نوشتهٔ خودش
+
+        $this->assertSame($before, $this->locationItems(),
+            'منو بعد از رندرِ هدر باید همان باشد که پیش از آن بود');
+    }
+
+    /** برچسبِ اتمام ظرفیت — در هر سه زبان — هرگز دو بار روی یک آیتم نمی‌نشیند */
+    public function test_out_of_stock_label_is_never_appended_twice(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $this->get('/')->assertOk();
+        $this->get('/')->assertOk();
+
+        $labels = ['fa' => 'اتمام ظرفیت', 'en' => 'Out of stock', 'tr' => 'Stokta yok'];
+
+        foreach ($this->locationItems() as $item) {
+            foreach ($labels as $lang => $label) {
+                $value = (string) ($item[$lang] ?? '');
+
+                $this->assertLessThanOrEqual(1, substr_count($value, $label),
+                    "برچسب روی «{$value}» دو بار نشسته است");
+            }
+        }
+    }
+
+    /**
+     * «همهٔ سرورهای مجازی» دقیقاً یک بار — و همچنان آخرِ فهرست.
+     *
+     * چرا جدا از تستِ بالا: برچسبِ تکراری و لینکِ فراگیرِ تکراری دو گلوگاهِ جدا
+     * در `mega()` هستند (`soldOutItems()` و آن `array_merge`)، پس هر کدام
+     * ادعای خودش را لازم دارد.
+     */
+    public function test_catch_all_link_appears_exactly_once_and_stays_last(): void
+    {
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('sg-singapore');
+
+        $this->get('/')->assertOk();
+        $this->get('/')->assertOk();
+
+        $fa = array_column($this->locationItems(), 'fa');
+
+        $this->assertCount(1, array_keys($fa, 'همهٔ سرورهای مجازی', true),
+            'لینکِ فراگیر باید فقط یک بار باشد');
+        $this->assertSame('همهٔ سرورهای مجازی', end($fa), 'و آخرِ همه بمانَد');
+    }
+
+    /** مکان‌های زنده هم با رندرهای بیشتر تکرار نشوند */
+    public function test_live_locations_are_not_duplicated_by_extra_renders(): void
+    {
+        $this->location('de-falkenstein', 'DE', 'Falkenstein');
+        $this->location('sg-singapore', 'SG', 'Singapore');
+        $this->plan('de-falkenstein');
+        $this->plan('sg-singapore');
+
+        $this->get('/')->assertOk();
+        $this->get('/')->assertOk();
+
+        $live = array_filter(
+            $this->locationItems(),
+            fn ($i) => ($i['route'][0] ?? '') === 'cloud.location'
+        );
+
+        $this->assertCount(2, $live, 'دو مکانِ زنده داریم، نه بیشتر');
+    }
 }
