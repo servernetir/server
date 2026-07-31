@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Server photo placeholder">
+  <rect width="800" height="500" fill="#0e1626"/>
+  <rect width="800" height="500" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#111a2e"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33415a"/><stop offset="1" stop-color="#233043"/>
+    </linearGradient>
+  </defs>
+  <!-- chassis -->
+  <g transform="translate(90 170)">
+    <rect x="0" y="0" width="620" height="160" rx="12" fill="url(#steel)" stroke="#3d4c66" stroke-width="2"/>
+    <!-- left ears -->
+    <rect x="-14" y="0" width="14" height="160" rx="3" fill="#2a3750"/>
+    <rect x="620" y="0" width="14" height="160" rx="3" fill="#2a3750"/>
+    <!-- drive bays -->
+    <g fill="#1b2740" stroke="#3d4c66" stroke-width="1.5">
+      <rect x="24" y="22" width="150" height="116" rx="6"/>
+      <rect x="188" y="22" width="150" height="116" rx="6"/>
+    </g>
+    <!-- drive handles -->
+    <g fill="#2c3b56">
+      <rect x="34" y="30" width="10" height="100" rx="3"/><rect x="60" y="30" width="10" height="100" rx="3"/>
+      <rect x="86" y="30" width="10" height="100" rx="3"/><rect x="112" y="30" width="10" height="100" rx="3"/>
+      <rect x="138" y="30" width="10" height="100" rx="3"/>
+      <rect x="198" y="30" width="10" height="100" rx="3"/><rect x="224" y="30" width="10" height="100" rx="3"/>
+      <rect x="250" y="30" width="10" height="100" rx="3"/><rect x="276" y="30" width="10" height="100" rx="3"/>
+      <rect x="302" y="30" width="10" height="100" rx="3"/>
+    </g>
+    <!-- vents -->
+    <g fill="#141f36"><rect x="366" y="30" width="120" height="100" rx="8"/></g>
+    <g fill="#22304a">
+      <circle cx="392" cy="55" r="4"/><circle cx="418" cy="55" r="4"/><circle cx="444" cy="55" r="4"/><circle cx="470" cy="55" r="4"/>
+      <circle cx="392" cy="80" r="4"/><circle cx="418" cy="80" r="4"/><circle cx="444" cy="80" r="4"/><circle cx="470" cy="80" r="4"/>
+      <circle cx="392" cy="105" r="4"/><circle cx="418" cy="105" r="4"/><circle cx="444" cy="105" r="4"/><circle cx="470" cy="105" r="4"/>
+    </g>
+    <!-- control panel + LEDs -->
+    <rect x="506" y="30" width="90" height="100" rx="6" fill="#182339"/>
+    <circle cx="526" cy="52" r="5" fill="#22d3ee"/>
+    <circle cx="526" cy="74" r="5" fill="#34d399"/>
+    <rect x="544" y="46" width="40" height="7" rx="3" fill="#2c3b56"/>
+    <rect x="544" y="66" width="40" height="7" rx="3" fill="#2c3b56"/>
+    <rect x="544" y="86" width="28" height="7" rx="3" fill="#2c3b56"/>
+  </g>
+  <text x="400" y="410" text-anchor="middle" font-family="system-ui,sans-serif" font-size="19" fill="#5b6b86">ServerNet</text>
+</svg>

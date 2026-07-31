@@ -9,6 +9,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\ServerShopController;
 use App\Http\Controllers\SolutionController;
 use App\Http\Controllers\ToolController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,10 @@ $site = function (): void {
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
+
+    // فروشگاهِ سرورِ فیزیکی (HP/Dell/Lenovo/Supermicro) — فهرست + صفحهٔ هر مدل با گالری
+    Route::get('/servers', [ServerShopController::class, 'index'])->name('servers.index');
+    Route::get('/servers/{slug}', [ServerShopController::class, 'show'])->name('servers.show')->where('slug', '[a-z0-9-]+');
     Route::get('/careers', [\App\Http\Controllers\CareersController::class, 'show'])->name('careers');
     Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply')->middleware('throttle:forms');
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');

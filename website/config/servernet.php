@@ -304,6 +304,7 @@ return [
                     ['slug' => 'hetzner', 'fa' => 'Hetzner', 'en' => 'Hetzner', 'tr' => 'Hetzner'],
                 ]],
                 ['fa' => 'سایر سرورها', 'en' => 'More servers', 'tr' => 'Diğer sunucular', 'items' => [
+                    ['route' => ['servers.index', []], 'new' => true, 'fa' => 'فروشگاه سرور فیزیکی', 'en' => 'Physical server shop', 'tr' => 'Fiziksel sunucu mağazası'],
                     ['slug' => 'cloud',     'fa' => 'سرور اختصاصی ابری', 'en' => 'Cloud Dedicated', 'tr' => 'Bulut Dedicated'],
                     ['slug' => 'custom',    'fa' => 'سرور اختصاصی سفارشی', 'en' => 'Custom Build', 'tr' => 'Özel Yapılandırma'],
                     ['slug' => 'ecommerce', 'fa' => 'سرور اختصاصی فروشگاهی', 'en' => 'E-commerce Servers', 'tr' => 'E-ticaret Sunucuları'],

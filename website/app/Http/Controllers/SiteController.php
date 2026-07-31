@@ -72,6 +72,11 @@ class SiteController extends Controller
         foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers'] as $n) {
             $add($n);
         }
+        // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل
+        $add('servers.index');
+        foreach (array_keys((array) config('servers.models')) as $slug) {
+            $add('servers.show', $slug);
+        }
         foreach (['seo', 'whois', 'ip', 'meet', 'app-builder'] as $slug) {
             $add('tools', $slug);
         }
