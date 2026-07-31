@@ -96,12 +96,23 @@
 
 {{-- ══ تراکنش‌های پرداخت ══ --}}
 <div class="ad-panel">
+  @php
+    $txTab = fn ($st) => '/admin/transactions?'.http_build_query(array_filter(
+        ['status' => $st, 'q' => $q ?? ''], fn ($v) => $v !== ''));
+    $txInp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px';
+  @endphp
   <div class="ad-panel-h" style="flex-wrap:wrap;gap:10px"><h3>تراکنش‌های پرداخت</h3>
-    <div class="ad-tabs" style="margin-inline-start:auto">
-      <a href="/admin/transactions?status=all" class="{{ $status === 'all' ? 'on' : '' }}">همه</a>
-      <a href="/admin/transactions?status=paid" class="{{ $status === 'paid' ? 'on' : '' }}">موفق</a>
-      <a href="/admin/transactions?status=pending" class="{{ $status === 'pending' ? 'on' : '' }}">در انتظار</a>
-      <a href="/admin/transactions?status=failed" class="{{ $status === 'failed' ? 'on' : '' }}">ناموفق</a>
+    <form method="get" action="/admin/transactions" style="display:flex;gap:8px;align-items:center;margin-inline-start:auto;flex-wrap:wrap">
+      <input type="hidden" name="status" value="{{ $status }}">
+      <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="پیگیری، کد/ایمیل/موبایل مشتری" style="{{ $txInp }};min-width:210px">
+      <button type="submit" style="{{ $txInp }};cursor:pointer;color:var(--cyan);border-color:var(--cyan)">جستجو</button>
+      @if(($q ?? '') !== '')<a href="{{ $txTab($status) }}" style="font-size:12px;color:var(--dim)">پاک</a>@endif
+    </form>
+    <div class="ad-tabs">
+      <a href="{{ $txTab('all') }}" class="{{ $status === 'all' ? 'on' : '' }}">همه</a>
+      <a href="{{ $txTab('paid') }}" class="{{ $status === 'paid' ? 'on' : '' }}">موفق</a>
+      <a href="{{ $txTab('pending') }}" class="{{ $status === 'pending' ? 'on' : '' }}">در انتظار</a>
+      <a href="{{ $txTab('failed') }}" class="{{ $status === 'failed' ? 'on' : '' }}">ناموفق</a>
     </div>
   </div>
   @if($payments->isEmpty())
@@ -132,6 +143,7 @@
       </tbody>
     </table>
     </div>
+    <div style="padding:10px 4px 0">{{ $payments->onEachSide(1)->links() }}</div>
   @endif
 </div>
 

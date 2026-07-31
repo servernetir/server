@@ -62,4 +62,26 @@ class AdminTransactionTest extends TestCase
             ->assertOk()
             ->assertSee('اعتبار کل مشتریان');
     }
+
+    /** جستجوی پرداخت با کدِ پیگیری و با مشتری (کد/ایمیل) */
+    public function test_payment_search_filters_by_ref_and_customer(): void
+    {
+        $c1 = Customer::create(['code' => 'SN-AAA111', 'email' => 'findme@x.com', 'phone' => '09120000001', 'password' => 'x', 'status' => 'active', 'locale' => 'fa']);
+        $c2 = Customer::create(['code' => 'SN-BBB222', 'email' => 'other@x.com', 'phone' => '09120000002', 'password' => 'x', 'status' => 'active', 'locale' => 'fa']);
+        $mkInv = fn (Customer $c) => Invoice::create(['customer_id' => $c->id, 'kind' => 'topup', 'currency_code' => 'IRT', 'subtotal' => 100000, 'tax' => 0, 'total' => 100000, 'paid' => 0, 'status' => 'unpaid', 'issued_at' => now()]);
+        Payment::create(['customer_id' => $c1->id, 'invoice_id' => $mkInv($c1)->id, 'gateway' => 'zarinpal', 'currency_code' => 'IRT', 'amount' => 100000, 'status' => 'paid', 'paid_at' => now(), 'external_ref' => 'REF-ONE-123']);
+        Payment::create(['customer_id' => $c2->id, 'invoice_id' => $mkInv($c2)->id, 'gateway' => 'zarinpal', 'currency_code' => 'IRT', 'amount' => 200000, 'status' => 'paid', 'paid_at' => now(), 'external_ref' => 'ZZZ-TWO-999']);
+
+        // با کدِ پیگیری
+        $this->actingAs($this->staff(), 'web')->get('/admin/transactions?q=REF-ONE-123')
+            ->assertOk()->assertSee('REF-ONE-123')->assertDontSee('ZZZ-TWO-999');
+
+        // با ایمیلِ مشتری
+        $this->actingAs($this->staff(), 'web')->get('/admin/transactions?q=findme@x.com')
+            ->assertOk()->assertSee('REF-ONE-123')->assertDontSee('ZZZ-TWO-999');
+
+        // بی‌جستجو هر دو دیده شوند
+        $this->actingAs($this->staff(), 'web')->get('/admin/transactions')
+            ->assertOk()->assertSee('REF-ONE-123')->assertSee('ZZZ-TWO-999');
+    }
 }

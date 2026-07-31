@@ -43,6 +43,7 @@ class TransactionController extends Controller
         // فیلترهای فهرستِ پرداخت
         $status  = $request->string('status', 'all')->toString();
         $gateway = $request->string('gateway', 'all')->toString();
+        $q       = trim($request->string('q', '')->toString());
 
         $payQ = Payment::query()->with('customer')->latest('id');
         if (in_array($status, ['paid', 'pending', 'redirected', 'failed', 'canceled', 'expired'], true)) {
@@ -51,7 +52,20 @@ class TransactionController extends Controller
         if (in_array($gateway, ['zarinpal', 'bale', 'bank_transfer'], true)) {
             $payQ->where('gateway', $gateway);
         }
-        $payments = $payQ->limit(150)->get();
+        // جستجو: کدِ پیگیریِ درگاه، یا مشتری (کد/ایمیل/موبایل)
+        if ($q !== '') {
+            $payQ->where(function ($w) use ($q) {
+                $w->where('external_ref', 'like', "%{$q}%")
+                    ->orWhere('ref_id', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function ($c) use ($q) {
+                        $c->where('code', 'like', "%{$q}%")
+                            ->orWhere('email', 'like', "%{$q}%")
+                            ->orWhere('phone', 'like', "%{$q}%");
+                    });
+            });
+        }
+        // صفحه‌بندی به‌جای سقفِ ۱۵۰ — با فیلترهای فعلی در URL
+        $payments = $payQ->paginate(50)->withQueryString();
 
         // دفترِ اعتبار (ریز)
         $credit = CreditEntry::with('customer')->latest('id')->limit(150)->get();
@@ -107,6 +121,7 @@ class TransactionController extends Controller
             'payments'         => $payments,
             'status'           => $status,
             'gateway'          => $gateway,
+            'q'                => $q,
         ]);
     }
 }

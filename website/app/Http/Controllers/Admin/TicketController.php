@@ -23,7 +23,10 @@ class TicketController extends Controller
 
     public function index(Request $request): View
     {
-        $filter = $request->string('status', 'open')->toString();
+        $filter   = $request->string('status', 'open')->toString();
+        $priority = $request->string('priority', '')->toString();
+        $dept     = $request->string('department', '')->toString();
+        $q        = trim($request->string('q', '')->toString());
 
         // CASE و نه field(): field مخصوص MariaDB است و تست محلی روی SQLite
         // را می‌شکند. ترتیب: باز، بعد پاسخ‌داده، بعد بسته؛ و داخل هر گروه
@@ -35,11 +38,35 @@ class TicketController extends Controller
         if (in_array($filter, ['open', 'answered', 'closed'], true)) {
             $query->where('status', $filter);
         }
+        if (in_array($priority, ['low', 'normal', 'high', 'urgent'], true)) {
+            $query->where('priority', $priority);
+        }
+        if (in_array($dept, ['technical', 'billing', 'sales'], true)) {
+            $query->where('department', $dept);
+        }
+
+        // جستجو: شمارهٔ تیکت، موضوع، یا مشتری (کد/ایمیل/موبایل). نامِ مشتری از
+        // احراز هویت می‌آید (ستونِ ساده نیست) پس با کد/ایمیل/موبایل می‌جوییم که
+        // ستون‌اند و ایندکس دارند.
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('number', 'like', "%{$q}%")
+                    ->orWhere('subject', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function ($c) use ($q) {
+                        $c->where('code', 'like', "%{$q}%")
+                            ->orWhere('email', 'like', "%{$q}%")
+                            ->orWhere('phone', 'like', "%{$q}%");
+                    });
+            });
+        }
 
         return view('admin.tickets', [
-            'tickets' => $query->paginate(20)->withQueryString(),
-            'filter'  => $filter,
-            'counts'  => [
+            'tickets'  => $query->paginate(20)->withQueryString(),
+            'filter'   => $filter,
+            'priority' => $priority,
+            'dept'     => $dept,
+            'q'        => $q,
+            'counts'   => [
                 'open'     => Ticket::where('status', 'open')->count(),
                 'answered' => Ticket::where('status', 'answered')->count(),
                 'closed'   => Ticket::where('status', 'closed')->count(),
