@@ -5,12 +5,22 @@
 
 @if($errors->any())<div class="ad-note" style="border-color:#ff6b6b;color:#ff6b6b">{{ $errors->first() }}</div>@endif
 
-<div class="ad-toolbar">
+@php
+  $btTab = fn ($st) => '/admin/bank-transfers?'.http_build_query(array_filter(['status' => $st, 'q' => $q ?? ''], fn ($v) => $v !== ''));
+  $btInp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px';
+@endphp
+<div class="ad-toolbar" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
   <div class="ad-tabs">
-    <a href="/admin/bank-transfers?status=pending"  class="{{ $filter === 'pending' ? 'on' : '' }}">در انتظار ({{ fa_num($counts['pending']) }})</a>
-    <a href="/admin/bank-transfers?status=approved" class="{{ $filter === 'approved' ? 'on' : '' }}">تأییدشده ({{ fa_num($counts['approved']) }})</a>
-    <a href="/admin/bank-transfers?status=rejected" class="{{ $filter === 'rejected' ? 'on' : '' }}">ردشده ({{ fa_num($counts['rejected']) }})</a>
+    <a href="{{ $btTab('pending') }}"  class="{{ $filter === 'pending' ? 'on' : '' }}">در انتظار ({{ fa_num($counts['pending']) }})</a>
+    <a href="{{ $btTab('approved') }}" class="{{ $filter === 'approved' ? 'on' : '' }}">تأییدشده ({{ fa_num($counts['approved']) }})</a>
+    <a href="{{ $btTab('rejected') }}" class="{{ $filter === 'rejected' ? 'on' : '' }}">ردشده ({{ fa_num($counts['rejected']) }})</a>
   </div>
+  <form method="get" action="/admin/bank-transfers" style="display:flex;gap:8px;align-items:center;margin-inline-start:auto;flex-wrap:wrap">
+    <input type="hidden" name="status" value="{{ $filter }}">
+    <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="شناسهٔ پیگیری، کد/ایمیل/موبایل مشتری" style="{{ $btInp }};min-width:230px">
+    <button type="submit" style="{{ $btInp }};cursor:pointer;color:var(--cyan);border-color:var(--cyan)">جستجو</button>
+    @if(($q ?? '') !== '')<a href="{{ $btTab($filter) }}" style="font-size:12px;color:var(--dim)">پاک</a>@endif
+  </form>
 </div>
 
 @if($notReady)

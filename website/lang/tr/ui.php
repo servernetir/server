@@ -1717,7 +1717,7 @@ return [
     'srv_new' => 'Yeni',
     'srv_refurb' => 'Yenilenmiş',
     'srv_from' => 'Başlangıç',
-    'srv_quote' => 'Teklif iste',
+    'srv_quote' => 'Fiyat için iletişim',
     'srv_view' => 'İncele',
     'srv_none' => 'Bu marka için model yok.',
     'srv_cta_h' => 'İhtiyacınız olan yapılandırmayı bulamadınız mı?',

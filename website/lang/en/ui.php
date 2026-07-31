@@ -1717,7 +1717,7 @@ return [
     'srv_new' => 'New',
     'srv_refurb' => 'Refurbished',
     'srv_from' => 'From',
-    'srv_quote' => 'Request a quote',
+    'srv_quote' => 'Contact for pricing',
     'srv_view' => 'View',
     'srv_none' => 'No models for this brand.',
     'srv_cta_h' => 'Didn\'t find the config you need?',

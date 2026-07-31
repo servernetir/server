@@ -55,7 +55,7 @@ return [
             'tr' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => '2U raf · çift soket · dünyanın en çok satanı',
                 'hero_d' => 'Veri merkezinin beygiri — sanallaştırma, veritabanı ve ağır iş yükleri için esnek. 2 Xeon Scalable CPU ve 3 TB RAM\'e kadar.',
                 'desc' => 'DL380 Gen10, dünyanın en popüler raf sunucusudur — sanallaştırmadan büyük veritabanlarına her iş yükü için performans ve güvenilirlik.'],
-            'price_from' => ['irt' => 185000000, 'eur' => 1850],
+            'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲ (تا ۵۶ هسته)', 'Up to 2× Intel Xeon Scalable Gen 1/2 (up to 56 cores)', '2× Intel Xeon Scalable\'e kadar (56 çekirdeğe kadar)'),
                 $row($L['ram'], 'تا ۳ ترابایت DDR4 (۲۴ اسلات)', 'Up to 3 TB DDR4 (24 slots)', '3 TB DDR4\'e kadar (24 yuva)'),
@@ -80,7 +80,7 @@ return [
             'tr' => ['name' => 'HPE ProLiant DL360 Gen10', 'tag' => '1U raf · yüksek yoğunluk',
                 'hero_d' => '1U\'da çift soket performansı — her raf biriminin önemli olduğu veri merkezleri için en iyi seçim.',
                 'desc' => 'DL360 Gen10, DL380 gücünü yarı yükseklikte sunar; yoğun sanallaştırma için idealdir.'],
-            'price_from' => ['irt' => 168000000, 'eur' => 1680],
+            'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲', 'Up to 2× Intel Xeon Scalable Gen 1/2', '2× Intel Xeon Scalable\'e kadar'),
                 $row($L['ram'], 'تا ۳ ترابایت DDR4 (۲۴ اسلات)', 'Up to 3 TB DDR4 (24 slots)', '3 TB DDR4\'e kadar (24 yuva)'),
@@ -104,7 +104,7 @@ return [
             'tr' => ['name' => 'Dell PowerEdge R740', 'tag' => '2U raf · GPU ve sanallaştırma için ideal',
                 'hero_d' => 'Sanallaştırma, VDI ve GPU hızlandırma için Dell\'in çok yönlü platformu — 3 çift genişlikli GPU\'ya kadar.',
                 'desc' => 'Dengeli mimarisi ve GPU desteğiyle R740, sanallaştırma ortamları için popüler bir seçimdir.'],
-            'price_from' => ['irt' => 179000000, 'eur' => 1790],
+            'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲ (تا ۵۶ هسته)', 'Up to 2× Intel Xeon Scalable Gen 1/2', '2× Intel Xeon Scalable\'e kadar'),
                 $row($L['ram'], 'تا ۳ ترابایت DDR4 (۲۴ اسلات)', 'Up to 3 TB DDR4 (24 slots)', '3 TB DDR4\'e kadar'),
@@ -128,7 +128,7 @@ return [
             'tr' => ['name' => 'Dell PowerEdge R640', 'tag' => '1U raf · ekonomik yenilenmiş',
                 'hero_d' => 'Garantimizle uygun maliyetli 1U — kısıtlı bütçeler için Scalable nesil performans, test edilmiş ve hazır.',
                 'desc' => 'Yenilenmiş R640, Dell güvenilirliğini daha uygun fiyata sunar; her birim teslimden önce test edilir ve garantilenir.'],
-            'price_from' => ['irt' => 98000000, 'eur' => 980],
+            'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲', 'Up to 2× Intel Xeon Scalable Gen 1/2', '2× Intel Xeon Scalable\'e kadar'),
                 $row($L['ram'], 'تا ۱.۵ ترابایت DDR4', 'Up to 1.5 TB DDR4', '1.5 TB DDR4\'e kadar'),
@@ -151,7 +151,7 @@ return [
             'tr' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => '2U raf · benchmark rekortmeni',
                 'hero_d' => 'Onlarca dünya benchmark rekoruna sahip Lenovo\'nun 2U sunucusu — performans, depolama ve verimlilik dengesi.',
                 'desc' => 'Lenovo\'nun gelişmiş termal tasarımıyla SR650, sanallaştırma ve analiz için istikrarlı performans sunar.'],
-            'price_from' => ['irt' => 172000000, 'eur' => 1720],
+            'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲', 'Up to 2× Intel Xeon Scalable Gen 1/2', '2× Intel Xeon Scalable\'e kadar'),
                 $row($L['ram'], 'تا ۳ ترابایت DDR4 (۲۴ اسلات)', 'Up to 3 TB DDR4 (24 slots)', '3 TB DDR4\'e kadar'),

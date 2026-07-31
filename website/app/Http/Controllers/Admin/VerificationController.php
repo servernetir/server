@@ -24,18 +24,35 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class VerificationController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         if (! Schema::hasTable('customer_profiles')) {
-            return view('admin.verifications', ['notReady' => true, 'pending' => collect(), 'recent' => collect()]);
+            return view('admin.verifications', ['notReady' => true, 'pending' => collect(), 'recent' => collect(), 'q' => '']);
         }
 
-        $q = CustomerProfile::with('customer')->withCount('documents');
+        $q = trim((string) $request->query('q', ''));
+
+        // پایه با جستجوی اختیاری: نامِ حقیقی/شرکت روی پروفایل، یا مشتری (کد/ایمیل/موبایل).
+        $base = CustomerProfile::with('customer')->withCount('documents')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('first_name', 'like', "%{$q}%")
+                        ->orWhere('last_name', 'like', "%{$q}%")
+                        ->orWhere('company_name', 'like', "%{$q}%")
+                        ->orWhereHas('customer', function ($c) use ($q) {
+                            $c->where('code', 'like', "%{$q}%")
+                                ->orWhere('email', 'like', "%{$q}%")
+                                ->orWhere('phone', 'like', "%{$q}%");
+                        });
+                });
+            });
 
         return view('admin.verifications', [
             'notReady' => false,
-            'pending'  => (clone $q)->where('status', 'pending')->orderBy('updated_at')->get(),
-            'recent'   => (clone $q)->whereIn('status', ['verified', 'rejected'])->latest('verified_at')->latest('updated_at')->limit(30)->get(),
+            'q'        => $q,
+            'pending'  => (clone $base)->where('status', 'pending')->orderBy('updated_at')->get(),
+            // هنگام جستجو سقفِ «اخیر» بالاتر می‌رود تا نتیجهٔ قدیمی‌تر هم پیدا شود.
+            'recent'   => (clone $base)->whereIn('status', ['verified', 'rejected'])->latest('verified_at')->latest('updated_at')->limit($q !== '' ? 100 : 30)->get(),
         ]);
     }
 

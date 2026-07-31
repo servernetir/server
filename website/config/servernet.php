@@ -304,12 +304,34 @@ return [
                     ['slug' => 'hetzner', 'fa' => 'Hetzner', 'en' => 'Hetzner', 'tr' => 'Hetzner'],
                 ]],
                 ['fa' => 'سایر سرورها', 'en' => 'More servers', 'tr' => 'Diğer sunucular', 'items' => [
-                    ['route' => ['servers.index', []], 'new' => true, 'fa' => 'فروشگاه سرور فیزیکی', 'en' => 'Physical server shop', 'tr' => 'Fiziksel sunucu mağazası'],
                     ['slug' => 'cloud',     'fa' => 'سرور اختصاصی ابری', 'en' => 'Cloud Dedicated', 'tr' => 'Bulut Dedicated'],
                     ['slug' => 'custom',    'fa' => 'سرور اختصاصی سفارشی', 'en' => 'Custom Build', 'tr' => 'Özel Yapılandırma'],
                     ['slug' => 'ecommerce', 'fa' => 'سرور اختصاصی فروشگاهی', 'en' => 'E-commerce Servers', 'tr' => 'E-ticaret Sunucuları'],
                     ['slug' => 'budget',    'fa' => 'سرور اختصاصی اقتصادی', 'en' => 'Budget Servers', 'tr' => 'Ekonomik Sunucular'],
                     ['slug' => 'managed',   'fa' => 'سرور اختصاصی مدیریت‌شده', 'en' => 'Managed Servers', 'tr' => 'Yönetilen Sunucular'],
+                ]],
+            ],
+        ],
+        // فروشگاهِ سرورِ فیزیکی — تبِ مستقل در منوی «محصولات» تا مشتری راحت ببیندش.
+        // آیتم‌ها با 'route' به صفحهٔ هر مدل (servers.show) و لینکِ «همه» می‌روند.
+        'servers' => [
+            'icon' => 'hdd',
+            'fa' => ['t' => 'سرور فیزیکی', 'd' => 'HP · Dell · Lenovo · Supermicro'],
+            'en' => ['t' => 'Physical servers', 'd' => 'HP · Dell · Lenovo · Supermicro'],
+            'tr' => ['t' => 'Fiziksel sunucu', 'd' => 'HP · Dell · Lenovo · Supermicro'],
+            'groups' => [
+                ['fa' => 'HPE ProLiant', 'en' => 'HPE ProLiant', 'tr' => 'HPE ProLiant', 'items' => [
+                    ['route' => ['servers.show', 'hpe-proliant-dl380-gen10'], 'fa' => 'ProLiant DL380 Gen10', 'en' => 'ProLiant DL380 Gen10', 'tr' => 'ProLiant DL380 Gen10'],
+                    ['route' => ['servers.show', 'hpe-proliant-dl360-gen10'], 'fa' => 'ProLiant DL360 Gen10', 'en' => 'ProLiant DL360 Gen10', 'tr' => 'ProLiant DL360 Gen10'],
+                ]],
+                ['fa' => 'Dell PowerEdge', 'en' => 'Dell PowerEdge', 'tr' => 'Dell PowerEdge', 'items' => [
+                    ['route' => ['servers.show', 'dell-poweredge-r740'], 'fa' => 'PowerEdge R740', 'en' => 'PowerEdge R740', 'tr' => 'PowerEdge R740'],
+                    ['route' => ['servers.show', 'dell-poweredge-r640'], 'fa' => 'PowerEdge R640', 'en' => 'PowerEdge R640', 'tr' => 'PowerEdge R640'],
+                ]],
+                ['fa' => 'بیشتر', 'en' => 'More', 'tr' => 'Daha fazla', 'items' => [
+                    ['route' => ['servers.show', 'lenovo-thinksystem-sr650'], 'fa' => 'Lenovo ThinkSystem SR650', 'en' => 'Lenovo ThinkSystem SR650', 'tr' => 'Lenovo ThinkSystem SR650'],
+                    ['route' => ['servers.show', 'supermicro-superserver'], 'fa' => 'Supermicro سفارشی', 'en' => 'Supermicro custom', 'tr' => 'Supermicro özel'],
+                    ['route' => ['servers.index', []], 'fa' => 'همهٔ سرورهای فیزیکی', 'en' => 'All physical servers', 'tr' => 'Tüm fiziksel sunucular'],
                 ]],
             ],
         ],

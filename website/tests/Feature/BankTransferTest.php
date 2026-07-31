@@ -110,6 +110,26 @@ class BankTransferTest extends TestCase
         $this->assertSame('unpaid', $invoice->fresh()->status);   // تسویه نشد
     }
 
+    /** جستجوی رسیدهای واریز با شناسهٔ پیگیری و با مشتری */
+    public function test_admin_can_search_receipts(): void
+    {
+        $c1 = $this->customer();
+        $c1->update(['code' => 'SN-BANKONE', 'email' => 'bankone@x.com']);
+        $c2 = $this->customer();
+        [, $i1] = $this->serviceInvoice($c1);
+        [, $i2] = $this->serviceInvoice($c2);
+        BankTransferReceipt::create(['customer_id' => $c1->id, 'invoice_id' => $i1->id, 'amount' => 200000, 'reference' => 'TRK-FIND-111', 'status' => 'pending']);
+        BankTransferReceipt::create(['customer_id' => $c2->id, 'invoice_id' => $i2->id, 'amount' => 200000, 'reference' => 'TRK-SKIP-222', 'status' => 'pending']);
+
+        // با شناسهٔ پیگیری
+        $this->actingAs($this->staff(), 'web')->get('/admin/bank-transfers?status=pending&q=TRK-FIND-111')
+            ->assertOk()->assertSee('TRK-FIND-111')->assertDontSee('TRK-SKIP-222');
+
+        // با کدِ مشتری
+        $this->actingAs($this->staff(), 'web')->get('/admin/bank-transfers?status=pending&q=SN-BANKONE')
+            ->assertOk()->assertSee('TRK-FIND-111')->assertDontSee('TRK-SKIP-222');
+    }
+
     public function test_admin_can_save_bank_settings(): void
     {
         $this->actingAs($this->staff(), 'web')

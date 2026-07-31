@@ -3,6 +3,17 @@
 @section('nav_verifications', 'on')
 @section('content')
 
+@unless($notReady ?? false)
+<div class="ad-toolbar" style="display:flex;justify-content:flex-end">
+  <form method="get" action="/admin/verifications" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    @php $vfInp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px'; @endphp
+    <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="نام، نام شرکت، کد/ایمیل/موبایل مشتری" style="{{ $vfInp }};min-width:240px">
+    <button type="submit" style="{{ $vfInp }};cursor:pointer;color:var(--cyan);border-color:var(--cyan)">جستجو</button>
+    @if(($q ?? '') !== '')<a href="/admin/verifications" style="font-size:12px;color:var(--dim)">پاک</a>@endif
+  </form>
+</div>
+@endunless
+
 @php
   $badge = function ($st) {
     return [

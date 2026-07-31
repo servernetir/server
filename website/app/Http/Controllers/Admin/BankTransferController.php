@@ -25,6 +25,7 @@ class BankTransferController extends Controller
     {
         $ready  = Schema::hasTable('bank_transfer_receipts');
         $filter = (string) $request->query('status', 'pending');
+        $q      = trim((string) $request->query('q', ''));
 
         $query = $ready
             ? BankTransferReceipt::with(['customer', 'invoice'])->latest('id')
@@ -34,9 +35,22 @@ class BankTransferController extends Controller
             $query->where('status', $filter);
         }
 
+        // جستجو: شناسهٔ پیگیریِ رسید یا مشتری (کد/ایمیل/موبایل)
+        if ($query && $q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('reference', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function ($c) use ($q) {
+                        $c->where('code', 'like', "%{$q}%")
+                            ->orWhere('email', 'like', "%{$q}%")
+                            ->orWhere('phone', 'like', "%{$q}%");
+                    });
+            });
+        }
+
         return view('admin.bank-transfers', [
             'receipts' => $ready ? $query->paginate(30)->withQueryString() : collect()->paginate(30),
             'filter'   => $filter,
+            'q'        => $q,
             'counts'   => [
                 'pending'  => $ready ? BankTransferReceipt::where('status', 'pending')->count() : 0,
                 'approved' => $ready ? BankTransferReceipt::where('status', 'approved')->count() : 0,
