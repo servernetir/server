@@ -100,6 +100,25 @@ class DomainRegistrarTest extends TestCase
         $this->assertSame('AB123-NL', $second['handle']);
         $this->assertSame(1, RegistryHandle::where('registry', 'openprovider')->count(),
             'شناسهٔ دوم یعنی WHOISِ دامنه‌های قدیمی برای همیشه کهنه می‌مانَد');
+
+        // ⚠️ آنچه فرستادیم باید ذخیره شده باشد، وگرنه هیچ‌وقت نمی‌فهمیم handle
+        // کهنه شده و باید به‌روز شود. `$fillable` نداشتنش یعنی حذفِ بی‌صدا.
+        $saved = RegistryHandle::first();
+        $this->assertIsArray($saved->sent_data);
+        $this->assertSame('احسان', data_get($saved->sent_data, 'name.first_name'));
+    }
+
+    /** دادهٔ شخصیِ مالک نباید در JSON بیرون برود */
+    public function test_the_owner_payload_never_leaks_through_serialization(): void
+    {
+        $c = $this->customer();
+        $this->fake(['*/customers*' => $this->ok(['handle' => 'AB123-NL'])]);
+        $this->registrar()->handleFor($c->defaultProfile());
+
+        $json = RegistryHandle::first()->toJson();
+
+        $this->assertStringNotContainsString('sent_data', $json);
+        $this->assertStringNotContainsString('خیابان نمونه', $json);
     }
 
     /**
