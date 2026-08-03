@@ -121,7 +121,9 @@ class AccountController extends Controller
                     ['key' => 'dash', 'icon' => 'gauge', 'label' => __('ui.nav_dash'), 'url' => lroute('account.home')],
                     ['key' => 'store', 'icon' => 'box', 'label' => __('ui.nav_store'), 'url' => lroute('account.store')],
                     ['key' => 'services', 'icon' => 'server', 'label' => __('ui.nav_services'), 'url' => lroute('account.services')],
-                    ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains')],
+                    // ⚠️ تا امروز این آیتم `url` نداشت و ویو به `'#'` برمی‌گرداند:
+                    // یک لینکِ مرده در منوی اصلی که هیچ خطایی هم نمی‌داد.
+                    ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains'), 'url' => lroute('account.domains')],
                 ]],
                 ['label' => __('ui.nav_finance'), 'items' => [
                     ['key' => 'invoices', 'icon' => 'coins', 'label' => __('ui.nav_invoices'), 'url' => lroute('account.invoices')],

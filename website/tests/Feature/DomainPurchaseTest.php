@@ -215,6 +215,19 @@ class DomainPurchaseTest extends TestCase
         $this->actingAs($mine, 'customer')->get(route('account.domain', $d))->assertNotFound();
     }
 
+    /**
+     * ⚠️ آیتمِ «دامنه‌ها» در منوی پنل از قبل بود ولی `url` نداشت، و ویو برای
+     * آیتمِ بی‌آدرس `'#'` می‌گذارد — یک لینکِ مرده در منوی اصلی، بی‌هیچ خطایی.
+     */
+    public function test_the_panel_menu_actually_links_to_the_domain_page(): void
+    {
+        $html = $this->actingAs($this->customer(), 'customer')
+            ->get(route('account.home'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(route('account.domains'), $html,
+            'آیتمِ منو باید به صفحهٔ دامنه‌ها برود، نه به #');
+    }
+
     public function test_the_domain_list_only_shows_my_domains(): void
     {
         $mine = $this->customer();
