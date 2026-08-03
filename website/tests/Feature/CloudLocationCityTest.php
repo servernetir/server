@@ -95,4 +95,34 @@ class CloudLocationCityTest extends TestCase
             'group' => ['names' => ['en' => 'AMD'], 'payload' => ['code' => 'DE']],
         ])[0]));
     }
+
+    // ═══════════ کدِ کشورِ ساختگی ═══════════
+
+    /**
+     * 🔴 دو حرفِ اولِ برچسبِ گروه همیشه کدِ کشور نیست.
+     *
+     * روی سایتِ زنده یک «کشور» به نامِ `WS` ساخته شده بود: برچسب `WS-SHARED`
+     * یعنی **Warsaw**، ولی `WS` در ISO یعنی **ساموآ**. سرورِ لهستان به مشتری
+     * به‌عنوان ساموآ معرفی می‌شد — و مشتری دقیقاً بر اساسِ کشور و تأخیرِ شبکه
+     * خرید می‌کند.
+     */
+    public function test_a_two_letter_prefix_that_is_not_a_known_country_is_refused(): void
+    {
+        $country = $this->locationOf([
+            'name'  => 'CV-2-4',
+            'group' => ['payload' => ['label' => 'WS-SHARED']],
+        ])[0];
+
+        $this->assertSame('', $country,
+            'حدسِ کشور از دو حرفِ اول، سرور را در کشورِ اشتباه می‌فروشد');
+    }
+
+    /** ولی کدِ کشورِ واقعی باید همچنان از برچسب خوانده شود */
+    public function test_a_real_country_prefix_is_still_accepted(): void
+    {
+        $this->assertSame('NL', strtoupper($this->locationOf([
+            'name'  => 'CV-2-4',
+            'group' => ['payload' => ['label' => 'NL-SHARED']],
+        ])[0]));
+    }
 }

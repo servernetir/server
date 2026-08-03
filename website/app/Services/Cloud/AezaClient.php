@@ -1280,9 +1280,27 @@ class AezaClient implements CloudProvider
             ]));
         }
 
-        // برچسبِ گروه با کدِ کشور شروع می‌شود (`NL-SHARED`) — آخرین راهِ کشور
+        /*
+        | برچسبِ گروه گاهی با کدِ کشور شروع می‌شود (`NL-SHARED`) — آخرین راهِ کشور.
+        |
+        | 🔴 ولی دو حرفِ اول **همیشه** کدِ کشور نیست. روی سایتِ زنده یک «کشور»
+        | به نامِ `WS` ساخته شده بود: برچسب `WS-SHARED` بود که یعنی **Warsaw**،
+        | ولی `WS` در ISO یعنی **ساموآ**. نتیجه‌اش کارتِ کشوری بی‌معنا در
+        | `/cloud` و — مهم‌تر — سرورِ لهستان که به مشتری به‌عنوان ساموآ معرفی
+        | می‌شد. مشتری بر اساسِ کشور و تأخیرِ شبکه خرید می‌کند؛ کشورِ غلط یعنی
+        | فروشِ چیزی که نیست.
+        |
+        | پس فقط کدی پذیرفته می‌شود که واقعاً کشورِ شناخته‌شدهٔ ماست. اگر نبود،
+        | حدس نمی‌زنیم: پلن با دلیلِ `no_location` رد می‌شود و در گزارشِ سینک
+        | دیده می‌شود تا آگاهانه اضافه شود. نفروختنِ یک پلن از فروختنش با
+        | کشورِ غلط بهتر است.
+        */
         if ($country === '' && preg_match('/^([A-Za-z]{2})[-_\s]/', $label, $m) === 1) {
-            $country = $m[1];
+            $maybe = strtoupper($m[1]);
+
+            if (self::isKnownCountry($maybe)) {
+                $country = $maybe;
+            }
         }
 
         if ($country === '' && $city !== '') {
@@ -1306,6 +1324,21 @@ class AezaClient implements CloudProvider
     }
 
     /** شهرِ شناخته‌شده در یک متنِ آزاد — فقط برای بهبودِ گروه‌بندی، نه حدسِ داده */
+    /**
+     * آیا این کدِ دوحرفی واقعاً کشوری است که ما می‌شناسیم؟
+     *
+     * ⚠️ عمداً «کشورِ معتبرِ ISO» را نمی‌سنجد بلکه «کشوری که ما برایش برچسب و
+     * پرچم داریم» را. کدی که در این فهرست نباشد، روی سایت هم درست نمایش داده
+     * نمی‌شود — پس پذیرفتنش فقط دادهٔ خراب می‌سازد.
+     */
+    private static function isKnownCountry(string $code): bool
+    {
+        $code = strtoupper($code);
+
+        return isset(\App\Models\CloudLocation::COUNTRIES[$code])
+            || isset(\App\Models\CloudLocation::CAPITALS[$code]);
+    }
+
     private static function cityFromText(string $text): string
     {
         $t = strtolower($text);
