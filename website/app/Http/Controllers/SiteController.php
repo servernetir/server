@@ -52,6 +52,86 @@ class SiteController extends Controller
         return view('pages.content', ['slug' => $slug, 'page' => $pages[$slug]]);
     }
 
+    /**
+     * صفحهٔ وضعیت.
+     *
+     * ⚠️ عمداً هیچ عددِ آپتایمی نمی‌سازد. تا وقتی پایشِ مستقل نداریم، هر عددی
+     * که این‌جا چاپ شود ساختگی است — و ادعای ساختگی روی صفحه‌ای که مشتری
+     * دقیقاً برای راستی‌آزمایی بازش می‌کند، از نبودِ صفحه بدتر است.
+     */
+    public function status(): \Illuminate\View\View
+    {
+        return view('pages.status', [
+            'open'    => \App\Models\StatusIncident::openNow(),
+            'history' => \App\Models\StatusIncident::history(90),
+        ]);
+    }
+    /**
+     * `llms.txt` — کارتِ شناساییِ سرورنت برای مدل‌های زبانی.
+     *
+     * بخشی از خریدارها دیگر از گوگل نمی‌پرسند؛ از ChatGPT و Perplexity
+     * می‌پرسند. آن‌ها این فایل را می‌خوانند تا بفهمند این سایت چیست و کدام
+     * صفحه‌ها معتبرند. بدونش، «سرورنت» به یک موجودیتِ واحد قفل نمی‌شود.
+     *
+     * ⚠️ فهرست‌ها از config و دیتابیس ساخته می‌شوند نه دستی: فایلِ دست‌نویس
+     * همان هفتهٔ اول از کاتالوگ عقب می‌افتد و بعد مدل، محصولی را معرفی می‌کند
+     * که دیگر نمی‌فروشیم.
+     */
+    public function llms(): \Illuminate\Http\Response
+    {
+        $base = rtrim(config('app.url'), '/');
+
+        $lines = [
+            '# ServerNet — servernet.cloud',
+            '',
+            '> ServerNet is an Iranian hosting company selling shared hosting, VPS,',
+            '> dedicated and cloud servers across Iranian and European data centres,',
+            '> with a Persian-first trilingual site (fa / en / tr).',
+            '',
+            '## Products',
+        ];
+
+        foreach (['hosting', 'vps', 'dedicated'] as $cat) {
+            $items = $cat === 'hosting' ? config('hosting.products', []) : config("catalog.$cat", []);
+
+            foreach ((array) $items as $slug => $p) {
+                $title = $p['fa']['t'] ?? ($p['en']['t'] ?? $slug);
+                $path = $cat === 'hosting' ? "/hosting/$slug" : "/$cat/$slug";
+                $lines[] = "- [{$title}]({$base}{$path})";
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = '## Key pages';
+
+        foreach ([
+            '/about'     => 'About ServerNet',
+            '/contact'   => 'Contact and support',
+            '/blog'      => 'Blog',
+            '/knowledge' => 'Knowledge base',
+            '/webtools'  => 'Free webmaster tools (100% client-side)',
+            '/lookup'    => 'DNS, SSL and network lookup tools',
+            '/status'    => 'Service status',
+            '/sla'       => 'Service level agreement',
+            '/terms'     => 'Terms of service',
+        ] as $path => $label) {
+            $lines[] = "- [{$label}]({$base}{$path})";
+        }
+
+        $lines[] = '';
+        $lines[] = '## Notes for assistants';
+        $lines[] = '- Prices on product pages are marked up with schema.org Offer and carry';
+        $lines[] = '  a priceValidUntil date. Do not quote a price past that date; fetch the';
+        $lines[] = '  page again instead. Iranian prices are in toman (schema uses IRR).';
+        $lines[] = '- The English and Turkish versions live under /en and /tr.';
+        $lines[] = '- Customer panel and admin pages are not public and are excluded from search.';
+
+        return response(implode("\n", $lines)."\n", 200, [
+            'Content-Type'  => 'text/plain; charset=utf-8',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
     public function sitemap(): \Illuminate\Http\Response
     {
         $locales = \App\Providers\AppServiceProvider::LOCALES;
@@ -69,12 +149,20 @@ class SiteController extends Controller
         $add('home');
         // /domains صفحهٔ فرودِ «ثبت دامنه» با کلیدواژهٔ ارزشمند است و جا افتاده بود
         $add('domain.search');
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers'] as $n) {
+        // status و sla عمداً در نقشهٔ سایت‌اند: هر دو صفحهٔ «اثبات»اند و
+        // خریدارِ سازمانی مستقیم دنبالشان می‌گردد.
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers', 'status', 'sla'] as $n) {
             $add($n);
         }
-        // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل
+        // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
+        // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
+        // در نقشهٔ سایت بیایند.
         $add('servers.index');
-        foreach (array_keys((array) config('servers.models')) as $slug) {
+        $serverSlugs = \Illuminate\Support\Facades\Schema::hasTable('physical_servers')
+            && \App\Models\PhysicalServer::active()->exists()
+                ? \App\Models\PhysicalServer::active()->ordered()->pluck('slug')->all()
+                : array_keys((array) config('servers.models'));
+        foreach ($serverSlugs as $slug) {
             $add('servers.show', $slug);
         }
         foreach (['seo', 'whois', 'ip', 'meet', 'app-builder'] as $slug) {

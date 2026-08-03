@@ -62,6 +62,56 @@
 </section>
 @endif
 
+{{-- ============ PLATFORM ============ --}}
+{{-- بخش‌های زیر **اختیاری**اند: تا وقتی کلیدشان در config نباشد رندر نمی‌شوند،
+     پس نُه راهکارِ دیگر که این کلیدها را ندارند دست‌نخورده می‌مانند. --}}
+@if(!empty($s['platform']))
+<section class="section" id="platform">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['platform_badge']))<span class="kicker">{{ $s['platform_badge'] }}</span>@endif
+      <h2>{{ $s['platform_t'] ?? '' }}</h2>
+      @if(!empty($s['platform_d']))<p>{{ $s['platform_d'] }}</p>@endif
+    </div>
+    <div class="sol-feat-grid">
+      @foreach($s['platform'] as $f)
+      <div class="sol-feat reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $f['icon'] }}"/></svg></span>
+        <h3>{{ $f['t'] }}</h3>
+        <p>{{ $f['d'] }}</p>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ USE CASES ============ --}}
+@if(!empty($s['usecases']))
+<section class="section" id="usecases">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['usecases_badge']))<span class="kicker">{{ $s['usecases_badge'] }}</span>@endif
+      <h2>{{ $s['usecases_t'] ?? '' }}</h2>
+      @if(!empty($s['usecases_d']))<p>{{ $s['usecases_d'] }}</p>@endif
+    </div>
+    <div class="sol-uc-grid">
+      @foreach($s['usecases'] as $u)
+      <div class="sol-uc reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $u['icon'] }}"/></svg></span>
+        <h3>{{ $u['t'] }}</h3>
+        <ul class="sol-uc-list">
+          @foreach($u['items'] as $it)
+          <li><svg class="icon"><use href="#i-check"/></svg>{{ $it }}</li>
+          @endforeach
+        </ul>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
 {{-- ============ FEATURES ============ --}}
 @if(!empty($s['features']))
 <section class="section">
@@ -166,13 +216,48 @@
     <div class="section-head reveal"><h2>{{ $s['compare_t'] ?? '' }}</h2></div>
     <div class="sol-compare reveal">
       <table>
-        <thead><tr><th>{{ $s['compare_col0'] ?? '' }}</th><th class="us">{{ $s['compare_us'] ?? 'ServerNet' }}</th><th>{{ $s['compare_them'] ?? '' }}</th></tr></thead>
+        {{-- ستونِ سوم اختیاری است: بی‌آن، جدول دقیقاً مثلِ قبل دو ستونه می‌مانَد
+             و بقیهٔ راهکارها تغییری نمی‌کنند. --}}
+        @php $third = ! empty($s['compare_them2']); @endphp
+        <thead><tr>
+          <th>{{ $s['compare_col0'] ?? '' }}</th>
+          @if($third)<th>{{ $s['compare_them2'] }}</th>@endif
+          <th class="us">{{ $s['compare_us'] ?? 'ServerNet' }}</th>
+          <th>{{ $s['compare_them'] ?? '' }}</th>
+        </tr></thead>
         <tbody>
           @foreach($s['compare'] as $row)
-          <tr><td>{{ $row['f'] }}</td><td class="us"><svg class="icon ok"><use href="#i-check"/></svg>{{ $row['us'] }}</td><td>{{ $row['them'] }}</td></tr>
+          <tr>
+            <td>{{ $row['f'] }}</td>
+            @if($third)<td>{{ $row['them2'] ?? '—' }}</td>@endif
+            <td class="us"><svg class="icon ok"><use href="#i-check"/></svg>{{ $row['us'] }}</td>
+            <td>{{ $row['them'] }}</td>
+          </tr>
           @endforeach
         </tbody>
       </table>
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ SECURITY & DATA GOVERNANCE ============ --}}
+@if(!empty($s['security']))
+<section class="section" id="security">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['security_badge']))<span class="kicker">{{ $s['security_badge'] }}</span>@endif
+      <h2>{{ $s['security_t'] ?? '' }}</h2>
+      @if(!empty($s['security_d']))<p>{{ $s['security_d'] }}</p>@endif
+    </div>
+    <div class="sol-feat-grid">
+      @foreach($s['security'] as $f)
+      <div class="sol-feat reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $f['icon'] }}"/></svg></span>
+        <h3>{{ $f['t'] }}</h3>
+        <p>{{ $f['d'] }}</p>
+      </div>
+      @endforeach
     </div>
   </div>
 </section>

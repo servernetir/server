@@ -30,8 +30,25 @@ class SecurityHeaders
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
         // HSTS فقط روی HTTPS (۲ سال + preload)
+        //
+        // 🔴 `includeSubDomains` روی دامنهٔ قدیمی **نه**. اگر روی servernet.ir
+        // بفرستیم، مرورگر کلِ زیردامنه‌های .ir را دو سال به HTTPSِ اجباری پین
+        // می‌کند — از جمله `my.servernet.ir` که هنوز WHMCSِ زندهٔ فارسی است. آن
+        // پین در مرورگرِ کاربر می‌نشیند و از سمتِ ما **قابلِ برگرداندن نیست**؛
+        // اگر گواهیِ آن زیردامنه روزی مشکل بخورد، مشتری صفحهٔ خطا می‌بیند و ما
+        // هیچ کاری نمی‌توانیم بکنیم. برای دامنهٔ در حالِ انتقال، HSTSِ بدونِ
+        // زیردامنه کافی است.
         if ($request->secure()) {
-            $response->headers->set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+            // ⚠️ همان تشخیصِ نرمال‌شدهٔ LegacyDomain — نه یک in_array خام.
+            // `servernet.ir.` با نقطهٔ پایانی میزبانِ معتبری است و از
+            // مقایسهٔ خام رد می‌شد؛ نتیجه‌اش پین‌شدنِ دوسالهٔ کلِ
+            // `*.servernet.ir` بود که از سمتِ ما برگشت‌پذیر نیست.
+            $legacy = \App\Http\Middleware\LegacyDomain::isLegacyHost($request);
+
+            $response->headers->set(
+                'Strict-Transport-Security',
+                $legacy ? 'max-age=63072000' : 'max-age=63072000; includeSubDomains; preload'
+            );
         }
 
         if ($isHtml) {

@@ -4,7 +4,6 @@
 @section('content')
 
 @php
-  $img = fn ($m) => $m['gallery'][0] ?? '/assets/servers/placeholder.svg';
   $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
 @endphp
 
@@ -30,7 +29,11 @@
       @php $b = $brands[$m['brand']] ?? ['label' => $m['brand'], 'color' => 'var(--cyan)']; $lm = lc($m); @endphp
       <a class="srv-card" data-brand="{{ $m['brand'] }}" href="{{ lroute('servers.show', $slug) }}">
         <div class="srv-thumb">
-          <img src="{{ $img($m) }}" alt="{{ $lm['name'] }}" loading="lazy">
+          @if(!empty($m['gallery']))
+            <img src="{{ $m['gallery'][0] }}" alt="{{ $lm['name'] }}" loading="lazy">
+          @else
+            <div class="srv-ph"><svg class="icon"><use href="#i-server"/></svg></div>
+          @endif
           @if(!empty($m['popular']))<span class="srv-pop">{{ __('ui.srv_popular') }}</span>@endif
           <span class="srv-cond {{ $m['condition'] }}">{{ $condLbl[$m['condition']] ?? '' }}</span>
         </div>

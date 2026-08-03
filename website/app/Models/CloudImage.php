@@ -102,13 +102,38 @@ class CloudImage extends Model
             ->values();
     }
 
-    /** شناسهٔ بومیِ این کلید نزدِ یک ارائه‌دهنده — قلبِ ترجمهٔ سفیدبرچسب */
-    public static function refFor(string $provider, string $key): ?string
+    /**
+     * شناسهٔ بومیِ این کلید نزدِ یک ارائه‌دهنده — قلبِ ترجمهٔ سفیدبرچسب.
+     *
+     * `$arch` را همیشه از پلنی که سرور رویش ساخته می‌شود بده. یک کلید (مثلِ
+     * `ubuntu-24.04`) نزدِ هتزنر **دو ردیف** دارد — x86 و arm — و اگر ردیفِ
+     * معماریِ دیگر برگردد، زیرساخت سفارش را با «معماریِ ناسازگار» رد می‌کند:
+     * پول گرفته شده و سرور تحویل نمی‌شود.
+     *
+     * اگر معماریِ خواسته‌شده نباشد **null** برمی‌گردد، نه ردیفِ ناجور؛ فراخوان
+     * می‌تواند سراغِ زیرساختِ دیگری برود که همان سیستم‌عامل را دارد.
+     */
+    public static function refFor(string $provider, string $key, ?string $arch = null): ?string
     {
-        return static::query()
+        $rows = static::query()
             ->usable()
             ->where('provider', $provider)
             ->where('key', $key)
-            ->value('provider_ref');
+            ->get(['provider_ref', 'arch']);
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        if (! filled($arch)) {
+            return (string) $rows->first()->provider_ref;
+        }
+
+        // اول تطبیقِ دقیق، بعد ایمیجِ بی‌قیدِ معماری (زیرساختی که معماری اعلام
+        // نمی‌کند). ردیفِ معماریِ دیگر هرگز برنمی‌گردد.
+        $match = $rows->firstWhere('arch', $arch)
+            ?? $rows->first(fn ($r) => ! filled($r->arch));
+
+        return $match !== null ? (string) $match->provider_ref : null;
     }
 }

@@ -6,9 +6,11 @@
 
 <div class="ad-toolbar" style="justify-content:space-between">
   <div style="color:var(--muted);font-size:13px">
-    {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
+    {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($incidents)) }} خرابیِ خاموش · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
   </div>
-  @if(count($serverErrors) || count($nf))
+  {{-- incidents هم شمرده می‌شود، وگرنه با ردیابِ فقط-حادثه نشانِ کنارِ منو
+       روشن می‌مانْد و هیچ راهی برای پاک‌کردنش نبود. --}}
+  @if(count($serverErrors) || count($incidents) || count($nf))
     <form method="post" action="/admin/errors/clear" data-confirm="پاک کردن همهٔ رکوردها؟" data-confirm-danger>
       @csrf<button type="submit" class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b;border:0;padding:8px 16px;cursor:pointer;font:inherit">پاک کردن</button>
     </form>
@@ -48,6 +50,38 @@
   @endif
 </div>
 
+{{-- ══ خرابی‌های گرفته‌شده ══
+     خطاهایی که کد عمداً گرفت و جریان را نشکست. مسیرهای پول و تحویل همه
+     این‌شکلی‌اند (یک پیامکِ نرفته نباید پرداختِ واقعی را برگرداند)، پس تا امروز
+     هیچ‌کدامشان به این صفحه نمی‌رسیدند — یعنی همان کلاسی از باگ که بدترین است:
+     «شکست نخورد، فقط اتفاق نیفتاد». --}}
+<div class="ad-panel" style="margin-top:16px">
+  <div class="ad-panel-h"><h2>خرابی‌های خاموش</h2></div>
+  <p style="padding:0 18px 12px;color:var(--muted);font-size:12.5px;line-height:1.9">
+    اینها سایت را نشکسته‌اند، ولی کاری که باید انجام می‌شد انجام نشده —
+    مثلاً پول گرفته شد و سرویس فعال نشد، یا سرور ساخته نشد.
+  </p>
+  @if(empty($incidents))
+    <p style="padding:0 20px 20px;color:#34d399">موردی ثبت نشده.</p>
+  @else
+    <table class="ad-table">
+      <thead><tr><th>زمان</th><th>حوزه</th><th>پیام</th><th>جزئیات</th><th>جا</th></tr></thead>
+      <tbody>
+        @foreach($incidents as $e)
+        <tr>
+          <td dir="ltr" style="font-size:12px;color:var(--muted);white-space:nowrap">{{ $e['at'] ?? '—' }}</td>
+          <td><span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">{{ $e['area'] ?? '—' }}</span></td>
+          <td style="font-size:12.5px">{{ $e['message'] ?? '—' }}</td>
+          <td dir="ltr" style="font-size:11.5px;color:var(--muted)">
+            @foreach((array) ($e['ctx'] ?? []) as $k => $v){{ $k }}={{ $v }} @endforeach
+          </td>
+          <td dir="ltr" style="font-size:11.5px;color:var(--dim)">{{ $e['frame'] ?? $e['file'] ?? '—' }}</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+  @endif
+</div>
 {{-- ══ ۴۰۴ها ══ --}}
 <div class="ad-panel" style="margin-top:16px">
   <div class="ad-panel-h"><h2>صفحه‌های یافت‌نشده (۴۰۴)</h2></div>

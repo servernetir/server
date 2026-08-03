@@ -44,9 +44,12 @@
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
           <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
           <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
+          <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>
+          <a href="{{ lroute('sla') }}">{{ __('ui.sla_title') }}</a>
           <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
-          <a href="{{ whmcs_url('clientarea.php') }}">{{ __('ui.f_c5') }}</a>
+          {{-- ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی --}}
+          <a href="{{ console_lroute('account.home') }}">{{ __('ui.f_c5') }}</a>
         </div></div>
       </div>
       <div class="f-col f-contact">

@@ -165,9 +165,9 @@ return [
         ['en' => ['q' => 'How fast is my service activated?', 'a' => 'Hosting, VPS and domains are activated instantly after payment through our automated system. Dedicated servers are typically delivered within 24 hours.'],
          'fa' => ['q' => 'سرویس من چقدر سریع فعال می‌شود؟', 'a' => 'هاست، سرور مجازی و دامنه بلافاصله پس از پرداخت به‌صورت خودکار فعال می‌شوند. سرورهای اختصاصی معمولاً ظرف ۲۴ ساعت تحویل داده می‌شوند.'],
          'tr' => ['q' => 'Hizmetim ne kadar sürede aktifleşir?', 'a' => 'Hosting, VPS ve alan adları ödeme sonrası otomatik olarak anında aktifleşir. Fiziksel sunucular genellikle 24 saat içinde teslim edilir.']],
-        ['en' => ['q' => 'Can I pay in Euros or Iranian Toman?', 'a' => 'Yes — international customers pay in EUR via my.servernet.cloud, and Iranian customers pay in Toman via my.servernet.ir. Switch language above to see local pricing.'],
-         'fa' => ['q' => 'پرداخت به تومان یا یورو ممکن است؟', 'a' => 'بله — کاربران ایرانی از طریق my.servernet.ir به تومان و کاربران بین‌المللی از طریق my.servernet.cloud به یورو پرداخت می‌کنند.'],
-         'tr' => ['q' => 'Euro ile ödeme yapabilir miyim?', 'a' => 'Evet — uluslararası müşteriler my.servernet.cloud üzerinden EUR ile öder. Tüm uluslararası ödeme yöntemleri desteklenir.']],
+        ['en' => ['q' => 'Can I pay in Euros or Iranian Toman?', 'a' => 'Yes — everything is handled in your ServerNet console: Iranian customers pay in Toman, international customers in EUR. Switch language above to see local pricing.'],
+         'fa' => ['q' => 'پرداخت به تومان یا یورو ممکن است؟', 'a' => 'بله — همه‌چیز در کنسول کاربری سرورنت انجام می‌شود: کاربران ایرانی به تومان و کاربران بین‌المللی به یورو پرداخت می‌کنند.'],
+         'tr' => ['q' => 'Euro ile ödeme yapabilir miyim?', 'a' => 'Evet — her şey ServerNet konsolunuzda yapılır: İranlı müşteriler Toman, uluslararası müşteriler EUR öder.']],
         ['en' => ['q' => 'Do you help with server migration?', 'a' => 'Absolutely. Our team migrates your websites and servers from any provider, free of charge and with zero-downtime planning.'],
          'fa' => ['q' => 'در انتقال سرور کمک می‌کنید؟', 'a' => 'بله. تیم ما وب‌سایت‌ها و سرورهای شما را از هر شرکت دیگری، رایگان و با برنامه‌ریزی بدون قطعی منتقل می‌کند.'],
          'tr' => ['q' => 'Sunucu taşımada yardımcı oluyor musunuz?', 'a' => 'Kesinlikle. Ekibimiz web sitelerinizi ve sunucularınızı herhangi bir sağlayıcıdan ücretsiz ve kesintisiz taşır.']],
@@ -259,79 +259,47 @@ return [
                 ]],
             ],
         ],
+        // ── تبِ یگانهٔ «سرور» ──
+        // کارفرما: «یک منو بیشتر نباید داشته باشیم… سرور مجازی که شامل shared و
+        // dedicated بشود؛ سرور اختصاصی هم یک نوع سرور مجازی است (همان dedicated).
+        // سرور فیزیکی جدا. موقعیت مکانی دو ردیف. سیستم‌عامل حذف.»
+        // پس سه تبِ قبلی (vps / dedicated / servers) این‌جا یکی شده‌اند.
+        // کلیدِ 'vps' عمداً حفظ شده چون SiteMenu گروهِ «Locations» همین تب را
+        // با کشورهای زندهٔ کاتالوگ پر می‌کند.
         'vps' => [
             'icon' => 'cpu',
-            'fa' => ['t' => 'سرور مجازی', 'd' => 'تحویل آنی، منابع اختصاصی'],
-            'en' => ['t' => 'VPS', 'd' => 'Instant deploy, dedicated resources'],
-            'tr' => ['t' => 'VPS', 'd' => 'Anında kurulum, özel kaynaklar'],
+            'fa' => ['t' => 'سرور', 'd' => 'مجازی، پردازندهٔ اختصاصی و فیزیکی'],
+            'en' => ['t' => 'Servers', 'd' => 'Virtual, dedicated-CPU and physical'],
+            'tr' => ['t' => 'Sunucular', 'd' => 'Sanal, özel CPU ve fiziksel'],
             'groups' => [
-                ['fa' => 'موقعیت مکانی', 'en' => 'Locations', 'tr' => 'Lokasyonlar', 'items' => [
-                    ['slug' => 'iran',          'fa' => 'سرور مجازی ایران', 'en' => 'Iran VPS', 'tr' => 'İran VPS'],
-                    ['slug' => 'international', 'fa' => 'سرور مجازی خارج', 'en' => 'International VPS', 'tr' => 'Yurt Dışı VPS'],
-                    ['slug' => 'france',        'fa' => 'سرور مجازی فرانسه', 'en' => 'France VPS', 'tr' => 'Fransa VPS'],
-                    ['slug' => 'germany',       'fa' => 'سرور مجازی آلمان', 'en' => 'Germany VPS', 'tr' => 'Almanya VPS'],
-                    ['slug' => 'finland',       'fa' => 'سرور مجازی فنلاند', 'en' => 'Finland VPS', 'tr' => 'Finlandiya VPS'],
-                    ['slug' => 'usa',           'fa' => 'سرور مجازی آمریکا', 'en' => 'USA VPS', 'tr' => 'ABD VPS'],
+                ['fa' => 'سرور مجازی', 'en' => 'Virtual servers', 'tr' => 'Sanal sunucular', 'items' => [
+                    ['route' => ['cloud.index', []], 'fa' => 'سرور مجازی اشتراکی', 'en' => 'Shared-CPU VPS', 'tr' => 'Paylaşımlı CPU VPS'],
+                    ['slug' => 'iran',              'fa' => 'سرور مجازی ایران', 'en' => 'Iran VPS', 'tr' => 'İran VPS'],
+                    ['slug' => 'international',     'fa' => 'سرور مجازی خارج', 'en' => 'International VPS', 'tr' => 'Yurt Dışı VPS'],
+                ]],
+                ['fa' => 'پردازندهٔ اختصاصی', 'en' => 'Dedicated CPU', 'tr' => 'Özel CPU', 'items' => [
+                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'iran']],    'fa' => 'سرور اختصاصی ایران', 'en' => 'Iran dedicated', 'tr' => 'İran özel sunucu'],
+                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'germany']], 'fa' => 'سرور اختصاصی آلمان', 'en' => 'Germany dedicated', 'tr' => 'Almanya özel sunucu'],
+                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'managed']], 'fa' => 'سرور مدیریت‌شده', 'en' => 'Managed servers', 'tr' => 'Yönetilen sunucular'],
+                ]],
+                ['fa' => 'سرور فیزیکی', 'en' => 'Physical servers', 'tr' => 'Fiziksel sunucular', 'items' => [
+                    ['route' => ['servers.show', 'hpe-proliant-dl380-gen10'], 'fa' => 'HPE ProLiant DL380 Gen10', 'en' => 'HPE ProLiant DL380 Gen10', 'tr' => 'HPE ProLiant DL380 Gen10'],
+                    ['route' => ['servers.show', 'hpe-proliant-dl380-gen9'],  'fa' => 'HPE ProLiant DL380 Gen9', 'en' => 'HPE ProLiant DL380 Gen9', 'tr' => 'HPE ProLiant DL380 Gen9'],
+                    ['route' => ['servers.index', []], 'fa' => 'همهٔ سرورهای فیزیکی', 'en' => 'All physical servers', 'tr' => 'Tüm fiziksel sunucular'],
                 ]],
                 ['fa' => 'بر اساس کاربرد', 'en' => 'By use case', 'tr' => 'Kullanım amacına göre', 'items' => [
                     ['slug' => 'trading', 'fa' => 'سرور مجازی ترید', 'en' => 'Trading VPS', 'tr' => 'Trade VPS'],
                     ['slug' => 'gpu',     'fa' => 'سرور مجازی گرافیکی', 'en' => 'GPU VPS', 'tr' => 'GPU VPS'],
                     ['slug' => 'cloud',   'fa' => 'سرور مجازی ابری', 'en' => 'Cloud VPS', 'tr' => 'Bulut VPS'],
                 ]],
-                ['fa' => 'سیستم‌عامل', 'en' => 'Operating system', 'tr' => 'İşletim sistemi', 'items' => [
-                    ['slug' => 'linux',   'fa' => 'سرور مجازی لینوکس', 'en' => 'Linux VPS', 'tr' => 'Linux VPS'],
-                    ['slug' => 'windows', 'fa' => 'سرور مجازی ویندوز', 'en' => 'Windows VPS', 'tr' => 'Windows VPS'],
-                ]],
-            ],
-        ],
-        'dedicated' => [
-            'icon' => 'server',
-            'fa' => ['t' => 'سرور اختصاصی', 'd' => 'قدرت کامل سخت‌افزار'],
-            'en' => ['t' => 'Dedicated', 'd' => 'Full bare-metal power'],
-            'tr' => ['t' => 'Fiziksel Sunucu', 'd' => 'Tam bare-metal güç'],
-            'groups' => [
-                ['fa' => 'موقعیت مکانی', 'en' => 'Locations', 'tr' => 'Lokasyonlar', 'items' => [
-                    ['slug' => 'iran',    'fa' => 'سرور اختصاصی ایران', 'en' => 'Iran Dedicated', 'tr' => 'İran Fiziksel Sunucu'],
-                    ['slug' => 'germany', 'fa' => 'سرور اختصاصی آلمان', 'en' => 'Germany Dedicated', 'tr' => 'Almanya Fiziksel Sunucu'],
-                    ['slug' => 'finland', 'fa' => 'سرور اختصاصی فنلاند', 'en' => 'Finland Dedicated', 'tr' => 'Finlandiya Fiziksel Sunucu'],
-                    ['slug' => 'france',  'fa' => 'سرور اختصاصی فرانسه', 'en' => 'France Dedicated', 'tr' => 'Fransa Fiziksel Sunucu'],
-                    ['slug' => 'canada',  'fa' => 'سرور اختصاصی کانادا', 'en' => 'Canada Dedicated', 'tr' => 'Kanada Fiziksel Sunucu'],
-                    ['slug' => 'usa',     'fa' => 'سرور اختصاصی آمریکا', 'en' => 'USA Dedicated', 'tr' => 'ABD Fiziksel Sunucu'],
-                ]],
-                ['fa' => 'دیتاسنتر', 'en' => 'Datacenters', 'tr' => 'Veri merkezleri', 'items' => [
-                    ['slug' => 'iran-infrastructure', 'fa' => 'زیرساخت ایران', 'en' => 'Iran Infrastructure', 'tr' => 'İran Altyapısı'],
-                    ['slug' => 'ovh',     'fa' => 'OVH', 'en' => 'OVH', 'tr' => 'OVH'],
-                    ['slug' => 'hetzner', 'fa' => 'Hetzner', 'en' => 'Hetzner', 'tr' => 'Hetzner'],
-                ]],
-                ['fa' => 'سایر سرورها', 'en' => 'More servers', 'tr' => 'Diğer sunucular', 'items' => [
-                    ['slug' => 'cloud',     'fa' => 'سرور اختصاصی ابری', 'en' => 'Cloud Dedicated', 'tr' => 'Bulut Dedicated'],
-                    ['slug' => 'custom',    'fa' => 'سرور اختصاصی سفارشی', 'en' => 'Custom Build', 'tr' => 'Özel Yapılandırma'],
-                    ['slug' => 'ecommerce', 'fa' => 'سرور اختصاصی فروشگاهی', 'en' => 'E-commerce Servers', 'tr' => 'E-ticaret Sunucuları'],
-                    ['slug' => 'budget',    'fa' => 'سرور اختصاصی اقتصادی', 'en' => 'Budget Servers', 'tr' => 'Ekonomik Sunucular'],
-                    ['slug' => 'managed',   'fa' => 'سرور اختصاصی مدیریت‌شده', 'en' => 'Managed Servers', 'tr' => 'Yönetilen Sunucular'],
-                ]],
-            ],
-        ],
-        // فروشگاهِ سرورِ فیزیکی — تبِ مستقل در منوی «محصولات» تا مشتری راحت ببیندش.
-        // آیتم‌ها با 'route' به صفحهٔ هر مدل (servers.show) و لینکِ «همه» می‌روند.
-        'servers' => [
-            'icon' => 'hdd',
-            'fa' => ['t' => 'سرور فیزیکی', 'd' => 'HP · Dell · Lenovo · Supermicro'],
-            'en' => ['t' => 'Physical servers', 'd' => 'HP · Dell · Lenovo · Supermicro'],
-            'tr' => ['t' => 'Fiziksel sunucu', 'd' => 'HP · Dell · Lenovo · Supermicro'],
-            'groups' => [
-                ['fa' => 'HPE ProLiant', 'en' => 'HPE ProLiant', 'tr' => 'HPE ProLiant', 'items' => [
-                    ['route' => ['servers.show', 'hpe-proliant-dl380-gen10'], 'fa' => 'ProLiant DL380 Gen10', 'en' => 'ProLiant DL380 Gen10', 'tr' => 'ProLiant DL380 Gen10'],
-                    ['route' => ['servers.show', 'hpe-proliant-dl360-gen10'], 'fa' => 'ProLiant DL360 Gen10', 'en' => 'ProLiant DL360 Gen10', 'tr' => 'ProLiant DL360 Gen10'],
-                ]],
-                ['fa' => 'Dell PowerEdge', 'en' => 'Dell PowerEdge', 'tr' => 'Dell PowerEdge', 'items' => [
-                    ['route' => ['servers.show', 'dell-poweredge-r740'], 'fa' => 'PowerEdge R740', 'en' => 'PowerEdge R740', 'tr' => 'PowerEdge R740'],
-                    ['route' => ['servers.show', 'dell-poweredge-r640'], 'fa' => 'PowerEdge R640', 'en' => 'PowerEdge R640', 'tr' => 'PowerEdge R640'],
-                ]],
-                ['fa' => 'بیشتر', 'en' => 'More', 'tr' => 'Daha fazla', 'items' => [
-                    ['route' => ['servers.show', 'lenovo-thinksystem-sr650'], 'fa' => 'Lenovo ThinkSystem SR650', 'en' => 'Lenovo ThinkSystem SR650', 'tr' => 'Lenovo ThinkSystem SR650'],
-                    ['route' => ['servers.show', 'supermicro-superserver'], 'fa' => 'Supermicro سفارشی', 'en' => 'Supermicro custom', 'tr' => 'Supermicro özel'],
-                    ['route' => ['servers.index', []], 'fa' => 'همهٔ سرورهای فیزیکی', 'en' => 'All physical servers', 'tr' => 'Tüm fiziksel sunucular'],
+                // ⚠️ این گروه را SiteMenu با کشورهای **زندهٔ** کاتالوگ پر می‌کند.
+                // 'wide' یعنی در مگامنو تمامِ عرض را بگیرد و آیتم‌ها دوردیفه بچینند
+                // (کشورها زیاد شده‌اند و یک ستون کشیده و بدنما می‌شد).
+                ['fa' => 'موقعیت مکانی', 'en' => 'Locations', 'tr' => 'Lokasyonlar', 'wide' => true, 'items' => [
+                    ['slug' => 'france',  'fa' => 'سرور مجازی فرانسه', 'en' => 'France VPS', 'tr' => 'Fransa VPS'],
+                    ['slug' => 'germany', 'fa' => 'سرور مجازی آلمان', 'en' => 'Germany VPS', 'tr' => 'Almanya VPS'],
+                    ['slug' => 'finland', 'fa' => 'سرور مجازی فنلاند', 'en' => 'Finland VPS', 'tr' => 'Finlandiya VPS'],
+                    ['slug' => 'usa',     'fa' => 'سرور مجازی آمریکا', 'en' => 'USA VPS', 'tr' => 'ABD VPS'],
                 ]],
             ],
         ],

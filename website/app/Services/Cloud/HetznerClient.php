@@ -389,16 +389,28 @@ class HetznerClient implements CloudProvider
                     continue;
                 }
 
-                // ایمیجِ اپ گاهی `name` ندارد و باید با شناسهٔ عددی سفارش داد.
-                $ref = (string) ($img['name'] ?? '') ?: (string) ($img['id'] ?? '');
+                // ⚠️ نامِ ایمیج نزدِ هتزنر **یکتا نیست**. از ۲۰۲۳ هر سیستم‌عامل دو
+                // ایمیج دارد — یکی x86 و یکی arm — با نامِ کاملاً یکسان و شناسهٔ
+                // متفاوت؛ یکتا «نام + معماری» است. پس شناسهٔ عددی را نگه می‌داریم:
+                //
+                //   ۱) دو ردیف روی هم نمی‌افتند. قبلاً ردیفِ arm روی x86 می‌افتاد و
+                //      **همهٔ** سیستم‌عامل‌ها از صفحهٔ خرید ناپدید می‌شدند.
+                //   ۲) لحظهٔ تحویل همان معماریِ درست سفارش داده می‌شود. نامِ خالی
+                //      روی پلنِ arm به x86 می‌افتد و «معماریِ ناسازگار» می‌گیرد —
+                //      یعنی پولِ گرفته‌شده و سرورِ تحویل‌نشده.
+                $ref = (string) ($img['id'] ?? '');
                 if ($ref === '') {
                     continue;
                 }
 
-                $label = (string) ($img['description'] ?? $ref);
+                // شناسه عددی است، پس برای برچسب به نام برمی‌گردیم نه به شناسه.
+                $label = (string) ($img['description'] ?? '') ?: ((string) ($img['name'] ?? '') ?: $ref);
                 $family = (string) ($img['os_flavor'] ?? '') ?: null;
                 $version = (string) ($img['os_version'] ?? '') ?: null;
 
+                // هر دو نسخه ذخیره می‌شوند و `key` برای هر دو یکسان است، پس مشتری
+                // یک «اوبونتو ۲۴٫۰۴» می‌بیند نه دو تا؛ ولی موتورِ تحویل می‌داند
+                // کدام‌یک به کدام معماری می‌خورد.
                 $out[] = [
                     'provider_ref' => $ref,
                     'key'          => CloudNaming::imageKey($kind, $family, $version, $label),
@@ -510,6 +522,47 @@ class HetznerClient implements CloudProvider
                 'locked'     => $srv['locked'] ?? false,
             ],
         ];
+    }
+
+    /**
+     * فهرستِ همهٔ سرورهای این حساب — با `paged` تا آخرین صفحه.
+     *
+     * ⚠️ خطا را **ok=false** برمی‌گرداند نه فهرستِ خالی. فرقشان حیاتی است: فهرستِ
+     * خالی یعنی «هیچ سرورِ یتیمی نداری» و مدیر خیالش راحت می‌شود؛ اگر در واقع
+     * توکن منقضی شده باشد، همان خیالِ راحت دروغ است و سرورهای بی‌مشتری ماه‌ها
+     * پول می‌سوزانند.
+     */
+    public function listServers(): array
+    {
+        $err = null;
+        $rows = $this->paged('/servers', 'servers', [], $err);
+
+        if ($err !== null) {
+            return ['ok' => false, 'message' => $err, 'servers' => []];
+        }
+
+        $servers = [];
+
+        foreach ($rows as $s) {
+            $ref = (string) ($s['id'] ?? '');
+
+            if ($ref === '') {
+                continue;
+            }
+
+            $servers[] = [
+                'ref'      => $ref,
+                'name'     => (string) ($s['name'] ?? $ref),
+                'status'   => $this->mapStatus((string) ($s['status'] ?? '')),
+                'ipv4'     => data_get($s, 'public_net.ipv4.ip'),
+                'ipv6'     => data_get($s, 'public_net.ipv6.ip'),
+                'plan'     => data_get($s, 'server_type.name'),
+                'location' => data_get($s, 'datacenter.location.name'),
+                'created'  => $s['created'] ?? null,
+            ];
+        }
+
+        return ['ok' => true, 'message' => '', 'servers' => $servers];
     }
 
     /** وضعیتِ هتزنر → واژگانِ ما */

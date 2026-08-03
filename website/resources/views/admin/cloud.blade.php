@@ -28,6 +28,8 @@
       @csrf<input type="hidden" name="prices_only" value="1">
       <button class="btn btn-glass" style="font-size:12.5px"><svg class="icon"><use href="#i-coins"/></svg>فقط بازمحاسبهٔ قیمت</button>
     </form>
+    <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/inventory"><svg class="icon"><use href="#i-search"/></svg>تطبیقِ موجودی</a>
+    <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/attach"><svg class="icon"><use href="#i-plus"/></svg>اتصالِ سرورِ موجود</a>
     <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/probe"><svg class="icon"><use href="#i-code"/></svg>ساختارِ خامِ پاسخ</a>
   </div>
 
@@ -206,10 +208,12 @@
     <label>وضعیت
       <select name="state">
         <option value="">همه</option>
-        <option value="on" @selected($f['state'] === 'on')>در حالِ فروش</option>
+        <option value="on" @selected($f['state'] === 'on')>در حالِ فروش (واقعاً قابلِ خرید)</option>
+        <option value="unsellable" @selected($f['state'] === 'unsellable')>فروخته نمی‌شود — به هر علتی</option>
         <option value="off" @selected($f['state'] === 'off')>بسته‌شده توسطِ من</option>
         <option value="oos" @selected($f['state'] === 'oos')>ناموجود نزدِ زیرساخت</option>
         <option value="noprice" @selected($f['state'] === 'noprice')>بی‌قیمت (نرخِ ارز نبود)</option>
+        <option value="inactive" @selected($f['state'] === 'inactive')>غیرفعال در آخرین همگام‌سازی</option>
       </select>
     </label>
     <label>مرتب‌سازی
@@ -237,15 +241,24 @@
   @if($rows->isEmpty())
     <p style="padding:16px;color:var(--dim)">با این فیلتر چیزی پیدا نشد.</p>
   @else
+    {{-- شمارشِ واقعی، نه تعدادِ ردیفِ نشان‌داده‌شده: فهرستِ بریده‌ای که بریدگی‌اش
+         را نگوید، «همه را دیدم» خوانده می‌شود. --}}
+    <p style="padding:0 16px 10px;color:var(--muted);font-size:12.5px">
+      {{ fa_num($matched) }} پلن با این فیلتر
+      @if($matched > $rowLimit)
+        — <b style="color:#fbbf24">فقط {{ fa_num($rowLimit) }} ردیفِ اول نشان داده شده؛ فیلتر را باریک‌تر کنید.</b>
+      @endif
+    </p>
     <div style="overflow-x:auto">
     <table class="ad-table">
       <thead><tr>
-        <th>پلن</th><th>مکان</th><th>هسته</th><th>رم</th><th>دیسک</th>
+        <th style="width:1%">ردیف</th><th>پلن</th><th>مکان</th><th>هسته</th><th>رم</th><th>دیسک</th>
         <th>بها</th><th>فروش (تومان)</th><th>زیرساخت</th><th>وضعیت</th><th></th>
       </tr></thead>
       <tbody>
-        @foreach($rows as $r)
+        @foreach($rows as $i => $r)
         <tr data-plan="{{ $r->slug }}" style="{{ $r->admin_disabled ? 'opacity:.55' : '' }}">
+          <td style="color:var(--dim);font-size:12px">{{ fa_num($i + 1) }}</td>
           <td><b dir="ltr">{{ $r->public_name }}</b>
             @if($r->admin_note)<small style="display:block;color:var(--dim)">{{ $r->admin_note }}</small>@endif
           </td>

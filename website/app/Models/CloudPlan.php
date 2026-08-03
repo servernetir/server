@@ -192,6 +192,37 @@ class CloudPlan extends Model
      * سرویس‌های فعالی که روی این پلن نشسته‌اند با قیمتِ قفل‌شدهٔ قدیم تمدید
      * می‌شوند، پس هر «true» این‌جا یعنی ضررِ در جریان.
      */
+    // ───────────────────────── نرخِ ساعتی ─────────────────────────
+    // فروشِ ساعتی برای هر سه زیرساخت: قیمتِ ماهانه ÷ ۷۲۰ ساعت (۳۰×۲۴)، گردِ
+    // رو به **بالا** — چون ساعتی همیشه گران‌تر از تعهدِ ماهانه است و نباید زیرِ
+    // قیمت برویم. ۷۲۰ همان ضریبی است که در تبدیلِ ساعتی→ماهانهٔ آروان به کار رفت.
+
+    /** نرخِ ساعتی به تومان (گردِ رو به بالا به نزدیک‌ترین ۱۰۰ تومان برای ظاهرِ تمیز). */
+    public function hourlyIrt(): int
+    {
+        $monthly = (int) $this->price_irt;
+
+        if ($monthly <= 0) {
+            return 0;
+        }
+
+        return (int) (ceil(ceil($monthly / 720) / 100) * 100);
+    }
+
+    /** نرخِ ساعتی به سنتِ یورو (برای نمایشِ en/tr). */
+    public function hourlyEurCents(): int
+    {
+        $monthly = (int) $this->price_eur_cents;
+
+        return $monthly > 0 ? (int) ceil($monthly / 720) : 0;
+    }
+
+    /** حداقلِ اعتبارِ لازم برای شروعِ ساعتی = ۲۴ ساعت (تومان). */
+    public function hourlyStartMinIrt(): int
+    {
+        return $this->hourlyIrt() * 24;
+    }
+
     public function costRose(): bool
     {
         return $this->previous_cost_eur_cents !== null

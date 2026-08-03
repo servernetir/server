@@ -23,6 +23,9 @@ class CloudController extends Controller
 {
     public function __construct(private CloudManager $manager) {}
 
+    /** سقفِ ردیف‌های جدول. شمارشِ واقعی جدا نشان داده می‌شود تا بریدگی پنهان نمانَد. */
+    private const ROW_LIMIT = 400;
+
     /**
      * فیلترها و مرتب‌سازیِ مجاز.
      *
@@ -69,11 +72,12 @@ class CloudController extends Controller
         ];
 
         $rows = collect();
+        $matched = 0;
 
         if ($ready) {
             [$col, $dir] = self::SORTS[$f['sort']] ?? self::SORTS['price'];
 
-            $rows = CloudPlan::query()
+            $q = CloudPlan::query()
                 ->when($f['provider'] !== '', fn ($q) => $q->where('provider', $f['provider']))
                 ->when($f['cpu'] !== '', fn ($q) => $q->where('cpu_kind', $f['cpu']))
                 ->when($f['q'] !== '', fn ($q) => $q->where(function ($qq) use ($f) {
@@ -84,13 +88,31 @@ class CloudController extends Controller
                     'location_code',
                     CloudLocation::where('country', $f['country'])->pluck('code')
                 ))
+                // 🔴 «در حالِ فروش» یعنی واقعاً **قابلِ فروش**، نه فقط
+                // `admin_disabled = false`. قبلاً همین بود و نتیجه‌اش این که
+                // پلنِ ناموجود، بی‌قیمت، غیرفعال یا متعلق به زیرساختِ خاموش هم
+                // «در حالِ فروش» شمرده می‌شد — یعنی فیلتری که جواب می‌داد ولی
+                // جوابش با آنچه مشتری می‌بیند نمی‌خواند.
+                ->when($f['state'] === 'on', fn ($q) => $q->sellable())
                 ->when($f['state'] === 'off', fn ($q) => $q->where('admin_disabled', true))
-                ->when($f['state'] === 'on', fn ($q) => $q->where('admin_disabled', false))
                 ->when($f['state'] === 'oos', fn ($q) => $q->where('in_stock', false))
                 ->when($f['state'] === 'noprice', fn ($q) => $q->where('price_irt', 0))
-                ->orderBy($col, $dir)
-                ->limit(400)
-                ->get();
+                ->when($f['state'] === 'inactive', fn ($q) => $q->where('is_active', false))
+                // «چرا نمی‌فروشد؟» — پرسشِ روزمرهٔ همین صفحه. هر ردیفی که
+                // `sellable` نیست، با هر علتی.
+                ->when($f['state'] === 'unsellable', fn ($q) => $q->where(function ($qq) {
+                    $qq->where('is_active', false)
+                        ->orWhere('in_stock', false)
+                        ->orWhere('price_irt', '<=', 0)
+                        ->orWhere('admin_disabled', true)
+                        ->orWhereIn('provider', CloudPlan::disabledProviders() ?: ['__none__']);
+                }));
+
+            // شمارشِ واقعی پیش از سقف — وگرنه مدیر ۴۰۰ ردیف می‌دید و نمی‌فهمید
+            // بقیه هم هستند؛ «همه را دیدم» بدترین برداشتِ ممکن از یک فهرستِ
+            // بریده است.
+            $matched = (clone $q)->count();
+            $rows = $q->orderBy($col, $dir)->limit(self::ROW_LIMIT)->get();
         }
 
         // عرضه‌های عمومی: همان چیزی که مشتری می‌بیند — برای اینکه مدیر بتواند
@@ -116,6 +138,8 @@ class CloudController extends Controller
                 : collect(),
             'planCount' => $ready ? CloudPlan::where('is_active', true)->count() : 0,
             'rows'      => $rows,
+            'matched'   => $matched,
+            'rowLimit'  => self::ROW_LIMIT,
             'f'         => $f,
             'sorts'     => array_keys(self::SORTS),
             'countries' => $ready

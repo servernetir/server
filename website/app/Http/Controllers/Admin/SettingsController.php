@@ -49,6 +49,11 @@ class SettingsController extends Controller
             'hetzner' => $ready && filled(Setting::getSecret('hetzner_api_token')),
             'aeza'    => $ready && filled(Setting::getSecret('aeza_api_token')),
             'arvan'   => $ready && filled(Setting::getSecret('arvan_api_token')),
+            // OVH سه‌کلیدی است؛ «تنظیم‌شده» یعنی هر سه هستند، وگرنه امضا
+            // ساخته نمی‌شود و هر تماس ۴۰۳ می‌گیرد.
+            'ovh'     => $ready && filled(Setting::getSecret('ovh_app_key'))
+                && filled(Setting::getSecret('ovh_app_secret'))
+                && filled(Setting::getSecret('ovh_consumer_key')),
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
@@ -95,6 +100,9 @@ class SettingsController extends Controller
             'aeza_api_token'        => ['nullable', 'string', 'max:300'],
             'aeza_forget'           => ['nullable', 'boolean'],
             'arvan_api_token'       => ['nullable', 'string', 'max:400'],
+            'ovh_app_key'           => ['nullable', 'string', 'max:200'],
+            'ovh_app_secret'        => ['nullable', 'string', 'max:200'],
+            'ovh_consumer_key'      => ['nullable', 'string', 'max:200'],
             'arvan_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
@@ -136,6 +144,21 @@ class SettingsController extends Controller
                 Setting::putSecret($p.'_api_token', null);
             } elseif (filled($data[$p.'_api_token'] ?? null)) {
                 Setting::putSecret($p.'_api_token', trim((string) $data[$p.'_api_token']));
+            }
+        }
+
+        // OVH سه کلیدِ جدا دارد، پس از حلقهٔ بالا (که یک `_api_token` فرض
+        // می‌کند) بیرون است. «فراموش کن» هر سه را با هم پاک می‌کند — دو کلید
+        // از سه‌تا یعنی امضای همیشه‌غلط و ۴۰۳ِ بی‌توضیح.
+        if ($request->boolean('ovh_forget')) {
+            foreach (['ovh_app_key', 'ovh_app_secret', 'ovh_consumer_key'] as $k) {
+                Setting::putSecret($k, null);
+            }
+        } else {
+            foreach (['ovh_app_key', 'ovh_app_secret', 'ovh_consumer_key'] as $k) {
+                if (filled($data[$k] ?? null)) {
+                    Setting::putSecret($k, trim((string) $data[$k]));
+                }
             }
         }
 

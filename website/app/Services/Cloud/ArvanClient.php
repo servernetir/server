@@ -39,6 +39,19 @@ class ArvanClient implements CloudProvider
     /** پیشوندِ همهٔ مسیرهای ECC */
     private const ECC = '/ecc/v1';
 
+    /**
+     * فهرستِ مناطق در نسخه‌های مختلفِ APIِ آروان مسیرِ یکسانی نداشته. به‌جای
+     * حدسِ یک مسیر، چند کاندید را به‌ترتیب امتحان می‌کنیم و اولی که پاسخِ موفق
+     * با دادهٔ منطقه بدهد استفاده می‌شود. اگر هیچ‌کدام نشد، پیامِ آزمونِ اتصال
+     * وضعیتِ هرکدام را نشان می‌دهد تا معلوم شود عیب از مسیر است یا از توکن.
+     * (عملیاتِ منطقه‌محور جدا و قطعی‌اند: «/ecc/v1/regions/{code}/…».)
+     */
+    private const REGION_ENDPOINTS = [
+        self::ECC.'/regions',          // مرسوم‌ترین (RESTful)
+        self::ECC.'/details',          // آنچه terraform-provider می‌سازد
+        self::ECC.'/regions/details',  // نسخهٔ قدیمی‌ترِ محتمل
+    ];
+
     public function slug(): string
     {
         return 'arvan';
@@ -138,19 +151,94 @@ class ArvanClient implements CloudProvider
 
     public function testConnection(): array
     {
-        $r = $this->req('GET', self::ECC.'/regions/details');
+        $r = $this->resolveRegions();
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']];
+            // کنترل: یک مسیرِ منطقه‌محورِ شناخته‌شده. اگر این هم ۴۰۴/۴۰۱ بدهد،
+            // عیب از توکن/دسترسی است نه از مسیرِ فهرستِ مناطق.
+            $ctrl = $this->req('GET', self::ECC.'/regions/ir-thr-c2/sizes');
+            $diag = implode(' | ', $r['tried'])
+                .' | control(sizes) → '.($ctrl['status'] ?: 'ERR').' '.mb_substr((string) $ctrl['message'], 0, 40);
+
+            return ['ok' => false, 'message' => 'اتصال برقرار نشد. جزئیاتِ تلاش‌ها: '.$diag];
         }
 
-        $n = count($this->creatableRegions($r['data']));
+        $regions = $this->creatableRegions($r['data']);
+        $n = count($regions);
+
+        // نمونهٔ خامِ سایزهای منطقهٔ اول — تا اگر پلنی روی سایت نیامد، همین‌جا
+        // ببینیم آروان واقعاً چه می‌دهد (تعداد، ماهانه/ساعتی، ارزان‌ترین‌ها).
+        $sample = $n > 0 ? $this->flavorSample((string) ($regions[0]['code'] ?? '')) : '';
 
         return [
             'ok' => true,
-            'message' => "اتصال برقرار است — {$n} منطقهٔ قابلِ ساخت.",
-            'meta' => ['regions' => $n],
+            'message' => "اتصال برقرار است — {$n} منطقهٔ قابلِ ساخت.{$sample}",
+            'meta' => ['regions' => $n, 'endpoint' => $r['endpoint']],
         ];
+    }
+
+    /** خلاصهٔ تشخیصیِ سایزهای یک منطقه — برای فهمیدنِ چرا پلنی نمی‌آید. */
+    private function flavorSample(string $regionCode): string
+    {
+        if ($regionCode === '') {
+            return '';
+        }
+
+        $sizes = $this->regionSizes($regionCode);
+
+        if ($sizes === []) {
+            return " | منطقهٔ {$regionCode}: هیچ سایزی برنگشت.";
+        }
+
+        $withMonth = 0;
+        $hourOnly = 0;
+        $rows = [];
+
+        foreach ($sizes as $s) {
+            if (! is_array($s)) {
+                continue;
+            }
+            $m = (float) ($s['price_per_month'] ?? 0);
+            $h = (float) ($s['price_per_hour'] ?? 0);
+            $m > 0 ? $withMonth++ : ($h > 0 ? $hourOnly++ : null);
+            $rows[] = [
+                'name' => (string) ($s['name'] ?? $s['id'] ?? '?'),
+                'm' => $m, 'h' => $h,
+                'cpu' => (int) ($s['cpu_count'] ?? 0),
+                'ram' => (int) ($s['memory'] ?? 0),
+                'eff' => $m > 0 ? $m : $h * 720,
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => $a['eff'] <=> $b['eff']);
+        $cheap = array_map(
+            fn ($x) => "{$x['name']}(cpu{$x['cpu']}،ram{$x['ram']}،ماه={$x['m']}،ساعت={$x['h']})",
+            array_slice($rows, 0, 3)
+        );
+
+        return " | منطقهٔ {$regionCode}: ".count($sizes)." سایز ({$withMonth} ماهانه، {$hourOnly} فقط‌ساعتی). ارزان‌ترین: ".implode(' ، ', $cheap);
+    }
+
+    /**
+     * فهرستِ مناطق را از اولین مسیرِ کاندیدی که پاسخِ موفقِ غیرخالی بدهد می‌گیرد.
+     *
+     * @return array{ok:bool,data:array,endpoint:?string,tried:array<int,string>}
+     */
+    private function resolveRegions(): array
+    {
+        $tried = [];
+
+        foreach (self::REGION_ENDPOINTS as $path) {
+            $r = $this->req('GET', $path);
+
+            if ($r['ok'] && is_array($r['data']) && $r['data'] !== []) {
+                return ['ok' => true, 'data' => $r['data'], 'endpoint' => $path, 'tried' => $tried];
+            }
+
+            $tried[] = ltrim($path, '/').' → '.($r['status'] ?: 'ERR').' '.mb_substr((string) $r['message'], 0, 40);
+        }
+
+        return ['ok' => false, 'data' => [], 'endpoint' => null, 'tried' => $tried];
     }
 
     // ───────────────────────── کاتالوگ ─────────────────────────
@@ -163,13 +251,13 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'message' => 'توکنِ ابرآروان تنظیم نشده.'] + $empty;
         }
 
-        $r = $this->req('GET', self::ECC.'/regions/details');
+        $reg = $this->resolveRegions();
 
-        if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']] + $empty;
+        if (! $reg['ok']) {
+            return ['ok' => false, 'message' => 'فهرستِ مناطقِ آروان دریافت نشد.'] + $empty;
         }
 
-        $regions = $this->creatableRegions($r['data']);
+        $regions = $this->creatableRegions($reg['data']);
 
         if ($regions === []) {
             return ['ok' => false, 'message' => 'هیچ منطقهٔ قابلِ ساختی برنگشت.'] + $empty;
@@ -195,7 +283,11 @@ class ArvanClient implements CloudProvider
                 continue;
             }
 
-            $country = strtoupper((string) ($region['country'] ?? 'IR'));
+            // آروان زیرساختِ **ایران** است و در پاسخ نامِ کاملِ کشور («IRAN») را
+            // می‌دهد؛ ولی ستونِ cloud_locations.country دو-کاراکتریِ ISO-3166 است
+            // (مثلِ DE). پس همیشه «IR» — وگرنه «Data too long for column country».
+            $raw = strtoupper(trim((string) ($region['country'] ?? '')));
+            $country = strlen($raw) === 2 ? $raw : 'IR';
             $city = $this->cityOf($region);
 
             $locCode = CloudNaming::locationCode($country, $city, $code);
@@ -254,6 +346,16 @@ class ArvanClient implements CloudProvider
                 continue;
             }
 
+            // فقط ایران. دیتاسنترِ آلمانِ آروان («گوته/Goethe») هرگز سینک نشود —
+            // آلمان را مستقیم از هتزنر می‌فروشیم، جدا از این زیرساخت.
+            $cc = strtoupper(trim((string) ($region['country'] ?? '')));
+            $isIran = $cc === '' || $cc === 'IR' || str_starts_with($cc, 'IRAN');
+            $name = strtolower((string) ($region['dc'] ?? '').' '.(string) ($region['code'] ?? '').' '.(string) ($region['city_code'] ?? ''));
+
+            if (! $isIran || str_contains($name, 'goethe') || str_contains($name, 'german')) {
+                continue;
+            }
+
             // `create` یعنی ساختِ سرور مجاز است؛ `soon`/`visible=false` را رد کن
             if (($region['create'] ?? false) === true && ($region['visible'] ?? true) !== false) {
                 $out[] = $region;
@@ -263,9 +365,40 @@ class ArvanClient implements CloudProvider
         return $out;
     }
 
+    /**
+     * نگاشتِ کدنامِ دیتاسنترهای آروان → نامِ شهرِ واقعی.
+     * (سیمین=تهران، فروغ=اصفهان، شهریار=ارومیه، بامداد=شیراز، قیصر=اهواز)
+     */
+    private const CITY_MAP = [
+        'simin'    => 'Tehran',
+        'forough'  => 'Isfahan',
+        'foroogh'  => 'Isfahan',
+        'shahriar' => 'Urmia',
+        'bamdad'   => 'Shiraz',
+        'gheysar'  => 'Ahvaz',
+        'ghaisar'  => 'Ahvaz',
+        'qeysar'   => 'Ahvaz',
+        'gheisar'  => 'Ahvaz',
+    ];
+
     private function cityOf(array $region): string
     {
-        // `dc` نامِ خواناتری از `city_code` دارد (مثلِ «Tehran»)، وگرنه از code
+        // اول کدنام را به شهر نگاشت کن (در هر یک از فیلدهای نام ممکن است باشد)
+        foreach (['dc', 'city_code', 'code', 'region'] as $k) {
+            $v = strtolower(trim((string) ($region[$k] ?? '')));
+
+            if ($v === '') {
+                continue;
+            }
+
+            foreach (self::CITY_MAP as $codename => $city) {
+                if (str_contains($v, $codename)) {
+                    return $city;
+                }
+            }
+        }
+
+        // نگاشت نبود: همان رفتارِ قبلی (نامِ خام)
         foreach (['dc', 'city_code', 'region'] as $k) {
             $v = trim((string) ($region[$k] ?? ''));
 
@@ -295,18 +428,44 @@ class ArvanClient implements CloudProvider
     {
         $ref = (string) ($size['id'] ?? '');
         $vcpu = (int) ($size['cpu_count'] ?? 0);
-        $ram = (int) ($size['memory'] ?? 0);        // مگابایت
-        $disk = (int) ($size['disk'] ?? 0);         // گیگابایت
-        $priceToman = (float) ($size['price_per_month'] ?? 0);
 
-        // مشخصاتِ ناقص = رد (پلنِ صفرهسته روی سایت فاجعه است)
-        if ($ref === '' || $vcpu < 1 || $ram < 128 || $disk < 1 || $priceToman <= 0) {
+        // ⚠️ آروان memory را به **گیگابایت** می‌دهد (نامِ فلِیور مثلِ g1-1-1 یعنی
+        // ۱ هسته، ۱ گیگ)، نه مگابایت. قبلاً مگابایت فرض می‌شد، پس فیلترِ ram<۱۲۸
+        // هر پلنِ زیرِ ۱۲۸ گیگ — یعنی تقریباً همهٔ ارزان‌ها — را حذف می‌کرد و فقط
+        // غول‌ها می‌ماندند. از memory_in_bytes (بی‌ابهام) می‌خوانیم، وگرنه گیگ×۱۰۲۴.
+        $ramBytes = (int) ($size['memory_in_bytes'] ?? 0);
+        $ram = $ramBytes > 0
+            ? (int) round($ramBytes / 1048576)
+            : (int) ($size['memory'] ?? 0) * 1024;   // مگابایت
+
+        $diskBytes = (int) ($size['disk_in_bytes'] ?? 0);
+        $disk = $diskBytes > 0
+            ? (int) round($diskBytes / 1073741824)
+            : (int) ($size['disk'] ?? 0);            // گیگابایت
+
+        // ⚠️ قیمت به **ریال** است (ما به تومان می‌فروشیم، ÷۱۰). تیرِ اقتصادیِ
+        // «ابرک» اغلب فقط **ساعتی** قیمت دارد و `price_per_month` صفر است — برای
+        // همین قبلاً هیچ‌کدام نمی‌آمدند. اگر ماهانه صفر بود، از ساعتی بساز
+        // (۳۰ روز × ۲۴ = ۷۲۰ ساعت). price_per_hour در API رشته است.
+        $rialMonth = (float) ($size['price_per_month'] ?? 0);
+        $rialHour = (float) ($size['price_per_hour'] ?? 0);
+
+        if ($rialMonth <= 0 && $rialHour > 0) {
+            $rialMonth = $rialHour * 720;
+        }
+
+        $priceToman = $rialMonth / 10;
+
+        // مشخصاتِ ناقص = رد (کفِ ۵۱۲ مگابایت رم؛ حالا $ram درست به مگابایت است)
+        if ($ref === '' || $vcpu < 1 || $ram < 512 || $disk < 1 || $priceToman <= 0) {
             return null;
         }
 
-        // پلنِ تخفیف‌دارِ موقت (off) را کنار بگذار — مثلِ PROMOیِ آیزا، نرخِ
-        // تمدیدش پایدار نیست و قیمتِ قفل‌شده ضرر می‌دهد.
-        if (Setting::get('arvan_include_promo') !== '1'
+        // ⚠️ تیرِ اقتصادیِ «ابرک» (ارزان‌ترین سرورهای آروان) با off_percent می‌آید.
+        // قبلاً پیش‌فرض این‌ها را کنار می‌گذاشت، پس فقط تیرهای گرانِ dedicated
+        // می‌ماند (کفِ ~۳۶ م.ت). کارفرما همه را می‌خواهد بفروشد، پس پیش‌فرض
+        // «همه بیایند» است؛ برای کنارگذاشتنِ تخفیف‌دارها arvan_exclude_promo='1'.
+        if (Setting::get('arvan_exclude_promo') === '1'
             && (($size['off'] ?? '') !== '' || ((float) ($size['off_percent'] ?? 0)) > 0)) {
             return null;
         }
@@ -541,6 +700,84 @@ class ArvanClient implements CloudProvider
         }
 
         return null;
+    }
+
+    /**
+     * فهرستِ سرورهای همهٔ مناطق.
+     *
+     * ⚠️ آروان **منطقه‌محور** است و مسیرِ «همهٔ سرورها» ندارد؛ باید منطقه‌به‌منطقه
+     * پرسید. پس اگر خواندنِ فهرستِ مناطق شکست بخورد، جوابِ درست «نمی‌دانم» است نه
+     * «صفر سرور» — وگرنه گزارشِ سرورِ یتیم می‌گفت همه‌چیز مرتب است، درحالی‌که
+     * حتی یک منطقه هم پرسیده نشده.
+     *
+     * خطای یک منطقهٔ منفرد ولی کلِ گزارش را نمی‌شکند: بقیهٔ مناطق شمرده می‌شوند
+     * و منطقهٔ خطادار در پیام می‌آید تا معلوم باشد فهرست ناقص است.
+     */
+    public function listServers(): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'message' => 'توکنِ ابرآروان تنظیم نشده.', 'servers' => []];
+        }
+
+        $reg = $this->resolveRegions();
+
+        if (! $reg['ok']) {
+            return ['ok' => false, 'message' => 'فهرستِ مناطقِ آروان دریافت نشد.', 'servers' => []];
+        }
+
+        $servers = [];
+        $failed = [];
+
+        // ⚠️ عمداً `creatableRegions()` نیست. آن فیلتر برای **ساختِ** سرور است و
+        // منطقهٔ غیرقابلِ‌ساخت و دیتاسنترِ آلمان را کنار می‌گذارد. برای **شمردنِ**
+        // سرورهای موجود، همان کنار گذاشتن یعنی سروری که هنوز پولش را می‌دهیم از
+        // گزارش غیب می‌شود — و گزارشِ ناقصِ یتیم از نبودِ گزارش بدتر است.
+        foreach ((array) $reg['data'] as $region) {
+            $code = is_array($region) ? (string) ($region['code'] ?? '') : '';
+
+            if ($code === '') {
+                continue;
+            }
+
+            $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($code).'/servers');
+
+            if (! $r['ok']) {
+                $failed[] = $code;
+
+                continue;
+            }
+
+            foreach ((array) $r['data'] as $s) {
+                if (! is_array($s)) {
+                    continue;
+                }
+
+                $id = (string) ($s['id'] ?? '');
+
+                if ($id === '') {
+                    continue;
+                }
+
+                $servers[] = [
+                    // همان رمزگذاریِ `region:id` که بقیهٔ متدها انتظار دارند —
+                    // وگرنه شناسه‌ای تحویل می‌دادیم که هیچ عملیاتی رویش کار نمی‌کند.
+                    'ref'      => $code.':'.$id,
+                    'name'     => (string) ($s['name'] ?? $id),
+                    'status'   => $this->mapStatus((string) ($s['status'] ?? '')),
+                    'ipv4'     => $this->firstIp($s),
+                    'ipv6'     => null,
+                    'plan'     => data_get($s, 'flavor.name') ?? data_get($s, 'flavor_id'),
+                    'location' => (string) ($region['name'] ?? $code),
+                    'created'  => $s['created_at'] ?? $s['created'] ?? null,
+                ];
+            }
+        }
+
+        return [
+            'ok'      => true,
+            'message' => $failed === [] ? '' : 'فهرستِ این مناطق خوانده نشد: '.implode('، ', $failed),
+            'servers' => $servers,
+        ];
     }
 
     private function mapStatus(string $s): string

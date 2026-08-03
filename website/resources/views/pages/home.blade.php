@@ -134,11 +134,10 @@
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $p['ssd'] }}</li>
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $p['tb'] }} {{ __('ui.traffic') }}</li>
         </ul>
-        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }} plan-buy"
-           href="{{ buy_url($p['pid']) }}&billingcycle=monthly"
-           data-url-m="{{ buy_url($p['pid']) }}&billingcycle=monthly"
-           data-url-y="{{ buy_url($p['pid']) }}&billingcycle=annually"
-           target="_blank" rel="noopener">{{ __('ui.choose') }}</a>
+        {{-- پلن‌های سرورِ مجازیِ صفحهٔ اصلی → فروشگاهِ **کنسولِ خودمان**.
+             (قبلاً به WHMCSِ بیرونی می‌رفت؛ فروش و تحویل حالا کاملاً داخلی است.) --}}
+        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
+           href="{{ lroute('account.cloud.store') }}">{{ __('ui.choose') }}</a>
       </article>
       @endforeach
     </div>
@@ -234,7 +233,8 @@
   <div class="cta">
     <h2>{{ __('ui.cta_title') }}</h2>
     <p>{{ __('ui.cta_sub') }}</p>
-    <a class="btn btn-primary" href="{{ whmcs_url() }}"><span>{{ __('ui.cta_btn') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
+    {{-- «شروع کنید» → کنسولِ خودمان، نه WHMCSِ بیرونی --}}
+    <a class="btn btn-primary" href="{{ console_lroute('account.home') }}"><span>{{ __('ui.cta_btn') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
     <div class="cta-contacts">
       <a href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
       <a href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>

@@ -230,7 +230,7 @@ class PaymentService
                 // ۵۰۰ به مشتری، فاکتور پرداخت‌نشده، سرویس ساخته‌نشده — بدترین حالت.
                 // حالا خطا بلعیده و لاگ می‌شود و سرویس دستِ‌کم در صفِ تحویل می‌نشیند.
                 try {
-                if ($service !== null && $service->status !== 'cancelled') {
+                if ($service !== null && ! $service->isDead()) {
                     // سرویسی که روی سروری تحویل می‌شود و هنوز ساخته نشده →
                     // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
                     // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
@@ -315,6 +315,16 @@ class PaymentService
                         'error'   => $e::class.': '.mb_substr($e->getMessage(), 0, 300),
                     ]);
 
+                    // ⚠️ `laravel.log` روی cPanel عملاً خواندنی نیست (نه SSH
+                    // داریم نه نمایشگری در پنل). این خط همان رویداد را به
+                    // ردیابِ خطا هم می‌دهد تا در /admin/errors دیده شود —
+                    // وگرنه «پول گرفته شد، سرویس فعال نشد» جایی ثبت می‌شد که
+                    // هیچ‌کس نمی‌بیند.
+                    \App\Support\ErrorTracker::note('payment', $e, [
+                        'invoice' => $invoice->id,
+                        'service' => $invoice->service_id,
+                    ]);
+
                     // حداقلِ لازم تا کرونِ provision:run سرویس را بسازد و مشتری
                     // معطل نماند — با UPDATEِ خام تا هیچ متد/کستی نتواند باز خطا بدهد.
                     try {
@@ -324,7 +334,7 @@ class PaymentService
                             // هرگز به‌روزرسانی نمی‌شد.
                             $base = fn () => \Illuminate\Support\Facades\DB::table('services')
                                 ->where('id', $invoice->service_id)
-                                ->whereNotIn('status', ['cancelled'])
+                                ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
                                 ->where(fn ($q) => $q->whereNull('provision_status')
                                     ->orWhere('provision_status', '!=', 'done'));
 

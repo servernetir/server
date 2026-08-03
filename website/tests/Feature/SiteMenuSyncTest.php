@@ -74,7 +74,9 @@ class SiteMenuSyncTest extends TestCase
     {
         $joined = $this->joinedFa();
 
-        $this->assertStringContainsString('سرور مجازی ایران', $joined);
+        // ⚠️ ایران/خارج حالا در گروهِ «سرور مجازی» بالای پنل‌اند (نه در «موقعیت
+        // مکانی»)، چون منو یکی شد و ایران مهم‌ترین مقصد است. این‌جا فقط کشورهای
+        // گروهِ موقعیت سنجیده می‌شوند.
         $this->assertStringContainsString('سرور مجازی آلمان', $joined);
         $this->assertStringContainsString('سرور مجازی فرانسه', $joined);
 
@@ -153,7 +155,13 @@ class SiteMenuSyncTest extends TestCase
         $groupNames = array_map(fn ($g) => $g['en'] ?? '', $mega['vps']['groups']);
 
         $this->assertContains('By use case', $groupNames);
-        $this->assertContains('Operating system', $groupNames);
+        // «سیستم‌عامل» عمداً حذف شد (خواستهٔ کارفرما: تقریباً هر سیستم‌عاملی روی
+        // هر سروری نصب می‌شود، پس گروهِ جدا معنا نداشت).
+        $this->assertNotContains('Operating system', $groupNames);
+        // تبِ یگانهٔ «سرور» هر سه نوع را دارد
+        $this->assertContains('Virtual servers', $groupNames);
+        $this->assertContains('Dedicated CPU', $groupNames);
+        $this->assertContains('Physical servers', $groupNames);
 
         foreach ($mega['vps']['groups'] as $g) {
             if (($g['en'] ?? '') === 'By use case') {
@@ -163,20 +171,25 @@ class SiteMenuSyncTest extends TestCase
         }
     }
 
-    /** «سرور اختصاصی» دیگر «اتمام ظرفیت» نمی‌خورد و کاملاً دست‌نخورده است */
-    public function test_dedicated_is_not_marked_sold_out(): void
+    /**
+     * منو **یکی** است: تبِ جدای «سرور اختصاصی» و «سرور فیزیکی» حذف شده و هر دو
+     * زیرِ تبِ «سرور» آمده‌اند (خواستهٔ کارفرما). هیچ‌جا «اتمام ظرفیت» نوشته نمی‌شود.
+     */
+    public function test_single_server_tab_holds_dedicated_and_physical(): void
     {
         $this->location('de-falkenstein', 'DE', 'Falkenstein');
         $this->plan('de-falkenstein');
 
-        $before = config('servernet.mega');
         $after = app(SiteMenu::class)->mega();
 
-        $this->assertSame($before['dedicated'], $after['dedicated'],
-            'بخشِ سرور اختصاصی نباید عوض شود');
+        $this->assertArrayNotHasKey('dedicated', $after, 'تبِ جدای اختصاصی نباید بماند');
+        $this->assertArrayNotHasKey('servers', $after, 'تبِ جدای فیزیکی نباید بماند');
+        $this->assertArrayHasKey('vps', $after);
 
-        $joined = json_encode($after['dedicated'], JSON_UNESCAPED_UNICODE);
+        $joined = json_encode($after['vps'], JSON_UNESCAPED_UNICODE);
         $this->assertStringNotContainsString('اتمام ظرفیت', (string) $joined);
+        // لینکِ فروشگاهِ سرورِ فیزیکی باید داخلِ همین تب باشد
+        $this->assertStringContainsString('servers.index', (string) $joined);
     }
 
     /** بقیهٔ بخش‌های مگا-منو (هاست، دامنه، ابری) دست نمی‌خورند */

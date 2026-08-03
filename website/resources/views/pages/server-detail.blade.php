@@ -5,7 +5,7 @@
 @section('content')
 
 @php
-  $imgs = !empty($model['gallery']) ? $model['gallery'] : ['/assets/servers/placeholder.svg'];
+  $imgs = !empty($model['gallery']) ? $model['gallery'] : [];
   $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
   $bc = $brand['color'] ?? 'var(--cyan)';
   // اسکیمای Product برای سئو — schema_ld خودش @context/@type را می‌گذارد.
@@ -32,18 +32,21 @@
   <div class="sd-top">
     {{-- گالری --}}
     <div class="sd-gallery">
-      <div class="sd-main" id="sd-main" role="button" tabindex="0" aria-label="{{ __('ui.srv_zoom') }}">
-        <img id="sd-main-img" src="{{ $imgs[0] }}" alt="{{ $lm['name'] }}">
-        <span class="sd-zoom"><svg class="icon"><use href="#i-search"/></svg></span>
-      </div>
-      @if(count($imgs) > 1)
-      <div class="sd-thumbs">
-        @foreach($imgs as $i => $src)
-          <button type="button" class="sd-thumb @if($i === 0) on @endif" data-src="{{ $src }}"><img src="{{ $src }}" alt="" loading="lazy"></button>
-        @endforeach
-      </div>
+      @if($imgs !== [])
+        <div class="sd-main" id="sd-main" role="button" tabindex="0" aria-label="{{ __('ui.srv_zoom') }}">
+          <img id="sd-main-img" src="{{ $imgs[0] }}" alt="{{ $lm['name'] }}">
+          <span class="sd-zoom"><svg class="icon"><use href="#i-search"/></svg></span>
+        </div>
+        @if(count($imgs) > 1)
+        <div class="sd-thumbs">
+          @foreach($imgs as $i => $src)
+            <button type="button" class="sd-thumb @if($i === 0) on @endif" data-src="{{ $src }}"><img src="{{ $src }}" alt="" loading="lazy"></button>
+          @endforeach
+        </div>
+        @endif
       @else
-      <p class="sd-nophoto">{{ __('ui.srv_photos_soon') }}</p>
+        <div class="sd-main"><div class="srv-ph"><svg class="icon"><use href="#i-server"/></svg></div></div>
+        <p class="sd-nophoto">{{ __('ui.srv_photos_soon') }}</p>
       @endif
     </div>
 
@@ -89,11 +92,37 @@
     </table>
   </div>
 
-  {{-- توضیحِ بلند --}}
+  {{-- توضیحِ بلند + تحلیلِ خلاقانه (سئو) --}}
   <div class="sd-about">
     <h2>{{ __('ui.srv_about_h') }}</h2>
-    <p>{{ $lm['desc'] }}</p>
+    <p class="sd-lead">{{ $lm['desc'] }}</p>
+    @if(!empty($lm['body']))
+      @foreach(preg_split('/\n\s*\n/', trim($lm['body'])) as $para)
+        @php $para = trim($para); @endphp
+        @if($para !== '')<p>{{ $para }}</p>@endif
+      @endforeach
+    @endif
   </div>
+
+  @if(!empty($lm['strengths']) || !empty($lm['weaknesses']))
+  <div class="sd-analysis">
+    <h2>{{ __('ui.srv_analysis_h') }}</h2>
+    <div class="sd-sw">
+      @if(!empty($lm['strengths']))
+      <div class="sd-sw-col strong">
+        <h3><svg class="icon"><use href="#i-check"/></svg>{{ __('ui.srv_strengths') }}</h3>
+        <ul>@foreach($lm['strengths'] as $s)<li>{{ $s }}</li>@endforeach</ul>
+      </div>
+      @endif
+      @if(!empty($lm['weaknesses']))
+      <div class="sd-sw-col weak">
+        <h3><svg class="icon"><use href="#i-info"/></svg>{{ __('ui.srv_weaknesses') }}</h3>
+        <ul>@foreach($lm['weaknesses'] as $w)<li>{{ $w }}</li>@endforeach</ul>
+      </div>
+      @endif
+    </div>
+  </div>
+  @endif
 
   {{-- مرتبط --}}
   @if($related->isNotEmpty())
@@ -122,11 +151,13 @@
   @endif
 </section>
 
-{{-- لایت‌باکسِ گالری --}}
+{{-- لایت‌باکسِ گالری — فقط وقتی عکسِ واقعی هست (وگرنه img با src خالی = عکسِ شکسته) --}}
+@if($imgs !== [])
 <div class="sd-lightbox" id="sd-lightbox" hidden>
   <button type="button" class="sd-lb-close" id="sd-lb-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
   <img id="sd-lb-img" src="" alt="{{ $lm['name'] }}">
 </div>
+@endif
 
 <script>
 (function(){

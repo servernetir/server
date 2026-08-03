@@ -131,7 +131,9 @@
           @foreach($mega as $key => $cat)
           <div class="mega-pane @if($loop->first) active @endif" data-pane="{{ $key }}">
             @foreach($cat['groups'] as $group)
-            <div class="mega-group">
+            {{-- گروهِ 'wide' تمامِ عرضِ پنل را می‌گیرد و آیتم‌هایش دوردیفه می‌چینند
+                 (موقعیت‌های مکانی زیاد شده‌اند و یک ستونِ کشیده بدنما بود). --}}
+            <div class="mega-group @if(!empty($group['wide'])) wide @endif">
               <h6>{{ lc($group) }}</h6>
               @foreach($group['items'] as $item)
               @php

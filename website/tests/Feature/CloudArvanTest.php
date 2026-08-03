@@ -38,9 +38,13 @@ class CloudArvanTest extends TestCase
             'city_code' => 'thr', 'create' => true, 'visible' => true, 'soon' => false,
         ]];
 
+        // price_per_month به **ریال** است (آروان ریالی می‌دهد). ۹٬۰۰۰٬۰۰۰ ریال = ۹۰۰٬۰۰۰ تومان.
+        // memory/disk به **گیگابایت**اند و memory_in_bytes/disk_in_bytes بی‌ابهام.
         $sizes = $over['sizes'] ?? [[
-            'id' => 'g2-2-4-20', 'name' => 'G2-2-4', 'cpu_count' => 2, 'memory' => 4096,
-            'disk' => 20, 'price_per_month' => 900000.0, 'cpu_share' => 'general', 'generation' => 'g2',
+            'id' => 'g2-2-4-20', 'name' => 'G2-2-4', 'cpu_count' => 2,
+            'memory' => 4, 'memory_in_bytes' => 4294967296,
+            'disk' => 20, 'disk_in_bytes' => 21474836480,
+            'price_per_month' => 9000000.0, 'cpu_share' => 'general', 'generation' => 'g2',
         ]];
 
         $images = $over['images'] ?? [[
@@ -53,7 +57,10 @@ class CloudArvanTest extends TestCase
         Http::fake(function ($request) use ($regions, $sizes, $images) {
             $url = $request->url();
 
-            if (str_contains($url, '/regions/details')) {
+            // فهرستِ مناطق: چند مسیرِ کاندید ممکن است امتحان شود؛ به کاندیدِ
+            // اولِ معتبر (`…/regions` یا `…/details`) دادهٔ منطقه می‌دهیم.
+            $path = parse_url($url, PHP_URL_PATH) ?? '';
+            if (str_ends_with($path, '/regions') || str_ends_with($path, '/details')) {
                 return Http::response(['data' => $regions], 200);
             }
             if (str_contains($url, '/sizes')) {
@@ -82,6 +89,38 @@ class CloudArvanTest extends TestCase
         $this->assertSame(1, $r['meta']['regions']);
     }
 
+    /**
+     * فهرستِ مناطق باید چند مسیرِ کاندید را امتحان کند و از `/ecc/v1/regions`
+     * شروع کند (مرسوم‌ترین). اگر همه خالی برگردند، testConnection به کنترلِ
+     * منطقه‌محور می‌رسد. این جای مسیرِ سخت‌کدِ قبلی را می‌گیرد که روی سرور ۴۰۴ می‌داد.
+     */
+    public function test_regions_list_tries_candidate_endpoints_in_order(): void
+    {
+        $hits = [];
+        Http::fake(function ($request) use (&$hits) {
+            $hits[] = parse_url($request->url(), PHP_URL_PATH);
+
+            return Http::response(['data' => []], 200);   // همه خالی → همهٔ کاندیدها امتحان می‌شوند
+        });
+
+        app(ArvanClient::class)->testConnection();
+
+        $this->assertSame('/ecc/v1/regions', $hits[0], 'اولین کاندید باید /ecc/v1/regions باشد');
+        $this->assertContains('/ecc/v1/details', $hits);
+        $this->assertContains('/ecc/v1/regions/details', $hits);
+    }
+
+    /** وقتی کاندیدِ اول داده دارد، همان استفاده می‌شود و بقیه امتحان نمی‌شوند. */
+    public function test_first_working_region_endpoint_is_used(): void
+    {
+        $this->fakeArvan();
+
+        $r = app(ArvanClient::class)->testConnection();
+
+        $this->assertTrue($r['ok'], $r['message']);
+        $this->assertSame('/ecc/v1/regions', $r['meta']['endpoint']);
+    }
+
     public function test_catalog_maps_toman_price_to_euro_cents(): void
     {
         $this->fakeArvan();
@@ -93,7 +132,7 @@ class CloudArvanTest extends TestCase
 
         $plan = $cat['plans'][0];
 
-        // ۹۰۰٬۰۰۰ تومان ÷ ۹۰۰٬۰۰۰ (تومانِ هر یورو) = ۱ یورو = ۱۰۰ سنت
+        // ۹٬۰۰۰٬۰۰۰ ریال ÷ ۱۰ = ۹۰۰٬۰۰۰ تومان ÷ ۹۰۰٬۰۰۰ (تومانِ هر یورو) = ۱ یورو = ۱۰۰ سنت
         $this->assertSame(100, $plan['cost_eur_cents']);
         $this->assertSame(2, $plan['vcpu']);
         $this->assertSame(4096, $plan['ram_mb']);
@@ -102,6 +141,22 @@ class CloudArvanTest extends TestCase
 
         // مکان: کدِ ما «ir-tehran»، نه شناسهٔ آروان
         $this->assertSame('ir-tehran', $plan['location_code']);
+    }
+
+    /** آروان country را نامِ کامل («IRAN») می‌دهد؛ باید به ISO-2 «IR» نرمال شود
+     *  وگرنه ستونِ ۲کاراکتریِ cloud_locations.country سرریز می‌کند. */
+    public function test_full_country_name_is_normalized_to_iso2(): void
+    {
+        $this->fakeArvan(['regions' => [[
+            'code' => 'iran-bamdad', 'country' => 'IRAN', 'dc' => 'Bamdad',
+            'city_code' => 'bamdad', 'create' => true, 'visible' => true,
+        ]]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
+        $this->assertSame('IR', $cat['locations'][0]['country']);
+        $this->assertSame(2, strlen($cat['locations'][0]['country']));
     }
 
     public function test_dedicated_cpu_share_is_detected(): void
@@ -130,6 +185,21 @@ class CloudArvanTest extends TestCase
         $this->assertSame('img-ubuntu-2204', $img['provider_ref']);
     }
 
+    /** پلنی که فقط قیمتِ ساعتی دارد (ابرکِ اقتصادی) باید از ساعتی ماهانه بسازد و بیاید */
+    public function test_hourly_only_plan_is_included(): void
+    {
+        $this->fakeArvan(['sizes' => [[
+            'id' => 'abrak-h1', 'name' => 'H1', 'cpu_count' => 1, 'memory' => 1024, 'disk' => 25,
+            'price_per_month' => 0, 'price_per_hour' => '2500', 'cpu_share' => 'general',
+        ]]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $this->assertCount(1, $cat['plans'], 'پلنِ فقط‌ساعتی باید بیاید');
+        // ۲۵۰۰ ریال/ساعت × ۷۲۰ = ۱٬۸۰۰٬۰۰۰ ریال ÷ ۱۰ = ۱۸۰٬۰۰۰ تومان ÷ ۹۰۰٬۰۰۰ × ۱۰۰ = ۲۰ سنت
+        $this->assertSame(20, $cat['plans'][0]['cost_eur_cents']);
+    }
+
     /** مشخصاتِ ناقص رد شود، نه ذخیره با صفر */
     public function test_incomplete_size_is_skipped(): void
     {
@@ -142,17 +212,31 @@ class CloudArvanTest extends TestCase
         $this->assertSame([], $cat['plans']);
     }
 
-    /** پلنِ تخفیف‌دارِ موقت (off) مثلِ PROMO کنار برود */
-    public function test_promo_size_with_off_is_skipped_by_default(): void
+    /** تیرِ اقتصادیِ «ابرک» با off_percent — پیش‌فرض باید **بیاید** (کارفرما همه را می‌فروشد) */
+    public function test_promo_size_is_included_by_default(): void
     {
         $this->fakeArvan(['sizes' => [[
-            'id' => 'promo-1', 'name' => 'PROMO', 'cpu_count' => 2, 'memory' => 4096, 'disk' => 20,
-            'price_per_month' => 450000.0, 'off' => 'true', 'off_percent' => '50',
+            'id' => 'abrak-eco-1', 'name' => 'ECO', 'cpu_count' => 1, 'memory' => 1024, 'disk' => 25,
+            'price_per_month' => 4500000.0, 'off' => 'true', 'off_percent' => '50',
         ]]]);
 
         $cat = app(ArvanClient::class)->fetchCatalog();
 
-        $this->assertSame([], $cat['plans'], 'پلنِ تخفیف‌دارِ موقت نباید بیاید');
+        $this->assertCount(1, $cat['plans'], 'پلنِ اقتصادیِ تخفیف‌دار باید بیاید');
+    }
+
+    /** فقط اگر مدیر صریحاً arvan_exclude_promo بگذارد، تخفیف‌دارها کنار می‌روند */
+    public function test_promo_size_excluded_only_when_flag_set(): void
+    {
+        Setting::put('arvan_exclude_promo', '1');
+        $this->fakeArvan(['sizes' => [[
+            'id' => 'abrak-eco-1', 'name' => 'ECO', 'cpu_count' => 1, 'memory' => 1024, 'disk' => 25,
+            'price_per_month' => 4500000.0, 'off' => 'true', 'off_percent' => '50',
+        ]]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $this->assertSame([], $cat['plans'], 'با فلگِ exclude، تخفیف‌دار نباید بیاید');
     }
 
     /** منطقهٔ «به‌زودی» (create=false) نباید بیاید */
@@ -171,6 +255,36 @@ class CloudArvanTest extends TestCase
     }
 
     // ═══════════════ ساخت و مدیریت ═══════════════
+
+    /** کدنامِ دیتاسنترها به نامِ شهر نگاشت شود (بامداد→شیراز) */
+    public function test_datacenter_codename_maps_to_city(): void
+    {
+        $this->fakeArvan(['regions' => [[
+            'code' => 'ir-bamdad-c1', 'country' => 'IR', 'dc' => 'Bamdad',
+            'city_code' => 'bamdad', 'create' => true, 'visible' => true,
+        ]]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $this->assertSame('Shiraz', $cat['locations'][0]['city']);
+        $this->assertSame('ir-shiraz', $cat['locations'][0]['code']);
+    }
+
+    /** دیتاسنترِ آلمانِ آروان («گوته») هرگز نباید سینک شود */
+    public function test_goethe_germany_region_is_excluded(): void
+    {
+        $this->fakeArvan(['regions' => [
+            ['code' => 'ir-simin-c1', 'country' => 'IR', 'dc' => 'Simin', 'create' => true, 'visible' => true],
+            ['code' => 'de-goethe-c1', 'country' => 'DE', 'dc' => 'Goethe', 'create' => true, 'visible' => true],
+        ]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $cities = array_column($cat['locations'], 'city');
+        $this->assertContains('Tehran', $cities);          // سیمین → تهران
+        $this->assertNotContains('Goethe', $cities);
+        $this->assertCount(1, $cat['locations'], 'فقط ایران باید بماند');
+    }
 
     public function test_create_server_encodes_region_in_ref(): void
     {

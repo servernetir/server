@@ -247,7 +247,8 @@ class CloudPublicPageTest extends TestCase
 
         // گروه‌بندیِ قاره‌ای
         $this->assertStringContainsString('اروپا', $main);
-        $this->assertStringContainsString('خاورمیانه و قفقاز', $main);
+        $this->assertStringContainsString('خاورمیانه', $main);
+        $this->assertStringNotContainsString('قفقاز', $main);
         $this->assertStringContainsString('آمریکای شمالی', $main);
 
         // قیمتِ تومانی با رقمِ فارسی — ارزان‌ترینِ دو زیرساختِ فالکن‌اشتاین

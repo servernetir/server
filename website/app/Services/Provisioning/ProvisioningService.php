@@ -93,6 +93,9 @@ class ProvisioningService
         try {
             $result = $this->driverFor($server)->create($service);
         } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, [
+                'service' => $service->id, 'server' => $server->id,
+            ]);
             $this->markFailed($service, 'خطای غیرمنتظره: '.mb_substr($e->getMessage(), 0, 160));
 
             return false;
@@ -252,20 +255,24 @@ class ProvisioningService
         return $r;
     }
 
-    public function terminate(Service $service): ProvisionResult
+    /**
+     * فقط **آزادسازیِ منبع** نزدِ سرور/زیرساخت — بی‌آنکه وضعیتِ سرویس را بنویسد.
+     *
+     * چرا از `terminate()` جدا شد: دو فراخوان با دو وضعیتِ نهاییِ متفاوت داریم.
+     * مدیر که سرویس را می‌بندد نتیجه‌اش `cancelled` است؛ مشتری که خودش با کدِ
+     * یک‌بارمصرف حذف می‌کند نتیجه‌اش `terminated` است و در پنلش برچسبِ «حذف شده»
+     * می‌گیرد. اگر مسیرِ مشتری همان `terminate()` را صدا بزند، وضعیت `cancelled`
+     * می‌شود و برچسب عوض می‌شود. پس نیمهٔ «کارِ واقعی» را جدا می‌کنیم تا هر
+     * فراخوان وضعیتِ خودش را بنویسد.
+     */
+    public function releaseServer(Service $service): ProvisionResult
     {
         // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
         // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
         if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service);
-
-            if ($ok) {
-                $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
-
-                return ProvisionResult::success(null, null, null);
-            }
-
-            return ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
+            return app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service)
+                ? ProvisionResult::success(null, null, null)
+                : ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
         }
 
         $r = $service->server
@@ -286,11 +293,20 @@ class ProvisioningService
                     ->decrement('active_accounts');
             }
 
-            $service->update([
-                'status'           => 'cancelled',
-                'cancelled_at'     => now(),
-                'provision_status' => 'none',      // دوباره شمرده نشود
-            ]);
+            // دوباره شمرده نشود — این‌جا نوشته می‌شود نه در فراخوان، چون
+            // جفتش با decrement است و جداکردنشان یعنی تلاشِ دوم دوباره کم می‌کند.
+            $service->update(['provision_status' => 'none']);
+        }
+
+        return $r;
+    }
+
+    public function terminate(Service $service): ProvisionResult
+    {
+        $r = $this->releaseServer($service);
+
+        if ($r->ok || $r->manual) {
+            $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
         }
 
         return $r;
@@ -365,7 +381,12 @@ class ProvisioningService
     private function notify(Service $service, string $text): void
     {
         try {
-            app(\App\Services\Notify\CustomerNotifier::class)->event($service->customer, 'service_ready', [], $text);
+            // متغیرها لازم‌اند وگرنه الگوی /admin/templates بی‌اثر می‌مانَد
+            app(\App\Services\Notify\CustomerNotifier::class)->event(
+                $service->customer, 'service_ready',
+                ['service' => $service->name, 'ip' => (string) ($service->server?->hostname ?? '—')],
+                $text
+            );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
         }

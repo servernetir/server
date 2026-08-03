@@ -130,6 +130,40 @@
           <input type="password" name="arvan_api_token" dir="ltr" autocomplete="new-password" maxlength="400"
                  placeholder="{{ $cloud['arvan'] ? '••••••••••  خالی = بدونِ تغییر' : 'کلید را با پیشوندِ Apikey بچسبانید' }}">
         </label>
+        {{-- زیرساختِ ۴ سه کلید دارد، نه یکی: OVH هر درخواست را جداگانه امضا
+             می‌کند و بدونِ هر سه، امضا ساخته نمی‌شود و همه‌چیز ۴۰۳ می‌گیرد.
+             برای همین یک کادرِ جدا با توضیحِ صریح دارد. --}}
+        <div style="grid-column:1/-1;border:1px solid var(--line2);border-radius:11px;padding:14px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+            <b style="font-size:13.5px">زیرساختِ ۴ — OVHcloud</b>
+            @if($cloud['ovh'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">هر سه کلید ذخیره‌شده</span>@endif
+          </div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.9;margin-bottom:10px">
+            این زیرساخت سه کلید می‌خواهد. هر سه را از
+            <span dir="ltr">eu.api.ovh.com/createToken</span> بسازید و دسترسی‌های
+            <span dir="ltr">GET/POST /vps*</span> و <span dir="ltr">GET /me</span> را بدهید.
+            <br>⚠️ <b>خرید خودکار هنوز فعال نیست</b> — سفارش در OVH از سبد خرید چندمرحله‌ای می‌گذرد
+            و تا وقتی روی حساب واقعی آزمایش نشده، سفارش‌ها به صف تحویل دستی می‌روند.
+            مدیریت سرورهای موجود (روشن/خاموش/نصب دوباره) کامل کار می‌کند.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <label class="set-f">Application Key
+              <input type="password" name="ovh_app_key" dir="ltr" autocomplete="new-password" maxlength="200"
+                     placeholder="{{ $cloud['ovh'] ? '••••••••  خالی = بدونِ تغییر' : 'AK' }}"></label>
+            <label class="set-f">Application Secret
+              <input type="password" name="ovh_app_secret" dir="ltr" autocomplete="new-password" maxlength="200"
+                     placeholder="{{ $cloud['ovh'] ? '••••••••  خالی = بدونِ تغییر' : 'AS' }}"></label>
+            <label class="set-f">Consumer Key
+              <input type="password" name="ovh_consumer_key" dir="ltr" autocomplete="new-password" maxlength="200"
+                     placeholder="{{ $cloud['ovh'] ? '••••••••  خالی = بدونِ تغییر' : 'CK' }}"></label>
+          </div>
+          @if($cloud['ovh'])
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" name="ovh_forget" value="1">
+              <span>هر سه کلید را فراموش کن</span>
+            </label>
+          @endif
+        </div>
         <label class="set-f">حاشیهٔ سودِ سرورِ ابری (٪)
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>

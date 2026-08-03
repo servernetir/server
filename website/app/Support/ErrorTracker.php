@@ -23,9 +23,64 @@ class ErrorTracker
 {
     private const MAX_LINES = 400;
 
-    private static function path(): string
+    /**
+     * 🔴 ۴۰۴ها فایلِ **جدا** دارند.
+     *
+     * قبلاً هر دو در یک فایل با سقفِ ۴۰۰ خط بودند. ۴۰۴ در هر سایتی ده‌ها برابرِ
+     * ۵۰۰ است (خزنده، لینکِ قدیمی، اسکنرِ خودکار)، پس سیلِ ۴۰۴ خطاهای ۵۰۰ را از
+     * پنجره بیرون می‌انداخت — دقیقاً همان چیزهایی که این ابزار برایشان ساخته
+     * شده. روی همین نصب نسبت ۴۶۱ به ۲ بود.
+     */
+    private static function path(string $type = 'error'): string
     {
-        return storage_path('logs/tracker.jsonl');
+        return storage_path($type === 'notfound' ? 'logs/tracker-404.jsonl' : 'logs/tracker.jsonl');
+    }
+
+    /**
+     * ثبتِ خرابیِ **گرفته‌شده** — خطایی که عمداً `catch` شده و جریان را نشکسته.
+     *
+     * 🔴 چرا لازم بود: `exception()` فقط چیزی را می‌بیند که تا بالای پشته
+     * می‌رسد. ولی قاعدهٔ این پروژه — که در کامنتِ تک‌تکِ `catch`ها نوشته شده —
+     * این است که مسیرهای پول و تحویل بگیرند و ادامه دهند، تا یک درگاهِ پیامکِ
+     * خراب پرداختِ واقعی را برنگرداند. آن قاعده درست است، ولی نتیجه‌اش این بود
+     * که ردیاب ساختاراً **نابینا** بود نسبت به همان کلاسی از باگ که بارها این
+     * پروژه را زده: «تحویل شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
+     *
+     * ⚠️ این را **داخلِ** همان `catch` صدا بزن، نه به‌جایش. رفتارِ بگیر-و-ادامه‌بده
+     * باید دست‌نخورده بماند؛ این فقط چشمِ ما را باز می‌کند.
+     *
+     * @param  string  $area  حوزه: `payment` / `provision` / `notify` / …
+     * @param  array<string,scalar|null>  $ctx  شناسه‌هایی که برای پیگیری لازم است
+     */
+    public static function note(string $area, Throwable|string $what, array $ctx = []): void
+    {
+        $isThrowable = $what instanceof Throwable;
+
+        // 🔴 سقفِ سختِ ctx. بی‌این، یک فراخوان با بدنهٔ خامِ درگاه (چند
+        // مگابایت) یک خطِ غول در فایل می‌نویسد؛ بعد `trim()` که با `file()`
+        // کلِ فایل را به حافظه می‌آورد، **fatal** می‌دهد — و fatal را
+        // `catch (Throwable)` نمی‌گیرد. چون این متد از داخلِ catchِ مسیرِ
+        // پول صدا زده می‌شود، یعنی وب‌هوکِ پرداخت وسطِ کار می‌مُرد.
+        $ctx = array_slice($ctx, 0, 12, true);
+
+        foreach ($ctx as $k => $v) {
+            $ctx[$k] = is_scalar($v) || $v === null
+                ? (is_string($v) ? mb_substr($v, 0, 200) : $v)
+                : mb_substr(json_encode($v, JSON_UNESCAPED_UNICODE) ?: '', 0, 200);
+        }
+
+        self::write([
+            'type'    => 'incident',
+            'status'  => 0,
+            'area'    => $area,
+            'class'   => $isThrowable ? $what::class : null,
+            'message' => mb_substr($isThrowable ? $what->getMessage() : $what, 0, 500),
+            'file'    => $isThrowable
+                ? str_replace(base_path().DIRECTORY_SEPARATOR, '', $what->getFile()).':'.$what->getLine()
+                : null,
+            'frame'   => $isThrowable ? self::firstAppFrame($what) : null,
+            'ctx'     => $ctx === [] ? null : $ctx,
+        ], request());
     }
 
     /** ثبت یک استثنا (۵۰۰) با جزئیات کامل */
@@ -61,21 +116,42 @@ class ErrorTracker
         ], $request);
     }
 
-    /** آخرین N خطا، تازه‌ترین اول */
-    public static function recent(int $limit = 100): array
+    /**
+     * آخرین N ردیف، تازه‌ترین اول.
+     *
+     * `$type` می‌گوید کدام فایل: `error` (شاملِ `incident`) یا `notfound`.
+     */
+    public static function recent(int $limit = 100, string $type = 'error'): array
     {
-        if (! is_file(self::path())) {
+        if (! is_file(self::path($type))) {
             return [];
         }
 
-        $lines = @file(self::path(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
-        $lines = array_slice($lines, -$limit);
+        $lines = @file(self::path($type), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+
+        // 🔴 اول **نوع** را فیلتر کن، بعد ببُر.
+        //
+        // فایلِ قدیمی هر دو نوع را با هم داشت و روی نصبِ زنده نسبتش ۴۶۱
+        // به ۲ بود. اگر اول ببُریم، همان ردیف‌های کهنهٔ ۴۰۴ کلِ پنجره را
+        // پر می‌کنند و خطاهای واقعی — که تازه‌ترند ولی کمترند — دیده
+        // نمی‌شوند؛ یعنی دقیقاً همان کوریِ که این تغییر برای رفعش بود،
+        // بعد از دپلوی هم ادامه پیدا می‌کرد چون ردیف‌های کهنه با سقفِ
+        // ۴۰۰ خطی عملاً هرگز کهنه نمی‌شوند.
+        $want = $type === 'notfound' ? ['notfound'] : ['error', 'incident'];
 
         $out = [];
+
         foreach (array_reverse($lines) as $line) {
             $row = json_decode($line, true);
-            if (is_array($row)) {
-                $out[] = $row;
+
+            if (! is_array($row) || ! in_array(($row['type'] ?? ''), $want, true)) {
+                continue;
+            }
+
+            $out[] = $row;
+
+            if (count($out) >= $limit) {
+                break;
             }
         }
 
@@ -84,7 +160,8 @@ class ErrorTracker
 
     public static function clear(): void
     {
-        @file_put_contents(self::path(), '');
+        @file_put_contents(self::path('error'), '');
+        @file_put_contents(self::path('notfound'), '');
     }
 
     // ─────────────────────────────── درونی ───────────────────────────────
@@ -102,21 +179,20 @@ class ErrorTracker
 
             $line = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES).PHP_EOL;
 
-            $file = self::path();
+            $file = self::path((string) ($row['type'] ?? 'error'));
             @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
 
             // برش گاه‌به‌گاه تا فایل کنترل‌شده بماند (نه هر بار، برای سرعت)
             if (random_int(1, 25) === 1) {
-                self::trim();
+                self::trim($file);
             }
         } catch (Throwable) {
             // ردیاب خطا نباید خودش منبع خطا شود
         }
     }
 
-    private static function trim(): void
+    private static function trim(string $file): void
     {
-        $file = self::path();
         $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
 
         if (count($lines) > self::MAX_LINES) {

@@ -151,7 +151,7 @@
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
         <form method="post" action="{{ route('account.cloud.power', $service) }}"
-              onsubmit="return confirm('{{ __('ui.cs_confirm_off') }}')">
+              data-confirm="{{ __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
         </form>
@@ -165,7 +165,7 @@
 
       @if($caps['reset_password'] ?? false)
         <form method="post" action="{{ route('account.cloud.password', $service) }}"
-              onsubmit="return confirm('{{ __('ui.cs_confirm_pw') }}')">
+              data-confirm="{{ __('ui.cs_confirm_pw') }}">
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.cs_new_pw') }}</button>
         </form>
       @endif

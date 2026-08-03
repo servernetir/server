@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
@@ -585,6 +586,14 @@ class CloudStoreTest extends TestCase
     {
         $this->catalog();
 
+        // ⚠️ بدونِ این، تست به **اینترنت** وابسته است: `cloud_price()` برای
+        // en/tr نرخِ یورو می‌خواهد و `ExchangeRate` آن را زنده از alanchand.com
+        // می‌گیرد (timeout 12 × retry 2 ≈ ۴۴ ثانیه). اگر سایت جواب ندهد نرخ صفر
+        // می‌شود و `cloud_price()` عمداً «€» نمی‌گذارد — یعنی تستِ ارز، بی‌آنکه
+        // چیزی در کد عوض شده باشد، قرمز می‌شد. نرخِ ثابت هم تست را قطعی می‌کند
+        // هم ۴۴ ثانیه از هر اجرا کم می‌کند.
+        Setting::put('pricing_rate_override', '120000');
+
         // ⚠️ money() جاوااسکریپت هر دو واحدِ «€» و « تومان» را به‌عنوانِ literal در
         // سورس دارد (در ران‌تایم شاخه می‌زند)، پس سنجشِ ارز روی HTMLِ خام گمراه
         // است. اسکریپت‌ها را کنار می‌گذاریم و روی متنِ **دیداریِ** رندرشده
@@ -615,5 +624,77 @@ class CloudStoreTest extends TestCase
         $this->assertStringNotContainsString('تومان', $tr, 'نسخهٔ ترکی نباید تومان داشته باشد');
         $this->assertStringContainsString('Sipariş özeti', $tr);
         $this->assertStringNotContainsString('سرور مجازی بساز', $tr, 'نشتِ فارسی در ترکی');
+    }
+
+    // ═══════════════════ فروشِ ساعتی ═══════════════════
+
+    private function topup(Customer $c, int $irt): void
+    {
+        \App\Models\CreditEntry::create([
+            'customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => $irt,
+            'balance_after' => $irt, 'reason' => 'topup', 'source_type' => Customer::class,
+            'source_id' => $c->id, 'note' => 'test',
+        ]);
+    }
+
+    /** ساعتی بدونِ اعتبارِ ۲۴ ساعت → رد */
+    public function test_hourly_order_requires_24h_credit(): void
+    {
+        $this->catalog();
+        $customer = $this->customer();
+        $this->topup($customer, 5000);   // نرخِ ساعتی ۸۰۰ → حداقلِ شروع ۱۹۲۰۰
+
+        $this->order($customer, ['billing_mode' => 'hourly'])->assertSessionHasErrors('billing_mode');
+
+        $this->assertDatabaseMissing('services', ['customer_id' => $customer->id, 'billing_mode' => 'hourly']);
+        $this->assertSame(5000, $customer->creditBalance('IRT'), 'نباید کسر شود');
+    }
+
+    /** بلوکِ «پرداختِ ساعتی» با نرخ و گزینه‌ها روی صفحه رندر شود (نه کلیدِ خام) */
+    public function test_hourly_toggle_renders_on_store_page(): void
+    {
+        $this->catalog();
+        $customer = $this->customer();
+        $this->topup($customer, 50_000);
+
+        $html = $this->actingAs($customer, 'customer')->get($this->u())->assertOk()->getContent();
+
+        $this->assertStringContainsString('name="billing_mode"', $html, 'چک‌باکسِ ساعتی باید باشد');
+        $this->assertStringContainsString('name="on_credit_out"', $html, 'انتخابِ رفتارِ پایانِ اعتبار باید باشد');
+        $this->assertStringContainsString('پرداختِ ساعتی', $html);
+        $this->assertStringContainsString('۸۰۰ تومان', $html, 'نرخِ ساعتی باید نمایش داده شود');
+        $this->assertStringNotContainsString('ui.cvb_hourly', $html, 'کلیدِ خامِ ترجمه نباید چاپ شود');
+    }
+
+    /** هشدارِ «اعتبار کافی نیست» وقتی موجودی کم است */
+    public function test_low_credit_warning_shows_when_balance_under_24h(): void
+    {
+        $this->catalog();
+        $customer = $this->customer();   // بی‌شارژ
+
+        $html = $this->actingAs($customer, 'customer')->get($this->u())->assertOk()->getContent();
+
+        $this->assertStringContainsString('cvb-h-low', $html);
+        // بی‌اعتبار: هشدار نباید hidden باشد
+        $this->assertMatchesRegularExpression('/id="cvb-h-low"(?![^>]*hidden)/', $html, 'هشدار باید دیده شود');
+    }
+
+    /** ساعتی با اعتبارِ کافی → ساعتِ اول کسر، سرویسِ ساعتیِ در صفِ تحویل ساخته شود */
+    public function test_hourly_order_deducts_first_hour_and_queues_provision(): void
+    {
+        $this->catalog();
+        $customer = $this->customer();
+        $this->topup($customer, 50_000);
+
+        $this->order($customer, ['billing_mode' => 'hourly'])->assertRedirect();
+
+        $service = \App\Models\Service::where('customer_id', $customer->id)->first();
+        $this->assertNotNull($service);
+        $this->assertSame('hourly', $service->billing_mode);
+        $this->assertSame(800, (int) $service->hourly_rate_irt);          // ۵۷۰۰۰۰÷۷۲۰ گردِ بالا به ۱۰۰
+        $this->assertSame('awaiting_provision', $service->status);         // پرداخت‌شده از اعتبار
+        $this->assertSame('pending', $service->provision_status);          // صفِ تحویل می‌سازدش
+        $this->assertNotNull($service->last_metered_at);
+        $this->assertSame(49_200, $customer->creditBalance('IRT'));        // ۵۰۰۰۰ − ۸۰۰
     }
 }

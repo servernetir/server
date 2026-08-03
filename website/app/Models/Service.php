@@ -23,6 +23,8 @@ class Service extends Model
         'cloud_plan_id', 'cloud_image_key', 'cloud_ssh_key_id', 'cloud_addons',
         // چرخهٔ تمدید (یادآوری/تعلیق/مهلت)
         'reminder_stage', 'suspended_at', 'grace_alert_at',
+        // فروشِ ساعتیِ سرورِ ابری (پیش‌پرداخت از کیفِ پول)
+        'billing_mode', 'hourly_rate_irt', 'hourly_rate_eur', 'last_metered_at', 'on_credit_out',
     ];
 
     protected function casts(): array
@@ -40,7 +42,33 @@ class Service extends Model
             'reminder_stage' => 'integer',
             'suspended_at'   => 'datetime',
             'grace_alert_at' => 'datetime',
+            'hourly_rate_irt' => 'integer',
+            'hourly_rate_eur' => 'integer',
+            'last_metered_at' => 'datetime',
         ];
+    }
+
+    // ───────────────────────── فروشِ ساعتی ─────────────────────────
+
+    /** آیا این سرویس ساعتی است (متر-محور، نه فاکتور-محور)؟ */
+    public function isHourly(): bool
+    {
+        return $this->billing_mode === 'hourly';
+    }
+
+    /**
+     * ساعتِ باقی‌مانده بر اساس اعتبارِ فعلیِ مشتری (کفِ عدد).
+     * برای نمایشِ «~۴۸ ساعت مانده» در پنل.
+     */
+    public function hoursLeft(): int
+    {
+        $rate = (int) $this->hourly_rate_irt;
+
+        if (! $this->isHourly() || $rate <= 0 || $this->customer === null) {
+            return 0;
+        }
+
+        return intdiv(max(0, $this->customer->creditBalance('IRT')), $rate);
     }
 
     /**
@@ -179,6 +207,26 @@ class Service extends Model
     }
 
     /** @return array{0:string,1:string} برچسب و رنگ */
+    /**
+     * وضعیت‌هایی که یعنی «این سرویس مرده است؛ زنده‌اش نکن».
+     *
+     * 🔴 چرا ثابت و نه رشتهٔ `'cancelled'`ِ پراکنده: دو وضعیتِ پایانی داریم —
+     * `cancelled` (مدیر بست) و `terminated` (مشتری خودش با کدِ یک‌بارمصرف حذف
+     * کرد). هر جای کد که فقط `cancelled` را می‌سنجید، `terminated` بی‌صدا از
+     * کنارش رد می‌شد. بدترین نمونه‌اش `PaymentService::applyPaid` بود: فاکتورِ
+     * تمدیدِ بازِ یک سرویسِ حذف‌شده هنوز قابلِ پرداخت است، و پرداختش سرویسی را
+     * «دوباره فعال» می‌کرد که سرورش واقعاً نزدِ زیرساخت پاک شده بود — مشتری پول
+     * می‌داد و چیزی تحویل نمی‌گرفت.
+     *
+     * @var array<int,string>
+     */
+    public const DEAD_STATUSES = ['cancelled', 'terminated'];
+
+    public function isDead(): bool
+    {
+        return in_array((string) $this->status, self::DEAD_STATUSES, true);
+    }
+
     public function statusBadge(): array
     {
         return match ($this->status) {
@@ -188,6 +236,7 @@ class Service extends Model
             'provision_failed'   => ['خطا در تحویل', '#ff6b6b'],
             'suspended'          => ['معلق', '#ff6b6b'],
             'cancelled'          => ['لغو شده', '#5f6c82'],
+            'terminated'         => ['حذف شده', '#5f6c82'],
             'expired'            => ['منقضی', '#96a3ba'],
             default              => [$this->status, '#96a3ba'],
         };

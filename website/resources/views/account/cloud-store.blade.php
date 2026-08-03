@@ -223,6 +223,49 @@
             </label>
           @endforeach
         </div>
+
+        {{-- ═══ پرداختِ ساعتی ═══
+             چک‌باکسِ ساده (نه رادیو) تا **بی‌جاوااسکریپت هم** کار کند: تیک‌خورده
+             یعنی billing_mode=hourly، تیک‌نخورده یعنی هیچ‌چیز ارسال نمی‌شود و
+             سرور همان چرخهٔ عادی را می‌گیرد. --}}
+        @php
+          $hRate = (int) ($hourlyMap[$curSlug]['rate'] ?? 0);
+          $hMin  = (int) ($hourlyMap[$curSlug]['min'] ?? 0);
+          $hOn   = old('billing_mode') === 'hourly';
+        @endphp
+        @if($hRate > 0)
+        <div class="cvb-hourly @if($hOn) on @endif" id="cvb-hourly-box">
+          <label class="cvb-hourly-head">
+            <input type="checkbox" name="billing_mode" value="hourly" id="cvb-hourly" @checked($hOn)>
+            <span class="cvb-hourly-t">
+              <b>{{ __('ui.cvb_hourly_t') }}</b>
+              <small>{{ __('ui.cvb_hourly_d') }}</small>
+            </span>
+            <span class="cvb-hourly-p"><span id="cvb-h-rate">{{ cloud_price($hRate) }}</span>{{ __('ui.cvb_hourly_per') }}</span>
+          </label>
+
+          <div class="cvb-hourly-body" id="cvb-hourly-body" @if(! $hOn) hidden @endif>
+            <p class="cvb-note" style="margin-top:2px">
+              <svg class="icon"><use href="#i-info"/></svg>
+              {{ __('ui.cvb_hourly_min_pre') }}<b id="cvb-h-min">{{ cloud_price($hMin) }}</b>{{ __('ui.cvb_hourly_min_suf') }}
+              — {{ __('ui.cvb_hourly_credit') }}<b>{{ cloud_price($creditIrt) }}</b>
+            </p>
+            <p class="cvb-warn" id="cvb-h-low" @if($creditIrt >= $hMin) hidden @endif>{{ __('ui.cvb_hourly_low') }}</p>
+            <label class="cvb-field" style="margin-top:8px">
+              <span>{{ __('ui.cvb_hourly_end') }}</span>
+              <select name="on_credit_out">
+                <option value="suspend" @selected(old('on_credit_out', 'suspend') === 'suspend')>{{ __('ui.cvb_hourly_end_suspend') }}</option>
+                <option value="convert" @selected(old('on_credit_out') === 'convert')>{{ __('ui.cvb_hourly_end_convert') }}</option>
+                <option value="terminate" @selected(old('on_credit_out') === 'terminate')>{{ __('ui.cvb_hourly_end_terminate') }}</option>
+              </select>
+            </label>
+            <p class="cvb-note">
+              <svg class="icon"><use href="#i-clock"/></svg>
+              {{ __('ui.cvb_hourly_note') }}
+            </p>
+          </div>
+        </div>
+        @endif
       </div>
     </section>
 
@@ -425,6 +468,17 @@
 .cvb-total span{ color:var(--text); font-weight:600; }
 .cvb-total b{ font-size:16px; color:var(--info); }
 .cvb-go{ justify-content:center; width:100%; margin-top:12px; }
+
+/* پرداختِ ساعتی */
+.cvb-hourly{ margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--bg2); }
+.cvb-hourly.on{ border-color:var(--info); background:var(--info-bg); }
+.cvb-hourly-head{ display:flex; align-items:center; gap:10px; cursor:pointer; }
+.cvb-hourly-head input{ width:16px; height:16px; margin:0; flex:none; accent-color:var(--info); }
+.cvb-hourly-t{ display:flex; flex-direction:column; gap:1px; flex:1; min-width:0; }
+.cvb-hourly-t b{ font-size:13.5px; color:var(--text); }
+.cvb-hourly-t small{ font-size:11.5px; color:var(--muted); }
+.cvb-hourly-p{ font-size:13px; font-weight:700; color:var(--info); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cvb-hourly-body{ margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
 </style>
 
 @php
@@ -439,6 +493,11 @@
     'rate' => cloud_eur_rate(),
     'perB' => __('ui.cvb_per_before'),
     'perA' => __('ui.cvb_per_after'),
+    // فروشِ ساعتی
+    'hourly' => $hourlyMap ?? [],
+    'credit' => $creditIrt ?? 0,
+    'hPer'   => __('ui.cvb_hourly_per'),
+    'hLbl'   => __('ui.cvb_hourly_t'),
   ];
 @endphp
 <script>
@@ -522,8 +581,30 @@
     });
 
     set('cvb-s-plan', D.plans[slug] || '—');
-    set('cvb-s-cyc', D.cycles[cyc] || '—');
     set('cvb-s-img', D.imgLbl[val('image')] || '—');
+
+    // ── حالتِ ساعتی: خلاصه نرخِ ساعتی را نشان می‌دهد، نه مبلغِ دوره ──
+    var hBox = document.getElementById('cvb-hourly');
+    var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
+
+    if (hBox) {
+      set('cvb-h-rate', money(h.rate));
+      set('cvb-h-min', money(h.min));
+      var low = document.getElementById('cvb-h-low');
+      if (low) low.hidden = (D.credit >= h.min);
+    }
+
+    if (hBox && hBox.checked) {
+      set('cvb-s-cyc', D.hLbl);
+      set('cvb-s-price', money(h.rate) + D.hPer);
+      set('cvb-s-per', money(h.rate * 720));
+      set('cvb-s-first', money(h.rate));       // فقط ساعتِ اول پرداخت می‌شود
+      set('cvb-s-btn', money(h.rate));
+
+      return;
+    }
+
+    set('cvb-s-cyc', D.cycles[cyc] || '—');
 
     var row = bucket[cyc];
     if (!row) return;
@@ -544,6 +625,22 @@
   document.querySelectorAll('.cvb-cyc input').forEach(function(r){
     r.addEventListener('change', function(){ mark('.cvb-cyc', r.closest('.cvb-cyc')); render(); });
   });
+
+  // تیکِ «پرداختِ ساعتی» — کارت‌های دوره کم‌رنگ می‌شوند (ولی حذف نه، تا برگشت آسان باشد)
+  var hChk = document.getElementById('cvb-hourly');
+  if (hChk) {
+    var hSync = function(){
+      var box = document.getElementById('cvb-hourly-box');
+      var body = document.getElementById('cvb-hourly-body');
+      var cycles = document.querySelector('.cvb-cycles');
+      if (box) box.classList.toggle('on', hChk.checked);
+      if (body) body.hidden = !hChk.checked;
+      if (cycles) { cycles.style.opacity = hChk.checked ? '.45' : ''; }
+      render();
+    };
+    hChk.addEventListener('change', hSync);
+    hSync();
+  }
 
   document.querySelectorAll('.cvb-img input').forEach(function(r){
     r.addEventListener('change', function(){ mark('.cvb-img', r.closest('.cvb-img')); render(); });

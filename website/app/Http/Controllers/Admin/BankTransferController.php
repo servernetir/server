@@ -128,7 +128,8 @@ class BankTransferController extends Controller
                 app(CustomerNotifier::class)->event(
                     $receipt->customer,
                     'bank_rejected',
-                    [],
+                    // متغیر لازم است وگرنه الگوی /admin/templates بی‌اثر می‌مانَد
+                    ['reason' => $data['reject_reason'] ?? '' ? 'علت: '.$data['reject_reason'] : ''],
                     'رسید واریز شما تأیید نشد.'.($data['reject_reason'] ?? '' ? ' علت: '.$data['reject_reason'] : '').' برای پیگیری با پشتیبانی در تماس باشید.',
                 );
             } catch (\Throwable) {

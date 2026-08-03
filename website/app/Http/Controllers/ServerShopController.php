@@ -2,28 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PhysicalServer;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
  * فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ اختصاصیِ هر مدل با گالری.
  *
- * کاملاً config-driven از `config/servers.php`؛ افزودنِ مدلِ تازه فقط یک ردیفِ
- * config است. تحویلِ فیزیکی خودکار نیست، پس دکمهٔ صفحه به استعلام/تماس می‌رود.
+ * منبعِ داده: جدولِ `physical_servers` (مدیریت‌شونده از `/admin/server-shop`).
+ * اگر جدول نبود یا خالی بود، به `config/servers.php` برمی‌گردیم تا فروشگاه
+ * هیچ‌وقت خالی نشود (مثلاً پیش از اجرای مهاجرت روی سرور).
  */
 class ServerShopController extends Controller
 {
     public function index(): View
     {
+        $models = $this->catalog();
+
         return view('pages.servers-index', [
             'brands' => (array) config('servers.brands'),
-            'models' => (array) config('servers.models'),
+            'models' => $models,
         ]);
     }
 
     public function show(string $slug): View
     {
-        $models = (array) config('servers.models');
+        $models = $this->catalog();
 
         abort_unless(isset($models[$slug]), 404);
 
@@ -41,5 +46,22 @@ class ServerShopController extends Controller
             'brand'   => $brand,
             'related' => $related instanceof Collection ? $related : collect($related),
         ]);
+    }
+
+    /**
+     * کاتالوگِ سرورِ فیزیکی به‌صورتِ [slug => ساختارِ نمایشی].
+     * DB اولویت دارد؛ نبودِ جدول/خالی‌بودن ⇒ fallbackِ config.
+     */
+    private function catalog(): array
+    {
+        if (Schema::hasTable('physical_servers')) {
+            $rows = PhysicalServer::query()->active()->ordered()->get();
+
+            if ($rows->isNotEmpty()) {
+                return $rows->keyBy('slug')->map->toShopArray()->all();
+            }
+        }
+
+        return (array) config('servers.models');
     }
 }

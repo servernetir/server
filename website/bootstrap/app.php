@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // کنسول قبل از هر چیز — تا ریدایرکت میزبان زودتر از رندر انجام شود
         $middleware->prepend(\App\Http\Middleware\ConsoleHost::class);
 
+        // ...و دامنهٔ قدیمی حتی زودتر: میزبانِ servernet.ir نه کنسول است نه
+        // دامنهٔ اصلی، پس باید پیش از هر منطقِ میزبانِ دیگری تعیین تکلیف شود.
+        // (`prepend` آخرین صدازده اول اجرا می‌شود.)
+        $middleware->prepend(\App\Http\Middleware\LegacyDomain::class);
+
         // هدرهای امنیتی روی همه‌ی پاسخ‌ها
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 

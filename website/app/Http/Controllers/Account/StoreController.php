@@ -77,7 +77,7 @@ class StoreController extends Controller
 
                     // دو مشتری نباید یک زیردامنه بگیرند
                     $fqdn = $label.'.'.config('servernet.subdomain_zone', 'servernet.cloud');
-                    if (Service::where('domain', $fqdn)->whereNotIn('status', ['cancelled'])->exists()) {
+                    if (Service::where('domain', $fqdn)->whereNotIn('status', Service::DEAD_STATUSES)->exists()) {
                         $fail('این زیردامنه قبلاً گرفته شده است؛ نام دیگری انتخاب کنید.');
                     }
                 },

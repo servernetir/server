@@ -18,6 +18,57 @@ class ConsoleHostTest extends TestCase
         return $this->call($method, "http://{$host}{$uri}");
     }
 
+    // ── www به دامنهٔ اصلی ──
+
+    /**
+     * 🔴 هر دو میزبان همان صفحه را سرو می‌کردند و canonical از میزبانِ درخواست
+     * ساخته می‌شود، پس هر صفحه دو نسخهٔ ایندکس‌شدنیِ خودcanonical داشت.
+     */
+    public function test_www_redirects_to_the_apex(): void
+    {
+        $this->on('www.servernet.cloud', '/blog')
+            ->assertRedirect('https://servernet.cloud/blog');
+    }
+
+    public function test_www_keeps_the_query_string(): void
+    {
+        $this->on('www.servernet.cloud', '/blog?page=3')
+            ->assertRedirect('https://servernet.cloud/blog?page=3');
+    }
+
+    /** زبان‌ها هم باید حفظ شوند، نه اینکه همه به صفحهٔ اول بروند */
+    public function test_www_keeps_the_locale_prefix(): void
+    {
+        $this->on('www.servernet.cloud', '/en/blog')
+            ->assertRedirect('https://servernet.cloud/en/blog');
+    }
+
+    /** ⚠️ POST نباید ۳۰۱ شود: تغییرِ متد بدنه را دور می‌ریزد و فرم خالی می‌رسد */
+    public function test_post_to_www_is_not_redirected(): void
+    {
+        $res = $this->on('www.servernet.cloud', '/blog', 'POST');
+
+        $this->assertNotSame(301, $res->getStatusCode());
+    }
+
+    /**
+     * 🔴 HEAD هم باید ۳۰۱ شود.
+     *
+     * `Route::get()` در لاراول HEAD را هم می‌گیرد. بی‌این، لینک‌سنج‌ها و
+     * مانیتورهای آپ‌تایم و پروکسی‌ها `www` را منبعی زندهٔ ۲۰۰ ثبت می‌کردند
+     * درحالی‌که مرورگر ۳۰۱ می‌گرفت — یعنی همان دوگانگیِ سئویی برای خزنده‌ها
+     * دست‌نخورده می‌ماند.
+     */
+    public function test_head_to_www_is_redirected_like_get(): void
+    {
+        $this->on('www.servernet.cloud', '/blog', 'HEAD')
+            ->assertRedirect('https://servernet.cloud/blog');
+    }
+    /** دامنهٔ اصلی خودش نباید حلقهٔ ریدایرکت بسازد */
+    public function test_the_apex_itself_is_not_redirected(): void
+    {
+        $this->on('servernet.cloud', '/blog')->assertOk();
+    }
     // ── دامنهٔ اصلی: مسیر پنلی به کنسول می‌رود ──
 
     public function test_main_host_redirects_login_to_console(): void

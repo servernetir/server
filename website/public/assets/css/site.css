@@ -2390,7 +2390,9 @@ html[data-theme="light"] .imp-bar{border-bottom-color:rgba(0,0,0,.32);
 @media(max-width:900px){.hero h1{max-width:none}.hero-rotator{font-size:13px}}
 
 /* ═══════════════ فروشگاهِ سرورِ فیزیکی (servers.index + server-detail) ═══════════════ */
-.srv-hero{ padding:40px 0 6px; }
+/* 🔴 هدرِ سایت position:fixed و ~۱۱۲px است؛ صفحه باید padding-topِ کافی داشته
+   باشد وگرنه محتوا زیرِ هدر می‌رود (باگی که کارفرما دید). مثلِ .hero-sub. */
+.srv-hero{ padding:148px 0 6px; }
 .srv-hero h1{ font-size:32px; font-family:var(--font-disp); margin:6px 0 8px; }
 .srv-lead{ color:var(--muted); font-size:15px; max-width:640px; line-height:1.9; }
 .srv-wrap{ padding-bottom:60px; }
@@ -2434,7 +2436,7 @@ html[data-theme="light"] .imp-bar{border-bottom-color:rgba(0,0,0,.32);
 .srv-cta p{ color:var(--muted); font-size:13.5px; margin:0; max-width:520px; line-height:1.8; }
 
 /* — صفحهٔ جزئیات — */
-.sd-wrap{ padding:24px 0 60px; }
+.sd-wrap{ padding:132px 0 60px; }
 .sd-top{ display:grid; grid-template-columns:1.1fr 1fr; gap:34px; align-items:start; }
 .sd-gallery .sd-main{ position:relative; aspect-ratio:16/10; background:var(--bg2); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; cursor:zoom-in; }
 .sd-main img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -2473,4 +2475,214 @@ html[data-theme="light"] .imp-bar{border-bottom-color:rgba(0,0,0,.32);
 .sd-lb-close{ position:absolute; top:18px; inset-inline-end:18px; width:42px; height:42px; display:grid; place-items:center;
   background:var(--surface); border:1px solid var(--line-2); border-radius:11px; color:var(--text); cursor:pointer; }
 
-@media(max-width:820px){ .sd-top{ grid-template-columns:1fr; gap:22px; } .srv-hero h1{ font-size:26px; } .sd-name{ font-size:23px; } }
+/* جای‌گزینِ «بی‌عکس» — کاملاً CSS، بدونِ <img>: پس هیچ‌وقت تصویرِ شکسته/معلق
+   نداریم و صفحه همیشه درست لود می‌شود (باگی که کارفرما دید). وقتی عکسِ واقعی
+   در gallery باشد، به‌جایش <img> می‌آید. */
+.srv-ph{ display:grid; place-items:center; width:100%; height:100%;
+  background:linear-gradient(135deg, var(--surface), var(--bg2)); }
+.srv-ph svg{ width:44px; height:44px; color:var(--dim); opacity:.55; }
+.sd-main .srv-ph svg{ width:64px; height:64px; }
+@media(max-width:820px){
+  .sd-top{ grid-template-columns:1fr; gap:22px; } .srv-hero h1{ font-size:26px; } .sd-name{ font-size:23px; }
+  .srv-hero{ padding-top:120px; } .sd-wrap{ padding-top:104px; }
+}
+
+/* ── سرورِ فیزیکی: بدنهٔ بلند + تحلیلِ نقاط قوت/ضعف ── */
+.sd-about .sd-lead{ color:var(--text); font-size:16px; font-weight:600; line-height:1.9; margin:0 0 14px; }
+.sd-about p + p{ margin-top:12px; }
+.sd-analysis{ margin-top:34px; max-width:900px; }
+.sd-analysis h2{ font-size:20px; margin:0 0 16px; }
+.sd-sw{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.sd-sw-col{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px 20px; }
+.sd-sw-col h3{ display:flex; align-items:center; gap:8px; font-size:15px; margin:0 0 12px; }
+.sd-sw-col h3 .icon{ width:18px; height:18px; }
+.sd-sw-col.strong h3{ color:#34d399; }
+.sd-sw-col.weak h3{ color:#fbbf24; }
+.sd-sw-col ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px; }
+.sd-sw-col li{ position:relative; padding-inline-start:18px; color:var(--muted); font-size:14px; line-height:1.85; }
+.sd-sw-col li::before{ content:''; position:absolute; inset-inline-start:2px; top:9px; width:7px; height:7px; border-radius:50%; }
+.sd-sw-col.strong li::before{ background:#34d399; }
+.sd-sw-col.weak li::before{ background:#fbbf24; }
+@media(max-width:720px){ .sd-sw{ grid-template-columns:1fr; } }
+
+/* ── رفعِ باگِ لایت‌باکسِ همیشه‌باز ──
+   صفتِ hidden با display:grid لغو می‌شد (تساویِ specificity، قاعدهٔ author برنده)،
+   پس اورلیِ مشکی + عکسِ خالیِ شکسته روی هر صفحهٔ سرور می‌ماند و مانعِ دیدنِ صفحه
+   می‌شد. این قاعده صفتِ hidden را دوباره محترم می‌کند (باز شدن فقط با کلیک). */
+.sd-lightbox[hidden]{ display:none !important; }
+
+/* ── گروهِ تمام‌عرضِ مگامنو (موقعیت‌های مکانی) ──
+   کارفرما: «بر اساس موقعیت مکانی چون زیاد شده دو ردیف اش کنی».
+   گروه کلِ سه ستون را می‌گیرد و لینک‌هایش در چند ستون می‌ریزند، پس به‌جای یک
+   ستونِ بلند، دو-سه ردیفِ فشرده دیده می‌شود. */
+.mega-pane .mega-group.wide{ grid-column:1 / -1; border-top:1px solid var(--line); padding-top:12px; margin-top:4px; }
+.mega-pane .mega-group.wide h6{ margin-bottom:8px; }
+.mega-pane .mega-group.wide > a{ display:inline-block; width:calc(33.333% - 8px); margin-inline-end:8px; }
+@media (max-width:820px){ .mega-pane .mega-group.wide > a{ width:calc(50% - 8px); } }
+
+/* ── 🔴 رفعِ باگِ منوی نامرئی با «کاهشِ حرکت» ──
+   `megaFade` از opacity:0 شروع می‌شود و `animation-fill-mode` ندارد. کاربری که
+   در سیستم‌عاملش «Reduce motion» را روشن کرده (تنظیمِ رایجِ دسترس‌پذیری)، مرورگر
+   مدتِ انیمیشن را ~صفر می‌کند و پنل روی همان فریمِ اولِ نامرئی گیر می‌کند —
+   یعنی مگامنو **کاملاً خالی** دیده می‌شود. با اعلامِ صریحِ opacity:1 روی حالتِ
+   فعال، دیده‌شدن دیگر به اجرای انیمیشن وابسته نیست. */
+.mega-pane.active{ opacity:1; }
+@media (prefers-reduced-motion: reduce){
+  .mega-pane.active{ animation:none; opacity:1; }
+}
+
+/* ── 🔴 رفعِ پرپرزدنِ منو هنگام جابه‌جایی بینِ تب‌ها ──
+   علت: ارتفاعِ پنل با تبِ فعال عوض می‌شد. وقتی تبِ کوتاه («دامنه») فعال بود،
+   پنل جمع می‌شد و تبِ «سرور» دقیقاً روی **لبهٔ پایینِ** پنل می‌افتاد؛ با حرکت
+   به سمتش، نشانگر یک لحظه بیرونِ پنل می‌رفت → mouseleave → بسته شدن → دوباره
+   باز شدن = پرپر زدن. با ارتفاعِ پایه‌ای که همهٔ تب‌ها را جا می‌دهد، پنل دیگر
+   تغییرِ اندازه نمی‌دهد و لبه‌اش زیرِ نشانگر جابه‌جا نمی‌شود. */
+.mega-content{ min-height:430px; }
+
+/* فشرده‌تر کردنِ گروهِ تمام‌عرض: چهار ستون به‌جای سه → ردیف‌های کمتر، پنلِ کوتاه‌تر */
+.mega-pane .mega-group.wide > a{ width:calc(25% - 8px); }
+@media (max-width:1100px){ .mega-pane .mega-group.wide > a{ width:calc(33.333% - 8px); } }
+@media (max-width:820px){  .mega-pane .mega-group.wide > a{ width:calc(50% - 8px); } }
+
+/* ── مگامنو: چهار ستون به‌جای سه (پیشنهادِ کارفرما) ──
+   با ۴ ستون، هر چهار گروهِ کوچکِ تبِ «سرور» در **یک ردیف** جا می‌شوند و
+   «موقعیت مکانی» تمام‌عرض زیرشان می‌نشیند؛ پس پنل کوتاه‌تر و منظم‌تر می‌شود. */
+.mega-pane{ grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px 22px; }
+@media (max-width:1100px){ .mega-pane{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:820px){  .mega-pane{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* ── کاربردهای صنعتی (صفحهٔ راهکار) ───────────────────────────────────────
+   انتهای فایل، طبق قاعدهٔ append-only پروژه. کارت‌ها عمداً همان زبانِ بصریِ
+   .sol-feat را دارند تا صفحه یک‌دست بماند؛ فقط به‌جای متن، فهرست می‌گیرند. */
+.sol-uc-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px }
+.sol-uc{ background:var(--surface); border:1px solid var(--line-2); border-radius:20px;
+         padding:28px 26px; transition:border-color .25s, transform .25s }
+html[data-theme="light"] .sol-uc{ background:#fff }
+.sol-uc:hover{ border-color:var(--cyan); transform:translateY(-3px) }
+.sol-uc h3{ margin:0 0 14px; font-size:17px }
+.sol-uc-list{ list-style:none; margin:0; padding:0; display:grid; gap:9px }
+.sol-uc-list li{ display:flex; align-items:flex-start; gap:9px; font-size:13.5px;
+                 line-height:1.9; color:var(--muted) }
+.sol-uc-list .icon{ width:16px; height:16px; flex:0 0 16px; margin-top:5px; color:var(--cyan) }
+@media(max-width:860px){ .sol-uc-grid{ grid-template-columns:1fr 1fr } }
+@media(max-width:560px){ .sol-uc-grid{ grid-template-columns:1fr } }
+
+/* جدولِ مقایسهٔ سه‌ستونه — ستونِ «ما» همچنان برجسته می‌مانَد */
+.sol-compare table th, .sol-compare table td{ vertical-align:middle }
+@media(max-width:720px){ .sol-compare{ overflow-x:auto } .sol-compare table{ min-width:560px } }
+
+/* ══════════ جدولِ کاملِ پلن‌ها — صفحاتِ سرورِ مجازی و اختصاصی ══════════
+   چرا جدول و نه کارت: یک کشور می‌تواند ده‌ها پلن داشته باشد. کارت‌کردنشان یا
+   دیوارِ کارت می‌سازد یا — کاری که قبلاً می‌شد — بقیه را پنهان می‌کند.
+   توکن‌ها همان‌های سایت‌اند (--surface / --line / --cyan)؛ --card و --brand در
+   این پروژه تعریف نشده‌اند و استفاده‌شان یعنی رنگِ نامرئی. */
+.plan-table-wrap{
+  overflow-x:auto;
+  border:1px solid var(--line);
+  border-radius:var(--r-lg);
+  background:var(--surface);
+}
+.plan-table{
+  width:100%;
+  min-width:820px;              /* زیرِ این عرض ستون‌ها له می‌شوند → اسکرولِ افقی */
+  border-collapse:collapse;
+  font-size:14px;
+}
+.plan-table th,
+.plan-table td{
+  padding:13px 14px;
+  text-align:start;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+.plan-table thead th{
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--muted);
+  background:var(--surface-2);
+  position:sticky;
+  top:0;
+  z-index:1;
+}
+.plan-table tbody tr:last-child td{border-bottom:0}
+.plan-table tbody tr{transition:background .15s var(--ease)}
+.plan-table tbody tr:hover{background:var(--surface-2)}
+
+.plan-table .pt-num{color:var(--dim);font-size:12.5px;width:1%}
+.plan-table .pt-name b{font-weight:600}
+.plan-table .pt-tag{
+  display:inline-block;
+  margin-inline-start:7px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px;
+  white-space:nowrap;
+}
+.plan-table .pt-price b{font-size:16px;color:var(--cyan)}
+.plan-table .pt-price span{color:var(--muted);font-size:11.5px;margin-inline-start:4px}
+.plan-table .pt-buy{text-align:end;width:1%}
+.plan-table .pt-buy .btn{padding:7px 18px;font-size:13px}
+
+.plan-table-count{
+  margin-top:12px;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+}
+
+@media(max-width:720px){
+  .plan-table th,.plan-table td{padding:11px 10px}
+  .plan-table{font-size:13px}
+}
+
+/* ══════════ صفحهٔ وضعیت و سندِ SLA ══════════
+   عمداً ساده و سبک: این صفحه دقیقاً وقتی خوانده می‌شود که اوضاع خراب است و
+   شاید شبکه کند باشد. توکن‌ها همان‌های سایت‌اند. */
+.st-hero{
+  display:flex;align-items:center;gap:14px;
+  padding:18px 20px;margin-bottom:26px;
+  border:1px solid var(--line);border-radius:var(--r-lg);
+  background:var(--surface);
+}
+.st-hero b{display:block;font-size:16px}
+.st-hero small{color:var(--muted);font-size:12.5px}
+.st-dot{
+  width:13px;height:13px;border-radius:50%;flex:0 0 auto;
+  box-shadow:0 0 0 5px currentColor;opacity:.95;
+}
+.st-h{font-size:17px;margin:26px 0 12px}
+.st-item{
+  border:1px solid var(--line);
+  border-inline-start:3px solid var(--line-2);
+  border-radius:var(--r);
+  padding:15px 17px;margin-bottom:12px;
+  background:var(--surface);
+}
+.st-item.st-done{opacity:.82}
+.st-item-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.st-item-h b{font-size:14.5px}
+.st-tag{padding:3px 10px;border-radius:999px;font-size:11.5px;white-space:nowrap}
+.st-meta{color:var(--muted);font-size:12.5px;margin-top:6px}
+.st-body{margin-top:9px;font-size:13.5px;line-height:1.95;color:var(--text)}
+.st-empty{color:var(--muted);font-size:13.5px;padding:10px 0}
+.st-note{
+  margin-top:30px;padding:18px 20px;
+  border:1px solid var(--line);border-radius:var(--r-lg);
+  background:var(--surface-2);
+}
+.st-note b{display:block;margin-bottom:7px}
+.st-note p{color:var(--muted);font-size:13.5px;line-height:2;margin-bottom:13px}
+
+.sla-doc h2{font-size:17px;margin:28px 0 10px}
+.sla-doc h2:first-child{margin-top:0}
+.sla-doc p{line-height:2.05;color:var(--text);margin-bottom:10px}
+.sla-doc ul{margin:0 0 12px;padding-inline-start:22px}
+.sla-doc li{line-height:2.05;margin-bottom:6px}
+.sla-table{width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:14px}
+.sla-table th,.sla-table td{padding:12px 14px;text-align:start;border-bottom:1px solid var(--line)}
+.sla-table thead th{background:var(--surface-2);color:var(--muted);font-size:12.5px;font-weight:600}
+.sla-table tbody tr:last-child td{border-bottom:0}
+.sla-foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}

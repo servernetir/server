@@ -84,7 +84,10 @@ class ServiceLifecycleTest extends TestCase
         $this->artisan('services:lifecycle')->assertSuccessful();
 
         $this->assertSame(7, $s->fresh()->reminder_stage);
-        $spy->shouldHaveReceived('message')->once();
+        // یادآوری حالا از مسیرِ الگو می‌رود (کلیدِ `expiring`)، نه پیامِ آزاد.
+        $spy->shouldHaveReceived('templated')
+            ->withArgs(fn ($c, $key) => $key === 'expiring')->once();
+        $spy->shouldNotHaveReceived('message');
     }
 
     /** اجرای دوباره نباید پیامِ تکراری بفرستد */
@@ -98,6 +101,7 @@ class ServiceLifecycleTest extends TestCase
         $this->artisan('services:lifecycle');          // بارِ دوم: نباید چیزی برود
 
         $spy->shouldNotHaveReceived('message');
+        $spy->shouldNotHaveReceived('templated');
         $this->assertSame(7, $s->fresh()->reminder_stage);
     }
 
@@ -183,6 +187,7 @@ class ServiceLifecycleTest extends TestCase
 
         $this->assertNull($s->fresh()->reminder_stage);
         $spy->shouldNotHaveReceived('message');
+        $spy->shouldNotHaveReceived('templated');
     }
 
     /** سرویسِ یک‌بارمصرف (بدونِ دوره) وارد این چرخه نمی‌شود */

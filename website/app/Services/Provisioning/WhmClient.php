@@ -69,6 +69,25 @@ class WhmClient
         return $this->call('accountsummary', ['user' => $user]);
     }
 
+    /**
+     * مصرفِ پهنای‌باندِ ماهِ جاری — پرتکرارترین پرسشِ پشتیبانیِ هاست.
+     *
+     * ⚠️ `accountsummary` پهنای‌باند **ندارد**؛ تنها راهِ گرفتنش همین `showbw`
+     * است. اگر توکنِ WHM دسترسیِ این تابع را نداشته باشد، `ok=false` برمی‌گردد
+     * و فراخوان باید بی‌سروصدا از کنارش رد شود — نبودِ یک عدد نباید کلِ کارتِ
+     * سرویس را خالی کند.
+     */
+    public function bandwidth(string $user): array
+    {
+        // 🔴 `search` در WHM یک **عبارتِ باقاعده** است، نه تطبیقِ دقیق، و
+        // `showbw` **فهرست** برمی‌گرداند. `search=shop` حسابِ `bigshop` را هم
+        // می‌گیرد — یعنی مصرفِ مشتریِ دیگری به این مشتری نشان داده می‌شد.
+        // مهار می‌کنیم و کاراکترهای ویژه را هم فرار می‌دهیم.
+        return $this->call('showbw', [
+            'searchtype' => 'user',
+            'search'     => '^'.preg_quote($user, '/').'$',
+        ]);
+    }
     public function suspend(string $user, string $reason = ''): array
     {
         return $this->call('suspendacct', ['user' => $user, 'reason' => $reason]);

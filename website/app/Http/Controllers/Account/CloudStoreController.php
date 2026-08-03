@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\CloudImage;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -465,6 +466,19 @@ class CloudStoreController extends Controller
             'taxPct' => $taxPct,
             'autoLabel' => self::serverLabel(null),
 
+            // ── فروشِ ساعتی ──
+            // نرخِ ساعتیِ هر پلن + حداقلِ اعتبارِ شروع (۲۴ ساعت) و موجودیِ فعلیِ
+            // مشتری، تا صفحه بتواند پیش از ثبتِ سفارش بگوید اعتبار کافی است یا نه.
+            'hourlyMap' => collect($planCards)->mapWithKeys(function ($p) {
+                $plan = CloudPlan::bestForSlug((string) $p['slug']);
+
+                return [(string) $p['slug'] => [
+                    'rate' => $plan?->hourlyIrt() ?? 0,
+                    'min'  => $plan?->hourlyStartMinIrt() ?? 0,
+                ]];
+            })->all(),
+            'creditIrt' => (int) (Auth::guard('customer')->user()?->creditBalance('IRT') ?? 0),
+
             // ── افزودنی‌ها ──
             // `addonOk` می‌گوید آیا **این مکان** اصلاً IP اضافه دارد؛ اگر نه،
             // کارتش نمایش داده نمی‌شود. نشان‌دادنِ گزینه‌ای که سرِ ثبتِ سفارش رد
@@ -521,6 +535,9 @@ class CloudStoreController extends Controller
             'ssh_key_id' => ['nullable', 'integer'],
             'ssh_key_new' => ['nullable', 'string', 'max:6000'],
             'ssh_key_name' => ['nullable', 'string', 'max:60'],
+            // فروشِ ساعتی (پیش‌پرداخت از کیفِ پول)
+            'billing_mode' => ['nullable', 'string', Rule::in(['cycle', 'hourly'])],
+            'on_credit_out' => ['nullable', 'string', Rule::in(['suspend', 'convert', 'terminate'])],
         ], [], [
             'location' => 'مکانِ سرور', 'plan' => 'پلن',
             'image' => 'سیستم‌عامل', 'cycle' => 'دورهٔ پرداخت',
@@ -613,6 +630,11 @@ class CloudStoreController extends Controller
             $sshKey !== null ? 'ورود با کلیدِ SSH: '.$sshKey->label() : null,
         ]));
 
+        // ── مسیرِ ساعتی: پیش‌پرداخت از کیفِ پول، بی‌فاکتور ──
+        if (($data['billing_mode'] ?? 'cycle') === 'hourly') {
+            return $this->orderHourly($request, $customer, $offer, $data, $addons, $sshKey, $label, $locText, $description);
+        }
+
         $invoice = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
             $service = Service::create([
                 'customer_id' => $customer->id,
@@ -665,6 +687,102 @@ class CloudStoreController extends Controller
 
         return redirect(lroute('account.invoice', $invoice))
             ->with('ok', 'سفارشِ سرور ثبت شد. با پرداختِ پیش‌فاکتور، سرور خودکار ساخته و تحویل می‌شود.');
+    }
+
+    /**
+     * سفارشِ **ساعتی** — پیش‌پرداخت از کیفِ پول، بی‌فاکتور.
+     *
+     * قاعده (تأییدِ کارفرما): حداقلِ ۲۴ ساعت اعتبار برای شروع، ولی **بدونِ
+     * حداقلِ مصرف** — ساعتِ اول همین‌جا کسر می‌شود؛ بقیه را کرونِ `cloud:meter`
+     * هر ساعت کم می‌کند و مشتری هر وقت خواست لغو می‌کند (اعتبارِ مانده می‌مانَد).
+     */
+    private function orderHourly(Request $request, Customer $customer, CloudPlan $offer, array $data, array $addons, $sshKey, string $label, string $locText, string $description): RedirectResponse
+    {
+        $hourly = $offer->hourlyIrt();
+        $hourlyEur = $offer->hourlyEurCents();
+
+        if ($hourly <= 0) {
+            return back()->withInput()->withErrors(['plan' => 'قیمتِ ساعتیِ این پلن در دسترس نیست؛ ماهانه سفارش دهید.']);
+        }
+
+        // افزودنیِ پولی روی ساعتی فعلاً پشتیبانی نمی‌شود (قیمتش ماهانه است)
+        if (! app(CloudAddons::class)->isEmpty($addons)) {
+            return back()->withInput()->withErrors(['extra_ipv4' => 'IP اضافه روی سرورِ ساعتی فعلاً در دسترس نیست؛ بی‌IP اضافه یا ماهانه سفارش دهید.']);
+        }
+
+        $minStart = $hourly * 24;
+        $balance = $customer->creditBalance('IRT');
+
+        if ($balance < $minStart) {
+            return back()->withInput()->withErrors(['billing_mode' =>
+                'برای شروعِ سرورِ ساعتی حداقل اعتبارِ ۲۴ ساعت لازم است ('.fa_num(number_format($minStart)).' تومان). '
+                .'اعتبارِ فعلیِ شما '.fa_num(number_format($balance)).' تومان است — لطفاً کیفِ پول را شارژ کنید.']);
+        }
+
+        $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
+            ? (string) ($data['on_credit_out'] ?? 'suspend') : 'suspend';
+
+        // قیمتِ ماهانه را به‌عنوان مرجعِ «تبدیل به ماهانه» ذخیره می‌کنیم
+        $monthly = self::priceForCycle($offer, 'monthly');
+
+        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $balance) {
+            // کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید)
+            CreditEntry::create([
+                'customer_id'   => $customer->id,
+                'currency_code' => 'IRT',
+                'amount'        => -$hourly,
+                'balance_after' => $balance - $hourly,
+                'reason'        => 'cloud_hourly',
+                'source_type'   => Customer::class,
+                'source_id'     => $customer->id,
+                'note'          => 'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name,
+            ]);
+
+            return Service::create([
+                'customer_id'      => $customer->id,
+                'name'             => mb_substr('سرور مجازی '.$label.' (ساعتی)', 0, 150),
+                'description'      => $description,
+                'currency_code'    => 'IRT',
+                'price'            => $monthly,        // مرجعِ تبدیل به ماهانه
+                'tax_percent'      => 0,
+                'cycle'            => 'monthly',
+                'billing_mode'     => 'hourly',
+                'hourly_rate_irt'  => $hourly,
+                'hourly_rate_eur'  => $hourlyEur,
+                'on_credit_out'    => $onCreditOut,
+                'last_metered_at'  => now(),           // ساعتِ اول همین حالا پرداخت شد
+                // پرداخت‌شده از اعتبار → مستقیم به صفِ تحویل (مثلِ سرویسِ پرداخت‌شده)
+                'status'           => 'awaiting_provision',
+                'provision_status' => 'pending',
+                'activated_at'     => now(),
+                'cloud_plan_id'    => $offer->id,
+                'cloud_image_key'  => (string) $data['image'],
+                'cloud_ssh_key_id' => $sshKey?->id,
+                'cloud_addons'     => [],
+                'plan'             => (string) $offer->public_name,
+            ]);
+        });
+
+        try {
+            ActivityLog::forService($service, 'purchase',
+                'سفارشِ سرورِ ساعتی «'.$label.'» — '.$offer->public_name.' · '.$locText
+                .' · '.fa_num(number_format($hourly)).' تومان/ساعت (پرداخت از کیفِ پول)', 'customer', $request);
+        } catch (\Throwable) {
+        }
+
+        try {
+            app(AdminNotifier::class)->event('سفارشِ سرورِ مجازیِ ساعتی (پرداخت‌شده از اعتبار)', [
+                'مشتری' => $customer->displayName().' ('.$customer->code.')',
+                'پلن'   => (string) $offer->public_name,
+                'مکان'  => $locText,
+                'نرخ'   => fa_num(number_format($hourly)).' تومان/ساعت',
+            ], url('/admin/customers/'.$customer->id), '⏱️');
+        } catch (\Throwable) {
+        }
+
+        return redirect(lroute('account.services'))->with('ok',
+            'سرورِ ساعتی سفارش داده شد و در حالِ ساخت است. هر ساعت از کیفِ پولِ شما کم می‌شود؛ '
+            .'هر وقت خواستید می‌توانید لغوش کنید و اعتبارِ استفاده‌نشده در کیفتان می‌مانَد.');
     }
 
     /**

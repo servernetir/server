@@ -1482,7 +1482,17 @@ class AezaClient implements CloudProvider
         ]);
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']] + $fail;
+            // ⚠️ پیامِ خالی‌ودرشتِ «Proxy internal server error» ساعت‌ها وقت گرفت،
+            // چون نه کدِ HTTP داشت نه بدنه. این‌جا هر سه را نگه می‌داریم تا
+            // دفعهٔ بعد **علت** معلوم باشد، نه فقط اینکه «نشد».
+            $raw = mb_substr(json_encode($r['body'], JSON_UNESCAPED_UNICODE) ?: '', 0, 300);
+            $hint = str_contains(strtolower((string) $r['message']), 'proxy internal server error')
+                ? ' — این پیامِ گیت‌وی معمولاً یعنی مسیر شناخته نشد یا موجودیِ حسابِ زیرساخت کافی نیست.'
+                : '';
+
+            return ['ok' => false, 'message' => 'ثبتِ سفارش نزدِ زیرساخت انجام نشد: '
+                .$r['message'].' (کدِ HTTP: '.$r['status'].')'.$hint
+                .($raw !== '' && $raw !== '[]' ? ' | پاسخ: '.$raw : ''), ] + $fail;
         }
 
         $orderId = (string) (data_get($r['body'], 'data.id') ?? data_get($r['body'], 'id') ?? '');
@@ -1555,6 +1565,113 @@ class AezaClient implements CloudProvider
             'ipv6'            => $this->firstIp($s, 6),
             'traffic_used_gb' => null,
             'raw'             => ['status' => $s['status'] ?? null, 'name' => $s['name'] ?? null],
+        ];
+    }
+
+    /**
+     * فهرستِ همهٔ سرویس‌های این حساب.
+     *
+     * ⚠️ پارامترِ اندازهٔ صفحه در این زیرساخت **`count`** است، نه `limit`؛ همان
+     * چیزی که بقیهٔ این کلاس همه‌جا می‌فرستد. یک بار با `limit/offset` نوشته شد
+     * و خطرش این بود: زیرساخت پارامترِ ناشناخته را نادیده می‌گیرد، صفحهٔ
+     * پیش‌فرض (~۲۵ ردیف) برمی‌گردد، شرطِ «کمتر از سقف ⇒ تمام شد» فعال می‌شود و
+     * فهرستِ **ناقص** با `ok=true` و پیامِ خالی بیرون می‌آید — یعنی دقیقاً همان
+     * شکلی که `CloudInventory` کاملاً معتبر می‌شمارد. نتیجه: صدها سرورِ زندهٔ
+     * مشتری «شبح» گزارش می‌شدند.
+     *
+     * پس: `count` می‌فرستیم، **`total`ِ خودِ پاسخ** را می‌خوانیم (تنها سیگنالِ
+     * قطعیِ داکیومنت‌شده)، و اگر آنچه جمع کردیم به `total` نرسید صریح می‌گوییم
+     * فهرست ناقص است.
+     *
+     * از `items()` عمداً استفاده نمی‌کنیم: آن `flattenGroups` را صدا می‌زند که
+     * برای **محصول** نوشته شده و هر ردیفِ دارای کلیدِ `items` را باز می‌کند —
+     * روی فهرستِ سرویس، همان باز کردن یک سرور را به چند ردیفِ قلابی تبدیل
+     * می‌کند و گزارشِ یتیم‌ها را بی‌معنا می‌سازد.
+     */
+    public function listServers(): array
+    {
+        $servers = [];
+        $seen = [];
+        $page = 0;
+        $size = 500;
+        $total = null;
+
+        for ($i = 0; $i < 20; $i++) {
+            $r = $this->req('GET', '/services', [
+                'extra' => 1, 'count' => $size, 'offset' => $page * $size,
+            ]);
+
+            if (! $r['ok']) {
+                // صفحهٔ اول که خطا دهد یعنی هیچ نمی‌دانیم؛ خطا را بالا می‌دهیم تا
+                // «۰ سرور» با «نتوانستیم بپرسیم» اشتباه گرفته نشود.
+                return $i === 0
+                    ? ['ok' => false, 'message' => $r['message'], 'servers' => []]
+                    : ['ok' => true, 'message' => 'فهرست ناقص خوانده شد.', 'servers' => $servers];
+            }
+
+            if ($total === null) {
+                $t = data_get($r['body'], 'data.total') ?? data_get($r['body'], 'total');
+                $total = is_numeric($t) ? (int) $t : null;
+            }
+
+            $rows = data_get($r['body'], 'data.items');
+            $rows = is_array($rows) ? $rows : (array) (data_get($r['body'], 'items') ?? data_get($r['body'], 'data') ?? []);
+            $rows = array_values(array_filter($rows, 'is_array'));
+
+            if ($rows === []) {
+                break;
+            }
+
+            $fresh = 0;
+
+            foreach ($rows as $s) {
+                $ref = (string) ($s['id'] ?? $s['serviceId'] ?? '');
+
+                // بی‌این محافظ، اگر زیرساخت `offset` را نادیده بگیرد همان صفحهٔ
+                // اول ۲۰ بار تکرار می‌شد و مدیر ۲۰۰۰ سرورِ تکراری می‌دید.
+                if ($ref === '' || isset($seen[$ref])) {
+                    continue;
+                }
+
+                $seen[$ref] = true;
+                $fresh++;
+
+                $servers[] = [
+                    'ref'      => $ref,
+                    'name'     => (string) ($s['name'] ?? $s['hostname'] ?? $ref),
+                    'status'   => $this->mapStatus((string) ($s['currentStatus'] ?? $s['status'] ?? '')),
+                    'ipv4'     => $this->firstIp($s, 4),
+                    'ipv6'     => $this->firstIp($s, 6),
+                    'plan'     => data_get($s, 'product.name') ?? data_get($s, 'productName'),
+                    'location' => data_get($s, 'location.name') ?? data_get($s, 'locationCode'),
+                    'created'  => $s['createdAt'] ?? $s['created_at'] ?? null,
+                ];
+            }
+
+            // تکرارِ صفحه (offset نادیده گرفته شد) یا رسیدن به کل → بس است
+            if ($fresh === 0 || ($total !== null && count($servers) >= $total)) {
+                break;
+            }
+
+            // بی‌`total` نمی‌شود مطمئن بود؛ صفحهٔ کوتاه‌تر از سقف را پایان می‌گیریم
+            if ($total === null && count($rows) < $size) {
+                break;
+            }
+
+            $page++;
+        }
+
+        // 🔴 اگر زیرساخت گفت ۱۴۰ تا داری و ما ۲۵ تا گرفتیم، **صریح** بگو ناقص
+        // است. سکوت در این حالت یعنی گزارشِ یتیم/شبح روی داده‌ای ناقص ساخته
+        // می‌شود و مدیر بر اساسش سرویسِ سالم را می‌بندد.
+        $short = $total !== null && count($servers) < $total;
+
+        return [
+            'ok'      => true,
+            'message' => $short
+                ? 'فهرست ناقص است: زیرساخت '.$total.' سرویس دارد ولی '.count($servers).' تا خوانده شد.'
+                : '',
+            'servers' => $servers,
         ];
     }
 

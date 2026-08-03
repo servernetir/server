@@ -84,7 +84,7 @@ class BroadcastController extends Controller
 
         foreach ($targets as $customer) {
             try {
-                $notifier->event($customer, 'announce', ['title' => $title], $text);
+                $notifier->event($customer, 'announce', ['title' => $title, 'body' => $text], $text);
                 $sent++;
             } catch (\Throwable) {
                 // یک گیرندهٔ خراب نباید کل ارسال را متوقف کند

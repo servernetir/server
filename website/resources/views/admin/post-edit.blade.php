@@ -167,7 +167,7 @@
 
   async function translate(loc, statusEl){
     const fa = paneData('fa');
-    if (!fa.title || !fa.content) { alert('ابتدا عنوان و محتوای فارسی را کامل کنید.'); return false; }
+    if (!fa.title || !fa.content) { snToast('ابتدا عنوان و محتوای فارسی را کامل کنید.', 'error'); return false; }
     if (statusEl) statusEl.innerHTML = '<span class="ad-spin"></span>';
     try {
       const r = await fetch('/admin/ai/translate', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf}, body: JSON.stringify({ target: loc, ...fa }) });
@@ -185,7 +185,7 @@
   // SEO analysis
   document.getElementById('seo-btn').addEventListener('click', async function(){
     const fa = paneData('fa');
-    if (!fa.title || !fa.content) { alert('ابتدا عنوان و محتوای فارسی را کامل کنید.'); return; }
+    if (!fa.title || !fa.content) { snToast('ابتدا عنوان و محتوای فارسی را کامل کنید.', 'error'); return; }
     const box = document.getElementById('seo-result');
     this.disabled = true; box.innerHTML = '<div style="text-align:center;padding:16px"><span class="ad-spin"></span></div>';
     try {

@@ -264,9 +264,10 @@ class CloudServerController extends Controller
             return back()->withErrors('سرور هنوز آماده نیست.');
         }
 
-        // ایمیج باید واقعاً روی همین زیرساخت باشد؛ ورودیِ دلخواهِ کاربر را
-        // مستقیم به API نمی‌فرستیم.
-        $ref = CloudImage::refFor($instance->provider, $data['image']);
+        // ایمیج باید واقعاً روی همین زیرساخت **و همین معماری** باشد؛ ورودیِ
+        // دلخواهِ کاربر را مستقیم به API نمی‌فرستیم. معماری از پلنِ همین سرویس
+        // می‌آید — نصبِ دوبارهٔ یک سرورِ arm با ایمیجِ x86 رد می‌شود.
+        $ref = CloudImage::refFor($instance->provider, $data['image'], $service->cloudPlan?->arch);
 
         if ($ref === null) {
             return back()->withErrors('این سیستم‌عامل برای این سرور در دسترس نیست.');

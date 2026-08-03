@@ -117,7 +117,9 @@ class RunServiceLifecycle extends Command
                     'reminder_stage' => null,
                 ])->save();
 
-                $customers->message($service->customer, 'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
+                $customers->templated($service->customer, 'reactivated',
+                    ['service' => $service->name],
+                    'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
 
                 \App\Models\ActivityLog::forService($service, 'reactivate',
                     'رفعِ تعلیقِ خودکار — فاکتورِ تمدید پرداخت شد', 'system');
@@ -176,7 +178,8 @@ class RunServiceLifecycle extends Command
                     'suspended_at' => now(),
                 ])->save();
 
-                $customers->message($service->customer,
+                $customers->templated($service->customer, 'suspended',
+                    ['service' => $service->name],
                     '⚠️ سرویسِ «'.$service->name.'» به‌دلیلِ پرداخت‌نشدنِ فاکتورِ تمدید موقتاً غیرفعال شد. '
                     .'اطلاعات و فایل‌هایتان محفوظ است؛ با پرداختِ فاکتور بلافاصله برمی‌گردد.');
 
@@ -236,11 +239,21 @@ class RunServiceLifecycle extends Command
             .'برای جلوگیری از قطعِ سرویس، از پنل کاربری پرداخت کنید: '
             .console_lroute('account.invoices');
 
-        $customers->message($service->customer, $text);
+        // متنِ الگو (اگر مدیر نوشته باشد) + ایمیلِ برنددار. پیش از این، این
+        // مهم‌ترین ایمیلِ چرخهٔ مالی — «پرداخت کن وگرنه سرورت می‌خوابد» — با
+        // `Mail::raw` می‌رفت: بی‌لوگو، بی‌RTL، شبیهِ اسپم.
+        $mailed = $customers->templated($service->customer, 'expiring', [
+            'service' => $service->name,
+            'days'    => fa_num($stage),
+            'amount'  => $amount ?? '—',
+            'link'    => console_lroute('account.invoices'),
+        ], $text);
 
-        // ایمیل هم — یادآوریِ مالی نباید فقط به یک کانال بند باشد
+        // اگر الگویی برای ایمیل نبود (یا ارسالش نشد)، همان یادآوریِ سادهٔ قبلی
+        // می‌رود. یادآوریِ مالی نباید به وجودِ یک ردیف در دیتابیس بند باشد —
+        // نرسیدنش یعنی مشتری بی‌خبر می‌مانَد و سرویسش قطع می‌شود.
         try {
-            if (filled($service->customer?->email)) {
+            if (! $mailed && filled($service->customer?->email)) {
                 Mail::mailer('smtp')->raw($text, fn ($m) => $m
                     ->to($service->customer->email)
                     ->subject('یادآوریِ تمدید — '.$service->name));

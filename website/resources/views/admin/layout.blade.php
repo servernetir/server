@@ -39,6 +39,7 @@
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
       <a href="/admin/servers" class="@yield('nav_servers')"><svg class="icon"><use href="#i-server"/></svg>سرورهای تحویل</a>
       <a href="/admin/products" class="@yield('nav_products')"><svg class="icon"><use href="#i-box"/></svg>پکیج‌های فروش</a>
+      <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
 
       <div class="ad-nav-sep">مالی</div>
@@ -49,9 +50,12 @@
       <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>
       <a href="/admin/costs" class="@yield('nav_costs')"><svg class="icon"><use href="#i-tag"/></svg>هزینه‌های سرویس‌ها</a>
       <div class="ad-nav-sep">سیستم</div>
-      @php $errCount = \App\Support\ErrorTracker::recent(150); $errCount = count(array_filter($errCount, fn($e)=>($e['type']??'')==='error')); @endphp
+      @php $errCount = \App\Support\ErrorTracker::recent(150, 'error');
+              $errCount = count(array_filter($errCount, fn($e)=>in_array(($e['type']??''), ['error','incident'], true))); @endphp
       <a href="/admin/errors" class="@yield('nav_errors')"><svg class="icon"><use href="#i-zap"/></svg>ردیاب خطا@if($errCount)<span class="ad-pill">{{ $errCount }}</span>@endif</a>
       @if(auth()->user()->isAdmin())
+      <a href="/admin/status" class="@yield('nav_status')"><svg class="icon"><use href="#i-gauge"/></svg>صفحهٔ وضعیت</a>
+      <a href="/admin/templates" class="@yield('nav_templates')"><svg class="icon"><use href="#i-mail"/></svg>الگوی پیام‌ها</a>
       <a href="/admin/settings" class="@yield('nav_settings')"><svg class="icon"><use href="#i-wrench"/></svg>تنظیمات</a>
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif

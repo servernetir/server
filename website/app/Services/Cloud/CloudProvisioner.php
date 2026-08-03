@@ -76,6 +76,10 @@ class CloudProvisioner
             return $this->deliver($service);
         } catch (\Throwable $e) {
             Log::error('cloud.provision.failed', ['service' => $service->id, 'err' => $e->getMessage()]);
+            // «تحویل شکست نمی‌خورد، فقط اتفاق نمی‌افتد» — بدترین نوعِ خرابی
+            // در این پروژه. باید در /admin/errors دیده شود، نه فقط در
+            // laravel.logِ غیرقابلِ‌خواندن روی cPanel.
+            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
             $this->fail($service, 'خطای غیرمنتظره: '.mb_substr($e->getMessage(), 0, 160));
 
             return false;
@@ -84,6 +88,26 @@ class CloudProvisioner
 
     private function deliver(Service $service): bool
     {
+        // ── 🔴 محافظِ سوءاستفاده، پیش از هر تماسِ پولی ──
+        //
+        // تحویل کاملاً خودکار است، پس هر حسابِ تازه یک دکمهٔ مستقیم به APIِ
+        // زیرساختِ خارجی دارد. با کارتِ دزدیده‌شده می‌شود در چند دقیقه ده‌ها
+        // سرور گرفت؛ بعد chargeback می‌خورد و هم صورتحساب پای ماست هم گزارشِ
+        // abuse — و بدتر، حسابِ مادرِ ما تعلیق می‌شود که یعنی سرورِ **همهٔ**
+        // مشتریانِ خارج هم‌زمان می‌رود.
+        //
+        // عمداً «رد» نمی‌کند: به صفِ بازبینیِ دستی می‌رود تا مدیر ببیند. یک
+        // تأخیرِ کوتاه برای مشتریِ واقعی، از قطعِ فروش خیلی ارزان‌تر است.
+        if ($service->customer !== null) {
+            $verdict = app(CloudFraudGuard::class)->check($service->customer);
+
+            if ($verdict['hold']) {
+                $this->needsReview($service, (string) $verdict['reason']);
+
+                return false;
+            }
+        }
+
         // ── انتخابِ زیرساخت در **لحظهٔ تحویل**، نه لحظهٔ سفارش ──
         // بین سفارش و پرداخت ممکن است ارزان‌ترین زیرساخت پر شده باشد. با انتخابِ
         // دیرهنگام، خودکار سراغِ بعدی می‌رویم و مشتری هیچ تفاوتی نمی‌بیند.
@@ -123,7 +147,7 @@ class CloudProvisioner
 
         // ── سیستم‌عاملِ انتخابیِ مشتری → شناسهٔ بومیِ همین زیرساخت ──
         $imageKey = (string) ($service->cloud_image_key ?: config('cloud.default_image', 'ubuntu-24.04'));
-        $imageRef = CloudImage::refFor($plan->provider, $imageKey);
+        $imageRef = CloudImage::refFor($plan->provider, $imageKey, $plan->arch);
 
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
@@ -138,7 +162,7 @@ class CloudProvisioner
 
             $plan = $alt;
             $driver = $this->manager->forPlan($plan);
-            $imageRef = CloudImage::refFor($plan->provider, $imageKey);
+            $imageRef = CloudImage::refFor($plan->provider, $imageKey, $plan->arch);
 
             if ($driver === null || $imageRef === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -556,12 +580,17 @@ class CloudProvisioner
             return null;
         }
 
+        // «زیرساخت این کلید را دارد» کافی نیست: یک اسلاگ می‌تواند هم پلنِ x86
+        // داشته باشد هم arm (مشخصاتشان یکی است و معماری در اسلاگ نیست)، و ممکن
+        // است ایمیج فقط برای یکی از آن دو موجود باشد. پس ارزان‌ترین پلنی را
+        // برمی‌داریم که ایمیج **برای معماریِ خودش** واقعاً موجود باشد.
         return CloudPlan::query()
             ->sellable()
             ->where('slug', $slug)
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
-            ->first();
+            ->get()
+            ->first(fn (CloudPlan $p) => CloudImage::refFor($p->provider, $imageKey, $p->arch) !== null);
     }
 
     /**
@@ -594,6 +623,33 @@ class CloudProvisioner
     }
 
     /** خرابیِ گذرا: pending بمان تا کرونِ بعدی دوباره تلاش کند */
+    /**
+     * صفِ بازبینیِ دستی — نه شکست، نه تحویل.
+     *
+     * `provision_status = 'manual'` را کرونِ `provision:run` برنمی‌دارد (فقط
+     * 'pending' را می‌گیرد)، پس تا وقتی مدیر تصمیم نگیرد هیچ پولی خرج نمی‌شود.
+     */
+    private function needsReview(Service $service, string $reason): void
+    {
+        $service->forceFill([
+            'provision_status' => 'manual',
+            'status'           => 'awaiting_provision',
+            'provision_error'  => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
+        ])->save();
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ سرور نیازمندِ بازبینی', [
+                'سرویس' => '#'.$service->id.' — '.$service->name,
+                'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
+                'علت'   => $reason,
+            ]);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+        }
+
+        \App\Support\ErrorTracker::note('fraud-guard',
+            'سفارشِ سرور به بازبینیِ دستی رفت: '.$reason, ['service' => $service->id]);
+    }
     private function retryLater(Service $service, string $reason): void
     {
         $service->forceFill([
@@ -606,8 +662,13 @@ class CloudProvisioner
     private function notify(Service $service, CloudInstance $instance): void
     {
         try {
+            // ⚠️ متغیرها باید پاس داده شوند وگرنه الگوی /admin/templates بی‌اثر
+            // است: `NotificationTemplate::body()` اگر بعد از جایگزینی هنوز
+            // `{service}` ببیند عمداً متنِ کد را می‌فرستد. یعنی مدیر متن را
+            // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
             app(\App\Services\Notify\CustomerNotifier::class)->event(
-                $service->customer, 'service_ready', [],
+                $service->customer, 'service_ready',
+                ['service' => $service->name, 'ip' => $instance->ipv4 ?: '—'],
                 'سرورِ «'.$service->name.'» شما آماده شد. IP: '.($instance->ipv4 ?: '—')
             );
         } catch (\Throwable) {

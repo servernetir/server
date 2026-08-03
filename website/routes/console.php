@@ -60,6 +60,14 @@ Schedule::command('services:lifecycle')
     ->dailyAt('07:30')
     ->withoutOverlapping();
 
+// ضربانِ کرون — هر دقیقه یک مهرِ زمانی می‌نویسد. بدونِ این، وقتی سفارشی تحویل
+// نمی‌شود هیچ راهی نبود بفهمیم «کرونِ سرور اصلاً اجرا می‌شود یا نه» و ساعت‌ها
+// دنبالِ باگِ کد می‌گشتیم در حالی که مشکل نبودنِ کرون بود.
+Schedule::call(fn () => cache()->put('sn.schedule.last', now()->toDateTimeString(), 86400))
+    ->everyMinute()
+    ->name('cron-heartbeat')
+    ->withoutOverlapping();
+
 // صفِ تحویلِ سرویس — سرویس‌هایِ پرداخت‌شده که منتظرِ ساختِ خودکار روی سرورند.
 // هر دقیقه، جدا از درخواستِ پرداخت (تماسِ WHM نباید وب‌هوکِ درگاه را کند کند).
 Schedule::command('provision:run')
@@ -71,6 +79,13 @@ Schedule::command('provision:run')
 // مشتری سرورِ پول‌داده‌اش را نه IP دارد نه می‌تواند مدیریت کند.
 Schedule::command('cloud:sync-instances')
     ->everyMinute()
+    ->withoutOverlapping();
+
+// متر کردنِ سرورهای ابریِ **ساعتی** — هر ساعت از کیفِ پولِ مشتری کم می‌کند.
+// idempotent است (claimِ اتمی روی last_metered_at)، پس اجرای دوباره در یک ساعت
+// دوبار کسر نمی‌کند. withoutOverlapping هم لایهٔ دوم.
+Schedule::command('cloud:meter')
+    ->hourly()
     ->withoutOverlapping();
 
 // کاتالوگ و قیمتِ سرورِ ابری — کارفرما: «هر دو روز یک‌بار، ۲ شب، هم قیمت هم

@@ -34,6 +34,11 @@ $site = function (): void {
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
 
+    // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
+    // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
+    Route::get('/status', [SiteController::class, 'status'])->name('status');
+    Route::get('/sla', fn () => view('pages.sla'))->name('sla');
+
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
@@ -132,8 +137,23 @@ $site = function (): void {
     Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
+        // لغوِ سفارشِ تحویل‌نشده توسط خودِ مشتری (با بازگشتِ وجه به کیفِ پول).
+        // بی‌این، سفارشی که تحویلش شکست خورده تا ابد «در حالِ آماده‌سازی» می‌ماند
+        // و مشتری نه سرور دارد نه پولش.
+        Route::post('/services/{service}/cancel', [Account\ServiceController::class, 'cancel'])
+            ->name('services.cancel')->middleware('throttle:6,1');
+        // حذفِ سرویسِ تحویل‌شده — دومرحله‌ای. سقفِ صدور تنگ‌تر از تأیید است
+        // چون هر صدور یک پیامک/ایمیلِ واقعی می‌فرستد و هزینه دارد.
+        Route::post('/services/{service}/terminate/start', [Account\ServiceController::class, 'terminateStart'])
+            ->name('services.terminate.start')->middleware('throttle:4,1');
+        Route::post('/services/{service}/terminate', [Account\ServiceController::class, 'terminate'])
+            ->name('services.terminate')->middleware('throttle:8,1');
+
         Route::get('/services/{service}/cpanel', [Account\ServiceController::class, 'cpanel'])->name('services.cpanel');
-        Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats');
+        // ⚠️ محدودیتِ نرخ مثلِ دوقلوی ابری‌اش: این مسیر به API کنترل‌پنل می‌رسد
+        // و یک حلقهٔ ساده در مرورگر می‌تواند سهمیهٔ WHM را بسوزاند. کشِ سه
+        // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
+        Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
 
         // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
         // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.
@@ -318,6 +338,20 @@ Route::post('/bale/webhook/{token}', \App\Http\Controllers\BaleWebhookController
     ->middleware('throttle:60,1')->where('token', '[a-f0-9]{32}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+
+/*
+| llms.txt — معرفیِ سرورنت به مدلِ زبانی، نه به خزندهٔ جست‌وجو.
+|
+| چرا: امروز بخشی از خریدارها به‌جای گوگل از ChatGPT و Perplexity می‌پرسند
+| «هاستِ ایرانیِ خوب کدام است». آن مدل‌ها این فایل را می‌خوانند تا بفهمند
+| این سایت چیست و کدام صفحه‌ها معتبرند. نبودش یعنی موجودیتِ «سرورنت» برای
+| مدل قفل نمی‌شود و در پاسخ‌ها اسمی از ما نمی‌آید.
+|
+| عمداً از روتِ لاراول می‌آید نه فایلِ ثابت: فهرستِ محصولات و مکان‌ها زنده
+| است و فایلِ دستی همان روزِ اول کهنه می‌شود.
+*/
+Route::get('/llms.txt', [SiteController::class, 'llms']);
+
 
 // تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
 Route::middleware('throttle:6,1')->get('/system/content/{token}', function (string $token) {
@@ -1182,6 +1216,24 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         $seeded = 'seed error: '.$e->getMessage();
     }
 
+    // کاتالوگِ الگوی پیام‌ها — همان الگو: firstOrCreate، پس متنی که مدیر در
+    // /admin/templates ویرایش کرده هرگز با دیپلوی بعدی به متنِ کد برنمی‌گردد.
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('notification_templates')) {
+            (new \Database\Seeders\NotificationTemplateSeeder())->run();
+        }
+    } catch (\Throwable) {
+    }
+
+    // کاتالوگِ سرورِ فیزیکی — insert-missing از config. هر بار امن است (اسلاگِ
+    // موجود را دست نمی‌زند)، پس مدل‌های تازهٔ config در هر دیپلوی سینک می‌شوند.
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('physical_servers')) {
+            (new \Database\Seeders\PhysicalServerSeeder())->run();
+        }
+    } catch (\Throwable) {
+    }
+
     // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
     // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
     // سرو می‌شود. این‌جا کنار مهاجرت ریست می‌کنیم تا هر دپلوی با یک migrate
@@ -1221,6 +1273,136 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
 | Allowed» می‌گرفت — دقیقاً همان تجربه‌ای که پیش آمد. /system/migrate این صفحه
 | را داشت و کار می‌کرد؛ opcache نداشت. حالا هر دو یک‌شکل‌اند.
 */
+/*
+| عیب‌یابیِ تحویلِ سرورِ ابری — «چرا سفارش در حالِ آماده‌سازی مانده؟»
+|
+| بدونِ این، تنها راهِ فهمیدنِ علت، خواندنِ لاگِ چندمگابایتی روی سرور بود.
+| این‌جا وضعیتِ صفِ تحویل، خطای هر سرویس، و سلامتِ کاتالوگ (پلن/ایمیج/مکان)
+| یک‌جا دیده می‌شود. POST + توکن، چون داده‌اش عملیاتی است.
+*/
+Route::get('/system/cloud-status', fn () => response(
+    '<!doctype html><meta charset=utf-8><title>وضعیتِ تحویلِ سرورِ ابری</title>'
+    .'<body style="font:15px/1.8 system-ui;max-width:900px;margin:60px auto;padding:0 20px;direction:rtl">'
+    .'<h2>وضعیتِ تحویلِ سرورِ ابری</h2>'
+    .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید تا صفِ تحویل، خطاها و سلامتِ کاتالوگ را ببینیم.</p>'
+    .'<form method=post><input name=token style="width:100%;padding:10px;font-size:15px" '
+    .'placeholder="DEPLOY_TOKEN" autocomplete=off> '
+    .'<button style="margin-top:12px;padding:10px 22px;font-size:15px;cursor:pointer">بررسی</button></form>'
+    .'<pre id=out style="background:#111;color:#0f0;padding:14px;border-radius:8px;white-space:pre-wrap;margin-top:20px"></pre>'
+    .'<script>document.querySelector("form").addEventListener("submit",async e=>{e.preventDefault();'
+    .'var o=document.getElementById("out");o.textContent="در حال بررسی…";'
+    .'var r=await fetch("",{method:"POST",headers:{"Content-Type":"application/json"},'
+    .'body:JSON.stringify({token:e.target.token.value})});'
+    .'o.textContent=JSON.stringify(await r.json(),null,2)});</script>'
+))->name('system.cloud-status');
+
+Route::post('/system/cloud-status', function (\Illuminate\Http\Request $r) {
+    $expected = (string) env('DEPLOY_TOKEN', '');
+    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+
+    $S = \Illuminate\Support\Facades\Schema::class;
+    $out = [];
+
+    // ۱) سرویس‌هایی که تحویل نشده‌اند — دقیقاً همان‌هایی که مشتری منتظرشان است
+    if ($S::hasTable('services')) {
+        $out['صفِ تحویل'] = \App\Models\Service::query()
+            ->whereIn('status', ['awaiting_provision', 'pending'])
+            ->orWhere(fn ($q) => $q->whereNotNull('provision_status')
+                ->whereNotIn('provision_status', ['done']))
+            ->orderByDesc('id')->limit(10)
+            ->get(['id', 'name', 'status', 'provision_status', 'provision_error',
+                'cloud_plan_id', 'cloud_image_key', 'created_at'])
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'نام' => mb_substr((string) $s->name, 0, 40),
+                'وضعیت' => $s->status,
+                'تحویل' => $s->provision_status,
+                'خطا' => mb_substr((string) $s->provision_error, 0, 200) ?: null,
+                'پلن' => $s->cloud_plan_id,
+                'سیستم‌عامل' => $s->cloud_image_key,
+                'ثبت' => (string) $s->created_at,
+            ])->all();
+    }
+
+    // ۲) سلامتِ کاتالوگ: هر مکان چند پلن و چند ایمیجِ قابلِ استفاده دارد؟
+    //    ایمیجِ صفر ⇒ مشتری نمی‌تواند سیستم‌عامل انتخاب کند و تحویل شکست می‌خورد.
+    if ($S::hasTable('cloud_locations') && $S::hasTable('cloud_plans')) {
+        $rows = [];
+
+        foreach (\App\Models\CloudLocation::orderBy('code')->get() as $loc) {
+            $plans = \App\Models\CloudPlan::where('location_code', $loc->code)->get();
+            $providers = $plans->pluck('provider')->unique()->filter()->values();
+
+            $imgCount = $S::hasTable('cloud_images')
+                ? \App\Models\CloudImage::query()->usable()
+                    ->whereIn('provider', $providers)->count()
+                : 0;
+
+            $rows[] = [
+                'مکان' => $loc->code,
+                'فعال' => (bool) $loc->is_active,
+                'پلن' => $plans->count(),
+                'قابلِ‌فروش' => $plans->where('is_active', true)->where('in_stock', true)
+                    ->where('price_irt', '>', 0)->count(),
+                'ایمیج' => $imgCount,
+                'هشدار' => $imgCount === 0 ? '⚠️ بدونِ سیستم‌عامل — قابلِ سفارش نیست' : null,
+            ];
+        }
+
+        $out['کاتالوگ'] = $rows;
+    }
+
+    // ۳) کرون واقعاً می‌دود؟ آخرین اجرای زمان‌بند
+    $out['کرون'] = [
+        'آخرین اجرای زمان‌بند' => cache()->get('sn.schedule.last'),
+        'اکنون' => now()->toDateTimeString(),
+    ];
+
+    // ۵) چرا سیستم‌عاملی برای انتخاب نمی‌آید؟ (فقط خواندن، بی‌هیچ تغییری)
+    //    برای اولین پلنِ فروختنیِ هر زیرساخت، فهرستِ قابلِ انتخاب و دلیلِ ردشدنِ
+    //    ایمیج‌ها را نشان می‌دهد — همان سه شرطِ deliverable(): زیرساخت، دیسک، معماری.
+    if ($S::hasTable('cloud_plans') && $S::hasTable('cloud_images')) {
+        $diag = [];
+
+        foreach (\App\Models\CloudPlan::query()->sellable()->get()->groupBy('provider') as $prov => $rows) {
+            $plan = $rows->first();
+            $os = \App\Http\Controllers\Account\CloudStoreController::imageKeysFor($plan, 'os');
+            $app = \App\Http\Controllers\Account\CloudStoreController::imageKeysFor($plan, 'app');
+
+            $imgs = \App\Models\CloudImage::query()->usable()->where('provider', $prov)->get();
+
+            $diag[] = [
+                'زیرساخت' => $prov,
+                'پلنِ نمونه' => $plan->public_name.' (دیسک '.$plan->disk_gb.'GB · معماری '.$plan->arch.')',
+                'اسلاگ' => $plan->slug,
+                'سیستم‌عاملِ قابلِ انتخاب' => count($os),
+                'نرم‌افزارِ قابلِ انتخاب' => count($app),
+                'ایمیجِ فعالِ این زیرساخت' => $imgs->count(),
+                'بیشترین min_disk_gb' => (int) $imgs->max('min_disk_gb'),
+                'معماریِ ایمیج‌ها' => $imgs->pluck('arch')->unique()->values()->all(),
+                'ردشده به‌خاطرِ دیسک' => $imgs->where('min_disk_gb', '>', (int) $plan->disk_gb)->count(),
+                'ردشده به‌خاطرِ معماری' => $imgs->filter(fn ($i) => filled($i->arch)
+                    && filled($plan->arch) && (string) $i->arch !== (string) $plan->arch)->count(),
+                'نمونهٔ ایمیج' => $imgs->take(3)->map(fn ($i) => $i->key.' [kind='.$i->kind
+                    .' min_disk='.$i->min_disk_gb.' arch='.$i->arch.']')->values()->all(),
+            ];
+        }
+
+        $out['عیب‌یابیِ سیستم‌عامل'] = $diag;
+    }
+
+    // ۴) ایمیج‌ها به تفکیکِ زیرساخت (نامِ زیرساخت فقط برای مدیر)
+    if ($S::hasTable('cloud_images')) {
+        $out['ایمیج به تفکیکِ زیرساخت'] = \App\Models\CloudImage::query()
+            ->selectRaw('provider, count(*) as n, sum(case when is_active = 1 then 1 else 0 end) as active')
+            ->groupBy('provider')->get()->map(fn ($x) => [
+                'زیرساخت' => $x->provider, 'کل' => (int) $x->n, 'فعال' => (int) $x->active,
+            ])->all();
+    }
+
+    return response()->json($out, 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+});
+
 Route::get('/system/opcache', fn () => response(
     '<!doctype html><meta charset=utf-8><title>ریست opcache</title>'
     .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
@@ -1276,7 +1458,7 @@ Route::post('/system/errors', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
 
-    $rows = collect(\App\Support\ErrorTracker::recent(200))
+    $rows = collect(\App\Support\ErrorTracker::recent(200, 'error'))
         ->filter(fn ($e) => ($e['type'] ?? '') === 'error')
         ->take((int) $r->input('limit', 8))
         ->map(fn ($e) => [
@@ -1426,11 +1608,36 @@ Route::prefix('admin')->group(function () {
         // تغییرِ قیمتِ گروهی (درصدی/مبلغی) با گردکردنِ رو به بالا
         Route::post('/products-reprice', [\App\Http\Controllers\Admin\ProductController::class, 'reprice'])->middleware('admin');
 
+        // فروشگاهِ سرورِ فیزیکی — کاتالوگِ HP/Dell/Lenovo/Supermicro (مشخصاتِ سه‌زبانه + گالری)
+        Route::get('/server-shop', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'index'])->name('admin.server-shop')->middleware('admin');
+        Route::get('/server-shop/create', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'create'])->middleware('admin');
+        Route::post('/server-shop', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'store'])->middleware('admin');
+        Route::get('/server-shop/{server}/edit', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'edit'])->middleware('admin');
+        Route::post('/server-shop/{server}', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'update'])->middleware('admin');
+        Route::post('/server-shop/{server}/delete', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'destroy'])->middleware('admin');
+
         // زیرساختِ سرورِ ابری — کاتالوگ، آزمونِ اتصال، همگام‌سازی
+        // الگوی پیام‌ها — متنِ ایمیل/بله/اعلان یک‌جا
+        // اعلامِ اختلال روی صفحهٔ وضعیت — کانالِ ارتباطیِ ازپیش‌آمادهٔ حادثه
+        Route::get('/status', [\App\Http\Controllers\Admin\StatusIncidentController::class, 'index'])->middleware('admin');
+        Route::post('/status', [\App\Http\Controllers\Admin\StatusIncidentController::class, 'store'])->middleware('admin');
+        Route::post('/status/{incident}', [\App\Http\Controllers\Admin\StatusIncidentController::class, 'update'])->middleware('admin');
+
+        Route::get('/templates', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'index'])->name('admin.templates')->middleware('admin');
+        Route::get('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'edit'])->middleware('admin');
+        Route::post('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'update'])->middleware('admin');
+        Route::post('/templates/{template}/test', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'test'])->middleware(['admin', 'throttle:6,1']);
+
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
+        // اتصالِ سرورِ ازقبل‌ساخته‌شده به مشتری — سرور نمی‌سازد، فقط ثبت می‌کند.
+        Route::get('/cloud/attach', [\App\Http\Controllers\Admin\CloudAttachController::class, 'form'])->middleware('admin');
+        Route::post('/cloud/attach', [\App\Http\Controllers\Admin\CloudAttachController::class, 'store'])->middleware('admin');
+        // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
+        Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
+
         Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe'])->middleware('admin');
         // خاموش/روشنِ پکیج/مکان/کشور/زیرساخت — همه POST و پشتِ گیتِ مدیر.
         // روی admin_disabled می‌نویسند نه is_active، تا کرونِ سینک تصمیم را

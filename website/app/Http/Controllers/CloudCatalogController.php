@@ -77,7 +77,7 @@ class CloudCatalogController extends Controller
     /** ترتیب و برچسبِ قاره‌ها — اروپا اول، چون بیشترِ ظرفیت و بهترین قیمت آن‌جاست */
     public const CONTINENTS = [
         'eu' => ['fa' => 'اروپا',              'en' => 'Europe',                  'tr' => 'Avrupa'],
-        'me' => ['fa' => 'خاورمیانه و قفقاز',  'en' => 'Middle East & Caucasus',  'tr' => 'Orta Doğu ve Kafkasya'],
+        'me' => ['fa' => 'خاورمیانه',  'en' => 'Middle East',  'tr' => 'Orta Doğu'],
         'as' => ['fa' => 'آسیا',               'en' => 'Asia',                    'tr' => 'Asya'],
         'na' => ['fa' => 'آمریکای شمالی',      'en' => 'North America',           'tr' => 'Kuzey Amerika'],
         'sa' => ['fa' => 'آمریکای جنوبی',      'en' => 'South America',           'tr' => 'Güney Amerika'],

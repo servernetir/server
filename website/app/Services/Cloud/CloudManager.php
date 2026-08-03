@@ -19,6 +19,7 @@ class CloudManager
         'hetzner' => HetznerClient::class,
         'aeza'    => AezaClient::class,
         'arvan'   => ArvanClient::class,
+        'ovh'     => OvhClient::class,
     ];
 
     /**
@@ -37,6 +38,7 @@ class CloudManager
         'hetzner' => 'Hetzner Cloud',
         'aeza'    => 'Aeza',
         'arvan'   => 'ArvanCloud (ابرآروان)',
+        'ovh'     => 'OVHcloud',
     ];
 
     /** @var array<string, CloudProvider> */

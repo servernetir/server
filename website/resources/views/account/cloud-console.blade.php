@@ -26,10 +26,28 @@
     'msg_closed'   => __('ui.vnc_msg_closed'),
     'err_dropped'  => __('ui.vnc_err_dropped'),
     'err_auth'     => __('ui.vnc_err_auth'),
+    'btn_fullscreen'      => __('ui.vnc_btn_fullscreen'),
+    'btn_exit_fullscreen' => __('ui.vnc_btn_exit_fullscreen'),
   ];
 @endphp
 
 <script>window.T = @json($vncT);</script>
+
+<style>
+  #vnc-wrap{ position:relative; background:#0b0f14; overflow:hidden; border-radius:0 0 12px 12px }
+
+  /* ارتفاعِ عادی با ویوپورت بالا می‌آید تا روی نمایشگرِ بزرگ هم کنسول کوچک
+     نمانَد، ولی روی لپ‌تاپِ کوتاه از ۴۶۰ پایین‌تر نرود. */
+  #vnc-screen{ width:100%; height:clamp(460px, 68vh, 900px) }
+
+  /* ⚠️ هر کدام قاعدهٔ جدا — اگر با کاما بنویسی، مرورگری که یکی از این دو
+     سلکتور را نشناسد **کلِ قاعده** را دور می‌ریزد و تمام‌صفحه بی‌صدا می‌شکند. */
+  #vnc-wrap:fullscreen{ border-radius:0; width:100vw; height:100vh }
+  #vnc-wrap:fullscreen #vnc-screen{ height:100vh }
+
+  #vnc-wrap:-webkit-full-screen{ border-radius:0; width:100vw; height:100vh }
+  #vnc-wrap:-webkit-full-screen #vnc-screen{ height:100vh }
+</style>
 
 <div class="pnl-head">
   <div>
@@ -56,7 +74,7 @@
         <svg class="icon"><use href="#i-key"/></svg>Ctrl+Alt+Del
       </button>
       <button class="pnl-btn" id="vnc-full" type="button" style="font-size:12px;padding:6px 11px">
-        <svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.vnc_btn_fullscreen') }}
+        <svg class="icon"><use href="#i-monitor"/></svg><span>{{ __('ui.vnc_btn_fullscreen') }}</span>
       </button>
       <button class="pnl-btn" id="vnc-again" type="button" style="font-size:12px;padding:6px 11px;display:none">
         <svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.vnc_btn_reconnect') }}
@@ -66,9 +84,14 @@
 
   <div class="pnl-sec-b" style="padding:0">
     {{-- ظرفِ کنسول: پس‌زمینهٔ تیره ثابت است چون صفحهٔ خودِ سرور تیره است و
-         در حالتِ روشنِ سایت هم باید خوانا بماند. --}}
-    <div id="vnc-wrap" style="position:relative;background:#0b0f14;min-height:460px;border-radius:0 0 12px 12px;overflow:hidden">
-      <div id="vnc-screen" style="width:100%;height:460px"></div>
+         در حالتِ روشنِ سایت هم باید خوانا بماند.
+
+         ⚠️ ارتفاع عمداً **inline نیست**. قبلاً `height:460px` روی #vnc-screen
+         inline بود و چون استایلِ inline را هیچ قاعدهٔ CSS نمی‌شکند، در حالتِ
+         تمام‌صفحه ظرف بزرگ می‌شد ولی خودِ صفحه ۴۶۰ پیکسل می‌ماند و کنسول
+         وسطِ یک زمینهٔ سیاهِ بزرگ کوچک دیده می‌شد. --}}
+    <div id="vnc-wrap">
+      <div id="vnc-screen"></div>
 
       <div id="vnc-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#cbd5e1;font-size:13.5px;line-height:2">
         <div>
@@ -168,15 +191,45 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
     if (rfb) { rfb.sendCtrlAltDel(); }
   };
 
-  document.getElementById('vnc-full').onclick = function(){
-    var el = document.getElementById('vnc-wrap');
+  var wrap = document.getElementById('vnc-wrap');
+  var fullBtn = document.getElementById('vnc-full');
+  var fullLabel = fullBtn.querySelector('span');
 
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else if (el.requestFullscreen) {
-      el.requestFullscreen();
+  function fsElement(){
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  fullBtn.onclick = function(){
+    if (fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      var req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+      if (req) { req.call(wrap); }
     }
   };
+
+  // بعد از تغییرِ اندازه، noVNC باید دوباره مقیاس بگیرد. `scaleViewport` به
+  // resizeِ پنجره گوش می‌دهد، ولی ورود/خروجِ تمام‌صفحه همیشه و همه‌جا آن رویداد
+  // را به‌موقع نمی‌دهد؛ پس صریح می‌گوییم. rAF لازم است چون در لحظهٔ رویداد،
+  // مرورگر هنوز ابعادِ تازه را اعمال نکرده و مقیاس با اندازهٔ قدیمی حساب می‌شود.
+  function rescale(){
+    requestAnimationFrame(function(){
+      window.dispatchEvent(new Event('resize'));
+      if (rfb) { rfb.scaleViewport = false; rfb.scaleViewport = true; }
+    });
+  }
+
+  function onFsChange(){
+    var on = !!fsElement();
+    fullLabel.textContent = on ? window.T.btn_exit_fullscreen : window.T.btn_fullscreen;
+    rescale();
+  }
+
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  // چرخاندنِ گوشی یا تغییرِ اندازهٔ پنجره هم باید کنسول را دوباره جا بیندازد
+  window.addEventListener('orientationchange', rescale);
 
   againBtn.onclick = function(){ window.location.href = reopenUrl; };
 

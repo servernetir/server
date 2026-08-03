@@ -48,6 +48,9 @@ class CloudLocation extends Model
 
     /** نامِ شهر به فارسی — بقیهٔ زبان‌ها همان لاتین را می‌بینند */
     public const CITIES_FA = [
+        // شهرهای ایران (دیتاسنترهای آروان)
+        'tehran' => 'تهران', 'isfahan' => 'اصفهان', 'urmia' => 'ارومیه',
+        'shiraz' => 'شیراز', 'ahvaz' => 'اهواز', 'tabriz' => 'تبریز', 'mashhad' => 'مشهد',
         'frankfurt' => 'فرانکفورت', 'falkenstein' => 'فالکن‌اشتاین',
         'nuremberg' => 'نورنبرگ', 'helsinki' => 'هلسینکی',
         'amsterdam' => 'آمستردام', 'stockholm' => 'استکهلم',

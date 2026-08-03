@@ -11,6 +11,76 @@
     $priceUnit = $yearlyOnly ? (isset($product['unit']) ? lc($product['unit']) : __('ui.domain_year')) : __('ui.mo');
 @endphp
 
+{{-- ============ دادهٔ ساختاریافته ============
+  چرا مهم است: این صفحه جدولِ قیمت و پرسش‌های متداول را از قبل دارد، ولی برای
+  موتور جست‌وجو و مدل‌های زبانی فقط «متن» بود. با نشانه‌گذاری، قیمت و پاسخ‌ها
+  قابلِ نقل‌قول می‌شوند.
+
+  ⚠️ `priceValidUntil` عمداً هست. در بازارِ تورمی، عددها زود عوض می‌شوند و
+  بدونِ تاریخ، ChatGPT و Perplexity قیمتِ امروز را ماه‌ها بعد نقل می‌کنند —
+  آن‌وقت یا باید عددِ منسوخ را بپذیریم یا مشتری سرِ خرید احساسِ فریب می‌کند.
+
+  ⚠️⚠️ آرایه‌ها اول در بلوکِ php ساخته می‌شوند، نه درون‌خطی: آرایهٔ درون‌خطی
+  پارسرِ Blade را می‌شکند. و در همین کامنت هم نامِ دایرکتیوها با علامتِ «at»
+  نوشته نمی‌شود، چون Blade هر «at + کلمه» را — حتی داخلِ کامنت — دایرکتیو
+  می‌شمارد. --}}
+@php
+  $sdHome = lroute('home');
+  $sdName = lc($product)['t'];
+
+  // نرخِ ارز و قیمت از همان منبعی که کاربر می‌بیند — وگرنه عددِ نشانه‌گذاری
+  // با عددِ صفحه فرق می‌کرد و همان تناقض به موتور جست‌وجو گزارش می‌شد.
+  $sdIsFa = app()->getLocale() === 'fa';
+  $sdCur  = $sdIsFa ? 'IRR' : 'EUR';
+
+  $sdOffers = [];
+  foreach ($product['plans'] as $sdP) {
+      if (($sdP['contact'] ?? false) || ! isset($sdP['irt'])) {
+          continue;                      // «تماس بگیرید» قیمت نیست
+      }
+
+      $sdOffers[] = [
+          '@type'           => 'Offer',
+          'name'            => $sdP['name'] ?? '',
+          // IRR چون schema.org واحدِ «تومان» ندارد؛ عدد همان چیزی است که
+          // روی صفحه نوشته شده تا تناقضی گزارش نشود.
+          'price'           => $sdIsFa ? price_toman((int) $sdP['irt']) : ($sdP['eur'] ?? 0),
+          'priceCurrency'   => $sdCur,
+          'priceValidUntil' => now()->addDays(30)->toDateString(),
+          'availability'    => 'https://schema.org/InStock',
+          'url'             => url()->current(),
+      ];
+  }
+
+  $sdFaq = [];
+  foreach ($faqs as $sdF) {
+      $sdFaq[] = [
+          '@type'          => 'Question',
+          'name'           => lc($sdF)['q'],
+          'acceptedAnswer' => ['@type' => 'Answer', 'text' => lc($sdF)['a']],
+      ];
+  }
+
+  $sdCrumbs = ['itemListElement' => [
+      ['@type' => 'ListItem', 'position' => 1, 'name' => __('ui.brand'), 'item' => $sdHome],
+      ['@type' => 'ListItem', 'position' => 2, 'name' => $sdName, 'item' => url()->current()],
+  ]];
+
+  $sdProduct = [
+      'name'        => $sdName,
+      'description' => lc($product)['hero_d'],
+      'url'         => url()->current(),
+      'brand'       => ['@type' => 'Brand', 'name' => __('ui.brand')],
+      'offers'      => $sdOffers,
+  ];
+@endphp
+@if($sdOffers)
+<script type="application/ld+json">{!! schema_ld($sdProduct, 'Product') !!}</script>
+@endif
+@if($sdFaq)
+<script type="application/ld+json">{!! schema_ld(['mainEntity' => $sdFaq], 'FAQPage') !!}</script>
+@endif
+<script type="application/ld+json">{!! schema_ld($sdCrumbs, 'BreadcrumbList') !!}</script>
 {{-- ============ HERO ============ --}}
 <section class="hero hero-sub">
   <div class="container">
@@ -44,19 +114,75 @@
       <h2>{{ __('ui.hp_plans_title') }}</h2>
       <p>{{ __('ui.hp_plans_sub') }}</p>
     </div>
-    @unless($yearlyOnly)
+    @php
+      // سرورِ مجازی/اختصاصی با پلنِ زنده = **جدولِ کامل**، نه کارت.
+      // کارت برای شش پلن خوب است؛ آلمان ده‌ها پلن دارد و کارت‌کردنشان یعنی یا
+      // دیوارِ کارت یا — کاری که قبلاً می‌کردیم — پنهان‌کردنِ بقیه.
+      $asTable = ! empty($planHrefs) && in_array($category, ['vps', 'dedicated'], true);
+    @endphp
+
+    {{-- در نمای جدولی فقط قیمتِ ماهانه ستون دارد، پس کلیدِ ماهانه/سالانه
+         چیزی را عوض نمی‌کند و فقط کاربر را گمراه می‌کند. --}}
+    @unless($yearlyOnly || $asTable)
     <div class="bill-toggle reveal" role="group" aria-label="Billing cycle">
       <button type="button" class="active" data-bill="monthly">{{ __('ui.bill_monthly') }}</button>
       <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('billing.cycles.yearly.discount_pct')) : config('billing.cycles.yearly.discount_pct')]) }}</span></button>
     </div>
     @endunless
+    @if($asTable)
+    <div class="plan-table-wrap reveal" id="plans">
+      <table class="plan-table">
+        <thead>
+          <tr>
+            <th>{{ __('ui.pt_row') }}</th>
+            <th>{{ __('ui.pt_plan') }}</th>
+            <th>{{ __('ui.cvb_cores') }}</th>
+            <th>{{ __('ui.cvb_ram') }}</th>
+            <th>{{ __('ui.pt_disk') }}</th>
+            <th>{{ __('ui.pt_traffic') }}</th>
+            <th>{{ __('ui.pt_location') }}</th>
+            <th>{{ __('ui.pt_price') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($product['plans'] as $i => $p)
+          @php $r = $p['row'] ?? []; @endphp
+          <tr>
+            <td class="pt-num">{{ $isFa ? fa_num($i + 1) : $i + 1 }}</td>
+            <td class="pt-name"><b>{{ $p['name'] }}</b>
+              @if(! empty($r['cpu']))<span class="pt-tag">{{ $r['cpu'] }}</span>@endif
+            </td>
+            <td dir="ltr">{{ $isFa ? fa_num($r['vcpu'] ?? '') : ($r['vcpu'] ?? '') }}</td>
+            <td dir="ltr">{{ $r['ram'] ?? '' }}</td>
+            <td dir="ltr">{{ $r['disk'] ?? '' }}</td>
+            <td dir="ltr">{{ $r['traffic'] ?? '' }}</td>
+            <td>{{ $r['city'] ?? '' }}</td>
+            <td class="pt-price"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></td>
+            <td class="pt-buy">
+              <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
+            </td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+    <p class="plan-table-count reveal">
+      {{ __('ui.pt_count', ['n' => $isFa ? fa_num(count($product['plans'])) : count($product['plans'])]) }}
+    </p>
+    @else
     <div class="plans {{ count($product['plans']) === 3 ? 'plans-3' : '' }} {{ count($product['plans']) >= 5 ? 'plans-many' : '' }}" id="plans">
       @foreach($product['plans'] as $i => $p)
       @php
         $isContact = $p['contact'] ?? false;
         // خرید داخلی: مستقیم به تسویهٔ همان پکیج در پنل (slug = «محصول-شمارهٔ‌پلن»).
-        // فقط برای هاست که در DB seed شده؛ VPS/اختصاصی هنوز به WHMCS خارجی می‌روند.
-        $storeHref = ($category === 'hosting') ? lroute('account.order', $slug.'-'.($i + 1)) : null;
+        // هاست → سفارشِ همان پکیج؛ سرورِ مجازی/اختصاصی → فروشگاهِ کنسول با مکانِ
+        // همین کشورِ ازپیش‌انتخاب‌شده. هیچ‌کدام دیگر به WHMCSِ بیرونی نمی‌روند.
+        // پلنِ زندهٔ ابری لینکِ اختصاصیِ خودش را دارد (مکان + پلن ازپیش‌انتخاب‌شده)
+        // تا همان چیزی که این‌جا می‌بیند، سرِ پرداخت هم همان باشد.
+        $storeHref = ($category === 'hosting')
+            ? lroute('account.order', $slug.'-'.($i + 1))
+            : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
@@ -94,6 +220,7 @@
       </article>
       @endforeach
     </div>
+    @endif
     <div class="inc-strip reveal">
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">
