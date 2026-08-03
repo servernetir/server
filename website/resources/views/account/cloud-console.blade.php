@@ -36,6 +36,41 @@
 <style>
   #vnc-wrap{ position:relative; background:#0b0f14; overflow:hidden; border-radius:0 0 12px 12px }
 
+  /* ── آی‌پی و مکان ── */
+  .vnc-meta{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+  .vnc-chip{
+    display:inline-flex; align-items:center; gap:7px; padding:6px 12px;
+    border-radius:999px; font-size:12.5px; line-height:1;
+    background:var(--bg2); border:1px solid var(--line); color:inherit;
+    font-family:inherit; cursor:pointer;
+  }
+  .vnc-chip.is-static{ cursor:default }
+  .vnc-chip .icon{ width:13px; height:13px; opacity:.6 }
+  #vnc-ip:hover{ border-color:var(--accent) }
+  /* بازخوردِ کپی با **متن**، نه فقط رنگ — رنگ به‌تنهایی برای کاربر کوررنگ کافی نیست */
+  #vnc-ip.is-copied{ border-color:var(--accent); color:var(--accent) }
+  #vnc-ip.is-copied::after{ content:'✓'; font-weight:700 }
+
+  .vnc-head-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+
+  /* ── کادرِ چسباندن ── */
+  #vnc-paste-box{
+    position:absolute; inset-inline-start:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:30; width:min(520px, calc(100% - 32px)); padding:18px;
+    border-radius:14px; background:var(--bg); border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(0,0,0,.4);
+  }
+  html[dir="rtl"] #vnc-paste-box{ transform:translate(50%,-50%) }
+  #vnc-paste-box label{ display:block; font-size:13px; font-weight:600; margin-bottom:8px }
+  #vnc-paste-text{
+    width:100%; padding:10px 12px; border-radius:10px; font-size:13px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; resize:vertical;
+    background:var(--bg2); color:inherit; border:1px solid var(--line);
+  }
+  #vnc-paste-box p{ margin:9px 0 0; font-size:11.5px; line-height:1.9; color:var(--muted) }
+  .vnc-paste-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:14px }
+  .pnl-btn.is-primary{ background:var(--accent); color:#fff; border-color:var(--accent) }
+
   /* ارتفاعِ عادی با ویوپورت بالا می‌آید تا روی نمایشگرِ بزرگ هم کنسول کوچک
      نمانَد، ولی روی لپ‌تاپِ کوتاه از ۴۶۰ پایین‌تر نرود. */
   #vnc-screen{ width:100%; height:clamp(460px, 68vh, 900px) }
@@ -58,18 +93,44 @@
       <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>
     <h1>{{ __('ui.vnc_h1') }}</h1>
-    <p>
-      {{ __('ui.vnc_lead') }}
-      @if($instance?->ipv4)<span dir="ltr">{{ $instance->ipv4 }}</span>@endif
-    </p>
+    <p>{{ __('ui.vnc_lead') }}</p>
+
+    {{-- 🔴 آی‌پی و مکان بالای صفحه: کاربر معمولاً چند کنسول را هم‌زمان باز
+         دارد و تنها چیزی که آن‌ها را از هم جدا می‌کند همین دو است. بدونش،
+         دستورِ اشتباه روی سرورِ اشتباه اجرا می‌شود. --}}
+    @php $vncLoc = $instance?->location(); @endphp
+    <div class="vnc-meta">
+      @if($instance?->ipv4)
+        <button type="button" class="vnc-chip" id="vnc-ip"
+                data-ip="{{ $instance->ipv4 }}" title="{{ __('ui.vnc_copy_ip') }}">
+          <svg class="icon"><use href="#i-globe"/></svg>
+          <span dir="ltr">{{ $instance->ipv4 }}</span>
+        </button>
+      @endif
+      @if($vncLoc)
+        <span class="vnc-chip is-static">
+          <span aria-hidden="true">{{ $vncLoc->flagEmoji() }}</span>
+          <span>{{ $vncLoc->label() }}</span>
+        </span>
+      @endif
+    </div>
   </div>
-  <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">{{ __('ui.vnc_state_connecting') }}</span>
+
+  <div class="vnc-head-actions">
+    <a class="pnl-btn" href="{{ route('account.cloud.show', $service) }}">
+      <svg class="icon dir"><use href="#i-arrow"/></svg>{{ __('ui.vnc_back') }}
+    </a>
+    <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">{{ __('ui.vnc_state_connecting') }}</span>
+  </div>
 </div>
 
 <section class="pnl-sec">
   <div class="pnl-sec-h">
     <h2>{{ __('ui.vnc_sec_screen') }}</h2>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="pnl-btn" id="vnc-paste" type="button" style="font-size:12px;padding:6px 11px">
+        <svg class="icon"><use href="#i-paperclip"/></svg>{{ __('ui.vnc_btn_paste') }}
+      </button>
       <button class="pnl-btn" id="vnc-cad" type="button" style="font-size:12px;padding:6px 11px">
         <svg class="icon"><use href="#i-key"/></svg>Ctrl+Alt+Del
       </button>
@@ -97,6 +158,25 @@
         <div>
           <div style="font-size:30px;margin-bottom:10px">🖥️</div>
           <div id="vnc-msg-text">{{ __('ui.vnc_overlay_connecting') }}</div>
+        </div>
+      </div>
+
+      {{-- ⚠️ چسباندن با **تایپِ شبیه‌سازی‌شده** انجام می‌شود، نه کلیپ‌بوردِ VNC.
+           کلیپ‌بورد فقط وقتی کار می‌کند که مهمان agent داشته باشد؛ روی سرورِ
+           تازه‌نصب یا صفحهٔ نجات هیچ agentی نیست و دقیقاً همان‌جاست که کاربر
+           بیشترین نیاز را به چسباندن دارد (کلیدِ SSH، دستورِ بلند، رمز).
+
+           و چرا textarea به‌جای خواندنِ مستقیمِ کلیپ‌بورد: `navigator.clipboard.readText`
+           اجازه می‌خواهد، در فایرفاکس عملاً بسته است، و در context غیرامن اصلاً
+           وجود ندارد. کادرِ متن همه‌جا کار می‌کند. --}}
+      <div id="vnc-paste-box" hidden>
+        <label for="vnc-paste-text">{{ __('ui.vnc_paste_title') }}</label>
+        <textarea id="vnc-paste-text" rows="4" spellcheck="false" dir="ltr"
+                  placeholder="{{ __('ui.vnc_paste_ph') }}"></textarea>
+        <p>{{ __('ui.vnc_paste_hint') }}</p>
+        <div class="vnc-paste-actions">
+          <button type="button" class="pnl-btn" id="vnc-paste-cancel">{{ __('ui.vnc_paste_cancel') }}</button>
+          <button type="button" class="pnl-btn is-primary" id="vnc-paste-send">{{ __('ui.vnc_paste_send') }}</button>
         </div>
       </div>
     </div>
@@ -189,6 +269,71 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
 
   document.getElementById('vnc-cad').onclick = function(){
     if (rfb) { rfb.sendCtrlAltDel(); }
+  };
+
+  /* ───────────── کپیِ آی‌پی ─────────────
+   * ⚠️ `navigator.clipboard` در context غیرامن **وجود ندارد**، پس نبودنش
+   * نباید خطای جاوااسکریپت بدهد و بقیهٔ صفحه را بخواباند.
+   */
+  var ipBtn = document.getElementById('vnc-ip');
+  if (ipBtn) {
+    ipBtn.onclick = function(){
+      var ip = ipBtn.getAttribute('data-ip') || '';
+      var done = function(){
+        ipBtn.classList.add('is-copied');
+        setTimeout(function(){ ipBtn.classList.remove('is-copied'); }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ip).then(done, function(){});
+      }
+    };
+  }
+
+  /* ───────────── چسباندنِ متن ─────────────
+   * با **تایپِ شبیه‌سازی‌شده**، نه کلیپ‌بوردِ VNC: کلیپ‌بورد به agentِ مهمان
+   * نیاز دارد و روی سرورِ تازه‌نصب یا صفحهٔ نجات هیچ agentی نیست — دقیقاً
+   * همان‌جایی که کاربر بیشترین نیاز را به چسباندن دارد.
+   */
+  var pasteBox = document.getElementById('vnc-paste-box');
+  var pasteText = document.getElementById('vnc-paste-text');
+
+  document.getElementById('vnc-paste').onclick = function(){
+    pasteBox.hidden = !pasteBox.hidden;
+    if (!pasteBox.hidden) { pasteText.focus(); }
+  };
+  document.getElementById('vnc-paste-cancel').onclick = function(){ pasteBox.hidden = true; };
+
+  document.getElementById('vnc-paste-send').onclick = function(){
+    if (!rfb) { return; }
+    var text = pasteText.value;
+    if (!text) { pasteBox.hidden = true; return; }
+
+    var i = 0;
+    var chars = Array.from(text);        // نه split('') — تا حروفِ خارج از BMP نشکنند
+
+    (function step(){
+      if (i >= chars.length) {
+        pasteBox.hidden = true;
+        pasteText.value = '';
+        return;
+      }
+
+      var ch = chars[i++];
+
+      if (ch === '\n' || ch === '\r') {
+        rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
+      } else if (ch === '\t') {
+        rfb.sendKey(0xFF09, 'Tab');
+      } else {
+        var cp = ch.codePointAt(0);
+        // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
+        rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+      }
+
+      // فاصلهٔ کوتاه: کنسولِ سرور صفِ ورودیِ محدودی دارد و ارسالِ یک‌جای
+      // چندصد کلید باعثِ افتادنِ کاراکتر می‌شود.
+      setTimeout(step, 12);
+    })();
   };
 
   var wrap = document.getElementById('vnc-wrap');
