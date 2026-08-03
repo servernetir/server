@@ -69,7 +69,9 @@ class ChatController extends Controller
 
     private function reply(string $msg, string $loc): array
     {
-        $c = config('servernet.contact');
+        // ⚠️ `$loc` صریح: این متد هر سه نسخهٔ پاسخ را می‌سازد و بعد یکی را
+        // برمی‌دارد، پس زبانِ اپ لزوماً زبانِ همین پاسخ نیست.
+        $c = site_contact($loc);
 
         $rules = [
             'vps|سرور مجازی|مجازی|sanal sunucu|sanal' => [

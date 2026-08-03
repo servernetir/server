@@ -70,7 +70,7 @@ class PaymentController extends Controller
         return view('account.invoice-print', [
             'invoice'   => $invoice,
             'paid'      => $invoice->payments->firstWhere('status', 'paid'),
-            'contact'   => config('servernet.contact'),
+            'contact'   => site_contact(),
             'legalName' => Setting::get('bank_holder'),
             // مهر فقط روی فاکتورِ پرداخت‌شده (رسمی)، نه پیش‌فاکتور — به‌صورت
             // data-uri جاسازی می‌شود تا در PDF هم بیاید

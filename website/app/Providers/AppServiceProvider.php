@@ -131,11 +131,21 @@ class AppServiceProvider extends ServiceProvider
 
         // متغیرهای مشترک همه‌ی ویوها: زبان جاری، لینک سوییچ زبان‌ها و اطلاعات تماس
         View::composer('*', function (ViewInstance $view) {
-            static $shared = null;
+            // 🔴 کش باید با **زبان و روت** کلید بخورد، نه یک `static` تک‌مقداری.
+            //
+            // قبلاً یک `static $shared` بود و فقط یک بار پر می‌شد. زیر php-fpm
+            // بی‌ضرر بود (هر درخواست پروسهٔ تازه)، ولی هر جا دو زبان در یک
+            // پروسه رندر شوند مقدارِ اولی روی بقیه می‌ماند: ورکرِ صف که ایمیلِ
+            // مشتریِ فارسی و بعد انگلیسی را می‌سازد، به دومی هم لینک‌ها و
+            // شمارهٔ تماسِ فارسی می‌دهد. (تستِ SupportPhoneLocaleTest دقیقاً
+            // همین را گرفت: `/` و بعد `/en` در یک تست.)
+            static $cache = [];
 
-            if ($shared === null) {
-                $locale = app()->getLocale();
-                $routeName = Route::currentRouteName() ?? 'home';
+            $locale = app()->getLocale();
+            $routeName = Route::currentRouteName() ?? 'home';
+            $cacheKey = $locale.'|'.$routeName.'|'.md5(serialize(request()->route()?->parameters() ?? []));
+
+            if (! isset($cache[$cacheKey])) {
                 $baseRoute = preg_replace('/^(en|tr)\./', '', $routeName);
                 $params = request()->route()?->parameters() ?? [];
 
@@ -149,7 +159,7 @@ class AppServiceProvider extends ServiceProvider
 
                 $routePrefix = self::LOCALES[$locale] ?? '';
 
-                $shared = [
+                $cache[$cacheKey] = [
                     'isFa'        => $locale === 'fa',
                     'localeUrls'  => $localeUrls,
                     'faUrl'       => $localeUrls['fa'],
@@ -157,12 +167,13 @@ class AppServiceProvider extends ServiceProvider
                     'trUrl'       => $localeUrls['tr'],
                     'routePrefix' => $routePrefix,
                     'homeUrl'     => route($routePrefix.'home'),
-                    'contact'     => config('servernet.contact'),
+                    // ⚠️ `site_contact()` نه `config()` — شماره زبان‌محور است
+                    'contact'     => site_contact(),
                     'social'      => config('servernet.social'),
                 ];
             }
 
-            $view->with($shared);
+            $view->with($cache[$cacheKey]);
         });
     }
 

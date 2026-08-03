@@ -10,9 +10,19 @@
 
 return [
 
+    /*
+    | ⚠️ شمارهٔ تماس **زبان‌محور** است و از `site_contact()` خوانده می‌شود، نه
+    | مستقیم از این‌جا. مشتری ایرانی باید خط ثابت تهران را ببیند (تماسش رایگان
+    | است و شمارهٔ خارجی بی‌اعتمادش می‌کند)، و مشتری en/tr باید شمارهٔ
+    | بین‌المللی را ببیند (شمارهٔ ۰۲۱ از بیرون ایران بدون کد کشور گرفته نمی‌شود).
+    |
+    | `phone`/`phone_link` نسخهٔ فارسی‌اند و `phone_intl*` نسخهٔ en/tr.
+    */
     'contact' => [
-        'phone'         => env('SITE_SUPPORT_PHONE', '+1 (716) 666 0425'),
-        'phone_link'    => env('SITE_SUPPORT_PHONE_LINK', '+17166660425'),
+        'phone'           => env('SITE_SUPPORT_PHONE', '021-71057757'),
+        'phone_link'      => env('SITE_SUPPORT_PHONE_LINK', '+982171057757'),
+        'phone_intl'      => env('SITE_SUPPORT_PHONE_INTL', '+1 (716) 666 0425'),
+        'phone_intl_link' => env('SITE_SUPPORT_PHONE_INTL_LINK', '+17166660425'),
         'email'         => env('SITE_SUPPORT_EMAIL', 'support@servernet.cloud'),
         'sales_email'   => env('SITE_SALES_EMAIL', 'sales@servernet.cloud'),
         'whatsapp'      => env('SITE_WHATSAPP', '17166660425'),

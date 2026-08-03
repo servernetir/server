@@ -2,7 +2,7 @@
   // جهت بر اساس زبانِ Mailable (locale). فارسی راست‌به‌چپ، بقیه چپ‌به‌راست.
   $dir  = app()->getLocale() === 'fa' ? 'rtl' : 'ltr';
   $brand = app()->getLocale() === 'fa' ? 'سرورنت' : 'ServerNet';
-  $c = config('servernet.contact', []);
+  $c = site_contact();
   // فونت: در ایمیل فونت سفارشی بارگذاری نمی‌شود؛ Tahoma فارسی را خوب می‌سازد
   $font = "Tahoma, 'Segoe UI', Arial, sans-serif";
 @endphp
