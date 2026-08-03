@@ -543,11 +543,26 @@ class CloudCatalogController extends Controller
             $cheapest = $plans->sortBy('price_irt')->first();
 
             $tree[$cont] ??= ['key' => $cont, 'label' => $this->pick(self::CONTINENTS[$cont] ?? self::CONTINENTS['xx']), 'countries' => [], 'plans' => 0, 'cities' => 0, 'min' => PHP_INT_MAX, 'from' => null];
-            $tree[$cont]['countries'][$country] ??= ['code' => $country, 'label' => $loc->countryLabel(), 'flag' => $loc->flagEmoji(), 'locations' => [], 'plans' => 0, 'min' => PHP_INT_MAX, 'from' => null];
+            $tree[$cont]['countries'][$country] ??= [
+                'code' => $country,
+                'label' => $loc->countryLabel(),
+                'flag' => $loc->flagEmoji(),
+                // کارت به **صفحهٔ کشور** می‌رود، نه صفحهٔ شهر: مشتری «سرور
+                // آلمان» می‌خواهد و شهر را وقتی انتخاب می‌کند که پلن‌ها را
+                // کنار هم ببیند.
+                'url' => \App\Services\Cloud\CloudCountry::url($country),
+                'locations' => [],
+                'cities' => [],
+                'plans' => 0,
+                'min' => PHP_INT_MAX,
+                'from' => null,
+            ];
+
+            $cityLabel = $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel();
 
             $tree[$cont]['countries'][$country]['locations'][] = [
                 'code' => $code,
-                'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
+                'city' => $cityLabel,
                 'label' => $loc->label(),
                 'flag' => $loc->flagEmoji(),
                 'plans' => $plans->count(),
@@ -555,6 +570,11 @@ class CloudCatalogController extends Controller
                 'from' => $cheapest->priceLabel(),
                 'url' => $this->locUrl($code),
             ];
+
+            // ⚠️ کلیدِ نام: چند مکانِ متفاوت می‌توانند یک برچسبِ شهر بدهند —
+            // مثلاً وقتی زیرساخت شهر نمی‌دهد و هر دو به پایتخت برمی‌گردند.
+            // بدونِ یکتاسازی، کارتِ کشور «برلین، برلین» نشان می‌داد.
+            $tree[$cont]['countries'][$country]['cities'][$cityLabel] = true;
 
             $tree[$cont]['plans'] += $plans->count();
             $tree[$cont]['cities']++;
@@ -581,6 +601,12 @@ class CloudCatalogController extends Controller
             usort($node['countries'], fn ($a, $b) => $a['min'] <=> $b['min'] ?: strcmp($a['code'], $b['code']));
             foreach ($node['countries'] as $i => $c) {
                 usort($c['locations'], fn ($a, $b) => $a['min'] <=> $b['min'] ?: strcmp($a['code'], $b['code']));
+
+                // نامِ شهرها به ترتیبِ همان مکان‌ها (ارزان‌ترین اول) و بی‌تکرار.
+                // سقفِ ۴ تا: کارت باید در یک نگاه خوانده شود، نه فهرستِ ۱۲ شهر.
+                $c['cities'] = array_slice(array_column($c['locations'], 'city'), 0, 4);
+                $c['cities'] = array_values(array_unique($c['cities']));
+
                 $node['countries'][$i] = $c;
             }
             $ordered[] = $node;

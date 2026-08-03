@@ -116,26 +116,39 @@
             </span>
           </div>
 
+          {{-- 🔴 کارت = **کشور**، نه شهر.
+               مشتری «سرور آلمان» می‌خواهد، نه «سرور فالکن‌اشتاین»؛ شهر را وقتی
+               انتخاب می‌کند که پلن‌ها را کنار هم ببیند. پس کلِ کارت یک لینک به
+               صفحهٔ کشور است و شهرها فقط برچسبِ اطلاعاتی‌اند.
+
+               ⚠️ این تجمیع یک مشکلِ واقعیِ داده را هم می‌پوشاند: بعضی زیرساخت‌ها
+               شهر نمی‌دهند و کدِ مکانشان از ردهٔ محصول ساخته شده
+               (`fi-shared`، `fi-dedicated`). با کارتِ کشوری، هر سه زیرِ یک
+               «فینلاند» جمع می‌شوند و مشتری سه مکانِ جعلی نمی‌بیند. --}}
           <div class="cvps-countries">
             @foreach($cont['countries'] as $country)
-              <div class="cvps-country">
+              <a class="cvps-country" href="{{ $country['url'] }}">
                 <div class="cvps-country-h">
                   <span class="cvps-flag" aria-hidden="true">{{ $country['flag'] }}</span>
                   <b>{{ $country['label'] }}</b>
-                  <span class="cvps-dim">{{ strtr($t['cloud_n_plans'], [':n' => fa_num(number_format($country['plans']))]) }}</span>
+                  <svg class="icon dir cvps-go" aria-hidden="true"><use href="#i-arrow"/></svg>
                 </div>
-                <div class="cvps-cities">
-                  @foreach($country['locations'] as $loc)
-                    <a class="cvps-city" href="{{ $loc['url'] }}">
-                      <span class="cvps-city-n">{{ $loc['city'] }}</span>
-                      <span class="cvps-city-m">
-                        {{ strtr($t['cloud_n_plans'], [':n' => fa_num(number_format($loc['plans']))]) }}
-                      </span>
-                      <span class="cvps-city-p">{{ __('ui.from') }} {{ $loc['from'] }}</span>
-                    </a>
-                  @endforeach
+
+                <div class="cvps-country-m">
+                  <span>{{ strtr($t['cloud_n_plans'], [':n' => fa_num(number_format($country['plans']))]) }}</span>
+                  @if($country['from'])
+                    <span class="cvps-country-p">{{ __('ui.from') }} {{ $country['from'] }}</span>
+                  @endif
                 </div>
-              </div>
+
+                @if(! empty($country['cities']))
+                  <div class="cvps-city-tags">
+                    @foreach($country['cities'] as $city)
+                      <span class="cvps-city-tag">{{ $city }}</span>
+                    @endforeach
+                  </div>
+                @endif
+              </a>
             @endforeach
           </div>
         </div>
@@ -320,18 +333,26 @@
 .cvps-cont-h h3{ font-size:17px; font-weight:700 }
 .cvps-cont-n{ font-size:12.2px; color:var(--dim) }
 .cvps-countries{ display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:14px }
-.cvps-country{ border:1px solid var(--line); border-radius:18px; background:var(--surface); padding:16px }
-.cvps-country-h{ display:flex; align-items:center; gap:9px; margin-bottom:12px }
-.cvps-country-h b{ font-size:14.5px; font-weight:700 }
+/* کارتِ کشور — کلِ کارت یک لینک است، پس هدفِ کلیک بزرگ و روی موبایل راحت است */
+.cvps-country{ display:block; border:1px solid var(--line); border-radius:18px;
+  background:var(--surface); padding:16px; color:inherit; text-decoration:none;
+  transition:border-color .18s var(--ease), background .18s, transform .18s var(--ease) }
+.cvps-country:hover{ border-color:var(--cyan); background:rgba(34,211,238,.06); transform:translateY(-2px) }
+.cvps-country:focus-visible{ outline:2px solid var(--cyan); outline-offset:3px }
+.cvps-country-h{ display:flex; align-items:center; gap:9px; margin-bottom:9px }
+.cvps-country-h b{ font-size:14.5px; font-weight:700; flex:1; min-width:0 }
 .cvps-flag{ font-size:19px; line-height:1 }
+.cvps-go{ width:15px; height:15px; opacity:.4; flex:none }
+.cvps-country:hover .cvps-go{ opacity:1; color:var(--cyan) }
 .cvps-dim{ font-size:11.8px; color:var(--dim) }
-.cvps-cities{ display:flex; flex-direction:column; gap:7px }
-.cvps-city{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px;
-  border:1px solid transparent; background:var(--surface-2); transition:border-color .18s var(--ease), background .18s }
-.cvps-city:hover{ border-color:var(--cyan); background:rgba(34,211,238,.07) }
-.cvps-city-n{ font-size:13.2px; font-weight:600; flex:1; min-width:0 }
-.cvps-city-m{ font-size:11.5px; color:var(--dim); white-space:nowrap }
-.cvps-city-p{ font-size:12px; font-weight:700; color:var(--cyan); white-space:nowrap }
+
+.cvps-country-m{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; font-size:11.8px; color:var(--dim) }
+.cvps-country-p{ font-size:12.5px; font-weight:700; color:var(--cyan); margin-inline-start:auto; white-space:nowrap }
+
+/* شهرها فقط برچسبِ اطلاعاتی‌اند — انتخابِ شهر داخلِ صفحهٔ کشور انجام می‌شود */
+.cvps-city-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:11px }
+.cvps-city-tag{ font-size:11.2px; color:var(--dim); padding:3px 9px; border-radius:999px;
+  background:var(--surface-2); white-space:nowrap }
 
 /* ── فیلتر و جدول ── */
 .cvps-filters{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:16px }
