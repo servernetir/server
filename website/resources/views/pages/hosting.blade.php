@@ -302,7 +302,11 @@
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
         <h3>{{ $p['name'] }}</h3>
         <div class="p-price">
-          @if($isContact)
+          @if($p['quote'] ?? false)
+          {{-- دامنه: قیمت به نرخِ روزِ ارز و نامِ خودِ دامنه بستگی دارد، پس
+               عددِ ثابت روی این صفحه همیشه غلط است. --}}
+          <span class="pr"><b style="font-size:19px">{{ __('ui.dsr_quote_price') }}</b></span>
+          @elseif($isContact)
           <span class="pr"><b style="font-size:23px">{{ __('ui.hp_contact_price') }}</b></span>
           @elseif($yearlyOnly)
           <span class="pr"><b>{{ site_price($p) }}</b><span>{{ $priceUnit }}</span></span>
@@ -316,7 +320,12 @@
           <li @if($j === 0) class="hl" @endif><svg class="icon"><use href="#i-check"/></svg>@if(is_array($spec)){{ lc($spec) }}@else<span dir="ltr">{{ $spec }}</span>@endif</li>
           @endforeach
         </ul>
-        @if($isContact)
+        @if($p['quote'] ?? false)
+        {{-- دامنه → جستجوی واقعی، جایی که قیمتِ لحظه‌ای می‌آید و می‌شود خرید --}}
+        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ lroute('domain.search') }}">
+          <svg class="icon" style="width:15px;height:15px"><use href="#i-search"/></svg>{{ __('ui.dsr_check_btn') }}
+        </a>
+        @elseif($isContact)
         <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
         @elseif($storeHref)
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}">{{ __('ui.choose') }}</a>

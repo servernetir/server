@@ -257,7 +257,17 @@ return [
             'en' => ['t' => 'Domains', 'd' => 'Register, transfer & manage'],
             'tr' => ['t' => 'Alan Adları', 'd' => 'Kayıt, transfer ve yönetim'],
             'groups' => [
+                /*
+                | 🔴 اولین آیتم، **جستجوی واقعی** است.
+                |
+                | تا امروز منوی دامنه فقط به صفحاتِ بازاریابی می‌رفت و هیچ لینکی
+                | به `/domains` — جایی که واقعاً می‌شود دامنه خرید — نداشت.
+                | کسی که روی «دامنه» می‌زند می‌خواهد نامش را جستجو کند، نه
+                | مقاله بخواند.
+                */
                 ['fa' => 'ثبت و انتقال دامنه', 'en' => 'Register & transfer', 'tr' => 'Kayıt ve transfer', 'items' => [
+                    ['route' => ['domain.search'], 'new' => true,
+                        'fa' => 'جستجو و ثبت دامنه', 'en' => 'Search & register', 'tr' => 'Ara ve kaydet'],
                     ['slug' => 'popular-tlds', 'fa' => 'دامنه عمومی', 'en' => 'Popular TLDs', 'tr' => 'Popüler Uzantılar'],
                     ['slug' => 'ir',           'fa' => 'دامنه IR', 'en' => '.ir Domains', 'tr' => '.ir Alan Adları'],
                     ['slug' => 'persian',      'fa' => 'دامنه فارسی', 'en' => 'Persian IDN Domains', 'tr' => 'Farsça (IDN) Alan Adları'],

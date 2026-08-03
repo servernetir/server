@@ -74,6 +74,38 @@ class DomainSearch
      * @param  string[]  $tlds    پسوندهای پیشنهادی وقتی کاربر پسوند نداده
      * @return array<int,array>
      */
+    /**
+     * اندازهٔ هر دستهٔ استعلامِ تدریجی.
+     *
+     * 🔴 عمداً کمتر از سقفِ اعتبارسنجیِ روت (`tlds` حداکثر ۱۲) است. اگر
+     * بزرگ‌ترش کنی، هر درخواست با خطای اعتبارسنجی برمی‌گردد و کاربر هیچ
+     * نتیجه‌ای نمی‌بیند — خرابی‌ای که فقط در مرورگر پیداست، نه در تستِ سرور.
+     */
+    public const BATCH = 10;
+
+    /**
+     * دستهٔ اول: چیزی که کاربر بلافاصله باید ببیند.
+     *
+     * @return array<int,string>
+     */
+    public static function firstBatch(): array
+    {
+        return array_slice(self::SUGGEST_TLDS, 0, self::BATCH);
+    }
+
+    /**
+     * بقیهٔ پسوندها، دسته‌دسته — برای بارگذاریِ تدریجی در پس‌زمینه.
+     *
+     * @return array<int,array<int,string>>
+     */
+    public static function restBatches(): array
+    {
+        return array_values(array_chunk(
+            array_slice(self::SUGGEST_TLDS, self::BATCH),
+            self::BATCH
+        ));
+    }
+
     public function search(string $query, array $tlds = []): array
     {
         [$name, $ext] = $this->split($query);

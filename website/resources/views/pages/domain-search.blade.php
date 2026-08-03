@@ -28,6 +28,16 @@ $T = [
   'eur_rate'           => cloud_eur_rate(),
   // فروش و تحویلِ دامنه در کنسولِ خودمان است، نه WHMCSِ بیرونی
   'panel'              => lroute('account.domains'),
+
+  /*
+  | دسته‌بندیِ پسوندها برای بارگذاریِ تدریجی.
+  |
+  | ⚠️ اندازهٔ دسته **۱۰** است چون اعتبارسنجیِ روت سقفِ ۱۲ دارد؛ بزرگ‌ترش
+  | یعنی هر درخواست با خطای اعتبارسنجی برمی‌گردد و کاربر هیچ نتیجه‌ای
+  | نمی‌بیند — خرابی‌ای که فقط در مرورگر دیده می‌شود، نه در تست‌های سرور.
+  */
+  'tld_first'          => \App\Services\Domain\DomainSearch::firstBatch(),
+  'tld_rest'           => \App\Services\Domain\DomainSearch::restBatches(),
 ];
 @endphp
 <script>window.T = @json($T);</script>
@@ -61,6 +71,12 @@ $T = [
 
     {{-- ============ نتایج ============ --}}
     <div id="dm-results" class="dm-results" hidden></div>
+
+    {{-- نشانگرِ «هنوز دارد می‌آید»: بدونِ آن، کاربر فهرستِ نیمه‌کامل را کامل
+         فرض می‌کند و فکر می‌کند پسوندِ موردِ نظرش را نداریم. --}}
+    <p id="dm-more" class="dm-more" hidden aria-live="polite">
+      <span class="dm-dot"></span>{{ __('ui.dsr_more') }}
+    </p>
 
     {{-- حالت اولیه --}}
     <div id="dm-idle" class="pnl-empty" style="margin-top:30px">
@@ -115,6 +131,7 @@ html[data-theme="light"] .dm-row{background:#fff}
       box = document.getElementById('dm-results'),
       idle = document.getElementById('dm-idle'),
       err = document.getElementById('dm-error'),
+      more = document.getElementById('dm-more'),
       spin = go.querySelector('.dm-spin'),
       label = go.querySelector('.dm-go-t');
 
@@ -174,38 +191,97 @@ html[data-theme="light"] .dm-row{background:#fff}
       '<a class="pnl-btn primary" target="_blank" rel="noopener" href="' + buy + '">' + T.register_btn + '</a></div>';
   }
 
+  /*
+   * ═══ استعلامِ دسته‌ای ═══
+   *
+   * ۶۴ پسوند در یک درخواست یعنی چند ثانیه صفحهٔ قفل‌شده. به‌جایش دستهٔ اول
+   * (پسوندِ خودِ کاربر + پرتقاضاها) بلافاصله می‌آید و بقیه پشتِ سرِ هم اضافه
+   * می‌شوند؛ کاربر از همان ثانیهٔ اول نتیجه دارد و می‌تواند بخرد.
+   *
+   * ⚠️ دسته‌ها **پشتِ سرِ هم** فرستاده می‌شوند نه موازی: هر درخواست یک تماسِ
+   * واقعی به رجیسترار است و ده تماسِ هم‌زمان هم نرخ‌محدودیت می‌خورد هم روی
+   * حسابِ ما بار می‌گذارد.
+   *
+   * ⚠️ `token` جلوی نتیجهٔ جستجوی قبلی را می‌گیرد: اگر کاربر وسطِ کار عبارتِ
+   * تازه‌ای بزند، دسته‌های در راهِ جستجوی قبلی نباید روی نتیجهٔ تازه بنشینند.
+   */
+  var token = 0;
+
+  var fetchBatch = async function (term, tlds) {
+    var res = await fetch(@json(lroute('domain.search.check')), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify(tlds ? { q: term, tlds: tlds } : { q: term })
+    });
+    return res.json();
+  };
+
   async function run() {
     var term = q.value.trim();
     if (!term) { q.focus(); return; }
 
+    var mine = ++token;
     busy(true);
     err.hidden = true;
     idle.hidden = true;
+    box.innerHTML = '';
+    box.hidden = true;
+
+    var seen = {};
+    var append = function (rows) {
+      var html = '';
+      (rows || []).forEach(function (r) {
+        var k = String(r.domain || '').toLowerCase();
+        if (!k || seen[k]) { return; }        // پسوندِ خودِ کاربر در دستهٔ اول هم هست
+        seen[k] = true;
+        html += row(r);
+      });
+      if (html) {
+        box.insertAdjacentHTML('beforeend', html);
+        box.hidden = false;
+      }
+    };
 
     try {
-      var res = await fetch(@json(lroute('domain.search.check')), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ q: term })
-      });
-      var d = await res.json();
+      // دستهٔ اول: پسوندِ خودِ کاربر + پرتقاضاها
+      var first = await fetchBatch(term, T.tld_first);
+      if (mine !== token) { return; }
 
-      if (!d.ok || !d.results || !d.results.length) {
+      if (!first.ok) {
         err.textContent = T.err_empty;
         err.hidden = false;
-        box.hidden = true;
         return;
       }
 
-      box.innerHTML = d.results.map(row).join('');
-      box.hidden = false;
+      append(first.results);
+      busy(false);                            // کاربر از همین‌جا می‌تواند بخرد
+
+      // بقیه، دسته‌به‌دسته و در پس‌زمینه
+      for (var i = 0; i < T.tld_rest.length; i++) {
+        if (mine !== token) { return; }
+        more.hidden = false;
+        try {
+          var d = await fetchBatch(term, T.tld_rest[i]);
+          if (mine !== token) { return; }
+          append(d.results);
+        } catch (e) {
+          // یک دستهٔ ناموفق نباید بقیه را متوقف کند
+        }
+      }
+      more.hidden = true;
+
+      if (!box.innerHTML) {
+        err.textContent = T.err_empty;
+        err.hidden = false;
+      }
     } catch (e) {
       err.textContent = T.err_conn;
       err.hidden = false;
     } finally {
+      if (mine === token) { more.hidden = true; }
       busy(false);
     }
   }

@@ -2747,3 +2747,9 @@ html[data-theme="light"] .sol-uc{ background:#fff }
   .pt-pop{inset-inline-start:auto;inset-inline-end:0}
   .pt-menu > summary{padding:10px}
 }
+
+/* نشانگرِ بارگذاریِ تدریجیِ پسوندهای دامنه */
+.dm-more{display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:13px;color:var(--muted)}
+.dm-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:dm-pulse 1s ease-in-out infinite}
+@keyframes dm-pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dm-dot{animation:none;opacity:.6}}
