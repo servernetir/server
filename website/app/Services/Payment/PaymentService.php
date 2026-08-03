@@ -372,6 +372,45 @@ class PaymentService
                 }
             }
 
+            /*
+            | فاکتورِ **دامنه** تسویه شد → دامنه به صفِ ثبت می‌رود.
+            |
+            | 🔴 این‌جا هیچ تماسِ شبکه‌ای انجام نمی‌شود و این عمدی است. اگر ثبت را
+            | داخلِ همین تراکنش می‌گذاشتیم، یک کندیِ رجیسترار باعثِ timeoutِ
+            | وب‌هوکِ درگاه می‌شد، درگاه پرداخت را ناموفق فرض می‌کرد و پول
+            | برمی‌گشت — در حالی که دامنه ثبت شده است. همان درسی که
+            | `provision:run` برای سرور داد.
+            |
+            | فقط پرچمِ وضعیت زده می‌شود؛ کرونِ `domains:provision` کارِ واقعی را
+            | می‌کند و خودش هم قفلِ اتمی و استعلامِ «قبلاً ثبت شده؟» دارد.
+            |
+            | ⚠️ ستون `domain_id` روی نصبِ مهاجرت‌نخورده وجود ندارد. بدونِ این
+            | سنجش، هر پرداختِ **سرویس** هم با «ستون ناموجود» می‌ترکید — یعنی
+            | یک قابلیتِ تازه، مسیرِ پولِ موجود را می‌خواباند.
+            */
+            try {
+                $hasDomainCol = \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'domain_id');
+
+                if ($hasDomainCol && $invoice->status === 'paid' && $invoice->domain_id !== null) {
+                    \Illuminate\Support\Facades\DB::table('domains')
+                        ->where('id', $invoice->domain_id)
+                        ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)
+                        // ثبت‌شده را دوباره به صف نینداز: فاکتورِ **تمدید** هم
+                        // همین‌جا رد می‌شود و تمدید کارِ `renew()` است نه ثبت.
+                        ->where('provision_status', '!=', 'done')
+                        ->update([
+                            'provision_status' => 'pending',
+                            'updated_at'       => now(),
+                        ]);
+                }
+            } catch (\Throwable $e) {
+                // پرداخت سرِجایش می‌ماند؛ فقط صف‌گذاری مشکل داشت.
+                \App\Support\ErrorTracker::note('payment', $e, [
+                    'invoice' => $invoice->id,
+                    'domain'  => $invoice->domain_id ?? null,
+                ]);
+            }
+
             // بیش‌پرداخت: تا کاربر در درگاه بود فاکتور از راه دیگری بسته شد.
             // پول نه برمی‌گردد نه گم می‌شود — به اعتبارش می‌نشیند.
             if ($surplus > 0) {

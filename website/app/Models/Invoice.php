@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Invoice extends Model
 {
     protected $fillable = [
-        'customer_id', 'service_id', 'number', 'kind', 'currency_code',
+        'customer_id', 'service_id', 'domain_id', 'number', 'kind', 'currency_code',
         'subtotal', 'tax', 'total', 'paid', 'status', 'note',
         'issued_at', 'due_at', 'paid_at',
     ];

@@ -191,6 +191,27 @@ $site = function (): void {
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
         Route::post('/order/{product:slug}', [Account\StoreController::class, 'order'])->name('order.place')->middleware('throttle:12,1');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
+
+        /*
+        | دامنه — خرید و مدیریت.
+        |
+        | ⚠️ `order` نرخ‌محدود است چون هر سفارش یک ردیفِ دامنه و یک فاکتور
+        | می‌سازد؛ بی‌محدودیت، یک اسکریپت می‌تواند دفترِ فاکتور را پر کند.
+        | خودِ ثبت این‌جا انجام نمی‌شود (بعد از پرداخت، با کرون).
+        */
+        Route::get('/domains', [Account\DomainController::class, 'index'])->name('domains');
+        Route::post('/domains/order', [Account\DomainController::class, 'order'])
+            ->name('domains.order')->middleware('throttle:12,1');
+        Route::get('/domains/{domain}', [Account\DomainController::class, 'show'])->name('domain');
+        Route::post('/domains/{domain}/nameservers', [Account\DomainController::class, 'nameservers'])
+            ->name('domain.ns')->middleware('throttle:20,1');
+        Route::post('/domains/{domain}/lock', [Account\DomainController::class, 'lock'])
+            ->name('domain.lock')->middleware('throttle:20,1');
+        Route::post('/domains/{domain}/authcode', [Account\DomainController::class, 'authCode'])
+            ->name('domain.authcode')->middleware('throttle:6,1');
+        Route::post('/domains/{domain}/auto-renew', [Account\DomainController::class, 'autoRenew'])
+            ->name('domain.autorenew')->middleware('throttle:20,1');
+
         // احراز هویت — به‌ویژه کاربرِ حقوقی (اطلاعات شرکت + معرفی‌نامه + اساسنامه)
         Route::get('/verify', [Account\VerificationController::class, 'show'])->name('verify');
         Route::post('/verify', [Account\VerificationController::class, 'submit'])->name('verify.submit')->middleware('throttle:forms');
