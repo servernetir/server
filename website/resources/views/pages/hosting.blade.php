@@ -130,44 +130,136 @@
     </div>
     @endunless
     @if($asTable)
-    <div class="plan-table-wrap reveal" id="plans">
-      <table class="plan-table">
-        <thead>
-          <tr>
-            <th>{{ __('ui.pt_row') }}</th>
-            <th>{{ __('ui.pt_plan') }}</th>
-            <th>{{ __('ui.cvb_cores') }}</th>
-            <th>{{ __('ui.cvb_ram') }}</th>
-            <th>{{ __('ui.pt_disk') }}</th>
-            <th>{{ __('ui.pt_traffic') }}</th>
-            <th>{{ __('ui.pt_location') }}</th>
-            <th>{{ __('ui.pt_price') }}</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach($product['plans'] as $i => $p)
-          @php $r = $p['row'] ?? []; @endphp
-          <tr>
-            <td class="pt-num">{{ $isFa ? fa_num($i + 1) : $i + 1 }}</td>
-            <td class="pt-name"><b>{{ $p['name'] }}</b>
-              @if(! empty($r['cpu']))<span class="pt-tag">{{ $r['cpu'] }}</span>@endif
-            </td>
-            <td dir="ltr">{{ $isFa ? fa_num($r['vcpu'] ?? '') : ($r['vcpu'] ?? '') }}</td>
-            <td dir="ltr">{{ $r['ram'] ?? '' }}</td>
-            <td dir="ltr">{{ $r['disk'] ?? '' }}</td>
-            <td dir="ltr">{{ $r['traffic'] ?? '' }}</td>
-            <td>{{ $r['city'] ?? '' }}</td>
-            <td class="pt-price"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></td>
-            <td class="pt-buy">
-              <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
-            </td>
-          </tr>
-          @endforeach
-        </tbody>
-      </table>
+    @php
+      /*
+      | دو گروه: ابریِ عمومی (پردازندهٔ اشتراکی) و پردازندهٔ اختصاصی.
+      |
+      | نام‌گذاری از مشورتِ مدیر مارکتینگ آمده و عمداً «اختصاصی» را تنها
+      | نمی‌گذارد: در بازار ایران «سرور اختصاصی» یعنی سرورِ فیزیکی، و ما جای
+      | دیگرِ همین سایت واقعاً سرورِ فیزیکی می‌فروشیم. پس اسمِ محصول در هر دو
+      | جدول «سرور ابری» می‌مانَد و تفاوت فقط یک صفت روی **پردازنده** است.
+      */
+      $groups = [];
+      foreach ($product['plans'] as $i => $p) {
+          $groups[($p['row']['dedicated'] ?? false) ? 'ded' : 'std'][] = $i;
+      }
+
+      // شهرهای موجود برای فیلتر — فقط آن‌هایی که واقعاً ردیف دارند، وگرنه
+      // کاربر گزینه‌ای می‌بیند که هیچ نتیجه‌ای نمی‌دهد.
+      $cityOpts = [];
+      foreach ($product['plans'] as $p) {
+          $c = $p['row']['city'] ?? '';
+          if ($c !== '') { $cityOpts[$c] = true; }
+      }
+      $cityOpts = array_keys($cityOpts);
+      sort($cityOpts);
+
+      $ramOpts = [];
+      foreach ($product['plans'] as $p) {
+          $mb = (int) ($p['row']['ram_mb'] ?? 0);
+          if ($mb > 0) { $ramOpts[$mb] = $p['row']['ram']; }
+      }
+      ksort($ramOpts);
+
+      $cpuOpts = [];
+      foreach ($product['plans'] as $p) {
+          $v = (int) ($p['row']['vcpu'] ?? 0);
+          if ($v > 0) { $cpuOpts[$v] = true; }
+      }
+      $cpuOpts = array_keys($cpuOpts);
+      sort($cpuOpts);
+    @endphp
+
+    <div class="pt-tools reveal" id="plans">
+      <div class="pt-filters">
+        <label class="pt-f">
+          <span>{{ __('ui.pt_f_city') }}</span>
+          <select data-f="city">
+            <option value="">{{ __('ui.pt_f_all') }}</option>
+            @foreach($cityOpts as $c)<option value="{{ $c }}">{{ $c }}</option>@endforeach
+          </select>
+        </label>
+        <label class="pt-f">
+          <span>{{ __('ui.cvb_cores') }}</span>
+          <select data-f="cpu">
+            <option value="">{{ __('ui.pt_f_all') }}</option>
+            @foreach($cpuOpts as $v)<option value="{{ $v }}">{{ $isFa ? fa_num($v) : $v }}+</option>@endforeach
+          </select>
+        </label>
+        <label class="pt-f">
+          <span>{{ __('ui.cvb_ram') }}</span>
+          <select data-f="ram">
+            <option value="">{{ __('ui.pt_f_all') }}</option>
+            @foreach($ramOpts as $mb => $label)<option value="{{ $mb }}">{{ $label }}+</option>@endforeach
+          </select>
+        </label>
+        <label class="pt-f">
+          <span>{{ __('ui.pt_f_sort') }}</span>
+          <select data-f="sort">
+            <option value="price">{{ __('ui.pt_sort_cheap') }}</option>
+            <option value="-price">{{ __('ui.pt_sort_dear') }}</option>
+            <option value="-cpu">{{ __('ui.pt_sort_cpu') }}</option>
+            <option value="-ram">{{ __('ui.pt_sort_ram') }}</option>
+          </select>
+        </label>
+      </div>
+      <p class="pt-hint">{{ __('ui.pt_hint') }}</p>
     </div>
-    <p class="plan-table-count reveal">
+
+    @foreach(['std' => 'ui.pt_g_std', 'ded' => 'ui.pt_g_ded'] as $key => $titleKey)
+      @if(! empty($groups[$key]))
+      <section class="pt-group reveal" data-group="{{ $key }}">
+        <header class="pt-group-head">
+          <h3>{{ __($titleKey) }}</h3>
+          <p>{{ __($key === 'std' ? 'ui.pt_g_std_d' : 'ui.pt_g_ded_d') }}</p>
+        </header>
+        <div class="plan-table-wrap">
+          <table class="plan-table">
+            <thead>
+              <tr>
+                <th>{{ __('ui.pt_row') }}</th>
+                <th>{{ __('ui.pt_plan') }}</th>
+                <th>{{ __('ui.cvb_cores') }}</th>
+                <th>{{ __('ui.cvb_ram') }}</th>
+                <th>{{ __('ui.pt_disk') }}</th>
+                <th>{{ __('ui.pt_traffic') }}</th>
+                <th>{{ __('ui.pt_location') }}</th>
+                <th>{{ __('ui.pt_price') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($groups[$key] as $i)
+              @php $p = $product['plans'][$i]; $r = $p['row'] ?? []; @endphp
+              <tr data-city="{{ $r['city'] ?? '' }}"
+                  data-cpu="{{ (int) ($r['vcpu'] ?? 0) }}"
+                  data-ram="{{ (int) ($r['ram_mb'] ?? 0) }}"
+                  data-price="{{ (int) ($r['price_n'] ?? 0) }}">
+                <td class="pt-num"></td>
+                <td class="pt-name"><b>{{ $p['name'] }}</b>
+                  @if(! empty($r['cpu']))<span class="pt-tag">{{ $r['cpu'] }}</span>@endif
+                </td>
+                <td dir="ltr">{{ $isFa ? fa_num($r['vcpu'] ?? '') : ($r['vcpu'] ?? '') }}</td>
+                <td dir="ltr">{{ $r['ram'] ?? '' }}</td>
+                <td dir="ltr">{{ $r['disk'] ?? '' }}</td>
+                <td dir="ltr">{{ $r['traffic'] ?? '' }}</td>
+                <td>{{ $r['city'] ?? '' }}</td>
+                <td class="pt-price"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></td>
+                <td class="pt-buy">
+                  <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
+                </td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        <p class="pt-empty" hidden>{{ __('ui.pt_nomatch') }}</p>
+      </section>
+      @endif
+    @endforeach
+
+    <p class="plan-table-count reveal" id="pt-count"
+       data-tpl="{{ __('ui.pt_count', ['n' => '__N__']) }}">
       {{ __('ui.pt_count', ['n' => $isFa ? fa_num(count($product['plans'])) : count($product['plans'])]) }}
     </p>
     @else

@@ -457,3 +457,86 @@
     } catch (e) {}
   });
 })();
+
+/* ══════════ فیلتر و مرتب‌سازیِ جدولِ پلن‌ها (صفحاتِ کشور) ══════════
+ *
+ * کلاً سمتِ کاربر: صفحهٔ کشور همهٔ ردیف‌ها را یک‌جا رندر می‌کند (چند ده ردیف،
+ * نه چند هزار) پس فیلترِ سروری و صفحه‌بندی بی‌مورد است و هر دو یک رفت‌وبرگشت
+ * اضافه می‌سازند.
+ *
+ * ⚠️ مقایسه روی `data-*`ِ عددی انجام می‌شود نه متنِ سلول: متنِ فارسی «۴ گیگ»
+ * را نمی‌شود با عدد سنجید و `parseInt` روی رقمِ فارسی NaN می‌دهد.
+ */
+(function () {
+  var tools = document.querySelector('.pt-tools');
+  if (!tools) return;
+
+  var groups = [].slice.call(document.querySelectorAll('.pt-group'));
+  if (!groups.length) return;
+
+  var sel = {};
+  [].slice.call(tools.querySelectorAll('select[data-f]')).forEach(function (s) {
+    sel[s.getAttribute('data-f')] = s;
+    s.addEventListener('change', apply);
+  });
+
+  var countEl = document.getElementById('pt-count');
+  var countTpl = countEl ? (countEl.getAttribute('data-tpl') || '') : '';
+  var faDigits = document.documentElement.lang === 'fa';
+
+  function fa(n) {
+    if (!faDigits) return String(n);
+    return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; });
+  }
+
+  function apply() {
+    var city = sel.city ? sel.city.value : '';
+    var cpu = sel.cpu ? +sel.cpu.value || 0 : 0;
+    var ram = sel.ram ? +sel.ram.value || 0 : 0;
+    var sort = sel.sort ? sel.sort.value : 'price';
+    var total = 0;
+
+    groups.forEach(function (g) {
+      var body = g.querySelector('tbody');
+      var empty = g.querySelector('.pt-empty');
+      var rows = [].slice.call(body.querySelectorAll('tr'));
+      var shown = [];
+
+      rows.forEach(function (tr) {
+        var ok = (!city || tr.getAttribute('data-city') === city)
+          && (!cpu || +tr.getAttribute('data-cpu') >= cpu)
+          && (!ram || +tr.getAttribute('data-ram') >= ram);
+        tr.hidden = !ok;
+        if (ok) shown.push(tr);
+      });
+
+      var dir = sort.charAt(0) === '-' ? -1 : 1;
+      var key = sort.replace('-', '');
+      var attr = key === 'price' ? 'data-price' : (key === 'cpu' ? 'data-cpu' : 'data-ram');
+
+      shown.sort(function (a, b) {
+        return dir * ((+a.getAttribute(attr)) - (+b.getAttribute(attr)));
+      });
+
+      // شمارهٔ ردیف بعد از مرتب‌سازی بازنویسی می‌شود، وگرنه ستونِ «ردیف»
+      // ترتیبِ اولیه را نشان می‌دهد و با چیزی که کاربر می‌بیند نمی‌خوانَد.
+      shown.forEach(function (tr, i) {
+        body.appendChild(tr);
+        var num = tr.querySelector('.pt-num');
+        if (num) num.textContent = fa(i + 1);
+      });
+
+      // گروهِ بی‌نتیجه پنهان نمی‌شود — پیام می‌دهد. ناپدیدشدنِ کاملِ یک جدول
+      // به کاربر می‌گوید «چنین چیزی نداریم»، در حالی که فقط فیلتر تنگ است.
+      if (empty) empty.hidden = shown.length > 0;
+      var wrap = g.querySelector('.plan-table-wrap');
+      if (wrap) wrap.hidden = shown.length === 0;
+
+      total += shown.length;
+    });
+
+    if (countEl && countTpl) countEl.textContent = countTpl.replace('__N__', fa(total));
+  }
+
+  apply();
+})();

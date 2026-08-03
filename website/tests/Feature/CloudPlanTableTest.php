@@ -133,12 +133,23 @@ class CloudPlanTableTest extends TestCase
         $this->assertStringContainsString('SMALL-TRAFFIC', $html);
     }
 
-    /** ⚠️ سفیدبرچسبی: دو زیرساخت با پلنِ **دقیقاً یکسان** = یک ردیف */
+    /**
+     * ⚠️ سفیدبرچسبی: دو زیرساخت با پلنِ **دقیقاً یکسان** = یک ردیف، ارزان‌ترین.
+     *
+     * 🔴 اسلاگ باید صریح و **یکسان** داده شود. فیکسچر به‌طور پیش‌فرض برای هر
+     * پلن اسلاگِ شماره‌دارِ متفاوتی می‌سازد، پس دو پلنی که این تست «یکسان»
+     * می‌نامد در واقع دو اسلاگ داشتند و `offers()` — که کلیدش همین اسلاگ است —
+     * هرگز ادغامشان نمی‌کرد. تست سبز بود ولی به‌خاطر یک ادغامِ دیگر در لایهٔ
+     * بالاتر، نه به‌خاطر چیزی که ادعا می‌کرد. با برداشته‌شدنِ آن لایه، دروغش
+     * آشکار شد. (همان تلهٔ فیکسچرِ معماریِ هتزنر در CLAUDE.md: فیکسچری که
+     * تصادمِ واقعی نمی‌سازد، باگ را نمی‌بیند.)
+     */
     public function test_identical_plans_from_two_providers_collapse_to_one_row(): void
     {
         $this->location();
-        $this->plan(['public_name' => 'CHEAP', 'provider' => 'hetzner', 'vcpu' => 4, 'price_irt' => 500000]);
-        $this->plan(['public_name' => 'PRICEY', 'provider' => 'aeza', 'vcpu' => 4, 'price_irt' => 900000]);
+        $same = 'cv-4c-4g-40d-de-falkenstein';
+        $this->plan(['public_name' => 'CHEAP', 'provider' => 'hetzner', 'vcpu' => 4, 'slug' => $same, 'price_irt' => 500000, 'cost_eur_cents' => 400]);
+        $this->plan(['public_name' => 'PRICEY', 'provider' => 'aeza', 'vcpu' => 4, 'slug' => $same, 'price_irt' => 900000, 'cost_eur_cents' => 800]);
 
         $html = $this->germany();
 
