@@ -167,6 +167,27 @@
         <label class="set-f">حاشیهٔ سودِ سرورِ ابری (٪)
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>
+
+        {{-- ── دامنه ──
+             ⚠️ درصدِ سودِ دامنه جدا از سرورِ ابری است و باید هم باشد: بهای
+             دامنه سالانه و کوچک است، پس همان درصدی که روی سرور منطقی است
+             روی دامنه قیمت را غیررقابتی می‌کند. --}}
+        <label class="set-f">حاشیهٔ سودِ دامنه (٪)
+          <input type="number" name="domain_margin_pct" dir="ltr" step="1" min="0" max="500"
+                 value="{{ $cloud['dmargin'] }}" placeholder="۰ (پیش‌فرض)">
+          <small style="display:block;color:var(--dim);font-size:11.5px;line-height:1.9;margin-top:4px">
+            روی قیمتِ ثبت، تمدید و انتقال اعمال می‌شود. صفر یعنی دقیقاً به بهای تمام‌شده
+            می‌فروشیم — برای جذبِ مشتری.
+          </small></label>
+
+        <label class="set-f">نام‌سرورهای پیش‌فرضِ دامنه
+          <input type="text" name="domain_nameservers" dir="ltr"
+                 value="{{ $cloud['dns'] }}"
+                 placeholder="{{ implode(',', (array) config('services.openprovider.nameservers')) }}">
+          <small style="display:block;color:var(--dim);font-size:11.5px;line-height:1.9;margin-top:4px">
+            با کاما جدا کنید. دستِ‌کم دو تا لازم است، وگرنه ثبتِ دامنه به صفِ دستی می‌رود
+            (دامنهٔ بی‌نام‌سرور به هیچ‌جا اشاره نمی‌کند).
+          </small></label>
         <label class="set-f">هزینهٔ IPv4 (سنتِ یورو، ماهانه)
           <input type="number" name="cloud_ipv4_eur_cents" dir="ltr" step="1" min="-1" max="10000"
                  value="{{ $cloud['ipv4'] }}" placeholder="خالی = خودکار از زیرساخت"></label>

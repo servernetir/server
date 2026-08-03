@@ -22,6 +22,46 @@ class DomainSearch
     /** مدت اعتبار قیمت اعلام‌شده */
     private const QUOTE_TTL_MINUTES = 15;
 
+    /**
+     * بیشینهٔ پسوند در یک استعلام — رسیلری درخواستِ بی‌اندازه را رد می‌کند.
+     *
+     * ⚠️ عمداً بزرگ‌تر از فهرستِ پیشنهادی است تا آن فهرست هرگز بی‌صدا بریده
+     * نشود. این سقف فقط جلوی فراخوانی را می‌گیرد که فهرستِ دلخواهِ غول‌آسا
+     * بدهد.
+     */
+    private const MAX_TLDS = 70;
+
+    /**
+     * پسوندهایی که به کاربر پیشنهاد می‌شوند.
+     *
+     * ترتیب مهم است: آنچه بالاتر است زودتر دیده می‌شود. اول کلاسیک‌های
+     * پرتقاضا، بعد پسوندهای فناوری و کسب‌وکار که در بازار ایران رشد کرده‌اند،
+     * بعد منطقه‌ای و صنعتی.
+     *
+     * ⚠️ `.ir` عمداً **این‌جا نیست**. از رسیلرِ اروپایی گران درمی‌آید (ده‌ها
+     * برابرِ قیمتِ مستقیمِ ایرنیک) و نشان‌دادنش با آن قیمت، به کلِ صفحه
+     * می‌گوید «قیمت‌های این‌جا بی‌ربط است». تا وقتی مسیرِ ایرنیک ساخته نشده،
+     * پیشنهاد نمی‌شود — ولی اگر کاربر خودش تایپش کند استعلام می‌شود.
+     */
+    private const SUGGEST_TLDS = [
+        // کلاسیک
+        'com', 'net', 'org', 'info', 'biz', 'co',
+        // فناوری و توسعه
+        'dev', 'app', 'io', 'ai', 'tech', 'cloud', 'digital', 'software',
+        'systems', 'network', 'host', 'site', 'website', 'online', 'space',
+        // کسب‌وکار و فروشگاه
+        'shop', 'store', 'company', 'agency', 'group', 'team', 'services',
+        'solutions', 'consulting', 'management', 'business', 'market',
+        // محتوا و رسانه
+        'blog', 'news', 'media', 'studio', 'design', 'art', 'photo', 'video',
+        // حرفه‌ای و شخصی
+        'me', 'pro', 'name', 'expert', 'academy', 'institute', 'education',
+        // منطقه‌ای و پرکاربرد
+        'eu', 'de', 'nl', 'uk', 'fr', 'es', 'it', 'tr', 'asia',
+        // صنعتی
+        'energy', 'finance', 'clinic', 'travel', 'events', 'games', 'live',
+    ];
+
     public function __construct(
         private OpenProviderClient $op,
         private ExchangeRate $fx,
@@ -42,10 +82,22 @@ class DomainSearch
             return [];
         }
 
-        // اگر کاربر پسوند داده، همان اول؛ بعد پیشنهادها
+        /*
+        | پسوندها: خواستهٔ کاربر اول، بعد پیشنهادها.
+        |
+        | ⚠️ حتی وقتی کاربر پسوند داده، پیشنهادها هم می‌آیند — کسی که
+        | `example.com` را جستجو می‌کند و می‌بیند گرفته شده، باید همان‌جا
+        | جایگزین ببیند، نه اینکه دستِ خالی برگردد.
+        */
+        $suggest = $tlds !== [] ? $tlds : self::SUGGEST_TLDS;
+
         $extensions = $ext !== ''
-            ? array_values(array_unique(array_merge([$ext], $tlds)))
-            : ($tlds ?: config('services.openprovider.suggest_tlds', ['com', 'net', 'org', 'ir']));
+            ? array_values(array_unique(array_merge([$ext], $suggest)))
+            : $suggest;
+
+        // سقفِ ایمنی: هر پسوند یک ردیفِ استعلام است و رسیلری درخواستِ
+        // بی‌اندازه را رد می‌کند.
+        $extensions = array_slice($extensions, 0, self::MAX_TLDS);
 
         $payload = array_map(
             fn (string $e) => ['name' => $name, 'extension' => $e],
@@ -89,9 +141,10 @@ class DomainSearch
             'available'   => false,
             'is_premium'  => false,
             'orderable'   => false,
-            'price_toman' => null,
-            'renew_toman' => null,
-            'reason'      => null,
+            'price_toman'    => null,
+            'renew_toman'    => null,
+            'transfer_toman' => null,
+            'reason'         => null,
             'quote_id'    => null,
         ];
 
@@ -123,6 +176,11 @@ class DomainSearch
               ?? $this->extractPrice($raw, 'product');
         $renew = $this->extractPrice($raw, 'reseller', 'renewal') ?? $cost;
 
+        // انتقال هم در همان لحظه استعلام می‌شود. اگر رسیلری قیمتِ انتقال ندهد،
+        // قیمتِ ثبت جایگزین می‌شود — تقریباً همیشه برابرند و «نمی‌دانم» روی
+        // صفحهٔ فروش بدترین گزینه است.
+        $transfer = $this->extractPrice($raw, 'reseller', 'transfer') ?? $cost;
+
         if ($cost === null) {
             // آزاد است ولی قیمت نداریم → قیمت نمی‌سازیم
             return array_merge($base, [
@@ -135,6 +193,7 @@ class DomainSearch
 
         $sell  = $this->toSellingToman($cost['amount'], $cost['currency'], $ext);
         $sellR = $this->toSellingToman($renew['amount'], $renew['currency'], $ext);
+        $sellT = $this->toSellingToman($transfer['amount'], $transfer['currency'], $ext);
 
         if ($sell === null) {
             // نرخ ارز در دسترس نیست → قیمتی که نمی‌توانیم پایش بایستیم نشان نمی‌دهیم
@@ -166,8 +225,9 @@ class DomainSearch
             'available'   => true,
             'is_premium'  => $isPremium,
             'orderable'   => true,
-            'price_toman' => $sell,
-            'renew_toman' => $sellR,
+            'price_toman'    => $sell,
+            'renew_toman'    => $sellR,
+            'transfer_toman' => $sellT,
             'reason'      => null,
             'quote_id'    => $quote->id,
         ];
@@ -199,11 +259,32 @@ class DomainSearch
      */
     private function extractPrice(array $raw, string $who, string $kind = 'create'): ?array
     {
-        foreach ([
-            ["price.$who.price", "price.$who.currency"],
-            ["price.$kind.$who.price", "price.$kind.$who.currency"],
-            ["{$kind}_price.$who.price", "{$kind}_price.$who.currency"],
-        ] as [$pKey, $cKey]) {
+        /*
+         * 🔴 مسیرهای **نوع‌محور اول**، مسیرِ عمومی آخر.
+         *
+         * قبلاً `price.$who.price` اولین الگو بود و چون در پاسخ همیشه وجود دارد،
+         * برای هر `$kind`ی همان را برمی‌گرداند — یعنی پارامترِ `$kind` عملاً
+         * مرده بود و قیمتِ **تمدید** و **انتقال** همیشه برابرِ قیمتِ ثبت
+         * می‌شد، حتی وقتی رسیلری عددِ متفاوتی می‌داد.
+         *
+         * ⚠️ چرا این خطرناک است: قیمتِ تمدید معمولاً از قیمتِ سالِ اولِ تبلیغاتی
+         * **بالاتر** است. اگر تمدید را به قیمتِ ثبت بفروشیم، روی هر تمدید ضرر
+         * می‌کنیم — و چون تمدید سالانه تکرار می‌شود، ضرر انباشته می‌شود.
+         *
+         * ⚠️ پاسخِ `/domains/check` معمولاً فقط قیمتِ ثبت دارد؛ پس برگشت به
+         * مسیرِ عمومی رفتارِ درست و مورد انتظار است، نه پوششِ خطا.
+         */
+        $paths = [];
+
+        if ($kind !== 'create') {
+            $paths[] = ["price.$who.$kind.price", "price.$who.$kind.currency"];
+            $paths[] = ["price.$kind.$who.price", "price.$kind.$who.currency"];
+            $paths[] = ["{$kind}_price.$who.price", "{$kind}_price.$who.currency"];
+        }
+
+        $paths[] = ["price.$who.price", "price.$who.currency"];
+
+        foreach ($paths as [$pKey, $cKey]) {
             $amount = data_get($raw, $pKey);
             if (is_numeric($amount)) {
                 return [
@@ -264,12 +345,29 @@ class DomainSearch
         return $this->fx->toToman($currency);
     }
 
-    /** درصد سود — پیش‌فرض عمومی، با امکان تنظیم per-TLD */
+    /**
+     * درصد سود دامنه.
+     *
+     * 🔴 اولویت با تنظیماتِ مدیر است (`domain_margin_pct` در `/admin/settings`)،
+     * بعد config، و در نهایت **صفر**.
+     *
+     * ⚠️ پیش‌فرضِ قبلی ۲۵٪ بود و از `.env` می‌آمد — یعنی مدیر نه می‌دید نه
+     * می‌توانست عوضش کند، و روی یک دامنهٔ ۲ میلیونی نیم میلیون تومان اضافه
+     * می‌کرد بی‌آنکه کسی تصمیمش را گرفته باشد. صفر یعنی «تا وقتی آگاهانه
+     * تصمیم نگرفته‌ای، به بهای تمام‌شده بفروش» — که برای دامنه، که محصولِ
+     * جذبِ مشتری است، انتخابِ بهتری از حدسِ ۲۵٪ است.
+     */
     private function marginFor(string $tld): float
     {
-        $cfg = config('services.openprovider.margin', []);
+        $override = \App\Models\Setting::get('domain_margin_pct');
 
-        return (float) ($cfg[$tld] ?? $cfg['default'] ?? 25);
+        if ($override !== null && $override !== '') {
+            return max(0, (float) $override);
+        }
+
+        $cfg = (array) config('services.openprovider.margin', []);
+
+        return max(0, (float) ($cfg[$tld] ?? $cfg['default'] ?? 0));
     }
 
     /** «example.com» یا «Example.COM» یا «example» → [name, ext] */

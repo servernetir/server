@@ -252,8 +252,16 @@ return [
         'nameservers' => array_values(array_filter(array_map('trim', explode(',',
             (string) env('DOMAIN_NAMESERVERS', 'ns1.servernet.cloud,ns2.servernet.cloud'))))),
 
+        /*
+        | ⚠️ پیش‌فرض **صفر** است، نه ۲۵.
+        |
+        | پیش‌فرضِ قبلی ۲۵٪ بود و چون فقط از `.env` می‌آمد، مدیر نه می‌دیدش نه
+        | می‌توانست عوضش کند: روی یک دامنهٔ ۲ میلیون تومانی، نیم میلیون تومان
+        | اضافه می‌شد بی‌آنکه کسی آن تصمیم را گرفته باشد. حالا درصدِ واقعی از
+        | `/admin/settings` می‌آید و این فقط پشتیبانِ آخر است.
+        */
         'margin'       => [
-            'default' => (float) env('DOMAIN_MARGIN_PCT', 25),
+            'default' => (float) env('DOMAIN_MARGIN_PCT', 0),
         ],
     ],
 

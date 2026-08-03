@@ -61,6 +61,9 @@ class SettingsController extends Controller
             'promo'   => $ready && Setting::get('aeza_include_promo') === '1',
             'plans'   => $ready && Schema::hasTable('cloud_plans')
                 ? \App\Models\CloudPlan::where('is_active', true)->count() : 0,
+            // دامنه — درصد سود و نام‌سرورِ پیش‌فرض
+            'dmargin' => $ready ? Setting::get('domain_margin_pct') : null,
+            'dns'     => $ready ? Setting::get('domain_nameservers') : null,
         ];
 
         return view('admin.settings', [
@@ -105,6 +108,9 @@ class SettingsController extends Controller
             'ovh_consumer_key'      => ['nullable', 'string', 'max:200'],
             'arvan_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            // درصد سود دامنه — صفر مجاز است (استراتژیِ جذبِ مشتری)
+            'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'domain_nameservers'    => ['nullable', 'string', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
             // «۱ یورو چند روبل» — چون API زیرساختِ دوم قیمت را به روبل می‌دهد.
             // کرانِ ۱۰ تا ۵۰۰۰ جلوی اشتباهِ جهت را می‌گیرد (کسی ۰٫۰۱ وارد نکند).
@@ -162,7 +168,8 @@ class SettingsController extends Controller
             }
         }
 
-        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'aeza_rub_per_eur', 'aeza_price_divisor'] as $k) {
+        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'aeza_rub_per_eur', 'aeza_price_divisor',
+            'domain_margin_pct', 'domain_nameservers'] as $k) {
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }
 
