@@ -121,11 +121,19 @@ class CloudPlanTableTest extends TestCase
         $this->assertStringContainsString('ARM-Y', $html);
     }
 
+    /**
+     * ⚠️ معاوضه باید **واقعی** باشد: کم‌ترافیک‌تر باید ارزان‌تر هم باشد.
+     *
+     * فیکسچرِ قبلی قیمت را از شمارنده می‌گرفت، پس پلنِ کم‌ترافیک تصادفاً
+     * گران‌تر درمی‌آمد — یعنی هم ترافیکِ کمتر هم قیمتِ بیشتر. چنین پلنی
+     * از دیدِ `CloudDominance` مغلوب است و **درست** حذف می‌شود. تست چیزی را
+     * می‌سنجید که در واقعیت وجود ندارد.
+     */
     public function test_plans_differing_only_in_traffic_are_both_shown(): void
     {
         $this->location();
-        $this->plan(['public_name' => 'BIG-TRAFFIC', 'vcpu' => 3, 'traffic_gb' => 20480]);
-        $this->plan(['public_name' => 'SMALL-TRAFFIC', 'vcpu' => 3, 'traffic_gb' => 1024]);
+        $this->plan(['public_name' => 'BIG-TRAFFIC', 'vcpu' => 3, 'traffic_gb' => 20480, 'price_irt' => 900000]);
+        $this->plan(['public_name' => 'SMALL-TRAFFIC', 'vcpu' => 3, 'traffic_gb' => 1024, 'price_irt' => 500000]);
 
         $html = $this->germany();
 

@@ -1395,6 +1395,7 @@ return [
     'pt_g_ded' => 'Bulut VPS — Ayrılmış vCPU',
     'pt_g_ded_d' => 'İşlemcinin her zaman size ait olması gerektiğinde: yoğun veritabanları, ağır işlemler, sürekli render ve build.',
     'pt_nomatch' => 'Bu tabloda filtrelerinize uyan paket yok. Birini “Tümü” yapın.',
+    'pt_clear' => 'Filtreleri temizle',
     'pt_count' => 'Toplam :n sipariş edilebilir plan',
 
     'cvb_cores' => 'çekirdek',

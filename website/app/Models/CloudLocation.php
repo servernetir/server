@@ -65,6 +65,63 @@ class CloudLocation extends Model
         'hillsboro' => 'هیلزبورو', 'tehran' => 'تهران',
     ];
 
+    /**
+     * پایتختِ هر کشور — پشتیبانِ نامِ شهر وقتی زیرساخت شهر را نمی‌دهد.
+     *
+     * 🔴 چرا لازم شد: بعضی زیرساخت‌ها فقط کشور را اعلام می‌کنند. تا دیروز آن
+     * ردیف‌ها یا ستونِ مکانِ خالی داشتند یا — بدتر — نامِ ردهٔ محصول («AMD»،
+     * «Shared») در ستونِ شهر می‌نشست. هیچ‌کدام به مشتری نمی‌گفت سرورش کجا بالا
+     * می‌آید، و ستونِ مکان مهم‌ترین ستونِ این جدول است چون تأخیرِ شبکه را
+     * تعیین می‌کند.
+     *
+     * ⚠️ این یک **تقریب** است، نه ادعای دقیق: می‌گوید «جایی در این کشور» و
+     * پایتخت را به‌عنوان شناخته‌شده‌ترین نقطه می‌نویسد. اگر روزی زیرساخت شهرِ
+     * واقعی را داد، همان برنده می‌شود.
+     */
+    public const CAPITALS = [
+        'DE' => ['fa' => 'برلین',    'en' => 'Berlin',     'tr' => 'Berlin'],
+        'FI' => ['fa' => 'هلسینکی',  'en' => 'Helsinki',   'tr' => 'Helsinki'],
+        'NL' => ['fa' => 'آمستردام', 'en' => 'Amsterdam',  'tr' => 'Amsterdam'],
+        'US' => ['fa' => 'واشینگتن', 'en' => 'Washington', 'tr' => 'Washington'],
+        'GB' => ['fa' => 'لندن',     'en' => 'London',     'tr' => 'Londra'],
+        'FR' => ['fa' => 'پاریس',    'en' => 'Paris',      'tr' => 'Paris'],
+        'SE' => ['fa' => 'استکهلم',  'en' => 'Stockholm',  'tr' => 'Stockholm'],
+        'PL' => ['fa' => 'ورشو',     'en' => 'Warsaw',     'tr' => 'Varşova'],
+        'TR' => ['fa' => 'آنکارا',   'en' => 'Ankara',     'tr' => 'Ankara'],
+        'RU' => ['fa' => 'مسکو',     'en' => 'Moscow',     'tr' => 'Moskova'],
+        'KZ' => ['fa' => 'آستانه',   'en' => 'Astana',     'tr' => 'Astana'],
+        'AM' => ['fa' => 'ایروان',   'en' => 'Yerevan',    'tr' => 'Erivan'],
+        'GE' => ['fa' => 'تفلیس',    'en' => 'Tbilisi',    'tr' => 'Tiflis'],
+        'AE' => ['fa' => 'ابوظبی',   'en' => 'Abu Dhabi',  'tr' => 'Abu Dabi'],
+        'SG' => ['fa' => 'سنگاپور',  'en' => 'Singapore',  'tr' => 'Singapur'],
+        'JP' => ['fa' => 'توکیو',    'en' => 'Tokyo',      'tr' => 'Tokyo'],
+        'CH' => ['fa' => 'زوریخ',    'en' => 'Zurich',     'tr' => 'Zürih'],
+        'AT' => ['fa' => 'وین',      'en' => 'Vienna',     'tr' => 'Viyana'],
+        'IR' => ['fa' => 'تهران',    'en' => 'Tehran',     'tr' => 'Tahran'],
+        'CA' => ['fa' => 'تورنتو',   'en' => 'Toronto',    'tr' => 'Toronto'],
+        'ES' => ['fa' => 'مادرید',   'en' => 'Madrid',     'tr' => 'Madrid'],
+        'IT' => ['fa' => 'میلان',    'en' => 'Milan',      'tr' => 'Milano'],
+        'CZ' => ['fa' => 'پراگ',     'en' => 'Prague',     'tr' => 'Prag'],
+        'UA' => ['fa' => 'کی‌یف',    'en' => 'Kyiv',       'tr' => 'Kiev'],
+        'IN' => ['fa' => 'مومبای',   'en' => 'Mumbai',     'tr' => 'Mumbai'],
+        'AU' => ['fa' => 'سیدنی',    'en' => 'Sydney',     'tr' => 'Sidney'],
+        'BR' => ['fa' => 'سائوپائولو', 'en' => 'São Paulo', 'tr' => 'São Paulo'],
+        'HK' => ['fa' => 'هنگ‌کنگ',  'en' => 'Hong Kong',  'tr' => 'Hong Kong'],
+    ];
+
+    /**
+     * واژه‌هایی که زیرساخت‌ها به‌جای نامِ شهر می‌فرستند.
+     *
+     * ⚠️ سینک از این‌جا به بعد تمیز است، ولی ردیف‌های غلط از قبل در دیتابیس
+     * نشسته‌اند و تا اجرای `cloud:sync` پاک نمی‌شوند. این نگهبان کاری می‌کند
+     * که آن ردیف‌ها **همین حالا** هم به مشتری نشان داده نشوند.
+     */
+    private const NOT_A_CITY = [
+        'shared', 'dedicated', 'amd', 'intel', 'premium', 'standard', 'basic',
+        'nvme', 'ssd', 'hdd', 'cloud', 'vps', 'vds', 'general', 'epyc', 'ryzen',
+        'xeon', 'arm', 'x86', 'gpu', 'storage', 'business', 'pro', 'starter',
+    ];
+
     /** برچسبِ نمایشی در زبانِ جاری: «آلمان — فرانکفورت» */
     public function label(?string $locale = null): string
     {
@@ -86,13 +143,29 @@ class CloudLocation extends Model
     public function cityLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
-        $slug = \App\Services\Cloud\CloudNaming::slug((string) $this->city);
+        $raw = trim((string) $this->city);
+
+        // نامِ ردهٔ محصول شهر نیست — پایتخت را بنویس، نه «AMD»
+        if ($raw === '' || in_array(strtolower($raw), self::NOT_A_CITY, true)) {
+            return $this->capitalLabel($locale);
+        }
+
+        $slug = \App\Services\Cloud\CloudNaming::slug($raw);
 
         if ($locale === 'fa' && isset(self::CITIES_FA[$slug])) {
             return self::CITIES_FA[$slug];
         }
 
-        return (string) $this->city;
+        return $raw;
+    }
+
+    /** پایتختِ کشورِ این مکان؛ اگر کشور هم ناشناس بود، رشتهٔ خالی */
+    public function capitalLabel(?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $country = strtoupper((string) $this->country);
+
+        return self::CAPITALS[$country][$locale] ?? self::CAPITALS[$country]['en'] ?? '';
     }
 
     public function flagEmoji(): string

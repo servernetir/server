@@ -1395,6 +1395,7 @@ return [
     'pt_g_ded' => 'Cloud VPS — Dedicated vCPU',
     'pt_g_ded_d' => 'When the CPU must always be yours: busy databases, heavy processing, continuous rendering and builds.',
     'pt_nomatch' => 'No plan in this table matches your filters. Set one of them back to “All”.',
+    'pt_clear' => 'Clear filters',
     'pt_count' => ':n plans available to order',
 
     'cvb_cores' => 'cores',

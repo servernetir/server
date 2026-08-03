@@ -460,28 +460,22 @@
 
 /* ══════════ فیلتر و مرتب‌سازیِ جدولِ پلن‌ها (صفحاتِ کشور) ══════════
  *
- * کلاً سمتِ کاربر: صفحهٔ کشور همهٔ ردیف‌ها را یک‌جا رندر می‌کند (چند ده ردیف،
- * نه چند هزار) پس فیلترِ سروری و صفحه‌بندی بی‌مورد است و هر دو یک رفت‌وبرگشت
- * اضافه می‌سازند.
+ * فیلترها داخلِ هدرِ جدول‌اند: هر ستونِ فیلترپذیر یک `<details>` است که با کلیک
+ * روی آیکنِ قیف باز می‌شود. `<details>` عمداً به‌جای منوی جاوااسکریپتی انتخاب
+ * شد — بدونِ JS هم باز و بسته می‌شود و صفحه‌خوان خودش وضعیت را اعلام می‌کند.
  *
  * ⚠️ مقایسه روی `data-*`ِ عددی انجام می‌شود نه متنِ سلول: متنِ فارسی «۴ گیگ»
  * را نمی‌شود با عدد سنجید و `parseInt` روی رقمِ فارسی NaN می‌دهد.
  */
 (function () {
   var tools = document.querySelector('.pt-tools');
-  if (!tools) return;
-
   var groups = [].slice.call(document.querySelectorAll('.pt-group'));
-  if (!groups.length) return;
+  if (!tools || !groups.length) return;
 
-  var sel = {};
-  [].slice.call(tools.querySelectorAll('select[data-f]')).forEach(function (s) {
-    sel[s.getAttribute('data-f')] = s;
-    s.addEventListener('change', apply);
-  });
-
+  var state = { city: '', cpu: 0, ram: 0, sort: 'price' };
   var countEl = document.getElementById('pt-count');
   var countTpl = countEl ? (countEl.getAttribute('data-tpl') || '') : '';
+  var clearBtn = tools.querySelector('.pt-clear');
   var faDigits = document.documentElement.lang === 'fa';
 
   function fa(n) {
@@ -489,29 +483,57 @@
     return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; });
   }
 
+  // دکمه‌های فیلتر در هدرِ **هر دو** جدول‌اند و باید هم‌زمان کار کنند، پس
+  // شنونده روی document است نه روی یک جدول.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.pt-pop button[data-f]') : null;
+    if (!btn) return;
+
+    var f = btn.getAttribute('data-f');
+    var v = btn.getAttribute('data-v') || '';
+    state[f] = (f === 'city' || f === 'sort') ? v : (+v || 0);
+
+    // منو را ببند — وگرنه روی موبایل جدول را می‌پوشاند
+    var d = btn.closest('details');
+    if (d) d.open = false;
+
+    apply();
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      state = { city: '', cpu: 0, ram: 0, sort: 'price' };
+      apply();
+    });
+  }
+
+  // کلیک بیرون از منو آن را می‌بندد
+  document.addEventListener('click', function (e) {
+    [].slice.call(document.querySelectorAll('.pt-menu[open]')).forEach(function (d) {
+      if (!d.contains(e.target)) d.open = false;
+    });
+  });
+
   function apply() {
-    var city = sel.city ? sel.city.value : '';
-    var cpu = sel.cpu ? +sel.cpu.value || 0 : 0;
-    var ram = sel.ram ? +sel.ram.value || 0 : 0;
-    var sort = sel.sort ? sel.sort.value : 'price';
     var total = 0;
+    var filtered = !!state.city || !!state.cpu || !!state.ram || state.sort !== 'price';
 
     groups.forEach(function (g) {
       var body = g.querySelector('tbody');
       var empty = g.querySelector('.pt-empty');
-      var rows = [].slice.call(body.querySelectorAll('tr'));
+      var wrap = g.querySelector('.plan-table-wrap');
       var shown = [];
 
-      rows.forEach(function (tr) {
-        var ok = (!city || tr.getAttribute('data-city') === city)
-          && (!cpu || +tr.getAttribute('data-cpu') >= cpu)
-          && (!ram || +tr.getAttribute('data-ram') >= ram);
+      [].slice.call(body.querySelectorAll('tr')).forEach(function (tr) {
+        var ok = (!state.city || tr.getAttribute('data-city') === state.city)
+          && (!state.cpu || +tr.getAttribute('data-cpu') >= state.cpu)
+          && (!state.ram || +tr.getAttribute('data-ram') >= state.ram);
         tr.hidden = !ok;
         if (ok) shown.push(tr);
       });
 
-      var dir = sort.charAt(0) === '-' ? -1 : 1;
-      var key = sort.replace('-', '');
+      var dir = state.sort.charAt(0) === '-' ? -1 : 1;
+      var key = state.sort.replace('-', '');
       var attr = key === 'price' ? 'data-price' : (key === 'cpu' ? 'data-cpu' : 'data-ram');
 
       shown.sort(function (a, b) {
@@ -529,12 +551,22 @@
       // گروهِ بی‌نتیجه پنهان نمی‌شود — پیام می‌دهد. ناپدیدشدنِ کاملِ یک جدول
       // به کاربر می‌گوید «چنین چیزی نداریم»، در حالی که فقط فیلتر تنگ است.
       if (empty) empty.hidden = shown.length > 0;
-      var wrap = g.querySelector('.plan-table-wrap');
       if (wrap) wrap.hidden = shown.length === 0;
 
       total += shown.length;
     });
 
+    // ستونی که فیلترِ فعال دارد علامت می‌خورد، وگرنه کاربر یادش می‌رود چرا
+    // جدول کم‌ردیف است و فکر می‌کند موجودی نداریم.
+    [].slice.call(document.querySelectorAll('.pt-menu')).forEach(function (d) {
+      var f = d.querySelector('button[data-f]');
+      if (!f) return;
+      var k = f.getAttribute('data-f');
+      var on = k === 'sort' ? state.sort !== 'price' : !!state[k];
+      d.classList.toggle('is-on', on);
+    });
+
+    if (clearBtn) clearBtn.hidden = !filtered;
     if (countEl && countTpl) countEl.textContent = countTpl.replace('__N__', fa(total));
   }
 

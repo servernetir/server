@@ -170,40 +170,11 @@
       sort($cpuOpts);
     @endphp
 
+    {{-- فیلترها داخلِ هدرِ جدول‌اند (پایین‌تر). این نوار فقط راهنما و
+         «پاک‌کردنِ فیلترها» را دارد، تا بالای صفحه شلوغ نشود. --}}
     <div class="pt-tools reveal" id="plans">
-      <div class="pt-filters">
-        <label class="pt-f">
-          <span>{{ __('ui.pt_f_city') }}</span>
-          <select data-f="city">
-            <option value="">{{ __('ui.pt_f_all') }}</option>
-            @foreach($cityOpts as $c)<option value="{{ $c }}">{{ $c }}</option>@endforeach
-          </select>
-        </label>
-        <label class="pt-f">
-          <span>{{ __('ui.cvb_cores') }}</span>
-          <select data-f="cpu">
-            <option value="">{{ __('ui.pt_f_all') }}</option>
-            @foreach($cpuOpts as $v)<option value="{{ $v }}">{{ $isFa ? fa_num($v) : $v }}+</option>@endforeach
-          </select>
-        </label>
-        <label class="pt-f">
-          <span>{{ __('ui.cvb_ram') }}</span>
-          <select data-f="ram">
-            <option value="">{{ __('ui.pt_f_all') }}</option>
-            @foreach($ramOpts as $mb => $label)<option value="{{ $mb }}">{{ $label }}+</option>@endforeach
-          </select>
-        </label>
-        <label class="pt-f">
-          <span>{{ __('ui.pt_f_sort') }}</span>
-          <select data-f="sort">
-            <option value="price">{{ __('ui.pt_sort_cheap') }}</option>
-            <option value="-price">{{ __('ui.pt_sort_dear') }}</option>
-            <option value="-cpu">{{ __('ui.pt_sort_cpu') }}</option>
-            <option value="-ram">{{ __('ui.pt_sort_ram') }}</option>
-          </select>
-        </label>
-      </div>
       <p class="pt-hint">{{ __('ui.pt_hint') }}</p>
+      <button type="button" class="pt-clear" hidden>{{ __('ui.pt_clear') }}</button>
     </div>
 
     @foreach(['std' => 'ui.pt_g_std', 'ded' => 'ui.pt_g_ded'] as $key => $titleKey)
@@ -219,12 +190,63 @@
               <tr>
                 <th>{{ __('ui.pt_row') }}</th>
                 <th>{{ __('ui.pt_plan') }}</th>
-                <th>{{ __('ui.cvb_cores') }}</th>
-                <th>{{ __('ui.cvb_ram') }}</th>
+
+                {{-- ستون‌های فیلترپذیر: آیکنِ قیف کنارِ عنوان، و یک منوی کوچک
+                     که با کلیک باز می‌شود. `<details>` عمداً به‌جای جاوااسکریپت
+                     برای باز/بسته‌شدن: بدونِ JS هم کار می‌کند و صفحه‌خوان
+                     خودش وضعیتِ باز/بسته را اعلام می‌کند. --}}
+                <th class="pt-th">
+                  <details class="pt-menu">
+                    <summary>{{ __('ui.cvb_cores') }}<svg class="icon pt-ico"><use href="#i-filter"/></svg></summary>
+                    <div class="pt-pop">
+                      <button type="button" data-f="cpu" data-v="">{{ __('ui.pt_f_all') }}</button>
+                      @foreach($cpuOpts as $v)
+                        <button type="button" data-f="cpu" data-v="{{ $v }}">{{ $isFa ? fa_num($v) : $v }}+</button>
+                      @endforeach
+                    </div>
+                  </details>
+                </th>
+
+                <th class="pt-th">
+                  <details class="pt-menu">
+                    <summary>{{ __('ui.cvb_ram') }}<svg class="icon pt-ico"><use href="#i-filter"/></svg></summary>
+                    <div class="pt-pop">
+                      <button type="button" data-f="ram" data-v="">{{ __('ui.pt_f_all') }}</button>
+                      @foreach($ramOpts as $mb => $label)
+                        <button type="button" data-f="ram" data-v="{{ $mb }}">{{ $label }}+</button>
+                      @endforeach
+                    </div>
+                  </details>
+                </th>
+
                 <th>{{ __('ui.pt_disk') }}</th>
                 <th>{{ __('ui.pt_traffic') }}</th>
-                <th>{{ __('ui.pt_location') }}</th>
-                <th>{{ __('ui.pt_price') }}</th>
+
+                <th class="pt-th">
+                  <details class="pt-menu">
+                    <summary>{{ __('ui.pt_location') }}<svg class="icon pt-ico"><use href="#i-filter"/></svg></summary>
+                    <div class="pt-pop">
+                      <button type="button" data-f="city" data-v="">{{ __('ui.pt_f_all') }}</button>
+                      @foreach($cityOpts as $c)
+                        <button type="button" data-f="city" data-v="{{ $c }}">{{ $c }}</button>
+                      @endforeach
+                    </div>
+                  </details>
+                </th>
+
+                {{-- قیمت فیلتر ندارد، مرتب‌سازی دارد --}}
+                <th class="pt-th">
+                  <details class="pt-menu">
+                    <summary>{{ __('ui.pt_price') }}<svg class="icon pt-ico"><use href="#i-filter"/></svg></summary>
+                    <div class="pt-pop">
+                      <button type="button" data-f="sort" data-v="price">{{ __('ui.pt_sort_cheap') }}</button>
+                      <button type="button" data-f="sort" data-v="-price">{{ __('ui.pt_sort_dear') }}</button>
+                      <button type="button" data-f="sort" data-v="-cpu">{{ __('ui.pt_sort_cpu') }}</button>
+                      <button type="button" data-f="sort" data-v="-ram">{{ __('ui.pt_sort_ram') }}</button>
+                    </div>
+                  </details>
+                </th>
+
                 <th></th>
               </tr>
             </thead>

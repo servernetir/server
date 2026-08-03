@@ -51,20 +51,42 @@ class CountryPlanTableTest extends TestCase
         return $this->get('/vps/france')->assertOk()->getContent();
     }
 
-    /** 🔴 ادعای اصلی: مشخصاتِ یکسان در دو شهر = دو ردیف، نه یکی */
-    public function test_the_same_spec_in_two_cities_stays_two_rows(): void
+    /**
+     * 🔴 ادعای اصلی: شهرِ دوم نباید بی‌دلیل حذف شود.
+     *
+     * ⚠️ قیمت‌ها عمداً **برابر**ند. اگر شهرِ دوم گران‌تر باشد و مشخصاتش همان،
+     * `CloudDominance` حذفش می‌کند — و آن حذف **درست** است (کارفرما صریح گفت
+     * «از یک هسته و رم و فضا چند قیمت نگذار»). چیزی که این تست نگه می‌دارد
+     * این است که ادغامِ کورِ بین‌شهری برنگردد: دو شهر با پیشنهادِ هم‌ارز، دو
+     * انتخابِ واقعی‌اند چون تأخیرِ شبکه‌شان فرق دارد.
+     */
+    public function test_two_cities_with_an_equally_good_offer_both_stay(): void
     {
         $this->loc('fr-paris', 'پاریس');
         $this->loc('fr-lyon', 'لیون');
         $this->plan('fr-paris', 2, 4, 500);
-        $this->plan('fr-lyon', 2, 4, 600);
+        $this->plan('fr-lyon', 2, 4, 500);
 
         $html = $this->html();
 
         $this->assertStringContainsString('پاریس', $html);
         $this->assertStringContainsString('لیون', $html,
-            'شهر دوم حذف شده — یعنی همان ادغامِ بین‌شهری برگشته است');
+            'شهر دوم حذف شده — یعنی همان ادغامِ کورِ بین‌شهری برگشته است');
         $this->assertSame(2, substr_count($html, 'data-city='));
+    }
+
+    /** و همان مشخصات با قیمتِ بالاتر در شهرِ دیگر: فقط ارزان‌تر می‌مانَد */
+    public function test_the_same_spec_at_a_higher_price_in_another_city_is_dropped(): void
+    {
+        $this->loc('fr-paris', 'پاریس');
+        $this->loc('fr-lyon', 'لیون');
+        $this->plan('fr-paris', 2, 4, 500);
+        $this->plan('fr-lyon', 2, 4, 900);
+
+        $html = $this->html();
+
+        $this->assertStringContainsString('پاریس', $html);
+        $this->assertStringNotContainsString('data-city="لیون"', $html);
     }
 
     /** 🔴 هر دو نوعِ پردازنده در یک صفحه، در دو جدولِ جدا */
@@ -128,18 +150,24 @@ class CountryPlanTableTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertStringContainsString('<option value="پاریس">', $html);
-        $this->assertStringNotContainsString('<option value="لیون">', $html,
+        // فیلترها داخلِ هدرِ جدول‌اند و دکمه‌اند، نه `<select>`
+        $this->assertStringContainsString('data-f="city" data-v="پاریس"', $html);
+        $this->assertStringNotContainsString('data-v="لیون"', $html,
             'فیلترِ بی‌نتیجه بدترین تجربه است');
     }
 
-    /** هر ردیف باید مستقیم به تسویهٔ همان پلن در همان مکان برود */
+    /**
+     * هر ردیف باید مستقیم به تسویهٔ همان پلن در همان مکان برود.
+     *
+     * ⚠️ دو شهر عمداً مشخصاتِ **متفاوت** دارند، وگرنه گران‌تر مغلوب می‌شود و
+     * حذف — و آن‌وقت این تست چیزی را می‌سنجید که اصلاً روی صفحه نیست.
+     */
     public function test_every_row_links_to_checkout_for_its_own_plan_and_city(): void
     {
         $this->loc('fr-paris', 'پاریس');
         $this->loc('fr-lyon', 'لیون');
         $this->plan('fr-paris', 2, 4, 500);
-        $this->plan('fr-lyon', 2, 4, 600);
+        $this->plan('fr-lyon', 8, 16, 900);
 
         $html = $this->html();
 
