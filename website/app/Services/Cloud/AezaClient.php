@@ -1242,8 +1242,21 @@ class AezaClient implements CloudProvider
 
         $city = '';
 
-        foreach (['location.city', 'city', 'group.payload.city', 'payload.city',
-            'group.names.en', 'location.name'] as $k) {
+        /*
+        | 🔴 فقط فیلدهایی که **اسمشان شهر است** مستقیم اعتماد می‌شوند.
+        |
+        | قبلاً `group.names.en` و `location.name` هم در همین فهرست بودند، ولی
+        | آن‌ها نامِ **گروهِ محصول**اند نه مکان: «Shared»، «Dedicated»، «AMD».
+        | نتیجه‌اش این بود که وقتی فیلدِ واقعیِ شهر خالی می‌آمد، ردهٔ محصول
+        | به‌عنوان شهر می‌نشست — و مشتری در صفحهٔ آلمان ستونِ مکان را «AMD»
+        | می‌دید و در فرانسه «Shared». بدتر از زشتی: `CloudNaming::locationCode`
+        | از همین شهر ساخته می‌شود، پس مکان‌های ساختگی و صفحاتِ `/cloud/{code}`
+        | بی‌معنا هم تولید می‌شدند.
+        |
+        | حالا آن دو فیلد به متنی تبدیل می‌شوند که از آن **شهرِ شناخته‌شده**
+        | استخراج می‌شود؛ اگر شهری در آن نبود، شهر خالی می‌مانَد — که درست است.
+        */
+        foreach (['location.city', 'city', 'group.payload.city', 'payload.city'] as $k) {
             $v = data_get($p, $k);
 
             if (is_string($v) && trim($v) !== '') {
@@ -1258,7 +1271,13 @@ class AezaClient implements CloudProvider
         // شهر در فیلدِ خودش نبود؟ از متنِ گروه/برچسب/نام دربیاور — فقط شهرهای
         // شناخته‌شده، تا «فرانکفورتِ» دو زیرساخت به یک کدِ مکان برسند.
         if ($city === '') {
-            $city = self::cityFromText($groupName.' '.$label.' '.((string) ($p['name'] ?? '')));
+            $city = self::cityFromText(implode(' ', [
+                $groupName,
+                $label,
+                (string) ($p['name'] ?? ''),
+                (string) (data_get($p, 'group.names.en') ?? ''),
+                (string) (data_get($p, 'location.name') ?? ''),
+            ]));
         }
 
         // برچسبِ گروه با کدِ کشور شروع می‌شود (`NL-SHARED`) — آخرین راهِ کشور
