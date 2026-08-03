@@ -395,9 +395,18 @@ class PaymentService
                     \Illuminate\Support\Facades\DB::table('domains')
                         ->where('id', $invoice->domain_id)
                         ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)
-                        // ثبت‌شده را دوباره به صف نینداز: فاکتورِ **تمدید** هم
-                        // همین‌جا رد می‌شود و تمدید کارِ `renew()` است نه ثبت.
-                        ->where('provision_status', '!=', 'done')
+                        /*
+                        | 🔴 فقط از `none` به `pending`. عمداً `!= 'done'` نیست.
+                        |
+                        | یک پرداختِ دوم روی همان فاکتور (بیش‌پرداخت، تلاشِ دوبارهٔ
+                        | درگاه، یا وب‌هوکِ تکراری) با شرطِ قبلی وضعیتِ `running` را
+                        | به `pending` برمی‌گرداند — یعنی درست وسطِ ثبت، قفلِ اتمی
+                        | باز می‌شود و اجرای بعدیِ کرون **همان دامنه را دوباره
+                        | می‌خرد**. و `manual` را هم از صفِ آدم بیرون می‌کشید و به
+                        | کرون برمی‌گرداند، که همان دامنهٔ مشکل‌دار را بی‌پایان
+                        | تلاش می‌کرد.
+                        */
+                        ->where('provision_status', 'none')
                         ->update([
                             'provision_status' => 'pending',
                             'updated_at'       => now(),

@@ -188,7 +188,14 @@ class DomainRegistrar
         // همین درس را یک بار به این پروژه داده است.
         $claimed = DB::table('domains')
             ->where('id', $domain->id)
-            ->where('provision_status', 'pending')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                // قفلِ رهاشده: اجرایی که وسطِ کار مرد (پایانِ زمانِ PHP،
+                // ری‌استارت). بی‌این، دامنه برای همیشه `running` می‌مانَد و
+                // هیچ اجرایی برش نمی‌دارد — مشتری پول داده و دامنه‌ای ندارد.
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(Domain::STALE_LOCK_MINUTES))))
             ->update(['provision_status' => 'running', 'updated_at' => now()]);
 
         if ($claimed === 0) {
@@ -225,6 +232,26 @@ class DomainRegistrar
             return $this->fail($domain, $handle['message'], manual: true);
         }
 
+        /*
+        | 🔴 بدونِ نام‌سرور ثبت نکن.
+        |
+        | `Domain::defaultNameServers()` از تنظیمات یا config می‌خواند و اگر هیچ‌کدام
+        | ست نشده باشد **آرایهٔ خالی** می‌دهد. رجیسترار ثبتِ بی‌نام‌سرور را
+        | می‌پذیرد، ولی نتیجه‌اش دامنه‌ای است که به هیچ‌جا اشاره نمی‌کند: مشتری
+        | پول داده، دامنه «فعال» است، و سایتش بالا نمی‌آید — و علتش هیچ‌جا
+        | نوشته نشده. برگرداندنش هم دستی و زمان‌بر است.
+        |
+        | پس به صفِ آدم می‌رود، نه به ثبتِ ناقص.
+        */
+        $ns = $domain->effectiveNameServers();
+
+        if (count($ns) < 2) {
+            return $this->fail($domain,
+                'نام‌سرورِ پیش‌فرضِ شرکت تنظیم نشده است (تنظیماتِ domain_nameservers). '
+                .'ثبت انجام نشد تا دامنهٔ بی‌مقصد ساخته نشود.',
+                manual: true);
+        }
+
         // ── ۱) آیا از قبل ثبت شده؟ ──
         //
         // 🔴 این قدم شبیهِ کارِ اضافه است ولی نیست: اگر تلاشِ قبلی timeout
@@ -241,7 +268,7 @@ class DomainRegistrar
             name: $domain->sld,
             extension: $domain->tld,
             handle: $handle['handle'],
-            nameServers: $domain->effectiveNameServers(),
+            nameServers: $ns,
             period: max(1, (int) $domain->period_years),
             // ⚠️ تمدیدِ خودکار نزدِ رجیسترار **خاموش**: تمدید را ما می‌فروشیم.
             // اگر رجیسترار خودش تمدید کند، برای دامنه‌ای که مشتری پولش را

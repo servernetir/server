@@ -290,3 +290,32 @@ body.imp-on .pnl-side{top:calc(96px + var(--imp-h))}
 @media(max-width:1000px){
   body.imp-on .pnl-side{top:var(--imp-h)}
 }
+
+/* ══════════ جعبهٔ پیام — دامنه و مدیریت ══════════
+ *
+ * ⚠️ `.pnl-alert` موجود یک **modifier برای section** است (فقط رنگِ حاشیه و سرتیتر
+ * را عوض می‌کند) نه جعبهٔ مستقل. استفاده‌اش به‌عنوان جعبه، متن را بی‌قاب و
+ * بی‌رنگ رها می‌کرد — بی‌هیچ خطایی، همان تلهٔ «کلاسِ نبود» در CLAUDE.md.
+ */
+.dm-note{
+  display:block;padding:14px 16px;border-radius:14px;margin:0 0 16px;
+  font-size:13.5px;line-height:2;border:1px solid var(--line);background:var(--surface-2);
+}
+.dm-note.ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.dm-note.warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.dm-note.danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.dm-note code{
+  display:inline-block;padding:4px 10px;border-radius:8px;margin-inline-start:6px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg2);color:var(--text);
+}
+.dm-note small{display:block;margin-top:6px;opacity:.85;font-size:11.8px}
+
+.dm-ns-row{margin:0 0 12px}
+.dm-ns-row label{display:block;font-size:12.5px;margin-bottom:5px}
+.dm-ns-row input{
+  width:100%;max-width:420px;padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;
+  background:var(--bg2);color:var(--text);border:1px solid var(--line);
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.dm-ns-row input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.dm-acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}

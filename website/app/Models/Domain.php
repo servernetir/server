@@ -80,10 +80,30 @@ class Domain extends Model
         return $q->whereNotIn('status', self::DEAD_STATUSES);
     }
 
-    /** دامنه‌هایی که کرونِ تحویل باید بردارد */
+    /** پس از این مدت، قفلِ `running` رهاشده حساب می‌شود */
+    public const STALE_LOCK_MINUTES = 15;
+
+    /**
+     * دامنه‌هایی که کرونِ تحویل باید بردارد.
+     *
+     * 🔴 قفلِ رهاشده هم برداشته می‌شود. قفلِ اتمی وضعیت را `running` می‌کند، ولی
+     * اگر همان اجرا وسطِ کار بمیرد (پایانِ زمانِ PHP، ری‌استارتِ سرور، کشته‌شدنِ
+     * کرون) هیچ‌کس آن را برنمی‌گرداند: دامنه برای همیشه `running` می‌مانَد،
+     * هیچ اجرای بعدی برش نمی‌دارد، و مشتری پول داده و دامنه‌ای ندارد — بی‌هیچ
+     * خطایی. همان الگوی «خرابیِ خاموش» که این پروژه بارها خورده.
+     *
+     * ⚠️ پانزده دقیقه سخاوتمندانه است: خودِ ثبت چند ثانیه طول می‌کشد، پس این
+     * پنجره فقط اجرایِ واقعاً مرده را برمی‌دارد نه اجرای کُند را — وگرنه دو
+     * اجرا هم‌زمان یک دامنه را می‌خریدند.
+     */
     public function scopeAwaitingRegistration(Builder $q): Builder
     {
-        return $q->where('provision_status', 'pending')->where('status', 'pending');
+        return $q->where('status', 'pending')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
     }
 
     /**

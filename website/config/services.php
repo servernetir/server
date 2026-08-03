@@ -239,6 +239,19 @@ return [
         'username'     => env('OPENPROVIDER_USERNAME'),
         'password'     => env('OPENPROVIDER_PASSWORD'),
         'suggest_tlds' => ['com', 'net', 'org', 'ir'],
+
+        /*
+        | 🔴 نام‌سرورِ پیش‌فرضِ شرکت. تا امروز این کلید **وجود نداشت** و
+        | `Domain::defaultNameServers()` آرایهٔ خالی برمی‌گرداند — یعنی دامنه با
+        | صفر نام‌سرور ثبت می‌شد. رجیسترار قبولش می‌کند ولی نتیجه‌اش دامنه‌ای
+        | است که به هیچ‌جا اشاره نمی‌کند: مشتری پول داده، دامنه «فعال» است، و
+        | سایتش بالا نمی‌آید.
+        |
+        | مدیر می‌تواند از تنظیمات (`domain_nameservers`) بازنویسی‌شان کند.
+        */
+        'nameservers' => array_values(array_filter(array_map('trim', explode(',',
+            (string) env('DOMAIN_NAMESERVERS', 'ns1.servernet.cloud,ns2.servernet.cloud'))))),
+
         'margin'       => [
             'default' => (float) env('DOMAIN_MARGIN_PCT', 25),
         ],

@@ -21,13 +21,13 @@
   @endif
 </div>
 
-@if(session('ok'))<div class="pnl-alert ok">{{ session('ok') }}</div>@endif
-@if($errors->any())<div class="pnl-alert danger">{{ $errors->first() }}</div>@endif
+@if(session('ok'))<div class="dm-note ok">{{ session('ok') }}</div>@endif
+@if($errors->any())<div class="dm-note danger">{{ $errors->first() }}</div>@endif
 
 {{-- 🔴 کدِ انتقال فقط **یک بار** و فقط از session نشان داده می‌شود: ذخیره‌اش
      نمی‌کنیم چون کلیدِ مالکیت است و هرکس داشته باشد دامنه را می‌برد. --}}
 @if(session('authCode'))
-  <div class="pnl-alert warn">
+  <div class="dm-note warn">
     <b>کد انتقال (EPP):</b>
     <code dir="ltr" style="user-select:all;font-size:14px">{{ session('authCode') }}</code>
     <br><small>این کد کلید مالکیت دامنه است. فقط به رجیستراری بدهید که می‌خواهید دامنه به آن منتقل شود. با تازه‌کردن صفحه ناپدید می‌شود.</small>
@@ -75,7 +75,7 @@
     <form method="post" action="{{ route('account.domain.ns', $domain) }}">
       @csrf
       @foreach(range(0, 3) as $i)
-        <p>
+        <p class="dm-ns-row">
           <label for="ns{{ $i }}" style="display:block;font-size:12.5px;margin-bottom:4px">
             نام‌سرور {{ fa_num($i + 1) }}@if($i < 2) <span style="color:var(--danger)">*</span>@endif
           </label>
