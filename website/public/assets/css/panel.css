@@ -319,3 +319,23 @@ body.imp-on .pnl-side{top:calc(96px + var(--imp-h))}
 }
 .dm-ns-row input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .dm-acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+
+/* ── جستجو و نتیجهٔ دامنه در پنل ── */
+.dm-search{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.dm-search input{
+  flex:1 1 260px;min-width:0;padding:10px 13px;border-radius:11px;font:inherit;font-size:14px;
+  background:var(--bg2);color:var(--text);border:1px solid var(--line);
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.dm-search input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.dm-res{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 14px;border-radius:12px;margin-bottom:8px;
+  border:1px solid var(--line);background:var(--surface-2);
+}
+.dm-res.ok{border-color:var(--ok-line)}
+.dm-res.no{opacity:.7}
+.dm-res-n{font-weight:700;font-size:14px;flex:1 1 180px;min-width:0;word-break:break-all}
+.dm-res-p{font-weight:700;color:var(--cyan);white-space:nowrap}
+.dm-res-p small{font-weight:400;color:var(--dim)}
+.dm-res form{margin:0}

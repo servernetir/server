@@ -35,7 +35,15 @@ class DomainController extends Controller
 
     // ═══════════════════════ فهرست و مدیریت ═══════════════════════
 
-    public function index(): View
+    /**
+     * فهرستِ دامنه‌ها + جستجو و ثبتِ دامنهٔ تازه در همین صفحه.
+     *
+     * ⚠️ استعلام **این‌جا** گرفته می‌شود، نه در صفحهٔ عمومی. صفحهٔ عمومی فقط
+     * نامِ دامنه را می‌فرستد (`?register=`) چون استعلام ۱۵ دقیقه اعتبار دارد و
+     * بینِ دیدنِ قیمت و ورود به حساب ممکن است بیشتر طول بکشد. با استعلامِ تازه،
+     * قیمتی که مشتری روی دکمهٔ خرید می‌بیند همیشه همانی است که پرداخت می‌کند.
+     */
+    public function index(Request $request, \App\Services\Domain\DomainSearch $search): View
     {
         $domains = Domain::where('customer_id', $this->customerId())
             ->alive()
@@ -43,8 +51,22 @@ class DomainController extends Controller
             ->orderBy('expires_at')
             ->get();
 
+        $query = trim((string) $request->query('register', ''));
+        $results = [];
+
+        if ($query !== '' && mb_strlen($query) <= 120) {
+            try {
+                $results = $search->search($query);
+            } catch (\Throwable $e) {
+                // جستجوی خراب نباید فهرستِ دامنه‌های مشتری را هم بخوابانَد
+                \Illuminate\Support\Facades\Log::warning('panel domain search failed', ['err' => $e->getMessage()]);
+            }
+        }
+
         return view('account.domains', AccountController::shell('domains') + [
             'domains' => $domains,
+            'query'   => $query,
+            'results' => $results,
         ]);
     }
 

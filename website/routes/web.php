@@ -1659,6 +1659,21 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
+        /*
+        | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.
+        |
+        | 🔴 `DomainRegistrar` دامنهٔ مشکل‌دار را به `provision_status='manual'`
+        | می‌بَرد تا کرون رهایش کند و آدم تصمیم بگیرد. ولی تا امروز هیچ آدمی آن
+        | صف را نمی‌دید: نه صفحه‌ای بود، نه اعلانی، و خروجیِ کرون به /dev/null
+        | می‌رفت. مشتری پول داده بود و تنها نشانه‌اش یک ردیف در دیتابیس بود.
+        */
+        Route::get('/domains', [\App\Http\Controllers\Admin\DomainController::class, 'index'])
+            ->name('admin.domains')->middleware('admin');
+        Route::post('/domains/{domain}/retry', [\App\Http\Controllers\Admin\DomainController::class, 'retry'])
+            ->name('admin.domains.retry')->middleware('admin');
+        Route::post('/domains/{domain}/register', [\App\Http\Controllers\Admin\DomainController::class, 'registerNow'])
+            ->name('admin.domains.register')->middleware('admin');
+
         Route::get('/cloud/probe', [\App\Http\Controllers\Admin\CloudController::class, 'probe'])->middleware('admin');
         // خاموش/روشنِ پکیج/مکان/کشور/زیرساخت — همه POST و پشتِ گیتِ مدیر.
         // روی admin_disabled می‌نویسند نه is_active، تا کرونِ سینک تصمیم را

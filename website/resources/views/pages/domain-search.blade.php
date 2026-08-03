@@ -26,7 +26,8 @@ $T = [
   'err_conn'           => __('ui.dsr_err_conn'),
   'is_fa'              => app()->getLocale() === 'fa',
   'eur_rate'           => cloud_eur_rate(),
-  'cart'               => whmcs_url('cart.php'),
+  // فروش و تحویلِ دامنه در کنسولِ خودمان است، نه WHMCSِ بیرونی
+  'panel'              => lroute('account.domains'),
 ];
 @endphp
 <script>window.T = @json($T);</script>
@@ -152,7 +153,18 @@ html[data-theme="light"] .dm-row{background:#fff}
         '<span class="pnl-pill warn">' + T.not_orderable_pill + '</span></div>';
     }
     var premium = r.is_premium;
-    var buy = T.cart + '?a=add&domain=register&query=' + encodeURIComponent(r.domain);
+    /*
+     * 🔴 تا امروز این دکمه به سبدِ خریدِ **WHMCSِ بیرونی** می‌رفت، در حالی که
+     * فروش و تحویلِ دامنه حالا کاملاً در کنسولِ خودمان است. نتیجه‌اش این بود
+     * که مسیرِ خریدِ ساخته‌شده هیچ ورودی‌ای نداشت.
+     *
+     * ⚠️ لینکِ GET است نه فرمِ POST، و این عمدی است: کاربرِ واردنشده باید اول
+     * وارد شود، و میدل‌ورِ احراز هویت **مقصدِ GET** را نگه می‌دارد ولی بدنهٔ
+     * POST را دور می‌ریزد. ضمناً استعلام ۱۵ دقیقه اعتبار دارد؛ با فرستادنِ
+     * نامِ دامنه (نه شناسهٔ استعلام) پنل خودش استعلامِ تازه می‌گیرد، پس
+     * قیمتِ لحظهٔ خرید همیشه معتبر است.
+     */
+    var buy = T.panel + '?register=' + encodeURIComponent(r.domain);
     return '<div class="dm-row ' + (premium ? 'premium' : 'ok') + '">' +
       '<div class="dm-name" dir="ltr">' + esc(r.domain) +
         (premium ? '<small>' + T.premium_note + '</small>' : '<small>' + T.free_note + '</small>') +

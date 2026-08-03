@@ -121,6 +121,20 @@ class CustomerController extends Controller
             'c'             => $customer,
             'creditBalance' => $customer->creditBalance(),
             'services'      => $customer->relationLoaded('services') ? $customer->services : collect(),
+            /*
+            | دامنه‌های همین مشتری — کنارِ سرویس‌ها، چون از دیدِ پشتیبانی هر دو
+            | «چیزی که این آدم خریده» هستند و تبِ جدا یعنی جایی که کسی بازش
+            | نمی‌کند.
+            |
+            | ⚠️ نامش `customerDomains` است نه `domains`: خودِ ویو در `@php` یک
+            | `$domains` می‌سازد (سرویس‌هایی که فیلدِ دامنه دارند) و متغیرِ
+            | کنترلر را **سایه می‌زند**. با نامِ `domains` بلوک بی‌صدا خالی
+            | رندر می‌شد — نه خطایی، نه هشداری.
+            */
+            'customerDomains' => Schema::hasTable('domains')
+                ? \App\Models\Domain::where('customer_id', $customer->id)
+                    ->orderByDesc('id')->limit(50)->get()
+                : collect(),
             'activity'      => Schema::hasTable('activity_logs')
                 ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(20)->get()
                 : collect(),

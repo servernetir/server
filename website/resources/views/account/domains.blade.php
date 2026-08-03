@@ -8,10 +8,51 @@
     <h1>دامنه‌های من</h1>
     <p>ثبت، تمدید، تغییر نام‌سرور و انتقال — همه از همین‌جا.</p>
   </div>
-  <a class="pnl-btn" href="{{ lroute('domain.search') }}">
-    <svg class="icon"><use href="#i-search"/></svg>ثبت دامنهٔ جدید
-  </a>
 </div>
+
+@if(session('ok'))<div class="dm-note ok">{{ session('ok') }}</div>@endif
+@if($errors->any())<div class="dm-note danger">{{ $errors->first() }}</div>@endif
+
+{{-- ثبتِ دامنهٔ تازه — همین‌جا، نه در صفحهٔ دیگر.
+     استعلام سمتِ سرور گرفته می‌شود تا قیمتی که مشتری روی دکمه می‌بیند همانی
+     باشد که پرداخت می‌کند (استعلام ۱۵ دقیقه اعتبار دارد). --}}
+<section class="pnl-sec">
+  <div class="pnl-sec-h"><h2>ثبت دامنهٔ جدید</h2></div>
+  <div class="pnl-sec-b">
+    <form method="get" action="{{ route('account.domains') }}" class="dm-search">
+      <input name="register" dir="ltr" autocomplete="off" value="{{ $query }}"
+             placeholder="example.com یا فقط example">
+      <button class="pnl-btn" type="submit">
+        <svg class="icon"><use href="#i-search"/></svg>جستجو
+      </button>
+    </form>
+
+    @if($query !== '')
+      @forelse($results as $r)
+        <div class="dm-res {{ $r['available'] ? ($r['orderable'] ? 'ok' : 'no') : 'no' }}">
+          <span class="dm-res-n" dir="ltr">{{ $r['domain'] }}</span>
+
+          @if(! $r['available'])
+            <span class="pnl-pill mute">ثبت‌شده</span>
+          @elseif(! $r['orderable'])
+            <span class="pnl-pill warn">فعلاً قابل سفارش نیست</span>
+          @else
+            <span class="pnl-pill ok">آزاد</span>
+            <span class="dm-res-p">{{ cloud_price($r['price_toman']) }} <small>/ سال</small></span>
+            <form method="post" action="{{ route('account.domains.order') }}">
+              @csrf
+              <input type="hidden" name="quote_id" value="{{ $r['quote_id'] }}">
+              <input type="hidden" name="years" value="1">
+              <button class="pnl-btn" type="submit">ثبت این دامنه</button>
+            </form>
+          @endif
+        </div>
+      @empty
+        <p class="dm-note">نتیجه‌ای پیدا نشد. املای دامنه را بررسی کنید.</p>
+      @endforelse
+    @endif
+  </div>
+</section>
 
 @if($domains->isEmpty())
   <section class="pnl-sec">

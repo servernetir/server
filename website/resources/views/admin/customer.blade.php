@@ -136,6 +136,35 @@
 
 {{-- ─────────── تبِ سرویس‌ها (پیش‌فرض) ─────────── --}}
 <div class="ct-pane on" data-pane="services">
+
+{{-- ══ دامنه‌ها ══
+     کنارِ سرویس‌ها و نه در تبِ جدا: از دیدِ پشتیبانی هر دو «چیزی که این آدم
+     خریده» هستند، و تبِ جدا یعنی جایی که کسی بازش نمی‌کند. --}}
+@if(! $customerDomains->isEmpty())
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>دامنه‌ها</h3></div>
+  <table class="ad-table">
+    <thead><tr><th>دامنه</th><th>وضعیت</th><th>تحویل</th><th>انقضا</th><th></th></tr></thead>
+    <tbody>
+      @foreach($customerDomains as $d)
+      <tr>
+        <td><b dir="ltr">{{ $d->domain }}</b></td>
+        <td>{{ $d->status === 'active' ? 'فعال' : ($d->status === 'pending' ? 'در انتظار' : $d->status) }}</td>
+        <td>
+          {{ $d->provision_status === 'manual' ? 'دستی' : ($d->provision_status === 'done' ? 'انجام شد' : $d->provision_status) }}
+          @if($d->provision_error)
+            <br><small style="color:var(--muted)">{{ mb_substr($d->provision_error, 0, 70) }}</small>
+          @endif
+        </td>
+        <td>{{ $d->expires_at ? sdate($d->expires_at) : '—' }}</td>
+        <td><a href="{{ route('admin.domains') }}?f=all">مدیریت</a></td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+</div>
+@endif
+
 {{-- ══ سرویس‌ها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>سرویس‌ها و خدمات</h3></div>
