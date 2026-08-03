@@ -2576,8 +2576,11 @@ html[data-theme="light"] .sol-uc{ background:#fff }
    دیوارِ کارت می‌سازد یا — کاری که قبلاً می‌شد — بقیه را پنهان می‌کند.
    توکن‌ها همان‌های سایت‌اند (--surface / --line / --cyan)؛ --card و --brand در
    این پروژه تعریف نشده‌اند و استفاده‌شان یعنی رنگِ نامرئی. */
+/* ⚠️ `overflow-x:auto` طبقِ استاندارد محورِ عمودی را هم کلیپ می‌کند، و منوی
+   فیلترِ داخلِ سرستون بریده می‌شد. روی صفحهٔ بزرگ جدول جا می‌شود، پس فقط
+   وقتی واقعاً لازم است اسکرول می‌گیرد. */
 .plan-table-wrap{
-  overflow-x:auto;
+  overflow:visible;
   border:1px solid var(--line);
   border-radius:var(--r-lg);
   background:var(--surface);
@@ -2595,14 +2598,15 @@ html[data-theme="light"] .sol-uc{ background:#fff }
   border-bottom:1px solid var(--line);
   white-space:nowrap;
 }
+/* 🔴 `position:sticky; top:0` بود و باگِ گزارش‌شده را می‌ساخت: سایت هدرِ
+   **ثابت** دارد، پس سرستونِ چسبنده زیرِ منو می‌رفت و به‌شکلِ یک متنِ شناور
+   («سرور ابری»، «پردازندهٔ اختصاصی») گوشهٔ صفحه ظاهر می‌شد. جدول‌ها
+   ۱۲ تا ۳۰ ردیف‌اند و بی‌سرستونِ چسبنده هم خوانا می‌مانند. */
 .plan-table thead th{
   font-size:12.5px;
   font-weight:600;
   color:var(--muted);
   background:var(--surface-2);
-  position:sticky;
-  top:0;
-  z-index:1;
 }
 .plan-table tbody tr:last-child td{border-bottom:0}
 .plan-table tbody tr{transition:background .15s var(--ease)}
@@ -2753,3 +2757,23 @@ html[data-theme="light"] .sol-uc{ background:#fff }
 .dm-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:dm-pulse 1s ease-in-out infinite}
 @keyframes dm-pulse{0%,100%{opacity:.25}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.dm-dot{animation:none;opacity:.6}}
+
+/* ══════════ جدولِ پلن: وسط‌چین + اسکرولِ افقیِ فقط-وقتی-لازم ══════════ */
+
+/* روی صفحهٔ باریک جدول باید اسکرول بگیرد؛ روی صفحهٔ بزرگ نه، وگرنه منوی
+   فیلترِ داخلِ سرستون بریده می‌شود. */
+@media (max-width:900px){
+  .plan-table-wrap{overflow-x:auto}
+}
+
+/* ستون‌ها وسط‌چین — عددها کنارِ هم و خوانا. نامِ پلن و دکمه استثنا هستند:
+   نامِ چپ‌چین لبهٔ مشترک دارد و چشم سریع‌تر اسکنش می‌کند. */
+.plan-table th,
+.plan-table td{text-align:center;vertical-align:middle}
+.plan-table th:nth-child(2),
+.plan-table td.pt-name{text-align:start}
+.plan-table .pt-th > .pt-menu > summary{justify-content:center}
+
+/* عددها با عرضِ یکسان می‌نشینند تا ستون نلرزد */
+.plan-table td[dir="ltr"],
+.plan-table .pt-price{font-variant-numeric:tabular-nums}

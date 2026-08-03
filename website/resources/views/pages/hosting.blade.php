@@ -320,8 +320,8 @@
           <li @if($j === 0) class="hl" @endif><svg class="icon"><use href="#i-check"/></svg>@if(is_array($spec)){{ lc($spec) }}@else<span dir="ltr">{{ $spec }}</span>@endif</li>
           @endforeach
         </ul>
-        @if($p['quote'] ?? false)
-        {{-- دامنه → جستجوی واقعی، جایی که قیمتِ لحظه‌ای می‌آید و می‌شود خرید --}}
+        @if($p['search_btn'] ?? false)
+        {{-- دامنه → جستجو. «‎.com» را نمی‌شود خرید، یک **نام** را می‌شود. --}}
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ lroute('domain.search') }}">
           <svg class="icon" style="width:15px;height:15px"><use href="#i-search"/></svg>{{ __('ui.dsr_check_btn') }}
         </a>

@@ -83,10 +83,42 @@ class CatalogController extends Controller
         | جستجوی واقعی می‌رود؛ مشخصات و متنِ سئو دست‌نخورده می‌مانند.
         */
         if ($category === 'domain' && ! empty($product['plans'])) {
-            $product['plans'] = array_map(function ($p) {
+            // نامِ پلن روی این صفحات همان پسوند است («.com»، «.ir ×۵»)
+            $tldOf = fn ($p) => strtolower(ltrim(trim(explode(' ', (string) ($p['name'] ?? ''))[0]), '.'));
+
+            $live = [];
+
+            try {
+                $live = app(\App\Services\Domain\TldPriceBook::class)
+                    ->forTlds(array_map($tldOf, $product['plans']));
+            } catch (\Throwable) {
+                // بی‌قیمت بهتر از قیمتِ غلط است؛ دکمهٔ «بررسی و ثبت» می‌مانَد
+            }
+
+            $product['plans'] = array_map(function ($p) use ($tldOf, $live) {
+                $price = $live[$tldOf($p)] ?? null;
+
+                unset($p['eur'], $p['pid']);
+
+                // دکمه همیشه به جستجو می‌رود: «‎.com» را نمی‌شود خرید، یک
+                // **نام** را می‌شود. بی‌این، شاخهٔ پیش‌فرضِ ویو سراغِ
+                // `buy_url($p['pid'])` می‌رفت که همین بالا حذفش کردیم.
+                $p['search_btn'] = true;
+
+                if ($price !== null) {
+                    // قیمتِ **واقعیِ امروز** — نه عددِ سخت‌کدِ config
+                    $p['irt'] = $price;
+                    $p['contact'] = false;
+                    $p['quote'] = false;
+                    $p['live'] = true;
+
+                    return $p;
+                }
+
+                // رجیسترار جواب نداد یا این پسوند را نمی‌فروشد
+                unset($p['irt']);
                 $p['contact'] = true;
-                $p['quote'] = true;              // «استعلام» نه «تماس بگیرید»
-                unset($p['irt'], $p['eur'], $p['pid']);
+                $p['quote'] = true;
 
                 return $p;
             }, $product['plans']);

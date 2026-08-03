@@ -59,6 +59,7 @@ class SettingsController extends Controller
             'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
             'divisor' => $ready ? Setting::get('aeza_price_divisor') : null,
             'promo'   => $ready && Setting::get('aeza_include_promo') === '1',
+            'unlimited' => $ready && Setting::get('cloud_traffic_unlimited') === '1',
             'plans'   => $ready && Schema::hasTable('cloud_plans')
                 ? \App\Models\CloudPlan::where('is_active', true)->count() : 0,
             // دامنه — درصد سود و نام‌سرورِ پیش‌فرض
@@ -111,6 +112,7 @@ class SettingsController extends Controller
             // درصد سود دامنه — صفر مجاز است (استراتژیِ جذبِ مشتری)
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
             'domain_nameservers'    => ['nullable', 'string', 'max:500'],
+            'cloud_traffic_unlimited' => ['nullable'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
             // «۱ یورو چند روبل» — چون API زیرساختِ دوم قیمت را به روبل می‌دهد.
             // کرانِ ۱۰ تا ۵۰۰۰ جلوی اشتباهِ جهت را می‌گیرد (کسی ۰٫۰۱ وارد نکند).
@@ -186,6 +188,11 @@ class SettingsController extends Controller
         }
 
         Setting::put('aeza_include_promo', $request->boolean('aeza_include_promo') ? '1' : null);
+
+        // ⚠️ نمایشِ «ترافیک نامحدود» یک **وعدهٔ تجاری** است، نه توصیفِ فنی:
+        // سقفِ واقعیِ زیرساخت سرِ جایش می‌مانَد و اگر مشتری رد شود هزینه‌اش با
+        // ماست. برای همین کلید است و نه سخت‌کد — تا بدونِ دیپلوی خاموش شود.
+        Setting::put('cloud_traffic_unlimited', $request->boolean('cloud_traffic_unlimited') ? '1' : null);
 
         return back()->with('ok', 'تنظیمات ذخیره شد.');
     }

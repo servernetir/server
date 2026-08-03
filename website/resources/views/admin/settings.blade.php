@@ -172,6 +172,15 @@
              ⚠️ درصدِ سودِ دامنه جدا از سرورِ ابری است و باید هم باشد: بهای
              دامنه سالانه و کوچک است، پس همان درصدی که روی سرور منطقی است
              روی دامنه قیمت را غیررقابتی می‌کند. --}}
+        <label class="set-chk">
+          <input type="checkbox" name="cloud_traffic_unlimited" value="1" @checked($cloud['unlimited'])>
+          <span>ترافیک را «نامحدود» نشان بده
+            <small style="display:block;color:var(--dim);font-size:11.5px;line-height:1.9">
+              ⚠️ وعدهٔ تجاری است نه توصیف فنی: سقف واقعی زیرساخت سر جایش می‌مانَد و
+              مصرف بیش از آن هزینه‌اش با ماست. عددِ واقعی در دیتابیس دست‌نخورده می‌مانَد.
+            </small></span>
+        </label>
+
         <label class="set-f">حاشیهٔ سودِ دامنه (٪)
           <input type="number" name="domain_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['dmargin'] }}" placeholder="۰ (پیش‌فرض)">
