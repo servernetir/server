@@ -90,6 +90,265 @@ class OpenProviderClient
         return data_get($res, 'data.results', []);
     }
 
+    // ═══════════════════════ مخاطب (handle مالک) ═══════════════════════
+
+    /**
+     * ساختِ handle مالک. خروجی مثل «CV904717-NL».
+     *
+     * 🔴 handle **یک بار به ازای هر مشتری** ساخته می‌شود و بعد بازاستفاده.
+     * ساختِ handle تازه برای هر ثبت، فضای مخاطبِ حساب را پر می‌کند و بدتر:
+     * تغییرِ اطلاعاتِ تماسِ مشتری فقط روی handleهای بعدی اثر می‌گذارد و
+     * دامنه‌های قدیمی با اطلاعاتِ کهنه می‌مانند — که برای WHOIS تخلف است.
+     *
+     * @param  array<string,mixed>  $data  ساختارِ رسمی: name/address/phone/email
+     * @return array{ok:bool, handle:?string, code:int, message:string}
+     */
+    public function createCustomer(array $data): array
+    {
+        $res = $this->call('POST', '/customers', $data);
+
+        return $this->result($res, ['handle' => data_get($res, 'data.handle')]);
+    }
+
+    /** @return array{ok:bool, data:array, code:int, message:string} */
+    public function getCustomer(string $handle): array
+    {
+        $res = $this->call('GET', '/customers/'.rawurlencode($handle));
+
+        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+    }
+
+    public function updateCustomer(string $handle, array $data): array
+    {
+        return $this->result($this->call('PUT', '/customers/'.rawurlencode($handle), $data));
+    }
+
+    // ═══════════════════════ ثبت و مدیریتِ دامنه ═══════════════════════
+
+    /**
+     * ثبتِ دامنه.
+     *
+     * ⚠️ چهار handle جداگانه می‌خواهد (owner/admin/tech/billing). ما هر چهار را
+     * یکی می‌گذاریم: مشتری مالکِ دامنهٔ خودش است و واسطه‌گریِ ما نباید در WHOIS
+     * جای مالک بنشیند.
+     *
+     * ⚠️ `period` سال است، نه ماه.
+     *
+     * @param  array<int,string>  $nameServers
+     * @param  array<string,mixed>  $additional  دادهٔ اجباریِ بعضی پسوندها
+     * @return array{ok:bool, id:?int, status:?string, code:int, message:string}
+     */
+    public function registerDomain(
+        string $name,
+        string $extension,
+        string $handle,
+        array $nameServers,
+        int $period = 1,
+        bool $autoRenew = false,
+        array $additional = [],
+    ): array {
+        $payload = [
+            'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
+            'period'         => $period,
+            'owner_handle'   => $handle,
+            'admin_handle'   => $handle,
+            'tech_handle'    => $handle,
+            'billing_handle' => $handle,
+            'name_servers'   => array_values(array_map(fn ($ns) => ['name' => $ns], $nameServers)),
+            // ⚠️ «off» نه «default»: تمدید را **ما** مدیریت می‌کنیم. اگر رسیلری
+            // خودش تمدید کند، برای دامنه‌ای که مشتری تمدیدش را نخریده هم پول
+            // می‌دهیم و راهی برای پس‌گرفتنش نداریم.
+            'autorenew'      => $autoRenew ? 'on' : 'off',
+        ];
+
+        if ($additional !== []) {
+            $payload['additional_data'] = $additional;
+        }
+
+        $res = $this->call('POST', '/domains', $payload);
+
+        return $this->result($res, [
+            'id'     => data_get($res, 'data.id'),
+            'status' => data_get($res, 'data.status'),
+        ]);
+    }
+
+    /** @return array{ok:bool, data:array, code:int, message:string} */
+    public function getDomain(int $id): array
+    {
+        $res = $this->call('GET', '/domains/'.$id);
+
+        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+    }
+
+    /**
+     * پیدا کردنِ دامنه با نام — برای تشخیصِ «قبلاً ثبت شده».
+     *
+     * 🔴 این متد ستونِ فقراتِ idempotency است: اگر ثبت timeout بخورد ولی
+     * رسیلری واقعاً ثبت کرده باشد، تلاشِ دوم بدونِ این، دامنه را **دوباره**
+     * می‌خرد. پول دو بار می‌رود و دامنهٔ دوم هم به هیچ‌کس نمی‌خورد.
+     */
+    public function findDomain(string $name, string $extension): array
+    {
+        $res = $this->call('GET', '/domains', [
+            'domain_name_pattern' => $name,
+            'extension'           => ltrim($extension, '.'),
+            'limit'               => 20,
+        ]);
+
+        $fqdn = strtolower($name.'.'.ltrim($extension, '.'));
+
+        foreach ((array) data_get($res, 'data.results', []) as $row) {
+            $rowName = strtolower(
+                (string) data_get($row, 'domain.name').'.'.(string) data_get($row, 'domain.extension')
+            );
+
+            if ($rowName === $fqdn) {
+                return $this->result($res, ['data' => (array) $row, 'found' => true]);
+            }
+        }
+
+        return $this->result($res, ['data' => [], 'found' => false]);
+    }
+
+    /** @return array{ok:bool, results:array, code:int, message:string} */
+    public function listDomains(int $limit = 100, int $offset = 0): array
+    {
+        $res = $this->call('GET', '/domains', ['limit' => $limit, 'offset' => $offset]);
+
+        return $this->result($res, ['results' => (array) data_get($res, 'data.results', [])]);
+    }
+
+    /** تمدید. `period` سال است. */
+    public function renewDomain(int $id, int $period = 1): array
+    {
+        return $this->result($this->call('POST', '/domains/'.$id.'/renew', ['period' => $period]));
+    }
+
+    /**
+     * تغییرِ صفاتِ دامنه: nameserver، قفلِ انتقال، تمدیدِ خودکار.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    public function updateDomain(int $id, array $data): array
+    {
+        return $this->result($this->call('PUT', '/domains/'.$id, $data));
+    }
+
+    /** @param array<int,string> $nameServers */
+    public function setNameServers(int $id, array $nameServers): array
+    {
+        return $this->updateDomain($id, [
+            'name_servers' => array_values(array_map(fn ($ns) => ['name' => $ns], $nameServers)),
+        ]);
+    }
+
+    public function setLock(int $id, bool $locked): array
+    {
+        return $this->updateDomain($id, ['is_locked' => $locked]);
+    }
+
+    public function setAutoRenew(int $id, bool $on): array
+    {
+        return $this->updateDomain($id, ['autorenew' => $on ? 'on' : 'off']);
+    }
+
+    /**
+     * کدِ انتقال (EPP/authcode).
+     *
+     * ⚠️ این کد **کلیدِ مالکیت** است: هرکس داشته باشد می‌تواند دامنه را ببرد.
+     * پس ذخیره‌اش نمی‌کنیم؛ در لحظه گرفته و به مشتری نشان داده می‌شود.
+     */
+    public function authCode(int $id): array
+    {
+        $res = $this->call('GET', '/domains/'.$id.'/authcode');
+
+        return $this->result($res, ['auth_code' => data_get($res, 'data.auth_code')]);
+    }
+
+    public function resetAuthCode(int $id): array
+    {
+        $res = $this->call('POST', '/domains/'.$id.'/authcode/reset', []);
+
+        return $this->result($res, ['auth_code' => data_get($res, 'data.auth_code')]);
+    }
+
+    /**
+     * شروعِ انتقالِ دامنه به ما.
+     *
+     * @param  array<int,string>  $nameServers
+     */
+    public function transferDomain(
+        string $name,
+        string $extension,
+        string $handle,
+        string $authCode,
+        array $nameServers = [],
+        int $period = 1,
+    ): array {
+        $payload = [
+            'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
+            'period'         => $period,
+            'auth_code'      => $authCode,
+            'owner_handle'   => $handle,
+            'admin_handle'   => $handle,
+            'tech_handle'    => $handle,
+            'billing_handle' => $handle,
+            'autorenew'      => 'off',
+        ];
+
+        if ($nameServers !== []) {
+            $payload['name_servers'] = array_values(array_map(fn ($ns) => ['name' => $ns], $nameServers));
+        }
+
+        $res = $this->call('POST', '/domains/transfer', $payload);
+
+        return $this->result($res, ['id' => data_get($res, 'data.id')]);
+    }
+
+    // ═══════════════════════ کاتالوگِ پسوندها ═══════════════════════
+
+    /**
+     * فهرستِ پسوندهایی که رسیلری می‌فروشد، با قیمت.
+     *
+     * صفحه‌بندی دارد و کلِ فهرست ~۱۵۰۰ ردیف است، پس فراخوان باید حلقه بزند.
+     *
+     * @return array{ok:bool, results:array, total:int, code:int, message:string}
+     */
+    public function listTlds(int $limit = 500, int $offset = 0, bool $withPrice = true): array
+    {
+        $res = $this->call('GET', '/tlds', array_filter([
+            'limit'      => $limit,
+            'offset'     => $offset,
+            'with_price' => $withPrice ?: null,
+        ], fn ($v) => $v !== null));
+
+        return $this->result($res, [
+            'results' => (array) data_get($res, 'data.results', []),
+            'total'   => (int) data_get($res, 'data.total', 0),
+        ]);
+    }
+
+    /**
+     * پاسخِ خام → شکلِ یکنواخت.
+     *
+     * هیچ متدی استثنا پرتاب نمی‌کند؛ همان قراردادِ `CloudProvider` — چون این
+     * فراخوان‌ها وسطِ مسیرِ پول‌اند و یک استثنای مهارنشده یعنی مشتری پول داده
+     * و صفحهٔ خطای سفید دیده.
+     *
+     * @param  array<string,mixed>  $extra
+     */
+    private function result(array $res, array $extra = []): array
+    {
+        $code = (int) ($res['code'] ?? -1);
+
+        return array_merge([
+            'ok'      => $code === 0,
+            'code'    => $code,
+            'message' => (string) ($res['desc'] ?? ''),
+        ], $extra);
+    }
+
     /** فراخوانی با توکن، با یک بار تلاش دوباره اگر توکن منقضی شده باشد */
     public function call(string $method, string $path, array $payload = []): array
     {
@@ -122,8 +381,19 @@ class OpenProviderClient
             $req = $req->withToken($token);
         }
 
+        // 🔴 GET باید پارامترها را در **کوئری** بفرستد، نه در بدنه.
+        //
+        // قبلاً همه‌چیز `json` می‌رفت و برای `POST /domains/check` کار می‌کرد،
+        // پس کسی متوجه نشد. ولی `GET /domains?domain_name_pattern=…` با بدنهٔ
+        // JSON یعنی فیلتر **اعمال نمی‌شود** و رسیلری صد دامنهٔ اولِ کلِ حساب را
+        // برمی‌گرداند. `findDomain()` که ستونِ idempotency است، آن‌وقت یا
+        // دامنهٔ اشتباه پیدا می‌کرد یا هیچ — و نتیجه‌اش خریدِ دوبارهٔ همان دامنه.
+        $options = in_array(strtoupper($method), ['GET', 'HEAD', 'DELETE'], true)
+            ? ($payload === [] ? [] : ['query' => $payload])
+            : ['json' => $payload];
+
         try {
-            $response = $req->send($method, $this->base.$path, ['json' => $payload]);
+            $response = $req->send($method, $this->base.$path, $options);
         } catch (\Throwable $e) {
             Log::warning('OpenProvider transport error', ['path' => $path, 'err' => $e->getMessage()]);
             return ['code' => -1, 'desc' => 'transport: '.$e->getMessage()];

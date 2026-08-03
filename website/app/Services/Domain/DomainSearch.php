@@ -222,7 +222,7 @@ class DomainSearch
      */
     private function toSellingToman(float $amount, string $currency, string $tld): ?int
     {
-        $rate = $this->fx->toToman($currency);
+        $rate = $this->rateFor($currency);
         if ($rate === null || $rate <= 0) {
             return null;
         }
@@ -236,6 +236,32 @@ class DomainSearch
         $step = $irt?->rounding_step ?: 1000;
 
         return (int) (ceil($withMargin / $step) * $step);
+    }
+
+    /**
+     * نرخِ یک واحدِ ارزِ رسیلری به تومان.
+     *
+     * 🔴 منبعِ نرخ باید **همانِ بقیهٔ سایت** باشد. قبلاً این‌جا مستقیم
+     * `ExchangeRate` صدا زده می‌شد و نرخِ مبنایی که مدیر در `/admin/settings`
+     * می‌گذارد (`pricing_rate_override`) اصلاً دیده نمی‌شد — یعنی سرورِ ابری با
+     * نرخِ مدیر قیمت می‌خورد و دامنه با نرخِ اسکرپ‌شده. دو قیمتِ ناهماهنگ روی
+     * یک سایت، و مدیری که نرخ را عوض می‌کند و می‌بیند دامنه‌ها تکان نمی‌خورند.
+     *
+     * یورو از `CloudPricing` می‌آید (همان منبعِ یگانه). ارزِ دیگر — رسیلری
+     * گاهی دلاری قیمت می‌دهد — با نرخِ زندهٔ خودش، چون نرخِ مبنا فقط یورویی است.
+     */
+    private function rateFor(string $currency): ?int
+    {
+        $currency = strtoupper($currency);
+
+        if ($currency === 'EUR') {
+            $rate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+
+            // صفر یعنی «نمی‌دانیم» — نه اینکه دامنه رایگان است
+            return $rate > 0 ? $rate : null;
+        }
+
+        return $this->fx->toToman($currency);
     }
 
     /** درصد سود — پیش‌فرض عمومی، با امکان تنظیم per-TLD */

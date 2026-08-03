@@ -1,0 +1,138 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * یک دامنهٔ فروخته‌شده.
+ *
+ * وضعیتِ «زنده» را این‌جا تعریف می‌کنیم و نه در پرس‌وجوهای پراکنده — همان درسِ
+ * `Service::DEAD_STATUSES`: وقتی تعریفِ «مرده» در پنج جا تکرار شود، افزودنِ
+ * وضعیتِ ششم یکی‌شان را جا می‌اندازد و آن یکی معمولاً همانی است که پول می‌گیرد.
+ */
+class Domain extends Model
+{
+    /** دامنه دیگر مالِ ما نیست یا عمرش تمام شده */
+    public const DEAD_STATUSES = ['cancelled', 'transferred_away', 'expired'];
+
+    protected $fillable = [
+        'customer_id', 'domain', 'sld', 'tld', 'registrar', 'status',
+        'provision_status', 'provision_tries', 'provision_error',
+        'op_id', 'owner_handle', 'period_years', 'auto_renew', 'is_locked',
+        'whois_privacy', 'name_servers', 'registered_at', 'expires_at',
+        'price_toman', 'renew_toman', 'cost_amount', 'cost_currency',
+        'quote_id', 'invoice_id', 'meta',
+    ];
+
+    protected $casts = [
+        'name_servers'   => 'array',
+        'meta'           => 'array',
+        'auto_renew'     => 'boolean',
+        'is_locked'      => 'boolean',
+        'whois_privacy'  => 'boolean',
+        'registered_at'  => 'datetime',
+        'expires_at'     => 'datetime',
+        'price_toman'    => 'integer',
+        'renew_toman'    => 'integer',
+        'cost_amount'    => 'integer',
+        'period_years'   => 'integer',
+    ];
+
+    /**
+     * ⚠️ بهایِ تمام‌شده هرگز نباید در JSONی که به مشتری می‌رود ظاهر شود —
+     * همان قاعدهٔ `CloudPlan::$hidden`. حاشیهٔ سودِ ما دادهٔ داخلی است.
+     */
+    protected $hidden = ['cost_amount', 'cost_currency', 'owner_handle', 'op_id'];
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(DomainQuote::class, 'quote_id');
+    }
+
+    // ───────────────────────── وضعیت ─────────────────────────
+
+    public function isDead(): bool
+    {
+        return in_array($this->status, self::DEAD_STATUSES, true);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /** هنوز ثبت نشده — مشتری پول داده و منتظر است */
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function scopeAlive(Builder $q): Builder
+    {
+        return $q->whereNotIn('status', self::DEAD_STATUSES);
+    }
+
+    /** دامنه‌هایی که کرونِ تحویل باید بردارد */
+    public function scopeAwaitingRegistration(Builder $q): Builder
+    {
+        return $q->where('provision_status', 'pending')->where('status', 'pending');
+    }
+
+    /**
+     * دامنه‌هایی که تا `$days` روز دیگر منقضی می‌شوند.
+     *
+     * ⚠️ فقط دامنهٔ **فعال**. دامنهٔ ثبت‌نشده تاریخ انقضا ندارد و دامنهٔ مرده
+     * نباید یادآوریِ تمدید بگیرد — مشتری‌ای که دامنه‌اش را منتقل کرده،
+     * پیامکِ «دامنه‌ات دارد منقضی می‌شود» دریافت نکند.
+     */
+    public function scopeExpiringWithin(Builder $q, int $days): Builder
+    {
+        return $q->where('status', 'active')
+            ->whereNotNull('expires_at')
+            ->whereBetween('expires_at', [now(), now()->addDays($days)]);
+    }
+
+    // ───────────────────────── نمایش ─────────────────────────
+
+    /** روزهای باقی‌مانده تا انقضا؛ منفی یعنی گذشته */
+    public function daysLeft(): ?int
+    {
+        return $this->expires_at ? (int) now()->startOfDay()->diffInDays($this->expires_at, false) : null;
+    }
+
+    /** nameserverهای مؤثر — اگر چیزی ست نشده، پیش‌فرضِ شرکت */
+    public function effectiveNameServers(): array
+    {
+        $ns = array_values(array_filter((array) $this->name_servers));
+
+        return $ns !== [] ? $ns : self::defaultNameServers();
+    }
+
+    /** @return array<int,string> */
+    public static function defaultNameServers(): array
+    {
+        $ns = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) (Setting::get('domain_nameservers') ?? ''))
+        )));
+
+        return $ns !== [] ? $ns : (array) config('services.openprovider.nameservers', []);
+    }
+
+    /** «example.com» → ['example', 'com'] */
+    public static function splitFqdn(string $fqdn): array
+    {
+        $fqdn = strtolower(trim($fqdn, ". \t\n\r\0\x0B"));
+        $dot = strpos($fqdn, '.');
+
+        return $dot === false ? [$fqdn, ''] : [substr($fqdn, 0, $dot), substr($fqdn, $dot + 1)];
+    }
+}
