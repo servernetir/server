@@ -1374,8 +1374,10 @@ Route::post('/system/cloud-status', function (\Illuminate\Http\Request $r) {
     }
 
     // ۳) کرون واقعاً می‌دود؟ آخرین اجرای زمان‌بند
+    // ⚠️ از **فایل** خوانده می‌شود نه کش — کش روی همان دیتابیسی است که وقتی
+    //    می‌میرد کرون را هم می‌کشد، و ضربانی که با بیمار بمیرد بی‌فایده است.
     $out['کرون'] = [
-        'آخرین اجرای زمان‌بند' => cache()->get('sn.schedule.last'),
+        'آخرین اجرای زمان‌بند' => app(\App\Services\SystemHealth::class)->heartbeatAt()?->toDateTimeString(),
         'اکنون' => now()->toDateTimeString(),
     ];
 

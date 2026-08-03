@@ -17,6 +17,31 @@
   @endif
 </div>
 
+{{--
+  ══ سلامتِ سامانه ══
+
+  🔴 عمداً **بالای** فهرستِ خطاهاست.
+
+  ردیابِ خطا فقط چیزی را نشان می‌دهد که استثنا پرتاب کرده. ولی گران‌ترین
+  خرابی‌های این پروژه هیچ استثنایی نساختند: کرونی که نمی‌دود، دامنه‌ای که پول
+  گرفته شده و ثبت نمی‌شود، سرویسی که در صف مانده. آن‌ها را باید **پرسید**، نه
+  منتظرِ گزارششان ماند.
+--}}
+<div class="ad-panel" style="margin-bottom:18px">
+  <div class="ad-panel-h"><h2>سلامتِ سامانه</h2></div>
+  <div style="display:flex;flex-direction:column">
+    @foreach($health as $c)
+      <div class="err-row" style="border-inline-start:3px solid {{ $c['level'] === 'fail' ? '#ff6b6b' : ($c['level'] === 'warn' ? '#fbbf24' : '#34d399') }}">
+        <div class="err-top">
+          <span style="font-size:15px">{{ $c['level'] === 'fail' ? '🔴' : ($c['level'] === 'warn' ? '⚠️' : '✅') }}</span>
+          <b class="err-class">{{ $c['title'] }}</b>
+        </div>
+        <div class="err-msg" style="color:var(--muted)">{{ $c['detail'] }}</div>
+      </div>
+    @endforeach
+  </div>
+</div>
+
 {{-- ══ خطاهای ۵۰۰ ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>خطاهای سرور (۵۰۰)</h2></div>

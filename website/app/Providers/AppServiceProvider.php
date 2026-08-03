@@ -126,6 +126,7 @@ class AppServiceProvider extends ServiceProvider
         $this->shareSessionAcrossSubdomains();
         $this->defineRateLimiters();
         $this->syncSiteMenu();
+        $this->keepSchedulerOffTheDatabase();
         // ↑ ترتیب مهم است: تنظیمِ دامنهٔ کوکی باید پیش از میدل‌ورِ StartSession
         //   انجام شود، و boot()ِ provider همیشه قبل از میدل‌ورها اجرا می‌شود.
 
@@ -175,6 +176,41 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with($cache[$cacheKey]);
         });
+    }
+
+    /**
+     * 🔴 قفلِ زمان‌بند روی **فایل** می‌نشیند، نه روی کش (که یعنی دیتابیس).
+     *
+     * ═══ باگی که این را لازم کرد ═══
+     *
+     * `CACHE_STORE` پیش‌فرض `database` است، و هر کارِ زمان‌بندی‌شده در این پروژه
+     * `withoutOverlapping()` دارد. آن متد قفلش را در **کش** می‌گیرد. پس زنجیره
+     * این بود:
+     *
+     *     یک لحظه قطعیِ MariaDB
+     *       → `CacheEventMutex` استثنا می‌دهد
+     *       → کلِ `schedule:run` می‌میرد
+     *       → آن دقیقه **هیچ** کاری اجرا نمی‌شود
+     *
+     * یعنی تحویلِ سرور، ثبتِ دامنه، فاکتورِ تمدید و مترِ ساعتی — همه با یک
+     * قطعیِ گذرایِ دیتابیس می‌ایستند. ردیابِ خطا در یک روز ۱۳ بار
+     * `Connection refused` روی جدولِ `cache` ثبت کرده بود؛ یعنی ۱۳ دقیقهٔ مرده
+     * که هیچ‌کس ندید، چون خطا در لاگِ کرون بود نه در سایت.
+     *
+     * ⚠️ همان دیتابیسی که ممکن است بمیرد، نباید نگهبانِ کاری باشد که قرار است
+     * از مرگش خبر دهد. فایل هیچ وابستگیِ شبکه‌ای ندارد و روی cPanel همیشه هست.
+     *
+     * ⚠️ این جایگزینِ `CACHE_STORE=file` در `.env` **نیست**، بلکه مستقل از آن
+     * کار می‌کند: حتی اگر روزی کسی کش را دوباره روی دیتابیس ببرد، زمان‌بند
+     * سالم می‌مانَد. عمداً در کد است و نه در env — پیکربندیِ حیاتی که فراموش
+     * شود، همان باگ را برمی‌گرداند.
+     */
+    private function keepSchedulerOffTheDatabase(): void
+    {
+        $this->callAfterResolving(
+            \Illuminate\Console\Scheduling\Schedule::class,
+            fn ($schedule) => $schedule->useCache('file'),
+        );
     }
 
     /**

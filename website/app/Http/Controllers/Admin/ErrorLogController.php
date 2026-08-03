@@ -25,6 +25,10 @@ class ErrorLogController extends Controller
             'serverErrors' => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error'),
             'incidents'    => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'incident'),
             'nf'           => ErrorTracker::recent(150, 'notfound'),
+            // ⚠️ سلامت **کنارِ** خطاها و نه در صفحهٔ جدا: گران‌ترین خرابی‌های این
+            //    پروژه هیچ خطایی تولید نکردند. اگر مدیر برای دیدنشان باید جای
+            //    دیگری برود، نمی‌رود — و همان کوری برمی‌گردد.
+            'health'       => app(\App\Services\SystemHealth::class)->checks(),
         ]);
     }
 
