@@ -239,6 +239,42 @@ class DomainRenewalTest extends TestCase
         $this->assertSame('manual', $d->fresh()->provision_status);
     }
 
+    // ═══════════════ محافظِ «پول نگرفته، نخر» ═══════════════
+
+    /**
+     * 🔴 ردیفِ سفارشِ رهاشده نه «مرده» است نه «ثبت‌شده»، پس از هر دو نگهبانِ
+     * قبلیِ `retry()` رد می‌شد — و فیلترِ پیش‌فرضِ /admin/domains دقیقاً همان
+     * ردیف‌ها را نشان می‌دهد. یعنی مدیری که صفِ «نیازمندِ توجه» را با «تلاش
+     * دوباره» خالی می‌کرد، ناخواسته دامنهٔ پرداخت‌نشده را **می‌خرید**.
+     */
+    public function test_admin_retry_refuses_a_domain_with_no_paid_invoice(): void
+    {
+        $d = $this->domain(['status' => 'pending', 'provision_status' => 'none', 'expires_at' => null]);
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post('/admin/domains/'.$d->id.'/retry')->assertSessionHasErrors();
+
+        $this->assertSame('none', $d->fresh()->provision_status,
+            'دامنهٔ پرداخت‌نشده به صفِ خرید رفت');
+    }
+
+    /** ولی دامنهٔ پرداخت‌شده باید بتواند دوباره تلاش کند */
+    public function test_admin_retry_works_once_the_invoice_is_paid(): void
+    {
+        $d = $this->domain(['status' => 'pending', 'provision_status' => 'failed', 'expires_at' => null]);
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        Invoice::create([
+            'customer_id' => $d->customer_id, 'domain_id' => $d->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'subtotal' => 100, 'tax' => 0, 'total' => 100,
+            'paid' => 100, 'status' => 'paid', 'issued_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->post('/admin/domains/'.$d->id.'/retry')->assertSessionHasNoErrors();
+
+        $this->assertSame('pending', $d->fresh()->provision_status);
+    }
+
     // ═══════════════ سلامت ═══════════════
 
     /** انقضای نزدیک باید در پنلِ سلامت دیده شود، نه فقط در یک تبِ خاموش */

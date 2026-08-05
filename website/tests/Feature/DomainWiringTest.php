@@ -48,14 +48,31 @@ class DomainWiringTest extends TestCase
         ]);
     }
 
+    /**
+     * ⚠️ فاکتورِ **پرداخت‌شده** بخشی از فیکسچر است، نه تزئین.
+     *
+     * دامنه فقط بعد از پرداخت به صفِ ثبت (و از آن‌جا به `manual`) می‌رسد، پس
+     * فیکسچرِ بی‌فاکتور حالتی را می‌ساخت که در واقعیت وجود ندارد — و همان باعث
+     * شد محافظِ تازهٔ «پول نگرفته، نخر» این تست را بشکند. فیکسچرِ غیرواقعی
+     * دقیقاً همان چیزی است که یک‌بار باگِ خاتمهٔ هاست را از چشمِ تست‌ها پنهان
+     * کرد (`ServiceTerminateOtpTest` هرگز `server_id` نمی‌گذاشت).
+     */
     private function domain(Customer $c, array $over = []): Domain
     {
-        return Domain::create(array_merge([
+        $d = Domain::create(array_merge([
             'customer_id' => $c->id, 'domain' => 'wired'.random_int(100, 9999).'.com',
             'sld' => 'wired', 'tld' => 'com', 'registrar' => 'openprovider',
             'status' => 'pending', 'provision_status' => 'manual',
             'provision_error' => 'رجیسترار جواب نداد',
         ], $over));
+
+        \App\Models\Invoice::create([
+            'customer_id' => $c->id, 'domain_id' => $d->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'subtotal' => 2_000_000, 'tax' => 0, 'total' => 2_000_000,
+            'paid' => 2_000_000, 'status' => 'paid', 'issued_at' => now(),
+        ]);
+
+        return $d;
     }
 
     // ═══════════════ سایتِ عمومی ═══════════════

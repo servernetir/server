@@ -172,6 +172,27 @@ class Domain extends Model
         return $v === null ? null : (int) $v;
     }
 
+    /**
+     * 🔴 آیا واقعاً برای این دامنه پولی گرفته‌ایم؟
+     *
+     * هر مسیری که دامنه را به صفِ **ثبت** می‌فرستد باید اول این را بپرسد. ثبت
+     * یعنی خریدِ واقعی از رجیسترار؛ اگر برای دامنه‌ای بزنیم که فاکتورش پرداخت
+     * نشده، پولش را از جیبِ خودمان داده‌ایم.
+     *
+     * ⚠️ این حالت فرضی نیست: ردیفِ سفارشِ رهاشده `provision_status='none'` و
+     * `status='pending'` دارد، و فیلترِ پیش‌فرضِ /admin/domains دقیقاً همان‌ها را
+     * نشان می‌دهد. یعنی مدیری که صفِ «نیازمندِ توجه» را با «تلاش دوباره» خالی
+     * می‌کند، ناخواسته دامنه‌های پرداخت‌نشده را می‌خرد.
+     */
+    public function hasPaidInvoice(): bool
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'domain_id')) {
+            return true;      // نصبِ مهاجرت‌نخورده: سنجش ممکن نیست، راه را نبند
+        }
+
+        return \App\Models\Invoice::where('domain_id', $this->id)->where('status', 'paid')->exists();
+    }
+
     /** یک کلید را در `meta` بنویس بی‌آنکه بقیه را پاک کنی */
     public function putMeta(array $pairs): void
     {
