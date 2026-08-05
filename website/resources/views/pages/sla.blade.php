@@ -76,7 +76,9 @@
       <p class="sla-foot">
         {{ __('ui.sla_version', ['date' => sdate(config('sla.updated_at'))]) }} ·
         <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a> ·
-        <a href="{{ lroute('terms') }}">{{ __('ui.footer_terms') }}</a>
+        {{-- ⚠️ کلید `f_terms` است نه `footer_terms`؛ کلیدِ نبود در هر سه زبان
+             متنِ خام «ui.footer_terms» را روی صفحهٔ SLA چاپ می‌کرد. --}}
+        <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
       </p>
 
     </div>

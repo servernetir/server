@@ -116,11 +116,24 @@ class StatusPageTest extends TestCase
         $this->assertStringContainsString(__('ui.sla_fm3'), $html);
     }
 
+    /**
+     * 🔴 پیشوندِ `ui.sla_` کافی **نبود**.
+     *
+     * این تست قبلاً فقط دنبالِ `ui.sla_` می‌گشت، پس یک کلیدِ خرابِ واقعی
+     * (`ui.footer_terms`، که در هیچ‌کدام از سه فایلِ زبان نبود و درستش
+     * `ui.f_terms` است) سال‌ها از کنارش رد شد و روی صفحهٔ SLA — همان صفحه‌ای
+     * که خریدارِ سازمانی برای سنجشِ اعتبارِ ما بازش می‌کند — متنِ خامِ
+     * «ui.footer_terms» چاپ می‌شد، در هر سه زبان.
+     *
+     * حالا **هر** کلیدِ ترجمه‌نشده‌ای گرفته می‌شود، نه فقط خانوادهٔ sla.
+     */
     public function test_sla_works_in_every_language(): void
     {
         foreach (['/sla', '/en/sla', '/tr/sla'] as $u) {
             $html = $this->get($u)->assertOk()->getContent();
-            $this->assertStringNotContainsString('ui.sla_', $html, "$u کلیدِ خام دارد");
+
+            $this->assertDoesNotMatchRegularExpression('~(?<![\w./-])ui\.[a-z0-9_]+~i', $html,
+                "$u کلیدِ ترجمه‌نشده دارد — کاربر متنِ خام می‌بیند");
         }
     }
 

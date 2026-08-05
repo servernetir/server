@@ -60,6 +60,9 @@ class NotificationTemplate extends Model
         'expiring'         => ['bale', 'email'],
         'suspended'        => ['bale', 'email'],
         'reactivated'      => ['bale', 'email'],
+        // چرخهٔ عمرِ دامنه — RunDomainLifecycle
+        'domain_expiring'  => ['bale', 'email'],
+        'domain_expired'   => ['bale', 'email'],
         // otp / welcome / invoice هنوز به هیچ فراخوانی وصل نیستند
     ];
 

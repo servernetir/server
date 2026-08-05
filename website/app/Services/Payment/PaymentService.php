@@ -392,6 +392,32 @@ class PaymentService
                 $hasDomainCol = \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'domain_id');
 
                 if ($hasDomainCol && $invoice->status === 'paid' && $invoice->domain_id !== null) {
+                    /*
+                    | 🔴 فاکتورِ **تمدید** — مسیری که کاملاً وجود نداشت.
+                    |
+                    | دامنهٔ فعال `provision_status='done'` دارد، پس شرطِ زیر
+                    | (`none` → `pending`) هرگز به آن نمی‌خورد و پرداختِ تمدید
+                    | بی‌صدا هیچ کاری نمی‌کرد: پول گرفته می‌شد، فاکتور «پرداخت‌شده»
+                    | می‌شد، و دامنه همچنان منقضی می‌شد.
+                    |
+                    | ⚠️ صفِ تمدید و صفِ ثبت با `status` از هم جدا می‌شوند
+                    | (`active` در برابرِ `pending`)، پس `domains:provision` این
+                    | ردیف را برنمی‌دارد و دامنه دوباره **خریده** نمی‌شود.
+                    |
+                    | ⚠️ `done` → `pending` و نه هر وضعیتی: اگر تمدیدی در جریان
+                    | باشد (`running`) یا در صفِ دستی (`manual`)، یک پرداختِ دوم
+                    | روی همان فاکتور نباید قفل را باز کند.
+                    */
+                    \Illuminate\Support\Facades\DB::table('domains')
+                        ->where('id', $invoice->domain_id)
+                        ->where('status', 'active')
+                        ->where('provision_status', 'done')
+                        ->update([
+                            'provision_status' => 'pending',
+                            'provision_tries'  => 0,
+                            'updated_at'       => now(),
+                        ]);
+
                     \Illuminate\Support\Facades\DB::table('domains')
                         ->where('id', $invoice->domain_id)
                         ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)

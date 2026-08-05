@@ -120,6 +120,64 @@ class Domain extends Model
             ->whereBetween('expires_at', [now(), now()->addDays($days)]);
     }
 
+    // ───────────────────────── تمدید ─────────────────────────
+
+    /**
+     * چند روز پس از انقضا هنوز «مرده» اعلامش نکنیم.
+     *
+     * ⚠️ رجیستری‌ها معمولاً یک دورهٔ بازیابی دارند و در آن پنجره دامنه هنوز
+     * قابلِ برگرداندن است. اگر همان روزِ انقضا `expired` بزنیم، دامنه از پنلِ
+     * مشتری غیب می‌شود (`scopeAlive`) درست وقتی که هنوز می‌شود نجاتش داد — و
+     * مشتری فکر می‌کند تمام شده.
+     */
+    public const EXPIRY_GRACE_DAYS = 30;
+
+    /** چند روز پیش از انقضا فاکتورِ تمدید صادر شود */
+    public const RENEW_LEAD_DAYS = 21;
+
+    /**
+     * دامنه‌هایی که تمدیدشان **پرداخت شده** و منتظرِ تماس با رجیسترارند.
+     *
+     * 🔴 چرا امن است که همان ستونِ `provision_status` را قرض بگیریم:
+     * `awaitingRegistration` شرطِ `status='pending'` دارد و این‌جا
+     * `status='active'` است — دو مجموعه **قطعاً** بی‌اشتراک‌اند. پس کرونِ ثبت
+     * هرگز یک تمدید را با یک ثبتِ تازه اشتباه نمی‌گیرد و دامنه دوباره خریده
+     * نمی‌شود. اگر روزی این شرط را برداشتی، همان فاجعه برمی‌گردد.
+     *
+     * قفلِ رهاشدهٔ `running` هم مثلِ ثبت بازپس گرفته می‌شود، وگرنه یک اجرای
+     * مرده دامنه را برای همیشه در صف نگه می‌دارد و مشتری پولِ تمدید را داده و
+     * دامنه‌اش منقضی می‌شود.
+     */
+    public function scopeAwaitingRenewal(Builder $q): Builder
+    {
+        return $q->where('status', 'active')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
+    }
+
+    /** چند سال برای تمدید پرداخت شده (پیش‌فرض ۱) */
+    public function renewYears(): int
+    {
+        return max(1, (int) (($this->meta['renew_years'] ?? 1)));
+    }
+
+    /** آخرین مرحلهٔ یادآوریِ انقضا که فرستاده شده — جلوی پیامِ تکراری */
+    public function expiryStage(): ?int
+    {
+        $v = $this->meta['exp_stage'] ?? null;
+
+        return $v === null ? null : (int) $v;
+    }
+
+    /** یک کلید را در `meta` بنویس بی‌آنکه بقیه را پاک کنی */
+    public function putMeta(array $pairs): void
+    {
+        $this->forceFill(['meta' => array_merge((array) $this->meta, $pairs)])->save();
+    }
+
     // ───────────────────────── نمایش ─────────────────────────
 
     /** روزهای باقی‌مانده تا انقضا؛ منفی یعنی گذشته */

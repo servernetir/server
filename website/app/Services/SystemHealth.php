@@ -146,9 +146,18 @@ class SystemHealth
             ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
-        if ($manual > 0 || $old > 0) {
-            return $this->row('domains', false, $old > 0 ? 'fail' : 'warn', 'صفِ دامنه',
+        // 🔴 انقضا هم این‌جاست، و نبودنش یک کوریِ واقعی بود: ممیزی نشان داد
+        //    هیچ چیزی در سامانه انقضای دامنه را **هُل** نمی‌داد؛ فقط یک تبِ
+        //    خاموش در پنلِ مدیر بود که کسی باید سراغش می‌رفت. دامنه‌ای که
+        //    ۷ روز دیگر می‌میرد باید خودش داد بزند.
+        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
+
+        if ($manual > 0 || $old > 0 || $soon > 0) {
+            $level = ($old > 0 || $soon > 0) ? 'fail' : 'warn';
+
+            return $this->row('domains', false, $level, 'صفِ دامنه',
                 ($old > 0 ? fa_num($old).' دامنهٔ پرداخت‌شده بیش از نیم‌ساعت ثبت نشده — یعنی صف پیش نمی‌رود. ' : '')
+                .($soon > 0 ? fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود. ' : '')
                 .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : ''));
         }
 
@@ -167,9 +176,26 @@ class SystemHealth
             ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
-        if ($manual > 0 || $old > 0) {
-            return $this->row('services', false, $old > 0 ? 'fail' : 'warn', 'صفِ تحویل',
+        /*
+        | 🔴 `failed` هم شمرده می‌شود، و نبودنش بدترین کوریِ این چک بود.
+        |
+        | `provision:run` فقط `pending` و `running`ِ کهنه را برمی‌دارد، پس یک
+        | سرویسِ `failed` **هرگز** خودبه‌خود دوباره تلاش نمی‌شود. تا حالا این
+        | صفحه با خیالِ راحت می‌گفت «چیزی گیر نکرده» در حالی که مشتری پول داده
+        | بود و سرورش هرگز ساخته نمی‌شد.
+        |
+        | ⚠️ عمداً «تلاشِ خودکارِ دوباره» اضافه **نشد**: نقطهٔ شکست ممکن است
+        | بعد از خریدِ واقعیِ سرور باشد و تلاشِ کور یعنی دو بار خریدن. راهِ درست
+        | این است که آدم ببیندش و تصمیم بگیرد — پس فقط بلندش می‌کنیم.
+        */
+        $failed = \App\Models\Service::where('provision_status', 'failed')->count();
+
+        if ($manual > 0 || $old > 0 || $failed > 0) {
+            $level = ($old > 0 || $failed > 0) ? 'fail' : 'warn';
+
+            return $this->row('services', false, $level, 'صفِ تحویل',
                 ($old > 0 ? fa_num($old).' سرویس بیش از نیم‌ساعت در صف مانده — مشتری پول داده و سرور ندارد. ' : '')
+                .($failed > 0 ? fa_num($failed).' سرویس در تحویل شکست خورده و هیچ کرونی دوباره تلاش نمی‌کند — خودتان «تلاش دوباره» بزنید. ' : '')
                 .($manual > 0 ? fa_num($manual).' سرویس منتظرِ تحویلِ دستیِ شماست.' : ''));
         }
 

@@ -570,10 +570,30 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
     $enabled = $client->enabled();
     $auth = 'skipped'; $sampleCode = null; $sampleDesc = null;
 
-    // مهم: به‌صورت پیش‌فرض هیچ درخواستی به اوپن‌پروایدر نمی‌زنیم. تلاش‌های
-    // ورودِ ناموفقِ پیاپی می‌تواند حساب را حساس/قفل کند. فقط با ?probe=1
-    // یک تلاش زده می‌شود، آن هم دستی.
-    $probe = request()->boolean('probe');
+    /*
+    | 🔴 «کاوش» فقط برای **مدیرِ واردشده**.
+    |
+    | قبلاً `?probe=1` یک پرچمِ سادهٔ کوئری بود روی یک روتِ کاملاً عمومی، و
+    | کامنتِ بالایش می‌گفت «فقط دستی زده می‌شود» — ولی هیچ چیزی در کد این را
+    | تضمین نمی‌کرد. یعنی هر کسی روی اینترنت می‌توانست با یک URL:
+    |
+    |   • تلاشِ ورودِ واقعی به اوپن‌پروایدر بزند، از آی‌پیِ اصلیِ سرور
+    |   • authorityِ واقعیِ زرین‌پال با merchant_idِ زنده بسازد
+    |   • با ?mailtest=1 صفِ ارسالِ SMTP ما را بسوزاند
+    |
+    | و اولی دقیقاً همان کاری است که یک‌بار حسابِ اوپن‌پروایدر را علامت‌دار کرد.
+    | با ۴۰ درخواست در دقیقه به‌ازای هر آی‌پی، یک نفر می‌توانست حساب را قفل کند
+    | و آن‌وقت **هیچ** دامنه‌ای ثبت نمی‌شد.
+    |
+    | ⚠️ توکن در URL راه‌حل نبود (لاگِ سرور و کلادفلر و تاریخچهٔ مرورگر ثبتش
+    | می‌کنند — یک‌بار کلید همین‌طور لو رفت). نشستِ مدیر هم همان چیزی است که
+    | کارفرما در عمل دارد، چون کوکی روی `.servernet.cloud` مشترک است.
+    |
+    | بخشِ فقط‌خواندنی (آی‌پیِ خروجی، «اعتبارنامه هست یا نه») عمداً عمومی
+    | مانده: هیچ تماسِ بیرونی نمی‌زند و برای عیب‌یابیِ allowlist لازم است.
+    */
+    $isAdmin = auth('web')->check() && auth('web')->user()?->isAdmin();
+    $probe = request()->boolean('probe') && $isAdmin;
 
     if ($enabled && $probe) {
         // ورودِ خام تا کد واقعیِ پاسخ را ببینیم (196 = IP یا رمز رد شد). فقط
@@ -701,7 +721,10 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         // کلیدهای MAIL که واقعاً در محیط بارگذاری شده‌اند — فقط نامِ کلید به hex
         // (نه مقدار، نه رمز). اگر hex یک کلید با e2808e/e2808f شروع شود یعنی
         // کاراکتر نامرئیِ RTL چسبیده؛ اگر هیچ کلیدی نباشد یعنی خطوط بارگذاری نشده.
-        'mail_env_keys'      => (function () {
+        // ⚠️ فقط برای مدیر: نامِ هاستِ SMTP و آدرسِ فرستنده راز نیستند، ولی
+        //    دادنِ نقشهٔ زیرساختِ ایمیل به هر بازدیدکننده کارِ فیشینگ و
+        //    جعلِ فرستنده را آسان می‌کند.
+        'mail_env_keys'      => ! $isAdmin ? 'برای دیدنِ این بخش با حسابِ مدیر وارد شوید' : (function () {
             $out = [];
             foreach (array_merge($_ENV, $_SERVER) as $k => $v) {
                 if (is_string($k) && stripos($k, 'MAIL') !== false) {
@@ -713,7 +736,7 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
         })(),
         // مقدارِ خامِ کلیدهای غیرمحرمانه (نه یوزر/رمز) — از env() و از $_ENV
         // مستقیم، تا معلوم شود env() چه می‌بیند
-        'mail_env_values'    => [
+        'mail_env_values'    => ! $isAdmin ? 'برای دیدنِ این بخش با حسابِ مدیر وارد شوید' : [
             'env(MAIL_MAILER)'   => env('MAIL_MAILER'),
             'env(MAIL_HOST)'     => env('MAIL_HOST'),
             'env(MAIL_PORT)'     => env('MAIL_PORT'),
@@ -724,7 +747,9 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
             'SERVER[MAIL_HOST]'  => $_SERVER['MAIL_HOST'] ?? '(غایب در $_SERVER)',
             'getenv(MAIL_HOST)'  => getenv('MAIL_HOST') === false ? '(getenv=false)' : getenv('MAIL_HOST'),
         ],
-        'mail_test'          => request()->boolean('mailtest') ? (function () {
+        // ⚠️ ارسالِ واقعی هم فقط برای مدیر — وگرنه هر بازدید یک ایمیل می‌فرستد
+        //    و سهمیهٔ SMTP را می‌سوزاند.
+        'mail_test'          => (request()->boolean('mailtest') && $isAdmin) ? (function () {
             $to = config('mail.from.address');
             if (! filled($to)) {
                 return 'MAIL_FROM_ADDRESS تنظیم نشده';
@@ -738,8 +763,10 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
             } catch (\Throwable $e) {
                 return 'خطا: '.$e->getMessage();
             }
-        })() : 'برای تست ارسال ?mailtest=1 اضافه کنید',
-        'hint'               => 'اوپن‌پروایدر: sample_code=0 یعنی وصل شد، 196 یعنی IP/رمز رد شد. زرین‌پال: code=100 یعنی درگاه سالم و ۳۰۲ همان هدایت درست به صفحهٔ پرداخت است.',
+        })() : ($isAdmin ? 'برای تست ارسال ?mailtest=1 اضافه کنید' : 'نیازمندِ ورودِ مدیر'),
+        'admin'              => $isAdmin,
+        'hint'               => 'اوپن‌پروایدر: sample_code=0 یعنی وصل شد، 196 یعنی IP/رمز رد شد. زرین‌پال: code=100 یعنی درگاه سالم و ۳۰۲ همان هدایت درست به صفحهٔ پرداخت است.'
+            .($isAdmin ? '' : ' ⚠️ probe و mailtest فقط با ورودِ مدیر کار می‌کنند — تلاشِ ورودِ پیاپی حسابِ رجیسترار را قفل می‌کند.'),
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
 

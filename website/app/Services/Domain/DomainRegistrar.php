@@ -367,4 +367,94 @@ class DomainRegistrar
 
         return ['ok' => true, 'message' => ''];
     }
+
+    /**
+     * تمدیدِ یک دامنهٔ **پرداخت‌شده** — با همان انضباطِ قفلِ ثبت.
+     *
+     * 🔴 چرا قفلِ اتمی این‌جا هم لازم است: کرونِ تمدید هر دقیقه می‌دود و مدیر
+     * هم می‌تواند دستی بزند. بی‌قفل، دو اجرا هم‌زمان `renewDomain` صدا می‌زنند
+     * و دامنه **دو سال** تمدید می‌شود — یعنی یک سالش را ما از جیبِ خودمان به
+     * رجیسترار داده‌ایم و هیچ‌جا هم دیده نمی‌شود، چون هر دو تماس «موفق»اند.
+     *
+     * ⚠️ ادعایِ قفل روی `status='active'` بسته شده تا با `register()` تصادم
+     * نکند: آن یکی فقط `status='pending'` را برمی‌دارد. دو مجموعه بی‌اشتراک.
+     *
+     * ⚠️ موفقیت `provision_status` را به `done` برمی‌گرداند، نه به چیزِ تازه —
+     * وگرنه دامنه در صفِ تمدید می‌مانْد و اجرای بعدی دوباره تمدیدش می‌کرد.
+     *
+     * @return array{ok:bool, message:string, manual:bool}
+     */
+    public function renewPaid(Domain $domain): array
+    {
+        $claimed = DB::table('domains')
+            ->where('id', $domain->id)
+            ->where('status', 'active')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(Domain::STALE_LOCK_MINUTES))))
+            ->update(['provision_status' => 'running', 'updated_at' => now()]);
+
+        if ($claimed === 0) {
+            return ['ok' => false, 'manual' => false, 'message' => 'در حالِ پردازش توسطِ اجرای دیگری است.'];
+        }
+
+        $domain->refresh();
+
+        if (! $this->op->enabled()) {
+            return $this->failRenewal($domain, 'اتصالِ رجیسترار پیکربندی نشده است.', manual: true);
+        }
+
+        try {
+            $res = $this->renew($domain, $domain->renewYears());
+        } catch (\Throwable $e) {
+            Log::error('domain renew crashed', ['domain' => $domain->domain, 'err' => $e->getMessage()]);
+
+            return $this->failRenewal($domain, 'خطای غیرمنتظره: '.$e->getMessage());
+        }
+
+        if (! $res['ok']) {
+            return $this->failRenewal($domain, $res['message']);
+        }
+
+        // 🔴 `exp_stage` صفر می‌شود وگرنه دورهٔ بعد هیچ یادآوری‌ای نمی‌رود:
+        //    مرحلهٔ ۱ ثبت شده می‌مانْد و شرطِ «قبلاً رفته» همه را رد می‌کرد.
+        $domain->putMeta(['exp_stage' => null, 'renewed_at' => now()->toDateTimeString()]);
+
+        $domain->forceFill(['provision_status' => 'done', 'provision_error' => null])->save();
+
+        return ['ok' => true, 'manual' => false, 'message' => ''];
+    }
+
+    /**
+     * شکستِ تمدید.
+     *
+     * ⚠️ `status` دست‌نخورده `active` می‌مانَد: دامنه هنوز مالِ مشتری است و تا
+     * تاریخِ انقضا کار می‌کند. عوض‌کردنش یعنی دامنهٔ سالم از پنلِ مشتری غیب شود
+     * چون یک تماسِ API شکست خورد.
+     *
+     * @return array{ok:bool, message:string, manual:bool}
+     */
+    private function failRenewal(Domain $domain, string $message, bool $manual = false): array
+    {
+        $tries = (int) $domain->provision_tries + 1;
+
+        // پس از چند تلاش دستِ آدم — تمدیدِ بی‌پایانِ ناموفق یعنی هر دقیقه یک
+        // تماسِ ناموفق به رجیستراری که حسابش قبلاً علامت خورده.
+        $manual = $manual || $tries >= 5;
+
+        $domain->forceFill([
+            'provision_status' => $manual ? 'manual' : 'pending',
+            'provision_tries'  => $tries,
+            'provision_error'  => mb_substr('تمدید: '.$message, 0, 300),
+        ])->save();
+
+        \App\Support\ErrorTracker::note('provision', 'تمدیدِ دامنه ناموفق: '.$message, [
+            'domain' => $domain->domain,
+            'tries'  => $tries,
+        ]);
+
+        return ['ok' => false, 'manual' => $manual, 'message' => $message];
+    }
 }
