@@ -275,6 +275,56 @@ class DomainRenewalTest extends TestCase
         $this->assertSame('pending', $d->fresh()->provision_status);
     }
 
+    // ═══════════════ آزادسازیِ نامِ دامنه ═══════════════
+
+    /**
+     * 🔴 لغوِ فاکتورِ پرداخت‌نشده باید نامِ دامنه را آزاد کند.
+     *
+     * ردیفِ دامنهٔ پرداخت‌نشده `pending`+`none` است — نه مرده، نه ثبت‌شده. بی‌این
+     * شاخه، مشتری با یک لغوِ ساده همان نام را برای خودش **و هر مشتریِ دیگری**
+     * برای همیشه می‌سوزاند، چون `order()` سفارشِ دوباره را رد می‌کند.
+     */
+    public function test_cancelling_an_unpaid_invoice_frees_the_domain_name(): void
+    {
+        $d = $this->domain(['status' => 'pending', 'provision_status' => 'none', 'expires_at' => null]);
+
+        $inv = Invoice::create([
+            'customer_id' => $d->customer_id, 'domain_id' => $d->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'subtotal' => 100, 'tax' => 0, 'total' => 100,
+            'paid' => 0, 'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+
+        $this->actingAs($d->customer, 'customer')
+            ->post(route('account.invoice.cancel', $inv))
+            ->assertRedirect();
+
+        $fresh = $d->fresh();
+        $this->assertSame('cancelled', $fresh->status);
+        $this->assertTrue($fresh->isDead(), 'دامنه باید مرده شمرده شود تا بشود دوباره سفارشش داد');
+    }
+
+    /**
+     * ⚠️ ولی دامنهٔ **زنده** نباید کشته شود.
+     *
+     * لغوِ فاکتورِ تمدید یعنی «امسال تمدید نمی‌کنم»، نه «دامنه‌ام را دور بریز».
+     */
+    public function test_cancelling_a_renewal_invoice_does_not_kill_a_live_domain(): void
+    {
+        $d = $this->domain(['status' => 'active', 'provision_status' => 'done']);
+
+        $inv = Invoice::create([
+            'customer_id' => $d->customer_id, 'domain_id' => $d->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'subtotal' => 100, 'tax' => 0, 'total' => 100,
+            'paid' => 0, 'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+
+        $this->actingAs($d->customer, 'customer')
+            ->post(route('account.invoice.cancel', $inv))
+            ->assertRedirect();
+
+        $this->assertSame('active', $d->fresh()->status);
+    }
+
     // ═══════════════ سلامت ═══════════════
 
     /** انقضای نزدیک باید در پنلِ سلامت دیده شود، نه فقط در یک تبِ خاموش */

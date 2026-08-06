@@ -278,6 +278,21 @@ class CustomerController extends Controller
             }
         }
 
+        /*
+        | 🔴 همان قاعدهٔ مسیرِ مشتری: دامنهٔ پرداخت‌نشده باید آزاد شود.
+        |
+        | ⚠️ این‌جا حتی مهم‌تر است، چون `invoices.domain_id` با `nullOnDelete` بسته
+        | شده — یعنی با حذفِ فاکتور، تنها نخِ اتصال هم پاره می‌شود و آن ردیفِ
+        | دامنه دیگر **هیچ ردی** ندارد که بشود بعداً پیدایش کرد. اگر همین‌جا
+        | نبندیمش، آن نام تا ابد در سامانه قفل می‌مانَد.
+        */
+        if ($invoice->domain_id && Schema::hasTable('domains')) {
+            \App\Models\Domain::where('id', $invoice->domain_id)
+                ->where('status', 'pending')
+                ->where('provision_status', 'none')
+                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+        }
+
         // آیتم‌ها و تلاش‌های پرداختِ ناموفق با FK آبشاری پاک می‌شوند
         $invoice->delete();
 

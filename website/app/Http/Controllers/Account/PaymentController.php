@@ -128,6 +128,27 @@ class PaymentController extends Controller
                     $service->forceFill(['status' => 'cancelled', 'cancelled_at' => now()])->save();
                 }
             }
+
+            /*
+            | 🔴 دامنه هم باید آزاد شود، وگرنه آن نام برای **همیشه** قفل می‌مانَد.
+            |
+            | ردیفِ دامنهٔ پرداخت‌نشده `status='pending'` و `provision_status='none'`
+            | دارد. تا امروز این‌جا فقط شاخهٔ سرویس بود، پس با لغوِ فاکتور آن ردیف
+            | یتیم می‌مانْد — نه مرده بود نه ثبت‌شده. و `order()` سفارشِ دوباره را با
+            | «این دامنه از قبل در سامانه ثبت شده است» رد می‌کند (به‌علاوهٔ قیدِ
+            | یکتاییِ دیتابیس). یعنی مشتری با یک لغوِ ساده، همان نام را برای خودش
+            | **و برای هر مشتریِ دیگری** می‌سوزاند.
+            |
+            | ⚠️ فقط ردیفی که هرگز پول نگرفته و هرگز ثبت نشده. دامنهٔ `active` یا
+            | در حالِ ثبت دست‌نخورده می‌مانَد — لغوِ فاکتورِ تمدید نباید دامنهٔ
+            | زندهٔ مشتری را بکُشد.
+            */
+            if ($invoice->domain_id !== null && Schema::hasTable('domains')) {
+                \App\Models\Domain::where('id', $invoice->domain_id)
+                    ->where('status', 'pending')
+                    ->where('provision_status', 'none')
+                    ->update(['status' => 'cancelled', 'updated_at' => now()]);
+            }
         });
 
         return redirect()->route($this->rp().'account.invoices')
