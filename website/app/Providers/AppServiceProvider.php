@@ -48,6 +48,21 @@ class AppServiceProvider extends ServiceProvider
                 // نگه داشتن همان فهرست در دو جا یعنی دیر یا زود یکی کهنه
                 // می‌شود و پیامک بی‌صدا نمی‌رود.
                 'queue' => new \App\Services\Sms\QueuedSmsSender(),
+                /*
+                | رلهٔ بله — پیام از راهِ یک گروهِ خصوصیِ بله به n8n در ایران
+                | می‌رود و آن‌جا به آی‌پی‌پنل تبدیل می‌شود.
+                |
+                | ⚠️ چرا درایور و نه سرویسِ مستقل: با این کار **هیچ** فراخوانی
+                | در کد عوض نمی‌شود. `SmsDispatcher` همان `event/otp/raw` را
+                | صدا می‌زند و فقط مقصد فرق می‌کند — پس هیچ نقطهٔ فراخوانی از
+                | قلم نمی‌افتد، که در جایگزینیِ دستیِ ده‌ها نقطه حتمی بود.
+                */
+                'bale_relay' => new \App\Services\Sms\BaleRelaySender(
+                    config('services.bale_relay.bot_token'),
+                    config('services.bale_relay.chat_id'),
+                    config('services.bale_relay.secret'),
+                    (string) config('services.bale_relay.base', 'https://tapi.bale.ai'),
+                ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),
                     config('services.sms.kavenegar.template'),
