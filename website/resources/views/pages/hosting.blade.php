@@ -42,9 +42,13 @@
       $sdOffers[] = [
           '@type'           => 'Offer',
           'name'            => $sdP['name'] ?? '',
-          // IRR چون schema.org واحدِ «تومان» ندارد؛ عدد همان چیزی است که
-          // روی صفحه نوشته شده تا تناقضی گزارش نشود.
-          'price'           => $sdIsFa ? price_toman((int) $sdP['irt']) : ($sdP['eur'] ?? 0),
+          // 🔴 IRR یعنی **ریال**، پس عدد باید ریال باشد نه تومان.
+          //
+          // قبلاً همان عددِ رویِ صفحه (تومان) نوشته می‌شد با این استدلال که
+          // «تناقضی گزارش نشود» — ولی تناقضِ واقعی همان‌جا ساخته می‌شد: گوگل و
+          // مدل‌های زبانی قیمت را یک‌دهم می‌دیدند، و صفحاتِ ابری که ×۱۰ می‌کردند
+          // با این صفحات نمی‌خواندند. حالا یک منبعِ واحد.
+          'price'           => $sdIsFa ? schema_price_irr(price_toman((int) $sdP['irt'])) : ($sdP['eur'] ?? 0),
           'priceCurrency'   => $sdCur,
           'priceValidUntil' => now()->addDays(30)->toDateString(),
           'availability'    => 'https://schema.org/InStock',

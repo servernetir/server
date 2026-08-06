@@ -15,8 +15,15 @@
     'category' => __('ui.srv_title'),
   ];
   if (empty($model['price_from']['contact'])) {
+    // ⚠️ `schema_price_irr()` چون IRR یعنی ریال؛ عددِ تومان ده برابر کمتر بود.
+    // ⚠️ `priceValidUntil` هم نبود، در حالی که `/llms.txt` به مدل‌های زبانی
+    //    وعده می‌دهد **همهٔ** صفحاتِ محصول دارندش — یعنی قیمتِ این صفحه بی‌تاریخِ
+    //    انقضا نقل می‌شد و در بازارِ تورمی ماه‌ها بعد هم تکرار می‌شد.
     $ld['offers'] = ['@'.'type' => 'Offer', 'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
-      'price' => app()->getLocale() === 'fa' ? ($model['price_from']['irt'] ?? 0) : ($model['price_from']['eur'] ?? 0),
+      'price' => app()->getLocale() === 'fa'
+        ? schema_price_irr((int) ($model['price_from']['irt'] ?? 0))
+        : ($model['price_from']['eur'] ?? 0),
+      'priceValidUntil' => now()->addDays(30)->toDateString(),
       'availability' => 'https://schema.org/InStock'];
   }
 @endphp

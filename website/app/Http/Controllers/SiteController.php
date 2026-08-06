@@ -122,7 +122,12 @@ class SiteController extends Controller
         $lines[] = '## Notes for assistants';
         $lines[] = '- Prices on product pages are marked up with schema.org Offer and carry';
         $lines[] = '  a priceValidUntil date. Do not quote a price past that date; fetch the';
-        $lines[] = '  page again instead. Iranian prices are in toman (schema uses IRR).';
+        // 🔴 این جمله قبلاً می‌گفت «قیمتِ ایرانی به تومان است» — و چون schema
+        //    واقعاً ریال می‌دهد، مدل عدد را ده برابر گران نقل می‌کرد. دقیقاً در
+        //    لحظه‌ای که خریدار دارد ما را با رقبا مقایسه می‌کند، و بی‌آنکه در
+        //    هیچ آنالیتیکسی دیده شود.
+        $lines[] = '  page again instead. Iranian prices in schema are IRR (rial):';
+        $lines[] = '  divide by 10 to get toman, the unit shown on the page.';
         $lines[] = '- The English and Turkish versions live under /en and /tr.';
         $lines[] = '- Customer panel and admin pages are not public and are excluded from search.';
 

@@ -1580,20 +1580,50 @@ Route::prefix('admin')->group(function () {
 
     // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست
     // عوض شود؛ پنل مدیریت باید همیشه دقیقاً گارد کارکنان را بخواهد.
-    Route::middleware('auth:web')->group(function () {
-        Route::get('/', [AdminDash::class, 'index']);
-        Route::get('/posts', [AdminPost::class, 'index']);
-        Route::get('/posts/new', [AdminPost::class, 'edit']);
-        Route::get('/posts/{post}/edit', [AdminPost::class, 'edit']);
-        Route::post('/posts', [AdminPost::class, 'save']);
-        Route::post('/posts/{post}', [AdminPost::class, 'save']);
-        Route::post('/posts/{post}/delete', [AdminPost::class, 'destroy']);
-        Route::post('/ai/translate', [AdminPost::class, 'translate']);
-        Route::post('/ai/seo', [AdminPost::class, 'seo']);
-        Route::get('/comments', [AdminComment::class, 'index']);
-        Route::post('/comments/{comment}/approve', [AdminComment::class, 'approve']);
-        Route::post('/comments/{comment}/delete', [AdminComment::class, 'destroy']);
-        Route::post('/comments/{comment}/drop-reply', [AdminComment::class, 'dropReply']);
+    /*
+    |==========================================================================
+    | 🔴 پیش‌فرضِ این گروه **وارونه** شد: `admin` روی کل، استثنا صریح.
+    |==========================================================================
+    |
+    | تا امروز `admin` را باید روی تک‌تکِ روت‌ها می‌نوشتیم و سه بار جا افتاد —
+    | با نتیجه‌ای که یک حسابِ نقشِ `author` (بلاگ‌نویس، کم‌ارزش‌ترین حساب) به
+    | این‌ها می‌رسید:
+    |
+    |   • `/admin/verifications/{profile}/doc/{document}` — دانلودِ اسکنِ کارتِ
+    |     ملی و اساسنامهٔ **هر** مشتری
+    |   • `/admin/customers/{customer}/password` — ست‌کردنِ رمزِ هر مشتری، یعنی
+    |     ورود به پنلش: رمزِ root سرورهای ابری، اطلاعاتِ cPanel، توکنِ API
+    |   • `/admin/users` — ساختنِ کاربرِ تازه
+    |   • `/admin/broadcasts` — پیامکِ انبوه به همهٔ مشتریان
+    |   • `/admin/errors` — و ردیاب، آدرسِ کاملِ درخواست را ذخیره می‌کند، پس
+    |     توکن‌های در-URL هم از همان‌جا خوانده می‌شوند
+    |
+    | ⚠️ چرا فهرستِ سفید و نه افزودنِ `admin` به روت‌های جامانده: همان کاری بود
+    | که تا حالا می‌کردیم و سه بار شکست خورد. با این ساختار، روتِ **تازه‌ای** که
+    | فردا اضافه شود خودبه‌خود محافظت‌شده است؛ باز گذاشتنش یک تصمیمِ صریح و
+    | دیدنی می‌شود، نه یک فراموشی.
+    |
+    | ⚠️ `/users` عمداً بیرونِ فهرستِ سفید است: ساختِ کاربر یعنی ساختِ همکار.
+    */
+    Route::middleware(['auth:web', 'admin'])->group(function () {
+
+        // ── تنها چیزهایی که نویسندهٔ محتوا هم به آن‌ها دسترسی دارد ──
+        Route::withoutMiddleware('admin')->group(function () {
+            Route::get('/', [AdminDash::class, 'index']);
+            Route::get('/posts', [AdminPost::class, 'index']);
+            Route::get('/posts/new', [AdminPost::class, 'edit']);
+            Route::get('/posts/{post}/edit', [AdminPost::class, 'edit']);
+            Route::post('/posts', [AdminPost::class, 'save']);
+            Route::post('/posts/{post}', [AdminPost::class, 'save']);
+            Route::post('/posts/{post}/delete', [AdminPost::class, 'destroy']);
+            Route::post('/ai/translate', [AdminPost::class, 'translate']);
+            Route::post('/ai/seo', [AdminPost::class, 'seo']);
+            Route::get('/comments', [AdminComment::class, 'index']);
+            Route::post('/comments/{comment}/approve', [AdminComment::class, 'approve']);
+            Route::post('/comments/{comment}/delete', [AdminComment::class, 'destroy']);
+            Route::post('/comments/{comment}/drop-reply', [AdminComment::class, 'dropReply']);
+        });
+
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
