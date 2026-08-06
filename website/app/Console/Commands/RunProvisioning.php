@@ -43,11 +43,23 @@ class RunProvisioning extends Command
         // طول می‌کشد، و ساختِ دوباره با نامِ قطعیِ سرور (idempotency) پوشش دارد.
         $staleLock = now()->subMinutes(15);
 
-        $due = Service::where(function ($q) use ($staleLock) {
-            $q->where('provision_status', 'pending')
-                ->orWhere(fn ($s) => $s->where('provision_status', 'running')
-                    ->where('updated_at', '<', $staleLock));
-        })
+        /*
+        | 🔴 سرویسِ مرده هرگز تحویل نمی‌شود.
+        |
+        | این کرون فقط `provision_status` را می‌دید و `status` را نه. پس یک
+        | سفارشِ **لغوشده و وجه‌برگشته** که پرچمش روی `pending` مانده بود،
+        | دقیقهٔ بعد برداشته می‌شد و سرور واقعاً خریده می‌شد.
+        |
+        | ⚠️ لغو حالا خودش پرچم را پاک می‌کند، ولی این لایهٔ دوم عمدی است: کرون
+        | تنها درِ ورود نیست (دکمهٔ «تلاش دوباره»ی مدیر هم هست)، و هزینهٔ اشتباه
+        | این‌جا یک سرورِ خریداری‌شده است.
+        */
+        $due = Service::whereNotIn('status', Service::DEAD_STATUSES)
+            ->where(function ($q) use ($staleLock) {
+                $q->where('provision_status', 'pending')
+                    ->orWhere(fn ($s) => $s->where('provision_status', 'running')
+                        ->where('updated_at', '<', $staleLock));
+            })
             ->where(function ($q) use ($hasCloud) {
                 $q->whereNotNull('server_id');
 

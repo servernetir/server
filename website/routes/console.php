@@ -18,12 +18,26 @@ Artisan::command('inspire', function () {
 |     && /opt/cpanel/ea-php84/root/usr/bin/php artisan schedule:run >/dev/null 2>&1
 |
 | withoutOverlapping جلوی هم‌پوشانی را می‌گیرد (تولید هر مقاله چند دقیقه طول می‌کشد).
+|
+| 🔴 **همیشه به `withoutOverlapping()` عدد بده.**
+|
+| پیش‌فرضِ لاراول `1440` دقیقه است — یعنی **یک شبانه‌روز**. اگر یک اجرا بدونِ
+| خروجِ تمیز بمیرد (کشته‌شدن توسطِ LVEِ cPanel، `memory_limit`، خطای fatal،
+| ری‌استارتِ وسطِ دپلوی) قفل روی جایش می‌مانَد و آن کار **۲۴ ساعت** متوقف
+| می‌شود. `releaseOnTerminationSignals` فقط SIGTERM/SIGINT را می‌گیرد، نه
+| SIGKILL و نه fatal.
+|
+| ⚠️ و بدترین بخشش: ضربانِ کرون عمداً هیچ قفلی ندارد، پس `SystemHealth::cron()`
+| در همان ۲۴ ساعت با خیالِ راحت **سبز** می‌مانَد. یعنی دقیقاً همان حالتی که این
+| پروژه سه بار خورده: «کرون سالم است، ولی هیچ‌چیز تحویل نمی‌شود.»
+|
+| قاعده: کارِ هر-دقیقه‌ای ⇒ ۱۰ · ساعتی/روزانه ⇒ ۴۵ · سنگین ⇒ ۶۰.
 */
 
 // انتشار پیش‌نویس‌هایی که زمانشان رسیده — ساعتی، تا انتشار در طول روز پخش شود
 Schedule::command('content:publish-due')
     ->hourly()
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 // تولید مقاله‌های تازه از برنامه — روزی ۳ مقاله
 Schedule::command('content:generate --limit=3 --days=2')
@@ -33,7 +47,7 @@ Schedule::command('content:generate --limit=3 --days=2')
 // نرخ دلار آزاد — هر ساعت، مبنای قیمت‌گذاری دامنه
 Schedule::command('fx:dollar')
     ->hourly()
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 // تولید مطالب پایگاه دانش — روزی ۲ مطلب از docs-plan.
 // بدون این، ۱۰۱ موضوع پایگاه دانش هرگز ساخته نمی‌شدند: زمان‌بندی بالا فقط
@@ -50,7 +64,7 @@ Schedule::command('content:translate-missing --limit=2')
 // صدور فاکتور تمدید برای سرویس‌های دوره‌ای سررسیدشده — روزی یک‌بار
 Schedule::command('services:renew-due')
     ->dailyAt('07:00')
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 // چرخهٔ تمدید: یادآوریِ ۷/۳/۱ روز، تعلیقِ خودکارِ فاکتورِ پرداخت‌نشده و اعلانِ
 // پایانِ مهلتِ ۳۰ روزه به مدیر. بعد از صدورِ فاکتورها اجرا می‌شود تا یادآوریِ
@@ -58,7 +72,7 @@ Schedule::command('services:renew-due')
 // ⚠️ ساعت به وقت UTC است (config/app.php ثابت روی UTC) → ۰۷:۳۰ UTC ≈ ۱۱:۰۰ تهران.
 Schedule::command('services:lifecycle')
     ->dailyAt('07:30')
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 /*
 | ضربانِ کرون — هر دقیقه یک مهرِ زمانی می‌نویسد. بدونِ این، وقتی سفارشی تحویل
@@ -90,13 +104,13 @@ Schedule::call(fn () => \Illuminate\Support\Facades\File::put(
 */
 Schedule::command('system:health')
     ->everyFifteenMinutes()
-    ->withoutOverlapping();
+    ->withoutOverlapping(30);
 
 // صفِ تحویلِ سرویس — سرویس‌هایِ پرداخت‌شده که منتظرِ ساختِ خودکار روی سرورند.
 // هر دقیقه، جدا از درخواستِ پرداخت (تماسِ WHM نباید وب‌هوکِ درگاه را کند کند).
 Schedule::command('provision:run')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(10);
 
 /*
 | صفِ ثبتِ دامنه — دامنه‌هایِ پرداخت‌شده که منتظرِ ثبت نزدِ رجیسترارند.
@@ -112,7 +126,7 @@ Schedule::command('provision:run')
 */
 Schedule::command('domains:provision')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(10);
 
 /*
 | صفِ **تمدیدِ** دامنه — دامنه‌هایی که فاکتورِ تمدیدشان پرداخت شده.
@@ -122,7 +136,7 @@ Schedule::command('domains:provision')
 */
 Schedule::command('domains:renew')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(10);
 
 /*
 | چرخهٔ عمرِ دامنه — فاکتورِ تمدید، یادآوریِ ۷/۳/۱ روز، و علامتِ انقضا.
@@ -138,7 +152,7 @@ Schedule::command('domains:renew')
 */
 Schedule::command('domains:lifecycle')
     ->dailyAt('08:00')
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 /*
 | دفترچهٔ قیمتِ پسوندها را گرم نگه دار.
@@ -153,21 +167,21 @@ Schedule::command('domains:lifecycle')
 */
 Schedule::command('domains:price-book')
     ->everyThreeHours()
-    ->withoutOverlapping();
+    ->withoutOverlapping(60);
 
 // پی‌گیریِ سرورهای ابریِ در حالِ آماده‌سازی + بستنِ سفارش‌های نیمه‌کاره.
 // ⚠️ بی‌این، سفارشِ دومرحله‌ایِ زیرساختِ دوم برای همیشه روی `order:…` می‌مانَد و
 // مشتری سرورِ پول‌داده‌اش را نه IP دارد نه می‌تواند مدیریت کند.
 Schedule::command('cloud:sync-instances')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(10);
 
 // متر کردنِ سرورهای ابریِ **ساعتی** — هر ساعت از کیفِ پولِ مشتری کم می‌کند.
 // idempotent است (claimِ اتمی روی last_metered_at)، پس اجرای دوباره در یک ساعت
 // دوبار کسر نمی‌کند. withoutOverlapping هم لایهٔ دوم.
 Schedule::command('cloud:meter')
     ->hourly()
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);
 
 // کاتالوگ و قیمتِ سرورِ ابری — کارفرما: «هر دو روز یک‌بار، ۲ شب، هم قیمت هم
 // پکیج‌ها».
@@ -189,4 +203,4 @@ Schedule::command('cloud:sync')
 // fx:dollar ساعتی می‌دود، پس نرخ همیشه تازه است.
 Schedule::command('cloud:sync --prices')
     ->dailyAt('05:40')
-    ->withoutOverlapping();
+    ->withoutOverlapping(45);

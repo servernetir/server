@@ -229,7 +229,26 @@ class ServiceController extends Controller
                 $refund = 0;
             }
 
-            $fresh->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            /*
+            | 🔴 `provision_status` هم باید پاک شود، وگرنه پول برمی‌گردد **و**
+            |    سرور خریده می‌شود.
+            |
+            | نه `RunProvisioning`، نه `ProvisioningService::provision()` و نه
+            | `CloudProvisioner::provision()` هیچ‌کدام `status` را نمی‌سنجند —
+            | همه فقط `provision_status` را می‌بینند. پس سرویسِ لغوشده‌ای که
+            | روی `pending` مانده، دقیقهٔ بعد توسطِ کرون برداشته می‌شود، سرور
+            | **واقعاً** خریداری می‌شود، و `finalize()` سرویس را دوباره
+            | `active` می‌کند. سه‌گانهٔ ضرر: وجهِ برگشته، سرورِ خریده‌شده،
+            | سرویسِ زنده‌شده.
+            |
+            | ⚠️ `none` همان مقداری است که `releaseServer()` می‌نویسد — یعنی
+            | «هیچ صفی این را نمی‌خواهد».
+            */
+            $fresh->update([
+                'status'           => 'cancelled',
+                'cancelled_at'     => now(),
+                'provision_status' => 'none',
+            ]);
         });
 
         // اگر نیمه‌ساخته چیزی نزدِ زیرساخت مانده، پاکش کن (هزینه‌اش پای ماست)

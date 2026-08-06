@@ -32,13 +32,53 @@ class FetchDollar extends Command
             return self::SUCCESS;
         }
 
-        $r = $fx->refresh();
-        if ($r === null) {
-            $this->error('دریافت یا استخراج ناموفق بود؛ مقدار قبلی حفظ شد.');
-            return self::FAILURE;
+        /*
+        | 🔴 **یورو هم** تازه می‌شود، نه فقط دلار.
+        |
+        | `refresh()` بی‌آرگومان یعنی `USD`. پس این کرونِ ساعتی هرگز EUR را
+        | تازه نمی‌کرد، و کشِ یورو فقط ۶ ساعت عمر دارد. زنجیرهٔ خرابی:
+        |
+        |   کشِ EUR منقضی → `CloudPricing::eurToToman()` صفر می‌دهد
+        |     → `CloudCatalogSync::reprice()` روی **همهٔ** پلن‌ها `price_irt=0`
+        |     → `scopeSellable` شرطِ `price_irt > 0` دارد
+        |     → **همهٔ سرورهای مجازی از فروشگاه و صفحاتِ کشور غیب می‌شوند**
+        |
+        | با کدِ ۲۰۰، بی‌استثنا، تا اجرای موفقِ بعدی. قیمتِ دامنه هم روی همین
+        | نرخ سوار است.
+        */
+        $ok = [];
+        $bad = [];
+
+        foreach (['USD', 'EUR'] as $cur) {
+            $r = $fx->refresh($cur);
+
+            if ($r === null) {
+                $bad[] = $cur;
+
+                continue;
+            }
+
+            $ok[] = $cur.': '.number_format($r['rate_toman']).' تومان';
         }
 
-        $this->info('نرخ دلار به‌روز شد: '.number_format($r['rate_toman']).' تومان');
-        return self::SUCCESS;
+        if ($bad !== []) {
+            // ⚠️ ردیاب، نه فقط لاگ: لاگِ لاراول روی cPanel عملاً خوانده نمی‌شود،
+            //    و این خرابی مستقیم به «کاتالوگِ خالی» می‌رسد.
+            \App\Support\ErrorTracker::note('pricing', 'نرخِ ارز تازه نشد: '.implode('، ', $bad));
+            $this->error('ناموفق: '.implode('، ', $bad).' — مقدارِ قبلی حفظ شد.');
+        }
+
+        if ($ok !== []) {
+            $this->info('نرخ به‌روز شد — '.implode(' · ', $ok));
+        }
+
+        /*
+        | شکستِ **کامل** ⇒ FAILURE · شکستِ جزئی ⇒ SUCCESS.
+        |
+        | ⚠️ این تفکیک عمدی است. اگر یکی از دو ارز گرفته شود، کار عملاً انجام
+        | شده و کدِ غیرِ صفر فقط لاگِ کرون را پر می‌کند. ولی وقتی **هیچ‌کدام**
+        | نیامد، سکوت خطرناک است: قیمتِ کلِ کاتالوگ روی همین نرخ سوار است.
+        */
+        return $ok === [] ? self::FAILURE : self::SUCCESS;
     }
 }

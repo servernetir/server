@@ -75,7 +75,12 @@
   </div>
 </section>
 
-{{-- ============ MARQUEE ============ --}}
+{{-- ============ MARQUEE ============
+     ⚠️ تا وقتی مشتریِ واقعی با اجازهٔ کتبی نداریم، این بلوک **رندر نمی‌شود**.
+     نامِ شرکت‌های واقعی زیرِ «مورد اعتماد» یک ادعای قابلِ ابطال است، و بلوکِ
+     خالی از بلوکِ دروغ بهتر. توضیحِ کامل کنارِ `brands` در config/servernet.php.
+--}}
+@if(! empty($brands))
 <div class="marquee-wrap reveal">
   <div class="marquee-label">{{ __('ui.logos_label') }}</div>
   <div class="marquee">
@@ -83,6 +88,7 @@
     <div class="track" aria-hidden="true">@foreach($brands as $b)<span>{{ $b }}</span>@endforeach</div>
   </div>
 </div>
+@endif
 
 {{-- ============ PRODUCTS ============ --}}
 <section class="section" id="products">

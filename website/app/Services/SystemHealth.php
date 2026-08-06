@@ -172,8 +172,25 @@ class SystemHealth
         }
 
         $manual = \App\Models\Service::where('provision_status', 'manual')->count();
-        $old = \App\Models\Service::whereIn('provision_status', ['pending', 'running'])
-            ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
+
+        /*
+        | 🔴 سن از `created_at` سنجیده می‌شود، نه `updated_at`.
+        |
+        | قفلِ اتمیِ تحویل یک `Builder::update()` است و لاراول خودش
+        | `updated_at` را می‌نویسد. یعنی **هر دقیقه** که کرون سرویسِ گیرکرده را
+        | برمی‌داشت، ساعتش صفر می‌شد و هرگز به آستانهٔ نیم‌ساعت نمی‌رسید.
+        |
+        | نتیجه روی یک اتفاقِ کاملاً روزمره (ناموجودیِ موقتِ یک پلن): مشتری پول
+        | داده، سروری ندارد، صف بسته، و این صفحه **سبز** — دقیقاً همان کوری‌ای
+        | که این لایه برای شکستنش ساخته شد، از درِ دیگر.
+        |
+        | ⚠️ سرویسِ مرده کنار می‌رود: سفارشِ لغوشده نباید تا ابد قرمز نگه دارد.
+        |    امضای نگهبان شاملِ کلیدِ چکِ خراب است، پس یک قرمزِ دائمی یعنی
+        |    خرابیِ **واقعیِ بعدی** هیچ اعلانی تولید نمی‌کند.
+        */
+        $old = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->whereIn('provision_status', ['pending', 'running'])
+            ->where('created_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
         /*
@@ -188,7 +205,11 @@ class SystemHealth
         | بعد از خریدِ واقعیِ سرور باشد و تلاشِ کور یعنی دو بار خریدن. راهِ درست
         | این است که آدم ببیندش و تصمیم بگیرد — پس فقط بلندش می‌کنیم.
         */
-        $failed = \App\Models\Service::where('provision_status', 'failed')->count();
+        // ⚠️ سرویسِ مرده کنار می‌رود، به همان دلیلِ بالا: لغوِ وجه‌برگشته یک
+        //    ردیفِ `failed` باقی می‌گذارد و بی‌این شرط، این چک برای همیشه قرمز
+        //    می‌مانْد و امضای نگهبان دیگر هرگز عوض نمی‌شد.
+        $failed = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->where('provision_status', 'failed')->count();
 
         if ($manual > 0 || $old > 0 || $failed > 0) {
             $level = ($old > 0 || $failed > 0) ? 'fail' : 'warn';
