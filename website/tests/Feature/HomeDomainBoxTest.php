@@ -172,6 +172,78 @@ class HomeDomainBoxTest extends TestCase
         $this->assertNull($json['result']['price']);
     }
 
+    // ═══════════════ قیمت از کش ═══════════════
+
+    /**
+     * 🔴 قیمتِ پیشنهادها از دفترچهٔ کش‌شده می‌آید، نه از پاسخِ زنده.
+     *
+     * دفترچه با یک نامِ **بلندِ قطعاً آزاد** (`sn7price9check4base`) هر ۶ ساعت
+     * قیمتِ پایه را می‌گیرد. این‌جا عمداً به آن نام قیمتی متفاوت می‌دهیم تا
+     * ثابت شود عددی که روی پیشنهاد می‌نشیند واقعاً از دفترچه آمده.
+     */
+    public function test_suggestion_prices_come_from_the_cached_price_book(): void
+    {
+        Http::swap(new Factory);
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
+            '*/domains/check*' => Http::sequence()
+                // ۱) استعلامِ خودِ کاربر — قیمتِ زنده عمداً گران
+                ->push(['code' => 0, 'data' => ['results' => [
+                    ['domain' => 'example.com', 'status' => 'active'],
+                    ['domain' => 'example.net', 'status' => 'free',
+                        'price' => ['reseller' => ['price' => 99.0, 'currency' => 'EUR']]],
+                ]]], 200)
+                // ۲) کاوشِ دفترچه با نامِ بلند — قیمتِ پایهٔ ارزان
+                ->push(['code' => 0, 'data' => ['results' => [
+                    ['domain' => 'sn7price9check4base.net', 'status' => 'free',
+                        'price' => ['reseller' => ['price' => 5.0, 'currency' => 'EUR']]],
+                ]]], 200),
+            '*' => Http::response(['code' => 0, 'data' => []], 200),
+        ]);
+
+        config([
+            'services.openprovider.username' => 'u',
+            'services.openprovider.password' => 'p',
+            'services.openprovider.base_url' => 'https://api.example.test/v1beta',
+        ]);
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+
+        $json = $this->check('example.com');
+        $net = collect($json['suggestions'])->firstWhere('domain', 'example.net');
+
+        $this->assertNotNull($net);
+
+        // ⚠️ جداکنندهٔ هزارگان همان کامای اسکی است: `cloud_price` از
+        //    `number_format` استفاده می‌کند و `fa_num` فقط **رقم‌ها** را
+        //    فارسی می‌کند، نه نشانه‌ها.
+        $this->assertStringContainsString('۵۰۰,۰۰۰', $net['price'],
+            'قیمتِ پیشنهاد از پاسخِ زنده (۹۹ یورو) آمده، نه از دفترچهٔ کش‌شده (۵ یورو)');
+    }
+
+    /** ⚠️ رجیسترارِ خواب در لحظهٔ تازه‌سازیِ کش نباید جعبهٔ صفحهٔ اول را بشکند */
+    public function test_a_failing_price_book_does_not_break_the_box(): void
+    {
+        $this->fakeRegistrar([
+            ['domain' => 'example.com', 'status' => 'free',
+                'price' => ['reseller' => ['price' => 10.0, 'currency' => 'EUR']]],
+        ]);
+
+        $json = $this->check('example.com');
+
+        $this->assertTrue($json['result']['available']);
+        $this->assertNotNull($json['result']['price']);
+    }
+
+    /** فرمانِ گرم‌کننده باید زمان‌بندی شده باشد، وگرنه کش تنبل می‌مانَد */
+    public function test_the_price_book_refresh_is_scheduled(): void
+    {
+        $commands = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->map(fn ($e) => (string) $e->command);
+
+        $this->assertTrue($commands->contains(fn ($c) => str_contains($c, 'domains:price-book')),
+            'domains:price-book زمان‌بندی نشده — بازدیدکننده هزینهٔ استعلام را می‌دهد');
+    }
+
     /** ورودیِ بی‌معنا باید ۴۲۲ بگیرد، نه استعلامِ بیهوده به رجیسترار */
     public function test_a_junk_query_is_rejected_without_calling_the_registrar(): void
     {

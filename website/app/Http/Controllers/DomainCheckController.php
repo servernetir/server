@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Domain\DomainSearch;
+use App\Services\Domain\TldPriceBook;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,10 +33,16 @@ class DomainCheckController extends Controller
 {
     private const MAX_SUGGESTIONS = 3;
 
-    /** برای پیشنهاد فقط چند پسوندِ پرتقاضا — نه هر ۶۴ تا */
-    private const SUGGEST = ['com', 'net', 'org', 'io', 'co', 'dev', 'shop', 'online'];
+    /**
+     * برای پیشنهاد فقط چند پسوندِ پرتقاضا — نه هر ۶۴ تا.
+     *
+     * ⚠️ `public` است تا `domains:price-book` از **همین** فهرست کش را گرم کند.
+     * دو فهرستِ موازی یعنی روزی یکی‌شان کهنه می‌شود و آن پسوند قیمتش را از
+     * دست می‌دهد، بی‌آنکه کسی بفهمد.
+     */
+    public const SUGGEST = ['com', 'net', 'org', 'io', 'co', 'dev', 'shop', 'online'];
 
-    public function __invoke(Request $request, DomainSearch $search): JsonResponse
+    public function __invoke(Request $request, DomainSearch $search, TldPriceBook $book): JsonResponse
     {
         $data = $request->validate(['domain' => 'required|string|max:100']);
 
@@ -80,6 +87,30 @@ class DomainCheckController extends Controller
             'cart_url'  => $this->buyUrl($fqdn),
         ];
 
+        /*
+        | 🔴 قیمتِ پیشنهادها از **کش** می‌آید، نه از پاسخِ زنده.
+        |
+        | `TldPriceBook` هر ۶ ساعت یک نامِ بلندِ قطعاً-آزاد استعلام می‌گیرد و
+        | قیمتِ پایهٔ هر پسوند را نگه می‌دارد. سه سود:
+        |
+        |  ۱) **یکسانی** — همان عددی که در `/domain/popular-tlds` نشان می‌دهیم
+        |     این‌جا هم می‌آید. دو قیمتِ متفاوت برای یک پسوند در یک سایت،
+        |     اعتماد را می‌بَرد.
+        |  ۲) **مقاومت** — اگر پاسخِ زنده برای پسوندی فیلدِ قیمت نداشته باشد،
+        |     پیشنهاد بی‌قیمت نمی‌مانَد.
+        |  ۳) کلیدِ کش شاملِ حاشیهٔ سود و نرخِ ارز است، پس تغییرِ تنظیمات
+        |     بلافاصله اثر می‌کند و قیمتِ کهنه نمی‌مانَد.
+        |
+        | ⚠️ برای دامنهٔ **اصلی** عمداً قیمتِ زنده مقدم است: اگر خودِ آن نام
+        | پرمیوم باشد، قیمتش ده‌ها برابرِ قیمتِ پایه است و نشان‌دادنِ عددِ پایه
+        | یعنی قیمتی که مشتری نمی‌تواند بخرد.
+        */
+        $book = $this->priceBook($book);
+
+        if ($result['price'] === null && ! ($primary['is_premium'] ?? false)) {
+            $result['price'] = isset($book[$primaryTld]) ? cloud_price($book[$primaryTld]) : null;
+        }
+
         $suggestions = [];
 
         if (! $result['available']) {
@@ -98,10 +129,13 @@ class DomainCheckController extends Controller
                     continue;
                 }
 
+                $tld = (string) ($r['tld'] ?? '');
+
                 $suggestions[] = [
                     'domain'    => $r['domain'],
                     'available' => true,
-                    'price'     => $this->priceLabel($r),
+                    // کش اول، پاسخِ زنده به‌عنوانِ پشتیبان
+                    'price'     => isset($book[$tld]) ? cloud_price($book[$tld]) : $this->priceLabel($r),
                     'cart_url'  => $this->buyUrl((string) $r['domain']),
                 ];
             }
@@ -169,5 +203,25 @@ class DomainCheckController extends Controller
     private function buyUrl(string $query): string
     {
         return lroute('domain.search').'?q='.urlencode($query);
+    }
+
+    /**
+     * دفترچهٔ قیمتِ کش‌شده.
+     *
+     * ⚠️ در try/catch: اگر رجیسترار در لحظهٔ تازه‌سازیِ کش نخوابد، جعبهٔ جستجوی
+     * صفحهٔ اول نباید خطا بدهد. قیمتِ نبود بدتر از صفحهٔ شکسته نیست — نتیجهٔ
+     * زنده هنوز سرِ جایش است.
+     *
+     * @return array<string,int>
+     */
+    private function priceBook(TldPriceBook $book): array
+    {
+        try {
+            return $book->forTlds(self::SUGGEST);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('domain', $e, ['area' => 'price-book']);
+
+            return [];
+        }
     }
 }
