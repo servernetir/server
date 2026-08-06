@@ -94,6 +94,41 @@ class FixedHeaderOffsetTest extends TestCase
     }
 
     /**
+     * 🔴 هیچ قاعده‌ای نباید سلکتورِ **برهنهٔ** `header` را ثابت کند.
+     *
+     * `header{position:fixed;top:0;left:0;right:0;z-index:200}` هر تگِ
+     * `<header>` را در هر جای سایت از جریان می‌کند و به گوشهٔ بالای صفحه
+     * می‌چسباند. سه صفحه `<header>` معنایی داشتند و هر سه خراب بودند — از جمله
+     * صفحهٔ کشورِ سرورِ مجازی، که `<header>` داخلِ هر کارتِ پلن دارد: عنوان و
+     * «پردازندهٔ اختصاصی/سرور ابری» از کارت بیرون می‌پرید و روی هم در گوشه
+     * تلنبار می‌شد. همان «متنِ شناور»ی که کارفرما دو بار گزارش کرد.
+     *
+     * ⚠️ استفاده از تگِ معنایی `<header>` داخلِ کارت **درست** است؛ چیزی که
+     * غلط بود سلکتورِ سراسری بود.
+     */
+    public function test_no_rule_hijacks_every_header_element(): void
+    {
+        $css = $this->css();
+
+        // اعلان‌ها را از کامنت‌ها جدا کن، وگرنه توضیحِ خودِ باگ تست را می‌شکند
+        $bare = preg_replace('~/\*.*?\*/~s', '', $css) ?? '';
+
+        $this->assertSame(0, preg_match_all('~(?:^|[};])\s*header\s*[.{\s]~m', $bare),
+            'سلکتورِ برهنهٔ header برگشته — هر <header> در سایت به گوشهٔ صفحه می‌چسبد');
+    }
+
+    /** نوارِ خودِ سایت باید همچنان استایل بگیرد — یعنی به `#header` وصل باشد */
+    public function test_the_real_site_header_is_still_styled(): void
+    {
+        $css = $this->css();
+
+        $this->assertTrue(str_contains($css, '#header{'), 'قاعدهٔ نوارِ سایت گم شد');
+        $this->assertTrue(str_contains($css, '#header > .container{'),
+            'کانتینرِ نوار باید فرزندِ مستقیم را هدف بگیرد، وگرنه منوی مگا می‌شکند');
+        $this->assertTrue(str_contains($css, '#header.scrolled{'), 'حالتِ اسکرول‌شدهٔ نوار گم شد');
+    }
+
+    /**
      * 🔴 تستِ رگرسیونِ خودِ آن باگ.
      *
      * صفحهٔ جستجوی دامنه `.dsx{padding:56px …}` داشت در برابرِ هدرِ ۱۱۱ پیکسلی،

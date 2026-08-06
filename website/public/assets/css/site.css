@@ -65,9 +65,28 @@ html[dir="rtl"] .icon.dir{transform:scaleX(-1)}
 .reveal.in{opacity:1;transform:none}
 
 /* ============ HEADER ============ */
-header{position:fixed;top:0;left:0;right:0;z-index:200;transition:background .3s,border-color .3s,backdrop-filter .3s;border-bottom:1px solid transparent}
-header.scrolled{background:rgba(5,7,15,.75);backdrop-filter:blur(16px);border-color:var(--line)}
-header .container{display:flex;align-items:center;justify-content:space-between;height:72px;gap:20px}
+/* 🔴 `#header` و نه سلکتورِ برهنهٔ `header`.
+   قبلاً این قاعده `header{position:fixed;top:0;left:0;right:0;z-index:200}` بود —
+   یعنی **هر** تگِ `<header>` در هر جای سایت از جریان کنده می‌شد و به گوشهٔ
+   بالای صفحه می‌چسبید. سه صفحه `<header>` معنایی داشتند و هر سه خراب بودند:
+
+     • cloud-location → `<header>` داخلِ هر کارتِ پلن. عنوان و «پردازندهٔ
+       اختصاصی/سرور ابری» از کارت بیرون می‌پرید و روی هم در گوشهٔ صفحه
+       تلنبار می‌شد — همان «متنِ شناور» که کارفرما گزارش کرد.
+     • domain-search → `.dsx-head`؛ تیترِ «ثبت دامنه» زیرِ هدرِ سایت گم می‌شد.
+     • hosting → `.pt-group-head`.
+
+   ⚠️ `position:fixed` عمداً حذف شد و جایگزین نشد: نوارِ واقعی از قبل با
+   `.site-header-wrap` ثابت می‌شود و خطِ ۲۹۰ همین‌جا را به `relative`
+   برمی‌گرداند — پس این اعلان از اول بی‌اثر و فقط دام بود.
+   ⚠️ جاوااسکریپت هم `getElementById('header')` می‌زند، پس با `#header` می‌خواند. */
+#header{z-index:200;transition:background .3s,border-color .3s,backdrop-filter .3s;border-bottom:1px solid transparent}
+#header.scrolled{background:rgba(5,7,15,.75);backdrop-filter:blur(16px);border-color:var(--line)}
+/* ⚠️ فرزندِ **مستقیم**. با `#header .container` (خصوصیت ۱۰۱) قاعدهٔ خنثی‌کنندهٔ
+   `.menu-panel .container` (خصوصیت ۲۰) بازنده می‌شد و کانتینرهای داخلِ منوی مگا
+   flex با ارتفاعِ ثابتِ ۷۲ می‌شدند — یعنی کلِ منو خراب. با `>` اصلاً به آن‌ها
+   نمی‌رسد، چون فقط نوارِ خودِ هدر فرزندِ مستقیم است. */
+#header > .container{display:flex;align-items:center;justify-content:space-between;height:72px;gap:20px}
 .logo{display:flex;align-items:center;gap:11px;font-family:var(--font-disp);font-weight:700;font-size:21px;letter-spacing:-.3px}
 .logo-mark{width:36px;height:36px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;
   box-shadow:0 0 20px rgba(34,211,238,.4)}
@@ -786,7 +805,7 @@ html[data-theme="light"] .aurora .blob{opacity:.22}
 html[data-theme="light"] .grid-overlay{
   background-image:linear-gradient(rgba(15,23,42,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.045) 1px,transparent 1px)}
 html[data-theme="light"] .topbar{background:rgba(255,255,255,.92)}
-html[data-theme="light"] header.scrolled{background:rgba(255,255,255,.82)}
+html[data-theme="light"] #header.scrolled{background:rgba(255,255,255,.82)}
 html[data-theme="light"] .menu-panel{background:rgba(255,255,255,.99);box-shadow:0 40px 80px rgba(15,23,42,.16)}
 html[data-theme="light"] .drawer{background:#FFFFFF}
 html[data-theme="light"] .drawer-backdrop{background:rgba(15,23,42,.35)}
