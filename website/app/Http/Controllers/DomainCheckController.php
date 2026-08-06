@@ -2,211 +2,172 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Whmcs;
+use App\Services\Domain\DomainSearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * استعلام آنی دامنه.
+ * استعلامِ آنیِ دامنه — جعبهٔ جستجوی **صفحهٔ اول**.
  *
- * منبع اصلی: WHMCS API (اکشن DomainWhois + GetTLDPricing) — وقتی
- * WHMCS_FA_API_* در .env تنظیم شده باشد. در نبود API، بررسی DNS
- * به‌عنوان جایگزین موقت استفاده می‌شود (قیمت‌ها از config).
+ * ═══ چه چیزی عوض شد و چرا ═══
+ *
+ * 🔴 این کنترلر تا امروز روی **WHMCSِ بیرونی** بود: قیمت را از `GetTLDPricing`
+ * می‌گرفت و دکمهٔ خرید را به `cart.php` سبدِ WHMCS می‌فرستاد. یعنی پرکاربردترین
+ * ورودیِ فروشِ دامنه — جعبهٔ وسطِ صفحهٔ اول — مشتری را از سامانهٔ خودمان بیرون
+ * می‌بُرد، با قیمتی که با قیمتِ صفحهٔ `/domains` **نمی‌خواند** (آن یکی از
+ * رسیلری می‌آید و حاشیهٔ سودِ تنظیماتِ ما را می‌خورد).
+ *
+ * دو قیمتِ متفاوت برای یک دامنه در یک سایت بدترین حالت است: یا مشتری بی‌اعتماد
+ * می‌شود، یا ما به قیمتِ کمترِ نمایش‌داده‌شده متعهد می‌شویم.
+ *
+ * حالا همان `DomainSearch`ای را صدا می‌زند که صفحهٔ `/domains` می‌زند — یک منبعِ
+ * قیمت، یک منبعِ موجودی، و خریدی که در کنسولِ خودمان تمام می‌شود.
+ *
+ * ⚠️ شکلِ JSON عمداً **دست‌نخورده** ماند (`result` / `suggestions` / `more_url`)
+ * چون `public/assets/js/site.js` همین را می‌خوانَد. عوض‌کردنش یعنی یک خرابیِ
+ * جاوااسکریپتیِ بی‌صدا روی صفحهٔ اول — همان الگوی «کدِ ۲۰۰ ولی صفحهٔ مرده» که
+ * این پروژه بارها خورده.
  */
 class DomainCheckController extends Controller
 {
     private const MAX_SUGGESTIONS = 3;
 
-    private Whmcs $whmcs;
+    /** برای پیشنهاد فقط چند پسوندِ پرتقاضا — نه هر ۶۴ تا */
+    private const SUGGEST = ['com', 'net', 'org', 'io', 'co', 'dev', 'shop', 'online'];
 
-    private ?array $pricing;
-
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, DomainSearch $search): JsonResponse
     {
         $data = $request->validate(['domain' => 'required|string|max:100']);
 
-        $this->whmcs = Whmcs::forLocale();
-        $this->pricing = $this->whmcs->tldPricing();
+        [$name, $ext] = $this->split($this->normalise($data['domain']));
 
-        $query = strtolower(trim($data['domain']));
-        $query = preg_replace('~^https?://~', '', $query);
-        $query = preg_replace('~^www\.~', '', $query);
-        $query = trim($query, "./ \t");
-
-        $tld = null;
-        $sld = $query;
-        if (str_contains($query, '.')) {
-            [$sld, $rest] = explode('.', $query, 2);
-            $tld = '.'.$rest;
-        }
-        $sld = preg_replace('/[^a-z0-9\x{0600}-\x{06FF}-]/u', '', $sld);
-
-        if ($sld === '' || $sld === null) {
+        if ($name === '') {
             return response()->json(['message' => 'invalid'], 422);
         }
 
-        $primaryTld = $tld ?? '.com';
-        $primaryDomain = $sld.$primaryTld;
+        /*
+        | ⚠️ فهرستِ پسوند **صریح** داده می‌شود.
+        |
+        | بی‌آن، `DomainSearch` هر ۶۴ پسوندِ پیشنهادی‌اش را استعلام می‌گیرد. روی
+        | صفحهٔ `/domains` این درست است (آن‌جا دسته‌دسته و با lazy-loading می‌آید)،
+        | ولی این‌جا یک درخواستِ همزمانِ کاربر است: ۶۴ ردیف یعنی چند ثانیه انتظار
+        | و ترافیکِ بی‌مورد به رجیستراری که حسابش قبلاً علامت خورده.
+        */
+        $primaryTld = $ext !== '' ? $ext : 'com';
+        $tlds = array_values(array_unique(array_merge([$primaryTld], self::SUGGEST)));
 
-        // ۱) استعلام قطعی دامنه‌ی اصلی از Whois خود WHMCS (با کش ۵ دقیقه)
-        $result = [
-            'domain'    => $primaryDomain,
-            'available' => $this->whmcs->domainAvailableCached($primaryDomain) ?? $this->isAvailableFast($primaryDomain),
-            'price'     => $this->price($primaryTld),
-            'cart_url'  => whmcs_url('cart.php?a=add&domain=register&query='.urlencode($primaryDomain)),
-        ];
+        $rows = $search->search($name, $tlds);
 
-        // ۲) نامزدهای پیشنهاد: فیلتر اولیه‌ی سریع با DNS (فقط برای کم‌کردن تعداد استعلام‌ها)
-        $candidates = [];
-        $scanned = 0;
-        if (! $result['available']) {
-            foreach ($this->knownTlds() as $t) {
-                if ($t === $primaryTld) {
-                    continue;
-                }
-                if (count($candidates) >= 4 || $scanned >= 8) {
-                    break;
-                }
-                $scanned++;
-                if ($this->isAvailableFast($sld.$t)) {
-                    $candidates[$t] = $sld.$t;
-                }
-            }
+        $byDomain = [];
+        foreach ($rows as $r) {
+            $byDomain[strtolower((string) ($r['domain'] ?? ''))] = $r;
         }
 
-        // ۳) تأیید قطعی نامزدها از Whois خود WHMCS — هیچ پیشنهادی بدون تأیید WHMCS
-        //    نمایش داده نمی‌شود (دقتِ همان صفحه‌ی خرید). استعلام‌ها کش ۵ دقیقه دارند.
+        $fqdn = $name.'.'.$primaryTld;
+        $primary = $byDomain[$fqdn] ?? null;
+
+        /*
+        | اگر رسیلری جواب ندهد، `available` همان `false` می‌مانَد.
+        |
+        | ⚠️ عمداً به DNS برنمی‌گردیم. پاسخِ DNS «رکورد ندارد» را با «ثبت‌نشده»
+        | اشتباه می‌گیرد و به مشتری می‌گوید دامنه آزاد است؛ بعد سرِ پرداخت
+        | رجیسترار ردش می‌کند. «نمی‌دانم» صادقانه‌تر از حدسِ اشتباه است.
+        */
+        $result = [
+            'domain'    => $fqdn,
+            'available' => (bool) ($primary['available'] ?? false),
+            'price'     => $this->priceLabel($primary),
+            'cart_url'  => $this->buyUrl($fqdn),
+        ];
+
         $suggestions = [];
+
         if (! $result['available']) {
-            $whmcsEnabled = $this->whmcs->enabled();
-            foreach ($candidates as $t => $domain) {
+            foreach ($rows as $r) {
                 if (count($suggestions) >= self::MAX_SUGGESTIONS) {
                     break;
                 }
-                $confirmed = $whmcsEnabled
-                    ? $this->whmcs->domainAvailableCached($domain) === true
-                    : true; // بدون WHMCS همان نتیجه‌ی DNS (بهترین تلاش)
-                if ($confirmed) {
-                    $suggestions[] = [
-                        'domain'    => $domain,
-                        'available' => true,
-                        'price'     => $this->price($t),
-                        'cart_url'  => whmcs_url('cart.php?a=add&domain=register&query='.urlencode($domain)),
-                    ];
+
+                if (! ($r['available'] ?? false) || ($r['domain'] ?? '') === $fqdn) {
+                    continue;
                 }
+
+                // ⚠️ پرمیوم در پیشنهادِ سه‌تاییِ صفحهٔ اول نمی‌آید: قیمتش ده‌ها
+                //    برابر است و کنارِ قیمت‌های عادی گمراه‌کننده می‌شود.
+                if ($r['is_premium'] ?? false) {
+                    continue;
+                }
+
+                $suggestions[] = [
+                    'domain'    => $r['domain'],
+                    'available' => true,
+                    'price'     => $this->priceLabel($r),
+                    'cart_url'  => $this->buyUrl((string) $r['domain']),
+                ];
             }
         }
 
         return response()->json([
             'result'      => $result,
             'suggestions' => $suggestions,
-            'more_url'    => whmcs_url('domainchecker.php'),
+            // «…» → صفحهٔ کاملِ جستجوی خودمان، نه دامنه‌چکرِ WHMCS
+            'more_url'    => $this->buyUrl($name),
         ]);
     }
 
-    /** لیست پسوندها برای پیشنهاد — منتخب‌هایی که در WHMCS قیمت دارند */
-    private function knownTlds(): array
+    // ───────────────────────── کمکی ─────────────────────────
+
+    private function normalise(string $raw): string
     {
-        $featured = config('servernet.featured_tlds', []);
+        $q = strtolower(trim($raw));
+        $q = preg_replace('~^https?://~', '', $q) ?? '';
+        $q = preg_replace('~^www\.~', '', $q) ?? '';
 
-        if ($this->pricing !== null) {
-            $known = array_filter($featured, fn (string $t) => isset($this->pricing['prices'][$t]));
-
-            return $known !== [] ? array_values($known) : array_slice(array_keys($this->pricing['prices']), 0, 10);
-        }
-
-        return array_column(config('servernet.tlds'), 'tld');
-    }
-
-    /** قیمت ثبت سالانه‌ی پسوند — اول WHMCS، بعد config */
-    private function price(string $tld): ?string
-    {
-        if ($this->pricing !== null && isset($this->pricing['prices'][$tld])) {
-            return whmcs_price($this->pricing['prices'][$tld], $this->pricing['currency']);
-        }
-
-        $info = collect(config('servernet.tlds'))->firstWhere('tld', $tld);
-
-        return $info ? site_price($info) : null;
-    }
-
-    /** بررسی سریع بدون WHMCS — برای فیلتر اولیه نامزدها و fallback */
-    private function isAvailableFast(string $domain): bool
-    {
-        $ascii = function_exists('idn_to_ascii') ? (idn_to_ascii($domain) ?: $domain) : $domain;
-
-        // ۱) کوئری خام UDP DNS (در همه‌ی محیط‌ها کار می‌کند)
-        $rcode = $this->rawDnsRcode($ascii);
-        if ($rcode !== null) {
-            return $rcode === 3; // NXDOMAIN → ثبت نشده
-        }
-
-        // ۲) DNS-over-HTTPS
-        $status = $this->dohStatus($ascii);
-        if ($status !== null) {
-            return $status === 3;
-        }
-
-        // ۳) توابع DNS خود PHP
-        return ! checkdnsrr($ascii.'.', 'NS');
+        return trim($q, "./ \t");
     }
 
     /**
-     * کوئری مستقیم UDP به ریزالورهای عمومی و خواندن RCODE پاسخ.
-     * 0 = موجود، 3 = NXDOMAIN (آزاد برای ثبت)، null = عدم دسترسی.
+     * «example.com» → ['example', 'com'].
+     *
+     * ⚠️ حروفِ فارسی/عربی نگه داشته می‌شوند (دامنهٔ IDN)، ولی همه‌چیزِ دیگر
+     * پاک می‌شود تا ورودیِ کاربر مستقیم به رجیسترار نرود.
      */
-    private function rawDnsRcode(string $domain): ?int
+    private function split(string $q): array
     {
-        foreach (['1.1.1.1', '8.8.8.8'] as $server) {
-            $query = pack('n6', random_int(0, 0xffff), 0x0100, 1, 0, 0, 0);
-            foreach (explode('.', $domain) as $label) {
-                if ($label === '' || strlen($label) > 63) {
-                    return null;
-                }
-                $query .= chr(strlen($label)).$label;
-            }
-            $query .= "\0".pack('n2', 2, 1); // NS / IN
+        $q = preg_replace('/[^a-z0-9.\x{0600}-\x{06FF}-]/u', '', $q) ?? '';
+        $q = trim($q, '.');
 
-            $socket = @fsockopen('udp://'.$server, 53, $errno, $error, 2);
-            if (! $socket) {
-                continue;
-            }
-            stream_set_timeout($socket, 2);
-            fwrite($socket, $query);
-            $response = fread($socket, 512);
-            fclose($socket);
-
-            if (is_string($response) && strlen($response) >= 12) {
-                $header = unpack('nid/nflags/nqd/nan/nns/nar', substr($response, 0, 12));
-
-                return $header['flags'] & 0x0F;
-            }
+        if (! str_contains($q, '.')) {
+            return [$q, ''];
         }
 
-        return null;
+        [$name, $ext] = explode('.', $q, 2);
+
+        return [$name, $ext];
     }
 
-    /** استعلام NS از DNS-over-HTTPS */
-    private function dohStatus(string $domain): ?int
+    /**
+     * برچسبِ قیمت به ارزِ زبانِ جاری.
+     *
+     * ⚠️ `cloud_price()` و **نه** `site_price()`. دومی آرایهٔ `['irt','eur']`
+     * می‌گیرد و مقدارِ تومانی را در `price_toman()` — یعنی ضریبِ قیمتِ **هاست** —
+     * ضرب می‌کند. قیمتِ دامنه از قبل حاشیهٔ سودِ خودش (`domain_margin_pct`) را
+     * خورده، پس آن ضرب یعنی قیمتی که با صفحهٔ `/domains` نمی‌خوانَد — دقیقاً
+     * همان دوگانگی‌ای که این بازنویسی برای رفعش انجام شد.
+     *
+     * ⚠️ `null` یعنی «قیمت نداریم» و جاوااسکریپت حذفش می‌کند. عددِ صفر یا
+     * «تماس بگیرید» ننویس — مشتری روی قیمتِ نمایش‌داده‌شده حساب باز می‌کند.
+     */
+    private function priceLabel(?array $row): ?string
     {
-        $endpoints = [
-            'https://cloudflare-dns.com/dns-query',
-            'https://dns.google/resolve',
-        ];
+        $toman = (int) ($row['price_toman'] ?? 0);
 
-        foreach ($endpoints as $endpoint) {
-            $url = $endpoint.'?name='.urlencode($domain).'&type=NS';
-            $ctx = stream_context_create(['http' => [
-                'timeout' => 4,
-                'header'  => "Accept: application/dns-json\r\n",
-            ]]);
-            $raw = @file_get_contents($url, false, $ctx);
-            $json = $raw ? json_decode($raw, true) : null;
-            if (is_array($json) && isset($json['Status'])) {
-                return (int) $json['Status'];
-            }
-        }
+        return $toman > 0 ? cloud_price($toman) : null;
+    }
 
-        return null;
+    /** خرید در کنسولِ خودمان تمام می‌شود، نه سبدِ WHMCS */
+    private function buyUrl(string $query): string
+    {
+        return lroute('domain.search').'?q='.urlencode($query);
     }
 }

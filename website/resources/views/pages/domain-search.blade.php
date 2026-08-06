@@ -158,7 +158,11 @@ $T = [
  * فارسی و انگلیسی و ترکی از یک کد بیایند. `dir` جداگانه ست نمی‌شود مگر برای
  * خودِ نامِ دامنه و عدد، که همیشه چپ‌به‌راست‌اند.
  */
-.dsx{position:relative;padding:56px 0 96px;overflow:hidden}
+/* ⚠️ این عدد **فقط فاصلهٔ تزئینی** است، نه جبرانِ هدر.
+   جبرانِ هدرِ ثابت یک‌جا و برای همهٔ صفحات در `#main{padding-top:var(--header-h)}`
+   انجام می‌شود (انتهای site.css). قبلاً این‌جا ۵۶px بود که هم جبران بود هم
+   فاصله — و چون هدر ۱۱۱px است، تیتر و بالای باکسِ جستجو زیرِ هدر می‌رفت. */
+.dsx{position:relative;padding:40px 0 96px;overflow:hidden}
 .dsx-wrap{position:relative;z-index:2;max-width:940px}
 
 /* هالهٔ پس‌زمینه — عمقِ شیشه از همین می‌آید، نه از سایه */
@@ -274,7 +278,7 @@ html[data-theme="light"] .dsx-row:hover{background:rgba(0,0,0,.03)}
 html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
 
 @media(max-width:720px){
-  .dsx{padding:34px 0 64px}
+  .dsx{padding:22px 0 64px}      /* فاصلهٔ تزئینی؛ جبرانِ هدر روی #main است */
   .dsx-in{flex-wrap:wrap;padding:12px}
   .dsx-in input{width:100%;order:1;font-size:16px}
   .dsx-go{width:100%;order:2;justify-content:center}
