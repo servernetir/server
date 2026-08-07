@@ -40,73 +40,9 @@
   </a>
 </div>
 
-<script>
-(function () {
-  var boxes = Array.prototype.slice.call(document.querySelectorAll('#otp input')),
-      hidden = document.getElementById('code'),
-      form = document.getElementById('otp-form');
-
-  function collect() { return boxes.map(function (b) { return b.value; }).join(''); }
-
-  function sync() {
-    hidden.value = collect();
-    boxes.forEach(function (b) { b.classList.toggle('filled', b.value !== ''); });
-  }
-
-  boxes.forEach(function (box, i) {
-    box.addEventListener('input', function () {
-      // ارقام فارسی و عربی هم پذیرفته می‌شوند — کاربر با کیبورد فارسی تایپ می‌کند
-      var v = this.value
-        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
-        .replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; })
-        .replace(/[^0-9]/g, '');
-      this.value = v.slice(-1);
-      sync();
-      if (this.value && i < boxes.length - 1) boxes[i + 1].focus();
-      if (collect().length === 6) form.requestSubmit();
-    });
-
-    box.addEventListener('keydown', function (e) {
-      if (e.key === 'Backspace' && !this.value && i > 0) { boxes[i - 1].focus(); }
-      if (e.key === 'ArrowLeft' && i > 0) { boxes[i - 1].focus(); e.preventDefault(); }
-      if (e.key === 'ArrowRight' && i < boxes.length - 1) { boxes[i + 1].focus(); e.preventDefault(); }
-    });
-
-    // چسباندن کل کد در هر خانه‌ای باید کار کند، نه فقط اولی
-    box.addEventListener('paste', function (e) {
-      e.preventDefault();
-      var t = (e.clipboardData || window.clipboardData).getData('text')
-        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
-        .replace(/[^0-9]/g, '').slice(0, 6);
-      for (var k = 0; k < t.length && k < boxes.length; k++) boxes[k].value = t[k];
-      sync();
-      (boxes[Math.min(t.length, 5)] || boxes[5]).focus();
-      if (collect().length === 6) form.requestSubmit();
-    });
-  });
-
-  form.addEventListener('submit', function () {
-    sync();
-    var b = form.querySelector('.auth-btn');
-    b.classList.add('busy');
-    b.disabled = true;
-  });
-
-  // شمارش معکوس فقط برای راحتی چشم است؛ سقف واقعی سمت سرور اعمال می‌شود
-  var btn = document.getElementById('resend'), cd = document.getElementById('cd'), n = 60;
-  var LOCALE = @json(app()->getLocale());
-  var fa = function (x) {
-    return LOCALE === 'fa'
-      ? String(x).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; })
-      : String(x);
-  };
-  cd.textContent = '(' + fa(n) + ')';
-  var t = setInterval(function () {
-    if (--n <= 0) { clearInterval(t); btn.disabled = false; cd.textContent = ''; return; }
-    cd.textContent = '(' + fa(n) + ')';
-  }, 1000);
-})();
-</script>
+{{-- منطقِ مشترک با صفحهٔ ورود — همان باگِ پرکردنِ خودکارِ iOS این‌جا هم بود.
+     رفعِ یک‌جا در `public/assets/js/otp-input.js`، با تستِ node. --}}
+<script src="{{ asset('assets/js/otp-input.js') }}?v=2" defer></script>
 @endsection
 
 @section('assure')

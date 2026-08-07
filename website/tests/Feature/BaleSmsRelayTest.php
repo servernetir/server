@@ -92,13 +92,13 @@ class BaleSmsRelayTest extends TestCase
     public function test_no_real_pattern_code_leaves_the_project(): void
     {
         $this->fakeBale();
-        $this->relay()->sendPattern('09121234567', 'paid', ['amount' => '2,500,000']);
+        $this->relay()->sendPattern('09121234567', 'service_ordered', ['service' => 'LX-2', 'amount' => '2,500,000']);
 
         $p = $this->captured()['payload'];
 
         $this->assertArrayNotHasKey('pattern_code', $p);
         $this->assertArrayNotHasKey('api_key', $p);
-        $this->assertSame('paid', $p['template']);
+        $this->assertSame('service_ordered', $p['template']);
     }
 
     /** ⚠️ و رازِ مشترک هرگز داخلِ بدنه نمی‌نشیند — فقط امضا می‌سازد */
@@ -210,24 +210,25 @@ class BaleSmsRelayTest extends TestCase
         $this->fakeBale();
 
         (new SmsDispatcher($this->relay()))
-            ->event('09121234567', 'service_ready', ['service' => 'LX-2', 'ip' => '1.2.3.4'], 'متنِ پشتیبان');
+            ->event('09121234567', 'renewed', ['service' => 'LX-2', 'until' => '۱۴۰۵/۰۹/۱۲'], 'متنِ پشتیبان');
 
         $p = $this->captured()['payload'];
 
-        $this->assertSame('service_ready', $p['template']);
-        $this->assertSame(['service' => 'LX-2', 'ip' => '1.2.3.4'], $p['params']);
+        $this->assertSame('renewed', $p['template']);
+        $this->assertSame(['service' => 'LX-2', 'until' => '۱۴۰۵/۰۹/۱۲'], $p['params']);
     }
 
-    /** فهرستِ الگوهای مجاز باید با پیکربندیِ آی‌پی‌پنل بخواند */
-    public function test_the_template_list_matches_the_ippanel_patterns(): void
-    {
-        $configured = array_keys((array) config('services.sms.ippanel.patterns', []));
-
-        $this->assertSame(
-            array_values(array_diff($configured, BaleRelaySender::TEMPLATES)), [],
-            'الگویی در config هست که رله نمی‌شناسدش — آن پیامک بی‌صدا نمی‌رود'
-        );
-    }
+    /*
+    | ⚠️ این‌جا قبلاً تستی بود که فهرستِ رله را با
+    | `config/services.php → sms.ippanel.patterns` می‌سنجید. آن مقایسه **غلط**
+    | بود: آن بلوک مالِ درایورِ مستقیمِ `IppanelSender` است (مسیرِ قدیمی، با
+    | کدهای الگوی خودش در .env) و هیچ ربطی به رجیستریِ n8n ندارد. نگه‌داشتنش
+    | یعنی تستی که موقعِ درست‌کردنِ فهرست، قرمز می‌شود.
+    |
+    | جفتِ واقعی — فهرستِ PHP در برابرِ رجیستریِ n8n، و متغیرها در برابرِ
+    | کاتالوگِ رویداد — در `SmsTemplateRegistryTest` سنجیده می‌شود، و آن تست
+    | فایلِ واقعیِ جاوااسکریپت را باز می‌کند نه یک کپیِ دستی.
+    */
 
     // ═══════════════ سیم‌کشیِ واقعیِ config (نه ست‌کردنِ دستی) ═══════════════
 

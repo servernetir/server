@@ -293,14 +293,14 @@ class N8nSmsRelayTest extends TestCase
         $this->fakeN8n();
 
         (new SmsDispatcher($this->relay()))
-            ->event('09142223343', 'service_ready', ['service' => 'LX-2', 'ip' => '1.2.3.4'], 'متنِ پشتیبان');
+            ->event('09142223343', 'renewed', ['service' => 'LX-2', 'until' => '۱۴۰۵/۰۹/۱۲'], 'متنِ پشتیبان');
 
         $envelope = $this->captured()['data']['envelope'];
         $rest = substr($envelope, strlen('SMS_RELAY_V1:'));
         $p = json_decode(base64_decode(strtr(substr($rest, 0, strrpos($rest, '.')), '-_', '+/')), true);
 
-        $this->assertSame('service_ready', $p['template']);
-        $this->assertSame(['service' => 'LX-2', 'ip' => '1.2.3.4'], $p['params']);
+        $this->assertSame('renewed', $p['template']);
+        $this->assertSame(['service' => 'LX-2', 'until' => '۱۴۰۵/۰۹/۱۲'], $p['params']);
     }
 
     /** ⚠️ متنِ آزاد عمداً پشتیبانی نمی‌شود — به هیچ الگویی نمی‌خورد */

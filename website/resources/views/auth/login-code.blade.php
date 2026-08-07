@@ -53,66 +53,16 @@
   </a>
 </div>
 
-<script>
-(function () {
-  var boxes = Array.prototype.slice.call(document.querySelectorAll('#otp input')),
-      hidden = document.getElementById('code'),
-      form = document.getElementById('otp-form');
+{{--
+  🔴 منطق در `public/assets/js/otp-input.js` است، نه این‌جا.
 
-  function collect() { return boxes.map(function (b) { return b.value; }).join(''); }
-  function sync() {
-    hidden.value = collect();
-    boxes.forEach(function (b) { b.classList.toggle('filled', b.value !== ''); });
-  }
-
-  boxes.forEach(function (box, i) {
-    box.addEventListener('input', function () {
-      var v = this.value
-        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
-        .replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; })
-        .replace(/[^0-9]/g, '');
-      this.value = v.slice(-1);
-      sync();
-      if (this.value && i < boxes.length - 1) boxes[i + 1].focus();
-      if (collect().length === 6) form.requestSubmit();
-    });
-    box.addEventListener('keydown', function (e) {
-      if (e.key === 'Backspace' && !this.value && i > 0) { boxes[i - 1].focus(); }
-      if (e.key === 'ArrowLeft' && i > 0) { boxes[i - 1].focus(); e.preventDefault(); }
-      if (e.key === 'ArrowRight' && i < boxes.length - 1) { boxes[i + 1].focus(); e.preventDefault(); }
-    });
-    box.addEventListener('paste', function (e) {
-      e.preventDefault();
-      var t = (e.clipboardData || window.clipboardData).getData('text')
-        .replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
-        .replace(/[^0-9]/g, '').slice(0, 6);
-      for (var k = 0; k < t.length && k < boxes.length; k++) boxes[k].value = t[k];
-      sync();
-      (boxes[Math.min(t.length, 5)] || boxes[5]).focus();
-      if (collect().length === 6) form.requestSubmit();
-    });
-  });
-
-  form.addEventListener('submit', function () {
-    sync();
-    var b = form.querySelector('.auth-btn');
-    b.classList.add('busy'); b.disabled = true;
-  });
-
-  var btn = document.getElementById('resend'), cd = document.getElementById('cd'), n = 60;
-  var LOCALE = @json(app()->getLocale());
-  var fa = function (x) {
-    return LOCALE === 'fa'
-      ? String(x).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; })
-      : String(x);
-  };
-  cd.textContent = '(' + fa(n) + ')';
-  var t = setInterval(function () {
-    if (--n <= 0) { clearInterval(t); btn.disabled = false; cd.textContent = ''; return; }
-    cd.textContent = '(' + fa(n) + ')';
-  }, 1000);
-})();
-</script>
+  همین کد قبلاً در این صفحه و در `register/verify` دو نسخهٔ جدا داشت و **هر دو
+  همان باگ را داشتند**: iOS کدِ پیامک را یک‌جا در خانهٔ اول می‌ریزد و نسخهٔ
+  درون‌خطی با `value.slice(-1)` فقط رقمِ آخر را نگه می‌داشت — یعنی پرکردنِ
+  خودکار کد را نابود می‌کرد. روی دسکتاپ دیده نمی‌شد چون آن‌جا رقم‌به‌رقم تایپ
+  می‌شود. حالا یک فایل، با تستِ node.
+--}}
+<script src="{{ asset('assets/js/otp-input.js') }}?v=2" defer></script>
 @endsection
 
 @section('assure')
