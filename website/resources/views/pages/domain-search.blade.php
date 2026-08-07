@@ -316,13 +316,29 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
   var faDigits = function (s) {
     return String(s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
   };
+  /*
+   * 🔴 وقتی نرخِ یورو نیست، **عدد چاپ نمی‌شود**.
+   *
+   * نسخهٔ قبلی در آن حالت عددِ خامِ تومانی برمی‌گرداند و صداکننده کنارش
+   * `T.price_unit` (یعنی «€») می‌گذاشت. نتیجه: مشتریِ خارجی «۱٬۲۵۰٬۰۰۰ €»
+   * می‌دید به‌جای «۲۵٫۰۰ €» — عددی ~۵۰٬۰۰۰ برابر.
+   *
+   * یا سایت را کلاهبردار فرض می‌کرد و می‌رفت، یا اگر ثبت می‌زد با مبلغی
+   * روبه‌رو می‌شد که هیچ ربطی به آنچه دیده بود نداشت.
+   *
+   * ⚠️ `null` یعنی «قیمت نداریم» — نه صفر و نه عددِ حدسی. همان قاعده‌ای که
+   *    سمتِ سرور هم رعایت می‌شود: قیمتِ غلط از نبودِ قیمت بدتر است.
+   */
   var money = function (n) {
     n = Number(n);
+
     if (T.is_fa) { return faDigits(n.toLocaleString('en-US')); }
+
     if (T.eur_rate > 0) {
       return (n / T.eur_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    return n.toLocaleString('en-US');
+
+    return null;
   };
   var esc = function (s) {
     var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
@@ -370,8 +386,18 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
             + T.register_btn + '</a>';
     }
 
-    var price = (st === 'free' || st === 'premium')
-      ? '<div class="dsx-price" dir="ltr">' + money(r.price_toman) + '<small>' + T.price_unit + '</small></div>'
+    // ⚠️ نرخِ ارز که نبود، نه عدد نشان می‌دهیم نه دکمهٔ ثبت — وگرنه مشتری
+    //    چیزی سفارش می‌دهد که قیمتش را ندیده.
+    var amount = (st === 'free' || st === 'premium') ? money(r.price_toman) : null;
+
+    if (amount === null && (st === 'free' || st === 'premium')) {
+      pill = '<span class="dsx-pill">' + T.not_orderable_pill + '</span>';
+      note = T.fx_unavailable;
+      right = '';
+    }
+
+    var price = amount !== null
+      ? '<div class="dsx-price" dir="ltr">' + amount + '<small>' + T.price_unit + '</small></div>'
       : '<div class="dsx-price" aria-hidden="true">—</div>';
 
     el.innerHTML =

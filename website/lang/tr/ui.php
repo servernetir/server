@@ -1859,4 +1859,18 @@ return [
     'srv_strengths' => 'Güçlü yönler',
     'srv_weaknesses' => 'Dikkat edilmesi gerekenler',
     'srv_related' => 'İlgili sunucular',
+
+    // ── صفحات خطا (۴۲۹/۵۰۰/۵۰۳) ──
+    'err_wait_h1a' => 'Biraz',
+    'err_wait_h1b' => 'bekleyin',
+    'err_429_lead' => 'Kısa sürede çok fazla istek gönderdiniz ve geçici olarak sınırlandınız.',
+    'err_429_min' => 'dakika sonra tekrar deneyin.',
+    'err_429_soon' => 'Birkaç dakika sonra tekrar deneyin.',
+    'err_429_note' => 'Bu sınır kötüye kullanımı önlemek içindir ve hesabınızı etkilemez. Giriş kodunuz gelmediyse e-postanızı da kontrol edin.',
+    'err_500_h1a' => 'Bir hata',
+    'err_500_h1b' => 'oluştu',
+    'err_500_lead' => 'Tarafımızda bir sorun oluştu ve ekibimiz otomatik olarak bilgilendirildi. Ödeme yapıyorduysanız tutar tahsil edilmedi veya otomatik iade edilecek.',
+    'err_503_h1a' => 'Bakım',
+    'err_503_h1b' => 'yapılıyor',
+    'err_503_lead' => 'Site kısa süreliğine kullanılamıyor. Sunucularınız ve hizmetleriniz sorunsuz çalışmaya devam ediyor.',
 ];

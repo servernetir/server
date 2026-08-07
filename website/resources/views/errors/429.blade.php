@@ -8,7 +8,7 @@
 --}}
 @extends('layouts.site')
 
-@section('title', '۴۲۹ — '.__('ui.brand'))
+@section('title', fa_num(429).' — '.__('ui.brand'))
 
 @section('content')
 @php
@@ -27,21 +27,20 @@
       </div>
 
       <h1 class="reveal" style="transition-delay:.08s">
-        کمی <span class="grad">صبر کنید</span>
+        {{ __('ui.err_wait_h1a') }} <span class="grad">{{ __('ui.err_wait_h1b') }}</span>
       </h1>
 
       <p class="lead reveal" style="transition-delay:.16s">
-        درخواست‌های شما در بازهٔ کوتاهی زیاد بوده و موقتاً محدود شده‌اید.
+        {{ __('ui.err_429_lead') }}
         @if($retry > 0)
-          حدود <b>{{ fa_num((int) ceil($retry / 60) ?: 1) }}</b> دقیقهٔ دیگر دوباره تلاش کنید.
+          <b>{{ fa_num((int) ceil($retry / 60) ?: 1) }}</b> {{ __('ui.err_429_min') }}
         @else
-          چند دقیقهٔ دیگر دوباره تلاش کنید.
+          {{ __('ui.err_429_soon') }}
         @endif
       </p>
 
       <p class="lead reveal" style="transition-delay:.2s;font-size:14px;opacity:.8">
-        این محدودیت برای جلوگیری از سوءاستفاده است و روی حسابِ شما اثری ندارد.
-        اگر کدِ ورود دستتان نرسیده، صندوقِ ایمیل و پیام‌های بله را هم ببینید.
+        {{ __('ui.err_429_note') }}
       </p>
 
       <div class="hero-ctas reveal" style="transition-delay:.24s;justify-content:center">

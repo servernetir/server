@@ -18,9 +18,9 @@
         <span>0</span>
       </div>
 
-      <h1 class="reveal" style="transition-delay:.08s">خطایی <span class="grad">رخ داد</span></h1>
+      <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.err_500_h1a') }} <span class="grad">{{ __('ui.err_500_h1b') }}</span></h1>
 
-      <p class="lead reveal" style="transition-delay:.16s">مشکلی در سمتِ ما پیش آمد و تیم فنی خودکار خبردار شد. اگر در حالِ پرداخت بودید، مبلغ کسر نشده یا خودکار برمی‌گردد.</p>
+      <p class="lead reveal" style="transition-delay:.16s">{{ __('ui.err_500_lead') }}</p>
 
       <div class="hero-ctas reveal" style="transition-delay:.24s;justify-content:center">
         <a class="btn btn-primary" href="{{ route($p.'home') }}">

@@ -18,9 +18,9 @@
         <span>3</span>
       </div>
 
-      <h1 class="reveal" style="transition-delay:.08s">در حالِ <span class="grad">به‌روزرسانی</span></h1>
+      <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.err_503_h1a') }} <span class="grad">{{ __('ui.err_503_h1b') }}</span></h1>
 
-      <p class="lead reveal" style="transition-delay:.16s">سرویس چند لحظه در دسترس نیست. سرورها و سرویس‌های شما دست‌نخورده در حالِ کارند؛ فقط همین صفحه موقتاً بالا نمی‌آید.</p>
+      <p class="lead reveal" style="transition-delay:.16s">{{ __('ui.err_503_lead') }}</p>
 
       <div class="hero-ctas reveal" style="transition-delay:.24s;justify-content:center">
         <a class="btn btn-primary" href="{{ route($p.'home') }}">

@@ -1859,4 +1859,18 @@ return [
     'srv_strengths' => 'Strengths',
     'srv_weaknesses' => 'Worth noting',
     'srv_related' => 'Related servers',
+
+    // ── صفحات خطا (۴۲۹/۵۰۰/۵۰۳) ──
+    'err_wait_h1a' => 'Just a',
+    'err_wait_h1b' => 'moment',
+    'err_429_lead' => 'You have made too many requests in a short time and are temporarily limited.',
+    'err_429_min' => 'minutes and try again.',
+    'err_429_soon' => 'Please try again in a few minutes.',
+    'err_429_note' => 'This limit exists to prevent abuse and does not affect your account. If your login code has not arrived, check your email and Bale messages too.',
+    'err_500_h1a' => 'Something',
+    'err_500_h1b' => 'went wrong',
+    'err_500_lead' => 'Something broke on our side and our team was notified automatically. If you were paying, the amount was not charged or will be refunded automatically.',
+    'err_503_h1a' => 'Under',
+    'err_503_h1b' => 'maintenance',
+    'err_503_lead' => 'The site is briefly unavailable. Your servers and services keep running untouched — only this page is temporarily down.',
 ];
