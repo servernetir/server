@@ -109,6 +109,27 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
   say(r.valid === false && r.reason === 'no_text_message', 'بدنهٔ بی‌پیام بی‌خطا رد شد', r.reason);
 }
 
+// ── ۸ب) مسیرِ **مستقیم** — همان پاکت، بی‌پوششِ بله ──
+{
+  const r = run({ ...cfg, body: { envelope } })[0].json;
+  say(r.valid === true, 'پاکتِ مستقیم (بی‌بله) پذیرفته شد', r.valid ? '' : r.reason);
+  say(r.ipPanelBody?.code === 'u507b9k77p8oim0', 'مسیرِ مستقیم همان کدِ الگو را می‌دهد');
+  say(r.bale_message_id === null, 'بی‌شناسهٔ پیامِ بله — گرهٔ حذف نباید تلاش کند', String(r.bale_message_id));
+}
+
+// ── ۸ج) مسیرِ مستقیم هم بی‌امضای درست رد می‌شود ──
+{
+  const bad = envelope.slice(0, -1) + (envelope.slice(-1) === 'a' ? 'b' : 'a');
+  const r = run({ ...cfg, body: { envelope: bad } })[0].json;
+  say(r.valid === false && r.reason === 'bad_signature', 'مسیرِ مستقیم: امضای غلط رد شد', r.reason);
+}
+
+// ── ۸د) مسیرِ بله هنوز کار می‌کند (برگشت‌پذیری) ──
+{
+  const r = run(update(envelope))[0].json;
+  say(r.valid === true && r.bale_message_id === 5, 'مسیرِ بله دست‌نخورده کار می‌کند');
+}
+
 // ── ۹) متغیرِ جاافتاده ──
 {
   const miss = execFileSync('C:/php/php.exe', ['-r',

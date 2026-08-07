@@ -241,18 +241,45 @@ const out = (valid, extra = {}) => [{ json: {
   config,
 } }];
 
-if (!message || typeof message.text !== 'string') return out(false, { reason: 'no_text_message' });
-if (String(message.chat?.id ?? '') !== config.allowedRelayChatId) return out(false, { reason: 'chat_not_allowed' });
-if (String(message.from?.id ?? '') !== config.allowedSenderBotId) return out(false, { reason: 'sender_not_allowed' });
-
+/* ═══ دو حاملِ پذیرفته‌شده ═══
+ *
+ * ۱) **مستقیم** (`{ envelope: "SMS_RELAY_V1:…" }`) — مسیرِ فعال. پروژه خودش
+ *    به این وب‌هوک POST می‌کند.
+ * ۲) **بله** (`{ message: { text: "SMS_RELAY_V1:…" } }`) — مسیرِ قدیمی.
+ *
+ * 🔴 چرا مسیرِ بله کنار گذاشته شد: بله (مثلِ تلگرام که کپی‌اش است) پیامِ یک
+ *    ربات را به رباتِ دیگر تحویل نمی‌دهد. وب‌هوکِ رباتِ گیرنده درست ست بود،
+ *    `pending_update_count` صفر بود، رباتِ فرستنده پیام را در گروه می‌نوشت —
+ *    و n8n هیچ اجرایی نمی‌ساخت. آن زنجیره **هرگز** کامل نمی‌شد.
+ *
+ * ⚠️ مسیرِ بله عمداً پشتیبانی می‌شود تا اگر روزی سرورِ آلمان به این وب‌هوک
+ *    نرسید، برگشت به آن فقط یک خطِ `.env` باشد.
+ *
+ * ⚠️ در مسیرِ مستقیم بررسیِ «گروه» و «فرستنده» بی‌معناست و انجام نمی‌شود.
+ *    دروازه همان چیزی است که در هر دو مسیر دروازهٔ واقعی بود: **امضا**. راز
+ *    داخلِ پاکت نیست، پس دیدنِ یک پاکت به کسی اجازهٔ ساختِ پاکتِ تازه نمی‌دهد،
+ *    و پنجرهٔ زمانیِ پایین‌تر جلوی بازپخشِ همان پاکت را می‌گیرد.
+ */
 const PREFIX = 'SMS_RELAY_V1:';
-if (!message.text.startsWith(PREFIX)) return out(false, { reason: 'unsupported_message' });
+let raw;
+
+if (typeof update.envelope === 'string') {
+  raw = update.envelope;
+} else if (message && typeof message.text === 'string') {
+  if (String(message.chat?.id ?? '') !== config.allowedRelayChatId) return out(false, { reason: 'chat_not_allowed' });
+  if (String(message.from?.id ?? '') !== config.allowedSenderBotId) return out(false, { reason: 'sender_not_allowed' });
+
+  raw = message.text;
+} else {
+  return out(false, { reason: 'no_text_message' });
+}
+
+if (!raw.startsWith(PREFIX)) return out(false, { reason: 'unsupported_message' });
 
 // ═══ امضا ═══
 // 🔴 HMAC روی **رشتهٔ Base64** زده می‌شود، نه روی JSON خام — چون هر تفاوتِ
 //    ریزِ کدگذاری بینِ PHP و JS امضا را می‌شکند.
-// ⚠️ راز داخلِ payload نیست: فقط امضا را می‌سازد.
-const rest = message.text.slice(PREFIX.length).trim();
+const rest = raw.slice(PREFIX.length).trim();
 const dot = rest.lastIndexOf('.');
 if (dot < 1) return out(false, { reason: 'malformed_envelope' });
 

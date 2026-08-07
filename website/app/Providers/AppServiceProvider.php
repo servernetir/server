@@ -71,6 +71,15 @@ class AppServiceProvider extends ServiceProvider
                     config('services.sms.bale_relay.secret'),
                     (string) config('services.sms.bale_relay.base', 'https://tapi.bale.ai'),
                 ),
+                /*
+                | ✅ مسیرِ فعال — همان پاکت و همان امضا، ولی مستقیم به وب‌هوکِ
+                | n8n. حلقهٔ بله حذف شد چون بله پیامِ ربات را به ربات تحویل
+                | نمی‌دهد و آن زنجیره هرگز کامل نمی‌شد.
+                */
+                'n8n_relay' => new \App\Services\Sms\N8nRelaySender(
+                    config('services.sms.n8n_relay.url'),
+                    config('services.sms.n8n_relay.secret'),
+                ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),
                     config('services.sms.kavenegar.template'),
