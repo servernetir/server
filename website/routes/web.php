@@ -1273,6 +1273,24 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     } catch (\Throwable) {
     }
 
+    /*
+    | اسنادِ حقوقی — بی‌این، **هیچ مشتری‌ای قوانین را نپذیرفته**.
+    |
+    | `recordAcceptance()` از این جدول می‌خواند تا ثبت کند کاربر کدام نسخه را
+    | پذیرفته. جدولِ خالی یعنی حلقه روی مجموعهٔ خالی می‌چرخد، هیچ استثنایی
+    | پرتاب نمی‌شود، و `legal_acceptances` برای همیشه خالی می‌مانَد — پس سقفِ
+    | مسئولیت و جدولِ SLA روی پذیرشی می‌ایستند که هیچ مدرکی ندارد.
+    |
+    | ⚠️ نسخه از هشِ خودِ متن ساخته می‌شود، پس ویرایشِ قوانین خودبه‌خود نسخهٔ
+    | تازه می‌سازد و پذیرشِ قبلی‌ها دست‌نخورده می‌مانَد.
+    */
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('legal_documents')) {
+            (new \Database\Seeders\LegalDocumentSeeder())->run();
+        }
+    } catch (\Throwable) {
+    }
+
     // کاتالوگِ سرورِ فیزیکی — insert-missing از config. هر بار امن است (اسلاگِ
     // موجود را دست نمی‌زند)، پس مدل‌های تازهٔ config در هر دیپلوی سینک می‌شوند.
     try {
