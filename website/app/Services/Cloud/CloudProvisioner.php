@@ -222,6 +222,10 @@ class CloudProvisioner
 
         if (! ($result['ok'] ?? false)) {
             $instance->update(['status' => 'error', 'last_error' => mb_substr((string) $result['message'], 0, 500)]);
+
+            // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+            $this->quarantineProvider($plan, (string) $result['message']);
+
             $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$result['message'], 0, 290));
 
             return false;
@@ -607,6 +611,126 @@ class CloudProvisioner
 
     // ───────────────────────── وضعیت‌ها ─────────────────────────
 
+    /**
+     * پلن‌های یک زیرساخت را از فروش بردار، وقتی خودِ **حساب** خراب است.
+     *
+     * ═══ 🔴 چرا این لازم شد ═══
+     *
+     * دو سفارشِ واقعی شکست خوردند با این پیام‌ها:
+     *
+     *   «You don't have enough permissions for this action»
+     *   «Proxy internal server error» (HTTP 500)
+     *
+     * هیچ‌کدام گذرا نبودند: توکن دسترسی نداشت و حساب اعتبار نداشت. ولی پلن‌ها
+     * سرِ جایشان در فروشگاه ماندند، پس **هر مشتریِ بعدی هم همان تجربه را
+     * می‌گرفت**: پول از کیفِ پول کسر می‌شد و سروری تحویل نمی‌شد.
+     *
+     * قاعده‌ای که کارفرما گذاشت و درست است: «یا حتماً تحویل شود، یا اصلاً برای
+     * فروش موجود نباشد.» این متد نیمهٔ دومش را خودکار می‌کند.
+     *
+     * ⚠️ فقط برای خطاهای **ساختاری**. خطای گذرا (ظرفیتِ لحظه‌ای، تایم‌اوت) نباید
+     * کاتالوگ را ببندد، وگرنه یک قطعیِ دو دقیقه‌ای فروشِ یک زیرساخت را تا
+     * دخالتِ دستی می‌خواباند.
+     *
+     * ⚠️ `admin_disabled` عمداً ست می‌شود نه `is_active`: کرونِ سینک هرگز
+     * `admin_disabled` را لمس نمی‌کند، پس تصمیم تا وقتی مدیر بازش نکند
+     * برنمی‌گردد. با `is_active`، سینکِ دو روزه بی‌صدا دوباره بازش می‌کرد.
+     */
+    private function quarantineProvider(CloudPlan $plan, string $message): void
+    {
+        $structural = [
+            'permission',      // توکن دسترسیِ لازم را ندارد
+            'unauthor',        // unauthorized / unauthenticated
+            'forbidden',
+            'invalid token',
+            'proxy_internal_server_error',
+            'insufficient',    // موجودیِ حساب
+            'balance',
+            'payment',
+            'quota',
+        ];
+
+        $needle = mb_strtolower($message);
+        $hit = null;
+
+        foreach ($structural as $s) {
+            if (str_contains($needle, $s)) {
+                $hit = $s;
+                break;
+            }
+        }
+
+        if ($hit === null) {
+            return;
+        }
+
+        $note = 'خودکار بسته شد: زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
+
+        $closed = CloudPlan::query()
+            ->where('provider', $plan->provider)
+            ->where('admin_disabled', false)
+            ->update(['admin_disabled' => true, 'admin_note' => mb_substr($note, 0, 250)]);
+
+        if ($closed === 0) {
+            return;
+        }
+
+        \App\Support\ErrorTracker::note('cloud',
+            'فروشِ '.$closed.' پلنِ یک زیرساخت خودکار بسته شد — '.$note);
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+                'تعداد پلن' => (string) $closed,
+                'علت'       => mb_substr($message, 0, 200),
+                'اقدام'     => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید، بعد از /admin/cloud دوباره بازشان کنید.',
+            ], url('/admin/cloud'), '🛑');
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * پولِ کسرشده را برگردان، وقتی تحویل انجام نشد.
+     *
+     * 🔴 `orderHourly()` ساعتِ اول را **پیش از** تحویل از کیفِ پول کم می‌کند.
+     * اگر تحویل شکست بخورد و برنگردانیم، مشتری پول داده و چیزی نگرفته — بدترین
+     * تجربهٔ ممکن، و از دستِ خودش هم کاری برنمی‌آید.
+     *
+     * ⚠️ فقط یک بار: کرون ممکن است چند بار `fail()` بزند و بی‌این محافظ، هر بار
+     * یک برگشتِ تازه می‌خورد و اعتبارِ مشتری بی‌دلیل بالا می‌رفت.
+     */
+    private function refundIfPrepaid(Service $service): void
+    {
+        if ($service->billing_mode !== 'hourly' || (int) $service->hourly_rate_irt <= 0) {
+            return;
+        }
+
+        $already = \App\Models\CreditEntry::where('customer_id', $service->customer_id)
+            ->where('reason', 'cloud_hourly_refund')
+            ->where('note', 'like', '%#'.$service->id.'%')
+            ->exists();
+
+        if ($already || $service->customer === null) {
+            return;
+        }
+
+        try {
+            $amount = (int) $service->hourly_rate_irt;
+
+            \App\Models\CreditEntry::create([
+                'customer_id'   => $service->customer_id,
+                'currency_code' => 'IRT',
+                'amount'        => $amount,
+                'balance_after' => $service->customer->creditBalance('IRT') + $amount,
+                'reason'        => 'cloud_hourly_refund',
+                'source_type'   => Service::class,
+                'source_id'     => $service->id,
+                'note'          => 'بازگشتِ ساعتِ اول — تحویل انجام نشد (سرویس #'.$service->id.')',
+            ]);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('cloud', $e, ['area' => 'hourly-refund', 'service' => $service->id]);
+        }
+    }
+
     private function fail(Service $service, string $reason): void
     {
         $service->forceFill([
@@ -638,6 +762,10 @@ class CloudProvisioner
         | ⚠️ علتِ فنی فقط به مدیر می‌رود: پیامِ خامِ زیرساخت ممکن است نامِ
         | تأمین‌کننده را لو بدهد و سفیدبرچسبی را بشکند.
         */
+        // پولِ پیش‌گرفته‌شده برگردد — پیش از هر اعلانی، تا اگر اعلان شکست
+        // خورد هم مشتری پولش را پس گرفته باشد
+        $this->refundIfPrepaid($service);
+
         \App\Support\ErrorTracker::note('provision',
             'تحویلِ سرورِ ابری ناموفق: '.$reason, ['service' => $service->id]);
 
