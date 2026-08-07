@@ -164,6 +164,57 @@
             </label>
           @endif
         </div>
+        {{-- زیرساختِ ۵ — Proxmox VE: میزبانِ خودمان در ایران، برای Exit VPS.
+             فقط Token Secret رمزنگاری‌شده ذخیره می‌شود؛ بقیه کانفیگِ ساده‌اند و
+             اگر خالی بمانند از پیش‌فرضِ درایور استفاده می‌شود. برای «تعویضِ»
+             میزبان کافی است API URL را عوض کنید — نیازی به دیپلوی نیست. --}}
+        <div style="grid-column:1/-1;border:1px solid var(--line2);border-radius:11px;padding:14px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+            <b style="font-size:13.5px">زیرساختِ ۵ — Proxmox (تهران)</b>
+            @if($cloud['proxmox'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">توکن ذخیره‌شده</span>@endif
+          </div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.9;margin-bottom:10px">
+            میزبانِ Proxmoxِ خودمان برای «Exit VPS». فقط <b>Token Secret</b> رمزنگاری‌شده
+            ذخیره می‌شود؛ بقیهٔ مقادیر کانفیگِ ساده‌اند و اگر خالی بمانند از پیش‌فرض
+            استفاده می‌شود. توکن را در پنلِ Proxmox زیرِ
+            <span dir="ltr">Datacenter → Permissions → API Tokens</span> بسازید.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label class="set-f">API URL
+              <input type="text" name="proxmox_api_url" dir="ltr" maxlength="200"
+                     value="{{ $cloud['px']['api_url'] }}" placeholder="https://85.9.108.118:8006/api2/json"></label>
+            <label class="set-f">Node
+              <input type="text" name="proxmox_node" dir="ltr" maxlength="64"
+                     value="{{ $cloud['px']['node'] }}" placeholder="ir"></label>
+            <label class="set-f">Token ID
+              <input type="text" name="proxmox_token_id" dir="ltr" maxlength="120"
+                     value="{{ $cloud['px']['token_id'] }}" placeholder="svc-controller@pve!provisioner"></label>
+            <label class="set-f">Token Secret
+              <input type="password" name="proxmox_token_secret" dir="ltr" autocomplete="new-password" maxlength="200"
+                     placeholder="{{ $cloud['proxmox'] ? '••••••••  خالی = بدونِ تغییر' : 'UUIDِ توکن' }}"></label>
+            <label class="set-f">Template VMID
+              <input type="number" name="proxmox_template_vmid" dir="ltr" min="1"
+                     value="{{ $cloud['px']['template'] }}" placeholder="9002"></label>
+            <label class="set-f">Storage
+              <input type="text" name="proxmox_storage" dir="ltr" maxlength="64"
+                     value="{{ $cloud['px']['storage'] }}" placeholder="vmstoreid"></label>
+            <label class="set-f">Bridge
+              <input type="text" name="proxmox_bridge" dir="ltr" maxlength="32"
+                     value="{{ $cloud['px']['bridge'] }}" placeholder="vmbr1"></label>
+            <label class="set-f">Gateway
+              <input type="text" name="proxmox_gateway" dir="ltr" maxlength="45"
+                     value="{{ $cloud['px']['gateway'] }}" placeholder="10.10.10.1"></label>
+            <label class="set-f">IP شروع
+              <input type="text" name="proxmox_ip_start" dir="ltr" maxlength="45"
+                     value="{{ $cloud['px']['ip_start'] }}" placeholder="10.10.10.60"></label>
+          </div>
+          @if($cloud['proxmox'])
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" name="proxmox_forget" value="1">
+              <span>توکن را فراموش کن</span>
+            </label>
+          @endif
+        </div>
         <label class="set-f">حاشیهٔ سودِ سرورِ ابری (٪)
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>
