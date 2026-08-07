@@ -184,9 +184,19 @@
         body: JSON.stringify({ domain: v }),
       });
       const d = await res.json();
-      if (d && d.available) {
+
+      /*
+       * 🔴 پاسخ داخلِ `result` است، نه سطحِ بالا.
+       *
+       * قبلاً `d.available` خوانده می‌شد که همیشه `undefined` است، پس شرط
+       * همیشه false می‌شد و کاربر برای **هر** دامنه — حتی کاملاً آزاد — پیامِ
+       * قرمزِ «این دامنه قبلاً ثبت شده» می‌گرفت. هیچ خطایی هم تولید نمی‌شد.
+       */
+      const r = (d && d.result) || d;
+
+      if (r && r.available) {
         // استخراج عدد از رشته قیمت فرمت‌شده (فارسی: تومان صحیح، لاتین: یورو اعشاری)
-        const latin = String(d.price || '').replace(/[۰-۹]/g, (ch) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(ch));
+        const latin = String(r.price || '').replace(/[۰-۹]/g, (ch) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(ch));
         let val = 0;
         if (I.fa) { val = parseInt(latin.replace(/[^\d]/g, ''), 10) || 0; }
         else { const m = latin.replace(/,/g, '').match(/[\d.]+/); val = m ? parseFloat(m[0]) : 0; }

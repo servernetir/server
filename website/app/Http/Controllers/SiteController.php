@@ -175,6 +175,21 @@ class SiteController extends Controller
         }
         $add('hub.dns');
         $add('hub.network');
+
+        /*
+        | ⚠️ سرورِ ابری کاملاً از نقشهٔ سایت جا افتاده بود — صفحاتی که بیشترین
+        | متنِ سئوی یکتا برایشان نوشته شده (چرا این مکان، تأخیر تقریبی، مناسبِ
+        | چه کاری) و خودِ صفحهٔ اصلیِ فروشِ سرورِ مجازی.
+        |
+        | ⚠️ پشتِ `hasTable` است تا روی سرورِ مهاجرت‌نخورده نقشه ۵۰۰ ندهد.
+        */
+        $add('cloud.index');
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
+            foreach (\App\Models\CloudLocation::where('is_active', true)->pluck('code') as $code) {
+                $add('cloud.location', $code);
+            }
+        }
         $add('blog.index');
         foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
             $add('blog', $post['slug'], $post['date'] ?? null);

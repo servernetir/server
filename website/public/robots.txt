@@ -1,7 +1,15 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /en/api/
+Disallow: /tr/api/
 Disallow: /system/
+
+# ⚠️ صفحاتِ ماک سه‌زبانه‌اند (چون در closureِ $site ثبت شده‌اند) ولی فقط
+#    نسخهٔ فارسی مسدود بود. نسخهٔ en/tr پر از متنِ فارسی و دادهٔ جعلی است و
+#    نامِ یک شخصِ واقعی را نشان می‌دهد.
 Disallow: /panel-preview
+Disallow: /en/panel-preview
+Disallow: /tr/panel-preview
 
 Sitemap: https://servernet.cloud/sitemap.xml
