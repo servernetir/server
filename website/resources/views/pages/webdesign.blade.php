@@ -31,6 +31,33 @@
   $city  = $lx($w['city']);
   $mail  = 'mailto:'.$w['email'];
   $faqLd = array_map(fn ($f) => ['q' => $lx($f['q']), 'a' => $lx($f['a'])], $w['faq']['items']);
+
+  /*
+  | قیمت — فارسی تومان، en/tr یورو.
+  |
+  | ⚠️ عمداً `site_price()` نیست: آن `price_factor()`ِ سراسریِ هاست را ضرب
+  |    می‌کند و ضریبی که مدیر برای پکیج‌های میزبانی می‌گذارد نباید قیمتِ
+  |    خدماتِ طراحی را جابه‌جا کند. این‌جا هیچ نرخِ ارزی هم دخیل نیست، پس
+  |    قطعیِ سرویسِ نرخ نمی‌تواند صفحه را به «—» تبدیل کند.
+  */
+  $pct = (int) ($w['pricing']['discount_pct'] ?? 0);
+
+  $money = function (array $p, bool $discounted = false) use ($isFa, $pct) {
+      $f = $discounted ? (100 - $pct) / 100 : 1;
+
+      if ($isFa) {
+          // گردکردن به نزدیک‌ترین ۱۰۰٬۰۰۰ تومان تا عدد عمدی به نظر برسد
+          $v = (int) round(((int) $p['irt']) * $f, -5);
+
+          return fa_num(number_format($v)).' تومان';
+      }
+
+      return '€'.number_format((int) round(((int) $p['eur']) * $f));
+  };
+
+  // «از» فقط روی پلنی که سقفش بعد از جلسهٔ شناخت مشخص می‌شود
+  $from = fn (array $p, string $s) => empty($p['from']) ? $s
+      : ($isFa ? 'از '.$s : ($loc === 'tr' ? $s.' üzeri' : 'from '.$s));
 @endphp
 
 {{-- ═══ قهرمان ═══ --}}
@@ -77,7 +104,9 @@
       <p>{!! $md($lx($w['problem']['lead'])) !!}</p>
     </div>
 
-    <div class="sol-feat-grid">
+    {{-- ⚠️ `cols-4` لازم است: پیش‌فرضِ `.sol-feat-grid` سه‌ستونه است، پس چهار
+         کارت «۳+۱» می‌شد و کارتِ چهارم عملاً از دیدِ کاربر می‌افتاد. --}}
+    <div class="sol-feat-grid cols-4">
       @foreach($w['problem']['items'] as $p)
       <div class="sol-feat reveal">
         <span class="sol-feat-ic"><svg class="icon"><use href="#i-info"/></svg></span>
@@ -98,7 +127,7 @@
       <p>{{ $lx($w['services']['lead']) }}</p>
     </div>
 
-    <div class="sol-feat-grid">
+    <div class="sol-feat-grid cols-4">
       @foreach($w['services']['items'] as $s)
       <div class="sol-feat reveal">
         <span class="sol-feat-ic"><svg class="icon"><use href="#{{ $s['icon'] }}"/></svg></span>
@@ -125,7 +154,15 @@
         @if($p['popular'])<span class="sol-plan-tag">{{ __('ui.popular') }}</span>@endif
         <h3>{{ $lx($p['name']) }}</h3>
         <p class="sol-plan-tag2">{{ $lx($p['for']) }}</p>
-        <div class="sol-plan-price"><b dir="ltr">{{ $lx($p['price']) }}</b></div>
+
+        {{-- قیمتِ پیشین خط‌خورده تا اندازهٔ تخفیف واقعاً دیده شود --}}
+        <div class="wd-price">
+          @if($pct > 0)
+            <span class="wd-was">{{ $from($p['price'], $money($p['price'])) }}</span>
+            <span class="wd-off">{{ $lx($w['pricing']['discount_badge']) }}</span>
+          @endif
+          <b>{{ $from($p['price'], $money($p['price'], true)) }}</b>
+        </div>
         <ul class="sol-plan-feats">
           @foreach($p['features'] as $f)
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $lx($f) }}</li>
@@ -137,7 +174,16 @@
       @endforeach
     </div>
 
-    <p class="sol-plans-note reveal">{!! $md($lx($w['pricing']['care'])) !!}</p>
+    @php
+      $care = strtr($lx($w['pricing']['care']['text']), [
+          '{a}' => $money($w['pricing']['care']['hosting'], true),
+          '{b}' => $money($w['pricing']['care']['social'], true),
+      ]);
+    @endphp
+    <p class="sol-plans-note reveal">{!! $md($care) !!}</p>
+    @if($pct > 0)
+      <p class="sol-plans-note reveal" style="margin-top:8px">{!! $md($lx($w['pricing']['discount_note'])) !!}</p>
+    @endif
   </div>
 </section>
 
@@ -237,7 +283,9 @@
       'description' => $lx($w['meta']['desc']),
       'url' => url()->current(),
       'email' => $w['email'],
-      'priceRange' => '€€',
+      // ⚠️ در نسخهٔ فارسی نمادِ یورو نمی‌گذاریم: کسب‌وکارِ محلیِ ارومیه که در
+      //    نتایج گوگل «€€» بخورد، به مشتریِ ایرانی پیامِ اشتباه می‌دهد.
+      'priceRange' => $isFa ? '﷼﷼' : '€€',
       'areaServed' => [
           [$T => 'City', 'name' => $city],
           [$T => 'Country', 'name' => $isFa ? 'ایران' : 'Iran'],

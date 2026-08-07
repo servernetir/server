@@ -127,10 +127,33 @@ return [
             'en' => "Every website package includes one year of managed hosting — because I'd rather host it properly than watch it break somewhere else.",
             'tr' => 'Her web sitesi paketi bir yıl yönetilen hosting içerir — başka yerde bozulmasını izlemektense düzgün barındırmayı tercih ederim.',
         ],
+        /*
+        | 🔴 قیمتِ تومانی **تبدیلِ یورو نیست** — قیمتِ مستقلِ بازارِ ایران است.
+        |
+        | نرخِ زندهٔ سایت حدودِ ۲۱۸٬۰۰۰ تومان به ازای هر یوروست، یعنی €۱٬۴۰۰ می‌شود
+        | ~۳۰۵ میلیون تومان. هیچ کسب‌وکارِ کوچکی در ارومیه آن را نمی‌پردازد، و
+        | چون کلِ هدفِ این صفحه ورودیِ محلی است، تبدیلِ مستقیم دقیقاً همان هدف را
+        | می‌کُشد. پس دو ستونِ قیمت داریم: `irt` برای مشتریِ ایرانی و `eur` برای
+        | مشتریِ اروپا/ترکیه — هر کدام برای بازارِ خودش.
+        |
+        | ⚠️ عمداً از `site_price()` استفاده نمی‌شود: آن `price_factor()`ِ سراسریِ
+        | هاست را ضرب می‌کند، و ضریبی که مدیر برای پکیج‌های میزبانی تنظیم می‌کند
+        | نباید قیمتِ خدماتِ طراحی را جابه‌جا کند.
+        |
+        | ⚠️ به‌روزرسانی: این اعداد لنگرِ تومانی‌اند و با تورم کهنه می‌شوند.
+        |    فقط همین چند خط را عوض کن — ویو خودش تخفیف را حساب می‌کند.
+        */
+        'discount_pct' => 20,
+        'discount_badge' => ['fa' => '٪۲۰ تخفیف', 'en' => '20% off', 'tr' => '%20 indirim'],
+        'discount_note' => [
+            'fa' => 'تخفیفِ **راه‌اندازی** — برای پروژه‌هایی که تا پایانِ فصل ثبت شوند.',
+            'en' => '**Launch discount** — for projects booked before the end of the quarter.',
+            'tr' => '**Lansman indirimi** — çeyrek sonuna kadar rezerve edilen projeler için.',
+        ],
         'plans' => [
             [
                 'name' => ['fa' => 'شروع', 'en' => 'Starter', 'tr' => 'Başlangıç'],
-                'price' => '€1,400', 'popular' => false,
+                'price' => ['irt' => 48_000_000, 'eur' => 1400], 'popular' => false,
                 'for' => ['fa' => 'کسب‌وکار کوچک، مطب یا کلینیک تک‌شعبه', 'en' => 'Small business, single-location clinic', 'tr' => 'Küçük işletme, tek şubeli klinik'],
                 'features' => [
                     ['fa' => 'تا ۶ صفحه، یک زبان', 'en' => 'Up to 6 pages, one language', 'tr' => '6 sayfaya kadar, tek dil'],
@@ -144,7 +167,7 @@ return [
             ],
             [
                 'name' => ['fa' => 'کسب‌وکار', 'en' => 'Business', 'tr' => 'İşletme'],
-                'price' => '€2,900', 'popular' => true,
+                'price' => ['irt' => 105_000_000, 'eur' => 2900], 'popular' => true,
                 'for' => ['fa' => 'کلینیک چندشعبه، شرکت متوسط', 'en' => 'Multi-location clinic, mid-size company', 'tr' => 'Çok şubeli klinik, orta ölçekli şirket'],
                 'features' => [
                     ['fa' => 'تا ۱۵ صفحه، ۲ تا ۳ زبان', 'en' => 'Up to 15 pages, 2–3 languages', 'tr' => '15 sayfaya kadar, 2–3 dil'],
@@ -159,7 +182,8 @@ return [
             ],
             [
                 'name' => ['fa' => 'اختصاصی', 'en' => 'Custom', 'tr' => 'Özel'],
-                'price' => ['fa' => 'از €۶٬۵۰۰', 'en' => 'from €6,500', 'tr' => '€6.500 üzeri'], 'popular' => false,
+                // `from` یعنی «شروع از» — سقفش بعد از جلسهٔ شناخت مشخص می‌شود
+                'price' => ['irt' => 260_000_000, 'eur' => 6500, 'from' => true], 'popular' => false,
                 'for' => ['fa' => 'پورتال، پلتفرم، ERP، زیرساخت', 'en' => 'Portals, platforms, ERP, infrastructure', 'tr' => 'Portallar, platformlar, ERP, altyapı'],
                 'features' => [
                     ['fa' => 'پورتال مشتری و اپلیکیشن وب', 'en' => 'Client portals & web applications', 'tr' => 'Müşteri portalları ve web uygulamaları'],
@@ -172,10 +196,20 @@ return [
                 'cta' => ['fa' => 'رزرو جلسهٔ شناخت', 'en' => 'Book a discovery call', 'tr' => 'Keşif görüşmesi ayarla'],
             ],
         ],
+        /*
+        | ⚠️ عددها این‌جا هم داده‌اند نه متن، تا **همان** تخفیفِ بالا رویشان بخورد.
+        |    اگر در جمله سخت‌کد می‌شدند، روزی که `discount_pct` عوض شود این خط
+        |    بی‌صدا قیمتِ قدیمی را نشان می‌داد — و مشتری قیمتِ کارت را با قیمتِ
+        |    این خط مقایسه می‌کند.
+        */
         'care' => [
-            'fa' => '**نگهداری ماهانه** از €۹۰ در ماه — میزبانی، SSL، بکاپ روزانه، به‌روزرسانی امنیتی و پایش پایداری. **مدیریت شبکه‌های اجتماعی** از €۶۵۰ در ماه.',
-            'en' => '**Ongoing care** from €90/month — hosting, SSL, daily backups, security updates and uptime monitoring. **Social media management** from €650/month.',
-            'tr' => '**Sürekli bakım** aylık €90’dan — hosting, SSL, günlük yedekleme, güvenlik güncellemeleri ve izleme. **Sosyal medya yönetimi** aylık €650’den.',
+            'hosting' => ['irt' => 3_500_000, 'eur' => 90],
+            'social' => ['irt' => 18_000_000, 'eur' => 650],
+            'text' => [
+                'fa' => '**نگهداری ماهانه** از {a} در ماه — میزبانی، SSL، بکاپ روزانه، به‌روزرسانی امنیتی و پایش پایداری. **مدیریت شبکه‌های اجتماعی** از {b} در ماه.',
+                'en' => '**Ongoing care** from {a}/month — hosting, SSL, daily backups, security updates and uptime monitoring. **Social media management** from {b}/month.',
+                'tr' => '**Sürekli bakım** aylık {a}’dan — hosting, SSL, günlük yedekleme, güvenlik güncellemeleri ve izleme. **Sosyal medya yönetimi** aylık {b}’den.',
+            ],
         ],
     ],
 
@@ -238,7 +272,14 @@ return [
             ],
             [
                 'q' => ['fa' => 'پرداخت چطور است؟', 'en' => 'How do payments work?', 'tr' => 'Ödemeler nasıl işliyor?'],
-                'a' => ['fa' => 'حواله بانکی به یورو، یا تتر اگر ترجیح می‌دهید. پروژه تا €۳٬۰۰۰: ۵۰٪ شروع، ۵۰٪ تحویل. بالاتر از آن: ۴۰ / ۳۰ / ۳۰. طرح‌های ماهانه پیش‌پرداخت است.', 'en' => 'Bank transfer in EUR, or USDT if you prefer. Projects up to €3,000: 50% to start, 50% on delivery. Above that: 40 / 30 / 30. Monthly plans are paid in advance.', 'tr' => 'EUR banka havalesi veya isterseniz USDT. €3.000’a kadar: %50 başlangıç, %50 teslim. Üzeri: 40 / 30 / 30. Aylık planlar peşin.'],
+                /*
+                | ⚠️ پاسخِ فارسی عمداً ترجمهٔ پاسخِ انگلیسی نیست.
+                |    مشتریِ ایرانی به تومان و از راهِ کارت/حواله پرداخت می‌کند؛
+                |    «حواله بانکی به یورو یا تتر» برای او هم بی‌ربط است هم
+                |    نگران‌کننده. زبان که عوض می‌شود، گاهی **واقعیتِ کسب‌وکار**
+                |    هم عوض می‌شود، نه فقط کلمه‌ها.
+                */
+                'a' => ['fa' => 'کارت‌به‌کارت یا واریز به حساب، به تومان — فاکتور رسمی هم صادر می‌شود. پروژه تا ۱۰۰ میلیون تومان: ۵۰٪ شروع، ۵۰٪ تحویل. بالاتر از آن: ۴۰ / ۳۰ / ۳۰. طرح‌های ماهانه پیش‌پرداخت است.', 'en' => 'Bank transfer in EUR, or USDT if you prefer. Projects up to €3,000: 50% to start, 50% on delivery. Above that: 40 / 30 / 30. Monthly plans are paid in advance.', 'tr' => 'EUR banka havalesi veya isterseniz USDT. €3.000’a kadar: %50 başlangıç, %50 teslim. Üzeri: 40 / 30 / 30. Aylık planlar peşin.'],
             ],
             [
                 'q' => ['fa' => 'اگر از قبل سایت داشته باشم چه؟', 'en' => 'What if I already have a website?', 'tr' => 'Zaten bir sitem varsa?'],

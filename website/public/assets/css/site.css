@@ -2854,3 +2854,25 @@ html[data-theme="light"] .sol-uc{ background:#fff }
    دیده می‌شدند، یک **تصادف** بود: ۱۱۰ در برابرِ هدرِ ۱۱۱ پیکسلی، یعنی یک پیکسل
    زیرِ هدر. حالا فضای هدر را `#main` می‌دهد و این‌جا فقط فاصلهٔ تزئینی می‌مانَد. */
 #main > .section:first-child{ padding-top:34px }
+
+/* ============ /webdesign — صفحهٔ فرودِ شخصی ============ */
+
+/* 🔴 چهار کارت در یک ردیف.
+   `.sol-feat-grid` پیش‌فرض سه‌ستونه است، پس بخشِ «مسئلهٔ واقعی» و «خدمات» که
+   هرکدام چهار کارت دارند «۳+۱» می‌شدند: کارتِ چهارم تنها می‌افتاد پایین و در
+   نگاهِ اول اصلاً دیده نمی‌شد.
+   ⚠️ با کلاس حل شده نه استایلِ درون‌خطی — استایلِ درون‌خطی از مدیاکوئری‌های
+   موبایلِ همین فایل قوی‌تر است و روی گوشی دو ستونِ فشرده می‌ساخت. */
+.sol-feat-grid.cols-4{grid-template-columns:repeat(4,1fr);gap:16px}
+.sol-feat-grid.cols-4 .sol-feat{padding:24px 20px}
+.sol-feat-grid.cols-4 .sol-feat h3{font-size:17px}
+.sol-feat-grid.cols-4 .sol-feat-ic{width:46px;height:46px;border-radius:13px;margin-bottom:14px}
+@media(max-width:1100px){.sol-feat-grid.cols-4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.sol-feat-grid.cols-4{grid-template-columns:1fr}}
+
+/* قیمت با تخفیف — عددِ پیشین باید دیده شود وگرنه تخفیف فقط یک ادعاست */
+.wd-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-top:14px}
+.wd-price b{display:block;width:100%;font-family:var(--font-disp);font-size:27px;line-height:1.25}
+.wd-was{font-size:14px;color:var(--dim);text-decoration:line-through;text-decoration-thickness:1.5px}
+.wd-off{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:99px;
+  color:#04121A;background:linear-gradient(100deg,#22D3EE,#8B5CF6)}
