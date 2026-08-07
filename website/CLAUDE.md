@@ -853,6 +853,40 @@ domains:renew      (هر دقیقه)          DomainRegistrar::renewPaid()
 چه کانالی» است و صفحه از رویش می‌گوید کدام الگو هنوز مصرف نمی‌شود. **هر بار
 کلیدی را به فراخوانی وصل کردی، این نقشه را هم به‌روز کن** وگرنه صفحه دروغ می‌گوید.
 
+### 🔴 مسیرِ غلطِ `config()` = درایورِ خاموش، بی‌هیچ خطایی
+
+بلوکِ `bale_relay` در `config/services.php` کنارِ `ippanel` و `kavenegar`
+**داخلِ** آرایهٔ `sms` است، ولی `AppServiceProvider` مسیرِ سطحِ بالای
+`services.bale_relay` را می‌خواند. زنجیره:
+
+```
+.env درست ✓ → env() درست ✓ → config() خالی ✗
+  → BaleRelaySender::enabled() کاذب
+  → سقوطِ بی‌صدا به LogSmsSender
+```
+
+یعنی سایت می‌گفت «کد ارسال شد»، `/system/sms-status` می‌گفت
+`driver_requested: bale_relay` ولی `driver_active: log`، و **هیچ پیامکی نمی‌رفت**.
+یک شبانه‌روز طول کشید تا پیدا شود، چون هر سه سوءظنِ طبیعی غلط بودند: `.env` سالم
+بود، کشِ config خاموش بود، و فایلِ `services.php` روی سرور تازه بود.
+
+⚠️ **چرا هیچ‌کدام از ۱۱۸۶ تست نگرفتش:** همه مقدار را با `config([...])` دستی ست
+می‌کردند و `config()` **هر مسیری را که نام ببری می‌سازد**. پس تست، مسیرِ غلط را
+خودش به‌وجود می‌آورد و سبز می‌شد. **تستی که پیکربندی را خودش ست می‌کند، هرگز
+سیم‌کشیِ config را نمی‌سنجد.**
+
+دو تستِ محافظ در `tests/Feature/BaleSmsRelayTest.php`:
+`test_the_relay_block_sits_where_the_provider_looks_for_it` (فایلِ واقعی را
+می‌خواند و چیزی ست نمی‌کند) و
+`test_the_driver_registry_actually_resolves_the_relay` (خودِ `match` در
+`AppServiceProvider` را می‌دواند و می‌سنجد `name()` برابرِ `bale-relay` است نه
+`log`). **هر درایورِ تازه‌ای که اضافه کردی، جفتِ همین دو تست را هم بنویس.**
+
+عیب‌یابی: `/system/sms-status` بخشِ `bale_relay` حالا `env_lines` (شمارشِ خطِ هر
+کلید در `.env`: ۰ نیست · ۱ هست · ۲+ تلهٔ phpDotenv) و `env_direct` (خواندنِ
+مستقیم، بی‌عبور از config) دارد. اگر `env_direct` درست باشد و ستونِ config غلط،
+مشکل **قطعاً** در لایهٔ config است نه `.env`. فقط بولین برمی‌گردد، هیچ مقداری.
+
 ### لاگِ چرخهٔ عمرِ سرویس
 
 `ActivityLog` حالا `service_id` دارد. برای رویدادِ سرویس‌محور
