@@ -200,7 +200,12 @@
                 <span class="ad-badge" style="background:{{ $pb[1] }}22;color:{{ $pb[1] }}">{{ $pb[0] }}</span>
                 @if($s->server)<small dir="ltr" style="color:var(--dim)">{{ $s->server->name }}@if($s->username) · {{ $s->username }}@endif</small>@endif
               </div>
-              @if($s->provision_status === 'failed' && $s->provision_error)<div style="font-size:11px;color:#ff6b6b;margin-top:3px">{{ $s->provision_error }}</div>@endif
+              {{-- 🔴 قبلاً فقط روی `failed` نشان داده می‌شد. ولی سرویسی که در حلقهٔ
+                       تلاشِ دوباره گیر کرده `pending` می‌مانَد — یعنی دقیقاً حالتی که
+                       مدیر بیشتر از همه به علت نیاز دارد، هیچ‌چیز نمی‌دید. --}}
+                    @if($s->provision_error && $s->provision_status !== 'done')
+                      <div style="font-size:11px;color:{{ $s->provision_status === 'failed' ? '#ff6b6b' : '#fbbf24' }};margin-top:3px">{{ $s->provision_error }}</div>
+                    @endif
             @endif
           </td>
           <td>{{ $s->cycleLabel() }}</td>

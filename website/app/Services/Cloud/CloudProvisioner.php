@@ -616,8 +616,11 @@ class CloudProvisioner
         ])->save();
 
         try {
-            \App\Models\ActivityLog::record(null, 'service',
-                'تحویلِ سرورِ ابریِ سرویس #'.$service->id.' ناموفق: '.$reason, null, 'system');
+            // ⚠️ `forService` و نه `record(null,…)`: با نال، ردیف به سرویس
+            //    نمی‌چسبد و در `/admin/services/{id}/history` **دیده نمی‌شود**.
+            //    یعنی تنها جایی که مدیر دنبالِ علت می‌گردد، خالی می‌مانَد.
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'تحویلِ سرورِ ابری ناموفق: '.$reason, 'system');
         } catch (\Throwable) {
         }
 
@@ -681,6 +684,21 @@ class CloudProvisioner
         \App\Support\ErrorTracker::note('fraud-guard',
             'سفارشِ سرور به بازبینیِ دستی رفت: '.$reason, ['service' => $service->id]);
     }
+    /**
+     * خرابیِ گذرا: `pending` بمان تا کرونِ بعدی دوباره تلاش کند.
+     *
+     * ═══ 🔴 چرا دیگر ساکت نیست ═══
+     *
+     * این متد هیچ ردی نمی‌گذاشت. برای یک شکستِ گذرا درست است — ولی اگر خرابی
+     * **پایدار** باشد (توکنِ منقضی، پلنِ ناموجود نزدِ زیرساخت، ظرفیتِ تمام‌شده)،
+     * کرون هر دقیقه تلاش می‌کند، هر بار شکست می‌خورد، و سرویس تا ابد «در حالِ
+     * آماده‌سازی» می‌مانَد: مشتری پول داده، سروری نیست، و **هیچ‌جا هیچ خطایی
+     * ثبت نمی‌شود**. دقیقاً همان چیزی که کارفرما گزارش کرد.
+     *
+     * ⚠️ ثبت **گلوگاه‌دار** است: بی‌آن، یک سرویسِ گیرکرده روزی ۱۴۴۰ ردیف در
+     * ردیابِ خطا می‌ریخت و هشدارهای واقعی را زیرِ نویز دفن می‌کرد — که از
+     * نداشتنِ هشدار بدتر است.
+     */
     private function retryLater(Service $service, string $reason): void
     {
         $service->forceFill([
@@ -688,6 +706,44 @@ class CloudProvisioner
             'provision_error'  => mb_substr($reason, 0, 290),
             'status'           => 'awaiting_provision',
         ])->save();
+
+        $key = 'provision:stuck:'.$service->id;
+
+        // اولین تلاشِ ناموفق زمان را ثبت می‌کند؛ اگر بعد از این آستانه هنوز
+        // گیر باشد، یعنی «گذرا» نبوده و باید دیده شود.
+        $since = \Illuminate\Support\Facades\Cache::get($key);
+
+        if ($since === null) {
+            \Illuminate\Support\Facades\Cache::put($key, now()->toIso8601String(), now()->addDay());
+
+            return;
+        }
+
+        if (\Illuminate\Support\Carbon::parse($since)->gt(now()->subMinutes(10))) {
+            return;   // هنوز در پنجرهٔ «شاید واقعاً گذرا باشد»
+        }
+
+        // ⚠️ فقط یک بار در ساعت، وگرنه ردیاب پر می‌شود
+        $shout = 'provision:stuck-shout:'.$service->id;
+
+        if (\Illuminate\Support\Facades\Cache::has($shout)) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Cache::put($shout, 1, now()->addHour());
+
+        \App\Support\ErrorTracker::note('provision',
+            'سرویس #'.$service->id.' بیش از ۱۰ دقیقه در صفِ تحویل گیر کرده: '.$reason,
+            ['service' => $service->id]);
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event('سرویس در صفِ تحویل گیر کرده', [
+                'سرویس' => '#'.$service->id.' — '.$service->name,
+                'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
+                'علت'   => mb_substr($reason, 0, 200),
+            ], url('/admin/customers/'.$service->customer_id), '⏳');
+        } catch (\Throwable) {
+        }
     }
 
     private function notify(Service $service, CloudInstance $instance): void
