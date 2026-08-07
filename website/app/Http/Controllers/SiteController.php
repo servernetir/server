@@ -156,7 +156,10 @@ class SiteController extends Controller
         $add('domain.search');
         // status و sla عمداً در نقشهٔ سایت‌اند: هر دو صفحهٔ «اثبات»اند و
         // خریدارِ سازمانی مستقیم دنبالشان می‌گردد.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers', 'status', 'sla'] as $n) {
+        // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
+        //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
+        //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده

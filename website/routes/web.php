@@ -39,6 +39,11 @@ $site = function (): void {
     Route::get('/status', [SiteController::class, 'status'])->name('status');
     Route::get('/sla', fn () => view('pages.sla'))->name('sla');
 
+    // صفحهٔ فرودِ شخصیِ «طراحی سایت و زیرساخت» — مقصدِ لینکِ لینکدین/اینستاگرام.
+    // ⚠️ عمداً در منوی اصلی نیست، ولی در نقشهٔ سایت **هست**: کلِ هدفش ورودیِ
+    //    ارگانیک از «طراحی سایت در ارومیه» است و صفحهٔ بی‌نقشه دیرتر ایندکس می‌شود.
+    Route::get('/webdesign', fn () => view('pages.webdesign'))->name('webdesign');
+
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
