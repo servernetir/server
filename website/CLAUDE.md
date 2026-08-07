@@ -27,7 +27,7 @@ PHP سرور: `/opt/cpanel/ea-php84/root/usr/bin/php`.
 
 ### ⚠️ چیزهایی که در مخزن هست ولی به سایت زنده ربطی ندارد
 - `ServerNet/app/` → یک اپ **مردهٔ** Laravel 9 با Docker/MySQL. دست نزن.
-- `ServerNet/README.md` → همان اپ مرده را توضیح می‌دهد و **غلط است**.
+- `ServerNet/README.md` → ✅ بازنویسی شد؛ حالا همین پروژه را توضیح می‌دهد و به ONBOARDING و این فایل ارجاع می‌دهد.
 - `ServerNet/.claude/launch.json` و `scripts/update.sh` → مسیرهای macOS، کار نمی‌کنند.
 
 ---

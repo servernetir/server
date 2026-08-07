@@ -1,82 +1,159 @@
-# ServerNet - Laravel + Docker
+# سرورنت — سایت و CMS اختصاصی
 
-![GitHub last commit](https://img.shields.io/github/last-commit/servernetir/server)
-![GitHub issues](https://img.shields.io/github/issues/servernetir/server)
-![Docker](https://img.shields.io/badge/Docker-ready-brightgreen)
-![PHP](https://img.shields.io/badge/PHP-8.0-blue)
-![Laravel](https://img.shields.io/badge/Laravel-10-red)
+سایت و سامانهٔ فروش/تحویل/صورت‌حسابِ شرکتِ هاستینگ **[servernet.cloud](https://servernet.cloud)**.
 
----
+سه‌زبانه (فارسی · انگلیسی · ترکی) · فارسی‌اول و RTL · Laravel ۱۳ روی PHP ۸.۴.
 
-## 🚀 معرفی پروژه
-
-این مخزن شامل پروژه‌ی **Laravel** همراه با محیط **Docker** هست.  
-هدف پروژه: ایجاد یک وب‌سایت فروشگاهی واسطه‌ای با اتصال به MySQL و توسعه راحت توسط تیم توسعه.
+> این سامانه **جایگزینِ WHMCS** است: کاتالوگ، فروشگاه، پیش‌فاکتور، پرداخت،
+> تحویلِ خودکارِ سرویس، چرخهٔ تمدید، دامنه، تیکت و اعلان — همه اختصاصی.
 
 ---
 
-## 🏗️ ساختار پروژه
+## ⚠️ اولین چیزی که باید بدانی
 
-- `app/` → کدهای اصلی لاراول  
-- `docker-compose.yml` → کانتینرهای وب و دیتابیس  
-- `Dockerfile` → ساخت کانتینر وب  
-- `scripts/` → اسکریپت‌های راه‌اندازی و wait-for-it  
-- `.gitignore` → فایل‌ها و پوشه‌هایی که نباید push بشن  
+**کدِ زندهٔ سایت در پوشهٔ [`website/`](website/) است.**
+
+دو چیزِ دیگر در این مخزن هست که **به سایتِ زنده ربطی ندارند** و نباید دست بخورند:
+
+| مسیر | چیست |
+|---|---|
+| [`website/`](website/) | ✅ **اپِ واقعی** — هر کاری این‌جاست |
+| `app/` · `docker-compose.yml` · `Dockerfile` | ❌ اپِ **مردهٔ** Laravel 9 با Docker/MySQL. متروک. |
+| `scripts/update.sh` · `.claude/launch.json` | ❌ مسیرهای macOS، کار نمی‌کنند |
+| [`relay/`](relay/) | 🔸 کدِ رلهٔ پیامک و گرهٔ n8n (روی سرورِ دیگری اجرا می‌شوند) |
 
 ---
 
-## ⚡ شروع سریع برای توسعه‌دهنده‌ها
+## 📖 از کجا شروع کنم
 
-1. کلون کردن مخزن:
+به همین ترتیب بخوان:
+
+| # | سند | چرا |
+|---|---|---|
+| ۱ | **[`website/docs/ONBOARDING.md`](website/docs/ONBOARDING.md)** | راهنمای ورود — فقط چیزهایی که **اگر ندانی گران تمام می‌شود** |
+| ۲ | **[`website/CLAUDE.md`](website/CLAUDE.md)** | نقشهٔ کاملِ پروژه: معماری، تله‌های واقعی، قراردادها، وضعیتِ هر بخش |
+| ۳ | [`website/docs/billing/`](website/docs/billing/) | طراحیِ سامانهٔ صورت‌حساب (۱۰ سند، ۱۱۷ جدول در ۶ حوزه) |
+| ۴ | [`relay/n8n/README.md`](relay/n8n/README.md) | زنجیرهٔ پیامک و چرایی معماری‌اش |
+
+---
+
+## 🧭 معماری در یک نگاه
+
+```
+                       servernet.cloud            console.servernet.cloud
+                       (سایتِ عمومی)                  (پنلِ مشتری و مدیریت)
+                              │                              │
+                              └──────────┬───────────────────┘
+                                         │
+                              Laravel 13 · PHP 8.4 · SQLite
+                                         │
+         ┌───────────────┬───────────────┼───────────────┬───────────────┐
+         │               │               │               │               │
+    تحویلِ سرویس       دامنه          پرداخت          اعلان          محتوا
+    WHM · DirectAdmin  OpenProvider   زرین‌پال       پیامک · بله      بلاگ · دانش
+    Hetzner · Aeza · OVH             بله · واریز      ایمیل          ۴۸ ابزار وب
+```
+
+### بخش‌های اصلی
+
+| بخش | کجا |
+|---|---|
+| صفحاتِ محصول و راهکار | `config/hosting.php` · `config/catalog/` → `CatalogController` |
+| سرورِ ابری (سفیدبرچسب) | `app/Services/Cloud/` — چند زیرساخت، نامشان هرگز به مشتری نمی‌رسد |
+| تحویلِ خودکار | `app/Services/Provisioning/` + کرونِ `provision:run` |
+| دامنه | `app/Services/Domain/` — ثبت، تمدید، چرخهٔ عمر |
+| پرداخت و صورت‌حساب | `app/Services/Payment/` — همهٔ مبالغ `BIGINT`، هیچ float |
+| اعلان | `app/Services/Notify/` — کاتالوگِ ۲۵ رویداد، سه کانال |
+| پیامک | `app/Services/Sms/` → وب‌هوکِ n8n → آی‌پی‌پنل |
+| بلاگ و پایگاه دانش | `posts` + `post_translations` با ستونِ `type` |
+| ابزارهای وب‌مستر | `/webtools` — ۴۸ ابزار، **۱۰۰٪ سمتِ کاربر** |
+| ابزارهای شبکه | `/lookup` — DNS، SSL، اسکنِ پورت (سمتِ سرور) |
+
+---
+
+## ⚡ اجرای محلی
+
 ```bash
-git clone git@github.com:servernetir/server.git
-cd server
+cd website
+composer install
+cp .env.example .env && php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed
+php artisan serve          # یا start-site.bat روی ویندوز
 ```
 
-2. بالا آوردن کانتینرها:
+روی ویندوز PHP در `C:\php` است و `start-site.bat` سایت را روی
+<http://localhost:8000> بالا می‌آورد. **بدونِ Docker.**
+
+### تست
+
 ```bash
-docker-compose up -d --build
+cd website
+php artisan test                          # ۱۲۴۰ تست — همه باید سبز بمانند
+node tests/js/otp-input.test.cjs          # منطقِ ورودیِ کد یک‌بارمصرف
+node ../relay/n8n/verify-and-map-template.test.js
+node ../relay/n8n/evaluate-and-respond.test.js
 ```
 
-3. نصب وابستگی‌های PHP و لاراول خودکار انجام می‌شود.
-
-4. کانفیگ `.env` لاراول برای MySQL داخل Docker به صورت پیش‌فرض:
-```env
-DB_CONNECTION=mysql
-DB_HOST=db
-DB_PORT=3306
-DB_DATABASE=servernet_db
-DB_USERNAME=serveruser
-DB_PASSWORD=SuperStrongPass456
-```
-
-5. اجرای migrations برای ایجاد جدول‌ها:
-```bash
-docker exec -it servernet-web-1 bash
-cd /var/www/html/app
-php artisan migrate
-```
+> ### درسِ گران‌قیمتِ این پروژه: «کد ۲۰۰ یعنی هیچ»
+>
+> بارها صفحه سالم برگشته و جاوااسکریپتش مرده بوده. منطقِ JS با **node** تست
+> می‌شود، نه با جستجوی رشته در HTML.
 
 ---
 
-## 🔧 نکات مهم
+## 🔴 قاعدهٔ اولِ این پروژه
 
-- هر برنامه‌نویس روی branch خودش کار کند.  
-- Volume دیتابیس (`db_data`) مستقل و امن است.  
-- تغییرات در پوشه‌ی `app` مستقیم روی کانتینر منعکس می‌شوند.  
-- فایل `.env` حاوی اطلاعات حساس است و نباید push شود.  
+> ## «شکست نمی‌خورد، فقط اتفاق نمی‌افتد»
+
+گران‌ترین باگ‌های این سامانه هیچ‌کدام استثنا پرتاب نکردند. صفحه ۲۰۰ داد، لاگ
+خالی ماند، و فقط **کاری که باید انجام می‌شد انجام نشد**:
+
+- مسیرِ غلطِ `config()` ⇒ درایورِ پیامک بی‌صدا به «لاگ» افتاد
+- یک فهرستِ کهنه ⇒ از ۲۴ رویداد فقط ۳ تا پیامکشان می‌رفت
+- `whereNotNull('server_id')` ⇒ هر سرورِ ابری بی‌صدا از صفِ تحویل رد شد
+- مسیرِ سخت‌کدِ سفارش ⇒ سه سفارشِ پیاپی شکست خورد و شبیهِ خرابیِ تأمین‌کننده بود
+
+**پس در این مخزن:** سکوت مجاز نیست (`ErrorTracker::note`)، پاسخِ ناشناخته
+یعنی **شکست** نه موفقیت، و هر تستی که یک تصمیمِ طراحی را قفل می‌کند باید
+**فرضِ زیرینش** را هم بسنجد — وگرنه روزی که فرض باطل شود، تست از محافظ به
+نگهبانِ باگ تبدیل می‌شود.
+
+شرحِ کاملِ تله‌ها در [`website/CLAUDE.md`](website/CLAUDE.md).
 
 ---
 
-## 📦 اتوماسیون Docker و Laravel
+## 🚢 دپلوی
 
-- اسکریپت‌های موجود در `scripts/` شامل wait-for-it هستند تا Laravel قبل از بالا آمدن MySQL صبر کند.  
-- با اجرای Docker Compose، محیط کامل توسعه آماده می‌شود و نیاز به تنظیمات دستی نیست.
+پروداکشن روی **cPanel** است؛ اپ **بیرونِ webroot** در
+`/home/servernetcloud/servernet_app` و `public_html` نقشِ `public/` را دارد.
+
+```
+۱) کامیت و پوش به develop
+۲) فایل‌های تغییرکرده با cPanel Fileman UAPI آپلود شوند
+۳) ریستِ opcache
+۴) روی سایتِ زنده تست
+```
+
+⚠️ **مسیرِ آپلود باید نسبت به home باشد** (`servernet_app/…`) — مسیرِ مطلق
+بی‌صدا هیچ‌کاری نمی‌کند. `.env` سرور خوانده و ویرایش نمی‌شود.
 
 ---
 
-## 📌 منابع و تماس
+## 🩺 وقتی چیزی کار نمی‌کند
 
-- مستندات Laravel: [https://laravel.com/docs](https://laravel.com/docs)  
-- مستندات Docker: [https://docs.docker.com](https://docs.docker.com)  
-- برای هرگونه سوال یا راهنمایی درباره‌ی Docker یا پروژه، با من در تماس باشید.
+| کجا | چه می‌گوید |
+|---|---|
+| `/system/sms-status` | عمومی — درایورِ فعالِ پیامک، آخرین خطا، و اینکه `.env` واقعاً به `config()` رسیده |
+| `/admin/errors` | «خرابی‌های خاموش» + سلامتِ کرون، دیتابیس، صفِ دامنه و صفِ تحویل |
+| تاریخچهٔ اجرای n8n | خطای گرهٔ پیامک **فقط** آن‌جا دیده می‌شود |
+
+⚠️ ترتیبِ سوءظن برای «پیکربندی شده ولی کار نمی‌کند»:
+`.env` → `env()` مستقیم → **`config()`** → کدِ مصرف‌کننده.
+تقریباً همیشه سوءظنِ اول اشتباه است.
+
+---
+
+## 📄 شاخه
+
+کار روی **`develop`** انجام می‌شود.
