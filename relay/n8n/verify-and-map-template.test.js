@@ -115,6 +115,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
   say(r.valid === true, 'پاکتِ مستقیم (بی‌بله) پذیرفته شد', r.valid ? '' : r.reason);
   say(r.ipPanelBody?.code === 'u507b9k77p8oim0', 'مسیرِ مستقیم همان کدِ الگو را می‌دهد');
   say(r.bale_message_id === null, 'بی‌شناسهٔ پیامِ بله — گرهٔ حذف نباید تلاش کند', String(r.bale_message_id));
+  say(r.config === undefined, '🔴 رازها در خروجی نیستند (تاریخچهٔ اجرا ذخیره‌شان نکند)');
 }
 
 // ── ۸ج) مسیرِ مستقیم هم بی‌امضای درست رد می‌شود ──
