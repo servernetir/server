@@ -88,10 +88,23 @@ class N8nRelaySender extends SignedRelaySender
             throw new \RuntimeException('n8n کدِ '.$res->status().' داد: '.mb_substr($res->body(), 0, 200));
         }
 
+        /*
+        | 🔴 fail-closed: **فقط** `sent` موفقیت است.
+        |
+        | نسخهٔ اول سیاههٔ سیاه داشت (`ignored` یا `failed` = شکست، بقیه موفق).
+        | آن وارونهٔ همان قاعده‌ای بود که خودِ گرهٔ n8n رعایت می‌کند: هر بدنهٔ
+        | ناشناخته‌ای — ورک‌فلوی نیمه‌ویرایش‌شده، پاسخِ پروکسی، صفحهٔ خطای
+        | HTML با کدِ ۲۰۰ — «موفق» شمرده می‌شد و ما باور می‌کردیم پیامک رفته.
+        |
+        | ادعای دروغینِ موفقیت از هشدارِ اضافی بدتر است: کسی دنبالِ پیامکی که
+        | «رفته» نمی‌گردد، و مشتری بی‌خبر پشتِ درِ بسته می‌مانَد.
+        */
         $status = (string) $res->json('status', '');
 
-        if ($status === 'ignored' || $status === 'failed') {
-            throw new \RuntimeException('n8n پاکت را نپذیرفت: '.(string) $res->json('reason', 'بی‌دلیل'));
+        if ($status !== 'sent') {
+            throw new \RuntimeException('n8n پاکت را نپذیرفت'
+                .($status !== '' ? " ({$status})" : '').': '
+                .(string) $res->json('reason', 'پاسخِ ناشناخته'));
         }
 
         return true;

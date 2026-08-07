@@ -37,7 +37,34 @@ class SmsDispatcher
             }
         }
 
-        return $this->sender->send($mobile, $fallback);
+        if ($this->sender->send($mobile, $fallback)) {
+            return true;
+        }
+
+        /*
+        | 🔴 «الگو نداشت **و** متنِ آزاد هم نرفت» = پیامی که هیچ‌وقت نرسید.
+        |
+        | این تنها مسیری در کلِ لایهٔ اعلان بود که کاملاً ساکت می‌مانْد: نه
+        | استثنایی، نه لاگی، نه ردیفی در ردیابِ خطا. `SignedRelaySender::send()`
+        | عمداً `false` می‌دهد (متنِ آزاد به هیچ الگویی نمی‌خورد)، و چون هیچ‌کس
+        | این `false` را ثبت نمی‌کرد، ۲۵ رویداد ماه‌ها می‌توانستند خاموش باشند و
+        | تنها نشانه‌اش شکایتِ یک مشتری باشد.
+        |
+        | ⚠️ ثبت این‌جاست نه در درایور، چون درایور نمی‌داند کدام **رویداد** بود؛
+        | و بدونِ نامِ رویداد، این پیام برای عیب‌یابی بی‌فایده است.
+        */
+        \App\Support\ErrorTracker::note('notify',
+            'پیامکِ رویداد «'.$event.'» نرفت: الگویی برایش تعریف نشده و درایورِ '
+            .$this->sender->name().' متنِ آزاد را نمی‌پذیرد', ['event' => $event]);
+
+        \Illuminate\Support\Facades\Cache::put('sms:last_error', [
+            'driver'   => $this->sender->name(),
+            'template' => $event,
+            'reason'   => 'الگو تعریف نشده و متنِ آزاد پشتیبانی نمی‌شود',
+            'at'       => now()->toIso8601String(),
+        ], now()->addDay());
+
+        return false;
     }
 
     public function otp(string $mobile, string $code): bool

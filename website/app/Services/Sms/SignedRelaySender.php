@@ -72,6 +72,17 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
         'ticket_new',
         'ticket_closed',
         'ticket_survey',
+
+        // ── دورِ دوم ──
+        'paid',
+        'service_ready',
+        'expiring',
+        'suspended',
+        'reactivated',
+        'ticket_reply',
+        'domain_expiring',
+        'domain_expired',
+        'bank_rejected',
     ];
 
     protected const VERSION = 1;

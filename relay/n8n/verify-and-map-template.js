@@ -21,6 +21,17 @@ const TEMPLATES = {
   ticket_new:        { code: 'wi5hiwyyuihy743', vars: { number: 'number' } },
   ticket_closed:     { code: '3a3rycdozbznuw2', vars: { number: 'number' } },
   ticket_survey:     { code: '345f2ndyxf9qie6', vars: { number: 'number' } },
+
+  // ── الگوهای دورِ دوم (مرداد ۱۴۰۵) ──
+  paid:              { code: 'y4jdzi44pg5zp10', vars: { amount: 'amount' } },
+  service_ready:     { code: 'b6ekjmk93urf2ak', vars: { service: 'service', ip: 'ip' } },
+  expiring:          { code: '34nogu90rsad4qm', vars: { service: 'service', days: 'days', amount: 'amount' } },
+  suspended:         { code: 'y25vbkw1o712s1k', vars: { service: 'service' } },
+  reactivated:       { code: 'bx11vfb6wwpwh28', vars: { service: 'service' } },
+  ticket_reply:      { code: '23exe71zaexyq1j', vars: { number: 'number' } },
+  domain_expiring:   { code: 'wui3lk90zy2oh2f', vars: { domain: 'domain', days: 'days' } },
+  domain_expired:    { code: 'bamv8b3gmsw4n0t', vars: { domain: 'domain' } },
+  bank_rejected:     { code: '0mm4f5lbcblw532', vars: { reason: 'reason' } },
 };
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -139,17 +139,8 @@ class SmsTemplateRegistryTest extends TestCase
     {
         $expected = [
             'announce',          // اطلاعیهٔ گروهی — پیامکِ انبوه عمداً نه
-            'bank_rejected',
-            'domain_expired',
-            'domain_expiring',   // ⚠️ باید الگو بگیرد
-            'domain_transfer',   // هنوز پیاده نشده
-            'expiring',          // ⚠️ باید الگو بگیرد
-            'paid',              // ⚠️ باید الگو بگیرد
+            'domain_transfer',   // انتقالِ دامنه هنوز پیاده نشده
             'password_changed',  // بی‌متغیر است؛ الگوی بی‌جای‌نگهدار معنا ندارد
-            'reactivated',
-            'service_ready',     // ⚠️ باید الگو بگیرد
-            'suspended',         // ⚠️ باید الگو بگیرد
-            'ticket_reply',      // ⚠️ باید الگو بگیرد
         ];
 
         $actual = array_values(array_diff(array_keys(NotifyEvent::ALL), SignedRelaySender::TEMPLATES));

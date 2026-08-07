@@ -22,6 +22,68 @@ class NotificationTemplateSeeder extends Seeder
         foreach ($this->catalog() as $row) {
             NotificationTemplate::firstOrCreate(['key' => $row['key']], $row);
         }
+
+        $this->repairGhostPlaceholders();
+    }
+
+    /**
+     * 🔴 ترمیمِ جای‌نگهدارهای شبح — الگویی که به‌خاطرِ یک متغیرِ ناموجود مرده است.
+     *
+     * `firstOrCreate` عمداً ردیفِ موجود را دست نمی‌زند تا متنِ ویرایش‌شدهٔ مدیر
+     * با هر دیپلوی برنگردد. ولی همان محافظ یعنی یک **غلطِ ما** هم برای همیشه
+     * در دیتابیس می‌مانَد.
+     *
+     * نمونهٔ واقعی: بدنهٔ `invoice` متغیرِ `{due}` داشت و هیچ فراخوانی آن را
+     * نمی‌فرستاد. هر دو خوانندهٔ الگو (`body()` و `email()`) اگر بعد از
+     * جایگزینی هنوز `{چیزی}` ببینند عمداً الگو را کنار می‌گذارند — پس **هیچ
+     * ایمیلِ فاکتوری فرستاده نمی‌شد**، ماه‌ها، بی‌هیچ خطایی. و صفحهٔ
+     * `/admin/templates` هم دروغ می‌گفت: دکمهٔ «ارسال آزمایشی» کار می‌کرد، چون
+     * آن‌جا مقدارِ نمونه برای `{due}` ساخته می‌شد.
+     *
+     * ⚠️ فقط ردیفی ترمیم می‌شود که **دقیقاً** همان متنِ سیدشدهٔ خراب را دارد.
+     * اگر مدیر ویرایشش کرده، دست نمی‌خورد — ترمیمِ خودکارِ متنِ دست‌نویس،
+     * از خودِ باگ بدتر است.
+     */
+    private function repairGhostPlaceholders(): void
+    {
+        $broken = [
+            'invoice' => [
+                'bale_body'  => ['فاکتور {number} به مبلغ {amount} تومان صادر شد. سررسید: {due}'],
+                'email_body' => ['<p>فاکتور شماره <b>{number}</b> به مبلغ <b>{amount}</b> تومان صادر شد.</p><p>سررسید: {due}</p>'],
+            ],
+        ];
+
+        foreach ($this->catalog() as $row) {
+            $key = $row['key'];
+
+            if (! isset($broken[$key])) {
+                continue;
+            }
+
+            $tpl = NotificationTemplate::where('key', $key)->first();
+
+            if ($tpl === null) {
+                continue;
+            }
+
+            $dirty = false;
+
+            foreach ($broken[$key] as $column => $stale) {
+                if (in_array((string) $tpl->{$column}, $stale, true)) {
+                    $tpl->{$column} = $row[$column];
+                    $dirty = true;
+                }
+            }
+
+            // فهرستِ متغیرهای پیشنهادی هم باید درست شود، وگرنه پنل همان
+            // متغیرِ شبح را دوباره به مدیر پیشنهاد می‌دهد
+            if ($dirty) {
+                $tpl->variables = $row['variables'];
+                $tpl->save();
+
+                $this->command?->info("الگوی «{$key}»: متغیرِ شبح ترمیم شد.");
+            }
+        }
     }
 
     /** @return array<int,array<string,mixed>> */
@@ -58,12 +120,12 @@ class NotificationTemplateSeeder extends Seeder
                 'key' => 'invoice', 'title' => 'صدور فاکتور', 'group' => 'billing',
                 'sms_event' => 'invoice',
                 'email_subject' => 'فاکتور تازه — سرورنت',
-                'email_body' => '<p>فاکتور شماره <b>{number}</b> به مبلغ <b>{amount}</b> تومان صادر شد.</p><p>سررسید: {due}</p>',
-                'bale_body' => 'فاکتور {number} به مبلغ {amount} تومان صادر شد. سررسید: {due}',
+                'email_body' => '<p>فاکتور شماره <b>{number}</b> به مبلغ <b>{amount}</b> تومان صادر شد.</p><p>پرداخت: {link}</p>',
+                'bale_body' => 'فاکتور {number} به مبلغ {amount} تومان صادر شد. پرداخت: {link}',
                 'variables' => [
                     ['name' => 'number', 'desc' => 'شمارهٔ فاکتور'],
                     ['name' => 'amount', 'desc' => 'مبلغ (تومان)'],
-                    ['name' => 'due', 'desc' => 'تاریخ سررسید'],
+                    ['name' => 'link', 'desc' => 'نشانی پرداخت'],
                 ],
             ],
             [
