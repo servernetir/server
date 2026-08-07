@@ -10,11 +10,18 @@ class BankTransferReceipt extends Model
     protected $fillable = [
         'customer_id', 'invoice_id', 'amount', 'reference', 'paid_from',
         'note', 'status', 'reject_reason', 'reviewed_by', 'reviewed_at',
+        'payment_account_id', 'sent_amount', 'sent_currency',
     ];
 
     protected function casts(): array
     {
-        return ['amount' => 'integer', 'reviewed_at' => 'datetime'];
+        return ['amount' => 'integer', 'sent_amount' => 'integer', 'reviewed_at' => 'datetime'];
+    }
+
+    /** مقصدِ ارزی/رمزارزی — برای رسیدهای ریالیِ قدیمی null است */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(PaymentAccount::class, 'payment_account_id');
     }
 
     public function customer(): BelongsTo

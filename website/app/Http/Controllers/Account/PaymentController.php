@@ -167,7 +167,16 @@ class PaymentController extends Controller
             'pendingBank'  => Schema::hasTable('bank_transfer_receipts')
                 ? BankTransferReceipt::where('invoice_id', $invoice->id)->where('status', 'pending')->latest('id')->first()
                 : null,
-            'cryptoSoon'   => true,   // گزینهٔ کریپتو، فعلاً غیرفعال
+
+            /*
+            | مقصدهای آفلاین: حوالهٔ ارزی هم‌ارزِ فاکتور + کیف‌های رمزارز.
+            |
+            | 🔴 تا امروز مشتریِ en/tr می‌توانست سفارش بدهد ولی صفحهٔ فاکتور
+            |    فقط دو کارتِ غیرفعالِ «به‌زودی» نشانش می‌داد — یعنی فاکتوری
+            |    داشت که هیچ راهی برای پرداختش نبود. بدترین حالتِ ممکن: پول
+            |    نمی‌گرفتیم و مشتری هم فکر می‌کرد سایت خراب است.
+            */
+            'offline'      => \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code),
         ]);
     }
 
@@ -203,15 +212,33 @@ class PaymentController extends Controller
             return back()->withErrors(['reference' => 'این فاکتور قابل پرداخت نیست.']);
         }
 
-        if ($this->bankDetails() === null) {
-            return back()->withErrors(['reference' => 'واریز به حساب فعلاً در دسترس نیست.']);
-        }
-
         $data = $request->validate([
             'reference' => ['required', 'string', 'max:120'],
             'paid_from' => ['nullable', 'string', 'max:120'],
             'note'      => ['nullable', 'string', 'max:500'],
+            'payment_account_id' => ['nullable', 'integer'],
+            'sent_amount' => ['nullable', 'numeric', 'min:0'],
         ], [], ['reference' => 'شناسهٔ پرداخت']);
+
+        /*
+        | مقصد یا حسابِ ریالیِ تنظیمات است یا یکی از حساب‌های ارزی/رمزارزی.
+        |
+        | ⚠️ شناسهٔ حساب از **فهرستِ همین فاکتور** اعتبارسنجی می‌شود، نه فقط
+        |    «در جدول هست». وگرنه کاربر می‌توانست شناسهٔ یک حسابِ بایگانی‌شده یا
+        |    ارزِ دیگری را بفرستد و رسیدی بسازد که مدیر هرگز نمی‌تواند تطبیق دهد.
+        */
+        $account = null;
+
+        if (! empty($data['payment_account_id'])) {
+            $account = \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code)
+                ->firstWhere('id', (int) $data['payment_account_id']);
+
+            if ($account === null) {
+                return back()->withErrors(['reference' => 'روش پرداخت انتخاب‌شده در دسترس نیست.']);
+            }
+        } elseif ($this->bankDetails() === null) {
+            return back()->withErrors(['reference' => 'واریز به حساب فعلاً در دسترس نیست.']);
+        }
 
         // رسیدِ باز تکراری نساز
         $exists = BankTransferReceipt::where('invoice_id', $invoice->id)
@@ -226,6 +253,12 @@ class PaymentController extends Controller
                 'paid_from'   => $data['paid_from'] ?? null,
                 'note'        => $data['note'] ?? null,
                 'status'      => 'pending',
+
+                // ⚠️ «به کدام حساب» و «چقدر فرستاد» — بی‌اینها رسیدِ ارزی
+                //    قابلِ تطبیق نیست و مدیر پرداختِ درست را رد می‌کند.
+                'payment_account_id' => $account?->id,
+                'sent_amount'   => isset($data['sent_amount']) ? (int) round((float) $data['sent_amount'] * 100) : null,
+                'sent_currency' => $account?->currency_code,
             ]);
         }
 

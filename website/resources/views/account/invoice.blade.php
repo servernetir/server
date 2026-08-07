@@ -119,18 +119,35 @@
           <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
         </label>
       @endif
-      <label class="pm-card is-off" data-m="eur" title="{{ __('ui.inv_soon') }}">
-        <input type="radio" name="pm" value="eur" hidden disabled>
-        <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
-        <span class="pm-tt"><b>{{ __('ui.inv_eur_title') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
-        <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
-      </label>
-      <label class="pm-card is-off" data-m="crypto" title="{{ __('ui.inv_soon') }}">
-        <input type="radio" name="pm" value="crypto" hidden disabled>
-        <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
-        <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
-        <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
-      </label>
+      {{-- حوالهٔ ارزی و رمزارز — هر مقصدی که مدیر در /admin/payment-accounts
+           فعال کرده. هر دو **آفلاین**اند: مشتری می‌فرستد، شناسه ثبت می‌کند،
+           مدیر تأیید می‌کند. تا تأیید نشود هیچ سرویسی فعال نمی‌شود.
+
+           ⚠️ اگر هیچ حسابی ثبت نشده باشد، به‌جای کارتِ خرابِ بی‌مقصد، همان
+           «به‌زودی» را نشان می‌دهیم — گزینه‌ای که پول را به ناکجا بفرستد از
+           نبودِ گزینه بدتر است. --}}
+      @forelse($offline as $acc)
+        <label class="pm-card" data-m="off{{ $acc->id }}">
+          <input type="radio" name="pm" value="off{{ $acc->id }}" hidden>
+          <span class="pm-badge {{ $acc->isCrypto() ? 'cy' : 'bk' }}">
+            <svg class="icon"><use href="#i-{{ $acc->isCrypto() ? 'coins' : 'db' }}"/></svg>
+          </span>
+          <span class="pm-tt">
+            <b>{{ $acc->isCrypto() ? __('ui.inv_crypto') : __('ui.inv_wire_title') }}</b>
+            <small dir="ltr">{{ $acc->displayLabel() }}</small>
+          </span>
+          <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+        </label>
+      @empty
+        @if(app()->getLocale() !== 'fa')
+          <label class="pm-card is-off" data-m="soon" title="{{ __('ui.inv_soon') }}">
+            <input type="radio" name="pm" value="soon" hidden disabled>
+            <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_wire_title') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
+            <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
+          </label>
+        @endif
+      @endforelse
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
@@ -196,6 +213,59 @@
       </div>
     @endif
 
+    {{-- پنلِ هر مقصدِ ارزی/رمزارزی --}}
+    @foreach($offline as $acc)
+      <div class="pm-pane" id="pane-off{{ $acc->id }}" hidden>
+        <div class="pm-pane-h"><b>{{ $acc->isCrypto() ? __('ui.inv_crypto_pane') : __('ui.inv_wire_pane') }}</b></div>
+
+        @if($pendingBank)
+          <div class="pm-note" style="color:var(--warn)">
+            {!! __('ui.inv_bank_pending', ['ref' => '<b dir="ltr">'.e($pendingBank->reference).'</b>']) !!}
+          </div>
+        @else
+          <div class="bank-box">
+            @if($acc->isCrypto())
+              {{-- 🔴 شبکه **بالای** آدرس و برجسته: انتقالِ روی شبکهٔ اشتباه
+                   برگشت‌ناپذیر است و کاربر معمولاً آدرس را کپی می‌کند و می‌رود. --}}
+              <div><span>{{ __('ui.inv_cy_asset') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
+              <div><span>{{ __('ui.inv_cy_network') }}</span><b dir="ltr">{{ $acc->network }}</b></div>
+              <div><span>{{ __('ui.inv_cy_address') }}</span><b dir="ltr" class="copyable">{{ $acc->address }}</b></div>
+            @else
+              @if($acc->holder)<div><span>{{ __('ui.inv_bank_holder') }}</span><b dir="ltr">{{ $acc->holder }}</b></div>@endif
+              @if($acc->bank_name)<div><span>{{ __('ui.inv_bank_name') }}</span><b dir="ltr">{{ $acc->bank_name }}</b></div>@endif
+              @if($acc->iban)<div><span>IBAN</span><b dir="ltr" class="copyable">{{ $acc->iban }}</b></div>@endif
+              @if($acc->swift)<div><span>SWIFT / BIC</span><b dir="ltr" class="copyable">{{ $acc->swift }}</b></div>@endif
+              @if($acc->account_no)<div><span>{{ __('ui.inv_bank_account') }}</span><b dir="ltr" class="copyable">{{ $acc->account_no }}</b></div>@endif
+              @if($acc->country)<div><span>{{ __('ui.inv_wire_country') }}</span><b dir="ltr">{{ $acc->country }}</b></div>@endif
+            @endif
+            <div><span>{{ __('ui.inv_wire_currency') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
+            @if($acc->note)<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $acc->note }}</b></div>@endif
+          </div>
+
+          @if($acc->isCrypto())
+            <p class="pm-note" style="color:var(--warn)">{{ __('ui.inv_cy_warn') }}</p>
+          @endif
+
+          <p class="pm-note">
+            {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
+          </p>
+
+          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+            @csrf
+            <input type="hidden" name="payment_account_id" value="{{ $acc->id }}">
+            <input type="text" name="reference" required maxlength="120" dir="ltr" class="bank-input"
+                   placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_txid_ph') : __('ui.inv_wire_ref_ph') }}">
+            {{-- مبلغِ فرستاده‌شده جداست چون می‌تواند با ارزِ فاکتور فرق کند --}}
+            <input type="text" name="sent_amount" inputmode="decimal" dir="ltr" class="bank-input"
+                   placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => strtoupper($acc->currency_code)]) }}">
+            <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
+                   placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_from_ph') : __('ui.inv_wire_from_ph') }}">
+            <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
+          </form>
+        @endif
+      </div>
+    @endforeach
+
   </div>
 </section>
 
@@ -215,6 +285,7 @@
 .pm-badge.bl{ background:linear-gradient(135deg,#22c55e,#15a34a); }
 .pm-badge.bk{ background:linear-gradient(135deg,#38bdf8,#2563eb); }
 .pm-badge.cr{ background:linear-gradient(135deg,#94a3b8,#64748b); }
+.pm-badge.cy{ background:linear-gradient(135deg,#26a17b,#1a7f5e); }   /* تتر */
 .pm-tt{ display:flex; flex-direction:column; gap:2px; min-width:0; }
 .pm-tt b{ font-size:13.5px; color:var(--text); }
 .pm-tt small{ font-size:11.5px; color:var(--muted); }

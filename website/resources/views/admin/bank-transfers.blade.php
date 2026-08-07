@@ -32,7 +32,11 @@
     <p style="padding:20px;color:var(--muted)">رسیدی در این وضعیت نیست.</p>
   @else
     <table class="ad-table">
-      <thead><tr><th>مشتری</th><th>فاکتور</th><th>مبلغ</th><th>شناسهٔ پرداخت</th><th>مبدأ</th><th>زمان</th><th></th></tr></thead>
+      {{-- ⚠️ ستونِ «مقصد» حیاتی است: با چند حسابِ ارزی و چند کیفِ رمزارز،
+           رسیدی که مقصدش را نگوید یعنی مدیر باید صورت‌حسابِ همهٔ حساب‌ها را
+           بگردد — و اگر پیدا نکرد نمی‌داند مشتری دروغ گفته یا جای اشتباه را
+           نگاه می‌کند. «مبلغ فرستاده» هم جداست چون می‌تواند ارزِ دیگری باشد. --}}
+      <thead><tr><th>مشتری</th><th>فاکتور</th><th>مبلغ</th><th>مقصد</th><th>مبلغ فرستاده</th><th>شناسهٔ پرداخت</th><th>مبدأ</th><th>زمان</th><th></th></tr></thead>
       <tbody>
         @foreach($receipts as $r)
         <tr>
@@ -40,6 +44,17 @@
             <div style="font-size:12px;color:var(--dim)" dir="ltr">{{ $r->customer?->code }}</div></td>
           <td dir="ltr">{{ $r->invoice?->number ?? '—' }}</td>
           <td>{{ fa_num(number_format($r->amount)) }} ت</td>
+          <td dir="ltr" style="color:var(--muted);font-size:12px">
+            @if($r->payment_account_id && $r->account)
+              {{ $r->account->displayLabel() }}
+              @if($r->account->isCrypto())<br><small>{{ $r->account->network }}</small>@endif
+            @else
+              حساب ریالی
+            @endif
+          </td>
+          <td dir="ltr" style="color:var(--muted)">
+            {{ $r->sent_amount ? number_format($r->sent_amount / 100, 2).' '.strtoupper((string) $r->sent_currency) : '—' }}
+          </td>
           <td dir="ltr" style="color:var(--text)">{{ $r->reference }}</td>
           <td dir="ltr" style="color:var(--muted)">{{ $r->paid_from ?: '—' }}</td>
           <td dir="ltr" style="color:var(--muted)">{{ stime($r->created_at) }}</td>

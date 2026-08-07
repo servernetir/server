@@ -1879,6 +1879,14 @@ Route::prefix('admin')->group(function () {
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');
         Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject'])->middleware('admin');
 
+        // حساب‌های دریافتِ آفلاین — حوالهٔ ارزی (یورو/پوند/لیر) و کیفِ رمزارز.
+        // از پنل مدیریت می‌آیند نه config، چون حساب‌ها در زمان‌های مختلف باز می‌شوند
+        // و هر کدام نباید یک دیپلوی لازم داشته باشد.
+        Route::get('/payment-accounts', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'index'])->name('admin.payment_accounts')->middleware('admin');
+        Route::post('/payment-accounts', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'store'])->middleware('admin');
+        Route::post('/payment-accounts/{account}', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'update'])->middleware('admin');
+        Route::post('/payment-accounts/{account}/archive', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'destroy'])->middleware('admin');
+
         // تنظیمات — مشخصات حساب بانکی شرکت
         Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings')->middleware('admin');
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
