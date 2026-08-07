@@ -56,12 +56,20 @@ class AppServiceProvider extends ServiceProvider
                 | در کد عوض نمی‌شود. `SmsDispatcher` همان `event/otp/raw` را
                 | صدا می‌زند و فقط مقصد فرق می‌کند — پس هیچ نقطهٔ فراخوانی از
                 | قلم نمی‌افتد، که در جایگزینیِ دستیِ ده‌ها نقطه حتمی بود.
+                |
+                | 🔴 مسیر `services.sms.bale_relay` است نه `services.bale_relay`.
+                |    بلوکش در `config/services.php` کنارِ `ippanel` و `kavenegar`
+                |    **داخلِ** آرایهٔ `sms` نشسته. یک بار این‌جا مسیرِ سطحِ بالا
+                |    نوشته شد و نتیجه‌اش دقیقاً همان خرابیِ خاموشِ همیشگی بود:
+                |    `.env` درست، `env()` درست، ولی `config()` خالی ⇒ `enabled()`
+                |    کاذب ⇒ بی‌هیچ خطایی سقوط به `LogSmsSender`. یعنی سایت
+                |    می‌گفت پیامک فرستادم و هیچ پیامکی نمی‌رفت.
                 */
                 'bale_relay' => new \App\Services\Sms\BaleRelaySender(
-                    config('services.bale_relay.bot_token'),
-                    config('services.bale_relay.chat_id'),
-                    config('services.bale_relay.secret'),
-                    (string) config('services.bale_relay.base', 'https://tapi.bale.ai'),
+                    config('services.sms.bale_relay.bot_token'),
+                    config('services.sms.bale_relay.chat_id'),
+                    config('services.sms.bale_relay.secret'),
+                    (string) config('services.sms.bale_relay.base', 'https://tapi.bale.ai'),
                 ),
                 'kavenegar' => new \App\Services\Sms\KavenegarSender(
                     config('services.sms.kavenegar.key'),

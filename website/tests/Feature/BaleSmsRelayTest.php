@@ -228,4 +228,73 @@ class BaleSmsRelayTest extends TestCase
             'الگویی در config هست که رله نمی‌شناسدش — آن پیامک بی‌صدا نمی‌رود'
         );
     }
+
+    // ═══════════════ سیم‌کشیِ واقعیِ config (نه ست‌کردنِ دستی) ═══════════════
+
+    /**
+     * 🔴 باگی که ۲۴ ساعت رله را روی سرور خاموش نگه داشت.
+     *
+     * بلوکِ `bale_relay` در `config/services.php` کنارِ `ippanel` و `kavenegar`
+     * **داخلِ** آرایهٔ `sms` نشست، ولی `AppServiceProvider` مسیرِ سطحِ بالای
+     * `services.bale_relay` را می‌خواند. نتیجه: `.env` درست، `env()` درست،
+     * `config()` **خالی** ⇒ `enabled()` کاذب ⇒ سقوطِ بی‌صدا به `LogSmsSender`.
+     * سایت می‌گفت پیامک فرستادم و هیچ پیامکی نمی‌رفت.
+     *
+     * ⚠️ چرا هیچ تستی نگرفتش: همهٔ تست‌ها مقدار را با `config([...])` دستی ست
+     * می‌کردند، و `config()` هر مسیری را که نام ببری **می‌سازد**. پس تست مسیرِ
+     * غلط را خودش به‌وجود می‌آورد و سبز می‌شد. این تست عمداً چیزی ست نمی‌کند و
+     * فقط فایلِ واقعی را می‌سنجد.
+     */
+    public function test_the_relay_block_sits_where_the_provider_looks_for_it(): void
+    {
+        $block = config('services.sms.bale_relay');
+
+        $this->assertIsArray($block,
+            'بلوکِ رله در مسیری که AppServiceProvider می‌خوانَد نیست');
+
+        foreach (['bot_token', 'chat_id', 'secret', 'base'] as $k) {
+            $this->assertArrayHasKey($k, $block, "کلیدِ {$k} در بلوکِ رله نیست");
+        }
+
+        $this->assertNull(config('services.bale_relay'),
+            'بلوک در دو جا تعریف شده — یکی از آن دو دیر یا زود کهنه می‌شود');
+    }
+
+    /**
+     * 🔴 پایانِ زنجیره: با پیکربندیِ درست، رجیستری واقعاً رله را برمی‌دارد.
+     *
+     * این تنها تستی است که خودِ `match` در `AppServiceProvider` را اجرا می‌کند.
+     * بی‌این، هر بار مسیرِ config در آن‌جا عوض/غلط شود، درایور بی‌صدا به `log`
+     * برمی‌گردد و تنها نشانه‌اش پیامکی است که هرگز نمی‌رسد.
+     */
+    public function test_the_driver_registry_actually_resolves_the_relay(): void
+    {
+        config([
+            'services.sms.driver'               => 'bale_relay',
+            'services.sms.bale_relay.bot_token' => 'BOT123',
+            'services.sms.bale_relay.chat_id'   => '-100999',
+            'services.sms.bale_relay.secret'    => self::SECRET,
+        ]);
+
+        // singletonِ از پیش ساخته‌شده را دور بریز تا match دوباره بدود
+        $this->app->forgetInstance(\App\Services\Sms\SmsSender::class);
+
+        $this->assertSame('bale-relay', app(\App\Services\Sms\SmsSender::class)->name(),
+            'درایورِ فعال رله نیست — پیامک بی‌صدا فقط در لاگ می‌نشیند');
+    }
+
+    /** و نیم‌پیکربندی باید **صادقانه** به لاگ برگردد، نه وانمود کند کار می‌کند */
+    public function test_a_half_configured_relay_falls_back_to_log(): void
+    {
+        config([
+            'services.sms.driver'               => 'bale_relay',
+            'services.sms.bale_relay.bot_token' => 'BOT123',
+            'services.sms.bale_relay.chat_id'   => null,   // جامانده
+            'services.sms.bale_relay.secret'    => self::SECRET,
+        ]);
+
+        $this->app->forgetInstance(\App\Services\Sms\SmsSender::class);
+
+        $this->assertSame('log', app(\App\Services\Sms\SmsSender::class)->name());
+    }
 }

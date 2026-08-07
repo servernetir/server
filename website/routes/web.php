@@ -579,9 +579,9 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
             |    روی همین سه مقدار نیست، پس مستقیم می‌سنجیمشان.
             */
             return [
-                'bot_token_set'   => filled(config('services.bale_relay.bot_token')),
-                'chat_id_set'     => filled(config('services.bale_relay.chat_id')),
-                'secret_set'      => filled(config('services.bale_relay.secret')),
+                'bot_token_set'   => filled(config('services.sms.bale_relay.bot_token')),
+                'chat_id_set'     => filled(config('services.sms.bale_relay.chat_id')),
+                'secret_set'      => filled(config('services.sms.bale_relay.secret')),
                 'env_lines'       => $lines,   // ۰ = نیست · ۱ = هست · ۲+ = تله
                 'env_direct'      => $direct,  // بی‌عبور از config
                 'env_path'        => base_path('.env'),

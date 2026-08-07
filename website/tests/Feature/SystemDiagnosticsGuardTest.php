@@ -132,9 +132,9 @@ class SystemDiagnosticsGuardTest extends TestCase
     public function test_the_relay_secrets_never_appear_in_the_response(): void
     {
         config([
-            'services.bale_relay.bot_token' => '1234567:AA-SECRET-BOT-TOKEN',
-            'services.bale_relay.chat_id'   => '-1009876543210',
-            'services.bale_relay.secret'    => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
+            'services.sms.bale_relay.bot_token' => '1234567:AA-SECRET-BOT-TOKEN',
+            'services.sms.bale_relay.chat_id'   => '-1009876543210',
+            'services.sms.bale_relay.secret'    => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
         ]);
 
         $body = $this->get('/system/sms-status')->assertOk()->getContent();
