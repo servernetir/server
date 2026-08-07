@@ -115,7 +115,27 @@ class BroadcastController extends Controller
             'sent_by'     => $request->user()?->id,
         ]);
 
-        return back()->with('ok', 'اعلان به '.number_format($sent).' مشتری ارسال شد (پیامک، بله و ایمیل).');
+        /*
+        | 🔴 فقط کانال‌هایی نام برده می‌شوند که **واقعاً** رفتند.
+        |
+        | قبلاً بی‌قید و شرط می‌نوشت «(پیامک، بله و ایمیل)». ولی `announce`
+        | الگوی پیامک ندارد و درایورِ فعال متنِ آزاد نمی‌فرستد — پس تعدادِ
+        | پیامکِ ارسال‌شده **صفر** بود. مدیر یک اطلاعیه به ۳۰۰ مشتری می‌فرستاد،
+        | تأییدِ سبز می‌گرفت، و باور می‌کرد ۳۰۰ پیامک رفته.
+        |
+        | ⚠️ فهرست از همان جایی می‌آید که خودِ ارسال از رویش تصمیم می‌گیرد، پس
+        | اگر روزی الگوی `announce` ساخته شد، این جمله خودبه‌خود درست می‌شود.
+        */
+        $channels = \App\Models\NotificationTemplate::channelsFor('announce');
+
+        $names = array_values(array_filter([
+            in_array('sms', $channels, true) ? 'پیامک' : null,
+            in_array('bale', $channels, true) ? 'بله' : null,
+            in_array('email', $channels, true) ? 'ایمیل' : null,
+        ]));
+
+        return back()->with('ok', 'اعلان به '.number_format($sent).' مشتری ارسال شد'
+            .($names ? ' ('.implode(' و ', $names).').' : '.'));
     }
 
     /**

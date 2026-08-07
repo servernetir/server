@@ -47,14 +47,20 @@
                 <td style="font-size:12px;color:var(--muted)">
                   @php $ch = $t->wiredChannels(); @endphp
                   @if($ch)
-                    @if(in_array('bale', $ch))بله و اعلان@endif
-                    @if(in_array('bale', $ch) && in_array('email', $ch) && filled($t->email_body)) · @endif
-                    @if(in_array('email', $ch) && filled($t->email_body))ایمیل@endif
+                    @if(in_array('sms', $ch))پیامک · @endif
+                    بله و اعلان
+                    @if(in_array('email', $ch) && filled($t->email_body)) · ایمیل@endif
                   @else
                     <span style="color:#fbbf24">هنوز جایی مصرف نمی‌شود</span>
                   @endif
                 </td>
-                <td dir="ltr" style="font-size:12px;color:var(--muted)">{{ $t->sms_event ?: '—' }}</td>
+                {{-- 🔴 ستونِ خامِ `sms_event` دروغ می‌گفت: کدی را نشان می‌داد که
+                     برای رویدادهای بی‌الگو هرگز به اپراتور فرستاده نمی‌شد، و مدیر
+                     می‌رفت ساعت‌ها روی متنی در پنلِ اپراتور کار می‌کرد که هیچ
+                     مشتری‌ای نمی‌دید. حالا از سیمِ واقعی می‌آید. --}}
+                <td dir="ltr" style="font-size:12px;color:var(--muted)">
+                  @if(in_array('sms', $ch)){{ $t->sms_event ?: $t->key }}@else<span dir="rtl">—</span>@endif
+                </td>
                 <td>
                   @if($t->is_active)
                     <span class="ad-badge" style="background:#34d39922;color:#34d399">فعال</span>

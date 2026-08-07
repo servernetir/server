@@ -186,7 +186,27 @@ class LoginController extends Controller
             return redirect()->route($this->rp().'login');
         }
 
-        $this->otp->issue($ctx['channel'], $ctx['destination'], 'login', $request->ip());
+        /*
+        | 🔴 نتیجهٔ `issue()` باید خوانده شود.
+        |
+        | نسخهٔ قبلی نتیجه را دور می‌ریخت و **همیشه** می‌گفت «کد دوباره فرستاده
+        | شد». ولی `issue()` شش دلیلِ متفاوت برای شکست دارد — سقفِ آی‌پی، سقفِ
+        | مقصد، خنک‌کننده، مقصدِ نامعتبر، شکستِ SMTP، شکستِ درایورِ پیامک — و
+        | هیچ‌کدام به کاربر نمی‌رسید.
+        |
+        | نتیجهٔ عملی: کاربری که کدش نمی‌آید، پنج بار «ارسال دوباره» می‌زند،
+        | هر بار پیامِ سبزِ موفقیت می‌بیند، و بی‌خبر به سقفِ ساعتی می‌خورد —
+        | بعد از آن حتی مسیرِ درست هم برایش بسته است. بدترین نوعِ رابط: تأییدی
+        | که هیچ ربطی به واقعیت ندارد.
+        */
+        $issue = $this->otp->issue($ctx['channel'], $ctx['destination'], 'login', $request->ip());
+
+        if (! $issue->ok) {
+            // ⚠️ خنک‌کننده خطا نیست: کدِ قبلی هنوز معتبر است و کاربر باید
+            //    همان را وارد کند، نه اینکه فکر کند چیزی خراب شده.
+            return redirect()->route($this->rp().'login.code')
+                ->with($issue->retryAfter === null ? 'err' : 'ok', $issue->error);
+        }
 
         return redirect()->route($this->rp().'login.code')->with('ok', 'کد دوباره فرستاده شد.');
     }

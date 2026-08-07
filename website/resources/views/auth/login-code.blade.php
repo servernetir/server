@@ -8,6 +8,7 @@
 
 @section('form')
 @if(session('ok'))<div class="auth-note ok" style="margin-bottom:14px">{{ session('ok') }}</div>@endif
+@if(session('err'))<div class="auth-note err" style="margin-bottom:14px">{{ session('err') }}</div>@endif
 
 <form method="POST" action="{{ lroute('login.verify') }}" class="auth-f" id="otp-form">
   @csrf

@@ -40,36 +40,61 @@ class NotificationTemplate extends Model
     }
 
     /**
-     * رویدادهایی که واقعاً از این الگو استفاده می‌کنند، و روی کدام کانال.
+     * روی کدام کانال‌ها این الگو **واقعاً** مصرف می‌شود.
      *
-     * 🔴 چرا این نقشه لازم شد: صفحه ۱۲ الگو نشان می‌داد و مدیر می‌توانست هر
-     * کدام را ویرایش کند، ولی چندتایشان هیچ فراخوانی نداشتند. نتیجه‌اش بدترین
-     * نوعِ رابط بود: کاری می‌کنی، «ذخیره شد» می‌گیری، و هیچ اتفاقی نمی‌افتد.
-     * فهرستِ زیر دستی نگه داشته می‌شود — هر بار که کلیدی را به کدی وصل کردی،
-     * این‌جا هم اضافه‌اش کن.
+     * ═══ 🔴 چرا دیگر نقشهٔ دستی نیست ═══
      *
-     * @var array<string,array<int,string>>
+     * تا مرداد ۱۴۰۵ این‌جا یک آرایهٔ سخت‌کد بود با این کامنت: «دستی نگه داشته
+     * می‌شود — هر بار که کلیدی را به کدی وصل کردی، این‌جا هم اضافه‌اش کن».
+     * همان جمله تضمینِ کهنه‌شدن بود، و شد: نقشه می‌گفت `welcome` و `invoice`
+     * «به هیچ کدی وصل نیستند»، در حالی که هر ثبت‌نام و هر سفارش دقیقاً همان
+     * متن‌ها را به مشتری می‌فرستاد.
+     *
+     * دو دروغِ متقارن، و هر دو گران:
+     *
+     *   نقشه می‌گفت «مرده» ولی زنده بود  → مدیر متنِ ناقص را رها می‌کرد و
+     *     همان متن به مشتری می‌رسید
+     *   نقشه می‌گفت «فقط بله» ولی ایمیل هم می‌رفت → مدیر متنی داخلی/آزمایشی
+     *     در ایمیل می‌نوشت با این خیال که فرستاده نمی‌شود
+     *
+     * حالا از **کاتالوگِ رویداد** مشتق می‌شود — همان منبعی که خودِ `Notifier`
+     * از رویش تصمیم می‌گیرد. پس نقشه نمی‌تواند از واقعیت عقب بماند.
+     *
+     * @return array<int,string>
      */
-    public const WIRED = [
-        'paid'             => ['bale'],
-        'ticket_reply'     => ['bale'],
-        'password_changed' => ['bale'],
-        'service_ready'    => ['bale'],
-        'bank_rejected'    => ['bale'],
-        'announce'         => ['bale'],
-        'expiring'         => ['bale', 'email'],
-        'suspended'        => ['bale', 'email'],
-        'reactivated'      => ['bale', 'email'],
-        // چرخهٔ عمرِ دامنه — RunDomainLifecycle
-        'domain_expiring'  => ['bale', 'email'],
-        'domain_expired'   => ['bale', 'email'],
-        // otp / welcome / invoice هنوز به هیچ فراخوانی وصل نیستند
-    ];
-
-    /** @return array<int,string> */
     public function wiredChannels(): array
     {
-        return self::WIRED[$this->key] ?? [];
+        return static::channelsFor((string) $this->key);
+    }
+
+    /**
+     * @return array<int,string>  زیرمجموعه‌ای از sms · bale · email
+     */
+    public static function channelsFor(string $key): array
+    {
+        $event = \App\Services\Notify\NotifyEvent::get($key);
+
+        // رویدادی که در کاتالوگ نیست یا هنوز فراخوان ندارد = واقعاً مرده
+        if ($event === null || ! $event['wired'] || ! \App\Services\Notify\NotifyEvent::notifiesCustomer($key)) {
+            return [];
+        }
+
+        /*
+        | بله و ایمیل همیشه: هر رویدادِ مشتری‌محور از `CustomerNotifier` رد
+        | می‌شود و آن‌جا هر دو کانال تلاش می‌شوند.
+        |
+        | ⚠️ پیامک **مشروط** است: فقط اگر الگویی در پنلِ اپراتور برایش ساخته
+        | شده باشد. `SignedRelaySender::TEMPLATES` تنها جایی است که این را
+        | می‌داند، و `SmsTemplateRegistryTest` آن را با رجیستریِ n8n قفل کرده —
+        | پس این ستون هم خودبه‌خود درست می‌مانَد.
+        */
+        $channels = ['bale', 'email'];
+
+        if (in_array($key, \App\Services\Sms\SignedRelaySender::TEMPLATES, true)) {
+            array_unshift($channels, 'sms');
+        }
+
+        return $channels;
     }
 
     public function isWired(): bool

@@ -9,6 +9,7 @@
   </p>
 
   @if(session('ok'))<div class="ad-flash ok" style="background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35);color:#34d399">{{ session('ok') }}</div>@endif
+@if(session('err'))<div class="ad-flash err">{{ session('err') }}</div>@endif
   @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
 
   <form method="post" action="/admin/login/otp" id="ad-otp-form">

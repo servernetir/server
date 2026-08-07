@@ -635,7 +635,16 @@ class CloudStoreController extends Controller
             return $this->orderHourly($request, $customer, $offer, $data, $addons, $sshKey, $label, $locText, $description);
         }
 
-        $invoice = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
+        /*
+        | 🔴 `$service` باید از تراکنش **برگردد**.
+        |
+        | قبلاً فقط `$invoice` برمی‌گشت و پایین‌تر `$service` استفاده می‌شد —
+        | متغیری که فقط داخلِ closure وجود داشت. نتیجه: «Undefined variable»،
+        | بعد `TypeError`، و بعد `catch (\Throwable)` که آن را می‌بلعید. پس
+        | **هیچ ردیفِ خریدی در تاریخچهٔ سرویس ثبت نمی‌شد** و صفحهٔ تاریخچه برای
+        | هر سرورِ ابری خالی می‌مانْد — با پاسخِ ۲۰۰ و بی‌هیچ خطایی.
+        */
+        [$service, $invoice] = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
             $service = Service::create([
                 'customer_id' => $customer->id,
                 'name' => mb_substr('سرور مجازی '.$label, 0, 150),
@@ -660,29 +669,58 @@ class CloudStoreController extends Controller
                 'plan' => (string) $offer->public_name,
             ]);
 
-            return $this->issueOrderInvoice($service, $offer, $label);
+            return [$service, $this->issueOrderInvoice($service, $offer, $label)];
         });
 
         try {
             ActivityLog::forService($service, 'purchase',
                 'سفارشِ سرورِ مجازی «'.$label.'» — '.$offer->public_name.' · '.$locText
                 .' · '.Service::labelFor($cycle).' توسط مشتری ثبت شد', 'customer', $request);
-        } catch (\Throwable) {
-            // لاگ نباید سفارش را بشکند
+        } catch (\Throwable $e) {
+            // ⚠️ لاگ نباید سفارش را بشکند — ولی **بی‌صدا هم نباید بمیرد**.
+            //    همین catchِ خالی بود که باگِ بالا را پنهان نگه داشت.
+            \App\Support\ErrorTracker::note('cloud', $e, ['area' => 'order-activity-log']);
         }
 
+        /*
+        | 🔴 مشتری هم باید خبردار شود.
+        |
+        | قبلاً فقط `AdminNotifier` صدا زده می‌شد: مشتری یک سرورِ مجازی سفارش
+        | می‌داد و **هیچ رسیدی** نمی‌گرفت — نه پیامک، نه بله، نه ایمیل. تنها
+        | نشانهٔ سفارش، پیامِ فلشِ صفحه بود که با یک رفرش می‌رفت.
+        |
+        | ⚠️ و کاتالوگ ادعا می‌کرد `service_ordered` و `invoice` «وصل»اند، چون
+        | تستِ پوشش فراخوانِ **مسیرِ هاستِ اشتراکی** را پیدا می‌کرد. یعنی یک
+        | رویدادِ وصل می‌تواند روی یکی از دو مسیرِ خرید مرده باشد و هیچ تستی
+        | نفهمد — «وصل بودن» به‌ازای هر مسیر معنا دارد، نه یک بار برای همیشه.
+        |
+        | `Notifier::fire()` هر دو طرف را می‌گیرد، پس دیگر لازم نیست هر مسیر
+        | جداگانه یادش باشد مدیر را هم خبر کند.
+        */
+        $amountText = fa_num(number_format((int) $invoice->total)).' تومان';
+
         try {
+            $notifier = app(\App\Services\Notify\Notifier::class);
+
             // ⚠️ حتی برای مدیر هم نامِ زیرساخت نمی‌رود — فقط نامِ عمومیِ پلن
-            app(AdminNotifier::class)->event('سفارشِ سرورِ مجازی (در انتظارِ پرداخت)', [
-                'مشتری' => $customer->displayName().' ('.$customer->code.')',
-                'پلن' => (string) $offer->public_name,
-                'مکان' => $locText,
-                'سیستم‌عامل' => (string) $data['image'],
-                'دوره' => Service::labelFor($cycle),
-                'مبلغ' => fa_num(number_format((int) $invoice->total)).' تومان',
-            ], url('/admin/customers/'.$customer->id), '🖥️');
-        } catch (\Throwable) {
-            // اعلان نباید سفارش را بشکند
+            $notifier->fire('service_ordered', $customer, [
+                'service' => (string) $offer->public_name,
+                'amount'  => $amountText,
+            ], 'سفارشِ «'.$offer->public_name.'» ثبت شد. با پرداختِ پیش‌فاکتور، سرور خودکار تحویل می‌شود.',
+                [
+                    'مکان' => $locText,
+                    'سیستم‌عامل' => (string) $data['image'],
+                    'دوره' => Service::labelFor($cycle),
+                ], url('/admin/customers/'.$customer->id), '🖥️');
+
+            $notifier->fire('invoice', $customer, [
+                'number' => (string) $invoice->number,
+                'amount' => $amountText,
+                'link'   => lroute('account.invoice', $invoice),
+            ], 'پیش‌فاکتور '.$invoice->number.' به مبلغ '.$amountText.' صادر شد.');
+        } catch (\Throwable $e) {
+            // اعلان نباید سفارش را بشکند — ولی سکوت هم نباید بکند
+            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'cloud-order']);
         }
 
         return redirect(lroute('account.invoice', $invoice))

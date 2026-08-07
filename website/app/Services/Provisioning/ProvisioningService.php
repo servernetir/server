@@ -426,14 +426,30 @@ class ProvisioningService
     private function notify(Service $service, string $text): void
     {
         try {
-            // متغیرها لازم‌اند وگرنه الگوی /admin/templates بی‌اثر می‌مانَد
-            app(\App\Services\Notify\CustomerNotifier::class)->event(
-                $service->customer, 'service_ready',
+            /*
+            | 🔴 از `Notifier::fire()` می‌رود، نه مستقیم `CustomerNotifier`.
+            |
+            | کاتالوگ `service_ready` را `both` اعلام کرده، ولی این مسیر فقط به
+            | مشتری خبر می‌داد: هر تحویلِ موفقِ cPanel/DirectAdmin بی‌اطلاعِ مدیر
+            | انجام می‌شد، در حالی که برای **همان رویداد** روی سرورِ ابری اعلان
+            | می‌رفت.
+            |
+            | ⚠️ و تستِ پوشش نمی‌گرفتش، چون فراخوانِ مسیرِ ابری را پیدا می‌کرد و
+            | راضی می‌شد. درسِ تکراری: «وصل بودن» به‌ازای **هر مسیر** معنا دارد،
+            | نه یک بار برای کلِ رویداد.
+            |
+            | ⚠️ متغیرها لازم‌اند وگرنه الگوی /admin/templates بی‌اثر می‌مانَد.
+            */
+            app(\App\Services\Notify\Notifier::class)->fire(
+                'service_ready', $service->customer,
                 ['service' => $service->name, 'ip' => (string) ($service->server?->hostname ?? '—')],
-                $text
+                $text,
+                ['سرویس' => $service->name, 'سرور' => (string) ($service->server?->hostname ?? '—')],
+                url('/admin/services/'.$service->id), '✅',
             );
-        } catch (\Throwable) {
-            // اعلان نباید تحویل را بشکند
+        } catch (\Throwable $e) {
+            // اعلان نباید تحویل را بشکند — ولی بی‌صدا هم نباید بمیرد
+            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'provision-ready']);
         }
 
         // ایمیلِ اطلاعاتِ سرویس (نام‌کاربری/رمز/آدرسِ ورود) — best-effort

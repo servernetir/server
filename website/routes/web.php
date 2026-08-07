@@ -117,7 +117,7 @@ $site = function (): void {
 
         Route::get('/register/verify', [Auth\RegisterController::class, 'showVerify'])->name('register.verify.form');
         Route::post('/register/verify', [Auth\RegisterController::class, 'verify'])->name('register.verify')->middleware('throttle:otp');
-        Route::post('/register/resend', [Auth\RegisterController::class, 'resend'])->name('register.resend')->middleware('throttle:otp');
+        Route::post('/register/resend', [Auth\RegisterController::class, 'resend'])->name('register.resend')->middleware('throttle:resend');
 
         Route::get('/register/identity', [Auth\RegisterController::class, 'showIdentity'])->name('register.identity.form');
         Route::post('/register/identity', [Auth\RegisterController::class, 'identity'])->name('register.identity')->middleware('throttle:kyc');
@@ -129,7 +129,7 @@ $site = function (): void {
         Route::post('/login', [Auth\LoginController::class, 'start'])->name('login.start')->middleware('throttle:signin');
         Route::get('/login/code', [Auth\LoginController::class, 'code'])->name('login.code');
         Route::post('/login/verify', [Auth\LoginController::class, 'verify'])->name('login.verify')->middleware('throttle:otp');
-        Route::post('/login/resend', [Auth\LoginController::class, 'resend'])->name('login.resend')->middleware('throttle:otp');
+        Route::post('/login/resend', [Auth\LoginController::class, 'resend'])->name('login.resend')->middleware('throttle:resend');
     });
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
@@ -220,7 +220,7 @@ $site = function (): void {
 
         // امنیت حساب — رمز (با OTP)، قوانین IP، توکن‌های API
         Route::get('/security', [Account\SecurityController::class, 'index'])->name('security');
-        Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:otp');
+        Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:resend');
         Route::post('/security/password', [Account\SecurityController::class, 'passwordVerify'])->name('security.pw')->middleware('throttle:otp');
         Route::post('/security/ip', [Account\SecurityController::class, 'ipStore'])->name('security.ip')->middleware('throttle:forms');
         Route::post('/security/ip/{rule}/delete', [Account\SecurityController::class, 'ipDestroy'])->name('security.ip.delete');
@@ -1666,7 +1666,7 @@ Route::prefix('admin')->group(function () {
     // «auth:web» هستند چون کاربر هنوز وارد نشده است.
     Route::get('/login/otp', [AdminAuth::class, 'showOtp'])->name('admin.login.otp');
     Route::post('/login/otp', [AdminAuth::class, 'verifyOtp'])->middleware('throttle:otp');
-    Route::post('/login/otp/resend', [AdminAuth::class, 'resendOtp'])->middleware('throttle:otp');
+    Route::post('/login/otp/resend', [AdminAuth::class, 'resendOtp'])->middleware('throttle:resend');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
     // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست

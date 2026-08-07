@@ -152,7 +152,15 @@ class AuthController extends Controller
             return redirect('/admin/login');
         }
 
-        $this->otp->issue('email', $ctx['email'], 'admin_login', $request->ip());
+        // 🔴 مثلِ مسیرِ مشتری: نتیجه باید خوانده شود، وگرنه مدیر پنج بار
+        //    «ارسال دوباره» می‌زند، هر بار تأیید می‌گیرد، و بی‌خبر به سقف
+        //    می‌خورد — و آن‌وقت از پنلِ خودش قفل می‌شود.
+        $issue = $this->otp->issue('email', $ctx['email'], 'admin_login', $request->ip());
+
+        if (! $issue->ok) {
+            return redirect()->route('admin.login.otp')
+                ->with($issue->retryAfter === null ? 'err' : 'ok', $issue->error);
+        }
 
         return redirect()->route('admin.login.otp')->with('ok', 'کد دوباره به ایمیل شما فرستاده شد.');
     }

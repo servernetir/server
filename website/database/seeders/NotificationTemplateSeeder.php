@@ -233,6 +233,144 @@ class NotificationTemplateSeeder extends Seeder
                     ['name' => 'body', 'desc' => 'متن اطلاعیه'],
                 ],
             ],
+
+            /*
+            |------------------------------------------------------------------
+            | ۱۱ رویدادی که پیامشان زنده بود ولی ردیفی در این کاتالوگ نداشتند
+            |------------------------------------------------------------------
+            |
+            | 🔴 مدیر می‌خواست متنِ «سرویس شما خاتمه یافت و داده‌هایش حذف شد» را
+            | نرم‌تر کند، در این صفحه ردیفی برایش پیدا نمی‌کرد و نتیجه می‌گرفت
+            | چنین پیامی وجود ندارد — در حالی که همان لحظه متنِ سخت‌کدِ
+            | `ProvisioningService` داشت به مشتری می‌رفت. صفحه ادعای «کاتالوگِ
+            | پیام‌ها» بودن می‌کرد و نصفِ پیام‌ها را نشان نمی‌داد.
+            |
+            | ⚠️ متغیرها **دقیقاً** همان‌هایی است که `NotifyEvent::vars()` اعلام
+            | می‌کند. متغیرِ اضافه یعنی الگو برای همیشه کنار گذاشته می‌شود —
+            | `NotificationSilenceTest` این را قفل کرده.
+            |
+            | ⚠️ اگر متغیری از قلم بیفتد، متنِ سخت‌کدِ فراخوان جایگزین می‌شود؛
+            | یعنی بدترین حالت همان رفتارِ قبلی است، نه پیامِ ناقص.
+            */
+            [
+                'key' => 'payment_due', 'title' => 'رسیدن موعد پرداخت', 'group' => 'billing',
+                'sms_event' => 'payment_due',
+                'email_subject' => 'یادآوری پرداخت — فاکتور {number}',
+                'email_body' => '<p>فاکتور <b>{number}</b> به مبلغ <b>{amount}</b> تومان در انتظار پرداخت است.</p><p><a href="{link}">پرداخت فاکتور</a></p>',
+                'bale_body' => 'یادآوری: فاکتور {number} به مبلغ {amount} تومان هنوز پرداخت نشده. {link}',
+                'variables' => [
+                    ['name' => 'number', 'desc' => 'شمارهٔ فاکتور'],
+                    ['name' => 'amount', 'desc' => 'مبلغ (تومان)'],
+                    ['name' => 'link', 'desc' => 'نشانی پرداخت'],
+                ],
+            ],
+            [
+                'key' => 'service_ordered', 'title' => 'ثبت سفارش سرویس', 'group' => 'service',
+                'sms_event' => 'service_ordered',
+                'email_subject' => 'سفارش شما ثبت شد — {service}',
+                'email_body' => '<p>سفارش <b>{service}</b> به مبلغ <b>{amount}</b> تومان ثبت شد.</p><p>پس از پرداخت، سرویس به‌صورت خودکار تحویل می‌شود.</p>',
+                'bale_body' => 'سفارش {service} به مبلغ {amount} تومان ثبت شد.',
+                'variables' => [
+                    ['name' => 'service', 'desc' => 'نام سرویس'],
+                    ['name' => 'amount', 'desc' => 'مبلغ (تومان)'],
+                ],
+            ],
+            [
+                'key' => 'service_failed', 'title' => 'شکست در تحویل سرویس', 'group' => 'service',
+                'sms_event' => 'service_failed',
+                'email_subject' => 'تحویل {service} به تأخیر افتاد',
+                'email_body' => '<p>تحویل خودکار <b>{service}</b> انجام نشد.</p><p>تیم پشتیبانی در حال بررسی است و به‌زودی با شما تماس می‌گیرد؛ مبلغی از دست نمی‌رود.</p>',
+                'bale_body' => 'تحویل {service} انجام نشد؛ پشتیبانی در حال بررسی است.',
+                'variables' => [
+                    ['name' => 'service', 'desc' => 'نام سرویس'],
+                ],
+            ],
+            [
+                'key' => 'renewed', 'title' => 'تمدید موفق سرویس', 'group' => 'service',
+                'sms_event' => 'renewed',
+                'email_subject' => 'سرویس شما تمدید شد — {service}',
+                'email_body' => '<p>سرویس <b>{service}</b> تمدید شد و تا <b>{until}</b> فعال است.</p>',
+                'bale_body' => 'سرویس {service} تمدید شد. اعتبار تا {until}',
+                'variables' => [
+                    ['name' => 'service', 'desc' => 'نام سرویس'],
+                    ['name' => 'until', 'desc' => 'تاریخ سررسید تازه'],
+                ],
+            ],
+            [
+                'key' => 'data_deletion_due', 'title' => 'هشدار حذف دائمی داده', 'group' => 'service',
+                'sms_event' => 'data_deletion_due',
+                'email_subject' => 'هشدار: داده‌های {service} تا {days} روز دیگر حذف می‌شود',
+                'email_body' => '<p>سرویس <b>{service}</b> تمدید نشده و داده‌هایش تا <b>{days}</b> روز دیگر <b>برای همیشه</b> حذف می‌شود.</p><p>پس از حذف، بازگردانی ممکن نیست.</p>',
+                'bale_body' => 'هشدار: داده‌های {service} تا {days} روز دیگر برای همیشه حذف می‌شود.',
+                'variables' => [
+                    ['name' => 'service', 'desc' => 'نام سرویس'],
+                    ['name' => 'days', 'desc' => 'روزهای باقی‌مانده'],
+                ],
+            ],
+            [
+                'key' => 'terminated', 'title' => 'خاتمهٔ سرویس و حذف داده', 'group' => 'service',
+                'sms_event' => 'terminated',
+                'email_subject' => 'سرویس {service} خاتمه یافت',
+                'email_body' => '<p>سرویس <b>{service}</b> خاتمه یافت و داده‌هایش حذف شد.</p><p>از همراهی شما سپاسگزاریم.</p>',
+                'bale_body' => 'سرویس {service} خاتمه یافت و داده‌هایش حذف شد.',
+                'variables' => [
+                    ['name' => 'service', 'desc' => 'نام سرویس'],
+                ],
+            ],
+            [
+                'key' => 'domain_registered', 'title' => 'ثبت موفق دامنه', 'group' => 'domain',
+                'sms_event' => 'domain_registered',
+                'email_subject' => 'دامنه {domain} ثبت شد',
+                'email_body' => '<p>دامنه <b>{domain}</b> با موفقیت ثبت شد و تا <b>{until}</b> اعتبار دارد.</p>',
+                'bale_body' => 'دامنه {domain} ثبت شد. اعتبار تا {until}',
+                'variables' => [
+                    ['name' => 'domain', 'desc' => 'نام دامنه'],
+                    ['name' => 'until', 'desc' => 'تاریخ انقضا'],
+                ],
+            ],
+            [
+                'key' => 'domain_renewed', 'title' => 'تمدید موفق دامنه', 'group' => 'domain',
+                'sms_event' => 'domain_renewed',
+                'email_subject' => 'دامنه {domain} تمدید شد',
+                'email_body' => '<p>دامنه <b>{domain}</b> تمدید شد و تا <b>{until}</b> اعتبار دارد.</p>',
+                'bale_body' => 'دامنه {domain} تمدید شد. اعتبار تا {until}',
+                'variables' => [
+                    ['name' => 'domain', 'desc' => 'نام دامنه'],
+                    ['name' => 'until', 'desc' => 'تاریخ انقضای تازه'],
+                ],
+            ],
+            [
+                'key' => 'ticket_new', 'title' => 'ثبت تیکت جدید', 'group' => 'support',
+                'sms_event' => 'ticket_new',
+                'email_subject' => 'تیکت {number} ثبت شد',
+                'email_body' => '<p>تیکت شماره <b>{number}</b> با موضوع «{subject}» ثبت شد.</p><p>پاسخ را از همین‌جا و در پنل کاربری دنبال کنید.</p>',
+                'bale_body' => 'تیکت {number} ثبت شد: {subject}',
+                'variables' => [
+                    ['name' => 'number', 'desc' => 'شمارهٔ تیکت'],
+                    ['name' => 'subject', 'desc' => 'موضوع تیکت'],
+                ],
+            ],
+            [
+                'key' => 'ticket_closed', 'title' => 'بستن تیکت', 'group' => 'support',
+                'sms_event' => 'ticket_closed',
+                'email_subject' => 'تیکت {number} بسته شد',
+                'email_body' => '<p>تیکت شماره <b>{number}</b> بسته شد.</p><p>اگر موضوع حل نشده، با پاسخ‌دادن دوباره بازش کنید.</p>',
+                'bale_body' => 'تیکت {number} بسته شد.',
+                'variables' => [
+                    ['name' => 'number', 'desc' => 'شمارهٔ تیکت'],
+                ],
+            ],
+            [
+                'key' => 'ticket_survey', 'title' => 'نظرسنجی پس از بستن تیکت', 'group' => 'support',
+                'sms_event' => 'ticket_survey',
+                'email_subject' => 'نظر شما دربارهٔ تیکت {number}',
+                'email_body' => '<p>تیکت <b>{number}</b> بسته شد. اگر یک دقیقه وقت دارید، از کیفیت پشتیبانی بگویید.</p><p><a href="{link}">ثبت نظر</a></p>',
+                'bale_body' => 'تیکت {number} بسته شد. نظرتان دربارهٔ پشتیبانی: {link}',
+                'variables' => [
+                    ['name' => 'number', 'desc' => 'شمارهٔ تیکت'],
+                    ['name' => 'link', 'desc' => 'نشانی نظرسنجی'],
+                ],
+            ],
         ];
     }
 }
