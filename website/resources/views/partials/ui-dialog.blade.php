@@ -76,10 +76,28 @@ html[data-theme="light"] .sn-toast{background:#fff;color:#1a2233;border-color:rg
     var danger = !!opts.danger;
     dlg.className = 'sn-dlg ' + (danger ? 'danger' : 'ask');
     icon.innerHTML = danger ? ICON_WARN : ICON_ASK;
-    h.textContent = opts.title || (danger ? 'تأیید عملیات' : 'تأیید');
+    /*
+     * 🔴 متنِ پیش‌فرض با زبانِ صفحه می‌آید، نه سخت‌کد.
+     *
+     * قبلاً «تأیید عملیات» و «بله، انجام بده» و «انصراف» فارسیِ ثابت بودند —
+     * حتی روی صفحهٔ انگلیسی. مشتریِ انگلیسی که می‌خواست سرورش را خاموش کند یا
+     * رمزِ root را ریست کند، سؤال را انگلیسی می‌خواند و زیرش دو دکمهٔ فارسی
+     * می‌دید و نمی‌دانست کدام تأیید است — روی عملیاتی برگشت‌ناپذیر.
+     *
+     * ⚠️ هر رشته جداگانه تزریق می‌شود. آرایهٔ درون‌خطی داخلِ دستورِ json
+     * پارسرِ Blade را می‌شکند — تلهٔ ثبت‌شدهٔ همین پروژه که دو بار خوردمش.
+     * و کامنتِ همین‌جا هم نباید نحوِ Blade داشته باشد: Blade داخلِ کامنتِ
+     * جاواسکریپت را هم کامپایل می‌کند و همان تله را از درِ سوم می‌آورد.
+     */
+    var T_CONFIRM = '{{ __("ui.dlg_confirm") }}';
+    var T_DANGER  = '{{ __("ui.dlg_confirm_danger") }}';
+    var T_YES     = '{{ __("ui.dlg_yes_do") }}';
+    var T_CANCEL  = '{{ __("ui.dlg_cancel") }}';
+
+    h.textContent = opts.title || (danger ? T_DANGER : T_CONFIRM);
     p.textContent = message || '';
-    ok.textContent = opts.ok || (danger ? 'بله، انجام بده' : 'تأیید');
-    no.textContent = opts.cancel || 'انصراف';
+    ok.textContent = opts.ok || (danger ? T_YES : T_CONFIRM);
+    no.textContent = opts.cancel || T_CANCEL;
     ov.classList.add('on');
     setTimeout(function () { no.focus(); }, 30);
     return new Promise(function (res) { resolver = res; });

@@ -48,7 +48,13 @@ class StoreController extends Controller
     public function checkout(Product $product): View|RedirectResponse
     {
         if (! $product->is_active) {
-            return redirect(lroute('home'))->withErrors('این پکیج در دسترس نیست.');
+            /*
+            | ⚠️ به `home` نه — روی کنسول، `/` مشتریِ واردشده را به داشبورد
+            | می‌برد و پیامِ خطا در آن پرش گم می‌شود. همان دامی که ورودیِ
+            | «خرید سرویس» را هم به حلقهٔ بسته تبدیل کرده بود.
+            */
+            return redirect(lroute('account.services'))
+                ->with('err', 'این پکیج دیگر در دسترس نیست. لطفاً پکیجِ دیگری انتخاب کنید یا با پشتیبانی تماس بگیرید.');
         }
 
         return view('account.checkout', AccountController::shell('') + [

@@ -153,6 +153,19 @@ class CatalogController extends Controller
             'cloudStoreHref' => $this->cloudStoreHref($category, $slug),
             // لینکِ اختصاصیِ هر پلن (با پلنِ ازپیش‌انتخاب‌شده) — اگر پلن‌ها زنده باشند
             'planHrefs' => $planHrefs,
+            /*
+            | 🔴 کدام پکیجِ هاست **واقعاً** سفارش‌پذیر است.
+            |
+            | ویو تا امروز برای هر ردیف بی‌قیدوشرط لینکِ `account.order` می‌ساخت.
+            | اگر آن پکیج در دیتابیس نبود یا غیرفعال بود، مشتری قیمت را می‌دید،
+            | «انتخاب» را می‌زد، و بی‌هیچ پیامی در صفحهٔ اول سر درمی‌آورد.
+            |
+            | ⚠️ همان منبعی خوانده می‌شود که قیمت را هم می‌دهد، پس نمی‌تواند از
+            | آن جدا بیفتد.
+            */
+            'orderable' => \Illuminate\Support\Facades\Schema::hasTable('products')
+                ? \App\Models\Product::where('is_active', true)->pluck('slug')->flip()->all()
+                : [],
         ]);
     }
 

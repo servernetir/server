@@ -1873,4 +1873,10 @@ return [
     'err_503_h1a' => 'Bakım',
     'err_503_h1b' => 'yapılıyor',
     'err_503_lead' => 'Site kısa süreliğine kullanılamıyor. Sunucularınız ve hizmetleriniz sorunsuz çalışmaya devam ediyor.',
+
+    // ── دیالوگ تأیید ──
+    'dlg_confirm' => 'Onayla',
+    'dlg_confirm_danger' => 'İşlemi onayla',
+    'dlg_yes_do' => 'Evet, yap',
+    'dlg_cancel' => 'İptal',
 ];

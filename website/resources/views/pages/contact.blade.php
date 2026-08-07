@@ -138,6 +138,23 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ message: composed, session: 'contact-' + Date.now().toString(36) }),
       });
       const data = await res.json();
+
+      /*
+       * 🔴 «ارسال شد» فقط وقتی واقعاً رفت.
+       *
+       * قبلاً کلاسِ `ok` بی‌قیدوشرط ست می‌شد. اگر سرور خطا می‌داد یا وب‌هوک
+       * نبود، مشتری باز هم پیامِ سبز می‌دید و منتظرِ تماس می‌مانْد — در حالی
+       * که نام و شماره‌اش هیچ‌جا ذخیره نشده بود و هیچ‌کس آن را نمی‌دید.
+       * سرنخِ فروشِ ازدست‌رفته‌ای که هیچ ردی از خودش نمی‌گذاشت.
+       */
+      if (!res.ok || (data && data.ok === false)) {
+        result.hidden = false;
+        result.className = 'ct-result err';
+        result.textContent = (data && data.message) || @json(__('ui.chat_error'));
+        btn.disabled = false; btn.style.opacity = 1;
+        return;
+      }
+
       result.hidden = false;
       result.className = 'ct-result ok';
       result.innerHTML = '<b>' + @json(__('ui.ct_sent')) + '</b><p>' + (data.reply ? data.reply.replace(/</g, '&lt;') : @json(__('ui.ct_sent_d'))) + '</p>';

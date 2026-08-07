@@ -10,6 +10,8 @@
 
 @section('title', fa_num(429).' — '.__('ui.brand'))
 
+@section('noindex', 1)
+
 @section('content')
 @php
   $p = \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';

@@ -2,6 +2,8 @@
 
 @section('title', '404 — '.__('ui.brand'))
 
+@section('noindex', 1)
+
 @section('content')
 @php $loc = app()->getLocale(); @endphp
 <section class="hero hero-sub err-page" style="min-height:70vh;display:flex;align-items:center">

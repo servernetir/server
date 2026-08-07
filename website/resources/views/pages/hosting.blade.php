@@ -298,8 +298,12 @@
         // همین کشورِ ازپیش‌انتخاب‌شده. هیچ‌کدام دیگر به WHMCSِ بیرونی نمی‌روند.
         // پلنِ زندهٔ ابری لینکِ اختصاصیِ خودش را دارد (مکان + پلن ازپیش‌انتخاب‌شده)
         // تا همان چیزی که این‌جا می‌بیند، سرِ پرداخت هم همان باشد.
+        // ⚠️ فقط اگر پکیج واقعاً در کاتالوگ و فعال باشد. وگرنه دکمهٔ خرید
+        //    کاربر را بی‌پیام به صفحهٔ اول پرت می‌کرد.
+        $orderSlug = $slug.'-'.($i + 1);
+
         $storeHref = ($category === 'hosting')
-            ? lroute('account.order', $slug.'-'.($i + 1))
+            ? (isset($orderable[$orderSlug]) ? lroute('account.order', $orderSlug) : null)
             : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">

@@ -23,11 +23,22 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', __('ui.meta_title'))</title>
 <meta name="description" content="@yield('description', __('ui.meta_desc'))">
-<link rel="canonical" href="{{ url()->current() }}">
+{{--
+  🔴 صفحهٔ خطا نباید خودش را canonical کند و نباید hreflang بدهد.
+  قبلاً صفحهٔ ۴۰۴ آدرسِ خرابِ خودش را canonical اعلام می‌کرد و به دو زبانِ
+  دیگرِ **همان آدرسِ خراب** لینک می‌داد: کاربری که برای نجاتِ خودش زبان را عوض
+  می‌کرد، به یک ۴۰۴ِ دیگر می‌رفت — سه بار پشتِ سرِ هم. و گوگل یک صفحهٔ ۴۰۴ِ
+  بی‌noindex و خودcanonical را ایندکس‌پذیر می‌دید.
+--}}
+@hasSection('noindex')
+<meta name="robots" content="noindex,follow">
+@else
+<link rel="canonical" href="@yield('canonical', url()->current())">
 @foreach($localeUrls as $langCode => $langUrl)
 <link rel="alternate" hreflang="{{ $langCode }}" href="{{ $langUrl }}">
 @endforeach
 <link rel="alternate" hreflang="x-default" href="{{ $localeUrls['fa'] }}">
+@endif
 <meta property="og:title" content="@yield('title', __('ui.meta_title'))">
 <meta property="og:description" content="@yield('description', __('ui.meta_desc'))">
 <meta property="og:type" content="website">

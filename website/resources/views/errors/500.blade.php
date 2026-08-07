@@ -7,6 +7,8 @@
 
 @section('title', '500 — '.__('ui.brand'))
 
+@section('noindex', 1)
+
 @section('content')
 @php $p = \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? ''; @endphp
 <section class="hero hero-sub err-page" style="min-height:70vh;display:flex;align-items:center">

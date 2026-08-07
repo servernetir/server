@@ -1873,4 +1873,10 @@ return [
     'err_503_h1a' => 'Under',
     'err_503_h1b' => 'maintenance',
     'err_503_lead' => 'The site is briefly unavailable. Your servers and services keep running untouched — only this page is temporarily down.',
+
+    // ── دیالوگ تأیید ──
+    'dlg_confirm' => 'Confirm',
+    'dlg_confirm_danger' => 'Confirm action',
+    'dlg_yes_do' => 'Yes, do it',
+    'dlg_cancel' => 'Cancel',
 ];
