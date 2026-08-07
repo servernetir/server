@@ -69,6 +69,22 @@ class AezaClient implements CloudProvider
         'os'       => ['os', 'services/os', 'vm/os'],
         'recipe'   => ['vm/recipe', 'services/recipe', 'recipes'],
         'currencies' => ['payment/currencies', 'currencies', 'payments/currencies'],
+
+        /*
+        | 🔴 مسیرِ **سفارش** هم باید کشف شود، نه سخت‌کد.
+        |
+        | تا مرداد ۱۴۰۵ همهٔ مسیرهای **خواندنی** با نامزد و `resolvePath()` پیدا
+        | می‌شدند — چون گیت‌ویِ این زیرساخت مسیرهای غیرِ استاندارد دارد. ولی
+        | `createServer()` مسیرش را سخت‌کد کرده بود: `'/services/orders'`.
+        |
+        | یعنی تنها مسیری که **پول خرج می‌کند و سرور تحویل می‌دهد**، تنها مسیری
+        | بود که هرگز راستی‌آزمایی نشد. و پاسخِ گیت‌ویِ آن‌ها به مسیرِ ناشناخته
+        | «Proxy internal server error» با کدِ ۵۰۰ است — همان چیزی که پشتِ سرِ
+        | هم گرفتیم و شبیهِ خرابیِ سمتِ آن‌ها به‌نظر می‌رسید.
+        |
+        | ⚠️ کشف با **GET** انجام می‌شود (فهرستِ سفارش‌ها) — بی‌خطر و بی‌هزینه.
+        */
+        'orders' => ['services/orders', 'orders', 'service/orders', 'vm/orders'],
     ];
 
     public function slug(): string
@@ -1523,7 +1539,11 @@ class AezaClient implements CloudProvider
             $params['os'] = $imageRef;
         }
 
-        $r = $this->req('POST', '/services/orders', [
+        // ⚠️ اگر کشف نشد، همان نامزدِ اول را می‌زنیم — بهتر از نفرستادن است،
+        //    و پیامِ خطا صریح می‌گوید کدام مسیر امتحان شد.
+        $ordersPath = $this->resolvePath('orders') ?: self::PATH_CANDIDATES['orders'][0];
+
+        $r = $this->req('POST', '/'.$ordersPath, [
             'count'       => 1,
             'term'        => 'month',
             'name'        => $spec['name'],
@@ -1539,7 +1559,9 @@ class AezaClient implements CloudProvider
             // دفعهٔ بعد **علت** معلوم باشد، نه فقط اینکه «نشد».
             $raw = mb_substr(json_encode($r['body'], JSON_UNESCAPED_UNICODE) ?: '', 0, 300);
             $hint = str_contains(strtolower((string) $r['message']), 'proxy internal server error')
-                ? ' — این پیامِ گیت‌وی معمولاً یعنی مسیر شناخته نشد یا موجودیِ حسابِ زیرساخت کافی نیست.'
+                ? ' — این پیامِ گیت‌وی یعنی **مسیر شناخته نشد** یا موجودیِ حسابِ زیرساخت کافی نیست.'
+                  .' مسیرِ امتحان‌شده: /'.$ordersPath.' — از «ساختارِ خامِ پاسخ» در /admin/cloud'
+                  .' ببینید کدام مسیرِ سفارش روی گیت‌وی پاسخ می‌دهد.'
                 : '';
 
             return ['ok' => false, 'message' => 'ثبتِ سفارش نزدِ زیرساخت انجام نشد: '
@@ -1553,7 +1575,7 @@ class AezaClient implements CloudProvider
         // چند تلاشِ کوتاه؛ بیش از این را به کرون می‌سپاریم تا وب‌هوکِ درگاه معطل نشود
         for ($i = 0; $i < 5 && $ids === [] && $orderId !== ''; $i++) {
             usleep(1500000);
-            $o = $this->req('GET', '/services/orders/'.rawurlencode($orderId));
+            $o = $this->req('GET', '/'.$ordersPath.'/'.rawurlencode($orderId));
             $ids = (array) (data_get($o['body'], 'data.createdServiceIds') ?? data_get($o['body'], 'createdServiceIds') ?? []);
         }
 
