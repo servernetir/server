@@ -531,20 +531,44 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
         */
         'bale_relay' => (function () {
             $keys = ['BALE_OTP_SENDER_BOT_TOKEN', 'BALE_OTP_RELAY_CHAT_ID', 'BALE_OTP_RELAY_SECRET'];
+            $lines = [];
             $dupes = [];
 
             try {
                 $env = @file_get_contents(base_path('.env')) ?: '';
 
                 foreach ($keys as $k) {
+                    /*
+                    | 🔴 فقط **شمارشِ خط**، نه مقدار.
+                    |
+                    | ۰  → کلید اصلاً در .env نیست (یا املایش فرق دارد)
+                    | ۱  → خط هست؛ اگر config خالی باشد یعنی مقدارش خالی است یا
+                    |      نقل‌قول/`#` بریده‌اش
+                    | ۲+ → تلهٔ phpDotenv: **اولین** مقدار برنده می‌شود، پس خطِ
+                    |      دومِ پرشده بی‌اثر است — همان چیزی که SESSION_DOMAIN را خورد
+                    */
                     $n = preg_match_all('/^\s*'.preg_quote($k, '/').'\s*=/m', $env);
+                    $lines[$k] = $n;
 
                     if ($n > 1) {
                         $dupes[] = $k.' ×'.$n;
                     }
                 }
             } catch (\Throwable) {
-                $dupes = ['unreadable'];
+                $lines = ['unreadable' => -1];
+            }
+
+            /*
+            | خواندنِ **مستقیم** از env، بی‌عبور از config.
+            |
+            | اگر این `true` باشد و ستونِ config `false`، یعنی خودِ .env سالم است
+            | و مشکل در لایهٔ config است (کشِ config یا فایلِ کهنه) — دو علتِ
+            | کاملاً متفاوت که بی‌این ستون از هم قابلِ تشخیص نیستند.
+            */
+            $direct = [];
+
+            foreach ($keys as $k) {
+                $direct[$k] = filled(env($k));
             }
 
             /*
@@ -558,6 +582,10 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
                 'bot_token_set'   => filled(config('services.bale_relay.bot_token')),
                 'chat_id_set'     => filled(config('services.bale_relay.chat_id')),
                 'secret_set'      => filled(config('services.bale_relay.secret')),
+                'env_lines'       => $lines,   // ۰ = نیست · ۱ = هست · ۲+ = تله
+                'env_direct'      => $direct,  // بی‌عبور از config
+                'env_path'        => base_path('.env'),
+                'env_exists'      => is_file(base_path('.env')),
                 'duplicate_keys'  => $dupes,   // ⚠️ غیرِخالی = اولین مقدار برنده شده
             ];
         })(),
