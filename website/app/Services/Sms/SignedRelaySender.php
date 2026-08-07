@@ -262,29 +262,19 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
     /**
      * موبایلِ ایرانی به E.164.
      *
-     * ⚠️ ارقامِ فارسی و عربی هم پذیرفته می‌شوند: کاربر معمولاً از صفحه‌کلیدِ
-     * فارسی تایپ می‌کند و `preg_replace('/\D+/')` آن‌ها را **پاک** می‌کرد، نه
-     * تبدیل — یعنی شمارهٔ درست به «خالی» می‌رسید و پیامک بی‌صدا نمی‌رفت.
+     * ⚠️ منطقِ تبدیل در `App\Support\IranianMobile` است، نه این‌جا. همین
+     * نرمال‌ساز را سفیرِ بله هم لازم دارد (با قالبِ متفاوت)، و دو نسخهٔ جدا
+     * یعنی دیر یا زود یکی ارقامِ فارسی را جا می‌اندازد و همان کانال بی‌صدا
+     * خاموش می‌شود.
      */
     protected function mobile(string $mobile): string
     {
-        $fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-        $ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-        $mobile = str_replace(array_merge($fa, $ar), array_merge(range(0, 9), range(0, 9)), $mobile);
+        $e164 = \App\Support\IranianMobile::e164($mobile);
 
-        $d = preg_replace('/\D+/', '', $mobile) ?? '';
-
-        foreach (['0098' => 4, '98' => 2, '0' => 1] as $prefix => $len) {
-            if (str_starts_with($d, (string) $prefix)) {
-                $d = substr($d, $len);
-                break;
-            }
-        }
-
-        if (! preg_match('/^9\d{9}$/', $d)) {
+        if ($e164 === null) {
             throw new \InvalidArgumentException('شمارهٔ موبایلِ ایرانی معتبر نیست: '.mb_substr($mobile, 0, 20));
         }
 
-        return '+98'.$d;
+        return $e164;
     }
 }

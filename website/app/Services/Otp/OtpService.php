@@ -133,7 +133,8 @@ class OtpService
         // بله موازی — اگر کاربر بله را وصل کرده باشد، کد آن‌جا هم می‌رود.
         // best-effort و بی‌خطر: هرگز جریان ثبت‌نام را نمی‌شکند.
         if ($channel === 'sms') {
-            app(\App\Services\Bale\BaleNotifier::class)->notify($destination, "کد ورود سرورنت: {$code}");
+            // مسیرِ اختصاصیِ کدِ سفیر — بی‌نیاز به ورودِ کاربر به ربات
+            app(\App\Services\Bale\BaleNotifier::class)->otp($destination, $code);
 
             // ایمیلِ موازی هم: پیامک گاهی نمی‌رسد (اپراتور/فیلتر) و کاربر پشتِ
             // درِ بسته می‌ماند. اگر این شماره مشتریِ ثبت‌شده‌ای با ایمیل باشد،

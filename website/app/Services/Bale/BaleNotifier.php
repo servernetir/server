@@ -21,7 +21,30 @@ use Illuminate\Support\Facades\Schema;
  */
 class BaleNotifier
 {
-    public function __construct(private BaleSender $sender) {}
+    public function __construct(
+        private BaleSender $sender,
+        private BaleSafirSender $safir,
+    ) {}
+
+    /**
+     * کدِ یک‌بارمصرف به بلهٔ کاربر.
+     *
+     * ⚠️ جدا از `notify()` چون سفیر برای کد مسیرِ اختصاصی دارد و کلاینتِ بله
+     * آن را قابلِ‌کپی و بی‌پیش‌نمایش نشان می‌دهد. اگر سفیر در دسترس نبود، به
+     * همان متنِ معمولی برمی‌گردیم — کد نباید به‌خاطرِ زیبایی گم شود.
+     */
+    public function otp(string $mobile, string $code): void
+    {
+        try {
+            if ($this->safir->enabled() && $this->safir->otp($mobile, $code)) {
+                return;
+            }
+
+            $this->notify($mobile, "کد ورود سرورنت: {$code}");
+        } catch (\Throwable) {
+            // بله هرگز نباید منبع خطای جریان اصلی باشد
+        }
+    }
 
     /**
      * تلاش برای رساندن یک متن به بلهٔ یک شماره.
@@ -30,6 +53,22 @@ class BaleNotifier
     public function notify(string $mobile, string $text): void
     {
         try {
+            /*
+            | 🔴 اول سفیر — چون با **شماره** کار می‌کند.
+            |
+            | مسیرِ قدیمی `chat_id` می‌خواست، و `chat_id` فقط وقتی وجود داشت که
+            | کاربر خودش وارد ربات شده و شماره‌اش را به اشتراک گذاشته باشد.
+            | یعنی برای اکثریتِ مشتری‌ها این تابع **بی‌صدا از خطِ زیر رد
+            | می‌شد** و هیچ پیامی نمی‌رفت. با سفیر، بله از یک قابلیتِ اختیاری
+            | به مسیرِ دومِ واقعی تبدیل می‌شود.
+            |
+            | ⚠️ مسیرِ قدیمی حذف نشد: اگر سفیر اعتبار نداشته باشد یا کاربر
+            | حسابِ بله نداشته باشد، هنوز ممکن است `chat_id` داشته باشیم.
+            */
+            if ($this->safir->enabled() && $this->safir->text($mobile, $text)) {
+                return;
+            }
+
             if (! Schema::hasTable('bale_contacts')) {
                 return;
             }

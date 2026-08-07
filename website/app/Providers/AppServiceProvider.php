@@ -97,6 +97,24 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.bale.base', 'https://tapi.bale.ai'),
         ));
 
+        /*
+        | سفیرِ بله — پیام به **شمارهٔ موبایل**، بی‌نیاز به ورودِ کاربر به ربات.
+        |
+        | 🔴 چرا مهم است: مسیرِ قدیمی `chat_id` می‌خواست و آن فقط وقتی وجود
+        | داشت که کاربر خودش وارد ربات شده باشد. یعنی کانالِ بله برای اکثریتِ
+        | مشتری‌ها **بی‌صدا خاموش** بود. با سفیر، بله به مسیرِ دومِ واقعی تبدیل
+        | می‌شود — همان چیزی که وقتی پیامک نمی‌رسد، تفاوتِ بینِ ورودِ موفق و
+        | مشتریِ پشتِ درِ بسته است.
+        |
+        | ⚠️ فقط پیام‌های سمتِ مشتری. اعلانِ مدیر و گروهِ داخلی از `BaleSender`
+        | می‌روند تا یک خطای اعتبار در سفیر، هشدارهای داخلی را هم نخواباند.
+        */
+        $this->app->singleton(\App\Services\Bale\BaleSafirSender::class, fn () => new \App\Services\Bale\BaleSafirSender(
+            config('services.bale_safir.key'),
+            filled(config('services.bale_safir.bot_id')) ? (int) config('services.bale_safir.bot_id') : null,
+            (string) config('services.bale_safir.base', 'https://safir.bale.ai'),
+        ));
+
         // درگاه‌های پرداخت — افزودن درگاه بعدی فقط یک register اینجاست
         $this->app->singleton(\App\Services\Payment\GatewayRegistry::class, function () {
             $registry = new \App\Services\Payment\GatewayRegistry();

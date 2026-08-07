@@ -29,9 +29,20 @@ class BaleTest extends TestCase
         config(['services.bale.token' => 'bot-token-123']);
     }
 
+    /**
+     * ⚠️ سفیر عمداً **خاموش** است در این فایل.
+     *
+     * این تست‌ها مسیرِ قدیمیِ `chat_id` را می‌سنجند (آلمانِ مستقیم، و صف برای
+     * ایران). با سفیرِ روشن، هیچ‌کدام از آن شاخه‌ها اجرا نمی‌شوند چون سفیر
+     * اول امتحان می‌شود و موفق برمی‌گردد — یعنی تست سبز می‌مانْد بی‌آنکه چیزی
+     * از مسیرِ پشتیبان بسنجد. رفتارِ خودِ سفیر در `BaleSafirTest` سنجیده می‌شود.
+     */
     private function notifier(): BaleNotifier
     {
-        return new BaleNotifier(new BaleSender('bot-token-123'));
+        return new BaleNotifier(
+            new BaleSender('bot-token-123'),
+            new \App\Services\Bale\BaleSafirSender(null, null),
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────
