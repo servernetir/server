@@ -194,18 +194,37 @@
               @if($s->username)<i><b>کاربر:</b> <span dir="ltr">{{ $s->username }}</span></i>@endif
               @if($lastPaid)<i><b>آخرین پرداخت:</b> {{ sdate($lastPaid->paid_at) }}</i>@endif
             </div>
-            @if($s->server_id)
+            {{--
+              🔴 `$s->server_id` **تنها** شرط نیست — و این دقیقاً همان باگی است
+              که یک‌بار در کرونِ تحویل رخ داد و در CLAUDE.md ثبت شده.
+
+              سرورِ ابری `server_id` ندارد (پیش از خرید وجود ندارد). پس این
+              بلوک برای **هر سرویسِ ابری** رد می‌شد: نه نشانِ وضعیتِ تحویل، نه
+              علتِ خطا. مدیر یک سرویسِ «در حالِ آماده‌سازی» می‌دید که هفته‌ها
+              همان‌جا می‌مانْد و هیچ راهی نداشت بفهمد چرا — چون تنها جایی که
+              علت نوشته می‌شود، همین‌جا بود و رندر نمی‌شد.
+
+              ⚠️ درسِ تکراری: هر جا شرطی روی `server_id` گذاشتی، بپرس سرویسِ
+              ابری چه می‌شود.
+            --}}
+            @if($s->server_id || $s->cloud_plan_id)
               @php $pb = $s->provisionBadge(); @endphp
               <div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <span class="ad-badge" style="background:{{ $pb[1] }}22;color:{{ $pb[1] }}">{{ $pb[0] }}</span>
                 @if($s->server)<small dir="ltr" style="color:var(--dim)">{{ $s->server->name }}@if($s->username) · {{ $s->username }}@endif</small>@endif
+                {{-- وضعیتِ خامِ صف — بی‌این، «در حالِ آماده‌سازی» و «گیر کرده»
+                     از هم قابلِ تشخیص نیستند --}}
+                @if($s->provision_status && $s->provision_status !== 'done')
+                  <small dir="ltr" style="color:var(--dim)">{{ $s->provision_status }}</small>
+                @endif
               </div>
-              {{-- 🔴 قبلاً فقط روی `failed` نشان داده می‌شد. ولی سرویسی که در حلقهٔ
-                       تلاشِ دوباره گیر کرده `pending` می‌مانَد — یعنی دقیقاً حالتی که
-                       مدیر بیشتر از همه به علت نیاز دارد، هیچ‌چیز نمی‌دید. --}}
-                    @if($s->provision_error && $s->provision_status !== 'done')
-                      <div style="font-size:11px;color:{{ $s->provision_status === 'failed' ? '#ff6b6b' : '#fbbf24' }};margin-top:3px">{{ $s->provision_error }}</div>
-                    @endif
+
+              {{-- 🔴 قبلاً فقط روی `failed` نشان داده می‌شد. ولی سرویسی که در
+                   حلقهٔ تلاشِ دوباره گیر کرده `pending` می‌مانَد — یعنی دقیقاً
+                   حالتی که مدیر بیشتر از همه به علت نیاز دارد، هیچ‌چیز نمی‌دید. --}}
+              @if($s->provision_error && $s->provision_status !== 'done')
+                <div style="font-size:11px;color:{{ $s->provision_status === 'failed' ? '#ff6b6b' : '#fbbf24' }};margin-top:3px">{{ $s->provision_error }}</div>
+              @endif
             @endif
           </td>
           <td>{{ $s->cycleLabel() }}</td>
