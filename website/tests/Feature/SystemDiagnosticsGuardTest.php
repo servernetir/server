@@ -100,4 +100,48 @@ class SystemDiagnosticsGuardTest extends TestCase
         $this->assertTrue($json['admin']);
         $this->assertIsArray($json['mail_env_values']);
     }
+
+    // ═══════════════ رلهٔ بله در `/system/sms-status` ═══════════════
+
+    /**
+     * روت باید **بالا بیاید**.
+     *
+     * نسخهٔ اولِ این تشخیص `app(BaleRelaySender::class)` را صدا می‌زد. سازندهٔ آن
+     * سه رشته می‌گیرد و در کانتینر بسته نشده، پس autowire شکست می‌خورد و روت
+     * ۵۰۰ می‌داد — یعنی ابزارِ عیب‌یابی دقیقاً وقتی می‌مُرد که لازمش داشتیم، و
+     * چون محلی هم همان اتفاق می‌افتاد، فقط این تست جلویش را می‌گیرد.
+     */
+    public function test_the_sms_status_route_does_not_blow_up(): void
+    {
+        $json = $this->get('/system/sms-status')->assertOk()->json();
+
+        foreach (['bot_token_set', 'chat_id_set', 'secret_set'] as $k) {
+            $this->assertIsBool($json['bale_relay'][$k], "bale_relay.{$k} باید بولین باشد");
+        }
+
+        $this->assertIsArray($json['bale_relay']['duplicate_keys']);
+    }
+
+    /**
+     * 🔴 هیچ رازی برنمی‌گردد.
+     *
+     * این روت **عمومی** است. توکنِ ربات و رازِ HMAC آن‌جا هستند و چاپِ حتی
+     * بخشی‌شان یعنی هر کسی می‌تواند پیامِ جعلی به صفِ پیامک تزریق کند. تست با
+     * مقادیرِ شناخته‌شده پُر می‌کند و می‌سنجد که در بدنه نباشند.
+     */
+    public function test_the_relay_secrets_never_appear_in_the_response(): void
+    {
+        config([
+            'services.bale_relay.bot_token' => '1234567:AA-SECRET-BOT-TOKEN',
+            'services.bale_relay.chat_id'   => '-1009876543210',
+            'services.bale_relay.secret'    => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
+        ]);
+
+        $body = $this->get('/system/sms-status')->assertOk()->getContent();
+
+        foreach (['AA-SECRET-BOT-TOKEN', '-1009876543210', 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'] as $secret) {
+            $this->assertStringNotContainsString($secret, $body,
+                'رازِ رله در پاسخِ یک روتِ عمومی نشت کرد');
+        }
+    }
 }

@@ -517,6 +517,51 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
         | queue      شمارش وضعیت‌های صف. «failed» یعنی رسید ولی آی‌پی‌پنل
         |            ردش کرد (معمولاً نام متغیر الگو).
         */
+        /*
+        | رلهٔ بله — چرا درایور فعال نشد.
+        |
+        | 🔴 فقط **بولین**، هرگز مقدار. سه کلیدِ راز این‌جاست و این روت عمومی
+        |    است؛ چاپِ حتی چند حرفِ اولشان یعنی لو رفتنِ راز.
+        |
+        | ⚠️ `duplicate_keys` مهم‌ترین ستون است: phpDotenv **اولین** مقدارِ هر
+        |    کلید را نگه می‌دارد. اگر همان کلید دو بار در .env باشد (یکی خالی
+        |    از قالبِ اولیه، یکی پرشده در انتها)، مقدارِ خالی برنده می‌شود و
+        |    درایور بی‌صدا به «لاگ» برمی‌گردد — دقیقاً همان تله‌ای که یک‌بار
+        |    `SESSION_DOMAIN` را بی‌اثر کرد.
+        */
+        'bale_relay' => (function () {
+            $keys = ['BALE_OTP_SENDER_BOT_TOKEN', 'BALE_OTP_RELAY_CHAT_ID', 'BALE_OTP_RELAY_SECRET'];
+            $dupes = [];
+
+            try {
+                $env = @file_get_contents(base_path('.env')) ?: '';
+
+                foreach ($keys as $k) {
+                    $n = preg_match_all('/^\s*'.preg_quote($k, '/').'\s*=/m', $env);
+
+                    if ($n > 1) {
+                        $dupes[] = $k.' ×'.$n;
+                    }
+                }
+            } catch (\Throwable) {
+                $dupes = ['unreadable'];
+            }
+
+            /*
+            | ⚠️ این‌جا `app(BaleRelaySender::class)` **صدا زده نمی‌شود**: سازندهٔ
+            |    آن سه رشته می‌گیرد و در کانتینر بسته نشده، پس autowire شکست
+            |    می‌خورد و این روتِ عیب‌یابی خودش ۵۰۰ می‌داد — دقیقاً وقتی که
+            |    برای عیب‌یابی لازمش داریم. `enabled()` هم چیزی جز `filled()`
+            |    روی همین سه مقدار نیست، پس مستقیم می‌سنجیمشان.
+            */
+            return [
+                'bot_token_set'   => filled(config('services.bale_relay.bot_token')),
+                'chat_id_set'     => filled(config('services.bale_relay.chat_id')),
+                'secret_set'      => filled(config('services.bale_relay.secret')),
+                'duplicate_keys'  => $dupes,   // ⚠️ غیرِخالی = اولین مقدار برنده شده
+            ];
+        })(),
+
         'bridge' => [
             'last_attempt' => \Illuminate\Support\Facades\Cache::get('smsbridge:last_attempt'),
             'last_deny'    => \Illuminate\Support\Facades\Cache::get('smsbridge:last_deny'),
