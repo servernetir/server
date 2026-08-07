@@ -241,6 +241,29 @@ if (! function_exists('site_price')) {
             return fa_num(number_format(price_toman((int) ($item['irt'] ?? 0)))).' تومان';
         }
 
+        /*
+        | 🔴 `eur` ممکن است **نباشد**.
+        |
+        | قیمتِ دامنه زنده از رجیسترار می‌آید و فقط تومانی است، پس
+        | `CatalogController` عمداً `unset($p['eur'])` می‌کند. نسخهٔ قبلی
+        | مستقیم `$item['eur']` را می‌خواند و صفحهٔ ثبتِ دامنه روی `/en` و
+        | `/tr` می‌شکست — ۵۳ خطا در ردیاب، در حالی که نسخهٔ فارسی سالم بود و
+        | کسی متوجه نمی‌شد.
+        |
+        | ⚠️ عددِ صفر برنمی‌گردانیم: «€۰» یعنی رایگان، و آن از خطا بدتر است.
+        | وقتی قیمتِ تومانی هست، با نرخِ زنده تبدیلش می‌کنیم — همان کاری که
+        | `cloud_price()` می‌کند. نرخ که نبود، «—» صادقانه‌تر از عددِ ساختگی است.
+        */
+        if (! array_key_exists('eur', $item) || $item['eur'] === null) {
+            $irt = (int) ($item['irt'] ?? 0);
+
+            if ($irt <= 0) {
+                return '—';
+            }
+
+            return cloud_price($irt);
+        }
+
         $eur = $item['eur'];
 
         return '€'.($eur == (int) $eur ? number_format($eur) : number_format($eur, 2));
@@ -253,10 +276,14 @@ if (! function_exists('site_price_yearly')) {
     {
         $factor = 1 - config('servernet.yearly_discount', 0) / 100;
 
-        return site_price([
-            'irt' => (int) round($item['irt'] * $factor, -4),
-            'eur' => round($item['eur'] * $factor, 2),
-        ]);
+        // ⚠️ همان محافظ: آیتمی که `eur` ندارد نباید این‌جا بشکند
+        $out = ['irt' => (int) round((int) ($item['irt'] ?? 0) * $factor, -4)];
+
+        if (isset($item['eur'])) {
+            $out['eur'] = round($item['eur'] * $factor, 2);
+        }
+
+        return site_price($out);
     }
 }
 
