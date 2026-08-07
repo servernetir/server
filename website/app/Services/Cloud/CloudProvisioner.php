@@ -620,6 +620,37 @@ class CloudProvisioner
                 'تحویلِ سرورِ ابریِ سرویس #'.$service->id.' ناموفق: '.$reason, null, 'system');
         } catch (\Throwable) {
         }
+
+        /*
+        | 🔴 دو حفرهٔ خاموش که این‌جا بسته شد.
+        |
+        | قبلاً `fail()` فقط ستونِ ردیف و `ActivityLog` را می‌نوشت. نتیجه:
+        |
+        |   • `/admin/errors` هیچ‌چیز نشان نمی‌داد — مدیر فقط می‌دید «سرور
+        |     ساخته نشد» و برای یافتنِ علت باید ستونِ `provision_error` را در
+        |     دیتابیس می‌خواند.
+        |   • **مشتری هیچ خبری نمی‌گرفت** — پولش رفته بود، سروری نبود، و تنها
+        |     نشانه سکوت بود.
+        |
+        | ⚠️ علتِ فنی فقط به مدیر می‌رود: پیامِ خامِ زیرساخت ممکن است نامِ
+        | تأمین‌کننده را لو بدهد و سفیدبرچسبی را بشکند.
+        */
+        \App\Support\ErrorTracker::note('provision',
+            'تحویلِ سرورِ ابری ناموفق: '.$reason, ['service' => $service->id]);
+
+        try {
+            if ($service->customer !== null) {
+                app(\App\Services\Notify\Notifier::class)->fire(
+                    'service_failed', $service->customer,
+                    ['service' => (string) $service->name],
+                    'تحویلِ «'.$service->name.'» انجام نشد. تیمِ پشتیبانی در حالِ بررسی است؛ مبلغی از دست نمی‌رود.',
+                    ['سرویس' => '#'.$service->id.' — '.$service->name, 'علت' => $reason],
+                    url('/admin/services/'.$service->id), '⚠️',
+                );
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-failed']);
+        }
     }
 
     /** خرابیِ گذرا: pending بمان تا کرونِ بعدی دوباره تلاش کند */
