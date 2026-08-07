@@ -22,10 +22,26 @@ use Illuminate\View\View;
  */
 class StoreController extends Controller
 {
-    /** ورودیِ قدیمیِ فروشگاه دیگر لیست ندارد — به کاتالوگِ سایتِ اصلی می‌فرستد */
+    /**
+     * ورودیِ «خرید سرویس» در منوی پنل.
+     *
+     * ═══ 🔴 حلقهٔ بسته‌ای که این‌جا بود ═══
+     *
+     * قبلاً به `lroute('home').'#hosting'` می‌رفت. ولی صفحاتِ `account/*` را
+     * `ConsoleHost` به `console.servernet.cloud` می‌فرستد، پس `lroute('home')`
+     * میزبانِ **کنسول** را می‌گیرد ⇒ `https://console.servernet.cloud#hosting`.
+     * و `ConsoleHost` برای مسیرِ `/` روی کنسول، مشتریِ واردشده را به داشبورد
+     * برمی‌گرداند.
+     *
+     * نتیجه: مشتری روی «خرید سرویس» می‌زد و بعد از دو ریدایرکت **دقیقاً همان
+     * داشبوردی** را می‌دید که از آن آمده بود — بی‌هیچ پیام و خطایی. هر دو
+     * ورودیِ خرید در پنل همین‌طور بودند. (لنگرِ `#hosting` هم اصلاً وجود ندارد.)
+     *
+     * حالا به **سرورسازِ واقعی** می‌رود که همان‌جا در پنل است و کار می‌کند.
+     */
     public function index(): RedirectResponse
     {
-        return redirect(lroute('home').'#hosting');
+        return redirect(lroute('account.cloud.store'));
     }
 
     /** صفحهٔ تسویهٔ یک پکیج (از دکمهٔ خریدِ سایت اصلی) */

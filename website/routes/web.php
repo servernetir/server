@@ -271,9 +271,26 @@ Route::get('/{loc}/{rest?}', function (string $loc, ?string $rest = null) {
 
     abort_if($lower === $loc || ! array_key_exists($lower, \App\Providers\AppServiceProvider::LOCALES), 404);
 
-    $target = $lower === 'fa' ? '/' : '/'.$lower;
+    /*
+    | 🔴 اسلشِ دوتایی = ریدایرکتِ باز.
+    |
+    | نسخهٔ قبلی برای `fa` مقدارِ `$target` را `'/'` می‌گذاشت و بعد
+    | `$target.'/'.$rest` می‌ساخت ⇒ `//vps/austria`. لاراول هر رشتهٔ
+    | شروع‌شده با `//` را **آدرسِ کامل** می‌شمارد و بی‌تغییر در هدرِ
+    | `Location` می‌گذارد؛ مرورگر هم `//x/y` را `https://x/y` می‌خواند.
+    |
+    | دو خرابیِ هم‌زمان:
+    |   • `/FA/vps/austria` ⇒ مرورگر به میزبانِ ناموجودِ `https://vps` می‌رود
+    |     و کاربر خطای DNS می‌بیند — حتی صفحهٔ ۴۰۴ خودمان را هم نه.
+    |   • `/FA/evil.example/x` ⇒ ۳۰۱ به دامنهٔ مهاجم. یعنی **اعتبارِ دامنهٔ
+    |     شرکت خرجِ فیشینگ می‌شود**، با آدرسی که ظاهرش servernet.cloud است.
+    |
+    | ⚠️ `ltrim` روی رشتهٔ ترکیب‌شده انجام می‌شود نه روی اجزا، چون خودِ `$rest`
+    |    هم می‌تواند با اسلش شروع شود.
+    */
+    $path = '/'.ltrim(($lower === 'fa' ? '' : $lower).'/'.($rest ?? ''), '/');
 
-    return redirect($target.($rest !== null ? '/'.$rest : ''), 301);
+    return redirect($path === '/' ? '/' : rtrim($path, '/'), 301);
 })->where('loc', '[A-Za-z]{2}')->where('rest', '.*');
 
 /*

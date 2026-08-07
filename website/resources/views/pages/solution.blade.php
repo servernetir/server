@@ -200,7 +200,7 @@
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $pf }}</li>
           @endforeach
         </ul>
-        <a class="btn @if(!empty($p['featured'])) btn-primary @else btn-glass @endif" href="{{ $p['href'] ?? lroute('contact') }}">{{ $p['cta'] ?? ($s['cta_btn'] ?? '') }}</a>
+        <a class="btn @if(!empty($p['featured'])) btn-primary @else btn-glass @endif" href="{{ $hrefOf($p['href'] ?? null) }}">{{ $p['cta'] ?? ($s['cta_btn'] ?? '') }}</a>
       </div>
       @endforeach
     </div>
@@ -285,7 +285,11 @@
       <h2>{{ $s['cta_t'] ?? '' }}</h2>
       <p>{{ $s['cta_d'] ?? '' }}</p>
       <div class="sol-cta-btns">
-        <a class="btn btn-primary" href="{{ $s['cta_href'] ?? lroute('contact') }}" @if(!empty($s['cta_href']) && str_starts_with($s['cta_href'],'http')) target="_blank" rel="noopener" @endif>{{ $s['cta_btn'] ?? '' }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+        {{-- 🔴 از $hrefOf رد می‌شود، نه مقدارِ خام.
+             config برای راهکارِ BPMN مقدارِ نسبیِ 'contact' دارد؛ خام که چاپ
+             شود، مرورگر نسبت به /solutions/ حلش می‌کند ⇒ /en/solutions/contact
+             و ۴۰۴. یعنی مهم‌ترین دکمهٔ آن صفحه، در هر سه زبان، مرده بود. --}}
+        <a class="btn btn-primary" href="{{ $hrefOf($s['cta_href'] ?? null) }}" @if($isExt($s['cta_href'] ?? null)) target="_blank" rel="noopener" @endif>{{ $s['cta_btn'] ?? '' }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="{{ lroute('contact') }}">{{ $s['cta_btn2'] ?? __('ui.nav_contact') }}</a>
       </div>
     </div>
