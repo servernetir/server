@@ -52,7 +52,7 @@ final class NotifyEvent
         ],
         'welcome' => [
             'title' => 'خوش‌آمد پس از ثبت‌نام', 'group' => 'account',
-            'audience' => self::BOTH, 'vars' => ['name'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['name'], 'wired' => true,
         ],
         'password_changed' => [
             'title' => 'تغییر رمز عبور', 'group' => 'account',
@@ -62,7 +62,7 @@ final class NotifyEvent
         // ───────────────── صورت‌حساب ─────────────────
         'invoice' => [
             'title' => 'صدور پیش‌فاکتور', 'group' => 'billing',
-            'audience' => self::BOTH, 'vars' => ['number', 'amount', 'link'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['number', 'amount', 'link'], 'wired' => true,
         ],
         'paid' => [
             'title' => 'تأیید پرداخت', 'group' => 'billing',
@@ -70,7 +70,7 @@ final class NotifyEvent
         ],
         'payment_due' => [
             'title' => 'رسیدن موعد پرداخت', 'group' => 'billing',
-            'audience' => self::BOTH, 'vars' => ['number', 'amount', 'days', 'link'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['number', 'amount', 'days', 'link'], 'wired' => true,
         ],
         'bank_rejected' => [
             'title' => 'رد رسید واریز بانکی', 'group' => 'billing',
@@ -82,7 +82,7 @@ final class NotifyEvent
         // مجموعه رویداد همه را پوشش می‌دهد و نامِ محصول در `service` می‌آید.
         'service_ordered' => [
             'title' => 'ثبت سفارش سرویس', 'group' => 'service',
-            'audience' => self::BOTH, 'vars' => ['service', 'amount'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['service', 'amount'], 'wired' => true,
         ],
         'service_ready' => [
             'title' => 'تحویل سرویس / سرور', 'group' => 'service',
@@ -90,7 +90,7 @@ final class NotifyEvent
         ],
         'service_failed' => [
             'title' => 'شکست در تحویل سرویس', 'group' => 'service',
-            'audience' => self::BOTH, 'vars' => ['service', 'reason'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['service', 'reason'], 'wired' => true,
         ],
         'expiring' => [
             'title' => 'یادآوری تمدید (۷ / ۳ / ۱ روز)', 'group' => 'service',
@@ -98,7 +98,7 @@ final class NotifyEvent
         ],
         'renewed' => [
             'title' => 'تمدید موفق سرویس', 'group' => 'service',
-            'audience' => self::BOTH, 'vars' => ['service', 'until'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['service', 'until'], 'wired' => true,
         ],
         'suspended' => [
             'title' => 'تعلیق به‌دلیل عدم تمدید', 'group' => 'service',
@@ -115,17 +115,17 @@ final class NotifyEvent
         */
         'data_deletion_due' => [
             'title' => 'هشدار حذف دائمی داده', 'group' => 'service',
-            'audience' => self::BOTH, 'vars' => ['service', 'days'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['service', 'days'], 'wired' => true,
         ],
         'terminated' => [
             'title' => 'خاتمهٔ سرویس و حذف داده', 'group' => 'service',
-            'audience' => self::BOTH, 'vars' => ['service'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['service'], 'wired' => true,
         ],
 
         // ───────────────── دامنه ─────────────────
         'domain_registered' => [
             'title' => 'ثبت موفق دامنه', 'group' => 'domain',
-            'audience' => self::BOTH, 'vars' => ['domain', 'until'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['domain', 'until'], 'wired' => true,
         ],
         'domain_expiring' => [
             'title' => 'یادآوری انقضای دامنه', 'group' => 'domain',
@@ -133,7 +133,7 @@ final class NotifyEvent
         ],
         'domain_renewed' => [
             'title' => 'تمدید موفق دامنه', 'group' => 'domain',
-            'audience' => self::BOTH, 'vars' => ['domain', 'until'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['domain', 'until'], 'wired' => true,
         ],
         'domain_expired' => [
             'title' => 'انقضای دامنه', 'group' => 'domain',
@@ -149,7 +149,7 @@ final class NotifyEvent
         // ───────────────── پشتیبانی ─────────────────
         'ticket_new' => [
             'title' => 'ثبت تیکت جدید', 'group' => 'support',
-            'audience' => self::BOTH, 'vars' => ['number', 'subject'], 'wired' => false,
+            'audience' => self::BOTH, 'vars' => ['number', 'subject'], 'wired' => true,
         ],
         'ticket_reply' => [
             'title' => 'پاسخ به تیکت', 'group' => 'support',
@@ -157,11 +157,11 @@ final class NotifyEvent
         ],
         'ticket_closed' => [
             'title' => 'بستن تیکت', 'group' => 'support',
-            'audience' => self::CUSTOMER, 'vars' => ['number'], 'wired' => false,
+            'audience' => self::CUSTOMER, 'vars' => ['number'], 'wired' => true,
         ],
         'ticket_survey' => [
             'title' => 'نظرسنجی پس از بستن تیکت', 'group' => 'support',
-            'audience' => self::CUSTOMER, 'vars' => ['number', 'link'], 'wired' => false,
+            'audience' => self::CUSTOMER, 'vars' => ['number', 'link'], 'wired' => true,
         ],
 
         // ───────────────── عمومی ─────────────────

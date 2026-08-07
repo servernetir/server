@@ -71,12 +71,26 @@ class TicketController extends Controller
         $depts = ['technical' => 'فنی', 'billing' => 'مالی', 'sales' => 'فروش'];
         $prios = ['low' => 'کم', 'normal' => 'معمولی', 'high' => 'زیاد', 'urgent' => 'فوری'];
 
-        app(\App\Services\Notify\AdminNotifier::class)->event('تیکتِ جدید', [
-            'مشتری'  => $customer->displayName().' ('.$customer->code.')',
-            'موضوع'  => $data['subject'],
-            'بخش'    => $depts[$data['department']] ?? $data['department'],
-            'اولویت' => $prios[$data['priority']] ?? $data['priority'],
-        ], url('/admin/tickets/'.$ticket->id), '🎫');
+        /*
+        | ⚠️ از قیفِ واحد می‌رود، نه `AdminNotifier` مستقیم.
+        |
+        | قبلاً فقط مدیر خبردار می‌شد و مشتری هیچ رسیدی نمی‌گرفت — یعنی کسی که
+        | تیکت زده بود نمی‌دانست اصلاً ثبت شده یا نه، و معمولاً چند دقیقه بعد
+        | تیکتِ دوم می‌زد. `NotifyEvent::ticket_new` مخاطبش `both` است.
+        */
+        app(\App\Services\Notify\Notifier::class)->fire(
+            'ticket_new',
+            $customer,
+            ['number' => (string) $ticket->number, 'subject' => $data['subject']],
+            '🎫 تیکتِ شما با شمارهٔ '.fa_num((string) $ticket->number).' ثبت شد. '
+            .'به‌محضِ پاسخ، همین‌جا خبرتان می‌کنیم: '.console_lroute('account.tickets'),
+            [
+                'بخش'    => $depts[$data['department']] ?? $data['department'],
+                'اولویت' => $prios[$data['priority']] ?? $data['priority'],
+            ],
+            url('/admin/tickets/'.$ticket->id),
+            '🎫',
+        );
 
         return redirect()->route($this->rp().'account.ticket', $ticket)
             ->with('ok', __('ui.tk_created'));

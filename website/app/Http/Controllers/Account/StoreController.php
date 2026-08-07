@@ -213,6 +213,34 @@ class StoreController extends Controller
             ]);
         }
 
+        /*
+        | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ
+        | پیش‌فاکتور».
+        |
+        | ⚠️ الگوی `invoice` سال‌ها در پنلِ الگوها بود و مدیر می‌توانست متنش را
+        | ویرایش کند و «ذخیره شد» بگیرد — و **هیچ کدی صدایش نمی‌زد**. این‌جا
+        | اولین فراخوانش است.
+        */
+        try {
+            $notifier = app(\App\Services\Notify\Notifier::class);
+            $link = console_lroute('account.invoice', $invoice);
+            $amount = fa_num(number_format((int) $invoice->total)).' تومان';
+
+            $notifier->fire('service_ordered', $service->customer,
+                ['service' => $service->name, 'amount' => $amount],
+                '🧾 سفارشِ «'.$service->name.'» ثبت شد.',
+                [], url('/admin/customers/'.$service->customer_id), '🧾');
+
+            $notifier->fire('invoice', $service->customer,
+                ['number' => (string) $invoice->number, 'amount' => $amount, 'link' => $link],
+                'پیش‌فاکتورِ '.fa_num((string) $invoice->number).' به مبلغِ '.$amount
+                .' صادر شد. پس از پرداخت، سرویس **خودکار** تحویل می‌شود: '.$link,
+                [], url('/admin/customers/'.$service->customer_id), '🧾');
+        } catch (\Throwable $e) {
+            // اعلان هرگز نباید سفارشِ ثبت‌شده را بشکند
+            \App\Support\ErrorTracker::note('notify', $e, ['invoice' => $invoice->id]);
+        }
+
         return $invoice;
     }
 

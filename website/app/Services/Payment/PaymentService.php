@@ -483,6 +483,25 @@ class PaymentService
                         ['amount' => number_format($outcome->payment->amount)],
                         'پرداخت شما به مبلغ '.number_format($outcome->payment->amount).' تومان با موفقیت ثبت شد.',
                     );
+
+                    /*
+                    | «تمدید شد» — رویدادی که تا امروز وجود نداشت.
+                    |
+                    | ⚠️ فقط وقتی سرویس **از قبل فعال** بوده. پرداختِ سفارشِ
+                    |    تازه «تمدید» نیست و پیامِ «تا فلان تاریخ تمدید شد»
+                    |    برای کسی که تازه خریده گیج‌کننده است.
+                    */
+                    $svc = $outcome->payment->invoice?->service;
+
+                    if ($svc !== null && $svc->status === 'active' && $svc->next_due_at !== null) {
+                        app(\App\Services\Notify\Notifier::class)->fire(
+                            'renewed',
+                            $customer,
+                            ['service' => $svc->name, 'until' => sdate($svc->next_due_at)],
+                            '✅ سرویسِ «'.$svc->name.'» تمدید شد و تا '.sdate($svc->next_due_at).' فعال است.',
+                            [], url('/admin/customers/'.$customer->id), '✅',
+                        );
+                    }
                 } catch (\Throwable) {
                     // اعلان هرگز تسویه را نمی‌شکند
                 }

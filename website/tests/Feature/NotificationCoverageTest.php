@@ -88,6 +88,10 @@ class NotificationCoverageTest extends TestCase
                 // ⚠️ `otp` مسیرِ خودش را دارد: `SmsDispatcher::otp()` مستقیم
                 //    صدا زده می‌شود، نه از راهِ الگو — چون کدِ ورود نباید به
                 //    متنِ آزاد برگردد و نباید در بله تکرار شود.
+                // بسته‌بندی‌کنندهٔ محلی هم قبول است (مثلِ
+                // `DomainRegistrar::announce()`) — مهم این است که کلیدِ ادبی
+                // در یک فراخوانِ **اعلان** ظاهر شود، نه اینکه حتماً `fire` باشد.
+                || preg_match('~->announce\(\s*[\'"]'.$q.'[\'"]~', $code)
                 || ($key === 'otp' && preg_match('~->sendOtp\(~', $code));
 
             if (! $found) {
@@ -102,7 +106,7 @@ class NotificationCoverageTest extends TestCase
     /** و برعکس: رویدادِ `wired: false` نباید بی‌سروصدا وصل شده باشد */
     public function test_unwired_events_are_honestly_marked(): void
     {
-        $this->assertCount(14, NotifyEvent::unwired(),
+        $this->assertSame(['domain_transfer'], NotifyEvent::unwired(),
             'فهرستِ رویدادهای وصل‌نشده عوض شده — کاتالوگ را به‌روز کن');
     }
 

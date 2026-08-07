@@ -168,6 +168,40 @@ class RunServiceLifecycle extends Command
             return;
         }
 
+        /*
+        | «موعدِ پرداخت رسید» — رویدادی که تا امروز وجود نداشت.
+        |
+        | یادآوری‌های ۷/۳/۱ روز **پیش** از سررسید می‌روند. ولی لحظه‌ای که سررسید
+        | واقعاً گذشت و پرداخت نشد، هیچ پیامی نمی‌رفت تا روزِ تعلیق. یعنی مشتری
+        | بینِ «۱ روز مانده» و «سرویس‌تان قطع شد» هیچ خبری نداشت.
+        |
+        | ⚠️ فقط **یک بار**، در همان روزِ اول. `reminder_stage = 0` نشانهٔ
+        |    «اعلانِ سررسید رفته» است — بی‌این، هر اجرای روزانه یک پیام
+        |    می‌فرستاد و مشتری روزی یکی می‌گرفت تا روزِ تعلیق.
+        */
+        if ($daysOverdue === 1 && (int) $service->reminder_stage !== 0) {
+            if (! $dry) {
+                app(\App\Services\Notify\Notifier::class)->fire(
+                    'payment_due',
+                    $service->customer,
+                    [
+                        'number' => (string) $unpaid->number,
+                        'amount' => fa_num(number_format((int) $unpaid->total)).' تومان',
+                        'days'   => fa_num($daysOverdue),
+                        'link'   => console_lroute('account.invoices'),
+                    ],
+                    '⏳ سررسیدِ سرویسِ «'.$service->name.'» گذشت و فاکتورش هنوز پرداخت نشده. '
+                    .'برای جلوگیری از قطعِ سرویس، همین حالا پرداخت کنید: '.console_lroute('account.invoices'),
+                    ['سرویس' => $service->name],
+                    $service->customer ? url('/admin/customers/'.$service->customer->id) : null,
+                    '⏳',
+                );
+
+                $service->forceFill(['reminder_stage' => 0])->save();
+            }
+            $stats['reminded']++;
+        }
+
         // ۳-الف) هنوز معلق نشده → تعلیقِ خودکار
         if ($service->suspended_at === null) {
             if (! $dry) {
@@ -198,8 +232,27 @@ class RunServiceLifecycle extends Command
 
         if ($suspendedDays >= $graceDays && $service->grace_alert_at === null) {
             if (! $dry) {
-                $this->alertAdmin($admin, $service,
-                    'مهلتِ '.$graceDays.' روزه تمام شد — برای حذف (terminate) خودتان تصمیم بگیرید', '🗑');
+                /*
+                | 🔴 حساس‌ترین اعلانِ کلِ سامانه: پس از حذف، دادهٔ مشتری
+                |    **برنمی‌گردد**.
+                |
+                | تا امروز فقط مدیر خبردار می‌شد و مشتری هیچ هشداری نمی‌گرفت —
+                | یعنی کسی که فاکتورش را فراموش کرده بود، بی‌آنکه بداند، در
+                | آستانهٔ ازدست‌دادنِ همیشگیِ سایتش بود. آخرین فرصتِ او همین
+                | پیام است.
+                */
+                app(\App\Services\Notify\Notifier::class)->fire(
+                    'data_deletion_due',
+                    $service->customer,
+                    ['service' => $service->name, 'days' => fa_num($graceDays)],
+                    '🗑 سرویسِ «'.$service->name.'» '.fa_num($graceDays).' روز است معلق مانده. '
+                    .'اگر تا اطلاعِ ثانوی تمدید نشود، **داده‌هایش برای همیشه حذف می‌شود** و '
+                    .'قابلِ بازگردانی نخواهد بود. برای جلوگیری، همین حالا فاکتور را پرداخت کنید: '
+                    .console_lroute('account.invoices'),
+                    ['وضعیت' => 'مهلتِ '.fa_num($graceDays).' روزه تمام شد — تصمیمِ حذف با شماست'],
+                    $service->customer ? url('/admin/customers/'.$service->customer->id) : null,
+                    '🗑',
+                );
 
                 $service->forceFill(['grace_alert_at' => now()])->save();
             }

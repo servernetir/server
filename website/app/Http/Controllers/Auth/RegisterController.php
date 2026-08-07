@@ -356,6 +356,25 @@ class RegisterController extends Controller
             'نوع'    => ($reg['type'] ?? 'individual') === 'company' ? 'حقوقی' : 'حقیقی',
         ], url('/admin/customers/'.$customer->id), '🙋');
 
+        /*
+        | خوش‌آمد — الگویش سال‌ها بود و هیچ کدی صدایش نمی‌زد.
+        |
+        | ⚠️ بعد از `AdminNotifier` نمی‌آید بلکه جایگزینش نیست: آن اعلانِ مدیر
+        |    جزئیاتِ ثبت‌نام را دارد و این پیامِ خودِ مشتری است.
+        */
+        try {
+            app(\App\Services\Notify\Notifier::class)->fire(
+                'welcome',
+                $customer,
+                ['name' => $customer->displayName() ?: 'کاربر گرامی'],
+                'به سرورنت خوش آمدید 🎉 حسابِ شما ساخته شد. '
+                .'از پنل می‌توانید سرویس بخرید، دامنه ثبت کنید و تیکت بزنید: '
+                .console_lroute('account.home'),
+            );
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['event' => 'welcome']);
+        }
+
         $request->session()->forget('reg');
         Auth::guard('customer')->login($customer, remember: true);
         $request->session()->regenerate();

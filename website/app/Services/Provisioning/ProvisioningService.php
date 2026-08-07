@@ -307,6 +307,27 @@ class ProvisioningService
 
         if ($r->ok || $r->manual) {
             $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
+            /*
+            | آخرین پیامِ این سرویس. پس از این، داده برنمی‌گردد.
+            |
+            | ⚠️ مدیر هم خبردار می‌شود چون خاتمه تصمیمِ آگاهانهٔ آدم است و باید
+            |    ردِ مکتوب داشته باشد — «چه کسی، چه چیزی، کی».
+            */
+            try {
+                app(\App\Services\Notify\Notifier::class)->fire(
+                    'terminated',
+                    $service->customer,
+                    ['service' => $service->name],
+                    'سرویسِ «'.$service->name.'» خاتمه یافت و داده‌هایش حذف شد. '
+                    .'اگر این کار اشتباه بوده، فوراً با پشتیبانی تماس بگیرید.',
+                    [],
+                    $service->customer ? url('/admin/customers/'.$service->customer->id) : null,
+                    '🗑',
+                );
+            } catch (\Throwable $e) {
+                \App\Support\ErrorTracker::note('notify', $e, ['event' => 'terminated', 'service' => $service->id]);
+            }
         }
 
         return $r;
@@ -322,8 +343,32 @@ class ProvisioningService
             'status'           => 'provision_failed',
         ])->save();
 
-        // ادمین باید بداند تحویلی گیر کرده
+        /*
+        | 🔴 مشتری هم باید بداند، نه فقط لاگِ فعالیت.
+        |
+        | `notifyStaff()` فقط یک `ActivityLog::record` می‌نویسد و به هیچ کانالی
+        | push نمی‌کند. یعنی جمله‌ای که در پنل به مشتریِ **پول‌داده** نشان
+        | می‌دادیم («پشتیبانی در حالِ بررسی است») تا وقتی مدیر اتفاقی لاگ را باز
+        | کند درست نبود — همان «اطمینانِ دروغ» که در پروندهٔ تمدیدِ دامنه هم
+        | گرفتارمان کرد.
+        */
         $this->notifyStaff('تحویلِ سرویس #'.$service->id.' («'.$service->name.'») ناموفق بود: '.$error);
+
+        try {
+            app(\App\Services\Notify\Notifier::class)->fire(
+                'service_failed',
+                $service->customer,
+                ['service' => $service->name, 'reason' => mb_substr($error, 0, 120)],
+                '⚠️ در آماده‌سازیِ سرویسِ «'.$service->name.'» مشکلی پیش آمد و تیمِ ما در حالِ بررسی است. '
+                .'اگر ترجیح می‌دهید منتظر نمانید، می‌توانید از پنل سفارش را لغو کنید و مبلغ کامل به '
+                .'اعتبارتان برمی‌گردد: '.console_lroute('account.services'),
+                ['خطا' => mb_substr($error, 0, 160)],
+                $service->customer ? url('/admin/customers/'.$service->customer->id) : null,
+                '⚠️',
+            );
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['event' => 'service_failed', 'service' => $service->id]);
+        }
     }
 
     private function ensureCredentials(Service $service, Server $server): void

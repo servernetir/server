@@ -311,7 +311,39 @@ class DomainRegistrar
                 ?: now()->addYears(max(1, (int) $domain->period_years)),
         ])->save();
 
+        $this->announce('domain_registered', $domain,
+            'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد و تا '
+            .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
+    }
+
+    /**
+     * اعلانِ رویداد به مشتری و مدیر.
+     *
+     * ⚠️ در try/catch و بی‌استثنا: ثبتِ موفقِ دامنه نباید به‌خاطرِ یک SMTPِ
+     * خواب «ناموفق» گزارش شود — همان قاعدهٔ بگیر-و-ادامه‌بده که در تک‌تکِ
+     * catchهای این پروژه نوشته شده. ولی شکستِ خاموش نداریم: خطا در ردیاب
+     * می‌نشیند.
+     */
+    private function announce(string $event, Domain $domain, string $text): void
+    {
+        try {
+            app(\App\Services\Notify\Notifier::class)->fire(
+                $event,
+                $domain->customer,
+                [
+                    'domain' => $domain->domain,
+                    'until'  => sdate($domain->fresh()?->expires_at) ?: '—',
+                ],
+                $text,
+                [],
+                url('/admin/domains'),
+                '🌐',
+            );
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['event' => $event, 'domain' => $domain->domain]);
+        }
     }
 
     private function fail(Domain $domain, string $message, bool $manual = false, ?int $tries = null): array
@@ -423,6 +455,10 @@ class DomainRegistrar
         $domain->putMeta(['exp_stage' => null, 'renewed_at' => now()->toDateTimeString()]);
 
         $domain->forceFill(['provision_status' => 'done', 'provision_error' => null])->save();
+
+        $this->announce('domain_renewed', $domain,
+            'دامنهٔ «'.$domain->domain.'» تمدید شد و تا '
+            .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
