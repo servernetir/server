@@ -186,10 +186,22 @@ return [
         |
         | ⚠️ `SMS_DRIVER=bale_relay` تا این مسیر فعال شود.
         */
+        /*
+        | ⚠️ نامِ متغیرها **همان‌هایی است که از قبل در .env سرور بود**
+        | (`BALE_OTP_*`)، نه نام‌های تازه. دلیلش یک درسِ ثبت‌شدهٔ همین پروژه
+        | است: کارفرما یک بار `SESSION_DOMAIN` را در .env گذاشت و اثر نکرد،
+        | چون phpDotenv **اولین** مقدارِ هر کلید را نگه می‌دارد و خطِ قدیمی
+        | بالاتر بود. هر نامِ موازیِ تازه، همان تله را از درِ دیگر برمی‌گرداند:
+        | مقدار در یک کلید است و کد کلیدِ دیگری را می‌خواند، و نتیجه‌اش پیامکی
+        | است که بی‌صدا نمی‌رود.
+        |
+        | نام‌های `BALE_SMS_RELAY_*` به‌عنوان پشتیبان می‌مانند تا اگر روزی
+        | نصبِ تازه‌ای با آن نام‌ها ساخته شد هم کار کند.
+        */
         'bale_relay' => [
-            'bot_token' => env('BALE_SMS_RELAY_BOT_TOKEN'),
-            'chat_id'   => env('BALE_SMS_RELAY_CHAT_ID'),
-            'secret'    => env('BALE_SMS_RELAY_SECRET'),
+            'bot_token' => env('BALE_OTP_SENDER_BOT_TOKEN', env('BALE_SMS_RELAY_BOT_TOKEN')),
+            'chat_id'   => env('BALE_OTP_RELAY_CHAT_ID', env('BALE_SMS_RELAY_CHAT_ID')),
+            'secret'    => env('BALE_OTP_RELAY_SECRET', env('BALE_SMS_RELAY_SECRET')),
             'base'      => env('BALE_BASE', 'https://tapi.bale.ai'),
         ],
 
