@@ -200,11 +200,7 @@
         <label class="set-f">هزینهٔ IPv4 (سنتِ یورو، ماهانه)
           <input type="number" name="cloud_ipv4_eur_cents" dir="ltr" step="1" min="-1" max="10000"
                  value="{{ $cloud['ipv4'] }}" placeholder="خالی = خودکار از زیرساخت"></label>
-        <label class="set-f">واحدِ عددِ قیمتِ زیرساختِ ۲
-          <select name="aeza_price_divisor" dir="rtl">
-            <option value="100" @selected((string) $cloud['divisor'] !== '1')>سنتِ یورو — عدد بر ۱۰۰ تقسیم شود (پیش‌فرض)</option>
-            <option value="1" @selected((string) $cloud['divisor'] === '1')>یورو — عدد همان‌طور خوانده شود</option>
-          </select></label>
+        
       </div>
 
       <p style="margin:10px 0 0;color:var(--warn);font-size:12.5px;line-height:1.9">

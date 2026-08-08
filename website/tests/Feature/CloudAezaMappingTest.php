@@ -213,39 +213,41 @@ class CloudAezaMappingTest extends TestCase
     }
 
     /**
-     * واحدِ قیمت یک **تنظیم** است، نه یک حدس.
+     * 🔴 واحدِ قیمت **ثابت** است، نه تنظیم — و این تست یادگارِ اشتباهِ قبلی است.
      *
-     * 🔴 چرا حدس‌زدن ممکن نیست: عددِ ۵۰۰ اگر سنت باشد ۵ یورو است و اگر یورو
-     * باشد ۵۰۰ یورو، و **هر دو** برای یک سرورِ مجازی ممکن‌اند (اولی VPSِ کوچک،
-     * دومی پلنِ چندده‌هسته‌ای). هیچ بازه‌ای این دو را جدا نمی‌کند، پس حدس‌زدن
-     * یعنی گاهی ۱۰۰ برابر ارزان فروختن — و درست همین اتفاق روی حسابِ واقعی
-     * افتاد و کارفرما با چشم دیدش.
+     * نسخهٔ پیشینِ همین تست عکسِ این را قفل می‌کرد: «مقسوم‌علیه یک تنظیمِ مدیر
+     * است». استدلالش هم درست بود — تا وقتی نمی‌دانستیم ۵۰۰ سنت است یا یورو.
+     *
+     * حالا از دو مسیرِ مستقل معلوم است: پشتیبانیِ Aeza (حسابِ یورویی +
+     * «کوچک‌ترین واحدِ ارز» در مستنداتِ Terraform)، و خروجیِ واقعیِ probe
+     * (لایسنسِ ispmanager `month: 457` و VPN `month: 190` ⇒ €۴٫۵۷ و €۱٫۹۰).
+     *
+     * ⚠️ و آن تنظیم واقعاً ضربه زد: مقدارِ ۱ که از دورهٔ روبل در دیتابیس مانده
+     * بود بر پیش‌فرض چربید، `cloud:sync` کاتالوگ را ۱۰۰ برابر گران ساخت و هیچ
+     * خطایی تولید نشد. تنظیمی که فقط یک مقدارِ درست دارد، راهِ بازِ اشتباه است.
      */
-    public function test_price_divisor_is_an_explicit_setting(): void
+    public function test_the_price_unit_is_a_constant_not_a_setting(): void
     {
-        // پیش‌فرض: سنت (÷۱۰۰) — از داکیومنتِ Terraform همان ارائه‌دهنده
         $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
 
+        // ⚠️ مقدارِ کهنه در دیتابیس دیگر نباید هیچ اثری داشته باشد
         \App\Models\Setting::put('aeza_price_divisor', '1');
-        $this->assertSame(1.0, \App\Services\Cloud\AezaClient::priceDivisor());
+        $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor(),
+            'تنظیمِ کهنه نباید بتواند واحدِ قیمت را عوض کند');
 
-        // مقدارِ بی‌معنا نباید بی‌صدا قیمت را خراب کند
-        \App\Models\Setting::put('aeza_price_divisor', '7');
-        $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
+        $src = file_get_contents(app_path('Services/Cloud/AezaClient.php'));
+        $this->assertStringNotContainsString("Setting::get('aeza_price_divisor')", $src,
+            'خواندنِ آن تنظیم باید کاملاً حذف شده باشد');
     }
 
-    /** با مقسومِ ۱، همان عدد **یوروی کامل** خوانده می‌شود */
-    public function test_divisor_one_reads_the_number_as_whole_euros(): void
+    /** عددِ خام سنت است: ۵۰۰ ⇒ €۵٫۰۰ */
+    public function test_raw_price_is_read_as_euro_cents(): void
     {
-        \App\Models\Setting::put('aeza_price_divisor', '1');
-
-        // هر دو کیف را عوض کن: rawPrices پیش از prices خوانده می‌شود
-        $this->fake([$this->vps(['prices' => ['month' => 5], 'rawPrices' => ['month' => 5]])]);
+        $this->fake([$this->vps(['prices' => ['month' => 500], 'rawPrices' => ['month' => 500]])]);
 
         $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
 
         $this->assertCount(1, $cat['plans'], (string) ($cat['message'] ?? ''));
-        // ۵ یورو = ۵۰۰ سنت
         $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
     }
 
