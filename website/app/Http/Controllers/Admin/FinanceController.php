@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessEntry;
+use App\Models\Service;
 use App\Services\Finance\BusinessLedger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
@@ -35,7 +37,72 @@ class FinanceController extends Controller
                 ? BusinessEntry::orderByDesc('occurred_at')->orderByDesc('id')->limit(20)->get()
                 : collect(),
             'categories' => BusinessLedger::EXPENSE_CATEGORIES,
+            'churn'      => $this->churnReasons(),
         ]);
+    }
+
+    /**
+     * چرا مشتری‌ها سرورشان را حذف کردند — شمارشِ کدهای پایدار.
+     *
+     * ═══ چرا این‌جا و نه یک صفحهٔ تازه ═══
+     *
+     * صفحه‌ای که مدیر باز نمی‌کند، گزارشی است که وجود ندارد. این‌جا کنارِ سود و
+     * زیان می‌نشیند، چون همان جنسِ سؤال است: پول از کجا می‌رود.
+     *
+     * ⚠️ ستون‌ها با مهاجرتِ دستیِ کارفرما ساخته می‌شوند. تا آن لحظه این متد
+     * **باید** خالی برگردد و هیچ کوئری‌ای نزند، وگرنه کلِ صفحهٔ مالی ۵۰۰ می‌دهد
+     * — یعنی یک بخشِ آماری، داشبوردِ اصلیِ کسب‌وکار را می‌خواباند.
+     *
+     * ⚠️ «بی‌پاسخ» جدا شمرده می‌شود و در نمودار پنهان نمی‌ماند: اگر نودوپنج
+     * درصد چیزی نگویند، درصدهای بقیه بی‌معنی‌اند و مدیر باید همین را ببیند.
+     *
+     * @return array{total:int,answered:int,silent:int,rows:array<int,array{code:string,label:string,count:int,pct:int}>,notes:\Illuminate\Support\Collection<int,\App\Models\Service>}|array{}
+     */
+    private function churnReasons(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'terminate_reason')) {
+            return [];
+        }
+
+        $terminated = Service::whereIn('status', ['terminated', 'cancelled']);
+
+        $counts = (clone $terminated)->whereNotNull('terminate_reason')
+            ->selectRaw('terminate_reason, COUNT(*) as n')
+            ->groupBy('terminate_reason')
+            ->pluck('n', 'terminate_reason');
+
+        $answered = (int) $counts->sum();
+        $total = (int) (clone $terminated)->count();
+
+        // ترتیبِ نمایش = ترتیبِ خودِ فهرست، نه ترتیبِ شمارش. با مرتب‌سازی روی
+        // عدد، جای گزینه‌ها هر هفته عوض می‌شد و مقایسهٔ چشمیِ دو بازه سخت.
+        $rows = [];
+
+        foreach (Service::TERMINATE_REASONS as $code => $label) {
+            $n = (int) ($counts[$code] ?? 0);
+
+            if ($n === 0) {
+                continue;
+            }
+
+            $rows[] = [
+                'code'  => $code,
+                'label' => $label,
+                'count' => $n,
+                'pct'   => $answered > 0 ? (int) round($n * 100 / $answered) : 0,
+            ];
+        }
+
+        return [
+            'total'    => $total,
+            'answered' => $answered,
+            'silent'   => max(0, $total - $answered),
+            'rows'     => $rows,
+            // متنِ آزاد جداست و عمداً فقط چند تای آخر: این ستون برای شمارش نیست،
+            // برای خواندنِ حرفِ مشتری است.
+            'notes'    => (clone $terminated)->whereNotNull('terminate_reason_note')
+                ->orderByDesc('cancelled_at')->orderByDesc('id')->limit(8)->get(),
+        ];
     }
 
     /**

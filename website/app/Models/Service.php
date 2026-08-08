@@ -16,6 +16,8 @@ class Service extends Model
         'customer_id', 'name', 'description', 'currency_code', 'price',
         'tax_percent', 'cycle', 'status', 'next_due_at', 'activated_at',
         'cancelled_at', 'created_by',
+        // «چرا حذف کردی؟» — کدِ پایدار + متنِ آزاد، هر دو اختیاری
+        'terminate_reason', 'terminate_reason_note',
         // تحویل/فراهم‌سازی
         'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
@@ -46,6 +48,63 @@ class Service extends Model
             'hourly_rate_eur' => 'integer',
             'last_metered_at' => 'datetime',
         ];
+    }
+
+    // ─────────────── دلیلِ حذفِ سرور (دادهٔ بازاریابی) ───────────────
+
+    /**
+     * **کدِ پایدار ⇒ برچسبِ فارسی.** تنها منبعِ حقیقتِ این فهرست.
+     *
+     * ═══ چرا کد، نه متن ═══
+     *
+     * چیزی که در دیتابیس می‌نشیند کدِ سمتِ چپ است، و آن هرگز عوض نمی‌شود. متنِ
+     * سمتِ راست فقط نمایش است و می‌شود فردا نرم‌ترش کرد بی‌آنکه آمارِ سالِ
+     * گذشته بی‌معنی شود. اگر خودِ جملهٔ فارسی ذخیره می‌شد، یک ویرایشِ ساده
+     * تاریخچه را به دو دستهٔ جدا می‌شکست.
+     *
+     * ⚠️ **ترتیب مهم است** — همان ترتیبی که کارفرما داد، و فرم از همین‌جا
+     * ساخته می‌شود. `other` عمداً آخر است.
+     *
+     * ⚠️ پنلِ مشتری سه‌زبانه است، پس **در فرم** برچسب از `ui.svc_del_reason_*`
+     * می‌آید نه از این‌جا؛ پنلِ مدیریت فارسیِ تک‌زبانه است و از این‌جا می‌خوانَد.
+     * `ServiceDeleteReasonTest` قفل می‌کند که مقدارهای فارسیِ آن کلیدها **دقیقاً**
+     * برابرِ این نقشه بمانند — وگرنه دو فهرستِ واگرا می‌شد و گزارشِ مدیر با
+     * چیزی که مشتری دیده بود نمی‌خواند.
+     *
+     * @var array<string,string>
+     */
+    public const TERMINATE_REASONS = [
+        'no_longer_needed'  => 'دیگر به سرور نیاز ندارم',
+        'too_expensive'     => 'هزینه سرویس مناسب نبود',
+        'technical_issue'   => 'مشکل فنی یا عملکردی داشتم',
+        'support'           => 'از پشتیبانی رضایت نداشتم',
+        'switched_provider' => 'به سرویس دیگری منتقل شدم',
+        'project_stopped'   => 'پروژه متوقف شده',
+        'was_a_test'        => 'این سرور تستی بود',
+        'security_privacy'  => 'نگرانی امنیتی/حریم خصوصی داشتم',
+        'other'             => 'سایر',
+    ];
+
+    /** @return list<string> کدهای مجاز، به ترتیبِ نمایش */
+    public static function terminateReasonCodes(): array
+    {
+        return array_keys(self::TERMINATE_REASONS);
+    }
+
+    /**
+     * برچسبِ فارسیِ یک کد — برای پنلِ مدیریت و لاگِ فعالیت.
+     *
+     * ⚠️ کدِ ناشناخته **خودش** برگردانده می‌شود، نه رشتهٔ خالی: اگر روزی کدی از
+     * فهرست حذف شود، ردیف‌های تاریخیِ آن باید در گزارش دیده شوند نه اینکه بی‌صدا
+     * غیب شوند.
+     */
+    public static function terminateReasonLabel(?string $code): ?string
+    {
+        if ($code === null || trim($code) === '') {
+            return null;
+        }
+
+        return self::TERMINATE_REASONS[$code] ?? $code;
     }
 
     // ───────────────────────── فروشِ ساعتی ─────────────────────────

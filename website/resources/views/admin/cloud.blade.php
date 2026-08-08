@@ -92,10 +92,17 @@
 {{-- ══ گران‌شدنِ بهایِ زیرساخت ══
      مهم‌ترین هشدارِ این صفحه: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
      خودکار تمدید می‌شود. اگر بها بالا رفته باشد، هر تمدید ضررِ خالص است و
-     هیچ‌جا صدا در نمی‌آورد. --}}
+     هیچ‌جا صدا در نمی‌آورد.
+
+     ⚠️ عمداً **تاشو و بسته** است: این جدول همیشه لازم نیست و بالای صفحه را
+     می‌گیرد، ولی شمارش در خودِ summary می‌آید تا مدیر بی‌بازکردن بفهمد چیزی
+     داخلش هست یا نه. کارفرما: «اگر نیاز شد خودم بازش میکنم». --}}
 @if($risen->isNotEmpty())
-<div class="ad-panel" style="border-color:rgba(255,107,107,.35)">
-  <div class="ad-panel-h"><h3 style="color:#ff6b6b">🔴 بهایِ زیرساخت گران شده</h3></div>
+<details class="ad-fold" style="border-color:rgba(255,107,107,.35)">
+  <summary style="color:#ff6b6b">🔴 بهایِ زیرساخت گران شده
+    <span class="ad-badge" style="background:rgba(255,107,107,.12);color:#ff6b6b">{{ fa_num($risen->count()) }}</span>
+    <small>ردیف — برای دیدن باز کنید</small>
+  </summary>
   <p style="padding:0 18px;color:var(--muted);font-size:13px;line-height:1.9">
     قیمتِ فروشِ سرویس‌های فعال <b>سرِ سفارش قفل</b> شده و خودکار تمدید می‌شود.
     برای این پلن‌ها بهایِ ما بالا رفته، پس از تمدیدِ بعدی <b>ضرر</b> می‌دهیم.
@@ -122,7 +129,7 @@
     </tbody>
   </table>
   </div>
-</div>
+</details>
 @endif
 
 {{-- ══ شکافِ سئویی: کشوری که می‌فروشیم و صفحه ندارد ══ --}}
@@ -181,7 +188,7 @@
     <span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee">{{ fa_num($rows->count()) }}</span>
   </h3></div>
 
-  <form method="get" action="/admin/cloud" class="cl-filter">
+  <form method="get" action="/admin/cloud" class="cl-filter" id="cl-filter">
     <label>زیرساخت
       <select name="provider">
         <option value="">همه</option>
@@ -211,6 +218,8 @@
         <option value="on" @selected($f['state'] === 'on')>در حالِ فروش (واقعاً قابلِ خرید)</option>
         <option value="unsellable" @selected($f['state'] === 'unsellable')>فروخته نمی‌شود — به هر علتی</option>
         <option value="off" @selected($f['state'] === 'off')>بسته‌شده توسطِ من</option>
+        {{-- ردیف‌هایی که «باز کردن»ِ گروهی واقعاً بازشان می‌کند --}}
+        <option value="quarantined" @selected($f['state'] === 'quarantined')>بستهٔ قرنطینهٔ خودکار (قابلِ بازکردنِ گروهی)</option>
         <option value="oos" @selected($f['state'] === 'oos')>ناموجود نزدِ زیرساخت</option>
         <option value="noprice" @selected($f['state'] === 'noprice')>بی‌قیمت (نرخِ ارز نبود)</option>
         <option value="inactive" @selected($f['state'] === 'inactive')>غیرفعال در آخرین همگام‌سازی</option>
@@ -233,32 +242,56 @@
       <input type="search" name="q" value="{{ $f['q'] }}" dir="ltr" placeholder="CV-2-4 …">
     </label>
     <div style="display:flex;gap:8px;align-items:flex-end">
-      <button class="btn btn-primary" style="font-size:12.5px">اعمال</button>
+      <button class="btn btn-primary" style="font-size:12.5px">اعمال روی سرور</button>
       @if(array_filter($f))<a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud">پاک‌کردن</a>@endif
     </div>
+    {{-- ⚠️ فیلتر بی‌درنگ و سمتِ مرورگر است، ولی مرتب‌سازی و شمارشِ دقیق کارِ
+         سرور می‌مانَد؛ اگر فهرست به سقفِ ردیف خورده باشد، فیلترِ مرورگر فقط
+         همان ردیف‌های بارگذاری‌شده را می‌بیند و این باید گفته شود. --}}
+    <p style="grid-column:1/-1;margin:0;font-size:11.5px;color:var(--dim);line-height:1.8">
+      فیلترها <b style="color:var(--muted)">بی‌درنگ</b> اعمال می‌شوند و صفحه بارِ دوباره نمی‌گیرد.
+      برای <b style="color:var(--muted)">مرتب‌سازی</b> یا شمارشِ دقیقِ بیش از {{ fa_num($rowLimit) }} ردیف،
+      «اعمال روی سرور» را بزنید.
+    </p>
   </form>
 
   @if($rows->isEmpty())
     <p style="padding:16px;color:var(--dim)">با این فیلتر چیزی پیدا نشد.</p>
   @else
     {{-- شمارشِ واقعی، نه تعدادِ ردیفِ نشان‌داده‌شده: فهرستِ بریده‌ای که بریدگی‌اش
-         را نگوید، «همه را دیدم» خوانده می‌شود. --}}
+         را نگوید، «همه را دیدم» خوانده می‌شود.
+
+         ⚠️ رشتهٔ «N پلن با این فیلتر» باید **یکپارچه** بمانَد؛ تستِ
+         `test_admin_shows_the_real_match_count` همین را می‌سنجد، پس عدد را در
+         span نگذار. شمارشِ بی‌درنگ یک span **جدا** است که JS نشانش می‌دهد و
+         این یکی را پنهان می‌کند. --}}
     <p style="padding:0 16px 10px;color:var(--muted);font-size:12.5px">
-      {{ fa_num($matched) }} پلن با این فیلتر
+      <span id="cl-count-srv">{{ fa_num($matched) }} پلن با این فیلتر</span><span id="cl-count-live" hidden></span>
       @if($matched > $rowLimit)
         — <b style="color:#fbbf24">فقط {{ fa_num($rowLimit) }} ردیفِ اول نشان داده شده؛ فیلتر را باریک‌تر کنید.</b>
       @endif
     </p>
     <div style="overflow-x:auto">
-    <table class="ad-table">
+    <table class="ad-table" id="cl-table">
       <thead><tr>
+        {{-- «همه» یعنی همهٔ ردیف‌های **همین فیلتر**، نه کلِ کاتالوگ --}}
+        <th style="width:1%">
+          <input type="checkbox" class="ad-pick" id="cl-all" title="انتخابِ همهٔ ردیف‌های همین فیلتر"
+                 aria-label="انتخابِ همهٔ ردیف‌های همین فیلتر">
+        </th>
         <th style="width:1%">ردیف</th><th>پلن</th><th>مکان</th><th>هسته</th><th>رم</th><th>دیسک</th>
         <th>بها</th><th>فروش (تومان)</th><th>زیرساخت</th><th>وضعیت</th><th></th>
       </tr></thead>
       <tbody>
         @foreach($rows as $i => $r)
-        <tr data-plan="{{ $r->slug }}" style="{{ $r->admin_disabled ? 'opacity:.55' : '' }}">
-          <td style="color:var(--dim);font-size:12px">{{ fa_num($i + 1) }}</td>
+        @php $m = $rowMeta[$r->id] ?? ['state' => '', 'country' => '', 'q' => '']; @endphp
+        <tr data-plan="{{ $r->slug }}" data-id="{{ $r->id }}"
+            data-prov="{{ $r->provider }}" data-country="{{ $m['country'] }}"
+            data-cpu="{{ $r->cpu_kind }}" data-state="{{ $m['state'] }}" data-q="{{ $m['q'] }}"
+            style="{{ $r->admin_disabled ? 'opacity:.55' : '' }}">
+          <td><input type="checkbox" class="ad-pick cl-pick" value="{{ $r->id }}"
+                     aria-label="انتخابِ {{ $r->public_name }}"></td>
+          <td class="cl-n" style="color:var(--dim);font-size:12px">{{ fa_num($i + 1) }}</td>
           <td><b dir="ltr">{{ $r->public_name }}</b>
             @if($r->admin_note)<small style="display:block;color:var(--dim)">{{ $r->admin_note }}</small>@endif
           </td>
@@ -296,6 +329,45 @@
         @endforeach
       </tbody>
     </table>
+    </div>
+
+    <p id="cl-none" hidden style="padding:16px;color:var(--dim)">با این فیلتر چیزی پیدا نشد.</p>
+
+    {{-- ══ نوارِ اقدامِ گروهی ══
+         تا چیزی انتخاب نشده دیده نمی‌شود، و **تعداد را صریح می‌گوید**: نوارِ
+         بی‌شمارش یعنی مدیر فکر می‌کند ۱۲ ردیف انتخاب کرده و ۴۰۰ ردیف را
+         می‌بندد. --}}
+    <div class="ad-bulk" id="cl-bulk" hidden>
+      <b><span id="cl-bulk-n">۰</span> ردیف انتخاب شده</b>
+
+      <form method="post" action="/admin/cloud/plans/bulk-open"
+            data-confirm="ردیف‌های انتخاب‌شده دوباره برای فروش باز شوند؟ فقط آن‌هایی باز می‌شوند که «قرنطینهٔ خودکار» بسته بود و همین حالا قابلِ فروش‌اند — بقیه با علتش گزارش می‌شوند."
+            data-confirm-title="بازکردن برای فروش">
+        @csrf
+        <input type="hidden" name="ids" value="">
+        <button class="btn btn-glass" style="font-size:12px;padding:6px 12px;color:#34d399">باز کردن برای فروش</button>
+      </form>
+
+      <form method="post" action="/admin/cloud/plans/bulk-close" data-confirm-danger
+            data-confirm="ردیف‌های انتخاب‌شده بسته شوند؟ از فروشگاه حذف می‌شوند (سرویس‌های فعلی دست نمی‌خورند)."
+            data-confirm-title="بستنِ گروهی">
+        @csrf
+        <input type="hidden" name="ids" value="">
+        <input type="text" name="note" maxlength="180" placeholder="دلیل (اختیاری)"
+               style="width:150px;background:var(--surface);border:1px solid var(--line2);border-radius:7px;color:var(--text);padding:5px 9px;font:inherit;font-size:11.5px">
+        <button class="btn btn-glass" style="font-size:12px;padding:6px 12px;color:#ff6b6b">بستن</button>
+      </form>
+
+      <button type="button" class="btn btn-glass sep" id="cl-bulk-clear" style="font-size:12px;padding:6px 12px">لغوِ انتخاب</button>
+
+      <span class="warn">
+        «باز کردن» فقط ردیف‌هایی را باز می‌کند که <b>قرنطینهٔ خودکار</b> بسته بود.
+        پلنی که خودتان بسته‌اید، یا بی‌قیمت/ناموجود/غیرفعال است، دست نمی‌خورد و علتش گزارش می‌شود.
+        @if($matched > $rowLimit)
+          <br>⚠️ فهرست به سقفِ {{ fa_num($rowLimit) }} ردیف خورده است، پس «انتخابِ همه» فقط همین ردیف‌های
+          بارگذاری‌شده را می‌گیرد، نه هر {{ fa_num($matched) }} ردیفِ فیلتر.
+        @endif
+      </span>
     </div>
   @endif
 </div>
@@ -353,4 +425,153 @@
 .cl-loc{ display:flex; align-items:center; gap:11px; padding:11px 13px; background:var(--surface2); border:1px solid var(--line); border-radius:11px; font-size:13px }
 .cl-loc b{ font-size:13px }
 </style>
+
+{{--
+  ══ فیلترِ بی‌درنگ + انتخابِ گروهی ══
+
+  ⚠️ سه تلهٔ ثبت‌شدهٔ همین پروژه در این بلوک:
+
+  ۱) `@verbatim` لازم است. یک `{{` یا یک `@word` تصادفی در جاوااسکریپت را Blade
+     به‌عنوان دستور می‌خوانَد، و علامتِ کوچک‌ترِ چسبیده به علامتِ سؤال روی سرور
+     (که short_open_tag روشن دارد) ۵۰۰ می‌دهد و محلی سالم است.
+
+  ۲) هیچ فیلتری این‌جا **از نو تعریف نمی‌شود.** معنیِ «در حالِ فروش» در
+     `CloudPlan::scopeSellable` است و سرور آن را به‌شکلِ نشانه‌های
+     `data-state` روی هر ردیف می‌گذارد؛ این کد فقط رشته مقایسه می‌کند.
+
+  ۳) فیلدِ پنهانِ `ids` **در لحظهٔ تغییرِ انتخاب** پر می‌شود، نه سرِ ارسال:
+     دیالوگِ تأییدِ پنل با `form.submit()` می‌فرستد و آن متد هیچ رویدادِ
+     submitای تولید نمی‌کند، پس هر شنوندهٔ «سرِ ارسال پرش کن» بی‌صدا اجرا
+     نمی‌شد و فهرست خالی می‌رفت.
+--}}
+@verbatim
+<script>
+(function () {
+  var table = document.getElementById('cl-table');
+  var form  = document.getElementById('cl-filter');
+  var bar   = document.getElementById('cl-bulk');
+  if (!table || !form || !bar || !table.tBodies.length) return;
+
+  var rows  = Array.prototype.slice.call(table.tBodies[0].rows);
+  var all   = document.getElementById('cl-all');
+  var nEl   = document.getElementById('cl-bulk-n');
+  var none  = document.getElementById('cl-none');
+  var srv   = document.getElementById('cl-count-srv');
+  var live  = document.getElementById('cl-count-live');
+  var idIn  = bar.querySelectorAll('input[name="ids"]');
+  var clear = document.getElementById('cl-bulk-clear');
+  var touched = false;
+
+  function fa(n) {
+    return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(Number(d)); });
+  }
+
+  function val(name) {
+    var el = form.elements[name];
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  function visible(tr) { return !tr.classList.contains('ad-hide'); }
+
+  function keep(tr, f) {
+    if (f.provider && tr.getAttribute('data-prov') !== f.provider) return false;
+    if (f.country && tr.getAttribute('data-country') !== f.country) return false;
+    if (f.cpu && tr.getAttribute('data-cpu') !== f.cpu) return false;
+    if (f.state && (' ' + tr.getAttribute('data-state') + ' ').indexOf(' ' + f.state + ' ') === -1) return false;
+    if (f.q && String(tr.getAttribute('data-q')).indexOf(f.q) === -1) return false;
+    return true;
+  }
+
+  /* شمارشِ انتخاب + پرکردنِ فیلدِ پنهان.
+
+     قرارداد: **انتخاب همیشه زیرمجموعهٔ ردیف‌های دیده‌شده است.** فیلتر که عوض
+     شود، تیکِ ردیف‌های پنهان‌شده برداشته می‌شود و شمارش هم بی‌درنگ عوض. بی‌این
+     قاعده، مدیر ۴۰۰ ردیف را انتخاب می‌کرد، فیلتر را باریک می‌کرد، «۱۲ ردیف»
+     می‌دید و ۴۰۰ ردیف را می‌بست. */
+  function sync() {
+    var ids = [];
+    for (var i = 0; i < rows.length; i++) {
+      if (!visible(rows[i])) continue;
+      var c = rows[i].querySelector('.cl-pick');
+      if (c && c.checked) ids.push(rows[i].getAttribute('data-id'));
+    }
+    nEl.textContent = fa(ids.length);
+    for (var j = 0; j < idIn.length; j++) idIn[j].value = ids.join(',');
+    bar.hidden = ids.length === 0;
+  }
+
+  function apply() {
+    var f = {
+      provider: val('provider'),
+      country:  val('country').toUpperCase(),
+      cpu:      val('cpu'),
+      state:    val('state'),
+      q:        val('q').toLowerCase()
+    };
+    var shown = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var tr = rows[i], ok = keep(tr, f), box = tr.querySelector('.cl-pick');
+      if (ok) {
+        tr.classList.remove('ad-hide');
+        shown++;
+        var n = tr.querySelector('.cl-n');
+        if (n) n.textContent = fa(shown);
+      } else {
+        tr.classList.add('ad-hide');
+        if (box) box.checked = false;
+      }
+    }
+    if (none) none.hidden = shown > 0;
+    if (touched && srv && live) {
+      live.textContent = fa(shown) + ' پلن با این فیلتر — از ' + fa(rows.length) + ' ردیفِ بارگذاری‌شده';
+      srv.hidden = true;
+      live.hidden = false;
+    }
+    if (all) all.checked = false;
+    sync();
+  }
+
+  ['provider', 'country', 'cpu', 'state'].forEach(function (name) {
+    var el = form.elements[name];
+    if (el) el.addEventListener('change', function () { touched = true; apply(); });
+  });
+
+  var q = form.elements['q'];
+  if (q) q.addEventListener('input', function () { touched = true; apply(); });
+
+  /* مرتب‌سازی کارِ سرور است (ترتیب روی کلِ فهرست معنی دارد، نه روی ردیف‌های
+     بارگذاری‌شده)، پس این یکی عمداً صفحه را می‌فرستد. */
+  var sort = form.elements['sort'];
+  if (sort) sort.addEventListener('change', function () { form.submit(); });
+
+  table.addEventListener('change', function (e) {
+    var t = e.target;
+    if (all && t === all) {
+      for (var i = 0; i < rows.length; i++) {
+        if (!visible(rows[i])) continue;
+        var c = rows[i].querySelector('.cl-pick');
+        if (c) c.checked = all.checked;
+      }
+      sync();
+    } else if (t && t.classList && t.classList.contains('cl-pick')) {
+      sync();
+    }
+  });
+
+  if (clear) clear.addEventListener('click', function () {
+    for (var i = 0; i < rows.length; i++) {
+      var c = rows[i].querySelector('.cl-pick');
+      if (c) c.checked = false;
+    }
+    if (all) all.checked = false;
+    sync();
+  });
+
+  /* روی بارگذاری فیلتر نمی‌زنیم: شمارشِ سرور باید دست‌نخورده بمانَد و ردیف‌ها
+     همان‌اند که سرور فیلتر کرده. فقط انتخاب را همگام می‌کنیم، چون مرورگر با
+     دکمهٔ back تیک‌ها را برمی‌گردانَد و نوار وگرنه کهنه می‌مانْد. */
+  sync();
+})();
+</script>
+@endverbatim
 @endsection

@@ -89,6 +89,11 @@
       </div>
     </header>
     @if(session('ok'))<div class="ad-flash ok">{{ session('ok') }}</div>@endif
+    {{-- 🔴 این خط جا افتاده بود و ده‌ها `back()->with('err', …)` در کنترلرهای
+         مدیریت **بی‌صدا** گم می‌شدند: «پلن پیدا نشد»، «زیرساخت ناشناخته»،
+         «هیچ توکنی ذخیره نشده» — همه فلش می‌شدند و هیچ‌جا رندر نمی‌شدند، پس
+         مدیر یک ریدایرکتِ بی‌پیام می‌دید و می‌گفت دکمه کار نمی‌کند. --}}
+    @if(session('err'))<div class="ad-flash err">{{ session('err') }}</div>@endif
     @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
     <div class="ad-content">@yield('content')</div>
   </main>

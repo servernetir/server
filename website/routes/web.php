@@ -1867,6 +1867,16 @@ Route::prefix('admin')->group(function () {
         // روی admin_disabled می‌نویسند نه is_active، تا کرونِ سینک تصمیم را
         // بی‌صدا برنگرداند.
         Route::post('/cloud/plans/{plan}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'togglePlan'])->middleware('admin');
+        /*
+        | اقدامِ گروهی روی ردیف‌های انتخاب‌شده — «دونه دونه مدیریتشون سخته».
+        |
+        | 🔴 `bulk-open` فقط قرنطینهٔ **خودکار** را برمی‌گردانَد (همان تفکیکِ
+        | `cloud:reopen`)؛ پلنی که مدیر آگاهانه بسته دست نمی‌خورد و علتِ
+        | ردشدنش گزارش می‌شود. یک دکمهٔ گروهی که تصمیمِ انسانی را پاک کند، از
+        | ۲۲۱ بار کلیک بدتر است.
+        */
+        Route::post('/cloud/plans/bulk-open', [\App\Http\Controllers\Admin\CloudController::class, 'bulkOpen'])->middleware('admin');
+        Route::post('/cloud/plans/bulk-close', [\App\Http\Controllers\Admin\CloudController::class, 'bulkClose'])->middleware('admin');
         Route::post('/cloud/locations/{code}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleLocation'])->middleware('admin');
         Route::post('/cloud/countries/{iso}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleCountry'])->middleware('admin');
         Route::post('/cloud/providers/{provider}/toggle', [\App\Http\Controllers\Admin\CloudController::class, 'toggleProvider'])->middleware('admin');

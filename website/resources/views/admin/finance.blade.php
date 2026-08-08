@@ -183,6 +183,62 @@
   </div>
 </div>
 
+{{-- ══ چرا مشتری‌ها می‌روند ══
+     دادهٔ خودِ مشتری در لحظهٔ حذفِ سرور. کدِ پایدار ذخیره می‌شود، پس شمردنی است.
+     ⚠️ اگر مهاجرت اجرا نشده باشد $churn خالی است و این بخش کامل غیب می‌شود —
+        نه خطا، نه بخشِ نیمه‌کاره. --}}
+@if($churn !== [])
+  <div class="ad-panel fin-churn" style="margin-top:16px">
+    <div class="ad-panel-h">
+      <h2>چرا مشتری‌ها سرورشان را حذف می‌کنند</h2>
+      <span style="font-size:12px;color:var(--dim)">
+        {{ fa_num($churn['answered']) }} پاسخ از {{ fa_num($churn['total']) }} حذف
+      </span>
+    </div>
+
+    @if($churn['total'] === 0)
+      <p style="padding:20px;color:var(--dim)">هنوز هیچ سرویسی حذف نشده است.</p>
+    @else
+      <div class="fin-cat">
+        @if($churn['rows'] === [])
+          <div class="fin-cat-h">هیچ‌کس دلیلش را نگفته است. پرسش اختیاری است، پس این خودش یک عدد است نه خطا.</div>
+        @else
+          <div class="fin-cat-h">درصدها نسبت به پاسخ‌های داده‌شده است، نه کلِ حذف‌ها.</div>
+          @foreach($churn['rows'] as $r)
+            <div class="fin-cat-row">
+              <span>{{ $r['label'] }}</span>
+              <div class="fin-cat-bar"><i style="width:{{ $r['pct'] }}%"></i></div>
+              <span class="fin-num">{{ fa_num($r['count']) }} · {{ fa_num($r['pct']) }}٪</span>
+            </div>
+          @endforeach
+        @endif
+
+        @if($churn['silent'] > 0)
+          <div class="fin-cat-row" style="opacity:.65">
+            <span>بی‌پاسخ (دلیلی انتخاب نشد)</span>
+            <div class="fin-cat-bar"></div>
+            <span class="fin-num">{{ fa_num($churn['silent']) }}</span>
+          </div>
+        @endif
+      </div>
+
+      @if($churn['notes']->isNotEmpty())
+        <div class="fin-cat">
+          <div class="fin-cat-h">توضیح‌های آزادِ اخیر</div>
+          @foreach($churn['notes'] as $n)
+            <p style="margin:0 0 8px;font-size:12.5px;line-height:1.8">
+              <span style="color:var(--dim)">{{ $n->cancelled_at ? sdate($n->cancelled_at) : '—' }}
+                @if($n->terminate_reason) · {{ \App\Models\Service::terminateReasonLabel($n->terminate_reason) }}@endif
+                —</span>
+              {{ $n->terminate_reason_note }}
+            </p>
+          @endforeach
+        </div>
+      @endif
+    @endif
+  </div>
+@endif
+
 {{-- ══ آخرین ردیف‌ها ══ --}}
 <div class="ad-panel" style="margin-top:16px">
   <div class="ad-panel-h"><h2>آخرین رویدادها</h2></div>
@@ -249,6 +305,11 @@
 .fin-bar-x{ font-size:10px; color:var(--dim) }
 .fin-legend{ display:flex; gap:16px; justify-content:center; padding:0 0 14px; font-size:12px; color:var(--muted) }
 .fin-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:middle; margin-inline-end:5px }
+
+/* برچسبِ دلیلِ حذف یک جملهٔ کامل است، پس ستونِ ۱۳۰پیکسلیِ دسته‌های هزینه
+   جوابش نمی‌دهد — نامِ گزینه اول می‌آید و میله باریک‌تر می‌شود. */
+.fin-churn .fin-cat-row{ grid-template-columns:1fr 110px auto }
+.fin-churn .fin-cat-row > span:first-child{ overflow-wrap:anywhere }
 
 .fin-form{ padding:16px; display:flex; flex-direction:column; gap:8px }
 .fin-form label{ font-size:12px; color:var(--muted); margin-top:6px }
