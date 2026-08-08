@@ -2,6 +2,7 @@
 
 namespace App\Services\Cloud;
 
+use App\Models\CloudLocation;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -193,9 +194,14 @@ class ProxmoxClient implements CloudProvider
     // ───────────────────────── کاتالوگ ─────────────────────────
 
     /**
-     * کاتالوگِ ثابت: یک مکان (تهران)، یک ایمیج (اوبونتو ۲۴٫۰۴ = همان قالب)، و
-     * یک پلنِ «Exit VPS». چون میزبانِ خودمان است، قیمت را از ارز نمی‌سازیم و
-     * `cost_eur_cents` بهایِ تمام‌شدهٔ اسمی است (CloudPricing رویش حاشیه می‌گذارد).
+     * کاتالوگ: یک «Exit VPS» به ازای هر **کشورِ خروج**، با یک مکانِ `exit-<cc>`
+     * و یک پلنِ هم‌مشخصات (۲هسته/۲گیگ/۳۰گیگ). فهرستِ کشورها از تنظیمِ
+     * `proxmox_exit_countries` (CSV، پیش‌فرض `de,nl,fi`) می‌آید تا افزودن/برداشتنِ
+     * کشور بی‌دیپلوی باشد. ایمیج یکی است (اوبونتو ۲۴٫۰۴ = همان قالب).
+     *
+     * چون میزبانِ خودمان است قیمت را از ارز نمی‌سازیم و `cost_eur_cents` بهایِ
+     * تمام‌شدهٔ اسمی است (CloudPricing رویش حاشیه می‌گذارد). سفیدبرچسبی برقرار
+     * است: مشتری فقط کشورِ خروج را می‌بیند، نه نامِ Proxmox/نود.
      */
     public function fetchCatalog(): array
     {
@@ -205,16 +211,44 @@ class ProxmoxClient implements CloudProvider
             return ['ok' => false, 'message' => 'اتصالِ این زیرساخت تنظیم نشده.'] + $empty;
         }
 
-        return [
-            'ok' => true, 'message' => '',
-            'locations' => [[
-                'code'              => 'ir-tehran',
-                'country'           => 'IR',
-                'city'              => 'tehran',
-                'provider_location' => $this->node(),
+        $node = $this->node();
+        $locations = [];
+        $plans = [];
+
+        foreach ($this->exitCountries() as $cc) {
+            $iso = strtoupper($cc);
+            // نامِ کشور از نگاشتِ سه‌زبانهٔ خودمان (همان منبعِ نام/پرچمِ مکان‌ها)
+            $name = CloudLocation::COUNTRIES[$iso]['en'] ?? $iso;
+
+            $locations[] = [
+                'code'              => 'exit-'.$cc,
+                'country'           => $iso,
+                'city'              => $name.' (exit)',
+                'provider_location' => $node,
                 'latitude'          => null,
                 'longitude'         => null,
-            ]],
+            ];
+
+            $plans[] = [
+                'provider_ref'      => 'exit-vps-'.$cc,
+                'provider_location' => $node,
+                'location_code'     => 'exit-'.$cc,
+                'vcpu'              => 2,
+                'ram_mb'            => 2048,
+                'disk_gb'           => 30,
+                'disk_type'         => 'ssd',
+                'traffic_gb'        => 1000,
+                'cpu_kind'          => 'shared',
+                'arch'              => 'x86',
+                'cost_eur_cents'    => 400,
+                'in_stock'          => true,
+                'name'              => 'Exit VPS 2GB',
+            ];
+        }
+
+        return [
+            'ok' => true, 'message' => '',
+            'locations' => $locations,
             'images' => [[
                 // شناسهٔ ایمیج = VMIDِ قالب؛ createServer/rebuild از همین کلون می‌کند
                 'provider_ref' => (string) $this->templateVmid(),
@@ -226,22 +260,26 @@ class ProxmoxClient implements CloudProvider
                 'arch'         => 'x86',
                 'min_disk_gb'  => 10,
             ]],
-            'plans' => [[
-                'provider_ref'      => 'exit-vps-1',
-                'provider_location' => $this->node(),
-                'location_code'     => 'ir-tehran',
-                'vcpu'              => 2,
-                'ram_mb'            => 2048,
-                'disk_gb'           => 30,
-                'disk_type'         => 'ssd',
-                'traffic_gb'        => 1000,
-                'cpu_kind'          => 'shared',
-                'arch'              => 'x86',
-                'cost_eur_cents'    => 400,
-                'in_stock'          => true,
-                'name'              => 'Exit VPS 2GB',
-            ]],
+            'plans' => $plans,
         ];
+    }
+
+    /**
+     * کشورهای خروجِ فعال از تنظیمات (CSV، پیش‌فرض `de,nl,fi`). کوچک‌شده،
+     * تروخالی‌زدایی‌شده و بی‌تکرار؛ اگر خالی بود به پیش‌فرض برمی‌گردد.
+     *
+     * @return array<int,string>
+     */
+    private function exitCountries(): array
+    {
+        $raw = (string) (Setting::get('proxmox_exit_countries') ?: 'de,nl,fi');
+
+        $list = array_values(array_unique(array_filter(
+            array_map(fn ($c) => strtolower(trim($c)), explode(',', $raw)),
+            fn ($c) => $c !== '',
+        )));
+
+        return $list === [] ? ['de', 'nl', 'fi'] : $list;
     }
 
     // ───────────────────────── ساخت ─────────────────────────

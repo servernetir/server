@@ -208,9 +208,35 @@
               <input type="text" name="proxmox_ip_start" dir="ltr" maxlength="45"
                      value="{{ $cloud['px']['ip_start'] }}" placeholder="10.10.10.60"></label>
           </div>
+          <label class="set-f" style="margin-top:10px">کشورهای خروج (Exit VPS) — جدا با کاما
+            <input type="text" name="proxmox_exit_countries" dir="ltr" maxlength="200"
+                   value="{{ $cloud['exit_countries'] }}" placeholder="de,nl,fi (پیش‌فرض)"></label>
           @if($cloud['proxmox'])
             <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
               <input type="checkbox" name="proxmox_forget" value="1">
+              <span>توکن را فراموش کن</span>
+            </label>
+          @endif
+        </div>
+        {{-- توکنِ pull-agentِ هاستِ ایران: موتورِ ایران با این توکن از دو مسیرِ
+             /agent/* حالتِ مطلوب (مسیرِ کشوری + port-forward) را می‌خوانَد. فقط
+             توکن رمزنگاری‌شده ذخیره می‌شود؛ خالی = بدونِ تغییر. --}}
+        <div style="grid-column:1/-1;border:1px solid var(--line2);border-radius:11px;padding:14px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+            <b style="font-size:13.5px">توکنِ Pull-Agent (هاستِ ایران)</b>
+            @if($cloud['agent'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">توکن ذخیره‌شده</span>@endif
+          </div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.9;margin-bottom:10px">
+            موتورِ هاستِ ایران با هدرِ <span dir="ltr">X-Agent-Token</span> از
+            <span dir="ltr">/agent/countryroutes</span> و <span dir="ltr">/agent/portforwards</span>
+            حالتِ مطلوب را می‌خوانَد. همین توکن را در تنظیماتِ ایجنت هم بگذارید.
+          </p>
+          <label class="set-f">Agent Token
+            <input type="password" name="agent_pull_token" dir="ltr" autocomplete="new-password" maxlength="200"
+                   placeholder="{{ $cloud['agent'] ? '••••••••  خالی = بدونِ تغییر' : 'یک رشتهٔ تصادفیِ قوی' }}"></label>
+          @if($cloud['agent'])
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" name="agent_forget" value="1">
               <span>توکن را فراموش کن</span>
             </label>
           @endif

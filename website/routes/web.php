@@ -2007,3 +2007,14 @@ Route::prefix('api/v1')
         Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
         Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
     });
+
+/*
+ * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent) — بیرونِ closureِ سه‌زبانهٔ
+ * سایت. احراز با هدرِ `X-Agent-Token` داخلِ کنترلر (Setting::getSecret). فقط
+ * GET و فقط‌خواندنی؛ ایجنت هر چند دقیقه این‌ها را می‌خوانَد تا حالتِ مطلوب
+ * (مسیرِ کشوریِ خروج + port-forward) را یاد بگیرد.
+ */
+Route::prefix('agent')->group(function () {
+    Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
+    Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+});

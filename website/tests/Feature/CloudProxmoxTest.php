@@ -40,21 +40,27 @@ class CloudProxmoxTest extends TestCase
 
     // ═══════════════ کاتالوگ ═══════════════
 
-    public function test_catalog_returns_the_fixed_exit_vps_plan(): void
+    public function test_catalog_returns_one_exit_vps_plan_per_country(): void
     {
+        // پیش‌فرضِ فهرستِ کشورها: de,nl,fi ⇒ سه مکان و سه پلنِ هم‌مشخصات.
         $cat = app(ProxmoxClient::class)->fetchCatalog();
 
         $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
 
-        $this->assertSame('ir-tehran', $cat['locations'][0]['code']);
-        $this->assertSame('IR', $cat['locations'][0]['country']);
+        $this->assertCount(3, $cat['locations']);
+        $this->assertCount(3, $cat['plans']);
 
-        $this->assertSame('exit-vps-1', $cat['plans'][0]['provider_ref']);
-        $this->assertSame('ir-tehran', $cat['plans'][0]['location_code']);
+        // اولین کشورِ پیش‌فرض = آلمان → مکانِ exit-de
+        $this->assertSame('exit-de', $cat['locations'][0]['code']);
+        $this->assertSame('DE', $cat['locations'][0]['country']);
+
+        $this->assertSame('exit-vps-de', $cat['plans'][0]['provider_ref']);
+        $this->assertSame('exit-de', $cat['plans'][0]['location_code']);
         $this->assertSame(2048, $cat['plans'][0]['ram_mb']);
         $this->assertSame(400, $cat['plans'][0]['cost_eur_cents']);
 
-        // ایمیج = VMIDِ قالب (پیش‌فرض ۹۰۰۲)، کلیدِ یکسان‌شده
+        // ایمیج = VMIDِ قالب (پیش‌فرض ۹۰۰۲)، کلیدِ یکسان‌شده — یکی برای همه
+        $this->assertCount(1, $cat['images']);
         $this->assertSame('9002', $cat['images'][0]['provider_ref']);
         $this->assertSame('ubuntu-24.04', $cat['images'][0]['key']);
     }

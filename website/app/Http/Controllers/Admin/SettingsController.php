@@ -56,6 +56,9 @@ class SettingsController extends Controller
                 && filled(Setting::getSecret('ovh_consumer_key')),
             // Proxmox: فقط توکنِ سرّی رمزنگاری‌شده است؛ «تنظیم‌شده» یعنی همان هست.
             'proxmox' => $ready && filled(Setting::getSecret('proxmox_token_secret')),
+            // توکنِ pull-agentِ هاستِ ایران (رمزنگاری‌شده) + فهرستِ کشورهای خروج.
+            'agent'          => $ready && filled(Setting::getSecret('agent_pull_token')),
+            'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             // 🔴 «۱ یورو چند روبل» حذف شد: حسابِ زیرساختِ ۲ فقط یورو می‌تواند
@@ -147,6 +150,10 @@ class SettingsController extends Controller
             'proxmox_bridge'        => ['nullable', 'string', 'max:32'],
             'proxmox_gateway'       => ['nullable', 'string', 'max:45'],
             'proxmox_ip_start'      => ['nullable', 'string', 'max:45'],
+            // کشورهای خروجِ Exit VPS (CSV) و توکنِ pull-agentِ ایران
+            'proxmox_exit_countries' => ['nullable', 'string', 'max:200'],
+            'agent_pull_token'      => ['nullable', 'string', 'max:200'],
+            'agent_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             // درصد سود دامنه — صفر مجاز است (استراتژیِ جذبِ مشتری)
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
@@ -242,8 +249,17 @@ class SettingsController extends Controller
             Setting::putSecret('proxmox_token_secret', trim((string) $data['proxmox_token_secret']));
         }
 
+        // توکنِ pull-agentِ ایران: مثلِ Proxmox رمزنگاری‌شده، هرگز به فرم برنمی‌گردد،
+        // خالی یعنی «دست نزن» و برای حذف تیکِ جدا هست.
+        if ($request->boolean('agent_forget')) {
+            Setting::putSecret('agent_pull_token', null);
+        } elseif (filled($data['agent_pull_token'] ?? null)) {
+            Setting::putSecret('agent_pull_token', trim((string) $data['agent_pull_token']));
+        }
+
         foreach (['proxmox_api_url', 'proxmox_node', 'proxmox_token_id', 'proxmox_template_vmid',
-            'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start'] as $k) {
+            'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start',
+            'proxmox_exit_countries'] as $k) {
             // خالی = بازگشت به پیش‌فرض (درایور خودش پیش‌فرض دارد)
             Setting::put($k, filled($data[$k] ?? null) ? trim((string) $data[$k]) : null);
         }
