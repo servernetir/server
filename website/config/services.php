@@ -83,6 +83,9 @@ return [
         'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
         'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
         'outreach'  => env('AI_PROVIDER_OUTREACH', 'deepseek'),
+
+        // دسته‌بندیِ صندوق‌های ایمیل (App\Services\Mail\MailboxTriage)
+        'triage'    => env('AI_PROVIDER_TRIAGE', 'deepseek'),
     ],
 
     /*
