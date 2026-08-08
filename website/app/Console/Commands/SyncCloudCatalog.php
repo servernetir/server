@@ -40,23 +40,35 @@ class SyncCloudCatalog extends Command
             return self::SUCCESS;
         }
 
-        if ($report['providers'] === []) {
+        if (($report['providers'] ?? []) === []) {
             $this->warn('هیچ ارائه‌دهندهٔ ابری تنظیم نشده — توکن را در /admin/settings وارد کنید.');
 
             return self::SUCCESS;
         }
 
-        $rate = $report['rate'];
-        $this->line($rate > 0 ? "نرخِ یورو: ".number_format($rate)." تومان" : 'نرخِ یورو در دسترس نیست — قیمتِ تومانی ساخته نشد.');
+        /*
+        | ⚠️ همهٔ خواندن‌های زیر محافظ دارند و این عمدی است.
+        |
+        | این فرمان دو بار با `TypeError` روی همین چند خط مرده — یعنی
+        | `cloud:sync` با کدِ ۱ تمام می‌شد و کاتالوگ و قیمتِ سرورها **تازه
+        | نمی‌شد**. یک گزارشِ ناقص (کلیدِ نبود، مقدارِ غیرِ عددی) نباید کارِ
+        | انجام‌شده را دور بریزد؛ خودِ همگام‌سازی پیش از این خط تمام شده است.
+        */
+        $rate = $report['rate'] ?? 0;
+        $rate = is_numeric($rate) ? (int) $rate : 0;
 
-        foreach ($report['providers'] as $slug => $r) {
-            if ($r['ok']) {
+        $this->line($rate > 0 ? 'نرخِ یورو: '.number_format($rate).' تومان' : 'نرخِ یورو در دسترس نیست — قیمتِ تومانی ساخته نشد.');
+
+        foreach ((array) ($report['providers'] ?? []) as $slug => $r) {
+            $r = (array) $r;
+
+            if ($r['ok'] ?? false) {
                 $this->info(sprintf(
                     '%s: %d مکان، %d پلن، %d ایمیج.',
-                    $slug, $r['locations'], $r['plans'], $r['images']
+                    $slug, (int) ($r['locations'] ?? 0), (int) ($r['plans'] ?? 0), (int) ($r['images'] ?? 0)
                 ));
             } else {
-                $this->error("{$slug}: {$r['message']}");
+                $this->error($slug.': '.($r['message'] ?? 'بی‌پیام'));
             }
         }
 

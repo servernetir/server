@@ -83,6 +83,62 @@ class ErrorTracker
         ], request());
     }
 
+    /** پیشوندِ فایل‌های گلوگاه — تستْ همین را پاک می‌کند */
+    public const THROTTLE_PREFIX = 'throttle-';
+
+    /**
+     * مثلِ `note()`، ولی حداکثر یک بار در هر بازه.
+     *
+     * 🔴 چرا لازم است: پنجرهٔ ردیاب ۴۰۰ خط است. یک خرابیِ کوچک اما پرتکرار —
+     * مثلِ ردیفِ ناهم‌شکلِ نرخِ ارز که در **رندرِ هر صفحه** خوانده می‌شود — همان
+     * پنجره را پر می‌کند و خطاهای گران‌قیمت را بیرون می‌اندازد. همان اتفاقی که
+     * با سیلِ ۴۰۴ افتاد (نسبتِ ۴۶۱ به ۲) و برای رفعش فایلِ ۴۰۴ جدا شد.
+     *
+     * ⚠️ گلوگاه روی **فایل** است، نه کش. قاعدهٔ نوشته‌شدهٔ این پروژه: «هیچ چیزی
+     * که قرار است از مرگِ یک وابستگی خبر دهد، نباید روی همان وابستگی بنشیند» —
+     * و کشِ پیش‌فرضِ پروداکشن روی همان دیتابیسی است که گاهی می‌میرد.
+     *
+     * ⚠️ اگر گلوگاه خودش خطا داد، پیش‌فرض **ثبت‌کردن** است: خطِ تکراری آزارنده
+     * است، خطِ نوشته‌نشده گران.
+     */
+    public static function noteOnce(string $area, Throwable|string $what, int $seconds = 900, array $ctx = []): void
+    {
+        $key = $area.'-'.md5($what instanceof Throwable ? $what->getMessage() : $what);
+
+        if (! self::throttlePassed($key, $seconds)) {
+            return;
+        }
+
+        self::note($area, $what, $ctx);
+    }
+
+    /**
+     * آیا اجازهٔ «داد زدن» با این کلید در این بازه هست؟
+     *
+     * `$signature` وقتی عوض شود گلوگاه فوراً باز می‌شود — تا خرابیِ **تازه** پشتِ
+     * گلوگاهِ خرابیِ قبلی نماند (همان درسِ امضای `SystemHealthCheck`).
+     */
+    public static function throttlePassed(string $key, int $seconds, string $signature = ''): bool
+    {
+        try {
+            $path = storage_path('app/'.self::THROTTLE_PREFIX
+                .substr((string) preg_replace('/[^a-z0-9\-]/i', '', $key), 0, 60)
+                .'-'.substr(md5($key), 0, 8));
+
+            if (is_file($path)
+                && (time() - (int) @filemtime($path)) < $seconds
+                && trim((string) @file_get_contents($path)) === $signature) {
+                return false;
+            }
+
+            @file_put_contents($path, $signature);
+
+            return true;
+        } catch (Throwable) {
+            return true;
+        }
+    }
+
     /** ثبت یک استثنا (۵۰۰) با جزئیات کامل */
     public static function exception(Throwable $e, ?Request $request): void
     {

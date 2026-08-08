@@ -149,7 +149,7 @@ class CloudStoreController extends Controller
                 ->whereKey((int) $data['ssh_key_id'])->first();
 
             if ($key === null) {
-                return back()->withInput()->withErrors(['ssh_key_id' => 'کلیدِ انتخابی پیدا نشد.']);
+                return back()->withInput()->withErrors(['ssh_key_id' => __('ui.cvb_e_ssh_missing')]);
             }
 
             return $key;
@@ -175,7 +175,7 @@ class CloudStoreController extends Controller
 
         // نامِ تکراری (یکتا در سطحِ مشتری) را با شماره یکتا کن، وگرنه ذخیره با
         // خطای یکتایی می‌شکند و کلِ سفارش ۵۰۰ می‌شود.
-        $base = mb_substr(trim((string) ($data['ssh_key_name'] ?? '')) ?: 'کلیدِ من', 0, 55);
+        $base = mb_substr(trim((string) ($data['ssh_key_name'] ?? '')) ?: __('ui.cvb_ssh_my_key'), 0, 55);
         $name = $base;
 
         for ($i = 2; $i < 50 && \App\Models\CloudSshKey::where('customer_id', $customer->id)
@@ -226,10 +226,37 @@ class CloudStoreController extends Controller
      */
     public function locationGroups(): array
     {
-        $codes = CloudPlan::query()->sellable()
+        return $this->groupsFor(CloudPlan::query()->sellable()
             ->distinct()->orderBy('location_code')->pluck('location_code')
-            ->filter()->unique()->values();
+            ->filter()->unique()->values());
+    }
 
+    /**
+     * مکان‌هایی که پلن دارند — **حتی اگر همه‌شان الان ناموجود باشند**.
+     *
+     * فروشگاه از این می‌خوانَد تا کشورِ تمام‌شده خاکستری بماند نه اینکه غیب شود؛
+     * `order()` عمداً از `locationGroups()` (فقط فروختنی) می‌خوانَد، چون آن‌جا
+     * حرف از «چه چیزی را می‌شود خرید» است نه «چه چیزی را باید دید».
+     *
+     * @return array<int, array{country:string,label:string,flag:string,locations:array<int,CloudLocation>}>
+     */
+    public function shelfLocationGroups(): array
+    {
+        $off = CloudPlan::disabledProviders();
+
+        return $this->groupsFor(CloudPlan::query()
+            ->where('is_active', true)->where('admin_disabled', false)
+            ->when($off !== [], fn ($q) => $q->whereNotIn('provider', $off))
+            ->distinct()->orderBy('location_code')->pluck('location_code')
+            ->filter()->unique()->values());
+    }
+
+    /**
+     * @param  Collection<int,string>  $codes
+     * @return array<int, array{country:string,label:string,flag:string,locations:array<int,CloudLocation>}>
+     */
+    private function groupsFor(Collection $codes): array
+    {
         if ($codes->isEmpty()) {
             return [];
         }
@@ -345,7 +372,16 @@ class CloudStoreController extends Controller
 
     public function index(Request $request): View
     {
-        $groups = $this->locationGroups();
+        // نمایش از «قفسه» می‌خوانَد (شاملِ مکانِ تمام‌شده)، ولی «کدام‌ها واقعاً باز
+        // است» جدا نگه داشته می‌شود تا کشورِ خاکستری با کشورِ فروختنی قاطی نشود.
+        $groups = $this->shelfLocationGroups();
+
+        $openCodes = [];
+        foreach ($this->locationGroups() as $g) {
+            foreach ($g['locations'] as $l) {
+                $openCodes[] = (string) $l->code;
+            }
+        }
 
         // مکانِ انتخابی از query می‌آید (لینکِ ساده، بی‌جاوااسکریپت هم کار کند)
         $allCodes = [];
@@ -364,7 +400,9 @@ class CloudStoreController extends Controller
         // یک خزندهٔ بدرفتار نباید صفحهٔ فروش را بخواباند.
         $wanted = $request->query('location') ?? $request->query('loc') ?? '';
         $wanted = is_string($wanted) ? $wanted : '';
-        $code = in_array($wanted, $allCodes, true) ? $wanted : ($allCodes[0] ?? null);
+        // پیش‌فرض: اولین مکانی که واقعاً چیزی برای فروش دارد — نه اولین مکانِ فهرست،
+        // وگرنه مشتری با یک کشورِ تمام‌شده روبه‌رو می‌شود و فکر می‌کند هیچ نداریم.
+        $code = in_array($wanted, $allCodes, true) ? $wanted : ($openCodes[0] ?? $allCodes[0] ?? null);
 
         $location = null;
         foreach ($groups as $g) {
@@ -375,8 +413,38 @@ class CloudStoreController extends Controller
             }
         }
 
-        /** @var Collection<string, CloudPlan> $offers */
-        $offers = $code ? CloudPlan::offers($code) : collect();
+        // ── پلنِ خواسته‌شده در لینک (صفحات بازاریابی: ?location=…&plan=…) ──
+        // زود خوانده می‌شود چون فیلترِ نمایشیِ پایین **نباید** چیزی را حذف کند که
+        // یک لینکِ ورودی به آن اشاره دارد.
+        $wantedPlan = $request->query('plan', '');
+        $wantedPlan = is_string($wantedPlan) ? $wantedPlan : '';
+
+        /** @var Collection<string, CloudPlan> $shelf */
+        $shelf = $code ? CloudPlan::shelf($code) : collect();
+
+        // فروختنی‌ها از «فقط گذرا ناموجود»ها جدا می‌شوند: اولی خریدنی است، دومی
+        // فقط دیدنی. هیچ‌کدام بی‌صدا غیب نمی‌شود (باگِ صفحات کشور، §۱۰.۵).
+        $offers = $shelf->filter(fn (CloudPlan $p) => $p->blockedReason() === null);
+        $blocked = $shelf->reject(fn (CloudPlan $p) => $p->blockedReason() === null);
+
+        /*
+        | حذفِ پلنِ مغلوب — همان فیلترِ پارتو که صفحهٔ بازاریابی از قبل دارد
+        | (`CatalogController`). بی‌آن، صفحهٔ **خرید** آشغالِ بیشتری از بروشور
+        | نشان می‌داد: «نصفِ پردازنده، دو برابرِ قیمت» کنارِ گزینهٔ درست.
+        |
+        | ⚠️ اسلاگی که در لینکِ ورودی آمده هرگز حذف نمی‌شود. یک فیلترِ نمایشی
+        | نباید چیزی را که یک لینک به آن اشاره دارد ناپدید کند.
+        */
+        if ($offers->count() > 1) {
+            $keep = $offers->get($wantedPlan);
+            $offers = \App\Services\Cloud\CloudDominance::prune($offers->values())->keyBy('slug');
+
+            if ($keep !== null && ! $offers->has($wantedPlan)) {
+                $offers = $offers->put($wantedPlan, $keep);
+            }
+
+            $offers = $offers->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']]);
+        }
 
         // ── ایمیج‌ها: فهرستِ نمایشیِ یکسان‌شده + نقشهٔ «کدام پلن کدام‌ها را دارد»
         $osCatalog = CloudImage::catalog('os');
@@ -384,21 +452,35 @@ class CloudStoreController extends Controller
 
         $rowsByKey = CloudImage::query()->usable()->get()->groupBy('key');
 
-        $providersBySlug = CloudPlan::query()->sellable()
+        /*
+        | یک پرس‌وجو به‌جای دو تا **و** به‌جای N تا.
+        |
+        | قبلاً `hourlyMap` برای هر کارت یک `bestForSlug()` می‌زد (یک کوئریِ کاملِ
+        | sellable برای هر پلن) در حالی که همان ردیف‌ها همین‌جا در دست بودند.
+        | ردیف‌های هم‌اسلاگ یک بار خوانده می‌شوند و سه چیز از آن‌ها درمی‌آید:
+        | زیرساخت‌ها (برای تحویل‌شدنیِ ایمیج)، نرخِ ساعتی، و توانِ IP اضافه.
+        */
+        $sellableRows = CloudPlan::query()->sellable()
             ->whereIn('slug', $offers->keys()->all())
-            ->get(['slug', 'provider'])
-            ->groupBy('slug')
-            ->map(fn ($rows) => $rows->pluck('provider')->unique()->values()->all());
+            ->orderBy('cost_eur_cents')
+            ->get()
+            ->groupBy('slug');
+
+        $addonSvc = app(CloudAddons::class);
+        $manager = app(\App\Services\Cloud\CloudManager::class);
 
         $imageMap = [];     // slug => ['os' => [key,…], 'app' => [key,…]]
         $priceMap = [];     // slug => cycle => ['cycle','per','first','save']
         $planCards = [];    // دادهٔ نمایشیِ امن (بی‌هیچ ستونِ زیرساخت)
+        $hourlyMap = [];    // slug => ['rate','min']
+        $addonMap = [];     // slug => bool  (آیا IP اضافه روی این اسلاگ شدنی است)
 
         $cycles = self::cycles();
         $taxPct = self::taxPercent();
 
         foreach ($offers as $slug => $offer) {
-            $slugProviders = (array) ($providersBySlug[$slug] ?? []);
+            $rows = $sellableRows->get((string) $slug, collect());
+            $slugProviders = $rows->pluck('provider')->unique()->values()->all();
 
             foreach (['os' => $osCatalog, 'app' => $appCatalog] as $kind => $catalog) {
                 $keys = [];
@@ -430,14 +512,46 @@ class CloudStoreController extends Controller
                 'disk' => $offer->diskLabel(),
                 'traffic' => $offer->trafficLabel(),
                 'cpu' => $offer->cpuKindLabel(),
+                'cpuKind' => (string) $offer->cpu_kind === 'dedicated' ? 'dedicated' : 'shared',
             ];
+
+            $hourlyMap[(string) $slug] = [
+                'rate' => $offer->hourlyIrt(),
+                'min' => $offer->hourlyStartMinIrt(),
+            ];
+
+            // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
+            // بود و عوض‌کردنِ پلن، انتخابگرِ IP را روی پلنی جا می‌گذاشت که سرِ
+            // ثبتِ سفارش ردش می‌کرد.
+            $addonMap[(string) $slug] = $rows->contains(
+                fn (CloudPlan $p) => $addonSvc->planSupports($p, ['extra_ipv4' => 1], $manager)
+            );
         }
 
+        // کارت‌های «هست ولی الان نمی‌شود خرید» — با دلیلِ صادق، بی‌قیمت.
+        // ⚠️ `data-uslug` نه `data-slug`: تستِ گروه‌بندی دقیقاً تعدادِ `data-slug`
+        // را می‌شمارد و یک ردیفِ ناموجود نباید آن شمارش را به‌هم بزند.
+        $blockedCards = $blocked->map(fn (CloudPlan $p) => [
+            'slug' => (string) $p->slug,
+            'name' => (string) $p->public_name,
+            'vcpu' => (int) $p->vcpu,
+            'ram' => $p->ramLabel(),
+            'disk' => $p->diskLabel(),
+            'traffic' => $p->trafficLabel(),
+            'cpu' => $p->cpuKindLabel(),
+            'cpuKind' => (string) $p->cpu_kind === 'dedicated' ? 'dedicated' : 'shared',
+            'reason' => (string) $p->blockedReason(),
+        ])->values()->all();
+
         // پلنِ پیش‌انتخاب‌شده (لینکِ «خرید» صفحات عمومی: ?location=…&plan=…)
-        $selectedSlug = $request->query('plan', '');
-        $selectedSlug = is_string($selectedSlug) ? $selectedSlug : '';
+        $selectedSlug = $wantedPlan;
+        $planMoved = false;
 
         if (! isset($imageMap[$selectedSlug])) {
+            // ⚠️ جابه‌جاییِ بی‌صدا ممنوع: اگر لینک/انتخابِ قبلی به اسلاگی اشاره دارد
+            // که این‌جا نیست، صفحه باید بگوید — نه اینکه چیزِ دیگری را انتخاب کند و
+            // مشتری فکر کند خودش اشتباه کرده.
+            $planMoved = $selectedSlug !== '' && $planCards !== [];
             $selectedSlug = (string) ($planCards[0]['slug'] ?? '');
         }
 
@@ -452,9 +566,12 @@ class CloudStoreController extends Controller
 
         return view('account.cloud-store', AccountController::shell('store') + [
             'groups' => $groups,
+            'openCodes' => $openCodes,
             'location' => $location,
             'locCode' => $code,
             'planCards' => $planCards,
+            'blockedCards' => $blockedCards,
+            'planMoved' => $planMoved,
             'selectedSlug' => $selectedSlug,
             'osCatalog' => $osCatalog,
             'appCatalog' => $appCatalog,
@@ -462,32 +579,36 @@ class CloudStoreController extends Controller
             'priceMap' => $priceMap,
             'cycles' => $cycles,
             'cycleLabels' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::labelFor($c)])->all(),
-            'defCycle' => self::defaultCycle(),
+            // ماه‌های هر دوره — جاوااسکریپت با همین، بهایِ IP اضافه را به مبلغِ
+            // دوره اضافه می‌کند؛ وگرنه دکمه یک عدد نشان می‌دهد و فاکتور عددِ دیگر.
+            'cycleMonths' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::monthsIn($c)])->all(),
+            /*
+            | دوره و سیستم‌عاملِ آمده در آدرس هم مثلِ `plan` احترام می‌شوند.
+            | چیپِ شهر این سه را روی لینکِ خودش سوار می‌کند، پس عوض‌کردنِ شهر
+            | دیگر بی‌صدا انتخاب‌های قبلی را دور نمی‌ریزد (GET است و `old()`
+            | خالی است، پس بدونِ این، هر تعویضِ مکان یعنی شروع از صفر).
+            */
+            'defCycle' => (function () use ($request, $cycles) {
+                $q = $request->query('cycle');
+
+                return is_string($q) && in_array($q, $cycles, true) ? $q : self::defaultCycle();
+            })(),
+            'wantImage' => is_string($request->query('image')) ? (string) $request->query('image') : '',
             'taxPct' => $taxPct,
             'autoLabel' => self::serverLabel(null),
 
             // ── فروشِ ساعتی ──
             // نرخِ ساعتیِ هر پلن + حداقلِ اعتبارِ شروع (۲۴ ساعت) و موجودیِ فعلیِ
             // مشتری، تا صفحه بتواند پیش از ثبتِ سفارش بگوید اعتبار کافی است یا نه.
-            'hourlyMap' => collect($planCards)->mapWithKeys(function ($p) {
-                $plan = CloudPlan::bestForSlug((string) $p['slug']);
-
-                return [(string) $p['slug'] => [
-                    'rate' => $plan?->hourlyIrt() ?? 0,
-                    'min'  => $plan?->hourlyStartMinIrt() ?? 0,
-                ]];
-            })->all(),
+            'hourlyMap' => $hourlyMap,
             'creditIrt' => (int) (Auth::guard('customer')->user()?->creditBalance('IRT') ?? 0),
 
             // ── افزودنی‌ها ──
-            // `addonOk` می‌گوید آیا **این مکان** اصلاً IP اضافه دارد؛ اگر نه،
-            // کارتش نمایش داده نمی‌شود. نشان‌دادنِ گزینه‌ای که سرِ ثبتِ سفارش رد
+            // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
             // می‌شود، بدترین نوعِ رابطِ کاربری است.
-            'addonOk' => $selectedSlug !== null
-                && app(CloudAddons::class)->bestPlanFor(
-                    $selectedSlug, ['extra_ipv4' => 1], app(\App\Services\Cloud\CloudManager::class)
-                ) !== null,
-            'extraIpPrice' => app(CloudAddons::class)->extraIpMonthlyToman(),
+            'addonMap' => $addonMap,
+            'addonOk' => (bool) ($addonMap[$selectedSlug] ?? false),
+            'extraIpPrice' => $addonSvc->extraIpMonthlyToman(),
             'maxExtraIp' => CloudAddons::MAX_EXTRA_IP,
             'sshKeys' => \App\Models\CloudSshKey::where('customer_id', (int) (\Illuminate\Support\Facades\Auth::guard('customer')->id() ?? 0))
                 ->orderByDesc('last_used_at')->orderBy('name')->get(),
@@ -517,7 +638,7 @@ class CloudStoreController extends Controller
 
         if (RateLimiter::tooManyAttempts($key, 6)) {
             return back()->withInput()->withErrors(
-                'درخواست‌های زیاد. '.fa_num(RateLimiter::availableIn($key)).' ثانیه دیگر تلاش کنید.'
+                __('ui.cvb_e_rate', ['sec' => fa_num(RateLimiter::availableIn($key))])
             );
         }
 
@@ -539,9 +660,9 @@ class CloudStoreController extends Controller
             'billing_mode' => ['nullable', 'string', Rule::in(['cycle', 'hourly'])],
             'on_credit_out' => ['nullable', 'string', Rule::in(['suspend', 'convert', 'terminate'])],
         ], [], [
-            'location' => 'مکانِ سرور', 'plan' => 'پلن',
-            'image' => 'سیستم‌عامل', 'cycle' => 'دورهٔ پرداخت',
-            'label' => 'نامِ سرور', 'extra_ipv4' => 'تعدادِ IP اضافه',
+            'location' => __('ui.cvb_a_location'), 'plan' => __('ui.cvb_a_plan'),
+            'image' => __('ui.cvb_a_image'), 'cycle' => __('ui.cvb_a_cycle'),
+            'label' => __('ui.cvb_a_label'), 'extra_ipv4' => __('ui.cvb_a_ip'),
         ]);
 
         // ── مکان باید همین حالا موجودی داشته باشد ──
@@ -553,7 +674,7 @@ class CloudStoreController extends Controller
         }
 
         if (! in_array($data['location'], $codes, true)) {
-            return back()->withInput()->withErrors(['location' => 'این مکان در دسترس نیست؛ مکانِ دیگری را انتخاب کنید.']);
+            return back()->withInput()->withErrors(['location' => __('ui.cvb_e_loc')]);
         }
 
         // ── پلن باید در همین مکان قابلِ فروش باشد ──
@@ -562,7 +683,7 @@ class CloudStoreController extends Controller
         $offer = CloudPlan::offers($data['location'])->get($data['plan']);
 
         if ($offer === null) {
-            return back()->withInput()->withErrors(['plan' => 'این پلن در این مکان در دسترس نیست؛ پلنِ دیگری را انتخاب کنید.']);
+            return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_plan')]);
         }
 
         // ── ایمیج باید روی همین پلن قابلِ تحویل باشد ──
@@ -574,7 +695,7 @@ class CloudStoreController extends Controller
         );
 
         if (! in_array($data['image'], $allowed, true)) {
-            return back()->withInput()->withErrors(['image' => 'این سیستم‌عامل برای پلنِ انتخابی در دسترس نیست.']);
+            return back()->withInput()->withErrors(['image' => __('ui.cvb_e_image')]);
         }
 
         $image = CloudImage::query()->usable()->where('key', $data['image'])->first();
@@ -592,7 +713,7 @@ class CloudStoreController extends Controller
         if (! $addonSvc->isEmpty($addons)
             && $addonSvc->bestPlanFor((string) $offer->slug, $addons, app(\App\Services\Cloud\CloudManager::class)) === null) {
             return back()->withInput()->withErrors([
-                'extra_ipv4' => 'برای این پلن و مکان، IP اضافه در دسترس نیست. می‌توانید بی‌IP اضافه سفارش دهید.',
+                'extra_ipv4' => __('ui.cvb_e_ip'),
             ]);
         }
 
@@ -607,7 +728,7 @@ class CloudStoreController extends Controller
         $price = self::priceForCycle($offer, $cycle, $addons);
 
         if ($price <= 0) {
-            return back()->withInput()->withErrors(['plan' => 'قیمتِ این پلن در دسترس نیست؛ لطفاً بعداً تلاش کنید.']);
+            return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_price')]);
         }
 
         $taxPct = self::taxPercent();
@@ -724,7 +845,7 @@ class CloudStoreController extends Controller
         }
 
         return redirect(lroute('account.invoice', $invoice))
-            ->with('ok', 'سفارشِ سرور ثبت شد. با پرداختِ پیش‌فاکتور، سرور خودکار ساخته و تحویل می‌شود.');
+            ->with('ok', __('ui.cvb_ok_ordered'));
     }
 
     /**
@@ -740,12 +861,12 @@ class CloudStoreController extends Controller
         $hourlyEur = $offer->hourlyEurCents();
 
         if ($hourly <= 0) {
-            return back()->withInput()->withErrors(['plan' => 'قیمتِ ساعتیِ این پلن در دسترس نیست؛ ماهانه سفارش دهید.']);
+            return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
         }
 
         // افزودنیِ پولی روی ساعتی فعلاً پشتیبانی نمی‌شود (قیمتش ماهانه است)
         if (! app(CloudAddons::class)->isEmpty($addons)) {
-            return back()->withInput()->withErrors(['extra_ipv4' => 'IP اضافه روی سرورِ ساعتی فعلاً در دسترس نیست؛ بی‌IP اضافه یا ماهانه سفارش دهید.']);
+            return back()->withInput()->withErrors(['extra_ipv4' => __('ui.cvb_e_hourly_ip')]);
         }
 
         $minStart = $hourly * 24;
@@ -753,8 +874,7 @@ class CloudStoreController extends Controller
 
         if ($balance < $minStart) {
             return back()->withInput()->withErrors(['billing_mode' =>
-                'برای شروعِ سرورِ ساعتی حداقل اعتبارِ ۲۴ ساعت لازم است ('.fa_num(number_format($minStart)).' تومان). '
-                .'اعتبارِ فعلیِ شما '.fa_num(number_format($balance)).' تومان است — لطفاً کیفِ پول را شارژ کنید.']);
+                __('ui.cvb_e_hourly_credit', ['min' => cloud_price($minStart), 'bal' => cloud_price($balance)])]);
         }
 
         $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
@@ -818,9 +938,7 @@ class CloudStoreController extends Controller
         } catch (\Throwable) {
         }
 
-        return redirect(lroute('account.services'))->with('ok',
-            'سرورِ ساعتی سفارش داده شد و در حالِ ساخت است. هر ساعت از کیفِ پولِ شما کم می‌شود؛ '
-            .'هر وقت خواستید می‌توانید لغوش کنید و اعتبارِ استفاده‌نشده در کیفتان می‌مانَد.');
+        return redirect(lroute('account.services'))->with('ok', __('ui.cvb_ok_hourly'));
     }
 
     /**

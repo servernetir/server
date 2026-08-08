@@ -1587,6 +1587,50 @@ class AezaClient implements CloudProvider
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
 
+        /*
+        | ── لایهٔ ۲ برای زیرساختِ **سفارش‌محور**: اول نگاه کن، بعد بخر ──
+        |
+        | 🔴 CLAUDE.md می‌گوید محافظِ دومِ «دو بار نخر» نامِ قطعیِ `sn-svc-{id}`
+        | است: «تلاشِ دوباره خطای نامِ تکراری می‌گیرد». آن جمله فقط دربارهٔ
+        | زیرساختی درست است که نام را یکتا می‌گیرد. این‌جا هر POST یک سفارشِ
+        | تازه و **پولِ تازه** است و هیچ خطای تکراری نمی‌آید — یعنی آن محافظ
+        | برای این درایور اصلاً وجود نداشت مگر اینکه خودمان **بپرسیم**.
+        |
+        | سناریوی واقعی که این را لازم کرد: سفارش ثبت می‌شود ولی شناسه‌اش را از
+        | پاسخ بیرون نمی‌کشیم ⇒ `provider_ref` نال می‌مانَد ⇒ محافظِ
+        | `filled($instance->provider_ref)` خلع‌سلاح می‌شود ⇒ «تلاشِ دوباره»ی
+        | مدیر سرورِ دوم را می‌خرد و سرورِ اول تا ابد یتیم اجاره می‌گیرد.
+        |
+        | یک GET پیش از هر خرید، در برابرِ یک سرورِ ماهانهٔ اضافه. معامله روشن است.
+        */
+        $already = $this->findByHostname((string) ($spec['name'] ?? ''));
+
+        if ($already === null && $this->serverListMemo === false) {
+            /*
+            | ⚠️ نتوانستیم فهرست را بخوانیم، پس **نمی‌دانیم** سروری با این نام
+            | هست یا نه. باز هم سفارش می‌دهیم — وگرنه یک قطعیِ گذرای فهرست کلِ
+            | فروش را می‌خواباند — ولی این «نمی‌دانم» باید ردی بگذارد: اگر روزی
+            | سرورِ تکراری خریده شد، این خط تنها جایی است که علتش را می‌گوید.
+            */
+            \App\Support\ErrorTracker::noteOnce('provision',
+                'پیش از سفارش نتوانستیم بپرسیم آیا سروری با نامِ «'.($spec['name'] ?? '—')
+                .'» از قبل هست — محافظِ «دو بار نخر» این بار کار نکرد.', 600);
+        }
+
+        if ($already !== null) {
+            $info = $this->serverStatus($already);
+
+            return [
+                'ok' => true,
+                'message' => 'سروری با همین نام از قبل نزدِ زیرساخت وجود داشت؛ همان پذیرفته شد (سفارشِ تازه ثبت نشد).',
+                'ref'  => $already,
+                'ipv4' => $info['ipv4'] ?? null,
+                'ipv6' => $info['ipv6'] ?? null,
+                'root_password' => null,
+                'status' => $info['status'] ?? 'building',
+            ];
+        }
+
         // ایمیجِ ما یا سیستم‌عامل است یا recipe (با پیشوند).
         // ⚠️ `name` عمداً این‌جا **نیست**: در مثالِ پشتیبانی `parameters` فقط
         // سیستم‌عامل دارد و `name` هم‌ترازِ آن است. فیلدِ اضافه در بدنه‌ای که
@@ -1661,13 +1705,55 @@ class AezaClient implements CloudProvider
         }
 
         if ($ids === []) {
-            return [
-                'ok' => true,
-                'message' => 'سفارش ثبت شد؛ سرور در حالِ آماده‌سازی است.',
-                'ref' => $orderId !== '' ? 'order:'.$orderId : null,
-                'ipv4' => null, 'ipv6' => null, 'root_password' => null,
-                'status' => 'building',
-            ];
+            /*
+            | 🔴 هرگز `ok=true` با `ref` نال برنگردان.
+            |
+            | پیش از این، اگر شناسهٔ سفارش را هم پیدا نمی‌کردیم، همین‌جا
+            | `ok=true, ref=null` برمی‌گشت: `CloudProvisioner` سرویس را
+            | «تحویل‌شده» ثبت می‌کرد، هیچ خطایی تولید نمی‌شد، و ردیفِ نمونه تا
+            | ابد بی‌شناسه می‌مانْد — نه `cloud:sync-instances` می‌توانست
+            | پی‌اش را بگیرد، نه مشتری می‌توانست کاری بکند. و بدتر: محافظِ
+            | «دو بار نخر» خلع‌سلاح می‌شد.
+            |
+            | پس آخرین تلاشِ بی‌هزینه: **با نامِ قطعی** بگرد. نام را خودمان
+            | داده‌ایم، پس همیشه می‌دانیمش — این مسیر به هیچ حدسی دربارهٔ شکلِ
+            | پاسخِ سفارش وابسته نیست.
+            */
+            $byName = $this->findByHostname((string) ($spec['name'] ?? ''), true);
+
+            if ($byName !== null) {
+                $info = $this->serverStatus($byName);
+
+                return [
+                    'ok' => true, 'message' => '',
+                    'ref'  => $byName,
+                    'ipv4' => $info['ipv4'] ?? null,
+                    'ipv6' => $info['ipv6'] ?? null,
+                    'root_password' => null,
+                    'status' => $info['status'] ?? 'building',
+                ];
+            }
+
+            if ($orderId !== '') {
+                return [
+                    'ok' => true,
+                    'message' => 'سفارش ثبت شد؛ سرور در حالِ آماده‌سازی است.',
+                    'ref' => 'order:'.$orderId,
+                    'ipv4' => null, 'ipv6' => null, 'root_password' => null,
+                    'status' => 'building',
+                ];
+            }
+
+            /*
+            | نه شناسهٔ سرویس، نه شناسهٔ سفارش، نه سروری با این نام.
+            |
+            | ⚠️ عبارت‌های این پیام عمداً هیچ‌کدام از کلیدواژه‌های
+            | `quarantineProvider()` را ندارند: پاسخ ۲۰۰ بود، پس این یک ایرادِ
+            | **حسابِ** زیرساخت نیست و بستنِ صدها پلن جوابش نیست.
+            */
+            return ['ok' => false, 'message' => 'زیرساخت سفارش را پذیرفت ولی هیچ شناسه‌ای برنگرداند و '
+                .'سروری با نامِ «'.($spec['name'] ?? '—').'» هم در فهرستش نیست. '
+                .'⚠️ پیش از «تلاشِ دوباره» پنلِ زیرساخت را ببینید — ممکن است سرور ساخته شده باشد.', ] + $fail;
         }
 
         $serviceId = (string) reset($ids);
@@ -1684,17 +1770,95 @@ class AezaClient implements CloudProvider
         ];
     }
 
-    /** پی‌گیریِ سفارشِ نیمه‌کاره: `order:123` → شناسهٔ سرویسِ واقعی */
-    public function resolveOrder(string $orderRef): ?string
+    /**
+     * پی‌گیریِ سفارشِ نیمه‌کاره: `order:123` → شناسهٔ سرویسِ واقعی.
+     *
+     * 🔴 `$hostname` دومین راه است و **مهم‌تر از اولی**.
+     *
+     * مسیرهای خواندنِ سفارش استنتاجی‌اند (پشتیبانی فقط دربارهٔ POST نوشت). اگر
+     * هیچ‌کدامشان درست نباشند، این متد تا ابد `null` می‌دهد،
+     * `CloudProvisioner::syncInstances()` روی `continue` می‌افتد، و مشتری‌ای که
+     * پول داده تا ابد سرورِ بی‌IP و بی‌کنترل دارد — همان چیزی که رخ داد.
+     *
+     * نامِ سرور را **خودمان** انتخاب کرده‌ایم (`sn-svc-{id}`)، پس همیشه در دست
+     * است و به هیچ حدسی وابسته نیست. یک GETِ بی‌هزینه، و بن‌بست باز می‌شود.
+     */
+    public function resolveOrder(string $orderRef, ?string $hostname = null): ?string
     {
-        if (! str_starts_with($orderRef, 'order:')) {
+        if (str_starts_with($orderRef, 'order:')) {
+            $ids = $this->serviceIdsOfOrder(substr($orderRef, 6));
+
+            if ($ids !== []) {
+                return (string) reset($ids);
+            }
+        }
+
+        /*
+        | ⚠️ `$fresh = false` عمدی است.
+        |
+        | این متد را کرونِ هر-دقیقه‌ای در یک **حلقه** صدا می‌زند (تا ۴۰ ردیف).
+        | با `true`، هر ردیف کلِ فهرستِ سرویس‌ها را دوباره می‌گرفت: ۴۰ بار
+        | صفحه‌بندیِ کامل در هر دقیقه. این پروژه یک بار به‌خاطرِ تماسِ مکررِ API
+        | حسابِ یک تأمین‌کننده را فلگ کرده — عکسِ آن اشتباه را نمی‌کنیم.
+        |
+        | یک عکسِ لحظه‌ایِ فهرست در هر اجرا کافی است. تنها جایی که تازگی واقعاً
+        | لازم است، بلافاصله **پس از ثبتِ سفارش** است و آن‌جا صریح `true` داده
+        | می‌شود.
+        */
+        return filled($hostname) ? $this->findByHostname((string) $hostname) : null;
+    }
+
+    /**
+     * شناسهٔ سرویسی که نامش **دقیقاً** این است — یا null.
+     *
+     * ⚠️ تطبیق دقیق و حساس‌به‌نبودن است، نه «شامل»: نامِ `sn-svc-4` نباید
+     * `sn-svc-42` را برگرداند. سرورِ اشتباه یعنی مشتری به ماشینِ مشتریِ دیگر
+     * دسترسی می‌گیرد.
+     *
+     * ⚠️ فهرستِ ناموفق **null** می‌دهد، نه «پیدا نشد». توکنِ منقضی فهرستِ خالی
+     * می‌دهد و اگر آن را «چنین سروری وجود ندارد» بخوانیم، پیش از سفارش خیال
+     * می‌کنیم چیزی نیست و **دوباره می‌خریم**. (`listServers()` هم دقیقاً به
+     * همین دلیل خطا را از «۰ سرور» جدا نگه می‌دارد.)
+     *
+     * @param  bool  $fresh  نتیجهٔ به‌خاطرسپرده را دور بریز (پس از ثبتِ سفارش لازم است)
+     */
+    public function findByHostname(string $hostname, bool $fresh = false): ?string
+    {
+        $hostname = trim($hostname);
+
+        if ($hostname === '') {
             return null;
         }
 
-        $ids = $this->serviceIdsOfOrder(substr($orderRef, 6));
+        // در یک اجرای کرون ممکن است چند ردیفِ گیرکرده باشد؛ بی‌این حافظه، هر
+        // ردیف یک بار کلِ فهرست را می‌گرفت.
+        if ($fresh) {
+            $this->serverListMemo = null;
+        }
 
-        return $ids === [] ? null : (string) reset($ids);
+        if ($this->serverListMemo === null) {
+            $r = $this->listServers();
+
+            $this->serverListMemo = ($r['ok'] ?? false) ? (array) ($r['servers'] ?? []) : false;
+        }
+
+        if ($this->serverListMemo === false) {
+            return null;
+        }
+
+        foreach ($this->serverListMemo as $s) {
+            if (strcasecmp(trim((string) ($s['name'] ?? '')), $hostname) === 0) {
+                $ref = (string) ($s['ref'] ?? '');
+
+                return $ref !== '' ? $ref : null;
+            }
+        }
+
+        return null;
     }
+
+    /** @var array<int,array<string,mixed>>|false|null فهرستِ سرورها در همین اجرا؛ false = نتوانستیم بپرسیم */
+    private array|false|null $serverListMemo = null;
 
     /**
      * شناسهٔ سرویس‌های ساخته‌شدهٔ یک سفارش — با **GET**، پس بی‌هزینه و بی‌خطر.
@@ -1784,6 +1948,40 @@ class AezaClient implements CloudProvider
 
             if ((is_string($v) && trim($v) !== '') || is_int($v)) {
                 return (string) $v;
+            }
+        }
+
+        /*
+        | 🔴 فهرستِ ثابتِ بالا فقط کلیدِ `id` را می‌شناسد.
+        |
+        | اگر پاسخِ نسخهٔ ۲ شناسه را `orderId` یا `order_id` بنامد — که ندیده‌ایمش
+        | و از داده هم قابلِ حدس نیست — این متد رشتهٔ خالی می‌داد، `ref` نال
+        | می‌شد و ردیف برای همیشه بی‌شناسه می‌مانْد. همان الگوی
+        | `serviceIdsIn()`: **دنبالِ نامِ کلید بگرد، نه دنبالِ مسیر.**
+        */
+        return self::orderIdIn($body);
+    }
+
+    /** جستجوی بازگشتیِ نامِ کلیدِ شناسهٔ سفارش، هر جای بدنه که باشد */
+    private static function orderIdIn(mixed $node, int $depth = 0): string
+    {
+        if ($depth > 6 || ! is_array($node)) {
+            return '';
+        }
+
+        foreach (['orderId', 'order_id', 'orderID'] as $key) {
+            $v = $node[$key] ?? null;
+
+            if ((is_string($v) && trim($v) !== '') || is_int($v)) {
+                return (string) $v;
+            }
+        }
+
+        foreach ($node as $child) {
+            $found = self::orderIdIn($child, $depth + 1);
+
+            if ($found !== '') {
+                return $found;
             }
         }
 
@@ -1999,6 +2197,15 @@ class AezaClient implements CloudProvider
 
         if (! isset($map[$action])) {
             return ['ok' => false, 'message' => 'عملیاتِ ناشناخته.'];
+        }
+
+        // ⚠️ همان محافظی که `deleteServer()` دارد و این‌جا جا افتاده بود:
+        // شناسهٔ سفارش، شناسهٔ سرویس نیست. بی‌این، درخواست به
+        // `/services/order%3A8801/ctl` می‌رفت و ۴۰۴ می‌گرفت — و چون فراخوان
+        // مقدارِ برگشتی را دور می‌ریخت، سرویس در پنلِ ما «معلق» می‌شد در حالی
+        // که ماشین روشن مانده بود و اجاره‌اش می‌رفت.
+        if (str_starts_with($ref, 'order:')) {
+            return ['ok' => false, 'message' => 'سفارش هنوز به سرور تبدیل نشده؛ روشن/خاموش ممکن نیست.'];
         }
 
         $r = $this->req('POST', '/services/'.rawurlencode($ref).'/ctl', ['action' => $map[$action]]);

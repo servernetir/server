@@ -414,3 +414,236 @@ body.imp-on .pnl-side{top:calc(96px + var(--imp-h))}
 @media (prefers-reduced-motion: reduce){
   .cb-live i, .cb-step.is-now .cb-dot{animation:none}
 }
+
+/* ==========================================================================
+   «برگهٔ سرور» — فروشگاهِ سرورِ مجازی  (`.cvb-*` = cloud VPS builder)
+   --------------------------------------------------------------------------
+   قبلاً ۱۰۳ خط از این استایل داخلِ خودِ Blade بود «تا کلاسِ بی‌استایل رندر
+   نشود». نتیجه‌اش این شد که CssVariablesDefinedTest اصلاً نمی‌دیدش و دو رنگِ
+   خامِ hex و یک var()ِ تعریف‌نشده سال‌ها آن‌جا ماند. حالا این‌جاست، پس زیرِ
+   همان نگهبان است. تستی هم هست که می‌گوید Blade نباید style داشته باشد، تا
+   این دو دوباره از هم جدا نشوند.
+
+   🔴 دو قلّابِ نشکستنی که تست‌ها **عیناً** می‌سنجند:
+      · class="cvb-plan on" — بعد از on هیچ کلاسِ دیگری نیاید و بلافاصله
+        data-slug بیاید. پس هر حالتِ تازه یا روی والد می‌نشیند یا **پیش از**
+        cvb-plan (مثلِ cvb-off cvb-plan).
+      · id="cvb-s-plan" و id="cvb-h-low".
+
+   قاعدهٔ دیداری: در هر لحظه فقط **یک** ناحیه فیروزه‌ای است (انتخابِ جاری)، و
+   فقط **یک** عدد بزرگ است (جمعِ نهایی روی برگه). hover هیچ‌وقت حاشیهٔ رنگی
+   نمی‌دهد — فقط سطح بالا می‌آید.
+   ========================================================================== */
+:root{ --r-sm:12px; --r-xs:9px; }
+
+.cvb-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.cvb-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* ── مرحله‌ها ───────────────────────────────────────────────────────────── */
+.cvb-step-h{width:100%;background:none;border:0;border-bottom:1px solid var(--line);
+  font:inherit;color:inherit;text-align:start;cursor:pointer}
+.cvb-step-h:focus-visible{outline:2px solid var(--info);outline-offset:-2px}
+.cvb-step-t{display:flex;align-items:center;gap:11px;min-width:0}
+.cvb-step-t b{font-size:15px;font-family:var(--font-disp);font-weight:700;color:var(--text)}
+.cvb-step-v{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvb-step-v em{font-style:normal;color:var(--info);font-size:12px;flex:none}
+
+/* بازوبستهٔ مرحله. پیش‌فرضِ **باز** است: بی‌جاوااسکریپت هیچ مرحله‌ای پنهان
+   نمی‌شود و فرم کامل کار می‌کند؛ جاوااسکریپت بعداً is-shut می‌گذارد. */
+.cvb-step-b{display:grid;grid-template-rows:1fr;transition:grid-template-rows .28s var(--ease)}
+.cvb-step.is-shut .cvb-step-b{grid-template-rows:0fr}
+.cvb-step-i{overflow:hidden;min-height:0}
+@media (prefers-reduced-motion: reduce){ .cvb-step-b{transition:none} }
+
+/* نقطهٔ وضعیتِ مرحله — همان .cb-dot صفحهٔ ساختِ سرور، عیناً. برگه‌ای که مشتری
+   پر می‌کند و فهرستی که بعد از پرداخت تماشا می‌کند یک زبان دارند. */
+.cvb-step .cb-dot{width:16px;height:16px;margin:0}
+.cvb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
+.cvb-step.is-done .cb-dot::after{content:"";width:4px;height:8px;border:2px solid var(--bg);
+  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+.cvb-step.is-now .cb-dot{border-color:var(--info);background:var(--info-bg)}
+.cvb-step.is-todo .cb-dot{border-style:dashed}
+
+/* ── کنترلِ قطعه‌ای (دوره، نوعِ پردازنده، سیستم‌عامل/نرم‌افزار) ──────────── */
+.cvb-segs{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm)}
+.cvb-seg{position:relative;display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border:0;border-radius:var(--r-xs);background:none;
+  font:inherit;font-size:12.5px;color:var(--muted);cursor:pointer;transition:.16s}
+.cvb-seg:hover{color:var(--text)}
+.cvb-seg.on{background:var(--bg2);color:var(--text);font-weight:700}
+.cvb-seg:has(input:focus-visible),.cvb-seg:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.cvb-seg em{font-style:normal;font-size:10.5px;font-weight:700;color:var(--ok)}
+/* حالتِ ساعتی: قطعه‌های دوره‌ای دیگر «انتخاب‌شده» به نظر نمی‌رسند. جایگزینِ
+   opacity:.45ِ قبلی که هر دو مدلِ صورت‌حساب را هم‌زمان روشن نشان می‌داد و هشت
+   مبلغِ کهنه را روی صفحه جا می‌گذاشت. */
+.cvb-bill.is-hourly .cvb-seg-c.on{background:none;color:var(--muted);font-weight:400}
+.cvb-billrow{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin:0 0 14px}
+.cvb-billrow>span{font-size:12px;color:var(--dim)}
+
+/* ── کارتِ اندازه ───────────────────────────────────────────────────────── */
+.cvb-plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+.cvb-plan{position:relative;display:flex;flex-direction:column;gap:8px;cursor:pointer;
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;
+  transition:background .16s var(--ease),border-color .16s var(--ease)}
+.cvb-plan:hover{background:var(--surface-2)}
+.cvb-plan.on{border-color:var(--info);background:var(--info-bg);box-shadow:inset 0 0 0 1px var(--info)}
+/* رادیو «پنهانِ دیداری» است نه display:none — وگرنه از ترتیبِ Tab بیرون می‌افتد
+   و کاربرِ صفحه‌کلید اصلاً نمی‌تواند انتخاب کند. */
+.cvb-plan input,.cvb-img input,.cvb-seg input{position:absolute;width:1px;height:1px;
+  opacity:0;margin:0;pointer-events:none}
+.cvb-plan:has(input:focus-visible),.cvb-img:has(input:focus-visible){
+  outline:2px solid var(--info);outline-offset:2px}
+.cvb-pn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--text)}
+.cvb-tick{margin-inline-start:auto;width:17px;height:17px;border-radius:50%;
+  display:none;place-items:center;background:var(--info);flex:none}
+.cvb-tick .icon{width:11px;height:11px;color:var(--bg)}
+.cvb-plan.on .cvb-tick{display:grid}
+/* یک خطِ متراکم به‌جای چهار سطرِ آیکن‌دار: ۴ vCPU · ۸ GB · ۸۰ GB NVME · ۲۰ TB */
+.cvb-spec{font-size:12.2px;color:var(--muted);line-height:1.8;
+  font-variant-numeric:tabular-nums;direction:ltr;text-align:start}
+.cvb-pfoot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:2px}
+.cvb-pk{font-size:11px;color:var(--dim)}
+.cvb-pp{font-size:13.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.cvb-plan.on .cvb-pp{color:var(--info)}
+
+/* ناموجود: هست، دیده می‌شود، ولی هیچ قیمتی ندارد و هیچ رادیویی هم ندارد.
+   ⚠️ کلاس **پیش از** cvb-plan می‌آید تا رجکسِ class="cvb-plan on" نشکند. */
+.cvb-plan.cvb-off{cursor:default;background:none;border-style:dashed}
+.cvb-plan.cvb-off:hover{background:none}
+.cvb-plan.cvb-off .cvb-pn,.cvb-plan.cvb-off .cvb-spec{color:var(--dim)}
+.cvb-offr{font-size:11.8px;color:var(--muted);line-height:1.75;margin:0}
+.cvb-offr small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+
+/* ── سیستم‌عامل و نرم‌افزار ─────────────────────────────────────────────── */
+.cvb-fam{margin-top:14px}
+.cvb-fam:first-child{margin-top:0}
+.cvb-famh{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);margin-bottom:8px}
+.cvb-opts{display:flex;flex-wrap:wrap;gap:7px}
+.cvb-img{display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  padding:7px 12px;border-radius:var(--r-xs);border:1px solid transparent;
+  background:var(--surface-2);transition:.16s}
+.cvb-img b{font-size:12.5px;font-weight:400;color:var(--muted)}
+.cvb-img:hover b{color:var(--text)}
+.cvb-img.on{border-color:var(--line-2);background:var(--bg2)}
+.cvb-img.on b{color:var(--text);font-weight:700}
+/* لوگوها **دقیقاً هم‌اندازه** (خواستهٔ کارفرما). SVGِ خودمیزبان، بی‌درخواستِ بیرونی. */
+.cvb-logo{width:20px;height:20px;flex:none;border-radius:5px;object-fit:contain}
+.cvb-logo.sm{width:16px;height:16px}
+
+/* ── فیلدها ─────────────────────────────────────────────────────────────── */
+.cvb-field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted);margin-top:14px}
+.cvb-field:first-child{margin-top:0}
+.cvb-field input,.cvb-field select,.cvb-field textarea{
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:11px 13px;font:inherit;font-size:13.5px;color:var(--text);width:100%}
+.cvb-field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.cvb-field input:focus-visible,.cvb-field select:focus-visible,.cvb-field textarea:focus-visible{
+  outline:2px solid var(--info);outline-offset:-2px}
+
+/* ── تنظیماتِ پیشرفته: details بومی، بی‌ذره‌ای جاوااسکریپت ──────────────── */
+.cvb-adv{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+html[data-theme="light"] .cvb-adv{background:#fff}
+.cvb-adv>summary{display:flex;align-items:center;gap:11px;padding:14px 16px;cursor:pointer;
+  font-size:13.5px;color:var(--text);list-style:none}
+.cvb-adv>summary::-webkit-details-marker{display:none}
+.cvb-adv>summary small{color:var(--dim);font-size:11.5px;font-weight:400}
+.cvb-adv>summary .icon{width:15px;height:15px;color:var(--dim);margin-inline-start:auto;
+  transition:transform .2s var(--ease)}
+.cvb-adv[open]>summary .icon{transform:rotate(180deg)}
+.cvb-adv-b{padding:0 16px 16px}
+
+/* ── متن‌های کمکی ───────────────────────────────────────────────────────── */
+.cvb-note{display:flex;align-items:flex-start;gap:7px;font-size:11.8px;color:var(--dim);
+  line-height:1.9;margin:12px 0 0}
+.cvb-note .icon{width:13px;height:13px;flex:none;margin-top:3px;color:var(--dim)}
+.cvb-warn{font-size:12.5px;color:var(--warn);line-height:1.95;margin:0}
+.cvb-hint{font-size:12px;color:var(--dim)}
+
+/* ── مکان‌ها ────────────────────────────────────────────────────────────── */
+.cvb-cgroup{margin-top:14px}
+.cvb-cgroup:first-child{margin-top:0}
+.cvb-chead{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:8px}
+.cvb-flag{font-size:17px;line-height:1}
+.cvb-cities{display:flex;flex-wrap:wrap;gap:7px}
+.cvb-city{font-size:12.5px;color:var(--muted);background:var(--surface-2);
+  border:1px solid transparent;border-radius:var(--r-xs);padding:7px 13px;transition:.16s}
+.cvb-city:hover{color:var(--text)}
+.cvb-city.on{border-color:var(--line-2);background:var(--bg2);color:var(--text);font-weight:700}
+.cvb-city.is-shut{color:var(--dim)}
+
+/* ══════════════════════════ برگهٔ سرور ══════════════════════════ */
+.cvb-slip{position:sticky;top:96px}
+body.imp-on .cvb-slip{top:calc(96px + var(--imp-h))}
+.cvb-sliph{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.cvb-sliph h2{font-size:13.5px;font-family:var(--font-disp);margin:0}
+
+.cvb-lines{display:flex;flex-direction:column}
+/* هیچ خطِ افقی‌ای بینِ سطرها نیست — همان ۸ هیرلاینی که برگه را شبیهِ جدول
+   می‌کرد. فاصله کارِ جداسازی را می‌کند. */
+.cvb-line{display:flex;align-items:center;gap:10px;width:100%;padding:8px 0;
+  background:none;border:0;font:inherit;text-align:start;color:inherit}
+button.cvb-line{cursor:pointer}
+button.cvb-line:hover .cvb-line-v{color:var(--info)}
+button.cvb-line:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:var(--r-xs)}
+.cvb-line-d{width:8px;height:8px;flex:none;border-radius:50%;
+  border:1.5px dashed var(--line-2);background:none}
+.cvb-line.is-done .cvb-line-d{border:0;background:var(--ok)}
+.cvb-line-k{font-size:12px;color:var(--dim);flex:none}
+.cvb-line-v{margin-inline-start:auto;font-size:12.5px;color:var(--text);font-weight:700;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvb-line:not(.is-done) .cvb-line-v{color:var(--dim);font-weight:400}
+
+/* خطِ پارگیِ برگه — دو سوراخِ گِرد روی لبه‌های **منطقی**، پس در fa و en/tr هر
+   دو درست می‌افتد. خالص CSS: نه تصویری، نه درخواستی، نه CDNای. */
+.cvb-tear{position:relative;height:0;margin:14px -18px 16px;border-top:1px dashed var(--line-2)}
+.cvb-tear::before,.cvb-tear::after{content:"";position:absolute;top:-6px;
+  width:12px;height:12px;border-radius:50%;background:var(--bg)}
+.cvb-tear::before{inset-inline-start:-6px}
+.cvb-tear::after{inset-inline-end:-6px}
+
+.cvb-totk{font-size:12px;color:var(--dim);margin-bottom:2px}
+/* تنها چیزِ بلندِ صفحه. همان رنگ‌آمیزیِ عددهای قهرمانِ صفحهٔ اصلی. */
+.cvb-tot{font-size:clamp(22px,3vw,28px);font-family:var(--font-disp);line-height:1.25;
+  font-variant-numeric:tabular-nums;background:var(--grad-txt);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.cvb-tax{font-size:11.5px;color:var(--dim);margin-top:4px}
+.cvb-go{justify-content:center;width:100%;margin-top:14px}
+.cvb-go[disabled]{opacity:.5;cursor:not-allowed}
+.cvb-eta{display:flex;align-items:flex-start;gap:7px;font-size:11.5px;color:var(--dim);
+  line-height:1.85;margin:10px 0 0}
+.cvb-eta .icon{width:13px;height:13px;flex:none;margin-top:3px}
+
+/* ── داکِ موبایل: قیمت و دکمه همیشه روی صفحه ───────────────────────────── */
+/* ⚠️ z-index زیرِ .pnl-drawer-bd (۳۹۰) می‌مانَد تا کشوی منویِ موبایل همچنان
+   برنده باشد و راهِ بازگشتِ کاربر پوشیده نشود. */
+.cvb-dock{display:none}
+@media(max-width:1000px){
+  .cvb-wrap{grid-template-columns:1fr;padding-bottom:84px}
+  .cvb-slip{position:static}
+  .cvb-dock{display:flex;align-items:center;gap:12px;
+    position:fixed;inset-inline:0;bottom:0;z-index:380;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--bg2);border-top:1px solid var(--line-2)}
+  .cvb-dock-t{min-width:0;flex:1}
+  .cvb-dock-t small{display:block;font-size:10.5px;color:var(--dim)}
+  .cvb-dock-t b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)}
+  .cvb-dock .pnl-btn{flex:none}
+}
+
+/* تکمله‌های برگه — پس از نخستین رندرِ واقعی */
+.cvb-empty{font-size:12.5px;color:var(--warn);margin:8px 0 0}
+.cvb-imgs{min-width:0}
+.cvb-line-v small{font-weight:400;color:var(--dim);font-size:11.5px;margin-inline-start:6px}
+.cvb-line-v img{vertical-align:middle;margin-inline-end:6px}
+.cvb-line-v .cvb-logo{display:inline-block}
+
+/* قطعهٔ «ساعتی» یک **مدلِ دیگرِ** صورت‌حساب است، نه یک دورهٔ دیگر — پس با یک خط
+   از دوره‌ها جدا می‌شود تا مرزِ تصمیم دیده شود. */
+.cvb-seg-h{margin-inline-start:5px;padding-inline-start:14px;border-inline-start:1px solid var(--line)}
+
+/* عنوانِ مرحله: الگوی درستِ دسترس‌پذیری h2 > button است، نه button > h2
+   (محتوای button باید phrasing باشد). */
+.cvb-step-hh{margin:0}

@@ -19,12 +19,20 @@
     // ⚠️ `priceValidUntil` هم نبود، در حالی که `/llms.txt` به مدل‌های زبانی
     //    وعده می‌دهد **همهٔ** صفحاتِ محصول دارندش — یعنی قیمتِ این صفحه بی‌تاریخِ
     //    انقضا نقل می‌شد و در بازارِ تورمی ماه‌ها بعد هم تکرار می‌شد.
-    $ld['offers'] = ['@'.'type' => 'Offer', 'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
-      'price' => app()->getLocale() === 'fa'
-        ? schema_price_irr((int) ($model['price_from']['irt'] ?? 0))
-        : ($model['price_from']['eur'] ?? 0),
-      'priceValidUntil' => now()->addDays(30)->toDateString(),
-      'availability' => 'https://schema.org/InStock'];
+    // 🔴 `?? 0` حذف شد: `price_eur` روی سرورهای فیزیکی می‌تواند نال باشد
+    //    (`PhysicalServer::price_from` کلیدِ نال را حذف می‌کند)، و آن‌وقت روی
+    //    `/en` و `/tr` یک Offerِ «€۰» منتشر می‌شد — یعنی «رایگان». قیمتِ نبود
+    //    را نشانه‌گذاری **نمی‌کنیم**؛ همان قاعدهٔ `site_price()`.
+    $sdRaw = app()->getLocale() === 'fa'
+      ? (int) ($model['price_from']['irt'] ?? 0)
+      : (float) ($model['price_from']['eur'] ?? 0);
+
+    if ($sdRaw > 0) {
+      $ld['offers'] = ['@'.'type' => 'Offer', 'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
+        'price' => app()->getLocale() === 'fa' ? schema_price_irr((int) $sdRaw) : $sdRaw,
+        'priceValidUntil' => now()->addDays(30)->toDateString(),
+        'availability' => 'https://schema.org/InStock'];
+    }
   }
 @endphp
 <script type="application/ld+json">{!! schema_ld($ld, 'Product') !!}</script>

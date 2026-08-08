@@ -49,6 +49,7 @@ class SystemHealth
             $this->database(),
             $this->stuckDomains(),
             $this->stuckServices(),
+            $this->undeliveredCloud(),
             $this->recentErrors(),
         ];
     }
@@ -221,6 +222,61 @@ class SystemHealth
         }
 
         return $this->row('services', true, 'ok', 'صفِ تحویل', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * 🔴 سرورِ ابریِ پول‌داده که واقعاً به دستِ مشتری نرسیده.
+     *
+     * ═══ چرا این چک لازم شد ═══
+     *
+     * `stuckServices()` بالا از `provision_status` می‌پرسد. ولی
+     * `CloudProvisioner::finalize()` همان لحظه‌ای که زیرساخت **سفارش** را
+     * می‌پذیرد `done` می‌نویسد — پیش از اینکه شناسهٔ سرور، IP یا ایمیلی وجود
+     * داشته باشد. پس یک تحویلِ کاملاً ناتمام، از دیدِ آن چک `done` است و صف
+     * **سبز** می‌مانَد.
+     *
+     * دقیقاً همین رخ داد: مشتری سرورِ ساعتی خرید، پول رفت، ماشین در پنلِ
+     * زیرساخت ساخته شد و اجاره‌اش از حسابِ ما کم می‌شود — و در پنلِ ما نه سروری
+     * تحویل شد نه ایمیلی رفت نه **یک خط خطا** ثبت شد. کارفرما فقط چون خودش
+     * پنلِ زیرساخت را باز کرد فهمید.
+     *
+     * ⚠️ این چک عمداً از `provision_status` نمی‌پرسد. از همان چیزی می‌پرسد که
+     * مشتری می‌بیند: شناسهٔ واقعیِ سرور، IP، و ایمیلِ رفته. برچسبِ داخلی هرچه
+     * باشد بی‌ربط است — همان درسِ `whereNotNull('server_id')` در CLAUDE.md:
+     * پرس‌وجوی ناظر باید خودِ خرابی را ببیند، نه همسایه‌اش.
+     */
+    private function undeliveredCloud(): array
+    {
+        try {
+            $stalled = \App\Services\Cloud\CloudDeliveryWatch::stalled();
+        } catch (\Throwable $e) {
+            // ⚠️ «نتوانستم بپرسم» با «چیزی نیست» یکی نیست. سبز برگرداندن این‌جا
+            //    یعنی همان سکوتی که این چک برای شکستنش ساخته شد.
+            return $this->row('cloud_delivery', false, 'warn', 'تحویلِ سرورِ ابری',
+                'وضعیتِ تحویل خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($stalled->isEmpty()) {
+            return $this->row('cloud_delivery', true, 'ok', 'تحویلِ سرورِ ابری',
+                'هر سرورِ پرداخت‌شده‌ای تحویل شده.');
+        }
+
+        $reasons = [];
+        foreach ($stalled as $s) {
+            $why = \App\Services\Cloud\CloudDeliveryWatch::reasonFor($s) ?? '—';
+            $reasons[$why] = ($reasons[$why] ?? 0) + 1;
+        }
+
+        $detail = [];
+        foreach ($reasons as $why => $n) {
+            $detail[] = fa_num($n).'× '.$why;
+        }
+
+        return $this->row('cloud_delivery', false, 'fail', 'تحویلِ سرورِ ابری',
+            fa_num($stalled->count()).' سرویسِ ابری پول گرفته و تحویل نشده (سرویسِ '
+            .implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.fa_num($i))->all())
+            .'). '.implode(' · ', $detail)
+            .' — ⚠️ ممکن است ماشینش نزدِ زیرساخت ساخته شده و اجاره‌اش از حسابِ ما برود.');
     }
 
     private function recentErrors(): array

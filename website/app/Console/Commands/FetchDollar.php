@@ -27,8 +27,22 @@ class FetchDollar extends Command
     public function handle(ExchangeRate $fx): int
     {
         if ($this->option('show')) {
+            /*
+            | ⚠️ `$c['rate_toman']` را **مستقیم نخوان**.
+            |
+            | این دقیقاً همان خطی است که یک‌بار `usd_irt` را می‌خواند: کلیدی که
+            | وجود نداشت، `Undefined array key`، خروج با کدِ ۱، و هر ساعت یک
+            | ردیفِ خطا روی سرورِ زنده. عوض‌کردنِ نامِ کلید آن باگ را برد ولی
+            | **شکلِ** آن را نگه داشت — هر تغییرِ آیندهٔ ساختارِ ردیفِ کش همان
+            | انفجار را برمی‌گرداند. حالا ساختار یک بار اعتبارسنجی می‌شود.
+            */
             $c = $fx->current();
-            $this->info($c ? number_format($c['rate_toman']).' تومان — '.$c['at'] : 'هنوز نرخی ذخیره نشده');
+            $rate = is_array($c) ? ($c['rate_toman'] ?? null) : null;
+
+            $this->info(is_numeric($rate)
+                ? number_format((int) $rate).' تومان — '.($c['at'] ?? '؟')
+                : 'هنوز نرخی ذخیره نشده');
+
             return self::SUCCESS;
         }
 

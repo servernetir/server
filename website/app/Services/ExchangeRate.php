@@ -34,10 +34,49 @@ class ExchangeRate
         return 'fx.'.strtolower($currency).'_irt';
     }
 
-    /** آخرین نرخ ذخیره‌شده، یا null */
+    /**
+     * آخرین نرخ ذخیره‌شده، یا null.
+     *
+     * 🔴 خروجی **یا یک ردیفِ کاملِ معتبر است یا null** — هرگز چیزِ نیم‌بند.
+     *
+     * تاریخچه: فراخوان‌ها مستقیم `$row['rate_toman']` را می‌خواندند. کافی بود
+     * شکلِ ذخیره‌شده عوض شود (یا ردیفِ کهنه‌ای از نسخهٔ قبلی در کش بماند) تا
+     * `Undefined array key` بدهد و کرونِ ساعتی با کدِ ۱ بمیرد — که خودش
+     * `schedule:run` را پر از خطا می‌کرد. نگهبانِ شکل این‌جا است تا هیچ
+     * فراخوانی مجبور نباشد تکرارش کند.
+     *
+     * ⚠️ ردیفِ خراب **دور ریخته می‌شود، نه ترمیم**. نرخِ حدسی یعنی فروشِ سرور
+     * زیرِ بهای خرید؛ `null` یعنی «نمی‌دانم»، و بقیهٔ سامانه از قبل می‌داند با
+     * «نمی‌دانم» چه کند (پلن از فروشگاه بیرون می‌رود).
+     */
     public function current(string $currency = 'USD'): ?array
     {
-        return Cache::get($this->key($currency));
+        try {
+            $row = Cache::get($this->key($currency));
+        } catch (\Throwable $e) {
+            Log::warning('ExchangeRate cache read failed', ['currency' => $currency, 'err' => $e->getMessage()]);
+
+            return null;
+        }
+
+        if (! is_array($row)) {
+            return null;
+        }
+
+        $rate = $row['rate_toman'] ?? null;
+
+        if (! is_numeric($rate) || (int) $rate < self::MIN_TOMAN || (int) $rate > self::MAX_TOMAN) {
+            // بلند، ولی بی‌استثنا و **گلوگاه‌دار**: این متد در رندرِ هر صفحه صدا
+            // زده می‌شود و بی‌گلوگاه، یک ردیفِ خرابِ ماندگار پنجرهٔ ۴۰۰ خطیِ
+            // ردیاب را پر می‌کرد و خطاهای گران‌تر را بیرون می‌انداخت.
+            \App\Support\ErrorTracker::noteOnce('pricing',
+                'ردیفِ نرخِ ارزِ ذخیره‌شده معتبر نیست و نادیده گرفته شد ('.$currency.'). '
+                .'تا گرفتنِ نرخِ تازه، قیمتِ ارزی ساخته نمی‌شود.', 900);
+
+            return null;
+        }
+
+        return ['rate_toman' => (int) $rate] + $row + ['currency' => strtoupper($currency), 'at' => null];
     }
 
     /**

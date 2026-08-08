@@ -132,6 +132,67 @@ class CloudPlan extends Model
     }
 
     /**
+     * چرا این ردیف **الان** فروختنی نیست — یا `null` اگر هست.
+     *
+     * سه حالت، و تفاوتشان تصمیمِ محصولی است نه فنی:
+     *
+     *  `off`    مدیر (یا خاموشیِ زیرساخت) عمداً بسته — «کِی برمی‌گردد؟» جواب ندارد
+     *  `stock`  ظرفیتِ زیرساخت تمام شده — گذراست، جواب دارد
+     *  `price`  نرخِ ارز نرسیده و `price_irt = 0` — گذراست، جواب دارد
+     *
+     * فروشگاه فقط دو حالتِ گذرا را **صادقانه نشان می‌دهد**؛ حالتِ `off` پنهان
+     * می‌مانَد چون نمایشش فقط سروصداست. (قاعدهٔ CLAUDE.md §۱۰.۵: قیمتِ صفر عمدی
+     * است و هرگز نباید به‌صورتِ پول نمایش داده شود.)
+     */
+    public function blockedReason(): ?string
+    {
+        if (! $this->is_active || $this->admin_disabled || self::providerIsDisabled((string) $this->provider)) {
+            return 'off';
+        }
+
+        if (! $this->in_stock) {
+            return 'stock';
+        }
+
+        if ((int) $this->price_irt <= 0) {
+            return 'price';
+        }
+
+        return null;
+    }
+
+    /**
+     * «قفسه» — همان گروه‌بندیِ `offers()` ولی شاملِ ردیف‌هایی که فقط **گذرا**
+     * فروختنی نیستند (ناموجود یا بی‌قیمت).
+     *
+     * ⚠️ `scopeSellable` عمداً دست‌نخورده می‌مانَد. چهار تصمیم‌گیرندهٔ دیگر روی آن
+     * می‌نویسند و مسیرِ **سفارش** هم از همان می‌خوانَد؛ گشاد کردنش یعنی فروختنِ
+     * سروری که نمی‌توانیم تحویل دهیم. این‌جا یک پرس‌وجوی جداست، فقط برای نمایش.
+     *
+     * برای هر اسلاگ: اگر ردیفِ فروختنی داشت، ارزان‌ترینش؛ وگرنه ارزان‌ترین ردیفِ
+     * مانده تا مشتری ببیند این اندازه وجود دارد ولی الان در دسترس نیست.
+     *
+     * @return \Illuminate\Support\Collection<string, CloudPlan>
+     */
+    public static function shelf(?string $locationCode = null)
+    {
+        $off = self::disabledProviders();
+
+        return static::query()
+            ->where('is_active', true)
+            ->where('admin_disabled', false)
+            ->when($off !== [], fn ($qq) => $qq->whereNotIn('provider', $off))
+            ->when($locationCode, fn ($q) => $q->where('location_code', $locationCode))
+            ->orderBy('cost_eur_cents')
+            ->get()
+            ->groupBy('slug')
+            ->map(fn ($rows) => $rows->first(fn ($r) => $r->blockedReason() === null) ?? $rows->first())
+            ->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']])
+            ->values()
+            ->keyBy('slug');
+    }
+
+    /**
      * بهترین ردیف برای تحویلِ یک عرضه — همان که تحویل روی آن انجام می‌شود.
      *
      * اگر ارائه‌دهندهٔ ارزان‌تر موجودی نداشت، خودکار سراغِ بعدی می‌رود؛ مشتری

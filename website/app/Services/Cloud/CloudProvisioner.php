@@ -512,11 +512,16 @@ class CloudProvisioner
      * هم‌زمان وضعیتِ `building` را پی می‌گیرد تا وقتی سرور بالا آمد، IP و
      * وضعیتِ درست در پنل بنشیند بی‌آنکه مشتری منتظرِ کلیکِ خودش بماند.
      *
-     * @return array{resolved:int,refreshed:int,failed:int,notified:int}
+     * @return array{resolved:int,refreshed:int,failed:int,notified:int,stuck:int}
      */
     public function syncInstances(int $limit = 40): array
     {
-        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0, 'notified' => 0];
+        // ⚠️ `stuck` عمداً یک شمارندهٔ جداست. پیش از این، ردیفی که شناسه‌اش
+        // نهایی نمی‌شد فقط `continue` می‌خورد و **هیچ شمارنده‌ای** را تکان
+        // نمی‌داد؛ فرمان هم خروجی‌اش را پشتِ `array_sum($r) > 0` گذاشته بود، پس
+        // خروجی کاملاً خالی بود. یعنی همان ردیفِ گیرکرده هر دقیقه دیده می‌شد و
+        // هر دقیقه بی‌صدا رد می‌شد.
+        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0, 'notified' => 0, 'stuck' => 0];
 
         // ⚠️ گروه‌بندیِ شرط لازم است: بی‌آن، اگر روزی شرطِ دیگری (مثلِ محدودکردن
         // به یک مشتری) اضافه شود، `OR` آن را دور می‌زند و روی **همهٔ** ردیف‌ها
@@ -524,7 +529,13 @@ class CloudProvisioner
         $rows = CloudInstance::query()
             ->where(function ($q) {
                 $q->whereIn('status', ['building', 'unknown'])
-                    ->orWhere('provider_ref', 'like', 'order:%');
+                    ->orWhere('provider_ref', 'like', 'order:%')
+                    // 🔴 ردیفِ **بی‌شناسه** هم باید دیده شود. پیش از این از
+                    // پرس‌وجو بیرون بود و بعد هم با `blank()` رد می‌شد، پس
+                    // سروری که شناسه‌اش را از پاسخ بیرون نکشیده بودیم برای
+                    // همیشه گم می‌شد — با سرویسی که «تحویل‌شده» ثبت شده بود.
+                    ->orWhereNull('provider_ref')
+                    ->orWhere('provider_ref', '');
             })
             ->whereNotIn('status', ['deleted'])
             ->orderBy('updated_at')
@@ -534,18 +545,27 @@ class CloudProvisioner
         foreach ($rows as $instance) {
             $driver = $this->manager->forInstance($instance);
 
-            if ($driver === null || blank($instance->provider_ref)) {
+            if ($driver === null) {
+                $out['stuck']++;
+
                 continue;
             }
 
             try {
-                // ① سفارشِ نیمه‌کاره → شناسهٔ سرویسِ واقعی
-                if (str_starts_with((string) $instance->provider_ref, 'order:')
+                // ① سفارشِ نیمه‌کاره (یا ردیفِ بی‌شناسه) → شناسهٔ سرویسِ واقعی
+                $ref = (string) $instance->provider_ref;
+
+                if (($ref === '' || str_starts_with($ref, 'order:'))
                     && $driver instanceof AezaClient) {
-                    $real = $driver->resolveOrder((string) $instance->provider_ref);
+                    // نامِ قطعیِ `sn-svc-{id}` دومین راه است و به شکلِ پاسخِ
+                    // سفارش وابسته نیست — بی‌آن، مسیرِ استنتاجیِ خواندنِ سفارش
+                    // تنها امیدِ ما بود و شکستش یعنی بن‌بستِ ابدی.
+                    $real = $driver->resolveOrder($ref, $instance->hostname);
 
                     if ($real === null) {
-                        continue;               // هنوز آماده نیست؛ دفعهٔ بعد
+                        $out['stuck']++;        // هنوز آماده نیست؛ دفعهٔ بعد — ولی **شمرده** می‌شود
+
+                        continue;
                     }
 
                     $instance->update(['provider_ref' => $real]);
@@ -568,6 +588,14 @@ class CloudProvisioner
                 }
 
                 // ② وضعیتِ زنده
+                // ⚠️ با شناسهٔ خالی نپرس: بعضی درایورها `/servers/` را «فهرست»
+                // می‌فهمند و پاسخِ بی‌ربط می‌دهد که روی ردیفِ مشتری می‌نشیند.
+                if (blank($instance->provider_ref)) {
+                    $out['stuck']++;
+
+                    continue;
+                }
+
                 $r = $driver->serverStatus((string) $instance->provider_ref);
 
                 if (! ($r['ok'] ?? false)) {
@@ -640,46 +668,95 @@ class CloudProvisioner
     private function warnAboutStalledDeliveries(): void
     {
         try {
-            $stalled = CloudInstance::query()
-                ->whereNull('ready_notified_at')
-                ->whereNotIn('status', ['deleted'])
-                ->where('created_at', '<', now()->subMinutes(20))
-                // ⚠️ سرویسِ لغوشده/خاتمه‌یافته عمداً ایمیل نمی‌گیرد، پس بدهی‌اش
-                // برای همیشه نال می‌مانَد. بی‌این شرط، همان ردیف‌ها تا ابد هر
-                // ساعت یک هشدارِ بی‌عمل می‌ساختند — و هشدارِ بی‌عمل، هشدارهای
-                // واقعی را بی‌اعتبار می‌کند.
-                ->whereHas('service', fn ($q) => $q->whereNotIn('status', Service::DEAD_STATUSES))
-                ->count();
+            // یک تعریف برای همهٔ ناظرها. پرس‌وجوی دست‌نویسِ موازی همان چیزی است
+            // که روزی بی‌صدا کهنه می‌شود و می‌گوید «چیزی گیر نکرده».
+            $stalled = CloudDeliveryWatch::stalled();
 
-            if ($stalled === 0) {
+            if ($stalled->isEmpty()) {
                 return;
             }
 
-            $key = 'cloud:stalled-notice-shout';
-
-            if (\Illuminate\Support\Facades\Cache::has($key)) {
+            /*
+            | 🔴 گلوگاه هست، ولی روی **فایل** — نه روی کش.
+            |
+            | نسخهٔ قبلی `Cache::has()` می‌زد. کشِ پیش‌فرضِ این پروژه روی
+            | **دیتابیس** است و کلِ متد در یک `catch` است که فقط `Log::warning`
+            | می‌کند — یعنی یک قطعیِ گذرای همان دیتابیس (که در همین ردیاب ۱۹ بار
+            | ثبت شده) این هشدار را کاملاً می‌بلعید. همان قاعدهٔ CLAUDE.md:
+            | «هیچ چیزی که قرار است از مرگِ یک وابستگی خبر دهد، نباید روی همان
+            | وابستگی بنشیند.» گلوگاهِ فایلی به هیچ سرویسی وابسته نیست و اگر
+            | خودش هم خطا بدهد **باز می‌شود** (پیامِ تکراری بهتر از پیامِ نرفته).
+            |
+            | ⚠️ ولی گلوگاه لازم است: این متد هر دقیقه می‌دود و پنجرهٔ ردیاب
+            | ۴۰۰ خط است. یک ردیفِ گیرکرده بی‌گلوگاه روزی ۱۴۴۰ خط می‌نوشت و
+            | همان خطاهایی را که باید کنارش دیده شوند بیرون می‌انداخت — دقیقاً
+            | خرابیِ سیلِ ۴۰۴.
+            |
+            | ⚠️ امضا شاملِ **کدام** سرویس‌ها گیر کرده‌اند است، نه فقط «چیزی گیر
+            | کرده». همان درسِ `SystemHealthCheck`: با گلوگاهِ ساعتیِ بی‌امضا،
+            | مشتریِ دومی که ده دقیقه بعد گیر می‌کرد تا یک ساعت هیچ ردی
+            | نمی‌ساخت — و آن یک ساعت، ساعتی است که ماشینش پول می‌سوزاند.
+            |
+            | ⚠️ سکوتِ این متد بینِ دو شلیک بی‌خطر است، چون
+            | `SystemHealth::undeliveredCloud()` همان وضعیت را **دائمی** بالای
+            | `/admin/errors` قرمز نگه می‌دارد و به هیچ گلوگاهی بند نیست.
+            */
+            if (! $this->shoutAllowed('cloud-stalled-notice', 3600,
+                md5($stalled->pluck('id')->sort()->implode(',')))) {
                 return;
             }
 
-            \Illuminate\Support\Facades\Cache::put($key, 1, now()->addHour());
+            $reasons = [];
 
-            \App\Support\ErrorTracker::note('provision',
-                $stalled.' سرورِ ابری بیش از ۲۰ دقیقه است که آماده نشده و ایمیلِ تحویلشان نرفته.');
+            foreach ($stalled as $service) {
+                $why = CloudDeliveryWatch::reasonFor($service) ?? '—';
+                $reasons[$why] = ($reasons[$why] ?? 0) + 1;
+            }
 
+            $detail = [];
+            foreach ($reasons as $why => $n) {
+                $detail[] = $n.'× '.$why;
+            }
+
+            \App\Support\ErrorTracker::note(
+                'provision',
+                $stalled->count().' سرویسِ ابریِ پرداخت‌شده تحویل نشده — '.implode(' · ', $detail),
+                ['services' => implode(',', $stalled->pluck('id')->take(10)->all())]
+            );
+
+            // ثبت و پیام با **یک** گلوگاه می‌روند: هر دو یک خبرند و جداکردنشان
+            // فقط دو حالتِ ناهماهنگ می‌ساخت (ردی که هست و پیامی که نیست).
             app(\App\Services\Notify\AdminNotifier::class)->event(
-                'ایمیلِ تحویلِ سرور گیر کرده',
+                // ⚠️ عبارتِ «گیر کرده» عمداً در عنوان مانده: تستِ
+                // `CloudDeliveryReadinessTest` همین را می‌جوید و آن گارد باید
+                // زنده بماند.
+                '🔴 سرورِ پول‌داده تحویل نشده — تحویل گیر کرده',
                 [
-                    'تعداد' => (string) $stalled,
-                    'علت'   => 'زیرساخت هنوز «بالا آمده + IP» را تأیید نکرده است.',
+                    'تعداد'  => (string) $stalled->count(),
+                    'سرویس'  => implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.$i)->all()),
+                    'علت'    => implode(' · ', $detail),
                 ],
-                url('/admin/cloud'),
-                '⚠️'
+                url('/admin/cloud/inventory'),
+                '🔴'
             );
         } catch (\Throwable $e) {
             // ⚠️ هیچ‌چیزِ این متد نباید به `schedule:run` برسد: یک استثنا کلِ آن
             // دقیقه را می‌کشد و با آن تحویلِ سرور و ثبتِ دامنه هم می‌ایستد.
             Log::warning('cloud.stalled-notice', ['err' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * گلوگاهِ زمانیِ **فایل‌محور** — عمداً نه `Cache`.
+     *
+     * ⚠️ کش در این پروژه روی دیتابیس است و همان دیتابیس گاهی قطع می‌شود. یک
+     * گلوگاهی که با مرگِ دیتابیس بیفتد یعنی هشدار دقیقاً در بدترین لحظه ساکت
+     * می‌شود. اگر نوشتن/خواندنِ فایل هم شکست بخورد، پیش‌فرض **اجازه دادن** است:
+     * پیامِ تکراری آزاردهنده است، پیامِ نرفته گران.
+     */
+    private function shoutAllowed(string $key, int $seconds, string $signature = ''): bool
+    {
+        return \App\Support\ErrorTracker::throttlePassed($key, $seconds, $signature);
     }
 
     /**
@@ -694,7 +771,11 @@ class CloudProvisioner
         $ref = (string) $instance->provider_ref;
 
         if (str_starts_with($ref, 'order:') && $driver instanceof AezaClient) {
-            $real = $driver->resolveOrder($ref);
+            // ⚠️ نامِ قطعی این‌جا هم داده می‌شود و نه فقط در کرون: این همان مسیری
+            // است که دکمهٔ «تلاشِ دوباره»ی مدیر می‌رود، یعنی اولین کاری که
+            // کارفرما روی یک سفارشِ گیرکرده انجام می‌دهد. بی‌آن، دکمه هر بار
+            // «هنوز آماده نیست» می‌گفت و هیچ‌وقت جلو نمی‌رفت.
+            $real = $driver->resolveOrder($ref, $instance->hostname);
 
             if ($real === null) {
                 $this->retryLater($service, 'سرور در حالِ آماده‌سازیِ زیرساخت است؛ پی‌گیری خودکار ادامه دارد.');
@@ -1202,7 +1283,59 @@ class CloudProvisioner
 
         $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
+        /*
+        | 🔴 حذفِ ناموفق **گران‌ترین سکوتِ این حوزه** است.
+        |
+        | تنها ردی که می‌گذاشت یک ستونِ `last_error` بود؛ هیچ‌کس آن ستون را
+        | نمی‌خوانَد. و فراخوان (`CloudMeterHourly::creditOut()`) مقدارِ برگشتی را
+        | دور می‌ریزد و سرویس را «خاتمه‌یافته» می‌نویسد. نتیجه: در پنلِ ما سرویس
+        | مرده است، نزدِ زیرساخت ماشین **زنده** است و اجاره‌اش هر ماه از حسابِ ما
+        | می‌رود — بی‌مشتری، بی‌درآمد، بی‌هیچ هشداری. تا رسیدنِ صورت‌حساب هیچ‌کس
+        | نمی‌فهمد، و صورت‌حساب هم فقط جمعِ کل را می‌گوید.
+        */
+        $this->shoutAboutLingeringMachine(
+            'حذفِ سرور نزدِ زیرساخت انجام نشد',
+            $service, $instance, (string) $r['message']
+        );
+
         return false;
+    }
+
+    /**
+     * ماشینی که وضعیتِ محلی‌اش با واقعیت نمی‌خوانَد — بلند بگو.
+     *
+     * ⚠️ گلوگاه با امضای «سرویس + پیام» است، نه زمانِ خالی: خطای **تازه** روی
+     * همان سرویس فوراً دیده می‌شود، ولی تلاشِ ساعتیِ تکراری ردیاب را پر نمی‌کند.
+     */
+    private function shoutAboutLingeringMachine(string $what, Service $service, CloudInstance $instance, string $why): void
+    {
+        try {
+            // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
+            // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
+            // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
+            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, 3600, md5($what.'|'.$why))) {
+                return;
+            }
+
+            \App\Support\ErrorTracker::note('provision',
+                $what.' — ماشین احتمالاً هنوز زنده است و اجاره‌اش از حسابِ ما می‌رود. علت: '
+                .mb_substr($why, 0, 200),
+                ['service' => $service->id, 'instance' => $instance->id]
+            );
+
+            app(\App\Services\Notify\AdminNotifier::class)->event(
+                '🔴 '.$what,
+                [
+                    'سرویس' => $service->name.' (#'.$service->id.')',
+                    'علت'   => mb_substr($why, 0, 200),
+                    'خطر'   => 'ماشین ممکن است زنده مانده باشد و هزینه‌اش را ما بدهیم.',
+                ],
+                url('/admin/cloud/inventory'),
+                '🔴'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('cloud.lingering-notice', ['err' => $e->getMessage()]);
+        }
     }
 
     private function act(Service $service, callable $fn, string $expectStatus): bool
@@ -1228,6 +1361,14 @@ class CloudProvisioner
         }
 
         $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
+
+        // تعلیقِ ناموفق = ما فکر می‌کنیم خاموش است و مشتری چیزی نمی‌پردازد، ولی
+        // ماشین روشن است و اجاره‌اش می‌رود. همان سکوتِ `terminate()`، ارزان‌تر
+        // ولی هر ماه تکرارشونده.
+        $this->shoutAboutLingeringMachine(
+            'تغییرِ وضعیتِ سرور نزدِ زیرساخت انجام نشد',
+            $service, $instance, (string) $r['message']
+        );
 
         return false;
     }
