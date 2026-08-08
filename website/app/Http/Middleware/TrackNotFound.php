@@ -57,6 +57,26 @@ class TrackNotFound
             return true;
         }
 
+        /*
+        | 🔴 خانوادهٔ REST وردپرس — `/wp-json/...`
+        |
+        | فهرستِ قبلی `wp-login` و `wp-admin` را داشت ولی **`wp-json` را نه**، و
+        | همان یک قلم بیشترین ردیف‌های تازهٔ لاگ را می‌ساخت
+        | (`/wp-json/batch/v1` که مسیرِ سوءاستفادهٔ شناخته‌شدهٔ افزونه‌هاست).
+        | این سایت وردپرس نیست، پس هیچ‌کدامشان لینکِ خرابِ ما نیستند.
+        */
+        if (str_starts_with($path, '/wp-json')) {
+            return true;
+        }
+
+        /*
+        | اسکنرهای سرویسِ ویندوزی/سازمانی — نه لینکِ خراب، نه بازدیدکنندهٔ واقعی.
+        | `/RDWeb/...` کاوشِ Remote Desktop Gateway است و روی همین نصب دیده شد.
+        */
+        if (preg_match('~^/(RDWeb|owa|autodiscover|ecp|_ignition|telescope|server-status)(/|$)~i', $path)) {
+            return true;
+        }
+
         return (bool) preg_match(
             '~(xmlrpc\.php|wp-login|wp-admin|wp-includes|wp-content|wordpress'
             .'|/\.env|/\.git|/\.aws|/\.ssh|/\.svn|/\.hg|/\.vscode|/\.idea|/\.DS_Store'

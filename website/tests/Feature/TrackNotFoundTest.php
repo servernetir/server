@@ -68,6 +68,29 @@ class TrackNotFoundTest extends TestCase
         $this->assertSame([], $this->urls());
     }
 
+    /**
+     * 🔴 `wp-json` و اسکنرهای سرویسِ ویندوزی — بیشترین نویزِ لاگِ زنده.
+     *
+     * فهرست `wp-login` و `wp-admin` را داشت ولی **`wp-json` را نه**، و همان یک
+     * قلم بیشترین ردیف‌های تازه را می‌ساخت. کارفرما ۱۵۰ ردیف می‌دید و فرض
+     * می‌کرد ۱۵۰ باگ دارد؛ در واقع ۸ خطای واقعی بود زیرِ کوهی از کاوشِ ربات.
+     *
+     * ⚠️ ردیابی که نویزش از سیگنالش بیشتر باشد، خوانده نمی‌شود — و آن‌وقت
+     * همان ۸ خطای واقعی هم دیده نمی‌شوند. فیلتر، بخشی از کارکردِ ابزار است نه
+     * آرایشِ آن.
+     */
+    public function test_wp_json_and_service_scanners_are_filtered(): void
+    {
+        foreach (['/wp-json/batch/v1', '/wp-json/wp/v2/users',
+            '/RDWeb/Pages/en-US', '/owa/auth/logon.aspx', '/_ignition/execute-solution',
+            '/telescope/requests', '/server-status'] as $p) {
+            $this->get($p)->assertNotFound();
+        }
+
+        $this->assertSame([], $this->urls(),
+            'کاوشِ ربات نباید ثبت شود — وگرنه خطای واقعی زیرش گم می‌شود');
+    }
+
     public function test_the_classic_probe_list_still_works(): void
     {
         foreach (['/.env', '/.git/config', '/phpmyadmin', '/actuator/health', '/minishell'] as $p) {
