@@ -11,15 +11,38 @@ use Illuminate\Support\Facades\Log;
  *
  * ⚠️ صداقت دربارهٔ درجهٔ اطمینان — این را دست‌کم نگیر:
  *
+ *  • **قطعی‌ترین منبعِ ما: پاسخِ کتبیِ پشتیبانیِ خودِ آن ارائه‌دهنده (مرداد ۱۴۰۵).**
+ *    دو چیزِ حیاتی را گفت که هفته‌ها تحویلِ خودکار را کشته بودند:
+ *
+ *      ۱) سفارش از **`POST https://my.aeza.net/api/v2/services/orders`** می‌رود،
+ *         با بدنه‌ای که `orders` در آن یک **آرایه** است و `method` در **سطحِ
+ *         بالا** می‌نشیند (نه داخلِ سفارش):
+ *
+ *             {"method":"balance","orders":[{"productId":153,"count":1,
+ *              "name":"my-server","term":"hour","autoProlong":false,
+ *              "parameters":{"os":"ubuntu_2404"}}]}
+ *
+ *         ما تا امروز بدنهٔ **صافِ** v1 را به مسیرِ **بدونِ v2** می‌فرستادیم و
+ *         گیت‌ویشان `proxy_internal_server_error` (کدِ ۵۰۰) می‌داد — یعنی
+ *         خطای «شکلِ درخواست را نمی‌شناسم» دقیقاً شبیهِ «سرورِ ما خراب است»
+ *         بود. مشتری پول داده بود و سرور تحویل نمی‌شد.
+ *
+ *      ۲) **موجودیِ حساب فقط می‌تواند یورو باشد.** پس مسیرِ `payment/currencies`
+ *         (که ۵۰۰ می‌داد و بی‌ضریبش هیچ پلنی ساخته نمی‌شد) اصلاً لازم نیست:
+ *         قیمت‌ها ارزِ همان حساب‌اند ⇒ یورو. تبدیلِ روبل حذف شد.
+ *
+ *      ۳) کلیدِ API **دسترسیِ کاملِ حساب** می‌دهد و scope ندارد؛ خودشان
+ *         می‌گویند IP را محدود کنید. ⚠️ کارِ کارفرما، نه کارِ کد.
+ *
+ *      ۴) **سندباکس ندارند.** هر تماسِ سفارش پولِ واقعی است.
+ *
  *  • **قطعی** (از داکیومنتِ رسمیِ AezaGroup/dev-docs): آدرسِ پایه
  *    `https://my.aeza.net/api`، هدرِ `X-API-Key`، مسیرهای `/products`، `/os`،
- *    `/vm/recipe`، `POST /services/orders` با فیلدهای
- *    `count,term,name,productId,parameters,autoProlong,method`،
- *    `GET /services/orders/{id}` با `createdServiceIds`، `GET /services/{id}`،
+ *    `/vm/recipe`، `GET /services/orders/{id}` با `createdServiceIds`،
+ *    `GET /services/{id}`،
  *    `POST /services/{id}/ctl` با `action`، `POST /services/{id}/reinstall` با
  *    `os,recipe,password`، `PUT /services/{id}/changePassword`،
- *    `DELETE /services/{id}`، پاسخِ فهرستی با `items`/`total`، و اینکه
- *    **قیمت‌ها سمتِ سرور به روبل‌اند** و ضریبِ تبدیل از `payment/currencies`.
+ *    `DELETE /services/{id}`، پاسخِ فهرستی با `items`/`total`.
  *
  *  • **از SDKهای تایپ‌شده** (نه از داکیومنت، که نمونهٔ کاملِ JSON ندارد): نامِ
  *    فیلدهای محصول. `configuration[]{slug,base,max}` · `summaryConfiguration`
@@ -68,24 +91,42 @@ class AezaClient implements CloudProvider
         'products' => ['services/products', 'products'],
         'os'       => ['os', 'services/os', 'vm/os'],
         'recipe'   => ['vm/recipe', 'services/recipe', 'recipes'],
-        'currencies' => ['payment/currencies', 'currencies', 'payments/currencies'],
 
         /*
-        | 🔴 مسیرِ **سفارش** هم باید کشف شود، نه سخت‌کد.
+        | 🔴 `orders` و `currencies` عمداً از این فهرست **حذف شدند**.
         |
-        | تا مرداد ۱۴۰۵ همهٔ مسیرهای **خواندنی** با نامزد و `resolvePath()` پیدا
-        | می‌شدند — چون گیت‌ویِ این زیرساخت مسیرهای غیرِ استاندارد دارد. ولی
-        | `createServer()` مسیرش را سخت‌کد کرده بود: `'/services/orders'`.
+        | • `orders`: مدتی مسیرِ سفارش هم «کشف» می‌شد، چون گیت‌ویِ این زیرساخت
+        |   برای مسیرِ ناشناخته ۵۰۰ می‌دهد نه ۴۰۴ و نمی‌دانستیم کدام درست است.
+        |   حالا پشتیبانی صریح گفت: `POST /api/v2/services/orders`. مسیرِ
+        |   **درستِ سخت‌کد** از حدس‌زدن بهتر است — کشف فقط وقتی ارزش دارد که
+        |   پاسخِ قطعی نداشته باشی. (پایین: `ORDERS_PATH`)
         |
-        | یعنی تنها مسیری که **پول خرج می‌کند و سرور تحویل می‌دهد**، تنها مسیری
-        | بود که هرگز راستی‌آزمایی نشد. و پاسخِ گیت‌ویِ آن‌ها به مسیرِ ناشناخته
-        | «Proxy internal server error» با کدِ ۵۰۰ است — همان چیزی که پشتِ سرِ
-        | هم گرفتیم و شبیهِ خرابیِ سمتِ آن‌ها به‌نظر می‌رسید.
-        |
-        | ⚠️ کشف با **GET** انجام می‌شود (فهرستِ سفارش‌ها) — بی‌خطر و بی‌هزینه.
+        | • `currencies`: حسابِ ما فقط یورو دارد (پاسخِ پشتیبانی)، پس ضریبِ
+        |   تبدیلی لازم نیست. آن مسیر ۵۰۰ می‌داد و چون `fetchCatalog()` بی‌ضریب
+        |   عمداً هیچ پلنی نمی‌ساخت، گزارشِ `cloud:sync` این زیرساخت را
+        |   «ناموفق» اعلام می‌کرد — یک وابستگیِ بی‌فایده که کارِ سالم را می‌کشت.
         */
-        'orders' => ['services/orders', 'orders', 'service/orders', 'vm/orders'],
     ];
+
+    /**
+     * مسیرِ **سفارش** — سخت‌کد و نسخه‌دار، چون پشتیبانی دقیقاً همین را داد.
+     *
+     * نسبی به `BASE` نوشته می‌شود تا کلِ آدرس دقیقاً
+     * `https://my.aeza.net/api/v2/services/orders` دربیاید.
+     */
+    private const ORDERS_PATH = 'v2/services/orders';
+
+    /**
+     * مسیرهای **خواندنِ** یک سفارش، به ترتیبِ تلاش.
+     *
+     * ⚠️ پشتیبانی فقط دربارهٔ **ثبتِ** سفارش (POST) حرف زد. اینکه خواندنِ همان
+     * سفارش روی v2 است یا v1، **نمی‌دانیم** — پس هر دو امتحان می‌شوند و اولین
+     * پاسخِ درست برنده است. این حدس بی‌خطر است چون GET نه پول خرج می‌کند نه
+     * چیزی می‌سازد؛ بدترین حالتش یک درخواستِ بی‌نتیجه است.
+     *
+     * @var array<int, string>
+     */
+    private const ORDER_READ_PATHS = ['v2/services/orders', 'services/orders'];
 
     public function slug(): string
     {
@@ -413,7 +454,13 @@ class AezaClient implements CloudProvider
                 'is_vps'      => $this->isVpsProduct($row),
                 'vps_verdict' => $this->vpsVerdict($row) ?: 'ok',
                 'specs'       => $this->specsOf($row),
-                'monthly_rub' => $this->monthlyRub($row),
+                // 🔴 عمداً هم عددِ **خام** و هم عددِ **تفسیرشده**: تنها راهی که
+                // مدیر بتواند با فاکتورِ واقعیِ خودش بسنجد کدام مقسوم درست است.
+                'monthly_raw'       => $this->rawTermValue($row, [
+                    'individualPrices', 'individual_prices', 'rawPrices', 'raw_prices', 'prices',
+                ]),
+                'price_divisor'     => self::priceDivisor(),
+                'monthly_eur_cents' => $this->monthlyEurCents($row),
                 'location'    => $this->locationOf($row),
                 'in_stock'    => $this->inStock($row),
             ],
@@ -434,104 +481,34 @@ class AezaClient implements CloudProvider
         return array_slice($out, 0, 20, true);
     }
 
-    // ───────────────────────── نرخِ ارز ─────────────────────────
+    // ───────────────────────── ارزِ حساب ─────────────────────────
 
-    /**
-     * ضریبِ روبل → یورو (چند روبل = یک یورو، به‌صورتِ ضریبِ ضرب‌شدنی).
-     *
-     * ⚠️ روبل انتخابِ ما نیست: **API این ارائه‌دهنده قیمت را به روبل می‌دهد**،
-     * هر ارزی که حسابِ ما باشد. داکیومنتشان می‌گوید ضریبِ تبدیل را از
-     * `payment/currencies` بگیر.
-     *
-     * سه منبع، به ترتیبِ اولویت:
-     *
-     *  ۱) **نرخِ دستیِ مدیر** (`aeza_rub_per_eur`). عمداً اولِ صف است: نرخِ خودِ
-     *     ارائه‌دهنده گاهی حاشیهٔ صرافیِ خودشان را دارد، ولی مدیر می‌داند واقعاً
-     *     چند پرداخته. یک عدد است و ماه‌ها تغییرِ محسوس ندارد.
-     *  ۲) ضریبِ خودِ ارائه‌دهنده از `payment/currencies`.
-     *  ۳) نرخِ زندهٔ خودمان — ولی سرویسِ نرخِ ما فقط دلار و یورو دارد و **روبل
-     *     ندارد**، پس این راه عملاً بسته است و فقط برای روزی است که اضافه شود.
-     *
-     * اگر هیچ‌کدام نشد **۰** برمی‌گردد و کاتالوگ ساخته نمی‌شود. این عمدی است:
-     * پلنی که بهایِ تمام‌شده‌اش را نمی‌دانیم نباید قیمت بخورد و روی سایت برود.
-     */
-    private function rubToEurRate(): float
-    {
-        // ① نرخِ دستیِ مدیر: «۱ یورو چند روبل» → ضریبِ ضرب‌شدنی = ۱/آن
-        $perEur = (float) Setting::get('aeza_rub_per_eur', '0');
-
-        if ($perEur > 0) {
-            return 1 / $perEur;
-        }
-
-        // ② ضریبِ خودِ ارائه‌دهنده
-        $path = $this->resolvePath('currencies');
-        $r = $path === null
-            ? ['ok' => false, 'body' => []]
-            : $this->req('GET', '/'.$path);
-
-        if ($r['ok']) {
-            $rows = $this->items($r['body']);
-
-            // بعضی پاسخ‌ها فهرست نیستند و نگاشتِ کد→ضریب‌اند: {"EUR": 0.0098, …}
-            if ($rows === []) {
-                $flat = (array) (data_get($r['body'], 'data') ?? $r['body']);
-
-                foreach ($flat as $code => $val) {
-                    if (strtoupper((string) $code) === 'EUR') {
-                        $m = is_array($val)
-                            ? (float) ($val['multiplier'] ?? $val['rate'] ?? $val['value'] ?? 0)
-                            : (float) $val;
-
-                        if ($m > 0) {
-                            return $this->normalizeMultiplier($m);
-                        }
-                    }
-                }
-            }
-
-            foreach ($rows as $c) {
-                $code = strtoupper((string) ($c['code'] ?? $c['currency'] ?? $c['name'] ?? ''));
-
-                if ($code === 'EUR') {
-                    $m = (float) ($c['multiplier'] ?? $c['rate'] ?? $c['value'] ?? 0);
-
-                    if ($m > 0) {
-                        return $this->normalizeMultiplier($m);
-                    }
-                }
-            }
-        }
-
-        // ③ نرخِ زندهٔ خودمان — سرویسِ ما فعلاً روبل ندارد، پس معمولاً بی‌نتیجه
-        try {
-            $ex = app(\App\Services\ExchangeRate::class);
-            $eur = (float) ($ex->toToman('EUR') ?: 0);
-            $rub = (float) ($ex->toToman('RUB') ?: 0);
-
-            if ($eur > 0 && $rub > 0) {
-                return $rub / $eur;
-            }
-        } catch (\Throwable) {
-            // بی‌صدا — پایین با ۰ برمی‌گردیم
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * ضریب را در جهتِ درست نگه دار.
-     *
-     * ما «یورو به‌ازای هر روبل» می‌خواهیم — عددی خیلی کوچک (~۰٫۰۱). اگر
-     * ارائه‌دهنده جهتِ عکس را بدهد («روبل به‌ازای هر یورو»، ~۱۰۰)، ضربِ مستقیم
-     * قیمت را **۱۰٬۰۰۰ برابر** می‌کند و ما سرورِ ۵ یورویی را چند صد یورو
-     * می‌فروشیم. مرزِ ۱ برای تشخیص کافی است: هیچ ارزِ واقعی‌ای نسبتِ ۱:۱ با روبل
-     * ندارد.
-     */
-    private function normalizeMultiplier(float $m): float
-    {
-        return $m > 1 ? 1 / $m : $m;
-    }
+    /*
+    | 🔴 چرا اینجا دیگر «نرخِ ارز» نیست — و چرا حذفش یک اصلاحِ باگ است.
+    |
+    | تا مرداد ۱۴۰۵ این کلاس فرض می‌کرد قیمت‌های آن API به **روبل** است و باید
+    | با ضریبی از `payment/currencies` به یورو برسد. دو چیز آن فرض را باطل کرد:
+    |
+    |  ۱) خودِ `payment/currencies` کدِ ۵۰۰ می‌داد. چون `fetchCatalog()` بی‌ضریب
+    |     هیچ پلنی نمی‌ساخت، `cloud:sync` هم با کدِ خروجیِ ۱ تمام می‌شد.
+    |  ۲) پشتیبانیِ خودشان نوشت: «موجودیِ حساب فقط می‌تواند یورو باشد.»
+    |
+    | یعنی هیچ‌وقت تبدیلی لازم نبود: عددِ قیمت به کوچک‌ترین یکای **ارزِ همان
+    | حساب** است و آن ارز فقط یورو می‌تواند باشد ⇒ عدد، **سنتِ یورو** است.
+    |
+    | ⚠️ و این دقیقاً همان خرابیِ «۱۰۰ برابر ارزان» را توضیح می‌دهد که کارفرما
+    | با چشم دید و `crossProviderSanity()` برایش نوشته شد: پلنِ ۵ یورویی عددِ
+    | ۵۰۰ می‌داد، ما ۵۰۰ را «کوپک» می‌خواندیم (÷۱۰۰ ⇒ ۵ «روبل») و بعد در ضریبِ
+    | روبل‌به‌یورو (~۰٫۰۱) ضرب می‌کردیم ⇒ ۰٫۰۵ یورو. سرورِ ۵ یورویی، ۵ سنت.
+    |
+    | پس اینجا **هیچ نرخی اختراع نمی‌شود** — که قاعدهٔ سختِ این پروژه است
+    | («قیمتِ حدسی از نبودِ قیمت بدتر است»). تنها چیزی که مانده، «عدد سنت است
+    | یا یورو» است و آن یک **تنظیمِ صریحِ مدیر** است، نه حدس: `aeza_price_divisor`.
+    |
+    | تنظیمِ کهنهٔ `aeza_rub_per_eur` دیگر خوانده نمی‌شود. عمداً از دیتابیس پاک
+    | نمی‌شود: اگر روزی معلوم شد حسابی به ارزِ دیگری هم می‌شود داشت، مقدارش
+    | هنوز آنجاست و می‌شود دوباره وصلش کرد.
+    */
 
     // ───────────────────────── کاتالوگ ─────────────────────────
 
@@ -553,16 +530,6 @@ class AezaClient implements CloudProvider
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message']] + $empty;
-        }
-
-        $rate = $this->rubToEurRate();
-
-        if ($rate <= 0) {
-            return ['ok' => false, 'message' =>
-                'قیمت‌های این زیرساخت در API به **روبل** می‌آیند و ضریبِ تبدیل به یورو به دست نیامد، '
-                .'پس عمداً هیچ قیمتی ساخته نشد (قیمتِ حدسی از نبودِ قیمت بدتر است). '
-                .'راهِ حل: در تنظیمات، «۱ یورو چند روبل» را وارد کنید.',
-            ] + $empty;
         }
 
         $locations = [];
@@ -625,8 +592,8 @@ class AezaClient implements CloudProvider
                 continue;
             }
 
-            $rub = $this->monthlyRub($p);
-            if ($rub <= 0) {
+            $eurCents = $this->monthlyEurCents($p);
+            if ($eurCents <= 0) {
                 $why['no_price']++;
 
                 continue;
@@ -662,7 +629,9 @@ class AezaClient implements CloudProvider
                 'traffic_gb'        => $specs['traffic_gb'],
                 'cpu_kind'          => $specs['cpu_kind'],
                 'arch'              => 'x86',
-                'cost_eur_cents'    => (int) round($rub * $rate * 100),
+                // ⚠️ هیچ تبدیلِ ارزی: حسابِ ما فقط یورو است، پس عددِ خودِ API
+                // (پس از مقسومِ صریحِ مدیر) همان سنتِ یورو است.
+                'cost_eur_cents'    => $eurCents,
                 'in_stock'          => $this->inStock($p),
             ];
         }
@@ -751,23 +720,22 @@ class AezaClient implements CloudProvider
         'manual', 'feru', 's3', 'ispmgr', 'waf', 'vpn', 'soft', 'proxy', 'domain', 'dns', 'ssl',
     ];
 
-    /** کف قیمتِ ماهانهٔ باورپذیر به روبل — پایین‌تر از ارزان‌ترین VPSِ واقعی */
     /**
-     * بازهٔ منطقیِ اجارهٔ **ماهانهٔ** یک سرورِ مجازی، به روبل.
+     * بازهٔ منطقیِ اجارهٔ **ماهانهٔ** یک سرورِ مجازی، به **یورو**.
      *
-     * 🔴 چرا بازه و نه فقط یک کف: نسخهٔ قبلی فقط کفِ ۵۰ روبل داشت و این حساب
-     * را نمی‌کرد که خودِ عددِ تقسیم‌شده هم می‌تواند «به‌ظاهر منطقی» باشد.
-     * پلنِ واقعیِ ۵٬۰۰۰ روبلی که به روبل ذخیره شده بود، ۵۰۰۰/۱۰۰ = ۵۰ می‌شد و
-     * چون ۵۰ از کفِ ۵۰ کمتر **نبود**، پذیرفته می‌شد: یک‌صدمِ قیمتِ واقعی.
-     * یعنی هرچه پلن گران‌تر، خطا بی‌صداتر — و گران‌ترین پلن‌ها بیشترین ضرر.
+     * ⚠️ نقشِ این بازه محدود و عمدی است: **واحد را انتخاب نمی‌کند** (آن یک
+     * تنظیمِ صریح است، پایین‌تر)، فقط عددِ آشکارا بی‌معنا را رد می‌کند — مثلِ
+     * ۰٫۰۳ یورو یا ۹۰٬۰۰۰ یورو در ماه، که هیچ‌کدام سرورِ مجازی نیستند.
      *
-     * ارقام از بازارِ واقعی: ارزان‌ترین VPS این ارائه‌دهنده حدودِ ۱۰۰–۲۰۰ روبل
-     * در ماه است و گران‌ترین پلنِ چندده‌هسته‌ای هم از چند ده هزار روبل بالاتر
-     * نمی‌رود.
+     * 🔴 عمداً **گشاد** است. یک بازهٔ تنگ، پلنِ سالم را بی‌صدا از کاتالوگ
+     * بیرون می‌اندازد و گزارش فقط می‌گوید «بی‌قیمتِ ماهانه» — همان نوع خرابی
+     * که در این پروژه هر بار ساعت‌ها وقت گرفته. کفِ ۰٫۲ یورو زیرِ ارزان‌ترین
+     * پلنِ تشویقیِ بازار است و سقفِ ۲۰٬۰۰۰ یورو بالاتر از گران‌ترین سرورِ
+     * چندده‌هسته‌ای.
      */
-    private const MONTHLY_RUB_MIN = 20.0;
+    private const MONTHLY_EUR_MIN = 0.2;
 
-    private const MONTHLY_RUB_MAX = 2000000.0;
+    private const MONTHLY_EUR_MAX = 20000.0;
 
     /**
      * آیا این محصول یک **سرورِ مجازی** است؟ (پوشش برای `vpsVerdict`)
@@ -1062,24 +1030,6 @@ class AezaClient implements CloudProvider
     }
 
     /**
-     * قیمتِ ماهانه به **روبل**.
-     *
-     * ترتیبِ ظرف‌ها اتفاقی نیست:
-     *  ۱) `individualPrices` — قیمتِ اختصاصیِ حسابِ ما (اگر گذاشته باشند، همان
-     *     است که واقعاً می‌پردازیم).
-     *  ۲) `rawPrices` — قیمت به ارزِ **پایه**، بی‌تبدیلِ نمایشی. «raw» یعنی همین.
-     *  ۳) `prices` — قیمتِ عادی (ممکن است ضریبِ نمایشیِ ارزِ حساب خورده باشد).
-     *
-     * `firstPrices` عمداً استفاده نمی‌شود: قیمتِ تشویقیِ دورهٔ اول است و اگر
-     * بهایِ تمام‌شده حسابش کنیم، از تمدیدِ دوم به بعد زیرِ قیمتِ خرید می‌فروشیم.
-     *
-     * ⚠️ واحد: داکیومنتِ ترافورم‌پروایدر صریح می‌گوید «Prices are specified in the
-     * smallest currency units (kopecks)» و خودش هم سه جا بر ۱۰۰ تقسیم می‌کند.
-     * پس عددِ API **کوپک** است. ولی اشتباه در جهتِ تقسیم گران است — اگر روزی
-     * روبلِ خالص بدهند و ما تقسیم کنیم، سرورِ ۵۰ یورویی را نیم‌یورو می‌فروشیم.
-     * پس اگر تفسیرِ کوپک عددی بی‌معنا کوچک بدهد، همان عدد را روبل می‌گیریم.
-     */
-    /**
      * آیا این محصول **تشویقی** (promo) است؟
      *
      * ═══ چرا این خطرناک است و به چشم نمی‌آید ═══
@@ -1142,7 +1092,23 @@ class AezaClient implements CloudProvider
         return 0.0;
     }
 
-    private function monthlyRub(array $p): float
+    /**
+     * قیمتِ ماهانه به **سنتِ یورو**.
+     *
+     * ترتیبِ ظرف‌ها اتفاقی نیست:
+     *  ۱) `individualPrices` — قیمتِ اختصاصیِ حسابِ ما (اگر گذاشته باشند، همان
+     *     است که واقعاً می‌پردازیم).
+     *  ۲) `rawPrices` — قیمت به ارزِ **پایه**، بی‌تبدیلِ نمایشی. «raw» یعنی همین.
+     *  ۳) `prices` — قیمتِ عادی.
+     *
+     * `firstPrices` عمداً استفاده نمی‌شود: قیمتِ تشویقیِ دورهٔ اول است و اگر
+     * بهایِ تمام‌شده حسابش کنیم، از تمدیدِ دوم به بعد زیرِ قیمتِ خرید می‌فروشیم.
+     *
+     * ⚠️ چرا مستقیماً یورو: پشتیبانیِ خودشان نوشت «موجودیِ حساب فقط می‌تواند
+     * یورو باشد»، و داکیومنتِ ترافورم‌پروایدرشان می‌گوید عددها «کوچک‌ترین یکای
+     * ارز» اند. این دو با هم یعنی: عدد = سنتِ یورو. هیچ نرخی اختراع نمی‌شود.
+     */
+    private function monthlyEurCents(array $p): int
     {
         $raw = 0.0;
 
@@ -1174,44 +1140,44 @@ class AezaClient implements CloudProvider
         }
 
         if ($raw <= 0) {
-            return 0.0;
+            return 0;
         }
 
-        return $this->interpretMonthlyRub($raw);
+        return $this->interpretMonthlyEurCents($raw);
     }
 
     /**
-     * عددِ خام → روبلِ ماهانه.
+     * عددِ خام → سنتِ یوروی ماهانه.
      *
-     * ═══ چرا این یک **تنظیم** است و نه یک حدسِ هوشمند ═══
+     * ═══ چرا واحد یک **تنظیم** است و نه یک حدسِ هوشمند ═══
      *
-     * تلاشِ اول این بود که واحد را از بزرگیِ عدد حدس بزنیم (کوپک یا روبل). آن
-     * روش **قابلِ اتکا نیست** و دلیلش ریاضی است، نه سلیقه: عددِ ۵۰٬۰۰۰ اگر کوپک
-     * باشد ۵۰۰ روبل است و اگر روبل باشد ۵۰٬۰۰۰ روبل — و **هر دو** برای یک سرورِ
-     * مجازی قیمتِ کاملاً منطقی‌ای هستند. هیچ بازه‌ای این دو را از هم جدا نمی‌کند.
+     * تلاشِ اول این بود که واحد را از بزرگیِ عدد حدس بزنیم. آن روش **قابلِ اتکا
+     * نیست** و دلیلش ریاضی است، نه سلیقه: عددِ ۵۰۰ اگر سنت باشد ۵ یورو است و
+     * اگر یورو باشد ۵۰۰ یورو — و **هر دو** برای یک سرورِ مجازی قیمتِ ممکنی
+     * هستند (اولی VPSِ کوچک، دومی پلنِ چندده‌هسته‌ای). هیچ بازه‌ای این دو را
+     * جدا نمی‌کند.
      *
      * پس واحد را نمی‌شود از داده فهمید؛ خصوصیتِ ثابتِ **API** است. یک بار درست
      * تعیین می‌شود و همه‌جا همان اعمال می‌گردد.
      *
-     * پیش‌فرض ۱۰۰ (کوپک) از داکیومنتِ Terraform-providerِ خودِ آن ارائه‌دهنده
+     * پیش‌فرض ۱۰۰ (سنت) از داکیومنتِ Terraform-providerِ خودِ آن ارائه‌دهنده
      * می‌آید که می‌گوید مقادیر «کوچک‌ترین یکای ارز» اند و در سه مبدلش هم بر ۱۰۰
      * تقسیم می‌کند. ولی این را روی حسابِ واقعی راستی‌آزمایی نکرده‌ایم و **پولِ
      * واقعی وسط است**، پس مدیر می‌تواند در تنظیمات عوضش کند و صفحهٔ عیب‌یابی
      * عددِ خام را کنارِ عددِ تفسیرشده نشان می‌دهد تا با فاکتورِ خودش مقایسه کند.
      *
-     * بازهٔ منطقی هنوز هست، ولی نقشش عوض شده: دیگر واحد را انتخاب نمی‌کند، فقط
-     * عددِ **بی‌معنا** را رد می‌کند (۳ روبل یا ۹ میلیون روبل در ماه).
+     * بازهٔ منطقی فقط عددِ **بی‌معنا** را رد می‌کند، نه واحد را انتخاب.
      */
-    private function interpretMonthlyRub(float $raw): float
+    private function interpretMonthlyEurCents(float $raw): int
     {
         $divisor = self::priceDivisor();
-        $value = $divisor > 0 ? $raw / $divisor : $raw;
+        $eur = $divisor > 0 ? $raw / $divisor : $raw;
 
-        return $this->plausibleMonthlyRub($value) ? $value : 0.0;
+        return $this->plausibleMonthlyEur($eur) ? (int) round($eur * 100) : 0;
     }
 
     /**
-     * مقسومِ قیمت — ۱۰۰ یعنی «عددها کوپک‌اند»، ۱ یعنی «همان روبل‌اند».
+     * مقسومِ قیمت — ۱۰۰ یعنی «عددها سنتِ یورواند»، ۱ یعنی «همان یورواند».
      *
      * public است چون صفحهٔ عیب‌یابی هم نشانش می‌دهد؛ مدیر باید ببیند با چه
      * فرضی قیمت ساخته شده.
@@ -1225,9 +1191,9 @@ class AezaClient implements CloudProvider
         return in_array($v, [1.0, 100.0], true) ? $v : 100.0;
     }
 
-    private function plausibleMonthlyRub(float $v): bool
+    private function plausibleMonthlyEur(float $v): bool
     {
-        return $v >= self::MONTHLY_RUB_MIN && $v <= self::MONTHLY_RUB_MAX;
+        return $v >= self::MONTHLY_EUR_MIN && $v <= self::MONTHLY_EUR_MAX;
     }
 
     /**
@@ -1444,7 +1410,7 @@ class AezaClient implements CloudProvider
 
         if ($r['ok']) {
             foreach ($this->items($r['body']) as $os) {
-                $ref = (string) ($os['id'] ?? $os['slug'] ?? '');
+                $ref = self::osRef($os);
                 $label = (string) ($os['name'] ?? $os['title'] ?? $ref);
 
                 if ($ref === '' || $label === '') {
@@ -1497,6 +1463,45 @@ class AezaClient implements CloudProvider
         return $out;
     }
 
+    /**
+     * شناسه‌ای که در `parameters.os` سفارش فرستاده می‌شود.
+     *
+     * ═══ 🔴 چرا اسلاگ، نه شناسهٔ عددی ═══
+     *
+     * تنها نمونهٔ **معتبرِ** ما از این فیلد، مثالِ کتبیِ پشتیبانیِ خودشان است:
+     *
+     *     "parameters": {"os": "ubuntu_2404"}
+     *
+     * یعنی یک **رشتهٔ اسلاگ‌مانند**، نه عدد. تا امروز ما `id` را ترجیح
+     * می‌دادیم (که در `payload.oslist` عدد است، مثلِ `940`) و رشتهٔ اسلاگ فقط
+     * وقتی می‌رفت که `id` نبود. اگر آن فیلد عدد نپذیرد، سفارش رد می‌شود —
+     * یعنی پولِ گرفته‌شده و سرورِ تحویل‌نشده.
+     *
+     * ⚠️ **آنچه هنوز نمی‌دانیم:** فهرستِ کاملِ اسلاگ‌های این ارائه‌دهنده را
+     * ندیده‌ایم (مسیرِ `/os` روی حسابِ واقعی سینک نشده و ما سندباکس نداریم).
+     * فقط یکی‌شان قطعی است: `ubuntu_2404`. پس اینجا **حدس زده نمی‌شود** —
+     * هرچه خودِ API در فیلدِ اسلاگ بدهد فرستاده می‌شود، و اگر اسلاگی نداد،
+     * `id` به‌عنوان آخرین چاره می‌رود (رفتارِ قبلی، نه بدتر از آن).
+     *
+     * پیش از اولین سفارشِ واقعی، `/admin/cloud/probe` را باز کنید و ببینید
+     * ردیف‌های `os` چه شکلی‌اند؛ اگر ستونِ اسلاگ چیزی شبیهِ `ubuntu_2404` نبود،
+     * **سفارش ندهید** تا نگاشت درست شود.
+     */
+    private static function osRef(array $os): string
+    {
+        foreach (['slug', 'osSlug', 'os_slug', 'code'] as $k) {
+            $v = $os[$k] ?? null;
+
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        }
+
+        $id = $os['id'] ?? '';
+
+        return is_scalar($id) ? (string) $id : '';
+    }
+
     /** «Ubuntu 24.04» → ['ubuntu', '24.04'] */
     private static function splitOsLabel(string $label, array $row = []): array
     {
@@ -1517,21 +1522,56 @@ class AezaClient implements CloudProvider
     // ───────────────────────── ساخت و مدیریت ─────────────────────────
 
     /**
-     * سفارشِ سرور.
+     * سفارشِ سرور — **گران‌ترین متدِ این فایل. هر تماسِ موفق پولِ واقعی است.**
      *
-     * ⚠️ Aeza دومرحله‌ای است: `POST /services/orders` یک **سفارش** می‌سازد و
-     * شناسهٔ سرویس بعداً در `createdServiceIds` ظاهر می‌شود. پس اینجا کوتاه صبر
-     * می‌کنیم و چند بار می‌پرسیم؛ اگر نرسید، `ref` را با پیشوندِ `order:`
-     * برمی‌گردانیم تا کرونِ تحویل بعداً همان را پی بگیرد و **سفارشِ دوم ثبت نشود**
-     * (وگرنه هر اجرای کرون یک سرورِ جدید می‌خرید).
+     * ═══ 🔴 شکلِ درخواست: چه بود، چه شد، و چرا هفته‌ها شکست می‌خورد ═══
+     *
+     * پیش از این، بدنهٔ **صافِ** نسخهٔ ۱ به مسیرِ **بی‌نسخه** می‌رفت:
+     *
+     *     POST https://my.aeza.net/api/services/orders
+     *     {"count":1,"term":"month","name":…,"productId":…,
+     *      "parameters":{"name":…,"os":…},"autoProlong":false,"method":"balance"}
+     *
+     * و همیشه `proxy_internal_server_error` (کدِ ۵۰۰) می‌گرفت. آن پیام از
+     * گیت‌ویِ آنهاست و **فرقِ «مسیر/شکل را نمی‌شناسم» با «سرورم خراب است» را
+     * نشان نمی‌دهد** — برای همین هفته‌ها شبیهِ خرابیِ سمتِ آنها به‌نظر می‌رسید و
+     * `quarantineProvider()` ۲۲۱ پلن را بست.
+     *
+     * پاسخِ کتبیِ پشتیبانی شکلِ درست را داد و حالا دقیقاً همین می‌رود:
+     *
+     *     POST https://my.aeza.net/api/v2/services/orders
+     *     {"method":"balance",
+     *      "orders":[{"productId":153,"count":1,"name":"my-server",
+     *                 "term":"month","autoProlong":false,
+     *                 "parameters":{"os":"ubuntu_2404"}}]}
+     *
+     * چهار تفاوت، هرکدام به‌تنهایی کافی برای ۵۰۰:
+     *  ۱) مسیر `v2/` دارد.
+     *  ۲) `orders` یک **آرایه از سفارش** است، نه فیلدهای صاف.
+     *  ۳) `method` در **سطحِ بالا** است، بیرونِ سفارش.
+     *  ۴) `parameters` فقط سیستم‌عامل دارد؛ `name` **کنارِ** آن است نه داخلش
+     *     (ما `name` را در هر دو جا می‌گذاشتیم).
+     *
+     * ⚠️ `term` عمداً `month` مانده و نه `hour`ِ مثالِ پشتیبانی: صورت‌حسابِ ما با
+     * زیرساخت ماهانه است. عوض کردنش یعنی تغییرِ چرخهٔ خریدِ واقعی — تصمیمِ
+     * کارفرما، نه اصلاحِ فنی.
+     *
+     * ⚠️ Aeza دومرحله‌ای است: این POST یک **سفارش** می‌سازد و شناسهٔ سرویس بعداً
+     * در `createdServiceIds` ظاهر می‌شود. پس کوتاه صبر می‌کنیم و چند بار
+     * می‌پرسیم؛ اگر نرسید، `ref` را با پیشوندِ `order:` برمی‌گردانیم تا کرونِ
+     * تحویل بعداً همان را پی بگیرد و **سفارشِ دوم ثبت نشود** (وگرنه هر اجرای
+     * کرون یک سرورِ جدید می‌خرید).
      */
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
 
-        // ایمیجِ ما یا سیستم‌عامل است یا recipe (با پیشوند)
+        // ایمیجِ ما یا سیستم‌عامل است یا recipe (با پیشوند).
+        // ⚠️ `name` عمداً این‌جا **نیست**: در مثالِ پشتیبانی `parameters` فقط
+        // سیستم‌عامل دارد و `name` هم‌ترازِ آن است. فیلدِ اضافه در بدنه‌ای که
+        // اعتبارسنجیِ سخت‌گیر دارد، همان ۵۰۰ را برمی‌گرداند.
         $imageRef = (string) $spec['image_ref'];
-        $params = ['name' => $spec['name']];
+        $params = [];
 
         if (str_starts_with($imageRef, 'recipe:')) {
             $params['recipe'] = substr($imageRef, 7);
@@ -1539,18 +1579,22 @@ class AezaClient implements CloudProvider
             $params['os'] = $imageRef;
         }
 
-        // ⚠️ اگر کشف نشد، همان نامزدِ اول را می‌زنیم — بهتر از نفرستادن است،
-        //    و پیامِ خطا صریح می‌گوید کدام مسیر امتحان شد.
-        $ordersPath = $this->resolvePath('orders') ?: self::PATH_CANDIDATES['orders'][0];
+        // شناسهٔ محصول در مثالِ پشتیبانی **عدد** است. ما آن را از دیتابیس
+        // رشته‌ای برمی‌داریم؛ رشتهٔ "153" در JSON با عددِ 153 یکی نیست و
+        // اعتبارسنجِ سخت‌گیر ردش می‌کند.
+        $productId = $spec['plan_ref'];
+        $productId = is_numeric($productId) ? (int) $productId : $productId;
 
-        $r = $this->req('POST', '/'.$ordersPath, [
-            'count'       => 1,
-            'term'        => 'month',
-            'name'        => $spec['name'],
-            'productId'   => $spec['plan_ref'],
-            'parameters'  => $params,
-            'autoProlong' => false,          // تمدید را **ما** مدیریت می‌کنیم، نه ارائه‌دهنده
-            'method'      => 'balance',      // از موجودیِ حسابِ ما کم شود
+        $r = $this->req('POST', '/'.self::ORDERS_PATH, [
+            'method' => 'balance',           // از موجودیِ حسابِ ما کم شود
+            'orders' => [[
+                'productId'   => $productId,
+                'count'       => 1,
+                'name'        => $spec['name'],
+                'term'        => 'month',
+                'autoProlong' => false,      // تمدید را **ما** مدیریت می‌کنیم، نه ارائه‌دهنده
+                'parameters'  => $params,
+            ]],
         ]);
 
         if (! $r['ok']) {
@@ -1559,9 +1603,10 @@ class AezaClient implements CloudProvider
             // دفعهٔ بعد **علت** معلوم باشد، نه فقط اینکه «نشد».
             $raw = mb_substr(json_encode($r['body'], JSON_UNESCAPED_UNICODE) ?: '', 0, 300);
             $hint = str_contains(strtolower((string) $r['message']), 'proxy internal server error')
-                ? ' — این پیامِ گیت‌وی یعنی **مسیر شناخته نشد** یا موجودیِ حسابِ زیرساخت کافی نیست.'
-                  .' مسیرِ امتحان‌شده: /'.$ordersPath.' — از «ساختارِ خامِ پاسخ» در /admin/cloud'
-                  .' ببینید کدام مسیرِ سفارش روی گیت‌وی پاسخ می‌دهد.'
+                ? ' — این پیامِ گیت‌وی یعنی شکلِ درخواست یا مسیر شناخته نشد، یا موجودیِ حسابِ'
+                  .' زیرساخت کافی نیست. مسیرِ v2 و بدنهٔ آرایه‌ای همان چیزی است که پشتیبانی'
+                  .' داد؛ پس اول **موجودیِ حساب** و بعد شناسهٔ سیستم‌عامل را بسنجید'
+                  .' («ساختارِ خامِ پاسخ» در /admin/cloud).'
                 : '';
 
             return ['ok' => false, 'message' => 'ثبتِ سفارش نزدِ زیرساخت انجام نشد: '
@@ -1569,14 +1614,17 @@ class AezaClient implements CloudProvider
                 .($raw !== '' && $raw !== '[]' ? ' | پاسخ: '.$raw : ''), ] + $fail;
         }
 
-        $orderId = (string) (data_get($r['body'], 'data.id') ?? data_get($r['body'], 'id') ?? '');
-        $ids = (array) (data_get($r['body'], 'data.createdServiceIds') ?? data_get($r['body'], 'createdServiceIds') ?? []);
+        $orderId = self::orderIdOf($r['body']);
+        $ids = self::serviceIdsIn($r['body']);
 
-        // چند تلاشِ کوتاه؛ بیش از این را به کرون می‌سپاریم تا وب‌هوکِ درگاه معطل نشود
+        // چند تلاشِ کوتاه؛ بیش از این را به کرون می‌سپاریم تا وب‌هوکِ درگاه معطل نشود.
+        //
+        // ⚠️ `Sleep::usleep` و نه `usleep`ِ خام: تنها تفاوتش این است که در تست
+        // با `Sleep::fake()` صفر می‌شود. با خوابِ خام، تستِ همین مسیر ۷٫۵ ثانیه
+        // به سوئیت اضافه می‌کرد — و تستی که کند است، تستی است که نوشته نمی‌شود.
         for ($i = 0; $i < 5 && $ids === [] && $orderId !== ''; $i++) {
-            usleep(1500000);
-            $o = $this->req('GET', '/'.$ordersPath.'/'.rawurlencode($orderId));
-            $ids = (array) (data_get($o['body'], 'data.createdServiceIds') ?? data_get($o['body'], 'createdServiceIds') ?? []);
+            \Illuminate\Support\Sleep::usleep(1500000);
+            $ids = $this->serviceIdsOfOrder($orderId);
         }
 
         if ($ids === []) {
@@ -1610,10 +1658,103 @@ class AezaClient implements CloudProvider
             return null;
         }
 
-        $r = $this->req('GET', '/services/orders/'.rawurlencode(substr($orderRef, 6)));
-        $ids = (array) (data_get($r['body'], 'data.createdServiceIds') ?? data_get($r['body'], 'createdServiceIds') ?? []);
+        $ids = $this->serviceIdsOfOrder(substr($orderRef, 6));
 
         return $ids === [] ? null : (string) reset($ids);
+    }
+
+    /**
+     * شناسهٔ سرویس‌های ساخته‌شدهٔ یک سفارش — با **GET**، پس بی‌هزینه و بی‌خطر.
+     *
+     * ⚠️ هر دو نسخهٔ مسیر امتحان می‌شود چون پشتیبانی فقط دربارهٔ **ثبتِ** سفارش
+     * (POST v2) نوشت و دربارهٔ خواندنش چیزی نگفت. اگر v2 پاسخ ندهد، v1 —
+     * همان مسیری که داکیومنتِ رسمی می‌گوید — امتحان می‌شود. اشتباه در این‌جا
+     * فقط یک درخواستِ بی‌نتیجه است، نه یک سرورِ خریده‌شده.
+     *
+     * @return array<int, mixed>
+     */
+    private function serviceIdsOfOrder(string $orderId): array
+    {
+        foreach (self::ORDER_READ_PATHS as $path) {
+            $o = $this->req('GET', '/'.$path.'/'.rawurlencode($orderId));
+
+            if (! $o['ok']) {
+                continue;
+            }
+
+            $ids = self::serviceIdsIn($o['body']);
+
+            if ($ids !== []) {
+                return $ids;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * `createdServiceIds` را هرجای بدنه که باشد پیدا کن.
+     *
+     * ⚠️ چرا جستجوی بازگشتی و نه دو مسیرِ ثابت: در نسخهٔ ۱ پاسخ یک سفارش بود و
+     * `data.createdServiceIds` جواب می‌داد. در نسخهٔ ۲ ما یک **آرایه** سفارش
+     * می‌فرستیم، پس پاسخ به‌احتمالِ زیاد آرایه‌ای است
+     * (`data.items[0].createdServiceIds` یا `data.orders[0]…`) — و ما شکلِ
+     * دقیقش را **ندیده‌ایم**، چون سندباختی وجود ندارد.
+     *
+     * حدس‌زدنِ مسیر این‌جا گران است: اگر پیدا نکنیم، سرویسِ ساخته‌شده به
+     * `order:` می‌افتد و مشتری تا اجرای بعدیِ کرون منتظر می‌مانَد. جستجوی
+     * بازگشتی این ریسک را حذف می‌کند و چون فقط دنبالِ یک **نامِ کلیدِ مشخص**
+     * می‌گردد، هیچ‌چیزِ دیگری را به‌اشتباه شناسهٔ سرویس نمی‌گیرد.
+     *
+     * @return array<int, mixed>
+     */
+    private static function serviceIdsIn(mixed $node, int $depth = 0): array
+    {
+        if ($depth > 6 || ! is_array($node)) {
+            return [];
+        }
+
+        foreach (['createdServiceIds', 'created_service_ids'] as $key) {
+            if (isset($node[$key]) && is_array($node[$key]) && $node[$key] !== []) {
+                return array_values($node[$key]);
+            }
+        }
+
+        foreach ($node as $child) {
+            $found = self::serviceIdsIn($child, $depth + 1);
+
+            if ($found !== []) {
+                return $found;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * شناسهٔ خودِ **سفارش** در پاسخ.
+     *
+     * ⚠️ ترتیب مهم است و اولین جای درست باید زودتر بیاید: در پاسخِ آرایه‌ایِ
+     * نسخهٔ ۲، `data.id` ممکن است اصلاً نباشد و شناسه داخلِ اولین ردیف باشد.
+     * اگر این را پیدا نکنیم، `ref` نال می‌شود و **محافظِ «دوباره نخر» از کار
+     * می‌افتد** — یعنی اجرای بعدیِ کرون یک سرورِ دوم می‌خرد.
+     */
+    private static function orderIdOf(array $body): string
+    {
+        foreach ([
+            'data.id', 'id',
+            'data.items.0.id', 'items.0.id',
+            'data.orders.0.id', 'orders.0.id',
+            'data.0.id',
+        ] as $path) {
+            $v = data_get($body, $path);
+
+            if ((is_string($v) && trim($v) !== '') || is_int($v)) {
+                return (string) $v;
+            }
+        }
+
+        return '';
     }
 
     public function serverStatus(string $ref): array

@@ -706,10 +706,6 @@ class CloudCatalogTest extends TestCase
         Http::fake(function ($request) use (&$urls) {
             $urls[] = $request->url();
 
-            if (str_contains($request->url(), 'payment/currencies')) {
-                return Http::response(['data' => ['items' => [['code' => 'EUR', 'multiplier' => 0.01]]]], 200);
-            }
-
             return Http::response(['data' => ['items' => [], 'total' => 0]], 200);
         });
 
@@ -824,24 +820,23 @@ class CloudCatalogTest extends TestCase
         $this->assertSame('products', Setting::get('aeza_path_products'));
     }
 
-    // ═══════════════ تبدیلِ روبل و صافیِ «فقط سرورِ مجازی» ═══════════════
+    // ═══════════════ ارزِ یورو و صافیِ «فقط سرورِ مجازی» ═══════════════
 
     /** فهرستِ محصولِ آیزا با مسیرهای ازقبل‌کشف‌شده */
-    private function fakeAeza(array $products, ?array $currencyBody = null): void
+    private function fakeAeza(array $products): void
     {
         Setting::putSecret('aeza_api_token', 'k');
         Setting::put('aeza_path_products', 'services/products');
         Setting::put('aeza_path_os', 'os');
         Setting::put('aeza_path_recipe', 'vm/recipe');
-        Setting::put('aeza_path_currencies', 'payment/currencies');
 
-        Http::fake(function ($request) use ($products, $currencyBody) {
+        Http::fake(function ($request) use ($products) {
             $url = $request->url();
 
-            if (str_contains($url, 'payment/currencies')) {
-                return Http::response($currencyBody ?? ['data' => ['items' => [
-                    ['code' => 'EUR', 'multiplier' => 0.01],      // ۱۰۰ روبل = ۱ یورو
-                ]]], 200);
+            // ⚠️ اگر روزی کسی تماسِ نرخِ ارز را برگرداند، همین‌جا با ۵۰۰ روبه‌رو
+            // می‌شود — همان کدی که روی حسابِ واقعی می‌آمد و سینک را می‌کشت.
+            if (str_contains($url, 'currencies')) {
+                return Http::response(['error' => ['message' => 'proxy_internal_server_error']], 500);
             }
 
             if (str_contains($url, 'services/products')) {
@@ -858,12 +853,22 @@ class CloudCatalogTest extends TestCase
             'id' => 77, 'name' => 'EPs-1', 'type' => 'vm',
             'cpu' => 2, 'ram' => 4096, 'disk' => 60,
             'location' => ['country' => 'DE', 'city' => 'Frankfurt', 'id' => 'de-1'],
-            // ⚠️ به **کوپک** — واحدِ واقعیِ این API. ۵۰٬۰۰۰ کوپک = ۵۰۰ روبل = ۵ یورو
-            'prices' => ['month' => 50000.0],
+            // ⚠️ به **سنتِ یورو** — حسابِ ما فقط یورو می‌تواند باشد (پاسخِ کتبیِ
+            // پشتیبانی)، پس عدد کوچک‌ترین یکای همان ارز است. ۵۰۰ سنت = ۵ یورو.
+            'prices' => ['month' => 500.0],
         ], $over);
     }
 
-    public function test_ruble_price_is_converted_to_euro_cents(): void
+    /**
+     * 🔴 تا مرداد ۱۴۰۵ این تست «تبدیلِ روبل به یورو» را می‌سنجید و کلِ آن زنجیره
+     * غلط بود: قیمت را از `payment/currencies` در ضریبی ضرب می‌کردیم که آن مسیر
+     * اصلاً برنمی‌گرداند (کدِ ۵۰۰ می‌داد). نتیجه در بهترین حالت **کاتالوگِ خالی**
+     * بود و در بدترین حالت پلن‌هایی **۱۰۰ برابر ارزان‌تر** از قیمتِ واقعی.
+     *
+     * پشتیبانی نوشت: «موجودیِ حساب فقط می‌تواند یورو باشد.» پس تبدیلی در کار
+     * نیست و عدد همان سنتِ یورو است.
+     */
+    public function test_price_is_read_as_euro_cents_with_no_conversion(): void
     {
         $this->fakeAeza([$this->aezaVps()]);
 
@@ -871,64 +876,38 @@ class CloudCatalogTest extends TestCase
 
         $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
         $this->assertCount(1, $cat['plans']);
-        // ۵۰۰ روبل × ۰٫۰۱ = ۵ یورو = ۵۰۰ سنت
         $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
     }
 
     /**
-     * نرخِ دستیِ مدیر باید **اولویت** داشته باشد و بی‌تماس با نرخِ آنها کار کند —
-     * چون مدیر می‌داند واقعاً چند پرداخته، ولی ضریبِ صرافیِ آنها می‌تواند حاشیه
-     * داشته باشد.
+     * 🔴 مهم‌تر از خودِ عدد: آن مسیر دیگر **زده نمی‌شود**.
+     *
+     * حتی وقتی ضریب لازم نبود، خودِ تماس ۵۰۰ می‌گرفت و `cloud:sync` را با کدِ
+     * خروجیِ ۱ می‌خواباند — یعنی یک وابستگیِ بی‌فایده که کارِ سالم را می‌کشت.
      */
-    public function test_manual_rub_per_eur_setting_wins(): void
+    public function test_catalog_never_calls_the_currency_endpoint_again(): void
     {
-        Setting::put('aeza_rub_per_eur', '125');                   // ۱ یورو = ۱۲۵ روبل
         $this->fakeAeza([$this->aezaVps()]);
 
         $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
 
-        // ۵۰۰ روبل ÷ ۱۲۵ = ۴ یورو = ۴۰۰ سنت
-        $this->assertSame(400, $cat['plans'][0]['cost_eur_cents']);
+        $this->assertTrue($cat['ok'], 'مسیرِ ۵۰۰دهنده نباید کاتالوگ را بخواباند');
+
+        foreach (Http::recorded() as [$request]) {
+            $this->assertStringNotContainsString('currencies', $request->url());
+        }
     }
 
-    /**
-     * ⚠️ اگر ارائه‌دهنده ضریب را در جهتِ عکس بدهد («۱۰۰ روبل به‌ازای یورو»
-     * به‌جای «۰٫۰۱ یورو به‌ازای روبل»)، ضربِ مستقیم قیمت را ۱۰٬۰۰۰ برابر
-     * می‌کند و سرورِ ۵ یورویی را چند صد یورو می‌فروشیم.
-     */
-    public function test_inverted_multiplier_is_normalized(): void
+    /** تنظیمِ کهنهٔ «۱ یورو چند روبل» دیگر روی هیچ قیمتی اثر ندارد */
+    public function test_the_old_ruble_setting_no_longer_changes_any_price(): void
     {
-        $this->fakeAeza([$this->aezaVps()], ['data' => ['items' => [
-            ['code' => 'EUR', 'multiplier' => 100],                // جهتِ عکس
-        ]]]);
+        Setting::put('aeza_rub_per_eur', '125');
+        $this->fakeAeza([$this->aezaVps()]);
 
         $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
 
-        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents'], 'باید ۵ یورو بشود، نه ۵۰٬۰۰۰');
-    }
-
-    /** نگاشتِ سادهٔ کد→ضریب هم پذیرفته شود */
-    public function test_flat_currency_map_is_understood(): void
-    {
-        $this->fakeAeza([$this->aezaVps()], ['data' => ['EUR' => 0.01, 'USD' => 0.011]]);
-
-        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
-
-        $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
-        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
-    }
-
-    /** بی‌نرخ، هیچ قیمتی ساخته نشود و پیام راهِ حل را بگوید */
-    public function test_no_rate_means_no_catalog_with_an_actionable_message(): void
-    {
-        $this->fakeAeza([$this->aezaVps()], ['data' => ['items' => []]]);
-
-        $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
-
-        $this->assertFalse($cat['ok']);
-        $this->assertSame([], $cat['plans']);
-        $this->assertStringContainsString('روبل', $cat['message']);
-        $this->assertStringContainsString('چند روبل', $cat['message'], 'پیام باید بگوید چه کار کنیم');
+        $this->assertSame(500, $cat['plans'][0]['cost_eur_cents'],
+            'اگر ۴۰۰ شد، یعنی جایی هنوز تبدیلِ روبل مانده است');
     }
 
     /**
@@ -937,8 +916,6 @@ class CloudCatalogTest extends TestCase
      */
     public function test_only_vps_products_enter_the_catalog(): void
     {
-        Setting::put('aeza_rub_per_eur', '100');
-
         $this->fakeAeza([
             $this->aezaVps(),
             ['id' => 1, 'name' => 'SOCKS5 Proxy', 'type' => 'proxy', 'cpu' => 1, 'ram' => 512, 'disk' => 10,
@@ -962,7 +939,6 @@ class CloudCatalogTest extends TestCase
     /** شهرِ یکسان از دو زیرساخت باید به یک مکان برسد — با دادهٔ واقعیِ هر دو */
     public function test_aeza_and_hetzner_share_a_location_code(): void
     {
-        Setting::put('aeza_rub_per_eur', '100');
         $this->fakeAeza([$this->aezaVps(['location' => ['country' => 'DE', 'city' => 'Falkenstein']])]);
 
         $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();

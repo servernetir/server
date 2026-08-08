@@ -56,7 +56,9 @@ class SettingsController extends Controller
                 && filled(Setting::getSecret('ovh_consumer_key')),
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
-            'rub'     => $ready ? Setting::get('aeza_rub_per_eur') : null,
+            // 🔴 «۱ یورو چند روبل» حذف شد: حسابِ زیرساختِ ۲ فقط یورو می‌تواند
+            // باشد (پاسخِ کتبیِ پشتیبانی‌شان)، پس هیچ تبدیلِ ارزی در کار نیست.
+            // فیلدی که چیزی را عوض نمی‌کند از نبودنش بدتر است.
             'divisor' => $ready ? Setting::get('aeza_price_divisor') : null,
             'promo'   => $ready && Setting::get('aeza_include_promo') === '1',
             'unlimited' => $ready && Setting::get('cloud_traffic_unlimited') === '1',
@@ -114,10 +116,7 @@ class SettingsController extends Controller
             'domain_nameservers'    => ['nullable', 'string', 'max:500'],
             'cloud_traffic_unlimited' => ['nullable'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
-            // «۱ یورو چند روبل» — چون API زیرساختِ دوم قیمت را به روبل می‌دهد.
-            // کرانِ ۱۰ تا ۵۰۰۰ جلوی اشتباهِ جهت را می‌گیرد (کسی ۰٫۰۱ وارد نکند).
-            'aeza_rub_per_eur'      => ['nullable', 'numeric', 'min:10', 'max:5000'],
-            // واحدِ عددِ قیمت در API زیرساختِ ۲: ۱۰۰ = کوپک · ۱ = روبل
+            // واحدِ عددِ قیمت در API زیرساختِ ۲: ۱۰۰ = سنتِ یورو · ۱ = یورو
             'aeza_price_divisor'    => ['nullable', 'in:1,100'],
             // پلنِ تشویقی: پیش‌فرض کنار می‌رود چون قیمتِ تمدیدش پایدار نیست
             'aeza_include_promo'     => ['nullable', 'boolean'],
@@ -170,7 +169,7 @@ class SettingsController extends Controller
             }
         }
 
-        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'aeza_rub_per_eur', 'aeza_price_divisor',
+        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'aeza_price_divisor',
             'domain_margin_pct', 'domain_nameservers'] as $k) {
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }

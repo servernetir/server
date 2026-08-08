@@ -20,7 +20,7 @@ use Tests\TestCase;
  * ساختار را دارند:
  *
  *  • carlsmei/go-aeza-sdk                → Product / Configuration / Price
- *  • scinfra-pro/terraform-provider-aeza → legacy.Product، group.payload، واحدِ کوپک
+ *  • scinfra-pro/terraform-provider-aeza → legacy.Product، group.payload، «کوچک‌ترین یکای ارز»
  *  • nikolai-in/aeza1password            → summaryConfiguration.{cpu,ram,rom}.count
  *  • AezaGroup/aeza-net-sdk (رسمی)       → id / name / payload.oslist / prices
  *
@@ -46,10 +46,10 @@ class CloudAezaMappingTest extends TestCase
         Setting::put('aeza_path_products', 'services/products');
         Setting::put('aeza_path_os', 'os');
         Setting::put('aeza_path_recipe', 'vm/recipe');
-        Setting::put('aeza_path_currencies', 'payment/currencies');
 
-        // ۱ یورو = ۱۰۰ روبل — نرخِ دستی، تا تست به تماسِ ارز وابسته نباشد
-        Setting::put('aeza_rub_per_eur', '100');
+        // ⚠️ هیچ نرخِ ارزی ست نمی‌شود — و لازم هم نیست: پشتیبانیِ آن ارائه‌دهنده
+        // کتباً گفت موجودیِ حساب فقط می‌تواند **یورو** باشد، پس قیمت‌ها یورویی‌اند
+        // و مسیرِ `payment/currencies` (که ۵۰۰ می‌داد) از کد حذف شد.
     }
 
     // ═══════════════════ نمونه‌های واقع‌نما ═══════════════════
@@ -74,7 +74,10 @@ class CloudAezaMappingTest extends TestCase
     /**
      * محصولِ سرورِ مجازی — دقیقاً ساختارِ `legacy.Product` و `Product` گو:
      * `configuration` یک **فهرست** با `slug`/`base` و دیسک با اسلاگِ `rom`.
-     * قیمت‌ها به **کوپک**‌اند (۵۰٬۰۰۰ کوپک = ۵۰۰ روبل = ۵ یورو).
+     *
+     * قیمت‌ها به **سنتِ یورو**‌اند (۵۰۰ سنت = ۵ یورو). داکیومنتِ
+     * ترافورم‌پروایدرشان می‌گوید عددها «کوچک‌ترین یکای ارز» اند و پشتیبانی گفت
+     * آن ارز فقط یورو می‌تواند باشد ⇒ عدد = سنت.
      */
     private function vps(array $over = []): array
     {
@@ -92,8 +95,8 @@ class CloudAezaMappingTest extends TestCase
                 ['slug' => 'rom', 'base' => 60, 'max' => 400, 'type' => 'slider'],
                 ['slug' => 'ip', 'base' => 1, 'max' => 4, 'type' => 'slider'],
             ],
-            'prices'    => ['hour' => 69, 'month' => 50000, 'year' => 500000],
-            'rawPrices' => ['hour' => 69, 'month' => 50000, 'year' => 500000],
+            'prices'    => ['hour' => 1, 'month' => 500, 'year' => 5000],
+            'rawPrices' => ['hour' => 1, 'month' => 500, 'year' => 5000],
             'payload'   => ['oslist' => [940, 941]],
             'group'     => $this->group(),
         ], $over);
@@ -102,16 +105,10 @@ class CloudAezaMappingTest extends TestCase
     /**
      * یک `Http::fake` برای همهٔ مسیرها. **فقط یک بار** ثبت می‌شود.
      */
-    private function fake(array $products, array $os = [], ?array $currencies = null): void
+    private function fake(array $products, array $os = []): void
     {
-        Http::fake(function ($request) use ($products, $os, $currencies) {
+        Http::fake(function ($request) use ($products, $os) {
             $url = $request->url();
-
-            if (str_contains($url, 'payment/currencies')) {
-                return Http::response($currencies ?? ['data' => ['items' => [
-                    ['code' => 'EUR', 'multiplier' => 0.01],
-                ]]], 200);
-            }
 
             if (str_contains($url, 'services/products')) {
                 return Http::response(
@@ -157,8 +154,8 @@ class CloudAezaMappingTest extends TestCase
         $this->assertSame('shared', $plan['cpu_kind']);
         $this->assertTrue($plan['in_stock']);
 
-        // ۵۰٬۰۰۰ کوپک = ۵۰۰ روبل ÷ ۱۰۰ روبل‌به‌یورو = ۵ یورو = ۵۰۰ سنت
-        $this->assertSame(500, $plan['cost_eur_cents'], 'قیمتِ API کوپک است، نه روبل');
+        // ۵۰۰ سنت = ۵ یورو. هیچ ضریبِ ارزی در کار نیست.
+        $this->assertSame(500, $plan['cost_eur_cents'], 'عددِ API سنتِ یورو است');
 
         // مکان هم باید ساخته شود، وگرنه پلن جای نشستن ندارد
         $this->assertSame('NL', $cat['locations'][0]['country']);
@@ -196,7 +193,7 @@ class CloudAezaMappingTest extends TestCase
         $row = $this->vps();
         unset($row['rawPrices']);
         $row['prices'] = [
-            'month' => ['value' => 50000, 'suffix' => '₽', 'defaultCurrency' => true, 'slug' => 'rub'],
+            'month' => ['value' => 500, 'suffix' => '€', 'defaultCurrency' => true, 'slug' => 'eur'],
         ];
 
         $this->fake([$row]);
@@ -209,24 +206,24 @@ class CloudAezaMappingTest extends TestCase
      */
     public function test_individual_price_wins_over_list_price(): void
     {
-        $this->fake([$this->vps(['individualPrices' => ['month' => 30000]])]);
+        $this->fake([$this->vps(['individualPrices' => ['month' => 300]])]);
 
-        // ۳۰٬۰۰۰ کوپک = ۳۰۰ روبل = ۳ یورو
+        // ۳۰۰ سنت = ۳ یورو
         $this->assertSame(300, $this->catalog()['plans'][0]['cost_eur_cents'] ?? null);
     }
 
     /**
      * واحدِ قیمت یک **تنظیم** است، نه یک حدس.
      *
-     * 🔴 چرا تستِ قبلی حذف شد: فرض می‌کرد می‌شود از بزرگیِ عدد فهمید کوپک است
-     * یا روبل. این ریاضیاتاً نشدنی است — عددِ ۵۰٬۰۰۰ اگر کوپک باشد ۵۰۰ روبل و
-     * اگر روبل باشد ۵۰٬۰۰۰ روبل، و **هر دو** برای یک سرورِ مجازی منطقی‌اند.
-     * هیچ بازه‌ای این دو را جدا نمی‌کند، پس حدس‌زدن یعنی گاهی ۱۰۰ برابر ارزان
-     * فروختن — و درست همین اتفاق روی حسابِ واقعی افتاد.
+     * 🔴 چرا حدس‌زدن ممکن نیست: عددِ ۵۰۰ اگر سنت باشد ۵ یورو است و اگر یورو
+     * باشد ۵۰۰ یورو، و **هر دو** برای یک سرورِ مجازی ممکن‌اند (اولی VPSِ کوچک،
+     * دومی پلنِ چندده‌هسته‌ای). هیچ بازه‌ای این دو را جدا نمی‌کند، پس حدس‌زدن
+     * یعنی گاهی ۱۰۰ برابر ارزان فروختن — و درست همین اتفاق روی حسابِ واقعی
+     * افتاد و کارفرما با چشم دیدش.
      */
     public function test_price_divisor_is_an_explicit_setting(): void
     {
-        // پیش‌فرض: کوپک (÷۱۰۰) — از داکیومنتِ Terraform همان ارائه‌دهنده
+        // پیش‌فرض: سنت (÷۱۰۰) — از داکیومنتِ Terraform همان ارائه‌دهنده
         $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
 
         \App\Models\Setting::put('aeza_price_divisor', '1');
@@ -237,19 +234,18 @@ class CloudAezaMappingTest extends TestCase
         $this->assertSame(100.0, \App\Services\Cloud\AezaClient::priceDivisor());
     }
 
-    /** با مقسومِ ۱، همان عدد روبل خوانده می‌شود */
-    public function test_divisor_one_reads_the_number_as_rubles(): void
+    /** با مقسومِ ۱، همان عدد **یوروی کامل** خوانده می‌شود */
+    public function test_divisor_one_reads_the_number_as_whole_euros(): void
     {
         \App\Models\Setting::put('aeza_price_divisor', '1');
-        \App\Models\Setting::put('aeza_rub_per_eur', '100');
 
-        // هر دو کیف را عوض کن: rawPrices اول خوانده می‌شود
-        $this->fake([$this->vps(['prices' => ['month' => 500], 'rawPrices' => ['month' => 500]])]);
+        // هر دو کیف را عوض کن: rawPrices پیش از prices خوانده می‌شود
+        $this->fake([$this->vps(['prices' => ['month' => 5], 'rawPrices' => ['month' => 5]])]);
 
         $cat = app(\App\Services\Cloud\AezaClient::class)->fetchCatalog();
 
         $this->assertCount(1, $cat['plans'], (string) ($cat['message'] ?? ''));
-        // ۵۰۰ روبل ÷ ۱۰۰ = ۵ یورو = ۵۰۰ سنت
+        // ۵ یورو = ۵۰۰ سنت
         $this->assertSame(500, $cat['plans'][0]['cost_eur_cents']);
     }
 
@@ -466,8 +462,8 @@ class CloudAezaMappingTest extends TestCase
             'id' => 77, 'name' => 'EPs-1', 'type' => 'vm',
             'cpu' => 2, 'ram' => 4096, 'disk' => 60,
             'location' => ['country' => 'DE', 'city' => 'Frankfurt', 'id' => 'de-1'],
-            // به کوپک، مثلِ بقیه — ۵۰٬۰۰۰ کوپک = ۵۰۰ روبل
-            'prices' => ['month' => 50000.0],
+            // به سنتِ یورو، مثلِ بقیه — ۵۰۰ سنت = ۵ یورو
+            'prices' => ['month' => 500.0],
         ]]);
 
         $plan = $this->catalog()['plans'][0] ?? null;
@@ -558,7 +554,12 @@ class CloudAezaMappingTest extends TestCase
         // و این‌که نگاشتِ فعلی از همین ردیف چه فهمید
         $this->assertSame('ok', $shape['parsed']['vps_verdict'] ?? null);
         $this->assertSame(60, $shape['parsed']['specs']['disk_gb'] ?? null);
-        $this->assertSame(500.0, $shape['parsed']['monthly_rub'] ?? null);
+
+        // 🔴 عددِ **خام** کنارِ عددِ **تفسیرشده** و مقسومی که به کار رفته: تنها
+        // راهی که مدیر بتواند با فاکتورِ واقعیِ خودش بسنجد کدام واحد درست است.
+        $this->assertSame(500.0, $shape['parsed']['monthly_raw'] ?? null);
+        $this->assertSame(100.0, $shape['parsed']['price_divisor'] ?? null);
+        $this->assertSame(500, $shape['parsed']['monthly_eur_cents'] ?? null);
     }
 
     /** ردیفی که هیچ‌چیزش نخواند هم باید کلیدهایش را لو بدهد */
@@ -586,7 +587,7 @@ class CloudAezaMappingTest extends TestCase
     {
         $this->fake([
             $this->vps(),
-            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 9000], 'rawPrices' => ['month' => 9000]]),
+            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 90], 'rawPrices' => ['month' => 90]]),
         ]);
 
         $cat = $this->catalog();
@@ -606,9 +607,9 @@ class CloudAezaMappingTest extends TestCase
         $this->fake([
             $this->vps([
                 'id' => 901, 'name' => 'NLs-9',
-                'prices'      => ['month' => 50000],
-                'rawPrices'   => ['month' => 50000],
-                'firstPrices' => ['month' => 9000],   // دورهٔ اول ارزان‌تر
+                'prices'      => ['month' => 500],
+                'rawPrices'   => ['month' => 500],
+                'firstPrices' => ['month' => 90],     // دورهٔ اول ارزان‌تر
             ]),
         ]);
 
@@ -624,9 +625,9 @@ class CloudAezaMappingTest extends TestCase
     {
         $this->fake([
             $this->vps([
-                'prices'      => ['month' => 50000],
-                'rawPrices'   => ['month' => 50000],
-                'firstPrices' => ['month' => 50000],
+                'prices'      => ['month' => 500],
+                'rawPrices'   => ['month' => 500],
+                'firstPrices' => ['month' => 500],
             ]),
         ]);
 
@@ -639,7 +640,7 @@ class CloudAezaMappingTest extends TestCase
         \App\Models\Setting::put('aeza_include_promo', '1');
 
         $this->fake([
-            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 9000], 'rawPrices' => ['month' => 9000]]),
+            $this->vps(['id' => 900, 'name' => 'SEs-1 PROMO', 'prices' => ['month' => 90], 'rawPrices' => ['month' => 90]]),
         ]);
 
         $this->assertCount(1, $this->catalog()['plans'], 'با تنظیمِ صریح باید بیاید');

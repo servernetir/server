@@ -636,6 +636,17 @@ class CloudProvisioner
      * `admin_disabled` را لمس نمی‌کند، پس تصمیم تا وقتی مدیر بازش نکند
      * برنمی‌گردد. با `is_active`، سینکِ دو روزه بی‌صدا دوباره بازش می‌کرد.
      */
+    /**
+     * پیشوندِ یادداشتی که قرنطینهٔ **خودکار** می‌گذارد.
+     *
+     * 🔴 چرا یک ثابتِ مشترک و نه یک رشته در دو جا: فرمانِ بازکردن
+     * (`cloud:reopen`) باید بتواند پلنی را که **این متد** بست از پلنی که
+     * **مدیر آگاهانه** بست تشخیص دهد. اگر این دو رشته روزی از هم بیفتند،
+     * فرمان یا هیچ‌چیز باز نمی‌کند یا — بدتر — پکیجی را باز می‌کند که مدیر
+     * عمداً بسته بود.
+     */
+    public const QUARANTINE_PREFIX = 'خودکار بسته شد:';
+
     private function quarantineProvider(CloudPlan $plan, string $message): void
     {
         $structural = [
@@ -664,7 +675,7 @@ class CloudProvisioner
             return;
         }
 
-        $note = 'خودکار بسته شد: زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
+        $note = self::QUARANTINE_PREFIX.' زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
 
         $closed = CloudPlan::query()
             ->where('provider', $plan->provider)
@@ -682,7 +693,11 @@ class CloudProvisioner
             app(\App\Services\Notify\AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
                 'تعداد پلن' => (string) $closed,
                 'علت'       => mb_substr($message, 0, 200),
-                'اقدام'     => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید، بعد از /admin/cloud دوباره بازشان کنید.',
+                // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —
+                // که یک‌بار واقعاً پیش آمد و عملاً یعنی راهی نبود.
+                'اقدام'     => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
+                    .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
+                    .'(یا ردیف‌به‌ردیف از /admin/cloud).',
             ], url('/admin/cloud'), '🛑');
         } catch (\Throwable) {
         }
