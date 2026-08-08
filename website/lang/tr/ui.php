@@ -116,6 +116,9 @@ return [
     'hp_related_title' => 'ServerNet\'in diğer hizmetleri',
     'hp_sig_badge' => 'Neden ServerNet',
     'hp_contact_price' => 'Satışla iletişime geçin',
+    // Bu lokasyonun anlık stoğu yok — özellikler kalır, asla uydurma fiyat yazmayız
+    'hp_stock_out' => 'Bu lokasyonun mağazada şu anda anlık stoğu yok, bu yüzden çevrimiçi fiyat gösterilmiyor. Plan özellikleri karşılaştırma için burada kalıyor; güncel fiyat ve teslim süresi için satış ekibiyle iletişime geçin.',
+    'hp_no_plans' => 'Şu anda bu sayfada gösterilecek bir planımız yok. Mevcut seçenekleri görüşmek için satış ekibiyle iletişime geçin.',
 
     /* İletişim */
     'ct_title' => 'İletişim',
@@ -1893,4 +1896,14 @@ return [
     'inv_cy_txid_ph' => 'İşlem kimliği (TXID)',
     'inv_cy_from_ph' => 'Gönderen cüzdan adresi — isteğe bağlı',
     'inv_cy_warn' => 'Yalnızca bu ağ üzerinden gönderin. Başka bir ağdaki transfer geri alınamaz ve para kaybolur.',
+    'cy_intro' => 'Bu fatura için özel bir adres oluşturulur ve :min dakikanız olur. Tutar o anki kurla sabitlenir.',
+    'cy_get_address' => 'Ödeme adresi al',
+    'cy_send_exactly' => 'Tam tutar',
+    'cy_time_left' => 'Kalan süre',
+    'cy_waiting' => 'Transferiniz bekleniyor… ağ onayladığı anda bu sayfa kendini günceller.',
+    'cy_seen' => 'Transferiniz görüldü; ağın son onayı bekleniyor.',
+    'cy_expired' => 'Süre doldu. Yeniden denemek için yeni bir adres isteyin.',
+    'cy_verify_tail' => 'Göndermeden önce adresin son birkaç karakterini cüzdanınızdakiyle karşılaştırın.',
+    'cy_unavailable' => 'Kripto ödeme şu anda kullanılamıyor. Lütfen kısa süre sonra tekrar deneyin.',
+    'cy_not_payable' => 'Bu fatura ödenebilir değil.',
 ];

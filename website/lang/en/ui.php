@@ -116,6 +116,9 @@ return [
     'hp_related_title' => 'More services by ServerNet',
     'hp_sig_badge' => 'Why ServerNet',
     'hp_contact_price' => 'Contact sales',
+    // Live stock for this location is empty — specs stay, we never invent a price
+    'hp_stock_out' => 'This location has no live stock in the store right now, so no online price is shown. The plan specifications stay here for comparison — contact sales for today\'s price and delivery time.',
+    'hp_no_plans' => 'We have no plans to show on this page at the moment. Contact sales to review the available options.',
 
     /* Contact */
     'ct_title' => 'Contact Us',
@@ -1893,4 +1896,14 @@ return [
     'inv_cy_txid_ph' => 'Transaction hash (TXID)',
     'inv_cy_from_ph' => 'Sending wallet address — optional',
     'inv_cy_warn' => 'Send on this network only. A transfer on any other network cannot be recovered and the funds are lost.',
+    'cy_intro' => 'A dedicated address is generated for this invoice and you have :min minutes. The amount is locked at the rate of that moment.',
+    'cy_get_address' => 'Get payment address',
+    'cy_send_exactly' => 'Exact amount',
+    'cy_time_left' => 'Time left',
+    'cy_waiting' => 'Waiting for your transfer… this page updates itself as soon as the network confirms.',
+    'cy_seen' => 'Your transfer was spotted; waiting for final network confirmation.',
+    'cy_expired' => 'The window has closed. Request a fresh address to try again.',
+    'cy_verify_tail' => 'Before sending, compare the last few characters of the address with what your wallet shows.',
+    'cy_unavailable' => 'Crypto payment is not available right now. Please try again shortly.',
+    'cy_not_payable' => 'This invoice is not payable.',
 ];

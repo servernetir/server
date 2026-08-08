@@ -177,6 +177,75 @@ class PaymentController extends Controller
             |    نمی‌گرفتیم و مشتری هم فکر می‌کرد سایت خراب است.
             */
             'offline'      => \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code),
+
+            // رمزارز: فقط دارایی‌هایی که واقعاً آدرسِ آزاد دارند + پرداختِ بازِ جاری
+            'cryptoAssets' => Schema::hasTable('crypto_wallets')
+                ? app(\App\Services\Crypto\CryptoIssuer::class)->available()
+                : [],
+            'cryptoOpen'   => Schema::hasTable('crypto_payments')
+                ? \App\Models\CryptoPayment::where('invoice_id', $invoice->id)
+                    ->whereIn('status', ['pending', 'seen'])->where('expires_at', '>', now())
+                    ->latest('id')->first()
+                : null,
+        ]);
+    }
+
+    /**
+     * صدورِ یک پرداختِ رمزارز — آدرس و مبلغ و مهلت.
+     *
+     * ⚠️ هیچ پولی این‌جا تسویه نمی‌شود. فقط «به این آدرس این مقدار بفرست» ساخته
+     * می‌شود؛ تأیید کارِ کرونِ `crypto:watch` است که زنجیره را می‌خواند.
+     */
+    public function cryptoIssue(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice);
+
+        if (! $invoice->isPayable()) {
+            return back()->withErrors(['crypto' => __('ui.cy_not_payable')]);
+        }
+
+        $asset = (string) $request->input('asset', 'USDT');
+        $cp = app(\App\Services\Crypto\CryptoIssuer::class)->issue($invoice, $asset);
+
+        /*
+        | 🔴 شکست باید **صریح** باشد.
+        |
+        | سه علتِ ممکن: نرخ به دست نیامد، استخرِ آدرس خالی بود، یا دارایی
+        | ناشناخته. در هر سه، صفحه‌ای که آدرسِ خالی یا مبلغِ صفر نشان دهد یعنی
+        | مشتری پول را به ناکجا می‌فرستد. پس هیچ‌چیز نشان نمی‌دهیم و می‌گوییم
+        | فعلاً در دسترس نیست.
+        */
+        if ($cp === null) {
+            return back()->withErrors(['crypto' => __('ui.cy_unavailable')]);
+        }
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)->withFragment('cy-'.$cp->id);
+    }
+
+    /**
+     * وضعیتِ زندهٔ پرداخت — صفحهٔ مشتری هر چند ثانیه می‌پرسد.
+     *
+     * ⚠️ عمداً فقط چیزی برمی‌گرداند که خودِ مشتری از قبل می‌بیند: وضعیت، ثانیهٔ
+     * باقی‌مانده و مبلغِ رسیده. نه شناسهٔ داخلی، نه کیفِ ما، نه چیزی از
+     * فاکتورِ دیگران.
+     */
+    public function cryptoStatus(Invoice $invoice)
+    {
+        $this->authorizeInvoice($invoice);
+
+        $cp = \App\Models\CryptoPayment::where('invoice_id', $invoice->id)
+            ->latest('id')->first();
+
+        if ($cp === null) {
+            return response()->json(['status' => 'none']);
+        }
+
+        return response()->json([
+            'status' => $cp->status,
+            'seconds_left' => $cp->secondsLeft(),
+            'received' => $cp->received_atomic,
+            'expected' => $cp->amount_atomic,
+            'invoice_paid' => $invoice->fresh()->status === 'paid',
         ]);
     }
 

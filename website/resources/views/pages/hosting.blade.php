@@ -289,6 +289,20 @@
       {{ __('ui.pt_count', ['n' => $isFa ? fa_num(count($product['plans'])) : count($product['plans'])]) }}
     </p>
     @else
+    {{-- 🔴 حالتِ «هیچ پلنی نیست» هرگز نباید یک بخشِ **خالی** باشد.
+         کارفرما گزارش داد `/vps/iran` «نشون نمیده»؛ در این شاخه صفحه با کدِ ۲۰۰
+         برمی‌گشت ولی جای پلن‌ها هیچ‌چیز نبود و هیچ‌کجا نمی‌گفت چرا. یک جملهٔ
+         صریح، هم به بازدیدکننده می‌گوید چه‌کار کند و هم به ما می‌گوید صفحه
+         سالم است و **داده** نیست. --}}
+    @if($product['plans'] === [])
+    <p class="pt-empty reveal">{{ __('ui.hp_no_plans') }}</p>
+    @else
+    {{-- کشور صفحه دارد ولی کاتالوگِ زنده‌اش همین حالا چیزی برای فروش ندارد
+         (رایج‌ترین علت: نرخِ روزِ یورو نیامده ⇒ `price_irt = 0` ⇒ ناموجود).
+         مشخصات برای مقایسه می‌مانَد، ولی قیمتِ ساختگی نمی‌گذاریم. --}}
+    @if(($liveStock ?? null) === false)
+    <p class="pt-empty reveal">{{ __('ui.hp_stock_out') }}</p>
+    @endif
     <div class="plans {{ count($product['plans']) === 3 ? 'plans-3' : '' }} {{ count($product['plans']) >= 5 ? 'plans-many' : '' }}" id="plans">
       @foreach($product['plans'] as $i => $p)
       @php
@@ -351,7 +365,8 @@
       </article>
       @endforeach
     </div>
-    @endif
+    @endif{{-- پایانِ «پلن دارد / ندارد» --}}
+    @endif{{-- پایانِ «جدول / کارت» --}}
     <div class="inc-strip reveal">
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">

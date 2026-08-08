@@ -50,8 +50,30 @@ class CatalogController extends Controller
         // پرداخت «۲٬۰۰۰٬۰۰۰». حالا هر دو از یک منبع‌اند، پس همیشه یکی‌اند.
         $planHrefs = [];
 
+        /*
+        | آیا این صفحه **موجودیِ زندهٔ** قابلِ فروش دارد؟
+        |
+        |   null  → این دسته اصلاً کاتالوگِ زنده ندارد (هاست، دامنه، سرویس)
+        |   true  → پلن‌های روی صفحه همان‌هایی‌اند که همین حالا می‌شود خرید
+        |   false → کشور هست، صفحه هست، ولی هیچ پلنِ **فروختنی** ندارد
+        |
+        | 🔴 حالتِ `false` تا امروز بی‌صدا بود: صفحه همان کارت‌های config را با
+        | «استعلام از واحد فروش» نشان می‌داد و بازدیدکننده هیچ‌وقت نمی‌فهمید چرا
+        | قیمت نیست و چه‌کار باید بکند. کارفرما هم همین را «نشون نمیده» دید.
+        | حالا ویو یک توضیحِ صریحِ سه‌زبانه می‌گذارد — بی‌آنکه قیمتی از خودش
+        | بسازد.
+        |
+        | ⚠️ این حالت **قابلِ انتظار** است، نه استثنا: `scopeSellable` هر پلنی را
+        | که `price_irt = 0` باشد بیرون می‌گذارد، و `price_irt` وقتی صفر می‌شود
+        | که نرخِ روزِ یورو در دسترس نباشد. یعنی یک قطعیِ چنددقیقه‌ایِ نرخ، کلِ
+        | کاتالوگِ یک کشور را از صفحه برمی‌دارد.
+        */
+        $liveStock = null;
+
         if (in_array($category, ['vps', 'dedicated'], true)) {
             [$livePlans, $planHrefs] = $this->livePlansFor($category, $slug);
+
+            $liveStock = $livePlans !== [];
 
             if ($livePlans !== []) {
                 $product['plans'] = $livePlans;
@@ -124,6 +146,11 @@ class CatalogController extends Controller
             }, $product['plans']);
         }
 
+        // ویو در چند جا روی `plans` حلقه می‌زند و `count()` می‌گیرد. محصولی که
+        // این کلید را نداشته باشد ۵۰۰ می‌داد — و ۵۰۰ روی صفحهٔ محصول یعنی
+        // صفحهٔ سفید. آرایهٔ خالی به‌جایش «حالتِ خالیِ» صریح را نشان می‌دهد.
+        $product['plans'] = array_values((array) ($product['plans'] ?? []));
+
         $featurePool = config('hosting.feature_pool');
         $faqPool = config('hosting.faq_pool');
 
@@ -153,6 +180,8 @@ class CatalogController extends Controller
             'cloudStoreHref' => $this->cloudStoreHref($category, $slug),
             // لینکِ اختصاصیِ هر پلن (با پلنِ ازپیش‌انتخاب‌شده) — اگر پلن‌ها زنده باشند
             'planHrefs' => $planHrefs,
+            // null = بی‌ربط · true = موجودیِ زنده · false = کشور بدونِ پلنِ فروختنی
+            'liveStock' => $liveStock,
             /*
             | 🔴 کدام پکیجِ هاست **واقعاً** سفارش‌پذیر است.
             |

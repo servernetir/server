@@ -243,6 +243,22 @@ $site = function (): void {
         Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])
             ->name('invoice.cancel')->middleware('throttle:forms');
 
+        /*
+        | پرداختِ رمزارز — درگاهِ خودمان.
+        |
+        | ⚠️ عمداً از `GatewayRegistry` رد نمی‌شود: قرارداد `PaymentGateway`
+        | یک `Payment` از قبل ساخته‌شده می‌خواهد، ولی در رمزارز تا لحظهٔ رسیدنِ
+        | پول اصلاً پرداختی رخ نداده. `Payment` را همان `CryptoReconciler`
+        | می‌سازد و از **همان** `settleConfirmed` تسویه می‌کند، پس مسیرِ پول
+        | یکی است حتی اگر مسیرِ شروع فرق کند.
+        |
+        | status عمداً GET و سبک است: صفحهٔ مشتری هر چند ثانیه صدایش می‌زند.
+        */
+        Route::post('/invoices/{invoice}/crypto', [Account\PaymentController::class, 'cryptoIssue'])
+            ->name('invoice.crypto')->middleware('throttle:pay');
+        Route::get('/invoices/{invoice}/crypto/status', [Account\PaymentController::class, 'cryptoStatus'])
+            ->name('invoice.crypto.status');
+
         Route::get('/topup', [Account\PaymentController::class, 'topupForm'])->name('topup');
         Route::post('/topup', [Account\PaymentController::class, 'topup'])
             ->name('topup.start')->middleware('throttle:pay');
@@ -1886,6 +1902,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/payment-accounts', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'store'])->middleware('admin');
         Route::post('/payment-accounts/{account}', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'update'])->middleware('admin');
         Route::post('/payment-accounts/{account}/archive', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'destroy'])->middleware('admin');
+
+        // استخرِ آدرس‌های رمزارز + صفِ بازبینیِ پرداخت‌هایی که خودکار تأیید نشدند
+        Route::get('/crypto-wallets', [\App\Http\Controllers\Admin\CryptoWalletController::class, 'index'])->name('admin.crypto_wallets')->middleware('admin');
+        Route::post('/crypto-wallets', [\App\Http\Controllers\Admin\CryptoWalletController::class, 'store'])->middleware('admin');
+        Route::post('/crypto-wallets/{wallet}/toggle', [\App\Http\Controllers\Admin\CryptoWalletController::class, 'toggle'])->middleware('admin');
 
         // تنظیمات — مشخصات حساب بانکی شرکت
         Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings')->middleware('admin');

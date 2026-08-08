@@ -50,6 +50,7 @@
               ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
       <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>
       <a href="/admin/payment-accounts" class="@yield('nav_payacc')"><svg class="icon"><use href="#i-coins"/></svg>حساب‌های ارزی و رمزارز</a>
+      <a href="/admin/crypto-wallets" class="@yield('nav_crypto')"><svg class="icon"><use href="#i-key"/></svg>کیف‌های رمزارز</a>
       <a href="/admin/costs" class="@yield('nav_costs')"><svg class="icon"><use href="#i-tag"/></svg>هزینه‌های سرویس‌ها</a>
       <div class="ad-nav-sep">سیستم</div>
       @php $errCount = \App\Support\ErrorTracker::recent(150, 'error');

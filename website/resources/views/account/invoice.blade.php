@@ -148,6 +148,18 @@
           </label>
         @endif
       @endforelse
+
+      {{-- رمزارز — درگاهِ خودمان.
+           ⚠️ فقط دارایی‌هایی که **آدرسِ آزاد** دارند فهرست می‌شوند. گزینه‌ای که
+           با انتخابش «در دسترس نیست» بگیرد، از نبودِ گزینه بدتر است. --}}
+      @foreach($cryptoAssets as $code => $spec)
+        <label class="pm-card" data-m="cy{{ $code }}">
+          <input type="radio" name="pm" value="cy{{ $code }}" hidden>
+          <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
+          <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $spec['label'] }}</small></span>
+          <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+        </label>
+      @endforeach
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
@@ -266,10 +278,94 @@
       </div>
     @endforeach
 
+    {{-- ═══ رمزارز: دستور پرداخت ═══ --}}
+    @foreach($cryptoAssets as $code => $spec)
+      <div class="pm-pane" id="pane-cy{{ $code }}" hidden>
+        <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }} — <span dir="ltr">{{ $spec['label'] }}</span></b></div>
+
+        @if($cryptoOpen && $cryptoOpen->asset === $code)
+          @php $cy = $cryptoOpen; @endphp
+          <div class="cy-box" id="cy-{{ $cy->id }}"
+               data-status-url="{{ lroute('account.invoice.crypto.status', $invoice) }}"
+               data-left="{{ $cy->secondsLeft() }}">
+
+            {{-- ⚠️ شبکه **بالای** آدرس و برجسته: انتقال روی شبکهٔ اشتباه
+                 برگشت‌ناپذیر است و کاربر معمولاً آدرس را کپی می‌کند و می‌رود. --}}
+            <div class="cy-row"><span>{{ __('ui.inv_cy_network') }}</span><b dir="ltr">{{ $cy->network }}</b></div>
+            <div class="cy-row"><span>{{ __('ui.cy_send_exactly') }}</span>
+              <b dir="ltr" class="copyable cy-amt">{{ $cy->amountHuman() }} {{ $cy->asset }}</b></div>
+            <div class="cy-row cy-addr"><span>{{ __('ui.inv_cy_address') }}</span>
+              <b dir="ltr" class="copyable">{{ $cy->address }}</b></div>
+
+            <p class="cy-timer">{{ __('ui.cy_time_left') }} <b id="cy-clock">—</b></p>
+            <p class="cy-state" id="cy-state">{{ __('ui.cy_waiting') }}</p>
+            <p class="pm-note" style="color:var(--warn);margin-top:12px">{{ __('ui.inv_cy_warn') }}</p>
+            <p class="pm-note">{{ __('ui.cy_verify_tail') }}</p>
+          </div>
+        @else
+          <p class="pm-note">{{ __('ui.cy_intro', ['min' => fa_num($spec['window'])]) }}</p>
+          <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}">
+            @csrf<input type="hidden" name="asset" value="{{ $code }}">
+            <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.cy_get_address') }}</button>
+          </form>
+        @endif
+      </div>
+    @endforeach
+
   </div>
 </section>
 
+@if($cryptoOpen)
+<script>
+/* شمارش معکوس + تشخیصِ خودکارِ واریز.
+   ⚠️ صفحه **خودش تصمیم نمی‌گیرد** پول رسیده یا نه — فقط وضعیتی را که سرور
+      می‌گوید نشان می‌دهد. حکم مالِ کرونی است که زنجیره را می‌خواند. */
+(function () {
+  var box = document.querySelector('.cy-box');
+  if (!box) return;
+
+  var left = parseInt(box.dataset.left, 10) || 0;
+  var clock = document.getElementById('cy-clock');
+  var state = document.getElementById('cy-state');
+
+  function paint() {
+    var m = Math.floor(left / 60), s = left % 60;
+    clock.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  var tick = setInterval(function () {
+    if (left > 0) { left--; paint(); }
+    else { clearInterval(tick); clearInterval(poll); state.textContent = clock.dataset.expired || 'expired'; }
+  }, 1000);
+  paint();
+
+  var poll = setInterval(function () {
+    fetch(box.dataset.statusUrl, {headers: {'Accept': 'application/json'}})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.status === 'seen') { state.textContent = state.dataset.seen || state.textContent; }
+        if (j.invoice_paid || j.status === 'confirmed') {
+          clearInterval(poll); clearInterval(tick);
+          location.reload();
+        }
+      })
+      .catch(function () { /* قطعیِ شبکه نباید صفحه را بشکند */ });
+  }, 7000);
+})();
+</script>
+@endif
+
 <style>
+.cy-box{ border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--surface-2); }
+.cy-row{ display:flex; justify-content:space-between; gap:14px; padding:9px 0; border-bottom:1px dashed var(--line); font-size:13px; }
+.cy-row:last-of-type{ border-bottom:0; }
+.cy-row span{ color:var(--muted); flex:none; }
+.cy-row b{ overflow-wrap:anywhere; text-align:end; }
+.cy-addr b{ font-family:ui-monospace,monospace; font-size:13.5px; }
+.cy-amt{ font-size:16px; }
+.cy-timer{ margin:14px 0 4px; font-size:13px; color:var(--muted); }
+.cy-timer b{ font-size:17px; color:var(--text); font-variant-numeric:tabular-nums; }
+.cy-state{ margin:0; font-size:12.5px; color:var(--muted); }
 .pm-lead{ font-size:13px; color:var(--muted); margin-bottom:12px; }
 .pm-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
 .pm-card{ position:relative; display:flex; align-items:center; gap:12px; cursor:pointer;
