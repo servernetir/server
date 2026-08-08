@@ -203,6 +203,10 @@ class SetupMariadb extends Command
             return false;
         }
 
+        if (! $this->guardAgainstOverwritingLiveData()) {
+            return false;
+        }
+
         [$src, $dst] = $this->bothConnections();
 
         $tables = $this->portableTables($src, $dst);
@@ -413,6 +417,54 @@ class SetupMariadb extends Command
         $this->warn('⚠️ بعد از سوییچ همهٔ کاربران از حساب خارج می‌شوند (نشست منتقل نمی‌شود).');
 
         return true;
+    }
+
+    /**
+     * 🔴 وقتی سوییچ **از قبل انجام شده**، این کامند دیگر «مهاجرت» نیست.
+     *
+     * ماجرایی که این محافظ را لازم کرد: سایت ماه‌ها بود روی MariaDB بالا آمده
+     * بود، ولی `servernet_app/database/database.sqlite` هنوز سرِ جایش مانده بود
+     * — بازماندهٔ پیش از سوییچ، با تاریخِ تغییرِ دو هفته پیش. این کامند مسیرِ
+     * آن فایل را **سخت‌کد** می‌خواند، پس:
+     *
+     *   مبدأ = عکسِ کهنهٔ دو‌هفته‌ایِ دیتابیس
+     *   مقصد = دیتابیسِ **زندهٔ** سایت
+     *
+     * یعنی `--port` عملاً «بازگردانی از یک بکاپِ قدیمی روی داده‌ی زنده» است.
+     * و چون `upsert` روی `id` است، هر ردیفی که در آن فایلِ کهنه باشد، نسخهٔ
+     * امروزش را در سایت **رونویسی** می‌کند — بی‌هیچ خطا و هشداری.
+     *
+     * ⚠️ خطرناک‌تر: من دامنهٔ همین کامند را از ۴ جدول به **همهٔ** جدول‌ها
+     * گسترش دادم تا مهاجرتِ کامل ممکن شود. آن تغییر برای حالتِ «هنوز روی
+     * SQLite هستیم» درست بود، ولی در این حالت شعاعِ آسیب را از بلاگ به مشتری و
+     * فاکتور و تنظیمات بُرد. قابلیتِ درست در وضعیتِ اشتباه، خرابکاری است.
+     *
+     * پس: اگر اتصالِ پیش‌فرضِ سایت دیگر sqlite نیست، انتقال **اجرا نمی‌شود**.
+     */
+    private function guardAgainstOverwritingLiveData(): bool
+    {
+        $liveDriver = DB::connection()->getDriverName();
+
+        if ($liveDriver === 'sqlite') {
+            return true;
+        }
+
+        $this->newLine();
+        $this->error('انتقال اجرا نشد — سایت دیگر روی SQLite نیست.');
+        $this->newLine();
+        $this->line("  اتصالِ زندهٔ سایت: {$liveDriver}");
+        $this->line('  مبدأِ این کامند: '.database_path('database.sqlite')
+            .(is_file(database_path('database.sqlite'))
+                ? ' (آخرین تغییر: '.date('Y-m-d', (int) filemtime(database_path('database.sqlite'))).')'
+                : ' (وجود ندارد)'));
+        $this->newLine();
+        $this->warn('یعنی سوییچ از قبل انجام شده و آن فایلِ SQLite فقط یک بازماندهٔ کهنه است.');
+        $this->warn('اجرای انتقال، دادهٔ زندهٔ سایت را با نسخهٔ قدیمیِ همان فایل رونویسی می‌کرد.');
+        $this->newLine();
+        $this->line('اگر واقعاً قصدِ بازگردانی از آن فایل را دارید، باید آگاهانه و با بکاپِ');
+        $this->line('کاملِ MariaDB انجام شود — نه از این مسیر.');
+
+        return false;
     }
 
     /** اتصالِ مبدأ (SQLite سایت) و مقصد (MariaDB) */

@@ -141,4 +141,34 @@ class MariadbPortCoverageTest extends TestCase
             'برابری باید سنجیده شود، نه «کمتر نیست»');
         $this->assertStringContainsString('$a === $b', $code);
     }
+
+    /**
+     * 🔴 وقتی سوییچ از قبل انجام شده، انتقال باید **رد** شود.
+     *
+     * ماجرا: سایت روی MariaDB بالا آمده بود ولی فایلِ SQLiteِ پیش از سوییچ سرِ
+     * جایش مانده بود (تاریخِ تغییر: دو هفته پیش). این کامند مسیرِ آن فایل را
+     * سخت‌کد می‌خواند، پس مبدأ عکسِ کهنه بود و مقصد دیتابیسِ زنده — یعنی
+     * `--port` عملاً «بازگردانی از بکاپِ قدیمی روی داده‌ی زنده» می‌شد، بی‌هیچ
+     * خطایی. و چون دامنهٔ کامند را به همهٔ جدول‌ها گسترش دادیم، شعاعِ آسیب از
+     * بلاگ به مشتری و فاکتور و تنظیمات می‌رسید.
+     */
+    public function test_the_port_refuses_to_run_once_the_site_left_sqlite(): void
+    {
+        $code = file_get_contents(app_path('Console/Commands/SetupMariadb.php'));
+
+        $this->assertStringContainsString('guardAgainstOverwritingLiveData', $code,
+            'انتقال باید محافظ داشته باشد');
+
+        // محافظ باید **پیش از** هر نوشتنی صدا زده شود
+        $guardPos = strpos($code, 'if (! $this->guardAgainstOverwritingLiveData())');
+        $writePos = strpos($code, 'SET FOREIGN_KEY_CHECKS=0');
+
+        $this->assertNotFalse($guardPos, 'محافظ در port فراخوانی نشده');
+        $this->assertLessThan($writePos, $guardPos,
+            'محافظ باید قبل از شروعِ نوشتن اجرا شود، نه بعدش');
+
+        // و شرطش باید درایورِ زندهٔ سایت باشد
+        $this->assertStringContainsString("\$liveDriver === 'sqlite'", $code,
+            'شرط باید درایورِ اتصالِ پیش‌فرض را بسنجد');
+    }
 }
