@@ -48,6 +48,10 @@
         @php $crmPending = \Illuminate\Support\Facades\Schema::hasTable('crm_messages')
                 ? \App\Models\CrmMessage::where('direction', 'out')->where('status', 'queued')->count() : 0; @endphp
         <a href="/admin/crm" class="@yield('nav_crm')"><svg class="icon"><use href="#i-send"/></svg>جذبِ مشتری@if($crmPending)<span class="ad-pill">{{ $crmPending }}</span>@endif</a>
+        {{-- نشانِ عدد = نامه‌ای که آدم باید جوابش را بدهد و هنوز نداده --}}
+        @php $mailOpen = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+                ? \App\Models\MailboxMessage::open()->where('needs_reply', true)->count() : 0; @endphp
+        <a href="/admin/mail" class="@yield('nav_mail')"><svg class="icon"><use href="#i-mail"/></svg>صندوق‌های ایمیل@if($mailOpen)<span class="ad-pill">{{ $mailOpen }}</span>@endif</a>
       @endif
 
       <div class="ad-nav-sep">مالی</div>

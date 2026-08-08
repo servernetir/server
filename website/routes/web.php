@@ -1907,6 +1907,18 @@ Route::prefix('admin')->group(function () {
         Route::post('/crm/message/{message}/approve', [\App\Http\Controllers\Admin\CrmController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
         Route::post('/crm/message/{message}/reject', [\App\Http\Controllers\Admin\CrmController::class, 'reject'])->middleware('admin');
 
+        /*
+        | صندوق‌های ایمیلِ مدیریتی — ceo@ · support@ · info@
+        |
+        | 🔴 `admin` و نه `auth:web`: این صفحه سرآیندِ نامه‌های شرکت را نشان
+        | می‌دهد، از جمله صندوقِ پشتیبانی که پر از دادهٔ مشتری است. نویسندهٔ
+        | بلاگ کاری با آن ندارد.
+        */
+        Route::get('/mail', [\App\Http\Controllers\Admin\MailboxController::class, 'index'])->name('admin.mail')->middleware('admin');
+        Route::post('/mail/clear', [\App\Http\Controllers\Admin\MailboxController::class, 'clear'])->middleware('admin');
+        Route::post('/mail/{message}/handled', [\App\Http\Controllers\Admin\MailboxController::class, 'handled'])->middleware('admin');
+        Route::post('/mail/{message}/reopen', [\App\Http\Controllers\Admin\MailboxController::class, 'reopen'])->middleware('admin');
+
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');
