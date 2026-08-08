@@ -46,6 +46,13 @@
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
+      @if(auth()->user()->isAdmin())
+        {{-- نشانِ عدد = پیامی که منتظرِ تأییدِ توست. اگر خلبانِ خودکار خاموش
+             باشد و این عدد دیده نشود، صف بی‌صدا روی هم تلنبار می‌شود. --}}
+        @php $crmPending = \Illuminate\Support\Facades\Schema::hasTable('crm_messages')
+                ? \App\Models\CrmMessage::where('direction', 'out')->where('status', 'queued')->count() : 0; @endphp
+        <a href="/admin/crm" class="@yield('nav_crm')"><svg class="icon"><use href="#i-send"/></svg>جذبِ مشتری@if($crmPending)<span class="ad-pill">{{ $crmPending }}</span>@endif</a>
+      @endif
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
