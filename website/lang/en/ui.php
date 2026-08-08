@@ -1940,4 +1940,6 @@ return [
     'cy_verify_tail' => 'Before sending, compare the last few characters of the address with what your wallet shows.',
     'cy_unavailable' => 'Crypto payment is not available right now. Please try again shortly.',
     'cy_not_payable' => 'This invoice is not payable.',
+    'cy_busy' => 'Temporarily unavailable',
+    'cy_busy_hint' => 'All receiving addresses are in use right now — please try again in a few minutes.',
 ];

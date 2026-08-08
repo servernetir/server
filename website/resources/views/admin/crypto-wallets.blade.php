@@ -81,6 +81,53 @@
   </div>
 </div>
 
+{{-- پرداخت‌های در جریان — چرا یک آدرس «مشغول» است و چه چیزی روی هواست --}}
+<div class="ad-panel">
+  <div class="ad-panel-h"><h2>پرداخت‌های در جریان</h2><span class="ad-pill">{{ $inflight->count() }}</span></div>
+
+  @if($inflight->isEmpty())
+    <p style="padding:16px;color:var(--dim)">الان هیچ پرداخت رمزارزی باز نیست.</p>
+  @else
+    <p style="padding:0 18px;color:var(--muted);font-size:13px;line-height:1.9">
+      هر ردیف یک آدرس را <b>قفل</b> نگه داشته است. تا وقتی همهٔ آدرس‌های یک زنجیره
+      مشغول باشند، آن گزینه به مشتری با برچسب «موقتاً در دسترس نیست» نشان داده
+      می‌شود. آدرسِ پرداختِ منقضی هم بلافاصله برنمی‌گردد؛ چند ساعت در دورهٔ
+      خنک‌شدن می‌مانَد تا واریزِ دیرهنگام به فاکتور نفر بعد ننشیند.
+    </p>
+    <table class="ad-table">
+      <thead><tr><th>فاکتور</th><th>دارایی</th><th>مبلغ</th><th>آدرس</th><th>مهلت</th><th>وضعیت</th></tr></thead>
+      <tbody>
+      @foreach($inflight as $p)
+        <tr>
+          <td><a href="/admin/invoices/{{ $p->invoice_id }}" style="color:#22d3ee">#{{ $p->invoice_id }}</a></td>
+          <td dir="ltr">{{ $p->asset }}</td>
+          <td dir="ltr" style="font-variant-numeric:tabular-nums">{{ $p->amountHuman() }}</td>
+          <td dir="ltr" style="font-family:ui-monospace,monospace;font-size:11.5px;overflow-wrap:anywhere;max-width:220px">{{ $p->address ?: '—' }}</td>
+          <td dir="ltr" style="font-variant-numeric:tabular-nums">
+            @if($p->isOpen() && ! $p->isExpired())
+              {{ (int) ceil($p->secondsLeft() / 60) }} دقیقه
+            @else
+              —
+            @endif
+          </td>
+          <td>
+            @if($p->status === 'seen')
+              <span class="ad-badge" style="background:rgba(56,189,248,.14);color:#38bdf8">واریز دیده شد</span>
+            @elseif($p->status === 'expired')
+              <span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">منقضی</span>
+            @elseif($p->isExpired())
+              <span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">مهلت تمام — در انتظار پایش</span>
+            @else
+              <span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">در انتظار واریز</span>
+            @endif
+          </td>
+        </tr>
+      @endforeach
+      </tbody>
+    </table>
+  @endif
+</div>
+
 {{-- 🔴 پولی که خودکار تسویه نشد اینجاست و **نباید نادیده بماند** --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>نیازمند بازبینی</h2><span class="ad-pill">{{ $review->count() }}</span></div>

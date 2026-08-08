@@ -23,12 +23,32 @@ class CryptoWalletController extends Controller
     {
         $ready = Schema::hasTable('crypto_wallets');
 
+        $hasPayments = $ready && Schema::hasTable('crypto_payments');
+
         return view('admin.crypto-wallets', [
             'wallets' => $ready ? CryptoWallet::orderBy('chain')->orderBy('id')->get() : collect(),
             // پرداخت‌هایی که خودکار تسویه نشدند و منتظرِ چشمِ آدم‌اند
-            'review' => $ready && Schema::hasTable('crypto_payments')
+            'review' => $hasPayments
                 ? CryptoPayment::whereIn('status', ['manual', 'unmatched'])->latest('id')->limit(50)->get()
                 : collect(),
+
+            /*
+            | پرداخت‌های **در جریان**.
+            |
+            | ⚠️ بی‌این فهرست، مدیر هیچ راهی نداشت بفهمد چرا یک آدرس «مشغول»
+            | است یا چرا گزینهٔ رمزارز به مشتریِ بعدی نشان داده نمی‌شود. همان
+            | سکوتی که یک بار به «قابلیت اصلاً کار نمی‌کند» تعبیر شد.
+            |
+            | منقضی‌های ۲۴ ساعتِ اخیر هم می‌آیند: پرداختی که نیمه‌کاره رها شده
+            | خودش یک خبر است، و آدرسش تا پایانِ دورهٔ خنک‌شدن برنمی‌گردد.
+            */
+            'inflight' => $hasPayments
+                ? CryptoPayment::where(fn ($q) => $q
+                    ->whereIn('status', ['pending', 'seen'])
+                    ->orWhere(fn ($e) => $e->where('status', 'expired')->where('updated_at', '>=', now()->subDay())))
+                    ->latest('id')->limit(50)->get()
+                : collect(),
+
             'notReady' => ! $ready,
         ]);
     }

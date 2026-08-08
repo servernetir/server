@@ -77,8 +77,19 @@ class OpenProviderClient
      * پرمیوم قیمت استاندارد نشان می‌دهیم — دقیقاً همان فاجعه‌ای که
      * می‌خواهیم از آن جلوگیری کنیم.
      *
+     * 🔴 **چرا این متد هم پاکتِ `result()` می‌دهد، مثل بقیه.**
+     *
+     * تا امروز تنها متدِ نتیجه‌دارِ این کلاس بود که فقط
+     * `data_get($res,'data.results',[])` برمی‌گرداند و `code` را **اصلاً
+     * نمی‌خواند**. یعنی چهار خرابیِ کاملاً متفاوت — خطای ۵۰۰ با کدِ واقعی در
+     * بدنه، بدنهٔ غیرِ JSON، قطعیِ شبکه، و «توکن نداریم» — همگی به یک
+     * **آرایهٔ خالیِ یکسان** می‌رسیدند. فراخوان راهی نداشت بفهمد «استعلام
+     * شکست خورد» یا «هیچ دامنه‌ای آزاد نیست»، پس هر سکسکهٔ رجیسترار روی صفحهٔ
+     * مشتری به «همهٔ دامنه‌ها ثبت‌شده‌اند» ترجمه می‌شد. برای فروشگاهِ دامنه
+     * بدترین دروغِ ممکن: مشتری می‌رود و ما هیچ خطایی هم نمی‌بینیم.
+     *
      * @param  array<int,array{name:string,extension:string}>  $domains
-     * @return array<int,array>  آرایهٔ نتایج خام OpenProvider
+     * @return array{ok:bool, results:array<int,array>, code:int, message:string}
      */
     public function check(array $domains): array
     {
@@ -87,7 +98,9 @@ class OpenProviderClient
             'with_price' => true,
         ]);
 
-        return data_get($res, 'data.results', []);
+        return $this->result($res, [
+            'results' => (array) data_get($res, 'data.results', []),
+        ]);
     }
 
     // ═══════════════════════ مخاطب (handle مالک) ═══════════════════════
@@ -371,7 +384,23 @@ class OpenProviderClient
         bool $withToken = true,
         bool $forceFreshToken = false,
     ): array {
-        $req = Http::acceptJson()->asJson()->timeout(25)->retry(2, 400, throw: false);
+        /*
+        | 🔴 تلاشِ دوباره **فقط** برای خرابیِ حمل‌ونقل، نه برای پاسخِ ۵۰۰.
+        |
+        | این API خطای منطقی را هم با HTTP 500 می‌دهد (کدِ واقعی در بدنه).
+        | `retry(2)` بی‌شرط یعنی یک «۱۹۶ — احراز هویت رد شد» سه بار فرستاده
+        | می‌شود، و چون `call()` روی ۱۹۶ یک‌بار هم توکنِ تازه می‌گیرد، یک
+        | جستجوی ساده تا ۹ درخواست (شاملِ تلاشِ ورود) به رجیستراری می‌زند که
+        | حسابِ ما را همین حالا به‌خاطرِ «تماسِ زیاد» علامت زده. تلاشِ دوباره
+        | روی پاسخی که رجیسترار **آگاهانه** داده هیچ‌وقت جواب نمی‌دهد؛ فقط
+        | هزینهٔ اعتبارِ حساب است.
+        */
+        $req = Http::acceptJson()->asJson()->timeout(25)->retry(
+            2,
+            400,
+            fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException,
+            throw: false,
+        );
 
         if ($withToken) {
             $token = $this->token($forceFreshToken);

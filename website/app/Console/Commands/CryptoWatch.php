@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Payment\CryptoPrice;
 use App\Services\Payment\CryptoReconciler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
@@ -20,10 +21,26 @@ class CryptoWatch extends Command
 
     protected $description = 'بررسی واریزی‌های رمزارز و تسویهٔ فاکتورهای پرداخت‌شده';
 
-    public function handle(CryptoReconciler $rec): int
+    public function handle(CryptoReconciler $rec, CryptoPrice $prices): int
     {
         if (! Schema::hasTable('crypto_payments')) {
             return self::SUCCESS;   // مهاجرت هنوز اجرا نشده — بی‌صدا رد شو
+        }
+
+        /*
+        | گرم نگه‌داشتنِ قیمتِ دارایی‌های نوسانی.
+        |
+        | ⚠️ عمداً این‌جا و نه در مسیرِ وب: صفحهٔ فاکتور نباید منتظرِ یک API
+        | بیرونی بماند. `warm()` فقط وقتی کش سرد است بیرون می‌زند، پس در
+        | حالتِ عادی هر ۲۰ دقیقه یک بار — نه هر دقیقه.
+        |
+        | 🔴 و مثلِ همه‌چیزِ این کامند، شکستش صداکردنی نیست: بدونِ قیمت،
+        | آن دارایی صرفاً عرضه نمی‌شود.
+        */
+        try {
+            $prices->warm();
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         try {

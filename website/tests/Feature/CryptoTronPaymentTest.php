@@ -223,6 +223,45 @@ class CryptoTronPaymentTest extends TestCase
         }
     }
 
+    /**
+     * 🔴 واریزِ خودِ TRX (نه توکن) هم باید تسویه کند.
+     *
+     * ⚠️ TRX تا امروز هرگز عرضه نمی‌شد (قیمتِ زنده نداشتیم)، پس این مسیرِ کد
+     * ساخته شده بود ولی **هیچ تستی نداشت**. حالا که با منبعِ قیمت واقعاً قابلِ
+     * انتخاب است، مسیرش هم باید قفل شود: انتقالِ ساده، تراکنشِ موفق، و همان
+     * `settleConfirmed` که بقیهٔ درگاه‌ها از آن رد می‌شوند.
+     */
+    public function test_a_native_trx_deposit_confirms_and_settles_the_invoice(): void
+    {
+        $inv = $this->invoice();
+        $cp = $this->payment($inv, ['asset' => 'TRX', 'amount_atomic' => 60_000_000]);
+
+        $this->fakeNativeDeposits([['txid' => 'TX-TRX-1', 'amount' => 60_000_000]]);
+
+        app(CryptoReconciler::class)->sweep();
+
+        $cp->refresh();
+        $this->assertSame('confirmed', $cp->status);
+        $this->assertSame('TX-TRX-1', $cp->txid);
+        $this->assertSame('paid', $inv->fresh()->status);
+    }
+
+    /** ⚠️ تراکنشِ ناموفقِ زنجیره پول نیست — نباید شمرده شود */
+    public function test_a_failed_trx_transaction_is_never_counted(): void
+    {
+        $inv = $this->invoice();
+        $cp = $this->payment($inv, ['asset' => 'TRX', 'amount_atomic' => 60_000_000]);
+
+        $this->fakeNativeDeposits([['txid' => 'TX-TRX-BAD', 'amount' => 60_000_000, 'ret' => 'REVERT']]);
+
+        app(CryptoReconciler::class)->sweep();
+
+        $cp->refresh();
+        $this->assertSame('pending', $cp->status);
+        $this->assertSame(0, $cp->received_atomic);
+        $this->assertNotSame('paid', $inv->fresh()->status);
+    }
+
     /** 🔴 کلیدِ خصوصی هیچ‌جای این حوزه نباید باشد */
     public function test_no_private_key_material_anywhere_in_the_crypto_layer(): void
     {
@@ -238,6 +277,7 @@ class CryptoTronPaymentTest extends TestCase
             app_path('Services/Payment/TronWatcher.php'),
             app_path('Services/Payment/CryptoReconciler.php'),
             app_path('Services/Payment/CryptoIssuer.php'),
+            app_path('Services/Payment/CryptoPrice.php'),
         ];
 
         foreach ($files as $f) {
@@ -261,6 +301,35 @@ class CryptoTronPaymentTest extends TestCase
      * استابِ همه‌گیرِ فیکسچرهای دیگر «اولین تطبیق برنده» است و هر fakeِ بعدی
      * را بی‌اثر می‌کند — تلهٔ مستندِ همین پروژه.
      */
+    /**
+     * واریزیِ خودِ TRX — شکلِ پاسخِ TronGrid برای تراکنشِ ساده، نه TRC20.
+     *
+     * ⚠️ عمداً روی مسیرِ `/transactions` (بدونِ `/trc20`) پاسخ می‌دهد، تا اگر
+     * روزی واچر مسیرها را قاطی کرد، تست بگیردش.
+     */
+    private function fakeNativeDeposits(array $deposits): void
+    {
+        Http::swap(new Factory);
+
+        Http::fake(['api.trongrid.io/*' => function ($request) use ($deposits) {
+            if (str_contains($request->url(), '/trc20')) {
+                return Http::response(['data' => []], 200);
+            }
+
+            return Http::response([
+                'data' => array_map(fn ($d) => [
+                    'txID' => $d['txid'],
+                    'ret' => [['contractRet' => $d['ret'] ?? 'SUCCESS']],
+                    'raw_data' => ['contract' => [[
+                        'type' => 'TransferContract',
+                        'parameter' => ['value' => ['amount' => $d['amount']]],
+                    ]]],
+                    'block_timestamp' => now()->getTimestampMs(),
+                ], $deposits),
+            ], 200);
+        }]);
+    }
+
     private function fakeDeposits(array $deposits): void
     {
         Http::swap(new Factory);

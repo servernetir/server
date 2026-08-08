@@ -19,7 +19,7 @@
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>ثبت دامنهٔ جدید</h2></div>
   <div class="pnl-sec-b">
-    <form method="get" action="{{ route('account.domains') }}" class="dm-search">
+    <form method="get" action="{{ lroute('account.domains') }}" class="dm-search">
       <input name="register" dir="ltr" autocomplete="off" value="{{ $query }}"
              placeholder="example.com یا فقط example">
       <button class="pnl-btn" type="submit">
@@ -28,18 +28,34 @@
     </form>
 
     @if($query !== '')
+      {{-- بنر سطحِ صفحه: فقط وقتی هیچ ردیفی استعلام نشده. قرص‌های تک‌ردیفی
+           به‌تنهایی کافی نیستند — دیوارِ ۶۴ ردیفِ خاکستری بدون توضیح، همان
+           برداشتِ غلط را می‌سازد. جزئیِ بودنِ خرابی داد زده نمی‌شود. --}}
+      @php
+        $lookupFailed = count($results) > 0
+            && collect($results)->every(fn ($r) => ($r['status'] ?? null) === 'unknown');
+      @endphp
+      @if($lookupFailed)
+        <p class="dm-note danger">استعلام دامنه در این لحظه در دسترس نیست. چند دقیقه بعد دوباره تلاش کنید.</p>
+      @endif
       @forelse($results as $r)
         <div class="dm-res {{ $r['available'] ? ($r['orderable'] ? 'ok' : 'no') : 'no' }}">
           <span class="dm-res-n" dir="ltr">{{ $r['domain'] }}</span>
 
-          @if(! $r['available'])
+          {{-- 🔴 «استعلام نشد» باید از «ثبت‌شده» جدا بماند.
+               وقتی رجیسترار پاسخ ندهد، لایهٔ سرویس status را unknown می‌گذارد.
+               اگر این شاخه نباشد، هر دو حالت یک قرص خاکستریِ «ثبت‌شده» می‌شوند و
+               مشتری قطعیِ رجیسترار را «اسمم گرفته شده» می‌خواند و می‌رود. --}}
+          @if(($r['status'] ?? null) === 'unknown')
+            <span class="pnl-pill warn">استعلام نشد</span>
+          @elseif(! $r['available'])
             <span class="pnl-pill mute">ثبت‌شده</span>
           @elseif(! $r['orderable'])
             <span class="pnl-pill warn">فعلاً قابل سفارش نیست</span>
           @else
             <span class="pnl-pill ok">آزاد</span>
             <span class="dm-res-p">{{ cloud_price($r['price_toman']) }} <small>/ سال</small></span>
-            <form method="post" action="{{ route('account.domains.order') }}">
+            <form method="post" action="{{ lroute('account.domains.order') }}">
               @csrf
               <input type="hidden" name="quote_id" value="{{ $r['quote_id'] }}">
               <input type="hidden" name="years" value="1">

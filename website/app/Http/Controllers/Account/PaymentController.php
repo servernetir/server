@@ -159,6 +159,22 @@ class PaymentController extends Controller
     {
         $this->authorizeInvoice($invoice);
 
+        /*
+        | 🔴 پرداختِ بازِ رمزارز **اول** خوانده می‌شود، چون فهرستِ گزینه‌ها به
+        |    آن وابسته است.
+        |
+        | تا امروز کارت‌ها و پنل‌های رمزارز هر دو از `available()` می‌آمدند —
+        | یعنی فقط دارایی‌هایی که آدرسِ **آزاد** دارند. با استخرِ تک‌آدرسی، همان
+        | لحظه که مشتری آدرس می‌گرفت، آن تنها آدرس مشغول می‌شد و در بارگذاریِ
+        | بعدی کلِ گزینهٔ رمزارز — از جمله آدرس و مبلغ و شمارشِ معکوسِ خودِ او —
+        | از صفحه غیب می‌شد.
+        */
+        $cryptoOpen = Schema::hasTable('crypto_payments')
+            ? \App\Models\CryptoPayment::where('invoice_id', $invoice->id)
+                ->whereIn('status', ['pending', 'seen'])->where('expires_at', '>', now())
+                ->latest('id')->first()
+            : null;
+
         return view('account.invoice', AccountController::shell('invoices') + [
             'invoice'      => $invoice->load('items', 'payments'),
             'gateways'     => $this->gatewaysFor($invoice->currency_code),
@@ -178,15 +194,18 @@ class PaymentController extends Controller
             */
             'offline'      => \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code),
 
-            // رمزارز: فقط دارایی‌هایی که واقعاً آدرسِ آزاد دارند + پرداختِ بازِ جاری
+            /*
+            | رمزارز: هر دارایی با **وضعیتِ خودش** —
+            |   ready → قابلِ صدور
+            |   busy  → آدرس داریم ولی همه مشغول‌اند («کمی بعد دوباره امتحان کنید»)
+            |   open  → پرداختِ بازِ همین مشتری، همیشه دیدنی
+            |
+            | ⚠️ دارایی‌ای که قیمتش را نداریم اصلاً نمی‌آید — نه ready نه busy.
+            */
             'cryptoAssets' => Schema::hasTable('crypto_wallets')
-                ? app(\App\Services\Payment\CryptoIssuer::class)->available()
+                ? app(\App\Services\Payment\CryptoIssuer::class)->checkout($invoice, $cryptoOpen)
                 : [],
-            'cryptoOpen'   => Schema::hasTable('crypto_payments')
-                ? \App\Models\CryptoPayment::where('invoice_id', $invoice->id)
-                    ->whereIn('status', ['pending', 'seen'])->where('expires_at', '>', now())
-                    ->latest('id')->first()
-                : null,
+            'cryptoOpen'   => $cryptoOpen,
         ]);
     }
 

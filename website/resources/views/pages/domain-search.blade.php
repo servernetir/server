@@ -352,7 +352,14 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
   var rows = [];
   var token = 0;
 
+  /* ⚠️ «استعلام نشد» با «گرفته‌شده» یکی نیست.
+   *
+   * وضعیتِ `unknown` یعنی پاسخی از رجیسترار نیامد یا وضعیتی داد که نمی‌شناسیم.
+   * اگر مثلِ قبل به `taken` بیفتد، یک سکسکهٔ رجیسترار به مشتری می‌گوید «این
+   * نام قبلاً ثبت شده» — دروغی که مشتری راستی‌آزمایی نمی‌کند و می‌رود.
+   */
   function stateOf(r) {
+    if (r.status === 'unknown') { return 'unavail'; }
     if (!r.available) { return 'taken'; }
     if (!r.orderable) { return 'unavail'; }
     return r.is_premium ? 'premium' : 'free';
@@ -375,7 +382,9 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       right = '';
     } else if (st === 'unavail') {
       pill = '<span class="dsx-pill no">' + T.not_orderable_pill + '</span>';
-      note = r.reason === 'fx_unavailable' ? T.fx_unavailable : T.no_price;
+      note = r.status === 'unknown'
+        ? T.err_conn
+        : (r.reason === 'fx_unavailable' ? T.fx_unavailable : T.no_price);
       right = '';
     } else {
       var prem = st === 'premium';

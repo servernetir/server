@@ -1940,4 +1940,6 @@ return [
     'cy_verify_tail' => 'Göndermeden önce adresin son birkaç karakterini cüzdanınızdakiyle karşılaştırın.',
     'cy_unavailable' => 'Kripto ödeme şu anda kullanılamıyor. Lütfen kısa süre sonra tekrar deneyin.',
     'cy_not_payable' => 'Bu fatura ödenebilir değil.',
+    'cy_busy' => 'Geçici olarak kullanılamıyor',
+    'cy_busy_hint' => 'Tüm alım adresleri şu anda kullanımda — lütfen birkaç dakika sonra tekrar deneyin.',
 ];

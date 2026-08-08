@@ -5,6 +5,7 @@ namespace App\Services\Domain;
 use App\Models\Currency;
 use App\Models\DomainQuote;
 use App\Services\ExchangeRate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -30,6 +31,24 @@ class DomainSearch
      * بدهد.
      */
     private const MAX_TLDS = 70;
+
+    /**
+     * وضعیت‌هایی که **قطعاً** یعنی «این دامنه گرفته شده».
+     *
+     * ⚠️ فهرستِ سفید است، نه سیاه. هر چیزِ دیگری «نمی‌دانم» است. اگر روزی
+     * رجیسترار وضعیتِ تازه‌ای اضافه کرد که واقعاً یعنی گرفته‌شده، بدترین
+     * نتیجه این است که آن دامنه «استعلام نشد» دیده شود — نه اینکه یک دامنهٔ
+     * آزاد را از فروش خارج کنیم یا یک خرابی را جای واقعیت بفروشیم. اضافه
+     * کردنِ یک وضعیت به این فهرست باید با **دیدنِ پاسخِ واقعی** باشد.
+     */
+    private const TAKEN_STATUSES = [
+        'active', 'inuse', 'in use', 'in_use',
+        'registered', 'taken', 'parked',
+        'in transfer', 'in_transfer',
+    ];
+
+    /** کدِ داخلیِ «رسیلری اصلاً پیکربندی نشده» — با کدهای خودِ رجیسترار تصادم ندارد. */
+    private const DISABLED_CODE = -2;
 
     /**
      * پسوندهایی که به کاربر پیشنهاد می‌شوند.
@@ -136,15 +155,64 @@ class DomainSearch
             $extensions
         );
 
-        $results = $this->op->enabled() ? $this->op->check($payload) : [];
+        $lookup = $this->op->enabled()
+            ? $this->op->check($payload)
+            : ['ok' => false, 'code' => self::DISABLED_CODE, 'message' => 'registrar disabled', 'results' => []];
+
+        /*
+        | 🔴 «نتوانستیم استعلام کنیم» هرگز نباید «ثبت‌شده» خوانده شود.
+        |
+        | این دقیقاً همان چیزی است که کارفرما دید: یک استعلامِ شکست‌خورده،
+        | ۶۴ ردیفِ «ثبت‌شده» روی صفحه. سکوت هم نبود — دروغِ **مطمئن** بود، که
+        | بدتر است: مشتری نتیجه می‌گیرد اسمِ دلخواهش گرفته شده و می‌رود، و ما
+        | هیچ شکایتی هم نمی‌شنویم تا بفهمیم چیزی خراب است.
+        |
+        | ⚠️ جهتِ خطا هم مهم است: به همان اندازه ممنوع است که «نمی‌دانم» را
+        | «آزاد» بخوانیم — آن‌وقت دامنهٔ گرفته‌شده را می‌فروشیم، پول می‌گیریم و
+        | ثبت شکست می‌خورد.
+        */
+        if (! ($lookup['ok'] ?? false)) {
+            $code = (int) ($lookup['code'] ?? -1);
+
+            Log::warning('domain check failed', [
+                'code'    => $code,
+                'desc'    => (string) ($lookup['message'] ?? ''),
+                'domains' => count($payload),
+            ]);
+
+            $reason = $code === self::DISABLED_CODE ? 'registrar_disabled' : 'lookup_failed';
+
+            return array_map(
+                fn (string $e) => $this->unknownRow($name.'.'.$e, $e, $reason),
+                $extensions
+            );
+        }
 
         // نگاشت پاسخ رسیلری بر اساس دامنه، تا ترتیب درخواست حفظ شود
         $byDomain = [];
-        foreach ($results as $r) {
-            $key = strtolower((string) ($r['domain'] ?? ''));
+        foreach ((array) ($lookup['results'] ?? []) as $r) {
+            if (! is_array($r)) {
+                continue;
+            }
+
+            $key = $this->rowKey($r);
             if ($key !== '') {
                 $byDomain[$key] = $r;
             }
+        }
+
+        /*
+        | پاسخِ **ناقص** هم یک خرابی است، نه یک جواب.
+        |
+        | پیش از این هیچ‌جا تعدادِ ردیفِ پاسخ با تعدادِ درخواست مقایسه نمی‌شد،
+        | پس رجیستراری که ۶۴ تا پرسیده‌ایم و ۶ تا جواب داده، ۵۸ ردیفِ
+        | «ثبت‌شده»ی ساختگی می‌ساخت و هیچ ردی از خودش نمی‌گذاشت.
+        */
+        if (count($byDomain) < count($extensions)) {
+            Log::warning('domain check answered fewer domains than asked', [
+                'asked'    => count($extensions),
+                'answered' => count($byDomain),
+            ]);
         }
 
         $out = [];
@@ -154,6 +222,47 @@ class DomainSearch
         }
 
         return $out;
+    }
+
+    /**
+     * کلیدِ نگاشتِ یک ردیفِ پاسخ.
+     *
+     * `/domains/check` نامِ دامنه را رشته‌ای می‌دهد، ولی `/domains` همان مفهوم
+     * را شیءِ `{name, extension}` می‌دهد (نگاه کن به `findDomain()`). اگر روزی
+     * این نقطهٔ پایانی هم شیء بدهد، شکلِ قبلی — `(string) $r['domain']` — یک
+     * «Array to string conversion» پرتاب می‌کرد که کنترلر می‌بلعید و صفحه
+     * «نتیجه‌ای پیدا نشد» می‌شد. هر دو شکل را می‌فهمیم؛ ارزانش همین است.
+     */
+    private function rowKey(array $row): string
+    {
+        $d = $row['domain'] ?? null;
+
+        if (is_array($d)) {
+            $n = trim((string) ($d['name'] ?? ''));
+            $x = trim((string) ($d['extension'] ?? ''), " \t.");
+
+            return ($n === '' || $x === '') ? '' : strtolower($n.'.'.$x);
+        }
+
+        return is_scalar($d) ? strtolower(trim((string) $d)) : '';
+    }
+
+    /** ردیفِ «استعلام نشد» — نه آزاد، نه گرفته‌شده. */
+    private function unknownRow(string $fqdn, string $ext, string $reason): array
+    {
+        return [
+            'domain'         => $fqdn,
+            'tld'            => $ext,
+            'status'         => 'unknown',
+            'available'      => false,
+            'is_premium'     => false,
+            'orderable'      => false,
+            'price_toman'    => null,
+            'renew_toman'    => null,
+            'transfer_toman' => null,
+            'reason'         => $reason,
+            'quote_id'       => null,
+        ];
     }
 
     /**
@@ -187,14 +296,40 @@ class DomainSearch
         }
 
         // OpenProvider: free = آزاد · active/inuse = گرفته‌شده
-        $status = strtolower((string) ($raw['status'] ?? ''));
+        $status = strtolower(trim((string) ($raw['status'] ?? '')));
         $available = $status === 'free';
         $isPremium = (bool) ($raw['is_premium'] ?? false);
 
         if (! $available) {
+            /*
+            | 🔴 فقط وضعیتی که **می‌شناسیم** به «ثبت‌شده» ترجمه می‌شود.
+            |
+            | قبلاً هر چیزی جز `free` یعنی گرفته‌شده. ولی `/domains/check` برای
+            | ردیفی که نتوانسته بررسی کند `status: "error"` می‌دهد (پسوندی که
+            | رسیلری نمی‌فروشد، نامِ نامعتبر، سکسکهٔ رجیستری) — و ما همان را
+            | با اطمینان «این دامنه قبلاً ثبت شده» نشان می‌دادیم. یعنی نامی که
+            | همین حالا آزاد است و می‌شد فروخت، به مشتری «گرفته‌شده» اعلام
+            | می‌شد. وضعیتِ ناشناخته = «استعلام نشد»، نه «گرفته‌شده».
+            |
+            | ⚠️ عمداً به سمتِ «نمی‌دانم» خطا می‌کنیم و نه «آزاد»: دامنهٔ
+            | آزادِ ازدست‌رفته یک فروشِ نرفته است، ولی دامنهٔ گرفته‌شده‌ای که
+            | «آزاد» بفروشیم یعنی پولِ گرفته‌شده و ثبتِ شکست‌خورده.
+            */
+            if (! in_array($status, self::TAKEN_STATUSES, true)) {
+                Log::warning('domain check returned an unrecognised status', [
+                    'domain' => $fqdn,
+                    'status' => $status,
+                    'reason' => (string) data_get($raw, 'reason', ''),
+                ]);
+
+                return array_merge($base, [
+                    'reason' => $status !== '' ? 'check_'.$status : 'no_status',
+                ]);
+            }
+
             return array_merge($base, [
                 'status' => 'unavailable',
-                'reason' => $status ?: 'taken',
+                'reason' => $status,
             ]);
         }
 

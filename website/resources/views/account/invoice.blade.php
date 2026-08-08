@@ -150,20 +150,32 @@
       @endforelse
 
       {{-- رمزارز — درگاهِ خودمان.
-           ⚠️ فقط دارایی‌هایی که **آدرسِ آزاد** دارند فهرست می‌شوند. گزینه‌ای که
-           با انتخابش «در دسترس نیست» بگیرد، از نبودِ گزینه بدتر است. --}}
+           ⚠️ دارایی‌ای که **قیمتش را نداریم** اصلاً این‌جا نیست؛ حدس زدنِ نرخ
+           ممنوع است. ولی «همهٔ آدرس‌ها مشغول‌اند» فرق دارد و باید **گفته** شود،
+           نه اینکه روش پرداخت بی‌صدا غیب شود — کارفرما دقیقاً همان سکوت را دید
+           و فکر کرد قابلیت اصلاً کار نمی‌کند. --}}
       @foreach($cryptoAssets as $code => $spec)
-        <label class="pm-card" data-m="cy{{ $code }}">
-          <input type="radio" name="pm" value="cy{{ $code }}" hidden>
-          <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
-          <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $spec['label'] }}</small></span>
-          <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
-        </label>
+        @if($spec['state'] === \App\Services\Payment\CryptoIssuer::BUSY)
+          <label class="pm-card is-off" data-m="cy{{ $code }}" title="{{ __('ui.cy_busy_hint') }}">
+            <input type="radio" name="pm" value="cy{{ $code }}" hidden disabled>
+            <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small>{{ __('ui.cy_busy_hint') }}</small></span>
+            <span class="pm-soon">{{ __('ui.cy_busy') }}</span>
+          </label>
+        @else
+          <label class="pm-card" data-m="cy{{ $code }}">
+            <input type="radio" name="pm" value="cy{{ $code }}" hidden
+                   @if($cryptoOpen && $cryptoOpen->asset === $code) checked @endif>
+            <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $spec['label'] }}</small></span>
+            <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+          </label>
+        @endif
       @endforeach
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
-    <div class="pm-hint" id="pm-hint">
+    <div class="pm-hint" id="pm-hint" @if($cryptoOpen) hidden @endif>
       <svg class="icon"><use href="#i-info"/></svg> {{ __('ui.inv_pm_hint') }}
     </div>
 
@@ -278,12 +290,19 @@
       </div>
     @endforeach
 
-    {{-- ═══ رمزارز: دستور پرداخت ═══ --}}
+    {{-- ═══ رمزارز: دستور پرداخت ═══
+         ⚠️ دارایی «مشغول» پنل ندارد، چون کارتش هم غیرفعال است و چیزی برای
+            انجام‌دادن نیست؛ توضیحش روی خودِ کارت است. --}}
     @foreach($cryptoAssets as $code => $spec)
-      <div class="pm-pane" id="pane-cy{{ $code }}" hidden>
+      @continue($spec['state'] === \App\Services\Payment\CryptoIssuer::BUSY)
+      @php $cyIsOpen = $cryptoOpen && $cryptoOpen->asset === $code; @endphp
+      {{-- ⚠️ پنلِ پرداختِ باز **باز** باز می‌شود. بعد از «دریافت آدرس» مشتری به
+           همین صفحه برمی‌گردد؛ اگر باز هم باید روی کارت کلیک کند تا آدرس را
+           ببیند، از دیدِ او هیچ اتفاقی نیفتاده است. --}}
+      <div class="pm-pane" id="pane-cy{{ $code }}" @unless($cyIsOpen) hidden @endunless>
         <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }} — <span dir="ltr">{{ $spec['label'] }}</span></b></div>
 
-        @if($cryptoOpen && $cryptoOpen->asset === $code)
+        @if($cyIsOpen)
           @php $cy = $cryptoOpen; @endphp
           <div class="cy-box" id="cy-{{ $cy->id }}"
                data-status-url="{{ lroute('account.invoice.crypto.status', $invoice) }}"
