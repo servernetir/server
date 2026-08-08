@@ -20,6 +20,12 @@ use Illuminate\Support\Facades\Schema;
  * ۲) **گذارِ building → running.** پنل خودش هم با AJAX وضعیت را می‌پرسد، ولی
  *    مشتری‌ای که تب را بسته باید بی‌کلیکِ خودش، ایمیلِ آدرسِ سرور را بگیرد.
  *
+ * ۳) **فرستادنِ ایمیلِ تحویلی که بدهی مانده.** ایمیل دیگر لحظهٔ «سفارش پذیرفته
+ *    شد» نمی‌رود، چون آن لحظه IP وجود ندارد و مشتری ایمیلی با `IP: —` می‌گرفت.
+ *    `CloudProvisioner::deliverOwedNotices()` هر دقیقه سراغِ ردیف‌هایی می‌رود که
+ *    `ready_notified_at` نال دارند و حالا هم IP دارند هم زیرساخت می‌گوید بالا
+ *    آمده‌اند. قفلِ اتمی تضمین می‌کند هرگز دو بار نرود.
+ *
  * هر دقیقه می‌دود مثلِ `provision:run`، ولی سبک است: فقط ردیف‌های `building`/
  * `unknown`/`order:` را می‌بیند، پس روی حسابِ پرِ سرورها هم چند تماس بیشتر نیست.
  */
@@ -37,10 +43,10 @@ class SyncCloudInstances extends Command
 
         $r = $prov->syncInstances(max(1, (int) $this->option('limit')));
 
-        if ($r['resolved'] + $r['refreshed'] + $r['failed'] > 0) {
+        if (array_sum($r) > 0) {
             $this->info(sprintf(
-                'سرورِ ابری: %d سفارشِ بسته‌شده، %d وضعیتِ تازه، %d ناموفق.',
-                $r['resolved'], $r['refreshed'], $r['failed']
+                'سرورِ ابری: %d سفارشِ بسته‌شده، %d وضعیتِ تازه، %d ناموفق، %d ایمیلِ تحویل.',
+                $r['resolved'], $r['refreshed'], $r['failed'], $r['notified']
             ));
         }
 

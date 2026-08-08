@@ -16,6 +16,28 @@
   $osLbl = $osList->firstWhere('key', $inst?->image_key)?->label
            ?? $appList->firstWhere('key', $inst?->image_key)?->label
            ?? ($inst->image_key ?? '—');
+
+  /* ═══ 🔴 «آماده» یک تعریف دارد و از مدل می‌آید ═══
+     قبلاً این صفحه فقط `status === 'building'` را «در حالِ ساخت» می‌شمرد. ولی
+     زیرساختِ دوم در حینِ ساخت `activating` می‌گوید و نگاشتِ ما هر رشتهٔ ناشناخته
+     را `unknown` می‌کند — که در آن شرط **نمی‌افتاد**. نتیجه همان چیزی بود که
+     کارفرما دید: پنل چیدمانِ «تحویل‌شده» را با `IP: —` نشان می‌داد در حالی که
+     ماشین هنوز ساخته نشده بود.
+     حالا وارونه است: صفحه فقط وقتی چیدمانِ تحویل را نشان می‌دهد که مدل بگوید
+     تحویل شده (وضعیتِ زندهٔ زیرساخت + وجودِ IP). «نمی‌دانم» ⇒ در حالِ ساخت. */
+  $ready    = (bool) $inst?->isDelivered();
+  $stage    = $inst?->stage() ?? 'ordered';
+  $stageIdx = $inst?->stageIndex() ?? 0;
+
+  /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
+     🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
+     خراب است؛ همان قاعدهٔ صفحهٔ /status این پروژه. */
+  $steps = [
+    ['k' => 'ordered',   't' => __('ui.cs_stage_ordered'),   'd' => __('ui.cs_stage_ordered_d')],
+    ['k' => 'building',  't' => __('ui.cs_stage_building'),  'd' => __('ui.cs_stage_building_d')],
+    ['k' => 'finishing', 't' => __('ui.cs_stage_finishing'), 'd' => __('ui.cs_stage_finishing_d')],
+    ['k' => 'ready',     't' => __('ui.cs_stage_ready'),     'd' => __('ui.cs_stage_ready_d')],
+  ];
 @endphp
 
 {{-- ═══ رشته‌های JS سه‌زبانه ═══
@@ -51,7 +73,9 @@
   </div>
   <span class="pnl-pill {{ $inst?->status === 'running' ? 'ok' : '' }}" id="st-pill"
         style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
-    {{ $inst?->statusLabel() ?? __('ui.cs_status_preparing') }}
+    {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
+         وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
+    {{ $ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')) }}
   </span>
 </div>
 
@@ -68,21 +92,44 @@
   </div>
 @endif
 
-{{-- ═══ سرور در حالِ ساخت ═══
+{{-- ═══ سرور در حالِ ساخت — تجربهٔ زنده ═══
      مشتری پول داده و چیزی نمی‌بیند؛ اگر این حالت را صریح نگوییم، فکر می‌کند
-     خرید ناموفق بوده و تیکت می‌زند. صفحه هر ۱۰ ثانیه خودش وضعیت را می‌پرسد. --}}
-@if(! $inst || $inst->status === 'building')
+     خرید ناموفق بوده و تیکت می‌زند.
+
+     ⚠️ همان الگوی پنلِ پرداختِ رمزارز (`cy-box` در account/invoice.blade.php):
+     صفحه **خودش تصمیم نمی‌گیرد** آماده شده یا نه — فقط وضعیتی را که سرور
+     می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
+@if(! $ready)
   <section class="pnl-sec">
-    <div class="pnl-sec-b" style="text-align:center;padding:34px 20px">
-      <div style="font-size:34px;margin-bottom:10px">⚙️</div>
-      <h2 style="font-size:17px;margin:0 0 8px">{{ __('ui.cs_building_h') }}</h2>
-      <p style="color:var(--muted);font-size:13.5px;line-height:2;margin:0">
-        {!! __('ui.cs_building_p') !!}
-      </p>
+    <div class="pnl-sec-h">
+      <h2>{{ __('ui.cs_building_h') }}</h2>
+      <span class="cb-live"><i></i>{{ __('ui.cs_build_live') }}</span>
+    </div>
+    <div class="pnl-sec-b">
+      <p class="cb-lead">{!! __('ui.cs_building_p') !!}</p>
+
+      <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
+          data-status-url="{{ route('account.cloud.status', $service) }}">
+        @foreach($steps as $i => $st)
+          @php
+            /* حالتِ اولیه در سمتِ سرور ساخته می‌شود، نه با جاوااسکریپت: اگر JS
+               نرسد یا بلاک شود، مشتری باید همین حالا مرحلهٔ درست را ببیند. */
+            $cls = $i < $stageIdx ? 'is-done' : ($i === $stageIdx ? 'is-now' : 'is-todo');
+          @endphp
+          <li class="cb-step {{ $cls }}" data-i="{{ $i }}">
+            <span class="cb-dot" aria-hidden="true"></span>
+            <span class="cb-txt">
+              <b>{{ $st['t'] }}</b>
+              <small>{{ $st['d'] }}</small>
+            </span>
+          </li>
+        @endforeach
+      </ol>
+
+      <p class="cb-foot">{{ __('ui.cs_build_leave') }}</p>
+
       @if($inst?->last_error)
-        <p style="margin-top:14px;color:var(--warn);font-size:12.5px">
-          {{ __('ui.cs_building_delay') }}
-        </p>
+        <p class="cb-warn">{{ __('ui.cs_building_delay') }}</p>
       @endif
     </div>
   </section>
@@ -125,6 +172,13 @@
     @elseif($inst->hasPassword())
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--dim);line-height:1.9">
         {{ __('ui.cs_pw_hidden') }}
+      </p>
+    @elseif(($caps['reset_password'] ?? false) && blank($service->cloud_ssh_key_id))
+      {{-- سروری که هیچ رمزی ندارد و کلیدِ SSH هم انتخاب نشده: مشتری سرور دارد و
+           راهی به داخلش ندارد. سکوت این‌جا یعنی تیکتِ «سرورم کار نمی‌کند» —
+           ایمیلِ تحویل هم عمداً رمز ندارد، پس این تنها راهنمای اوست. --}}
+      <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
+        {{ __('ui.cs_pw_missing') }}
       </p>
     @endif
   </div>
@@ -310,30 +364,54 @@
   if (!pill) { return; }
 
   var statusUrl = {{ Illuminate\Support\Js::from(route('account.cloud.status', $service)) }};
-  var building  = {{ (! $instance || $instance->status === 'building') ? 'true' : 'false' }};
+  var building  = {{ $ready ? 'false' : 'true' }};
+  var steps     = document.getElementById('cb-steps');
+
+  /* ── نوارِ مرحله‌ها ──
+     🔴 هیچ عددی این‌جا ساخته نمی‌شود. تنها کاری که می‌کند این است که کلاسِ
+     مرحله‌ها را با شمارهٔ مرحله‌ای که **سرور** گفته هم‌تراز کند. اگر روزی
+     مرحله‌ای اضافه شد، فقط سمتِ سرور عوض می‌شود. */
+  function paintStage(idx){
+    if (!steps || typeof idx !== 'number') { return; }
+    steps.dataset.stage = String(idx);
+
+    steps.querySelectorAll('.cb-step').forEach(function(li){
+      var i = parseInt(li.dataset.i, 10);
+      li.classList.remove('is-done', 'is-now', 'is-todo');
+      li.classList.add(i < idx ? 'is-done' : (i === idx ? 'is-now' : 'is-todo'));
+    });
+  }
 
   // ── وضعیتِ زنده ──
   // در حالتِ «در حالِ ساخت» تندتر می‌پرسیم، چون مشتری منتظرِ همان است؛ بعد از
   // آماده شدن، آرام‌تر تا سهمیهٔ API زیرساخت بی‌دلیل خرج نشود.
-  var tick = building ? 10000 : 30000;
+  // ⚠️ ۵ ثانیه بی‌خطر است: پاسخِ وضعیت سمتِ سرور ۲۰ ثانیه کش می‌شود، پس تندتر
+  // پرسیدن سهمیهٔ زیرساخت را خرج نمی‌کند.
+  var tick = building ? 5000 : 30000;
   var tries = 0;
 
   function poll(){
-    if (++tries > 60) { return; }              // سقفِ ایمنی: تبِ رهاشده تا ابد نپرسد
+    if (++tries > 120) { return; }              // سقفِ ایمنی: تبِ رهاشده تا ابد نپرسد
 
     fetch(statusUrl, { headers: { 'Accept': 'application/json' } })
       .then(function(r){ return r.json(); })
       .then(function(d){
-        if (!d || !d.label) { return; }
+        if (!d) { return; }
 
-        pill.textContent = d.label;
+        if (d.label) { pill.textContent = d.label; }
         if (d.color) { pill.style.color = d.color; }
 
         var seen = document.getElementById('st-seen');
         if (seen) { seen.textContent = T.last_check_now; }
 
-        // تازه آماده شد → صفحه را یک بار بازخوانی کن تا رمز و مشخصات بیاید
-        if (building && d.status && d.status !== 'building') {
+        paintStage(d.stage_index);
+
+        /* تازه آماده شد → یک بار بازخوانی تا رمز (که فقط یک بار نشان داده
+           می‌شود) و مشخصاتِ کامل بیاید.
+           ⚠️ شرط `d.ready` است، نه «دیگر building نیست». پیش از این هر وضعیتِ
+           غیرِ building (از جمله `unknown`ِ حاصلِ `activating`) صفحه را بازخوانی
+           می‌کرد و مشتری چیدمانِ تحویل‌شده را با IPِ خالی می‌دید. */
+        if (building && d.ready === true) {
           window.location.reload();
           return;
         }

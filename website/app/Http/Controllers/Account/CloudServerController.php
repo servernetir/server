@@ -132,14 +132,20 @@ class CloudServerController extends Controller
         $this->ownedService($service);
         $instance = $this->instanceOf($service);
 
+        // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
+        // «سفارش ثبت شد» ببیند، نه «نامشخص» — و مطلقاً نه «آماده».
         if ($instance === null || blank($instance->provider_ref)) {
-            return response()->json(['ok' => false, 'status' => 'building']);
+            return response()->json([
+                'ok' => false, 'status' => 'building', 'ready' => false,
+                'stage' => $instance?->stage() ?? 'ordered',
+                'stage_index' => $instance?->stageIndex() ?? 0,
+            ]);
         }
 
         $driver = $this->manager->forInstance($instance);
 
         if ($driver === null) {
-            return response()->json(['ok' => false, 'status' => $instance->status]);
+            return response()->json($this->statePayload($instance, false));
         }
 
         // ⚠️ کش لازم است، نه تجملی: این متد را صفحه هر ۳۰ ثانیه می‌پرسد و هر
@@ -163,14 +169,40 @@ class CloudServerController extends Controller
             ]);
         }
 
-        return response()->json([
-            'ok'      => (bool) $r['ok'],
-            'status'  => $r['ok'] ? $r['status'] : $instance->status,
-            'label'   => $instance->fresh()->statusLabel(),
-            'color'   => $instance->fresh()->statusColor(),
-            'ipv4'    => $instance->fresh()->ipv4,
-            'traffic' => $r['traffic_used_gb'] ?? null,
-        ]);
+        return response()->json(
+            $this->statePayload($instance->fresh(), (bool) $r['ok'])
+            + ['traffic' => $r['traffic_used_gb'] ?? null]
+        );
+    }
+
+    /**
+     * تنها شکلِ پاسخِ وضعیت — تا صفحه و کرون یک تعریف از «آماده» داشته باشند.
+     *
+     * 🔴 `ready` عمداً از `CloudInstance::isDelivered()` می‌آید و نه از رشتهٔ
+     * وضعیت. باگِ گزارش‌شده همین بود: پنل «ساخته شد» می‌گفت در حالی که زیرساخت
+     * `activating` می‌گفت. هر وضعیتِ ناشناخته (یا بی‌IP) ⇒ آماده **نیست**.
+     *
+     * @return array<string,mixed>
+     */
+    private function statePayload(CloudInstance $instance, bool $ok): array
+    {
+        return [
+            'ok'          => $ok,
+            'status'      => $instance->status,
+            /*
+            | برچسبِ نشانگر هم از همان تعریف می‌آید. تا پیش از تحویل، **مرحله**
+            | را می‌گوید نه رشتهٔ خامِ زیرساخت — وگرنه مشتری روی سرورِ در حالِ
+            | ساخت کلمهٔ «نامشخص» می‌دید، که هم بی‌معنی است هم نگران‌کننده.
+            */
+            'label'       => $instance->isDelivered()
+                ? $instance->statusLabel()
+                : __('ui.cs_stage_'.$instance->stage()),
+            'color'       => $instance->statusColor(),
+            'ipv4'        => $instance->ipv4,
+            'ready'       => $instance->isDelivered(),
+            'stage'       => $instance->stage(),
+            'stage_index' => $instance->stageIndex(),
+        ];
     }
 
     /** نمودارِ مصرف (AJAX) */

@@ -350,3 +350,67 @@ body.imp-on .pnl-side{top:calc(96px + var(--imp-h))}
      یک تغییرِ نام کافی بود تا بی‌صدا بشکند. */
   --brand: var(--info);
 }
+
+/* ==========================================================================
+   نوارِ زندهٔ ساختِ سرورِ ابری  (`.cb-*` = cloud build)
+   --------------------------------------------------------------------------
+   🔴 چهار مرحلهٔ **گسسته**، بی‌هیچ نوارِ درصد. همان قاعدهٔ صفحهٔ /status این
+   پروژه: عددِ من‌درآوردی از نبودِ عدد بدتر است، چون مشتری‌ای که روی ۷۰٪ گیر
+   می‌کند نتیجه می‌گیرد سایت خراب است.
+
+   حرکت **فقط** روی مرحلهٔ جاری است. اگر همه‌چیز بجنبد، هیچ‌چیز معنا ندارد.
+   ⚠️ توکن‌ها همان‌های موجودند (--line/--surface/--muted/--dim/--ok/--warn/--info)
+   — کلاس یا متغیرِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود.
+   ========================================================================== */
+.cb-live{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted)}
+.cb-live i{width:7px;height:7px;border-radius:50%;background:var(--info);
+  box-shadow:0 0 0 0 var(--info-line);animation:cbPulse 1.9s var(--ease,ease) infinite}
+.cb-lead{font-size:13.5px;color:var(--muted);line-height:2;margin:0 0 18px}
+.cb-lead b{color:var(--text)}
+
+.cb-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.cb-step{position:relative;display:flex;align-items:flex-start;gap:14px;padding:0 0 20px}
+.cb-step:last-child{padding-bottom:0}
+/* خطِ عمودیِ اتصالِ مرحله‌ها — منطقی (inset-inline) تا در RTL و LTR درست بیفتد */
+.cb-step::before{content:"";position:absolute;top:20px;bottom:0;inset-inline-start:8px;
+  width:2px;background:var(--line)}
+.cb-step:last-child::before{display:none}
+.cb-step.is-done::before{background:var(--ok-line)}
+
+.cb-dot{position:relative;z-index:1;flex:none;width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--line-2);background:var(--surface);margin-top:2px;
+  display:grid;place-items:center;transition:border-color .25s,background .25s}
+.cb-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cb-txt b{font-size:13.5px;color:var(--dim);font-weight:600;transition:color .25s}
+.cb-txt small{font-size:12px;color:var(--dim);line-height:1.85}
+
+/* انجام‌شده: تیکِ آرام، بی‌جلبِ توجه */
+.cb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
+.cb-step.is-done .cb-dot::after{content:"";width:5px;height:9px;border:2px solid #04121a;
+  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+.cb-step.is-done .cb-txt b{color:var(--text)}
+
+/* جاری: تنها چیزی که در صفحه می‌جنبد */
+.cb-step.is-now .cb-dot{border-color:var(--info);background:var(--info-bg);
+  animation:cbPulse 1.9s var(--ease,ease) infinite}
+.cb-step.is-now .cb-dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--info)}
+.cb-step.is-now .cb-txt b{color:var(--info)}
+.cb-step.is-now .cb-txt small{color:var(--muted)}
+
+/* نرسیده: خاموش می‌ماند تا «بعدی» واقعاً بعدی به‌نظر برسد */
+.cb-step.is-todo .cb-dot{border-style:dashed}
+
+.cb-foot{margin:18px 0 0;padding-top:15px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--dim);line-height:1.95}
+.cb-warn{margin:12px 0 0;font-size:12.5px;color:var(--warn);line-height:1.95}
+
+@keyframes cbPulse{
+  0%  {box-shadow:0 0 0 0 var(--info-line)}
+  70% {box-shadow:0 0 0 7px rgba(0,0,0,0)}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}
+}
+/* کسی که حرکت را خوش ندارد، ضربان نبیند — ولی مرحلهٔ جاری باید همچنان
+   قابلِ تشخیص باشد، پس فقط انیمیشن می‌رود نه رنگ. */
+@media (prefers-reduced-motion: reduce){
+  .cb-live i, .cb-step.is-now .cb-dot{animation:none}
+}

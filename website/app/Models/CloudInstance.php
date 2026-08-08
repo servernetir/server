@@ -18,17 +18,18 @@ class CloudInstance extends Model
     protected $fillable = [
         'service_id', 'provider', 'provider_ref', 'location_code', 'image_key',
         'hostname', 'ipv4', 'ipv6', 'root_password_enc', 'password_seen',
-        'status', 'last_error', 'specs', 'meta', 'synced_at',
+        'status', 'last_error', 'specs', 'meta', 'synced_at', 'ready_notified_at',
     ];
 
     /** نامِ ارائه‌دهنده و رمز هرگز در JSON بیرون نمی‌روند */
     protected $hidden = ['provider', 'provider_ref', 'root_password_enc'];
 
     protected $casts = [
-        'specs'         => 'array',
-        'meta'          => 'array',
-        'password_seen' => 'bool',
-        'synced_at'     => 'datetime',
+        'specs'             => 'array',
+        'meta'              => 'array',
+        'password_seen'     => 'bool',
+        'synced_at'         => 'datetime',
+        'ready_notified_at' => 'datetime',
     ];
 
     public function service()
@@ -61,6 +62,115 @@ class CloudInstance extends Model
     public function hasPassword(): bool
     {
         return filled($this->root_password_enc);
+    }
+
+    // ───────────────────────── آمادگیِ واقعی ─────────────────────────
+
+    /*
+    | ═══ 🔴 چرا «آماده» یک متدِ مدل است و نه یک `if` در ویو ═══
+    |
+    | کارفرما گزارش داد: «پنلِ ما می‌گوید ساخته شد، ولی زیرساخت می‌گوید
+    | activating.» علتِ ریشه‌ای این بود که «آماده» سه جای مختلف سه تعریفِ
+    | متفاوت داشت: ویو `status === 'building'` را وارونه می‌کرد، ایمیل هیچ
+    | شرطی نداشت، و کرون `running` را کافی می‌دانست.
+    |
+    | حالا یک تعریف است و هر سه از همین می‌پرسند. نکتهٔ ظریفش: پیش‌فرضِ
+    | «نمی‌دانم» باید **ناآماده** باشد. نگاشتِ وضعیتِ زیرساخت هر رشتهٔ
+    | ناشناخته را `unknown` می‌کند، و `unknown` هرگز نباید آماده شمرده شود —
+    | وگرنه اضافه‌شدنِ یک رشتهٔ تازه از سمتِ آنها، بی‌هیچ خطایی همان باگ را
+    | برمی‌گرداند.
+    */
+
+    /** رشته‌هایی که زیرساخت با آنها می‌گوید «این ماشین واقعاً بالا است» */
+    public const READY_STATUSES = ['running'];
+
+    /** وضعیت‌هایی که یعنی ماشین وجود دارد و قابلِ استفاده است (روشن یا خاموش) */
+    public const LIVE_STATUSES = ['running', 'off'];
+
+    /**
+     * آیا ایمیل/پیامِ «سرورت آماده شد» مجاز است؟
+     *
+     * ⚠️ دو شرط، و **هر دو** لازم است:
+     *   • زیرساخت بگوید بالا است (`active` → `running`)
+     *   • IPv4 داشته باشیم
+     *
+     * شرطِ دوم عمداً مستقل است، چون کلِ خرابیِ گزارش‌شده همین بود: ایمیلی که
+     * `IP: —` داشت. اگر ماشین `active` شد ولی IP نرسیده، یک دقیقهٔ دیگر صبر
+     * می‌کنیم — یک دقیقه تأخیر، در برابرِ ایمیلی که مشتری با آن هیچ کاری
+     * نمی‌تواند بکند.
+     */
+    public function readyForNotice(): bool
+    {
+        return in_array($this->status, self::READY_STATUSES, true) && filled($this->ipv4);
+    }
+
+    /**
+     * آیا صفحهٔ پنل باید بخشِ «دسترسی و کنترل» را نشان دهد؟
+     *
+     * ⚠️ چرا `LIVE_STATUSES` و نه `READY_STATUSES`: سرورِ **خاموشِ** مشتری هم
+     * تحویل‌شده است. اگر این‌جا فقط `running` را بپذیریم، کسی که سرورش را خاموش
+     * می‌کند یک‌باره صفحهٔ «در حالِ ساخت» می‌بیند — یک باگِ تازه به‌جای باگِ قبلی.
+     */
+    public function isDelivered(): bool
+    {
+        return in_array($this->status, self::LIVE_STATUSES, true) && filled($this->ipv4);
+    }
+
+    /** آیا ایمیلِ تحویل هنوز بدهیِ ما است؟ */
+    public function owesReadyNotice(): bool
+    {
+        return $this->ready_notified_at === null;
+    }
+
+    /**
+     * مرحلهٔ واقعیِ ساخت — برای نوارِ زندهٔ صفحهٔ مشتری.
+     *
+     * 🔴 **هیچ درصدِ ساختگی.** همان قاعدهٔ `/status` در این پروژه: عددِ من‌درآوردی
+     * از نبودِ عدد بدتر است، چون مشتری‌ای که روی ۷۰٪ گیر کرده نتیجه می‌گیرد سایت
+     * خراب است. پس چهار مرحلهٔ **گسسته**، و هر مرحله از یک واقعیتِ قابلِ اثبات
+     * می‌آید:
+     *
+     *   ordered   ردیف ساخته شده ولی سفارش هنوز نزدِ زیرساخت ثبت نشده
+     *   building  سفارش پذیرفته شده و ماشین ساخته می‌شود (شاملِ `activating`)
+     *   finishing زیرساخت می‌گوید بالا است ولی IP هنوز نرسیده
+     *   ready     بالا است و IP دارد
+     *
+     * ⚠️ مرزِ `ordered`/`building` روی **وجودِ شناسه** است، نه روی حسِ ما.
+     * ردیفِ نمونه عمداً **پیش** از تماسِ API ساخته می‌شود (لایهٔ سومِ محافظِ
+     * «دو بار نخر»)، پس ردیفِ بی‌شناسه یعنی سفارش هنوز ثبت نشده و گفتنِ
+     * «سفارش ثبت شد ✓» در آن لحظه دروغ است. به‌محضِ آمدنِ شناسه — حتی شناسهٔ
+     * نیمه‌کارهٔ `order:…` — سفارش واقعاً پذیرفته شده و آن مرحله تیک می‌خورد.
+     *
+     * @return 'ordered'|'building'|'finishing'|'ready'
+     */
+    public function stage(): string
+    {
+        if ($this->isDelivered()) {
+            return 'ready';
+        }
+
+        if (blank($this->provider_ref)) {
+            return 'ordered';
+        }
+
+        // بالا آمده ولی IP نرسیده — واقعاً مرحلهٔ آخرِ آماده‌سازی است
+        if (in_array($this->status, self::LIVE_STATUSES, true)) {
+            return 'finishing';
+        }
+
+        // شاملِ سفارشِ نیمه‌کارهٔ `order:…`، وضعیتِ `building` و `unknown`
+        return 'building';
+    }
+
+    /** شمارهٔ مرحله (۰..۳) — برای «انجام‌شده / درجریان / نرسیده» در ویو */
+    public function stageIndex(): int
+    {
+        return match ($this->stage()) {
+            'ordered'   => 0,
+            'building'  => 1,
+            'finishing' => 2,
+            default     => 3,
+        };
     }
 
     // ───────────────────────── نمایش ─────────────────────────
