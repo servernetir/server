@@ -180,7 +180,7 @@ class PaymentController extends Controller
 
             // رمزارز: فقط دارایی‌هایی که واقعاً آدرسِ آزاد دارند + پرداختِ بازِ جاری
             'cryptoAssets' => Schema::hasTable('crypto_wallets')
-                ? app(\App\Services\Crypto\CryptoIssuer::class)->available()
+                ? app(\App\Services\Payment\CryptoIssuer::class)->available()
                 : [],
             'cryptoOpen'   => Schema::hasTable('crypto_payments')
                 ? \App\Models\CryptoPayment::where('invoice_id', $invoice->id)
@@ -205,7 +205,7 @@ class PaymentController extends Controller
         }
 
         $asset = (string) $request->input('asset', 'USDT');
-        $cp = app(\App\Services\Crypto\CryptoIssuer::class)->issue($invoice, $asset);
+        $cp = app(\App\Services\Payment\CryptoIssuer::class)->issue($invoice, $asset);
 
         /*
         | 🔴 شکست باید **صریح** باشد.

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Crypto;
+namespace App\Services\Payment;
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Http;

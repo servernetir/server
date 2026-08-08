@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Crypto\CryptoReconciler;
+use App\Services\Payment\CryptoReconciler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 

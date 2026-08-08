@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Services\Crypto;
+namespace App\Services\Payment;
 
 use App\Models\CryptoPayment;
 use App\Models\CryptoWallet;
 use App\Models\Payment;
-use App\Services\Payment\PaymentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 

@@ -6,8 +6,8 @@ use App\Models\CryptoPayment;
 use App\Models\CryptoWallet;
 use App\Models\Customer;
 use App\Models\Invoice;
-use App\Services\Crypto\CryptoReconciler;
-use App\Services\Crypto\TronWatcher;
+use App\Services\Payment\CryptoReconciler;
+use App\Services\Payment\TronWatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Http;
@@ -209,7 +209,7 @@ class CryptoTronPaymentTest extends TestCase
      */
     public function test_the_payment_window_is_per_asset_and_stablecoins_get_the_long_one(): void
     {
-        $assets = \App\Services\Crypto\CryptoIssuer::ASSETS;
+        $assets = \App\Services\Payment\CryptoIssuer::ASSETS;
 
         $this->assertSame(59, $assets['USDT']['window'],
             'کارفرما برای تتر ۵۹ دقیقه خواست');
@@ -226,7 +226,25 @@ class CryptoTronPaymentTest extends TestCase
     /** 🔴 کلیدِ خصوصی هیچ‌جای این حوزه نباید باشد */
     public function test_no_private_key_material_anywhere_in_the_crypto_layer(): void
     {
-        foreach (glob(app_path('Services/Crypto/*.php')) as $f) {
+        /*
+        | ⚠️ فهرست **صریح** است، نه glob.
+        |
+        | نسخهٔ اول روی `Services/Crypto/*.php` می‌گشت. وقتی کلاس‌ها جابه‌جا
+        | شدند آن پوشه دیگر وجود نداشت، glob آرایهٔ خالی می‌داد و تست بی‌آنکه
+        | چیزی بسنجد سبز می‌مانْد — یعنی محافظِ «کلید خصوصی روی سرور نباشد»
+        | دقیقاً وقتی که کد جابه‌جا می‌شود از کار می‌افتاد.
+        */
+        $files = [
+            app_path('Services/Payment/TronWatcher.php'),
+            app_path('Services/Payment/CryptoReconciler.php'),
+            app_path('Services/Payment/CryptoIssuer.php'),
+        ];
+
+        foreach ($files as $f) {
+            $this->assertFileExists($f, 'فایلِ لایهٔ رمزارز جابه‌جا شده و این محافظ دیگر چیزی را نمی‌سنجد');
+        }
+
+        foreach ($files as $f) {
             $src = file_get_contents($f);
 
             foreach (['privateKey', 'private_key', 'mnemonic', 'seedPhrase', 'sign('] as $needle) {
