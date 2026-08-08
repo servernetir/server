@@ -398,7 +398,105 @@ class CloudProvisioner
             ])->save();
         });
 
-        $this->notify($service, $instance);
+        $this->notifyIfReady($service, $instance);
+    }
+
+    /**
+     * اعلانِ مشتری فقط وقتی سرور **واقعاً** آماده است؛ وگرنه بدهی ثبت می‌شود.
+     *
+     * ═══ 🔴 باگِ واقعی که این‌جا بسته شد ═══
+     *
+     * `notify()` بی‌قید همین‌جا صدا زده می‌شد. زیرساختِ ۱ در پاسخِ ساخت IP
+     * می‌دهد، ولی زیرساختِ ۲ نه: ماشین `activating` است و IP چند ده ثانیه بعد
+     * می‌آید. پس مشتری ایمیلی می‌گرفت با `IP: —` و بی‌هیچ رمزی — و کد از قبل
+     * می‌دانست که ممکن است IP نباشد، چون خودش `?: '—'` نوشته بود.
+     *
+     * حالا «سفارش پذیرفته شد» با «سرور آماده شد» یکی گرفته نمی‌شود:
+     *
+     *   آماده  → همین‌جا بفرست
+     *   نه     → `ready_notified_at` نال می‌مانَد ⇒ بدهی. کرونِ هر-دقیقه‌ای
+     *            (`cloud:sync-instances`) به‌محضِ رسیدنِ IP می‌فرستد.
+     *
+     * ⚠️ مدیر در **هر دو** حالت خبردار می‌شود، ولی با متنِ درست. اگر این‌جا هم
+     * سکوت می‌کردیم، هیچ‌کس نمی‌فهمید سفارشی ثبت شده و در صف مانده است — همان
+     * الگوی «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
+     */
+    private function notifyIfReady(Service $service, CloudInstance $instance): void
+    {
+        if ($instance->readyForNotice()) {
+            $this->notify($service, $instance);
+
+            return;
+        }
+
+        try {
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'سفارشِ سرور ثبت شد؛ ایمیلِ تحویل تا رسیدنِ IP نگه داشته شد.', 'system');
+        } catch (\Throwable) {
+        }
+
+        try {
+            app(\App\Services\Notify\AdminNotifier::class)->event(
+                'سفارشِ سرورِ ابری ثبت شد — در حالِ آماده‌سازی',
+                [
+                    'سرویس' => $service->name.' (#'.$service->id.')',
+                    'مشتری' => $service->customer?->name ?? '—',
+                    'مکان'  => $instance->location_code ?: '—',
+                    'وضعیت' => $instance->statusLabel('fa'),
+                ],
+                url('/admin/services'),
+                '⏳'
+            );
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * ایمیل‌های تحویلِ **بدهی‌مانده** را بفرست — بی‌هیچ تماسِ API.
+     *
+     * چرا یک گذرِ جدا و نه ادامهٔ حلقهٔ وضعیت: ممکن است IP را حلقهٔ بالا کشف
+     * نکرده باشد. صفحهٔ خودِ مشتری هم هر چند ثانیه وضعیت را می‌پرسد و ردیف را
+     * به‌روز می‌کند؛ در آن حالت ردیف دیگر `building` نیست، پس از پرس‌وجوی حلقهٔ
+     * بالا بیرون می‌افتد و ایمیل **تا ابد** نفرستاده می‌مانْد. این پرس‌وجو فقط
+     * از «بدهی» می‌پرسد، پس هر راهی که IP از آن آمده باشد پوشش دارد.
+     *
+     * @return int تعداد اعلانِ فرستاده‌شده
+     */
+    public function deliverOwedNotices(int $limit = 40): int
+    {
+        $sent = 0;
+
+        $rows = CloudInstance::query()
+            ->whereNull('ready_notified_at')
+            ->whereIn('status', CloudInstance::READY_STATUSES)
+            ->whereNotNull('ipv4')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+
+        foreach ($rows as $instance) {
+            // ⚠️ هر ردیف در try خودش: یک ردیفِ خراب (مشتریِ حذف‌شده، ایمیلِ
+            // بدشکل) نباید بقیه را زمین بزند — و مهم‌تر، نباید استثنا به
+            // `schedule:run` برسد. یک استثنا آن دقیقه را کامل می‌کشد و با آن
+            // تحویلِ سرور و ثبتِ دامنه هم می‌ایستد (حادثهٔ مستندشده).
+            try {
+                $service = $instance->service;
+
+                // سرویسی که تحویلش تمام نشده هنوز «آماده» نیست؛ سرویسِ مرده هم
+                // اعلان نمی‌خواهد (لغوشده/خاتمه‌یافته).
+                if ($service === null || $service->provision_status !== 'done' || $service->isDead()) {
+                    continue;
+                }
+
+                if ($this->notify($service, $instance)) {
+                    $sent++;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('cloud.owed-notice', ['instance' => $instance->id, 'err' => $e->getMessage()]);
+            }
+        }
+
+        return $sent;
     }
 
     /**
@@ -414,11 +512,11 @@ class CloudProvisioner
      * هم‌زمان وضعیتِ `building` را پی می‌گیرد تا وقتی سرور بالا آمد، IP و
      * وضعیتِ درست در پنل بنشیند بی‌آنکه مشتری منتظرِ کلیکِ خودش بماند.
      *
-     * @return array{resolved:int,refreshed:int,failed:int}
+     * @return array{resolved:int,refreshed:int,failed:int,notified:int}
      */
     public function syncInstances(int $limit = 40): array
     {
-        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0];
+        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0, 'notified' => 0];
 
         // ⚠️ گروه‌بندیِ شرط لازم است: بی‌آن، اگر روزی شرطِ دیگری (مثلِ محدودکردن
         // به یک مشتری) اضافه شود، `OR` آن را دور می‌زند و روی **همهٔ** ردیف‌ها
@@ -489,19 +587,11 @@ class CloudProvisioner
                 $out['refreshed']++;
 
                 // تازه بالا آمد و IP گرفت → مشخصاتِ سرویس را کامل کن.
-                if ($wasBuilding && $r['status'] === 'running' && filled($instance->ipv4)) {
+                if ($wasBuilding && $instance->readyForNotice()) {
                     $service = $instance->service;
 
                     if ($service) {
                         $meta = (array) ($service->provision_meta ?? []);
-
-                        // ⚠️ اعلانِ «آماده شد» لحظهٔ تحویل فرستاده شده است. اگر
-                        // این‌جا بی‌قید دوباره بفرستیم، هر مشتری **دو ایمیل**
-                        // می‌گیرد. فقط وقتی می‌فرستیم که اعلانِ اول IP نداشته
-                        // باشد (حالتِ سفارشِ دومرحله‌ای) — یعنی مشتری هنوز
-                        // آدرسِ سرورش را ندیده.
-                        $hadIp = filled($meta['ip'] ?? null);
-
                         $meta['ip'] = $instance->ipv4;
                         $meta['ipv6'] = $instance->ipv6;
 
@@ -509,10 +599,6 @@ class CloudProvisioner
                             'domain'         => $service->domain ?: $instance->ipv4,
                             'provision_meta' => $meta,
                         ])->save();
-
-                        if (! $hadIp) {
-                            $this->notify($service, $instance);
-                        }
                     }
                 }
             } catch (\Throwable $e) {
@@ -522,7 +608,78 @@ class CloudProvisioner
             }
         }
 
+        /*
+        | ═══ ایمیل‌های بدهی‌مانده ═══
+        |
+        | ⚠️ عمداً **بیرونِ** حلقهٔ بالا و با پرس‌وجوی خودش. حلقهٔ بالا فقط
+        | ردیف‌های `building`/`unknown`/`order:` را می‌بیند؛ ردیفی که وضعیتش را
+        | خودِ صفحهٔ مشتری تازه کرده از آن فهرست بیرون است و اگر اعلانش این‌جا
+        | بند بود، **هرگز** فرستاده نمی‌شد.
+        |
+        | قبلاً شرطِ «فرستاده شد یا نه» استنتاجِ `provision_meta['ip']` بود؛ حالا
+        | `ready_notified_at` است — یک واقعیتِ ثبت‌شده، نه یک نتیجه‌گیری.
+        */
+        $out['notified'] = $this->deliverOwedNotices($limit);
+        $this->warnAboutStalledDeliveries();
+
         return $out;
+    }
+
+    /**
+     * 🔴 اگر ایمیلی **گیر** کرد، کسی باید بفهمد.
+     *
+     * ایمیل حالا شرطی است: تا زیرساخت نگوید بالا آمده و IP ندهد، نمی‌رود. این
+     * درست است، ولی یک حفرهٔ خاموشِ تازه می‌سازد — اگر ماشینی در وضعیتی گیر کند
+     * که هرگز به `running` نرسد (رشتهٔ ناشناخته از سمتِ زیرساخت، خرابیِ واقعیِ
+     * ساخت)، ایمیل **هیچ‌وقت** نمی‌رود و هیچ خطایی هم تولید نمی‌شود. دقیقاً همان
+     * الگویی که این پروژه سه بار خورده: «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
+     *
+     * ⚠️ گلوگاه‌دار (ساعتی یک بار): بی‌آن، یک ردیفِ گیرکرده روزی ۱۴۴۰ هشدار
+     * می‌ساخت و هشدارهای واقعی را زیرِ نویز دفن می‌کرد — از نداشتنِ هشدار بدتر.
+     */
+    private function warnAboutStalledDeliveries(): void
+    {
+        try {
+            $stalled = CloudInstance::query()
+                ->whereNull('ready_notified_at')
+                ->whereNotIn('status', ['deleted'])
+                ->where('created_at', '<', now()->subMinutes(20))
+                // ⚠️ سرویسِ لغوشده/خاتمه‌یافته عمداً ایمیل نمی‌گیرد، پس بدهی‌اش
+                // برای همیشه نال می‌مانَد. بی‌این شرط، همان ردیف‌ها تا ابد هر
+                // ساعت یک هشدارِ بی‌عمل می‌ساختند — و هشدارِ بی‌عمل، هشدارهای
+                // واقعی را بی‌اعتبار می‌کند.
+                ->whereHas('service', fn ($q) => $q->whereNotIn('status', Service::DEAD_STATUSES))
+                ->count();
+
+            if ($stalled === 0) {
+                return;
+            }
+
+            $key = 'cloud:stalled-notice-shout';
+
+            if (\Illuminate\Support\Facades\Cache::has($key)) {
+                return;
+            }
+
+            \Illuminate\Support\Facades\Cache::put($key, 1, now()->addHour());
+
+            \App\Support\ErrorTracker::note('provision',
+                $stalled.' سرورِ ابری بیش از ۲۰ دقیقه است که آماده نشده و ایمیلِ تحویلشان نرفته.');
+
+            app(\App\Services\Notify\AdminNotifier::class)->event(
+                'ایمیلِ تحویلِ سرور گیر کرده',
+                [
+                    'تعداد' => (string) $stalled,
+                    'علت'   => 'زیرساخت هنوز «بالا آمده + IP» را تأیید نکرده است.',
+                ],
+                url('/admin/cloud'),
+                '⚠️'
+            );
+        } catch (\Throwable $e) {
+            // ⚠️ هیچ‌چیزِ این متد نباید به `schedule:run` برسد: یک استثنا کلِ آن
+            // دقیقه را می‌کشد و با آن تحویلِ سرور و ثبتِ دامنه هم می‌ایستد.
+            Log::warning('cloud.stalled-notice', ['err' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -899,8 +1056,37 @@ class CloudProvisioner
         }
     }
 
-    private function notify(Service $service, CloudInstance $instance): void
+    /**
+     * اعلانِ «سرورت آماده شد» — دقیقاً یک بار در عمرِ هر سرویس.
+     *
+     * ═══ چرا «ثبتِ فرستادن» **پیش** از فرستادن است ═══
+     *
+     * قفلِ اتمی (`whereNull → update`) اول برداشته می‌شود و بعد ایمیل می‌رود.
+     * ترتیبش عمدی است: `cloud:sync-instances` و `provision:run` هر دو هر دقیقه
+     * می‌دوند و می‌توانند هم‌زمان روی یک ردیف بیفتند. اگر اول بفرستیم و بعد
+     * علامت بزنیم، مشتری دو (یا در حالتِ گیرکردن، ده) ایمیلِ یکسان می‌گیرد —
+     * و کارفرما صریح گفت «هرگز دو بار».
+     *
+     * بهایش این است که یک خرابیِ گذرای SMTP ایمیل را می‌سوزاند. آن هزینه
+     * پذیرفته است چون مشتری هر چیزی که در ایمیل بود را در پنل هم دارد، و ردِ
+     * ماجرا در `ActivityLog` می‌مانَد؛ در حالی که سیلِ ایمیلِ تکراری هم اعتماد
+     * را می‌برد هم دامنهٔ فرستنده را.
+     *
+     * @return bool آیا این فراخوان اعلان را فرستاد (false = قبلاً فرستاده شده)
+     */
+    private function notify(Service $service, CloudInstance $instance): bool
     {
+        // ── قفلِ اتمیِ «یک بار» ──
+        $claimed = CloudInstance::whereKey($instance->id)
+            ->whereNull('ready_notified_at')
+            ->update(['ready_notified_at' => now()]);
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $instance->ready_notified_at = now();
+
         try {
             // ⚠️ متغیرها باید پاس داده شوند وگرنه الگوی /admin/templates بی‌اثر
             // است: `NotificationTemplate::body()` اگر بعد از جایگزینی هنوز
@@ -908,8 +1094,8 @@ class CloudProvisioner
             // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
             app(\App\Services\Notify\CustomerNotifier::class)->event(
                 $service->customer, 'service_ready',
-                ['service' => $service->name, 'ip' => $instance->ipv4 ?: '—'],
-                'سرورِ «'.$service->name.'» شما آماده شد. IP: '.($instance->ipv4 ?: '—')
+                ['service' => $service->name, 'ip' => (string) $instance->ipv4],
+                'سرورِ «'.$service->name.'» شما آماده شد. IP: '.$instance->ipv4
             );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
@@ -923,13 +1109,33 @@ class CloudProvisioner
                     new \App\Mail\ServiceReadyMail(
                         $service->name,
                         $instance->ipv4 ?: $service->domain,
-                        $service->panel_url,
+                        $service->panel_url ?: url('/account/cloud/'.$service->id),
                         'root',
-                        $instance->password(),
+                        /*
+                        | 🔴 رمزِ root عمداً در ایمیل **نیست**.
+                        |
+                        | قاعدهٔ این حوزه از قبل این بود که رمز فقط یک بار در پنل
+                        | دیده شود (`password_seen`)، ولی ایمیل نسخهٔ دومی از همان
+                        | رمز را برای همیشه در اینباکس می‌گذاشت — یعنی همان قاعده
+                        | از درِ پشتی شکسته می‌شد.
+                        |
+                        | ⚠️ ولی سکوت هم جواب نبود: کارفرما گزارش داد مشتری فکر
+                        | می‌کند «چیزی جا افتاده». پس `passwordInPanel` صریح
+                        | می‌گوید رمز کجاست و چرا یک بار است.
+                        */
+                        null,
                         $customer->locale ?: 'fa',
+                        passwordInPanel: true,
+                        withSshGuide: true,
                     )
                 );
             }
+        } catch (\Throwable) {
+        }
+
+        try {
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'ایمیلِ تحویلِ سرور فرستاده شد (IP: '.$instance->ipv4.').', 'system');
         } catch (\Throwable) {
         }
 
@@ -947,6 +1153,8 @@ class CloudProvisioner
             );
         } catch (\Throwable) {
         }
+
+        return true;
     }
 
     // ───────────────────────── چرخهٔ عمر ─────────────────────────

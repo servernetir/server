@@ -82,6 +82,7 @@ return [
         'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
         'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
         'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
+        'outreach'  => env('AI_PROVIDER_OUTREACH', 'deepseek'),
     ],
 
     /*

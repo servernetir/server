@@ -1946,14 +1946,44 @@ class AezaClient implements CloudProvider
         return null;
     }
 
+    /**
+     * وضعیتِ بومیِ زیرساخت → واژگانِ خودمان.
+     *
+     * ═══ 🔴 درجهٔ اطمینان — کدام رشته را دیده‌ایم و کدام را نه ═══
+     *
+     * این زیرساخت سندباکس ندارد، پس فهرستِ رسمیِ وضعیت‌ها را نداریم و هر تماسِ
+     * سفارش پولِ واقعی است. تنها **دو** رشته با چشم روی یک سرورِ خریداری‌شدهٔ
+     * واقعی دیده شده‌اند (مرداد ۱۴۰۵، خریدِ ساعتیِ کارفرما):
+     *
+     *   `activating` ← در حالِ ساخت
+     *   `active`     ← بالا آمده
+     *
+     * بقیهٔ رشته‌های این نگاشت **حدسِ سنجیده‌اند، نه مشاهده**. برای همین
+     * `default` عمداً `unknown` است و `unknown` هیچ‌جا «آماده» شمرده نمی‌شود
+     * (`CloudInstance::READY_STATUSES`). یعنی اگر فردا رشتهٔ تازه‌ای بیاید،
+     * بدترین اتفاق یک دقیقهٔ تأخیر است — نه ایمیلِ «آماده شد» برای ماشینی که
+     * وجود ندارد.
+     *
+     * ⚠️ چیزی به شاخهٔ `running` اضافه نکن مگر آنکه روی یک سرورِ واقعی دیده
+     * باشی. اشتباه در آن شاخه یعنی همان باگِ گزارش‌شده: ایمیلِ بی‌IP و بی‌رمز.
+     */
     private function mapStatus(string $s): string
     {
-        return match (strtolower($s)) {
-            'active', 'running', 'online'         => 'running',
-            'stopped', 'off', 'suspended', 'paused' => 'off',
-            'pending', 'creating', 'installing', 'processing' => 'building',
-            'deleted', 'removed', 'terminated'    => 'deleted',
-            default                               => 'unknown',
+        return match (strtolower(trim($s))) {
+            // ✅ دیده‌شده روی سرورِ واقعی
+            'active'                                                 => 'running',
+            // حدس (مستند نشده) — بی‌خطر، چون فقط برچسبِ «بالا است» را زودتر می‌دهد
+            'running', 'online'                                      => 'running',
+
+            'stopped', 'off', 'suspended', 'paused'                  => 'off',
+
+            // ✅ `activating` دیده‌شده؛ بقیه حدس‌اند و همه به یک سمتِ ایمن می‌روند
+            'activating', 'pending', 'creating', 'installing', 'processing' => 'building',
+
+            'deleted', 'removed', 'terminated'                       => 'deleted',
+
+            // 🔴 «نمی‌دانم» ⇒ هنوز در حالِ ساخت، هرگز آماده
+            default                                                  => 'unknown',
         };
     }
 

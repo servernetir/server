@@ -398,6 +398,10 @@ class CloudProvisionTest extends TestCase
             'ipv4'          => '203.0.113.7',
             'ipv6'          => '2a01:4f8::1',
             'status'        => 'running',
+            // این سرویس **قبلاً** تحویل شده، پس ایمیلش هم رفته است. بی‌این مهر،
+            // گذرِ «ایمیل‌های بدهی‌مانده» هر تستِ چرخهٔ عمر را با یک ایمیلِ
+            // تکراری آلوده می‌کرد — و همان چیزی را می‌سنجید که نباید.
+            'ready_notified_at' => now(),
             'specs'         => [
                 'vcpu' => $plan->vcpu, 'ram_mb' => $plan->ram_mb,
                 'disk_gb' => $plan->disk_gb, 'disk_type' => $plan->disk_type,
@@ -791,8 +795,11 @@ class CloudProvisionTest extends TestCase
 
     /**
      * سرورِ آماده‌شده نباید ایمیلِ «آماده شد» را **دو بار** بفرستد.
-     * اعلانِ اول لحظهٔ تحویل رفته؛ اعلانِ دوم فقط وقتی مجاز است که اعلانِ اول
-     * IP نداشته باشد.
+     *
+     * ⚠️ سنجهٔ «قبلاً فرستاده شد» عوض شده: قبلاً استنتاجِ
+     * `filled(provision_meta['ip'])` بود، حالا `cloud_instances.ready_notified_at`
+     * — یک واقعیتِ ثبت‌شده. استنتاجِ قدیمی دو جا می‌شکست: سرویسی که IP را از راهِ
+     * دیگری گرفته بود، و سرویسی که هرگز ایمیل نگرفته بود ولی متایش IP داشت.
      */
     public function test_ready_notification_is_not_sent_twice(): void
     {
@@ -801,6 +808,7 @@ class CloudProvisionTest extends TestCase
         // شبیه‌سازیِ حالتِ واقعی: تحویل با IP انجام شده و اعلان رفته است
         $service->forceFill(['provision_meta' => ['kind' => 'cloud', 'ip' => '203.0.113.7']])->save();
         CloudInstance::where('service_id', $service->id)->update(['status' => 'building']);
+        $this->assertNotNull(CloudInstance::where('service_id', $service->id)->first()->ready_notified_at);
 
         Http::fake(fn () => Http::response([
             'server' => [

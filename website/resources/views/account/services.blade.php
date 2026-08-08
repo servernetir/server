@@ -151,7 +151,13 @@
                 @php $ci = $s->cloudInstance; @endphp
                 <tr class="svc-detail-row"><td colspan="6" style="padding:0;border:0">
                   <div class="svc-detail">
-                    @if($ci?->ipv4)
+                    {{-- ⚠️ همان تعریفِ یگانهٔ «تحویل‌شده» که صفحهٔ مدیریت هم از آن
+                         می‌پرسد (`CloudInstance::isDelivered()`): وضعیتِ زندهٔ
+                         زیرساخت **به‌علاوهٔ** IP. شرطِ قبلی فقط IP را می‌دید، پس
+                         سروری که IP گرفته ولی هنوز در حالِ ساخت است، این‌جا
+                         «تحویل‌شده» نشان داده می‌شد در حالی که صفحهٔ مدیریتش
+                         «در حالِ ساخت» می‌گفت — دو حقیقتِ متفاوت در یک پنل. --}}
+                    @if($ci?->isDelivered())
                       @php $sshCmd = 'ssh root'.'@'.$ci->ipv4; @endphp
                       <div class="svc-cred">
                         <div><span>IPv4</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $ci->ipv4 }}</b></div>
