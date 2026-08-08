@@ -13,10 +13,17 @@ use App\Services\ExchangeRate;
  */
 class CryptoIssuer
 {
-    /** دارایی‌های فاز ۱ */
+    /**
+     * دارایی‌های فاز ۱.
+     *
+     * ⚠️ `window` عمداً به‌ازای هر دارایی است. تا وقتی مهلت باز است نرخ قفل
+     * مانده، پس استیبل‌کوین می‌تواند مهلتِ بلند داشته باشد ولی دارایی نوسانی
+     * نه. اگر روزی بیت‌کوین یا اتریوم اضافه شد، `window` کوتاه‌تری بگذار —
+     * نه اینکه پیش‌فرضِ ۵۹ دقیقه را برایش هم بردار.
+     */
     public const ASSETS = [
-        'USDT' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'USDT (TRC20)'],
-        'TRX' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'TRX'],
+        'USDT' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'USDT (TRC20)', 'window' => 59],
+        'TRX' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'TRX', 'window' => 25],
     ];
 
     public function __construct(private readonly ExchangeRate $fx) {}
@@ -83,7 +90,7 @@ class CryptoIssuer
             'invoice_currency' => $invoice->currency_code,
             'rate_micro' => $rateMicro,
             'status' => 'pending',
-            'expires_at' => now()->addMinutes(CryptoPayment::WINDOW_MINUTES),
+            'expires_at' => now()->addMinutes($spec['window'] ?? CryptoPayment::WINDOW_MINUTES),
         ]);
 
         $wallet = CryptoWallet::claim($spec['chain'], $cp->id);

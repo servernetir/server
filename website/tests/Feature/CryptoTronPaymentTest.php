@@ -198,6 +198,31 @@ class CryptoTronPaymentTest extends TestCase
         $this->assertSame(0, $cp->received_atomic);
     }
 
+    /**
+     * مهلتِ پرداخت — کارفرما ۵۹ دقیقه خواست چون برداشت از صرافی گاهی طول
+     * می‌کشد و ۲۰ دقیقه کم بود.
+     *
+     * ⚠️ این تست عدد را قفل می‌کند و **دلیلش** را هم: تا وقتی مهلت باز است نرخ
+     * قفل مانده. برای استیبل‌کوین بی‌خطر است، ولی دارایی نوسانی باید مهلتِ
+     * کوتاه‌تری بگیرد — پس مهلت به‌ازای هر دارایی تعریف می‌شود، نه یک عددِ
+     * سراسری که روزی برای بیت‌کوین هم برداشته شود.
+     */
+    public function test_the_payment_window_is_per_asset_and_stablecoins_get_the_long_one(): void
+    {
+        $assets = \App\Services\Crypto\CryptoIssuer::ASSETS;
+
+        $this->assertSame(59, $assets['USDT']['window'],
+            'کارفرما برای تتر ۵۹ دقیقه خواست');
+
+        $this->assertLessThan($assets['USDT']['window'], $assets['TRX']['window'],
+            'دارایی نوسانی نباید همان مهلتِ بلندِ استیبل‌کوین را بگیرد — نرخ قفل است');
+
+        foreach ($assets as $name => $spec) {
+            $this->assertArrayHasKey('window', $spec,
+                "دارایی «{$name}» مهلتِ خودش را ندارد و به پیش‌فرض می‌افتد");
+        }
+    }
+
     /** 🔴 کلیدِ خصوصی هیچ‌جای این حوزه نباید باشد */
     public function test_no_private_key_material_anywhere_in_the_crypto_layer(): void
     {
