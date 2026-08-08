@@ -189,7 +189,7 @@
 .svc-login .icon{ width:16px; height:16px; }
 .svc-quick{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
 .svc-qbtn{ display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; padding:12px 14px; min-width:86px; border:1px solid var(--line); border-radius:13px; background:var(--surface); color:var(--text); font-size:12px; transition:transform .14s, border-color .16s; }
-.svc-qbtn:hover{ transform:translateY(-2px); border-color:var(--brand,#22D3EE); }
+.svc-qbtn:hover{ transform:translateY(-2px); border-color:var(--brand); }
 .svc-qbtn.primary{ background:linear-gradient(135deg,#22D3EE,#3b82f6); color:#04121a; border-color:transparent; font-weight:700; }
 .svc-qbtn .icon{ width:20px; height:20px; }
 .svc-usage{ margin-bottom:14px; }

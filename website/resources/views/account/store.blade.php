@@ -71,8 +71,8 @@
 .store-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
 .store-card{ display:flex; flex-direction:column; gap:12px; border:1px solid var(--line); border-radius:16px;
   padding:18px; background:var(--surface-2); transition:border-color .18s, transform .12s, box-shadow .18s; }
-.store-card:hover{ transform:translateY(-2px); border-color:var(--brand,#22D3EE); box-shadow:0 8px 24px rgba(34,211,238,.08); }
-.store-card:target{ border-color:var(--brand,#22D3EE); box-shadow:0 0 0 2px rgba(34,211,238,.35); scroll-margin-top:90px; }
+.store-card:hover{ transform:translateY(-2px); border-color:var(--brand); box-shadow:0 8px 24px rgba(34,211,238,.08); }
+.store-card:target{ border-color:var(--brand); box-shadow:0 0 0 2px rgba(34,211,238,.35); scroll-margin-top:90px; }
 .store-card-h b{ font-size:15px; color:var(--text); }
 .store-card-h small{ display:block; font-size:12px; color:var(--muted); margin-top:4px; line-height:1.8; }
 .store-specs{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }

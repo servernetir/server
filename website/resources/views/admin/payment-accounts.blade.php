@@ -120,16 +120,21 @@
 <style>
 .pa-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:13px; align-items:end; }
 .pa-form label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--muted); }
+/* 🔴 نسخهٔ اول این‌جا `var(--bg-2,#0f1520)` داشت. متغیرِ `--bg-2` **وجود ندارد**
+   (نامِ واقعی `--surface2` است)، پس fallbackِ تیره **همیشه** اعمال می‌شد — در
+   لایت‌مود هم. بی‌هیچ خطایی، فقط ورودی‌های سیاه روی صفحهٔ روشن.
+   حالا از همان متغیرهای واقعیِ admin.css استفاده می‌شود که خودشان با تم
+   عوض می‌شوند؛ عددِ رنگی سخت‌کد نمی‌ماند. */
 .pa-form input, .pa-form select, .pa-form textarea{
-  background:var(--bg-2,#0f1520); color:var(--text,#e8eefc); font:inherit; font-size:13px;
-  border:1px solid var(--line,#243044); border-radius:10px; padding:9px 11px; }
+  background:var(--surface2); color:var(--text); font:inherit; font-size:13px;
+  border:1px solid var(--line2); border-radius:10px; padding:9px 11px; }
 .pa-form input:focus, .pa-form select:focus, .pa-form textarea:focus{
-  outline:none; border-color:#22d3ee; box-shadow:0 0 0 3px rgba(34,211,238,.12); }
+  outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(34,211,238,.12); }
 .pa-form textarea{ min-height:60px; resize:vertical; }
 .pa-form .full{ grid-column:1/-1; }
 .pa-form .chk{ flex-direction:row; align-items:center; gap:8px; }
 .pa-form .pa-note{ grid-column:1/-1; font-size:12px; color:var(--muted); line-height:1.9;
-  border:1px dashed var(--line,#243044); border-radius:10px; padding:11px 13px; margin:0; }
+  border:1px dashed var(--line); border-radius:10px; padding:11px 13px; margin:0; }
 .pa-form button{ grid-column:1/-1; justify-self:start; }
 </style>
 @endsection

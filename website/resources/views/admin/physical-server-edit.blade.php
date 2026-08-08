@@ -164,18 +164,18 @@
 
 @section('scripts')
 <style>
-  .psf-h{margin:20px 0 8px;font-size:14.5px;color:var(--fg);border-top:1px solid var(--line);padding-top:14px}
+  .psf-h{margin:20px 0 8px;font-size:14.5px;color:var(--text);border-top:1px solid var(--line);padding-top:14px}
   .psf-h:first-of-type{border-top:0;padding-top:0}
   .psf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
   .psf label{display:block;font-size:12.5px;color:var(--muted)}
-  .psf input,.psf select,.psf textarea{width:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--fg);font-family:inherit;font-size:13px}
+  .psf input,.psf select,.psf textarea{width:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-family:inherit;font-size:13px}
   .psf textarea{resize:vertical}
-  .psf-chk{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--fg);cursor:pointer}
+  .psf-chk{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer}
   .psf-chk input{width:auto;margin:0}
   .psf-lang{margin-bottom:12px}
   .psf-lang-t{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
   .psf-lang-g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .psf-spec{display:grid;grid-template-columns:1.1fr 1.4fr auto;gap:8px;align-items:start;margin-bottom:8px;padding:8px;background:var(--bg2);border:1px solid var(--line);border-radius:10px}
+  .psf-spec{display:grid;grid-template-columns:1.1fr 1.4fr auto;gap:8px;align-items:start;margin-bottom:8px;padding:8px;background:var(--surface2);border:1px solid var(--line);border-radius:10px}
   .psf-spec .psf-col{display:flex;flex-direction:column;gap:5px}
   .psf-spec .psf-col small{font-size:11px;color:var(--dim)}
   .psf-spec input{margin-top:0}

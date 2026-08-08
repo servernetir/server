@@ -191,7 +191,7 @@
 .co-price-row b{ color:var(--text); font-size:14px; }
 .co-total{ border-top:2px solid var(--line); margin-top:4px; }
 .co-total span{ color:var(--text); font-weight:600; }
-.co-total b{ font-size:17px; color:var(--brand,#22D3EE); }
+.co-total b{ font-size:17px; color:var(--brand); }
 .co-q{ font-size:13.5px; color:var(--text); margin:0 0 12px; }
 .co-opts{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
 .co-opt{ display:flex; align-items:center; gap:12px; cursor:pointer; border:1.5px solid var(--line); border-radius:13px; padding:12px 14px; transition:.16s; }
@@ -199,7 +199,7 @@
    Tab حذف می‌شد و کاربرِ صفحه‌کلید نمی‌توانست انتخاب کند. */
 .co-opt input, .co-cyc input{ position:absolute; width:1px; height:1px; opacity:0; margin:0; pointer-events:none; }
 .co-opt:has(input:focus-visible), .co-cyc:has(input:focus-visible){ outline:2px solid #22D3EE; outline-offset:2px; }
-.co-opt.on{ border-color:var(--brand,#22D3EE); background:rgba(34,211,238,.06); }
+.co-opt.on{ border-color:var(--brand); background:rgba(34,211,238,.06); }
 .co-ic{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:var(--surface); border:1px solid var(--line); flex:0 0 auto; }
 .co-ic .icon{ width:17px; height:17px; color:var(--info); }
 .co-tt{ display:flex; flex-direction:column; gap:1px; }

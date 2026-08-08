@@ -2401,8 +2401,8 @@ html[data-theme="light"] .imp-bar{border-bottom-color:rgba(0,0,0,.32);
    ارتفاعِ ثابت تا با تعویضِ متن، کلِ صفحه نپرد (layout shift). */
 .hero-rotator{display:flex;align-items:center;gap:9px;min-height:26px;margin:2px 0 6px;
   font-size:14px;color:var(--muted);font-weight:500}
-.hero-rotator .dot{width:7px;height:7px;border-radius:50%;background:var(--brand,#22d3ee);flex:none;
-  box-shadow:0 0 0 4px color-mix(in srgb,var(--brand,#22d3ee) 20%,transparent)}
+.hero-rotator .dot{width:7px;height:7px;border-radius:50%;background:var(--brand);flex:none;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 20%,transparent)}
 .hero-rotator .rot-txt{position:relative;display:inline-block;transition:opacity .45s ease,transform .45s ease}
 .hero-rotator .rot-txt.out{opacity:0;transform:translateY(-6px)}
 @media(prefers-reduced-motion:reduce){.hero-rotator .rot-txt{transition:none}}
@@ -2876,3 +2876,19 @@ html[data-theme="light"] .sol-uc{ background:#fff }
 .wd-was{font-size:14px;color:var(--dim);text-decoration:line-through;text-decoration-thickness:1.5px}
 .wd-off{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:99px;
   color:#04121A;background:linear-gradient(100deg,#22D3EE,#8B5CF6)}
+
+/* ============ متغیرهای مستعار — رفعِ var()های نامعتبر ============ */
+/* 🔴 `--accent` در پنج جای site.css و پنج جای ویوهای پنل استفاده می‌شد و
+   **هیچ‌جا تعریف نشده بود**. var()ِ بی‌fallback و بی‌تعریف یعنی مقدارِ نامعتبر:
+   مرورگر آن اعلان را بی‌صدا دور می‌اندازد. اثرِ واقعی‌اش دو چیزِ دیدنی بود —
+   نقطهٔ «این ستون فیلتر دارد» بی‌رنگ می‌ماند، و در کنسولِ ابری
+   `.pnl-btn.is-primary` پس‌زمینه نمی‌گرفت در حالی که متنش سفید بود، یعنی
+   دکمهٔ اصلی عملاً نامرئی می‌شد.
+   مستعارِ `--cyan` می‌شود تا با تم عوض شود و طرح دست‌نخورده بماند. */
+:root{
+  --accent: var(--cyan);
+  /* `--brand` هم هیچ‌جا تعریف نشده بود و همه‌جا با fallbackِ سخت‌کدِ
+     #22D3EE استفاده می‌شد. کار می‌کرد، ولی رنگ را از تم جدا می‌کرد و
+     یک تغییرِ نام کافی بود تا بی‌صدا بشکند. */
+  --brand: var(--cyan);
+}

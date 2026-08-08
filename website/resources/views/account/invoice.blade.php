@@ -275,8 +275,8 @@
 .pm-card{ position:relative; display:flex; align-items:center; gap:12px; cursor:pointer;
   border:1.5px solid var(--line); border-radius:15px; padding:14px 15px; background:var(--surface-2);
   transition:border-color .18s, background .18s, transform .12s, box-shadow .18s; }
-.pm-card:hover:not(.is-off){ transform:translateY(-1px); border-color:var(--line-2,#2b3548); }
-.pm-card:has(input:checked){ border-color:var(--brand,#22D3EE); background:rgba(34,211,238,.07);
+.pm-card:hover:not(.is-off){ transform:translateY(-1px); border-color:var(--line-2); }
+.pm-card:has(input:checked){ border-color:var(--brand); background:rgba(34,211,238,.07);
   box-shadow:0 6px 20px rgba(34,211,238,.10); }
 .pm-card.is-off{ cursor:not-allowed; opacity:.55; }
 .pm-badge{ flex:none; width:42px; height:42px; border-radius:12px; display:grid; place-items:center; }
@@ -292,7 +292,7 @@
 .pm-tick{ margin-inline-start:auto; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line);
   display:grid; place-items:center; flex:none; transition:.18s; }
 .pm-tick .icon{ width:13px; height:13px; color:transparent; }
-.pm-card:has(input:checked) .pm-tick{ border-color:var(--brand,#22D3EE); background:var(--brand,#22D3EE); }
+.pm-card:has(input:checked) .pm-tick{ border-color:var(--brand); background:var(--brand); }
 .pm-card:has(input:checked) .pm-tick .icon{ color:#04121a; }
 .pm-soon{ margin-inline-start:auto; font-size:10.5px; color:var(--muted); border:1px solid var(--line);
   border-radius:20px; padding:3px 9px; flex:none; }

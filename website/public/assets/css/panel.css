@@ -339,3 +339,14 @@ body.imp-on .pnl-side{top:calc(96px + var(--imp-h))}
 .dm-res-p{font-weight:700;color:var(--cyan);white-space:nowrap}
 .dm-res-p small{font-weight:400;color:var(--dim)}
 .dm-res form{margin:0}
+
+/* همان مستعار برای پنل — ویوهای account/* از این فایل می‌آیند.
+   ⚠️ panel.css متغیرِ --cyan ندارد، پس به --info می‌رود که هم‌رنگِ آن است و
+   در لایت‌مود هم نسخهٔ تیره‌ترِ خودش را دارد. */
+:root{
+  --accent: var(--info);
+  /* `--brand` هم هیچ‌جا تعریف نشده بود و همه‌جا با fallbackِ سخت‌کدِ
+     #22D3EE استفاده می‌شد. کار می‌کرد، ولی رنگ را از تم جدا می‌کرد و
+     یک تغییرِ نام کافی بود تا بی‌صدا بشکند. */
+  --brand: var(--info);
+}
