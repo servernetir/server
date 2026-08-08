@@ -490,4 +490,56 @@ class CloudAezaOrderV2Test extends TestCase
             'admin_disabled' => true, 'admin_note' => $note,
         ]);
     }
+
+    /**
+     * 🔴 چرخهٔ خرید باید همان چرخهٔ فروش باشد — وگرنه روی هر فروشِ ساعتی ضرر.
+     *
+     * `term` سخت‌کدِ `month` بود. مشتری یک **ساعت** پول می‌داد و ما یک **ماه**
+     * از زیرساخت می‌خریدیم؛ و چون `autoProlong: false` است، بعد از یک ساعت
+     * سرورِ مشتری حذف می‌شد و آن ماهِ پرداخت‌شده می‌سوخت.
+     *
+     * هیچ خطایی تولید نمی‌کرد و در هیچ گزارشی دیده نمی‌شد — فقط در صورت‌حسابِ
+     * ماهانهٔ زیرساخت. کارفرما با مقایسهٔ پنلِ Aeza و سفارشِ ساعتی‌اش پیدایش کرد.
+     */
+    public function test_the_purchase_term_follows_the_service_billing_cycle(): void
+    {
+        Http::fake(['*' => Http::response(['data' => ['id' => 1, 'createdServiceIds' => [9]]], 200)]);
+        $this->driver()->createServer($this->spec(['term' => 'hour']));
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'v2/services/orders')
+            && ($r->data()['orders'][0]['term'] ?? null) === 'hour');
+    }
+
+    /** ماهانه همچنان ماهانه می‌ماند */
+    public function test_a_monthly_service_still_orders_a_monthly_term(): void
+    {
+        Http::fake(['*' => Http::response(['data' => ['id' => 1, 'createdServiceIds' => [9]]], 200)]);
+        $this->driver()->createServer($this->spec());
+
+        Http::assertSent(fn ($r) => ($r->data()['orders'][0]['term'] ?? null) === 'month');
+    }
+
+    /**
+     * مقدارِ ناشناخته باید به `month` برگردد، نه اینکه خام فرستاده شود —
+     * بدنهٔ نامعتبر با ۵۰۰ رد می‌شود و آن یعنی سرورِ تحویل‌نشده.
+     */
+    public function test_an_unknown_term_falls_back_to_month(): void
+    {
+        Http::fake(['*' => Http::response(['data' => ['id' => 1, 'createdServiceIds' => [9]]], 200)]);
+        $this->driver()->createServer($this->spec(['term' => 'week']));
+
+        Http::assertSent(fn ($r) => ($r->data()['orders'][0]['term'] ?? null) === 'month');
+    }
+
+    /**
+     * و پرووایژنر باید واقعاً `term` را پاس بدهد — وگرنه اصلاحِ درایور بی‌اثر
+     * است و همیشه پیش‌فرض فرستاده می‌شود.
+     */
+    public function test_the_provisioner_passes_the_term_to_the_driver(): void
+    {
+        $src = file_get_contents(app_path('Services/Cloud/CloudProvisioner.php'));
+
+        $this->assertStringContainsString("isHourly() ? 'hour' : 'month'", $src,
+            'پرووایژنر باید چرخهٔ واقعیِ سرویس را بفرستد، نه چیزی ثابت');
+    }
 }
