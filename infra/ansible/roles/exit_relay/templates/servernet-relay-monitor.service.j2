@@ -1,0 +1,12 @@
+[Unit]
+Description=ServerNet relay self-heal monitor (rotate to a healthy relay in the pool)
+After=servernet-relay.service
+Wants=servernet-relay.service
+
+[Service]
+ExecStart=/usr/local/bin/servernet-relay-monitor
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+#!/bin/sh
+# servernet-dedicated-ssh-run <cc>  — ExecStart for servernet-dedicated-ssh@<cc>.
+# Opens a self-healing dynamic SOCKS (ssh -D) on 127.0.0.1:$DED_PORT that egresses
+# from your dedicated country server. Params come from dedicated-<cc>.conf.
+cc="$1"; . /etc/servernet/dedicated-$cc.conf
+KEYOPT=""; [ -n "${SSH_KEY:-}" ] && KEYOPT="-i ${SSH_KEY}"
+exec ssh -N -D 127.0.0.1:"${DED_PORT}" \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+  -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/etc/servernet/known_hosts \
+  -o ConnectTimeout=15 -o TCPKeepAlive=yes \
+  -p "${SSH_PORT:-22}" ${KEYOPT} "${SSH_TARGET}"

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# servernet-exit-del <cc>  — runs on the Proxmox HOST. Removes the dedicated exit
+# in LXC {{ ded_ctid }} and re-syncs the panel catalog in LXC {{ ded_panel_ctid }}.
+set -uo pipefail
+CT_EXIT={{ ded_ctid }}; CT_PANEL={{ ded_panel_ctid }}
+
+pct exec "$CT_EXIT" -- /usr/local/bin/servernet-exit-del "$@" || exit $?
+
+REG="$(pct exec "$CT_EXIT" -- cat /etc/servernet/dedicated-exits.list 2>/dev/null || true)"
+printf '%s' "$REG" | pct exec "$CT_PANEL" -- sh -c 'cat > /tmp/sn-ded.list'
+pct exec "$CT_PANEL" -- /usr/local/bin/sn-panel-countries-sync /tmp/sn-ded.list || true
+echo "panel catalog synced ($CT_PANEL)"

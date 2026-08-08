@@ -1,0 +1,13 @@
+[Unit]
+Description=ServerNet swappable clean-uplink (SSH dynamic SOCKS from /etc/servernet/relay.conf)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/servernet/relay.conf
+ExecStart=/usr/bin/ssh -i ${RELAY_KEY} -p ${RELAY_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -N -D 127.0.0.1:${LOCAL_SOCKS} ${RELAY_USER}@${RELAY_HOST}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

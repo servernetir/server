@@ -1,0 +1,45 @@
+{
+  "_comment": "ServerNet exit baseline (sing-box). Codified from the documented shape: selector + urltest + ssh upstream + direct, local socks inbound, Clash API. Reconcile with the live config by dropping the real config.json into the role's files/.",
+  "log": { "level": "warn", "timestamp": true },
+  "dns": {
+    "servers": [
+      { "tag": "cf", "address": "https://1.1.1.1/dns-query" },
+      { "tag": "local", "address": "local", "detour": "direct" }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "socks",
+      "tag": "socks-in",
+      "listen": "{{ singbox_socks_listen }}",
+      "listen_port": {{ singbox_socks_port }}
+    }
+  ],
+  "outbounds": [
+    { "type": "selector", "tag": "select", "outbounds": ["auto", "ssh-de", "direct"], "default": "auto" },
+    {
+      "type": "urltest",
+      "tag": "auto",
+      "outbounds": ["ssh-de"],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "3m",
+      "tolerance": 50
+    },
+    {
+      "type": "ssh",
+      "tag": "ssh-de",
+      "server": "{{ vault_exit_upstream_host | default('CHANGE_ME') }}",
+      "server_port": {{ vault_exit_upstream_port | default(22) }},
+      "user": "root",
+      "private_key_path": "{{ singbox_conf_dir }}/id_exit"
+    },
+    { "type": "direct", "tag": "direct" }
+  ],
+  "route": { "final": "select", "auto_detect_interface": true },
+  "experimental": {
+    "clash_api": {
+      "external_controller": "{{ exit_ip }}:{{ singbox_clash_port }}",
+      "secret": "{{ vault_singbox_clash_secret }}"
+    }
+  }
+}

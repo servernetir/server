@@ -1,0 +1,109 @@
+---
+# sing-box exit in LXC {{ exit_ctid }}. Stage-by-default; exit_apply=true to push.
+
+- name: Ensure host staging dir
+  ansible.builtin.file:
+    path: "{{ exit_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Check for a real exported config on the controller
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ exit_config_file }}"
+  delegate_to: localhost
+  register: _realcfg
+
+- name: Use exported live config verbatim
+  ansible.builtin.copy:
+    src: "{{ exit_config_file }}"
+    dest: "{{ exit_stage_dir }}/config.json"
+    mode: "0640"
+  when: _realcfg.stat.exists
+
+- name: Render baseline config (no exported config present)
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ exit_stage_dir }}/config.json"
+    mode: "0640"
+  when: not _realcfg.stat.exists
+  no_log: true
+
+- name: Validate staged config is well-formed JSON
+  ansible.builtin.command: "python3 -c 'import json,sys; json.load(open(sys.argv[1]))' {{ exit_stage_dir }}/config.json"
+  changed_when: false
+
+- name: Stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "sing-box config staged at {{ exit_stage_dir }}/config.json."
+      - "Nothing pushed to container {{ exit_ctid }} (exit_apply=false)."
+      - "Re-run with -e exit_apply=true to install + (re)start."
+  when: not (exit_apply | bool)
+
+- name: Apply to exit container
+  when: exit_apply | bool
+  block:
+    - name: Confirm container {{ exit_ctid }} exists
+      ansible.builtin.command: pct status {{ exit_ctid }}
+      register: _exstat
+      changed_when: false
+
+    - name: Query installed sing-box version (if any)
+      ansible.builtin.command: >-
+        pct exec {{ exit_ctid }} -- bash -lc '{{ singbox_bin }} version 2>/dev/null | head -1 || true'
+      register: _sbver
+      changed_when: false
+
+    - name: Install pinned sing-box in container
+      ansible.builtin.command: >-
+        pct exec {{ exit_ctid }} -- bash -lc
+        'set -e; cd /tmp;
+         curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v{{ singbox_version }}/sing-box-{{ singbox_version }}-linux-amd64.tar.gz;
+         tar xzf sb.tgz;
+         install -m0755 sing-box-{{ singbox_version }}-linux-amd64/sing-box {{ singbox_bin }};
+         rm -rf sb.tgz sing-box-{{ singbox_version }}-linux-amd64'
+      when: singbox_version not in (_sbver.stdout | default(''))
+      changed_when: true
+
+    - name: Ensure config dir in container
+      ansible.builtin.command: pct exec {{ exit_ctid }} -- mkdir -p {{ singbox_conf_dir }}
+      changed_when: false
+
+    - name: Back up existing config in container
+      ansible.builtin.command: >-
+        pct exec {{ exit_ctid }} -- bash -lc
+        'test -f {{ singbox_conf_dir }}/config.json && cp -a {{ singbox_conf_dir }}/config.json {{ singbox_conf_dir }}/config.json.bak.$(date +%s) || true'
+      changed_when: true
+
+    - name: Push config + service unit to host, then into container
+      ansible.builtin.copy:
+        src: sing-box.service
+        dest: "{{ exit_stage_dir }}/sing-box.service"
+        mode: "0644"
+
+    - name: Push config.json into container
+      ansible.builtin.command: >-
+        pct push {{ exit_ctid }} {{ exit_stage_dir }}/config.json {{ singbox_conf_dir }}/config.json
+      changed_when: true
+
+    - name: Push systemd unit into container
+      ansible.builtin.command: >-
+        pct push {{ exit_ctid }} {{ exit_stage_dir }}/sing-box.service /etc/systemd/system/sing-box.service
+      changed_when: true
+
+    - name: Validate config inside container before (re)start
+      ansible.builtin.command: >-
+        pct exec {{ exit_ctid }} -- {{ singbox_bin }} check -c {{ singbox_conf_dir }}/config.json
+      changed_when: false
+
+    - name: Enable + restart sing-box
+      ansible.builtin.command: >-
+        pct exec {{ exit_ctid }} -- bash -lc
+        'systemctl daemon-reload && systemctl enable sing-box && systemctl restart sing-box'
+      changed_when: true
+
+    - name: Confirm active
+      ansible.builtin.command: pct exec {{ exit_ctid }} -- systemctl is-active sing-box
+      register: _active
+      changed_when: false
+      failed_when: "'active' not in _active.stdout"

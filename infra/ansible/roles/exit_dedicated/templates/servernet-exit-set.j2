@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# servernet-exit-set <cc> <method...>  — register a DEDICATED (guaranteed) exit
+# for country <cc> from a server YOU control, and repoint that country's tun at
+# it. Runs INSIDE the exit container (LXC {{ ded_ctid }}). Called by the host
+# wrapper /usr/local/sbin/servernet-exit-set (which also syncs the panel).
+#
+#   servernet-exit-set <cc> --ssh   <user@host[:port]> [--key <keyfile-in-{{ ded_ctid }}>]
+#   servernet-exit-set <cc> --socks <host:port>
+#   servernet-exit-set <cc> --link  <vless://|vmess://|trojan://|ss://...>
+#
+# Dedicated SOCKS port = country listener_port + {{ ded_socks_offset }}
+# (43001-43025). Self-heals (Restart=always). Idempotent + reversible.
+set -uo pipefail
+REG=/etc/servernet/dedicated-exits.list
+OFFSET={{ ded_socks_offset }}
+
+label_of(){ case "$1" in
+  de) echo Germany;;  nl) echo Netherlands;; fr) echo France;;      gb) echo UnitedKingdom;;
+  us) echo UnitedStates;; ca) echo Canada;;  fi) echo Finland;;     se) echo Sweden;;
+  ch) echo Switzerland;;  at) echo Austria;; pl) echo Poland;;      es) echo Spain;;
+  it) echo Italy;;    ie) echo Ireland;;     no) echo Norway;;      dk) echo Denmark;;
+  ro) echo Romania;;  cz) echo Czechia;;     tr) echo Turkey;;      ae) echo UAE;;
+  sg) echo Singapore;; jp) echo Japan;;      ee) echo Estonia;;     lt) echo Lithuania;;
+  lv) echo Latvia;;   *) echo "$1";; esac; }
+
+cc="${1:-}"; shift 2>/dev/null || true
+[ -n "$cc" ] || { echo "usage: servernet-exit-set <cc> --ssh|--socks|--link ..."; exit 2; }
+ENV=/etc/servernet/country-$cc.env
+[ -f "$ENV" ] || { echo "unknown country '$cc' (no $ENV)"; exit 2; }
+. "$ENV"
+DED_PORT=$((PORT+OFFSET))
+
+method=""; target=""; key=""; link=""; socks=""
+while [ $# -gt 0 ]; do case "$1" in
+  --ssh)   method=ssh;   target="${2:?--ssh needs user@host}"; shift 2;;
+  --key)   key="${2:?--key needs a path}"; shift 2;;
+  --socks) method=socks; socks="${2:?--socks needs host:port}"; shift 2;;
+  --link)  method=link;  link="${2:?--link needs a URI}"; shift 2;;
+  *) echo "unknown arg: $1"; exit 2;;
+esac; done
+[ -n "$method" ] || { echo "pick a method: --ssh / --socks / --link"; exit 2; }
+
+detail=""
+case "$method" in
+  ssh)
+    host="${target#*@}"; sport=22
+    case "$host" in *:*) sport="${host##*:}"; host="${host%:*}";; esac
+    user="${target%@*}"; [ "$user" = "$target" ] && user=root
+    mkdir -p /etc/servernet
+    cat > /etc/servernet/dedicated-$cc.conf <<EOF
+SSH_TARGET=$user@$host
+SSH_PORT=$sport
+SSH_KEY=$key
+DED_PORT=$DED_PORT
+EOF
+    chmod 600 /etc/servernet/dedicated-$cc.conf
+    systemctl enable servernet-dedicated-ssh@"$cc" >/dev/null 2>&1 || true
+    systemctl restart servernet-dedicated-ssh@"$cc"
+    UP="127.0.0.1:$DED_PORT"; detail="$user@$host:$sport"
+    ;;
+  socks)
+    UP="$socks"; detail="$socks"
+    ;;
+  link)
+    mkdir -p /etc/servernet/dedicated-$cc
+    printf '%s' "$link" | base64 -w0 > /etc/servernet/dedicated-$cc/sub.txt
+    cat > /etc/servernet/dedicated-$cc/config.yaml <<EOF
+mixed-port: $DED_PORT
+bind-address: "127.0.0.1"
+allow-lan: false
+mode: rule
+log-level: warning
+proxy-providers:
+  ded:
+    type: file
+    path: ./sub.txt
+    health-check: { enable: true, url: "https://www.gstatic.com/generate_204", interval: 300 }
+proxy-groups:
+  - { name: DED, type: select, use: [ded] }
+rules:
+  - MATCH,DED
+EOF
+    systemctl enable servernet-dedicated-conv@"$cc" >/dev/null 2>&1 || true
+    systemctl restart servernet-dedicated-conv@"$cc"
+    UP="127.0.0.1:$DED_PORT"; detail="link"
+    ;;
+esac
+
+# repoint the country tun at the dedicated upstream via the drop-in (audit H3:
+# NOT the base env, which routing re-applies overwrite). servernet-country-run
+# sources this after the base env.
+printf 'UPSTREAM=%s\n' "$UP" > "/etc/servernet/country-$cc.upstream.env"
+chmod 600 "/etc/servernet/country-$cc.upstream.env"
+systemctl enable servernet-country@"$cc" >/dev/null 2>&1 || true
+systemctl restart servernet-country@"$cc"
+
+# register (idempotent): cc|method|label|detail
+mkdir -p "$(dirname "$REG")"; touch "$REG"
+sed -i "/^$cc|/d" "$REG"; echo "$cc|$method|$(label_of "$cc")|$detail" >> "$REG"
+
+# best-effort egress check through the dedicated SOCKS
+sleep 3
+case "$method" in
+  socks) probe="$UP";;
+  *)     probe="127.0.0.1:$DED_PORT";;
+esac
+loc="$(curl -s -m 12 --socks5-hostname "$probe" https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null | sed -n 's/^loc=//p')"
+echo "dedicated exit set: $cc ($method) upstream=$UP egress=${loc:-UNKNOWN} (expected $(printf '%s' "$cc" | tr '[:lower:]' '[:upper:]'))"
+echo "now sellable: set a VM's exit_country=$cc in the panel."

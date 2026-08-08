@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the ServerNet port-forward agent every {{ pf_timer_interval }}
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ pf_timer_interval }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

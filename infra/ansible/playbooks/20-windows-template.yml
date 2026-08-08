@@ -1,0 +1,7 @@
+---
+# Stage/bake the Windows turnkey mechanism (SetupComplete + firstboot)
+- name: Stage/bake the Windows turnkey mechanism (SetupComplete + firstboot)
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - windows_template

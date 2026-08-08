@@ -1,0 +1,51 @@
+#!/bin/sh
+# servernet-split-boot — runs on the Proxmox HOST at boot, BEFORE customer VMs
+# start (Before=pve-guests.service). Restores the fail-closed split-routing state
+# that is otherwise lost on reboot (audit C1), and blocks customer IPv6 (audit C3).
+#
+# Without this, after a reboot host table {{ cr_split_table }} is empty, so a
+# country VM's marked new-outbound falls through to the main table -> Iran IP,
+# silently, indefinitely. This restores:
+#   1. sysctls (forwarding + no ICMP redirects)
+#   2. table {{ cr_split_table }} default via LXC {{ cr_ctid }} + fail-closed blackhole
+#   3. per-VM host-side connmark marks + fwmark rules from /etc/servernet/split.state
+#      (written by the country-agent) so country VMs are marked before they boot
+#   4. IPv6 disabled + dropped on the customer bridge (no v6 leak path)
+set -u
+LANIF={{ cr_lan_if }}
+EXIT_IP={{ cr_exit_ip }}
+T={{ cr_split_table }}
+M={{ cr_split_mark }}
+MASK={{ cr_split_mask }}
+STATE=/etc/servernet/split.state
+
+# 1) sysctls
+sysctl -qw net.ipv4.ip_forward=1 2>/dev/null || true
+sysctl -qw net.ipv4.conf.all.send_redirects=0 2>/dev/null || true
+sysctl -qw net.ipv4.conf.$LANIF.send_redirects=0 2>/dev/null || true
+
+# 2) host policy table: to LXC {{ cr_ctid }}, with fail-closed blackhole (C1)
+ip route replace default via $EXIT_IP dev $LANIF table $T
+ip route replace blackhole default table $T metric 1000 2>/dev/null || ip route add blackhole default table $T metric 1000 2>/dev/null || true
+
+# 4) IPv6: no customer v6 path (C3) — disable on the bridge + drop any v6 forward
+sysctl -qw net.ipv6.conf.$LANIF.disable_ipv6=1 2>/dev/null || true
+sysctl -qw net.ipv6.conf.$LANIF.accept_ra=0 2>/dev/null || true
+modprobe ip6table_filter 2>/dev/null || true
+ip6tables -C FORWARD -i $LANIF -j DROP 2>/dev/null || ip6tables -A FORWARD -i $LANIF -j DROP 2>/dev/null || true
+ip6tables -C FORWARD -o $LANIF -j DROP 2>/dev/null || ip6tables -A FORWARD -o $LANIF -j DROP 2>/dev/null || true
+
+# 3) per-VM host-side split marks from persisted desired state (C1 / boot-race)
+[ -f "$STATE" ] || exit 0
+while IFS=' ' read -r ip cc; do
+  [ -n "${ip:-}" ] || continue
+  iptables -t mangle -C PREROUTING -i $LANIF -s "$ip" -j CONNMARK --restore-mark 2>/dev/null || \
+    iptables -t mangle -A PREROUTING -i $LANIF -s "$ip" -j CONNMARK --restore-mark
+  iptables -t mangle -C PREROUTING -i $LANIF -s "$ip" -m conntrack --ctstate NEW -m mark --mark 0x0/$MASK -j MARK --set-xmark $M/$MASK 2>/dev/null || \
+    iptables -t mangle -A PREROUTING -i $LANIF -s "$ip" -m conntrack --ctstate NEW -m mark --mark 0x0/$MASK -j MARK --set-xmark $M/$MASK
+  iptables -t mangle -C PREROUTING -i $LANIF -s "$ip" -j CONNMARK --save-mark 2>/dev/null || \
+    iptables -t mangle -A PREROUTING -i $LANIF -s "$ip" -j CONNMARK --save-mark
+  ip rule show 2>/dev/null | grep -q "from $ip fwmark $M" || ip rule add from "$ip" fwmark $M/$MASK lookup $T priority 1000
+  iptables -C FORWARD -s "$ip" -i $LANIF -o $LANIF -j ACCEPT 2>/dev/null || iptables -A FORWARD -s "$ip" -i $LANIF -o $LANIF -j ACCEPT
+done < "$STATE"
+exit 0

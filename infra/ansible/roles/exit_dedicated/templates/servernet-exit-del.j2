@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# servernet-exit-del <cc>  — remove the dedicated exit for <cc> and revert the
+# country to the free mihomo pool. Runs INSIDE LXC {{ ded_ctid }}. Idempotent.
+set -uo pipefail
+REG=/etc/servernet/dedicated-exits.list
+cc="${1:?usage: servernet-exit-del <cc>}"
+ENV=/etc/servernet/country-$cc.env
+
+systemctl disable --now servernet-dedicated-ssh@"$cc"  >/dev/null 2>&1 || true
+systemctl disable --now servernet-dedicated-conv@"$cc" >/dev/null 2>&1 || true
+rm -f  /etc/servernet/dedicated-$cc.conf
+rm -rf /etc/servernet/dedicated-$cc
+
+# audit H3: revert to the free pool by removing the drop-in (base env untouched)
+rm -f "/etc/servernet/country-$cc.upstream.env"
+[ -f "$ENV" ] && systemctl restart servernet-country@"$cc" >/dev/null 2>&1 || true
+[ -f "$REG" ] && sed -i "/^$cc|/d" "$REG"
+echo "dedicated exit removed for $cc (reverted to free mihomo pool)"

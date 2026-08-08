@@ -1,0 +1,48 @@
+---
+# =============================================================================
+#  exit_dedicated — attach YOUR OWN foreign servers as GUARANTEED country exits.
+#
+#  The free per-country pool only reliably covers ~4 countries (DE/NL/FI) and is
+#  run by strangers (never for paid customers). This role installs the mechanism
+#  to register a dedicated exit for ANY country using a server you control, so
+#  that country becomes sellable with a stable, guaranteed IP:
+#
+#    servernet-exit-set <cc> --ssh   <user@host[:port]> [--key <keyfile>]
+#    servernet-exit-set <cc> --socks <host:port>
+#    servernet-exit-set <cc> --link  <vless://|vmess://|trojan://|ss://...>
+#    servernet-exit-del  <cc>            # revert that country to the free pool
+#    servernet-exit-list                 # show dedicated exits
+#
+#  It repoints that country's tun (exit_country_routing) at the dedicated SOCKS
+#  via the UPSTREAM var — no change to mihomo or the free pool. Self-heals
+#  (Restart=always). The panel catalog is auto-synced so the country shows in the
+#  sale-time dropdown, flagged "dedicated".
+#
+#  Depends on: exit_multicountry (per-country env files) + exit_country_routing
+#  (servernet-country@ tuns, UPSTREAM-aware) + control_panel country feature
+#  (merge-aware config/countries.php).
+# =============================================================================
+ded_ctid: "{{ exit_ctid | default(113) }}"          # where the tuns + SOCKS live (LXC 113)
+ded_panel_ctid: "{{ control_ctid | default(115) }}" # panel container (LXC 115)
+ded_panel_app_dir: "{{ panel_app_dir | default('/opt/control') }}"
+
+# Dedicated SOCKS local port = country listener_port + 1000 (so 43001-43025,
+# never clashing with mihomo's 42001-42025). Fixed by the scripts; documented here.
+ded_socks_offset: 1000
+
+# --- Declarative dedicated exits (optional; for full-IaC reproduction) --------
+# Leave EMPTY to just install the mechanism (the usual case: add servers later at
+# runtime with servernet-exit-set). To declare exits in code, list them here and
+# run with -e dedicated_apply=true; each entry is applied via servernet-exit-set.
+# Put SSH private keys via vault and reference their in-container path.
+#   dedicated_exits:
+#     - { cc: jp, method: ssh,   target: "root@203.0.113.9", key: "/root/jp_exit_key" }
+#     - { cc: tr, method: link,  link: "vless://....#my-tr" }
+#     - { cc: ae, method: socks, socks: "127.0.0.1:1085" }
+dedicated_exits: []
+
+# Safe by default: stage the scripts/units on the host; dedicated_apply=true
+# installs them into LXC {{ ded_ctid }} + {{ ded_panel_ctid }} + the host, and
+# (if dedicated_exits is non-empty) sets those exits up.
+dedicated_apply: false
+dedicated_stage_dir: "/root/.servernet/dedicated"

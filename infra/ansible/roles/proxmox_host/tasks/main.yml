@@ -1,0 +1,159 @@
+---
+# =============================================================================
+#  proxmox_host — one-time host bootstrap (run as root ON the Proxmox node).
+#  Creates: snippet storage, least-privilege role/user/token, customer pool,
+#  pool-scoped ACL. Everything is check-then-act, so re-runs are no-ops.
+#  This is the ONLY place root is used; the panel forever after uses the token.
+# =============================================================================
+
+- name: Assert we are really on the target Proxmox node
+  ansible.builtin.command: pvesh get /nodes/{{ pve_node }}/status --output-format json
+  register: _node_status
+  changed_when: false
+  failed_when: _node_status.rc != 0
+
+- name: Ensure Proxmox API client libs (needed by community.proxmox modules)
+  ansible.builtin.apt:
+    name: [python3-proxmoxer, python3-requests]
+    state: present
+    update_cache: true
+  failed_when: false          # tolerate offline/pinned apt; only provision.yml needs these
+
+# --- Snippet storage ---------------------------------------------------------
+- name: Read current config of storage '{{ iso_storage }}'
+  ansible.builtin.command: pvesh get /storage/{{ iso_storage }} --output-format json
+  register: _iso_stor
+  changed_when: false
+
+- name: Enable snippets (+iso,vztmpl) content type on '{{ iso_storage }}'
+  ansible.builtin.command: pvesm set {{ iso_storage }} --content {{ iso_storage_content }}
+  when: "'snippets' not in (_iso_stor.stdout | from_json).content"
+  register: _stor_set
+  changed_when: _stor_set.rc == 0
+
+- name: Ensure snippets directory exists
+  ansible.builtin.file:
+    path: "{{ iso_storage_path }}/{{ snippets_subdir }}"
+    state: directory
+    mode: "0755"
+
+# --- Least-privilege role ----------------------------------------------------
+- name: List existing Proxmox roles
+  ansible.builtin.command: pveum role list --output-format json
+  register: _roles
+  changed_when: false
+
+- name: Create provisioner role with exact privileges
+  ansible.builtin.command: >-
+    pveum role add {{ pve_provisioner_role }}
+    --privs "{{ pve_provisioner_privs | join(' ') }}"
+  when: pve_provisioner_role not in (_roles.stdout | from_json | map(attribute='roleid') | list)
+  register: _role_add
+  changed_when: _role_add.rc == 0
+
+- name: Reconcile provisioner role privileges (drift-safe)
+  ansible.builtin.command: >-
+    pveum role modify {{ pve_provisioner_role }}
+    --privs "{{ pve_provisioner_privs | join(' ') }}"
+  when: pve_provisioner_role in (_roles.stdout | from_json | map(attribute='roleid') | list)
+  register: _role_mod
+  changed_when: false          # modify is idempotent; don't flap "changed"
+
+# --- Service user (pve realm => no SSH/console, API only) ---------------------
+- name: List existing users
+  ansible.builtin.command: pveum user list --output-format json
+  register: _users
+  changed_when: false
+
+- name: Create service user {{ pve_svc_user }}
+  ansible.builtin.command: >-
+    pveum user add {{ pve_svc_user }} --comment "{{ pve_user_comment }}"
+  when: pve_svc_user not in (_users.stdout | from_json | map(attribute='userid') | list)
+  register: _user_add
+  changed_when: _user_add.rc == 0
+
+# --- API token (privilege-separated) -----------------------------------------
+- name: List tokens for {{ pve_svc_user }}
+  ansible.builtin.command: pveum user token list {{ pve_svc_user }} --output-format json
+  register: _tokens
+  changed_when: false
+  failed_when: false           # returns non-zero if user brand-new; tolerate
+
+- name: Ensure secret stash directory exists (root only)
+  ansible.builtin.file:
+    path: "{{ pve_token_secret_file | dirname }}"
+    state: directory
+    mode: "0700"
+
+- name: Create API token {{ pve_svc_token_id }} (privsep) if missing
+  ansible.builtin.command: >-
+    pveum user token add {{ pve_svc_user }} {{ pve_svc_token_id }}
+    --privsep 1 --output-format json
+  when: >-
+    _tokens.rc != 0 or
+    pve_svc_token_id not in (_tokens.stdout | default('[]') | from_json | map(attribute='tokenid') | list)
+  register: _token_add
+  changed_when: _token_add.rc == 0
+  no_log: true                 # the secret is in this output — never log it
+
+- name: Persist new token secret to root-only file (NOT stdout)
+  ansible.builtin.copy:
+    dest: "{{ pve_token_secret_file }}"
+    content: "{{ (_token_add.stdout | from_json).value }}\n"
+    mode: "0600"
+  when: _token_add is changed
+  no_log: true
+
+- name: Tell the operator where the token secret was saved
+  ansible.builtin.debug:
+    msg: >-
+      New API token created. Its secret was written to {{ pve_token_secret_file }}
+      (mode 0600) on the node. Copy it into vault.yml as vault_pve_token_secret,
+      then you may delete the file. If no new token was created this run, the
+      existing token is unchanged.
+  when: _token_add is changed
+
+# --- Customer pool -----------------------------------------------------------
+- name: List existing pools
+  ansible.builtin.command: pvesh get /pools --output-format json
+  register: _pools
+  changed_when: false
+
+- name: Create customer pool '{{ pve_customer_pool }}'
+  ansible.builtin.command: >-
+    pveum pool add {{ pve_customer_pool }} --comment "{{ pve_pool_comment }}"
+  when: pve_customer_pool not in (_pools.stdout | from_json | map(attribute='poolid') | list)
+  register: _pool_add
+  changed_when: _pool_add.rc == 0
+
+# --- Pool-scoped ACL: the token can ONLY act inside /pool/customers ----------
+- name: Read ACLs
+  ansible.builtin.command: pvesh get /access/acl --output-format json
+  register: _acls
+  changed_when: false
+
+- name: Grant token {{ pve_provisioner_role }} on /pool/{{ pve_customer_pool }}
+  ansible.builtin.command: >-
+    pveum acl modify /pool/{{ pve_customer_pool }}
+    --tokens '{{ pve_svc_user }}!{{ pve_svc_token_id }}'
+    --roles {{ pve_provisioner_role }}
+  vars:
+    _want_path: "/pool/{{ pve_customer_pool }}"
+    _want_ugid: "{{ pve_svc_user }}!{{ pve_svc_token_id }}"
+  when: >-
+    (_acls.stdout | from_json
+      | selectattr('path','equalto', _want_path)
+      | selectattr('ugid','equalto', _want_ugid)
+      | selectattr('roleid','equalto', pve_provisioner_role)
+      | list | length) == 0
+  register: _acl_add
+  changed_when: _acl_add.rc == 0
+
+- name: Bootstrap summary
+  ansible.builtin.debug:
+    msg:
+      - "Pool:  {{ pve_customer_pool }}"
+      - "Role:  {{ pve_provisioner_role }} ({{ pve_provisioner_privs | length }} privileges)"
+      - "Token: {{ pve_svc_user }}!{{ pve_svc_token_id }} (privsep, scoped to /pool/{{ pve_customer_pool }})"
+      - "Snippets: {{ linux_vendor_snippet }}"
+      - "Root is used ONLY for this bootstrap; the panel uses the scoped token."

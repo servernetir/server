@@ -1,0 +1,48 @@
+---
+# Module 2b / Phase B — per-country tun routing + customer assignment in LXC
+# {{ cr_ctid }}. For each enabled country cc:
+#   * servernet-country@<cc>.service runs tun2socks -device tun<cc>
+#     -proxy socks5://127.0.0.1:<listener_port> (mihomo's per-country listener),
+#   * a policy-routing table with a BLACKHOLE default (fail-closed kill-switch:
+#     tun down => DROP, never main/Iran),
+#   * per-customer assignment via ip rule (from <vm-ip> lookup <table>).
+# Reads the SINGLE exit_countries list from exit_multicountry. Additive + reversible.
+cr_ctid: "{{ exit_ctid | default(113) }}"
+
+# tun2socks binary path inside the container (part of the exit stack; the
+# servernet-country@ unit ExecStart points at it).
+tun2socks_bin: /usr/local/bin/tun2socks
+
+# Which countries to bring up as LIVE tun services on apply. Defaults to the
+# proven DE/NL/FR/FI set (self-tested by scripts 09/11). Widen to the full set
+# with:  -e '{"country_routing_enable": ["de","nl","fr","gb", ... ]}'
+# (env files for ALL exit_countries are staged/pushed regardless, so any country
+# can be enabled later without re-templating).
+country_routing_enable: [de, nl, fr, fi]
+
+# SPLIT ROUTING (connmark). The customer VM's gateway STAYS the host
+# ({{ cr_customer_gateway }}) so INBOUND management (SSH/RDP via the Iran IP:port
+# port-forward) keeps working; only NEW OUTBOUND is redirected to the country tun.
+# Assignment is a RUNTIME action (not done by this role):
+#   servernet-vm-country <vm-ip> <cc>      # split-route a VM out country cc
+#   servernet-vm-country-del <vm-ip>       # remove the split (on destroy)
+cr_customer_gateway: "{{ private_gateway | default('10.10.10.1') }}"   # host on vmbr1 — UNCHANGED
+
+# Where the host sends a VM's marked (new-outbound) packets: LXC {{ cr_ctid }} on
+# the customer bridge. This is the nexthop of policy table {{ cr_split_table }}.
+cr_exit_ip: "{{ exit_ip | default('10.10.10.20') }}"                   # LXC 113 eth0 on vmbr1
+cr_lan_if: "{{ private_bridge | default('vmbr1') }}"                   # customer bridge
+
+# connmark split parameters (match the proven live script mod2b/15-split-routing):
+#   * host mangle marks NEW outbound from the VM with {{ cr_split_mark }};
+#   * `ip rule from <vm> fwmark <mark> lookup <table>` sends only marked (new
+#     outbound) packets to LXC {{ cr_ctid }}; inbound replies stay unmarked -> main
+#     table -> back out the Iran IP, so port-forward management is preserved.
+cr_split_table: 50
+cr_split_mark: "0xc0"
+cr_split_mask: "0xc0"
+
+# Safe by default: stage scripts/units/envs on the host; country_routing_apply=
+# true to install them + enable the selected country tuns inside the container.
+country_routing_apply: false
+country_routing_stage_dir: "/root/.servernet/country-routing"

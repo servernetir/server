@@ -1,0 +1,24 @@
+---
+# Galaxy dependencies for ServerNet IaC.
+# Install:  ansible-galaxy collection install -r requirements.yml
+#           ansible-galaxy role       install -r requirements.yml
+#
+# IMPORTANT: Proxmox content moved OUT of community.general into community.proxmox.
+# community.general.proxmox_* modules are deprecated (removal in general 15.0.0).
+# Pin community.proxmox so a surprise upgrade never breaks a live run.
+collections:
+  - name: community.proxmox
+    version: ">=2.0.0,<3.0.0"
+  - name: community.general
+    version: ">=10.0.0"
+  - name: ansible.posix
+    version: ">=1.5.0"
+  - name: community.crypto
+    version: ">=2.20.0"
+
+roles:
+  # Optional hardening for freshly provisioned exit nodes (Phase 3). Safe to skip
+  # if you are not deploying external exit servers yet.
+  - name: devsec.hardening
+    src: https://github.com/dev-sec/ansible-collection-hardening
+    version: master

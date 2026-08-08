@@ -1,0 +1,7 @@
+---
+# Deploy the Laravel control panel into LXC 115 (stage/apply)
+- name: Deploy the Laravel control panel into LXC 115 (stage/apply)
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - control_panel

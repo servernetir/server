@@ -1,0 +1,9 @@
+<?php
+// config/os.php — OS catalog (os key => template VMID + defaults).
+// Rendered by Ansible from group_vars os_catalog. Reference only: the app
+// archive carries the working version. Keep keys in sync with Provisioner::sell.
+return [
+{% for key, v in os_catalog.items() %}
+    '{{ key }}' => ['vmid' => {{ v.vmid }}, 'win' => {{ 'true' if v.win else 'false' }}, 'port' => {{ v.port }}, 'label' => '{{ v.label }}'],
+{% endfor %}
+];

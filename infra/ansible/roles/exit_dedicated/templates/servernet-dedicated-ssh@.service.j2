@@ -1,0 +1,14 @@
+[Unit]
+Description=ServerNet dedicated exit SSH SOCKS (%i)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/servernet-dedicated-ssh-run %i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

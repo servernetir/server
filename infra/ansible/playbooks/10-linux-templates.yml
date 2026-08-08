@@ -1,0 +1,8 @@
+---
+# Deploy access-fix snippet + build the six Linux templates
+- name: Deploy access-fix snippet + build the six Linux templates
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - cloudinit_snippet
+    - linux_templates

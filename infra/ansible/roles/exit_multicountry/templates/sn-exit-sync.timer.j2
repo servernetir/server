@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ServerNet Module 2 subscription sync every {{ sync_interval }}
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ sync_interval }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

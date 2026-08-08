@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: linux_templates
+  author: ServerNet
+  description: Build the six Linux cloud-init templates idempotently
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions: [all]
+dependencies: []

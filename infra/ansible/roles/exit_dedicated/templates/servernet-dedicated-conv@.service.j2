@@ -1,0 +1,16 @@
+[Unit]
+Description=ServerNet dedicated exit link converter (%i)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# A tiny second mihomo instance that turns one share-link into a local SOCKS on
+# 127.0.0.1:<listener_port+{{ ded_socks_offset }}> (config in dedicated-%i/).
+ExecStart={{ mihomo_bin | default('/usr/local/bin/mihomo') }} -d /etc/servernet/dedicated-%i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

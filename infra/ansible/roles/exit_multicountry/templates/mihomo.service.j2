@@ -1,0 +1,14 @@
+[Unit]
+Description=mihomo (ServerNet Module 2 multi-country pool)
+After=network-online.target sn-subs-httpd.service
+Wants=network-online.target sn-subs-httpd.service
+
+[Service]
+Type=simple
+ExecStart={{ mihomo_bin }} -d {{ mihomo_conf_dir }}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
