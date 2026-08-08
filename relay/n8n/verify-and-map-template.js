@@ -32,6 +32,14 @@ const TEMPLATES = {
   domain_expiring:   { code: 'wui3lk90zy2oh2f', vars: { domain: 'domain', days: 'days' } },
   domain_expired:    { code: 'bamv8b3gmsw4n0t', vars: { domain: 'domain' } },
   bank_rejected:     { code: '0mm4f5lbcblw532', vars: { reason: 'reason' } },
+
+  // ── کدِ یک‌بارمصرفِ حذفِ سرور (شهریور ۱۴۰۵) ──
+  // 🔴 چرا الگوی جدا و نه همان `otp`: مشتری‌ای که سرورش را برای همیشه پاک
+  //    می‌کند پیامکِ «کد ورود» می‌گرفت. متنِ این الگو صریح می‌گوید کد برای
+  //    «حذف کامل سرور و پاک شدن غیرقابل بازگشت تمامی اطلاعات» است.
+  // ⚠️ متغیرِ الگو در پنلِ اپراتور `%code%` است، پس هر دو سمتِ نگاشت `code`
+  //    می‌شوند — و برخلافِ `otp` (که `%otp%` دارد) این‌جا نامشان یکی است.
+  otp_service_delete: { code: 'tr4yx3mbo37rvmm', vars: { code: 'code' } },
 };
 
 /* ══════════════════════════════════════════════════════════════════════

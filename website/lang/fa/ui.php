@@ -1442,6 +1442,22 @@ return [
     'svc_terminate_confirm' => 'با حذف سرویس، سرور و تمام داده‌های روی آن برای همیشه پاک می‌شود و برگشت‌پذیر نیست. برای ادامه یک کد تأیید به شما می‌فرستیم.',
     'svc_terminate_otp_hint' => 'کد تأیید فرستاده شد. با وارد کردن آن، سرور و همهٔ داده‌هایش برای همیشه حذف می‌شود.',
     'svc_terminate_final' => 'حذف قطعی سرویس',
+    // ── دلیلِ حذفِ سرور (اختیاری) ──
+    // ⚠️ مقدارِ فارسیِ svc_del_reason_<code> باید **دقیقاً** برابرِ
+    //    Service::TERMINATE_REASONS باشد؛ ServiceDeleteReasonTest قفلش می‌کند.
+    'svc_del_reason_h' => 'دلیل حذف سرور را انتخاب کنید',
+    'svc_del_reason_lead' => 'برای بهبود سرویس و بررسی بازخورد کاربران، لطفاً یکی از گزینه‌های زیر را انتخاب کنید:',
+    'svc_del_reason_skip' => 'ترجیح می‌دهم نگویم (اختیاری)',
+    'svc_del_reason_note' => 'در صورت تمایل، توضیح بیشتری بنویسید.',
+    'svc_del_reason_no_longer_needed' => 'دیگر به سرور نیاز ندارم',
+    'svc_del_reason_too_expensive' => 'هزینه سرویس مناسب نبود',
+    'svc_del_reason_technical_issue' => 'مشکل فنی یا عملکردی داشتم',
+    'svc_del_reason_support' => 'از پشتیبانی رضایت نداشتم',
+    'svc_del_reason_switched_provider' => 'به سرویس دیگری منتقل شدم',
+    'svc_del_reason_project_stopped' => 'پروژه متوقف شده',
+    'svc_del_reason_was_a_test' => 'این سرور تستی بود',
+    'svc_del_reason_security_privacy' => 'نگرانی امنیتی/حریم خصوصی داشتم',
+    'svc_del_reason_other' => 'سایر',
     'svc_cancel' => 'لغو سفارش',
     'svc_cancel_confirm' => 'این سفارش هنوز تحویل نشده است. با لغو، مبلغ پرداختی به کیف پول شما بازمی‌گردد. مطمئن هستید؟',
     'svc_hours_left' => 'ساعتِ باقی‌مانده بر اساسِ اعتبار',

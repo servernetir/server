@@ -170,6 +170,12 @@ return [
                 'service_ready' => env('IPPANEL_PATTERN_SERVICE_READY'),
                 'expiring'      => env('IPPANEL_PATTERN_EXPIRING'),
                 'ticket_reply'  => env('IPPANEL_PATTERN_TICKET_REPLY'),
+
+                // کدِ حذفِ سرور. ⚠️ درایورِ فعال `n8n_relay` است و کدِ این
+                // الگو در `relay/n8n/verify-and-map-template.js` نشسته — تنها
+                // منبعش. این خط فقط برای مسیرِ **مستقیمِ** آی‌پی‌پنل است؛ اگر
+                // خالی بماند، آن مسیر به الگوی عمومیِ `otp` برمی‌گردد.
+                'otp_service_delete' => env('IPPANEL_PATTERN_OTP_SERVICE_DELETE'),
             ],
         ],
 

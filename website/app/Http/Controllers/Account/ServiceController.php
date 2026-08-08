@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -83,10 +84,22 @@ class ServiceController extends Controller
             return back()->withErrors('این سرویس در وضعیتی نیست که بتوان حذفش کرد.');
         }
 
-        $data = $request->validate(
-            ['code' => ['required', 'string', 'max:12']],
-            [], ['code' => 'کد']
-        );
+        /*
+        | 🔴 دلیلِ حذف **اختیاری** است و باید بمانَد.
+        |
+        | مشتری در این لحظه از ما ناراضی است؛ فیلدِ اجباری یک دیوار است و
+        | نتیجه‌اش دادهٔ بهتر نیست، تیکتِ عصبانی است. پس `nullable`، و اگر خالی
+        | باشد حذف بی‌هیچ مانعی انجام می‌شود.
+        |
+        | ⚠️ کد باید از فهرستِ بسته بیاید. با `string`ِ آزاد، هر مقداری از
+        | مرورگر به ستون می‌رسید و گزارشِ مدیر پر از کدهای بی‌معنی می‌شد — یعنی
+        | همان «دادهٔ غیرقابلِ شمارش» که این ستون برای رفعش ساخته شد.
+        */
+        $data = $request->validate([
+            'code'        => ['required', 'string', 'max:12'],
+            'reason'      => ['nullable', 'string', Rule::in(Service::terminateReasonCodes())],
+            'reason_note' => ['nullable', 'string', 'max:500'],
+        ], [], ['code' => 'کد', 'reason' => 'دلیل حذف', 'reason_note' => 'توضیح']);
 
         $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'service_terminate', $data['code']);
 
@@ -117,14 +130,33 @@ class ServiceController extends Controller
             return back()->withErrors('حذفِ سرور نزدِ زیرساخت انجام نشد. چند دقیقهٔ دیگر دوباره تلاش کنید یا به پشتیبانی بگویید.');
         }
 
-        DB::transaction(function () use ($service) {
+        /*
+        | ⚠️ **پیش از نوشتن، وجودِ ستون را بپرس.**
+        |
+        | مهاجرت را کارفرما دستی اجرا می‌کند (`/system/migrate`)، پس بینِ دپلویِ
+        | کد و اجرای مهاجرت پنجره‌ای هست که این ستون‌ها نیستند. و این نوشتن
+        | **بعد از** حذفِ واقعیِ سرور نزدِ زیرساخت اتفاق می‌افتد: یک خطای SQL
+        | این‌جا یعنی سرورِ پاک‌شده و سرویسی که هنوز «فعال» است و مشتری فاکتورِ
+        | تمدیدش را می‌گیرد. یک ستونِ آمارِ بازاریابی هرگز نباید چنین ریسکی
+        | بسازد.
+        */
+        $reasonCols = Schema::hasColumn('services', 'terminate_reason')
+            ? [
+                'terminate_reason'      => $data['reason'] ?? null,
+                'terminate_reason_note' => filled($data['reason_note'] ?? null)
+                    ? mb_substr(trim((string) $data['reason_note']), 0, 500)
+                    : null,
+            ]
+            : [];
+
+        DB::transaction(function () use ($service, $reasonCols) {
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
             if ($fresh === null || in_array($fresh->status, ['terminated', 'cancelled'], true)) {
                 return;                          // قبلاً بسته شده
             }
 
-            $fresh->update([
+            $fresh->update($reasonCols + [
                 'status'       => 'terminated',
                 'cancelled_at' => now(),
                 'billing_mode' => $fresh->billing_mode,   // متر ساعتی دیگر نمی‌شمارد چون وضعیت فعال نیست
@@ -132,8 +164,13 @@ class ServiceController extends Controller
         });
 
         try {
+            // دلیل در لاگِ سرویس هم می‌نشیند: گزارشِ مدیر عدد می‌دهد، ولی وقتی
+            // پشتیبانی پروندهٔ **یک** سرویس را باز می‌کند، همان‌جا باید ببیند.
+            $why = Service::terminateReasonLabel($data['reason'] ?? null);
+
             ActivityLog::forService($service, 'terminate',
-                'حذفِ سرویس به‌خواستِ مشتری با تأییدِ کدِ یک‌بارمصرف', 'customer', $request);
+                'حذفِ سرویس به‌خواستِ مشتری با تأییدِ کدِ یک‌بارمصرف'
+                .($why !== null ? ' — دلیل: '.$why : ''), 'customer', $request);
         } catch (\Throwable) {
         }
 

@@ -4,6 +4,7 @@ namespace App\Services\Otp;
 
 use App\Models\OtpChallenge;
 use App\Services\Sms\SmsSender;
+use App\Services\Sms\SupportsPatterns;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -35,6 +36,32 @@ class OtpService
 
     /** فاصلهٔ لازم بین دو ارسال به یک مقصد (ثانیه) */
     public const RESEND_COOLDOWN = 60;
+
+    /**
+     * هدفِ کد → نامِ الگوی **اختصاصیِ** پیامک. هدفی که این‌جا نباشد الگوی
+     * عمومیِ `otp` را می‌گیرد.
+     *
+     * ═══ 🔴 خرابی‌ای که این نقشه برای رفعش ساخته شد ═══
+     *
+     * حذفِ سرویس از روزِ اول هدفِ جدای خودش را داشت (`service_terminate`) و
+     * جداییِ **اعتبارسنجی** درست کار می‌کرد — کدِ حذف هرگز ورود نمی‌داد. ولی
+     * `issue()` برای هر هدفی همان `sendOtp()` را صدا می‌زد، و آن همیشه الگوی
+     * `otp` را می‌فرستد. یعنی مشتری‌ای که داشت سرورش را **برای همیشه پاک
+     * می‌کرد**، پیامکی می‌گرفت که می‌گفت «کد ورود». بدترین لحظهٔ ممکن برای
+     * ابهام: کاربر یا فکر می‌کند کسی به حسابش وارد شده، یا کد را جدی نمی‌گیرد.
+     *
+     * ⚠️ نامِ الگو باید در **هر سه** جا باشد وگرنه پیامک بی‌صدا نمی‌رود:
+     *   `SignedRelaySender::TEMPLATES` · `SignedRelaySender::OTP_TEMPLATES`
+     *   · `relay/n8n/verify-and-map-template.js`
+     * (`SmsTemplateRegistryTest` هر سه را با هم قفل کرده.)
+     *
+     * ⚠️ کدِ واقعیِ الگو **این‌جا نیست و نباید باشد** — فقط نامِ منطقی. ترجمهٔ
+     * نام به کدِ اپراتور کارِ n8n است؛ نگه‌داشتنِ کد در دو جا یعنی دیر یا زود
+     * یکی کهنه می‌شود.
+     */
+    public const SMS_TEMPLATES = [
+        'service_terminate' => 'otp_service_delete',
+    ];
 
     public function __construct(private SmsSender $sms) {}
 
@@ -116,7 +143,7 @@ class OtpService
         // می‌گیرند و درایور صف، اگر chat_id بله موجود باشد، هم‌زمان بله هم
         // می‌فرستد.
         $sent = match ($channel) {
-            'sms'   => $this->sms->sendOtp($destination, $code),
+            'sms'   => $this->sendSms($destination, $code, $purpose),
             'email' => $this->sendEmail($destination, $code),
             default => false,
         };
@@ -348,6 +375,40 @@ class OtpService
         ));
 
         return in_array($destination, $list, true);
+    }
+
+    /** نامِ الگوی پیامکی که این هدف با آن فرستاده می‌شود */
+    public static function smsTemplateFor(string $purpose): string
+    {
+        return self::SMS_TEMPLATES[$purpose] ?? 'otp';
+    }
+
+    /**
+     * ارسال کد با پیامک — با الگوی اختصاصیِ همان هدف، اگر داشته باشد.
+     *
+     * ⚠️ چرا `sendPattern` و نه `sendOtp`: `sendOtp` نامِ الگو را **سخت‌کد**
+     * `otp` دارد (و باید داشته باشد — ورود پرتکرارترین مسیر است). پس برای هدفِ
+     * اختصاصی باید صریح نامِ الگو را بدهیم.
+     *
+     * ⚠️ `null` از `sendPattern` یعنی «این درایور چنین الگویی ندارد» (یا خاموش
+     * است). در آن حالت **عمداً** به الگوی عمومی برمی‌گردیم: پیامکِ با متنِ
+     * «کد ورود» گیج‌کننده است، ولی نرسیدنِ هیچ کدی یعنی مشتری نمی‌تواند سرورِ
+     * خودش را حذف کند. و بی‌خطر است، چون کدِ صادرشده برای این هدف **هیچ‌جا جز
+     * همین هدف** تأیید نمی‌شود (`verify()` روی `purpose` فیلتر می‌کند).
+     */
+    private function sendSms(string $destination, string $code, string $purpose): bool
+    {
+        $template = self::SMS_TEMPLATES[$purpose] ?? null;
+
+        if ($template !== null && $this->sms instanceof SupportsPatterns) {
+            $sent = $this->sms->sendPattern($destination, $template, ['code' => $code]);
+
+            if ($sent !== null) {
+                return $sent;
+            }
+        }
+
+        return $this->sms->sendOtp($destination, $code);
     }
 
     /**

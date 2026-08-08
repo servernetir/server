@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\Notify\NotifyEvent;
+use App\Services\Otp\OtpService;
 use App\Services\Sms\SignedRelaySender;
 use Tests\TestCase;
 
@@ -100,8 +101,21 @@ class SmsTemplateRegistryTest extends TestCase
         $bad = [];
 
         foreach ($this->n8nRegistry() as $key => $needs) {
-            if ($key === 'otp') {
-                continue;   // مسیرِ خودش را دارد: sendOtp همیشه `code` می‌فرستد
+            /*
+            | خانوادهٔ OTP مسیرِ خودش را دارد: `OtpService` — چه از راهِ
+            | `sendOtp()` و چه از راهِ الگوی اختصاصی — **فقط** `code` می‌فرستد.
+            |
+            | ⚠️ نسخهٔ قبلی این‌جا فقط `continue` می‌زد و یعنی هیچ‌چیزی این را
+            | نمی‌سنجید. اگر روزی الگوی OTPی در پنلِ اپراتور متغیرِ دومی بگیرد
+            | (مثلاً «نام»)، n8n با `missing_param` ردش می‌کند و **کدِ ورود
+            | هرگز نمی‌رود** — بی‌هیچ خطایی. پس صریح می‌سنجیم.
+            */
+            if (in_array($key, SignedRelaySender::OTP_TEMPLATES, true)) {
+                $this->assertSame(['code'], $needs,
+                    "الگوی «{$key}» متغیری جز `code` می‌خواهد، ولی OtpService فقط "
+                    .'`code` می‌فرستد ⇒ n8n با missing_param ردش می‌کند و آن کد هرگز نمی‌رسد');
+
+                continue;
             }
 
             $event = NotifyEvent::get($key);
@@ -153,12 +167,68 @@ class SmsTemplateRegistryTest extends TestCase
             .'  relay/n8n/verify-and-map-template.js    →  TEMPLATES (با کدِ الگو و نگاشتِ متغیر)');
     }
 
-    /** رویدادی که پیامک دارد باید در کاتالوگ هم باشد — وگرنه هیچ‌وقت شلیک نمی‌شود */
+    /**
+     * رویدادی که پیامک دارد باید در کاتالوگ هم باشد — وگرنه هیچ‌وقت شلیک نمی‌شود.
+     *
+     * ⚠️ خانوادهٔ OTP استثناست چون رویدادِ اطلاع‌رسانی نیست (مسیرش `OtpService`
+     * است، متنِ قابلِ ویرایش در `/admin/templates` ندارد). ولی استثنا بی‌قید
+     * نیست: تستِ بعدی می‌سنجد که هر عضوِ آن خانواده واقعاً صادرکننده دارد.
+     */
     public function test_no_pattern_exists_for_an_event_that_does_not_exist(): void
     {
-        $unknown = array_values(array_diff(SignedRelaySender::TEMPLATES, array_keys(NotifyEvent::ALL)));
+        $known = array_merge(array_keys(NotifyEvent::ALL), SignedRelaySender::OTP_TEMPLATES);
+        $unknown = array_values(array_diff(SignedRelaySender::TEMPLATES, $known));
 
         $this->assertSame([], $unknown,
-            'الگو برای رویدادی تعریف شده که در کاتالوگ نیست: '.implode(', ', $unknown));
+            'الگو برای رویدادی تعریف شده که نه در کاتالوگ است و نه کدِ یک‌بارمصرف: '
+            .implode(', ', $unknown));
+    }
+
+    /**
+     * 🔴 خانوادهٔ OTP نباید به دری برای الگوهای مرده تبدیل شود.
+     *
+     * چون این نام‌ها از بررسیِ «باید در کاتالوگ باشند» معاف‌اند، تنها چیزی که
+     * زنده‌بودنشان را تضمین می‌کند همین است: هر نام باید **هدفی** داشته باشد که
+     * `OtpService` با آن صادرش کند، و هر هدفِ ثبت‌شده باید نامش در فهرست باشد.
+     *
+     * بی‌این تست، `OtpService::SMS_TEMPLATES` می‌توانست نامی بدهد که در
+     * `TEMPLATES` نیست — و آن‌وقت `sendPattern` نال می‌داد، بی‌صدا به الگوی
+     * `otp` برمی‌گشت، و کارفرما هرگز نمی‌فهمید الگوی تازه‌اش استفاده نمی‌شود.
+     */
+    public function test_every_otp_template_belongs_to_a_real_purpose(): void
+    {
+        $issued = array_merge(['otp'], array_values(OtpService::SMS_TEMPLATES));
+
+        sort($issued);
+        $family = SignedRelaySender::OTP_TEMPLATES;
+        sort($family);
+
+        $this->assertSame($issued, $family,
+            "\nخانوادهٔ OTP با هدف‌هایی که OtpService صادر می‌کند نمی‌خواند:\n"
+            .'  فقط در OTP_TEMPLATES : '.(implode(', ', array_diff($family, $issued)) ?: '—')."\n"
+            .'  فقط در SMS_TEMPLATES : '.(implode(', ', array_diff($issued, $family)) ?: '—'));
+
+        $missing = array_values(array_diff($family, SignedRelaySender::TEMPLATES));
+
+        $this->assertSame([], $missing,
+            'نامِ خانوادهٔ OTP در فهرستِ مجازِ رله نیست، پس n8n `unknown_template` می‌دهد: '
+            .implode(', ', $missing));
+    }
+
+    /**
+     * 🔴 هدفِ «حذفِ سرویس» باید الگوی **خودش** را داشته باشد، نه `otp`.
+     *
+     * کارفرما: «زمانی که سروری رو حذف سرویس میکنم پیامک OTP ورود میاد اینو باید
+     * اختصاصی حذف سرویسش کنیم.» تا شهریور ۱۴۰۵ هر هدفی همان `sendOtp()` را صدا
+     * می‌زد و آن نامِ الگو را سخت‌کد `otp` داشت.
+     */
+    public function test_the_service_delete_purpose_has_its_own_pattern(): void
+    {
+        $this->assertSame('otp_service_delete', OtpService::smsTemplateFor('service_terminate'));
+        $this->assertSame('otp', OtpService::smsTemplateFor('login'),
+            'ورود باید همان الگوی عمومی را نگه دارد');
+
+        $this->assertStringContainsString("code: 'tr4yx3mbo37rvmm'", $this->n8nSource(),
+            'کدِ الگوی حذفِ سرور در رجیستریِ n8n نیست — پیامک با `unknown_template` دور ریخته می‌شود');
     }
 }

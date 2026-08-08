@@ -92,6 +92,31 @@
                     <form method="post" action="{{ lroute('account.services.terminate', $s) }}" class="svc-otp">
                       @csrf
                       <p class="svc-note warn" style="margin:0 0 10px">{{ __('ui.svc_terminate_otp_hint') }}</p>
+
+                      {{-- دلیلِ حذف — **اختیاری**. برای بازاریابی لازم است، ولی
+                           مشتری در این لحظه از ما ناراضی است و فیلدِ اجباری یک
+                           دیوار است؛ پس بی‌انتخاب هم حذف انجام می‌شود. کدِ پایدار
+                           ذخیره می‌شود نه این متن (به Service::TERMINATE_REASONS
+                           نگاه کن). --}}
+                      <div style="margin:0 0 14px;max-width:520px">
+                        <p style="margin:0 0 3px;font-size:13px;font-weight:700">{{ __('ui.svc_del_reason_h') }}</p>
+                        <p style="margin:0 0 9px;font-size:12px;color:var(--dim);line-height:1.7">{{ __('ui.svc_del_reason_lead') }}</p>
+
+                        <select name="reason"
+                                style="width:100%;font:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--text)">
+                          <option value="">{{ __('ui.svc_del_reason_skip') }}</option>
+                          @foreach(\App\Models\Service::terminateReasonCodes() as $rc)
+                            <option value="{{ $rc }}">{{ __('ui.svc_del_reason_'.$rc) }}</option>
+                          @endforeach
+                        </select>
+
+                        <textarea name="reason_note" rows="2" maxlength="500"
+                                  placeholder="{{ __('ui.svc_del_reason_note') }}"
+                                  style="width:100%;margin-top:8px;font:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--text);resize:vertical"></textarea>
+                        @error('reason')<p class="svc-note warn" style="margin:8px 0 0">{{ $message }}</p>@enderror
+                        @error('reason_note')<p class="svc-note warn" style="margin:8px 0 0">{{ $message }}</p>@enderror
+                      </div>
+
                       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                         <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
                                maxlength="12" required dir="ltr" placeholder="------"

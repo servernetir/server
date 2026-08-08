@@ -154,5 +154,33 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
   say(r.ipPanelBody?.params?.amount === '۲٬۵۰۰٬۰۰۰', 'ارقامِ فارسی دست‌نخورده رسیدند', r.ipPanelBody?.params?.amount);
 }
 
+/* ── ۱۱) کدِ یک‌بارمصرفِ **حذفِ سرور** الگوی خودش را می‌گیرد، نه الگوی ورود ──
+ *
+ * 🔴 کارفرما پیامکِ «کد ورود» می‌گرفت وقتی داشت سرورش را برای همیشه پاک می‌کرد.
+ *    این ادعا دو نیمه دارد و هر دو لازم‌اند: کدِ الگو باید **عوض** شود، و
+ *    متغیرش باید `code` بمانَد (`%code%` در متنِ اپراتور) — نه `otp` که الگوی
+ *    ورود دارد. اگر نامِ متغیر غلط باشد، آی‌پی‌پنل جای‌نگهدارِ پرنشده را رد
+ *    می‌کند و پیامک بی‌صدا نمی‌رود.
+ */
+{
+  const del = execFileSync('C:/php/php.exe', ['-r',
+    '$p=["version"=>1,"template"=>"otp_service_delete","mobile"=>"+989142223343","params"=>["code"=>"483920"],"request_id"=>"x","issued_at"=>time()];' +
+    '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
+    '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +
+    'echo "SMS_RELAY_V1:".$b.".".hash_hmac("sha256",$b,"' + SECRET + '");'], { encoding: 'utf8' });
+  const r = run(update(del))[0].json;
+  say(r.valid === true, 'پاکتِ کدِ حذفِ سرور پذیرفته شد', r.valid ? '' : r.reason);
+  say(r.ipPanelBody?.code === 'tr4yx3mbo37rvmm', 'کدِ الگوی حذفِ سرور درست است', r.ipPanelBody?.code);
+  say(r.ipPanelBody?.code !== 'u507b9k77p8oim0', '🔴 الگوی ورود استفاده نشد');
+  say(JSON.stringify(r.ipPanelBody?.params) === '{"code":"483920"}', 'متغیرِ الگو `code` است نه `otp`', JSON.stringify(r.ipPanelBody?.params));
+}
+
+// ── ۱۱ب) و کدِ ورود دست‌نخورده مانده ──
+{
+  const r = run(update(envelope))[0].json;
+  say(r.ipPanelBody?.code === 'u507b9k77p8oim0', 'الگوی ورود عوض نشده');
+  say(JSON.stringify(r.ipPanelBody?.params) === '{"otp":"483920"}', 'الگوی ورود همچنان متغیرِ otp دارد');
+}
+
 console.log(`\n✔ ${pass}   ✘ ${fail}`);
 process.exit(fail ? 1 : 0);
