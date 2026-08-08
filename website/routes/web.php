@@ -1900,6 +1900,23 @@ Route::prefix('admin')->group(function () {
         Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store'])->middleware('admin');
         Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy'])->middleware('admin');
 
+        /*
+        | جذبِ مشتریِ خارجی — قیفِ فروش و صفِ تأییدِ ایمیل.
+        |
+        | 🔴 همه‌شان `admin` می‌خواهند و نه فقط `auth:web`: این صفحه ایمیل به
+        | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
+        | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
+        */
+        Route::get('/crm', [\App\Http\Controllers\Admin\CrmController::class, 'index'])->name('admin.crm')->middleware('admin');
+        Route::post('/crm', [\App\Http\Controllers\Admin\CrmController::class, 'store'])->middleware('admin');
+        Route::get('/crm/{lead}', [\App\Http\Controllers\Admin\CrmController::class, 'show'])->name('admin.crm.lead')->middleware('admin');
+        Route::post('/crm/{lead}/enrich', [\App\Http\Controllers\Admin\CrmController::class, 'enrich'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/crm/{lead}/compose', [\App\Http\Controllers\Admin\CrmController::class, 'compose'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/crm/{lead}/stage', [\App\Http\Controllers\Admin\CrmController::class, 'stage'])->middleware('admin');
+        Route::post('/crm/{lead}/suppress', [\App\Http\Controllers\Admin\CrmController::class, 'suppress'])->middleware('admin');
+        Route::post('/crm/message/{message}/approve', [\App\Http\Controllers\Admin\CrmController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
+        Route::post('/crm/message/{message}/reject', [\App\Http\Controllers\Admin\CrmController::class, 'reject'])->middleware('admin');
+
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');

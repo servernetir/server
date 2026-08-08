@@ -49,6 +49,27 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        /*
+        | صندوقِ فروش — جدا از SMTPِ سیستم.
+        |
+        | چرا جدا: ایمیلِ سردِ فروش و ایمیلِ فاکتور/رمزِ سرویس دو جریانِ کاملاً
+        | متفاوت‌اند. اگر از یک صندوق بروند، اولین شکایتِ اسپمِ یک کلینیک،
+        | تحویلِ ایمیلِ «رمزِ سرور شما» را برای مشتریِ فعلی هم خراب می‌کند.
+        |
+        | اگر CRM_MAIL_* را ندهی، همان مقادیرِ MAIL_* استفاده می‌شود — یعنی از
+        | روزِ اول کار می‌کند، ولی جداکردنش یک تصمیمِ درست است نه یک تجمل.
+        */
+        'crm' => [
+            'transport'    => 'smtp',
+            'scheme'       => env('CRM_MAIL_SCHEME', env('MAIL_SCHEME')),
+            'host'         => env('CRM_MAIL_HOST', env('MAIL_HOST', '127.0.0.1')),
+            'port'         => env('CRM_MAIL_PORT', env('MAIL_PORT', 2525)),
+            'username'     => env('CRM_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password'     => env('CRM_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout'      => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

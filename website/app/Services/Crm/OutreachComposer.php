@@ -27,10 +27,11 @@ class OutreachComposer
         protected SiteAudit $audit = new SiteAudit,
         protected OutreachWriter $writer = new OutreachWriter,
         protected RedLine $redline = new RedLine,
+        protected ContactFinder $contacts = new ContactFinder,
     ) {}
 
     /**
-     * سرنخ را غنی می‌کند: ممیزی سایت + مشاهده. برای پیام‌سازی لازم است.
+     * سرنخ را غنی می‌کند: ممیزی سایت + نشانیِ تماس + مشاهده.
      */
     public function enrich(CrmLead $lead): bool
     {
@@ -47,6 +48,17 @@ class OutreachComposer
 
         $lead->audit       = $report;
         $lead->audit_score = (int) ($report['overall'] ?? 0);
+
+        // نشانیِ تماس فقط از روی سایتِ خودشان — هرگز حدس‌زده نمی‌شود.
+        if (blank($lead->email)) {
+            $c = $this->contacts->find($lead->website);
+
+            if (filled($c['email'])) {
+                $lead->email = $c['email'];
+            } else {
+                Log::info('crm.enrich.no_email', ['lead' => $lead->id, 'url' => $lead->website]);
+            }
+        }
 
         $obs = $this->writer->observe($lead->only(['company', 'website']), $report);
 
