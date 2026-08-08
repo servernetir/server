@@ -239,6 +239,7 @@ Schedule::command('cloud:sync --prices')
 // کشفِ سرنخِ تازه — روزی یک‌بار کافی است، بیشترش فقط سهمیهٔ Places را می‌سوزاند.
 Schedule::command('crm:discover')
     ->dailyAt('04:20')
+    ->when(fn () => filled(config('crm.discovery.places_key')))
     ->withoutOverlapping(60);
 
 // ممیزیِ سایت + یافتنِ نشانی + مشاهده. سنگین‌ترین تکه، پس دسته‌های کوچک و مکرر.
@@ -260,6 +261,7 @@ Schedule::command('crm:queue --limit=10')
 */
 Schedule::command('crm:send')
     ->hourly()
+    ->when(fn () => (bool) config('crm.autopilot'))
     ->withoutOverlapping(20);
 
 /*
@@ -271,6 +273,7 @@ Schedule::command('crm:send')
 */
 Schedule::command('crm:inbox --days=5')
     ->everyFifteenMinutes()
+    ->when(fn () => filled(config('crm.inbox.host')) && filled(config('crm.inbox.pass')))
     ->withoutOverlapping(20);
 
 /*
@@ -291,8 +294,17 @@ Schedule::command('crm:inbox --days=5')
 | و ظرفِ یک هفته کسی بازش نمی‌کرد.
 */
 
+/*
+| 🔴 `when()` روی هر دو: تا وقتی رمزی در .env نگذاشته‌ای، این کرون‌ها اصلاً
+| بیدار نمی‌شوند.
+|
+| بدونِ این، روی پروداکشن هر ۱۵ دقیقه یک هشدارِ «پیکربندی نشده» در لاگ می‌نشست
+| — روزی ۹۶ خط. لاگی که پر از هشدارِ بی‌معنی است، همان لاگی است که روزِ خرابیِ
+| واقعی کسی نمی‌خواندش.
+*/
 Schedule::command('mailbox:sync')
     ->hourly()
+    ->when(fn () => filled(config('mailboxes.accounts')))
     ->withoutOverlapping(45);
 
 /*
@@ -301,4 +313,5 @@ Schedule::command('mailbox:sync')
 */
 Schedule::command('mailbox:digest --skip-sync')
     ->cron('30 4,14 * * *')
+    ->when(fn () => filled(config('mailboxes.accounts')))
     ->withoutOverlapping(45);
