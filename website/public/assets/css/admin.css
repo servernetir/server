@@ -236,3 +236,251 @@ textarea.ad-input{resize:vertical;line-height:1.8;min-height:90px}
 .ad-bulk .sep{ margin-inline-start:auto }
 .ad-bulk .warn{ font-size:12px; color:var(--amber); line-height:1.7; flex-basis:100% }
 tr.ad-hide{ display:none }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   تقویمِ کسب‌وکار — /admin/calendar
+   ──────────────────────────────────────────────────────────────────────────
+   قاعدهٔ این فایل: قاعدهٔ تازه به **انتهای** فایل اضافه می‌شود (site.css و
+   admin.css در جاهایی append-only اند و آخرین تعریف برنده است).
+
+   🔴 هیچ رنگی این‌جا سخت‌کد نیست جز در تعریفِ توکن‌ها. دلیلش کنتراست است:
+   #fbbf24 روی پس‌زمینهٔ تیره عالی است و روی سفید ۱٫۷:۱ — یعنی در تمِ روشن
+   نه متنش خواناست نه حتی به‌عنوانِ عنصرِ گرافیکی از حدِ ۳:۱ رد می‌شود. پس هر
+   لایه **دو** مقدار دارد که با تم عوض می‌شوند، نه یکی.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  /* تمِ تیره — همان پنجِ رنگِ تأکیدیِ پنل */
+  --cal-domain:#fbbf24;   --cal-domain-soft:rgba(251,191,36,.15);
+  --cal-hosting:#22d3ee;  --cal-hosting-soft:rgba(34,211,238,.15);
+  --cal-payment:#ff6b6b;  --cal-payment-soft:rgba(255,107,107,.15);
+  --cal-content:#34d399;  --cal-content-soft:rgba(52,211,153,.15);
+  --cal-task:#96a3ba;     --cal-task-soft:rgba(150,163,186,.15);
+
+  /* ارتفاعِ خانهٔ روز و حداقلِ هدفِ لمسی — یک‌جا، نه پراکنده */
+  --cal-cell-h:118px;
+  --cal-tap:44px;
+}
+
+html[data-theme="light"]{
+  /* نسخهٔ تیره‌ترِ همان رنگ‌ها: هر کدام روی #fff بالای ۶:۱ است (WCAG AA برای
+     متنِ عادی ۴٫۵:۱ می‌خواهد و برای عنصرِ گرافیکی ۳:۱) */
+  --cal-domain:#92400e;   --cal-domain-soft:rgba(180,83,9,.13);
+  --cal-hosting:#155e75;  --cal-hosting-soft:rgba(14,116,144,.13);
+  --cal-payment:#b91c1c;  --cal-payment-soft:rgba(185,28,28,.11);
+  --cal-content:#166534;  --cal-content-soft:rgba(22,101,52,.11);
+  --cal-task:#475569;     --cal-task-soft:rgba(71,85,105,.10);
+}
+
+/* نگاشتِ نوعِ رویداد → توکن. کلاسِ `.t-<tone>` را هم چیپ می‌گیرد هم خانهٔ روز
+   هم ردیفِ فهرست، پس رنگ فقط یک بار تعریف می‌شود. */
+.t-domain { --cal-c:var(--cal-domain);  --cal-s:var(--cal-domain-soft) }
+.t-hosting{ --cal-c:var(--cal-hosting); --cal-s:var(--cal-hosting-soft) }
+.t-payment{ --cal-c:var(--cal-payment); --cal-s:var(--cal-payment-soft) }
+.t-content{ --cal-c:var(--cal-content); --cal-s:var(--cal-content-soft) }
+.t-task   { --cal-c:var(--cal-task);    --cal-s:var(--cal-task-soft) }
+
+/* ── چیدمانِ کلی ─────────────────────────────────────────────────────────── */
+.cal-wrap{ display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start }
+
+/* ── نوارِ ابزار: ناوبریِ ماه + تعویضِ نما ───────────────────────────────── */
+.cal-bar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px }
+.cal-nav{ display:flex; align-items:center; gap:4px }
+.cal-nav button{
+  min-width:var(--cal-tap); min-height:var(--cal-tap);
+  display:grid; place-items:center;
+  background:var(--surface2); border:1px solid var(--line); border-radius:11px;
+  color:var(--text); font:inherit; cursor:pointer; transition:background .15s,border-color .15s }
+.cal-nav button:hover{ background:var(--line); border-color:var(--line2) }
+.cal-nav .cal-title{ min-width:170px; text-align:center; font-weight:800; font-size:15px }
+.cal-nav .cal-title small{ display:block; font-weight:500; font-size:11.5px; color:var(--dim) }
+
+.cal-views{ display:flex; gap:2px; margin-inline-start:auto;
+  background:var(--surface2); border:1px solid var(--line); border-radius:12px; padding:3px }
+.cal-views button{
+  min-height:calc(var(--cal-tap) - 10px); padding:0 14px; border:0; border-radius:9px;
+  background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700;
+  cursor:pointer; transition:background .15s,color .15s }
+.cal-views button[aria-pressed="true"]{ background:var(--cyan); color:#04121a }
+
+/* ── چیپ‌های لایه ────────────────────────────────────────────────────────── */
+.cal-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px }
+.cal-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  min-height:var(--cal-tap); padding:0 14px; border-radius:999px;
+  background:var(--surface2); border:1px solid var(--line);
+  color:var(--muted); font:inherit; font-size:13px; font-weight:700;
+  cursor:pointer; transition:background .15s,border-color .15s,color .15s,opacity .15s }
+.cal-chip .dot{ width:9px; height:9px; border-radius:50%; background:var(--cal-c); flex:none }
+.cal-chip .icon{ width:15px; height:15px }
+.cal-chip[aria-pressed="true"]{ background:var(--cal-s); border-color:var(--cal-c); color:var(--cal-c) }
+/* خاموش = کم‌رنگ **و** بی‌نقطهٔ رنگی: اگر تنها نشانه رنگ یا شفافیت باشد،
+   کاربرِ کم‌بینا یا نابینای رنگ اصلاً نمی‌فهمد کدام لایه روشن است */
+.cal-chip[aria-pressed="false"] .dot{ background:transparent; border:2px solid var(--dim) }
+.cal-chip[aria-pressed="false"]{ opacity:.72 }
+.cal-chip .n{ font-size:11.5px; color:var(--dim); font-weight:600 }
+
+/* ── شبکهٔ ماه ───────────────────────────────────────────────────────────── */
+.cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px }
+.cal-wd{ padding:7px 4px; text-align:center; font-size:12px; font-weight:700; color:var(--dim) }
+
+.cal-day{
+  min-height:var(--cal-cell-h); display:flex; flex-direction:column; gap:4px;
+  padding:7px; border-radius:12px; text-align:start;
+  background:var(--surface2); border:1px solid var(--line);
+  color:var(--text); font:inherit; cursor:pointer;
+  transition:border-color .15s,background .15s }
+.cal-day:hover{ border-color:var(--line2) }
+.cal-day.is-blank{ background:transparent; border-color:transparent; cursor:default; pointer-events:none }
+.cal-day.is-today{ border-color:var(--cyan); box-shadow:inset 0 0 0 1px var(--cyan) }
+.cal-day .d{ font-size:13px; font-weight:800; color:var(--muted) }
+.cal-day.is-today .d{ color:var(--cyan) }
+.cal-day.is-friday .d{ color:var(--cal-payment) }
+
+/* چیپِ رویداد داخلِ خانهٔ روز */
+.cal-ev{
+  display:flex; align-items:center; gap:5px; width:100%;
+  padding:3px 6px; border-radius:7px; text-align:start;
+  background:var(--cal-s); border-inline-start:3px solid var(--cal-c);
+  color:var(--cal-c); font:inherit; font-size:11.5px; font-weight:700;
+  line-height:1.6; cursor:pointer;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cal-ev .icon{ width:12px; height:12px; flex:none }
+.cal-ev.is-done{ opacity:.55; text-decoration:line-through }
+.cal-ev.is-cancelled{ opacity:.45; text-decoration:line-through }
+.cal-more{ font-size:11px; color:var(--dim); padding-inline-start:6px }
+
+/* ── نمای فهرست / دستورِ کار ────────────────────────────────────────────── */
+.cal-list{ display:flex; flex-direction:column; gap:6px }
+.cal-list-day{ margin-top:10px; font-size:12.5px; font-weight:800; color:var(--dim) }
+.cal-list-day:first-child{ margin-top:0 }
+.cal-row{
+  display:flex; align-items:center; gap:10px; width:100%;
+  min-height:var(--cal-tap); padding:9px 12px; border-radius:11px; text-align:start;
+  background:var(--surface2); border:1px solid var(--line);
+  border-inline-start:3px solid var(--cal-c);
+  color:var(--text); font:inherit; cursor:pointer; transition:border-color .15s }
+.cal-row:hover{ border-color:var(--line2) }
+.cal-row .icon{ width:16px; height:16px; color:var(--cal-c); flex:none }
+.cal-row .t{ font-size:13.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cal-row .m{ font-size:12px; color:var(--muted); margin-inline-start:auto; flex:none }
+.cal-row.is-done .t,.cal-row.is-cancelled .t{ text-decoration:line-through; color:var(--dim) }
+
+/* ── حالتِ خالی ──────────────────────────────────────────────────────────── */
+.cal-empty{ padding:44px 20px; text-align:center; color:var(--dim) }
+.cal-empty .icon{ width:34px; height:34px; opacity:.5; margin-bottom:10px }
+.cal-empty p{ margin:0 0 4px; font-size:14px; font-weight:700; color:var(--muted) }
+.cal-empty small{ font-size:12.5px; line-height:1.9 }
+
+/* ── اسکلتِ بارگذاری — هم‌شکلِ شبکهٔ ماه ─────────────────────────────────── */
+.cal-skel{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px }
+.cal-skel i{
+  min-height:var(--cal-cell-h); border-radius:12px; display:block;
+  background:linear-gradient(100deg,var(--surface2) 30%,var(--line) 50%,var(--surface2) 70%);
+  background-size:220% 100%; animation:cal-sheen 1.15s linear infinite }
+@keyframes cal-sheen{ from{ background-position:220% 0 } to{ background-position:-20% 0 } }
+/* احترام به «حرکت کمتر» — انیمیشنِ بی‌وقفه برای کاربرِ حساس به حرکت آزارنده
+   و گاهی علامت‌دار است (سرگیجه، میگرن) */
+@media (prefers-reduced-motion:reduce){ .cal-skel i{ animation:none } }
+
+/* ── ستونِ رویدادهای پیش‌رو ──────────────────────────────────────────────── */
+.cal-side .ad-panel{ margin:0 }
+.cal-up{ display:flex; flex-direction:column; gap:5px; padding:0 14px 14px }
+.cal-up-item{
+  display:flex; align-items:flex-start; gap:9px; width:100%;
+  min-height:var(--cal-tap); padding:8px 10px; border-radius:10px; text-align:start;
+  background:transparent; border:1px solid transparent;
+  color:var(--text); font:inherit; cursor:pointer; transition:background .15s }
+.cal-up-item:hover{ background:var(--surface2); border-color:var(--line) }
+.cal-up-item .bar{ width:3px; align-self:stretch; border-radius:3px; background:var(--cal-c); flex:none }
+.cal-up-item .t{ font-size:12.5px; font-weight:700; line-height:1.7 }
+.cal-up-item .w{ font-size:11.5px; color:var(--muted); line-height:1.7 }
+.cal-up-item.is-soon .w{ color:var(--cal-payment); font-weight:700 }
+
+/* ── کشوی جزئیاتِ روز ───────────────────────────────────────────────────── */
+.cal-drawer{
+  position:fixed; inset-block:0; inset-inline-end:0; z-index:60;
+  width:min(420px,100%); display:flex; flex-direction:column;
+  background:var(--surface); border-inline-start:1px solid var(--line);
+  box-shadow:-18px 0 60px rgba(0,0,0,.42);
+  transform:translateX(100%); transition:transform .22s ease; visibility:hidden }
+/* RTL: کشو از سمتِ چپ می‌آید، پس جهتِ ترجمه برعکس است */
+[dir="rtl"] .cal-drawer{ transform:translateX(-100%) }
+.cal-drawer.on{ transform:none; visibility:visible }
+@media (prefers-reduced-motion:reduce){ .cal-drawer{ transition:none } }
+.cal-drawer-h{ display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--line) }
+.cal-drawer-h h3{ margin:0; font-size:15px; font-weight:800 }
+.cal-drawer-h .x{
+  margin-inline-start:auto; min-width:var(--cal-tap); min-height:var(--cal-tap);
+  display:grid; place-items:center; background:transparent; border:0; border-radius:10px;
+  color:var(--muted); cursor:pointer }
+.cal-drawer-h .x:hover{ background:var(--surface2); color:var(--text) }
+.cal-drawer-b{ padding:14px 18px 22px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px }
+.cal-back{ position:fixed; inset:0; z-index:59; background:rgba(3,5,12,.5);
+  opacity:0; pointer-events:none; transition:opacity .2s }
+.cal-back.on{ opacity:1; pointer-events:auto }
+
+/* کارتِ یک رویداد داخلِ کشو */
+.cal-det{ padding:12px 13px; border-radius:12px; background:var(--surface2);
+  border:1px solid var(--line); border-inline-start:3px solid var(--cal-c) }
+.cal-det h4{ margin:0 0 5px; font-size:13.5px; font-weight:800; color:var(--cal-c) }
+.cal-det p{ margin:0; font-size:12.5px; line-height:1.9; color:var(--muted) }
+.cal-det-act{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px }
+.cal-det-act .btn{ min-height:36px; font-size:12px }
+.cal-det .tag{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px;
+  border-radius:999px; background:var(--cal-s); color:var(--cal-c); margin-inline-start:6px }
+
+/* ── فرمِ افزودنِ سریع ───────────────────────────────────────────────────── */
+.cal-form{ display:flex; flex-direction:column; gap:9px; padding:14px 18px }
+.cal-form label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--muted) }
+.cal-form input,.cal-form select,.cal-form textarea{
+  background:var(--surface2); border:1px solid var(--line); border-radius:9px;
+  color:var(--text); padding:10px 12px; font:inherit; font-size:13px; min-height:var(--cal-tap) }
+.cal-form textarea{ min-height:70px; resize:vertical; line-height:1.9 }
+.cal-form .row{ display:flex; gap:9px }
+.cal-form .row>*{ flex:1 }
+
+/* ── حلقهٔ فوکوس ────────────────────────────────────────────────────────────
+   روی **همهٔ** عناصرِ تعاملیِ این صفحه، و فقط با `:focus-visible` تا کلیکِ
+   ماوس حلقه نسازد. بی‌این، ناوبریِ صفحه‌کلید در شبکه‌ای از ۴۲ خانه عملاً
+   ناممکن است — کاربر نمی‌داند کجاست. */
+.cal-day:focus-visible,.cal-ev:focus-visible,.cal-chip:focus-visible,.cal-row:focus-visible,
+.cal-nav button:focus-visible,.cal-views button:focus-visible,.cal-up-item:focus-visible,
+.cal-drawer-h .x:focus-visible,.cal-form :focus-visible{
+  outline:2px solid var(--cyan); outline-offset:2px }
+
+/* ── هشدارِ لایهٔ خراب ───────────────────────────────────────────────────── */
+.cal-warn{ margin-bottom:12px; padding:11px 14px; border-radius:11px; font-size:12.5px; line-height:1.9;
+  background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.4); color:var(--amber) }
+
+/* فقط برای صفحه‌خوان — پیامِ زندهٔ تغییرِ ماه و شمارشِ رویداد */
+.cal-sr{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0 0 0 0); white-space:nowrap; border:0 }
+
+/* ── واکنش‌گرایی ─────────────────────────────────────────────────────────── */
+@media (max-width:1080px){
+  .cal-wrap{ grid-template-columns:minmax(0,1fr) }
+  .cal-side{ order:2 }
+}
+@media (max-width:760px){
+  /* 🔴 روی موبایل شبکهٔ ۷ستونی خوانا نیست: هر خانه ~۴۵px می‌شود و عنوانِ
+     رویداد جا نمی‌گیرد. پس نما **اجباراً** فهرستِ دستورِ کار می‌شود، مستقل از
+     دکمهٔ نما — و خودِ دکمهٔ نما هم پنهان می‌شود، چون کنترلی که کاری نمی‌کند
+     از نبودنش بدتر است. */
+  .cal-grid,.cal-skel,.cal-wd,.cal-views{ display:none !important }
+  .cal-list{ display:flex !important }
+  .cal-bar{ gap:8px }
+  .cal-nav .cal-title{ min-width:auto; flex:1 }
+  .cal-drawer{ width:100%; inset-block-start:auto; height:82vh; border-radius:20px 20px 0 0;
+    border-inline-start:0; border-top:1px solid var(--line);
+    transform:translateY(100%) }
+  [dir="rtl"] .cal-drawer{ transform:translateY(100%) }
+  .cal-drawer.on,[dir="rtl"] .cal-drawer.on{ transform:none }
+}
+
+/* ── چاپ ────────────────────────────────────────────────────────────────────
+   مدیر این صفحه را برای جلسه چاپ می‌کند؛ کشو و کنترل‌ها روی کاغذ بی‌معنی‌اند */
+@media print{
+  .cal-drawer,.cal-back,.cal-views,.cal-chips,.cal-nav button{ display:none !important }
+  .cal-wrap{ grid-template-columns:minmax(0,1fr) }
+}

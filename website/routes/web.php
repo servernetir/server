@@ -1931,6 +1931,25 @@ Route::prefix('admin')->group(function () {
         // تاریخچهٔ مالکیتِ یک سرویس: کی خرید، کی تمدید کرد، کی تعلیق/حذف شد
         Route::get('/services/{service}/history', [\App\Http\Controllers\Admin\ServiceController::class, 'history'])->name('admin.service.history');
 
+        /*
+         * تقویمِ کسب‌وکار — سررسیدِ دامنه، سرویس، فاکتور، انتشارِ محتوا و
+         * یادآوری‌های دستی، همه در یک صفحه.
+         *
+         * ⚠️ داخلِ گروهِ `admin` می‌مانَد (بیرونِ فهرستِ سفیدِ نویسنده): این صفحه
+         * سررسیدِ فاکتور و پروندهٔ مشتری را کنار هم نشان می‌دهد، و نقشِ `author`
+         * هیچ‌کدام را نباید ببیند.
+         *
+         * فعل‌های PATCH/DELETE عمداً واقعی‌اند نه POSTِ پوشیده — این روت‌ها فقط
+         * با fetch صدا زده می‌شوند (فرمِ HTML در کار نیست) و CSRF از هدرِ
+         * `X-CSRF-TOKEN` می‌آید.
+         */
+        Route::get('/calendar', [\App\Http\Controllers\Admin\CalendarController::class, 'index'])->name('admin.calendar');
+        Route::get('/calendar/events', [\App\Http\Controllers\Admin\CalendarController::class, 'events'])->name('admin.calendar.events');
+        Route::post('/calendar/events', [\App\Http\Controllers\Admin\CalendarController::class, 'store']);
+        Route::patch('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'update']);
+        Route::delete('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'destroy']);
+        Route::post('/calendar/preferences', [\App\Http\Controllers\Admin\CalendarController::class, 'preferences']);
+
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');
         Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);

@@ -25,6 +25,9 @@
       <a href="/admin/comments" class="@yield('nav_comments')"><svg class="icon"><use href="#i-message"/></svg>کامنت‌ها@if($pendingComments)<span class="ad-pill">{{ $pendingComments }}</span>@endif</a>
 
       <div class="ad-nav-sep">کسب‌وکار</div>
+      {{-- نمای یک‌جای همهٔ سررسیدهای این گروه — عمداً اولین آیتم، چون خودش
+           چیزی نمی‌سازد و فقط به بقیه اشاره می‌کند --}}
+      <a href="/admin/calendar" class="@yield('nav_calendar')"><svg class="icon"><use href="#i-calendar"/></svg>تقویم کسب‌وکار</a>
       {{-- نگهبان hasTable همه‌جا: روی سروری که هنوز جدول‌های CMS را نساخته،
            این شمارش‌ها نباید کل پنل را ۵۰۰ کنند --}}
       @php $custCount = \Illuminate\Support\Facades\Schema::hasTable('customers')
