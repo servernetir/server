@@ -84,11 +84,25 @@ class CalendarService
         /** @var Collection<int, CalendarItem> $all */
         $all = collect();
 
-        foreach ($wanted as $layer) {
-            $provider = $this->providers[$layer] ?? null;
+        foreach ($this->providers as $layer => $provider) {
+            /*
+             * 🔴 چیپ = **نوعِ رویداد**، نه «کدام provider اجرا شود».
+             *
+             * `ManualEventProvider` تنها منبعی است که رویدادِ **هر نوعی**
+             * می‌سازد: مدیر می‌تواند یادآوریِ دستی با نوعِ «سررسید پرداخت»
+             * بسازد (اجارهٔ دفتر). اگر فقط بر اساسِ کلیدِ لایه اجرا می‌شد، آن
+             * اجاره زیرِ چیپِ «یادآوری و کار» قایم می‌شد در حالی که رنگ و
+             * آیکونش «سررسید پرداخت» است — یعنی خاموش‌کردنِ چیپِ پرداخت آن را
+             * پنهان نمی‌کرد و کاربر دنبالِ چیپی می‌گشت که کار نمی‌کند.
+             *
+             * پس منبعِ چندنوعی هر وقت **دستِ‌کم یک لایه** خواسته شده اجرا
+             * می‌شود، و فیلترِ واقعی پایین روی `type` اعمال می‌شود.
+             */
+            $emitsAnyType = config('calendar.layers.'.$layer.'.emits') === 'any';
+            $wantedThis = in_array($layer, $wanted, true);
 
-            if ($provider === null) {
-                continue;   // لایهٔ بی‌منبع (مثلاً وقتی provider نال است) — خطا نیست
+            if (! $wantedThis && ! ($emitsAnyType && $wanted !== [])) {
+                continue;
             }
 
             $items = $this->safely($layer, $provider, $from, $to);
@@ -99,6 +113,11 @@ class CalendarService
             }
 
             $all = $all->concat($items);
+        }
+
+        // فیلترِ نهایی بر اساسِ نوع — همان چیزی که کاربر روی چیپ می‌بیند
+        if ($layers !== null) {
+            $all = $all->filter(fn (CalendarItem $i) => in_array($i->type, $wanted, true));
         }
 
         /*

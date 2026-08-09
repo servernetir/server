@@ -31,30 +31,68 @@ class ManualEventProvider implements CalendarEventProvider
             return collect();
         }
 
+        $tz = $this->timezone();
+
+        /*
+         * ⚠️ `relevantTo` و نه `between`: ردیفِ «اجاره از فروردین ۱۴۰۴» تاریخِ
+         * شروعش خارجِ بازه است ولی تکرارش داخلِ آن می‌افتد. با فیلترِ ساده،
+         * هر سریِ تکرارشونده‌ای که قبلاً شروع شده بی‌صدا از تقویم غیب می‌شد.
+         */
         return CalendarEvent::query()
-            ->between($from, $to)
+            ->relevantTo($from, $to)
             ->orderBy('event_date')
             ->limit($this->rowCap())
             ->get()
-            ->map(fn (CalendarEvent $row) => new CalendarItem(
-                type: $row->type,
-                source: 'manual',
-                sourceId: $row->id,
-                title: $row->title,
-                description: $row->description,
-                /*
-                 * `event_date` یک روزِ تقویمی است و Carbon آن را نیمه‌شبِ UTC
-                 * می‌خوانَد. اگر همان را بدهیم، `CalendarItem` با تبدیل به وقتِ
-                 * تهران آن را ۰۳:۳۰ **همان روز** نشان می‌دهد — درست — ولی
-                 * رویدادِ نیمه‌شبِ تهران را یک روز عقب می‌بُرد. پس صریح می‌گوییم
-                 * این لحظه، نیمه‌شبِ **تهران** است.
-                 */
-                at: Carbon::parse($row->event_date->toDateString(), $this->timezone()),
-                status: $row->status,
-                meta: (array) ($row->meta ?? []),
-                url: null,
-                editable: true,
-            ));
+            ->flatMap(function (CalendarEvent $row) use ($from, $to, $tz) {
+                return array_map(
+                    fn (string $day) => new CalendarItem(
+                        type: $row->type,
+                        source: 'manual',
+                        /*
+                         * شناسهٔ یک **تکرارِ مشخص**: `12@2026-08-27`. بی‌این،
+                         * دوازده اجارهٔ سال همه یک شناسه داشتند و «انجام شد»ِ
+                         * مرداد، شهریور را هم تیک می‌زد.
+                         */
+                        sourceId: $row->isRecurring() ? $row->id.'@'.$day : $row->id,
+                        title: $row->title,
+                        description: $this->describe($row),
+                        /*
+                         * `event_date` یک روزِ تقویمی است و Carbon آن را نیمه‌شبِ
+                         * UTC می‌خوانَد؛ صریح می‌گوییم نیمه‌شبِ **تهران** است تا
+                         * در شبکهٔ شمسی سرِ روزِ درست بنشیند.
+                         */
+                        at: Carbon::parse($day, $tz),
+                        status: $row->statusOn($day),
+                        meta: [
+                            'event_id'  => $row->id,
+                            'repeat'    => $row->repeat,
+                            'occurrence' => $row->isRecurring() ? $day : null,
+                            'amount'    => $row->amount,
+                            'currency'  => $row->currency_code,
+                        ] + (array) ($row->meta ?? []),
+                        url: null,
+                        editable: true,
+                    ),
+                    $row->occurrencesBetween($from, $to),
+                );
+            });
+    }
+
+    /**
+     * توضیحِ نمایشی: متنِ خودِ کاربر + مبلغ + نشانِ تکرار.
+     *
+     * مبلغ با `invoice_money()` قالب می‌گیرد تا واحدش با بقیهٔ پنل یکی باشد و
+     * دستی « تومان» چسبانده نشود.
+     */
+    private function describe(CalendarEvent $row): string
+    {
+        $parts = array_filter([
+            $row->description,
+            $row->amount ? invoice_money((int) $row->amount, (string) ($row->currency_code ?: 'IRT')) : null,
+            $row->isRecurring() ? (config('calendar.repeats.'.$row->repeat) ?: null) : null,
+        ]);
+
+        return implode(' — ', $parts);
     }
 
     private function timezone(): string

@@ -42,6 +42,7 @@
     truncated: boot.truncated || [],
     today: boot.today || '',
     statuses: boot.statuses || {},
+    repeats: boot.repeats || { none: 'بدون تکرار' },
     dueSoonDays: boot.dueSoonDays || 3,
     upcomingDays: boot.upcomingDays || 7,
     focusedCell: 0,
@@ -543,6 +544,10 @@
         esc(state.layers[t].label) + '</option>';
     }).join('');
 
+    var repeatOpts = Object.keys(state.repeats).map(function (r) {
+      return '<option value="' + esc(r) + '">' + esc(state.repeats[r]) + '</option>';
+    }).join('');
+
     var html = '<form class="cal-form" id="cal-add" style="padding:0">' +
       '<label>عنوان<input type="text" name="title" required maxlength="200" ' +
       'placeholder="مثلاً تماس با مشتری برای تمدید"></label>' +
@@ -560,6 +565,15 @@
       'value="' + esc(fa(date || state.today)) + '" placeholder="۱۴۰۵-۰۵-۱۲" ' +
       'inputmode="numeric" pattern="[0-9۰-۹]{4}[-/][0-9۰-۹]{1,2}[-/][0-9۰-۹]{1,2}"></label>' +
       '</div>' +
+      '<div class="row">' +
+      '<label>تکرار<select name="repeat">' + repeatOpts + '</select></label>' +
+      '<label>مبلغ (تومان، اختیاری)<input type="number" name="amount" min="0" step="1" dir="ltr" ' +
+      'placeholder="۵۰٬۰۰۰٬۰۰۰" style="text-align:left"></label>' +
+      '</div>' +
+      /* فقط وقتی تکرار انتخاب شده معنی دارد؛ JS پایین نشانش می‌دهد */
+      '<label data-until hidden>تکرار تا (اختیاری — خالی یعنی بی‌پایان)' +
+      '<input type="text" name="repeat_until" dir="ltr" placeholder="۱۴۰۶-۰۵-۰۵" ' +
+      'inputmode="numeric" pattern="[0-9۰-۹]{4}[-/][0-9۰-۹]{1,2}[-/][0-9۰-۹]{1,2}"></label>' +
       '<label>توضیح<textarea name="description" maxlength="2000" rows="3"></textarea></label>' +
       '<div class="row">' +
       '<button type="submit" class="btn btn-primary">' + iconSvg('i-check') + 'ذخیره</button>' +
@@ -571,19 +585,30 @@
 
   /* ═══════════════════════════ عمل‌ها ═══════════════════════════ */
 
-  /** شناسهٔ رویدادِ دستی: `manual:12` → `12`. غیرِ دستی نال می‌دهد. */
-  function manualId(id) {
-    var m = /^manual:(\d+)$/.exec(String(id || ''));
-    return m ? m[1] : null;
+  /**
+   * شناسهٔ رویدادِ دستی → { id, occurrence }.
+   *
+   * `manual:12` یک رویدادِ تک‌باره است و `manual:12@2026-08-27` یک **تکرارِ
+   * مشخص** از یک سری. غیرِ دستی نال می‌دهد، و همان چیزی است که جلوی
+   * ویرایش/حذفِ رویدادهای خودکار را می‌گیرد.
+   */
+  function manualRef(id) {
+    var m = /^manual:(\d+)(?:@(\d{4}-\d{2}-\d{2}))?$/.exec(String(id || ''));
+    return m ? { id: m[1], occurrence: m[2] || null } : null;
   }
 
   function setStatus(id, status) {
-    var mid = manualId(id);
-    if (!mid) return;
+    var ref = manualRef(id);
+    if (!ref) return;
 
-    jsonFetch('/admin/calendar/events/' + mid, {
+    var body = { status: status };
+    // ⚠️ بدونِ این، «انجام شد»ِ اجارهٔ مرداد روی کلِ سری می‌نشست و همهٔ
+    // ماه‌های بعد هم تیک می‌خوردند.
+    if (ref.occurrence) body.occurrence = ref.occurrence;
+
+    jsonFetch('/admin/calendar/events/' + ref.id, {
       method: 'PATCH',
-      body: { status: status }
+      body: body
     }).then(function (res) {
       if (!res || !res.ok) { toast('تغییر وضعیت انجام نشد.', 'err'); return; }
 
@@ -598,12 +623,21 @@
   }
 
   function removeEvent(id) {
-    var mid = manualId(id);
-    if (!mid) return;
+    var ref = manualRef(id);
+    if (!ref) return;
+
+    /*
+     * ⚠️ حذفِ یک سری **همهٔ** تکرارها را می‌برد، نه فقط این یکی. متنِ تأیید
+     * باید همین را بگوید — وگرنه مدیر فکر می‌کند اجارهٔ همین ماه را پاک کرده و
+     * یادآوریِ کلِ سال را از دست می‌دهد.
+     */
+    var msg = ref.occurrence
+      ? 'این یک رویدادِ تکرارشونده است. حذف، **همهٔ** تکرارهایش را پاک می‌کند. ادامه؟'
+      : 'این یادآوری حذف شود؟';
 
     var go = function (ok) {
       if (!ok) return;
-      jsonFetch('/admin/calendar/events/' + mid, { method: 'DELETE' }).then(function (res) {
+      jsonFetch('/admin/calendar/events/' + ref.id, { method: 'DELETE' }).then(function (res) {
         if (!res || !res.ok) { toast('حذف انجام نشد.', 'err'); return; }
         toast('یادآوری حذف شد.');
         announce('یادآوری حذف شد.');
@@ -612,25 +646,40 @@
     };
 
     if (typeof window.snConfirm === 'function') {
-      window.snConfirm('این یادآوری حذف شود؟', { danger: true, ok: 'حذف' }).then(go);
+      window.snConfirm(msg, { danger: true, ok: 'حذف' }).then(go);
     } else {
-      go(window.confirm('این یادآوری حذف شود؟'));
+      go(window.confirm(msg));
     }
   }
+
+  /** پیام‌های خطای سرور → متنِ فارسیِ قابل‌فهم، نه «ذخیره نشد» کلی */
+  var SAVE_ERRORS = {
+    bad_date: 'تاریخ معتبر نیست.',
+    bad_until_date: 'تاریخِ پایانِ تکرار معتبر نیست.',
+    until_before_start: 'تاریخِ پایانِ تکرار نمی‌تواند قبل از تاریخِ شروع باشد.'
+  };
 
   function submitAdd(form) {
     var body = {
       title: form.title.value.trim(),
       type: form.type.value,
       event_date: form.event_date.value.trim(),
-      description: form.description.value.trim()
+      description: form.description.value.trim(),
+      repeat: form.repeat ? form.repeat.value : 'none'
     };
+
+    if (form.amount && form.amount.value !== '') body.amount = parseInt(form.amount.value, 10);
+    if (form.repeat_until && form.repeat_until.value.trim() !== '') {
+      body.repeat_until = form.repeat_until.value.trim();
+    }
 
     if (!body.title) { toast('عنوان لازم است.', 'err'); form.title.focus(); return; }
 
     jsonFetch('/admin/calendar/events', { method: 'POST', body: body }).then(function (res) {
       if (!res || !res.ok) {
-        toast(res && res.error === 'bad_date' ? 'تاریخ معتبر نیست.' : 'ذخیره نشد.', 'err');
+        toast((res && SAVE_ERRORS[res.error])
+          || (res && res.messages && res.messages[0])
+          || 'ذخیره نشد.', 'err');
         return;
       }
 
@@ -712,6 +761,13 @@
       if (e.target.id !== 'cal-add') return;
       e.preventDefault();
       submitAdd(e.target);
+    });
+
+    // «تکرار تا» فقط وقتی معنی دارد که تکراری در کار باشد
+    el.drawer.addEventListener('change', function (e) {
+      if (e.target.name !== 'repeat') return;
+      var until = el.drawer.querySelector('[data-until]');
+      if (until) until.hidden = e.target.value === 'none';
     });
   }
 

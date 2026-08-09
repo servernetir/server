@@ -92,6 +92,7 @@ class CalendarController extends Controller
                 ], $layers),
                 'prefs'        => $prefs,
                 'statuses'     => (array) config('calendar.statuses', []),
+                'repeats'      => (array) config('calendar.repeats', []),
                 'failures'     => $failures,
                 'truncated'    => $truncated,
                 'upcomingDays' => (int) config('calendar.upcoming_days', 7),
@@ -215,9 +216,14 @@ class CalendarController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'event_date'  => ['required', 'string', 'max:10'],
             'status'      => ['nullable', 'string', Rule::in(CalendarEvent::statuses())],
+            'repeat'      => ['nullable', 'string', Rule::in(CalendarEvent::repeats())],
+            'repeat_until' => ['nullable', 'string', 'max:10'],
+            // مبلغ در واحدِ فرعی (تومان) — عددِ صحیح، مثلِ بقیهٔ پولِ پروژه
+            'amount'      => ['nullable', 'integer', 'min:0', 'max:99999999999999'],
         ], [
-            'type' => 'نوع', 'title' => 'عنوان',
-            'description' => 'توضیح', 'event_date' => 'تاریخ',
+            'type' => 'نوع', 'title' => 'عنوان', 'description' => 'توضیح',
+            'event_date' => 'تاریخ', 'repeat' => 'تکرار',
+            'repeat_until' => 'تکرار تا', 'amount' => 'مبلغ',
         ]);
 
         if ($data instanceof JsonResponse) {
@@ -230,16 +236,34 @@ class CalendarController extends Controller
             return response()->json(['ok' => false, 'error' => 'bad_date'], 422);
         }
 
-        [$gy, $gm, $gd] = Jalali::toGregorian(...$jalali);
+        $until = null;
+        if (($data['repeat_until'] ?? null) !== null && trim((string) $data['repeat_until']) !== '') {
+            $untilJ = Jalali::parse($data['repeat_until']);
+
+            if ($untilJ === null) {
+                return response()->json(['ok' => false, 'error' => 'bad_until_date'], 422);
+            }
+
+            $until = $this->gregorian($untilJ);
+
+            // پایانِ زودتر از شروع یعنی سری هیچ‌وقت دیده نمی‌شود — رد، نه ذخیرهٔ خاموش
+            if ($until < $this->gregorian($jalali)) {
+                return response()->json(['ok' => false, 'error' => 'until_before_start'], 422);
+            }
+        }
 
         $event = CalendarEvent::create([
-            'type'        => $data['type'],
-            'title'       => $data['title'],
-            'description' => $data['description'] ?? null,
-            'event_date'  => sprintf('%04d-%02d-%02d', $gy, $gm, $gd),
-            'status'      => $data['status'] ?? 'pending',
-            'user_id'     => $request->user()?->id,
-            'meta'        => ['created_by_name' => $request->user()?->name],
+            'type'         => $data['type'],
+            'title'        => $data['title'],
+            'description'  => $data['description'] ?? null,
+            'event_date'   => $this->gregorian($jalali),
+            'repeat'       => $data['repeat'] ?? 'none',
+            'repeat_until' => $until,
+            'amount'       => $data['amount'] ?? null,
+            'currency_code' => ($data['amount'] ?? null) !== null ? 'IRT' : null,
+            'status'       => $data['status'] ?? 'pending',
+            'user_id'      => $request->user()?->id,
+            'meta'         => ['created_by_name' => $request->user()?->name],
         ]);
 
         return response()->json(['ok' => true, 'event' => $this->itemOf($event)->toArray()], 201);
@@ -259,10 +283,36 @@ class CalendarController extends Controller
             'title'       => ['nullable', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:2000'],
             'event_date'  => ['nullable', 'string', 'max:10'],
+            // تاریخِ **میلادیِ** یک تکرارِ مشخص از یک سری (`2026-08-27`)
+            'occurrence'  => ['nullable', 'string', 'date_format:Y-m-d'],
         ], ['status' => 'وضعیت', 'title' => 'عنوان', 'event_date' => 'تاریخ']);
 
         if ($data instanceof JsonResponse) {
             return $data;
+        }
+
+        /*
+         * 🔴 وضعیتِ یک **تکرار** روی خودِ سری نوشته نمی‌شود.
+         *
+         * اگر «انجام شد»ِ اجارهٔ مرداد را روی `status`ِ ردیف می‌نوشتیم، شهریور و
+         * مهر و همهٔ ماه‌های بعد هم انجام‌شده می‌شدند — یعنی یادآوریِ اجاره بعد
+         * از اولین پرداخت برای همیشه خاموش می‌شد، بی‌هیچ خطایی.
+         */
+        $occurrence = $data['occurrence'] ?? null;
+
+        if ($occurrence !== null && $event->isRecurring()) {
+            $status = $data['status'] ?? null;
+
+            if ($status === null) {
+                return response()->json(['ok' => false, 'error' => 'nothing_to_update'], 422);
+            }
+
+            $event->markOccurrence($occurrence, $status);
+
+            return response()->json([
+                'ok'    => true,
+                'event' => $this->itemOf($event->refresh(), $occurrence)->toArray(),
+            ]);
         }
 
         $changes = array_filter(
@@ -471,21 +521,41 @@ class CalendarController extends Controller
         return array_keys(array_filter(CalendarLayerPreference::forUser($request->user()?->id)));
     }
 
-    /** مدلِ ذخیره‌شده → همان شکلی که provider می‌سازد (پاسخِ یکدست) */
-    private function itemOf(CalendarEvent $event): CalendarItem
+    /**
+     * مدلِ ذخیره‌شده → همان شکلی که provider می‌سازد (پاسخِ یکدست).
+     *
+     * `$occurrence` تاریخِ میلادیِ یک تکرارِ مشخص است؛ نبودش یعنی خودِ ردیف.
+     */
+    private function itemOf(CalendarEvent $event, ?string $occurrence = null): CalendarItem
     {
+        $day = $occurrence ?? $event->event_date->toDateString();
+
         return new CalendarItem(
             type: $event->type,
             source: 'manual',
-            sourceId: $event->id,
+            sourceId: $event->isRecurring() ? $event->id.'@'.$day : $event->id,
             title: $event->title,
             description: $event->description,
-            at: Carbon::parse($event->event_date->toDateString(), $this->timezone()),
-            status: $event->status,
-            meta: (array) ($event->meta ?? []),
+            at: Carbon::parse($day, $this->timezone()),
+            status: $event->statusOn($day),
+            meta: [
+                'event_id'   => $event->id,
+                'repeat'     => $event->repeat,
+                'occurrence' => $event->isRecurring() ? $day : null,
+                'amount'     => $event->amount,
+                'currency'   => $event->currency_code,
+            ] + (array) ($event->meta ?? []),
             url: null,
             editable: true,
         );
+    }
+
+    /** @param array{0:int,1:int,2:int} $jalali */
+    private function gregorian(array $jalali): string
+    {
+        [$gy, $gm, $gd] = Jalali::toGregorian($jalali[0], $jalali[1], $jalali[2]);
+
+        return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
     }
 
     private function timezone(): string

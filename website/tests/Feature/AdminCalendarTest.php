@@ -490,6 +490,208 @@ class AdminCalendarTest extends TestCase
         $this->assertNotNull(Domain::find($domain->id));
     }
 
+    /**
+     * 🔴 چیپ = **نوعِ رویداد**، نه «کدام provider اجرا شود».
+     *
+     * یادآوریِ دستی با نوعِ «سررسید پرداخت» (اجارهٔ دفتر) رنگ و آیکونِ پرداخت
+     * می‌گیرد، پس باید با همان چیپ خاموش و روشن شود. پیش از این زیرِ چیپِ
+     * «یادآوری و کار» قایم بود و خاموش‌کردنِ چیپِ پرداخت هیچ اثری رویش نداشت —
+     * یعنی کنترلی که کاربر می‌بیند به چیزی که می‌بیند وصل نبود.
+     */
+    public function test_a_manual_event_is_controlled_by_the_chip_of_its_own_type(): void
+    {
+        CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجارهٔ دفتر',
+            'event_date' => '2026-08-03', 'status' => 'pending',
+        ]);
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'کارِ معمولی',
+            'event_date' => '2026-08-04', 'status' => 'pending',
+        ]);
+
+        $staff = $this->staff();
+
+        $payment = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=payment_due')->assertOk()->json();
+        $this->assertSame(['اجارهٔ دفتر'], array_column($payment['events'], 'title'));
+
+        $task = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=task')->assertOk()->json();
+        $this->assertSame(['کارِ معمولی'], array_column($task['events'], 'title'));
+    }
+
+    /* ═════════════════════ تکرارشوندگی ═════════════════════ */
+
+    /**
+     * 🔴 «پنجمِ هر ماه» یعنی پنجمِ هر ماهِ **شمسی**.
+     *
+     * اگر با `Carbon::addMonths()` (ماهِ میلادی) گام برمی‌داشتیم، چون ماه‌های
+     * شمسی ۳۱/۳۰/۲۹ روزه‌اند و با میلادی هم‌مرز نیستند، یادآوریِ اجاره بعد از
+     * چند ماه یکی‌دو روز از روزش می‌افتاد — آرام، بی‌خطا، و دقیقاً روی چیزی که
+     * باید سرِ وقت پرداخت شود.
+     */
+    public function test_a_monthly_series_lands_on_the_same_jalali_day_each_month(): void
+    {
+        // ۵ مرداد ۱۴۰۵ = ۲۷ ژوئیه ۲۰۲۶
+        CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجارهٔ دفتر',
+            'event_date' => '2026-07-27', 'repeat' => 'monthly',
+            'amount' => 50000000, 'currency_code' => 'IRT', 'status' => 'pending',
+        ]);
+
+        foreach ([[5, 5], [6, 5], [7, 5], [12, 5]] as [$month, $day]) {
+            $res = $this->actingAs($this->staff(), 'web')
+                ->getJson("/admin/calendar/events?y=1405&m={$month}&layers[]=payment_due")
+                ->assertOk()->json();
+
+            $this->assertCount(1, $res['events'], "ماه $month باید دقیقاً یک تکرار داشته باشد");
+            $this->assertSame(
+                Jalali::format(1405, $month, $day),
+                $res['events'][0]['date'],
+                "تکرارِ ماه $month باید روی روز $day بنشیند",
+            );
+        }
+    }
+
+    /**
+     * روزی که در ماهِ مقصد نیست باید **کوتاه** شود، نه به ماهِ بعد سر برود.
+     */
+    public function test_a_day_that_does_not_exist_in_the_target_month_is_clamped(): void
+    {
+        // ۳۱ فروردین ۱۴۰۵ — مهر ۳۰ روز دارد و اسفند ۲۹
+        $this->assertSame([1405, 7, 30], Jalali::addMonths(1405, 1, 31, 6));
+        $this->assertSame([1405, 12, 29], Jalali::addMonths(1405, 1, 31, 11));
+
+        // و از سالِ کبیسه به سالِ عادی
+        $this->assertSame([1404, 12, 29], Jalali::addYears(1403, 12, 30, 1));
+    }
+
+    /**
+     * 🔴 سریِ تکرارشونده‌ای که **قبلاً** شروع شده باید دیده شود.
+     *
+     * فیلترِ سادهٔ `whereBetween('event_date')` تاریخِ شروع را می‌سنجد، پس
+     * «اجاره از سالِ پیش» هیچ‌وقت در تقویمِ امسال نمی‌آمد — بی‌هیچ خطایی.
+     */
+    public function test_a_series_that_started_before_the_window_still_shows(): void
+    {
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'اجارهٔ قدیمی',
+            'event_date' => '2024-07-27', 'repeat' => 'monthly', 'status' => 'pending',
+        ]);
+
+        $res = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5')->assertOk()->json();
+
+        $this->assertCount(1, $res['events']);
+        $this->assertSame('اجارهٔ قدیمی', $res['events'][0]['title']);
+    }
+
+    public function test_a_series_stops_at_its_end_date(): void
+    {
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'موقت',
+            'event_date' => '2026-07-27', 'repeat' => 'monthly',
+            'repeat_until' => '2026-08-27', 'status' => 'pending',
+        ]);
+
+        $inRange = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=6')->assertOk()->json();
+        $this->assertCount(1, $inRange['events']);
+
+        $after = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=8')->assertOk()->json();
+        $this->assertSame([], $after['events']);
+    }
+
+    /**
+     * 🔴 «انجام شد» به‌ازای **هر تکرار** است، نه کلِ سری.
+     *
+     * اگر روی `status`ِ ردیف نوشته می‌شد، تیک‌زدنِ اجارهٔ مرداد همهٔ ماه‌های
+     * بعد را هم انجام‌شده می‌کرد — یعنی یادآوری بعد از اولین پرداخت برای همیشه
+     * خاموش می‌شد.
+     */
+    public function test_marking_one_occurrence_done_leaves_the_others_pending(): void
+    {
+        $event = CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجاره',
+            'event_date' => '2026-07-27', 'repeat' => 'monthly', 'status' => 'pending',
+        ]);
+        $staff = $this->staff();
+
+        // تکرارِ مرداد را انجام‌شده کن
+        $this->actingAs($staff, 'web')
+            ->patchJson("/admin/calendar/events/{$event->id}", [
+                'status' => 'done', 'occurrence' => '2026-07-27',
+            ])->assertOk()->assertJsonPath('event.status', 'done');
+
+        $mordad = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5')->assertOk()->json();
+        $shahrivar = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=6')->assertOk()->json();
+
+        $this->assertSame('done', $mordad['events'][0]['status']);
+        $this->assertSame('pending', $shahrivar['events'][0]['status'], 'شهریور نباید تیک بخورد');
+
+        // و ردیفِ اصلی دست‌نخورده مانده
+        $this->assertSame('pending', $event->fresh()->status);
+    }
+
+    public function test_each_occurrence_has_its_own_addressable_id(): void
+    {
+        $event = CalendarEvent::create([
+            'type' => 'task', 'title' => 'تکراری',
+            'event_date' => '2026-07-27', 'repeat' => 'monthly', 'status' => 'pending',
+        ]);
+
+        $res = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=6')->assertOk()->json();
+
+        $this->assertSame('manual:'.$event->id.'@2026-08-27', $res['events'][0]['id']);
+        $this->assertSame('2026-08-27', $res['events'][0]['meta']['occurrence']);
+    }
+
+    public function test_the_amount_is_shown_in_the_description(): void
+    {
+        CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجاره', 'event_date' => '2026-08-03',
+            'repeat' => 'monthly', 'amount' => 50000000, 'currency_code' => 'IRT', 'status' => 'pending',
+        ]);
+
+        $res = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5')->assertOk()->json();
+
+        $this->assertStringContainsString('ماهانه', $res['events'][0]['description']);
+        $this->assertNotEmpty($res['events'][0]['description']);
+    }
+
+    public function test_a_reminder_can_be_created_with_a_repeat_rule(): void
+    {
+        $res = $this->actingAs($this->staff(), 'web')->postJson('/admin/calendar/events', [
+            'type' => 'payment_due', 'title' => 'اجارهٔ دفتر',
+            'event_date' => '1405-05-05', 'repeat' => 'monthly',
+            'repeat_until' => '1406-05-05', 'amount' => 50000000,
+        ])->assertCreated()->json();
+
+        $this->assertTrue($res['ok']);
+
+        $row = CalendarEvent::first();
+        $this->assertSame('monthly', $row->repeat);
+        $this->assertSame('2026-07-27', $row->event_date->toDateString());
+        $this->assertSame('2027-07-27', $row->repeat_until->toDateString());
+        $this->assertSame(50000000, $row->amount);
+        $this->assertSame('IRT', $row->currency_code);
+    }
+
+    public function test_an_end_date_before_the_start_is_refused(): void
+    {
+        $this->actingAs($this->staff(), 'web')->postJson('/admin/calendar/events', [
+            'type' => 'task', 'title' => 'x',
+            'event_date' => '1405-05-05', 'repeat' => 'monthly', 'repeat_until' => '1404-05-05',
+        ])->assertStatus(422)->assertJsonPath('error', 'until_before_start');
+
+        $this->assertSame(0, CalendarEvent::count());
+    }
+
     /* ═════════════════════ ترجیحِ لایه ═════════════════════ */
 
     public function test_layer_preferences_are_saved_per_user_and_applied(): void
