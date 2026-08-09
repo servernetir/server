@@ -168,6 +168,45 @@
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>
 
+        {{-- ── گوگل‌کلندر ──────────────────────────────────────────────────
+             اعتبارنامهٔ **اپ** این‌جاست، نه حسابِ شخصیِ کسی: یک OAuth client
+             برای کلِ نصب. اتصالِ حسابِ گوگلِ هر کاربرِ پنل جداگانه و از خودِ
+             صفحهٔ تقویم انجام می‌شود، و توکنش per-user ذخیره می‌شود.
+
+             ⚠️ Client ID عمومی است (در URLِ ورود دیده می‌شود) پس رمزنگاری
+             ندارد؛ Secret با `putSecret()` رمزنگاری می‌شود و هرگز به فرم
+             برنمی‌گردد — همان الگوی Cloudflare و OVH. --}}
+        <div style="grid-column:1/-1;border:1px solid var(--line2);border-radius:11px;padding:14px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+            <b style="font-size:13.5px">گوگل‌کلندر — همگام‌سازی تقویم</b>
+            @if($google['ready'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">اعتبارنامه ذخیره‌شده</span>@endif
+          </div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.9;margin-bottom:10px">
+            در <span dir="ltr">Google Cloud Console → APIs &amp; Services → Credentials</span>
+            یک <b>OAuth client ID</b> از نوع <span dir="ltr">Web application</span> بسازید و
+            این آدرسِ بازگشت را دقیقاً اضافه کنید:
+            <br><code dir="ltr" style="user-select:all;color:var(--text)">{{ url('/admin/calendar/google/callback') }}</code>
+            <br>⚠️ اگر وضعیتِ انتشارِ اپ روی <b>Testing</b> بماند، توکنِ گوگل حدود
+            <b>۷ روزه</b> منقضی می‌شود و هر هفته باید دوباره وصل کنید. برای پایدارماندن،
+            آن را روی <span dir="ltr">In production</span> بگذارید.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label class="set-f">Client ID
+              <input type="text" name="google_client_id" dir="ltr" maxlength="200"
+                     value="{{ $google['client_id'] }}"
+                     placeholder="…apps.googleusercontent.com"></label>
+            <label class="set-f">Client Secret
+              <input type="password" name="google_client_secret" dir="ltr" autocomplete="new-password" maxlength="200"
+                     placeholder="{{ $google['ready'] ? '••••••••  خالی = بدونِ تغییر' : 'GOCSPX-…' }}"></label>
+          </div>
+          @if($google['ready'])
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" name="google_forget" value="1">
+              <span>اعتبارنامهٔ گوگل را فراموش کن (اتصالِ همهٔ کاربران قطع می‌شود)</span>
+            </label>
+          @endif
+        </div>
+
         {{-- ── دامنه ──
              ⚠️ درصدِ سودِ دامنه جدا از سرورِ ابری است و باید هم باشد: بهای
              دامنه سالانه و کوچک است، پس همان درصدی که روی سرور منطقی است

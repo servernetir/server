@@ -68,6 +68,19 @@ class SettingsController extends Controller
             'dns'     => $ready ? Setting::get('domain_nameservers') : null,
         ];
 
+        /*
+         * گوگل‌کلندر — اعتبارنامهٔ **اپ**، نه حسابِ کسی.
+         *
+         * ⚠️ Client ID عمداً به فرم برمی‌گردد و Secret نه: اولی عمومی است (در
+         * URLِ ورودِ گوگل دیده می‌شود) و مدیر باید ببیند کدام client ثبت شده،
+         * ولی دومی مثلِ بقیهٔ رازها یک‌طرفه است.
+         */
+        $google = [
+            'client_id' => $ready ? (string) Setting::get('google_client_id') : '',
+            'ready'     => $ready && filled(Setting::get('google_client_id'))
+                && filled(Setting::getSecret('google_client_secret')),
+        ];
+
         return view('admin.settings', [
             'bank'        => $bank,
             'stampData'   => $stampData,
@@ -75,6 +88,7 @@ class SettingsController extends Controller
             'liveRate'    => $liveRate,
             'priceFactor' => $ready ? price_factor() : 1.0,
             'cloud'       => $cloud,
+            'google'      => $google,
             'notReady'    => ! $ready,
         ]);
     }
@@ -118,6 +132,10 @@ class SettingsController extends Controller
             // واحدِ عددِ قیمت در API زیرساختِ ۲: ۱۰۰ = سنتِ یورو · ۱ = یورو
             // پلنِ تشویقی: پیش‌فرض کنار می‌رود چون قیمتِ تمدیدش پایدار نیست
             'aeza_include_promo'     => ['nullable', 'boolean'],
+            // گوگل‌کلندر — اعتبارنامهٔ OAuth اپ
+            'google_client_id'      => ['nullable', 'string', 'max:200'],
+            'google_client_secret'  => ['nullable', 'string', 'max:200'],
+            'google_forget'         => ['nullable', 'boolean'],
         ]);
 
         foreach (self::BANK_KEYS as $k) {
@@ -164,6 +182,30 @@ class SettingsController extends Controller
                 if (filled($data[$k] ?? null)) {
                     Setting::putSecret($k, trim((string) $data[$k]));
                 }
+            }
+        }
+
+        /*
+         * گوگل‌کلندر. Client ID ساده ذخیره می‌شود (عمومی است و باید در فرم
+         * دیده شود)، Secret رمزنگاری‌شده و «خالی = دست نزن».
+         *
+         * ⚠️ «فراموش کن» توکنِ **همهٔ کاربران** را هم پاک می‌کند: با رفتنِ
+         * اعتبارنامهٔ اپ، آن refresh tokenها دیگر قابلِ تبدیل نیستند و ماندنشان
+         * فقط یک ردیفِ مرده است که وانمود می‌کند حساب هنوز وصل است.
+         */
+        if ($request->boolean('google_forget')) {
+            Setting::put('google_client_id', null);
+            Setting::putSecret('google_client_secret', null);
+
+            if (Schema::hasTable('google_calendar_tokens')) {
+                \App\Models\GoogleCalendarToken::query()->delete();
+            }
+        } else {
+            if (filled($data['google_client_id'] ?? null)) {
+                Setting::put('google_client_id', trim((string) $data['google_client_id']));
+            }
+            if (filled($data['google_client_secret'] ?? null)) {
+                Setting::putSecret('google_client_secret', trim((string) $data['google_client_secret']));
             }
         }
 
