@@ -1888,6 +1888,10 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
+        // زیرساختِ اکسیت — دیدِ فقط‌خواندنیِ اپراتور به Exit VPSها و ضربانِ pull-agentِ ایران
+        Route::get('/exit-infra', [\App\Http\Controllers\Admin\ExitInfraController::class, 'index'])
+            ->name('admin.exit-infra')->middleware('admin');
+
         /*
         | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.
         |

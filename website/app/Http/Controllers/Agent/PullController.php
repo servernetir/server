@@ -45,6 +45,10 @@ class PullController extends Controller
     {
         $this->authorizeAgent($request);
 
+        // ضربانِ ایجنت: آخرین باری که ایجنتِ ایران این مسیر را خواند — صفحهٔ
+        // «زیرساختِ اکسیت» از رویش می‌فهمد ایجنت زنده است یا خوابیده.
+        Setting::put('agent_seen_countryroutes', now()->toIso8601String());
+
         $rows = CloudInstance::query()
             ->where('provider', 'proxmox')
             ->whereIn('status', ['building', 'running'])
@@ -79,6 +83,9 @@ class PullController extends Controller
     public function portForwards(Request $request): JsonResponse
     {
         $this->authorizeAgent($request);
+
+        // ضربانِ ایجنت (مسیرِ port-forward) — دوقلوی countryRoutes برای پایشِ زنده‌بودن.
+        Setting::put('agent_seen_portforwards', now()->toIso8601String());
 
         $portMin = (int) config('servernet.exit.sale_port_min', 20000);
         $portMax = (int) config('servernet.exit.sale_port_max', 20999);
@@ -154,7 +161,10 @@ class PullController extends Controller
     private function authorizeAgent(Request $request): void
     {
         $expected = (string) (Setting::getSecret('agent_pull_token') ?? '');
-        $provided = (string) $request->header('X-Agent-Token', '');
+        // هر دو هدر پذیرفته می‌شود: X-Agent-Token (نو) یا X-PF-Token (عامل‌های
+        // موجودِ هاستِ ایران) — تا repoint فقط تغییرِ URL/توکن باشد، نه بازنویسیِ
+        // اسکریپتِ هاست. توکنِ خالی/ناهم‌خوان → ۴۰۳ (fail-closed).
+        $provided = (string) ($request->header('X-Agent-Token') ?: $request->header('X-PF-Token') ?: '');
 
         if ($expected === '' || ! hash_equals($expected, $provided)) {
             abort(403);

@@ -1,0 +1,99 @@
+@extends('admin.layout')
+@section('title', 'زیرساختِ اکسیت')
+@section('nav_exit_infra', 'on')
+@section('content')
+
+{{-- ── نوارِ سلامت: ضربانِ ایجنت‌ها + وضعیتِ توکن‌ها ── --}}
+<div class="ad-panel">
+  <div class="ad-panel-h"><h2>سلامتِ زیرساختِ اکسیت</h2></div>
+  <p style="padding:0 18px 14px;color:var(--muted);font-size:13px;line-height:1.9">
+    میزبانِ ایران هر چند دقیقه «حالتِ مطلوب» را از سرورِ اصلی می‌کشد. اگر ضربانِ
+    زیر کهنه شود (بیش از ۵ دقیقه یا هرگز)، یعنی pull-agent نمی‌دود و مسیریابیِ
+    خروجِ کشوری و port-forwardها به‌روز نمی‌شوند.
+  </p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 14px">
+    @foreach([['ایجنتِ مسیرِ کشوری', $agents['countryroutes']], ['ایجنتِ port-forward', $agents['portforwards']]] as [$label, $a])
+      @php $col = $a['stale'] ? '#ff6b6b' : '#34d399'; @endphp
+      <span class="ad-badge" style="background:{{ $col }}22;color:{{ $col }};font-size:12.5px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px">
+        <svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $a['stale'] ? 'x' : 'check' }}"/></svg>
+        {{ $label }} —
+        @if($a['seen'] === null)
+          هرگز دیده نشده
+        @else
+          {{ fa_num($a['minutes']) }} دقیقه پیش
+        @endif
+      </span>
+    @endforeach
+  </div>
+
+  {{-- توکن‌ها، فهرستِ کشورها و آی‌پیِ عمومی --}}
+  <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 18px">
+    @foreach([['توکنِ pull-agent', $config['agent_token']], ['توکنِ Proxmox', $config['proxmox_token']]] as [$label, $set])
+      @php $col = $set ? '#34d399' : '#fbbf24'; @endphp
+      <span class="ad-badge" style="background:{{ $col }}22;color:{{ $col }};font-size:12.5px;padding:7px 12px">
+        {{ $label }}: {{ $set ? 'تنظیم‌شده' : 'تنظیم‌نشده' }}
+      </span>
+    @endforeach
+    <span class="ad-badge" dir="ltr" style="background:rgba(148,163,184,.14);color:var(--muted);font-size:12.5px;padding:7px 12px">
+      exit countries: {{ $config['exit_countries'] }}
+    </span>
+    @if($publicIp !== '')
+      <span class="ad-badge" dir="ltr" style="background:rgba(148,163,184,.14);color:var(--muted);font-size:12.5px;padding:7px 12px">
+        public IP: {{ $publicIp }}
+      </span>
+    @endif
+  </div>
+</div>
+
+{{-- ── شمارشِ Exit VPS به تفکیکِ کشورِ خروج ── --}}
+@if($total > 0)
+<div class="ad-panel" style="margin-top:16px">
+  <div class="ad-panel-h"><h3>به تفکیکِ کشورِ خروج ({{ fa_num($total) }})</h3></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 18px">
+    @foreach($countrySummary as $c)
+      <span class="ad-badge" style="background:rgba(34,211,238,.14);color:var(--text);font-size:13px;padding:8px 13px">
+        {{ $c['flag'] }} {{ $c['name'] }} — {{ fa_num($c['count']) }}
+      </span>
+    @endforeach
+  </div>
+</div>
+@endif
+
+{{-- ── جدولِ Exit VPSها ── --}}
+<div class="ad-panel" style="margin-top:16px">
+  <div class="ad-panel-h"><h2>Exit VPSها</h2></div>
+
+  @if($total === 0)
+    <p style="padding:16px 18px;color:var(--dim);font-size:13.5px">هنوز Exit VPSی نیست.</p>
+  @else
+    <div style="padding:0 4px 8px;overflow-x:auto">
+      <table class="ad-table">
+        <thead><tr>
+          <th>کشورِ خروج</th><th>آی‌پیِ داخلی</th><th>دسترسیِ عمومی</th>
+          <th>وضعیت</th><th>مشتری</th><th>ساخته‌شده</th>
+        </tr></thead>
+        <tbody>
+          @foreach($rows as $r)
+            <tr>
+              <td style="white-space:nowrap">{{ $r['flag'] }} {{ $r['country_name'] }}</td>
+              <td dir="ltr" style="font-size:12.5px">{{ $r['ipv4'] !== '' ? $r['ipv4'] : '—' }}</td>
+              <td dir="ltr" style="font-size:12.5px;color:var(--muted)">{{ $r['public_host'] !== '' ? $r['public_host'] : '—' }}</td>
+              <td><span class="ad-badge" style="background:{{ $r['status_color'] }}22;color:{{ $r['status_color'] }}">{{ $r['status_label'] }}</span></td>
+              <td style="font-size:12.5px">
+                @if($r['customer_name'])
+                  {{ $r['customer_name'] }}
+                  <div dir="ltr" style="font-size:11.5px;color:var(--dim)">{{ $r['customer_code'] }}</div>
+                @else
+                  <span style="color:var(--dim)">— بی‌مشتری</span>
+                @endif
+              </td>
+              <td style="font-size:12.5px;color:var(--muted);white-space:nowrap">{{ sdate($r['created_at']) }}</td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  @endif
+</div>
+@endsection
