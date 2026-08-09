@@ -484,3 +484,21 @@ html[data-theme="light"]{
   .cal-drawer,.cal-back,.cal-views,.cal-chips,.cal-nav button{ display:none !important }
   .cal-wrap{ grid-template-columns:minmax(0,1fr) }
 }
+
+/* ── 🔴 `hidden` باید واقعاً پنهان کند ────────────────────────────────────────
+   صفتِ `hidden` مرورگر یعنی `display:none`, ولی آن فقط یک قاعدهٔ **پیش‌فرضِ
+   user-agent** است و هر `display:` نویسنده بر آن می‌چربد.
+
+   این فایل همین تله را یک بار خورده — `.ad-bulk[hidden]{display:none}` بالا —
+   و تقویم دوباره در همان افتاد: اسکلتِ بارگذاری `hidden` بود ولی `display:grid`
+   داشت، پس ۴۲ خانهٔ شبح روی صفحه می‌مانْد و شبکهٔ واقعی ۹۹۰ پیکسل پایین‌تر
+   می‌رفت. صفحه‌ای که همیشه «در حالِ بارگذاری» به نظر می‌رسید و هیچ‌وقت تمام
+   نمی‌شد — با کدِ ۲۰۰، بی‌خطا و بی‌لاگ. فقط با نگاه‌کردن به صفحه دیده شد.
+
+   ⚠️ هر عنصرِ تازه‌ای که هم `display:` صریح دارد و هم با `hidden` خاموش
+   می‌شود، باید به این فهرست اضافه شود. */
+.cal-skel[hidden],
+.cal-grid[hidden],
+.cal-list[hidden],
+.cal-empty[hidden],
+.cal-warn[hidden]{ display:none }
