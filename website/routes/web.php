@@ -1914,8 +1914,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/crm/{lead}/compose', [\App\Http\Controllers\Admin\CrmController::class, 'compose'])->middleware(['admin', 'throttle:20,1']);
         Route::post('/crm/{lead}/stage', [\App\Http\Controllers\Admin\CrmController::class, 'stage'])->middleware('admin');
         Route::post('/crm/{lead}/suppress', [\App\Http\Controllers\Admin\CrmController::class, 'suppress'])->middleware('admin');
+        Route::post('/crm/{lead}/social', [\App\Http\Controllers\Admin\CrmController::class, 'social'])->middleware(['admin', 'throttle:20,1']);
         Route::post('/crm/message/{message}/approve', [\App\Http\Controllers\Admin\CrmController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
         Route::post('/crm/message/{message}/reject', [\App\Http\Controllers\Admin\CrmController::class, 'reject'])->middleware('admin');
+        Route::post('/crm/message/{message}/sent', [\App\Http\Controllers\Admin\CrmController::class, 'markSent'])->middleware('admin');
 
         /*
         | صندوق‌های ایمیلِ مدیریتی — ceo@ · support@ · info@

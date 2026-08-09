@@ -47,6 +47,32 @@
   </div>
 </div>
 
+{{-- ══ پیش‌نویسِ شبکه‌های اجتماعی ══ --}}
+<div class="ad-panel">
+  <div class="ad-panel-h"><h2>پیش‌نویسِ لینکدین و اینستاگرام</h2></div>
+  <p style="padding:0 18px;color:var(--muted);font-size:13.5px;line-height:1.9">
+    این‌ها را <b style="color:var(--text)">خودت</b> می‌فرستی. ارسالِ خودکار روی لینکدین و اینستاگرام نقضِ
+    شرایطشان است و اکانت را برای همیشه می‌سوزاند — ولی کارِ سختِ این پیام‌ها نوشتنشان است، نه کلیک کردن.
+    متن ساخته می‌شود، کپی می‌کنی، می‌فرستی، و «فرستادم» می‌زنی تا در پرونده ثبت شود.
+  </p>
+  <div style="padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap">
+    @foreach([
+      ['linkedin', 'note', 'یادداشتِ درخواستِ ارتباط (لینکدین)'],
+      ['linkedin', 'dm',   'پیامِ لینکدین (بعد از پذیرش)'],
+      ['instagram', 'dm',  'دایرکتِ اینستاگرام'],
+    ] as [$ch, $kind, $label])
+      <form method="post" action="/admin/crm/{{ $lead->id }}/social">
+        @csrf
+        <input type="hidden" name="channel" value="{{ $ch }}">
+        <input type="hidden" name="kind" value="{{ $kind }}">
+        <button class="btn" type="submit">
+          <svg class="icon"><use href="#i-{{ $ch }}"/></svg>{{ $label }}
+        </button>
+      </form>
+    @endforeach
+  </div>
+</div>
+
 {{-- ══ ممیزیِ سایت ══ --}}
 @if(is_array($lead->audit) && ($lead->audit['ok'] ?? false))
 <div class="ad-panel">
@@ -97,6 +123,19 @@
             <button class="btn" type="submit">رد</button>
           </form>
         </div>
+      @elseif($m->status === 'draft')
+        {{-- پیش‌نویسِ شبکهٔ اجتماعی: دکمهٔ «ارسال» عمداً وجود ندارد --}}
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn js-copy" type="button" data-copy="msg-{{ $m->id }}">کپی متن</button>
+          <textarea id="msg-{{ $m->id }}" readonly style="position:absolute;left:-9999px;top:-9999px">{{ $m->body }}</textarea>
+          <form method="post" action="/admin/crm/message/{{ $m->id }}/sent">@csrf
+            <button class="btn btn-primary" type="submit">فرستادم</button>
+          </form>
+          <form method="post" action="/admin/crm/message/{{ $m->id }}/reject">@csrf
+            <button class="btn" type="submit">دور بینداز</button>
+          </form>
+          <small style="color:var(--dim)">{{ mb_strlen($m->body) }} نویسه</small>
+        </div>
       @endif
     </div>
   @empty
@@ -126,4 +165,52 @@
   </form>
 </div>
 
+@endsection
+
+@section('scripts')
+<script>
+/*
+ * کپیِ متنِ پیش‌نویس.
+ *
+ * ⚠️ navigator.clipboard فقط روی HTTPS (یا localhost) کار می‌کند. روی HTTP
+ * بی‌صدا رد می‌شود — و «بی‌صدا رد شدن» دقیقاً همان چیزی است که این پروژه
+ * سه بار خورده. پس مسیرِ دوم هم هست: انتخابِ متن + execCommand، و اگر هر
+ * دو شکست خوردند، به کاربر گفته می‌شود دستی کپی کند.
+ */
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest('.js-copy');
+  if (!btn) return;
+
+  var el = document.getElementById(btn.dataset.copy);
+  if (!el) return;
+
+  var done = function () {
+    var old = btn.textContent;
+    btn.textContent = 'کپی شد ✓';
+    setTimeout(function () { btn.textContent = old; }, 1600);
+  };
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(el.value).then(done, fallback);
+  } else {
+    fallback();
+  }
+
+  function fallback() {
+    try {
+      el.style.position = 'static';
+      el.style.left = 'auto';
+      el.style.top = 'auto';
+      el.select();
+      var ok = document.execCommand('copy');
+      el.style.position = 'absolute';
+      el.style.left = '-9999px';
+      el.style.top = '-9999px';
+      ok ? done() : (btn.textContent = 'کپی نشد — دستی بردار');
+    } catch (err) {
+      btn.textContent = 'کپی نشد — دستی بردار';
+    }
+  }
+});
+</script>
 @endsection

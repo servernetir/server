@@ -7,6 +7,7 @@ use App\Models\CrmMessage;
 use App\Models\CrmSuppression;
 use App\Models\User;
 use App\Services\Crm\ContactFinder;
+use App\Services\Crm\OutreachComposer;
 use App\Services\Crm\OutreachMailer;
 use App\Services\Crm\RedLine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -220,6 +221,162 @@ class CrmOutreachTest extends TestCase
         $this->assertContains('reception@clinic.ae', $found);
         $this->assertNotContains('someone@example.com', $found, 'نشانیِ نمونه، نشانیِ کسب‌وکار نیست');
         $this->assertNotContains('logo@2x.png', $found);
+    }
+
+    // ───────────────────── پیش‌نویسِ شبکهٔ اجتماعی ─────────────────────
+
+    /**
+     * 🔴 مهم‌ترین تستِ این فایل.
+     *
+     * پیش‌نویسِ لینکدین **هرگز** نباید در صفِ ارسال بنشیند. ارسالِ خودکار روی
+     * لینکدین نقضِ شرایطش است و اکانتِ احسان را برای همیشه می‌سوزاند — و آن
+     * اکانت، کلِ زیرساختِ فروشِ بین‌المللی‌اش است.
+     */
+    public function test_a_social_draft_can_never_be_sent_by_the_automated_queue(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+
+        $draft = CrmMessage::create([
+            'lead_id'   => $lead->id,
+            'channel'   => 'linkedin',
+            'direction' => 'out',
+            'subject'   => 'یادداشتِ درخواستِ ارتباط',
+            'body'      => 'I noticed your booking page has no pricing anywhere.',
+            'status'    => 'draft',
+            'sequence'  => 0,
+        ]);
+
+        $r = app(OutreachMailer::class)->drain(null, true);
+
+        $this->assertSame(0, $r['sent']);
+        $this->assertSame('draft', $draft->fresh()->status, 'صف نباید حتی لمسش کند');
+        Mail::assertNothingSent();
+    }
+
+    public function test_the_send_queue_only_ever_picks_up_queued_email(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+
+        foreach ([['linkedin', 'draft'], ['instagram', 'draft'], ['email', 'cancelled'], ['email', 'sent']] as [$ch, $st]) {
+            CrmMessage::create([
+                'lead_id' => $lead->id, 'channel' => $ch, 'direction' => 'out',
+                'subject' => 's', 'body' => 'b', 'status' => $st, 'sequence' => 0,
+            ]);
+        }
+
+        $r = app(OutreachMailer::class)->drain(null, true);
+
+        $this->assertSame(0, $r['sent']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_a_lead_without_an_observation_gets_no_social_draft_either(): void
+    {
+        $lead = $this->lead(['observation' => null]);
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'linkedin', 'note'));
+        $this->assertSame(0, $lead->messages()->count());
+    }
+
+    public function test_a_closed_lead_gets_no_social_draft(): void
+    {
+        $lead = $this->lead(['stage' => 'lost']);
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'instagram', 'dm'));
+    }
+
+    public function test_unknown_channels_are_refused(): void
+    {
+        $lead = $this->lead();
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'whatsapp', 'dm'));
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'email', 'dm'));
+    }
+
+    public function test_long_messages_are_trimmed_at_a_sentence_not_mid_word(): void
+    {
+        $writer = new class extends \App\Services\Crm\OutreachWriter
+        {
+            public function cut(string $body, int $limit): ?string
+            {
+                return $this->fit($body, $limit);
+            }
+        };
+
+        $long = 'Your booking page never shows a price. That costs you enquiries. '
+            .'I would put a from-price on the first screen and see what happens next month.';
+
+        $out = $writer->cut($long, 70);
+
+        $this->assertNotNull($out);
+        $this->assertLessThanOrEqual(70, mb_strlen($out));
+        $this->assertStringEndsWith('.', $out, 'پیامی که وسطِ جمله بریده شود، شبیهِ ربات است');
+
+        // جمله‌ی اول از سقف هم بلندتر است → هیچ چیزی بهتر از متنِ بریده است
+        $this->assertNull($writer->cut('One very long sentence with no full stop anywhere near the limit', 20));
+    }
+
+    public function test_marking_a_social_draft_as_sent_moves_a_new_lead_forward(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 's'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $lead = $this->lead(['stage' => 'new']);
+
+        $draft = CrmMessage::create([
+            'lead_id' => $lead->id, 'channel' => 'linkedin', 'direction' => 'out',
+            'subject' => 'n', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
+        ]);
+
+        $this->actingAs($admin)->post('/admin/crm/message/'.$draft->id.'/sent')->assertRedirect();
+
+        $this->assertSame('sent', $draft->fresh()->status);
+        $lead->refresh();
+        $this->assertSame('contacted', $lead->stage);
+        $this->assertNotNull($lead->last_contacted_at);
+    }
+
+    public function test_marking_sent_does_not_rewind_a_lead_already_in_the_email_rhythm(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'q'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $lead = $this->lead(['stage' => 'fu1']);
+
+        $draft = CrmMessage::create([
+            'lead_id' => $lead->id, 'channel' => 'instagram', 'direction' => 'out',
+            'subject' => 'd', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
+        ]);
+
+        $this->actingAs($admin)->post('/admin/crm/message/'.$draft->id.'/sent')->assertRedirect();
+
+        $this->assertSame('fu1', $lead->fresh()->stage, 'ریتمِ ایمیل صاحبِ مرحله است');
+    }
+
+    public function test_email_cannot_be_marked_sent_by_hand(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'e'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $message = $this->queued($this->lead());
+
+        $this->actingAs($admin)
+            ->post('/admin/crm/message/'.$message->id.'/sent')
+            ->assertSessionHasErrors('message');
+
+        $this->assertSame('queued', $message->fresh()->status);
     }
 
     // ───────────────────── خواندنِ جواب‌ها ─────────────────────
