@@ -83,9 +83,10 @@ class CloudHourlyBillingTest extends TestCase
         $this->assertSame(5000, $plan->hourlyIrt());
         // ۷۲۰ سنت ÷ ۷۲۰ = ۱ سنت/ساعت
         $this->assertSame(1, $plan->hourlyEurCents());
-        // حداقلِ شروع = ۱۲ ساعت (تصمیمِ کارفرما، مرداد ۱۴۰۵) — و از **یک** ثابت
-        $this->assertSame(12, CloudPlan::HOURLY_START_MIN_HOURS);
-        $this->assertSame(5000 * 12, $plan->hourlyStartMinIrt());
+        // حداقلِ شروع = ۲۴ ساعت (تصمیمِ کارفرما، شهریور ۱۴۰۵: برابر با مهلتِ
+        // تعلیق، تا نه ما ضرر کنیم نه مشتری) — و از **یک** ثابت
+        $this->assertSame(24, CloudPlan::HOURLY_START_MIN_HOURS);
+        $this->assertSame(5000 * CloudPlan::HOURLY_START_MIN_HOURS, $plan->hourlyStartMinIrt());
     }
 
     // ═══════════ کسرِ ساعتی ═══════════

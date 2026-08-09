@@ -660,7 +660,7 @@ class CloudStoreTest extends TestCase
      * ⚠️ و عمداً حسابِ خودش را نمی‌کند: عدد از همان ثابتی می‌آید که کد می‌خوانَد،
      * وگرنه تست یک نسخهٔ دومِ قاعده می‌شد که می‌تواند با کد اختلاف پیدا کند.
      */
-    public function test_the_twelve_hour_floor_is_exact_on_both_sides(): void
+    public function test_the_credit_floor_is_exact_on_both_sides(): void
     {
         $this->catalog();
 
@@ -670,7 +670,22 @@ class CloudStoreTest extends TestCase
 
         $this->assertSame(800, $rate);
         $this->assertSame(800 * \App\Models\CloudPlan::HOURLY_START_MIN_HOURS, $floor);
-        $this->assertSame(9600, $floor);
+
+        /*
+        | 🔴 کف و مهلتِ تعلیق باید برابر بمانند — تصمیمِ صریحِ کارفرما.
+        |
+        | اگر کف کمتر از مهلت شود، مشتری کمتر از آنچه رایگان نگهش می‌داریم
+        | پرداخت کرده و تفاوت از جیبِ ما می‌رود؛ اگر بیشتر شود، پولی گرفته‌ایم
+        | که بابتش سرویسی نداده‌ایم. این ادعا همان چیزی است که «نه ما ضرر کنیم
+        | نه مشتری» را قفل می‌کند، و عمداً عددِ خام نمی‌نویسد تا با تغییرِ
+        | آگاهانهٔ هر دو، همچنان درست بماند.
+        */
+        $grace = new \ReflectionClassConstant(\App\Console\Commands\CloudMeterHourly::class, 'SUSPEND_GRACE_HOURS');
+        $this->assertSame(
+            $grace->getValue(),
+            \App\Models\CloudPlan::HOURLY_START_MIN_HOURS,
+            'کفِ اعتبارِ خرید و مهلتِ تعلیق باید برابر باشند — یکی را بدونِ دیگری عوض نکن'
+        );
 
         // یک تومان کم‌تر → رد، و هیچ کسری
         $poor = $this->customer();
@@ -705,7 +720,18 @@ class CloudStoreTest extends TestCase
         $this->assertStringContainsString(cloud_price($plan->hourlyStartMinIrt()), $msg,
             'مبلغِ پیام باید از hourlyStartMinIrt() بیاید، نه از یک حسابِ دومِ داخلِ کنترلر');
         $this->assertStringContainsString(fa_num(\App\Models\CloudPlan::HOURLY_START_MIN_HOURS), $msg);
-        $this->assertStringNotContainsString('۲۴ ساعت', $msg, 'متنِ کهنه نباید مانده باشد');
+
+        /*
+        | ⚠️ این ادعا قبلاً «۲۴ ساعت نباشد» بود، چون آن روز ۲۴ عددِ کهنه بود.
+        | حالا ۲۴ عددِ درست است، پس ادعای درست این است که هیچ عددِ **دیگری**
+        | جز ثابت در متن نیامده باشد — وگرنه یعنی جایی حسابِ دومی وجود دارد.
+        */
+        foreach ([6, 12, 48, 72] as $stale) {
+            $this->assertStringNotContainsString(
+                fa_num($stale).' ساعت', $msg,
+                "متن نباید عددِ {$stale} را بگوید — تنها منبع باید HOURLY_START_MIN_HOURS باشد"
+            );
+        }
     }
 
     /**
