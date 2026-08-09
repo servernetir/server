@@ -127,6 +127,65 @@ class OutreachComposer
     }
 
     /**
+     * پیش‌نویسِ لینکدین یا اینستاگرام — برای کپی کردن، نه برای فرستادن.
+     *
+     * 🔴 `status = 'draft'` و نه `'queued'`. این تفاوت، کلِ مرزِ ایمنیِ این
+     * ماژول است: `OutreachMailer::drain()` فقط `queued` را برمی‌دارد، پس هیچ
+     * مسیرِ خودکاری — حتی اگر روزی کسی کانالِ لینکدین را به آن اضافه کند —
+     * نمی‌تواند این‌ها را بفرستد. اتوماتیکِ لینکدین یعنی اکانتِ سوخته.
+     *
+     * @param  'linkedin'|'instagram'  $channel
+     * @param  'note'|'dm'  $kind
+     */
+    public function draftSocial(CrmLead $lead, string $channel, string $kind = 'dm'): ?CrmMessage
+    {
+        if (! in_array($channel, ['linkedin', 'instagram'], true)) {
+            return null;
+        }
+
+        // اینجا عمداً `isContactable()` صدا زده نمی‌شود: آن شرط نشانیِ ایمیل
+        // می‌خواهد و برای پیامِ لینکدین ایمیل لازم نیست. ولی «مشاهده» لازم
+        // است — همان قانونِ ۶۰ ثانیه، روی هر کانالی.
+        if (blank($lead->observation)) {
+            Log::info('crm.social.skip.no_observation', ['lead' => $lead->id, 'channel' => $channel]);
+
+            return null;
+        }
+
+        if (in_array($lead->stage, ['won', 'lost'], true)) {
+            Log::info('crm.social.skip.closed', ['lead' => $lead->id]);
+
+            return null;
+        }
+
+        $draft = $this->writer->social(
+            $lead->only(['company', 'city', 'country', 'website', 'observation']),
+            $channel,
+            $kind,
+        );
+
+        if (! $draft) {
+            Log::warning('crm.social.model_failed', ['lead' => $lead->id, 'channel' => $channel]);
+
+            return null;
+        }
+
+        if (! $this->redline->allow($draft['body'], ['lead' => $lead->id, 'channel' => $channel])) {
+            return null;
+        }
+
+        return CrmMessage::create([
+            'lead_id'   => $lead->id,
+            'channel'   => $channel,
+            'direction' => 'out',
+            'subject'   => $kind === 'note' ? 'یادداشتِ درخواستِ ارتباط' : 'پیامِ مستقیم',
+            'body'      => $draft['body'],
+            'status'    => 'draft',
+            'sequence'  => $lead->messages()->where('channel', $channel)->count(),
+        ]);
+    }
+
+    /**
      * امضا + نشانیِ پستی + راهِ لغو.
      *
      * 🔴 نشانیِ فیزیکی و راهِ لغو **الزامِ قانونی** است (CAN-SPAM، CASL)، نه

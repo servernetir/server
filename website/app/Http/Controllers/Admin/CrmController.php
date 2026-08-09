@@ -155,6 +155,55 @@ class CrmController extends Controller
         return back()->with('ok', 'پیام رد شد و فرستاده نمی‌شود.');
     }
 
+    /**
+     * ساختِ پیش‌نویسِ لینکدین یا اینستاگرام.
+     *
+     * ⚠️ اینجا دکمهٔ «ارسال» وجود ندارد و نباید ساخته شود. ارسالِ خودکار روی
+     * این دو پلتفرم نقضِ شرایطشان است؛ متن ساخته می‌شود، تو کپی می‌کنی و
+     * خودت می‌فرستی، بعد «فرستادم» می‌زنی تا ثبت شود.
+     */
+    public function social(Request $request, CrmLead $lead, OutreachComposer $composer): RedirectResponse
+    {
+        $data = $request->validate([
+            'channel' => ['required', 'in:linkedin,instagram'],
+            'kind'    => ['required', 'in:note,dm'],
+        ]);
+
+        $message = $composer->draftSocial($lead, $data['channel'], $data['kind']);
+
+        return back()->with('ok', $message
+            ? 'پیش‌نویس ساخته شد — کپی کن و خودت بفرست.'
+            : 'پیش‌نویسی ساخته نشد. اگر مشاهده‌ای ثبت نشده، اول «بررسیِ سایت» را بزن.');
+    }
+
+    /** «فرستادم» — ثبتِ دستیِ پیامی که خودت در لینکدین یا اینستاگرام فرستادی */
+    public function markSent(CrmMessage $message): RedirectResponse
+    {
+        if ($message->channel === 'email') {
+            return back()->withErrors(['message' => 'ایمیل از این مسیر ثبت نمی‌شود.']);
+        }
+
+        $message->update(['status' => 'sent', 'sent_at' => now()]);
+
+        $lead = $message->lead;
+
+        if ($lead) {
+            $lead->last_contacted_at = now();
+
+            // مرحله را فقط از «سرنخ جدید» جلو می‌برد. اگر قبلاً ایمیل رفته،
+            // ریتمِ ایمیل صاحبِ مرحله است و پیامِ شبکهٔ اجتماعی نباید عقب یا
+            // جلویش ببرد.
+            if ($lead->stage === 'new') {
+                $lead->stage = 'contacted';
+                $lead->next_action_at = now()->addDays(CrmLead::CADENCE['contacted'])->toDateString();
+            }
+
+            $lead->save();
+        }
+
+        return back()->with('ok', 'ثبت شد.');
+    }
+
     /** تغییرِ دستیِ مرحله — مثلاً وقتی جواب تلفنی آمده */
     public function stage(Request $request, CrmLead $lead): RedirectResponse
     {
