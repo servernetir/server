@@ -552,9 +552,41 @@ if (! function_exists('asset_ver')) {
     function asset_ver(string $rel): string
     {
         $rel = ltrim($rel, '/');
-        $path = public_path($rel);
-        $stamp = is_file($path) ? @filemtime($path) : false;
 
+        /*
+         * 🔴 روی پروداکشن `public_path()` به پوشه‌ای اشاره می‌کند که **وجود
+         * ندارد**.
+         *
+         * اپ بیرونِ webroot است (`servernet_app/`) و `public_html/` نقشِ
+         * `public/` را دارد، پس `public_path()` می‌شود
+         * `servernet_app/public` — و آن پوشه روی سرور اصلاً ساخته نشده.
+         * نتیجه: `is_file()` همیشه false، و نسخه همیشه همان هشِ **ثابتِ**
+         * `md5($rel)` می‌شد.
+         *
+         * یعنی مهرِ نسخه هرگز عوض نمی‌شد و مرورگر و Cloudflare هر CSS/JS را
+         * **برای همیشه** کش می‌کردند: هر تغییرِ ظاهری روی سایت زنده بی‌اثر
+         * می‌مانْد و کسی نمی‌فهمید چرا. (اولین بار با تقویم دیده شد: فایل روی
+         * سرور تازه بود، ولی `?v=d1caebe3` نسخهٔ دیروز را برمی‌گرداند.)
+         *
+         * `DOCUMENT_ROOT` جوابِ درست را می‌دهد و **قابل‌حمل** است: محلی همان
+         * `public/` است و روی cPanel همان `public_html/`. هیچ مسیرِ سخت‌کدی.
+         */
+        $candidates = [public_path($rel)];
+
+        $docroot = rtrim(str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
+        if ($docroot !== '') {
+            $candidates[] = $docroot.'/'.$rel;
+        }
+
+        $stamp = false;
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $stamp = @filemtime($candidate);
+                break;
+            }
+        }
+
+        // فایلِ نبود هنوز صفحه را ۵۰۰ نمی‌کند — همان قاعدهٔ بالا، دست‌نخورده.
         return asset($rel).'?v='.($stamp !== false ? $stamp : substr(md5($rel), 0, 8));
     }
 }
