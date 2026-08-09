@@ -2,6 +2,7 @@
 
 use App\Services\Calendar\Providers\ContentPostProvider;
 use App\Services\Calendar\Providers\DomainRenewalProvider;
+use App\Services\Calendar\Providers\GoogleCalendarProvider;
 use App\Services\Calendar\Providers\HostingRenewalProvider;
 use App\Services\Calendar\Providers\ManualEventProvider;
 use App\Services\Calendar\Providers\PaymentDueProvider;
@@ -71,6 +72,21 @@ return [
             'tone'     => 'content',
             'icon'     => 'i-book',
             'provider' => ContentPostProvider::class,
+        ],
+
+        /*
+         * 🔴 تنها لایهٔ **per-user** — تقویمِ شخصیِ گوگلِ خودِ کاربرِ واردشده.
+         *
+         * بقیهٔ لایه‌ها دادهٔ شرکت‌اند و برای همه یکی؛ این یکی جلسهٔ دکتر و
+         * قرارِ خانوادگیِ یک نفر است. کاربری که حسابش را وصل نکرده، هیچ‌چیز
+         * نمی‌بیند (نه خطا، نه لایهٔ خالیِ گیج‌کننده).
+         */
+        'google' => [
+            'label'    => 'تقویم گوگل من',
+            'hint'     => 'رویدادهای شخصیِ حسابِ گوگلِ خودتان — فقط شما می‌بینید',
+            'tone'     => 'google',
+            'icon'     => 'i-calendar',
+            'provider' => GoogleCalendarProvider::class,
         ],
 
         'task' => [

@@ -1950,6 +1950,18 @@ Route::prefix('admin')->group(function () {
         Route::delete('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'destroy']);
         Route::post('/calendar/preferences', [\App\Http\Controllers\Admin\CalendarController::class, 'preferences']);
 
+        /*
+         * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل
+         * می‌کند و فقط رویدادهای خودش را می‌بیند.
+         *
+         * ⚠️ `callback` عمداً GET و بی‌CSRF است: گوگل کاربر را با یک ریدایرکتِ
+         * مرورگری برمی‌گرداند و توکنِ CSRF در آن نیست. محافظش پارامترِ `state`
+         * است که در نشست نشسته و در بازگشت با `hash_equals` سنجیده می‌شود.
+         */
+        Route::get('/calendar/google/connect', [\App\Http\Controllers\Admin\CalendarController::class, 'googleConnect']);
+        Route::get('/calendar/google/callback', [\App\Http\Controllers\Admin\CalendarController::class, 'googleCallback']);
+        Route::post('/calendar/google/disconnect', [\App\Http\Controllers\Admin\CalendarController::class, 'googleDisconnect']);
+
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');
         Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'send']);

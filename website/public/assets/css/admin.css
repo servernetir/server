@@ -502,3 +502,23 @@ html[data-theme="light"]{
 .cal-list[hidden],
 .cal-empty[hidden],
 .cal-warn[hidden]{ display:none }
+
+/* ── لایهٔ گوگل‌کلندر ─────────────────────────────────────────────────────
+   بنفش، چون تنها لایه‌ای است که دادهٔ **شخصی** نشان می‌دهد نه دادهٔ شرکت —
+   و باید در یک نگاه از سررسیدهای کاری جدا باشد. همان `--violet`ِ پنل که در
+   `:root` بالای همین فایل تعریف شده. */
+:root{ --cal-google:#8b5cf6;  --cal-google-soft:rgba(139,92,246,.15) }
+html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182,.11) }
+.t-google{ --cal-c:var(--cal-google); --cal-s:var(--cal-google-soft) }
+
+/* نوارِ وضعیتِ اتصالِ گوگل، بالای چیپ‌ها */
+.cal-gbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  margin-bottom:12px; padding:10px 14px; border-radius:11px;
+  background:var(--surface2); border:1px solid var(--line); font-size:12.5px }
+.cal-gbar .icon{ width:16px; height:16px; color:var(--cal-google); flex:none }
+.cal-gbar b{ font-weight:700 }
+.cal-gbar .who{ color:var(--muted); direction:ltr; unicode-bidi:isolate }
+.cal-gbar .sep{ margin-inline-start:auto }
+.cal-gbar .btn{ min-height:36px; font-size:12px }
+.cal-gbar.is-broken{ background:rgba(255,107,107,.08); border-color:rgba(255,107,107,.38) }
+.cal-gbar.is-broken .msg{ color:var(--cal-payment); line-height:1.9 }

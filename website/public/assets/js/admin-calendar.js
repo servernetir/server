@@ -43,6 +43,7 @@
     today: boot.today || '',
     statuses: boot.statuses || {},
     repeats: boot.repeats || { none: 'بدون تکرار' },
+    googleConnected: !!boot.googleConnected,
     dueSoonDays: boot.dueSoonDays || 3,
     upcomingDays: boot.upcomingDays || 7,
     focusedCell: 0,
@@ -548,9 +549,22 @@
       return '<option value="' + esc(r) + '">' + esc(state.repeats[r]) + '</option>';
     }).join('');
 
+    /*
+     * انتخابِ مقصد فقط وقتی معنی دارد که گوگل وصل باشد.
+     * ⚠️ گوگل تکرار و مبلغ را نمی‌فهمد؛ JS پایین آن دو را خاکستری می‌کند تا
+     * کاربر چیزی پر نکند که بی‌صدا دور ریخته شود.
+     */
+    var targetRow = state.googleConnected
+      ? '<label>ثبت در<select name="target">' +
+        '<option value="local">دفترِ داخلی (تکرار و مبلغ دارد)</option>' +
+        '<option value="google">تقویم گوگل من (روی گوشی هم می‌آید)</option>' +
+        '</select></label>'
+      : '';
+
     var html = '<form class="cal-form" id="cal-add" style="padding:0">' +
       '<label>عنوان<input type="text" name="title" required maxlength="200" ' +
       'placeholder="مثلاً تماس با مشتری برای تمدید"></label>' +
+      targetRow +
       '<div class="row">' +
       '<label>نوع<select name="type">' + opts + '</select></label>' +
       /*
@@ -656,7 +670,9 @@
   var SAVE_ERRORS = {
     bad_date: 'تاریخ معتبر نیست.',
     bad_until_date: 'تاریخِ پایانِ تکرار معتبر نیست.',
-    until_before_start: 'تاریخِ پایانِ تکرار نمی‌تواند قبل از تاریخِ شروع باشد.'
+    until_before_start: 'تاریخِ پایانِ تکرار نمی‌تواند قبل از تاریخِ شروع باشد.',
+    google_not_connected: 'تقویم گوگل وصل نیست.',
+    google_insert_failed: 'گوگل رویداد را نپذیرفت.'
   };
 
   function submitAdd(form) {
@@ -665,8 +681,12 @@
       type: form.type.value,
       event_date: form.event_date.value.trim(),
       description: form.description.value.trim(),
-      repeat: form.repeat ? form.repeat.value : 'none'
+      repeat: form.repeat ? form.repeat.value : 'none',
+      target: form.target ? form.target.value : 'local'
     };
+
+    // گوگل تکرار و مبلغ ندارد — نفرستادنشان صادقانه‌تر از دورریختنِ خاموش است
+    if (body.target === 'google') { body.repeat = 'none'; delete body.amount; }
 
     if (form.amount && form.amount.value !== '') body.amount = parseInt(form.amount.value, 10);
     if (form.repeat_until && form.repeat_until.value.trim() !== '') {

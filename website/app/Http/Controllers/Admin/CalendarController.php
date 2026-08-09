@@ -5,13 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CalendarEvent;
 use App\Models\CalendarLayerPreference;
+use App\Models\GoogleCalendarToken;
 use App\Services\Calendar\CalendarItem;
 use App\Services\Calendar\CalendarService;
+use App\Services\Calendar\Google\GoogleCalendarClient;
 use App\Support\Jalali;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -59,6 +64,25 @@ class CalendarController extends Controller
         $layers = (array) config('calendar.layers', []);
         $today = $this->todayJalali();
 
+        /*
+         * وضعیتِ اتصالِ گوگلِ **همین کاربر**.
+         *
+         * ⚠️ اگر اعتبارنامهٔ اپ در تنظیمات نباشد، لایه اصلاً نشان داده نمی‌شود:
+         * چیپی که هیچ‌وقت چیزی نمی‌آورد از نبودنش بدتر است.
+         */
+        $googleToken = GoogleCalendarToken::forUser($userId);
+        $google = [
+            'configured'  => GoogleCalendarClient::configured(),
+            'connected'   => $googleToken !== null,
+            'email'       => $googleToken?->google_email,
+            'last_error'  => $googleToken?->last_error,
+            'synced_at'   => $googleToken?->synced_at?->diffForHumans(),
+        ];
+
+        if (! $google['configured']) {
+            unset($layers['google']);
+        }
+
         return view('admin.calendar', [
             'layers'   => $layers,
             'statuses' => (array) config('calendar.statuses', []),
@@ -69,6 +93,7 @@ class CalendarController extends Controller
             'upcoming' => $upcoming,
             'upcomingDays' => (int) config('calendar.upcoming_days', 7),
             'dueSoonDays'  => (int) config('calendar.due_soon_days', 3),
+            'google'       => $google,
 
             /*
              * تنها دریچهٔ داده به جاوااسکریپت. یک شیء، نه ده متغیرِ پراکنده در
@@ -93,6 +118,7 @@ class CalendarController extends Controller
                 'prefs'        => $prefs,
                 'statuses'     => (array) config('calendar.statuses', []),
                 'repeats'      => (array) config('calendar.repeats', []),
+                'googleConnected' => $google['connected'],
                 'failures'     => $failures,
                 'truncated'    => $truncated,
                 'upcomingDays' => (int) config('calendar.upcoming_days', 7),
@@ -220,6 +246,8 @@ class CalendarController extends Controller
             'repeat_until' => ['nullable', 'string', 'max:10'],
             // مبلغ در واحدِ فرعی (تومان) — عددِ صحیح، مثلِ بقیهٔ پولِ پروژه
             'amount'      => ['nullable', 'integer', 'min:0', 'max:99999999999999'],
+            // کجا ثبت شود: دفترِ داخلی یا تقویمِ گوگلِ خودِ کاربر
+            'target'      => ['nullable', 'string', Rule::in(['local', 'google'])],
         ], [
             'type' => 'نوع', 'title' => 'عنوان', 'description' => 'توضیح',
             'event_date' => 'تاریخ', 'repeat' => 'تکرار',
@@ -250,6 +278,21 @@ class CalendarController extends Controller
             if ($until < $this->gregorian($jalali)) {
                 return response()->json(['ok' => false, 'error' => 'until_before_start'], 422);
             }
+        }
+
+        /*
+         * 🔴 مقصد **یکی** است، نه هر دو.
+         *
+         * اگر هم‌زمان محلی و گوگل ثبت می‌شد، همان رویداد دو بار در تقویم
+         * می‌آمد — یک‌بار زیرِ لایهٔ خودش و یک‌بار زیرِ «تقویم گوگل من» — و
+         * تیک‌زدنِ یکی روی دیگری اثری نداشت.
+         *
+         * ⚠️ گوگل تکرار و مبلغ را نمی‌فهمد (RRULE خودش را دارد و فیلدِ مبلغ
+         * ندارد). پس برای اجاره و هزینه، مقصد باید داخلی باشد؛ برای جلسه‌ای
+         * که باید روی گوشی بیاید، گوگل.
+         */
+        if (($data['target'] ?? 'local') === 'google') {
+            return $this->storeInGoogle($request, $data, $jalali);
         }
 
         $event = CalendarEvent::create([
@@ -383,6 +426,181 @@ class CalendarController extends Controller
         ));
 
         return response()->json(['ok' => true, 'layers' => $saved]);
+    }
+
+    /* ==================================================================== */
+    /*  اتصال به گوگل‌کلندر                                                  */
+    /* ==================================================================== */
+
+    /**
+     * ساختِ رویداد مستقیماً در تقویمِ گوگلِ کاربر.
+     *
+     * ⚠️ اگر گوگل نپذیرد، **هیچ‌چیز ذخیره نمی‌شود و خطا برمی‌گردد**. حالتِ
+     * «محلی ذخیره کن، بعداً می‌فرستیم» عمداً پیاده نشده: یک صفِ ارسال که
+     * کاربر نبیندش یعنی رویدادی که فکر می‌کند روی گوشی‌اش هست و نیست.
+     *
+     * @param  array<string,mixed>  $data
+     * @param  array{0:int,1:int,2:int}  $jalali
+     */
+    private function storeInGoogle(Request $request, array $data, array $jalali): JsonResponse
+    {
+        $token = GoogleCalendarToken::forUser($request->user()?->id);
+
+        if ($token === null) {
+            return response()->json(['ok' => false, 'error' => 'google_not_connected'], 422);
+        }
+
+        $day = $this->gregorian($jalali);
+
+        $res = app(GoogleCalendarClient::class)->insertEvent(
+            $token,
+            $day,
+            $data['title'],
+            $data['description'] ?? null,
+        );
+
+        if (! $res['ok']) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'google_insert_failed',
+                'messages' => [$res['error'] ?? 'گوگل رویداد را نپذیرفت.'],
+            ], 422);
+        }
+
+        // کش را پاک کن وگرنه رویدادِ تازه تا پنج دقیقه دیده نمی‌شود
+        $this->forgetGoogleCache((int) $request->user()->id);
+
+        return response()->json([
+            'ok'    => true,
+            'event' => (new CalendarItem(
+                type: 'google',
+                source: 'google',
+                sourceId: (string) ($res['id'] ?? ''),
+                title: $data['title'],
+                description: $data['description'] ?? 'گوگل‌کلندر',
+                at: Carbon::parse($day, $this->timezone()),
+                status: 'pending',
+                meta: ['all_day' => true],
+                url: $res['link'] ?? null,
+                editable: false,
+            ))->toArray(),
+        ], 201);
+    }
+
+    /**
+     * شروعِ جریانِ OAuth.
+     *
+     * ⚠️ `state` یک رشتهٔ تصادفی است که در نشست می‌نشیند و در بازگشت سنجیده
+     * می‌شود. بی‌آن، هر کسی می‌تواند کاربرِ واردشده را به یک `callback` با کدِ
+     * **حسابِ خودش** بفرستد و تقویمِ خودش را به حسابِ او بچسباند (CSRF روی
+     * OAuth). این نه یک تشریفات، که همان چیزی است که پارامترِ state برایش هست.
+     */
+    public function googleConnect(Request $request): RedirectResponse
+    {
+        if (! GoogleCalendarClient::configured()) {
+            return redirect('/admin/calendar')
+                ->with('err', 'اعتبارنامهٔ گوگل هنوز در تنظیمات وارد نشده است.');
+        }
+
+        $state = Str::random(40);
+        $request->session()->put('google_calendar_state', $state);
+
+        return redirect()->away(GoogleCalendarClient::authUrl($state, $this->googleRedirectUri()));
+    }
+
+    /** بازگشت از گوگل */
+    public function googleCallback(Request $request, GoogleCalendarClient $google): RedirectResponse
+    {
+        $expected = $request->session()->pull('google_calendar_state');
+
+        // ⚠️ مقایسهٔ زمان‌ثابت، و ردِ حالتی که اصلاً stateی در نشست نبوده
+        if (blank($expected) || ! hash_equals((string) $expected, (string) $request->query('state'))) {
+            return redirect('/admin/calendar')->with('err', 'درخواستِ اتصال معتبر نبود؛ دوباره تلاش کنید.');
+        }
+
+        if (filled($request->query('error'))) {
+            return redirect('/admin/calendar')
+                ->with('err', 'اتصال لغو شد: '.$request->query('error'));
+        }
+
+        $code = (string) $request->query('code');
+
+        if (blank($code)) {
+            return redirect('/admin/calendar')->with('err', 'کدِ بازگشتی از گوگل نیامد.');
+        }
+
+        $res = $google->exchangeCode($code, $this->googleRedirectUri());
+
+        if (! $res['ok']) {
+            /*
+             * `no_refresh_token` پیامِ خودش را دارد چون علتش رفتاری است، نه
+             * خرابی: گوگل برای حسابی که قبلاً یک بار پذیرفته refresh token
+             * نمی‌فرستد مگر با `prompt=consent` — و اگر کاربر دسترسی را از
+             * حسابش پاک نکند، ممکن است باز هم نیاید.
+             */
+            return redirect('/admin/calendar')->with('err', match ($res['error'] ?? '') {
+                'no_refresh_token' => 'گوگل توکنِ ماندگار نداد. در حسابِ گوگل، دسترسیِ این اپ را حذف کنید و دوباره وصل شوید.',
+                'network'          => 'ارتباط با گوگل برقرار نشد.',
+                default            => 'اتصال ناموفق: '.($res['error'] ?? 'نامشخص'),
+            });
+        }
+
+        GoogleCalendarToken::updateOrCreate(
+            ['user_id' => $request->user()->id],
+            [
+                'google_email'  => $res['email'] ?? null,
+                'calendar_id'   => 'primary',
+                'access_token'  => $res['access_token'],
+                'refresh_token' => $res['refresh_token'],
+                'expires_at'    => $res['expires_at'],
+                'last_error'    => null,
+            ],
+        );
+
+        return redirect('/admin/calendar')->with('ok', 'تقویمِ گوگل وصل شد.');
+    }
+
+    /** قطعِ اتصال — فقط ردیفِ خودِ کاربر */
+    public function googleDisconnect(Request $request): RedirectResponse
+    {
+        GoogleCalendarToken::query()->where('user_id', $request->user()->id)->delete();
+
+        /*
+         * کشِ همین کاربر هم باید برود، وگرنه تا پنج دقیقه رویدادهای یک حسابِ
+         * قطع‌شده هنوز روی صفحه‌اند و کاربر فکر می‌کند قطع نشده.
+         */
+        $this->forgetGoogleCache($request->user()->id);
+
+        return redirect('/admin/calendar')->with('ok', 'اتصالِ تقویمِ گوگل قطع شد.');
+    }
+
+    /**
+     * 🔴 آدرسِ بازگشت باید **دقیقاً** همانی باشد که در Google Cloud ثبت شده.
+     *
+     * `url()` از میزبانِ درخواست می‌سازد، و پنل روی زیردامنهٔ `console` است.
+     * ساختنش از `config('app.url')` غلط می‌شد چون آن apex است و گوگل تطبیق را
+     * کاراکتربه‌کاراکتر می‌سنجد ⇒ `redirect_uri_mismatch`.
+     */
+    private function googleRedirectUri(): string
+    {
+        return url('/admin/calendar/google/callback');
+    }
+
+    private function forgetGoogleCache(int $userId): void
+    {
+        try {
+            // کلیدها بازه‌محورند؛ چند ماهِ اطراف را پاک می‌کنیم که کافی است
+            $tz = $this->timezone();
+            $day = Carbon::now($tz)->startOfMonth();
+
+            for ($i = -2; $i <= 2; $i++) {
+                $m = $day->copy()->addMonths($i);
+                Cache::forget('gcal:'.$userId.':'.$m->copy()->startOfMonth()->toDateString()
+                    .':'.$m->copy()->endOfMonth()->toDateString());
+            }
+        } catch (\Throwable) {
+            // کشِ پاک‌نشده از قطعِ اتصالِ ناموفق بهتر است — حداکثر پنج دقیقه کهنه می‌مانَد
+        }
     }
 
     /* ==================================================================== */

@@ -59,6 +59,36 @@
       @endforeach
     </div>
 
+    {{-- ══ نوارِ اتصالِ گوگل ══
+         فقط وقتی دیده می‌شود که اعتبارنامهٔ اپ در تنظیمات باشد. اتصال per-user
+         است، پس این نوار وضعیتِ **همین کاربر** را می‌گوید نه شرکت را. --}}
+    @if($google['configured'])
+      <div class="cal-gbar @if($google['last_error']) is-broken @endif">
+        <svg class="icon"><use href="#i-calendar"/></svg>
+        @if($google['connected'])
+          <b>تقویم گوگل وصل است</b>
+          @if($google['email'])<span class="who">{{ $google['email'] }}</span>@endif
+          @if($google['synced_at'])<span style="color:var(--dim)">· آخرین همگام‌سازی {{ $google['synced_at'] }}</span>@endif
+          @if($google['last_error'])
+            <span class="msg" style="flex-basis:100%">⚠️ {{ $google['last_error'] }}</span>
+          @endif
+          <span class="sep"></span>
+          <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
+          <form method="post" action="/admin/calendar/google/disconnect" style="margin:0"
+                data-confirm="اتصالِ تقویمِ گوگل قطع شود؟" data-confirm-danger>
+            @csrf<button type="submit" class="btn btn-danger">قطع اتصال</button>
+          </form>
+        @else
+          <b>تقویم گوگلتان وصل نیست</b>
+          <span style="color:var(--muted)">رویدادهای شخصی‌تان کنار سررسیدهای کاری دیده می‌شوند — فقط خودتان.</span>
+          <span class="sep"></span>
+          <a class="btn btn-primary" href="/admin/calendar/google/connect">
+            <svg class="icon"><use href="#i-link"/></svg>اتصال به گوگل
+          </a>
+        @endif
+      </div>
+    @endif
+
     {{-- لایه‌ای که خوانده نشد یا از سقف گذشت — خالیِ خراب نباید شبیهِ خالیِ سالم باشد --}}
     <div class="cal-warn" id="cal-warn" role="status" hidden></div>
 
