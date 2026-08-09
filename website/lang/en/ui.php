@@ -1314,10 +1314,10 @@ return [
     'nav_security' => 'Security',
 
     // ═══ Cloud builder — trilingual, locale-aware currency ═══
-    'cvb_title' => 'Build a VPS — ServerNet Cloud',
+    'cvb_title' => 'Create Virtual Server — ServerNet Cloud',
     'cvb_crumb_panel' => 'Panel',
-    'cvb_crumb' => 'Build a VPS',
-    'cvb_h1' => 'Build your VPS',
+    // The page title is defined once: both the heading and the breadcrumb read it.
+    'cvb_h1' => 'Create Virtual Server',
     'cvb_intro' => 'Pick a country, specs, operating system and billing cycle; after payment your server is created and delivered automatically.',
     'cvb_pill' => 'Automatic delivery · under two minutes',
     'cvb_empty_h' => 'The VPS catalog is not available right now',
@@ -1329,6 +1329,13 @@ return [
     'cvb_loc_note' => 'The location can\'t be changed after creation; pick the country closest to your users.',
     'cvb_s2' => 'Server specs',
     'cvb_no_plans' => 'We have no plans in stock for this location right now; please pick another country.',
+    'cvb_c_pick' => 'Choose a country',
+    'cvb_country_set' => 'Your selected country is marked below; pick another country or city to change it.',
+    // 🔴 پلورالِ واقعی. «1 cities» را trans_choice می‌گیرد، نه __().
+    'cvb_c_cities' => ':n city|:n cities',
+    'cvb_c_soldout' => 'Out of stock for now',
+    'cvb_dc_multi' => ':count locations',
+    'cvb_dc_n' => 'Location :n',
     // صفحهٔ وضعیت و سندِ SLA
     'status_badge' => 'Live status',
     'status_title' => 'Service status',
@@ -1415,6 +1422,7 @@ return [
     'cvb_traffic' => 'traffic',
     'cvb_s3' => 'Operating system or ready app',
     'cvb_os' => 'Operating system',
+    'cvb_os_group' => 'What to install',
     'cvb_app' => 'Ready app',
     'cvb_other' => 'Other',
     'cvb_os_na' => 'The operating system list is not available right now.',
@@ -2037,6 +2045,7 @@ return [
     'sec_domains_lead' => 'Expiry, auto-renew and transfer lock — sorted by the nearest renewal date.',
     'sec_other_lead' => 'Services not delivered on a server: premium support, design and custom work.',
     'sec_view_all' => 'View all',
+    'sec_add_server' => 'Add a server',
     'sec_empty_hosting_h' => 'No hosting yet',
     'sec_empty_hosting_p' => 'Shared hosting is where your website and email live: disk and bandwidth usage, the main domain, and one-click access to the control panel — without running a server yourself.',
     'sec_empty_hosting_cta' => 'See hosting plans',

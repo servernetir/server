@@ -21,7 +21,10 @@
   <div>
     <nav class="blog-crumbs">
       <a href="{{ lroute('account.home') }}">{{ __('ui.cvb_crumb_panel') }}</a><span>/</span>
-      <span>{{ __('ui.cvb_crumb') }}</span>
+      {{-- عنوانِ این صفحه **یک جا** تعریف می‌شود (`ui.cvb_h1`) و مسیرِ راهنما و
+           سرصفحه هر دو از همان می‌خوانند؛ `ui.cvb_title` فقط همان عنوان به‌علاوهٔ
+           نامِ برند برای تگِ <title> است. --}}
+      <span>{{ __('ui.cvb_h1') }}</span>
     </nav>
     <h1>{{ __('ui.cvb_h1') }}</h1>
     <p>{{ __('ui.cvb_intro') }}</p>
@@ -64,7 +67,11 @@
   // دادهٔ امن برای جاوااسکریپت — همه از پیش ساخته می‌شوند، چون json با آرایهٔ
   // درون‌خطی پارسر Blade را می‌شکند. هیچ ستون زیرساختی این‌جا نیست.
   $jsPlans  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] => $p['name']])->all();
-  $jsSpecs  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] => $p['disk']])->all();
+  // خلاصه باید **همهٔ** چیزی را که مشتری انتخاب کرده بگوید: پردازنده، رم، دیسک
+  // و ترافیک — نه فقط دیسک. یک رشته، یک جا ساخته، هم برگه و هم جاوااسکریپت از
+  // همین می‌خوانند.
+  $jsSpecs  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] =>
+    fa_num($p['vcpu']).' vCPU · '.fa_num($p['ram']).' · '.fa_num($p['disk']).' · '.fa_num($p['traffic'])])->all();
   // برچسبِ ایمیج **بدون** ایموجی: انتخابگر یک SVGِ خط‌تیز نشان می‌داد و خلاصه
   // همان انتخاب را با 🟠 تأیید می‌کرد — یک شیء، دو زبانِ دیداری.
   $jsImgLbl = $osCatalog->concat($appCatalog)->mapWithKeys(fn ($i) => [$i->key => $i->label])->all();
@@ -120,6 +127,20 @@
 
   // برچسبِ مکانِ جاری برای برگه
   $locLabel = $location ? trim($location->flagEmoji().' '.$location->label()) : '—';
+  $curCountry = $location ? strtoupper((string) $location->country) : '';
+
+  /*
+  | لینکِ شهر/دیتاسنتر — **یک** سازنده برای هر دو سطح.
+  | دو جای تولیدِ لینک یعنی روزی ترتیبِ پارامترها در یکی عوض شود و تست که فقط
+  | یکی را می‌بیند سبز بماند. ترتیب قفل است: location, plan, cycle, image —
+  | و image آخرین است (CloudStoreSlipTest).
+  | `&` خام نوشته می‌شود چون {{ }} خودش به `&amp;` تبدیلش می‌کند.
+  */
+  $cityHref = fn (string $code) => lroute('account.cloud.store')
+    .'?location='.urlencode($code)
+    .'&plan='.urlencode($curSlug)
+    .'&cycle='.urlencode($curCycle)
+    .'&image='.urlencode($curImage);
 
   /*
   | «برگهٔ مقایسه» — ستونی که در کلِ این مکان **یک مقدار** دارد، ستون نیست؛ نویز
@@ -148,7 +169,24 @@
 
   <div class="cvb-main">
 
-    {{-- ═══ ۱ — مکان ═══ --}}
+    {{-- ═══ ۱ — مکان: کشور ← شهر ← دیتاسنتر، همه در همین یک مرحله ═══
+
+         سه سطحِ تودرتو از `<details>`ِ بومی — همان الگویی که «تنظیمات پیشرفته»
+         پایین‌تر دارد. دلیلش ساختاری است، نه سلیقه‌ای:
+
+         ۱) پاپ‌آور این‌جا شدنی نیست. `.pnl-sec{overflow:hidden}` و
+            `.cvb-step-i{overflow:hidden}` دو قیچیِ روی‌هم‌اند (دومی موتورِ خودِ
+            آکاردئون است) و `.cvb-sheet{container:inline-size}` حتی
+            position:fixed را هم به خودش می‌چسبانَد.
+         ۲) «پنل نباید زیرِ دستِ کاربر بسته شود»: وقتی خودِ trigger همان
+            `<summary>` است و پنل فرزندِ همان `<details>`، فاصله‌ای بینشان وجود
+            ندارد که باید پل زده شود — `pointerleave` روی خودِ details هر سه
+            ناحیه (trigger، پنل، فاصله) را با صفر هندسه پوشش می‌دهد.
+         ۳) بی‌جاوااسکریپت همین‌طور کار می‌کند: باز/بسته بومی است، صفحه‌کلید
+            بومی است، و شهرها لینکِ واقعی‌اند.
+
+         🔴 چهار بدنهٔ مرحله باید چهار بمانند: کشور و شهر و دیتاسنتر همگی داخلِ
+         همین `cvb-step-b` می‌نشینند و هرگز مرحلهٔ پنجم نمی‌شوند. --}}
     <section class="pnl-sec cvb-step" id="cvb-step-1" data-step="1">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-1">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s1') }}</b></span>
@@ -157,28 +195,86 @@
       <div class="cvb-step-b" id="cvb-b-1">
         <div class="cvb-step-i"><div class="pnl-sec-b">
           @error('location')<div class="dm-note danger">{{ $message }}</div>@enderror
-          @foreach($groups as $g)
-            <div class="cvb-cgroup">
-              <div class="cvb-chead"><span class="cvb-flag">{{ $g['flag'] }}</span><b>{{ $g['label'] }}</b></div>
-              <div class="cvb-cities">
-                @foreach($g['locations'] as $l)
-                  @php $isOpen = in_array((string) $l->code, (array) $openCodes, true); @endphp
-                  {{-- لینک ساده و نه رادیو: با عوض شدن مکان، پلن‌ها هم عوض می‌شوند و
-                       سرور باید فهرست تازه را بدهد. بی‌جاوااسکریپت هم کار می‌کند.
-                       انتخاب‌های دیگر روی خودِ لینک سوار می‌شوند تا عوض‌کردنِ شهر
-                       پلن و دوره و سیستم‌عامل را دور نریزد. --}}
-                  {{-- ⚠️ فاصلهٔ پیش از @-if عمدی است: Blade با \B شروع می‌کند، پس
-                       دستوری که به یک حرف چسبیده باشد **کامپایل نمی‌شود** و
-                       endifِ بعدی بی‌جفت می‌مانَد → ۵۰۰. --}}
-                  <a class="cvb-city @if(! $isOpen) is-shut @endif @if((string) $l->code === (string) $locCode) on @endif"
-                     data-city="{{ $l->code }}"
-                     href="{{ lroute('account.cloud.store') }}?location={{ urlencode($l->code) }}&amp;plan={{ urlencode($curSlug) }}&amp;cycle={{ urlencode($curCycle) }}&amp;image={{ urlencode($curImage) }}">
-                    {{ $l->cityLabel() !== '' ? $l->cityLabel() : $l->countryLabel() }}
-                  </a>
-                @endforeach
-              </div>
-            </div>
-          @endforeach
+
+          {{-- کنترلِ خالی نساز، جمله بگو (خواستهٔ کارفرما).
+
+               🔴 ولی جمله باید **راست** باشد. «اول یک کشور انتخاب کنید» بی‌قید
+               چاپ می‌شد، در حالی که این بلوک فقط وقتی رندر می‌شود که
+               `count($groups) > 0` باشد، و آن‌وقت `CloudStoreController::index`
+               همیشه یک مکان را از پیش انتخاب کرده است
+               (`$code = … ?? $openCodes[0] ?? $allCodes[0]`، و `$openCodes`
+               زیرمجموعهٔ `$allCodes` است چون قفسه از فروختنی‌ها بازتر است).
+               پس صفحه در **هر** بارگذاری خودش را تکذیب می‌کرد: یک کارتِ
+               تیک‌خورده، و بالایش دستوری برای کاری که همین حالا انجام شده.
+
+               شرطِ `$curCountry === ''` هم گذاشته نشد: شاخه‌ای که هرگز اجرا
+               نمی‌شود همان قاعدهٔ مردهٔ بندِ ۳ است با لباسِ دیگر. جمله بدونِ شرط
+               راست است، و تست قفل می‌کند که «کشور همیشه از پیش انتخاب است». --}}
+          <p class="cvb-hint">{{ __('ui.cvb_country_set') }}</p>
+
+          <div class="cvb-countries" role="group" aria-label="{{ __('ui.cvb_c_pick') }}">
+            @foreach($groups as $g)
+              @php
+                $gOn   = (string) $g['country'] === (string) $curCountry;
+                $gShut = (int) ($g['openCities'] ?? 0) === 0;
+              @endphp
+              {{-- ⚠️ فاصلهٔ پیش از @-if عمدی است: Blade با \B شروع می‌کند، پس
+                   دستوری که به یک حرف چسبیده باشد **کامپایل نمی‌شود** و
+                   endifِ بعدی بی‌جفت می‌مانَد → ۵۰۰. --}}
+              <details class="cvb-cnat @if($gShut) is-shut @endif" data-hold @if($gOn) open @endif>
+                <summary class="cvb-ccard @if($gOn) on @endif" @if($gOn) aria-current="true" @endif>
+                  <span class="cvb-flag">{{ $g['flag'] }}</span>
+                  <b class="cvb-cname">{{ $g['label'] }}</b>
+                  {{-- شمار از شهرهای **باز** می‌آید، نه از تعدادِ کدها.
+                       هیچ عددِ تأخیر این‌جا نیست: ستونِ latency در دیتابیس وجود
+                       ندارد و چاپِ یک عددِ ساختگی روی صفحه‌ای که کارش «کدام
+                       نزدیک‌تر است» است، یک سیگنالِ اعتمادِ جعلی است. --}}
+                  {{-- 🔴 trans_choice نه __(): «۱ شهر» در فارسی و ترکی درست است
+                       ولی انگلیسی «1 cities» می‌داد. صورتِ جمع فقط در فایلِ en
+                       تعریف شده — فارسی و ترکی بعد از عدد جمع نمی‌بندند و
+                       بستنِ قاعدهٔ انگلیسی رویشان غلطِ تازه می‌ساخت. جانگهدار
+                       عمداً `:n` است نه `:count`: لاراول در trans_choice مقدارِ
+                       `count` را با عددِ خام بازنویسی می‌کند و رقمِ فارسی را
+                       بی‌صدا به لاتین برمی‌گرداند. --}}
+                  <small class="cvb-cmeta">@if($gShut){{ __('ui.cvb_c_soldout') }}@else{{ trans_choice('ui.cvb_c_cities', (int) $g['openCities'], ['n' => fa_num((int) $g['openCities'])]) }}@endif</small>
+                  <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
+                </summary>
+                <div class="cvb-cities">
+                  {{-- شهرها **در سطحِ نمایش** یکتا شده‌اند (CloudStoreController::cityBuckets).
+                       هیچ کدی حذف نشده: شهری که چند دیتاسنتر دارد یک پله پایین‌تر
+                       همهٔ اعضایش را به‌صورت لینکِ واقعی نشان می‌دهد. --}}
+                  @foreach($g['cities'] as $c)
+                    @if($c['n'] === 1)
+                      @php $l = $c['primary']; @endphp
+                      {{-- لینک ساده و نه رادیو: با عوض شدن مکان، پلن‌ها هم عوض می‌شوند و
+                           سرور باید فهرست تازه را بدهد. بی‌جاوااسکریپت هم کار می‌کند.
+                           انتخاب‌های دیگر روی خودِ لینک سوار می‌شوند تا عوض‌کردنِ شهر
+                           پلن و دوره و سیستم‌عامل را دور نریزد. --}}
+                      <a class="cvb-city @if(! $c['open']) is-shut @endif @if((string) $l->code === (string) $locCode) on @endif" data-city="{{ $l->code }}" href="{{ $cityHref((string) $l->code) }}"@if((string) $l->code === (string) $locCode) aria-current="true"@endif>{{ $c['label'] }}</a>
+                    @else
+                      @php $cOn = collect($c['members'])->contains(fn ($m) => (string) $m->code === (string) $locCode); @endphp
+                      <details class="cvb-dc @if(! $c['open']) is-shut @endif" data-hold @if($cOn) open @endif>
+                        <summary class="cvb-ccard is-dc @if($cOn) on @endif">
+                          <b class="cvb-cname">{{ $c['label'] }}</b>
+                          <small class="cvb-cmeta">{{ __('ui.cvb_dc_multi', ['count' => fa_num((int) $c['n'])]) }}</small>
+                          <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
+                        </summary>
+                        <div class="cvb-dcs">
+                          {{-- 🔴 برچسبِ عضو فقط شمارهٔ ترتیبی است. `provider` و
+                               `provider_location` (fsn1/hel1/gra7) روی دیوارِ
+                               سفیدبرچسبی‌اند و هرگز به DOM نمی‌رسند. --}}
+                          @foreach($c['members'] as $mi => $m)
+                            <a class="cvb-city cvb-city-dc @if(! in_array((string) $m->code, (array) $openCodes, true)) is-shut @endif @if((string) $m->code === (string) $locCode) on @endif" data-city="{{ $m->code }}" href="{{ $cityHref((string) $m->code) }}"@if((string) $m->code === (string) $locCode) aria-current="true"@endif>{{ __('ui.cvb_dc_n', ['n' => fa_num($mi + 1)]) }}</a>
+                          @endforeach
+                        </div>
+                      </details>
+                    @endif
+                  @endforeach
+                </div>
+              </details>
+            @endforeach
+          </div>
+
           @if(count($planCards) === 0)
             <p class="cvb-warn">{{ __('ui.cvb_loc_off') }}</p>
           @endif
@@ -374,17 +470,23 @@
         <div class="cvb-step-i"><div class="pnl-sec-b">
           @error('image')<div class="dm-note danger">{{ $message }}</div>@enderror
 
+          {{-- تنها افشاگرِ صفحه که هیچ ARIAای نداشت. tab/tablist بومی است و
+               وضعیتِ انتخاب را به صفحه‌خوان می‌گوید.
+
+               🔴 نامِ گروه باید **نامِ خودش** باشد، نه نامِ نخستین زبانه‌اش.
+               با `ui.cvb_os` صفحه‌خوان «سیستم‌عامل، فهرست زبانه … سیستم‌عامل،
+               زبانه» می‌گفت: یک واژه دو نقش، و کاربر نمی‌فهمید گروه چیست. --}}
           <div class="cvb-billrow">
-            <div class="cvb-segs">
-              <button type="button" class="cvb-seg on" data-tab="os">{{ __('ui.cvb_os') }}</button>
-              <button type="button" class="cvb-seg" data-tab="app">{{ __('ui.cvb_app') }}</button>
+            <div class="cvb-segs" role="tablist" aria-label="{{ __('ui.cvb_os_group') }}">
+              <button type="button" class="cvb-seg on" data-tab="os" role="tab" aria-selected="true" aria-controls="cvb-pane-os" id="cvb-tab-os">{{ __('ui.cvb_os') }}</button>
+              <button type="button" class="cvb-seg" data-tab="app" role="tab" aria-selected="false" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
             </div>
           </div>
 
           {{-- گزینه‌های ناسازگار با پلن انتخابی پنهان می‌شوند (سمت سرور محاسبه شده،
                جاوااسکریپت فقط با عوض شدن پلن به‌روزش می‌کند). گزینه‌ای که تحویلش
                نشدنی است هرگز نباید دیده شود. --}}
-          <div class="cvb-imgs" data-pane="os">
+          <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os">
             @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($osByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -406,7 +508,7 @@
             <p class="cvb-empty" data-empty="os" hidden>{{ __('ui.cvb_os_empty') }}</p>
           </div>
 
-          <div class="cvb-imgs" data-pane="app" hidden>
+          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" hidden>
             @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($appByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -580,7 +682,7 @@
           <button type="button" class="cvb-line is-done" data-go="2">
             <span class="cvb-line-d"></span>
             <span class="cvb-line-k">{{ __('ui.cvb_step_size') }}</span>
-            <span class="cvb-line-v"><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b><small id="cvb-s-spec">{{ $jsSpecs[$curSlug] ?? '' }}</small></span>
+            <span class="cvb-line-v"><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b><small class="cvb-sspec" id="cvb-s-spec">{{ $jsSpecs[$curSlug] ?? '' }}</small></span>
           </button>
 
           <button type="button" class="cvb-line is-done" data-go="3">
@@ -705,11 +807,24 @@
   // ── گزینه‌های سیستم‌عامل/نرم‌افزار را با پلن انتخابی هم‌تراز کن ──
   // گزینه‌ای که روی این پلن تحویل نمی‌شود پنهان می‌شود؛ اگر همان انتخاب شده
   // بود، اولین گزینهٔ ممکن جایش را می‌گیرد تا فرم هرگز با انتخاب نشدنی ارسال نشود.
+  // زبانهٔ سیستم‌عامل/نرم‌افزار — یک تابع، تا وضعیتِ دیداری و aria هرگز از هم
+  // جدا نیفتند و جایگزینیِ خودکارِ ایمیج بتواند پنلِ درست را هم بالا بیاورد.
+  var showPane = function(kind){
+    form.querySelectorAll('[data-tab]').forEach(function(b){
+      var mine = b.getAttribute('data-tab') === kind;
+      b.classList.toggle('on', mine);
+      b.setAttribute('aria-selected', mine ? 'true' : 'false');
+    });
+    form.querySelectorAll('[data-pane]').forEach(function(p){
+      p.hidden = p.getAttribute('data-pane') !== kind;
+    });
+  };
+
   var syncImages = function(){
     var slug = val('plan');
     var allow = D.images[slug] || { os: [], app: [] };
     var chosen = val('image');
-    var first = null, stillOk = false;
+    var first = null, firstKind = 'os', stillOk = false;
 
     ['os', 'app'].forEach(function(kind){
       var ok = allow[kind] || [];
@@ -722,7 +837,7 @@
         lab.hidden = !can;
         if (can) {
           shown++;
-          if (!first) first = lab;
+          if (!first) { first = lab; firstKind = kind; }
           if (lab.getAttribute('data-key') === chosen) stillOk = true;
         }
       });
@@ -739,6 +854,9 @@
       var r = first.querySelector('input');
       if (r) { r.checked = true; }
       mark('.cvb-img', first);
+      // 🔴 جایگزینِ خودکار می‌توانست در پنلِ **پنهان** بنشیند: چیپِ «انتخاب‌شده»
+      // ساخته می‌شد و کسی نمی‌دیدش. پنلِ میزبان هم بالا می‌آید.
+      showPane(firstKind);
     }
   };
 
@@ -889,15 +1007,30 @@
   // نقطهٔ هر مرحله: انجام‌شده / جاری / نرسیده — همان واژگانِ `.cb-dot`ِ صفحهٔ
   // ساختِ سرور، تا برگه‌ای که این‌جا پر می‌شود و فهرستی که بعد از پرداخت
   // تماشا می‌شود یک زبان داشته باشند.
+  //
+  // 🔴 قبلاً وضعیت از **DOM** استنتاج می‌شد: «هیچ‌کدام باز نیست» یعنی «همه پاسخ
+  // داده شده». آن استنتاج فقط تا وقتی درست بود که هر انتخاب خودش مرحلهٔ بعد را
+  // باز کند. حالا که انتخاب دیگر فهرست را زیرِ دستِ کاربر نمی‌بندد، DOM اصلاً
+  // پیشرفت را رمزگذاری نمی‌کند — پس هر مرحله از **پاسخِ واقعیِ خودش** پرسیده
+  // می‌شود. وگرنه یک مرحلهٔ دست‌نخورده که کاربر فقط جمعش کرده «انجام‌شده» مهر
+  // می‌خورد و نوارِ پیشرفت دروغ می‌گوید.
+  var answered = function(n){
+    if (n === '1') { return !!(form.querySelector('input[name="location"]') || {}).value; }
+    if (n === '2') { return val('plan') !== ''; }
+    if (n === '3') { return val('image') !== ''; }
+    if (n === '4') { var l = document.getElementById('cvb-label'); return !!(l && l.value.trim() !== ''); }
+    return false;
+  };
+
   var stamp = function(){
     var open = -1;
     steps.forEach(function(s, i){ if (!s.classList.contains('is-shut')) { open = i; } });
 
-    // همه بسته یعنی همه پاسخ داده شده‌اند — نه اینکه هیچ‌کدام شروع نشده باشد.
     steps.forEach(function(s, i){
+      var done = answered(s.getAttribute('data-step'));
       s.classList.toggle('is-now', i === open);
-      s.classList.toggle('is-done', open === -1 || i < open);
-      s.classList.toggle('is-todo', open !== -1 && i > open);
+      s.classList.toggle('is-done', done && i !== open);
+      s.classList.toggle('is-todo', !done && i !== open);
     });
   };
 
@@ -922,12 +1055,52 @@
   });
 
   // ── شنونده‌ها ──
+  /* 🔴 این‌جا `openStep('3')` بی‌قید بود و بدترین «پنل زیرِ دستِ کاربر بسته
+     شد»ِ صفحه را می‌ساخت: انتخابِ یک اندازه، کلِ برگهٔ مقایسه‌ای را که کاربر
+     داشت می‌خواند جمع می‌کرد؛ مقایسهٔ دو اندازه با کلیک روی هرکدام غیرممکن بود.
+     همین برای سیستم‌عامل: عوض‌کردنِ اوبونتو ۲۲ و ۲۴ برای خواندنِ برچسب‌ها،
+     کاتالوگ را می‌بست.
+
+     حرکتِ رو به جلوی طرحِ پذیرفته‌شده حفظ می‌شود، ولی **فقط یک بار**: نخستین
+     تصمیم مرحلهٔ بعد را باز می‌کند، تصمیم‌های بعدی هیچ‌چیز را نمی‌بندند. یعنی
+     «رفتن به جلو» می‌مانَد و «بستنِ فهرست زیرِ دستِ کسی که دارد مقایسه می‌کند»
+     می‌رود. */
+  var advanced = {};
+
+  /* 🔴 نیمهٔ دومِ همان اصلاح. «فقط یک بار» بس نبود: همان یک بار هم `openStep()`
+     را صدا می‌زد و `openStep` **هر** مرحلهٔ دیگری را می‌بندد — یعنی نخستین
+     انتخابِ اندازه، دقیقاً برگهٔ مقایسه‌ای را که کاربر باز کرده بود جمع می‌کرد،
+     و نخستین انتخابِ سیستم‌عامل همان بلا را سرِ کاتالوگ می‌آورد. کاربر یک بار
+     کلیک می‌کرد و چیزی که داشت می‌خواند از زیرِ دستش می‌رفت.
+
+     پیشروی خودش دفاع‌پذیر است؛ **بستن** دفاع‌پذیر نیست. پس مرحلهٔ بعد باز
+     می‌شود و هیچ مرحله‌ای بسته نمی‌شود. آکاردئونِ انحصاری فقط برای کلیکِ صریحِ
+     کاربر روی سرصفحه (یا «ویرایش»ِ برگه) می‌مانَد، که آن‌جا خودِ کاربر خواسته. */
+  var revealStep = function(n){
+    steps.forEach(function(s){
+      if (s.getAttribute('data-step') !== String(n)) { return; }
+      s.classList.remove('is-shut');
+      var h = s.querySelector('.cvb-step-h');
+      if (h) { h.setAttribute('aria-expanded', 'true'); }
+    });
+    stamp();
+  };
+
+  var advance = function(from, to){
+    if (advanced[from]) { return; }
+    advanced[from] = true;
+    revealStep(to);
+    var el = document.getElementById('cvb-step-' + to);
+    if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  };
+
   form.querySelectorAll('.cvb-plan input').forEach(function(r){
     r.addEventListener('change', function(){
       mark('.cvb-plan', r.closest('.cvb-plan'));
       syncImages();
       render();
-      openStep('3');
+      stamp();
+      advance('2', '3');
     });
   });
 
@@ -956,17 +1129,14 @@
     r.addEventListener('change', function(){
       mark('.cvb-img', r.closest('.cvb-img'));
       render();
-      openStep('4');
+      stamp();
+      advance('3', '4');
     });
   });
 
   form.querySelectorAll('[data-tab]').forEach(function(btn){
     btn.addEventListener('click', function(){
-      var kind = btn.getAttribute('data-tab');
-      form.querySelectorAll('[data-tab]').forEach(function(b){ b.classList.toggle('on', b === btn); });
-      form.querySelectorAll('[data-pane]').forEach(function(p){
-        p.hidden = p.getAttribute('data-pane') !== kind;
-      });
+      showPane(btn.getAttribute('data-tab'));
     });
   });
 
@@ -1087,7 +1257,7 @@
   });
 
   var lab = document.getElementById('cvb-label');
-  if (lab) { lab.addEventListener('input', render); }
+  if (lab) { lab.addEventListener('input', function(){ render(); stamp(); }); }
   if (ipSel) { ipSel.addEventListener('change', render); }
 
   // مکان یک لینکِ واقعی است (کاتالوگ سمتِ سرور عوض می‌شود). سرِ کلیک، انتخابِ
@@ -1101,6 +1271,174 @@
       a.href = u.toString();
     });
   });
+
+  /* ══════════ افشاگرِ پایدار: کشور ← شهر ← دیتاسنتر ══════════
+
+     قرارداد (خواستهٔ کارفرما، بندِ ۴ و ۵):
+       · دسکتاپ — hover یا focus باز می‌کند؛ تا وقتی نشانگر **هرجای** trigger،
+         پنل یا فاصلهٔ بینشان است باز می‌مانَد؛ فقط بعد از ترکِ کلِ ناحیه و با
+         تأخیرِ ۱۶۰ms (لغوپذیر) بسته می‌شود.
+       · لمس — هیچ hoverای. تپ باز می‌کند، تپ انتخاب می‌کند، تپِ بیرون می‌بندد.
+       · صفحه‌کلید — Tab/Enter/Space/Escape، همه بومیِ <summary>.
+
+     چرا هندسه لازم نیست: trigger خودِ `<summary>` است و پنل فرزندِ همان
+     `<details>`. پس «فاصلهٔ بینشان» درونِ یک عنصر است و یک `pointerleave` روی
+     details هر سه را می‌پوشاند — نه پلِ نامرئی، نه محاسبهٔ مختصات.
+
+     ⚠️ دروازه **توانِ اشاره‌گر** است نه عرضِ پنجره: `innerWidth > 1020`ِ
+     مگامنویِ site.js به یک تبلتِ لمسیِ ۱۰۲۴px مسیرِ hover-only می‌داد.
+     ⚠️ بستنِ خودکار با اسکرول (که site.js دارد) عمداً کپی نشده: پنل را زیرِ
+     چشمِ کسی که دارد می‌خواند می‌بندد.
+     ⚠️ نه Escape و نه کلیکِ سند stopPropagation نمی‌زنند — site.js روی همین دو
+     رویداد، چت و مگامنو و کشویِ موبایل را می‌بندد. */
+  var hoverOK = !!(window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches);
+
+  var holdShut = function(d){
+    if (!d.open) { return; }
+    if (d.getAttribute('data-peek') !== '1') { return; }   // باز شده با تصمیم، نه با نشانگر
+    if (d.contains(document.activeElement)) { return; }
+    d.open = false;
+    d.removeAttribute('data-peek');
+  };
+
+  var holds = Array.prototype.slice.call(form.querySelectorAll('details[data-hold]'));
+
+  holds.forEach(function(d){
+    var sum = d.querySelector('summary');
+
+    // ⚠️ زمان‌سنجِ **هر ناحیه جداگانه**. یک تایمرِ مشترک بینِ کشور و
+    // دیتاسنترِ تودرتویش، ترکِ سطحِ درونی را با ترکِ سطحِ بیرونی قاطی می‌کرد و
+    // یکی از دو بستن بی‌صدا می‌افتاد.
+    var t = null;
+
+    var cancel = function(){ if (t) { clearTimeout(t); t = null; } };
+
+    d.addEventListener('pointerenter', function(e){
+      if (!hoverOK || e.pointerType === 'touch') { return; }
+      cancel();
+      if (!d.open) { d.open = true; d.setAttribute('data-peek', '1'); }
+    });
+
+    d.addEventListener('pointerleave', function(e){
+      if (!hoverOK || e.pointerType === 'touch') { return; }
+      cancel();
+      // ۱۶۰ms، وسطِ بازهٔ ۱۲۰–۲۰۰ خواسته‌شده و کاملاً لغوپذیر: هر بازگشتِ
+      // نشانگر به هر نقطهٔ ناحیه، بستن را منتفی می‌کند.
+      t = setTimeout(function(){ t = null; holdShut(d); }, 160);
+    });
+
+    /* ── فوکوس: قفل می‌کند، ولی هرگز باز نمی‌کند ──────────────────────────
+       🔴 این یک شنونده، **علتِ ریشه‌ایِ دو باگِ هم‌زمان** بود. نسخهٔ قبلی روی
+       هر `focusin` می‌گفت «باز کن و data-peek را بردار» — و چون focus حباب
+       می‌کند و خودِ `<summary>` فوکوس‌پذیر است، شنونده هیچ راهی نداشت فوکوسِ
+       کاربر را از فوکوسِ برنامه‌ایِ خودِ ما جدا کند:
+
+         · **Tab** روی کارتِ کشور بازش می‌کرد و data-peek را هم می‌کند، پس
+           `holdShut` دیگر نمی‌توانست ببنددش. کاربرِ صفحه‌کلید نه می‌توانست از
+           شبکهٔ کشورها رد شود، نه چیزی را که باز کرده بود ببندد.
+         · **Escape** پنل را می‌بست و بعد `summary.focus()` می‌زد تا فوکوس گم
+           نشود — و همان focus بی‌درنگ همین شنونده را روشن و پنل را دوباره باز
+           می‌کرد. Escape پیاده‌سازی‌شده به نظر می‌رسید و در عمل هیچ کاری
+           نمی‌کرد.
+
+       درمانِ ریشه، نه علامت: فوکوس **هیچ‌وقت** `d.open` را دست نمی‌زند. لازم
+       هم نیست — محتوای یک `<details>`ِ بسته فوکوس‌پذیر نیست، پس هر فوکوسی که
+       به درونِ پنل برسد یعنی پنل از قبل باز است. و فوکوس روی خودِ `<summary>`
+       فقط یک **عبور** است نه یک تصمیم، پس هیچ چیزی را قفل نمی‌کند؛ باز/بستنِ
+       صفحه‌کلید همان Enter/Spaceِ بومی است که پایین‌تر قفل را می‌گذارد.
+       (پنلِ hover-شده زیرِ دستِ کاربرِ صفحه‌کلید بسته نمی‌شود، چون خودِ
+       `holdShut` وقتی `document.activeElement` داخلِ ناحیه است برمی‌گردد.) */
+    d.addEventListener('focusin', function(ev){
+      if (sum && ev.target && sum.contains(ev.target)) { return; }
+      cancel();
+      d.removeAttribute('data-peek');
+    });
+
+    if (sum) {
+      // تصمیمِ صریح (کلیک/Enter/Space) پیش از toggleِ بومی، حالت را قفل می‌کند
+      sum.addEventListener('mousedown', function(){ cancel(); d.removeAttribute('data-peek'); });
+      sum.addEventListener('click', function(){ cancel(); d.removeAttribute('data-peek'); });
+      sum.addEventListener('keydown', function(ev){
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+          cancel();
+          d.removeAttribute('data-peek');
+        }
+      });
+    }
+  });
+
+  if (holds.length > 0) {
+    document.addEventListener('click', function(e){
+      var inside = e.target && e.target.closest ? e.target.closest('details[data-hold]') : null;
+      holds.forEach(function(d){
+        if (d !== inside && !d.contains(inside)) { holdShut(d); }
+      });
+    });
+
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
+      var host = document.activeElement && document.activeElement.closest
+        ? document.activeElement.closest('details[data-hold][open]') : null;
+      if (!host) {
+        for (var i = holds.length - 1; i >= 0; i--) {
+          if (holds[i].open && holds[i].getAttribute('data-peek') === '1') { host = holds[i]; break; }
+        }
+      }
+      if (!host) { return; }                 // هیچ پنلی باز نیست → دست نزن
+      host.open = false;
+      host.removeAttribute('data-peek');
+      var s = host.querySelector('summary');
+      if (s && typeof s.focus === 'function') { s.focus(); }
+    });
+  }
+
+  /* ══════════ کم‌رنگ‌کردنِ ملایمِ گروه‌های دیگر ══════════
+     🔴 فیلتر فقط روی `.cvb-step-i` می‌نشیند و کم‌رنگی روی خودِ `.cvb-step`.
+     `.cvb-slip` (sticky) و `.cvb-dock` (fixed) **هم‌نیای** `.cvb-main` هستند نه
+     فرزندش، پس هیچ‌کدام در زنجیرهٔ بلوکِ دربرگیرنده‌شان نمی‌افتند. هر filter/
+     transform/contain روی `.cvb-wrap` یا بالاترش، داکِ موبایل را از قابِ دید
+     می‌کَنَد و با اسکرول پایین می‌بَرَد — خرابی‌ای که ۲۰۰ می‌دهد و هیچ خطایی
+     نمی‌سازد. سرصفحهٔ مرحله هرگز محو نمی‌شود، پس راهِ برگشتن خوانا می‌مانَد. */
+  var main = form.querySelector('.cvb-main');
+  var dimT = null, dimWant = null;
+
+  var dim = function(on){
+    if (main) { main.classList.toggle('is-focus', !!on); }
+  };
+
+  // ⚠️ فقط روی **تغییرِ** خواسته زمان‌سنج بگذار. نسخهٔ ساده‌لوح روی هر
+  // pointerover تایمر را ریست می‌کرد، و چون pointerover حباب می‌کند، حرکتِ
+  // پیوستهٔ نشانگر روی ردیف‌ها هیچ‌وقت به ۱۲۰ms نمی‌رسید: کم‌رنگی عملاً هرگز
+  // روشن نمی‌شد و هیچ خطایی هم نمی‌داد.
+  var dimAsk = function(on){
+    on = !!on;
+    if (dimWant === on) { return; }
+    dimWant = on;
+    if (dimT) { clearTimeout(dimT); }
+    // ۱۲۰ms قصدِ ورود، ۱۶۰ms قصدِ خروج — عبورِ ساده از ستون نباید صفحه را
+    // چشمک بزند.
+    dimT = setTimeout(function(){ dimT = null; dim(on); }, on ? 120 : 160);
+  };
+
+  if (main) {
+    main.addEventListener('pointerover', function(e){
+      if (!hoverOK) { return; }
+      dimAsk(!!(e.target && e.target.closest && e.target.closest('.cvb-step-i')));
+    });
+
+    main.addEventListener('pointerleave', function(){
+      if (!hoverOK) { return; }
+      dimAsk(false);
+    });
+
+    main.addEventListener('focusin', function(e){
+      dimAsk(!!(e.target && e.target.closest && e.target.closest('.cvb-step-i')));
+    });
+
+    main.addEventListener('focusout', function(){
+      dimAsk(false);
+    });
+  }
 
   syncImages();
   render();

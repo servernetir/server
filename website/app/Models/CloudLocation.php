@@ -159,6 +159,34 @@ class CloudLocation extends Model
         return $raw;
     }
 
+    /**
+     * کلیدِ **نمایشیِ** «این ردیف کدام شهر است؟» — فقط برای گروه‌بندیِ کارت‌ها.
+     *
+     * 🔴 ریشهٔ شهرهای تکراری (و چرا کلید از **شناسه** می‌آید نه از برچسب):
+     * ردیف‌ها تکراری نیستند — `cloud_locations.code` یکتا است و پرس‌وجو
+     * `unique()` می‌خورد. تکرار سرِ **رندر** ساخته می‌شود: `cityLabel()` هر جا
+     * `city` خالی باشد یا در NOT_A_CITY بیفتد، `capitalLabel()` را برمی‌گرداند،
+     * پس `de-ref` و `de-amd` و `de-shared` هر سه «برلین» چاپ می‌شوند.
+     *
+     * ⚠️ و دقیقاً برای همین، گروه‌بندی روی **برچسب** فاجعه است: در ایران
+     * `ir-ref` (شهر خالی) هم «تهران» چاپ می‌شود، ولی تهران نیست. ادغامش با
+     * `ir-tehran` یعنی فروختنِ دیتاسنتری در جای دیگر و پاک‌کردنِ شواهدِ خرابیِ
+     * پارس. پس ردیفِ بی‌شهر کلیدِ **مخصوصِ خودش** (`#code`) می‌گیرد و هرگز در
+     * کارتِ پایتخت حل نمی‌شود.
+     *
+     * هیچ شناسه‌ای این‌جا بازنویسی نمی‌شود: خروجی فقط یک کلیدِ گروه است.
+     */
+    public function cityIdentity(): string
+    {
+        $raw = trim((string) $this->city);
+
+        if ($raw !== '' && ! in_array(mb_strtolower($raw, 'UTF-8'), self::NOT_A_CITY, true)) {
+            return 'c:'.\App\Services\Cloud\CloudNaming::cityFold($raw);
+        }
+
+        return '#'.(string) $this->code;
+    }
+
     /** پایتختِ کشورِ این مکان؛ اگر کشور هم ناشناس بود، رشتهٔ خالی */
     public function capitalLabel(?string $locale = null): string
     {

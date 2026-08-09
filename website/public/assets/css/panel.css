@@ -986,3 +986,179 @@ html[data-theme="light"] .svc-stat{background:#fff}
   .svc-net-r small{width:auto}
   .svc-facts{grid-template-columns:1fr 1fr}
 }
+
+/* ==========================================================================
+   «نقشه‌اول» — انتخابِ مکان: کارتِ کشور ← شهر ← دیتاسنتر
+   --------------------------------------------------------------------------
+   سه سطحِ تودرتو از `<details>`ِ بومی، همه داخلِ بدنهٔ **همان مرحلهٔ ۱**.
+
+   🔴 چرا پاپ‌آور نیست: سه مانعِ روی‌هم. `.pnl-sec{overflow:hidden}` (کارتِ هر
+   مرحله، و همان چیزی که نیم‌دایره‌های `.cvb-tear` به آن بندند)،
+   `.cvb-step-i{overflow:hidden}` (موتورِ خودِ آکاردئون 1fr↔0fr) و
+   `.cvb-sheet{container:inline-size}` که به‌خاطرِ layout containment حتی
+   `position:fixed` را هم به خودش می‌چسبانَد. پس هر پنلی این‌جا **در جریان**
+   است: نه بریده می‌شود، نه از قابِ دید بیرون می‌زند، نه z-index می‌خواهد.
+
+   🔴 و همین ساختار، بندِ «پنل نباید زیرِ دستِ کاربر بسته شود» را حذف می‌کند نه
+   حل: وقتی trigger خودِ `<summary>` است و پنل فرزندِ همان `<details>`، فاصله‌ای
+   بینشان نیست که پل بخواهد.
+
+   هیچ اسکرولِ افقی این‌جا نیست — روی موبایل دو ستون می‌شود، نه یک نوارِ
+   کشویی که نیمی از کشورها را پشتِ یک ژستِ بی‌نشانه پنهان کند.
+   عرضِ ترک با min(148px,100%) بسته شده: ساختاراً نمی‌تواند از ظرفش پهن‌تر
+   شود، پس ۳۲۰px هم سرریز نمی‌کند. (`.cvb-plans` با minmax(232px,1fr) تنها
+   ۴px تا لبه فاصله دارد و سه overflow:hidden روی‌هم سرریزش را بی‌صدا
+   می‌بلعند — این شبکه آن عیب را به ارث نمی‌برد.)
+   ========================================================================== */
+.cvb-countries{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(148px,100%),1fr));
+  gap:8px;margin:10px 0 0}
+.cvb-cnat{min-width:0}
+/* کشورِ باز، تمامِ ردیف را در **جای خودش** می‌گیرد و شهرهایش زیرِ کارتِ خودش
+   باز می‌شوند؛ بقیه دور و برش جمع می‌مانند. */
+.cvb-cnat[open]{grid-column:1/-1}
+
+.cvb-ccard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  column-gap:9px;min-height:52px;padding:9px 11px;cursor:pointer;list-style:none;
+  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
+  transition:background .16s var(--ease),border-color .16s var(--ease),box-shadow .16s var(--ease)}
+.cvb-ccard::-webkit-details-marker{display:none}
+.cvb-ccard::marker{content:""}
+/* hover فقط سطح را بالا می‌آورد — قاعدهٔ نوشتهٔ خودِ این فایل. بی‌بزرگ‌نمایی،
+   بی‌پرش. */
+.cvb-ccard:hover{background:var(--bg2);border-color:var(--line-2)}
+.cvb-ccard:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.cvb-ccard>.cvb-flag{grid-column:1;grid-row:1/3}
+.cvb-cname{grid-column:2;grid-row:1;font-size:13px;font-weight:700;color:var(--text);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvb-cmeta{grid-column:2;grid-row:2;font-size:11px;color:var(--dim);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* نشانِ انتخاب: حاشیهٔ پررنگ‌تر + ته‌رنگ + سایه + **تیک**. هرگز فقط رنگ. */
+.cvb-cchk{grid-column:3;grid-row:1/3;width:17px;height:17px;border-radius:50%;
+  display:none;place-items:center;background:var(--info);flex:none}
+.cvb-cchk .icon{width:11px;height:11px;color:var(--bg)}
+.cvb-ccard.on{border-color:var(--info);background:var(--info-bg);
+  box-shadow:inset 0 0 0 1px var(--info),0 2px 10px rgb(0 0 0 / .10)}
+.cvb-ccard.on .cvb-cchk{display:grid}
+.cvb-ccard.on .cvb-cname{color:var(--text)}
+/* تمام‌شده: دیده می‌شود، باز هم می‌شود، ولی خریدنی به نظر نمی‌رسد. */
+.cvb-cnat.is-shut>.cvb-ccard{border-style:dashed}
+.cvb-cnat.is-shut .cvb-cname{color:var(--muted)}
+.cvb-cnat.is-shut .cvb-cmeta{color:var(--warn)}
+
+/* شهرها یک پله تو، زیرِ کارتِ کشورِ خودشان */
+.cvb-cnat>.cvb-cities{margin:8px 0 4px;padding-inline-start:6px}
+
+/* شهری که چند دیتاسنتر دارد: همان کارت، یک پله پایین‌تر. هیچ کدی حذف نشده. */
+.cvb-dc{flex:1 1 100%;min-width:0}
+.cvb-ccard.is-dc{grid-template-columns:minmax(0,1fr) auto;min-height:44px;padding:8px 11px}
+.cvb-ccard.is-dc .cvb-cname{grid-column:1;font-size:12.5px}
+.cvb-ccard.is-dc .cvb-cmeta{grid-column:1}
+.cvb-ccard.is-dc .cvb-cchk{grid-column:2}
+.cvb-dcs{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px;padding-inline-start:10px}
+.cvb-city-dc{flex:0 1 auto}
+
+/* هدفِ لمس ≥۴۴px — چیپِ شهر پیش از این ~۳۴px بود */
+.cvb-city{display:inline-flex;align-items:center;min-height:44px;padding:10px 14px;max-width:100%}
+
+/* ==========================================================================
+   کم‌رنگ‌کردنِ ملایمِ گروه‌های دیگر  (`.cvb-main.is-focus`)
+   --------------------------------------------------------------------------
+   🔴 قاعدهٔ نشکستنی: filter فقط روی `.cvb-step-i` می‌نشیند و کم‌رنگی روی
+   `.cvb-step`. هیچ‌وقت روی `.cvb-wrap`، خودِ فرم، `.pnl-main`، `.pnl-layout`،
+   `.pnl-wrap`، `.container`، `#main`، `body` یا `html` — چون
+   `.cvb-dock{position:fixed}` فرزندِ فرم است و هر filter/transform/perspective/
+   will-change/contain روی یکی از آن‌ها، همان گره را بلوکِ دربرگیرندهٔ داک
+   می‌کند: داک از قابِ دید کنده می‌شود و با صفحه پایین می‌رود. خرابی‌اش دیداریِ
+   محض است، ۲۰۰ می‌دهد و هیچ خطایی در کنسول نمی‌سازد و فقط زیرِ ۱۰۰۰px دیده
+   می‌شود. `.cvb-slip` (sticky) هم هم‌نیای `.cvb-main` است، نه فرزندش.
+
+   🔴 نیمهٔ «محوکردن» **حذف شد، چون هیچ‌وقت چیزی را محو نمی‌کرد.**
+   قاعدهٔ قبلی `.cvb-main.is-focus .cvb-step:not(.is-now) .cvb-step-i{filter:blur(.6px)}`
+   بود، ولی `.cvb-step-i` همان جعبه‌ای است که آکاردئون جمعش می‌کند
+   (`.cvb-step.is-shut .cvb-step-b{grid-template-rows:0fr}` + `overflow:hidden`)
+   و مرحله‌ای که `is-now` نیست تقریباً همیشه همان مرحلهٔ جمع‌شده است. یعنی
+   filter فقط روی محتوایی می‌نشست که ارتفاعش صفر بود: یک قاعده که ۲۰۰ می‌دهد،
+   در devtools هم دیده می‌شود، و روی صفحه هیچ پیکسلی را عوض نمی‌کند. بدتر از
+   بی‌اثر بودن، یک تستِ نگهبان هم داشت که وجودِ همان قاعده را قفل کرده بود —
+   پس یک قاعدهٔ مرده، محافظِ خودش شده بود.
+
+   حالا کم‌رنگی فقط با `opacity` روی خودِ `.cvb-step` است، یعنی روی همان چیزی
+   که کاربر از یک مرحلهٔ جمع‌شده واقعاً می‌بیند: **سرصفحه‌اش**. یک اعلان، یک
+   اثرِ دیدنی، بی‌هیچ ادعای اضافه. و این هرگز مودال نمی‌شود: نه پوشش، نه قفلِ
+   اسکرول، نه z-index — و opacity هیچ بلوکِ دربرگیرنده‌ای نمی‌سازد، پس داکِ
+   ثابت هم امن می‌مانَد (برخلافِ filter که اگر یک پله بالاتر می‌رفت می‌ساخت).
+   ⚠️ `filter` اینجا **برنگردد**؛ کارِ دیداری‌اش را opacity می‌کند و ریسکِ
+   بلوکِ دربرگیرنده را ندارد.
+   ========================================================================== */
+.cvb-main.is-focus .cvb-step{transition:opacity .2s var(--ease)}
+.cvb-main.is-focus .cvb-step:not(.is-now){opacity:.78}
+@media (prefers-reduced-motion: reduce){
+  .cvb-main.is-focus .cvb-step{transition:none}
+  .cvb-main.is-focus .cvb-step:not(.is-now){opacity:.85}
+}
+
+/* ── تکمله‌های ریسپانسیو و اصلاح‌های اندازه‌گیری‌شده ────────────────────────
+   هیچ‌کدام قاعدهٔ قفل‌شده‌ای را دست نمی‌زند؛ همه بعد از آن‌ها می‌آیند. */
+
+/* 🔴 text-overflow روی یک جعبهٔ flex هیچ کاری نمی‌کند: فرزندش با
+   min-width:auto کوچک نمی‌شود، سرریز می‌کند و «تغییر»ِ flex:none بیرون
+   می‌افتد و بریده می‌شود. نامِ سرورِ کاربر تا ۶۴ نویسه است. */
+.cvb-step-v>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* مشخصاتِ کاملِ پلن روی برگه: پردازنده · رم · دیسک · ترافیک.
+   سطرِ خودش را می‌گیرد تا نامِ پلن را از خانه بیرون نکند. */
+.cvb-line-v .cvb-sspec{display:block;margin-inline-start:0;white-space:normal;
+  font-weight:400;font-size:11px;line-height:1.7;color:var(--dim);text-align:end}
+
+/* منطقهٔ مردهٔ ۱۰۰۱–۱۱۸۰px: `.pnl-layout` و `.cvb-wrap` هر دو در همان لحظهٔ
+   ۱۰۰۰px تک‌ستونه می‌شوند، پس پنجرهٔ ۱۰۰۱px به فهرست ۲۸۹px می‌دهد در حالی که
+   ۹۹۹px یک‌دفعه ۹۱۶px می‌داد. برگه این‌جا باریک‌تر می‌شود تا فهرست از آستانهٔ
+   ۴۶۰px نیفتد. نقطهٔ شکستِ خودِ داک/برگه (۱۰۰۰px) دست نخورده می‌مانَد. */
+@media(min-width:1001px) and (max-width:1180px){
+  .cvb-wrap{grid-template-columns:minmax(0,1fr) 280px;gap:14px}
+}
+
+@media(max-width:1000px){
+  /* داک واقعاً ~۶۹px است **به‌علاوهٔ** نوارِ خانهٔ گوشی که ۸۴ِ ثابت حسابش نکرده
+     بود؛ آخرین ~۱۹px محتوا برای همیشه زیرِ داک می‌ماند.
+     رزرو حالا برای **دو سطر** مبلغ هم جا دارد (پایین را ببین): داکی که یک سطر
+     بلندتر می‌شود نباید دوباره محتوا را بخورد. */
+  .cvb-wrap{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+  /* 🔴 پول بیضی نمی‌شود. قاعدهٔ قبلی nowrap+overflow:hidden+text-overflow روی
+     **مبلغِ نهاییِ پرداخت** بود و طبق اندازه‌گیریِ خودِ نویسنده‌اش هم واقعاً
+     شلیک می‌کرد: مشتری در ۳۲۰px «۱٬۲۳۴٬…» می‌دید و تا لحظهٔ فاکتور نمی‌فهمید
+     چقدر می‌پردازد. بریدنِ عدد در ستونِ پول همان ردهٔ خطاست که §۱۰.۵ ممنوع
+     کرده — بدترین جای ممکنش هم دکمهٔ تسویه است.
+     به‌جایش: مبلغ اول **کوچک** می‌شود و اگر باز هم جا نشد **می‌شکند**. هیچ رقمی
+     گم نمی‌شود. `tabular-nums` و رنگ از قاعدهٔ بالاتر ارث می‌رسد. */
+  .cvb-dock-t b{display:block;white-space:normal;overflow-wrap:anywhere;
+    font-size:clamp(13px,4.2vw,16px);line-height:1.3}
+}
+
+@media(max-width:560px){
+  /* دو ستونِ تمیز — نه نوارِ کشویی. */
+  .cvb-countries{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cvb-ccard{padding:9px 9px;column-gap:7px}
+  .cvb-dcs .cvb-city-dc{flex:1 1 100%}
+}
+
+@media(max-width:360px){
+  /* ترکِ ۲۳۲px در بدنهٔ ۲۳۶پیکسلیِ ۳۲۰px فقط ۴px فاصله دارد و سرریزش را سه
+     overflow:hidden روی‌هم بی‌صدا می‌بلعند — یعنی ممیزیِ «اسکرول‌بار نیامد»
+     سبز می‌شود در حالی که متن بریده شده. */
+  .cvb-plans{grid-template-columns:1fr}
+  .cvb-countries{grid-template-columns:1fr}
+}
+
+/* دکمهٔ «افزودن سرور» در سرصفحهٔ بخش — وقتی مشتری از قبل سرور دارد. */
+.pnl-sec-hx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:none}
+.pnl-add{flex:none;font-size:12px;padding:6px 12px}
+.pnl-add .icon{width:13px;height:13px}
+
+/* ریزتعامل‌ها: تیک با یک ظهورِ کوتاه می‌آید، نه با پرش یا بزرگ‌نمایی.
+   transform فقط روی خودِ تیک است — نیای هیچ عنصرِ fixed/sticky نیست. */
+@keyframes cvb-tickin{from{transform:scale(.62);opacity:0}to{transform:scale(1);opacity:1}}
+.cvb-ccard.on .cvb-cchk{animation:cvb-tickin .16s var(--ease)}
+@media (prefers-reduced-motion: reduce){
+  .cvb-ccard.on .cvb-cchk{animation:none}
+}

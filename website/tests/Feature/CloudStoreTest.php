@@ -169,7 +169,7 @@ class CloudStoreTest extends TestCase
         $html = $res->getContent();
 
         // گام‌ها و عنوان
-        $this->assertStringContainsString('سرور مجازی بساز', $html);
+        $this->assertStringContainsString('ساخت سرور مجازی', $html);
 
         // کشور و شهر، سه‌زبانه از CloudLocation
         foreach (['آلمان', 'فرانکفورت', 'فینلاند', 'هلسینکی', '🇩🇪', '🇫🇮'] as $needle) {
@@ -604,7 +604,7 @@ class CloudStoreTest extends TestCase
         $fa = $vis($this->actingAs($this->customer(), 'customer')
             ->get(route('account.cloud.store', [], false))->assertOk()->getContent());
         $this->assertStringContainsString('تومان', $fa);
-        $this->assertStringContainsString('سرور مجازی بساز', $fa);
+        $this->assertStringContainsString('ساخت سرور مجازی', $fa);
         $this->assertStringNotContainsString('€', $fa, 'فارسی نباید یورو نشان دهد');
 
         // انگلیسی: یورو، بی‌تومان، بی‌نشتِ فارسی
@@ -612,9 +612,9 @@ class CloudStoreTest extends TestCase
             ->get(route('en.account.cloud.store', [], false))->assertOk()->getContent());
         $this->assertStringContainsString('€', $en);
         $this->assertStringNotContainsString('تومان', $en, 'نسخهٔ انگلیسی نباید تومان داشته باشد');
-        $this->assertStringContainsString('Build your VPS', $en);
+        $this->assertStringContainsString('Create Virtual Server', $en);
         $this->assertStringContainsString('Order summary', $en);
-        $this->assertStringNotContainsString('سرور مجازی بساز', $en, 'نشتِ فارسی در انگلیسی');
+        $this->assertStringNotContainsString('ساخت سرور مجازی', $en, 'نشتِ فارسی در انگلیسی');
         $this->assertStringNotContainsString('ui.cvb', $en, 'کلیدِ خام نباید چاپ شود');
 
         // ترکی: یورو، بی‌تومان، بی‌نشتِ فارسی
@@ -623,7 +623,7 @@ class CloudStoreTest extends TestCase
         $this->assertStringContainsString('€', $tr);
         $this->assertStringNotContainsString('تومان', $tr, 'نسخهٔ ترکی نباید تومان داشته باشد');
         $this->assertStringContainsString('Sipariş özeti', $tr);
-        $this->assertStringNotContainsString('سرور مجازی بساز', $tr, 'نشتِ فارسی در ترکی');
+        $this->assertStringNotContainsString('ساخت سرور مجازی', $tr, 'نشتِ فارسی در ترکی');
     }
 
     // ═══════════════════ فروشِ ساعتی ═══════════════════

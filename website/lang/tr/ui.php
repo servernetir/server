@@ -1314,10 +1314,10 @@ return [
     'nav_security' => 'Güvenlik',
 
     // ═══ Cloud builder — üç dilli, dile göre para birimi ═══
-    'cvb_title' => 'VPS oluştur — ServerNet Cloud',
+    'cvb_title' => 'Sanal Sunucu Oluştur — ServerNet Cloud',
     'cvb_crumb_panel' => 'Panel',
-    'cvb_crumb' => 'VPS oluştur',
-    'cvb_h1' => 'VPS\'ini oluştur',
+    // Sayfa başlığı tek yerde: hem başlık hem de içerik haritası bunu okur.
+    'cvb_h1' => 'Sanal Sunucu Oluştur',
     'cvb_intro' => 'Ülke, özellikler, işletim sistemi ve ödeme dönemini seçin; ödemeden sonra sunucunuz otomatik oluşturulup teslim edilir.',
     'cvb_pill' => 'Otomatik teslim · iki dakikadan kısa',
     'cvb_empty_h' => 'VPS kataloğu şu anda kullanılamıyor',
@@ -1329,6 +1329,13 @@ return [
     'cvb_loc_note' => 'Konum oluşturulduktan sonra değiştirilemez; kullanıcılarınıza en yakın ülkeyi seçin.',
     'cvb_s2' => 'Sunucu özellikleri',
     'cvb_no_plans' => 'Bu konum için şu anda stokta plan yok; lütfen başka bir ülke seçin.',
+    'cvb_c_pick' => 'Ülke seçin',
+    'cvb_country_set' => 'Seçtiğiniz ülke aşağıda işaretli; değiştirmek için başka bir ülke veya şehir seçin.',
+    // ترکی مثل فارسی بعد از عدد جمع نمی‌بندد — پس یک صورت، و همان درست است.
+    'cvb_c_cities' => ':n şehir',
+    'cvb_c_soldout' => 'Şimdilik stokta yok',
+    'cvb_dc_multi' => ':count konum',
+    'cvb_dc_n' => 'Konum :n',
     // صفحهٔ وضعیت و سندِ SLA
     'status_badge' => 'Canlı durum',
     'status_title' => 'Servis durumu',
@@ -1415,6 +1422,7 @@ return [
     'cvb_traffic' => 'trafik',
     'cvb_s3' => 'İşletim sistemi veya hazır uygulama',
     'cvb_os' => 'İşletim sistemi',
+    'cvb_os_group' => 'Ne kurulacak',
     'cvb_app' => 'Hazır uygulama',
     'cvb_other' => 'Diğer',
     'cvb_os_na' => 'İşletim sistemi listesi şu anda kullanılamıyor.',
@@ -2037,6 +2045,7 @@ return [
     'sec_domains_lead' => 'Bitiş tarihi, otomatik yenileme ve transfer kilidi — en yakın tarihe göre sıralı.',
     'sec_other_lead' => 'Sunucuda teslim edilmeyen hizmetler: özel destek, tasarım ve özel işler.',
     'sec_view_all' => 'Tümünü gör',
+    'sec_add_server' => 'Sunucu ekle',
     'sec_empty_hosting_h' => 'Henüz hosting yok',
     'sec_empty_hosting_p' => 'Paylaşımlı hosting, web siteniz ve e-postanızın yaşadığı yerdir: disk ve bant genişliği kullanımı, ana alan adı ve kontrol paneline tek tıkla erişim — sunucu işletmeden.',
     'sec_empty_hosting_cta' => 'Hosting planlarını gör',

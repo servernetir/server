@@ -315,6 +315,82 @@ class CloudStoreController extends Controller
     }
 
     /**
+     * شهرهای یک کشور، **یکتاشده در سطحِ نمایش**.
+     *
+     * 🔴 علتِ ریشه‌ایِ «نام شهر تکراری است» — و چرا این‌جا حل می‌شود نه در دیتابیس:
+     * ردیف‌ها تکراری نیستند. `cloud_locations.code` یکتا است و `groupsFor()` هم
+     * فهرستِ `unique()` می‌گیرد، پس به‌ازای هر کد دقیقاً یک ردیف هست. تکرار را
+     * `CloudLocation::cityLabel()` سرِ رندر می‌سازد: هر کدی که `city` نداشته
+     * باشد یا واژهٔ ردهٔ محصول («AMD»/«Shared»/«NVMe») در ستونِ شهرش نشسته باشد،
+     * نامِ **پایتخت** را چاپ می‌کند. پنج کدِ متفاوت، یک چیپ با یک متن.
+     * منبعِ دوم: `slug()` بایت‌محور است، پس `Zürich` و `Zurich` دو کد می‌شوند
+     * در حالی که یک شهرند.
+     *
+     * ⚠️ این یکتاسازی **فقط نمایشی** است:
+     *   · هیچ `code` بازنویسی، ادغام یا حذف نمی‌شود؛ خروجی یک «گروه» است با یک
+     *     نمایندهٔ مشخص و فهرستِ کاملِ اعضا.
+     *   · کدِ بی‌شهر هرگز در کارتِ پایتخت حل نمی‌شود (کلیدِ `#code`).
+     *   · نماینده اولین عضوِ **باز** است، نه صرفاً اولین عضو — وگرنه یک عضوِ
+     *     تمام‌شده می‌توانست عضوِ فروختنی را پشتِ خودش پنهان کند.
+     *   · شهر وقتی «باز» است که **دستِ‌کم یک** عضوش فروختنی باشد؛ تمام‌شده
+     *     خاکستری می‌شود، غیب نمی‌شود.
+     *
+     * @param  array<int,CloudLocation>  $locations
+     * @param  array<int,string>  $openCodes
+     * @return array<int, array{key:string,label:string,primary:CloudLocation,members:array<int,CloudLocation>,open:bool,n:int}>
+     */
+    public static function cityBuckets(array $locations, array $openCodes): array
+    {
+        $buckets = [];
+
+        foreach ($locations as $l) {
+            $key = strtoupper(trim((string) $l->country)).'|'.$l->cityIdentity();
+
+            if (! isset($buckets[$key])) {
+                $buckets[$key] = ['key' => $key, 'members' => [], 'open' => false];
+            }
+
+            $buckets[$key]['members'][] = $l;
+
+            if (in_array((string) $l->code, $openCodes, true)) {
+                $buckets[$key]['open'] = true;
+            }
+        }
+
+        $out = [];
+
+        foreach ($buckets as $b) {
+            $primary = null;
+
+            foreach ($b['members'] as $m) {
+                if (in_array((string) $m->code, $openCodes, true)) {
+                    $primary = $m;
+                    break;
+                }
+            }
+
+            $primary ??= $b['members'][0];
+
+            $label = $primary->cityLabel();
+
+            if ($label === '') {
+                $label = $primary->countryLabel();
+            }
+
+            $out[] = [
+                'key' => (string) $b['key'],
+                'label' => $label,
+                'primary' => $primary,
+                'members' => $b['members'],
+                'open' => (bool) $b['open'],
+                'n' => count($b['members']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * آیا این ایمیج برای این عرضه واقعاً قابلِ تحویل است؟
      *
      * @param  array<int,string>  $slugProviders  زیرساخت‌هایی که این اسلاگ را می‌فروشند
@@ -389,6 +465,22 @@ class CloudStoreController extends Controller
             foreach ($g['locations'] as $l) {
                 $allCodes[] = (string) $l->code;
             }
+        }
+
+        /*
+        | کارتِ کشور + شهرهای یکتاشده. یکتاسازی **نمایشی** است: `$allCodes` بالا
+        | از همان `$g['locations']`ِ دست‌نخورده ساخته می‌شود، پس هیچ کدی از
+        | فهرستِ مجاز بیرون نمی‌افتد و هر عضوِ هر گروه هنوز لینکِ خودش را دارد.
+        |
+        | ⚠️ شمارِ روی کارتِ کشور = تعدادِ **شهرِ باز**، نه count($g['locations']).
+        | آن یکی همان تکرارها را دوباره می‌شمرد («۵ مکان» برای یک برلین) و
+        | `CloudCountry::served()` هم شهرهای خام را حساس‌به‌حروف می‌شمارد.
+        */
+        foreach ($groups as $i => $g) {
+            $cities = self::cityBuckets($g['locations'], $openCodes);
+
+            $groups[$i]['cities'] = $cities;
+            $groups[$i]['openCities'] = count(array_filter($cities, fn ($c) => $c['open']));
         }
 
         // `location` نامِ رسمی است — صفحات عمومیِ سایت با همین به این‌جا لینک
