@@ -60,24 +60,47 @@ class GoogleCalendarProvider implements CalendarEventProvider
     {
         $key = 'gcal:'.$userId.':'.$from->toDateString().':'.$to->toDateString();
 
-        $fetch = function () use ($token, $from, $to): array {
-            $res = $this->google->listEvents($token, $from, $to);
-
-            return $res['ok'] ? $res['items'] : [];
-        };
-
         /*
-         * ⚠️ خرابیِ **کش** نباید لایه را بکشد.
-         *
-         * کشِ پیش‌فرضِ این پروژه روی دیتابیس است و همان دیتابیس سابقهٔ قطعیِ
-         * گذرا دارد (CLAUDE.md §۳). اگر `Cache::remember` بترکد، به تماسِ
-         * مستقیم برمی‌گردیم — کندتر، ولی کار می‌کند.
+         * ⚠️ خرابیِ **کش** نباید لایه را بکشد. کشِ پیش‌فرضِ این پروژه روی
+         * دیتابیس است و همان دیتابیس سابقهٔ قطعیِ گذرا دارد (CLAUDE.md §۳)،
+         * پس هر تماس با کش در try است و شکستش یعنی «کش نداریم»، نه «خطا».
          */
         try {
-            return Cache::remember($key, self::TTL, $fetch);
+            $hit = Cache::get($key);
         } catch (\Throwable) {
-            return $fetch();
+            $hit = null;
         }
+
+        if (is_array($hit)) {
+            return $hit;
+        }
+
+        $res = $this->google->listEvents($token, $from, $to);
+
+        /*
+         * 🔴 **خطا کش نمی‌شود.**
+         *
+         * نسخهٔ اول `Cache::remember` می‌زد و روی شکست آرایهٔ خالی برمی‌گرداند
+         * — که یعنی همان خالی برای پنج دقیقه کش می‌شد. پیامدش دقیقاً در بدترین
+         * لحظه ظاهر می‌شود: کاربر خطا را می‌بیند، علتش را رفع می‌کند (مثلاً
+         * Calendar API را فعال می‌کند)، صفحه را تازه می‌کند و **باز هم هیچ
+         * رویدادی نمی‌بیند** — چون پاسخِ خرابِ قبلی هنوز در کش است. آن‌وقت فکر
+         * می‌کند رفع نشده و دنبالِ مشکلی می‌گردد که دیگر وجود ندارد.
+         *
+         * پس فقط نتیجهٔ **موفق** کش می‌شود؛ خطا هر بار دوباره امتحان می‌شود و
+         * لحظه‌ای که علتش برطرف شد، همان رفرشِ بعدی جواب می‌دهد.
+         */
+        if (! $res['ok']) {
+            return [];
+        }
+
+        try {
+            Cache::put($key, $res['items'], self::TTL);
+        } catch (\Throwable) {
+            // کشِ ننوشته فقط یعنی دفعهٔ بعد دوباره می‌پرسیم — بی‌ضرر
+        }
+
+        return $res['items'];
     }
 
     /**

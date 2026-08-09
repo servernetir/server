@@ -251,6 +251,68 @@ class AdminCalendarGoogleTest extends TestCase
         $this->assertContains('کارِ داخلی', array_column($res['events'], 'title'));
     }
 
+    /**
+     * 🔴 پاسخِ **خراب** نباید کش شود.
+     *
+     * نسخهٔ اول روی شکست آرایهٔ خالی را پنج دقیقه کش می‌کرد. پیامدش دقیقاً در
+     * بدترین لحظه ظاهر می‌شد: کاربر خطا را می‌بیند، علتش را رفع می‌کند (مثلاً
+     * Calendar API را در کنسولِ گوگل فعال می‌کند)، رفرش می‌کند و **باز هم هیچ
+     * رویدادی نمی‌بیند** — چون پاسخِ خرابِ قبلی هنوز در کش است. آن‌وقت دنبالِ
+     * مشکلی می‌گردد که دیگر وجود ندارد. این دقیقاً روی نصبِ زنده رخ داد.
+     */
+    public function test_a_failed_fetch_is_not_cached_so_the_fix_shows_up_immediately(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        $calls = 0;
+
+        // اول خراب (API فعال نیست)، بعد سالم — دقیقاً سناریوی واقعی
+        Http::fake(['www.googleapis.com/*' => function () use (&$calls) {
+            $calls++;
+
+            return $calls === 1
+                ? Http::response(['error' => ['message' => 'Calendar API has not been used']], 403)
+                : Http::response(['items' => [
+                    ['id' => 'g1', 'summary' => 'جلسه', 'status' => 'confirmed',
+                     'start' => ['date' => '2026-08-05']],
+                ]]);
+        }]);
+
+        $first = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk()->json();
+        $this->assertSame([], $first['events']);
+
+        // همان درخواست، بلافاصله — نباید از کشِ خالی جواب بگیرد
+        $second = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk()->json();
+
+        $this->assertSame(['جلسه'], array_column($second['events'], 'title'),
+            'بعد از رفعِ علت، همان رفرشِ بعدی باید جواب بدهد');
+        $this->assertSame(2, $calls, 'تلاشِ دوم باید واقعاً به گوگل زده باشد');
+    }
+
+    /** و برعکس: پاسخِ موفق **باید** کش شود، وگرنه هر رندر یک تماسِ شبکه است */
+    public function test_a_successful_fetch_is_cached(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        $calls = 0;
+        Http::fake(['www.googleapis.com/*' => function () use (&$calls) {
+            $calls++;
+
+            return Http::response(['items' => []]);
+        }]);
+
+        $this->actingAs($staff, 'web')->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk();
+        $this->actingAs($staff, 'web')->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk();
+
+        $this->assertSame(1, $calls, 'دومی باید از کش بیاید');
+    }
+
     /* ═════════════════════ نوشتنِ رویداد ═════════════════════ */
 
     public function test_an_event_can_be_created_straight_into_google(): void
