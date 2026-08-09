@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Manage the ServerNet self-healing relay pool (runs on the Proxmox HOST).
+#   servernet-relay-set add  HOST [PORT] [USER] [KEYFILE]   # add to pool
+#   servernet-relay-set use  HOST [PORT] [USER] [KEYFILE]   # activate now (+add)
+#   servernet-relay-set list                                # show pool + current
+# KEYFILE must already exist INSIDE LXC {{ relay_ctid }} (default {{ relay_key }}).
+set -euo pipefail
+CT={{ relay_ctid }}; POOL=/etc/servernet/relays.list; CONF=/etc/servernet/relay.conf
+cmd="${1:-list}"; shift || true
+case "$cmd" in
+  list)
+    echo "== pool =="; pct exec $CT -- cat "$POOL"
+    echo "== active =="; pct exec $CT -- cat "$CONF" 2>/dev/null | grep RELAY_HOST || true
+    pct exec $CT -- curl -s -m12 --socks5-hostname 127.0.0.1:{{ relay_local_socks }} {{ relay_probe_url }} 2>/dev/null | grep -E '^(ip|loc)=' | tr '\n' ' '; echo ;;
+  add|use)
+    H="${1:?usage: servernet-relay-set $cmd HOST [PORT] [USER] [KEYFILE]}"; PT="${2:-22}"; U="${3:-root}"; K="${4:-{{ relay_key }}}"
+    pct exec $CT -- bash -c "grep -qxF '$H $PT $U $K' $POOL 2>/dev/null || echo '$H $PT $U $K' >> $POOL"
+    if [ "$cmd" = use ]; then
+      pct exec $CT -- bash -c "printf 'RELAY_HOST=%s\nRELAY_PORT=%s\nRELAY_USER=%s\nRELAY_KEY=%s\nLOCAL_SOCKS={{ relay_local_socks }}\n' '$H' '$PT' '$U' '$K' > $CONF; chmod 600 $CONF; systemctl restart servernet-relay"
+      sleep 6
+      LOC="$(pct exec $CT -- curl -s -m20 --socks5-hostname 127.0.0.1:{{ relay_local_socks }} {{ relay_probe_url }} 2>/dev/null | grep -E '^(ip|loc)=' | tr '\n' ' ' || true)"
+      echo "active -> $U@$H:$PT   egress: ${LOC:-DOWN (check key path + reachability)}"
+    else
+      echo "added to pool: $H $PT $U $K"
+    fi ;;
+  *) echo "unknown: $cmd (use: add|use|list)"; exit 1 ;;
+esac

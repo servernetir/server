@@ -1,0 +1,50 @@
+# ServerNet Module 2b — mihomo per-country pool (rendered by Ansible from the
+# single exit_countries list). Design (proven live in LXC {{ mc_ctid }}):
+#   * UPLINK = SOCKS5 to the swappable relay; EVERY free node is dialed through it
+#     (proxy-providers.<cc>.override.dialer-proxy: UPLINK) so nodes work under DPI.
+#   * one url-test group per country => same-country automatic failover, NO direct
+#     fallback (a dead country stays dead, never DIRECT/leak).
+#   * one named SOCKS listener per country (127.0.0.1:<port>).
+#   * rules end in MATCH,REJECT => kill-switch base: anything unmatched is DROPPED.
+mixed-port: {{ mihomo_mixed_port }}
+allow-lan: false
+bind-address: "127.0.0.1"
+mode: rule
+log-level: warning
+external-controller: "{{ mihomo_api_listen }}"
+secret: "{{ vault_singbox_clash_secret }}"
+
+proxies:
+  - { name: "UPLINK", type: socks5, server: 127.0.0.1, port: {{ mihomo_uplink_socks_port }}, udp: true }
+
+proxy-providers:
+{% for c in exit_countries %}
+  {{ c.key }}:
+    type: http
+    # Local sanitizing server strips fragile ss/ssr and base64-wraps the rest.
+    url: "http://127.0.0.1:{{ subs_httpd_port }}/{{ c.key }}.txt"
+    path: "./providers/{{ c.key }}.yaml"
+    interval: 900
+    override: { dialer-proxy: UPLINK }
+    health-check: { enable: true, url: "https://www.gstatic.com/generate_204", interval: 300, lazy: true }
+{% endfor %}
+
+proxy-groups:
+{% for c in exit_countries %}
+  - { name: "{{ c.group }}", type: url-test, use: [{{ c.key }}], url: "https://www.gstatic.com/generate_204", interval: 300, tolerance: 100 }
+{% endfor %}
+  - name: "COUNTRIES"
+    type: select
+    proxies: [ {{ exit_countries | map(attribute='group') | join(', ') }} ]
+
+listeners:
+{% for c in exit_countries %}
+  - { name: {{ c.key }}-in, type: socks, listen: 127.0.0.1, port: {{ c.listener_port }} }
+{% endfor %}
+
+rules:
+{% for c in exit_countries %}
+  - IN-NAME,{{ c.key }}-in,{{ c.group }}
+{% endfor %}
+  - IN-PORT,{{ mihomo_mixed_port }},COUNTRIES
+  - MATCH,REJECT

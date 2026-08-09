@@ -1,0 +1,15 @@
+#!/bin/sh
+# servernet-country-run <cc>  — ExecStart for servernet-country@<cc>.
+# Creates tun<cc> and dials this country's UPSTREAM SOCKS. UPSTREAM (from
+# /etc/servernet/country-<cc>.env) chooses the exit and is switched at runtime by
+# servernet-exit-set / servernet-exit-del:
+#   empty        -> 127.0.0.1:$PORT  = free mihomo per-country pool  [default]
+#   127.0.0.1:P  -> a local dedicated SOCKS (ssh -D uplink / link converter)
+#   host:port    -> a remote SOCKS you already run
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+cc="$1"; . /etc/servernet/country-$cc.env
+# audit H3: the dedicated-exit override lives in a separate drop-in that routing
+# re-applies never touch. Source it AFTER the base env so it wins when present.
+[ -f "/etc/servernet/country-$cc.upstream.env" ] && . "/etc/servernet/country-$cc.upstream.env"
+UP="${UPSTREAM:-127.0.0.1:$PORT}"
+exec {{ tun2socks_bin }} -device tun$cc -proxy "socks5://$UP"

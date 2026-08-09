@@ -1,0 +1,18 @@
+<?php
+// config/proxmox.php — rendered by Ansible (reference; app archive is source of truth).
+return [
+    'host'            => env('PVE_HOST', '127.0.0.1'),
+    'port'            => (int) env('PVE_PORT', 8006),
+    'node'            => env('PVE_NODE', '{{ pve_node }}'),
+    'token_id'        => env('PVE_TOKEN_ID'),        // svc-controller@pve!provisioner
+    'token_secret'    => env('PVE_TOKEN_SECRET'),
+    'verify_tls'      => (bool) env('PVE_VERIFY_TLS', false),
+    'vm_storage'      => env('PVE_VM_STORAGE', '{{ vm_storage }}'),
+    'pool'            => env('PVE_POOL', '{{ pve_customer_pool }}'),
+    'customer_vmid_min' => (int) env('PVE_CUSTOMER_VMID_MIN', {{ customer_vmid_min }}),
+    // Hard red line — the panel/token must NEVER act on these VMIDs.
+    'protected_vmids' => array_values(array_filter(array_map(
+        'intval',
+        explode(',', (string) env('PVE_PROTECTED_VMIDS', '{{ protected_vmids | join(",") }}'))
+    ))),
+];

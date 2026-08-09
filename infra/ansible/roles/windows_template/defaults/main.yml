@@ -1,0 +1,18 @@
+---
+win_template_vmid: "{{ os_catalog.windows2022.vmid }}"   # 9012
+
+# Staging location on the host for the turnkey files (always populated).
+win_staging_dir: /root/.servernet/winfix
+
+# --- Offline disk-bake (OPT-IN, delicate) ------------------------------------
+# When true, the role mounts the template's NTFS partition read-write (ntfs3)
+# and installs the turnkey files directly into C:\Windows\Setup\Scripts. The
+# template MUST exist and be stopped. Leave false to bake manually with the
+# staged files (recommended for a live node).
+win_bake_offline: false
+
+# ZFS dataset that backs vm_storage, and the NTFS partition index inside the
+# Windows disk. Verify with: ls /dev/zvol/<dataset>/vm-<vmid>-disk-0*
+vmstore_zvol_dataset: vmstore
+win_ntfs_part: 2
+win_mount_point: /mnt/sn-wintmpl

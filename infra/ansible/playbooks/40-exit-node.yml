@@ -1,0 +1,7 @@
+---
+# Deploy sing-box exit into LXC 113 (stage/apply)
+- name: Deploy sing-box exit into LXC 113 (stage/apply)
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - exit_node

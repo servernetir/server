@@ -20,6 +20,7 @@ class CloudManager
         'aeza'    => AezaClient::class,
         'arvan'   => ArvanClient::class,
         'ovh'     => OvhClient::class,
+        'proxmox' => ProxmoxClient::class,
     ];
 
     /**
@@ -39,6 +40,7 @@ class CloudManager
         'aeza'    => 'Aeza',
         'arvan'   => 'ArvanCloud (ابرآروان)',
         'ovh'     => 'OVHcloud',
+        'proxmox' => 'Proxmox (Tehran)',
     ];
 
     /** @var array<string, CloudProvider> */

@@ -1,0 +1,75 @@
+---
+# --- Target container --------------------------------------------------------
+panel_ctid: "{{ control_ctid }}"          # 115
+panel_app_dir: /opt/control
+panel_app_url: "https://panel.servernet.cloud"
+php_version: "8.3"
+php_fpm_sock: "/run/php/php{{ php_version }}-fpm.sock"
+
+panel_packages:
+  - nginx
+  - "php{{ php_version }}-fpm"
+  - "php{{ php_version }}-cli"
+  - "php{{ php_version }}-sqlite3"
+  - "php{{ php_version }}-curl"
+  - "php{{ php_version }}-mbstring"
+  - "php{{ php_version }}-xml"
+  - "php{{ php_version }}-bcmath"
+  - sqlite3
+  - unzip
+  - curl
+
+# --- Safety: stage vs apply --------------------------------------------------
+# false (default) => render .env / nginx / php configs to a host staging dir for
+#                    review; DO NOT touch the live container.
+# true            => back up existing files in the container, then push + migrate
+#                    + reload. Flip this only once you've diffed the staged output.
+panel_apply: false
+panel_stage_dir: "/root/.servernet/panel"
+
+# --- Panel TLS (audit SSL: panel was HTTP-only) ------------------------------
+# The nginx site serves HTTPS from these paths. If the cert is missing at apply
+# time and panel_tls_selfsigned_if_missing is true, a self-signed pair is created
+# (HTTPS works immediately with a one-time browser warning). For a trusted cert,
+# point these at a Let's Encrypt (DNS-01) or Cloudflare Origin certificate.
+panel_tls_cert: /etc/ssl/servernet/panel.crt
+panel_tls_key: /etc/ssl/servernet/panel.key
+panel_tls_selfsigned_if_missing: true
+
+# App code is an exported artifact (the Laravel source lives on the live LXC).
+# Export once:  pct exec 115 -- tar czf - -C /opt control > roles/control_panel/files/control-app.tar.gz
+panel_app_archive: control-app.tar.gz
+
+# Deploy the reference php config files (proxmox.php/cloudflare.php/os.php) from
+# templates. Off by default because the app archive already carries the working
+# versions; turn on only for a from-scratch build.
+panel_render_php_configs: false
+
+# --- Country-selection feature (codifies mod2b/17-panel-deploy.sh) ------------
+# Adds exit_country to vm_records, the sellable-country catalog + sale-time
+# dropdown, the /agent/countryroutes desired-state API, and the HOST agent that
+# applies per-VM split-routing. Depends on the exit_country_routing role for the
+# servernet-vm-country[-del] scripts the agent calls.
+panel_country_feature: true
+
+# Panel container IP on vmbr1 (LXC 115) — where the host agent pulls desired state.
+panel_lan_ip: "{{ control_ip | default('10.10.10.30') }}"
+panel_agent_api_url: "http://{{ panel_lan_ip }}/agent/countryroutes"
+
+# How often the host agent reconciles VM outbound routing against the panel.
+# audit H1: kept short so a newly-sold country VM is marked before its guest
+# finishes first boot (shrinks the boot-race window where it could egress via Iran).
+# The reboot race is separately closed by servernet-split-boot (audit C1).
+country_agent_interval_sec: 10
+country_agent_boot_sec: 5
+
+# The feature's source files, container-relative under panel_app_dir. Pushed 1:1
+# from roles/control_panel/files/country/. (Byte-identical to the live deploy.)
+panel_country_files:
+  - app/Services/Provisioner.php
+  - app/Console/Commands/ProvisionVm.php
+  - app/Http/Controllers/VmController.php
+  - app/Http/Controllers/CountryRouteApiController.php
+  - config/countries.php
+  - database/migrations/2026_08_07_000001_add_exit_country_to_vm_records.php
+  - resources/views/vms.blade.php

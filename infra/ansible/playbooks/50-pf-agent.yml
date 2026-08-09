@@ -1,0 +1,7 @@
+---
+# Deploy the host port-forward agent (stage/apply)
+- name: Deploy the host port-forward agent (stage/apply)
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - pf_agent

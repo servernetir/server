@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ServerNet country-routing agent periodically
+
+[Timer]
+OnBootSec={{ country_agent_boot_sec | default(5) }}
+OnUnitActiveSec={{ country_agent_interval_sec }}
+AccuracySec=2
+
+[Install]
+WantedBy=timers.target

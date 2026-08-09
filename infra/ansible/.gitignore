@@ -1,0 +1,21 @@
+# Secrets — NEVER commit real values. Use Ansible Vault.
+inventory/group_vars/vault.yml
+inventory/group_vars/*/vault.yml
+*.vault
+.vault_pass
+vault_pass.txt
+
+# Downloaded collections/roles
+collections/
+roles/*/files/*.qcow2
+roles/*/files/*.img
+roles/*/files/*.tar.gz
+
+# App artifacts (export from the live LXC, do not commit)
+roles/control_panel/files/control-app.tar.gz
+
+# Ansible runtime
+*.retry
+*.log
+__pycache__/
+.DS_Store

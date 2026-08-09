@@ -1,0 +1,77 @@
+---
+# Module 2 / 2b — free per-country exit pool with same-country automatic failover,
+# dialed through the swappable relay (UPLINK) so it works despite Iran DPI.
+# Runs ADDITIVELY inside the exit container ({{ exit_ctid }}) alongside sing-box.
+mc_ctid: "{{ exit_ctid | default(113) }}"
+
+mihomo_version: "1.19.29"
+mihomo_bin: /usr/local/bin/mihomo
+mihomo_conf_dir: /etc/mihomo
+mihomo_api_listen: "127.0.0.1:9091"     # separate from sing-box clash-api (9090)
+mihomo_mixed_port: 7890
+
+# UPLINK: the mihomo proxy every free per-country node is DIALED THROUGH
+# (override.dialer-proxy: UPLINK). It is a SOCKS5 to the relay bound by the
+# exit_relay role. Keep this equal to exit_relay's relay_local_socks.
+mihomo_uplink_socks_port: "{{ relay_local_socks | default(1080) }}"
+
+# Local sanitizing subscription server (systemd-managed; fixes the ad-hoc
+# http.server bind flakiness from the PoC).
+subs_dir: /var/lib/sn-subs
+subs_httpd_port: 8899
+
+# Sources merged per country (dedup, keep only vmess/vless/trojan, cap below).
+#  - SoliSpirit per-country lists (updated ~every 15 min; URL-encode names).
+#  - ConfigForge (shatakvpn, speed-tested) via jsDelivr CDN: configs/<cc>/all.txt
+soli_base: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Countries"
+configforge_base: "https://cdn.jsdelivr.net/gh/shatakvpn/ConfigForge-V2Ray@main/configs"
+mc_node_cap: 100                        # max nodes kept per country after merge
+
+# ---------------------------------------------------------------------------
+# THE SINGLE per-country list. The mihomo config, the multi-source sync, and the
+# Phase-B routing (exit_country_routing) are all generated from THIS list.
+#   key           : ISO cc, used for provider name, listener name (<cc>-in), tun<cc>
+#   soli_file     : exact SoliSpirit Countries/ filename (sync URL-encodes it;
+#                   note the real Türkiye.txt / The_Netherlands.txt spellings)
+#   group         : mihomo url-test group name (no spaces)
+#   listener_port : per-country SOCKS listener 127.0.0.1:<port>
+#   table         : Phase-B policy-routing table (140 + country index; DE/NL/FR/FI
+#                   = 141/142/143/147 exactly match the proven scripts 09/11)
+#   tunip         : Phase-B tun<cc> address 10.(table-100).0.1/24
+exit_countries:
+  - { key: de, soli_file: "Germany.txt",              group: "Germany",       listener_port: 42001, table: 141, tunip: "10.41.0.1" }
+  - { key: nl, soli_file: "The_Netherlands.txt",      group: "Netherlands",   listener_port: 42002, table: 142, tunip: "10.42.0.1" }
+  - { key: fr, soli_file: "France.txt",               group: "France",        listener_port: 42003, table: 143, tunip: "10.43.0.1" }
+  - { key: gb, soli_file: "United_Kingdom.txt",       group: "UnitedKingdom", listener_port: 42004, table: 144, tunip: "10.44.0.1" }
+  - { key: us, soli_file: "United_States.txt",        group: "UnitedStates",  listener_port: 42005, table: 145, tunip: "10.45.0.1" }
+  - { key: ca, soli_file: "Canada.txt",               group: "Canada",        listener_port: 42006, table: 146, tunip: "10.46.0.1" }
+  - { key: fi, soli_file: "Finland.txt",              group: "Finland",       listener_port: 42007, table: 147, tunip: "10.47.0.1" }
+  - { key: se, soli_file: "Sweden.txt",               group: "Sweden",        listener_port: 42008, table: 148, tunip: "10.48.0.1" }
+  - { key: ch, soli_file: "Switzerland.txt",          group: "Switzerland",   listener_port: 42009, table: 149, tunip: "10.49.0.1" }
+  - { key: at, soli_file: "Austria.txt",              group: "Austria",       listener_port: 42010, table: 150, tunip: "10.50.0.1" }
+  - { key: pl, soli_file: "Poland.txt",               group: "Poland",        listener_port: 42011, table: 151, tunip: "10.51.0.1" }
+  - { key: es, soli_file: "Spain.txt",                group: "Spain",         listener_port: 42012, table: 152, tunip: "10.52.0.1" }
+  - { key: it, soli_file: "Italy.txt",                group: "Italy",         listener_port: 42013, table: 153, tunip: "10.53.0.1" }
+  - { key: ie, soli_file: "Ireland.txt",              group: "Ireland",       listener_port: 42014, table: 154, tunip: "10.54.0.1" }
+  - { key: no, soli_file: "Norway.txt",               group: "Norway",        listener_port: 42015, table: 155, tunip: "10.55.0.1" }
+  - { key: dk, soli_file: "Denmark.txt",              group: "Denmark",       listener_port: 42016, table: 156, tunip: "10.56.0.1" }
+  - { key: ro, soli_file: "Romania.txt",              group: "Romania",       listener_port: 42017, table: 157, tunip: "10.57.0.1" }
+  - { key: cz, soli_file: "Czechia.txt",              group: "Czechia",       listener_port: 42018, table: 158, tunip: "10.58.0.1" }
+  - { key: tr, soli_file: "Türkiye.txt",              group: "Turkey",        listener_port: 42019, table: 159, tunip: "10.59.0.1" }
+  - { key: ae, soli_file: "United_Arab_Emirates.txt", group: "UAE",           listener_port: 42020, table: 160, tunip: "10.60.0.1" }
+  - { key: sg, soli_file: "Singapore.txt",            group: "Singapore",     listener_port: 42021, table: 161, tunip: "10.61.0.1" }
+  - { key: jp, soli_file: "Japan.txt",                group: "Japan",         listener_port: 42022, table: 162, tunip: "10.62.0.1" }
+  - { key: ee, soli_file: "Estonia.txt",              group: "Estonia",       listener_port: 42023, table: 163, tunip: "10.63.0.1" }
+  - { key: lt, soli_file: "Lithuania.txt",            group: "Lithuania",     listener_port: 42024, table: 164, tunip: "10.64.0.1" }
+  - { key: lv, soli_file: "Latvia.txt",               group: "Latvia",        listener_port: 42025, table: 165, tunip: "10.65.0.1" }
+
+# How often the sync timer refreshes the cleaned subscriptions.
+sync_interval: "15min"
+
+# Safe by default: stage everything on the host; mc_apply=true to install + start.
+mc_apply: false
+mc_stage_dir: "/root/.servernet/mihomo"
+
+# IMPORTANT honesty flag: free public nodes are run by strangers. Fine for a
+# free/trial/fallback tier; NEVER route paid customers through them.
+mc_free_tier_only: true

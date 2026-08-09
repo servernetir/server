@@ -1,0 +1,27 @@
+#cloud-config
+# ServerNet Linux access fix. Cloud images ship PasswordAuthentication=no; this
+# vendor snippet re-enables password + root login so customers can connect with
+# the panel-issued password over the default SSH port. Applied to every Linux
+# template via `qm set <id> --cicustom "vendor=isos:snippets/sn-linux.yaml"`.
+ssh_pwauth: true
+disable_root: false
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-servernet.conf
+    permissions: '0644'
+    owner: root:root
+    content: |
+      PasswordAuthentication yes
+      KbdInteractiveAuthentication yes
+      PermitRootLogin yes
+  # audit C3: IPv6 is NOT tunneled by the country-exit path, so leaving it on is a
+  # leak vector (v6 would bypass the v4-only kill-switch). Disable it in-guest.
+  # (The host also DROPs customer v6 at the bridge as the authoritative guard.)
+  - path: /etc/sysctl.d/99-servernet-noipv6.conf
+    permissions: '0644'
+    owner: root:root
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+runcmd:
+  - [sh, -c, 'sysctl --system 2>/dev/null || true']
+  - [sh, -c, 'systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true']

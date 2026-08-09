@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# ServerNet Module 2b — relay self-heal monitor. Keeps the local uplink SOCKS
+# pointed at a HEALTHY relay; on repeated egress failure it rotates to the next
+# entry in /etc/servernet/relays.list and restarts servernet-relay. Everything
+# downstream (mihomo UPLINK) is relay-agnostic, so it self-heals transparently.
+CONF=/etc/servernet/relay.conf
+POOL=/etc/servernet/relays.list
+egress_ok(){ curl -s -m10 --socks5-hostname 127.0.0.1:{{ relay_local_socks }} {{ relay_probe_url }} 2>/dev/null | grep -q '^loc='; }
+activate(){ printf 'RELAY_HOST=%s\nRELAY_PORT=%s\nRELAY_USER=%s\nRELAY_KEY=%s\nLOCAL_SOCKS={{ relay_local_socks }}\n' "$1" "${2:-22}" "${3:-root}" "${4:-{{ relay_key }}}" > "$CONF"; chmod 600 "$CONF"; systemctl restart servernet-relay; }
+{% raw %}
+IDX=0; FAILS=0
+while true; do
+  if egress_ok; then FAILS=0; rm -f /run/servernet-relay-alert 2>/dev/null || true; sleep 20; continue; fi
+  FAILS=$((FAILS+1))
+  if [ "$FAILS" -ge 2 ]; then
+    mapfile -t R < <(awk 'NF && $1!~/^#/' "$POOL")
+    N=${#R[@]}
+    # audit H2: a 1-entry pool has nothing to fail over to (SPOF). Make it LOUD
+    # so the operator adds a 2nd relay (servernet-relay-set add ...), and drop a
+    # flag file a monitor/status page can surface.
+    if [ "$N" -lt 2 ]; then
+      logger -t sn-relay "ALERT: egress DOWN and only $N relay(s) in pool — NO FAILOVER (SPOF). Add one: servernet-relay-set add <host> <port> <user> <keyfile>" 2>/dev/null || true
+      printf 'egress_down_no_failover pool=%s at_fails=%s\n' "$N" "$FAILS" > /run/servernet-relay-alert 2>/dev/null || true
+    fi
+    if [ "$N" -gt 0 ]; then
+      IDX=$(((IDX+1)%N)); set -- ${R[$IDX]}
+      logger -t sn-relay "egress down; rotating to relay $1" 2>/dev/null || true
+      activate "$1" "${2:-}" "${3:-}" "${4:-}"
+      FAILS=0; sleep 12
+    fi
+  fi
+  sleep 8
+done
+{% endraw %}

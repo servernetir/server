@@ -1888,6 +1888,10 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
+        // زیرساختِ اکسیت — دیدِ فقط‌خواندنیِ اپراتور به Exit VPSها و ضربانِ pull-agentِ ایران
+        Route::get('/exit-infra', [\App\Http\Controllers\Admin\ExitInfraController::class, 'index'])
+            ->name('admin.exit-infra')->middleware('admin');
+
         /*
         | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.
         |
@@ -2022,3 +2026,14 @@ Route::prefix('api/v1')
         Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
         Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
     });
+
+/*
+ * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent) — بیرونِ closureِ سه‌زبانهٔ
+ * سایت. احراز با هدرِ `X-Agent-Token` داخلِ کنترلر (Setting::getSecret). فقط
+ * GET و فقط‌خواندنی؛ ایجنت هر چند دقیقه این‌ها را می‌خوانَد تا حالتِ مطلوب
+ * (مسیرِ کشوریِ خروج + port-forward) را یاد بگیرد.
+ */
+Route::prefix('agent')->group(function () {
+    Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
+    Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+});

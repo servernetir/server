@@ -1,0 +1,11 @@
+---
+# Where the freshly-minted token secret is stashed (root-only) if the role has
+# to create it. The secret is NEVER printed to stdout.
+pve_token_secret_file: /root/.servernet/provisioner.token
+
+# Content types storage `isos` must expose (must include snippets for cicustom).
+iso_storage_content: "iso,vztmpl,snippets"
+
+# Comments stamped onto created objects.
+pve_pool_comment: "ServerNet platform-sold guests (managed by IaC)"
+pve_user_comment: "ServerNet provisioning controller — API token only"

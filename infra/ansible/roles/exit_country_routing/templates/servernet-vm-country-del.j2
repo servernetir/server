@@ -1,0 +1,11 @@
+#!/bin/sh
+# servernet-vm-country-del <customer-ip>  — remove country routing for a VM (on destroy)
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ip="$1"
+while ip rule del from $ip 2>/dev/null; do :; done
+# drop any per-ip nat/forward accepts to country tuns
+iptables-save | grep -E "\-s $ip/32 .*-o tun" | sed 's/^-A /-D /' | while read -r ln; do
+  tbl=nat; echo "$ln" | grep -q MASQUERADE || tbl=filter
+  iptables -t $tbl $ln 2>/dev/null || true
+done
+echo "unrouted $ip"

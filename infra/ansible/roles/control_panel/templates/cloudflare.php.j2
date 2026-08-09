@@ -1,0 +1,10 @@
+<?php
+// config/cloudflare.php — rendered by Ansible (reference; app archive is source of truth).
+return [
+    'token'      => env('CF_API_TOKEN'),
+    'account_id' => env('CF_ACCOUNT_ID', '{{ vault_cf_account_id }}'),
+    'zone_name'  => env('CF_ZONE_NAME', 'servernet.cloud'),
+    'public_ip'  => env('CF_PUBLIC_IP', '{{ public_ip }}'),
+    'proxied'    => (bool) env('CF_PROXIED', false),
+    'enabled'    => (bool) env('CF_ENABLED', true),
+];

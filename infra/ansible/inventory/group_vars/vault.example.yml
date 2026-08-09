@@ -1,0 +1,36 @@
+---
+# =============================================================================
+#  SECRETS TEMPLATE — copy to vault.yml and encrypt:
+#     cp vault.example.yml vault.yml
+#     # fill in real values, then:
+#     ansible-vault encrypt vault.yml
+#  vault.yml is git-ignored. NEVER commit decrypted secrets.
+# =============================================================================
+
+# Least-privilege Proxmox API token secret (created by proxmox_host role; paste
+# the value printed once at creation, then store only here, encrypted).
+vault_pve_token_secret: "CHANGE_ME"
+
+# --- Control panel (LXC 115) -------------------------------------------------
+vault_panel_app_key: "base64:CHANGE_ME"        # php artisan key:generate --show
+vault_panel_admin_user: "admin"
+vault_panel_admin_password: "CHANGE_ME"
+# Shared secret the pf-agent uses to call /agent/portforwards and /agent/health.
+vault_pf_agent_token: "CHANGE_ME"
+
+# --- Cloudflare (DNS automation; optional) -----------------------------------
+# Needs Zone:DNS:Edit for explicit A records. Wildcard *.servernet.cloud
+# already resolves everything, so this is optional polish, not a blocker.
+vault_cf_api_token: "CHANGE_ME"
+vault_cf_account_id: "d2eb08d2ffac5e355636c821dece2dbd"
+
+# --- Exit node (LXC 113 sing-box) --------------------------------------------
+vault_singbox_clash_secret: "CHANGE_ME"        # Clash-API secret
+# REALITY identity is generated ONCE and reused across exit swaps so the
+# customer-facing key never changes when the backend IP does.
+vault_reality_private_key: "CHANGE_ME"
+vault_reality_public_key: "CHANGE_ME"
+vault_reality_short_id: "CHANGE_ME"
+# Upstream DE exit (the current ssh-de path), if used:
+vault_exit_upstream_host: "CHANGE_ME"
+vault_exit_upstream_port: 22

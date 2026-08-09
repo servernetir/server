@@ -1,0 +1,79 @@
+---
+# =============================================================================
+#  destroy.yml — safely destroy ONE customer VM. Fails closed.
+#  Triple guard: (1) not in protected_vmids (incl. 108 red line, 113/115 infra,
+#  templates), (2) not inside any protected_vmid_range (100-114), (3) VMID >=
+#  customer_vmid_min. Any doubt => refuse.
+#
+#  Usage:  ansible-playbook destroy.yml -e target_vmid=123
+#  Add    -e i_understand=yes   to actually run (dry by default).
+# =============================================================================
+- name: Destroy customer VM (guarded)
+  hosts: proxmox
+  gather_facts: false
+  vars:
+    i_understand: "no"
+  tasks:
+    - name: Require an explicit target
+      ansible.builtin.assert:
+        that: target_vmid is defined
+        fail_msg: "Set -e target_vmid=<id>."
+
+    - name: SAFETY — refuse protected / out-of-range VMIDs
+      ansible.builtin.assert:
+        that:
+          - (target_vmid | int) >= customer_vmid_min
+          - (target_vmid | int) not in protected_vmids
+          - >-
+            (protected_vmid_ranges
+             | selectattr('min', 'le', target_vmid | int)
+             | selectattr('max', 'ge', target_vmid | int)
+             | list | length) == 0
+        fail_msg: >-
+          REFUSED: VMID {{ target_vmid }} is protected (108 red line / infra /
+          template / pre-existing guest) or below customer_vmid_min
+          ({{ customer_vmid_min }}). Nothing was touched.
+
+    - name: Confirm the VM exists and read its name
+      ansible.builtin.command: qm config {{ target_vmid }}
+      register: _cfg
+      changed_when: false
+      failed_when: false
+
+    - name: Abort if VM does not exist
+      ansible.builtin.assert:
+        that: _cfg.rc == 0
+        fail_msg: "VMID {{ target_vmid }} does not exist."
+
+    - name: Dry-run notice
+      ansible.builtin.debug:
+        msg:
+          - "DRY RUN — VMID {{ target_vmid }} passed all guards and WOULD be destroyed."
+          - "Re-run with -e i_understand=yes to actually purge it."
+      when: not (i_understand | bool)
+
+    - name: Destroy (stop, then purge with unreferenced disks)
+      when: i_understand | bool
+      block:
+        - name: Stop VM (ignore if already stopped)
+          ansible.builtin.command: qm stop {{ target_vmid }}
+          register: _stop
+          changed_when: _stop.rc == 0
+          failed_when: false
+
+        - name: Wait for stopped state
+          ansible.builtin.command: qm status {{ target_vmid }}
+          register: _st
+          until: "'running' not in _st.stdout"
+          retries: 15
+          delay: 2
+          changed_when: false
+
+        - name: Purge VM
+          ansible.builtin.command: qm destroy {{ target_vmid }} --purge --destroy-unreferenced-disks 1
+          register: _destroy
+          changed_when: _destroy.rc == 0
+
+        - name: Done
+          ansible.builtin.debug:
+            msg: "VMID {{ target_vmid }} destroyed. Remove its panel record + port-forward as well."

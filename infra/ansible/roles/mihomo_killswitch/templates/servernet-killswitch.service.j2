@@ -1,0 +1,16 @@
+[Unit]
+Description=ServerNet mihomo egress kill-switch (loopback-only; no direct leak)
+After=mihomo.service
+Requires=mihomo.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Re-resolve the mihomo cgroup at (re)start so the rule survives cgroup churn.
+# -C first makes both apply and remove idempotent (never duplicates the rule).
+# audit C3: mirror the DROP to IPv6 (ip6tables) so mihomo cannot leak over v6.
+ExecStart=/bin/bash -c 'CGP=$(systemctl show -p ControlGroup --value mihomo.service | sed s:^/::); iptables -C OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP 2>/dev/null || iptables -I OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP; (ip6tables -C OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP 2>/dev/null || ip6tables -I OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP) 2>/dev/null || true'
+ExecStop=/bin/bash -c 'CGP=$(systemctl show -p ControlGroup --value mihomo.service | sed s:^/::); iptables -D OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP 2>/dev/null || true; ip6tables -D OUTPUT -m cgroup --path "$CGP" ! -o lo -j DROP 2>/dev/null || true'
+
+[Install]
+WantedBy=multi-user.target

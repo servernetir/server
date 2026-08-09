@@ -1,0 +1,99 @@
+---
+# Codifies the Windows 9012 turnkey mechanism. By default it only STAGES the
+# files + config on the host (safe); set win_bake_offline=true to inject them
+# into the stopped template's disk via an offline ntfs3 mount.
+#
+# NOTE: the Windows template itself is built manually / with Packer (Windows has
+# no free ready-made cloud image). Ansible clones from it; it does not create it.
+
+- name: Stage turnkey files on the host
+  ansible.builtin.file:
+    path: "{{ win_staging_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Copy turnkey artifacts into staging
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ win_staging_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - SetupComplete.cmd
+    - sn-firstboot.ps1
+    - cloudbase-init.conf
+
+- name: Manual-bake instructions (when offline bake is disabled)
+  ansible.builtin.debug:
+    msg:
+      - "Turnkey files staged in {{ win_staging_dir }}."
+      - "To bake into template {{ win_template_vmid }} manually:"
+      - "  1) offline mount its NTFS partition (ntfs3),"
+      - "  2) copy SetupComplete.cmd + sn-firstboot.ps1 -> C:\\Windows\\Setup\\Scripts\\,"
+      - "  3) replace Cloudbase-Init conf with the staged cloudbase-init.conf,"
+      - "  4) unmount. Or set win_bake_offline=true to do this automatically."
+  when: not (win_bake_offline | bool)
+
+# --------------------------- OPT-IN offline bake -----------------------------
+- name: Offline bake into the stopped template
+  when: win_bake_offline | bool
+  block:
+    - name: Confirm template exists
+      ansible.builtin.command: qm status {{ win_template_vmid }}
+      register: _winstat
+      changed_when: false
+
+    - name: Refuse to bake a running template
+      ansible.builtin.assert:
+        that: "'running' not in _winstat.stdout"
+        fail_msg: "Template {{ win_template_vmid }} is running — stop it before an offline bake."
+
+    - name: Ensure ntfs3 tooling + mountpoint
+      block:
+        - ansible.builtin.file:
+            path: "{{ win_mount_point }}"
+            state: directory
+            mode: "0755"
+        - ansible.builtin.command: modprobe ntfs3
+          changed_when: false
+          failed_when: false
+
+    - name: Refresh partition table for the template zvol
+      ansible.builtin.command: partprobe /dev/zvol/{{ vmstore_zvol_dataset }}/vm-{{ win_template_vmid }}-disk-0
+      changed_when: false
+      failed_when: false
+
+    - name: Mount the Windows NTFS partition (rw)
+      ansible.posix.mount:
+        path: "{{ win_mount_point }}"
+        src: "/dev/zvol/{{ vmstore_zvol_dataset }}/vm-{{ win_template_vmid }}-disk-0-part{{ win_ntfs_part }}"
+        fstype: ntfs3
+        opts: rw
+        state: mounted
+
+    - name: Ensure Setup\Scripts exists inside the image
+      ansible.builtin.file:
+        path: "{{ win_mount_point }}/Windows/Setup/Scripts"
+        state: directory
+
+    - name: Install SetupComplete.cmd + first-boot script
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ win_mount_point }}/Windows/Setup/Scripts/{{ item }}"
+        mode: "0644"
+      loop:
+        - SetupComplete.cmd
+        - sn-firstboot.ps1
+
+    - name: Install fixed Cloudbase-Init conf
+      ansible.builtin.copy:
+        src: cloudbase-init.conf
+        dest: "{{ win_mount_point }}/Program Files/Cloudbase Solutions/Cloudbase-Init/conf/cloudbase-init.conf"
+        mode: "0644"
+      failed_when: false        # path only exists if CBI is installed in the image
+
+  always:
+    - name: Unmount the template partition
+      ansible.posix.mount:
+        path: "{{ win_mount_point }}"
+        state: unmounted
+      when: win_bake_offline | bool

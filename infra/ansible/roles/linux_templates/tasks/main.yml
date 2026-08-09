@@ -1,0 +1,22 @@
+---
+# Build the six Linux cloud-init templates (9000-9005), idempotently.
+# Existing templates are left untouched unless rebuild_templates=true.
+- name: Ensure image tooling present
+  ansible.builtin.apt:
+    name: [wget, qemu-utils]
+    state: present
+    update_cache: false
+  failed_when: false           # apt may be pinned/offline; download still works
+
+- name: Ensure image cache directory exists
+  ansible.builtin.file:
+    path: "{{ image_cache_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Build each Linux template
+  ansible.builtin.include_tasks: build_one.yml
+  loop: "{{ os_catalog | dict2items | rejectattr('value.win') | list }}"
+  loop_control:
+    loop_var: os_item
+    label: "{{ os_item.key }} (VMID {{ os_item.value.vmid }})"

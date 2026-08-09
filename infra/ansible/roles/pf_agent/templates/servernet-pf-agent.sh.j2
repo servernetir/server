@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  ServerNet port-forward agent (host side).
+#  Pulls the active forwards from the panel and reconciles them into a dedicated
+#  iptables nat chain. Additive + reversible: only ever touches {{ pf_chain }}.
+#  Refuses any public port outside the sale range, so it can never DNAT a
+#  reserved service port (80/443/RDP-of-infra/etc.).
+# =============================================================================
+set -euo pipefail
+
+PANEL="{{ pf_panel_url }}"
+HEALTH="{{ pf_health_url }}"
+TOKEN="{{ vault_pf_agent_token }}"
+PUBIF="{{ pf_public_iface }}"
+CHAIN="{{ pf_chain }}"
+LO={{ sale_port_min }}
+HI={{ sale_port_max }}
+
+data="$(curl -fsS -m 10 -H "Authorization: Bearer ${TOKEN}" "${PANEL}" || true)"
+if [ -z "${data}" ]; then
+  echo "$(date -u +%FT%TZ) WARN no data from panel; leaving current rules intact" >&2
+  exit 0
+fi
+
+# Parse to "proto pub ip svc", filtering to the sale port range only.
+rules="$(printf '%s' "${data}" | python3 - "$LO" "$HI" <<'PY'
+import sys, json
+lo, hi = int(sys.argv[1]), int(sys.argv[2])
+raw = sys.stdin.read().strip()
+try:
+    d = json.loads(raw)
+except Exception:
+    sys.exit(0)
+items = d.get("portforwards", d) if isinstance(d, dict) else d
+for r in items:
+    try:
+        pub = int(r["pub_port"]); ip = str(r["ip"]); svc = int(r["svc_port"])
+        proto = str(r.get("proto", "tcp"))
+    except Exception:
+        continue
+    if not (lo <= pub <= hi):
+        continue
+    if proto not in ("tcp", "udp"):
+        continue
+    print(f"{proto} {pub} {ip} {svc}")
+PY
+)"
+
+# Ensure the chain exists and is hooked into PREROUTING exactly once.
+iptables -t nat -N "${CHAIN}" 2>/dev/null || true
+iptables -t nat -C PREROUTING -i "${PUBIF}" -j "${CHAIN}" 2>/dev/null \
+  || iptables -t nat -A PREROUTING -i "${PUBIF}" -j "${CHAIN}"
+
+# Reconcile: wipe our chain, re-add the current set (atomic enough at 1-min cadence).
+iptables -t nat -F "${CHAIN}"
+n=0
+while IFS=' ' read -r proto pub ip svc; do
+  [ -z "${proto:-}" ] && continue
+  iptables -t nat -A "${CHAIN}" -p "${proto}" --dport "${pub}" -j DNAT --to-destination "${ip}:${svc}"
+  n=$((n+1))
+done <<< "${rules}"
+
+echo "$(date -u +%FT%TZ) OK applied ${n} forward(s)"
+curl -fsS -m 5 -X POST -H "Authorization: Bearer ${TOKEN}" "${HEALTH}" >/dev/null 2>&1 || true

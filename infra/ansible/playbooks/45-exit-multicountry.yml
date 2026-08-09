@@ -1,0 +1,7 @@
+---
+# Module 2: mihomo per-country pool with same-country failover (stage/apply)
+- name: "Module 2: mihomo per-country pool with same-country failover (stage/apply)"
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - exit_multicountry

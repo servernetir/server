@@ -1,0 +1,136 @@
+---
+# Module 2b / step 2 — self-healing swappable RELAY POOL for LXC {{ relay_ctid }}.
+# Stage-by-default; relay_apply=true installs + enables the uplink inside the
+# container and the pool-manager helper on the host.
+#
+# ROLLBACK (manual):
+#   pct exec {{ relay_ctid }} -- systemctl disable --now servernet-relay servernet-relay-monitor
+#   # if you had migrated off de-ssh-socks and want it back:
+#   pct exec {{ relay_ctid }} -- systemctl enable --now de-ssh-socks
+
+- name: Ensure host staging dir
+  ansible.builtin.file:
+    path: "{{ relay_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Render relay conf + pool + units + helpers to staging
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ relay_stage_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: relay.conf.j2,                    dest: relay.conf,                    mode: "0600" }
+    - { src: relays.list.j2,                   dest: relays.list,                   mode: "0600" }
+    - { src: servernet-relay.service.j2,       dest: servernet-relay.service,       mode: "0644" }
+    - { src: servernet-relay-monitor.j2,       dest: servernet-relay-monitor,       mode: "0750" }
+    - { src: servernet-relay-monitor.service.j2, dest: servernet-relay-monitor.service, mode: "0644" }
+    - { src: servernet-relay-set.j2,           dest: servernet-relay-set,           mode: "0750" }
+  no_log: true                      # relay.conf/relays.list identify the uplinks
+
+- name: Stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "exit_relay staged at {{ relay_stage_dir }}."
+      - "Active relay: {{ relay_user }}@{{ relay_host }}:{{ relay_port }} (key path only, never content)."
+      - "Pool has {{ relay_pool | length }} entry(ies); uplink SOCKS = 127.0.0.1:{{ relay_local_socks }}."
+      - "Nothing pushed to container {{ relay_ctid }} (relay_apply=false)."
+  when: not (relay_apply | bool)
+
+- name: Apply exit_relay to container + host
+  when: relay_apply | bool
+  block:
+    - name: Confirm container {{ relay_ctid }} exists
+      ansible.builtin.command: pct status {{ relay_ctid }}
+      register: _relaystat
+      changed_when: false
+
+    - name: Ensure /etc/servernet exists in container
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- mkdir -p /etc/servernet
+      changed_when: false
+
+    - name: Push active relay.conf + pool into container
+      ansible.builtin.command: "pct push {{ relay_ctid }} {{ relay_stage_dir }}/{{ item.s }} {{ item.d }}"
+      loop:
+        - { s: relay.conf,  d: /etc/servernet/relay.conf }
+        - { s: relays.list, d: /etc/servernet/relays.list }
+      changed_when: true
+      no_log: true
+
+    - name: Lock down conf + pool perms in container
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- chmod 600 /etc/servernet/relay.conf /etc/servernet/relays.list
+      changed_when: false
+
+    - name: Push monitor script + units into container
+      ansible.builtin.command: "pct push {{ relay_ctid }} {{ relay_stage_dir }}/{{ item.s }} {{ item.d }}"
+      loop:
+        - { s: servernet-relay-monitor,         d: /usr/local/bin/servernet-relay-monitor }
+        - { s: servernet-relay.service,         d: /etc/systemd/system/servernet-relay.service }
+        - { s: servernet-relay-monitor.service, d: /etc/systemd/system/servernet-relay-monitor.service }
+      changed_when: true
+
+    - name: Make monitor script executable
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- chmod 0750 /usr/local/bin/servernet-relay-monitor
+      changed_when: false
+
+    - name: Install host pool-manager helper servernet-relay-set
+      ansible.builtin.copy:
+        src: "{{ relay_stage_dir }}/servernet-relay-set"
+        dest: /usr/local/sbin/servernet-relay-set
+        mode: "0750"
+        remote_src: true
+
+    - name: Reload systemd in container
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- systemctl daemon-reload
+      changed_when: false
+
+    # --- Path A: fresh / parallel install (no legacy uplink to migrate) --------
+    - name: Enable + start servernet-relay uplink
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- systemctl enable --now servernet-relay
+      changed_when: true
+      when: not (relay_migrate_de_ssh_socks | bool)
+
+    - name: Verify clean uplink egress (loc= must be present)
+      ansible.builtin.shell: |
+        sleep 6
+        pct exec {{ relay_ctid }} -- curl -s -m20 --socks5-hostname 127.0.0.1:{{ relay_local_socks }} {{ relay_probe_url }} 2>/dev/null | grep -E '^(ip|loc)=' | tr '\n' ' '
+      register: _relay_egress
+      changed_when: false
+      failed_when: "'loc=' not in (_relay_egress.stdout | default(''))"
+      when: not (relay_migrate_de_ssh_socks | bool)
+
+    - name: Enable + start relay self-heal monitor
+      ansible.builtin.command: pct exec {{ relay_ctid }} -- systemctl enable --now servernet-relay-monitor
+      changed_when: true
+      when: not (relay_migrate_de_ssh_socks | bool)
+
+    # --- Path B: OPTIONAL guarded migration off de-ssh-socks (auto-rollback) ---
+    # Mirrors 02-relay-selfheal.sh: same port, brief blip, rolls back to
+    # de-ssh-socks and FAILS the task if the generic tunnel can't egress.
+    - name: Migrate de-ssh-socks -> servernet-relay (auto-rollback on failure)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        pct exec {{ relay_ctid }} -- systemctl disable --now de-ssh-socks 2>/dev/null || true
+        pct exec {{ relay_ctid }} -- systemctl enable --now servernet-relay
+        sleep 6
+        LOC="$(pct exec {{ relay_ctid }} -- curl -s -m20 --socks5-hostname 127.0.0.1:{{ relay_local_socks }} {{ relay_probe_url }} 2>/dev/null | grep -E '^(ip|loc)=' | tr '\n' ' ' || true)"
+        if printf '%s' "$LOC" | grep -q 'loc='; then
+          pct exec {{ relay_ctid }} -- systemctl enable --now servernet-relay-monitor
+          echo "MIGRATED ok — uplink via servernet-relay + self-heal monitor. egress: $LOC"
+        else
+          echo "VERIFY FAILED -> rolling back to de-ssh-socks"
+          pct exec {{ relay_ctid }} -- systemctl disable --now servernet-relay 2>/dev/null || true
+          pct exec {{ relay_ctid }} -- systemctl enable --now de-ssh-socks 2>/dev/null || true
+          exit 3
+        fi
+      register: _relay_migrate
+      changed_when: true
+      when: relay_migrate_de_ssh_socks | bool
+
+    - name: exit_relay apply summary
+      ansible.builtin.debug:
+        msg:
+          - "Uplink SOCKS live at 127.0.0.1:{{ relay_local_socks }} in LXC {{ relay_ctid }} (self-healing pool)."
+          - "Add a backup relay:  servernet-relay-set add <HOST> [PORT] [USER] [KEYFILE]  (put its key in the container first)"
+          - "Force-activate one:  servernet-relay-set use <HOST> [PORT] [USER] [KEYFILE]"
+          - "Show pool + egress:  servernet-relay-set list"

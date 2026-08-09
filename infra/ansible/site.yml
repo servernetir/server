@@ -1,0 +1,48 @@
+---
+# =============================================================================
+#  ServerNet platform — full setup, in dependency-safe order.
+#
+#  SAFE TO RUN as-is: host bootstrap + snippet + templates are additive and
+#  idempotent (existing templates are skipped). The container/host service roles
+#  (control_panel, exit_node, exit_multicountry, pf_agent) STAGE by default and
+#  touch nothing live until you pass their apply flag.
+#
+#  Examples:
+#    ansible-playbook site.yml --check                 # dry-run everything
+#    ansible-playbook site.yml --tags bootstrap        # just host pool/token/ACL
+#    ansible-playbook site.yml --tags templates        # build/verify templates
+#    ansible-playbook site.yml --tags panel -e panel_apply=true
+#    ansible-playbook site.yml --tags exit  -e exit_apply=true
+#    ansible-playbook site.yml --tags module2 -e mc_apply=true
+#    ansible-playbook site.yml --tags pf    -e pf_apply=true
+#
+#  Module 2b chain (apply in this order — each flag defaults false = stage-only):
+#    ansible-playbook site.yml --tags relay     -e relay_apply=true
+#    ansible-playbook site.yml --tags module2   -e mc_apply=true
+#    ansible-playbook site.yml --tags killswitch -e killswitch_apply=true
+#    ansible-playbook site.yml --tags routing   -e country_routing_apply=true
+#    ansible-playbook site.yml --tags dedicated -e dedicated_apply=true
+#
+#  Dedicated own-server exits (sell MOST countries with a guaranteed IP) — install
+#  the mechanism, then at runtime:
+#    servernet-exit-set <cc> --ssh root@<host> [--key <keyfile>]   # or --socks/--link
+#
+#  NEVER run against `all` or add the pre-existing guests to inventory.
+# =============================================================================
+- name: ServerNet platform setup
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - { role: proxmox_host,      tags: [host, bootstrap] }
+    - { role: cloudinit_snippet, tags: [snippet, linux, templates] }
+    - { role: linux_templates,   tags: [templates, linux] }
+    - { role: windows_template,  tags: [templates, windows] }
+    - { role: control_panel,        tags: [panel] }
+    - { role: exit_node,            tags: [exit] }
+    # --- Module 2b: relay -> mihomo -> kill-switch -> per-country routing -------
+    - { role: exit_relay,           tags: [relay, module2] }
+    - { role: exit_multicountry,    tags: [exit, module2] }
+    - { role: mihomo_killswitch,    tags: [killswitch, module2] }
+    - { role: exit_country_routing, tags: [routing, module2] }
+    - { role: exit_dedicated,       tags: [dedicated, module2] }
+    - { role: pf_agent,             tags: [pf, agent] }

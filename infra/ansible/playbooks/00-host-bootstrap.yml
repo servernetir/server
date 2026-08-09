@@ -1,0 +1,7 @@
+---
+# Host bootstrap: pool, least-privilege token/role/ACL, snippet storage
+- name: "Host bootstrap: pool, least-privilege token/role/ACL, snippet storage"
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - proxmox_host

@@ -54,6 +54,11 @@ class SettingsController extends Controller
             'ovh'     => $ready && filled(Setting::getSecret('ovh_app_key'))
                 && filled(Setting::getSecret('ovh_app_secret'))
                 && filled(Setting::getSecret('ovh_consumer_key')),
+            // Proxmox: فقط توکنِ سرّی رمزنگاری‌شده است؛ «تنظیم‌شده» یعنی همان هست.
+            'proxmox' => $ready && filled(Setting::getSecret('proxmox_token_secret')),
+            // توکنِ pull-agentِ هاستِ ایران (رمزنگاری‌شده) + فهرستِ کشورهای خروج.
+            'agent'          => $ready && filled(Setting::getSecret('agent_pull_token')),
+            'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             // 🔴 «۱ یورو چند روبل» حذف شد: حسابِ زیرساختِ ۲ فقط یورو می‌تواند
@@ -66,6 +71,17 @@ class SettingsController extends Controller
             // دامنه — درصد سود و نام‌سرورِ پیش‌فرض
             'dmargin' => $ready ? Setting::get('domain_margin_pct') : null,
             'dns'     => $ready ? Setting::get('domain_nameservers') : null,
+            // Proxmox — کانفیگِ ساده (غیرِ سرّی) برای پیش‌پرکردنِ فرم. خالی = پیش‌فرض.
+            'px'      => [
+                'api_url'  => $ready ? Setting::get('proxmox_api_url') : null,
+                'node'     => $ready ? Setting::get('proxmox_node') : null,
+                'token_id' => $ready ? Setting::get('proxmox_token_id') : null,
+                'template' => $ready ? Setting::get('proxmox_template_vmid') : null,
+                'storage'  => $ready ? Setting::get('proxmox_storage') : null,
+                'bridge'   => $ready ? Setting::get('proxmox_bridge') : null,
+                'gateway'  => $ready ? Setting::get('proxmox_gateway') : null,
+                'ip_start' => $ready ? Setting::get('proxmox_ip_start') : null,
+            ],
         ];
 
         /*
@@ -132,6 +148,21 @@ class SettingsController extends Controller
             'ovh_app_secret'        => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'      => ['nullable', 'string', 'max:200'],
             'arvan_forget'          => ['nullable', 'boolean'],
+            // Proxmox — فقط token_secret سرّی است؛ بقیه کانفیگِ ساده با پیش‌فرض
+            'proxmox_token_secret'  => ['nullable', 'string', 'max:200'],
+            'proxmox_forget'        => ['nullable', 'boolean'],
+            'proxmox_api_url'       => ['nullable', 'string', 'max:200'],
+            'proxmox_node'          => ['nullable', 'string', 'max:64'],
+            'proxmox_token_id'      => ['nullable', 'string', 'max:120'],
+            'proxmox_template_vmid' => ['nullable', 'integer', 'min:1', 'max:999999999'],
+            'proxmox_storage'       => ['nullable', 'string', 'max:64'],
+            'proxmox_bridge'        => ['nullable', 'string', 'max:32'],
+            'proxmox_gateway'       => ['nullable', 'string', 'max:45'],
+            'proxmox_ip_start'      => ['nullable', 'string', 'max:45'],
+            // کشورهای خروجِ Exit VPS (CSV) و توکنِ pull-agentِ ایران
+            'proxmox_exit_countries' => ['nullable', 'string', 'max:200'],
+            'agent_pull_token'      => ['nullable', 'string', 'max:200'],
+            'agent_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             // درصد سود دامنه — صفر مجاز است (استراتژیِ جذبِ مشتری)
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
@@ -216,6 +247,30 @@ class SettingsController extends Controller
             if (filled($data['google_client_secret'] ?? null)) {
                 Setting::putSecret('google_client_secret', trim((string) $data['google_client_secret']));
             }
+        }
+
+        // Proxmox: مثلِ OVH یک بلوکِ جدا چون چندکلیدی است — ولی فقط `token_secret`
+        // رمزنگاری‌شده است (بقیه کانفیگِ ساده‌اند). «فراموش کن» فقط توکن را پاک
+        // می‌کند؛ کانفیگِ ساده می‌مانَد تا با توکنِ تازه دوباره کار کند.
+        if ($request->boolean('proxmox_forget')) {
+            Setting::putSecret('proxmox_token_secret', null);
+        } elseif (filled($data['proxmox_token_secret'] ?? null)) {
+            Setting::putSecret('proxmox_token_secret', trim((string) $data['proxmox_token_secret']));
+        }
+
+        // توکنِ pull-agentِ ایران: مثلِ Proxmox رمزنگاری‌شده، هرگز به فرم برنمی‌گردد،
+        // خالی یعنی «دست نزن» و برای حذف تیکِ جدا هست.
+        if ($request->boolean('agent_forget')) {
+            Setting::putSecret('agent_pull_token', null);
+        } elseif (filled($data['agent_pull_token'] ?? null)) {
+            Setting::putSecret('agent_pull_token', trim((string) $data['agent_pull_token']));
+        }
+
+        foreach (['proxmox_api_url', 'proxmox_node', 'proxmox_token_id', 'proxmox_template_vmid',
+            'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start',
+            'proxmox_exit_countries'] as $k) {
+            // خالی = بازگشت به پیش‌فرض (درایور خودش پیش‌فرض دارد)
+            Setting::put($k, filled($data[$k] ?? null) ? trim((string) $data[$k]) : null);
         }
 
         foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents',

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Bring up routing for one country tun (called as ExecStartPost). Idempotent.
+# Fail-closed kill-switch: a blackhole default in the country's table stays even
+# if tun<cc> drops => traffic is DROPPED, never falls back to main/Iran.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+cc="$1"; . /etc/servernet/country-$cc.env
+i=0; while [ $i -lt 30 ]; do ip link show tun$cc >/dev/null 2>&1 && break; sleep 0.5; i=$((i+1)); done
+ip addr replace ${TUNIP}/24 dev tun$cc 2>/dev/null || true
+ip link set tun$cc up 2>/dev/null || true
+ip route replace default dev tun$cc table $TABLE
+# kill-switch: if tun$cc goes down its default route vanishes; blackhole stays => DROP (never main/Iran)
+ip route replace blackhole default table $TABLE metric 1000 2>/dev/null || ip route add blackhole default table $TABLE metric 1000 2>/dev/null || true
+iptables -C FORWARD -o tun$cc -j ACCEPT 2>/dev/null || iptables -A FORWARD -o tun$cc -j ACCEPT
+iptables -C FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+exit 0

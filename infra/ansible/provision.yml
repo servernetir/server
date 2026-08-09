@@ -1,0 +1,108 @@
+---
+# =============================================================================
+#  provision.yml — clone one customer VM from a template.
+#  Runs on the Proxmox host using qm (unambiguous + proven; the community.proxmox
+#  module is an equivalent alternative, see README). Mirrors Provisioner::sell.
+#
+#  Required extra-vars (-e):
+#    os_key            one of os_catalog (e.g. ubuntu2404, windows2022)
+#    new_vmid          target VMID (must be >= customer_vmid_min, unprotected)
+#    cust_name         VM name / host label (e.g. s123)
+#    assigned_ip       private IP (e.g. 10.10.10.60)
+#    initial_password  first-login password (secret; will not be logged)
+#  Optional:
+#    plan_cores (2), plan_memory (2048 MB), plan_disk_gb (0 = template default),
+#    customer_ssh_key (public key string)
+# =============================================================================
+- name: Provision customer VM
+  hosts: proxmox
+  gather_facts: false
+  vars:
+    plan_cores: 2
+    plan_memory: 2048
+    plan_disk_gb: 0
+    customer_ssh_key: ""
+  tasks:
+    - name: Validate inputs
+      ansible.builtin.assert:
+        that:
+          - os_key is defined and os_key in os_catalog
+          - new_vmid is defined
+          - cust_name is defined and (cust_name | length) > 0
+          - assigned_ip is defined
+          - initial_password is defined and (initial_password | length) >= 8
+        fail_msg: "Missing/invalid inputs. See the header of provision.yml."
+
+    - name: SAFETY — refuse protected / out-of-range VMIDs
+      ansible.builtin.assert:
+        that:
+          - (new_vmid | int) >= customer_vmid_min
+          - (new_vmid | int) not in protected_vmids
+          - >-
+            (protected_vmid_ranges
+             | selectattr('min', 'le', new_vmid | int)
+             | selectattr('max', 'ge', new_vmid | int)
+             | list | length) == 0
+        fail_msg: "REFUSED: VMID {{ new_vmid }} is protected or below customer_vmid_min ({{ customer_vmid_min }})."
+
+    - name: Resolve template facts
+      ansible.builtin.set_fact:
+        _tmpl_vmid: "{{ os_catalog[os_key].vmid }}"
+        _is_win: "{{ os_catalog[os_key].win }}"
+        _ciuser: "{{ default_user_windows if os_catalog[os_key].win else default_user_linux }}"
+
+    - name: Ensure target VMID is free
+      ansible.builtin.command: qm status {{ new_vmid }}
+      register: _free
+      changed_when: false
+      failed_when: false
+
+    - name: Abort if VMID already exists
+      ansible.builtin.assert:
+        that: _free.rc != 0
+        fail_msg: "VMID {{ new_vmid }} already exists — refusing to overwrite."
+
+    - name: Full-clone from template {{ _tmpl_vmid }} ({{ os_key }})
+      ansible.builtin.command: >-
+        qm clone {{ _tmpl_vmid }} {{ new_vmid }}
+        --name {{ cust_name }}
+        --full 1
+        --storage {{ vm_storage }}
+        --pool {{ pve_customer_pool }}
+      register: _clone
+      changed_when: _clone.rc == 0
+
+    - name: Apply CPU / memory / cloud-init user + network
+      ansible.builtin.command: >-
+        qm set {{ new_vmid }}
+        --cores {{ plan_cores }}
+        --memory {{ plan_memory }}
+        --ciuser {{ _ciuser }}
+        --cipassword {{ initial_password | quote }}
+        --ipconfig0 ip={{ assigned_ip }}/24,gw={{ private_gateway }}
+      register: _setci
+      changed_when: _setci.rc == 0
+      no_log: true                 # cipassword is here
+
+    - name: Inject customer SSH key (optional, Linux)
+      ansible.builtin.command: >-
+        bash -lc 'K=$(mktemp); printf "%s\n" "{{ customer_ssh_key }}" > "$K"; qm set {{ new_vmid }} --sshkeys "$K"; rm -f "$K"'
+      when: (customer_ssh_key | length) > 0 and not (_is_win | bool)
+      changed_when: true
+
+    - name: Resize root disk (optional)
+      ansible.builtin.command: qm resize {{ new_vmid }} scsi0 {{ plan_disk_gb }}G
+      when: (plan_disk_gb | int) > 0
+      changed_when: true
+
+    - name: Start VM
+      ansible.builtin.command: qm start {{ new_vmid }}
+      register: _start
+      changed_when: _start.rc == 0
+
+    - name: Connection summary (password intentionally not shown)
+      ansible.builtin.debug:
+        msg:
+          - "VM {{ new_vmid }} ({{ cust_name }}, {{ os_catalog[os_key].label }}) is up."
+          - "Login user: {{ _ciuser }} — port {{ os_catalog[os_key].port }} ({{ 'RDP' if _is_win else 'SSH' }})."
+          - "Private IP {{ assigned_ip }}. Assign a public sale port via the panel; pf-agent will DNAT it."

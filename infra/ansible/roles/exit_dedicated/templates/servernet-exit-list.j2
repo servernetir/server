@@ -1,0 +1,6 @@
+#!/bin/sh
+# servernet-exit-list  — show the dedicated (guaranteed) exits currently set.
+REG=/etc/servernet/dedicated-exits.list
+[ -f "$REG" ] || { echo "(no dedicated exits set — every country uses the free pool)"; exit 0; }
+printf '%-4s %-7s %-14s %s\n' CC METHOD LABEL DETAIL
+awk -F'|' 'NF{printf "%-4s %-7s %-14s %s\n",$1,$2,$3,$4}' "$REG"

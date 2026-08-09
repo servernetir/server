@@ -1,0 +1,111 @@
+---
+# =============================================================================
+#  ServerNet platform — non-secret configuration.
+#  Secrets live in vault.yml (see vault.example.yml). Never put tokens/passwords
+#  here.
+# =============================================================================
+
+# --- Proxmox node ------------------------------------------------------------
+# Must match the node name from `pvesh get /nodes --output-format json`.
+# The provisioning brief used "ir"; verify against your node before first run.
+pve_node: ir
+
+# API endpoint the least-privilege token authenticates against (host side).
+pve_api_host: 127.0.0.1          # tasks run ON the host, so loopback is fine
+pve_api_port: 8006
+
+# --- Storage -----------------------------------------------------------------
+# VM disks land on the ZFS-backed storage; ISOs + cloud-init snippets on `isos`.
+vm_storage: vmstoreid            # ZFS storage id for guest disks
+iso_storage: isos                # storage id holding iso, vztmpl, snippets
+iso_storage_path: /vmstore/iso   # filesystem path backing `isos`
+snippets_subdir: snippets        # -> {{ iso_storage_path }}/snippets
+# cicustom vendor snippet reference applied to every Linux template:
+linux_vendor_snippet: "{{ iso_storage }}:snippets/sn-linux.yaml"
+
+# --- Least-privilege provisioning identity -----------------------------------
+# Created by the proxmox_host role. The panel uses THIS token, never root.
+pve_svc_realm: pve                       # pve realm => API-only, no SSH/console
+pve_svc_user: "svc-controller@{{ pve_svc_realm }}"
+pve_svc_token_id: provisioner
+pve_provisioner_role: ServerNetProvisioner
+# Exact privileges the role needs and nothing more:
+pve_provisioner_privs:
+  - VM.Allocate
+  - VM.Clone
+  - VM.Config.Disk
+  - VM.Config.CPU
+  - VM.Config.Memory
+  - VM.Config.Network
+  - VM.Config.Cloudinit
+  - VM.Config.Options
+  - VM.Console
+  - VM.Monitor
+  - VM.PowerMgmt
+  - VM.Audit
+  - Datastore.AllocateSpace
+  - Datastore.Audit
+  - SDN.Use
+
+# --- Pool: every platform-sold guest lives here; nothing else does -----------
+pve_customer_pool: customers
+
+# --- OS catalog: os key -> template VMID (must match panel config/os.php) -----
+# win=false => default login user root, service port 22 (SSH)
+# win=true  => default login user Administrator, service port 3389 (RDP)
+os_catalog:
+  debian13:    { vmid: 9000, win: false, port: 22,   label: "Debian 13 (trixie)" }
+  ubuntu2204:  { vmid: 9001, win: false, port: 22,   label: "Ubuntu 22.04 LTS" }
+  ubuntu2404:  { vmid: 9002, win: false, port: 22,   label: "Ubuntu 24.04 LTS" }
+  debian12:    { vmid: 9003, win: false, port: 22,   label: "Debian 12 (bookworm)" }
+  rocky9:      { vmid: 9004, win: false, port: 22,   label: "Rocky Linux 9" }
+  alma9:       { vmid: 9005, win: false, port: 22,   label: "AlmaLinux 9" }
+  windows2022: { vmid: 9012, win: true,  port: 3389, label: "Windows Server 2022" }
+
+# Default login users (match Provisioner::sell after the access fix).
+default_user_linux: root
+default_user_windows: Administrator
+
+# --- Networking --------------------------------------------------------------
+private_bridge: vmbr1
+private_subnet: "10.10.10.0/24"
+private_gateway: "10.10.10.1"
+public_ip: "85.9.108.118"        # the fixed customer-facing anchor
+control_ip: "10.10.10.30"        # LXC 115 servernet-control
+exit_ip: "10.10.10.20"           # LXC 113 exit
+# Sold guests get sequential private IPs from here up:
+customer_ip_start: "10.10.10.60"
+# Public NAT ports handed to customers (host DNAT -> guest svc port):
+sale_port_min: 20000
+sale_port_max: 20999
+
+# --- Container IDs -----------------------------------------------------------
+control_ctid: 115                # servernet-control (Laravel panel)
+exit_ctid: 113                   # sing-box exit
+
+# =============================================================================
+#  SAFETY — the red lines. Read twice before editing.
+# =============================================================================
+# Hard-protected VMIDs. destroy.yml and the provisioner REFUSE to act on these.
+# 108 is the customer "Mohammadi" red line. 113/115 are platform infra.
+# The template IDs are here so a mistyped destroy can never nuke a template.
+protected_vmids:
+  - 108            # RED LINE — never touch
+  - 113            # exit container
+  - 115            # control container
+  - 9000
+  - 9001
+  - 9002
+  - 9003
+  - 9004
+  - 9005
+  - 9012
+
+# Pre-existing hand-managed guests live in this range and are OUTSIDE the
+# platform pool and inventory. The destroy guard rejects anything inside it.
+protected_vmid_ranges:
+  - { min: 100, max: 114 }
+
+# A guest may only be destroyed by this IaC if its VMID is >= this floor
+# (platform-sold guests start here). Belt-and-suspenders with the pool check.
+customer_vmid_min: 116
