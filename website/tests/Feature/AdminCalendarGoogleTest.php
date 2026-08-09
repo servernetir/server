@@ -71,14 +71,23 @@ class AdminCalendarGoogleTest extends TestCase
         $this->assertStringNotContainsString('اتصال به گوگل', $html);
     }
 
-    public function test_the_connect_bar_appears_once_credentials_are_set(): void
+    /**
+     * ⚠️ دکمهٔ اتصال در **تنظیمات** است، نه روی تقویم.
+     *
+     * صفحهٔ تقویم باید فضایش را به سررسیدها بدهد؛ اتصال خبری است که یک بار
+     * لازم می‌شود. کاربرِ وصل‌نشده هم چیپی نمی‌بیند که هیچ‌وقت چیزی نیاورد.
+     */
+    public function test_the_connect_button_lives_in_settings_not_on_the_calendar(): void
     {
         $this->configureApp();
+        $staff = $this->staff();
 
-        $html = $this->actingAs($this->staff(), 'web')->get('/admin/calendar')->assertOk()->getContent();
+        $settings = $this->actingAs($staff, 'web')->get('/admin/settings')->assertOk()->getContent();
+        $this->assertStringContainsString('اتصال به گوگل', $settings);
 
-        $this->assertStringContainsString('data-layer="google"', $html);
-        $this->assertStringContainsString('اتصال به گوگل', $html);
+        $calendar = $this->actingAs($staff, 'web')->get('/admin/calendar')->assertOk()->getContent();
+        $this->assertStringNotContainsString('اتصال به گوگل', $calendar);
+        $this->assertStringNotContainsString('data-layer="google"', $calendar);
     }
 
     /* ═════════════════════ جریانِ OAuth ═════════════════════ */
@@ -371,6 +380,140 @@ class AdminCalendarGoogleTest extends TestCase
         ])->assertStatus(422)->assertJsonPath('error', 'google_not_connected');
 
         Http::assertNothingSent();
+    }
+
+    /* ═════════════════════ حذفِ رویدادِ گوگل ═════════════════════ */
+
+    public function test_a_google_event_can_be_deleted_from_the_panel(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        Http::fake(['www.googleapis.com/*' => Http::response(null, 204)]);
+
+        $this->actingAs($staff, 'web')
+            ->deleteJson('/admin/calendar/google/events/abc123')
+            ->assertOk()->assertJsonPath('deleted', 'google:abc123');
+
+        Http::assertSent(fn ($r) => $r->method() === 'DELETE'
+            && str_contains($r->url(), '/events/abc123'));
+    }
+
+    /**
+     * ⚠️ رویدادی که از قبل نیست، «موفق» است.
+     *
+     * مقصد همان چیزی است که کاربر خواسته («این نباشد»); خطادادن بابتِ کاری که
+     * لازم نبوده فقط سردرگمش می‌کند. همان قاعدهٔ `releaseServer()` که حذفِ
+     * سرورِ ازقبل‌نبود را موفق می‌شمارد.
+     */
+    public function test_deleting_an_already_gone_event_counts_as_success(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        Http::fake(['www.googleapis.com/*' => Http::response(['error' => ['message' => 'Not Found']], 404)]);
+
+        $this->actingAs($staff, 'web')
+            ->deleteJson('/admin/calendar/google/events/gone')
+            ->assertOk()->assertJsonPath('ok', true);
+    }
+
+    public function test_a_refused_google_delete_is_reported(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        Http::fake(['www.googleapis.com/*' => Http::response(['error' => ['message' => 'forbidden']], 403)]);
+
+        $this->actingAs($staff, 'web')
+            ->deleteJson('/admin/calendar/google/events/abc')
+            ->assertStatus(422)->assertJsonPath('error', 'google_delete_failed');
+    }
+
+    public function test_deleting_without_a_connection_is_refused(): void
+    {
+        $this->configureApp();
+        Http::fake();
+
+        $this->actingAs($this->staff(), 'web')
+            ->deleteJson('/admin/calendar/google/events/abc')
+            ->assertStatus(422)->assertJsonPath('error', 'google_not_connected');
+
+        Http::assertNothingSent();
+    }
+
+    /* ═════════════════════ جای وضعیتِ اتصال ═════════════════════ */
+
+    /**
+     * 🔴 نوارِ «وصل است» از صفحهٔ تقویم برداشته شد — خبری که یک بار لازم است
+     * نباید هر روز فضا بگیرد. ولی **خرابی** می‌مانَد، وگرنه لایهٔ گوگل بی‌صدا
+     * خالی می‌شود و مدیر فکر می‌کند آن هفته قراری نداشته.
+     */
+    public function test_a_healthy_connection_shows_no_bar_on_the_calendar(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+        Http::fake(['www.googleapis.com/*' => Http::response(['items' => []])]);
+
+        $html = $this->actingAs($staff, 'web')->get('/admin/calendar')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('تقویم گوگل وصل است', $html);
+        $this->assertStringNotContainsString('cal-gbar', $html);
+        // ولی چیپِ لایه باید باشد، چون وصل است
+        $this->assertStringContainsString('data-layer="google"', $html);
+    }
+
+    /**
+     * ⚠️ فِیک باید **خراب** باشد، نه سالم.
+     *
+     * یک واکشیِ موفق `markSynced()` می‌زند و `last_error` را پاک می‌کند — که
+     * رفتارِ درستی است. نسخهٔ اولِ این تست خطا را ست می‌کرد و بعد اجازه می‌داد
+     * یک واکشیِ سالم پاکش کند، پس چیزی را می‌سنجید که خودش خنثی کرده بود.
+     */
+    public function test_a_broken_connection_still_shouts_on_the_calendar(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        Http::fake(['www.googleapis.com/*' => Http::response(
+            ['error' => ['message' => 'Calendar API has not been used']], 403,
+        )]);
+
+        $html = $this->actingAs($staff, 'web')->get('/admin/calendar')->assertOk()->getContent();
+
+        $this->assertStringContainsString('cal-gbar', $html);
+        $this->assertStringContainsString('خواندن رویدادها ناموفق', $html);
+    }
+
+    /**
+     * چیپِ گوگل برای کاربرِ **وصل‌نشده** ساخته نمی‌شود — کنترلی که هیچ‌وقت
+     * چیزی نمی‌آورد، کاربر را دنبالِ خرابیِ ناموجود می‌فرستد.
+     */
+    public function test_an_unconnected_user_gets_no_google_chip(): void
+    {
+        $this->configureApp();
+
+        $html = $this->actingAs($this->staff(), 'web')->get('/admin/calendar')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('data-layer="google"', $html);
+    }
+
+    public function test_the_settings_page_carries_the_connection_controls(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        $html = $this->actingAs($staff, 'web')->get('/admin/settings')->assertOk()->getContent();
+
+        $this->assertStringContainsString('حسابِ شما وصل است', $html);
+        $this->assertStringContainsString('me@gmail.com', $html);
+        $this->assertStringContainsString('/admin/calendar/google/disconnect', $html);
     }
 
     /* ═════════════════════ تازه‌سازیِ توکن ═════════════════════ */

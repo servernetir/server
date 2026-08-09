@@ -165,19 +165,32 @@ class CalendarEvent extends Model
      * ۱۴۰۴» تاریخِ شروعش خارجِ بازه است ولی تکرارش داخلِ آن می‌افتد. آن شرط،
      * **هر رویدادِ تکرارشونده‌ای را که قبلاً شروع شده بی‌صدا حذف می‌کرد** —
      * یعنی اجاره هیچ‌وقت در تقویم دیده نمی‌شد.
+     *
+     * 🔴 و همه‌جا `whereDate()`، نه مقایسهٔ رشته‌ای.
+     *
+     * ستون از نوعِ `date` است، ولی لاراول مقدارش را `2026-08-09 00:00:00`
+     * می‌نویسد. مقایسهٔ رشته‌ایِ `BETWEEN '…' AND '2026-08-09'` آن ردیف را
+     * **بیرون** می‌گذارد، چون `'2026-08-09 00:00:00'` از `'2026-08-09'` بزرگ‌تر
+     * است. نتیجه‌اش این بود که هر رویدادِ **روزِ آخرِ بازه** بی‌صدا غیب می‌شد —
+     * یعنی یادآوریِ آخرین روزِ هر ماه در نمای همان ماه دیده نمی‌شد، و پنجرهٔ
+     * «پیش‌رو» یک روز کوتاه بود. هیچ خطایی، هیچ لاگی.
+     *
+     * `whereDate` بخشِ تاریخ را در هر دو موتور (SQLite محلی، MariaDB
+     * پروداکشن) درست بیرون می‌کشد.
      */
     public function scopeRelevantTo(Builder $query, Carbon $from, Carbon $to): Builder
     {
         return $query->where(function (Builder $q) use ($from, $to) {
             $q->where(fn (Builder $w) => $w
                 ->where('repeat', 'none')
-                ->whereBetween('event_date', [$from->toDateString(), $to->toDateString()]))
+                ->whereDate('event_date', '>=', $from->toDateString())
+                ->whereDate('event_date', '<=', $to->toDateString()))
                 ->orWhere(fn (Builder $w) => $w
                     ->where('repeat', '!=', 'none')
-                    ->where('event_date', '<=', $to->toDateString())
+                    ->whereDate('event_date', '<=', $to->toDateString())
                     ->where(fn (Builder $u) => $u
                         ->whereNull('repeat_until')
-                        ->orWhere('repeat_until', '>=', $from->toDateString())));
+                        ->orWhereDate('repeat_until', '>=', $from->toDateString())));
         });
     }
 
@@ -245,7 +258,9 @@ class CalendarEvent extends Model
      */
     public function scopeBetween(Builder $query, Carbon $from, Carbon $to): Builder
     {
-        return $query->whereBetween('event_date', [$from->toDateString(), $to->toDateString()]);
+        return $query
+            ->whereDate('event_date', '>=', $from->toDateString())
+            ->whereDate('event_date', '<=', $to->toDateString());
     }
 
     /** فقط لایه‌های خواسته‌شده؛ فهرستِ خالی یعنی «همه» */

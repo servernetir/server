@@ -1961,6 +1961,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/calendar/google/connect', [\App\Http\Controllers\Admin\CalendarController::class, 'googleConnect']);
         Route::get('/calendar/google/callback', [\App\Http\Controllers\Admin\CalendarController::class, 'googleCallback']);
         Route::post('/calendar/google/disconnect', [\App\Http\Controllers\Admin\CalendarController::class, 'googleDisconnect']);
+        // شناسهٔ رویدادِ گوگل می‌تواند نقطه و خط‌تیره داشته باشد، پس الگو باز است
+        Route::delete('/calendar/google/events/{eventId}', [\App\Http\Controllers\Admin\CalendarController::class, 'googleDestroyEvent'])
+            ->where('eventId', '[A-Za-z0-9_\-@.]+');
 
         // اعلان به مشتریان — یک نفر یا همه (پیامک + بله)
         Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('admin.broadcasts');

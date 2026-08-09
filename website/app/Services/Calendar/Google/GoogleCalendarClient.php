@@ -247,6 +247,49 @@ class GoogleCalendarClient
         ];
     }
 
+    /**
+     * حذفِ رویداد از تقویمِ گوگل.
+     *
+     * ⚠️ گوگل برای حذفِ موفق `204 No Content` می‌دهد — بدنهٔ خالی، نه JSON.
+     *
+     * ⚠️ رویدادی که **از قبل نیست** (۴۰۴ یا ۴۱۰) موفق شمرده می‌شود: مقصد همان
+     * چیزی است که کاربر خواسته («این نباشد»), و خطادادن بابتِ کاری که لازم
+     * نبوده فقط او را سردرگم می‌کند. همان قاعدهٔ `releaseServer()` در این
+     * پروژه که حذفِ سرورِ ازقبل‌نبود را «موفق» می‌شمارد.
+     *
+     * @return array{ok:bool, error?:string}
+     */
+    public function deleteEvent(GoogleCalendarToken $token, string $eventId): array
+    {
+        $access = $this->validAccessToken($token);
+
+        if ($access === null) {
+            return ['ok' => false, 'error' => $token->last_error ?: 'no_token'];
+        }
+
+        try {
+            $response = Http::withToken($access)->timeout(self::TIMEOUT)->delete(
+                self::API.'/calendars/'.rawurlencode($token->calendar_id ?: 'primary')
+                .'/events/'.rawurlencode($eventId),
+            );
+        } catch (\Throwable $e) {
+            ErrorTracker::noteOnce('google-calendar', 'حذفِ رویدادِ گوگل شکست خورد: '.$e->getMessage(), 900);
+
+            return ['ok' => false, 'error' => 'network'];
+        }
+
+        if ($response->successful() || in_array($response->status(), [404, 410], true)) {
+            return ['ok' => true];
+        }
+
+        $body = (array) ($response->json() ?? []);
+        $err = is_array($body['error'] ?? null)
+            ? (string) ($body['error']['message'] ?? 'http_'.$response->status())
+            : (string) ($body['error'] ?? 'http_'.$response->status());
+
+        return ['ok' => false, 'error' => $err];
+    }
+
     /* ==================================================================== */
 
     /** @return array{ok:bool, body?:array<string,mixed>, error?:string} */

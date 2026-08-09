@@ -79,7 +79,14 @@ class CalendarController extends Controller
             'synced_at'   => $googleToken?->synced_at?->diffForHumans(),
         ];
 
-        if (! $google['configured']) {
+        /*
+         * ⚠️ چیپِ گوگل فقط برای کاربرِ **وصل‌شده** ساخته می‌شود.
+         *
+         * پیش از این، اعتبارنامهٔ اپ کافی بود و چیپ برای همه می‌آمد — یعنی
+         * کاربری که حسابش را وصل نکرده یک چیپ می‌دید که هرگز چیزی نمی‌آورد و
+         * فکر می‌کرد خراب است. کنترلی که کاری نمی‌کند از نبودش بدتر است.
+         */
+        if (! $google['configured'] || ! $google['connected']) {
             unset($layers['google']);
         }
 
@@ -558,6 +565,37 @@ class CalendarController extends Controller
         );
 
         return redirect('/admin/calendar')->with('ok', 'تقویمِ گوگل وصل شد.');
+    }
+
+    /**
+     * حذفِ یک رویداد از تقویمِ گوگلِ خودِ کاربر.
+     *
+     * ⚠️ شناسه از **مسیر** می‌آید و مستقیم به گوگل می‌رود، ولی خطری ندارد:
+     * حذف همیشه روی تقویمِ توکنِ **همین کاربر** انجام می‌شود، پس بدترین حالت
+     * این است که کسی رویدادِ خودش را پاک کند. شناسهٔ رویدادِ کاربرِ دیگر روی
+     * تقویمِ این کاربر ۴۰۴ می‌گیرد.
+     */
+    public function googleDestroyEvent(Request $request, string $eventId, GoogleCalendarClient $google): JsonResponse
+    {
+        $token = GoogleCalendarToken::forUser($request->user()?->id);
+
+        if ($token === null) {
+            return response()->json(['ok' => false, 'error' => 'google_not_connected'], 422);
+        }
+
+        $res = $google->deleteEvent($token, $eventId);
+
+        if (! $res['ok']) {
+            return response()->json([
+                'ok' => false, 'error' => 'google_delete_failed',
+                'messages' => [$res['error'] ?? 'گوگل حذف را نپذیرفت.'],
+            ], 422);
+        }
+
+        // بی‌این، رویدادِ حذف‌شده تا پنج دقیقه هنوز روی صفحه است
+        $this->forgetGoogleCache((int) $request->user()->id);
+
+        return response()->json(['ok' => true, 'deleted' => 'google:'.$eventId]);
     }
 
     /** قطعِ اتصال — فقط ردیفِ خودِ کاربر */

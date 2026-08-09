@@ -59,33 +59,22 @@
       @endforeach
     </div>
 
-    {{-- ══ نوارِ اتصالِ گوگل ══
-         فقط وقتی دیده می‌شود که اعتبارنامهٔ اپ در تنظیمات باشد. اتصال per-user
-         است، پس این نوار وضعیتِ **همین کاربر** را می‌گوید نه شرکت را. --}}
-    @if($google['configured'])
-      <div class="cal-gbar @if($google['last_error']) is-broken @endif">
+    {{-- ══ فقط وقتی اتصالِ گوگل **خراب** است ══
+
+         🔴 وضعیتِ سالم عمداً این‌جا نیست. نوارِ «وصل است» هر روز فضا می‌گرفت تا
+         خبری بدهد که فقط یک بار لازم است؛ اتصال و قطع و وضعیت رفت به
+         `/admin/settings`.
+
+         ⚠️ ولی خرابی می‌مانَد. اگر توکن باطل شود و این‌جا چیزی نگوید، لایهٔ
+         گوگل بی‌صدا خالی می‌شود و مدیر فکر می‌کند آن هفته قراری نداشته —
+         دقیقاً همان «خرابیِ خاموش» که کلِ این ماژول در برابرش ساخته شده.
+         خبرِ بد جا دارد، خبرِ خوب نه. --}}
+    @if($google['configured'] && $google['connected'] && $google['last_error'])
+      <div class="cal-gbar is-broken">
         <svg class="icon"><use href="#i-calendar"/></svg>
-        @if($google['connected'])
-          <b>تقویم گوگل وصل است</b>
-          @if($google['email'])<span class="who">{{ $google['email'] }}</span>@endif
-          @if($google['synced_at'])<span style="color:var(--dim)">· آخرین همگام‌سازی {{ $google['synced_at'] }}</span>@endif
-          @if($google['last_error'])
-            <span class="msg" style="flex-basis:100%">⚠️ {{ $google['last_error'] }}</span>
-          @endif
-          <span class="sep"></span>
-          <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
-          <form method="post" action="/admin/calendar/google/disconnect" style="margin:0"
-                data-confirm="اتصالِ تقویمِ گوگل قطع شود؟" data-confirm-danger>
-            @csrf<button type="submit" class="btn btn-danger">قطع اتصال</button>
-          </form>
-        @else
-          <b>تقویم گوگلتان وصل نیست</b>
-          <span style="color:var(--muted)">رویدادهای شخصی‌تان کنار سررسیدهای کاری دیده می‌شوند — فقط خودتان.</span>
-          <span class="sep"></span>
-          <a class="btn btn-primary" href="/admin/calendar/google/connect">
-            <svg class="icon"><use href="#i-link"/></svg>اتصال به گوگل
-          </a>
-        @endif
+        <span class="msg"><b>تقویم گوگل:</b> {{ $google['last_error'] }}</span>
+        <span class="sep"></span>
+        <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
       </div>
     @endif
 

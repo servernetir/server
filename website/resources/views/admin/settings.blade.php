@@ -205,6 +205,48 @@
               <span>اعتبارنامهٔ گوگل را فراموش کن (اتصالِ همهٔ کاربران قطع می‌شود)</span>
             </label>
           @endif
+
+          {{-- ══ اتصالِ حسابِ **خودِ این کاربر** ══
+               بالا اعتبارنامهٔ اپ است (یکی برای کلِ نصب)؛ این پایین حسابِ شخصیِ
+               همین کاربر. جدا نگه‌داشتنشان عمدی است: مدیرِ دیگری که وارد شود،
+               همان اپ را دارد ولی حسابِ خودش را وصل می‌کند.
+
+               ⚠️ این‌جاست و نه در صفحهٔ تقویم، چون خبری است که یک بار لازم
+               می‌شود؛ نوارِ همیشگی روی تقویم فقط فضا می‌گرفت. --}}
+          @if($google['ready'])
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+              @if($google['connected'])
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12.5px">
+                  <span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">حسابِ شما وصل است</span>
+                  @if($google['email'])
+                    <span dir="ltr" style="color:var(--muted);unicode-bidi:isolate">{{ $google['email'] }}</span>
+                  @endif
+                  @if($google['synced_at'])
+                    <span style="color:var(--dim)">· آخرین همگام‌سازی {{ $google['synced_at'] }}</span>
+                  @endif
+                  <span style="margin-inline-start:auto;display:flex;gap:7px">
+                    <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
+                    <form method="post" action="/admin/calendar/google/disconnect" style="margin:0"
+                          data-confirm="اتصالِ تقویمِ گوگلِ شما قطع شود؟" data-confirm-danger>
+                      @csrf<button type="submit" class="btn btn-danger">قطع اتصال</button>
+                    </form>
+                  </span>
+                </div>
+                @if($google['last_error'])
+                  <p style="margin:9px 0 0;color:#ff6b6b;font-size:12.5px;line-height:1.9">⚠️ {{ $google['last_error'] }}</p>
+                @endif
+              @else
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12.5px">
+                  <span style="color:var(--muted)">
+                    حسابِ گوگلِ شما وصل نیست. بعد از اتصال، رویدادهای شخصی‌تان در تقویمِ
+                    کسب‌وکار کنارِ سررسیدهای کاری دیده می‌شوند — <b style="color:var(--text)">فقط خودتان</b>.
+                  </span>
+                  <a class="btn btn-primary" style="margin-inline-start:auto"
+                     href="/admin/calendar/google/connect">اتصال به گوگل</a>
+                </div>
+              @endif
+            </div>
+          @endif
         </div>
 
         {{-- ── دامنه ──

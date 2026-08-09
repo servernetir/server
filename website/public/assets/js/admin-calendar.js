@@ -497,7 +497,22 @@
 
     html += '<div class="cal-det-act">';
     if (ev.url) {
-      html += '<a class="btn btn-ghost" href="' + esc(ev.url) + '">' + iconSvg('i-link') + 'مشاهده</a>';
+      var isGoogle = ev.source === 'google';
+      html += '<a class="btn btn-ghost" href="' + esc(ev.url) + '"' +
+        (isGoogle ? ' target="_blank" rel="noopener"' : '') + '>' +
+        iconSvg('i-link') + (isGoogle ? 'ویرایش در گوگل' : 'مشاهده') + '</a>';
+    }
+    /*
+     * رویدادِ گوگل حذف می‌شود ولی ویرایش نه.
+     *
+     * ⚠️ عمدی: ویرایشِ کامل (ساعت، مهمان، تکرار، یادآور) در خودِ گوگل بهتر و
+     * کامل‌تر است و بازسازیِ نیم‌بندش این‌جا فقط یک فرمِ ناقص می‌سازد که نیمی
+     * از فیلدها را بی‌صدا دور می‌ریزد. دکمهٔ بالا مستقیم می‌بردتان همان‌جا.
+     */
+    if (ev.source === 'google') {
+      html += '<button type="button" class="btn btn-danger" data-act="gdelete" data-id="' +
+        esc(ev.source_id) + '" data-title="' + esc(ev.title) + '">' +
+        iconSvg('i-x') + 'حذف از گوگل</button>';
     }
     if (ev.editable) {
       if (ev.status !== 'done') {
@@ -672,8 +687,44 @@
     bad_until_date: 'تاریخِ پایانِ تکرار معتبر نیست.',
     until_before_start: 'تاریخِ پایانِ تکرار نمی‌تواند قبل از تاریخِ شروع باشد.',
     google_not_connected: 'تقویم گوگل وصل نیست.',
-    google_insert_failed: 'گوگل رویداد را نپذیرفت.'
+    google_insert_failed: 'گوگل رویداد را نپذیرفت.',
+    google_delete_failed: 'گوگل حذف را نپذیرفت.'
   };
+
+  /**
+   * حذفِ رویداد از تقویمِ گوگل.
+   *
+   * ⚠️ متنِ تأیید عنوانِ رویداد را می‌آورد و صریح می‌گوید حذف **در خودِ گوگل**
+   * انجام می‌شود، نه فقط در این پنل: کاربر باید بداند که روی گوشی و لپ‌تاپش
+   * هم می‌رود. حذفِ برگشت‌ناپذیرِ بیرونی نباید پشتِ یک «مطمئنی؟» ساده باشد.
+   */
+  function removeGoogleEvent(eventId, title) {
+    if (!eventId) return;
+
+    var msg = 'رویداد «' + title + '» از تقویمِ گوگلِ شما حذف شود؟ '
+      + 'این حذف در خودِ گوگل انجام می‌شود و روی همهٔ دستگاه‌هایتان اثر می‌گذارد.';
+
+    var go = function (ok) {
+      if (!ok) return;
+      jsonFetch('/admin/calendar/google/events/' + encodeURIComponent(eventId), { method: 'DELETE' })
+        .then(function (res) {
+          if (!res || !res.ok) {
+            toast((res && SAVE_ERRORS[res.error]) || (res && res.messages && res.messages[0])
+              || 'حذف از گوگل انجام نشد.', 'err');
+            return;
+          }
+          toast('از تقویم گوگل حذف شد.');
+          announce('رویداد از تقویم گوگل حذف شد.');
+          load(state.year, state.month, { silent: true, reopen: state.openDate });
+        });
+    };
+
+    if (typeof window.snConfirm === 'function') {
+      window.snConfirm(msg, { danger: true, ok: 'حذف از گوگل' }).then(go);
+    } else {
+      go(window.confirm(msg));
+    }
+  }
 
   function submitAdd(form) {
     var body = {
@@ -772,6 +823,10 @@
       if (act === 'close') { closeDrawer(); return; }
       if (act === 'add') { openAddForm(b.getAttribute('data-date')); return; }
       if (act === 'delete') { removeEvent(b.getAttribute('data-id')); return; }
+      if (act === 'gdelete') {
+        removeGoogleEvent(b.getAttribute('data-id'), b.getAttribute('data-title'));
+        return;
+      }
       if (act === 'done' || act === 'cancelled' || act === 'pending') {
         setStatus(b.getAttribute('data-id'), act);
       }

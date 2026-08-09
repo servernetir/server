@@ -42,7 +42,16 @@ class HostingRenewalProvider implements CalendarEventProvider
                     ->whereNull('billing_mode')
                     ->orWhere('billing_mode', '!=', 'hourly')),
             )
-            ->whereBetween('next_due_at', [$from->toDateString(), $to->toDateString()])
+            /*
+             * 🔴 `whereDate` و نه مقایسهٔ رشته‌ای.
+             *
+             * `next_due_at` از نوعِ `date` است ولی لاراول `2026-08-09 00:00:00`
+             * می‌نویسد، و `BETWEEN '…' AND '2026-08-09'` آن را بیرون می‌گذارد.
+             * یعنی سرویسی که سررسیدش **روزِ آخرِ ماه** است در نمای همان ماه
+             * دیده نمی‌شد — بی‌خطا و بی‌لاگ.
+             */
+            ->whereDate('next_due_at', '>=', $from->toDateString())
+            ->whereDate('next_due_at', '<=', $to->toDateString())
             ->orderBy('next_due_at')
             ->limit($this->rowCap())
             ->get()

@@ -75,10 +75,19 @@ class SettingsController extends Controller
          * URLِ ورودِ گوگل دیده می‌شود) و مدیر باید ببیند کدام client ثبت شده،
          * ولی دومی مثلِ بقیهٔ رازها یک‌طرفه است.
          */
+        $googleToken = $ready
+            ? \App\Models\GoogleCalendarToken::forUser(request()->user()?->id)
+            : null;
+
         $google = [
             'client_id' => $ready ? (string) Setting::get('google_client_id') : '',
             'ready'     => $ready && filled(Setting::get('google_client_id'))
                 && filled(Setting::getSecret('google_client_secret')),
+            // اتصالِ **همین کاربر** — نه شرکت. صفحهٔ تقویم دیگر این را نشان نمی‌دهد.
+            'connected'  => $googleToken !== null,
+            'email'      => $googleToken?->google_email,
+            'last_error' => $googleToken?->last_error,
+            'synced_at'  => $googleToken?->synced_at?->diffForHumans(),
         ];
 
         return view('admin.settings', [

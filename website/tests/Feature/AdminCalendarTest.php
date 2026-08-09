@@ -325,6 +325,63 @@ class AdminCalendarTest extends TestCase
         $this->assertSame([1, 3, 5], $upcoming->map(fn ($i) => $i->daysFromToday())->all());
     }
 
+    /**
+     * 🔴 رویدادِ **روزِ آخرِ بازه** باید دیده شود.
+     *
+     * ستون‌های `date` را لاراول `2026-08-22 00:00:00` می‌نویسد، پس مقایسهٔ
+     * رشته‌ایِ `BETWEEN '…' AND '2026-08-22'` آن ردیف را بیرون می‌گذاشت — چون
+     * `'2026-08-22 00:00:00'` از `'2026-08-22'` بزرگ‌تر است.
+     *
+     * پیامدش خاموش بود و دقیقاً روی لبه: یادآوریِ **آخرین روزِ هر ماه** در نمای
+     * همان ماه غیب می‌شد، و پنجرهٔ «پیش‌رو» یک روز کوتاه بود. هیچ تستی نگرفتش
+     * چون همه‌شان رویداد را وسطِ ماه می‌گذاشتند.
+     */
+    public function test_an_event_on_the_last_day_of_the_range_is_included(): void
+    {
+        $c = $this->customer();
+
+        // ۳۱ مرداد ۱۴۰۵ = ۲۲ اوت ۲۰۲۶ — آخرین روزِ ماه
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'کارِ روزِ آخر',
+            'event_date' => '2026-08-22', 'status' => 'pending',
+        ]);
+        Service::create([
+            'customer_id' => $c->id, 'name' => 'سرویسِ روزِ آخر', 'currency_code' => 'IRT',
+            'price' => 1000, 'cycle' => 'monthly', 'status' => 'active',
+            'next_due_at' => '2026-08-22',
+        ]);
+
+        $res = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5')->assertOk()->json();
+
+        $titles = array_column($res['events'], 'title');
+        $this->assertContains('کارِ روزِ آخر', $titles, 'یادآوریِ روزِ آخرِ ماه باید دیده شود');
+        $this->assertContains('سرویسِ روزِ آخر', $titles, 'سررسیدِ روزِ آخرِ ماه باید دیده شود');
+    }
+
+    /**
+     * و همان لبه در پنجرهٔ «پیش‌رو»: `upcoming(1)` یعنی **امروز**، نه هیچ.
+     */
+    public function test_the_upcoming_window_includes_its_own_last_day(): void
+    {
+        $tz = (string) config('calendar.display_timezone');
+        $today = Carbon::now($tz);
+
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'امروز',
+            'event_date' => $today->toDateString(), 'status' => 'pending',
+        ]);
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'فردا',
+            'event_date' => $today->copy()->addDay()->toDateString(), 'status' => 'pending',
+        ]);
+
+        $svc = app(CalendarService::class);
+
+        $this->assertSame(['امروز'], $svc->upcoming(['task'], 1)->map(fn ($i) => $i->title)->all());
+        $this->assertSame(['امروز', 'فردا'], $svc->upcoming(['task'], 2)->map(fn ($i) => $i->title)->all());
+    }
+
     public function test_dead_rows_never_reach_the_calendar(): void
     {
         $c = $this->customer();
