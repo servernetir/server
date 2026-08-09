@@ -3,9 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
+use App\Models\CloudInstance;
 use App\Models\CreditEntry;
 use App\Models\Service;
+use App\Services\Cloud\CloudDeliveryWatch;
 use App\Services\Cloud\CloudProvisioner;
+use App\Services\Provisioning\ProvisioningService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -13,11 +16,18 @@ use Illuminate\Support\Facades\Schema;
 /**
  * متر کردنِ سرورهای ابریِ **ساعتی** — هر ساعت از کیفِ پولِ مشتری کم می‌کند.
  *
- * قاعده‌های پول (تأییدِ کارفرما):
- *  • حداقلِ اعتبار برای شروع = ۲۴ ساعت (در checkout بررسی می‌شود، نه این‌جا).
- *  • **بدونِ حداقلِ مصرف** — مشتری می‌تواند بعد از ۱ ساعت لغو کند و اعتبارِ
- *    استفاده‌نشده در کیفش می‌ماند.
- *  • فقط ساعتِ **گذشته** کسر می‌شود؛ ساعتِ اول در لحظهٔ خرید کسر شده است.
+ * قاعده‌های پول (تأییدِ کارفرما، مرداد ۱۴۰۵ — «شارژ ساعتی باید به حق باشد»):
+ *  • حداقلِ اعتبار برای شروع = `CloudPlan::HOURLY_START_MIN_HOURS` ساعت
+ *    (در checkout بررسی می‌شود، نه این‌جا).
+ *  • واحد = **یک ساعتِ کامل**، پیش‌پرداخت. ساعتِ اول در لحظهٔ خرید کسر می‌شود.
+ *  • **بدونِ حداقلِ مصرف** و بدونِ خُردکردنِ ساعت — نه کسرِ کسری، نه بازگشتِ کسری.
+ *  • 🔴 **فقط ماشینی که واقعاً تحویل شده صورت‌حساب می‌شود.** سرویسی که در پنلِ ما
+ *    «done» است ولی نه IP دارد نه ایمیلش رفته، هیچ هزینه‌ای ندارد.
+ *  • 🔴 **ساعت‌های انتظارِ تحویل رایگان‌اند** — لنگرِ متر روی لحظهٔ تحویل جلو
+ *    می‌رود، پس سفارشی که ۵ ساعت گیر کرده بود در اولین تیک ۵ ساعت یک‌جا کسر
+ *    نمی‌شود (رخدادی که کارفرما گزارش کرد).
+ *  • 🔴 **لحظه‌ای که مشتری حذف را می‌خواهد، ساعت می‌ایستد** — وضعیتِ صورت‌حسابی
+ *    پیش از هر تماس با زیرساخت بسته می‌شود و به نتیجهٔ آن تماس بند نیست.
  *
  * ایمنیِ پول (سه محافظ):
  *  ۱) **idempotent**: با claimِ اتمی روی `last_metered_at` (UPDATE شرطی) — دو
@@ -34,7 +44,13 @@ class CloudMeterHourly extends Command
     /** سقفِ جبران در یک اجرا — اگر کرون خوابیده بود، بی‌نهایت کسر نکن. */
     private const CATCHUP_CAP = 48;
 
-    /** مهلتِ نگه‌داشتنِ سرورِ تعلیق‌شده (نبودِ اعتبار) پیش از حذف — ساعت. */
+    /**
+     * مهلتِ نگه‌داشتنِ سرورِ تعلیق‌شده (نبودِ اعتبار) پیش از حذف — ساعت.
+     *
+     * ⚠️ این عدد **عمداً** با کفِ ۱۲ساعتیِ خرید پایین نیامد: تصمیمِ مالیِ جدایی
+     * است (نگه‌داریِ دادهٔ مشتریِ بدهکار در برابرِ اجاره‌ای که ما می‌دهیم) و
+     * کارفرما باید خودش انتخابش کند. گزارشِ همین کار آن را صریح پرسیده است.
+     */
     private const SUSPEND_GRACE_HOURS = 24;
 
     public function handle(CloudProvisioner $prov): int
@@ -46,6 +62,7 @@ class CloudMeterHourly extends Command
 
         $charged = 0;
         $stopped = 0;
+        $skipped = 0;
 
         // ۱) سرویس‌های فعالِ ساعتی که یک ساعت از آخرین کسرشان گذشته
         $due = Service::query()
@@ -55,36 +72,107 @@ class CloudMeterHourly extends Command
             ->where('hourly_rate_irt', '>', 0)
             ->where(fn ($q) => $q->whereNull('last_metered_at')
                 ->orWhere('last_metered_at', '<=', now()->subHour()))
-            ->with('customer')
+            ->with(['customer', 'cloudInstance'])
             ->get();
 
         foreach ($due as $service) {
-            $this->meterOne($service, $prov) ? $charged++ : $stopped++;
+            match ($this->meterOne($service, $prov)) {
+                'charged' => $charged++,
+                'stopped' => $stopped++,
+                default   => $skipped++,
+            };
         }
 
         // ۲) سرویس‌های تعلیق‌شدهٔ ساعتی: اگر شارژ کردند دوباره روشن، وگرنه پس از مهلت حذف
         $this->handleSuspended($prov);
 
-        $this->info("متر شد: {$charged} کسر، {$stopped} متوقف/تعلیق.");
+        $this->info("متر شد: {$charged} کسر، {$stopped} متوقف/تعلیق، {$skipped} بی‌هزینه (تحویل‌نشده یا کم‌تر از یک ساعت).");
 
         return self::SUCCESS;
     }
 
-    /** کسرِ یک سرویس. true اگر کسر شد، false اگر به مسیرِ اتمامِ اعتبار رفت. */
-    private function meterOne(Service $service, CloudProvisioner $prov): bool
+    /**
+     * 🔴 **تنها تعریفِ «این سرویس صورت‌حساب‌شدنی است»** — و عمداً از همان
+     * تعریفی می‌پرسد که ناظرهای تحویل می‌پرسند، نه از یک شرطِ دست‌نویسِ موازی.
+     *
+     *   `CloudInstance::isDelivered()`      ماشین هست، روشن یا خاموش، و IP دارد
+     *   `CloudDeliveryWatch::reasonFor()`   شناسهٔ واقعی (نه خالی، نه `order:`) + ایمیلِ تحویل رفته
+     *
+     * ⚠️ هر دو لازم است. `reasonFor()` به‌تنهایی برای نمونهٔ **حذف‌شده** `null`
+     * می‌دهد (عمداً — «آگاهانه پاک شده، هشدار نده») و همان تنها راهی بود که
+     * ماشینِ ازقبل‌حذف‌شده باز هم صورت‌حساب می‌شد.
+     *
+     * ⚠️ `provision_status` این‌جا **پرسیده نمی‌شود**: دقیقاً در همان خرابی‌ای که
+     * داریم می‌گیریمش مقدارش `done` است (`CloudProvisioner::finalize()` لحظهٔ
+     * پذیرشِ سفارش می‌نویسدش، پیش از IP و ایمیل).
+     *
+     * ⚠️ توقفِ متر نباید به «سواریِ مجانی» تبدیل شود: همین ردیف‌ها از قبل در
+     * `CloudDeliveryWatch::stalled()` (آستانهٔ ۲۰ دقیقه) می‌نشینند و
+     * `SystemHealth::undeliveredCloud()` قرمزشان می‌کند. هشدارِ تازه لازم نیست.
+     */
+    private function billable(Service $service): bool
+    {
+        $instance = $service->cloudInstance;      // eager-loaded در پرس‌وجوی due
+
+        if (! $instance instanceof CloudInstance || ! $instance->isDelivered()) {
+            return false;
+        }
+
+        return CloudDeliveryWatch::reasonFor($service) === null;
+    }
+
+    /**
+     * کسرِ یک سرویس.
+     *
+     * @return 'charged'|'stopped'|'skipped'
+     */
+    private function meterOne(Service $service, CloudProvisioner $prov): string
     {
         $rate = (int) $service->hourly_rate_irt;
         $customer = $service->customer;
 
         if ($rate <= 0 || $customer === null) {
-            return false;
+            return 'skipped';
+        }
+
+        // 🔴 تحویل‌نشده = بی‌هزینه. هیچ کسری، هیچ نوشتنی، لنگر دست‌نخورده.
+        if (! $this->billable($service)) {
+            return 'skipped';
         }
 
         $prev = $service->last_metered_at ?? $service->activated_at ?? $service->created_at;
         $prev = $prev instanceof Carbon ? $prev : Carbon::parse((string) $prev);
 
-        // ساعت‌های کاملِ سپری‌شده از آخرین کسر
-        $elapsed = max(1, (int) floor($prev->diffInHours(now())));
+        /*
+        | 🔴 لنگر را روی **لحظهٔ تحویل** جلو می‌بریم.
+        |
+        | `last_metered_at` در لحظهٔ خرید نوشته می‌شود و `finalize()` هرگز
+        | بازنشانی‌اش نمی‌کند؛ پس سفارشی که ۵ ساعت گیر کرده بود، در اولین تیکِ
+        | بعد از تحویل ۵ ساعت **یک‌جا** کسر می‌شد — بابتِ ماشینی که مشتری اصلاً
+        | ندیده بود. `max()` فقط می‌تواند لنگر را **جلو** ببرد، پس این قاعده
+        | هرگز نمی‌تواند اضافه‌کسر کند؛ فقط می‌تواند ببخشد. جهتِ درستِ پیش‌فرض
+        | برای پول.
+        |
+        | `ready_notified_at` هر وقت `billable()` درست باشد نال نیست
+        | (`reasonFor()` نبودِ ایمیلِ تحویل را خودش رد می‌کند) و مهاجرتِ
+        | 2026_09_21_000101 ردیف‌های قدیمی را هم پر کرده است.
+        */
+        $ready = $service->cloudInstance?->ready_notified_at;
+
+        if ($ready instanceof Carbon && $ready->gt($prev)) {
+            $prev = $ready->copy();
+        }
+
+        /*
+        | ساعت‌های **کاملِ** سپری‌شده. کف‌گیرِ `max(1, …)`ِ قبلی حذف شد: به هر
+        | ردیفی با `last_metered_at`ِ نال یک ساعتِ کامل می‌بست بی‌آنکه سنِ
+        | واقعی‌اش را بپرسد، و می‌توانست ساعتی را که هنوز نگذشته کسر کند.
+        */
+        $elapsed = (int) floor($prev->diffInHours(now()));
+
+        if ($elapsed < 1) {
+            return 'skipped';                        // هنوز یک ساعتِ کامل نشده
+        }
 
         $balance = $customer->creditBalance('IRT');
         $affordable = intdiv(max(0, $balance), $rate);
@@ -92,20 +180,21 @@ class CloudMeterHourly extends Command
         if ($affordable < 1) {
             $this->creditOut($service, $prov);      // اعتبار برای یک ساعت هم نیست
 
-            return false;
+            return 'stopped';
         }
 
         $hours = min($elapsed, $affordable, self::CATCHUP_CAP);
         $newMetered = $prev->copy()->addHours($hours);
 
-        // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند
+        // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند.
+        // ⚠️ شرط روی مقدارِ **ذخیره‌شدهٔ قدیم** است، نه روی `$prev`ِ جلوبرده‌شده.
         $q = Service::where('id', $service->id);
         $service->last_metered_at === null
             ? $q->whereNull('last_metered_at')
             : $q->where('last_metered_at', $service->last_metered_at);
 
         if ($q->update(['last_metered_at' => $newMetered]) === 0) {
-            return false;                            // اجرای دیگری زودتر کسر کرد
+            return 'skipped';                        // اجرای دیگری زودتر کسر کرد
         }
 
         $amount = -1 * $rate * $hours;
@@ -123,7 +212,34 @@ class CloudMeterHourly extends Command
 
         ActivityLog::forService($service, 'renew', "کسرِ ساعتی: {$hours} ساعت", 'system');
 
-        return true;
+        // 🔴 آنچه در این اجرا کسر **نشد** باید ردِ مکتوب داشته باشد. سقفِ ۴۸
+        // ساعته پیش از این بی‌صدا بود، و «چرا درآمدِ این ماه کم است» هیچ پاسخی
+        // در هیچ لاگی نداشت.
+        if ($elapsed > $hours) {
+            $this->noteUnderCharge($service, $elapsed, $hours, $hours === $affordable);
+        }
+
+        return 'charged';
+    }
+
+    /** ثبتِ ساعت‌هایی که در این اجرا کسر نشد — سقفِ جبران یا کمبودِ اعتبار. */
+    private function noteUnderCharge(Service $service, int $elapsed, int $hours, bool $creditBound): void
+    {
+        $missed = $elapsed - $hours;
+        $why = $creditBound ? 'کمبودِ اعتبار' : 'سقفِ جبرانِ '.self::CATCHUP_CAP.' ساعت';
+
+        $text = "مترِ ساعتی: از {$elapsed} ساعتِ سپری‌شده فقط {$hours} ساعت کسر شد؛ "
+            ."{$missed} ساعت در این اجرا کسر نشد ({$why}).";
+
+        try {
+            ActivityLog::forService($service, 'renew', $text, 'system');
+        } catch (\Throwable) {
+        }
+
+        try {
+            \App\Support\ErrorTracker::noteOnce('billing', $text, 3600, ['service' => $service->id]);
+        } catch (\Throwable) {
+        }
     }
 
     /** اعتبار تمام شد → طبق انتخابِ مشتری: تبدیل‌به‌ماهانه / حذف / تعلیق. */
@@ -136,17 +252,43 @@ class CloudMeterHourly extends Command
         }
 
         if ($mode === 'terminate') {
-            $prov->terminate($service);
-            $service->update(['status' => 'terminated', 'cancelled_at' => now()]);
-            ActivityLog::forService($service, 'terminate', 'اتمامِ اعتبارِ ساعتی → حذفِ سرور', 'system');
+            $this->closeAndRelease($service, 'اتمامِ اعتبارِ ساعتی → حذفِ سرور');
 
             return;
         }
 
-        // پیش‌فرض: تعلیق (خاموش‌کردن) + شروعِ مهلت
-        $prov->suspend($service);
+        /*
+        | پیش‌فرض: تعلیق (خاموش‌کردن) + شروعِ مهلت.
+        |
+        | 🔴 مقدارِ برگشتیِ `suspend()` دیگر دور ریخته نمی‌شود. ماشینی که ما فکر
+        | می‌کنیم خاموش است و روشن مانده، اجارهٔ خالص است: مشتری چیزی نمی‌پردازد
+        | (اعتبارش تمام شده) و ما هر ساعت می‌پردازیم. وضعیتِ محلی عمداً «تعلیق»
+        | نوشته می‌شود — نمی‌خواهیم مشتریِ بی‌اعتبار به‌خاطرِ خطای ما شارژ شود —
+        | ولی شکست بی‌صدا نمی‌مانَد.
+        */
+        $ok = $prov->suspend($service);
         $service->update(['status' => 'suspended', 'suspended_at' => now()]);
         ActivityLog::forService($service, 'suspend', 'اتمامِ اعتبارِ ساعتی → تعلیق', 'system');
+
+        if (! $ok) {
+            $prov->recordSuspendFailure($service);
+        }
+    }
+
+    /**
+     * 🔴 بستنِ صورت‌حساب **پیش از** تماس با زیرساخت، و بعد آزادسازی.
+     *
+     * ترتیب عمدی است: `status`ِ مرده تنها چیزی است که هم‌زمان مترِ ساعتی،
+     * `provision:run`، `PaymentService::applyPaid` و دکمهٔ «تلاشِ دوباره»ی مدیر
+     * را می‌بندد. اگر منتظرِ نتیجهٔ زیرساخت بمانیم، حذفِ ناموفق یعنی مشتری
+     * ساعت‌ها بابتِ سروری که خواسته پاک شود پول می‌دهد.
+     */
+    private function closeAndRelease(Service $service, string $log): void
+    {
+        $service->update(['status' => 'terminated', 'cancelled_at' => now()]);
+        ActivityLog::forService($service, 'terminate', $log, 'system');
+
+        app(ProvisioningService::class)->releaseAndTrack($service->fresh() ?? $service);
     }
 
     /** اگر اعتبارِ یک ماه باشد، به چرخهٔ ماهانه سوییچ کن (کسرِ یک ماه از کیف). */
@@ -231,9 +373,7 @@ class CloudMeterHourly extends Command
             $since = $service->suspended_at instanceof Carbon ? $service->suspended_at : null;
 
             if ($since !== null && $since->diffInHours(now()) >= self::SUSPEND_GRACE_HOURS) {
-                $prov->terminate($service);
-                $service->update(['status' => 'terminated', 'cancelled_at' => now()]);
-                ActivityLog::forService($service, 'terminate', 'پایانِ مهلتِ تعلیقِ ساعتی → حذفِ سرور', 'system');
+                $this->closeAndRelease($service, 'پایانِ مهلتِ تعلیقِ ساعتی → حذفِ سرور');
             }
         }
     }

@@ -178,6 +178,19 @@ class CloudStoreSlipTest extends TestCase
         // آن یک مبلغِ واقعی است، نه قیمتِ پلن. تستِ گشاد هر دو را قاطی می‌کرد.
         preg_match('~<div class="cvb-off cvb-plan" data-uslug="cv-8c-16g-160d-de-frankfurt".*?</div>~s', $html, $m);
         $this->assertNotEmpty($m, 'کارتِ پلنِ بی‌قیمت باید رندر شود');
+
+        /*
+        | 🔴 این رجکس **ناحریص** است و سرِ نخستین `</div>` می‌بندد. تا وقتی همهٔ
+        | فرزندانِ این ردیف span/p باشند، پنجره کلِ کارت را می‌گیرد و سه ادعای
+        | زیر واقعی‌اند. یک `<div>` تودرتو پنجره را به چند ده کاراکتر می‌بُرد و
+        | آن‌وقت این تست **سبز می‌مانْد و هیچ‌چیز را نگه نمی‌داشت**. پس اول ثابت
+        | می‌کنیم پنجره تا انتهای کارت رسیده است.
+        */
+        $this->assertStringContainsString(__('ui.cvb_off_price_sub'), $m[0],
+            'پنجرهٔ رجکس باید تا انتهای کارت برسد، وگرنه ادعاهای پولیِ زیر پوچ‌اند');
+        $this->assertStringNotContainsString('<div', substr($m[0], strpos($m[0], '>') + 1),
+            'هیچ فرزندِ <div> در ردیفِ ناموجود نباشد — پنجرهٔ این نگهبان را می‌بُرد');
+
         $this->assertStringNotContainsString('تومان', $m[0], 'قیمتِ صفر هرگز نباید به‌صورتِ پول رندر شود');
         $this->assertStringNotContainsString('€', $m[0], 'قیمتِ صفر در یورو هم نباید بیاید');
         $this->assertStringNotContainsString('رایگان', $m[0]);

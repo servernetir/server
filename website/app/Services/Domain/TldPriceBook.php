@@ -48,7 +48,7 @@ class TldPriceBook
      *
      * @var array<int,string>
      */
-    private const NEVER_QUOTE = ['ir', 'co.ir', 'ac.ir', 'org.ir', 'net.ir', 'gov.ir', 'id.ir', 'sch.ir', 'ایران'];
+    private const NEVER_QUOTE = DomainSearch::UNSOLD_TLDS;
 
     public function __construct(private DomainSearch $search) {}
 

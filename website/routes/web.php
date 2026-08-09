@@ -22,6 +22,32 @@ use Illuminate\Support\Facades\Route;
 $site = function (): void {
     Route::get('/', [SiteController::class, 'home'])->name('home');
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 هابِ دسته‌ها — `/hosting`، `/vps` و `/domain` هیچ روتی نداشتند
+    |--------------------------------------------------------------------------
+    |
+    | در ردیابِ ۴۰۴ ترافیکِ واقعی روی هر سه دیده شد. جستجوی کلِ مخزن (ایستا و
+    | با رندرِ ۲۳ صفحه و برداشتِ همهٔ hrefها) ثابت کرد **هیچ لینکی در سایت به
+    | آنها نمی‌رود** — پس «لینک را درست کن» مقصدی ندارد؛ چیزی که کم است خودِ
+    | روت است. منبعِ ترافیک بیرونی است: ۳۰۱های `servernet.ir` (که
+    | `config/legacy.php` با `unknown => same-path` هر مسیرِ نگاشته‌نشده را
+    | عیناً به این‌جا می‌فرستد)، بک‌لینکِ قدیمی، و کاربری که آدرسِ بدیهیِ
+    | دسته‌ای را حدس می‌زند که خودِ هدر نامش را می‌بَرد («هاست»، «سرور»،
+    | «دامنه») ولی تبش یک `<button>` است نه لینک.
+    |
+    | 🔴 چرا closure و نه `Route::redirect()`: مقصدِ `Route::redirect()` یک رشتهٔ
+    | ثابت است که در **لحظهٔ ثبت** حساب می‌شود. این closure سه بار ثبت می‌شود
+    | (fa/en/tr)، پس هر سه نسخه به آدرسِ فارسی می‌رفتند. `lroute()` داخلِ
+    | closure در **لحظهٔ درخواست** اجرا می‌شود، بعد از میدل‌ورِ `locale`.
+    |
+    | ⚠️ ۳۰۱ عمدی است نه ۳۰۲: اینها آدرسِ دائمی‌اند و می‌خواهیم موتورِ جستجو
+    | اعتبارِ لینک‌های قدیمی را به مقصد منتقل کند.
+    */
+    Route::get('/hosting', fn () => redirect()->to(lroute('hosting', 'linux'), 301))->name('hosting.index');
+    Route::get('/vps', fn () => redirect()->to(lroute('cloud.index'), 301))->name('vps.index');
+    Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
 
@@ -141,7 +167,22 @@ $site = function (): void {
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
+        // «همه» — این نشانی هرگز عوض نمی‌شود: هشت ارجاعِ ورودی رویش نشسته‌اند،
+        // از جمله اعلانِ بازگشتِ وجه که واقعاً برای مشتری فرستاده می‌شود
+        // (ProvisioningService) و لینکِ مطلقِ کنسول در هدرِ سایت.
         Route::get('/services', [Account\ServiceController::class, 'index'])->name('services');
+
+        /*
+        | «چهار اتاق» — هر نوعِ سرویس، صفحه و چیدمانِ دادهٔ خودش.
+        |
+        | هم‌ترازِ `/account/domains` که از قبل همین الگو را داشت. عمداً بیرونِ
+        | `/services/…` تعریف شده‌اند تا با پنج زیرمسیرِ موجودِ آن
+        | (cancel/terminate/cpanel/stats) هم‌خانواده به نظر نرسند — آن‌ها روی یک
+        | سرویسِ مشخص عمل می‌کنند، این‌ها فهرست‌اند.
+        */
+        Route::get('/hosting', [Account\SectionController::class, 'hosting'])->name('hosting');
+        Route::get('/servers', [Account\SectionController::class, 'servers'])->name('servers');
+        Route::get('/other', [Account\SectionController::class, 'other'])->name('other');
         // لغوِ سفارشِ تحویل‌نشده توسط خودِ مشتری (با بازگشتِ وجه به کیفِ پول).
         // بی‌این، سفارشی که تحویلش شکست خورده تا ابد «در حالِ آماده‌سازی» می‌ماند
         // و مشتری نه سرور دارد نه پولش.

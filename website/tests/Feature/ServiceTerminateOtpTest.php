@@ -156,15 +156,26 @@ class ServiceTerminateOtpTest extends TestCase
     }
 
     /**
-     * 🔴 اگر WHM نتوانست حساب را پاک کند، نباید به مشتری بگوییم پاک شد.
+     * 🔴 **این تست عمداً برعکسِ نسخهٔ قبلی‌اش است — نگذار تصادفی برگردد.**
+     *
+     * تا مرداد ۱۴۰۵ ادعا می‌کرد «حذفِ ناموفق باید سرویس را باز نگه دارد تا مشتری
+     * دوباره تلاش کند». آن قاعده گران بود: سرویسِ ساعتی باز می‌مانْد و مترِ
+     * ساعتی همان ساعت دوباره از کیفِ پولِ کسی کسر می‌کرد که کدِ یک‌بارمصرفش را
+     * سوزانده و گفته بود «پاکش کن» — یعنی مشتری خرابیِ **ما** را می‌پرداخت.
+     *
+     * قاعدهٔ کارفرما («نه ما ضرر کنیم نه مشتری») سه چیزِ هم‌زمان می‌خواهد:
+     *   ۱) سرویس بسته می‌شود و صورت‌حساب می‌ایستد — بی‌قیدوشرط.
+     *   ۲) `active_accounts` **آزاد نمی‌شود**: حسابِ cPanel واقعاً هنوز هست و
+     *      ظرفیتِ آن سرور واقعاً مصرف است.
+     *   ۳) ردیف در `releasing` می‌مانَد تا کرون خودش ببندَدش. تلاشِ دوباره کارِ
+     *      ماست، نه کارِ مشتری.
      *
      * ⚠️ هر دو تماس باید استاب شوند و ترتیبشان مهم است: روی شکستِ `removeacct`
      * درایور عمداً `accountExists` را می‌پرسد و اگر حساب نبود، حذف را «انجام‌شده»
-     * می‌شمارد (idempotent — تلاشِ دومِ کرون نباید خطا بدهد). پس «شکستِ واقعی»
-     * یعنی WHM رد کرد **و** حساب هنوز سرِ جایش است. بی‌استابِ دوم، همان مسیرِ
-     * idempotent فعال می‌شد و تست چیزی را می‌سنجید که قصدش نبود.
+     * می‌شمارد (idempotent). پس «شکستِ واقعی» یعنی WHM رد کرد **و** حساب هنوز
+     * سرِ جایش است.
      */
-    public function test_a_failed_whm_removal_does_not_close_the_service(): void
+    public function test_a_failed_whm_removal_closes_the_service_but_keeps_the_capacity_consumed(): void
     {
         $this->fakeWhm([
             '*/json-api/removeacct*' => Http::response(
@@ -178,12 +189,42 @@ class ServiceTerminateOtpTest extends TestCase
         $c = $this->customer();
         $s = $this->hostingService($c);
 
-        $this->terminateVia($c, $s)->assertSessionHasErrors();
+        $this->terminateVia($c, $s)->assertSessionHasNoErrors();
 
-        $this->assertSame('active', $s->fresh()->status,
-            'سرویس باید باز بماند تا مشتری دوباره تلاش کند');
+        $fresh = $s->fresh();
+        $this->assertSame('terminated', $fresh->status,
+            'صورت‌حسابِ مشتری در همان لحظهٔ درخواست بسته می‌شود');
+        $this->assertSame(\App\Models\Service::PROVISION_RELEASING, $fresh->provision_status,
+            'ماشین تأییدنشده پاک نشده — در صفِ تلاشِ دوباره');
         $this->assertSame(3, (int) Server::firstOrFail()->active_accounts,
             'ظرفیت نباید برای حذفی که انجام نشد آزاد شود');
+    }
+
+    /** و کرونِ تلاشِ دوباره همان ردیف را می‌بندد و ظرفیت را آزاد می‌کند */
+    public function test_the_release_retry_cron_finishes_a_failed_whm_removal(): void
+    {
+        $this->fakeWhm([
+            '*/json-api/removeacct*' => Http::response(
+                ['metadata' => ['result' => 0, 'reason' => 'permission denied']]
+            ),
+            '*/json-api/accountsummary*' => Http::response(
+                ['metadata' => ['result' => 1], 'data' => ['acct' => [['user' => 'clientusr']]]]
+            ),
+        ]);
+
+        $c = $this->customer();
+        $s = $this->hostingService($c);
+        $this->terminateVia($c, $s);
+
+        $this->assertSame(\App\Models\Service::PROVISION_RELEASING, $s->fresh()->provision_status);
+
+        // این بار WHM می‌پذیرد
+        $this->fakeWhm(['*/json-api/removeacct*' => Http::response(['metadata' => ['result' => 1]])]);
+        $this->artisan('cloud:release-retry')->assertOk();
+
+        $this->assertSame(\App\Models\Service::PROVISION_NONE, $s->fresh()->provision_status);
+        $this->assertSame(2, (int) Server::firstOrFail()->active_accounts,
+            'ظرفیت وقتی آزاد می‌شود که حذف واقعاً انجام شده باشد');
     }
     /**
      * 🔴 پرداختِ فاکتورِ بازِ یک سرویسِ حذف‌شده نباید آن را زنده کند.

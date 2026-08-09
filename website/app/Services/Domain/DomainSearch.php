@@ -5,6 +5,7 @@ namespace App\Services\Domain;
 use App\Models\Currency;
 use App\Models\DomainQuote;
 use App\Services\ExchangeRate;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -49,6 +50,118 @@ class DomainSearch
 
     /** کدِ داخلیِ «رسیلری اصلاً پیکربندی نشده» — با کدهای خودِ رجیسترار تصادم ندارد. */
     private const DISABLED_CODE = -2;
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 واژگانِ یگانهٔ وضعیت — تنها تعریفِ «این ردیف چه حالی دارد»
+    |--------------------------------------------------------------------------
+    |
+    | تا امروز هر صفحه خودش از روی `status`/`available`/`orderable` نتیجه‌گیری
+    | می‌کرد و سه تعریفِ متفاوت ساخته بود:
+    |
+    |   • پنل: پرمیوم را «آزاد» می‌خواند و به قیمتِ پرمیوم دکمهٔ خرید می‌داد.
+    |   • صفحهٔ عمومی: «نتوانستیم استعلام کنیم» را «فعلاً قابل سفارش نیست»
+    |     می‌خواند — عبارتی که پنل برای حالتِ **دیگری** به کار می‌برد.
+    |   • جعبهٔ صفحهٔ اول: هر چیزی جز `available` را «قبلاً ثبت شده» می‌خواند —
+    |     یعنی همان دروغی که یک لایه پایین‌تر رفع شده بود، یک لایه بالاتر زنده
+    |     مانده بود.
+    |
+    | حالا وضعیت **سمتِ سرور** یک بار حساب می‌شود و در فیلدِ `state` می‌نشیند.
+    | هر رابطی که وضعیت را دوباره از روی فیلدهای خام حدس بزند، دوباره همان
+    | واگرایی را می‌سازد.
+    |
+    | ⚠️ جهتِ خطا: هر چیزی که مطمئن نیستیم به `unchecked` می‌افتد، هرگز به
+    | `free` و هرگز به `taken`.
+    */
+    public const STATE_FREE = 'free';
+    public const STATE_PREMIUM = 'premium';
+    public const STATE_TAKEN = 'taken';
+    public const STATE_UNCHECKED = 'unchecked';
+    public const STATE_UNSUPPORTED = 'unsupported';
+    public const STATE_NO_PRICE = 'no_price';
+
+    /** همهٔ وضعیت‌های ممکن — تست‌ها و رابط‌ها از همین می‌خوانند. */
+    public const STATES = [
+        self::STATE_FREE,
+        self::STATE_PREMIUM,
+        self::STATE_TAKEN,
+        self::STATE_UNCHECKED,
+        self::STATE_UNSUPPORTED,
+        self::STATE_NO_PRICE,
+    ];
+
+    /**
+     * پسوندهایی که **نمی‌فروشیم**.
+     *
+     * رسیلرِ اروپایی یا اصلاً نمی‌شناسدشان یا ده‌ها برابرِ قیمتِ واقعی می‌دهد
+     * (نگاه کن به `TldPriceBook::NEVER_QUOTE` که از همین می‌خوانَد). تا وقتی
+     * مسیرِ مستقیمِ ایرنیک ساخته نشده، پاسخِ صادقانه «این پسوند را نمی‌فروشیم»
+     * است — نه «استعلام نشد» که مشتری را به تلاشِ دوباره دعوت می‌کند، و نه
+     * «ارتباط برقرار نشد» که علتِ صریحاً غلطی اعلام می‌کند.
+     *
+     * @var array<int,string>
+     */
+    public const UNSOLD_TLDS = ['ir', 'co.ir', 'ac.ir', 'org.ir', 'net.ir', 'gov.ir', 'id.ir', 'sch.ir', 'ایران'];
+
+    /**
+     * وضعیتِ نمایشیِ یک ردیف.
+     *
+     * ⚠️ فقط از فیلدهایی می‌خوانَد که خودِ همین کلاس ساخته — پس اگر شکلِ ردیف
+     * عوض شود، این‌جا هم عوض می‌شود و سه رابط با هم عوض می‌شوند.
+     *
+     * @param  array<string,mixed>  $row
+     */
+    public static function stateOf(array $row): string
+    {
+        $status = (string) ($row['status'] ?? 'unknown');
+
+        if ($status === 'unavailable') {
+            return self::STATE_TAKEN;
+        }
+
+        if ($status !== 'available' && $status !== 'premium') {
+            // «نمی‌دانیم». اگر پسوندی است که اصلاً نمی‌فروشیم، علتِ واقعی همان
+            // است و گفتنش از «دوباره تلاش کنید» صادقانه‌تر است.
+            return self::sells((string) ($row['tld'] ?? ''))
+                ? self::STATE_UNCHECKED
+                : self::STATE_UNSUPPORTED;
+        }
+
+        // آزاد است ولی قیمتِ قابلِ اتکا نداریم (`no_price` یا `fx_unavailable`)
+        if (! ($row['orderable'] ?? false)) {
+            return self::STATE_NO_PRICE;
+        }
+
+        return ($row['is_premium'] ?? false) ? self::STATE_PREMIUM : self::STATE_FREE;
+    }
+
+    /** آیا این پسوند را می‌فروشیم؟ */
+    public static function sells(string $tld): bool
+    {
+        return ! in_array(strtolower(trim($tld, " \t.")), self::UNSOLD_TLDS, true);
+    }
+
+    /**
+     * آیا آخرین `search()` واقعاً از رجیسترار پاسخ گرفت؟
+     *
+     * 🔴 این را از روی ردیف‌ها **حدس نزن**. «همهٔ ردیف‌ها unknown شدند» با
+     * «خودِ استعلام شکست خورد» یکی نیست: یک جستجوی تک‌پسوندیِ `.ir` هم همهٔ
+     * ردیف‌هایش unknown است بی‌آنکه چیزی خراب باشد.
+     */
+    private bool $lookupOk = true;
+
+    private ?string $lookupReason = null;
+
+    public function lookupOk(): bool
+    {
+        return $this->lookupOk;
+    }
+
+    /** `lookup_failed` یا `registrar_disabled` — برای مدیر، نه برای مشتری. */
+    public function lookupReason(): ?string
+    {
+        return $this->lookupReason;
+    }
 
     /**
      * پسوندهایی که به کاربر پیشنهاد می‌شوند.
@@ -127,6 +240,9 @@ class DomainSearch
 
     public function search(string $query, array $tlds = []): array
     {
+        $this->lookupOk = true;
+        $this->lookupReason = null;
+
         [$name, $ext] = $this->split($query);
 
         if ($name === '') {
@@ -182,8 +298,31 @@ class DomainSearch
 
             $reason = $code === self::DISABLED_CODE ? 'registrar_disabled' : 'lookup_failed';
 
+            /*
+            | 🔴 `Log::warning` به `storage/logs/laravel.log` می‌رود و **هرگز**
+            | به `/admin/errors` نمی‌رسد — آن صفحه فقط `tracker.jsonl` را
+            | می‌خواند که تنها با `ErrorTracker::*` پر می‌شود.
+            |
+            | نتیجهٔ عملی‌اش این بود: کارفرما خرابی را با چشم دید، ردیابِ خطا
+            | صفر نشان داد، و ما «پس لابد استعلام موفق بوده» نتیجه گرفتیم.
+            | یعنی تنها سطحی که کسی نگاهش می‌کند، ساختاراً کور بود.
+            |
+            | ⚠️ `noteOnce` و نه `note`: این متد در هر جستجو صدا زده می‌شود و
+            | پنجرهٔ ردیاب ۴۰۰ خط است — یک قطعیِ یک‌ساعته با `note` کلِ پنجره را
+            | می‌شست و بقیهٔ خطاها را بیرون می‌انداخت (همان خرابیِ سیلِ ۴۰۴).
+            */
+            ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.$code.')', 900, [
+                'reason'  => $reason,
+                'code'    => $code,
+                'desc'    => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
+                'domains' => count($payload),
+            ]);
+
+            $this->lookupOk = false;
+            $this->lookupReason = $reason;
+
             return array_map(
-                fn (string $e) => $this->unknownRow($name.'.'.$e, $e, $reason),
+                fn (string $e) => $this->withState($this->unknownRow($name.'.'.$e, $e, $reason)),
                 $extensions
             );
         }
@@ -213,15 +352,41 @@ class DomainSearch
                 'asked'    => count($extensions),
                 'answered' => count($byDomain),
             ]);
+
+            // پاسخِ ناقص هم خرابی است و باید در `/admin/errors` دیده شود؛ ولی
+            // چون هر جستجوی حاویِ پسوندی که رسیلری نمی‌شناسد این را می‌سازد،
+            // گلوگاهش بلندتر است تا صفحه را پر نکند.
+            ErrorTracker::noteOnce('domain', 'domain lookup answered fewer domains than asked', 3600, [
+                'asked'    => count($extensions),
+                'answered' => count($byDomain),
+            ]);
         }
 
         $out = [];
         foreach ($extensions as $e) {
             $fqdn = $name.'.'.$e;
-            $out[] = $this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null);
+            $out[] = $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null));
         }
 
         return $out;
+    }
+
+    /**
+     * وضعیتِ نمایشی را روی خودِ ردیف مهر می‌زند.
+     *
+     * ⚠️ عمداً یک فیلدِ **اضافه** است و فیلدهای خام حذف نشده‌اند: مصرف‌کننده‌های
+     * موجود (فاکتور، دفترچهٔ قیمت، تست‌ها) هنوز `available`/`orderable` را
+     * می‌خوانند. چیزی که عوض شد این است که **رابطِ کاربری** دیگر حق ندارد
+     * خودش نتیجه‌گیری کند.
+     *
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function withState(array $row): array
+    {
+        $row['state'] = self::stateOf($row);
+
+        return $row;
     }
 
     /**
@@ -321,6 +486,16 @@ class DomainSearch
                     'status' => $status,
                     'reason' => (string) data_get($raw, 'reason', ''),
                 ]);
+
+                // ⚠️ فقط برای پسوندی که **می‌فروشیم** داد می‌زنیم: `.ir` در هر
+                // جستجویی که کاربر تایپش کند همین شاخه را می‌گیرد و ردیاب را
+                // با یک واقعیتِ شناخته‌شده پر می‌کند.
+                if (self::sells($ext)) {
+                    ErrorTracker::noteOnce('domain', 'domain check returned an unrecognised status: '.($status ?: '(empty)'), 3600, [
+                        'domain' => $fqdn,
+                        'status' => $status,
+                    ]);
+                }
 
                 return array_merge($base, [
                     'reason' => $status !== '' ? 'check_'.$status : 'no_status',

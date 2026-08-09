@@ -87,8 +87,9 @@
 <div class="pnl-head">
   <div>
     <nav class="blog-crumbs" style="margin-bottom:8px">
-      <a href="{{ route('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
-      <a href="{{ route('account.services') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
+      {{-- ⚠️ `lroute` و نه `route` — وگرنه مشتریِ /en و /tr به پنلِ فارسی می‌رود --}}
+      <a href="{{ lroute('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
+      <a href="{{ lroute('account.servers') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
       <a href="{{ route('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
       <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>

@@ -167,6 +167,12 @@
       const wrap = document.createElement('div');
       wrap.className = 'chat-actions';
       actions.forEach((a) => {
+        // 🔴 آدرسِ نبود = لینکِ ساخته‌نشده، نه لینکِ خراب. `href` عضوِ
+        //    [LegacyNullToEmptyString] نیست، پس مقدارِ null رشتهٔ «null»
+        //    می‌شود و مرورگر آن را نسبی حل می‌کند ⇒ /null، /cloud/null، …
+        //    (همان ۴۰۴هایی که در ردیاب دیده شد).
+        if (!a || typeof a.url !== 'string' || a.url === '') { return; }
+
         const link = document.createElement('a');
         link.textContent = a.label;
         link.href = a.url;
@@ -397,9 +403,24 @@
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+    /*
+     * 🔴 سه حالت، نه دو تا.
+     *
+     * نسخهٔ قبلی `if (r.available) … else «قبلاً ثبت شده است»` بود. یعنی هر
+     * چیزی که «آزاد» نبود — از جمله یک قطعیِ رجیسترار، نبودِ اعتبارنامه، یا
+     * پسوندی که اصلاً نمی‌فروشیم — با اطمینان «گرفته‌شده» اعلام می‌شد، روی
+     * پرترافیک‌ترین ورودیِ فروشِ دامنهٔ سایت. مشتری آن را راستی‌آزمایی نمی‌کند؛
+     * فقط می‌رود، و ما هیچ شکایتی نمی‌شنویم تا بفهمیم چیزی خراب است.
+     *
+     * وضعیت را **سرور** می‌گوید (`DomainSearch::stateOf`). شاخهٔ پشتیبان فقط
+     * برای پاسخِ کهنه‌ای است که هنوز `state` ندارد؛ آن‌جا هم `available=false`
+     * تنها وقتی «گرفته‌شده» خوانده می‌شود که استعلام موفق بوده باشد.
+     */
     function renderResult(data) {
       const r = data.result;
-      if (r.available) {
+      const st = r.state || (r.available ? 'free' : (data.lookup_ok === false ? 'unchecked' : 'taken'));
+
+      if (st === 'free' || st === 'premium') {
         dResult.className = 'domain-result ok';
         dResult.innerHTML =
           `<div class="dr-row">
@@ -408,17 +429,31 @@
              ${r.price ? `<span class="dr-price">${faDigits(esc(r.price))} <small>${t.i18nYear}</small></span>` : ''}
              <a class="btn btn-primary" href="${esc(r.cart_url)}" target="_blank" rel="noopener">${t.i18nCart}</a>
            </div>`;
-      } else {
-        let alts = (data.suggestions || []).slice(0, 3).map((s) =>
-          `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${esc(s.price)}</i>` : ''}</a>`).join('');
-        if (alts && data.more_url) {
-          alts += `<a class="dr-alt dr-more" href="${esc(data.more_url)}" target="_blank" rel="noopener" aria-label="more">…</a>`;
-        }
+        return;
+      }
+
+      let alts = (data.suggestions || []).slice(0, 3).map((s) =>
+        `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${esc(s.price)}</i>` : ''}</a>`).join('');
+      if (alts && data.more_url) {
+        alts += `<a class="dr-alt dr-more" href="${esc(data.more_url)}" target="_blank" rel="noopener" aria-label="more">…</a>`;
+      }
+      const suggest = alts ? `<div class="dr-suggest"><p>${t.i18nSuggest}</p><div class="dr-alts">${alts}</div></div>` : '';
+
+      if (st === 'taken') {
         dResult.className = 'domain-result no';
         dResult.innerHTML =
-          `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${t.i18nTaken}</span></div>` +
-          (alts ? `<div class="dr-suggest"><p>${t.i18nSuggest}</p><div class="dr-alts">${alts}</div></div>` : '');
+          `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${t.i18nTaken}</span></div>` + suggest;
+        return;
       }
+
+      // unchecked / unsupported / no_price — «نمی‌دانیم»، هرگز «گرفته‌شده»
+      const msg = st === 'unsupported' ? t.i18nUnsupported
+                : st === 'noPrice' || st === 'no_price' ? t.i18nNoprice
+                : t.i18nUnchecked;
+
+      dResult.className = 'domain-result warn';
+      dResult.innerHTML =
+        `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${msg}</span></div>` + suggest;
     }
   }
 
@@ -432,7 +467,12 @@
         const yearly = btn.dataset.bill === 'yearly';
         plansGrid.classList.toggle('yearly', yearly);
         plansGrid.querySelectorAll('.plan-buy').forEach((a) => {
-          a.href = yearly ? a.dataset.urlY : a.dataset.urlM;
+          // ⚠️ data-url-y/-m که نباشد، `dataset` مقدارِ undefined می‌دهد و
+          //    نوشتنش در href رشتهٔ «undefined» می‌سازد — دکمهٔ خرید به
+          //    /undefined می‌رود. آدرسِ قبلی را نگه می‌داریم؛ لینکِ قدیمی از
+          //    لینکِ ۴۰۴ بهتر است.
+          const u = yearly ? a.dataset.urlY : a.dataset.urlM;
+          if (u) { a.href = u; }
         });
       });
     });
@@ -525,7 +565,16 @@
       var shown = [];
 
       [].slice.call(body.querySelectorAll('tr')).forEach(function (tr) {
-        var ok = (!state.city || tr.getAttribute('data-city') === state.city)
+        /* ⚠️ یک ردیف حالا چند شهر می‌فروشد (شهر یک انتخابِ داخلِ ردیف است، نه
+           ردیفِ تکراری). `data-city` فقط شهرِ سرصفحه‌ای است، پس تطبیقِ فیلتر
+           باید روی `data-cities` باشد — وگرنه ردیفی که تهران و شیراز دارد با
+           فیلترِ «شیراز» ناپدید می‌شد و مشتری فکر می‌کرد موجودی نداریم. */
+        var cities = tr.getAttribute('data-cities') || '';
+        var cityOk = !state.city
+          || (cities ? cities.indexOf('|' + state.city + '|') >= 0
+                     : tr.getAttribute('data-city') === state.city);
+
+        var ok = cityOk
           && (!state.cpu || +tr.getAttribute('data-cpu') >= state.cpu)
           && (!state.ram || +tr.getAttribute('data-ram') >= state.ram);
         tr.hidden = !ok;
@@ -571,4 +620,69 @@
   }
 
   apply();
+})();
+
+/* ══════════ انتخابِ شهر داخلِ ردیفِ جدولِ پلن‌ها ══════════
+ *
+ * صفحهٔ `/vps/iran` ۱۴۶ ردیف داشت چون هر پلن یک بار به ازای **هر شهر** تکرار
+ * می‌شد — مشخصاتِ یکسان، قیمتِ یکسان، فقط نامِ شهر فرق داشت. حالا یک ردیف است و
+ * شهر یک انتخابِ داخلِ همان ردیف.
+ *
+ * ⚠️ هر شهر یک `<a>`ِ واقعی با لینکِ تسویهٔ خودش است، پس **بدونِ جاوااسکریپت** هم
+ * کلیک روی شهر مستقیم به خریدِ همان شهر می‌رود. این اسکریپت فقط تجربه را بهتر
+ * می‌کند (قیمت و دکمهٔ خرید را در جا عوض می‌کند)؛ نبودش هیچ‌چیز را از دسترس خارج
+ * نمی‌کند. اگر روزی این را به منوی جاوااسکریپتی تبدیل کردی، همان تضمین می‌شکند.
+ *
+ * ⚠️ قیمت‌ها **از قبل روی سرور قالب‌بندی شده‌اند** (`data-pf`). قالب‌بندی در
+ * مرورگر یعنی دو تعریفِ متفاوت از قیمت: `price_toman()` و رقم‌های فارسی و واحدِ
+ * ارزِ زبان همه سمتِ سرورند.
+ */
+(function () {
+  var groups = document.querySelectorAll('.pt-group');
+  if (!groups.length) return;
+
+  document.addEventListener('click', function (e) {
+    var chip = e.target.closest ? e.target.closest('.pt-cities a.pt-c') : null;
+    if (!chip) return;
+
+    var tr = chip.closest('tr');
+    if (!tr) return;
+
+    e.preventDefault();
+
+    [].slice.call(tr.querySelectorAll('.pt-cities .pt-c')).forEach(function (el) {
+      el.classList.remove('is-on');
+      el.removeAttribute('aria-current');
+    });
+    chip.classList.add('is-on');
+    chip.setAttribute('aria-current', 'true');
+
+    /*
+     * 🔴 `getAttribute('href')` وقتی ویژگی نباشد **null** می‌دهد، و
+     * `setAttribute(name, null)` آن را به رشتهٔ «null» تبدیل می‌کند. نتیجه یک
+     * لینکِ **نسبی** به نامِ «null» است که مرورگر کنارِ آدرسِ فعلی حلش می‌کند:
+     *
+     *     /cloud/gb-dedicated  →  /cloud/null
+     *     /servers/dell-…      →  /servers/null
+     *     /blog?tag=…          →  /null
+     *
+     * دقیقاً همان ۴۰۴هایی که در ردیابِ خطا دیده شد، با Referer صفحاتِ واقعیِ
+     * خودمان. مشتری روی دکمهٔ خرید می‌زند و به صفحهٔ ۴۰۴ می‌رسد.
+     *
+     * ⚠️ اگر چیپ آدرس ندارد، دکمهٔ خرید **دست‌نخورده** می‌مانَد. آدرسِ قبلی
+     * (شهرِ پیش‌فرض) بدترین حالتش یک انتخابِ نادرست است؛ /null یک بن‌بست است.
+     */
+    var buy = tr.querySelector('.pt-buy a');
+    var href = chip.getAttribute('href');
+    if (buy && href) { buy.setAttribute('href', href); }
+
+    var val = tr.querySelector('.pt-price-v');
+    var pf = chip.getAttribute('data-pf');
+    if (val && pf) val.textContent = pf;
+
+    // «شروع از» فقط تا وقتی درست است که ارزان‌ترین شهر انتخاب باشد. با انتخابِ
+    // شهرِ گران‌تر، عددِ نشان‌داده‌شده دیگر «از» نیست، دقیقاً همان قیمت است.
+    var from = tr.querySelector('.pt-from');
+    if (from) from.hidden = chip.getAttribute('data-min') !== '1';
+  });
 })();

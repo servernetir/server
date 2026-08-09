@@ -8,11 +8,11 @@
   <div class="domain-box" style="max-width:600px;margin:0 auto">
     <form class="domain-search" id="domain-form"
           data-endpoint="{{ route($routePrefix.'domain.check') }}"
-          action="{{ whmcs_url('cart.php') }}" method="get" target="_blank" rel="noopener">
-      <input type="hidden" name="a" value="add">
-      <input type="hidden" name="domain" value="register">
+          {{-- 🔴 مسیرِ بدون‌جاوااسکریپت هم در سامانهٔ خودمان تمام می‌شود، نه سبدِ
+               WHMCSِ بیرونی. (همان تغییرِ صفحهٔ اول.) --}}
+          action="{{ lroute('domain.search') }}" method="get">
       <svg class="icon"><use href="#i-search"/></svg>
-      <input name="query" id="domain-input" type="text" placeholder="{{ __('ui.domain_ph') }}" aria-label="Domain" required
+      <input name="q" id="domain-input" type="text" placeholder="{{ __('ui.domain_ph') }}" aria-label="Domain" required
              autocomplete="off" spellcheck="false"
              data-i18n-checking="{{ __('ui.domain_checking') }}"
              data-i18n-free="{{ __('ui.domain_free') }}"
@@ -20,7 +20,11 @@
              data-i18n-suggest="{{ __('ui.domain_suggest') }}"
              data-i18n-cart="{{ __('ui.domain_cart') }}"
              data-i18n-year="{{ __('ui.domain_year') }}"
-             data-i18n-error="{{ __('ui.domain_error') }}">
+             data-i18n-error="{{ __('ui.domain_error') }}"
+             {{-- سه حالتِ «نمی‌دانیم». بی اینها جاوااسکریپت رشتهٔ undefined چاپ می‌کند --}}
+             data-i18n-unchecked="{{ __('ui.dsr_unchecked_note') }}"
+             data-i18n-unsupported="{{ __('ui.dsr_unsupported_note') }}"
+             data-i18n-noprice="{{ __('ui.dsr_no_price_pill') }}">
       <button class="btn btn-primary" type="submit">{{ __('ui.domain_btn') }}</button>
     </form>
     <div class="domain-result" id="domain-result" hidden></div>

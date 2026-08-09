@@ -5,9 +5,14 @@
 
 <div class="pnl-head">
   <div>
+    {{-- ⚠️ همهٔ لینک‌ها و همهٔ action‌های این صفحه با lroute() ساخته می‌شوند.
+         روت‌های account داخلِ closureِ $site‌اند، پس /en/account/… و
+         /tr/account/… وجود دارند؛ route()ِ خام چهار فرمِ مدیریتیِ این صفحه
+         (نام‌سرور، قفل، کد انتقال، تمدید خودکار) را به آدرسِ فارسی POST
+         می‌کرد و زبانِ مشتری وسطِ کار عوض می‌شد. --}}
     <nav class="blog-crumbs" style="margin-bottom:8px">
-      <a href="{{ route('account.home') }}">پنل</a><span>/</span>
-      <a href="{{ route('account.domains') }}">دامنه‌ها</a><span>/</span>
+      <a href="{{ lroute('account.home') }}">پنل</a><span>/</span>
+      <a href="{{ lroute('account.domains') }}">دامنه‌ها</a><span>/</span>
       <span dir="ltr">{{ $domain->domain }}</span>
     </nav>
     <h1 dir="ltr">{{ $domain->domain }}</h1>
@@ -72,7 +77,7 @@
       نام‌سرور تعیین می‌کند دامنه به کدام هاست اشاره کند. اگر هاست را از ما گرفته‌اید، مقدار پیش‌فرض درست است.
       تغییرات تا ۲۴ ساعت طول می‌کشد تا در همهٔ دنیا منتشر شود.
     </p>
-    <form method="post" action="{{ route('account.domain.ns', $domain) }}">
+    <form method="post" action="{{ lroute('account.domain.ns', $domain) }}">
       @csrf
       @foreach(range(0, 3) as $i)
         <p class="dm-ns-row">
@@ -97,7 +102,7 @@
       برای انتقال دامنه به جای دیگر، اول قفل را خاموش و سپس کد انتقال را دریافت کنید.
     </p>
 
-    <form method="post" action="{{ route('account.domain.lock', $domain) }}" style="display:inline">
+    <form method="post" action="{{ lroute('account.domain.lock', $domain) }}" style="display:inline">
       @csrf
       <input type="hidden" name="lock" value="{{ $domain->is_locked ? 0 : 1 }}">
       <button class="pnl-btn" type="submit">
@@ -106,13 +111,13 @@
     </form>
 
     @unless($domain->is_locked)
-      <form method="post" action="{{ route('account.domain.authcode', $domain) }}" style="display:inline">
+      <form method="post" action="{{ lroute('account.domain.authcode', $domain) }}" style="display:inline">
         @csrf
         <button class="pnl-btn" type="submit">دریافت کد انتقال</button>
       </form>
     @endunless
 
-    <form method="post" action="{{ route('account.domain.autorenew', $domain) }}" style="display:inline">
+    <form method="post" action="{{ lroute('account.domain.autorenew', $domain) }}" style="display:inline">
       @csrf
       <input type="hidden" name="auto_renew" value="{{ $domain->auto_renew ? 0 : 1 }}">
       <button class="pnl-btn" type="submit">

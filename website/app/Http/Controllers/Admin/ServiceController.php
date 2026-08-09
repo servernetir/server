@@ -257,13 +257,21 @@ class ServiceController extends Controller
 
         $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
 
-        if ($r->ok || $r->manual) {
-            \App\Models\ActivityLog::forService($service, 'terminate',
-                'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') لغو و از سرور حذف شد', 'staff', $request);
-        }
+        \App\Models\ActivityLog::forService($service, 'terminate',
+            'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') لغو شد'
+            .(($r->ok || $r->manual) ? ' و از سرور حذف شد' : ' — حذفِ سرور نزدِ زیرساخت انجام نشد و در صفِ تلاشِ دوباره است'),
+            'staff', $request);
 
+        /*
+        | 🔴 سرویس **همیشه** بسته می‌شود؛ شکستِ زیرساخت وضعیتِ صورت‌حسابی را عقب
+        | نمی‌اندازد (وگرنه سرویسِ ساعتی همان ساعت دوباره از مشتری کسر می‌کرد).
+        | ولی مدیر باید بداند ماشین شاید هنوز زنده است — پس هم پیامِ موفقیت
+        | می‌آید هم خطا، و ردیف در `provision_status='releasing'` می‌مانَد.
+        */
         return ($r->ok || $r->manual)
             ? back()->with('ok', 'سرویس لغو شد'.($r->manual ? ' (حذفِ سرور را دستی انجام دهید).' : ' و حساب از سرور حذف شد.'))
-            : back()->withErrors('حذف ناموفق: '.$r->error);
+            : back()->with('ok', 'سرویس بسته شد و دیگر صورت‌حساب نمی‌شود.')
+                ->withErrors('حذفِ سرور نزدِ زیرساخت انجام نشد: '.$r->error
+                    .' — سرویس در صفِ تلاشِ دوبارهٔ خودکار (cloud:release-retry) قرار گرفت؛ اگر ماند، دستی پاکش کنید.');
     }
 }

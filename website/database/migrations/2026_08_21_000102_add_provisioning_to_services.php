@@ -40,7 +40,7 @@ return new class extends Migration
                 $table->string('panel_url', 190)->nullable()->after('password');
             }
             if (! Schema::hasColumn('services', 'provision_status')) {
-                $table->string('provision_status', 16)->nullable()->after('panel_url'); // null|pending|running|done|failed|manual
+                $table->string('provision_status', 16)->nullable()->after('panel_url'); // null|pending|running|done|failed|manual|releasing|none
             }
             if (! Schema::hasColumn('services', 'provision_error')) {
                 $table->string('provision_error', 300)->nullable()->after('provision_status');

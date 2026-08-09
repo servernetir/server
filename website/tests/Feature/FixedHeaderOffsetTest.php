@@ -27,6 +27,18 @@ class FixedHeaderOffsetTest extends TestCase
         return file_get_contents(public_path('assets/css/site.css'));
     }
 
+    /**
+     * ⚠️ عمداً یک متدِ جدا و نه الحاق به `css()`.
+     *
+     * `css()` را چند ادعای دیگر (از جمله «هیچ سلکتورِ برهنهٔ header») مصرف
+     * می‌کنند و پهن‌کردنِ چمدانِ آن‌ها، معنای همان ادعاها را بی‌صدا عوض می‌کند.
+     * قاعدهٔ پنل نگهبانِ خودش را دارد و از فایلِ خودش می‌خوانَد.
+     */
+    private function sheet(string $file): string
+    {
+        return file_get_contents(public_path('assets/css/'.$file));
+    }
+
     // ═══════════════ پایه‌های قاعده ═══════════════
 
     public function test_the_header_height_lives_in_one_variable(): void
@@ -55,11 +67,28 @@ class FixedHeaderOffsetTest extends TestCase
         $reserved = (int) ($m[1] ?? 0);
 
         preg_match('~\.topbar \.container\{[^}]*height:\s*(\d+)px~', $css, $t);
-        preg_match('~^header \.container\{[^}]*height:\s*(\d+)px~m', $css, $h);
+
+        /*
+        | 🔴 این الگو **کهنه شده بود و تعمیر شد**.
+        |
+        | سلکتور روزی به `#header > .container{…height:72px}` تغییر نام داد (تا
+        | منوی مگا نشکند)، ولی الگوی این‌جا هنوز `^header .container{` را
+        | می‌گشت و هیچ‌وقت تطبیق نمی‌کرد. یعنی `$real` از ۱۱۰ به **۳۸** (فقط
+        | ارتفاعِ topbar) فرو می‌افتاد و ادعا به `۱۱۲ >= ۳۸` تبدیل شده بود —
+        | یک همان‌گویی که هر رشدِ هدر را بی‌صدا از دست می‌داد.
+        |
+        | همان الگوی ثبت‌شدهٔ پروژه: «نگهبانی که با عوض‌شدنِ حامل می‌میرد». پس
+        | این‌جا فقط تطبیق کافی نیست — صریحاً می‌سنجیم که چیزی پیدا شده باشد.
+        */
+        preg_match('~#header > \.container\{[^}]*height:\s*(\d+)px~', $css, $h);
+
+        $this->assertNotEmpty($h, 'ارتفاعِ نوارِ هدر از CSS خوانده نشد — الگو با سلکتورِ واقعی نمی‌خوانَد');
+        $this->assertNotEmpty($t, 'ارتفاعِ topbar از CSS خوانده نشد');
 
         $real = (int) ($t[1] ?? 0) + (int) ($h[1] ?? 0);
 
-        $this->assertGreaterThan(0, $real, 'ارتفاعِ واقعیِ هدر از CSS خوانده نشد');
+        $this->assertGreaterThan(100, $real,
+            'ارتفاعِ واقعیِ هدر باید مجموعِ topbar و نوار باشد؛ عددِ کوچک یعنی یکی از دو الگو دوباره کهنه شده');
         $this->assertGreaterThanOrEqual($real, $reserved,
             "فضای رزروشده ({$reserved}px) از هدرِ واقعی ({$real}px) کمتر است — محتوا زیرش می‌رود");
     }
@@ -220,6 +249,91 @@ class FixedHeaderOffsetTest extends TestCase
         }
 
         $this->assertSame([], $offenders, "\n".implode("\n", $offenders));
+    }
+
+    // ═══════════════ صفحاتِ پنل (account/* و panel-preview) ═══════════════
+
+    /**
+     * 🔴 همان قاعده، برای پنل — که تا امروز هیچ نگهبانی نداشت.
+     *
+     * `.pnl-wrap{padding:118px 0 60px}` جبرانِ هدر را **دوباره** انجام می‌داد،
+     * روی همان `#main`ی که از قبل `var(--header-h)` را رزرو می‌کند. یعنی هر
+     * صفحهٔ حسابِ مشتری با ~۲۳۰px فضای مرده باز می‌شد؛ روی موبایل بدتر، چون
+     * یک `padding-top:100px` هم زیر ۵۶۰px رویش سوار بود و زیر ۴۰۰px خودِ
+     * `--header-h` به ۱۳۲ می‌رسید.
+     *
+     * ⚠️ چرا `test_no_public_page_hides_its_top_under_the_header` نمی‌گرفتش —
+     * سه دلیلِ مستقل، و هر سه این‌جا بسته می‌شوند:
+     *   ۱) آن جاروب فقط `views/pages/*.blade.php` را می‌بیند و هیچ ویوِ
+     *      `account/*` را نه؛
+     *   ۲) اولین عنصرِ خودِ آن ویوها `.pnl-head` است، نه `.pnl-wrap` — چون
+     *      `.pnl-wrap` مالِ **layout** است؛
+     *   ۳) `declaredTopPadding()` در site.css می‌گردد و `.pnl-wrap` آن‌جا
+     *      نیست، پس مقدارش صفر درمی‌آمد و هر دو شرطِ خطا false می‌شدند.
+     *
+     * ⚠️ و `.pnl-wrap` عمداً به `PULLED_BACK` اضافه **نمی‌شود**: آن فهرست یعنی
+     * «با margin-topِ منفی زیرِ هدر نقاشی کن» و دقیقاً وارونهٔ چیزی است که
+     * این صفحه لازم دارد.
+     */
+    public function test_panel_pages_do_not_double_compensate_for_the_header(): void
+    {
+        preg_match('~--header-h:\s*(\d+)px~', $this->css(), $m);
+        $headerH = (int) ($m[1] ?? 112);
+
+        // بستهٔ در-جریانِ پنل از خودِ layout خوانده می‌شود، نه سخت‌کد: اگر روزی
+        // کلاس عوض شود، تست باید همان‌جا بشکند نه اینکه بی‌صدا چیزی را بسنجد
+        // که دیگر رندر نمی‌شود.
+        $layout = file_get_contents(resource_path('views/panel/layout.blade.php'));
+
+        $this->assertSame(1, preg_match('~<section class="([\w-]+)"~', $layout, $w),
+            'بستهٔ بیرونیِ پوستهٔ پنل پیدا نشد — این تست دیگر چیزی را نگه نمی‌دارد');
+
+        $wrapper = $w[1];
+        $this->assertNotSame('', $wrapper);
+
+        $this->assertFalse(in_array('.'.$wrapper, self::PULLED_BACK, true),
+            ".{$wrapper} نباید بالا کشیده شود — آن یعنی «زیرِ هدر نقاشی کن» و نوارِ موبایلِ پنل را می‌پوشاند");
+
+        $panel = $this->sheet('panel.css');
+
+        // همهٔ اعلان‌های padding/padding-top این کلاس — پایه **و** داخلِ هر media
+        preg_match_all(
+            '~\.'.preg_quote($wrapper, '~').'\{[^}]*padding(?:-top)?:\s*(\d+)px~',
+            $panel, $all
+        );
+
+        $this->assertNotEmpty($all[1] ?? [],
+            ".{$wrapper} هیچ padding اعلام‌شده‌ای در panel.css ندارد — یا کلاس عوض شده یا فایل");
+
+        /*
+        | ⚠️ سقف عمداً «کمتر از --header-h» **نیست**.
+        |
+        | نسخهٔ اولِ همین ادعا همان را می‌سنجید و `padding-top:100px`ِ زیر ۵۶۰px
+        | را — که دقیقاً نیمهٔ دومِ باگِ اصلی بود — سبز رد می‌کرد: ۱۰۰ < ۱۱۲،
+        | ولی ۱۱۲+۱۰۰ = ۲۱۲px فضای مرده. عددِ درست «کمی کمتر از هدر» نیست،
+        | «فاصلهٔ تزئینی» است. سقفِ ۶۰ همان چیزی است که ادعای خواهرش
+        | (`test_the_domain_page_does_not_compensate_twice`) برای `.dsx` می‌گذارد،
+        | و مقدارِ امروز ۳۴ است — همان عددی که site.css برای
+        | `#main > .section:first-child` استفاده می‌کند.
+        */
+        $decorativeMax = 60;
+        $this->assertLessThan($headerH, $decorativeMax, 'سقفِ تزئینی باید زیرِ ارتفاعِ هدر بماند');
+
+        foreach ($all[1] as $px) {
+            $this->assertLessThanOrEqual($decorativeMax, (int) $px,
+                ".{$wrapper} با {$px}px جبرانِ هدر را تکرار می‌کند؛ آن کارِ #main است "
+                .'(فاصلهٔ مردهٔ ~'.($headerH + (int) $px).'px روی هر صفحهٔ پنل)');
+
+            $this->assertGreaterThan(0, (int) $px,
+                ".{$wrapper} باید کمی فاصلهٔ تزئینی داشته باشد، وگرنه محتوا به هدر می‌چسبد");
+        }
+
+        // و پایهٔ قاعده هنوز سرِ جایش باشد — وگرنه کم‌کردنِ عددِ بالا یعنی
+        // فرستادنِ کلِ پنل زیرِ هدر.
+        $this->assertMatchesRegularExpression(
+            '~#main\{[^}]*padding-top:\s*var\(--header-h\)~', $this->css(),
+            'رزروِ سراسری رفته — با padding کوچکِ .pnl-wrap، پنل زیرِ هدر می‌رود'
+        );
     }
 
     /** بزرگ‌ترین padding-topِ اعلام‌شده برای این کلاس‌ها (دسکتاپ) */

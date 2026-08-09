@@ -513,6 +513,24 @@ class CloudStoreController extends Controller
                 'traffic' => $offer->trafficLabel(),
                 'cpu' => $offer->cpuKindLabel(),
                 'cpuKind' => (string) $offer->cpu_kind === 'dedicated' ? 'dedicated' : 'shared',
+                /*
+                | کلیدهای مرتب‌سازیِ «برگهٔ مقایسه» — عددِ خام و اسکیِ، چون برچسبِ
+                | دیداری هرگز قابلِ مرتب‌سازی نیست: `fa_num()` رقم‌ها را فارسی
+                | می‌کند و واحدها قاطی‌اند («۵۱۲ MB» کنارِ «۴ GB»).
+                |
+                | ⚠️ هیچ‌کدام از این‌ها **قیمت** نیست. مرتب‌سازی بر پایهٔ مبلغ در
+                | جاوااسکریپت از `D.prices` خوانده می‌شود، پس هیچ عددِ پولی‌ای
+                | دو بار در DOM نمی‌نشیند و ادعای «قیمتِ پلنِ ناموجود هیچ‌جا
+                | نیست» ساختاری می‌مانَد، نه تصادفی.
+                |
+                | ⚠️ `trafficGb` فقط وقتی رندر می‌شود که برچسبِ ترافیک در این
+                | مکان **یکسان نباشد**. با کلیدِ `cloud_traffic_unlimited` همهٔ
+                | برچسب‌ها «نامحدود» می‌شوند و آن‌وقت چاپِ سقفِ واقعی، دو اینچ
+                | پایین‌ترِ یک وعدهٔ «نامحدود»، خودش یک دروغ است.
+                */
+                'ramMb' => (int) $offer->ram_mb,
+                'diskGb' => (int) $offer->disk_gb,
+                'trafficGb' => (int) $offer->traffic_gb,
             ];
 
             $hourlyMap[(string) $slug] = [
@@ -851,9 +869,15 @@ class CloudStoreController extends Controller
     /**
      * سفارشِ **ساعتی** — پیش‌پرداخت از کیفِ پول، بی‌فاکتور.
      *
-     * قاعده (تأییدِ کارفرما): حداقلِ ۲۴ ساعت اعتبار برای شروع، ولی **بدونِ
-     * حداقلِ مصرف** — ساعتِ اول همین‌جا کسر می‌شود؛ بقیه را کرونِ `cloud:meter`
-     * هر ساعت کم می‌کند و مشتری هر وقت خواست لغو می‌کند (اعتبارِ مانده می‌مانَد).
+     * قاعده (تأییدِ کارفرما): حداقلِ **`CloudPlan::HOURLY_START_MIN_HOURS` ساعت**
+     * اعتبار برای شروع (امروز ۱۲)، ولی **بدونِ حداقلِ مصرف** — ساعتِ اول همین‌جا
+     * کسر می‌شود؛ بقیه را کرونِ `cloud:meter` هر ساعت کم می‌کند و مشتری هر وقت
+     * خواست لغو می‌کند (اعتبارِ مانده می‌مانَد).
+     *
+     * ⚠️ عددِ کف را این‌جا **دوباره حساب نکن**. تا مرداد ۱۴۰۵ همین‌جا یک
+     * `$hourly * 24`ِ سخت‌کد بود که تنها چیزی بود که واقعاً خرید را می‌بست، در
+     * حالی که صفحهٔ فروشگاه عددِ `CloudPlan::hourlyStartMinIrt()` را نشان می‌داد.
+     * دو منبع یعنی دیر یا زود صفحه یک عدد بگوید و تسویه عددِ دیگری بخواهد.
      */
     private function orderHourly(Request $request, Customer $customer, CloudPlan $offer, array $data, array $addons, $sshKey, string $label, string $locText, string $description): RedirectResponse
     {
@@ -869,12 +893,15 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['extra_ipv4' => __('ui.cvb_e_hourly_ip')]);
         }
 
-        $minStart = $hourly * 24;
+        $minStart = $offer->hourlyStartMinIrt();
         $balance = $customer->creditBalance('IRT');
 
         if ($balance < $minStart) {
-            return back()->withInput()->withErrors(['billing_mode' =>
-                __('ui.cvb_e_hourly_credit', ['min' => cloud_price($minStart), 'bal' => cloud_price($balance)])]);
+            return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
+                'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
+                'min'   => cloud_price($minStart),
+                'bal'   => cloud_price($balance),
+            ])]);
         }
 
         $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
@@ -884,19 +911,7 @@ class CloudStoreController extends Controller
         $monthly = self::priceForCycle($offer, 'monthly');
 
         $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $balance) {
-            // کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید)
-            CreditEntry::create([
-                'customer_id'   => $customer->id,
-                'currency_code' => 'IRT',
-                'amount'        => -$hourly,
-                'balance_after' => $balance - $hourly,
-                'reason'        => 'cloud_hourly',
-                'source_type'   => Customer::class,
-                'source_id'     => $customer->id,
-                'note'          => 'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name,
-            ]);
-
-            return Service::create([
+            $service = Service::create([
                 'customer_id'      => $customer->id,
                 'name'             => mb_substr('سرور مجازی '.$label.' (ساعتی)', 0, 150),
                 'description'      => $description,
@@ -919,6 +934,31 @@ class CloudStoreController extends Controller
                 'cloud_addons'     => [],
                 'plan'             => (string) $offer->public_name,
             ]);
+
+            /*
+            | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).
+            |
+            | 🔴 **کلیدِ منبع باید `Service` باشد، نه `Customer`.** مسیرِ لغوِ
+            | سفارشِ تحویل‌نشده (`Account\ServiceController::cancel()`) مبلغِ
+            | بازگشتی را با
+            | `CreditEntry::where('source_type', Service::class)->where('source_id', $id)`
+            | جمع می‌زند؛ تا مرداد ۱۴۰۵ همین ردیف با کلیدِ `Customer` نوشته
+            | می‌شد، پس **تنها چیزی بود که مشتری روی سرورِ هرگز-تحویل‌نشده
+            | پس نمی‌گرفت**. سرویس عمداً اول ساخته می‌شود تا شناسه‌اش موجود باشد؛
+            | هر دو در یک تراکنش‌اند، پس نیمه‌کاره نمی‌مانَد.
+            */
+            CreditEntry::create([
+                'customer_id'   => $customer->id,
+                'currency_code' => 'IRT',
+                'amount'        => -$hourly,
+                'balance_after' => $balance - $hourly,
+                'reason'        => 'cloud_hourly',
+                'source_type'   => Service::class,
+                'source_id'     => $service->id,
+                'note'          => 'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name,
+            ]);
+
+            return $service;
         });
 
         try {

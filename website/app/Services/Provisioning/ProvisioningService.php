@@ -235,7 +235,7 @@ class ProvisioningService
     {
         if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
             $ok = app(\App\Services\Cloud\CloudProvisioner::class)->unsuspend($service);
-            $service->update(['status' => 'active']);
+            $service->update($this->resumeColumns($service));
 
             return $ok
                 ? ProvisionResult::success(null, null, null)
@@ -243,16 +243,34 @@ class ProvisioningService
         }
 
         if (! $service->server) {
-            $service->update(['status' => 'active']);
+            $service->update($this->resumeColumns($service));
 
             return ProvisionResult::success(null, null, null);
         }
         $r = $this->driverFor($service->server)->unsuspend($service);
         if ($r->ok || $r->manual) {
-            $service->update(['status' => 'active']);
+            $service->update($this->resumeColumns($service));
         }
 
         return $r;
+    }
+
+    /**
+     * 🔴 روشن‌کردنِ سرویسِ ساعتی باید **لنگرِ متر** را هم جلو ببرد.
+     *
+     * `suspend()`ِ مدیر فقط `status` را می‌نوشت و `last_metered_at` کهنه می‌مانْد؛
+     * پس تیکِ بعدی بعد از یک تعلیقِ ده‌ساعته، هر ده ساعتِ **خاموشی** را از مشتری
+     * می‌گرفت (تا سقفِ ۴۸ ساعت). مشتری بابتِ ماشینی که ما خاموشش کرده بودیم پول
+     * می‌داد. مسیرِ خودِ متر (`CloudMeterHourly`) این کار را از قبل می‌کرد؛
+     * مسیرِ مدیر نه — همان نیمهٔ فراموش‌شده.
+     *
+     * @return array<string,mixed>
+     */
+    private function resumeColumns(Service $service): array
+    {
+        return $service->billing_mode === 'hourly'
+            ? ['status' => 'active', 'last_metered_at' => now()]
+            : ['status' => 'active'];
     }
 
     /**
@@ -270,12 +288,34 @@ class ProvisioningService
         // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
         // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
         if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            return app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service)
-                ? ProvisionResult::success(null, null, null)
-                : ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
+            if (! app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service)) {
+                return ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
+            }
+
+            /*
+            | 🔴 شاخهٔ ابری هم باید `none` بنویسد.
+            |
+            | پیش از این این‌جا بی‌درنگ `return` می‌شد و یک سرویسِ ابریِ
+            | خاتمه‌یافته تا ابد `provision_status='done'` می‌مانْد. یعنی دو شاخهٔ
+            | همین متد دو حرفِ متفاوت می‌زدند، و «آزادشده» هیچ نشانهٔ قابلِ
+            | پرس‌وجویی نداشت — همان چیزی که صفِ تلاشِ دوبارهٔ `cloud:release-retry`
+            | و چکِ سلامتِ `cloud_release` به آن نیاز دارند.
+            */
+            $service->update(['provision_status' => 'none']);
+
+            return ProvisionResult::success(null, null, null);
         }
 
-        $r = $service->server
+        /*
+        | ⚠️ «حسابی وجود ندارد» با «حذف شکست خورد» یکی نیست.
+        |
+        | سفارشِ تحویل‌نشدهٔ هاست `server_id` دارد ولی `username` ندارد؛ درایور
+        | برایش `fail('سرور یا نام‌کاربری مشخص نیست')` می‌دهد. اگر آن را شکست
+        | بشماریم، هر لغوِ سفارشِ تحویل‌نشده یک ردیفِ **دروغینِ** `releasing`
+        | می‌سازد و صفِ تلاشِ دوباره و چکِ سلامت را با کارِ نکرده پر می‌کند —
+        | همان «هشدارِ همیشه‌قرمز» که هشدارِ بعدی را خفه می‌کند.
+        */
+        $r = ($service->server && filled($service->username))
             ? $this->driverFor($service->server)->terminate($service)
             : ProvisionResult::success(null, null, null);
 
@@ -284,7 +324,11 @@ class ProvisioningService
             // سرور برای همیشه «پر» می‌ماند؛ آن‌وقت هیچ مکانی در صفحهٔ خرید
             // نمایش داده نمی‌شد. فقط برای حسابی که واقعاً شمرده شده بود، و
             // با کرانِ صفر تا منفی نشود.
-            $counted = $service->provision_status === 'done'
+            // ⚠️ `released_from_done` مهرِ `releaseAndTrack()` است: تلاشِ دومِ
+            // یک آزادسازیِ ناموفق، `provision_status` را دیگر `done` نمی‌بیند و
+            // بی‌این مهر ظرفیت هرگز برنمی‌گشت.
+            $counted = ($service->provision_status === 'done'
+                    || ($service->provision_meta['released_from_done'] ?? false))
                 && ! ($service->provision_meta['reused'] ?? false);
 
             if ($counted && $service->server_id) {
@@ -301,13 +345,93 @@ class ProvisioningService
         return $r;
     }
 
-    public function terminate(Service $service): ProvisionResult
+    /**
+     * 🔴 **گامِ ۲ و ۳ِ هر مسیرِ خاتمه** — آزادسازی + دفترداریِ نتیجه.
+     *
+     * قاعدهٔ کارفرما: «نه ما ضرر کنیم نه مشتری.» ترجمه‌اش به کد:
+     *
+     *   موفق (یا `manual`)  ⇒ `provision_status='none'` — پرونده بسته است.
+     *   ناموفق              ⇒ `provision_status='releasing'` — «مشتری تمام شده،
+     *                          ماشین هنوز تأییدنشده پاک نشده». صف می‌مانَد،
+     *                          `cloud:release-retry` هر ساعت دوباره تلاش می‌کند،
+     *                          و `SystemHealth::cloudRelease()` قرمز می‌مانَد تا
+     *                          آدمی ببندَدش.
+     *
+     * ⚠️ **گامِ ۱ (بستنِ وضعیتِ صورت‌حسابی) این‌جا نیست و نباید باشد.** فراخوان
+     * باید `status` را **پیش** از صدازدنِ این متد مرده کرده باشد؛ همان یک نوشتن
+     * است که هم‌زمان مترِ ساعتی، `provision:run`، `PaymentService::applyPaid` و
+     * دکمهٔ «تلاشِ دوباره»ی مدیر را می‌بندد.
+     *
+     * ⚠️ `releasing` عمداً روی `provision_status` می‌نشیند نه `services.status`:
+     * `PaymentService::applyPaid` فقط `status` را می‌سنجد و شرطِ خامِ داخلِ
+     * `catch`ش (`provision_status != 'done'`) با `releasing` **تطبیق می‌کند** —
+     * پس اگر این نشانه روی `status` بود، پرداختِ یک فاکتورِ کهنه سرویس را دوباره
+     * به صفِ خرید می‌فرستاد و **سرورِ دوم** خریده می‌شد.
+     *
+     * ⚠️ در شکستِ غیرابری (WHM/DA) `active_accounts` عمداً کم **نمی‌شود** —
+     * حسابِ cPanel واقعاً هنوز هست و ظرفیتِ آن سرور واقعاً مصرف است.
+     * `releaseServer()` آن decrement را با نوشتنِ `none` جفت کرده؛ جدا نکن.
+     */
+    public function releaseAndTrack(Service $service): ProvisionResult
     {
-        $r = $this->releaseServer($service);
+        /*
+        | ⚠️ «این حساب در ظرفیتِ سرور شمرده شده بود» را **پیش از** اولین تلاش
+        | مهر می‌زنیم.
+        |
+        | `releaseServer()` آن را از `provision_status === 'done'` می‌فهمد؛ ولی
+        | به‌محضِ اینکه یک تلاشِ ناموفق ردیف را به `releasing` ببرد، آن نشانه از
+        | بین می‌رود و تلاشِ دوم — حتی وقتی موفق شود — `active_accounts` را
+        | برنمی‌گرداند. نتیجه‌اش سروری بود که برای همیشه «پر» می‌مانْد و از صفحهٔ
+        | خرید غیب می‌شد. مهرِ ماندگار همان واقعیت را حمل می‌کند.
+        */
+        $meta = (array) ($service->provision_meta ?? []);
+
+        if ($service->provision_status === 'done' && ! ($meta['released_from_done'] ?? false)) {
+            $meta['released_from_done'] = true;
+            $service->forceFill(['provision_meta' => $meta])->save();
+        }
+
+        try {
+            $r = $this->releaseServer($service);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'release', 'service' => $service->id]);
+            $r = ProvisionResult::fail(mb_substr($e->getMessage(), 0, 200));
+        }
 
         if ($r->ok || $r->manual) {
-            $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            // شاخهٔ غیرابریِ `releaseServer()` از قبل نوشته؛ نوشتنِ دوباره بی‌ضرر
+            // است و شاخهٔ `manual` (که چیزی ننوشته) را هم می‌پوشانَد.
+            $service->forceFill(['provision_status' => Service::PROVISION_NONE])->save();
 
+            return $r;
+        }
+
+        $service->forceFill(['provision_status' => Service::PROVISION_RELEASING])->save();
+
+        app(\App\Services\Cloud\CloudProvisioner::class)
+            ->recordReleaseFailure($service, (string) ($r->error ?: 'دلیلِ نامعلوم'));
+
+        return $r;
+    }
+
+    public function terminate(Service $service): ProvisionResult
+    {
+        /*
+        | 🔴 گامِ ۱ — تصمیمِ صورت‌حسابی **پیش** از تماس با زیرساخت، و بی‌قیدوشرط.
+        |
+        | تا مرداد ۱۴۰۵ وضعیت فقط روی موفقیتِ زیرساخت نوشته می‌شد، پس یک حذفِ
+        | ناموفق سرویس را `active` نگه می‌داشت و مترِ ساعتی همان ساعت دوباره از
+        | مشتری کسر می‌کرد — بابتِ سروری که خواسته بود پاک شود.
+        */
+        $alreadyDead = $service->isDead();
+
+        if (! $alreadyDead) {
+            $service->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+        }
+
+        $r = $this->releaseAndTrack($service);
+
+        if (! $alreadyDead) {
             /*
             | آخرین پیامِ این سرویس. پس از این، داده برنمی‌گردد.
             |

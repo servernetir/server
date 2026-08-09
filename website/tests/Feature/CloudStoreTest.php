@@ -637,17 +637,176 @@ class CloudStoreTest extends TestCase
         ]);
     }
 
-    /** ساعتی بدونِ اعتبارِ ۲۴ ساعت → رد */
-    public function test_hourly_order_requires_24h_credit(): void
+    /** ساعتی بدونِ کفِ اعتبار → رد */
+    public function test_hourly_order_requires_the_credit_floor(): void
     {
         $this->catalog();
         $customer = $this->customer();
-        $this->topup($customer, 5000);   // نرخِ ساعتی ۸۰۰ → حداقلِ شروع ۱۹۲۰۰
+        $this->topup($customer, 5000);   // نرخِ ساعتی ۸۰۰ → حداقلِ شروع ۹۶۰۰
 
         $this->order($customer, ['billing_mode' => 'hourly'])->assertSessionHasErrors('billing_mode');
 
         $this->assertDatabaseMissing('services', ['customer_id' => $customer->id, 'billing_mode' => 'hourly']);
         $this->assertSame(5000, $customer->creditBalance('IRT'), 'نباید کسر شود');
+    }
+
+    /**
+     * 🔴 **جفتِ مرزی** — بی‌این، سوئیتِ سبز دربارهٔ عددِ ۱۲ هیچ ادعایی ندارد.
+     *
+     * فیکسچرِ ۵۰۰۰ تومانیِ تستِ بالا هم زیرِ کفِ قدیمِ ۱۹٬۲۰۰ رد می‌شد هم زیرِ کفِ
+     * تازهٔ ۹٬۶۰۰ — یعنی عوض‌شدنِ ضریب هیچ سیگنالی نمی‌ساخت. این تست دقیقاً روی
+     * مرز می‌نشیند: یک تومان کم‌تر رد، دقیقاً برابر قبول.
+     *
+     * ⚠️ و عمداً حسابِ خودش را نمی‌کند: عدد از همان ثابتی می‌آید که کد می‌خوانَد،
+     * وگرنه تست یک نسخهٔ دومِ قاعده می‌شد که می‌تواند با کد اختلاف پیدا کند.
+     */
+    public function test_the_twelve_hour_floor_is_exact_on_both_sides(): void
+    {
+        $this->catalog();
+
+        $plan = \App\Models\CloudPlan::where('slug', 'cv-2c-4g-40d-de-frankfurt')->firstOrFail();
+        $rate = $plan->hourlyIrt();
+        $floor = $plan->hourlyStartMinIrt();
+
+        $this->assertSame(800, $rate);
+        $this->assertSame(800 * \App\Models\CloudPlan::HOURLY_START_MIN_HOURS, $floor);
+        $this->assertSame(9600, $floor);
+
+        // یک تومان کم‌تر → رد، و هیچ کسری
+        $poor = $this->customer();
+        $this->topup($poor, $floor - 1);
+        $this->order($poor, ['billing_mode' => 'hourly'])->assertSessionHasErrors('billing_mode');
+        $this->assertDatabaseMissing('services', ['customer_id' => $poor->id, 'billing_mode' => 'hourly']);
+        $this->assertSame($floor - 1, $poor->creditBalance('IRT'));
+
+        // دقیقاً برابر → قبول، و فقط ساعتِ اول کسر می‌شود
+        $ok = $this->customer();
+        $this->topup($ok, $floor);
+        $this->order($ok, ['billing_mode' => 'hourly'])->assertRedirect();
+        $this->assertDatabaseHas('services', ['customer_id' => $ok->id, 'billing_mode' => 'hourly']);
+        $this->assertSame($floor - $rate, $ok->creditBalance('IRT'), 'خرید با ۱۲× نرخ، ۱۱× نرخ باقی می‌گذارد');
+    }
+
+    /** پیامِ ردِ خرید باید همان عددی را بگوید که گیت واقعاً می‌سنجد */
+    public function test_the_refusal_message_states_the_real_requirement(): void
+    {
+        $this->catalog();
+
+        $plan = \App\Models\CloudPlan::where('slug', 'cv-2c-4g-40d-de-frankfurt')->firstOrFail();
+        $customer = $this->customer();
+        $this->topup($customer, 1000);
+
+        $errors = $this->order($customer, ['billing_mode' => 'hourly'])
+            ->assertSessionHasErrors('billing_mode')
+            ->getSession()->get('errors');
+
+        $msg = (string) $errors->first('billing_mode');
+
+        $this->assertStringContainsString(cloud_price($plan->hourlyStartMinIrt()), $msg,
+            'مبلغِ پیام باید از hourlyStartMinIrt() بیاید، نه از یک حسابِ دومِ داخلِ کنترلر');
+        $this->assertStringContainsString(fa_num(\App\Models\CloudPlan::HOURLY_START_MIN_HOURS), $msg);
+        $this->assertStringNotContainsString('۲۴ ساعت', $msg, 'متنِ کهنه نباید مانده باشد');
+    }
+
+    /**
+     * 🔴 عددِ کف در **هیچ‌کدام** از سه فایلِ زبان سخت‌کد نباشد.
+     *
+     * فایلِ واقعی خوانده می‌شود و هیچ چیزی ست نمی‌شود: تستی که خودش مقدار را
+     * می‌سازد، هرگز سیم‌کشی را نمی‌سنجد (درسِ ثبت‌شدهٔ همین پروژه).
+     *
+     * دو کلید، دو راه‌حلِ متفاوت و عمدی:
+     *  · `cvb_e_hourly_credit` را **کنترلر** رندر می‌کند، پس جای‌نگهدارِ `:hours`
+     *    می‌گیرد و از خودِ ثابت پر می‌شود.
+     *  · `cvb_hourly_min_suf` را **Blade** رندر می‌کند (فایلی که این تغییر
+     *    مالکش نیست)، و `__()` جای‌نگهدارِ پرنشده را عیناً چاپ می‌کند. پس این یکی
+     *    عمداً **بی‌عدد** است: مبلغِ واقعی همان کنار چاپ می‌شود، و هیچ عددی دو
+     *    نسخه ندارد. جمله بی‌آن هم کامل است.
+     */
+    public function test_the_credit_floor_strings_never_hard_code_the_number(): void
+    {
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $ui = require base_path("lang/{$locale}/ui.php");
+
+            foreach (['cvb_hourly_min_suf', 'cvb_e_hourly_credit', 'cvb_hourly_low'] as $key) {
+                $this->assertArrayHasKey($key, $ui, "کلیدِ {$key} در {$locale} نیست");
+
+                $s = (string) $ui[$key];
+                $this->assertStringNotContainsString('24', $s, "{$locale}.{$key} هنوز عددِ کهنه دارد");
+                $this->assertStringNotContainsString('۲۴', $s, "{$locale}.{$key} هنوز عددِ کهنه دارد");
+                $this->assertStringNotContainsString('12', $s, "{$locale}.{$key} نباید عدد را سخت‌کد کند");
+                $this->assertStringNotContainsString('۱۲', $s, "{$locale}.{$key} نباید عدد را سخت‌کد کند");
+            }
+
+            $this->assertStringContainsString(':hours', (string) $ui['cvb_e_hourly_credit'],
+                "{$locale}.cvb_e_hourly_credit باید جای‌نگهدار داشته باشد");
+            $this->assertStringNotContainsString(':hours', (string) $ui['cvb_hourly_min_suf'],
+                'این کلید را Blade رندر می‌کند و جای‌نگهدارِ پرنشده عیناً چاپ می‌شود');
+        }
+    }
+
+    /** جای‌نگهدار روی صفحهٔ واقعی نباید خام چاپ شود */
+    public function test_no_raw_placeholder_leaks_onto_the_store_page(): void
+    {
+        $this->catalog();
+        $customer = $this->customer();
+        $this->topup($customer, 50_000);
+
+        foreach ([$this->u(), route('en.account.cloud.store', [], false)] as $url) {
+            $html = $this->actingAs($customer, 'customer')->get($url)->assertOk()->getContent();
+
+            $this->assertStringNotContainsString(':hours', $html, 'جای‌نگهدارِ پرنشده روی صفحه');
+            $this->assertStringNotContainsString(':min', $html);
+        }
+    }
+
+    /** برابریِ کلیدها بینِ سه زبان — کلیدِ جاافتاده یعنی متنِ خام روی صفحه */
+    public function test_the_three_language_files_have_identical_keys(): void
+    {
+        $fa = array_keys(require base_path('lang/fa/ui.php'));
+        $en = array_keys(require base_path('lang/en/ui.php'));
+        $tr = array_keys(require base_path('lang/tr/ui.php'));
+
+        sort($fa);
+        sort($en);
+        sort($tr);
+
+        $this->assertSame($fa, $en, 'کلیدهای fa و en باید دقیقاً برابر باشند');
+        $this->assertSame($fa, $tr, 'کلیدهای fa و tr باید دقیقاً برابر باشند');
+    }
+
+    /**
+     * 🔴 ساعتِ اولِ پیش‌پرداخت باید روی **سرویس** ثبت شود، نه روی مشتری.
+     *
+     * مسیرِ لغوِ سفارشِ تحویل‌نشده مبلغِ بازگشتی را فقط از ردیف‌هایی جمع می‌زند که
+     * `source_type = Service` باشند؛ تا مرداد ۱۴۰۵ این یک ردیف با کلیدِ
+     * `Customer` نوشته می‌شد و **تنها چیزی بود که مشتری روی سرورِ
+     * هرگز-تحویل‌نشده پس نمی‌گرفت**.
+     */
+    public function test_cancelling_an_undelivered_hourly_order_returns_the_prepaid_hour(): void
+    {
+        $this->catalog();
+
+        $plan = \App\Models\CloudPlan::where('slug', 'cv-2c-4g-40d-de-frankfurt')->firstOrFail();
+        $floor = $plan->hourlyStartMinIrt();
+
+        $customer = $this->customer();
+        $this->topup($customer, $floor);
+
+        $this->order($customer, ['billing_mode' => 'hourly'])->assertRedirect();
+
+        $service = \App\Models\Service::where('customer_id', $customer->id)->firstOrFail();
+        $this->assertSame($floor - 800, $customer->creditBalance('IRT'));
+
+        // ساعتِ اول باید به سرویس گره خورده باشد
+        $this->assertDatabaseHas('credit_ledger', [
+            'source_type' => \App\Models\Service::class, 'source_id' => $service->id,
+            'amount' => -800, 'reason' => 'cloud_hourly',
+        ]);
+
+        $this->actingAs($customer, 'customer')->post("/account/services/{$service->id}/cancel");
+
+        $this->assertSame('cancelled', $service->fresh()->status);
+        $this->assertSame($floor, $customer->creditBalance('IRT'), 'ساعتِ پیش‌پرداخت باید کامل برگردد');
     }
 
     /** بلوکِ «پرداختِ ساعتی» با نرخ و گزینه‌ها روی صفحه رندر شود (نه کلیدِ خام) */
@@ -666,8 +825,8 @@ class CloudStoreTest extends TestCase
         $this->assertStringNotContainsString('ui.cvb_hourly', $html, 'کلیدِ خامِ ترجمه نباید چاپ شود');
     }
 
-    /** هشدارِ «اعتبار کافی نیست» وقتی موجودی کم است */
-    public function test_low_credit_warning_shows_when_balance_under_24h(): void
+    /** هشدارِ «اعتبار کافی نیست» وقتی موجودی زیرِ کف است */
+    public function test_low_credit_warning_shows_when_balance_under_the_floor(): void
     {
         $this->catalog();
         $customer = $this->customer();   // بی‌شارژ

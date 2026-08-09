@@ -11,6 +11,7 @@ use App\Services\Domain\DomainRegistrar;
 use App\Services\Domain\OpenProviderClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -54,19 +55,58 @@ class DomainController extends Controller
         $query = trim((string) $request->query('register', ''));
         $results = [];
 
+        // 🔴 سه پاسخِ متفاوت که تا امروز همه به یک جملهٔ «نتیجه‌ای پیدا نشد.
+        //    املای دامنه را بررسی کنید» می‌رسیدند:
+        //      • جستجو استثنا داد        → searchFailed
+        //      • رجیسترار جواب نداد      → lookupOk = false
+        //      • واقعاً چیزی پیدا نشد    → هیچ‌کدام
+        //    اولی و دومی تقصیرِ مشتری نیستند و نباید املایش را زیرِ سؤال ببرند.
+        $lookupOk = true;
+        $searchFailed = false;
+
         if ($query !== '' && mb_strlen($query) <= 120) {
             try {
                 $results = $search->search($query);
+                $lookupOk = $search->lookupOk();
             } catch (\Throwable $e) {
                 // جستجوی خراب نباید فهرستِ دامنه‌های مشتری را هم بخوابانَد
                 \Illuminate\Support\Facades\Log::warning('panel domain search failed', ['err' => $e->getMessage()]);
+
+                // ⚠️ لاگِ بالا فقط در laravel.log می‌نشیند و به `/admin/errors`
+                //    نمی‌رسد؛ بی این خط، یک صفحهٔ خریدِ کاملاً مرده هیچ ردی در
+                //    تنها سطحی که مدیر نگاه می‌کند نمی‌گذاشت.
+                \App\Support\ErrorTracker::note('domain', $e, ['area' => 'panel-search']);
+
+                $searchFailed = true;
+                $lookupOk = false;
             }
         }
 
-        return view('account.domains', AccountController::shell('domains') + [
-            'domains' => $domains,
-            'query'   => $query,
-            'results' => $results,
+        /*
+        | دادهٔ مشترکِ «چهار اتاق» — برای سوییچرِ بالای صفحه (شمارشِ هر بخش)،
+        | برای فاکتورِ بازِ تمدید روی هر ردیف، و برای تشخیصِ دامنهٔ بی‌سرویس.
+        |
+        | ⚠️ `$domains` را دوباره از خودِ سازنده می‌گیریم و نه از متغیرِ بالا:
+        | ترتیب و اسکوپ باید در هر چهار صفحه یکی باشد، و اگر روزی این متد
+        | فیلترِ دیگری اضافه کند نباید سوییچر عددِ دیگری بگوید.
+        */
+        $customer = Auth::guard('customer')->user();
+
+        $section = \App\Support\PanelSections::build(
+            $customer,
+            \Illuminate\Support\Facades\Schema::hasTable('services') && $customer
+                ? $customer->services()
+                    ->whereIn('status', \App\Models\Service::PANEL_STATUSES)
+                    ->with('server')->get()
+                : collect(),
+        );
+
+        return view('account.domains', AccountController::shell('domains') + $section + [
+            'domains'      => $section['secDomains'],
+            'query'        => $query,
+            'results'      => $results,
+            'lookupOk'     => $lookupOk,
+            'searchFailed' => $searchFailed,
         ]);
     }
 

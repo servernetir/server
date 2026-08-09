@@ -27,5 +27,18 @@ abstract class TestCase extends BaseTestCase
         foreach ((array) @glob(storage_path('app/'.\App\Support\ErrorTracker::THROTTLE_PREFIX.'*')) as $f) {
             @unlink($f);
         }
+
+        /*
+        | 🔴 و **خودِ ردیاب** هم فایلی است، با همان بیماری از سمتِ دیگر.
+        |
+        | `storage/logs/tracker*.jsonl` بینِ تست‌ها زنده می‌مانَد. تستی که ادعا
+        | می‌کند «هیچ ۴۰۴ی ثبت نشده» یا «هیچ خطایی ثبت نشده»، در سوئیتِ کامل
+        | ردیفِ تستِ قبلی را می‌بیند و قرمز می‌شود — بی‌آنکه چیزی در کد خراب شده
+        | باشد. (نمونهٔ واقعی: `TrackNotFoundTest` که ۴۰۴ِ
+        | `/account/services/1/terminate/start` از `ServiceTerminateOtpTest` را
+        | می‌دید.) چند تست خودشان `ErrorTracker::clear()` می‌زدند؛ همان کار
+        | این‌جا یک‌جا انجام می‌شود تا تستِ بعدی هم که یادش می‌رود، امن باشد.
+        */
+        \App\Support\ErrorTracker::clear();
     }
 }

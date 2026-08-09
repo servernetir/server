@@ -1,0 +1,22 @@
+﻿crm_leads = ok
+crm_messages = ok
+crm_suppression = ok
+mailbox_messages = ok
+--- admins ---
+render@test.local
+ctadmin@test.local
+rp@test.local
+--- routes ---
+GET|HEAD /admin/crm
+POST /admin/crm
+GET|HEAD /admin/crm/{lead}
+POST /admin/crm/{lead}/enrich
+POST /admin/crm/{lead}/compose
+POST /admin/crm/{lead}/stage
+POST /admin/crm/{lead}/suppress
+POST /admin/crm/message/{message}/approve
+POST /admin/crm/message/{message}/reject
+GET|HEAD /admin/mail
+POST /admin/mail/clear
+POST /admin/mail/{message}/handled
+POST /admin/mail/{message}/reopen

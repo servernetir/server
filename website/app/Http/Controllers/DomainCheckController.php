@@ -80,9 +80,26 @@ class DomainCheckController extends Controller
         | اشتباه می‌گیرد و به مشتری می‌گوید دامنه آزاد است؛ بعد سرِ پرداخت
         | رجیسترار ردش می‌کند. «نمی‌دانم» صادقانه‌تر از حدسِ اشتباه است.
         */
+        /*
+        | 🔴 `state` اضافه شد و همین یک فیلد، بدترین باگِ باقی‌ماندهٔ این مسیر را
+        | می‌بندد.
+        |
+        | تا امروز پاکت فقط `available: true|false` داشت و
+        | `public/assets/js/site.js` همان دو حالت را رندر می‌کرد: یا «آزاد است»
+        | یا «قبلاً ثبت شده است». پس یک قطعیِ رجیسترار — یا حتی نبودِ
+        | اعتبارنامه — روی **پرترافیک‌ترین** ورودیِ فروشِ دامنه به مشتری
+        | می‌گفت نامش گرفته شده. دقیقاً همان دروغی که در `DomainSearch` رفع
+        | شده بود، یک لایه بالاتر دست‌نخورده مانده بود.
+        |
+        | ⚠️ `available` عمداً حذف نشد: مصرف‌کنندهٔ کهنه (کشِ مرورگر وسطِ
+        | دیپلوی) باید همچنان کار کند. فیلدِ تازه اضافه است، نه جایگزین.
+        */
         $result = [
             'domain'    => $fqdn,
             'available' => (bool) ($primary['available'] ?? false),
+            'state'     => $primary !== null
+                ? ($primary['state'] ?? DomainSearch::stateOf($primary))
+                : DomainSearch::STATE_UNCHECKED,
             'price'     => $this->priceLabel($primary),
             'cart_url'  => $this->buyUrl($fqdn),
         ];
@@ -144,6 +161,9 @@ class DomainCheckController extends Controller
         return response()->json([
             'result'      => $result,
             'suggestions' => $suggestions,
+            // آیا رجیسترار اصلاً جواب داد — برای اینکه رابط بتواند «نمی‌دانیم»
+            // را از «گرفته‌شده» جدا کند بی‌آنکه ردیف‌به‌ردیف حدس بزند.
+            'lookup_ok'   => $search->lookupOk(),
             // «…» → صفحهٔ کاملِ جستجوی خودمان، نه دامنه‌چکرِ WHMCS
             'more_url'    => $this->buyUrl($name),
         ]);

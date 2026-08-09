@@ -212,6 +212,75 @@ class Service extends Model
         return filled($this->cloud_plan_id);
     }
 
+    // ─────────────── نوعِ سرویس — پایهٔ «چهار اتاق»ِ پنل ───────────────
+
+    /**
+     * وضعیت‌هایی که در فهرستِ «سرویس‌های من» دیده می‌شوند.
+     *
+     * 🔴 فهرستِ **سفید** است نه سیاه: وضعیتِ تازه‌ای که روزی اضافه شود تا وقتی
+     * صریحاً این‌جا نیاید به مشتری نشان داده نمی‌شود. تا امروز همین فهرست
+     * به‌صورتِ رشتهٔ خام داخلِ `ServiceController::index()` بود؛ اتاق‌های تازهٔ
+     * پنل باید **همان** مجموعه را ببینند، وگرنه دو فهرستِ واگرا می‌شد و یکی‌شان
+     * روزی وضعیتی را جا می‌انداخت.
+     *
+     * @var list<string>
+     */
+    public const PANEL_STATUSES = ['active', 'suspended', 'awaiting_provision', 'provision_failed'];
+
+    /**
+     * این سرویس در کدام «اتاق» پنل می‌نشیند: هاست، سرور، یا خدمات.
+     *
+     * ⚠️ روی ردیفِ `services` هیچ ستونِ `product_id` یا `kind` نیست، پس فقط دو
+     * تشخیص‌دهنده داریم و هر دو این‌جا جمع شده‌اند:
+     *
+     *  • `cloud_plan_id` — در لحظهٔ **سفارش** نوشته می‌شود (نه تحویل)، پس سرورِ
+     *    هنوز-در-حالِ-ساخت هم از همان اول در اتاقِ «سرور» دیده می‌شود.
+     *  • `server.type` — هاست‌های کنترل‌پنلی از VPS/اختصاصیِ دستی جدا می‌شوند.
+     *
+     * 🔴 «خدمات» عمداً سطلِ **پیش‌فرض** است: ردیفی که نوعش تشخیص داده نشود
+     * بدجا می‌افتد ولی **ناپدید نمی‌شود**. جمعِ سه اتاق همیشه برابرِ کلِ فهرست
+     * است و یک تست همین را قفل می‌کند.
+     *
+     * @return 'hosting'|'server'|'other'
+     */
+    public function kind(): string
+    {
+        if ($this->isCloud()) {
+            return 'server';
+        }
+
+        if ($this->server_id !== null) {
+            return self::kindOfServerType($this->server?->type);
+        }
+
+        return 'other';
+    }
+
+    /** @return 'hosting'|'server'|'other' */
+    public static function kindOfServerType(?string $type): string
+    {
+        return match ($type) {
+            'whm', 'plesk', 'directadmin' => 'hosting',
+            'vps', 'dedicated'            => 'server',
+            default                       => 'other',
+        };
+    }
+
+    /**
+     * آیا ویجتِ مصرفِ زنده برای این سرویس معنا دارد؟
+     *
+     * 🔴 دقیقاً همان شرطی که `ServiceController::stats()` دارد
+     * (`whm` + `done` + نام‌کاربری). تا امروز ویو فقط `provision_status==='done'`
+     * را می‌سنجید، پس یک ردیفِ DirectAdmin کارتی می‌ساخت که **هرگز** پر نمی‌شد و
+     * در ضمن یکی از ۶۰ درخواستِ سقف‌دارِ دقیقه را می‌سوزاند.
+     */
+    public function hasLiveUsage(): bool
+    {
+        return $this->provision_status === 'done'
+            && $this->server?->type === 'whm'
+            && filled($this->username);
+    }
+
     /** سرویسی که باید روی سروری تحویل شود (نه یک خدمتِ صرفاً مالی مثل پشتیبانی) */
     public function needsProvisioning(): bool
     {
@@ -227,6 +296,8 @@ class Service extends Model
             'pending' => ['در صف تحویل', '#fbbf24'],
             'manual'  => ['در انتظار تحویل دستی', '#fbbf24'],
             'failed'  => ['خطا در تحویل', '#ff6b6b'],
+            // بسته شده، ولی زیرساخت هنوز حذف را تأیید نکرده — هزینه‌اش پای ماست
+            self::PROVISION_RELEASING => ['در حال آزادسازی', '#f59e0b'],
             default   => ['—', '#96a3ba'],
         };
     }
@@ -280,6 +351,37 @@ class Service extends Model
      * @var array<int,string>
      */
     public const DEAD_STATUSES = ['cancelled', 'terminated'];
+
+    /** «هیچ صفی این را نمی‌خواهد» — پرونده نزدِ زیرساخت بسته است. */
+    public const PROVISION_NONE = 'none';
+
+    /**
+     * 🔴 «مشتری تمام شده، ماشین هنوز تأییدنشده پاک نشده.»
+     *
+     * تنها مقدارِ تازه‌ای که این تغییر اضافه کرد. معنایش دقیقاً یک چیز است:
+     * صورت‌حسابِ مشتری در همان لحظهٔ درخواستِ حذف بسته شد (پس دیگر شارژ نمی‌شود)،
+     * ولی زیرساخت حذف را تأیید نکرده — هزینه‌اش تا تأیید **پای ماست** و باید
+     * بلند و پیگیری‌شدنی باشد، نه یک ستونِ `last_error` که کسی نمی‌خوانَد.
+     *
+     * ⚠️ **عمداً روی `provision_status` است، نه `services.status`.** هر درِ
+     * تحویلِ دوباره — `provision:run`، `ProvisioningService::provision()`،
+     * `CloudProvisioner::provision()`، دکمهٔ «تلاشِ دوباره»ی مدیر و مهم‌تر از همه
+     * `PaymentService::applyPaid` — روی `status` قفل می‌شود؛ پس وضعیتِ مرده باید
+     * فوراً نوشته و دست‌نخورده بمانَد. یک «حالتِ میانی» روی `status` همهٔ آن درها
+     * را دوباره باز می‌کرد و نتیجه‌اش خریدِ **سرورِ دوم** بود.
+     *
+     * ⚠️ ستون `string(16)` است و این مقدار ۹ نویسه — بی‌نیاز از مهاجرت. (درسِ
+     * `awaiting_provision` با ۱۸ نویسه روی ستونِ ۱۲تایی: «Data too long» کلِ
+     * تراکنشِ پرداخت را برگرداند.)
+     */
+    public const PROVISION_RELEASING = 'releasing';
+
+    /** ردیف‌هایی که حذفشان نزدِ زیرساخت تأیید نشده و باید دوباره تلاش شود. */
+    public function scopeAwaitingRelease($q)
+    {
+        return $q->whereIn('status', self::DEAD_STATUSES)
+            ->where('provision_status', self::PROVISION_RELEASING);
+    }
 
     public function isDead(): bool
     {

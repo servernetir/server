@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudInstance;
 use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
@@ -12,9 +13,14 @@ use Tests\TestCase;
 /**
  * فروشِ ساعتیِ سرورِ ابری — کسر از کیفِ پول، idempotency، اتمامِ اعتبار.
  *
- * قاعده‌ها: حداقلِ ۲۴ ساعت اعتبار برای شروع · بدونِ حداقلِ مصرف · فقط ساعتِ
+ * قاعده‌ها: حداقلِ ۱۲ ساعت اعتبار برای شروع · بدونِ حداقلِ مصرف · فقط ساعتِ
  * گذشته کسر شود · هرگز بدونِ اعتبارِ کافی کسر نشود · دو اجرا در یک ساعت دوبار
  * کسر نکند.
+ *
+ * ⚠️ **فیکسچر حالا حتماً یک نمونهٔ تحویل‌شده می‌سازد.** از مرداد ۱۴۰۵ متر فقط
+ * ماشینی را صورت‌حساب می‌کند که واقعاً تحویل شده باشد؛ سرویسِ بی‌نمونه (که
+ * فیکسچرِ قبلی می‌ساخت) عمداً صفر کسر می‌شود. بی‌این تغییر، این تست‌ها
+ * «کسر می‌شود» را روی چیزی می‌سنجیدند که دیگر نباید کسر شود.
  */
 class CloudHourlyBillingTest extends TestCase
 {
@@ -39,13 +45,31 @@ class CloudHourlyBillingTest extends TestCase
         return $c;
     }
 
-    private function hourlyService(Customer $c, int $rate, array $over = []): Service
+    private function hourlyService(Customer $c, int $rate, array $over = [], array $instance = []): Service
     {
-        return Service::create(array_merge([
+        $s = Service::create(array_merge([
             'customer_id' => $c->id, 'name' => 'VPS ساعتی', 'currency_code' => 'IRT',
             'price' => $rate * 720, 'cycle' => 'monthly', 'billing_mode' => 'hourly',
             'hourly_rate_irt' => $rate, 'status' => 'active', 'activated_at' => now(),
             'last_metered_at' => now()->subHours(1), 'on_credit_out' => 'suspend',
+            'provision_status' => 'done',
+        ], $over));
+
+        if ($instance !== ['none']) {
+            $this->delivered($s, $instance);
+        }
+
+        return $s;
+    }
+
+    /** ماشینِ واقعاً تحویل‌شده: شناسهٔ واقعی + IP + روشن + ایمیلِ تحویل رفته. */
+    private function delivered(Service $s, array $over = []): CloudInstance
+    {
+        return CloudInstance::create(array_merge([
+            'service_id' => $s->id, 'provider' => 'aeza', 'provider_ref' => 'srv-'.$s->id,
+            'location_code' => 'de-falkenstein', 'image_key' => 'ubuntu-24.04',
+            'hostname' => 'sn-svc-'.$s->id, 'ipv4' => '10.0.0.'.($s->id % 250 + 1),
+            'status' => 'running', 'ready_notified_at' => now()->subDays(30),
         ], $over));
     }
 
@@ -59,8 +83,9 @@ class CloudHourlyBillingTest extends TestCase
         $this->assertSame(5000, $plan->hourlyIrt());
         // ۷۲۰ سنت ÷ ۷۲۰ = ۱ سنت/ساعت
         $this->assertSame(1, $plan->hourlyEurCents());
-        // حداقلِ شروع = ۲۴ ساعت
-        $this->assertSame(5000 * 24, $plan->hourlyStartMinIrt());
+        // حداقلِ شروع = ۱۲ ساعت (تصمیمِ کارفرما، مرداد ۱۴۰۵) — و از **یک** ثابت
+        $this->assertSame(12, CloudPlan::HOURLY_START_MIN_HOURS);
+        $this->assertSame(5000 * 12, $plan->hourlyStartMinIrt());
     }
 
     // ═══════════ کسرِ ساعتی ═══════════

@@ -23,10 +23,19 @@ class PanelPreviewController extends Controller
                 'code'  => 'SN-104829',
             ],
             'pnlNav' => [
+                // ⚠️ نسخهٔ دومِ **سخت‌کدِ** منو، فقط برای /panel-preview. با منویِ
+                // واقعیِ AccountController::shell() هم‌شکل نگه داشته می‌شود تا
+                // پیش‌نمایش کهنه به نظر نرسد؛ خودش در فهرستِ «پیش از راه‌اندازی
+                // حذف شود»ِ CLAUDE.md §۸.۵ است.
                 ['label' => null, 'items' => [
                     ['key' => 'dash',     'icon' => 'gauge',    'label' => 'داشبورد',   'url' => lroute('panel.preview')],
-                    ['key' => 'services', 'icon' => 'server',   'label' => 'سرویس‌ها',  'url' => lroute('panel.preview.server')],
-                    ['key' => 'domains',  'icon' => 'globe',    'label' => 'دامنه‌ها'],
+                ]],
+                ['label' => 'دارایی‌های من', 'items' => [
+                    ['key' => 'services', 'icon' => 'layout',   'label' => 'همه',       'url' => lroute('panel.preview.server')],
+                    ['key' => 'hosting',  'icon' => 'hdd',      'label' => 'هاست'],
+                    ['key' => 'servers',  'icon' => 'cloud',    'label' => 'سرور'],
+                    ['key' => 'domains',  'icon' => 'globe',    'label' => 'دامنه'],
+                    ['key' => 'other',    'icon' => 'wrench',   'label' => 'خدمات'],
                 ]],
                 ['label' => 'مالی', 'items' => [
                     ['key' => 'invoices', 'icon' => 'coins',    'label' => 'فاکتورها', 'badge' => 1],

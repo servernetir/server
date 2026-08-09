@@ -1302,34 +1302,100 @@ class CloudProvisioner
     }
 
     /**
+     * 🔴 حذفی که زیرساخت نپذیرفت — شمارنده‌ها را بنویس و بلند بگو.
+     *
+     * فراخوانش `ProvisioningService::releaseAndTrack()` است، برای **هر دو** نوعِ
+     * سرویس (ابری و WHM/DA)؛ ردیفِ غیرابری نمونه ندارد و شمارنده‌ها فقط برای
+     * ابری نوشته می‌شوند، ولی فریادش یکی است.
+     *
+     * شمارنده‌ها در `cloud_instances.meta` می‌نشینند (ستونِ JSONِ موجود، در
+     * `$fillable` و cast‌شده) — بی‌هیچ مهاجرتی. سؤالی که به آنها پاسخ می‌دهند:
+     * «این نشتی از کی شروع شده و چند بار تلاش کرده‌ایم؟»
+     */
+    public function recordReleaseFailure(Service $service, string $why): void
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+        $attempt = 1;
+
+        if ($instance !== null) {
+            $meta = (array) ($instance->meta ?? []);
+            $attempt = (int) ($meta['release_attempts'] ?? 0) + 1;
+
+            $meta['release_attempts'] = $attempt;
+            $meta['release_first_failed_at'] ??= now()->toIso8601String();
+            $meta['release_last_failed_at'] = now()->toIso8601String();
+
+            $instance->update(['meta' => $meta]);
+        }
+
+        $this->shoutAboutLingeringMachine(
+            'حذفِ سرور نزدِ زیرساخت انجام نشد', $service, $instance, $why, $attempt
+        );
+    }
+
+    /**
+     * تعلیقی که زیرساخت نپذیرفت — ماشینی که ما «خاموش» می‌دانیم و روشن است.
+     *
+     * ارزان‌تر از حذفِ ناموفق ولی هر ساعت تکرارشونده: مشتری چیزی نمی‌پردازد
+     * (اعتبارش تمام شده) و اجاره را ما می‌دهیم. کرانش `SUSPEND_GRACE_HOURS` است،
+     * چون پس از آن مسیرِ حذف می‌دود و اگر آن هم شکست بخورد ردیف در صفِ
+     * `releasing` می‌نشیند.
+     */
+    public function recordSuspendFailure(Service $service): void
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        if ($instance !== null) {
+            $meta = (array) ($instance->meta ?? []);
+            $meta['suspend_failed_at'] = now()->toIso8601String();
+            $instance->update(['meta' => $meta]);
+        }
+
+        $this->shoutAboutLingeringMachine(
+            'خاموش‌کردنِ سرور نزدِ زیرساخت انجام نشد', $service, $instance,
+            (string) ($instance?->last_error ?: 'دلیلِ نامعلوم')
+        );
+    }
+
+    /**
      * ماشینی که وضعیتِ محلی‌اش با واقعیت نمی‌خوانَد — بلند بگو.
      *
      * ⚠️ گلوگاه با امضای «سرویس + پیام» است، نه زمانِ خالی: خطای **تازه** روی
      * همان سرویس فوراً دیده می‌شود، ولی تلاشِ ساعتیِ تکراری ردیاب را پر نمی‌کند.
+     *
+     * ⚠️ شمارهٔ تلاش در امضا **سطلی** است (۱، ۲، ۳، ۴، ۸، ۱۶، ۳۲…): تلاشِ
+     * ساعتیِ `cloud:release-retry` نباید روزی ۲۴ خط بنویسد و پنجرهٔ ۴۰۰ خطیِ
+     * ردیاب را خالی کند (همان خرابیِ «سیلِ ۴۰۴»)، ولی نباید هم بعد از اولین
+     * ساعت برای همیشه ساکت شود — نشتی که دو هفته ادامه دارد باید دوباره فریاد
+     * بزند. `SystemHealth` مستقل از این گلوگاه، وضعیت را دائمی قرمز نگه می‌دارد.
      */
-    private function shoutAboutLingeringMachine(string $what, Service $service, CloudInstance $instance, string $why): void
+    private function shoutAboutLingeringMachine(string $what, Service $service, ?CloudInstance $instance, string $why, ?int $attempt = null): void
     {
         try {
+            $bucket = $attempt === null ? 0
+                : ($attempt <= 3 ? $attempt : (1 << (int) floor(log($attempt, 2))));
+
             // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
             // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
             // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
-            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, 3600, md5($what.'|'.$why))) {
+            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, 3600, md5($what.'|'.$why.'|'.$bucket))) {
                 return;
             }
 
             \App\Support\ErrorTracker::note('provision',
                 $what.' — ماشین احتمالاً هنوز زنده است و اجاره‌اش از حسابِ ما می‌رود. علت: '
                 .mb_substr($why, 0, 200),
-                ['service' => $service->id, 'instance' => $instance->id]
+                ['service' => $service->id, 'instance' => $instance?->id, 'attempt' => $attempt]
             );
 
             app(\App\Services\Notify\AdminNotifier::class)->event(
                 '🔴 '.$what,
-                [
+                array_filter([
                     'سرویس' => $service->name.' (#'.$service->id.')',
                     'علت'   => mb_substr($why, 0, 200),
+                    'تلاش'  => $attempt === null ? null : fa_num($attempt).'اُم',
                     'خطر'   => 'ماشین ممکن است زنده مانده باشد و هزینه‌اش را ما بدهیم.',
-                ],
+                ]),
                 url('/admin/cloud/inventory'),
                 '🔴'
             );

@@ -120,6 +120,26 @@
 
   // برچسبِ مکانِ جاری برای برگه
   $locLabel = $location ? trim($location->flagEmoji().' '.$location->label()) : '—';
+
+  /*
+  | «برگهٔ مقایسه» — ستونی که در کلِ این مکان **یک مقدار** دارد، ستون نیست؛ نویز
+  | است. پس جمع می‌شود به یک پانویس و ستونش اصلاً رندر نمی‌شود. همین‌طور فیلترِ
+  | نوعِ پردازنده وقتی چیزی برای فیلترکردن ندارد، اصلاً نمی‌آید — امروز کلِ
+  | کاتالوگ cpu_kind=shared است و زدنِ «اختصاصی» فهرست را بی‌هیچ توضیحی خالی
+  | می‌کرد.
+  |
+  | ⚠️ ناموجودها هم در شمارش هستند: اگر تنها ردیفِ اختصاصی ناموجود باشد، ستون
+  | همچنان معنا دارد چون کاربر باید تفاوت را ببیند.
+  */
+  $allCards  = array_merge($planCards, $blockedCards);
+  $netVals   = array_values(array_unique(array_map(fn ($p) => (string) $p['traffic'], $allCards)));
+  $kindVals  = array_values(array_unique(array_map(fn ($p) => (string) $p['cpuKind'], $allCards)));
+  $uniNet    = count($netVals) <= 1;
+  $multiKind = count($kindVals) > 1;
+  $netAll    = fa_num((string) ($netVals[0] ?? ''));
+  $cpuAll    = ($kindVals[0] ?? 'shared') === 'dedicated'
+    ? __('ui.cvb_cpu_dedicated')
+    : __('ui.cvb_cpu_shared');
 @endphp
 
 <form method="POST" action="{{ lroute('account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
@@ -209,54 +229,136 @@
               @endif
             </div>
 
-            <div class="cvb-segs" id="cvb-kind">
-              <button type="button" class="cvb-seg on" data-kind="">{{ __('ui.cvb_cpu_all') }}</button>
-              <button type="button" class="cvb-seg" data-kind="shared">{{ __('ui.cvb_cpu_shared') }}</button>
-              <button type="button" class="cvb-seg" data-kind="dedicated">{{ __('ui.cvb_cpu_dedicated') }}</button>
-            </div>
+            {{-- فیلتر فقط وقتی چیزی برای فیلترکردن هست. با یک نوعِ پردازنده،
+                 «اختصاصی» فهرست را بی‌هیچ توضیحی خالی می‌کرد. --}}
+            @if($multiKind)
+              <div class="cvb-segs" id="cvb-kind">
+                <button type="button" class="cvb-seg on" data-kind="">{{ __('ui.cvb_cpu_all') }}</button>
+                <button type="button" class="cvb-seg" data-kind="shared">{{ __('ui.cvb_cpu_shared') }}</button>
+                <button type="button" class="cvb-seg" data-kind="dedicated">{{ __('ui.cvb_cpu_dedicated') }}</button>
+              </div>
+            @endif
           </div>
 
           @if(count($planCards) === 0 && count($blockedCards) === 0)
             <p class="cvb-warn">{{ __('ui.cvb_no_plans') }}</p>
           @else
-            <div class="cvb-plans">
-              @foreach($planCards as $p)
-                {{-- 🔴 قلّابِ تست: بعد از «on» هیچ کلاسِ دیگری نیاید و data-slug
-                     بلافاصله بعدش بیاید (CloudStoreTest). --}}
-                <label class="cvb-plan @if($p['slug'] === $curSlug) on @endif" data-slug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}">
-                  <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
-                  <span class="cvb-pn">
-                    {{ $p['name'] }}
-                    <span class="cvb-tick"><svg class="icon"><use href="#i-check"/></svg></span>
-                  </span>
-                  <span class="cvb-spec">{{ fa_num($p['vcpu']) }} vCPU · {{ fa_num($p['ram']) }} · {{ fa_num($p['disk']) }} · <bdi>{{ fa_num($p['traffic']) }}</bdi></span>
-                  <span class="cvb-pfoot">
-                    <span class="cvb-pk">{{ $p['cpu'] }}</span>
-                    <span class="cvb-pp" data-pp>{{ cloud_price($priceMap[$p['slug']][$curCycle]['cycle'] ?? 0) }}</span>
-                  </span>
-                </label>
-              @endforeach
+            {{-- ═══ «برگهٔ مقایسه» — یک DOM، دو شکل ═══
 
-              {{-- «هست ولی الان نمی‌شود خرید» — صادقانه دیده می‌شود، بی‌قیمت و
-                   بی‌رادیو. قیمتِ صفر عمدی است و هرگز به‌صورتِ پول چاپ نمی‌شود
-                   (CLAUDE.md §۱۰.۵). data-uslug تا شمارشِ گروه‌بندی نشکند. --}}
-              @foreach($blockedCards as $p)
-                <div class="cvb-off cvb-plan" data-uslug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" aria-disabled="true">
-                  <span class="cvb-pn">
-                    {{ $p['name'] }}
-                    <span class="pnl-pill mute">{{ __('ui.cvb_off_badge') }}</span>
-                  </span>
-                  <span class="cvb-spec">{{ fa_num($p['vcpu']) }} vCPU · {{ fa_num($p['ram']) }} · {{ fa_num($p['disk']) }} · <bdi>{{ fa_num($p['traffic']) }}</bdi></span>
-                  <p class="cvb-offr">
-                    @if($p['reason'] === 'stock')
-                      {{ __('ui.cvb_off_stock') }}<small>{{ __('ui.cvb_off_stock_sub') }}</small>
-                    @else
-                      {{ __('ui.cvb_off_price') }}<small>{{ __('ui.cvb_off_price_sub') }}</small>
-                    @endif
-                  </p>
+                 روی ظرفِ پهن یک **برگه** است (ستون‌های هم‌تراز، ردیف‌های متراکم)
+                 و روی ظرفِ باریک همان کارت‌های قبلی. تصمیم با
+                 `container-type:inline-size` گرفته می‌شود، نه با media query،
+                 چون عرضِ **پنجره** دربارهٔ این عنصر دروغ می‌گوید: فهرست روی هر
+                 دسکتاپی حداکثر ~۴۸۸px است، ولی در پنجرهٔ ۱۰۰۱px فقط ~۲۸۹px و در
+                 ۹۹۹px یک‌دفعه ~۹۱۶px می‌شود (برگه از کنار می‌رود). یعنی
+                 `max-width:1000px` دقیقاً برعکس عمل می‌کرد.
+
+                 و پیش‌فرضِ بی‌پرس‌وجو **کارت** است: مرورگری که پرس‌وجوی ظرف را
+                 نمی‌شناسد همان طرحی را می‌بیند که دیروز پذیرفته شد، نه یک جدولِ
+                 شکسته. یک media query ساختاراً نمی‌تواند چنین پس‌افتِ امنی بدهد.
+
+                 🔴 قلّاب‌هایی که تست‌ها عیناً می‌سنجند و هیچ‌کدام این‌جا تکان
+                 نخورده‌اند: بعد از «on» هیچ کلاسِ دیگری نمی‌آید و data-slug
+                 بلافاصله بعدِ صفتِ class می‌آید؛ ردیفِ ناموجود data-uslug دارد
+                 نه data-slug؛ و هیچ فرزندی از ردیفِ ناموجود <div> نیست (رجکسِ
+                 CloudStoreSlipTest تا **نخستین** </div> می‌بندد، پس یک div
+                 تودرتو سه ادعای پولیِ آن را بی‌صدا پوچ می‌کند). --}}
+            <div class="cvb-sheet">
+              <div class="cvb-plans @if(! $uniNet) has-net @endif @if($multiKind) has-cpu @endif" id="cvb-plans">
+
+                {{-- سرستون‌ها. روی ظرفِ پهن سرِ ستون‌اند، روی باریک یک نوارِ
+                     چیپِ «مرتب‌سازی» — همان دکمه‌ها، همان جاوااسکریپت، پس روی
+                     موبایل هیچ کنترلِ دومی لازم نیست. --}}
+                <div class="cvb-sheeth" id="cvb-sheeth">
+                  <span class="cvb-shl">{{ __('ui.cvb_sort_by') }}</span>
+                  <button type="button" class="cvb-sh cvb-sh-ord on" data-sort="ord" data-dir="asc" aria-pressed="true"><span class="cvb-shs">{{ __('ui.cvb_plan') }}</span><span class="cvb-shc">{{ __('ui.cvb_sort_default') }}</span><span class="cvb-sr" data-say></span></button>
+                  <button type="button" class="cvb-sh cvb-sh-cpu" data-sort="sv" aria-pressed="false">{{ __('ui.cvb_cores') }}<svg class="icon"><use href="#i-chev"/></svg><span class="cvb-sr" data-say></span></button>
+                  <button type="button" class="cvb-sh cvb-sh-ram" data-sort="sr" aria-pressed="false">{{ __('ui.cvb_ram') }}<svg class="icon"><use href="#i-chev"/></svg><span class="cvb-sr" data-say></span></button>
+                  <button type="button" class="cvb-sh cvb-sh-dsk" data-sort="sd" aria-pressed="false">{{ __('ui.cvb_disk') }}<svg class="icon"><use href="#i-chev"/></svg><span class="cvb-sr" data-say></span></button>
+                  @if(! $uniNet)
+                    <button type="button" class="cvb-sh cvb-sh-net" data-sort="sn" aria-pressed="false">{{ __('ui.cvb_traffic') }}<svg class="icon"><use href="#i-chev"/></svg><span class="cvb-sr" data-say></span></button>
+                  @endif
+                  @if($multiKind)
+                    {{-- نوعِ پردازنده بُعدِ خودِ فیلتر است؛ مرتب‌سازی‌اش تکرارِ
+                         همان کنترل می‌شد، پس سرستون است نه دکمه. --}}
+                    <span class="cvb-shx cvb-sh-kind">{{ __('ui.cvb_cpu') }}</span>
+                  @endif
+                  <button type="button" class="cvb-sh cvb-sh-pr" data-sort="pr" aria-pressed="false"><span id="cvb-sh-amt">{{ __('ui.cvb_amount') }}</span><svg class="icon"><use href="#i-chev"/></svg><span class="cvb-sr" data-say></span></button>
                 </div>
-              @endforeach
+
+                @foreach($planCards as $p)
+                  {{-- 🔴 قلّابِ تست: بعد از «on» هیچ کلاسِ دیگری نیاید و data-slug
+                       بلافاصله بعدش بیاید (CloudStoreTest). --}}
+                  <label class="cvb-plan @if($p['slug'] === $curSlug) on @endif" data-slug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" data-ord="{{ $loop->index }}" data-sv="{{ $p['vcpu'] }}" data-sr="{{ $p['ramMb'] }}" data-sd="{{ $p['diskGb'] }}"@if(! $uniNet) data-sn="{{ $p['trafficGb'] }}"@endif>
+                    <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
+                    <span class="cvb-pn">
+                      {{ $p['name'] }}
+                      <span class="cvb-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+                    </span>
+                    <span class="cvb-c cvb-c-cpu"><span class="cvb-sr">{{ __('ui.cvb_cores') }} </span>{{ fa_num($p['vcpu']) }} vCPU</span>
+                    <span class="cvb-c cvb-c-ram"><span class="cvb-sr">{{ __('ui.cvb_ram') }} </span>{{ fa_num($p['ram']) }}</span>
+                    <span class="cvb-c cvb-c-dsk"><span class="cvb-sr">{{ __('ui.cvb_disk') }} </span>{{ fa_num($p['disk']) }}</span>
+                    @if(! $uniNet)
+                      <span class="cvb-c cvb-c-net"><span class="cvb-sr">{{ __('ui.cvb_traffic') }} </span><bdi>{{ fa_num($p['traffic']) }}</bdi></span>
+                    @endif
+                    @if($multiKind)
+                      <span class="cvb-c cvb-c-kind">{{ $p['cpu'] }}</span>
+                    @endif
+                    <span class="cvb-pp" data-pp>{{ cloud_price($priceMap[$p['slug']][$curCycle]['cycle'] ?? 0) }}</span>
+                  </label>
+                @endforeach
+
+                {{-- «هست ولی الان نمی‌شود خرید» — صادقانه دیده می‌شود، بی‌قیمت و
+                     بی‌رادیو، ولی **در جای خودش روی نردبان** و ستون‌به‌ستون هم‌تراز
+                     با ردیف‌های فروختنی، تا مثلِ یک پلهٔ جاافتاده خوانده شود نه یک
+                     واقعیتِ غایب. ستونِ مبلغ کاملاً **خالی** می‌مانَد: نه خط تیره،
+                     نه صفر — هرچیزی در ستونِ پول، قیمت خوانده می‌شود
+                     (CLAUDE.md §۱۰.۵). data-uslug تا شمارشِ گروه‌بندی نشکند.
+                     🔴 هیچ فرزندی این‌جا <div> نشود؛ رجکسِ تست تا نخستین بستنِ
+                     div می‌بندد و آن‌وقت سه ادعای «نه تومان، نه €، نه رایگان»
+                     سبز می‌مانند و هیچ‌چیز را نگه نمی‌دارند. --}}
+                @foreach($blockedCards as $p)
+                  <div class="cvb-off cvb-plan" data-uslug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" aria-disabled="true">
+                    <span class="cvb-pn">
+                      {{ $p['name'] }}
+                      <span class="pnl-pill mute">{{ __('ui.cvb_off_badge') }}</span>
+                    </span>
+                    <span class="cvb-c cvb-c-cpu"><span class="cvb-sr">{{ __('ui.cvb_cores') }} </span>{{ fa_num($p['vcpu']) }} vCPU</span>
+                    <span class="cvb-c cvb-c-ram"><span class="cvb-sr">{{ __('ui.cvb_ram') }} </span>{{ fa_num($p['ram']) }}</span>
+                    <span class="cvb-c cvb-c-dsk"><span class="cvb-sr">{{ __('ui.cvb_disk') }} </span>{{ fa_num($p['disk']) }}</span>
+                    @if(! $uniNet)
+                      <span class="cvb-c cvb-c-net"><span class="cvb-sr">{{ __('ui.cvb_traffic') }} </span><bdi>{{ fa_num($p['traffic']) }}</bdi></span>
+                    @endif
+                    @if($multiKind)
+                      <span class="cvb-c cvb-c-kind">{{ $p['cpu'] }}</span>
+                    @endif
+                    <p class="cvb-offr">
+                      @if($p['reason'] === 'stock')
+                        {{ __('ui.cvb_off_stock') }}<small>{{ __('ui.cvb_off_stock_sub') }}</small>
+                      @else
+                        {{ __('ui.cvb_off_price') }}<small>{{ __('ui.cvb_off_price_sub') }}</small>
+                      @endif
+                    </p>
+                  </div>
+                @endforeach
+              </div>
             </div>
+
+            @if($multiKind)
+              <p class="cvb-empty" id="cvb-kind-empty" hidden>{{ __('ui.cvb_kind_empty') }}</p>
+            @endif
+
+            {{-- ستونی که در کلِ این مکان یک مقدار دارد، ستون نیست — پانویس است. --}}
+            @if($uniNet || ! $multiKind)
+              <p class="cvb-note">
+                <svg class="icon"><use href="#i-info"/></svg>
+                <span>
+                  @if($uniNet){{ __('ui.cvb_same_all', ['label' => __('ui.cvb_traffic'), 'value' => $netAll]) }}@endif
+                  @if($uniNet && ! $multiKind) · @endif
+                  @if(! $multiKind){{ __('ui.cvb_same_all', ['label' => __('ui.cvb_cpu'), 'value' => $cpuAll]) }}@endif
+                </span>
+              </p>
+            @endif
           @endif
         </div></div>
       </div>
@@ -569,6 +671,12 @@
     'hPer'   => __('ui.cvb_hourly_per'),
     'hLbl'   => __('ui.cvb_hourly_t'),
     'openStep' => (int) $openStep,
+    // برگهٔ مقایسه: سرستونِ مبلغ در حالتِ ساعتی عوض می‌شود، و جهتِ مرتب‌سازی
+    // برای صفحه‌خوان با واژه گفته می‌شود نه با aria-sort (که فقط روی نقشِ
+    // columnheader معتبر است و این‌جا ردیف‌ها یک گروهِ رادیو هستند نه جدول).
+    'amtLbl' => __('ui.cvb_amount'),
+    'sAsc'   => __('ui.cvb_sort_asc'),
+    'sDesc'  => __('ui.cvb_sort_desc'),
   ];
 @endphp
 <script>
@@ -658,12 +766,26 @@
     var bucket = D.prices[slug] || {};
     var hourly = !!(hChk && hChk.checked);
 
-    // قیمت روی کارت هر پلن = همان دورهٔ انتخابی
+    // مبلغِ ستونِ هر ردیف = همان دورهٔ انتخابی.
+    // ⚠️ این حلقه عمداً **پیش از** بازگشتِ زودهنگامِ ساعتی است، و تا وقتی
+    // سرستون اسمی نداشت آن تناقض دیده نمی‌شد: ردیف‌ها مبلغِ دوره را نشان
+    // می‌دادند و برگه «تومان/ساعت» را. حالا که ستون «مبلغ دوره» نام دارد،
+    // هر دو باید یک چیز بگویند.
     form.querySelectorAll('.cvb-plan[data-slug]').forEach(function(card){
-      var r = (D.prices[card.getAttribute('data-slug')] || {})[cyc];
+      var s = card.getAttribute('data-slug');
       var el = card.querySelector('[data-pp]');
-      if (r && el) el.textContent = money(r.cycle);
+      if (!el) return;
+      if (hourly) {
+        var hr = (D.hourly || {})[s] || { rate: 0 };
+        el.textContent = hr.rate > 0 ? money(hr.rate) + D.hPer : '—';
+        return;
+      }
+      var r = (D.prices[s] || {})[cyc];
+      if (r) el.textContent = money(r.cycle);
     });
+
+    var amtH = document.getElementById('cvb-sh-amt');
+    if (amtH) amtH.textContent = hourly ? D.hLbl : D.amtLbl;
 
     // ── برگه ──
     set('cvb-s-plan', D.plans[slug] || '—');
@@ -816,6 +938,8 @@
       var hs = form.querySelector('.cvb-seg-h');
       if (hs) hs.classList.remove('on');
       render();
+      // ترتیبِ مبلغ به دوره وابسته است، پس با عوض شدنِ دوره دوباره چیده می‌شود.
+      if (sortKey === 'pr') { applySort(); }
     });
   });
 
@@ -824,6 +948,7 @@
       var hs = hChk.closest('.cvb-seg');
       if (hs) hs.classList.toggle('on', hChk.checked);
       render();
+      if (sortKey === 'pr') { applySort(); }
     });
   }
 
@@ -845,15 +970,119 @@
     });
   });
 
-  // فیلترِ اشتراکی/اختصاصی — تصمیمِ آگاهانه‌ای که قبلاً در متنِ ۱۱ پیکسلی
-  // زمزمه می‌شد و فهرست را بی‌دلیل دو برابر می‌کرد.
+  /* ══════════ برگهٔ مقایسه — مرتب‌سازی ══════════
+     ⚠️ ردیف‌ها **جابه‌جا** می‌شوند (appendChild)، هرگز بازساخته نمی‌شوند. هر
+     شنوندهٔ این فایل یک‌بار سرِ بارگذاری روی گرهِ مشخص بسته شده، پس یک
+     innerHTML صفحه را ۲۰۰ و ظاهراً سالم نگه می‌دارد و در سکوت انتخابِ پلن،
+     همگام‌سازیِ ایمیج و قیمتِ زنده را می‌کشد.
+     ⚠️ کلیدِ مبلغ از D.prices خوانده می‌شود، نه از یک صفتِ DOM: هیچ عددِ پولی
+     دو بار روی صفحه نمی‌نشیند و «قیمتِ پلنِ ناموجود هیچ‌جا نیست» ساختاری
+     می‌مانَد. */
+  var plansBox = document.getElementById('cvb-plans');
+  var sortKey = '', sortDir = 1;
+
+  var ordOf = function(row){ return parseInt(row.getAttribute('data-ord'), 10) || 0; };
+
+  var keyOf = function(row, key){
+    if (key !== 'pr') { return parseInt(row.getAttribute('data-' + key), 10) || 0; }
+    var s = row.getAttribute('data-slug');
+    if (!s) { return 0; }
+    if (hChk && hChk.checked) { return ((D.hourly || {})[s] || {}).rate || 0; }
+    return ((D.prices[s] || {})[val('cycle')] || {}).cycle || 0;
+  };
+
+  var applySort = function(){
+    if (!plansBox) { return; }
+
+    var sell = [], off = [];
+    plansBox.querySelectorAll('.cvb-plan').forEach(function(r){
+      (r.hasAttribute('data-slug') ? sell : off).push(r);
+    });
+
+    sell.sort(function(a, b){
+      var d = sortKey === '' ? 0 : (keyOf(a, sortKey) - keyOf(b, sortKey)) * sortDir;
+      // گره‌گشاییِ قطعی با ترتیبِ سرور — نه اتکا به پایداریِ sort
+      return d !== 0 ? d : ordOf(a) - ordOf(b);
+    });
+
+    // ناموجودها همیشه ته فهرست، در هر دو جهت: نه قیمت دارند، نه نرخِ ساعتی،
+    // نه ردیفی در نقشهٔ افزودنی — پس هر کلیدِ ساختگی برایشان یک عددِ دروغ است.
+    var frag = document.createDocumentFragment();
+    sell.forEach(function(r){ frag.appendChild(r); });
+    off.forEach(function(r){ frag.appendChild(r); });
+    plansBox.appendChild(frag);
+  };
+
+  // aria-sort عمداً به کار نمی‌رود: فقط روی نقشِ columnheader معتبر است و
+  // این‌جا ردیف‌ها یک گروهِ رادیو هستند، نه یک جدول. پس aria-pressed + واژهٔ
+  // صریحِ جهت.
+  var markSort = function(){
+    form.querySelectorAll('.cvb-sh[data-sort]').forEach(function(b){
+      var k = b.getAttribute('data-sort');
+      var mine = k === 'ord' ? sortKey === '' : k === sortKey;
+      b.classList.toggle('on', mine);
+      b.setAttribute('aria-pressed', mine ? 'true' : 'false');
+      b.setAttribute('data-dir', mine && sortDir < 0 ? 'desc' : 'asc');
+      var say = b.querySelector('[data-say]');
+      if (say) { say.textContent = mine && k !== 'ord' ? ' ' + (sortDir < 0 ? D.sDesc : D.sAsc) : ''; }
+    });
+  };
+
+  form.querySelectorAll('.cvb-sh[data-sort]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var k = b.getAttribute('data-sort');
+      if (k === 'ord') { sortKey = ''; sortDir = 1; }
+      else if (sortKey === k) { sortDir = -sortDir; }
+      else { sortKey = k; sortDir = 1; }
+      markSort();
+      applySort();
+    });
+  });
+
+  /* ══════════ فیلترِ اشتراکی/اختصاصی ══════════
+     🔴 این کنترل تا امروز **هیچ‌کاری نمی‌کرد**: hidden ست می‌شد ولی
+     `.cvb-plan{display:flex}` یک قاعدهٔ نویسنده است و بر `[hidden]`ِ مرورگر
+     می‌چربد. panel.css حالا خنثی‌کننده دارد؛ و دقیقاً همان لحظه که پنهان‌شدن
+     واقعی می‌شود، سوراخِ «پلنِ نامرئیِ انتخاب‌شده و ارسال‌شدنی» باز می‌شود.
+     پس ترمیمِ انتخاب باید در همین تغییر باشد، نه در تغییرِ بعدی. */
+  var kindEmpty = document.getElementById('cvb-kind-empty');
+
+  var applyKind = function(kind){
+    var firstOk = null;
+
+    form.querySelectorAll('.cvb-plan').forEach(function(c){
+      var hide = kind !== '' && c.getAttribute('data-kind') !== kind;
+      c.hidden = hide;
+      if (!hide && !firstOk && c.hasAttribute('data-slug')) { firstOk = c; }
+    });
+
+    var cur = form.querySelector('input[name="plan"]:checked');
+    var curRow = cur ? cur.closest('.cvb-plan') : null;
+
+    if (!curRow || curRow.hidden) {
+      if (cur) { cur.checked = false; }
+      mark('.cvb-plan', firstOk);
+
+      if (firstOk) {
+        var r = firstOk.querySelector('input');
+        if (r) { r.checked = true; }
+      }
+
+      // همان زنجیره‌ای که یک انتخابِ دستی می‌زند — ولی عمداً بدونِ بازکردنِ
+      // مرحلهٔ بعدی: فیلتر یک عملِ مقایسه است نه یک تصمیم، و بستنِ فهرست زیرِ
+      // دستِ کاربر همان خصومتی است که یک نمای مقایسه‌ای نباید داشته باشد.
+      syncImages();
+      render();
+    }
+
+    if (kindEmpty) { kindEmpty.hidden = !!firstOk; }
+    if (!firstOk) { lockSubmit(true); }
+  };
+
   form.querySelectorAll('#cvb-kind .cvb-seg').forEach(function(btn){
     btn.addEventListener('click', function(){
-      var kind = btn.getAttribute('data-kind');
       form.querySelectorAll('#cvb-kind .cvb-seg').forEach(function(b){ b.classList.toggle('on', b === btn); });
-      form.querySelectorAll('.cvb-plan').forEach(function(c){
-        c.hidden = kind !== '' && c.getAttribute('data-kind') !== kind;
-      });
+      applyKind(btn.getAttribute('data-kind') || '');
     });
   });
 

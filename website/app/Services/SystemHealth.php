@@ -50,6 +50,7 @@ class SystemHealth
             $this->stuckDomains(),
             $this->stuckServices(),
             $this->undeliveredCloud(),
+            $this->cloudRelease(),
             $this->recentErrors(),
         ];
     }
@@ -277,6 +278,47 @@ class SystemHealth
             .implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.fa_num($i))->all())
             .'). '.implode(' · ', $detail)
             .' — ⚠️ ممکن است ماشینش نزدِ زیرساخت ساخته شده و اجاره‌اش از حسابِ ما برود.');
+    }
+
+    /**
+     * 🔴 «مشتری بسته، ماشین شاید هنوز زنده است.»
+     *
+     * این تنها چکی است که هزینهٔ **ما** را می‌بیند، نه تجربهٔ مشتری را: سرویسی که
+     * صورت‌حسابش بسته شده (وضعیتِ مرده) ولی زیرساخت حذفش را تأیید نکرده. تا
+     * مرداد ۱۴۰۵ تنها ردِ چنین ردیفی یک ستونِ `last_error` بود؛ `CloudInventory`
+     * هم آن را «متصل» می‌شمرد نه «یتیم»، پس هیچ صفحه‌ای چیزی غیرعادی نشان
+     * نمی‌داد و اولین خبر، صورت‌حسابِ ماهانهٔ زیرساخت بود که فقط جمعِ کل را
+     * می‌گوید.
+     *
+     * ⚠️ شناسهٔ سرویس‌ها در متن می‌آید تا **امضای وضعیت عوض شود**: چکِ همیشه‌قرمز
+     * با متنِ ثابت یعنی وقتی ردیفِ تازه‌ای اضافه شود هیچ اعلانی نمی‌رود (اعلان
+     * فقط روی تغییرِ وضعیت است) — همان توهمِ پایش که بدتر از نبودِ هشدار است.
+     */
+    private function cloudRelease(): array
+    {
+        try {
+            if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_status')) {
+                return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور', 'روی این نصب فعال نیست.');
+            }
+
+            $rows = \App\Models\Service::query()->awaitingRelease()
+                ->orderBy('id')->limit(50)->get(['id', 'name']);
+        } catch (\Throwable $e) {
+            // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
+            return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
+                'صفِ آزادسازی خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($rows->isEmpty()) {
+            return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
+                'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
+        }
+
+        return $this->row('cloud_release', false, 'fail', 'آزادسازیِ سرور',
+            fa_num($rows->count()).' سرویسِ بسته‌شده هنوز نزدِ زیرساخت آزاد نشده (سرویسِ '
+            .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
+            .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
+            .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.');
     }
 
     private function recentErrors(): array

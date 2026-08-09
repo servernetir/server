@@ -220,37 +220,118 @@ class CatalogController extends Controller
             return [[], []];
         }
 
-        $codes = \App\Models\CloudLocation::where('country', $iso)
-            ->where('is_active', true)->orderBy('sort')->pluck('code')->all();
+        /*
+        | یک پرس‌وجو برای هم کد و هم **برچسبِ نمایشیِ** شهر.
+        |
+        | قبلاً دو پرس‌وجو بود (یکی `pluck('code')` و یکی `whereIn` در انتها) و
+        | دومی فقط شهرهایی را می‌گرفت که ردیف داشتند — یعنی نامِ شهرِ ناموجود
+        | اصلاً در دسترس نبود و «شهرِ ناموجود را صادقانه نشان بده» ناممکن می‌شد.
+        */
+        $locations = \App\Models\CloudLocation::where('country', $iso)
+            ->where('is_active', true)->orderBy('sort')->get();
 
-        if ($codes === []) {
+        if ($locations->isEmpty()) {
             return [[], []];
         }
 
-        // عرضه‌های **همهٔ** مکان‌های این کشور، بی‌هیچ ادغامِ بین‌شهری.
-        $offers = collect();
+        /*
+        | 🔴 چرا `shelf()` و نه `offers()`.
+        |
+        | `offers()` از `scopeSellable` می‌خوانَد، پس شهری که موجودی‌اش تمام شده
+        | **اصلاً به صفحه نمی‌رسد** — نه به‌عنوان ناموجود، بلکه اصلاً نه. قاعدهٔ
+        | این پروژه برعکسش است: موجودیِ پنهان باگ است، نه نظم.
+        |
+        | `shelf()` همان گروه‌بندیِ اسلاگ‌محورِ `offers()` را دارد ولی ردیف‌هایی را
+        | که فقط **گذرا** فروختنی نیستند (ناموجود / بی‌قیمت) نگه می‌دارد. حالتِ
+        | `off` (تصمیمِ مدیر یا زیرساختِ خاموش) همان‌جا در پرس‌وجو کنار می‌رود و
+        | هرگز دیده نمی‌شود.
+        |
+        | ⚠️ `scopeSellable` دست‌نخورده می‌مانَد: مسیرِ **سفارش** از همان می‌خوانَد و
+        | گشادکردنش یعنی فروشِ سروری که نمی‌توانیم تحویل دهیم.
+        */
+        $sellableByCity = [];      // code => Collection<slug, CloudPlan>  (قابلِ خرید)
+        $blockedByCity = [];       // code => [specKey => CloudPlan]       (گذرا ناموجود)
 
-        foreach ($codes as $code) {
-            $offers = $offers->merge(\App\Models\CloudPlan::offers($code));
+        foreach ($locations as $loc) {
+            $code = (string) $loc->code;
+            $shelf = \App\Models\CloudPlan::shelf($code);
+
+            $sellableByCity[$code] = $shelf->filter(fn ($p) => $p->blockedReason() === null);
+
+            foreach ($shelf as $p) {
+                if ($p->blockedReason() === null) {
+                    continue;
+                }
+
+                $blockedByCity[$code][self::specKey($p)] ??= $p;
+            }
         }
 
         /*
-        | 🔴 ادغامِ بین‌شهری برداشته شد — و این همان چیزی بود که صفحات کشور را
-        | «ناقص» می‌کرد.
+        | 🔴 گروه‌بندیِ **مشخصات‌محور** — نه ادغامِ کورِ بین‌شهری.
         |
-        | قبلاً پلن‌های همهٔ شهرهای یک کشور روی هم `unique()` می‌شدند. یعنی
-        | پاریس و لیون و مارسی با مشخصاتِ یکسان یکی می‌شدند و دو ردیف حذف. ولی
-        | اینها محصولِ تکراری نیستند: مشتری دقیقاً بین شهرها انتخاب می‌کند، چون
-        | تأخیرِ شبکه و مکانِ داده فرق دارد. حذفشان یعنی موجودیِ واقعی از چشمِ
-        | مشتری پنهان می‌مانْد — بی‌خطا، بی‌لاگ، با کدِ ۲۰۰. صفحهٔ آلمان از
-        | ده‌ها پلن فقط ۷ تا نشان می‌داد.
+        | آنچه یک بار (به‌درستی) برداشته شد: `unique()` روی همهٔ شهرها، که پاریس و
+        | لیون و مارسیِ هم‌مشخصات را یکی می‌کرد و دو تا را **حذف** می‌کرد. مشتری
+        | دقیقاً بین شهرها انتخاب می‌کند (تأخیرِ شبکه و مکانِ داده فرق دارد)، پس آن
+        | حذف یعنی موجودیِ واقعی بی‌خطا و بی‌لاگ و با کدِ ۲۰۰ پنهان می‌مانْد؛ صفحهٔ
+        | آلمان از ده‌ها پلن فقط ۷ تا نشان می‌داد.
         |
-        | ادغامی که **باید** بماند و همچنان هست: درونِ یک شهر، `CloudPlan::offers()`
-        | ردیف‌های هم‌مشخصات را با اسلاگ یکی می‌کند و ارزان‌ترین را نگه می‌دارد.
-        | یعنی اگر دو زیرساخت در فرانکفورت همان ۴ هسته و ۴ گیگ را بدهند، فقط
-        | ارزان‌تر دیده می‌شود — دقیقاً قاعده‌ای که کارفرما خواست، و سفیدبرچسبی
-        | هم دست‌نخورده می‌مانَد.
+        | آنچه این‌جا می‌شود چیزِ دیگری است و هیچ‌چیز را حذف نمی‌کند: هم‌مشخصات‌ها
+        | **یک ردیف** می‌شوند و شهر به یک **انتخاب داخلِ همان ردیف** تبدیل می‌شود.
+        | هر شهر لینکِ خریدِ خودش، اسلاگِ خودش و قیمتِ خودش را نگه می‌دارد. صفحهٔ
+        | ایران ۱۴۶ ردیف داشت چون هر پلن چهار بار (یک بار به ازای هر شهر) تکرار
+        | می‌شد؛ حالا همان موجودی در یک‌چهارمِ ردیف‌ها، بی‌آنکه چیزی کم شود.
+        |
+        | ⚠️ کلیدِ گروه از فیلدهای **خام** ساخته می‌شود، نه از برچسب‌های نمایشی:
+        | با `cloud_traffic_unlimited = 1` همهٔ ردیف‌ها «نامحدود» چاپ می‌کنند، پس
+        | گروه‌بندی روی برچسب، ۱ ترابایت و ۲۰ ترابایت را یکی می‌کرد.
+        |
+        | ⚠️ ادغامی که **باید** بماند و همچنان هست: درونِ یک شهر، `shelf()`/`offers()`
+        | ردیف‌های هم‌اسلاگ را یکی می‌کند و ارزان‌ترین را نگه می‌دارد. یعنی دو
+        | زیرساخت با همان ۴ هسته و ۴ گیگ در فرانکفورت = یک ردیف، و سفیدبرچسبی
+        | دست‌نخورده می‌مانَد.
         */
+        $groups = [];
+        $ord = 0;
+
+        foreach ($sellableByCity as $code => $rows) {
+            foreach ($rows as $p) {
+                $k = self::specKey($p);
+
+                if (! isset($groups[$k])) {
+                    $groups[$k] = ['rep' => $p, 'sell' => [], 'off' => [], 'ord' => $ord++];
+                }
+
+                $cur = $groups[$k]['sell'][$code] ?? null;
+
+                if ($cur === null || (int) $p->price_irt < (int) $cur->price_irt) {
+                    $groups[$k]['sell'][$code] = $p;
+                }
+
+                if ((int) $p->price_irt < (int) $groups[$k]['rep']->price_irt) {
+                    $groups[$k]['rep'] = $p;
+                }
+            }
+        }
+
+        if ($groups === []) {
+            return [[], []];
+        }
+
+        // شهری که همین مشخصات را دارد ولی الان ناموجود است — **حذف نمی‌شود**،
+        // در انتخابگر می‌آید و صریح می‌گوید در دسترس نیست.
+        foreach ($groups as $k => $g) {
+            foreach ($locations as $loc) {
+                $code = (string) $loc->code;
+
+                if (isset($g['sell'][$code]) || ! isset($blockedByCity[$code][$k])) {
+                    continue;
+                }
+
+                $groups[$k]['off'][$code] = (string) $blockedByCity[$code][$k]->blockedReason();
+            }
+        }
+
         /*
         | 🔴 حذفِ پلن‌های مغلوب — قاعدهٔ «چیزی که هیچ‌کس نباید بخرد را نشان نده».
         |
@@ -259,17 +340,42 @@ class CatalogController extends Controller
         |     ۱ هسته · ۲ گیگ  →  ۲٬۷۴۰٬۰۰۰   ← نصفِ پردازنده، دو برابرِ قیمت
         |
         | ردیفِ دوم برای هیچ مشتری‌ای انتخابِ درستی نیست، ولی روی صفحه بود و به
-        | هر بازدیدکننده می‌گفت «قیمت‌های این‌جا حساب‌وکتاب ندارد». یک ردیفِ
-        | بی‌فروش به اعتبارِ کلِ کاتالوگ آسیب می‌زد.
+        | هر بازدیدکننده می‌گفت «قیمت‌های این‌جا حساب‌وکتاب ندارد».
+        |
+        | ⚠️ **ترتیب عوض شد و این عمدی است:** قبلاً prune روی ردیف‌های تک‌شهری
+        | می‌دوید، پس دو شهر با مشخصاتِ **یکسان** و قیمتِ متفاوت هم‌دیگر را حذف
+        | می‌کردند و شهرِ گران‌تر پیش از رسیدن به ویو ناپدید می‌شد — یعنی همان
+        | «موجودیِ پنهان». حالا اول گروه‌بندیِ مشخصات‌محور انجام می‌شود و prune روی
+        | **نمایندهٔ** هر گروه (ارزان‌ترین شهرش) می‌دود. نتیجه:
+        |   · مشخصاتِ یکسان هرگز هم‌دیگر را حذف نمی‌کنند (یک گروه‌اند، نه دو ردیف)
+        |   · مشخصاتِ واقعاً مغلوب همچنان حذف می‌شوند، دقیقاً مثل قبل
+        | خودِ `CloudDominance` دست‌نخورده است؛ فقط دامنهٔ فراخوانی‌اش عوض شد.
         |
         | جزئیاتِ قاعده و آنچه عمداً مقایسه نمی‌شود، در `CloudDominance`.
         */
-        $offers = \App\Services\Cloud\CloudDominance::prune($offers)
-            ->sortBy([['price_irt', 'asc'], ['vcpu', 'asc'], ['ram_mb', 'asc']])
-            ->values();
+        $reps = collect(array_map(fn ($g) => $g['rep'], $groups));
+
+        $keptIds = [];
+
+        foreach (\App\Services\Cloud\CloudDominance::prune($reps->values()) as $rep) {
+            $keptIds[spl_object_id($rep)] = true;
+        }
+
+        $groups = array_filter($groups, fn ($g) => isset($keptIds[spl_object_id($g['rep'])]));
+
+        if ($groups === []) {
+            return [[], []];
+        }
+
+        // پیش‌فرضِ چیدمان: ارزان به گران (کلیدِ چهارم فقط برای پایداریِ ترتیب)
+        uasort($groups, fn ($x, $y) => [
+            (int) $x['rep']->price_irt, (int) $x['rep']->vcpu, (int) $x['rep']->ram_mb, $x['ord'],
+        ] <=> [
+            (int) $y['rep']->price_irt, (int) $y['rep']->vcpu, (int) $y['rep']->ram_mb, $y['ord'],
+        ]);
 
         /*
-        | 🔴 فیلترِ نوعِ پردازنده هم برداشته شد.
+        | 🔴 فیلترِ نوعِ پردازنده هم برداشته شده است.
         |
         | قبلاً `/vps/*` فقط اشتراکی می‌گرفت و `/dedicated/*` فقط اختصاصی، پس
         | صفحهٔ کشور **هرگز** نمی‌توانست هر دو را با هم نشان دهد. حالا هر دو
@@ -277,21 +383,66 @@ class CatalogController extends Controller
         | می‌کند و کلِ موجودیِ آن کشور را می‌بیند.
         */
 
-        if ($offers->isEmpty()) {
-            return [[], []];
+        $cityLabels = [];
+
+        foreach ($locations as $loc) {
+            $cityLabels[(string) $loc->code] = $loc->cityLabel();
         }
 
         $plans = [];
         $hrefs = [];
         $base = lroute('account.cloud.store');
+        $i = 0;
 
-        // نامِ شهر برای ستونِ «مکان» — بی‌این، مشتری نمی‌داند این ردیف کجاست و
-        // برای انتخابِ تأخیرِ شبکه همین مهم‌ترین ستون است.
-        $cities = \App\Models\CloudLocation::whereIn('code', $offers->pluck('location_code')->unique())
-            ->get()->keyBy('code');
+        foreach ($groups as $g) {
+            $p = $g['rep'];
 
-        foreach ($offers as $i => $p) {
-            $loc = $cities[$p->location_code] ?? null;
+            /*
+            | انتخابگرِ شهر. ترتیب از `sort`ِ خودِ مکان‌ها می‌آید تا در همهٔ
+            | ردیف‌ها یکسان باشد.
+            |
+            | ⚠️ هر شهر **اسلاگِ خودش** را می‌برد، نه فقط کدِ مکان را:
+            | `CloudNaming::planSlug` کدِ مکان را داخلِ اسلاگ می‌گذارد، پس عوض‌کردنِ
+            | تنها `?location=` یک لینکِ مرده می‌سازد که تسویه با `ui.cvb_e_plan`
+            | ردش می‌کند.
+            */
+            $picker = [];
+            $prices = [];
+
+            foreach ($locations as $loc) {
+                $code = (string) $loc->code;
+                $label = $cityLabels[$code] ?? $code;
+
+                if (isset($g['sell'][$code])) {
+                    $c = $g['sell'][$code];
+                    $irt = (int) $c->price_irt;
+                    $prices[$irt] = true;
+
+                    $picker[] = [
+                        'code'    => $code,
+                        'label'   => $label,
+                        'ok'      => true,
+                        'reason'  => null,
+                        'irt'     => $irt,
+                        'price_f' => site_price(['irt' => $irt, 'eur' => round(((int) $c->price_eur_cents) / 100, 2)]),
+                        'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $c->slug),
+                    ];
+
+                    continue;
+                }
+
+                if (isset($g['off'][$code])) {
+                    $picker[] = [
+                        'code'    => $code,
+                        'label'   => $label,
+                        'ok'      => false,
+                        'reason'  => $g['off'][$code],
+                        'irt'     => 0,
+                        'price_f' => '',
+                        'href'    => null,
+                    ];
+                }
+            }
 
             $plans[] = [
                 'name'    => (string) $p->public_name,
@@ -319,17 +470,53 @@ class CatalogController extends Controller
                     'traffic'   => $p->trafficLabel(),
                     'cpu'       => $p->cpuKindLabel(),
                     'dedicated' => $p->cpu_kind === 'dedicated',
-                    'city'      => $loc?->cityLabel() ?? (string) $p->location_code,
+                    // شهرِ **سرصفحه‌ای** ردیف = ارزان‌ترین. ستونِ `data-city` روی
+                    // همین می‌نشیند و هنوز دقیقاً یک بار در هر ردیف می‌آید.
+                    'city'      => $cityLabels[(string) $p->location_code] ?? (string) $p->location_code,
                     'loc_code'  => (string) $p->location_code,
                     'price_n'   => (int) $p->price_irt,
+                    // انتخابِ شهر داخلِ همین ردیف
+                    'picker'    => $picker,
+                    // قیمت بین شهرها فرق دارد ⇒ عددِ نمایش‌داده‌شده «از» است.
+                    // ایران امروز یکنواخت است، ولی این را فرض نمی‌گیریم.
+                    'from'      => count($prices) > 1,
                 ],
             ];
 
             $hrefs[$i] = $base.'?location='.urlencode((string) $p->location_code)
                 .'&plan='.urlencode((string) $p->slug);
+
+            $i++;
         }
 
         return [$plans, $hrefs];
+    }
+
+    /**
+     * هویتِ **نمایشیِ** یک پلن — همان کلیدی که CLAUDE.md §۱۰.۵ توصیفش می‌کند:
+     * `vcpu-ram-disk-disk_type-traffic-cpu_kind-arch`.
+     *
+     * ⚠️ مکان عمداً در آن نیست: شهر یک **انتخاب** است، نه یک محصولِ دیگر.
+     *
+     * ⚠️ فیلدها **خام**‌اند، نه برچسبِ نمایشی. `trafficLabel()` با تنظیمِ
+     * `cloud_traffic_unlimited` برای همهٔ ردیف‌ها «نامحدود» برمی‌گرداند و
+     * `diskLabel()` اندازه را با نوعِ دیسک قاطی می‌کند — گروه‌بندی روی آنها
+     * دو محصولِ واقعاً متفاوت را یکی می‌کرد.
+     *
+     * ⚠️ اسلاگ جای این کلید را نمی‌گیرد: `CloudNaming::planSlug` فقط
+     * هسته/رم/دیسک/مکان را دارد، نه نوعِ دیسک، نه ترافیک، نه معماری.
+     */
+    private static function specKey(\App\Models\CloudPlan $p): string
+    {
+        return implode('|', [
+            (int) $p->vcpu,
+            (int) $p->ram_mb,
+            (int) $p->disk_gb,
+            strtolower((string) $p->disk_type),
+            (int) $p->traffic_gb,
+            (string) $p->cpu_kind,
+            (string) $p->arch,
+        ]);
     }
 
     /**

@@ -15,11 +15,32 @@ $T = [
   'taken_pill'         => __('ui.dsr_taken_pill'),
   'fx_unavailable'     => __('ui.dsr_fx_unavailable'),
   'no_price'           => __('ui.dsr_no_price'),
+  /*
+  | ⚠️ عمداً هنوز فرستاده می‌شود ولی دیگر **استفاده نمی‌شود**.
+  |
+  | «فعلاً قابل سفارش نیست» همان عبارتی بود که این صفحه به سه وضعیتِ کاملاً
+  | متفاوت می‌داد (استعلام‌نشده، بی‌قیمت، پسوندی که نمی‌فروشیم) در حالی که پنل
+  | فقط برای دومی به کارش می‌بُرد. حالا هر سه واژهٔ خودشان را دارند. کلید در
+  | فایل‌های زبان می‌مانَد چون حذفش برابریِ سه فایل را می‌شکند و ارزشِ آن ریسک
+  | را ندارد.
+  */
   'not_orderable_pill' => __('ui.dsr_not_orderable_pill'),
   'premium_note'       => __('ui.dsr_premium_note'),
   'free_note'          => __('ui.dsr_free_note'),
   'premium_pill'       => __('ui.dsr_premium_pill'),
   'free_pill'          => __('ui.dsr_free_pill'),
+  /*
+  | واژگانِ سه حالتی که تا امروز روی صفحهٔ عمومی وجود نداشتند و هر سه زیرِ یک
+  | قرصِ «فعلاً قابل سفارش نیست» قایم می‌شدند — قرصی که پنل برای حالتِ
+  | **دیگری** به کار می‌بَرد. حالا هر حالت واژهٔ خودش را دارد و همان واژه در
+  | پنل هم دیده می‌شود.
+  */
+  'unchecked_pill'     => __('ui.dsr_unchecked_pill'),
+  'unchecked_note'     => __('ui.dsr_unchecked_note'),
+  'unsupported_pill'   => __('ui.dsr_unsupported_pill'),
+  'unsupported_note'   => __('ui.dsr_unsupported_note'),
+  'no_price_pill'      => __('ui.dsr_no_price_pill'),
+  'lookup_failed'      => __('ui.dsr_lookup_failed'),
   'price_unit'         => __('ui.dsr_price_unit'),
   'register_btn'       => __('ui.dsr_register_btn'),
   'err_empty'          => __('ui.dsr_err_empty'),
@@ -86,6 +107,20 @@ $T = [
 
     <div id="dm-error" class="dsx-err" hidden role="alert"></div>
 
+    {{--
+      🔴 کانالِ خرابیِ صفحهٔ عمومی — تا امروز اصلاً وجود نداشت.
+
+      نقطهٔ پایانی بی‌قیدوشرط `ok: true` می‌داد، پس در یک قطعیِ کاملِ رجیسترار
+      همهٔ ردیف‌ها `unknown` می‌شدند، فیلترِ پیش‌فرضِ «بدون قیمت‌ها را نشان نده»
+      همه را پنهان می‌کرد، و تنها جمله‌ای که مشتری می‌دید این بود:
+      «با این فیلترها چیزی نمانده. یکی از تیک‌ها را بردارید.» — یعنی خرابیِ ما
+      به‌عنوانِ اشتباهِ خودِ او گزارش می‌شد.
+
+      ⚠️ این بنر `role="status"` است نه `alert`: خبرِ وضعیت است، و صفحه هنوز
+      ردیف‌ها را نشان می‌دهد (که حالا «استعلام نشد»اند، نه «ثبت‌شده»).
+    --}}
+    <div id="dm-warn" class="dsx-err dsx-warn" hidden role="status"></div>
+
     {{-- ============ فیلترها ============
          روی نتیجه‌اند نه روی درخواست: همه‌چیز از قبل در صفحه است و فیلتر فقط
          نمایش را عوض می‌کند، پس بی‌درنگ است و هیچ تماسِ تازه‌ای نمی‌سازد.
@@ -147,6 +182,40 @@ $T = [
       <b>{{ __('ui.dsr_idle_title') }}</b>
       <p>{{ __('ui.dsr_idle_text') }}</p>
     </div>
+
+    {{--
+      لینک‌های زیرِ کادرِ جستجو — تا امروز این صفحه **هیچ لینکِ خروجی نداشت**.
+
+      کسی که نامش را پیدا نکرد یا اصلاً جستجو نکرد، به بن‌بست می‌خورد: نه
+      فهرستِ پسوندها، نه ‎.ir، نه پرمیوم، نه نمایندگی. همان لینک‌هایی که در
+      مگامنو هستند این‌جا هم می‌آیند — و از **همان** پیکربندی خوانده می‌شوند
+      تا دو فهرستِ موازی نشود که روزی یکی‌شان کهنه می‌شود.
+
+      ⚠️ lroute و نه route: این صفحه در هر سه زبان وجود دارد.
+    --}}
+    @php
+      $domainMenu = [];
+      foreach ((array) data_get(config('servernet.mega.domain'), 'groups', []) as $g) {
+          foreach ((array) ($g['items'] ?? []) as $it) {
+              if (isset($it['slug'])) {
+                  $domainMenu[] = [
+                      'href'  => lroute('catalog', ['category' => 'domain', 'slug' => $it['slug']]),
+                      'label' => lc($it),
+                  ];
+              }
+          }
+      }
+    @endphp
+    @if($domainMenu !== [])
+      <nav class="dsx-links" aria-label="{{ __('ui.dsr_explore') }}">
+        <h2>{{ __('ui.dsr_explore') }}</h2>
+        <div class="dsx-links-in">
+          @foreach($domainMenu as $l)
+            <a href="{{ $l['href'] }}">{{ $l['label'] }}</a>
+          @endforeach
+        </div>
+      </nav>
+    @endif
 
   </div>
 </section>
@@ -252,6 +321,9 @@ $T = [
 .dsx-pill.prem{color:#fbbf24;background:rgba(251,191,36,.1)}
 .dsx-pill.taken{color:var(--dim);background:rgba(255,255,255,.05)}
 .dsx-pill.no{color:#fca5a5;background:rgba(239,68,68,.08)}
+/* «استعلام نشد» — عمداً رنگِ خودش را دارد. تا امروز همان قرصِ قرمزِ
+   «قابل سفارش نیست» را می‌گرفت و از «گرفته‌شده» قابلِ تشخیص نبود. */
+.dsx-pill.warn{color:#67e8f9;background:rgba(34,211,238,.12)}
 .dsx-price{font-size:15px;font-weight:700;white-space:nowrap}
 .dsx-price small{display:block;font-size:11px;color:var(--dim);font-weight:400;margin-top:2px}
 .dsx-buy{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:11px;
@@ -269,6 +341,21 @@ $T = [
 @keyframes dsx-pulse{0%,100%{opacity:.22;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.dsx-dots i{animation:none;opacity:.6}}
 .dsx-empty{margin:20px 0 0;text-align:center;font-size:13.5px;color:var(--muted)}
+
+/* بنرِ «نتوانستیم استعلام کنیم» — خبر است نه خطا، پس زردِ هشدار و نه قرمز */
+.dsx-warn{color:#fcd34d;background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.28);
+  line-height:1.95;text-align:start}
+
+/* ── لینک‌های زیرِ کادرِ جستجو ── */
+.dsx-links{max-width:860px;margin:34px auto 0;text-align:center}
+.dsx-links h2{margin:0 0 12px;font-size:14px;font-weight:700;color:var(--muted)}
+.dsx-links-in{display:flex;flex-wrap:wrap;justify-content:center;gap:9px}
+.dsx-links-in a{display:inline-flex;align-items:center;padding:8px 15px;border-radius:999px;
+  font-size:13px;text-decoration:none;color:var(--text);
+  background:rgba(255,255,255,.045);border:1px solid var(--line);
+  transition:border-color .18s,background .18s}
+.dsx-links-in a:hover{border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.08);color:var(--cyan)}
+html[data-theme="light"] .dsx-links-in a{background:rgba(255,255,255,.72)}
 
 /* حالتِ روشن: شیشهٔ تیره روی زمینهٔ روشن دیده نمی‌شود */
 html[data-theme="light"] .dsx-in,
@@ -304,6 +391,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       countEl = document.getElementById('dm-count'),
       emptyEl = document.getElementById('dm-empty'),
       err     = document.getElementById('dm-error'),
+      warn    = document.getElementById('dm-warn'),
       more    = document.getElementById('dm-more'),
       spin    = go.querySelector('.dm-spin'),
       label   = go.querySelector('.dm-go-t');
@@ -352,57 +440,82 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
   var rows = [];
   var token = 0;
 
-  /* ⚠️ «استعلام نشد» با «گرفته‌شده» یکی نیست.
+  /* ═══ وضعیت — یک تعریف، سمتِ سرور ═══
    *
-   * وضعیتِ `unknown` یعنی پاسخی از رجیسترار نیامد یا وضعیتی داد که نمی‌شناسیم.
-   * اگر مثلِ قبل به `taken` بیفتد، یک سکسکهٔ رجیسترار به مشتری می‌گوید «این
-   * نام قبلاً ثبت شده» — دروغی که مشتری راستی‌آزمایی نمی‌کند و می‌رود.
+   * 🔴 این تابع دیگر **تصمیم نمی‌گیرد**؛ فقط می‌خوانَد. وضعیت را
+   * `DomainSearch::stateOf()` حساب کرده و در فیلدِ `state` فرستاده. تا امروز
+   * هر رابط خودش از روی `available`/`orderable` نتیجه می‌گرفت و سه تعریفِ
+   * متفاوت ساخته بود؛ بدترینش این‌جا بود که «استعلام نشد» و «قیمت نداریم» را
+   * یکی می‌کرد و به هر دو قرصِ «فعلاً قابل سفارش نیست» می‌داد — عبارتی که پنل
+   * فقط برای دومی به کار می‌بَرد.
+   *
+   * شاخهٔ پشتیبان فقط برای پاسخِ کهنه‌ای است که هنوز `state` ندارد (کشِ
+   * مرورگر وسطِ دیپلوی). ⚠️ در آن شاخه هم `unknown` هرگز `taken` نمی‌شود.
    */
   function stateOf(r) {
-    if (r.status === 'unknown') { return 'unavail'; }
+    if (r.state) { return r.state; }
+    if (r.status === 'unknown') { return 'unchecked'; }
     if (!r.available) { return 'taken'; }
-    if (!r.orderable) { return 'unavail'; }
+    if (!r.orderable) { return 'no_price'; }
     return r.is_premium ? 'premium' : 'free';
+  }
+
+  /* سطلِ فیلتر ≠ وضعیت.
+   *
+   * 🔴 `unchecked` عمداً هیچ سطلی ندارد، یعنی **هیچ فیلتری پنهانش نمی‌کند**.
+   * پیش از این زیرِ تیکِ «بدون قیمت‌ها را نشان نده» می‌رفت که پیش‌فرض روشن
+   * است — پس یک قطعیِ کاملِ رجیسترار صفحه را خالی می‌کرد و پیامِ «با این
+   * فیلترها چیزی نمانده» می‌داد. خرابیِ ما را نباید تیکِ مشتری قایم کند.
+   */
+  function bucketOf(st) {
+    if (st === 'taken' || st === 'premium' || st === 'free') { return st; }
+    if (st === 'unchecked') { return ''; }
+    return 'unavail';                     // no_price + unsupported
   }
 
   function render(r) {
     var st = stateOf(r);
-    var el = document.createElement('div');
-    el.className = 'dsx-tr dsx-row';
-    el.setAttribute('role', 'listitem');
-    el.dataset.state = st;
-    el.dataset.price = r.price_toman || 0;
-    el.dataset.tld = r.tld || '';
-
-    var pill, note, right;
-
-    if (st === 'taken') {
-      pill = '<span class="dsx-pill taken">' + T.taken_pill + '</span>';
-      note = T.taken_note;
-      right = '';
-    } else if (st === 'unavail') {
-      pill = '<span class="dsx-pill no">' + T.not_orderable_pill + '</span>';
-      note = r.status === 'unknown'
-        ? T.err_conn
-        : (r.reason === 'fx_unavailable' ? T.fx_unavailable : T.no_price);
-      right = '';
-    } else {
-      var prem = st === 'premium';
-      pill = '<span class="dsx-pill ' + (prem ? 'prem' : 'free') + '">'
-           + (prem ? T.premium_pill : T.free_pill) + '</span>';
-      note = prem ? T.premium_note : T.free_note;
-      right = '<a class="dsx-buy" href="' + T.panel + '?register=' + encodeURIComponent(r.domain) + '">'
-            + T.register_btn + '</a>';
-    }
 
     // ⚠️ نرخِ ارز که نبود، نه عدد نشان می‌دهیم نه دکمهٔ ثبت — وگرنه مشتری
     //    چیزی سفارش می‌دهد که قیمتش را ندیده.
     var amount = (st === 'free' || st === 'premium') ? money(r.price_toman) : null;
+    var fxMissing = false;
 
     if (amount === null && (st === 'free' || st === 'premium')) {
-      pill = '<span class="dsx-pill">' + T.not_orderable_pill + '</span>';
-      note = T.fx_unavailable;
-      right = '';
+      /* 🔴 این ردیف واقعاً «قیمت در دسترس نیست» است و باید همان وضعیت را
+       * بگیرد. نسخهٔ قبلی فقط ظاهر را بازنویسی می‌کرد و `dataset.state` روی
+       * 'free' می‌ماند: ردیف از فیلتر می‌گریخت، در «بهترین» اولِ فهرست
+       * می‌نشست، و قرصش هیچ کلاسی نداشت پس بی‌رنگ رندر می‌شد. */
+      st = 'no_price';
+      fxMissing = true;
+    }
+
+    var el = document.createElement('div');
+    el.className = 'dsx-tr dsx-row';
+    el.setAttribute('role', 'listitem');
+    el.dataset.state = st;
+    el.dataset.bucket = bucketOf(st);
+    el.dataset.price = r.price_toman || 0;
+    el.dataset.tld = r.tld || '';
+
+    var cls, pill, note, right = '';
+
+    if (st === 'taken') {
+      cls = 'taken'; pill = T.taken_pill; note = T.taken_note;
+    } else if (st === 'unchecked') {
+      cls = 'warn';  pill = T.unchecked_pill; note = T.unchecked_note;
+    } else if (st === 'unsupported') {
+      cls = 'taken'; pill = T.unsupported_pill; note = T.unsupported_note;
+    } else if (st === 'no_price') {
+      cls = 'no';    pill = T.no_price_pill;
+      note = (fxMissing || r.reason === 'fx_unavailable') ? T.fx_unavailable : T.no_price;
+    } else {
+      var prem = st === 'premium';
+      cls = prem ? 'prem' : 'free';
+      pill = prem ? T.premium_pill : T.free_pill;
+      note = prem ? T.premium_note : T.free_note;
+      right = '<a class="dsx-buy" href="' + T.panel + '?register=' + encodeURIComponent(r.domain) + '">'
+            + T.register_btn + '</a>';
     }
 
     var price = amount !== null
@@ -411,7 +524,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
 
     el.innerHTML =
       '<div class="dsx-name" dir="ltr">' + esc(r.domain) + '<small>' + note + '</small></div>' +
-      '<div>' + pill + '</div>' + price +
+      '<div><span class="dsx-pill ' + cls + '">' + pill + '</span></div>' + price +
       '<div>' + right + '</div>';
 
     return el;
@@ -425,11 +538,13 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
     var els = [].slice.call(box.children);
 
     els.forEach(function (el) {
-      var st = el.dataset.state;
-      if (st in n) { n[st]++; }
-      var hidden = (st === 'taken' && hide.taken)
-                || (st === 'premium' && hide.premium)
-                || (st === 'unavail' && hide.unavail);
+      // 🔴 فیلتر روی **سطل** است نه وضعیت، و ردیفِ «استعلام نشد» سطل ندارد —
+      //    پس هیچ تیکی نمی‌تواند یک خرابیِ رجیسترار را از چشمِ مشتری پنهان کند.
+      var b = el.dataset.bucket;
+      if (b in n) { n[b]++; }
+      var hidden = (b === 'taken' && hide.taken)
+                || (b === 'premium' && hide.premium)
+                || (b === 'unavail' && hide.unavail);
       el.classList.toggle('is-hidden', hidden);
       if (!hidden) { shown++; }
     });
@@ -442,9 +557,10 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       if (mode === 'price')  { return (pa || 1e15) - (pb || 1e15); }
       if (mode === '-price') { return pb - pa; }
       if (mode === 'tld')    { return a.dataset.tld.localeCompare(b.dataset.tld); }
-      // «بهترین»: آزادها اول، بعد پرمیوم، و درونِ هرکدام ارزان‌تر بالاتر
-      var rank = { free: 0, premium: 1, unavail: 2, taken: 3 };
-      var d = rank[a.dataset.state] - rank[b.dataset.state];
+      // «بهترین»: آزادها اول، بعد پرمیوم، بعد آنچه نتوانستیم بررسی کنیم،
+      // بعد بی‌قیمت/نمی‌فروشیم، و آخر گرفته‌شده‌ها.
+      var rank = { free: 0, premium: 1, unchecked: 2, no_price: 3, unsupported: 4, taken: 5 };
+      var d = (rank[a.dataset.state] || 0) - (rank[b.dataset.state] || 0);
       return d !== 0 ? d : (pa || 1e15) - (pb || 1e15);
     });
 
@@ -492,6 +608,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
     var mine = ++token;
     busy(true);
     err.hidden = true;
+    warn.hidden = true;
     box.innerHTML = '';
     rows = [];
     table.hidden = true;
@@ -499,6 +616,17 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
     emptyEl.hidden = true;
 
     var seen = {};
+
+    /* یک دسته که رجیسترار جوابش را نداد، بنر را بالا می‌آورد و تا پایانِ همین
+     * جستجو بالا نگه می‌دارد. ⚠️ ردیف‌ها همچنان رندر می‌شوند — پنهان‌کردنشان
+     * دقیقاً همان چیزی بود که مشتری را به «پس گرفته شده» می‌رساند. */
+    var flagLookup = function (d) {
+      if (d && d.lookup_ok === false) {
+        warn.textContent = T.lookup_failed;
+        warn.hidden = false;
+      }
+    };
+
     var append = function (list) {
       var added = 0;
       (list || []).forEach(function (r) {
@@ -526,6 +654,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
         return;
       }
 
+      flagLookup(first);
       append(first.results);
       busy(false);                       // از همین‌جا می‌شود خرید
 
@@ -535,6 +664,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
         try {
           var d = await fetchBatch(term, T.tld_rest[i]);
           if (mine !== token) { return; }
+          flagLookup(d);
           append(d.results);
         } catch (e) {
           // یک دستهٔ ناموفق نباید بقیه را متوقف کند

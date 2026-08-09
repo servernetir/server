@@ -2327,7 +2327,9 @@ html[data-theme="light"] .drawer-id .usr-av.xl{box-shadow:0 6px 16px -8px rgba(5
    ارتفاع **قطعی** است (height ثابت + یک خط + بی‌شکست) و در --imp-h
    نگه داشته می‌شود؛ body.imp-on دقیقاً همان‌قدر padding-top می‌گیرد، پس
    نوار محتوا را نمی‌پوشاند و padding-topهای موجود (hero ۱۷۰،
-   pnl-wrap ۱۱۸، docs-hero ۱۵۰، …) دست‌نخورده می‌مانند.
+   docs-hero ۱۵۰، …) دست‌نخورده می‌مانند.
+   (⚠️ `.pnl-wrap ۱۱۸` از این فهرست حذف شد: آن عدد جبرانِ دوبارهٔ هدر بود و
+   حالا ۳۴ است — فقط فاصلهٔ تزئینی.)
    =================================================================== */
 :root{--imp-h:42px}
 @media(max-width:560px){:root{--imp-h:38px}}
@@ -2901,3 +2903,46 @@ html[data-theme="light"] .sol-uc{ background:#fff }
      یک تغییرِ نام کافی بود تا بی‌صدا بشکند. */
   --brand: var(--cyan);
 }
+
+/* ══════════ انتخابِ شهر داخلِ ردیفِ جدولِ پلن‌ها ══════════
+   صفحهٔ ایران هر پلن را چهار بار نشان می‌داد — یک بار به ازای هر شهر، با
+   مشخصات و قیمتِ یکسان — و جدولش ۹۱۶۳px بلند می‌شد. حالا یک ردیف است و شهر
+   یک انتخاب داخلِ همان ردیف؛ هیچ شهری حذف نشده.
+
+   ⚠️ عمداً «چیپ»ِ درون‌خطی است، نه پاپ‌آور: `.plan-table-wrap` اسکرولِ افقی
+   دارد و طبقِ استاندارد محورِ عمودی را هم کلیپ می‌کند، پس هر منوی مطلقِ داخلِ
+   ردیف بریده می‌شد. چیپ چیزی برای بیرون‌زدن ندارد.
+
+   ⚠️ هر چیپ یک `<a>`ِ واقعی با لینکِ تسویهٔ همان شهر است، پس بدونِ جاوااسکریپت
+   هم قابلِ خرید می‌مانَد. */
+.pt-cities{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:230px;margin-inline:auto}
+.plan-table td.pt-loc{white-space:normal}
+.pt-c{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--surface-2);
+  color:var(--muted);
+  font-size:12px;line-height:1.8;
+  white-space:nowrap;text-decoration:none;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
+.pt-c.is-on{color:var(--text);border-color:var(--cyan);background:var(--surface)}
+/* شهرِ ناموجود **پنهان نمی‌شود** — کم‌رنگ و صریح می‌مانَد. موجودیِ پنهان،
+   حتی وقتی صفر است، به مشتری می‌گوید «این‌جا این اندازه را ندارند». */
+.pt-c.is-off{opacity:.5;cursor:not-allowed}
+.pt-c.is-off i{font-style:normal;font-size:10.5px;color:var(--dim)}
+/* «شروع از» — وقتی قیمتِ همین مشخصات بین شهرها فرق دارد */
+.pt-from{font-size:11px;color:var(--dim);margin-inline-end:5px}
+
+/* ═══ جعبهٔ استعلامِ دامنهٔ صفحهٔ اول — حالتِ سومِ «نمی‌دانیم» ═══
+ *
+ * 🔴 تا امروز این جعبه فقط دو حالت داشت: `ok` (سبز، «آزاد است») و `no`
+ * (قرمز، «قبلاً ثبت شده»). یعنی وقتی رجیسترار جواب نمی‌داد، پرترافیک‌ترین
+ * ورودیِ فروشِ دامنه با اطمینان می‌گفت نامِ مشتری گرفته شده — همان دروغی که
+ * یک لایه پایین‌تر در `DomainSearch` رفع شده بود ولی این‌جا زنده مانده بود.
+ *
+ * ⚠️ رنگ عمداً نه سبز است نه قرمز: «نمی‌دانیم» نه خبرِ خوب است نه بد. */
+.domain-result.warn{border-color:rgba(251,191,36,.42)}
+.domain-result.warn .dr-domain{color:#fbbf24}

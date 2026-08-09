@@ -120,10 +120,36 @@ class AccountController extends Controller
                 ['label' => null, 'items' => [
                     ['key' => 'dash', 'icon' => 'gauge', 'label' => __('ui.nav_dash'), 'url' => lroute('account.home')],
                     ['key' => 'store', 'icon' => 'box', 'label' => __('ui.nav_store'), 'url' => lroute('account.store')],
-                    ['key' => 'services', 'icon' => 'server', 'label' => __('ui.nav_services'), 'url' => lroute('account.services')],
+                ]],
+                /*
+                | «دارایی‌های من» — چهار نوعِ سرویس، چهار در.
+                |
+                | کارفرما: «بخش هاست و سرور و دامنه رو تو منو عوض کن، یه قسمت هم
+                | خدمات باشه.» یک فهرستِ تخت، چهار محصولِ بی‌هم‌پوشانی را در یک
+                | شکلِ ردیف می‌ریخت و نتیجه‌اش «همه چی توهم» بود.
+                |
+                | ⚠️ آیتمِ «همه» با کلیدِ `services` می‌مانَد، چون
+                | `ServiceController::index()` (فایلِ قفل‌شده) `shell('services')`
+                | می‌فرستد؛ با حذفِ این کلید، صفحهٔ اصلیِ سرویس‌ها هیچ آیتمی را
+                | روشن نمی‌کرد.
+                |
+                | ⚠️ همه `<a>` می‌مانند: کشوی موبایل (≤۱۰۰۰px) فقط با کلیک روی
+                | `a` بسته می‌شود (panel/layout.blade.php)، پس یک `<button>` یا
+                | `<details>` کشو را باز روی محتوا جا می‌گذاشت.
+                |
+                | ⚠️ هیچ badgeای این‌جا نیست: `shell()` روی **هر** صفحهٔ پنل اجرا
+                | می‌شود، پس شمارشِ هر نوع یعنی سه پرس‌وجوی اضافه روی تیکت‌ها و
+                | فاکتورها هم — بهای سراسری برای سودی تزئینی. شمارش‌ها روی
+                | سوییچرِ خودِ صفحه‌اند که مجموعه‌اش از قبل در حافظه است.
+                */
+                ['label' => __('ui.nav_my_services'), 'items' => [
+                    ['key' => 'services', 'icon' => 'layout', 'label' => __('ui.nav_all_services'), 'url' => lroute('account.services')],
+                    ['key' => 'hosting', 'icon' => 'hdd', 'label' => __('ui.nav_hosting'), 'url' => lroute('account.hosting')],
+                    ['key' => 'servers', 'icon' => 'cloud', 'label' => __('ui.nav_servers'), 'url' => lroute('account.servers')],
                     // ⚠️ تا امروز این آیتم `url` نداشت و ویو به `'#'` برمی‌گرداند:
                     // یک لینکِ مرده در منوی اصلی که هیچ خطایی هم نمی‌داد.
                     ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains'), 'url' => lroute('account.domains')],
+                    ['key' => 'other', 'icon' => 'wrench', 'label' => __('ui.nav_other_services'), 'url' => lroute('account.other')],
                 ]],
                 ['label' => __('ui.nav_finance'), 'items' => [
                     ['key' => 'invoices', 'icon' => 'coins', 'label' => __('ui.nav_invoices'), 'url' => lroute('account.invoices')],

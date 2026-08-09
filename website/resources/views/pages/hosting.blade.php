@@ -170,12 +170,19 @@
           $groups[($p['row']['dedicated'] ?? false) ? 'ded' : 'std'][] = $i;
       }
 
-      // شهرهای موجود برای فیلتر — فقط آن‌هایی که واقعاً ردیف دارند، وگرنه
-      // کاربر گزینه‌ای می‌بیند که هیچ نتیجه‌ای نمی‌دهد.
+      // شهرهای موجود برای فیلتر — فقط آن‌هایی که واقعاً **قابلِ خرید**اند.
+      //
+      // ⚠️ شهرِ ناموجود عمداً این‌جا نمی‌آید: در انتخابگرِ داخلِ ردیف دیده می‌شود
+      // (پنهان نیست)، ولی گزینهٔ فیلتری که هیچ ردیفِ خریدنی نمی‌دهد بدترین
+      // تجربه است.
       $cityOpts = [];
       foreach ($product['plans'] as $p) {
-          $c = $p['row']['city'] ?? '';
-          if ($c !== '') { $cityOpts[$c] = true; }
+          foreach (($p['row']['picker'] ?? []) as $pc) {
+              if (! empty($pc['ok']) && ($pc['label'] ?? '') !== '') { $cityOpts[$pc['label']] = true; }
+          }
+          if (empty($p['row']['picker']) && ($p['row']['city'] ?? '') !== '') {
+              $cityOpts[$p['row']['city']] = true;
+          }
       }
       $cityOpts = array_keys($cityOpts);
       sort($cityOpts);
@@ -278,8 +285,25 @@
             </thead>
             <tbody>
               @foreach($groups[$key] as $i)
-              @php $p = $product['plans'][$i]; $r = $p['row'] ?? []; @endphp
+              @php
+                $p = $product['plans'][$i];
+                $r = $p['row'] ?? [];
+                $picker = $r['picker'] ?? [];
+
+                /*
+                | `data-city` عمداً **یکی** در هر ردیف می‌مانَد: شهرِ سرصفحه‌ای
+                | (ارزان‌ترین). فیلترِ سمتِ مرورگر از `data-cities` می‌خوانَد که
+                | همهٔ شهرهای خریدنیِ همین ردیف را دارد — وگرنه ردیفی که چهار
+                | شهر می‌فروشد با فیلترِ سه‌تای دیگر ناپدید می‌شد.
+                */
+                $cityList = [];
+                foreach ($picker as $pc) {
+                    if (! empty($pc['ok'])) { $cityList[] = $pc['label']; }
+                }
+                $cityAttr = $cityList === [] ? '' : '|'.implode('|', $cityList).'|';
+              @endphp
               <tr data-city="{{ $r['city'] ?? '' }}"
+                  data-cities="{{ $cityAttr }}"
                   data-cpu="{{ (int) ($r['vcpu'] ?? 0) }}"
                   data-ram="{{ (int) ($r['ram_mb'] ?? 0) }}"
                   data-price="{{ (int) ($r['price_n'] ?? 0) }}">
@@ -291,8 +315,37 @@
                 <td dir="ltr">{{ $r['ram'] ?? '' }}</td>
                 <td dir="ltr">{{ $r['disk'] ?? '' }}</td>
                 <td dir="ltr">{{ $r['traffic'] ?? '' }}</td>
-                <td>{{ $r['city'] ?? '' }}</td>
-                <td class="pt-price"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></td>
+                {{-- ستونِ مکان: شهر یک **انتخاب** است، نه دلیلی برای تکرارِ ردیف.
+                     هر شهر یک لینکِ واقعی است، پس بدونِ جاوااسکریپت هم مستقیم به
+                     تسویهٔ همان شهر می‌رود؛ با جاوااسکریپت فقط ردیف را به‌روز
+                     می‌کند. عمداً `<details>` نیست: ظرفِ جدول اسکرولِ افقی دارد و
+                     هر پاپ‌آورِ مطلق داخلش بریده می‌شود. --}}
+                <td class="pt-loc">
+                  @if(count($picker) > 1)
+                  <div class="pt-cities" role="group" aria-label="{{ __('ui.pt_pick_city') }}">
+                    @foreach($picker as $pc)
+                      @if(! empty($pc['ok']))
+                      <a class="pt-c{{ $pc['code'] === ($r['loc_code'] ?? '') ? ' is-on' : '' }}"
+                         href="{{ $pc['href'] }}"
+                         data-pf="{{ $pc['price_f'] }}"
+                         data-min="{{ (int) $pc['irt'] === (int) ($r['price_n'] ?? 0) ? '1' : '0' }}"
+                         @if($pc['code'] === ($r['loc_code'] ?? '')) aria-current="true" @endif
+                      >{{ $pc['label'] }}</a>
+                      @else
+                      <span class="pt-c is-off"
+                            title="{{ __(($pc['reason'] ?? '') === 'price' ? 'ui.cvb_off_price' : 'ui.cvb_off_stock') }}"
+                      >{{ $pc['label'] }}<i>{{ __('ui.pt_city_out') }}</i></span>
+                      @endif
+                    @endforeach
+                  </div>
+                  @else
+                  {{ $r['city'] ?? '' }}
+                  @endif
+                </td>
+                <td class="pt-price">
+                  @if(! empty($r['from']))<span class="pt-from">{{ __('ui.from') }}</span>@endif
+                  <b class="pt-price-v">{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span>
+                </td>
                 <td class="pt-buy">
                   <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
                 </td>

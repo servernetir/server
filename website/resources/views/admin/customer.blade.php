@@ -245,7 +245,9 @@
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
             @endif
             @if($s->server_id || $s->domain)
-              @if($s->provision_status !== 'done')
+              {{-- «در حال آزادسازی» یعنی سرویس بسته شده و فقط حذفِ نزدِ زیرساخت مانده؛
+                   دکمهٔ «ساخت روی سرور» آن‌جا بی‌معنی است (کنترلر هم ردش می‌کند). --}}
+              @if($s->provision_status !== 'done' && $s->provision_status !== \App\Models\Service::PROVISION_RELEASING)
                 {{-- نیاز به ساخت — اگر سروری نخورده، همین‌جا سرور/پلن را تعیین کن و بساز --}}
                 <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px">@csrf
                   @unless($s->server_id)

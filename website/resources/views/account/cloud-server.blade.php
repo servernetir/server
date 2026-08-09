@@ -75,8 +75,10 @@
 <div class="pnl-head">
   <div>
     <nav class="blog-crumbs" style="margin-bottom:8px">
-      <a href="{{ route('account.home') }}">{{ __('ui.cs_crumb_panel') }}</a><span>/</span>
-      <a href="{{ route('account.services') }}">{{ __('ui.cs_crumb_services') }}</a><span>/</span>
+      {{-- ⚠️ `lroute` و نه `route`: نسخهٔ خام، مشتریِ /en و /tr را به پنلِ
+           فارسی می‌انداخت. --}}
+      <a href="{{ lroute('account.home') }}">{{ __('ui.cs_crumb_panel') }}</a><span>/</span>
+      <a href="{{ lroute('account.servers') }}">{{ __('ui.cs_crumb_services') }}</a><span>/</span>
       <span>{{ __('ui.cs_crumb_cloud') }}</span>
     </nav>
     <h1>{{ $service->name }}</h1>

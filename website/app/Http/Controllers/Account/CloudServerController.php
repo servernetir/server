@@ -111,7 +111,7 @@ class CloudServerController extends Controller
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
-        return view('account.cloud-server', AccountController::shell('services') + [
+        return view('account.cloud-server', AccountController::shell('servers') + [
             'service'  => $service,
             'instance' => $instance,
             'caps'     => $caps,
@@ -446,7 +446,7 @@ class CloudServerController extends Controller
                 ->withErrors('نشستِ کنسول منقضی شده است. دوباره «کنسولِ تحتِ وب» را بزنید.');
         }
 
-        return view('account.cloud-console', AccountController::shell('services') + [
+        return view('account.cloud-console', AccountController::shell('servers') + [
             'service'  => $service,
             'instance' => $this->instanceOf($service),
             'ticket'   => $ticket,

@@ -203,12 +203,42 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * نمای «همه»ی سرویس‌ها (`/account/services`) چهار بخش دارد، ولی کنترلرش
+     * فقط `$services` می‌فرستد — و آن فایل مالکِ دیگری دارد و نباید ویرایش شود.
+     *
+     * 🔴 پس دادهٔ بخش‌ها با یک composer تزریق می‌شود، نه با عوض‌کردنِ کنترلر:
+     * این‌طور هر تغییری که آن کنترلر بعداً بگیرد (فهرستِ وضعیت، eager loadها)
+     * خودبه‌خود در بخش‌ها هم دیده می‌شود.
+     *
+     * ⚠️ کلیدها با پیشوندِ `sec` نام‌گذاری شده‌اند تا اگر روزی همان کنترلر
+     * چیزی به همین نام‌ها بفرستد، تصادفِ خاموش رخ ندهد؛ composer پس از کنترلر
+     * اجرا می‌شود و مقدارِ کنترلر را می‌پوشانَد.
+     */
+    private function feedTheServicesOverview(): void
+    {
+        View::composer('account.services', function (ViewInstance $view) {
+            $data = $view->getData();
+
+            // اتاق‌های اختصاصی خودشان این داده را می‌سازند؛ دوباره نساز.
+            if (array_key_exists('secBuckets', $data)) {
+                return;
+            }
+
+            $view->with(\App\Support\PanelSections::build(
+                \Illuminate\Support\Facades\Auth::guard('customer')->user(),
+                collect($data['services'] ?? []),
+            ) + ['secKind' => null, 'secLens' => 'all']);
+        });
+    }
+
     public function boot(): void
     {
         $this->shareSessionAcrossSubdomains();
         $this->defineRateLimiters();
         $this->syncSiteMenu();
         $this->keepSchedulerOffTheDatabase();
+        $this->feedTheServicesOverview();
         // ↑ ترتیب مهم است: تنظیمِ دامنهٔ کوکی باید پیش از میدل‌ورِ StartSession
         //   انجام شود، و boot()ِ provider همیشه قبل از میدل‌ورها اجرا می‌شود.
 

@@ -29,7 +29,19 @@ html[data-theme="light"]{
 }
 
 /* ============================ چیدمان ============================ */
-.pnl-wrap{padding:118px 0 60px}
+/* 🔴 فاصلهٔ بالا **جبرانِ هدر نیست** — فقط فاصلهٔ تزئینی.
+ *
+ * تا امروز این‌جا ۱۱۸px بود، در حالی که `#main{padding-top:var(--header-h)}`
+ * از قبل ۱۱۲px را یک‌جا رزرو می‌کند. یعنی هر صفحهٔ پنل با ~۲۳۰px فضای مرده باز
+ * می‌شد. عدد ۳۴ من‌درآوردی نیست: همان چیزی است که
+ * `#main > .section:first-child{padding-top:34px}` در site.css برای دقیقاً همین
+ * وضعیت استفاده می‌کند.
+ *
+ * ⚠️ و `.pnl-wrap` عمداً به فهرستِ «بالاکشیده‌ها»ی site.css اضافه **نشد** —
+ * آن فهرست یعنی «زیرِ هدر نقاشی کن» (margin-top منفی) و نوارِ موبایلِ پنل را
+ * پشتِ هدر می‌بُرد. (CLAUDE.md §۳ «قانونِ هدرِ ثابت»؛
+ * نگهبانش: FixedHeaderOffsetTest::test_panel_pages_do_not_double_compensate_for_the_header) */
+.pnl-wrap{padding:34px 0 60px}
 .pnl-layout{display:grid;grid-template-columns:var(--pnl-side) minmax(0,1fr);gap:var(--pnl-gap);align-items:start}
 .pnl-main{min-width:0;display:flex;flex-direction:column;gap:var(--pnl-gap)}
 /* محتوا اول در DOM است (کاربر صفحه‌کلید زودتر به کار اصلی برسد)، ولی سایدبار
@@ -209,7 +221,8 @@ html[data-theme="light"] .pnl-sec{background:#fff}
   .pnl-side .pnl-me{display:none}
 }
 @media(max-width:560px){
-  .pnl-wrap{padding-top:100px}
+  /* ⚠️ `padding-top:100px` این‌جا حذف شد و **کم نشد**: زیر ۴۰۰px متغیرِ
+     --header-h خودش ۱۳۲px می‌شود، پس ۱۳۲+۱۰۰ بدترین حالتِ همان باگ بود. */
   .pnl-stats{grid-template-columns:1fr}
   .pnl-table th,.pnl-table td{padding:11px 13px}
 }
@@ -647,3 +660,329 @@ button.cvb-line:focus-visible{outline:2px solid var(--info);outline-offset:2px;b
 /* عنوانِ مرحله: الگوی درستِ دسترس‌پذیری h2 > button است، نه button > h2
    (محتوای button باید phrasing باشد). */
 .cvb-step-hh{margin:0}
+
+/* ==========================================================================
+   «برگهٔ مقایسه» — فهرستِ پلن‌ها به‌شکلِ جدول (یک DOM، دو شکل)
+   --------------------------------------------------------------------------
+   کارت‌ها یک‌به‌یک خوب بودند و کنارِ هم بد: هفت عددِ هم‌معنا در هفت جای متفاوتِ
+   صفحه، پس چشم برای «کدام بزرگ‌تر است» باید می‌گشت. برگه همان داده را در
+   ستون‌های هم‌تراز می‌گذارد.
+
+   🔴 تصمیمِ ساختاریِ اصلی: **پرس‌وجوی ظرف، نه media query.**
+   عرضِ پنجره دربارهٔ این عنصر دروغ می‌گوید — فهرست روی هر دسکتاپی حداکثر
+   ~۴۸۸px است (۱۲۰۰ ظرف → ۲۴۸+۲۲ سایدبار → ۳۴۰+۱۸ برگه → ۳۶ padding)، ولی در
+   پنجرهٔ ۱۰۰۱px فقط ~۲۸۹px و در ۹۹۹px یک‌دفعه ~۹۱۶px می‌شود. یعنی
+   `max-width:1000px` دقیقاً وارونه عمل می‌کرد: جدولِ پنج‌ستونی روی لپ‌تاپِ
+   ۱۳ اینچ و فهرستِ کارت روی تبلت. یک آستانهٔ عددیِ مشتق‌شده از شش ثابتِ دیگر
+   هم همان تلهٔ «نگهبانی که با عوض‌شدنِ حامل می‌میرد» است — کافی است روزی عرضِ
+   برگه تنظیم شود تا آستانه بی‌صدا غلط شود. ظرف خودش را اندازه می‌گیرد.
+
+   🔴 و پیش‌فرضِ **بی‌پرس‌وجو کارت است**: مرورگری که این را نمی‌فهمد، همان
+   طرحِ پذیرفته‌شدهٔ دیروز را می‌بیند — نه یک جدولِ شکسته. هیچ media queryای
+   نمی‌تواند چنین پس‌افتی بدهد.
+
+   بدنهٔ صفحه هرگز افقی اسکرول نمی‌شود: هیچ `overflow-x` تازه‌ای این‌جا نیست،
+   مسیرِ گرید سرتاسر `min-width:0`/`minmax(0,1fr)` است، و مجموعِ ستون‌های ثابت
+   همیشه کمتر از آستانهٔ خودش است (۳۳۶px < ۴۶۰ و ۵۲۰px < ۶۶۰).
+   ========================================================================== */
+
+/* 🔴 خنثی‌کنندهٔ [hidden] — همان الگوی نوشته‌شده در admin.css.
+   `.cvb-plan{display:flex}` یک قاعدهٔ نویسنده است و بر `[hidden]`ِ مرورگر
+   می‌چربد، پس صفتِ hidden در این سه جا **هیچ کاری نمی‌کرد**:
+     · فیلترِ نوعِ پردازنده هیچ ردیفی را پنهان نمی‌کرد،
+     · انتخابگرِ سیستم‌عامل ایمیج‌هایی را نشان می‌داد که روی معماریِ پلنِ
+       انتخابی تحویل نمی‌شوند (CLAUDE.md §۱۰.۵ «پولِ گرفته‌شده، سرورِ تحویل‌نشده»)،
+     · و سطرِ «IP اضافه» با صفر عدد روی برگه می‌ماند.
+   ⚠️ همین قاعده سوراخِ «پلنِ نامرئیِ انتخاب‌شده» را زنده می‌کند، پس ترمیمِ
+   انتخاب در جاوااسکریپت باید هم‌زمان با این خط باشد — نه بعدتر. */
+.cvb-plan[hidden],.cvb-img[hidden],.cvb-line[hidden]{display:none}
+
+/* ظرفِ اندازه‌گیری. خودِ .cvb-plans نمی‌تواند ظرفِ خودش باشد، پس یک پوستهٔ
+   بی‌استایل رویش می‌نشیند. */
+.cvb-sheet{container:cvbs / inline-size}
+
+/* ── حالتِ کارت (پیش‌فرضِ بی‌پرس‌وجو) ─────────────────────────────────────── */
+.cvb-plan{flex-direction:row;flex-wrap:wrap;align-items:center;gap:0}
+.cvb-pn{flex:1 0 100%;min-width:0}
+.cvb-pp{flex:1 0 100%;margin-top:8px;text-align:end}
+.cvb-offr{flex:1 0 100%;margin-top:8px}
+
+/* یک سلول در هر دو شکل: روی کارت با نقطه‌چین کنارِ هم، روی برگه یک ستون. */
+.cvb-c{font-size:12.2px;color:var(--muted);line-height:1.8;direction:ltr;text-align:start;
+  font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cvb-c ~ .cvb-c::before{content:"·";color:var(--line-2);margin:0 6px}
+.cvb-c-cpu,.cvb-c-ram,.cvb-c-dsk,.cvb-c-net,.cvb-c-kind{min-width:0}
+/* نوعِ پردازنده متن است نه عدد، پس جهتِ صفحه را می‌گیرد — وگرنه در فارسی
+   ستونش به لبهٔ مخالفِ سرستونش می‌چسبید. */
+.cvb-c-kind{direction:inherit}
+.cvb-plan.cvb-off .cvb-c{color:var(--dim)}
+
+/* برچسبِ فقط-برای-صفحه‌خوان. `.visually-hidden` فقط در auth.css است و پنل
+   هرگز آن شیت را بار نمی‌کند، پس نسخهٔ خودی. بی‌این، نامِ در دسترسِ رادیو
+   «CV-4-8 ۴ ۸ ۸۰ ۲۰» می‌شد — چهار عددِ بی‌عنوان. */
+.cvb-sr{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;padding:0;margin:-1px;border:0}
+
+/* ── سرستون‌ها / کنترلِ مرتب‌سازی ────────────────────────────────────────── */
+/* روی کارت یک نوارِ چیپ، روی برگه سرِ ستون‌ها — همان دکمه‌ها و همان
+   جاوااسکریپت، پس روی موبایل هیچ کنترلِ دومی لازم نیست. */
+.cvb-sheeth{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 2px}
+.cvb-shl{font-size:11.5px;color:var(--dim);margin-inline-end:2px}
+.cvb-sh{position:relative;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--line);border-radius:var(--r-xs);background:var(--surface-2);
+  padding:5px 10px;font:inherit;font-size:11.8px;color:var(--muted);cursor:pointer;transition:.16s}
+.cvb-sh:hover{color:var(--text)}
+.cvb-sh.on{border-color:var(--line-2);background:var(--bg2);color:var(--info);font-weight:700}
+.cvb-sh:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+/* هیچ آیکنِ «مرتب‌سازی» در اسپرایت نیست و CSP اجازهٔ منبعِ تازه نمی‌دهد، پس
+   همان #i-chev با همان اصطلاحِ چرخشی که summaryِ «تنظیماتِ پیشرفته» دارد. */
+.cvb-sh .icon{width:11px;height:11px;color:currentColor;opacity:.35;
+  transition:transform .18s var(--ease),opacity .18s var(--ease)}
+.cvb-sh.on .icon{opacity:1}
+.cvb-sh.on[data-dir="desc"] .icon{transform:rotate(180deg)}
+.cvb-shs{display:none}
+.cvb-shx{display:none}
+.cvb-sh-ord,.cvb-sh-cpu,.cvb-sh-ram,.cvb-sh-dsk,.cvb-sh-net,.cvb-sh-kind,.cvb-sh-pr{min-width:0}
+
+/* ── حالتِ برگه (ظرفِ پهن) ───────────────────────────────────────────────── */
+@container cvbs (min-width:460px){
+  /* نام | هسته | رم | دیسک | مبلغ */
+  .cvb-plans{--cvb-cols:minmax(0,1fr) 50px 62px 100px minmax(92px,124px);
+    grid-template-columns:1fr;gap:6px}
+
+  .cvb-sheeth{display:grid;grid-template-columns:var(--cvb-cols);align-items:center;
+    gap:0 8px;padding:0 14px 7px;margin:0 0 2px;border-bottom:1px solid var(--line)}
+  .cvb-shl{display:none}
+  .cvb-shs{display:inline}
+  .cvb-shc{display:none}
+  .cvb-shx{display:block;font-size:11px;letter-spacing:.3px;color:var(--dim)}
+  .cvb-sh{border:0;background:none;padding:4px 0;font-size:11px;letter-spacing:.3px;justify-content:flex-start}
+  .cvb-sh:hover{background:none}
+  .cvb-sh.on{background:none;border:0}
+  /* سلول‌های عددی direction:ltr دارند و به لبهٔ چپ می‌چسبند؛ سرستونشان هم
+     باید همان‌جا بایستد، وگرنه در RTL ستون و عنوانش دو سرِ خانه می‌افتند. */
+  .cvb-sh-cpu,.cvb-sh-ram,.cvb-sh-dsk,.cvb-sh-net{direction:ltr}
+  .cvb-sh-pr{justify-content:flex-end}
+
+  .cvb-plan{display:grid;grid-template-columns:var(--cvb-cols);align-items:center;
+    gap:0 8px;padding:11px 14px}
+  .cvb-pn{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cvb-c ~ .cvb-c::before{content:none}
+  .cvb-pp{margin-top:0}
+  /* دلیلِ ناموجودی و زیرسطرش در یک سلولِ ۱۲۴پیکسلی له می‌شد؛ سطرِ خودش را
+     می‌گیرد. ستونِ مبلغ **خالی** می‌مانَد — نه خط تیره، نه صفر. */
+  .cvb-offr{grid-column:1/-1;margin-top:6px}
+
+  /* تیک از «نشانِ انتخاب‌شده» به یک رادیوی همیشه‌دیده ارتقا می‌یابد: همان
+     خوانشِ ردیفیِ صفحه‌های مرجع، ساخته از کلاسی که از قبل هست. */
+  .cvb-tick{order:-1;margin-inline-start:0;display:grid;box-sizing:border-box;
+    background:none;border:1.5px solid var(--line-2)}
+  .cvb-tick .icon{opacity:0}
+  .cvb-plan.on .cvb-tick{background:var(--info);border-color:var(--info)}
+  .cvb-plan.on .cvb-tick .icon{opacity:1}
+  /* ردیفِ ناموجود تیک ندارد؛ بی‌این جای‌نگه‌دار، نامش با بقیه هم‌تراز نمی‌ماند. */
+  .cvb-plan.cvb-off .cvb-pn::before{content:"";width:17px;flex:none}
+
+  /* دو ستونِ اختیاری در این عرض جا نمی‌شوند و مسیرِ --cvb-cols هم فقط پنج
+     ستون دارد، پس هر دو با هم می‌روند. */
+  .cvb-c-net,.cvb-c-kind{display:none}
+  .cvb-sh-net,.cvb-sh-kind{display:none}
+}
+
+/* ستون‌های اختیاری فقط وقتی جا هست **و** فقط وقتی سرور دیده که مقدارشان در
+   این مکان یکسان نیست (وگرنه اصلاً رندر نشده‌اند). */
+@container cvbs (min-width:660px){
+  .cvb-plans.has-net{--cvb-cols:minmax(0,1fr) 50px 62px 100px 76px minmax(92px,124px)}
+  .cvb-plans.has-cpu{--cvb-cols:minmax(0,1fr) 50px 62px 100px 92px minmax(92px,124px)}
+  .cvb-plans.has-net.has-cpu{--cvb-cols:minmax(0,1fr) 50px 62px 100px 76px 92px minmax(92px,124px)}
+  .cvb-c-net,.cvb-c-kind{display:block}
+  .cvb-sh-net{display:inline-flex}
+  .cvb-sh-kind{display:block}
+}
+
+/* ==========================================================================
+   «چهار اتاق» — هاست / سرور / دامنه / خدمات   (`.svc-*`)
+   --------------------------------------------------------------------------
+   کارفرما: «همه چی توهم هست و ساختار درستی نداره.»
+
+   علتِ ریشه‌ای یک جدولِ شش‌ستونی بود که چهار محصولِ بی‌هم‌پوشانی را با یک شکلِ
+   ردیف نشان می‌داد. اشتراکِ آن چهار تقریباً هیچ است، پس جدول ناچار بود
+   ستون‌هایش را با «—» پر کند و جزئیاتِ واقعیِ هرکدام را در یک
+   <td colspan="6"> زیرِ ردیف بریزد. نتیجه: صفحه‌ای که هم شلوغ بود هم خالی.
+
+   🔴 دو نکتهٔ ساختاری که باید بمانند:
+
+    ۱) هیچ overflow-x تازه‌ای این‌جا نیست، جز داخلِ خودِ خطوطِ نشانی.
+       IP و خطِ SSH تا امروز داخلِ .pnl-tw{overflow-x:auto} بودند، پس مشتری
+       روی گوشی باید کلِ جدول را افقی می‌کشید تا IP خودش را بخواند. حالا هر
+       مقدارِ ltr جعبهٔ اسکرولِ خودش را دارد و بدنهٔ صفحه هرگز تکان نمی‌خورد.
+    ۲) این بلوک ۲۷ قاعده‌ای را هم در خود گرفت که تا امروز در یک بلوکِ style
+       داخلِ services.blade.php زندگی می‌کردند — یعنی بیرون از دیدِ
+       CssVariablesDefinedTest. هیچ رنگِ خامی این‌جا نیست؛ همه توکن.
+   ========================================================================== */
+
+/* ── سوییچرِ بخش‌ها ─────────────────────────────────────────────────────── */
+.svc-lens{display:flex;flex-wrap:wrap;gap:3px;padding:4px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm)}
+.svc-lens-i{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;
+  border-radius:var(--r-xs);font-size:12.8px;color:var(--muted);transition:.16s}
+.svc-lens-i:hover{color:var(--text)}
+.svc-lens-i.on{background:var(--bg2);color:var(--text);font-weight:700}
+.svc-lens-i:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-lens-i em{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.svc-lens-i.on em{color:var(--info)}
+
+/* آیکنِ کوچکِ کنارِ عنوانِ هر بخش — همان زبانِ .pnl-sec-h */
+.pnl-sec-h h2 .svc-sec-ic{width:15px;height:15px;color:var(--dim);
+  margin-inline-end:8px;vertical-align:-2px}
+
+/* ── شبکهٔ کارت‌ها ───────────────────────────────────────────────────────
+   minmax(0,…) سرتاسر لازم است: بی‌آن یک IPv6ِ بلند ستون را پهن می‌کند و
+   کلِ صفحه افقی می‌شود. */
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.svc-grid>*{min-width:0}
+.svc-card{display:flex;flex-direction:column;gap:12px;min-width:0;
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:15px;
+  background:var(--surface-2)}
+html[data-theme="light"] .svc-card{background:var(--surface)}
+.svc-card.is-susp{border-color:var(--danger-line)}
+.svc-card.is-wait{border-style:dashed}
+
+.svc-card-h{display:flex;align-items:center;gap:11px;min-width:0}
+.svc-card-t{min-width:0;flex:1}
+.svc-card-t b{display:block;font-size:13.8px;line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svc-card-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;
+  direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.svc-chips{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ── حقایق: چند خانهٔ فشرده، نه چند سطرِ برچسب‌دار ───────────────────────── */
+.svc-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px}
+.svc-fact{min-width:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-xs);padding:9px 11px}
+html[data-theme="light"] .svc-fact{background:#fff}
+.svc-fact small{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
+.svc-fact b{font-size:13px;font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;font-weight:700}
+.svc-fact b em{font-style:normal;font-weight:400;font-size:11px;color:var(--dim)}
+.svc-fact.is-warn b{color:var(--warn)}
+
+/* ── نشانیِ شبکه ─────────────────────────────────────────────────────────
+   هر مقدار جعبهٔ اسکرولِ خودش را دارد؛ این تنها overflow-x این بلوک است و
+   عمداً محدود به همین یک عنصر. */
+.svc-net{display:flex;flex-direction:column;gap:7px;min-width:0}
+.svc-net-r{display:flex;align-items:center;gap:10px;min-width:0}
+.svc-net-r small{flex:none;width:64px;font-size:11px;color:var(--dim)}
+.svc-net-r code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.4px;color:var(--text);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:7px 10px;cursor:copy}
+html[data-theme="light"] .svc-net-r code{background:#fff}
+
+/* ── فهرستِ خدمات ───────────────────────────────────────────────────────── */
+.svc-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.svc-row{border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 15px;
+  background:var(--surface-2)}
+html[data-theme="light"] .svc-row{background:var(--surface)}
+.svc-row-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.svc-row-t{flex:1 1 190px;min-width:0}
+.svc-row-t b{display:block;font-size:13.5px;line-height:1.45}
+.svc-row-t small{display:block;font-size:11.8px;color:var(--muted);margin-top:2px;line-height:1.7}
+.svc-row-m{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.svc-row-m small{font-size:11px;color:var(--dim)}
+.svc-row-m b{font-size:13.5px}
+.svc-row-a:empty{display:none}
+
+/* ── حالتِ خالیِ کوتاه (فقط در نمای «همه») ───────────────────────────────── */
+.svc-none{font-size:13px;color:var(--muted);line-height:1.9;margin:0}
+.svc-none a{color:var(--info)}
+.svc-empty-acts{justify-content:center}
+
+/* ── عمل‌ها ─────────────────────────────────────────────────────────────── */
+.svc-acts:empty{display:none}
+.svc-acts form{margin:0}
+
+/* ── مرحلهٔ دومِ حذف ─────────────────────────────────────────────────────── */
+.svc-otp-box{border-top:1px solid var(--line);margin-top:12px;padding-top:13px}
+.svc-otp-why{margin:0 0 14px;max-width:520px}
+.svc-otp-why-h{margin:0 0 3px;font-size:13px;font-weight:700}
+.svc-otp-why-p{margin:0 0 9px;font-size:12px;color:var(--dim);line-height:1.7}
+.svc-otp-go{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.svc-input{width:100%;font:inherit;font-size:13px;padding:9px 12px;
+  border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--text)}
+.svc-ta{margin-top:8px;resize:vertical}
+.svc-input:focus-visible,.svc-code:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-code{width:140px;text-align:center;font:inherit;font-size:16px;letter-spacing:4px;
+  padding:9px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg2);color:var(--text)}
+
+/* ── دفترِ دامنه ────────────────────────────────────────────────────────── */
+.dmn-table td{vertical-align:top}
+.dmn-days{display:block;font-size:11px;color:var(--dim);margin-top:4px;
+  font-variant-numeric:tabular-nums}
+.dmn-bare{display:block;font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.7}
+.dmn-bare a{color:var(--info)}
+.dmn-acts{white-space:nowrap}
+.dmn-acts .pnl-btn{margin-inline-end:6px}
+
+/* ==========================================================================
+   منتقل‌شده از بلوکِ style داخلِ services.blade.php
+   --------------------------------------------------------------------------
+   ⚠️ آن ۲۷ قاعده فقط به لطفِ style-src unsafe-inline رندر می‌شدند و از دیدِ
+   CssVariablesDefinedTest پنهان بودند؛ دو رنگِ خام (ff6b6b در ۱۲ جا و یک
+   گرادیانِ دستی) هم همان‌جا مانده بودند. حالا این‌جایند و توکن گرفته‌اند.
+   ========================================================================== */
+.svc-quick{display:flex;gap:10px;flex-wrap:wrap}
+.svc-qbtn{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;
+  padding:12px 14px;min-width:86px;border:1px solid var(--line);border-radius:13px;
+  background:var(--surface);color:var(--text);font-size:12px;transition:transform .14s,border-color .16s}
+html[data-theme="light"] .svc-qbtn{background:#fff}
+.svc-qbtn:hover{transform:translateY(-2px);border-color:var(--info)}
+.svc-qbtn.primary{background:var(--grad);color:#fff;border-color:transparent;font-weight:700}
+.svc-qbtn.primary:hover{color:#fff;filter:brightness(1.08)}
+.svc-qbtn .icon{width:20px;height:20px}
+@media (prefers-reduced-motion: reduce){ .svc-qbtn:hover{transform:none} }
+
+.svc-usage-load{font-size:12px;color:var(--muted);padding:6px 0}
+.svc-usage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.svc-stat{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
+html[data-theme="light"] .svc-stat{background:#fff}
+.svc-stat .lbl{font-size:11px;color:var(--muted)}
+.svc-stat .val{font-size:15px;color:var(--text);font-weight:700;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+/* رنگِ وضعیت از توکن می‌آید، نه از hexِ درون‌خطیِ جاوااسکریپت */
+.svc-stat .val.is-good{color:var(--ok)}
+.svc-stat .val.is-bad{color:var(--danger)}
+.svc-stat .val.val-ip{font-size:13px}
+.svc-bar{height:7px;border-radius:20px;background:var(--line);overflow:hidden;margin-top:9px}
+.svc-bar>i{display:block;height:100%;border-radius:20px;background:var(--grad);transition:width .5s ease}
+.svc-bar>i.hot{background:linear-gradient(100deg,#FBBF24,#F87171)}
+
+.svc-cred{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 22px;min-width:0}
+.svc-cred>div{display:flex;flex-direction:column;gap:3px;font-size:13px;min-width:0}
+.svc-cred span{font-size:11px;color:var(--muted)}
+.svc-cred b,.svc-cred a{color:var(--text);overflow-wrap:anywhere}
+.svc-cred a{color:var(--info)}
+.svc-pw{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pw-eye{background:var(--surface);border:1px solid var(--line);color:var(--info);
+  border-radius:7px;padding:3px 9px;font:inherit;font-size:11px;cursor:pointer}
+.pw-eye:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-note{font-size:12.5px;color:var(--muted);line-height:1.95;margin:0}
+.svc-note.warn{color:var(--warn)}
+.copyable{cursor:copy}
+
+/* ── ریسپانسیو: نقطهٔ شکستِ خودِ پنل ─────────────────────────────────────── */
+@media(max-width:1000px){
+  .svc-grid{grid-template-columns:1fr}
+  .svc-row-main{align-items:flex-start}
+  .svc-row-m{align-items:flex-start}
+}
+@media(max-width:560px){
+  .svc-lens{overflow-x:auto;flex-wrap:nowrap}
+  .svc-lens-i{white-space:nowrap}
+  .svc-net-r{flex-direction:column;align-items:stretch;gap:4px}
+  .svc-net-r small{width:auto}
+  .svc-facts{grid-template-columns:1fr 1fr}
+}
