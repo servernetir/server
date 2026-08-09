@@ -36,6 +36,51 @@ class GoogleCalendarProvider implements CalendarEventProvider
 
     public function __construct(private readonly GoogleCalendarClient $google) {}
 
+    /**
+     * کلیدِ کش — با **نسخهٔ** کاربر در وسطش.
+     *
+     * 🔴 چرا نسخه و نه `Cache::forget()`:
+     *
+     * کلیدها بازه‌محورند و بازه‌ها **شمسی**‌اند (`2026-07-23:2026-08-22`), ولی
+     * تلاشِ اولِ ابطال، مرزهای **میلادی** حساب می‌کرد (`2026-08-01:2026-08-31`)
+     * و هیچ‌وقت با هیچ کلیدی نمی‌خورد. نتیجه: ساخت و حذفِ رویداد از پنل تا پنج
+     * دقیقه در تقویم دیده نمی‌شد — کاربر رویداد را می‌ساخت، صفحه را نگاه
+     * می‌کرد و فکر می‌کرد نساخته. روی سرورِ واقعی همین رخ داد.
+     *
+     * با نسخه، ابطال یک نوشتنِ ساده است و به شکلِ بازه هیچ وابستگی ندارد.
+     * کلیدهای قدیمی یتیم می‌شوند و خودشان با TTL پنج‌دقیقه‌ای می‌میرند.
+     */
+    private static function cacheKey(int $userId, Carbon $from, Carbon $to): string
+    {
+        return 'gcal:'.$userId.':v'.self::version($userId)
+            .':'.$from->toDateString().':'.$to->toDateString();
+    }
+
+    /** نسخهٔ فعلیِ کشِ این کاربر؛ نبودنش یعنی صفر و بی‌خطر است */
+    public static function version(int $userId): int
+    {
+        try {
+            return (int) (Cache::get('gcal-ver:'.$userId) ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /**
+     * «هرچه کش داشتی دور بریز» — بعد از هر ساخت/حذفِ رویداد.
+     *
+     * ⚠️ شکستش بی‌صدا رد می‌شود: بدترین حالت این است که کاربر تا پنج دقیقه
+     * فهرستِ کهنه ببیند، و آن از ۵۰۰ دادنِ صفحه بهتر است.
+     */
+    public static function bumpVersion(int $userId): void
+    {
+        try {
+            Cache::put('gcal-ver:'.$userId, self::version($userId) + 1, 3600);
+        } catch (\Throwable) {
+            // کشِ خراب یعنی کشی هم در کار نیست — چیزی برای ابطال نمانده
+        }
+    }
+
     public function getEvents(Carbon $from, Carbon $to): Collection
     {
         $userId = auth()->id();
@@ -58,7 +103,7 @@ class GoogleCalendarProvider implements CalendarEventProvider
      */
     private function cached(int $userId, Carbon $from, Carbon $to, GoogleCalendarToken $token): array
     {
-        $key = 'gcal:'.$userId.':'.$from->toDateString().':'.$to->toDateString();
+        $key = self::cacheKey($userId, $from, $to);
 
         /*
          * ⚠️ خرابیِ **کش** نباید لایه را بکشد. کشِ پیش‌فرضِ این پروژه روی

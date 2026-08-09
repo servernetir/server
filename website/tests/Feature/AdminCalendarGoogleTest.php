@@ -382,6 +382,53 @@ class AdminCalendarGoogleTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /**
+     * 🔴 ساختِ رویداد باید کش را باطل کند، وگرنه تا پنج دقیقه دیده نمی‌شود.
+     *
+     * تلاشِ اولِ ابطال کلیدها را از مرزهای **میلادیِ** ماه می‌ساخت در حالی که
+     * کلیدهای واقعی از مرزهای **شمسی** ساخته می‌شوند — پس هیچ کلیدی را پاک
+     * نمی‌کرد و بی‌اثر بود. کاربر رویداد را می‌ساخت، تقویم نشانش نمی‌داد، و
+     * فکر می‌کرد ساخته نشده. روی سرورِ واقعی دیده شد و هیچ تستی نداشت.
+     */
+    public function test_creating_an_event_invalidates_the_cached_list(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+
+        $listed = [];
+
+        Http::fake(['www.googleapis.com/*' => function ($request) use (&$listed) {
+            if ($request->method() === 'POST') {
+                return Http::response(['id' => 'gnew', 'htmlLink' => 'https://cal/gnew']);
+            }
+
+            // هر واکشیِ بعدی رویدادِ تازه را هم دارد
+            $listed[] = true;
+
+            return Http::response(['items' => count($listed) > 1 ? [
+                ['id' => 'gnew', 'summary' => 'قرارِ تازه', 'status' => 'confirmed',
+                 'start' => ['date' => '2026-08-03']],
+            ] : []]);
+        }]);
+
+        // کشِ اولیه را پر کن (خالی)
+        $before = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk()->json();
+        $this->assertSame([], $before['events']);
+
+        $this->actingAs($staff, 'web')->postJson('/admin/calendar/events', [
+            'type' => 'task', 'title' => 'قرارِ تازه',
+            'event_date' => '1405-05-12', 'target' => 'google',
+        ])->assertCreated();
+
+        // بلافاصله باید دیده شود — نه پنج دقیقه بعد
+        $after = $this->actingAs($staff, 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5&layers[]=google')->assertOk()->json();
+
+        $this->assertSame(['قرارِ تازه'], array_column($after['events'], 'title'));
+    }
+
     /* ═════════════════════ حذفِ رویدادِ گوگل ═════════════════════ */
 
     public function test_a_google_event_can_be_deleted_from_the_panel(): void

@@ -9,6 +9,7 @@ use App\Models\GoogleCalendarToken;
 use App\Services\Calendar\CalendarItem;
 use App\Services\Calendar\CalendarService;
 use App\Services\Calendar\Google\GoogleCalendarClient;
+use App\Services\Calendar\Providers\GoogleCalendarProvider;
 use App\Support\Jalali;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -624,21 +625,18 @@ class CalendarController extends Controller
         return url('/admin/calendar/google/callback');
     }
 
+    /**
+     * 🔴 ابطالِ کشِ گوگل با **بالابردنِ نسخه**، نه پاک‌کردنِ کلیدها.
+     *
+     * تلاشِ اول کلیدها را از مرزهای **میلادیِ** ماه می‌ساخت، در حالی که کلیدهای
+     * واقعی از مرزهای **شمسی** ساخته می‌شوند (`2026-07-23:2026-08-22`). پس
+     * هیچ‌وقت هیچ کلیدی را پاک نمی‌کرد و عملاً بی‌اثر بود: کاربر رویداد را در
+     * گوگل می‌ساخت، تقویم تا پنج دقیقه نشانش نمی‌داد، و او فکر می‌کرد ساخته
+     * نشده. روی سرورِ واقعی دیده شد.
+     */
     private function forgetGoogleCache(int $userId): void
     {
-        try {
-            // کلیدها بازه‌محورند؛ چند ماهِ اطراف را پاک می‌کنیم که کافی است
-            $tz = $this->timezone();
-            $day = Carbon::now($tz)->startOfMonth();
-
-            for ($i = -2; $i <= 2; $i++) {
-                $m = $day->copy()->addMonths($i);
-                Cache::forget('gcal:'.$userId.':'.$m->copy()->startOfMonth()->toDateString()
-                    .':'.$m->copy()->endOfMonth()->toDateString());
-            }
-        } catch (\Throwable) {
-            // کشِ پاک‌نشده از قطعِ اتصالِ ناموفق بهتر است — حداکثر پنج دقیقه کهنه می‌مانَد
-        }
+        GoogleCalendarProvider::bumpVersion($userId);
     }
 
     /* ==================================================================== */
