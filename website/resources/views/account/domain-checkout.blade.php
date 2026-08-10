@@ -54,11 +54,25 @@
         @endfor
       </select>
     </div>
+    @php
+      /* 🔴 همان فرمولِ `order()`: سالِ اول قیمتِ خودش، سال‌های بعد نرخِ تمدید.
+         اگر این‌جا `sell_toman × years` بماند، مشتری عددی می‌بیند که با
+         فاکتورش نمی‌خوانَد — و بی‌اعتمادی سرِ قیمت، بدترین جای ممکن است. */
+      $dchFirst = (int) $quote->sell_toman;
+      $dchRenew = (int) ($quote->renew_toman ?: $quote->sell_toman);
+      $dchTotal = $dchFirst + $dchRenew * max(0, $years - 1);
+    @endphp
+
     <div>
       <span class="dch-lbl">{{ __('ui.dch_price') }}</span>
       {{-- ⚠️ `cloud_price()` واحد را خودش می‌چسبانَد — « تومان»ِ دستی نزن،
            چون در en/tr باید یورو نشان دهد. --}}
-      <b>{{ cloud_price((int) $quote->sell_toman) }}</b>
+      <b id="dch-total" data-first="{{ $dchFirst }}" data-renew="{{ $dchRenew }}">{{ cloud_price($dchTotal) }}</b>
+      @if($dchRenew !== $dchFirst)
+        {{-- شفافیت: مشتری باید **پیش از** پرداخت بداند سالِ دوم به بعد گران‌تر
+             است. پنهان‌کردنش یعنی شکایتِ بعد از خرید. --}}
+        <small class="dch-lbl">{{ __('ui.dch_renew_note', ['p' => cloud_price($dchRenew)]) }}</small>
+      @endif
     </div>
   </div>
 

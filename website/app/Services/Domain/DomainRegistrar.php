@@ -43,8 +43,99 @@ class DomainRegistrar
      *
      * @return array{ok:bool, handle:?string, message:string}
      */
+    /**
+     * آیا مالکِ ثابتِ شرکت پیکربندی شده است؟
+     *
+     * فیلدهایی که رجیسترار **اجباری** می‌داند. `postal_code` و `company` عمداً
+     * نیستند: برای بعضی پسوندها لازم‌اند و برای بعضی نه، و نبودشان نباید کلِ
+     * قابلیت را خاموش کند.
+     */
+    public function companyRegistrant(): ?array
+    {
+        $c = (array) config('services.openprovider.registrant', []);
+
+        foreach (['first_name', 'last_name', 'email', 'address', 'city', 'phone'] as $k) {
+            if (trim((string) ($c[$k] ?? '')) === '') {
+                return null;
+            }
+        }
+
+        return $c;
+    }
+
+    /**
+     * شناسهٔ مالکِ ثابتِ شرکت — یک بار ساخته و برای همیشه استفاده می‌شود.
+     *
+     * ⚠️ در `Setting` می‌نشیند و نه در `registry_handles`: آن جدول کلیدِ
+     * `customer_profile_id` دارد و مالکِ شرکت به هیچ مشتری‌ای وصل نیست.
+     * ساختنِ یک ردیفِ قلابی با پروفایلِ الکی، همان داده را به یک مشتریِ
+     * تصادفی می‌چسباند.
+     *
+     * @return array{ok:bool, handle:?string, message:string}
+     */
+    private function companyHandle(array $reg): array
+    {
+        $cached = trim((string) (\App\Models\Setting::get('openprovider_company_handle') ?? ''));
+
+        if ($cached !== '') {
+            return ['ok' => true, 'handle' => $cached, 'message' => ''];
+        }
+
+        $phone = $this->splitPhone((string) $reg['phone'], (string) ($reg['country'] ?: 'IR'));
+
+        if ($phone === null) {
+            return ['ok' => false, 'handle' => null,
+                'message' => 'شمارهٔ تلفنِ مالکِ شرکت در .env معتبر نیست (DOMAIN_OWNER_PHONE).'];
+        }
+
+        $payload = [
+            'name' => [
+                'first_name' => trim((string) $reg['first_name']),
+                'last_name'  => trim((string) $reg['last_name']),
+            ],
+            'address' => [
+                'street'  => trim((string) $reg['address']),
+                'city'    => trim((string) $reg['city']),
+                'state'   => trim((string) ($reg['province'] ?? '')),
+                'zipcode' => trim((string) ($reg['postal_code'] ?? '')),
+                'country' => strtoupper((string) ($reg['country'] ?: 'IR')),
+                'number'  => '1',
+            ],
+            'phone' => $phone,
+            'email' => trim((string) $reg['email']),
+        ];
+
+        if (trim((string) ($reg['company'] ?? '')) !== '') {
+            $payload['company_name'] = trim((string) $reg['company']);
+        }
+
+        $res = $this->op->createCustomer($payload);
+
+        if (! $res['ok'] || blank($res['handle'])) {
+            return ['ok' => false, 'handle' => null,
+                'message' => $res['message'] ?: 'ساختِ شناسهٔ مالکِ شرکت نزدِ رجیسترار ناموفق بود.'];
+        }
+
+        // ⚠️ ذخیره لازم است: بی‌آن، هر ثبت یک مخاطبِ تازه نزدِ رجیسترار می‌سازد
+        //    و حسابِ ما پر از مخاطبِ تکراری می‌شود.
+        \App\Models\Setting::put('openprovider_company_handle', $res['handle']);
+
+        return ['ok' => true, 'handle' => $res['handle'], 'message' => ''];
+    }
+
     public function handleFor(CustomerProfile $profile): array
     {
+        /*
+        | 🔴 اگر مالکِ ثابتِ شرکت پیکربندی شده باشد، **همیشه** همان می‌رود.
+        |
+        | این تصمیمِ کارفراست و ریشهٔ صفِ دستی را می‌خشکاند: ثبت دیگر به
+        | کامل‌بودنِ پروفایلِ مشتری بند نیست. مالکیتِ واقعیِ مشتری در جدولِ
+        | `domains` خودمان ثبت و نگه داشته می‌شود.
+        */
+        if (($reg = $this->companyRegistrant()) !== null) {
+            return $this->companyHandle($reg);
+        }
+
         $existing = RegistryHandle::where('customer_profile_id', $profile->id)
             ->where('registry', 'openprovider')
             ->where('role', 'registrant')
@@ -178,7 +269,63 @@ class DomainRegistrar
             return null;
         }
 
-        $cc = strtoupper($country) === 'IR' ? '+98' : '+'.((string) config('services.openprovider.default_cc', '98'));
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 اگر خودِ شماره با `+` آمده، همان کدِ کشور معتبر است
+        |----------------------------------------------------------------------
+        |
+        | نسخهٔ قبلی کدِ کشور را **فقط** از `$country` می‌ساخت و برای هر کشوری
+        | جز ایران به پیش‌فرضِ `default_cc` (۹۸) می‌افتاد. یعنی مالکی که
+        | کشورش `TR` است و شماره‌اش `+1716…` (آمریکا)، این‌طور به رجیسترار
+        | می‌رفت:
+        |
+        |     +98 171 6666425      ← شماره‌ای که وجود ندارد
+        |
+        | و نتیجه‌اش دقیقاً همان چیزی است که می‌خواستیم از بین ببریم: رجیسترار
+        | مخاطب را رد می‌کند و دامنه دوباره در صفِ دستی پارک می‌شود.
+        |
+        | ⚠️ کشور و کدِ تلفن دو چیزِ متفاوت‌اند و لازم نیست بخوانند: شرکتی که
+        | نشانی‌اش ترکیه است می‌تواند شمارهٔ آمریکا داشته باشد. پس ورودیِ صریحِ
+        | کاربر (`+`) بر هر استنتاجی مقدم است.
+        */
+        $raw = trim($this->toLatinDigits($raw));
+
+        if (str_starts_with($raw, '+') && strlen($digits) >= 8) {
+            // کدِ کشور: ۱ رقمی (NANP) یا ۲–۳ رقمی. طولانی‌ترینِ شناخته‌شده اول.
+            $cc = null;
+
+            foreach (['998', '996', '995', '994', '993', '992', '971', '968', '966', '965', '964', '963', '962', '961',
+                '90', '98', '49', '44', '39', '34', '33', '31', '30', '20', '86', '81', '82', '91', '61', '55', '52', '7'] as $code) {
+                if (str_starts_with($digits, $code)) {
+                    $cc = $code;
+
+                    break;
+                }
+            }
+
+            // NANP و هر چیزِ ناشناخته: رقمِ اول کدِ کشور است
+            $cc ??= substr($digits, 0, 1);
+
+            $national = substr($digits, strlen($cc));
+
+            if (strlen($national) >= 6) {
+                return [
+                    'country_code'      => '+'.$cc,
+                    'area_code'         => substr($national, 0, 3),
+                    'subscriber_number' => substr($national, 3),
+                ];
+            }
+        }
+
+        $cc = match (strtoupper($country)) {
+            'IR' => '+98',
+            'TR' => '+90',
+            'DE' => '+49',
+            'NL' => '+31',
+            'GB', 'UK' => '+44',
+            'US', 'CA' => '+1',
+            default => '+'.((string) config('services.openprovider.default_cc', '98')),
+        };
 
         // صفرِ ابتدایی داخلی است و با کدِ کشور نمی‌آید
         $national = ltrim($digits, '0');

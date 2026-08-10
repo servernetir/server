@@ -1933,6 +1933,7 @@ return [
     'dch_years'         => 'Registration period',
     'dch_year_unit'     => 'year(s)',
     'dch_price'         => 'Amount',
+    'dch_renew_note'    => 'Additional years are charged at the renewal rate (:p).',
     'dch_ns_title'      => 'Nameservers',
     'dch_ns_hint'       => 'Leave blank to use ServerNet nameservers. You can change them later.',
     'dch_ns_row'        => 'Nameserver :n',

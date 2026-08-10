@@ -1933,6 +1933,7 @@ return [
     'dch_years'         => 'Kayıt süresi',
     'dch_year_unit'     => 'yıl',
     'dch_price'         => 'Tutar',
+    'dch_renew_note'    => 'Sonraki yıllar yenileme fiyatıyla (:p) hesaplanır.',
     'dch_ns_title'      => 'Ad sunucuları',
     'dch_ns_hint'       => 'Boş bırakırsanız ServerNet ad sunucuları ayarlanır. Daha sonra değiştirebilirsiniz.',
     'dch_ns_row'        => 'Ad sunucusu :n',
