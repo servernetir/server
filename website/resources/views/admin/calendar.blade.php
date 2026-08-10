@@ -21,8 +21,13 @@
     {{-- ══ نوارِ ابزار ══ --}}
     <div class="cal-bar">
       <div class="cal-nav">
+        {{-- 🔴 جهتِ فلش‌ها در RTL برعکسِ چپ‌به‌راست است.
+             فارسی از راست خوانده می‌شود، پس «عقب/قبلی» به **راست** نگاه می‌کند و
+             «جلو/بعدی» به **چپ** — مثل دکمهٔ برگشتِ مرورگر در حالتِ راست‌به‌چپ.
+             `#i-chev` رو به پایین است: rotate(-90) راست می‌شود، rotate(90) چپ.
+             ⚠️ اگر روزی این‌ها را «اصلاح» کردید، همین کامنت را اول بخوانید. --}}
         <button type="button" data-cal="prev" aria-label="ماه پیش">
-          <svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>
+          <svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg>
         </button>
         {{-- عنوان خودش دکمه است: کلیک رویش انتخابگرِ ماه/سال را باز می‌کند.
              بی‌این، رفتن به سالِ بعد دوازده بار فلش‌زدن بود. --}}
@@ -31,7 +36,7 @@
                 aria-label="انتخاب ماه و سال"></button>
         <div class="cal-jump" id="cal-jump" role="dialog" aria-label="پرش به ماه و سال" hidden></div>
         <button type="button" data-cal="next" aria-label="ماه بعد">
-          <svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg>
+          <svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>
         </button>
         <button type="button" data-cal="today" aria-label="رفتن به ماهِ جاری" style="padding:0 14px;width:auto">
           امروز

@@ -430,12 +430,17 @@
     var todayParts = (state.today || '').split('-');
     var nowY = +todayParts[0], nowM = +todayParts[1];
 
+    /*
+     * 🔴 همان قاعدهٔ RTL که در بلید هم نوشته شده: «قبلی» به **راست** نگاه
+     * می‌کند و «بعدی» به **چپ**. `#i-chev` رو به پایین است، پس rotate(-90)
+     * راست می‌شود و rotate(90) چپ.
+     */
     var html = '<div class="cal-jump-y">' +
       '<button type="button" data-jump="y-1" aria-label="سال قبل">' +
-      '<svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg></button>' +
+      '<svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg></button>' +
       '<span class="y">' + fa(jumpYear) + '</span>' +
       '<button type="button" data-jump="y+1" aria-label="سال بعد">' +
-      '<svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg></button>' +
+      '<svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg></button>' +
       '</div><div class="cal-jump-m">';
 
     for (var m = 1; m <= 12; m++) {
