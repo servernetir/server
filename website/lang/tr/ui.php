@@ -1922,6 +1922,33 @@ return [
     'dsr_hint' => 'Fiyatlar anlık döviz kuruna göre hesaplanır ve 15 dakikaya kadar geçerlidir.',
     'dsr_idle_title' => 'Henüz bir alan adı aramadınız',
     'dsr_idle_text' => 'İstediğiniz adı yukarıya yazın. Bir uzantı yazmazsanız birkaç popüler uzantıyı da kontrol ederiz.',
+
+    /*
+    | Alan adı ödeme adımı — ödemeden önce ad sunucuları ve sahip bilgileri.
+    | Metinler adresi NEDEN istediğimizi anlatır: kayıt kuruluşu zorunlu tutar.
+    */
+    'dch_title'         => 'Alan adı siparişini tamamlayın',
+    'dch_lead'          => 'Tek adım kaldı. Ödemeden sonra kayıt otomatik yapılır.',
+    'dch_domain'        => 'Alan adı',
+    'dch_years'         => 'Kayıt süresi',
+    'dch_year_unit'     => 'yıl',
+    'dch_price'         => 'Tutar',
+    'dch_ns_title'      => 'Ad sunucuları',
+    'dch_ns_hint'       => 'Boş bırakırsanız ServerNet ad sunucuları ayarlanır. Daha sonra değiştirebilirsiniz.',
+    'dch_ns_row'        => 'Ad sunucusu :n',
+    'dch_owner_title'   => 'Alan adı sahibi bilgileri',
+    'dch_owner_why'     => 'Kayıt kuruluşu her alan adı için bu bilgileri zorunlu kılar. Bir kez girin; sonraki alan adlarınızda tekrar sorulmaz.',
+    'dch_f_first'       => 'Ad',
+    'dch_f_last'        => 'Soyad',
+    'dch_f_email'       => 'E-posta',
+    'dch_f_address'     => 'Adres',
+    'dch_f_city'        => 'Şehir',
+    'dch_f_zip'         => 'Posta kodu',
+    'dch_f_mobile'      => 'Cep telefonu',
+    'dch_submit'        => 'Fatura oluştur ve öde',
+    'dch_need_owner'    => 'Lütfen sahip bilgilerini tamamlayın. Kayıt kuruluşu bu bilgiler olmadan alan adını kaydetmez.',
+    'dch_quote_expired' => 'Bu fiyat teklifinin süresi doldu. Güncel fiyat için tekrar arayın.',
+    'dch_complete_ok'   => 'Sahip bilgileri tamam.',
     'dsr_taken_note' => 'Bu alan adı zaten kayıtlı',
     'dsr_taken_pill' => 'Kayıtlı',
     'dsr_fx_unavailable' => 'Anlık fiyat şu anda kullanılamıyor — birkaç dakika sonra tekrar deneyin',

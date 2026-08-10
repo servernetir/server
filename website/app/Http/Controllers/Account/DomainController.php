@@ -229,11 +229,70 @@ class DomainController extends Controller
      *
      * هیچ تماسی با رجیسترار انجام نمی‌شود: ثبت بعد از پرداخت و با کرون است.
      */
+    /**
+     * صفحهٔ تسویهٔ دامنه — نام‌سرور، مشخصاتِ مالک، و بعد پرداخت.
+     *
+     * ═══ چرا این صفحه ساخته شد ═══
+     *
+     * کارفرما: «وقتی کاربر دامنه رو انتخاب می‌کنه مستقیم بره به صفحهٔ گرفتنِ
+     * نیم‌سرور و پرداخت، دیگه دوباره `/account/domains?register=x` نره.»
+     *
+     * ولی سودِ بزرگ‌ترش جای دیگری است: این تنها لحظه‌ای است که کاربر **حاضر
+     * است** و می‌تواند نشانی و تلفنش را بدهد. تا امروز آن داده هرگز پرسیده
+     * نمی‌شد و ثبتِ خودکار ساعت‌ها بعد، بی‌سروصدا، به‌خاطرِ نبودنش شکست
+     * می‌خورد — با پولِ گرفته‌شده.
+     *
+     * ⚠️ فیلدهای پرشده **دوباره پرسیده نمی‌شوند**؛ فقط آنچه کم است اجباری
+     * می‌شود. صفحه‌ای که همه‌چیز را دوباره بپرسد، خریدار را می‌پرانَد.
+     */
+    public function checkout(Request $request, DomainQuote $quote): View|RedirectResponse
+    {
+        if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
+            return redirect()->route('account.domains')
+                ->withErrors(__('ui.dch_quote_expired'));
+        }
+
+        $profile = auth('customer')->user()?->defaultProfile();
+
+        // ⚠️ `shell()` دادهٔ مشترکِ لایوتِ پنل را می‌دهد (`$pnlUser` و منو).
+        //    بی‌آن صفحه با «Undefined variable $pnlUser» ۵۰۰ می‌شود — خطایی که
+        //    فقط موقعِ رندرِ واقعی پیدا می‌شود، نه در تستِ منطق.
+        return view('account.domain-checkout', AccountController::shell('domains') + [
+            'quote'   => $quote,
+            'profile' => $profile,
+            // 🔴 «چه چیزی کم است» از همان تابعِ رجیسترار می‌آید، نه از فهرستِ
+            //    دستی. یک منبعِ حقیقت برای «کامل یعنی چه».
+            'missing' => $profile === null
+                ? self::OWNER_FIELDS
+                : $this->registrar->missingOwnerFields($profile),
+            'ns'      => Domain::defaultNameServers(),
+            'years'   => (int) $request->query('years', 1),
+        ]);
+    }
+
+    /** فیلدهایی که رجیسترار برای مالک لازم دارد — ترتیبش ترتیبِ فرم است. */
+    public const OWNER_FIELDS = [
+        'first_name', 'last_name', 'email', 'address', 'city', 'postal_code', 'mobile',
+    ];
+
     public function order(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'quote_id' => ['required', 'integer'],
             'years'    => ['nullable', 'integer', 'min:1', 'max:10'],
+
+            // مشخصاتِ مالک — از صفحهٔ تسویه می‌آیند و فقط آنچه کم بوده پر است
+            'first_name'  => ['nullable', 'string', 'max:60'],
+            'last_name'   => ['nullable', 'string', 'max:60'],
+            'email'       => ['nullable', 'email', 'max:190'],
+            'address'     => ['nullable', 'string', 'max:190'],
+            'city'        => ['nullable', 'string', 'max:60'],
+            'postal_code' => ['nullable', 'string', 'max:20'],
+            'mobile'      => ['nullable', 'string', 'max:24'],
+
+            // نام‌سرور: خالی = پیش‌فرضِ شرکت
+            'ns'   => ['nullable', 'array', 'max:4'],
+            'ns.*' => ['nullable', 'string', 'max:120'],
         ]);
 
         $quote = DomainQuote::find($data['quote_id']);
@@ -255,13 +314,50 @@ class DomainController extends Controller
         $customerId = $this->customerId();
         $years = max(1, (int) ($data['years'] ?? 1));
 
-        // مشتری باید پروفایلِ مالک داشته باشد — بدونِ نام و نشانی، ثبتِ دامنه
-        // نزدِ هیچ رجیستراری ممکن نیست و WHOIS هم قانوناً آن را می‌خواهد.
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 مشخصاتِ مالک **پیش از گرفتنِ پول** سنجیده می‌شود، نه بعدش
+        |----------------------------------------------------------------------
+        |
+        | رخدادِ واقعی (`zhina.shop`، مرداد ۱۴۰۵): مشتری خرید، پول رفت، و دامنه
+        | با `provision_status='manual'` پارک شد؛ علتش در ستونِ `provision_error`
+        | نوشته بود «مشخصاتِ مالک ناقص است».
+        |
+        | علتِ ساختاری: این‌جا فقط `$profile === null` سنجیده می‌شد. ولی پروفایل
+        | در ثبت‌نام ساخته می‌شود و فقط نام و ایمیل دارد — نشانی و شهر و تلفن
+        | ندارد. پس شرط رد می‌شد، فاکتور صادر می‌شد، پول گرفته می‌شد، و شرطِ
+        | **واقعی** ساعت‌ها بعد در `DomainRegistrar` می‌شکست. یعنی تنها جایی که
+        | کاربر می‌توانست کاری بکند (لحظهٔ خرید) رد شده بود.
+        |
+        | ⚠️ سنجه **همان تابعی** است که رجیسترار استفاده می‌کند
+        | (`profileToCustomer()` → `null` یعنی ناقص). فهرستِ دستیِ موازیِ
+        | فیلدهای اجباری یعنی روزی رجیسترار فیلدی اضافه کند و این گیت بی‌صدا
+        | کهنه شود — همان الگویی که در این پروژه بارها گران تمام شده.
+        */
         $profile = auth('customer')->user()?->defaultProfile();
 
-        if ($profile === null) {
-            return redirect()->route('account.profile')
-                ->withErrors('برای ثبتِ دامنه اول باید مشخصاتِ مالک را کامل کنید.');
+        /*
+        | مشخصاتی که کاربر همین حالا در صفحهٔ تسویه داد، **پیش از** سنجشِ
+        | کامل‌بودن ذخیره می‌شوند — وگرنه فرم پر می‌شد و گیت باز هم رد می‌کرد.
+        |
+        | ⚠️ فقط فیلدِ **پرشده** می‌نویسد. `array_filter` روی رشتهٔ خالی یعنی
+        | ارسالِ فرمِ خالی هرگز نشانیِ درستِ قبلی را پاک نمی‌کند.
+        */
+        if ($profile !== null) {
+            $owner = array_filter(
+                $request->only(self::OWNER_FIELDS),
+                fn ($v) => is_string($v) && trim($v) !== ''
+            );
+
+            if ($owner !== []) {
+                $profile->fill(array_map('trim', $owner))->save();
+                $profile->refresh();
+            }
+        }
+
+        if ($profile === null || $this->registrar->profileToCustomer($profile) === null) {
+            return redirect()->route('account.domains.checkout', ['quote' => $quote->id])
+                ->withErrors(__('ui.dch_need_owner'));
         }
 
         [$sld, $tld] = Domain::splitFqdn((string) $quote->domain);
@@ -272,9 +368,25 @@ class DomainController extends Controller
             return back()->withErrors('این دامنه از قبل در سامانه ثبت شده است.');
         }
 
+        /*
+        | نام‌سرورِ انتخابیِ کاربر. کمتر از دو تا = پیش‌فرضِ شرکت.
+        |
+        | ⚠️ همان قاعدهٔ `DomainRegistrar`: ثبت با کمتر از دو نام‌سرور یعنی
+        | دامنه‌ای که به هیچ‌جا اشاره نمی‌کند — مشتری پول داده و سایتش بالا
+        | نمی‌آید. پس ورودیِ ناقص **جایگزین** می‌شود، نه اینکه رد شود.
+        */
+        $ns = array_values(array_filter(array_map(
+            fn ($v) => strtolower(trim((string) $v, " \t.")),
+            (array) ($data['ns'] ?? [])
+        ), fn ($v) => $v !== ''));
+
+        if (count($ns) < 2) {
+            $ns = Domain::defaultNameServers();
+        }
+
         $invoice = null;
 
-        DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing) {
+        DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns) {
             $domain = $existing;
 
             if ($domain === null) {
@@ -295,13 +407,14 @@ class DomainController extends Controller
                     'cost_amount'   => (int) $quote->cost_amount,
                     'cost_currency' => (string) $quote->cost_currency,
                     'quote_id'      => $quote->id,
-                    'name_servers'  => Domain::defaultNameServers(),
+                    'name_servers'  => $ns,
                 ]);
             } else {
                 $domain->forceFill([
                     'customer_id' => $customerId, 'status' => 'pending',
                     'provision_status' => 'none', 'period_years' => $years,
                     'price_toman' => (int) $quote->sell_toman, 'quote_id' => $quote->id,
+                    'name_servers' => $ns,
                 ])->save();
             }
 

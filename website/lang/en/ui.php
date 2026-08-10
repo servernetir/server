@@ -1922,6 +1922,33 @@ return [
     'dsr_hint' => 'Prices are calculated from the live exchange rate and are valid for up to 15 minutes.',
     'dsr_idle_title' => 'You haven\'t searched for a domain yet',
     'dsr_idle_text' => 'Type your desired name above. If you don\'t add an extension, we\'ll also check a few popular ones.',
+
+    /*
+    | Domain checkout — nameservers and owner details before payment.
+    | The copy explains WHY we ask for an address: the registry requires it.
+    */
+    'dch_title'         => 'Complete your domain order',
+    'dch_lead'          => 'One step to go. Registration runs automatically after payment.',
+    'dch_domain'        => 'Domain',
+    'dch_years'         => 'Registration period',
+    'dch_year_unit'     => 'year(s)',
+    'dch_price'         => 'Amount',
+    'dch_ns_title'      => 'Nameservers',
+    'dch_ns_hint'       => 'Leave blank to use ServerNet nameservers. You can change them later.',
+    'dch_ns_row'        => 'Nameserver :n',
+    'dch_owner_title'   => 'Domain owner details',
+    'dch_owner_why'     => 'The registry requires these details for every domain. Enter them once — we will not ask again for your next domain.',
+    'dch_f_first'       => 'First name',
+    'dch_f_last'        => 'Last name',
+    'dch_f_email'       => 'Email',
+    'dch_f_address'     => 'Address',
+    'dch_f_city'        => 'City',
+    'dch_f_zip'         => 'Postal code',
+    'dch_f_mobile'      => 'Mobile',
+    'dch_submit'        => 'Issue invoice and pay',
+    'dch_need_owner'    => 'Please complete the owner details. The registry will not register a domain without them.',
+    'dch_quote_expired' => 'This quote has expired. Search again to see today\'s price.',
+    'dch_complete_ok'   => 'Owner details are complete.',
     'dsr_taken_note' => 'This domain is already registered',
     'dsr_taken_pill' => 'Taken',
     'dsr_fx_unavailable' => 'Live pricing is unavailable — please try again in a few minutes',

@@ -125,8 +125,16 @@ class DomainWiringTest extends TestCase
             ->assertOk()->getContent();
 
         $this->assertStringContainsString('wiretest.com', $html);
-        $this->assertStringContainsString(route('account.domains.order'), $html);
-        $this->assertStringContainsString('name="quote_id"', $html);
+
+        /*
+        | ⚠️ دکمهٔ خرید حالا **لینکِ صفحهٔ تسویه** است، نه POSTِ مستقیمِ سفارش.
+        |
+        | مسیرِ قبلی از همین‌جا فاکتور صادر می‌کرد و کاربر هرگز نه نام‌سرور
+        | انتخاب می‌کرد نه مشخصاتِ مالک می‌داد؛ ثبتِ خودکار ساعت‌ها بعد به‌خاطرِ
+        | نبودِ همان مشخصات شکست می‌خورد و دامنهٔ پرداخت‌شده در صفِ دستی پارک
+        | می‌شد. ادعا همان است — «ردیفِ قیمت‌دار راهِ خرید دارد».
+        */
+        $this->assertMatchesRegularExpression('~/domains/checkout/\d+~', $html);
     }
 
     /** جستجوی خراب نباید فهرستِ دامنه‌های مشتری را هم بخوابانَد */

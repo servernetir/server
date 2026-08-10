@@ -176,7 +176,18 @@ $T = [
 
     <p id="dm-empty" class="dsx-empty" hidden>{{ __('ui.dsr_f_all_hidden') }}</p>
 
-    {{-- حالت اولیه --}}
+    {{--
+      حالت اولیه — «هنوز چیزی جستجو نکرده‌اید».
+
+      🔴 تا امروز جاوااسکریپت **اصلاً به این عنصر اشاره نمی‌کرد**: نه در
+      `run()` پنهان می‌شد نه جایی دیگر. پس زیرِ ۶۴ نتیجهٔ واقعی هم چاپ
+      می‌شد و به کاربری که همین حالا نتیجه گرفته بود می‌گفت «دامنه‌ای
+      جستجو نکرده‌اید».
+
+      ⚠️ `pnl-empty` پدینگ و `text-align` دارد ولی `display:` ندارد، پس
+      `hidden` روی خودش کار می‌کند و به قاعدهٔ `[hidden]` نیازی نیست —
+      برخلافِ `.dsx-more` بالاتر. تفاوتشان همان تلهٔ ثبت‌شدهٔ پروژه است.
+    --}}
     <div id="dm-idle" class="pnl-empty" style="margin-top:30px">
       <svg class="icon"><use href="#i-globe"/></svg>
       <b>{{ __('ui.dsr_idle_title') }}</b>
@@ -333,6 +344,23 @@ $T = [
 
 .dsx-more{display:flex;align-items:center;justify-content:center;gap:9px;margin:18px 0 0;
   font-size:13px;color:var(--muted)}
+
+/* 🔴 `hidden` بدونِ این خط هیچ‌چیز را پنهان نمی‌کند.
+ *
+ * `hidden` مرورگر یعنی `display:none`، ولی آن یک قاعدهٔ **پیش‌فرضِ
+ * user-agent** است و هر `display:` نویسنده بر آن می‌چربد. خطِ بالا
+ * `display:flex` دارد، پس `more.hidden = true` در جاوااسکریپت اجرا می‌شد و
+ * **هیچ اتفاقی نمی‌افتاد**: چرخندهٔ «در حال بررسی پسوندهای بیشتر…» تا ابد
+ * زیرِ نتیجه‌ها می‌مانْد و صفحه‌ای که کارش تمام شده بود ناتمام به‌نظر می‌رسید.
+ *
+ * ⚠️ سومین بارِ همین تله در این پروژه است (`.ad-bulk` و اسکلتِ تقویم در
+ * `admin.css`). قاعده در CLAUDE.md ثبت است: هر عنصری که هم `display:` صریح
+ * دارد و هم با `hidden` خاموش می‌شود، به چنین خطی نیاز دارد.
+ *
+ * ⚠️ و هیچ تستی نگرفتش — با کدِ ۲۰۰ و بی‌هیچ خطایی. فقط با نگاه‌کردن به
+ * صفحهٔ زنده پیدا شد. */
+.dsx-more[hidden],
+.dsx-dots[hidden]{display:none}
 .dsx-dots{display:inline-flex;gap:4px}
 .dsx-dots i{width:6px;height:6px;border-radius:50%;background:var(--cyan);
   animation:dsx-pulse 1.1s ease-in-out infinite}
@@ -393,6 +421,7 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       err     = document.getElementById('dm-error'),
       warn    = document.getElementById('dm-warn'),
       more    = document.getElementById('dm-more'),
+      idle    = document.getElementById('dm-idle'),
       spin    = go.querySelector('.dm-spin'),
       label   = go.querySelector('.dm-go-t');
 
@@ -514,8 +543,22 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       cls = prem ? 'prem' : 'free';
       pill = prem ? T.premium_pill : T.free_pill;
       note = prem ? T.premium_note : T.free_note;
-      right = '<a class="dsx-buy" href="' + T.panel + '?register=' + encodeURIComponent(r.domain) + '">'
-            + T.register_btn + '</a>';
+      /* 🔴 مستقیم به صفحهٔ تسویه، نه برگشت به جستجوی پنل.
+       *
+       * پیش از این لینک `…/account/domains?register=example.com` بود: کاربر
+       * دامنه‌اش را انتخاب می‌کرد و دوباره در یک **صفحهٔ جستجو** می‌افتاد و
+       * باید ردیفِ خودش را دوباره پیدا می‌کرد. حالا با همان `quote_id` که در
+       * پاسخ آمده مستقیم به نام‌سرور و پرداخت می‌رود.
+       *
+       * ⚠️ اگر ردیفی `quote_id` نداشته باشد (قیمتِ قابلِ اتکا نداریم) دکمهٔ
+       * خرید اصلاً ساخته نمی‌شود — این شاخه فقط برای ردیفِ قیمت‌دار اجرا
+       * می‌شود. ولی `||` را نگه می‌داریم چون مسیرِ کهنه بی‌خطر است و
+       * نبودنِ ناگهانیِ دکمه بدتر از یک کلیکِ اضافه است. */
+      right = '<a class="dsx-buy" href="'
+            + (r.quote_id
+                ? T.panel + '/checkout/' + encodeURIComponent(r.quote_id)
+                : T.panel + '?register=' + encodeURIComponent(r.domain))
+            + '">' + T.register_btn + '</a>';
     }
 
     var price = amount !== null
@@ -607,6 +650,13 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
 
     var mine = ++token;
     busy(true);
+
+    /* «هنوز جستجو نکرده‌اید» از لحظه‌ای که جستجو شروع می‌شود دیگر راست نیست.
+     * ⚠️ این‌جا و نه بعد از رسیدنِ نتیجه: اگر رجیسترار جواب ندهد هم جمله
+     * غلط است، چون کاربر **جستجو کرده** — فقط نتیجه‌ای نیامده. آن حالت
+     * پیامِ خطای خودش را دارد. */
+    if (idle) { idle.hidden = true; }
+
     err.hidden = true;
     warn.hidden = true;
     box.innerHTML = '';

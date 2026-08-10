@@ -246,6 +246,17 @@ $site = function (): void {
         | خودِ ثبت این‌جا انجام نمی‌شود (بعد از پرداخت، با کرون).
         */
         Route::get('/domains', [Account\DomainController::class, 'index'])->name('domains');
+
+        /*
+        | 🔴 صفحهٔ تسویه **پیش از** مسیرِ `/domains/{domain}` بیاید.
+        |
+        | لاراول اولین تطبیق را برمی‌دارد و `{domain}` هر رشته‌ای را می‌گیرد،
+        | پس اگر پایین‌تر بنشیند، `/domains/checkout/12` به‌عنوانِ «دامنه‌ای به
+        | نامِ checkout» تفسیر و ۴۰۴ می‌شود.
+        */
+        Route::get('/domains/checkout/{quote}', [Account\DomainController::class, 'checkout'])
+            ->name('domains.checkout');
+
         Route::post('/domains/order', [Account\DomainController::class, 'order'])
             ->name('domains.order')->middleware('throttle:12,1');
         Route::get('/domains/{domain}', [Account\DomainController::class, 'show'])->name('domain');

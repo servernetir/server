@@ -34,6 +34,69 @@ class CustomerProfile extends Model
         ];
     }
 
+    /**
+     * ═══ خودترمیمی: کامل‌شدنِ مشخصات، دامنهٔ پارک‌شده را آزاد می‌کند ═══
+     *
+     * 🔴 کارفرما: «من نمی‌خوام دستی هی کاری کنم، تمام کارها باید اتوماتیک
+     * انجام شود.»
+     *
+     * سناریوی واقعی (`zhina.shop`): مشتری پول داد، ثبت به‌خاطرِ ناقص‌بودنِ
+     * مشخصاتِ مالک شکست خورد و دامنه `provision_status='manual'` شد. `manual`
+     * یعنی کرون **دیگر برنمی‌داردش** — عمداً، چون تلاشِ بی‌پایان روی خطای
+     * ساختاری فقط اعتبارِ حسابِ رجیسترار را می‌سوزاند.
+     *
+     * ولی «ساختاری» برای این خطا یعنی «تا وقتی داده کم است» — و همین که کاربر
+     * نشانی‌اش را داد، مانع برطرف شده. بی‌این قلاب، مشتری فرم را کامل می‌کرد و
+     * دامنه‌اش **همچنان** منتظرِ یک آدم می‌مانْد؛ یعنی یک کارِ دستی که هیچ
+     * تصمیمی در آن نیست.
+     *
+     * ⚠️ فقط دامنه‌هایی که دقیقاً به‌خاطرِ **همین** علت پارک شده‌اند برمی‌گردند
+     * (`provision_error` شاملِ نشانهٔ مالک). دامنه‌ای که به علتِ دیگری — مثلاً
+     * ردِ رجیسترار — پارک شده باید همان‌جا بماند، وگرنه این قلاب هر خطای
+     * دیگری را هم به یک حلقهٔ تلاشِ بی‌پایان تبدیل می‌کند.
+     *
+     * ⚠️ `provision_tries` صفر می‌شود: سقفِ تلاش برای خرابیِ **گذرا** ساخته
+     * شده، و این‌جا شرایط واقعاً عوض شده. بی‌این، دامنه‌ای که قبلاً به سقف
+     * خورده بود فوراً دوباره `manual` می‌شد.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $profile) {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('domains')) {
+                return;
+            }
+
+            try {
+                $registrar = app(\App\Services\Domain\DomainRegistrar::class);
+
+                if ($registrar->profileToCustomer($profile) === null) {
+                    return;   // هنوز ناقص است
+                }
+
+                $freed = \App\Models\Domain::where('customer_id', $profile->customer_id)
+                    ->where('status', 'pending')
+                    ->where('provision_status', 'manual')
+                    ->where('provision_error', 'like', '%مشخصاتِ مالک%')
+                    ->update([
+                        'provision_status' => 'pending',
+                        'provision_tries'  => 0,
+                        'provision_error'  => null,
+                    ]);
+
+                if ($freed > 0) {
+                    \App\Support\ErrorTracker::note('domain',
+                        'مشخصاتِ مالک کامل شد — '.$freed.' دامنه خودکار به صفِ ثبت برگشت',
+                        ['customer' => $profile->customer_id]);
+                }
+            } catch (\Throwable $e) {
+                // ذخیرهٔ پروفایل هرگز نباید به‌خاطرِ این قلاب شکست بخورد
+                \Illuminate\Support\Facades\Log::warning('آزادسازیِ دامنهٔ پارک‌شده انجام نشد', [
+                    'err' => $e->getMessage(),
+                ]);
+            }
+        });
+    }
+
     /** فیلدهای حساسی که جفت enc/hash دارند */
     private const SECURE = [
         'national_id'         => ['national_id_enc', 'national_id_hash'],

@@ -91,12 +91,14 @@
             @if($st === 'premium')
               <span style="{{ $noteStyle }}">{{ __('ui.dsr_premium_note') }}</span>
             @endif
-            <form method="post" action="{{ lroute('account.domains.order') }}">
-              @csrf
-              <input type="hidden" name="quote_id" value="{{ $r['quote_id'] }}">
-              <input type="hidden" name="years" value="1">
-              <button class="pnl-btn" type="submit">{{ __('ui.dsr_order_btn') }}</button>
-            </form>
+            {{-- 🔴 لینک به صفحهٔ تسویه، نه POSTِ مستقیمِ سفارش.
+                 پیش از این همین‌جا فاکتور صادر می‌شد و کاربر هرگز نه
+                 نام‌سرور انتخاب می‌کرد نه مشخصاتِ مالک می‌داد — و ثبتِ
+                 خودکار ساعت‌ها بعد به‌خاطرِ نبودِ همان مشخصات شکست می‌خورد،
+                 با پولِ گرفته‌شده. --}}
+            <a class="pnl-btn" href="{{ lroute('account.domains.checkout', ['quote' => $r['quote_id']]) }}">
+              {{ __('ui.dsr_order_btn') }}
+            </a>
           @endif
         </div>
       @empty

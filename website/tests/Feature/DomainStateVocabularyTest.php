@@ -263,8 +263,17 @@ class DomainStateVocabularyTest extends TestCase
         $this->assertStringNotContainsString('data-state="free"', $html,
             'دامنهٔ پرمیوم نباید به‌عنوانِ «آزاد» رندر شود');
 
-        // پرمیوم همچنان خریدنی است — فقط برچسبش صادق شد
-        $this->assertStringContainsString('name="quote_id"', $html);
+        /*
+        | پرمیوم همچنان خریدنی است — فقط برچسبش صادق شد.
+        |
+        | ⚠️ سنجه از «فرمِ POST با quote_id» به **لینکِ صفحهٔ تسویه** عوض شد.
+        | تا امروز دکمهٔ خرید مستقیم فاکتور صادر می‌کرد و کاربر هرگز نه
+        | نام‌سرور انتخاب می‌کرد نه مشخصاتِ مالک می‌داد — و ثبتِ خودکار
+        | ساعت‌ها بعد به‌خاطرِ نبودِ همان مشخصات شکست می‌خورد، با پولِ
+        | گرفته‌شده (`zhina.shop`). ادعا همان است («این ردیف خریدنی است»)؛
+        | مسیرش عوض شده.
+        */
+        $this->assertStringContainsString('/domains/checkout/', $html);
     }
 
     /**
@@ -317,7 +326,8 @@ class DomainStateVocabularyTest extends TestCase
             $this->assertStringNotContainsString('در دسترس نیست', $html, $label);
             $this->assertStringNotContainsString('pnl-pill mute">ثبت‌شده', $html, $label);
             $this->assertStringContainsString(__('ui.dsr_lookup_failed'), $html, $label);
-            $this->assertStringNotContainsString('name="quote_id"', $html, $label);
+            // استعلامِ شکست‌خورده هیچ راهِ خریدی نمی‌سازد — نه فرم، نه لینکِ تسویه
+            $this->assertStringNotContainsString('/domains/checkout/', $html, $label);
         }
     }
 
@@ -409,10 +419,15 @@ class DomainStateVocabularyTest extends TestCase
             ->get(route('account.domains', ['register' => 'zhina.com']))
             ->assertOk()->getContent();
 
-        $this->assertMatchesRegularExpression('~name="quote_id" value="(\d+)"~', $html,
-            'پنل باید فرمِ سفارش با شناسهٔ استعلامِ تازه بدهد');
+        /*
+        | ⚠️ مسیر عوض شد: پنل دیگر فرمِ POST نمی‌دهد، **لینکِ صفحهٔ تسویه**
+        | می‌دهد که شناسهٔ استعلامِ تازه را می‌بَرد. ادعا همان است — «پنل خودش
+        | دوباره استعلام می‌گیرد» — و همان چیزی را می‌سنجد.
+        */
+        $this->assertMatchesRegularExpression('~/domains/checkout/(\d+)~', $html,
+            'پنل باید لینکِ تسویه با شناسهٔ استعلامِ تازه بدهد');
 
-        preg_match('~name="quote_id" value="(\d+)"~', $html, $m);
+        preg_match('~/domains/checkout/(\d+)~', $html, $m);
         $quoteId = (int) $m[1];
 
         $this->assertNotSame((int) $row['quote_id'], $quoteId,

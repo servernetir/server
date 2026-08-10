@@ -5,6 +5,7 @@ namespace App\Services\Domain;
 use App\Models\CustomerProfile;
 use App\Models\Domain;
 use App\Models\RegistryHandle;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -88,6 +89,38 @@ class DomainRegistrar
      *
      * @return array<string,mixed>|null
      */
+    /**
+     * کدام فیلدهای مالک کم‌اند؟ — `[]` یعنی کامل.
+     *
+     * 🔴 عمداً کنارِ `profileToCustomer()` و از **همان شرط‌ها** ساخته می‌شود.
+     * فهرستِ دستیِ موازی در کنترلر یعنی روزی رجیسترار فیلدی اضافه کند، فرمِ
+     * خرید بی‌صدا کهنه شود و دوباره دامنهٔ پرداخت‌شده در صفِ دستی پارک شود —
+     * دقیقاً همان چیزی که این تغییر برای رفعش آمد.
+     *
+     * ⚠️ `postal_code` این‌جا هست ولی در گیتِ `profileToCustomer()` نیست:
+     * رجیسترار برای بعضی پسوندها می‌خواهدش و برای بعضی نه. پس در فرم
+     * **خواسته** می‌شود ولی خالی‌بودنش جلوی فروش را نمی‌گیرد — وگرنه مشتری را
+     * سرِ چیزی که شاید لازم نباشد از خرید بازمی‌داریم.
+     *
+     * @return array<int,string>
+     */
+    public function missingOwnerFields(CustomerProfile $profile): array
+    {
+        $missing = [];
+
+        foreach (['first_name', 'last_name', 'email', 'address', 'city'] as $f) {
+            if (trim((string) $profile->{$f}) === '') {
+                $missing[] = $f;
+            }
+        }
+
+        if ($this->splitPhone((string) $profile->mobile, (string) $profile->country) === null) {
+            $missing[] = 'mobile';
+        }
+
+        return $missing;
+    }
+
     public function profileToCustomer(CustomerProfile $profile): ?array
     {
         $first = trim((string) $profile->first_name);
@@ -355,6 +388,48 @@ class DomainRegistrar
             'provision_tries'  => $tries ?? ((int) $domain->provision_tries + 1),
             'provision_error'  => mb_substr($message, 0, 500),
         ])->save();
+
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 پارک‌شدنِ یک دامنهٔ **پرداخت‌شده** نباید بی‌صدا باشد
+        |----------------------------------------------------------------------
+        |
+        | تا امروز این متد فقط یک ستون می‌نوشت. یعنی وقتی `zhina.shop` به صفِ
+        | دستی رفت، `/admin/errors` خالی ماند — هیچ `ErrorTracker::*` صدا
+        | نمی‌شد — و هیچ اعلانِ مستقیمی نرفت.
+        |
+        | ⚠️ `SystemHealth::stuckDomains()` **این را می‌بیند** (ردیف‌های
+        | `manual` را جدا می‌شمارد). پس سامانه کاملاً کور نبود. ولی آن چک هر
+        | ۱۵ دقیقه می‌دود، فقط روی **تغییرِ وضعیت** خبر می‌دهد، و پیامش عددی
+        | است: «۱ دامنه منتظرِ بررسیِ دستیِ شماست» — نه نامِ دامنه، نه علت. یعنی
+        | مدیر می‌فهمید چیزی هست، ولی نه کدام و نه چرا.
+        |
+        | این‌جا در **لحظهٔ** شکست، با نام و علت. آن یکی شمارشگرِ دائمی است و
+        | این یکی رویداد؛ هیچ‌کدام جای دیگری را نمی‌گیرد.
+        |
+        | ⚠️ فقط برای `manual` داد می‌زند: `pending` یعنی کرون دوباره تلاش
+        | می‌کند و هر تلاشِ گذرا یک هشدار نیست — همان سیلی که یک بار پنجرهٔ
+        | ۴۰۰ خطیِ ردیاب را شست.
+        */
+        if ($manual) {
+            try {
+                ErrorTracker::noteOnce('domain', 'دامنهٔ پرداخت‌شده به صفِ دستی رفت: '.$domain->domain, 900, [
+                    'domain' => $domain->domain,
+                    'reason' => mb_substr($message, 0, 160),
+                    'tries'  => (int) $domain->provision_tries,
+                ]);
+
+                app(\App\Services\Notify\AdminNotifier::class)->event(
+                    'ثبتِ دامنه خودکار انجام نشد',
+                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
+                    url('/admin/domains'),
+                    '🌐',
+                );
+            } catch (\Throwable $e) {
+                // هشدار هرگز نباید مسیرِ ثبت را بشکند — ولی خودش هم گم نشود
+                Log::warning('اعلانِ پارک‌شدنِ دامنه نرفت', ['err' => $e->getMessage()]);
+            }
+        }
 
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
     }
