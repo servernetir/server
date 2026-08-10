@@ -209,7 +209,7 @@ class InboxScanner
                     'موضوع'  => mb_substr($subject, 0, 120),
                     'متن'    => mb_substr(trim($body), 0, 300),
                 ],
-                url('/admin/crm/'.$lead->id),
+                url('/admin/marketing/'.$lead->id),
                 '📩',
             );
         } catch (Throwable $e) {

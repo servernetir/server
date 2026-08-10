@@ -1,0 +1,149 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   بازاریابی هوشمند و صندوق ایمیل — لایهٔ ظاهری
+   ═══════════════════════════════════════════════════════════════════════
+
+   ⚠️ عمداً فایلِ جداست و در admin.css نرفته. آن فایل را تیم هم ویرایش
+   می‌کند؛ هر خطی که آن‌جا اضافه شود یک تعارضِ merge بالقوه است برای چیزی که
+   فقط دو بخش لازمش دارند. این فایل فقط در همین صفحه‌ها بار می‌شود.
+
+   🔴 هیچ رنگِ خامی اینجا نیست — همه از توکن‌های :root در admin.css می‌آیند.
+   دلیلش تمِ روشن است: هر #hex که مستقیم بنویسیم، روزی که مدیر تمِ روشن را
+   بزند ناخواناست. رنگ‌های تأکیدی (سیان/بنفش/سبز/کهربایی/قرمز) در هر دو تم
+   یکی می‌مانند، پس فقط آن‌ها را با شفافیت استفاده می‌کنیم.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.mk { --gap: 16px; }
+
+/* ── سربرگِ صفحه ───────────────────────────────────────────────────── */
+.mk-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.mk-head h2 { font-size: 19px; font-weight: 800; letter-spacing: -.2px; }
+.mk-head p { color: var(--muted); font-size: 13.5px; margin-top: 4px; max-width: 62ch; line-height: 1.9; }
+
+/* ── کاشی‌های عدد ──────────────────────────────────────────────────
+   چهار عدد که با یک نگاه وضعیت را می‌گویند. بیشتر از چهار تا یعنی هیچ‌کدام
+   دیده نمی‌شود. */
+.mk-tiles { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: var(--gap); }
+.mk-tile {
+  position: relative; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line2); border-radius: var(--r);
+  padding: 18px 18px 16px;
+}
+/* نوارِ نازکِ رنگی بالای هر کاشی — تنها جای رنگِ تزئینی در این طراحی */
+.mk-tile::before { content: ''; position: absolute; inset-block-start: 0; inset-inline: 0; height: 3px; background: linear-gradient(90deg, var(--cyan), var(--violet)); opacity: .75; }
+.mk-tile.is-warn::before { background: var(--amber); }
+.mk-tile.is-hot::before  { background: var(--red); }
+.mk-tile.is-good::before { background: var(--green); }
+.mk-tile-k { color: var(--muted); font-size: 12.5px; display: flex; align-items: center; gap: 7px; }
+.mk-tile-k .icon { width: 15px; height: 15px; opacity: .8; }
+.mk-tile-v { font-size: 30px; font-weight: 800; line-height: 1.25; margin-top: 6px; letter-spacing: -.5px; }
+.mk-tile-v small { font-size: 14px; font-weight: 600; color: var(--muted); margin-inline-start: 4px; }
+.mk-tile-s { color: var(--dim); font-size: 12px; margin-top: 2px; }
+
+/* ── تب‌ها ─────────────────────────────────────────────────────────── */
+.mk-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line2); margin-bottom: var(--gap); overflow-x: auto; }
+.mk-tabs a {
+  padding: 11px 16px; font-size: 14px; font-weight: 600; color: var(--muted);
+  border-bottom: 2px solid transparent; white-space: nowrap; transition: .18s;
+}
+.mk-tabs a:hover { color: var(--text); }
+.mk-tabs a.on { color: var(--text); border-bottom-color: var(--cyan); }
+.mk-tabs .n { font-size: 12px; color: var(--dim); margin-inline-start: 5px; }
+
+/* ── قیف ────────────────────────────────────────────────────────────
+   مرحله‌ها به‌صورت افقی. عرضِ هر تکه با تعدادش تناسب دارد، پس شکلِ قیف
+   خودش داستان را می‌گوید: کجا گیر کرده. */
+.mk-funnel { display: flex; gap: 3px; margin-bottom: var(--gap); border-radius: 10px; overflow: hidden; }
+.mk-funnel a { flex: 1 1 0; min-width: 0; background: var(--surface2); border: 1px solid var(--line); padding: 12px 10px; text-align: center; transition: .18s; }
+.mk-funnel a:hover { border-color: var(--line2); }
+.mk-funnel a.on { background: linear-gradient(160deg, rgba(34,211,238,.14), rgba(139,92,246,.12)); border-color: rgba(34,211,238,.4); }
+.mk-funnel .v { font-size: 20px; font-weight: 800; }
+.mk-funnel .k { font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-funnel a.is-hot .v { color: var(--green); }
+
+/* ── کارتِ ردیف ─────────────────────────────────────────────────────
+   به‌جای جدول. جدول در موبایل می‌شکند و این صفحه را احسان روی موبایل
+   می‌خواند. */
+.mk-rows { display: grid; gap: 10px; }
+.mk-row {
+  display: grid; gap: 12px; align-items: center;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  transition: border-color .18s;
+}
+.mk-row:hover { border-color: var(--line2); }
+.mk-row.is-hot { border-inline-start: 3px solid var(--green); }
+.mk-row.is-wait { border-inline-start: 3px solid var(--amber); }
+.mk-row b { font-size: 14.5px; font-weight: 700; display: block; }
+.mk-row small { color: var(--dim); font-size: 12px; display: block; margin-top: 2px; }
+.mk-row .mk-obs { color: var(--muted); font-size: 12.5px; line-height: 1.8; }
+@media (max-width: 860px) {
+  .mk-row { grid-template-columns: 1fr; gap: 8px; }
+  .mk-row .mk-act { justify-self: start; }
+}
+
+/* ── برچسب‌ها ──────────────────────────────────────────────────────── */
+.mk-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--line2); color: var(--muted); }
+.mk-tag.c { background: rgba(34,211,238,.12);  border-color: rgba(34,211,238,.3);  color: var(--cyan); }
+.mk-tag.g { background: rgba(52,211,153,.12);  border-color: rgba(52,211,153,.3);  color: var(--green); }
+.mk-tag.a { background: rgba(251,191,36,.12);  border-color: rgba(251,191,36,.32); color: var(--amber); }
+.mk-tag.r { background: rgba(255,107,107,.12); border-color: rgba(255,107,107,.32); color: var(--red); }
+.mk-tag.v { background: rgba(139,92,246,.12);  border-color: rgba(139,92,246,.3);  color: var(--violet); }
+
+/* امتیازِ سایت — حلقهٔ کوچک به‌جای عدد خالی */
+.mk-score { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; background: var(--surface2); border: 2px solid var(--line2); }
+.mk-score.ok  { border-color: rgba(52,211,153,.55); color: var(--green); }
+.mk-score.mid { border-color: rgba(251,191,36,.55); color: var(--amber); }
+.mk-score.bad { border-color: rgba(255,107,107,.55); color: var(--red); }
+
+/* ── پیش‌نویس ───────────────────────────────────────────────────────── */
+.mk-draft { background: var(--surface); border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; margin-bottom: 12px; }
+.mk-draft-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--surface2); }
+.mk-draft-b { padding: 16px; }
+.mk-draft-b .s { font-weight: 700; font-size: 14.5px; margin-bottom: 8px; }
+.mk-draft-b pre { white-space: pre-wrap; font: inherit; color: var(--muted); line-height: 1.95; }
+.mk-draft-f { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.mk-ltr { direction: ltr; text-align: left; }
+
+/* گفتگو */
+.mk-msg { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; background: var(--surface); }
+.mk-msg.in { background: rgba(52,211,153,.05); border-color: rgba(52,211,153,.25); }
+.mk-msg-h { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+
+/* ── حالتِ خالی ─────────────────────────────────────────────────────
+   🔴 هیچ صفحه‌ای نباید خالی و بی‌توضیح باشد. صفحهٔ خالی یعنی کاربر
+   نمی‌فهمد خراب است یا هنوز چیزی نیست — و همان‌جا اعتمادش را از دست
+   می‌دهد. هر حالتِ خالی می‌گوید چرا خالی است و قدمِ بعدی چیست. */
+.mk-empty { text-align: center; padding: 48px 24px; border: 1px dashed var(--line2); border-radius: var(--r); background: var(--surface2); }
+.mk-empty .icon { width: 30px; height: 30px; color: var(--dim); margin-bottom: 12px; }
+.mk-empty b { display: block; font-size: 15px; margin-bottom: 6px; }
+.mk-empty p { color: var(--muted); font-size: 13.5px; line-height: 1.95; max-width: 46ch; margin: 0 auto 16px; }
+
+/* ── نوارِ سلامتِ موتور ─────────────────────────────────────────────── */
+.mk-health { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 0 0; }
+.mk-health span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); background: var(--surface2); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.mk-health span::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+.mk-health span.ok::before { background: var(--green); }
+.mk-health span.off::before { background: var(--dim); }
+.mk-health span.warn::before { background: var(--amber); }
+
+/* ── فرم ────────────────────────────────────────────────────────────── */
+.mk-form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; }
+.mk-form label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.mk-form input, .mk-form select, .mk-form textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--line2); border-radius: 10px;
+  padding: 10px 12px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none; transition: border-color .18s;
+}
+.mk-form input:focus, .mk-form select:focus, .mk-form textarea:focus { border-color: var(--cyan); }
+.mk-form input::placeholder, .mk-form textarea::placeholder { color: var(--dim); }
+
+/* ── دکمهٔ ثانویه ──────────────────────────────────────────────────── */
+.mk-btn { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font); font-size: 13.5px; font-weight: 600;
+  background: var(--surface2); border: 1px solid var(--line2); color: var(--muted); border-radius: 10px; padding: 9px 15px; cursor: pointer; transition: .18s; }
+.mk-btn:hover { color: var(--text); border-color: var(--cyan); }
+.mk-btn .icon { width: 15px; height: 15px; }
+.mk-btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+/* ── خط‌کشِ توضیح ───────────────────────────────────────────────────── */
+.mk-note { display: flex; gap: 10px; align-items: flex-start; background: var(--surface2); border: 1px solid var(--line); border-inline-start: 3px solid var(--amber); border-radius: 10px; padding: 12px 14px; color: var(--muted); font-size: 13px; line-height: 1.95; margin-bottom: var(--gap); }
+.mk-note.info { border-inline-start-color: var(--cyan); }
+.mk-note b { color: var(--text); }

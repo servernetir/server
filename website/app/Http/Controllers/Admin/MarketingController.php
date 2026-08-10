@@ -22,20 +22,17 @@ use Illuminate\View\View;
  * 🔴 نگهبانِ `hasTable` روی همه‌جا: روی سروری که هنوز مهاجرت نخورده، این صفحه
  * باید بگوید «آماده نیست»، نه اینکه کلِ پنل را ۵۰۰ کند.
  */
-class CrmController extends Controller
+class MarketingController extends Controller
 {
     public function index(Request $request, OutreachMailer $mailer): View
     {
         if (! Schema::hasTable('crm_leads')) {
-            return view('admin.crm', ['notReady' => true]);
+            return view('admin.marketing.funnel', ['notReady' => true]);
         }
 
-        $counts = CrmLead::selectRaw('stage, count(*) as c')
-            ->groupBy('stage')
-            ->pluck('c', 'stage')
-            ->all();
-
+        $counts = CrmLead::selectRaw('stage, count(*) as c')->groupBy('stage')->pluck('c', 'stage')->all();
         $stage = (string) $request->query('stage', '');
+        $tab = (string) $request->query('tab', 'funnel');
 
         $leads = CrmLead::query()
             ->when($stage !== '', fn ($q) => $q->where('stage', $stage))
@@ -44,32 +41,63 @@ class CrmController extends Controller
             ->limit(120)
             ->get();
 
-        // صفِ تأیید — چیزی که همین حالا منتظرِ توست
         $pending = CrmMessage::with('lead')
-            ->where('direction', 'out')
-            ->where('status', 'queued')
-            ->orderBy('id')
-            ->limit(40)
-            ->get();
+            ->where('direction', 'out')->where('status', 'queued')
+            ->orderBy('id')->limit(40)->get();
 
-        return view('admin.crm', [
-            'notReady'    => false,
-            'counts'      => $counts,
-            'leads'       => $leads,
-            'stage'       => $stage,
-            'pending'     => $pending,
-            'sentToday'   => $mailer->sentToday(),
-            'dailyCap'    => $mailer->dailyCap(),
-            'inWindow'    => $mailer->inSendWindow(),
-            'autopilot'   => (bool) config('crm.autopilot'),
-            'suppressed'  => CrmSuppression::count(),
-            'health'      => $this->health(),
+        $closed = ['won', 'lost'];
+
+        return view('admin.marketing.funnel', [
+            'notReady'  => false,
+            'counts'    => $counts,
+            'leads'     => $leads,
+            'stage'     => $stage,
+            'tab'       => in_array($tab, ['funnel', 'queue', 'add'], true) ? $tab : 'funnel',
+            'pending'   => $pending,
+            'sentToday' => $mailer->sentToday(),
+            'dailyCap'  => $mailer->dailyCap(),
+            'inWindow'  => $mailer->inSendWindow(),
+            'autopilot' => (bool) config('crm.autopilot'),
+            'health'    => $this->health(),
+            'stats'     => [
+                'active'   => CrmLead::whereNotIn('stage', $closed)->count(),
+                'new'      => CrmLead::where('stage', 'new')->count(),
+                'enriched' => CrmLead::whereNotNull('observation')->count(),
+                'pending'  => $pending->count(),
+                'replied'  => CrmLead::where('stage', 'replied')->count(),
+                'sent'     => CrmMessage::where('direction', 'out')->where('status', 'sent')->count(),
+                'won'      => CrmLead::where('stage', 'won')->count(),
+                'value'    => (int) CrmLead::whereNotIn('stage', $closed)->sum('value_eur'),
+            ],
+        ]);
+    }
+
+    /**
+     * رشد و دیده‌شدن — سئوی خودمان و جاهایی که باید در آن‌ها باشیم.
+     *
+     * 🔴 اینجا هیچ‌چیزی به‌صورت خودکار در سایتِ کسِ دیگری چیزی نمی‌نویسد.
+     * کامنت‌گذاریِ خودکار برای بک‌لینک، در سیاستِ رسمیِ گوگل «لینک اسپم» است
+     * و نتیجه‌اش پایین رفتنِ رتبه یا حذف از نتایج است — یعنی دقیقاً برعکسِ
+     * چیزی که می‌خواهیم. بک‌لینک از راهِ درست: پیدا کردنِ صفحه‌های واقعاً
+     * مرتبط و نوشتنِ درخواست، که انسان می‌فرستد.
+     */
+    public function growth(): View
+    {
+        $audit = cache()->remember('marketing.self_audit', 3600, function () {
+            $report = (new \App\Services\SiteAudit)->run(config('app.url'));
+
+            return ($report['ok'] ?? false) ? $report : null;
+        });
+
+        return view('admin.marketing.growth', [
+            'audit'       => $audit,
+            'directories' => (array) config('crm.directories', []),
         ]);
     }
 
     public function show(CrmLead $lead): View
     {
-        return view('admin.crm-lead', [
+        return view('admin.marketing.lead', [
             'lead'     => $lead,
             'messages' => $lead->messages()->orderBy('id')->get(),
             'blocked'  => CrmSuppression::blocks($lead->email),

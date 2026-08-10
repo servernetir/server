@@ -1986,17 +1986,25 @@ Route::prefix('admin')->group(function () {
         | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
         | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
         */
-        Route::get('/crm', [\App\Http\Controllers\Admin\CrmController::class, 'index'])->name('admin.crm')->middleware('admin');
-        Route::post('/crm', [\App\Http\Controllers\Admin\CrmController::class, 'store'])->middleware('admin');
-        Route::get('/crm/{lead}', [\App\Http\Controllers\Admin\CrmController::class, 'show'])->name('admin.crm.lead')->middleware('admin');
-        Route::post('/crm/{lead}/enrich', [\App\Http\Controllers\Admin\CrmController::class, 'enrich'])->middleware(['admin', 'throttle:20,1']);
-        Route::post('/crm/{lead}/compose', [\App\Http\Controllers\Admin\CrmController::class, 'compose'])->middleware(['admin', 'throttle:20,1']);
-        Route::post('/crm/{lead}/stage', [\App\Http\Controllers\Admin\CrmController::class, 'stage'])->middleware('admin');
-        Route::post('/crm/{lead}/suppress', [\App\Http\Controllers\Admin\CrmController::class, 'suppress'])->middleware('admin');
-        Route::post('/crm/{lead}/social', [\App\Http\Controllers\Admin\CrmController::class, 'social'])->middleware(['admin', 'throttle:20,1']);
-        Route::post('/crm/message/{message}/approve', [\App\Http\Controllers\Admin\CrmController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
-        Route::post('/crm/message/{message}/reject', [\App\Http\Controllers\Admin\CrmController::class, 'reject'])->middleware('admin');
-        Route::post('/crm/message/{message}/sent', [\App\Http\Controllers\Admin\CrmController::class, 'markSent'])->middleware('admin');
+        /*
+        | بازاریابی هوشمند — قیفِ فروش، صفِ تأییدِ پیام، و رشدِ ارگانیک.
+        |
+        | 🔴 همه‌شان `admin` می‌خواهند و نه فقط `auth:web`: این صفحه ایمیل به
+        | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
+        | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
+        */
+        Route::get('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'index'])->name('admin.marketing')->middleware('admin');
+        Route::post('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'store'])->middleware('admin');
+        Route::get('/marketing/growth', [\App\Http\Controllers\Admin\MarketingController::class, 'growth'])->name('admin.marketing.growth')->middleware('admin');
+        Route::get('/marketing/{lead}', [\App\Http\Controllers\Admin\MarketingController::class, 'show'])->name('admin.marketing.lead')->middleware('admin')->whereNumber('lead');
+        Route::post('/marketing/{lead}/enrich', [\App\Http\Controllers\Admin\MarketingController::class, 'enrich'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/compose', [\App\Http\Controllers\Admin\MarketingController::class, 'compose'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/social', [\App\Http\Controllers\Admin\MarketingController::class, 'social'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/stage', [\App\Http\Controllers\Admin\MarketingController::class, 'stage'])->middleware('admin');
+        Route::post('/marketing/{lead}/suppress', [\App\Http\Controllers\Admin\MarketingController::class, 'suppress'])->middleware('admin');
+        Route::post('/marketing/message/{message}/approve', [\App\Http\Controllers\Admin\MarketingController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
+        Route::post('/marketing/message/{message}/reject', [\App\Http\Controllers\Admin\MarketingController::class, 'reject'])->middleware('admin');
+        Route::post('/marketing/message/{message}/sent', [\App\Http\Controllers\Admin\MarketingController::class, 'markSent'])->middleware('admin');
 
         /*
         | صندوق‌های ایمیلِ مدیریتی — ceo@ · support@ · info@

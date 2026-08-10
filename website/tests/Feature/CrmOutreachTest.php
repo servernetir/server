@@ -336,7 +336,7 @@ class CrmOutreachTest extends TestCase
             'subject' => 'n', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
         ]);
 
-        $this->actingAs($admin)->post('/admin/crm/message/'.$draft->id.'/sent')->assertRedirect();
+        $this->actingAs($admin)->post('/admin/marketing/message/'.$draft->id.'/sent')->assertRedirect();
 
         $this->assertSame('sent', $draft->fresh()->status);
         $lead->refresh();
@@ -358,7 +358,7 @@ class CrmOutreachTest extends TestCase
             'subject' => 'd', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
         ]);
 
-        $this->actingAs($admin)->post('/admin/crm/message/'.$draft->id.'/sent')->assertRedirect();
+        $this->actingAs($admin)->post('/admin/marketing/message/'.$draft->id.'/sent')->assertRedirect();
 
         $this->assertSame('fu1', $lead->fresh()->stage, 'ریتمِ ایمیل صاحبِ مرحله است');
     }
@@ -373,7 +373,7 @@ class CrmOutreachTest extends TestCase
         $message = $this->queued($this->lead());
 
         $this->actingAs($admin)
-            ->post('/admin/crm/message/'.$message->id.'/sent')
+            ->post('/admin/marketing/message/'.$message->id.'/sent')
             ->assertSessionHasErrors('message');
 
         $this->assertSame('queued', $message->fresh()->status);
@@ -414,7 +414,7 @@ class CrmOutreachTest extends TestCase
             'password' => bcrypt('secret1234'), 'role' => 'writer',
         ]);
 
-        $this->actingAs($writer)->get('/admin/crm')->assertForbidden();
+        $this->actingAs($writer)->get('/admin/marketing')->assertForbidden();
     }
 
     public function test_panel_pages_render_for_an_admin(): void
@@ -427,11 +427,11 @@ class CrmOutreachTest extends TestCase
         $lead = $this->lead();
         $this->queued($lead);
 
-        $this->actingAs($admin)->get('/admin/crm')
+        $this->actingAs($admin)->get('/admin/marketing')
             ->assertOk()
             ->assertSee('منتظرِ تأییدِ تو', false);
 
-        $this->actingAs($admin)->get('/admin/crm/'.$lead->id)
+        $this->actingAs($admin)->get('/admin/marketing/'.$lead->id)
             ->assertOk()
             ->assertSee($lead->company, false);
     }
@@ -449,7 +449,7 @@ class CrmOutreachTest extends TestCase
         $message = $this->queued($this->lead());
 
         $this->actingAs($admin)
-            ->post('/admin/crm/message/'.$message->id.'/reject')
+            ->post('/admin/marketing/message/'.$message->id.'/reject')
             ->assertRedirect();
 
         $this->assertSame('cancelled', $message->fresh()->status);
@@ -469,7 +469,7 @@ class CrmOutreachTest extends TestCase
         $this->lead(['website' => 'https://smiledubai.ae']);
 
         $this->actingAs($admin)
-            ->post('/admin/crm', [
+            ->post('/admin/marketing', [
                 'company' => 'Smile Dubai',
                 'website' => 'https://www.smiledubai.ae/',
             ])

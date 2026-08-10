@@ -44,9 +44,11 @@ class PanelPreviewTest extends TestCase
         $this->seedMail();
 
         $pages = [
-            'قیف جذب مشتری' => '/admin/crm',
-            'پروندهٔ سرنخ'   => '/admin/crm/'.$lead->id,
-            'صندوق‌های ایمیل' => '/admin/mail',
+            'بازاریابی هوشمند' => '/admin/marketing',
+            'صفِ تأیید'        => '/admin/marketing?tab=queue',
+            'پروندهٔ سرنخ'      => '/admin/marketing/'.$lead->id,
+            'رشد و دیده‌شدن'   => '/admin/marketing/growth',
+            'صندوق ایمیل'      => '/admin/mail',
         ];
 
         $rendered = [];
@@ -185,7 +187,8 @@ class PanelPreviewTest extends TestCase
     /** @param  array<string, string>  $pages */
     private function wrap(array $pages): string
     {
-        $css = @file_get_contents(public_path('assets/css/admin.css')) ?: '';
+        $css = (@file_get_contents(public_path('assets/css/admin.css')) ?: '')
+            ."\n".(@file_get_contents(public_path('assets/css/marketing.css')) ?: '');
         $tabs = '';
         $panes = '';
         $i = 0;
