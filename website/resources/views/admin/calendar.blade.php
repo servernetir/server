@@ -24,7 +24,12 @@
         <button type="button" data-cal="prev" aria-label="ماه پیش">
           <svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>
         </button>
-        <div class="cal-title" id="cal-title"></div>
+        {{-- عنوان خودش دکمه است: کلیک رویش انتخابگرِ ماه/سال را باز می‌کند.
+             بی‌این، رفتن به سالِ بعد دوازده بار فلش‌زدن بود. --}}
+        <button type="button" class="cal-title" id="cal-title"
+                aria-haspopup="dialog" aria-expanded="false"
+                aria-label="انتخاب ماه و سال"></button>
+        <div class="cal-jump" id="cal-jump" role="dialog" aria-label="پرش به ماه و سال" hidden></div>
         <button type="button" data-cal="next" aria-label="ماه بعد">
           <svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg>
         </button>

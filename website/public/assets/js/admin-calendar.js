@@ -40,6 +40,7 @@
     layers: boot.layers || {},          // { type: {label, tone, icon} }
     prefs: boot.prefs || {},            // { type: bool }
     truncated: boot.truncated || [],
+    monthNames: boot.monthNames || [],
     today: boot.today || '',
     statuses: boot.statuses || {},
     repeats: boot.repeats || { none: 'بدون تکرار' },
@@ -52,6 +53,7 @@
 
   var el = {
     title:   document.getElementById('cal-title'),
+    jump:    document.getElementById('cal-jump'),
     grid:    document.getElementById('cal-grid'),
     weekRow: document.getElementById('cal-weekdays'),
     skel:    document.getElementById('cal-skel'),
@@ -406,6 +408,67 @@
       showSkeleton(false);
       toast('ارتباط با سرور برقرار نشد.', 'err');
     });
+  }
+
+  /* ═══════════════════ انتخابگرِ ماه و سال ═══════════════════
+     ناوبری فقط ماه‌به‌ماه بود، پس «سالِ آینده را ببینم» دوازده کلیک می‌شد.
+     نامِ ماه‌ها از `boot.monthNames` می‌آید — همان فهرستِ `Jalali::MONTH_NAMES`
+     سمتِ سرور، تا دو جا دو تعریف نداشته باشیم. */
+
+  var jumpYear = null;   // سالی که در پنجره ورق می‌خورد (تا وقتی ماهی انتخاب نشده)
+
+  function monthNames() {
+    return state.monthNames && state.monthNames.length === 12
+      ? state.monthNames
+      // ⚠️ اگر سرور نداد، پنجره باید باز هم کار کند — نه اینکه خالی بماند
+      : ['۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '۱۰', '۱۱', '۱۲'];
+  }
+
+  function renderJump() {
+    if (!el.jump) return;
+    var names = monthNames();
+    var todayParts = (state.today || '').split('-');
+    var nowY = +todayParts[0], nowM = +todayParts[1];
+
+    var html = '<div class="cal-jump-y">' +
+      '<button type="button" data-jump="y-1" aria-label="سال قبل">' +
+      '<svg class="icon" style="transform:rotate(90deg)"><use href="#i-chev"/></svg></button>' +
+      '<span class="y">' + fa(jumpYear) + '</span>' +
+      '<button type="button" data-jump="y+1" aria-label="سال بعد">' +
+      '<svg class="icon" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg></button>' +
+      '</div><div class="cal-jump-m">';
+
+    for (var m = 1; m <= 12; m++) {
+      var current = (jumpYear === state.year && m === state.month);
+      var isNow = (jumpYear === nowY && m === nowM);
+      html += '<button type="button" data-month="' + m + '"' +
+        (current ? ' aria-current="true"' : '') +
+        (isNow ? ' class="is-now"' : '') + '>' + esc(names[m - 1]) + '</button>';
+    }
+
+    html += '</div><div class="cal-jump-f">' +
+      '<button type="button" data-jump="today">برگشت به امروز</button>' +
+      '<button type="button" data-jump="close">بستن</button>' +
+      '</div>';
+
+    el.jump.innerHTML = html;
+  }
+
+  function toggleJump(open) {
+    if (!el.jump || !el.title) return;
+    var show = open === undefined ? el.jump.hidden : open;
+
+    if (show) {
+      jumpYear = state.year;
+      renderJump();
+      el.jump.hidden = false;
+      el.title.setAttribute('aria-expanded', 'true');
+      var first = el.jump.querySelector('[aria-current="true"]') || el.jump.querySelector('button');
+      if (first) first.focus();
+    } else {
+      el.jump.hidden = true;
+      el.title.setAttribute('aria-expanded', 'false');
+    }
   }
 
   function step(delta) {
@@ -794,11 +857,48 @@
 
     if (act === 'prev') step(-1);
     else if (act === 'next') step(1);
-    else if (act === 'today') {
-      var p = (state.today || '').split('-');
-      if (p.length === 3) load(+p[0], +p[1]);
-    } else if (act === 'add') openAddForm(state.today);
+    else if (act === 'today') goToday();
+    else if (act === 'add') openAddForm(state.today);
     else if (act === 'view') setView(t.getAttribute('data-view'));
+  });
+
+  function goToday() {
+    var p = (state.today || '').split('-');
+    if (p.length === 3) load(+p[0], +p[1]);
+  }
+
+  // ── انتخابگرِ ماه/سال ──
+  if (el.title) {
+    el.title.addEventListener('click', function () { toggleJump(); });
+  }
+
+  if (el.jump) {
+    el.jump.addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+
+      var month = b.getAttribute('data-month');
+      if (month) {
+        toggleJump(false);
+        load(jumpYear, +month);
+        if (el.title) el.title.focus();
+        return;
+      }
+
+      switch (b.getAttribute('data-jump')) {
+        case 'y-1': jumpYear--; renderJump(); break;
+        case 'y+1': jumpYear++; renderJump(); break;
+        case 'today': toggleJump(false); goToday(); break;
+        case 'close': toggleJump(false); if (el.title) el.title.focus(); break;
+      }
+    });
+  }
+
+  // کلیکِ بیرون می‌بندد — وگرنه پنجره تا کلیکِ بعدی روی خودش باز می‌مانَد
+  document.addEventListener('click', function (e) {
+    if (!el.jump || el.jump.hidden) return;
+    if (el.jump.contains(e.target) || (el.title && el.title.contains(e.target))) return;
+    toggleJump(false);
   });
 
   // خانهٔ روز و ردیفِ فهرست
@@ -888,7 +988,16 @@
   }
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && el.drawer && el.drawer.classList.contains('on')) closeDrawer();
+    if (e.key !== 'Escape') return;
+
+    // ⚠️ ترتیب مهم است: اگر هر دو باز باشند، Escape اول رویی را می‌بندد
+    if (el.jump && !el.jump.hidden) {
+      toggleJump(false);
+      if (el.title) el.title.focus();
+      return;
+    }
+
+    if (el.drawer && el.drawer.classList.contains('on')) closeDrawer();
   });
 
   /* ═══════════════════════════ شروع ═══════════════════════════ */

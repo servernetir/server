@@ -196,6 +196,62 @@ class AdminCalendarTest extends TestCase
         $this->assertLessThan($finance, $link);
     }
 
+    /**
+     * پرش به هر ماه و سال — نه فقط یک ماه جلو و عقب.
+     *
+     * ⚠️ ناوبری تا امروز فقط ماه‌به‌ماه بود، پس «سالِ آینده را ببینم» دوازده
+     * کلیک می‌شد. حالا انتخابگر هست و این تست ادعا می‌کند سرور هم ماهِ دور را
+     * می‌پذیرد (نه فقط نزدیک).
+     */
+    public function test_any_month_of_any_reasonable_year_can_be_requested(): void
+    {
+        $staff = $this->staff();
+
+        foreach ([[1406, 1], [1407, 12], [1404, 6], [1410, 7]] as [$y, $m]) {
+            $res = $this->actingAs($staff, 'web')
+                ->getJson("/admin/calendar/events?y={$y}&m={$m}")
+                ->assertOk()->json();
+
+            $this->assertSame($y, $res['grid']['year']);
+            $this->assertSame($m, $res['grid']['month']);
+            $this->assertSame(0, count($res['grid']['cells']) % 7);
+        }
+    }
+
+    /** سالِ بی‌معنی رد می‌شود، نه اینکه صفحه را بشکند */
+    public function test_an_absurd_year_is_refused(): void
+    {
+        $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=9999&m=1')
+            ->assertStatus(422);
+    }
+
+    /**
+     * نامِ ماه‌ها از سرور می‌آید تا مرورگر فهرستِ دومی نسازد.
+     *
+     * ⚠️ ادعا روی **payloadِ رمزگشایی‌شده** است، نه روی متنِ HTML: بلید در
+     * `@json` فارسی را به `\uXXXX` تبدیل می‌کند، پس `assertStringContainsString`
+     * روی نامِ ماه همیشه شکست می‌خورد — و آن شکست دربارهٔ چیزی است که اصلاً
+     * خراب نیست.
+     */
+    public function test_the_boot_payload_carries_the_month_names(): void
+    {
+        $html = $this->actingAs($this->staff(), 'web')->get('/admin/calendar')->assertOk()->getContent();
+
+        $this->assertStringContainsString('cal-jump', $html, 'انتخابگرِ ماه/سال باید در صفحه باشد');
+
+        $this->assertSame(1, preg_match(
+            '#<script type="application/json" id="cal-boot">(.*?)</script>#s', $html, $m,
+        ));
+
+        $boot = json_decode(html_entity_decode($m[1], ENT_QUOTES), true);
+
+        $this->assertIsArray($boot['monthNames'] ?? null);
+        $this->assertCount(12, $boot['monthNames']);
+        $this->assertSame('فروردین', $boot['monthNames'][0]);
+        $this->assertSame('اسفند', $boot['monthNames'][11]);
+    }
+
     /* ═════════════════════ لایه‌ها ═════════════════════ */
 
     public function test_each_layer_reads_from_its_own_table(): void

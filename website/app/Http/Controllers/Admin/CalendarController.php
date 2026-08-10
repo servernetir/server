@@ -127,6 +127,9 @@ class CalendarController extends Controller
                 'statuses'     => (array) config('calendar.statuses', []),
                 'repeats'      => (array) config('calendar.repeats', []),
                 'googleConnected' => $google['connected'],
+                // نامِ ماه‌ها از **یک** جا: انتخابگرِ ماه در مرورگر نباید
+                // فهرستِ دومی داشته باشد که روزی با سرور فرق کند
+                'monthNames'   => Jalali::MONTH_NAMES,
                 'failures'     => $failures,
                 'truncated'    => $truncated,
                 'upcomingDays' => (int) config('calendar.upcoming_days', 7),
