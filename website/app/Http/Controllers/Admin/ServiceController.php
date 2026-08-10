@@ -39,20 +39,62 @@ class ServiceController extends Controller
             'plan'        => ['nullable', 'string', 'max:80'],
             'username'    => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9]{0,15}$/'],
             'domain'      => ['nullable', 'string', 'max:190'],
+
+            /*
+            | تاریخِ صدورِ دلخواه — کارفرما: «تاریخِ صدورش برای ۳ روز پیش باشد.»
+            |
+            | ⚠️ `before_or_equal:today` عمدی است: فاکتورِ **آینده** یعنی سندی
+            | که هنوز صادر نشده ولی در دفتر هست. عقب‌بردن کاربردِ واقعی دارد
+            | (ثبتِ فروشی که قبلاً انجام شده)، جلوبردن ندارد.
+            */
+            'issued_at'   => ['nullable', 'date', 'before_or_equal:today'],
+
+            // تخفیفِ درصدی روی مبلغِ سرویس
+            'discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [], [
             'name' => 'نام سرویس', 'price' => 'مبلغ', 'cycle' => 'دوره',
             'username' => 'نام‌کاربری', 'domain' => 'دامنه',
+            'issued_at' => 'تاریخ صدور', 'discount_pct' => 'درصد تخفیف',
         ]);
 
         $taxPct = (int) ($data['tax_percent'] ?? 0);
 
-        $service = DB::transaction(function () use ($customer, $data, $taxPct, $request) {
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 تخفیف روی **قیمتِ سرویس** می‌نشیند، نه فقط روی فاکتورِ اول
+        |----------------------------------------------------------------------
+        |
+        | وسوسه‌انگیز است که تخفیف را فقط از مبلغِ فاکتور کم کنیم. ولی
+        | `services.price` همان عددی است که `services:renew-due` هر دوره
+        | فاکتور می‌کند. اگر تخفیف بیرونِ آن بماند، مشتری دورهٔ اول را با
+        | تخفیف می‌دهد و از دورهٔ دوم **بی‌خبر** قیمتِ کامل می‌گیرد — و آن را
+        | ما هیچ‌جا اعلام نکرده‌ایم.
+        |
+        | پس قیمتِ ذخیره‌شده همان قیمتِ تخفیف‌خورده است و توضیحِ سرویس می‌گوید
+        | تخفیف چقدر بوده. اگر روزی تخفیفِ «فقط دورهٔ اول» لازم شد، باید یک
+        | فیلدِ جدا با تاریخِ انقضا باشد، نه دستکاریِ همین عدد.
+        |
+        | ⚠️ گردکردن به **پایین** (`floor`) به نفعِ مشتری است و از عددِ اعشاری
+        | روی فاکتور جلوگیری می‌کند.
+        */
+        $discountPct = (float) ($data['discount_pct'] ?? 0);
+        $listPrice   = (int) $data['price'];
+        $price       = $discountPct > 0
+            ? (int) floor($listPrice * (100 - $discountPct) / 100)
+            : $listPrice;
+
+        $note = $discountPct > 0
+            ? 'قیمتِ پایه '.fa_num(number_format($listPrice)).' تومان با '
+                .fa_num(rtrim(rtrim(number_format($discountPct, 2, '.', ''), '0'), '.')).'٪ تخفیف'
+            : null;
+
+        $service = DB::transaction(function () use ($customer, $data, $taxPct, $request, $price, $note) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $data['name'],
-                'description'   => $data['description'] ?? null,
+                'description'   => trim(($data['description'] ?? '')."\n".($note ?? '')) ?: null,
                 'currency_code' => 'IRT',
-                'price'         => (int) $data['price'],
+                'price'         => $price,
                 'tax_percent'   => $taxPct,
                 'cycle'         => $data['cycle'],
                 'status'        => 'pending',
@@ -63,7 +105,7 @@ class ServiceController extends Controller
                 'domain'        => $data['domain'] ?? null,
             ]);
 
-            $this->issueInvoice($service);
+            $this->issueInvoice($service, isset($data['issued_at']) && $data['issued_at'] ? \Illuminate\Support\Carbon::parse($data['issued_at']) : null);
 
             return $service;
         });
@@ -82,11 +124,36 @@ class ServiceController extends Controller
      * public و static-مانند تا فرمان تمدیدِ دوره‌ای هم بتواند از همین منطق
      * استفاده کند — یک جای واحد برای «فاکتور یک سرویس چه شکلی است».
      */
-    public function issueInvoice(Service $service): Invoice
+    /**
+     * @param  \Illuminate\Support\Carbon|null  $issuedAt  تاریخِ صدورِ دلخواه (فقط گذشته)
+     */
+    public function issueInvoice(Service $service, $issuedAt = null): Invoice
     {
         $subtotal = $service->price;
         $tax      = $service->taxAmount();
         $total    = $subtotal + $tax;
+
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 تاریخِ صدور عقب می‌رود، ولی سررسیدِ سرویس **نه**
+        |----------------------------------------------------------------------
+        |
+        | کارفرما خواست فاکتور تاریخِ سه روزِ پیش بخورد. عقب‌بردنِ تاریخِ صدور
+        | بی‌خطر است — یک سندِ حسابداری است. ولی اگر **سررسیدِ سرویس** هم با آن
+        | عقب برود، زنجیرهٔ کرون بی‌رحم است:
+        |
+        |     ۰۷:۰۰ services:renew-due   → فاکتورِ تمدید برای سرویسِ سررسیدگذشته
+        |     ۰۷:۳۰ services:lifecycle   → همان فاکتورِ پرداخت‌نشده → تعلیقِ واقعی
+        |
+        | یعنی مدیر یک فروشِ سه‌روزِ پیش را ثبت می‌کرد و نیم‌ساعت بعد سرویسِ
+        | مشتری خاموش می‌شد، با پیامکِ «سرویس شما غیرفعال شد». دقیقاً همان
+        | تله‌ای که یک بار در `/admin/cloud/attach` رخ داد و همان‌جا هم ثبت شد.
+        |
+        | پس `issued_at` عقب می‌رود و `next_due_at` دست‌نخورده از **امروز**
+        | شمرده می‌شود. اگر روزی «دورهٔ گذشته» واقعاً لازم شد، باید صریح و با
+        | محافظِ خودش ساخته شود، نه به‌عنوان عارضهٔ جانبیِ تاریخِ فاکتور.
+        */
+        $issued = $issuedAt !== null && $issuedAt->lt(now()) ? $issuedAt : now();
 
         $invoice = Invoice::create([
             'customer_id'   => $service->customer_id,
@@ -98,7 +165,7 @@ class ServiceController extends Controller
             'total'         => $total,
             'paid'          => 0,
             'status'        => 'unpaid',
-            'issued_at'     => now(),
+            'issued_at'     => $issued,
             'note'          => $service->name,
         ]);
 

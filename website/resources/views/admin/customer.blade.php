@@ -314,6 +314,17 @@
             <option value="{{ $cv }}" @selected($cv === 'monthly')>{{ \App\Models\Service::labelFor($cv) }}</option>
           @endforeach
         </select></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">تخفیف (٪)
+        <input type="number" name="discount_pct" value="0" min="0" max="100" step="0.5" dir="ltr" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit;text-align:left">
+        <small style="font-size:11px">روی مبلغ اعمال و در تمدیدها هم حفظ می‌شود</small></label>
+
+      {{-- ⚠️ فقط گذشته: فاکتورِ تاریخ‌دارِ آینده یعنی سندی که هنوز صادر نشده.
+           سررسیدِ سرویس با این تاریخ عقب **نمی‌رود** — وگرنه کرونِ چرخهٔ عمر
+           همان روز سرویس را «سررسیدگذشته» می‌دید و تعلیقش می‌کرد. --}}
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">تاریخ صدور فاکتور
+        <input type="date" name="issued_at" max="{{ now()->toDateString() }}" dir="ltr" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit;text-align:left">
+        <small style="font-size:11px">خالی = امروز · دورهٔ سرویس همیشه از امروز شروع می‌شود</small></label>
+
       {{-- تحویل خودکار (اختیاری) --}}
       <details style="grid-column:1/3;border:1px solid var(--line);border-radius:10px;padding:10px 13px">
         <summary style="cursor:pointer;font-size:13px;color:#22d3ee">تحویل خودکار روی سرور (اختیاری) — WHM/cPanel و…</summary>
