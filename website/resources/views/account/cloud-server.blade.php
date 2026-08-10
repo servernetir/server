@@ -204,6 +204,22 @@
         </div>
         <span>{!! __('ui.cs_pw_once') !!}</span>
       </div>
+    @elseif($canReveal ?? false)
+      {{--
+        🔴 دکمه، نه نمایشِ خودکار.
+
+        تا امروز رمز با **بارگذاریِ صفحه** نشان داده و همان‌جا سوزانده می‌شد.
+        یعنی یک رفرش، یک prefetchِ مرورگر، یا ورودِ مدیر به پنلِ مشتری برای
+        عیب‌یابی، پرچم را روشن می‌کرد و مشتری هیچ‌وقت چیزی نمی‌دید — سرور
+        داشت و راهی به داخلش نداشت.
+
+        قاعدهٔ «یک بار» سرِ جایش است؛ فقط لحظه‌اش را حالا کاربر انتخاب می‌کند.
+      --}}
+      <form method="post" action="{{ lroute('account.cloud.reveal', $service) }}" style="margin:14px 0 0">
+        @csrf
+        <button class="btn btn-glass" type="submit">{{ __('ui.cs_pw_reveal') }}</button>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.9">{!! __('ui.cs_pw_once') !!}</p>
+      </form>
     @elseif($inst->hasPassword())
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--dim);line-height:1.9">
         {{ __('ui.cs_pw_hidden') }}

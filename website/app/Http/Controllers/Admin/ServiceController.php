@@ -119,6 +119,45 @@ class ServiceController extends Controller
     }
 
     /**
+     * حذفِ کاملِ یک سرویسِ لغوشده‌ای که هرگز ساخته نشده.
+     *
+     * ⚠️ گیت از **مدل** می‌آید. تکرارِ شرط‌ها این‌جا یعنی دو تعریف که روزی
+     * واگرا می‌شوند — و یک طرفِ واگرایی، پاک‌کردنِ سابقهٔ مالی است.
+     */
+    public function destroy(Request $request, Service $service): RedirectResponse
+    {
+        $customerId = $service->customer_id;
+
+        if (! $service->isDeletable()) {
+            return back()->with('err',
+                'این سرویس قابلِ حذف نیست: یا هنوز زنده است، یا تحویل شده، یا پرداختی روی آن ثبت است.');
+        }
+
+        $name = $service->name;
+
+        DB::transaction(function () use ($service) {
+            /*
+            | فاکتورهای **پرداخت‌نشده** با سرویس می‌روند: بی‌سرویس، فاکتوری که
+            | به هیچ‌چیز اشاره نمی‌کند در فهرستِ مشتری می‌مانَد و او را گیج
+            | می‌کند. فاکتورِ پرداخت‌شده اصلاً به این‌جا نمی‌رسد — `isDeletable()`
+            | جلویش را گرفته.
+            */
+            Invoice::where('service_id', $service->id)->where('paid', '<=', 0)->delete();
+
+            $service->delete();
+        });
+
+        // ⚠️ ردیفِ سرویس رفته، پس لاگ به **مشتری** می‌چسبد نه به سرویس؛
+        //    وگرنه تنها سندِ این حذف به یک شناسهٔ ناموجود اشاره می‌کرد.
+        \App\Models\ActivityLog::record($customerId, 'service_delete',
+            'سرویسِ «'.$name.'» توسط مدیر ('.($request->user()?->name ?: 'مدیر').') حذف شد',
+            $request, 'staff');
+
+        return redirect("/admin/customers/{$customerId}")
+            ->with('ok', 'سرویس «'.$name.'» حذف شد.');
+    }
+
+    /**
      * صدور یک فاکتور برای یک دورهٔ سرویس (اولین صدور یا تمدید).
      *
      * public و static-مانند تا فرمان تمدیدِ دوره‌ای هم بتواند از همین منطق

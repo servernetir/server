@@ -221,6 +221,16 @@ $site = function (): void {
         Route::get('/cloud/{service}/metrics', [Account\CloudServerController::class, 'metrics'])
             ->name('cloud.metrics')->middleware('throttle:30,1');
         Route::post('/cloud/{service}/power', [Account\CloudServerController::class, 'power'])->name('cloud.power');
+
+        /*
+        | نمایشِ یک‌بارهٔ رمزِ root.
+        |
+        | ⚠️ POST است چون **حالت را عوض می‌کند** (`password_seen`). تا امروز
+        | همین کار داخلِ GETِ صفحه انجام می‌شد و هر رفرش یا prefetch رمز را
+        | پیش از دیده‌شدن می‌سوزاند — مشتری سرور داشت و راهی به داخلش نداشت.
+        */
+        Route::post('/cloud/{service}/reveal-password', [Account\CloudServerController::class, 'revealPassword'])
+            ->name('cloud.reveal')->middleware('throttle:6,1');
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
         Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
@@ -1840,6 +1850,15 @@ Route::prefix('admin')->group(function () {
         // فروش و مدیریت سرویس‌های مشتری
         Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);
         Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);
+
+        /*
+        | حذفِ کاملِ یک سرویسِ لغوشده‌ای که هرگز ساخته نشده.
+        |
+        | ⚠️ اجازه را **مدل** می‌دهد (`Service::isDeletable()`)، نه این روت و نه
+        | ویو. سه شرطش — مرده، تحویل‌نشده، بی‌پرداخت — در یک جا زندگی می‌کنند تا
+        | دکمه و کنترلر نتوانند با هم واگرا شوند.
+        */
+        Route::delete('/services/{service}', [\App\Http\Controllers\Admin\ServiceController::class, 'destroy']);
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
 
         // سرورهای تحویل (WHM/cPanel/…)

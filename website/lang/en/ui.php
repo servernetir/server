@@ -1785,6 +1785,7 @@ return [
     'cs_ssh_label' => 'Connect via SSH',
     'cs_pw_label' => 'root password — save it somewhere safe right now',
     'cs_pw_once' => 'This password <b>will not be shown again</b>. If you lose it, generate a new one below.',
+    'cs_pw_reveal'      => 'Show root password',
     'cs_pw_hidden' => 'The root password has already been shown once and, for security, is no longer displayed. If you do not have it, generate a new one from the Server control section.',
     'cs_ctrl_h' => 'Server control',
     'cs_last_check' => 'Last checked:',

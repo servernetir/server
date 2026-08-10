@@ -41,7 +41,7 @@ use Illuminate\Support\Facades\Log;
  *    `/vm/recipe`، `GET /services/orders/{id}` با `createdServiceIds`،
  *    `GET /services/{id}`،
  *    `POST /services/{id}/ctl` با `action`، `POST /services/{id}/reinstall` با
- *    `os,recipe,password`، `PUT /services/{id}/changePassword`،
+ *    `os,recipe,password`، `POST /services/{id}/changePassword` (از SDK رسمی)،
  *    `DELETE /services/{id}`، پاسخِ فهرستی با `items`/`total`.
  *
  *  • **از SDKهای تایپ‌شده** (نه از داکیومنت، که نمونهٔ کاملِ JSON ندارد): نامِ
@@ -2241,7 +2241,20 @@ class AezaClient implements CloudProvider
     {
         $password = self::randomPassword();
 
-        $r = $this->req('PUT', '/services/'.rawurlencode($ref).'/changePassword', ['password' => $password]);
+        /*
+        | 🔴 `POST` است نه `PUT` — از **SDK رسمیِ خودشان**.
+        |
+        | تا امروز `PUT` می‌فرستادیم و پاسخ `proxy_internal_server_error` بود؛
+        | همان پیامِ گیت‌ویِ مبهمی که «شکلِ درخواستت را نمی‌شناسم» را از «سرورِ
+        | من خراب است» جدا نمی‌کند و یک بار ماه‌ها سفارش‌ها را خواباند تا معلوم
+        | شد فقط شکلِ بدنه اشتباه بوده.
+        |
+        | این بار حدس نزدیم: `AezaGroup/aeza-net-sdk` (کدِ رسمیِ خودشان)
+        | صریح `POST services/{id}/changePassword` دارد. همان‌جا فهرستِ کاملِ
+        | مسیرها هست و **هیچ مسیرِ prolong/renew در آن نیست** — نکته‌ای که
+        | برای تمدیدِ ساعتی حیاتی است.
+        */
+        $r = $this->req('POST', '/services/'.rawurlencode($ref).'/changePassword', ['password' => $password]);
 
         return [
             'ok' => $r['ok'],

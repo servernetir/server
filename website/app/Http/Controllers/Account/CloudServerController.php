@@ -102,20 +102,38 @@ class CloudServerController extends Controller
         // رمز فقط **یک بار** نشان داده می‌شود. دلیل: صفحهٔ همیشه‌بازِ پنل روی یک
         // لپ‌تاپِ مشترک، رمزِ root را به هر رهگذری می‌دهد. بعد از اولین دیدن،
         // مشتری باید «رمزِ تازه بساز» بزند.
-        $password = null;
-
-        if ($instance && ! $instance->password_seen && $instance->hasPassword()) {
-            $password = $instance->password();
-            $instance->update(['password_seen' => true]);
-        }
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 رمز با **دیدنِ صفحه** سوخته نمی‌شود — فقط با کلیکِ صریح
+        |----------------------------------------------------------------------
+        |
+        | رخدادِ واقعی: مشتری سرور خرید و در پنل هیچ رمزی ندید، پس اصلاً
+        | نمی‌توانست وصل شود.
+        |
+        | علت: این‌جا یک **GET** پرچمِ `password_seen` را می‌زد. یعنی هر
+        | بارگذاریِ صفحه رمز را می‌سوزاند — یک رفرش، یک prefetchِ مرورگر، یا
+        | ورودِ مدیر به پنلِ مشتری برای عیب‌یابی. کاربر هیچ‌وقت چیزی ندید و
+        | پرچم روشن شد.
+        |
+        | ⚠️ قاعدهٔ عمومی: **GET نباید حالت را عوض کند.** مرورگرها GET را آزادانه
+        | تکرار و پیش‌بارگذاری می‌کنند؛ هر چیزی که یک‌بارمصرف است باید پشتِ یک
+        | کنشِ صریح باشد.
+        |
+        | خودِ قاعدهٔ «یک بار» درست است و می‌مانَد (صفحهٔ همیشه‌بازِ پنل روی
+        | لپ‌تاپِ مشترک)، ولی حالا لحظه‌اش را **کاربر** انتخاب می‌کند:
+        | `revealPassword()` با POST.
+        */
+        $password = session('revealed_root_password');
+        $canReveal = $instance && ! $instance->password_seen && $instance->hasPassword();
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
         return view('account.cloud-server', AccountController::shell('servers') + [
             'service'  => $service,
             'instance' => $instance,
-            'caps'     => $caps,
-            'password' => $password,
+            'caps'      => $caps,
+            'password'  => $password,
+            'canReveal' => $canReveal,
             'osList'   => $instance ? CloudImage::catalog('os', $instance->provider) : collect(),
             'appList'  => $instance ? CloudImage::catalog('app', $instance->provider) : collect(),
         ]);
@@ -239,6 +257,37 @@ class CloudServerController extends Controller
      * توجه: «خاموش» در درایور به `shutdown` نرم (ACPI) نگاشت می‌شود نه کشیدنِ
      * برق — روی سرورِ دیتابیس‌دار، قطعِ ناگهانی داده را خراب می‌کند.
      */
+    /**
+     * نمایشِ یک‌بارهٔ رمزِ root — با کنشِ صریحِ کاربر.
+     *
+     * ⚠️ POST و نه GET: مرورگر GET را آزادانه تکرار و پیش‌بارگذاری می‌کند، و
+     * تا امروز همان باعث می‌شد رمز پیش از دیده‌شدن بسوزد و مشتری هیچ راهی به
+     * سرورش نداشته باشد.
+     *
+     * ⚠️ رمز در **session flash** برمی‌گردد نه در URL: هرچه در آدرس باشد در
+     * لاگِ سرور، لاگِ کلادفلر و تاریخچهٔ مرورگر می‌نشیند — همان قاعده‌ای که
+     * برای `DEPLOY_TOKEN` هم داریم.
+     */
+    public function revealPassword(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        $instance = $service->cloudInstance;
+
+        if ($instance === null || ! $instance->hasPassword()) {
+            return back()->withErrors('رمزی برای این سرور ذخیره نشده است. «رمز تازه بسازید».');
+        }
+
+        if ($instance->password_seen) {
+            return back()->withErrors('این رمز قبلاً یک بار نمایش داده شده. برای دسترسیِ تازه «رمز تازه بسازید».');
+        }
+
+        $password = $instance->password();
+        $instance->update(['password_seen' => true]);
+
+        return back()->with('revealed_root_password', $password);
+    }
+
     public function power(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);

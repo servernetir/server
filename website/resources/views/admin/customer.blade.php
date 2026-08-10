@@ -166,15 +166,53 @@
 @endif
 
 {{-- ══ سرویس‌ها ══ --}}
+@php
+  /*
+  | 🔴 سرویسِ مرده همیشه **ته** فهرست و جمع‌شده.
+  |
+  | کارفرما: «اونایی که لغو شده‌اند همیشه بره پایینِ لیست و یجورایی حالت
+  | minimize هم باشه.»
+  |
+  | و دلیلش فقط سلیقه نیست: پروندهٔ یک مشتریِ قدیمی می‌تواند ده‌ها سرویسِ
+  | لغوشده داشته باشد و آن‌ها **کارِ روزمره نیستند**. وقتی با فعال‌ها قاطی
+  | باشند، پشتیبان باید هر بار میانشان بگردد تا سرویسِ زنده را پیدا کند —
+  | و همان لحظه است که اشتباه رخ می‌دهد (تغییرِ وضعیتِ سرویسِ اشتباه).
+  |
+  | ⚠️ حذف نمی‌شوند، فقط تاشده‌اند: سابقهٔ مالی باید در دسترس بمانَد.
+  | ⚠️ شمارش در خودِ `summary` است — تاکردنی که شمارش نداشته باشد یعنی
+  |    پنهان‌کردن، نه جمع‌کردن. (همان قاعدهٔ `.ad-fold` در `/admin/cloud`.)
+  */
+  $deadServices = $services->whereIn('status', \App\Models\Service::DEAD_STATUSES);
+  $liveServices = $services->whereNotIn('status', \App\Models\Service::DEAD_STATUSES);
+@endphp
+
 <div class="ad-panel">
-  <div class="ad-panel-h"><h3>سرویس‌ها و خدمات</h3></div>
-  @if($services->isEmpty())
+  <div class="ad-panel-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <h3>سرویس‌ها و خدمات</h3>
+    {{-- 🔴 فرمِ فروش پشتِ همین دکمه است، نه همیشه‌باز در انتهای صفحه.
+         فرمی که همیشه باز باشد، صفحه را بلند می‌کند و فهرستِ سرویس‌ها —
+         که کارِ اصلیِ این صفحه است — به زیرِ خطِ دید می‌رود. --}}
+    <button type="button" class="ad-btn" data-open-sell>+ فروش سرویس جدید</button>
+  </div>
+  @if($liveServices->isEmpty() && $deadServices->isEmpty())
     <p style="padding:16px;color:var(--dim)">سرویسی برای این مشتری ثبت نشده. از فرم زیر می‌توانید یک سرویس بفروشید.</p>
   @else
     <table class="ad-table">
-      <thead><tr><th>سرویس</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>سررسید</th><th></th></tr></thead>
+      {{--
+        🔴 «آدرس» ستونِ مستقلِ خودش است.
+
+        تا امروز دامنه و IP داخلِ **همان** خانهٔ نام تلنبار می‌شدند، کنارِ
+        توضیح و پکیج و کاربر و آخرین پرداخت و نشانِ تحویل و متنِ خطا. نتیجه:
+        خانهٔ اول گاهی یک خط بود و گاهی هشت خط، پس ارتفاعِ ردیف‌ها بهم می‌ریخت
+        و جدول دیگر جدول به‌نظر نمی‌رسید — همان چیزی که کارفرما گزارش کرد.
+
+        و مهم‌تر از ظاهر: «مشتری این سرور را با چه IPای دارد؟» پرتکرارترین
+        سؤالِ پشتیبانی است. چیزی که در هر ردیف لازم است، ستونِ خودش را
+        می‌خواهد نه یک چیپِ گم‌شده وسطِ متن.
+      --}}
+      <thead><tr><th>سرویس</th><th>آدرس</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>سررسید</th><th></th></tr></thead>
       <tbody>
-        @foreach($services as $s)
+        @foreach($liveServices as $s)
         @php $sb = $s->statusBadge(); @endphp
         <tr>
           <td><b>{{ $s->name }}</b>@if($s->description)<div style="font-size:12px;color:var(--dim);margin-top:2px">{{ \Illuminate\Support\Str::limit($s->description, 60) }}</div>@endif
@@ -187,10 +225,10 @@
               $meta  = is_array($s->provision_meta) ? $s->provision_meta : [];
               $svcIp = $meta['ip'] ?? $s->server?->server_ip;
             @endphp
+            {{-- دامنه و IP از این‌جا به ستونِ «آدرس» رفتند تا ارتفاعِ خانهٔ
+                 نام قابلِ پیش‌بینی بمانَد. --}}
             <div class="svc-meta">
               @if($s->plan)<i><b>پکیج:</b> <span dir="ltr">{{ $s->plan }}</span></i>@endif
-              @if($s->domain)<i><b>دامنه:</b> <a href="http://{{ $s->domain }}" target="_blank" rel="noopener" dir="ltr" style="color:#22d3ee">{{ $s->domain }}</a></i>@endif
-              @if($svcIp)<i><b>IP:</b> <span dir="ltr">{{ $svcIp }}</span></i>@endif
               @if($s->username)<i><b>کاربر:</b> <span dir="ltr">{{ $s->username }}</span></i>@endif
               @if($lastPaid)<i><b>آخرین پرداخت:</b> {{ sdate($lastPaid->paid_at) }}</i>@endif
             </div>
@@ -226,6 +264,26 @@
                 <div style="font-size:11px;color:{{ $s->provision_status === 'failed' ? '#ff6b6b' : '#fbbf24' }};margin-top:3px">{{ $s->provision_error }}</div>
               @endif
             @endif
+          </td>
+          {{--
+            ستونِ آدرس — «این مشتری با چه چیزی به این سرویس وصل می‌شود؟»
+
+            ⚠️ برای هاست، دامنه معنا دارد؛ برای سرور، IP. هر دو را نشان
+            می‌دهیم چون یک سرویس می‌تواند هر دو را داشته باشد و کدام‌یک
+            «اصلی» است به نوعِ سرویس بستگی دارد، نه به ترتیبِ ما.
+
+            ⚠️ `—` وقتی هیچ‌کدام نیست، عمداً و صریح: خانهٔ خالی در جدول یعنی
+            «یادم رفت»، ولی `—` یعنی «هست و چیزی ندارد» — و برای سرویسی که
+            هنوز تحویل نشده، دقیقاً همان درست است.
+          --}}
+          <td style="white-space:nowrap">
+            @if($s->domain)
+              <a href="http://{{ $s->domain }}" target="_blank" rel="noopener" dir="ltr" style="color:#22d3ee">{{ $s->domain }}</a>
+            @endif
+            @if($svcIp)
+              <div dir="ltr" style="font-size:12px;color:var(--muted);user-select:all">{{ $svcIp }}</div>
+            @endif
+            @unless($s->domain || $svcIp)<span style="color:var(--dim)">—</span>@endunless
           </td>
           <td>{{ $s->cycleLabel() }}</td>
           <td>{{ $money($s->total()) }}</td>
@@ -295,8 +353,60 @@
     </table>
   @endif
 
-  {{-- فروش سرویس جدید --}}
-  <div style="border-top:1px solid var(--line);padding:16px">
+  {{-- ══ لغوشده‌ها: ته فهرست و تاشده ══ --}}
+  @if($deadServices->isNotEmpty())
+    <details class="ad-fold" style="border-top:1px solid var(--line)">
+      <summary style="padding:12px 16px;cursor:pointer;color:var(--muted);font-size:13px">
+        سرویس‌های لغو/خاتمه‌یافته ({{ fa_num($deadServices->count()) }})
+      </summary>
+      <table class="ad-table">
+        <thead><tr><th>سرویس</th><th>آدرس</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody>
+          @foreach($deadServices as $s)
+            @php
+              $sb2 = $s->statusBadge();
+              $m2  = is_array($s->provision_meta) ? $s->provision_meta : [];
+              $ip2 = $m2['ip'] ?? $s->server?->server_ip;
+            @endphp
+            <tr style="opacity:.72">
+              <td>{{ $s->name }}</td>
+              <td style="white-space:nowrap">
+                @if($s->domain)<span dir="ltr">{{ $s->domain }}</span>@endif
+                @if($ip2)<div dir="ltr" style="font-size:12px;color:var(--muted)">{{ $ip2 }}</div>@endif
+                @unless($s->domain || $ip2)<span style="color:var(--dim)">—</span>@endunless
+              </td>
+              <td>{{ $money($s->total()) }}</td>
+              <td><span class="ad-badge" style="background:{{ $sb2[1] }}22;color:{{ $sb2[1] }}">{{ $sb2[0] }}</span></td>
+              <td class="ad-row-act" style="white-space:nowrap">
+                <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)">تاریخچه</a>
+                {{--
+                  🔴 حذف فقط برای سرویسی که **هرگز ساخته نشده و پولی رویش
+                  ننشسته**. `Service::isDeletable()` تصمیم می‌گیرد، نه این ویو —
+                  وگرنه یک شرطِ دستیِ دوم روزی با منطقِ واقعی واگرا می‌شود و
+                  دکمه‌ای می‌سازد که سابقهٔ مالی را پاک می‌کند.
+                --}}
+                @if($s->isDeletable())
+                  <form method="post" action="/admin/services/{{ $s->id }}" style="display:inline"
+                        onsubmit="event.preventDefault();var f=this;snConfirm('این سرویس برای همیشه حذف شود؟ (هیچ پرداختی رویش نیست)',{danger:true}).then(function(ok){if(ok){f.submit();}});">
+                    @csrf @method('DELETE')
+                    <button class="del" style="color:#ff6b6b" type="submit">حذف</button>
+                  </form>
+                @endif
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </details>
+  @endif
+
+  {{--
+    فروش سرویس جدید — پشتِ دکمهٔ بالای همین پنل.
+
+    ⚠️ `hidden` به‌تنهایی کافی نیست اگر عنصر `display:` صریح داشته باشد؛
+    این‌جا ندارد، پس `hidden` کار می‌کند. (تلهٔ ثبت‌شدهٔ پروژه — سه بار.)
+  --}}
+  <div id="sell-form-wrap" hidden style="border-top:1px solid var(--line);padding:16px">
     <h4 style="margin:0 0 12px;font-size:14px;color:var(--text)">فروش سرویس جدید به این مشتری</h4>
     <form method="post" action="/admin/customers/{{ $c->id }}/services" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       @csrf
@@ -580,6 +690,33 @@
 </style>
 
 <script>
+/* فرمِ فروشِ سرویس: پشتِ دکمهٔ بالای پنل، نه همیشه‌باز در انتهای صفحه.
+ *
+ * ⚠️ `hidden` روی `#sell-form-wrap` کار می‌کند چون آن عنصر `display:` صریح
+ * ندارد. اگر روزی کسی برایش `display:grid` گذاشت، باید قاعدهٔ
+ * `[hidden]{display:none}` هم اضافه شود — سه بار در این پروژه همین تله. */
+(function () {
+  var btn  = document.querySelector('[data-open-sell]');
+  var wrap = document.getElementById('sell-form-wrap');
+  if (!btn || !wrap) { return; }
+
+  btn.addEventListener('click', function () {
+    wrap.hidden = !wrap.hidden;
+    btn.textContent = wrap.hidden ? '+ فروش سرویس جدید' : '× بستن فرم';
+    if (!wrap.hidden) {
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      var first = wrap.querySelector('input[name="name"]');
+      if (first) { first.focus(); }
+    }
+  });
+
+  /* اگر اعتبارسنجی سرور خطا داد، فرم باید **باز** برگردد — وگرنه مدیر پیامِ
+   * خطا را می‌بیند و فرمی که خطا داده پنهان است. */
+  @if($errors->any())
+    btn.click();
+  @endif
+})();
+
 (function () {
   var tabs  = document.querySelectorAll('.ct-tab');
   var panes = document.querySelectorAll('.ct-pane');

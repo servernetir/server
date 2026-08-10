@@ -340,6 +340,52 @@ class Service extends Model
         return $this->price + $this->taxAmount();
     }
 
+    /**
+     * آیا این سرویس قابلِ حذفِ کامل است؟
+     *
+     * کارفرما: «سرویس و سرور و هاستِ لغوشده‌ای که کلاً ایجاد نشده‌اند قابلیتِ
+     * حذف داشته باشند، عینِ فاکتور.»
+     *
+     * سه شرط، و هر سه لازم‌اند:
+     *
+     * ۱) **مرده باشد** — سرویسِ زنده حذف نمی‌شود، خاتمه داده می‌شود. حذفِ
+     *    سرویسِ فعال یعنی ماشینی که کسی دیگر پیگیرش نیست و اجاره‌اش پای ماست.
+     *
+     * ۲) **هرگز تحویل نشده باشد** — اگر روزی ماشینی ساخته شده، ردیفش سندِ
+     *    وجودِ آن است. حذفش یعنی سرورِ یتیم بدونِ هیچ ردی؛ دقیقاً همان چیزی
+     *    که `CloudInventory` برای پیدا کردنش نوشته شد.
+     *
+     * ۳) **هیچ پرداختی رویش ننشسته باشد** — همان قاعدهٔ `Invoice::isDeletable()`.
+     *    سابقهٔ مالی و مالیاتی هرگز پاک نمی‌شود. فاکتورِ پرداخت‌نشده اشکالی
+     *    ندارد؛ فاکتورِ پرداخت‌شده یعنی این ردیف بخشی از دفتر است.
+     *
+     * ⚠️ عمداً محافظه‌کار: هر تردیدی ⇒ `false`. حذف بازگشت‌ناپذیر است و
+     * اشتباهش از یک ردیفِ اضافه در فهرست خیلی گران‌تر است.
+     */
+    public function isDeletable(): bool
+    {
+        if (! in_array($this->status, self::DEAD_STATUSES, true)) {
+            return false;
+        }
+
+        // تحویل شده یا در حالِ تحویل است ⇒ ردیفش سندِ وجودِ یک ماشین است
+        if (in_array((string) $this->provision_status, ['done', 'running', 'releasing'], true)) {
+            return false;
+        }
+
+        /*
+         * ⚠️ پرس‌وجوی مستقیم و نه یک رابطهٔ تازه: `cloud_instances` روی نصبِ
+         * مهاجرت‌نخورده ممکن است اصلاً وجود نداشته باشد، و یک رابطهٔ نبود،
+         * این صفحه را ۵۰۰ می‌کرد. `hasTable` جلویش را می‌گیرد.
+         */
+        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_instances')
+            && \App\Models\CloudInstance::where('service_id', $this->id)->exists()) {
+            return false;
+        }
+
+        return ! $this->invoices()->where('paid', '>', 0)->exists();
+    }
+
     public function isRecurring(): bool
     {
         return $this->cycle !== 'once';

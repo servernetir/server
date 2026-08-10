@@ -618,20 +618,44 @@ class CloudProvisionTest extends TestCase
         }
     }
 
-    /** رمز فقط یک بار — بارِ دوم پنهان است */
+    /**
+     * رمز فقط **یک بار** — ولی لحظه‌اش را کاربر انتخاب می‌کند.
+     *
+     * 🔴 نسخهٔ قبلیِ همین تست، خودِ باگ را قفل کرده بود: ادعا می‌کرد
+     * «بارگذاریِ اول رمز را نشان می‌دهد و بارگذاریِ دوم نه» — یعنی یک **GET**
+     * حالت را عوض می‌کرد.
+     *
+     * و همان در دنیای واقعی مشتری را از سرورش محروم کرد: یک رفرش، یک
+     * prefetchِ مرورگر، یا ورودِ مدیر به پنلِ مشتری برای عیب‌یابی، پرچمِ
+     * `password_seen` را روشن می‌کرد و مشتری هیچ‌وقت چیزی نمی‌دید.
+     *
+     * ⚠️ درسِ این تست: تستی که رفتارِ **موجود** را توصیف می‌کند، اگر آن رفتار
+     * غلط باشد، تبدیل به نگهبانِ باگ می‌شود. ادعای درست «یک بار» است — نه
+     * «بارگذاریِ اول».
+     */
     public function test_root_password_is_revealed_only_once(): void
     {
         $service = $this->delivered();
         $customer = $service->customer;
 
-        $first = $this->actingAs($customer, 'customer')
-            ->get(route('account.cloud.show', $service))->getContent();
-        $this->assertStringContainsString('GeneratedRootPw9', $first);
+        // دیدنِ صفحه — هرچند بار — نباید رمز را بسوزاند
+        foreach ([1, 2] as $_) {
+            $html = $this->actingAs($customer, 'customer')
+                ->get(route('account.cloud.show', $service))->getContent();
 
-        $second = $this->actingAs($customer, 'customer')
-            ->get(route('account.cloud.show', $service))->getContent();
-        $this->assertStringNotContainsString('GeneratedRootPw9', $second, 'بارِ دوم نباید رمز را نشان دهد');
-        $this->assertStringContainsString('دیگر نمایش داده نمی‌شود', $second);
+            $this->assertStringNotContainsString('GeneratedRootPw9', $html,
+                'بارگذاریِ صفحه رمز را نشان داد — یعنی همان‌جا هم سوزاندش');
+        }
+
+        // کنشِ صریح: یک بار می‌دهد
+        $this->actingAs($customer, 'customer')
+            ->post(route('account.cloud.reveal', $service))
+            ->assertSessionHas('revealed_root_password', 'GeneratedRootPw9');
+
+        // و بارِ دوم نه
+        $this->actingAs($customer, 'customer')
+            ->post(route('account.cloud.reveal', $service))
+            ->assertSessionHasErrors();
     }
 
     /** سرورِ دیگران با حدسِ شناسه دیده نشود — ۴۰۴ نه ۴۰۳ (وجودش هم لو نرود) */

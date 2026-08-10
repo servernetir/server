@@ -1785,6 +1785,7 @@ return [
     'cs_ssh_label' => 'SSH ile bağlan',
     'cs_pw_label' => 'root parolası — hemen güvenli bir yere kaydedin',
     'cs_pw_once' => 'Bu parola <b>bir daha gösterilmeyecek</b>. Kaybederseniz aşağıdan yeni bir parola oluşturun.',
+    'cs_pw_reveal'      => 'root parolasını göster',
     'cs_pw_hidden' => 'root parolası bir kez gösterildi ve güvenlik nedeniyle artık görüntülenmiyor. Elinizde yoksa Sunucu kontrolü bölümünden yeni bir parola oluşturun.',
     'cs_ctrl_h' => 'Sunucu kontrolü',
     'cs_last_check' => 'Son kontrol:',
