@@ -244,21 +244,40 @@
             @if($s->isRecurring() && $s->status === 'active')
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
             @endif
-            @if($s->server_id || $s->domain)
+            @php
+              /* 🔴 گیتِ قبلی `@if($s->server_id || $s->domain)` بود، و سرورِ ابری
+                 هیچ‌کدام را ندارد: `server_id` هرگز (سرور پیش از خرید وجود ندارد) و
+                 `domain` فقط **بعد از** تحویلِ موفق در `finalize()` پر می‌شود.
+                 نتیجه‌اش این بود که یک سفارشِ پارک‌شده یا شکست‌خوردهٔ ابری در کلِ
+                 پنل هیچ دکمه‌ای نداشت و مدیر باید روت را دستی POST می‌کرد — همان
+                 چیزی که «هیچ راهِ خروجی نیست» را ساخت. */
+              $isCloudSvc = \App\Services\Cloud\CloudProvisioner::handles($s);
+            @endphp
+            @if($s->server_id || $s->domain || $isCloudSvc)
               {{-- «در حال آزادسازی» یعنی سرویس بسته شده و فقط حذفِ نزدِ زیرساخت مانده؛
                    دکمهٔ «ساخت روی سرور» آن‌جا بی‌معنی است (کنترلر هم ردش می‌کند). --}}
               @if($s->provision_status !== 'done' && $s->provision_status !== \App\Models\Service::PROVISION_RELEASING)
                 {{-- نیاز به ساخت — اگر سروری نخورده، همین‌جا سرور/پلن را تعیین کن و بساز --}}
                 <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px">@csrf
-                  @unless($s->server_id)
-                    <select name="server_id" required style="background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">
-                      <option value="">سرور…</option>@foreach($servers as $srv)<option value="{{ $srv->id }}">{{ $srv->name }}</option>@endforeach
-                    </select>
-                    <input type="text" name="plan" value="{{ $s->plan }}" placeholder="plan (WHM)" style="width:100px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">
+                  @unless($isCloudSvc)
+                    @unless($s->server_id)
+                      <select name="server_id" required style="background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">
+                        <option value="">سرور…</option>@foreach($servers as $srv)<option value="{{ $srv->id }}">{{ $srv->name }}</option>@endforeach
+                      </select>
+                      <input type="text" name="plan" value="{{ $s->plan }}" placeholder="plan (WHM)" style="width:100px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">
+                    @endunless
+                    @unless($s->domain)<input type="text" name="domain" dir="ltr" placeholder="domain" style="width:130px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">@endunless
                   @endunless
-                  @unless($s->domain)<input type="text" name="domain" dir="ltr" placeholder="domain" style="width:130px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 7px;font:inherit;font-size:12px">@endunless
-                  <button class="del" style="color:#34d399" type="submit">{{ $s->provision_status === 'failed' ? 'تلاش دوباره' : 'ساخت روی سرور' }}</button>
+                  <button class="del" style="color:#34d399" type="submit">{{ in_array($s->provision_status, ['failed', 'manual'], true) ? 'تلاش دوباره' : 'ساخت روی سرور' }}</button>
                 </form>
+
+                @if($isCloudSvc && $s->provision_status === 'manual')
+                  {{-- 🔴 «تلاشِ دوباره» روی یک سفارشِ پارک‌شده دوباره از همان محافظ
+                       رد می‌شود و همان‌جا برمی‌گردد. تنها درِ خروج این دکمه است:
+                       تصمیمِ آگاهانه و تک‌سرویسیِ مدیر، ثبت‌شده در تاریخچه. --}}
+                  <form method="post" action="/admin/services/{{ $s->id }}/provision-override" style="display:inline"
+                        data-confirm="محافظِ سوءاستفاده برای همین یک سفارش کنار گذاشته شود و سرور ساخته شود؟ این کار ثبت می‌شود." data-confirm-danger>@csrf<button class="del" style="color:#fbbf24" type="submit">تأیید و ساخت (کنارگذاشتنِ محافظ)</button></form>
+                @endif
               @else
                 @if($s->status === 'suspended')
                   <form method="post" action="/admin/services/{{ $s->id }}/unsuspend" style="display:inline">@csrf<button class="del" style="color:#34d399" type="submit">رفع تعلیق</button></form>

@@ -5,7 +5,10 @@
 @section('content')
 
 @php
-  $imgs = !empty($model['gallery']) ? $model['gallery'] : [];
+  /* ⚠️ هر قابِ گالری از صافیِ `img_url()` رد می‌شود: یک ردیفِ خرابِ رشتهٔ
+     «null» در گالری، `src="null"` می‌ساخت که مرورگر نسبی حل می‌کرد و از
+     `/servers/<slug>` یک ۴۰۴ روی `/servers/null` درمی‌آمد. */
+  $imgs = array_values(array_filter(array_map('img_url', (array) ($model['gallery'] ?? []))));
   $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
   $bc = $brand['color'] ?? 'var(--cyan)';
   // اسکیمای Product برای سئو — schema_ld خودش @context/@type را می‌گذارد.
@@ -146,7 +149,7 @@
     <div class="srv-grid">
       @foreach($related as $rslug => $rm)
         @php $rb = ($brands = config('servers.brands'))[$rm['brand']] ?? ['label' => $rm['brand'], 'color' => 'var(--cyan)']; $rlm = lc($rm);
-             $rimg = $rm['gallery'][0] ?? '/assets/servers/placeholder.svg'; @endphp
+             $rimg = img_url($rm['gallery'][0] ?? null) ?? '/assets/servers/placeholder.svg'; @endphp
         <a class="srv-card" href="{{ lroute('servers.show', $rslug) }}">
           <div class="srv-thumb"><img src="{{ $rimg }}" alt="{{ $rlm['name'] }}" loading="lazy"></div>
           <div class="srv-body">

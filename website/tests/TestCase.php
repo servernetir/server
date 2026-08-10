@@ -2,10 +2,13 @@
 
 namespace Tests;
 
+use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    private static bool $trackerCleanupRegistered = false;
+
     /**
      * 🔴 گلوگاه‌های **فایلی** بین تست‌ها پاک می‌شوند.
      *
@@ -24,9 +27,14 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        foreach ((array) @glob(storage_path('app/'.\App\Support\ErrorTracker::THROTTLE_PREFIX.'*')) as $f) {
+        $dir = $this->isolatedTrackerDirectory();
+
+        foreach ((array) @glob($dir.'/app/'.ErrorTracker::THROTTLE_PREFIX.'*') as $f) {
             @unlink($f);
         }
+
+        // آهنگِ برش ممکن است تستِ قبلی عوضش کرده باشد — استاتیک است و می‌مانَد.
+        ErrorTracker::trimOneWriteIn(null);
 
         /*
         | 🔴 و **خودِ ردیاب** هم فایلی است، با همان بیماری از سمتِ دیگر.
@@ -39,6 +47,52 @@ abstract class TestCase extends BaseTestCase
         | می‌دید.) چند تست خودشان `ErrorTracker::clear()` می‌زدند؛ همان کار
         | این‌جا یک‌جا انجام می‌شود تا تستِ بعدی هم که یادش می‌رود، امن باشد.
         */
-        \App\Support\ErrorTracker::clear();
+        ErrorTracker::clear();
+    }
+
+    /**
+     * 🔴 هر پروسهٔ PHPUnit پوشهٔ ردیابِ **خودش** را دارد.
+     *
+     * مسیرهای ردیاب ثابت و سراسری‌اند (`storage/logs/tracker*.jsonl` و
+     * `storage/app/throttle-*`). پس دو اجرای هم‌زمان روی همین نصب — یک سوئیتِ
+     * کامل در یک پنجره و یک `--filter` در پنجرهٔ دیگر — **یک** فایل را
+     * می‌نویسند، و `setUp`ِ بالا فایلِ آن یکی را وسطِ کار خالی می‌کند.
+     *
+     * نتیجه دقیقاً همان چیزی است که یک بار ساعت‌ها وقت گرفت:
+     * `test_a_flood_of_404s_does_not_evict_real_errors` حدود یک بار از هر سه
+     * قرمز می‌شد، در حالی که هیچ چیزی در کد خراب نبود. مظنونِ طبیعی —
+     * `random_int` در `write()` — بی‌گناه بود: فایلِ خطاها **یک** خط دارد و
+     * `trim()` زیرِ ۴۰۰ خط اصلاً چیزی برنمی‌دارد.
+     *
+     * و بهایش از یک تستِ قرمز بیشتر است: در سوئیتی با ۱۷۰۰ تست، قرمزِ تصادفی
+     * یاد می‌دهد که قرمز را نادیده بگیرند.
+     */
+    private function isolatedTrackerDirectory(): string
+    {
+        $dir = storage_path('framework/testing/tracker/'.getmypid());
+
+        foreach (['logs', 'app'] as $sub) {
+            if (! is_dir($dir.'/'.$sub)) {
+                @mkdir($dir.'/'.$sub, 0777, true);
+            }
+        }
+
+        ErrorTracker::useDirectory($dir);
+
+        // پوشه را در پایانِ همین پروسه جمع کن، وگرنه با چرخشِ PID روی هم انبار می‌شود.
+        if (! self::$trackerCleanupRegistered) {
+            self::$trackerCleanupRegistered = true;
+
+            register_shutdown_function(static function () use ($dir) {
+                foreach ((array) @glob($dir.'/{logs,app}/*', GLOB_BRACE) as $f) {
+                    @unlink($f);
+                }
+                foreach (['logs', 'app', ''] as $sub) {
+                    @rmdir(rtrim($dir.'/'.$sub, '/'));
+                }
+            });
+        }
+
+        return $dir;
     }
 }

@@ -305,7 +305,9 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'), 'چهار مرحله باید بدنه داشته باشند');
+        // ⚠️ پنج، نه چهار: شهر از داخلِ کارتِ کشور بیرون آمد و مرحلهٔ خودش شد
+        // (خواستهٔ صریحِ کارفرما). نگهبانِ ساختارِ تازه CloudStoreCityStepTest است.
+        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'), 'پنج مرحله باید بدنه داشته باشند');
         $this->assertStringNotContainsString('cvb-step is-shut', $html, 'سرور نباید مرحله‌ای را بسته بفرستد');
 
         // مکان لینکِ واقعی است، نه دکمهٔ جاوااسکریپتی
@@ -321,18 +323,25 @@ class CloudStoreSlipTest extends TestCase
         $this->assertStringContainsString('<details class="cvb-adv"', $html);
     }
 
-    /** چیپِ شهر انتخاب‌های فعلی را با خودش می‌برد */
+    /**
+     * ردیفِ شهر انتخاب‌های فعلی را با خودش می‌برد.
+     *
+     * ⚠️ همسایه عمداً در **همان کشور** است. از وقتی شهر مرحلهٔ خودش شد، مرحلهٔ ۲
+     * فقط شهرهای کشورِ انتخاب‌شده را رندر می‌کند؛ رفتن به کشورِ دیگر کارِ ردیفِ
+     * مرحلهٔ ۱ است و آن عمداً `plan` را حمل نمی‌کند (اسلاگ مکان‌محور است، پس
+     * حملش فقط اخطارِ «پلن جابه‌جا شد» می‌ساخت).
+     */
     public function test_the_location_chip_carries_the_current_choices(): void
     {
         $this->base();
-        CloudLocation::create(['code' => 'fi-helsinki', 'country' => 'FI', 'city' => 'Helsinki', 'is_active' => true]);
-        $this->plan(['location_code' => 'fi-helsinki', 'provider_location' => 'hel1',
-            'slug' => 'cv-2c-4g-40d-fi-helsinki']);
+        CloudLocation::create(['code' => 'de-falkenstein', 'country' => 'DE', 'city' => 'Falkenstein', 'is_active' => true]);
+        $this->plan(['location_code' => 'de-falkenstein', 'provider_location' => 'fsn1',
+            'slug' => 'cv-2c-4g-40d-de-falkenstein']);
 
         $html = $this->page(null, '?location=de-frankfurt&plan=cv-4c-8g-80d-de-frankfurt&cycle=yearly');
 
         $this->assertMatchesRegularExpression(
-            '~href="[^"]*location=fi-helsinki&amp;plan=cv-4c-8g-80d-de-frankfurt&amp;cycle=yearly&amp;image=ubuntu-24\.04"~',
+            '~href="[^"]*location=de-falkenstein&amp;plan=cv-4c-8g-80d-de-frankfurt&amp;cycle=yearly&amp;image=ubuntu-24\.04"~',
             $html,
             'عوض‌کردنِ شهر نباید پلن و دوره و سیستم‌عامل را دور بریزد'
         );
@@ -403,9 +412,11 @@ class CloudStoreSlipTest extends TestCase
             $this->assertStringContainsString($sel, $css, "«{$sel}» باید در panel.css تعریف شده باشد");
         }
 
-        // برگه زیرِ هدرِ ثابت (۱۱۲px) نمی‌رود — همان چیزی که `.pnl-side` دارد
-        $this->assertStringContainsString('.cvb-slip{position:sticky;top:96px}', $css);
-        $this->assertStringContainsString('body.imp-on .cvb-slip{top:calc(96px + var(--imp-h))}', $css);
+        // برگه زیرِ هدرِ ثابت (۱۱۲px) نمی‌رود — و عدد از **متغیر** می‌آید نه از
+        // ۹۶ِ سخت‌کد. زیرِ ۴۰۰px خودِ site.css هدر را ۱۳۲ می‌کند، پس هر عددِ
+        // ثابتی روی یک عرض غلط است.
+        $this->assertStringContainsString('.cvb-slip{position:sticky;top:var(--cvb-top)}', $css);
+        $this->assertStringContainsString('body.imp-on .cvb-slip{top:calc(var(--cvb-top) + var(--imp-h))}', $css);
 
         // صفحهٔ تازه هیچ padding-top خودش نمی‌گذارد (قاعدهٔ هدرِ ثابت)
         $this->assertStringNotContainsString('.cvb-wrap{padding-top', $css);

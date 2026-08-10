@@ -157,7 +157,7 @@
     <div class="cl-locs">
       @foreach($locations as $loc)
         <div class="cl-loc" style="{{ $loc->is_active ? '' : 'opacity:.55' }}">
-          <span style="font-size:20px">{{ $loc->flagEmoji() }}</span>
+          <span style="font-size:20px">@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 24])</span>
           <div>
             <b>{{ $loc->label('fa') }}</b>
             <small dir="ltr" style="display:block;color:var(--dim)">{{ $loc->code }}</small>

@@ -169,22 +169,33 @@ class ServiceController extends Controller
             'plan'      => ['nullable', 'string', 'max:80'],
             'domain'    => ['nullable', 'string', 'max:190'],
         ]);
-        $assign = array_filter([
-            'server_id' => $data['server_id'] ?? null,
-            'plan'      => $data['plan'] ?? null,
-            'domain'    => $data['domain'] ?? null,
-        ], fn ($v) => filled($v));
-        if ($assign) {
-            $service->update($assign);
-            $service->refresh();
-        }
-
         // ⚠️ سرورِ ابری هرگز `server_id` ندارد (پیش از خرید وجود ندارد). بی‌این
         // استثنا، تحویلِ شکست‌خوردهٔ ابری **هیچ راهِ بازیابی** نداشت: کرون فقط
         // `pending` را برمی‌دارد و `failed` را نمی‌بیند، و دکمهٔ «تلاش دوباره»ی
         // ادمین هم با پیامِ «اول یک سرورِ تحویل انتخاب کنید» بیرون می‌زد. یعنی
         // مشتری پول داده، سرور ندارد، و تنها راه ویرایشِ دستیِ دیتابیس بود.
         $isCloud = \App\Services\Cloud\CloudProvisioner::handles($service);
+
+        /*
+        | 🔴 روی سرویسِ ابری هیچ‌کدام از این سه ستون **نوشته نمی‌شود**.
+        |
+        | حالا که فرمِ «تلاش دوباره» برای ردیفِ ابری هم رندر می‌شود، اگر این قید
+        | نبود یک POSTِ دست‌ساز (یا فرمی که فردا اشتباه ویرایش شود) می‌توانست
+        | `server_id`ِ یک سرورِ WHM و نامِ پکیجِ WHM را روی یک سرویسِ ابری مهر
+        | کند. آن‌وقت `ProvisioningService` دیگر آن ردیف را ابری نمی‌بیند و
+        | تحویل/تعلیق/حذفش سراغِ WHM می‌رود. قید سمتِ **سرور** است نه فقط ویو،
+        | چون ویو هیچ‌وقت محافظ نیست.
+        */
+        $assign = $isCloud ? [] : array_filter([
+            'server_id' => $data['server_id'] ?? null,
+            'plan'      => $data['plan'] ?? null,
+            'domain'    => $data['domain'] ?? null,
+        ], fn ($v) => filled($v));
+
+        if ($assign) {
+            $service->update($assign);
+            $service->refresh();
+        }
 
         if (! $isCloud && ! $service->server_id) {
             return back()->withErrors('اول یک سرورِ تحویل انتخاب کنید.');
@@ -208,6 +219,68 @@ class ServiceController extends Controller
         return $ok
             ? back()->with('ok', 'سرویس روی سرور ساخته و تحویل شد.')
             : back()->withErrors('تحویل انجام نشد: '.($service->fresh()->provision_error ?: 'روی این سرور تحویلِ خودکار نیست یا خطا رخ داد.'));
+    }
+
+    /**
+     * رهاسازیِ صریحِ یک سفارشِ نگه‌داشته‌شده — «می‌دانم، بساز».
+     *
+     * ═══ 🔴 چرا روتِ **جدا** و نه یک فیلدِ `force` روی `provision` ═══
+     *
+     * `/provision` مسیرِ «تلاشِ دوباره»ی هاستِ اشتراکی هم هست و یک فرمِ موجود
+     * آن را می‌فرستد. یک فیلدِ اضافه روی همان فرم یعنی کنارگذاشتنِ محافظِ
+     * سوءاستفاده می‌تواند از یک جریانِ کاملاً بی‌ربط اتفاق بیفتد — و در لاگ هم
+     * از یک «تلاش دوباره»ی معمولی قابلِ تشخیص نباشد. این‌جا هر بار زدنش یک
+     * عملِ آگاهانه و جداگانه‌ثبت‌شده است.
+     *
+     * چهار قفلِ مستقل بینِ مشتری و این متد: گروهِ `auth:web`+`admin` در
+     * `routes/web.php`، میان‌افزارِ `EnsureAdmin`، `abort_unless` زیر، و اینکه
+     * مشتری اصلاً روی گاردِ `web` نمی‌نشیند (گاردِ `customer` جداست).
+     */
+    public function provisionOverride(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! \App\Services\Cloud\CloudProvisioner::handles($service)) {
+            return back()->withErrors('رهاسازیِ محافظ فقط برای سرورِ ابری معنا دارد.');
+        }
+
+        if ($service->provision_status === 'done') {
+            return back()->withErrors('این سرویس قبلاً تحویل شده است.');
+        }
+
+        $flagged = (string) ($service->provision_error ?: '—');
+        $by = (string) ($request->user()?->name ?: 'مدیر');
+
+        // ردِ حسابرسی **پیش** از هر تلاشی نوشته می‌شود: اگر تحویل وسطِ کار
+        // بمیرد، باز هم می‌دانیم چه کسی و کِی اجازه داد.
+        \App\Models\ActivityLog::forService($service, 'provision',
+            'مدیر ('.$by.') رهاسازیِ دستیِ محافظِ سوءاستفاده را ثبت کرد. نشانهٔ ثبت‌شدهٔ محافظ: '.$flagged,
+            'staff', $request);
+
+        \App\Support\ErrorTracker::note('fraud-guard',
+            'درخواستِ رهاسازیِ دستی توسط مدیر ('.$by.') برای سرویس #'.$service->id.' — نشانه: '.$flagged,
+            ['service' => $service->id, 'by' => $by]);
+
+        \App\Services\Cloud\CloudProvisioner::requestOverride($service, $by);
+
+        // 🔴 رهاسازیِ علت به‌تنهایی کافی **نیست**: `provision:run` هرگز `manual`
+        //    را برنمی‌دارد، پس ردیف بی‌هیچ قاعده‌ای پارک می‌مانْد. صریح به صف
+        //    برمی‌گردد و همین حالا هم یک بار اجرا می‌شود.
+        $service->update(['provision_status' => 'pending']);
+
+        $ok = app(\App\Services\Provisioning\ProvisioningService::class)->provision($service->fresh());
+
+        if ($ok) {
+            return back()->with('ok', 'محافظ برای همین سفارش کنار گذاشته شد و سرور تحویل شد.');
+        }
+
+        $fresh = $service->fresh();
+
+        // علامتِ مصرف‌نشده را نگه می‌داریم تا کرونِ بعدی هم بتواند ادامه دهد،
+        // ولی اگر ردیف دوباره `manual` شده یعنی محافظ **دوباره** جلویش را
+        // گرفته و باید صریح گفته شود، نه اینکه مدیر فکر کند دکمه کار نکرد.
+        return back()->withErrors('محافظ کنار گذاشته شد ولی تحویل کامل نشد: '
+            .($fresh->provision_error ?: 'خطای نامشخص — /admin/errors را ببینید.'));
     }
 
     public function suspend(Request $request, Service $service): RedirectResponse

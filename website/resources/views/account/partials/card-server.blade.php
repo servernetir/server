@@ -18,6 +18,11 @@
      به‌علاوهٔ IP. شرطِ فقط-IP یک بار باعث شد فهرست بگوید «تحویل شد» و صفحهٔ
      مدیریتِ همان سرور بگوید «در حالِ ساخت» — دو حقیقت در یک پنل. */
   $ready = (bool) $ci?->isDelivered();
+
+  /* سفارشی که محافظِ سوءاستفاده نگهش داشته: نه شکست‌خورده، نه در حالِ ساخت.
+     هیچ تماسی با زیرساخت نرفته و تا تصمیمِ یک آدم هم نمی‌رود. */
+  $onHold = $s->provision_status === 'manual';
+
   $loc   = $ci?->location();
   $specs = (array) ($ci->specs ?? []);
 
@@ -57,12 +62,18 @@
   {{-- ⚠️ مکان همیشه از `CloudLocation` می‌آید. `provider`، `provider_ref` و
        `provider_location` عمداً `$hidden`اند و هرگز رندر نمی‌شوند. --}}
   <div class="svc-chips">
-    @if($loc)<span class="pnl-pill mute">{{ $loc->flagEmoji() }} {{ $loc->label() }}</span>@endif
+    @if($loc)<span class="pnl-pill mute">@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) {{ $loc->label() }}</span>@endif
     @if($s->isHourly())<span class="pnl-pill info">{{ __('ui.srv_hourly') }}</span>@endif
     @if($ci && $ready)<span class="pnl-pill {{ $ci->status === 'running' ? 'ok' : 'mute' }}">{{ $ci->statusLabel() }}</span>@endif
   </div>
 
-  @if($cloud && ! $ready)
+  @if($cloud && $onHold)
+    {{-- ── نگه‌داشته‌شده برای بازبینی ──
+         🔴 فهرستِ چهارمرحله‌ای این‌جا **دروغ** بود: مرحلهٔ جاری‌اش می‌گفت
+         «سفارشِ شما نزدِ زیرساخت ثبت شد» در حالی که محافظ پیش از هر تماسی
+         برگشته و هیچ سفارشی نزدِ هیچ زیرساختی ثبت نشده. --}}
+    <p class="cb-warn">{{ __('ui.cs_hold_p') }}</p>
+  @elseif($cloud && ! $ready)
     {{-- ── در حالِ ساخت ──
          چهار مرحلهٔ **گسسته**، بی‌هیچ درصدِ ساختگی: مشتری‌ای که روی «۷۰٪» گیر
          می‌کند نتیجه می‌گیرد سایت خراب است. --}}

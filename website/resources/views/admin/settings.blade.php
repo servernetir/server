@@ -245,6 +245,19 @@
           <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                  value="{{ $cloud['margin'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)"></label>
 
+        {{-- 🔴 سقفِ محافظِ سوءاستفاده — بندِ (ب).
+             عددی که از آن بالاتر، سفارشِ یک مشتری در ۲۴ ساعت به صفِ بازبینیِ
+             دستی می‌رود. برای **همه** یکسان است؛ معافیتِ حساب عمداً وجود ندارد
+             (چراییش در docblockِ CloudFraudGuard).
+             خالی گذاشتن یعنی «پیش‌فرضِ کد»، نه «بی‌سقف». --}}
+        <label class="set-f">سقفِ سفارشِ سرور در ۲۴ ساعت (هر مشتری)
+          <input type="number" name="cloud_guard_daily_max" dir="ltr" step="1" min="1" max="100"
+                 value="{{ $cloud['guard'] }}" placeholder="{{ fa_num(\App\Services\Cloud\CloudFraudGuard::DAILY_MAX) }} (پیش‌فرض)">
+          <small style="color:var(--muted);font-size:11.5px;line-height:1.8">
+            بیش از این تعداد در ۲۴ ساعت ⇒ سفارش تحویل نمی‌شود و به صفِ بازبینیِ دستی می‌رود
+            (هیچ پولی خرج نمی‌شود). آزادکردنِ یک سفارشِ نگه‌داشته‌شده از پروندهٔ همان مشتری انجام می‌شود.
+          </small></label>
+
         {{-- ── گوگل‌کلندر ──────────────────────────────────────────────────
              اعتبارنامهٔ **اپ** این‌جاست، نه حسابِ شخصیِ کسی: یک OAuth client
              برای کلِ نصب. اتصالِ حسابِ گوگلِ هر کاربرِ پنل جداگانه و از خودِ

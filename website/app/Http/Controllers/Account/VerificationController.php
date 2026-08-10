@@ -137,12 +137,10 @@ class VerificationController extends Controller
         $text = '🔔 کاربرِ '.($profile->type === 'company' ? 'حقوقی' : 'حقیقی')
             .' نیازمندِ تأیید: «'.$who.'» ('.$customer->code.'). در پنل مدیریت → احراز هویت بررسی کنید.';
 
-        // بله به شمارهٔ پشتیبانی
+        // بله به شمارهٔ پشتیبانی — از APIِ ربات، نه سفیر (پشتیبانی مشتری نیست)
         try {
             $phone = (string) config('servernet.contact.notify_phone', '');
-            if ($phone !== '') {
-                app(\App\Services\Bale\BaleNotifier::class)->notify($phone, $text);
-            }
+            app(\App\Services\Bale\BaleNotifier::class)->toAdmin($phone, $text);
         } catch (\Throwable) {
         }
 

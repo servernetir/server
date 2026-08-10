@@ -62,7 +62,12 @@ class CloudLocation extends Model
         'dubai' => 'دبی', 'singapore' => 'سنگاپور', 'tokyo' => 'توکیو',
         'ashburn' => 'اشبرن', 'los-angeles' => 'لس‌آنجلس',
         'new-york' => 'نیویورک', 'miami' => 'میامی', 'dallas' => 'دالاس',
-        'hillsboro' => 'هیلزبورو', 'tehran' => 'تهران',
+        'hillsboro' => 'هیلزبورو',
+        // 🔴 «tehran» یک بار دیگر هم پایین‌تر تعریف شده بود و PHP بی‌صدا دومی را
+        // برنده می‌کرد. مقدارش یکی بود، پس امروز چیزی خراب نمی‌کرد — ولی جدولی
+        // که کلِ نام‌گذاریِ فارسیِ شهرها به آن بند است نباید کلیدِ تکراری داشته باشد.
+        'zurich' => 'زوریخ', 'dusseldorf' => 'دوسلدورف', 'vienna' => 'وین',
+        'prague' => 'پراگ', 'madrid' => 'مادرید', 'milan' => 'میلان',
     ];
 
     /**
@@ -200,6 +205,56 @@ class CloudLocation extends Model
     {
         return $this->flag
             ?: (self::COUNTRIES[strtoupper((string) $this->country)]['flag'] ?? '🏳️');
+    }
+
+    /** پوشهٔ پرچم‌های خودمیزبان — نسبت به ریشهٔ public */
+    public const FLAG_DIR = 'assets/flags';
+
+    /**
+     * مسیرِ **ریشه‌نسبیِ** پرچمِ SVG این مکان، یا `null` اگر فایلش نباشد.
+     *
+     * 🔴 چرا اصلاً SVG و نه اموجی: پرچمِ اموجی روی ویندوز — یعنی روی ماشینِ
+     * بیش‌ترِ مشتری‌های ما — پرچم نمی‌شود؛ دو مربعِ حرف («D E») می‌شود. کلِ
+     * نکتهٔ این صفحه‌ها این است که انتخابِ دیتاسنتر **دیده** شود.
+     *
+     * ⚠️ سه تصمیم که هر کدام یک باگِ واقعیِ همین پروژه را می‌بندند:
+     *
+     * ۱) خروجی **ریشه‌نسبی** است (`/assets/flags/de.svg`)، نه `asset()`. صفحاتِ
+     *    سایت زیرِ پیشوندِ زبان زندگی می‌کنند (`/en/cloud/…`)؛ یک مسیرِ نسبی
+     *    آن‌جا به `/en/assets/…` می‌رفت و ۴۰۴ می‌گرفت. `APP_URL` هم نباید در
+     *    مسیر بنشیند چون سایت پشتِ Cloudflare و روی چند دامنه سرو می‌شود.
+     *
+     * ۲) اگر فایل نبود **null** برمی‌گردد، نه یک مسیرِ خوش‌بینانه. فراخوان
+     *    آن‌وقت به اموجی برمی‌گردد؛ هیچ‌جا آیکنِ «تصویرِ شکسته» رندر نمی‌شود.
+     *    یک سینکِ تازهٔ زیرساخت که کشورِ جدید بیاورد، همین‌طور بی‌صدا سالم
+     *    می‌ماند (و تستِ FlagAssetsTest همان روز قرمز می‌شود).
+     *
+     * ۳) وجودِ فایل از `public_asset_path()` پرسیده می‌شود نه `public_path()`.
+     *    روی پروداکشن `public_path()` به پوشه‌ای اشاره می‌کند که وجود ندارد،
+     *    پس یک `is_file(public_path(...))`ِ به‌ظاهر بی‌ضرر یعنی **همهٔ** پرچم‌ها
+     *    روی سایتِ زنده null می‌شدند و کسی محلی نمی‌فهمید.
+     */
+    public static function flagSvgFor(?string $country): ?string
+    {
+        static $memo = [];
+
+        $cc = strtolower(trim((string) $country));
+
+        if (strlen($cc) !== 2 || ! ctype_alpha($cc)) {
+            return null;                    // کشورِ خالی یا نامعتبر — بی‌تصویر
+        }
+
+        if (! array_key_exists($cc, $memo)) {
+            $rel = self::FLAG_DIR.'/'.$cc.'.svg';
+            $memo[$cc] = public_asset_path($rel) !== null ? '/'.$rel : null;
+        }
+
+        return $memo[$cc];
+    }
+
+    public function flagSvg(): ?string
+    {
+        return self::flagSvgFor($this->country);
     }
 
     public function countryLabel(?string $locale = null): string

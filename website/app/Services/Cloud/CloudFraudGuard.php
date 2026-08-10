@@ -25,13 +25,78 @@ use App\Models\Service;
 class CloudFraudGuard
 {
     /** حسابِ جوان‌تر از این (ساعت) «نوپا» است */
-    private const NEW_ACCOUNT_HOURS = 48;
+    public const NEW_ACCOUNT_HOURS = 48;
 
     /** سقفِ سرورِ فعالِ هم‌زمان برای حسابِ نوپا */
-    private const NEW_ACCOUNT_MAX = 2;
+    public const NEW_ACCOUNT_MAX = 2;
 
-    /** سقفِ سرورِ ساخته‌شده در ۲۴ ساعت، برای هر حساب */
-    private const DAILY_MAX = 5;
+    /** سقفِ سفارشِ سرور در ۲۴ ساعت، برای هر حساب */
+    public const DAILY_MAX = 5;
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 چرا سقف‌ها تنظیم‌شدنی‌اند و چرا **معافیتِ حساب** نداریم
+    |--------------------------------------------------------------------------
+    |
+    | کارفرما خودش فروشگاهش را تست می‌کرد و از سقف رد شد؛ پنج سفارشش پارک شد و
+    | تا امروز هیچ راهِ خروجی نداشت. دو راهِ ممکن بود:
+    |
+    |   الف) حسابِ کارفرما از شمارش **معاف** شود.
+    |   ب) خودِ عدد تنظیم‌شدنی شود.
+    |
+    | (الف) رد شد. معافیتِ حساب یک **دورزنیِ دائمی** روی گران‌ترین حسابِ سیستم
+    | می‌سازد: حسابی با سابقهٔ کاملِ مالی که اگر یک روز لو برود، به یک خطِ
+    | بی‌سقف و بی‌بازبینی به APIِ زیرساختِ پولی وصل است. دقیقاً همان شعاعِ
+    | انفجاری که این کلاس برای بستنش نوشته شد (تعلیقِ حسابِ مادر ⇒ رفتنِ سرورِ
+    | **همهٔ** مشتری‌ها). یک معافیت، بهترین هدفِ مهاجم را می‌سازد.
+    |
+    | (ب) انتخاب شد: فقط **عدد** عوض می‌شود، برای همه یکسان می‌مانَد، از یک
+    | فرمِ پشتِ `admin` ویرایش می‌شود و در یک جا دیده می‌شود. کنارِ آن،
+    | «رهاسازیِ دستیِ یک سفارش» (`CloudProvisioner::overrideRequested`) نیازِ
+    | واقعیِ کارفرما را — «می‌دانم، بساز» — بدونِ هیچ معافیتِ ماندگار پاسخ
+    | می‌دهد.
+    |
+    | ⚠️ `Setting::get` عمداً با پیش‌فرضِ کد جفت است: نبودِ ردیف یا مقدارِ
+    | بی‌معنی، سقف را **باز نمی‌کند** بلکه به همان عددِ سخت‌گیرانهٔ کد برمی‌گردد.
+    */
+
+    /** سقفِ روزانهٔ مؤثر — تنظیماتِ مدیر، وگرنه پیش‌فرضِ کد */
+    public static function dailyMax(): int
+    {
+        return self::setting('cloud_guard_daily_max', self::DAILY_MAX);
+    }
+
+    /** سقفِ سرورِ هم‌زمانِ حسابِ نوپا */
+    public static function newAccountMax(): int
+    {
+        return self::setting('cloud_guard_new_account_max', self::NEW_ACCOUNT_MAX);
+    }
+
+    /** پنجرهٔ «حسابِ نوپا» بر حسبِ ساعت */
+    public static function newAccountHours(): int
+    {
+        return self::setting('cloud_guard_new_account_hours', self::NEW_ACCOUNT_HOURS);
+    }
+
+    /**
+     * خواندنِ یک سقف از تنظیمات با پیش‌فرضِ کد.
+     *
+     * ⚠️ هر مقدارِ غیرعددی یا کوچک‌تر از ۱ **نادیده** گرفته می‌شود. یک رشتهٔ
+     * خالی در جدولِ تنظیمات نباید بی‌صدا سقف را صفر (یعنی «همه‌چیز را نگه دار»)
+     * یا بی‌نهایت (یعنی «هیچ‌چیز را نگه ندار») کند.
+     */
+    private static function setting(string $key, int $default): int
+    {
+        $raw = \App\Models\Setting::get($key);
+
+        if ($raw === null || ! is_numeric($raw)) {
+            return $default;
+        }
+
+        $v = (int) $raw;
+
+        return $v >= 1 ? $v : $default;
+    }
 
     /**
      * آیا این سفارش باید پیش از تحویل، دستی تأیید شود؟
@@ -45,20 +110,38 @@ class CloudFraudGuard
             ->whereNotNull('cloud_plan_id');
 
         $live = (clone $cloud)->whereNotIn('status', Service::DEAD_STATUSES)->count();
+
+        /*
+        | ⚠️ `$today` عمداً **هیچ** فیلترِ وضعیتی ندارد: «سفارشِ ثبت‌شده در ۲۴
+        | ساعت» می‌شمارد، نه «سرورِ تحویل‌شده».
+        |
+        | این تفاوت یک بار مرا فریب داد و ارزشِ نوشتن دارد: ردیف‌هایی که خودِ
+        | همین محافظ پارک کرده، در شمارش می‌آیند و سقف را بسته نگه می‌دارند.
+        | وسوسه‌انگیز است که پارک‌شده‌ها را کنار بگذاریم — ولی آن یک **حفره**
+        | است: مهاجم پنج سفارشِ الکی می‌دهد تا پارک شوند، شمارنده صفر می‌شود، و
+        | سفارشِ ششم بی‌بازبینی مستقیم می‌خرد. همین برای «لغوشده» هم صادق است.
+        |
+        | پس معنا عوض نمی‌شود؛ فقط دیگر ادعا نمی‌کنیم «سرورِ ساخته‌شده» را
+        | می‌شماریم. راهِ خروج، `provision-override`ِ مدیر است نه شل‌کردنِ شمارنده.
+        */
         $today = (clone $cloud)->where('created_at', '>=', now()->subDay())->count();
 
-        if ($today >= self::DAILY_MAX) {
-            return ['hold' => true, 'reason' => 'بیش از '.self::DAILY_MAX.' سرور در ۲۴ ساعت'];
+        $dailyMax = self::dailyMax();
+
+        if ($today >= $dailyMax) {
+            return ['hold' => true, 'reason' => 'بیش از '.$dailyMax.' سرور در ۲۴ ساعت'];
         }
 
         // حسابِ نوپا: هم سنِ حساب کم است هم هیچ پرداختِ تأییدشده‌ای ندارد.
         // اگر مشتری قبلاً پولِ سالم داده، دیگر نوپا نیست.
+        $newMax = self::newAccountMax();
+
         $isNew = $customer->created_at !== null
-            && $customer->created_at->gt(now()->subHours(self::NEW_ACCOUNT_HOURS))
+            && $customer->created_at->gt(now()->subHours(self::newAccountHours()))
             && ! $this->hasSettledPayment($customer);
 
-        if ($isNew && $live >= self::NEW_ACCOUNT_MAX) {
-            return ['hold' => true, 'reason' => 'حسابِ تازه با بیش از '.self::NEW_ACCOUNT_MAX.' سرور'];
+        if ($isNew && $live >= $newMax) {
+            return ['hold' => true, 'reason' => 'حسابِ تازه با بیش از '.$newMax.' سرور'];
         }
 
         return ['hold' => false, 'reason' => null];

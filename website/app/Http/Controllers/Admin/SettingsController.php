@@ -60,6 +60,8 @@ class SettingsController extends Controller
             'agent'          => $ready && filled(Setting::getSecret('agent_pull_token')),
             'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
             'margin'  => $ready ? Setting::get('cloud_margin_pct') : null,
+            // سقفِ روزانهٔ محافظِ سوءاستفاده — خالی یعنی «پیش‌فرضِ کد»
+            'guard'   => $ready ? Setting::get('cloud_guard_daily_max') : null,
             'ipv4'    => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
             // 🔴 «۱ یورو چند روبل» حذف شد: حسابِ زیرساختِ ۲ فقط یورو می‌تواند
             // باشد (پاسخِ کتبیِ پشتیبانی‌شان)، پس هیچ تبدیلِ ارزی در کار نیست.
@@ -164,6 +166,18 @@ class SettingsController extends Controller
             'agent_pull_token'      => ['nullable', 'string', 'max:200'],
             'agent_forget'          => ['nullable', 'boolean'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            /*
+            | سقفِ روزانهٔ محافظِ سوءاستفاده — بندِ (ب).
+            |
+            | 🔴 کفِ ۱ عمدی است: صفر یعنی «همه‌چیز را نگه دار» (فروش می‌خوابد) و
+            | خالی یعنی «به پیش‌فرضِ کد برگرد». هیچ‌کدام نباید بی‌صدا محافظ را
+            | خاموش کند. سقفِ ۱۰۰ هم عمدی است — عددِ بزرگ‌تر عملاً یعنی محافظ
+            | ندارید، و آن باید یک تصمیمِ کدی باشد نه یک تایپ در فرم.
+            |
+            | ⚠️ این عدد **برای همه** یکسان است. معافیتِ حساب عمداً وجود ندارد؛
+            | دلیلش در docblockِ CloudFraudGuard نوشته شده.
+            */
+            'cloud_guard_daily_max' => ['nullable', 'integer', 'min:1', 'max:100'],
             // درصد سود دامنه — صفر مجاز است (استراتژیِ جذبِ مشتری)
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
             'domain_nameservers'    => ['nullable', 'string', 'max:500'],
@@ -273,7 +287,7 @@ class SettingsController extends Controller
             Setting::put($k, filled($data[$k] ?? null) ? trim((string) $data[$k]) : null);
         }
 
-        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents',
+        foreach (['cloud_margin_pct', 'cloud_ipv4_eur_cents', 'cloud_guard_daily_max',
             'domain_margin_pct', 'domain_nameservers'] as $k) {
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }

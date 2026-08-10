@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class Invoice extends Model
 {
@@ -36,15 +37,69 @@ class Invoice extends Model
         });
     }
 
+    /** چند بار شمارهٔ تازه امتحان شود پیش از آنکه خطا واقعاً بالا برود */
+    private const NUMBER_TRIES = 6;
+
     /**
      * شمارهٔ فاکتور: INV-<تاریخ>-<۴ رقم تصادفی>.
      *
      * تصادفی و نه پیاپی — شمارهٔ پیاپی به مشتری می‌گوید امروز چند فاکتور
-     * صادر کرده‌ایم. برخورد با تلاش دوباره حل می‌شود، چون ستون unique است.
+     * صادر کرده‌ایم.
      */
     public static function nextNumber(): string
     {
         return 'INV-'.now()->format('ymd').'-'.str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * 🔴 برخوردِ شمارهٔ فاکتور = خطای ۵۰۰ وسطِ تسویهٔ مشتری.
+     *
+     * توضیحِ `nextNumber()` سال‌ها می‌گفت «برخورد با تلاش دوباره حل می‌شود، چون
+     * ستون unique است» — ولی هیچ تلاشِ دوباره‌ای در کد نبود. `unique` برخورد را
+     * **می‌گیرد**، حلش نمی‌کند: استثنا از `DB::transaction` بیرون می‌زند،
+     * تراکنش برمی‌گردد، و مشتری یک صفحهٔ خطا می‌بیند بی‌آنکه سرویس یا فاکتوری
+     * ساخته شده باشد.
+     *
+     * و فضای شماره کوچک است: چهار رقم یعنی **۱۰٬۰۰۰ شماره در روز**. طبقِ مسئلهٔ
+     * تولد، با ۱۰۰ فاکتور در روز احتمالِ حداقل یک برخورد ~۳۹٪ است و با ۲۰۰ تا
+     * ~۸۶٪. یعنی این باگ با رشدِ فروش **حتمی‌تر** می‌شود، نه کمیاب‌تر.
+     *
+     * ⚠️ چرا `save()` و نه یک متدِ تازه: ده‌ها جای پروژه `Invoice::create()`
+     * می‌زنند و `create()` هم به همین `save()` می‌رسد. متدِ تازه یعنی هر
+     * فراخوانِ فردا باید یادش باشد از آن استفاده کند — همان الگویی که در این
+     * پروژه بارها شکسته.
+     *
+     * ⚠️ فقط روی **درج** و فقط روی برخوردِ خودِ ستونِ `number`. اگر یکتاییِ
+     * دیگری بشکند باید بالا برود، وگرنه این حلقه یک باگِ واقعی را شش بار
+     * تکرار و بعد پنهان می‌کند.
+     */
+    public function save(array $options = []): bool
+    {
+        $isInsert = ! $this->exists;
+
+        for ($try = 1; ; $try++) {
+            try {
+                return parent::save($options);
+            } catch (UniqueConstraintViolationException $e) {
+                if (! $isInsert || $try >= self::NUMBER_TRIES || ! self::isNumberCollision($e)) {
+                    throw $e;
+                }
+
+                $this->number = self::nextNumber();
+            }
+        }
+    }
+
+    /**
+     * آیا این نقضِ یکتایی مالِ ستونِ `number` است؟
+     *
+     * متنِ خطا درایورمحور است ولی هر دو درایورِ ما نامِ ستون را در آن می‌آورند:
+     *   SQLite : UNIQUE constraint failed: invoices.number
+     *   MariaDB: Duplicate entry '…' for key 'invoices_number_unique'
+     */
+    private static function isNumberCollision(UniqueConstraintViolationException $e): bool
+    {
+        return str_contains(mb_strtolower($e->getMessage()), 'number');
     }
 
     public function customer(): BelongsTo

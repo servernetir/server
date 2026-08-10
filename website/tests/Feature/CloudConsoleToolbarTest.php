@@ -81,7 +81,9 @@ class CloudConsoleToolbarTest extends TestCase
     {
         $html = $this->html();
 
-        $this->assertStringContainsString('🇩🇪', $html);
+        // ⚠️ اموجی بود و شد تصویر: پرچمِ اموجی روی ویندوز «D E» رندر می‌شود و
+        // این نوار دقیقاً برای این هست که دو کنسولِ باز را از هم جدا کند.
+        $this->assertStringContainsString('src="/assets/flags/de.svg"', $html);
         $this->assertStringContainsString('فالکن‌اشتاین', $html);
     }
 

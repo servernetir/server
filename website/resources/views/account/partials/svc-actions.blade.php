@@ -16,10 +16,30 @@
 @php
   $unpaid = $s->invoices->firstWhere('status', 'unpaid');
 
-  $cancellable = in_array($s->status, ['awaiting_provision', 'provision_failed'], true)
-      || ($s->status === 'active' && $s->provision_status === 'failed');
+  /* 🔴 «هنوز تحویل نشده» سومین حالتِ لازم بود.
+     `finalize()` سرِ پذیرشِ سفارش `active` + `done` می‌نویسد، پس سرویسی که
+     ماشینش هنوز نیست در شرطِ قدیمی **حذف‌شدنی** بود و **لغوشدنی نبود** —
+     یعنی مشتریِ پول‌داده فقط یک دکمهٔ قرمزِ بی‌اثر می‌دید و هیچ راهی به
+     پولش نداشت. تعریف از مدل می‌آید تا با کنترلر یکی بمانَد. */
+  $pendingDelivery = $s->cloudUndelivered();
 
+  $cancellable = in_array($s->status, ['awaiting_provision', 'provision_failed'], true)
+      || ($s->status === 'active' && $s->provision_status === 'failed')
+      || ($pendingDelivery && in_array($s->status, ['active', 'suspended', 'expired'], true));
+
+  /* ⚠️ دو شرط ناسازگار می‌مانند: `$pendingDelivery` از یکی کم و به دیگری
+     اضافه می‌کند، پس هیچ سرویسی هم‌زمان هر دو را نمی‌گیرد. */
   $terminable = in_array($s->status, ['active', 'suspended', 'expired'], true)
+      && $s->provision_status !== 'failed'
+      && ! $pendingDelivery;
+
+  /* دکمهٔ حذفِ خاموش فقط در همان **پنجرهٔ خرابی** نشان داده می‌شود: جایی که
+     بدونِ این تغییر یک دکمهٔ فعالِ بی‌اثر رندر می‌شد. سفارشی که هنوز
+     `awaiting_provision` است هیچ‌وقت دکمهٔ حذف نداشته، پس افزودنِ یک دکمهٔ
+     خاموش به آن فقط نویز است — و بدتر، متنش («در حال تحویل») برای سفارشی که
+     به بازبینی رفته **نادرست** است. */
+  $deliveryLocked = $pendingDelivery
+      && in_array($s->status, ['active', 'suspended', 'expired'], true)
       && $s->provision_status !== 'failed';
 
   /*
@@ -49,6 +69,15 @@
       @csrf
       <button class="pnl-btn danger">{{ __('ui.svc_cancel') }}</button>
     </form>
+  @endif
+
+  @if($deliveryLocked)
+    {{-- 🔴 دکمهٔ حذف **با علتِ گفته‌شده** خاموش است، نه غایب.
+         افورد‌نسی که بی‌توضیح ناپدید شود، مشتری را به تیکت می‌فرستد؛ و
+         افورد‌نسی که بزنی و هیچ اتفاقی نیفتد از هر دو بدتر است. راهِ خروجِ
+         سفارشِ گیرکرده دقیقاً کنارش است: دکمهٔ «لغو سفارش» با بازگشتِ پول. --}}
+    <button class="pnl-btn danger" disabled aria-disabled="true">{{ __('ui.svc_terminate') }}</button>
+    <p class="svc-note warn">{{ __('ui.svc_terminate_locked') }}</p>
   @endif
 
   @if($terminable)

@@ -115,7 +115,26 @@
      ⚠️ همان الگوی پنلِ پرداختِ رمزارز (`cy-box` در account/invoice.blade.php):
      صفحه **خودش تصمیم نمی‌گیرد** آماده شده یا نه — فقط وضعیتی را که سرور
      می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
-@if(! $ready)
+@if(! $ready && $service->provision_status === 'manual')
+  {{-- ═══ 🔴 نگه‌داشته‌شده برای بازبینی ═══
+
+       چهار جملهٔ بلوکِ «در حالِ ساخت» برای این حالت **وعدهٔ دروغ** بودند:
+       «کمتر از دو دقیقه»، «وضعیت زنده به‌روز می‌شود»، «به‌محضِ آماده شدن ایمیل
+       می‌رود»، «می‌توانید صفحه را ببندید». محافظ پیش از هر تماسی برمی‌گردد، پس
+       هیچ‌کدام اتفاق نمی‌افتد و هیچ‌چیز هم زنده به‌روز نمی‌شود.
+
+       ⚠️ علتِ محافظ این‌جا **نوشته نمی‌شود** — عددِ سقف نباید به بیرون درز کند.
+       فقط مدیر آن را در اعلان و در تاریخچهٔ سرویس می‌بیند. --}}
+  <section class="pnl-sec">
+    <div class="pnl-sec-h">
+      <h2>{{ __('ui.cs_hold_h') }}</h2>
+    </div>
+    <div class="pnl-sec-b">
+      <p class="cb-lead">{{ __('ui.cs_hold_p') }}</p>
+      <p class="cb-foot">{{ __('ui.cs_hold_next') }}</p>
+    </div>
+  </section>
+@elseif(! $ready)
   <section class="pnl-sec">
     <div class="pnl-sec-h">
       <h2>{{ __('ui.cs_building_h') }}</h2>
@@ -161,7 +180,7 @@
         <div class="cs-kv"><small>IPv6</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv6 }}">{{ $inst->ipv6 }}</b></div>
       @endif
       <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
-      <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>{{ $loc?->flagEmoji() }} {{ $loc?->label() ?? '—' }}</b></div>
+      <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
 
     @if($inst->ipv4)

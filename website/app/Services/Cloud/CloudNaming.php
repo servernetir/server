@@ -256,6 +256,20 @@ class CloudNaming
     public static function cityFold(string $city): string
     {
         $c = mb_strtolower(trim($city), 'UTF-8');
+
+        /*
+        | 🔴 نام‌های مستعار **پیش از** تاکردنِ دیاکریتیک هم پرسیده می‌شوند.
+        | تا امروز فقط بعدش پرسیده می‌شد، پس هر کلیدی که خودش دیاکریتیک داشت
+        | («nürnberg») مرده بود: تا نوبتِ جدول برسد رشته «nurnberg» شده بود و
+        | هرگز match نمی‌کرد. یعنی «Nürnberg» و «Nuremberg» دو سطلِ نمایشی
+        | می‌شدند برای یک شهر.
+        */
+        $pre = trim((string) (preg_replace('/\s+/u', ' ', $c) ?: $c));
+
+        if (isset(self::CITY_ALIASES[$pre])) {
+            return self::CITY_ALIASES[$pre];
+        }
+
         $c = strtr($c, self::FOLD);
         $c = trim((string) (preg_replace('/\s+/u', ' ', $c) ?: $c));
 

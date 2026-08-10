@@ -266,106 +266,175 @@ class DomainSearch
         // بی‌اندازه را رد می‌کند.
         $extensions = array_slice($extensions, 0, self::MAX_TLDS);
 
-        $payload = array_map(
-            fn (string $e) => ['name' => $name, 'extension' => $e],
-            $extensions
-        );
-
-        $lookup = $this->op->enabled()
-            ? $this->op->check($payload)
-            : ['ok' => false, 'code' => self::DISABLED_CODE, 'message' => 'registrar disabled', 'results' => []];
-
         /*
-        | 🔴 «نتوانستیم استعلام کنیم» هرگز نباید «ثبت‌شده» خوانده شود.
+        |----------------------------------------------------------------------
+        | 🔴 دسته‌بندی — علتش از پروداکشن اثبات شد، نه از حدس
+        |----------------------------------------------------------------------
         |
-        | این دقیقاً همان چیزی است که کارفرما دید: یک استعلامِ شکست‌خورده،
-        | ۶۴ ردیفِ «ثبت‌شده» روی صفحه. سکوت هم نبود — دروغِ **مطمئن** بود، که
-        | بدتر است: مشتری نتیجه می‌گیرد اسمِ دلخواهش گرفته شده و می‌رود، و ما
-        | هیچ شکایتی هم نمی‌شنویم تا بفهمیم چیزی خراب است.
+        | رجیسترار برگرداند:
+        |     code 701 · «The domains limit exceeded. Please send less domains
+        |     in one request.» · domains=64
         |
-        | ⚠️ جهتِ خطا هم مهم است: به همان اندازه ممنوع است که «نمی‌دانم» را
-        | «آزاد» بخوانیم — آن‌وقت دامنهٔ گرفته‌شده را می‌فروشیم، پول می‌گیریم و
-        | ثبت شکست می‌خورد.
+        | و ۶۴ دقیقاً تعدادِ `SUGGEST_TLDS` است. یعنی هر جستجوی پنلِ مشتری
+        | (`Account\DomainController::index()` بی‌آرگومانِ دوم صدا می‌زند) کلِ
+        | فهرست را در **یک** درخواست می‌فرستاد و همیشه رد می‌شد. صفحهٔ عمومیِ
+        | `/domains` سالم بود چون خودش در جاوااسکریپت دسته‌دسته می‌فرستاد.
+        |
+        | پس دسته‌بندی به **همین‌جا** آمد نه به فراخوان‌ها: از چهار فراخوانِ
+        | `search()` تنها سه‌تایشان دسته می‌کردند، و همان یکی که نمی‌کرد خرابی
+        | را می‌ساخت.
+        |
+        | ⚠️ اندازه = `self::BATCH` (۱۰) و نه بزرگ‌تر. ۱۰ تنها اندازه‌ای است که
+        | شاهدِ زندهٔ **موفقیت** دارد (صفحهٔ عمومی و `TldPriceBook` سال‌هاست
+        | همین را می‌فرستند)، و سقفِ اعتبارسنجیِ روتِ عمومی هم ۱۲ است. تعدادِ
+        | درخواست هم بیشتر از چیزی که صفحهٔ عمومی از قبل می‌فرستاد نمی‌شود:
+        | ۶۴ پسوند ⇒ ۷ درخواست، دقیقاً همان‌قدر.
+        |
+        | ⚠️ و هیچ **تلاشِ دوباره**ای در کار نیست: `OpenProviderClient::raw()`
+        | عمداً فقط خرابیِ انتقال را دوباره می‌زند، چون تکرارِ یک «نه»ی آگاهانهٔ
+        | رجیسترار فقط اعتبارِ حساب را می‌سوزاند — و این حساب از قبل علامت خورده.
         */
-        if (! ($lookup['ok'] ?? false)) {
-            $code = (int) ($lookup['code'] ?? -1);
-
-            Log::warning('domain check failed', [
-                'code'    => $code,
-                'desc'    => (string) ($lookup['message'] ?? ''),
-                'domains' => count($payload),
-            ]);
-
-            $reason = $code === self::DISABLED_CODE ? 'registrar_disabled' : 'lookup_failed';
-
-            /*
-            | 🔴 `Log::warning` به `storage/logs/laravel.log` می‌رود و **هرگز**
-            | به `/admin/errors` نمی‌رسد — آن صفحه فقط `tracker.jsonl` را
-            | می‌خواند که تنها با `ErrorTracker::*` پر می‌شود.
-            |
-            | نتیجهٔ عملی‌اش این بود: کارفرما خرابی را با چشم دید، ردیابِ خطا
-            | صفر نشان داد، و ما «پس لابد استعلام موفق بوده» نتیجه گرفتیم.
-            | یعنی تنها سطحی که کسی نگاهش می‌کند، ساختاراً کور بود.
-            |
-            | ⚠️ `noteOnce` و نه `note`: این متد در هر جستجو صدا زده می‌شود و
-            | پنجرهٔ ردیاب ۴۰۰ خط است — یک قطعیِ یک‌ساعته با `note` کلِ پنجره را
-            | می‌شست و بقیهٔ خطاها را بیرون می‌انداخت (همان خرابیِ سیلِ ۴۰۴).
-            */
-            ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.$code.')', 900, [
-                'reason'  => $reason,
-                'code'    => $code,
-                'desc'    => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
-                'domains' => count($payload),
-            ]);
-
+        if (! $this->op->enabled()) {
             $this->lookupOk = false;
-            $this->lookupReason = $reason;
+            $this->lookupReason = 'registrar_disabled';
+
+            ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.self::DISABLED_CODE.')', 900, [
+                'reason'  => 'registrar_disabled',
+                'code'    => self::DISABLED_CODE,
+                'desc'    => 'registrar disabled',
+                'domains' => count($extensions),
+            ]);
 
             return array_map(
-                fn (string $e) => $this->withState($this->unknownRow($name.'.'.$e, $e, $reason)),
+                fn (string $e) => $this->withState($this->unknownRow($name.'.'.$e, $e, 'registrar_disabled')),
                 $extensions
             );
         }
 
         // نگاشت پاسخ رسیلری بر اساس دامنه، تا ترتیب درخواست حفظ شود
         $byDomain = [];
-        foreach ((array) ($lookup['results'] ?? []) as $r) {
-            if (! is_array($r)) {
+
+        /*
+        | پسوندهایی که دستهٔ خودشان شکست خورد.
+        |
+        | 🔴 مهم‌ترین قیدِ این تغییر: شکستِ یک دسته فقط ردیف‌های **همان دسته** را
+        | «استعلام نشد» می‌کند. شکلِ قبلی یک شکست را به کلِ نتیجه تعمیم می‌داد؛
+        | با دسته‌بندی، همان رفتار یعنی یک قطعیِ لحظه‌ای روی دستهٔ چهارم، ۶۴
+        | ردیفِ سالم را هم دور می‌ریخت.
+        */
+        $failed = [];
+
+        foreach (array_chunk($extensions, self::BATCH) as $chunk) {
+            $payload = array_map(
+                fn (string $e) => ['name' => $name, 'extension' => $e],
+                $chunk
+            );
+
+            $lookup = $this->op->check($payload);
+
+            /*
+            | 🔴 «نتوانستیم استعلام کنیم» هرگز نباید «ثبت‌شده» خوانده شود.
+            |
+            | این دقیقاً همان چیزی است که کارفرما دید: یک استعلامِ شکست‌خورده،
+            | ۶۴ ردیفِ «ثبت‌شده» روی صفحه. سکوت هم نبود — دروغِ **مطمئن** بود، که
+            | بدتر است: مشتری نتیجه می‌گیرد اسمِ دلخواهش گرفته شده و می‌رود، و ما
+            | هیچ شکایتی هم نمی‌شنویم تا بفهمیم چیزی خراب است.
+            |
+            | ⚠️ جهتِ خطا هم مهم است: به همان اندازه ممنوع است که «نمی‌دانم» را
+            | «آزاد» بخوانیم — آن‌وقت دامنهٔ گرفته‌شده را می‌فروشیم، پول می‌گیریم و
+            | ثبت شکست می‌خورد.
+            */
+            if (! ($lookup['ok'] ?? false)) {
+                $code = (int) ($lookup['code'] ?? -1);
+
+                Log::warning('domain check failed', [
+                    'code'    => $code,
+                    'desc'    => (string) ($lookup['message'] ?? ''),
+                    'domains' => count($payload),
+                ]);
+
+                $reason = 'lookup_failed';
+
+                /*
+                | 🔴 `Log::warning` به `storage/logs/laravel.log` می‌رود و **هرگز**
+                | به `/admin/errors` نمی‌رسد — آن صفحه فقط `tracker.jsonl` را
+                | می‌خواند که تنها با `ErrorTracker::*` پر می‌شود.
+                |
+                | نتیجهٔ عملی‌اش این بود: کارفرما خرابی را با چشم دید، ردیابِ خطا
+                | صفر نشان داد، و ما «پس لابد استعلام موفق بوده» نتیجه گرفتیم.
+                | یعنی تنها سطحی که کسی نگاهش می‌کند، ساختاراً کور بود.
+                |
+                | ⚠️ `noteOnce` و نه `note`: این متد در هر جستجو صدا زده می‌شود و
+                | پنجرهٔ ردیاب ۴۰۰ خط است — یک قطعیِ یک‌ساعته با `note` کلِ پنجره را
+                | می‌شست و بقیهٔ خطاها را بیرون می‌انداخت (همان خرابیِ سیلِ ۴۰۴).
+                */
+                ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.$code.')', 900, [
+                    'reason'  => $reason,
+                    'code'    => $code,
+                    'desc'    => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
+                    'domains' => count($payload),
+                ]);
+
+                $this->lookupOk = false;
+                $this->lookupReason ??= $reason;
+
+                // فقط ردیف‌های همین دسته «استعلام نشد» می‌شوند؛ دسته‌های دیگر
+                // حقیقتِ خودشان را نگه می‌دارند.
+                foreach ($chunk as $e) {
+                    $failed[$e] = $reason;
+                }
+
                 continue;
             }
 
-            $key = $this->rowKey($r);
-            if ($key !== '') {
-                $byDomain[$key] = $r;
+            $answered = 0;
+
+            foreach ((array) ($lookup['results'] ?? []) as $r) {
+                if (! is_array($r)) {
+                    continue;
+                }
+
+                $key = $this->rowKey($r);
+
+                if ($key !== '' && ! isset($byDomain[$key])) {
+                    $byDomain[$key] = $r;
+                    $answered++;
+                }
             }
-        }
 
-        /*
-        | پاسخِ **ناقص** هم یک خرابی است، نه یک جواب.
-        |
-        | پیش از این هیچ‌جا تعدادِ ردیفِ پاسخ با تعدادِ درخواست مقایسه نمی‌شد،
-        | پس رجیستراری که ۶۴ تا پرسیده‌ایم و ۶ تا جواب داده، ۵۸ ردیفِ
-        | «ثبت‌شده»ی ساختگی می‌ساخت و هیچ ردی از خودش نمی‌گذاشت.
-        */
-        if (count($byDomain) < count($extensions)) {
-            Log::warning('domain check answered fewer domains than asked', [
-                'asked'    => count($extensions),
-                'answered' => count($byDomain),
-            ]);
+            /*
+            | پاسخِ **ناقص** هم یک خرابی است، نه یک جواب.
+            |
+            | پیش از این هیچ‌جا تعدادِ ردیفِ پاسخ با تعدادِ درخواست مقایسه نمی‌شد،
+            | پس رجیستراری که ۶۴ تا پرسیده‌ایم و ۶ تا جواب داده، ۵۸ ردیفِ
+            | «ثبت‌شده»ی ساختگی می‌ساخت و هیچ ردی از خودش نمی‌گذاشت.
+            |
+            | ⚠️ مقایسه **در همین دسته** انجام می‌شود. اگر مثلِ قبل با کلِ فهرست
+            | سنجیده می‌شد، با دسته‌بندی روی هر جستجو درست بود و ردیاب را پر
+            | می‌کرد — همان سیلی که این پروژه یک بار خورد.
+            */
+            if ($answered < count($chunk)) {
+                Log::warning('domain check answered fewer domains than asked', [
+                    'asked'    => count($chunk),
+                    'answered' => $answered,
+                ]);
 
-            // پاسخِ ناقص هم خرابی است و باید در `/admin/errors` دیده شود؛ ولی
-            // چون هر جستجوی حاویِ پسوندی که رسیلری نمی‌شناسد این را می‌سازد،
-            // گلوگاهش بلندتر است تا صفحه را پر نکند.
-            ErrorTracker::noteOnce('domain', 'domain lookup answered fewer domains than asked', 3600, [
-                'asked'    => count($extensions),
-                'answered' => count($byDomain),
-            ]);
+                // پاسخِ ناقص هم خرابی است و باید در `/admin/errors` دیده شود؛ ولی
+                // چون هر جستجوی حاویِ پسوندی که رسیلری نمی‌شناسد این را می‌سازد،
+                // گلوگاهش بلندتر است تا صفحه را پر نکند.
+                ErrorTracker::noteOnce('domain', 'domain lookup answered fewer domains than asked', 3600, [
+                    'asked'    => count($chunk),
+                    'answered' => $answered,
+                ]);
+            }
         }
 
         $out = [];
         foreach ($extensions as $e) {
             $fqdn = $name.'.'.$e;
-            $out[] = $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null));
+            $out[] = isset($failed[$e])
+                ? $this->withState($this->unknownRow($fqdn, $e, $failed[$e]))
+                : $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null));
         }
 
         return $out;

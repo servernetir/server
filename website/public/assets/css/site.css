@@ -20,7 +20,19 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.65;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+/* 🔴 `overflow-x:clip` است، نه `hidden` — و این یک واژه، شش ریلِ چسبانِ سایت را
+   زنده می‌کند.
+   `overflow-x:hidden` روی <body> آن را به یک **ظرفِ اسکرول** تبدیل می‌کند در
+   حالی که اسکرولرِ واقعی <html> است. آن‌وقت هر `position:sticky` یک نیای
+   اسکرول‌شونده دارد که هرگز اسکرول نمی‌شود، پس هرگز نمی‌چسبد. اندازه‌گیریِ
+   A/B/A: با hidden، بالای برگهٔ قیمت در scrollY صفر/۲۰۰/۴۰۰ برابرِ
+   ۳۱۳٫۵/۱۱۳٫۵/-۸۶٫۵ بود (یعنی دقیقاً -scrollY، بی‌هیچ چسبندگی)؛ با clip
+   ۳۱۳٫۵/۹۶/۹۶.
+   `clip` همان سرریزِ افقی را می‌بندد ولی ظرفِ اسکرول نمی‌سازد.
+   ⚠️ این روی `.pnl-side`، `.cvb-slip`، `.blog-side`، `.docs-side`، `.docs-toc`
+   و `.wt-side-in` هم اثر دارد — هر شش‌تا از امروز واقعاً می‌چسبند. نگهبانش:
+   tests/Feature/CloudStoreCityStepTest::test_sticky_is_not_killed_by_the_body_scroll_container */
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.65;overflow-x:clip;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit}
 a,button,summary,[role="button"]{cursor:pointer}

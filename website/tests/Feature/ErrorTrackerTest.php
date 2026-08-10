@@ -83,6 +83,11 @@ class ErrorTrackerTest extends TestCase
      */
     public function test_a_flood_of_404s_does_not_evict_real_errors(): void
     {
+        // 🔴 برش را قطعی کن. در پروداکشن هر نوشتن با احتمالِ ۱ به ۲۵ برش می‌زند،
+        // و این تست دقیقاً روی **فشارِ برش** ادعا دارد. با آهنگِ تصادفی، ادعا
+        // گاهی سنجیده می‌شود و گاهی نه — یعنی سبزش هیچ‌چیز را ثابت نمی‌کند.
+        ErrorTracker::trimOneWriteIn(1);
+
         ErrorTracker::note('payment', 'خطای مهمِ اول');
 
         for ($i = 0; $i < 600; $i++) {
@@ -96,6 +101,12 @@ class ErrorTrackerTest extends TestCase
 
         $this->assertContains('خطای مهمِ اول', $messages,
             'سیلِ ۴۰۴ نباید خطای واقعی را بیرون بیندازد — دو فایلِ جدا لازم است');
+
+        // و ثابت کن فشار واقعاً ساخته شد: سیل باید ردیف‌های **خودش** را بیرون
+        // انداخته باشد. بی‌این، روزی که سقف یا تعدادِ سیل عوض شود، تستِ بالا
+        // بی‌صدا بی‌معنی می‌شود — سبز می‌مانَد چون هیچ‌چیز بریده نشده.
+        $this->assertLessThan(600, count(ErrorTracker::recent(600, 'notfound')),
+            'اگر خودِ ۴۰۴ها بریده نشده باشند، این تست هیچ فشاری نساخته است');
     }
 
     public function test_404s_land_in_their_own_bucket(): void

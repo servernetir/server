@@ -635,6 +635,96 @@ class CloudPublicPageTest extends TestCase
         $this->assertStringContainsString('/cloud/fi-helsinki', $loc);
     }
 
+    // ═══════════════════════ ۹) پرچمِ کشور — تصویر، نه اموجی ═══════════════════════
+
+    /**
+     * 🔴 چرا این ادعا روی **صفحهٔ رندرشده** است و نه روی مدل:
+     * `CloudLocation::flagSvg()` می‌تواند مسیرِ درست بدهد و ویو همچنان اموجی
+     * چاپ کند — دو تکهٔ جدا. و اموجی روی ویندوز، یعنی روی ماشینِ بیش‌ترِ
+     * مشتری‌های ما، «D E» رندر می‌شود. پس سنجش باید همان بایتی باشد که به
+     * مرورگر می‌رسد.
+     */
+    public function test_the_index_renders_flags_as_self_hosted_images(): void
+    {
+        $this->seedCatalog();
+
+        $main = $this->mainOf($this->get('/cloud')->assertOk()->getContent());
+
+        $this->assertStringContainsString('src="/assets/flags/de.svg"', $main);
+        $this->assertStringContainsString('src="/assets/flags/fi.svg"', $main);
+        $this->assertStringContainsString('src="/assets/flags/ae.svg"', $main);
+        $this->assertStringContainsString('src="/assets/flags/us.svg"', $main);
+
+        // مکانِ غیرفعال هیچ‌جا نیست — پرچمش هم نباید باشد
+        $this->assertStringNotContainsString('/assets/flags/ru.svg', $main);
+
+        // ابعاد رزرو شده تا چیدمان با رسیدنِ تصویر نپرد
+        $this->assertMatchesRegularExpression(
+            '~<img src="/assets/flags/de\.svg" width="\d+" height="\d+"~', $main,
+            'پرچم باید width/height داشته باشد وگرنه صفحه موقعِ بارگذاری می‌پرد');
+
+        // نامِ کشور کنارش نوشته شده، پس تصویر برای صفحه‌خوان تزئین است
+        $this->assertStringContainsString('alt="" aria-hidden="true"', $main);
+    }
+
+    /** مسیر ریشه‌نسبی است، پس زیرِ پیشوندِ زبان هم همان فایل را می‌گیرد */
+    public function test_the_flag_path_survives_the_locale_prefix(): void
+    {
+        $this->seedCatalog();
+
+        foreach (['/cloud', '/en/cloud', '/tr/cloud'] as $url) {
+            $main = $this->mainOf($this->get($url)->assertOk()->getContent());
+
+            $this->assertStringContainsString('src="/assets/flags/de.svg"', $main, "روی {$url}");
+            $this->assertStringNotContainsString('src="assets/flags/', $main,
+                "مسیرِ نسبی روی {$url} به /en/assets/… می‌رفت و ۴۰۴ می‌گرفت");
+            $this->assertStringNotContainsString('/en/assets/flags/', $main);
+            $this->assertStringNotContainsString('/tr/assets/flags/', $main);
+        }
+    }
+
+    /** صفحهٔ یک مکان: پرچمِ بزرگِ بالای صفحه eager است، نه lazy */
+    public function test_the_location_page_renders_the_hero_flag_eagerly(): void
+    {
+        $this->seedCatalog();
+
+        $main = $this->mainOf($this->get('/cloud/de-falkenstein')->assertOk()->getContent());
+
+        $this->assertMatchesRegularExpression(
+            '~<img src="/assets/flags/de\.svg" width="34" height="34"[^>]*loading="eager"~', $main);
+
+        // مکان‌های نزدیک هم پرچمِ تصویری دارند و آن‌ها lazyاند
+        $this->assertMatchesRegularExpression(
+            '~<img src="/assets/flags/fi\.svg"[^>]*loading="lazy"~', $main);
+    }
+
+    /**
+     * 🔴 کشوری که فایلِ پرچمش را نداریم: **هیچ** `<img>`ی نباید ساخته شود.
+     *
+     * یک `<img>` با مسیرِ نبود، آیکنِ «تصویرِ شکسته» می‌دهد — از نبودِ پرچم
+     * بدتر است، چون شبیهِ خرابیِ سایت به نظر می‌رسد و درست وسطِ صفحهٔ خرید.
+     */
+    public function test_a_country_with_no_flag_file_renders_no_broken_image(): void
+    {
+        $this->seedCatalog();
+
+        CloudLocation::create(['code' => 'zw-harare', 'country' => 'ZW', 'city' => 'Harare', 'is_active' => true, 'sort' => 9]);
+        $this->plan([
+            'provider' => 'aeza', 'provider_ref' => '99',
+            'location_code' => 'zw-harare', 'public_name' => 'CV-1-1',
+            'slug' => 'cv-1c-1g-20d-zw-harare', 'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20,
+            'cost_eur_cents' => 300, 'price_eur_cents' => 450, 'price_irt' => 480000,
+        ]);
+
+        $main = $this->mainOf($this->get('/cloud')->assertOk()->getContent());
+
+        $this->assertStringContainsString('ZW', $main, 'مکان باید همچنان فهرست شود');
+        $this->assertStringNotContainsString('/assets/flags/zw.svg', $main);
+        $this->assertStringNotContainsString('src=""', $main);
+        $this->assertDoesNotMatchRegularExpression('~<img[^>]*src="/assets/flags/(?!(?:[a-z]{2})\.svg)~', $main,
+            'هیچ مسیرِ پرچمِ ناقصی نباید به خروجی برسد');
+    }
+
     /** صفحهٔ فهرست در هر سه زبان باید canonical و alternate درست بدهد */
     public function test_locale_alternates_are_present(): void
     {

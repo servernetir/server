@@ -187,11 +187,34 @@ class ServiceController extends Controller
                 .'اعتبارِ استفاده‌نشده در کیفِ پولتان می‌مانَد (ساعتی که پیش‌تر پرداخت شده بازنمی‌گردد).');
     }
 
-    /** فقط سرویسی که واقعاً تحویل شده و هنوز باز است */
+    /**
+     * فقط سرویسی که واقعاً تحویل شده و هنوز باز است.
+     *
+     * ⚠️ `cloudUndelivered()` جفتِ دقیقِ همان شرط در
+     * `account/partials/svc-actions.blade.php` است. اگر یکی عوض شود و دیگری نه،
+     * یا دکمه‌ای رندر می‌شود که سرور ردش می‌کند، یا سرویسی حذف می‌شود که هنوز
+     * ماشینی ندارد و حذفش بی‌صدا هیچ‌کاری نمی‌کند.
+     */
     private function terminable(Service $service): bool
     {
         return in_array($service->status, ['active', 'suspended', 'expired'], true)
-            && $service->provision_status !== 'failed';
+            && $service->provision_status !== 'failed'
+            && ! $service->cloudUndelivered();
+    }
+
+    /**
+     * سفارشی که هنوز تحویل نشده و مشتری حق دارد لغوش کند.
+     *
+     * جفتِ `$cancellable` در همان ویو. شاخهٔ سوم تازه است: سرویسِ ابری‌ای که
+     * `active`+`done` نوشته شده ولی ماشینش نیامده. پیش از این نه لغو می‌شد نه
+     * (واقعاً) حذف — یعنی مشتریِ پول‌داده هیچ راهی نداشت.
+     */
+    private function cancellable(Service $service): bool
+    {
+        return in_array($service->status, ['awaiting_provision', 'provision_failed'], true)
+            || ($service->status === 'active' && $service->provision_status === 'failed')
+            || ($service->cloudUndelivered()
+                && in_array($service->status, ['active', 'suspended', 'expired'], true));
     }
 
     private function ownedOr404(Service $service)
@@ -223,10 +246,7 @@ class ServiceController extends Controller
         abort_if($customer === null || (int) $service->customer_id !== (int) $customer->id, 404);
 
         // فقط سفارشِ تحویل‌نشده. سرویسِ فعالِ تحویل‌شده مسیرِ خودش را دارد.
-        $cancellable = in_array($service->status, ['awaiting_provision', 'provision_failed'], true)
-            || ($service->status === 'active' && $service->provision_status === 'failed');
-
-        if (! $cancellable) {
+        if (! $this->cancellable($service)) {
             return back()->withErrors('این سرویس در وضعیتی نیست که بتوان از این‌جا لغوش کرد. با پشتیبانی تماس بگیرید.');
         }
 

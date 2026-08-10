@@ -7,7 +7,10 @@
     $url = url()->current();
     $shareTitle = rawurlencode($post['title']);
     $shareUrl = rawurlencode($url);
-    $img = $post['image'] ?? null;                       // تصویر شاخص واقعی (در صورت وجود)
+    /* ⚠️ `img_url()` مقدارِ خرابِ رشتهٔ «null» را هم نال می‌کند؛ وگرنه
+       `src="null"` نسبی حل می‌شود و از `/en/blog/<slug>` یک ۴۰۴ روی
+       `/en/blog/null` می‌سازد. */
+    $img = img_url($post['image'] ?? null);              // تصویر شاخص واقعی (در صورت وجود)
     $author = $post['author'] ?? __('ui.brand');
     $initial = mb_strtoupper(mb_substr(trim($author), 0, 1));
     $reading = $isFa ? fa_num($post['reading']) : $post['reading'];
@@ -186,9 +189,10 @@
       @foreach($related as $i => $p)
       @php $rc = $cats[$p['category']] ?? null; @endphp
       <article class="blog-card reveal" style="transition-delay:{{ $i * 50 }}ms">
-        <a class="blog-card-cover {{ !empty($p['image']) ? 'has-img' : '' }}" href="{{ lroute('blog', $p['slug']) }}" @empty($p['image']) style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}" @endempty>
-          @if(!empty($p['image']))
-            <img src="{{ $p['image'] }}" alt="{{ $p['title'] }}" loading="lazy" decoding="async">
+        @php $pImg = img_url($p['image'] ?? null); @endphp
+        <a class="blog-card-cover {{ $pImg ? 'has-img' : '' }}" href="{{ lroute('blog', $p['slug']) }}" @unless($pImg) style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}" @endunless>
+          @if($pImg)
+            <img src="{{ $pImg }}" alt="{{ $p['title'] }}" loading="lazy" decoding="async">
           @else
             <svg class="icon"><use href="#i-{{ $p['icon'] ?? 'book' }}"/></svg>
           @endif

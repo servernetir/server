@@ -86,7 +86,9 @@
               @php $loc = config('billing.locations.'.$cc, []); @endphp
               <label class="co-opt @if($cc === $defCountry) on @endif" data-loc="{{ $cc }}">
                 <input type="radio" name="country" value="{{ $cc }}" @checked($cc === $defCountry) @if(count($countries) === 1) readonly @endif>
-                <span class="co-flag">{{ $loc['flag'] ?? '🌐' }}</span>
+                {{-- مکانِ میزبانی از config می‌آید نه از cloud_locations، ولی کلیدِ
+                     آرایه همان کدِ دوحرفیِ کشور است — پس همان جدولِ پرچمِ خودمیزبان. --}}
+                <span class="co-flag">@include('partials.flag', ['flagSrc' => \App\Models\CloudLocation::flagSvgFor($cc), 'flagEmoji' => $loc['flag'] ?? '🌐', 'flagSize' => 24])</span>
                 <span class="co-tt">
                   <b>{{ $loc['label']['fa'] ?? $cc }}@if(!empty($loc['city']['fa'])) — {{ $loc['city']['fa'] }}@endif</b>
                   <small>{{ $loc['note']['fa'] ?? '' }}</small>

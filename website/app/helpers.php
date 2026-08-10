@@ -356,6 +356,52 @@ if (! function_exists('console_lroute')) {
     }
 }
 
+if (! function_exists('img_url')) {
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 نشانیِ تصویر — یا یک آدرسِ واقعی، یا `null`. هرگز رشتهٔ «null».
+    |--------------------------------------------------------------------------
+    |
+    | ۴۰۴هایی که در ردیابِ خطا دیده شد یک سازوکارِ **مشترک** داشتند:
+    |
+    |     /null            ← از  /blog?tag=…  و صفحهٔ ورودِ کنسول
+    |     /cloud/null      ← از  /cloud/<slug>
+    |     /servers/null    ← از  /servers/<slug>
+    |     /en/blog/null    ← از  /en/blog/<slug>
+    |
+    | همه با **حلِ نسبیِ** یک نشانیِ خامِ «null» توضیح داده می‌شوند: مرورگر
+    | `src="null"` را کنارِ پوشهٔ سندِ جاری حل می‌کند. یعنی یک مقدارِ خراب، در
+    | هر صفحه یک ۴۰۴ِ متفاوت می‌سازد — و همین باعث شد شبیهِ چند باگِ جدا به‌نظر
+    | برسد.
+    |
+    | چرا `!empty()` جلویش را نمی‌گرفت: مقدارِ خراب **نال نیست**، رشتهٔ
+    | چهارحرفیِ `"null"` است (از سریال‌سازیِ JS، ایمپورت، یا ستونی که یک بار
+    | با `(string) null`ِ جاوااسکریپتی پر شده). و `!empty("null")` **درست**
+    | است، پس از هر گیتِ موجود بی‌صدا رد می‌شود.
+    |
+    | ⚠️ عمداً نشانی را **اعتبارسنجی نمی‌کند** — کارش فقط تشخیصِ «مقدارِ غایب»
+    | است. اعتبارسنجیِ واقعیِ URL کارِ `SafeUrl` است و جای دیگری انجام می‌شود.
+    */
+    /** @param  mixed  $value */
+    function img_url($value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $v = trim($value);
+
+        if ($v === '') {
+            return null;
+        }
+
+        // متنِ «هیچ» به چند شکل از سریال‌سازی بیرون می‌آید؛ هیچ‌کدام آدرس نیست.
+        return in_array(strtolower($v), ['null', 'undefined', 'nan', 'none', 'nil', 'false'], true)
+            ? null
+            : $v;
+    }
+}
+
 if (! function_exists('whmcs_url')) {
     /** آدرس WHMCS متناسب با زبان جاری (fa → my.servernet.ir / en → my.servernet.cloud) */
     function whmcs_url(string $path = ''): string
@@ -538,6 +584,43 @@ if (! function_exists('cloud_eur_rate')) {
     }
 }
 
+if (! function_exists('public_asset_path')) {
+    /**
+     * مسیرِ **واقعیِ** یک فایلِ استاتیک روی دیسک — یا `null` اگر نبود.
+     *
+     * 🔴 چرا این‌جا و نه یک `is_file(public_path(...))`ِ ساده:
+     * روی پروداکشن اپ بیرونِ webroot است (`servernet_app/`) و `public_html/`
+     * نقشِ `public/` را دارد، پس `public_path()` به پوشه‌ای اشاره می‌کند که
+     * **اصلاً وجود ندارد** و `is_file()` همیشه false می‌دهد. یک بار همین باعث
+     * شد مهرِ نسخهٔ همهٔ CSS/JSها ثابت بماند و هر تغییرِ ظاهری روی سایتِ زنده
+     * نامرئی شود. `DOCUMENT_ROOT` جوابِ درست و قابل‌حمل را می‌دهد: محلی همان
+     * `public/` است و روی cPanel همان `public_html/`.
+     *
+     * ⚠️ این قاعده دقیقاً یک جا زندگی می‌کند. هر جای دیگری که بخواهد بپرسد
+     * «آیا این فایلِ استاتیک هست؟» باید از همین بپرسد، وگرنه روی پروداکشن
+     * بی‌صدا «نیست» می‌شنود — همان باگ با لباسِ تازه.
+     */
+    function public_asset_path(string $rel): ?string
+    {
+        $rel = ltrim($rel, '/');
+
+        $candidates = [public_path($rel)];
+
+        $docroot = rtrim(str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
+        if ($docroot !== '') {
+            $candidates[] = $docroot.'/'.$rel;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+}
+
 if (! function_exists('asset_ver')) {
     /**
      * آدرسِ فایلِ استاتیک با مهرِ نسخه — **امن در برابرِ فایلِ نبود**.
@@ -554,37 +637,14 @@ if (! function_exists('asset_ver')) {
         $rel = ltrim($rel, '/');
 
         /*
-         * 🔴 روی پروداکشن `public_path()` به پوشه‌ای اشاره می‌کند که **وجود
-         * ندارد**.
-         *
-         * اپ بیرونِ webroot است (`servernet_app/`) و `public_html/` نقشِ
-         * `public/` را دارد، پس `public_path()` می‌شود
-         * `servernet_app/public` — و آن پوشه روی سرور اصلاً ساخته نشده.
-         * نتیجه: `is_file()` همیشه false، و نسخه همیشه همان هشِ **ثابتِ**
-         * `md5($rel)` می‌شد.
-         *
-         * یعنی مهرِ نسخه هرگز عوض نمی‌شد و مرورگر و Cloudflare هر CSS/JS را
-         * **برای همیشه** کش می‌کردند: هر تغییرِ ظاهری روی سایت زنده بی‌اثر
-         * می‌مانْد و کسی نمی‌فهمید چرا. (اولین بار با تقویم دیده شد: فایل روی
-         * سرور تازه بود، ولی `?v=d1caebe3` نسخهٔ دیروز را برمی‌گرداند.)
-         *
-         * `DOCUMENT_ROOT` جوابِ درست را می‌دهد و **قابل‌حمل** است: محلی همان
-         * `public/` است و روی cPanel همان `public_html/`. هیچ مسیرِ سخت‌کدی.
+         * 🔴 چرا مسیر از `public_asset_path()` می‌آید و نه از `public_path()`:
+         * روی پروداکشن آن پوشه وجود ندارد و `is_file()` همیشه false می‌داد، پس
+         * نسخه همیشه همان هشِ **ثابتِ** `md5($rel)` می‌شد — یعنی مرورگر و
+         * Cloudflare هر CSS/JS را برای همیشه کش می‌کردند و هر تغییرِ ظاهری روی
+         * سایتِ زنده بی‌اثر می‌مانْد. توضیحِ کاملِ قاعده بالای همان تابع است.
          */
-        $candidates = [public_path($rel)];
-
-        $docroot = rtrim(str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
-        if ($docroot !== '') {
-            $candidates[] = $docroot.'/'.$rel;
-        }
-
-        $stamp = false;
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
-                $stamp = @filemtime($candidate);
-                break;
-            }
-        }
+        $abs = public_asset_path($rel);
+        $stamp = $abs !== null ? @filemtime($abs) : false;
 
         // فایلِ نبود هنوز صفحه را ۵۰۰ نمی‌کند — همان قاعدهٔ بالا، دست‌نخورده.
         return asset($rel).'?v='.($stamp !== false ? $stamp : substr(md5($rel), 0, 8));

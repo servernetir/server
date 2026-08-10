@@ -24,6 +24,51 @@ class ErrorTracker
     private const MAX_LINES = 400;
 
     /**
+     * از هر چند نوشتن، یک بار برش.
+     *
+     * برش کلِ فایل را به حافظه می‌آورد، پس هر بار زدنش گران است — و لازم هم
+     * نیست: سقف ۴۰۰ خط است و کمی رد شدن از آن بی‌ضرر.
+     */
+    private const TRIM_ONE_WRITE_IN = 25;
+
+    /** بازنویسیِ آهنگِ برش — فقط تست. `1` یعنی هر بار، `0` یعنی هرگز. */
+    private static ?int $trimOneWriteIn = null;
+
+    /** بازنویسیِ ریشهٔ فایل‌ها — فقط تست. */
+    private static ?string $dir = null;
+
+    /**
+     * 🔴 آهنگِ برش را قطعی کن — وگرنه تستِ «سیل نباید بیرون بیندازد» تصادفی است.
+     *
+     * فشارِ بیرون‌انداختن فقط وقتی ساخته می‌شود که برش واقعاً بزند، و در
+     * پروداکشن این تصمیم `random_int` است. تستی که رویش بنشیند **گاهی**
+     * می‌سنجد: اگر روزی دوباره هر دو نوع در یک فایل بیفتند، بیشترِ اوقات قرمز
+     * می‌شود و گاهی سبز. گاردِ گاه‌به‌گاه از نبودِ گارد بدتر است، چون قرمزِ
+     * تصادفی یاد می‌دهد که قرمز را نادیده بگیرند.
+     *
+     * `null` یعنی برگرد به پیش‌فرضِ پروداکشن.
+     */
+    public static function trimOneWriteIn(?int $n): void
+    {
+        self::$trimOneWriteIn = $n === null ? null : max(0, $n);
+    }
+
+    /**
+     * 🔴 ریشهٔ فایل‌های ردیاب را عوض کن — **فقط تست**، هر پروسه پوشهٔ خودش.
+     *
+     * مسیرها ثابت و سراسری‌اند، پس دو اجرای هم‌زمانِ PHPUnit روی همین نصب یک
+     * فایل را می‌نویسند و `TestCase::setUp`ِ هر کدام، فایلِ آن یکی را وسطِ کار
+     * خالی می‌کند. نتیجه‌اش تستی است که بی‌هیچ تغییری در کد، گاهی قرمز می‌شود —
+     * و چون علتش بیرونِ خودِ تست است، ساعت‌ها دنبالِ باگی می‌گردی که وجود ندارد.
+     *
+     * `null` یعنی برگرد به `storage/`.
+     */
+    public static function useDirectory(?string $dir): void
+    {
+        self::$dir = $dir === null ? null : rtrim($dir, '\\/');
+    }
+
+    /**
      * 🔴 ۴۰۴ها فایلِ **جدا** دارند.
      *
      * قبلاً هر دو در یک فایل با سقفِ ۴۰۰ خط بودند. ۴۰۴ در هر سایتی ده‌ها برابرِ
@@ -33,7 +78,13 @@ class ErrorTracker
      */
     private static function path(string $type = 'error'): string
     {
-        return storage_path($type === 'notfound' ? 'logs/tracker-404.jsonl' : 'logs/tracker.jsonl');
+        return self::storage($type === 'notfound' ? 'logs/tracker-404.jsonl' : 'logs/tracker.jsonl');
+    }
+
+    /** مثلِ `storage_path()`، ولی با احترام به `useDirectory()` */
+    private static function storage(string $rel): string
+    {
+        return self::$dir === null ? storage_path($rel) : self::$dir.'/'.$rel;
     }
 
     /**
@@ -121,7 +172,7 @@ class ErrorTracker
     public static function throttlePassed(string $key, int $seconds, string $signature = ''): bool
     {
         try {
-            $path = storage_path('app/'.self::THROTTLE_PREFIX
+            $path = self::storage('app/'.self::THROTTLE_PREFIX
                 .substr((string) preg_replace('/[^a-z0-9\-]/i', '', $key), 0, 60)
                 .'-'.substr(md5($key), 0, 8));
 
@@ -239,12 +290,20 @@ class ErrorTracker
             @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
 
             // برش گاه‌به‌گاه تا فایل کنترل‌شده بماند (نه هر بار، برای سرعت)
-            if (random_int(1, 25) === 1) {
+            if (self::shouldTrim()) {
                 self::trim($file);
             }
         } catch (Throwable) {
             // ردیاب خطا نباید خودش منبع خطا شود
         }
+    }
+
+    private static function shouldTrim(): bool
+    {
+        $n = self::$trimOneWriteIn ?? self::TRIM_ONE_WRITE_IN;
+
+        // `1` ⇒ `random_int(1, 1)` همیشه ۱ است ⇒ هر بار. `0` ⇒ هرگز.
+        return $n >= 1 && random_int(1, $n) === 1;
     }
 
     private static function trim(string $file): void

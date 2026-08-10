@@ -547,6 +547,7 @@ class CloudCatalogController extends Controller
                 'code' => $country,
                 'label' => $loc->countryLabel(),
                 'flag' => $loc->flagEmoji(),
+                'flag_svg' => $loc->flagSvg(),
                 // کارت به **صفحهٔ کشور** می‌رود، نه صفحهٔ شهر: مشتری «سرور
                 // آلمان» می‌خواهد و شهر را وقتی انتخاب می‌کند که پلن‌ها را
                 // کنار هم ببیند.
@@ -565,6 +566,7 @@ class CloudCatalogController extends Controller
                 'city' => $cityLabel,
                 'label' => $loc->label(),
                 'flag' => $loc->flagEmoji(),
+                'flag_svg' => $loc->flagSvg(),
                 'plans' => $plans->count(),
                 'min' => (int) $cheapest->price_irt,
                 'from' => $cheapest->priceLabel(),
@@ -653,6 +655,7 @@ class CloudCatalogController extends Controller
                 'country' => strtoupper((string) $loc->country),
                 'country_label' => $loc->countryLabel(),
                 'flag' => $loc->flagEmoji(),
+                'flag_svg' => $loc->flagSvg(),
                 'loc_url' => $this->locUrl((string) $p->location_code),
                 'buy_url' => $this->buyUrl((string) $p->location_code, (string) $p->slug),
             ];
@@ -772,6 +775,7 @@ class CloudCatalogController extends Controller
                 'code' => $code,
                 'label' => $other->label(),
                 'flag' => $other->flagEmoji(),
+                'flag_svg' => $other->flagSvg(),
                 'url' => $this->locUrl($code),
             ];
         }

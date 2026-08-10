@@ -45,7 +45,8 @@
     </nav>
 
     <div class="cvl-head">
-      <span class="cvl-flag" aria-hidden="true">{{ $loc->flagEmoji() }}</span>
+      {{-- بالای صفحه است، پس eager: با lazy روی نخستین نقاشی جای خالی می‌ماند. --}}
+      <span class="cvl-flag" aria-hidden="true">@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 34, 'flagEager' => true])</span>
       <h1>{{ strtr($t['cloud_loc_h1'], [':loc' => $locLabel]) }}</h1>
 
       <div class="cvl-meta">
@@ -163,7 +164,7 @@
       </div>
       <div class="cvl-near">
         @foreach($nearby as $n)
-          <a href="{{ $n['url'] }}"><span aria-hidden="true">{{ $n['flag'] }}</span> {{ $n['label'] }}</a>
+          <a href="{{ $n['url'] }}">@include('partials.flag', ['flagSrc' => $n['flag_svg'] ?? null, 'flagEmoji' => $n['flag'], 'flagSize' => 18]) {{ $n['label'] }}</a>
         @endforeach
         <a class="cvl-near-all" href="{{ $cloudUrl }}">{{ $t['cloud_loc_all'] }}</a>
       </div>

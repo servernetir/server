@@ -171,10 +171,22 @@ class CloudStoreTest extends TestCase
         // گام‌ها و عنوان
         $this->assertStringContainsString('ساخت سرور مجازی', $html);
 
-        // کشور و شهر، سه‌زبانه از CloudLocation
-        foreach (['آلمان', 'فرانکفورت', 'فینلاند', 'هلسینکی', '🇩🇪', '🇫🇮'] as $needle) {
+        // کشورها سه‌زبانه از CloudLocation — و شهرِ کشورِ انتخاب‌شده.
+        // ⚠️ «هلسینکی» عمداً این‌جا نیست: شهر از مرداد ۱۴۰۵ مرحلهٔ **خودش** است و
+        // فقط شهرهای کشورِ انتخاب‌شده رندر می‌شوند. یک صفحه که هم‌زمان شهرهای
+        // یازده کشور را چاپ کند، همان فهرستِ درهمی است که کارفرما رد کرد.
+        // ⚠️ پرچم‌ها از مرداد ۱۴۰۵ تصویرِ خودمیزبان‌اند نه اموجی — اموجی روی
+        // ویندوز دو مربعِ حرف می‌شد، یعنی همان‌جا که مشتری باید دیتاسنتر را
+        // **ببیند**. اگر روزی به اموجی برگشت، همین‌جا قرمز می‌شود.
+        foreach (['آلمان', 'فرانکفورت', 'فینلاند',
+            'src="/assets/flags/de.svg"', 'src="/assets/flags/fi.svg"'] as $needle) {
             $this->assertStringContainsString($needle, $html, "«{$needle}» باید در فهرستِ مکان‌ها باشد");
         }
+
+        // …و یک کلیک آن‌طرف‌تر، شهرهای فینلاند واقعاً هستند
+        $fi = $this->actingAs($this->customer(), 'customer')
+            ->get($this->u().'?location=fi-helsinki')->assertOk()->getContent();
+        $this->assertStringContainsString('هلسینکی', $fi, 'شهرِ کشورِ انتخاب‌شده باید رندر شود');
 
         // پلن‌های همین مکان با نامِ عمومی و مشخصات
         $this->assertStringContainsString('CV-2-4', $html);

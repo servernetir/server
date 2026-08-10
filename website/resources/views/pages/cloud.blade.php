@@ -129,7 +129,7 @@
             @foreach($cont['countries'] as $country)
               <a class="cvps-country" href="{{ $country['url'] }}">
                 <div class="cvps-country-h">
-                  <span class="cvps-flag" aria-hidden="true">{{ $country['flag'] }}</span>
+                  <span class="cvps-flag" aria-hidden="true">@include('partials.flag', ['flagSrc' => $country['flag_svg'] ?? null, 'flagEmoji' => $country['flag'], 'flagSize' => 18])</span>
                   <b>{{ $country['label'] }}</b>
                   <svg class="icon dir cvps-go" aria-hidden="true"><use href="#i-arrow"/></svg>
                 </div>
@@ -243,7 +243,7 @@
                   <td>{{ fa_num($r['disk']) }}</td>
                   <td>{{ fa_num($r['traffic']) }}</td>
                   <td class="cvps-td-l">
-                    <a href="{{ $r['loc_url'] }}"><span aria-hidden="true">{{ $r['flag'] }}</span> {{ $r['loc'] }}</a>
+                    <a href="{{ $r['loc_url'] }}">@include('partials.flag', ['flagSrc' => $r['flag_svg'] ?? null, 'flagEmoji' => $r['flag'], 'flagSize' => 18]) {{ $r['loc'] }}</a>
                   </td>
                   <td class="cvps-td-p"><b>{{ $r['price'] }}</b><span class="cvps-dim">{{ __('ui.mo') }}</span></td>
                   <td class="cvps-td-b">

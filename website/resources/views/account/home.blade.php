@@ -162,7 +162,7 @@
         <div class="sess-t">
           <span>{{ __('ui.ahome_your_ip') }}</span>
           <b dir="ltr">{{ $currentIp }}</b>
-          @if($cgeo)<span>{{ $cgeo['flag'] }} {{ $cgeo['country'] }}{{ $cgeo['region'] ? '، '.$cgeo['region'] : '' }}</span>@endif
+          @if($cgeo)<span>@include('partials.flag', ['flagSrc' => \App\Models\CloudLocation::flagSvgFor($cgeo['cc'] ?? null), 'flagEmoji' => $cgeo['flag'], 'flagSize' => 18]) {{ $cgeo['country'] }}{{ $cgeo['region'] ? '، '.$cgeo['region'] : '' }}</span>@endif
         </div>
       </div>
       <div class="sess-tile">

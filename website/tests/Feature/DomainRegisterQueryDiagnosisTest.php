@@ -69,11 +69,21 @@ class DomainRegisterQueryDiagnosisTest extends TestCase
     }
 
     /**
-     * مسیرِ پنل هیچ فهرستِ پسوندی نمی‌دهد، پس همهٔ `SUGGEST_TLDS` در **یک**
-     * درخواست می‌رود. این‌جا فقط ثبت می‌شود که آن عدد چقدر است — اگر روزی
-     * تصمیم گرفتیم دسته‌بندی کنیم، این تست باید آگاهانه عوض شود.
+     * ✅ **وارونه شد — آگاهانه.**
+     *
+     * نسخهٔ قبلی صرفاً *ثبت* می‌کرد که مسیرِ پنل همهٔ `SUGGEST_TLDS` را در یک
+     * درخواست می‌فرستد، و کامنتش می‌گفت «اگر روزی تصمیم گرفتیم دسته‌بندی کنیم،
+     * این تست باید آگاهانه عوض شود». آن روز رسید، و علتش از پروداکشن اثبات شد:
+     *
+     *     code 701 · «The domains limit exceeded…» · domains=64
+     *
+     * ۶۴ دقیقاً اندازهٔ همان فهرست است. یعنی این تست تمامِ مدت داشت **خودِ
+     * خرابی** را توصیف می‌کرد: هر جستجوی پنل رد می‌شد.
+     *
+     * حالا همان مسیر سنجیده می‌شود، ولی ادعا وارونه است — هیچ درخواستی نباید
+     * بزرگ‌تر از `BATCH` باشد، و پوششِ ردیف‌ها باید کامل بماند.
      */
-    public function test_the_panel_path_asks_for_every_suggested_tld_in_one_call(): void
+    public function test_the_panel_path_splits_the_suggested_tlds_into_registrar_sized_batches(): void
     {
         $this->fakeCheck(Http::response(['code' => 0, 'desc' => '', 'data' => ['results' => []]]));
 
@@ -81,17 +91,25 @@ class DomainRegisterQueryDiagnosisTest extends TestCase
 
         $suggest = (new \ReflectionClass(DomainSearch::class))->getConstant('SUGGEST_TLDS');
 
-        $sent = null;
-        Http::assertSent(function ($r) use (&$sent) {
+        $sizes = [];
+        Http::assertSent(function ($r) use (&$sizes) {
             if (str_contains($r->url(), '/domains/check')) {
-                $sent = count($r->data()['domains'] ?? []);
+                $sizes[] = count($r->data()['domains'] ?? []);
             }
 
             return true;
         });
 
+        $this->assertNotEmpty($sizes, 'هیچ استعلامی نرفت — تست چیزی نمی‌سنجد');
+
+        $this->assertSame([], array_values(array_filter($sizes, fn ($n) => $n > DomainSearch::BATCH)),
+            'دسته‌ای بزرگ‌تر از BATCH رفت — دقیقاً همان چیزی که code 701 می‌گیرد. اندازه‌ها: '
+            .implode(',', $sizes));
+
+        // پوشش دست‌نخورده: دسته‌بندی نباید هیچ پسوندی را بی‌صدا بیندازد
         $this->assertSame(count($suggest), count($out));
-        $this->assertSame(count($suggest), $sent);
+        $this->assertSame(count($suggest), array_sum($sizes),
+            'مجموعِ دامنه‌های پرسیده‌شده با فهرستِ پیشنهادی نمی‌خوانَد — یعنی چیزی جا افتاده یا دوباره پرسیده شده');
     }
 
     /**

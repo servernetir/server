@@ -479,15 +479,9 @@ class DomainStateVocabularyTest extends TestCase
      */
     public function test_a_failed_lookup_reaches_the_admin_error_tracker(): void
     {
-        foreach (['logs/tracker.jsonl'] as $f) {
-            @unlink(storage_path($f));
-        }
-        // گلوگاهِ فایلیِ noteOnce بینِ تست‌ها زنده می‌مانَد — TestCase پاکش می‌کند،
-        // ولی این تست خودش هم دو بار داد می‌زند، پس صریح باش.
-        foreach (glob(storage_path('app/throttle-*')) ?: [] as $t) {
-            @unlink($t);
-        }
-
+        // ردیاب و گلوگاهِ فایلیِ `noteOnce` را `Tests\TestCase::setUp()` پاک
+        // می‌کند — و از آن‌جا که مسیرشان حالا **پوشهٔ خصوصیِ همین پروسه** است،
+        // پاک‌کردنِ دستی با `storage_path()` این‌جا فقط یک no-opِ گمراه‌کننده بود.
         $this->assertCount(0, ErrorTracker::recent(50));
 
         $this->fakeCheck(Http::response(['code' => 196, 'desc' => 'Authentication/Authorization Failed'], 500));

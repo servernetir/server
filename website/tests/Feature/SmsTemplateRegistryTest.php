@@ -155,7 +155,21 @@ class SmsTemplateRegistryTest extends TestCase
             'announce',          // اطلاعیهٔ گروهی — پیامکِ انبوه عمداً نه
             'domain_transfer',   // انتقالِ دامنه هنوز پیاده نشده
             'password_changed',  // بی‌متغیر است؛ الگوی بی‌جای‌نگهدار معنا ندارد
+            /*
+            | نگه‌داشتنِ سفارش برای بازبینی — **تصمیمِ آگاهانه**: پیامک نه.
+            |
+            | رویدادِ نادری است (فقط وقتی محافظِ سوءاستفاده می‌گیرد) و ایمیل و
+            | بله هر دو می‌روند. ساختنِ الگوی اپراتور برایش یعنی هزینه و رفت‌وآمدِ
+            | تأییدِ متن برای پیامی که ماهی یکی هم نمی‌شود.
+            |
+            | ⚠️ بهایش این است که `SmsDispatcher::event()` سرِ هر نگه‌داشتن یک
+            | ردیف در ردیابِ خطا و `sms:last_error` می‌نویسد («الگو تعریف نشده»).
+            | اگر روزی در آی‌پی‌پنل الگویش ساخته شد، به `SignedRelaySender::TEMPLATES`
+            | و `relay/n8n/verify-and-map-template.js` اضافه‌اش کن و از این فهرست بردار.
+            */
+            'service_hold',
         ];
+        sort($expected);
 
         $actual = array_values(array_diff(array_keys(NotifyEvent::ALL), SignedRelaySender::TEMPLATES));
         sort($actual);

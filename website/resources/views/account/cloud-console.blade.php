@@ -110,7 +110,7 @@
       @endif
       @if($vncLoc)
         <span class="vnc-chip is-static">
-          <span aria-hidden="true">{{ $vncLoc->flagEmoji() }}</span>
+          @include('partials.flag', ['flagSrc' => $vncLoc->flagSvg(), 'flagEmoji' => $vncLoc->flagEmoji(), 'flagSize' => 18, 'flagEager' => true])
           <span>{{ $vncLoc->label() }}</span>
         </span>
       @endif

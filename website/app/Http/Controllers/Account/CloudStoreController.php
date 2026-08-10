@@ -302,6 +302,9 @@ class CloudStoreController extends Controller
                 'country' => (string) $country,
                 'label' => $items->first()->countryLabel(),
                 'flag' => $items->first()->flagEmoji(),
+                // پرچمِ تصویری برای ردیفِ کشور؛ اموجی می‌ماند چون خلاصه‌های
+                // متنیِ همین صفحه (تیرک و برگه) هنوز از آن می‌خوانند.
+                'flag_svg' => $items->first()->flagSvg(),
                 // کلیدِ مرکب: اول ترتیبِ دستیِ مدیر، بعد نامِ شهر — تا ترتیب
                 // هرگز به ترتیبِ تصادفیِ ردیف‌های دیتابیس نیفتد
                 'locations' => $items
@@ -339,7 +342,7 @@ class CloudStoreController extends Controller
      * @param  array<int,string>  $openCodes
      * @return array<int, array{key:string,label:string,primary:CloudLocation,members:array<int,CloudLocation>,open:bool,n:int}>
      */
-    public static function cityBuckets(array $locations, array $openCodes): array
+    public static function cityBuckets(array $locations, array $openCodes, array $anchors = []): array
     {
         $buckets = [];
 
@@ -371,15 +374,32 @@ class CloudStoreController extends Controller
 
             $primary ??= $b['members'][0];
 
-            $label = $primary->cityLabel();
+            // شهرِ **قابلِ اعتماد** یا هیچ. پایتخت این‌جا هرگز چاپ نمی‌شود.
+            $city = self::trustedCityName($primary);
 
-            if ($label === '') {
-                $label = $primary->countryLabel();
+            // لنگرِ قیمت/سقفِ مشخصات از اعضای همین سطل — همان min()ای که
+            // لنگرِ کشور و مجموعِ برگه از آن می‌آید، نه یک عددِ موازی.
+            $irt = 0;
+            $cores = 0;
+
+            foreach ($b['members'] as $m) {
+                $a = $anchors[(string) $m->code] ?? null;
+
+                if ($a === null) {
+                    continue;
+                }
+
+                $irt = $irt === 0 ? (int) $a['irt'] : min($irt, (int) $a['irt']);
+                $cores = max($cores, (int) $a['cores']);
             }
 
             $out[] = [
                 'key' => (string) $b['key'],
-                'label' => $label,
+                'label' => $city ?? '',        // پایین پر می‌شود
+                'city' => $city,
+                'generic' => $city === null,
+                'irt' => $irt,
+                'cores' => $cores,
                 'primary' => $primary,
                 'members' => $b['members'],
                 'open' => (bool) $b['open'],
@@ -387,7 +407,169 @@ class CloudStoreController extends Controller
             ];
         }
 
+        return self::disambiguate($out);
+    }
+
+    /**
+     * نامِ شهر فقط وقتی چاپ می‌شود که **واقعاً بدانیمش** — وگرنه `null`.
+     *
+     * 🔴 این جای‌گزینِ فروشگاهیِ `CloudLocation::cityLabel()` است و عمداً آن را
+     * دست نمی‌زند: `CloudCountry::served()`، صفحاتِ بازاریابیِ کشور و
+     * `CloudCityLabelTest` همان متد را صدا می‌زنند و «برلین»ی که مشتری روی
+     * فاکتورش دیده نباید بی‌خبر عوض شود.
+     *
+     * قاعده یکی است و برای هر سه زبان یکی است: اگر تاشدهٔ نامِ شهر در جدولِ
+     * **خودمان** (`CloudLocation::CITIES_FA`) نباشد، ما آن شهر را نمی‌شناسیم و
+     * چیزی نمی‌گوییم. این سه دروغِ اندازه‌گیری‌شده را با هم می‌بندد:
+     *   · پایتخت به‌جای شهر («برلین» برای ردیفی که ستونِ شهرش «AMD» است)،
+     *   · توکنِ خامِ کد به‌جای شهر («ist» وسطِ یک صفحهٔ راست‌به‌چپ)،
+     *   · و لاتینِ ترجمه‌نشده در فارسی («Zurich» کنارِ «فرانکفورت»).
+     */
+    private static function trustedCityName(CloudLocation $l): ?string
+    {
+        $raw = trim((string) $l->city);
+
+        if ($raw === '') {
+            return null;
+        }
+
+        $fold = \App\Services\Cloud\CloudNaming::cityFold($raw);
+
+        if (! isset(CloudLocation::CITIES_FA[$fold])) {
+            return null;
+        }
+
+        return app()->getLocale() === 'fa' ? CloudLocation::CITIES_FA[$fold] : $raw;
+    }
+
+    /**
+     * هیچ دو کنترلِ شهری در یک کشور نباید متنِ یکسان داشته باشد.
+     *
+     * 🔴 چرا این‌جا و نه در کلیدِ سطل: کلید از قبل درست بود — تکرار روی محورِ
+     * **برچسب** ساخته می‌شد. رندرِ واقعیِ صفحه (نه بازگشتیِ یک تابع) نشان داد
+     * آلمان سه «برلین»، هلند سه «آمستردام»، فرانسه دو «پاریس» و ایران دو
+     * «تهران» چاپ می‌کند؛ همه با کلیدهای یکتا.
+     *
+     * ⚠️ هیچ سطلی ادغام نمی‌شود. هر سطل لینکِ خودش را نگه می‌دارد، پس
+     * «دسترس‌پذیری» ساختاری است نه وابسته به درستیِ یک هش. نردبانِ تفکیک:
+     *   ۱) شهرِ شناخته‌شده → نامِ خودش.
+     *   ۲) شهرِ ناشناخته → نامِ جا نمی‌گیرد؛ فقط تفاوت‌های واقعی: «از X تومان ·
+     *      تا N هسته». عنوانِ صادقانه‌شان یک بار بالای گروه می‌آید.
+     *   ۳) اگر باز هم متن‌ها یکی شد، شمارهٔ ترتیبیِ پایدار.
+     *
+     * @param  array<int,array<string,mixed>>  $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private static function disambiguate(array $rows): array
+    {
+        // شهرهای شناخته‌شده اول، «سایر مکان‌ها» آخر — تا عنوانِ گروه یک بار و
+        // در یک جا بنشیند و فهرست تکراری به نظر نرسد.
+        usort($rows, fn ($a, $b) => ((int) $a['generic']) <=> ((int) $b['generic']));
+
+        foreach ($rows as $i => $r) {
+            if ($r['city'] !== null) {
+                $rows[$i]['label'] = (string) $r['city'];
+
+                continue;
+            }
+
+            $bits = [];
+
+            if ((int) $r['irt'] > 0) {
+                $bits[] = __('ui.cvb_from', ['amount' => cloud_price((int) $r['irt'])]);
+            }
+
+            if ((int) $r['cores'] > 0) {
+                $bits[] = __('ui.cvb_upto_cores', ['n' => fa_num((int) $r['cores'])]);
+            }
+
+            $rows[$i]['label'] = $bits === []
+                ? __('ui.cvb_city_other_n', ['n' => fa_num($i + 1)])
+                : implode(' · ', $bits);
+        }
+
+        // پلهٔ آخر: هر متنی که هنوز تکراری است، شمارهٔ ترتیبیِ پایدار می‌گیرد.
+        $seen = [];
+
+        foreach ($rows as $r) {
+            $seen[$r['label']] = ($seen[$r['label']] ?? 0) + 1;
+        }
+
+        $nth = [];
+
+        foreach ($rows as $i => $r) {
+            if (($seen[$r['label']] ?? 0) < 2) {
+                continue;
+            }
+
+            $nth[$r['label']] = ($nth[$r['label']] ?? 0) + 1;
+            $rows[$i]['label'] = $r['label'].' ('.fa_num($nth[$r['label']]).')';
+        }
+
+        return array_values($rows);
+    }
+
+    /**
+     * لنگرِ «از چند تومان» و «تا چند هسته» برای هر کدِ مکان — **یک** پرس‌وجوی
+     * گروهی، نه یکی به‌ازای هر کشور یا هر شهر.
+     *
+     * @return array<string, array{irt:int,cores:int}>
+     */
+    private static function priceAnchors(): array
+    {
+        $out = [];
+
+        $rows = CloudPlan::query()->sellable()
+            ->selectRaw('location_code, MIN(price_irt) as min_irt, MAX(vcpu) as max_vcpu')
+            ->groupBy('location_code')->get();
+
+        foreach ($rows as $r) {
+            $out[(string) $r->location_code] = [
+                'irt' => (int) $r->min_irt,
+                'cores' => (int) $r->max_vcpu,
+            ];
+        }
+
         return $out;
+    }
+
+    /**
+     * ناحیهٔ جغرافیاییِ یک کشور — فقط برای گروه‌بندیِ فهرستِ کشورها.
+     *
+     * ⚠️ سفیدبرچسبی: گروه‌بندی **مطلقاً جغرافیایی** است. هیچ ناحیه‌ای نباید با
+     * ردِ پای یک زیرساخت یک‌به‌یک بخوانَد، وگرنه نقشه لباسِ نشتِ نام می‌شود.
+     * (امروز هر سه ناحیه چند زیرساخت دارند.)
+     *
+     * ⚠️ و هیچ عددِ تأخیری این‌جا نیست: فقط `HetznerClient` مختصات می‌دهد و دو
+     * درایورِ دیگر `null` برمی‌گردانند، پس هر «ms» ساختگی می‌بود.
+     */
+    public const REGIONS = [
+        // ترتیبِ داخلِ هر ناحیه = ترتیبِ نمایش. ایران اولِ ناحیهٔ خودش است چون
+        // مخاطبِ اولِ این صفحه فارسی‌زبان است و نزدیک‌ترین گزینه باید اول بیاید.
+        'me' => ['IR', 'TR', 'AE', 'AM', 'GE', 'KZ'],
+        'eu' => ['DE', 'NL', 'FI', 'FR', 'GB', 'CH', 'AT', 'SE', 'PL', 'CZ', 'ES', 'IT', 'UA', 'RU'],
+    ];
+
+    public static function regionOf(string $iso): string
+    {
+        $iso = strtoupper($iso);
+
+        foreach (self::REGIONS as $key => $list) {
+            if (in_array($iso, $list, true)) {
+                return $key;
+            }
+        }
+
+        return 'other';
+    }
+
+    /** رتبهٔ کشور داخلِ ناحیه‌اش؛ ناشناخته آخر می‌نشیند، پس ترتیب هرگز تصادفی نیست. */
+    public static function countryRank(string $iso): int
+    {
+        $list = self::REGIONS[self::regionOf($iso)] ?? [];
+        $i = array_search(strtoupper($iso), $list, true);
+
+        return $i === false ? 900 : (int) $i;
     }
 
     /**
@@ -476,11 +658,63 @@ class CloudStoreController extends Controller
         | آن یکی همان تکرارها را دوباره می‌شمرد («۵ مکان» برای یک برلین) و
         | `CloudCountry::served()` هم شهرهای خام را حساس‌به‌حروف می‌شمارد.
         */
+        $anchors = self::priceAnchors();
+
         foreach ($groups as $i => $g) {
-            $cities = self::cityBuckets($g['locations'], $openCodes);
+            $cities = self::cityBuckets($g['locations'], $openCodes, $anchors);
 
             $groups[$i]['cities'] = $cities;
             $groups[$i]['openCities'] = count(array_filter($cities, fn ($c) => $c['open']));
+            $groups[$i]['region'] = self::regionOf((string) $g['country']);
+
+            // لنگرِ «از … تومان» روی ردیفِ کشور: کمینهٔ همان قیمت‌هایی که شهرها
+            // نشان می‌دهند. یک منبع، پس دو عددِ متناقض ساختاراً ممکن نیست.
+            $low = 0;
+
+            foreach ($g['locations'] as $l) {
+                $a = $anchors[(string) $l->code] ?? null;
+
+                if ($a === null || (int) $a['irt'] <= 0) {
+                    continue;
+                }
+
+                $low = $low === 0 ? (int) $a['irt'] : min($low, (int) $a['irt']);
+            }
+
+            $groups[$i]['fromIrt'] = $low;
+
+            // نخستین شهرِ **باز** — مقصدِ ردیفِ کشور در مرحلهٔ ۱.
+            $entry = null;
+
+            foreach ($cities as $c) {
+                if ($c['open'] && $entry === null) {
+                    $entry = (string) $c['primary']->code;
+                }
+            }
+
+            $groups[$i]['entry'] = $entry ?? (string) ($g['locations'][0]->code ?? '');
+        }
+
+        // ترتیبِ نمایش: ناحیه، بعد رتبهٔ کشور در همان ناحیه.
+        usort($groups, fn ($a, $b) => [array_search($a['region'], ['me', 'eu', 'other'], true),
+            self::countryRank((string) $a['country'])]
+            <=> [array_search($b['region'], ['me', 'eu', 'other'], true),
+                self::countryRank((string) $b['country'])]);
+
+        /*
+        | پیش‌فرضِ مکان: نخستین شهری که **نامش را می‌دانیم**، نه صرفاً نخستین کدِ
+        | فروختنی. بی‌این، صفحه روی یک ردیفِ «سایر مکان‌ها» باز می‌شد و برگه
+        | «آلمان — از ۳۱۸,۰۰۰ تومان» می‌گفت: درست، ولی سردترین ممکن برای کسی که
+        | تازه رسیده. پس‌افت دقیقاً رفتارِ دیروز است.
+        */
+        $namedFirst = null;
+
+        foreach ($groups as $g) {
+            foreach ($g['cities'] as $c) {
+                if ($c['open'] && ! $c['generic'] && $namedFirst === null) {
+                    $namedFirst = (string) $c['primary']->code;
+                }
+            }
         }
 
         // `location` نامِ رسمی است — صفحات عمومیِ سایت با همین به این‌جا لینک
@@ -492,9 +726,32 @@ class CloudStoreController extends Controller
         // یک خزندهٔ بدرفتار نباید صفحهٔ فروش را بخواباند.
         $wanted = $request->query('location') ?? $request->query('loc') ?? '';
         $wanted = is_string($wanted) ? $wanted : '';
-        // پیش‌فرض: اولین مکانی که واقعاً چیزی برای فروش دارد — نه اولین مکانِ فهرست،
-        // وگرنه مشتری با یک کشورِ تمام‌شده روبه‌رو می‌شود و فکر می‌کند هیچ نداریم.
-        $code = in_array($wanted, $allCodes, true) ? $wanted : ($openCodes[0] ?? $allCodes[0] ?? null);
+
+        /*
+        | 🔴 «هنوز کشوری انتخاب نشده» یک وضعیتِ **واقعی** است، نه یک شاخهٔ مرده.
+        |
+        | کارفرما خواست مرحلهٔ شهر پیش از انتخابِ کشور بگوید چه لازم دارد. تا
+        | دیروز چنین وضعی وجود نداشت چون این خط همیشه یک مکان را از پیش انتخاب
+        | می‌کرد — و کامنتِ خودِ Blade هم نوشته بود که جملهٔ راهنما به همین دلیل
+        | حذف شد. حالا `?location=` (خالی و صریح) دقیقاً همان وضع را می‌سازد:
+        | مرحلهٔ ۱ باز، مرحلهٔ ۲ با حالتِ خالیِ صادق و راهِ بازگشت، و برگه «—».
+        | لینکِ «تغییر کشور» روی همین صفحه همین آدرس را می‌سازد، پس شاخه هم
+        | رسیدنی است هم تست‌شده — نه یک `if` که هرگز اجرا نمی‌شود.
+        |
+        | بدونِ پارامتر، همچنان یک مکان از پیش انتخاب می‌شود (وگرنه مرحلهٔ ۳ تا ۵
+        | و برگه روی نخستین بازدید خالی می‌مانند) — فقط حالا `$namedFirst`ِ
+        | بالا ترجیح دارد، یعنی شهری که نامش را می‌دانیم.
+        */
+        // ⚠️ `query('location')` این‌جا برای `?location=` مقدارِ **null** می‌دهد،
+        // نه رشتهٔ خالی: میان‌افزارِ `ConvertEmptyStringsToNull` پیش از ما رد شده.
+        // پس «آمده ولی خالی» را باید از **وجودِ کلید** پرسید، نه از مقدارش —
+        // وگرنه این شاخه دقیقاً همان `if`ِ همیشه-غلط می‌شد که قرار بود نباشد.
+        $blank = $wanted === ''
+            && ($request->query->has('location') || $request->query->has('loc'));
+
+        $code = in_array($wanted, $allCodes, true)
+            ? $wanted
+            : ($blank ? null : ($namedFirst ?? $openCodes[0] ?? $allCodes[0] ?? null));
 
         $location = null;
         foreach ($groups as $g) {
@@ -676,6 +933,9 @@ class CloudStoreController extends Controller
 
         return view('account.cloud-store', AccountController::shell('store') + [
             'groups' => $groups,
+            // لنگرِ قیمت به‌ازای هر کد — ردیفِ کشور، ردیفِ شهر و عضوِ دیتاسنتر
+            // همه از همین می‌خوانند، پس دو «از … تومان»ِ متناقض ممکن نیست.
+            'anchors' => $anchors,
             'openCodes' => $openCodes,
             'location' => $location,
             'locCode' => $code,

@@ -44,8 +44,9 @@
     <ul class="bs-recent">
       @foreach($recent as $r)
       <li><a href="{{ lroute('blog', $r['slug']) }}">
-        <span class="bs-recent-cover {{ !empty($r['image']) ? 'has-img' : '' }}" @empty($r['image']) style="background:{{ config('blog.covers.'.($r['cover'] ?? 'a')) }}" @endempty>
-          @if(!empty($r['image']))<img src="{{ $r['image'] }}" alt="" loading="lazy" decoding="async">@else<svg class="icon"><use href="#i-{{ $r['icon'] ?? 'book' }}"/></svg>@endif
+        @php $rImg = img_url($r['image'] ?? null); @endphp
+        <span class="bs-recent-cover {{ $rImg ? 'has-img' : '' }}" @unless($rImg) style="background:{{ config('blog.covers.'.($r['cover'] ?? 'a')) }}" @endunless>
+          @if($rImg)<img src="{{ $rImg }}" alt="" loading="lazy" decoding="async">@else<svg class="icon"><use href="#i-{{ $r['icon'] ?? 'book' }}"/></svg>@endif
         </span>
         <span class="bs-recent-tx"><b>{{ $r['title'] }}</b><small>{{ blog_date($r['date'] ?? '') }}</small></span>
       </a></li>

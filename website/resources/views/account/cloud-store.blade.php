@@ -17,7 +17,11 @@
 
 @section('panel')
 
-<div class="pnl-head">
+{{-- سرصفحهٔ صفحه: **یک سطر**، نه یک بلوکِ بازاریابی.
+     تا دیروز این‌جا مسیرِ راهنما + عنوان + یک بندِ آموزشی + یک نشانِ تبلیغاتی
+     بود و نخستین پرسشِ صفحه را تا y≈۳۲۶ پایین می‌بُرد. حالا عنوان کوچک و آرام
+     است و بلندترین چیزِ صفحه همان عددی است که مشتری می‌پردازد. --}}
+<div class="pnl-head cvb-head">
   <div>
     <nav class="blog-crumbs">
       <a href="{{ lroute('account.home') }}">{{ __('ui.cvb_crumb_panel') }}</a><span>/</span>
@@ -27,7 +31,6 @@
       <span>{{ __('ui.cvb_h1') }}</span>
     </nav>
     <h1>{{ __('ui.cvb_h1') }}</h1>
-    <p>{{ __('ui.cvb_intro') }}</p>
   </div>
   <span class="pnl-pill info">{{ __('ui.cvb_pill') }}</span>
 </div>
@@ -113,11 +116,23 @@
   $hMin  = (int) ($hourlyMap[$curSlug]['min'] ?? 0);
   $hOn   = old('billing_mode') === 'hourly';
 
-  // مرحله‌ای که باید باز باشد: اولین مرحله‌ای که خطا دارد، وگرنه «اندازه»
-  // (مکان معمولاً از لینکِ ورودی می‌آید). بی‌جاوااسکریپت همه باز می‌مانند.
-  $openStep = 2;
+  /*
+  | مرحله‌ای که باید باز باشد — حالا پنج مرحله است و پیش‌فرضش **مرحلهٔ ۱**.
+  |
+  | 🔴 چرا عوض شد: اندازه‌گیریِ صفحهٔ زنده نشان داد مرحلهٔ ۱ روی هر بارگذاری
+  | بسته و «از پیش پاسخ‌داده» می‌آمد («🇩🇪 آلمان — برلین») در حالی که «برلین»
+  | خودش پایتختِ جای‌گزین بود، نه شهرِ واقعیِ آن ردیف. یعنی نخستین تصمیمِ مشتری
+  | هم از او گرفته می‌شد و هم غلط پاسخ داده می‌شد.
+  |
+  | حالا مسیر خودش پیش می‌رود: ردیفِ کشور به `?location=<اولین شهرِ باز>` می‌رود
+  | (بی‌`plan`) ⇒ مرحلهٔ ۲ باز می‌شود؛ ردیفِ شهر `plan` را هم حمل می‌کند ⇒
+  | مرحلهٔ ۳. خطا همیشه برنده است. بی‌جاوااسکریپت همه باز می‌مانند.
+  */
+  $hasLoc  = $locCode !== null && $locCode !== '';
+  $openStep = ! $hasLoc ? 1 : (request()->query('plan') !== null ? 3
+    : (request()->query('location') !== null || request()->query('loc') !== null ? 2 : 1));
   $stepFound = false;
-  foreach ([1 => ['location'], 2 => ['plan', 'cycle', 'billing_mode'], 3 => ['image'], 4 => ['label']] as $n => $keys) {
+  foreach ([1 => ['location'], 3 => ['plan', 'cycle', 'billing_mode'], 4 => ['image'], 5 => ['label']] as $n => $keys) {
     foreach ($keys as $k) {
       if (! $stepFound && $errors->has($k)) { $openStep = $n; $stepFound = true; }
     }
@@ -125,9 +140,46 @@
   if ($errors->has('extra_ipv4') || $errors->has('ssh_key_new') || $errors->has('ssh_key_id')) { $advOpen = true; }
   else { $advOpen = $curIp > 0 || old('ssh_key_id') !== null || old('ssh_key_new') !== null; }
 
-  // برچسبِ مکانِ جاری برای برگه
-  $locLabel = $location ? trim($location->flagEmoji().' '.$location->label()) : '—';
-  $curCountry = $location ? strtoupper((string) $location->country) : '';
+  /*
+  | برچسبِ مکانِ جاری برای برگه — از **همان سطلی** که مرحلهٔ ۲ رندر می‌کند.
+  |
+  | 🔴 پیش از این `$location->label()` بود، و آن متد وقتی ستونِ شهر خالی یا یک
+  | واژهٔ ردهٔ محصول باشد نامِ **پایتخت** را برمی‌گرداند. یعنی برگه و سرصفحهٔ
+  | مرحله «🇩🇪 آلمان — برلین» می‌گفتند برای ماشینی که در برلین نیست، و مشتری
+  | بعد از انتخاب هم نمی‌فهمید کدام‌یک از چیپ‌های هم‌نام را زده. حالا برچسبِ
+  | برگه بایت‌به‌بایت همان چیزی است که روی ردیفِ انتخاب‌شده نوشته شده.
+  */
+  $curGroup = null; $curBucket = null; $curMemberIdx = 0;
+  foreach ($groups as $g) {
+    foreach ($g['cities'] as $c) {
+      foreach ($c['members'] as $mi => $m) {
+        if ((string) $m->code === (string) $locCode) { $curGroup = $g; $curBucket = $c; $curMemberIdx = $mi; }
+      }
+    }
+  }
+  $countryLabel = $curGroup ? trim($curGroup['flag'].' '.$curGroup['label']) : '—';
+  $cityLabel = $curBucket
+    ? $curBucket['label'].($curBucket['n'] > 1 ? ' · '.__('ui.cvb_dc_n', ['n' => fa_num($curMemberIdx + 1)]) : '')
+    : '—';
+  $locLabel = $curGroup ? $countryLabel.' — '.$cityLabel : '—';
+  $curCountry = $curGroup ? strtoupper((string) $curGroup['country']) : '';
+
+  // مقصدِ ردیفِ کشور: **بی‌** پارامترِ plan، تا صفحهٔ بعد روی مرحلهٔ «شهر» باز شود.
+  $countryHref = fn (string $code) => lroute('account.cloud.store').'?location='.urlencode($code);
+  // «هنوز کشوری انتخاب نشده» — همان وضعِ واقعیِ کنترلر (`?location=` خالی).
+  $clearHref = lroute('account.cloud.store').'?location=';
+
+  // ناحیه‌های جغرافیایی، به همان ترتیبی که خوانده می‌شوند.
+  $regionOrder = ['me' => __('ui.cvb_reg_me'), 'eu' => __('ui.cvb_reg_eu'), 'other' => __('ui.cvb_reg_other')];
+
+  // برچسب و شمارهٔ مرحله‌ها — تیرکِ کناری، سرصفحهٔ مرحله و برگه همه از همین می‌خوانند.
+  $stepNames = [
+    1 => __('ui.cvb_step_country'),
+    2 => __('ui.cvb_step_city'),
+    3 => __('ui.cvb_step_size'),
+    4 => __('ui.cvb_step_os'),
+    5 => __('ui.cvb_step_name'),
+  ];
 
   /*
   | لینکِ شهر/دیتاسنتر — **یک** سازنده برای هر دو سطح.
@@ -167,135 +219,205 @@
   @csrf
   <input type="hidden" name="location" value="{{ $locCode }}">
 
+  {{-- ═══ تیرکِ مسیر — هم شمارهٔ مرحله، هم راهِ برگشت ═══
+
+       پنج گره روی یک خطِ مویی. مرحلهٔ پاسخ‌داده به یک سطرِ ۴۴ پیکسلی جمع
+       پنج گره روی یک خطِ مویی، هرکدام یک دکمه که مرحله‌اش را باز می‌کند. پس
+       نوارِ پیشرفت و راهِ برگشت یک چیزند و هیچ انتخابی سه بار چاپ نمی‌شود.
+
+       🔴 دو ادعای دقیق دربارهٔ همین نشانه‌گذاری:
+       · **رقم** تزئین است (`aria-hidden`) و نامِ مرحله + مقدارش متنِ در دسترسِ
+         همان دکمه — یعنی صفحه‌خوان «مرحلهٔ ۲، شهر، فرانکفورت» می‌شنود، نه یک
+         عددِ تنها. روی دسکتاپ آن متن `clip-path` شده چون تیرک ۵۶px است؛
+         زیرِ ۱۰۰۰px تیرک افقی می‌شود و رقم‌ها کنارِ هم می‌نشینند.
+       · هر گره **یک** ایستگاهِ صفحه‌کلید است، نه دو. --}}
+  <nav class="cvb-spine" aria-label="{{ __('ui.cvb_spine') }}">
+    @foreach($stepNames as $n => $nm)
+      @php
+        $vals = [1 => $countryLabel, 2 => $cityLabel, 3 => ($jsPlans[$curSlug] ?? '—'),
+                 4 => ($jsImgLbl[$curImage] ?? '—'), 5 => ($curLabel !== '' ? $curLabel : $autoLabel)];
+      @endphp
+      {{-- 🔴 گره باید خودش یک افشاگرِ کامل باشد، چون CSS سرصفحهٔ مرحلهٔ **باز**
+           را پنهان می‌کند و آن سرصفحه تنها جایی بود که `aria-expanded` داشت.
+           بی‌این دو صفت، کاربرِ صفحه‌خوان روی مرحلهٔ باز هیچ کنترلی نمی‌شنید. --}}
+      <button type="button" class="cvb-sp @if($n === $openStep) is-now @endif" data-go="{{ $n }}" data-spine="{{ $n }}"
+              aria-expanded="{{ $n === $openStep ? 'true' : 'false' }}" aria-controls="cvb-b-{{ $n }}">
+        <span class="cvb-sp-n" aria-hidden="true">{{ fa_num($n) }}</span>
+        <span class="cvb-sp-t">
+          <b>{{ $nm }}</b>
+          <small class="cvb-sp-v" data-sp-v="{{ $n }}">{{ $vals[$n] }}</small>
+        </span>
+      </button>
+    @endforeach
+  </nav>
+
   <div class="cvb-main">
 
-    {{-- ═══ ۱ — مکان: کشور ← شهر ← دیتاسنتر، همه در همین یک مرحله ═══
+    {{-- ═══ ۱ — کشور ═══
 
-         سه سطحِ تودرتو از `<details>`ِ بومی — همان الگویی که «تنظیمات پیشرفته»
-         پایین‌تر دارد. دلیلش ساختاری است، نه سلیقه‌ای:
+         یک پرسش، یک فهرست. کارت‌های ۱۴۸ پیکسلیِ هم‌شکل رفتند و جایشان ردیف
+         آمد، چون کشور یک **نام** است و نام روی سطر بهتر خوانده می‌شود — کارت
+         مجبورش می‌کرد با `text-overflow:ellipsis` بریده شود.
 
-         ۱) پاپ‌آور این‌جا شدنی نیست. `.pnl-sec{overflow:hidden}` و
-            `.cvb-step-i{overflow:hidden}` دو قیچیِ روی‌هم‌اند (دومی موتورِ خودِ
-            آکاردئون است) و `.cvb-sheet{container:inline-size}` حتی
-            position:fixed را هم به خودش می‌چسبانَد.
-         ۲) «پنل نباید زیرِ دستِ کاربر بسته شود»: وقتی خودِ trigger همان
-            `<summary>` است و پنل فرزندِ همان `<details>`، فاصله‌ای بینشان وجود
-            ندارد که باید پل زده شود — `pointerleave` روی خودِ details هر سه
-            ناحیه (trigger، پنل، فاصله) را با صفر هندسه پوشش می‌دهد.
-         ۳) بی‌جاوااسکریپت همین‌طور کار می‌کند: باز/بسته بومی است، صفحه‌کلید
-            بومی است، و شهرها لینکِ واقعی‌اند.
+         هر ردیف قیمت دارد: تصمیمِ جغرافیایی پیش از تعهد، قیمت‌دار است. عدد از
+         همان `min(price_irt)`ی می‌آید که شهرها و برگه از آن می‌خوانند.
 
-         🔴 چهار بدنهٔ مرحله باید چهار بمانند: کشور و شهر و دیتاسنتر همگی داخلِ
-         همین `cvb-step-b` می‌نشینند و هرگز مرحلهٔ پنجم نمی‌شوند. --}}
+         هیچ `<details>`ای این‌جا نیست: شهر مرحلهٔ خودش شد، پس سه سطحِ تودرتوی
+         افشا (کشور ← شهر ← دیتاسنتر) و بازآراییِ شبکه زیرِ دستِ کاربر
+         (`.cvb-cnat[open]{grid-column:1/-1}`) هر دو حذف شدند. --}}
     <section class="pnl-sec cvb-step" id="cvb-step-1" data-step="1">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-1">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s1') }}</b></span>
-        <span class="cvb-step-v"><span>{{ $locLabel }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
+        <span class="cvb-step-v"><span>{{ $countryLabel }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-1">
         <div class="cvb-step-i"><div class="pnl-sec-b">
           @error('location')<div class="dm-note danger">{{ $message }}</div>@enderror
 
-          {{-- کنترلِ خالی نساز، جمله بگو (خواستهٔ کارفرما).
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num(5)]) }}</p>
+          <h3 class="cvb-q">{{ __('ui.cvb_s1') }}</h3>
+          <p class="cvb-lede">{{ __('ui.cvb_loc_note') }}</p>
 
-               🔴 ولی جمله باید **راست** باشد. «اول یک کشور انتخاب کنید» بی‌قید
-               چاپ می‌شد، در حالی که این بلوک فقط وقتی رندر می‌شود که
-               `count($groups) > 0` باشد، و آن‌وقت `CloudStoreController::index`
-               همیشه یک مکان را از پیش انتخاب کرده است
-               (`$code = … ?? $openCodes[0] ?? $allCodes[0]`، و `$openCodes`
-               زیرمجموعهٔ `$allCodes` است چون قفسه از فروختنی‌ها بازتر است).
-               پس صفحه در **هر** بارگذاری خودش را تکذیب می‌کرد: یک کارتِ
-               تیک‌خورده، و بالایش دستوری برای کاری که همین حالا انجام شده.
-
-               شرطِ `$curCountry === ''` هم گذاشته نشد: شاخه‌ای که هرگز اجرا
-               نمی‌شود همان قاعدهٔ مردهٔ بندِ ۳ است با لباسِ دیگر. جمله بدونِ شرط
-               راست است، و تست قفل می‌کند که «کشور همیشه از پیش انتخاب است». --}}
-          <p class="cvb-hint">{{ __('ui.cvb_country_set') }}</p>
-
-          <div class="cvb-countries" role="group" aria-label="{{ __('ui.cvb_c_pick') }}">
-            @foreach($groups as $g)
-              @php
-                $gOn   = (string) $g['country'] === (string) $curCountry;
-                $gShut = (int) ($g['openCities'] ?? 0) === 0;
-              @endphp
-              {{-- ⚠️ فاصلهٔ پیش از @-if عمدی است: Blade با \B شروع می‌کند، پس
-                   دستوری که به یک حرف چسبیده باشد **کامپایل نمی‌شود** و
-                   endifِ بعدی بی‌جفت می‌مانَد → ۵۰۰. --}}
-              <details class="cvb-cnat @if($gShut) is-shut @endif" data-hold @if($gOn) open @endif>
-                <summary class="cvb-ccard @if($gOn) on @endif" @if($gOn) aria-current="true" @endif>
-                  <span class="cvb-flag">{{ $g['flag'] }}</span>
-                  <b class="cvb-cname">{{ $g['label'] }}</b>
-                  {{-- شمار از شهرهای **باز** می‌آید، نه از تعدادِ کدها.
-                       هیچ عددِ تأخیر این‌جا نیست: ستونِ latency در دیتابیس وجود
-                       ندارد و چاپِ یک عددِ ساختگی روی صفحه‌ای که کارش «کدام
-                       نزدیک‌تر است» است، یک سیگنالِ اعتمادِ جعلی است. --}}
-                  {{-- 🔴 trans_choice نه __(): «۱ شهر» در فارسی و ترکی درست است
-                       ولی انگلیسی «1 cities» می‌داد. صورتِ جمع فقط در فایلِ en
-                       تعریف شده — فارسی و ترکی بعد از عدد جمع نمی‌بندند و
-                       بستنِ قاعدهٔ انگلیسی رویشان غلطِ تازه می‌ساخت. جانگهدار
-                       عمداً `:n` است نه `:count`: لاراول در trans_choice مقدارِ
-                       `count` را با عددِ خام بازنویسی می‌کند و رقمِ فارسی را
-                       بی‌صدا به لاتین برمی‌گرداند. --}}
-                  <small class="cvb-cmeta">@if($gShut){{ __('ui.cvb_c_soldout') }}@else{{ trans_choice('ui.cvb_c_cities', (int) $g['openCities'], ['n' => fa_num((int) $g['openCities'])]) }}@endif</small>
-                  <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
-                </summary>
-                <div class="cvb-cities">
-                  {{-- شهرها **در سطحِ نمایش** یکتا شده‌اند (CloudStoreController::cityBuckets).
-                       هیچ کدی حذف نشده: شهری که چند دیتاسنتر دارد یک پله پایین‌تر
-                       همهٔ اعضایش را به‌صورت لینکِ واقعی نشان می‌دهد. --}}
-                  @foreach($g['cities'] as $c)
-                    @if($c['n'] === 1)
-                      @php $l = $c['primary']; @endphp
-                      {{-- لینک ساده و نه رادیو: با عوض شدن مکان، پلن‌ها هم عوض می‌شوند و
-                           سرور باید فهرست تازه را بدهد. بی‌جاوااسکریپت هم کار می‌کند.
-                           انتخاب‌های دیگر روی خودِ لینک سوار می‌شوند تا عوض‌کردنِ شهر
-                           پلن و دوره و سیستم‌عامل را دور نریزد. --}}
-                      <a class="cvb-city @if(! $c['open']) is-shut @endif @if((string) $l->code === (string) $locCode) on @endif" data-city="{{ $l->code }}" href="{{ $cityHref((string) $l->code) }}"@if((string) $l->code === (string) $locCode) aria-current="true"@endif>{{ $c['label'] }}</a>
-                    @else
-                      @php $cOn = collect($c['members'])->contains(fn ($m) => (string) $m->code === (string) $locCode); @endphp
-                      <details class="cvb-dc @if(! $c['open']) is-shut @endif" data-hold @if($cOn) open @endif>
-                        <summary class="cvb-ccard is-dc @if($cOn) on @endif">
-                          <b class="cvb-cname">{{ $c['label'] }}</b>
-                          <small class="cvb-cmeta">{{ __('ui.cvb_dc_multi', ['count' => fa_num((int) $c['n'])]) }}</small>
-                          <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
-                        </summary>
-                        <div class="cvb-dcs">
-                          {{-- 🔴 برچسبِ عضو فقط شمارهٔ ترتیبی است. `provider` و
-                               `provider_location` (fsn1/hel1/gra7) روی دیوارِ
-                               سفیدبرچسبی‌اند و هرگز به DOM نمی‌رسند. --}}
-                          @foreach($c['members'] as $mi => $m)
-                            <a class="cvb-city cvb-city-dc @if(! in_array((string) $m->code, (array) $openCodes, true)) is-shut @endif @if((string) $m->code === (string) $locCode) on @endif" data-city="{{ $m->code }}" href="{{ $cityHref((string) $m->code) }}"@if((string) $m->code === (string) $locCode) aria-current="true"@endif>{{ __('ui.cvb_dc_n', ['n' => fa_num($mi + 1)]) }}</a>
-                          @endforeach
-                        </div>
-                      </details>
-                    @endif
+          <div class="cvb-nats" role="group" aria-label="{{ __('ui.cvb_c_pick') }}">
+            @foreach($regionOrder as $rk => $rlabel)
+              @php $inReg = array_values(array_filter($groups, fn ($g) => ($g['region'] ?? 'other') === $rk)); @endphp
+              @if(count($inReg) > 0)
+                {{-- گروه‌بندیِ ناحیه‌ای جای‌گزینِ صادقِ عددِ تأخیری است که نداریم و
+                     نقشه‌ای که نمی‌توانیم بکشیم: «نزدیک یا دور» را می‌گوید بی‌آنکه
+                     یک میلی‌ثانیه از خودش دربیاورد. --}}
+                <p class="cvb-eyebrow cvb-reg">{{ $rlabel }}</p>
+                <div class="cvb-natgrid">
+                  @foreach($inReg as $g)
+                    @php
+                      $gOn   = (string) $g['country'] === (string) $curCountry;
+                      $gShut = (int) ($g['openCities'] ?? 0) === 0;
+                    @endphp
+                    <a class="cvb-nat @if($gShut) is-shut @endif @if($gOn) on @endif"
+                       data-nat="{{ $g['country'] }}" href="{{ $countryHref((string) $g['entry']) }}"@if($gOn) aria-current="true"@endif>
+                      <span class="cvb-flag">@include('partials.flag', ['flagSrc' => $g['flag_svg'] ?? null, 'flagEmoji' => $g['flag'], 'flagSize' => 24])</span>
+                      <span class="cvb-nat-t">
+                        <b>{{ $g['label'] }}</b>
+                        @if((int) ($g['openCities'] ?? 0) > 1)
+                          <small>{{ trans_choice('ui.cvb_c_cities', (int) $g['openCities'], ['n' => fa_num((int) $g['openCities'])]) }}</small>
+                        @endif
+                      </span>
+                      <span class="cvb-nat-p">
+                        @if($gShut)
+                          <em class="cvb-outb">{{ __('ui.cvb_c_soldout') }}</em>
+                        @elseif((int) ($g['fromIrt'] ?? 0) > 0)
+                          <b class="pnl-num">{{ __('ui.cvb_from', ['amount' => cloud_price((int) $g['fromIrt'])]) }}</b>
+                        @endif
+                      </span>
+                      <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
+                    </a>
                   @endforeach
                 </div>
-              </details>
+              @endif
             @endforeach
           </div>
-
-          @if(count($planCards) === 0)
-            <p class="cvb-warn">{{ __('ui.cvb_loc_off') }}</p>
-          @endif
-          <p class="cvb-note">
-            <svg class="icon"><use href="#i-pin"/></svg>
-            {{ __('ui.cvb_loc_note') }}
-          </p>
         </div></div>
       </div>
     </section>
 
-    {{-- ═══ ۲ — اندازه (و دورهٔ پرداخت، که همین‌جا بالای فهرست می‌نشیند) ═══
-         دوره **پیش از** اندازه انتخاب می‌شود، پس هر قیمتی که روی کارت‌ها
-         می‌بینید همان چیزی است که واقعاً می‌پردازید — بی‌هیچ حساب‌وکتابِ ذهنی. --}}
+    {{-- ═══ ۲ — شهر: مرحلهٔ خودش، و جایی که شهرهای تکراری واقعاً می‌میرند ═══
+
+         🔴 علتِ ریشه‌ای — از **رندرِ واقعی**، نه از بازگشتیِ یک تابع: سطل‌ها
+         درست بودند (کلید از شناسه می‌آمد) ولی برچسب‌ها نه. هر کدی که ستونِ
+         شهرش خالی یا یک واژهٔ ردهٔ محصول بود، `cityLabel()` نامِ **پایتخت** را
+         چاپ می‌کرد. خروجیِ اندازه‌گیری‌شده: آلمان سه «برلین»، هلند سه
+         «آمستردام»، فرانسه دو «پاریس»، ایران دو «تهران» — همه با کلیدِ یکتا.
+         پس تستِ قبلی سبز بود در حالی که باگ زنده بود: لایهٔ اشتباهی را می‌سنجید.
+
+         حل: `CloudStoreController::trustedCityName()` (فروشگاهی، بی‌دست‌زدن به
+         `CloudLocation::cityLabel()` که فاکتور و صفحات کشور هم صدایش می‌زنند).
+         شهری که نمی‌شناسیمش نام نمی‌گیرد؛ زیرِ یک عنوانِ صادق جمع می‌شود و فقط
+         تفاوتِ واقعی‌اش را می‌گوید. هیچ سطلی ادغام نشده، پس هر `location_code`
+         هنوز لینکِ خودش را دارد. --}}
     <section class="pnl-sec cvb-step" id="cvb-step-2" data-step="2">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-2">
-        <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s2') }}</b></span>
-        <span class="cvb-step-v"><span id="cvb-v-2">{{ $jsPlans[$curSlug] ?? '—' }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
+        <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s_city') }}</b></span>
+        <span class="cvb-step-v"><span id="cvb-v-2">{{ $cityLabel }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-2">
         <div class="cvb-step-i"><div class="pnl-sec-b">
+
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(2), 't' => fa_num(5)]) }}</p>
+          <h3 class="cvb-q">{{ __('ui.cvb_s_city') }}</h3>
+
+          @if($curGroup === null)
+            {{-- کنترلِ خالی نساز، جمله بگو — و راهِ برگشت هم بده. این شاخه
+                 **رسیدنی** است: `?location=` خالی همین را می‌سازد و لینکِ
+                 «تغییر کشور» پایینِ همین مرحله دقیقاً آن آدرس است. --}}
+            <div class="cvb-void">
+              <svg class="icon"><use href="#i-pin"/></svg>
+              <b>{{ __('ui.cvb_city_none_t') }}</b>
+              <p>{{ __('ui.cvb_city_none_p') }}</p>
+              <button type="button" class="cvb-void-go" data-go="1">{{ __('ui.cvb_city_none_go') }}</button>
+            </div>
+          @else
+            <p class="cvb-lede">{{ $countryLabel }}</p>
+
+            <div class="cvb-cities" role="group" aria-label="{{ __('ui.cvb_s_city') }}">
+              @php $genericSeen = false; @endphp
+              @foreach($curGroup['cities'] as $c)
+                @if($c['generic'] && ! $genericSeen)
+                  @php $genericSeen = true; @endphp
+                  {{-- عنوانِ گروه **یک بار**. ردیف‌ها نامِ جا نمی‌گیرند چون
+                       نمی‌دانیمشان؛ فقط تفاوتِ واقعی‌شان را می‌گویند. --}}
+                  <p class="cvb-eyebrow cvb-reg">{{ __('ui.cvb_city_other_h', ['country' => $curGroup['label']]) }}</p>
+                @endif
+
+                @if($c['n'] === 1)
+                  @php $l = $c['primary']; @endphp
+                  <a class="cvb-city @if(! $c['open']) is-shut @endif @if((string) $l->code === (string) $locCode) on @endif" data-city="{{ $l->code }}" href="{{ $cityHref((string) $l->code) }}"@if((string) $l->code === (string) $locCode) aria-current="true"@endif>
+                    <span class="cvb-city-t"><b>{{ $c['label'] }}</b>@if(! $c['open'])<em class="cvb-outb">{{ __('ui.cvb_c_soldout') }}</em>@elseif(! $c['generic'] && (int) $c['irt'] > 0)<small class="pnl-num">{{ __('ui.cvb_from', ['amount' => cloud_price((int) $c['irt'])]) }}</small>@endif</span>
+                    <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
+                  </a>
+                @else
+                  {{-- یک شهر با چند دیتاسنتر: هیچ‌کدام حذف نشده، هر عضو لینکِ
+                       خودش را دارد. برچسبِ عضو فقط شمارهٔ ترتیبی است —
+                       `provider`/`provider_location` روی دیوارِ سفیدبرچسبی‌اند. --}}
+                  <p class="cvb-eyebrow cvb-sub">{{ $c['label'] }} · {{ __('ui.cvb_dc_multi', ['count' => fa_num((int) $c['n'])]) }}</p>
+                  @foreach($c['members'] as $mi => $m)
+                    @php $mLow = (int) ($anchors[(string) $m->code]['irt'] ?? 0); @endphp
+                    <a class="cvb-city cvb-city-dc @if(! in_array((string) $m->code, (array) $openCodes, true)) is-shut @endif @if((string) $m->code === (string) $locCode) on @endif" data-city="{{ $m->code }}" href="{{ $cityHref((string) $m->code) }}"@if((string) $m->code === (string) $locCode) aria-current="true"@endif>
+                      {{-- شمارهٔ ترتیبی به‌تنهایی «انتخاب بین دو چیزِ توصیف‌نشده»
+                           بود. قیمت تنها تفاوتی است که هم واقعی است و هم
+                           چاپش سفیدبرچسبی را نمی‌شکند. --}}
+                      <span class="cvb-city-t"><b>{{ __('ui.cvb_dc_n', ['n' => fa_num($mi + 1)]) }}</b>@if($mLow > 0)<small class="pnl-num">{{ __('ui.cvb_from', ['amount' => cloud_price($mLow)]) }}</small>@endif</span>
+                      <span class="cvb-cchk"><svg class="icon"><use href="#i-check"/></svg></span>
+                    </a>
+                  @endforeach
+                @endif
+              @endforeach
+            </div>
+
+            @if(count($planCards) === 0)
+              <p class="cvb-warn">{{ __('ui.cvb_loc_off') }}</p>
+            @endif
+
+            <p class="cvb-note">
+              <svg class="icon"><use href="#i-pin"/></svg>
+              <a class="cvb-textlink" href="{{ $clearHref }}">{{ __('ui.cvb_change_country') }}</a>
+            </p>
+          @endif
+        </div></div>
+      </div>
+    </section>
+
+    {{-- ═══ ۳ — اندازه (و دورهٔ پرداخت، که همین‌جا بالای فهرست می‌نشیند) ═══
+         دوره **پیش از** اندازه انتخاب می‌شود، پس هر قیمتی که روی کارت‌ها
+         می‌بینید همان چیزی است که واقعاً می‌پردازید — بی‌هیچ حساب‌وکتابِ ذهنی. --}}
+    <section class="pnl-sec cvb-step" id="cvb-step-3" data-step="3">
+      <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-3">
+        <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s2') }}</b></span>
+        <span class="cvb-step-v"><span id="cvb-v-3">{{ $jsPlans[$curSlug] ?? '—' }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
+      </button></h2>
+      <div class="cvb-step-b" id="cvb-b-3">
+        <div class="cvb-step-i"><div class="pnl-sec-b">
+
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(3), 't' => fa_num(5)]) }}</p>
+          <h3 class="cvb-q">{{ __('ui.cvb_s2') }}</h3>
 
           @error('plan')<div class="dm-note danger">{{ $message }}</div>@enderror
           @error('cycle')<div class="dm-note danger">{{ $message }}</div>@enderror
@@ -460,14 +582,16 @@
       </div>
     </section>
 
-    {{-- ═══ ۳ — سیستم‌عامل یا نرم‌افزار آماده ═══ --}}
-    <section class="pnl-sec cvb-step" id="cvb-step-3" data-step="3">
-      <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-3">
+    {{-- ═══ ۴ — سیستم‌عامل یا نرم‌افزار آماده ═══ --}}
+    <section class="pnl-sec cvb-step" id="cvb-step-4" data-step="4">
+      <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-4">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s3') }}</b></span>
-        <span class="cvb-step-v"><span id="cvb-v-3">{{ $jsImgLbl[$curImage] ?? '—' }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
+        <span class="cvb-step-v"><span id="cvb-v-4">{{ $jsImgLbl[$curImage] ?? '—' }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
       </button></h2>
-      <div class="cvb-step-b" id="cvb-b-3">
+      <div class="cvb-step-b" id="cvb-b-4">
         <div class="cvb-step-i"><div class="pnl-sec-b">
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(4), 't' => fa_num(5)]) }}</p>
+          <h3 class="cvb-q">{{ __('ui.cvb_s3') }}</h3>
           @error('image')<div class="dm-note danger">{{ $message }}</div>@enderror
 
           {{-- تنها افشاگرِ صفحه که هیچ ARIAای نداشت. tab/tablist بومی است و
@@ -538,14 +662,16 @@
       </div>
     </section>
 
-    {{-- ═══ ۴ — نام سرور ═══ --}}
-    <section class="pnl-sec cvb-step" id="cvb-step-4" data-step="4">
-      <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-4">
+    {{-- ═══ ۵ — نام سرور ═══ --}}
+    <section class="pnl-sec cvb-step" id="cvb-step-5" data-step="5">
+      <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-5">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s6') }}</b></span>
-        <span class="cvb-step-v"><span id="cvb-v-4">{{ $curLabel !== '' ? $curLabel : $autoLabel }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
+        <span class="cvb-step-v"><span id="cvb-v-5">{{ $curLabel !== '' ? $curLabel : $autoLabel }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
       </button></h2>
-      <div class="cvb-step-b" id="cvb-b-4">
+      <div class="cvb-step-b" id="cvb-b-5">
         <div class="cvb-step-i"><div class="pnl-sec-b">
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(5), 't' => fa_num(5)]) }}</p>
+          <h3 class="cvb-q">{{ __('ui.cvb_s6') }}</h3>
           @error('label')<div class="dm-note danger">{{ $message }}</div>@enderror
           <label class="cvb-field">
             <span>{{ __('ui.cvb_label') }}</span>
@@ -673,19 +799,25 @@
         </div>
 
         <div class="cvb-lines">
-          <button type="button" class="cvb-line is-done" data-go="1">
+          <button type="button" class="cvb-line @if($curGroup !== null) is-done @endif" data-go="1">
             <span class="cvb-line-d"></span>
-            <span class="cvb-line-k">{{ __('ui.cvb_step_loc') }}</span>
-            <span class="cvb-line-v">{{ $locLabel }}</span>
+            <span class="cvb-line-k">{{ __('ui.cvb_step_country') }}</span>
+            <span class="cvb-line-v">{{ $countryLabel }}</span>
           </button>
 
-          <button type="button" class="cvb-line is-done" data-go="2">
+          <button type="button" class="cvb-line @if($curBucket !== null) is-done @endif" data-go="2">
+            <span class="cvb-line-d"></span>
+            <span class="cvb-line-k">{{ __('ui.cvb_step_city') }}</span>
+            <span class="cvb-line-v" id="cvb-s-city">{{ $cityLabel }}</span>
+          </button>
+
+          <button type="button" class="cvb-line is-done" data-go="3">
             <span class="cvb-line-d"></span>
             <span class="cvb-line-k">{{ __('ui.cvb_step_size') }}</span>
             <span class="cvb-line-v"><b id="cvb-s-plan">{{ $jsPlans[$curSlug] ?? '—' }}</b><small class="cvb-sspec" id="cvb-s-spec">{{ $jsSpecs[$curSlug] ?? '' }}</small></span>
           </button>
 
-          <button type="button" class="cvb-line is-done" data-go="3">
+          <button type="button" class="cvb-line is-done" data-go="4">
             <span class="cvb-line-d"></span>
             <span class="cvb-line-k">{{ __('ui.cvb_step_os') }}</span>
             <span class="cvb-line-v">
@@ -696,13 +828,13 @@
             </span>
           </button>
 
-          <button type="button" class="cvb-line is-done" data-go="2">
+          <button type="button" class="cvb-line is-done" data-go="3">
             <span class="cvb-line-d"></span>
             <span class="cvb-line-k">{{ __('ui.cvb_cycle') }}</span>
             <span class="cvb-line-v" id="cvb-s-cyc">{{ $hOn ? __('ui.cvb_hourly_t') : ($cycleLabels[$curCycle] ?? '—') }}</span>
           </button>
 
-          <button type="button" class="cvb-line @if($curLabel !== '') is-done @endif" data-go="4">
+          <button type="button" class="cvb-line @if($curLabel !== '') is-done @endif" data-go="5">
             <span class="cvb-line-d"></span>
             <span class="cvb-line-k">{{ __('ui.cvb_step_name') }}</span>
             <span class="cvb-line-v" id="cvb-s-label">{{ $curLabel !== '' ? $curLabel : $autoLabel }}</span>
@@ -720,6 +852,16 @@
 
         <div class="cvb-totk">{{ __('ui.cvb_pay_now') }}</div>
         <div class="cvb-tot pnl-num" id="cvb-s-first">{{ $hasPrice ? cloud_price($initFirst) : '—' }}</div>
+        {{-- نوارِ ترکیبِ هزینه: مبلغ فقط «چقدر» نمی‌گوید، «از چه» را هم نشان
+             می‌دهد. سه قطعه — پلن، IPِ اضافه، مالیات — همه با یک رنگ و سه
+             شفافیت، پس هیچ رنگِ تازه‌ای وارد پالت نمی‌شود.
+             تزئینی است (aria-hidden): همان سه عدد در سطرهای بالا و خطِ مالیات
+             با واژه گفته شده‌اند و صفحه‌خوان نباید دو بار بشنودشان. --}}
+        <div class="cvb-bar" id="cvb-bar" aria-hidden="true">
+          <i class="cvb-bar-a"></i>
+          <i class="cvb-bar-b"></i>
+          <i class="cvb-bar-c"></i>
+        </div>
         <div class="cvb-tax" id="cvb-s-tax">{{ __('ui.cvb_tax_incl', ['pct' => fa_num($taxPct)]) }}</div>
         <p class="cvb-warn" id="cvb-s-noprice" @if($hasPrice) hidden @endif>{{ __('ui.cvb_no_price') }}</p>
 
@@ -802,6 +944,26 @@
   var mark = function(sel, node){
     form.querySelectorAll(sel).forEach(function(o){ o.classList.remove('on'); });
     if (node) node.classList.add('on');
+  };
+  // مقدارِ جمع‌شدهٔ هر مرحله روی تیرکِ مسیر. یک انتخاب حداکثر **دو بار** چاپ
+  // می‌شود (تیرک = ناوبری، برگه = رسید) و هرگز داخلِ مرحلهٔ باز.
+  var spineVal = function(n, txt){
+    var el = form.querySelector('[data-sp-v="' + n + '"]');
+    if (el) { el.textContent = txt; }
+  };
+  /* نوارِ ترکیبِ هزینه — سه قطعه که با هم ۱۰۰٪ می‌شوند. عمداً بی‌درصدِ نوشتاری:
+     عددها در سطرهای بالا و خطِ مالیات با واژه گفته شده‌اند و رقمِ چهارم فقط
+     شلوغی است. */
+  var bar = function(base, ip, tax){
+    var el = document.getElementById('cvb-bar');
+    if (!el) { return; }
+    var sum = base + ip + tax;
+    var seg = el.querySelectorAll('i');
+    if (sum <= 0 || seg.length < 3) { el.hidden = sum <= 0; return; }
+    el.hidden = false;
+    seg[0].style.flexBasis = (base / sum * 100) + '%';
+    seg[1].style.flexBasis = (ip / sum * 100) + '%';
+    seg[2].style.flexBasis = (tax / sum * 100) + '%';
   };
 
   // ── گزینه‌های سیستم‌عامل/نرم‌افزار را با پلن انتخابی هم‌تراز کن ──
@@ -911,8 +1073,10 @@
     set('cvb-s-img', D.imgLbl[val('image')] || '—');
     var logo = document.getElementById('cvb-s-img-logo');
     if (logo && D.imgLogo[val('image')]) { logo.src = D.imgLogo[val('image')]; }
-    set('cvb-v-2', D.plans[slug] || '—');
-    set('cvb-v-3', D.imgLbl[val('image')] || '—');
+    set('cvb-v-3', D.plans[slug] || '—');
+    set('cvb-v-4', D.imgLbl[val('image')] || '—');
+    spineVal(3, D.plans[slug] || '—');
+    spineVal(4, D.imgLbl[val('image')] || '—');
 
     var lab = document.getElementById('cvb-label');
     var labRow = document.getElementById('cvb-s-label');
@@ -920,7 +1084,8 @@
       var txt = lab && lab.value.trim() !== '' ? lab.value.trim() : D.auto;
       labRow.textContent = txt;
       labRow.closest('.cvb-line').classList.toggle('is-done', !!(lab && lab.value.trim() !== ''));
-      set('cvb-v-4', txt);
+      set('cvb-v-5', txt);
+      spineVal(5, txt);
     }
 
     // ── IP اضافه: هم روی برگه، هم آشکار/پنهان بر پایهٔ توانِ همین اسلاگ ──
@@ -964,6 +1129,7 @@
       set('cvb-d-first', money(h.rate) + D.hPer);
       if (warn) warn.hidden = true;
       if (taxLine) taxLine.hidden = true;
+      bar(0, 0, 0);
       lockSubmit(h.rate <= 0);
       return;
     }
@@ -979,15 +1145,19 @@
       set('cvb-s-first', '—');
       set('cvb-d-first', '—');
       if (warn) warn.hidden = false;
+      bar(0, 0, 0);
       lockSubmit(true);
       return;
     }
 
     if (warn) warn.hidden = true;
-    var total = row.cycle + addonForCycle(cyc, row.save);
-    var first = total + Math.round(total * D.tax / 100);
+    var addon = addonForCycle(cyc, row.save);
+    var total = row.cycle + addon;
+    var vat = Math.round(total * D.tax / 100);
+    var first = total + vat;
     set('cvb-s-first', money(first));
     set('cvb-d-first', money(first));
+    bar(row.cycle, addon, vat);
     lockSubmit(false);
   };
 
@@ -1015,10 +1185,15 @@
   // می‌شود. وگرنه یک مرحلهٔ دست‌نخورده که کاربر فقط جمعش کرده «انجام‌شده» مهر
   // می‌خورد و نوارِ پیشرفت دروغ می‌گوید.
   var answered = function(n){
-    if (n === '1') { return !!(form.querySelector('input[name="location"]') || {}).value; }
-    if (n === '2') { return val('plan') !== ''; }
-    if (n === '3') { return val('image') !== ''; }
-    if (n === '4') { var l = document.getElementById('cvb-label'); return !!(l && l.value.trim() !== ''); }
+    var loc = !!(form.querySelector('input[name="location"]') || {}).value;
+    // ۱ و ۲ هر دو از **همان** ورودیِ مکان می‌پرسند: کشور و شهر دو نمایِ یک
+    // تصمیم‌اند و کدِ مکان تنها چیزی است که واقعاً پست می‌شود. اگر مکان خالی
+    // باشد (`?location=`)، هیچ‌کدام «انجام‌شده» نیست — و آن‌وقت نوارِ پیشرفت
+    // همان چیزی را می‌گوید که مرحلهٔ ۲ روی صفحه نشان می‌دهد.
+    if (n === '1' || n === '2') { return loc; }
+    if (n === '3') { return val('plan') !== ''; }
+    if (n === '4') { return val('image') !== ''; }
+    if (n === '5') { var l = document.getElementById('cvb-label'); return !!(l && l.value.trim() !== ''); }
     return false;
   };
 
@@ -1032,6 +1207,23 @@
       s.classList.toggle('is-done', done && i !== open);
       s.classList.toggle('is-todo', !done && i !== open);
     });
+
+    // تیرکِ مسیر همان وضعیت را می‌گوید — یک منبع، دو نما.
+    var nowN = open >= 0 ? steps[open].getAttribute('data-step') : '';
+    form.querySelectorAll('.cvb-sp').forEach(function(sp){
+      var n = sp.getAttribute('data-spine');
+      sp.classList.toggle('is-now', n === nowN);
+      sp.classList.toggle('is-done', answered(n) && n !== nowN);
+      sp.setAttribute('aria-expanded', n === nowN ? 'true' : 'false');
+    });
+
+    /* 🔴 دکمهٔ پرداخت تا مرحلهٔ آخر **آرام** است.
+       اندازه‌گیریِ صفحهٔ قبلی نشان داد «پرداخت و ساخت سرور» بلندترین و
+       پررنگ‌ترین چیزِ بالای صفحه بود، پیش از آنکه مشتری به یک پرسش پاسخ دهد.
+       این‌جا دکمه تا وقتی روی مرحلهٔ ۵ نایستیم `--surface-2` می‌مانَد. غیرفعال
+       نمی‌شود — کسی که بی‌جاوااسکریپت آمده یا زودتر تصمیمش را گرفته باید
+       بتواند بزندش. */
+    form.classList.toggle('is-final', nowN === '5');
   };
 
   steps.forEach(function(s){
@@ -1044,8 +1236,8 @@
     });
   });
 
-  // هر سطرِ برگه، دکمهٔ بازکردنِ مرحلهٔ خودش است
-  document.querySelectorAll('.cvb-line[data-go]').forEach(function(b){
+  // هر سطرِ برگه — و هر گرهِ تیرک — دکمهٔ بازکردنِ مرحلهٔ خودش است
+  document.querySelectorAll('.cvb-line[data-go],.cvb-sp[data-go],.cvb-void-go[data-go]').forEach(function(b){
     b.addEventListener('click', function(){
       var n = b.getAttribute('data-go');
       openStep(n);
@@ -1100,7 +1292,7 @@
       syncImages();
       render();
       stamp();
-      advance('2', '3');
+      advance('3', '4');
     });
   });
 
@@ -1130,7 +1322,7 @@
       mark('.cvb-img', r.closest('.cvb-img'));
       render();
       stamp();
-      advance('3', '4');
+      advance('4', '5');
     });
   });
 
@@ -1272,125 +1464,10 @@
     });
   });
 
-  /* ══════════ افشاگرِ پایدار: کشور ← شهر ← دیتاسنتر ══════════
-
-     قرارداد (خواستهٔ کارفرما، بندِ ۴ و ۵):
-       · دسکتاپ — hover یا focus باز می‌کند؛ تا وقتی نشانگر **هرجای** trigger،
-         پنل یا فاصلهٔ بینشان است باز می‌مانَد؛ فقط بعد از ترکِ کلِ ناحیه و با
-         تأخیرِ ۱۶۰ms (لغوپذیر) بسته می‌شود.
-       · لمس — هیچ hoverای. تپ باز می‌کند، تپ انتخاب می‌کند، تپِ بیرون می‌بندد.
-       · صفحه‌کلید — Tab/Enter/Space/Escape، همه بومیِ <summary>.
-
-     چرا هندسه لازم نیست: trigger خودِ `<summary>` است و پنل فرزندِ همان
-     `<details>`. پس «فاصلهٔ بینشان» درونِ یک عنصر است و یک `pointerleave` روی
-     details هر سه را می‌پوشاند — نه پلِ نامرئی، نه محاسبهٔ مختصات.
-
-     ⚠️ دروازه **توانِ اشاره‌گر** است نه عرضِ پنجره: `innerWidth > 1020`ِ
-     مگامنویِ site.js به یک تبلتِ لمسیِ ۱۰۲۴px مسیرِ hover-only می‌داد.
-     ⚠️ بستنِ خودکار با اسکرول (که site.js دارد) عمداً کپی نشده: پنل را زیرِ
-     چشمِ کسی که دارد می‌خواند می‌بندد.
-     ⚠️ نه Escape و نه کلیکِ سند stopPropagation نمی‌زنند — site.js روی همین دو
-     رویداد، چت و مگامنو و کشویِ موبایل را می‌بندد. */
-  var hoverOK = !!(window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches);
-
-  var holdShut = function(d){
-    if (!d.open) { return; }
-    if (d.getAttribute('data-peek') !== '1') { return; }   // باز شده با تصمیم، نه با نشانگر
-    if (d.contains(document.activeElement)) { return; }
-    d.open = false;
-    d.removeAttribute('data-peek');
-  };
-
-  var holds = Array.prototype.slice.call(form.querySelectorAll('details[data-hold]'));
-
-  holds.forEach(function(d){
-    var sum = d.querySelector('summary');
-
-    // ⚠️ زمان‌سنجِ **هر ناحیه جداگانه**. یک تایمرِ مشترک بینِ کشور و
-    // دیتاسنترِ تودرتویش، ترکِ سطحِ درونی را با ترکِ سطحِ بیرونی قاطی می‌کرد و
-    // یکی از دو بستن بی‌صدا می‌افتاد.
-    var t = null;
-
-    var cancel = function(){ if (t) { clearTimeout(t); t = null; } };
-
-    d.addEventListener('pointerenter', function(e){
-      if (!hoverOK || e.pointerType === 'touch') { return; }
-      cancel();
-      if (!d.open) { d.open = true; d.setAttribute('data-peek', '1'); }
-    });
-
-    d.addEventListener('pointerleave', function(e){
-      if (!hoverOK || e.pointerType === 'touch') { return; }
-      cancel();
-      // ۱۶۰ms، وسطِ بازهٔ ۱۲۰–۲۰۰ خواسته‌شده و کاملاً لغوپذیر: هر بازگشتِ
-      // نشانگر به هر نقطهٔ ناحیه، بستن را منتفی می‌کند.
-      t = setTimeout(function(){ t = null; holdShut(d); }, 160);
-    });
-
-    /* ── فوکوس: قفل می‌کند، ولی هرگز باز نمی‌کند ──────────────────────────
-       🔴 این یک شنونده، **علتِ ریشه‌ایِ دو باگِ هم‌زمان** بود. نسخهٔ قبلی روی
-       هر `focusin` می‌گفت «باز کن و data-peek را بردار» — و چون focus حباب
-       می‌کند و خودِ `<summary>` فوکوس‌پذیر است، شنونده هیچ راهی نداشت فوکوسِ
-       کاربر را از فوکوسِ برنامه‌ایِ خودِ ما جدا کند:
-
-         · **Tab** روی کارتِ کشور بازش می‌کرد و data-peek را هم می‌کند، پس
-           `holdShut` دیگر نمی‌توانست ببنددش. کاربرِ صفحه‌کلید نه می‌توانست از
-           شبکهٔ کشورها رد شود، نه چیزی را که باز کرده بود ببندد.
-         · **Escape** پنل را می‌بست و بعد `summary.focus()` می‌زد تا فوکوس گم
-           نشود — و همان focus بی‌درنگ همین شنونده را روشن و پنل را دوباره باز
-           می‌کرد. Escape پیاده‌سازی‌شده به نظر می‌رسید و در عمل هیچ کاری
-           نمی‌کرد.
-
-       درمانِ ریشه، نه علامت: فوکوس **هیچ‌وقت** `d.open` را دست نمی‌زند. لازم
-       هم نیست — محتوای یک `<details>`ِ بسته فوکوس‌پذیر نیست، پس هر فوکوسی که
-       به درونِ پنل برسد یعنی پنل از قبل باز است. و فوکوس روی خودِ `<summary>`
-       فقط یک **عبور** است نه یک تصمیم، پس هیچ چیزی را قفل نمی‌کند؛ باز/بستنِ
-       صفحه‌کلید همان Enter/Spaceِ بومی است که پایین‌تر قفل را می‌گذارد.
-       (پنلِ hover-شده زیرِ دستِ کاربرِ صفحه‌کلید بسته نمی‌شود، چون خودِ
-       `holdShut` وقتی `document.activeElement` داخلِ ناحیه است برمی‌گردد.) */
-    d.addEventListener('focusin', function(ev){
-      if (sum && ev.target && sum.contains(ev.target)) { return; }
-      cancel();
-      d.removeAttribute('data-peek');
-    });
-
-    if (sum) {
-      // تصمیمِ صریح (کلیک/Enter/Space) پیش از toggleِ بومی، حالت را قفل می‌کند
-      sum.addEventListener('mousedown', function(){ cancel(); d.removeAttribute('data-peek'); });
-      sum.addEventListener('click', function(){ cancel(); d.removeAttribute('data-peek'); });
-      sum.addEventListener('keydown', function(ev){
-        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
-          cancel();
-          d.removeAttribute('data-peek');
-        }
-      });
-    }
-  });
-
-  if (holds.length > 0) {
-    document.addEventListener('click', function(e){
-      var inside = e.target && e.target.closest ? e.target.closest('details[data-hold]') : null;
-      holds.forEach(function(d){
-        if (d !== inside && !d.contains(inside)) { holdShut(d); }
-      });
-    });
-
-    document.addEventListener('keydown', function(e){
-      if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
-      var host = document.activeElement && document.activeElement.closest
-        ? document.activeElement.closest('details[data-hold][open]') : null;
-      if (!host) {
-        for (var i = holds.length - 1; i >= 0; i--) {
-          if (holds[i].open && holds[i].getAttribute('data-peek') === '1') { host = holds[i]; break; }
-        }
-      }
-      if (!host) { return; }                 // هیچ پنلی باز نیست → دست نزن
-      host.open = false;
-      host.removeAttribute('data-peek');
-      var s = host.querySelector('summary');
-      if (s && typeof s.focus === 'function') { s.focus(); }
-    });
-  }
+  /* افشاگرِ hover-محورِ کشور←شهر←دیتاسنتر (details[data-hold]) حذف شد:
+     شهر مرحلهٔ خودش شد، پس هیچ <details>ای در انتخابِ مکان نمانده و آن ۱۲۰
+     خط روی صفر عنصر می‌دوید. کدِ مرده‌ای که ادعای رفتار دارد بدتر از نبودش
+     است — همان درسی که قاعدهٔ صفر-اثرِ blur در همین فایل داد. */
 
   /* ══════════ کم‌رنگ‌کردنِ ملایمِ گروه‌های دیگر ══════════
      🔴 فیلتر فقط روی `.cvb-step-i` می‌نشیند و کم‌رنگی روی خودِ `.cvb-step`.
@@ -1442,7 +1519,7 @@
 
   syncImages();
   render();
-  openStep(String(D.openStep || 2));
+  openStep(String(D.openStep || 1));
 })();
 </script>
 

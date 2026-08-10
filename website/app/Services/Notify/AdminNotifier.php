@@ -55,9 +55,14 @@ class AdminNotifier
         try {
             $phone = trim((string) config('servernet.contact.notify_phone', ''));
 
-            if ($phone !== '') {
-                $this->bale->notify($phone, $text);
-            }
+            /*
+            | 🔴 `toAdmin()` نه `notify()` — سفیر فقط برای مشتریان.
+            |
+            | مدیر مشتری نیست و هر پیامِ سفیر هزینهٔ جداگانه دارد. این متد از
+            | APIِ رباتِ خودمان می‌رود (همان مسیرِ رایگانِ پیش از سفیر). عوض‌کردنش
+            | به `notify()` یعنی برگرداندنِ همان هزینهٔ الکی.
+            */
+            $this->bale->toAdmin($phone, $text);
         } catch (\Throwable $e) {
             /*
             | 🔴 در ردیابِ خطا هم ثبت می‌شود، نه فقط `laravel.log`.

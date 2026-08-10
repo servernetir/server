@@ -98,14 +98,22 @@ class CloudProvisioner
         //
         // عمداً «رد» نمی‌کند: به صفِ بازبینیِ دستی می‌رود تا مدیر ببیند. یک
         // تأخیرِ کوتاه برای مشتریِ واقعی، از قطعِ فروش خیلی ارزان‌تر است.
-        if ($service->customer !== null) {
-            $verdict = app(CloudFraudGuard::class)->check($service->customer);
+        /*
+        | ⚠️ نبودِ مشتری یعنی **نگه دار**، نه «رد شو».
+        |
+        | `services.customer_id` کلیدِ خارجیِ واقعی ندارد، پس مشتریِ حذف‌شده یک
+        | سرویسِ یتیم جا می‌گذارد. شکلِ قبلی (`if ($service->customer !== null)`)
+        | آن سرویس را **بی‌هیچ بررسیِ سوءاستفاده‌ای** مستقیم به تماسِ پولی
+        | می‌رساند. تنها مسیرِ باقی‌مانده به پولِ واقعی که هیچ‌کس نگاهش نمی‌کرد.
+        */
+        $verdict = $service->customer !== null
+            ? app(CloudFraudGuard::class)->check($service->customer)
+            : ['hold' => true, 'reason' => 'مشتریِ این سفارش پیدا نشد'];
 
-            if ($verdict['hold']) {
-                $this->needsReview($service, (string) $verdict['reason']);
+        if ($verdict['hold'] && ! $this->consumeOverride($service, (string) $verdict['reason'])) {
+            $this->needsReview($service, (string) $verdict['reason']);
 
-                return false;
-            }
+            return false;
         }
 
         // ── انتخابِ زیرساخت در **لحظهٔ تحویل**، نه لحظهٔ سفارش ──
@@ -128,6 +136,28 @@ class CloudProvisioner
         $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager)
             ?? CloudPlan::bestForSlug((string) $ordered->slug)
             ?? $ordered;
+
+        /*
+        | 🔴 شاخهٔ `?? $ordered` **قرنطینه را دور می‌زد**.
+        |
+        | هر دو انتخاب‌کنندهٔ بالا `sellable()` می‌زنند و پلنِ `admin_disabled`
+        | را کنار می‌گذارند — ولی وقتی هیچ‌کدام چیزی پیدا نکنند، همان ردیفِ
+        | سفارش‌شده برمی‌گردد، حتی اگر خودِ سیستم چند دقیقه پیش تصمیم گرفته باشد
+        | فروشِ آن زیرساخت امن نیست. یعنی «تلاشِ دوباره»ی مدیر روی سرویسِ ۶ یا
+        | ۱۳ دقیقاً از همان زیرساختی سفارش می‌داد که به‌خاطرِ همان سفارش بسته
+        | شده بود.
+        |
+        | ⚠️ فقط قرنطینهٔ **خودکار** این‌جا جلوی کار را می‌گیرد. پلنی که مدیر
+        | آگاهانه بسته، همچنان برای سرویسِ فروخته‌شده تحویل می‌شود — بستنِ فروش
+        | یعنی «تازه نفروش»، نه «سفارشِ پرداخت‌شده را تحویل نده».
+        */
+        if ($plan->is($ordered) && $ordered->admin_disabled
+            && str_starts_with((string) $ordered->admin_note, self::QUARANTINE_PREFIX)) {
+            $this->fail($service, 'زیرساختِ این پلن پس از یک خطای ساختاری خودکار بسته شده؛ '
+                .'تا بازبینیِ مدیر دوباره سفارش داده نمی‌شود.');
+
+            return false;
+        }
 
         $driver = $this->manager->forPlan($plan);
 
@@ -919,6 +949,42 @@ class CloudProvisioner
             }
         }
 
+        /*
+        | ═══ 🔴 شکلِ **بافاصله**ی همان خطا، که هرگز نمی‌گرفت ═══
+        |
+        | فهرستِ بالا فقط `proxy_internal_server_error` (اسلاگِ زیرِ خطی) را
+        | می‌شناخت. ولی چیزی که درایور واقعاً برمی‌گرداند پیامِ خامِ گیت‌وی است:
+        | «Proxy internal server error (see traceId)» — بی‌هیچ اسلاگی. پس
+        | سرویس‌های ۶ و ۱۳ با دقیقاً همین متن شکست خوردند و قرنطینه **نگرفت**؛
+        | پلن‌ها در فروشگاه ماندند و مشتریِ بعدی همان تجربه را می‌گرفت.
+        |
+        | تستِ موجود هم نمی‌توانست بگیردش: خودش اسلاگ را به ورودی می‌چسباند و
+        | روی همان اسلاگی که خودش ساخته بود سبز می‌شد.
+        |
+        | ⚠️ ولی این شکل **مبهم** است: همین متن هم «شکلِ درخواستت را نمی‌شناسم»
+        | است هم «سرورِ من خراب است». پس بر خلافِ بقیهٔ فهرست، **بارِ اول
+        | قرنطینه نمی‌کند** — یک قطعیِ دو دقیقه‌ای نباید ۲۲۱ پلن را تا دخالتِ
+        | دستی ببندد. بارِ دوم در نیم‌ساعت یعنی «گذرا نبود» و بسته می‌شود.
+        |
+        | (این متد فقط از شاخهٔ شکستِ `createServer()` صدا زده می‌شود، پس
+        | استعلامِ کاتالوگ هرگز به این‌جا نمی‌رسد.)
+        */
+        if ($hit === null && str_contains($needle, 'proxy internal server error')) {
+            $key = 'cloud:gateway500:'.$plan->provider;
+
+            if (! \Illuminate\Support\Facades\Cache::get($key)) {
+                \Illuminate\Support\Facades\Cache::put($key, 1, now()->addMinutes(30));
+
+                \App\Support\ErrorTracker::note('cloud',
+                    'زیرساخت سرِ سفارش «Proxy internal server error» داد. اگر در نیم‌ساعت تکرار شود، '
+                    .'فروشِ پلن‌هایش خودکار بسته می‌شود.', ['provider' => $plan->provider]);
+
+                return;
+            }
+
+            $hit = 'proxy internal server error';
+        }
+
         if ($hit === null) {
             return;
         }
@@ -1062,18 +1128,219 @@ class CloudProvisioner
             'provision_error'  => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
         ])->save();
 
+        /*
+        | 🔴 تنها جایی که مدیر دنبالِ **علت** می‌گردد، تا امروز خالی بود.
+        |
+        | `fail()` پایین‌تر `ActivityLog::forService` می‌نویسد، ولی این متد
+        | نمی‌نوشت. یعنی `/admin/services/{id}/history` برای یک سفارشِ پارک‌شده
+        | هیچ‌چیز نداشت و تنها ردِ ماجرا در ردیابِ خطا بود — همان‌جایی که
+        | کارفرما گفت «فقط چون خودم بازش کردم فهمیدم».
+        */
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ سرور نیازمندِ بازبینی', [
-                'سرویس' => '#'.$service->id.' — '.$service->name,
-                'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
-                'علت'   => $reason,
-            ]);
-        } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'سفارش به صفِ بازبینیِ دستی رفت: '.$reason, 'system');
+        } catch (\Throwable) {
         }
 
         \App\Support\ErrorTracker::note('fraud-guard',
             'سفارشِ سرور به بازبینیِ دستی رفت: '.$reason, ['service' => $service->id]);
+
+        /*
+        | ═══ 🔴 شکستنِ سکوت ═══
+        |
+        | تا امروز فقط مدیر خبردار می‌شد (آن هم بی‌لینک و بی‌ایموجی، پس بینِ
+        | بقیهٔ 🔔ها گم می‌شد) و **مشتری هیچ‌چیز نمی‌شنید**: پولش رفته بود،
+        | سروری نمی‌آمد، و پنل هم‌زمان وعده می‌داد «کمتر از دو دقیقه».
+        |
+        | حالا یک رویدادِ کاتالوگ (`service_hold`، مخاطب: هر دو) شلیک می‌شود:
+        | مشتری متنِ صادق و بی‌عدد می‌گیرد، مدیر همان لحظه سطرِ «علت» و لینکِ
+        | مستقیمِ سرویس را.
+        |
+        | ⚠️ علتِ فنی **فقط** به مدیر می‌رود. متنِ زندهٔ محافظ «بیش از ۵ سرور در
+        | ۲۴ ساعت» است؛ نشان‌دادنش به مشتری یعنی به مهاجم یاد بدهیم یکی زیرِ
+        | سقف بماند. متغیرهای الگوی مشتری هم به همین دلیل فقط `service` است.
+        |
+        | ⚠️ **دقیقاً یک بار**: `provision:run` و «تلاشِ دوباره»ی مدیر هر دو
+        | می‌توانند بارها این‌جا برسند. بی‌قفل، مشتری به‌ازای هر تلاش یک پیام
+        | می‌گرفت — همان «هرگز دو بار»ی که برای ایمیلِ تحویل هم نوشته شده.
+        */
+        if (! $this->claimHoldNotice($service)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Notify\Notifier::class)->fire(
+                'service_hold',
+                $service->customer,
+                ['service' => (string) $service->name],
+                'سفارشِ «'.$service->name.'» برای بررسیِ کوتاهِ امنیتی نگه داشته شد. '
+                .'تیمِ ما آن را بازبینی می‌کند و نتیجه را به شما اطلاع می‌دهیم؛ مبلغی از دست نمی‌رود.',
+                ['سرویس' => '#'.$service->id.' — '.$service->name, 'علت' => $reason],
+                url('/admin/services/'.$service->id.'/history'),
+                '🛑',
+            );
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-hold']);
+        }
+    }
+
+    /**
+     * قفلِ «یک بار به مشتری خبر بده» برای یک سفارشِ پارک‌شده.
+     *
+     * ⚠️ روی خودِ ردیف قفل می‌شود، نه روی کش: کشِ پروداکشن روی همان دیتابیسی
+     * می‌نشیند که بارها لرزیده، و از دست رفتنِ کلید یعنی سیلِ پیامِ تکراری.
+     *
+     * علامت در `provision_meta` می‌نشیند. `finalize()` این ستون را یکجا
+     * بازنویسی می‌کند — که این‌جا دقیقاً رفتارِ درست است: تحویلِ موفق پروندهٔ
+     * «نگه‌داشته شده» را می‌بندد، و اگر روزی همان سرویس دوباره پارک شود، باید
+     * دوباره خبر برود.
+     *
+     * @return bool آیا این فراخوان حقِ فرستادن را گرفت
+     */
+    private function claimHoldNotice(Service $service): bool
+    {
+        try {
+            return (bool) DB::transaction(function () use ($service) {
+                $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($fresh === null) {
+                    return false;
+                }
+
+                $meta = (array) ($fresh->provision_meta ?? []);
+
+                if (filled($meta['hold_notified_at'] ?? null)) {
+                    return false;
+                }
+
+                $meta['hold_notified_at'] = now()->toIso8601String();
+                $fresh->forceFill(['provision_meta' => $meta])->save();
+                $service->provision_meta = $meta;
+
+                return true;
+            });
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'hold-notice-claim', 'service' => $service->id]);
+
+            return false;   // مطمئن‌تر: پیامِ نرفته از پیامِ تکراری بهتر است
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 رهاسازیِ دستیِ یک سفارشِ پارک‌شده — «می‌دانم، بساز»
+    |--------------------------------------------------------------------------
+    |
+    | مسئله‌ای که حل می‌کند، اندازه‌گیری‌شده روی پروداکشن: محافظ سفارش را نگه
+    | می‌داشت و **تنها درِ خروج** («تلاشِ دوباره»ی مدیر) از خودِ همان محافظ رد
+    | می‌شد. پس سفارش هرگز بیرون نمی‌آمد و پیامِ خطا به مدیر می‌گفت «نیازمندِ
+    | تأییدِ دستی» در حالی که هیچ افورد‌نسِ تأییدی در محصول وجود نداشت.
+    |
+    | طراحی، و چراییِ هر قید:
+    |
+    |  • **تک‌سرویس و یک‌بارمصرف.** علامتی در `provision_meta` می‌نشیند و در
+    |    همان شاخهٔ محافظ **مصرف** می‌شود. کلیدِ سراسریِ «محافظ خاموش» وجود
+    |    ندارد، چون خاموشیِ سراسری همان چیزی است که این کلاس برای نداشتنش
+    |    نوشته شد.
+    |  • **فقط شاخهٔ محافظ.** هرچه زیرِ آن است — درایورِ پیکربندی‌شده، موجودی،
+    |    در دسترس بودنِ سیستم‌عامل — دست‌نخورده می‌مانَد. رهاسازی‌ای که از روی
+    |    آنها بپرد، بن‌بست را با «پولِ چیزی که تحویل‌شدنی نیست» عوض می‌کند.
+    |  • **نمی‌تواند دو بار بخرد.** این متد چیزی نمی‌خرد؛ فقط ردیف را به
+    |    `pending` برمی‌گرداند. خریدْ همان مسیرِ همیشگی است و هر سه لایهٔ
+    |    ضدِ خریدِ دوباره سرِ جایشان‌اند: قفلِ اتمیِ `provision()` (دو رهاسازیِ
+    |    هم‌زمان، یک برنده)، شاخهٔ `adoptExisting()` وقتی `provider_ref` پر
+    |    باشد، و نامِ قطعیِ `sn-svc-{id}`.
+    |  • **از سمتِ مشتری غیرقابلِ دسترس.** روتش پشتِ `auth:web` + `admin` است،
+    |    در فهرستِ سفیدِ نویسنده نیست، کنترلر دوباره `isAdmin()` می‌سنجد، و
+    |    مشتری اصلاً روی گاردِ `web` نیست.
+    */
+
+    /**
+     * ثبتِ درخواستِ رهاسازی روی یک سرویس (فقط علامت‌گذاری؛ چیزی تحویل نمی‌دهد).
+     *
+     * @param  string  $by  نامِ مدیرِ تصمیم‌گیرنده — برای ردِ حسابرسی
+     */
+    public static function requestOverride(Service $service, string $by): void
+    {
+        $meta = (array) ($service->provision_meta ?? []);
+
+        $meta['fraud_override'] = [
+            'pending' => true,
+            'by'      => $by,
+            'at'      => now()->toIso8601String(),
+            'flagged' => mb_substr((string) $service->provision_error, 0, 200),
+        ];
+
+        $service->forceFill(['provision_meta' => $meta])->save();
+    }
+
+    /** آیا روی این سرویس رهاسازیِ مصرف‌نشده هست؟ (فقط برای نمایش) */
+    public static function overrideRequested(Service $service): bool
+    {
+        return (($service->provision_meta['fraud_override']['pending'] ?? false) === true);
+    }
+
+    /**
+     * مصرفِ یک‌بارهٔ علامتِ رهاسازی — اتمی، زیرِ قفلِ ردیف.
+     *
+     * ⚠️ سندِ حسابرسی در `ActivityLog` و ردیابِ خطا نوشته می‌شود نه فقط در
+     * `provision_meta`: `finalize()` آن ستون را در لحظهٔ تحویلِ موفق یکجا
+     * بازنویسی می‌کند، یعنی دقیقاً وقتی «چه کسی اجازه داد» بیشترین ارزش را
+     * دارد، از بین می‌رفت.
+     */
+    private function consumeOverride(Service $service, string $reason): bool
+    {
+        try {
+            $mark = DB::transaction(function () use ($service) {
+                $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($fresh === null) {
+                    return null;
+                }
+
+                $meta = (array) ($fresh->provision_meta ?? []);
+
+                if ((($meta['fraud_override']['pending'] ?? false) !== true)) {
+                    return null;
+                }
+
+                $mark = (array) $meta['fraud_override'];
+
+                unset($meta['fraud_override']);
+                $meta['fraud_override_used'] = [
+                    'by' => $mark['by'] ?? '—',
+                    'at' => now()->toIso8601String(),
+                ];
+
+                $fresh->forceFill(['provision_meta' => $meta])->save();
+                $service->provision_meta = $meta;
+
+                return $mark;
+            });
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'override-consume', 'service' => $service->id]);
+
+            return false;
+        }
+
+        if ($mark === null) {
+            return false;
+        }
+
+        $who = (string) ($mark['by'] ?? '—');
+
+        try {
+            \App\Models\ActivityLog::forService($service, 'provision',
+                'محافظِ سوءاستفاده با تأییدِ صریحِ مدیر ('.$who.') کنار گذاشته شد — نشانهٔ محافظ: '.$reason,
+                'staff');
+        } catch (\Throwable) {
+        }
+
+        \App\Support\ErrorTracker::note('fraud-guard',
+            'رهاسازیِ دستیِ سفارش توسط مدیر ('.$who.') — نشانهٔ محافظ: '.$reason,
+            ['service' => $service->id, 'by' => $who]);
+
+        return true;
     }
     /**
      * خرابیِ گذرا: `pending` بمان تا کرونِ بعدی دوباره تلاش کند.
@@ -1263,8 +1530,35 @@ class CloudProvisioner
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
-        if ($instance === null || blank($instance->provider_ref)) {
-            return true;                              // چیزی برای حذف نیست
+        /*
+        | ═══ 🔴 «چیزی برای حذف نیست» با «نمی‌دانم چه چیزی را حذف کنم» یکی نیست ═══
+        |
+        | این شاخه بی‌قید `true` می‌داد و فراخوان آن را «موفق» ثبت می‌کرد:
+        | `provision_status='none'` و صفِ آزادسازی بسته. برای سرویسی که هرگز
+        | سفارشی نداده درست است — ولی برای سرویسی که ردیفِ نمونه دارد و شناسه‌اش
+        | هنوز حل نشده (`order:…`، یا تماسِ ساخت که پاسخش به ما نرسید)، یعنی یک
+        | ماشینِ احتمالاً **زندهٔ** یتیم که اجاره‌اش پای ماست و هیچ‌جا ردی ندارد.
+        | این دقیقاً همان دکمهٔ حذفی است که «بی‌صدا هیچ کاری نمی‌کرد».
+        |
+        | ⚠️ ولی جهتِ مخالف هم باگ است: اگر نبودِ واقعیِ ماشین را «شکست» بخوانیم،
+        | صفِ `releasing` و چکِ سلامت پر از کاری می‌شود که وجود ندارد — زنگِ
+        | همیشه‌قرمزی که زنگِ بعدی را خفه می‌کند. پس فقط دو حالت جدا شده‌اند:
+        | «هیچ سفارشی ثبت نشده» ⇒ موفق · «سفارش هست ولی شناسه‌اش را نداریم» ⇒ ناموفق.
+        */
+        if ($instance === null) {
+            return true;                              // هرگز سفارشی ثبت نشد
+        }
+
+        if (blank($instance->provider_ref)) {
+            $this->shoutAboutLingeringMachine(
+                'حذفِ سرور ممکن نشد: شناسهٔ ماشین نزدِ زیرساخت در دست نیست',
+                $service, $instance,
+                'ردیفِ نمونه ساخته شده ولی شناسه‌ای ثبت نشده — ممکن است ماشین واقعاً '
+                .'ساخته شده باشد. نامِ قطعیِ «'.$this->serverName($service).'» را در پنلِ '
+                .'زیرساخت جستجو کنید.'
+            );
+
+            return false;
         }
 
         $driver = $this->manager->forInstance($instance);

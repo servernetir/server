@@ -26,11 +26,17 @@
 
   <div class="srv-grid" id="srv-grid">
     @foreach($models as $slug => $m)
-      @php $b = $brands[$m['brand']] ?? ['label' => $m['brand'], 'color' => 'var(--cyan)']; $lm = lc($m); @endphp
+      {{-- ⚠️ `img_url()` و نه `!empty()`: ردیفی که رشتهٔ «null» دارد از
+           `!empty()` رد می‌شود و `src="null"` می‌سازد ⇒ ۴۰۴ روی `/servers/null`. --}}
+      @php
+        $b = $brands[$m['brand']] ?? ['label' => $m['brand'], 'color' => 'var(--cyan)'];
+        $lm = lc($m);
+        $thumb = img_url(((array) ($m['gallery'] ?? []))[0] ?? null);
+      @endphp
       <a class="srv-card" data-brand="{{ $m['brand'] }}" href="{{ lroute('servers.show', $slug) }}">
         <div class="srv-thumb">
-          @if(!empty($m['gallery']))
-            <img src="{{ $m['gallery'][0] }}" alt="{{ $lm['name'] }}" loading="lazy">
+          @if($thumb)
+            <img src="{{ $thumb }}" alt="{{ $lm['name'] }}" loading="lazy">
           @else
             <div class="srv-ph"><svg class="icon"><use href="#i-server"/></svg></div>
           @endif

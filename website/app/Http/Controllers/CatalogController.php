@@ -105,20 +105,58 @@ class CatalogController extends Controller
         | جستجوی واقعی می‌رود؛ مشخصات و متنِ سئو دست‌نخورده می‌مانند.
         */
         if ($category === 'domain' && ! empty($product['plans'])) {
-            // نامِ پلن روی این صفحات همان پسوند است («.com»، «.ir ×۵»)
-            $tldOf = fn ($p) => strtolower(ltrim(trim(explode(' ', (string) ($p['name'] ?? ''))[0]), '.'));
+            /*
+            |------------------------------------------------------------------
+            | 🔴 پسوند از **نامِ بازاریابی** استخراج می‌شد، و پسوندهای الکی می‌ساخت
+            |------------------------------------------------------------------
+            |
+            | شکلِ قبلی اولین واژهٔ نامِ پلن را پسوند می‌گرفت. روی `.com` و `.ir`
+            | درست بود، ولی روی صفحاتِ دیگر آشغال می‌ساخت و همان آشغال به
+            | رجیسترار فرستاده می‌شد:
+            |
+            |     /domain/persian    →  IDN .com  →  «idn»       (پسوندِ ناموجود)
+            |     /domain/reseller   →  Starter/Business/Enterprise
+            |     /domain/backorder  →  Single/Pack/Monitor
+            |
+            | و `sn7price9check4base.idn` دقیقاً همان استعلامِ تک‌دامنه‌ای است که
+            | در پروداکشن `code 199 · An unknown error has occurred! · domains=1`
+            | گرفت. یعنی آن ۱۹۹ نه یک هیچکاپِ رجیسترار بود، نه ربطی به سقفِ ۷۰۱
+            | داشت: **ما پسوندی می‌پرسیدیم که وجود ندارد** — روی حسابی که از قبل
+            | به‌خاطرِ تماسِ زیاد علامت خورده.
+            |
+            | قاعدهٔ تازه: نامِ پلن فقط وقتی پسوند است که با «.» شروع شود. هر
+            | چیزِ دیگری اسمِ بستهٔ فروش است و اصلاً استعلام نمی‌شود. پلنی که
+            | نامش با پسوندش نمی‌خوانَد، کلیدِ صریحِ `tld` می‌گیرد.
+            */
+            $tldOf = function ($p): string {
+                if (filled($p['tld'] ?? null)) {
+                    return strtolower(ltrim(trim((string) $p['tld']), '.'));
+                }
+
+                $first = trim(explode(' ', (string) ($p['name'] ?? ''))[0]);
+
+                return str_starts_with($first, '.')
+                    ? strtolower(ltrim($first, '.'))
+                    : '';
+            };
 
             $live = [];
 
             try {
-                $live = app(\App\Services\Domain\TldPriceBook::class)
-                    ->forTlds(array_map($tldOf, $product['plans']));
+                $ask = array_values(array_filter(array_map($tldOf, $product['plans'])));
+
+                $live = $ask === []
+                    ? []
+                    : app(\App\Services\Domain\TldPriceBook::class)->forTlds($ask);
             } catch (\Throwable) {
                 // بی‌قیمت بهتر از قیمتِ غلط است؛ دکمهٔ «بررسی و ثبت» می‌مانَد
             }
 
             $product['plans'] = array_map(function ($p) use ($tldOf, $live) {
-                $price = $live[$tldOf($p)] ?? null;
+                $tld = $tldOf($p);
+                $price = $tld === '' ? null : ($live[$tld] ?? null);
+
+                unset($p['tld']);
 
                 unset($p['eur'], $p['pid']);
 

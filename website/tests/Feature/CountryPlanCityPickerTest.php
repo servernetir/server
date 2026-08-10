@@ -444,8 +444,25 @@ class CountryPlanCityPickerTest extends TestCase
         $this->assertMatchesRegularExpression('~\.plan-table\{[^}]*min-width:\s*\d+px~', $css,
             'جدول حداقلِ عرض ندارد — ستون‌ها روی موبایل له می‌شوند به‌جای اسکرول');
 
-        $this->assertMatchesRegularExpression('~[\s}]body\{[^}]*overflow-x:\s*hidden~', $css,
+        /*
+        | ⚠️ ادعا از `hidden` به `clip` عوض شد، و **سخت‌گیرانه‌تر** شد نه شل‌تر.
+        |
+        | هر دو سرریزِ افقی را می‌بندند، ولی `overflow-x:hidden` روی <body> یک
+        | **ظرفِ اسکرول** می‌سازد (فقط اسکرول‌بارش را پنهان می‌کند و هنوز
+        | برنامه‌ای اسکرول می‌شود)، در حالی که `clip` اصلاً scrollport نمی‌سازد.
+        | همان ظرفِ اسکرول بود که `position:sticky` را در کلِ سایت می‌کشت: هر
+        | ریلِ چسبان یک نیای اسکرول‌شونده داشت که هرگز اسکرول نمی‌شد. اندازه‌گیری
+        | A/B/A در مرورگر: با hidden، بالای برگهٔ قیمت در scrollY صفر/۲۰۰/۴۰۰
+        | برابرِ ۳۱۳٫۵/۱۱۳٫۵/-۸۶٫۵ بود (یعنی دقیقاً -scrollY)؛ با clip ۳۱۳٫۵/۹۶/۹۶.
+        |
+        | 🔴 و این دقیقاً همان درسِ ثبت‌شدهٔ پروژه است: نگهبانی که به **حاملِ**
+        | یک تصمیم بند باشد (واژهٔ `hidden`) نه به خودِ تصمیم (بدنه افقی اسکرول
+        | نشود)، با عوض‌شدنِ حامل می‌میرد یا بدتر، جلوی اصلاح را می‌گیرد.
+        */
+        $this->assertMatchesRegularExpression('~[\s}]body\{[^}]*overflow-x:\s*clip~', $css,
             'بدنهٔ صفحه می‌تواند افقی اسکرول شود — همان چیزی که روی گوشی صفحه را می‌لرزانَد');
+        $this->assertDoesNotMatchRegularExpression('~[\s}]body\{[^}]*overflow-x:\s*hidden~', $css,
+            'hidden روی body ظرفِ اسکرول می‌سازد و position:sticky را در کلِ سایت می‌کشد');
 
         $this->assertDoesNotMatchRegularExpression('~\.pt-c(ities)?[\s,{][^}]*position:\s*(absolute|fixed)~', $css,
             'انتخابگرِ شهر پاپ‌آورِ مطلق شده — داخلِ ظرفِ اسکرول‌دارِ جدول بریده می‌شود');

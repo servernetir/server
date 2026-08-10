@@ -118,7 +118,11 @@ return [
             'tr' => ['t' => 'Farsça adınız boşta mı?', 'd' => 'Farsça yazın — canlı sorgu']],
         'plans' => [
             $mkTld('.ایران', 190000, 4.50, [['fa' => 'پسوند ملی به خط فارسی', 'en' => 'National TLD in Persian script', 'tr' => 'Fars alfabesiyle ulusal uzantı'], $dns, $lock], true),
-            $mkTld('IDN .com', 1290000, 12.90, [['fa' => 'دامنه فارسی با پسوند com.', 'en' => 'Persian name on .com', 'tr' => '.com üzerinde Farsça ad'], $dns, $lock]),
+            /* ⚠️ `tld` صریح لازم است: نامِ بازاریابی «IDN .com» است و استخراجِ
+               خودکار از آن «idn» می‌ساخت — پسوندی که وجود ندارد و رجیسترار
+               برایش `code 199` می‌داد. هر پلنی که نامش با پسوندش نمی‌خوانَد،
+               باید همین کلید را داشته باشد. */
+            array_merge($mkTld('IDN .com', 1290000, 12.90, [['fa' => 'دامنه فارسی با پسوند com.', 'en' => 'Persian name on .com', 'tr' => '.com üzerinde Farsça ad'], $dns, $lock]), ['tld' => 'com']),
         ],
         'features' => $domainFeatures,
         'faqs' => [

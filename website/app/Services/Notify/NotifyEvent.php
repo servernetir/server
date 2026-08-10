@@ -92,6 +92,20 @@ final class NotifyEvent
             'title' => 'شکست در تحویل سرویس', 'group' => 'service',
             'audience' => self::BOTH, 'vars' => ['service', 'reason'], 'wired' => true,
         ],
+        /*
+        | سفارشی که محافظِ سوءاستفاده برای بازبینیِ دستی نگه داشته.
+        |
+        | 🔴 `vars` عمداً فقط `service` است. علتِ محافظ («بیش از N سرور در ۲۴
+        | ساعت») **هرگز** به مشتری نمی‌رود: عددِ سقف را گفتن یعنی به مهاجم یاد
+        | بدهیم یکی زیرش بماند. علت فقط در سطرهای اعلانِ مدیر می‌رود.
+        |
+        | ⚠️ متغیرِ اضافه این‌جا الگو را برای همیشه می‌کُشد — `NotificationTemplate`
+        | اگر بعد از جایگزینی هنوز `{چیزی}` ببیند متنِ الگو را کنار می‌گذارد.
+        */
+        'service_hold' => [
+            'title' => 'نگه‌داشتنِ سفارش برای بازبینی', 'group' => 'service',
+            'audience' => self::BOTH, 'vars' => ['service'], 'wired' => true,
+        ],
         'expiring' => [
             'title' => 'یادآوری تمدید (۷ / ۳ / ۱ روز)', 'group' => 'service',
             'audience' => self::CUSTOMER, 'vars' => ['service', 'days', 'amount', 'link'], 'wired' => true,

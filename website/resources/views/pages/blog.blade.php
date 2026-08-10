@@ -59,11 +59,14 @@
         @if(count($paged['items']))
         <div class="blog-grid">
           @foreach($paged['items'] as $i => $p)
-          @php $c = $cats[$p['category']] ?? null; @endphp
+          {{-- ⚠️ `img_url()` و نه `!empty()`: ستونی که رشتهٔ «null» دارد از
+               `!empty()` رد می‌شود و `src="null"` می‌سازد — که مرورگر نسبی
+               حلش می‌کند و از `/blog?tag=…` یک ۴۰۴ روی `/null` می‌سازد. --}}
+          @php $c = $cats[$p['category']] ?? null; $pImg = img_url($p['image'] ?? null); @endphp
           <article class="blog-card reveal" style="transition-delay:{{ $i * 50 }}ms">
-            <a class="blog-card-cover {{ !empty($p['image']) ? 'has-img' : '' }}" href="{{ lroute('blog', $p['slug']) }}" @empty($p['image']) style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}" @endempty>
-              @if(!empty($p['image']))
-                <img src="{{ $p['image'] }}" alt="{{ $p['title'] }}" loading="lazy" decoding="async">
+            <a class="blog-card-cover {{ $pImg ? 'has-img' : '' }}" href="{{ lroute('blog', $p['slug']) }}" @unless($pImg) style="background:{{ $covers[$p['cover'] ?? 'a'] ?? '' }}" @endunless>
+              @if($pImg)
+                <img src="{{ $pImg }}" alt="{{ $p['title'] }}" loading="lazy" decoding="async">
               @else
                 <svg class="icon"><use href="#i-{{ $p['icon'] ?? 'book' }}"/></svg>
               @endif

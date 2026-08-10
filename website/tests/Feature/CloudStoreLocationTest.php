@@ -154,11 +154,31 @@ class CloudStoreLocationTest extends TestCase
             ['code' => $code, 'country' => 'DE', 'city' => $city, 'is_active' => true]
         );
 
-        $this->assertSame('برلین', $mk('de-ref', null)->cityLabel('fa'));
-        $this->assertSame('برلین', $mk('de-amd', 'AMD')->cityLabel('fa'));
-        $this->assertSame('برلین', $mk('de-nvme', 'NVMe')->cityLabel('fa'));
+        /*
+        | ⚠️ این ادعا **وارونه شد**، و دلیلش گران‌ترین درسِ این پرونده است.
+        |
+        | نسخهٔ قبلی می‌گفت «هر سه باید برلین چاپ کنند» و آن را رفتارِ درست
+        | می‌نامید. یعنی تستی که برای گرفتنِ باگ نوشته شده بود، خودش **محافظِ**
+        | باگ شد: ۱۴ تست و ۱۵۲ ادعا سبز بودند در حالی که کارفرما سه چیپِ
+        | «برلین» را کنارِ هم می‌دید.
+        |
+        | `CloudLocation::cityLabel()` هنوز پایتخت را برمی‌گرداند و عمداً
+        | دست‌نخورده است (فاکتور و صفحات کشور همان را می‌خوانند). چیزی که عوض
+        | شد، **فروشگاه** است: `CloudStoreController::trustedCityName()` شهری را
+        | که نمی‌شناسیم نام نمی‌دهد. ادعای رندرشده در CloudStoreCityStepTest است.
+        */
+        $this->assertSame('برلین', $mk('de-ref', null)->cityLabel('fa'),
+            'رفتارِ مدلی عمداً دست‌نخورده — فروشگاه دیگر از این متد برای نامِ شهر نمی‌پرسد');
 
-        // …و با این حال سه شناسهٔ متفاوت‌اند، پس سه سطلِ متفاوت می‌گیرند
+        $store = new \ReflectionMethod(CloudStoreController::class, 'trustedCityName');
+        $store->setAccessible(true);
+
+        foreach ([['de-ref', null], ['de-amd', 'AMD'], ['de-nvme', 'NVMe']] as [$code, $city]) {
+            $this->assertNull($store->invoke(null, $mk($code, $city)),
+                "«{$code}» شهر ندارد؛ فروشگاه نباید نامی برایش بسازد");
+        }
+
+        // …و سه شناسهٔ متفاوت‌اند، پس سه سطلِ متفاوت می‌مانند (هیچ ادغامی)
         $keys = array_map(fn ($l) => $l->cityIdentity(),
             [$mk('de-ref', null), $mk('de-amd', 'AMD'), $mk('de-nvme', 'NVMe')]);
 
@@ -177,16 +197,26 @@ class CloudStoreLocationTest extends TestCase
         $tehran = new CloudLocation(['code' => 'ir-tehran', 'country' => 'IR', 'city' => 'Tehran', 'is_active' => true]);
         $junk = new CloudLocation(['code' => 'ir-ref', 'country' => 'IR', 'city' => null, 'is_active' => true]);
 
-        // هر دو یک متن چاپ می‌کنند…
-        $this->assertSame('تهران', $tehran->cityLabel('fa'));
-        $this->assertSame('تهران', $junk->cityLabel('fa'));
-
-        // …ولی دو کارتِ جدا می‌شوند
+        // دو کارتِ جدا می‌مانند — هیچ ادغامی، پس هیچ کدی نارس نمی‌شود
         $buckets = CloudStoreController::cityBuckets([$tehran, $junk], ['ir-tehran', 'ir-ref']);
 
         $this->assertCount(2, $buckets, 'ir-ref نباید داخلِ کارتِ تهران حل شود');
         $this->assertSame(['ir-tehran', 'ir-ref'],
             array_map(fn ($b) => (string) $b['primary']->code, $buckets));
+
+        /*
+        | 🔴 و ادعایی که تا امروز نبود و نبودنش کلِ باگ را زنده نگه داشت:
+        | **متنِ دو کارت هم باید فرق کند.** تستِ قبلی این‌جا `assertSame('تهران',
+        | $junk->cityLabel('fa'))` داشت و آن را درست می‌نامید؛ یعنی دقیقاً همان
+        | چیزی که کارفرما روی صفحه می‌دید، این‌جا به‌عنوان رفتارِ مطلوب قفل شده
+        | بود. یکتاییِ **کلید** هرگز یکتاییِ **برچسب** را ثابت نمی‌کند.
+        */
+        $labels = array_map(fn ($b) => (string) $b['label'], $buckets);
+
+        $this->assertSame($labels, array_unique($labels), 'دو سطل نباید یک متن چاپ کنند');
+        $this->assertSame('تهران', $labels[0]);
+        $this->assertStringNotContainsString('تهران', $labels[1],
+            'ir-ref تهران نیست — نامِ تهران نباید رویش بنشیند');
     }
 
     /** یک شهرِ واقعی با دو املا = یک کارت، ولی هر دو کد سرِ جایشان */
@@ -242,15 +272,22 @@ class CloudStoreLocationTest extends TestCase
         $html = $this->page();
 
         foreach ($codes as $code) {
-            // ۱) از فهرستِ کشورها می‌شود به آن رسید — لینکِ واقعی، نه دکمهٔ جاوااسکریپتی
-            $this->assertStringContainsString('data-city="'.$code.'"', $html,
-                "مکانِ «{$code}» از فهرست ناپدید شده");
+            // ۱) کشورش از صفحهٔ نخست یک ردیفِ کلیک‌شدنی دارد.
+            //    ⚠️ خودِ چیپِ شهر دیگر روی صفحهٔ نخست نیست: شهر مرحلهٔ خودش شد و
+            //    فقط شهرهای کشورِ انتخاب‌شده رندر می‌شوند. دسترس‌پذیری حالا
+            //    «کشور ← شهر» است، و هر دو نیمه این‌جا سنجیده می‌شود.
+            $iso = strtoupper(explode('-', $code)[0]);
+            $this->assertStringContainsString('data-nat="'.$iso.'"', $html,
+                "کشورِ «{$iso}» از فهرست ناپدید شده");
+
+            // ۲) و صفحهٔ خودش هم لینکِ شهرش را دارد هم همان دو اندازه را می‌فروشد
+            $own = $this->page('?location='.$code);
+
+            $this->assertStringContainsString('data-city="'.$code.'"', $own,
+                "مکانِ «{$code}» از مرحلهٔ شهر ناپدید شده");
             $this->assertMatchesRegularExpression(
                 '~<a class="cvb-city[^"]*"[^>]*href="[^"]*location='.preg_quote($code, '~').'&~',
-                $html, "لینکِ مکانِ «{$code}» شکسته یا حذف شده");
-
-            // ۲) و صفحهٔ خودش هنوز همان دو اندازه را می‌فروشد
-            $own = $this->page('?location='.$code);
+                $own, "لینکِ مکانِ «{$code}» شکسته یا حذف شده");
 
             foreach (['cv-2c-4g-40d-'.$code, 'cv-4c-8g-80d-'.$code] as $slug) {
                 $this->assertStringContainsString('data-slug="'.$slug.'"', $own,
@@ -269,13 +306,14 @@ class CloudStoreLocationTest extends TestCase
         $this->sickCatalog();
         $html = $this->page();
 
-        $this->assertStringContainsString('data-city="fi-helsinki"', $html,
-            'کشورِ تمام‌شده باید دیده شود');
+        $this->assertStringContainsString('data-nat="FI"', $html, 'کشورِ تمام‌شده باید دیده شود');
         $this->assertStringContainsString(__('ui.cvb_c_soldout'), $html);
-        $this->assertMatchesRegularExpression('~<details class="cvb-cnat\s+is-shut~', $html,
+        $this->assertMatchesRegularExpression('~<a class="cvb-nat\s+is-shut~', $html,
             'کشورِ بی‌موجودی باید علامتِ دیداریِ خودش را داشته باشد');
-        // …و شهرش هم صادقانه ناموجود علامت خورده باشد
-        $this->assertMatchesRegularExpression('~class="cvb-city\s+is-shut[^"]*"[^>]*data-city="fi-helsinki"~', $html);
+
+        // …و شهرش هم صادقانه ناموجود علامت خورده باشد، در مرحلهٔ خودش
+        $fi = $this->page('?location=fi-helsinki');
+        $this->assertMatchesRegularExpression('~class="cvb-city\s+is-shut[^"]*"[^>]*data-city="fi-helsinki"~', $fi);
     }
 
     /**
@@ -285,18 +323,32 @@ class CloudStoreLocationTest extends TestCase
      * `CloudCountry::served()` شهرهای خام را حساس‌به‌حروف می‌شمارد و خالی‌ها را
      * می‌اندازد. هیچ‌کدام مبنای درستی نیست.
      */
-    public function test_the_country_card_counts_open_cities_not_raw_codes(): void
+    public function test_the_country_row_count_matches_the_rows_the_city_step_renders(): void
     {
         $this->sickCatalog();
         $html = $this->page();
 
-        // آلمان: de-frankfurt + de-ref + de-amd = سه سطلِ متفاوت
-        $this->assertStringContainsString(trans_choice('ui.cvb_c_cities', 3, ['n' => fa_num(3)]), $html);
-        // سوئیس: دو کد، یک شهر
-        $this->assertStringContainsString(trans_choice('ui.cvb_c_cities', 1, ['n' => fa_num(1)]), $html);
-        // و شهرِ دو-دیتاسنتری، سطحِ بعدی را باز می‌کند
-        $this->assertStringContainsString(__('ui.cvb_dc_multi', ['count' => fa_num(2)]), $html);
-        $this->assertStringContainsString(__('ui.cvb_dc_n', ['n' => fa_num(1)]), $html);
+        /*
+        | 🔴 ادعای قبلی «آلمان باید ۳ شهر بگوید» بود، و همان عدد سه چیپِ
+        | «برلین» را می‌شمرد. عددی که با صفحه نمی‌خوانَد بدتر از نبودنِ عدد است.
+        | ادعای درست: عددِ روی ردیفِ کشور **دقیقاً** برابرِ تعدادِ ردیف‌هایی است
+        | که مرحلهٔ ۲ برای همان کشور رندر می‌کند.
+        */
+        preg_match('~data-nat="DE".*?<small>([^<]*)</small>~su', $html, $m);
+        $this->assertNotEmpty($m, 'ردیفِ آلمان شمارِ شهر ندارد');
+
+        $de = $this->page('?location=de-frankfurt');
+        preg_match_all('~<a class="cvb-city[^"]*"[^>]*data-city="~', $de, $rows);
+        $shown = count($rows[0]);
+
+        $this->assertSame(3, $shown, 'آلمان سه کد دارد: de-frankfurt + de-ref + de-amd');
+        $this->assertSame(trans_choice('ui.cvb_c_cities', $shown, ['n' => fa_num($shown)]), trim($m[1]),
+            'عددِ روی کارتِ کشور باید همان چیزی باشد که روی صفحه دیده می‌شود');
+
+        // و شهرِ دو-دیتاسنتری، اعضایش را با شمارهٔ ترتیبی نشان می‌دهد
+        $ch = $this->page('?location=ch-zurich');
+        $this->assertStringContainsString(__('ui.cvb_dc_multi', ['count' => fa_num(2)]), $ch);
+        $this->assertStringContainsString(__('ui.cvb_dc_n', ['n' => fa_num(1)]), $ch);
     }
 
     // ═══════════════════ ۳ — پنلِ پایدار، بی‌جاوااسکریپت ═══════════════════
@@ -307,24 +359,32 @@ class CloudStoreLocationTest extends TestCase
      * صفحه‌کلید کامل است، و «پنلی که زیرِ دستِ کاربر بسته شد» ساختاراً ممکن
      * نیست چون trigger و پنل یک عنصرند.
      */
-    public function test_the_location_picker_is_native_details_and_survives_javascript_off(): void
+    public function test_the_location_picker_is_plain_links_and_survives_javascript_off(): void
     {
         $this->sickCatalog();
         $html = $this->page();
 
-        $this->assertMatchesRegularExpression('~<details class="cvb-cnat[^"]*" data-hold~', $html);
-        $this->assertMatchesRegularExpression('~<summary class="cvb-ccard~', $html);
+        /*
+        | ⚠️ سه سطحِ تودرتوی `<details>` رفت. علتش سلیقه نبود: کارفرما خواست شهر
+        | یک **مرحلهٔ انتخابی بعد از کشور** باشد، و آن با «افشاگرِ تودرتو داخلِ
+        | کارتِ کشور» ناسازگار است. حالا هر دو سطح لینکِ ساده‌اند — که از
+        | `<details>` هم بی‌جاوااسکریپت‌تر است، نه کمتر.
+        */
+        $this->assertStringNotContainsString('<details class="cvb-cnat', $html);
+        $this->assertMatchesRegularExpression('~<a class="cvb-nat[^"]*"[^>]*data-nat="~', $html);
 
-        // مرحله‌ها هنوز چهار بدنه دارند — کشور/شهر/دیتاسنتر مرحلهٔ پنجم نشدند
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'));
+        // پنج بدنه — شهر مرحلهٔ خودش شد
+        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'));
         $this->assertStringNotContainsString('cvb-step is-shut', $html);
 
-        // کشورِ انتخابی سرور-رندر باز می‌آید (کاربرِ بازگشته سرِ جای خودش می‌افتد)
-        $this->assertMatchesRegularExpression('~data-hold\s+open~', $html);
+        // کشورِ انتخابی سرور-رندر علامت خورده است
+        $this->assertMatchesRegularExpression('~class="cvb-nat[^"]*\bon\b~', $html);
 
-        // و راهنمای مسیر یک **جمله** است، نه یک کنترلِ خالی — ولی جمله‌ای که با
-        // وضعیتِ همان لحظه می‌خواند (کشور از پیش انتخاب شده ⇒ جملهٔ «انتخاب شده»).
-        $this->assertStringContainsString(__('ui.cvb_country_set'), $html);
+        // و مرحلهٔ ۱ روی نخستین بارگذاری **باز** است، نه بسته‌وپاسخ‌داده:
+        // پیش از این صفحه با «🇩🇪 آلمان — برلین» باز می‌شد، و «برلین» خودش
+        // پایتختِ جای‌گزینِ ردیفی بود که ستونِ شهرش «AMD» است.
+        $this->assertMatchesRegularExpression('~&quot;openStep&quot;:1|"openStep":1~', $html,
+            'نخستین بارگذاری باید روی مرحلهٔ ۱ بایستد، نه روی مرحله‌ای با پاسخِ ساختگی');
     }
 
     /** صفحه هنوز هیچ نامِ زیرساختی بیرون نمی‌دهد — سطحِ تازه هم همین‌طور */
@@ -429,9 +489,9 @@ class CloudStoreLocationTest extends TestCase
         $this->assertMatchesRegularExpression(
             '~@media \(prefers-reduced-motion: reduce\)\{[^}]*\.cvb-main\.is-focus~s', $css);
 
-        // و لنگرهای پذیرفته‌شدهٔ دیروز دست‌نخورده‌اند
-        $this->assertStringContainsString('.cvb-slip{position:sticky;top:96px}', $css);
-        $this->assertStringContainsString('body.imp-on .cvb-slip{top:calc(96px + var(--imp-h))}', $css);
+        // و لنگرِ چسبندگی سرِ جایش است — حالا از --header-h مشتق می‌شود، نه ۹۶
+        $this->assertStringContainsString('.cvb-slip{position:sticky;top:var(--cvb-top)}', $css);
+        $this->assertStringContainsString('body.imp-on .cvb-slip{top:calc(var(--cvb-top) + var(--imp-h))}', $css);
         $this->assertStringNotContainsString('.cvb-wrap{padding-top', $css);
     }
 
@@ -471,7 +531,7 @@ class CloudStoreLocationTest extends TestCase
         | بارگذاری با وضعیتِ صفحه تناقض داشت. جمله‌ای که همیشه دروغ است باید
         | برداشته شود، نه اینکه با شرط پنهان شود.
         */
-        foreach (['cvb_h1', 'cvb_c_pick', 'cvb_country_set', 'cvb_c_cities',
+        foreach (['cvb_h1', 'cvb_c_pick', 'cvb_c_cities',
             'cvb_c_soldout', 'cvb_dc_multi', 'cvb_dc_n', 'cvb_os_group', 'sec_add_server'] as $k) {
             $this->assertArrayHasKey($k, $fa);
             $this->assertNotSame($fa[$k], $en[$k], "«{$k}» انگلیسی ترجمه نشده");
