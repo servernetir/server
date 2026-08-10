@@ -454,6 +454,35 @@
     el.jump.innerHTML = html;
   }
 
+  /**
+   * به‌روزرسانیِ **بدونِ بازسازی** — فقط عددِ سال و حالتِ دکمه‌های ماه.
+   *
+   * ⚠️ عمداً `innerHTML` دست نمی‌خورد: هر بازسازی گرهِ کلیک‌شده را از DOM
+   * می‌کَند و هندلرهای سطحِ document که بعد از آن اجرا می‌شوند، یک `e.target`
+   * جداشده می‌بینند و تصمیمِ غلط می‌گیرند.
+   */
+  function paintJump() {
+    if (!el.jump || el.jump.hidden) return;
+
+    var y = el.jump.querySelector('.y');
+    if (y) y.textContent = fa(jumpYear);
+
+    var p = (state.today || '').split('-');
+    var nowY = +p[0], nowM = +p[1];
+
+    Array.prototype.forEach.call(el.jump.querySelectorAll('[data-month]'), function (b) {
+      var m = +b.getAttribute('data-month');
+
+      if (jumpYear === state.year && m === state.month) {
+        b.setAttribute('aria-current', 'true');
+      } else {
+        b.removeAttribute('aria-current');
+      }
+
+      b.classList.toggle('is-now', jumpYear === nowY && m === nowM);
+    });
+  }
+
   function toggleJump(open) {
     if (!el.jump || !el.title) return;
     var show = open === undefined ? el.jump.hidden : open;
@@ -886,8 +915,17 @@
       }
 
       switch (b.getAttribute('data-jump')) {
-        case 'y-1': jumpYear--; renderJump(); break;
-        case 'y+1': jumpYear++; renderJump(); break;
+        /*
+         * 🔴 ورقِ سال پنجره را **بازنمی‌سازد**، فقط به‌روزش می‌کند.
+         *
+         * نسخهٔ اول `renderJump()` می‌زد که `innerHTML` را عوض می‌کرد و دکمهٔ
+         * کلیک‌شده را از DOM می‌کَند. بعد هندلرِ «کلیکِ بیرون» اجرا می‌شد، آن
+         * گرهِ جداشده را داخلِ پنجره نمی‌دید و پنجره را **می‌بست**. یعنی اولین
+         * کلیک روی فلشِ سال، پنجره را می‌پراند و کاربر فکر می‌کرد سال عوض
+         * نمی‌شود. دقیقاً همین گزارش شد.
+         */
+        case 'y-1': jumpYear--; paintJump(); break;
+        case 'y+1': jumpYear++; paintJump(); break;
         case 'today': toggleJump(false); goToday(); break;
         case 'close': toggleJump(false); if (el.title) el.title.focus(); break;
       }
@@ -897,6 +935,17 @@
   // کلیکِ بیرون می‌بندد — وگرنه پنجره تا کلیکِ بعدی روی خودش باز می‌مانَد
   document.addEventListener('click', function (e) {
     if (!el.jump || el.jump.hidden) return;
+
+    /*
+     * ⚠️ گرهِ **جداشده** یعنی «از داخلِ چیزی که همین الان دوباره ساخته شد».
+     *
+     * `contains()` روی گرهی که دیگر در DOM نیست همیشه `false` می‌دهد، پس بی
+     * این نگهبان هر بازسازیِ داخلِ پنجره باعثِ بسته‌شدنش می‌شود — همان باگی که
+     * ورقِ سال را از کار انداخت. `paintJump()` ریشه را برداشت؛ این خط جلوی
+     * برگشتش را از هر مسیرِ دیگری هم می‌گیرد.
+     */
+    if (!e.target.isConnected) return;
+
     if (el.jump.contains(e.target) || (el.title && el.title.contains(e.target))) return;
     toggleJump(false);
   });
