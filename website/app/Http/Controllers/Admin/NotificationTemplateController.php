@@ -19,14 +19,13 @@ use Illuminate\View\View;
  */
 class NotificationTemplateController extends Controller
 {
-    public function index(): View
+    /**
+     * صفحهٔ این بخش به تنظیمات منتقل شد (تبِ مربوطه). مسیر زنده مانده ولی
+     * ویو ندارد — دو نسخه از یک صفحه دیر یا زود از هم فاصله می‌گیرند.
+     */
+    public function index(): RedirectResponse
     {
-        $rows = NotificationTemplate::query()->orderBy('group')->orderBy('id')->get();
-
-        return view('admin.templates', [
-            'groups' => $rows->groupBy('group'),
-            'labels' => NotificationTemplate::GROUPS,
-        ]);
+        return redirect()->to("/admin/settings?tab=messages");
     }
 
     public function edit(NotificationTemplate $template): View

@@ -109,11 +109,40 @@ class AdminMenuGroupingTest extends TestCase
             '/admin/tickets', '/admin/broadcasts', '/admin/servers',
             '/admin/products', '/admin/cloud', '/admin/server-shop',
             '/admin/exit-infra', '/admin/domains', '/admin/finance',
-            '/admin/transactions', '/admin/bank-transfers', '/admin/payment-accounts',
-            '/admin/crypto-wallets', '/admin/costs', '/admin/errors',
-            '/admin/status', '/admin/templates', '/admin/settings', '/admin/users',
+            '/admin/transactions', '/admin/bank-transfers', '/admin/errors',
+            '/admin/status', '/admin/settings', '/admin/users',
         ] as $href) {
             $this->assertStringContainsString($href, $nav, "لینکِ «{$href}» از منو گم شد");
+        }
+    }
+
+    /**
+     * 🔴 چهار صفحه از منو **برداشته** شدند و داخلِ تنظیمات رفتند — پس قاعدهٔ
+     * «هیچ صفحه‌ای از دسترس خارج نشود» برایشان شکلِ دیگری دارد.
+     *
+     * ⚠️ صرفِ نبودنشان در منو کافی نیست که تست را رها کنیم: اگر روزی تبِ
+     * مقصد هم عوض شود یا آن بخش از تب بیفتد، صفحه واقعاً ناپدید می‌شود و
+     * هیچ‌جا خطایی نمی‌دهد. پس ادعا به **مقصدِ تازه** منتقل شد، نه حذف.
+     */
+    public function test_the_merged_pages_are_reachable_inside_settings(): void
+    {
+        $nav = $this->nav();
+
+        foreach ([
+            '/admin/payment-accounts' => 'accounts',
+            '/admin/crypto-wallets'   => 'accounts',
+            '/admin/costs'            => 'costs',
+            '/admin/templates'        => 'messages',
+        ] as $old => $tab) {
+            $this->assertStringNotContainsString('href="'.$old.'"', $nav,
+                "«{$old}» داخلِ تنظیمات رفته و نباید در منو تکرار شود");
+
+            // مسیرِ قدیمی هنوز زنده است و به تبِ درست می‌رود (بوکمارک نمی‌شکند)
+            $admin = User::create([
+                'name' => 'مدیر', 'email' => 'mv'.random_int(1000, 9999).'@example.test',
+                'password' => bcrypt('secret-for-test'), 'role' => 'admin',
+            ]);
+            $this->actingAs($admin)->get($old)->assertRedirect('/admin/settings?tab='.$tab);
         }
     }
 }

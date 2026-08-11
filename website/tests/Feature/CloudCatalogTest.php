@@ -574,14 +574,19 @@ class CloudCatalogTest extends TestCase
 
     public function test_admin_settings_page_renders_with_cloud_section(): void
     {
-        $res = $this->actingAs($this->admin(), 'web')->get('/admin/settings');
+        $res = $this->actingAs($this->admin(), 'web')->get('/admin/settings?tab=infra');
 
         $res->assertOk();
         $html = $res->getContent();
 
         $this->assertStringContainsString('زیرساختِ سرورِ ابری', $html);
         $this->assertStringContainsString('hetzner_api_token', $html, 'فیلدِ توکن باید در فرم باشد');
-        $this->assertStringContainsString('حاشیهٔ سودِ سرورِ ابری', $html);
+
+        // ⚠️ درصدِ سود از تبِ زیرساخت به تبِ نرخ‌گذاری رفت — همهٔ حاشیه‌های سود
+        //    حالا یک‌جا هستند. ادعا جابه‌جا شد، حذف نشد.
+        $pricing = $this->actingAs($this->admin(), 'web')->get('/admin/settings?tab=pricing')
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('cloud_margin_pct', $pricing, 'حاشیهٔ سودِ ابری باید در تبِ نرخ‌گذاری باشد');
     }
 
     /** توکنِ ذخیره‌شده هرگز نباید در HTML فرم برگردد */
@@ -590,7 +595,7 @@ class CloudCatalogTest extends TestCase
         Setting::putSecret('hetzner_api_token', 'super-secret-token-value');
         Setting::putSecret('aeza_api_token', 'another-secret-key');
 
-        $html = $this->actingAs($this->admin(), 'web')->get('/admin/settings')->getContent();
+        $html = $this->actingAs($this->admin(), 'web')->get('/admin/settings?tab=infra')->getContent();
 
         $this->assertStringNotContainsString('super-secret-token-value', $html);
         $this->assertStringNotContainsString('another-secret-key', $html);
@@ -601,7 +606,7 @@ class CloudCatalogTest extends TestCase
     public function test_token_is_stored_encrypted(): void
     {
         $this->actingAs($this->admin(), 'web')
-            ->post('/admin/settings', ['hetzner_api_token' => 'plain-token-123'])
+            ->post('/admin/settings', ['tab' => 'infra', 'hetzner_api_token' => 'plain-token-123'])
             ->assertRedirect();
 
         $raw = (string) \Illuminate\Support\Facades\DB::table('settings')
@@ -618,7 +623,7 @@ class CloudCatalogTest extends TestCase
         Setting::putSecret('hetzner_api_token', 'keep-me');
 
         $this->actingAs($this->admin(), 'web')
-            ->post('/admin/settings', ['hetzner_api_token' => ''])
+            ->post('/admin/settings', ['tab' => 'infra', 'hetzner_api_token' => ''])
             ->assertRedirect();
 
         $this->assertSame('keep-me', Setting::getSecret('hetzner_api_token'));
@@ -629,7 +634,7 @@ class CloudCatalogTest extends TestCase
         Setting::putSecret('aeza_api_token', 'delete-me');
 
         $this->actingAs($this->admin(), 'web')
-            ->post('/admin/settings', ['aeza_forget' => '1'])
+            ->post('/admin/settings', ['tab' => 'infra', 'aeza_forget' => '1'])
             ->assertRedirect();
 
         $this->assertNull(Setting::getSecret('aeza_api_token'));

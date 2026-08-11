@@ -573,3 +573,144 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 
 .cal-title:focus-visible,
 .cal-jump button:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   نوارِ فیلتر و مرتب‌سازیِ جدول‌ها — همراهِ public/assets/js/admin-tables.js
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.adt-bar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:0 0 12px }
+.adt-search{ position:relative; display:flex; align-items:center; gap:8px;
+  background:var(--surface2); border:1px solid var(--line2); border-radius:10px;
+  padding:0 12px; transition:border-color .18s }
+.adt-search:focus-within{ border-color:var(--cyan) }
+.adt-search .icon{ width:15px; height:15px; color:var(--dim); flex:none }
+.adt-search input{ background:none; border:0; outline:none; color:var(--text);
+  font:inherit; font-size:13px; padding:9px 0; min-width:210px }
+.adt-search input::placeholder{ color:var(--dim) }
+.adt-count{ font-size:12.5px; color:var(--dim) }
+.adt-count.on{ color:var(--cyan); font-weight:600 }
+
+/* 🔴 صفحه‌بندی: فیلترِ مرورگری فقط ردیف‌های همین صفحه را می‌بیند. بی‌این جمله،
+   «چیزی پیدا نشد» یک **دروغ** است — ردیف در صفحهٔ بعد هست. */
+.adt-scope{ flex-basis:100%; font-size:12px; color:var(--amber); line-height:1.9 }
+
+/* سرستونِ قابلِ مرتب‌سازی */
+.ad-table th.adt-sortable{ cursor:pointer; user-select:none; position:relative;
+  transition:color .15s }
+.ad-table th.adt-sortable:hover{ color:var(--text) }
+.ad-table th.adt-sortable:focus-visible{ outline:2px solid var(--cyan); outline-offset:-2px; border-radius:6px }
+.ad-table th.adt-sortable::after{ content:'⇅'; margin-inline-start:6px; opacity:.32; font-size:11px }
+.ad-table th.adt-asc::after{ content:'↑'; opacity:1; color:var(--cyan) }
+.ad-table th.adt-desc::after{ content:'↓'; opacity:1; color:var(--cyan) }
+
+/* وقتی فیلتر همه را می‌بُرد، جدولِ خالی باید **بگوید** خالی است، نه اینکه
+   فقط سرستون‌های بی‌ردیف بماند و شبیه خرابی به‌نظر برسد. */
+.ad-table.adt-empty tbody::after{ content:'ردیفی با این فیلتر نیست'; display:block;
+  padding:18px 12px; color:var(--dim); font-size:13px }
+
+@media(max-width:640px){
+  .adt-search input{ min-width:0; width:100% }
+  .adt-search{ flex:1 }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   تنظیماتِ تب‌بندی‌شده — resources/views/admin/settings/*
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.set-tabs{ flex-wrap:wrap; margin-bottom:20px }
+.set-tabs a{ display:inline-flex; align-items:center; gap:7px; font-size:13px; padding:8px 14px }
+.set-tabs a .icon{ width:15px; height:15px; opacity:.75 }
+.set-tabs a.on .icon{ opacity:1; color:var(--cyan) }
+
+.set-lead{ padding:0 18px 14px; color:var(--muted); font-size:13.5px; line-height:1.9 }
+.set-lead code{ font-size:12.5px }
+
+/* شبکهٔ فیلدها — دو ستون، و `.full` تمام‌عرض */
+.set-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px }
+.set-grid.three{ grid-template-columns:repeat(3,minmax(0,1fr)) }
+.set-grid .full{ grid-column:1/-1 }
+
+.set-f{ display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); min-width:0 }
+.set-f input, .set-f select, .set-f textarea{
+  background:var(--surface2); border:1px solid var(--line); border-radius:9px;
+  color:var(--text); padding:9px 12px; font:inherit; font-size:13px; outline:none;
+  transition:border-color .18s, box-shadow .18s }
+.set-f input:focus, .set-f select:focus, .set-f textarea:focus{
+  border-color:var(--cyan); box-shadow:0 0 0 3px rgba(34,211,238,.12) }
+.set-f small{ color:var(--dim); font-size:11.5px; line-height:1.8 }
+
+/* ورودیِ داخلِ خانهٔ جدول (تبِ هزینه‌ها) */
+.set-cell{ background:var(--surface2); border:1px solid var(--line); border-radius:8px;
+  color:var(--text); padding:7px 10px; font:inherit; outline:none }
+.set-cell:focus{ border-color:var(--cyan) }
+
+/* تیکِ خطرناک — «فراموش کن»/«حذف». عمداً یک کلاس: رنگِ قرمزِ دستی در ۹ جای
+   این صفحه تکرار شده بود و یکی‌شان جا افتاده بود. */
+.set-danger{ display:flex; align-items:center; gap:8px; color:#ff6b6b; font-size:12.5px; cursor:pointer }
+
+/* تیکِ توضیح‌دار */
+.set-chk{ display:flex; align-items:flex-start; gap:9px; font-size:13px; color:var(--text); cursor:pointer }
+.set-chk input{ margin-top:4px; flex:none }
+.set-chk small{ display:block; color:var(--dim); font-size:11.5px; line-height:1.9; margin-top:3px }
+
+/* کادرِ فرعیِ داخلِ یک پنل (OVH، Proxmox، ایجنت) */
+.set-box{ margin:0 18px 16px; border:1px solid var(--line2); border-radius:12px; padding:14px }
+.set-box-h{ display:flex; align-items:center; gap:9px; margin-bottom:10px; font-size:13.5px }
+.set-box>p{ color:var(--muted); font-size:12px; line-height:1.9; margin-bottom:11px }
+.set-box .set-danger{ margin-top:10px }
+
+/* پیش‌نمایشِ مهر */
+.set-stamp{ width:96px; height:96px; border:1px dashed var(--line2); border-radius:12px;
+  display:grid; place-items:center; background:var(--surface2); overflow:hidden; flex:none }
+.set-stamp img{ max-width:100%; max-height:100% }
+.set-stamp span{ font-size:11px; color:var(--dim) }
+
+/* نرخِ زنده — دو عددی که مدیر پیش از تصمیم باید ببیند */
+.set-rate{ display:flex; gap:12px; flex-wrap:wrap; padding:0 18px 16px }
+.set-rate>div{ flex:1; min-width:180px; background:var(--surface2); border:1px solid var(--line);
+  border-radius:12px; padding:12px 15px }
+.set-rate small{ display:block; font-size:11.5px; color:var(--dim); margin-bottom:4px }
+.set-rate b{ font-size:19px; font-variant-numeric:tabular-nums }
+.set-rate b span{ font-size:12px; color:var(--muted); font-weight:400; margin-inline-start:4px }
+
+/* نوارِ ذخیره — چسبیده به پایین تا در تبِ بلند هم در دسترس باشد */
+.set-save{ position:sticky; bottom:0; z-index:5; display:flex; justify-content:flex-end;
+  padding:14px 0 18px; margin-top:-4px;
+  background:linear-gradient(to top, var(--bg) 55%, transparent) }
+
+/* گام‌های راهنما */
+.set-steps{ list-style:none; padding:0 18px 18px; display:grid; gap:10px }
+.set-steps li{ display:flex; gap:12px; align-items:flex-start; background:var(--surface2);
+  border:1px solid var(--line); border-radius:12px; padding:13px 15px }
+.set-steps li>span{ flex:none; display:grid; place-items:center; width:26px; height:26px;
+  border-radius:50%; background:rgba(34,211,238,.12); color:var(--cyan); font-size:12.5px; font-weight:800 }
+.set-steps li div{ font-size:13px; color:var(--muted); line-height:1.95 }
+.set-steps code{ font-size:12px; color:var(--text) }
+
+@media(max-width:820px){
+  .set-grid, .set-grid.three{ grid-template-columns:1fr }
+  .set-box{ margin-inline:0 }
+}
+
+/* فرمِ حسابِ پرداخت — از payment-accounts.blade.php به این‌جا آمد وقتی آن صفحه
+   داخلِ تبِ «حساب‌ها»ی تنظیمات رفت.
+
+   🔴 این استایل‌ها در یک <style>ِ درون‌خطیِ همان ویو بودند و با حذفِ ویو
+   **بی‌صدا گم شدند**: فرم بی‌هیچ خطایی بی‌استایل رندر می‌شد. همان تلهٔ ثبت‌شدهٔ
+   پروژه («کلاسِ CSSِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود») — این بار نه با
+   نامِ غلط، بلکه با جابه‌جاییِ ویو. مارک‌آپ که مشترک شد، استایلش هم باید مشترک شود. */
+.pa-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:13px; align-items:end }
+.pa-form label{ display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--muted) }
+/* ⚠️ متغیرهای واقعیِ همین فایل — نسخهٔ اول `var(--bg-2,#0f1520)` داشت که
+   وجود ندارد، پس fallbackِ تیره حتی در تمِ روشن هم اعمال می‌شد. */
+.pa-form input, .pa-form select, .pa-form textarea{
+  background:var(--surface2); color:var(--text); font:inherit; font-size:13px;
+  border:1px solid var(--line2); border-radius:10px; padding:9px 11px }
+.pa-form input:focus, .pa-form select:focus, .pa-form textarea:focus{
+  outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(34,211,238,.12) }
+.pa-form textarea{ min-height:60px; resize:vertical }
+.pa-form .full{ grid-column:1/-1 }
+.pa-form .chk{ flex-direction:row; align-items:center; gap:8px }
+.pa-form .pa-note{ grid-column:1/-1; font-size:12px; color:var(--muted); line-height:1.9;
+  border:1px dashed var(--line); border-radius:10px; padding:11px 13px; margin:0 }
+.pa-form button{ grid-column:1/-1; justify-self:start }

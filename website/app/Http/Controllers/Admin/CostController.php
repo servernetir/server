@@ -8,7 +8,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 
 /**
  * هزینه‌های ثابت سرویس‌ها — که صاحب کسب‌وکار خودش می‌نویسد.
@@ -19,16 +18,13 @@ use Illuminate\View\View;
  */
 class CostController extends Controller
 {
-    public function index(): View
+    /**
+     * صفحهٔ این بخش به تنظیمات منتقل شد (تبِ مربوطه). مسیر زنده مانده ولی
+     * ویو ندارد — دو نسخه از یک صفحه دیر یا زود از هم فاصله می‌گیرند.
+     */
+    public function index(): RedirectResponse
     {
-        $costs = Schema::hasTable('service_costs')
-            ? ServiceCost::orderByDesc('is_system')->orderBy('label')->get()
-            : collect();
-
-        return view('admin.costs', [
-            'costs'    => $costs,
-            'notReady' => ! Schema::hasTable('service_costs'),
-        ]);
+        return redirect()->to("/admin/settings?tab=costs");
     }
 
     /** ویرایش گروهیِ مبالغ — همهٔ ردیف‌ها با یک ثبت */

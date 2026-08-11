@@ -91,16 +91,21 @@
       @php $pendingBank = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
               ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
       <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>
-      <a href="/admin/payment-accounts" class="@yield('nav_payacc')"><svg class="icon"><use href="#i-coins"/></svg>حساب‌های ارزی و رمزارز</a>
-      <a href="/admin/crypto-wallets" class="@yield('nav_crypto')"><svg class="icon"><use href="#i-key"/></svg>کیف‌های رمزارز</a>
-      <a href="/admin/costs" class="@yield('nav_costs')"><svg class="icon"><use href="#i-tag"/></svg>هزینه‌های سرویس‌ها</a>
+      {{--
+        «حساب‌های ارزی»، «کیف‌های رمزارز» و «هزینه‌های سرویس‌ها» از این‌جا
+        برداشته شدند و داخلِ **تنظیمات** رفتند (تبِ حساب‌ها و تبِ هزینه‌ها).
+
+        سه منوی جدا برای یک پرسشِ واحد («پول از کجا می‌آید؟») یعنی مدیر هر بار
+        باید یادش بماند کدام کجاست. مسیرهای قدیمی زنده‌اند و به همان تب
+        ریدایرکت می‌شوند، پس هیچ بوکمارکی نمی‌شکند.
+      --}}
       <div class="ad-nav-sep">سیستم</div>
       @php $errCount = \App\Support\ErrorTracker::recent(150, 'error');
               $errCount = count(array_filter($errCount, fn($e)=>in_array(($e['type']??''), ['error','incident'], true))); @endphp
       <a href="/admin/errors" class="@yield('nav_errors')"><svg class="icon"><use href="#i-zap"/></svg>ردیاب خطا@if($errCount)<span class="ad-pill">{{ $errCount }}</span>@endif</a>
       @if(auth()->user()->isAdmin())
       <a href="/admin/status" class="@yield('nav_status')"><svg class="icon"><use href="#i-gauge"/></svg>صفحهٔ وضعیت</a>
-      <a href="/admin/templates" class="@yield('nav_templates')"><svg class="icon"><use href="#i-mail"/></svg>الگوی پیام‌ها</a>
+      {{-- «الگوی پیام‌ها» هم به تنظیمات رفت (تبِ پیام‌ها). --}}
       <a href="/admin/settings" class="@yield('nav_settings')"><svg class="icon"><use href="#i-wrench"/></svg>تنظیمات</a>
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif
@@ -133,6 +138,9 @@
 <div class="ad-auth">@yield('content')</div>
 @endauth
 @yield('scripts')
+{{-- فیلتر و مرتب‌سازیِ همهٔ جدول‌ها — عمومی است و هیچ ویویی لازم نیست چیزی
+     اضافه کند. انصراف با `data-no-enhance` روی خودِ <table>. --}}
+<script src="{{ asset_ver('assets/js/admin-tables.js') }}" defer></script>
 <script>
 (function(){
   var b = document.getElementById('ad-theme');

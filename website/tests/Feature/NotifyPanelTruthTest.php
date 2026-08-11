@@ -123,7 +123,7 @@ class NotifyPanelTruthTest extends TestCase
     {
         $this->seed(\Database\Seeders\NotificationTemplateSeeder::class);
 
-        $html = $this->actingAs($this->admin())->get('/admin/templates')->assertOk()->getContent();
+        $html = $this->actingAs($this->admin())->get('/admin/settings?tab=messages')->assertOk()->getContent();
 
         $this->assertStringContainsString('تأیید پرداخت', $html);
         $this->assertStringContainsString('خاتمهٔ سرویس', $html, 'ردیف‌های تازه در صفحه دیده نمی‌شوند');

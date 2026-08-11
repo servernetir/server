@@ -75,7 +75,7 @@ class AdminCryptoWalletsTest extends TestCase
     {
         $cp = $this->openPayment();
 
-        $res = $this->actingAs($this->staff(), 'web')->get('/admin/crypto-wallets');
+        $res = $this->actingAs($this->staff(), 'web')->get('/admin/settings?tab=accounts');
 
         $res->assertOk();
         $res->assertSee('پرداخت‌های در جریان');
@@ -92,7 +92,7 @@ class AdminCryptoWalletsTest extends TestCase
     {
         $this->openPayment(['status' => 'expired', 'expires_at' => now()->subHour()]);
 
-        $res = $this->actingAs($this->staff(), 'web')->get('/admin/crypto-wallets');
+        $res = $this->actingAs($this->staff(), 'web')->get('/admin/settings?tab=accounts');
 
         $res->assertOk();
         $res->assertSee('منقضی');
@@ -103,7 +103,7 @@ class AdminCryptoWalletsTest extends TestCase
     {
         $cp = $this->openPayment(['status' => 'confirmed', 'confirmed_at' => now()]);
 
-        $res = $this->actingAs($this->staff(), 'web')->get('/admin/crypto-wallets');
+        $res = $this->actingAs($this->staff(), 'web')->get('/admin/settings?tab=accounts');
 
         $res->assertOk();
         $res->assertSee('الان هیچ پرداخت رمزارزی باز نیست.');
@@ -115,7 +115,7 @@ class AdminCryptoWalletsTest extends TestCase
     /** صفحه بدونِ هیچ داده‌ای هم باید سالم بیاید */
     public function test_the_page_is_fine_with_an_empty_pool(): void
     {
-        $res = $this->actingAs($this->staff(), 'web')->get('/admin/crypto-wallets');
+        $res = $this->actingAs($this->staff(), 'web')->get('/admin/settings?tab=accounts');
 
         $res->assertOk();
         $res->assertSee('استخر آدرس‌های دریافت');

@@ -8,7 +8,6 @@ use App\Models\CryptoWallet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\View\View;
 
 /**
  * استخرِ آدرس‌های دریافت + پرداخت‌های نیازمندِ بازبینی.
@@ -19,46 +18,16 @@ use Illuminate\View\View;
  */
 class CryptoWalletController extends Controller
 {
-    public function index(): View
+    /**
+     * صفحهٔ این بخش به تبِ «حساب‌ها»ی تنظیمات منتقل شد؛ دادهٔ همان جدول‌ها
+     * حالا در SettingsController جمع می‌شود. مسیر زنده مانده ولی ویو ندارد —
+     * دو نسخه از یک صفحه دیر یا زود از هم فاصله می‌گیرند.
+     */
+    public function index(): RedirectResponse
     {
-        $ready = Schema::hasTable('crypto_wallets');
-
-        $hasPayments = $ready && Schema::hasTable('crypto_payments');
-
-        return view('admin.crypto-wallets', [
-            'wallets' => $ready ? CryptoWallet::orderBy('chain')->orderBy('id')->get() : collect(),
-            // پرداخت‌هایی که خودکار تسویه نشدند و منتظرِ چشمِ آدم‌اند
-            'review' => $hasPayments
-                ? CryptoPayment::whereIn('status', ['manual', 'unmatched'])->latest('id')->limit(50)->get()
-                : collect(),
-
-            /*
-            | پرداخت‌های **در جریان**.
-            |
-            | ⚠️ بی‌این فهرست، مدیر هیچ راهی نداشت بفهمد چرا یک آدرس «مشغول»
-            | است یا چرا گزینهٔ رمزارز به مشتریِ بعدی نشان داده نمی‌شود. همان
-            | سکوتی که یک بار به «قابلیت اصلاً کار نمی‌کند» تعبیر شد.
-            |
-            | منقضی‌های ۲۴ ساعتِ اخیر هم می‌آیند: پرداختی که نیمه‌کاره رها شده
-            | خودش یک خبر است، و آدرسش تا پایانِ دورهٔ خنک‌شدن برنمی‌گردد.
-            */
-            'inflight' => $hasPayments
-                ? CryptoPayment::where(fn ($q) => $q
-                    ->whereIn('status', ['pending', 'seen'])
-                    ->orWhere(fn ($e) => $e->where('status', 'expired')->where('updated_at', '>=', now()->subDay())))
-                    ->latest('id')->limit(50)->get()
-                : collect(),
-
-            'notReady' => ! $ready,
-        ]);
+        return redirect()->to("/admin/settings?tab=accounts");
     }
 
-    /**
-     * افزودنِ دسته‌ای — مدیر آدرس‌ها را از کیفش می‌سازد و یکجا می‌چسباند.
-     *
-     * ⚠️ آدرسِ تکراری **خطا نمی‌دهد**، رد می‌شود. چسباندنِ دوبارهٔ یک فهرست کارِ
-     * رایجی است و نباید کلِ عملیات را بشکند.
-     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([

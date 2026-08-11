@@ -226,7 +226,7 @@ class NotificationTemplateTest extends TestCase
     {
         $this->tpl();
 
-        $html = $this->actingAs($this->admin())->get('/admin/templates')->assertOk()->getContent();
+        $html = $this->actingAs($this->admin())->get('/admin/settings?tab=messages')->assertOk()->getContent();
 
         $this->assertStringContainsString('تأیید پرداخت', $html);
         $this->assertStringContainsString('الگوی پیام‌ها', $html);
@@ -272,8 +272,21 @@ class NotificationTemplateTest extends TestCase
         // ویرایشگرِ خودمیزبان، نه CDN — CSP هر منبعِ بیرونی را بی‌صدا بلاک می‌کند
         $this->assertStringContainsString('class="wysiwyg"', $html);
         $this->assertStringContainsString('wysiwyg-tb', $html);
-        $this->assertDoesNotMatchRegularExpression('~<script[^>]+src=["\']https?://~', $html,
-            'هیچ اسکریپتِ بیرونی نباید بارگذاری شود');
+        /*
+         * ⚠️ ادعا روی **میزبانِ بیگانه** است، نه روی «آدرسِ مطلق».
+         *
+         * نسخهٔ اول هر `src="http…"` را رد می‌کرد، ولی `asset_ver()` — که همهٔ
+         * دارایی‌های خودمان با آن لینک می‌شوند — آدرسِ مطلق می‌سازد. پس اولین
+         * اسکریپتِ خودمیزبانی که به لایوتِ مدیر اضافه شد، این تست را قرمز کرد
+         * بی‌آنکه چیزی از CDN آمده باشد. آنچه CSP بی‌صدا بلاک می‌کند میزبانِ
+         * غیرِ خودی است، و همان باید سنجیده شود.
+         */
+        preg_match_all('~<script[^>]+src=["\'](https?://[^"\']+)~i', $html, $ext);
+        foreach ($ext[1] ?? [] as $src) {
+            $this->assertSame(parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost',
+                parse_url($src, PHP_URL_HOST),
+                'اسکریپت از میزبانِ بیرونی بارگذاری می‌شود: '.$src);
+        }
 
         // چیپِ متغیر باید باشد وگرنه مدیر باید نام‌ها را حفظ کند
         $this->assertStringContainsString('{amount}', $html);

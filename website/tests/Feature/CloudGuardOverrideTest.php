@@ -486,7 +486,7 @@ class CloudGuardOverrideTest extends TestCase
         $this->assertTrue(app(CloudFraudGuard::class)->check($c->fresh())['hold']);
 
         $this->actingAs($this->admin(), 'web')
-            ->post('/admin/settings', ['cloud_guard_daily_max' => 25])
+            ->post('/admin/settings', ['tab' => 'infra', 'cloud_guard_daily_max' => 25])
             ->assertRedirect();
 
         $this->assertSame('25', Setting::get('cloud_guard_daily_max'),

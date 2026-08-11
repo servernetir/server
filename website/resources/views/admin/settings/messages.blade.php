@@ -1,12 +1,11 @@
-@extends('admin.layout')
-@section('title', 'الگوی پیام‌ها')
-@section('nav_templates', 'active')
-@section('content')
+{{-- تبِ الگوی پیام‌ها — از منوی «سیستم» به این‌جا آمد.
+     ویرایشِ هر الگو هنوز صفحهٔ خودش را دارد (/admin/templates/{id})، چون
+     ویرایشگرِ متنِ ایمیل است و داخلِ یک تب جا نمی‌شود. --}}
 
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>الگوی پیام‌ها</h2></div>
 
-  <p style="padding:0 18px 14px;color:var(--muted);font-size:13px;line-height:1.9">
+  <p class="set-lead">
     متنِ پیام‌هایی که سرورنت به کاربر می‌فرستد — ایمیل، بله و اعلان پنل — این‌جا
     ویرایش می‌شود. تا پیش از این، هر جمله در کد بود و عوض‌کردنش دپلوی می‌خواست.
     <br>⚠️ <b>متن پیامک این‌جا نیست و نمی‌تواند باشد:</b> اپراتور متن الگو را در پنل خودش
@@ -16,9 +15,7 @@
     کانالی ندارد یعنی متنش هنوز جایی مصرف نمی‌شود — ویرایشش بی‌اثر است.
   </p>
 
-  @if(session('ok'))<div class="ad-flash ok" style="margin:0 18px 14px">{{ session('ok') }}</div>@endif
-
-  @if($groups->isEmpty())
+  @if($tplNotReady || $groups->isEmpty())
     <p style="padding:0 18px 18px;color:var(--muted);font-size:13px">
       هنوز الگویی ثبت نشده. پس از اجرای مهاجرت، کاتالوگ پیام‌ها خودکار پر می‌شود.
     </p>
@@ -80,4 +77,3 @@
     @endif
   @endforeach
 </div>
-@endsection

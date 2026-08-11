@@ -8,7 +8,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 /**
  * مدیریتِ حساب‌های دریافتِ آفلاین — حوالهٔ ارزی و کیفِ رمزارز.
@@ -19,14 +18,17 @@ use Illuminate\View\View;
  */
 class PaymentAccountController extends Controller
 {
-    public function index(): View
+    /**
+     * صفحهٔ این بخش به تبِ «حساب‌ها»ی تنظیمات منتقل شد.
+     *
+     * مسیر عمداً زنده مانده (بوکمارک و لینکِ داخلِ متن‌ها) ولی **ویو ندارد** —
+     * دو نسخه از یک جدول، دیر یا زود از هم فاصله می‌گیرند. نوشتن (`store`،
+     * `update`، `archive`) دست‌نخورده همین‌جاست و فرم‌های همان تب به این‌جا
+     * POST می‌کنند.
+     */
+    public function index(): RedirectResponse
     {
-        $ready = Schema::hasTable('payment_accounts');
-
-        return view('admin.payment-accounts', [
-            'accounts' => $ready ? PaymentAccount::ordered()->get() : collect(),
-            'notReady' => ! $ready,
-        ]);
+        return redirect()->to('/admin/settings?tab=accounts');
     }
 
     public function store(Request $request): RedirectResponse

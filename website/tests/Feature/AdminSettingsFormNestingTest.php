@@ -33,14 +33,26 @@ class AdminSettingsFormNestingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function page(): string
+    private function page(string $tab = 'general'): string
     {
         $admin = User::create([
             'name' => 'مدیر', 'email' => 'st'.random_int(1000, 9999).'@example.test',
             'password' => bcrypt('secret-for-test'), 'role' => 'admin',
         ]);
 
-        return $this->actingAs($admin)->get('/admin/settings')->assertOk()->getContent();
+        return $this->actingAs($admin)->get('/admin/settings?tab='.$tab)->assertOk()->getContent();
+    }
+
+    /**
+     * ⚠️ از وقتی صفحه تب‌بندی شد، «صفحهٔ تنظیمات» یک HTML نیست بلکه هفت‌تاست.
+     * ادعای تودرتویی باید روی **همه**شان برود، وگرنه فردا یک فرمِ تودرتو در
+     * تبی که این تست نمی‌بیند اضافه می‌شود و همان باگ از درِ دیگر برمی‌گردد.
+     */
+    public static function tabs(): array
+    {
+        return array_map(fn ($t) => [$t], array_keys(
+            \App\Http\Controllers\Admin\SettingsController::TABS
+        ));
     }
 
     /**
@@ -50,9 +62,10 @@ class AdminSettingsFormNestingTest extends TestCase
      * بود. اگر فردا کسی فرمِ تازه‌ای وسطِ فرمِ اصلی بگذارد، همین تست می‌گیردش —
      * وگرنه باگ از درِ دیگر برمی‌گردد و باز هم بی‌صدا.
      */
-    public function test_no_form_is_nested_inside_another(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('tabs')]
+    public function test_no_form_is_nested_inside_another(string $tab): void
     {
-        $html = $this->page();
+        $html = $this->page($tab);
 
         preg_match_all('~<form\b|</form>~i', $html, $m, PREG_OFFSET_CAPTURE);
 
@@ -81,9 +94,16 @@ class AdminSettingsFormNestingTest extends TestCase
      * بی‌این، کسی می‌توانست فرمِ تودرتو را با بردنِ دکمه به بیرون «حل» کند و
      * دکمه‌ای بسازد که باز هم هیچ‌جا پست نمی‌کند.
      */
-    public function test_the_save_button_belongs_to_the_settings_form(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('tabs')]
+    public function test_the_save_button_belongs_to_the_settings_form(string $tab): void
     {
-        $html = $this->page();
+        // تب‌هایی که فیلدِ `Setting` ندارند فرمِ تنظیمات هم ندارند و درست است:
+        // هزینه‌ها و پیام‌ها به مسیرِ خودشان POST می‌کنند، راهنما فقط متن است.
+        if (\App\Http\Controllers\Admin\SettingsController::fieldsFor($tab) === []) {
+            $this->markTestSkipped('تبِ '.$tab.' فرمِ تنظیمات ندارد');
+        }
+
+        $html = $this->page($tab);
 
         // فرمِ تنظیمات را جدا کن و مطمئن شو دکمهٔ ذخیره داخلش است
         $ok = preg_match(
@@ -91,9 +111,9 @@ class AdminSettingsFormNestingTest extends TestCase
             $html, $m
         );
 
-        $this->assertSame(1, $ok, 'فرمِ تنظیمات پیدا نشد');
+        $this->assertSame(1, $ok, 'فرمِ تنظیماتِ تبِ '.$tab.' پیدا نشد');
         $this->assertStringContainsString('type="submit"', $m[1],
-            'دکمهٔ ذخیره بیرونِ فرمِ تنظیمات افتاده — کلیک روی آن هیچ کاری نمی‌کند');
+            'دکمهٔ ذخیرهٔ تبِ '.$tab.' بیرونِ فرم افتاده — کلیک روی آن هیچ کاری نمی‌کند');
     }
 
     /** دکمهٔ قطعِ اتصال باید با `form=` به فرمِ بیرونیِ خودش وصل باشد */

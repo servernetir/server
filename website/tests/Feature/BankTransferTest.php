@@ -133,7 +133,9 @@ class BankTransferTest extends TestCase
     public function test_admin_can_save_bank_settings(): void
     {
         $this->actingAs($this->staff(), 'web')
-            ->post('/admin/settings', ['bank_holder' => 'شرکت الف', 'bank_sheba' => '123456789012345678901234'])
+            // ⚠️ `tab` اجباری است: هر ذخیره فقط کلیدهای همان تب را می‌نویسد،
+            //    وگرنه ذخیرهٔ یک بخش تنظیماتِ بخش‌های دیگر را پاک می‌کند.
+            ->post('/admin/settings', ['tab' => 'accounts', 'bank_holder' => 'شرکت الف', 'bank_sheba' => '123456789012345678901234'])
             ->assertRedirect();
 
         $this->assertSame('شرکت الف', Setting::get('bank_holder'));
