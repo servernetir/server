@@ -445,6 +445,32 @@ DNS، DNSSEC، انتشار، reverse، SSL، **اسکن پورت**، پینگ.
 - مرورگر خودکار رویداد scroll و rAF نمی‌فرستد و بعد از resize استایل را دوباره
   اعمال نمی‌کند. با CSSOM یا استایل درون‌خطی راستی‌آزمایی کن.
 
+### 🔴 `Call to a member function all() on array` = **شکستِ نقاب‌دار**، نه باگِ واقعی
+
+اگر ادعایی روی یک پاسخِ `redirect()->withErrors(...)` بشکند، پیامِ شکست را
+نمی‌بینی؛ یک `Error: Call to a member function all() on array` می‌بینی که به
+علتِ واقعی هیچ ربطی ندارد. زنجیره‌اش:
+
+```
+config/session.php → 'serialization' => 'json'   (پیش‌فرضِ امنِ لاراول)
+Store::save() → prepareErrorBagForSerialization()
+   ← ViewErrorBagِ درونِ حافظه را به **آرایه** تبدیل می‌کند
+ادعا می‌شکند → TestResponseAssert::injectResponseContext()
+   ← برای غنی‌کردنِ پیام، روی همان آرایه ->all() می‌زند ⇒ Error
+```
+
+- **قاعده:** پیش از هر فرضیه‌ای دربارهٔ خودِ `all()`، ادعا را جدا کن و
+  `Location` و `session('errors')` را چاپ کن — علتِ واقعی تقریباً همیشه ادعای
+  **قبلیِ** همان زنجیره است (مثلاً `assertRedirect()` با آدرسِ کهنه).
+- ⚠️ `assertSessionHasErrors()` خودش سالم است و **مظنون نیست**: `TestResponse::
+  session()` نشست را دوباره `start()` می‌کند و `marshalErrorBag()` بَگ را
+  بازمی‌سازد. آن ردیفِ آرایه‌ای فقط در مسیرِ گزارشِ شکست دیده می‌شود.
+- `config/session.serialization` را برای رفعِ این **عوض نکن** — دقیقاً برای
+  بستنِ زنجیرهٔ gadget روی `APP_KEY`ِ لورفته آن‌جاست.
+
+نمونهٔ واقعی: `DomainPurchaseTest::test_a_customer_without_a_profile_is_sent_to_complete_it`
+که آدرسِ انتظارش کهنه شده بود و ساعت‌ها شبیهِ باگِ ترجمه/`withErrors` به‌نظر رسید.
+
 ### 🔴 تستِ فلیکی: اول بپرس **کدام پروسهٔ دیگر** همان فایل را می‌نویسد
 
 `test_a_flood_of_404s_does_not_evict_real_errors` حدود یک بار از هر سه قرمز

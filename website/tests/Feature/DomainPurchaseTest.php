@@ -130,16 +130,64 @@ class DomainPurchaseTest extends TestCase
     /**
      * ⚠️ بدونِ مشخصاتِ مالک، ثبتِ دامنه نزدِ هیچ رجیستراری ممکن نیست و WHOIS
      * هم قانوناً آن را می‌خواهد. پس **پیش از** گرفتنِ پول جلویش گرفته می‌شود.
+     *
+     * ⚠️ مقصد **صفحهٔ تسویه** است نه پروفایل. همان صفحه فرمِ مالک را درون‌خطی
+     * دارد و فقط فیلدهای کم را اجباری می‌کند (`checkout()` مقدارِ `missing` را
+     * از `missingOwnerFields()` می‌گیرد)، و `order()` هم پیش از سنجش همان
+     * فیلدها را ذخیره می‌کند — یعنی کاربر همان‌جا پر می‌کند و دوباره می‌فرستد.
+     * فرستادنش به پروفایل یعنی رهاکردنِ استعلامِ ۱۵دقیقه‌ای وسطِ خرید.
+     *
+     * این تست تا امروز `account.profile` را انتظار داشت و از آن تغییر جا مانده
+     * بود. ⚠️ و خطایی که می‌داد اصلاً دربارهٔ مقصد نبود: چون
+     * `config/session.serialization = 'json'` است، `Store::save()` خودِ
+     * `ViewErrorBag` را به آرایه تبدیل می‌کند و `TestResponseAssert` هنگامِ
+     * **ساختنِ پیامِ شکست** روی همان آرایه `->all()` می‌زند. پس به‌جای «آدرس
+     * فرق دارد»، یک `Call to a member function all() on array` می‌بینی که
+     * هیچ ربطی به علتِ واقعی ندارد.
      */
     public function test_a_customer_without_a_profile_is_sent_to_complete_it(): void
     {
         $c = $this->customer(withProfile: false);
+        $q = $this->quote();
 
-        $this->order($c, $this->quote())
-            ->assertRedirect(route('account.profile'))
+        $this->order($c, $q)
+            ->assertRedirect(route('account.domains.checkout', ['quote' => $q->id]))
+            ->assertSessionHasErrors();
+
+        // «پیش از گرفتنِ پول» یعنی نه فاکتوری، نه ردیفِ دامنه‌ای.
+        $this->assertSame(0, Invoice::count());
+        $this->assertSame(0, Domain::count());
+    }
+
+    /**
+     * 🔴 پروفایلِ **نیمه‌پر** — همان چیزی که واقعاً پول سوزاند (`zhina.shop`).
+     *
+     * ثبت‌نام پروفایل می‌سازد ولی فقط نام و ایمیل دارد. گیتِ قدیمی فقط
+     * `$profile === null` را می‌سنجید، پس این پروفایل از گیت رد می‌شد، فاکتور
+     * صادر می‌شد، پول گرفته می‌شد، و شرطِ **واقعی** ساعت‌ها بعد در
+     * `DomainRegistrar` می‌شکست — جایی که دیگر کاربر حاضر نبود کاری بکند.
+     *
+     * ⚠️ سنجه همان تابعِ رجیسترار است (`profileToCustomer()`)، نه فهرستِ دستی.
+     */
+    public function test_a_half_filled_profile_is_stopped_before_the_invoice(): void
+    {
+        $c = $this->customer(withProfile: false);
+
+        // آنچه ثبت‌نام می‌سازد: نام و ایمیل، بی‌نشانی و شهر و موبایل.
+        CustomerProfile::create([
+            'customer_id' => $c->id, 'type' => 'individual', 'is_default' => true,
+            'status' => 'verified', 'email' => $c->email,
+            'first_name' => 'احسان', 'last_name' => 'ابراهیمی',
+        ]);
+
+        $q = $this->quote();
+
+        $this->order($c, $q)
+            ->assertRedirect(route('account.domains.checkout', ['quote' => $q->id]))
             ->assertSessionHasErrors();
 
         $this->assertSame(0, Invoice::count());
+        $this->assertSame(0, Domain::count());
     }
 
     /** دامنه‌ای که از قبل نزدِ ما زنده است دوباره فروخته نمی‌شود */
