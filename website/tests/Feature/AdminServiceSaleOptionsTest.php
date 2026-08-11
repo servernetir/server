@@ -60,7 +60,8 @@ class AdminServiceSaleOptionsTest extends TestCase
 
     public function test_the_invoice_can_be_dated_in_the_past(): void
     {
-        $this->sell(['issued_at' => now()->subDays(3)->toDateString()]);
+        $j = \App\Support\Jalali::ofMoment(now()->subDays(3), config('calendar.display_timezone', 'Asia/Tehran'));
+        $this->sell(['issued_jy' => $j[0], 'issued_jm' => $j[1], 'issued_jd' => $j[2]]);
 
         $inv = Invoice::firstOrFail();
 
@@ -74,7 +75,8 @@ class AdminServiceSaleOptionsTest extends TestCase
     /** 🔴 مهم‌ترین محافظ: سررسید با تاریخِ فاکتور عقب نمی‌رود */
     public function test_a_backdated_invoice_never_backdates_the_service_due_date(): void
     {
-        $this->sell(['issued_at' => now()->subDays(30)->toDateString()]);
+        $j = \App\Support\Jalali::ofMoment(now()->subDays(30), config('calendar.display_timezone', 'Asia/Tehran'));
+        $this->sell(['issued_jy' => $j[0], 'issued_jm' => $j[1], 'issued_jd' => $j[2]]);
 
         $service = Service::firstOrFail();
 
@@ -88,13 +90,14 @@ class AdminServiceSaleOptionsTest extends TestCase
     public function test_a_future_issue_date_is_rejected(): void
     {
         $c = $this->customer();
+        $fj = \App\Support\Jalali::ofMoment(now()->addDays(2), config('calendar.display_timezone', 'Asia/Tehran'));
 
         $this->actingAs($this->admin())
             ->post('/admin/customers/'.$c->id.'/services', [
                 'name' => 'ه', 'price' => 1000, 'cycle' => 'monthly',
-                'issued_at' => now()->addDay()->toDateString(),
+                'issued_jy' => $fj[0], 'issued_jm' => $fj[1], 'issued_jd' => $fj[2],
             ])
-            ->assertSessionHasErrors('issued_at');
+            ->assertSessionHasErrors('issued_jd');
 
         $this->assertSame(0, Invoice::count());
     }

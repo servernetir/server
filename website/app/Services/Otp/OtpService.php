@@ -144,7 +144,7 @@ class OtpService
         // می‌فرستد.
         $sent = match ($channel) {
             'sms'   => $this->sendSms($destination, $code, $purpose),
-            'email' => $this->sendEmail($destination, $code),
+            'email' => $this->sendEmail($destination, $code, $purpose),
             default => false,
         };
 
@@ -416,7 +416,7 @@ class OtpService
      * اگر میلر پیکربندی نشده باشد throw می‌شود و false برمی‌گردانیم تا کاربر
      * پیام روشن بگیرد، نه یک شکستِ خاموش.
      */
-    private function sendEmail(string $email, string $code): bool
+    private function sendEmail(string $email, string $code, string $purpose = 'login'): bool
     {
         try {
             // mailer('smtp') صریح، نه میلرِ پیش‌فرض: روی سرور MAIL_MAILER اغلب
@@ -424,7 +424,7 @@ class OtpService
             // قالبِ برنددارِ سرورنت، به زبانِ جاری. اگر SMTP پیکربندی نباشد
             // throw می‌کند و false برمی‌گردانیم.
             \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)->send(
-                new \App\Mail\OtpMail($code, self::TTL_MINUTES, app()->getLocale()),
+                new \App\Mail\OtpMail($code, self::TTL_MINUTES, app()->getLocale(), $purpose),
             );
 
             return true;

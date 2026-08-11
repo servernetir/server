@@ -41,21 +41,62 @@ class ServiceController extends Controller
             'domain'      => ['nullable', 'string', 'max:190'],
 
             /*
-            | تاریخِ صدورِ دلخواه — کارفرما: «تاریخِ صدورش برای ۳ روز پیش باشد.»
+            | تاریخِ صدور به **شمسی** وارد می‌شود و **میلادی** ذخیره می‌شود.
             |
-            | ⚠️ `before_or_equal:today` عمدی است: فاکتورِ **آینده** یعنی سندی
-            | که هنوز صادر نشده ولی در دفتر هست. عقب‌بردن کاربردِ واقعی دارد
-            | (ثبتِ فروشی که قبلاً انجام شده)، جلوبردن ندارد.
+            | ⚠️ سه فیلدِ جدا و نه یک رشتهٔ «۱۴۰۵/۰۵/۲۰»: پارسِ رشتهٔ تاریخ یعنی
+            | تصمیم‌گیری دربارهٔ جداکننده، رقمِ فارسی/لاتین، و صفرِ ابتدایی —
+            | سه جای اضافه برای اشتباه، روی فیلدی که سندِ حسابداری می‌سازد.
             */
-            'issued_at'   => ['nullable', 'date', 'before_or_equal:today'],
+            'issued_jy'   => ['nullable', 'integer', 'min:1300', 'max:1500'],
+            'issued_jm'   => ['nullable', 'integer', 'min:1', 'max:12'],
+            'issued_jd'   => ['nullable', 'integer', 'min:1', 'max:31'],
 
             // تخفیفِ درصدی روی مبلغِ سرویس
             'discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [], [
             'name' => 'نام سرویس', 'price' => 'مبلغ', 'cycle' => 'دوره',
             'username' => 'نام‌کاربری', 'domain' => 'دامنه',
-            'issued_at' => 'تاریخ صدور', 'discount_pct' => 'درصد تخفیف',
+            'issued_jy' => 'سال صدور', 'issued_jm' => 'ماه صدور',
+            'issued_jd' => 'روز صدور', 'discount_pct' => 'درصد تخفیف',
         ]);
+
+        /*
+        |----------------------------------------------------------------------
+        | شمسی → میلادی، **فقط این‌جا**
+        |----------------------------------------------------------------------
+        |
+        | کارفرما: «شمسی وارد کنم ولی میلادی در دیتابیس ذخیره شود.»
+        |
+        | ⚠️ تبدیل در PHP انجام می‌شود و نه در مرورگر — قاعدهٔ ثبت‌شدهٔ پروژه:
+        | دو پیاده‌سازیِ جلالی روزی یک روز اختلاف پیدا می‌کنند، و این‌جا آن یک
+        | روز روی تاریخِ سندِ حسابداری می‌نشیند.
+        |
+        | ⚠️ `Jalali::toGregorian` تاریخِ ناموجود را نمی‌شناسد (مثلاً ۳۱ اسفند)،
+        | پس **پیش از تبدیل** با `daysInMonth` سنجیده می‌شود. بی‌این، ۳۱ اسفند
+        | بی‌صدا به فروردین سُر می‌خورد و فاکتور تاریخِ اشتباه می‌گرفت.
+        */
+        $issuedAt = null;
+
+        if (filled($data['issued_jy'] ?? null) && filled($data['issued_jm'] ?? null) && filled($data['issued_jd'] ?? null)) {
+            [$jy, $jm, $jd] = [(int) $data['issued_jy'], (int) $data['issued_jm'], (int) $data['issued_jd']];
+
+            if ($jd > \App\Support\Jalali::daysInMonth($jy, $jm)) {
+                return back()->withInput()->withErrors([
+                    'issued_jd' => 'این روز در ماهِ انتخاب‌شده وجود ندارد.',
+                ]);
+            }
+
+            $issuedAt = \App\Support\Jalali::startOfDay(
+                $jy, $jm, $jd, config('calendar.display_timezone', 'Asia/Tehran')
+            );
+
+            // ⚠️ همان قاعدهٔ قبلی: فاکتورِ **آینده** سندی است که هنوز صادر نشده.
+            if ($issuedAt->isAfter(now())) {
+                return back()->withInput()->withErrors([
+                    'issued_jd' => 'تاریخِ صدور نمی‌تواند در آینده باشد.',
+                ]);
+            }
+        }
 
         $taxPct = (int) ($data['tax_percent'] ?? 0);
 
@@ -88,7 +129,7 @@ class ServiceController extends Controller
                 .fa_num(rtrim(rtrim(number_format($discountPct, 2, '.', ''), '0'), '.')).'٪ تخفیف'
             : null;
 
-        $service = DB::transaction(function () use ($customer, $data, $taxPct, $request, $price, $note) {
+        $service = DB::transaction(function () use ($customer, $data, $taxPct, $request, $price, $note, $issuedAt) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $data['name'],
@@ -105,7 +146,7 @@ class ServiceController extends Controller
                 'domain'        => $data['domain'] ?? null,
             ]);
 
-            $this->issueInvoice($service, isset($data['issued_at']) && $data['issued_at'] ? \Illuminate\Support\Carbon::parse($data['issued_at']) : null);
+            $this->issueInvoice($service, $issuedAt);
 
             return $service;
         });

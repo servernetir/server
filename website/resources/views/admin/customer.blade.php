@@ -431,9 +431,52 @@
       {{-- ⚠️ فقط گذشته: فاکتورِ تاریخ‌دارِ آینده یعنی سندی که هنوز صادر نشده.
            سررسیدِ سرویس با این تاریخ عقب **نمی‌رود** — وگرنه کرونِ چرخهٔ عمر
            همان روز سرویس را «سررسیدگذشته» می‌دید و تعلیقش می‌کرد. --}}
-      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">تاریخ صدور فاکتور
-        <input type="date" name="issued_at" max="{{ now()->toDateString() }}" dir="ltr" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit;text-align:left">
-        <small style="font-size:11px">خالی = امروز · دورهٔ سرویس همیشه از امروز شروع می‌شود</small></label>
+      {{--
+        تاریخِ صدور — **شمسی** وارد می‌شود، **میلادی** ذخیره می‌شود.
+
+        🔴 چرا سه انتخابگرِ سرورساخته و نه یک پیکرِ جاوااسکریپتی:
+
+        قاعدهٔ ثبت‌شدهٔ همین پروژه می‌گوید «ریاضیِ جلالی فقط در PHP». یک پیکرِ
+        مرورگری یعنی الگوریتمِ دوم، و دو پیاده‌سازیِ جلالی دیر یا زود یک روز
+        اختلاف پیدا می‌کنند — در فرمی که **تاریخِ سندِ حسابداری** می‌سازد.
+        (همان تله که یک بار `jalali_ymd()` را در سالِ کبیسه شکست.)
+
+        این‌جا گزینه‌ها را PHP می‌سازد، تبدیل را PHP انجام می‌دهد، و مرورگر فقط
+        سه عدد پس می‌دهد. هیچ ریاضی‌ای سمتِ کاربر نیست، پس چیزی برای واگرایی
+        هم نیست.
+
+        ⚠️ تعدادِ روزِ ماه سمتِ سرور اعتبارسنجی می‌شود (اسفندِ ۳۰ روزه فقط در
+        سالِ کبیسه)، نه با پنهان‌کردنِ گزینه‌ها — پنهان‌کردن، خطای واقعی را به
+        یک انتخابِ بی‌صدا تبدیل می‌کند.
+      --}}
+      @php
+        $jNow  = \App\Support\Jalali::ofMoment(now(), config('calendar.display_timezone', 'Asia/Tehran'));
+        $jYear = (int) $jNow[0];
+      @endphp
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">
+        <span>تاریخ صدور فاکتور (شمسی)</span>
+        <div style="display:flex;gap:6px" dir="rtl">
+          <select name="issued_jy" style="flex:1.2;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit">
+            <option value="">سال</option>
+            @for($y = $jYear; $y >= $jYear - 2; $y--)
+              <option value="{{ $y }}">{{ fa_num($y) }}</option>
+            @endfor
+          </select>
+          <select name="issued_jm" style="flex:1.6;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit">
+            <option value="">ماه</option>
+            @for($m = 1; $m <= 12; $m++)
+              <option value="{{ $m }}">{{ \App\Support\Jalali::monthName($m) }}</option>
+            @endfor
+          </select>
+          <select name="issued_jd" style="flex:1;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit">
+            <option value="">روز</option>
+            @for($d = 1; $d <= 31; $d++)
+              <option value="{{ $d }}">{{ fa_num($d) }}</option>
+            @endfor
+          </select>
+        </div>
+        <small style="font-size:11px">خالی = امروز · فقط گذشته · دورهٔ سرویس همیشه از امروز شروع می‌شود</small>
+      </div>
 
       {{-- تحویل خودکار (اختیاری) --}}
       <details style="grid-column:1/3;border:1px solid var(--line);border-radius:10px;padding:10px 13px">
