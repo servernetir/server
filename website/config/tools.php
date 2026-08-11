@@ -10,11 +10,27 @@
 return [
 
     'categories' => [
-        'seo'         => ['icon' => 'gauge',   'fa' => 'سئو', 'en' => 'SEO', 'tr' => 'SEO'],
-        'performance' => ['icon' => 'zap',     'fa' => 'سرعت و پرفورمنس', 'en' => 'Performance', 'tr' => 'Performans'],
-        'security'    => ['icon' => 'shield',  'fa' => 'امنیت', 'en' => 'Security', 'tr' => 'Güvenlik'],
-        'mobile'      => ['icon' => 'smartphone', 'fa' => 'موبایل و تجربه کاربری', 'en' => 'Mobile & UX', 'tr' => 'Mobil & UX'],
-        'best'        => ['icon' => 'check',    'fa' => 'بهترین‌روش‌ها', 'en' => 'Best practices', 'tr' => 'En iyi uygulamalar'],
+        'seo'           => ['icon' => 'gauge',   'fa' => 'سئو', 'en' => 'SEO', 'tr' => 'SEO'],
+        'performance'   => ['icon' => 'zap',     'fa' => 'سرعت و پرفورمنس', 'en' => 'Performance', 'tr' => 'Performans'],
+        'security'      => ['icon' => 'shield',  'fa' => 'امنیت', 'en' => 'Security', 'tr' => 'Güvenlik'],
+        'accessibility' => ['icon' => 'users',   'fa' => 'دسترس‌پذیری', 'en' => 'Accessibility', 'tr' => 'Erişilebilirlik'],
+        'network'       => ['icon' => 'server',  'fa' => 'شبکه و زیرساخت', 'en' => 'Network & infrastructure', 'tr' => 'Ağ ve altyapı'],
+        'mobile'        => ['icon' => 'smartphone', 'fa' => 'موبایل و تجربه کاربری', 'en' => 'Mobile & UX', 'tr' => 'Mobil & UX'],
+        'best'          => ['icon' => 'check',    'fa' => 'بهترین‌روش‌ها', 'en' => 'Best practices', 'tr' => 'En iyi uygulamalar'],
+    ],
+
+    /*
+    | مخاطبِ هر دسته — همان چیزی که این گزارش را از یک «نمرهٔ سئو» جدا می‌کند.
+    | روی کارتِ دسته چاپ می‌شود تا هر کس بداند کدام بخش مالِ اوست.
+    */
+    'audience' => [
+        'seo'           => ['fa' => 'سئوکار و تولیدکنندهٔ محتوا', 'en' => 'SEO & content', 'tr' => 'SEO ve içerik'],
+        'performance'   => ['fa' => 'توسعه‌دهنده و مدیر سرور', 'en' => 'Developer & sysadmin', 'tr' => 'Geliştirici ve sistem yöneticisi'],
+        'security'      => ['fa' => 'مدیر انفورماتیک', 'en' => 'IT / security', 'tr' => 'BT / güvenlik'],
+        'accessibility' => ['fa' => 'طراح سایت و UI/UX', 'en' => 'Designer & UI/UX', 'tr' => 'Tasarımcı ve UI/UX'],
+        'network'       => ['fa' => 'مدیر شبکه', 'en' => 'Network admin', 'tr' => 'Ağ yöneticisi'],
+        'mobile'        => ['fa' => 'طراح و صاحب کسب‌وکار', 'en' => 'Designer & owner', 'tr' => 'Tasarımcı ve işletme sahibi'],
+        'best'          => ['fa' => 'توسعه‌دهنده', 'en' => 'Developer', 'tr' => 'Geliştirici'],
     ],
 
     'checks' => [
@@ -62,7 +78,10 @@ return [
         'viewport'    => ['fa' => ['t' => 'متا Viewport', 'd' => 'بدون آن سایت روی موبایل درست مقیاس نمی‌شود — حیاتی.'], 'en' => ['t' => 'Viewport meta', 'd' => 'Without it the site won\'t scale on mobile — critical.'], 'tr' => ['t' => 'Viewport meta', 'd' => 'Mobil ölçekleme için kritik.']],
         'charset'     => ['fa' => ['t' => 'کدگذاری کاراکتر', 'd' => 'charset صحیح از نمایش به‌هم‌ریخته متن جلوگیری می‌کند.'], 'en' => ['t' => 'Charset declaration', 'd' => 'Correct charset prevents garbled text.'], 'tr' => ['t' => 'Karakter kodlaması', 'd' => 'Bozuk metni önler.']],
         'font_size'   => ['fa' => ['t' => 'اندازه فونت خوانا', 'd' => 'فونت زیر ۱۲px روی موبایل سخت خوانده می‌شود.'], 'en' => ['t' => 'Legible font size', 'd' => 'Fonts under 12px are hard to read on mobile.'], 'tr' => ['t' => 'Okunabilir yazı boyutu', 'd' => '12px altı mobilde zor okunur.']],
-        'tap_targets' => ['fa' => ['t' => 'اندازه دکمه‌های لمسی', 'd' => 'دکمه‌ها باید به اندازه کافی بزرگ و از هم فاصله داشته باشند.'], 'en' => ['t' => 'Tap target size', 'd' => 'Buttons should be large enough and well spaced.'], 'tr' => ['t' => 'Dokunma hedefi boyutu', 'd' => 'Butonlar yeterince büyük olmalı.']],
+        // ⚠️ `tap_targets` حذف شد: همیشه pass می‌داد چون اندازهٔ واقعیِ ناحیهٔ
+        // لمسی بدونِ رندرِ صفحه معلوم نیست. دلیلِ کامل در SiteAudit::mobileChecks.
+        'fixed_width'  => ['fa' => ['t' => 'عرضِ ثابتِ بزرگ', 'd' => 'عرضِ پیکسلیِ چهاررقمی روی موبایل اسکرولِ افقی می‌سازد.'], 'en' => ['t' => 'Large fixed width', 'd' => 'Four-digit pixel widths force horizontal scrolling on phones.'], 'tr' => ['t' => 'Büyük sabit genişlik', 'd' => 'Mobilde yatay kaydırmaya yol açar.']],
+        'lazy_images'  => ['fa' => ['t' => 'بارگذاری تنبل تصاویر', 'd' => 'تصویری که هنوز دیده نمی‌شود نباید اول صفحه دانلود شود.'], 'en' => ['t' => 'Lazy-loaded images', 'd' => 'Images below the fold should not download upfront.'], 'tr' => ['t' => 'Tembel yüklenen görseller', 'd' => 'Görünmeyen görseller baştan inmemeli.']],
         'apple_touch' => ['fa' => ['t' => 'آیکون Apple Touch', 'd' => 'آیکون هنگام افزودن به صفحه اصلی آیفون.'], 'en' => ['t' => 'Apple touch icon', 'd' => 'The icon used when added to an iPhone home screen.'], 'tr' => ['t' => 'Apple touch ikonu', 'd' => 'iPhone ana ekran ikonu.']],
         'theme_color' => ['fa' => ['t' => 'رنگ تم موبایل', 'd' => 'رنگ نوار مرورگر موبایل را هماهنگ با برند می‌کند.'], 'en' => ['t' => 'Theme color', 'd' => 'Matches the mobile browser bar to your brand.'], 'tr' => ['t' => 'Tema rengi', 'd' => 'Mobil tarayıcı çubuğunu markaya uydurur.']],
 
@@ -72,5 +91,24 @@ return [
         'deprecated_tags' => ['fa' => ['t' => 'تگ‌های منسوخ', 'd' => 'تگ‌هایی مثل center و font دیگر پشتیبانی نمی‌شوند.'], 'en' => ['t' => 'Deprecated tags', 'd' => 'Tags like center and font are obsolete.'], 'tr' => ['t' => 'Eski etiketler', 'd' => 'center, font gibi etiketler eskidi.']],
         'console_logs'    => ['fa' => ['t' => 'console.log باقی‌مانده', 'd' => 'لاگ‌های دیباگ نباید در نسخه نهایی بمانند.'], 'en' => ['t' => 'Leftover console.log', 'd' => 'Debug logs should not ship to production.'], 'tr' => ['t' => 'Kalan console.log', 'd' => 'Debug logları kalmamalı.']],
         'hreflang'        => ['fa' => ['t' => 'تگ hreflang', 'd' => 'برای سایت‌های چندزبانه نسخه زبانی درست را به گوگل معرفی می‌کند.'], 'en' => ['t' => 'hreflang tags', 'd' => 'Tells Google the right language version for multilingual sites.'], 'tr' => ['t' => 'hreflang etiketleri', 'd' => 'Çok dilli siteler için dil sürümünü belirtir.']],
+
+        // Accessibility — بُعدی که تا امروز سنجیده نمی‌شد
+        'a11y_lang'          => ['fa' => ['t' => 'زبانِ صفحه (lang)', 'd' => 'صفحه‌خوان بی‌این نمی‌داند متن را با چه لهجه‌ای بخواند.'], 'en' => ['t' => 'Page language', 'd' => 'Without it a screen reader does not know how to pronounce the text.'], 'tr' => ['t' => 'Sayfa dili', 'd' => 'Ekran okuyucu telaffuzu için gerekli.']],
+        'a11y_labels'        => ['fa' => ['t' => 'برچسبِ فیلدهای فرم', 'd' => 'ورودیِ بی‌برچسب برای کاربرِ نابینا یک جعبهٔ بی‌نام است.'], 'en' => ['t' => 'Form field labels', 'd' => 'An unlabelled input is a nameless box to a blind user.'], 'tr' => ['t' => 'Form alanı etiketleri', 'd' => 'Etiketsiz alan isimsiz bir kutudur.']],
+        'a11y_names'         => ['fa' => ['t' => 'نامِ دکمه‌ها و لینک‌ها', 'd' => 'دکمهٔ فقط‌آیکونی بدونِ aria-label فقط «دکمه» خوانده می‌شود.'], 'en' => ['t' => 'Button & link names', 'd' => 'An icon-only button with no aria-label is read as just “button”.'], 'tr' => ['t' => 'Buton ve bağlantı adları', 'd' => 'Sadece ikonlu buton “buton” diye okunur.']],
+        'a11y_heading_order' => ['fa' => ['t' => 'ترتیبِ تیترها', 'd' => 'پرش از H2 به H4 نقشهٔ صفحه را برای صفحه‌خوان می‌شکند.'], 'en' => ['t' => 'Heading order', 'd' => 'Skipping H2 to H4 breaks the page outline for screen readers.'], 'tr' => ['t' => 'Başlık sırası', 'd' => 'Seviye atlamak sayfa taslağını bozar.']],
+        'a11y_landmarks'     => ['fa' => ['t' => 'نشانه‌های ساختاری', 'd' => 'main و nav و header به کاربر اجازهٔ پرشِ مستقیم می‌دهند.'], 'en' => ['t' => 'Landmark regions', 'd' => 'main, nav and header let users jump straight to content.'], 'tr' => ['t' => 'Yer imi bölgeleri', 'd' => 'main, nav, header doğrudan geçiş sağlar.']],
+        'a11y_tabindex'      => ['fa' => ['t' => 'tabindex مثبت', 'd' => 'عددِ مثبت ترتیبِ طبیعیِ حرکت با Tab را به‌هم می‌ریزد.'], 'en' => ['t' => 'Positive tabindex', 'd' => 'Positive values scramble the natural Tab order.'], 'tr' => ['t' => 'Pozitif tabindex', 'd' => 'Doğal Tab sırasını bozar.']],
+        'a11y_zoom'          => ['fa' => ['t' => 'اجازهٔ بزرگ‌نمایی', 'd' => 'قفل‌کردنِ زوم روی موبایل، کاربرِ کم‌بینا را بیرون می‌گذارد.'], 'en' => ['t' => 'Pinch-zoom allowed', 'd' => 'Locking zoom shuts out low-vision users.'], 'tr' => ['t' => 'Yakınlaştırmaya izin', 'd' => 'Zoom kilidi az gören kullanıcıyı dışlar.']],
+
+        // Network & infrastructure
+        'cert_expiry'   => ['fa' => ['t' => 'انقضای گواهی SSL', 'd' => 'گواهیِ منقضی یعنی صفحهٔ اخطارِ قرمزِ مرورگر برای هر بازدیدکننده.'], 'en' => ['t' => 'SSL certificate expiry', 'd' => 'An expired certificate shows every visitor a red browser warning.'], 'tr' => ['t' => 'SSL sertifika bitişi', 'd' => 'Süresi dolmuş sertifika kırmızı uyarı gösterir.']],
+        'cert_issuer'   => ['fa' => ['t' => 'صادرکنندهٔ گواهی', 'd' => 'چه مرجعی این گواهی را صادر کرده.'], 'en' => ['t' => 'Certificate issuer', 'd' => 'Which authority issued the certificate.'], 'tr' => ['t' => 'Sertifika sağlayıcı', 'd' => 'Sertifikayı kim verdi.']],
+        'cert_hostname' => ['fa' => ['t' => 'تطابقِ نامِ گواهی', 'd' => 'نامِ روی گواهی باید دامنه را پوشش دهد وگرنه مرورگر اخطار می‌دهد.'], 'en' => ['t' => 'Certificate hostname match', 'd' => 'The name on the certificate must cover this domain.'], 'tr' => ['t' => 'Sertifika alan adı eşleşmesi', 'd' => 'Sertifika bu alan adını kapsamalı.']],
+        'ipv6'          => ['fa' => ['t' => 'پشتیبانی IPv6', 'd' => 'بخشی از کاربرانِ موبایل فقط IPv6 دارند.'], 'en' => ['t' => 'IPv6 support', 'd' => 'A share of mobile users are IPv6-only.'], 'tr' => ['t' => 'IPv6 desteği', 'd' => 'Bazı mobil kullanıcılar yalnızca IPv6.']],
+        'spf'           => ['fa' => ['t' => 'رکورد SPF', 'd' => 'بی‌این، ایمیلِ سایت شما راحت جعل می‌شود و به اسپم می‌رود.'], 'en' => ['t' => 'SPF record', 'd' => 'Without it your mail is easy to spoof and lands in spam.'], 'tr' => ['t' => 'SPF kaydı', 'd' => 'Olmadan e-posta sahteciliği kolaylaşır.']],
+        'dmarc'         => ['fa' => ['t' => 'رکورد DMARC', 'd' => 'به گیرنده می‌گوید با ایمیلِ جعلیِ دامنهٔ شما چه کند.'], 'en' => ['t' => 'DMARC record', 'd' => 'Tells receivers what to do with forged mail from your domain.'], 'tr' => ['t' => 'DMARC kaydı', 'd' => 'Sahte e-postalara ne yapılacağını söyler.']],
+        'redirects'     => ['fa' => ['t' => 'زنجیرهٔ ریدایرکت', 'd' => 'هر پرش یک رفت‌وبرگشتِ کامل است — روی موبایل گران تمام می‌شود.'], 'en' => ['t' => 'Redirect chain', 'd' => 'Each hop is a full round trip — expensive on mobile.'], 'tr' => ['t' => 'Yönlendirme zinciri', 'd' => 'Her adım tam bir gidiş-dönüş.']],
+        'www_canonical' => ['fa' => ['t' => 'یکی‌بودن www و بدونِ www', 'd' => 'اگر هر دو مستقل باز شوند، گوگل دو سایت می‌بیند و اعتبار نصف می‌شود.'], 'en' => ['t' => 'www / apex unified', 'd' => 'If both answer independently, Google sees two sites and splits your authority.'], 'tr' => ['t' => 'www / apex birleşik', 'd' => 'İkisi ayrı yanıt verirse otorite bölünür.']],
     ],
 ];

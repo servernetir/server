@@ -3092,3 +3092,114 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .ipr-cta-act{width:100%;flex-direction:column}
   .ipr-cta-act .btn{width:100%;justify-content:center}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   بررسی سایت — برنامهٔ اقدام، فیلترِ شدت، و بلوکِ راهکار
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ---------- هفت بُعد + مخاطبِ هرکدام (زیرِ فرمِ جستجو) ---------- */
+.aud-dims{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:24px}
+.aud-dim{display:inline-flex;align-items:center;gap:8px;background:var(--surface);
+  border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:12.5px;text-align:start}
+.aud-dim .icon{width:14px;height:14px;color:var(--cyan);flex:none}
+.aud-dim b{font-weight:600}
+.aud-dim small{color:var(--dim);font-size:11px;margin-inline-start:2px}
+
+/* ---------- برنامهٔ اقدام ---------- */
+.audit-plan{margin:26px 0 8px;background:linear-gradient(140deg,rgba(59,130,246,.09),rgba(139,92,246,.06));
+  border:1px solid var(--line-2);border-radius:22px;padding:26px 28px}
+.aplan-head h3{display:flex;align-items:center;gap:9px;font-family:var(--font-disp);
+  font-size:20px;font-weight:700;margin-bottom:6px}
+.aplan-head h3 .icon{width:19px;height:19px;color:var(--cyan)}
+.aplan-head p{color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:18px}
+
+.aplan-list{list-style:none;display:grid;gap:12px;counter-reset:none}
+.aplan-item{display:flex;gap:14px;align-items:flex-start;background:var(--surface);
+  border:1px solid var(--line);border-radius:16px;padding:16px 18px;
+  border-inline-start:3px solid var(--line-2)}
+.aplan-item.fail{border-inline-start-color:#FF5F57}
+.aplan-item.warn{border-inline-start-color:#FBBF24}
+.aplan-n{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:800}
+.aplan-item.fail .aplan-n{background:rgba(255,95,87,.14);color:#FF8A84}
+.aplan-item.warn .aplan-n{background:rgba(251,191,36,.14);color:#FBBF24}
+.aplan-body{flex:1;min-width:0}
+.aplan-t{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px}
+.aplan-t b{font-size:15px;font-weight:700}
+.aplan-tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);
+  background:var(--surface-2);border-radius:99px;padding:3px 10px}
+.aplan-tag .icon{width:12px;height:12px}
+.aplan-sev{font-size:11px;font-weight:800;border-radius:99px;padding:3px 10px}
+.aplan-sev.fail{background:rgba(255,95,87,.12);color:#FF8A84}
+.aplan-sev.warn{background:rgba(251,191,36,.12);color:#FBBF24}
+.aplan-why{color:var(--muted);font-size:13px;line-height:1.9;margin:0}
+
+.aplan-clear{display:flex;align-items:center;gap:11px;color:var(--green);font-size:14.5px;font-weight:600}
+.aplan-clear .icon{width:20px;height:20px}
+
+/* ---------- بلوکِ راهکار (هم در برنامه، هم زیرِ هر چک) ---------- */
+.afix{margin-top:11px;border-top:1px solid var(--line);padding-top:10px}
+.afix summary{display:inline-flex;align-items:center;gap:7px;list-style:none;cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--cyan)}
+.afix summary::-webkit-details-marker{display:none}
+.afix summary .icon{width:14px;height:14px}
+.afix[open] summary{margin-bottom:9px}
+.afix>p{color:var(--muted);font-size:13px;line-height:2;margin:0}
+.afix-code{position:relative;margin-top:11px}
+.afix-code pre{background:var(--bg2);border:1px solid var(--line);border-radius:12px;
+  padding:14px 15px;overflow-x:auto;font-size:12px;line-height:1.85;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text)}
+.afix-code code{white-space:pre}
+.afix-copy{position:absolute;top:8px;inset-inline-end:8px;z-index:2;
+  background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;
+  color:var(--muted);font:inherit;font-size:11.5px;padding:4px 11px;transition:.2s var(--ease)}
+.afix-copy:hover{color:var(--cyan);border-color:var(--cyan)}
+.afix-copy.ok{color:var(--green);border-color:rgba(52,211,153,.5)}
+
+/* ---------- فیلترِ شدت ---------- */
+.audit-filter{display:flex;gap:8px;flex-wrap:wrap;margin:30px 0 -6px}
+.audit-filter button{background:var(--surface);border:1px solid var(--line-2);border-radius:99px;
+  color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:7px 16px;
+  transition:.18s var(--ease)}
+.audit-filter button:hover{color:var(--text)}
+.audit-filter button.on{background:rgba(34,211,238,.12);border-color:var(--cyan);color:var(--cyan)}
+
+/* ---------- ردیفِ چک: حالا می‌تواند راهکار داشته باشد ---------- */
+/* ⚠️ `.acheck` قبلاً خودش flex بود و مستقیم چهار فرزند داشت. حالا یک لایهٔ
+   `.ac-row` وسط آمده تا راهکار زیرِ همان ردیف باز شود؛ پس چیدمانِ flex به
+   لایهٔ تازه منتقل می‌شود، وگرنه ردیف و بلوکِ راهکار کنارِ هم می‌افتند. */
+.acheck{display:block}
+.ac-row{display:flex;align-items:center;gap:14px}
+.acheck .afix{margin-inline-start:40px}
+
+/* ---------- نامِ دسته + مخاطبش روی کارت ---------- */
+.acat-name small{display:block;color:var(--dim);font-size:10.5px;font-weight:400;margin-top:2px}
+
+/* ---------- چاپ ---------- */
+/* گزارشی که کاربر پیشِ توسعه‌دهنده می‌بَرد باید روی کاغذ خوانا باشد: بی‌پس‌زمینهٔ
+   تیره، بی‌فرمِ جستجو، و بی‌شکستنِ کارت‌ها وسطِ صفحه. */
+@media print{
+  .aurora,.grid-overlay,header,footer,#progress,.au-cta,.audit-filter,.tool-search,.aud-dims{display:none !important}
+  body{background:#fff;color:#000}
+  .audit-plan,.aplan-item,.adetail-group,.acheck{break-inside:avoid;background:#fff;border-color:#ccc}
+  .afix{display:block}
+  .afix-code pre{background:#f6f6f6;color:#000;border-color:#ddd}
+  a[href]::after{content:''}
+}
+
+@media(max-width:640px){
+  .audit-plan{padding:20px 18px;border-radius:18px}
+  .aplan-item{padding:14px}
+  .aud-dim small{display:none}
+  /* قاعدهٔ موبایلِ قبلی `gap` را روی `.acheck` می‌گذاشت که حالا block است */
+  .ac-row{gap:11px}
+  .acheck .afix{margin-inline-start:0}
+}
+
+/* نوارِ مرحله‌های بررسی — ابزاری که چند ثانیه کار می‌کند باید بگوید دارد چه
+   می‌کند، وگرنه کاربر بعد از سه ثانیه فکر می‌کند خراب است. */
+.aud-stage{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;
+  color:var(--cyan);font-size:13px;min-height:20px}
+.aud-stage::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--cyan);
+  animation:audPulse 1.1s ease-in-out infinite}
+@keyframes audPulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}

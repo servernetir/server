@@ -26,18 +26,52 @@
     const results = document.getElementById('seo-results'), errBox = document.getElementById('seo-error');
     const num = (n) => faNum(n, M.fa);
 
+    /*
+     * نوارِ پیشرفت — چون این بررسی **واقعاً** چند ثانیه طول می‌کشد.
+     *
+     * هفت بُعد یعنی گواهیِ TLS، چند پرس‌وجوی DNS، و دو کاوشِ جانبی؛ روی سایتِ
+     * کند تا ده ثانیه هم می‌شود. با یک اسپینرِ ساکت، کاربر بعد از سه ثانیه فکر
+     * می‌کند ابزار خراب است و صفحه را می‌بندد. این‌جا مرحله‌ها به‌ترتیب نشان
+     * داده می‌شوند تا معلوم باشد کار در جریان است و دارد چه می‌کند.
+     *
+     * ⚠️ مرحله‌ها **تخمینی**‌اند نه گزارشِ واقعیِ سرور: پاسخ یک‌جا برمی‌گردد و
+     * پیشرفتِ میانی‌ای در کار نیست. عمداً هم هیچ درصدی نشان نمی‌دهد — درصدِ
+     * ساختگی همان دروغی است که این ابزار قرار است نگوید.
+     */
+    const stages = M.stages || [];
+    let stageTimer = null;
+
+    function startStages() {
+      const el = document.getElementById('seo-stage');
+      if (!el || !stages.length) return;
+      let i = 0;
+      el.hidden = false;
+      el.textContent = stages[0];
+      stageTimer = setInterval(() => {
+        i = Math.min(i + 1, stages.length - 1);
+        el.textContent = stages[i];
+      }, 2200);
+    }
+
+    function stopStages() {
+      if (stageTimer) { clearInterval(stageTimer); stageTimer = null; }
+      const el = document.getElementById('seo-stage');
+      if (el) el.hidden = true;
+    }
+
     seoForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = input.value.trim();
       if (!url) return;
       errBox.hidden = true;
       spin(seoForm.querySelector('button'), true);
+      startStages();
       try {
         const d = await post(seoForm.dataset.endpoint, { url });
         if (!d.ok) { showErr(d.error === 'invalid_url' ? M.i18n.errInvalid : M.i18n.errUnreachable); return; }
         render(d);
       } catch { showErr(M.i18n.errGeneric); }
-      finally { spin(seoForm.querySelector('button'), false); }
+      finally { stopStages(); spin(seoForm.querySelector('button'), false); }
     });
     document.getElementById('seo-rescan')?.addEventListener('click', () => {
       results.style.display = 'none';
@@ -86,12 +120,18 @@
       document.getElementById('au-facts').innerHTML = facts.map(([k, v]) =>
         `<div><small>${esc(k)}</small><b dir="ltr">${esc(v)}</b></div>`).join('');
 
+      // ── برنامهٔ اقدام ──────────────────────────────────────────────
+      /* گزارشِ قبلی می‌گفت «۱۷ مورد قرمز است» و کاربر را با ۱۷ تصمیم تنها
+         می‌گذاشت. ترتیب از سرور می‌آید (وزنِ چک × شدت) تا «مهم» یک تعریف
+         داشته باشد، نه دو تا. */
+      renderPlan(d);
+
       // category bars
       document.getElementById('audit-cats').innerHTML = Object.entries(d.scores).map(([key, sc]) => {
         const m = M.cats[key] || { t: key, icon: 'check' };
-        return `<button class="acat ${gradeClass(sc)}" data-cat="${key}">
+        return `<button class="acat ${gradeClass(sc)}" data-cat="${key}" title="${esc(M.i18n.jump)}">
           <span class="acat-ico"><svg class="icon"><use href="#i-${m.icon}"/></svg></span>
-          <span class="acat-name">${esc(m.t)}</span>
+          <span class="acat-name">${esc(m.t)}${m.who ? `<small>${esc(m.who)}</small>` : ''}</span>
           <span class="acat-bar"><i style="width:${sc}%"></i></span>
           <b class="acat-score">${num(sc)}</b>
         </button>`;
@@ -119,9 +159,115 @@
         document.querySelector(`.adetail-group[data-group="${b.dataset.cat}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
 
+      setupFilter();
+
       requestAnimationFrame(() => document.querySelectorAll('.acat-bar i, .adg-score').forEach((el) => el.classList.add('in')));
       results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    /* ============ برنامهٔ اقدام ============ */
+
+    function renderPlan(d) {
+      const box = document.getElementById('audit-plan');
+      if (!box) return;
+      const plan = Array.isArray(d.plan) ? d.plan : [];
+      box.hidden = false;
+
+      if (!plan.length) {
+        box.innerHTML = `<div class="aplan-clear">
+          <svg class="icon"><use href="#i-check"/></svg><span>${esc(M.i18n.planNone)}</span></div>`;
+        return;
+      }
+
+      box.innerHTML = `
+        <div class="aplan-head">
+          <h3><svg class="icon"><use href="#i-sparkles"/></svg>${esc(M.i18n.planTitle)}</h3>
+          <p>${esc(M.i18n.planLead)}</p>
+        </div>
+        <ol class="aplan-list">${plan.map((p, i) => planItem(p, i)).join('')}</ol>`;
+    }
+
+    function planItem(p, i) {
+      const meta = M.checks[p.key] || { t: p.key, d: '' };
+      const cat = M.cats[p.cat] || { t: p.cat, icon: 'check' };
+      const fix = (M.fixes || {})[p.key];
+      return `<li class="aplan-item ${p.status}">
+        <span class="aplan-n">${num(i + 1)}</span>
+        <div class="aplan-body">
+          <div class="aplan-t">
+            <b>${esc(meta.t)}</b>
+            <span class="aplan-tag"><svg class="icon"><use href="#i-${cat.icon}"/></svg>${esc(cat.t)}</span>
+            <span class="aplan-sev ${p.status}">${esc(p.status === 'fail' ? M.i18n.fail : M.i18n.warn)}</span>
+          </div>
+          <p class="aplan-why">${esc(meta.d)}</p>
+          ${fix ? fixBlock(fix) : ''}
+        </div>
+      </li>`;
+    }
+
+    /* بلوکِ راهکار — همان چیزی که این ابزار را از «نمره‌دهنده» به «راهنما»
+       تبدیل می‌کند. کد در <pre> با دکمهٔ کپی، چون کسی کدِ چندخطی را تایپ نمی‌کند. */
+    function fixBlock(fix) {
+      return `<details class="afix">
+        <summary><svg class="icon"><use href="#i-wrench"/></svg>${esc(M.i18n.howFix)}</summary>
+        <p>${esc(fix.fix)}</p>
+        ${fix.code ? `<div class="afix-code">
+            <button type="button" class="afix-copy" data-code="${esc(fix.code)}">${esc(M.i18n.copy)}</button>
+            <pre dir="ltr"><code>${esc(fix.code)}</code></pre>
+          </div>` : ''}
+      </details>`;
+    }
+
+    /* ============ فیلترِ شدت ============ */
+
+    function setupFilter() {
+      const bar = document.getElementById('audit-filter');
+      if (!bar) return;
+      bar.hidden = false;
+      const labels = { all: M.i18n.fAll, fail: M.i18n.fFail, warn: M.i18n.fWarn };
+      bar.querySelectorAll('button').forEach((b) => {
+        const f = b.dataset.f;
+        const n = f === 'all' ? null : document.querySelectorAll('.acheck.' + f).length;
+        b.textContent = labels[f] + (n === null ? '' : ' (' + num(n) + ')');
+        b.onclick = () => {
+          bar.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+          apply(f);
+        };
+      });
+      apply('all');
+
+      function apply(f) {
+        document.querySelectorAll('.acheck').forEach((el) => {
+          el.style.display = (f === 'all' || el.classList.contains(f)) ? '' : 'none';
+        });
+        /* گروهی که بعد از فیلتر هیچ ردیفی ندارد پنهان می‌شود — وگرنه صفحه پر
+           می‌شود از عنوان‌های خالی و کاربر فکر می‌کند چیزی خراب است. */
+        document.querySelectorAll('.adetail-group').forEach((g) => {
+          const any = [...g.querySelectorAll('.acheck')].some((el) => el.style.display !== 'none');
+          g.style.display = any ? '' : 'none';
+        });
+      }
+    }
+
+    /* کپیِ نمونه‌کد — واگذارشده، چون کارت هر بار از نو ساخته می‌شود */
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.afix-copy');
+      if (!btn) return;
+      navigator.clipboard.writeText(btn.dataset.code || '').then(() => {
+        const old = btn.textContent;
+        btn.textContent = M.i18n.copied;
+        btn.classList.add('ok');
+        setTimeout(() => { btn.textContent = old; btn.classList.remove('ok'); }, 1500);
+      }).catch(() => {});
+    });
+
+    document.getElementById('seo-print')?.addEventListener('click', () => {
+      /* پیش از چاپ همه‌چیز باز می‌شود، وگرنه راهکارها که در <details> جمع‌اند
+         روی کاغذ غایب‌اند — و کاغذ دقیقاً چیزی است که کاربر پیشِ توسعه‌دهنده
+         می‌بَرد. */
+      document.querySelectorAll('#seo-results details').forEach((x) => { x.open = true; });
+      window.print();
+    });
 
     const order = (s) => s === 'fail' ? 0 : s === 'warn' ? 1 : 2;
     const icon = (s) => s === 'pass' ? '<svg class="icon"><use href="#i-check"/></svg>' : s === 'warn' ? '!' : '<svg class="icon"><use href="#i-x"/></svg>';
@@ -131,16 +277,21 @@
       let val = '';
       if (c.value != null && c.value !== '') val = String(c.value);
       else if (c.ms != null) val = num(c.ms) + ' ms';
+      else if (c.days != null) val = num(c.days);
       else if (c.kb != null) val = num(c.kb) + ' KB';
       else if (c.count != null) val = num(c.count);
       else if (c.len != null) val = num(c.len) + ' ch';
       else if (c.total != null) val = num(c.missing || 0) + '/' + num(c.total);
       const label = { pass: M.i18n.pass, warn: M.i18n.warn, fail: M.i18n.fail }[c.status];
+      const fix = c.status === 'pass' ? null : (M.fixes || {})[c.key];
       return `<div class="acheck ${c.status}">
-        <span class="ac-mark">${icon(c.status)}</span>
-        <span class="ac-txt"><b>${esc(meta.t)}</b><small>${esc(meta.d)}</small></span>
-        ${val ? `<span class="ac-val" dir="ltr" title="${esc(val)}">${esc(val.length > 42 ? val.slice(0, 42) + '…' : val)}</span>` : ''}
-        <span class="ac-status">${esc(label)}</span>
+        <div class="ac-row">
+          <span class="ac-mark">${icon(c.status)}</span>
+          <span class="ac-txt"><b>${esc(meta.t)}</b><small>${esc(meta.d)}</small></span>
+          ${val ? `<span class="ac-val" dir="ltr" title="${esc(val)}">${esc(val.length > 42 ? val.slice(0, 42) + '…' : val)}</span>` : ''}
+          <span class="ac-status">${esc(label)}</span>
+        </div>
+        ${fix ? fixBlock(fix) : ''}
       </div>`;
     }
   }
