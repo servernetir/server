@@ -7,6 +7,9 @@
 <title>@yield('title', 'مدیریت') — ServerNet</title>
 <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/admin.css') }}">
+{{-- استایلِ اختصاصیِ این دو بخش. عمداً اینجا و نه داخل admin.css: آن فایل مشترک
+     است و هر خطِ اضافه یک تعارضِ merge بالقوه برای تیم. --}}
+@yield('head')
 {{-- تم پیش از رنگ‌آمیزی ست می‌شود تا «فلاشِ» تمِ اشتباه نبینیم. همان کوکیِ
      snet-theme سایت اصلی، پس تمِ مدیر بین سایت و کنسول یکی می‌ماند. --}}
 <script>(function(){try{var m=document.cookie.match(/(?:^|;\s*)snet-theme=(light|dark)/);var t=m?m[1]:localStorage.getItem('snet-theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
@@ -46,6 +49,18 @@
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
+
+      @if(auth()->user()->isAdmin())
+      {{-- دو بخشِ **جدا**. یکی بیرون را می‌گیرد، یکی داخل را مرتب می‌کند؛
+           قاطی کردنشان یعنی هیچ‌کدام جای مشخصی در ذهن ندارد. --}}
+      <div class="ad-nav-sep">رشد</div>
+      @php $crmPending = \Illuminate\Support\Facades\Schema::hasTable('crm_messages')
+              ? \App\Models\CrmMessage::where('direction', 'out')->where('status', 'queued')->count() : 0; @endphp
+      <a href="/admin/marketing" class="@yield('nav_marketing')"><svg class="icon"><use href="#i-rocket"/></svg>بازاریابی هوشمند@if($crmPending)<span class="ad-pill">{{ $crmPending }}</span>@endif</a>
+      @php $mailOpen = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+              ? \App\Models\MailboxMessage::open()->where('needs_reply', true)->count() : 0; @endphp
+      <a href="/admin/mail" class="@yield('nav_mail')"><svg class="icon"><use href="#i-mail"/></svg>صندوق ایمیل@if($mailOpen)<span class="ad-pill">{{ $mailOpen }}</span>@endif</a>
+      @endif
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>

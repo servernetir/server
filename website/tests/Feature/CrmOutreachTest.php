@@ -1,0 +1,480 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CrmLead;
+use App\Models\CrmMessage;
+use App\Models\CrmSuppression;
+use App\Models\User;
+use App\Services\Crm\ContactFinder;
+use App\Services\Crm\OutreachComposer;
+use App\Services\Crm\OutreachMailer;
+use App\Services\Crm\RedLine;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
+use Tests\TestCase;
+
+/**
+ * موتورِ جذبِ مشتری — چیزهایی که اگر بشکنند، **بی‌صدا** می‌شکنند.
+ *
+ * هر تستِ این فایل یک ریسکِ واقعی را می‌بندد، نه یک خطِ کد را:
+ *   • ایمیل بعد از «no» → نقضِ CAN-SPAM/CASL
+ *   • پیامِ چهارم → شکایتِ اسپم و سوختنِ دامنه
+ *   • عدد در متن → ادعای اندازه‌گیری‌نشده جلوی خریدارِ صنعتی
+ *   • ارسال با خلبانِ خاموش → همان چیزی که قرار بود اتفاق نیفتد
+ *   • سرنخِ تکراری → یک کلینیک، دو ایمیل
+ */
+class CrmOutreachTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function lead(array $attrs = []): CrmLead
+    {
+        $site = $attrs['website'] ?? 'https://clinic'.random_int(1, 99999).'.ae';
+
+        return CrmLead::create($attrs + [
+            'domain_hash' => CrmLead::hashFor($site),
+            'company'     => 'Clinic',
+            'website'     => $site,
+            'email'       => 'info@'.parse_url($site, PHP_URL_HOST),
+            'observation' => 'No pricing page anywhere on the site.',
+            'stage'       => 'new',
+        ]);
+    }
+
+    private function queued(CrmLead $lead, int $sequence = 0): CrmMessage
+    {
+        return CrmMessage::create([
+            'lead_id'   => $lead->id,
+            'channel'   => 'email',
+            'direction' => 'out',
+            'subject'   => 'A note about your booking page',
+            'body'      => 'Plain body.',
+            'status'    => 'queued',
+            'sequence'  => $sequence,
+        ]);
+    }
+
+    // ───────────────────── فهرستِ سیاه ─────────────────────
+
+    public function test_suppression_blocks_the_whole_domain_not_just_one_mailbox(): void
+    {
+        CrmSuppression::add('info@clinic.ae', 'unsubscribe');
+
+        $this->assertTrue(CrmSuppression::blocks('info@clinic.ae'));
+        $this->assertTrue(CrmSuppression::blocks('SALES@Clinic.AE'), 'همان شرکت است و همان آدم جواب می‌دهد');
+        $this->assertFalse(CrmSuppression::blocks('info@other.ae'));
+    }
+
+    public function test_empty_address_is_treated_as_blocked(): void
+    {
+        $this->assertTrue(CrmSuppression::blocks(null));
+        $this->assertTrue(CrmSuppression::blocks(''));
+    }
+
+    public function test_message_queued_before_the_optout_is_not_sent_after_it(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead(['email' => 'info@clinic.ae']);
+        $message = $this->queued($lead);
+
+        // بینِ صف و ارسال، همان آدم «no» می‌فرستد.
+        CrmSuppression::add('info@clinic.ae', 'unsubscribe');
+
+        $sent = app(OutreachMailer::class)->sendOne($message);
+
+        $this->assertFalse($sent);
+        $this->assertSame('skipped', $message->fresh()->status);
+        Mail::assertNothingSent();
+    }
+
+    // ───────────────────── سقفِ دنباله ─────────────────────
+
+    public function test_lead_is_closed_after_the_third_message_and_can_never_be_contacted_again(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+        $message = $this->queued($lead, CrmMessage::MAX_SEQUENCE);
+
+        app(OutreachMailer::class)->sendOne($message);
+
+        $lead->refresh();
+        $this->assertSame('lost', $lead->stage);
+        $this->assertNull($lead->next_action_at);
+        $this->assertFalse($lead->isContactable(), 'سرنخِ بسته نباید هیچ‌وقت پیامِ چهارم بگیرد');
+    }
+
+    public function test_first_message_moves_the_lead_to_contacted_with_a_follow_up_date(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+        app(OutreachMailer::class)->sendOne($this->queued($lead, 0));
+
+        $lead->refresh();
+        $this->assertSame('contacted', $lead->stage);
+        $this->assertSame(
+            now()->addDays(CrmLead::CADENCE['contacted'])->toDateString(),
+            $lead->next_action_at->toDateString(),
+        );
+    }
+
+    public function test_a_lead_without_an_observation_is_never_contactable(): void
+    {
+        $lead = $this->lead(['observation' => null]);
+
+        $this->assertFalse($lead->isContactable(), 'قانونِ ۶۰ ثانیه در سطحِ داده');
+    }
+
+    // ───────────────────── خطِ قرمز ─────────────────────
+
+    public function test_redline_rejects_invented_numbers_and_urgency(): void
+    {
+        $r = app(RedLine::class);
+
+        $this->assertFalse($r->clean('We increased conversions by 35% for a similar clinic.'));
+        $this->assertFalse($r->clean('This will 3x your bookings.'));
+        $this->assertFalse($r->clean('Guaranteed results or your money back.'));
+        $this->assertFalse($r->clean('Limited time offer, act now.'));
+        $this->assertFalse($r->clean('I can offer a discount because I am based in Iran.'));
+
+        $this->assertTrue($r->clean(
+            'Your booking page asks for a passport number before it shows any prices. '
+            .'If you are not happy with the first design direction, you do not pay.'
+        ));
+    }
+
+    // ───────────────────── خلبانِ خودکار ─────────────────────
+
+    public function test_nothing_is_sent_while_autopilot_is_off(): void
+    {
+        config(['crm.autopilot' => false]);
+        Mail::fake();
+
+        $this->queued($this->lead());
+
+        $r = app(OutreachMailer::class)->drain();
+
+        $this->assertSame('autopilot_off', $r['halted']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_send_window_is_closed_on_the_gulf_weekend(): void
+    {
+        $mailer = app(OutreachMailer::class);
+
+        // پیکربندی: شنبه و یک‌شنبه تعطیل، ۵ تا ۱۲ به وقتِ UTC
+        $this->assertFalse($mailer->inSendWindow(Carbon::parse('2026-08-08 09:00:00')), 'شنبه');
+        $this->assertFalse($mailer->inSendWindow(Carbon::parse('2026-08-09 09:00:00')), 'یک‌شنبه');
+        $this->assertFalse($mailer->inSendWindow(Carbon::parse('2026-08-10 02:00:00')), 'نیمه‌شبِ دوبی');
+        $this->assertTrue($mailer->inSendWindow(Carbon::parse('2026-08-10 09:00:00')), 'دوشنبه، ساعتِ کاری');
+    }
+
+    public function test_warmup_holds_the_first_day_far_below_the_configured_cap(): void
+    {
+        config(['crm.caps.email' => 30, 'crm.warmup.enabled' => true]);
+
+        $cap = app(OutreachMailer::class)->dailyCap();
+
+        $this->assertLessThan(30, $cap, 'دامنه‌ای که ناگهان ۳۰ ایمیلِ سرد بفرستد، شبیهِ اکانتِ هک‌شده است');
+        $this->assertGreaterThan(0, $cap);
+    }
+
+    public function test_warmup_can_be_switched_off_deliberately(): void
+    {
+        config(['crm.caps.email' => 30, 'crm.warmup.enabled' => false]);
+
+        $this->assertSame(30, app(OutreachMailer::class)->dailyCap());
+    }
+
+    // ───────────────────── ضدِ تکرار ─────────────────────
+
+    public function test_the_same_clinic_never_enters_the_funnel_twice(): void
+    {
+        $this->assertSame(
+            CrmLead::hashFor('https://WWW.Clinic.AE/booking?utm=x'),
+            CrmLead::hashFor('clinic.ae'),
+        );
+
+        $this->assertSame(
+            CrmLead::hashFor('info@clinic.ae'),
+            CrmLead::hashFor('https://clinic.ae'),
+        );
+    }
+
+    // ───────────────────── یافتنِ نشانی ─────────────────────
+
+    public function test_contact_finder_reads_published_addresses_and_ignores_junk(): void
+    {
+        $found = app(ContactFinder::class)->extract(
+            '<a href="mailto:info@clinic.ae">Email us</a> <img src="logo@2x.png">'
+            .' someone@example.com <span>reception@clinic.ae</span>'
+        );
+
+        $this->assertContains('info@clinic.ae', $found);
+        $this->assertContains('reception@clinic.ae', $found);
+        $this->assertNotContains('someone@example.com', $found, 'نشانیِ نمونه، نشانیِ کسب‌وکار نیست');
+        $this->assertNotContains('logo@2x.png', $found);
+    }
+
+    // ───────────────────── پیش‌نویسِ شبکهٔ اجتماعی ─────────────────────
+
+    /**
+     * 🔴 مهم‌ترین تستِ این فایل.
+     *
+     * پیش‌نویسِ لینکدین **هرگز** نباید در صفِ ارسال بنشیند. ارسالِ خودکار روی
+     * لینکدین نقضِ شرایطش است و اکانتِ احسان را برای همیشه می‌سوزاند — و آن
+     * اکانت، کلِ زیرساختِ فروشِ بین‌المللی‌اش است.
+     */
+    public function test_a_social_draft_can_never_be_sent_by_the_automated_queue(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+
+        $draft = CrmMessage::create([
+            'lead_id'   => $lead->id,
+            'channel'   => 'linkedin',
+            'direction' => 'out',
+            'subject'   => 'یادداشتِ درخواستِ ارتباط',
+            'body'      => 'I noticed your booking page has no pricing anywhere.',
+            'status'    => 'draft',
+            'sequence'  => 0,
+        ]);
+
+        $r = app(OutreachMailer::class)->drain(null, true);
+
+        $this->assertSame(0, $r['sent']);
+        $this->assertSame('draft', $draft->fresh()->status, 'صف نباید حتی لمسش کند');
+        Mail::assertNothingSent();
+    }
+
+    public function test_the_send_queue_only_ever_picks_up_queued_email(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $lead = $this->lead();
+
+        foreach ([['linkedin', 'draft'], ['instagram', 'draft'], ['email', 'cancelled'], ['email', 'sent']] as [$ch, $st]) {
+            CrmMessage::create([
+                'lead_id' => $lead->id, 'channel' => $ch, 'direction' => 'out',
+                'subject' => 's', 'body' => 'b', 'status' => $st, 'sequence' => 0,
+            ]);
+        }
+
+        $r = app(OutreachMailer::class)->drain(null, true);
+
+        $this->assertSame(0, $r['sent']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_a_lead_without_an_observation_gets_no_social_draft_either(): void
+    {
+        $lead = $this->lead(['observation' => null]);
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'linkedin', 'note'));
+        $this->assertSame(0, $lead->messages()->count());
+    }
+
+    public function test_a_closed_lead_gets_no_social_draft(): void
+    {
+        $lead = $this->lead(['stage' => 'lost']);
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'instagram', 'dm'));
+    }
+
+    public function test_unknown_channels_are_refused(): void
+    {
+        $lead = $this->lead();
+
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'whatsapp', 'dm'));
+        $this->assertNull(app(OutreachComposer::class)->draftSocial($lead, 'email', 'dm'));
+    }
+
+    public function test_long_messages_are_trimmed_at_a_sentence_not_mid_word(): void
+    {
+        $writer = new class extends \App\Services\Crm\OutreachWriter
+        {
+            public function cut(string $body, int $limit): ?string
+            {
+                return $this->fit($body, $limit);
+            }
+        };
+
+        $long = 'Your booking page never shows a price. That costs you enquiries. '
+            .'I would put a from-price on the first screen and see what happens next month.';
+
+        $out = $writer->cut($long, 70);
+
+        $this->assertNotNull($out);
+        $this->assertLessThanOrEqual(70, mb_strlen($out));
+        $this->assertStringEndsWith('.', $out, 'پیامی که وسطِ جمله بریده شود، شبیهِ ربات است');
+
+        // جمله‌ی اول از سقف هم بلندتر است → هیچ چیزی بهتر از متنِ بریده است
+        $this->assertNull($writer->cut('One very long sentence with no full stop anywhere near the limit', 20));
+    }
+
+    public function test_marking_a_social_draft_as_sent_moves_a_new_lead_forward(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 's'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $lead = $this->lead(['stage' => 'new']);
+
+        $draft = CrmMessage::create([
+            'lead_id' => $lead->id, 'channel' => 'linkedin', 'direction' => 'out',
+            'subject' => 'n', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
+        ]);
+
+        $this->actingAs($admin)->post('/admin/marketing/message/'.$draft->id.'/sent')->assertRedirect();
+
+        $this->assertSame('sent', $draft->fresh()->status);
+        $lead->refresh();
+        $this->assertSame('contacted', $lead->stage);
+        $this->assertNotNull($lead->last_contacted_at);
+    }
+
+    public function test_marking_sent_does_not_rewind_a_lead_already_in_the_email_rhythm(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'q'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $lead = $this->lead(['stage' => 'fu1']);
+
+        $draft = CrmMessage::create([
+            'lead_id' => $lead->id, 'channel' => 'instagram', 'direction' => 'out',
+            'subject' => 'd', 'body' => 'b', 'status' => 'draft', 'sequence' => 0,
+        ]);
+
+        $this->actingAs($admin)->post('/admin/marketing/message/'.$draft->id.'/sent')->assertRedirect();
+
+        $this->assertSame('fu1', $lead->fresh()->stage, 'ریتمِ ایمیل صاحبِ مرحله است');
+    }
+
+    public function test_email_cannot_be_marked_sent_by_hand(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'e'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $message = $this->queued($this->lead());
+
+        $this->actingAs($admin)
+            ->post('/admin/marketing/message/'.$message->id.'/sent')
+            ->assertSessionHasErrors('message');
+
+        $this->assertSame('queued', $message->fresh()->status);
+    }
+
+    // ───────────────────── خواندنِ جواب‌ها ─────────────────────
+
+    public function test_inbox_tells_a_real_reply_from_a_bounce_and_from_a_no(): void
+    {
+        $s = app(\App\Services\Crm\InboxScanner::class);
+
+        $this->assertSame('bounce', $s->classify(
+            'MAILER-DAEMON@mail.clinic.ae', 'Undeliverable: A note about your page', '550 5.1.1 unknown'
+        ));
+        $this->assertSame('bounce', $s->classify(
+            'someone@clinic.ae', 'Delivery Status Notification (Failure)', 'not delivered'
+        ));
+
+        $this->assertSame('optout', $s->classify('info@clinic.ae', 'Re: your note', 'No.'));
+        $this->assertSame('optout', $s->classify('info@clinic.ae', 'Re: your note', 'Please remove me from your list'));
+        $this->assertSame('optout', $s->classify('info@clinic.ae', 'unsubscribe', ''));
+        $this->assertSame('optout', $s->classify('info@clinic.ae', 'Re: your note', 'Not interested, thanks'));
+
+        $this->assertSame('reply', $s->classify(
+            'info@clinic.ae', 'Re: your note', 'Interesting. What would this cost and how long does it take?'
+        ));
+        $this->assertSame('reply', $s->classify(
+            'info@clinic.ae', 'Re: your note', 'We know about the booking page. Can you send examples?'
+        ));
+    }
+
+    // ───────────────────── پنل ─────────────────────
+
+    public function test_panel_requires_an_admin(): void
+    {
+        $writer = User::create([
+            'name' => 'نویسنده', 'email' => 'w'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'writer',
+        ]);
+
+        $this->actingAs($writer)->get('/admin/marketing')->assertForbidden();
+    }
+
+    public function test_panel_pages_render_for_an_admin(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'r'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $lead = $this->lead();
+        $this->queued($lead);
+
+        $this->actingAs($admin)->get('/admin/marketing')
+            ->assertOk()
+            ->assertSee('منتظرِ تأییدِ تو', false);
+
+        $this->actingAs($admin)->get('/admin/marketing/'.$lead->id)
+            ->assertOk()
+            ->assertSee($lead->company, false);
+    }
+
+    public function test_admin_can_reject_a_draft_and_it_is_never_sent(): void
+    {
+        config(['crm.autopilot' => true]);
+        Mail::fake();
+
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'a'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $message = $this->queued($this->lead());
+
+        $this->actingAs($admin)
+            ->post('/admin/marketing/message/'.$message->id.'/reject')
+            ->assertRedirect();
+
+        $this->assertSame('cancelled', $message->fresh()->status);
+
+        $r = app(OutreachMailer::class)->drain(null, true);
+        $this->assertSame(0, $r['sent']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_duplicate_domain_is_refused_by_the_manual_form(): void
+    {
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'b'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $this->lead(['website' => 'https://smiledubai.ae']);
+
+        $this->actingAs($admin)
+            ->post('/admin/marketing', [
+                'company' => 'Smile Dubai',
+                'website' => 'https://www.smiledubai.ae/',
+            ])
+            ->assertSessionHasErrors('website');
+
+        $this->assertSame(1, CrmLead::count());
+    }
+}
