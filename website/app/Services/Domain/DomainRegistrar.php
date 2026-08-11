@@ -515,6 +515,16 @@ class DomainRegistrar
             | توضیحِ کامل بالای `CONTRACT_CODES`.
             */
             if (self::isUnsignedContract((int) $res['code'])) {
+                /*
+                | 🔴 و **کلِ پسوند** را از فروش بردار.
+                |
+                | این شکست مالِ این دامنه نیست، مالِ پسوند است: تا امضا نشود
+                | هیچ `.{$domain->tld}`ای ثبت نمی‌شود. بی‌این خط، مشتریِ بعدی
+                | دقیقاً همان مسیر را می‌رفت — پول می‌داد، ثبت نمی‌شد، چند روز
+                | بعد پولش برمی‌گشت. توضیحِ کامل در `TldGate`.
+                */
+                TldGate::block((string) $domain->tld, 'قراردادِ رجیستری امضا نشده است.');
+
                 return $this->fail($domain, $this->contractMessage($domain, $res['message']), manual: true);
             }
 
@@ -532,6 +542,17 @@ class DomainRegistrar
     /** @param array<string,mixed> $remote */
     private function succeed(Domain $domain, array $remote, string $handle): array
     {
+        /*
+        | ✅ خودشفایی: یک ثبتِ **واقعاً موفق** ثابت می‌کند قرارداد امضا شده،
+        | پس دروازهٔ آن پسوند خودش باز می‌شود و مدیر کارِ دستیِ دومی ندارد.
+        |
+        | ⚠️ چرا این‌جا بی‌خطر است در حالی که معادلش در `cloud:reopen` عمداً
+        | دستی ماند: آن‌جا اثباتِ «دیگر شکست نمی‌خورد» یک سفارشِ تازه و پولِ
+        | واقعی لازم داشت. این‌جا دامنهٔ پارک‌شده از قبل پرداخت شده است، پس
+        | تلاشِ دوباره‌اش هیچ پولِ تازه‌ای خرج نمی‌کند و خودش همان اثبات است.
+        */
+        TldGate::clear((string) $domain->tld);
+
         $expires = data_get($remote, 'expiration_date') ?: data_get($remote, 'expiration_date_time');
 
         $domain->forceFill([
