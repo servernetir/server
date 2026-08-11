@@ -2018,6 +2018,45 @@ Route::prefix('admin')->group(function () {
         Route::post('/costs/add', [\App\Http\Controllers\Admin\CostController::class, 'store'])->middleware('admin');
         Route::post('/costs/{cost}/delete', [\App\Http\Controllers\Admin\CostController::class, 'destroy'])->middleware('admin');
 
+        /*
+        | جذبِ مشتریِ خارجی — قیفِ فروش و صفِ تأییدِ ایمیل.
+        |
+        | 🔴 همه‌شان `admin` می‌خواهند و نه فقط `auth:web`: این صفحه ایمیل به
+        | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
+        | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
+        */
+        /*
+        | بازاریابی هوشمند — قیفِ فروش، صفِ تأییدِ پیام، و رشدِ ارگانیک.
+        |
+        | 🔴 همه‌شان `admin` می‌خواهند و نه فقط `auth:web`: این صفحه ایمیل به
+        | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
+        | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
+        */
+        Route::get('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'index'])->name('admin.marketing')->middleware('admin');
+        Route::post('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'store'])->middleware('admin');
+        Route::get('/marketing/growth', [\App\Http\Controllers\Admin\MarketingController::class, 'growth'])->name('admin.marketing.growth')->middleware('admin');
+        Route::get('/marketing/{lead}', [\App\Http\Controllers\Admin\MarketingController::class, 'show'])->name('admin.marketing.lead')->middleware('admin')->whereNumber('lead');
+        Route::post('/marketing/{lead}/enrich', [\App\Http\Controllers\Admin\MarketingController::class, 'enrich'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/compose', [\App\Http\Controllers\Admin\MarketingController::class, 'compose'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/social', [\App\Http\Controllers\Admin\MarketingController::class, 'social'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/marketing/{lead}/stage', [\App\Http\Controllers\Admin\MarketingController::class, 'stage'])->middleware('admin');
+        Route::post('/marketing/{lead}/suppress', [\App\Http\Controllers\Admin\MarketingController::class, 'suppress'])->middleware('admin');
+        Route::post('/marketing/message/{message}/approve', [\App\Http\Controllers\Admin\MarketingController::class, 'approve'])->middleware(['admin', 'throttle:30,1']);
+        Route::post('/marketing/message/{message}/reject', [\App\Http\Controllers\Admin\MarketingController::class, 'reject'])->middleware('admin');
+        Route::post('/marketing/message/{message}/sent', [\App\Http\Controllers\Admin\MarketingController::class, 'markSent'])->middleware('admin');
+
+        /*
+        | صندوق‌های ایمیلِ مدیریتی — ceo@ · support@ · info@
+        |
+        | 🔴 `admin` و نه `auth:web`: این صفحه سرآیندِ نامه‌های شرکت را نشان
+        | می‌دهد، از جمله صندوقِ پشتیبانی که پر از دادهٔ مشتری است. نویسندهٔ
+        | بلاگ کاری با آن ندارد.
+        */
+        Route::get('/mail', [\App\Http\Controllers\Admin\MailboxController::class, 'index'])->name('admin.mail')->middleware('admin');
+        Route::post('/mail/clear', [\App\Http\Controllers\Admin\MailboxController::class, 'clear'])->middleware('admin');
+        Route::post('/mail/{message}/handled', [\App\Http\Controllers\Admin\MailboxController::class, 'handled'])->middleware('admin');
+        Route::post('/mail/{message}/reopen', [\App\Http\Controllers\Admin\MailboxController::class, 'reopen'])->middleware('admin');
+
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');

@@ -82,7 +82,11 @@ return [
         'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
         'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
         'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
+        // پیامِ فروشِ سرد (App\Services\Crm\OutreachWriter)
         'outreach'  => env('AI_PROVIDER_OUTREACH', 'deepseek'),
+
+        // دسته‌بندیِ صندوق‌های ایمیل (App\Services\Mail\MailboxTriage)
+        'triage'    => env('AI_PROVIDER_TRIAGE', 'deepseek'),
     ],
 
     /*
