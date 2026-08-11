@@ -29,6 +29,48 @@ class DomainRegistrar
     /** بعد از این تعداد تلاشِ ناموفق، تصمیم با آدم است نه کرون */
     private const MAX_TRIES = 3;
 
+    /**
+     * 🔴 «قراردادِ رجیستری را امضا نکرده‌اید» — خطایی که تلاشِ دوباره **هرگز**
+     * حلش نمی‌کند.
+     *
+     * ═══ رخداد (مرداد ۱۴۰۵) ═══
+     *
+     * مشتری وسطِ ثبتِ دامنه این را در پنلِ مدیریت دید:
+     *   «You have not signed the last version of the contract for registering
+     *    this domain»
+     *
+     * این پیام از رجیسترار می‌آید و معنایش دربارهٔ **حسابِ ما**ست، نه دربارهٔ
+     * مشتری و نه دربارهٔ آن دامنه: OpenProvider برای هر پسوند یک قراردادِ
+     * رجیستری دارد که فروشنده باید یک‌بار در پنلِ خودش امضا کند
+     * (Account → Contracts). تا امضا نشود، **هیچ** دامنه‌ای با آن پسوند ثبت
+     * نمی‌شود و هیچ فیلدی در API از رویش رد نمی‌کند — یک امضای حقوقی است، نه
+     * یک پارامتر.
+     *
+     * ═══ چرا این ثابت لازم است ═══
+     *
+     * بی‌آن، این خطا مثلِ هر شکستِ گذرای دیگری رفتار می‌کرد: سه بار تلاشِ
+     * دوباره، یعنی سه تماسِ واقعیِ دیگر با رجیستراری که حسابِ ما **قبلاً یک بار
+     * به‌خاطرِ تماسِ زیاد از آی‌پیِ ایران علامت خورده** — و هر سه قطعاً همان
+     * جواب را می‌دهند. بعد هم دامنه به صفِ دستی می‌رفت با یک پیامِ خامِ انگلیسی
+     * که به مدیر نمی‌گفت باید چه کار کند.
+     *
+     * ⚠️ **تشخیص با کدِ عددی است، نه با متنِ انگلیسی.** رجیسترار متن را هر وقت
+     * بخواهد عوض می‌کند («last version» / «latest») و تطبیقِ رشته‌ای همان روز
+     * بی‌صدا می‌شکند.
+     *
+     * ۳۰۹   = "You have not signed the latest contract"
+     * ۱۷۰۰۱ = "You must sign a contract"
+     */
+    public const CONTRACT_CODES = [309, 17001];
+
+    public static function isUnsignedContract(int $code): bool
+    {
+        return in_array($code, self::CONTRACT_CODES, true);
+    }
+
+    /** نشانیِ صفحهٔ امضای قراردادها در پنلِ رجیسترار */
+    public const CONTRACTS_URL = 'https://cp.openprovider.eu/documentation/contracts.php';
+
     public function __construct(private OpenProviderClient $op) {}
 
     // ═══════════════════════ handle مالک ═══════════════════════
@@ -464,6 +506,18 @@ class DomainRegistrar
                 return $this->succeed($domain, $again['data'], $handle['handle']);
             }
 
+            /*
+            | 🔴 قراردادِ امضانشده ⇒ **بی‌درنگ** به صفِ آدم، بی‌تلاشِ دوباره.
+            |
+            | این تنها جایی است که «سه بار تلاش کن» غلط است: پاسخ تا وقتی یک
+            | انسان در پنلِ رجیسترار امضا نکند عوض نمی‌شود، پس هر تلاشِ اضافه
+            | فقط یک تماسِ بی‌فایده با حسابی است که قبلاً علامت خورده.
+            | توضیحِ کامل بالای `CONTRACT_CODES`.
+            */
+            if (self::isUnsignedContract((int) $res['code'])) {
+                return $this->fail($domain, $this->contractMessage($domain, $res['message']), manual: true);
+            }
+
             $tries = (int) $domain->provision_tries + 1;
             $manual = $tries >= self::MAX_TRIES;
 
@@ -524,6 +578,25 @@ class DomainRegistrar
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('notify', $e, ['event' => $event, 'domain' => $domain->domain]);
         }
+    }
+
+    /**
+     * پیامِ **قابلِ اقدام** برای مدیر — نه ترجمهٔ خامِ رجیسترار.
+     *
+     * ⚠️ پسوند در متن می‌آید چون قرارداد **per-TLD** است: امضای `.com` مشکلِ
+     * `.shop` را حل نمی‌کند. بی‌نامِ پسوند، مدیر باید حدس بزند کدام را امضا کند.
+     *
+     * ⚠️ پیامِ خامِ رجیسترار عمداً ته متن می‌مانَد: این ستون فقط برای مدیر است
+     * (مشتری نمی‌بیندش) و اگر روزی معنای کد عوض شود، تنها ردِ واقعیت همان است.
+     */
+    private function contractMessage(Domain $domain, string $raw): string
+    {
+        return 'قراردادِ رجیستریِ پسوندِ «.'.$domain->tld.'» در حسابِ رجیسترار امضا نشده است. '
+            .'تا امضا نشود هیچ دامنه‌ای با این پسوند ثبت نمی‌شود — این تنظیمِ حسابِ ماست، '
+            .'نه اشکالِ مشتری یا این دامنه. '
+            .'امضا: پنلِ رجیسترار ← Account ← Contracts ('.self::CONTRACTS_URL.') '
+            .'و بعد در همین صفحه «ارسال دوباره به صف» را بزنید. '
+            .'پیامِ رجیسترار: '.$raw;
     }
 
     private function fail(Domain $domain, string $message, bool $manual = false, ?int $tries = null): array
@@ -606,7 +679,15 @@ class DomainRegistrar
         $res = $this->op->renewDomain((int) $domain->op_id, $years);
 
         if (! $res['ok']) {
-            return ['ok' => false, 'message' => $res['message'] ?: 'تمدید ناموفق بود.'];
+            // ⚠️ همان دیوارِ قراردادِ امضانشده در مسیرِ تمدید هم هست، و آن‌جا
+            // گران‌تر است: دامنهٔ **زندهٔ** مشتری منقضی می‌شود. پس پیام باید
+            // همان‌قدر قابلِ اقدام باشد، نه متنِ خامِ انگلیسی.
+            return [
+                'ok'      => false,
+                'message' => self::isUnsignedContract((int) $res['code'])
+                    ? $this->contractMessage($domain, $res['message'])
+                    : ($res['message'] ?: 'تمدید ناموفق بود.'),
+            ];
         }
 
         // تاریخِ تازه را از خودِ رجیسترار می‌خوانیم، نه با جمعِ محلی —
