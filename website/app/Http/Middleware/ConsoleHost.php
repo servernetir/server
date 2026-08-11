@@ -54,6 +54,40 @@ class ConsoleHost
         'bale/webhook/*', 'system/*',
     ];
 
+    /**
+     * نشانیِ یک مسیرِ **پنلی** که از هر میزبانی امن باشد.
+     *
+     * 🔴 چرا لازم است: `ConsoleHost` فقط **GET** را به کنسول می‌فرستد (۳۰۱ روی
+     * POST بدنه را دور می‌ریزد). کامنتِ بالای همین کلاس فرضش را صریح نوشته:
+     * «فرم‌ها روی کنسول رندر می‌شوند و مستقیم به کنسول POST می‌کنند.»
+     *
+     * ⚠️ آن فرض برای یک فرم **غلط** است: نوارِ «جای مشتری نشسته‌اید» در
+     * `partials/header.blade.php` است، یعنی هدرِ **سایتِ اصلی**. مدیرِ
+     * جای‌نشسته می‌تواند وسطِ کار روی `/vps/germany` یا `/blog` باشد و همان‌جا
+     * دکمهٔ «بازگشت به پنل مدیریت» را ببیند — و آن فرم با `action` نسبی به
+     * `servernet.cloud/admin/impersonate/stop` پست می‌کرد: یک کنشِ مدیریتی روی
+     * میزبانِ بازاریابی، جایی که هیچ مسیرِ پنلی نباید بنشیند.
+     *
+     * امروز نشست بین دو میزبان مشترک است (`SESSION_DOMAIN=.servernet.cloud`)
+     * پس معمولاً کار می‌کند؛ ولی این یک **وابستگیِ نانوشته** به یک تنظیمِ
+     * `.env` است. اگر آن تنظیم روزی برداشته شود، دکمه بی‌صدا به صفحهٔ ورود
+     * می‌رود و مدیر داخلِ حسابِ مشتری گیر می‌افتد — همان خرابی که یک بار
+     * (به علتِ z-index) رخ داد و در کامنتِ همان فایل ثبت است.
+     *
+     * ⚠️ روی localhost و تست عمداً مسیرِ نسبی برمی‌گردد، وگرنه دکمهٔ محلی به
+     * کنسولِ **پروداکشن** پست می‌کرد.
+     */
+    public static function panelUrl(string $path): string
+    {
+        $path = '/'.ltrim($path, '/');
+
+        $host = strtolower((string) request()?->getHost());
+
+        return in_array($host, ['servernet.cloud', 'www.servernet.cloud'], true)
+            ? self::CONSOLE.ltrim($path, '/')
+            : $path;
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->isConsole($request)) {

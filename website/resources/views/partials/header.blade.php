@@ -31,7 +31,11 @@
         <b class="imp-nm">{{ $impCust->displayName() }}</b>
         <span class="imp-code" dir="ltr">{{ $impCust->code }}</span>
       </span>
-      <form method="post" action="/admin/impersonate/stop" class="imp-f">@csrf
+      {{-- ⚠️ نشانیِ **مطلق** روی کنسول وقتی این هدر روی دامنهٔ اصلی رندر شده.
+           چرایش کاملاً در `ConsoleHost::panelUrl()` نوشته شده؛ خلاصه: این نوار
+           در هدرِ سایتِ اصلی است، پس با `action` نسبی یک کنشِ مدیریتی به میزبانِ
+           بازاریابی پست می‌شد. --}}
+      <form method="post" action="{{ \App\Http\Middleware\ConsoleHost::panelUrl('/admin/impersonate/stop') }}" class="imp-f">@csrf
         <button type="submit" class="imp-out">
           <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
           <span class="imp-out-lg">بازگشت به پنل مدیریت</span>

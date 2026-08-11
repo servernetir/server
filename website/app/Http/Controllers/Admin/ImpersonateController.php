@@ -65,9 +65,20 @@ class ImpersonateController extends Controller
 
         Auth::guard('customer')->logout();
 
-        // اگر نشستِ مدیر به هر دلیل از بین رفته بود، به ورودِ مدیریت برگردان
-        return redirect($adminId && Auth::guard('web')->check()
-            ? '/admin/customers'.($customer ? '/'.$customer->id : '')
-            : '/admin/login');
+        /*
+        | ⚠️ مقصد **مطلق** روی کنسول است، نه مسیرِ نسبی.
+        |
+        | این کنش می‌تواند از دامنهٔ اصلی بیاید (نوار در هدرِ سایت است و مدیرِ
+        | جای‌نشسته ممکن است روی یک صفحهٔ بازاریابی باشد). مسیرِ نسبی یعنی
+        | پاسخ به `servernet.cloud/admin/customers/…` می‌رفت و آن‌جا `ConsoleHost`
+        | یک ۳۰۱ِ دیگر می‌زد — یک پرشِ اضافه که مرورگر آن را **دائمی** کش می‌کند.
+        |
+        | اگر نشستِ مدیر به هر دلیل از بین رفته بود، به ورودِ مدیریت برگردان.
+        */
+        return redirect(\App\Http\Middleware\ConsoleHost::panelUrl(
+            $adminId && Auth::guard('web')->check()
+                ? '/admin/customers'.($customer ? '/'.$customer->id : '')
+                : '/admin/login'
+        ));
     }
 }
