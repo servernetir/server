@@ -185,36 +185,157 @@
   if (ipForm) {
     const T = window.TOOL_I18N, input = document.getElementById('ip-input');
     const box = document.getElementById('ip-result'), err = document.getElementById('ip-error');
-    async function lookup(ip) {
+    const num = (n) => faNum(n, T.fa);
+    const flags = new Set(T.flags || []);
+    let clockTimer = null;
+
+    /* پرچمِ SVGِ خودمیزبان؛ اگر آن کشور را نداشتیم، ایموجیِ سرور.
+       ⚠️ فهرست از سرور می‌آید تا مرورگر تصویرِ ۴۰۴ نزند — روی کارتی که همان
+       لحظه دیده می‌شود، تصویرِ شکسته از نبودِ تصویر بدتر است.
+       ⚠️ ایموجیِ پرچم روی ویندوز به دو حرف تبدیل می‌شود و همین دلیلِ اصلیِ
+       SVG است؛ ولی برای کشوری که فایلش را نداریم، همان دو حرف از هیچ بهتر است. */
+    function flagHtml(d, cls) {
+      const code = String(d.countryCode || '').toLowerCase();
+      const name = d.country || code;
+      if (flags.has(code)) {
+        return `<img class="${cls} is-svg" src="${T.flagBase}${code}.svg" alt="${esc(name)}" width="64" height="64" loading="lazy">`;
+      }
+      return `<span class="${cls} is-emoji" role="img" aria-label="${esc(name)}">${esc(d.flag || '')}</span>`;
+    }
+
+    async function lookup(ip, opts) {
+      const o = opts || {};
+      const scroll = o.scroll !== false;
+      /* اجرای خودکار بی‌صدا شکست می‌خورد: کاربر چیزی نخواسته بود، پس کادرِ
+         قرمز در لحظهٔ ورود فقط می‌ترسانَد. (روی IPِ رزروشده — لوکال‌هاست،
+         CG-NAT — یا قطعیِ گذرای سرویسِ ژئو دقیقاً همین رخ می‌دهد.) */
+      const fail = (msg) => { if (o.quiet) return; err.textContent = msg; err.hidden = false; };
       err.hidden = true; spin(ipForm.querySelector('button'), true);
       try {
         const d = await post(ipForm.dataset.endpoint, { ip: ip || '' });
-        if (!d.ok) { err.textContent = d.error === 'invalid_ip' ? T.invalid : T.generic; err.hidden = false; box.hidden = true; }
-        else renderIp(d);
-      } catch { err.textContent = T.generic; err.hidden = false; }
+        if (!d.ok) { fail(d.error === 'invalid_ip' ? T.invalid : T.generic); box.hidden = true; }
+        else renderIp(d, scroll);
+      } catch { fail(T.generic); }
       finally { spin(ipForm.querySelector('button'), false); }
     }
     ipForm.addEventListener('submit', (e) => { e.preventDefault(); lookup(input.value.trim()); });
-    function renderIp(d) {
+
+    /* ساعتِ محلیِ همان IP — `offset` ثانیه‌ی اختلاف با UTC است، پس وقت را از
+       اجزای UTC می‌سازیم تا ساعتِ خودِ بازدیدکننده اثری نگذارد. */
+    function startClock(offset) {
+      if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+      const el = box.querySelector('#ip-clock');
+      if (!el || typeof offset !== 'number') return;
+      const tick = () => {
+        const t = new Date(Date.now() + offset * 1000);
+        const p = (n) => String(n).padStart(2, '0');
+        el.textContent = num(p(t.getUTCHours()) + ':' + p(t.getUTCMinutes()) + ':' + p(t.getUTCSeconds()));
+      };
+      tick();
+      clockTimer = setInterval(tick, 1000);
+    }
+
+    function item(label, value, opt) {
+      if (value == null || value === '' || value === 'undefined') return '';
+      const o = opt || {};
+      return `<div class="wk-item${o.copy ? ' has-copy' : ''}">
+        <small>${esc(label)}</small>
+        <span dir="${o.dir || 'ltr'}">${o.raw ? value : esc(value)}</span>
+        ${o.copy ? copyBtn(o.copy) : ''}
+      </div>`;
+    }
+    const copyBtn = (text) =>
+      `<button type="button" class="ipr-copy" data-copy="${esc(text)}" aria-label="${esc(T.copy)}" title="${esc(T.copy)}"><svg class="icon"><use href="#i-copy"/></svg></button>`;
+
+    function renderIp(d, scroll) {
       const tags = [];
       if (d.hosting) tags.push(['hosting', T.hosting]);
       if (d.proxy) tags.push(['proxy', T.proxy]);
       if (d.mobile) tags.push(['mobile', T.mobile]);
-      const rows = [
-        [T.country, `${d.flag} ${esc(d.country)} (${esc(d.countryCode)})`, true],
-        [T.region, esc(d.regionName)], [T.city, esc(d.city)], [T.zip, esc(d.zip)],
-        [T.timezone, esc(d.timezone)], [T.isp, esc(d.isp)], [T.org, esc(d.org)], [T.asn, esc(d.as)],
-        [T.reverse, esc(d.reverse)],
-      ].filter((x) => x[1] && x[1] !== 'undefined');
+      if (!tags.length) tags.push(['clean', T.residential]);
+
+      /* ⚠️ یکتاسازی لازم است: در بسیاری از کشورها نامِ شهر و استان یکی است
+         (تهران/تهران، Tehran/Tehran) و بی‌این، زیرِ آدرس «Tehran، Tehran، Iran»
+         نوشته می‌شد. */
+      const place = [...new Set([d.city, d.regionName, d.country].filter(Boolean))]
+        .join(T.fa ? '، ' : ', ');
+      const hasGeo = typeof d.lat === 'number' && typeof d.lon === 'number';
+      const mapUrl = hasGeo
+        ? `https://www.openstreetmap.org/export/embed.html?bbox=${d.lon - 0.6}%2C${d.lat - 0.4}%2C${d.lon + 0.6}%2C${d.lat + 0.4}&layer=mapnik&marker=${d.lat}%2C${d.lon}`
+        : '';
+
+      const tiles = [
+        ['pin', T.country, flagHtml(d, 'ipr-tile-flag') + esc(d.country || '—')],
+        ['globe', T.city, esc(d.city || d.regionName || '—')],
+        ['server', T.isp, esc(d.isp || d.org || '—')],
+        ['clock', T.localTime, `<span id="ip-clock" dir="ltr">—</span>`],
+      ];
+
       box.hidden = false;
       box.innerHTML = `
-        <div class="ip-head"><span class="ip-flag">${d.flag}</span><div><b dir="ltr">${esc(d.query)}</b><small>${esc(d.city)}${d.city ? '، ' : ''}${esc(d.country)}</small></div>
-        ${tags.length ? `<div class="ip-tags">${tags.map(([c, l]) => `<span class="ip-tag ${c}">${esc(l)}</span>`).join('')}</div>` : ''}</div>
-        <div class="ip-map"><iframe loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${d.lon - 0.6}%2C${d.lat - 0.4}%2C${d.lon + 0.6}%2C${d.lat + 0.4}&layer=mapnik&marker=${d.lat}%2C${d.lon}"></iframe></div>
-        <div class="wk-grid">${rows.map(([k, v, raw]) => `<div class="wk-item"><small>${esc(k)}</small><span dir="ltr">${raw ? v : esc(v)}</span></div>`).join('')}</div>`;
-      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        <div class="ipr-head">
+          <span class="ipr-flagwrap">${flagHtml(d, 'ipr-flag')}</span>
+          <div class="ipr-id">
+            <small>${esc(T.yourIp)}</small>
+            <b dir="ltr">${esc(d.query)}</b>
+            <span class="ipr-place">${esc(place)}</span>
+          </div>
+          <div class="ipr-head-act">${copyBtn(d.query)}</div>
+        </div>
+
+        <div class="ip-tags">${tags.map(([c, l]) => `<span class="ip-tag ${c}">${esc(l)}</span>`).join('')}</div>
+
+        <div class="ipr-tiles">
+          ${tiles.map(([ic, k, v]) => `<div class="ipr-tile">
+            <span class="ipr-tile-ic"><svg class="icon"><use href="#i-${ic}"/></svg></span>
+            <small>${esc(k)}</small><b>${v}</b></div>`).join('')}
+        </div>
+
+        ${hasGeo ? `<div class="ipr-map">
+          <iframe loading="lazy" title="${esc(T.mapTitle)}" src="${mapUrl}"></iframe>
+          <span class="ipr-coords" dir="ltr">${num(Number(d.lat).toFixed(3))}, ${num(Number(d.lon).toFixed(3))}</span>
+        </div>` : ''}
+
+        <div class="ipr-sec">
+          <h3><svg class="icon"><use href="#i-pin"/></svg>${esc(T.secGeo)}</h3>
+          <div class="wk-grid">
+            ${item(T.country, flagHtml(d, 'ipr-inline-flag') + esc(d.country || '') + (d.countryCode ? ` <code>${esc(d.countryCode)}</code>` : ''), { raw: true })}
+            ${item(T.continent, d.continent)}
+            ${item(T.region, d.regionName)}
+            ${item(T.city, d.city)}
+            ${item(T.zip, d.zip)}
+            ${item(T.timezone, d.timezone)}
+          </div>
+        </div>
+
+        <div class="ipr-sec">
+          <h3><svg class="icon"><use href="#i-server"/></svg>${esc(T.secNet)}</h3>
+          <div class="wk-grid">
+            ${item(T.isp, d.isp)}
+            ${item(T.org, d.org)}
+            ${item(T.asn, d.as, { copy: d.as })}
+            ${item(T.reverse, d.reverse, { copy: d.reverse })}
+          </div>
+        </div>`;
+
+      startClock(typeof d.offset === 'number' ? d.offset : null);
+      if (scroll) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    // اجرای خودکار برای IP خود کاربر
-    if (ipForm.dataset.auto === '1') lookup('');
+
+    /* کپی — واگذارشده به ظرف، چون کارت هر بار از نو ساخته می‌شود */
+    box.addEventListener('click', (e) => {
+      const btn = e.target.closest('.ipr-copy');
+      if (!btn) return;
+      navigator.clipboard.writeText(btn.dataset.copy || '').then(() => {
+        btn.classList.add('ok');
+        setTimeout(() => btn.classList.remove('ok'), 1400);
+      }).catch(() => {});
+    });
+
+    /* اجرای خودکار برای IP خود کاربر.
+       🔴 `scroll:false` عمدی است: این تنها اجرایی است که کاربر نخواسته، و
+       اسکرولِ خودکار در لحظهٔ ورود، هدر و عنوانِ صفحه را از دید می‌بُرد —
+       بازدیدکننده وسطِ صفحه‌ای می‌افتاد که هنوز ندیده بود کجاست. */
+    if (ipForm.dataset.auto === '1') lookup('', { scroll: false, quiet: true });
   }
 })();

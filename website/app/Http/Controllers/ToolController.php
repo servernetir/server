@@ -31,7 +31,32 @@ class ToolController extends Controller
         return view('pages.tool', [
             'slug'    => $slug,
             'prefill' => $prefill,
+            'seo'     => $this->seo($slug),
         ]);
+    }
+
+    /**
+     * محتوای سئوی صفحهٔ ابزار (مقدمه، گام‌ها، پرسش‌های متداول) در زبان جاری.
+     *
+     * از `resources/content/tools-seo.php` خوانده می‌شود. اسلاگی که هنوز محتوا
+     * ندارد آرایهٔ خالی می‌گیرد و قالب آن بخش را اصلاً رندر نمی‌کند — پس پرکردنِ
+     * تدریجیِ صفحات هیچ صفحهٔ دیگری را نمی‌شکند.
+     */
+    private function seo(string $slug): array
+    {
+        static $all = null;
+        if ($all === null) {
+            $file = resource_path('content/tools-seo.php');
+            $all = is_file($file) ? (array) require $file : [];
+        }
+
+        $entry = $all[$slug][app()->getLocale()] ?? $all[$slug]['fa'] ?? [];
+
+        return [
+            'intro' => $entry['intro'] ?? '',
+            'steps' => $entry['steps'] ?? [],
+            'faq'   => $entry['faq'] ?? [],
+        ];
     }
 
     /** POST /api/audit — بررسی سئو و سلامت سایت */

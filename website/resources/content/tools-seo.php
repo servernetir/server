@@ -1,0 +1,82 @@
+<?php
+
+/**
+ * محتوای سئوی صفحات «ابزارهای رایگان» (/tools/{slug}).
+ *
+ * ساختار:  slug => [ locale => ['intro' => string, 'steps' => [], 'faq' => [ ['q','a'] ]] ]
+ *
+ * ⚠️ خواهرِ `webtools-seo.php` است و **عمداً** فایلِ جداست: آن یکی مالِ ۴۸ ابزارِ
+ * سمت‌مرورگرِ /webtools است و این مالِ ابزارهای سمت‌سرورِ /tools. یکی‌کردنشان یعنی
+ * تصادمِ اسلاگ (هر دو ممکن است روزی `ip` داشته باشند).
+ *
+ * اسلاگی که این‌جا نیاید، آن بخش از صفحه‌اش اصلاً رندر نمی‌شود — پس افزودنِ
+ * تدریجی امن است.
+ *
+ * نکته: همه‌ی رشته‌ها دو-نقل‌قولی هستند چون متن ترکی و انگلیسی آپاستروف دارد
+ * (doesn not / adresinizi) و در رشته‌ی تک‌نقل‌قولی PHP را می‌شکند.
+ * پس داخل متن‌ها از نویسه‌های  "  و  $  استفاده نکنید.
+ */
+
+return [
+
+    "ip" => [
+        "fa" => [
+            "intro" => "هر دستگاهی که به اینترنت وصل می‌شود یک آدرس IP دارد؛ همان چیزی که سایت‌ها، سرورها و سرویس‌های امنیتی با آن شما را می‌شناسند. این ابزار آدرس IP یا نام دامنه را می‌گیرد و کشور، استان، شهر، منطقه‌ی زمانی، ارائه‌دهنده‌ی اینترنت (ISP)، شماره‌ی شبکه (ASN) و نوع اتصال را نشان می‌دهد. مهم‌ترین نکته‌ای که باید بدانید این است که موقعیت جغرافیایی IP از روی محل ثبت آن بلوک IP توسط ارائه‌دهنده به دست می‌آید، نه از GPS دستگاه شما؛ بنابراین کشور تقریباً همیشه درست است ولی شهر می‌تواند شهر مرکز مخابراتی یا دیتاسنتر ارائه‌دهنده باشد، نه شهر خودتان.",
+            "steps" => [
+                "برای دیدن IP خودتان کافی است وارد صفحه شوید — بررسی به‌صورت خودکار انجام می‌شود.",
+                "برای بررسی آدرس دیگری، IP نسخه‌ی ۴ یا ۶ را در کادر بنویسید؛ می‌توانید به‌جای IP نام دامنه هم بدهید تا اول به IP تبدیل شود.",
+                "دکمه‌ی بررسی را بزنید و کارت نتیجه را ببینید: پرچم و کشور، نقشه، ساعت محلی و جدول کامل مشخصات.",
+                "با دکمه‌ی کپی، آدرس IP یا شماره‌ی ASN را برای تیکت پشتیبانی یا تنظیم فایروال بردارید.",
+            ],
+            "faq" => [
+                ["q" => "موقعیت جغرافیایی نمایش‌داده‌شده چقدر دقیق است؟", "a" => "کشور در عمل نزدیک به همیشه درست است. شهر دقت کمتری دارد چون از پایگاه‌داده‌ی ثبت بلوک‌های IP خوانده می‌شود، نه از موقعیت واقعی دستگاه. اگر اینترنت شما از یک ارائه‌دهنده‌ی سراسری می‌آید، ممکن است شهر مرکز آن ارائه‌دهنده نمایش داده شود."],
+                ["q" => "چرا شهر من اشتباه نشان داده می‌شود؟", "a" => "سه دلیل رایج دارد: اینترنت موبایل که ترافیک را از یک نقطه‌ی مرکزی خارج می‌کند، استفاده از VPN یا پروکسی، و بلوک IP تازه‌ای که هنوز در پایگاه‌داده‌های ژئو به‌روزرسانی نشده است. هیچ‌کدام نشانه‌ی مشکل در اتصال شما نیست."],
+                ["q" => "برچسب دیتاسنتر یا پروکسی یعنی چه؟", "a" => "یعنی این IP متعلق به یک شرکت میزبانی یا سرویس VPN است، نه یک خط اینترنت خانگی. سایت‌های فروشگاهی و درگاه‌های پرداخت گاهی به این IP ها حساسیت بیشتری نشان می‌دهند و ممکن است تأیید بیشتری بخواهند."],
+                ["q" => "ASN چیست و به چه دردی می‌خورد؟", "a" => "ASN شماره‌ی یکتای یک شبکه در اینترنت جهانی است؛ مثلاً کل بلوک‌های IP یک ارائه‌دهنده زیر یک ASN قرار می‌گیرند. برای تشخیص اینکه یک IP واقعاً متعلق به کدام شرکت است، ASN از نام ISP قابل‌اعتمادتر است."],
+                ["q" => "با VPN، IP واقعی من دیده می‌شود؟", "a" => "این ابزار همان IP ای را می‌بیند که ترافیک شما با آن به اینترنت می‌رسد. اگر VPN فعال باشد، IP سرور VPN نمایش داده می‌شود. البته نشتی DNS یا WebRTC می‌تواند در جای دیگری آدرس واقعی را فاش کند؛ آن موضوع جداست."],
+                ["q" => "تفاوت IPv4 و IPv6 در این بررسی چیست؟", "a" => "هر دو پشتیبانی می‌شوند. اگر دستگاه شما هم‌زمان IPv4 و IPv6 داشته باشد، نتیجه به این بستگی دارد که مرورگر با کدام‌یک به سایت وصل شده است؛ برای همین ممکن است در دو مرورگر دو آدرس متفاوت ببینید."],
+                ["q" => "سرورنت آدرس IP مرا ذخیره می‌کند؟", "a" => "بررسی برای نمایش نتیجه انجام می‌شود و ما پروفایلی از IP بازدیدکنندگان این صفحه نمی‌سازیم. استفاده از ابزار رایگان است و نیازی به ثبت‌نام ندارد."],
+                ["q" => "برای سرور خودم چطور IP ثابت بگیرم؟", "a" => "هر سرور مجازی یا اختصاصی سرورنت با IP اختصاصی و ثابت تحویل داده می‌شود و می‌توانید بین مکان‌های ایران و اروپا انتخاب کنید. برای دیدن پلن‌ها و مکان‌های موجود به بخش سرور ابری مراجعه کنید."],
+            ],
+        ],
+        "en" => [
+            "intro" => "Every device on the internet has an IP address — the identifier websites, servers and security systems use to recognise you. This tool takes an IP address or a domain name and shows the country, region, city, timezone, internet provider (ISP), network number (ASN) and connection type. One thing worth knowing up front: IP geolocation comes from where the provider registered that block of addresses, not from your device GPS. The country is almost always right, but the city may be the location of your provider exchange or datacenter rather than your own.",
+            "steps" => [
+                "To see your own IP, just open the page — the lookup runs automatically.",
+                "To check a different address, type an IPv4 or IPv6 address into the box; you can also enter a domain name and it will be resolved to an IP first.",
+                "Press the check button and read the result card: flag and country, map, local time and the full detail table.",
+                "Use the copy buttons to grab the IP or ASN for a support ticket or a firewall rule.",
+            ],
+            "faq" => [
+                ["q" => "How accurate is the location shown?", "a" => "The country is right in practice almost every time. The city is less reliable because it is read from IP registration databases rather than the actual position of the device. If your connection comes from a nationwide provider, you may see the city where that provider is headquartered."],
+                ["q" => "Why is my city wrong?", "a" => "Three common reasons: mobile internet routes traffic out through a central point, a VPN or proxy is in the path, or the IP block is new and geolocation databases have not caught up. None of them means anything is wrong with your connection."],
+                ["q" => "What does the datacenter or proxy tag mean?", "a" => "It means the address belongs to a hosting company or VPN service rather than a home line. Shops and payment gateways sometimes treat those addresses more cautiously and may ask for extra verification."],
+                ["q" => "What is an ASN and why does it matter?", "a" => "An ASN is the unique number of a network on the global internet; all the IP blocks of one provider sit under it. To work out which company an address really belongs to, the ASN is more dependable than the ISP name."],
+                ["q" => "Will my real IP show through a VPN?", "a" => "This tool sees the address your traffic actually arrives with. With a VPN active, that is the VPN server address. DNS or WebRTC leaks can expose the real one elsewhere, but that is a separate matter."],
+                ["q" => "Does IPv4 or IPv6 change the result?", "a" => "Both are supported. If your device has IPv4 and IPv6 at the same time, the result depends on which one the browser used to reach us — which is why two browsers can show two different addresses."],
+                ["q" => "Does ServerNet store my IP address?", "a" => "The lookup happens so the result can be shown, and we do not build a profile of the addresses that visit this page. The tool is free and needs no account."],
+                ["q" => "How do I get a static IP for my own server?", "a" => "Every ServerNet virtual or dedicated server ships with its own static IP, and you can pick between locations in Iran and Europe. See the cloud server section for available plans and regions."],
+            ],
+        ],
+        "tr" => [
+            "intro" => "Internete baglanan her cihazin bir IP adresi vardir; web siteleri, sunucular ve guvenlik sistemleri sizi bu adresle taniyor. Bu arac bir IP adresini ya da alan adini alir ve ulke, bolge, sehir, saat dilimi, internet saglayici (ISP), ag numarasi (ASN) ve baglanti turunu gosterir. Bastan bilinmesi gereken sey su: IP konumu, o adres blogunun saglayici tarafindan kaydedildigi yerden gelir, cihazinizin GPS bilgisinden degil. Ulke neredeyse her zaman dogrudur ama sehir, sizin sehriniz yerine saglayicinin santral veya veri merkezi sehri olabilir.",
+            "steps" => [
+                "Kendi IP adresinizi gormek icin sayfayi acmaniz yeterli — sorgu otomatik calisir.",
+                "Baska bir adresi kontrol etmek icin kutuya IPv4 veya IPv6 adresi yazin; IP yerine alan adi da girebilirsiniz, once IP adresine cozumlenir.",
+                "Sorgula dugmesine basin ve sonuc kartini okuyun: bayrak ve ulke, harita, yerel saat ve tam detay tablosu.",
+                "Kopyala dugmeleriyle IP adresini veya ASN numarasini destek talebi ya da guvenlik duvari kurali icin alin.",
+            ],
+            "faq" => [
+                ["q" => "Gosterilen konum ne kadar dogru?", "a" => "Ulke pratikte neredeyse her zaman dogrudur. Sehir daha az guvenilirdir cunku cihazin gercek konumundan degil, IP kayit veritabanlarindan okunur. Baglantiniz ulke capinda bir saglayicidan geliyorsa o saglayicinin merkez sehrini gorebilirsiniz."],
+                ["q" => "Sehrim neden yanlis gorunuyor?", "a" => "Uc yaygin nedeni var: mobil internetin trafigi merkezi bir noktadan cikarmasi, yolda bir VPN veya proxy bulunmasi ve IP blogunun yeni olup konum veritabanlarina henuz islenmemis olmasi. Hicbiri baglantinizda sorun oldugu anlamina gelmez."],
+                ["q" => "Veri merkezi veya proxy etiketi ne demek?", "a" => "Bu adresin ev aboneligine degil, bir barindirma sirketine veya VPN hizmetine ait oldugu anlamina gelir. Magazalar ve odeme saglayicilari bu adreslere bazen daha temkinli yaklasir ve ek dogrulama isteyebilir."],
+                ["q" => "ASN nedir, neden onemli?", "a" => "ASN, kuresel internette bir agin benzersiz numarasidir; bir saglayicinin tum IP bloklari onun altinda toplanir. Bir adresin gercekte hangi sirkete ait oldugunu anlamak icin ASN, ISP adindan daha guvenilirdir."],
+                ["q" => "VPN kullanirken gercek IP adresim gorunur mu?", "a" => "Bu arac trafiginizin geldigi adresi gorur. VPN acikken bu, VPN sunucusunun adresidir. DNS veya WebRTC sizintilari gercek adresi baska bir yerde aciga cikarabilir, ama o ayri bir konudur."],
+                ["q" => "IPv4 ile IPv6 sonucu degistirir mi?", "a" => "Ikisi de desteklenir. Cihazinizda ayni anda IPv4 ve IPv6 varsa sonuc, tarayicinin bize hangisiyle ulastigina baglidir — bu yuzden iki tarayicida iki farkli adres gorebilirsiniz."],
+                ["q" => "ServerNet IP adresimi saklar mi?", "a" => "Sorgu yalnizca sonucu gosterebilmek icin yapilir ve bu sayfayi ziyaret eden adreslerden profil olusturmayiz. Arac ucretsizdir ve hesap gerektirmez."],
+                ["q" => "Kendi sunucum icin sabit IP nasil alirim?", "a" => "Her ServerNet sanal veya adanmis sunucusu kendi sabit IP adresiyle teslim edilir ve Iran ile Avrupa lokasyonlari arasinda secim yapabilirsiniz. Mevcut planlar ve bolgeler icin bulut sunucu bolumune bakin."],
+            ],
+        ],
+    ],
+
+];

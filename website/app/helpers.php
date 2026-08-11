@@ -621,6 +621,56 @@ if (! function_exists('public_asset_path')) {
     }
 }
 
+if (! function_exists('flag_codes')) {
+    /**
+     * کدِ کشورِ همهٔ پرچم‌هایی که واقعاً روی دیسک داریم.
+     *
+     * 🔴 چرا فهرست و نه یک `flag_url($cc)`ِ ساده: مصرف‌کننده جاوااسکریپت است و
+     * مرورگر نمی‌تواند پوشه را بخواند. بی‌این فهرست، کارتِ نتیجه یا باید
+     * `<img>`ِ ۴۰۴ بزند و بعد جبران کند، یا هر کشوری را اموجی نشان دهد — و
+     * اموجیِ پرچم روی ویندوز دو حرف می‌شود، یعنی همان باگی که SVG برای رفعش
+     * آمده بود. (پرسشِ «این یک فایل هست یا نه» جای دیگری زندگی می‌کند:
+     * `CloudLocation::flagSvgFor()`؛ این‌جا فقط از همان پوشه فهرست می‌گیریم.)
+     *
+     * ⚠️ همان قاعدهٔ `public_asset_path()`: روی پروداکشن `public_path()` به
+     * پوشه‌ای اشاره می‌کند که وجود ندارد، پس `DOCUMENT_ROOT` نامزدِ دوم است.
+     */
+    function flag_codes(): array
+    {
+        static $codes = null;
+        if ($codes !== null) {
+            return $codes;
+        }
+
+        $rel = \App\Models\CloudLocation::FLAG_DIR;
+        $candidates = [public_path($rel)];
+        $docroot = rtrim(str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
+        if ($docroot !== '') {
+            $candidates[] = $docroot.'/'.$rel;
+        }
+
+        foreach ($candidates as $dir) {
+            if (! is_dir($dir)) {
+                continue;
+            }
+            $found = [];
+            foreach ((array) glob($dir.'/*.svg') as $file) {
+                $cc = strtolower(basename((string) $file, '.svg'));
+                if (preg_match('/^[a-z]{2}$/', $cc)) {
+                    $found[] = $cc;
+                }
+            }
+            if ($found !== []) {
+                sort($found);
+
+                return $codes = $found;
+            }
+        }
+
+        return $codes = [];
+    }
+}
+
 if (! function_exists('asset_ver')) {
     /**
      * آدرسِ فایلِ استاتیک با مهرِ نسخه — **امن در برابرِ فایلِ نبود**.
