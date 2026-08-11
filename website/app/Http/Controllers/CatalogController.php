@@ -288,21 +288,12 @@ class CatalogController extends Controller
         | گشادکردنش یعنی فروشِ سروری که نمی‌توانیم تحویل دهیم.
         */
         $sellableByCity = [];      // code => Collection<slug, CloudPlan>  (قابلِ خرید)
-        $blockedByCity = [];       // code => [specKey => CloudPlan]       (گذرا ناموجود)
 
         foreach ($locations as $loc) {
             $code = (string) $loc->code;
-            $shelf = \App\Models\CloudPlan::shelf($code);
 
-            $sellableByCity[$code] = $shelf->filter(fn ($p) => $p->blockedReason() === null);
-
-            foreach ($shelf as $p) {
-                if ($p->blockedReason() === null) {
-                    continue;
-                }
-
-                $blockedByCity[$code][self::specKey($p)] ??= $p;
-            }
+            $sellableByCity[$code] = \App\Models\CloudPlan::shelf($code)
+                ->filter(fn ($p) => $p->blockedReason() === null);
         }
 
         /*
@@ -356,19 +347,21 @@ class CatalogController extends Controller
             return [[], []];
         }
 
-        // شهری که همین مشخصات را دارد ولی الان ناموجود است — **حذف نمی‌شود**،
-        // در انتخابگر می‌آید و صریح می‌گوید در دسترس نیست.
-        foreach ($groups as $k => $g) {
-            foreach ($locations as $loc) {
-                $code = (string) $loc->code;
-
-                if (isset($g['sell'][$code]) || ! isset($blockedByCity[$code][$k])) {
-                    continue;
-                }
-
-                $groups[$k]['off'][$code] = (string) $blockedByCity[$code][$k]->blockedReason();
-            }
-        }
+        /*
+        | شهرِ ناموجود دیگر در صفحه نمی‌آید (نه به‌عنوان تراشهٔ «ناموجود»، نه
+        | هیچ شکلِ دیگر). پیش از این می‌آمد، با این استدلال که «موجودیِ پنهان باگ
+        | است» — استدلالِ درستی برای **مشخصات**، ولی نه برای **شهر**:
+        |
+        |   · مشخصاتی که هیچ‌جا فروختنی نیست، همچنان هیچ ردیفی نمی‌سازد و
+        |     همچنان چیزی پنهان نمی‌شود (گروه‌ها فقط از ردیف‌های فروختنی ساخته
+        |     می‌شوند).
+        |   · ولی «برلین ناموجود» کنارِ «برلین موجود» هیچ اطلاعاتی به مشتری
+        |     نمی‌داد و فقط تناقض نشان می‌داد.
+        |
+        | ⚠️ `shelf()` عمداً به `offers()` تغییر نکرد: تفاوتشان همین ردیف‌های گذرا
+        | ناموجود است و اگر روزی خواستیم دوباره نشانشان دهیم، فقط همین بخش
+        | برمی‌گردد، نه کلِ پرس‌وجو.
+        */
 
         /*
         | 🔴 حذفِ پلن‌های مغلوب — قاعدهٔ «چیزی که هیچ‌کس نباید بخرد را نشان نده».
@@ -436,51 +429,56 @@ class CatalogController extends Controller
             $p = $g['rep'];
 
             /*
-            | انتخابگرِ شهر. ترتیب از `sort`ِ خودِ مکان‌ها می‌آید تا در همهٔ
-            | ردیف‌ها یکسان باشد.
+            | 🔴 هر ردیف دقیقاً **یک** شهر دارد: ارزان‌ترین. (تصمیمِ کارفرما)
             |
-            | ⚠️ هر شهر **اسلاگِ خودش** را می‌برد، نه فقط کدِ مکان را:
-            | `CloudNaming::planSlug` کدِ مکان را داخلِ اسلاگ می‌گذارد، پس عوض‌کردنِ
-            | تنها `?location=` یک لینکِ مرده می‌سازد که تسویه با `ui.cvb_e_plan`
-            | ردش می‌کند.
+            | ═══ باگی که این را لازم کرد ═══
+            |
+            | پیش از این هر شهرِ هم‌مشخصات یک تراشه می‌شد و شهرِ ناموجود هم با
+            | برچسبِ «ناموجود» می‌ماند. روی `/vps/germany` نتیجه این بود:
+            |
+            |     برلین ناموجود  ·  برلین
+            |
+            | یعنی صفحه یک شهر را هم‌زمان موجود و ناموجود اعلام می‌کرد. علتش دو
+            | **کدِ مکانِ متفاوت** بود که هر دو «برلین» نمایش داده می‌شدند:
+            | `de-de-hi-cpu` شهر نداشت و `CloudLocation::cityLabel()` پایتختِ
+            | کشور را جایش گذاشت — یعنی دو مکانِ متفاوت یک **هویتِ نمایشیِ
+            | یکسان** گرفتند. (خودِ آن کدِ بدشکل جدا باید اصلاح شود.)
+            |
+            | ═══ قاعده ═══
+            |
+            |   · یک شهر در هر ردیف — همان که قیمت و لینکِ خریدِ ردیف از اوست
+            |   · دو زیرساخت، یک شهر، مشخصاتِ یکسان  ⇒ ارزان‌تر
+            |   · دو شهر با قیمتِ برابر                ⇒ یکی (ترتیبِ `sort`ِ مکان)
+            |   · دو شهر با قیمتِ متفاوت               ⇒ ارزان‌تر
+            |
+            | ⚠️ تراشه از **خودِ نماینده** ساخته می‌شود، نه از پیمایشِ فهرستِ
+            | مکان‌ها. پس تکرارِ برچسب ساختاراً ناممکن است — حتی اگر فردا دو کدِ
+            | دیگر هم به یک نام برسند، این ردیف باز هم یک شهر نشان می‌دهد.
+            | رفعِ داده‌ایِ تنها این تضمین را نمی‌داد.
+            |
+            | ⚠️ بهایش صریح: انتخابِ شهر از صفحهٔ **بازاریابی** برداشته شد.
+            | موجودی پنهان نمی‌شود — فروشگاهِ کنسول همچنان همهٔ مکان‌ها را دارد و
+            | هر مشخصاتِ متمایز هنوز ردیفِ خودش را دارد؛ فقط این صفحه به‌جای
+            | فهرستِ شهرها، ارزان‌ترین را تبلیغ می‌کند.
+            |
+            | ⚠️ `$p` (نمایندهٔ گروه) در ساختِ گروه‌ها ارزان‌ترینِ همهٔ شهرها
+            | انتخاب شده، پس این تراشه همیشه با `price_n` و `loc_code`ِ همین
+            | ردیف می‌خواند. اگر روزی انتخابِ نماینده عوض شد، این هم باید عوض شود.
             */
-            $picker = [];
-            $prices = [];
+            $code = (string) $p->location_code;
 
-            foreach ($locations as $loc) {
-                $code = (string) $loc->code;
-                $label = $cityLabels[$code] ?? $code;
-
-                if (isset($g['sell'][$code])) {
-                    $c = $g['sell'][$code];
-                    $irt = (int) $c->price_irt;
-                    $prices[$irt] = true;
-
-                    $picker[] = [
-                        'code'    => $code,
-                        'label'   => $label,
-                        'ok'      => true,
-                        'reason'  => null,
-                        'irt'     => $irt,
-                        'price_f' => site_price(['irt' => $irt, 'eur' => round(((int) $c->price_eur_cents) / 100, 2)]),
-                        'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $c->slug),
-                    ];
-
-                    continue;
-                }
-
-                if (isset($g['off'][$code])) {
-                    $picker[] = [
-                        'code'    => $code,
-                        'label'   => $label,
-                        'ok'      => false,
-                        'reason'  => $g['off'][$code],
-                        'irt'     => 0,
-                        'price_f' => '',
-                        'href'    => null,
-                    ];
-                }
-            }
+            $picker = [[
+                'code'    => $code,
+                'label'   => $cityLabels[$code] ?? $code,
+                'ok'      => true,
+                'reason'  => null,
+                'irt'     => (int) $p->price_irt,
+                'price_f' => site_price([
+                    'irt' => (int) $p->price_irt,
+                    'eur' => round(((int) $p->price_eur_cents) / 100, 2),
+                ]),
+                'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $p->slug),
+            ]];
 
             $plans[] = [
                 'name'    => (string) $p->public_name,
@@ -513,11 +511,17 @@ class CatalogController extends Controller
                     'city'      => $cityLabels[(string) $p->location_code] ?? (string) $p->location_code,
                     'loc_code'  => (string) $p->location_code,
                     'price_n'   => (int) $p->price_irt,
-                    // انتخابِ شهر داخلِ همین ردیف
+                    // همیشه یک عضو: شهرِ ارزان‌ترین. (بالای همین حلقه چرا)
                     'picker'    => $picker,
-                    // قیمت بین شهرها فرق دارد ⇒ عددِ نمایش‌داده‌شده «از» است.
-                    // ایران امروز یکنواخت است، ولی این را فرض نمی‌گیریم.
-                    'from'      => count($prices) > 1,
+                    /*
+                    | ⚠️ همیشه false — و این یک ثابتِ بی‌مصرف نیست.
+                    |
+                    | «از» یعنی «قیمت بین شهرها فرق دارد». حالا که هر ردیف یک
+                    | شهر دارد، عددِ نشان‌داده‌شده **قیمتِ قطعیِ همان شهر** است و
+                    | «از» به مشتری دروغ می‌گفت. کلید عمداً می‌مانَد تا اگر روزی
+                    | انتخابِ چندشهری برگشت، ویو و تست‌ها دست‌نخورده کار کنند.
+                    */
+                    'from'      => false,
                 ],
             ];
 

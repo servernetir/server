@@ -52,18 +52,22 @@ class CountryPlanTableTest extends TestCase
     }
 
     /**
-     * 🔴 ادعای اصلی: شهرِ دوم نباید بی‌دلیل حذف شود.
+     * دو شهر با عرضهٔ **دقیقاً برابر** ⇒ صفحه یکی را نشان می‌دهد.
      *
-     * ⚠️ **این تست عمداً بازنویسی شد، نه حذف.** نسخهٔ قبلی
-     * `assertSame(2, substr_count($html,'data-city='))` می‌سنجید، یعنی «دو شهرِ
-     * هم‌مشخصات = دو ردیف». حالا یک ردیف است و شهر یک انتخاب داخلِ همان ردیف.
+     * ⚠️ **این تست دو بار بازنویسی شده و هر بار ادعایش عوض شده — پس تاریخچه‌اش
+     * بماند تا کسی فکر نکند نسخهٔ امروز «همیشه» درست بوده:**
      *
-     * چیزی که این تست نگه می‌دارد **عوض نشده**: ادغامِ کورِ بین‌شهری نباید
-     * برگردد. فرقش این است که «حذف نشدن» دیگر با شمارشِ ردیف سنجیده نمی‌شود —
-     * با **قابلِ خرید بودن** سنجیده می‌شود، که همان چیزی است که واقعاً مهم بود.
-     * شمارشِ ردیف یک نماینده بود؛ نماینده عوض شد، ادعا نه.
+     *   نسخهٔ ۱: دو شهرِ هم‌مشخصات = **دو ردیف**  (صفحهٔ ایران ۱۴۶ ردیف شد)
+     *   نسخهٔ ۲: یک ردیف، شهر یک انتخاب **داخلِ** ردیف
+     *   نسخهٔ ۳: یک ردیف، **یک شهر** — ارزان‌ترین  ← امروز
+     *
+     * کارفرما: «اگر دو شهر بود قیمتش یکی بود یکجا بیوفته.»
+     *
+     * 🔴 چیزی که در هر سه نسخه ثابت مانده و **نباید** بشکند: عرضهٔ شهرِ دوم از
+     * دیدِ مسیرِ **سفارش** پاک نشود. صفحه تبلیغش نمی‌کند؛ این با «وجود ندارد»
+     * یکی نیست. نیمهٔ دومِ همین تست دقیقاً همان را می‌سنجد.
      */
-    public function test_two_cities_with_an_equally_good_offer_both_stay(): void
+    public function test_two_cities_with_an_equally_good_offer_collapse_to_one_on_the_page(): void
     {
         $this->loc('fr-paris', 'پاریس');
         $this->loc('fr-lyon', 'لیون');
@@ -72,17 +76,19 @@ class CountryPlanTableTest extends TestCase
 
         $html = $this->html();
 
-        // یک مشخصات ⇒ یک ردیف. تکرارِ چهاربارهٔ صفحهٔ ایران از همین‌جا می‌آمد.
         $this->assertSame(1, substr_count($html, 'data-city='),
             'مشخصاتِ یکسان باید یک ردیف باشد، نه یک ردیف به ازای هر شهر');
 
-        // ولی **هیچ شهری** پنهان نشده: هر دو دیده می‌شوند و هر دو خریدنی‌اند.
-        $this->assertStringContainsString('پاریس', $html);
-        $this->assertStringContainsString('لیون', $html,
-            'شهر دوم حذف شده — یعنی همان ادغامِ کورِ بین‌شهری برگشته است');
+        // قیمت‌ها برابرند ⇒ ترتیبِ `sort`ِ مکان تصمیم می‌گیرد ⇒ پاریس
+        $this->assertStringContainsString('data-city="پاریس"', $html);
         $this->assertStringContainsString('location=fr-paris&amp;plan=cv-2c-4g-40d-fr-paris', $html);
-        $this->assertStringContainsString('location=fr-lyon&amp;plan=cv-2c-4g-40d-fr-lyon', $html,
-            'شهر دوم لینکِ خریدِ خودش را ندارد — یعنی از صفحه قابلِ خرید نیست');
+
+        $this->assertStringNotContainsString('location=fr-lyon', $html,
+            'هر دو شهر روی صفحه‌اند — قاعده «یکجا بیوفته» است');
+
+        // 🔴 ولی لیون فروختنی مانده — صرفاً تبلیغ نمی‌شود
+        $this->assertCount(1, \App\Models\CloudPlan::offers('fr-lyon'),
+            'عرضهٔ لیون از مسیرِ سفارش هم پاک شد — این دیگر موجودیِ پنهانِ واقعی است');
     }
 
     /**
@@ -101,12 +107,11 @@ class CountryPlanTableTest extends TestCase
      * هم قابلِ خرید نگه می‌دارد. حذفش دقیقاً همان «موجودیِ پنهان با کدِ ۲۰۰» بود
      * که کلِ این پرونده دربارهٔ آن است.
      *
-     * ⚠️ دقت: نسخهٔ قبلیِ ادعا **امروز هم سبز می‌شود** (چون لیون دیگر شهرِ
-     * سرصفحه‌ای نیست)، ولی چیزی را که ادعا می‌کرد نمی‌سنجد — یعنی اگر لیون کاملاً
-     * ناپدید شود هم سبز می‌مانْد. برای همین جایش ادعای صریحِ «لیون خریدنی است»
-     * نشسته.
+     * ⚠️ و «شروع از» حالا باید **نباشد** — دقیقاً برعکسِ نسخهٔ قبلی. آن روز
+     * عدد کفِ یک بازه بود؛ امروز قیمتِ قطعیِ تنها شهری است که تبلیغ می‌شود، و
+     * «از» به مشتری می‌گوید منتظرِ گران‌تر شدن باشد.
      */
-    public function test_the_same_spec_at_a_higher_price_keeps_both_cities_and_shows_a_from_price(): void
+    public function test_the_same_spec_at_a_higher_price_shows_only_the_cheaper_city(): void
     {
         $this->loc('fr-paris', 'پاریس');
         $this->loc('fr-lyon', 'لیون');
@@ -115,21 +120,20 @@ class CountryPlanTableTest extends TestCase
 
         $html = $this->html();
 
-        // یک ردیف، با ارزان‌ترین به‌عنوان قیمتِ سرصفحه‌ای
         $this->assertSame(1, substr_count($html, 'data-city='));
         $this->assertStringContainsString('data-city="پاریس"', $html);
         $this->assertStringContainsString('data-price="5000000"', $html);
 
-        // نشانِ «از» فقط وقتی قیمت بین شهرها فرق دارد
-        $this->assertStringContainsString('<span class="pt-from">'.__('ui.from').'</span>', $html,
-            'قیمتِ شهرها فرق دارد ولی نشانِ «شروع از» نیست — عدد دروغ می‌گوید');
+        $this->assertStringNotContainsString('pt-from', $html,
+            'نشانِ «شروع از» مانده در حالی که ردیف فقط یک شهر و یک قیمت دارد');
 
-        // و شهرِ گران‌تر پنهان نشده: با قیمتِ خودش و لینکِ خودش
-        $this->assertStringContainsString('لیون', $html,
-            'شهرِ گران‌تر حذف شده — همان موجودیِ پنهانِ بی‌خطا و بی‌لاگ');
-        $this->assertStringContainsString('location=fr-lyon&amp;plan=cv-2c-4g-40d-fr-lyon', $html);
-        $this->assertStringContainsString(fa_num(number_format(9000000)), $html,
-            'قیمتِ واقعیِ شهرِ دوم روی صفحه نیست');
+        $this->assertStringNotContainsString('location=fr-lyon', $html,
+            'شهرِ گران‌تر هنوز روی صفحه لینک دارد');
+        $this->assertStringNotContainsString(fa_num(number_format(9000000)), $html,
+            'قیمتِ شهرِ گران‌تر هنوز روی صفحه است');
+
+        // 🔴 باز هم: فروختنی مانده، فقط تبلیغ نمی‌شود
+        $this->assertCount(1, \App\Models\CloudPlan::offers('fr-lyon'));
     }
 
     /** قیمتِ یکنواخت ⇒ نشانِ «از» نباید بیاید (وگرنه نشان بی‌معنا می‌شود) */

@@ -101,6 +101,21 @@ class CountryPlanCityPickerTest extends TestCase
         return substr_count($html, 'data-city=');
     }
 
+    /**
+     * ⚠️ فقط **سلولِ مکانِ** جدول، نه کلِ صفحه.
+     *
+     * ادعای «شیراز روی ردیف نیست» اگر روی کلِ HTML برود همیشه قرمز است و هیچ
+     * ربطی به باگ ندارد: نامِ شهر در توضیحاتِ متا («NVMe در قلب تهران»)، در
+     * فهرستِ فیلتر، و در متنِ سئوی صفحه هم هست. تستی که این را جدا نکند،
+     * چیزی را می‌سنجد که هرگز درست نمی‌شود.
+     */
+    private function locCells(string $html): string
+    {
+        preg_match_all('~<td class="pt-loc">(.*?)</td>~s', $html, $m);
+
+        return implode(' ¶ ', array_map('trim', $m[1]));
+    }
+
     // ═══════════════ ۱) تکرار تمام شد ═══════════════
 
     /**
@@ -129,17 +144,19 @@ class CountryPlanCityPickerTest extends TestCase
     }
 
     /**
-     * 🔴🔴 **مدرکِ اصلی: هیچ‌چیز غیرقابلِ دسترس نشد.**
+     * 🔴🔴 صفحهٔ بازاریابی فقط **ارزان‌ترین شهر** را تبلیغ می‌کند — ولی موجودی
+     * از بین نمی‌رود.
      *
-     * کامنتی که این تغییر دورش می‌چرخد، به این دلیل نوشته شده که یک «مرتب‌سازی»
-     * قبلی ده‌ها پلنِ فروختنی را بی‌خطا و بی‌لاگ پنهان کرد. پس ادعای «تمیزتر
-     * شد» بی‌این تست بی‌ارزش است.
+     * ⚠️ نسخهٔ قبلیِ همین تست عکسِ این را قفل کرده بود («هر ۱۲ عرضه از صفحه
+     * خریدنی باشد»)، چون یک «مرتب‌سازیِ» قدیمی‌تر ده‌ها پلن را بی‌خطا و بی‌لاگ
+     * پنهان کرده بود. آن درس هنوز درست است و **حذف نشده**، فقط جایش عوض شده:
+     * حالا ادعا این است که مسیرِ **سفارش** هنوز هر ۱۲ تا را می‌بیند، حتی وقتی
+     * صفحه ۴ تا لینک می‌دهد. اگر روزی کسی `scopeSellable` را تنگ کند، همین
+     * تست قرمز می‌شود — همان محافظت، از جای درست‌تر.
      *
-     * روش: مجموعهٔ «هر چیزی که سرور می‌تواند بفروشد» را مستقل از ویو می‌سازیم
-     * (`CloudPlan::offers()` به ازای هر شهر — همان منبعی که مسیرِ **سفارش** از آن
-     * می‌خوانَد) و می‌سنجیم که تک‌تکشان لینکِ خریدِ خودشان را روی HTML دارند.
+     * تصمیمِ کارفرما (مرداد ۱۴۰۵): «اون شهری که ارزان تره فقط بیوفته».
      */
-    public function test_every_sellable_spec_in_every_city_is_still_buyable_from_the_page(): void
+    public function test_the_page_advertises_only_the_cheapest_city_but_nothing_becomes_unsellable(): void
     {
         $this->cities();
 
@@ -149,36 +166,45 @@ class CountryPlanCityPickerTest extends TestCase
             }
         }
 
-        $expected = [];
+        // ── نیمهٔ اول: مسیرِ سفارش هنوز همه را می‌بیند ───────────────────────
+        $sellable = [];
 
         foreach (array_keys(self::CITIES) as $loc) {
             foreach (CloudPlan::offers($loc) as $offer) {
-                $expected[] = 'location='.urlencode($loc).'&amp;plan='.urlencode((string) $offer->slug);
+                $sellable[] = $loc.'|'.$offer->slug;
             }
         }
 
-        $this->assertCount(12, $expected, 'فیکسچر ۱۲ عرضهٔ فروختنی می‌سازد — پیش‌شرطِ خودِ سنجش');
+        $this->assertCount(12, $sellable,
+            'مسیرِ سفارش دیگر همهٔ شهرها را نمی‌بیند — این یعنی موجودی واقعاً گم شد، '
+            .'نه اینکه فقط تبلیغ نشود');
 
+        // ── نیمهٔ دوم: صفحه فقط ارزان‌ترین را لینک می‌کند ────────────────────
         $html = $this->html();
 
-        $missing = [];
+        $this->assertSame(4, $this->rows($html), 'چهار مشخصات = چهار ردیف');
 
-        foreach ($expected as $link) {
-            if (! str_contains($html, $link)) {
-                $missing[] = $link;
-            }
+        // قیمتِ همهٔ شهرها در فیکسچر برابر است ⇒ ترتیبِ `sort` تصمیم می‌گیرد ⇒ تهران
+        foreach ([1, 2, 3, 4] as $n) {
+            $slug = 'cv-'.$n.'c-'.$n.'g-'.(20 * $n).'d-';
+
+            $this->assertStringContainsString('location=ir-tehran&amp;plan='.$slug.'ir-tehran', $html);
         }
 
-        $this->assertSame([], $missing,
-            "این عرضه‌ها فروختنی‌اند ولی از صفحه قابلِ خرید نیستند — همان موجودیِ پنهان:\n"
-            .implode("\n", $missing));
-
-        // و ۴ ردیف کافی بوده‌اند تا هر ۱۲ تا در دسترس بمانند
-        $this->assertSame(4, $this->rows($html));
+        foreach (['ir-shiraz', 'ir-isfahan'] as $loc) {
+            $this->assertStringNotContainsString('location='.$loc, $html,
+                "شهرِ {$loc} هنوز روی صفحه لینک دارد — قاعده «فقط ارزان‌ترین» است");
+        }
     }
 
-    /** هر سه شهر باید با نام دیده شوند، نه فقط ارزان‌ترین */
-    public function test_every_city_is_visible_on_the_page(): void
+    /**
+     * 🔴 نامِ شهر در هر ردیف **دقیقاً یک بار**.
+     *
+     * گزارشِ کارفرما از `/vps/germany`: «برلین ناموجود · برلین» — یک شهر
+     * هم‌زمان موجود و ناموجود. تستِ اختصاصیِ آن حالت پایین‌تر است؛ این یکی
+     * قاعدهٔ عمومی را می‌سنجد.
+     */
+    public function test_exactly_one_city_is_named_per_row(): void
     {
         $this->cities();
 
@@ -188,10 +214,63 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
+        $this->assertSame(1, $this->rows($html));
+
+        $cell = $this->locCells($html);
+        $shown = [];
+
         foreach (self::CITIES as $city) {
-            $this->assertStringContainsString('>'.$city.'</a>', $html,
-                "شهرِ {$city} در انتخابگرِ ردیف نیست — یعنی از صفحه انتخاب‌شدنی نیست");
+            if (str_contains($cell, $city)) {
+                $shown[] = $city;
+            }
         }
+
+        $this->assertSame(['تهران'], $shown,
+            'بیش از یک شهر روی ردیف است: '.implode('، ', $shown));
+
+        // و انتخابگرِ چندشهری اصلاً رندر نمی‌شود
+        $this->assertStringNotContainsString('pt-cities', $html);
+    }
+
+    /**
+     * 🔴🔴 خودِ باگِ گزارش‌شده: **دو کدِ مکانِ متفاوت با یک نامِ نمایشی.**
+     *
+     * روی سرور `de-de-hi-cpu` (که شهر نداشت و `cityLabel()` پایتخت را جایش
+     * گذاشت) و یک مکانِ واقعیِ برلین هر دو «برلین» نمایش داده می‌شدند، پس ردیف
+     * می‌نوشت «برلین ناموجود · برلین».
+     *
+     * ⚠️ این تست عمداً روی **داده** ادعا نمی‌کند (که «دو مکان نباید هم‌نام
+     * باشند»)، چون آن ادعا با هر ارائه‌دهندهٔ تازه می‌شکند و ما کنترلی روی
+     * نام‌گذاریِ آنها نداریم. ادعا روی **خروجی** است: هرچه در داده بیفتد، صفحه
+     * یک شهر نشان می‌دهد.
+     */
+    public function test_two_locations_that_display_the_same_city_never_appear_twice_in_a_row(): void
+    {
+        // هر دو «برلین» نمایش داده می‌شوند: یکی صریح، یکی چون شهر ندارد و
+        // `cityLabel()` به پایتختِ کشور برمی‌گردد — همان چیزی که روی سرور رخ داد.
+        CloudLocation::create([
+            'code' => 'de-berlin', 'country' => 'DE', 'city' => 'Berlin',
+            'is_active' => true, 'sort' => 0,
+        ]);
+        CloudLocation::create([
+            'code' => 'de-de-hi-cpu', 'country' => 'DE', 'city' => null,
+            'is_active' => true, 'sort' => 1,
+        ]);
+
+        $this->plan('de-berlin', 2, ['in_stock' => false]);          // ناموجود
+        $this->plan('de-de-hi-cpu', 2, ['price_irt' => 1_930_000]);  // موجود
+
+        $html = $this->get('/vps/germany')->assertOk()->getContent();
+
+        $this->assertSame(1, $this->rows($html));
+
+        $cell = $this->locCells($html);
+
+        $this->assertSame(1, substr_count($cell, 'برلین'),
+            'نامِ «برلین» بیش از یک بار در سلولِ مکان آمده — همان چیزی که کارفرما دید: «'.$cell.'»');
+
+        $this->assertStringNotContainsString(__('ui.pt_city_out'), $cell,
+            'ردیف هنوز برچسبِ «ناموجود» دارد در حالی که همان شهر موجود هم هست');
     }
 
     // ═══════════════ ۲) قیمتِ متفاوت بین شهرها ═══════════════
@@ -204,7 +283,7 @@ class CountryPlanCityPickerTest extends TestCase
      * مجموعهٔ چندشهری می‌دوید و چون مکان بُعدِ مقایسه نیست، شهرِ گران‌تر با
      * مشخصاتِ یکسان **پاک** می‌شد.
      */
-    public function test_a_spec_priced_differently_per_city_shows_the_cheapest_with_a_from_marker(): void
+    public function test_a_spec_priced_differently_per_city_shows_only_the_cheaper_city(): void
     {
         $this->cities();
 
@@ -216,22 +295,27 @@ class CountryPlanCityPickerTest extends TestCase
 
         $this->assertSame(1, $this->rows($html), 'یک مشخصات = یک ردیف');
 
-        // ارزان‌ترین سرصفحه است
         $this->assertStringContainsString('data-city="تهران"', $html);
         $this->assertStringContainsString('data-price="1700000"', $html);
-        $this->assertStringContainsString('<span class="pt-from">'.__('ui.from').'</span>', $html,
-            'قیمت بین شهرها فرق دارد و عدد بدونِ «شروع از» دروغ است');
 
-        // و قیمتِ **هر** شهر روی صفحه هست تا انتخابگر بتواند نشانش دهد
-        foreach ([1_700_000, 2_400_000, 3_100_000] as $irt) {
-            $this->assertStringContainsString(fa_num(number_format($irt)), $html,
-                'قیمتِ یکی از شهرها روی صفحه نیست — با عوض‌شدنِ شهر عددی برای نشان‌دادن نمی‌مانَد');
+        /*
+        | 🔴 «شروع از» باید **برود**، نه اینکه فراموش شود.
+        |
+        | تا وقتی چند شهر روی ردیف بود، عددِ ارزان‌ترین یک کفِ بازه بود و بی‌
+        | «از» دروغ می‌گفت. حالا که فقط همان یک شهر تبلیغ می‌شود، عدد **قیمتِ
+        | قطعیِ** همان چیزی است که مشتری می‌خرد و «از» دقیقاً برعکس دروغ می‌گوید:
+        | مشتری منتظرِ گران‌تر شدن می‌مانَد.
+        */
+        $this->assertStringNotContainsString('pt-from', $html,
+            'نشانهٔ «شروع از» مانده در حالی که ردیف فقط یک قیمت دارد');
+
+        // قیمتِ شهرهای گران‌تر اصلاً روی صفحه نیست
+        foreach ([2_400_000, 3_100_000] as $irt) {
+            $this->assertStringNotContainsString(fa_num(number_format($irt)), $html,
+                'قیمتِ شهرِ گران‌تر هنوز روی صفحه است');
         }
 
-        // هر سه شهر همچنان لینکِ خریدِ خودشان را دارند
-        foreach (array_keys(self::CITIES) as $loc) {
-            $this->assertStringContainsString('location='.$loc.'&amp;plan=cv-2c-2g-40d-'.$loc, $html);
-        }
+        $this->assertStringContainsString('location=ir-tehran&amp;plan=cv-2c-2g-40d-ir-tehran', $html);
     }
 
     // ═══════════════ ۳) شهرِ ناموجود: دیده شود، نه حذف ═══════════════
@@ -246,7 +330,7 @@ class CountryPlanCityPickerTest extends TestCase
      * فروشگاهِ کنسول برای همین کار دارد. `scopeSellable` دست‌نخورده مانده چون
      * مسیرِ **سفارش** از آن می‌خوانَد.
      */
-    public function test_a_city_that_is_out_of_stock_is_shown_as_unavailable_not_omitted(): void
+    public function test_an_out_of_stock_city_is_not_shown_at_all(): void
     {
         $this->cities();
 
@@ -257,19 +341,35 @@ class CountryPlanCityPickerTest extends TestCase
 
         $this->assertSame(1, $this->rows($html));
 
-        // شهر دیده می‌شود …
-        $this->assertStringContainsString('شیراز', $html,
-            'شهرِ ناموجود از صفحه غیب شده — مشتری فکر می‌کند این اندازه را آن‌جا نداریم');
+        $this->assertStringNotContainsString('شیراز', $this->locCells($html),
+            'شهرِ ناموجود هنوز روی ردیف است');
+        $this->assertStringNotContainsString(__('ui.pt_city_out'), $html);
+        $this->assertStringNotContainsString('location=ir-shiraz', $html);
 
-        // … ولی صریح ناموجود است و لینکِ خرید ندارد
-        $this->assertStringContainsString(__('ui.pt_city_out'), $html);
-        $this->assertStringContainsString('pt-c is-off', $html,
-            'شهرِ ناموجود مثلِ شهرِ خریدنی رندر شده — کلیکِ بی‌نتیجه بدترین حالت است');
-        $this->assertStringNotContainsString('location=ir-shiraz', $html,
-            'شهرِ ناموجود لینکِ خرید دارد — مشتری به تسویه‌ای می‌رود که ردش می‌کند');
-
-        // و شهرِ سالم دست‌نخورده
+        // شهرِ سالم دست‌نخورده
         $this->assertStringContainsString('location=ir-tehran&amp;plan=cv-2c-2g-40d-ir-tehran', $html);
+    }
+
+    /**
+     * 🔴 نیمهٔ دومِ همان قاعده: **مشخصاتی که هیچ‌جا فروختنی نیست همچنان پنهان
+     * نمی‌شود — چون اصلاً ردیفی نمی‌سازد.**
+     *
+     * فرقِ ظریفی که باید بمانَد: «شهرِ ناموجود را نشان نده» با «مشخصاتِ ناموجود
+     * را نشان نده» یکی نیست. اولی حذفِ نویز است، دومی همان موجودیِ پنهان.
+     * این تست می‌گوید حذفِ شهر، مشخصات را با خودش نبرده.
+     */
+    public function test_a_spec_sellable_in_only_one_city_still_gets_its_row(): void
+    {
+        $this->cities();
+
+        $this->plan('ir-tehran', 2, ['in_stock' => false]);
+        $this->plan('ir-shiraz', 2);          // فقط شیراز دارد
+
+        $html = $this->html();
+
+        $this->assertSame(1, $this->rows($html), 'مشخصاتی که فقط یک شهر دارد ردیفش را از دست داد');
+        $this->assertStringContainsString('data-city="شیراز"', $html);
+        $this->assertStringContainsString('location=ir-shiraz&amp;plan=cv-2c-2g-40d-ir-shiraz', $html);
     }
 
     /** شهرِ ناموجود نباید در فهرستِ فیلترِ شهر بیاید — فیلترِ بی‌نتیجه */
@@ -397,13 +497,19 @@ class CountryPlanCityPickerTest extends TestCase
     }
 
     /**
-     * ⚠️ ردیفِ چندشهری نباید فیلترِ شهر را بشکند.
+     * ⚠️ فیلترِ شهر باید با آنچه ردیف **نشان می‌دهد** بخوانَد، نه با آنچه
+     * می‌توانست نشان دهد.
      *
-     * فیلترِ سمتِ مرورگر روی `data-city` تطبیقِ **دقیق** می‌کرد. با یک ردیف که
-     * سه شهر می‌فروشد، فیلترِ «شیراز» همهٔ ردیف‌ها را پنهان می‌کرد و مشتری
-     * می‌دید «شیراز موجودی ندارد». پس ردیف فهرستِ شهرهایش را هم می‌برد.
+     * نسخهٔ قبلی عکسِ این را قفل می‌کرد (`data-cities="|تهران|شیراز|اصفهان|"`)
+     * چون ردیف واقعاً سه شهر می‌فروخت و فیلترِ «شیراز» بی‌آن، ردیفِ درست را
+     * پنهان می‌کرد. حالا که ردیف فقط تهران را تبلیغ می‌کند، فهرستِ سه‌تایی
+     * برعکس دروغ می‌شد: فیلترِ «شیراز» ردیفی را نشان می‌داد که هیچ لینکِ
+     * شیرازی ندارد.
+     *
+     * 🔴 قاعدهٔ ماندگار پشتِ هر دو نسخه یکی است و همان است که باید بمانَد:
+     * **فهرستِ فیلتر و محتوای ردیف باید از یک منبع بیایند.**
      */
-    public function test_a_multi_city_row_carries_every_buyable_city_for_the_filter(): void
+    public function test_the_filter_list_matches_exactly_the_city_the_row_shows(): void
     {
         $this->cities();
 
@@ -413,11 +519,13 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertStringContainsString('data-cities="|تهران|شیراز|اصفهان|"', $html,
-            'ردیف فهرستِ شهرهایش را ندارد — فیلترِ شهر ردیفِ درست را پنهان می‌کند');
+        $this->assertStringContainsString('data-cities="|تهران|"', $html);
 
-        foreach (self::CITIES as $city) {
-            $this->assertStringContainsString('data-f="city" data-v="'.$city.'"', $html);
+        $this->assertStringContainsString('data-f="city" data-v="تهران"', $html);
+
+        foreach (['شیراز', 'اصفهان'] as $city) {
+            $this->assertStringNotContainsString('data-f="city" data-v="'.$city.'"', $html,
+                "«{$city}» گزینهٔ فیلتر است ولی هیچ ردیفی نشانش نمی‌دهد — فیلترِ بی‌نتیجه");
         }
     }
 
