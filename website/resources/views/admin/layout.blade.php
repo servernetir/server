@@ -40,11 +40,34 @@
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
+
+      {{--
+        ═══ گروه‌بندیِ منو بر اساسِ **محصول**، نه بر اساسِ تاریخِ ساخت ═══
+
+        تا امروز همهٔ آیتم‌ها پشتِ سرِ هم بودند، به همان ترتیبی که ساخته شده
+        بودند. یعنی «پکیج‌های فروش» (پکیجِ هاست) کنارِ «سرورِ فیزیکی» می‌نشست و
+        «سرورهای تحویل» (کنترل‌پنل‌های هاست) کنارِ «زیرساختِ ابری» — و مدیر باید
+        هر بار کلِ فهرست را می‌خواند تا چیزی را پیدا کند.
+
+        قاعدهٔ کارفرما: هر محصول زیرمنویِ خودش. هاست = کنترل‌پنل‌ها + پکیج‌ها ·
+        سرور = ابری + فیزیکی.
+
+        ⚠️ «سرورهای تحویل» عمداً «تنظیماتِ هاست» نامیده **نشد** با اینکه فقط
+        کنترل‌پنل‌ها را دارد (cPanel/Plesk/DirectAdmin): آن صفحه هنوز درایورِ
+        `manual` را هم می‌پذیرد و ممکن است روی این نصب ردیفِ غیرهاستینگی داشته
+        باشد. تغییرِ نام پیش از راستی‌آزماییِ آن ردیف‌ها یعنی چیزی بی‌صدا از
+        دسترس خارج شود. نام وقتی عوض می‌شود که مطمئن باشیم.
+      --}}
+      <div class="ad-nav-sep">هاست</div>
       <a href="/admin/servers" class="@yield('nav_servers')"><svg class="icon"><use href="#i-server"/></svg>سرورهای تحویل</a>
       <a href="/admin/products" class="@yield('nav_products')"><svg class="icon"><use href="#i-box"/></svg>پکیج‌های فروش</a>
-      <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
+
+      <div class="ad-nav-sep">سرور</div>
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
+      <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
+
+      <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
 
       <div class="ad-nav-sep">مالی</div>
