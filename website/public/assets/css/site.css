@@ -2958,3 +2958,137 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
  * ⚠️ رنگ عمداً نه سبز است نه قرمز: «نمی‌دانیم» نه خبرِ خوب است نه بد. */
 .domain-result.warn{border-color:rgba(251,191,36,.42)}
 .domain-result.warn .dr-domain{color:#fbbf24}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ابزارهای /tools — کارتِ نتیجهٔ IP، محتوای سئو، و اسکرولِ محترم به هدر
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 🔴 هر اسکرولِ برنامه‌ای باید جای هدرِ ثابت را باز بگذارد.
+   `scrollIntoView({block:'start'})` بالای عنصر را دقیقاً روی بالای viewport
+   می‌نشانَد، و آن‌جا زیرِ هدرِ ۱۱۲پیکسلی است — یعنی سطرِ اولِ نتیجه پنهان
+   می‌شد. `scroll-margin-top` همان قاعدهٔ §۳ (`--header-h`) را به اسکرول هم
+   می‌رسانَد، پس اگر ارتفاعِ هدر عوض شود این هم خودبه‌خود درست می‌مانَد. */
+#ip-result,#whois-result,#seo-results,.tool-error,.adetail-group{scroll-margin-top:calc(var(--header-h) + 18px)}
+
+/* ---------- سرِ کارت: پرچم + آدرس ---------- */
+.ipr-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding-bottom:22px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.ipr-flagwrap{position:relative;flex:none;display:grid;place-items:center;width:76px;height:76px}
+.ipr-flagwrap::before{content:'';position:absolute;inset:-10px;border-radius:50%;
+  background:radial-gradient(circle,rgba(34,211,238,.28),transparent 68%);filter:blur(10px)}
+.ipr-flag{position:relative;width:72px;height:72px;border-radius:50%;
+  box-shadow:0 0 0 1px var(--line-2),0 10px 26px rgba(0,0,0,.45)}
+.ipr-flag.is-emoji{display:grid;place-items:center;font-size:40px;line-height:1;
+  background:var(--surface-2);box-shadow:0 0 0 1px var(--line-2)}
+.ipr-id{min-width:0;flex:1}
+.ipr-id small{display:block;font-size:11.5px;color:var(--dim);letter-spacing:.4px;margin-bottom:2px}
+.ipr-id b{display:block;font-family:var(--font-disp);font-size:clamp(24px,4.4vw,34px);font-weight:700;
+  letter-spacing:-.5px;line-height:1.2;word-break:break-all}
+.ipr-place{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.ipr-head-act{margin-inline-start:auto;flex:none}
+
+/* دکمهٔ کپی — یک ظاهر، دو جای مصرف (سرِ کارت و داخلِ سطرها) */
+.ipr-copy{display:inline-grid;place-items:center;width:38px;height:38px;flex:none;
+  background:var(--surface-2);border:1px solid var(--line-2);border-radius:11px;color:var(--muted);
+  transition:.2s var(--ease)}
+.ipr-copy .icon{width:16px;height:16px}
+.ipr-copy:hover{color:var(--cyan);border-color:var(--cyan);transform:translateY(-1px)}
+.ipr-copy.ok{color:var(--green);border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.12)}
+.ipr-copy.ok .icon{display:none}
+.ipr-copy.ok::after{content:'✓';font-size:16px;font-weight:800}
+
+/* ---------- برچسب‌های نوع اتصال ---------- */
+/* ⚠️ `.ip-tags` قبلاً داخلِ `.ip-head` بود و با `margin-inline-start:auto` به
+   انتها می‌چسبید. حالا نوارِ مستقلی است، پس آن حاشیه باید صفر شود وگرنه
+   برچسب‌ها به لبه پرت می‌شوند. */
+.ip-card .ip-tags{margin:0 0 20px;flex-wrap:wrap}
+.ip-tag.clean{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.35);color:var(--green)}
+
+/* ---------- کاشی‌های خلاصه ---------- */
+.ipr-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.ipr-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;min-width:0;position:relative;overflow:hidden}
+.ipr-tile::after{content:'';position:absolute;inset-inline-start:0;top:0;bottom:0;width:2px;background:var(--grad);opacity:.55}
+.ipr-tile-ic{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;
+  background:rgba(34,211,238,.1);color:var(--cyan);margin-bottom:9px}
+.ipr-tile-ic .icon{width:15px;height:15px}
+.ipr-tile small{display:block;font-size:11.5px;color:var(--dim);margin-bottom:3px}
+.ipr-tile b{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ipr-tile-flag{width:20px;height:20px;border-radius:50%;flex:none}
+.ipr-tile-flag.is-emoji{display:inline-grid;place-items:center;font-size:14px}
+#ip-clock{font-variant-numeric:tabular-nums;letter-spacing:.5px}
+
+/* ---------- نقشه ---------- */
+.ipr-map{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);
+  margin-bottom:22px;height:250px;background:var(--surface-2)}
+.ipr-map iframe{width:100%;height:100%;border:0;filter:saturate(.85) contrast(1.05)}
+.ipr-coords{position:absolute;inset-block-end:10px;inset-inline-end:10px;
+  background:rgba(5,7,15,.78);border:1px solid var(--line-2);border-radius:99px;
+  padding:5px 12px;font-size:11.5px;color:var(--text);font-variant-numeric:tabular-nums;backdrop-filter:blur(6px)}
+
+/* ---------- بخش‌های جزئیات ---------- */
+.ipr-sec+.ipr-sec{margin-top:20px}
+.ipr-sec h3{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;
+  color:var(--muted);margin-bottom:12px}
+.ipr-sec h3 .icon{width:16px;height:16px;color:var(--cyan)}
+/* ⚠️ سطرِ کپی‌دار عمداً flex نمی‌شود: بقیهٔ سطرها «برچسب بالا، مقدار پایین»اند
+   و flex آن دو را کنارِ هم می‌بُرد — همان جدول با دو ارتفاعِ متفاوت (۵۸ و ۷۵)
+   و دو چیدمان. دکمه روی چیدمانِ موجود **می‌نشیند**، جایش را عوض نمی‌کند. */
+.wk-item.has-copy{position:relative;padding-inline-end:54px}
+.wk-item.has-copy .ipr-copy{position:absolute;inset-inline-end:10px;top:50%;
+  transform:translateY(-50%);width:32px;height:32px}
+.wk-item.has-copy .ipr-copy:hover{transform:translateY(-50%) scale(1.06)}
+.ipr-inline-flag{width:17px;height:17px;border-radius:50%;vertical-align:-3px;margin-inline-end:6px}
+.ipr-inline-flag.is-emoji{display:inline-grid;place-items:center;font-size:12px;vertical-align:-3px}
+.wk-item code{font-size:11.5px;color:var(--cyan);background:rgba(34,211,238,.09);
+  border-radius:6px;padding:1px 6px;margin-inline-start:4px}
+
+/* ---------- فروشِ نرم زیرِ نتیجه ---------- */
+.ipr-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:26px;
+  background:linear-gradient(120deg,rgba(59,130,246,.1),rgba(139,92,246,.08));
+  border:1px solid var(--line-2);border-radius:20px;padding:22px 26px}
+.ipr-cta-txt{flex:1;min-width:240px}
+.ipr-cta-txt b{display:block;font-family:var(--font-disp);font-size:18px;font-weight:700;margin-bottom:5px}
+.ipr-cta-txt span{color:var(--muted);font-size:14px}
+.ipr-cta-act{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- محتوای سئوی صفحهٔ ابزار ---------- */
+.tl-content .tool-result-wrap{max-width:820px}
+.tl-sec{margin-top:46px}
+.tl-sec h2{font-family:var(--font-disp);font-size:23px;font-weight:700;margin-bottom:14px}
+.tl-sec>p{color:var(--muted);font-size:15.5px;line-height:2}
+.tl-steps{list-style:none;display:grid;gap:12px;counter-reset:s}
+.tl-steps li{display:flex;gap:14px;align-items:flex-start;background:var(--surface);
+  border:1px solid var(--line);border-radius:14px;padding:15px 18px}
+.tl-steps li span{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:rgba(34,211,238,.12);color:var(--cyan);font-size:13px;font-weight:800}
+.tl-steps li p{color:var(--muted);font-size:14.5px;line-height:1.9}
+.tl-faq{display:grid;gap:10px}
+.tl-faq details{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:0 18px;transition:border-color .2s var(--ease)}
+.tl-faq details[open]{border-color:var(--line-2)}
+.tl-faq summary{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  list-style:none;padding:16px 0;font-size:15px;font-weight:600}
+.tl-faq summary::-webkit-details-marker{display:none}
+.tl-faq summary .icon{width:16px;height:16px;color:var(--dim);flex:none;transition:transform .2s var(--ease)}
+.tl-faq details[open] summary .icon{transform:rotate(180deg);color:var(--cyan)}
+.tl-faq details p{color:var(--muted);font-size:14.5px;line-height:2;padding:0 0 18px;
+  border-top:1px solid var(--line);padding-top:14px}
+
+@media(max-width:860px){
+  .ipr-tiles{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:560px){
+  .ipr-head{gap:14px}
+  .ipr-flagwrap{width:60px;height:60px}
+  .ipr-flag{width:56px;height:56px}
+  .ipr-flag.is-emoji{font-size:30px}
+  .ipr-head-act{margin-inline-start:0}
+  .ipr-map{height:200px}
+  .ipr-cta{padding:20px}
+  /* ⚠️ کنارِ هم نه: در ۳۷۵px هر دکمه ~۱۳۷px می‌شد و متنِ فارسی سه خط
+     می‌شکست (ارتفاعِ ۱۰۰px برای یک دکمه). ستونی، هر دکمه یک خط است. */
+  .ipr-cta-act{width:100%;flex-direction:column}
+  .ipr-cta-act .btn{width:100%;justify-content:center}
+}
