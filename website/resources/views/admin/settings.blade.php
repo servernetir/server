@@ -14,6 +14,19 @@
   @if($notReady)
     <p style="padding:18px;color:#fbbf24">جدول تنظیمات روی این سرور هنوز ساخته نشده. پس از مهاجرت فعال می‌شود.</p>
   @else
+  {{--
+    فرمِ «قطعِ اتصالِ تقویمِ گوگل» — عمداً **بیرونِ** فرمِ اصلی و خالی.
+
+    دکمه‌اش پایین‌تر با `form="gcal-disconnect"` به آن وصل می‌شود. این تنها راهِ
+    درستِ داشتنِ دو کنشِ مستقل روی یک صفحه است؛ `<form>`ِ تودرتو در HTML مجاز
+    نیست و مرورگر بی‌هیچ خطایی فرمِ بیرونی را زودتر می‌بندد.
+
+    ⚠️ اگر روزی کنشِ مستقلِ دیگری لازم شد، **همین‌جا** فرمِ خالی‌اش را اضافه کن
+    و دکمه را با `form=` وصل کن — نه یک `<form>` وسطِ فرمِ اصلی.
+  --}}
+  <form id="gcal-disconnect" method="post" action="/admin/calendar/google/disconnect"
+        data-confirm="اتصالِ تقویمِ گوگلِ شما قطع شود؟" data-confirm-danger>@csrf</form>
+
   <form method="post" action="/admin/settings" enctype="multipart/form-data" style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:720px">
     @csrf
     <label class="set-f" style="grid-column:1/3">نام صاحب حساب
@@ -316,10 +329,25 @@
                   @endif
                   <span style="margin-inline-start:auto;display:flex;gap:7px">
                     <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
-                    <form method="post" action="/admin/calendar/google/disconnect" style="margin:0"
-                          data-confirm="اتصالِ تقویمِ گوگلِ شما قطع شود؟" data-confirm-danger>
-                      @csrf<button type="submit" class="btn btn-danger">قطع اتصال</button>
-                    </form>
+                    {{--
+                      🔴 این دکمه با `form=` به فرمی **بیرونِ** صفحه وصل است، نه
+                      به یک `<form>`ِ تودرتو.
+
+                      HTML فرمِ تودرتو را نمی‌پذیرد: مرورگر تا `<form>`ِ داخلی را
+                      ببیند، فرمِ **بیرونی را همان‌جا می‌بندد**. نتیجه‌اش این بود
+                      که دکمهٔ «ذخیره»ی تنظیمات — که پایین‌تر از این نقطه است —
+                      به هیچ فرمی وصل نبود و کلیک روی آن **واقعاً هیچ کاری
+                      نمی‌کرد**: نه درخواستی می‌رفت، نه خطایی می‌آمد.
+
+                      یعنی هیچ‌کدام از تنظیماتِ این صفحه ذخیره نمی‌شد — نه توکن،
+                      نه سقفِ سرور، هیچ‌کدام. کارفرما آن را با «۵ را ۱۰۰ کردم،
+                      هیچ اتفاقی نمی‌افتد» گزارش کرد.
+
+                      ⚠️ هیچ تستی نگرفتش چون تست‌ها `POST /admin/settings` را
+                      مستقیم می‌زنند و کنترلر سالم است. آنچه شکسته بود **رابطهٔ
+                      دکمه با فرم در مرورگر** بود — همان «کدِ ۲۰۰ یعنی هیچ».
+                    --}}
+                    <button type="submit" form="gcal-disconnect" class="btn btn-danger">قطع اتصال</button>
                   </span>
                 </div>
                 @if($google['last_error'])

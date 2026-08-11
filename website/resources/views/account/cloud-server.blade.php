@@ -61,6 +61,8 @@
 @php
   $T = [
     'copied'            => __('ui.cs_js_copied'),
+    'pw_show'           => __('ui.cs_pw_show'),
+    'pw_hide'           => __('ui.cs_pw_hide'),
     'last_check_now'    => __('ui.cs_js_last_check_now'),
     'traffic_month'     => __('ui.cs_js_traffic_month'),
     'chart_aria'        => __('ui.cs_js_chart_aria'),
@@ -197,13 +199,54 @@
     {{-- رمز فقط **یک بار** نشان داده می‌شود. صفحهٔ همیشه‌بازِ پنل روی لپ‌تاپِ
          مشترک، رمزِ root را به هر رهگذری می‌دهد. --}}
     @if($password)
+      {{--
+        رمز **پنهان** نشان داده می‌شود؛ چشم بازش می‌کند، کپی می‌بردش.
+
+        ⚠️ چرا پنهانِ پیش‌فرض: همان دلیلی که «یک بار» را ساخت — صفحهٔ بازِ پنل
+        روی لپ‌تاپِ مشترک یا وسطِ اشتراکِ صفحه، رمزِ root را به هر بیننده‌ای
+        می‌دهد. حالا کاربر می‌تواند کپی کند **بی‌آنکه** رمز روی صفحه دیده شود.
+
+        ⚠️ `data-copy` روی خودِ عنصر می‌مانَد (نه فقط متنِ دیده‌شده) تا کپی
+        وقتی رمز پنهان است هم کار کند.
+      --}}
       <div class="cs-pw">
-        <div>
+        <div style="min-width:0">
           <small>{{ __('ui.cs_pw_label') }}</small>
-          <code dir="ltr" class="cs-copy" data-copy="{{ $password }}">{{ $password }}</code>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <code dir="ltr" class="cs-pw-val is-masked" data-pw="{{ $password }}">••••••••••••</code>
+
+            <button type="button" class="cs-pw-btn" data-pw-eye aria-label="{{ __('ui.cs_pw_show') }}" title="{{ __('ui.cs_pw_show') }}">
+              <svg class="icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+
+            <button type="button" class="cs-pw-btn cs-copy" data-copy="{{ $password }}" aria-label="{{ __('ui.cs_pw_copy') }}" title="{{ __('ui.cs_pw_copy') }}">
+              <svg class="icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <span>{!! __('ui.cs_pw_once') !!}</span>
       </div>
+
+      {{--
+        ⚠️ مشتری رمز را گرفت ولی ممکن است نداند با آن چه کند. لینکِ آموزش
+        همین‌جا، نه در گوشهٔ صفحه: لحظهٔ نیاز همین لحظه است.
+
+        ⚠️ `lroute('docs', …)` و نه `route`: مقاله در هر سه زبان وجود دارد
+        (`/docs/…`، `/en/docs/…`، `/tr/docs/…` — هر سه ۲۰۰ تأیید شد) و
+        `route`ِ خام مشتریِ انگلیسی را به نسخهٔ فارسی می‌انداخت.
+
+        ⚠️ اسلاگ **راستی‌آزمایی شده** است، نه حدس. نسخهٔ اولِ همین خط
+        `docs.show` را صدا می‌زد که اصلاً نامِ روتِ موجود نیست، و اسلاگی داشت
+        که هیچ مقاله‌ای با آن نبود — یعنی یک لینکِ ۴۰۴ در لحظه‌ای که مشتری
+        بیشترین نیاز را به راهنما دارد. تستِ همراهش همین را قفل می‌کند.
+      --}}
+      <p style="margin:10px 0 0;font-size:12.5px;line-height:1.9">
+        <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
+      </p>
     @elseif($canReveal ?? false)
       {{--
         🔴 دکمه، نه نمایشِ خودکار.
@@ -379,6 +422,12 @@
 .cs-ssh{ margin-top:14px; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:12px 14px }
 .cs-ssh small{ display:block; color:var(--dim); font-size:11.5px; margin-bottom:6px }
 .cs-ssh code{ font-size:13px; display:inline-block }
+.cs-pw-val{ font-family:ui-monospace,monospace; letter-spacing:.5px; user-select:all }
+.cs-pw-val.is-masked{ letter-spacing:2px; user-select:none }
+.cs-pw-btn{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+  border:1px solid var(--line); border-radius:8px; background:var(--bg2); color:var(--muted); cursor:pointer }
+.cs-pw-btn:hover{ color:var(--text) }
+.cs-pw-btn.is-done{ color:#34d399; border-color:rgba(52,211,153,.5) }
 .cs-pw{ margin-top:14px; background:rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.28); border-radius:12px; padding:14px }
 .cs-pw small{ display:block; color:#34d399; font-size:12px; margin-bottom:7px }
 .cs-pw code{ font-size:15px; letter-spacing:.4px }
@@ -404,10 +453,37 @@
       var v = el.getAttribute('data-copy') || el.textContent.trim();
       if (!navigator.clipboard) { return; }
       navigator.clipboard.writeText(v).then(function(){
+        /* ⚠️ دکمهٔ آیکون‌دار متن ندارد؛ عوض‌کردنِ textContent آیکنش را پاک
+         * می‌کرد و دکمه برای همیشه خالی می‌مانْد. پس بازخورد روی **کلاس**
+         * است، نه روی محتوا. */
+        if (el.querySelector('svg')) {
+          el.classList.add('is-done');
+          setTimeout(function(){ el.classList.remove('is-done'); }, 1100);
+
+          return;
+        }
+
         var old = el.textContent;
         el.textContent = T.copied;
         setTimeout(function(){ el.textContent = old; }, 1100);
       });
+    });
+  });
+
+  /* ── چشم: رمز پیش‌فرض پنهان است ──
+   *
+   * مقدار در `data-pw` می‌مانَد و متنِ دیده‌شده نقاب است؛ پس کپی حتی وقتی رمز
+   * پنهان است هم کار می‌کند و کاربر می‌تواند بدونِ نمایشِ رمز روی صفحه، آن را
+   * بردارد — همان چیزی که وسطِ اشتراکِ صفحه اهمیت دارد. */
+  document.querySelectorAll('[data-pw-eye]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var val = btn.parentNode.querySelector('.cs-pw-val');
+      if (!val) { return; }
+
+      var masked = val.classList.toggle('is-masked');
+      val.textContent = masked ? '••••••••••••' : (val.getAttribute('data-pw') || '');
+      btn.setAttribute('aria-label', masked ? T.pw_show : T.pw_hide);
+      btn.title = masked ? T.pw_show : T.pw_hide;
     });
   });
 
