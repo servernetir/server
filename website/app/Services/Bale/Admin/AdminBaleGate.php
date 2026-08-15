@@ -440,6 +440,54 @@ class AdminBaleGate
             ? (string) ($p['human'] ?? '') : null;
     }
 
+    // ─────────────────── پیش‌نویسِ هوشِ مصنوعی ───────────────────
+
+    /**
+     * پیش‌نویسِ ساخته‌شده را تا لحظهٔ تصمیمِ کارفرما نگه دار.
+     *
+     * ⚠️ در `callback_data` نمی‌گنجد (سقفِ ۶۴ بایت) و جدولِ تازه هم نمی‌سازیم:
+     * مهاجرت‌های پروداکشن دستی اجرا می‌شوند. پس در همان blobِ رمزنگاری‌شدهٔ
+     * وضعیت می‌نشیند.
+     *
+     * ⚠️ فقط **یک** پیش‌نویس در هر لحظه نگه داشته می‌شود. کارفرما در گوشی روی
+     * یک تیکت کار می‌کند؛ انباشتنِ پیش‌نویس یعنی blob بزرگ شود و روزی کلیکِ
+     * روی دکمهٔ قدیمی متنِ اشتباهی را بفرستد.
+     */
+    public function putDraft(int $ticketId, string $text): void
+    {
+        try {
+            $state = $this->state();
+            $state['draft'] = [
+                'ticket' => $ticketId,
+                'text'   => mb_substr($text, 0, 3000),
+                'exp'    => now()->addMinutes(30)->getTimestamp(),
+            ];
+            $this->putState($state);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'putDraft']);
+        }
+    }
+
+    /** پیش‌نویسِ همان تیکت، یا null اگر نبود/منقضی/مالِ تیکتِ دیگری بود */
+    public function takeDraft(int $ticketId): ?string
+    {
+        try {
+            $d = $this->state()['draft'] ?? null;
+
+            if (! is_array($d) || (int) ($d['ticket'] ?? 0) !== $ticketId) {
+                return null;
+            }
+
+            if ((int) ($d['exp'] ?? 0) < now()->getTimestamp()) {
+                return null;
+            }
+
+            return (string) ($d['text'] ?? '') ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     // ───────────────────── ارسالِ دوبارهٔ بله (dedupe) ─────────────────────
 
     /**

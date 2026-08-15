@@ -82,6 +82,11 @@ return [
         'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
         'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
         'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
+        // پیش‌نویسِ پاسخِ تیکت در کنسولِ بله (App\Services\Ticket\TicketDraftWriter).
+        // ⚠️ پیش‌نویس است نه ارسال: خروجی را کارفرما در ربات می‌بیند و خودش
+        // تأیید می‌کند. مدل قیمت و مهلت را از خودش می‌سازد و آن یک تعهدِ واقعی است.
+        'support'   => env('AI_PROVIDER_SUPPORT', 'deepseek'),
+
         // پیامِ فروشِ سرد (App\Services\Crm\OutreachWriter)
         'outreach'  => env('AI_PROVIDER_OUTREACH', 'deepseek'),
 

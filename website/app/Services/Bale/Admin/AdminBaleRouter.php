@@ -51,7 +51,12 @@ class AdminBaleRouter
     private const CB_PREFIX = 'v1:';
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
-    private const MAX_SENDS = 2;
+    /**
+     * ⚠️ ۳ و نه بیشتر: هر ارسال یک تماسِ **همزمانِ** ۱۲ ثانیه‌ای داخلِ وب‌هوک
+     * است. بی‌سقف، یک فرمان می‌تواند مهلتِ بله را رد کند و آپدیتِ تکراری در
+     * همان سطلِ throttleای بنشیند که پرداختِ مشتری هم در آن است.
+     */
+    private const MAX_SENDS = 3;
 
     private int $sends = 0;
 
@@ -226,16 +231,25 @@ class AdminBaleRouter
             */
             $this->sender->answerCallback($id, match ($verb) {
                 'ping' => '✅ رسید',
+                'td'   => '✍️ در حالِ نوشتن…',      // مدل چند ثانیه طول می‌کشد
+                'ma'   => '📥 بایگانی شد',
                 default => '',
             });
 
             match ($verb) {
-                // آزمونِ زنده: فقط ثابت می‌کند دکمه و کلیک هر دو کار می‌کنند
+                // آزمونِ زنده — نگه داشته شد چون تنها راهِ سنجیدنِ خودِ مسیر است
                 'ping' => $this->replyToOwner(
                     "✅ دکمه‌های شیشه‌ای کار می‌کنند.\n"
-                    ."کلیکِ شما به سرور رسید و پاسخش از همین‌جا رفت.\n\n"
-                    .'شناسهٔ دکمه: '.($arg !== '' ? $arg : '—')
+                    ."کلیکِ شما به سرور رسید و پاسخش از همین‌جا رفت."
                 ),
+                'q'  => $this->showQueue(),
+                't'  => $this->showTicket($arg),
+                'tc' => $this->armCloseById($arg),
+                'td' => $this->draft($arg),
+                'ts' => $this->armStoredDraft($arg),
+                'm'  => $this->showMailbox(),
+                'mv' => $this->showMail($arg),
+                'ma' => $this->archiveMail($arg),
                 default => $this->replyToOwner('این دکمه دیگر معتبر نیست.'),
             };
         } catch (\Throwable $e) {
@@ -315,7 +329,13 @@ class AdminBaleRouter
         }
 
         if (in_array($verb, ['/q', '/queue', 'کارها', 'صف', 'تیکتها', 'تیکت‌ها'], true)) {
-            $this->replyToOwner($this->ui->queue());
+            $this->showQueue();
+
+            return;
+        }
+
+        if (in_array($verb, ['/mail', 'ایمیل', 'ایمیل‌ها', 'ایمیلها'], true)) {
+            $this->showMailbox();
 
             return;
         }
@@ -351,7 +371,12 @@ class AdminBaleRouter
 
         if (in_array($verb, ['/t', '/ticket', 'تیکت'], true)) {
             $t = $this->anchor->resolve($rest);
-            $this->replyToOwner($t ? $this->ui->ticket($t) : 'تیکتی با این شماره پیدا نشد.');
+
+            if ($t === null) {
+                $this->replyToOwner('تیکتی با این شماره پیدا نشد.');
+            } else {
+                $this->showTicket((string) $t->id);
+            }
 
             return;
         }
@@ -528,6 +553,200 @@ class AdminBaleRouter
     }
 
     // ───────────────────────────── کمکی ─────────────────────────────
+
+    // ─────────────────── کارهای دکمه‌ای ───────────────────
+
+    private function showQueue(): void
+    {
+        $rows = Ticket::query()->with('customer')->queue()
+            ->limit(AdminBaleCommands::QUEUE_LIMIT)->get();
+
+        if ($rows->isEmpty()) {
+            $this->replyToOwner('✅ صفِ پشتیبانی خالی است.');
+
+            return;
+        }
+
+        /*
+        | ⚠️ یک پیام با چند دکمه، نه یک پیام به‌ازای هر تیکت.
+        |
+        | هر ارسال یک `Http::timeout(12)`ِ **همزمان** داخلِ درخواستِ وب‌هوک است.
+        | هشت تیکت یعنی تا ۹۶ ثانیه؛ بله مهلتش تمام می‌شود، آپدیت را دوباره
+        | می‌فرستد، و آن ترافیک در همان سطلِ throttleای می‌نشیند که
+        | `pre_checkout_query`ِ پرداختِ مشتری هم در آن است.
+        */
+        $buttons = $rows->map(fn ($t) => [[
+            'text' => '🎫 '.$t->number.' — '.mb_substr((string) $t->subject, 0, 24),
+            'data' => self::CB_PREFIX.'t:'.$t->id,
+        ]])->all();
+
+        $this->sendButtons($this->ui->queue(), $buttons);
+    }
+
+    private function showTicket(string $arg): void
+    {
+        $t = Ticket::find((int) $arg);
+
+        if ($t === null) {
+            $this->replyToOwner('تیکت پیدا نشد.');
+
+            return;
+        }
+
+        $rows = [[
+            ['text' => '✍️ پیش‌نویسِ هوشمند', 'data' => self::CB_PREFIX.'td:'.$t->id],
+        ]];
+
+        if (! $t->isClosed()) {
+            $rows[] = [['text' => '🔒 بستنِ تیکت', 'data' => self::CB_PREFIX.'tc:'.$t->id]];
+        }
+
+        $this->sendButtons($this->ui->ticket($t), $rows);
+    }
+
+    private function armCloseById(string $arg): void
+    {
+        $this->armClose(Ticket::find((int) $arg), '');
+    }
+
+    /**
+     * پیش‌نویسِ هوشمند.
+     *
+     * 🔴 خروجی **ارسال نمی‌شود**؛ ذخیره می‌شود و با دکمه نشان داده می‌شود.
+     * ارسالش از همان گیتِ کدِ تأیید رد می‌شود که پاسخِ دستی. مدل قیمت و مهلت و
+     * سیاستِ بازگشتِ وجه را از خودش می‌سازد و آن یک تعهدِ واقعی است.
+     */
+    private function draft(string $arg): void
+    {
+        [$id, $tone] = array_pad(explode(':', $arg, 2), 2, 'n');
+        $ticket = Ticket::find((int) $id);
+
+        if ($ticket === null) {
+            $this->replyToOwner('تیکت پیدا نشد.');
+
+            return;
+        }
+
+        $text = app(\App\Services\Ticket\TicketDraftWriter::class)->draft($ticket, $tone ?: 'n');
+
+        if ($text === null) {
+            $this->replyToOwner('پیش‌نویس ساخته نشد (مدل جواب نداد). دوباره بزنید یا خودتان بنویسید.');
+
+            return;
+        }
+
+        $this->gate->putDraft($ticket->id, $text);
+
+        $labels = ['n' => '🙂 معمولی', 's' => '✂️ کوتاه', 'f' => '🎩 رسمی', 'a' => '🙏 با عذرخواهی'];
+
+        $others = array_values(array_filter(
+            array_keys(\App\Services\Ticket\TicketDraftWriter::TONES),
+            fn ($k) => $k !== ($tone ?: 'n'),
+        ));
+
+        $this->sendButtons(
+            '✍️ پیش‌نویس برای '.$ticket->number."\n\n".$text
+            ."\n\n⚠️ هنوز چیزی نرفته. «ارسال» کدِ تأیید می‌خواهد.",
+            [
+                [['text' => '📤 ارسال به مشتری', 'data' => self::CB_PREFIX.'ts:'.$ticket->id]],
+                array_map(fn ($k) => [
+                    'text' => $labels[$k] ?? $k,
+                    'data' => self::CB_PREFIX.'td:'.$ticket->id.':'.$k,
+                ], array_slice($others, 0, 3)),
+            ],
+        );
+    }
+
+    /** ارسالِ پیش‌نویسِ ذخیره‌شده — از همان گیتِ تأییدِ پاسخِ دستی رد می‌شود */
+    private function armStoredDraft(string $arg): void
+    {
+        $ticket = Ticket::find((int) $arg);
+        $body   = $ticket ? $this->gate->takeDraft($ticket->id) : null;
+
+        if ($ticket === null || $body === null) {
+            $this->replyToOwner('پیش‌نویس پیدا نشد یا منقضی شده. دوباره بسازید.');
+
+            return;
+        }
+
+        $this->armReply($ticket, $body, explicitRef: false);
+    }
+
+    // ─────────────────── صندوقِ ایمیل ───────────────────
+
+    private function showMailbox(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')) {
+            $this->replyToOwner('صندوقِ ایمیل روی این نصب فعال نیست.');
+
+            return;
+        }
+
+        $rows = \App\Models\MailboxMessage::open()->where('needs_reply', true)
+            ->orderByDesc('importance')->orderByDesc('id')->limit(6)->get();
+
+        if ($rows->isEmpty()) {
+            $this->replyToOwner('✅ ایمیلی که منتظرِ پاسخ باشد نیست.');
+
+            return;
+        }
+
+        $lines = ['📬 ایمیل‌های منتظرِ پاسخ', ''];
+
+        foreach ($rows as $m) {
+            $lines[] = '• '.mb_substr((string) $m->subject, 0, 70);
+            $lines[] = '   '.mb_substr((string) ($m->summary ?: $m->from_email), 0, 90);
+            $lines[] = '';
+        }
+
+        $this->sendButtons(rtrim(implode("\n", $lines)),
+            $rows->map(fn ($m) => [[
+                'text' => '📧 '.mb_substr((string) $m->subject, 0, 30),
+                'data' => self::CB_PREFIX.'mv:'.$m->id,
+            ]])->all());
+    }
+
+    private function showMail(string $arg): void
+    {
+        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+
+        if ($m === null) {
+            $this->replyToOwner('ایمیل پیدا نشد.');
+
+            return;
+        }
+
+        $text = implode("\n", array_filter([
+            '📧 '.mb_substr((string) $m->subject, 0, 120),
+            'از: '.mb_substr((string) $m->from_email, 0, 90),
+            $m->summary ? ('خلاصه: '.$m->summary) : null,
+            '',
+            mb_substr(trim((string) ($m->body_text ?: '')), 0, 2200),
+        ]));
+
+        $this->sendButtons($text, [[
+            ['text' => '📥 بایگانی', 'data' => self::CB_PREFIX.'ma:'.$m->id],
+        ]]);
+    }
+
+    /** ⚠️ نامه **حذف نمی‌شود** — فقط از صفِ «منتظرِ پاسخ» بیرون می‌رود */
+    private function archiveMail(string $arg): void
+    {
+        try {
+            $m = \App\Models\MailboxMessage::find((int) $arg);
+
+            if ($m === null) {
+                return;
+            }
+
+            $m->forceFill(['needs_reply' => false])->save();
+
+            $this->replyToOwner('📥 «'.mb_substr((string) $m->subject, 0, 60).'» از صفِ پاسخ برداشته شد.');
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'archiveMail']);
+        }
+    }
 
     /**
      * ردِ بازرسی.
