@@ -351,6 +351,37 @@ class OpenProviderClient
      *
      * @param  array<string,mixed>  $extra
      */
+    /**
+     * وضعیتِ **قراردادهای امضاشدهٔ حساب** — فقط خواندنی.
+     *
+     * ═══ چرا هست ═══
+     *
+     * قراردادِ رجیستریِ امضانشده هر ثبتِ آن پسوند را شکست می‌دهد
+     * (`DomainRegistrar::CONTRACT_CODES`). تا امروز تنها راهِ فهمیدنش این بود
+     * که یک **مشتری پول بدهد** و ثبتش شکست بخورد — یعنی خبر همیشه یک خرابیِ
+     * انجام‌شده دیرتر می‌رسید. این متد اجازه می‌دهد **پیش از** آن بپرسیم.
+     *
+     * ⚠️ امضا از راهِ API **ممکن نیست** و این متد ادعایش را ندارد. اسپکِ رسمیِ
+     * OpenProvider (۷۶ مسیر) هیچ مسیرِ نوشتنی برای قرارداد ندارد و
+     * `signed_contracts` فقط در **پاسخِ** `GET /resellers/settings` هست. امضا
+     * یک کنشِ حقوقی در پنلِ خودشان است.
+     *
+     * ⚠️ ساختارِ هر ردیف را در پاسخِ واقعی ندیده‌ایم؛ اسپک `title`/`type`/
+     * `is_signed` می‌گوید. پس فراخوان باید ردیف‌ها را **همان‌طور که هست**
+     * گزارش کند و از رویشان پسوند **حدس نزند** — حدسِ غلط یعنی بستنِ فروشِ
+     * پسوندی که قراردادش سالم است.
+     *
+     * @return array{ok:bool, contracts:array<int,array>, code:int, message:string}
+     */
+    public function resellerSettings(): array
+    {
+        $res = $this->call('GET', '/resellers/settings');
+
+        return $this->result($res, [
+            'contracts' => (array) data_get($res, 'data.signed_contracts', []),
+        ]);
+    }
+
     private function result(array $res, array $extra = []): array
     {
         $code = (int) ($res['code'] ?? -1);
