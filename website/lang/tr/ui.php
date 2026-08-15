@@ -173,6 +173,7 @@ return [
     'au_impact' => 'Etki', 'au_print' => 'Raporu yazdır', 'au_who' => 'Kime', 'au_jump' => 'Bu bölüme git',
     'sol_dl_ver' => 'Son sürüm: :v', 'sol_dl_soon' => 'Yakında',
     'nav_remote_dl' => 'Doğrudan indir',
+    'auth_pending_kept' => 'Seçiminiz korunuyor:',
     'tl_pass' => 'Geçti', 'tl_warn' => 'Uyarı', 'tl_fail' => 'Başarısız', 'tl_weight' => 'Ağırlık',
     'tl_passes' => 'geçti', 'tl_warns' => 'uyarı', 'tl_fails' => 'başarısız',
     'tl_err_unreach' => 'Siteye ulaşılamadı; URL\'yi kontrol edin veya sonra deneyin.',

@@ -379,7 +379,21 @@ class RegisterController extends Controller
         Auth::guard('customer')->login($customer, remember: true);
         $request->session()->regenerate();
 
-        return redirect()->route($this->rp().'account.home')
+        /*
+        | 🔴 ثبت‌نام هم باید به همان‌جایی برگردد که کاربر می‌خواست برود.
+        |
+        | مسیرِ ورود (`LoginController`) از `intended()` استفاده می‌کرد، ولی
+        | ثبت‌نام نه — و **خریدارِ تازه دقیقاً از این مسیر می‌آید**. یعنی کسی که
+        | روی «انتخاب پلن» کلیک می‌کرد، به `/account/order/wordpress-3` هدایت
+        | می‌شد، آن‌جا به ثبت‌نام می‌رفت، و بعد از ساختِ حساب سر از داشبوردِ خالی
+        | درمی‌آورد — بی‌هیچ نشانی از پلنی که انتخاب کرده بود.
+        |
+        | ⚠️ `regenerate()` شناسهٔ نشست را عوض می‌کند ولی **داده را نگه می‌دارد**،
+        | پس `url.intended` که موقعِ ریدایرکتِ مهمان ذخیره شده هنوز سرِ جایش است.
+        | ترتیب مهم است: اگر `intended()` پیش از `login()` خوانده شود، هنوز
+        | نشستِ مهمان است و چیزِ درستی برنمی‌گردد.
+        */
+        return redirect()->intended(route($this->rp().'account.home'))
             ->with('ok', 'حساب شما ساخته شد. خوش آمدید!');
     }
 

@@ -71,11 +71,35 @@ class ProvisioningTest extends TestCase
 
     public function test_provision_is_idempotent_when_account_already_exists(): void
     {
-        // accountsummary موفق = حساب هست → نباید دوباره بسازد
-        Http::fake([
-            '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 1, 'reason' => 'ok'], 'data' => []]),
-            '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 0, 'reason' => 'username already exists']]),
-        ]);
+        /*
+        | accountsummary موفق = حساب هست → نباید دوباره بسازد.
+        |
+        | ⚠️ فیکسچر عمداً `data.acct[0]` دارد. نسخهٔ قبلی `'data' => []` بود —
+        | چیزی که WHM **هرگز** برنمی‌گرداند: پاسخِ موفقِ `accountsummary` همیشه
+        | ردیفِ حساب را همراه دارد.
+        |
+        | آن فیکسچرِ غیرواقعی بی‌ضرر به‌نظر می‌رسید، ولی دقیقاً همان چیزی بود که
+        | اجازه می‌داد پذیرشِ **کور** سبز بماند: تا وقتی ردیفی در کار نباشد،
+        | هیچ تستی نمی‌پرسید «این حساب همانی است که فروخته‌ایم؟». حالا
+        | `accountState()` نام و دامنه را تطبیق می‌دهد و معلق‌بودن را می‌سنجد،
+        | پس فیکسچر هم باید شکلِ واقعی داشته باشد.
+        */
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), 'createacct')) {
+                return Http::response(['metadata' => ['result' => 0, 'reason' => 'username already exists']]);
+            }
+
+            // نام‌کاربری را خودِ سرویس می‌سازد، پس همان را برمی‌گردانیم — دقیقاً
+            // کاری که WHM می‌کند: ردیفِ حسابی که پرسیده‌ای.
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $q);
+
+            return Http::response([
+                'metadata' => ['result' => 1, 'reason' => 'ok'],
+                'data' => ['acct' => [[
+                    'user' => $q['user'] ?? '', 'domain' => 'client-site.com', 'suspended' => 0,
+                ]]],
+            ]);
+        });
 
         $server = $this->whmServer();
         $service = $this->service($server, ['username' => 'existinguser']);
@@ -84,8 +108,21 @@ class ProvisioningTest extends TestCase
 
         $this->assertTrue($ok);
         $this->assertSame('done', $service->fresh()->provision_status);
-        // چون حساب از قبل بود (reused)، شمارندهٔ ظرفیت زیاد نشد
-        $this->assertSame(0, $server->fresh()->active_accounts);
+
+        /*
+        | 🔴 این ادعا عوض شد، و عمداً: حسابِ پذیرفته‌شده **ظرفیت اشغال می‌کند**.
+        |
+        | نسخهٔ قبلی `0` انتظار داشت، چون شرطِ شمارش `! reused` بود. ولی «reused»
+        | یعنی «ما نساختیمش»، نه «جا اشغال نکرده». روی رخدادِ zhina.shop همین
+        | باعث شد سرور یک‌واحد بیشتر از واقعیت «جای خالی» نشان دهد و بیش‌فروش
+        | شود — یعنی همان تستِ سبز، خودِ باگ را قفل کرده بود.
+        |
+        | حالا مهرِ `counted` تصمیم می‌گیرد و دوباره‌شماری هم ممکن نیست: این
+        | سرویس پیش از این هرگز شمرده نشده بود، پس یک بار شمرده می‌شود.
+        */
+        $this->assertSame(1, $server->fresh()->active_accounts);
+        $this->assertTrue((bool) ($service->fresh()->provision_meta['counted'] ?? false));
+
         Http::assertNotSent(fn ($r) => str_contains($r->url(), 'createacct'));
     }
 

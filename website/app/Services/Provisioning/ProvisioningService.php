@@ -119,6 +119,11 @@ class ProvisioningService
 
         // موفق
         DB::transaction(function () use ($service, $server, $result) {
+            // ⚠️ **پیش از** نوشتن خوانده می‌شود: بعد از `save()` لاراول مقدارِ
+            // «اصلی» را با مقدارِ تازه هم‌گام می‌کند، پس خواندنش بعدش همیشه
+            // `true` می‌داد و شمارش هرگز انجام نمی‌شد.
+            $alreadyCounted = (bool) ($service->provision_meta['counted'] ?? false);
+
             $service->forceFill([
                 'username'         => $result->username ?: $service->username,
                 'password'         => $result->password ?: $service->password,
@@ -126,13 +131,29 @@ class ProvisioningService
                 'provision_status' => 'done',
                 'provision_error'  => null,
                 'provisioned_at'   => now(),
-                'provision_meta'   => $result->meta,
+                /*
+                | 🔴 مهرِ `counted` هم‌زمان با خودِ شمارش نوشته می‌شود.
+                |
+                | تا امروز شرطِ افزایش `! reused` بود و شرطِ کاهش هم `! reused` —
+                | ولی حسابی که **پس از یک شکست پذیرفته می‌شود** هم `reused` است.
+                | یعنی ظرفیتش هرگز شمرده نمی‌شد در حالی که واقعاً یک حساب روی
+                | سرور است: سرور به‌ازای هر رخدادِ zhina.shop یک‌واحد بیشتر از
+                | واقعیت «جا» نشان می‌داد و بیش‌فروش می‌شد.
+                |
+                | ⚠️ رفعِ ساده‌لوحانه (فقط عوض‌کردنِ شرطِ افزایش) خرابیِ بدتری
+                | می‌سازد: کاهش هنوز `! reused` را می‌خوانَد، پس این ردیف‌ها
+                | افزایش می‌گرفتند و هرگز کاهش نمی‌گرفتند ⇒ شمارنده بی‌سقف بالا
+                | می‌رفت و سرور بی‌هیچ خطایی از صفحهٔ خرید غیب می‌شد. پس **هر دو
+                | طرف** به همین یک مهر نگاه می‌کنند.
+                */
+                'provision_meta'   => array_merge($result->meta, ['counted' => true]),
                 'status'           => 'active',
                 'activated_at'     => $service->activated_at ?? now(),
             ])->save();
 
-            // شمارندهٔ ظرفیتِ سرور (اتمی) فقط اگر حسابِ تازه ساخته شده
-            if (! ($result->meta['reused'] ?? false)) {
+            // شمارندهٔ ظرفیتِ سرور (اتمی) — یک حسابِ واقعی روی سرور، چه تازه
+            // ساخته باشیمش چه پس از شکست پذیرفته باشیمش، ظرفیت اشغال می‌کند.
+            if (! $alreadyCounted) {
                 Server::whereKey($server->id)->increment('active_accounts');
             }
         });
@@ -327,9 +348,11 @@ class ProvisioningService
             // ⚠️ `released_from_done` مهرِ `releaseAndTrack()` است: تلاشِ دومِ
             // یک آزادسازیِ ناموفق، `provision_status` را دیگر `done` نمی‌بیند و
             // بی‌این مهر ظرفیت هرگز برنمی‌گشت.
+            // ⚠️ همان مهری که موقعِ افزایش نوشته شد، نه `! reused`. جدا شدنِ این
+            // دو یعنی شمارنده یا هرگز بالا نمی‌رود یا هرگز پایین نمی‌آید.
             $counted = ($service->provision_status === 'done'
                     || ($service->provision_meta['released_from_done'] ?? false))
-                && ! ($service->provision_meta['reused'] ?? false);
+                && ($service->provision_meta['counted'] ?? ! ($service->provision_meta['reused'] ?? false));
 
             if ($counted && $service->server_id) {
                 Server::whereKey($service->server_id)
@@ -482,7 +505,23 @@ class ProvisioningService
             app(\App\Services\Notify\Notifier::class)->fire(
                 'service_failed',
                 $service->customer,
-                ['service' => $service->name, 'reason' => mb_substr($error, 0, 120)],
+                /*
+                | 🔴 `reason` عمداً **متنِ خامِ سرور نیست**.
+                |
+                | این رویداد الگوی پیامکِ زنده دارد، یعنی هر مقداری که این‌جا
+                | بگذاریم به اپراتورِ پیامک هم می‌رود. متنِ خامِ WHM شاملِ
+                | hostname و پورتِ سرورِ ماست («ارتباط با سرور … :2087 …») —
+                | یعنی نامِ زیرساخت از یک پیامکِ پشتیبانی بیرون می‌رفت.
+                |
+                | ⚠️ کلید حذف نشد و فقط مقدارش امن شد: اگر از `NotifyEvent::vars`
+                | برداشته می‌شد، هر الگویی که مدیر قبلاً با `{reason}` ذخیره
+                | کرده، بی‌صدا از کار می‌افتاد (هر دو خوانندهٔ الگو، متنی که
+                | جای‌نگهدارِ پرنشده دارد را دور می‌ریزند).
+                |
+                | متنِ خام همان‌جایی می‌مانَد که باید: `provision_error` برای
+                | مدیر، و سطرِ «خطا» در اعلانِ مدیر پایین‌تر.
+                */
+                ['service' => $service->name, 'reason' => 'در حالِ بررسی توسطِ تیمِ فنی'],
                 '⚠️ در آماده‌سازیِ سرویسِ «'.$service->name.'» مشکلی پیش آمد و تیمِ ما در حالِ بررسی است. '
                 .'اگر ترجیح می‌دهید منتظر نمانید، می‌توانید از پنل سفارش را لغو کنید و مبلغ کامل به '
                 .'اعتبارتان برمی‌گردد: '.console_lroute('account.services'),
