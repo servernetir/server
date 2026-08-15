@@ -337,6 +337,50 @@ if (! function_exists('lroute')) {
     }
 }
 
+if (! function_exists('pending_order_label')) {
+    /**
+     * نامِ چیزی که کاربر داشت می‌خرید، اگر ورود وسطِ راه سبزش کرده باشد.
+     *
+     * ═══ چرا لازم شد ═══
+     *
+     * ممیزیِ بیرونی گفت کلیک روی «انتخاب پلن» نیت را دور می‌ریزد. نیمی‌اش
+     * درست بود: نشست از طریقِ `url.intended` مقصد را نگه می‌دارد و
+     * `LoginController` هم `intended()` می‌زند — ولی صفحهٔ ورود **هیچ‌جا این
+     * را نمی‌گفت**. کاربر یک دیوارِ ورودِ بی‌نشانه می‌دید و نتیجه می‌گرفت
+     * انتخابش گم شده. (نیمهٔ واقعاً خرابش ثبت‌نام بود که اصلاً `intended` را
+     * رعایت نمی‌کرد.)
+     *
+     * ⚠️ منبع عمداً همان `url.intended` است، نه یک پارامترِ URL: تنها چیزی که
+     * واقعاً تعیین می‌کند کاربر بعد از ورود کجا می‌رود همان است. اگر متن از
+     * جای دیگری بیاید، روزی وعده‌ای می‌دهد که ریدایرکت به آن عمل نمی‌کند.
+     *
+     * ⚠️ نبودِ محصول یعنی `null` و بخش اصلاً رندر نمی‌شود — نه جای خالی، نه
+     * اسلاگِ خام. اسلاگ برای کاربر معنایی ندارد.
+     */
+    function pending_order_label(): ?string
+    {
+        $intended = session('url.intended');
+        if (! is_string($intended) || $intended === '') {
+            return null;
+        }
+
+        if (! preg_match('~/account/order/([a-z0-9\-]+)~i', $intended, $m)) {
+            return null;
+        }
+
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('products')) {
+                return null;
+            }
+
+            return \App\Models\Product::where('slug', $m[1])->value('name');
+        } catch (\Throwable) {
+            // صفحهٔ ورود حق ندارد به‌خاطرِ یک قطعیِ گذرای دیتابیس ۵۰۰ شود
+            return null;
+        }
+    }
+}
+
 if (! function_exists('console_lroute')) {
     /**
      * همان lroute ولی روی میزبان کنسول.
