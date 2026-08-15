@@ -137,6 +137,95 @@ class BaleSender
     }
 
     /**
+     * پیام با **دکمه‌های شیشه‌ای** (inline keyboard).
+     *
+     * ⚠️ متدِ جداست و `call()` را دست نمی‌زند: آن متد `bool` برمی‌گرداند و
+     * `sendInvoice`/`answerPreCheckout` — که روی مسیرِ زندهٔ پرداخت‌اند — رویش
+     * سوارند. عوض‌کردنِ امضایش یعنی ریسک روی پولِ مشتری برای یک قابلیتِ
+     * مدیریتی.
+     *
+     * ⚠️ `callback_data` سقفِ ۶۴ بایت دارد (مثلِ تلگرام). پس هرگز متن یا شناسهٔ
+     * بلند داخلش نگذار — فقط فعل و یک عدد.
+     *
+     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     * @return int|null  message_id در صورتِ موفقیت (برای ویرایشِ بعدی)
+     */
+    public function sendButtons(string $chatId, string $text, array $rows): ?int
+    {
+        if (! $this->enabled()) {
+            return null;
+        }
+
+        $keyboard = [];
+
+        foreach ($rows as $row) {
+            $line = [];
+
+            foreach ($row as $btn) {
+                $line[] = [
+                    'text'          => (string) $btn['text'],
+                    'callback_data' => mb_substr((string) $btn['data'], 0, 64),
+                ];
+            }
+
+            if ($line !== []) {
+                $keyboard[] = $line;
+            }
+        }
+
+        try {
+            $res = Http::timeout(12)->asJson()->post(
+                rtrim($this->base, '/').'/bot'.$this->token.'/sendMessage',
+                [
+                    'chat_id'      => $chatId,
+                    'text'         => $text,
+                    'reply_markup' => ['inline_keyboard' => $keyboard],
+                ],
+            );
+        } catch (\Throwable $e) {
+            Log::warning('بله (دکمهٔ شیشه‌ای) در دسترس نبود', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        if ($res->json('ok') !== true) {
+            Log::warning('بله دکمهٔ شیشه‌ای را رد کرد', [
+                'http' => $res->status(),
+                'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+            ]);
+
+            return null;
+        }
+
+        return (int) $res->json('result.message_id') ?: null;
+    }
+
+    /**
+     * پاسخ به کلیکِ دکمه — بی‌این، دکمه در کلاینتِ کاربر تا ابد «در حالِ
+     * بارگذاری» می‌مانَد و کاربر فکر می‌کند هنگ کرده.
+     *
+     * ⚠️ باید سریع باشد؛ متنِ بلند جایش این‌جا نیست (پیامِ جدا بفرست).
+     */
+    public function answerCallback(string $queryId, string $text = '', bool $alert = false): bool
+    {
+        return $this->call('answerCallbackQuery', array_filter([
+            'callback_query_id' => $queryId,
+            'text'              => $text !== '' ? mb_substr($text, 0, 190) : null,
+            'show_alert'        => $alert ?: null,
+        ], fn ($v) => $v !== null));
+    }
+
+    /** ویرایشِ متنِ یک پیامِ فرستاده‌شده — برای بستنِ دکمه‌ها پس از کلیک */
+    public function editText(string $chatId, int $messageId, string $text): bool
+    {
+        return $this->call('editMessageText', [
+            'chat_id'    => $chatId,
+            'message_id' => $messageId,
+            'text'       => $text,
+        ]);
+    }
+
+    /**
      * پیام با دکمهٔ «اشتراک شماره».
      *
      * ربات فقط وقتی می‌تواند به کاربر پیام دهد که chat_id داشته باشد، و

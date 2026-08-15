@@ -440,4 +440,102 @@ class BaleAdminBotTest extends TestCase
     {
         $this->say($text, ['reply_to_message' => ['message_id' => 9, 'text' => $quoted]]);
     }
+    // ═══════════════ دکمه‌های شیشه‌ای ═══════════════
+
+    /**
+     * فرمانِ آزمون باید پیامی با `inline_keyboard` بفرستد.
+     *
+     * ⚠️ ادعا روی **شکلِ بدنهٔ خروجی** است نه صرفاً «پیامی رفت»: اگر روزی
+     * `reply_markup` جا بیفتد، کارفرما یک متنِ ساده می‌بیند و هیچ خطایی
+     * هیچ‌جا نیست.
+     */
+    public function test_the_probe_command_sends_a_real_inline_keyboard(): void
+    {
+        $this->bind();
+
+        $this->say('دکمه');
+
+        $seen = null;
+
+        foreach (Http::recorded() as [$req, ]) {
+            $d = $req->data();
+
+            if (str_contains($req->url(), '/sendMessage') && isset($d['reply_markup']['inline_keyboard'])) {
+                $seen = $d['reply_markup']['inline_keyboard'];
+            }
+        }
+
+        $this->assertNotNull($seen, 'هیچ دکمهٔ شیشه‌ای فرستاده نشد');
+        $this->assertSame('v1:ping:1', $seen[0][0]['callback_data'] ?? null);
+    }
+
+    /**
+     * 🔴 کلیکِ دکمه باید **هم** به خودِ کلیک جواب بدهد **هم** کارش را بکند.
+     *
+     * بی‌`answerCallbackQuery`، دکمه در کلاینتِ کارفرما تا ابد «در حالِ
+     * بارگذاری» می‌مانَد و از «ربات هنگ کرده» قابلِ تشخیص نیست — حتی وقتی کار
+     * درست انجام شده.
+     */
+    public function test_a_button_click_is_acknowledged_and_acted_on(): void
+    {
+        $this->bind();
+
+        $this->postJson($this->hookUrl(), [
+            'update_id' => 4242,
+            'callback_query' => [
+                'id'   => 'cbq-1',
+                'data' => 'v1:ping:2',
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+            ],
+        ])->assertOk();
+
+        $answered = false;
+
+        foreach (Http::recorded() as [$req, ]) {
+            if (str_contains($req->url(), '/answerCallbackQuery')
+                && ($req->data()['callback_query_id'] ?? '') === 'cbq-1') {
+                $answered = true;
+            }
+        }
+
+        $this->assertTrue($answered, 'به کلیک جواب داده نشد — دکمه تا ابد در حالِ بارگذاری می‌مانَد');
+        $this->assertStringContainsString('کار می‌کنند', $this->outbox());
+    }
+
+    /** کلیکِ یک چتِ غریبه هیچ‌کاری نمی‌کند */
+    public function test_a_button_click_from_a_stranger_does_nothing(): void
+    {
+        $this->bind();
+
+        $this->postJson($this->hookUrl(), [
+            'callback_query' => [
+                'id' => 'cbq-2', 'data' => 'v1:ping:1',
+                'from' => ['id' => '55599', 'is_bot' => false],
+            ],
+        ])->assertOk();
+
+        $this->assertStringNotContainsString('کار می‌کنند', $this->outbox());
+    }
+
+    /**
+     * ⚠️ آپدیتِ کلیک نباید مسیرِ مشتری را لمس کند — نه دکمهٔ اشتراکِ شماره
+     * بفرستد نه چیزی بنویسد.
+     */
+    public function test_a_callback_update_never_falls_through_to_the_contact_prompt(): void
+    {
+        $this->bind();
+
+        $this->postJson($this->hookUrl(), [
+            'callback_query' => [
+                'id' => 'cbq-3', 'data' => 'v1:ping:1',
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+            ],
+        ]);
+
+        foreach (Http::recorded() as [$req, ]) {
+            $this->assertArrayNotHasKey('keyboard',
+                (array) ($req->data()['reply_markup'] ?? []),
+                'کلیکِ دکمه به دکمهٔ اشتراکِ شمارهٔ مشتری افتاد');
+        }
+    }
 }
