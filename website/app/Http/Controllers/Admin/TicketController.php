@@ -97,43 +97,27 @@ class TicketController extends Controller
         $user     = $request->user();
         $internal = (bool) ($data['internal'] ?? false);
 
-        $message = $ticket->addMessage('staff', $user->id, $user->name, $data['body'], internal: $internal);
-        app(AttachmentService::class)->store($message, $request->file('attachments', []));
-
-        // «پاسخ و بستن» در یک حرکت — کار رایج پشتیبانی
-        if (! empty($data['close']) && ! $internal) {
-            $ticket->forceFill(['status' => 'closed', 'closed_at' => now()])->save();
-        }
-
-        // اعلان به مشتری — پیامک و بله. یادداشت داخلی اعلان ندارد (مشتری
-        // نمی‌بیندش، پس نباید خبردار شود).
-        if (! $internal && $ticket->customer) {
-            $notifier = app(\App\Services\Notify\Notifier::class);
-            $link = console_lroute('account.tickets');
-
-            $notifier->fire('ticket_reply', $ticket->customer,
-                ['number' => (string) $ticket->number],
-                'پاسخ جدیدی به تیکتِ '.fa_num((string) $ticket->number).' شما داده شد: '.$link);
-
-            /*
-            | بستن و نظرسنجی — دو رویدادی که تا امروز اصلاً وجود نداشتند.
-            |
-            | ⚠️ نظرسنجی **بعد از** اعلانِ بستن می‌رود و نه به‌جایش: مشتری اول
-            | باید بداند مشکلش بسته شده، بعد ازش نظر بخواهیم. برعکسش، نظرسنجی
-            | برای کسی می‌رود که هنوز فکر می‌کند تیکتش باز است.
-            */
-            if (! empty($data['close'])) {
-                $notifier->fire('ticket_closed', $ticket->customer,
-                    ['number' => (string) $ticket->number],
-                    '✅ تیکتِ '.fa_num((string) $ticket->number).' بسته شد. '
-                    .'اگر مشکل برطرف نشده، همان‌جا پاسخ بدهید تا دوباره باز شود: '.$link);
-
-                $notifier->fire('ticket_survey', $ticket->customer,
-                    ['number' => (string) $ticket->number, 'link' => $link],
-                    'از پشتیبانیِ تیکتِ '.fa_num((string) $ticket->number).' راضی بودید؟ '
-                    .'نظرتان کمکمان می‌کند بهتر شویم: '.$link);
-            }
-        }
+        /*
+        | 🔴 منطقِ واقعی در `TicketReplyService` است، نه این‌جا.
+        |
+        | از وقتی رباتِ بله هم می‌تواند پاسخ بدهد، دو فراخوان داریم و «همان کار»
+        | چیزِ کوچکی نیست: بستن باید بلافاصله بعد از `addMessage` بیاید (وگرنه
+        | `Ticket.php:95` دوباره بازش می‌کند) و سه اعلان ترتیبِ معناداری دارند.
+        | دو پیاده‌سازیِ موازی یعنی دیر یا زود یکی کهنه می‌شود.
+        |
+        | ⚠️ قلّابِ `afterMessage` عمداً هست: پیوست‌ها باید **پیش از** بستن ذخیره
+        | شوند، دقیقاً مثلِ قبل. ترتیبِ این کنترلر مو نخورده.
+        */
+        app(\App\Services\Ticket\TicketReplyService::class)->post(
+            $ticket,
+            $user->id,
+            $user->name,
+            $data['body'],
+            internal: $internal,
+            close: (bool) ($data['close'] ?? false),
+            afterMessage: fn ($message) => app(AttachmentService::class)
+                ->store($message, $request->file('attachments', [])),
+        );
 
         return back()->with('ok', $internal ? 'یادداشت داخلی ثبت شد.' : 'پاسخ ثبت شد.');
     }

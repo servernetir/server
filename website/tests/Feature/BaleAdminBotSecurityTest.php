@@ -1,0 +1,501 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\BaleContact;
+use App\Models\Customer;
+use App\Models\Setting;
+use App\Models\Ticket;
+use App\Models\TicketMessage;
+use App\Models\User;
+use App\Services\Bale\Admin\AdminBaleGate;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+/**
+ * 🔴 «فقط من باید این دسترسی را داشته باشم» — همین یک جمله، به‌صورتِ تست.
+ *
+ * ═══ مدلِ تهدید، صریح ═══
+ *
+ * مسیرِ وب‌هوکِ بله `substr(sha256(BALE_BOT_TOKEN), 0, 32)` است و در لاگِ
+ * دسترسیِ cPanel و Cloudflare و در `ErrorTracker` (که `fullUrl()` را ثبت
+ * می‌کند) می‌نشیند. و `setWebhook`ِ بله — برخلافِ تلگرام — پارامترِ
+ * `secret_token` **ندارد**، پس هیچ هدرِ امضاداری هم در کار نیست.
+ *
+ * پس فرضِ این فایل: **مهاجم آدرسِ وب‌هوک را دارد** و می‌تواند هر آپدیتِ دلخواهی
+ * جعل کند، با هر `chat_id` و هر `from.id`. ادعا این است که با آن هم مدیر
+ * نمی‌شود.
+ */
+class BaleAdminBotSecurityTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const BOT = 'bot-token-123';
+
+    private const OWNER_CHAT = '700700';
+
+    private const ATTACKER_CHAT = '13337';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.bale.token', self::BOT);
+        config()->set('services.bale_safir.key', 'safir-key-for-test');
+        config()->set('services.bale_safir.bot_id', 2017652664);
+        config()->set('servernet.contact.email', '');
+        config()->set('servernet.contact.notify_phone', '09121110000');
+
+        Http::swap(new Factory);
+        Http::fake([
+            '*safir*'      => Http::response(['message_id' => 'x']),
+            '*sendMessage' => Http::response(['ok' => true]),
+            '*'            => Http::response(['ok' => true]),
+        ]);
+    }
+
+    private function hookUrl(): string
+    {
+        return '/bale/webhook/'.substr(hash('sha256', self::BOT), 0, 32);
+    }
+
+    private function admin(string $role = 'admin'): User
+    {
+        return User::create([
+            'name' => 'کارفرما', 'email' => 'own'.random_int(1, 999999).'@x.com',
+            'password' => bcrypt('x'), 'role' => $role,
+        ]);
+    }
+
+    private function bind(?User $user = null, string $chat = self::OWNER_CHAT): User
+    {
+        $user ??= $this->admin();
+
+        Setting::putSecret(AdminBaleGate::KEY_BIND, json_encode([
+            'chat_id' => $chat, 'user_id' => $user->id, 'at' => now()->toIso8601String(),
+        ]));
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+
+        return $user;
+    }
+
+    private function ticket(): Ticket
+    {
+        $c = Customer::create([
+            'code' => 'SN-'.random_int(100000, 999999),
+            'email' => 'c'.random_int(1000, 99999).'@x.com',
+            'phone' => '0912'.random_int(1000000, 9999999),
+            'password' => bcrypt('x'), 'status' => 'active', 'locale' => 'fa',
+        ]);
+
+        return $c->tickets()->create([
+            'subject' => 'مشکلِ اتصال', 'department' => 'technical',
+            'priority' => 'normal', 'status' => 'open',
+            'last_reply_role' => 'customer', 'last_reply_at' => now(),
+        ]);
+    }
+
+    private function say(string $text, string $chat, array $extra = []): void
+    {
+        $this->postJson($this->hookUrl(), [
+            'update_id' => random_int(1, 10_000_000),
+            'message' => array_merge([
+                'chat' => ['id' => $chat, 'type' => 'private'],
+                'from' => ['id' => $chat, 'is_bot' => false],
+                'text' => $text,
+            ], $extra),
+        ]);
+    }
+
+    /** متنِ همهٔ پیام‌هایی که به یک چت رفته */
+    private function textsSentTo(string $chat): string
+    {
+        $out = '';
+
+        foreach (Http::recorded() as [$req, ]) {
+            $d = $req->data();
+
+            if (str_contains($req->url(), '/sendMessage') && (string) ($d['chat_id'] ?? '') === $chat) {
+                $out .= "\n".(string) ($d['text'] ?? '');
+            }
+        }
+
+        return $out;
+    }
+
+    // ═══════════════ ۱) چتِ نامتصل هیچ‌کاری نمی‌تواند ═══════════════
+
+    public function test_a_forged_update_from_an_unbound_chat_changes_nothing(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('پاسخ '.$t->number.' سلام', self::ATTACKER_CHAT);
+        $this->say('بستن '.$t->number, self::ATTACKER_CHAT);
+
+        $this->assertSame(0, TicketMessage::count());
+        $this->assertSame('open', $t->fresh()->status);
+        $this->assertStringNotContainsString('تأیید', $this->textsSentTo(self::ATTACKER_CHAT));
+    }
+
+    /**
+     * 🔴 قلبِ استدلالِ «لو رفتنِ آدرسِ وب‌هوک کافی نیست».
+     *
+     * حتی اگر مهاجم `from.id` را **درست** حدس بزند، کدِ تأیید به چتِ متصل
+     * می‌رود، نه به فرستندهٔ آپدیت. یعنی جعلِ خاموش به جعلِ **پرصدا** تبدیل
+     * می‌شود: گوشیِ کارفرما برای کاری که نکرده زنگ می‌خورد.
+     */
+    public function test_the_confirm_code_goes_to_the_bound_chat_never_to_the_sender(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        // مهاجم دقیقاً وانمود می‌کند همان چتِ متصل است
+        $this->say('پاسخ '.$t->number.' متنِ جعلی', self::OWNER_CHAT);
+
+        $owner = $this->textsSentTo(self::OWNER_CHAT);
+
+        $this->assertStringContainsString('تأیید', $owner, 'کدِ تأیید ساخته نشد');
+        $this->assertSame(0, TicketMessage::count(), 'بی‌تأیید نوشت');
+    }
+
+    // ═══════════════ ۲) کدِ تأیید: یک‌بارمصرف و سقف‌دار ═══════════════
+
+    public function test_a_customer_visible_reply_needs_a_confirm_and_the_confirm_is_single_use(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('پاسخ '.$t->number.' سرور را ری‌استارت کنید', self::OWNER_CHAT);
+
+        $code = $this->grabCode();
+        $this->assertNotNull($code, 'کدِ تأیید در پیام نبود');
+        $this->assertSame(6, strlen($code), 'کدِ تأیید ۶ رقمی نیست — ۴ رقم در پنجرهٔ ۳ دقیقه‌ای حدس‌زدنی است');
+
+        $this->say('تأیید '.$code, self::OWNER_CHAT);
+        $this->assertSame(1, TicketMessage::count());
+
+        // ارسالِ دوبارهٔ همان کد نباید پیامِ دومی برای مشتری بسازد
+        $this->say('تأیید '.$code, self::OWNER_CHAT);
+        $this->assertSame(1, TicketMessage::count(), 'کدِ تأیید دوباره مصرف شد');
+    }
+
+    /**
+     * 🔴 سقفِ تلاش روی کدِ تأیید — یافتهٔ بازبینیِ تهاجمی.
+     *
+     * بی‌شمارنده، کدِ ۶ رقمی در پنجرهٔ ۳ دقیقه‌ای قابلِ جاروب بود و «مسلح‌کردن»
+     * هم رایگان و تکرارپذیر است، یعنی سقفِ واقعی وجود نداشت.
+     */
+    public function test_three_wrong_confirm_codes_cancel_the_pending_action(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('پاسخ '.$t->number.' متن', self::OWNER_CHAT);
+        $code = $this->grabCode();
+
+        foreach (['000001', '000002', '000003'] as $wrong) {
+            $this->say('تأیید '.$wrong, self::OWNER_CHAT);
+        }
+
+        // حالا حتی کدِ **درست** هم نباید کار کند: کار لغو شده
+        $this->say('تأیید '.$code, self::OWNER_CHAT);
+
+        $this->assertSame(0, TicketMessage::count(), 'پس از ۳ اشتباه، کار هنوز زنده بود');
+    }
+
+    // ═══════════════ ۳) کلید، نقش، و اتصالِ خوانده‌نشده ═══════════════
+
+    public function test_the_kill_switch_stops_everything_on_the_next_message(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        Setting::put(AdminBaleGate::KEY_ENABLED, '0');
+
+        $this->say('تیکت '.$t->number, self::OWNER_CHAT);
+
+        $this->assertStringNotContainsString('پروندهٔ', $this->textsSentTo(self::OWNER_CHAT));
+    }
+
+    /** کاربری که دیگر مدیر نیست، همان پیامِ بعدی را هم نمی‌تواند بزند */
+    public function test_a_demoted_user_loses_the_bot(): void
+    {
+        $u = $this->bind();
+        $t = $this->ticket();
+
+        $u->forceFill(['role' => 'author'])->save();
+
+        $this->say('پاسخ '.$t->number.' متن', self::OWNER_CHAT);
+
+        $this->assertSame(0, TicketMessage::count());
+        $this->assertStringNotContainsString('تأیید', $this->textsSentTo(self::OWNER_CHAT));
+    }
+
+    /**
+     * 🔴 «اتصال رمزگشایی نشد» نباید مثلِ «هرگز متصل نشده» رفتار کند.
+     *
+     * `Setting::getSecret()` روی شکستِ رمزگشایی بی‌صدا `null` می‌دهد. اگر آن را
+     * «هنوز متصل نشده» بخوانیم، چرخاندنِ `APP_KEY` یا یک بکاپِ قدیمی پنجرهٔ
+     * `/pair` را دوباره برای کلِ اینترنت **باز** می‌کند — و کلیدِ روشن/خاموش که
+     * رمزنگاری‌شده نیست، دست‌نخورده روی «روشن» می‌مانَد. یعنی خرابی باید
+     * fail-closed باشد و به‌طورِ طبیعی fail-**open** بود.
+     */
+    public function test_an_unreadable_binding_closes_the_console_instead_of_reopening_pairing(): void
+    {
+        $this->bind();
+
+        // ciphertext خراب — دقیقاً همان چیزی که چرخاندنِ APP_KEY می‌سازد
+        Setting::put(AdminBaleGate::KEY_BIND, 'not-a-valid-ciphertext');
+
+        $this->assertNull(app(AdminBaleGate::class)->binding());
+        $this->assertSame('0', Setting::get(AdminBaleGate::KEY_ENABLED),
+            'کنسول باز ماند — چرخاندنِ APP_KEY پنجرهٔ اتصال را به روی همه باز می‌کند');
+    }
+
+    // ═══════════════ ۴) هویت هرگز از bale_contacts نمی‌آید ═══════════════
+
+    /**
+     * 🔴 حفرهٔ ترفیعِ دسترسی که این تست جلویش را می‌گیرد.
+     *
+     * ردیفِ `bale_contacts` را خودِ همین وب‌هوکِ بی‌احراز می‌نویسد: `link()` یک
+     * `updateOrCreate` روی `mobile` است، بی‌هیچ بررسیِ مالکیت. پس یک آپدیتِ
+     * جعلیِ `contact` می‌تواند شمارهٔ پشتیبانی را به چتِ مهاجم ببندد. برای
+     * **تحویلِ** پیام اشکالی ندارد؛ به‌عنوانِ منبعِ **هویت** یعنی یک POST تا
+     * دسترسیِ کاملِ مدیر.
+     */
+    public function test_bale_contacts_can_never_grant_admin(): void
+    {
+        $this->admin();                        // مدیر هست، ولی هیچ اتصالی ثبت نشده
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+
+        BaleContact::create([
+            'mobile' => '09121110000',         // همان notify_phone
+            'chat_id' => self::ATTACKER_CHAT,
+            'linked_at' => now(),
+        ]);
+
+        $t = $this->ticket();
+        $this->say('بستن '.$t->number, self::ATTACKER_CHAT);
+
+        $this->assertSame('open', $t->fresh()->status);
+        $this->assertSame(0, TicketMessage::count());
+    }
+
+    // ═══════════════ ۵) شکلِ آپدیت ═══════════════
+
+    /** گروه/کانال: `chat.id` با `from.id` نمی‌خوانَد ⇒ کنسول خاموش است */
+    public function test_a_group_update_is_refused(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->postJson($this->hookUrl(), [
+            'message' => [
+                'chat' => ['id' => '-1001234', 'type' => 'group'],
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'text' => 'بستن '.$t->number,
+            ],
+        ]);
+
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
+    /**
+     * 🔴 پیامِ **فوروارد‌شده** فرمان نیست.
+     *
+     * در فوروارد `from` همان کسی است که فوروارد کرده (کارفرما) ولی متن را
+     * شخصِ دیگری نوشته. کارِ کاملاً طبیعیِ «این را ببین مشتری چه نوشته»
+     * می‌توانست متنِ ساختگیِ یک نفرِ دیگر را به‌عنوانِ فرمانِ کارفرما اجرا کند —
+     * و «یادداشت» تأیید هم نمی‌خواهد.
+     */
+    public function test_a_forwarded_message_is_never_a_command(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('یادداشت متنِ کاشته‌شده', self::OWNER_CHAT, [
+            'forward_date' => now()->getTimestamp(),
+            'forward_from' => ['id' => 4242, 'is_bot' => false],
+        ]);
+
+        $this->assertSame(0, TicketMessage::count(), 'متنِ فوروارد‌شده به‌عنوانِ فرمان اجرا شد');
+    }
+
+    /** ربات‌ها فرمان نمی‌دهند */
+    public function test_a_bot_sender_is_refused(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->postJson($this->hookUrl(), [
+            'message' => [
+                'chat' => ['id' => self::OWNER_CHAT, 'type' => 'private'],
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => true],
+                'text' => 'بستن '.$t->number,
+            ],
+        ]);
+
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
+    // ═══════════════ ۶) رازها و کانالِ پولی ═══════════════
+
+    /**
+     * ⚠️ نیمهٔ منفی به‌تنهایی بی‌ارزش است — با یک `return` زودهنگام هم سبز
+     * می‌شود. پس نیمهٔ **مثبت** هم هست: پیام واقعاً از API رباتِ خودمان رفت.
+     */
+    public function test_no_admin_message_ever_touches_the_paid_safir_channel(): void
+    {
+        $this->bind();
+        $this->say('راهنما', self::OWNER_CHAT);
+
+        $viaBot = false;
+
+        foreach (Http::recorded() as [$req, ]) {
+            $host = parse_url($req->url(), PHP_URL_HOST) ?: '';
+
+            $this->assertStringNotContainsString('safir', $host,
+                'پیامِ کنسولِ مدیر از کانالِ پولیِ سفیر رفت — سفیر فقط برای مشتریان است');
+
+            if (str_contains($req->url(), '/sendMessage')) {
+                $viaBot = true;
+            }
+        }
+
+        $this->assertTrue($viaBot, 'اصلاً پیامی نرفت — نیمهٔ منفی بی‌معنی می‌شود');
+    }
+
+    public function test_codes_are_never_stored_in_plaintext(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('پاسخ '.$t->number.' متن', self::OWNER_CHAT);
+
+        $code = $this->grabCode();
+        $raw  = (string) Setting::where('key', AdminBaleGate::KEY_STATE)->value('value');
+
+        $this->assertNotSame('', $raw);
+        $this->assertStringNotContainsString((string) $code, $raw, 'کدِ تأیید خام در دیتابیس نشست');
+        $this->assertStringNotContainsString('pending', $raw, 'وضعیت رمزنگاری نشده ذخیره شد');
+    }
+
+    /** پروندهٔ تیکت نباید ایمیل و موبایلِ مشتری را در چت بریزد */
+    public function test_the_card_never_prints_customer_contact_details(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->say('تیکت '.$t->number, self::OWNER_CHAT);
+
+        $out = $this->textsSentTo(self::OWNER_CHAT);
+
+        $this->assertStringNotContainsString((string) $t->customer->email, $out);
+        $this->assertStringNotContainsString((string) $t->customer->phone, $out);
+        $this->assertStringContainsString((string) $t->customer->code, $out, 'کدِ عمومیِ مشتری باید باشد');
+    }
+
+    // ═══════════════ ۷) صفحهٔ پنل ═══════════════
+
+    public function test_the_pairing_route_requires_an_admin_session(): void
+    {
+        $this->post('/admin/bale/pair')->assertRedirect();
+
+        $author = $this->admin('author');
+
+        $res = $this->actingAs($author, 'web')->post('/admin/bale/pair');
+
+        $this->assertContains($res->status(), [403, 404, 302],
+            'کاربرِ غیرمدیر توانست کدِ اتصال بسازد');
+
+        $this->assertNull(app(AdminBaleGate::class)->binding());
+    }
+
+    // ═══════════════ ۸) خودِ اتصال ═══════════════
+
+    /**
+     * جریانِ کاملِ اتصال: پنل → ایمیل → بله.
+     *
+     * 🔴 کد **فقط** به ایمیل می‌رود و هرگز روی صفحه چاپ نمی‌شود. یعنی برای
+     * تصاحبِ کنسول باید هم نشستِ پنل را داشت (که خودش رمز + کدِ دومرحله‌ای
+     * می‌خواهد) هم صندوقِ ایمیل را — و دارندهٔ آدرسِ وب‌هوک هیچ‌کدام را ندارد.
+     */
+    public function test_pairing_needs_a_code_that_only_reaches_the_admin_email(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $admin = $this->admin();
+
+        $res = $this->actingAs($admin, 'web')->post('/admin/bale/pair');
+        $res->assertRedirect();
+
+        $code = null;
+
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($mail) use (&$code, $admin) {
+            $code = $mail->code;
+
+            return $mail->hasTo($admin->email);
+        });
+
+        $this->assertNotNull($code);
+
+        // کد نباید هیچ‌جای صفحه باشد
+        $page = $this->actingAs($admin, 'web')->get('/admin/bale')->getContent();
+        $this->assertStringNotContainsString((string) $code, $page, 'کدِ اتصال روی صفحه چاپ شد');
+
+        // کدِ غلط از یک چتِ دلخواه هیچ اتصالی نمی‌سازد
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+        $this->say('/pair 000000', self::ATTACKER_CHAT);
+        $this->assertNull(app(AdminBaleGate::class)->binding());
+
+        // کدِ درست، متصل می‌کند
+        $this->say('/pair '.$code, self::OWNER_CHAT);
+
+        $bind = app(AdminBaleGate::class)->binding();
+        $this->assertNotNull($bind, 'اتصال با کدِ درست هم برقرار نشد');
+        $this->assertSame(self::OWNER_CHAT, (string) $bind['chat_id']);
+        $this->assertSame($admin->id, (int) $bind['user_id']);
+    }
+
+    /** و همان کد بارِ دوم کار نمی‌کند */
+    public function test_a_pairing_code_is_single_use(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $admin = $this->admin();
+        $this->actingAs($admin, 'web')->post('/admin/bale/pair');
+
+        $code = null;
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
+
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+        $this->say('/pair '.$code, self::OWNER_CHAT);
+
+        app(AdminBaleGate::class)->revoke();
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+
+        $this->say('/pair '.$code, self::ATTACKER_CHAT);
+
+        $this->assertNull(app(AdminBaleGate::class)->binding(),
+            'کدِ اتصال دوباره مصرف شد — یعنی یک کدِ لو رفته برای همیشه معتبر است');
+    }
+
+    // ───────────────────────────── کمکی ─────────────────────────────
+
+    /** کدِ ۶ رقمیِ تأیید را از متنِ پیامِ رفته بیرون بکش */
+    private function grabCode(): ?string
+    {
+        if (preg_match('/تأیید (\d{6})/u', $this->textsSentTo(self::OWNER_CHAT), $m) === 1) {
+            return $m[1];
+        }
+
+        return null;
+    }
+}

@@ -168,6 +168,19 @@ class SmsTemplateRegistryTest extends TestCase
             | و `relay/n8n/verify-and-map-template.js` اضافه‌اش کن و از این فهرست بردار.
             */
             'service_hold',
+            /*
+            | این دو مخاطبشان **فقط مدیر** است (`NotifyEvent::ADMIN`).
+            |
+            | `Notifier::fire()` برای رویدادِ ادمین‌محور اصلاً سراغِ
+            | `CustomerNotifier` نمی‌رود، پس هیچ پیامکی در کار نیست که الگو
+            | بخواهد — نه «الگو یادمان رفت»، بلکه «مسیرش وجود ندارد».
+            |
+            | ⚠️ اگر روزی مخاطبِ یکی از اینها به `BOTH` تغییر کرد، همین تست
+            | قرمز نمی‌شود ولی مشتری بی‌پیامک می‌مانَد. `NotificationCoverageTest`
+            | مخاطب‌ها را جدا قفل کرده؛ آن‌جا را هم نگاه کن.
+            */
+            'bank_receipt',           // رسیدِ واریز، منتظرِ تأییدِ مدیر
+            'ticket_customer_reply',  // پاسخِ تازهٔ مشتری در تیکت
         ];
         sort($expected);
 

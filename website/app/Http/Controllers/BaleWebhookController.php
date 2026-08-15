@@ -71,6 +71,32 @@ class BaleWebhookController extends Controller
             return response()->json(['ok' => true]);
         }
 
+        /*
+        | ── کنسولِ مدیر ── فقط چتِ متصل‌شده، فقط فرمانِ شناخته‌شده.
+        |
+        | جایگاهش عمدی است: **بعد از** هر چهار شاخهٔ مشتریِ بالا. یعنی نه مهلتِ
+        | ۱۰ ثانیه‌ایِ `pre_checkout_query` را لمس می‌کند، نه `successful_payment`
+        | را (کارفرما ممکن است با کیفِ بلهٔ خودش پول بدهد و آن آپدیت `from.id`ِ
+        | برابرِ چتِ متصل دارد)، و نه زنجیرهٔ «اشتراکِ شماره»ی مشتری را.
+        |
+        | 🔴 کلِ بلوک — **شاملِ ساختِ خودِ سرویس** — در try/catch است. یک استثنا
+        | این‌جا یعنی وب‌هوک ۵۰۰ می‌دهد و بله همان آپدیت را دوباره می‌فرستد؛ و
+        | چون دپلوی این پروژه فایل‌به‌فایل است، «یک فایل جا ماند» یک حالتِ واقعی
+        | است نه فرضی. آن‌وقت `/start`ِ مشتریِ تازه هم بی‌پاسخ می‌مانْد و او
+        | هرگز به بله وصل نمی‌شد — با کدِ ۵۰۰ که هیچ‌کس نمی‌بیندش.
+        */
+        try {
+            $console = app(\App\Services\Bale\Admin\AdminBaleRouter::class);
+
+            if ($console->matches($update)) {
+                $console->handle($update);
+
+                return response()->json(['ok' => true]);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::noteOnce('bale-admin', $e, 3600);
+        }
+
         // /start یا هر پیام دیگر → دکمهٔ اشتراک شماره را نشان بده
         $text = (string) ($message['text'] ?? '');
         $this->promptForContact($sender, $chatId, str_starts_with($text, '/start'));

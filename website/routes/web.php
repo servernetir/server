@@ -1852,6 +1852,24 @@ Route::prefix('admin')->group(function () {
         Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
         Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
 
+        /*
+        | کنسولِ مدیر در بله — روشن/خاموش، اتصال، قطع.
+        |
+        | 🔴 `admin` علاوه بر `auth:web`: این صفحه تنها راهِ **دادنِ** دسترسیِ
+        | مدیر به یک چتِ بله است. کارمندی که مدیر نیست نباید بتواند کدِ اتصال
+        | بسازد، حتی اگر به تیکت‌ها دسترسی دارد.
+        |
+        | ⚠️ throttle روی `pair` چون هر بار یک ایمیل می‌فرستد.
+        */
+        Route::get('/bale', [\App\Http\Controllers\Admin\BaleAdminController::class, 'index'])
+            ->name('admin.bale')->middleware('admin');
+        Route::post('/bale/pair', [\App\Http\Controllers\Admin\BaleAdminController::class, 'pair'])
+            ->middleware(['admin', 'throttle:6,1']);
+        Route::post('/bale/revoke', [\App\Http\Controllers\Admin\BaleAdminController::class, 'revoke'])
+            ->middleware('admin');
+        Route::post('/bale/toggle', [\App\Http\Controllers\Admin\BaleAdminController::class, 'toggle'])
+            ->middleware('admin');
+
         // مدیریت مشتریان — بخشِ شبیه‌WHMCS
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
         Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
