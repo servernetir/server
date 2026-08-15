@@ -59,6 +59,7 @@ class SystemHealth
             $this->stuckServices(),
             $this->undeliveredCloud(),
             $this->cloudRelease(),
+            $this->mailboxes(),
             $this->recentErrors(),
         ];
     }
@@ -441,6 +442,66 @@ class SystemHealth
             .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
             .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.',
             $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+    }
+
+    /**
+     * 🔴 صندوق‌های مدیریتی: شکستِ خواندن **شبیهِ سکوت** است.
+     *
+     * ═══ چرا این چک لازم شد ═══
+     *
+     * `mailbox:sync` ساعتی می‌دود و وقتی IMAP رد می‌کند (رمزِ عوض‌شده، رمزِ
+     * برنامهٔ باطل، بسته‌بودنِ پورت) فقط یک خط در `laravel.log` می‌نویسد و با
+     * کدِ ۱ تمام می‌شود. آن لاگ روی پروداکشن ۱۰ مگابایت است و از پنل بیرون
+     * نمی‌آید. پس تنها چیزی که مدیر می‌دید این بود: `/admin/mail` نامهٔ تازه‌ای
+     * ندارد — که از «امروز کسی ایمیل نزده» قابلِ تشخیص نیست.
+     *
+     * یعنی دقیقاً همان الگویی که در CLAUDE.md ثبت است: خرابی‌ای که هیچ استثنایی
+     * نمی‌سازد و فقط با **پرسیدن** پیدا می‌شود. پس این‌جا می‌پرسیم، و **متنِ
+     * واقعیِ خطا** را می‌آوریم تا رفعش به SSH گره نخورد.
+     *
+     * ⚠️ اگر هیچ صندوقی پیکربندی نشده باشد این چک سبز و ساکت است — کرونش هم
+     * (`when(filled(...))`) اصلاً بیدار نمی‌شود، پس هشدارش بی‌معنی بود.
+     */
+    private function mailboxes(): array
+    {
+        $accounts = (array) config('mailboxes.accounts', []);
+
+        if ($accounts === []) {
+            return $this->row('mailboxes', true, 'ok', 'صندوق‌های ایمیل', 'روی این نصب فعال نیست.');
+        }
+
+        $state = \App\Services\Mail\MailboxSync::state();
+        $labels = collect($accounts)->pluck('label', 'key')->all();
+
+        $bad = [];
+        foreach ($state as $key => $s) {
+            if (($s['ok'] ?? true) === false) {
+                $bad[] = ($labels[$key] ?? $key).': '.mb_substr((string) ($s['error'] ?? '—'), 0, 90);
+            }
+        }
+
+        if ($bad !== []) {
+            return $this->row('mailboxes', false, 'fail', 'صندوق‌های ایمیل',
+                fa_num(count($bad)).' صندوق خوانده نمی‌شود، پس نامهٔ تازه‌ای هم وارد پنل نمی‌شود — '
+                .implode(' · ', $bad)
+                .' — اگر رمز عوض شده، رمزِ برنامهٔ صندوق را در .env سرور به‌روز کنید.',
+                [['label' => 'صندوق‌ها', 'url' => route('admin.mail')]]);
+        }
+
+        /*
+        | ⚠️ «هرگز اجرا نشده» سبز نیست.
+        |
+        | وضعیتِ خالی یعنی این کرون از زمانِ نصبِ همین قابلیت یک بار هم نرسیده —
+        | که خودش یک خرابیِ کامل است و دقیقاً شبیهِ «همه‌چیز آرام» به‌نظر می‌رسد.
+        | همان تلهٔ `CloudInventory`: نبودِ خبر را «خبرِ خوب» نخوان.
+        */
+        if ($state === []) {
+            return $this->row('mailboxes', false, 'warn', 'صندوق‌های ایمیل',
+                'هنوز هیچ همگام‌سازیِ صندوقی ثبت نشده — یعنی کرونِ mailbox:sync یک بار هم کامل نشده.',
+                [['label' => 'صندوق‌ها', 'url' => route('admin.mail')]]);
+        }
+
+        return $this->row('mailboxes', true, 'ok', 'صندوق‌های ایمیل', 'همهٔ صندوق‌ها خوانده می‌شوند.');
     }
 
     private function recentErrors(): array
