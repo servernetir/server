@@ -22,6 +22,22 @@ use Throwable;
 class MailboxSync
 {
     /**
+     * کلیدِ تنظیمات که نتیجهٔ آخرین همگام‌سازیِ هر صندوق در آن می‌نشیند.
+     *
+     * 🔴 چرا اصلاً ذخیره می‌شود، وقتی از قبل `Log::error` داشتیم:
+     *
+     * چون آن لاگ عملاً **خوانده نمی‌شود**. `laravel.log` روی پروداکشن ۱۰ مگابایت
+     * است و از پنل هم بیرون نمی‌آید (API فایل را خالی برمی‌گرداند)؛ خواندنش
+     * یعنی SSH. نتیجه: این همگام‌سازی ساعت‌ها می‌توانست شکست بخورد و تنها
+     * نشانه‌اش صفحه‌ای بود که **نامهٔ تازه‌ای نشان نمی‌داد** — یعنی دقیقاً شبیهِ
+     * «امروز کسی ایمیل نزده».
+     *
+     * همان قاعدهٔ ثبت‌شده در CLAUDE.md: خرابی‌ای که فقط در لاگِ سرور رد می‌گذارد،
+     * از دیدِ مدیر اصلاً وجود ندارد.
+     */
+    public const STATE_KEY = 'mailbox_sync_state';
+
+    /**
      * @return array<string, array{new:int, seen:int, error?:string}>
      */
     public function run(?string $only = null): array
@@ -40,7 +56,67 @@ class MailboxSync
             Log::warning('mailbox.sync.no_accounts');
         }
 
+        $this->rememberState($out);
+
         return $out;
+    }
+
+    /**
+     * آخرین وضعیتِ هر صندوق: `['ceo' => ['ok' => false, 'at' => …, 'error' => …]]`
+     *
+     * ⚠️ خواندنش هرگز throw نمی‌کند — هم `SystemHealth` صدایش می‌زند هم صفحهٔ
+     * `/admin/mail`، و هیچ‌کدام نباید به‌خاطرِ یک JSONِ خراب یا جدولِ نساخته
+     * ۵۰۰ بدهند. نبودِ خبر یعنی «هنوز اجرا نشده»، نه «سالم است».
+     *
+     * @return array<string, array{ok:bool, at:string, error?:string}>
+     */
+    public static function state(): array
+    {
+        try {
+            $raw = \App\Models\Setting::get(self::STATE_KEY);
+        } catch (Throwable) {
+            return [];
+        }
+
+        $decoded = json_decode((string) $raw, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * ⚠️ فقط صندوق‌هایی که همین اجرا بررسی شدند به‌روز می‌شوند.
+     *
+     * `--account=ceo` نباید وضعیتِ دو صندوقِ دیگر را پاک کند: خالی‌شدنشان یعنی
+     * «هنوز اجرا نشده» و یک شکستِ زندهٔ آن دو را از صفحه محو می‌کرد.
+     *
+     * ⚠️ `protected` است تا تست بتواند بی‌تماسِ IMAP صدایش بزند. تماسِ واقعی
+     * از این ماشین ممکن نیست و بدتر: این باکس به **هر** پورتی «وصل» می‌شود
+     * (بخشِ تست در CLAUDE.md)، پس فیکسچرِ شبکه‌ای این‌جا دروغ می‌گوید.
+     *
+     * @param  array<string, array{new:int, seen:int, error?:string}>  $results
+     */
+    protected function rememberState(array $results): void
+    {
+        if ($results === []) {
+            return;
+        }
+
+        $state = self::state();
+
+        foreach ($results as $key => $r) {
+            $state[$key] = array_filter([
+                'ok'    => ! isset($r['error']),
+                'at'    => now()->toIso8601String(),
+                'error' => $r['error'] ?? null,
+            ], fn ($v) => $v !== null);
+        }
+
+        try {
+            \App\Models\Setting::put(self::STATE_KEY, json_encode($state, JSON_UNESCAPED_UNICODE));
+        } catch (Throwable $e) {
+            // نوشتنِ وضعیت نباید خودِ همگام‌سازی را بکشد؛ نامه‌ها از قبل ثبت شده‌اند.
+            Log::warning('mailbox.sync.state_write_failed', ['err' => $e->getMessage()]);
+        }
     }
 
     /**

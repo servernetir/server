@@ -51,10 +51,28 @@ class MailboxController extends Controller
             ];
         }
 
+        /*
+        | 🔴 «هیچ نامهٔ تازه‌ای نیست» و «صندوق اصلاً خوانده نمی‌شود» روی این صفحه
+        | تا امروز **یک شکل** داشتند.
+        |
+        | شکستِ IMAP فقط یک خط در `laravel.log` می‌گذاشت — لاگی که روی پروداکشن
+        | ۱۰ مگابایت است و از پنل بیرون نمی‌آید. پس متنِ واقعیِ خطا این‌جا آورده
+        | می‌شود، نه یک «خطایی رخ داد».
+        */
+        $labels = collect($boxes)->pluck('label', 'key')->all();
+
+        $syncErrors = collect(\App\Services\Mail\MailboxSync::state())
+            ->filter(fn ($s) => ($s['ok'] ?? true) === false)
+            ->map(fn ($s, $key) => [
+                'label' => $labels[$key] ?? $key,
+                'error' => (string) ($s['error'] ?? '—'),
+            ])->values()->all();
+
         return view('admin.mail', [
             'notReady'   => false,
             'configured' => $boxes !== [],
             'boxes'      => $boxes,
+            'syncErrors' => $syncErrors,
             'messages'   => $messages,
             'account'    => $account,
             'filter'     => $filter,

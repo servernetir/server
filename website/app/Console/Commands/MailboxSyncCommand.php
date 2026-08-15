@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\Mail\MailboxSync;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 
 /**
@@ -27,12 +28,12 @@ class MailboxSyncCommand extends Command
             return self::SUCCESS;
         }
 
-        $failed = false;
+        $failed = [];
 
         foreach ($results as $key => $r) {
             if (isset($r['error'])) {
                 $this->error("✗ {$key}: {$r['error']}");
-                $failed = true;
+                $failed[] = "{$key}: {$r['error']}";
 
                 continue;
             }
@@ -40,6 +41,24 @@ class MailboxSyncCommand extends Command
             $this->line("✓ {$key}: {$r['new']} تازه از {$r['seen']} بررسی‌شده");
         }
 
-        return $failed ? self::FAILURE : self::SUCCESS;
+        if ($failed !== []) {
+            /*
+            | 🔴 ردیابِ خطا، نه فقط `laravel.log`.
+            |
+            | تا امروز تنها ردِ این شکست یک خط در لاگی بود که ۱۰ مگابایت است و
+            | از پنل خوانده نمی‌شود — یعنی برای مدیر عملاً نامرئی. حالا متنِ
+            | **واقعیِ** خطا در `/admin/errors` می‌نشیند و رفعش به SSH گره
+            | نمی‌خورد.
+            |
+            | ⚠️ گلوگاهِ ۶ ساعته عمدی است و همان درسِ سیلِ ۴۰۴ در CLAUDE.md:
+            | پنجرهٔ ردیاب ۴۰۰ خط است و این کرون ساعتی می‌دود. رمزِ باطل هفته‌ها
+            | همان می‌مانَد، پس بی‌گلوگاه روزی ۲۴ خطِ تکراری بقیهٔ خطاها را
+            | بیرون می‌انداخت. سکوت بینِ دو شلیک بی‌خطر است: `SystemHealth`
+            | همین وضعیت را **دائمی** قرمز نگه می‌دارد و به هیچ گلوگاهی بند نیست.
+            */
+            ErrorTracker::noteOnce('mail', 'صندوق خوانده نشد — '.implode(' · ', $failed), 21600);
+        }
+
+        return $failed !== [] ? self::FAILURE : self::SUCCESS;
     }
 }
