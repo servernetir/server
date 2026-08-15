@@ -143,18 +143,33 @@ class RemoteDownloadsTest extends TestCase
         $this->assertStringContainsString('۱.۴.۹', $html, 'نسخه باید روی صفحه دیده شود');
     }
 
-    /** لینکِ دانلودِ منو هم از همان منبع می‌آید و بی‌فایل اصلاً رندر نمی‌شود. */
-    public function test_the_menu_download_button_appears_only_with_a_real_file(): void
+    /**
+     * 🔴 منو فایل دانلود نمی‌کند — حتی وقتی پورتال زنده است.
+     *
+     * روزی زیرِ ردیفِ ریموت یک دکمهٔ «دانلود مستقیم» گذاشته شد تا کاربر یک کلیک
+     * زودتر به فایل برسد. کارفرما درست گفت که زشت است: در ستونی که همهٔ
+     * آیتم‌هایش ردیفِ یک‌شکل‌اند، یک دکمهٔ اضافه ناهمگون درمی‌آید — و آیتمِ منویی
+     * که به‌جای بازکردنِ صفحه ZIP می‌دهد رفتارِ غیرمنتظره‌ای دارد.
+     *
+     * این تست همان تصمیم را قفل می‌کند، و **حالتِ پورتالِ زنده** را می‌سنجد چون
+     * فقط در همان حالت بود که دکمه رندر می‌شد؛ سنجیدنِ حالتِ خاموش، محافظِ
+     * بی‌اثری می‌شد که از برگشتنِ دکمه خبر نمی‌داد.
+     */
+    public function test_the_menu_never_hands_out_a_file(): void
     {
-        Cache::put('remote_release', ['version' => null, 'files' => [], 'ok' => false], 60);
-        $this->assertStringNotContainsString('tmega-sub', $this->get('/')->assertOk()->getContent());
-
-        Cache::forget('remote_release');
         Cache::put('remote_release', (new RemoteRelease())->parse($this->portalHtml()), 60);
+
         $html = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('tmega-sub', $html);
-        $this->assertStringContainsString('servernet-remote-1.4.9-windows-x64.zip', $html);
+        $this->assertStringNotContainsString('tmega-sub', $html);
+        $this->assertStringNotContainsString('servernet-remote-1.4.9-windows-x64.zip', $html,
+            'منو نباید به فایلِ نصب لینک بدهد');
+        $this->assertStringContainsString('/solutions/remote', $html,
+            'خودِ ردیفِ ریموت باید بماند — فقط دکمهٔ دانلودش برداشته شد');
+
+        // و فایل هنوز یک جای دیگر هست، وگرنه این حذف یعنی گم‌کردنِ راهِ دانلود.
+        $this->assertStringContainsString('servernet-remote-1.4.9-windows-x64.zip',
+            $this->get('/solutions/remote')->assertOk()->getContent());
     }
 
     // ═══════════════ ۳) قراردادها ═══════════════
