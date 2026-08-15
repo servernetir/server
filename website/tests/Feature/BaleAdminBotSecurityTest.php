@@ -460,6 +460,62 @@ class BaleAdminBotSecurityTest extends TestCase
         $this->assertSame($admin->id, (int) $bind['user_id']);
     }
 
+    /**
+     * 🔴 بن‌بستی که کارفرما زنده گزارش داد: «کد /pair را زدم، ربات می‌گوید
+     * شماره‌ات را اشتراک بگذار.»
+     *
+     * علت: کلیدِ روشن/خاموش پیش‌فرضش خاموش بود و `matches()` آن را **پیش از**
+     * شاخهٔ اتصال می‌سنجید، در حالی که پنل روشن‌کردن را به «اول متصل شو» مشروط
+     * می‌کرد. پس `/pair` هرگز به کنسول نمی‌رسید و به دکمهٔ اشتراکِ شماره
+     * می‌افتاد — بی‌هیچ خطایی، در حالی که هر دو سرِ حلقه «درست» به‌نظر می‌رسیدند.
+     *
+     * این تست کلید را صریح روی خاموش می‌گذارد و ادعا می‌کند اتصال باز هم
+     * برقرار می‌شود.
+     */
+    public function test_pairing_works_even_though_the_console_starts_switched_off(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $admin = $this->admin();
+        $this->actingAs($admin, 'web')->post('/admin/bale/pair');
+
+        $code = null;
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
+
+        // 🔴 صریحاً خاموش — همان وضعیتی که کارفرما در آن گیر کرد
+        Setting::put(AdminBaleGate::KEY_ENABLED, '0');
+
+        $this->say('/pair '.$code, self::OWNER_CHAT);
+
+        $gate = app(AdminBaleGate::class);
+
+        $this->assertNotNull($gate->binding(), 'با کلیدِ خاموش، /pair به دکمهٔ اشتراکِ شماره افتاد');
+        $this->assertTrue($gate->enabled(), 'اتصال برقرار شد ولی کنسول خاموش ماند — بن‌بستِ بعدی');
+
+        // و بلافاصله باید فرمان بگیرد
+        $this->say('راهنما', self::OWNER_CHAT);
+        $this->assertStringContainsString('کنسولِ مدیر', $this->textsSentTo(self::OWNER_CHAT));
+    }
+
+    /**
+     * ⚠️ نیمهٔ دومِ همان ادعا: بی‌«اتصالِ در انتظار»، هیچ چتی حق ندارد /pair بزند.
+     *
+     * وگرنه رفعِ بن‌بست بالا، پنجرهٔ اتصال را برای کلِ اینترنت باز می‌کرد.
+     */
+    public function test_pair_is_refused_when_no_pairing_was_started_from_the_panel(): void
+    {
+        Setting::put(AdminBaleGate::KEY_ENABLED, '1');
+
+        $this->say('/pair 123456', self::ATTACKER_CHAT);
+
+        $this->assertNull(app(AdminBaleGate::class)->binding());
+        $this->assertFalse(app(AdminBaleGate::class)->pairingPending());
+    }
+
     /** و همان کد بارِ دوم کار نمی‌کند */
     public function test_a_pairing_code_is_single_use(): void
     {
