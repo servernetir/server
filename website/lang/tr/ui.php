@@ -171,6 +171,8 @@ return [
     'au_howfix' => 'Nasıl düzeltirim?', 'au_copy' => 'Kopyala', 'au_copied' => 'Kopyalandı',
     'au_f_all' => 'Tümü', 'au_f_fail' => 'Sadece hatalar', 'au_f_warn' => 'Sadece uyarılar',
     'au_impact' => 'Etki', 'au_print' => 'Raporu yazdır', 'au_who' => 'Kime', 'au_jump' => 'Bu bölüme git',
+    'sol_dl_ver' => 'Son sürüm: :v', 'sol_dl_soon' => 'Yakında',
+    'nav_remote_dl' => 'Doğrudan indir',
     'tl_pass' => 'Geçti', 'tl_warn' => 'Uyarı', 'tl_fail' => 'Başarısız', 'tl_weight' => 'Ağırlık',
     'tl_passes' => 'geçti', 'tl_warns' => 'uyarı', 'tl_fails' => 'başarısız',
     'tl_err_unreach' => 'Siteye ulaşılamadı; URL\'yi kontrol edin veya sonra deneyin.',

@@ -277,10 +277,10 @@ return [
             'downloads_d' => 'نسخه‌ی متناسب با سیستم‌عامل خود را از پورتال ریموت دریافت کنید.',
             'downloads_btn' => 'دانلود',
             'downloads' => [
-                ['icon' => 'monitor', 't' => 'ویندوز', 'meta' => '۶۴ بیت · قابل‌حمل', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'اندروید', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'monitor', 't' => 'مک', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'آیفون', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'windows', 't' => 'ویندوز', 'meta' => '۶۴ بیت · قابل‌حمل', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'android', 't' => 'اندروید', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'mac', 't' => 'مک', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'ios', 't' => 'آیفون', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
             ],
 
             'compare_t' => 'چرا سرورنت ریموت، نه ابزار خارجی؟',
@@ -354,10 +354,10 @@ return [
             'downloads_d' => 'Get the build for your operating system from the Remote portal.',
             'downloads_btn' => 'Download',
             'downloads' => [
-                ['icon' => 'monitor', 't' => 'Windows', 'meta' => '64-bit · portable', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'Android', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'monitor', 't' => 'Mac', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'iPhone', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'windows', 't' => 'Windows', 'meta' => '64-bit · portable', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'android', 't' => 'Android', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'mac', 't' => 'Mac', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'ios', 't' => 'iPhone', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
             ],
 
             'compare_t' => 'Why ServerNet Remote, not a foreign tool?',
@@ -431,10 +431,10 @@ return [
             'downloads_d' => 'İşletim sisteminize uygun sürümü Remote portalından alın.',
             'downloads_btn' => 'İndir',
             'downloads' => [
-                ['icon' => 'monitor', 't' => 'Windows', 'meta' => '64-bit · taşınabilir', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'Android', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'monitor', 't' => 'Mac', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
-                ['icon' => 'smartphone', 't' => 'iPhone', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'windows', 't' => 'Windows', 'meta' => '64-bit · taşınabilir', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'android', 't' => 'Android', 'meta' => 'arm64 · APK', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'monitor', 'platform' => 'mac', 't' => 'Mac', 'meta' => 'Apple Silicon · DMG', 'href' => 'https://remote.servernet.cloud'],
+                ['icon' => 'smartphone', 'platform' => 'ios', 't' => 'iPhone', 'meta' => 'IPA · Sideload', 'href' => 'https://remote.servernet.cloud'],
             ],
 
             'compare_t' => 'Neden yabancı araç değil, ServerNet Remote?',

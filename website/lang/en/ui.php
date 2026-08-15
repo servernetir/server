@@ -171,6 +171,8 @@ return [
     'au_howfix' => 'How do I fix it?', 'au_copy' => 'Copy', 'au_copied' => 'Copied',
     'au_f_all' => 'All', 'au_f_fail' => 'Failures only', 'au_f_warn' => 'Warnings only',
     'au_impact' => 'Impact', 'au_print' => 'Print report', 'au_who' => 'For', 'au_jump' => 'Jump to this section',
+    'sol_dl_ver' => 'Latest version: :v', 'sol_dl_soon' => 'Coming soon',
+    'nav_remote_dl' => 'Direct download',
     'tl_pass' => 'Pass', 'tl_warn' => 'Warn', 'tl_fail' => 'Fail', 'tl_weight' => 'Weight',
     'tl_passes' => 'passed', 'tl_warns' => 'warnings', 'tl_fails' => 'failed',
     'tl_err_unreach' => 'Could not reach the site; check the URL or try again later.',

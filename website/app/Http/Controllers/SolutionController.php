@@ -60,8 +60,29 @@ class SolutionController extends Controller
         abort_unless(isset($solutions[$slug]), 404);
 
         return view('pages.solution', [
-            'slug' => $slug,
-            'sol'  => $solutions[$slug],
+            'slug'    => $slug,
+            'sol'     => $solutions[$slug],
+            'release' => $slug === 'remote' ? $this->remoteRelease() : null,
         ]);
+    }
+
+    /**
+     * نسخه و لینک‌های دانلودِ ریموت — از خودِ زیردامنه.
+     *
+     * 🔴 چرا فقط برای این یک اسلاگ: تماسِ شبکه‌ای (هرچند کش‌شده و کوتاه) نباید
+     * روی **همهٔ** صفحات راهکار بنشیند. صفحهٔ تلفن ابری دلیلی ندارد منتظرِ
+     * پورتالِ ریموت بماند.
+     *
+     * ⚠️ خروجی هرگز `null` بودنش صفحه را نمی‌شکند: ویو خودش به مقادیرِ
+     * `config/solutions.php` برمی‌گردد.
+     */
+    private function remoteRelease(): array
+    {
+        $r = app(\App\Services\RemoteRelease::class);
+
+        return [
+            'version' => $r->version(),
+            'files'   => $r->info()['files'],
+        ];
     }
 }

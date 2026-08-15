@@ -226,10 +226,32 @@
                 </a>
                 @endif
               @endforeach
-              <a class="tmega-link" href="{{ lroute('solution', 'remote') }}">
+              {{--
+                «سرورنت ریموت» محصولِ **خودمان** است، نه یکی از ابزارهای عمومی —
+                و رایگان، پس بهترین قلابِ ورودِ سایت است. تا امروز مثل بقیه یک
+                لینکِ ساده بود و در میانِ نُه آیتمِ این ستون گم می‌شد.
+
+                حالا دکمهٔ دانلودِ مستقیمِ خودش را دارد: کسی که برای گرفتنِ برنامه
+                آمده، از هر صفحهٔ سایت **یک کلیک** با فایل فاصله دارد، نه سه تا.
+                نسخه هم کنارش می‌آید تا معلوم باشد چیزِ زنده‌ای است.
+
+                ⚠️ لینکِ دانلود از `RemoteRelease` می‌آید (نسخهٔ روزِ زیردامنه).
+                اگر پورتال در دسترس نبود، دکمه اصلاً رندر نمی‌شود و آیتم به همان
+                لینکِ سادهٔ قبلی برمی‌گردد — منو هرگز دکمهٔ مرده نشان نمی‌دهد.
+              --}}
+              @php $remoteWin = app(\App\Services\RemoteRelease::class)->fileFor('windows'); @endphp
+              <a class="tmega-link is-feature" href="{{ lroute('solution', 'remote') }}">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-monitor"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></span>
+                <span class="tmega-tx">
+                  <b>{{ __('ui.tb_remote') }}<span class="tmega-pill">{{ __('ui.nav_free') }}</span></b>
+                  <small>{{ __('ui.tb_remote_d') }}</small>
+                </span>
               </a>
+              @if($remoteWin)
+                <a class="tmega-sub" href="{{ $remoteWin }}" download rel="noopener">
+                  <svg class="icon"><use href="#i-arrow"/></svg>{{ __('ui.nav_remote_dl') }}
+                </a>
+              @endif
               <a class="tmega-link" href="{{ lroute('solution', 'bpmn-designer') }}">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-flow"/></svg></span>
                 <span class="tmega-tx"><b>{{ __('ui.tb_bpmn') }}</b><small>{{ __('ui.tb_bpmn_d') }}</small></span>

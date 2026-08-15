@@ -3203,3 +3203,21 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
 .aud-stage::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--cyan);
   animation:audPulse 1.1s ease-in-out infinite}
 @keyframes audPulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}
+
+/* ---------- ریموت در مگامنو: محصولِ خودمان، نه یک لینکِ دیگر ---------- */
+.tmega-link.is-feature{border:1px solid var(--line-2);border-radius:12px;
+  background:linear-gradient(120deg,rgba(139,92,246,.1),rgba(34,211,238,.06))}
+.tmega-pill{margin-inline-start:7px;font-size:10px;font-weight:800;border-radius:99px;
+  padding:2px 8px;background:rgba(52,211,153,.14);color:var(--green);vertical-align:1px}
+.tmega-sub{display:inline-flex;align-items:center;gap:7px;margin:6px 0 4px;padding:7px 12px;
+  border-radius:10px;font-size:12.5px;font-weight:600;color:var(--cyan);
+  background:rgba(34,211,238,.09);border:1px solid rgba(34,211,238,.25);transition:.18s var(--ease)}
+.tmega-sub:hover{background:rgba(34,211,238,.16)}
+.tmega-sub .icon{width:14px;height:14px;transform:rotate(90deg)}
+
+/* ---------- دانلودها: نسخه، و سکویی که هنوز نیامده ---------- */
+.sol-dl-ver{text-align:center;color:var(--muted);font-size:13.5px;margin:-8px 0 22px}
+/* 🔴 «به‌زودی» عمداً `<a>` نیست و شبیه دکمه هم نیست: دکمه‌ای که کلیک می‌شود و
+   هیچ فایلی نمی‌دهد، از نبودِ دکمه بدتر است. */
+.sol-dl.is-soon{opacity:.5;cursor:default;pointer-events:none}
+.sol-dl.is-soon .sol-dl-btn{background:var(--surface-2);color:var(--dim);border-color:var(--line)}

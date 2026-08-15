@@ -171,6 +171,8 @@ return [
     'au_howfix' => 'چطور درستش کنم؟', 'au_copy' => 'کپی', 'au_copied' => 'کپی شد',
     'au_f_all' => 'همه', 'au_f_fail' => 'فقط مشکل‌ها', 'au_f_warn' => 'فقط هشدارها',
     'au_impact' => 'اثر', 'au_print' => 'چاپ گزارش', 'au_who' => 'برای', 'au_jump' => 'رفتن به این بخش',
+    'sol_dl_ver' => 'آخرین نسخه: :v', 'sol_dl_soon' => 'به‌زودی',
+    'nav_remote_dl' => 'دانلود مستقیم',
     'tl_pass' => 'قبول', 'tl_warn' => 'هشدار', 'tl_fail' => 'مشکل', 'tl_weight' => 'اهمیت',
     'tl_passes' => 'قبول', 'tl_warns' => 'هشدار', 'tl_fails' => 'ایراد',
     'tl_err_unreach' => 'دسترسی به سایت ممکن نشد؛ آدرس را بررسی کنید یا بعداً تلاش کنید.',

@@ -165,14 +165,50 @@
       <h2>{{ $s['downloads_t'] ?? '' }}</h2>
       @if(!empty($s['downloads_d']))<p>{{ $s['downloads_d'] }}</p>@endif
     </div>
+    @if(!empty($release['version']))
+      <p class="sol-dl-ver reveal">{{ __('ui.sol_dl_ver', ['v' => fa_num($release['version'])]) }}</p>
+    @endif
+
+    {{--
+      🔴 دکمهٔ دانلود فقط وقتی دکمه است که **فایلی** پشتش باشد.
+
+      تا امروز هر چهار سکو (ویندوز، اندروید، مک، آیفون) دکمهٔ دانلود داشتند و
+      هر چهارتا به آدرسِ خالیِ پورتال می‌رفتند — در حالی که سه‌تای‌شان روی خودِ
+      پورتال «به‌زودی» بودند. یعنی مشتری کلیک می‌کرد، «به‌زودی» می‌دید، و نتیجه
+      می‌گرفت محصول ادعاست. حالا سکویی که هنوز منتشر نشده صریح «به‌زودی» است و
+      اصلاً لینک نیست؛ و لینکِ سکوی منتشرشده مستقیم به **فایلِ نسخهٔ روز** روی
+      زیردامنه می‌رود، پس انتشارِ تازه خودبه‌خود این‌جا هم عوض می‌شود.
+
+      ⚠️ اگر پورتال در دسترس نبود، `$file` نال می‌شود و به رفتارِ قدیمی
+      (لینک به خودِ پورتال از config) برمی‌گردیم — نه صفحهٔ خراب، نه دکمهٔ مرده.
+    --}}
     <div class="sol-dl-grid">
       @foreach($s['downloads'] as $d)
-      <a class="sol-dl reveal" href="{{ $hrefOf($d['href'] ?? '') }}" @if($isExt($d['href'] ?? '')) target="_blank" rel="noopener" @endif>
-        <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
-        <b>{{ $d['t'] }}</b>
-        <small>{{ $d['meta'] }}</small>
-        <span class="sol-dl-btn">{{ $d['btn'] ?? ($s['downloads_btn'] ?? '') }}</span>
-      </a>
+        @php
+            $platform = $d['platform'] ?? null;
+            $file     = $platform ? ($release['files'][$platform] ?? null) : null;
+            $known    = $platform !== null && ! empty($release['files']);
+            $soon     = $known && $file === null;
+            $href     = $file ?? ($d['href'] ?? '');
+        @endphp
+
+        @if($soon)
+          <div class="sol-dl reveal is-soon" aria-disabled="true">
+            <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
+            <b>{{ $d['t'] }}</b>
+            <small>{{ $d['meta'] }}</small>
+            <span class="sol-dl-btn">{{ __('ui.sol_dl_soon') }}</span>
+          </div>
+        @else
+          <a class="sol-dl reveal" href="{{ $hrefOf($href) }}"
+             @if($isExt($href)) target="_blank" rel="noopener" @endif
+             @if($file) download @endif>
+            <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
+            <b>{{ $d['t'] }}</b>
+            <small>{{ $d['meta'] }}</small>
+            <span class="sol-dl-btn">{{ $d['btn'] ?? ($s['downloads_btn'] ?? '') }}</span>
+          </a>
+        @endif
       @endforeach
     </div>
   </div>
