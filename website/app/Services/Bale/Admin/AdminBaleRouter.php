@@ -41,6 +41,15 @@ use App\Support\ErrorTracker;
  */
 class AdminBaleRouter
 {
+    /**
+     * پیشوندِ `callback_data`ِ ما.
+     *
+     * ⚠️ نسخه‌دار است: اگر روزی معنیِ دکمه‌ها عوض شود، دکمه‌های **قدیمیِ** توی
+     * تاریخچهٔ چت هنوز کلیک‌شدنی‌اند. بی‌نسخه، یک کلیکِ روی پیامِ سه‌ماه‌پیش
+     * کارِ اشتباهی را اجرا می‌کرد.
+     */
+    private const CB_PREFIX = 'v1:';
+
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     private const MAX_SENDS = 2;
 
@@ -159,6 +168,85 @@ class AdminBaleRouter
         }
     }
 
+    // ──────────────────── دکمه‌های شیشه‌ای (callback) ────────────────────
+
+    /**
+     * آیا این آپدیت، کلیکِ دکمهٔ کنسولِ مدیر است؟
+     *
+     * ⚠️ `callback_query` **هیچ `message` در سطحِ بالا ندارد**، پس شاخه‌اش باید
+     * بالای جایی بنشیند که کنترلر روی `chat_id`ِ خالی برمی‌گردد — وگرنه کدِ
+     * مرده است. جایش در وب‌هوک بلافاصله بعد از `pre_checkout_query` است، و
+     * چون بله در هر آپدیت **حداکثر یک** فیلدِ اختیاری می‌گذارد، هیچ‌وقت با
+     * پرداخت تصادم نمی‌کند.
+     */
+    public function matchesCallback(array $update): bool
+    {
+        try {
+            $cb = $update['callback_query'] ?? null;
+
+            if (! is_array($cb) || ! isset($cb['id'], $cb['data'])) {
+                return false;
+            }
+
+            if (! str_starts_with((string) $cb['data'], self::CB_PREFIX)) {
+                return false;      // دکمهٔ ما نیست
+            }
+
+            $from = (string) ($cb['from']['id'] ?? '');
+
+            if ($from === '' || ($cb['from']['is_bot'] ?? false) === true) {
+                return false;
+            }
+
+            if (! $this->gate->enabled() || ! $this->gate->isBoundChat($from)) {
+                return false;
+            }
+
+            return $this->gate->boundUser() !== null;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** اجرای کلیک — هرگز throw نمی‌کند */
+    public function handleCallback(array $update): void
+    {
+        $cb = (array) ($update['callback_query'] ?? []);
+        $id = (string) ($cb['id'] ?? '');
+
+        try {
+            $data = substr((string) ($cb['data'] ?? ''), strlen(self::CB_PREFIX));
+            [$verb, $arg] = array_pad(explode(':', $data, 2), 2, '');
+
+            /*
+            | 🔴 اول به خودِ کلیک جواب بده، بعد کارِ اصلی.
+            |
+            | بی‌این، دکمه در کلاینتِ کاربر تا ابد «در حالِ بارگذاری» می‌مانَد و
+            | کارفرما فکر می‌کند ربات هنگ کرده — حتی اگر کار درست انجام شده باشد.
+            */
+            $this->sender->answerCallback($id, match ($verb) {
+                'ping' => '✅ رسید',
+                default => '',
+            });
+
+            match ($verb) {
+                // آزمونِ زنده: فقط ثابت می‌کند دکمه و کلیک هر دو کار می‌کنند
+                'ping' => $this->replyToOwner(
+                    "✅ دکمه‌های شیشه‌ای کار می‌کنند.\n"
+                    ."کلیکِ شما به سرور رسید و پاسخش از همین‌جا رفت.\n\n"
+                    .'شناسهٔ دکمه: '.($arg !== '' ? $arg : '—')
+                ),
+                default => $this->replyToOwner('این دکمه دیگر معتبر نیست.'),
+            };
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'callback']);
+
+            if ($id !== '') {
+                $this->sender->answerCallback($id, '⚠️ اجرا نشد');
+            }
+        }
+    }
+
     // ───────────────────────────── اجرا ─────────────────────────────
 
     /** هرگز throw نمی‌کند و هرگز چیزی برنمی‌گرداند */
@@ -234,6 +322,23 @@ class AdminBaleRouter
 
         if (in_array($verb, ['/health', 'سلامت', 'وضعیت‌سامانه'], true)) {
             $this->replyToOwner($this->ui->health());
+
+            return;
+        }
+
+        // آزمونِ زندهٔ دکمه‌ها — عمداً بی‌عارضه: هیچ‌چیز نمی‌نویسد
+        if (in_array($verb, ['/test', 'دکمه', 'آزمون'], true)) {
+            $this->sendButtons(
+                "🧪 آزمونِ دکمه‌های شیشه‌ای
+
+یکی از دکمه‌های زیر را بزنید. "
+                ."اگر پاسخ گرفتید، یعنی بله کلیک را به ما می‌رساند و می‌توانیم "
+                ."کلِ کنسول را دکمه‌ای کنیم.",
+                [[
+                    ['text' => '✅ دکمهٔ یک', 'data' => self::CB_PREFIX.'ping:1'],
+                    ['text' => '🔵 دکمهٔ دو', 'data' => self::CB_PREFIX.'ping:2'],
+                ]],
+            );
 
             return;
         }
@@ -464,6 +569,34 @@ class AdminBaleRouter
         }
 
         $this->send((string) $chat, $text);
+    }
+
+    /**
+     * پیامِ دکمه‌دار، همیشه به چتِ متصل.
+     *
+     * ⚠️ مثلِ `replyToOwner()` آرگومانِ مقصد ندارد — همان استدلالِ امنیتی.
+     *
+     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     */
+    private function sendButtons(string $text, array $rows): void
+    {
+        $chat = $this->gate->binding()['chat_id'] ?? '';
+
+        if ($chat === '' || $this->sends >= self::MAX_SENDS) {
+            return;
+        }
+
+        $this->sends++;
+
+        if ($this->sender->sendButtons((string) $chat, mb_substr($text, 0, 3500), $rows) === null) {
+            /*
+            | 🔴 اگر بله دکمه را رد کند، **ساکت نمی‌مانیم**: کارفرما پیامی
+            | نمی‌بیند و از «ربات خراب است» قابلِ تشخیص نیست. متنِ ساده را
+            | جایگزین می‌فرستیم تا دستِ‌کم محتوا برسد.
+            */
+            ErrorTracker::noteOnce('bale-admin', 'بله دکمهٔ شیشه‌ای را نپذیرفت.', 900);
+            $this->sender->send((string) $chat, mb_substr($text, 0, 3500));
+        }
     }
 
     /**

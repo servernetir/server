@@ -50,6 +50,34 @@ class BaleWebhookController extends Controller
             return response()->json(['ok' => true]);
         }
 
+        /*
+        | ── کلیکِ دکمهٔ شیشه‌ایِ کنسولِ مدیر ──
+        |
+        | 🔴 جایش **اجباراً** این‌بالاست: `callback_query` هیچ `message` در سطحِ
+        | بالا ندارد، پس اگر پایین‌تر بنشیند به `$chatId === ''` می‌خورد و
+        | بی‌صدا برمی‌گردد — کدِ مرده، بی‌هیچ خطایی.
+        |
+        | ⚠️ و بالای `successful_payment` بودنش بی‌خطر است چون بله در هر آپدیت
+        | **حداکثر یک** فیلدِ اختیاری می‌گذارد؛ یک آپدیت هرگز هم‌زمان کلیک و
+        | پرداخت نیست. `matchesCallback()` هم صریح `callback_query` می‌خواهد.
+        |
+        | ⚠️ هنوز **زیرِ** `pre_checkout_query` است تا مهلتِ ۱۰ ثانیه‌ای پرداخت
+        | هیچ کارِ تازه‌ای بالای سرش نداشته باشد.
+        */
+        if (isset($update['callback_query'])) {
+            try {
+                $console = app(\App\Services\Bale\Admin\AdminBaleRouter::class);
+
+                if ($console->matchesCallback($update)) {
+                    $console->handleCallback($update);
+                }
+            } catch (\Throwable $e) {
+                \App\Support\ErrorTracker::noteOnce('bale-admin', $e, 3600);
+            }
+
+            return response()->json(['ok' => true]);
+        }
+
         $message = $update['message'] ?? [];
         $chatId  = (string) ($message['chat']['id'] ?? $message['from']['id'] ?? '');
 
