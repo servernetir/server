@@ -62,6 +62,7 @@ class SettingsController extends Controller
         'infra'    => ['t' => 'زیرساخت و CDN',   'icon' => 'i-cloud'],
         'costs'    => ['t' => 'هزینه‌ها',         'icon' => 'i-tag'],
         'messages' => ['t' => 'الگوی پیام‌ها',    'icon' => 'i-mail'],
+        'bale'     => ['t' => 'رباتِ بله',         'icon' => 'i-bot'],
         'guide'    => ['t' => 'راهنما',           'icon' => 'i-info'],
     ];
 
@@ -193,6 +194,7 @@ class SettingsController extends Controller
             'pricing'  => $this->pricingData($ready),
             'infra'    => $this->infraData($ready),
             'costs'    => $this->costsData(),
+            'bale'     => $this->baleData(),
             'messages' => $this->messagesData(),
             default    => [],
         };
@@ -321,6 +323,26 @@ class SettingsController extends Controller
                     'ip_start' => $ready ? Setting::get('proxmox_ip_start') : null,
                 ],
             ],
+        ];
+    }
+
+    /**
+     * تبِ رباتِ بله — اتصال، کلیدِ روشن/خاموش، و وضعیتِ وب‌هوک.
+     *
+     * ⚠️ خودِ کارِ نوشتن (اتصال/قطع/روشن) هنوز به `/admin/bale/*` می‌رود، نه به
+     * فرمِ عمومیِ تنظیمات: آن مسیرها throttle و گاردِ `admin` مخصوصِ خودشان را
+     * دارند و کدِ اتصال ایمیل می‌فرستد. این تب فقط رابطِ همان‌هاست.
+     */
+    private function baleData(): array
+    {
+        $gate = app(\App\Services\Bale\Admin\AdminBaleGate::class);
+
+        return [
+            'baleEnabled' => $gate->enabled(),
+            'baleUser'    => $gate->boundUser(),
+            'baleBind'    => $gate->binding(),
+            'balePending' => $gate->pendingHuman(),
+            'baleWebhook' => app(\App\Http\Controllers\Admin\BaleAdminController::class)->webhookState(),
         ];
     }
 

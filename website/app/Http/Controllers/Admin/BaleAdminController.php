@@ -8,7 +8,6 @@ use App\Support\ErrorTracker;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Http;
-use Illuminate\View\View;
 
 /**
  * `/admin/bale` — تنها جایی که کنسولِ بله روشن، متصل، یا قطع می‌شود.
@@ -22,16 +21,15 @@ use Illuminate\View\View;
  */
 class BaleAdminController extends Controller
 {
-    public function index(Request $request, AdminBaleGate $gate): View
+    /**
+     * ⚠️ صفحهٔ اختصاصی حذف شد و به تبِ تنظیمات رفت (خواستهٔ کارفرما).
+     *
+     * ریدایرکت می‌مانَد و حذف نمی‌شود: نشانیِ `/admin/bale` ممکن است در
+     * بوکمارک یا در متنِ یک اعلانِ قدیمی باشد، و ۴۰۴ دادنش یعنی «خراب شد».
+     */
+    public function index(): RedirectResponse
     {
-        return view('admin.bale', [
-            'enabled'  => $gate->enabled(),
-            'user'     => $gate->boundUser(),
-            'bind'     => $gate->binding(),
-            'pending'  => $gate->pendingHuman(),
-            'me'       => $request->user(),
-            'webhook'  => $this->webhookTarget(),
-        ]);
+        return redirect('/admin/settings?tab=bale');
     }
 
     public function pair(Request $request, AdminBaleGate $gate): RedirectResponse
@@ -75,7 +73,7 @@ class BaleAdminController extends Controller
      *
      * @return array{state:string,host:?string}
      */
-    private function webhookTarget(): array
+    public function webhookState(): array
     {
         $token = (string) config('services.bale.token');
 
@@ -94,8 +92,27 @@ class BaleAdminController extends Controller
 
             $host = parse_url($url, PHP_URL_HOST) ?: '—';
 
+            /*
+            | 🔴 مقایسه با `request()->getHost()` **غلط بود** و هشدارِ کاذب می‌داد.
+            |
+            | این صفحه روی `console.servernet.cloud` باز می‌شود، ولی وب‌هوک از
+            | `/system/bale-setup` ثبت شده که روی دامنهٔ اصلی می‌دود — پس میزبانِ
+            | ثبت‌شده `servernet.cloud` است و برابریِ ساده هرگز برقرار نمی‌شد.
+            | نتیجه: کارفرما رباتِ کاملاً سالم داشت و صفحه با قرمز می‌گفت
+            | «وب‌هوک به جای دیگری وصل است».
+            |
+            | ⚠️ درسِ کوچک ولی تکراری: چکِ سلامتی که دروغ بگوید، از نبودش بدتر
+            | است — یا کارِ سالم را خراب نشان می‌دهد، یا یاد می‌دهد قرمز را
+            | نادیده بگیرند.
+            |
+            | مقایسه حالا روی **دامنهٔ ثبت‌شدنی** است: `console.servernet.cloud`
+            | و `servernet.cloud` هر دو `servernet.cloud` می‌شوند.
+            */
+            $ours = fn (string $h) => implode('.', array_slice(explode('.', strtolower($h)), -2));
+
             return [
-                'state' => str_contains($url, '/bale/webhook/') && $host === request()->getHost() ? 'ours' : 'elsewhere',
+                'state' => str_contains($url, '/bale/webhook/') && $ours($host) === $ours(request()->getHost())
+                    ? 'ours' : 'elsewhere',
                 'host'  => $host,
             ];
         } catch (\Throwable $e) {
