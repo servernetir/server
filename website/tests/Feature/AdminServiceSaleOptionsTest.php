@@ -60,14 +60,32 @@ class AdminServiceSaleOptionsTest extends TestCase
 
     public function test_the_invoice_can_be_dated_in_the_past(): void
     {
-        $j = \App\Support\Jalali::ofMoment(now()->subDays(3), config('calendar.display_timezone', 'Asia/Tehran'));
+        /*
+        | 🔴 این تست روزی ۳٫۵ ساعت قرمز می‌شد و هیچ‌کس ندید — چون فقط بینِ
+        | ۲۰:۳۰ و ۲۴:۰۰ به وقتِ UTC می‌شکست.
+        |
+        | علت: فرم **روزِ شمسیِ تهران** می‌گیرد (`Jalali::ofMoment(..., Tehran)`)
+        | ولی ادعا با `toDateString()`ِ **UTC** سنجیده می‌شد. تهران +۳:۳۰ است،
+        | پس در آن پنجره روزِ تهران یک روز از روزِ UTC جلوتر است و دو طرفِ
+        | مقایسه دربارهٔ دو روزِ متفاوت حرف می‌زدند.
+        |
+        | ⚠️ باگ در **تست** بود نه در کد: همان قاعدهٔ ثبت‌شدهٔ پروژه که «روزِ
+        | شمسی با ساعتِ تهران تعیین می‌شود، نه UTC». پس مقایسه هم باید در همان
+        | منطقهٔ زمانی باشد که تبدیل در آن انجام شده.
+        |
+        | و بهایش از یک قرمزِ گاه‌به‌گاه بیشتر است: در سوئیتی با ۲۰۰۰ تست، قرمزِ
+        | تصادفی یاد می‌دهد قرمز را نادیده بگیرند.
+        */
+        $tz = config('calendar.display_timezone', 'Asia/Tehran');
+
+        $j = \App\Support\Jalali::ofMoment(now()->subDays(3), $tz);
         $this->sell(['issued_jy' => $j[0], 'issued_jm' => $j[1], 'issued_jd' => $j[2]]);
 
         $inv = Invoice::firstOrFail();
 
         $this->assertSame(
-            now()->subDays(3)->toDateString(),
-            $inv->issued_at->toDateString(),
+            now()->subDays(3)->timezone($tz)->toDateString(),
+            $inv->issued_at->timezone($tz)->toDateString(),
             'تاریخِ صدورِ گذشته اعمال نشد'
         );
     }

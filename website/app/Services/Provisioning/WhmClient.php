@@ -20,14 +20,35 @@ class WhmClient
 {
     public function __construct(private Server $server) {}
 
-    /** @return array{ok:bool,reason:string,data:array,raw:array} */
+    /**
+     * فراخوان‌هایی که ذاتاً کُندند — ثانیه.
+     *
+     * 🔴 `createacct` یک درخواستِ ساده نیست: کاربر و سهمیه، vhostِ اپاچی و
+     * reload، zoneِ DNS و reloadِ named، ایمیل و FTP، و قلّاب‌های پس از ساخت.
+     * روی نودِ شلوغ به‌راحتی از ۳۰ ثانیه رد می‌شود — و ۳۰ ثانیه هم انتخاب نشده
+     * بود، پیش‌فرضِ خودِ لاراول بود.
+     *
+     * ⚠️ فقط همین یکی بودجهٔ بلند می‌گیرد. خواندنی‌ها (accountsummary و…) روی
+     * ۳۰ می‌مانند وگرنه یک WHMِ هنگ‌کرده صفحهٔ پنل را هم نگه می‌دارد.
+     */
+    private const SLOW = ['createacct' => 180];
+
+    /** بودجهٔ همان فراخوان‌های کُند وقتی از **وب** صدا زده می‌شوند */
+    private const SLOW_WEB = 55;
+
+    /** @return array{ok:bool,transport:bool,reason:string,data:array,raw:array} */
     public function call(string $function, array $params = []): array
     {
         $base = 'https://'.$this->server->hostname.':'.$this->server->effectivePort().'/json-api/'.$function;
 
         try {
             $req = Http::acceptJson()
-                ->timeout(30)
+                ->connectTimeout(10)
+                ->timeout($this->budgetFor($function))
+                // ⚠️ `retry(1)` یعنی **یک** تلاش و صفر تکرار (لاراول $times را
+                // کلِ تلاش‌ها می‌گیرد). برای `createacct` عددِ درست همین است:
+                // ساختِ حساب idempotent نیست و تلاشِ دوباره یا حسابِ دوم می‌سازد
+                // یا «این نام از قبل هست» می‌گیرد. دست نزن.
                 ->retry(1, 500, throw: false)
                 ->withHeaders([
                     'Authorization' => 'whm '.$this->server->username.':'.(string) $this->server->api_token,
@@ -39,12 +60,38 @@ class WhmClient
 
             $resp = $req->get($base, array_merge(['api.version' => 1], $params));
         } catch (\Throwable $e) {
-            return ['ok' => false, 'reason' => 'ارتباط با سرور برقرار نشد: '.mb_substr($e->getMessage(), 0, 160), 'data' => [], 'raw' => []];
+            /*
+            | 🔴 «نشنیدیم» با «نه گفت» یکی نیست — و تا امروز یکی بود.
+            |
+            | هر دو `ok=false` می‌دادند و تنها فرقشان یک پیشوندِ فارسی بود که هیچ
+            | کدی نمی‌خوانَد. نتیجه‌اش دقیقاً رخدادِ zhina.shop: تایم‌اوت خوردیم،
+            | حساب آن‌طرف **ساخته شد**، و ما «تحویل ناموفق» به مشتری گفتیم.
+            |
+            | این پرچم تنها راهِ ماشین‌خوان برای تشخیصِ آن حالت است.
+            */
+            return [
+                'ok' => false, 'transport' => true,
+                'reason' => 'ارتباط با سرور برقرار نشد: '.mb_substr($e->getMessage(), 0, 160),
+                'data' => [], 'raw' => [],
+            ];
         }
 
         $json = $resp->json();
         if (! is_array($json)) {
-            return ['ok' => false, 'reason' => 'پاسخِ نامعتبر از سرور (HTTP '.$resp->status().')', 'data' => [], 'raw' => []];
+            /*
+            | ⚠️ این‌جا عمداً `transport` **نیست**.
+            |
+            | بدنهٔ نامعتبر یعنی سرور جواب داد ولی جوابش WHM نبود: توکنِ باطل،
+            | آی‌پیِ بیرونِ allowlistِ cPHulk، صفحهٔ ۴۰۳ِ WAF، پورتِ اشتباه،
+            | میزبانِ عوض‌شده. اینها **خرابیِ پایدارِ پیکربندی**‌اند نه سکسکهٔ
+            | گذرا، و اگر «نمی‌دانم» بخوانیمشان، سرویس در حالتِ ساکتِ دستی
+            | می‌نشیند و ماه‌ها کسی خبردار نمی‌شود. شکستِ صریح این‌جا درست است.
+            */
+            return [
+                'ok' => false, 'transport' => false,
+                'reason' => 'پاسخِ نامعتبر از سرور (HTTP '.$resp->status().')',
+                'data' => [], 'raw' => [],
+            ];
         }
 
         // WHM API 1: metadata.result = 1 موفق / 0 ناموفق
@@ -52,11 +99,31 @@ class WhmClient
         $reason = (string) ($json['metadata']['reason'] ?? ($json['result']['statusmsg'] ?? 'unknown'));
 
         return [
-            'ok'     => $result === 1,
-            'reason' => $reason,
-            'data'   => $json['data'] ?? [],
-            'raw'    => $json,
+            'ok'        => $result === 1,
+            'transport' => false,
+            'reason'    => $reason,
+            'data'      => $json['data'] ?? [],
+            'raw'       => $json,
         ];
+    }
+
+    /**
+     * بودجهٔ زمانیِ این فراخوان.
+     *
+     * ⚠️ ۱۸۰ ثانیه فقط در **کرون**. دکمهٔ «تحویلِ دستی» در پنل همین مسیر را
+     * هم‌زمان صدا می‌زند و پشتِ Cloudflare نشسته؛ درخواستی که سه دقیقه طول
+     * بکشد، آن‌جا قطع می‌شود و سرویس در حالتِ `running` جا می‌مانَد و تا ۱۵
+     * دقیقه هیچ‌کس برش نمی‌دارد — یعنی همان خرابی از درِ دیگر.
+     */
+    private function budgetFor(string $function): int
+    {
+        $slow = self::SLOW[$function] ?? null;
+
+        if ($slow === null) {
+            return 30;
+        }
+
+        return app()->runningInConsole() ? $slow : self::SLOW_WEB;
     }
 
     public function createAccount(array $params): array
@@ -155,9 +222,58 @@ class WhmClient
     /** آیا حساب از قبل روی سرور هست؟ (برای idempotency) */
     public function accountExists(string $user): bool
     {
+        return $this->accountState($user) === true;
+    }
+
+    /**
+     * وضعیتِ حساب — **سه‌حالته**، نه دو‌حالته.
+     *
+     *   true  = هست، و همانی است که ما فروخته‌ایم
+     *   false = نیست (WHM صریح گفت)
+     *   null  = **نتوانستیم بپرسیم** — نه «نیست»
+     *
+     * 🔴 چرا `null` لازم است: نسخهٔ قبلی `ok === true` بود، پس یک قطعیِ گذرا در
+     * لحظهٔ پرسیدن «حساب وجود ندارد» خوانده می‌شد و ما می‌رفتیم `createacct`
+     * بزنیم روی حسابی که زنده است. همان قاعده‌ای که `CloudInventory` سرش درس
+     * گرفت: فهرستِ خالیِ ناموفق یعنی «نپرسیدیم»، نه «چیزی نیست».
+     *
+     * ⚠️ **صرفِ وجودِ نام‌کاربری کافی نیست.** `accountsummary` برای حسابِ
+     * معلق، و برای حسابی که دامنه‌اش با آنچه فروخته‌ایم نمی‌خوانَد، هم
+     * `result=1` می‌دهد. پذیرفتنِ کورِ آن یعنی: رکوردِ DNSِ زیردامنهٔ رایگان به
+     * حسابِ اشتباه اشاره کند، و رمزی ایمیل شود که رمزِ آن حساب نیست. پس ردیف
+     * باید **تطبیق داده شود**؛ ناهماهنگی ⇒ `false` (یعنی «این آن نیست»).
+     *
+     * @param  string|null  $domain  اگر بدهی، دامنهٔ حساب هم سنجیده می‌شود
+     */
+    public function accountState(string $user, ?string $domain = null): ?bool
+    {
         $r = $this->accountSummary($user);
 
-        // اگر حساب نباشد WHM result=0 با reason حاویِ «does not exist» می‌دهد
-        return $r['ok'] === true;
+        if (($r['transport'] ?? false) === true) {
+            return null;                       // نپرسیدیم — تصمیم را به فراخوان بسپار
+        }
+
+        if ($r['ok'] !== true) {
+            return false;                      // WHM صریح گفت نیست
+        }
+
+        $rows = (array) ($r['data']['acct'] ?? []);
+        $row  = is_array($rows[0] ?? null) ? $rows[0] : null;
+
+        if ($row === null) {
+            // ok=true ولی بی‌ردیف: نمی‌شود تطبیق داد، پس ادعا هم نمی‌کنیم
+            return null;
+        }
+
+        if (strcasecmp((string) ($row['user'] ?? ''), $user) !== 0) {
+            return false;
+        }
+
+        if ($domain !== null && $domain !== ''
+            && strcasecmp((string) ($row['domain'] ?? ''), $domain) !== 0) {
+            return false;                      // حسابِ دیگری با همین نام
+        }
+
+        return filter_var($row['suspended'] ?? false, FILTER_VALIDATE_BOOLEAN) ? false : true;
     }
 }
