@@ -326,8 +326,32 @@
         <div class="wk-grid">${fields.map(([k, v, raw]) => `<div class="wk-item"><small>${esc(k)}</small><span dir="ltr">${raw ? v : esc(v)}</span></div>`).join('')}</div>
         ${p.nameservers && p.nameservers.length ? `<div class="wk-ns"><small>${esc(T.ns)}</small><div>${p.nameservers.map((n) => `<code dir="ltr">${esc(n)}</code>`).join('')}</div></div>` : ''}
         <details class="wk-raw"><summary>${esc(T.raw)}</summary><pre dir="ltr">${esc(d.raw)}</pre></details>
-        ${!reg ? `<a class="btn btn-primary wk-buy" href="${esc(T.registerUrl)}${encodeURIComponent(d.domain)}" target="_blank" rel="noopener">${esc(T.register)} <span dir="ltr">${esc(d.domain)}</span></a>` : ''}`;
+        ${cta(d, reg)}`;
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /*
+      قدمِ بعدیِ کاربر — که تا امروز فقط برای دامنهٔ **آزاد** وجود داشت.
+
+      🔴 هر دو دکمه به فروشگاهِ خودمان می‌روند و در **همان تب** باز می‌شوند.
+      قبلاً `target="_blank"` به WHMCSِ بیرونی می‌رفت؛ حالا که مقصد داخلی است،
+      تبِ تازه فقط قیف را می‌شکند.
+
+      ⚠️ دامنهٔ گرفته‌شده هم قدمِ بعدی دارد: تا امروز کاربر با یک «گرفته شده»
+      تنها گذاشته می‌شد و صفحه بن‌بست بود. جستجوی نامِ مشابه دقیقاً همان کاری
+      است که آن لحظه می‌خواهد بکند.
+    */
+    function cta(d, registered) {
+      const sld = String(d.domain).split('.')[0];
+
+      if (!registered) {
+        return `<a class="btn btn-primary wk-buy" href="${esc(T.registerUrl)}${encodeURIComponent(d.domain)}">
+          ${esc(T.register)} <span dir="ltr">${esc(d.domain)}</span></a>`;
+      }
+
+      return T.similar
+        ? `<a class="btn btn-glass wk-buy" href="${esc(T.registerUrl)}${encodeURIComponent(sld)}">${esc(T.similar)}</a>`
+        : '';
     }
   }
 

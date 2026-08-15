@@ -188,6 +188,7 @@ return [
     'tl_whois_btn' => 'Sorgula', 'tl_whois_invalid' => 'Bu alan adı geçerli değil.', 'tl_whois_nodata' => 'Bu alan adı için veri bulunamadı.',
     'tl_wk_status' => 'Durum', 'tl_wk_registrar' => 'Kayıt şirketi', 'tl_wk_created' => 'Oluşturma',
     'tl_wk_updated' => 'Son güncelleme', 'tl_wk_expires' => 'Bitiş', 'tl_wk_org' => 'Kuruluş',
+    'tl_wk_similar' => 'Benzer müsait adları ara',
     'tl_wk_ns' => 'Nameserver\'lar', 'tl_wk_raw' => 'Tam Whois yanıtını göster',
     'tl_ip_h1a' => 'Her IP,', 'tl_ip_h1b' => 'tamamen şeffaf.',
     'tl_ip_lead' => 'Bir IP veya alan adı girin — ya da kendinizinkini görmek için boş bırakın. Ülke, şehir, ISP ve bağlantı türünü görün.',

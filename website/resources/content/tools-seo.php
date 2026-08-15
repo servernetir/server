@@ -19,6 +19,60 @@
 
 return [
 
+    "whois" => [
+        "fa" => [
+            "intro" => "Whois دفترِ ثبتِ عمومیِ دامنه‌هاست: می‌گوید یک دامنه ثبت شده یا آزاد است، چه تاریخی ثبت شده، کِی منقضی می‌شود، از کدام شرکتِ ثبت‌کننده گرفته شده و روی چه نام‌سرورهایی نشسته. این ابزار همان اطلاعات را مستقیم از سرورِ Whois همان پسوند می‌گیرد و خام و دست‌نخورده هم نشانتان می‌دهد. نکته‌ای که خیلی‌ها را غافلگیر می‌کند: از سالِ ۲۰۱۸ و با اجرای GDPR، بیشترِ رجیسترارها نام و ایمیل و تلفنِ مالک را پنهان می‌کنند؛ پس خالی‌بودنِ آن فیلدها به‌معنای اشکال در دامنه نیست.",
+            "steps" => [
+                "نامِ دامنه را با پسوندش بنویسید — مثلاً example.com یا example.ir.",
+                "دکمهٔ استعلام را بزنید؛ پاسخ مستقیم از سرورِ Whois همان پسوند خوانده می‌شود.",
+                "وضعیت را ببینید: اگر آزاد بود می‌توانید همان‌جا ثبتش کنید، و اگر گرفته شده بود نام‌های مشابهِ آزاد را جستجو کنید.",
+                "برای جزئیاتِ بیشتر، «نمایش پاسخ کامل» را باز کنید — همان متنی که رجیسترار برمی‌گرداند.",
+            ],
+            "faq" => [
+                ["q" => "چرا نام و اطلاعاتِ مالک نمایش داده نمی‌شود؟", "a" => "به‌خاطر قانونِ حریمِ خصوصیِ اروپا (GDPR) بیشترِ رجیسترارها از سال ۲۰۱۸ اطلاعاتِ شخصیِ مالک را از پاسخِ عمومیِ Whois حذف می‌کنند. این پنهان‌سازی عمدی است و ربطی به سلامتِ دامنه ندارد."],
+                ["q" => "تاریخِ انقضا گذشته ولی دامنه هنوز کار می‌کند — چرا؟", "a" => "بعد از انقضا یک دورهٔ مهلت (معمولاً ۳۰ روز) و بعد دورهٔ بازیابی (حدود ۳۰ روز دیگر) هست. در این مدت دامنه هنوز مالِ صاحبِ قبلی است و آزاد نمی‌شود؛ برای همین «منقضی» با «قابلِ ثبت» یکی نیست."],
+                ["q" => "نوشته آزاد است ولی موقعِ ثبت می‌گوید گرفته شده. چرا؟", "a" => "سه دلیلِ رایج: دامنه همین چند دقیقه پیش ثبت شده و Whois هنوز به‌روز نشده، دامنه رزروِ رجیستری است (کلمات ممنوعه یا نام‌های کوتاه)، یا پسوندِ خاصی است که شرایطِ ویژه دارد. استعلامِ لحظهٔ خرید همیشه معتبرتر از Whois است."],
+                ["q" => "Whois با DNS چه فرقی دارد؟", "a" => "Whois دربارهٔ **مالکیت** حرف می‌زند (چه کسی، از کِی، تا کِی)، ولی DNS دربارهٔ **مسیر** است (این دامنه به کدام سرور اشاره می‌کند). برای بررسی رکوردهای DNS از ابزار جداگانهٔ ما استفاده کنید."],
+                ["q" => "دامنهٔ .ir هم پشتیبانی می‌شود؟", "a" => "بله. پاسخِ دامنه‌های .ir از سرورِ Whois ایرنیک خوانده می‌شود و ساختارش با پسوندهای بین‌المللی کمی فرق دارد، ولی همان اطلاعاتِ اصلی را دارد."],
+                ["q" => "چطور بفهمم دامنه‌ای که می‌خواهم بخرم سابقهٔ بد ندارد؟", "a" => "تاریخِ ثبتِ خیلی قدیمی با نام‌سرورهای متعدد و تغییرات مکرر می‌تواند نشانهٔ دامنهٔ دستِ‌دوم باشد. پیش از خرید، نامِ دامنه را در گوگل و در آرشیوِ اینترنت هم جستجو کنید تا از کاربردِ قبلی‌اش مطمئن شوید."],
+            ],
+        ],
+        "en" => [
+            "intro" => "Whois is the public registry of domain names: it tells you whether a name is taken or free, when it was registered, when it expires, which registrar holds it and which nameservers it points to. This tool reads that answer straight from the Whois server of the relevant extension and shows you the raw response too. One thing that surprises people: since GDPR took effect in 2018, most registrars redact the owner name, email and phone from public Whois — so empty owner fields are not a fault in the domain.",
+            "steps" => [
+                "Type the domain with its extension — for example example.com or example.ir.",
+                "Press the lookup button; the answer comes straight from that extension Whois server.",
+                "Read the status: if it is free you can register it right here, and if it is taken you can search for similar available names.",
+                "Open the full response for the complete text the registrar returned.",
+            ],
+            "faq" => [
+                ["q" => "Why is the owner information hidden?", "a" => "Because of the EU privacy regulation (GDPR), most registrars have redacted personal owner details from public Whois since 2018. The redaction is deliberate and says nothing about the health of the domain."],
+                ["q" => "The expiry date has passed but the domain still works. Why?", "a" => "After expiry there is a grace period (usually 30 days) and then a redemption period (roughly another 30). During that window the domain still belongs to its previous owner and does not become available, which is why expired and registrable are not the same thing."],
+                ["q" => "It says free, but registration fails as taken. Why?", "a" => "Three common causes: it was registered minutes ago and Whois has not caught up, it is reserved by the registry (blocked words or very short names), or the extension has special eligibility rules. The check at purchase time is always more authoritative than Whois."],
+                ["q" => "How is Whois different from DNS?", "a" => "Whois is about ownership — who, since when, until when. DNS is about routing — where this name points. Use our separate DNS tools to inspect records."],
+                ["q" => "Are .ir domains supported?", "a" => "Yes. Answers for .ir come from the IRNIC Whois server; the layout differs slightly from international extensions but carries the same core facts."],
+                ["q" => "How do I check a domain I want to buy has no bad history?", "a" => "A very old registration date with many nameserver changes can indicate a second-hand domain. Before buying, search the name on Google and in the Internet Archive to see what it was used for."],
+            ],
+        ],
+        "tr" => [
+            "intro" => "Whois, alan adlarinin kamuya acik kaydidir: bir adin alinmis mi bos mu oldugunu, ne zaman kaydedildigini, ne zaman sona erecegini, hangi kayit sirketinde oldugunu ve hangi ad sunucularina isaret ettigini soyler. Bu arac cevabi dogrudan ilgili uzantinin Whois sunucusundan okur ve ham yaniti da gosterir. Cogu kisiyi sasirtan bir nokta: 2018 de GDPR yururluge girdiginden beri cogu kayit sirketi sahip adini, e-postasini ve telefonunu gizler; bu alanlarin bos olmasi alan adinda bir sorun oldugu anlamina gelmez.",
+            "steps" => [
+                "Alan adini uzantisiyla birlikte yazin — ornegin example.com veya example.ir.",
+                "Sorgula dugmesine basin; yanit dogrudan o uzantinin Whois sunucusundan gelir.",
+                "Durumu okuyun: bos ise burada kaydedebilir, alinmis ise benzer musait adlari arayabilirsiniz.",
+                "Kayit sirketinin dondurdugu tam metin icin tam yaniti acin.",
+            ],
+            "faq" => [
+                ["q" => "Sahip bilgileri neden gizli?", "a" => "AB gizlilik duzenlemesi (GDPR) nedeniyle cogu kayit sirketi 2018 den beri kisisel sahip bilgilerini kamuya acik Whois ten kaldiriyor. Bu kasitlidir ve alan adinin durumu hakkinda bir sey soylemez."],
+                ["q" => "Bitis tarihi gecti ama alan adi hala calisiyor. Neden?", "a" => "Bitisten sonra bir odeme suresi (genelde 30 gun) ve ardindan kurtarma suresi (yaklasik 30 gun daha) vardir. Bu surede alan adi hala onceki sahibine aittir ve bosa dusmez."],
+                ["q" => "Bos gorunuyor ama kayit sirasinda alinmis diyor. Neden?", "a" => "Uc yaygin neden: dakikalar once kaydedilmis ve Whois henuz guncellenmemis, kayit kurulusunca rezerve edilmis, ya da uzantinin ozel kosullari var. Satin alma anindaki kontrol her zaman daha guvenilirdir."],
+                ["q" => "Whois ile DNS arasindaki fark nedir?", "a" => "Whois sahiplik hakkindadir; DNS ise yonlendirme hakkinda. Kayitlari incelemek icin ayri DNS araclarimizi kullanin."],
+                ["q" => ".ir alan adlari destekleniyor mu?", "a" => "Evet. .ir yanitlari IRNIC Whois sunucusundan gelir; duzeni biraz farklidir ama ayni temel bilgileri tasir."],
+                ["q" => "Alacagim alan adinin kotu bir gecmisi olmadigini nasil anlarim?", "a" => "Cok eski bir kayit tarihi ve sik ad sunucusu degisiklikleri ikinci el bir alan adina isaret edebilir. Satin almadan once adi Google da ve Internet Archive de aratin."],
+            ],
+        ],
+    ],
+
     "ip" => [
         "fa" => [
             "intro" => "هر دستگاهی که به اینترنت وصل می‌شود یک آدرس IP دارد؛ همان چیزی که سایت‌ها، سرورها و سرویس‌های امنیتی با آن شما را می‌شناسند. این ابزار آدرس IP یا نام دامنه را می‌گیرد و کشور، استان، شهر، منطقه‌ی زمانی، ارائه‌دهنده‌ی اینترنت (ISP)، شماره‌ی شبکه (ASN) و نوع اتصال را نشان می‌دهد. مهم‌ترین نکته‌ای که باید بدانید این است که موقعیت جغرافیایی IP از روی محل ثبت آن بلوک IP توسط ارائه‌دهنده به دست می‌آید، نه از GPS دستگاه شما؛ بنابراین کشور تقریباً همیشه درست است ولی شهر می‌تواند شهر مرکز مخابراتی یا دیتاسنتر ارائه‌دهنده باشد، نه شهر خودتان.",

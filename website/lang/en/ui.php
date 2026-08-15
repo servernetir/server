@@ -188,6 +188,7 @@ return [
     'tl_whois_btn' => 'Look up', 'tl_whois_invalid' => 'That domain name is not valid.', 'tl_whois_nodata' => 'No data found for this domain.',
     'tl_wk_status' => 'Status', 'tl_wk_registrar' => 'Registrar', 'tl_wk_created' => 'Created',
     'tl_wk_updated' => 'Last updated', 'tl_wk_expires' => 'Expires', 'tl_wk_org' => 'Organization',
+    'tl_wk_similar' => 'Find similar available names',
     'tl_wk_ns' => 'Nameservers', 'tl_wk_raw' => 'Show full Whois response',
     'tl_ip_h1a' => 'Any IP,', 'tl_ip_h1b' => 'fully transparent.',
     'tl_ip_lead' => 'Enter an IP or domain — or leave it blank to check your own. See country, city, ISP and connection type.',
