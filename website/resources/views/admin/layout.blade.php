@@ -42,6 +42,7 @@
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
+      <a href="/admin/bale" class="@yield('nav_bale')"><svg class="icon"><use href="#i-bot"/></svg>کنسولِ بله</a>
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
 
       {{--
