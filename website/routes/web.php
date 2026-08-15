@@ -89,13 +89,27 @@ $site = function (): void {
     Route::get('/webtools', [\App\Http\Controllers\WebToolsController::class, 'index'])->name('webtools.index');
     Route::get('/webtools/{slug}', [\App\Http\Controllers\WebToolsController::class, 'show'])->name('webtools')->where('slug', '[a-z0-9-]+');
 
-    // پیش‌نمایش طراحی پنل کاربری — موقتی، بدون داده و بدون احراز هویت.
-    // با ساخت پنل واقعی حذف می‌شود.
-    Route::get('/panel-preview', [\App\Http\Controllers\PanelPreviewController::class, 'dashboard'])->name('panel.preview');
-    Route::get('/panel-preview/server', [\App\Http\Controllers\PanelPreviewController::class, 'server'])->name('panel.preview.server');
-    Route::get('/panel-preview/admin', [\App\Http\Controllers\PanelPreviewController::class, 'adminDashboard'])->name('panel.preview.admin');
-    Route::get('/panel-preview/tickets', [\App\Http\Controllers\PanelPreviewController::class, 'tickets'])->name('panel.preview.tickets');
-    Route::get('/panel-preview/admin/tickets', [\App\Http\Controllers\PanelPreviewController::class, 'adminTickets'])->name('panel.preview.admin.tickets');
+    /*
+    | 🔴 پیش‌نمایشِ ماکِ پنل **حذف شد** — و این‌جا عمداً ۴۱۰ می‌مانَد، نه هیچ.
+    |
+    | آن پنج مسیر بی‌هیچ احراز هویتی عمومی بودند و چون در همین closure ثبت
+    | شده بودند، در هر سه زبان. محتوایشان دادهٔ ساختگی بود ولی با **نامِ واقعیِ
+    | مالک**، شمارهٔ فاکتور و مبلغ و آی‌پی — یعنی صفحه‌ای عمومی که یک رابطهٔ
+    | مالیِ ناموجود را به اسمِ یک شخصِ حقیقی نشان می‌داد. تاریخ‌های داخلش مالِ
+    | ۱۴۰۴ بود: بیش از یک سال رهاشده.
+    |
+    | شرطِ حذفش از قبل برقرار بود — CLAUDE.md نوشته بود «با ساخت پنل واقعی
+    | حذف می‌شود» و پنلِ واقعیِ مشتری ماه‌هاست کار می‌کند. فقط کسی برنگشت.
+    |
+    | ⚠️ چرا ۴۱۰ و نه ۴۰۴: این آدرس‌ها ممکن است ایندکس شده باشند و ۴۱۰ به
+    | خزنده می‌گوید «برای همیشه رفت»، که حذفشان را سریع‌تر می‌کند. ۴۰۴ یعنی
+    | «الان نیست» و ماه‌ها دوباره امتحان می‌شود.
+    |
+    | ⚠️ این مسیر عمداً `{any?}` دارد: زیرمسیرها (server، admin، tickets…) هم
+    | باید همان جواب را بدهند، وگرنه نیمی از آدرس‌های ایندکس‌شده ۴۰۴ می‌گیرند.
+    */
+    Route::get('/panel-preview/{any?}', fn () => abort(410))
+        ->where('any', '.*')->name('panel.preview.gone');
 
     // مستندات
     Route::get('/docs', [\App\Http\Controllers\DocsController::class, 'index'])->name('docs.index');
