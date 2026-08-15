@@ -125,6 +125,33 @@ class TicketController extends Controller
         $message  = $ticket->addMessage('customer', $customer->id, $customer->displayName(), $data['body']);
         app(AttachmentService::class)->store($message, $request->file('attachments', []));
 
+        /*
+        | 🔴 اعلانِ مدیر — این متد تا امروز **هیچ‌چیز** شلیک نمی‌کرد.
+        |
+        | گزارشِ کارفرما: «تیکتِ تازه اعلان می‌آید، ولی وقتی مشتری به پاسخِ من
+        | دوباره جواب می‌دهد هیچ خبری نمی‌شود.» دقیقاً همین‌جا بود: `store()`
+        | از قیفِ اعلان رد می‌شد و `reply()` فقط ذخیره می‌کرد و ریدایرکت.
+        |
+        | و پیامدش از «یک اعلانِ جاافتاده» بزرگ‌تر است: مکالمهٔ پشتیبانی
+        | **متوقف** می‌شد. مشتری جواب می‌داد و منتظر می‌مانْد؛ مدیر خبر نداشت
+        | و تیکت روزها باز می‌مانْد بی‌آنکه کسی مقصر باشد.
+        |
+        | ⚠️ عمداً `ticket_customer_reply` است نه `ticket_reply`: آن یکی
+        | «کارمند جواب داد ← به مشتری خبر بده» است. چرایش در `NotifyEvent`.
+        |
+        | ⚠️ خارج از try/catch نیست چون `Notifier::fire()` خودش هرگز throw
+        | نمی‌کند — ولی اگر روزی آن قرارداد عوض شد، پاسخِ مشتری نباید گم شود.
+        */
+        app(\App\Services\Notify\Notifier::class)->fire(
+            'ticket_customer_reply',
+            $customer,
+            ['number' => (string) $ticket->number, 'subject' => (string) $ticket->subject],
+            '',                                   // مخاطب فقط مدیر است؛ متنِ مشتری لازم نیست
+            ['وضعیت' => $ticket->isOpen() ? 'باز' : 'بسته بود و دوباره باز شد'],
+            url('/admin/tickets/'.$ticket->id),
+            '💬',
+        );
+
         return redirect()->route($this->rp().'account.ticket', $ticket)
             ->with('ok', __('ui.tk_reply_sent'));
     }

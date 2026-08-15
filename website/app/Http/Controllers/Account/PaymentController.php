@@ -348,6 +348,34 @@ class PaymentController extends Controller
                 'sent_amount'   => isset($data['sent_amount']) ? (int) round((float) $data['sent_amount'] * 100) : null,
                 'sent_currency' => $account?->currency_code,
             ]);
+
+            /*
+            | 🔴 مدیر باید بداند — این رسید **منتظرِ اوست**.
+            |
+            | مشتری پول را فرستاده و تا تأییدِ دستی، فاکتور تسویه نمی‌شود و
+            | سرویس راه نمی‌افتد. تا امروز تنها راهِ فهمیدن این بود که مدیر
+            | خودش `/admin/bank-transfers` را باز کند — یعنی پولِ رسیده
+            | می‌توانست روزها بی‌آنکه کسی بداند منتظر بمانَد.
+            |
+            | ⚠️ **داخلِ** `if (! $exists)` است، نه بیرونش: مشتری‌ای که صفحه را
+            | دوباره ارسال کند نباید اعلانِ دوم بسازد. رسیدِ تکراری ساخته
+            | نمی‌شود، پس اعلانش هم نباید برود.
+            */
+            app(\App\Services\Notify\Notifier::class)->fire(
+                'bank_receipt',
+                $invoice->customer,
+                [
+                    'number' => (string) $invoice->number,
+                    'amount' => invoice_money($invoice->due(), $invoice->currency_code ?: 'IRT'),
+                ],
+                '',                               // مخاطب فقط مدیر است
+                [
+                    'شناسهٔ پرداخت' => (string) $data['reference'],
+                    'به حساب'      => $account?->label,
+                ],
+                url('/admin/bank-transfers'),
+                '🧾',
+            );
         }
 
         \App\Models\ActivityLog::record($invoice->customer_id, 'bank_receipt',
