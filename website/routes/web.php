@@ -2188,6 +2188,15 @@ Route::prefix('admin')->group(function () {
         Route::post('/mail/clear', [\App\Http\Controllers\Admin\MailboxController::class, 'clear'])->middleware('admin');
         Route::post('/mail/{message}/handled', [\App\Http\Controllers\Admin\MailboxController::class, 'handled'])->middleware('admin');
         Route::post('/mail/{message}/reopen', [\App\Http\Controllers\Admin\MailboxController::class, 'reopen'])->middleware('admin');
+        /*
+        | ⚠️ خواندنِ نامه و دانلودِ پیوست هر دو GET اند ولی **هرکدام یک اتصالِ
+        | زندهٔ IMAP** می‌زنند (بدنه ذخیره نمی‌شود). پس ربات و پیش‌واکشیِ
+        | مرورگر نباید سراغشان بروند — `noindex` روی خودِ صفحه است و لینکِ
+        | پیوست `rel=nofollow` دارد.
+        */
+        Route::get('/mail/{message}', [\App\Http\Controllers\Admin\MailboxController::class, 'show'])->name('admin.mail.show')->middleware('admin');
+        Route::get('/mail/{message}/attachment/{index}', [\App\Http\Controllers\Admin\MailboxController::class, 'attachment'])->whereNumber('index')->middleware('admin');
+        Route::post('/mail/{message}/reply', [\App\Http\Controllers\Admin\MailboxController::class, 'reply'])->middleware('admin');
 
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');

@@ -102,6 +102,41 @@ class ImapClient
     }
 
     /**
+     * شمارهٔ نامه از روی `Message-ID` — تنها کلیدِ پایداری که داریم.
+     *
+     * 🔴 جدولِ `mailbox_messages` عمداً شمارهٔ IMAP را نگه نمی‌دارد، و این
+     * درست است: شمارهٔ ترتیبی با هر حذفِ نامه در Roundcube جابه‌جا می‌شود.
+     * اگر آن را ذخیره کرده بودیم، مدیر یک نامهٔ قدیمی را پاک می‌کرد و از آن
+     * لحظه هر «باز کردن» در پنل، **نامهٔ دیگری** را نشان می‌داد — بی‌هیچ خطایی.
+     * پس هر بار از روی Message-ID می‌گردیم، حتی به قیمتِ یک رفت‌وبرگشتِ اضافه.
+     *
+     * ⚠️ بدونِ `<>` می‌گردیم: `HEADER` در IMAP زیررشته‌ای می‌سنجد و بعضی
+     * سرورها براکت را در مقایسه دخالت می‌دهند و بعضی نه.
+     */
+    public function searchMessageId(string $messageId): ?int
+    {
+        $id = trim($messageId, " <>\t\r\n");
+
+        if ($id === '') {
+            return null;
+        }
+
+        foreach ($this->cmd('SEARCH HEADER MESSAGE-ID '.$this->quote($id)) as $line) {
+            if (str_starts_with($line, '* SEARCH')) {
+                $ids = array_values(array_filter(array_map(
+                    'intval',
+                    preg_split('~\s+~', trim(substr($line, 8))) ?: []
+                )));
+
+                // اگر یک نامه دو بار در صندوق باشد، تازه‌ترین را می‌خواهیم.
+                return $ids === [] ? null : max($ids);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * سرآیندها + آغازِ متنِ یک نامه.
      *
      * @return array{from:string, from_name:string, subject:string, message_id:string, date:?string, body:string}|null

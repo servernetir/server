@@ -4,18 +4,29 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MailboxMessage;
+use App\Services\Mail\MailboxReader;
+use App\Services\Mail\MailboxReplier;
+use App\Services\Mail\MailHtmlSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * صندوق‌های مدیریتی در پنل.
  *
- * ⚠️ این یک کلاینتِ ایمیل **نیست** و نباید بشود. متنِ کاملِ نامه اصلاً ذخیره
- * نمی‌شود و دکمهٔ «جواب بده» هم عمداً وجود ندارد — جواب دادن کارِ Roundcube
- * است. کارِ این صفحه یک سؤال است و بس: «چه چیزی هست که هنوز کسی حواسش به آن
- * نبوده؟»
+ * ⚠️ **این متن تا مرداد ۱۴۰۵ می‌گفت «کلاینتِ ایمیل نیست و نباید بشود».**
+ * کارفرما صریح خواست که بشود: خواندنِ کاملِ نامه و پاسخ از داخلِ پنل. تصمیم
+ * عوض شد، پس این متن هم عوض شد — کامنتی که با کد نخوانَد، بدتر از نبودنش است.
+ *
+ * 🔴 ولی **یک نیمهٔ آن تصمیم سرِ جایش ماند**: متنِ کاملِ نامه هنوز ذخیره
+ * نمی‌شود. `MailboxReader` هر بار در لحظه از IMAP می‌خوانَد. دلیلش در
+ * مهاجرتِ `mailbox_messages` نوشته شده و با این قابلیت عوض نشده: صندوقِ
+ * support@ پر از دادهٔ مشتری است و کپی‌اش در دیتابیس یعنی همان داده در هر
+ * بکاپ و هر دامپِ عیب‌یابی.
+ *
+ * ⚠️ پس فهرست بی‌IMAP کار می‌کند ولی **باز کردنِ نامه نه**. این عمدی است.
  */
 class MailboxController extends Controller
 {
@@ -79,6 +90,183 @@ class MailboxController extends Controller
             'systemSeen' => MailboxMessage::where('is_system', true)->count(),
             'pending'    => MailboxMessage::unreported()->whereNull('category')->count(),
         ]);
+    }
+
+    /**
+     * خواندنِ کاملِ یک نامه.
+     *
+     * 🔴 **تصویرهای بیرونی پیش‌فرض بسته‌اند** و `?images=1` بازشان می‌کند.
+     * یک `<img>` در نامه، در لحظهٔ باز شدن به فرستنده می‌گوید نشانی زنده است و
+     * خوانده شد — برای اسپمر تأییدِ طلا و برای ما موجِ بعدیِ اسپم. انتخاب دستِ
+     * کاربر است، ولی پیش‌فرض باید امن باشد نه راحت.
+     */
+    public function show(MailboxMessage $message, Request $request): View
+    {
+        $images = $request->boolean('images');
+        $blocker = $this->replyBlocker($message);
+        $res = app(MailboxReader::class)->read($message);
+
+        $html = '';
+        $text = '';
+        $blocked = 0;
+
+        if ($res['ok']) {
+            $mail = $res['mail'];
+
+            if (trim((string) $mail['html']) !== '') {
+                $clean = MailHtmlSanitizer::clean(
+                    (string) $mail['html'],
+                    $images,
+                    fn (string $cid): ?string => $this->cidUrl($message, $mail['attachments'], $cid),
+                );
+
+                $html = $clean['html'];
+                $blocked = $clean['blocked'];
+            }
+
+            $text = (string) $mail['text'];
+        }
+
+        return view('admin.mail-message', [
+            'm'          => $message,
+            'ok'         => $res['ok'],
+            'error'      => $res['message'],
+            'mail'       => $res['mail'],
+            'html'       => $html,
+            'text'       => $text,
+            'blocked'    => $blocked,
+            'images'     => $images,
+            'truncated'  => $res['truncated'],
+            'size'       => $res['size'],
+            'canReply'   => $blocker === null,
+            'replyBlock' => $blocker,
+        ]);
+    }
+
+    /**
+     * دانلودِ یک پیوست.
+     *
+     * 🔴 **همیشه `attachment`، هرگز `inline`** — مگر تصویری که خودِ نامه
+     * درون‌خط نشانش می‌دهد و کاربر تصاویر را باز کرده. فایلِ فرستندهٔ ناشناس
+     * که روی دامنهٔ پنل `inline` سرو شود، یک HTMLِ ساده هم کافی است تا
+     * نشستِ مدیر را بردارد. `nosniff` هم لازم است چون بدونش مرورگر نوعِ
+     * اعلامی را نادیده می‌گیرد و خودش حدس می‌زند.
+     */
+    public function attachment(MailboxMessage $message, int $index, Request $request): Response
+    {
+        $res = app(MailboxReader::class)->attachment($message, $index);
+
+        abort_if(! $res['ok'], 404, $res['message']);
+
+        $a = $res['attachment'];
+        $inline = $request->boolean('inline') && MailHtmlSanitizer::isDisplayableImage((string) $a['mime']);
+
+        return response((string) $a['data'], 200, [
+            /*
+            | ⚠️ نوعِ اعلامیِ خودِ نامه فقط وقتی پذیرفته می‌شود که تصویرِ
+            | درون‌خطی باشد و از فهرستِ کوتاهِ تصاویر رد شده باشد. در حالتِ
+            | دانلود، نوع را عمداً خنثی می‌گذاریم تا مرورگر وسوسه نشود بازش
+            | کند.
+            */
+            'Content-Type'           => $inline ? (string) $a['mime'] : 'application/octet-stream',
+            'Content-Disposition'    => ($inline ? 'inline' : 'attachment')
+                                        .'; filename="'.$this->safeName((string) $a['name']).'"',
+            'Content-Length'         => (string) strlen((string) $a['data']),
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Cache-Control'          => 'private, no-store',
+        ]);
+    }
+
+    /**
+     * پاسخ — روی همان `MailboxReplier`ی که کنسولِ بله استفاده می‌کند.
+     *
+     * 🔴 سرویسِ دومی نوشته نمی‌شود. آن کلاس تصمیم‌های گران‌قیمتی در خود دارد
+     * (ارسال از SMTPِ همان صندوق، ردِ صریح به‌جای سقوطِ بی‌صدا، علامت‌زدن فقط
+     * پس از ارسالِ موفق). نسخهٔ موازیِ پنل یعنی روزی یکی‌شان اصلاح شود و
+     * دیگری همان باگ را نگه دارد.
+     */
+    public function reply(MailboxMessage $message, Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'min:2', 'max:8000'],
+        ]);
+
+        $user = $request->user();
+
+        $res = app(MailboxReplier::class)->reply(
+            $message,
+            $data['body'],
+            $user?->id,
+            $user?->name,
+        );
+
+        return back()->with($res['ok'] ? 'ok' : 'err', $res['message']);
+    }
+
+    /**
+     * چرا نمی‌شود از این صندوق پاسخ داد — یا `null` یعنی می‌شود.
+     *
+     * ⚠️ **پیش از نشان‌دادنِ دکمه** پرسیده می‌شود، نه بعد از زدنش. دکمه‌ای که
+     * همیشه خطا می‌دهد، کاربر را وامی‌دارد متن را دوباره جای دیگری بنویسد.
+     */
+    private function replyBlocker(MailboxMessage $m): ?string
+    {
+        if (! filter_var(trim((string) $m->from_email), FILTER_VALIDATE_EMAIL)) {
+            return 'نشانیِ فرستندهٔ این نامه معتبر نیست.';
+        }
+
+        foreach ((array) config('mailboxes.accounts', []) as $a) {
+            if (($a['key'] ?? null) !== $m->account) {
+                continue;
+            }
+
+            if (blank($a['pass'] ?? null)) {
+                return 'برای این صندوق رمزی در پیکربندی نیست.';
+            }
+
+            if (blank($a['smtp_host'] ?? null) && filled($a['host'] ?? null)) {
+                return 'این صندوق روی سرورِ ما نیست و SMTPش تعریف نشده.';
+            }
+
+            return null;
+        }
+
+        return 'این صندوق دیگر در پیکربندی نیست.';
+    }
+
+    /**
+     * نشانیِ تصویرِ درون‌خطی از روی Content-ID.
+     *
+     * ⚠️ اگر cid به هیچ پیوستی نخورد `null` می‌دهد و پاک‌سازی‌کننده تصویر را
+     * می‌بندد — بهتر از ساختنِ نشانی‌ای که ۴۰۴ بدهد.
+     *
+     * @param  list<array<string,mixed>>  $attachments
+     */
+    private function cidUrl(MailboxMessage $m, array $attachments, string $cid): ?string
+    {
+        foreach ($attachments as $i => $a) {
+            if ((string) ($a['cid'] ?? '') !== $cid) {
+                continue;
+            }
+
+            if (! MailHtmlSanitizer::isDisplayableImage((string) ($a['mime'] ?? ''))) {
+                return null;
+            }
+
+            return '/admin/mail/'.$m->id.'/attachment/'.$i.'?inline=1';
+        }
+
+        return null;
+    }
+
+    /** نامِ فایل برای هدر — بی‌کوتیشن، بی‌خطِ تازه، بی‌مسیر. */
+    private function safeName(string $name): string
+    {
+        $name = str_replace(["\r", "\n", '"', '\\', '/'], '_', $name);
+        $name = trim(preg_replace('~\s+~u', ' ', $name) ?? '');
+
+        return mb_substr($name === '' ? 'attachment' : $name, 0, 100);
     }
 
     /** «رسیدگی شد» — از فهرستِ باز بیرون می‌رود، پاک نمی‌شود. */
