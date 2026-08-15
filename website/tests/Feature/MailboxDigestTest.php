@@ -63,11 +63,18 @@ class MailboxDigestTest extends TestCase
     /** بله‌ای که هر بار می‌ترکد — برای تستِ «هیچی مهر نخورد» */
     private function brokenBale(): void
     {
+        /*
+        | ⚠️ جاسوس روی `toAdmin()` است نه `notify()`.
+        |
+        | خلاصهٔ صندوق مالِ **کارفرما**ست، پس باید از APIِ رباتِ رایگان برود.
+        | `notify()` خطِ اولش سفیر است که به‌ازای هر پیام پول می‌گیرد — و تا
+        | امروز همین تست، مسیرِ پولی را «درست» قفل کرده بود.
+        */
         $this->app->bind(BaleNotifier::class, fn () => new class extends BaleNotifier
         {
             public function __construct() {}
 
-            public function notify(string $mobile, string $text): void
+            public function toAdmin(string $mobile, string $text): void
             {
                 throw new \RuntimeException('bale down');
             }
@@ -83,7 +90,7 @@ class MailboxDigestTest extends TestCase
 
             public function __construct() {}
 
-            public function notify(string $mobile, string $text): void
+            public function toAdmin(string $mobile, string $text): void
             {
                 $this->sent[] = $text;
             }

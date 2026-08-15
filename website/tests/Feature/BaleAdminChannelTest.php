@@ -185,4 +185,65 @@ class BaleAdminChannelTest extends TestCase
 
         $this->assertTrue($hit, 'مسیرِ مشتری دیگر از سفیر نمی‌رود — همان باگی که سفیر برای رفعش آمد');
     }
+    // ═══════════════ گاردِ ساختاری: کانالِ پولی فقط برای مشتری ═══════════════
+
+    /**
+     * 🔴 این تست **سورس** را می‌پاید، نه رفتار را — و عمداً.
+     *
+     * قاعدهٔ «سفیر فقط برای مشتریان» سه بار در docblockها نوشته شده بود و سه بار
+     * شکست، چون هر فراخوانِ تازه‌ای که `BaleNotifier` را تزریق می‌کند، به‌طور
+     * طبیعی `notify()` را صدا می‌زند — نامش طبیعی‌تر است و امضایش هم همان.
+     *
+     * آخرین موردش را خودِ کارفرما دید: خلاصهٔ روزانهٔ صندوقِ ایمیل از کانالِ
+     * پولی می‌رفت («از مسیر سفیر بله دارد می‌فرستد، هزینه دارد»).
+     *
+     * تستِ رفتاری این را نمی‌گیرد مگر برای هر فراخوان جداگانه نوشته شود — و
+     * فراخوانِ بعدی که کسی فردا اضافه می‌کند، تستِ خودش را همراه ندارد. پس
+     * ادعا روی **کلِ درخت** بسته می‌شود.
+     */
+    public function test_only_the_customer_notifier_may_use_the_paid_safir_path(): void
+    {
+        // تنها جایی که حق دارد `notify()` را صدا بزند
+        $allowed = ['app/Services/Notify/CustomerNotifier.php'];
+
+        $root = base_path('app');
+        $bad  = [];
+
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
+
+        foreach ($it as $file) {
+            if (! $file->isFile() || ! str_ends_with($file->getFilename(), '.php')) {
+                continue;
+            }
+
+            $rel = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen(base_path()) + 1));
+
+            if (in_array($rel, $allowed, true)) {
+                continue;
+            }
+
+            $src = (string) file_get_contents($file->getPathname());
+
+            // فقط فایل‌هایی که واقعاً BaleNotifier در دست دارند
+            if (! str_contains($src, 'BaleNotifier')) {
+                continue;
+            }
+
+            // خودِ BaleNotifier متدها را تعریف می‌کند
+            if (str_ends_with($rel, 'Services/Bale/BaleNotifier.php')) {
+                continue;
+            }
+
+            if (preg_match('~->notify\s*\(~', $src)) {
+                $bad[] = $rel;
+            }
+        }
+
+        $this->assertSame([], $bad,
+            "
+این فایل‌ها مسیرِ **پولیِ** سفیر را صدا می‌زنند. برای مدیر باید toAdmin() باشد:
+"
+            .implode("
+", $bad));
+    }
 }

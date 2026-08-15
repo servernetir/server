@@ -59,7 +59,14 @@
           <tr onclick="location='/admin/tickets/{{ $t->id }}'" style="cursor:pointer">
             <td dir="ltr">{{ $t->number }}</td>
             <td>{{ $t->subject }}</td>
-            <td>{{ $t->customer?->displayName() }} <small style="color:var(--dim)" dir="ltr">{{ $t->customer?->code }}</small></td>
+            <td>
+              @if($t->customer)
+                <a href="/admin/customers/{{ $t->customer->id }}" style="color:#22d3ee">{{ $t->customer->displayName() }}</a>
+                <small style="color:var(--dim)" dir="ltr">{{ $t->customer->code }}</small>
+              @else
+                <span style="color:var(--dim)">—</span>
+              @endif
+            </td>
             <td>{{ ['technical'=>'فنی','billing'=>'مالی','sales'=>'فروش'][$t->department] ?? $t->department }}</td>
             <td>
               @php $pr = ['low'=>['کم','var(--dim)'],'normal'=>['عادی','var(--muted)'],'high'=>['زیاد','#fbbf24'],'urgent'=>['فوری','#ff6b6b']][$t->priority] ?? ['—','var(--dim)']; @endphp
