@@ -40,6 +40,14 @@ class SystemHealth
     public const STUCK_MINUTES = 30;
 
     /**
+     * چند ردیف در متنِ هشدار نام برده شود.
+     *
+     * ⚠️ سقف لازم است: این متن به بله و ایمیل هم می‌رود و فهرستِ سی‌تایی
+     * خوانده نمی‌شود. مازاد با «و N مورد دیگر» می‌آید تا چیزی بی‌صدا پنهان نشود.
+     */
+    public const NAME_LIMIT = 5;
+
+    /**
      * @return array<int,array{key:string,ok:bool,level:string,title:string,detail:string}>
      */
     public function checks(): array
@@ -157,10 +165,29 @@ class SystemHealth
         if ($manual > 0 || $old > 0 || $soon > 0) {
             $level = ($old > 0 || $soon > 0) ? 'fail' : 'warn';
 
+            /*
+            | همان قاعدهٔ `stuckServices()`: شمارنده بدونِ **نام** یعنی مدیر باید
+            | خودش دنبالِ ردیف بگردد. این‌جا نامِ خودِ دامنه از هر شناسه‌ای
+            | گویاتر است، پس همان چاپ می‌شود.
+            */
+            $names = \App\Models\Domain::query()
+                ->where(fn ($q) => $q
+                    ->where('provision_status', 'manual')
+                    ->orWhere(fn ($e) => $e->awaitingRegistration()
+                        ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))))
+                ->orderBy('id')->limit(self::NAME_LIMIT + 1)
+                ->pluck('domain');
+
+            $extra = max(0, $names->count() - self::NAME_LIMIT);
+            $list = $names->isEmpty() ? '' : ' — '.$names->take(self::NAME_LIMIT)->implode('، ')
+                .($extra > 0 ? ' و '.fa_num($extra).' مورد دیگر' : '').'.';
+
             return $this->row('domains', false, $level, 'صفِ دامنه',
                 ($old > 0 ? fa_num($old).' دامنهٔ پرداخت‌شده بیش از نیم‌ساعت ثبت نشده — یعنی صف پیش نمی‌رود. ' : '')
                 .($soon > 0 ? fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود. ' : '')
-                .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : ''));
+                .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : '')
+                .$list,
+                $names->isEmpty() ? [] : [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
         }
 
         return $this->row('domains', true, 'ok', 'صفِ دامنه', 'چیزی گیر نکرده.');
@@ -215,14 +242,107 @@ class SystemHealth
 
         if ($manual > 0 || $old > 0 || $failed > 0) {
             $level = ($old > 0 || $failed > 0) ? 'fail' : 'warn';
+            $rows = $this->stuckServiceRows();
 
             return $this->row('services', false, $level, 'صفِ تحویل',
                 ($old > 0 ? fa_num($old).' سرویس بیش از نیم‌ساعت در صف مانده — مشتری پول داده و سرور ندارد. ' : '')
                 .($failed > 0 ? fa_num($failed).' سرویس در تحویل شکست خورده و هیچ کرونی دوباره تلاش نمی‌کند — خودتان «تلاش دوباره» بزنید. ' : '')
-                .($manual > 0 ? fa_num($manual).' سرویس منتظرِ تحویلِ دستیِ شماست.' : ''));
+                .($manual > 0 ? fa_num($manual).' سرویس منتظرِ تحویلِ دستیِ شماست.' : '')
+                .$this->who($rows),
+                $this->serviceLinks($rows));
         }
 
         return $this->row('services', true, 'ok', 'صفِ تحویل', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * 🔴 **کدام** سرویس‌ها، نه فقط چندتا.
+     *
+     * ═══ چرا لازم شد ═══
+     *
+     * کارفرما: «نشون می‌ده صفِ تحویل ۲ سرویس منتظرِ تحویلِ دستی هستند ولی من
+     * نمی‌دونم مربوط به کدوم مشتریاست.»
+     *
+     * و حق داشت: یک شمارنده می‌گوید مشکلی هست، ولی مدیر برای اقدام باید بداند
+     * **سراغِ چه کسی** برود. تا امروز باید در `/admin/services` دنبالِ ردیفِ
+     * گیرکرده می‌گشت — یعنی هشداری که کارِ پیداکردن را به خودِ آدم واگذار
+     * می‌کرد و برای همین دیر یا زود نادیده گرفته می‌شد.
+     *
+     * ⚠️ همان قاعده‌ای که در این فایل برای امضای وضعیت و در `CloudProvisioner`
+     * برای گلوگاهِ هشدار نوشته شده: **پیام باید شناسهٔ ردیف‌ها را داشته باشد**،
+     * وگرنه دو خرابیِ متفاوت یک متنِ یکسان تولید می‌کنند و اعلانِ دومی هرگز
+     * فرستاده نمی‌شود.
+     *
+     * ⚠️ سقفِ ۵ عمدی است: فهرستِ بلند در یک پیامِ بله/ایمیل خوانده نمی‌شود.
+     * بقیه با «و N مورد دیگر» می‌آیند تا معلوم باشد چیزی پنهان نشده.
+     */
+    private function stuckServiceRows(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Service::query()
+            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->where(fn ($q) => $q
+                ->where('provision_status', 'manual')
+                ->orWhere('provision_status', 'failed')
+                ->orWhere(fn ($e) => $e
+                    ->whereIn('provision_status', ['pending', 'running'])
+                    ->where('created_at', '<', now()->subMinutes(self::STUCK_MINUTES))))
+            /*
+            | ⚠️ فقط سه ستون، و نامِ واقعی از `displayName()` می‌آید که خودش
+            | `identityVerification` را می‌خوانَد. ستون‌های نام روی `customers`
+            | **نیستند**؛ انتخابشان این‌جا کوئری را می‌شکست.
+            |
+            | N+1 این‌جا بی‌ضرر است: سقفِ ردیف‌ها شش تاست.
+            */
+            ->with('customer:id,code,email')
+            ->orderBy('id')
+            ->limit(self::NAME_LIMIT + 1)
+            ->get(['id', 'customer_id', 'provision_status']);
+    }
+
+    /** «#۱۲ آقای فلانی (SN-104829) — دستی» × چند تا، برای متنِ هشدار. */
+    private function who(\Illuminate\Support\Collection $rows): string
+    {
+        if ($rows->isEmpty()) {
+            return '';
+        }
+
+        $extra = max(0, $rows->count() - self::NAME_LIMIT);
+
+        $parts = $rows->take(self::NAME_LIMIT)->map(function ($s) {
+            $c = $s->customer;
+            // ⚠️ نامِ خالی نباید یک پرانتزِ تهی بسازد؛ کدِ مشتری همیشه هست
+            $label = $c?->displayName() ?: null;
+            $code = $c?->code ?: ('#'.$s->customer_id);
+
+            // ⚠️ رقمِ فارسی، مثلِ `cloudRelease()` و `undeliveredCloud()` — وگرنه
+            //    متن و چیپِ کنارش دو جور شماره نشان می‌دهند.
+            return '#'.fa_num($s->id).' '.($label ? $label.' ' : '').'('.$code.')';
+        })->implode('، ');
+
+        return ' — '.$parts.($extra > 0 ? ' و '.fa_num($extra).' مورد دیگر' : '').'.';
+    }
+
+    /**
+     * 🔴 همان ردیف‌ها، این‌بار **قابلِ کلیک**.
+     *
+     * نام‌بردن نیمی از کار است؛ کارفرما گفت «بتونم مدیریتش کنم». مقصد عمداً
+     * پروندهٔ **مشتری** است نه صفحهٔ سرویس: `/admin/services` اصلاً وجود ندارد و
+     * دکمه‌های «تحویل» و «تلاشِ دوباره» و «تحویلِ دستی» همگی در همان صفحه‌اند.
+     *
+     * ⚠️ مشتریِ حذف‌شده لینک نمی‌گیرد (ردیفِ یتیم) — لینکِ ۴۰۴ از نبودِ لینک
+     * بدتر است. اسمش در متن هست، پس چیزی پنهان نمی‌شود.
+     *
+     * @param  \Illuminate\Support\Collection<int,\App\Models\Service>  $rows
+     * @return array<int,array{label:string,url:string}>
+     */
+    private function serviceLinks(\Illuminate\Support\Collection $rows): array
+    {
+        return $rows->take(self::NAME_LIMIT)
+            ->filter(fn ($s) => $s->customer !== null)
+            ->map(fn ($s) => [
+                'label' => '#'.fa_num($s->id).' '.($s->customer->displayName() ?: $s->customer->code),
+                'url' => route('admin.customer', $s->customer_id),
+            ])->values()->all();
     }
 
     /**
@@ -277,7 +397,8 @@ class SystemHealth
             fa_num($stalled->count()).' سرویسِ ابری پول گرفته و تحویل نشده (سرویسِ '
             .implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.fa_num($i))->all())
             .'). '.implode(' · ', $detail)
-            .' — ⚠️ ممکن است ماشینش نزدِ زیرساخت ساخته شده و اجاره‌اش از حسابِ ما برود.');
+            .' — ⚠️ ممکن است ماشینش نزدِ زیرساخت ساخته شده و اجاره‌اش از حسابِ ما برود.',
+            $this->serviceLinks($stalled->take(self::NAME_LIMIT)->load('customer:id,code,email')));
     }
 
     /**
@@ -302,7 +423,7 @@ class SystemHealth
             }
 
             $rows = \App\Models\Service::query()->awaitingRelease()
-                ->orderBy('id')->limit(50)->get(['id', 'name']);
+                ->orderBy('id')->limit(50)->get(['id', 'name', 'customer_id']);
         } catch (\Throwable $e) {
             // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
             return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
@@ -318,7 +439,8 @@ class SystemHealth
             fa_num($rows->count()).' سرویسِ بسته‌شده هنوز نزدِ زیرساخت آزاد نشده (سرویسِ '
             .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
             .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
-            .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.');
+            .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.',
+            $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
     }
 
     private function recentErrors(): array
@@ -378,8 +500,14 @@ class SystemHealth
         }
     }
 
-    private function row(string $key, bool $ok, string $level, string $title, string $detail): array
+    /**
+     * @param  array<int,array{label:string,url:string}>  $links
+     *                                                            ردیف‌های قابلِ اقدام — فقط برای پنل. متنِ `detail` خودش
+     *                                                            کامل است، چون همان متن به بله و ایمیل هم می‌رود که لینکِ
+     *                                                            پنل در آن‌ها به کار نمی‌آید.
+     */
+    private function row(string $key, bool $ok, string $level, string $title, string $detail, array $links = []): array
     {
-        return compact('key', 'ok', 'level', 'title', 'detail');
+        return compact('key', 'ok', 'level', 'title', 'detail', 'links');
     }
 }

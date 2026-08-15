@@ -37,6 +37,20 @@
           <b class="err-class">{{ $c['title'] }}</b>
         </div>
         <div class="err-msg" style="color:var(--muted)">{{ $c['detail'] }}</div>
+        {{--
+          🔴 نام‌بردن نیمی از کار است.
+
+          کارفرما: «نمی‌دونم مربوط به کدوم مشتریاست … بتونم مدیریتش کنم.» متن
+          حالا نام می‌برد، ولی اگر برای اقدام باز هم باید در پنل دنبالِ همان
+          مشتری گشت، هشدار همچنان کارِ پیداکردن را به آدم واگذار کرده.
+        --}}
+        @if(!empty($c['links']))
+          <div class="hl-acts">
+            @foreach($c['links'] as $l)
+              <a href="{{ $l['url'] }}" class="hl-act">{{ $l['label'] }} ↩</a>
+            @endforeach
+          </div>
+        @endif
       </div>
     @endforeach
   </div>
@@ -140,6 +154,13 @@
 .err-meta{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:3px }
 .err-meta b{ color:#22d3ee }
 .err-who{ color:var(--dim) }
+
+/* میان‌برهای اقدام روی هشدارِ سلامت — از متن به پروندهٔ همان مشتری */
+.hl-acts{ display:flex; flex-wrap:wrap; gap:7px; margin-top:9px }
+.hl-act{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600;
+         padding:5px 11px; border-radius:9px; border:1px solid var(--line2);
+         background:var(--surface2); color:var(--muted); transition:.18s }
+.hl-act:hover{ color:#22d3ee; border-color:#22d3ee }
 </style>
 
 @endsection
