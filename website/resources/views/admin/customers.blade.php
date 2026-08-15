@@ -89,12 +89,7 @@
 {{ $customers->links() }}
 @endif
 
-<style>
-.cust-act{display:flex;gap:4px;align-items:center;justify-content:flex-end}
-.cust-a{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
-  background:var(--surface);color:var(--muted);cursor:pointer;transition:.15s}
-.cust-a:hover{border-color:var(--cyan);color:var(--cyan)}
-.cust-a .icon{width:15px;height:15px}
-@media(max-width:900px){ .cust-act{justify-content:flex-start} }
-</style>
+{{-- استایلِ ستونِ عملیات (.cust-act / .cust-a) به `admin.css` منتقل شد.
+     چرایش آن‌جا نوشته شده: `display:flex` روی یک <td> سلول را از جدول جدا
+     می‌کرد. این‌جا دوباره تعریفش نکن. --}}
 @endsection
