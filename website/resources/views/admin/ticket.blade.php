@@ -72,8 +72,17 @@
   <div class="ad-panel tka-side">
     <div class="ad-panel-h"><h2>مشخصات</h2></div>
     <div style="padding:16px;display:flex;flex-direction:column;gap:14px;font-size:13px">
-      <div><span style="color:var(--dim)">مشتری</span><br><b>{{ $ticket->customer?->displayName() }}</b>
-        <small style="color:var(--dim);font-size:12px" dir="ltr">{{ $ticket->customer?->code }}</small></div>
+      {{-- نامِ مشتری به پروندهٔ کاملش می‌رود: سرویس‌ها، فاکتورها، تراکنش‌ها و
+           تاریخچه. بی‌این لینک، پاسخ‌دادن به تیکت یعنی یک جستجوی دستی در
+           فهرستِ مشتریان، هر بار. --}}
+      <div><span style="color:var(--dim)">مشتری</span><br>
+        @if($ticket->customer)
+          <a href="/admin/customers/{{ $ticket->customer->id }}" style="color:#22d3ee;font-weight:700">{{ $ticket->customer->displayName() }}</a>
+          <small style="color:var(--dim);font-size:12px" dir="ltr">{{ $ticket->customer->code }}</small>
+        @else
+          <b style="color:var(--dim)">— بی‌مشتری</b>
+        @endif
+      </div>
       <div><span style="color:var(--dim)">بخش</span><br>{{ ['technical'=>'فنی','billing'=>'مالی','sales'=>'فروش'][$ticket->department] ?? $ticket->department }}</div>
       <div><span style="color:var(--dim)">ساخته‌شده</span><br dir="ltr">{{ stime($ticket->created_at) }}</div>
 

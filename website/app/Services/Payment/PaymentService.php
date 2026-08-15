@@ -197,6 +197,34 @@ class PaymentService
             /** @var Invoice $invoice */
             $invoice = Invoice::whereKey($fresh->invoice_id)->lockForUpdate()->first();
 
+            /*
+            | 🔴 پول روی فاکتورِ **لغوشده** نباید بی‌صدا بخارد.
+            |
+            | مشتری می‌تواند ساعتِ ۷۱:۵۹ روی «پرداخت» بزند و درگاه چند دقیقه بعد
+            | برگردد — یعنی بعد از اینکه کرونِ انقضا فاکتور را لغو کرده. تا امروز
+            | این‌جا وضعیتِ فاکتور اصلاً پرسیده نمی‌شد: مبلغ روی `paid` می‌نشست و
+            | `canceled` را به `paid` برمی‌گرداند، ولی سرویس چون `cancelled` است
+            | از `! isDead()` رد نمی‌شود ⇒ پول گرفته شده، هیچ سرویسی تحویل نشده،
+            | و هیچ خطایی هم تولید نمی‌شود.
+            |
+            | حالا کلِ مبلغ به **اعتبارِ** مشتری می‌رود: پول گم نمی‌شود، مشتری
+            | می‌تواند با قیمتِ روز دوباره سفارش دهد و از همان اعتبار بپردازد،
+            | و فاکتورِ لغوشده لغو می‌مانَد.
+            */
+            if ($invoice->status === 'canceled' && $fresh->amount > 0) {
+                $this->credit(
+                    $invoice->customer_id, $invoice->currency_code, $fresh->amount,
+                    'adjustment', $invoice,
+                    'پرداختِ فاکتورِ منقضی‌شدهٔ '.$invoice->number.' — به اعتبارِ شما افزوده شد',
+                );
+
+                \App\Support\ErrorTracker::noteOnce('billing',
+                    'پرداخت روی فاکتورِ لغوشده نشست و به اعتبار رفت.', 900,
+                    ['invoice' => $invoice->number]);
+
+                return new SettleOutcome(true, $fresh);
+            }
+
             $due       = $invoice->due();
             $toInvoice = min($fresh->amount, $due);
             $surplus   = $fresh->amount - $toInvoice;

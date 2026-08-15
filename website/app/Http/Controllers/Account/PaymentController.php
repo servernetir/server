@@ -108,48 +108,19 @@ class PaymentController extends Controller
             return back()->withErrors(['invoice' => 'فاکتوری که پرداخت روی آن انجام شده قابل حذف نیست.']);
         }
 
-        DB::transaction(function () use ($invoice) {
-            $invoice->forceFill(['status' => 'canceled'])->save();
-
-            Payment::where('invoice_id', $invoice->id)
-                ->whereIn('status', ['pending', 'redirected'])
-                ->update(['status' => 'canceled', 'updated_at' => now()]);
-
-            if (Schema::hasTable('bank_transfer_receipts')) {
-                BankTransferReceipt::where('invoice_id', $invoice->id)
-                    ->where('status', 'pending')
-                    ->update(['status' => 'rejected', 'reject_reason' => 'فاکتور توسط مشتری لغو شد', 'updated_at' => now()]);
-            }
-
-            // سرویسِ هنوز-فعال‌نشده → لغو. سرویسِ فعال (تمدید) → دست‌نخورده.
-            if ($invoice->service_id !== null && Schema::hasTable('services')) {
-                $service = \App\Models\Service::find($invoice->service_id);
-                if ($service !== null && $service->status === 'pending') {
-                    $service->forceFill(['status' => 'cancelled', 'cancelled_at' => now()])->save();
-                }
-            }
-
-            /*
-            | 🔴 دامنه هم باید آزاد شود، وگرنه آن نام برای **همیشه** قفل می‌مانَد.
-            |
-            | ردیفِ دامنهٔ پرداخت‌نشده `status='pending'` و `provision_status='none'`
-            | دارد. تا امروز این‌جا فقط شاخهٔ سرویس بود، پس با لغوِ فاکتور آن ردیف
-            | یتیم می‌مانْد — نه مرده بود نه ثبت‌شده. و `order()` سفارشِ دوباره را با
-            | «این دامنه از قبل در سامانه ثبت شده است» رد می‌کند (به‌علاوهٔ قیدِ
-            | یکتاییِ دیتابیس). یعنی مشتری با یک لغوِ ساده، همان نام را برای خودش
-            | **و برای هر مشتریِ دیگری** می‌سوزاند.
-            |
-            | ⚠️ فقط ردیفی که هرگز پول نگرفته و هرگز ثبت نشده. دامنهٔ `active` یا
-            | در حالِ ثبت دست‌نخورده می‌مانَد — لغوِ فاکتورِ تمدید نباید دامنهٔ
-            | زندهٔ مشتری را بکُشد.
-            */
-            if ($invoice->domain_id !== null && Schema::hasTable('domains')) {
-                \App\Models\Domain::where('id', $invoice->domain_id)
-                    ->where('status', 'pending')
-                    ->where('provision_status', 'none')
-                    ->update(['status' => 'cancelled', 'updated_at' => now()]);
-            }
-        });
+        /*
+        | 🔴 منطقِ واقعی در `InvoiceCanceller` است، نه این‌جا.
+        |
+        | از وقتی کرونِ انقضای ۷۲ ساعته هم فاکتور لغو می‌کند، دو فراخوان داریم.
+        | تعریفِ دومِ «لغو» یعنی دو تعریف که روزی واگرا می‌شوند — و یک طرفِ
+        | واگرایی، سابقهٔ مالی است.
+        |
+        | ⚠️ مشتری رسیدِ بانکیِ در انتظار را **رد** می‌کند (خودش دارد لغو
+        | می‌کند)، ولی کرون نه: رسیدِ در انتظار یعنی آدمی ادعا کرده پولِ واقعی
+        | فرستاده، و ردِ خودکارش یعنی گم‌کردنِ پول.
+        */
+        app(\App\Services\Billing\InvoiceCanceller::class)
+            ->cancel($invoice, 'فاکتور توسط مشتری لغو شد', rejectPendingReceipt: true);
 
         return redirect()->route($this->rp().'account.invoices')
             ->with('ok', 'فاکتور لغو شد.'.($invoice->service_id ? ' سرویس مربوطه هم غیرفعال شد.' : ''));
