@@ -258,14 +258,13 @@ class AdminSettingsTabsTest extends TestCase
      * حذف شد و مارک‌آپش به تبِ حساب‌ها رفت، استایلش جا مانْد. فرم بی‌هیچ خطایی
      * و با کدِ ۲۰۰ بی‌استایل رندر می‌شد.
      *
-     * `btn-glass` عمداً معاف است: از قبل در ده‌ها ویوِ مدیریت استفاده می‌شود و
-     * هیچ‌جای `admin.css` تعریف نشده — یک بدهیِ موجود، نه چیزی که این تغییر
-     * ساخته باشد. اگر روزی تعریف شد، این استثنا را بردار.
+     * ✅ استثنای `btn-glass` برداشته شد. آن کلاس در ۱۴ ویوِ مدیریت استفاده
+     * می‌شد و هیچ‌جای `admin.css` تعریف نشده بود؛ حالا هست، پس این تست دیگر
+     * هیچ معافیتی ندارد. **همین‌طور نگهش دار** — فهرستِ استثناء که بماند،
+     * به‌مرور تست را به یک لیستِ سفیدِ بی‌اثر تبدیل می‌کند.
      */
     public function test_every_css_class_the_tabs_use_is_defined(): void
     {
-        $preExistingDebt = ['btn-glass'];
-
         $css = (string) file_get_contents(public_path('assets/css/admin.css'));
         $views = array_merge(
             glob(resource_path('views/admin/settings/*.blade.php')) ?: [],
@@ -277,7 +276,7 @@ class AdminSettingsTabsTest extends TestCase
             preg_match_all('~class="([^"{}]+)"~', (string) file_get_contents($view), $m);
             foreach ($m[1] as $chunk) {
                 foreach (preg_split('~\s+~', trim($chunk)) as $class) {
-                    if ($class === '' || in_array($class, $preExistingDebt, true)) {
+                    if ($class === '') {
                         continue;
                     }
                     if (! str_contains($css, '.'.$class)) {
