@@ -768,3 +768,10 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 .sx-warn{border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.08);color:var(--amber);
   border-radius:11px;padding:13px 16px;margin-bottom:16px;font-size:13.5px;line-height:1.95}
 .sx-warn b{color:var(--amber)}
+/* «از دیتای خودتان بساز» — عمداً برجسته‌تر از فهرستِ دستی، چون فهرستِ بهتری است */
+.sx-own{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;
+  border:1px solid rgba(34,211,238,.3);background:rgba(34,211,238,.06);
+  border-radius:12px;padding:14px 16px}
+.sx-own-tx{flex:1 1 320px;min-width:0}
+.sx-own-tx b{display:block;font-size:14px;margin-bottom:3px}
+.sx-own-tx small{color:var(--muted);font-size:12.5px;line-height:1.8}

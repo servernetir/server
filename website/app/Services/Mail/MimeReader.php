@@ -35,10 +35,15 @@ class MimeReader
      *   references: string,
      *   text: string,
      *   html: string,
-     *   attachments: list<array{name:string, mime:string, size:int, cid:string}>
+     *   attachments: list<array{name:string, mime:string, size:int, cid:string, data:?string}>
      * }
+     *
+     * ⚠️ `$withData` بایت‌های پیوست را هم برمی‌گرداند و **حافظه می‌خورد**. فقط
+     * مسیرِ دانلود آن را روشن می‌کند؛ صفحهٔ خواندنِ نامه هرگز. یک نامه با سه
+     * پیوستِ چندمگابایتی، در حالتِ روشن، همان چند مگابایت را دو بار در حافظه
+     * دارد (خام + رمزگشایی‌شده).
      */
-    public function parse(string $raw): array
+    public function parse(string $raw, bool $withData = false): array
     {
         [$headerBlock, $body] = $this->split($raw);
         $headers = $this->headers($headerBlock);
@@ -57,7 +62,7 @@ class MimeReader
             'attachments' => [],
         ];
 
-        $this->walk($headers, $body, $out, 0);
+        $this->walk($headers, $body, $out, 0, $withData);
 
         // اگر فقط HTML آمد، یک نسخهٔ متنی هم بساز تا پیش‌نمایش و نقلِ‌قول چیزی داشته باشد.
         if ($out['text'] === '' && $out['html'] !== '') {
@@ -125,7 +130,7 @@ class MimeReader
      *
      * @param  array<string,string>  $headers
      */
-    private function walk(array $headers, string $body, array &$out, int $depth): void
+    private function walk(array $headers, string $body, array &$out, int $depth, bool $withData = false): void
     {
         if ($depth > self::MAX_DEPTH) {
             return;
@@ -137,7 +142,7 @@ class MimeReader
         if (str_starts_with($ctype, 'multipart/') && $boundary !== '') {
             foreach ($this->parts($body, $boundary) as $part) {
                 [$ph, $pb] = $this->split($part);
-                $this->walk($this->headers($ph), $pb, $out, $depth + 1);
+                $this->walk($this->headers($ph), $pb, $out, $depth + 1, $withData);
             }
 
             return;
@@ -161,6 +166,7 @@ class MimeReader
                 'mime' => $ctype ?: 'application/octet-stream',
                 'size' => strlen($decoded),
                 'cid'  => trim($headers['content-id'] ?? '', " <>\t\n"),
+                'data' => $withData ? $decoded : null,
             ];
 
             return;

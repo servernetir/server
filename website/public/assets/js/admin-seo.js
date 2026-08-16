@@ -81,6 +81,32 @@
     });
   });
 
+  /* ───────── ۲‑الف‑۲) ساختِ فهرست از دیتای خودمان ───────── */
+  var ownBtn = document.getElementById('sx-import-own');
+  ownBtn && ownBtn.addEventListener('click', function () {
+    busy(ownBtn, true);
+    say('sx-own-status', 'در حال گشتن در دیتای خودتان…');
+    post(SX.urls.listOwn, {}).then(function (r) {
+      busy(ownBtn, false);
+      var d = r.data;
+      if (!d.ok) {
+        say('sx-own-status', d.error === 'no_source'
+          ? 'جدول دامنه‌ها روی این سرور نیست.'
+          : (d.messages || ['ساخته نشد']).join(' · '), 'bad');
+        return;
+      }
+      if (!d.added) {
+        /* صفر بودن یک **یافته** است نه خطا: یعنی هر کسی که دامنه‌اش پیش ماست
+           سرویس فعال هم دارد. گفتنش بهتر از یک پیام مبهم است. */
+        say('sx-own-status', 'موردی پیدا نشد — از ' + d.candidates +
+            ' دامنهٔ بررسی‌شده، همه صاحبشان سرویس فعال دارد یا قبلاً در فهرست است.', 'ok');
+        return;
+      }
+      say('sx-own-status', d.added + ' مورد از دیتای خودتان اضافه شد. حالا «بررسی سایت‌های بررسی‌نشده» را بزنید.', 'ok');
+      setTimeout(function () { location.reload(); }, 1400);
+    });
+  });
+
   /* ───────── ۲‑ب) حلقهٔ بررسی ─────────
      یکی‌یکی، چون هر بررسی چند ثانیه است و یک درخواستِ طولانی پشتِ Cloudflare
      قطع می‌شود. حلقه این‌جاست تا پیشرفت دیده شود و قطع‌شدن فقط یک ردیف را

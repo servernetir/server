@@ -32,7 +32,7 @@
   <div class="mk-head">
     <div>
       <h2>صندوق ایمیل</h2>
-      <p>این یک کلاینتِ ایمیل نیست — فقط می‌گوید چه چیزی هنوز رسیدگی نشده و کدامش جواب می‌خواهد.</p>
+      <p>می‌گوید چه چیزی هنوز رسیدگی نشده و کدامش جواب می‌خواهد. روی موضوع بزنید تا کاملش را بخوانید و همان‌جا جواب بدهید.</p>
     </div>
   </div>
 
@@ -88,7 +88,7 @@
       @foreach($messages as $m)
         <div class="mk-row {{ $m->needs_reply ? 'is-hot' : '' }} {{ $m->is_system ? 'is-wait' : '' }}">
           <div>
-            <b>{{ $m->subject ?: '(بدون موضوع)' }}</b>
+            <b><a href="/admin/mail/{{ $m->id }}" style="color:inherit">{{ $m->subject ?: '(بدون موضوع)' }}</a></b>
             <small>{{ $m->from_name ?: $m->from_email }} · <span dir="ltr">{{ $m->from_email }}</span></small>
             @if(filled($m->summary))<div class="mk-obs" style="margin-top:7px">{{ $m->summary }}</div>@endif
           </div>

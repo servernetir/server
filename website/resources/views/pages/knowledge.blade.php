@@ -51,21 +51,15 @@
         </div>
       </article>
       @empty
-      @foreach($kb['articles'] as $i => $a)
-      <article class="kb-card reveal" style="transition-delay:{{ $i * 60 }}ms" data-search="{{ lc($a)['t'] }} {{ $a['tag'] }}">
-        <div class="kb-card-top">
-          <span class="kb-tag">{{ $a['tag'] }}</span>
-          <span class="kb-min"><svg class="icon"><use href="#i-clock"/></svg>{{ $isFa ? fa_num($a['min']) : $a['min'] }} {{ __('ui.kb_min') }}</span>
-        </div>
-        <span class="kb-ico"><svg class="icon"><use href="#i-{{ $a['icon'] }}"/></svg></span>
-        <h3>{{ lc($a)['t'] }}</h3>
-        <p>{{ lc($a)['d'] }}</p>
-        <div class="kb-card-foot">
-          <time>{{ lc($a)['date'] }}</time>
-          <a class="buy" href="{{ lroute('blog.index') }}">{{ __('ui.kb_read') }} <svg class="icon dir"><use href="#i-arrow"/></svg></a>
-        </div>
-      </article>
-      @endforeach
+      {{-- 🔴 اگر نوشته‌ای نیست، **هیچ** نشان نده.
+
+           تا شهریور ۱۴۰۵ این‌جا شش مقالهٔ ساختگی با عنوان و توضیح و **تاریخِ
+           جعلی** رندر می‌شد تا «صفحه خالی نماند». روی پروداکشن هرگز دیده نشد
+           (چون نوشتهٔ واقعی هست)، ولی روی هر نصبِ تازه یا هر لحظه‌ای که
+           `BlogRepository` خالی برگردد — مثلاً یک قطعیِ دیتابیس — سایت شش
+           مقالهٔ نداشته را تبلیغ می‌کرد.
+
+           صفحهٔ خالی صادق است؛ صفحهٔ پر از محتوای ساختگی نیست. --}}
       @endforelse
     </div>
 
@@ -80,7 +74,19 @@
   </div>
 </section>
 
-{{-- ============ WEBINARS ============ --}}
+{{-- ============ WEBINARS ============
+     🔴 فقط وقتی وبینارِ **واقعی** ثبت شده باشد.
+
+     تا امروز سه وبینارِ ساختگی با تاریخ و ساعتِ مشخص («پنجشنبه ۲۵ تیر · ۱۸:۰۰»)
+     نشان داده می‌شد و دکمهٔ «ثبت‌نام»شان به `href="#"` می‌رفت — یعنی روی همان
+     صفحه‌ای که قرار است اعتبارِ فنیِ تیم را نشان دهد، رویدادی تبلیغ می‌شد که
+     وجود نداشت و کلیکش هیچ کاری نمی‌کرد.
+
+     همان قاعدهٔ صفحهٔ `/status` که عمداً هیچ عددِ آپتایمِ ساختگی نمی‌سازد:
+     بخشی که مشتری برای راستی‌آزمایی نگاهش می‌کند، با محتوای ساختگی از نبودنش
+     بدتر است. آرایه‌اش در `config/knowledge.php` خالی شد؛ هر وقت وبینارِ
+     واقعی داشتید همان‌جا اضافه کنید و این بخش خودش برمی‌گردد. --}}
+@if(!empty($kb['webinars']))
 <section class="section" id="webinars" style="padding-top:40px">
   <div class="container">
     <div class="section-head reveal">
@@ -103,6 +109,7 @@
     </div>
   </div>
 </section>
+@endif
 
 {{-- ============ DOCS ============ --}}
 <section class="section" id="docs" style="padding-top:40px">
@@ -112,11 +119,15 @@
       <h2>{{ __('ui.kb_docs_title') }}</h2>
       <p>{{ __('ui.kb_docs_sub') }}</p>
     </div>
+    {{-- 🔴 شمارش از خودِ پایگاه دانش می‌آید، نه از عددِ سخت‌کد. پیش از این شش
+         دستهٔ ساختگی جمعاً «۱۶۴ مقاله» ادعا می‌کردند در حالی که کلِ مستندات
+         ۳۵ سند است. چراییِ کامل در `SiteController::knowledge()`. --}}
     <div class="kb-docs">
-      @foreach($kb['docs'] as $i => $d)
-      <a class="kb-doc reveal" style="transition-delay:{{ $i * 50 }}ms" href="{{ lroute('docs.index') }}">
+      @foreach($docSections as $i => $d)
+      <a class="kb-doc reveal" style="transition-delay:{{ $i * 50 }}ms"
+         href="{{ $d['first'] ? lroute('docs', $d['first']) : lroute('docs.index') }}">
         <span class="dc-icon"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
-        <b>{{ lc($d) }}</b>
+        <b>{{ lc($d['meta'])['t'] }}</b>
         <small>{{ $isFa ? fa_num($d['count']) : $d['count'] }} {{ __('ui.kb_articles') }}</small>
       </a>
       @endforeach
@@ -124,7 +135,17 @@
   </div>
 </section>
 
-{{-- ============ LEARNING ============ --}}
+{{-- ============ LEARNING ============
+     🔴 مثلِ وبینارها: فقط وقتی چیزِ واقعی هست.
+
+     سه ادعای مشخص این‌جا بود که هیچ‌کدام وجود نداشتند و هیچ لینکی هم نداشتند:
+     «دورهٔ رایگان — ۱۲ جلسه ویدیویی»، «پادکست — هر دو هفته»، «میتاپ DevOps
+     تهران — میزبانی فصلی». اینها آرزو نیستند، **ادعای واقعی**اند: بازدیدکننده
+     می‌خوانَد و راهی برای اقدام ندارد، و اگر بپرسد باید بگوییم وجود ندارد.
+
+     ⚠️ اگر این‌ها در برنامه‌اند، همان `config/knowledge.php` را پر کنید و بخش
+     خودش برمی‌گردد — ولی آن‌وقت باید لینکِ واقعی هم داشته باشند. --}}
+@if(!empty($kb['learning']))
 <section class="section" id="learning" style="padding-top:40px">
   <div class="container">
     <div class="section-head reveal">
@@ -144,6 +165,7 @@
     </div>
   </div>
 </section>
+@endif
 
 {{-- ============ DEVELOPERS ============ --}}
 <section class="section" id="developers" style="padding-top:40px;padding-bottom:60px">

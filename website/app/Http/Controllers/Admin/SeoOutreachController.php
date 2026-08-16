@@ -158,6 +158,82 @@ class SeoOutreachController extends Controller
         return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
     }
 
+    /**
+     * ۲‑الف‑۲) ساختِ فهرست از **دیتای خودمان** — بهترین منبعی که داریم.
+     *
+     * 🔴 چرا این از هر فهرستِ بیرونی بهتر است، و چرا اصلاً ساخته شد:
+     * کسی که دامنه‌اش را از ما ثبت کرده ولی جای دیگری هاست است، سه چیز دارد که
+     * یک غریبه ندارد — ایمیلش را **قانوناً** داریم (مشتریِ خودمان است، نه
+     * نشانی‌ای که از جایی برداشته باشیم)، از قبل به ما اعتماد کرده، و پیامِ ما
+     * برایش ربط دارد نه مزاحمت: «دامنه‌ات پیشِ ماست، سایتت این ایرادها را دارد».
+     *
+     * ⚠️ همان محافظ‌های فهرستِ دستی این‌جا هم اجرا می‌شوند (لغوِ اشتراک، تکراری،
+     * سقف). نبودشان یعنی مشتری‌ای که یک‌بار گفته «نفرست» از این درِ دیگر دوباره
+     * ایمیل بگیرد.
+     */
+    public function importOwn(Request $request): JsonResponse
+    {
+        abort_unless(Schema::hasTable('outreach_contacts'), 503);
+
+        if (! Schema::hasTable('domains') || ! Schema::hasTable('services')) {
+            return response()->json(['ok' => false, 'error' => 'no_source'], 422);
+        }
+
+        $batch = 'own-'.Str::lower(Str::random(6));
+        $added = 0;
+        $skipped = [];
+
+        /*
+         * «دامنه پیشِ ماست ولی هاستش جای دیگری است» =
+         *   دامنهٔ زنده  +  مشتری‌اش هیچ سرویسِ زنده‌ای ندارد.
+         *
+         * ⚠️ «زنده» از `Service::DEAD_STATUSES` می‌آید نه از فهرستِ دست‌نویس؛
+         * وگرنه روزی وضعیتِ تازه‌ای اضافه می‌شود و این پرس‌وجو بی‌صدا کهنه
+         * می‌شود — همان تلهٔ ثبت‌شدهٔ «پرس‌وجوی موازی» در SystemHealth.
+         */
+        $rows = \App\Models\Domain::query()
+            ->alive()
+            ->with('customer:id,email,status')
+            ->whereHas('customer', fn ($q) => $q->whereNotNull('email'))
+            ->whereDoesntHave('customer.services', fn ($q) => $q->whereNotIn('status', \App\Models\Service::DEAD_STATUSES))
+            ->orderByDesc('id')
+            ->limit(self::MAX_LIST * 2)
+            ->get();
+
+        foreach ($rows as $d) {
+            if ($added >= self::MAX_LIST) {
+                $skipped[] = __('ui.sx_over_limit', ['max' => self::MAX_LIST]);
+                break;
+            }
+
+            $host = Str::lower((string) $d->domain);
+            $email = Str::lower(trim((string) ($d->customer->email ?? '')));
+
+            if ($host === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            if (OutreachContact::isSuppressed($email)) {
+                $skipped[] = $email.' — '.__('ui.sx_skip_unsub');
+                continue;
+            }
+            if (OutreachContact::where('host', $host)->where('email', $email)->exists()) {
+                $skipped[] = $host.' — '.__('ui.sx_skip_dup');
+                continue;
+            }
+
+            OutreachContact::create([
+                'host' => $host, 'email' => $email,
+                'batch' => $batch, 'created_by' => $request->user()?->id,
+            ]);
+            $added++;
+        }
+
+        return response()->json([
+            'ok' => true, 'added' => $added, 'candidates' => $rows->count(),
+            'skipped' => array_slice($skipped, 0, 30),
+        ]);
+    }
+
     /** ۲‑ب) بررسیِ **یک** ردیفِ بی‌گزارش. مرورگر تا تمام‌شدن صدا می‌زند. */
     public function scanNext(Request $request, SiteAudit $audit): JsonResponse
     {

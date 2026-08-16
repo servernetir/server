@@ -71,6 +71,22 @@ return [
             'pass'  => env('MAILBOX_GMAIL_PASS'),
             'host'  => env('MAILBOX_GMAIL_HOST', 'imap.gmail.com'),
             'port'  => (int) env('MAILBOX_GMAIL_PORT', 993),
+
+            /*
+            | 🔴 SMTPِ **صریح**، نه حدس.
+            |
+            | `MailboxReplier` تا امروز هر صندوقی را که `host`ِ خودش داشت از
+            | پاسخ‌دادن محروم می‌کرد، و دلیلش درست بود: حدس‌زدنِ SMTPِ یک
+            | سرویسِ بیگانه یعنی ساعت‌ها تلاشِ ناموفق و در بدترین حالت نامه‌ای
+            | که هرگز نمی‌رسد. آن قاعده برداشته **نشد** — فقط حالا راهی هست که
+            | صریح بگویی کجا بفرستد. هر صندوقی که `smtp_host` نداشته باشد و
+            | روی سرورِ ما نباشد، هنوز صریح رد می‌شود.
+            |
+            | ⚠️ همان App Passwordِ IMAP کار می‌کند؛ رمزِ عادیِ گوگل نه.
+            */
+            'smtp_host'   => env('MAILBOX_GMAIL_SMTP_HOST', 'smtp.gmail.com'),
+            'smtp_port'   => (int) env('MAILBOX_GMAIL_SMTP_PORT', 465),
+            'smtp_scheme' => env('MAILBOX_GMAIL_SMTP_SCHEME', 'smtps'),
         ],
     ], fn ($a) => filled($a['pass']) && filled($a['user']))),
 
