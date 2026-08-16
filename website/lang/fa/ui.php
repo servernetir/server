@@ -2275,4 +2275,14 @@ return [
     'sx_skip_unsub' => 'قبلاً لغو اشتراک کرده',
     'sx_skip_dup' => 'از قبل در فهرست است',
     'au_print_title' => 'گزارش بررسی سایت',
+
+    /* نشانه‌های اعتماد — فقط وقتی config/company.php پر باشد رندر می‌شوند */
+    'trust_title' => 'اعتماد و اطلاعات حقوقی',
+    'trust_enamad' => 'نماد اعتماد الکترونیکی',
+    'trust_samandehi' => 'ساماندهی',
+    'trust_legal_name' => 'نام ثبتی',
+    'trust_reg_no' => 'شماره ثبت',
+    'trust_national' => 'شناسهٔ ملی',
+    'trust_economic' => 'کد اقتصادی',
+    'trust_address' => 'نشانی',
 ];

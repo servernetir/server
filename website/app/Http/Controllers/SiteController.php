@@ -114,7 +114,21 @@ class SiteController extends Controller
             '## Products',
         ];
 
-        foreach (['hosting', 'vps', 'dedicated'] as $cat) {
+        /*
+        | 🔴 کاتالوگ باید **کامل** باشد، وگرنه مدل شرکت را کوچک‌تر از آنچه هست
+        | معرفی می‌کند.
+        |
+        | تا شهریور ۱۴۰۵ فقط سه دسته این‌جا بودند و نتیجه‌اش این بود که
+        | **سرورِ ابری** — که بیشترین صفحه و تازه‌ترین خطِ محصول است — و
+        | **دامنه** و **خدمات** و **راهکارها** اصلاً نامشان برده نمی‌شد. یعنی
+        | وقتی کسی از یک مدلِ زبانی می‌پرسید «سرورنت سرورِ ابری دارد؟»، تنها
+        | سندی که خودمان برایش گذاشته‌ایم می‌گفت نه.
+        |
+        | ⚠️ همه از همان configهایی می‌آیند که خودِ صفحات از آن ساخته می‌شوند،
+        | پس افزودنِ محصولِ تازه خودبه‌خود این‌جا هم می‌آید. فهرستِ دست‌نویس
+        | همان هفتهٔ اول عقب می‌افتد.
+        */
+        foreach (['hosting', 'vps', 'dedicated', 'cloud', 'domain', 'services'] as $cat) {
             $items = $cat === 'hosting' ? config('hosting.products', []) : config("catalog.$cat", []);
 
             foreach ((array) $items as $slug => $p) {
@@ -124,19 +138,43 @@ class SiteController extends Controller
             }
         }
 
+        // ⚠️ راهکارِ ادغام‌شده ۳۰۱ می‌خورد؛ از **همان** ثابتی خوانده می‌شود که
+        //    خودِ `/solutions` برای کنارگذاشتنشان استفاده می‌کند.
+        $merged = \App\Http\Controllers\SolutionController::MERGED;
+
+        foreach ((array) config('solutions', []) as $slug => $s) {
+            if (isset($merged[$slug])) {
+                continue;
+            }
+            $title = $s['fa']['t'] ?? ($s['en']['t'] ?? $slug);
+            $lines[] = "- [{$title}]({$base}/solutions/{$slug})";
+        }
+
         $lines[] = '';
         $lines[] = '## Key pages';
 
         foreach ([
-            '/about'     => 'About ServerNet',
-            '/contact'   => 'Contact and support',
-            '/blog'      => 'Blog',
-            '/knowledge' => 'Knowledge base',
-            '/webtools'  => 'Free webmaster tools (100% client-side)',
-            '/lookup'    => 'DNS, SSL and network lookup tools',
-            '/status'    => 'Service status',
-            '/sla'       => 'Service level agreement',
-            '/terms'     => 'Terms of service',
+            '/about'         => 'About ServerNet',
+            '/contact'       => 'Contact and support',
+            '/domains'       => 'Domain search and registration',
+            '/servers'       => 'Refurbished physical servers for sale',
+            '/blog'          => 'Blog',
+            '/knowledge'     => 'Knowledge base',
+            '/docs'          => 'Documentation',
+            '/webtools'      => 'Free webmaster tools (100% client-side)',
+            /*
+             * ⚠️ این دو، هابِ **واقعیِ** ابزارهای شبکه‌اند و از صفحهٔ اصلی هم
+             * لینک می‌شوند. پیش از این `/lookup` این‌جا بود — تنها آدرسِ این
+             * فایل که در نقشهٔ سایت **نبود**، چون همان `/lookup/a` را رندر
+             * می‌کند و به آن canonical می‌شود. فرستادنِ مدل به یک آدرسِ
+             * غیرِcanonical یعنی همان صفحه را زیرِ دو نام معرفی کردن.
+             */
+            '/dns-lookup'    => 'DNS record lookup tools',
+            '/network-scan'  => 'SSL, port and ping network tools',
+            '/status'        => 'Service status',
+            '/sla'           => 'Service level agreement',
+            '/terms'         => 'Terms of service',
+            '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
         }

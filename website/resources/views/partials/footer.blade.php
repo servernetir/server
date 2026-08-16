@@ -59,10 +59,43 @@
           <a class="fc" href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
           <a class="fc" href="mailto:{{ $contact['sales_email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['sales_email'] }}</a>
           <a class="fc" href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-message"/></svg>WhatsApp</a>
-          {{-- جای نماد اعتماد الکترونیکی (enamad) --}}
+          @if($addr = company_address())<span class="fc f-addr"><svg class="icon"><use href="#i-pin"/></svg>{{ $addr }}</span>@endif
         </div></div>
       </div>
     </div>
+
+    {{--
+      ══ مهرهای اعتماد ══
+
+      🔴 فقط وقتی **واقعاً** ثبت شده باشند. `trust_seals()` مهری را که هر دو
+      مقدارش پر نباشد اصلاً برنمی‌گرداند، چون آدرسِ نیمه‌ساخته به صفحهٔ
+      نامعتبرِ نماد می‌رود — و خریدارِ ایرانی این مهر را **کلیک می‌کند**.
+      مهرِ بی‌اعتبار کلِ سایت را مشکوک می‌کند؛ از نداشتنش بسیار بدتر است.
+
+      ⚠️ نسخهٔ تصویری، نه اسکریپتی: CSP این پروژه اسکریپت و آی‌فریمِ بیرونی را
+      بی‌هیچ خطایی بلاک می‌کند ولی `img-src` هر https را می‌پذیرد.
+    --}}
+    @php($seals = trust_seals())
+    @if($seals)
+    <div class="f-seals">
+      @foreach($seals as $s)
+        <a href="{{ $s['href'] }}" target="_blank" rel="noopener noreferrer" referrerpolicy="origin" title="{{ $s['alt'] }}">
+          <img src="{{ $s['src'] }}" alt="{{ $s['alt'] }}" loading="lazy" referrerpolicy="origin" width="100" height="100">
+        </a>
+      @endforeach
+    </div>
+    @endif
+
+    {{-- شناسه‌های ثبتی — همان قاعده: هرچه پر نباشد اصلاً چاپ نمی‌شود --}}
+    @php($ident = company_identity())
+    @if($ident)
+    <div class="f-legal">
+      @foreach($ident as $row)
+        <span><b>{{ __($row['label']) }}:</b> {{ app()->getLocale() === 'fa' ? fa_num($row['value']) : $row['value'] }}</span>
+      @endforeach
+    </div>
+    @endif
+
     <div class="f-bottom">
       <span>{{ __('ui.f_copy') }}</span>
       <span>servernet.cloud · servernet.ir</span>

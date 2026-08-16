@@ -883,3 +883,123 @@ if (! function_exists('schema_price_irr')) {
         return (string) ($toman * 10);
     }
 }
+
+if (! function_exists('company_identity')) {
+    /**
+     * هویتِ حقوقیِ شرکت — فقط چیزهایی که **واقعاً** پر شده‌اند.
+     *
+     * 🔴 چرا فیلترِ خالی این‌جاست و نه در هر ویو:
+     *
+     * ممیزی گلوگاه را «لایهٔ اعتماد» خواند، ولی نشانهٔ اعتماد نوشتنی نیست — یا
+     * شمارهٔ ثبتِ واقعی هست یا نیست. خطرِ واقعی این است که کسی برای «کامل
+     * دیده‌شدنِ» فوتر یک جای‌نگهدار بگذارد: «شماره ثبت: —» یا نمادی که به
+     * صفحهٔ نامعتبر می‌رود. خریدارِ ایرانی نمادِ اعتماد را **کلیک می‌کند**؛
+     * نمادِ بی‌اعتبار همان لحظه کلِ سایت را مشکوک می‌کند.
+     *
+     * پس یک در ورودی بیشتر نیست و همان‌جا خالی‌ها حذف می‌شوند. ویو فقط روی
+     * چیزی حلقه می‌زند که برگشته.
+     *
+     * @return array<int,array{label:string,value:string}>  فقط پرشده‌ها
+     */
+    function company_identity(): array
+    {
+        $c = (array) config('company', []);
+
+        /*
+         * ⚠️ کلیدِ ترجمه هم از همین‌جا می‌آید، نه از ternayِ تودرتو در Blade.
+         * نسخهٔ اولِ همین کار آن را در ویو حساب می‌کرد و یک نگاشتِ سه‌شرطیِ
+         * ناخوانا ساخت که با افزودنِ فیلدِ چهارم بی‌صدا غلط می‌شد.
+         */
+        $map = [
+            'legal_name'      => 'ui.trust_legal_name',
+            'registration_no' => 'ui.trust_reg_no',
+            'national_id'     => 'ui.trust_national',
+            'economic_code'   => 'ui.trust_economic',
+        ];
+
+        $out = [];
+
+        foreach ($map as $key => $label) {
+            $v = trim((string) ($c[$key] ?? ''));
+            if ($v !== '') {
+                $out[] = ['label' => $label, 'value' => $v];
+            }
+        }
+
+        return $out;
+    }
+}
+
+if (! function_exists('company_address')) {
+    /**
+     * نشانیِ ثبت‌شده به‌صورتِ یک رشته — یا `null` اگر خیابان و شهر نباشد.
+     *
+     * ⚠️ کشور به‌تنهایی «نشانی» نیست. پیش‌فرضِ `IR` همیشه پر است، پس اگر
+     * شرطِ خالی‌بودن را روی کلِ آرایه بگذاریم، فوتر برای همیشه «ایران» را
+     * به‌عنوانِ نشانی نشان می‌دهد — که بدتر از نداشتنِ نشانی است.
+     */
+    function company_address(): ?string
+    {
+        $a = (array) config('company.address', []);
+
+        $parts = array_filter([
+            trim((string) ($a['street'] ?? '')),
+            trim((string) ($a['city'] ?? '')),
+            trim((string) ($a['province'] ?? '')),
+            trim((string) ($a['postcode'] ?? '')),
+        ], fn ($v) => $v !== '');
+
+        // خیابان و شهر هر دو لازم‌اند تا «نشانی» معنا بدهد
+        if (trim((string) ($a['street'] ?? '')) === '' || trim((string) ($a['city'] ?? '')) === '') {
+            return null;
+        }
+
+        return implode('، ', $parts);
+    }
+}
+
+if (! function_exists('trust_seals')) {
+    /**
+     * مهرهای اعتمادِ **فعال** — نماد و ساماندهی.
+     *
+     * ⚠️ فقط نسخهٔ تصویری ساخته می‌شود. CSP این پروژه `script-src 'self'` و
+     * `frame-src 'self' …` دارد، پس کدِ اسکریپتی/آی‌فریمیِ این دو مرجع
+     * **بی‌هیچ خطایی** رندر نمی‌شود — همان تلهٔ ثبت‌شده در CLAUDE.md.
+     * `img-src` اما هر https را می‌پذیرد، پس `<a><img>` کار می‌کند.
+     *
+     * ⚠️ هر دو مقدار (`id` و `code`) لازم است. با یکی، آدرسِ ساخته‌شده به
+     * صفحهٔ نامعتبر می‌رود — بدترین حالتِ ممکن برای یک مهرِ اعتماد.
+     *
+     * @return array<int,array{key:string,href:string,src:string,alt:string}>
+     */
+    function trust_seals(): array
+    {
+        $out = [];
+
+        $enamadId = trim((string) config('company.enamad.id', ''));
+        $enamadCode = trim((string) config('company.enamad.code', ''));
+
+        if ($enamadId !== '' && $enamadCode !== '') {
+            $out[] = [
+                'key'  => 'enamad',
+                'href' => 'https://trustseal.enamad.ir/?id='.rawurlencode($enamadId).'&Code='.rawurlencode($enamadCode),
+                'src'  => 'https://trustseal.enamad.ir/logo.aspx?id='.rawurlencode($enamadId).'&Code='.rawurlencode($enamadCode),
+                'alt'  => __('ui.trust_enamad'),
+            ];
+        }
+
+        $samId = trim((string) config('company.samandehi.id', ''));
+        $samCode = trim((string) config('company.samandehi.code', ''));
+
+        if ($samId !== '' && $samCode !== '') {
+            $out[] = [
+                'key'  => 'samandehi',
+                'href' => 'https://logo.samandehi.ir/Verify.aspx?id='.rawurlencode($samId).'&p='.rawurlencode($samCode),
+                'src'  => 'https://logo.samandehi.ir/logo.aspx?id='.rawurlencode($samId).'&p='.rawurlencode($samCode),
+                'alt'  => __('ui.trust_samandehi'),
+            ];
+        }
+
+        return $out;
+    }
+}
