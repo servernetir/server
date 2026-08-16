@@ -36,11 +36,34 @@ class SiteController extends Controller
      * لینک‌های کارت‌ها هم `href="#"` مرده بودند. حالا از همان منبعِ بلاگ
      * (دیتابیس) می‌آید و به نوشتهٔ واقعی لینک می‌شود.
      */
+    /**
+     * 🔴 شمارشِ مستندات از **خودِ مستندات** می‌آید، نه از یک عددِ سخت‌کد.
+     *
+     * `config/knowledge.php` شش دستهٔ ساختگی با شمارشِ اختراعی داشت که جمعشان
+     * ۱۶۴ می‌شد، در حالی که کلِ پایگاه دانش **۳۵** سند دارد — تقریباً پنج
+     * برابر. عدد روی یک صفحهٔ عمومی نشسته بود و هیچ‌چیز در کد به واقعیت وصلش
+     * نمی‌کرد، پس با انتشارِ هر سندِ تازه فقط **غلط‌تر** می‌شد.
+     *
+     * `DocsRepository::tree()` همان منبعی است که خودِ `/docs` از آن ساخته
+     * می‌شود و بخشِ خالی را اصلاً برنمی‌گرداند. یعنی از این‌جا به بعد این عدد
+     * نمی‌تواند دروغ بگوید — نه امروز، نه بعد از صد سندِ دیگر.
+     */
     public function knowledge(): View
     {
+        $tree = app(\App\Services\DocsRepository::class)->tree();
+
         return view('pages.knowledge', [
             'kb'    => config('knowledge'),
             'posts' => array_slice(app(\App\Services\BlogRepository::class)->index(), 0, 6),
+            'docSections' => collect($tree)->map(fn ($s, $key) => [
+                'key'   => $key,
+                'icon'  => $s['meta']['icon'] ?? 'book',
+                'meta'  => $s['meta'],
+                'count' => count($s['items']),
+                // به **اولین سندِ همان بخش** لینک می‌دهد، نه فهرستِ کلی: کارتی
+                // که همه‌شان به یک آدرس بروند، برای کاربر و برای خزنده یکی است.
+                'first' => $s['items'][0]['slug'] ?? null,
+            ])->values()->all(),
         ]);
     }
 
