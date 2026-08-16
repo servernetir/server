@@ -335,8 +335,7 @@ class AdminBaleGate
     {
         $code = (string) random_int(100000, 999999);
 
-        $state = $this->state();
-        $state['pending'] = [
+        $pending = [
             'verb'  => $verb,
             'args'  => $args,
             'human' => $human,
@@ -345,7 +344,7 @@ class AdminBaleGate
             'exp'   => now()->addSeconds(self::CONFIRM_TTL)->getTimestamp(),
         ];
 
-        $this->putState($state);
+        $this->putState(['pending' => $pending]);
 
         return $code;
     }
@@ -387,8 +386,7 @@ class AdminBaleGate
                 }
 
                 if ((int) $pending['exp'] < now()->getTimestamp()) {
-                    unset($state['pending']);
-                    $this->putState($state);
+                    $this->putState(['pending' => null]);
 
                     return null;
                 }
@@ -398,8 +396,7 @@ class AdminBaleGate
 
                 if (! hash_equals((string) $pending['hash'], $this->hash($code))) {
                     if ($pending['tries'] >= self::CONFIRM_MAX_TRIES) {
-                        unset($state['pending']);
-                        $this->putState($state);
+                        $this->putState(['pending' => null]);
 
                         ErrorTracker::noteOnce('bale-admin', 'کدِ تأییدِ رباتِ بله ۳ بار اشتباه وارد شد.', 900);
                         $this->alertOwner('کدِ تأییدِ نادرست در رباتِ بله', [
@@ -407,16 +404,14 @@ class AdminBaleGate
                             'اگر کارِ شما نبود' => 'در /admin/bale اتصال را قطع کنید',
                         ]);
                     } else {
-                        $state['pending'] = $pending;
-                        $this->putState($state);
+                        $this->putState(['pending' => $pending]);
                     }
 
                     return null;
                 }
 
                 // درست بود ⇒ همین‌جا مصرف شود، پیش از اجرای کار
-                unset($state['pending']);
-                $this->putState($state);
+                $this->putState(['pending' => null]);
 
                 return [
                     'verb'  => (string) $pending['verb'],
@@ -456,13 +451,11 @@ class AdminBaleGate
     public function putDraft(int $ticketId, string $text): void
     {
         try {
-            $state = $this->state();
-            $state['draft'] = [
+            $this->putState(['draft' => [
                 'ticket' => $ticketId,
                 'text'   => mb_substr($text, 0, 3000),
                 'exp'    => now()->addMinutes(30)->getTimestamp(),
-            ];
-            $this->putState($state);
+            ]]);
         } catch (\Throwable $e) {
             ErrorTracker::note('bale-admin', $e, ['step' => 'putDraft']);
         }
@@ -513,8 +506,7 @@ class AdminBaleGate
             }
 
             $ring[] = $updateId;
-            $state['seen'] = array_slice($ring, -self::SEEN_RING);
-            $this->putState($state);
+            $this->putState(['seen' => array_slice($ring, -self::SEEN_RING)]);
 
             return false;
         } catch (\Throwable) {
@@ -547,10 +539,36 @@ class AdminBaleGate
         }
     }
 
-    /** @param  array<string,mixed>  $state */
-    private function putState(array $state): void
+    /**
+     * نوشتنِ **یک خانه** از وضعیت، زیرِ قفل.
+     *
+     * 🔴 نسخهٔ قبلی کلِ blob را بی‌قفل بازنویسی می‌کرد و این یک باگِ واقعی بود،
+     * نه احتمالِ نظری: `seenUpdate()` و `putDraft()` هر دو read-modify-write
+     * می‌کردند و `state()` از کشِ ۳۰۰ ثانیه‌ایِ `settings.all` می‌خواند.
+     *
+     * یعنی دو آپدیتِ پشتِ سرِ هم — که در بله عادی است، مثلاً کلیکِ دکمه و پیامِ
+     * بعدی — می‌توانستند همدیگر را پاک کنند: یکی `seen` را می‌نوشت و پیش‌نویس
+     * را می‌بلعید، یا برعکس. نتیجه‌اش «دکمه گاهی کار نمی‌کند» بود؛ چیزی که
+     * هیچ خطایی تولید نمی‌کند و فقط گاه‌به‌گاه دیده می‌شود.
+     *
+     * ⚠️ قفل این‌جاست نه در فراخوان‌ها: هر نویسندهٔ تازه‌ای که فردا اضافه شود
+     * خودبه‌خود امن است. همان سه خطی که `takeConfirm()` از قبل داشت.
+     *
+     * @param  array<string,mixed>  $patch  فقط خانه‌هایی که عوض می‌شوند
+     */
+    private function putState(array $patch): void
     {
-        Setting::putSecret(self::KEY_STATE, json_encode($state, JSON_UNESCAPED_UNICODE));
+        DB::transaction(function () use ($patch) {
+            Setting::where('key', self::KEY_STATE)->lockForUpdate()->first();
+
+            // زیرِ قفل **تازه** بخوان، وگرنه نسخهٔ کهنهٔ کش را برمی‌گردانی
+            $merged = array_merge($this->state(fresh: true), $patch);
+
+            // مقدارِ null یعنی «این خانه را بردار»
+            $merged = array_filter($merged, fn ($v) => $v !== null);
+
+            Setting::putSecret(self::KEY_STATE, json_encode($merged, JSON_UNESCAPED_UNICODE));
+        });
     }
 
     /** همان ساختِ `OtpService`: کدِ خام هرگز ذخیره نمی‌شود */

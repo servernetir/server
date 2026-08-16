@@ -59,6 +59,70 @@ class AdminBaleCommands
         ]);
     }
 
+    /**
+     * «امروز چه چیزی منتظرِ من است؟» — تنها صفحه‌ای که یک مدیرِ گوشی‌به‌دست
+     * واقعاً هر بار می‌خواهد.
+     *
+     * 🔴 این جایگزینِ متنِ راهنما در منوی اصلی شد، و دلیلش ارگونومی نیست،
+     * ریاضیِ تپ است: منوی قبلی یک متنِ بیست‌خطی بود که دکمه‌ها را از صفحهٔ اولِ
+     * گوشی بیرون می‌انداخت، و برای فهمیدنِ اینکه اصلاً چیزی خراب هست یا نه
+     * باید بینِ شش دسته حدس می‌زد. حالا خودِ جواب اول می‌آید و دکمه‌ها شمارش را
+     * روی برچسبشان دارند.
+     *
+     * @return array{text:string,counts:array<string,int>}
+     */
+    public function digest(): array
+    {
+        $n = ['tickets' => 0, 'bank' => 0, 'stuck' => 0, 'domains' => 0, 'mail' => 0];
+
+        // ⚠️ هر شمارش جدا در try است: یک جدولِ مهاجرت‌نخورده نباید کلِ صفحهٔ
+        // اولِ ربات را خالی کند.
+        $count = function (callable $fn): int {
+            try {
+                return (int) $fn();
+            } catch (\Throwable) {
+                return 0;
+            }
+        };
+
+        $n['tickets'] = $count(fn () => \App\Models\Ticket::query()->queue()->count());
+
+        $n['bank'] = $count(fn () => \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
+            ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0);
+
+        $n['mail'] = $count(fn () => \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::open()->where('needs_reply', true)->count() : 0);
+
+        $n['stuck'] = $count(fn () => \App\Models\Service::whereIn('provision_status', ['failed', 'manual'])
+            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)->count());
+
+        $n['domains'] = $count(fn () => \App\Models\Domain::where('provision_status', 'manual')
+            ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)->count());
+
+        $quiet = array_sum($n) === 0;
+
+        $lines = ['☀️ امروز', ''];
+
+        if ($quiet) {
+            $lines[] = '✅ هیچ‌چیز منتظرِ شما نیست.';
+        } else {
+            foreach ([
+                'tickets' => '🎫 تیکتِ منتظرِ پاسخ',
+                'bank'    => '🏦 رسیدِ واریزِ بررسی‌نشده',
+                'mail'    => '📬 ایمیلِ منتظرِ پاسخ',
+                'stuck'   => '⚠️ تحویلِ گیرکرده',
+                'domains' => '🌐 دامنهٔ منتظرِ اقدام',
+            ] as $k => $label) {
+                if ($n[$k] > 0) {
+                    $lines[] = $label.': '.fa_num((string) $n[$k]);
+                }
+            }
+        }
+
+        return ['text' => implode("
+", $lines), 'counts' => $n];
+    }
+
     public function unknown(): string
     {
         return "فرمان را نمی‌شناسم.\nبرای فهرستِ کارها «راهنما» را بفرستید.";

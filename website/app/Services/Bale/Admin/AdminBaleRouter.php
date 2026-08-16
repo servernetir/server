@@ -261,6 +261,10 @@ class AdminBaleRouter
                 'tw' => $this->howToWrite($arg),
                 'ts' => $this->armStoredDraft($arg),
                 'h'  => $this->replyToOwner($this->ui->health()),
+                'x'  => $this->menu(),
+                '?'  => $this->replyToOwner($this->ui->panel()),
+                'rl' => $this->replyToOwner('صفِ رسیدهای واریز در فازِ بعد اضافه می‌شود — فعلاً /admin/bank-transfers.'),
+                'sq' => $this->replyToOwner('صفِ تحویلِ گیرکرده در فازِ بعد اضافه می‌شود — فعلاً /admin/services.'),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
@@ -624,18 +628,27 @@ class AdminBaleRouter
      */
     private function menu(): void
     {
-        $this->sendButtons($this->ui->panel(), [
+        $d = $this->ui->digest();
+        $n = $d['counts'];
+
+        // شمارش روی **برچسبِ دکمه** — تا بی‌بازکردن بفهمد کجا کار هست
+        $tag = fn (string $base, int $c) => $c > 0 ? $base.' ('.fa_num((string) $c).')' : $base;
+
+        $this->sendButtons($d['text'], [
             [
-                ['text' => '🎫 تیکت‌ها', 'data' => self::CB_PREFIX.'q'],
-                ['text' => '📬 ایمیل‌ها', 'data' => self::CB_PREFIX.'m'],
+                ['text' => $tag('🎫 تیکت‌ها', $n['tickets']), 'data' => self::CB_PREFIX.'q'],
+                ['text' => $tag('🏦 رسیدها', $n['bank']),     'data' => self::CB_PREFIX.'rl'],
             ],
             [
-                ['text' => '💚 سلامتِ سامانه', 'data' => self::CB_PREFIX.'h'],
-                ['text' => '🔐 وضعیتِ ربات', 'data' => self::CB_PREFIX.'w'],
+                ['text' => $tag('📬 ایمیل‌ها', $n['mail']),   'data' => self::CB_PREFIX.'m'],
+                ['text' => $tag('⚠️ تحویل', $n['stuck']),     'data' => self::CB_PREFIX.'sq'],
+            ],
+            [
+                ['text' => '💚 سلامت', 'data' => self::CB_PREFIX.'h'],
+                ['text' => '📖 راهنما', 'data' => self::CB_PREFIX.'?'],
             ],
         ]);
     }
-
 
     private function showQueue(): void
     {

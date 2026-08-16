@@ -493,9 +493,15 @@ class BaleAdminBotSecurityTest extends TestCase
         $this->assertNotNull($gate->binding(), 'با کلیدِ خاموش، /pair به دکمهٔ اشتراکِ شماره افتاد');
         $this->assertTrue($gate->enabled(), 'اتصال برقرار شد ولی کنسول خاموش ماند — بن‌بستِ بعدی');
 
-        // و بلافاصله باید فرمان بگیرد
+        /*
+        | و بلافاصله باید فرمان بگیرد.
+        |
+        | ⚠️ ادعا روی «☀️ امروز» است نه متنِ راهنما: منوی اصلی حالا خودِ خلاصهٔ
+        | روز است، نه یک متنِ بیست‌خطی که دکمه‌ها را از صفحهٔ گوشی بیرون
+        | می‌انداخت. راهنما پشتِ دکمهٔ خودش رفت.
+        */
         $this->say('راهنما', self::OWNER_CHAT);
-        $this->assertStringContainsString('کنسولِ مدیر', $this->textsSentTo(self::OWNER_CHAT));
+        $this->assertStringContainsString('امروز', $this->textsSentTo(self::OWNER_CHAT));
     }
 
     /**
