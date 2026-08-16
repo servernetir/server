@@ -58,8 +58,12 @@ class StoreController extends Controller
 
         return view('account.checkout', AccountController::shell('') + [
             'product'   => $product,
-            'countries' => $product->availableCountries(),
+            // لایسنس نه سرور می‌خواهد نه مکان — فهرستِ خالی یعنی ویو بخشِ
+            // «محلِ سرور» را اصلاً رندر نمی‌کند (و با پرچمِ isLicense، هشدارِ
+            // «سرور نداریم» و غیرفعال‌شدنِ دکمه هم نمی‌آید).
+            'countries' => $product->isLicense() ? [] : $product->availableCountries(),
             'cycles'    => array_keys((array) config('billing.cycles', [])),
+            'isLicense' => $product->isLicense(),
         ]);
     }
 
@@ -68,6 +72,10 @@ class StoreController extends Controller
     {
         if (! $product->is_active) {
             return back()->withErrors('این پکیج در دسترس نیست.');
+        }
+
+        if ($product->isLicense()) {
+            return $this->orderLicense($request, $product);
         }
 
         // مکان‌های واقعاً موجود در همین لحظه — مشتری نباید مکانی را بخرد که
@@ -164,6 +172,77 @@ class StoreController extends Controller
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');
+    }
+
+    /**
+     * سفارشِ لایسنس نرم‌افزار — شناسه‌ی سرویس IP مشتری است، نه دامنه.
+     *
+     * 🔴 IP در ستونِ `domain` می‌نشیند و این عمدی است: applyPaid «دامنه‌ی
+     * پرشده + بی‌سرور» را تحویلِ دستیِ ادمین می‌داند (provision_status=manual)
+     * — دقیقاً مسیرِ درستِ لایسنس (فعال‌سازی نزدِ تأمین‌کننده، بعد «تحویل شد»).
+     * ستونِ جدا یعنی مسیرِ تحویلِ تازه، و آن یعنی هر سه‌جای فهرست‌شده در
+     * PaymentService باید هم‌زمان عوض شود؛ این‌جا هیچ‌کدام لازم نیست.
+     */
+    private function orderLicense(Request $request, Product $product): RedirectResponse
+    {
+        $cycles = array_keys((array) config('billing.cycles', []));
+
+        $data = $request->validate([
+            'cycle'      => ['required', \Illuminate\Validation\Rule::in($cycles)],
+            'license_ip' => [
+                'required', 'ipv4',
+                function ($attr, $value, $fail) {
+                    // لایسنس روی IP خصوصی/رزرو فعال‌شدنی نیست؛ همان قاعده‌ی SafeUrl
+                    if (! \App\Services\SafeUrl::isPublicIp((string) $value)) {
+                        $fail('آی‌پی باید عمومی باشد؛ آدرس‌های داخلی و رزروشده پذیرفته نمی‌شوند.');
+                    }
+                },
+            ],
+        ], [], ['cycle' => 'دورهٔ پرداخت', 'license_ip' => 'آی‌پی سرور']);
+
+        $customer = Auth::guard('customer')->user();
+        $ip = trim($data['license_ip']);
+        $cycle = $data['cycle'];
+
+        // مبلغ در لحظه‌ی سفارش قفل می‌شود — بدون ضریبِ مکان (لایسنس مکان ندارد)
+        $cyclePrice = $product->priceForCycle($cycle);
+
+        $invoice = DB::transaction(function () use ($customer, $product, $ip, $cycle, $cyclePrice) {
+            $service = Service::create([
+                'customer_id'   => $customer->id,
+                'name'          => $product->name,
+                'description'   => trim(implode("\n", array_filter([
+                    $product->description,
+                    '🔑 فعال‌سازی لایسنس روی IP: '.$ip,
+                ]))),
+                'currency_code' => $product->currency_code,
+                'price'         => $cyclePrice,
+                'tax_percent'   => $product->tax_percent,
+                'cycle'         => $cycle,
+                'status'        => 'pending',
+                'server_id'     => null,
+                'plan'          => $product->plan,
+                'domain'        => $ip,
+            ]);
+
+            return $this->issueOrderInvoice($service, $product);
+        });
+
+        \App\Models\ActivityLog::record($customer->id, 'purchase',
+            'سفارشِ آنلاینِ لایسنس «'.$product->name.'» (IP: '.$ip.') — '
+            .Service::labelFor($cycle).' توسط مشتری ثبت شد',
+            $request, 'customer', $invoice->service_id);
+
+        app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ لایسنس (در انتظارِ پرداخت)', [
+            'مشتری'  => $customer->displayName().' ('.$customer->code.')',
+            'لایسنس' => $product->name,
+            'IP'     => $ip,
+            'دوره'   => Service::labelFor($cycle),
+            'مبلغ'   => fa_num(number_format((int) $invoice->total)).' تومان',
+        ], url('/admin/customers/'.$customer->id), '🔑');
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)
+            ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی لایسنس، پیش‌فاکتور را پرداخت کنید.');
     }
 
     /** دامنهٔ نهایی + یادداشت بر اساس حالت (دارم/می‌خرم/زیردامنه) */
