@@ -26,6 +26,7 @@ class ProvisioningService
 
         return match ($server->type) {
             'directadmin' => new DirectAdminProvisioner(),
+            'plesk'       => new PleskProvisioner(),
             default       => new WhmProvisioner(),
         };
     }

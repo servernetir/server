@@ -90,8 +90,57 @@ class TldPriceBook
             fn () => $this->quote($tlds));
     }
 
-    /** @return array<string,int> */
-    private function quote(array $tlds): array
+    /**
+     * همان دفترچه، ولی با **هر سه** قیمت: ثبت، تمدید، انتقال.
+     *
+     * ═══ 🔴 چرا این متد لازم شد و چرا «تمدید = ثبت» یک باگِ مالی است ═══
+     *
+     * APIِ نمایندگی و `GetTldPricing` ماژولِ WHMCS هر سه عدد را می‌خواهند.
+     * ساده‌ترین کار این بود که همان `forTlds()` را بدهیم و هر سه را برابر
+     * بگذاریم — و دقیقاً همان اشتباهی است که `Account\DomainController::order()`
+     * یک بار خورده و مستندش کرده: قیمتِ سالِ اولِ بیشترِ پسوندها **تبلیغاتی**
+     * است و رجیسترار برای سال‌های بعد نرخِ تمدید می‌گیرد.
+     *
+     * نمونهٔ واقعیِ همین کاتالوگ (`.shop`): ثبت ۱۹۰٬۰۰۰ و تمدید ۱٬۴۹۰٬۰۰۰
+     * تومان — تقریباً هشت برابر. یعنی نماینده‌ای که با «تمدید = ثبت» قیمت
+     * می‌گیرد، هر تمدید را با ~۱٫۳ میلیون تومان ضرر از ما می‌خرد، و چون
+     * تمدید سالانه تکرار می‌شود، ضرر **انباشته** است نه یک‌باره.
+     *
+     * ⚠️ منطقِ دسته‌بندی، کش و ردِ پرمیوم عیناً همان `quote()` است و عمداً
+     * تکرار نشده — دو پیاده‌سازیِ موازی یعنی روزی یکی‌شان اصلاح می‌شود.
+     *
+     * @param  array<int,string>  $tlds
+     * @return array<string,array{register:int, renew:int, transfer:int}>
+     */
+    public function fullForTlds(array $tlds): array
+    {
+        $tlds = array_values(array_diff(
+            array_values(array_unique(array_filter(array_map(
+                fn ($t) => strtolower(ltrim(trim((string) $t), '.')),
+                $tlds
+            )))),
+            self::NEVER_QUOTE
+        ));
+
+        if ($tlds === []) {
+            return [];
+        }
+
+        $stamp = md5(implode('|', [
+            'full',
+            (string) Setting::get('domain_margin_pct'),
+            (string) Setting::get('pricing_rate_override'),
+            implode(',', $tlds),
+        ]));
+
+        return Cache::remember('tld.prices.full.'.$stamp, now()->addHours(self::TTL_HOURS),
+            fn () => $this->quote($tlds, full: true));
+    }
+
+    /**
+     * @return array<string,mixed>  در حالتِ عادی tld→int، در حالتِ full ساختارِ سه‌تایی
+     */
+    private function quote(array $tlds, bool $full = false): array
     {
         $out = [];
 
@@ -102,7 +151,26 @@ class TldPriceBook
                     // فقط قیمتِ **پایه**: اگر همین نامِ بلند هم پرمیوم درآمد،
                     // عددش نمایندهٔ پسوند نیست و باید کنار گذاشته شود.
                     if (($r['orderable'] ?? false) && ! ($r['is_premium'] ?? false) && ($r['price_toman'] ?? 0) > 0) {
-                        $out[$r['tld']] = (int) $r['price_toman'];
+                        if (! $full) {
+                            $out[$r['tld']] = (int) $r['price_toman'];
+
+                            continue;
+                        }
+
+                        $register = (int) $r['price_toman'];
+
+                        /*
+                        | ⚠️ بازگشت به قیمتِ ثبت فقط وقتی رجیسترار عددی نداده.
+                        | این‌جا «نمی‌دانیم» است نه «برابر است» — ولی نمایشِ
+                        | هیچ قیمتی روی صفحهٔ فروش بدترین گزینه است، و همان
+                        | انتخابی است که `DomainSearch::shape()` هم می‌کند.
+                        | پس رفتار در هر دو یکی می‌مانَد.
+                        */
+                        $out[$r['tld']] = [
+                            'register' => $register,
+                            'renew'    => (int) ($r['renew_toman'] ?: $register),
+                            'transfer' => (int) ($r['transfer_toman'] ?: $register),
+                        ];
                     }
                 }
             } catch (\Throwable $e) {

@@ -395,60 +395,122 @@ return [
 
     'licenses' => [
         'icon' => 'key', 'group' => 'services',
-        'fa' => ['t' => 'لایسنس‌ها', 'tag' => 'اورجینال · تحویل آنی',
-            'hero_t' => 'لایسنس اورجینال،', 'hero_g' => 'با قیمت نمایندگی.',
-            'hero_d' => 'cPanel، DirectAdmin، Plesk، LiteSpeed، CloudLinux و ده‌ها لایسنس دیگر — مستقیم از پارتنرشیپ رسمی، فعال‌سازی آنی و پرداخت ریالی بدون دردسر تحریم.'],
-        'en' => ['t' => 'Licenses', 'tag' => 'Genuine · Instant delivery',
-            'hero_t' => 'Genuine licenses', 'hero_g' => 'at partner prices.',
-            'hero_d' => 'cPanel, DirectAdmin, Plesk, LiteSpeed, CloudLinux and dozens more — straight from official partnerships, instant activation, local payment with zero sanction headaches.'],
-        'tr' => ['t' => 'Lisanslar', 'tag' => 'Orijinal · Anında teslim',
-            'hero_t' => 'İş ortağı fiyatına', 'hero_g' => 'orijinal lisanslar.',
-            'hero_d' => 'cPanel, DirectAdmin, Plesk, LiteSpeed, CloudLinux ve onlarcası — resmi iş ortaklığından, anında aktivasyon.'],
-        'chips' => ['Official Partner', 'Instant Activation', 'Local Billing', 'Auto-Renew', 'Any Server IP'],
+        /*
+        | ⚠️ متنِ این صفحه یک‌بار بازنویسی شد چون **با خودِ محصول نمی‌خواند**.
+        | نسخهٔ قبلی «اورجینال، نه اشتراکی»، «پارتنرشیپ رسمی»، «فعال‌سازی آنی» و
+        | «تمدید خودکار» می‌گفت، در حالی که این‌ها **لایسنس اشتراکی**‌اند، تحویل
+        | دستی و با تیکت است، و هیچ اتوماسیونِ تمدیدی وجود ندارد. ادعایی که
+        | مشتری بتواند در سه دقیقه راستی‌آزمایی کند و نخواند، از نداشتنِ صفحه
+        | بدتر است — مخصوصاً در بخشی که کلِ کارش جلبِ اعتماد است.
+        |
+        | 🔴 هر ادعای تازه‌ای این‌جا اضافه کردی، اول بپرس «امروز واقعاً همین
+        | اتفاق می‌افتد؟». به‌ویژه از `feature_pool`/`faq_pool` چیزی برندار که
+        | تحویلِ خودکار را فرض می‌گیرد (`instant`، `activation`) — همان دو
+        | کلیدِ کوتاه بودند که این صفحه را دروغ‌گو کرده بودند.
+        */
+        'fa' => ['t' => 'لایسنس‌ها', 'tag' => 'اشتراکی · تحویل آنی پس از پرداخت',
+            'hero_t' => 'لایسنس کنترل‌پنل،', 'hero_g' => 'با قیمت ایرانی.',
+            'hero_d' => 'cPanel، DirectAdmin، Plesk، LiteSpeed و CloudLinux — لایسنس اشتراکی که بلافاصله پس از پرداخت روی IP سرور شما فعال می‌شود. پرداخت ریالی، بدون کارت ارزی، و روی سرور داخل یا خارج از ایران.'],
+        'en' => ['t' => 'Licenses', 'tag' => 'Shared · Delivered right after payment',
+            'hero_t' => 'Control panel licenses,', 'hero_g' => 'at local prices.',
+            'hero_d' => 'cPanel, DirectAdmin, Plesk, LiteSpeed and CloudLinux — a shared license activated on your server IP right after payment. Paid locally, no foreign card, on a server inside or outside Iran.'],
+        'tr' => ['t' => 'Lisanslar', 'tag' => 'Paylaşımlı · Ödeme sonrası hemen teslim',
+            'hero_t' => 'Kontrol paneli lisansları,', 'hero_g' => 'yerel fiyatlarla.',
+            'hero_d' => 'cPanel, DirectAdmin, Plesk, LiteSpeed ve CloudLinux — ödemeden hemen sonra sunucu IP\'nizde etkinleştirilen paylaşımlı lisans. Yerel ödeme, yabancı kart yok.'],
+        'chips' => ['Shared License', 'Any Server IP', 'Local Billing', 'Persian Support', 'Monthly'],
         'plans' => [
-            $mk('DirectAdmin', 229, 690000, 6.90, [
-                ['fa' => 'لایسنس اورجینال ماهانه', 'en' => 'Genuine monthly license', 'tr' => 'Orijinal aylık lisans'],
+            /*
+            | ═══ چرا هر لایسنس **دو** پلن دارد (مجازی / اختصاصی) ═══
+            |
+            | خودِ cPanel و Plesk قیمتشان را بر همین محور می‌بندند و کلِ بازارِ
+            | ایران هم همین‌طور می‌فروشد (بررسیِ toshan.net، مرداد ۱۴۰۵).
+            | قیمتِ **تخت** یعنی مشتریِ VPS — که اکثریتِ خریدارند — عددی ببیند
+            | که برای سرورِ اختصاصی بسته شده و از رقیب دو برابر گران به‌نظر
+            | برسد. تا امروز دقیقاً همین بود.
+            |
+            | ⚠️ قیمت‌ها بر مبنای بازار تنظیم شده‌اند، **نه بر مبنای بهای
+            | تمام‌شدهٔ ما** (که در کد نیست). پیش از فروش با هزینهٔ واقعیِ خودتان
+            | تطبیق دهید — فروش زیرِ قیمتِ خرید هیچ خطایی تولید نمی‌کند.
+            */
+            $mk('DirectAdmin — سرور مجازی', 229, 350000, 3.50, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
                 ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
-                ['fa' => 'فعال‌سازی آنی روی IP شما', 'en' => 'Instant activation on your IP', 'tr' => 'IP\'nizde anında aktivasyon'],
-                ['fa' => 'آپدیت مستقیم رسمی', 'en' => 'Official direct updates', 'tr' => 'Resmi doğrudan güncellemeler'],
+                ['fa' => 'فعال‌سازی روی IP سرور شما', 'en' => 'Activated on your server IP', 'tr' => 'Sunucu IP\'nizde etkinleştirilir'],
             ], true),
-            $mk('cPanel/WHM', 230, 990000, 9.90, [
-                ['fa' => 'لایسنس اورجینال ماهانه', 'en' => 'Genuine monthly license', 'tr' => 'Orijinal aylık lisans'],
-                ['fa' => 'تا ۱۰۰ اکانت', 'en' => 'Up to 100 accounts', 'tr' => '100 hesaba kadar'],
-                ['fa' => 'فعال‌سازی آنی روی IP شما', 'en' => 'Instant activation on your IP', 'tr' => 'IP\'nizde anında aktivasyon'],
-                ['fa' => 'آپدیت مستقیم رسمی', 'en' => 'Official direct updates', 'tr' => 'Resmi doğrudan güncellemeler'],
+            $mk('DirectAdmin — سرور اختصاصی', 233, 590000, 5.90, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated sunucular için'],
+                ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
+                ['fa' => 'فعال‌سازی روی IP سرور شما', 'en' => 'Activated on your server IP', 'tr' => 'Sunucu IP\'nizde etkinleştirilir'],
             ]),
-            $mk('Plesk Web Host', 231, 890000, 8.90, [
-                ['fa' => 'لایسنس اورجینال ماهانه', 'en' => 'Genuine monthly license', 'tr' => 'Orijinal aylık lisans'],
+            $mk('cPanel/WHM — سرور مجازی', 230, 390000, 3.90, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
+                ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
+                ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works on servers inside and outside Iran', 'tr' => 'İran içinde ve dışında çalışır'],
+            ]),
+            $mk('cPanel/WHM — سرور اختصاصی', 234, 740000, 7.40, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated sunucular için'],
+                ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
+                ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works on servers inside and outside Iran', 'tr' => 'İran içinde ve dışında çalışır'],
+            ]),
+            $mk('Plesk — سرور مجازی', 231, 450000, 4.50, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
                 ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],
                 ['fa' => 'لینوکس و ویندوز', 'en' => 'Linux & Windows', 'tr' => 'Linux ve Windows'],
                 ['fa' => 'همه اکستنشن‌های پایه', 'en' => 'All core extensions', 'tr' => 'Tüm temel eklentiler'],
             ]),
-            $mk('LiteSpeed', 232, 790000, 7.90, [
-                ['fa' => 'Web Server Enterprise', 'en' => 'Web Server Enterprise', 'tr' => 'Web Server Enterprise'],
+            $mk('Plesk — سرور اختصاصی', 235, 690000, 6.90, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],
+                ['fa' => 'لینوکس و ویندوز', 'en' => 'Linux & Windows', 'tr' => 'Linux ve Windows'],
+                ['fa' => 'همه اکستنشن‌های پایه', 'en' => 'All core extensions', 'tr' => 'Tüm temel eklentiler'],
+            ]),
+            $mk('LiteSpeed Enterprise', 232, 390000, 3.90, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
                 ['fa' => 'تا ۸ هسته CPU', 'en' => 'Up to 8 CPU cores', 'tr' => '8 CPU çekirdeğine kadar'],
                 ['fa' => 'LSCache همه CMSها', 'en' => 'LSCache for every CMS', 'tr' => 'Tüm CMS\'ler için LSCache'],
                 ['fa' => 'جایگزین مستقیم Apache', 'en' => 'Drop-in Apache replacement', 'tr' => 'Apache\'nin birebir yedeği'],
             ]),
+            $mk('CloudLinux', 236, 390000, 3.90, [
+                ['fa' => 'لایسنس اشتراکی ماهانه', 'en' => 'Shared monthly license', 'tr' => 'Paylaşımlı aylık lisans'],
+                ['fa' => 'ایزولاسیون منابع با LVE', 'en' => 'LVE resource isolation', 'tr' => 'LVE kaynak izolasyonu'],
+                ['fa' => 'PHP Selector چندنسخه‌ای', 'en' => 'Multi-version PHP Selector', 'tr' => 'Çok sürümlü PHP Selector'],
+                ['fa' => 'لازمهٔ فروش نمایندگی پایدار', 'en' => 'Essential for stable reseller hosting', 'tr' => 'Kararlı bayilik için gerekli'],
+            ]),
         ],
-        'features' => ['instant', 'support',
-            ['icon' => 'key',
-                'fa' => ['t' => 'اورجینال قابل استعلام', 'd' => 'هر لایسنس در سایت رسمی سازنده به نام IP شما قابل استعلام است — نه اشتراکی، نه دور زده‌شده.'],
-                'en' => ['t' => 'Verifiably Genuine', 'd' => 'Every license is verifiable on the vendor\'s official site against your IP — not shared, not cracked.'],
-                'tr' => ['t' => 'Doğrulanabilir Orijinal', 'd' => 'Her lisans üreticinin resmi sitesinde IP\'nizle doğrulanabilir.']],
+        'features' => ['support',
+            ['icon' => 'globe',
+                'fa' => ['t' => 'روی سرور شما، هرجای دنیا', 'd' => 'فقط IP سرورتان را می‌گیریم؛ سرور می‌تواند نزد هر ارائه‌دهنده‌ای و در هر کشوری باشد — لازم نیست سرور را از ما بخرید.'],
+                'en' => ['t' => 'On Your Server, Anywhere', 'd' => 'We just need your server IP; it can live with any provider in any country — you don\'t need to buy the server from us.'],
+                'tr' => ['t' => 'Sunucunuzda, Her Yerde', 'd' => 'Sadece sunucu IP\'nizi alırız; sunucu herhangi bir sağlayıcıda ve ülkede olabilir.']],
             ['icon' => 'coins',
-                'fa' => ['t' => 'پرداخت ریالی، تمدید خودکار', 'd' => 'بدون کارت ارزی و دردسر تحریم — تمدید خودکار پیش از انقضا تا پنل هیچ‌وقت قفل نشود.'],
-                'en' => ['t' => 'Local Billing, Auto-Renew', 'd' => 'No foreign cards or sanction workarounds — auto-renewal before expiry so your panel never locks.'],
-                'tr' => ['t' => 'Yerel Ödeme, Otomatik Yenileme', 'd' => 'Yabancı kart derdi yok — panel asla kilitlenmez.']],
-            ['icon' => 'box',
-                'fa' => ['t' => '۳۰+ لایسنس دیگر', 'd' => 'CloudLinux، Imunify360، JetBackup، WHMCS، Softaculous و… — لیست کامل و قیمت‌ها در ناحیه کاربری.'],
-                'en' => ['t' => '30+ More Licenses', 'd' => 'CloudLinux, Imunify360, JetBackup, WHMCS, Softaculous and more — full list and prices in the client area.'],
-                'tr' => ['t' => '30+ Diğer Lisans', 'd' => 'CloudLinux, Imunify360, JetBackup, WHMCS ve dahası.']],
+                'fa' => ['t' => 'پرداخت ریالی، بدون کارت ارزی', 'd' => 'صورتحساب و پرداخت کاملاً ریالی از درگاه‌های ایرانی — بدون کارت بین‌المللی و بدون واسطه.'],
+                'en' => ['t' => 'Local Billing, No Foreign Card', 'd' => 'Invoiced and paid entirely through local gateways — no international card, no middleman.'],
+                'tr' => ['t' => 'Yerel Ödeme, Yabancı Kart Yok', 'd' => 'Tamamen yerel ödeme altyapısıyla faturalandırma — uluslararası kart gerekmez.']],
+            ['icon' => 'headset',
+                'fa' => ['t' => 'پشتیبانی فارسی', 'd' => 'اگر لایسنس روی سرورتان مشکل خورد، تیکت بزنید — تیم فنی فارسی‌زبان پیگیری می‌کند.'],
+                'en' => ['t' => 'Persian-Language Support', 'd' => 'If the license misbehaves on your server, open a ticket — our engineers follow it up.'],
+                'tr' => ['t' => 'Farsça Destek', 'd' => 'Lisansta sorun çıkarsa bilet açın — mühendislerimiz takip eder.']],
         ],
-        'faqs' => ['activation',
-            ['fa' => ['q' => 'لایسنس روی سرورِ هر شرکتی فعال می‌شود؟', 'a' => 'بله — فقط IP سرور را می‌گیریم؛ سرور می‌تواند هرجای دنیا و نزد هر ارائه‌دهنده‌ای باشد. تغییر IP هم ماهی یک‌بار رایگان است.'],
-             'en' => ['q' => 'Can I activate on a server from any provider?', 'a' => 'Yes — we just need the server IP; it can live anywhere with any provider. One free IP change per month included.'],
-             'tr' => ['q' => 'Herhangi bir sağlayıcının sunucusunda etkinleştirebilir miyim?', 'a' => 'Evet — sadece sunucu IP\'si gerekir; ayda bir ücretsiz IP değişikliği dahildir.']],
+        'faqs' => [
+            /*
+            | 🔴 این سه پرسش عمداً اولِ فهرست‌اند و عمداً صریح‌اند. لایسنس
+            | اشتراکی محصولِ بدی نیست — ارزان است و برای اکثر مشتری‌ها کافی —
+            | ولی مشتری باید **پیش از پرداخت** بداند چه می‌خرد. پنهان‌کردنش
+            | فقط تیکتِ عصبانی و درخواستِ بازگشتِ وجه می‌سازد.
+            */
+            ['fa' => ['q' => 'لایسنس اشتراکی یعنی چه؟', 'a' => 'یعنی لایسنس روی یک حساب گروهی (bulk) نزد فروشنده ثبت است، نه به‌صورت جداگانه به نام شما. از نظر کارکرد هیچ تفاوتی ندارد — کنترل‌پنل کامل و با همه امکانات و آپدیت‌های رسمی کار می‌کند — ولی چون به نام شخص شما صادر نشده، قیمتش به‌مراتب پایین‌تر از لایسنس مستقیم است. اگر لایسنس اختصاصی به نام خودتان می‌خواهید، تیکت بزنید تا قیمت جداگانه بدهیم.'],
+             'en' => ['q' => 'What does “shared license” mean?', 'a' => 'It means the license is registered under a bulk account at the vendor rather than issued individually in your name. Functionally there is no difference — the control panel runs complete, fully featured and officially updated — but because it isn\'t issued to you personally, it costs far less than a direct license. If you need a license in your own name, open a ticket and we\'ll quote it separately.'],
+             'tr' => ['q' => '“Paylaşımlı lisans” ne demek?', 'a' => 'Lisansın size özel değil, satıcıdaki toplu bir hesap altında kayıtlı olması demektir. İşlevsel olarak fark yoktur — panel tam özellikli ve resmi güncellemelerle çalışır — ancak size özel düzenlenmediği için doğrudan lisanstan çok daha ucuzdur.']],
+            ['fa' => ['q' => 'چقدر طول می‌کشد تا فعال شود؟', 'a' => 'بلافاصله پس از پرداخت. چون IP سرورتان را همان موقع سفارش گرفته‌ایم، کار دیگری از شما لازم نیست: لایسنس روی همان IP فعال و نتیجه در تیکت اختصاصی همان سفارش به شما اعلام می‌شود.'],
+             'en' => ['q' => 'How long does activation take?', 'a' => 'Right after payment. Because we collect your server IP at checkout, nothing further is needed from you: the license is activated on that IP and confirmed in the ticket opened for your order.'],
+             'tr' => ['q' => 'Etkinleştirme ne kadar sürer?', 'a' => 'Ödemeden hemen sonra. Sunucu IP\'nizi sipariş sırasında aldığımız için sizden başka bir şey gerekmez: lisans o IP\'de etkinleştirilir ve siparişiniz için açılan biletten teyit edilir.']],
+            ['fa' => ['q' => 'برای ثبت لایسنس چه چیزی از من لازم است؟', 'a' => 'فقط IP عمومی (public) سروری که می‌خواهید لایسنس روی آن فعال شود — همان را هنگام ثبت سفارش از شما می‌گیریم. رمز روت یا دسترسی به سرور لازم نداریم و هرگز نمی‌خواهیم. اگر بعداً IP سرورتان عوض شد، با تیکت اطلاع دهید تا منتقل کنیم.'],
+             'en' => ['q' => 'What do you need from me to register the license?', 'a' => 'Only the public IP of the server you want it activated on — we collect it at checkout. We do not need, and will never ask for, your root password or server access. If your server IP changes later, tell us in a ticket and we\'ll move it.'],
+             'tr' => ['q' => 'Lisans kaydı için benden ne gerekiyor?', 'a' => 'Yalnızca lisansı etkinleştirmek istediğiniz sunucunun genel IP adresi — siparişte alırız. Root şifresi veya sunucu erişimi istemiyoruz. IP değişirse bilet açın, taşıyalım.']],
             'upgrade', 'refund',
         ],
     ],

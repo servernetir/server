@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditReport;
 use App\Services\DomainTools;
 use App\Services\SiteAudit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
@@ -64,7 +66,30 @@ class ToolController extends Controller
     {
         $data = $request->validate(['url' => 'required|string|max:255']);
 
-        return response()->json($audit->run($data['url']));
+        $result = $audit->run($data['url']);
+
+        /*
+         * گزارش ذخیره می‌شود تا نشانیِ اشتراکیِ خودش را داشته باشد.
+         *
+         * ⚠️ ذخیره‌سازی هرگز نباید خودِ ابزار را بشکند: اگر جدول روی این نصب
+         * نباشد یا نوشتن شکست بخورد، بازدیدکننده باید همچنان گزارشش را ببیند.
+         * پس نتیجه بی‌`report_url` برمی‌گردد و مرورگر بخشِ اشتراک را اصلاً
+         * نشان نمی‌دهد — نه خطا، نه دکمهٔ مرده.
+         */
+        if (($result['ok'] ?? false) === true) {
+            try {
+                if (Schema::hasTable('audit_reports')) {
+                    $report = AuditReport::fromAudit($result, 'tool');
+                    if ($report) {
+                        $result['report_url'] = $report->url();
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return response()->json($result);
     }
 
     /** POST /api/whois */

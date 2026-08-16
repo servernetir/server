@@ -78,7 +78,31 @@ class StoreController extends Controller
         $data = $request->validate([
             'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
             'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],
-            'domain_mode' => ['required', 'in:have,buy,subdomain'],
+            // لایسنس دامنه ندارد؛ روی چنین پکیجی اصلاً پرسیده نمی‌شود.
+            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],
+            /*
+            | IP سرورِ مشتری — امروز فقط لایسنس‌ها لازمش دارند.
+            |
+            | 🔴 اجباری‌بودنش شرطِ «تحویل آنی پس از پرداخت» است: لایسنس بی‌IP
+            | قابلِ فعال‌سازی نیست، پس اگر این‌جا نگیریمش هر سفارش به یک
+            | رفت‌وبرگشتِ تیکتی گره می‌خورد و آن وعده دروغ می‌شود.
+            |
+            | ⚠️ `ip` عمداً به‌تنهایی کافی نیست: `127.0.0.1` و `10.0.0.5` هر دو
+            | IPِ معتبرند و هیچ‌کدام روی هیچ لایسنسی فعال نمی‌شوند. مشتری هم
+            | خطایی نمی‌بیند — فقط چند روز بعد می‌فهمد پنلش کار نمی‌کند.
+            */
+            'server_ip'   => [
+                $product->requires_server_ip ? 'required' : 'nullable', 'ip',
+                function ($attr, $value, $fail) {
+                    if (blank($value)) {
+                        return;
+                    }
+                    if (! filter_var($value, FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                        $fail('IP باید نشانیِ عمومی (public) سرور باشد — نشانیِ داخلی مثل ۱۹۲.۱۶۸.x.x یا ۱۲۷.۰.۰.۱ پذیرفته نمی‌شود.');
+                    }
+                },
+            ],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
@@ -106,11 +130,16 @@ class StoreController extends Controller
         ], [], [
             'country' => 'محلِ سرور', 'cycle' => 'دورهٔ پرداخت',
             'domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه',
+            'server_ip' => 'IP سرور',
         ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
         [$domain, $note] = $this->resolveDomain($data);
-        if ($domain === null) {
+        // ⚠️ فقط پکیجی که واقعاً دامنه می‌خواهد. لایسنس روی IP فعال می‌شود و
+        // اجبارِ دامنه آن‌جا یک دیوارِ بی‌معنی است. پکیجی که به کنترل‌پنل تحویل
+        // می‌شود `requires_domain` دارد (seeder همیشه true می‌گذارد)، و اگر
+        // مدیری فراموشش کند، درایور هنگام تحویل صریح شکست می‌دهد نه بی‌صدا.
+        if ($product->requires_domain && $domain === null) {
             return back()->withInput()->withErrors(['domain' => 'دامنه را کامل وارد کنید.']);
         }
 
@@ -129,7 +158,9 @@ class StoreController extends Controller
         $cyclePrice = $product->priceForCycle($cycle, $country);
         $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
 
-        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
+        $serverIp = $data['server_ip'] ?? null;
+
+        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote, $serverIp) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
@@ -141,7 +172,12 @@ class StoreController extends Controller
                 'status'        => 'pending',
                 'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
+                // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
+                // حدس زده نمی‌شود — دلیلش در مهاجرتِ add_reseller_flag_to_services.
+                'is_reseller'   => $product->isReseller(),
                 'domain'        => $domain,
+                // IP سرورِ مشتری (لایسنس) — روی ستونِ خودش، نه روی `domain`
+                'server_ip'     => $serverIp,
             ]);
 
             return $this->issueOrderInvoice($service, $product);
@@ -169,6 +205,11 @@ class StoreController extends Controller
     /** دامنهٔ نهایی + یادداشت بر اساس حالت (دارم/می‌خرم/زیردامنه) */
     private function resolveDomain(array $data): array
     {
+        // پکیجِ بی‌دامنه (لایسنس) اصلاً حالتی انتخاب نمی‌کند
+        if (blank($data['domain_mode'] ?? null)) {
+            return [null, ''];
+        }
+
         return match ($data['domain_mode']) {
             'have' => [
                 filled($data['domain'] ?? null) ? strtolower(trim($data['domain'])) : null,

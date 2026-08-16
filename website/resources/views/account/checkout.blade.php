@@ -115,7 +115,21 @@
           @endforeach
         </div>
 
-        {{-- ۳) دامنه --}}
+        {{-- ۳) IP سرور — فقط پکیجی که رویش فعال می‌شود (لایسنس) --}}
+        @if($product->requires_server_ip)
+          <p class="co-q">{{ __('ui.chk_q_server_ip') }}</p>
+          <div class="co-field">
+            <label>{{ __('ui.chk_lbl_server_ip') }}
+              <input type="text" name="server_ip" dir="ltr" inputmode="decimal"
+                     placeholder="203.0.113.10" value="{{ old('server_ip') }}"
+                     autocapitalize="off" autocomplete="off" spellcheck="false" required>
+            </label>
+            <p class="co-note">{{ __('ui.chk_server_ip_note') }}</p>
+          </div>
+        @endif
+
+        {{-- ۴) دامنه — لایسنس دامنه ندارد، پس اصلاً پرسیده نمی‌شود --}}
+        @if($product->requires_domain)
         <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
         <div class="co-opts">
@@ -171,6 +185,7 @@
             {{ __('ui.chk_reserved_names') }}
           </p>
         </div>
+        @endif
 
         <button type="submit" class="pnl-btn primary" style="justify-content:center;width:100%;margin-top:8px" @if(count($countries) === 0) disabled @endif>
           {{ __('ui.chk_continue_pay') }} — <span id="co-btn-total">{{ cloud_price($initial['first']) }}</span>

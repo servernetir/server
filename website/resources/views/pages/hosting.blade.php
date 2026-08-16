@@ -1,6 +1,8 @@
 @extends('layouts.site')
 
-@section('title', lc($product)['t'].' — '.__('ui.brand'))
+{{-- `seo_t` اختیاری است: عنوانِ تبِ مرورگر جای بیشتری برای کلیدواژه دارد تا
+     برچسبِ منو، و یکی‌کردنشان یعنی یا منو طولانی می‌شود یا عنوان لاغر. --}}
+@section('title', (lc($product)['seo_t'] ?? lc($product)['t']).' — '.__('ui.brand'))
 @section('description', lc($product)['hero_d'])
 
 @section('content')
@@ -424,6 +426,18 @@
         </a>
         @elseif($isContact)
         <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
+        @elseif(isset($p['route']))
+        {{--
+          پلنی که مقصدش **داخلِ خودِ سایت** است.
+
+          🔴 بی‌این شاخه، تنها راهِ دادنِ مقصد به یک پلنِ config کلیدِ `url` بود —
+          و آن از `whmcs_url()` رد می‌شود، یعنی همیشه به WHMCSِ بیرونی می‌رود.
+          برای محصولی که تسویه‌اش در پنلِ خودمان است (نمایندگی دامنه)، آن لینک
+          یک بن‌بستِ بی‌صدا می‌سازد: دکمه کار می‌کند، صفحه باز می‌شود، و کاربر
+          جایی می‌رسد که این محصول در آن وجود ندارد.
+        --}}
+        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
+           href="{{ lroute($p['route'][0], $p['route'][1] ?? []) }}">{{ lc($p['cta'] ?? []) ?: __('ui.choose') }}</a>
         @elseif($storeHref)
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}">{{ __('ui.choose') }}</a>
         @elseif($yearlyOnly)
@@ -504,6 +518,58 @@
   </div>
 </section>
 @endif
+@endisset
+
+{{-- ============ HOW TO (اختیاری — محصولی که «شروع کردن»ش چند قدم دارد) ============
+
+  چرا این بلوک ارزش دارد و چرا JSON-LD جدا می‌گیرد:
+
+  یک محصولِ خودسرویس که چهار قدم تا اولین فروش دارد، بزرگ‌ترین ریزشش در همان
+  چهار قدم است — بازدیدکننده نمی‌داند از کجا شروع کند و می‌رود. نوشتنِ صریحِ
+  قدم‌ها هم آن ریزش را کم می‌کند و هم `HowTo` را واجدِ نتیجهٔ غنیِ گوگل می‌کند.
+
+  ⚠️ هر قدم می‌تواند `route` داشته باشد. لینکِ داخلی این‌جا تزئین نیست: صفحهٔ
+  محصول بدونِ لینک به جایی که کار واقعاً انجام می‌شود، یک بن‌بستِ سئویی است.
+--}}
+@isset($product['howto'])
+@php
+  $howto = $product['howto'];
+  $sdHowto = ['name' => lc($howto)['t'], 'step' => []];
+
+  foreach ($howto['steps'] as $iStep => $st) {
+      $sdHowto['step'][] = array_filter([
+          '@type'    => 'HowToStep',
+          'position' => $iStep + 1,
+          'name'     => lc($st)['t'],
+          'text'     => lc($st)['d'],
+          'url'      => isset($st['route']) ? lroute($st['route'][0], $st['route'][1] ?? []) : null,
+      ]);
+  }
+@endphp
+<script type="application/ld+json">{!! schema_ld($sdHowto, 'HowTo') !!}</script>
+<section class="section" id="howto" style="padding-top:10px;padding-bottom:20px">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="badge">{{ lc($howto)['badge'] }}</span>
+      <h2>{{ lc($howto)['t'] }}</h2>
+      @isset($howto['fa']['d'])<p>{{ lc($howto)['d'] }}</p>@endisset
+    </div>
+    <ol class="howto-steps reveal">
+      @foreach($howto['steps'] as $iStep => $st)
+      <li class="howto-step">
+        <span class="howto-n">{{ app()->getLocale() === 'fa' ? fa_num((string) ($iStep + 1)) : $iStep + 1 }}</span>
+        <div>
+          <b>{{ lc($st)['t'] }}</b>
+          <p>{{ lc($st)['d'] }}</p>
+          @isset($st['route'])
+          <a href="{{ lroute($st['route'][0], $st['route'][1] ?? []) }}">{{ lc($st['cta'] ?? []) ?: __('ui.choose') }}</a>
+          @endisset
+        </div>
+      </li>
+      @endforeach
+    </ol>
+  </div>
+</section>
 @endisset
 
 {{-- ============ INFRASTRUCTURE ============ --}}

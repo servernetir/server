@@ -14,7 +14,7 @@ class Product extends Model
     protected $fillable = [
         'name', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
         'price', 'price_eur', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
-        'requires_domain', 'is_active', 'sort',
+        'requires_domain', 'requires_server_ip', 'is_active', 'sort',
     ];
 
     protected function casts(): array
@@ -26,8 +26,9 @@ class Product extends Model
             'tax_percent'     => 'integer',
             'specs'           => 'array',
             'locations'       => 'array',
-            'requires_domain' => 'boolean',
-            'is_active'       => 'boolean',
+            'requires_domain'    => 'boolean',
+            'requires_server_ip' => 'boolean',
+            'is_active'          => 'boolean',
             'sort'            => 'integer',
         ];
     }
@@ -154,6 +155,19 @@ class Product extends Model
     public function packageName(): string
     {
         return 'sn_'.substr(preg_replace('/[^a-z0-9]+/i', '_', (string) $this->slug), 0, 40);
+    }
+
+    /**
+     * آیا خریدِ این پکیج باید یک **حسابِ نمایندگی** بسازد (نه هاستِ معمولی)؟
+     *
+     * تنها تعریفِ «نمایندگی» در کلِ پروژه. سه مسیرِ فروش (فروشگاهِ مشتری، فروشِ
+     * تلفنی، فروشِ مدیر) همین را صدا می‌زنند تا شرطِ دست‌نویسِ موازی نسازند —
+     * وگرنه روزی یکی‌شان دسته‌ای تازه را جا می‌اندازد و همان مسیر بی‌صدا
+     * cPanelِ ساده تحویل می‌دهد.
+     */
+    public function isReseller(): bool
+    {
+        return $this->category === 'reseller';
     }
 
     /** معادلِ ماهانهٔ یک دوره — برای نمایشِ «ماهی X تومان» در صفحهٔ خرید */

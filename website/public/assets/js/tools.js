@@ -20,8 +20,16 @@
   }
 
   /* ============ SEO / SITE AUDIT ============ */
+  /*
+   * 🔴 شرط روی **نتیجه** است، نه روی فرم.
+   *
+   * حالا دو صفحه همین گزارش را نشان می‌دهند: ابزارِ /tools/seo (فرم دارد) و
+   * صفحهٔ عمومیِ /report/{token} که برای صاحبِ سایت فرستاده می‌شود و **فرم
+   * ندارد**. اگر ورودیِ این بلوک `seo-form` بمانَد، صفحهٔ گزارش هیچ‌وقت رندر
+   * نمی‌شود و بازدیدکننده یک صفحهٔ خالی می‌بیند — با کدِ ۲۰۰ و بی‌هیچ خطایی.
+   */
   const seoForm = document.getElementById('seo-form');
-  if (seoForm) {
+  if (document.getElementById('seo-results')) {
     const M = window.SEO_META, input = document.getElementById('seo-input');
     const results = document.getElementById('seo-results'), errBox = document.getElementById('seo-error');
     const num = (n) => faNum(n, M.fa);
@@ -59,7 +67,7 @@
       if (el) el.hidden = true;
     }
 
-    seoForm.addEventListener('submit', async (e) => {
+    seoForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = input.value.trim();
       if (!url) return;
@@ -70,12 +78,50 @@
         const d = await post(seoForm.dataset.endpoint, { url });
         if (!d.ok) { showErr(d.error === 'invalid_url' ? M.i18n.errInvalid : M.i18n.errUnreachable); return; }
         render(d);
+        showShare(d.report_url);
       } catch { showErr(M.i18n.errGeneric); }
       finally { stopStages(); spin(seoForm.querySelector('button'), false); }
     });
     document.getElementById('seo-rescan')?.addEventListener('click', () => {
       results.style.display = 'none';
       input.focus(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    /*
+     * لینکِ اشتراکِ گزارش.
+     *
+     * ⚠️ اگر سرور لینکی نداد (جدولِ گزارش روی این نصب هنوز ساخته نشده)، بخش
+     * اصلاً نشان داده نمی‌شود. دکمهٔ اشتراکی که به هیچ‌جا نرود از نبودنش بدتر
+     * است — همان قاعدهٔ «به‌زودی»ِ صفحهٔ ریموت.
+     */
+    function showShare(url) {
+      const box = document.getElementById('au-share');
+      if (!box || !url) return;
+      const field = document.getElementById('au-share-url');
+      field.value = url;
+      box.hidden = false;
+      const pu = document.getElementById('au-print-url');
+      if (pu && !pu.textContent.trim()) pu.textContent = url;
+    }
+
+    /* سربرگِ چاپ — روی ابزار، میزبان و تاریخ از این‌جا پر می‌شوند.
+       ⚠️ تاریخ از `M.today` می‌آید که PHP ساخته؛ در JS تاریخِ شمسی نمی‌سازیم
+       (قاعدهٔ «ریاضیِ جلالی فقط در PHP»). */
+    function fillPrintHead(d) {
+      const h = document.getElementById('au-print-host');
+      if (h && !h.textContent.trim()) h.textContent = d.host || '';
+      const dt = document.getElementById('au-print-date');
+      if (dt && !dt.textContent.trim()) dt.textContent = M.today || '';
+    }
+
+    document.getElementById('au-share-copy')?.addEventListener('click', (e) => {
+      const field = document.getElementById('au-share-url');
+      if (!field || !field.value) return;
+      field.select();
+      navigator.clipboard?.writeText(field.value).catch(() => {});
+      const btn = e.currentTarget, old = btn.textContent;
+      btn.textContent = M.i18n.shareCopied || M.i18n.copied;
+      setTimeout(() => { btn.textContent = old; }, 1600);
     });
 
     function showErr(msg) {
@@ -85,7 +131,15 @@
 
     const gradeClass = (s) => s >= 75 ? 'good' : s >= 50 ? 'mid' : 'bad';
 
-    function render(d) {
+    /*
+     * `opts.scroll` — چه کسی این اسکرول را خواسته؟
+     *
+     * 🔴 روی ابزار، کاربر فرم را فرستاده و منتظرِ نتیجه است: اسکرول درست است.
+     * روی صفحهٔ عمومیِ گزارش، **خودِ صفحه** نتیجه است و کسی چیزی نخواسته —
+     * اسکرولِ خودکار یعنی گیرندهٔ ایمیل وسطِ صفحه‌ای می‌افتد که هنوز عنوان و
+     * نامِ دامنه‌اش را ندیده. همان تلهٔ ثبت‌شدهٔ `/tools/ip` با `data-auto`.
+     */
+    function render(d, opts) {
       results.style.display = 'block';
       // gauge
       const ring = document.getElementById('ag-ring'), circ = 2 * Math.PI * 52;
@@ -110,6 +164,7 @@
       badge.innerHTML = `<span style="color:var(--green)">✓ ${num(p)} ${M.i18n.passes}</span> · <span style="color:#FBBF24">${num(w)} ${M.i18n.warns}</span> · <span style="color:#FF8A84">${num(f)} ${M.i18n.fails}</span>`;
       document.getElementById('au-host').textContent = d.host;
       document.getElementById('au-title').textContent = d.meta.title || '';
+      fillPrintHead(d);
 
       const facts = [];
       if (d.meta.ip) facts.push([M.i18n.ip, d.meta.ip]);
@@ -162,7 +217,7 @@
       setupFilter();
 
       requestAnimationFrame(() => document.querySelectorAll('.acat-bar i, .adg-score').forEach((el) => el.classList.add('in')));
-      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!opts || opts.scroll !== false) results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /* ============ برنامهٔ اقدام ============ */
@@ -269,6 +324,7 @@
       window.print();
     });
 
+
     const order = (s) => s === 'fail' ? 0 : s === 'warn' ? 1 : 2;
     const icon = (s) => s === 'pass' ? '<svg class="icon"><use href="#i-check"/></svg>' : s === 'warn' ? '!' : '<svg class="icon"><use href="#i-x"/></svg>';
 
@@ -293,6 +349,26 @@
         </div>
         ${fix ? fixBlock(fix) : ''}
       </div>`;
+    }
+
+    /*
+     * صفحهٔ عمومیِ گزارش: نتیجه از سرور با صفحه می‌آید، پس همان‌جا رندر می‌شود.
+     *
+     * ⚠️ هیچ درخواستِ تازه‌ای زده نمی‌شود. گزارش عکسِ همان لحظه‌ای است که گرفته
+     * شد؛ اگر این صفحه دوباره بررسی می‌کرد، عددی که به مشتری نشان می‌دهیم با
+     * عددی که در ایمیل نوشته‌ایم یکی نمی‌مانْد — و بدتر، هر بار بازکردنِ لینک
+     * یک بررسیِ کاملِ سمتِ سرور روی سایتِ او می‌شد.
+     *
+     * 🔴 جایگاهِ این فراخوان **آخرِ بلوک** است و نباید بالاتر برود.
+     * `render()` تابعِ اعلان‌شده است و hoist می‌شود، ولی داخلش `order` و `icon`
+     * را صدا می‌زند که با `const` پایین‌تر تعریف شده‌اند. فراخوانی از بالاتر یعنی
+     * ReferenceErrorِ منطقهٔ مردهٔ زمانی (TDZ) **وسطِ** رندر: امتیاز و دسته‌ها و
+     * برنامهٔ اقدام می‌آیند، ولی فهرستِ چک‌ها و فیلتر هرگز ساخته نمی‌شوند.
+     * صفحه ۲۰۰ است، خطا در کنسول دیده نمی‌شود، و گزارشی که برای مشتری فرستاده‌ایم
+     * نصفه باز می‌شود. یک بار دقیقاً همین شد.
+     */
+    if (window.AUDIT_DATA && window.AUDIT_DATA.ok) {
+      render(window.AUDIT_DATA, { scroll: false });
     }
   }
 

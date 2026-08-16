@@ -29,7 +29,15 @@ class Server extends Model
         ];
     }
 
-    /** نوع‌هایی که تحویلِ خودکار دارند (درایورِ API) در مقابلِ دستی */
+    /**
+     * نوع‌هایی که تحویلِ خودکار دارند (درایورِ API) در مقابلِ دستی.
+     *
+     * ⚠️ Plesk عمداً این‌جا **نیست**: درایورش نوشته شده ولی روی هیچ سرورِ
+     * Pleskِ واقعی آزمایش نشده. روشن‌کردنش با `provisioning.plesk_auto` است
+     * (پایین) — یک تصمیمِ آگاهانه پس از یک خریدِ آزمایشیِ موفق، نه پیش‌فرض.
+     * تا آن لحظه سفارشِ Plesk در صفِ دستیِ مدیر می‌نشیند: کندتر، ولی هرگز
+     * «تحویل شد»ِ دروغین نمی‌دهد.
+     */
     public const AUTO_TYPES = ['whm', 'directadmin'];
 
     public const TYPES = ['whm', 'plesk', 'directadmin', 'vps', 'dedicated', 'generic'];
@@ -44,9 +52,13 @@ class Server extends Model
         return $this->hasMany(Service::class);
     }
 
-    /** آیا این نوع سرور تحویلِ خودکار دارد (فعلاً فقط WHM)؟ */
+    /** آیا این نوع سرور تحویلِ خودکار دارد؟ */
     public function isAutoProvisioned(): bool
     {
+        if ($this->type === 'plesk') {
+            return (bool) config('provisioning.plesk_auto', false);
+        }
+
         return in_array($this->type, self::AUTO_TYPES, true);
     }
 

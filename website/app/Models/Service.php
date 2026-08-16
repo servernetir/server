@@ -19,7 +19,7 @@ class Service extends Model
         // «چرا حذف کردی؟» — کدِ پایدار + متنِ آزاد، هر دو اختیاری
         'terminate_reason', 'terminate_reason_note',
         // تحویل/فراهم‌سازی
-        'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
+        'server_id', 'plan', 'is_reseller', 'username', 'domain', 'server_ip', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
         // سرورِ ابری — به پلن اشاره می‌کند نه به سرور (پیش از خرید وجود ندارد)
         'cloud_plan_id', 'cloud_image_key', 'cloud_ssh_key_id', 'cloud_addons',
@@ -34,6 +34,7 @@ class Service extends Model
         return [
             'price'          => 'integer',
             'tax_percent'    => 'integer',
+            'is_reseller'    => 'boolean',
             'next_due_at'    => 'date',
             'activated_at'   => 'datetime',
             'cancelled_at'   => 'datetime',

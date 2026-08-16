@@ -751,3 +751,27 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 .pa-form .pa-note{ grid-column:1/-1; font-size:12px; color:var(--muted); line-height:1.9;
   border:1px dashed var(--line); border-radius:10px; padding:11px 13px; margin:0 }
 .pa-form button{ grid-column:1/-1; justify-self:start }
+
+/* ---------- /admin/seo — بررسی سایت و ارسال گزارش ---------- */
+.sx-form{max-width:640px}
+.sx-form textarea.ad-input{resize:vertical;line-height:1.9}
+.sx-status{margin-inline-start:12px;font-size:13px;color:var(--muted)}
+.sx-status.ok{color:var(--green)}
+.sx-status.bad{color:var(--red)}
+.sx-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+.sx-stats{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:var(--muted)}
+.sx-stats b{color:var(--text)}
+.sx-link{color:var(--cyan);font-weight:600}
+.sx-link:hover{text-decoration:underline}
+.sx-err{margin-top:5px;font-size:11.5px;color:var(--red);opacity:.85}
+/* هشدارِ کمپین: عمداً پررنگ — کسی که دکمه را می‌زند به آدمِ واقعی ایمیل می‌فرستد */
+.sx-warn{border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.08);color:var(--amber);
+  border-radius:11px;padding:13px 16px;margin-bottom:16px;font-size:13.5px;line-height:1.95}
+.sx-warn b{color:var(--amber)}
+/* «از دیتای خودتان بساز» — عمداً برجسته‌تر از فهرستِ دستی، چون فهرستِ بهتری است */
+.sx-own{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;
+  border:1px solid rgba(34,211,238,.3);background:rgba(34,211,238,.06);
+  border-radius:12px;padding:14px 16px}
+.sx-own-tx{flex:1 1 320px;min-width:0}
+.sx-own-tx b{display:block;font-size:14px;margin-bottom:3px}
+.sx-own-tx small{color:var(--muted);font-size:12.5px;line-height:1.8}
