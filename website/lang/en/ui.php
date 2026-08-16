@@ -2221,4 +2221,5 @@ return [
     'sx_over_limit' => 'More than :max rows — the rest were not added',
     'sx_skip_unsub' => 'already unsubscribed',
     'sx_skip_dup' => 'already in the list',
+    'au_print_title' => 'Site audit report',
 ];

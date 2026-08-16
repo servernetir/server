@@ -2221,4 +2221,5 @@ return [
     'sx_over_limit' => ':max satirdan fazla — kalani eklenmedi',
     'sx_skip_unsub' => 'zaten abonelikten cikmis',
     'sx_skip_dup' => 'zaten listede',
+    'au_print_title' => 'Site denetim raporu',
 ];

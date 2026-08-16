@@ -40,7 +40,11 @@
   </div>
 </section>
 
-@include('partials.tools._audit-results', ['reportMode' => true])
+@include('partials.tools._audit-results', [
+    'reportMode' => true,
+    'printDate'  => sdate($report->created_at),
+    'printUrl'   => $report->url(),
+])
 
 {{-- ⚠️ ترتیب مهم است: این دو inline‌اند و همان لحظهٔ پارس اجرا می‌شوند، ولی
      `tools.js` با `defer` بعد از پارسِ کلِ سند می‌دود — پس وقتی به

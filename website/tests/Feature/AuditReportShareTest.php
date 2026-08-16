@@ -299,6 +299,56 @@ class AuditReportShareTest extends TestCase
         }
     }
 
+    /**
+     * 🔴 چاپ باید **توکن‌ها** را عوض کند، نه فقط زمینه را.
+     *
+     * نسخهٔ اول فقط `background:#fff` می‌گذاشت. ولی کلِ طراحی روی توکن‌های تیره
+     * سوار است (`--text:#E6EAF3`)، پس متن روی کاغذِ سفید خاکستریِ روشن — عملاً
+     * نامرئی — چاپ می‌شد. خرابی کاملاً خاموش بود: صفحه سالم، و فقط کسی که
+     * واقعاً چاپ می‌گرفت می‌فهمید.
+     *
+     * ⚠️ سربرگِ چاپ هم باید بیرونِ @media print صریحاً پنهان باشد؛ `hidden` یا
+     * نبودِ قاعده کافی نیست (تلهٔ ثبت‌شدهٔ `[hidden]` در این پروژه).
+     */
+    public function test_the_print_stylesheet_remaps_the_theme_tokens(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/site.css'));
+
+        $this->assertSame(1, substr_count($css, '@media print{'),
+            'قواعدِ چاپ باید یک‌جا باشد؛ دو بلوک یعنی دو تعریف که روزی از هم فاصله می‌گیرند');
+
+        $start = strpos($css, '@media print{');
+        $print = substr($css, $start);
+
+        foreach (['--text:', '--bg:', '--surface:', '--line:'] as $token) {
+            $this->assertStringContainsString($token, $print,
+                "توکنِ {$token} برای چاپ بازتعریف نشده ⇒ متنِ تیره‌طرح روی کاغذِ سفید");
+        }
+
+        $this->assertStringContainsString('@page', $print, 'اندازه و حاشیهٔ کاغذ تعریف نشده');
+        $this->assertStringContainsString('break-inside:avoid', $print, 'کنترلِ شکستِ صفحه نیست');
+
+        // سربرگ/پابرگِ چاپ نباید روی صفحه دیده شوند
+        $this->assertMatchesRegularExpression(
+            '/\.au-print-head\s*,\s*\.au-print-foot\s*\{\s*display:\s*none/',
+            $css,
+            'سربرگِ چاپ بیرونِ @media print پنهان نشده ⇒ روی خودِ سایت دیده می‌شود'
+        );
+    }
+
+    /** سربرگِ چاپ باید در صفحهٔ گزارش با تاریخ و نشانیِ واقعی پر شده باشد. */
+    public function test_the_printed_report_identifies_itself(): void
+    {
+        $r = $this->report('shop.example');
+
+        $html = $this->get('/report/'.$r->token)->assertOk()->getContent();
+
+        $this->assertStringContainsString('au-print-head', $html);
+        $this->assertStringContainsString('au-print-foot', $html);
+        $this->assertStringContainsString($r->url(), $html, 'نشانیِ گزارش باید روی کاغذ بیاید');
+        $this->assertStringContainsString(sdate($r->created_at), $html, 'تاریخِ بررسی باید روی کاغذ بیاید');
+    }
+
     private function admin(): User
     {
         return User::factory()->create(['role' => 'admin']);

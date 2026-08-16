@@ -8,9 +8,35 @@
      $reportMode = true  ⇒ صفحهٔ عمومیِ گزارش (بی‌فرم؛ دکمهٔ «بررسی دوباره» به
                            خودِ ابزار می‌رود، و لینکِ اشتراک معنی ندارد)
      ============================================================================ --}}
-@php $reportMode = $reportMode ?? false; @endphp
+@php
+    $reportMode = $reportMode ?? false;
+    $printDate = $printDate ?? null;   // صفحهٔ گزارش تاریخِ واقعیِ بررسی را می‌دهد
+    $printUrl  = $printUrl ?? null;
+    $pc = site_contact();
+@endphp
 
 <section class="section" id="seo-results" style="padding-top:10px;display:{{ $reportMode ? 'block' : 'none' }}">
+
+  {{-- ══════════════════════════════════════════════════════════════════════
+       سربرگ و پابرگِ چاپ — **فقط** روی کاغذ/PDF دیده می‌شوند.
+
+       چرا لازم است: در چاپ، هدر و فوترِ سایت پنهان می‌شوند، پس بی‌این بلوک
+       کاغذ با یک عددِ بی‌صاحب شروع می‌شد — سندی که معلوم نیست مالِ کیست،
+       دربارهٔ چه دامنه‌ای است و کِی گرفته شده. مشتری این PDF را برای
+       توسعه‌دهنده‌اش می‌فرستد؛ باید روی خودش بایستد.
+       ══════════════════════════════════════════════════════════════════════ --}}
+  <div class="au-print-head" aria-hidden="true">
+    <div class="aph-brand">
+      <span class="aph-mark"><svg class="icon"><use href="#i-server"/></svg></span>
+      <span class="aph-name">{{ __('ui.brand') }}</span>
+    </div>
+    <div class="aph-meta">
+      <b>{{ __('ui.au_print_title') }}</b>
+      <span class="aph-host" id="au-print-host" dir="ltr">{{ $reportMode ? ($report->host ?? '') : '' }}</span>
+      <span class="aph-date" id="au-print-date">{{ $printDate ?? '' }}</span>
+    </div>
+  </div>
+
   <div class="container">
     {{-- کارت امتیاز کل --}}
     <div class="audit-hero">
@@ -74,6 +100,13 @@
 
     {{-- جزئیات چک‌ها --}}
     <div class="audit-detail" id="audit-detail"></div>
+
+    {{-- پابرگِ چاپ: سند باید بگوید از کجا آمده و چطور به ما برسند --}}
+    <div class="au-print-foot" aria-hidden="true">
+      <span class="apf-brand">{{ __('ui.brand') }} — servernet.cloud</span>
+      <span class="apf-url" id="au-print-url" dir="ltr">{{ $printUrl ?? '' }}</span>
+      <span class="apf-contact" dir="ltr">{{ $pc['phone'] ?? '' }}</span>
+    </div>
   </div>
 </section>
 

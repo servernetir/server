@@ -100,6 +100,18 @@
       const field = document.getElementById('au-share-url');
       field.value = url;
       box.hidden = false;
+      const pu = document.getElementById('au-print-url');
+      if (pu && !pu.textContent.trim()) pu.textContent = url;
+    }
+
+    /* سربرگِ چاپ — روی ابزار، میزبان و تاریخ از این‌جا پر می‌شوند.
+       ⚠️ تاریخ از `M.today` می‌آید که PHP ساخته؛ در JS تاریخِ شمسی نمی‌سازیم
+       (قاعدهٔ «ریاضیِ جلالی فقط در PHP»). */
+    function fillPrintHead(d) {
+      const h = document.getElementById('au-print-host');
+      if (h && !h.textContent.trim()) h.textContent = d.host || '';
+      const dt = document.getElementById('au-print-date');
+      if (dt && !dt.textContent.trim()) dt.textContent = M.today || '';
     }
 
     document.getElementById('au-share-copy')?.addEventListener('click', (e) => {
@@ -144,6 +156,7 @@
       badge.innerHTML = `<span style="color:var(--green)">✓ ${num(p)} ${M.i18n.passes}</span> · <span style="color:#FBBF24">${num(w)} ${M.i18n.warns}</span> · <span style="color:#FF8A84">${num(f)} ${M.i18n.fails}</span>`;
       document.getElementById('au-host').textContent = d.host;
       document.getElementById('au-title').textContent = d.meta.title || '';
+      fillPrintHead(d);
 
       const facts = [];
       if (d.meta.ip) facts.push([M.i18n.ip, d.meta.ip]);

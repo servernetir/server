@@ -3178,14 +3178,8 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
 /* ---------- چاپ ---------- */
 /* گزارشی که کاربر پیشِ توسعه‌دهنده می‌بَرد باید روی کاغذ خوانا باشد: بی‌پس‌زمینهٔ
    تیره، بی‌فرمِ جستجو، و بی‌شکستنِ کارت‌ها وسطِ صفحه. */
-@media print{
-  .aurora,.grid-overlay,header,footer,#progress,.au-cta,.audit-filter,.tool-search,.aud-dims{display:none !important}
-  body{background:#fff;color:#000}
-  .audit-plan,.aplan-item,.adetail-group,.acheck{break-inside:avoid;background:#fff;border-color:#ccc}
-  .afix{display:block}
-  .afix-code pre{background:#f6f6f6;color:#000;border-color:#ddd}
-  a[href]::after{content:''}
-}
+/* قواعدِ چاپ **یک‌جا** در انتهای همین فایل است (بخشِ «چاپ / PDF»).
+   این‌جا عمداً خالی است تا دو تعریفِ موازی از ظاهرِ کاغذ نداشته باشیم. */
 
 @media(max-width:640px){
   .audit-plan{padding:20px 18px;border-radius:18px}
@@ -3227,6 +3221,10 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
 .auth-pending b{font-weight:700}
 
 /* ---------- لینکِ اشتراکِ گزارش + صفحهٔ عمومیِ گزارش ---------- */
+/* سربرگ/پابرگِ چاپ روی **صفحه** دیده نمی‌شوند؛ فقط در @media print باز می‌شوند.
+   ⚠️ `hidden` به‌تنهایی کافی نبود: قاعدهٔ user-agent است و هر `display:` نویسنده
+   بر آن می‌چربد — همان تلهٔ ثبت‌شدهٔ `.cal-skel` در admin.css. */
+.au-print-head,.au-print-foot{display:none}
 .au-share{margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2)}
 .au-share > label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:8px}
 .au-share-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -3242,3 +3240,111 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   border-radius:11px;padding:10px 14px;font-size:13.5px;color:#FBBF24}
 .rp-stale .icon{width:16px;height:16px}
 .rp-stale a{color:var(--cyan);font-weight:600;text-decoration:underline}
+
+/* ============================================================================
+   چاپ / PDF — گزارشِ بررسیِ سایت
+   ============================================================================
+
+   این سند از سایت بیرون می‌رود: مشتری همین PDF را برای توسعه‌دهنده‌اش
+   می‌فرستد یا در جلسه نشان می‌دهد. پس باید روی کاغذ **خودش** بایستد، نه اینکه
+   عکسِ رنگ‌پریدهٔ یک صفحهٔ وب باشد.
+
+   🔴 چرا فقط `background:#fff` کافی نبود (نسخهٔ قبلی همین را می‌کرد):
+   کلِ طراحی روی توکن‌های تیره سوار است (`--text:#E6EAF3`). سفیدکردنِ زمینه
+   بی‌عوض‌کردنِ توکن‌ها یعنی متنِ خاکستریِ روشن روی کاغذِ سفید — عملاً نامرئی.
+   پس این‌جا **خودِ توکن‌ها** برای چاپ بازتعریف می‌شوند و بقیهٔ صفحه خودبه‌خود
+   جوهرپسند می‌شود.
+   ============================================================================ */
+@media print{
+
+  /* ── ۱) پالتِ کاغذ. هر سه حالت را می‌پوشاند: پیش‌فرض، روشن، تیره ───────── */
+  :root,
+  html[data-theme="light"],
+  html[data-theme="dark"]{
+    --bg:#FFFFFF; --bg2:#FFFFFF;
+    --surface:#FFFFFF; --surface-2:#F7F8FA;
+    --line:#E3E7EE; --line-2:#CAD1DC;
+    --text:#0B1220; --muted:#48526A; --dim:#6A7488;
+  }
+
+  @page{ size:A4; margin:14mm 12mm 15mm }
+
+  html,body{background:#fff !important}
+  body{font-family:'IRANSans',Tahoma,sans-serif;font-size:10.5pt;line-height:1.85;color:#0B1220}
+
+  /* ── ۲) چیزهایی که روی کاغذ معنی ندارند ───────────────────────────────── */
+  .aurora,.grid-overlay,#progress,.site-header-wrap,.imp-bar,
+  .site-footer,.chat-fab,.chat-panel,.chat-launcher,
+  .drawer,.drawer-backdrop,.au-cta,.audit-filter,.tool-search,.aud-dims,
+  .au-share,.aud-stage,.rp-stale a,.tl-content,.hero .badge{display:none !important}
+
+  /* ── ۳) سربرگ و پابرگِ سند ────────────────────────────────────────────── */
+  .au-print-head{display:flex !important;align-items:center;justify-content:space-between;
+    gap:14px;padding-bottom:10px;margin-bottom:18px;border-bottom:2px solid #0B1220}
+  .aph-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13pt}
+  .aph-mark{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;
+    background:#0B1220;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .aph-mark .icon{width:15px;height:15px}
+  .aph-meta{text-align:end;font-size:9pt;color:#48526A;line-height:1.7}
+  .aph-meta b{display:block;font-size:10.5pt;color:#0B1220}
+  .aph-host{font-weight:700;color:#0B1220}
+  .aph-date{margin-inline-start:10px}
+
+  .au-print-foot{display:flex !important;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin-top:22px;padding-top:10px;border-top:1px solid #CAD1DC;
+    font-size:8.5pt;color:#6A7488}
+  .apf-url{word-break:break-all;max-width:60%}
+
+  /* ── ۴) قالبِ صفحه: حاشیه‌ها را @page می‌دهد، نه لایوت ─────────────────── */
+  #main{padding-top:0 !important}
+  .section,.hero,.hero-sub{padding:0 !important;margin:0 !important;min-height:0 !important}
+  .container{max-width:none !important;width:auto !important;padding:0 !important;margin:0 !important}
+  .hero-sub-inner{max-width:none !important}
+  .reveal{opacity:1 !important;transform:none !important}
+
+  /* عنوانِ صفحهٔ گزارش روی کاغذ تکراری است — سربرگ همان را می‌گوید */
+  .hero-sub h1,.hero-sub .lead,.rp-when{display:none !important}
+
+  /* ── ۵) کارت‌ها ────────────────────────────────────────────────────────── */
+  .audit-hero,.audit-plan,.adetail-group,.audit-vitals{
+    background:#fff !important;border:1px solid #E3E7EE !important;border-radius:10px !important;
+    box-shadow:none !important;padding:14px 16px !important;margin-bottom:14px !important}
+  .audit-hero{display:flex;align-items:center;gap:20px}
+
+  /* ── ۶) رنگ‌هایی که **باید** روی کاغذ بمانند ───────────────────────────
+     بی این، مرورگر پس‌زمینه‌های رنگی را حذف می‌کند و نمره و شدتِ هر ایراد
+     بی‌معنی می‌شود — دقیقاً همان چیزی که خواننده دنبالش است. */
+  .ag-fg,.ag-bg,.acat-bar,.acat-bar i,.ac-mark,.ad-badge,.aplan-num,
+  .audit-gauge,.aplan-item,.badge{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  .audit-gauge{width:110px;height:110px;flex:none}
+  .ag-center b{font-size:26pt}
+
+  /* ── ۷) فهرستِ چک‌ها ───────────────────────────────────────────────────── */
+  .audit-cats{display:grid !important;grid-template-columns:repeat(2,1fr) !important;gap:8px !important}
+  .acat{background:#fff !important;border:1px solid #E3E7EE !important;padding:8px 10px !important}
+  .acheck{background:#fff !important;border-bottom:1px solid #EEF1F5 !important;border-radius:0 !important}
+  .acheck:last-child{border-bottom:0 !important}
+  .adetail-group h3{font-size:11.5pt;margin-bottom:6px}
+
+  /* راهکارها روی کاغذ **باز** می‌شوند: کاغذ همان چیزی است که کاربر پیشِ
+     توسعه‌دهنده می‌برد، و راهکارِ جمع‌شده روی کاغذ یعنی هیچ. */
+  .afix{display:block !important}
+  .afix-copy{display:none !important}
+  .afix-code pre{background:#F5F6F8 !important;color:#0B1220 !important;
+    border:1px solid #E3E7EE !important;white-space:pre-wrap;word-break:break-word;font-size:8.5pt}
+
+  /* ── ۸) شکستنِ صفحه ────────────────────────────────────────────────────
+     بی این، یک ردیفِ چک وسطِ خودش دو تکه می‌شود و عنوانِ گروه ته صفحه تنها
+     می‌مانَد — همان چیزی که یک PDF را «ارزان» نشان می‌دهد. */
+  .audit-hero,.aplan-item,.adetail-group,.acheck,.vitem,.acat{break-inside:avoid;page-break-inside:avoid}
+  .adetail-group h3,.audit-plan h3{break-after:avoid;page-break-after:avoid}
+  .audit-detail{break-before:auto}
+
+  /* ── ۹) لینک‌ها ────────────────────────────────────────────────────────
+     نشانیِ کاملِ لینک در متن چاپ **نمی‌شود**: گزارش پر از لینکِ داخلی است و
+     کاغذ را به هم می‌ریزد. نشانیِ خودِ گزارش یک‌بار در پابرگ می‌آید. */
+  a[href]::after{content:'' !important}
+  a{color:#0B1220 !important;text-decoration:none !important}
+}
