@@ -39,8 +39,17 @@ class Product extends Model
         'dedicated'   => 'سرور اختصاصی',
         'plesk'       => 'Plesk',
         'directadmin' => 'DirectAdmin',
+        // لایسنس نرم‌افزار: نه سرور می‌خواهد نه دامنه — شناسه‌اش IP مشتری است
+        // و تحویلش از صفِ دستیِ ادمین می‌گذرد (فعال‌سازی نزدِ تأمین‌کننده).
+        'license'     => 'لایسنس نرم‌افزار',
         'other'       => 'سایر',
     ];
+
+    /** آیا این پکیج لایسنس نرم‌افزار است؟ (مسیرِ سفارش و تحویلش جداست) */
+    public function isLicense(): bool
+    {
+        return $this->category === 'license';
+    }
 
     protected static function booted(): void
     {

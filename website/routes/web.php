@@ -1562,6 +1562,13 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         }
     });
 
+    // پکیج‌های لایسنس — insert-missing؛ قیمتِ ویرایش‌شده‌ی مدیر دست نمی‌خورد.
+    $step('license_products', function () {
+        if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+            (new \Database\Seeders\LicenseProductSeeder())->run();
+        }
+    });
+
     /*
     | ریستِ دوم، برای بقیهٔ کد (روت‌ها، ویوها، کلاس‌های اپ) که این درخواست
     | اجراشان نکرد. ریستِ اولِ بالای تابع فقط سیدرها را هدف داشت.

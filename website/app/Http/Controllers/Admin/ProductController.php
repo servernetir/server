@@ -111,6 +111,13 @@ class ProductController extends Controller
 
         \App\Services\CatalogPricing::forget();
 
+        // لایسنس روی WHM هیچ packageای ندارد — تحویلش فعال‌سازی نزدِ
+        // تأمین‌کننده است. ساختنِ packageِ بی‌مصرف روی همه‌ی سرورها فقط زباله و
+        // تماسِ API اضافه است.
+        if ($product->isLicense()) {
+            return back()->with('ok', 'پکیج «'.$data['name'].'» اضافه شد. (لایسنس — packageِ WHM لازم ندارد)');
+        }
+
         // پکیجِ تازه بی‌درنگ روی WHM ساخته می‌شود. نگرانیِ درست کارفرما: پکیجی که
         // در سایت هست ولی در WHM نیست، در لحظهٔ سفارشِ مشتری با خطا می‌خورد.
         [, $whm] = $this->createWhmPackage($product);
@@ -131,9 +138,10 @@ class ProductController extends Controller
         \App\Services\CatalogPricing::forget();
 
         $note = '';
-        if ($specsChanged) {
+        if ($specsChanged && ! $product->isLicense()) {
             // editpkg روی همهٔ سرورهای WHM — وگرنه سایت و سرور از هم می‌پاشند:
             // مشتری «۱۰ گیگ» می‌خرد و روی سرور همان ۵ گیگِ قبلی را می‌گیرد.
+            // (لایسنس packageِ WHM ندارد؛ مشخصاتش فقط نمایشی است.)
             [, $note] = $this->createWhmPackage($product);
             $note = ' مشخصات عوض شد → '.$note;
         }
@@ -154,6 +162,11 @@ class ProductController extends Controller
     public function syncWhm(Request $request, Product $product): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        if ($product->isLicense()) {
+            return back()->with('ok', 'پکیجِ لایسنس packageِ WHM لازم ندارد — تحویلش فعال‌سازی نزدِ تأمین‌کننده است.');
+        }
+
         [$ok, $msg] = $this->createWhmPackage($product);
 
         return $ok ? back()->with('ok', $msg) : back()->withErrors($msg);
@@ -190,7 +203,8 @@ class ProductController extends Controller
             );
         }
 
-        $products = Product::where('is_active', true)->get();
+        // لایسنس‌ها packageِ WHM ندارند — واردکردنشان یعنی «ناموفق»های دروغین در گزارش
+        $products = Product::where('is_active', true)->where('category', '!=', 'license')->get();
         $done = 0;
         $fail = 0;
         $reasons = [];
