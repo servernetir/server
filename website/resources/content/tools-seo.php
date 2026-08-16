@@ -133,6 +133,54 @@ return [
         ],
     ],
 
+    "speedtest" => [
+        "fa" => [
+            "intro" => "این تست سرعت، اتصال شما را تا دیتاسنتر سرورنت در اروپا می‌سنجد — یعنی همان مسیر بین‌المللی که بیشتر سایت‌ها و سرویس‌های خارجی از آن می‌آیند. سه عدد می‌گیرید: پینگ (تاخیر رفت‌وبرگشت)، جیتر (نوسان همان تاخیر — برای تماس تصویری و بازی مهم‌تر از خود پینگ) و سرعت واقعی دانلود و آپلود. برخلاف بعضی تست‌ها که به نزدیک‌ترین سرور شهر خودتان وصل می‌شوند و عدد خوش‌بینانه می‌دهند، این عدد همان چیزی است که هنگام کار با سایت‌های خارجی واقعا تجربه می‌کنید.",
+            "steps" => [
+                "روی دکمه‌ی شروع تست بزنید — نیازی به هیچ ورودی‌ای نیست.",
+                "چند ثانیه صبر کنید: اول پینگ و جیتر، بعد دانلود و در آخر آپلود سنجیده می‌شود.",
+                "برای نتیجه‌ی دقیق‌تر، دانلودهای دیگر را متوقف کنید و اگر روی وای‌فای هستید یک بار هم با کابل امتحان کنید.",
+                "اعداد را با بسته‌ی اینترنتی که خریده‌اید مقایسه کنید؛ اختلاف زیاد یعنی وقت پیگیری از اپراتور است.",
+            ],
+            "faq" => [
+                ["q" => "چرا عدد این تست با speedtest فرق دارد؟", "a" => "تست‌های معروف معمولا به نزدیک‌ترین سرور در شهر خودتان وصل می‌شوند و عدد داخلی را نشان می‌دهند. این تست مسیر بین‌الملل را می‌سنجد که تقریبا همیشه کندتر است — و همان است که هنگام باز کردن سایت‌های خارجی حس می‌کنید."],
+                ["q" => "جیتر چیست و چرا مهم است؟", "a" => "نوسان پینگ بین بسته‌های متوالی. برای تماس تصویری، VoIP و بازی آنلاین، جیتر بالا از پینگ بالا آزاردهنده‌تر است چون صدا و تصویر را می‌بُرد."],
+                ["q" => "چه عددی برای مسیر بین‌الملل خوب است؟", "a" => "از ایران، پینگ ۸۰ تا ۱۵۰ میلی‌ثانیه تا اروپا طبیعی است. دانلود بالای ۲۰ مگابیت برای کار روزمره راحت است؛ آپلود معمولا خیلی کمتر از دانلود است و همین طبیعی است."],
+                ["q" => "چرا هر بار عدد کمی فرق می‌کند؟", "a" => "سرعت لحظه‌ای به شلوغی شبکه‌ی اپراتور و مسیر بستگی دارد. دو سه بار در ساعت‌های مختلف تست بگیرید و به میانگین نگاه کنید، نه یک اجرا."],
+            ],
+        ],
+        "en" => [
+            "intro" => "This speed test measures your connection to the ServerNet datacenter in Europe — the same international route most foreign sites and services travel. You get three numbers: ping (round-trip delay), jitter (the variation of that delay — more important than ping itself for video calls and gaming) and your real download and upload speeds. Unlike tests that connect to the nearest server in your own city and produce optimistic numbers, this one shows what you actually experience with foreign sites.",
+            "steps" => [
+                "Press the start button — no input needed.",
+                "Wait a few seconds: ping and jitter first, then download, then upload.",
+                "For accuracy, pause other downloads and try once over a cable if you are on Wi-Fi.",
+                "Compare the numbers with the plan you pay for; a big gap is worth raising with your ISP.",
+            ],
+            "faq" => [
+                ["q" => "Why does this differ from speedtest?", "a" => "Popular tests usually connect to the nearest server in your city, showing the domestic number. This test measures the international route, which is almost always slower — and is what you feel on foreign sites."],
+                ["q" => "What is jitter and why does it matter?", "a" => "The variation of ping between consecutive packets. For video calls, VoIP and online gaming, high jitter is more disruptive than high ping."],
+                ["q" => "What is a good number for an international route?", "a" => "From Iran, 80-150ms ping to Europe is normal. Download above 20 Mbps is comfortable for daily work; upload is usually much lower than download by design."],
+                ["q" => "Why does the number change between runs?", "a" => "Momentary speed depends on your ISP's load and the route. Run it a few times at different hours and look at the average, not one run."],
+            ],
+        ],
+        "tr" => [
+            "intro" => "Bu hiz testi baglantinizi ServerNet in Avrupa daki veri merkezine kadar olcer — cogu yabanci sitenin geldigi uluslararasi rota. Uc sayi alirsiniz: ping, jitter ve gercek indirme/yukleme hizi. Sehrinizdeki en yakin sunucuya baglanan testlerin aksine, bu sayi yabanci sitelerde gercekten yasadiginizdir.",
+            "steps" => [
+                "Baslat dugmesine basin — girdi gerekmez.",
+                "Birkac saniye bekleyin: once ping ve jitter, sonra indirme, en son yukleme.",
+                "Dogruluk icin diger indirmeleri durdurun; Wi-Fi kullaniyorsaniz bir kez de kabloyla deneyin.",
+                "Sayilari satin aldiginiz paketle karsilastirin; buyuk fark operatorle konusmaya deger.",
+            ],
+            "faq" => [
+                ["q" => "Neden speedtest ile farkli cikiyor?", "a" => "Populer testler genellikle sehrinizdeki en yakin sunucuya baglanir. Bu test neredeyse her zaman daha yavas olan uluslararasi rotayi olcer."],
+                ["q" => "Jitter nedir?", "a" => "Ardisik paketler arasindaki ping dalgalanmasi. Gorusme ve oyun icin yuksek jitter, yuksek pingden daha rahatsiz edicidir."],
+                ["q" => "Uluslararasi rota icin iyi sayi nedir?", "a" => "Iran dan Avrupa ya 80-150ms ping normaldir. 20 Mbps ustu indirme gunluk is icin rahattir."],
+                ["q" => "Sayi neden her calistirmada degisiyor?", "a" => "Anlik hiz, operator yogunluguna baglidir. Farkli saatlerde birkac kez test edip ortalamaya bakin."],
+            ],
+        ],
+    ],
+
     "domain-ideas" => [
         "fa" => [
             "intro" => "خوب‌ترین نام‌ها زودتر از همه ثبت می‌شوند و جستجوی دستی، ساعت‌ها وقت می‌بَرد: نامی به ذهن می‌رسد، استعلام می‌گیرید، گرفته شده، و از اول. این ابزار مسیر را برعکس می‌کند — کسب‌وکارتان را در یک جمله توصیف می‌کنید و هوش مصنوعی نام‌های کوتاه و برنددار می‌سازد؛ نام‌هایی که قطعاً ثبت شده‌اند همان لحظه علامت می‌خورند تا وقتتان را نگیرند و بقیه با یک کلیک به استعلام زندهٔ رجیسترار و قیمتِ روز می‌رسند. نام خوب، کوتاه است، راحت تلفظ می‌شود و با برندتان بزرگ می‌شود.",

@@ -41,6 +41,10 @@ class DomainPricingRateTest extends TestCase
                 'status' => 'free',
                 'price'  => ['reseller' => ['price' => $eur, 'currency' => 'EUR']],
             ]]]]),
+            // 🔴 بدون این، «نرخ نامعلوم» فقط روی ماشینِ بی‌اینترنت نامعلوم می‌مانْد:
+            // ExchangeRate در لحظه‌ی نیاز از alanchand نرخ زنده می‌گیرد و تستی که
+            // به شکستِ شبکه تکیه کند، روی هر ماشین سالمی قرمز می‌شود.
+            'alanchand.com/*'  => Http::response('', 500),
         ]);
     }
 

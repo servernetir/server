@@ -20,8 +20,17 @@ class ToolsMenuBalanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** شش نوع lookup تازه — یک‌جا، تا تست و config از هم جدا نیفتند */
-    private const NEW_TYPES = ['email', 'blacklist', 'speed', 'headers', 'redirects', 'iran-access'];
+    /** همه‌ی نوع‌های lookup تازه (صفحه‌دار) — چه در منو چه فقط لینک داخلی */
+    private const NEW_TYPES = ['email', 'blacklist', 'speed', 'headers', 'redirects', 'iran-access', 'global-ping', 'global-http', 'pagespeed'];
+
+    /**
+     * آیتم‌های lookup که واقعاً در منو هستند (بازخورد کارفرما، شهریور ۱۴۰۵):
+     * speed/headers/redirects/iran-access از منو درآمدند ولی صفحه‌هایشان
+     * ماندند — «جزو لینک‌های داخلی».
+     */
+    private const MENU_LOOKUPS = ['email', 'blacklist', 'global-ping', 'global-http', 'pagespeed'];
+
+    private const OFF_MENU = ['speed', 'headers', 'redirects', 'iran-access'];
 
     protected function setUp(): void
     {
@@ -63,10 +72,25 @@ class ToolsMenuBalanceTest extends TestCase
     {
         $panel = $this->toolsPanel();
 
-        foreach (self::NEW_TYPES as $type) {
+        foreach (self::MENU_LOOKUPS as $type) {
             $this->assertStringContainsString('/lookup/'.$type, $panel, "لینک {$type} در منو نیست");
         }
         $this->assertStringContainsString('/tools/domain-ideas', $panel);
+        $this->assertStringContainsString('/tools/speedtest', $panel);
+    }
+
+    /**
+     * بازخورد کارفرما: این چهار ابزار «برای استفاده‌ی هرروزه جذاب نیستند» —
+     * از منو خارج شدند ولی صفحه‌هایشان زنده‌اند (لینک داخلی/سئو).
+     */
+    public function test_offmenu_tools_left_the_menu_but_kept_their_pages(): void
+    {
+        $panel = $this->toolsPanel();
+
+        foreach (self::OFF_MENU as $type) {
+            $this->assertStringNotContainsString('/lookup/'.$type.'"', $panel, "«{$type}» باید از منو خارج شده باشد");
+            $this->get('/lookup/'.$type)->assertOk();
+        }
     }
 
     /** کشوی موبایل همان آیتم‌ها را دارد — منوی دسکتاپ و موبایل از هم جدا نیفتند */
@@ -74,22 +98,23 @@ class ToolsMenuBalanceTest extends TestCase
     {
         $html = $this->get('/')->assertOk()->getContent();
 
-        foreach (self::NEW_TYPES as $type) {
+        foreach (self::MENU_LOOKUPS as $type) {
             $this->assertGreaterThanOrEqual(
                 2,
                 substr_count($html, '/lookup/'.$type),
                 "آیتم {$type} باید هم در مگامنو باشد هم در کشوی موبایل"
             );
         }
+        $this->assertGreaterThanOrEqual(2, substr_count($html, '/tools/speedtest'));
     }
 
     public function test_the_english_menu_is_balanced_too(): void
     {
         $panel = $this->toolsPanel('/en');
 
-        $this->assertStringContainsString('/en/lookup/email', $panel);
-        $this->assertStringContainsString('/en/tools/domain-ideas', $panel);
-        $this->assertStringContainsString('Email Health Check', $panel);
+        $this->assertStringContainsString('/en/lookup/global-ping', $panel);
+        $this->assertStringContainsString('/en/tools/speedtest', $panel);
+        $this->assertStringContainsString('Global Ping', $panel);
     }
 
     // ═══════════════ صفحات ابزارهای تازه ═══════════════
@@ -166,9 +191,15 @@ class ToolsMenuBalanceTest extends TestCase
         $probe->shouldReceive('headers')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'headers']);
         $probe->shouldReceive('redirects')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'redirects']);
         $probe->shouldReceive('iranAccess')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'access']);
+        $probe->shouldReceive('pagespeed')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'cwv']);
         $this->app->instance(WebProbe::class, $probe);
 
-        foreach (['email' => 'email', 'blacklist' => 'blacklist', 'speed' => 'speed', 'headers' => 'headers', 'redirects' => 'redirects', 'iran-access' => 'access'] as $type => $via) {
+        $ch = \Mockery::mock(\App\Services\CheckHost::class);
+        $ch->shouldReceive('ping')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'chping']);
+        $ch->shouldReceive('http')->once()->with('example.com')->andReturn(['ok' => true, 'via' => 'chhttp']);
+        $this->app->instance(\App\Services\CheckHost::class, $ch);
+
+        foreach (['email' => 'email', 'blacklist' => 'blacklist', 'speed' => 'speed', 'headers' => 'headers', 'redirects' => 'redirects', 'iran-access' => 'access', 'global-ping' => 'chping', 'global-http' => 'chhttp', 'pagespeed' => 'cwv'] as $type => $via) {
             $this->postJson('/api/lookup', ['type' => $type, 'query' => 'example.com'])
                 ->assertOk()
                 ->assertJsonPath('via', $via);

@@ -16,7 +16,7 @@ use Illuminate\View\View;
  */
 class ToolController extends Controller
 {
-    private const PAGES = ['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas'];
+    private const PAGES = ['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas', 'speedtest'];
 
     public function show(string $slug, Request $request): View
     {
@@ -107,6 +107,55 @@ class ToolController extends Controller
         }
 
         return response()->json($ideas->suggest(mb_substr($desc, 0, 300)));
+    }
+
+    /* ============================================================= تست سرعت اینترنت */
+
+    /** GET /api/speedtest/ping — پاسخ خالی برای سنجش RTT مرورگر↔سرور */
+    public function speedPing(): \Illuminate\Http\Response
+    {
+        return response('', 204, ['Cache-Control' => 'no-store']);
+    }
+
+    /**
+     * GET /api/speedtest/down?mb=N — جریان بایت برای سنجش دانلود.
+     *
+     * سقف ۱۶MB per-request و سطل speedtest، چون این پرهزینه‌ترین endpoint
+     * پهنای‌باند سایت است. یک chunk تصادفی یک‌بار ساخته و تکرار می‌شود —
+     * تصادفی‌بودن فقط برای بی‌اثرکردن فشرده‌سازی مسیر لازم است، نه امنیت.
+     */
+    public function speedDown(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $mb = min(16, max(1, (int) $request->query('mb', 8)));
+        $bytes = $mb * 1048576;
+
+        return response()->stream(function () use ($bytes) {
+            $chunk = random_bytes(262144);
+            for ($sent = 0; $sent < $bytes; $sent += 262144) {
+                echo $chunk;
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
+                flush();
+            }
+        }, 200, [
+            'Content-Type'      => 'application/octet-stream',
+            'Content-Length'    => (string) $bytes,
+            'Cache-Control'     => 'no-store',
+            // فشرده‌سازی/بافر میانی زمان‌سنجی را بی‌معنا می‌کند
+            'Content-Encoding'  => 'identity',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /** POST /api/speedtest/up — فقط طول بدنه را برمی‌گرداند؛ هیچ‌چیز ذخیره نمی‌شود */
+    public function speedUp(Request $request): JsonResponse
+    {
+        return response()->json(
+            ['ok' => true, 'bytes' => strlen((string) $request->getContent())],
+            200,
+            ['Cache-Control' => 'no-store'],
+        );
     }
 
     /** POST /api/whois */

@@ -901,5 +901,137 @@ return [
             ],
         ],
 
+        /* ------------------------------------------------------------- Global ping */
+        'global-ping' => [
+            'group' => 'network', 'icon' => 'zap', 'kind' => 'chping', 'input' => 'host',
+            'fa' => [
+                't' => 'پینگ جهانی', 'placeholder' => 'example.com یا 1.2.3.4',
+                'meta_t' => 'پینگ جهانی — تست پینگ از ۵۰+ نقطه دنیا و داخل ایران',
+                'meta_d' => 'سرور یا سایت خود را از ۵۰+ نقطه‌ی جهان پینگ کنید — شامل چند شهر داخل ایران؛ تأخیر و از‌دست‌رفتن بسته را نقطه‌به‌نقطه ببینید.',
+                'h1a' => 'سرور شما از سراسر دنیا', 'h1b' => 'چند میلی‌ثانیه است؟',
+                'lead' => 'دامنه یا IP را وارد کنید تا از ده‌ها نقطه‌ی جهان — از تهران و شیراز تا فرانکفورت و توکیو — هم‌زمان پینگ شود.',
+                'intro' => 'پینگ از یک نقطه فقط نصف ماجراست: سروری که از اروپا ۲۰ میلی‌ثانیه جواب می‌دهد ممکن است از داخل ایران ۳۰۰ میلی‌ثانیه باشد یا اصلاً نرسد. این ابزار سرور شما را هم‌زمان از بیش از ۵۰ نقطه‌ی جهان پینگ می‌کند — شامل چند شهر داخل ایران — و کمینه/میانگین/بیشینه‌ی تأخیر و درصد از‌دست‌رفتن بسته را نقطه‌به‌نقطه نشان می‌دهد. نتیجه‌ی ایران اول از همه، چون معمولاً همان است که برایتان مهم است.',
+                'faq' => [
+                    ['q' => 'این پینگ‌ها از کجا زده می‌شوند؟', 'a' => 'از شبکه‌ی نودهای عمومی check-host.net — بیش از ۵۰ نقطه در اروپا، آسیا، آمریکا و چند شهر داخل ایران. ما نتیجه را نقطه‌به‌نقطه و مرتب‌شده نمایش می‌دهیم.'],
+                    ['q' => 'چرا بعضی نقطه‌ها «در انتظار» می‌مانند؟', 'a' => 'هر نود مستقل جواب می‌دهد و بعضی کندترند. ما تا سقف زمانی مشخصی صبر می‌کنیم و بقیه را صادقانه «در انتظار» علامت می‌زنیم؛ چند ثانیه بعد دوباره اجرا کنید.'],
+                    ['q' => 'پینگ بالا از ایران یعنی سرورم بد است؟', 'a' => 'نه لزوماً — مسیر بین‌الملل ایران ذاتاً تأخیر بیشتری دارد. مقایسه کنید: اگر از اروپا هم بالا بود مشکل از سرور است؛ اگر فقط از ایران، مسیر بین‌الملل است و راه‌حل، سروری با مسیر مناسب به ایران است.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Global Ping', 'placeholder' => 'example.com or 1.2.3.4',
+                'meta_t' => 'Global Ping — Test From 50+ Locations Including Iran',
+                'meta_d' => 'Ping your server or site from 50+ locations worldwide — including several cities inside Iran; latency and packet loss, node by node.',
+                'h1a' => 'How many milliseconds is your server', 'h1b' => 'from around the world?',
+                'lead' => 'Enter a domain or IP to ping it simultaneously from dozens of points — from Tehran and Shiraz to Frankfurt and Tokyo.',
+                'intro' => 'A ping from one location is only half the story: a server answering in 20ms from Europe can take 300ms from inside Iran — or not answer at all. This tool pings your server from 50+ locations worldwide at once, including several cities inside Iran, and shows min/avg/max latency and packet loss per node. Iranian nodes come first, because that is usually the number you actually care about.',
+                'faq' => [
+                    ['q' => 'Where are these pings sent from?', 'a' => 'From the public node network of check-host.net — 50+ points across Europe, Asia, the Americas and several cities inside Iran. We render the results, sorted and node by node.'],
+                    ['q' => 'Why do some nodes stay "pending"?', 'a' => 'Each node answers independently and some are slower. We wait up to a fixed budget and honestly mark the rest as pending; run it again a few seconds later.'],
+                    ['q' => 'Does high ping from Iran mean my server is bad?', 'a' => 'Not necessarily — Iran\'s international routes inherently add latency. Compare: high from Europe too means the server; high only from Iran means the route, and the fix is a server with a good path to Iran.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Küresel Ping', 'placeholder' => 'example.com veya 1.2.3.4',
+                'meta_t' => 'Küresel Ping — İran Dahil 50+ Noktadan Test',
+                'meta_d' => 'Sunucunuzu dünyanın 50+ noktasından pingleyin — İran içindeki birkaç şehir dahil; gecikme ve paket kaybı nokta nokta.',
+                'h1a' => 'Sunucunuz dünyanın dört yanından', 'h1b' => 'kaç milisaniye?',
+                'lead' => 'Tahran ve Şiraz\'dan Frankfurt ve Tokyo\'ya onlarca noktadan aynı anda pinglemek için bir alan adı veya IP girin.',
+                'intro' => 'Tek noktadan ping hikayenin yarısıdır: Avrupa\'dan 20ms\'de yanıt veren bir sunucu İran içinden 300ms sürebilir — ya da hiç yanıt vermeyebilir. Bu araç sunucunuzu aynı anda 50+ noktadan pingler ve nokta başına min/ort/maks gecikme ile paket kaybını gösterir.',
+                'faq' => [
+                    ['q' => 'Bu pingler nereden gönderiliyor?', 'a' => 'check-host.net genel düğüm ağından — Avrupa, Asya, Amerika ve İran içindeki birkaç şehir dahil 50+ nokta.'],
+                    ['q' => 'Bazı düğümler neden "beklemede" kalıyor?', 'a' => 'Her düğüm bağımsız yanıt verir; belirli bir süre bekler, kalanları dürüstçe beklemede olarak işaretleriz.'],
+                    ['q' => 'İran\'dan yüksek ping sunucum kötü mü demek?', 'a' => 'Şart değil — İran\'ın uluslararası rotaları doğal olarak gecikme ekler. Avrupa\'dan da yüksekse sorun sunucudadır.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Global HTTP */
+        'global-http' => [
+            'group' => 'site', 'icon' => 'globe', 'kind' => 'chhttp', 'input' => 'domain',
+            'fa' => [
+                't' => 'دسترس‌پذیری جهانی', 'placeholder' => 'example.com',
+                'meta_t' => 'بررسی دسترس‌پذیری سایت از سراسر جهان — تست باز شدن از ۵۰+ نقطه',
+                'meta_d' => 'ببینید سایت شما از ۵۰+ نقطه‌ی جهان — شامل داخل ایران — باز می‌شود یا نه؛ کد وضعیت و زمان پاسخ هر نقطه را جداگانه ببینید.',
+                'h1a' => 'سایت شما الان از کجاها', 'h1b' => 'باز می‌شود؟',
+                'lead' => 'دامنه را وارد کنید تا از ده‌ها نقطه‌ی جهان هم‌زمان یک درخواست واقعی HTTP به سایت شما بزنیم — با کد وضعیت و زمان پاسخ هر نقطه.',
+                'intro' => '«سایتم بالاست؟» جواب یک‌کلمه‌ای ندارد: سایت می‌تواند از آلمان باز شود و از داخل ایران نه — یا برعکس. این ابزار از بیش از ۵۰ نقطه‌ی جهان، شامل چند شهر داخل ایران، هم‌زمان به سایت شما درخواست واقعی HTTP می‌زند و برای هر نقطه کد وضعیت و زمان پاسخ را نشان می‌دهد. برای وقتی که مشتری می‌گوید «سایت باز نمی‌شود» و شما می‌بینید باز است، هیچ ابزاری سریع‌تر از این جواب نمی‌دهد.',
+                'faq' => [
+                    ['q' => 'فرق این با ابزار پینگ جهانی چیست؟', 'a' => 'پینگ فقط رسیدن به سرور را می‌سنجد؛ این ابزار یک درخواست واقعی HTTP می‌زند — یعنی وب‌سرور، SSL و پاسخ‌دهی واقعی سایت را هم آزمایش می‌کند. سایت می‌تواند پینگ بدهد ولی خطای ۵۰۰ برگرداند.'],
+                    ['q' => 'از داخل ایران باز نمی‌شود ولی از بقیه دنیا باز می‌شود؛ چرا؟', 'a' => 'یا دامنه فیلتر است، یا سرویس‌دهنده‌ی خارجی IPهای ایران را مسدود کرده (تحریم). ابزار «دسترسی از ایران» ما تشخیص فیلترینگ DNS را هم اضافه می‌کند.'],
+                    ['q' => 'کد وضعیت غیر از ۲۰۰ یعنی سایت خراب است؟', 'a' => 'نه همیشه — ۳۰۱/۳۰۲ ریدایرکت طبیعی است و ۴۰۳ گاهی فایروال یا محافظ ربات است. ۵xx یعنی خطای واقعی سرور و باید بررسی شود.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Global Availability', 'placeholder' => 'example.com',
+                'meta_t' => 'Website Availability From Around the World — 50+ Locations',
+                'meta_d' => 'See whether your site opens from 50+ locations worldwide — including inside Iran — with per-node status codes and response times.',
+                'h1a' => 'Where in the world does your site', 'h1b' => 'open right now?',
+                'lead' => 'Enter a domain and we\'ll make a real HTTP request to your site from dozens of points at once — status code and response time for each.',
+                'intro' => '"Is my site up?" has no one-word answer: a site can open from Germany and fail from inside Iran — or the reverse. This tool sends a real HTTP request to your site from 50+ locations worldwide, including several cities inside Iran, and shows the status code and response time per node. When a customer says "the site won\'t open" and it opens fine for you, nothing answers faster than this.',
+                'faq' => [
+                    ['q' => 'How is this different from the global ping tool?', 'a' => 'Ping only measures reachability; this makes a real HTTP request — exercising the web server, SSL and the actual response. A site can answer pings yet return a 500.'],
+                    ['q' => 'It fails only from inside Iran — why?', 'a' => 'Either the domain is filtered, or the foreign provider blocks Iranian IPs (sanctions). Our "Iran Accessibility" tool adds DNS-filtering detection on top.'],
+                    ['q' => 'Is a non-200 status a failure?', 'a' => 'Not always — 301/302 redirects are normal and 403 is sometimes a firewall or bot shield. 5xx is a real server error worth investigating.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Küresel Erişilebilirlik', 'placeholder' => 'example.com',
+                'meta_t' => 'Dünyanın Her Yerinden Site Erişilebilirliği — 50+ Nokta',
+                'meta_d' => 'Sitenizin dünyanın 50+ noktasından açılıp açılmadığını görün — nokta başına durum kodu ve yanıt süresiyle.',
+                'h1a' => 'Siteniz şu anda dünyanın nerelerinden', 'h1b' => 'açılıyor?',
+                'lead' => 'Bir alan adı girin; sitenize onlarca noktadan aynı anda gerçek bir HTTP isteği gönderelim.',
+                'intro' => '"Sitem ayakta mı?" sorusunun tek kelimelik yanıtı yoktur: bir site Almanya\'dan açılıp İran içinden açılmayabilir — ya da tersi. Bu araç 50+ noktadan gerçek HTTP isteği gönderir ve nokta başına durum kodu ile yanıt süresini gösterir.',
+                'faq' => [
+                    ['q' => 'Küresel ping aracından farkı ne?', 'a' => 'Ping yalnızca erişilebilirliği ölçer; bu araç gerçek bir HTTP isteği yapar — web sunucusu, SSL ve gerçek yanıtı da test eder.'],
+                    ['q' => 'Yalnızca İran içinden açılmıyor — neden?', 'a' => 'Ya alan adı filtrelidir ya da yabancı sağlayıcı İran IP\'lerini engelliyordur.'],
+                    ['q' => '200 dışı kod hata mı demek?', 'a' => 'Her zaman değil — 301/302 normaldir, 403 bazen güvenlik duvarıdır. 5xx gerçek sunucu hatasıdır.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- PageSpeed / CWV */
+        'pagespeed' => [
+            'group' => 'site', 'icon' => 'gauge', 'kind' => 'cwv', 'input' => 'domain',
+            'fa' => [
+                't' => 'تحلیل Core Web Vitals', 'placeholder' => 'example.com',
+                'meta_t' => 'تست PageSpeed و Core Web Vitals — نمره سرعت گوگل',
+                'meta_d' => 'نمره‌ی Performance گوگل و معیارهای Core Web Vitals سایت خود (LCP، CLS، TBT) را رایگان بگیرید — همان اعدادی که رتبه‌ی سئوی شما را می‌سازند.',
+                'h1a' => 'گوگل به سرعت سایت شما', 'h1b' => 'چه نمره‌ای می‌دهد؟',
+                'lead' => 'آدرس را وارد کنید تا نمره‌ی رسمی PageSpeed گوگل و معیارهای Core Web Vitals — همان‌ها که در رتبه‌بندی اثر دارند — استخراج شود.',
+                'intro' => 'از ۲۰۲۱ سرعت واقعی صفحه یک فاکتور رسمی رتبه‌بندی گوگل است و با سه معیار Core Web Vitals سنجیده می‌شود: LCP (بارگذاری بزرگ‌ترین عنصر)، CLS (پرش چیدمان) و پاسخ‌گویی تعامل. این ابزار سایت شما را با موتور رسمی PageSpeed گوگل (Lighthouse، حالت موبایل) تحلیل می‌کند و نمره‌ی Performance و اعداد خام هر معیار را نشان می‌دهد — همان چیزی که Search Console به صاحب سایت گزارش می‌کند.',
+                'faq' => [
+                    ['q' => 'نمره‌ی خوب چند است؟', 'a' => '۹۰ به بالا سبز (عالی)، ۵۰ تا ۸۹ نارنجی (نیاز به بهبود) و زیر ۵۰ قرمز است. برای LCP زیر ۲.۵ ثانیه و برای CLS زیر ۰.۱ هدف بگیرید.'],
+                    ['q' => 'چرا تحلیل ۲۰-۳۰ ثانیه طول می‌کشد؟', 'a' => 'گوگل صفحه‌ی شما را واقعاً در یک مرورگر موبایل شبیه‌سازی‌شده باز و بارگذاری کامل را تماشا می‌کند — این تحلیل واقعی است، نه یک استعلام ساده.'],
+                    ['q' => 'مهم‌ترین قدم برای بهتر شدن نمره چیست؟', 'a' => 'معمولاً سه چیز: تصاویر بهینه (WebP و اندازه‌ی درست)، کش مناسب و هاست سریع با TTFB پایین. LCP بالای ۴ ثانیه اغلب از همین سه ریشه می‌گیرد.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Core Web Vitals', 'placeholder' => 'example.com',
+                'meta_t' => 'PageSpeed & Core Web Vitals Test — Google\'s Speed Score',
+                'meta_d' => 'Get your site\'s official Google Performance score and Core Web Vitals (LCP, CLS, TBT) for free — the numbers behind your SEO ranking.',
+                'h1a' => 'What score does Google give', 'h1b' => 'your site\'s speed?',
+                'lead' => 'Enter a URL to extract Google\'s official PageSpeed score and the Core Web Vitals that actually affect ranking.',
+                'intro' => 'Since 2021, real page speed is an official Google ranking factor, measured by the Core Web Vitals: LCP (largest element load), CLS (layout shift) and interaction responsiveness. This tool analyzes your site with Google\'s official PageSpeed engine (Lighthouse, mobile mode) and shows the Performance score plus the raw value of each metric — the same numbers Search Console reports to site owners.',
+                'faq' => [
+                    ['q' => 'What is a good score?', 'a' => '90+ is green (good), 50–89 orange (needs improvement), below 50 red. Target LCP under 2.5s and CLS under 0.1.'],
+                    ['q' => 'Why does the analysis take 20–30 seconds?', 'a' => 'Google actually loads your page in a simulated mobile browser and watches the full load — it\'s a real analysis, not a simple lookup.'],
+                    ['q' => 'What is the biggest lever for a better score?', 'a' => 'Usually three things: optimized images (WebP, right size), proper caching, and fast hosting with a low TTFB. An LCP over 4s usually traces back to these.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Core Web Vitals', 'placeholder' => 'example.com',
+                'meta_t' => 'PageSpeed ve Core Web Vitals Testi — Google Hız Notu',
+                'meta_d' => 'Sitenizin resmi Google Performance notunu ve Core Web Vitals değerlerini (LCP, CLS, TBT) ücretsiz alın.',
+                'h1a' => 'Google sitenizin hızına', 'h1b' => 'kaç puan veriyor?',
+                'lead' => 'Google\'ın resmi PageSpeed notunu ve sıralamayı etkileyen Core Web Vitals değerlerini almak için bir URL girin.',
+                'intro' => '2021\'den beri gerçek sayfa hızı resmi bir Google sıralama faktörüdür ve Core Web Vitals ile ölçülür: LCP, CLS ve etkileşim yanıt süresi. Bu araç sitenizi Google\'ın resmi PageSpeed motoruyla (Lighthouse, mobil mod) analiz eder ve Performance notunu gösterir.',
+                'faq' => [
+                    ['q' => 'İyi bir not kaçtır?', 'a' => '90+ yeşil (iyi), 50–89 turuncu, 50 altı kırmızı. LCP için 2.5s altını, CLS için 0.1 altını hedefleyin.'],
+                    ['q' => 'Analiz neden 20–30 saniye sürüyor?', 'a' => 'Google sayfanızı simüle edilmiş bir mobil tarayıcıda gerçekten yükler — bu gerçek bir analizdir.'],
+                    ['q' => 'Notu iyileştirmenin en büyük kaldıracı ne?', 'a' => 'Genellikle üç şey: optimize görseller, doğru önbellekleme ve düşük TTFB\'li hızlı hosting.'],
+                ],
+            ],
+        ],
+
     ],
 ];

@@ -128,6 +128,108 @@ class WebProbe
         ];
     }
 
+    /* ============================================================= Core Web Vitals (PSI) */
+
+    /**
+     * نمره‌ی Performance و Core Web Vitals از Google PageSpeed Insights —
+     * همان APIای که SiteAudit استفاده می‌کند، این‌بار به‌عنوان ابزار مستقل.
+     *
+     * کش ۱۰ دقیقه‌ای per-URL: تحلیل PSI ‏۲۰-۳۰ ثانیه طول می‌کشد و سهمیه دارد؛
+     * دو مشتری که یک سایت را می‌سنجند نباید دو تحلیل بسوزانند. خطا هرگز کش
+     * نمی‌شود — سهمیه‌ی تمام‌شده نباید ۱۰ دقیقه «خرابی» نشان بدهد.
+     */
+    public function pagespeed(string $target): array
+    {
+        $url = $this->normalizeUrl($target);
+        if ($url === null || ! $this->urlAllowed($url)) {
+            return ['ok' => false, 'error' => 'invalid_domain'];
+        }
+
+        $cacheKey = 'psi:'.md5($url);
+        $hit = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if (is_array($hit)) {
+            return $hit + ['cached' => true];
+        }
+
+        // فقط روی وب: در کنسول/تست، set_time_limit روی ویندوز زمانِ دیواریِ کل
+        // پروسه را محدود می‌کند و سوئیت را ۹۰ ثانیه بعد وسط تستی بی‌ربط می‌کشد.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(90);
+        }
+        $raw = $this->fetchPsi($url);
+        $parsed = $raw !== null ? self::parsePsi($raw) : null;
+
+        if ($parsed === null) {
+            return ['ok' => false, 'error' => 'psi_unavailable'];
+        }
+
+        $out = ['ok' => true, 'domain' => parse_url($url, PHP_URL_HOST), 'url' => $url] + $parsed;
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $out, 600);
+
+        return $out;
+    }
+
+    /**
+     * پارس پاسخ PSI — تابع خالص. از numericValue می‌خوانیم نه displayValue،
+     * چون displayValue محلی‌سازی‌شده و برای نمایش سه‌زبانه‌ی خودمان بی‌مصرف است.
+     */
+    public static function parsePsi(array $d): ?array
+    {
+        $lh = $d['lighthouseResult'] ?? null;
+        if (! is_array($lh)) {
+            return null;
+        }
+
+        $audits = $lh['audits'] ?? [];
+        $num = fn (string $k) => is_numeric($audits[$k]['numericValue'] ?? null)
+            ? (float) $audits[$k]['numericValue'] : null;
+
+        $score = $lh['categories']['performance']['score'] ?? null;
+        if (! is_numeric($score)) {
+            return null;
+        }
+
+        $ms = fn (?float $v) => $v === null ? null : (int) round($v);
+
+        return [
+            'score'  => (int) round($score * 100),
+            'lcp_ms' => $ms($num('largest-contentful-paint')),
+            'fcp_ms' => $ms($num('first-contentful-paint')),
+            'tbt_ms' => $ms($num('total-blocking-time')),
+            'si_ms'  => $ms($num('speed-index')),
+            'cls'    => $num('cumulative-layout-shift') !== null
+                ? round($num('cumulative-layout-shift'), 3) : null,
+        ];
+    }
+
+    /** تماس PSI (کلید اختیاری است؛ بی‌کلید سهمیه‌ی محدودی دارد) */
+    protected function fetchPsi(string $url): ?array
+    {
+        $api = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?strategy=mobile&category=performance'
+            .'&url='.urlencode($url);
+        $key = (string) config('services.pagespeed.key', '');
+        if ($key !== '') {
+            $api .= '&key='.urlencode($key);
+        }
+
+        $ch = curl_init($api);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_CONNECTTIMEOUT => 10,
+        ]);
+        $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (! is_string($raw) || $code !== 200) {
+            return null;
+        }
+        $d = json_decode($raw, true);
+
+        return is_array($d) ? $d : null;
+    }
+
     /* ============================================================= زنجیره‌ی ریدایرکت */
 
     public function redirects(string $target): array
@@ -198,7 +300,9 @@ class WebProbe
      */
     public function iranAccess(string $target): array
     {
-        @set_time_limit(75);
+        if (! app()->runningInConsole()) {
+            @set_time_limit(75);
+        }
 
         $host = $this->net->host($target);
         if ($host === null) {

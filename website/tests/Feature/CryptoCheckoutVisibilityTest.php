@@ -30,6 +30,21 @@ class CryptoCheckoutVisibilityTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        /*
+        | 🔴 «نرخ سرد» و «قیمتِ بازارِ نبود» فقط وقتی سرد می‌مانند که fetchِ
+        | در لحظه هم شکست بخورد. این فایل هیچ استابی نداشت و تا امروز فقط به
+        | این دلیل سبز بود که HTTPSِ ماشینِ محلیِ توسعه خراب بود؛ روی هر
+        | ماشینِ سالمی نرخِ واقعی می‌آمد و تست قرمز می‌شد. پاسخِ خالیِ
+        | همه‌گیر یعنی هر fetch «ناموفقِ بی‌صدا» — همان فرضِ سناریوها.
+        | (طبق قاعده‌ی ثبت‌شده، در کل فایل فقط همین یک fake ثبت می‌شود.)
+        */
+        \Illuminate\Support\Facades\Http::fake();
+    }
+
     private function customer(): Customer
     {
         return Customer::create([

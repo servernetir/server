@@ -8,6 +8,7 @@
         'meet'        => ['t' => __('ui.tl_meet_t'),  'd' => __('ui.tl_meet_d')],
         'app-builder' => ['t' => __('ui.tl_app_t'),   'd' => __('ui.tl_app_d')],
         'domain-ideas' => ['t' => __('ui.tl_ideas_t'), 'd' => __('ui.tl_ideas_d')],
+        'speedtest'   => ['t' => __('ui.tl_spt_t'),   'd' => __('ui.tl_spt_d')],
     ][$slug];
     $seo = $seo ?? ['intro' => '', 'steps' => [], 'faq' => []];
     $toolUrl = url()->current();
@@ -73,11 +74,12 @@
       <h2 style="font-size:26px">{{ __('ui.tl_more') }}</h2>
     </div>
     <div class="loc-strip reveal">
-      @foreach(['seo' => 'gauge', 'whois' => 'search', 'ip' => 'globe', 'meet' => 'video', 'app-builder' => 'smartphone', 'domain-ideas' => 'search'] as $s => $ic)
+      @foreach(['seo' => 'gauge', 'whois' => 'search', 'ip' => 'globe', 'meet' => 'video', 'app-builder' => 'smartphone', 'domain-ideas' => 'search', 'speedtest' => 'zap'] as $s => $ic)
         @if($s !== $slug)
         <a class="loc" href="{{ lroute('tools', $s) }}"><svg class="icon"><use href="#i-{{ $ic }}"/></svg>{{ [
           'seo' => __('ui.tl_seo_t'), 'whois' => __('ui.tl_whois_t'), 'ip' => __('ui.tl_ip_t'),
-          'meet' => __('ui.tl_meet_t'), 'app-builder' => __('ui.tl_app_t'), 'domain-ideas' => __('ui.tl_ideas_t')][$s] }}</a>
+          'meet' => __('ui.tl_meet_t'), 'app-builder' => __('ui.tl_app_t'), 'domain-ideas' => __('ui.tl_ideas_t'),
+          'speedtest' => __('ui.tl_spt_t')][$s] }}</a>
         @endif
       @endforeach
     </div>

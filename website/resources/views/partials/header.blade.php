@@ -204,13 +204,13 @@
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-lock"/></svg></span>
                 <span class="tmega-tx"><b>{{ __('ui.tb_bl') }}</b><small>{{ __('ui.tb_bl_d') }}</small></span>
               </a>
-              <a class="tmega-link" href="{{ lroute('lookup', 'speed') }}">
-                <span class="tmega-ic tool"><svg class="icon"><use href="#i-gauge"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_speed') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_speed_d') }}</small></span>
+              <a class="tmega-link" href="{{ lroute('lookup', 'global-ping') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-globe"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_gping') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_gping_d') }}</small></span>
               </a>
-              <a class="tmega-link" href="{{ lroute('lookup', 'headers') }}">
+              <a class="tmega-link" href="{{ lroute('tools', 'speedtest') }}">
                 <span class="tmega-ic tool"><svg class="icon"><use href="#i-zap"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_headers') }}</b><small>{{ __('ui.tb_headers_d') }}</small></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_spt') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_spt_d') }}</small></span>
               </a>
             </div>
           </div>
@@ -227,13 +227,13 @@
                 </a>
                 @endif
               @endforeach
-              <a class="tmega-link" href="{{ lroute('lookup', 'redirects') }}">
-                <span class="tmega-ic tool"><svg class="icon"><use href="#i-restore"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_redirects') }}</b><small>{{ __('ui.tb_redirects_d') }}</small></span>
+              <a class="tmega-link" href="{{ lroute('lookup', 'global-http') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-monitor"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_ghttp') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_ghttp_d') }}</small></span>
               </a>
-              <a class="tmega-link" href="{{ lroute('lookup', 'iran-access') }}">
-                <span class="tmega-ic tool"><svg class="icon"><use href="#i-globe"/></svg></span>
-                <span class="tmega-tx"><b>{{ __('ui.tb_iran') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_iran_d') }}</small></span>
+              <a class="tmega-link" href="{{ lroute('lookup', 'pagespeed') }}">
+                <span class="tmega-ic tool"><svg class="icon"><use href="#i-gauge"/></svg></span>
+                <span class="tmega-tx"><b>{{ __('ui.tb_cwv') }} <span class="free-badge new-badge">{{ __('ui.nav_new') }}</span></b><small>{{ __('ui.tb_cwv_d') }}</small></span>
               </a>
             </div>
           </div>
@@ -366,12 +366,12 @@
         <a href="{{ lroute('hub.network') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-shield"/></svg>{{ __('ui.tb_net') }}</b><small>{{ __('ui.tb_net_d') }}</small></a>
         <a href="{{ lroute('lookup', 'email') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-mail"/></svg>{{ __('ui.tb_email') }}</b><small>{{ __('ui.tb_email_d') }}</small></a>
         <a href="{{ lroute('lookup', 'blacklist') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-lock"/></svg>{{ __('ui.tb_bl') }}</b><small>{{ __('ui.tb_bl_d') }}</small></a>
-        <a href="{{ lroute('lookup', 'speed') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-gauge"/></svg>{{ __('ui.tb_speed') }}</b><small>{{ __('ui.tb_speed_d') }}</small></a>
-        <a href="{{ lroute('lookup', 'headers') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-zap"/></svg>{{ __('ui.tb_headers') }}</b><small>{{ __('ui.tb_headers_d') }}</small></a>
+        <a href="{{ lroute('lookup', 'global-ping') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-globe"/></svg>{{ __('ui.tb_gping') }}</b><small>{{ __('ui.tb_gping_d') }}</small></a>
+        <a href="{{ lroute('tools', 'speedtest') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-zap"/></svg>{{ __('ui.tb_spt') }}</b><small>{{ __('ui.tb_spt_d') }}</small></a>
         <span class="acc-group">{{ __('ui.tb_general') }}</span>
         @foreach(['seo', 'whois', 'ip', 'domain-ideas'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
-        <a href="{{ lroute('lookup', 'redirects') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-restore"/></svg>{{ __('ui.tb_redirects') }}</b><small>{{ __('ui.tb_redirects_d') }}</small></a>
-        <a href="{{ lroute('lookup', 'iran-access') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-globe"/></svg>{{ __('ui.tb_iran') }}</b><small>{{ __('ui.tb_iran_d') }}</small></a>
+        <a href="{{ lroute('lookup', 'global-http') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-monitor"/></svg>{{ __('ui.tb_ghttp') }}</b><small>{{ __('ui.tb_ghttp_d') }}</small></a>
+        <a href="{{ lroute('lookup', 'pagespeed') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-gauge"/></svg>{{ __('ui.tb_cwv') }}</b><small>{{ __('ui.tb_cwv_d') }}</small></a>
         <span class="acc-group">{{ __('ui.tb_platforms') }}</span>
         @foreach(['meet', 'app-builder'] as $slug)@if($t = $tbOther[$slug] ?? null)<a href="{{ lroute('tools', $slug) }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $t['icon'] }}"/></svg>{{ lc($t)['t'] }}</b><small>{{ lc($t)['d'] }}</small></a>@endif @endforeach
         <a href="{{ lroute('solution', 'remote') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-monitor"/></svg>{{ __('ui.tb_remote') }}</b><small>{{ __('ui.tb_remote_d') }}</small></a>

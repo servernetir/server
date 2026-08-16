@@ -590,6 +590,98 @@
     if (ipForm.dataset.auto === '1') lookup('', { scroll: false, quiet: true });
   }
 
+  /* ============ SPEED TEST ============ */
+  const sptBtn = document.getElementById('spt-start');
+  if (sptBtn) {
+    const M = window.SPT_META, T = M.i18n;
+    const faN = (x) => faNum(x, M.fa);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v == null ? '—' : faN(v); };
+    const phase = (t) => { document.getElementById('spt-phase').textContent = t || ''; };
+    const errBox = document.getElementById('spt-error');
+
+    // میانه — نمونه‌ی پرت یک GC یا هیکاپ شبکه نباید عدد پینگ را خراب کند
+    const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+
+    async function pingPhase() {
+      const times = [];
+      for (let i = 0; i < 8; i++) {
+        const t0 = performance.now();
+        await fetch(sptBtn.dataset.ping + '?t=' + i, { cache: 'no-store' });
+        times.push(performance.now() - t0);
+      }
+      times.shift();                                   // اولی گرم‌کردن اتصال است
+      const ping = median(times);
+      const jitter = times.reduce((s, t) => s + Math.abs(t - ping), 0) / times.length;
+      return { ping: Math.round(ping), jitter: Math.round(jitter * 10) / 10 };
+    }
+
+    // دانلود: بایت‌ها را جریانی می‌شماریم تا Mbps زنده به‌روز شود
+    async function downPhase() {
+      let bytes = 0, elapsed = 0;
+      for (const mb of [2, 8, 16]) {                   // پله‌ای؛ اولی عملاً گرم‌کردن
+        const t0 = performance.now();
+        const res = await fetch(sptBtn.dataset.down + '?mb=' + mb + '&t=' + Math.random(), { cache: 'no-store' });
+        const reader = res.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          bytes += value.length;
+          const now = performance.now();
+          set('spt-down', Math.round((bytes * 8) / ((elapsed + (now - t0)) / 1000) / 1e6 * 10) / 10);
+        }
+        elapsed += performance.now() - t0;
+      }
+      return Math.round((bytes * 8) / (elapsed / 1000) / 1e6 * 10) / 10;
+    }
+
+    async function upPhase() {
+      // بدنه‌ی تکراری اشکالی ندارد: TLS خروجی مرورگر را فشرده نمی‌کند
+      const block = new Uint8Array(65536);
+      crypto.getRandomValues(block);
+      const make = (mb) => new Blob(Array(mb * 16).fill(block));
+      const csrfTok = csrf();
+
+      let bytes = 0, elapsed = 0;
+      for (const mb of [1, 4, 6]) {
+        const body = make(mb);
+        const t0 = performance.now();
+        const res = await fetch(sptBtn.dataset.up, {
+          method: 'POST', body,
+          headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-TOKEN': csrfTok },
+        });
+        const d = await res.json();
+        elapsed += performance.now() - t0;
+        bytes += d.bytes || body.size;
+        set('spt-up', Math.round((bytes * 8) / (elapsed / 1000) / 1e6 * 10) / 10);
+      }
+      return Math.round((bytes * 8) / (elapsed / 1000) / 1e6 * 10) / 10;
+    }
+
+    sptBtn.addEventListener('click', async () => {
+      errBox.hidden = true;
+      spin(sptBtn, true);
+      document.getElementById('spt-result').hidden = false;
+      document.getElementById('spt-note').hidden = false;
+      ['spt-ping', 'spt-jitter', 'spt-down', 'spt-up'].forEach((id) => set(id, null));
+      try {
+        phase(T.phasePing);
+        const p = await pingPhase();
+        set('spt-ping', p.ping); set('spt-jitter', p.jitter);
+
+        phase(T.phaseDown);
+        set('spt-down', await downPhase());
+
+        phase(T.phaseUp);
+        set('spt-up', await upPhase());
+
+        phase('');
+        sptBtn.querySelector('.tsb-label').textContent = T.again;
+      } catch (e) {
+        errBox.textContent = T.generic; errBox.hidden = false; phase('');
+      } finally { spin(sptBtn, false); }
+    });
+  }
+
   /* ============ DOMAIN NAME IDEAS ============ */
   const ideasForm = document.getElementById('ideas-form');
   if (ideasForm) {
@@ -615,7 +707,10 @@
             return `<span class="lk-tile" style="opacity:.55;cursor:default"><svg class="icon"><use href="#i-x"/></svg><span dir="ltr">${esc(it.domain)}</span><small>${esc(T.taken)}</small></span>`;
           }
           return `<a class="lk-tile" href="${esc(T.checkUrl + encodeURIComponent(it.name))}" rel="nofollow"><svg class="icon"><use href="#i-search"/></svg><span dir="ltr">${esc(it.domain)}</span><small>${esc(T.check)}</small></a>`;
-        }).join('');
+        }).join('')
+        // اجرای دوباره‌ی همان توصیف، دسته‌ی تازه می‌سازد — دکمه‌ی «پیشنهادهای دیگر»
+        + `<button type="button" class="lk-tile" id="ideas-more"><svg class="icon"><use href="#i-restore"/></svg><span>${esc(T.more)}</span></button>`;
+        document.getElementById('ideas-more')?.addEventListener('click', () => ideasForm.requestSubmit());
         wrap.hidden = false;
         wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch { showErr(T.generic); } finally { spin(ideasForm.querySelector('button'), false); }

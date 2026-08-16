@@ -33,6 +33,7 @@ window.IDEAS_META = {
   i18n: {
     short: @json(__('ui.tl_ideas_short')), empty: @json(__('ui.tl_ideas_empty')), generic: @json(__('ui.chat_error')),
     taken: @json(__('ui.tl_ideas_taken')), check: @json(__('ui.tl_ideas_check')),
+    more: @json(__('ui.tl_ideas_again')),
     checkUrl: @json(lroute('domain.search').'?q='),
   },
 };

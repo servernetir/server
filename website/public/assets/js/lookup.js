@@ -171,6 +171,72 @@
       <div class="lkr-nodes">${iranRows}</div></div>`;
   }
 
+  // کد کشور → ایموجی پرچم (بدون هیچ asset خارجی)
+  const flag = (cc) => cc && cc.length === 2
+    ? String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1F1A5 + c.charCodeAt(0)))
+    : '🌐';
+
+  function renderChPing(d) {
+    const stateTxt = { pending: T.ch_pending, timeout: T.ch_timeout, error: T.ch_err };
+    const rows = d.rows.map((r) => {
+      const ir = r.cc === 'ir';
+      const val = r.state === 'ok'
+        ? `<b dir="ltr">${faNum(r.avg)}</b> <small>${T.ping_ms}</small>`
+        : `<span class="lkr-yn n">${esc(stateTxt[r.state] || r.state)}</span>`;
+      const range = r.state === 'ok' ? `${faNum(r.min)}–${faNum(r.max)}` : '—';
+      const loss = r.state === 'ok' ? faNum(r.loss) + '٪' : '—';
+      return `<tr${ir ? ' style="background:rgba(52,211,153,.07)"' : ''}>
+        <td class="lkr-type">${flag(r.cc)} ${esc(r.country)}${r.city ? ' · ' + esc(r.city) : ''}</td>
+        <td>${val}</td><td class="lkr-ttl" dir="ltr">${range}</td><td class="lkr-ttl" dir="ltr">${loss}</td></tr>`;
+    }).join('');
+    const badge = T.ch_ok_of.replace(':ok', faNum(d.ok)).replace(':n', faNum(d.nodes));
+    return `<div class="lkr-ssl ${d.ok > 0 ? (d.ok >= d.answered ? 'good' : 'mid') : 'bad'}">
+      <div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(badge)}</span></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>
+      <div class="lkr-tablewrap"><table class="lkr-table">
+        <thead><tr><th>${esc(T.ch_loc)}</th><th>${esc(T.ch_avg)}</th><th>${esc(T.ch_minmax)}</th><th>${esc(T.ch_loss)}</th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>`;
+  }
+  function renderChHttp(d) {
+    const stateTxt = { pending: T.ch_pending, error: T.ch_err, down: T.ch_down };
+    const rows = d.rows.map((r) => {
+      const ir = r.cc === 'ir';
+      const val = r.state === 'ok'
+        ? `<span class="lkr-yn y" dir="ltr">HTTP ${esc(r.status || '')}</span>`
+        : `<span class="lkr-yn n">${esc(stateTxt[r.state] || r.state)}${r.message ? ' · ' + esc(r.message) : ''}</span>`;
+      return `<tr${ir ? ' style="background:rgba(52,211,153,.07)"' : ''}>
+        <td class="lkr-type">${flag(r.cc)} ${esc(r.country)}${r.city ? ' · ' + esc(r.city) : ''}</td>
+        <td>${val}</td>
+        <td class="lkr-ttl" dir="ltr">${r.time_ms != null ? faNum(r.time_ms) + ' ' + T.ping_ms : '—'}</td></tr>`;
+    }).join('');
+    const badge = T.ch_ok_of.replace(':ok', faNum(d.ok)).replace(':n', faNum(d.nodes));
+    const iran = d.iran_ok === null ? ''
+      : `<span class="lkr-yn ${d.iran_ok ? 'y' : 'n'}">${d.iran_ok ? T.ch_iran_ok : T.ch_iran_down}</span>`;
+    return `<div class="lkr-ssl ${d.ok > 0 ? (d.ok >= d.answered ? 'good' : 'mid') : 'bad'}">
+      <div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(badge)}</span>${iran}</div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>
+      <div class="lkr-tablewrap"><table class="lkr-table">
+        <thead><tr><th>${esc(T.ch_loc)}</th><th>${esc(T.bl_state)}</th><th>${esc(T.ch_time)}</th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>`;
+  }
+  function renderCwv(d) {
+    const cls = d.score >= 90 ? 'good' : d.score >= 50 ? 'mid' : 'bad';
+    const sec = (ms) => ms == null ? '—' : faNum((ms / 1000).toFixed(1));
+    const metric = (label, val, unit, state) => `<div class="lkr-item"><small dir="ltr">${esc(label)}</small>
+      <span class="lkr-yn ${state}" dir="ltr">${val}${unit ? ' ' + unit : ''}</span></div>`;
+    const gate = (v, good, mid) => v == null ? 'n' : v <= good ? 'y' : v <= mid ? '' : 'n';
+    return `<div class="lkr-ssl ${cls}">
+      <div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(T.cwv_score)}</span><b>${faNum(d.score)}</b> <small>/ ${faNum(100)}</small></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b>${d.cached ? `<span>${esc(T.cwv_cached)}</span>` : ''}</div>
+      <div class="lkr-grid">
+        ${metric('LCP', sec(d.lcp_ms), T.cwv_s, gate(d.lcp_ms, 2500, 4000))}
+        ${metric('FCP', sec(d.fcp_ms), T.cwv_s, gate(d.fcp_ms, 1800, 3000))}
+        ${metric('TBT', d.tbt_ms == null ? '—' : faNum(d.tbt_ms), T.ping_ms, gate(d.tbt_ms, 200, 600))}
+        ${metric('Speed Index', sec(d.si_ms), T.cwv_s, gate(d.si_ms, 3400, 5800))}
+        ${metric('CLS', d.cls == null ? '—' : faNum(d.cls), '', gate(d.cls, 0.1, 0.25))}
+      </div></div>`;
+  }
+
   function renderByKind(kind, d) {
     switch (kind) {
       case 'dns': return renderRecords(d);
@@ -186,11 +252,14 @@
       case 'headers': return renderHeaders(d);
       case 'redirects': return renderRedirects(d);
       case 'access': return renderAccess(d);
+      case 'chping': return renderChPing(d);
+      case 'chhttp': return renderChHttp(d);
+      case 'cwv': return renderCwv(d);
       default: return '<pre dir="ltr">' + esc(JSON.stringify(d, null, 2)) + '</pre>';
     }
   }
   function errMsg(code) {
-    return ({ invalid_domain: T.invalid_domain, invalid_ip: T.invalid_ip, empty: T.empty, unreachable: T.unreachable, no_ssl: T.no_ssl, no_cert: T.no_ssl, no_records: T.no_records, bad_ports: T.bad_ports })[code] || T.generic;
+    return ({ invalid_domain: T.invalid_domain, invalid_ip: T.invalid_ip, empty: T.empty, unreachable: T.unreachable, no_ssl: T.no_ssl, no_cert: T.no_ssl, no_records: T.no_records, bad_ports: T.bad_ports, psi_unavailable: T.err_psi, ipv6_unsupported: T.invalid_ip })[code] || T.generic;
   }
   const actionsBar = () => `<div class="lkr-actions">
     <button type="button" class="lkr-act" data-act="copy"><svg class="icon"><use href="#i-code"/></svg>${esc(T.json)}</button>

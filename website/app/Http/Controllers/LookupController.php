@@ -14,7 +14,11 @@ use Illuminate\View\View;
  */
 class LookupController extends Controller
 {
-    public function __construct(private NetworkTools $net, private WebProbe $probe) {}
+    public function __construct(
+        private NetworkTools $net,
+        private WebProbe $probe,
+        private \App\Services\CheckHost $checkHost,
+    ) {}
 
     /** پیش‌فرض /lookup → رکورد A */
     public function index(Request $request): View
@@ -104,6 +108,9 @@ class LookupController extends Controller
             'headers'     => $this->probe->headers($q),
             'redirects'   => $this->probe->redirects($q),
             'access'      => $this->probe->iranAccess($q),
+            'chping'      => $this->checkHost->ping($q),
+            'chhttp'      => $this->checkHost->http($q),
+            'cwv'         => $this->probe->pagespeed($q),
             default       => ['ok' => false, 'error' => 'unknown_kind'],
         };
 
