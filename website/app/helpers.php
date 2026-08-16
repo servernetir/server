@@ -884,6 +884,64 @@ if (! function_exists('schema_price_irr')) {
     }
 }
 
+if (! function_exists('company_value')) {
+    /**
+     * یک فیلدِ هویتِ شرکت — **تنها منبعِ خواندن**.
+     *
+     * 🔴 اول پنلِ مدیریت، بعد `.env`. دلیلش همان دلیلِ نمادِ اعتماد است:
+     * شمارهٔ ثبت و شناسهٔ ملی و نشانی کارِ **اداری**اند نه دیپلوی، و کسی که
+     * آن‌ها را از روزنامهٔ رسمی برمی‌دارد لزوماً به `.env` سرور دسترسی ندارد.
+     *
+     * ⚠️ `.env` عمداً به‌عنوانِ راهِ دوم می‌مانَد تا روی نصبی که جدولِ
+     * `settings` ندارد هم کار کند.
+     *
+     * 🔴 و چرا **همه‌جا** باید از همین بخوانند، از جمله JSON-LD:
+     *
+     * پیش از این، دادهٔ ساختاریافتهٔ `site.blade.php` مستقیم `config('company.…')`
+     * را می‌خواند. اگر آن را جا می‌گذاشتم، مدیر مقدارها را در پنل وارد می‌کرد،
+     * روی صفحهٔ تماس می‌دیدشان، و **در schema هیچ‌کدام نمی‌آمد** — یعنی دقیقاً
+     * همان‌جایی که گوگل و مدل‌های زبانی نگاه می‌کنند خالی می‌مانْد و هیچ خطایی
+     * هم نمی‌داد.
+     */
+    function company_value(string $field): string
+    {
+        /*
+        | نگاشتِ نامِ منطقی ⇒ کلیدِ پنل. جدا نگه‌داشتنش عمدی است: نامِ فیلد در
+        | `config/company.php` تودرتوست (`address.street`) و کلیدِ جدولِ
+        | `settings` نمی‌تواند نقطه داشته باشد.
+        */
+        static $map = [
+            'legal_name'       => 'company_legal_name',
+            'registration_no'  => 'company_reg_no',
+            'national_id'      => 'company_national_id',
+            'economic_code'    => 'company_economic_code',
+            'address.street'   => 'company_address',
+            'address.city'     => 'company_city',
+            'address.province' => 'company_province',
+            'address.postcode' => 'company_postcode',
+        ];
+
+        if (isset($map[$field])) {
+            try {
+                /*
+                | `catch` هست چون این تابع در **هر صفحهٔ سایت** صدا زده می‌شود:
+                | یک قطعیِ گذرای دیتابیس نباید کلِ سایت را ۵۰۰ کند. شکست هم
+                | بی‌ردّ نمی‌مانَد — مقدار به `.env` برمی‌گردد و اگر آن هم خالی
+                | باشد، بخش اصلاً رندر نمی‌شود.
+                */
+                $fromPanel = trim((string) \App\Models\Setting::get($map[$field], ''));
+
+                if ($fromPanel !== '') {
+                    return $fromPanel;
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        return trim((string) config('company.'.$field, ''));
+    }
+}
+
 if (! function_exists('company_identity')) {
     /**
      * هویتِ حقوقیِ شرکت — فقط چیزهایی که **واقعاً** پر شده‌اند.
@@ -903,8 +961,6 @@ if (! function_exists('company_identity')) {
      */
     function company_identity(): array
     {
-        $c = (array) config('company', []);
-
         /*
          * ⚠️ کلیدِ ترجمه هم از همین‌جا می‌آید، نه از ternayِ تودرتو در Blade.
          * نسخهٔ اولِ همین کار آن را در ویو حساب می‌کرد و یک نگاشتِ سه‌شرطیِ
@@ -920,7 +976,7 @@ if (! function_exists('company_identity')) {
         $out = [];
 
         foreach ($map as $key => $label) {
-            $v = trim((string) ($c[$key] ?? ''));
+            $v = company_value($key);
             if ($v !== '') {
                 $out[] = ['label' => $label, 'value' => $v];
             }
@@ -940,19 +996,20 @@ if (! function_exists('company_address')) {
      */
     function company_address(): ?string
     {
-        $a = (array) config('company.address', []);
-
-        $parts = array_filter([
-            trim((string) ($a['street'] ?? '')),
-            trim((string) ($a['city'] ?? '')),
-            trim((string) ($a['province'] ?? '')),
-            trim((string) ($a['postcode'] ?? '')),
-        ], fn ($v) => $v !== '');
+        $street = company_value('address.street');
+        $city = company_value('address.city');
 
         // خیابان و شهر هر دو لازم‌اند تا «نشانی» معنا بدهد
-        if (trim((string) ($a['street'] ?? '')) === '' || trim((string) ($a['city'] ?? '')) === '') {
+        if ($street === '' || $city === '') {
             return null;
         }
+
+        $parts = array_filter([
+            $street,
+            $city,
+            company_value('address.province'),
+            company_value('address.postcode'),
+        ], fn ($v) => $v !== '');
 
         return implode('، ', $parts);
     }
