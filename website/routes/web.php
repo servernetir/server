@@ -12,6 +12,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\ServerShopController;
 use App\Http\Controllers\SolutionController;
 use App\Http\Controllers\ToolController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -74,6 +75,21 @@ $site = function (): void {
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:tools');
+
+    /*
+     * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.
+     *
+     * داخلِ همین closure است، پس در هر سه زبان ساخته می‌شود و گزارشی که به
+     * زبانِ انگلیسی گرفته شده با لینکِ `/en/report/…` باز می‌شود
+     * (`AuditReport::url()` همین را می‌سازد).
+     *
+     * ⚠️ ترتیب مهم است: «unsubscribe» پیش از «{token}» بیاید وگرنه خودش یک
+     * توکن خوانده می‌شود و ۴۰۴ می‌گیرد.
+     */
+    Route::get('/report/unsubscribe/{token}', [ReportController::class, 'unsubscribe'])
+        ->name('report.unsubscribe')->where('token', '[a-z0-9]{16,40}');
+    Route::get('/report/{token}', [ReportController::class, 'show'])
+        ->name('report')->where('token', '[a-z0-9]{16,40}');
 
     // ابزارهای جامع DNS و شبکه (هاب)
     Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
@@ -2024,6 +2040,19 @@ Route::prefix('admin')->group(function () {
         Route::patch('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'update']);
         Route::delete('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'destroy']);
         Route::post('/calendar/preferences', [\App\Http\Controllers\Admin\CalendarController::class, 'preferences']);
+
+        /*
+         * بررسیِ سایت + ارسالِ گزارش.
+         *
+         * ⚠️ همهٔ POSTها JSON برمی‌گردانند و مرورگر حلقه می‌زند (هر بررسی چند
+         * ثانیه است). هیچ‌کدام زمان‌بندی نشده‌اند: این کار به آدم‌های واقعی
+         * ایمیل می‌فرستد و باید هر بار یک انسان دکمه را بزند.
+         */
+        Route::get('/seo', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'index'])->name('admin.seo');
+        Route::post('/seo/send-one', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendOne']);
+        Route::post('/seo/list', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importList']);
+        Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
+        Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
 
         /*
          * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل

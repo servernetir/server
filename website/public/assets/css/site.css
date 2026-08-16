@@ -3225,3 +3225,20 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   border-radius:12px;padding:11px 16px;font-size:13.5px;color:var(--text)}
 .auth-pending .icon{width:16px;height:16px;color:var(--green);flex:none}
 .auth-pending b{font-weight:700}
+
+/* ---------- لینکِ اشتراکِ گزارش + صفحهٔ عمومیِ گزارش ---------- */
+.au-share{margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2)}
+.au-share > label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.au-share-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.au-share-row input{flex:1 1 260px;min-width:0;background:var(--bg2);border:1px solid var(--line-2);
+  border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:13px}
+.au-share > small{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+.rp-when{color:var(--muted);font-size:13.5px;margin-top:10px}
+/* ⚠️ رنگِ هشدار در این فایل توکن ندارد و همه‌جا #FBBF24ِ خام است (خطِ ۱۱۰۸ و
+   ۳۱۲۱). `var(--amber)` این‌جا فقط در admin.css تعریف شده و اگر بنویسیمش،
+   متن **بی‌رنگ** رندر می‌شود بی‌هیچ خطایی. */
+.rp-stale{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;
+  border:1px solid rgba(251,191,36,.38);background:rgba(251,191,36,.08);
+  border-radius:11px;padding:10px 14px;font-size:13.5px;color:#FBBF24}
+.rp-stale .icon{width:16px;height:16px}
+.rp-stale a{color:var(--cyan);font-weight:600;text-decoration:underline}
