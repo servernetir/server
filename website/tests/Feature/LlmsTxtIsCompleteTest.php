@@ -131,12 +131,28 @@ class LlmsTxtIsCompleteTest extends TestCase
             'هشدارِ تبدیلِ ریال به تومان برداشته شده');
     }
 
-    /** فایل باید برای عاملِ خودکار پیدا شدنی باشد. */
-    public function test_robots_points_at_it(): void
+    /**
+     * فایل باید سرِ مسیرِ قراردادیِ خودش باز شود و robots جلویش را نگیرد.
+     *
+     * 🔴 نسخهٔ اولِ این تست به‌جای این، وجودِ خطِ `# …/llms.txt` را در
+     * `robots.txt` می‌خواست و توضیحش می‌گفت «تنها جایی که عاملِ خودکار قبلش
+     * نگاه می‌کند». آن ادعا **بی‌پایه بود**: هیچ مشخصاتی چنین ثبتی ندارد و
+     * خزنده کامنتِ robots را نادیده می‌گیرد. قرارداد فقط همین است که فایل سرِ
+     * `/llms.txt` باشد.
+     *
+     * ⚠️ و آن خط با `NoPublicMockDataTest::test_robots_txt_carries_no_internal_notes`
+     * در تناقضِ مستقیم بود — آن تست هیچ `#` را در robots.txt نمی‌پذیرد، چون یک
+     * بار یادداشتِ داخلی از همان‌جا بیرون درز کرد. دو نگهبانِ ناسازگار یعنی
+     * یکی‌شان بالاخره خاموش می‌شود؛ این یکی که ادعایش غلط بود کنار رفت.
+     */
+    public function test_it_sits_at_its_conventional_path(): void
     {
+        $this->get('/llms.txt')->assertOk();
+
+        // و robots.txt جلویش را نگرفته باشد
         $robots = (string) file_get_contents(public_path('robots.txt'));
 
-        $this->assertStringContainsString('llms.txt', $robots,
-            'robots.txt به llms.txt اشاره نمی‌کند — تنها جایی که عاملِ خودکار قبلش نگاه می‌کند');
+        $this->assertStringNotContainsString('Disallow: /llms.txt', $robots);
+        $this->assertStringContainsString('Allow: /', $robots);
     }
 }

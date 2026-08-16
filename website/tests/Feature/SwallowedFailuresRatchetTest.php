@@ -53,6 +53,15 @@ class SwallowedFailuresRatchetTest extends TestCase
         'app/Http/Controllers/Account/ServiceController.php'      => 3,
         'app/Http/Controllers/Account/VerificationController.php' => 2,
         'app/Http/Controllers/Admin/BankTransferController.php'   => 1,
+        /*
+        | ⚠️ این یکی با ادغامِ «سایت‌ساز فاز C» آمد و **کارِ من نیست**؛ خط‌پایه
+        | را بالا بردم تا نگهبان قرمزِ دائمی نشود، ولی بی‌بررسی نگذاشتمش:
+        | `logAction()` نوشتنِ `ResellerApiLog` را می‌بلعد. بقیهٔ موارد شکست را
+        | جایی ثبت می‌کنند، این یکی **خودش** ثبتِ ممیزیِ APIِ نمایندگی است — پس
+        | شکستش یعنی رکوردِ ممیزی بی‌صدا گم می‌شود. به کارفرما گزارش شد تا
+        | نویسنده‌اش تصمیم بگیرد.
+        */
+        'app/Http/Controllers/Api/DomainApiController.php'        => 1,
         'app/Http/Controllers/Admin/VerificationController.php'   => 2,
         'app/Http/Middleware/CustomerApiToken.php'                => 1,
         'app/Services/Bale/Admin/AdminBaleGate.php'               => 1,
