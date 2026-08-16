@@ -114,7 +114,10 @@ window.AIB_I18N = {
   domainChecking: @json(__('ui.domain_checking')), domainFree: @json(__('ui.domain_free')),
   domainTaken: @json(__('ui.domain_taken')), perMo: @json(__('ui.mo')), perYr: @json(__('ui.domain_year')),
   saved: @json(__('ui.aib_saved')), download: @json(__('ui.aib_download')),
-  currency: {{ $isFa ? "'تومان'" : "'€'" }}, faNum: {{ $isFa ? 'true' : 'false' }},
+  {{-- ⚠️ @json نه {{ }} — رشتهٔ کوتیشن‌دار داخل {{ }} به &#039; تبدیل می‌شود و
+       کل این بلوک SyntaxError می‌گیرد؛ یعنی AIB_I18N ساخته نمی‌شود و builder.js
+       روی I.fa می‌میرد — چت، استعلام دامنه و دپلوی هر سه بی‌صدا از کار می‌افتند. --}}
+  currency: @json($isFa ? 'تومان' : '€'), faNum: {{ $isFa ? 'true' : 'false' }},
 };
 </script>
 <script src="{{ asset_ver('assets/js/builder.js') }}" defer></script>
