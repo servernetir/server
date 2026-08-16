@@ -904,4 +904,183 @@ class BaleAdminBotTest extends TestCase
                 'صفحهٔ خواندنی دکمه‌هایش را پاک کرد — ناوبری می‌شکند');
         }
     }
+    // ═══════════════ فاز ۴: کارهای پولی ═══════════════
+
+    private function receipt(array $over = []): \App\Models\BankTransferReceipt
+    {
+        $c = $this->customer();
+
+        $inv = \App\Models\Invoice::create([
+            'customer_id' => $c->id, 'kind' => 'service', 'currency_code' => 'IRT',
+            'subtotal' => 500000, 'tax' => 0, 'total' => 500000, 'paid' => 0,
+            'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+
+        return \App\Models\BankTransferReceipt::create(array_merge([
+            'customer_id' => $c->id, 'invoice_id' => $inv->id,
+            'amount' => 500000, 'reference' => 'R'.random_int(10000, 99999), 'status' => 'pending',
+        ], $over));
+    }
+
+    private function work(): void
+    {
+        $this->artisan('bale:work')->assertSuccessful();
+    }
+
+    /**
+     * 🔴 کارِ پولی **داخلِ وب‌هوک اجرا نمی‌شود** — فقط در صف می‌رود.
+     *
+     * تأییدِ رسید زنجیرهٔ `applyPaid` را راه می‌اندازد که ممکن است سرورِ واقعی
+     * بخرد. اگر داخلِ وب‌هوک بماند، مهلتِ بله رد می‌شود، بله همان آپدیت را
+     * دوباره می‌فرستد، و کارِ پولی **دو بار** انجام می‌شود.
+     */
+    public function test_a_money_action_is_queued_not_executed_in_the_webhook(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $this->click('v1:ray:'.$r->id.':'.$this->stamp('ray', $r->id));
+
+        $this->assertSame('pending', $r->fresh()->status, 'رسید داخلِ وب‌هوک تأیید شد');
+        $this->assertNotNull(app(AdminBaleGate::class)->pendingJob(), 'کار در صف نرفت');
+        $this->assertStringContainsString('در صف', $this->outbox());
+    }
+
+    /** و کارگر همان کار را انجام می‌دهد و نتیجه را گزارش می‌کند */
+    public function test_the_worker_executes_the_queued_approval_and_reports_back(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $this->click('v1:ray:'.$r->id.':'.$this->stamp('ray', $r->id));
+        $this->work();
+
+        $this->assertSame('approved', $r->fresh()->status);
+        $this->assertStringContainsString('✅', $this->outbox());
+        $this->assertNull(app(AdminBaleGate::class)->pendingJob(), 'کار از صف برداشته نشد');
+    }
+
+    /**
+     * 🔴 دو کلیک نباید دو کار بسازد.
+     *
+     * روی گوشی، تپِ دوبل عادی است و بله هم آپدیتِ ناموفق را دوباره می‌فرستد.
+     */
+    public function test_a_double_click_never_queues_two_money_jobs(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+        $stamp = $this->stamp('ray', $r->id);
+
+        $this->click('v1:ray:'.$r->id.':'.$stamp);
+        $this->click('v1:ray:'.$r->id.':'.$stamp);
+
+        $this->work();
+        $this->work();
+
+        $this->assertSame(1, \App\Models\Payment::where('invoice_id', $r->invoice_id)->count(),
+            'دو پرداخت برای یک رسید ساخته شد');
+    }
+
+    /** دکمهٔ کهنه هیچ کارِ پولی‌ای در صف نمی‌گذارد */
+    public function test_a_stale_money_button_queues_nothing(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $old = $this->travelTo(now()->subDay(), fn () => $this->stamp('ray', $r->id));
+
+        $this->click('v1:ray:'.$r->id.':'.$old);
+
+        $this->assertNull(app(AdminBaleGate::class)->pendingJob());
+        $this->assertSame('pending', $r->fresh()->status);
+    }
+
+    /**
+     * 🔴 دروغی که در کدِ پنل بود و در سرویسِ مشترک بسته شد.
+     *
+     * اگر فاکتور دیگر قابلِ پرداخت نباشد، تأیید **رد** می‌شود و رسید دست‌نخورده
+     * می‌مانَد. نسخهٔ قبلی رسید را `approved` مهر می‌زد و پیامِ «فاکتور تسویه
+     * شد» می‌داد — در حالی که پولِ واقعیِ رسیده به هیچ فاکتوری ننشسته بود.
+     */
+    public function test_approving_against_an_unpayable_invoice_is_refused_and_leaves_the_receipt_pending(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $r->invoice->forceFill(['status' => 'canceled'])->save();
+
+        $this->click('v1:ray:'.$r->id.':'.$this->stamp('ray', $r->id));
+        $this->work();
+
+        $this->assertSame('pending', $r->fresh()->status,
+            'رسید بسته شد در حالی که پول به هیچ فاکتوری ننشست');
+        $this->assertStringContainsString('قابلِ پرداخت نیست', $this->outbox());
+    }
+
+    /** صفحهٔ تأیید باید نام مشتری و مبلغ را نشان دهد — تنها جای دیدنش روی گوشی */
+    public function test_the_money_confirm_screen_names_the_customer_and_the_amount(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $this->click('v1:ra:'.$r->id);
+
+        $out = $this->outbox();
+
+        $this->assertStringContainsString((string) $r->customer->code, $out);
+        $this->assertStringContainsString(fa_num(number_format(500000)), $out);
+        $this->assertSame('pending', $r->fresh()->status, 'صفحهٔ تأیید خودش کار را انجام داد');
+    }
+
+    /** ردِ رسید دلیل می‌خواهد و مشتری همان متن را می‌بیند */
+    public function test_rejecting_a_receipt_asks_for_a_reason_then_queues_it(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $this->click('v1:rj:'.$r->id);
+        $this->say('شمارهٔ پیگیری با بانک نمی‌خواند');
+        $this->work();
+
+        $r->refresh();
+
+        $this->assertSame('rejected', $r->status);
+        $this->assertStringContainsString('نمی‌خواند', (string) $r->reject_reason);
+    }
+
+    /**
+     * ⚠️ کارِ کهنه در صف نباید ساعت‌ها بعد اجرا شود.
+     *
+     * اگر کرون نمی‌دویده، تأییدِ رسیدی که کارفرما دیگر یادش نیست نباید ناگهان
+     * انجام شود.
+     */
+    public function test_a_stale_queued_job_is_dropped_instead_of_run(): void
+    {
+        $this->bind();
+        $r = $this->receipt();
+
+        $this->click('v1:ray:'.$r->id.':'.$this->stamp('ray', $r->id));
+
+        $this->travel(30)->minutes();
+        $this->work();
+
+        $this->assertSame('pending', $r->fresh()->status, 'کارِ کهنه اجرا شد');
+    }
+
+    /** خاتمهٔ سرویس هم از همان صف می‌رود و کارتش نام سرویس را تکرار می‌کند */
+    public function test_terminate_asks_first_then_queues(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        $this->click('v1:sx:'.$s->id);
+
+        $this->assertStringContainsString($s->name, $this->outbox());
+        $this->assertStringContainsString('برگشت ندارد', $this->outbox());
+        $this->assertNotSame('terminated', $s->fresh()->status);
+
+        $this->click('v1:sxy:'.$s->id.':'.$this->stamp('sxy', $s->id));
+
+        $this->assertNotNull(app(AdminBaleGate::class)->pendingJob());
+    }
 }

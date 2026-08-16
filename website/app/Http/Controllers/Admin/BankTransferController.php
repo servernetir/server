@@ -60,49 +60,17 @@ class BankTransferController extends Controller
         ]);
     }
 
+    /**
+     * ⚠️ منطقِ واقعی در `BankReceiptReviewer` است، نه این‌جا: کنسولِ بله هم
+     * همین کار را می‌کند و دو پیاده‌سازی روزی واگرا می‌شوند — با پولِ مشتری
+     * در یک طرفِ واگرایی.
+     */
     public function approve(Request $request, BankTransferReceipt $receipt): RedirectResponse
     {
-        if (! $receipt->isPending()) {
-            return back()->withErrors('این رسید قبلاً بررسی شده است.');
-        }
+        $res = app(\App\Services\Billing\BankReceiptReviewer::class)
+            ->approve($receipt, $request->user()?->id, $request);
 
-        $invoice = $receipt->invoice;
-
-        // فاکتور هنوز قابل پرداخت است → تسویه‌اش کن؛ وگرنه فقط رسید را ببند
-        if ($invoice !== null && $invoice->isPayable()) {
-            // ⚠️ firstOrCreate و نه create: اگر تلاشِ قبلیِ تأیید وسطِ راه شکست
-            // خورده باشد، ردیفِ Payment ساخته و **کامیت** شده (بیرونِ تراکنشِ
-            // تسویه) ولی رسید هنوز pending مانده. با create، هر تلاشِ دوباره به
-            // یکتاییِ external_ref می‌خورد و ۵۰۰ می‌داد — یعنی تأییدِ آن رسید
-            // برای همیشه قفل می‌شد. حالا همان پرداخت بازاستفاده می‌شود.
-            $payment = Payment::firstOrCreate(
-                ['external_ref' => $receipt->reference],
-                [
-                    'invoice_id'    => $invoice->id,
-                    'customer_id'   => $invoice->customer_id,
-                    'gateway'       => 'bank_transfer',
-                    'currency_code' => $invoice->currency_code,
-                    'amount'        => $invoice->due(),
-                    'status'        => 'redirected',
-                ],
-            );
-
-            // پرداختِ قبلاً تسویه‌شده را دوباره تسویه نمی‌کنیم (اعتبارِ دوباره ندهد)
-            if (! $payment->isPaid()) {
-                app(PaymentService::class)->settleConfirmed($payment, $receipt->reference);
-            }
-        }
-
-        $receipt->forceFill([
-            'status'      => 'approved',
-            'reviewed_by' => $request->user()?->id,
-            'reviewed_at' => now(),
-        ])->save();
-
-        \App\Models\ActivityLog::record($receipt->customer_id, 'bank_approved',
-            'واریز به حساب با شناسهٔ '.$receipt->reference.' تأیید شد', $request, 'staff');
-
-        return back()->with('ok', 'واریز تأیید شد؛ فاکتور تسویه و سرویس/اعتبار مربوطه اعمال شد.');
+        return $res['ok'] ? back()->with('ok', $res['message']) : back()->withErrors($res['message']);
     }
 
     public function reject(Request $request, BankTransferReceipt $receipt): RedirectResponse

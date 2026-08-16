@@ -435,6 +435,118 @@ class AdminBaleGate
             ? (string) ($p['human'] ?? '') : null;
     }
 
+    // ─────────────────── صفِ کارِ سنگین ───────────────────
+
+    /**
+     * یک کارِ پولی/سنگین را در صف بگذار تا `bale:work` اجرایش کند.
+     *
+     * 🔴 چرا داخلِ وب‌هوک اجرا نمی‌شود: تأییدِ رسید زنجیرهٔ `applyPaid` را راه
+     * می‌اندازد (تسویه، فعال‌سازی، صفِ تحویل که ممکن است سرور بخرد) و خاتمه با
+     * زیرساخت تماس می‌گیرد. هیچ‌کدام در مهلتِ وب‌هوکِ بله جا نمی‌شوند، و
+     * ردشدن از آن مهلت یعنی بله آپدیت را دوباره می‌فرستد — یعنی **کارِ پولی
+     * دو بار**.
+     *
+     * ⚠️ صف عمداً **یک‌تایی** است: کارفرما روی گوشی یک کار را در یک لحظه
+     * می‌کند، و جدولِ تازه یعنی مهاجرتِ دستی روی پروداکشن.
+     *
+     * @return bool false اگر کارِ دیگری در صف باشد
+     */
+    public function queueJob(string $verb, array $args): bool
+    {
+        try {
+            if ($this->pendingJob() !== null) {
+                return false;
+            }
+
+            $this->putState(['job' => [
+                'verb' => $verb,
+                'args' => $args,
+                'at'   => now()->getTimestamp(),
+            ]]);
+
+            return true;
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'queueJob']);
+
+            return false;
+        }
+    }
+
+    /** کارِ در صف، بی‌مصرف‌کردن */
+    public function pendingJob(): ?array
+    {
+        try {
+            $j = $this->state()['job'] ?? null;
+
+            if (! is_array($j) || ! isset($j['verb'])) {
+                return null;
+            }
+
+            /*
+            | ⚠️ کارِ کهنه‌تر از ۱۵ دقیقه دور انداخته می‌شود.
+            |
+            | اگر کرون نمی‌دود، کارِ گیرکرده نباید تا ابد صف را ببندد — و
+            | مهم‌تر: اجرایش ساعت‌ها بعد یعنی تأییدِ رسیدی که کارفرما دیگر
+            | یادش نیست.
+            */
+            if ((int) ($j['at'] ?? 0) < now()->subMinutes(15)->getTimestamp()) {
+                $this->putState(['job' => null]);
+
+                return null;
+            }
+
+            return $j;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * کار را بردار — **اتمی**.
+     *
+     * ⚠️ زیرِ همان قفلی که بقیهٔ وضعیت: دو اجرای هم‌زمانِ کرون (که
+     * `withoutOverlapping` هم روزی می‌تواند از دستش برود) نباید یک کارِ پولی
+     * را دو بار بردارند.
+     */
+    public function takeJob(): ?array
+    {
+        try {
+            return DB::transaction(function () {
+                Setting::where('key', self::KEY_STATE)->lockForUpdate()->first();
+
+                $j = $this->state(fresh: true)['job'] ?? null;
+
+                if (! is_array($j) || ! isset($j['verb'])) {
+                    return null;
+                }
+
+                // صف در هر حال خالی می‌شود — چه اجرا شود چه دور انداخته
+                $this->putState(['job' => null]);
+
+                /*
+                | 🔴 سنجشِ کهنگی این‌جا هم لازم است، نه فقط در `pendingJob()`.
+                |
+                | کرون مستقیم `takeJob()` را صدا می‌زند. اگر کرون چند ساعت
+                | نمی‌دویده، بی‌این شرط تأییدِ رسیدی که کارفرما دیگر یادش نیست
+                | ناگهان اجرا می‌شد — با پولِ واقعی.
+                */
+                if ((int) ($j['at'] ?? 0) < now()->subMinutes(15)->getTimestamp()) {
+                    ErrorTracker::noteOnce('bale-admin',
+                        'کارِ کهنهٔ کنسولِ بله اجرا نشد و دور انداخته شد.', 900,
+                        ['verb' => (string) ($j['verb'] ?? '?')]);
+
+                    return null;
+                }
+
+                return $j;
+            });
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'takeJob']);
+
+            return null;
+        }
+    }
+
     // ─────────────────── مهرِ تازگیِ دکمه ───────────────────
 
     /** پنجرهٔ اعتبارِ یک دکمه (ثانیه) — دو پنجره پذیرفته می‌شود، پس ۱۵ تا ۳۰ دقیقه */

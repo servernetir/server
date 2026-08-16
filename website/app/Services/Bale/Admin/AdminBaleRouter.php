@@ -57,7 +57,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -323,6 +323,11 @@ class AdminBaleRouter
                 'ic' => $this->invoiceCancel($arg),
                 'tp' => $this->ticketStatusMenu($arg),
                 'tps' => $this->ticketStatusSet($arg),
+                'ra' => $this->receiptApproveAsk($arg),
+                'ray' => $this->receiptApproveDo($arg),
+                'rj' => $this->receiptRejectAsk($arg),
+                'sx' => $this->serviceTerminateAsk($arg),
+                'sxy' => $this->serviceTerminateDo($arg),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
@@ -502,9 +507,20 @@ class AdminBaleRouter
             return;
         }
 
-        if ($this->gate->flow() === 'search') {
+        $flow = $this->gate->flow();
+
+        if ($flow === 'search') {
             $this->gate->clearFlow();
             $this->runSearch($text);
+
+            return;
+        }
+
+        if ($flow !== null && str_starts_with($flow, 'reject:')) {
+            $this->gate->clearFlow();
+            $this->enqueue('receipt_reject',
+                ['id' => (int) substr($flow, 7), 'reason' => mb_substr($text, 0, 190)],
+                'ردِ رسید');
 
             return;
         }
@@ -1057,6 +1073,10 @@ class AdminBaleRouter
             $rows[] = [$this->stamped('🧾 صدورِ فاکتورِ تمدید', 'sv', $s->id)];
         }
 
+        if (! in_array($s->status, \App\Models\Service::DEAD_STATUSES, true)) {
+            $rows[] = [['text' => '🗑 خاتمهٔ سرویس', 'data' => self::CB_PREFIX.'sx:'.$s->id]];
+        }
+
         $rows[] = $this->nav($s->customer_id ? 'c:'.$s->customer_id : '');
 
         $this->sendButtons($this->screens->service($s), $rows);
@@ -1136,6 +1156,13 @@ class AdminBaleRouter
         | خودِ کار در پنل انجام می‌شود.
         */
         $rows = [];
+
+        if ($r->isPending()) {
+            $rows[] = [
+                ['text' => '✅ تأیید', 'data' => self::CB_PREFIX.'ra:'.$r->id],
+                ['text' => '⛔️ رد', 'data' => self::CB_PREFIX.'rj:'.$r->id],
+            ];
+        }
 
         if ($r->customer_id) {
             $rows[] = [['text' => '👤 پروندهٔ مشتری', 'data' => self::CB_PREFIX.'c:'.$r->customer_id]];
@@ -1433,6 +1460,135 @@ class AdminBaleRouter
         }
 
         $this->showTicket((string) $t->id);
+    }
+
+    // ─────────────────── فاز ۴: کارهای پولی ───────────────────
+
+    /**
+     * 🔴 تنها جای کنسول که **دو تپ** لازم دارد، و دلیلش بوروکراسی نیست.
+     *
+     * کارفرما تأییدِ اضافه را برای پاسخِ تیکت برداشت و حق داشت. ولی این‌جا
+     * فرق دارد: تأییدِ رسید و خاتمهٔ سرویس **هیچ‌جای اپ «لغو» ندارند**، و روی
+     * گوشی دکمه‌ها کنارِ هم‌اند. صفحهٔ دوم یک مرحلهٔ اداری نیست — همان‌جایی است
+     * که **نام مشتری و مبلغ** نوشته می‌شود تا پیش از اجرا دیده شود.
+     *
+     * ⚠️ و تایپی در کار نیست: یک تپِ دیگر، نه یک کدِ شش‌رقمی.
+     */
+    private function receiptApproveAsk(string $arg): void
+    {
+        $r = \App\Models\BankTransferReceipt::find((int) $arg);
+
+        if ($r === null || ! $r->isPending()) {
+            $this->replyToOwner('رسید پیدا نشد یا قبلاً بررسی شده.');
+
+            return;
+        }
+
+        $inv = $r->invoice;
+        $due = $inv ? (int) $inv->due() : 0;
+
+        $this->sendButtons(implode("\n", array_filter([
+            '✅ تأییدِ واریز؟',
+            '',
+            $r->customer ? ('👤 '.$r->customer->displayName().' · '.$r->customer->code) : null,
+            '💰 ادعای مشتری: '.fa_num(number_format((int) $r->amount)).' تومان',
+            $inv ? ('🧾 تسویه می‌شود: '.fa_num(number_format($due)).' تومان — فاکتورِ '.$inv->number) : null,
+            (int) $r->amount !== $due ? '⚠️ این دو یکی نیستند.' : null,
+            '',
+            'با تأیید، فاکتور تسویه و سرویس فعال می‌شود. برگشت ندارد.',
+        ])), [
+            [$this->stamped('✅ بله، تأیید کن', 'ray', $r->id)],
+            [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'r:'.$r->id]],
+        ]);
+    }
+
+    private function receiptApproveDo(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'ray');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $this->enqueue('receipt_approve', ['id' => $id], 'تأییدِ واریز');
+    }
+
+    /** ردِ رسید دلیل می‌خواهد — مشتری آن متن را می‌بیند */
+    private function receiptRejectAsk(string $arg): void
+    {
+        $r = \App\Models\BankTransferReceipt::find((int) $arg);
+
+        if ($r === null || ! $r->isPending()) {
+            $this->replyToOwner('رسید پیدا نشد یا قبلاً بررسی شده.');
+
+            return;
+        }
+
+        $this->gate->armFlow('reject:'.$r->id);
+
+        $this->sendButtons(
+            "⛔️ ردِ رسیدِ ".fa_num(number_format((int) $r->amount))." تومان\n\n"
+            .'دلیلِ رد را بنویسید — مشتری همین متن را می‌بیند.',
+            [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+        );
+    }
+
+    private function serviceTerminateAsk(string $arg): void
+    {
+        $s = \App\Models\Service::find((int) $arg);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        $this->sendButtons(implode("\n", array_filter([
+            '🗑 خاتمهٔ سرویس؟',
+            '',
+            $s->customer ? ('👤 '.$s->customer->displayName().' · '.$s->customer->code) : null,
+            '🖥 '.$s->name.($s->domain ? ' · '.$s->domain : ''),
+            '',
+            '⚠️ ماشین و همهٔ داده‌هایش نزدِ زیرساخت پاک می‌شود و صورت‌حساب بسته می‌شود.',
+            'برگشت ندارد.',
+        ])), [
+            [$this->stamped('🗑 بله، «'.mb_substr((string) $s->name, 0, 20).'» را پاک کن', 'sxy', $s->id)],
+            [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'s:'.$s->id]],
+        ]);
+    }
+
+    private function serviceTerminateDo(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'sxy');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $this->enqueue('service_terminate', ['id' => $id], 'خاتمهٔ سرویس');
+    }
+
+    /**
+     * کار را در صف بگذار و بلافاصله جواب بده.
+     *
+     * ⚠️ خودِ کار این‌جا اجرا **نمی‌شود**: تأییدِ رسید ممکن است سرور بخرد و
+     * خاتمه با زیرساخت تماس می‌گیرد؛ هیچ‌کدام در مهلتِ وب‌هوکِ بله جا
+     * نمی‌شوند، و ردشدن از آن مهلت یعنی بله آپدیت را دوباره می‌فرستد — یعنی
+     * کارِ پولی **دو بار**.
+     */
+    private function enqueue(string $verb, array $args, string $human): void
+    {
+        if (! $this->gate->queueJob($verb, $args)) {
+            $this->replyToOwner('⏳ کارِ دیگری در صف است. چند لحظه صبر کنید و دوباره بزنید.');
+
+            return;
+        }
+
+        $this->replyToOwner('⏳ «'.$human."» در صف قرار گرفت.\nنتیجه را همین‌جا می‌فرستم (تا یک دقیقه).");
     }
 
     // ─────────────────── صندوقِ ایمیل ───────────────────
