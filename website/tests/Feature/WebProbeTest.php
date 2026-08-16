@@ -129,6 +129,10 @@ class WebProbeTest extends TestCase
         // probe جواب داد ولی سایت از ایران باز نشد (مثلاً 403 تحریمی)
         $this->assertSame('unreachable_iran', WebProbe::accessVerdict(false, true, 200, ['state' => 'ok', 'ok' => true, 'status' => 403]));
 
+        // 🔴 fetch از داخل ایران شکست خورد (تایم‌اوت/فیلتر HTTP) — این مدرک است،
+        // نه خرابی probe؛ توییتر در تست زنده حکم «به‌احتمال زیاد سالم» گرفته بود
+        $this->assertSame('unreachable_iran', WebProbe::accessVerdict(false, true, 200, ['state' => 'failed']));
+
         // probe نداریم؛ DNS ایران سالم + از اروپا باز = به‌احتمال زیاد سالم
         $this->assertSame('likely_ok', WebProbe::accessVerdict(false, true, 200, ['state' => 'unconfigured']));
 
@@ -243,5 +247,41 @@ class WebProbeTest extends TestCase
 
         config(['services.iran_probe.url' => 'https://flow.example/webhook/x']);
         $this->assertTrue((new WebProbe(new NetworkTools))->probeConfigured());
+    }
+
+    /**
+     * «fetch از ایران شکست خورد» باید state=failed بدهد نه unreachable —
+     * تمایزی که حکم نهایی iranAccess به آن تکیه می‌کند.
+     */
+    public function test_speed_reports_failed_iran_fetch_distinctly(): void
+    {
+        config(['services.iran_probe.url' => 'https://flow.example/webhook/x']);
+
+        $probe = new class(['ok' => false, 'error' => 'fetch_failed', 'total_ms' => 12000]) extends WebProbe
+        {
+            public function __construct(private array $probeReply)
+            {
+                parent::__construct(new NetworkTools);
+            }
+
+            protected function urlAllowed(string $url): bool
+            {
+                return true;
+            }
+
+            protected function curlTimings(string $url): ?array
+            {
+                return ['status' => 200, 'dns_ms' => 1, 'connect_ms' => 2, 'tls_ms' => 3, 'ttfb_ms' => 4, 'total_ms' => 5, 'size' => 10];
+            }
+
+            protected function probeFetch(string $url): ?array
+            {
+                return $this->probeReply;
+            }
+        };
+
+        $r = $probe->speed('example.com');
+
+        $this->assertSame('failed', $r['iran']['state']);
     }
 }

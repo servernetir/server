@@ -117,6 +117,9 @@
     if (d.iran.state === 'ok') {
       iran = `<div class="lkr-head" style="margin-top:14px"><b>${esc(T.sp_iran)}</b><span dir="ltr">HTTP ${esc(d.iran.status)}</span></div>
         <div class="lkr-pings ${d.iran.ok ? 'good' : 'bad'}">${stat(T.sp_total, d.iran.total_ms, T.sp_ms)}</div>`;
+    } else if (d.iran.state === 'failed') {
+      // probe زنده است ولی سایت از داخل ایران باز نشد — خودِ یافته است، نه خرابی
+      iran = `<p class="lkr-note">${esc(T.sp_iran)}: ${esc(T.ac_unreach_iran)}</p>`;
     } else if (d.iran.state === 'unreachable') {
       iran = `<p class="lkr-note">${esc(T.sp_probe_down)}</p>`;
     } else {
@@ -156,6 +159,7 @@
       <div class="lkr-node-v" dir="ltr">${!n.ok ? esc(T.ac_noanswer) : n.blocked ? esc(T.ac_block_ip) : (n.ips.length ? n.ips.map((v) => esc(v)).join('<br>') : esc(T.ac_noanswer))}</div></div>`).join('');
     let iranHttp = '';
     if (d.iran_http.state === 'ok') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span dir="ltr">HTTP ${esc(d.iran_http.status)}${d.iran_http.total_ms != null ? ' · ' + faNum(d.iran_http.total_ms) + T.sp_ms : ''}</span></div>`;
+    else if (d.iran_http.state === 'failed') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span class="lkr-yn n">${esc(T.ac_unreach_iran)}</span></div>`;
     else if (d.iran_http.state === 'unreachable') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span>${esc(T.ac_unknown)}</span></div>`;
     return `<div class="lkr-ssl ${cls}"><div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(label)}</span></div>
       <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>

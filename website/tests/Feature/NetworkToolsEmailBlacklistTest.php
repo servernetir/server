@@ -192,6 +192,8 @@ class NetworkToolsEmailBlacklistTest extends TestCase
         $this->assertTrue($r['clean']);
         $this->assertSame(0, $r['listed']);
         $this->assertCount(count(NetworkTools::RBL_ZONES), $r['zones']);
+        // بودجه‌ی زمانی دست‌نخورده — هیچ زونی جا نمانده
+        $this->assertSame(0, $r['unchecked']);
     }
 
     /** DNSBLهای ما IPv4اند؛ ورودی IPv6 باید صریح رد شود نه «پاک» گزارش شود */

@@ -261,7 +261,7 @@ class WebProbe
         if (($iranHttp['ok'] ?? false) && ($iranHttp['status'] ?? 600) < 400) {
             return 'accessible';           // از داخل ایران واقعاً باز شد
         }
-        if (($iranHttp['ok'] ?? false)) {
+        if (($iranHttp['ok'] ?? false) || ($iranHttp['state'] ?? '') === 'failed') {
             return 'unreachable_iran';     // probe جواب داد ولی سایت از ایران باز نشد
         }
         if ($iranAnswered && $world !== null && $world < 400) {
@@ -533,8 +533,19 @@ class WebProbe
         }
 
         $d = $this->probeFetch($url);
-        if ($d === null || ! ($d['ok'] ?? false)) {
-            return ['state' => 'unreachable'];
+        if ($d === null) {
+            return ['state' => 'unreachable'];      // زیرساخت probe جواب نداد
+        }
+        if (! ($d['ok'] ?? false)) {
+            /*
+            | 🔴 «fetch شکست خورد» با «probe خراب است» یکی نیست: probe زنده است
+            | و از داخل ایران به سایت نرسیده — این خودش مدرکِ دسترسی است.
+            | یکی‌گرفتنشان باعث می‌شد سایتِ واقعاً بسته (توییتر در تست زنده)
+            | حکمِ «به‌احتمال زیاد در دسترس» بگیرد.
+            */
+            return ($d['error'] ?? '') === 'fetch_failed'
+                ? ['state' => 'failed']
+                : ['state' => 'unreachable'];
         }
 
         return [

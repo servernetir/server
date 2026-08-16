@@ -678,9 +678,24 @@ class NetworkTools
 
         $reversed = implode('.', array_reverse(explode('.', $ip)));
 
+        /*
+        | بودجه‌ی زمانی کل — همان الگوی اسکن پورت. dns_get_record مهلت‌پذیر
+        | نیست و یک زون بی‌پاسخ می‌تواند چند ثانیه معطل کند؛ روی سرور زنده
+        | مجموع ۸ زون از مهلت وب‌سرور رد می‌شد. زونِ نرسیده «نامشخص» علامت
+        | می‌خورد — «نپرسیدیم» با «پاک است» یکی نیست.
+        */
+        $started = microtime(true);
+
         $zones = [];
         $listed = 0;
+        $unchecked = 0;
         foreach (self::RBL_ZONES as $zone => $label) {
+            if ((microtime(true) - $started) >= self::RBL_BUDGET) {
+                $zones[] = ['zone' => $zone, 'label' => $label, 'state' => 'unknown', 'reason' => null];
+                $unchecked++;
+                continue;
+            }
+
             $answer = $this->rblQuery($reversed.'.'.$zone);
             $state = self::rblInterpret($zone, $answer['ips']);
             if ($state === 'listed') {
@@ -695,14 +710,18 @@ class NetworkTools
         }
 
         return [
-            'ok'     => true,
-            'domain' => $this->host($input) ?? $ip,
-            'ip'     => $ip,
-            'zones'  => $zones,
-            'listed' => $listed,
-            'clean'  => $listed === 0,
+            'ok'        => true,
+            'domain'    => $this->host($input) ?? $ip,
+            'ip'        => $ip,
+            'zones'     => $zones,
+            'listed'    => $listed,
+            'clean'     => $listed === 0,
+            'unchecked' => $unchecked,
         ];
     }
+
+    /** سقف زمان کل بررسی بلک‌لیست (ثانیه) */
+    private const RBL_BUDGET = 12.0;
 
     /**
      * تفسیر پاسخ DNSBL — تابع خالص.
