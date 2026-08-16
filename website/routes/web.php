@@ -182,6 +182,8 @@ $site = function (): void {
     // ۵۰۴ می‌گیرد؛ builder.js اول این را می‌زند و اگر نبود به بالایی برمی‌گردد
     Route::post('/api/builder/stream', [AiBuilderController::class, 'stream'])->name('builder.stream')->middleware('throttle:ai');
     Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:tools');
+    // انتشارِ آزمایشیِ ۴۸ساعته — لینکِ عمومی در GET /sb/{ref} (بیرونِ closure، تک‌نسخه)
+    Route::post('/api/builder/publish', [AiBuilderController::class, 'publish'])->name('builder.publish')->middleware('throttle:tools');
 
     /*
     |------------------------------------------------------------------------
@@ -427,6 +429,15 @@ $site = function (): void {
 Route::middleware('locale:fa')->group($site);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
+
+/*
+| پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
+| ۴۸ ساعت زنده است (سنجه: mtime فایل)، noindex، و با CSP sandbox در originِ
+| یکتا سرو می‌شود تا خروجیِ کاربرساخته به کوکی/نشستِ دامنهٔ ما نرسد.
+*/
+Route::get('/sb/{ref}', [AiBuilderController::class, 'shared'])
+    ->name('builder.shared')->where('ref', 'SB-[A-Za-z0-9]+')
+    ->middleware('throttle:tools');
 
 /*
 | پیشوندِ زبان با حروفِ بزرگ → هدایتِ ۳۰۱ به نسخهٔ کوچک.

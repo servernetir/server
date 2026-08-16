@@ -83,7 +83,18 @@ class SecurityHeaders
                 "form-action 'self' https://*.zarinpal.com https://zarinpal.com",
                 'upgrade-insecure-requests',
             ]);
-            $response->headers->set('Content-Security-Policy', $csp);
+            /*
+            | ⚠️ CSPِ اختصاصیِ روت مقدم است — بازنویسی نکن.
+            |
+            | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز (/sb/{ref}) خروجیِ کاربرساخته را با
+            | `sandbox allow-scripts` سرو می‌کند تا در originِ یکتا اجرا شود و به
+            | کوکی/نشستِ دامنهٔ ما نرسد. این‌جا set بی‌قیدوشرط آن sandbox را با
+            | سیاستِ عمومیِ سایت جایگزین می‌کرد — یعنی XSSِ بالقوه روی دامنهٔ
+            | اصلی، بی‌هیچ خطایی.
+            */
+            if (! $response->headers->has('Content-Security-Policy')) {
+                $response->headers->set('Content-Security-Policy', $csp);
+            }
         }
 
         return $response;

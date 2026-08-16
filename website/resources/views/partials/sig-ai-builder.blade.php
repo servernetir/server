@@ -35,6 +35,7 @@
          data-chat="{{ route($routePrefix.'builder.chat') }}"
          data-stream="{{ \Illuminate\Support\Facades\Route::has($routePrefix.'builder.stream') ? route($routePrefix.'builder.stream') : '' }}"
          data-save="{{ route($routePrefix.'builder.save') }}"
+         data-publish="{{ \Illuminate\Support\Facades\Route::has($routePrefix.'builder.publish') ? route($routePrefix.'builder.publish') : '' }}"
          data-domaincheck="{{ route($routePrefix.'domain.check') }}"
          data-checkout="{{ $sbCheckout }}"
          data-cart="{{ whmcs_url('cart.php') }}">
@@ -49,6 +50,8 @@
           </div>
           <div class="aib-actions">
             <button type="button" class="aib-icon" id="aib-refresh" title="{{ __('ui.aib_reset') }}"><svg class="icon"><use href="#i-restore"/></svg></button>
+            <button type="button" class="aib-icon" id="aib-publish" title="{{ __('ui.aib_publish') }}" disabled><svg class="icon"><use href="#i-globe"/></svg></button>
+            <button type="button" class="aib-icon" id="aib-full-btn" title="{{ __('ui.aib_full') }}" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg></button>
             <button type="button" class="aib-icon" id="aib-download" title="{{ __('ui.aib_download') }}" disabled><svg class="icon"><use href="#i-arrow"/></svg></button>
           </div>
         </div>
@@ -148,6 +151,8 @@ window.AIB_I18N = {
   domainUnknown: @json(__('ui.aib_dom_unknown')), noIr: @json(__('ui.aib_no_ir')),
   needDomain: @json(__('ui.aib_need_domain')),
   done: @json(__('ui.aib_done')),
+  pubDone: @json(__('ui.aib_pub_done')), pubErr: @json(__('ui.aib_pub_err')),
+  fullT: @json(__('ui.aib_full')), fullExit: @json(__('ui.aib_full_exit')),
   qs: [@json(__('ui.aib_q_name')), @json(__('ui.aib_q_field')), @json(__('ui.aib_q_services')), @json(__('ui.aib_q_contact')), @json(__('ui.aib_q_color')), @json(__('ui.aib_q_extra'))],
   skip: @json(__('ui.aib_skip')),
   colors: [@json(__('ui.aib_c1')), @json(__('ui.aib_c2')), @json(__('ui.aib_c3')), @json(__('ui.aib_c4')), @json(__('ui.aib_c5'))],
