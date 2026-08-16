@@ -4,10 +4,84 @@ namespace Tests;
 
 use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 
 abstract class TestCase extends BaseTestCase
 {
     private static bool $trackerCleanupRegistered = false;
+
+    /**
+     * 🔴 پیامِ شکستِ ادعا را از زیرِ یک `Error`ِ بی‌ربط بیرون بکش.
+     *
+     * `config/session.serialization` روی `json` است (پیش‌فرضِ امنِ لاراول برای
+     * بستنِ زنجیرهٔ gadget روی `APP_KEY`ِ لورفته). عارضه‌اش این است که
+     * `Store::save()` در `prepareErrorBagForSerialization()` خودِ `ViewErrorBag`
+     * را **درونِ حافظه** با یک آرایه جایگزین می‌کند و دیگر برنمی‌گرداند.
+     *
+     * تا وقتی همه‌چیز سبز است این دیده نمی‌شود. ولی لحظه‌ای که ادعایی روی یک
+     * پاسخِ `redirect()->withErrors(...)` بشکند، لاراول برای **غنی‌کردنِ پیامِ
+     * شکست** سراغِ همان نشست می‌رود:
+     *
+     *     TestResponseAssert::injectResponseContext()
+     *         → $session->get('errors')->all()      ← آرایه است ⇒ Error
+     *
+     * نتیجه: به‌جای «آدرس فرق دارد»، یک
+     * `Call to a member function all() on array` می‌بینی که هیچ ربطی به علتِ
+     * واقعی ندارد و مستقیم به بیراهه می‌بَرَد. یک بار روی
+     * `DomainPurchaseTest` ساعت‌ها همین بیراهه رفته شد: هم ترجمه مقصر به‌نظر
+     * رسید، هم `withErrors()`، هم `assertSessionHasErrors()` — و هیچ‌کدام نبود.
+     *
+     * این‌جا بَگ **بلافاصله پس از هر درخواست** بازسازی می‌شود، پس شکست دوباره
+     * پیامِ خودش را می‌گوید.
+     *
+     * ⚠️ رفعِ سمتِ اپ نیست و نباید باشد: `serialization` را برای این عوض نکن،
+     * و این override را هم برندار — رفتارِ فریم‌ورک سرِ جایش است و بی‌این
+     * override همان نقاب برمی‌گردد.
+     * (گاردش: `tests/Feature/TestHarnessErrorBagTest.php`)
+     */
+    protected function createTestResponse($response, $request)
+    {
+        $this->restoreSessionErrorBag();
+
+        return parent::createTestResponse($response, $request);
+    }
+
+    /**
+     * وارونِ `Store::prepareErrorBagForSerialization()` — همان کاری که
+     * `Store::marshalErrorBag()` هنگامِ `start()` می‌کند، ولی بی‌نیاز به
+     * راه‌اندازیِ دوبارهٔ نشست.
+     *
+     * ⚠️ محتاطانه: هر شکلِ غیرمنتظره‌ای دست‌نخورده رد می‌شود. این متد روی **هر**
+     * درخواستِ **هر** تست می‌دود؛ استثنا انداختنش یعنی خرابیِ کلِ سوئیت به‌خاطرِ
+     * چیزی که فقط قرار بوده پیامِ خطا را خواناتر کند.
+     */
+    private function restoreSessionErrorBag(): void
+    {
+        if (! $this->app?->bound('session.store')) {
+            return;
+        }
+
+        $store  = $this->app->make('session.store');
+        $errors = $store->get('errors');
+
+        if (! is_array($errors)) {
+            return;                     // یا بَگِ سالم است یا اصلاً خطایی نبوده
+        }
+
+        $bag = new ViewErrorBag;
+
+        foreach ($errors as $key => $value) {
+            if (! is_array($value) || ! is_array($value['messages'] ?? null)) {
+                return;                 // شکلی که نمی‌شناسیم — دست نزن
+            }
+
+            $bag->put($key, (new MessageBag($value['messages']))
+                ->setFormat((string) ($value['format'] ?? ':message')));
+        }
+
+        $store->put('errors', $bag);
+    }
 
     /**
      * 🔴 گلوگاه‌های **فایلی** بین تست‌ها پاک می‌شوند.
