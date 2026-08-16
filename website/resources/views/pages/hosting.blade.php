@@ -393,20 +393,12 @@
         //    کاربر را بی‌پیام به صفحهٔ اول پرت می‌کرد.
         $orderSlug = $slug.'-'.($i + 1);
 
-        /*
-          🔴 شرط قبلاً `$category === 'hosting'` بود، پس صفحهٔ لایسنس — که
-          دسته‌اش `services` است — **هرگز** به تسویهٔ خودمان لینک نمی‌داد و
-          روی WHMCSِ بیرونی با pidهای placeholder می‌افتاد. یعنی محصول در
-          دیتابیس ساخته می‌شد و باز هم قابلِ خرید نبود.
-
-          حالا قاعده رفتارمحور است نه دسته‌محور: **اگر پکیجِ واقعی و فعالی با
-          این اسلاگ در کاتالوگ باشد، مقصد تسویهٔ خودمان است.** نبودنش همان
-          رفتارِ قبلی را نگه می‌دارد، پس هیچ صفحه‌ای که امروز کار می‌کند
-          نمی‌شکند.
-        */
-        $storeHref = isset($orderable[$orderSlug])
-            ? lroute('account.order', $orderSlug)
-            : (($planHrefs[$i] ?? null) ?: ($category === 'hosting' ? null : ($cloudStoreHref ?? null)));
+        // پلنِ وصل‌شده به پکیجِ واقعی (لایسنس‌ها) لینکِ خریدِ خودش را از
+        // کنترلر می‌آورد؛ بقیه همان دو مسیرِ قبلی.
+        $storeHref = ($p['order_url'] ?? null)
+            ?: (($category === 'hosting')
+                ? (isset($orderable[$orderSlug]) ? lroute('account.order', $orderSlug) : null)
+                : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null)));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
@@ -467,6 +459,10 @@
     </div>
     @endif{{-- پایانِ «پلن دارد / ندارد» --}}
     @endif{{-- پایانِ «جدول / کارت» --}}
+    {{-- نوارِ «در همه‌ی پلن‌ها» شاملِ «تحویل آنی» است؛ محصولی که تحویلش دستی
+         است (لایسنس‌ها) با inc_strip=false در config خاموشش می‌کند تا صفحه
+         چیزی را قول ندهد که این محصول ندارد. --}}
+    @if($product['inc_strip'] ?? true)
     <div class="inc-strip reveal">
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">
@@ -475,6 +471,7 @@
         @endforeach
       </div>
     </div>
+    @endif
   </div>
 </section>
 

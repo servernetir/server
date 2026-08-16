@@ -58,8 +58,12 @@ class StoreController extends Controller
 
         return view('account.checkout', AccountController::shell('') + [
             'product'   => $product,
-            'countries' => $product->availableCountries(),
+            // لایسنس نه سرور می‌خواهد نه مکان — فهرستِ خالی یعنی ویو بخشِ
+            // «محلِ سرور» را اصلاً رندر نمی‌کند (و با پرچمِ isLicense، هشدارِ
+            // «سرور نداریم» و غیرفعال‌شدنِ دکمه هم نمی‌آید).
+            'countries' => $product->isLicense() ? [] : $product->availableCountries(),
             'cycles'    => array_keys((array) config('billing.cycles', [])),
+            'isLicense' => $product->isLicense(),
         ]);
     }
 
@@ -70,6 +74,10 @@ class StoreController extends Controller
             return back()->withErrors('این پکیج در دسترس نیست.');
         }
 
+        if ($product->isLicense()) {
+            return $this->orderLicense($request, $product);
+        }
+
         // مکان‌های واقعاً موجود در همین لحظه — مشتری نباید مکانی را بخرد که
         // سرورِ آماده ندارد، وگرنه پول داده و سرویسش روی هوا می‌ماند.
         $countries = $product->availableCountries();
@@ -78,31 +86,7 @@ class StoreController extends Controller
         $data = $request->validate([
             'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
             'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],
-            // لایسنس دامنه ندارد؛ روی چنین پکیجی اصلاً پرسیده نمی‌شود.
-            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],
-            /*
-            | IP سرورِ مشتری — امروز فقط لایسنس‌ها لازمش دارند.
-            |
-            | 🔴 اجباری‌بودنش شرطِ «تحویل آنی پس از پرداخت» است: لایسنس بی‌IP
-            | قابلِ فعال‌سازی نیست، پس اگر این‌جا نگیریمش هر سفارش به یک
-            | رفت‌وبرگشتِ تیکتی گره می‌خورد و آن وعده دروغ می‌شود.
-            |
-            | ⚠️ `ip` عمداً به‌تنهایی کافی نیست: `127.0.0.1` و `10.0.0.5` هر دو
-            | IPِ معتبرند و هیچ‌کدام روی هیچ لایسنسی فعال نمی‌شوند. مشتری هم
-            | خطایی نمی‌بیند — فقط چند روز بعد می‌فهمد پنلش کار نمی‌کند.
-            */
-            'server_ip'   => [
-                $product->requires_server_ip ? 'required' : 'nullable', 'ip',
-                function ($attr, $value, $fail) {
-                    if (blank($value)) {
-                        return;
-                    }
-                    if (! filter_var($value, FILTER_VALIDATE_IP,
-                        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                        $fail('IP باید نشانیِ عمومی (public) سرور باشد — نشانیِ داخلی مثل ۱۹۲.۱۶۸.x.x یا ۱۲۷.۰.۰.۱ پذیرفته نمی‌شود.');
-                    }
-                },
-            ],
+            'domain_mode' => ['required', 'in:have,buy,subdomain'],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
@@ -130,16 +114,11 @@ class StoreController extends Controller
         ], [], [
             'country' => 'محلِ سرور', 'cycle' => 'دورهٔ پرداخت',
             'domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه',
-            'server_ip' => 'IP سرور',
         ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
         [$domain, $note] = $this->resolveDomain($data);
-        // ⚠️ فقط پکیجی که واقعاً دامنه می‌خواهد. لایسنس روی IP فعال می‌شود و
-        // اجبارِ دامنه آن‌جا یک دیوارِ بی‌معنی است. پکیجی که به کنترل‌پنل تحویل
-        // می‌شود `requires_domain` دارد (seeder همیشه true می‌گذارد)، و اگر
-        // مدیری فراموشش کند، درایور هنگام تحویل صریح شکست می‌دهد نه بی‌صدا.
-        if ($product->requires_domain && $domain === null) {
+        if ($domain === null) {
             return back()->withInput()->withErrors(['domain' => 'دامنه را کامل وارد کنید.']);
         }
 
@@ -158,9 +137,7 @@ class StoreController extends Controller
         $cyclePrice = $product->priceForCycle($cycle, $country);
         $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
 
-        $serverIp = $data['server_ip'] ?? null;
-
-        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote, $serverIp) {
+        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
@@ -173,11 +150,9 @@ class StoreController extends Controller
                 'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
                 // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
-                // حدس زده نمی‌شود — دلیلش در مهاجرتِ add_reseller_flag_to_services.
+                // حدس زده نمی‌شود — دلیلش روی `Product::isReseller()`.
                 'is_reseller'   => $product->isReseller(),
                 'domain'        => $domain,
-                // IP سرورِ مشتری (لایسنس) — روی ستونِ خودش، نه روی `domain`
-                'server_ip'     => $serverIp,
             ]);
 
             return $this->issueOrderInvoice($service, $product);
@@ -202,14 +177,90 @@ class StoreController extends Controller
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');
     }
 
+    /**
+     * سفارشِ لایسنس نرم‌افزار — شناسه‌ی سرویس IP مشتری است، نه دامنه.
+     *
+     * 🔴 IP در ستونِ `domain` می‌نشیند و این عمدی است: applyPaid «دامنه‌ی
+     * پرشده + بی‌سرور» را تحویلِ دستیِ ادمین می‌داند (provision_status=manual)
+     * — دقیقاً مسیرِ درستِ لایسنس (فعال‌سازی نزدِ تأمین‌کننده، بعد «تحویل شد»).
+     * ستونِ جدا یعنی مسیرِ تحویلِ تازه، و آن یعنی هر سه‌جای فهرست‌شده در
+     * PaymentService باید هم‌زمان عوض شود؛ این‌جا هیچ‌کدام لازم نیست.
+     */
+    private function orderLicense(Request $request, Product $product): RedirectResponse
+    {
+        $cycles = array_keys((array) config('billing.cycles', []));
+
+        $data = $request->validate([
+            'cycle'      => ['required', \Illuminate\Validation\Rule::in($cycles)],
+            'license_ip' => [
+                /*
+                | ⚠️ `ipv4` عمدی است و **نباید** به `ip` باز شود.
+                |
+                | یک بار همین کار را کردم به این گمان که «سرور اروپایی شاید
+                | فقط IPv6 داشته باشد» — ولی خودِ لایسنسِ cPanel و DirectAdmin
+                | به IPv4ِ اصلیِ سرور گره می‌خورد. پذیرفتنِ IPv6 یعنی سفارشی
+                | ثبت شود که **قابلِ فعال‌سازی نیست**، و مشتری تازه چند روز
+                | بعد بفهمد. ضمناً `isPublicIp` رنجِ مستندسازیِ IPv6
+                | (`2001:db8::/32`) را رد نمی‌کند، پس گارد هم شل‌تر می‌شد.
+                */
+                'required', 'ipv4',
+                function ($attr, $value, $fail) {
+                    // لایسنس روی IP خصوصی/رزرو فعال‌شدنی نیست؛ همان قاعده‌ی SafeUrl
+                    if (! \App\Services\SafeUrl::isPublicIp((string) $value)) {
+                        $fail('آی‌پی باید عمومی باشد؛ آدرس‌های داخلی و رزروشده پذیرفته نمی‌شوند.');
+                    }
+                },
+            ],
+        ], [], ['cycle' => 'دورهٔ پرداخت', 'license_ip' => 'آی‌پی سرور']);
+
+        $customer = Auth::guard('customer')->user();
+        $ip = trim($data['license_ip']);
+        $cycle = $data['cycle'];
+
+        // مبلغ در لحظه‌ی سفارش قفل می‌شود — بدون ضریبِ مکان (لایسنس مکان ندارد)
+        $cyclePrice = $product->priceForCycle($cycle);
+
+        $invoice = DB::transaction(function () use ($customer, $product, $ip, $cycle, $cyclePrice) {
+            $service = Service::create([
+                'customer_id'   => $customer->id,
+                'name'          => $product->name,
+                'description'   => trim(implode("\n", array_filter([
+                    $product->description,
+                    '🔑 فعال‌سازی لایسنس روی IP: '.$ip,
+                ]))),
+                'currency_code' => $product->currency_code,
+                'price'         => $cyclePrice,
+                'tax_percent'   => $product->tax_percent,
+                'cycle'         => $cycle,
+                'status'        => 'pending',
+                'server_id'     => null,
+                'plan'          => $product->plan,
+                'domain'        => $ip,
+            ]);
+
+            return $this->issueOrderInvoice($service, $product);
+        });
+
+        \App\Models\ActivityLog::record($customer->id, 'purchase',
+            'سفارشِ آنلاینِ لایسنس «'.$product->name.'» (IP: '.$ip.') — '
+            .Service::labelFor($cycle).' توسط مشتری ثبت شد',
+            $request, 'customer', $invoice->service_id);
+
+        app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ لایسنس (در انتظارِ پرداخت)', [
+            'مشتری'  => $customer->displayName().' ('.$customer->code.')',
+            'لایسنس' => $product->name,
+            'IP'     => $ip,
+            'دوره'   => Service::labelFor($cycle),
+            'مبلغ'   => fa_num(number_format((int) $invoice->total)).' تومان',
+        ], url('/admin/customers/'.$customer->id), '🔑');
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)
+            ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی لایسنس، پیش‌فاکتور را پرداخت کنید.');
+    }
+
     /** دامنهٔ نهایی + یادداشت بر اساس حالت (دارم/می‌خرم/زیردامنه) */
     private function resolveDomain(array $data): array
     {
-        // پکیجِ بی‌دامنه (لایسنس) اصلاً حالتی انتخاب نمی‌کند
-        if (blank($data['domain_mode'] ?? null)) {
-            return [null, ''];
-        }
-
         return match ($data['domain_mode']) {
             'have' => [
                 filled($data['domain'] ?? null) ? strtolower(trim($data['domain'])) : null,

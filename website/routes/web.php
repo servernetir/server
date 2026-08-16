@@ -289,6 +289,9 @@ $site = function (): void {
         Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
         Route::post('/order/{product:slug}', [Account\StoreController::class, 'order'])->name('order.place')->middleware('throttle:12,1');
+        // تسویهٔ سایت‌ساز: هاست + دامنه در یک فاکتور، استقرارِ خودکار بعد از پرداخت
+        Route::get('/builder-checkout', [Account\BuilderCheckoutController::class, 'show'])->name('builder.checkout');
+        Route::post('/builder-checkout', [Account\BuilderCheckoutController::class, 'order'])->name('builder.order')->middleware('throttle:12,1');
         Route::get('/profile', [Account\AccountController::class, 'profile'])->name('profile');
 
         /*
@@ -1583,9 +1586,20 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-hosting');
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
 
-            // لایسنس‌ها — خودش اگر ستونِ requires_server_ip نباشد صریح
-            // می‌گوید «اول مهاجرت» و استثنا پرت نمی‌کند.
-            \Illuminate\Support\Facades\Artisan::call('products:seed-licenses');
+            /*
+            | لایسنس‌ها — از `LicenseProductSeeder` که در develop هم همین‌جا
+            | صدا زده می‌شود. عمداً همان کلاس، نه یک فرمانِ موازیِ دیگر: دو
+            | مسیرِ seed برای یک کاتالوگ یعنی روزی یکی‌شان کهنه می‌شود و
+            | هیچ‌کس نمی‌فهمد کدام روی prod دویده.
+            |
+            | ⚠️ خودش idempotent است و ردیفی را که مدیر ویرایش کرده دست
+            | نمی‌زند (تشخیص با «قیمتِ فعلی = قیمتِ نسخهٔ قبلیِ seeder»).
+            */
+            (new \Database\Seeders\LicenseProductSeeder)->run();
+            $seeded .= "\nلایسنس‌ها: seed اجرا شد.";
+
+            // پکیج‌های سایت‌ساز — تسویهٔ builder بی‌این‌ها به fallbackِ WHMCS می‌افتد
+            \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
             $seeded .= "\n".trim(\Illuminate\Support\Facades\Artisan::output());
         }
     } catch (\Throwable $e) {

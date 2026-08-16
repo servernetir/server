@@ -76,8 +76,9 @@
       <form method="POST" action="{{ lroute('account.order.place', $product->slug) }}" id="co-form">
         @csrf
 
-        {{-- ۱) محلِ سرور --}}
-        @if(count($countries) === 0)
+        {{-- ۱) محلِ سرور — لایسنس مکان ندارد، پس نه انتخابگر و نه هشدارِ «سرور نداریم» --}}
+        @if($isLicense ?? false)
+        @elseif(count($countries) === 0)
           <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
         @else
           <p class="co-q">{{ __('ui.chk_q_country') }}</p>
@@ -115,21 +116,19 @@
           @endforeach
         </div>
 
-        {{-- ۳) IP سرور — فقط پکیجی که رویش فعال می‌شود (لایسنس) --}}
-        @if($product->requires_server_ip)
-          <p class="co-q">{{ __('ui.chk_q_server_ip') }}</p>
-          <div class="co-field">
-            <label>{{ __('ui.chk_lbl_server_ip') }}
-              <input type="text" name="server_ip" dir="ltr" inputmode="decimal"
-                     placeholder="203.0.113.10" value="{{ old('server_ip') }}"
-                     autocapitalize="off" autocomplete="off" spellcheck="false" required>
-            </label>
-            <p class="co-note">{{ __('ui.chk_server_ip_note') }}</p>
-          </div>
-        @endif
-
-        {{-- ۴) دامنه — لایسنس دامنه ندارد، پس اصلاً پرسیده نمی‌شود --}}
-        @if($product->requires_domain)
+        @if($isLicense ?? false)
+        {{-- ۳) آی‌پی لایسنس — به‌جای دامنه؛ شناسه‌ی سرویس همین IP است --}}
+        <p class="co-q">{{ __('ui.chk_q_ip') }}</p>
+        <div class="co-field">
+          <label>{{ __('ui.chk_lbl_ip') }}
+            <input type="text" name="license_ip" dir="ltr" placeholder="203.0.113.10" value="{{ old('license_ip') }}"
+                   required inputmode="numeric" autocomplete="off" spellcheck="false"
+                   pattern="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}">
+          </label>
+          <p class="co-note">{{ __('ui.chk_ip_note') }}</p>
+        </div>
+        @else
+        {{-- ۳) دامنه --}}
         <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
         <div class="co-opts">
@@ -187,7 +186,7 @@
         </div>
         @endif
 
-        <button type="submit" class="pnl-btn primary" style="justify-content:center;width:100%;margin-top:8px" @if(count($countries) === 0) disabled @endif>
+        <button type="submit" class="pnl-btn primary" style="justify-content:center;width:100%;margin-top:8px" @if(!($isLicense ?? false) && count($countries) === 0) disabled @endif>
           {{ __('ui.chk_continue_pay') }} — <span id="co-btn-total">{{ cloud_price($initial['first']) }}</span>
         </button>
         <p class="co-note" style="text-align:center">{{ __('ui.chk_proforma_note') }}</p>

@@ -215,6 +215,47 @@ class CatalogController extends Controller
             }, $product['plans']);
         }
 
+        /*
+        | پلن‌هایی که کلیدِ `product` دارند (لایسنس‌ها) به پکیجِ واقعیِ فروشگاه
+        | وصل‌اند: قیمت و دکمهٔ خرید از **DB** می‌آید نه از عددِ سخت‌کدِ config —
+        | دو منبعِ حقیقت همان بیماریِ «قیمتی که مشتری می‌بیند ولی نمی‌تواند بخرد»
+        | است که livePlansFor برای سرورها درمان کرد.
+        |
+        | ⚠️ پکیجِ غایب/غیرفعال «تماس بگیرید» می‌شود، نه قیمتِ config: قیمتی که
+        | دکمهٔ خریدش کار نمی‌کند قول است، نه اطلاعات.
+        */
+        $linked = array_values(array_filter(array_column((array) ($product['plans'] ?? []), 'product')));
+        if ($linked !== []) {
+            $rows = \Illuminate\Support\Facades\Schema::hasTable('products')
+                ? \App\Models\Product::whereIn('slug', $linked)->where('is_active', true)->get()->keyBy('slug')
+                : collect();
+
+            $product['plans'] = array_map(function ($p) use ($rows) {
+                $slug = $p['product'] ?? null;
+                if ($slug === null) {
+                    return $p;
+                }
+                unset($p['pid']);
+
+                $db = $rows[$slug] ?? null;
+                if ($db) {
+                    // ⚠️ قیمتِ **خام**، نه effectivePrice: ویو خودش site_price →
+                    // price_toman می‌زند. اگر این‌جا هم اعمال شود، صفحه ضریبِ
+                    // نرخ را دو بار می‌خورد ولی تسویه یک بار — دو قیمتِ متفاوت.
+                    $p['irt'] = (int) $db->price;
+                    if ((int) $db->price_eur > 0) {
+                        $p['eur'] = $db->price_eur / 100;
+                    }
+                    $p['order_url'] = lroute('account.order', $db->slug);
+                } else {
+                    unset($p['irt'], $p['eur']);
+                    $p['contact'] = true;
+                }
+
+                return $p;
+            }, (array) ($product['plans'] ?? []));
+        }
+
         // ویو در چند جا روی `plans` حلقه می‌زند و `count()` می‌گیرد. محصولی که
         // این کلید را نداشته باشد ۵۰۰ می‌داد — و ۵۰۰ روی صفحهٔ محصول یعنی
         // صفحهٔ سفید. آرایهٔ خالی به‌جایش «حالتِ خالیِ» صریح را نشان می‌دهد.

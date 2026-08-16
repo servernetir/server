@@ -14,7 +14,7 @@ class Product extends Model
     protected $fillable = [
         'name', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
         'price', 'price_eur', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
-        'requires_domain', 'requires_server_ip', 'is_active', 'sort',
+        'requires_domain', 'is_active', 'sort',
     ];
 
     protected function casts(): array
@@ -26,9 +26,8 @@ class Product extends Model
             'tax_percent'     => 'integer',
             'specs'           => 'array',
             'locations'       => 'array',
-            'requires_domain'    => 'boolean',
-            'requires_server_ip' => 'boolean',
-            'is_active'          => 'boolean',
+            'requires_domain' => 'boolean',
+            'is_active'       => 'boolean',
             'sort'            => 'integer',
         ];
     }
@@ -40,11 +39,33 @@ class Product extends Model
         'dedicated'   => 'سرور اختصاصی',
         'plesk'       => 'Plesk',
         'directadmin' => 'DirectAdmin',
+        // لایسنس نرم‌افزار: نه سرور می‌خواهد نه دامنه — شناسه‌اش IP مشتری است
+        // و تحویلش از صفِ دستیِ ادمین می‌گذرد (فعال‌سازی نزدِ تأمین‌کننده).
+        'license'     => 'لایسنس نرم‌افزار',
         'other'       => 'سایر',
     ];
 
-    /** همان نگهبانِ `Service::FRESH_COLUMNS` — دلیلش آن‌جا کامل نوشته شده. */
-    private const FRESH_COLUMNS = ['requires_server_ip'];
+    /** آیا این پکیج لایسنس نرم‌افزار است؟ (مسیرِ سفارش و تحویلش جداست) */
+    public function isLicense(): bool
+    {
+        return $this->category === 'license';
+    }
+
+    /**
+     * آیا خریدِ این پکیج باید یک **حسابِ نمایندگی** بسازد (نه هاستِ معمولی)؟
+     *
+     * 🔴 تنها تعریفِ «نمایندگی» در کلِ پروژه. بی‌این، `WhmProvisioner` همان
+     * `createacct`ِ حسابِ عادی را می‌فرستد — بی‌`reseller=1`، بی‌ACL، بی‌سقف —
+     * و مشتری پولِ «پنل نمایندگی» می‌دهد و یک cPanelِ ساده می‌گیرد. تحویل
+     * «موفق» ثبت می‌شود و هیچ خطایی هیچ‌جا نیست.
+     *
+     * هم‌خانوادهٔ `isLicense()` بالا: هر دو دسته‌ای‌اند که مسیرِ تحویلشان با
+     * هاستِ معمولی فرق دارد.
+     */
+    public function isReseller(): bool
+    {
+        return $this->category === 'reseller';
+    }
 
     protected static function booted(): void
     {
@@ -52,28 +73,7 @@ class Product extends Model
             if (blank($p->slug)) {
                 $p->slug = Str::slug($p->name) ?: 'pkg-'.Str::random(6);
             }
-
-            foreach (self::FRESH_COLUMNS as $col) {
-                if (array_key_exists($col, $p->getAttributes()) && ! self::columnExists($col)) {
-                    unset($p->attributes[$col]);
-                }
-            }
         });
-    }
-
-    /** @var array<string,bool> */
-    private static array $columnCache = [];
-
-    public static function columnExists(string $column): bool
-    {
-        return self::$columnCache[$column]
-            ??= \Illuminate\Support\Facades\Schema::hasColumn('products', $column);
-    }
-
-    /** پاک‌کردنِ کش — دلیلش در `Service::flushColumnCache()` نوشته شده. */
-    public static function flushColumnCache(): void
-    {
-        self::$columnCache = [];
     }
 
     public function server(): BelongsTo
@@ -179,19 +179,6 @@ class Product extends Model
     public function packageName(): string
     {
         return 'sn_'.substr(preg_replace('/[^a-z0-9]+/i', '_', (string) $this->slug), 0, 40);
-    }
-
-    /**
-     * آیا خریدِ این پکیج باید یک **حسابِ نمایندگی** بسازد (نه هاستِ معمولی)؟
-     *
-     * تنها تعریفِ «نمایندگی» در کلِ پروژه. سه مسیرِ فروش (فروشگاهِ مشتری، فروشِ
-     * تلفنی، فروشِ مدیر) همین را صدا می‌زنند تا شرطِ دست‌نویسِ موازی نسازند —
-     * وگرنه روزی یکی‌شان دسته‌ای تازه را جا می‌اندازد و همان مسیر بی‌صدا
-     * cPanelِ ساده تحویل می‌دهد.
-     */
-    public function isReseller(): bool
-    {
-        return $this->category === 'reseller';
     }
 
     /** معادلِ ماهانهٔ یک دوره — برای نمایشِ «ماهی X تومان» در صفحهٔ خرید */
