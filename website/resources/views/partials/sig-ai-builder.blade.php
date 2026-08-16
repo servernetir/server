@@ -147,6 +147,7 @@ window.AIB_I18N = {
   writing: @json(__('ui.aib_writing')),
   domainUnknown: @json(__('ui.aib_dom_unknown')), noIr: @json(__('ui.aib_no_ir')),
   needDomain: @json(__('ui.aib_need_domain')),
+  done: @json(__('ui.aib_done')),
   qs: [@json(__('ui.aib_q_name')), @json(__('ui.aib_q_field')), @json(__('ui.aib_q_services')), @json(__('ui.aib_q_contact')), @json(__('ui.aib_q_color')), @json(__('ui.aib_q_extra'))],
   skip: @json(__('ui.aib_skip')),
   colors: [@json(__('ui.aib_c1')), @json(__('ui.aib_c2')), @json(__('ui.aib_c3')), @json(__('ui.aib_c4')), @json(__('ui.aib_c5'))],

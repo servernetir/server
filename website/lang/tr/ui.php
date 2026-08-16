@@ -414,6 +414,7 @@ return [
     'aib_dom_unknown' => 'Alan adı sorgusu şu anda yapılamıyor; az sonra tekrar deneyin.',
     'aib_no_ir' => '.ir uzantısı site kurucuda henüz sunulmuyor — .com gibi uluslararası bir uzantı seçin.',
     'aib_need_domain' => 'Kurulum için önce alan adınızı girin.',
+    'aib_done' => 'Siteniz hazır! ✨ Bir göz atın — istediğiniz değişikliği söyleyin, hemen uygulayayım.',
 
     'chat_title' => 'ServerNet Destek',
     'chat_online' => 'Çevrimiçi — yardıma hazır',

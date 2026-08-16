@@ -266,7 +266,8 @@
       if (d.html) { setPreview(d.html); } else if (currentHtml) { frame.hidden = false; } else { empty.hidden = false; }
       busy = false; return;
     }
-    addMsg(d.reply || '✓', 'bot');
+    // «✓»ِ تنها یعنی مدل جز خودِ کد حرفی نزده — جای تیکِ خشک، جملهٔ گرم
+    addMsg((!d.reply || d.reply === '✓') ? (I.done || '✓') : d.reply, 'bot');
     setPreview(d.html);
     if (typeof d.left === 'number') leftEl.textContent = d.left <= 5 ? I.left.replace(':n', faNum(d.left)) : '';
     busy = false;
