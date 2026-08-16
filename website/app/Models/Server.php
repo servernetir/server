@@ -15,7 +15,17 @@ class Server extends Model
     protected $fillable = [
         'name', 'type', 'country', 'city', 'hostname', 'port', 'username', 'api_token', 'verify_tls',
         'server_ip', 'nameservers', 'status', 'max_accounts', 'active_accounts', 'note', 'meta',
+        'monthly_cost', 'cost_currency', 'billing_day', 'vendor',
     ];
+
+    /**
+     * 🔴 بهایِ تمام‌شده و نامِ تأمین‌کننده از هر JSON بیرون می‌مانند.
+     *
+     * همان قاعدهٔ `CloudPlan::$hidden`: سفیدبرچسبیِ این پروژه به آن بند است و
+     * یک `toJson()` در جای اشتباه، هم قیمتِ خریدِ ما را لو می‌دهد هم اینکه
+     * سرور را از کجا اجاره می‌کنیم.
+     */
+    protected $hidden = ['api_token', 'monthly_cost', 'vendor'];
 
     protected function casts(): array
     {
@@ -25,6 +35,10 @@ class Server extends Model
             'port'            => 'integer',
             'max_accounts'    => 'integer',
             'active_accounts' => 'integer',
+            'billing_day'     => 'integer',
+            // ⚠️ کست به integer مقدارِ null را null نگه می‌دارد؛ همان تمایزِ
+            //    «نمی‌دانم» از «رایگان» که مهاجرت رویش تأکید دارد.
+            'monthly_cost'    => 'integer',
             'meta'            => 'array',
         ];
     }
@@ -38,6 +52,69 @@ class Server extends Model
     public const DEFAULT_PORTS = [
         'whm' => 2087, 'plesk' => 8443, 'directadmin' => 2222,
     ];
+
+    /**
+     * اجارهٔ ماهانه به **تومان**، یا `null` اگر نمی‌دانیم.
+     *
+     * ⚠️ `null` و `0` عمداً یکی نمی‌شوند: صفر یعنی «رایگان است» و null یعنی
+     * «هنوز پر نشده». اگر یکی شوند، هر سرورِ پرنشده به‌عنوان رایگان وارد جمع
+     * می‌شود و هزینهٔ کل کم‌تر از واقع می‌آید — دقیقاً همان خوش‌بینی‌ای که این
+     * ستون‌ها برای رفعش ساخته شدند.
+     *
+     * ⚠️ تبدیلِ یورو با نرخِ **امروز** است. هیچ نرخِ تاریخی‌ای در این پروژه
+     * ذخیره نمی‌شود، پس عددِ ماهِ گذشته هم با نرخِ امروز حساب می‌شود.
+     * فراخوان باید این را به کاربر بگوید.
+     */
+    public function monthlyCostToman(?int $rate = null): ?int
+    {
+        if ($this->monthly_cost === null) {
+            return null;
+        }
+
+        $amount   = (int) $this->monthly_cost;
+        $currency = strtoupper((string) $this->cost_currency ?: 'EUR');
+
+        // تومان exponent صفر دارد: خودِ عدد، بی‌تقسیم بر ۱۰۰
+        if ($currency === 'IRT') {
+            return $amount;
+        }
+
+        /*
+        | 🔴 نرخ باید نرخِ **همان ارز** باشد.
+        |
+        | نسخهٔ اول برای هر ارزی `eurToToman()` را صدا می‌زد، پس یک سرورِ
+        | دلاری با نرخِ یورو تبدیل می‌شد — حدود ۸ درصد خطا روی هر ماه، بی‌هیچ
+        | نشانه‌ای. و `pricing_rate_override` که مدیر برای **یورو** می‌گذارد
+        | نباید روی مبلغِ دلاری بنشیند.
+        */
+        /*
+        | ⚠️ `$rate` از بیرون داده می‌شود تا یک صفحه که ده سرور دارد، ده بار
+        | نرخ نگیرد. `ExchangeRate::refresh()` روی شکست **هیچ‌چیز کش نمی‌کند**،
+        | پس با منبعِ ارزِ خاموش هر فراخوان یک HTTPِ مسدودکنندهٔ ~۲۵ ثانیه‌ای
+        | است — ده سرور یعنی چند دقیقه داخلِ یک درخواست.
+        |
+        | بدتر از کندی: دو پاسِ متفاوت در همان صفحه می‌توانستند دو نرخِ متفاوت
+        | بگیرند و جمعِ نمایش‌داده‌شده با هشدارِ پایینِ صفحه نخوانَد.
+        */
+        if ($rate === null) {
+            try {
+                $rate = $currency === 'EUR'
+                    ? (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman()
+                    : (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?: 0);
+            } catch (\Throwable) {
+                $rate = 0;
+            }
+        }
+
+        // نرخ نبود ⇒ null، نه صفر: «نتوانستم تبدیل کنم» با «رایگان» یکی نیست
+        return $rate > 0 ? (int) round($amount / 100 * $rate) : null;
+    }
+
+    /** آیا بهایِ این سرور وارد شده؟ */
+    public function hasCost(): bool
+    {
+        return $this->monthly_cost !== null;
+    }
 
     public function services(): HasMany
     {

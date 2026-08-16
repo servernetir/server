@@ -2,6 +2,17 @@
   /** @var \App\Models\Server|null $server */
   $isEdit = $server !== null;
   $types = ['whm'=>'WHM / cPanel (خودکار)','directadmin'=>'DirectAdmin (خودکار)','plesk'=>'Plesk (دستی)','vps'=>'VPS (دستی)','dedicated'=>'سرور اختصاصی (دستی)','generic'=>'عمومی (دستی)'];
+
+  /*
+  | ⚠️ فیلدهای هزینه فقط وقتی نشان داده می‌شوند که ستونشان واقعاً باشد.
+  |
+  | مهاجرتِ پروداکشن دستی اجرا می‌شود؛ در آن پنجره کنترلر مقدارِ ارسالی را
+  | بی‌صدا دور می‌ریزد (وگرنه SQL می‌ترکید). یعنی مدیر اجاره را وارد می‌کرد،
+  | «ذخیره شد» می‌گرفت و عدد غیب می‌شد — همان شکستِ خاموشی که این پروژه
+  | بارها از آن ضربه خورده. پس یا فیلد هست و کار می‌کند، یا اصلاً نیست.
+  */
+  $costReady = \Illuminate\Support\Facades\Schema::hasTable('servers')
+      && \Illuminate\Support\Facades\Schema::hasColumn('servers', 'monthly_cost');
 @endphp
 <form method="post" action="{{ $action }}" class="srv-f">
   @csrf
@@ -57,6 +68,34 @@
   <label>سقف حساب (اختیاری)
     <input type="number" name="max_accounts" dir="ltr" value="{{ old('max_accounts', $server->max_accounts ?? '') }}" min="0" placeholder="ظرفیت">
   </label>
+  @if($costReady)
+  {{-- ══ بهایِ اجاره ══
+       بدونِ این چهار فیلد، بزرگ‌ترین هزینهٔ جاریِ شرکت هیچ‌جای سامانه نیست و
+       «سودِ خالص» در صفحهٔ مالی یعنی درآمد منهای چیزی که یادتان مانده وارد
+       کنید. خالی گذاشتن مجاز است و معنایش «نمی‌دانم» است، نه «رایگان». --}}
+  <label>اجارهٔ ماهانه (اختیاری)
+    <input type="number" name="monthly_cost" dir="ltr" min="0"
+           value="{{ old('monthly_cost', $server?->monthly_cost ?? '') }}"
+           placeholder="خالی = نامشخص · ۰ = رایگان">
+  </label>
+  <label>ارزِ اجاره
+    <select name="cost_currency">
+      @foreach(['EUR' => 'یورو (سنت وارد کنید: ۳۹۹۰ = ۳۹٫۹۰ €)', 'IRT' => 'تومان', 'USD' => 'دلار (سنت)'] as $v => $t)
+        <option value="{{ $v }}" @selected(old('cost_currency', $server->cost_currency ?? 'EUR') === $v)>{{ $t }}</option>
+      @endforeach
+    </select>
+  </label>
+  <label>روزِ صورت‌حساب (۱ تا ۲۸)
+    <input type="number" name="billing_day" dir="ltr" min="1" max="28"
+           value="{{ old('billing_day', $server?->billing_day ?? '') }}" placeholder="مثلاً ۵">
+  </label>
+  <label>تأمین‌کننده (داخلی)
+    <input type="text" name="vendor" value="{{ old('vendor', $server->vendor ?? '') }}" maxlength="60"
+           placeholder="در هیچ صفحهٔ عمومی نمایش داده نمی‌شود">
+  </label>
+
+  @endif
+
   <label class="chk col2">
     <input type="checkbox" name="verify_tls" value="1" @checked(old('verify_tls', $server->verify_tls ?? true))>
     بررسیِ گواهیِ TLS (برای گواهیِ self-signed خاموش کنید)

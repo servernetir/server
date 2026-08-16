@@ -370,4 +370,375 @@ class AdminBusinessReportTest extends TestCase
     {
         $this->get('/admin/reports')->assertRedirect();
     }
+
+    // ═══════════════ اجارهٔ سرور ═══════════════
+
+    private function rentedServer(array $over = []): Server
+    {
+        static $n = 0;
+        $n++;
+
+        return Server::create($over + [
+            'name' => 'SRV-'.$n, 'type' => 'whm', 'status' => 'active',
+            'max_accounts' => 200, 'active_accounts' => 10,
+            'monthly_cost' => 3990, 'cost_currency' => 'EUR', 'billing_day' => 5,
+            'vendor' => 'تأمین‌کنندهٔ الف',
+        ]);
+    }
+
+    public function test_server_rent_is_converted_and_counted_in_the_forecast(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');   // ۱ یورو = ۱۰۰٬۰۰۰ ت
+        $this->rentedServer(['monthly_cost' => 3990, 'cost_currency' => 'EUR']);
+
+        $rent = $this->report()->forecast(30)['outgoing']['servers'];
+
+        $this->assertTrue($rent['ready']);
+        $this->assertSame(3_990_000, $rent['monthly'], 'سنتِ یورو درست به تومان تبدیل نشد');
+        $this->assertSame(1, $rent['priced']);
+        $this->assertSame(0, $rent['unpriced']);
+    }
+
+    /** مبلغِ تومانی تبدیل نمی‌شود — همان عدد است */
+    public function test_a_toman_priced_server_is_not_converted(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 2_500_000, 'cost_currency' => 'IRT']);
+
+        $this->assertSame(2_500_000, $this->report()->forecast(30)['outgoing']['servers']['monthly']);
+    }
+
+    /**
+     * 🔴 سرورِ بی‌قیمت **صفر شمرده نمی‌شود** — شمرده نمی‌شود، و تعدادش گزارش
+     * می‌شود.
+     *
+     * اگر null را صفر بگیریم، یک جمعِ کم‌تر از واقع به‌عنوان «هزینهٔ کل» خوانده
+     * می‌شود و سود خوش‌بینانه می‌مانَد — همان چیزی که این ستون‌ها برای رفعش
+     * ساخته شدند.
+     */
+    public function test_a_server_without_a_price_is_reported_not_treated_as_free(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR']);
+        $this->rentedServer(['monthly_cost' => null]);
+
+        $rent = $this->report()->forecast(30)['outgoing']['servers'];
+
+        $this->assertSame(1, $rent['unpriced'], 'سرورِ بی‌قیمت گزارش نشد');
+        $this->assertSame(1_000_000, $rent['monthly'], 'سرورِ بی‌قیمت در جمع آمد');
+    }
+
+    /** صفر یعنی «واقعاً رایگان» و با «نمی‌دانم» یکی نیست */
+    public function test_zero_means_free_and_is_not_confused_with_unknown(): void
+    {
+        $this->rentedServer(['monthly_cost' => 0, 'cost_currency' => 'IRT']);
+
+        $rent = $this->report()->forecast(30)['outgoing']['servers'];
+
+        $this->assertSame(0, $rent['unpriced'], 'سرورِ رایگان «بی‌قیمت» شمرده شد');
+        $this->assertSame(1, $rent['free']);
+        $this->assertSame(0, $rent['monthly']);
+    }
+
+    /**
+     * 🔴 پنجرهٔ ۹۰ روزه یعنی چند بار صورت‌حساب، نه یک بار.
+     *
+     * یک ماهانهٔ ساده در پنجرهٔ سه‌ماهه، هزینه را یک‌سومِ واقع نشان می‌داد.
+     */
+    public function test_a_ninety_day_window_counts_more_than_one_billing_date(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR', 'billing_day' => 5]);
+
+        $m30 = $this->report()->forecast(30)['outgoing']['servers']['toman'];
+        $m90 = $this->report()->forecast(90)['outgoing']['servers']['toman'];
+
+        $this->assertGreaterThan($m30, $m90, 'پنجرهٔ بلندتر هزینهٔ بیشتری نداد');
+    }
+
+    /** بی‌روزِ صورت‌حساب هم تخمین می‌زند، نه اینکه صفر بدهد */
+    public function test_a_server_without_a_billing_day_still_counts(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR', 'billing_day' => null]);
+
+        $this->assertGreaterThan(0, $this->report()->forecast(30)['outgoing']['servers']['toman']);
+    }
+
+    /**
+     * 🔴 بهایِ تمام‌شده و تأمین‌کننده از JSON بیرون می‌مانند.
+     *
+     * سفیدبرچسبیِ کلِ پروژه به این بند است: یک `toJson()` در جای اشتباه هم
+     * قیمتِ خریدِ ما را لو می‌دهد هم اینکه سرور را از کجا اجاره می‌کنیم.
+     */
+    public function test_cost_and_vendor_never_leak_through_serialization(): void
+    {
+        $s = $this->rentedServer(['vendor' => 'SecretVendor']);
+
+        $json = $s->fresh()->toJson();
+
+        $this->assertStringNotContainsString('SecretVendor', $json);
+        $this->assertStringNotContainsString('monthly_cost', $json);
+    }
+
+    /** فرمِ مدیر مبلغِ خالی را null ذخیره می‌کند، نه صفر */
+    public function test_an_empty_cost_field_saves_null_not_zero(): void
+    {
+        $this->actingAs($this->admin(), 'web')->post('/admin/servers', [
+            'name' => 'SRV-NEW', 'type' => 'whm', 'status' => 'active',
+            'monthly_cost' => '', 'cost_currency' => 'EUR', 'billing_day' => '',
+        ])->assertRedirect();
+
+        $s = Server::where('name', 'SRV-NEW')->first();
+
+        $this->assertNotNull($s);
+        $this->assertNull($s->monthly_cost, 'مبلغِ خالی صفر ذخیره شد — یعنی «رایگان»');
+        $this->assertNull($s->billing_day);
+    }
+
+    /** فرم هر چهار فیلد را واقعاً ذخیره می‌کند */
+    public function test_the_admin_form_saves_all_four_cost_fields(): void
+    {
+        $this->actingAs($this->admin(), 'web')->post('/admin/servers', [
+            'name' => 'SRV-COST', 'type' => 'whm', 'status' => 'active',
+            'monthly_cost' => '3990', 'cost_currency' => 'EUR',
+            'billing_day' => '5', 'vendor' => 'تأمین‌کنندهٔ ب',
+        ])->assertRedirect();
+
+        $s = Server::where('name', 'SRV-COST')->first();
+
+        $this->assertSame(3990, (int) $s->monthly_cost);
+        $this->assertSame('EUR', $s->cost_currency);
+        $this->assertSame(5, $s->billing_day);
+        $this->assertSame('تأمین‌کنندهٔ ب', $s->vendor);
+    }
+
+    /** روزِ صورت‌حسابِ ۳۱ رد می‌شود — هر ماهی آن روز را ندارد */
+    public function test_a_billing_day_past_28_is_rejected(): void
+    {
+        $this->actingAs($this->admin(), 'web')->post('/admin/servers', [
+            'name' => 'SRV-BAD', 'type' => 'whm', 'status' => 'active',
+            'billing_day' => '31',
+        ])->assertSessionHasErrors('billing_day');
+    }
+
+    /**
+     * 🔴 وقتی سروری بی‌قیمت است، صفحه باید **بگوید** جمع ناقص است.
+     *
+     * عددِ کم‌برآوردشده‌ای که «قطعی» به نظر برسد، از نبودِ عدد بدتر است.
+     */
+    public function test_the_page_admits_the_total_is_incomplete(): void
+    {
+        $this->rentedServer(['monthly_cost' => null]);
+
+        $titles = array_column($this->report()->blindSpots(), 'title');
+
+        $this->assertNotEmpty(array_filter($titles, fn ($t) => str_contains($t, 'در جمع نیست')),
+            'صفحه دربارهٔ سرورِ بی‌قیمت ساکت ماند');
+    }
+
+    /** وقتی همهٔ سرورها قیمت دارند، آن هشدار می‌رود */
+    public function test_the_warning_disappears_once_every_server_is_priced(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000]);
+
+        $titles = array_column($this->report()->blindSpots(), 'title');
+
+        $this->assertEmpty(array_filter($titles, fn ($t) => str_contains($t, 'در جمع نیست')));
+    }
+
+    /**
+     * 🔴 هر ارز با نرخِ **خودش** تبدیل می‌شود.
+     *
+     * نسخهٔ اول برای هر ارزی نرخِ یورو را می‌گرفت، پس یک سرورِ دلاری با نرخِ
+     * یورو حساب می‌شد — چند درصد خطا روی هر ماه، برای همیشه، بی‌هیچ نشانه‌ای.
+     * و `pricing_rate_override` که مدیر برای یورو می‌گذارد نباید روی مبلغِ
+     * دلاری بنشیند.
+     */
+    public function test_a_dollar_server_is_not_converted_at_the_euro_rate(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');   // فقط یورو
+
+        $usd = $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'USD']);
+
+        $toman = $usd->fresh()->monthlyCostToman();
+
+        $this->assertNotSame(1_000_000, $toman,
+            'مبلغِ دلاری با نرخِ دستیِ یورو تبدیل شد');
+    }
+
+    // ═══════════════ چیزهایی که بازبینیِ حریفانه پیدا کرد ═══════════════
+
+    /**
+     * 🔴 پنجرهٔ ۳۰ روزه یعنی ۳۰ روز، نه ۳۱.
+     *
+     * مرزِ بالای بازه شامل بود، پس وقتی روزِ صورت‌حساب دقیقاً روی لبه می‌افتاد
+     * اجارهٔ ماهانه **دو بار** شمرده می‌شد — صد درصد بیش‌برآورد، فقط در یک
+     * روزِ خاصِ ماه، پس شبیهِ یک هزینهٔ واقعی به نظر می‌رسید نه یک باگ.
+     *
+     * تستِ قبلی نمی‌گرفتش چون فقط `monthly` و نابرابریِ ۳۰/۹۰ را می‌سنجید،
+     * هرگز خودِ `toman`ِ سی‌روزه را.
+     */
+    public function test_a_thirty_day_window_never_counts_the_same_rent_twice(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR', 'billing_day' => 5]);
+
+        // ۵ام: هم امروز صورت‌حساب است، هم دقیقاً ۳۰ روز بعد لبهٔ پنجره
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-05 10:00:00'));
+
+        $rent = $this->report()->forecast(30)['outgoing']['servers'];
+
+        $this->assertSame(1_000_000, $rent['toman'],
+            'اجارهٔ یک ماه دو بار در پنجرهٔ سی‌روزه شمرده شد');
+    }
+
+    /** و در ماهِ ۳۱ روزه هم همان یک بار — رفتار نباید به طولِ ماه بند باشد */
+    public function test_the_window_edge_behaves_the_same_in_a_31_day_month(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR', 'billing_day' => 5]);
+
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-08-05 10:00:00'));
+
+        $this->assertSame(1_000_000, $this->report()->forecast(30)['outgoing']['servers']['toman']);
+    }
+
+    /**
+     * 🔴 مبلغی که تبدیل نشد هم باید «جا مانده» اعلام شود، نه فقط بی‌قیمت.
+     *
+     * وگرنه با نرخِ ارزِ در دسترس‌نبود، صفحه هم‌زمان «۰ تومان» نشان می‌داد و
+     * ادعا می‌کرد جمع کامل است — در حالی که کلِ اجارهٔ ارزی از قلم افتاده بود.
+     */
+    public function test_an_unconvertible_amount_also_marks_the_total_incomplete(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '0');
+        \Illuminate\Support\Facades\Cache::flush();
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response('', 500)]);
+
+        $this->rentedServer(['monthly_cost' => 3990, 'cost_currency' => 'EUR']);
+
+        $titles = array_column($this->report()->blindSpots(), 'title');
+
+        $this->assertNotEmpty(array_filter($titles, fn ($t) => str_contains($t, 'در جمع نیست')),
+            'مبلغِ تبدیل‌نشده بی‌صدا از جمع افتاد و صفحه چیزی نگفت');
+    }
+
+    /**
+     * 🔴 صفحه دربارهٔ یک سرور دو حرفِ متناقض نزند.
+     *
+     * سروری که مبلغش **ثبت شده** ولی نرخِ ارز نبود، نباید «اجاره وارد نشده»
+     * بخورد — مدیر بیهوده صفحهٔ سرورها را باز می‌کند و عدد را همان‌جا می‌بیند.
+     */
+    public function test_a_priced_server_is_never_labelled_as_having_no_price(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '0');
+        \Illuminate\Support\Facades\Cache::flush();
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response('', 500)]);
+
+        $this->rentedServer(['monthly_cost' => 3990, 'cost_currency' => 'EUR']);
+
+        $row = $this->report()->infrastructure()['servers'][0];
+
+        $this->assertNull($row['cost']);
+        $this->assertFalse($row['cost_unknown'], 'سرورِ قیمت‌خورده «بی‌قیمت» علامت خورد');
+    }
+
+    /** و سرورِ واقعاً بی‌قیمت همان علامت را می‌گیرد */
+    public function test_a_server_with_no_price_is_marked_unknown(): void
+    {
+        $this->rentedServer(['monthly_cost' => null]);
+
+        $row = $this->report()->infrastructure()['servers'][0];
+
+        $this->assertTrue($row['cost_unknown']);
+    }
+
+    /**
+     * 🔴 نرخِ ارز یک بار در هر درخواست گرفته می‌شود، نه یک بار به‌ازای هر سرور.
+     *
+     * دو دلیل، و دومی بدتر است: `ExchangeRate::refresh()` روی شکست هیچ‌چیز کش
+     * نمی‌کند، پس با منبعِ خاموش هر فراخوان یک HTTPِ مسدودکننده است. و دو پاسِ
+     * همان صفحه می‌توانستند دو نرخِ متفاوت بگیرند و جمع با هشدارِ پایینِ صفحه
+     * نخوانَد.
+     */
+    public function test_the_exchange_rate_is_fetched_once_per_request(): void
+    {
+        \App\Models\Setting::put('pricing_rate_override', '0');
+        \Illuminate\Support\Facades\Cache::flush();
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response('', 500)]);
+
+        foreach (range(1, 4) as $i) {
+            $this->rentedServer(['monthly_cost' => 1000, 'cost_currency' => 'EUR']);
+        }
+
+        $r = $this->report();
+        $r->forecast(30);
+        $r->infrastructure();
+        $r->blindSpots();
+
+        $calls = count(\Illuminate\Support\Facades\Http::recorded());
+
+        $this->assertLessThanOrEqual(2, $calls,
+            'نرخ به‌ازای هر سرور و هر پاس دوباره گرفته شد ('.$calls.' فراخوان)');
+    }
+
+    /**
+     * 🔴 پیش از اجرای مهاجرت، مدیریتِ سرور نباید بترکد.
+     *
+     * مهاجرت‌های پروداکشن دستی اجرا می‌شوند، پس کد همیشه مدتی جلوتر از
+     * دیتابیس است. در آن پنجره، «افزودن سرور» با خطای SQL می‌ترکید — یعنی یک
+     * قابلیتِ گزارشیِ تازه، کارِ روزمرهٔ مدیر را می‌خواباند.
+     */
+    public function test_managing_servers_survives_a_database_without_the_cost_columns(): void
+    {
+        \Illuminate\Support\Facades\Schema::table('servers', function ($t) {
+            $t->dropColumn(['monthly_cost', 'cost_currency', 'billing_day', 'vendor']);
+        });
+
+        $this->actingAs($this->admin(), 'web')->post('/admin/servers', [
+            'name' => 'SRV-PREMIGRATION', 'type' => 'whm', 'status' => 'active',
+            'api_token' => '', 'monthly_cost' => '3990',
+        ])->assertRedirect();
+
+        $this->assertNotNull(Server::where('name', 'SRV-PREMIGRATION')->first(),
+            'افزودن سرور پیش از مهاجرت شکست خورد');
+    }
+
+    /** و گزارش هم روی همان دیتابیس بالا می‌آید */
+    public function test_the_report_survives_a_database_without_the_cost_columns(): void
+    {
+        \Illuminate\Support\Facades\Schema::table('servers', function ($t) {
+            $t->dropColumn(['monthly_cost', 'cost_currency', 'billing_day', 'vendor']);
+        });
+
+        $this->actingAs($this->admin(), 'web')->get('/admin/reports')->assertOk();
+
+        $this->assertFalse($this->report()->forecast(30)['outgoing']['servers']['ready']);
+    }
+
+    /**
+     * 🔴 فرم یا فیلد را دارد و کار می‌کند، یا اصلاً نشانش نمی‌دهد.
+     *
+     * پیش از مهاجرت، کنترلر مقدارِ ارسالی را بی‌صدا دور می‌ریزد (وگرنه SQL
+     * می‌ترکد). اگر فیلد همچنان روی صفحه باشد، مدیر اجاره را وارد می‌کند،
+     * «ذخیره شد» می‌گیرد و عدد غیب می‌شود — شکستِ خاموشی که بدتر از خطاست.
+     */
+    public function test_the_cost_fields_are_hidden_until_the_columns_exist(): void
+    {
+        $this->actingAs($this->admin(), 'web')
+            ->get('/admin/servers')
+            ->assertOk()
+            ->assertSee('اجارهٔ ماهانه', false);
+
+        \Illuminate\Support\Facades\Schema::table('servers', function ($t) {
+            $t->dropColumn(['monthly_cost', 'cost_currency', 'billing_day', 'vendor']);
+        });
+
+        $this->actingAs($this->admin(), 'web')
+            ->get('/admin/servers')
+            ->assertOk()
+            ->assertDontSee('اجارهٔ ماهانه', false);
+    }
 }

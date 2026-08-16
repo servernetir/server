@@ -62,6 +62,7 @@ class BusinessReport
             ],
             'outgoing' => [
                 'domains' => $this->domainRegistryCost($until),
+                'servers' => $this->serverRent($days),
             ],
         ];
     }
@@ -235,13 +236,9 @@ class BusinessReport
 
         // بهایِ تمام‌شده به سنتِ یورو ذخیره می‌شود
         $cents = (int) $rows->where('cost_currency', 'EUR')->sum('cost_amount');
-        $rate  = 0;
-
-        try {
-            $rate = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
-        } catch (\Throwable) {
-            // نرخ نبود ⇒ صفر، و صفحه صریح می‌گوید تبدیل انجام نشد
-        }
+        // ⚠️ همان نرخِ حافظه‌شدهٔ اجارهٔ سرور — وگرنه یک صفحه می‌توانست دو نرخِ
+        //    متفاوت داشته باشد و جمع‌هایش با هم نخوانَد.
+        $rate = $this->rateFor('EUR');
 
         return [
             'count' => $rows->count(),
@@ -249,6 +246,173 @@ class BusinessReport
             'toman' => $rate > 0 ? (int) round($cents / 100 * $rate) : 0,
             'rate'  => $rate,
         ];
+    }
+
+    /**
+     * اجارهٔ سرورها در پنجرهٔ پیش‌بینی — بزرگ‌ترین هزینهٔ جاریِ این کسب‌وکار.
+     *
+     * ═══ چرا «چند بار در پنجره» و نه «ماهانه × ماه» ═══
+     *
+     * برای پنجرهٔ ۳۰ روزه فرقی ندارد، ولی برای ۹۰ روزه چرا: `days/30` عددِ
+     * اعشاری می‌دهد و «سه ماه» را برای سروری که روزِ ۲۸ صورت‌حساب می‌شود هم
+     * سه بار می‌شمارد، حتی اگر پنجره فقط دو تا از آن روزها را در بر بگیرد.
+     * پس روزهای صورت‌حسابِ **واقعی** در بازه شمرده می‌شوند.
+     *
+     * ⚠️ سروری که `billing_day` ندارد، ماهی یک‌بار فرض می‌شود (`days/30`
+     * رو به پایین، دستِ‌کم یک بار). این یک تخمین است و صفحه می‌گویدش.
+     *
+     * 🔴 سرورِ بی‌قیمت **صفر شمرده نمی‌شود، شمرده نمی‌شود**. تعدادش جدا
+     * برمی‌گردد تا صفحه بتواند بگوید «این عدد ناقص است و چند سرور جا مانده» —
+     * وگرنه یک جمعِ کم‌تر از واقع به‌عنوان «هزینهٔ کل» خوانده می‌شود، که دقیقاً
+     * همان خوش‌بینی‌ای است که این ستون‌ها برای رفعش ساخته شدند.
+     */
+    /** @var array<int,array<string,mixed>> نتیجهٔ اجاره، یک بار در هر درخواست */
+    private array $rentMemo = [];
+
+    /** @var array<string,int> نرخِ هر ارز، یک بار در هر درخواست */
+    private array $rateMemo = [];
+
+    /**
+     * نرخِ یک ارز — **یک بار** گرفته می‌شود و بین همهٔ سرورها و همهٔ پاس‌ها
+     * مشترک است.
+     *
+     * 🔴 بی‌این، دو پاسِ همان صفحه می‌توانستند دو نرخِ متفاوت بگیرند: جمعِ
+     * بالای صفحه از یک نرخ و هشدارِ پایینِ صفحه از نرخِ دیگر، و صفحه با
+     * خودش تناقض پیدا می‌کرد.
+     */
+    private function rateFor(string $currency): int
+    {
+        $currency = strtoupper($currency);
+
+        if (! array_key_exists($currency, $this->rateMemo)) {
+            try {
+                $this->rateMemo[$currency] = $currency === 'EUR'
+                    ? (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman()
+                    : (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?: 0);
+            } catch (\Throwable) {
+                $this->rateMemo[$currency] = 0;
+            }
+        }
+
+        return $this->rateMemo[$currency];
+    }
+
+    /** اجارهٔ یک سرور به تومان، با نرخِ مشترکِ همین درخواست */
+    private function rentOf(Server $s): ?int
+    {
+        /*
+        | ⚠️ نرخِ **صفر** هم پاس داده می‌شود، نه `null`.
+        |
+        | `null` یعنی «خودت بگیر»، و اولین نسخه دقیقاً همین را می‌فرستاد وقتی
+        | نرخ در دسترس نبود — پس هر سرور دوباره تلاش می‌کرد و صفحه‌ای با چهار
+        | سرور، بیست فراخوانِ HTTPِ مسدودکننده می‌زد. صفر یعنی «گرفتم، نبود».
+        */
+        return $s->monthlyCostToman($this->rateFor((string) ($s->cost_currency ?: 'EUR')));
+    }
+
+    private function serverRent(int $days): array
+    {
+        if (isset($this->rentMemo[$days])) {
+            return $this->rentMemo[$days];
+        }
+
+        $empty = ['toman' => 0, 'monthly' => 0, 'priced' => 0, 'unpriced' => 0,
+                  'free' => 0, 'unconvertible' => 0, 'rows' => []];
+
+        if (! Schema::hasTable('servers') || ! Schema::hasColumn('servers', 'monthly_cost')) {
+            return $empty + ['ready' => false];
+        }
+
+        $total = 0;
+        $monthly = 0;
+        $priced = $unpriced = $free = $unconvertible = 0;
+        $rows = [];
+
+        foreach (Server::orderBy('name')->get() as $s) {
+            if (! $s->hasCost()) {
+                $unpriced++;
+
+                continue;
+            }
+
+            if ((int) $s->monthly_cost === 0) {
+                $free++;
+                $priced++;
+
+                continue;
+            }
+
+            $toman = $this->rentOf($s);
+
+            if ($toman === null) {
+                // قیمت هست ولی نرخِ ارز نبود — نه رایگان، نه نامعلوم
+                $unconvertible++;
+
+                continue;
+            }
+
+            $priced++;
+            $monthly += $toman;
+
+            $hits = $this->billingHits($s->billing_day, $days);
+            $total += $toman * $hits;
+
+            $rows[] = [
+                'name'    => (string) $s->name,
+                'vendor'  => (string) ($s->vendor ?: '—'),
+                'monthly' => $toman,
+                'hits'    => $hits,
+                'day'     => $s->billing_day,
+            ];
+        }
+
+        return $this->rentMemo[$days] = [
+            'ready'         => true,
+            'toman'         => $total,
+            'monthly'       => $monthly,
+            'priced'        => $priced,
+            'unpriced'      => $unpriced,
+            'free'          => $free,
+            'unconvertible' => $unconvertible,
+            'rows'          => $rows,
+        ];
+    }
+
+    /** چند بار روزِ صورت‌حساب در `$days` روزِ آینده می‌افتد */
+    private function billingHits(?int $day, int $days): int
+    {
+        if ($day === null || $day < 1 || $day > 28) {
+            return max(1, intdiv($days, 30));
+        }
+
+        $hits = 0;
+        $cursor = now()->startOfDay();
+        $end = now()->addDays($days)->startOfDay();
+
+        // ⚠️ حداکثر ۱۲ ماه جلو می‌رود؛ پنجره‌ها ۳۰ و ۹۰ روزه‌اند و این فقط
+        //    محافظِ حلقهٔ بی‌پایان است اگر روزی پنجرهٔ بزرگ‌تری اضافه شود.
+        for ($i = 0; $i <= 12; $i++) {
+            $due = $cursor->copy()->addMonthsNoOverflow($i)->startOfMonth()->addDays($day - 1);
+
+            /*
+            | 🔴 مرزِ بالا **انحصاری** است: بازه یعنی [امروز، امروز+N).
+            |
+            | با `gt()` روزی که دقیقاً روی لبه می‌افتاد هم شمرده می‌شد، پس یک
+            | پنجرهٔ ۳۰ روزه در عمل ۳۱ روز را می‌گرفت و اجارهٔ ماهانه را **دو
+            | بار** حساب می‌کرد. برای سروری با اجارهٔ ۳۹٫۹۰ یورو یعنی صد درصد
+            | بیش‌برآورد، فقط در یک روزِ خاصِ ماه — پس شبیهِ یک هزینهٔ واقعی به
+            | نظر می‌رسید، نه یک باگ.
+            */
+            if ($due->gte($end)) {
+                break;
+            }
+
+            if ($due->gte($cursor)) {
+                $hits++;
+            }
+        }
+
+        return $hits;
     }
 
     // ═══════════════════ ۲) مشتری ═══════════════════
@@ -379,6 +543,16 @@ class BusinessReport
                     'max'     => $max,
                     'pct'     => ($max !== null && $max > 0) ? min(100, (int) round($used / $max * 100)) : null,
                     'full'    => $s->isFull(),
+                    // null = اجاره‌اش وارد نشده. صفحه این را قرمز نشان می‌دهد،
+                    // چون همان سرورهاست که جمعِ هزینه را ناقص می‌کنند.
+                    /*
+                    | ⚠️ دو دلیلِ کاملاً متفاوت برای «عدد ندارم»، و صفحه باید
+                    | فرقشان را بگوید: «اجاره وارد نشده» دربارهٔ سروری که
+                    | مبلغش **ثبت شده** ولی نرخِ ارز نبود، یک دروغ است — و
+                    | مدیر بیهوده صفحهٔ سرورها را باز می‌کند.
+                    */
+                    'cost'         => method_exists($s, 'monthlyCostToman') ? $this->rentOf($s) : null,
+                    'cost_unknown' => ! (method_exists($s, 'hasCost') && $s->hasCost()),
                 ];
             }
         }
@@ -429,14 +603,46 @@ class BusinessReport
      */
     public function blindSpots(): array
     {
-        return [
-            [
+        $spots = [];
+
+        /*
+        | 🔴 این نقطه‌کور **شرطی** است، نه ثابت.
+        |
+        | ستون‌های هزینه از مرداد ۱۴۰۵ اضافه شدند، ولی ستونِ خالی همان‌قدر
+        | خطرناک است که ستونِ نبود — با یک تفاوتِ بدتر: حالا یک عددِ «هزینهٔ
+        | در راه» روی صفحه هست که **معتبر به نظر می‌رسد**. پس تا وقتی حتی یک
+        | سرور بی‌قیمت باشد، صفحه باید صریح بگوید جمع ناقص است و کدام‌ها جا
+        | مانده‌اند.
+        */
+        $rent = Schema::hasTable('servers') && Schema::hasColumn('servers', 'monthly_cost')
+            ? $this->serverRent(30)
+            : ['ready' => false, 'unpriced' => 0, 'unconvertible' => 0];
+
+        if (! ($rent['ready'] ?? false)) {
+            $spots[] = [
                 'title' => 'اجارهٔ سرورها — بزرگ‌ترین هزینهٔ جاریِ کسب‌وکار',
-                'why'   => 'جدولِ سرورها هیچ ستونی برای هزینه، ارز، دورهٔ پرداخت یا '
-                    .'تأمین‌کننده ندارد. همان باکس‌هایی که اجاره‌شان را می‌دهیم، از نظرِ '
-                    .'مالی برای سامانه نامرئی‌اند. تا وقتی آن ستون‌ها نباشد، هیچ عددی '
-                    .'این‌جا نمی‌تواند «هزینهٔ کل» باشد.',
-            ],
+                'why'   => 'ستون‌های هزینه هنوز روی این نصب ساخته نشده‌اند. تا اجرای '
+                    .'مهاجرت، اجارهٔ سرورها از نظرِ مالی نامرئی است و «هزینهٔ در راه» '
+                    .'فقط دامنه‌هاست.',
+            ];
+        } elseif ((($rent['unpriced'] ?? 0) + ($rent['unconvertible'] ?? 0)) > 0) {
+            $spots[] = [
+                'title' => 'اجارهٔ '.fa_num((string) (($rent['unpriced'] ?? 0) + ($rent['unconvertible'] ?? 0))).' سرور در جمع نیست',
+                'why'   => 'جمعِ «هزینهٔ در راه» فقط سرورهایی را دارد که مبلغشان پر شده. '
+                    .'برای بقیه در «سرورهای تحویل» اجارهٔ ماهانه را بزنید، وگرنه این '
+                    .'عدد کم‌تر از واقع می‌مانَد و سودِ محاسبه‌شده خوش‌بینانه است.',
+            ];
+        }
+
+        if (($rent['unconvertible'] ?? 0) > 0) {
+            $spots[] = [
+                'title' => 'نرخِ یورو در دسترس نبود',
+                'why'   => fa_num((string) $rent['unconvertible']).' سرور مبلغِ ارزی دارد '
+                    .'ولی تبدیل به تومان انجام نشد، پس در جمع نیامده‌اند.',
+            ];
+        }
+
+        return array_merge($spots, [
             [
                 'title' => 'هزینهٔ ماهانهٔ هر سرورِ ابری',
                 'why'   => 'بهایِ تمام‌شده روی «پلن» است، ولی سرورِ ساخته‌شده ستونی به پلنش '
@@ -464,6 +670,6 @@ class BusinessReport
                 'why'   => 'بازپرداخت‌ها به‌صورتِ **اعتبارِ فروشگاهی** برمی‌گردند، نه خروجِ '
                     .'پول. پس نه در هزینه دیده می‌شوند نه از درآمد کم می‌شوند.',
             ],
-        ];
+        ]);
     }
 }

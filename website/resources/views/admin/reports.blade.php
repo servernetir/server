@@ -11,7 +11,16 @@
   // جمعِ پولِ در راه — تمدیدِ سرویس + تمدیدِ دامنه. معوق جداست چون
   // «در راه» نیست، «عقب‌افتاده» است و رفتارِ متفاوتی می‌خواهد.
   $expectedIn = (int) $in['renewals']['amount'] + (int) $in['domains']['amount'];
-  $expectedOut = (int) $out['domains']['toman'];
+  $rent = $out['servers'];
+  /*
+  | 🔴 «جا مانده» = بی‌قیمت **به‌علاوهٔ** تبدیل‌نشده.
+  |
+  | پیش از این فقط `unpriced` سنجیده می‌شد، پس وقتی نرخِ ارز در دسترس نبود
+  | صفحه هم‌زمان «۰ تومان» نشان می‌داد و ادعا می‌کرد جمع کامل است — در حالی
+  | که کلِ اجارهٔ ارزی از قلم افتاده بود.
+  */
+  $rentMissing = (int) ($rent['unpriced'] ?? 0) + (int) ($rent['unconvertible'] ?? 0);
+  $expectedOut = (int) $out['domains']['toman'] + (int) ($rent['toman'] ?? 0);
 
   $maxTrend = max(1, collect($trend)->flatMap(fn ($m) => [$m['revenue'], $m['expense']])->max() ?: 1);
   $maxCust  = max(1, collect($customers['trend'])->max('count') ?: 1);
@@ -39,7 +48,12 @@
   <div class="fin-kpi">
     <span class="fin-kpi-l">هزینهٔ در راه</span>
     <b class="fin-kpi-v" style="color:#fbbf24">{{ $t($expectedOut) }}</b>
-    <small>کفِ هزینهٔ تمدیدِ دامنه — پایین بخوانید چرا کف است</small>
+    <small>
+      اجارهٔ سرور + تمدیدِ دامنه
+      @if($rentMissing > 0)
+        · <span style="color:#ff6b6b">{{ fa_num($rentMissing) }} سرور در این جمع نیست</span>
+      @endif
+    </small>
   </div>
   <div class="fin-kpi">
     <span class="fin-kpi-l">طلبِ وصول‌نشده</span>
@@ -73,6 +87,25 @@
           <td class="fin-src">{{ fa_num($in['domains']['count']) }} دامنه</td>
         </tr>
         <tr>
+          <td>
+            اجارهٔ سرورها
+            @if($rentMissing > 0)
+              <br><small style="color:#ff6b6b">
+                {{ fa_num($rentMissing) }} سرور در این جمع نیست
+                @if(($rent['unconvertible'] ?? 0) > 0)(نرخِ ارز در دسترس نبود)@endif
+              </small>
+            @endif
+          </td>
+          <td class="fin-num" style="color:#ff6b6b">− {{ $t($rent['toman'] ?? 0) }}</td>
+          <td class="fin-src">
+            @if($rent['ready'] ?? false)
+              ماهی {{ $t($rent['monthly']) }}
+            @else
+              ستون‌ها ساخته نشده
+            @endif
+          </td>
+        </tr>
+        <tr>
           <td>تمدیدِ دامنه‌ها (پرداخت به رجیسترار)<br><small style="color:var(--dim)">بر پایهٔ قیمتِ ثبتِ اولیه — تمدید معمولاً گران‌تر است</small></td>
           <td class="fin-num" style="color:#ff6b6b">− {{ $t($out['domains']['toman']) }}</td>
           <td class="fin-src">
@@ -88,7 +121,13 @@
           <td class="fin-num" style="color:{{ ($expectedIn - $expectedOut) >= 0 ? '#34d399' : '#ff6b6b' }}">
             {{ $t($expectedIn - $expectedOut) }}
           </td>
-          <td class="fin-src">بی‌احتسابِ هزینه‌های ثابت</td>
+          <td class="fin-src">
+            @if($rentMissing > 0)
+              ناقص — {{ fa_num($rentMissing) }} سرور جا مانده
+            @else
+              اجاره + دامنه
+            @endif
+          </td>
         </tr>
       </table>
 
@@ -263,6 +302,14 @@
                   {{ fa_num($s['used']) }} <small style="color:var(--dim)">نامحدود</small>
                 @endif
                 @if($s['full'])<span style="color:#ff6b6b"> پر</span>@endif
+                <br>
+                @if($s['cost'] !== null)
+                  <small style="color:var(--dim)">{{ $t($s['cost']) }}/ماه</small>
+                @elseif($s['cost_unknown'] ?? true)
+                  <small style="color:#ff6b6b">اجاره وارد نشده</small>
+                @else
+                  <small style="color:#fbbf24">نرخِ ارز در دسترس نبود</small>
+                @endif
               </span>
             </div>
           @endforeach
