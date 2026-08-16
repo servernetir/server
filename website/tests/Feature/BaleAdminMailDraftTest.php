@@ -10,6 +10,7 @@ use App\Services\Mail\MailReplyDraftWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -36,6 +37,13 @@ class BaleAdminMailDraftTest extends TestCase
 
         Http::swap(new Factory);
         Http::fake(['*' => Http::response(['ok' => true])]);
+        Mail::fake();
+
+        // اعتبارنامهٔ صندوقِ مدیرعامل — بی‌آن، ارسال عمداً رد می‌شود
+        config()->set('mailboxes.accounts', [
+            ['key' => 'ceo', 'label' => 'مدیرعامل', 'user' => 'ceo@servernet.cloud', 'pass' => 'x'],
+            ['key' => 'info', 'label' => 'اطلاعات', 'user' => 'info@servernet.cloud', 'pass' => null],
+        ]);
 
         $u = User::create([
             'name' => 'کارفرما', 'email' => 'o'.random_int(1, 999999).'@x.com',
@@ -157,38 +165,17 @@ class BaleAdminMailDraftTest extends TestCase
         $this->assertStringContainsString('قیمت‌ها در صفحهٔ هاست', $this->outbox());
     }
 
-    /**
-     * 🔴 هیچ دکمهٔ «ارسال»ی وجود ندارد — و پیام هم باید صریح بگوید.
-     *
-     * صندوق فقط با IMAP خوانده می‌شود و مسیرِ SMTPِ پاسخ در اپ نیست. اگر
-     * کارفرما خیال کند ایمیل رفته، مشتری بی‌پاسخ می‌مانَد و هیچ‌جا هم ردی
-     * نیست که چرا.
-     */
-    public function test_the_draft_is_never_presented_as_sent(): void
+    /** پیش‌نویس به‌تنهایی چیزی نمی‌فرستد — تا وقتی دکمهٔ ارسال زده نشود */
+    public function test_a_draft_alone_sends_nothing(): void
     {
         $m = $this->mail();
 
         $this->fakeWriter('متنِ پیش‌نویس');
         $this->click('v1:me:'.$m->id);
 
-        $out = $this->outbox();
-
-        $this->assertStringContainsString('ارسال نمی‌شود', $out);
-
-        foreach ($this->buttonsSent() as $d) {
-            $this->assertStringNotContainsString('send', $d);
-        }
-    }
-
-    /** نامه پس از پیش‌نویس هنوز در صف است — تا کارفرما خودش بایگانی کند */
-    public function test_drafting_does_not_take_the_mail_out_of_the_queue(): void
-    {
-        $m = $this->mail();
-
-        $this->fakeWriter('متنِ پیش‌نویس');
-        $this->click('v1:me:'.$m->id);
-
+        $this->assertStringContainsString('هنوز چیزی نرفته', $this->outbox());
         $this->assertTrue((bool) $m->fresh()->needs_reply, 'نامه بی‌آنکه پاسخ برود از صف رفت');
+        Mail::assertNothingSent();
     }
 
     /** وقتی مدل جواب نمی‌دهد، متنِ صادق می‌آید نه پیش‌نویسِ خالی */
@@ -200,5 +187,171 @@ class BaleAdminMailDraftTest extends TestCase
         $this->click('v1:me:'.$m->id);
 
         $this->assertStringContainsString('ساخته نشد', $this->outbox());
+    }
+
+    // ═══════════════ ارسالِ واقعی ═══════════════
+
+    private function work(): void
+    {
+        $this->artisan('bale:work')->assertSuccessful();
+    }
+
+    /**
+     * 🔴 ارسال داخلِ وب‌هوک انجام **نمی‌شود** — در صف می‌رود.
+     *
+     * یک اتصالِ SMTP می‌تواند از مهلتِ بله بلندتر شود؛ بله همان آپدیت را
+     * دوباره می‌فرستد و نامه دو بار برای مشتری می‌رود. ایمیل برگشت ندارد.
+     */
+    public function test_sending_is_queued_not_run_inside_the_webhook(): void
+    {
+        $m = $this->mail();
+
+        $this->fakeWriter('سلام، قیمت‌ها در صفحهٔ هاست آمده است.');
+        $this->click('v1:me:' . $m->id);
+        $this->click('v1:mes:' . $m->id);
+
+        Mail::assertNothingSent();
+        $this->assertNotNull(app(AdminBaleGate::class)->pendingJob(), 'کار در صف نرفت');
+
+        $this->work();
+
+        Mail::assertSentCount(1);
+    }
+
+    /** پاسخ از نشانیِ **همان صندوقی** می‌رود که نامه به آن رسیده */
+    public function test_the_reply_is_sent_from_the_receiving_mailbox(): void
+    {
+        $m = $this->mail();
+
+        $this->fakeWriter('پاسخِ ما');
+        $this->click('v1:me:' . $m->id);
+        $this->click('v1:mes:' . $m->id);
+        $this->work();
+
+        Mail::assertSent(\App\Mail\MailboxReplyMail::class, function ($mail) {
+            return $mail->hasFrom('ceo@servernet.cloud')
+                && $mail->hasTo('someone@example.com');
+        });
+    }
+
+    /**
+     * 🔴 صندوقِ بی‌رمز پاسخ داده نمی‌شود — و سقوطِ بی‌صدا به فرستندهٔ پیش‌فرض
+     * هم نمی‌کند.
+     *
+     * اگر From با کاربرِ احرازشده نخوانَد، SPF/DKIM رد می‌کند و پاسخِ ما به
+     * اسپم می‌رود، بی‌هیچ خطایی سمتِ ما — یعنی نامه‌ای که به‌نظر رفته و
+     * کارفرما دیگر پیگیرش نمی‌شود.
+     */
+    public function test_a_mailbox_without_credentials_refuses_instead_of_sending(): void
+    {
+        $m = $this->mail(['account' => 'info']);
+
+        $res = app(\App\Services\Mail\MailboxReplier::class)->reply($m, 'متن');
+
+        $this->assertFalse($res['ok']);
+        $this->assertStringContainsString('رمزی', $res['message']);
+        Mail::assertNothingSent();
+        $this->assertTrue((bool) $m->fresh()->needs_reply, 'نامهٔ نفرستاده از صف بیرون رفت');
+    }
+
+    /** نامه فقط **پس از** ارسالِ موفق از صف بیرون می‌رود */
+    public function test_the_mail_leaves_the_queue_only_after_a_successful_send(): void
+    {
+        $m = $this->mail();
+
+        $res = app(\App\Services\Mail\MailboxReplier::class)->reply($m, 'پاسخِ ما');
+
+        $this->assertTrue($res['ok'], $res['message']);
+        $this->assertFalse((bool) $m->fresh()->needs_reply);
+        $this->assertNotNull($m->fresh()->handled_at);
+    }
+
+    /** فرستندهٔ بی‌نشانیِ معتبر — هرگز تلاشِ ارسال نمی‌شود */
+    public function test_an_invalid_sender_address_is_refused(): void
+    {
+        $m = $this->mail(['from_email' => 'not-an-email']);
+
+        $res = app(\App\Services\Mail\MailboxReplier::class)->reply($m, 'پاسخ');
+
+        $this->assertFalse($res['ok']);
+        Mail::assertNothingSent();
+    }
+
+    /** «Re: Re:» ساخته نمی‌شود و موضوعِ خالی هم قابلِ ارسال است */
+    public function test_the_subject_is_threaded_not_doubled(): void
+    {
+        $already = $this->mail(['subject' => 'Re: قیمت هاست']);
+
+        app(\App\Services\Mail\MailboxReplier::class)->reply($already, 'پاسخ');
+
+        Mail::assertSent(\App\Mail\MailboxReplyMail::class, function ($mail) {
+            return ! str_contains($mail->subjectLine, 'Re: Re:')
+                && str_starts_with($mail->subjectLine, 'Re: ');
+        });
+    }
+
+    /** «خودم می‌نویسم» متنِ آزاد را می‌گیرد و همان را در صف می‌گذارد */
+    public function test_writing_the_reply_by_hand_queues_that_text(): void
+    {
+        $m = $this->mail();
+
+        $this->click('v1:mew:' . $m->id);
+
+        $this->assertSame('mailreply:' . $m->id, app(AdminBaleGate::class)->flow());
+
+        $this->postJson('/bale/webhook/' . substr(hash('sha256', self::BOT), 0, 32), [
+            'update_id' => random_int(1, 10_000_000),
+            'message' => [
+                'chat' => ['id' => self::OWNER_CHAT, 'type' => 'private'],
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'text' => 'متنِ دستیِ من',
+            ],
+        ]);
+
+        $job = app(AdminBaleGate::class)->pendingJob();
+
+        $this->assertNotNull($job, 'متنِ دستی در صف نرفت');
+        $this->assertSame('mail_reply', $job['verb']);
+        $this->assertSame('متنِ دستیِ من', $job['args']['body']);
+    }
+
+    /**
+     * 🔴 هدرهای رشته واقعاً روی نامه می‌نشینند.
+     *
+     * ادعای «پاسخ در همان گفتگو می‌نشیند» را فقط همین دو هدر نگه می‌دارند، و
+     * نبودشان هیچ خطایی نمی‌سازد: نامه می‌رود، فقط به‌عنوان یک رشتهٔ تازه.
+     * پس ادعا باید روی خودِ پیامِ ساخته‌شده سنجیده شود، نه روی نیتِ کد.
+     */
+    public function test_the_reply_carries_the_threading_headers(): void
+    {
+        $mail = new \App\Mail\MailboxReplyMail('متن', 'Re: سلام', 'abc123@mail.example');
+        $mail->build();
+
+        $email = new \Symfony\Component\Mime\Email;
+
+        foreach ($mail->callbacks as $cb) {
+            $cb($email);
+        }
+
+        $h = $email->getHeaders();
+
+        $this->assertTrue($h->has('In-Reply-To'), 'هدرِ In-Reply-To نیامد');
+        $this->assertStringContainsString('<abc123@mail.example>', $h->get('In-Reply-To')->getBodyAsString());
+        $this->assertStringContainsString('<abc123@mail.example>', $h->get('References')->getBodyAsString());
+    }
+
+    /** نامهٔ بی‌Message-ID هم باید بی‌خطا برود — فقط بی‌نخ */
+    public function test_a_mail_without_a_message_id_still_sends(): void
+    {
+        $mail = new \App\Mail\MailboxReplyMail('متن', 'Re: سلام', null);
+        $mail->build();
+
+        $email = new \Symfony\Component\Mime\Email;
+
+        foreach ($mail->callbacks as $cb) {
+            $cb($email);
+        }
+
+        $this->assertFalse($email->getHeaders()->has('In-Reply-To'));
     }
 }

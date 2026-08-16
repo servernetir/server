@@ -702,6 +702,46 @@ class AdminBaleGate
         }
     }
 
+    /**
+     * پیش‌نویسِ پاسخِ **ایمیل** — عمداً در خانهٔ جدا از پیش‌نویسِ تیکت.
+     *
+     * 🔴 یک خانهٔ مشترک وسوسه‌انگیز بود و دقیقاً همان چیزی است که نباید باشد:
+     * شناسهٔ تیکت و شناسهٔ نامه هر دو عددند و می‌توانند برابر شوند. آن‌وقت
+     * دکمهٔ «ارسال» روی یک کارت، متنِ **آن یکی** را می‌فرستاد — به آدمِ دیگری،
+     * و برگشت‌ناپذیر.
+     */
+    public function putMailDraft(int $mailId, string $text): void
+    {
+        try {
+            $this->putState(['mdraft' => [
+                'mail' => $mailId,
+                'text' => mb_substr($text, 0, 3000),
+                'exp'  => now()->addMinutes(30)->getTimestamp(),
+            ]]);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'putMailDraft']);
+        }
+    }
+
+    public function takeMailDraft(int $mailId): ?string
+    {
+        try {
+            $d = $this->state()['mdraft'] ?? null;
+
+            if (! is_array($d) || (int) ($d['mail'] ?? 0) !== $mailId) {
+                return null;
+            }
+
+            if ((int) ($d['exp'] ?? 0) < now()->getTimestamp()) {
+                return null;
+            }
+
+            return (string) ($d['text'] ?? '') ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     /** پیش‌نویسِ همان تیکت، یا null اگر نبود/منقضی/مالِ تیکتِ دیگری بود */
     public function takeDraft(int $ticketId): ?string
     {

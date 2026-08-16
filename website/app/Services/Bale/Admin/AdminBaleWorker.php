@@ -36,6 +36,7 @@ class AdminBaleWorker
                 'receipt_approve' => $this->approveReceipt((int) ($args['id'] ?? 0)),
                 'receipt_reject'  => $this->rejectReceipt((int) ($args['id'] ?? 0), (string) ($args['reason'] ?? '')),
                 'service_terminate' => $this->terminateService((int) ($args['id'] ?? 0)),
+                'mail_reply'      => $this->replyToMail((int) ($args['id'] ?? 0), (string) ($args['body'] ?? '')),
                 default => $this->tell('⚠️ کارِ ناشناخته در صف بود و اجرا نشد.'),
             };
         } catch (\Throwable $e) {
@@ -127,6 +128,35 @@ class AdminBaleWorker
         $this->tell('🗑 «'.$name.'»'.($who ? ' — '.$who : '')
             ."\n🔴 صورت‌حساب بسته شد ولی زیرساخت حذف را نپذیرفت."
             ."\nدر صفِ تلاشِ دوباره مانْد؛ تا بسته نشود اجاره‌اش پای ماست.");
+    }
+
+    // ───────────────────────── پاسخِ ایمیل ─────────────────────────
+
+    /**
+     * ⚠️ خودِ ارسال در `MailboxReplier` است، نه این‌جا: پنلِ ادمین هم روزی
+     * همان دکمه را می‌خواهد و دو پیاده‌سازیِ ارسالِ ایمیل یعنی روزی یکی‌شان
+     * هدرِ رشته را جا می‌اندازد و پاسخ‌ها از گفتگو جدا می‌افتند.
+     */
+    private function replyToMail(int $id, string $body): void
+    {
+        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::find($id) : null;
+
+        if ($m === null) {
+            $this->tell('ایمیل پیدا نشد؛ پاسخ فرستاده نشد.');
+
+            return;
+        }
+
+        $res = app(\App\Services\Mail\MailboxReplier::class)->reply(
+            $m, $body,
+            $this->gate->boundUser()?->id,
+            $this->gate->boundUser()?->name,
+        );
+
+        $this->tell(($res['ok'] ? '📧 ' : '⚠️ ').$res['message']
+            ."\n\nموضوع: ".mb_substr((string) $m->subject, 0, 80)
+            ."\nگیرنده: ".mb_substr((string) $m->from_email, 0, 80));
     }
 
     // ───────────────────────────── کمکی ─────────────────────────────
