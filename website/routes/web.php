@@ -75,6 +75,8 @@ $site = function (): void {
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:tools');
+    // پیشنهادگر نام دامنه — سطل ai چون هر درخواست یک تماس مدل است
+    Route::post('/api/domain-ideas', [ToolController::class, 'ideas'])->name('api.ideas')->middleware('throttle:ai');
 
     /*
      * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.

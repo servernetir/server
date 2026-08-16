@@ -110,6 +110,36 @@
   </div>
 </section>
 
+{{--
+  ══ هویتِ حقوقی ══
+
+  🔴 کلِ بخش فقط وقتی می‌آید که **چیزی برای گفتن** باشد.
+
+  خریدارِ ایرانی پیش از پرداخت دنبالِ همین است: نامِ ثبتی، شمارهٔ ثبت، نشانیِ
+  فیزیکی. ولی جای‌نگهدار («شماره ثبت: —») از نبودنِ بخش بدتر است، چون صریح
+  می‌گوید نداریم. `company_identity()` خالی‌ها را اصلاً برنمی‌گرداند، پس این
+  بخش تا روزی که `.env` پر شود اصلاً وجود ندارد.
+--}}
+@php($ident = company_identity())
+@php($addr = company_address())
+@if($ident || $addr)
+<section class="section" id="legal" style="padding-top:0;padding-bottom:60px">
+  <div class="container" style="max-width:820px">
+    <div class="section-head reveal" style="margin-bottom:22px">
+      <h2 style="font-size:24px">{{ __('ui.trust_title') }}</h2>
+    </div>
+    <div class="ct-legal reveal">
+      @foreach($ident as $row)
+        <div><b>{{ __($row['label']) }}</b><span>{{ app()->getLocale() === 'fa' ? fa_num($row['value']) : $row['value'] }}</span></div>
+      @endforeach
+      @if($addr)
+        <div><b>{{ __('ui.trust_address') }}</b><span>{{ app()->getLocale() === 'fa' ? fa_num($addr) : $addr }}</span></div>
+      @endif
+    </div>
+  </div>
+</section>
+@endif
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // باز کردن ویجت چت از کارت «دستیار هوشمند»

@@ -133,4 +133,55 @@ return [
         ],
     ],
 
+    "domain-ideas" => [
+        "fa" => [
+            "intro" => "خوب‌ترین نام‌ها زودتر از همه ثبت می‌شوند و جستجوی دستی، ساعت‌ها وقت می‌بَرد: نامی به ذهن می‌رسد، استعلام می‌گیرید، گرفته شده، و از اول. این ابزار مسیر را برعکس می‌کند — کسب‌وکارتان را در یک جمله توصیف می‌کنید و هوش مصنوعی نام‌های کوتاه و برنددار می‌سازد؛ نام‌هایی که قطعاً ثبت شده‌اند همان لحظه علامت می‌خورند تا وقتتان را نگیرند و بقیه با یک کلیک به استعلام زندهٔ رجیسترار و قیمتِ روز می‌رسند. نام خوب، کوتاه است، راحت تلفظ می‌شود و با برندتان بزرگ می‌شود.",
+            "steps" => [
+                "کسب‌وکار یا ایده‌تان را در یک جمله توصیف کنید — فارسی یا انگلیسی، فرقی ندارد.",
+                "دکمهٔ پیشنهاد را بزنید تا فهرستی از نام‌های کوتاه و برنددار ساخته شود.",
+                "نام‌هایی که «ثبت شده» خورده‌اند را کنار بگذارید — این وضعیت قطعی است.",
+                "روی نامِ موردعلاقه «بررسی و ثبت» را بزنید تا استعلام زنده با قیمت روز و پسوندهای مختلف را ببینید و همان‌جا ثبتش کنید.",
+            ],
+            "faq" => [
+                ["q" => "چرا بعضی نام‌ها علامت ثبت‌شده ندارند ولی بعداً معلوم می‌شود گرفته‌اند؟", "a" => "علامت «ثبت شده» از وجود نیم‌سرور می‌آید که مدرک قطعی است؛ اما دامنهٔ ثبت‌شده‌ای که هنوز نیم‌سرور ندارد هم وجود دارد. برای همین وضعیت نهایی همیشه با استعلام زندهٔ لحظهٔ خرید مشخص می‌شود — دکمهٔ بررسی همین کار را می‌کند."],
+                ["q" => "نام خوب چه ویژگی‌هایی دارد؟", "a" => "کوتاه (زیر ۱۲ حرف)، بدون خط تیره و عدد، راحت در تلفظ و املا، و بدون وابستگی به یک کلمهٔ عمومی — نامی که بشود رویش برند ساخت. اگر مخاطبتان ایرانی است، تلفظِ فارسی‌اش را هم بلند بگویید تا مطمئن شوید غریب نیست."],
+                ["q" => "توضیح را فارسی بنویسم یا انگلیسی؟", "a" => "هر دو کار می‌کند. اگر فارسی بنویسید، مدل مفهوم را می‌فهمد و نام لاتین می‌سازد. هرچه توصیف دقیق‌تر باشد — حوزه، مخاطب، حس برند — پیشنهادها هدفمندتر می‌شوند."],
+                ["q" => "چرا فقط پسوند com. نشان داده می‌شود؟", "a" => "com. جهانی‌ترین و امن‌ترین انتخاب برای برند است و وضعیتش سریع بررسی می‌شود. در صفحهٔ استعلام می‌توانید همان نام را با ده‌ها پسوند دیگر (ir.، io.، shop. و…) ببینید و مقایسه کنید."],
+                ["q" => "پیشنهادها تکراری یا نامرتبط بود؛ چه کنم؟", "a" => "توصیف را کمی دقیق‌تر کنید: به‌جای «فروشگاه»، بنویسید «فروشگاه آنلاین قهوهٔ تخصصی برای دفترهای کار». هر بار اجرا نتیجهٔ تازه می‌سازد، پس دوباره امتحان‌کردن هم مؤثر است."],
+            ],
+        ],
+        "en" => [
+            "intro" => "The best names get registered first, and searching by hand burns hours: you think of a name, look it up, it is taken, repeat. This tool reverses the flow — describe your business in one sentence and the AI invents short, brandable candidates; names that are definitely taken get flagged immediately so they waste none of your time, and the rest are one click away from a live registrar check at today s price. A good name is short, easy to say, and grows with your brand.",
+            "steps" => [
+                "Describe your business or idea in one sentence — Persian or English both work.",
+                "Press the suggest button to get a list of short, brandable candidates.",
+                "Skip the ones flagged as taken — that flag is definitive.",
+                "Click check and register on your favorite to see the live availability with today s price and other extensions, and register it right here.",
+            ],
+            "faq" => [
+                ["q" => "Why do some unflagged names later turn out to be taken?", "a" => "The taken flag comes from the existence of nameservers, which is definitive evidence; but registered domains without nameservers exist too. The final answer always comes from the live check at purchase time — that is what the check button does."],
+                ["q" => "What makes a good domain name?", "a" => "Short (under 12 letters), no hyphens or digits, easy to pronounce and spell, and not chained to one generic keyword — a name you can build a brand on."],
+                ["q" => "Should I write the description in Persian or English?", "a" => "Both work. Write in Persian and the model understands the concept and invents latin names. The more specific the description — field, audience, brand feel — the sharper the suggestions."],
+                ["q" => "Why is only the .com extension shown?", "a" => "It is the most universal, safest choice for a brand and its status can be checked fast. On the search page you can compare the same name across dozens of other extensions."],
+                ["q" => "The suggestions felt generic — what now?", "a" => "Sharpen the description: instead of a store, write an online store for specialty coffee aimed at offices. Every run generates fresh results, so trying again also helps."],
+            ],
+        ],
+        "tr" => [
+            "intro" => "En iyi isimler once kaydedilir ve elle arama saatler alir: bir isim dusunursunuz, sorgularsiniz, alinmistir, bastan. Bu arac akisi tersine cevirir — isinizi tek cumleyle tanimlarsiniz, yapay zeka kisa ve marka olabilecek adaylar uretir; kesin alinmis olanlar aninda isaretlenir, digerleri tek tikla canli kayit sorgusuna gider. Iyi bir isim kisadir, kolay soylenir ve markanizla buyur.",
+            "steps" => [
+                "Isinizi veya fikrinizi tek cumleyle tanimlayin.",
+                "Oner dugmesine basarak kisa, marka olabilecek aday listesini alin.",
+                "Alinmis olarak isaretlenenleri atlayin — bu isaret kesindir.",
+                "Begendiginizde kontrol et ve kaydet dugmesiyle guncel fiyatli canli sorguyu gorun ve hemen kaydedin.",
+            ],
+            "faq" => [
+                ["q" => "Isaretsiz bazi isimler neden sonradan alinmis cikiyor?", "a" => "Alinmis isareti ad sunucularinin varligindan gelir ve kesin kanittir; ancak ad sunucusu olmayan kayitli alan adlari da vardir. Son cevap her zaman satin alma anindaki canli sorgudan gelir."],
+                ["q" => "Iyi bir alan adi nasil olur?", "a" => "Kisa (12 harfin altinda), tiresiz ve rakamsiz, kolay telaffuz edilir — uzerine marka kurabileceginiz bir isim."],
+                ["q" => "Aciklamayi hangi dilde yazmaliyim?", "a" => "Farsca ve Ingilizce ikisi de calisir; model kavrami anlar ve latin isimler uretir. Aciklama ne kadar net olursa oneriler o kadar isabetli olur."],
+                ["q" => "Neden yalnizca .com gosteriliyor?", "a" => "Marka icin en evrensel ve guvenli secimdir. Arama sayfasinda ayni ismi baska uzantilarla karsilastirabilirsiniz."],
+                ["q" => "Oneriler genel kaldi — ne yapmaliyim?", "a" => "Tanimi keskinlestirin: magaza yerine ofislere ozel kahve satan cevrimici magaza yazin. Her calistirma yeni sonuc uretir."],
+            ],
+        ],
+    ],
+
 ];

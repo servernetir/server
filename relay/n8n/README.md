@@ -80,3 +80,58 @@ node relay/n8n/verify-and-map-template.test.js
 | الگو | کد | افزوده‌شده |
 |---|---|---|
 | `otp_service_delete` | `tr4yx3mbo37rvmm` | شهریور ۱۴۰۵ — کدِ حذفِ کاملِ سرور |
+
+---
+
+# گرهٔ «Iran Probe» — نقطهٔ سنجشِ داخلِ ایران (iran-probe.js)
+
+ورک‌فلوی **جدا** از رلهٔ پیامک، روی همان n8n ایرانی. مصرف‌کننده: ابزارهای
+عمومیِ «تست سرعت» و «دسترسی از ایران» روی سایت
+(`App\Services\WebProbe::probeFetch`).
+
+```
+Laravel ──POST {target}──▶ Webhook → Set (probeToken) → Code (iran-probe.js) → Respond
+```
+
+ساختِ ورک‌فلو در n8n:
+
+1. **Webhook** — متد POST، مسیرِ تصادفی، Respond: «Using Respond to Webhook node».
+2. **Set** — فیلد `probeToken` با رمزِ مشترک (رمز فقط این‌جا؛ در مخزن نیست).
+3. **Code** — محتوای `iran-probe.js`، حالت «Run Once for All Items».
+4. **Respond to Webhook** — JSONِ آخرین گره.
+
+سپس در `.env` سرورِ اصلی:
+
+```
+IRAN_PROBE_URL='https://flow.servernet.cloud/webhook/…'
+IRAN_PROBE_TOKEN='…'
+```
+
+- توکنِ ست‌نشده یا غلط ⇒ `{ok:false, error:"bad_token"}` — **fail-closed**.
+- پاسخِ ردشده هم HTTP 200 است؛ لاراول فقط `ok` را می‌خوانَد (قاعدهٔ «۲۰۰ ولی نرفت»).
+- بدونِ این ورک‌فلو هیچ‌چیز نمی‌شکند: ابزارها فقط از دید اروپا می‌سنجند و
+  ردیفِ ایران «پیکربندی‌نشده» می‌مانَد.
+- ⚠️ اولین قدمِ عیب‌یابی، مثل رله: **وب‌هوک را مستقیم بزن** (curl با هدرِ
+  `X-Probe-Token`). اگر `no_http_capability` گرفتی یعنی سندباکسِ این n8n نه
+  helper دارد نه fetch — گزینهٔ جایگزین: گرهٔ HTTP Request به‌جای Code
+  (بدونِ زمان‌سنجی).
+
+تست: `node iran-probe.test.js` (۱۵ ادعا، بدونِ تماسِ شبکه).
+
+### وضعیت دیپلوی (۱۶ اوت ۲۰۲۶ / ۲۵ مرداد ۱۴۰۵)
+
+ورک‌فلو ساخته و **فعال** شد: `ServerNet Iran Probe (Speed & Access tools)`
+(شناسه `zAHK7jJdD8GuQfjw` روی flow.servernet.cloud). آزموده‌شده با تماس
+مستقیم: توکن غلط ⇒ bad_token · هدف خصوصی ⇒ private_target · ftp ⇒
+bad_scheme · example.com از ایران ⇒ ‎200 در ~180ms · servernet.cloud از
+ایران ⇒ ‎200 در ~820ms.
+
+🔴 **درس دوم سندباکس:** علاوه بر crypto، گلوبال `URL` هم وجود ندارد.
+نسخه‌ی اولِ گره با `new URL(target)` هر هدفِ سالمی را «bad_target» می‌کرد —
+بی‌هیچ خطایی در لاگ، چون catch عمومی آن را می‌بلعید. پارس URL حالا فقط با
+رجکس است. به هیچ گلوبالِ محیطی (URL، Buffer، TextEncoder، crypto) تکیه نکن؛
+فقط رشته و رجکس و Date.
+
+⚠️ تست محلی از این ماشین ویندوزی ممکن نیست: `C:\php\extras\ssl\cacert.pem`
+خراب است و HTTPS از PHP شکست می‌خورد (curl.exe سالم است). روی سرور اصلی
+همین مسیر HTTPS به همین هاست را رله‌ی پیامک هر روز می‌رود.

@@ -61,12 +61,23 @@
 <link rel="stylesheet" href="{{ asset_ver('assets/css/site.css') }}">
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')
-<script type="application/ld+json">{!! json_encode([
+@php
+/*
+| دادهٔ ساختاریافتهٔ سازمان — این‌جاست که نشانه‌های اعتماد واقعاً کار می‌کنند.
+|
+| گوگل و مدل‌های زبانی نامِ ثبتی و نشانی و شناسه را از همین می‌خوانند، نه از
+| متنِ فوتر. ولی **فقط اگر پر باشند**: `legalName` یا `address`ِ خالی در
+| schema بدتر از نبودنش است، چون داده‌ای می‌سازد که خودش می‌گوید ناقص است.
+|
+| ⚠️ `company_identity()` خالی‌ها را حذف کرده برمی‌گرداند، پس این‌جا فقط
+| بررسیِ وجود لازم است نه دوباره trim.
+*/
+$org = [
     '@'.'context' => 'https://schema.org',
     '@type' => 'Organization',
     'name' => 'ServerNet',
     'url' => config('app.url'),
-    'foundingDate' => '2009',
+    'foundingDate' => (string) config('company.founded', '2009'),
     'sameAs' => array_values($social),
     'contactPoint' => [
         '@type' => 'ContactPoint',
@@ -75,7 +86,34 @@
         'contactType' => 'customer support',
         'availableLanguage' => ['fa', 'en'],
     ],
-], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+];
+
+if ($legalName = trim((string) config('company.legal_name', ''))) {
+    $org['legalName'] = $legalName;
+}
+
+$addrCfg = (array) config('company.address', []);
+if (trim((string) ($addrCfg['street'] ?? '')) !== '' && trim((string) ($addrCfg['city'] ?? '')) !== '') {
+    $org['address'] = array_filter([
+        '@type' => 'PostalAddress',
+        'streetAddress' => trim((string) $addrCfg['street']),
+        'addressLocality' => trim((string) $addrCfg['city']),
+        'addressRegion' => trim((string) ($addrCfg['province'] ?? '')),
+        'postalCode' => trim((string) ($addrCfg['postcode'] ?? '')),
+        'addressCountry' => trim((string) ($addrCfg['country'] ?? 'IR')),
+    ], fn ($v) => $v !== '');
+}
+
+// شناسهٔ ملی/ثبت — `identifier` جای استانداردِ schema برای همین است
+$ids = array_values(array_filter([
+    trim((string) config('company.national_id', '')),
+    trim((string) config('company.registration_no', '')),
+]));
+if ($ids) {
+    $org['identifier'] = count($ids) === 1 ? $ids[0] : $ids;
+}
+@endphp
+<script type="application/ld+json">{!! json_encode($org, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 </head>
 {{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
      محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)

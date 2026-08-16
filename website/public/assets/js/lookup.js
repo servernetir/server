@@ -78,6 +78,99 @@
       <div class="lkr-nodes">${nodes}</div></div>`;
   }
 
+  function renderEmail(d) {
+    const badge = d.verdict === 'good' ? T.em_good : d.verdict === 'warn' ? T.em_warn : T.em_bad;
+    const cls = d.verdict === 'good' ? 'good' : d.verdict === 'warn' ? 'mid' : 'bad';
+    const yn = (b) => `<span class="lkr-yn ${b ? 'y' : 'n'}">${b ? T.em_found : T.em_missing}</span>`;
+    const spfNote = d.spf.multiple ? ` <span class="lkr-yn n">${esc(T.em_multi)}</span>` : '';
+    const rec = (r) => r ? `<div class="lkr-ns"><small>${esc(T.em_record)}</small><div><code dir="ltr">${esc(r)}</code></div></div>` : '';
+    return `<div class="lkr-ssl ${cls}">
+      <div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(badge)}</span></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>
+      <div class="lkr-grid">
+        <div class="lkr-item"><small>MX</small><span>${d.mx.length ? d.mx.map((m) => `<code dir="ltr">${esc(m)}</code>`).join(' ') : yn(false)}</span></div>
+        <div class="lkr-item"><small>SPF</small><span>${yn(d.spf.found)}${spfNote}</span></div>
+        <div class="lkr-item"><small>DMARC</small><span>${yn(d.dmarc.found)}${d.dmarc.policy ? ` <code dir="ltr">p=${esc(d.dmarc.policy)}</code>` : ''}</span></div>
+        <div class="lkr-item"><small>DKIM</small><span>${d.dkim.found.length ? d.dkim.found.map((s) => `<code dir="ltr">${esc(s)}</code>`).join(' ') : esc(T.em_dkim_none)}</span></div>
+      </div>
+      ${rec(d.spf.record)}${rec(d.dmarc.record)}</div>`;
+  }
+  function renderBlacklist(d) {
+    const cls = d.listed > 0 ? 'bad' : 'good';
+    const badge = d.listed > 0 ? T.bl_some.replace(':n', faNum(d.listed)) : T.bl_all_clean;
+    const state = (z) => z.state === 'listed' ? `<span class="lkr-yn n">${T.bl_listed}</span>`
+      : z.state === 'unknown' ? `<span>${T.bl_unknown}</span>` : `<span class="lkr-yn y">${T.bl_clean}</span>`;
+    const rows = d.zones.map((z) => `<tr><td class="lkr-type" dir="ltr">${esc(z.label)}</td>
+      <td>${state(z)}</td><td class="lkr-val" dir="ltr">${z.reason ? esc(z.reason) : '—'}</td></tr>`).join('');
+    return `<div class="lkr-ssl ${cls}"><div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(badge)}</span></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b><span dir="ltr">${esc(d.ip)}</span></div>
+      <div class="lkr-tablewrap"><table class="lkr-table">
+        <thead><tr><th>${esc(T.bl_zone)}</th><th>${esc(T.bl_state)}</th><th>${esc(T.bl_reason)}</th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>`;
+  }
+  function renderSpeed(d) {
+    const stat = (k, v, unit) => `<div class="lkr-stat"><b dir="ltr">${v == null ? '—' : faNum(v)}</b><small>${esc(k)}${unit ? ' (' + unit + ')' : ''}</small></div>`;
+    const vantage = (label, t) => `<div class="lkr-head" style="margin-top:14px"><b>${esc(label)}</b><span dir="ltr">HTTP ${esc(t.status)}</span></div>
+      <div class="lkr-pings ${t.ttfb_ms != null && t.ttfb_ms < 500 ? 'good' : t.ttfb_ms < 1000 ? 'mid' : 'bad'}">
+        ${stat('DNS', t.dns_ms, T.sp_ms)}${stat(T.sp_connect, t.connect_ms, T.sp_ms)}${stat('TLS', t.tls_ms, T.sp_ms)}${stat('TTFB', t.ttfb_ms, T.sp_ms)}${stat(T.sp_total, t.total_ms, T.sp_ms)}</div>`;
+    let iran = '';
+    if (d.iran.state === 'ok') {
+      iran = `<div class="lkr-head" style="margin-top:14px"><b>${esc(T.sp_iran)}</b><span dir="ltr">HTTP ${esc(d.iran.status)}</span></div>
+        <div class="lkr-pings ${d.iran.ok ? 'good' : 'bad'}">${stat(T.sp_total, d.iran.total_ms, T.sp_ms)}</div>`;
+    } else if (d.iran.state === 'failed') {
+      // probe زنده است ولی سایت از داخل ایران باز نشد — خودِ یافته است، نه خرابی
+      iran = `<p class="lkr-note">${esc(T.sp_iran)}: ${esc(T.ac_unreach_iran)}</p>`;
+    } else if (d.iran.state === 'unreachable') {
+      iran = `<p class="lkr-note">${esc(T.sp_probe_down)}</p>`;
+    } else {
+      iran = `<p class="lkr-note">${esc(T.sp_noprobe)}</p>`;
+    }
+    return head(d.domain, d.url) + vantage(T.sp_eu, d.eu) + iran;
+  }
+  function renderHeaders(d) {
+    const cls = d.score >= 70 ? 'good' : d.score >= 40 ? 'mid' : 'bad';
+    const names = { hsts: 'HSTS', csp: 'CSP', frame: T.hd_frame, nosniff: 'X-Content-Type-Options', referrer: 'Referrer-Policy', permissions: 'Permissions-Policy' };
+    const items = Object.keys(names).map((k) => `<div class="lkr-item"><small dir="ltr">${esc(names[k])}</small>
+      <span class="lkr-yn ${d.checks[k] ? 'y' : 'n'}">${d.checks[k] ? T.hd_present : T.hd_absent}</span></div>`).join('');
+    return `<div class="lkr-ssl ${cls}">
+      <div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(T.hd_grade)}: ${esc(d.grade)}</span><b>${faNum(d.score)}</b> <small>/ ${faNum(100)}</small></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b><span dir="ltr">HTTP ${esc(d.status)}</span></div>
+      <div class="lkr-grid">${items}</div>
+      ${d.server ? `<div class="lkr-ns"><small dir="ltr">Server</small><div><code dir="ltr">${esc(d.server)}</code></div></div>` : ''}</div>`;
+  }
+  function renderRedirects(d) {
+    const badge = d.loop ? T.rd_loop : d.count === 0 ? T.rd_none : faNum(d.count) + ' ' + T.rd_hops;
+    const cls = d.loop ? 'bad' : d.count <= 1 ? 'good' : 'mid';
+    const rows = d.hops.map((h2, i) => `<tr><td class="lkr-type" dir="ltr">${faNum(i + 1)}</td>
+      <td class="lkr-val" dir="ltr">${esc(h2.url)}</td>
+      <td class="lkr-ttl" dir="ltr">${h2.blocked ? esc(T.rd_blocked) : (h2.status == null ? '—' : faNum(h2.status))}</td></tr>`).join('');
+    return `<div class="lkr-ssl ${cls}"><div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(badge)}</span>
+      ${d.https_upgrade ? `<span class="lkr-yn y">${esc(T.rd_https)}</span>` : ''}</div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>
+      <div class="lkr-tablewrap"><table class="lkr-table">
+        <thead><tr><th>#</th><th>URL</th><th>${esc(T.rd_status)}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="lkr-ns"><small>${esc(T.rd_final)}</small><div><code dir="ltr">${esc(d.final)}</code>${d.final_status != null ? ` <code dir="ltr">HTTP ${esc(d.final_status)}</code>` : ''}</div></div></div>`;
+  }
+  function renderAccess(d) {
+    const verdicts = { filtered: [T.ac_filtered, 'bad'], accessible: [T.ac_accessible, 'good'], likely_ok: [T.ac_likely, 'good'], unreachable_iran: [T.ac_unreach_iran, 'bad'], unknown: [T.ac_unknown, 'mid'] };
+    const [label, cls] = verdicts[d.verdict] || verdicts.unknown;
+    const iranRows = d.iran_dns.map((n) => `<div class="lkr-node ${n.blocked ? 'no' : n.ok && n.ips.length ? 'ok' : 'no'}">
+      <div class="lkr-node-h"><b>${esc(n.resolver)}</b><small>IR</small></div>
+      <div class="lkr-node-v" dir="ltr">${!n.ok ? esc(T.ac_noanswer) : n.blocked ? esc(T.ac_block_ip) : (n.ips.length ? n.ips.map((v) => esc(v)).join('<br>') : esc(T.ac_noanswer))}</div></div>`).join('');
+    let iranHttp = '';
+    if (d.iran_http.state === 'ok') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span dir="ltr">HTTP ${esc(d.iran_http.status)}${d.iran_http.total_ms != null ? ' · ' + faNum(d.iran_http.total_ms) + T.sp_ms : ''}</span></div>`;
+    else if (d.iran_http.state === 'failed') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span class="lkr-yn n">${esc(T.ac_unreach_iran)}</span></div>`;
+    else if (d.iran_http.state === 'unreachable') iranHttp = `<div class="lkr-item"><small>${esc(T.ac_http_iran)}</small><span>${esc(T.ac_unknown)}</span></div>`;
+    return `<div class="lkr-ssl ${cls}"><div class="lkr-ssl-top"><span class="lkr-ssl-badge">${esc(label)}</span></div>
+      <div class="lkr-head" style="margin-top:6px"><b dir="ltr">${esc(d.domain)}</b></div>
+      <div class="lkr-grid">
+        <div class="lkr-item"><small>${esc(T.ac_dns_global)}</small><span dir="ltr">${d.global_ips.length ? d.global_ips.map((v) => esc(v)).join('<br>') : esc(T.ac_noanswer)}</span></div>
+        <div class="lkr-item"><small>${esc(T.ac_http_world)}</small><span dir="ltr">${d.world_http != null ? 'HTTP ' + esc(d.world_http) : esc(T.ac_unknown)}</span></div>
+        ${iranHttp}</div>
+      <div class="lkr-ns"><small>${esc(T.ac_dns_iran)}</small></div>
+      <div class="lkr-nodes">${iranRows}</div></div>`;
+  }
+
   function renderByKind(kind, d) {
     switch (kind) {
       case 'dns': return renderRecords(d);
@@ -87,6 +180,12 @@
       case 'ports': return renderPorts(d);
       case 'dnssec': return renderDnssec(d);
       case 'propagation': return renderProp(d);
+      case 'email': return renderEmail(d);
+      case 'blacklist': return renderBlacklist(d);
+      case 'speed': return renderSpeed(d);
+      case 'headers': return renderHeaders(d);
+      case 'redirects': return renderRedirects(d);
+      case 'access': return renderAccess(d);
       default: return '<pre dir="ltr">' + esc(JSON.stringify(d, null, 2)) + '</pre>';
     }
   }

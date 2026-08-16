@@ -16,6 +16,7 @@ return [
     'groups' => [
         'records' => ['fa' => 'رکوردهای DNS', 'en' => 'DNS Records', 'tr' => 'DNS Kayıtları'],
         'network' => ['fa' => 'شبکه و امنیت', 'en' => 'Network & Security', 'tr' => 'Ağ & Güvenlik'],
+        'site'    => ['fa' => 'سلامت و کارایی سایت', 'en' => 'Site Health & Performance', 'tr' => 'Site Sağlığı & Performans'],
     ],
 
     'types' => [
@@ -632,6 +633,270 @@ return [
                     ['q' => 'Ping nedir?', 'a' => 'Sizinle sunucu arasındaki verinin gidiş-dönüş süresi (ms).'],
                     ['q' => 'İyi bir ping nedir?', 'a' => '50ms altı mükemmel, 50–100ms iyi, 200ms üstü yavaş.'],
                     ['q' => 'Neden ICMP yerine TCP?', 'a' => 'Doğruluk için gecikmeyi gerçek bir TCP bağlantısıyla ölçüyoruz.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Email health */
+        'email' => [
+            'group' => 'network', 'icon' => 'mail', 'kind' => 'email', 'input' => 'domain',
+            'fa' => [
+                't' => 'سلامت ایمیل دامنه', 'placeholder' => 'example.com',
+                'meta_t' => 'بررسی سلامت ایمیل دامنه — تست SPF، DKIM و DMARC',
+                'meta_d' => 'تنظیمات ایمیل دامنه را رایگان بررسی کنید؛ رکوردهای MX، SPF، DKIM و DMARC یکجا تحلیل می‌شوند تا بفهمید چرا ایمیل‌هایتان به اسپم می‌روند.',
+                'h1a' => 'چرا ایمیل‌ها', 'h1b' => 'به اسپم می‌روند؟',
+                'lead' => 'دامنه را وارد کنید تا MX، SPF، DKIM و DMARC یکجا بررسی و نقطه‌ضعف تحویل ایمیل‌تان مشخص شود.',
+                'intro' => 'بیشترِ ایمیل‌هایی که به اسپم می‌روند یا اصلاً نمی‌رسند، قربانی تنظیمات ناقص DNS هستند نه محتوای پیام. سرویس‌های گیرنده مثل Gmail سه امضا را می‌سنجند: SPF مشخص می‌کند چه سرورهایی حق ارسال از طرف دامنه‌ی شما را دارند، DKIM پیام را امضای دیجیتال می‌کند و DMARC می‌گوید با پیام‌هایی که این دو را رد می‌کنند چه شود. این ابزار هر چهار رکورد (MX، SPF، DKIM با سلکتورهای رایج، DMARC) را یکجا می‌خواند و مشکل را دقیق نشان می‌دهد.',
+                'faq' => [
+                    ['q' => 'SPF و DKIM و DMARC چه فرقی دارند؟', 'a' => 'SPF فهرست سرورهای مجاز ارسال است، DKIM امضای دیجیتال پیام، و DMARC سیاست برخورد با پیام‌هایی که این دو را رد می‌کنند — هر سه با هم اعتبار ایمیل شما را می‌سازند.'],
+                    ['q' => 'چرا DKIM دامنه‌ی من پیدا نشد؟', 'a' => 'رکورد DKIM زیر یک «سلکتور» ذخیره می‌شود که نامش را فرستنده تعیین می‌کند. ما رایج‌ترین سلکتورها را می‌گردیم؛ اگر سرویس ایمیل شما سلکتور خاصی دارد، از پنل همان سرویس نامش را ببینید.'],
+                    ['q' => 'دو رکورد SPF دارم؛ اشکالی دارد؟', 'a' => 'بله، خطای قطعی است. طبق استاندارد فقط یک رکورد SPF مجاز است و بیش از یکی باعث می‌شود گیرنده‌ها کل SPF را نامعتبر بدانند — دو رکورد را در یکی ادغام کنید.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Email Health Check', 'placeholder' => 'example.com',
+                'meta_t' => 'Email Health Check — Test SPF, DKIM & DMARC',
+                'meta_d' => 'Check a domain\'s email setup for free. MX, SPF, DKIM and DMARC records analyzed in one report — find out why your email lands in spam.',
+                'h1a' => 'Why does email', 'h1b' => 'land in spam?',
+                'lead' => 'Enter a domain to check MX, SPF, DKIM and DMARC at once and find the weak spot in your email delivery.',
+                'intro' => 'Most email that lands in spam — or never arrives — is the victim of incomplete DNS setup, not message content. Receiving services like Gmail check three signatures: SPF defines which servers may send on behalf of your domain, DKIM digitally signs the message, and DMARC says what to do with mail that fails both. This tool reads all four records (MX, SPF, DKIM across common selectors, DMARC) in one pass and pinpoints the problem.',
+                'faq' => [
+                    ['q' => 'What\'s the difference between SPF, DKIM and DMARC?', 'a' => 'SPF is the list of servers allowed to send, DKIM is the message\'s digital signature, and DMARC is the policy for mail that fails them — together they build your email reputation.'],
+                    ['q' => 'Why wasn\'t my DKIM found?', 'a' => 'DKIM lives under a "selector" whose name is chosen by the sender. We check the most common selectors; if your provider uses a custom one, find its name in that provider\'s panel.'],
+                    ['q' => 'I have two SPF records — is that a problem?', 'a' => 'Yes, it\'s a hard error. The standard allows exactly one SPF record; more than one makes receivers treat SPF as invalid. Merge them into a single record.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'E-posta Sağlık Kontrolü', 'placeholder' => 'example.com',
+                'meta_t' => 'E-posta Sağlık Kontrolü — SPF, DKIM ve DMARC Testi',
+                'meta_d' => 'Bir alan adının e-posta yapılandırmasını ücretsiz kontrol edin. MX, SPF, DKIM ve DMARC tek raporda analiz edilir.',
+                'h1a' => 'E-postalar neden', 'h1b' => 'spam\'e düşüyor?',
+                'lead' => 'MX, SPF, DKIM ve DMARC\'ı tek seferde kontrol etmek için bir alan adı girin.',
+                'intro' => 'Spam\'e düşen e-postaların çoğu, mesaj içeriğinin değil eksik DNS yapılandırmasının kurbanıdır. Gmail gibi alıcı servisler üç imzayı kontrol eder: SPF alan adınız adına hangi sunucuların gönderebileceğini tanımlar, DKIM mesajı dijital olarak imzalar, DMARC ise ikisini geçemeyen postaya ne yapılacağını söyler. Bu araç dört kaydı (MX, SPF, yaygın seçicilerle DKIM, DMARC) tek geçişte okur.',
+                'faq' => [
+                    ['q' => 'SPF, DKIM ve DMARC farkı nedir?', 'a' => 'SPF gönderim izni olan sunucu listesi, DKIM mesajın dijital imzası, DMARC ise başarısız postalar için politikadır.'],
+                    ['q' => 'DKIM\'im neden bulunamadı?', 'a' => 'DKIM, adını gönderenin seçtiği bir "selector" altında yaşar. En yaygın seçicileri kontrol ediyoruz; özel bir seçici kullanıyorsanız sağlayıcınızın panelinden bakın.'],
+                    ['q' => 'İki SPF kaydım var — sorun mu?', 'a' => 'Evet, kesin hatadır. Standart tam olarak bir SPF kaydına izin verir; birden fazlası SPF\'i geçersiz kılar.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Blacklist */
+        'blacklist' => [
+            'group' => 'network', 'icon' => 'shield', 'kind' => 'blacklist', 'input' => 'host',
+            'fa' => [
+                't' => 'بررسی بلک‌لیست', 'placeholder' => 'example.com یا 1.2.3.4',
+                'meta_t' => 'بررسی بلک‌لیست IP و دامنه — استعلام DNSBL آنلاین',
+                'meta_d' => 'حضور IP یا دامنه در بلک‌لیست‌های معتبر ایمیل (Spamhaus، SpamCop، SORBS و…) را رایگان بررسی کنید و دلیل لیست‌شدن را ببینید.',
+                'h1a' => 'IP شما', 'h1b' => 'بلک‌لیست است؟',
+                'lead' => 'دامنه یا IP سرور را وارد کنید تا حضورش در بلک‌لیست‌های معتبر جهانی بررسی شود.',
+                'intro' => 'وقتی IP سرور در یک DNSBL (بلک‌لیست ایمیل) بنشیند، ایمیل‌های ارسالی‌تان یا مستقیم رد می‌شوند یا به اسپم می‌روند — حتی اگر SPF و DKIM بی‌نقص باشند. لیست‌شدن معمولاً نتیجه‌ی ارسال انبوه، سایت هک‌شده یا همسایه‌ی بد روی IP اشتراکی است. این ابزار IP شما را روی بلک‌لیست‌های معتبر بررسی می‌کند و اگر جایی لیست شده باشید، دلیل ثبت‌شده را هم نشان می‌دهد تا بدانید برای حذف به کجا مراجعه کنید.',
+                'faq' => [
+                    ['q' => 'چطور در بلک‌لیست قرار گرفتم؟', 'a' => 'شایع‌ترین دلایل: اسکریپت آلوده یا سایت هک‌شده که اسپم می‌فرستد، فرم تماس بدون محافظ، یا IP اشتراکی‌ای که مشتری دیگری خرابش کرده است.'],
+                    ['q' => 'چطور از بلک‌لیست خارج شوم؟', 'a' => 'اول منشأ اسپم را قطع کنید، بعد از سایت همان بلک‌لیست درخواست حذف (delisting) بدهید. بدون رفع علت، حذف موقتی است و دوباره لیست می‌شوید.'],
+                    ['q' => 'چرا بعضی نتیجه‌ها «نامشخص» است؟', 'a' => 'بعضی بلک‌لیست‌ها (مثل Spamhaus) به همه‌ی پرس‌وجوها پاسخ نمی‌دهند. در آن حالت به‌جای حدس، صادقانه «نامشخص» می‌گوییم.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Blacklist Check', 'placeholder' => 'example.com or 1.2.3.4',
+                'meta_t' => 'IP & Domain Blacklist Check — Online DNSBL Lookup',
+                'meta_d' => 'Check an IP or domain against trusted email blacklists (Spamhaus, SpamCop, SORBS and more) for free, with the listing reason.',
+                'h1a' => 'Is your IP', 'h1b' => 'blacklisted?',
+                'lead' => 'Enter a domain or server IP to check it against the major global blacklists.',
+                'intro' => 'When your server\'s IP sits on a DNSBL (email blacklist), your outgoing mail is rejected or spam-foldered — even with perfect SPF and DKIM. Listings usually come from bulk sending, a hacked site, or a bad neighbor on a shared IP. This tool checks your IP against the reputable blacklists and, when listed, shows the recorded reason so you know where to request removal.',
+                'faq' => [
+                    ['q' => 'How did I get blacklisted?', 'a' => 'Most common causes: an infected script or hacked site sending spam, an unprotected contact form, or a shared IP another customer abused.'],
+                    ['q' => 'How do I get delisted?', 'a' => 'First stop the spam source, then request delisting on that blacklist\'s site. Without fixing the cause, removal is temporary — you\'ll be relisted.'],
+                    ['q' => 'Why are some results "unknown"?', 'a' => 'Some blacklists (like Spamhaus) don\'t answer every query source. In that case we honestly say "unknown" instead of guessing.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Kara Liste Kontrolü', 'placeholder' => 'example.com veya 1.2.3.4',
+                'meta_t' => 'IP ve Alan Adı Kara Liste Kontrolü — DNSBL Sorgu',
+                'meta_d' => 'Bir IP veya alan adını güvenilir e-posta kara listelerinde (Spamhaus, SpamCop, SORBS…) ücretsiz kontrol edin.',
+                'h1a' => 'IP\'niz kara', 'h1b' => 'listede mi?',
+                'lead' => 'Büyük küresel kara listelerde kontrol etmek için bir alan adı veya sunucu IP\'si girin.',
+                'intro' => 'Sunucunuzun IP\'si bir DNSBL\'de (e-posta kara listesi) yer aldığında, giden postalarınız reddedilir veya spam\'e düşer — SPF ve DKIM mükemmel olsa bile. Listelenme genellikle toplu gönderim, hacklenmiş bir site veya paylaşımlı IP\'deki kötü bir komşudan kaynaklanır. Bu araç IP\'nizi saygın kara listelerde kontrol eder ve listelendiyseniz kayıtlı nedeni gösterir.',
+                'faq' => [
+                    ['q' => 'Nasıl kara listeye girdim?', 'a' => 'En yaygın nedenler: spam gönderen virüslü bir betik, korumasız iletişim formu veya başka bir müşterinin kötüye kullandığı paylaşımlı IP.'],
+                    ['q' => 'Listeden nasıl çıkarım?', 'a' => 'Önce spam kaynağını durdurun, sonra o listenin sitesinden çıkarma talebinde bulunun. Neden giderilmezse yeniden listelenirsiniz.'],
+                    ['q' => 'Bazı sonuçlar neden "bilinmiyor"?', 'a' => 'Bazı listeler her sorgu kaynağına yanıt vermez. Bu durumda tahmin etmek yerine dürüstçe "bilinmiyor" deriz.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Speed / TTFB */
+        'speed' => [
+            'group' => 'site', 'icon' => 'gauge', 'kind' => 'speed', 'input' => 'domain',
+            'fa' => [
+                't' => 'تست سرعت و TTFB', 'placeholder' => 'example.com',
+                'meta_t' => 'تست سرعت سایت و TTFB — سنجش از ایران و اروپا',
+                'meta_d' => 'سرعت پاسخ‌گویی سایت را رایگان بسنجید؛ زمان DNS، اتصال، TLS و TTFB به تفکیک، از دید کاربر اروپایی و در صورت فعال‌بودن، از داخل ایران.',
+                'h1a' => 'سایت شما چند ثانیه', 'h1b' => 'کاربر را منتظر می‌گذارد؟',
+                'lead' => 'آدرس سایت را وارد کنید تا زمان DNS، اتصال، TLS و TTFB به تفکیک اندازه گرفته شود — همان اعدادی که گوگل و کاربر واقعی حس می‌کنند.',
+                'intro' => 'TTFB (زمان تا اولین بایت) صادق‌ترین معیار سرعت سرور است: فاصله‌ی بین درخواست مرورگر تا رسیدن اولین بایت پاسخ. این ابزار کل مسیر را تجزیه می‌کند — یافتن DNS، برقراری اتصال TCP، دست‌دادن TLS و انتظار برای پاسخ سرور — تا دقیقاً ببینید کندی از کجاست: از DNS، از فاصله‌ی جغرافیایی، از گواهی، یا از خود اپلیکیشن. برای سایت ایرانی، فاصله‌ی سرور تا کاربر مهم‌ترین عامل است؛ اگر نقطه‌ی سنجش ایران فعال باشد، همان صفحه از داخل ایران هم سنجیده می‌شود.',
+                'faq' => [
+                    ['q' => 'TTFB خوب چند میلی‌ثانیه است؟', 'a' => 'زیر ۲۰۰ms عالی، ۲۰۰ تا ۵۰۰ms قابل قبول و بالای ۸۰۰ms کند است. گوگل زیر ۶۰۰ms را توصیه می‌کند.'],
+                    ['q' => 'چرا TTFB من بالاست؟', 'a' => 'سه مقصر اصلی: فاصله‌ی جغرافیایی سرور تا کاربر، نبود کش در اپلیکیشن (هر بازدید یعنی اجرای کامل کد و کوئری‌ها)، و DNS کند. تفکیک همین ابزار نشان می‌دهد کدام‌یک است.'],
+                    ['q' => 'سنجش از ایران چه فایده‌ای دارد؟', 'a' => 'بیشتر ابزارهای جهانی از اروپا و آمریکا می‌سنجند؛ اما کاربر شما در ایران است و مسیر بین‌الملل گاهی چند برابر کندتر است. سنجش دو-نقطه‌ای این تفاوت را عریان نشان می‌دهد.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Speed & TTFB Test', 'placeholder' => 'example.com',
+                'meta_t' => 'Website Speed & TTFB Test — Measured from Iran & Europe',
+                'meta_d' => 'Measure your site\'s response speed for free: DNS, connect, TLS and TTFB broken down, from a European vantage point — and from inside Iran when enabled.',
+                'h1a' => 'How long does your site', 'h1b' => 'keep users waiting?',
+                'lead' => 'Enter a site to measure DNS, connect, TLS and TTFB separately — the numbers Google and real users actually feel.',
+                'intro' => 'TTFB (time to first byte) is the most honest measure of server speed: the gap between the browser\'s request and the first byte of the response. This tool breaks the whole journey down — DNS resolution, TCP connect, TLS handshake and the wait for the server — so you can see exactly where the slowness lives: DNS, geographic distance, the certificate, or the application itself. For Iranian audiences, server-to-user distance is the dominant factor; when the Iran vantage point is enabled, the same page is measured from inside Iran too.',
+                'faq' => [
+                    ['q' => 'What is a good TTFB?', 'a' => 'Under 200ms is excellent, 200–500ms acceptable, above 800ms slow. Google recommends staying under 600ms.'],
+                    ['q' => 'Why is my TTFB high?', 'a' => 'Three usual suspects: geographic distance between server and user, no application caching (every visit runs full code and queries), and slow DNS. This tool\'s breakdown shows which one it is.'],
+                    ['q' => 'Why measure from Iran?', 'a' => 'Global tools measure from Europe or the US, but if your users are in Iran, the international route can be several times slower. Two-point measurement exposes that gap.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Hız & TTFB Testi', 'placeholder' => 'example.com',
+                'meta_t' => 'Web Sitesi Hız ve TTFB Testi — İran ve Avrupa\'dan',
+                'meta_d' => 'Sitenizin yanıt hızını ücretsiz ölçün: DNS, bağlantı, TLS ve TTFB ayrı ayrı, Avrupa bakış açısından.',
+                'h1a' => 'Siteniz kullanıcıyı kaç saniye', 'h1b' => 'bekletiyor?',
+                'lead' => 'DNS, bağlantı, TLS ve TTFB\'yi ayrı ayrı ölçmek için bir site girin.',
+                'intro' => 'TTFB (ilk bayta kadar geçen süre), sunucu hızının en dürüst ölçüsüdür: tarayıcının isteği ile yanıtın ilk baytı arasındaki boşluk. Bu araç tüm yolculuğu parçalara ayırır — DNS çözümleme, TCP bağlantısı, TLS el sıkışması ve sunucu beklemesi — böylece yavaşlığın tam olarak nerede yaşadığını görürsünüz.',
+                'faq' => [
+                    ['q' => 'İyi bir TTFB kaçtır?', 'a' => '200ms altı mükemmel, 200–500ms kabul edilebilir, 800ms üstü yavaştır. Google 600ms altını önerir.'],
+                    ['q' => 'TTFB\'im neden yüksek?', 'a' => 'Üç olağan şüpheli: sunucu-kullanıcı mesafesi, uygulama önbelleği olmaması ve yavaş DNS. Bu aracın dökümü hangisi olduğunu gösterir.'],
+                    ['q' => 'İran\'dan ölçüm neden önemli?', 'a' => 'Küresel araçlar Avrupa veya ABD\'den ölçer; kullanıcılarınız İran\'daysa uluslararası rota kat kat yavaş olabilir.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Security headers */
+        'headers' => [
+            'group' => 'site', 'icon' => 'lock', 'kind' => 'headers', 'input' => 'domain',
+            'fa' => [
+                't' => 'هدرهای امنیتی', 'placeholder' => 'example.com',
+                'meta_t' => 'بررسی هدرهای امنیتی سایت — نمره HSTS و CSP و XFO',
+                'meta_d' => 'هدرهای امنیتی HTTP سایت (HSTS، CSP، X-Frame-Options و…) را رایگان بررسی کنید و نمره‌ی امنیتی A تا F بگیرید.',
+                'h1a' => 'سایت شما چه نمره‌ی', 'h1b' => 'امنیتی می‌گیرد؟',
+                'lead' => 'آدرس سایت را وارد کنید تا شش هدر امنیتی مهم بررسی و نمره‌ی A+ تا F همراه راهنمای رفع نمایش داده شود.',
+                'intro' => 'هدرهای امنیتی HTTP ارزان‌ترین لایه‌ی دفاعی وب هستند: چند خط پیکربندی که حمله‌های رایجی مثل کلیک‌جکینگ، تزریق اسکریپت و شنود اتصال را از ریشه می‌بندند. HSTS مرورگر را به HTTPS قفل می‌کند، CSP جلوی اجرای اسکریپت غریبه را می‌گیرد، X-Frame-Options نمایش سایت در iframe مهاجم را ممنوع می‌کند و nosniff حدس‌زدن نوع فایل را می‌بندد. این ابزار شش هدر کلیدی را می‌سنجد و مثل securityheaders.com نمره‌ی حرفی می‌دهد — رایگان و بدون محدودیت.',
+                'faq' => [
+                    ['q' => 'کدام هدرها بررسی می‌شوند؟', 'a' => 'HSTS، Content-Security-Policy، محافظ iframe (XFO یا frame-ancestors)، X-Content-Type-Options، Referrer-Policy و Permissions-Policy.'],
+                    ['q' => 'چطور نمره‌ام را بالا ببرم؟', 'a' => 'هدرهای غایب را در وب‌سرور یا CDN اضافه کنید. HSTS و nosniff یک خط بی‌خطرند؛ CSP را مرحله‌ای و اول در حالت Report-Only فعال کنید تا چیزی نشکند.'],
+                    ['q' => 'آیا نمره‌ی F یعنی سایت هک می‌شود؟', 'a' => 'نه لزوماً؛ یعنی لایه‌های دفاعی مکمل غایب‌اند و اگر آسیب‌پذیری دیگری پیدا شود، بهره‌برداری از آن آسان‌تر است. این هدرها بیمه‌ی ارزان در برابر آن روز هستند.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Security Headers', 'placeholder' => 'example.com',
+                'meta_t' => 'Security Headers Check — HSTS, CSP & XFO Grade',
+                'meta_d' => 'Check your site\'s HTTP security headers (HSTS, CSP, X-Frame-Options and more) for free and get an A-to-F security grade.',
+                'h1a' => 'What security grade', 'h1b' => 'does your site get?',
+                'lead' => 'Enter a site to check the six key security headers and get an A+ to F grade with fix guidance.',
+                'intro' => 'HTTP security headers are the cheapest defensive layer on the web: a few lines of configuration that shut down common attacks like clickjacking, script injection and connection downgrades at the root. HSTS locks browsers to HTTPS, CSP blocks foreign scripts, X-Frame-Options forbids rendering your site in an attacker\'s iframe, and nosniff stops file-type guessing. This tool measures the six key headers and issues a letter grade like securityheaders.com — free and unlimited.',
+                'faq' => [
+                    ['q' => 'Which headers are checked?', 'a' => 'HSTS, Content-Security-Policy, iframe protection (XFO or frame-ancestors), X-Content-Type-Options, Referrer-Policy and Permissions-Policy.'],
+                    ['q' => 'How do I raise my grade?', 'a' => 'Add the missing headers in your web server or CDN. HSTS and nosniff are safe one-liners; roll out CSP gradually, starting in Report-Only mode so nothing breaks.'],
+                    ['q' => 'Does an F mean my site will be hacked?', 'a' => 'Not necessarily — it means the complementary defense layers are absent, so any other vulnerability becomes easier to exploit. These headers are cheap insurance against that day.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Güvenlik Başlıkları', 'placeholder' => 'example.com',
+                'meta_t' => 'Güvenlik Başlıkları Kontrolü — HSTS, CSP Notu',
+                'meta_d' => 'Sitenizin HTTP güvenlik başlıklarını (HSTS, CSP, X-Frame-Options…) ücretsiz kontrol edin ve A-F arası not alın.',
+                'h1a' => 'Siteniz hangi güvenlik', 'h1b' => 'notunu alıyor?',
+                'lead' => 'Altı önemli güvenlik başlığını kontrol etmek ve A+ ile F arası not almak için bir site girin.',
+                'intro' => 'HTTP güvenlik başlıkları web\'in en ucuz savunma katmanıdır: tıklama hırsızlığı, betik enjeksiyonu ve bağlantı düşürme gibi yaygın saldırıları kökten kapatan birkaç satır yapılandırma. HSTS tarayıcıyı HTTPS\'e kilitler, CSP yabancı betikleri engeller, X-Frame-Options sitenizin saldırgan iframe\'inde gösterilmesini yasaklar. Bu araç altı temel başlığı ölçer ve harf notu verir.',
+                'faq' => [
+                    ['q' => 'Hangi başlıklar kontrol edilir?', 'a' => 'HSTS, Content-Security-Policy, iframe koruması, X-Content-Type-Options, Referrer-Policy ve Permissions-Policy.'],
+                    ['q' => 'Notumu nasıl yükseltirim?', 'a' => 'Eksik başlıkları web sunucunuza veya CDN\'e ekleyin. CSP\'yi önce Report-Only modunda kademeli açın.'],
+                    ['q' => 'F notu hacklenme mi demek?', 'a' => 'Şart değil — tamamlayıcı savunma katmanlarının eksik olduğu anlamına gelir; başka bir açık bulunursa istismarı kolaylaşır.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Redirect chain */
+        'redirects' => [
+            'group' => 'site', 'icon' => 'restore', 'kind' => 'redirects', 'input' => 'domain',
+            'fa' => [
+                't' => 'زنجیره ریدایرکت', 'placeholder' => 'example.com/old-page',
+                'meta_t' => 'بررسی زنجیره ریدایرکت — ردیابی 301 و 302 تا مقصد',
+                'meta_d' => 'مسیر کامل ریدایرکت هر آدرس را رایگان ببینید؛ هر پرش با کد وضعیت، تشخیص حلقه، و ارتقای HTTP به HTTPS — مهم برای سئو.',
+                'h1a' => 'این لینک آخرش', 'h1b' => 'به کجا می‌رسد؟',
+                'lead' => 'آدرس را وارد کنید تا هر پرش ریدایرکت با کد وضعیتش ردیابی و مقصد نهایی، حلقه‌ها و پرش‌های اضافه مشخص شود.',
+                'intro' => 'هر ریدایرکت یک رفت‌وبرگشت کامل به سرور است: زنجیره‌ی سه‌پرشی یعنی کاربر موبایل چند صد میلی‌ثانیه‌ی اضافه منتظر می‌ماند و ربات گوگل بخشی از اعتبار لینک را در راه جا می‌گذارد. بعد از هر بازطراحی یا تغییر دامنه، ریدایرکت‌های روی‌هم‌انباشته شایع‌ترین بدهی پنهان سئو هستند. این ابزار مسیر را پرش‌به‌پرش دنبال می‌کند: کد هر پرش (301 دائم یا 302 موقت)، مقصد نهایی، حلقه‌های بی‌پایان و اینکه آیا HTTP درست به HTTPS می‌رسد.',
+                'faq' => [
+                    ['q' => 'فرق 301 و 302 چیست؟', 'a' => '301 یعنی انتقال دائمی و اعتبار سئو به مقصد منتقل می‌شود؛ 302 یعنی موقتی و گوگل آدرس قبلی را نگه می‌دارد. برای تغییر همیشگی آدرس، همیشه 301 بزنید.'],
+                    ['q' => 'چند ریدایرکت پشت‌سرهم مجاز است؟', 'a' => 'هرچه کمتر بهتر؛ بیش از دو پرش نشانه‌ی پیکربندی نامرتب است و گوگل بعد از حدود ده پرش کلاً رها می‌کند. ایده‌آل: هر آدرس قدیمی مستقیم به مقصد نهایی.'],
+                    ['q' => 'حلقه‌ی ریدایرکت چیست؟', 'a' => 'وقتی آدرس A به B و B دوباره به A برگردد؛ مرورگر خطای «too many redirects» می‌دهد و صفحه هرگز باز نمی‌شود. معمولاً نتیجه‌ی تداخل قانون‌های htaccess و CDN است.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Redirect Chain', 'placeholder' => 'example.com/old-page',
+                'meta_t' => 'Redirect Chain Checker — Trace 301s & 302s to the End',
+                'meta_d' => 'See the full redirect path of any URL for free — every hop with its status code, loop detection, and HTTP-to-HTTPS upgrade. Vital for SEO.',
+                'h1a' => 'Where does this link', 'h1b' => 'actually end up?',
+                'lead' => 'Enter a URL to trace every redirect hop with its status code — final destination, loops and wasted hops included.',
+                'intro' => 'Every redirect is a full round-trip to a server: a three-hop chain means a mobile user waits hundreds of extra milliseconds and Googlebot leaves part of the link equity on the road. After every redesign or domain change, stacked redirects are the most common hidden SEO debt. This tool follows the path hop by hop: each status code (301 permanent or 302 temporary), the final destination, infinite loops, and whether HTTP correctly lands on HTTPS.',
+                'faq' => [
+                    ['q' => 'What\'s the difference between 301 and 302?', 'a' => 'A 301 is permanent and passes SEO equity to the target; a 302 is temporary and Google keeps the old URL. For a permanent move, always use 301.'],
+                    ['q' => 'How many chained redirects are acceptable?', 'a' => 'The fewer the better; more than two hops signals messy configuration, and Google gives up entirely after about ten. Ideal: every old URL redirects straight to the final target.'],
+                    ['q' => 'What is a redirect loop?', 'a' => 'When URL A sends to B and B back to A — the browser shows "too many redirects" and the page never opens. Usually caused by conflicting htaccess and CDN rules.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'Yönlendirme Zinciri', 'placeholder' => 'example.com/eski-sayfa',
+                'meta_t' => 'Yönlendirme Zinciri Kontrolü — 301 ve 302 Takibi',
+                'meta_d' => 'Herhangi bir URL\'nin tam yönlendirme yolunu ücretsiz görün — her atlama, durum kodu, döngü tespiti. SEO için önemli.',
+                'h1a' => 'Bu bağlantı sonunda', 'h1b' => 'nereye varıyor?',
+                'lead' => 'Her yönlendirme atlamasını durum koduyla izlemek için bir URL girin.',
+                'intro' => 'Her yönlendirme sunucuya tam bir gidiş-dönüştür: üç atlamalı bir zincir, mobil kullanıcının yüzlerce milisaniye fazladan beklemesi ve Googlebot\'un bağlantı değerinin bir kısmını yolda bırakması demektir. Bu araç yolu atlama atlama izler: her durum kodu, son hedef, sonsuz döngüler ve HTTP\'nin HTTPS\'e doğru inip inmediği.',
+                'faq' => [
+                    ['q' => '301 ile 302 farkı nedir?', 'a' => '301 kalıcıdır ve SEO değerini hedefe aktarır; 302 geçicidir. Kalıcı taşıma için her zaman 301 kullanın.'],
+                    ['q' => 'Kaç zincirleme yönlendirme kabul edilebilir?', 'a' => 'Ne kadar az o kadar iyi; ikiden fazlası dağınık yapılandırma işaretidir. İdeal: her eski URL doğrudan son hedefe.'],
+                    ['q' => 'Yönlendirme döngüsü nedir?', 'a' => 'A\'nın B\'ye, B\'nin tekrar A\'ya göndermesi — tarayıcı "too many redirects" hatası verir.'],
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------------------------- Iran access */
+        'iran-access' => [
+            'group' => 'site', 'icon' => 'globe', 'kind' => 'access', 'input' => 'domain',
+            'fa' => [
+                't' => 'دسترسی از ایران', 'placeholder' => 'example.com',
+                'meta_t' => 'بررسی دسترسی سایت از داخل ایران — تست فیلترینگ آنلاین',
+                'meta_d' => 'ببینید سایت شما از داخل ایران باز می‌شود یا نه؛ بررسی DNS از resolverهای ایرانی، تشخیص فیلترینگ و تست HTTP از دو نقطه‌ی دید.',
+                'h1a' => 'سایت شما از ایران', 'h1b' => 'باز می‌شود؟',
+                'lead' => 'دامنه را وارد کنید تا وضعیت DNS از resolverهای ایرانی، نشانه‌های فیلترینگ و دسترسی HTTP از دو نقطه‌ی دید بررسی شود.',
+                'intro' => 'برای کسب‌وکاری که مشتری‌اش در ایران است، «سایت بالا است» کافی نیست — سؤال درست این است که «از داخل ایران باز می‌شود؟». یک سایت ممکن است از اروپا سالم دیده شود ولی داخل کشور فیلتر باشد، یا برعکس: سرویس‌دهنده‌ی خارجی‌اش IPهای ایران را مسدود کرده باشد. این ابزار پاسخ DNS دامنه را از resolverهای داخل ایران می‌گیرد (پاسخ 10.10.34.x نشانه‌ی قطعی فیلترینگ است) و دسترسی HTTP را از دو نقطه‌ی دید می‌سنجد. هرجا مدرک قطعی نباشد، صادقانه «نامشخص» می‌گوییم.',
+                'faq' => [
+                    ['q' => 'از کجا می‌فهمید سایت فیلتر است؟', 'a' => 'resolverهای داخل ایران برای دامنه‌ی فیلترشده به‌جای IP واقعی، آدرس صفحه‌ی فیلترینگ (10.10.34.x) را برمی‌گردانند — این مدرک مستقیم است، نه حدس.'],
+                    ['q' => 'سایتم فیلتر نیست ولی از ایران کند یا قطع است؛ چرا؟', 'a' => 'بعضی سرویس‌دهنده‌های خارجی (به‌دلیل تحریم) IPهای ایران را مسدود می‌کنند یا مسیر بین‌الملل ضعیف دارند. راه‌حل معمول، میزبانی روی سروری با مسیر مناسب به ایران است.'],
+                    ['q' => 'نتیجه «نامشخص» یعنی چه؟', 'a' => 'یعنی مدرک کافی برای قضاوت قطعی نداشتیم — مثلاً resolver ایرانی پاسخ نداد. به‌جای حدس، همان را می‌گوییم؛ چند دقیقه بعد دوباره امتحان کنید.'],
+                ],
+            ],
+            'en' => [
+                't' => 'Iran Accessibility', 'placeholder' => 'example.com',
+                'meta_t' => 'Check Site Access from Inside Iran — Online Filtering Test',
+                'meta_d' => 'See whether your site opens from inside Iran: DNS checked against Iranian resolvers, filtering detection, and HTTP tests from two vantage points.',
+                'h1a' => 'Does your site open', 'h1b' => 'from inside Iran?',
+                'lead' => 'Enter a domain to check DNS answers from Iranian resolvers, filtering indicators, and HTTP access from two vantage points.',
+                'intro' => 'For a business whose customers are in Iran, "the site is up" is not enough — the real question is "does it open from inside Iran?". A site can look healthy from Europe yet be filtered domestically, or the reverse: its foreign provider may block Iranian IPs. This tool queries the domain\'s DNS from resolvers inside Iran (an answer of 10.10.34.x is definitive evidence of filtering) and measures HTTP access from two vantage points. Wherever the evidence isn\'t conclusive, we honestly say "unknown".',
+                'faq' => [
+                    ['q' => 'How do you know a site is filtered?', 'a' => 'Resolvers inside Iran return the filtering page\'s address (10.10.34.x) instead of the real IP for blocked domains — that\'s direct evidence, not a guess.'],
+                    ['q' => 'My site isn\'t filtered but is slow or dead from Iran — why?', 'a' => 'Some foreign providers block Iranian IPs due to sanctions, or have poor international routing. The usual fix is hosting on a server with a good route to Iran.'],
+                    ['q' => 'What does an "unknown" result mean?', 'a' => 'We didn\'t have enough evidence for a definitive verdict — e.g. an Iranian resolver didn\'t answer. Instead of guessing, we say so; try again in a few minutes.'],
+                ],
+            ],
+            'tr' => [
+                't' => 'İran Erişilebilirliği', 'placeholder' => 'example.com',
+                'meta_t' => 'İran İçinden Site Erişim Kontrolü — Filtreleme Testi',
+                'meta_d' => 'Sitenizin İran içinden açılıp açılmadığını görün: İran çözümleyicilerinden DNS kontrolü ve iki bakış açısından HTTP testi.',
+                'h1a' => 'Siteniz İran içinden', 'h1b' => 'açılıyor mu?',
+                'lead' => 'İran çözümleyicilerinden DNS yanıtlarını ve filtreleme göstergelerini kontrol etmek için bir alan adı girin.',
+                'intro' => 'Müşterileri İran\'da olan bir işletme için "site ayakta" yeterli değildir — asıl soru "İran içinden açılıyor mu?"dur. Bir site Avrupa\'dan sağlıklı görünürken ülke içinde filtrelenmiş olabilir; ya da tersine, yabancı sağlayıcısı İran IP\'lerini engelliyor olabilir. Bu araç alan adının DNS\'ini İran içindeki çözümleyicilerden sorgular (10.10.34.x yanıtı filtrelemenin kesin kanıtıdır) ve HTTP erişimini iki noktadan ölçer. Kanıt kesin olmayan yerde dürüstçe "bilinmiyor" deriz.',
+                'faq' => [
+                    ['q' => 'Bir sitenin filtrelendiğini nereden biliyorsunuz?', 'a' => 'İran içindeki çözümleyiciler, engellenen alan adları için gerçek IP yerine filtreleme sayfasının adresini (10.10.34.x) döndürür — bu doğrudan kanıttır.'],
+                    ['q' => 'Sitem filtreli değil ama İran\'dan yavaş — neden?', 'a' => 'Bazı yabancı sağlayıcılar yaptırımlar nedeniyle İran IP\'lerini engeller veya uluslararası yönlendirmeleri zayıftır.'],
+                    ['q' => '"Bilinmiyor" sonucu ne demek?', 'a' => 'Kesin bir karar için yeterli kanıt yoktu — örneğin İranlı çözümleyici yanıt vermedi. Tahmin etmek yerine bunu söyleriz.'],
                 ],
             ],
         ],

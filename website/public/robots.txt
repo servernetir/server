@@ -6,3 +6,5 @@ Disallow: /tr/api/
 Disallow: /system/
 
 Sitemap: https://servernet.cloud/sitemap.xml
+
+# https://servernet.cloud/llms.txt
