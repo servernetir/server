@@ -445,6 +445,10 @@
     </div>
     @endif{{-- پایانِ «پلن دارد / ندارد» --}}
     @endif{{-- پایانِ «جدول / کارت» --}}
+    {{-- نوارِ «در همه‌ی پلن‌ها» شاملِ «تحویل آنی» است؛ محصولی که تحویلش دستی
+         است (لایسنس‌ها) با inc_strip=false در config خاموشش می‌کند تا صفحه
+         چیزی را قول ندهد که این محصول ندارد. --}}
+    @if($product['inc_strip'] ?? true)
     <div class="inc-strip reveal">
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">
@@ -453,6 +457,7 @@
         @endforeach
       </div>
     </div>
+    @endif
   </div>
 </section>
 

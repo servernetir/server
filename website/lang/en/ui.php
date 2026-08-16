@@ -1727,7 +1727,7 @@ return [
     'chk_q_domain' => 'For this hosting, do you already have a domain or want to get one?',
     'chk_q_ip' => 'Which server should this license activate on?',
     'chk_lbl_ip' => 'Your server IP (IPv4)',
-    'chk_ip_note' => 'The license activates on this IP and is verifiable on the vendor\'s official site. If you move servers later, an IP change is one support ticket away.',
+    'chk_ip_note' => 'After payment, the license is activated on this IP and confirmed in your panel. If you move servers later, an IP change is one support ticket away.',
     'chk_dom_have_t' => 'I have a domain',
     'chk_dom_have_d' => 'I\'ll connect my own domain',
     'chk_dom_buy_t' => 'I want to buy a domain',

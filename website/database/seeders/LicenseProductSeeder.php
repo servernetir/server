@@ -34,12 +34,12 @@ class LicenseProductSeeder extends Seeder
                 'price_eur'   => 690,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
-                'description' => 'لایسنس اورجینال ماهانه DirectAdmin — فعال‌سازی روی IP سرور شما، اکانت نامحدود و آپدیت مستقیم رسمی.',
+                'description' => 'لایسنس ماهانه DirectAdmin — فعال‌سازی روی IP سرور شما پس از پرداخت، اکانت نامحدود و دریافت آپدیت‌ها.',
                 'specs'       => [
-                    $spec('لایسنس اورجینال ماهانه'),
+                    $spec('لایسنس ماهانه'),
                     $spec('اکانت نامحدود'),
                     $spec('فعال‌سازی روی IP شما'),
-                    $spec('آپدیت مستقیم رسمی'),
+                    $spec('دریافت آپدیت‌ها'),
                 ],
             ],
             'license-cpanel' => [
@@ -50,12 +50,12 @@ class LicenseProductSeeder extends Seeder
                 'price_eur'   => 990,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
-                'description' => 'لایسنس اورجینال ماهانه cPanel/WHM تا ۱۰۰ اکانت — فعال‌سازی روی IP سرور شما و آپدیت مستقیم رسمی.',
+                'description' => 'لایسنس ماهانه cPanel/WHM تا ۱۰۰ اکانت — فعال‌سازی روی IP سرور شما پس از پرداخت و دریافت آپدیت‌ها.',
                 'specs'       => [
-                    $spec('لایسنس اورجینال ماهانه'),
+                    $spec('لایسنس ماهانه'),
                     $spec('تا ۱۰۰ اکانت'),
                     $spec('فعال‌سازی روی IP شما'),
-                    $spec('آپدیت مستقیم رسمی'),
+                    $spec('دریافت آپدیت‌ها'),
                 ],
             ],
             'license-plesk' => [
@@ -66,9 +66,9 @@ class LicenseProductSeeder extends Seeder
                 'price_eur'   => 890,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
-                'description' => 'لایسنس اورجینال ماهانه Plesk Web Host — دامنه نامحدود، لینوکس و ویندوز، همه اکستنشن‌های پایه.',
+                'description' => 'لایسنس ماهانه Plesk Web Host — دامنه نامحدود، لینوکس و ویندوز، همه اکستنشن‌های پایه.',
                 'specs'       => [
-                    $spec('لایسنس اورجینال ماهانه'),
+                    $spec('لایسنس ماهانه'),
                     $spec('دامنه نامحدود'),
                     $spec('لینوکس و ویندوز'),
                     $spec('همه اکستنشن‌های پایه'),

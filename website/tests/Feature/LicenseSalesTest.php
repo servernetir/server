@@ -110,6 +110,34 @@ class LicenseSalesTest extends TestCase
         $this->assertStringNotContainsString('pid=229', $html);
     }
 
+    /**
+     * 🔴 متن صفحه نباید ادعایی بکند که واقعیت محصول نیست: به گفته‌ی صریح
+     * کارفرما لایسنس‌ها اشتراکی‌اند و تحویل دستی است — پس «اورجینال»،
+     * «فعال‌سازی آنی» و «پارتنرشیپ رسمی» روی این صفحه دروغ‌اند. همان قاعده‌ی
+     * /status: نشانه‌ی اعتماد ساختگی از نبودش بدتر است.
+     */
+    public function test_the_page_makes_no_unverifiable_claims(): void
+    {
+        $this->seed4();
+
+        $html = $this->get('/services/licenses')->assertOk()->getContent();
+
+        // فقط محتوای خود صفحه — هدر/منو (mega_note و…) ادعاهای عمومی سایت‌اند
+        // درباره‌ی سرویس‌های تحویل‌خودکار و موضوع این تست نیستند.
+        $main = substr($html, (int) strpos($html, '<main'));
+        $this->assertNotSame('', $main);
+
+        foreach (['اورجینال', 'فعال‌سازی آنی', 'تحویل آنی', 'پارتنرشیپ', 'نه اشتراکی'] as $claim) {
+            $this->assertStringNotContainsString($claim, $main, "ادعای اثبات‌نشدنی «{$claim}» روی صفحه‌ی لایسنس");
+        }
+        foreach (['Genuine', 'Instant', 'Official Partner'] as $claim) {
+            $this->assertStringNotContainsString($claim, $main);
+        }
+
+        // و توضیحِ آیتمِ منو هم (که همه‌جا دیده می‌شود) ادعای اورجینال ندارد
+        $this->assertStringNotContainsString('لایسنس اورجینال', $html);
+    }
+
     /** بی‌محصول (مهاجرت/سیدر هنوز نرفته) قیمت قول داده نمی‌شود — «تماس بگیرید» */
     public function test_without_products_the_page_offers_contact_not_dead_buttons(): void
     {
