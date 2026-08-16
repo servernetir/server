@@ -110,9 +110,21 @@ class AdminBaleRouter
 
             $text = trim((string) $m['text']);
 
-            if ($text === '' || str_starts_with($text, '/start')) {
-                return false;                       // /start صددرصد مالِ مشتری می‌مانَد
+            if ($text === '') {
+                return false;
             }
+
+            /*
+            | ⚠️ `/start` دیگر بی‌قیدوشرط ردّ نمی‌شود.
+            |
+            | کارفرما: «وقتی شروع را می‌زنم دکمه‌ها بیایند، نخواهم بنویسم.» پس
+            | برای **چتِ متصل** منوی مدیر می‌آید. برای هر چتِ دیگری — یعنی هر
+            | مشتری — دقیقاً مثلِ قبل به دکمهٔ «اشتراکِ شماره» می‌رسد، چون شاخهٔ
+            | هویت پایین‌تر ردّش می‌کند.
+            |
+            | ⚠️ و راهِ پیوندِ شمارهٔ خودِ کارفرما بسته نشد: فرمانِ «پیوند شماره»
+            | همان کیبوردِ اشتراکِ شماره را برمی‌گرداند.
+            */
 
             // ── چتِ خصوصی و فرستندهٔ انسان ──
             $from = (string) ($m['from']['id'] ?? '');
@@ -246,7 +258,10 @@ class AdminBaleRouter
                 't'  => $this->showTicket($arg),
                 'tc' => $this->armCloseById($arg),
                 'td' => $this->draft($arg),
+                'tw' => $this->howToWrite($arg),
                 'ts' => $this->armStoredDraft($arg),
+                'h'  => $this->replyToOwner($this->ui->health()),
+                'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
                 'ma' => $this->archiveMail($arg),
@@ -323,13 +338,26 @@ class AdminBaleRouter
         }
 
         if (in_array($verb, ['/panel', '/help', '/start', 'راهنما', 'پنل', 'منو'], true)) {
-            $this->replyToOwner($this->ui->panel());
+            $this->menu();
 
             return;
         }
 
-        if (in_array($verb, ['/q', '/queue', 'کارها', 'صف', 'تیکتها', 'تیکت‌ها'], true)) {
+        if (in_array($verb, ['/t', '/tickets', '/q', '/queue', 'تیکت‌ها', 'تیکتها', 'کارها', 'صف'], true)) {
             $this->showQueue();
+
+            return;
+        }
+
+        if (in_array($verb, ['/link', 'پیوند', 'پیوندشماره'], true)
+            || mb_substr($text, 0, 12) === 'پیوند شماره') {
+            $chat = (string) ($this->gate->binding()['chat_id'] ?? '');
+
+            if ($chat !== '') {
+                $this->sends++;
+                $this->sender->sendWithContactButton($chat,
+                    'برای پیوندِ دوبارهٔ شمارهٔ خودتان، دکمهٔ زیر را بزنید.');
+            }
 
             return;
         }
@@ -443,6 +471,21 @@ class AdminBaleRouter
         $this->replyToOwner('🔒 یادداشتِ داخلی روی '.$ticket->number.' ثبت شد. مشتری آن را نمی‌بیند.');
     }
 
+    /**
+     * پاسخ به مشتری — **بی‌واسطه**.
+     *
+     * ═══ چرا کدِ تأیید برداشته شد ═══
+     *
+     * کارفرما: «وقتی خودم دکمهٔ ارسال را می‌زنم، تأییدِ دوباره لزومی ندارد.»
+     * حق دارد: خودِ کلیک تأیید است و یک کدِ شش‌رقمی روی گوشی فقط اصطکاک
+     * می‌شود — و اصطکاک یعنی برگشتن به پنل، یعنی مرگِ خودِ قابلیت.
+     *
+     * ⚠️ ولی آن کد نقشِ دومی هم داشت: دارندهٔ آدرسِ وب‌هوک بی‌آن کد نمی‌توانست
+     * پیامی به مشتری بفرستد. آن محافظ حالا نیست. جایگزینش **پرصداییِ** جعل
+     * است: هر ارسال بلافاصله به چتِ متصل گزارش می‌شود، پس پیامی که کارفرما
+     * نفرستاده روی گوشیِ خودش ظاهر می‌شود. جعلِ خاموش به جعلِ دیدنی تبدیل
+     * می‌شود، نه به جعلِ ناممکن — و این معاملهٔ آگاهانهٔ کارفراست.
+     */
     private function armReply(?Ticket $ticket, string $rest, bool $explicitRef): void
     {
         $body = $rest;
@@ -455,7 +498,7 @@ class AdminBaleRouter
         $body = trim($body);
 
         if ($ticket === null) {
-            $this->replyToOwner('کدام تیکت؟ روی اعلانِ آن ریپلای بزنید یا «پاسخ <شماره> <متن>» بفرستید.');
+            $this->replyToOwner('کدام تیکت؟ روی کارتِ آن ریپلای بزنید یا «پاسخ <شماره> <متن>» بفرستید.');
 
             return;
         }
@@ -466,10 +509,7 @@ class AdminBaleRouter
             return;
         }
 
-        $code = $this->gate->armConfirm('reply', ['ticket' => $ticket->id, 'body' => $body, 'close' => false],
-            'پاسخ به '.$ticket->number);
-
-        $this->replyToOwner($this->ui->confirmPrompt($ticket, $body, close: false, code: $code));
+        $this->send_reply($ticket, $body, close: false);
     }
 
     private function armClose(?Ticket $ticket, string $rest): void
@@ -484,7 +524,7 @@ class AdminBaleRouter
         }
 
         if ($ticket === null) {
-            $this->replyToOwner('کدام تیکت؟ روی اعلانِ آن ریپلای بزنید یا «بستن <شماره>» بفرستید.');
+            $this->replyToOwner('کدام تیکت؟ روی کارتِ آن ریپلای بزنید یا «بستن <شماره>» بفرستید.');
 
             return;
         }
@@ -496,16 +536,36 @@ class AdminBaleRouter
         }
 
         if ($body === '') {
-            $code = $this->gate->armConfirm('close', ['ticket' => $ticket->id], 'بستنِ '.$ticket->number);
-            $this->replyToOwner($this->ui->closeOnlyPrompt($ticket, $code));
+            app(TicketReplyService::class)->closeOnly($ticket, notify: true);
+            $this->audit($ticket, 'بستنِ تیکت');
+            $this->replyToOwner('🔒 '.$ticket->number.' بسته شد و به مشتری خبر رفت.');
 
             return;
         }
 
-        $code = $this->gate->armConfirm('reply', ['ticket' => $ticket->id, 'body' => $body, 'close' => true],
-            'پاسخ و بستنِ '.$ticket->number);
+        $this->send_reply($ticket, $body, close: true);
+    }
 
-        $this->replyToOwner($this->ui->confirmPrompt($ticket, $body, close: true, code: $code));
+    /** تنها جایی که پیامِ دیده‌شدنیِ مشتری واقعاً نوشته می‌شود */
+    private function send_reply(Ticket $ticket, string $body, bool $close): void
+    {
+        app(TicketReplyService::class)->post(
+            $ticket, null, 'پشتیبانی', $body, internal: false, close: $close,
+        );
+
+        $this->audit($ticket, $close ? 'پاسخ و بستنِ تیکت' : 'پاسخ به تیکت');
+
+        $c = $ticket->customer;
+
+        /*
+        | ⚠️ گزارشِ بعد از ارسال **اختیاری نیست**. حالا که کدِ تأیید نیست، این
+        | تنها چیزی است که یک ارسالِ جعلی را دیدنی می‌کند.
+        */
+        $this->replyToOwner(
+            ($close ? '✅ پاسخ رفت و '.$ticket->number.' بسته شد.' : '✅ پاسخ به '.$ticket->number.' رفت.')
+            .($c ? ' — '.$c->displayName() : '')
+            ."\n\n«".mb_substr($body, 0, 300).'»'
+        );
     }
 
     /** مصرفِ کدِ تأیید و اجرای کارِ مسلح */
@@ -556,6 +616,27 @@ class AdminBaleRouter
 
     // ─────────────────── کارهای دکمه‌ای ───────────────────
 
+    /**
+     * منوی اصلی — دکمه، نه متن.
+     *
+     * کارفرما روی گوشی است؛ تایپِ «تیکت‌ها» هر بار، همان اصطکاکی است که آدم را
+     * به پنل برمی‌گردانَد.
+     */
+    private function menu(): void
+    {
+        $this->sendButtons($this->ui->panel(), [
+            [
+                ['text' => '🎫 تیکت‌ها', 'data' => self::CB_PREFIX.'q'],
+                ['text' => '📬 ایمیل‌ها', 'data' => self::CB_PREFIX.'m'],
+            ],
+            [
+                ['text' => '💚 سلامتِ سامانه', 'data' => self::CB_PREFIX.'h'],
+                ['text' => '🔐 وضعیتِ ربات', 'data' => self::CB_PREFIX.'w'],
+            ],
+        ]);
+    }
+
+
     private function showQueue(): void
     {
         $rows = Ticket::query()->with('customer')->queue()
@@ -595,6 +676,7 @@ class AdminBaleRouter
 
         $rows = [[
             ['text' => '✍️ پیش‌نویسِ هوشمند', 'data' => self::CB_PREFIX.'td:'.$t->id],
+            ['text' => '✏️ خودم می‌نویسم', 'data' => self::CB_PREFIX.'tw:'.$t->id],
         ]];
 
         if (! $t->isClosed()) {
@@ -657,7 +739,25 @@ class AdminBaleRouter
         );
     }
 
-    /** ارسالِ پیش‌نویسِ ذخیره‌شده — از همان گیتِ تأییدِ پاسخِ دستی رد می‌شود */
+    /**
+     * «خودم می‌نویسم» — هوشِ مصنوعی را دور بزن.
+     *
+     * ⚠️ حالتِ تازه‌ای ذخیره نمی‌شود: لنگرِ ریپلای از قبل کار می‌کند، پس این
+     * دکمه فقط همان راه را یادآوری می‌کند. حالتِ ذخیره‌شده یعنی چیزی که روزی
+     * کهنه می‌شود و متن به تیکتِ اشتباه می‌رود.
+     */
+    private function howToWrite(string $arg): void
+    {
+        $t = Ticket::find((int) $arg);
+
+        $this->replyToOwner($t === null
+            ? 'تیکت پیدا نشد.'
+            : "✏️ روی کارتِ ".$t->number." **ریپلای** بزنید و متنتان را بنویسید.\n"
+              ."همان لحظه برای مشتری می‌رود.\n\n"
+              ."برای بستنِ هم‌زمان: «بستن ".$t->number." متنِ شما»");
+    }
+
+    /** ارسالِ پیش‌نویسِ ذخیره‌شده */
     private function armStoredDraft(string $arg): void
     {
         $ticket = Ticket::find((int) $arg);
@@ -669,7 +769,7 @@ class AdminBaleRouter
             return;
         }
 
-        $this->armReply($ticket, $body, explicitRef: false);
+        $this->send_reply($ticket, $body, close: false);
     }
 
     // ─────────────────── صندوقِ ایمیل ───────────────────

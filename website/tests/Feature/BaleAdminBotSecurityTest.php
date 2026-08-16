@@ -141,69 +141,81 @@ class BaleAdminBotSecurityTest extends TestCase
     }
 
     /**
-     * 🔴 قلبِ استدلالِ «لو رفتنِ آدرسِ وب‌هوک کافی نیست».
+     * 🔴 قلبِ استدلالِ «لو رفتنِ آدرسِ وب‌هوک کافی نیست» — نسخهٔ تازه.
      *
-     * حتی اگر مهاجم `from.id` را **درست** حدس بزند، کدِ تأیید به چتِ متصل
-     * می‌رود، نه به فرستندهٔ آپدیت. یعنی جعلِ خاموش به جعلِ **پرصدا** تبدیل
-     * می‌شود: گوشیِ کارفرما برای کاری که نکرده زنگ می‌خورد.
+     * ═══ چه چیزی عوض شد و چرا ═══
+     *
+     * تا امروز هر پاسخِ دیده‌شدنیِ مشتری کدِ تأیید می‌خواست، و آن کد فقط به چتِ
+     * متصل می‌رفت — پس دارندهٔ آدرسِ وب‌هوک نمی‌توانست پیامی به مشتری بفرستد.
+     *
+     * کارفرما آن کد را برداشت («وقتی خودم دکمهٔ ارسال را می‌زنم تأییدِ دوباره
+     * لزومی ندارد») و حق داشت: اصطکاک روی گوشی یعنی برگشتن به پنل، یعنی مرگِ
+     * خودِ قابلیت.
+     *
+     * ⚠️ ولی معامله باید **صریح** بماند: جعل دیگر ناممکن نیست، فقط **پرصدا**
+     * است. هر ارسال بلافاصله به چتِ متصل گزارش می‌شود — با متنِ فرستاده‌شده —
+     * پس پیامی که کارفرما نفرستاده روی گوشیِ خودش ظاهر می‌شود.
+     *
+     * این تست همان گزارش را قفل می‌کند. اگر روزی کسی «برای تمیزی» حذفش کند،
+     * جعلِ خاموش برمی‌گردد.
      */
-    public function test_the_confirm_code_goes_to_the_bound_chat_never_to_the_sender(): void
+    public function test_every_send_is_reported_back_to_the_bound_chat(): void
     {
         $this->bind();
         $t = $this->ticket();
 
-        // مهاجم دقیقاً وانمود می‌کند همان چتِ متصل است
-        $this->say('پاسخ '.$t->number.' متنِ جعلی', self::OWNER_CHAT);
+        $this->say('پاسخ '.$t->number.' متنِ آزمایشی', self::OWNER_CHAT);
 
         $owner = $this->textsSentTo(self::OWNER_CHAT);
 
-        $this->assertStringContainsString('تأیید', $owner, 'کدِ تأیید ساخته نشد');
-        $this->assertSame(0, TicketMessage::count(), 'بی‌تأیید نوشت');
+        $this->assertStringContainsString('✅', $owner, 'ارسال گزارش نشد — جعل خاموش می‌مانَد');
+        $this->assertStringContainsString($t->number, $owner);
+        $this->assertStringContainsString('متنِ آزمایشی', $owner,
+            'متنِ فرستاده‌شده در گزارش نیست — کارفرما نمی‌فهمد چه چیزی به مشتری رفته');
     }
 
-    // ═══════════════ ۲) کدِ تأیید: یک‌بارمصرف و سقف‌دار ═══════════════
-
-    public function test_a_customer_visible_reply_needs_a_confirm_and_the_confirm_is_single_use(): void
+    /** پاسخ همان لحظه می‌رود؛ دیگر مرحلهٔ دومی در کار نیست */
+    public function test_a_reply_is_sent_immediately_without_a_confirm_step(): void
     {
         $this->bind();
         $t = $this->ticket();
 
         $this->say('پاسخ '.$t->number.' سرور را ری‌استارت کنید', self::OWNER_CHAT);
 
-        $code = $this->grabCode();
-        $this->assertNotNull($code, 'کدِ تأیید در پیام نبود');
-        $this->assertSame(6, strlen($code), 'کدِ تأیید ۶ رقمی نیست — ۴ رقم در پنجرهٔ ۳ دقیقه‌ای حدس‌زدنی است');
-
-        $this->say('تأیید '.$code, self::OWNER_CHAT);
-        $this->assertSame(1, TicketMessage::count());
-
-        // ارسالِ دوبارهٔ همان کد نباید پیامِ دومی برای مشتری بسازد
-        $this->say('تأیید '.$code, self::OWNER_CHAT);
-        $this->assertSame(1, TicketMessage::count(), 'کدِ تأیید دوباره مصرف شد');
+        $this->assertSame(1, TicketMessage::count(), 'پاسخ نرفت');
+        $this->assertSame('answered', $t->fresh()->status);
     }
 
     /**
-     * 🔴 سقفِ تلاش روی کدِ تأیید — یافتهٔ بازبینیِ تهاجمی.
+     * ⚠️ ماشینِ کدِ تأیید **حذف نشد** و این‌جا مستقیم سنجیده می‌شود.
      *
-     * بی‌شمارنده، کدِ ۶ رقمی در پنجرهٔ ۳ دقیقه‌ای قابلِ جاروب بود و «مسلح‌کردن»
-     * هم رایگان و تکرارپذیر است، یعنی سقفِ واقعی وجود نداشت.
+     * پاسخِ تیکت دیگر ازش رد نمی‌شود، ولی کارهای پولی و برگشت‌ناپذیرِ بعدی
+     * لازمش دارند. تستِ بی‌فراخوان یعنی ماشینی که روزی بی‌صدا خراب می‌شود و
+     * اولین باری که واقعاً لازم شد، کار نمی‌کند.
      */
-    public function test_three_wrong_confirm_codes_cancel_the_pending_action(): void
+    public function test_the_confirm_machinery_still_works_for_future_money_actions(): void
     {
-        $this->bind();
-        $t = $this->ticket();
+        $gate = app(AdminBaleGate::class);
 
-        $this->say('پاسخ '.$t->number.' متن', self::OWNER_CHAT);
-        $code = $this->grabCode();
+        $code = $gate->armConfirm('demo', ['x' => 1], 'کارِ آزمایشی');
 
+        $this->assertSame(6, strlen($code), 'کدِ تأیید ۶ رقمی نیست');
+
+        // کدِ خام هرگز در دیتابیس نمی‌نشیند
+        $raw = (string) Setting::where('key', AdminBaleGate::KEY_STATE)->value('value');
+        $this->assertStringNotContainsString($code, $raw);
+
+        // سه اشتباه ⇒ کار لغو می‌شود
         foreach (['000001', '000002', '000003'] as $wrong) {
-            $this->say('تأیید '.$wrong, self::OWNER_CHAT);
+            $this->assertNull($gate->takeConfirm($wrong));
         }
 
-        // حالا حتی کدِ **درست** هم نباید کار کند: کار لغو شده
-        $this->say('تأیید '.$code, self::OWNER_CHAT);
+        $this->assertNull($gate->takeConfirm($code), 'پس از ۳ اشتباه، کار هنوز زنده بود');
 
-        $this->assertSame(0, TicketMessage::count(), 'پس از ۳ اشتباه، کار هنوز زنده بود');
+        // و در حالتِ عادی یک‌بارمصرف است
+        $code2 = $gate->armConfirm('demo', ['x' => 2], 'کارِ دوم');
+        $this->assertNotNull($gate->takeConfirm($code2));
+        $this->assertNull($gate->takeConfirm($code2), 'کد دوباره مصرف شد');
     }
 
     // ═══════════════ ۳) کلید، نقش، و اتصالِ خوانده‌نشده ═══════════════
@@ -366,21 +378,6 @@ class BaleAdminBotSecurityTest extends TestCase
         }
 
         $this->assertTrue($viaBot, 'اصلاً پیامی نرفت — نیمهٔ منفی بی‌معنی می‌شود');
-    }
-
-    public function test_codes_are_never_stored_in_plaintext(): void
-    {
-        $this->bind();
-        $t = $this->ticket();
-
-        $this->say('پاسخ '.$t->number.' متن', self::OWNER_CHAT);
-
-        $code = $this->grabCode();
-        $raw  = (string) Setting::where('key', AdminBaleGate::KEY_STATE)->value('value');
-
-        $this->assertNotSame('', $raw);
-        $this->assertStringNotContainsString((string) $code, $raw, 'کدِ تأیید خام در دیتابیس نشست');
-        $this->assertStringNotContainsString('pending', $raw, 'وضعیت رمزنگاری نشده ذخیره شد');
     }
 
     /** پروندهٔ تیکت نباید ایمیل و موبایلِ مشتری را در چت بریزد */

@@ -158,7 +158,6 @@ class BaleAdminBotTest extends TestCase
             ->post('/admin/tickets/'.$viaPanel->id.'/reply', ['body' => 'سلامِ من', 'close' => 1]);
 
         $this->say('بستن '.$viaBot->number.' سلامِ من');
-        $this->say('تأیید '.$this->code());
 
         $a = $viaPanel->fresh();
         $b = $viaBot->fresh();
@@ -187,7 +186,6 @@ class BaleAdminBotTest extends TestCase
         $t = $this->ticket();
 
         $this->say('بستن '.$t->number.' حل شد');
-        $this->say('تأیید '.$this->code());
 
         $this->assertSame(['ticket_reply', 'ticket_closed', 'ticket_survey'], (array) $box);
     }
@@ -200,7 +198,6 @@ class BaleAdminBotTest extends TestCase
         $t = $this->ticket();
 
         $this->say('بستن '.$t->number);
-        $this->say('تأیید '.$this->code());
 
         $this->assertSame(['ticket_closed', 'ticket_survey'], (array) $box);
         $this->assertSame(0, TicketMessage::count(), 'بستنِ خالی یک پیامِ الکی ساخت');
@@ -260,12 +257,10 @@ class BaleAdminBotTest extends TestCase
         $this->replyingTo('🎫 تیکتِ تازه'."\n".'https://console.servernet.cloud/admin/tickets/'.$t->id,
             'همین الان بررسی می‌کنم');
 
-        $this->assertStringContainsString('تأیید', $this->outbox());
-
-        $this->say('تأیید '.$this->code());
-
+        // ⚠️ دیگر مرحلهٔ تأیید نیست: ریپلای همان لحظه می‌رود
         $this->assertSame(1, TicketMessage::count());
         $this->assertSame('answered', $t->fresh()->status);
+        $this->assertStringContainsString('✅', $this->outbox(), 'ارسال گزارش نشد');
     }
 
     public function test_a_reply_to_a_non_ticket_alert_writes_nothing_and_says_which_ticket(): void
@@ -402,7 +397,6 @@ class BaleAdminBotTest extends TestCase
         });
 
         $this->say('پاسخ '.$t->number.' بررسی شد');
-        $this->say('تأیید '.$this->code());
 
         $body = (string) ($seen[0] ?? '');
 

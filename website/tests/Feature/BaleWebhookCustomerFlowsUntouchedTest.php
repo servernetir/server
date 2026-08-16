@@ -155,19 +155,59 @@ class BaleWebhookCustomerFlowsUntouchedTest extends TestCase
     }
 
     /**
-     * حتی `/start` از **خودِ چتِ متصل** هم باید دکمهٔ شماره بگیرد.
+     * `/start` از **چتِ متصل** حالا منوی مدیر می‌آورد، نه دکمهٔ اشتراکِ شماره.
      *
-     * ⚠️ وگرنه کارفرما که یک بار ربات را ری‌استارت کند، به‌جای جریانِ آشنای
-     * «اشتراکِ شماره» یک منوی مدیریتی می‌بیند و نگاشتِ شماره‌اش هرگز ساخته
-     * نمی‌شود.
+     * کارفرما: «وقتی شروع را می‌زنم دکمه‌ها بیایند، نخواهم بنویسم.»
+     *
+     * ⚠️ این تست عمداً نگه داشته شد و فقط ادعایش برعکس شد — چون نیمهٔ دیگرش
+     * (تستِ بالا: `/start` هر چتِ دیگری هنوز دکمهٔ شماره می‌گیرد) تنها چیزی
+     * است که مسیرِ ورودِ بلهٔ **مشتری** را زنده نگه می‌دارد.
      */
-    public function test_start_from_the_bound_chat_is_still_a_customer_flow(): void
+    public function test_start_from_the_bound_chat_opens_the_admin_menu(): void
     {
         $this->bind();
 
         $this->postJson($this->hookUrl(), [
-            'message' => ['chat' => ['id' => self::OWNER_CHAT], 'from' => ['id' => self::OWNER_CHAT], 'text' => '/start'],
-        ]);
+            'message' => [
+                'chat' => ['id' => self::OWNER_CHAT, 'type' => 'private'],
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'text' => '/start',
+            ],
+        ])->assertOk();
+
+        $menu = false;
+
+        Http::assertSent(function ($r) use (&$menu) {
+            $d = $r->data();
+
+            if (str_contains($r->url(), '/sendMessage')
+                && isset($d['reply_markup']['inline_keyboard'])) {
+                $menu = true;
+            }
+
+            return true;
+        });
+
+        $this->assertTrue($menu, 'منوی دکمه‌ایِ مدیر نیامد');
+    }
+
+    /**
+     * ⚠️ و راهِ پیوندِ شمارهٔ خودِ کارفرما بسته نشد.
+     *
+     * بی‌این، مدیری که `/start` می‌زند دیگر هرگز نمی‌تواند شماره‌اش را به ربات
+     * وصل کند — یعنی کدِ ورود و اعلان‌های حسابِ خودش در بله نمی‌آید.
+     */
+    public function test_the_owner_can_still_get_the_contact_keyboard_on_demand(): void
+    {
+        $this->bind();
+
+        $this->postJson($this->hookUrl(), [
+            'message' => [
+                'chat' => ['id' => self::OWNER_CHAT, 'type' => 'private'],
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'text' => 'پیوند شماره',
+            ],
+        ])->assertOk();
 
         $this->assertContactKeyboardWentTo(self::OWNER_CHAT);
     }
