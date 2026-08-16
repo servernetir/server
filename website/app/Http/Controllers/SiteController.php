@@ -234,7 +234,7 @@ class SiteController extends Controller
         foreach ($serverSlugs as $slug) {
             $add('servers.show', $slug);
         }
-        foreach (['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas'] as $slug) {
+        foreach (['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas', 'speedtest'] as $slug) {
             $add('tools', $slug);
         }
         $add('hub.dns');

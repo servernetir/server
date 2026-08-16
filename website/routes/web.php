@@ -77,6 +77,10 @@ $site = function (): void {
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:tools');
     // پیشنهادگر نام دامنه — سطل ai چون هر درخواست یک تماس مدل است
     Route::post('/api/domain-ideas', [ToolController::class, 'ideas'])->name('api.ideas')->middleware('throttle:ai');
+    // تست سرعت اینترنت کاربر — سطل جدا؛ هر اجرا ~۱۵ درخواست است و down پرحجم
+    Route::get('/api/speedtest/ping', [ToolController::class, 'speedPing'])->name('api.spt.ping')->middleware('throttle:speedtest');
+    Route::get('/api/speedtest/down', [ToolController::class, 'speedDown'])->name('api.spt.down')->middleware('throttle:speedtest');
+    Route::post('/api/speedtest/up', [ToolController::class, 'speedUp'])->name('api.spt.up')->middleware('throttle:speedtest');
 
     /*
      * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.

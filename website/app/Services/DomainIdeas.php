@@ -20,10 +20,10 @@ namespace App\Services;
 class DomainIdeas extends AiContent
 {
     /** حداکثر پیشنهاد در هر پاسخ */
-    public const MAX_IDEAS = 12;
+    public const MAX_IDEAS = 24;
 
     /** چند نام اول برای بررسی NS (هر بررسی یک درخواست DoH است) */
-    private const NS_CHECKS = 10;
+    private const NS_CHECKS = 24;
 
     /**
      * @return array{ok: bool, items: array<int, array{name: string, domain: string, taken: bool|null}>, source: string}
@@ -74,7 +74,7 @@ class DomainIdeas extends AiContent
             .'Prefer invented brandable words, blends and short compounds over generic keyword strings. '
             .'No numbering, no commentary, no quotes — names only, one per line.';
 
-        $out = $this->call($sys, mb_substr($description, 0, 300), 300, 60);
+        $out = $this->call($sys, mb_substr($description, 0, 300), 600, 60);
         if ($out === null) {
             return [];
         }

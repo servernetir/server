@@ -181,6 +181,11 @@ window.LOOKUP = {
     ac_unreach_iran: @json(__('ui.lk_ac_unreach_iran')), ac_unknown: @json(__('ui.lk_ac_unknown')), ac_noanswer: @json(__('ui.lk_ac_noanswer')),
     ac_block_ip: @json(__('ui.lk_ac_block_ip')), ac_dns_global: @json(__('ui.lk_ac_dns_global')), ac_dns_iran: @json(__('ui.lk_ac_dns_iran')),
     ac_http_world: @json(__('ui.lk_ac_http_world')), ac_http_iran: @json(__('ui.lk_ac_http_iran')),
+    ch_loc: @json(__('ui.lk_ch_loc')), ch_avg: @json(__('ui.lk_ch_avg')), ch_minmax: @json(__('ui.lk_ch_minmax')), ch_loss: @json(__('ui.lk_ch_loss')),
+    ch_time: @json(__('ui.lk_ch_time')), ch_pending: @json(__('ui.lk_ch_pending')), ch_timeout: @json(__('ui.lk_ch_timeout')), ch_err: @json(__('ui.lk_ch_err')), ch_down: @json(__('ui.lk_ch_down')),
+    ch_ok_of: @json(__('ui.lk_ch_ok_of')), ch_iran_ok: @json(__('ui.lk_ch_iran_ok')), ch_iran_down: @json(__('ui.lk_ch_iran_down')),
+    cwv_score: @json(__('ui.lk_cwv_score')), cwv_s: @json(__('ui.lk_cwv_s')), cwv_cached: @json(__('ui.lk_cwv_cached')),
+    err_psi: @json(__('ui.lk_err_psi')),
   },
 };
 </script>
