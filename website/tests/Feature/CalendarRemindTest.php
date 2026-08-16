@@ -91,6 +91,84 @@ class CalendarRemindTest extends TestCase
         $this->assertStringContainsString('فردا', $body);
     }
 
+    /**
+     * 🔴 تاریخ **یک بار** به‌عنوان سرگروه می‌آید، نه دنبالِ هر خط.
+     *
+     * نسخهٔ اول به هر ردیف «۲۵ مرداد (امروز)» می‌چسباند؛ در پیامی با چهار
+     * موردِ امروز، همان عبارت چهار بار تکرار می‌شد و عنوانِ خودِ کار — تنها
+     * چیزِ مهم — لای تکرار گم می‌شد.
+     */
+    public function test_the_date_appears_once_per_day_not_on_every_line(): void
+    {
+        $this->reminder('کارِ اول', 0);
+        $this->reminder('کارِ دوم', 0);
+        $this->reminder('کارِ سوم', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertSame(1, substr_count($body, 'امروز'),
+            'سرگروهِ «امروز» باید دقیقاً یک بار بیاید');
+        $this->assertSame(3, substr_count($body, '•'), 'سه کار، سه ردیف');
+    }
+
+    /**
+     * هر روز سرگروهِ خودش را دارد.
+     *
+     * ⚠️ عنوان‌ها عمداً «الف» و «ب» اند: نسخهٔ اول «امروزی» و «فردایی» بود و
+     * چون خودِ عنوان رشتهٔ «امروز» را در خود داشت، `substr_count` دو بار
+     * می‌شمرد و تست دربارهٔ چیزی شکست می‌خورد که سالم بود.
+     */
+    public function test_each_day_gets_its_own_heading(): void
+    {
+        $this->reminder('کارِ الف', 0);
+        $this->reminder('کارِ ب', 1);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertSame(1, substr_count($body, 'امروز'));
+        $this->assertSame(1, substr_count($body, 'فردا'));
+        // گروه‌ها به ترتیبِ زمانی‌اند: امروز پیش از فردا
+        $this->assertLessThan(strpos($body, 'فردا'), strpos($body, 'امروز'));
+    }
+
+    /**
+     * مبلغ در خطِ خودش می‌آید — در بله رنگ و ستون نداریم، پس عددی که تصمیمِ
+     * صبح را عوض می‌کند باید در متن باشد.
+     */
+    public function test_an_amount_is_shown_on_the_line(): void
+    {
+        CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجارهٔ دفتر', 'status' => 'pending',
+            'event_date' => Carbon::now($this->tz())->toDateString(),
+            'amount' => 50000000, 'currency_code' => 'IRT',
+        ]);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertStringContainsString('اجارهٔ دفتر', $body);
+        // مبلغ با همان قالبِ بقیهٔ پنل، نه عددِ خام
+        $this->assertStringContainsString(invoice_money(50000000, 'IRT'), $body);
+    }
+
+    /** رویدادِ بی‌مبلغ نباید جداکنندهٔ خالی بگیرد */
+    public function test_an_event_without_an_amount_has_no_trailing_separator(): void
+    {
+        $this->reminder('کارِ بی‌پول', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $line = collect(explode("\n", $body))->first(fn ($l) => str_contains($l, 'کارِ بی‌پول'));
+
+        $this->assertStringEndsWith('یادآوری و کار', trim((string) $line));
+    }
+
     /** رویدادِ انجام‌شده کاری برای انجام ندارد و نباید یادآوری شود */
     public function test_a_done_reminder_is_left_out(): void
     {
