@@ -32,11 +32,16 @@
   const fab = document.getElementById('aib-fab');
   const isMobile = () => window.matchMedia('(max-width: 720px)').matches;
 
-  // اولین باری که بخشِ سایت‌ساز دیده شد، چت با انیمیشن بالا بیاید
+  // اولین باری که بخشِ سایت‌ساز دیده شد، چت با انیمیشن بالا بیاید.
+  // fallbackِ زمانی: اگر IntersectionObserver به هر دلیلی شلیک نکرد (تبِ
+  // پس‌زمینه، محیطِ بدونِ compositing)، چت نباید برای همیشه غیب بماند.
+  let popShown = false;
+  const showPop = () => { if (!popShown) { popShown = true; pop.classList.add('on'); } };
   const io = new IntersectionObserver((es) => {
-    if (es.some((e) => e.isIntersecting)) { pop.classList.add('on'); io.disconnect(); }
+    if (es.some((e) => e.isIntersecting)) { showPop(); io.disconnect(); }
   }, { threshold: 0.15 });
   io.observe(root);
+  setTimeout(showPop, 4000);
 
   document.getElementById('aib-pop-min').addEventListener('click', () => {
     pop.classList.remove('on');
