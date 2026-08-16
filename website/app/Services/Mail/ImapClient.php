@@ -131,6 +131,59 @@ class ImapClient
         ];
     }
 
+    /**
+     * نامهٔ **کامل** (سرآیند + بدنه + پیوست‌ها) به‌صورت خام، برای `MimeReader`.
+     *
+     * 🔴 `BODY.PEEK[]` نه `BODY[]` — همان قاعدهٔ بالای کلاس: `BODY[]` پرچمِ
+     * \Seen می‌زند و نامهٔ نخواندهٔ کاربر را در Roundcube «خوانده» می‌کند.
+     * باز کردنِ یک نامه در پنلِ ما نباید وضعیتش را در کلاینتِ واقعی عوض کند.
+     *
+     * ⚠️ **سقفِ حجم عمدی است.** یک نامه با پیوستِ ۸۰ مگابایتی، بی‌سقف، همان
+     * ۸۰ مگ را در حافظهٔ PHP می‌ریزد و درخواست با خطای حافظه می‌میرد — روی
+     * صفحه‌ای که مدیر هر روز بازش می‌کند. پس تا سقف می‌خوانیم و **صادقانه**
+     * می‌گوییم بریده شد؛ نامهٔ بزرگ باید ناقص دیده شود، نه اینکه پنل بیفتد.
+     *
+     * @return array{raw:string, size:int, truncated:bool}|null
+     */
+    public function fetchRaw(int $id, int $maxBytes = 5_242_880): ?array
+    {
+        // اندازهٔ واقعی را اول بپرس تا بدانیم بریدیم یا نه.
+        $sizeLines = $this->cmd("FETCH {$id} (RFC822.SIZE)");
+        $size = 0;
+
+        foreach ($sizeLines as $line) {
+            if (preg_match('~RFC822\.SIZE\s+(\d+)~i', $line, $m)) {
+                $size = (int) $m[1];
+
+                break;
+            }
+        }
+
+        $want  = $size > 0 ? min($size, $maxBytes) : $maxBytes;
+        $lines = $this->cmd("FETCH {$id} (BODY.PEEK[]<0.{$want}>)");
+
+        // `cmd()` خودِ خطِ نشانگرِ `{n}` را دور می‌ریزد و فقط محتوای لیترال را
+        // در آرایه می‌گذارد؛ پس بلندترین عضو همان نامه است. این FETCH دقیقاً
+        // یک لیترال دارد، بنابراین ابهامی نیست.
+        $raw = '';
+
+        foreach ($lines as $line) {
+            if (strlen($line) > strlen($raw)) {
+                $raw = $line;
+            }
+        }
+
+        if (trim($raw) === '') {
+            return null;
+        }
+
+        return [
+            'raw'       => $raw,
+            'size'      => $size ?: strlen($raw),
+            'truncated' => $size > 0 && $size > $want,
+        ];
+    }
+
     // ───────────────────────── پارسِ سرآیند ─────────────────────────
 
     public function header(string $raw, string $name): string
