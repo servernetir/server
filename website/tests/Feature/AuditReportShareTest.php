@@ -390,6 +390,83 @@ class AuditReportShareTest extends TestCase
         }
     }
 
+    /**
+     * فهرست از دیتای خودمان — «دامنه پیشِ ماست، هاستش جای دیگر».
+     *
+     * 🔴 مهم‌ترین ادعا این نیست که چه کسی **وارد** فهرست می‌شود؛ این است که چه
+     * کسی وارد **نمی‌شود**. مشتریِ فعالی که همین حالا از ما هاست می‌خرد نباید
+     * ایمیلِ «سایتت مشکل دارد، بیا از ما بخر» بگیرد — آن پیام برای او بی‌معنی
+     * است و به رابطه‌ای که داریم آسیب می‌زند.
+     */
+    public function test_the_own_data_list_targets_domain_only_customers(): void
+    {
+        $this->actingAs($this->admin());
+
+        // ۱) دامنه دارد، سرویسِ فعال ندارد ⇒ هدفِ درست
+        $lonely = $this->customer('lonely@x.com');
+        $this->domain($lonely, 'lonely.com');
+
+        // ۲) دامنه دارد **و** سرویسِ فعال ⇒ نباید بیاید
+        $happy = $this->customer('happy@x.com');
+        $this->domain($happy, 'happy.com');
+        $this->service($happy, 'active');
+
+        // ۳) سرویسش لغو شده ⇒ مشتریِ سابق، هدفِ درست
+        $former = $this->customer('former@x.com');
+        $this->domain($former, 'former.com');
+        $this->service($former, 'cancelled');
+
+        $this->postJson('/admin/seo/list-own')->assertOk()->assertJsonPath('ok', true);
+
+        $this->assertDatabaseHas('outreach_contacts', ['host' => 'lonely.com', 'email' => 'lonely@x.com']);
+        $this->assertDatabaseHas('outreach_contacts', ['host' => 'former.com', 'email' => 'former@x.com']);
+        $this->assertDatabaseMissing('outreach_contacts', ['host' => 'happy.com']);
+    }
+
+    /** لغوِ اشتراک از این در هم رد نمی‌شود. */
+    public function test_the_own_data_list_still_honours_unsubscribes(): void
+    {
+        $this->actingAs($this->admin());
+
+        $c = $this->customer('gone@x.com');
+        $this->domain($c, 'gone.com');
+
+        // قبلاً گفته «نفرست»
+        $prev = OutreachContact::create(['host' => 'other.com', 'email' => 'gone@x.com']);
+        $this->get('/report/unsubscribe/'.$prev->unsubscribe_token)->assertOk();
+
+        $this->postJson('/admin/seo/list-own')->assertOk()->assertJsonPath('added', 0);
+
+        $this->assertDatabaseMissing('outreach_contacts', ['host' => 'gone.com']);
+    }
+
+    private function customer(string $email): \App\Models\Customer
+    {
+        return \App\Models\Customer::create([
+            'email' => $email,
+            'phone' => '0912'.random_int(1000000, 9999999),
+            'password' => bcrypt('secret1234'), 'status' => 'active', 'locale' => 'fa',
+        ]);
+    }
+
+    private function domain(\App\Models\Customer $c, string $host): void
+    {
+        [$sld, $tld] = explode('.', $host, 2);
+        \App\Models\Domain::create([
+            'customer_id' => $c->id, 'domain' => $host, 'sld' => $sld, 'tld' => $tld,
+            'status' => 'active', 'expires_at' => now()->addYear(),
+        ]);
+    }
+
+    private function service(\App\Models\Customer $c, string $status): void
+    {
+        \App\Models\Service::create([
+            'customer_id' => $c->id, 'name' => 'هاست', 'currency_code' => 'IRT',
+            'price' => 500000, 'cycle' => 'monthly', 'status' => $status,
+            'next_due_at' => now()->addMonth(),
+        ]);
+    }
+
     /** سربرگِ چاپ باید در صفحهٔ گزارش با تاریخ و نشانیِ واقعی پر شده باشد. */
     public function test_the_printed_report_identifies_itself(): void
     {

@@ -54,8 +54,20 @@
     حداقلِ قانونی است — کمتر از این، اسپم حساب می‌شود.
   </div>
 
+  {{-- 🔴 بهترین فهرست را از قبل دارید — این دکمه از دیتای خودتان می‌سازدش.
+       ایمیلش قانوناً مالِ ماست (مشتریِ خودمان)، گیرنده از قبل به ما اعتماد
+       دارد، و پیام برایش ربط دارد نه مزاحمت. --}}
+  <div class="sx-own">
+    <div class="sx-own-tx">
+      <b>از دیتای خودتان بساز</b>
+      <small>دامنه‌هایی که از ما ثبت شده‌اند ولی صاحبشان هیچ سرویس فعالی ندارد — یعنی دامنه پیش ماست و هاستش جای دیگر.</small>
+    </div>
+    <button class="btn btn-primary" type="button" id="sx-import-own">ساختن فهرست</button>
+    <span class="sx-status" id="sx-own-status"></span>
+  </div>
+
   <div class="sx-form">
-    <div class="ad-field"><label>فهرست</label>
+    <div class="ad-field"><label>یا فهرست را دستی وارد کنید</label>
       <textarea class="ad-input" id="sx-list" rows="6" dir="ltr" placeholder="example.com, info@example.com&#10;another.ir, hello@another.ir"></textarea></div>
     <div>
       <button class="btn btn-ghost" type="button" id="sx-import">افزودن به فهرست</button>
@@ -131,6 +143,7 @@ window.SX = {
   urls: {
     one:  '/admin/seo/send-one',
     list: '/admin/seo/list',
+    listOwn: '/admin/seo/list-own',
     scan: '/admin/seo/scan-next',
     send: '/admin/seo/send-next',
   },

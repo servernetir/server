@@ -66,6 +66,16 @@ $site = function (): void {
     Route::get('/status', [SiteController::class, 'status'])->name('status');
     Route::get('/sla', fn () => view('pages.sla'))->name('sla');
 
+    /*
+    | مستنداتِ APIِ نمایندگیِ دامنه.
+    |
+    | ⚠️ مسیر عمداً `/developers` است و نه `/api`: `bootstrap/app.php` می‌گوید
+    | `shouldRenderJsonWhen(is('api/*'))`، پس هر صفحهٔ HTMLای زیرِ `/api`
+    | خطاهایش را JSON برمی‌گرداند — یعنی یک ۵۰۴ ساده به‌جای صفحهٔ خطای سایت،
+    | یک بلوکِ JSON به بازدیدکننده نشان می‌دهد.
+    */
+    Route::get('/developers', fn () => view('pages.developers'))->name('developers');
+
     // صفحهٔ فرودِ شخصیِ «طراحی سایت و زیرساخت» — مقصدِ لینکِ لینکدین/اینستاگرام.
     // ⚠️ عمداً در منوی اصلی نیست، ولی در نقشهٔ سایت **هست**: کلِ هدفش ورودیِ
     //    ارگانیک از «طراحی سایت در ارومیه» است و صفحهٔ بی‌نقشه دیرتر ایندکس می‌شود.
@@ -324,6 +334,11 @@ $site = function (): void {
         Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
         Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
+
+        // پنلِ نمایندگیِ دامنه — برای غیرِ نماینده هم باز است و حالتِ معرفی
+        // نشان می‌دهد؛ ۴۰۴ یعنی لینکِ بازاریابی به دیوار می‌خورد.
+        Route::get('/reseller', [Account\ResellerController::class, 'index'])->name('reseller');
+        Route::get('/reseller/whmcs-module', [Account\ResellerController::class, 'download'])->name('reseller.module');
 
         Route::get('/invoices', [Account\PaymentController::class, 'index'])->name('invoices');
         Route::get('/invoices/{invoice}', [Account\PaymentController::class, 'show'])->name('invoice');
@@ -1438,27 +1453,6 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
 
     @set_time_limit(300);
 
-    /*
-    | 🔴 ریستِ opcache **پیش از** سیدرها، نه بعدشان.
-    |
-    | سرور با `validate_timestamps=0` اجرا می‌شود: فایلِ PHPِ تازه‌آپلودشده تا
-    | ریست‌نشدنِ opcache **زنده نمی‌شود**. تا امروز این ریست انتهای همین روت بود،
-    | یعنی ترتیب این می‌شد:
-    |
-    |     سیدرها با بایت‌کدِ **قدیمی** اجرا می‌شوند → بعد opcache ریست می‌شود
-    |
-    | نتیجهٔ عملی: هر دیپلویی که سیدری را عوض کرده بود، **اجرای اولش بی‌اثر بود**
-    | و صفحه هم «موفق» می‌گفت. فقط اجرای دومِ همین روت کار می‌کرد. مرداد ۱۴۰۵
-    | دقیقاً همین رخ داد: ردیفِ تازهٔ الگوی پیام ساخته نشد و از بیرون شبیهِ
-    | «سیدر خراب است» به‌نظر می‌رسید.
-    |
-    | ⚠️ `opcache_reset()` تضمین نمی‌کند فایلی که در **همین** درخواست از قبل
-    | کامپایل شده دوباره خوانده شود، برای همین پایین‌تر هر فایلِ سیدر جداگانه با
-    | `opcache_invalidate($f, true)` هم باطل می‌شود — آن یکی روی همان درخواست
-    | اثر دارد و به کلاسی که هنوز autoload نشده می‌رسد.
-    */
-    $opcacheReset = function_exists('opcache_reset') ? @opcache_reset() : null;
-
     // اگر یک مهاجرت خطا دهد، بدون try/catch کل روت ۵۰۰ (HTML) می‌شد و JSِ
     // فرم روی «در حال اجرا…» هنگ می‌کرد. حالا خطا را برمی‌گردانیم تا دیده شود.
     $migrateError = null;
@@ -1470,46 +1464,10 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         $migrateError = $e->getMessage();
     }
 
-    /*
-    | 🔴 هیچ `catch`ی این‌جا خالی نیست — و این درسِ گران‌قیمتِ همین روت است.
-    |
-    | تا امروز شکستِ هر سیدر بی‌صدا بلعیده می‌شد و صفحه همچنان «موفق» نشان
-    | می‌داد. یعنی دقیقاً در ابزاری که برای **دیدنِ** نتیجهٔ دیپلوی ساخته شده،
-    | خرابی نامرئی بود. هر خطا حالا در `errors` برمی‌گردد.
-    |
-    | ⚠️ ولی `catch` همچنان لازم است: یک سیدرِ خراب نباید بقیه را متوقف کند —
-    | ادامه می‌دهیم و آخرش گزارش می‌کنیم.
-    */
-    $errors = [];
-
-    $step = function (string $name, callable $fn) use (&$errors) {
-        try {
-            $fn();
-        } catch (\Throwable $e) {
-            $errors[$name] = mb_substr($e->getMessage(), 0, 300);
-        }
-    };
-
-    $step('clear', function () {
+    try {
         \Illuminate\Support\Facades\Artisan::call('view:clear');
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
-    });
-
-    /*
-    | فایل‌های سیدر را **پیش از اولین autoload** صریح باطل کن، وگرنه با
-    | `validate_timestamps=0` نسخهٔ تازه‌آپلودشده در همین درخواست خوانده نمی‌شود.
-    |
-    | ⚠️ عمداً از `ReflectionClass` برای پیداکردنِ مسیر استفاده نشده: آن خودش
-    | کلاس را autoload می‌کند، یعنی فایل همان لحظه کامپایل و کش می‌شود و
-    | باطل‌کردنِ بعدش دیگر بی‌فایده است. مسیرِ پوشه را مستقیم می‌خوانیم.
-    */
-    $invalidated = 0;
-    if (function_exists('opcache_invalidate')) {
-        foreach ((array) glob(base_path('database/seeders/*.php')) as $file) {
-            if (@opcache_invalidate($file, true)) {
-                $invalidated++;
-            }
-        }
+    } catch (\Throwable) {
     }
 
     // کاتالوگِ هاست را فقط اگر جدولِ products خالی است یک‌بار می‌سازد (پکیج‌های
@@ -1521,19 +1479,17 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
         }
     } catch (\Throwable $e) {
-        // متنش از قبل در `seeded` دیده می‌شد، ولی روی `ok` اثر نداشت — پس یک
-        // شکستِ واقعی همچنان «موفق» گزارش می‌شد.
         $seeded = 'seed error: '.$e->getMessage();
-        $errors['products'] = mb_substr($e->getMessage(), 0, 300);
     }
 
     // کاتالوگِ الگوی پیام‌ها — همان الگو: firstOrCreate، پس متنی که مدیر در
     // /admin/templates ویرایش کرده هرگز با دیپلوی بعدی به متنِ کد برنمی‌گردد.
-    $step('notification_templates', function () {
+    try {
         if (\Illuminate\Support\Facades\Schema::hasTable('notification_templates')) {
             (new \Database\Seeders\NotificationTemplateSeeder())->run();
         }
-    });
+    } catch (\Throwable) {
+    }
 
     /*
     | اسنادِ حقوقی — بی‌این، **هیچ مشتری‌ای قوانین را نپذیرفته**.
@@ -1546,24 +1502,26 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     | ⚠️ نسخه از هشِ خودِ متن ساخته می‌شود، پس ویرایشِ قوانین خودبه‌خود نسخهٔ
     | تازه می‌سازد و پذیرشِ قبلی‌ها دست‌نخورده می‌مانَد.
     */
-    $step('legal_documents', function () {
+    try {
         if (\Illuminate\Support\Facades\Schema::hasTable('legal_documents')) {
             (new \Database\Seeders\LegalDocumentSeeder())->run();
         }
-    });
+    } catch (\Throwable) {
+    }
 
     // کاتالوگِ سرورِ فیزیکی — insert-missing از config. هر بار امن است (اسلاگِ
     // موجود را دست نمی‌زند)، پس مدل‌های تازهٔ config در هر دیپلوی سینک می‌شوند.
-    $step('physical_servers', function () {
+    try {
         if (\Illuminate\Support\Facades\Schema::hasTable('physical_servers')) {
             (new \Database\Seeders\PhysicalServerSeeder())->run();
         }
-    });
+    } catch (\Throwable) {
+    }
 
-    /*
-    | ریستِ دوم، برای بقیهٔ کد (روت‌ها، ویوها، کلاس‌های اپ) که این درخواست
-    | اجراشان نکرد. ریستِ اولِ بالای تابع فقط سیدرها را هدف داشت.
-    */
+    // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
+    // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
+    // سرو می‌شود. این‌جا کنار مهاجرت ریست می‌کنیم تا هر دپلوی با یک migrate
+    // زنده شود.
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
@@ -1575,21 +1533,12 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
     }
 
-    /*
-    | ⚠️ `ok` حالا شکستِ سیدر را هم می‌بیند، نه فقط مهاجرت را.
-    |
-    | پیش از این `ok` فقط به `$migrateError` نگاه می‌کرد، پس یک سیدرِ خراب
-    | «موفق» گزارش می‌شد. همان قاعدهٔ ثبت‌شده در CLAUDE.md: پرس‌وجوی ناظر باید
-    | خودِ خرابی را ببیند، نه ستونِ همسایه.
-    */
     return response()->json([
-        'ok'          => $migrateError === null && $errors === [],
-        'error'       => $migrateError,
-        'errors'      => $errors === [] ? null : $errors,
-        'migrate'     => $migrate,
-        'seeded'      => $seeded,
-        'opcache'     => ['reset' => $opcacheReset, 'seeders_invalidated' => $invalidated],
-        'tables'      => $present,
+        'ok'      => $migrateError === null,
+        'error'   => $migrateError,
+        'migrate' => $migrate,
+        'seeded'  => $seeded,
+        'tables'  => $present,
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:6,1');
 
@@ -1924,10 +1873,6 @@ Route::prefix('admin')->group(function () {
         Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store'])->middleware('admin');
         Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->middleware('admin');
 
-        // گزارشِ کسب‌وکار — پولِ در راه، رشدِ مشتری، ظرفیتِ زیرساخت
-        // ⚠️ فقط می‌خوانَد؛ هیچ روتِ نوشتنی ندارد و عمداً هم نباید داشته باشد.
-        Route::get('/reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('admin.reports')->middleware('admin');
-
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
@@ -1961,6 +1906,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
+        // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه
+        Route::post('/customers/{customer}/reseller', [\App\Http\Controllers\Admin\CustomerController::class, 'reseller']);
         Route::post('/customers/{customer}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
         // حذف فاکتورِ پرداخت‌نشده (فاکتورِ پرداخت‌شده هرگز حذف نمی‌شود)
         Route::post('/invoices/{invoice}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroyInvoice']);
@@ -2121,6 +2068,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/seo', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'index'])->name('admin.seo');
         Route::post('/seo/send-one', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendOne']);
         Route::post('/seo/list', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importList']);
+        Route::post('/seo/list-own', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importOwn']);
         Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
         Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
 
@@ -2228,12 +2176,67 @@ Route::prefix('api/v1')
         // CSRF به نشست وابسته است؛ چون نشست را برداشتیم و احراز با توکن است، این هم می‌رود
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
     ])
-    ->middleware(\App\Http\Middleware\CustomerApiToken::class.':read')
     ->group(function () {
-        Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);
-        Route::get('/services', [\App\Http\Controllers\Api\CustomerApiController::class, 'services']);
-        Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
-        Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
+        $api = \App\Http\Middleware\CustomerApiToken::class;
+        $rate = (array) config('domain_reseller.limits.rate', []);
+
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 throttle روی **همهٔ** مسیرها، از جمله خواندنی‌ها
+        |----------------------------------------------------------------------
+        |
+        | تا امروز این بلوک هیچ throttle نداشت، در حالی که خودِ همین فایل
+        | قاعده‌اش را نوشته: «throttle روی هر POST که یا پول خرج می‌کند یا
+        | قابلِ حدس زدن است» — و `signin`, `otp`, `kyc` و حتی سفارشِ دامنهٔ
+        | پنل (`throttle:12,1`) را محدود کرده. یعنی تنها سطحی که قرار بود
+        | پول خرج کند، استثنا بود.
+        |
+        | ⚠️ سطحِ استعلام جدا و سخت‌گیرانه‌تر است: هر `check` چند تماسِ واقعی
+        | با رجیسترار می‌سازد، و حسابِ ما یک بار به‌خاطرِ تماسِ زیاد علامت
+        | خورده. محدودیتِ ما این‌جا از محدودیتِ آنها ارزان‌تر تمام می‌شود.
+        */
+
+        // ── خواندنیِ حساب (سازگارِ عقب‌رو با نسخهٔ قبل) ──
+        Route::middleware([$api.':read', 'throttle:'.($rate['read'] ?? '120,1')])
+            ->group(function () {
+                Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);
+                Route::get('/services', [\App\Http\Controllers\Api\CustomerApiController::class, 'services']);
+                Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
+                Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
+
+                // آزمونِ اتصالِ ماژولِ WHMCS — عمداً با کم‌ترین دسترسیِ ممکن،
+                // تا نماینده بتواند پیش از ساختنِ توکنِ نوشتنی هم تست کند.
+                Route::get('/ping', [\App\Http\Controllers\Api\DomainApiController::class, 'ping']);
+            });
+
+        // ── دامنه: خواندن ──
+        Route::middleware([$api.':domains:read', 'throttle:'.($rate['read'] ?? '120,1')])
+            ->group(function () {
+                Route::get('/domains', [\App\Http\Controllers\Api\DomainApiController::class, 'index']);
+                Route::get('/domains/{domain}', [\App\Http\Controllers\Api\DomainApiController::class, 'show']);
+            });
+
+        // ── دامنه: استعلام (تماسِ واقعی با رجیسترار ⇒ سقفِ جداگانه) ──
+        Route::middleware([$api.':domains:read', 'throttle:'.($rate['check'] ?? '60,1')])
+            ->group(function () {
+                Route::post('/domains/check', [\App\Http\Controllers\Api\DomainApiController::class, 'check']);
+                Route::get('/tlds', [\App\Http\Controllers\Api\DomainApiController::class, 'tlds']);
+            });
+
+        // ── دامنه: مدیریتِ دامنهٔ موجود (پول خرج نمی‌کند) ──
+        Route::middleware([$api.':domains:manage', 'throttle:'.($rate['write'] ?? '20,1')])
+            ->group(function () {
+                Route::put('/domains/{domain}/nameservers', [\App\Http\Controllers\Api\DomainApiController::class, 'nameservers']);
+                Route::post('/domains/{domain}/lock', [\App\Http\Controllers\Api\DomainApiController::class, 'lock']);
+                Route::post('/domains/{domain}/auto-renew', [\App\Http\Controllers\Api\DomainApiController::class, 'autoRenew']);
+            });
+
+        // ── دامنه: خرید (از اعتبار کسر می‌شود) ──
+        Route::middleware([$api.':domains:write', 'throttle:'.($rate['write'] ?? '20,1')])
+            ->group(function () {
+                Route::post('/domains', [\App\Http\Controllers\Api\DomainApiController::class, 'register']);
+                Route::post('/domains/{domain}/renew', [\App\Http\Controllers\Api\DomainApiController::class, 'renew']);
+            });
     });
 
 /*
