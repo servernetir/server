@@ -11,8 +11,15 @@ use Illuminate\View\View;
  */
 class SolutionController extends Controller
 {
-    /** راهکارهایی که با صفحه‌ی محصول یکی شده‌اند → ریدایرکت دائمی */
-    private const MERGED = ['email' => 'email']; // solution slug => hosting slug
+    /**
+     * راهکارهایی که با صفحه‌ی محصول یکی شده‌اند → ریدایرکت دائمی
+     *
+     * ⚠️ `public` است چون `SiteController::llms()` هم باید همین‌ها را کنار
+     * بگذارد. دو فهرستِ موازی یعنی روزی یکی به‌روز می‌شود و آن یکی نه — و
+     * آن‌وقت `llms.txt` مدل را به آدرسی می‌فرستد که ۳۰۱ می‌خورد. (همان تستِ
+     * `LlmsTxtIsCompleteTest` این را گرفت.)
+     */
+    public const MERGED = ['email' => 'email']; // solution slug => hosting slug
 
     /**
      * هابِ راهکارها (/solutions) — والدِ موضوعیِ همهٔ صفحات راهکار.
