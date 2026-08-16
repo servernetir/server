@@ -42,7 +42,7 @@
 
 {{-- منطقِ مشترک با صفحهٔ ورود — همان باگِ پرکردنِ خودکارِ iOS این‌جا هم بود.
      رفعِ یک‌جا در `public/assets/js/otp-input.js`، با تستِ node. --}}
-<script src="{{ asset('assets/js/otp-input.js') }}?v=2" defer></script>
+<script src="{{ asset_ver('assets/js/otp-input.js') }}" defer></script>
 @endsection
 
 @section('assure')

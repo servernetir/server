@@ -23,3 +23,44 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# ══ کشِ فایل‌های ایستا ═══════════════════════════════════════════════════
+#
+# 🔴 چرا لازم شد: روی پروداکشن هیچ هدرِ Cache-Control روی assets نبود، فقط
+# Last-Modified. یعنی مرورگر برای هر فایل در هر بازدید یک درخواستِ اعتبارسنجی
+# می‌فرستاد — و اندازه‌گیری نشان داد هر رفت‌وبرگشت از ایران ~۳۱۵ms است. این
+# عدد سنجیده شده، حدس نیست.
+#
+# ⚠️ «همه را یک سال کش کن» این‌جا **غلط** است:
+#   • فونت‌ها و پرچم‌ها و og.png عمداً نسخه ندارند
+#   • و preloadِ فونت باید دقیقاً همان URLِ داخلِ CSS بماند؛ اگر ?v= بگیرد،
+#     دو آدرسِ متفاوت می‌شود و فونت **دو بار** دانلود می‌شود — یعنی بهینه‌سازی
+#     که خودش کندی می‌سازد.
+#
+# 🔴 و مهم‌تر: شرط روی `v=` **عددی** است نه هر `v=`ی. `asset_ver()` وقتی فایل
+# را پیدا نکند به هشِ md5 برمی‌گردد که **ثابت** است؛ یک‌ساله‌کردنِ آن یعنی
+# فریزِ دائمیِ CSS — همان خرابی‌ای که یک‌بار در این پروژه رخ داد و هر تغییرِ
+# ظاهری را روی سایتِ زنده بی‌اثر کرد. مهرِ واقعی filemtime است (۱۰ رقم)، پس
+# فقط عدد را immutable می‌کنیم و هشِ fallback پنجرهٔ کوتاه می‌گیرد.
+#
+# ⚠️ همه‌چیز داخلِ IfModule است: نبودِ ماژول نباید کلِ سایت را ۵۰۰ کند.
+<IfModule mod_headers.c>
+    <IfModule mod_setenvif.c>
+        SetEnvIf Query_String "(^|&)v=[0-9]{6,}(&|$)" SN_VERSIONED
+    </IfModule>
+
+    <FilesMatch "\.(css|js|mjs)$">
+        Header set Cache-Control "public, max-age=604800"
+        Header set Cache-Control "public, max-age=31536000, immutable" env=SN_VERSIONED
+    </FilesMatch>
+
+    # فونت هرگز عوض نمی‌شود و بزرگ‌ترین بارِ بازدیدِ تکراری است
+    <FilesMatch "\.(woff2|woff|ttf|otf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # تصویر و پرچم: بی‌نسخه‌اند، پس پنجرهٔ محدود
+    <FilesMatch "\.(svg|png|jpe?g|gif|webp|avif|ico)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+</IfModule>

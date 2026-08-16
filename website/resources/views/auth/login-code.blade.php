@@ -63,7 +63,7 @@
   خودکار کد را نابود می‌کرد. روی دسکتاپ دیده نمی‌شد چون آن‌جا رقم‌به‌رقم تایپ
   می‌شود. حالا یک فایل، با تستِ node.
 --}}
-<script src="{{ asset('assets/js/otp-input.js') }}?v=2" defer></script>
+<script src="{{ asset_ver('assets/js/otp-input.js') }}" defer></script>
 @endsection
 
 @section('assure')
