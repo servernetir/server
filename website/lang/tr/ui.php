@@ -2188,4 +2188,16 @@ return [
     'st_expired' => 'Suresi doldu',
     'st_unknown' => 'Bilinmiyor',
 
+    'sec_api_anyip' => 'IP kısıtlaması yok',
+    'sec_api_expires' => 'Bitiş:',
+    'sec_api_scopes' => 'İzinler',
+    'sec_api_cidrs' => 'İzinli IP adresleri (isteğe bağlı, önerilir)',
+    'sec_api_cidrs_h' => 'Virgülle ayırın. Boş bırakılırsa token her IP den çalışır. WHMCS için kendi sunucu IP nizi girin.',
+    'sec_api_expiry' => 'Süre (gün)',
+    'sec_api_expiry_h' => 'Boş veya sıfır süresiz demektir.',
+    'rs_tier_base' => 'İndirim yok',
+    'rs_tier_start' => 'Herkesin başlangıç noktası',
+    'rs_tier_spend' => 'Son :months ayda :amount tomandan fazla alım',
+    'rs_tier_domains' => 've en az :count aktif alan adı',
+    'rs_tier_note' => 'Yükselme eşiği geçtiğiniz anda uygulanır. Hacminiz düşerse :gün süre tanınır, sonra en fazla bir kademe iner.',
 ];

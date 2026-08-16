@@ -2188,4 +2188,16 @@ return [
     'st_expired' => 'Expired',
     'st_unknown' => 'Unknown',
 
+    'sec_api_anyip' => 'No IP restriction',
+    'sec_api_expires' => 'Expires:',
+    'sec_api_scopes' => 'Permissions',
+    'sec_api_cidrs' => 'Allowed IPs (optional but recommended)',
+    'sec_api_cidrs_h' => 'Comma separated. Empty means the token works from any IP. For WHMCS, enter your own server IP.',
+    'sec_api_expiry' => 'Expiry (days)',
+    'sec_api_expiry_h' => 'Empty or zero means no expiry.',
+    'rs_tier_base' => 'No discount',
+    'rs_tier_start' => 'Where everyone starts',
+    'rs_tier_spend' => 'From :amount toman spent in the last :months months',
+    'rs_tier_domains' => 'and at least :count active domains',
+    'rs_tier_note' => 'Upgrades apply the moment you cross a threshold. If your volume drops you get :days days of grace, then at most one step down — a single slow month will not burn your tier.',
 ];

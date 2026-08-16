@@ -128,6 +128,25 @@
             <div class="sec-token-t">
               <b>{{ $t->name }}</b>
               <small>{{ __('ui.sec_api_created') }} {{ stime($t->created_at) }}@if($t->last_used_at) · {{ __('ui.sec_api_lastuse') }} {{ stime($t->last_used_at) }}@else · {{ __('ui.sec_api_neveruse') }} @endif</small>
+              @php
+                /* دسترسی‌ها و محافظ‌ها روی خودِ کارت — بی‌این، کاربر نمی‌داند
+                   کدام توکن اجازهٔ خرج‌کردن دارد و کدام محدود به IP است. */
+                $tAb = array_values((array) ($t->abilities ?? []));
+                $tCidr = array_values(array_filter((array) ($t->allowed_cidrs ?? [])));
+              @endphp
+              <small class="sec-token-meta">
+                @foreach($tAb as $ab)
+                  <span class="sec-chip @if(str_contains($ab, 'write')) danger @endif" dir="ltr">{{ $ab }}</span>
+                @endforeach
+                @if($tCidr)
+                  <span class="sec-chip ok">IP: {{ implode(' ', array_slice($tCidr, 0, 3)) }}{{ count($tCidr) > 3 ? ' …' : '' }}</span>
+                @else
+                  <span class="sec-chip warn">{{ __('ui.sec_api_anyip') }}</span>
+                @endif
+                @if($t->expires_at)
+                  <span class="sec-chip">{{ __('ui.sec_api_expires') }} {{ stime($t->expires_at) }}</span>
+                @endif
+              </small>
             </div>
             <form method="POST" action="{{ lroute('account.security.token.delete', $t) }}" data-confirm="{{ __('ui.sec_api_revoke_c') }}" data-confirm-danger style="margin-inline-start:auto">
               @csrf<button type="submit" class="sec-revoke">{{ __('ui.sec_api_revoke') }}</button>
@@ -139,11 +158,38 @@
       <p class="sec-note" style="margin-top:12px">{{ __('ui.sec_api_none') }}</p>
     @endif
 
-    <form method="POST" action="{{ lroute('account.security.token') }}" class="sec-form sec-inline">
+    <form method="POST" action="{{ lroute('account.security.token') }}" class="sec-form">
       @csrf
       <label>{{ __('ui.sec_api_name') }}
         <input type="text" name="name" placeholder="{{ __('ui.sec_api_name_ph') }}" maxlength="80" required>
       </label>
+
+      {{--
+        دسترسی‌ها: هیچ‌کدام پیش‌فرض تیک نخورده‌اند و نبودِ انتخاب یعنی «فقط
+        خواندن». دسترسی‌ای که پول خرج می‌کند باید **انتخاب** شود، نه اینکه
+        کسی ناخواسته صاحبش شود.
+      --}}
+      <div class="sec-abilities">
+        <span class="sec-lbl">{{ __('ui.sec_api_scopes') }}</span>
+        @foreach(\App\Models\CustomerApiToken::ABILITIES as $key => $desc)
+          <label class="sec-chk">
+            <input type="checkbox" name="abilities[]" value="{{ $key }}" @checked($key === 'read')>
+            <span><code dir="ltr">{{ $key }}</code> — {{ $desc }}</span>
+          </label>
+        @endforeach
+      </div>
+
+      <label>{{ __('ui.sec_api_cidrs') }}
+        <input type="text" name="cidrs" dir="ltr" placeholder="185.10.20.30, 2001:db8::/64" maxlength="500">
+        <small class="sec-note">{{ __('ui.sec_api_cidrs_h') }}</small>
+      </label>
+
+      <label>{{ __('ui.sec_api_expiry') }}
+        <input type="number" name="expires_days" min="1" max="1825"
+               value="{{ (int) config('domain_reseller.limits.token_default_days', 365) }}">
+        <small class="sec-note">{{ __('ui.sec_api_expiry_h') }}</small>
+      </label>
+
       <button class="pnl-btn primary" style="justify-content:center">{{ __('ui.sec_api_create') }}</button>
     </form>
 
