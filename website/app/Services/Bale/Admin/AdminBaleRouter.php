@@ -57,7 +57,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -343,7 +343,9 @@ class AdminBaleRouter
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
                 'ma' => $this->archiveMail($arg),
-                'me' => $this->mailDraft($arg),
+                'me'  => $this->mailDraft($arg),
+                'mes' => $this->mailSend($arg),
+                'mew' => $this->mailWriteMyself($arg),
                 default => $this->replyToOwner('این دکمه دیگر معتبر نیست.'),
             };
         } catch (\Throwable $e) {
@@ -531,6 +533,13 @@ class AdminBaleRouter
         // جریانِ چندمرحله‌ای: هر مرحله فقط داده جمع می‌کند و هیچ‌چیز نمی‌نویسد
         if ($flow !== null && str_starts_with($flow, 'cn:')) {
             $this->newCustomerStep(substr($flow, 3), $text);
+
+            return;
+        }
+
+        if ($flow !== null && str_starts_with($flow, 'mailreply:')) {
+            $this->gate->clearFlow();
+            $this->mailQueue((int) substr($flow, 10), $text);
 
             return;
         }
@@ -884,7 +893,7 @@ class AdminBaleRouter
 
         $this->sendButtons(
             '✍️ پیش‌نویس برای '.$ticket->number."\n\n".$text
-            ."\n\n⚠️ هنوز چیزی نرفته. «ارسال» کدِ تأیید می‌خواهد.",
+            ."\n\n⚠️ هنوز چیزی نرفته. با «ارسال» همان لحظه می‌رود.",
             [
                 [['text' => '📤 ارسال به مشتری', 'data' => self::CB_PREFIX.'ts:'.$ticket->id]],
                 array_map(fn ($k) => [
@@ -2167,21 +2176,103 @@ class AdminBaleRouter
         if ($draft === null) {
             $this->sendButtons(
                 'پیش‌نویسی ساخته نشد — یا مدل جواب نداد، یا این نامه پاسخ نمی‌خواهد.',
-                [$this->nav('mv:'.$m->id)],
+                [
+                    [['text' => '✏️ خودم می‌نویسم', 'data' => self::CB_PREFIX.'mew:'.$m->id]],
+                    $this->nav('mv:'.$m->id),
+                ],
             );
 
             return;
         }
 
+        $this->gate->putMailDraft($m->id, $draft);
+
         $this->sendButtons(
-            "✍️ پیش‌نویسِ پاسخ\n(از روی چکیدهٔ نامه — بدنهٔ کامل ذخیره نمی‌شود)\n\n"
+            '✍️ پیش‌نویسِ پاسخ به «'.mb_substr((string) $m->subject, 0, 60)."»\n"
+            ."(از روی چکیدهٔ نامه — بدنهٔ کامل ذخیره نمی‌شود)\n\n"
             .$draft
-            ."\n\n⚠️ این متن **ارسال نمی‌شود**؛ از برنامهٔ ایمیلِ خودتان بفرستید.",
+            ."\n\n⚠️ هنوز چیزی نرفته.",
             [
-                [['text' => '📥 بایگانی', 'data' => self::CB_PREFIX.'ma:'.$m->id]],
+                [['text' => '📤 ارسالِ پاسخ', 'data' => self::CB_PREFIX.'mes:'.$m->id]],
+                [['text' => '✏️ خودم می‌نویسم', 'data' => self::CB_PREFIX.'mew:'.$m->id]],
+                [['text' => '📥 بایگانی بی‌پاسخ', 'data' => self::CB_PREFIX.'ma:'.$m->id]],
                 $this->nav('mv:'.$m->id),
             ],
         );
+    }
+
+    /** «خودم می‌نویسم» — متنِ آزاد به‌جای پیش‌نویسِ مدل */
+    private function mailWriteMyself(string $arg): void
+    {
+        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+
+        if ($m === null) {
+            $this->replyToOwner('ایمیل پیدا نشد.');
+
+            return;
+        }
+
+        $this->gate->armFlow('mailreply:'.$m->id);
+
+        $this->sendButtons(
+            '✏️ متنِ پاسخ به «'.mb_substr((string) $m->subject, 0, 60)."» را بفرستید.\n"
+            .'گیرنده: '.mb_substr((string) $m->from_email, 0, 90)."\n"
+            .'(۱۰ دقیقه فرصت دارید)',
+            [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+        );
+    }
+
+    /** ارسالِ پیش‌نویسِ ذخیره‌شده */
+    private function mailSend(string $arg): void
+    {
+        $id    = (int) $arg;
+        $draft = $this->gate->takeMailDraft($id);
+
+        if ($draft === null) {
+            $this->replyToOwner('پیش‌نویس پیدا نشد یا منقضی شده. دوباره بسازید.');
+
+            return;
+        }
+
+        $this->mailQueue($id, $draft);
+    }
+
+    /**
+     * 🔴 ارسال **در صف** می‌رود، نه داخلِ وب‌هوک.
+     *
+     * دو دلیل، و هر دو یک بار در همین پروژه گاز گرفته‌اند:
+     *
+     *   • یک اتصالِ SMTP می‌تواند ده‌ها ثانیه طول بکشد. مهلتِ وب‌هوکِ بله که
+     *     تمام شود، بله **همان آپدیت را دوباره می‌فرستد** — یعنی نامه دو بار
+     *     برای مشتری می‌رود، و ایمیل برگشت‌پذیر نیست.
+     *   • همان قاعدهٔ فاز ۴: هر کارِ برگشت‌ناپذیر از `bale:work` می‌رود.
+     *
+     * ⚠️ نتیجه تا یک دقیقه بعد در همان چت گزارش می‌شود و متن همین را می‌گوید،
+     * تا سکوتِ یک‌دقیقه‌ای «نرفت» خوانده نشود و کارفرما دوباره نزند.
+     */
+    private function mailQueue(int $mailId, string $body): void
+    {
+        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::find($mailId) : null;
+
+        if ($m === null) {
+            $this->replyToOwner('ایمیل پیدا نشد.');
+
+            return;
+        }
+
+        $body = trim($body);
+
+        if (mb_strlen($body) < 2) {
+            $this->replyToOwner('متنِ پاسخ خالی است.');
+
+            return;
+        }
+
+        $this->enqueue('mail_reply',
+            ['id' => $m->id, 'body' => mb_substr($body, 0, 3000)],
+            'پاسخ به '.mb_substr((string) $m->from_email, 0, 60));
     }
 
     /** ⚠️ نامه **حذف نمی‌شود** — فقط از صفِ «منتظرِ پاسخ» بیرون می‌رود */
