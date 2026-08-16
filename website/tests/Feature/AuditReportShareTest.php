@@ -361,6 +361,35 @@ class AuditReportShareTest extends TestCase
         );
     }
 
+    /**
+     * 🔴 لینکی که به مشتری می‌رود هرگز نباید میزبانِ پنلِ مدیریت را داشته باشد.
+     *
+     * روی سایتِ زنده دیده شد: مدیر گزارش را از `/admin/seo` فرستاد و لینکِ
+     * داخلِ ایمیل `console.servernet.cloud/report/…` بود، چون `url()` از میزبانِ
+     * درخواستِ جاری می‌سازد. ریدایرکتِ ۳۰۱ بازش می‌کرد، ولی ایمیلی که به یک
+     * غریبه می‌رود و نشانی‌اش «console» دارد، دقیقاً شبیهِ فیشینگ است.
+     *
+     * همین برای لینکِ لغوِ اشتراک هم هست و آن‌جا بدتر: در هدرِ
+     * `List-Unsubscribe` می‌نشیند.
+     */
+    public function test_customer_facing_links_never_carry_the_admin_host(): void
+    {
+        $report = $this->report('shop.ir');
+        $contact = OutreachContact::create([
+            'host' => 'shop.ir', 'email' => 'owner@shop.ir', 'audit_report_id' => $report->id,
+        ]);
+
+        // میزبانِ درخواست را کنسول کن — همان چیزی که موقعِ ارسال از پنل رخ می‌دهد
+        $this->app['request']->headers->set('HOST', 'console.servernet.cloud');
+        $this->app['request']->server->set('HTTP_HOST', 'console.servernet.cloud');
+
+        foreach ([$report->url(), $contact->unsubscribeUrl()] as $link) {
+            $this->assertStringNotContainsString('console.', $link,
+                "لینکِ مشتری‌رو میزبانِ پنل را دارد: {$link}");
+            $this->assertStringContainsString('servernet.cloud', $link);
+        }
+    }
+
     /** سربرگِ چاپ باید در صفحهٔ گزارش با تاریخ و نشانیِ واقعی پر شده باشد. */
     public function test_the_printed_report_identifies_itself(): void
     {

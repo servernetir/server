@@ -64,8 +64,14 @@ class OutreachContact extends Model
             && ! static::isSuppressed($this->email);
     }
 
+    /**
+     * ⚠️ همان دلیلِ `AuditReport::url()` — و این‌جا مهم‌تر است: لینکِ لغوِ
+     * اشتراک در هدرِ `List-Unsubscribe` هم می‌نشیند و کلاینت‌های ایمیل آن را
+     * خودشان می‌زنند. اگر به میزبانی اشاره کند که گیرنده نمی‌شناسد، همان دکمه‌ای
+     * که قرار بود جای «اسپم» را بگیرد، خودش مشکوک به‌نظر می‌رسد.
+     */
     public function unsubscribeUrl(): string
     {
-        return url('report/unsubscribe/'.$this->unsubscribe_token);
+        return \App\Http\Middleware\ConsoleHost::siteUrl('report/unsubscribe/'.$this->unsubscribe_token);
     }
 }

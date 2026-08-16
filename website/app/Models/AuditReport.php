@@ -72,12 +72,18 @@ class AuditReport extends Model
         ]);
     }
 
-    /** نشانیِ عمومیِ گزارش، در زبانی که ساخته شده. */
+    /**
+     * نشانیِ عمومیِ گزارش، در زبانی که ساخته شده.
+     *
+     * ⚠️ `ConsoleHost::siteUrl()` نه `url()`: مدیر گزارش را از پنل می‌فرستد و
+     * پنل روی `console.` است، پس `url()` نشانیِ پنلِ مدیریت را در ایمیلِ مشتری
+     * می‌گذاشت.
+     */
     public function url(): string
     {
         $prefix = ['fa' => '', 'en' => 'en/', 'tr' => 'tr/'][$this->locale] ?? '';
 
-        return url($prefix.'report/'.$this->token);
+        return \App\Http\Middleware\ConsoleHost::siteUrl($prefix.'report/'.$this->token);
     }
 
     public function isStale(): bool

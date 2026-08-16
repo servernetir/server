@@ -88,6 +88,29 @@ class ConsoleHost
             : $path;
     }
 
+    /**
+     * وارونهٔ `panelUrl()` — نشانیِ **دامنهٔ اصلی** برای چیزی که از سایت بیرون
+     * می‌رود.
+     *
+     * 🔴 باگی که این را لازم کرد: لینکِ گزارشِ بررسیِ سایت با `url()` ساخته
+     * می‌شد، یعنی از میزبانِ **درخواستِ جاری**. مدیر گزارش را از پنل می‌فرستد و
+     * پنل روی `console.` است، پس مشتری در ایمیلش نشانیِ پنلِ مدیریتِ ما را
+     * می‌دید. ریدایرکتِ ۳۰۱ بازش می‌کرد، ولی لینکی که در ایمیل نشانِ یک میزبانِ
+     * ناآشنای «console» را دارد، دقیقاً شبیهِ فیشینگ است — و این ایمیل به کسی
+     * می‌رود که هنوز به ما اعتماد نکرده.
+     *
+     * ⚠️ مثلِ `panelUrl()` روی localhost و تست دست به میزبان نمی‌زند، وگرنه
+     * لینکِ محلی به پروداکشن اشاره می‌کرد.
+     */
+    public static function siteUrl(string $path): string
+    {
+        $path = ltrim($path, '/');
+
+        return strtolower((string) request()?->getHost()) === 'console.servernet.cloud'
+            ? self::MAIN.$path
+            : url($path);
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->isConsole($request)) {
