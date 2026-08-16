@@ -111,21 +111,102 @@ class BlogRepository
         }));
     }
 
+    /** برچسبِ مشترک از دستهٔ مشترک قوی‌تر است — نسبتش همین را می‌گوید. */
+    private const TAG_WEIGHT = 3;
+
+    private const CATEGORY_WEIGHT = 1;
+
+    /**
+     * 🔴 «مرتبط» یعنی هم‌موضوع، نه هم‌دسته.
+     *
+     * ═══ خرابیِ واقعی که این را لازم کرد ═══
+     *
+     * نسخهٔ قبلی هم‌دسته‌ها را **به ترتیبِ انتشار** برمی‌داشت و سه تای اول را
+     * می‌داد. نتیجه‌اش روی سایتِ زنده سنجیده شد و دقیقاً همان چیزی بود که
+     * انتظار می‌رفت — در هر دسته، **همهٔ** پست‌ها به همان سه تای ثابت لینک
+     * می‌دادند:
+     *
+     *     voip           → virtualization · ipv6 · green-hosting
+     *     virtualization → voip · ipv6 · green-hosting
+     *     ipv6           → voip · virtualization · green-hosting
+     *
+     * یعنی از ۱۰۳ نوشته، فقط سه‌چهارتای هر دسته لینکِ داخلی می‌گرفتند و بقیه
+     * از نظرِ لینک‌سازی یتیم بودند. نه خطایی، نه صفحهٔ خرابی — فقط ارزشی که
+     * هیچ‌وقت پخش نمی‌شد.
+     *
+     * ⚠️ و برچسب‌ها که قوی‌ترین سیگنالِ ربط‌اند، **اصلاً خوانده نمی‌شدند** —
+     * با اینکه هر نوشته حدود ده برچسب دارد و خودِ صفحه نمایششان می‌دهد.
+     *
+     * ═══ حالا ═══
+     *
+     * امتیاز = (برچسبِ مشترک × ۳) + (دستهٔ مشترک × ۱)، و در تساوی، تازه‌تر
+     * جلوتر. کاملاً **قطعی** است: هیچ تصادفی در کار نیست، وگرنه صفحه در هر
+     * بارگذاری فرق می‌کرد و کش و خزنده هر دو گیج می‌شدند.
+     *
+     * ⚠️ اگر هیچ نامزدی امتیاز نگرفت (نوشتهٔ بی‌برچسب در دسته‌ای تک‌نفره)،
+     * تازه‌ترین‌ها پر می‌کنند — ویجتِ خالی از ویجتِ نه‌چندان‌مرتبط بدتر است.
+     */
     public function related(array $post, int $n = 3): array
     {
-        $same = array_values(array_filter($this->index(), fn ($p) => ($p['category'] ?? '') === ($post['category'] ?? '') && $p['slug'] !== $post['slug']));
-        if (count($same) < $n) {
+        $mine = self::tagKeys($post['tags'] ?? []);
+        $cat = $post['category'] ?? '';
+
+        $scored = [];
+
+        foreach ($this->index() as $i => $p) {
+            if (($p['slug'] ?? '') === ($post['slug'] ?? '')) {
+                continue;
+            }
+
+            $shared = count(array_intersect($mine, self::tagKeys($p['tags'] ?? [])));
+            $score = $shared * self::TAG_WEIGHT
+                + (($p['category'] ?? '') === $cat && $cat !== '' ? self::CATEGORY_WEIGHT : 0);
+
+            if ($score > 0) {
+                // ⚠️ `$i` ترتیبِ انتشار است و به‌عنوانِ شکنندهٔ تساوی می‌آید، نه
+                //    به‌عنوانِ معیارِ اصلی؛ وگرنه همان خرابیِ قبلی برمی‌گردد.
+                $scored[] = ['score' => $score, 'order' => $i, 'post' => $p];
+            }
+        }
+
+        usort($scored, fn ($a, $b) => [$b['score'], $a['order']] <=> [$a['score'], $b['order']]);
+
+        $out = array_map(fn ($r) => $r['post'], array_slice($scored, 0, $n));
+
+        // پرکردنِ جای خالی با تازه‌ترین‌ها — فقط اگر امتیازی پیدا نشد
+        if (count($out) < $n) {
+            $have = array_column($out, 'slug');
+
             foreach ($this->index() as $p) {
-                if ($p['slug'] !== $post['slug'] && ! in_array($p, $same, true)) {
-                    $same[] = $p;
-                }
-                if (count($same) >= $n) {
+                if (count($out) >= $n) {
                     break;
+                }
+                if (($p['slug'] ?? '') !== ($post['slug'] ?? '') && ! in_array($p['slug'] ?? '', $have, true)) {
+                    $out[] = $p;
                 }
             }
         }
 
-        return array_slice($same, 0, $n);
+        return $out;
+    }
+
+    /**
+     * برچسب‌ها را برای **مقایسه** یکسان می‌کند.
+     *
+     * ⚠️ بی‌این، «زیرساخت شبکه» و «زیرساخت‌شبکه» (نیم‌فاصله) و «زيرساخت» (یِ
+     * عربی) سه برچسبِ متفاوت شمرده می‌شوند و خوشه بی‌صدا تکه‌تکه می‌شود —
+     * همان تلهٔ نیم‌فاصله و ی/ک که در CLAUDE.md برای جستجو ثبت شده.
+     *
+     * @param  array<int,string>  $tags
+     * @return array<int,string>
+     */
+    private static function tagKeys(array $tags): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            fn ($t) => preg_replace('~\s+~u', ' ', trim(strtr(mb_strtolower((string) $t), [
+                'ي' => 'ی', 'ك' => 'ک', "\u{200c}" => ' ',
+            ]))),
+            $tags))));
     }
 
     public function recent(int $n = 5): array
