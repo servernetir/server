@@ -104,6 +104,81 @@ class SiteBuilderPageTest extends TestCase
         }
     }
 
+    public function test_hidden_actually_hides_the_builder_overlays_and_chat_docks_right(): void
+    {
+        $css = file_get_contents(public_path('assets/css/site.css'));
+
+        // §۳: hidden در برابرِ displayِ صریح می‌بازد. بدونِ این قاعده‌ها پردهٔ
+        // «۱۰۰٪» بعدِ اتمامِ ساخت هم روی iframe می‌مانْد و سایت دیده نمی‌شد.
+        foreach (['.aib-loading[hidden]', '.aib-empty[hidden]', '#aib-frame[hidden]', '.aib-fab[hidden]'] as $sel) {
+            $this->assertStringContainsString($sel, $css, "قاعدهٔ $sel در site.css نیست — تلهٔ hidden/display برمی‌گردد.");
+        }
+
+        // چتِ شناور پیش‌فرض گوشهٔ **راست** — چپ مالِ دستیارِ هوشمندِ سایت است.
+        // inset-inline-end در RTL یعنی چپ؛ باید راستِ فیزیکی باشد.
+        $this->assertMatchesRegularExpression('~\.aib-pop,\.aib-fab\{[^}]*right:22px~', $css);
+    }
+
+    public function test_publish_gives_a_48h_link_and_shared_route_serves_then_expires(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $html = '<!doctype html><html><body>SITE</body></html>';
+        \Illuminate\Support\Facades\Cache::put('builder:sb-pubtest', ['turns' => 1, 'history' => [], 'html' => $html], 600);
+
+        $res = $this->postJson('/api/builder/publish', ['session' => 'sb-pubtest'])->assertOk();
+        $d = $res->json();
+
+        $this->assertTrue($d['ok']);
+        $this->assertSame(48, $d['hours']);
+        $this->assertStringContainsString('/sb/SB-', $d['url']);
+
+        // لینکِ تازه سرو می‌شود — با sandbox (originِ یکتا، بدونِ کوکیِ ما) و noindex
+        $path = parse_url($d['url'], PHP_URL_PATH);
+        $live = $this->get($path)->assertOk();
+        $this->assertSame($html, $live->getContent());
+        $this->assertStringContainsString('sandbox', (string) $live->headers->get('Content-Security-Policy'));
+        $this->assertStringContainsString('noindex', (string) $live->headers->get('X-Robots-Tag'));
+
+        // بعد از ۴۸ ساعت: منقضی — همان قولی که به کاربر داده‌ایم
+        $file = \App\Services\Provisioning\BuilderSitePublisher::path($d['ref']);
+        touch(\Illuminate\Support\Facades\Storage::disk('local')->path($file), time() - 49 * 3600);
+        $this->get($path)->assertStatus(410);
+    }
+
+    public function test_generated_sites_are_told_to_use_iransans_and_hash_links(): void
+    {
+        // قاعده‌ها در system prompt زندگی می‌کنند — ادعا روی خودِ فایلِ کنترلر
+        $src = file_get_contents(app_path('Http/Controllers/AiBuilderController.php'));
+
+        $this->assertStringContainsString('IRANSans-web.woff2', $src, 'فونتِ سازمانی از پرامپت افتاده');
+        $this->assertStringContainsString('IRANSans-Bold-web.woff2', $src);
+        $this->assertStringContainsString('href="#"', $src, 'قاعدهٔ لینک‌های # از پرامپت افتاده');
+
+        // و CORSِ فونت برای originِ یکتای sandbox و هاستِ مشتری
+        $this->assertFileExists(public_path('assets/font/.htaccess'));
+        $this->assertStringContainsString('Access-Control-Allow-Origin',
+            file_get_contents(public_path('assets/font/.htaccess')));
+    }
+
+    public function test_fullscreen_and_publish_controls_are_wired(): void
+    {
+        $html = $this->get('/services/site-builder')->assertOk()->getContent();
+        $this->assertStringContainsString('aib-full-btn', $html);
+        $this->assertStringContainsString('aib-publish', $html);
+        $this->assertStringContainsString('data-publish="', $html);
+
+        $js = file_get_contents(public_path('assets/js/builder.js'));
+        $this->assertStringContainsString('aib-full', $js);
+        $this->assertStringContainsString('dataset.publish', $js);
+        $this->assertStringContainsString('Escape', $js);
+
+        $css = file_get_contents(public_path('assets/css/site.css'));
+        // تمام‌صفحه بالای هدر (z 200)؛ چت باز هم بالاتر تا پاپ‌آپ بماند
+        $this->assertStringContainsString('.aib-preview-full.aib-full', $css);
+        $this->assertMatchesRegularExpression('~\.aib-pop,\.aib-fab\{z-index:990\}~', $css);
+    }
+
     public function test_the_stream_endpoint_speaks_sse_and_reports_missing_key_in_band(): void
     {
         config(['services.gapgpt.key' => null]);

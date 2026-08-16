@@ -414,6 +414,12 @@ return [
     'aib_dom_unknown' => 'Domain lookup is unavailable right now; please try again shortly.',
     'aib_no_ir' => '.ir domains are not offered in the site builder yet — pick an international TLD like .com.',
     'aib_need_domain' => 'Enter your domain first to deploy.',
+    'aib_done' => 'Your site is ready! ✨ Take a look — tell me any change and I\'ll apply it right away.',
+    'aib_publish' => 'Publish online preview (48-hour link)',
+    'aib_pub_done' => 'Your site preview is live! 🌐 This link stays active for :h hours, then it\'s removed automatically — share it with anyone:',
+    'aib_pub_err' => 'Publishing failed; please try again in a moment.',
+    'aib_full' => 'Fullscreen preview',
+    'aib_full_exit' => 'Exit fullscreen (Esc)',
 
     'chat_title' => 'ServerNet Support',
     'chat_online' => 'Online — here to help',

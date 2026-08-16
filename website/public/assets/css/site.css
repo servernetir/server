@@ -3472,3 +3472,40 @@ html[data-theme="light"] .aib-pop{background:#FFFFFF;box-shadow:0 24px 60px rgba
   .aib-pop .aib-messages{max-height:38vh}
   .aib-wide .aib-preview-full{min-height:60vh}
 }
+
+/* ═══ سایت‌ساز — دو رفعِ گزارشِ کارفرما (شهریور ۱۴۰۵) ═══
+   ۱) `hidden` در برابرِ displayِ صریح می‌بازد (§۳ CLAUDE.md): .aib-loading
+      display:flex دارد، پس پردهٔ «۱۰۰٪ / آماده‌سازی پیش‌نمایش» بعدِ اتمامِ
+      ساخت هم روی iframe می‌مانْد — سایتِ ساخته‌شده زیرش بود و دیده نمی‌شد.
+   ۲) چتِ شناور با inset-inline-end در RTL به **چپ** می‌چسبید — همان گوشه‌ای
+      که دستیارِ هوشمندِ سایت نشسته. پیش‌فرض باید گوشهٔ راست باشد. */
+.aib-empty[hidden],.aib-loading[hidden],#aib-frame[hidden],.aib-deploy[hidden],
+.aib-fab[hidden],.aib-deploy-ref[hidden],.aib-reassure[hidden]{display:none !important}
+.aib-pop,.aib-fab{inset-inline-end:auto;right:22px;left:auto}
+@media (max-width:720px){
+  .aib-pop{left:10px !important;right:10px !important}
+}
+
+/* ═══ سایت‌ساز: تمام‌صفحه + انتشار + بازطراحیِ متقارنِ نوار استقرار ═══ */
+/* تمام‌صفحه: بالای هدرِ سایت (z 200)؛ چتِ شناور و FAB باز هم بالاتر تا
+   «گفتگو با طراح» در حالتِ تمام‌صفحه هم پاپ‌آپ بماند. */
+.aib-preview-full.aib-full{position:fixed;inset:0;z-index:980;border-radius:0;border:none;min-height:100vh}
+.aib-full .aib-frame-wrap{min-height:0}
+.aib-full .aib-frame-wrap iframe{min-height:0;height:100%}
+html.aib-lock,html.aib-lock body{overflow:hidden}
+.aib-pop,.aib-fab{z-index:990}
+
+/* نوار استقرار — تقارنِ سه‌ستونه و سربرگِ وسط‌چین */
+.aib-deploy{padding:34px 30px}
+.aib-deploy-head{flex-direction:column;text-align:center;gap:12px;margin-bottom:26px}
+.aib-deploy-head .dc-icon{width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--grad);border-radius:16px;color:#fff}
+.aib-deploy-head .dc-icon .icon{width:24px;height:24px}
+.aib-deploy-head h3{font-size:21px}
+.aib-deploy-head p{max-width:560px;margin-inline:auto;line-height:2}
+.aib-deploy-grid{grid-template-columns:1fr 1fr 1fr;align-items:start;gap:18px}
+.aib-field input,.aib-field select{height:52px}
+.aib-total{display:flex;flex-direction:column;justify-content:center;min-height:52px;height:auto;
+  border-radius:12px;background:var(--surface-2);padding:8px 16px;margin-top:23px}
+.aib-total b{font-size:19px}
+@media(max-width:760px){.aib-deploy-grid{grid-template-columns:1fr}.aib-total{margin-top:0}}

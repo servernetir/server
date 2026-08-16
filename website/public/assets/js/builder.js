@@ -182,6 +182,7 @@
     frame.hidden = false;
     frame.srcdoc = html;
     dlBtn.disabled = false;
+    document.getElementById('aib-publish').disabled = false;
     if (deploy.hidden) { deploy.hidden = false; deploy.classList.add('in'); }
   }
 
@@ -266,7 +267,8 @@
       if (d.html) { setPreview(d.html); } else if (currentHtml) { frame.hidden = false; } else { empty.hidden = false; }
       busy = false; return;
     }
-    addMsg(d.reply || '✓', 'bot');
+    // «✓»ِ تنها یعنی مدل جز خودِ کد حرفی نزده — جای تیکِ خشک، جملهٔ گرم
+    addMsg((!d.reply || d.reply === '✓') ? (I.done || '✓') : d.reply, 'bot');
     setPreview(d.html);
     if (typeof d.left === 'number') leftEl.textContent = d.left <= 5 ? I.left.replace(':n', faNum(d.left)) : '';
     busy = false;
@@ -286,6 +288,50 @@
     root.querySelectorAll('.aib-dev').forEach((x) => x.classList.toggle('active', x === b));
     frame.style.maxWidth = b.dataset.w;
   }));
+
+  /* ---------- تمام‌صفحه — چتِ شناور (z بالاتر) رویش می‌مانَد ---------- */
+  const fullBtn = document.getElementById('aib-full-btn');
+  const previewEl = root.querySelector('.aib-preview');
+  function setFull(on) {
+    previewEl.classList.toggle('aib-full', on);
+    document.documentElement.classList.toggle('aib-lock', on);
+    fullBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    fullBtn.title = on ? I.fullExit : I.fullT;
+  }
+  fullBtn.addEventListener('click', () => setFull(!previewEl.classList.contains('aib-full')));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setFull(false); });
+
+  /* ---------- انتشارِ آزمایشیِ ۴۸ساعته ---------- */
+  const pubBtn = document.getElementById('aib-publish');
+  if (!root.dataset.publish) pubBtn.style.display = 'none';
+  pubBtn.addEventListener('click', async () => {
+    if (!currentHtml || !root.dataset.publish) return;
+    pubBtn.disabled = true;
+    try {
+      const res = await fetch(root.dataset.publish, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+        body: JSON.stringify({ session }),
+      });
+      const d = await res.json();
+      if (d.ok && d.url) {
+        // پیامِ ربات با لینکِ واقعی (نه textContent خالی) + یادآوریِ عمرِ ۴۸ساعته
+        const div = document.createElement('div');
+        div.className = 'aib-msg bot';
+        div.textContent = I.pubDone.replace(':h', faNum(d.hours)) + '\n';
+        const a = document.createElement('a');
+        a.href = d.url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = d.url; a.dir = 'ltr'; a.style.color = 'var(--cyan)';
+        div.appendChild(a);
+        messages.appendChild(div);
+        scrollDown();
+        if (!pop.classList.contains('on')) { fab.hidden = true; pop.classList.add('on'); }
+      } else {
+        addMsg(I.pubErr, 'bot');
+      }
+    } catch { addMsg(I.pubErr, 'bot'); }
+    pubBtn.disabled = false;
+  });
 
   // reset
   document.getElementById('aib-refresh').addEventListener('click', () => {

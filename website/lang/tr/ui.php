@@ -414,6 +414,12 @@ return [
     'aib_dom_unknown' => 'Alan adı sorgusu şu anda yapılamıyor; az sonra tekrar deneyin.',
     'aib_no_ir' => '.ir uzantısı site kurucuda henüz sunulmuyor — .com gibi uluslararası bir uzantı seçin.',
     'aib_need_domain' => 'Kurulum için önce alan adınızı girin.',
+    'aib_done' => 'Siteniz hazır! ✨ Bir göz atın — istediğiniz değişikliği söyleyin, hemen uygulayayım.',
+    'aib_publish' => 'Çevrimiçi önizlemeyi yayınla (48 saatlik bağlantı)',
+    'aib_pub_done' => 'Site önizlemeniz yayında! 🌐 Bu bağlantı :h saat aktif kalır, sonra otomatik silinir — dilediğinizle paylaşın:',
+    'aib_pub_err' => 'Yayınlama başarısız; az sonra tekrar deneyin.',
+    'aib_full' => 'Tam ekran önizleme',
+    'aib_full_exit' => 'Tam ekrandan çık (Esc)',
 
     'chat_title' => 'ServerNet Destek',
     'chat_online' => 'Çevrimiçi — yardıma hazır',

@@ -182,6 +182,8 @@ $site = function (): void {
     // ۵۰۴ می‌گیرد؛ builder.js اول این را می‌زند و اگر نبود به بالایی برمی‌گردد
     Route::post('/api/builder/stream', [AiBuilderController::class, 'stream'])->name('builder.stream')->middleware('throttle:ai');
     Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:tools');
+    // انتشارِ آزمایشیِ ۴۸ساعته — لینکِ عمومی در GET /sb/{ref} (بیرونِ closure، تک‌نسخه)
+    Route::post('/api/builder/publish', [AiBuilderController::class, 'publish'])->name('builder.publish')->middleware('throttle:tools');
 
     /*
     |------------------------------------------------------------------------
@@ -427,6 +429,15 @@ $site = function (): void {
 Route::middleware('locale:fa')->group($site);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
+
+/*
+| پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
+| ۴۸ ساعت زنده است (سنجه: mtime فایل)، noindex، و با CSP sandbox در originِ
+| یکتا سرو می‌شود تا خروجیِ کاربرساخته به کوکی/نشستِ دامنهٔ ما نرسد.
+*/
+Route::get('/sb/{ref}', [AiBuilderController::class, 'shared'])
+    ->name('builder.shared')->where('ref', 'SB-[A-Za-z0-9]+')
+    ->middleware('throttle:tools');
 
 /*
 | پیشوندِ زبان با حروفِ بزرگ → هدایتِ ۳۰۱ به نسخهٔ کوچک.
@@ -1577,10 +1588,21 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         if (\Illuminate\Support\Facades\Schema::hasTable('products') && \App\Models\Product::count() === 0) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-hosting');
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
+        }
 
-            // پکیج‌های سایت‌ساز — تسویهٔ builder بی‌این‌ها به fallbackِ WHMCS می‌افتد
+        /*
+        | 🔴 پکیج‌های سایت‌ساز **بیرونِ** شرطِ `count() === 0` — عمداً.
+        |
+        | آن شرط یعنی «فقط روی دیتابیسِ خالی»، و پروداکشن هرگز خالی نیست؛ پس
+        | seedِ سایت‌ساز که داخلِ همان بلاک بود روی سرورِ واقعی **هرگز اجرا
+        | نمی‌شد** — `seeded: null`، بی‌هیچ خطایی، و دکمهٔ استقرار برای همیشه
+        | روی fallbackِ WHMCS می‌مانْد. فرمانِ خودش idempotent است
+        | (firstOrCreate روی slug)، پس هر بار اجرا امن است و ویرایش‌های مدیر
+        | دست نمی‌خورد.
+        */
+        if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
-            $seeded .= "\n".trim(\Illuminate\Support\Facades\Artisan::output());
+            $seeded = trim(($seeded ?? '')."\n".trim(\Illuminate\Support\Facades\Artisan::output()));
         }
     } catch (\Throwable $e) {
         // متنش از قبل در `seeded` دیده می‌شد، ولی روی `ok` اثر نداشت — پس یک

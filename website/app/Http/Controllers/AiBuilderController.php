@@ -18,6 +18,12 @@ class AiBuilderController extends Controller
     private const MAX_TURNS = 16;      // سقف پیام کاربر در یک نشست (کنترل هزینه)
     private const SESSION_TTL = 7200;  // ۲ ساعت
 
+    /** عمرِ لینکِ انتشارِ آزمایشی (ساعت) — به کاربر هم همین عدد گفته می‌شود */
+    public const SHARE_HOURS = 48;
+
+    /** فایل‌های ذخیره‌شده بعد از این چند روز پاک می‌شوند (منبعِ انتشارِ پس از خرید) */
+    private const FILE_KEEP_DAYS = 7;
+
     /** آخرین خطای API برای عیب‌یابی (http + بخشی از بدنه) */
     private ?array $lastError = null;
 
@@ -196,6 +202,98 @@ class AiBuilderController extends Controller
         return response()->json(['ok' => true, 'ref' => $ref]);
     }
 
+    /**
+     * انتشارِ آزمایشی: سایتِ فعلیِ نشست روی سرورِ ما، با لینکِ عمومیِ ۴۸ ساعته.
+     *
+     * لینک بعد از SHARE_HOURS خودش می‌میرد (سنجه: mtime فایل در shared())؛
+     * خودِ فایل تا FILE_KEEP_DAYS می‌ماند چون منبعِ انتشارِ پس از خرید هم هست.
+     */
+    public function publish(Request $request): JsonResponse
+    {
+        $data = $request->validate(['session' => 'required|string|max:64']);
+
+        $sid = 'builder:'.preg_replace('~[^a-zA-Z0-9-]~', '', $data['session']);
+        $state = Cache::get($sid);
+
+        if (! $state || empty($state['html'])) {
+            return response()->json(['ok' => false, 'error' => 'no_site']);
+        }
+
+        $ref = 'SB-'.strtoupper(Str::random(6));
+
+        try {
+            \Illuminate\Support\Facades\Storage::disk('local')
+                ->put(\App\Services\Provisioning\BuilderSitePublisher::path($ref), $state['html']);
+        } catch (\Throwable $e) {
+            Log::warning('AI builder publish: '.$e->getMessage());
+
+            return response()->json(['ok' => false, 'error' => 'store_failed']);
+        }
+
+        $this->purgeOldSites();
+
+        return response()->json([
+            'ok'    => true,
+            'ref'   => $ref,
+            'url'   => url('/sb/'.$ref),
+            'hours' => self::SHARE_HOURS,
+        ]);
+    }
+
+    /**
+     * سروِ عمومیِ سایتِ منتشرشده — GET /sb/{ref}.
+     *
+     * 🔴 خروجیِ مدل است ولی متنِ کاربر رویش اثر دارد، پس روی دامنهٔ ما XSS
+     * بالقوه است. `CSP: sandbox allow-scripts` بدونِ allow-same-origin یعنی
+     * سند در originِ یکتا اجرا می‌شود: نه کوکیِ سرورنت، نه storage، نه fetchِ
+     * هم‌مبدأ. اسکریپتِ داخلیِ خودِ سایت (منو، اسلایدر) همچنان کار می‌کند.
+     */
+    public function shared(string $ref)
+    {
+        $ref = strtoupper((string) preg_replace('~[^A-Za-z0-9-]~', '', $ref));
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $path = \App\Services\Provisioning\BuilderSitePublisher::path($ref);
+
+        $fresh = $ref !== '' && $disk->exists($path)
+            && $disk->lastModified($path) >= now()->subHours(self::SHARE_HOURS)->getTimestamp();
+
+        if (! $fresh) {
+            return response(
+                '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>منقضی شد</title></head>'
+                .'<body style="font-family:Tahoma,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;color:#e2e8f0;text-align:center">'
+                .'<div><h1 style="font-size:20px">این پیش‌نمایش منقضی شده است ⏳</h1>'
+                .'<p style="color:#94a3b8;font-size:14px">لینک‌های آزمایشی سایت‌ساز '.self::SHARE_HOURS.' ساعت فعال می‌مانند.<br>'
+                .'برای ساختِ دوباره به <a href="'.url('/services/site-builder').'" style="color:#38bdf8">سایت‌ساز سرورنت</a> سر بزنید.</p></div></body></html>',
+                410,
+                ['Content-Type' => 'text/html; charset=utf-8', 'X-Robots-Tag' => 'noindex, nofollow']
+            );
+        }
+
+        return response($disk->get($path), 200, [
+            'Content-Type'            => 'text/html; charset=utf-8',
+            'X-Robots-Tag'            => 'noindex, nofollow',
+            'Content-Security-Policy' => 'sandbox allow-scripts',
+            'Cache-Control'           => 'no-store',
+        ]);
+    }
+
+    /** پاک‌سازیِ فرصت‌طلبانه — فایل‌های کهنه‌تر از FILE_KEEP_DAYS، بدونِ کرونِ جدا */
+    private function purgeOldSites(): void
+    {
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('local');
+            $cutoff = now()->subDays(self::FILE_KEEP_DAYS)->getTimestamp();
+
+            foreach ($disk->files('builder-sites') as $file) {
+                if ($disk->lastModified($file) < $cutoff) {
+                    $disk->delete($file);
+                }
+            }
+        } catch (\Throwable) {
+            // پاک‌سازی هرگز مسیرِ اصلی را نمی‌خواباند
+        }
+    }
+
     private function systemPrompt(string $locale): string
     {
         $lang = ['fa' => 'Persian (RTL)', 'tr' => 'Turkish', 'en' => 'English'][$locale] ?? 'English';
@@ -207,7 +305,12 @@ class AiBuilderController extends Controller
         - Reply language: {$lang}. Keep the chat part short, friendly and encouraging (1-3 sentences).
         - After your short chat reply, ALWAYS output the COMPLETE website as ONE self-contained HTML document inside a single ```html code fence.
         - The HTML must be production-quality: a full <!doctype html> page with inline <style> (no external CSS/JS files, no CDN), modern responsive design, good typography, and tasteful colors. Embed any images as inline SVG or CSS gradients — never hotlink external images.
-        - If the site language is Persian, set <html lang="fa" dir="rtl"> and use a clean sans-serif font stack.
+        - If the site language is Persian, set <html lang="fa" dir="rtl">.
+        - Typography: ALWAYS embed ServerNet's corporate font with EXACTLY these @font-face rules at the top of the <style> block, and use font-family:'IRANSans',system-ui,-apple-system,sans-serif for ALL text:
+          @font-face{font-family:'IRANSans';src:url('https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+          @font-face{font-family:'IRANSans';src:url('https://servernet.cloud/assets/font/woff2/IRANSans-Medium-web.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+          @font-face{font-family:'IRANSans';src:url('https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+        - Links: this is a SINGLE-FILE site. Every nav/menu/footer/button link must point to an in-page section anchor (e.g. #about, #services, #contact) when that section exists, otherwise href="#". NEVER link to other pages, other paths, or external URLs.
         - Make it genuinely beautiful and modern: hero section, clear sections, call-to-action, footer. Use real, relevant sample content based on what the user described (not lorem ipsum).
         - On each new user message, REGENERATE the full updated HTML reflecting all requests so far. Never output partial HTML.
         - Do not include explanations outside the chat sentence and the code fence.
