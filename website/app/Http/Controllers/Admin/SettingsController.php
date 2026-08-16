@@ -80,6 +80,19 @@ class SettingsController extends Controller
         'general' => [
             'stamp'                => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
             'remove_stamp'         => ['nullable', 'boolean'],
+            /*
+            | نمادِ اعتماد الکترونیکی — کنارِ مهرِ شرکت، چون هر دو «هویتِ رسمیِ
+            | شرکت»اند و مدیر هر دو را یک‌جا می‌خواهد.
+            |
+            | ⚠️ عمداً `putSecret()` **نیست**: این دو مقدار روی هر صفحهٔ سایت
+            | داخلِ آدرسِ تصویرِ مهر چاپ می‌شوند. رمزنگاری‌شان فقط توهمِ «راز
+            | است» می‌ساخت و بعد کسی با همان فرض جای دیگری هم لوشان می‌داد.
+            |
+            | ⚠️ الگوی حروف‌وعدد عمدی است: کدِ نماد فقط همین است، و ورودیِ
+            | حاوی `<` یا `"` مستقیم داخلِ `href` می‌نشیند.
+            */
+            'enamad_id'            => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9]*$/'],
+            'enamad_code'          => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9]*$/'],
             'google_client_id'     => ['nullable', 'string', 'max:200'],
             'google_client_secret' => ['nullable', 'string', 'max:200'],
             'google_forget'        => ['nullable', 'boolean'],
@@ -221,6 +234,15 @@ class SettingsController extends Controller
 
         return [
             'stampData' => $stampData,
+            /*
+             * ⚠️ برخلافِ رازها، هر دو مقدار به فرم **برمی‌گردند**: نمادِ اعتماد
+             * روی هر صفحهٔ سایت داخلِ آدرسِ تصویر چاپ می‌شود، پس راز نیست — و
+             * مدیر باید ببیند چه چیزی ثبت شده تا با پنلِ enamad مقایسه کند.
+             */
+            'enamad' => [
+                'id'   => $ready ? (string) Setting::get('enamad_id', '') : '',
+                'code' => $ready ? (string) Setting::get('enamad_code', '') : '',
+            ],
             'google'    => [
                 'client_id' => $ready ? (string) Setting::get('google_client_id') : '',
                 'ready'     => $ready && filled(Setting::get('google_client_id'))
@@ -422,6 +444,23 @@ class SettingsController extends Controller
             }
 
             return;
+        }
+
+        /*
+         * نمادِ اعتماد.
+         *
+         * ⚠️ برخلافِ اعتبارنامهٔ گوگل، این دو با `filled()` شرط نمی‌شوند: خالی
+         * فرستادن باید یعنی **پاک کردن**. اگر مثلِ بالا فقط پرها را بنویسیم،
+         * مدیر هرگز نمی‌تواند نمادِ باطل‌شده را بردارد و مهرِ منقضی تا ابد روی
+         * فوتر می‌مانَد — که از نبودِ مهر بدتر است.
+         *
+         * ⚠️ `putSecret()` عمداً نه: هر دو مقدار روی هر صفحهٔ سایت داخلِ آدرسِ
+         * تصویر چاپ می‌شوند، پس راز نیستند.
+         */
+        foreach (['enamad_id', 'enamad_code'] as $k) {
+            if (array_key_exists($k, $data)) {
+                Setting::put($k, filled($data[$k]) ? trim((string) $data[$k]) : null);
+            }
         }
 
         if (filled($data['google_client_id'] ?? null)) {

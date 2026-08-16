@@ -37,6 +37,53 @@
     </div>
   </div>
 
+  {{-- ── نماد اعتماد الکترونیکی ──────────────────────────────────────
+       کنارِ مهرِ شرکت، چون هر دو «هویتِ رسمیِ شرکت»اند.
+
+       🔴 هر دو مقدار لازم است. با یکی، آدرسِ تأیید به صفحهٔ نامعتبرِ نماد
+       می‌رود — و خریدارِ ایرانی این مهر را **کلیک می‌کند**. مهرِ بی‌اعتبار
+       کلِ سایت را مشکوک می‌کند، یعنی برعکسِ کاری که برایش گذاشته شده. برای
+       همین `trust_seals()` مهرِ نیمه‌ساخته را اصلاً نمی‌سازد. --}}
+  <div class="ad-panel" style="margin-top:18px">
+    <div class="ad-panel-h"><h2>نماد اعتماد الکترونیکی</h2></div>
+    <p class="set-lead">
+      بعد از پر کردن، مهر در فوترِ همهٔ صفحات نشان داده می‌شود و به صفحهٔ
+      استعلامِ خودِ نماد لینک می‌شود. هر دو مقدار را از پنلِ enamad.ir بردارید —
+      در نشانیِ استعلام به‌شکل <code dir="ltr">?id=…&amp;code=…</code> هستند.
+    </p>
+
+    <div class="set-grid" style="padding:0 18px 18px">
+      <label>
+        <span>شناسه (id)</span>
+        <input type="text" name="enamad_id" dir="ltr" autocomplete="off"
+               value="{{ $enamad['id'] ?? '' }}" placeholder="709775">
+      </label>
+      <label>
+        <span>کد (code)</span>
+        <input type="text" name="enamad_code" dir="ltr" autocomplete="off"
+               value="{{ $enamad['code'] ?? '' }}" placeholder="xNeZbKo7…">
+      </label>
+    </div>
+
+    @php($seals = trust_seals())
+    @if($seals)
+      <div style="padding:0 18px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        @foreach($seals as $sl)
+          <a href="{{ $sl['href'] }}" target="_blank" rel="noopener noreferrer" referrerpolicy="origin"
+             style="background:#fff;border-radius:10px;padding:6px;line-height:0">
+            <img src="{{ $sl['src'] }}" alt="{{ $sl['alt'] }}" width="90" height="90" referrerpolicy="origin">
+          </a>
+        @endforeach
+        <small style="color:var(--dim);font-size:12px;max-width:420px;line-height:2">
+          ⚠️ اگر این تصویر این‌جا بارگذاری نشد نگران نباشید: enamad.ir به
+          آی‌پیِ غیرِایرانی سرویس نمی‌دهد و سرورِ ما در آلمان است. برای
+          بازدیدکنندهٔ ایرانی درست نمایش داده می‌شود. لینکِ بالا را از داخلِ
+          ایران باز کنید تا مطمئن شوید.
+        </small>
+      </div>
+    @endif
+  </div>
+
   {{-- ── گوگل‌کلندر ──────────────────────────────────────────────────
        اعتبارنامهٔ **اپ** این‌جاست، نه حسابِ شخصیِ کسی: یک OAuth client برای کلِ
        نصب. اتصالِ حسابِ گوگلِ هر کاربرِ پنل جداگانه است و توکنش per-user ذخیره

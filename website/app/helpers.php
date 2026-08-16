@@ -976,8 +976,28 @@ if (! function_exists('trust_seals')) {
     {
         $out = [];
 
-        $enamadId = trim((string) config('company.enamad.id', ''));
-        $enamadCode = trim((string) config('company.enamad.code', ''));
+        /*
+         * ⚠️ اول پنلِ مدیریت، بعد `.env`.
+         *
+         * گرفتنِ نمادِ اعتماد یک کارِ **اداری** است نه دیپلوی — کسی که کدش را
+         * می‌گیرد لزوماً به `.env` سرور دسترسی ندارد. پس مدیر آن را در
+         * `/admin/settings` کنارِ مهرِ شرکت وارد می‌کند. `.env` راهِ دوم
+         * می‌مانَد تا روی نصبی که جدولِ `settings` ندارد هم کار کند.
+         *
+         * `Setting::get()` روی نصبِ بی‌جدول آرایهٔ خالی می‌دهد نه استثنا، ولی
+         * `catch` هست چون این تابع در **فوترِ هر صفحه** صدا زده می‌شود: یک
+         * قطعیِ گذرای دیتابیس نباید کلِ سایت را ۵۰۰ کند.
+         */
+        $fromPanel = function (string $key): string {
+            try {
+                return trim((string) \App\Models\Setting::get($key, ''));
+            } catch (\Throwable) {
+                return '';
+            }
+        };
+
+        $enamadId = $fromPanel('enamad_id') ?: trim((string) config('company.enamad.id', ''));
+        $enamadCode = $fromPanel('enamad_code') ?: trim((string) config('company.enamad.code', ''));
 
         if ($enamadId !== '' && $enamadCode !== '') {
             $out[] = [
@@ -988,8 +1008,8 @@ if (! function_exists('trust_seals')) {
             ];
         }
 
-        $samId = trim((string) config('company.samandehi.id', ''));
-        $samCode = trim((string) config('company.samandehi.code', ''));
+        $samId = $fromPanel('samandehi_id') ?: trim((string) config('company.samandehi.id', ''));
+        $samCode = $fromPanel('samandehi_code') ?: trim((string) config('company.samandehi.code', ''));
 
         if ($samId !== '' && $samCode !== '') {
             $out[] = [
