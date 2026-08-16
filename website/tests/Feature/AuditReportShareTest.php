@@ -336,6 +336,31 @@ class AuditReportShareTest extends TestCase
         );
     }
 
+    /**
+     * 🔴 صفحهٔ گزارش نباید موقعِ باز شدن خودش را اسکرول کند.
+     *
+     * `render()` آخرش `scrollIntoView` می‌زند — روی **ابزار** درست است (کاربر
+     * فرم فرستاده و منتظرِ نتیجه است)، ولی روی صفحهٔ عمومیِ گزارش خودِ صفحه
+     * نتیجه است و کسی چیزی نخواسته. روی سایتِ زنده اندازه گرفتم: صفحه ۳۰۹
+     * پیکسل پایین می‌پرید و عنوان و نامِ دامنه **بالای viewport** می‌ماندند —
+     * یعنی گیرندهٔ ایمیل وسطِ سندی می‌افتاد که هنوز ندیده دربارهٔ چیست.
+     *
+     * همان تلهٔ ثبت‌شدهٔ `/tools/ip`: «کارِ خودکار نه اسکرول می‌کند نه خطا
+     * نشان می‌دهد؛ فقط کاری که کاربر خواسته این دو را دارد.»
+     */
+    public function test_the_report_page_does_not_scroll_itself_on_open(): void
+    {
+        $js = (string) file_get_contents(public_path('assets/js/tools.js'));
+
+        $this->assertStringContainsString('render(window.AUDIT_DATA, { scroll: false })', $js,
+            'قلّابِ صفحهٔ گزارش باید اسکرول را خاموش کند');
+        $this->assertMatchesRegularExpression(
+            '/opts\s*\|\|\s*opts\.scroll\s*!==\s*false.*scrollIntoView/s',
+            $js,
+            'اسکرولِ پایانِ render باید شرطی باشد، نه بی‌قیدوشرط'
+        );
+    }
+
     /** سربرگِ چاپ باید در صفحهٔ گزارش با تاریخ و نشانیِ واقعی پر شده باشد. */
     public function test_the_printed_report_identifies_itself(): void
     {

@@ -131,7 +131,15 @@
 
     const gradeClass = (s) => s >= 75 ? 'good' : s >= 50 ? 'mid' : 'bad';
 
-    function render(d) {
+    /*
+     * `opts.scroll` — چه کسی این اسکرول را خواسته؟
+     *
+     * 🔴 روی ابزار، کاربر فرم را فرستاده و منتظرِ نتیجه است: اسکرول درست است.
+     * روی صفحهٔ عمومیِ گزارش، **خودِ صفحه** نتیجه است و کسی چیزی نخواسته —
+     * اسکرولِ خودکار یعنی گیرندهٔ ایمیل وسطِ صفحه‌ای می‌افتد که هنوز عنوان و
+     * نامِ دامنه‌اش را ندیده. همان تلهٔ ثبت‌شدهٔ `/tools/ip` با `data-auto`.
+     */
+    function render(d, opts) {
       results.style.display = 'block';
       // gauge
       const ring = document.getElementById('ag-ring'), circ = 2 * Math.PI * 52;
@@ -209,7 +217,7 @@
       setupFilter();
 
       requestAnimationFrame(() => document.querySelectorAll('.acat-bar i, .adg-score').forEach((el) => el.classList.add('in')));
-      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!opts || opts.scroll !== false) results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /* ============ برنامهٔ اقدام ============ */
@@ -360,7 +368,7 @@
      * نصفه باز می‌شود. یک بار دقیقاً همین شد.
      */
     if (window.AUDIT_DATA && window.AUDIT_DATA.ok) {
-      render(window.AUDIT_DATA);
+      render(window.AUDIT_DATA, { scroll: false });
     }
   }
 
