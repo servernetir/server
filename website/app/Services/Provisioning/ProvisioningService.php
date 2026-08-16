@@ -124,6 +124,19 @@ class ProvisioningService
             // `true` می‌داد و شمارش هرگز انجام نمی‌شد.
             $alreadyCounted = (bool) ($service->provision_meta['counted'] ?? false);
 
+            /*
+            | 🔴 مرجعِ سایت‌ساز باید از بازنویسیِ metaِ پایین جان به در ببرد.
+            |
+            | forceFill چند خط پایین‌تر provision_meta را با metaی **درایور**
+            | جایگزین می‌کند؛ builder_ref در لحظهٔ سفارش نوشته شده و اگر همین‌جا
+            | حفظ نشود، BuilderSitePublisher هرگز نمی‌فهمد این سرویس سایتِ
+            | آماده دارد — سکوتِ کامل، هاستِ خالی، مشتریِ منتظر.
+            */
+            $builderKeys = array_intersect_key(
+                (array) $service->provision_meta,
+                array_flip(['builder_ref', 'builder_published_at', 'builder_publish_error'])
+            );
+
             $service->forceFill([
                 'username'         => $result->username ?: $service->username,
                 'password'         => $result->password ?: $service->password,
@@ -146,7 +159,7 @@ class ProvisioningService
                 | می‌رفت و سرور بی‌هیچ خطایی از صفحهٔ خرید غیب می‌شد. پس **هر دو
                 | طرف** به همین یک مهر نگاه می‌کنند.
                 */
-                'provision_meta'   => array_merge($result->meta, ['counted' => true]),
+                'provision_meta'   => array_merge($builderKeys, $result->meta, ['counted' => true]),
                 'status'           => 'active',
                 'activated_at'     => $service->activated_at ?? now(),
             ])->save();
@@ -162,6 +175,16 @@ class ProvisioningService
         // روی Cloudflare است و zoneِ محلیِ WHM را دنیا نمی‌بیند). بیرونِ تراکنش و
         // «بی‌صدا» است: اگر DNS نشد، سرویس نباید شکست‌خورده اعلام شود.
         $this->pointFreeSubdomain($service, $server);
+
+        // سفارشِ سایت‌ساز: کدِ HTML آماده همان لحظه روی اکانت نوشته می‌شود.
+        // مثلِ DNS بیرونِ تراکنش و بی‌صداست — شکستش تحویل را شکست نمی‌دهد،
+        // فقط فریادِ ماشین‌خوان می‌گذارد (جزئیات در BuilderSitePublisher).
+        try {
+            app(BuilderSitePublisher::class)->publish($service->refresh(), $server);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::noteOnce('provision',
+                'سایت‌ساز: خطای غیرمنتظره در انتشارِ سایتِ سرویسِ #'.$service->id.' — '.mb_substr($e->getMessage(), 0, 160));
+        }
 
         $this->notify($service, 'سرویسِ «'.$service->name.'» شما آماده شد و در پنل قابل مشاهده است.');
 

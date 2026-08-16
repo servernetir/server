@@ -387,9 +387,27 @@
 
   document.getElementById('aib-deploy-btn').addEventListener('click', async () => {
     const pid = planSel.value;
+    const sbSlug = planSel.options[planSel.selectedIndex].dataset.sb || '';
     const domain = domainInput.value.trim();
     const refEl = document.getElementById('aib-deploy-ref');
-    // ذخیره سایت + اطلاع فروش
+    const selfCheckout = !!root.dataset.checkout;
+
+    // تسویهٔ خودِ کنسول دامنه می‌خواهد — بدونِ آن اصلاً شروع نکن
+    if (selfCheckout) {
+      if (!domain || !domain.includes('.')) {
+        domainPrice.textContent = I.needDomain; domainPrice.className = 'no';
+        domainInput.focus();
+        return;
+      }
+      if (unsoldTld(domain)) {
+        domainPrice.textContent = I.noIr; domainPrice.className = 'no';
+        domainInput.focus();
+        return;
+      }
+    }
+
+    // ذخیره سایت + اطلاع فروش — برای تسویهٔ کنسول، ref حیاتی است
+    let ref = null;
     try {
       const res = await fetch(root.dataset.save, {
         method: 'POST',
@@ -397,9 +415,19 @@
         body: JSON.stringify({ session, domain, plan: planSel.options[planSel.selectedIndex].text }),
       });
       const d = await res.json();
-      if (d.ok) { refEl.hidden = false; refEl.textContent = I.saved.replace(':ref', d.ref); }
-    } catch { /* ادامه به سبد خرید در هر صورت */ }
-    // باز کردن سبد خرید WHMCS با هاست (+ دامنه)
+      if (d.ok) { ref = d.ref; refEl.hidden = false; refEl.textContent = I.saved.replace(':ref', d.ref); }
+    } catch { /* ادامه در هر صورت */ }
+
+    if (selfCheckout && ref && sbSlug) {
+      // هاست + دامنه + استقرارِ خودکار — همه داخلِ کنسولِ خودمان
+      window.location.href = root.dataset.checkout
+        + '?ref=' + encodeURIComponent(ref)
+        + '&plan=' + encodeURIComponent(sbSlug)
+        + '&domain=' + encodeURIComponent(domain);
+      return;
+    }
+
+    // fallback: سبد خرید WHMCS با هاست (+ دامنه)
     let url = root.dataset.cart + '?a=add&pid=' + encodeURIComponent(pid);
     if (domain && domain.includes('.')) {
       url += '&domain=register&query=' + encodeURIComponent(domain);

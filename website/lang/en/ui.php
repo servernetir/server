@@ -395,6 +395,7 @@ return [
     'aib_reassure' => 'Professional design takes a moment; everything is on track.',
     'aib_dom_unknown' => 'Domain lookup is unavailable right now; please try again shortly.',
     'aib_no_ir' => '.ir domains are not offered in the site builder yet — pick an international TLD like .com.',
+    'aib_need_domain' => 'Enter your domain first to deploy.',
 
     'chat_title' => 'ServerNet Support',
     'chat_online' => 'Online — here to help',

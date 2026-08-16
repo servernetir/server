@@ -16,11 +16,27 @@
          روتِ PHP تا ریستِ opcache ممکن است هنوز قدیمی باشد؛ بی‌گارد یعنی ۵۰۰
          روی کلِ صفحه در همان پنجره. مقدارِ خالی = builder.js خودش به مسیرِ
          JSONِ قدیمی برمی‌گردد. --}}
+    {{-- data-checkout: تسویهٔ خودِ کنسول (هاست+دامنه+استقرارِ خودکار). گاردِ
+         Route::has مثل data-stream؛ و اگر پکیجِ فعالِ سایت‌ساز در DB نباشد هم
+         خالی می‌ماند تا builder.js به سبدِ WHMCS برگردد — دکمهٔ مرده ممنوع. --}}
+    @php
+      $sbCheckout = '';
+      try {
+          if (\Illuminate\Support\Facades\Route::has($routePrefix.'account.builder.checkout')
+              && \Illuminate\Support\Facades\Schema::hasTable('products')
+              && \App\Models\Product::where('group', 'site-builder')->where('is_active', true)->exists()) {
+              $sbCheckout = route($routePrefix.'account.builder.checkout');
+          }
+      } catch (\Throwable $e) {
+          $sbCheckout = '';
+      }
+    @endphp
     <div class="aib aib-wide reveal"
          data-chat="{{ route($routePrefix.'builder.chat') }}"
          data-stream="{{ \Illuminate\Support\Facades\Route::has($routePrefix.'builder.stream') ? route($routePrefix.'builder.stream') : '' }}"
          data-save="{{ route($routePrefix.'builder.save') }}"
          data-domaincheck="{{ route($routePrefix.'domain.check') }}"
+         data-checkout="{{ $sbCheckout }}"
          data-cart="{{ whmcs_url('cart.php') }}">
 
       {{-- پیش‌نمایش — حالا تمامِ عرض؛ چت رویش شناور است --}}
@@ -97,7 +113,8 @@
           <span>{{ __('ui.aib_deploy_plan') }}</span>
           <select id="aib-plan">
             @foreach($plans as $p)
-            <option value="{{ $p['pid'] }}" data-irt="{{ $p['irt'] }}" data-eur="{{ $p['eur'] }}" @if(($p['popular'] ?? false)) selected @endif>
+            {{-- data-sb = slugِ پکیجِ واقعی در DB (SeedBuilderProducts) — value همان pid کهنهٔ WHMCS برای fallback --}}
+            <option value="{{ $p['pid'] }}" data-sb="site-builder-{{ $loop->iteration }}" data-irt="{{ $p['irt'] }}" data-eur="{{ $p['eur'] }}" @if(($p['popular'] ?? false)) selected @endif>
               {{ $p['name'] }} — {{ site_price($p) }} {{ __('ui.mo') }}
             </option>
             @endforeach
@@ -129,6 +146,7 @@ window.AIB_I18N = {
   saved: @json(__('ui.aib_saved')), download: @json(__('ui.aib_download')),
   writing: @json(__('ui.aib_writing')),
   domainUnknown: @json(__('ui.aib_dom_unknown')), noIr: @json(__('ui.aib_no_ir')),
+  needDomain: @json(__('ui.aib_need_domain')),
   qs: [@json(__('ui.aib_q_name')), @json(__('ui.aib_q_field')), @json(__('ui.aib_q_services')), @json(__('ui.aib_q_contact')), @json(__('ui.aib_q_color')), @json(__('ui.aib_q_extra'))],
   skip: @json(__('ui.aib_skip')),
   colors: [@json(__('ui.aib_c1')), @json(__('ui.aib_c2')), @json(__('ui.aib_c3')), @json(__('ui.aib_c4')), @json(__('ui.aib_c5'))],

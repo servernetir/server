@@ -126,6 +126,76 @@ class WhmClient
         return app()->runningInConsole() ? $slow : self::SLOW_WEB;
     }
 
+    /**
+     * اجرای یک تابعِ UAPI **به‌نامِ یک اکانتِ cPanel** از راهِ passthrough خودِ WHM.
+     *
+     * برای سایت‌ساز: نوشتنِ فایلِ index.html در public_html اکانتِ تازه‌ساخته.
+     *
+     * ⚠️ عمداً **POST** است نه GET مثلِ `call()` — پارامترِ `content` یک سندِ
+     * HTML کامل (ده‌ها کیلوبایت) است و در query string جا نمی‌شود؛ سقفِ طولِ
+     * URL آن را بی‌صدا می‌بُرد و «فایل نوشته شد»ِ ناقص تحویل می‌داد.
+     *
+     * شکلِ پاسخ با WHM API 1 فرق دارد: نتیجهٔ UAPI در `result.status` و
+     * `result.errors` می‌نشیند، پس همین‌جا نرمال می‌شود تا مصرف‌کننده همان
+     * قراردادِ `call()` را ببیند.
+     *
+     * @return array{ok:bool,transport:bool,reason:string,data:array,raw:array}
+     */
+    public function uapiAs(string $user, string $module, string $func, array $params = []): array
+    {
+        $base = 'https://'.$this->server->hostname.':'.$this->server->effectivePort().'/json-api/cpanel';
+
+        try {
+            $req = Http::acceptJson()
+                ->connectTimeout(10)
+                ->timeout(30)
+                ->retry(1, 500, throw: false)
+                ->asForm()
+                ->withHeaders([
+                    'Authorization' => 'whm '.$this->server->username.':'.(string) $this->server->api_token,
+                ]);
+
+            if (! $this->server->verify_tls) {
+                $req = $req->withoutVerifying();
+            }
+
+            $resp = $req->post($base, array_merge([
+                'api.version'               => 1,
+                'cpanel_jsonapi_user'       => $user,
+                'cpanel_jsonapi_apiversion' => 3,
+                'cpanel_jsonapi_module'     => $module,
+                'cpanel_jsonapi_func'       => $func,
+            ], $params));
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false, 'transport' => true,
+                'reason' => 'ارتباط با سرور برقرار نشد: '.mb_substr($e->getMessage(), 0, 160),
+                'data' => [], 'raw' => [],
+            ];
+        }
+
+        $json = $resp->json();
+        if (! is_array($json)) {
+            return [
+                'ok' => false, 'transport' => false,
+                'reason' => 'پاسخِ نامعتبر از سرور (HTTP '.$resp->status().')',
+                'data' => [], 'raw' => [],
+            ];
+        }
+
+        $result = $json['result'] ?? [];
+        $ok = (int) ($result['status'] ?? 0) === 1;
+        $errors = implode(' · ', array_map('strval', (array) ($result['errors'] ?? [])));
+
+        return [
+            'ok'        => $ok,
+            'transport' => false,
+            'reason'    => $ok ? 'OK' : ($errors !== '' ? $errors : 'unknown'),
+            'data'      => (array) ($result['data'] ?? []),
+            'raw'       => $json,
+        ];
+    }
+
     public function createAccount(array $params): array
     {
         return $this->call('createacct', $params);

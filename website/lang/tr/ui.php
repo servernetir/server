@@ -395,6 +395,7 @@ return [
     'aib_reassure' => 'Profesyonel tasarım biraz zaman alır; her şey yolunda.',
     'aib_dom_unknown' => 'Alan adı sorgusu şu anda yapılamıyor; az sonra tekrar deneyin.',
     'aib_no_ir' => '.ir uzantısı site kurucuda henüz sunulmuyor — .com gibi uluslararası bir uzantı seçin.',
+    'aib_need_domain' => 'Kurulum için önce alan adınızı girin.',
 
     'chat_title' => 'ServerNet Destek',
     'chat_online' => 'Çevrimiçi — yardıma hazır',

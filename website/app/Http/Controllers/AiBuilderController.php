@@ -178,6 +178,16 @@ class AiBuilderController extends Controller
             'at'      => now()->toIso8601String(),
         ], 604800); // ۷ روز
 
+        // نسخهٔ پایدار روی دیسک — کشِ ۷روزه برای «ذخیره تا خرید» کافی است ولی
+        // انتشارِ خودکار پس از پرداخت ممکن است دیرتر برسد (کارتِ بانکی، تعطیلی).
+        // BuilderSitePublisher اول همین فایل را می‌خوانَد.
+        try {
+            \Illuminate\Support\Facades\Storage::disk('local')
+                ->put(\App\Services\Provisioning\BuilderSitePublisher::path($ref), $state['html']);
+        } catch (\Throwable $e) {
+            Log::warning('AI builder: persist failed — '.$e->getMessage());
+        }
+
         // اطلاع به تیم فروش از طریق همان خط لوله n8n (اختیاری)
         if ($webhook = config('services.n8n.chat_webhook')) {
             $this->notify($webhook, $ref, $data);
