@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\NetworkTools;
+use App\Services\WebProbe;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
  */
 class LookupController extends Controller
 {
-    public function __construct(private NetworkTools $net) {}
+    public function __construct(private NetworkTools $net, private WebProbe $probe) {}
 
     /** پیش‌فرض /lookup → رکورد A */
     public function index(Request $request): View
@@ -97,6 +98,12 @@ class LookupController extends Controller
             // فهرست پورت دلخواه؛ خود سرویس اعتبارسنجی و محدود می‌کند
             'ports'       => $this->net->ports($q, (string) $request->input('ports', '')),
             'ping'        => $this->net->ping($q),
+            'email'       => $this->net->emailHealth($q),
+            'blacklist'   => $this->net->blacklist($q),
+            'speed'       => $this->probe->speed($q),
+            'headers'     => $this->probe->headers($q),
+            'redirects'   => $this->probe->redirects($q),
+            'access'      => $this->probe->iranAccess($q),
             default       => ['ok' => false, 'error' => 'unknown_kind'],
         };
 

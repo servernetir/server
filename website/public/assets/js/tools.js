@@ -589,4 +589,36 @@
        بازدیدکننده وسطِ صفحه‌ای می‌افتاد که هنوز ندیده بود کجاست. */
     if (ipForm.dataset.auto === '1') lookup('', { scroll: false, quiet: true });
   }
+
+  /* ============ DOMAIN NAME IDEAS ============ */
+  const ideasForm = document.getElementById('ideas-form');
+  if (ideasForm) {
+    const M = window.IDEAS_META, T = M.i18n;
+    const input = document.getElementById('ideas-input');
+    const wrap = document.getElementById('ideas-result');
+    const grid = document.getElementById('ideas-grid');
+    const errBox = document.getElementById('ideas-error');
+    const showErr = (msg) => { errBox.textContent = msg; errBox.hidden = false; wrap.hidden = true; };
+
+    ideasForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const desc = input.value.trim();
+      if (desc.length < 10) { showErr(T.short); return; }
+      errBox.hidden = true;
+      spin(ideasForm.querySelector('button'), true);
+      try {
+        const d = await post(ideasForm.dataset.endpoint, { description: desc });
+        if (!d.ok || !d.items.length) { showErr(d.error === 'too_short' ? T.short : T.empty); return; }
+        grid.innerHTML = d.items.map((it) => {
+          // «ثبت شده» قطعی است؛ بقیه لینک استعلام زنده‌اند — هرگز «آزاد» ادعا نمی‌کنیم
+          if (it.taken === true) {
+            return `<span class="lk-tile" style="opacity:.55;cursor:default"><svg class="icon"><use href="#i-x"/></svg><span dir="ltr">${esc(it.domain)}</span><small>${esc(T.taken)}</small></span>`;
+          }
+          return `<a class="lk-tile" href="${esc(T.checkUrl + encodeURIComponent(it.name))}" rel="nofollow"><svg class="icon"><use href="#i-search"/></svg><span dir="ltr">${esc(it.domain)}</span><small>${esc(T.check)}</small></a>`;
+        }).join('');
+        wrap.hidden = false;
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch { showErr(T.generic); } finally { spin(ideasForm.querySelector('button'), false); }
+    });
+  }
 })();

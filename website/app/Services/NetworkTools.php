@@ -465,6 +465,292 @@ class NetworkTools
         ];
     }
 
+    /* ============================================================= سلامت ایمیل */
+
+    /**
+     * سلکتورهای رایج DKIM — نمی‌شود همه را دانست (سلکتور دست فرستنده است)،
+     * پس فقط رایج‌ترین‌ها بررسی و «یافت‌نشدن» هرگز خطا اعلام نمی‌شود.
+     */
+    private const DKIM_SELECTORS = [
+        'default', 'google', 'selector1', 'selector2', 'k1', 's1', 's2',
+        'mail', 'dkim', 'zoho', 'mx',
+    ];
+
+    /**
+     * بررسی سلامت ایمیل دامنه: MX، SPF، DMARC و DKIM.
+     * همه از DoH خوانده می‌شوند؛ ارزیابی‌ها توابع خالص جدا هستند تا با
+     * رکوردهای مرجع تست شوند.
+     */
+    public function emailHealth(string $domain): array
+    {
+        $host = $this->host($domain);
+        if ($host === null) {
+            return ['ok' => false, 'error' => 'invalid_domain'];
+        }
+
+        $endpoint = self::RESOLVERS['google']['url'];
+
+        $mxAns = $this->doh($endpoint, $host, 'MX');
+        if ($mxAns === null) {
+            return ['ok' => false, 'error' => 'unreachable'];
+        }
+        $mx = array_map(
+            fn ($r) => $r['data'],
+            $this->extract($mxAns, 'MX')
+        );
+
+        $txts = array_map(
+            fn ($r) => $r['data'],
+            $this->extract($this->doh($endpoint, $host, 'TXT') ?? [], 'TXT')
+        );
+        $dmarcTxts = array_map(
+            fn ($r) => $r['data'],
+            $this->extract($this->doh($endpoint, '_dmarc.'.$host, 'TXT') ?? [], 'TXT')
+        );
+
+        $spf = self::spfEvaluate($txts);
+        $dmarc = self::dmarcEvaluate($dmarcTxts);
+        $dkim = $this->dkimSelectors($host);
+
+        // جمع‌بندی: MX پایه است؛ SPF و DMARC سالم یعنی «خوب»، ناقص یعنی «هشدار»
+        $verdict = 'bad';
+        if ($mx !== []) {
+            $verdict = ($spf['ok'] && $dmarc['found']) ? 'good' : 'warn';
+        }
+
+        return [
+            'ok'      => true,
+            'domain'  => $host,
+            'mx'      => $mx,
+            'spf'     => $spf,
+            'dmarc'   => $dmarc,
+            'dkim'    => $dkim,
+            'verdict' => $verdict,
+        ];
+    }
+
+    /**
+     * ارزیابی SPF از روی رکوردهای TXT دامنه — تابع خالص.
+     *
+     * «چند رکورد SPF» طبق RFC 7208 خطای قطعی است (permerror) و شایع‌ترین
+     * خرابکاری واقعی؛ برای همین جدا پرچم می‌خورد.
+     */
+    public static function spfEvaluate(array $txts): array
+    {
+        $spf = array_values(array_filter(
+            array_map('trim', $txts),
+            fn ($t) => preg_match('~^v=spf1(\s|$)~i', $t) === 1
+        ));
+
+        $record = $spf[0] ?? null;
+        $policy = 'none';
+        // دلیمیتر / است نه ~ — خود ~ (softfail) داخل character class است
+        if ($record !== null && preg_match('/([-~?+])all\b/i', $record, $m)) {
+            $policy = ['-' => 'hard', '~' => 'soft', '?' => 'neutral', '+' => 'pass_all'][$m[1]] ?? 'none';
+        }
+
+        return [
+            'found'    => $record !== null,
+            'multiple' => count($spf) > 1,
+            'record'   => $record,
+            'policy'   => $policy,
+            // سالم = دقیقاً یک رکورد که با مکانیزم all بسته شده و +all نیست
+            'ok'       => $record !== null && count($spf) === 1
+                && in_array($policy, ['hard', 'soft', 'neutral'], true),
+        ];
+    }
+
+    /** ارزیابی DMARC از روی TXTهای ‎_dmarc — تابع خالص */
+    public static function dmarcEvaluate(array $txts): array
+    {
+        $rows = array_values(array_filter(
+            array_map('trim', $txts),
+            fn ($t) => preg_match('~^v=DMARC1\b~i', $t) === 1
+        ));
+
+        $record = $rows[0] ?? null;
+        $policy = null;
+        if ($record !== null && preg_match('~\bp\s*=\s*(none|quarantine|reject)~i', $record, $m)) {
+            $policy = strtolower($m[1]);
+        }
+
+        return [
+            'found'  => $record !== null,
+            'record' => $record,
+            'policy' => $policy,
+            // p=none یعنی فقط گزارش — از هیچ بهتر است ولی «اجرا» نیست
+            'ok'     => in_array($policy, ['quarantine', 'reject'], true),
+        ];
+    }
+
+    /** بررسی موازی سلکتورهای رایج DKIM (curl_multi مثل allDns) */
+    protected function dkimSelectors(string $host): array
+    {
+        $endpoint = self::RESOLVERS['google']['url'];
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach (self::DKIM_SELECTORS as $sel) {
+            $name = $sel.'._domainkey.'.$host;
+            $ch = curl_init($endpoint.'?name='.urlencode($name).'&type=TXT');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_HTTPHEADER     => ['Accept: application/dns-json'],
+                CURLOPT_USERAGENT      => 'ServerNet-Lookup/1.0',
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$sel] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh, 1.0);
+            }
+        } while ($running && $status === CURLM_OK);
+
+        $found = [];
+        foreach ($handles as $sel => $ch) {
+            $raw = curl_multi_getcontent($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            if ($raw === null || $code !== 200) {
+                continue;
+            }
+            $data = json_decode($raw, true);
+            if (! is_array($data)) {
+                continue;
+            }
+            foreach ($this->extract($data, 'TXT') as $r) {
+                if (stripos($r['data'], 'v=DKIM1') !== false || preg_match('~\bp=[A-Za-z0-9+/]~', $r['data'])) {
+                    $found[] = $sel;
+                    break;
+                }
+            }
+        }
+        curl_multi_close($mh);
+
+        return ['found' => $found, 'checked' => count(self::DKIM_SELECTORS)];
+    }
+
+    /* ============================================================= بلک‌لیست (DNSBL) */
+
+    /**
+     * زون‌های DNSBL معتبر و پرمصرف. لیست کوتاه است تا کل بررسی زیر بودجه‌ی
+     * زمانی صفحه بماند.
+     */
+    public const RBL_ZONES = [
+        'zen.spamhaus.org'      => 'Spamhaus ZEN',
+        'bl.spamcop.net'        => 'SpamCop',
+        'dnsbl.sorbs.net'       => 'SORBS',
+        'psbl.surriel.com'      => 'PSBL',
+        'ix.dnsbl.manitu.net'   => 'Manitu',
+        'db.wpbl.info'          => 'WPBL',
+        'dnsbl-1.uceprotect.net' => 'UCEPROTECT L1',
+        'spam.spamrats.com'     => 'SpamRats',
+    ];
+
+    /**
+     * بررسی حضور IP در بلک‌لیست‌های ایمیل.
+     *
+     * ⚠️ عمداً از resolver خود سرور (dns_get_record) استفاده می‌شود نه DoH:
+     * Spamhaus به resolverهای عمومی (Google/Cloudflare) پاسخ نمی‌دهد و
+     * به‌جایش کد خطای 127.255.255.x می‌فرستد — که اگر «لیست‌شده» خوانده شود،
+     * به هر IP سالمی برچسب اسپم زده‌ایم. آن کدها این‌جا «نامشخص» تفسیر می‌شوند.
+     */
+    public function blacklist(string $input): array
+    {
+        // IPv6 را پیش از resolveIp بگیر: آن متد پورت را با ':' جدا می‌کند و
+        // ورودی IPv6 را له می‌کند — پس این‌جا آخرین جایی است که سالم دیده می‌شود.
+        if (filter_var(trim($input), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            return ['ok' => false, 'error' => 'ipv6_unsupported'];
+        }
+
+        $ip = $this->resolveIp($input);
+        if ($ip === null) {
+            return ['ok' => false, 'error' => 'invalid_domain'];
+        }
+        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return ['ok' => false, 'error' => 'ipv6_unsupported'];
+        }
+
+        $reversed = implode('.', array_reverse(explode('.', $ip)));
+
+        $zones = [];
+        $listed = 0;
+        foreach (self::RBL_ZONES as $zone => $label) {
+            $answer = $this->rblQuery($reversed.'.'.$zone);
+            $state = self::rblInterpret($zone, $answer['ips']);
+            if ($state === 'listed') {
+                $listed++;
+            }
+            $zones[] = [
+                'zone'   => $zone,
+                'label'  => $label,
+                'state'  => $state,
+                'reason' => $state === 'listed' ? ($answer['txt'] ?? null) : null,
+            ];
+        }
+
+        return [
+            'ok'     => true,
+            'domain' => $this->host($input) ?? $ip,
+            'ip'     => $ip,
+            'zones'  => $zones,
+            'listed' => $listed,
+            'clean'  => $listed === 0,
+        ];
+    }
+
+    /**
+     * تفسیر پاسخ DNSBL — تابع خالص.
+     *
+     * پاسخ در 127.0.0.0/8 یعنی «لیست‌شده»، جز کدهای خطای Spamhaus
+     * (127.255.255.x = پرس‌وجو از resolver عمومی/بی‌اعتبار) که «نامشخص»‌اند.
+     * هر پاسخ خارج از 127.x هم اعتبار ندارد (بعضی ISPها NXDOMAIN را hijack می‌کنند).
+     */
+    public static function rblInterpret(string $zone, array $ips): string
+    {
+        if ($ips === []) {
+            return 'clean';
+        }
+        foreach ($ips as $ip) {
+            if (str_starts_with($ip, '127.255.255.')) {
+                return 'unknown';
+            }
+            if (str_starts_with($ip, '127.')) {
+                return 'listed';
+            }
+        }
+
+        return 'unknown';
+    }
+
+    /** پرس‌وجوی یک نام DNSBL از resolver سیستم (در تست جایگزین می‌شود) */
+    protected function rblQuery(string $name): array
+    {
+        $ips = [];
+        foreach (@dns_get_record($name, DNS_A) ?: [] as $r) {
+            if (! empty($r['ip'])) {
+                $ips[] = $r['ip'];
+            }
+        }
+
+        $txt = null;
+        if ($ips !== []) {
+            foreach (@dns_get_record($name, DNS_TXT) ?: [] as $r) {
+                if (! empty($r['txt'])) {
+                    $txt = $r['txt'];
+                    break;
+                }
+            }
+        }
+
+        return ['ips' => $ips, 'txt' => $txt];
+    }
+
     /* ============================================================= helpers */
 
     /** پرس‌وجوی DoH و بازگرداندن پاسخ JSON دیکود‌شده */
@@ -510,8 +796,8 @@ class NetworkTools
         return $out;
     }
 
-    /** نرمال‌سازی و اعتبارسنجی نام دامنه/میزبان */
-    private function host(string $input): ?string
+    /** نرمال‌سازی و اعتبارسنجی نام دامنه/میزبان (public: WebProbe هم استفاده می‌کند) */
+    public function host(string $input): ?string
     {
         $h = strtolower(trim($input));
         $h = preg_replace('~^https?://~', '', $h);

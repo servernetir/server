@@ -419,6 +419,7 @@ return [
         ['icon' => 'globe',      'slug' => 'ip',          'fa' => ['t' => 'بررسی IP', 'd' => 'موقعیت، ISP و اطلاعات کامل هر IP'],                     'en' => ['t' => 'IP Checker', 'd' => 'Location, ISP and full details of any IP'],          'tr' => ['t' => 'IP Sorgu', 'd' => 'Her IP\'nin konumu ve detayları']],
         ['icon' => 'video',      'slug' => 'meet',        'fa' => ['t' => 'جلسات آنلاین', 'd' => 'ویدیوکنفرانس امن بدون نصب نرم‌افزار'],              'en' => ['t' => 'Online Meetings', 'd' => 'Secure video meetings, zero installation'],      'tr' => ['t' => 'Online Toplantı', 'd' => 'Kurulumsuz güvenli görüntülü toplantı']],
         ['icon' => 'smartphone', 'slug' => 'app-builder', 'fa' => ['t' => 'اپلیکیشن‌ساز', 'd' => 'ساخت اپ اندروید و iOS بدون کدنویسی'],               'en' => ['t' => 'App Builder', 'd' => 'Build Android & iOS apps without code'],             'tr' => ['t' => 'Uygulama Oluşturucu', 'd' => 'Kodsuz Android ve iOS uygulaması']],
+        ['icon' => 'search',     'slug' => 'domain-ideas', 'fa' => ['t' => 'پیشنهادگر نام دامنه', 'd' => 'نام برنددار با هوش مصنوعی + ثبت همان‌جا'],   'en' => ['t' => 'Domain Name Ideas', 'd' => 'Brandable AI name ideas, register right here'], 'tr' => ['t' => 'Alan Adı Fikirleri', 'd' => 'Yapay zeka ile marka isim önerileri']],
     ],
 
     /*

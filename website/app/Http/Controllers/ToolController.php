@@ -16,7 +16,7 @@ use Illuminate\View\View;
  */
 class ToolController extends Controller
 {
-    private const PAGES = ['seo', 'whois', 'ip', 'meet', 'app-builder'];
+    private const PAGES = ['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas'];
 
     public function show(string $slug, Request $request): View
     {
@@ -90,6 +90,23 @@ class ToolController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * POST /api/domain-ideas — پیشنهاد نام دامنه با AI (fallback محلی).
+     *
+     * اعتبارسنجی دستی و پاسخ همیشه JSON: این روت سه نسخه‌ی زبان‌دار دارد
+     * (/en/api/… و /tr/api/…) که الگوی `api/*` در bootstrap آن‌ها را نمی‌گیرد،
+     * پس `$request->validate()` خطایش را به‌جای JSON با ریدایرکت HTML می‌داد.
+     */
+    public function ideas(Request $request, \App\Services\DomainIdeas $ideas): JsonResponse
+    {
+        $desc = trim((string) $request->input('description', ''));
+        if (mb_strlen($desc) < 10) {
+            return response()->json(['ok' => false, 'error' => 'too_short']);
+        }
+
+        return response()->json($ideas->suggest(mb_substr($desc, 0, 300)));
     }
 
     /** POST /api/whois */

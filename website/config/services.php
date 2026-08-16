@@ -92,6 +92,23 @@ return [
 
         // دسته‌بندیِ صندوق‌های ایمیل (App\Services\Mail\MailboxTriage)
         'triage'    => env('AI_PROVIDER_TRIAGE', 'deepseek'),
+
+        // پیشنهادگر نام دامنه (App\Services\DomainIdeas — ابزار عمومی /tools/domain-ideas)
+        'ideas'     => env('AI_PROVIDER_IDEAS', 'deepseek'),
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | نقطه‌ی سنجش داخل ایران (ابزارهای سرعت و دسترسی)
+    |----------------------------------------------------------------------
+    | وب‌هوکی روی سرور ایرانی (n8n — relay/n8n/iran-probe.json) که یک URL
+    | می‌گیرد و از داخل ایران fetch می‌کند. اگر تنظیم نباشد، ابزارها فقط از
+    | دید اروپا می‌سنجند و ردیف ایران «پیکربندی‌نشده» می‌ماند — خطا نمی‌دهند.
+    | خواننده: App\Services\WebProbe (config('services.iran_probe.url')).
+    */
+    'iran_probe' => [
+        'url'   => env('IRAN_PROBE_URL'),
+        'token' => env('IRAN_PROBE_TOKEN'),
     ],
 
     /*
