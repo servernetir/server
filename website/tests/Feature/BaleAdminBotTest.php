@@ -844,4 +844,64 @@ class BaleAdminBotTest extends TestCase
 
         $this->assertSame('paid', $paid->fresh()->status, 'فاکتورِ پرداخت‌شده لغو شد');
     }
+    /**
+     * 🔴 خواستهٔ کارفرما: «وقتی روی دکمه‌ها کلیک کردم پاک بشه تا دچار اشتباه
+     * نشیم.»
+     *
+     * و از مهرِ تازگی هم بهتر است، چون **دیدنی** است: دکمه‌ای که نیست، اشتباه
+     * کلیک نمی‌شود. مهر لایهٔ دوم می‌مانَد برای کارتی که بله دیگر اجازهٔ
+     * ویرایشش را نمی‌دهد (سقفِ ۴۸ ساعت).
+     */
+    public function test_a_write_button_is_removed_after_it_is_used(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        $this->postJson($this->hookUrl(), [
+            'update_id' => 991,
+            'callback_query' => [
+                'id' => 'cbx', 'data' => 'v1:su:'.$s->id.':'.$this->stamp('su', $s->id),
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'message' => ['message_id' => 4242, 'text' => 'کارتِ سرویس'],
+            ],
+        ])->assertOk();
+
+        $edited = false;
+
+        foreach (Http::recorded() as [$req, ]) {
+            $d = $req->data();
+
+            if (str_contains($req->url(), '/editMessageText')
+                && (int) ($d['message_id'] ?? 0) === 4242) {
+                $edited = true;
+
+                $this->assertArrayNotHasKey('reply_markup', $d,
+                    'ویرایش کیبورد را برنداشت — دکمه هنوز کلیک‌شدنی است');
+                $this->assertStringContainsString('انجام شد', (string) ($d['text'] ?? ''));
+            }
+        }
+
+        $this->assertTrue($edited, 'دکمه‌های کارت پس از کلیک برداشته نشدند');
+        $this->assertSame('suspended', $s->fresh()->status);
+    }
+
+    /** ⚠️ ولی صفحهٔ **خواندنی** نباید دکمه‌هایش پاک شود — ناوبری می‌شکند */
+    public function test_a_read_button_keeps_its_keyboard(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        $this->postJson($this->hookUrl(), [
+            'callback_query' => [
+                'id' => 'cby', 'data' => 'v1:c:'.$c->id,
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+                'message' => ['message_id' => 77, 'text' => 'فهرست'],
+            ],
+        ]);
+
+        foreach (Http::recorded() as [$req, ]) {
+            $this->assertStringNotContainsString('/editMessageText', $req->url(),
+                'صفحهٔ خواندنی دکمه‌هایش را پاک کرد — ناوبری می‌شکند');
+        }
+    }
 }

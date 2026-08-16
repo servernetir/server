@@ -50,6 +50,15 @@ class AdminBaleRouter
      */
     private const CB_PREFIX = 'v1:';
 
+    /**
+     * افعالی که یک بار مصرف می‌شوند — دکمه‌شان پس از کلیک برداشته می‌شود.
+     *
+     * ⚠️ فهرست عمداً **سفید** است نه سیاه: فعلِ تازه‌ای که کسی فردا اضافه کند،
+     * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
+     * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
+     */
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps'];
+
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
      * ⚠️ ۳ و نه بیشتر: هر ارسال یک تماسِ **همزمانِ** ۱۲ ثانیه‌ای داخلِ وب‌هوک
@@ -59,6 +68,19 @@ class AdminBaleRouter
     private const MAX_SENDS = 3;
 
     private int $sends = 0;
+
+    /**
+     * پیامی که کارفرما رویش کلیک کرد — برای **پاک‌کردنِ دکمه‌ها** پس از انجام.
+     *
+     * 🔴 خواستهٔ کارفرما: «وقتی روی دکمه‌ها کلیک کردم پاک بشه تا دچار اشتباه
+     * نشیم.» و از محافظِ مهرِ تازگی هم بهتر است، چون **دیدنی** است: دکمه‌ای که
+     * نیست، اشتباه کلیک نمی‌شود. مهر می‌مانَد به‌عنوانِ لایهٔ دوم برای وقتی که
+     * ویرایشِ پیام شکست بخورد یا کارفرما اسکرول کند به کارتِ خیلی قدیمی که
+     * بله دیگر اجازهٔ ویرایشش را نمی‌دهد (سقفِ ۴۸ ساعت).
+     */
+    private ?int $clickedMessageId = null;
+
+    private string $clickedText = '';
 
     public function __construct(
         private AdminBaleGate $gate,
@@ -232,6 +254,10 @@ class AdminBaleRouter
         $cb = (array) ($update['callback_query'] ?? []);
         $id = (string) ($cb['id'] ?? '');
 
+        $this->clickedMessageId = isset($cb['message']['message_id'])
+            ? (int) $cb['message']['message_id'] : null;
+        $this->clickedText = (string) ($cb['message']['text'] ?? '');
+
         try {
             $data = substr((string) ($cb['data'] ?? ''), strlen(self::CB_PREFIX));
             [$verb, $arg] = array_pad(explode(':', $data, 2), 2, '');
@@ -248,6 +274,18 @@ class AdminBaleRouter
                 'ma'   => '📥 بایگانی شد',
                 default => '',
             });
+
+            /*
+            | 🔴 افعالی که **می‌نویسند**: پس از انجام، دکمه‌های همان کارت برداشته
+            | می‌شوند تا دوباره کلیک نشوند.
+            |
+            | ⚠️ ویرایش **پیش از** اجرا انجام می‌شود، نه بعدش: اگر کار طول بکشد
+            | یا خطا بدهد، دکمه‌ها همان لحظه باید رفته باشند — وگرنه کارفرما
+            | دوباره می‌زند و کار دو بار انجام می‌شود.
+            */
+            if (in_array($verb, self::CONSUMING, true)) {
+                $this->consumeButtons();
+            }
 
             match ($verb) {
                 // آزمونِ زنده — نگه داشته شد چون تنها راهِ سنجیدنِ خودِ مسیر است
@@ -850,6 +888,38 @@ class AdminBaleRouter
     }
 
     // ─────────────────── فاز ۲: صفحه‌های خواندنی ───────────────────
+
+    /**
+     * دکمه‌های کارتِ کلیک‌شده را بردار و نشان بده که مصرف شده.
+     *
+     * ⚠️ `editMessageText` بی‌`reply_markup` صدا زده می‌شود؛ همین کیبورد را
+     * برمی‌دارد. متنِ اصلی نگه داشته می‌شود تا کارفرما بعداً هم بفهمد آن کارت
+     * دربارهٔ چه بود.
+     *
+     * ⚠️ شکستش بی‌صداست و باید هم باشد: بله ویرایشِ پیامِ کهنه‌تر از ۴۸ ساعت را
+     * رد می‌کند. آن حالت با محافظِ مهرِ تازگی پوشش داده می‌شود — این‌جا فقط
+     * راحتیِ چشم است، نه تنها محافظ.
+     */
+    private function consumeButtons(): void
+    {
+        $chat = (string) ($this->gate->binding()['chat_id'] ?? '');
+
+        if ($chat === '' || $this->clickedMessageId === null) {
+            return;
+        }
+
+        $text = $this->clickedText !== ''
+            ? mb_substr($this->clickedText, 0, 3400)."
+
+☑️ انجام شد"
+            : '☑️ انجام شد';
+
+        try {
+            $this->sender->editText($chat, $this->clickedMessageId, $text);
+        } catch (\Throwable) {
+            // بی‌صدا: این لایهٔ راحتی است، نه محافظِ اصلی
+        }
+    }
 
     /** ردیفِ ناوبریِ ثابت — هیچ صفحه‌ای نباید بن‌بست باشد */
     private function nav(string $backVerb = ''): array
