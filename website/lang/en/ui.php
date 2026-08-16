@@ -2258,4 +2258,14 @@ return [
     'sx_skip_unsub' => 'already unsubscribed',
     'sx_skip_dup' => 'already in the list',
     'au_print_title' => 'Site audit report',
+
+    /* نشانه‌های اعتماد — فقط وقتی config/company.php پر باشد رندر می‌شوند */
+    'trust_title' => 'Trust and legal information',
+    'trust_enamad' => 'Iranian e-commerce trust seal',
+    'trust_samandehi' => 'Samandehi licence',
+    'trust_legal_name' => 'Registered name',
+    'trust_reg_no' => 'Registration number',
+    'trust_national' => 'National ID',
+    'trust_economic' => 'Economic code',
+    'trust_address' => 'Address',
 ];

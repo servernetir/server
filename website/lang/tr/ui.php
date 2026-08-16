@@ -2258,4 +2258,14 @@ return [
     'sx_skip_unsub' => 'zaten abonelikten cikmis',
     'sx_skip_dup' => 'zaten listede',
     'au_print_title' => 'Site denetim raporu',
+
+    /* نشانه‌های اعتماد — فقط وقتی config/company.php پر باشد رندر می‌شوند */
+    'trust_title' => 'Güven ve yasal bilgiler',
+    'trust_enamad' => 'İran e-ticaret güven mührü',
+    'trust_samandehi' => 'Samandehi lisansı',
+    'trust_legal_name' => 'Tescilli unvan',
+    'trust_reg_no' => 'Sicil numarası',
+    'trust_national' => 'Ulusal kimlik',
+    'trust_economic' => 'Ekonomik kod',
+    'trust_address' => 'Adres',
 ];

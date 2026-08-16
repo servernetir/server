@@ -3348,3 +3348,31 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   a[href]::after{content:'' !important}
   a{color:#0B1220 !important;text-decoration:none !important}
 }
+
+/* ══ نشانه‌های اعتماد ══════════════════════════════════════════════════════
+   فوتر و صفحهٔ تماس. هیچ‌کدام وقتی config/company.php خالی است رندر نمی‌شوند،
+   پس این قواعد فقط زمانی اثر دارند که داده‌ای واقعی وجود داشته باشد. */
+.f-seals { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+           padding: 22px 0 4px; }
+.f-seals a { display: inline-flex; background: #fff; border-radius: 10px; padding: 6px;
+             line-height: 0; transition: .2s }
+.f-seals a:hover { transform: translateY(-2px) }
+.f-seals img { width: 90px; height: 90px; object-fit: contain }
+
+.f-legal { display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: center;
+           padding: 14px 0 0; font-size: 12.5px; color: var(--dim); line-height: 2 }
+.f-legal b { color: var(--muted); font-weight: 600 }
+
+.f-addr { align-items: flex-start }
+
+.ct-legal { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line);
+            border-radius: var(--r); overflow: hidden }
+.ct-legal > div { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 14px 18px;
+                  background: var(--surface); font-size: 14px }
+.ct-legal b { min-width: 120px; color: var(--muted); font-weight: 600 }
+.ct-legal span { color: var(--text) }
+
+@media (max-width: 640px) {
+  .f-seals img { width: 74px; height: 74px }
+  .ct-legal b { min-width: 100% }
+}
