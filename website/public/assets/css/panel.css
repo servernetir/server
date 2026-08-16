@@ -1432,3 +1432,61 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
    `<button>` کلیک را می‌گیرد ولی `aria-disabled` روی لینک نمی‌گیرد. */
 .pnl-btn[disabled],
 .pnl-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* ═══════════════ نمایندگی دامنه (/account/reseller) ═══════════════
+   ⚠️ فقط توکن‌هایی که واقعاً در این فایل تعریف شده‌اند استفاده شده‌اند.
+   `--card` و `--brand` در این پروژه وجود ندارند و استفاده‌شان یعنی رنگِ
+   خالی، بی‌هیچ خطایی. */
+
+.rs-stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.rs-stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.rs-stat > span{color:var(--muted);font-size:13px}
+.rs-stat > b{font-size:20px;font-family:var(--font-disp)}
+.rs-stat > small{color:var(--muted);font-size:12px}
+
+.rs-warn{color:var(--danger);font-size:13px}
+
+.rs-progress{margin-top:18px}
+.rs-bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.rs-bar > i{display:block;height:100%;background:var(--grad);border-radius:99px;transition:width .4s var(--ease)}
+.rs-progress > small{display:block;margin-top:8px;color:var(--muted);font-size:13px}
+
+.rs-grace{margin-top:14px;padding:10px 14px;border-radius:12px;
+  background:var(--info-bg);border:1px solid var(--info-line);color:var(--info);font-size:13px}
+
+.rs-levels{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.rs-level{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:4px}
+/* سطحِ فعلی باید در یک نگاه پیدا باشد، وگرنه جدول فقط یک تبلیغ است */
+.rs-level.is-current{border-color:var(--ok-line);background:var(--ok-bg)}
+.rs-level > b{font-family:var(--font-disp)}
+.rs-level .rs-off{font-size:18px;font-family:var(--font-disp);color:var(--ok)}
+.rs-level > small{color:var(--muted);font-size:12px;line-height:1.7}
+
+.rs-steps{margin:14px 0 0;padding-inline-start:20px;line-height:2.1;font-size:14px}
+.rs-steps code{font-size:12px}
+
+.rs-logs{display:flex;flex-direction:column;gap:6px}
+.rs-log{display:grid;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;
+  background:var(--bg2);border:1px solid var(--line);font-size:13px;
+  grid-template-columns:110px 1fr 110px 130px 140px}
+.rs-log.is-err{border-color:var(--danger-line);background:var(--danger-bg)}
+.rs-log-a{font-family:var(--font-disp);color:var(--muted)}
+.rs-log-t,.rs-log-m{color:var(--muted);font-size:12px}
+/* موبایل: شبکهٔ پنج‌ستونی روی ۳۷۵px هر ستون را به ۷۰px می‌رساند و متن می‌شکند */
+@media (max-width:820px){
+  .rs-log{grid-template-columns:1fr 1fr;row-gap:4px}
+  .rs-log-d{grid-column:1/-1}
+}
+
+/* چیپ‌های توکن در صفحهٔ امنیت */
+.sec-token-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sec-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--muted)}
+.sec-chip.danger{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+.sec-chip.ok{border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok)}
+.sec-chip.warn{border-color:var(--danger-line);color:var(--danger)}
+.sec-abilities{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.sec-abilities .sec-lbl{color:var(--muted);font-size:13px}
+.sec-abilities .sec-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.8}
+.sec-abilities .sec-chk code{font-size:12px}

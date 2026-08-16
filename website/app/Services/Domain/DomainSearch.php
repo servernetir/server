@@ -742,7 +742,13 @@ class DomainSearch
      * یورو از `CloudPricing` می‌آید (همان منبعِ یگانه). ارزِ دیگر — رسیلری
      * گاهی دلاری قیمت می‌دهد — با نرخِ زندهٔ خودش، چون نرخِ مبنا فقط یورویی است.
      */
-    private function rateFor(string $currency): ?int
+    /**
+     * ⚠️ عمومی شد تا `Reseller\ResellerPricing` بتواند **کفِ قیمت** را از روی
+     * بهای تمام‌شده حساب کند. اگر آن‌جا نرخِ دیگری استفاده می‌شد، کفِ محافظ با
+     * قیمتی که این کلاس ساخته هم‌مبنا نبود و در جهشِ ارز، کف یا بی‌اثر می‌شد
+     * یا کلِ تخفیف را می‌خورد — هر دو بی‌هیچ خطایی.
+     */
+    public function rateFor(string $currency): ?int
     {
         $currency = strtoupper($currency);
 

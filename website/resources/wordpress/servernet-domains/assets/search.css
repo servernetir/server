@@ -1,0 +1,23 @@
+/* جعبهٔ جستجوی دامنهٔ سرورنت — عمداً مینیمال و بدونِ رنگِ برند.
+   ⚠️ قالبِ نماینده صاحبِ ظاهرِ سایتش است؛ افزونه‌ای که رنگ و فونتِ خودش را
+   تحمیل کند، اولین کاری که می‌کنند غیرفعالش می‌کنند. فقط چیدمان. */
+.sn-search{max-width:720px;margin:0 auto}
+.sn-search-form{display:flex;gap:8px;flex-wrap:wrap}
+.sn-search .sn-input{flex:1;min-width:220px;padding:12px 14px;border:1px solid currentColor;
+  border-radius:10px;background:transparent;color:inherit;font:inherit;opacity:.95}
+.sn-search .sn-btn{padding:12px 22px;border-radius:10px;border:0;cursor:pointer;font:inherit}
+.sn-search .sn-btn[disabled]{opacity:.6;cursor:default}
+.sn-status{margin:10px 0;font-size:.9em;opacity:.75;min-height:1.2em}
+.sn-results{display:flex;flex-direction:column;gap:8px}
+.sn-row{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border:1px solid currentColor;border-radius:10px;opacity:.95;flex-wrap:wrap}
+.sn-row--taken,.sn-row--unchecked,.sn-row--unsupported,.sn-row--no_price{opacity:.55}
+.sn-domain{direction:ltr;font-weight:600;flex:1;min-width:160px;word-break:break-all}
+.sn-price{white-space:nowrap}
+.sn-state{font-size:.9em;opacity:.8}
+.sn-add{padding:8px 16px;border-radius:8px;border:0;cursor:pointer;font:inherit}
+.sn-add[disabled]{opacity:.6;cursor:default}
+@media (max-width:480px){
+  .sn-row{align-items:flex-start}
+  .sn-add{width:100%}
+}

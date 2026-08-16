@@ -185,6 +185,23 @@ class SecurityPageTest extends TestCase
 
         $this->actingAs($c, 'customer')->post("/account/security/api-token/{$token->id}/delete")
             ->assertRedirect();
-        $this->assertNull(CustomerApiToken::find($token->id));
+
+        /*
+        | ابطال از شهریور ۱۴۰۵ **نرم** است، نه حذفِ فیزیکی.
+        |
+        | این تست پیش از این `assertNull(find($id))` می‌زد. تغییرش عمدی است:
+        | با آمدنِ توکنِ نوشتنیِ نمایندگی، حذفِ فیزیکی یعنی درست در لحظه‌ای که
+        | کاربر می‌گوید «این توکن لو رفته»، تنها ردی که می‌گفت آن توکن چه کرده
+        | هم پاک می‌شود (`reseller_api_logs.token_id` به نال می‌افتد) — یعنی
+        | حسابرسیِ حادثه دقیقاً وقتی از بین می‌رود که لازمش داریم.
+        |
+        | چیزی که کاربر می‌خواهد همچنان برقرار است و همین‌جا سنجیده می‌شود:
+        | توکن از فهرست می‌رود و **دیگر کار نمی‌کند**.
+        */
+        $token->refresh();
+
+        $this->assertNotNull($token->revoked_at, 'توکن باطل نشد');
+        $this->assertSame('token_revoked', $token->unusableReason());
+        $this->assertSame(0, $c->apiTokens()->usable()->count(), 'توکنِ باطل هنوز در فهرست است');
     }
 }

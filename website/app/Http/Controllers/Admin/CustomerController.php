@@ -173,6 +173,68 @@ class CustomerController extends Controller
     }
 
     /**
+     * فعال/غیرفعال کردنِ نمایندگیِ دامنه + تنظیم‌های اختصاصیِ آن مشتری.
+     *
+     * 🔴 چرا مدیر روشنش می‌کند و نه خودِ مشتری: نمایندگی یک **قرارداد** است.
+     * حسابِ نماینده با یک درخواستِ HTTP از اعتبارش دامنهٔ واقعی می‌خرد، و
+     * مسئولیتِ سوءاستفاده (فیشینگ/اسپم روی دامنه‌ای که نماینده ثبت کرده) در
+     * برابرِ رجیسترار پای ماست. چک‌باکسِ خودسرویس یعنی این مسئولیت را کسی
+     * می‌پذیرد که هیچ توافقی امضا نکرده.
+     *
+     * ⚠️ `reseller_bonus_pct` از **کفِ حاشیه** عبور نمی‌کند — همان گیتی که
+     * تخفیفِ سطح را می‌گیرد این را هم می‌گیرد (`ResellerPricing`). پس یک
+     * «۴۰٪ به این آقا بده»ی شفاهی نمی‌تواند پسوندِ کم‌حاشیه را زیرِ قیمتِ خرید
+     * بفروشد. سقفِ ۵۰ این‌جا فقط محافظِ اشتباهِ تایپی است.
+     */
+    public function reseller(Request $request, Customer $customer): RedirectResponse
+    {
+        $data = $request->validate([
+            'is_reseller'   => ['nullable', 'boolean'],
+            'level'         => ['nullable', 'string', 'max:24'],
+            'bonus_pct'     => ['nullable', 'integer', 'min:0', 'max:50'],
+            'daily_cap_irt' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $program = app(\App\Services\Domain\Reseller\ResellerProgram::class);
+        $on = (bool) ($data['is_reseller'] ?? false);
+
+        $customer->forceFill([
+            'is_reseller'            => $on,
+            'reseller_joined_at'     => $on ? ($customer->reseller_joined_at ?? now()) : null,
+            'reseller_bonus_pct'     => (int) ($data['bonus_pct'] ?? 0),
+            'reseller_daily_cap_irt' => (int) ($data['daily_cap_irt'] ?? 0),
+        ])->save();
+
+        if (! $on) {
+            return back()->with('ok', 'نمایندگیِ دامنه برای این مشتری غیرفعال شد.');
+        }
+
+        /*
+        | سطحِ دستیِ مدیر مقدم است؛ وگرنه سطح از روی حجمِ واقعی حساب می‌شود.
+        |
+        | ⚠️ بدونِ این محاسبه، نمایندهٔ تازه‌فعال‌شده با `reseller_level = null`
+        | می‌مانَد و `levelByKey(null)` او را روی پلهٔ پایه می‌گذارد — یعنی
+        | مشتری‌ای که سال‌ها با ما کار کرده، روزِ اولِ نمایندگی صفر تخفیف
+        | می‌گیرد و ما را بدقول می‌داند.
+        */
+        if (filled($data['level'] ?? null)) {
+            $customer->forceFill([
+                'reseller_level'              => $program->levelByKey($data['level'])['key'],
+                'reseller_level_reviewed_at'  => now(),
+                'reseller_level_locked_until' => null,
+            ])->save();
+        } else {
+            $program->review($customer->refresh());
+        }
+
+        $level = $program->currentLevel($customer->refresh());
+
+        return back()->with('ok', 'نمایندگیِ دامنه فعال شد — سطح: '
+            .(lc($level['name'] ?? []) ?: $level['key'])
+            .' · تخفیف: '.$program->discountPct($customer).'٪');
+    }
+
+    /**
      * تغییر رمز عبور مشتری توسط مدیر.
      *
      * رمز به‌صورت متن وارد فرم می‌شود ولی هرگز خام ذخیره نمی‌شود — cast مدل

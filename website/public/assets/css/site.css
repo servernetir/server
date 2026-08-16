@@ -3376,3 +3376,57 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .f-seals img { width: 74px; height: 74px }
   .ct-legal b { min-width: 100% }
 }
+/* ═══════════ مستندات API (/developers) ═══════════
+   ⚠️ انتهای فایل، طبق قاعدهٔ append-only site.css. */
+.dev-doc{max-width:900px;margin-inline:auto}
+.dev-doc h2{margin:44px 0 14px;font-size:26px}
+.dev-doc h2:first-child{margin-top:0}
+.dev-doc h3{margin:28px 0 10px;font-size:19px}
+.dev-doc p{line-height:2.1;margin:0 0 12px}
+.dev-sub{color:var(--muted);font-size:14px}
+.dev-steps,.dev-list{line-height:2.2;padding-inline-start:22px;margin:0 0 12px}
+
+.dev-code{direction:ltr;text-align:left;background:var(--bg2);border:1px solid var(--line);
+  border-radius:14px;padding:16px 18px;overflow-x:auto;font-size:13px;line-height:1.9;margin:0 0 16px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* جدولِ عریض باید داخلِ خودش اسکرول شود، نه اینکه بدنهٔ صفحه را افقی کند */
+.dev-table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:14px;display:block;overflow-x:auto}
+.dev-table th,.dev-table td{border:1px solid var(--line);padding:9px 12px;text-align:start;vertical-align:top}
+.dev-table th{background:var(--bg2);font-weight:600;white-space:nowrap}
+.dev-table code{font-size:12px;white-space:nowrap}
+
+.dev-note{border:1px solid var(--info-line);background:var(--info-bg);border-radius:14px;
+  padding:14px 16px;margin:0 0 18px;line-height:2;font-size:14px}
+.dev-note.dev-warn{border-color:var(--danger-line);background:var(--danger-bg)}
+
+/* ═══════════ نردبان سطح نمایندگی (partials/sig-tiers) ═══════════ */
+.tier-ladder{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-top:26px}
+.tier{position:relative;background:var(--surface2);border:1px solid var(--line);border-radius:16px;
+  padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px}
+/* پله‌های بالاتر پررنگ‌تر — نردبان باید در یک نگاه «بالا رفتن» را نشان دهد */
+.tier:not(.is-base){border-color:var(--line2)}
+.tier:last-child{border-color:var(--green);box-shadow:0 0 0 1px color-mix(in srgb,var(--green) 30%,transparent)}
+.tier-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.tier-name{font-family:var(--font-disp);font-size:17px}
+.tier-off{font-family:var(--font-disp);font-size:30px;line-height:1;color:var(--green)}
+.tier-off small{font-size:15px}
+.tier-off .tier-off-base{font-size:13px;color:var(--dim);font-family:var(--font)}
+.tier-req{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;
+  font-size:13px;line-height:1.9;color:var(--muted)}
+.tier-note{margin:20px 0 0;font-size:13.5px;line-height:2.1;color:var(--muted);max-width:760px}
+@media (max-width:560px){
+  .tier-ladder{grid-template-columns:1fr}
+  .tier-off{font-size:26px}
+}
+
+/* ═══════════ قدم‌های شروع (HowTo روی صفحهٔ محصول) ═══════════ */
+.howto-steps{list-style:none;margin:30px 0 0;padding:0;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.howto-step{display:flex;gap:14px;align-items:flex-start;background:var(--surface2);
+  border:1px solid var(--line);border-radius:16px;padding:18px}
+.howto-n{flex:0 0 34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:var(--grad);color:#fff;font-family:var(--font-disp);font-size:15px}
+.howto-step b{display:block;font-family:var(--font-disp);font-size:16px;margin-bottom:6px}
+.howto-step p{margin:0;font-size:13.5px;line-height:2;color:var(--muted)}
+.howto-step a{display:inline-block;margin-top:9px;font-size:13px;color:var(--cyan)}
