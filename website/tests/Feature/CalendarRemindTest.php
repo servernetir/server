@@ -36,16 +36,16 @@ class CalendarRemindTest extends TestCase
 
             public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
             {
-                $this->test->record($title, $rows);
+                $this->test->record($title, $rows, $url);
             }
         };
 
         $this->app->instance(AdminNotifier::class, $spy);
     }
 
-    public function record(string $title, array $rows): void
+    public function record(string $title, array $rows, ?string $url = null): void
     {
-        $this->sent[] = ['title' => $title, 'rows' => $rows];
+        $this->sent[] = ['title' => $title, 'rows' => $rows, 'url' => $url];
     }
 
     private function tz(): string
@@ -154,6 +154,30 @@ class CalendarRemindTest extends TestCase
         $this->assertStringContainsString('اجارهٔ دفتر', $body);
         // مبلغ با همان قالبِ بقیهٔ پنل، نه عددِ خام
         $this->assertStringContainsString(invoice_money(50000000, 'IRT'), $body);
+    }
+
+    /**
+     * لینکِ پنل در پیام نمی‌آید — تصمیمِ صریحِ کارفرما.
+     *
+     * پیام روی گوشی خوانده می‌شود و آدرسِ پنل آن لحظه به کار نمی‌آید؛ فقط یک
+     * خطِ اضافه در پیامی است که باید در یک نگاه خوانده شود.
+     *
+     * ⚠️ این تست هست چون `AdminNotifier::event()` پارامترِ `$url` دارد و
+     * پرکردنش خیلی طبیعی به‌نظر می‌رسد — بی‌این نگهبان، اولین کسی که این فرمان
+     * را دست بزند لینک را برمی‌گرداند.
+     */
+    public function test_no_panel_link_is_attached(): void
+    {
+        $this->reminder('یک کار', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $this->assertNull($this->sent[0]['url'], 'لینکِ پنل نباید فرستاده شود');
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $this->assertStringNotContainsString('/admin/calendar', $body);
+        // و ته پیام نباید فاصلهٔ بی‌دلیل داشته باشد
+        $this->assertSame(rtrim($body), $body, 'ته پیام نباید خطِ خالی داشته باشد');
     }
 
     /** رویدادِ بی‌مبلغ نباید جداکنندهٔ خالی بگیرد */
