@@ -1924,6 +1924,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store'])->middleware('admin');
         Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->middleware('admin');
 
+        // گزارشِ کسب‌وکار — پولِ در راه، رشدِ مشتری، ظرفیتِ زیرساخت
+        // ⚠️ فقط می‌خوانَد؛ هیچ روتِ نوشتنی ندارد و عمداً هم نباید داشته باشد.
+        Route::get('/reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('admin.reports')->middleware('admin');
+
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 

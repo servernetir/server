@@ -88,6 +88,7 @@
 
       <div class="ad-nav-sep">مالی</div>
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
+      <a href="/admin/reports" class="@yield('nav_reports')"><svg class="icon"><use href="#i-gauge"/></svg>گزارشِ کسب‌وکار</a>
       <a href="/admin/transactions" class="@yield('nav_transactions')"><svg class="icon"><use href="#i-list"/></svg>تراکنش‌ها و اعتبار</a>
       @php $pendingBank = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
               ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
