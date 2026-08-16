@@ -9,6 +9,7 @@ use App\Models\ResellerApiLog;
 use App\Services\Domain\Reseller\ResellerProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -33,14 +34,34 @@ class ResellerController extends Controller
         | درخواستِ فعال‌سازی» نشان می‌دهد. ۴۰۴ دادن یعنی لینکِ صفحه در
         | بازاریابی بی‌مصرف است و مشتریِ علاقه‌مند به دیوار می‌خورد.
         */
-        $enabled = $this->program->isReseller($c);
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 پیش از مهاجرت هم باید بالا بیاید
+        |----------------------------------------------------------------------
+        |
+        | دیپلویِ این پروژه فایل‌به‌فایل است و مهاجرتِ پروداکشن **دستی** اجرا
+        | می‌شود، پس همیشه پنجره‌ای هست که کد روی سرور است و ستون‌ها نیستند.
+        |
+        | بی‌این محافظ، آن پنجره یک ۵۰۰ روی صفحه‌ای می‌سازد که صفحهٔ فروشِ
+        | عمومیِ `/domain/reseller` مستقیم به آن لینک می‌دهد — یعنی درست همان
+        | کسی که تازه ترغیب شده، به خطا می‌خورد. `scopeUsable` به `revoked_at`
+        | و `expires_at` تکیه دارد و `is_reseller` هم ستونِ تازه است.
+        |
+        | ⚠️ حالتِ «هنوز فعال نشده» عمداً همان چیزی است که به مشتریِ غیرنماینده
+        | نشان داده می‌شود: صفحه معنا دارد، و به‌محضِ اجرای مهاجرت خودبه‌خود
+        | کامل می‌شود. هیچ‌کس لازم نیست چیزی را به یاد بیاورد.
+        */
+        $ready = Schema::hasColumn('customers', 'is_reseller')
+            && Schema::hasColumn('customer_api_tokens', 'revoked_at');
+
+        $enabled = $ready && $this->program->isReseller($c);
 
         return view('account.reseller', AccountController::shell('reseller') + [
             'isReseller' => $enabled,
             'progress'   => $enabled ? $this->program->progress($c) : null,
             'levels'     => $this->program->levels(),
             'credit'     => $c->creditBalance('IRT'),
-            'tokens'     => $c->apiTokens()->usable()->orderByDesc('id')->get(),
+            'tokens'     => $ready ? $c->apiTokens()->usable()->orderByDesc('id')->get() : collect(),
             'domains'    => Domain::where('customer_id', $c->id)->alive()->count(),
             'logs'       => $enabled
                 ? ResellerApiLog::where('customer_id', $c->id)->recent()->limit(30)->get()
