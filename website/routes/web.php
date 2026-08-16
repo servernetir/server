@@ -174,6 +174,9 @@ $site = function (): void {
     Route::get('/api/domains/status', [\App\Http\Controllers\DomainSearchController::class, 'status'])
         ->name('domain.status')->middleware('throttle:tools');
     Route::post('/api/builder', [AiBuilderController::class, 'chat'])->name('builder.chat')->middleware('throttle:ai');
+    // نسخهٔ SSE — تولیدِ کامل ~۲ دقیقه است و پشتِ Cloudflare درخواستِ بی‌خروجی
+    // ۵۰۴ می‌گیرد؛ builder.js اول این را می‌زند و اگر نبود به بالایی برمی‌گردد
+    Route::post('/api/builder/stream', [AiBuilderController::class, 'stream'])->name('builder.stream')->middleware('throttle:ai');
     Route::post('/api/builder/save', [AiBuilderController::class, 'save'])->name('builder.save')->middleware('throttle:tools');
 
     /*

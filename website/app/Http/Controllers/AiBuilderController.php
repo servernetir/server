@@ -33,15 +33,82 @@ class AiBuilderController extends Controller
             'pro'     => 'nullable|boolean',
         ]);
 
+        return $this->handleTurn($data, null);
+    }
+
+    /**
+     * نسخهٔ SSE همان گفتگو — دلیلش همان قاعدهٔ ثبت‌شدهٔ پروژه است:
+     * گذرگاه پشت Cloudflare است و درخواستِ بی‌خروجی حدودِ ۱۰۰ ثانیه‌ای ۵۰۴
+     * می‌گیرد. تولیدِ یک صفحهٔ کامل تا ~۲ دقیقه طول می‌کشد، پس مسیرِ JSONِ
+     * ساده دقیقاً روی طولانی‌ترین (بهترین!) خروجی‌ها می‌بُرید.
+     *
+     * قرارداد با مرورگر: هر رویداد یک خط `data: {json}` است؛
+     *   {d: '…'}                        تکهٔ تازهٔ متن (برای پیشرفتِ واقعی)
+     *   {done: true, ok, reply, html…}  پاکتِ پایانی — همان شکلِ chat()
+     *
+     * ⚠️ builder.js اگر این مسیر در دسترس نبود (مثلاً opcache هنوز ریست نشده)
+     * خودکار به chat()ِ قدیمی برمی‌گردد؛ پس این endpoint می‌تواند بعد از JS
+     * دیپلوی شود بی‌آنکه صفحه بشکند.
+     */
+    public function stream(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        @set_time_limit(200);
+
+        $data = $request->validate([
+            'session' => 'required|string|max:64',
+            'message' => 'required|string|max:2000',
+            'pro'     => 'nullable|boolean',
+        ]);
+
+        return response()->stream(function () use ($data) {
+            // بافرهای PHP/لاراول را کنار بزن وگرنه SSE تا پایانِ کار صف می‌شود.
+            // ⚠️ نه در تست: بافرِ بیرونی مالِ خودِ PHPUnit است و حذفش سوئیت را می‌شکند.
+            if (! app()->runningUnitTests()) {
+                while (ob_get_level() > 0) {
+                    @ob_end_clean();
+                }
+                @ob_implicit_flush(true);
+            }
+
+            $send = function (array $payload): void {
+                echo 'data: '.json_encode($payload, JSON_UNESCAPED_UNICODE)."\n\n";
+                flush();
+            };
+
+            $this->handleTurn($data, $send);
+        }, 200, [
+            'Content-Type'      => 'text/event-stream; charset=utf-8',
+            'Cache-Control'     => 'no-cache, no-transform',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * یک نوبتِ گفتگو — مشترک بینِ chat() و stream().
+     *
+     * اگر `$send` داده شود، تکه‌های متن همان لحظه به مرورگر می‌روند و نتیجهٔ
+     * نهایی هم به‌صورت رویدادِ `done` فرستاده می‌شود (خروجیِ JSON بی‌معنی است)؛
+     * بی‌آن، همان JsonResponse قدیمی برمی‌گردد.
+     */
+    private function handleTurn(array $data, ?\Closure $send): JsonResponse
+    {
+        $finish = function (array $payload) use ($send): JsonResponse {
+            if ($send) {
+                $send(['done' => true] + $payload);
+            }
+
+            return response()->json($payload);
+        };
+
         if (! config('services.gapgpt.key')) {
-            return response()->json(['ok' => false, 'error' => 'not_configured']);
+            return $finish(['ok' => false, 'error' => 'not_configured']);
         }
 
         $sid = 'builder:'.preg_replace('~[^a-zA-Z0-9-]~', '', $data['session']);
         $state = Cache::get($sid, ['turns' => 0, 'history' => [], 'html' => null]);
 
         if ($state['turns'] >= self::MAX_TURNS) {
-            return response()->json(['ok' => false, 'error' => 'limit', 'html' => $state['html']]);
+            return $finish(['ok' => false, 'error' => 'limit', 'html' => $state['html']]);
         }
 
         $locale = app()->getLocale();
@@ -51,13 +118,13 @@ class AiBuilderController extends Controller
             [['role' => 'user', 'content' => $data['message']]],
         );
 
-        $reply = $this->call($messages, ! empty($data['pro']));
+        $reply = $this->call($messages, ! empty($data['pro']), $send);
         if ($reply === null) {
             // اگر خطا از سقف/اعتبار سرویس هوش مصنوعی بود، پیام مناسب بده
             $isLimit = ($this->lastError['http'] ?? 0) === 429
                 || str_contains(json_encode($this->lastError), 'api_limit');
 
-            return response()->json([
+            return $finish([
                 'ok'    => false,
                 'error' => $isLimit ? 'ai_busy' : 'ai_error',
                 'html'  => $state['html'],
@@ -78,7 +145,7 @@ class AiBuilderController extends Controller
         $state['html'] = $html;
         Cache::put($sid, $state, self::SESSION_TTL);
 
-        return response()->json([
+        return $finish([
             'ok'     => true,
             'reply'  => $chat,
             'html'   => $html,
@@ -137,11 +204,28 @@ class AiBuilderController extends Controller
         PROMPT;
     }
 
-    /** فراخوانی GapGPT (chat completions سازگار با OpenAI) */
-    private function call(array $messages, bool $pro): ?string
+    /**
+     * فراخوانی GapGPT (chat completions سازگار با OpenAI).
+     *
+     * با `$onDelta` حالتِ استریم روشن می‌شود: هر تکهٔ متن همان لحظه به کلوژر
+     * می‌رود (`['d' => '…']`) و اگر آپستریم چند لحظه فقط فکر کند (بی‌متن)،
+     * یک کامنتِ ضربان فرستاده می‌شود تا Cloudflare اتصالِ ساکت را نبُرد —
+     * همان الگوی تست‌شدهٔ `AiContent::call()`.
+     */
+    private function call(array $messages, bool $pro, ?\Closure $onDelta = null): ?string
     {
         $model = $pro ? config('services.gapgpt.model_pro') : config('services.gapgpt.model');
         $url = rtrim(config('services.gapgpt.base'), '/').'/chat/completions';
+
+        $payload = [
+            'model'       => $model,
+            'messages'    => $messages,
+            'temperature' => 0.7,
+            'max_tokens'  => 8000,
+        ];
+        if ($onDelta) {
+            $payload['stream'] = true;
+        }
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -150,19 +234,55 @@ class AiBuilderController extends Controller
                 'Content-Type: application/json',
                 'Authorization: Bearer '.config('services.gapgpt.key'),
             ],
-            CURLOPT_POSTFIELDS     => json_encode([
-                'model'       => $model,
-                'messages'    => $messages,
-                'temperature' => 0.7,
-                'max_tokens'  => 8000,
-            ], JSON_UNESCAPED_UNICODE),
+            CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_TIMEOUT        => $onDelta ? 170 : 120,
             CURLOPT_CONNECTTIMEOUT => 20,
         ]);
+
+        $streamed = '';
+        if ($onDelta) {
+            $buf = '';
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($c, string $chunk) use (&$buf, &$streamed, $onDelta): int {
+                $buf .= $chunk;
+                $out = '';
+                while (($nl = strpos($buf, "\n")) !== false) {
+                    $line = trim(substr($buf, 0, $nl));
+                    $buf = substr($buf, $nl + 1);
+                    if (! str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+                    $data = trim(substr($line, 5));
+                    if ($data === '' || $data === '[DONE]') {
+                        continue;
+                    }
+                    $j = json_decode($data, true);
+                    if (! is_array($j)) {
+                        continue;
+                    }
+                    $choice = $j['choices'][0] ?? [];
+                    $piece = $choice['delta']['content'] ?? $choice['message']['content'] ?? $choice['text'] ?? null;
+                    if (is_string($piece) && $piece !== '') {
+                        $streamed .= $piece;
+                        $out .= $piece;
+                    }
+                }
+
+                if ($out !== '') {
+                    $onDelta(['d' => $out]);
+                } else {
+                    // بایتی رسید ولی متنی نبود (مثلاً reasoning) — اتصال را زنده نگه دار
+                    echo ": hb\n\n";
+                    flush();
+                }
+
+                return strlen($chunk);
+            });
+        }
+
         $raw = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($raw === false) {
+        if ($raw === false && $streamed === '') {
             Log::warning('AI builder curl: '.curl_error($ch));
             curl_close($ch);
 
@@ -170,7 +290,18 @@ class AiBuilderController extends Controller
         }
         curl_close($ch);
 
-        $d = json_decode($raw, true);
+        if ($onDelta) {
+            if (trim($streamed) === '') {
+                $this->lastError = ['http' => $code, 'model' => $model, 'body' => 'empty stream'];
+                Log::warning('AI builder API (stream)', $this->lastError);
+
+                return null;
+            }
+
+            return $streamed;
+        }
+
+        $d = json_decode((string) $raw, true);
         $content = $d['choices'][0]['message']['content'] ?? null;
 
         if (! is_string($content) || trim($content) === '') {
