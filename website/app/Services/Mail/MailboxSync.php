@@ -127,12 +127,28 @@ class MailboxSync
         $key = (string) $account['key'];
         $result = ['new' => 0, 'seen' => 0];
 
+        /*
+        | 🔴 هاست از **خودِ حساب** خوانده می‌شود و فقط اگر نبود سراغِ مقدارِ
+        | سراسری می‌رود.
+        |
+        | تا پیش از این یک `MAILBOX_HOST` برای همه بود، یعنی همهٔ صندوق‌ها باید
+        | روی یک سرورِ ایمیل می‌نشستند. جیمیل روی `imap.gmail.com` است، پس با آن
+        | ساختار اصلاً نمی‌شد اضافه‌اش کرد.
+        |
+        | ⚠️ `??` است نه `?:` — یعنی فقط **نبودن** به سراسری برمی‌گردد، نه مقدارِ
+        | خالی. اگر روزی کسی `MAILBOX_X_HOST=` را خالی بگذارد، باید خطای صریحِ
+        | «IMAP host is empty» بگیرد نه اینکه بی‌صدا به صندوقِ دیگری وصل شود.
+        |
+        | ⚠️ این بلوک روی **پروداکشن** نوشته شده بود و در گیت نبود؛ هنگامِ دپلویِ
+        | کارِ «دیده‌شدنِ خطای صندوق» پیدا و بازیابی شد. اگر رونویسی می‌شد،
+        | صندوقِ روی هاستِ غیرِ پیش‌فرض بی‌صدا از کار می‌افتاد.
+        */
         $imap = new ImapClient([
-            'host'   => (string) config('mailboxes.host'),
-            'port'   => (int) config('mailboxes.port', 993),
+            'host'   => (string) ($account['host'] ?? config('mailboxes.host')),
+            'port'   => (int) ($account['port'] ?? config('mailboxes.port', 993)),
             'user'   => (string) $account['user'],
             'pass'   => (string) $account['pass'],
-            'folder' => 'INBOX',
+            'folder' => (string) ($account['folder'] ?? 'INBOX'),
         ]);
 
         try {
