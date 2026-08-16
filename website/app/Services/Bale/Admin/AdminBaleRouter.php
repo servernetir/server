@@ -65,6 +65,7 @@ class AdminBaleRouter
         private AdminBaleCommands $ui,
         private AdminBaleAnchor $anchor,
         private BaleSender $sender,
+        private AdminBaleScreens $screens,
     ) {}
 
     // ───────────────────────── آیا مالِ ماست؟ ─────────────────────────
@@ -262,9 +263,21 @@ class AdminBaleRouter
                 'ts' => $this->armStoredDraft($arg),
                 'h'  => $this->replyToOwner($this->ui->health()),
                 'x'  => $this->menu(),
+                'fx' => $this->cancelFlow(),
                 '?'  => $this->replyToOwner($this->ui->panel()),
-                'rl' => $this->replyToOwner('صفِ رسیدهای واریز در فازِ بعد اضافه می‌شود — فعلاً /admin/bank-transfers.'),
-                'sq' => $this->replyToOwner('صفِ تحویلِ گیرکرده در فازِ بعد اضافه می‌شود — فعلاً /admin/services.'),
+                'cm' => $this->customersMenu(),
+                'cf' => $this->armSearch(),
+                'cl' => $this->customerList($arg === '' ? null : (int) $arg),
+                'c'  => $this->customerCard((int) $arg),
+                'sl' => $this->serviceList((int) $arg),
+                's'  => $this->serviceCard((int) $arg),
+                'il' => $this->invoiceList((int) $arg),
+                'i'  => $this->invoiceCard((int) $arg),
+                'rl' => $this->receiptList(),
+                'r'  => $this->receiptCard((int) $arg),
+                'dl' => $this->domainList(),
+                'd'  => $this->domainCard((int) $arg),
+                'sq' => $this->stuckList(),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
@@ -366,6 +379,16 @@ class AdminBaleRouter
             return;
         }
 
+        if (in_array($verb, ['/c', 'مشتری', 'مشتری‌ها', 'مشتریها'], true)) {
+            if (trim($rest) !== '') {
+                $this->runSearch($rest);
+            } else {
+                $this->customersMenu();
+            }
+
+            return;
+        }
+
         if (in_array($verb, ['/mail', 'ایمیل', 'ایمیل‌ها', 'ایمیلها'], true)) {
             $this->showMailbox();
 
@@ -415,6 +438,31 @@ class AdminBaleRouter
 
         // ── از این‌جا به بعد نوشتن است؛ اول باید بدانیم روی کدام تیکت ──
         $anchored = $this->anchor->ticketFrom($m);
+
+        /*
+        | 🔴 جریانِ بازِ جستجو و لنگرِ ریپلای می‌توانند هم‌زمان صادق باشند، و آن
+        | حالت **خطرناک** است: کارفرما «جستجو» را زده، بعد روی یک کارتِ تیکتِ
+        | قدیمی سوایپ می‌کند (روی گوشی، ریپلای همان کارِ طبیعی است) و نامِ
+        | مشتری را می‌نویسد — آن متن به‌عنوانِ **پاسخ به مشتری** می‌رفت.
+        |
+        | پس هیچ‌کدام اجرا نمی‌شود و از خودش پرسیده می‌شود.
+        */
+        if ($this->gate->flow() !== null && $anchored !== null) {
+            $this->sendButtons(
+                "شما در میانهٔ «جستجو» هستید و هم‌زمان روی یک تیکت ریپلای زده‌اید.\n"
+                ."برای امنیت هیچ‌کدام اجرا نشد.\n\n«".mb_substr($text, 0, 200).'»',
+                [[['text' => '✖️ انصرافِ جستجو', 'data' => self::CB_PREFIX.'fx']]],
+            );
+
+            return;
+        }
+
+        if ($this->gate->flow() === 'search') {
+            $this->gate->clearFlow();
+            $this->runSearch($text);
+
+            return;
+        }
 
         if (in_array($verb, ['/note', 'یادداشت'], true)) {
             $this->note($anchored, $rest);
@@ -644,6 +692,10 @@ class AdminBaleRouter
                 ['text' => $tag('⚠️ تحویل', $n['stuck']),     'data' => self::CB_PREFIX.'sq'],
             ],
             [
+                ['text' => '👥 مشتری‌ها', 'data' => self::CB_PREFIX.'cm'],
+                ['text' => $tag('🌐 دامنه‌ها', $n['domains']), 'data' => self::CB_PREFIX.'dl'],
+            ],
+            [
                 ['text' => '💚 سلامت', 'data' => self::CB_PREFIX.'h'],
                 ['text' => '📖 راهنما', 'data' => self::CB_PREFIX.'?'],
             ],
@@ -783,6 +835,256 @@ class AdminBaleRouter
         }
 
         $this->send_reply($ticket, $body, close: false);
+    }
+
+    // ─────────────────── فاز ۲: صفحه‌های خواندنی ───────────────────
+
+    /** ردیفِ ناوبریِ ثابت — هیچ صفحه‌ای نباید بن‌بست باشد */
+    private function nav(string $backVerb = ''): array
+    {
+        $row = [];
+
+        if ($backVerb !== '') {
+            $row[] = ['text' => '⬅️ برگشت', 'data' => self::CB_PREFIX.$backVerb];
+        }
+
+        $row[] = ['text' => '🏠 منو', 'data' => self::CB_PREFIX.'x'];
+
+        return $row;
+    }
+
+    private function runSearch(string $term): void
+    {
+        $r = $this->screens->search($term);
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'c:'.$x['id']],
+        ], $r['rows']);
+
+        $rows[] = $this->nav('cm');
+
+        $this->sendButtons($r['text'], $rows);
+    }
+
+    private function cancelFlow(): void
+    {
+        $this->gate->clearFlow();
+        $this->menu();
+    }
+
+    private function customersMenu(): void
+    {
+        $this->sendButtons("👥 مشتری‌ها\n\nبا نام، کدِ SN، ایمیل یا موبایل جستجو کنید.", [
+            [
+                ['text' => '🔎 جستجو', 'data' => self::CB_PREFIX.'cf'],
+                ['text' => '🕒 تازه‌ترین‌ها', 'data' => self::CB_PREFIX.'cl'],
+            ],
+            $this->nav(),
+        ]);
+    }
+
+    private function armSearch(): void
+    {
+        $this->gate->armFlow('search');
+
+        $this->sendButtons(
+            "🔎 نام، کدِ SN، ایمیل یا موبایلِ مشتری را بفرستید.\n"
+            .'(دستِ‌کم دو حرف — ۱۰ دقیقه فرصت دارید)',
+            [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+        );
+    }
+
+    private function customerList(?int $cursor): void
+    {
+        $r = $this->screens->customers($cursor);
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'c:'.$x['id']],
+        ], $r['rows']);
+
+        if ($r['next'] !== null) {
+            $rows[] = [['text' => 'بعدی ▶️', 'data' => self::CB_PREFIX.'cl:'.$r['next']]];
+        }
+
+        $rows[] = $this->nav('cm');
+
+        $this->sendButtons($r['text'], $rows);
+    }
+
+    private function customerCard(int $id): void
+    {
+        $c = \App\Models\Customer::find($id);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $this->sendButtons($this->screens->customer($c), [
+            [
+                ['text' => '🖥 سرویس‌ها', 'data' => self::CB_PREFIX.'sl:'.$c->id],
+                ['text' => '🧾 فاکتورها', 'data' => self::CB_PREFIX.'il:'.$c->id],
+            ],
+            $this->nav('cm'),
+        ]);
+    }
+
+    private function serviceList(int $customerId): void
+    {
+        $c = \App\Models\Customer::find($customerId);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'s:'.$x['id']],
+        ], $this->screens->serviceRows($c));
+
+        $rows[] = $this->nav('c:'.$c->id);
+
+        $this->sendButtons($rows === [] ? 'سرویسی ندارد.' : '🖥 سرویس‌های '.$c->displayName(), $rows);
+    }
+
+    private function serviceCard(int $id): void
+    {
+        $s = \App\Models\Service::find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        $this->sendButtons($this->screens->service($s),
+            [$this->nav($s->customer_id ? 'c:'.$s->customer_id : '')]);
+    }
+
+    private function invoiceList(int $customerId): void
+    {
+        $c = \App\Models\Customer::find($customerId);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'i:'.$x['id']],
+        ], $this->screens->invoiceRows($c));
+
+        $rows[] = $this->nav('c:'.$c->id);
+
+        $this->sendButtons($rows === [] ? 'فاکتوری ندارد.' : '🧾 فاکتورهای '.$c->displayName(), $rows);
+    }
+
+    private function invoiceCard(int $id): void
+    {
+        $i = \App\Models\Invoice::find($id);
+
+        if ($i === null) {
+            $this->replyToOwner('فاکتور پیدا نشد.');
+
+            return;
+        }
+
+        $this->sendButtons($this->screens->invoice($i),
+            [$this->nav($i->customer_id ? 'c:'.$i->customer_id : '')]);
+    }
+
+    private function receiptList(): void
+    {
+        $r = $this->screens->receipts();
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'r:'.$x['id']],
+        ], $r['rows']);
+
+        $rows[] = $this->nav();
+
+        $this->sendButtons($r['text'], $rows);
+    }
+
+    private function receiptCard(int $id): void
+    {
+        $r = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
+            ? \App\Models\BankTransferReceipt::find($id) : null;
+
+        if ($r === null) {
+            $this->replyToOwner('رسید پیدا نشد.');
+
+            return;
+        }
+
+        /*
+        | ⚠️ دکمهٔ تأیید/رد عمداً هنوز این‌جا نیست.
+        |
+        | تأییدِ رسید یک زنجیرهٔ پولی راه می‌اندازد که هیچ‌جای اپ «لغوِ تأیید»
+        | ندارد. تا وقتی محافظِ nonce روی کارهای ارزان‌تر جواب نداده، این دکمه
+        | نمی‌آید. فعلاً کارت **همه‌چیزِ لازم برای تصمیم** را نشان می‌دهد و
+        | خودِ کار در پنل انجام می‌شود.
+        */
+        $rows = [];
+
+        if ($r->customer_id) {
+            $rows[] = [['text' => '👤 پروندهٔ مشتری', 'data' => self::CB_PREFIX.'c:'.$r->customer_id]];
+        }
+
+        $rows[] = $this->nav('rl');
+
+        $this->sendButtons($this->screens->receipt($r), $rows);
+    }
+
+    private function domainList(): void
+    {
+        $r = $this->screens->domains();
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'d:'.$x['id']],
+        ], $r['rows']);
+
+        $rows[] = $this->nav();
+
+        $this->sendButtons($r['text'], $rows);
+    }
+
+    private function domainCard(int $id): void
+    {
+        $d = \Illuminate\Support\Facades\Schema::hasTable('domains')
+            ? \App\Models\Domain::find($id) : null;
+
+        if ($d === null) {
+            $this->replyToOwner('دامنه پیدا نشد.');
+
+            return;
+        }
+
+        $rows = [];
+
+        if ($d->customer_id) {
+            $rows[] = [['text' => '👤 پروندهٔ مشتری', 'data' => self::CB_PREFIX.'c:'.$d->customer_id]];
+        }
+
+        $rows[] = $this->nav('dl');
+
+        $this->sendButtons($this->screens->domain($d), $rows);
+    }
+
+    private function stuckList(): void
+    {
+        $r = $this->screens->stuck();
+
+        $rows = array_map(fn ($x) => [
+            ['text' => $x['label'], 'data' => self::CB_PREFIX.'s:'.$x['id']],
+        ], $r['rows']);
+
+        $rows[] = $this->nav();
+
+        $this->sendButtons($r['text'], $rows);
     }
 
     // ─────────────────── صندوقِ ایمیل ───────────────────

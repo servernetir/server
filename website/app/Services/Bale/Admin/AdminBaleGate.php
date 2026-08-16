@@ -435,6 +435,50 @@ class AdminBaleGate
             ? (string) ($p['human'] ?? '') : null;
     }
 
+    // ─────────────────── جریانِ یک‌مرحله‌ای (جستجو) ───────────────────
+
+    /**
+     * «منتظرِ یک ورودیِ متنی‌ام» — سبک‌ترین حالتی که این کد پشتیبانی می‌کند.
+     *
+     * ⚠️ عمر دارد (۱۰ دقیقه). جریانی که تا ابد باز بماند یعنی کارفرما فردا یک
+     * پیامِ بی‌ربط می‌فرستد و آن به‌عنوانِ جستجو خوانده می‌شود.
+     */
+    public function armFlow(string $kind): void
+    {
+        try {
+            $this->putState(['flow' => [
+                'kind' => $kind,
+                'exp'  => now()->addMinutes(10)->getTimestamp(),
+            ]]);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'armFlow']);
+        }
+    }
+
+    /** جریانِ باز، یا null. مصرف نمی‌کند — فقط می‌خوانَد. */
+    public function flow(): ?string
+    {
+        try {
+            $f = $this->state()['flow'] ?? null;
+
+            if (! is_array($f) || (int) ($f['exp'] ?? 0) < now()->getTimestamp()) {
+                return null;
+            }
+
+            return (string) ($f['kind'] ?? '') ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function clearFlow(): void
+    {
+        try {
+            $this->putState(['flow' => null]);
+        } catch (\Throwable) {
+        }
+    }
+
     // ─────────────────── پیش‌نویسِ هوشِ مصنوعی ───────────────────
 
     /**

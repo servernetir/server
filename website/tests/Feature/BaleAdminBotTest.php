@@ -532,4 +532,159 @@ class BaleAdminBotTest extends TestCase
                 'کلیکِ دکمه به دکمهٔ اشتراکِ شمارهٔ مشتری افتاد');
         }
     }
+    // ═══════════════ فاز ۲: صفحه‌های خواندنی ═══════════════
+
+    private function buttonsSent(): array
+    {
+        $out = [];
+
+        foreach (Http::recorded() as [$req, ]) {
+            $d = $req->data();
+
+            foreach (($d['reply_markup']['inline_keyboard'] ?? []) as $row) {
+                foreach ($row as $b) {
+                    $out[] = (string) ($b['callback_data'] ?? '');
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    private function click(string $data): void
+    {
+        $this->postJson($this->hookUrl(), [
+            'update_id' => random_int(1, 10_000_000),
+            'callback_query' => [
+                'id' => 'cb'.random_int(1, 9999), 'data' => $data,
+                'from' => ['id' => self::OWNER_CHAT, 'is_bot' => false],
+            ],
+        ]);
+    }
+
+    /** 🔴 هیچ صفحه‌ای نباید بن‌بست باشد — همیشه راهِ برگشت هست */
+    public function test_every_read_screen_offers_a_way_home(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        foreach (['v1:cm', 'v1:cl', 'v1:c:'.$c->id, 'v1:rl', 'v1:dl', 'v1:sq'] as $verb) {
+            Http::swap(new Factory);
+            Http::fake(['*' => Http::response(['ok' => true])]);
+
+            $this->click($verb);
+
+            $this->assertContains('v1:x', $this->buttonsSent(),
+                $verb.' بن‌بست است — دکمهٔ منو ندارد');
+        }
+    }
+
+    /** پروندهٔ مشتری هرگز ایمیل و موبایل چاپ نمی‌کند */
+    public function test_the_customer_card_never_prints_contact_details(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        $this->click('v1:c:'.$c->id);
+
+        $out = $this->outbox();
+
+        $this->assertStringNotContainsString((string) $c->email, $out);
+        $this->assertStringNotContainsString((string) $c->phone, $out);
+        $this->assertStringContainsString((string) $c->code, $out);
+    }
+
+    /** جستجو با کدِ SN مشتری را پیدا می‌کند */
+    public function test_search_finds_a_customer_by_code(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        $this->click('v1:cf');
+        $this->say((string) $c->code);
+
+        $this->assertContains('v1:c:'.$c->id, $this->buttonsSent(),
+            'نتیجهٔ جستجو دکمهٔ پروندهٔ مشتری را نداد');
+    }
+
+    /**
+     * 🔴 خطرناک‌ترین حالتِ فاز ۲، که منتقد پیدایش کرد.
+     *
+     * کارفرما «جستجو» را می‌زند، بعد روی یک کارتِ تیکتِ قدیمی سوایپ می‌کند —
+     * روی گوشی ریپلای کارِ کاملاً طبیعی است — و نامِ مشتری را می‌نویسد.
+     *
+     * بی‌این محافظ، آن متن به‌عنوانِ **پاسخ به مشتری** می‌رفت: پیامکِ پولی و
+     * ایمیل و بلهٔ برگشت‌ناپذیر، با متنی که اصلاً پاسخ نبود.
+     */
+    public function test_a_search_flow_plus_a_reply_anchor_executes_neither(): void
+    {
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->click('v1:cf');
+
+        // ریپلای روی کارتِ تیکت، در حالی که جریانِ جستجو باز است
+        $this->replyingTo('https://x/admin/tickets/'.$t->id, 'رضا محمدی');
+
+        $this->assertSame(0, TicketMessage::count(),
+            'متنِ جستجو به‌عنوانِ پاسخ برای مشتری رفت');
+        $this->assertStringContainsString('هیچ‌کدام اجرا نشد', $this->outbox());
+    }
+
+    /** کارتِ رسید باید هر دو عدد را نشان دهد — ادعای مشتری و بدهیِ فاکتور */
+    public function test_the_receipt_card_shows_both_amounts(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        $inv = \App\Models\Invoice::create([
+            'customer_id' => $c->id, 'kind' => 'service', 'currency_code' => 'IRT',
+            'subtotal' => 500000, 'tax' => 0, 'total' => 500000, 'paid' => 0,
+            'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+
+        $r = \App\Models\BankTransferReceipt::create([
+            'customer_id' => $c->id, 'invoice_id' => $inv->id,
+            'amount' => 400000, 'reference' => 'REF-7', 'status' => 'pending',
+        ]);
+
+        $this->click('v1:r:'.$r->id);
+
+        $out = $this->outbox();
+
+        // ⚠️ جداکنندهٔ هزارگان را خودِ `number_format` می‌گذارد؛ ادعا باید از
+        // همان تابع بیاید وگرنه تست سرِ یک کاراکترِ نامرئی قرمز می‌شود.
+        $this->assertStringContainsString(fa_num(number_format(400000)), $out, 'مبلغِ ادعاشده نیامد');
+        $this->assertStringContainsString(fa_num(number_format(500000)), $out, 'بدهیِ فاکتور نیامد');
+        $this->assertStringContainsString('یکی نیستند', $out,
+            'اختلافِ دو عدد هشدار نداد — تأیید بدهیِ فاکتور را تسویه می‌کند نه ادعا را');
+    }
+
+    /**
+     * ⚠️ فاز ۲ فقط می‌خوانَد. هیچ دکمه‌ای نباید چیزی بنویسد.
+     *
+     * این تست کلِ فاز را قفل می‌کند: اگر روزی کسی دکمهٔ «تأیید رسید» را زودتر
+     * از محافظش اضافه کند، همین‌جا قرمز می‌شود.
+     */
+    public function test_no_read_screen_writes_anything(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+        $t = $this->ticket($c);
+
+        $before = [
+            'tickets'  => \App\Models\Ticket::sum('id'),
+            'messages' => TicketMessage::count(),
+            'invoices' => \App\Models\Invoice::count(),
+        ];
+
+        foreach (['v1:cm', 'v1:cl', 'v1:c:'.$c->id, 'v1:sl:'.$c->id, 'v1:il:'.$c->id,
+                  'v1:rl', 'v1:dl', 'v1:sq', 'v1:t:'.$t->id] as $verb) {
+            $this->click($verb);
+        }
+
+        $this->assertSame($before['messages'], TicketMessage::count());
+        $this->assertSame($before['invoices'], \App\Models\Invoice::count());
+        $this->assertSame('open', $t->fresh()->status, 'یک صفحهٔ خواندنی وضعیتِ تیکت را عوض کرد');
+    }
 }
