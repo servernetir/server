@@ -34,16 +34,21 @@ if (!expected || !got || got !== expected) {
   return reply({ ok: false, error: 'bad_token' });
 }
 
-let host = '';
-try {
-  const u = new URL(target);
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-    return reply({ ok: false, error: 'bad_scheme' });
-  }
-  host = u.hostname;
-} catch (e) {
+/*
+| 🔴 پارس URL بدون `new URL`: سندباکس این n8n علاوه بر crypto (درس رله)،
+|    گلوبال URL را هم ندارد — نسخه‌ی اول همین‌جا throw می‌کرد و catch آن را
+|    «bad_target» می‌خواند؛ یعنی هر هدفِ سالمی رد می‌شد، بی‌هیچ خطایی در لاگ.
+|    به هیچ گلوبال محیطی جز رجکس و رشته تکیه نکن.
+*/
+const sm = target.match(/^([a-z][a-z0-9+.-]*):\/\//i);
+if (sm && sm[1].toLowerCase() !== 'http' && sm[1].toLowerCase() !== 'https') {
+  return reply({ ok: false, error: 'bad_scheme' });
+}
+const hm = target.match(/^https?:\/\/([^\/:?#]+)(?::\d+)?(?:[\/?#]|$)/i);
+if (!hm) {
   return reply({ ok: false, error: 'bad_target' });
 }
+const host = hm[1].toLowerCase();
 
 // IPv4 خصوصی/رزروِ literal — DNS در سندباکس نداریم؛ لایهٔ کامل سمتِ لاراول است
 const m = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);

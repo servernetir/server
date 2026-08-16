@@ -117,3 +117,21 @@ IRAN_PROBE_TOKEN='…'
   (بدونِ زمان‌سنجی).
 
 تست: `node iran-probe.test.js` (۱۵ ادعا، بدونِ تماسِ شبکه).
+
+### وضعیت دیپلوی (۱۶ اوت ۲۰۲۶ / ۲۵ مرداد ۱۴۰۵)
+
+ورک‌فلو ساخته و **فعال** شد: `ServerNet Iran Probe (Speed & Access tools)`
+(شناسه `zAHK7jJdD8GuQfjw` روی flow.servernet.cloud). آزموده‌شده با تماس
+مستقیم: توکن غلط ⇒ bad_token · هدف خصوصی ⇒ private_target · ftp ⇒
+bad_scheme · example.com از ایران ⇒ ‎200 در ~180ms · servernet.cloud از
+ایران ⇒ ‎200 در ~820ms.
+
+🔴 **درس دوم سندباکس:** علاوه بر crypto، گلوبال `URL` هم وجود ندارد.
+نسخه‌ی اولِ گره با `new URL(target)` هر هدفِ سالمی را «bad_target» می‌کرد —
+بی‌هیچ خطایی در لاگ، چون catch عمومی آن را می‌بلعید. پارس URL حالا فقط با
+رجکس است. به هیچ گلوبالِ محیطی (URL، Buffer، TextEncoder، crypto) تکیه نکن؛
+فقط رشته و رجکس و Date.
+
+⚠️ تست محلی از این ماشین ویندوزی ممکن نیست: `C:\php\extras\ssl\cacert.pem`
+خراب است و HTTPS از PHP شکست می‌خورد (curl.exe سالم است). روی سرور اصلی
+همین مسیر HTTPS به همین هاست را رله‌ی پیامک هر روز می‌رود.
