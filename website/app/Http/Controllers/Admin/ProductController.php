@@ -225,6 +225,17 @@ class ProductController extends Controller
     /** @return array{0:bool,1:string} */
     private function createWhmPackage(Product $product): array
     {
+        /*
+        | 🔴 پکیجِ لایسنس روی هیچ سروری تحویل نمی‌شود — روی IP سرورِ **خودِ
+        | مشتری** فعال می‌شود. ساختِ package در WHM برایش بی‌معنی است و چهار
+        | مسیرِ این کنترلر (ساخت، ویرایش، دکمهٔ دستی، همگام‌سازی گروهی) بی‌این
+        | گارد به همهٔ نودهای WHM تماس می‌زنند و به مدیر خطا نشان می‌دهند —
+        | درست وسطِ همان کارِ دستی‌ای که قرار است روان باشد.
+        */
+        if ($product->requires_server_ip) {
+            return [true, 'پکیجِ لایسنس روی سرور تحویل نمی‌شود؛ package در WHM لازم ندارد.'];
+        }
+
         $servers = $this->whmServers();
 
         if ($servers->isEmpty()) {
