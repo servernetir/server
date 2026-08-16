@@ -747,18 +747,31 @@ class NetworkTools
         return 'unknown';
     }
 
-    /** پرس‌وجوی یک نام DNSBL از resolver سیستم (در تست جایگزین می‌شود) */
+    /**
+     * پرس‌وجوی یک نام DNSBL از resolver سیستم (در تست جایگزین می‌شود).
+     *
+     * 🔴 عمداً UDP خام با مهلت سخت، نه dns_get_record: آن تابع مهلت‌پذیر نیست
+     * و روی سرور زنده یک زون بی‌پاسخ ۱۰+ ثانیه پروسه را نگه می‌داشت — بودجه‌ی
+     * زمانی هم نمی‌تواند کوئری در جریان را قطع کند. TXT (دلیل لیست‌شدن) فقط
+     * برای زونِ لیست‌کرده با dns_get_record پرسیده می‌شود — زونی که همین حالا
+     * جواب داده، معطل نمی‌کند.
+     */
     protected function rblQuery(string $name): array
     {
         $ips = [];
-        foreach (@dns_get_record($name, DNS_A) ?: [] as $r) {
-            if (! empty($r['ip'])) {
-                $ips[] = $r['ip'];
+        $sock = @stream_socket_client('udp://'.$this->systemResolver().':53', $errno, $errstr, 1.5);
+        if ($sock) {
+            stream_set_timeout($sock, 1, 500000);
+            @fwrite($sock, WebProbe::dnsQueryPacket($name, random_int(0, 0xFFFF)));
+            $answer = @fread($sock, 1500);
+            fclose($sock);
+            if (is_string($answer)) {
+                $ips = WebProbe::dnsAnswerIps($answer);
             }
         }
 
         $txt = null;
-        if ($ips !== []) {
+        if ($ips !== [] && str_starts_with($ips[0], '127.') && ! str_starts_with($ips[0], '127.255.255.')) {
             foreach (@dns_get_record($name, DNS_TXT) ?: [] as $r) {
                 if (! empty($r['txt'])) {
                     $txt = $r['txt'];
@@ -768,6 +781,25 @@ class NetworkTools
         }
 
         return ['ips' => $ips, 'txt' => $txt];
+    }
+
+    /** اولین nameserver از resolv.conf؛ اگر نبود (ویندوز محلی) resolver عمومی */
+    private function systemResolver(): string
+    {
+        static $server = null;
+        if ($server !== null) {
+            return $server;
+        }
+
+        $conf = @file_get_contents('/etc/resolv.conf');
+        if (is_string($conf) && preg_match('/^\s*nameserver\s+([0-9a-fA-F.:]+)/m', $conf, $m)
+            && filter_var($m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $server = $m[1];
+        }
+
+        // fallback: resolver عمومی. Spamhaus به آن پاسخ 127.255.255.x می‌دهد که
+        // «نامشخص» تفسیر می‌شود — صادقانه، نه غلط.
+        return $server = '1.1.1.1';
     }
 
     /* ============================================================= helpers */
