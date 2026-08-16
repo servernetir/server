@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -36,7 +37,9 @@ class SecurityController extends Controller
             'customer'    => $c,
             'ipRules'     => $c->ipRules()->orderByDesc('id')->get(),
             'ipMode'      => $c->ip_restriction_mode ?? 'off',
-            'apiTokens'   => $c->apiTokens()->orderByDesc('id')->get(),
+            // ⚠️ توکنِ باطل‌شده نمایش داده نمی‌شود ولی **حذف هم نمی‌شود**: ردیفش
+            //    برای حسابرسیِ حادثه لازم است (`reseller_api_logs.token_id`).
+            'apiTokens'   => $c->apiTokens()->usable()->orderByDesc('id')->get(),
             'currentIp'   => $request->ip(),
             'hasPassword' => ! empty($c->password),
             'pwReady'     => $request->session()->has('pw_change_ctx'),
@@ -146,25 +149,78 @@ class SecurityController extends Controller
     public function tokenStore(Request $request): RedirectResponse
     {
         $c = $this->customer();
-        $data = $request->validate(['name' => ['required', 'string', 'max:80']], [], ['name' => 'نام توکن']);
 
-        if ($c->apiTokens()->count() >= 20) {
-            return back()->withErrors(['name' => 'حداکثر ۲۰ توکن.'])->withFragment('sec-api');
+        $data = $request->validate([
+            'name'        => ['required', 'string', 'max:80'],
+            'abilities'   => ['nullable', 'array'],
+            'abilities.*' => ['string', Rule::in(array_keys(CustomerApiToken::ABILITIES))],
+            'cidrs'       => ['nullable', 'string', 'max:500'],
+            'expires_days'=> ['nullable', 'integer', 'min:1', 'max:1825'],
+        ], [], ['name' => 'نام توکن']);
+
+        if ($c->apiTokens()->usable()->count() >= 20) {
+            return back()->withErrors(['name' => 'حداکثر ۲۰ توکنِ فعال.'])->withFragment('sec-api');
         }
 
-        [, $plain] = CustomerApiToken::issue($c->id, $data['name'], ['read']);
+        // ⚠️ پیش‌فرضِ `read` می‌مانَد: فرمی که تیک نخورده نباید ناخواسته توکنِ
+        //    نوشتنی بسازد. دسترسیِ خطرناک باید **انتخاب** شود، نه پیش‌فرض باشد.
+        $abilities = array_values(array_unique($data['abilities'] ?? [])) ?: ['read'];
+
+        /*
+        | CIDRهای مجاز — نامعتبرها بی‌صدا دور ریخته نمی‌شوند، خطا می‌گیرند.
+        |
+        | 🔴 یک CIDRِ غلطِ نادیده‌گرفته‌شده یعنی کاربر خیال می‌کند توکنش محدود
+        | شده و نیست. محافظی که کاربر اشتباه فکر کند دارد، از نداشتنش بدتر
+        | است — چون بر اساسش ریسکِ بیشتری می‌پذیرد.
+        */
+        $cidrs = [];
+
+        foreach (preg_split('/[\s,]+/', (string) ($data['cidrs'] ?? '')) ?: [] as $raw) {
+            $raw = trim($raw);
+
+            if ($raw === '') {
+                continue;
+            }
+
+            $norm = $this->normalizeCidr($raw);
+
+            if ($norm === null) {
+                return back()->withErrors(['cidrs' => 'نشانی «'.$raw.'» معتبر نیست.'])
+                    ->withFragment('sec-api');
+            }
+
+            $cidrs[] = $norm;
+        }
+
+        $days = (int) ($data['expires_days'] ?? 0);
+
+        [, $plain] = CustomerApiToken::issue(
+            $c->id,
+            $data['name'],
+            $abilities,
+            $cidrs,
+            $days > 0 ? now()->addDays($days) : null,
+        );
 
         // متنِ خامِ توکن فقط همین یک‌بار نشان داده می‌شود
         return back()->with('ok', 'توکن ساخته شد. همین حالا کپی‌اش کنید — دیگر نشان داده نمی‌شود.')
             ->with('new_token', $plain)->withFragment('sec-api');
     }
 
+    /**
+     * ابطالِ توکن — **نرم**، نه حذفِ فیزیکی.
+     *
+     * 🔴 حذف دقیقاً در لحظه‌ای که کاربر می‌گوید «این توکن لو رفته»، تنها چیزی
+     * را که می‌گفت آن توکن چه کرده هم پاک می‌کند: `reseller_api_logs.token_id`
+     * به نال می‌افتد و حسابرسیِ حادثه غیرممکن می‌شود. توکنِ باطل از فهرست
+     * ناپدید می‌شود و دیگر کار نمی‌کند — همان چیزی که کاربر می‌خواهد.
+     */
     public function tokenDestroy(Request $request, CustomerApiToken $token): RedirectResponse
     {
         abort_unless($token->customer_id === $this->customer()->id, 404);
-        $token->delete();
+        $token->revoke();
 
-        return back()->with('ok', 'توکن باطل شد.')->withFragment('sec-api');
+        return back()->with('ok', 'توکن باطل شد و دیگر کار نمی‌کند.')->withFragment('sec-api');
     }
 
     // ───────────────────────── کمکی ─────────────────────────
