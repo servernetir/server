@@ -35,6 +35,47 @@
     btn.style.opacity = on ? '.6' : '';
   }
 
+  /* ───────── گزارشِ ردشده‌ها ─────────
+     🔴 سرور دلیل را **ساختاری** می‌دهد (`why`) و متنِ فارسی این‌جاست، کنارِ
+     بقیهٔ متن‌های این صفحه. تا امروز فقط «رد شده: ۹۰» چاپ می‌شد که به مدیر
+     هیچ نمی‌گفت — و ۹۰ سطرِ افتاده از یک فهرستِ ۲۵۰تایی دقیقاً همان چیزی است
+     که باید ببیند، نه چیزی که باید حدس بزند. */
+  var WHY = {
+    unsub:  'قبلاً لغو اشتراک کرده',
+    dup:    'از قبل در فهرست هست',
+    nosite: 'ایمیل بود ولی سایتش معلوم نشد',
+  };
+
+  function showSkips(boxId, skipped, total) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    box.innerHTML = '';
+    if (!skipped || !skipped.length) return;
+
+    var groups = {};
+    skipped.forEach(function (s) {
+      (groups[s.why] = groups[s.why] || []).push(s.what);
+    });
+
+    var html = '';
+    Object.keys(groups).forEach(function (why) {
+      var items = groups[why];
+      html += '<div class="sx-skip-g"><b>' + (WHY[why] || why) + ' — ' + items.length + ' ردیف</b>' +
+              '<div class="sx-skip-l" dir="ltr">' + items.slice(0, 20).map(esc).join('، ') +
+              (items.length > 20 ? ' …' : '') + '</div></div>';
+    });
+    if (total && total > skipped.length) {
+      html += '<div class="sx-skip-g"><small>' + (total - skipped.length) + ' ردیفِ دیگر هم رد شد.</small></div>';
+    }
+    box.innerHTML = html;
+  }
+
+  function esc(s) {
+    var d = document.createElement('span');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
   /* ───────── ۱) ارسال به یک نفر ───────── */
   var oneBtn = document.getElementById('sx-send-one');
   oneBtn && oneBtn.addEventListener('click', function () {
@@ -70,14 +111,26 @@
     if (!list) { say('sx-import-status', 'فهرست خالی است.', 'bad'); return; }
 
     busy(impBtn, true);
+    say('sx-import-status', 'در حال خواندن فهرست…');
+    showSkips('sx-import-detail', []);
+
     post(SX.urls.list, { list: list }).then(function (r) {
       busy(impBtn, false);
       var d = r.data;
       if (!d.ok) { say('sx-import-status', (d.messages || ['افزوده نشد']).join(' · '), 'bad'); return; }
-      var msg = d.added + ' ردیف افزوده شد.';
-      if (d.skipped && d.skipped.length) msg += ' رد شده: ' + d.skipped.length;
-      say('sx-import-status', msg, 'ok');
-      setTimeout(function () { location.reload(); }, 900);
+
+      var msg = d.added + ' ردیف افزوده شد';
+      if (d.found > d.added) msg += ' (از ' + d.found + ' جفتِ پیداشده)';
+      if (d.over) msg += ' — به سقفِ ' + d.max + ' رسید، بقیه وارد نشد';
+      say('sx-import-status', msg, d.added ? 'ok' : 'bad');
+      showSkips('sx-import-detail', d.skipped, d.skippedTotal);
+
+      /* 🔴 وقتی چیزی برای خواندن هست، صفحه را تازه **نمی‌کنیم** — بارگذاریِ
+         دوباره همان گزارشی را که تازه ساختیم پاک می‌کند. جدولِ پایین با یک
+         تازه‌سازیِ دستی می‌آید و مدیر خودش تصمیم می‌گیرد کِی. */
+      if (d.added && !(d.skipped && d.skipped.length)) {
+        setTimeout(function () { location.reload(); }, 900);
+      }
     });
   });
 
@@ -103,7 +156,10 @@
         return;
       }
       say('sx-own-status', d.added + ' مورد از دیتای خودتان اضافه شد. حالا «بررسی سایت‌های بررسی‌نشده» را بزنید.', 'ok');
-      setTimeout(function () { location.reload(); }, 1400);
+      showSkips('sx-import-detail', d.skipped, d.skippedTotal);
+      if (!(d.skipped && d.skipped.length)) {
+        setTimeout(function () { location.reload(); }, 1400);
+      }
     });
   });
 

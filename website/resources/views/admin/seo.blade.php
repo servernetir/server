@@ -40,9 +40,16 @@
   <div class="ad-panel-h"><h2>کمپین بررسی سایت‌ها</h2></div>
 
   <p class="ad-note">
-    هر خط یک ردیف: <code dir="ltr">دامنه، ایمیل</code> — مثلاً <code dir="ltr">example.com, info@example.com</code>.
-    سقف هر بار {{ \App\Http\Controllers\Admin\SeoOutreachController::MAX_LIST }} ردیف.
-    خطی که ایمیل نداشته باشد رد می‌شود؛ ایمیل حدس زده نمی‌شود.
+    متن را همان‌طور که هست بچسبانید — لازم نیست مرتبش کنید. هر سه شکل خوانده می‌شود:
+    <code dir="ltr">example.com, info@example.com</code> ·
+    یک ردیفِ جدولِ کپی‌شده · یا چند خطِ یک شرکت که با <b>خط خالی</b> از شرکت بعدی جدا شده.
+    فقط ایمیل هم کافی است: <code dir="ltr">info@example.com</code> خودش سایتش را می‌گوید.
+    سقف هر بار {{ fa_num(\App\Http\Controllers\Admin\SeoOutreachController::MAX_LIST) }} ردیف.
+  </p>
+  <p class="ad-note" style="margin-top:-6px">
+    ⚠️ ایمیل هیچ‌وقت حدس زده نمی‌شود. نشانی‌ای مثل <code dir="ltr">…@gmail.com</code> دامنهٔ سایت را
+    نمی‌گوید، پس اگر سایتش در همان چند خط نیامده باشد آن ردیف رد می‌شود — و
+    <b>پایین به شما گفته می‌شود کدام‌ها و چرا</b>.
   </p>
 
   {{-- 🔴 این هشدار عمداً روی صفحه است و در کامنتِ کد پنهان نشده: کسی که دکمه را
@@ -67,12 +74,14 @@
   </div>
 
   <div class="sx-form">
-    <div class="ad-field"><label>یا فهرست را دستی وارد کنید</label>
-      <textarea class="ad-input" id="sx-list" rows="6" dir="ltr" placeholder="example.com, info@example.com&#10;another.ir, hello@another.ir"></textarea></div>
+    <div class="ad-field"><label>یا فهرست را این‌جا بچسبانید</label>
+      <textarea class="ad-input" id="sx-list" rows="8" dir="ltr" placeholder="example.com, info@example.com&#10;info@another.ir&#10;&#10;شرکت نمونه&#10;www.sample.co&#10;sales@gmail.com"></textarea></div>
     <div>
       <button class="btn btn-ghost" type="button" id="sx-import">افزودن به فهرست</button>
       <span class="sx-status" id="sx-import-status"></span>
     </div>
+    {{-- ردشده‌ها این‌جا دسته‌بندی‌شده می‌آیند. خالی بودنش یعنی همه‌چیز وارد شد. --}}
+    <div class="sx-skips" id="sx-import-detail"></div>
   </div>
 
   <div class="sx-actions">

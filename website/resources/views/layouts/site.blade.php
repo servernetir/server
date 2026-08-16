@@ -88,26 +88,36 @@ $org = [
     ],
 ];
 
-if ($legalName = trim((string) config('company.legal_name', ''))) {
+/*
+| ⚠️ همه از `company_value()` — نه `config()`.
+|
+| این مقدارها حالا از **پنلِ مدیریت** وارد می‌شوند و `.env` فقط راهِ دوم است.
+| اگر این‌جا `config()` می‌ماند، مدیر آن‌ها را در پنل پر می‌کرد، روی صفحهٔ تماس
+| می‌دیدشان، و در schema هیچ‌کدام نمی‌آمد — یعنی همان‌جایی که گوگل و مدل‌های
+| زبانی واقعاً نگاه می‌کنند خالی می‌مانْد، آن هم بی‌هیچ خطایی.
+*/
+if ($legalName = company_value('legal_name')) {
     $org['legalName'] = $legalName;
 }
 
-$addrCfg = (array) config('company.address', []);
-if (trim((string) ($addrCfg['street'] ?? '')) !== '' && trim((string) ($addrCfg['city'] ?? '')) !== '') {
+$street = company_value('address.street');
+$city = company_value('address.city');
+if ($street !== '' && $city !== '') {
     $org['address'] = array_filter([
         '@type' => 'PostalAddress',
-        'streetAddress' => trim((string) $addrCfg['street']),
-        'addressLocality' => trim((string) $addrCfg['city']),
-        'addressRegion' => trim((string) ($addrCfg['province'] ?? '')),
-        'postalCode' => trim((string) ($addrCfg['postcode'] ?? '')),
-        'addressCountry' => trim((string) ($addrCfg['country'] ?? 'IR')),
+        'streetAddress' => $street,
+        'addressLocality' => $city,
+        'addressRegion' => company_value('address.province'),
+        'postalCode' => company_value('address.postcode'),
+        // کشور فیلدِ پنل ندارد: همیشه ایران است و پرسیدنش فقط یک فیلدِ اضافه بود
+        'addressCountry' => trim((string) config('company.address.country', 'IR')),
     ], fn ($v) => $v !== '');
 }
 
 // شناسهٔ ملی/ثبت — `identifier` جای استانداردِ schema برای همین است
 $ids = array_values(array_filter([
-    trim((string) config('company.national_id', '')),
-    trim((string) config('company.registration_no', '')),
+    company_value('national_id'),
+    company_value('registration_no'),
 ]));
 if ($ids) {
     $org['identifier'] = count($ids) === 1 ? $ids[0] : $ids;

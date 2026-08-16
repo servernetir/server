@@ -265,9 +265,39 @@ class AppServiceProvider extends ServiceProvider
                 // برخی روت‌ها (مثل پنل ادمین) نسخه‌ی زبانی ندارند؛ در آن صورت به خانه fallback می‌شود
                 $localeUrls = [];
                 foreach (self::LOCALES as $code => $prefix) {
-                    $localeUrls[$code] = \Illuminate\Support\Facades\Route::has($prefix.$baseRoute)
-                        ? route($prefix.$baseRoute, $params)
-                        : url($prefix === '' ? '/' : '/'.rtrim($prefix, '.'));
+                    $home = url($prefix === '' ? '/' : '/'.rtrim($prefix, '.'));
+
+                    if (! \Illuminate\Support\Facades\Route::has($prefix.$baseRoute)) {
+                        $localeUrls[$code] = $home;
+
+                        continue;
+                    }
+
+                    /*
+                    | 🔴 «روت وجود دارد» تضمین نمی‌کند «پارامترهایش را داریم».
+                    |
+                    | `Route::currentRouteName()` روی یک **۴۰۴** خالی نمی‌شود؛
+                    | مقدارِ آخرین روتِ تطبیق‌یافتهٔ همان پروسه در آن می‌مانَد.
+                    | پس زنجیرهٔ زیر واقعی است:
+                    |
+                    |   درخواستِ ۱ → /account/reseller/module/whmcs   (روتِ پارامتردار)
+                    |   درخواستِ ۲ → /account/reseller/module/hacker  (هیچ روتی تطبیق نمی‌کند ⇒ ۴۰۴)
+                    |     ↓ نامِ روت هنوز کهنه است، ولی `request()->route()` نال است
+                    |     ↓ پس $params خالی می‌شود
+                    |   route('account.reseller.module', [])  ⇒ UrlGenerationException
+                    |     ↓ صفحهٔ ۴۰۴ می‌ترکد و کاربر **۵۰۰** می‌گیرد
+                    |
+                    | زیرِ php-fpm پنهان است (هر درخواست پروسهٔ تازه)، ولی در
+                    | تست، در ورکرِ صف، و زیرِ Octane قطعی است.
+                    |
+                    | ⚠️ سوییچرِ زبان یک قابلیتِ **تزئینی** است؛ هیچ‌وقت نباید
+                    | صفحه را بخواباند. نبودنِ لینکِ زبان بی‌آزار است، ۵۰۰ نه.
+                    */
+                    try {
+                        $localeUrls[$code] = route($prefix.$baseRoute, $params);
+                    } catch (\Throwable) {
+                        $localeUrls[$code] = $home;
+                    }
                 }
 
                 $routePrefix = self::LOCALES[$locale] ?? '';

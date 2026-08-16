@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -437,6 +438,36 @@ class CalendarController extends Controller
         ));
 
         return response()->json(['ok' => true, 'layers' => $saved]);
+    }
+
+    /**
+     * ارسالِ آزمایشیِ یادآوری به بله و ایمیلِ مدیر — همین حالا.
+     *
+     * چرا لازم است: تا امروز تنها راهِ دیدنِ این پیام، صبر تا کرونِ فردا بود.
+     * قالبِ پیام چیزی است که آدم باید ببیند تا بداند درست است، و «فردا صبح
+     * می‌فهمیم» برای چیزی که در پنج ثانیه قابلِ آزمودن است جوابِ خوبی نیست.
+     * همان الگوی `/admin/templates/{t}/test` که در این پروژه هست.
+     *
+     * ⚠️ `--force` گلوگاهِ روزانه را رد می‌کند، وگرنه تستِ دوم در همان روز
+     * بی‌صدا هیچ‌کاری نمی‌کرد و به‌نظر می‌رسید خراب است.
+     *
+     * ⚠️ اگر چیزی برای یادآوری نباشد، فرمان **ساکت** می‌مانَد — و این‌جا صریح
+     * گفته می‌شود، وگرنه مدیر منتظرِ پیامی می‌مانَد که هیچ‌وقت نمی‌آید و فکر
+     * می‌کند بله خراب است.
+     */
+    public function remindTest(): RedirectResponse
+    {
+        try {
+            Artisan::call('calendar:remind', ['--force' => true]);
+            $output = trim(Artisan::output());
+        } catch (\Throwable $e) {
+            return back()->with('err', 'ارسالِ آزمایشی شکست خورد: '.mb_substr($e->getMessage(), 0, 160));
+        }
+
+        // خروجیِ فرمان خودش می‌گوید فرستاد یا ساکت مانْد
+        return str_contains($output, 'چیزی برای یادآوری نیست')
+            ? back()->with('ok', 'در بازهٔ یادآوری چیزی نبود، پس پیامی فرستاده نشد. (همین رفتار در کرونِ روزانه هم هست.)')
+            : back()->with('ok', 'یادآوری آزمایشی فرستاده شد — بله و ایمیل. '.$output);
     }
 
     /* ==================================================================== */

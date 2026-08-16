@@ -38,10 +38,28 @@ class RemindCalendar extends Command
          * دنبالِ «چرا جلسهٔ گوگلم در یادآوری نبود» گشت، جوابش این‌جا باشد —
          * نه اینکه فکر کند خراب است.
          */
-        $layers = array_values(array_diff(
-            array_keys((array) config('calendar.layers', [])),
-            ['google'],
-        ));
+        /*
+         * 🔴 همان **مجموعهٔ پیش‌فرضِ** تقویم، نه همهٔ لایه‌ها.
+         *
+         * لایه‌ای که `default => false` دارد (انتشار محتوا) عمداً از صفحه
+         * برداشته شد چون ۹۷٪ رویدادها را می‌ساخت. اگر پیامِ بله همان را
+         * می‌فرستاد، همان شلوغی از درِ دیگر برمی‌گشت — و این‌بار در جایی که
+         * حتی نمی‌شود خاموشش کرد.
+         *
+         * ⚠️ ترجیحِ **کاربر** این‌جا خوانده نمی‌شود و نباید بشود: کرون کاربری
+         * ندارد، و اگر داشت هم یک نفر با خاموش‌کردنِ یک چیپ، یادآوریِ کلِ تیم
+         * را قطع می‌کرد. پیش‌فرضِ config یک تصمیمِ سازمانی است، ترجیحِ چیپ یک
+         * تصمیمِ شخصی.
+         */
+        $layers = [];
+
+        foreach ((array) config('calendar.layers', []) as $key => $meta) {
+            if ($key === 'google' || ($meta['default'] ?? true) === false) {
+                continue;
+            }
+
+            $layers[] = $key;
+        }
 
         $upcoming = $calendar->upcoming($layers, max(1, $days))
             ->reject(fn (CalendarItem $i) => $i->status === 'done')
@@ -78,29 +96,78 @@ class RemindCalendar extends Command
             return self::SUCCESS;
         }
 
-        $rows = [];
+        /*
+         * 🔴 تاریخ **سرگروه** است، نه دنبالهٔ هر ردیف.
+         *
+         * نسخهٔ اول به هر خط «۲۵ مرداد (امروز)» می‌چسباند و در پیامی با چهار
+         * مورد، همان عبارت چهار بار تکرار می‌شد. در پیامِ کوتاهِ بله این تکرار
+         * چشم را پر می‌کند و عنوانِ خودِ کار — که تنها چیزِ مهم است — گم
+         * می‌شود. حالا هر روز یک سرگروه دارد و زیرش فقط کارها.
+         *
+         * ⚠️ `upcoming` از قبل زمانی مرتب است، پس گروه‌ها هم به ترتیب درمی‌آیند
+         * و مرتب‌سازیِ دوباره لازم نیست.
+         */
+        $groups = [];
 
         foreach ($upcoming as $item) {
-            [$jy, $jm, $jd] = Jalali::ofMoment($item->at, $tz);
-            $away = $item->daysFromToday();
+            $key = $item->dateKey();
 
-            $when = match (true) {
-                $away <= 0 => 'امروز',
-                $away === 1 => 'فردا',
-                default => fa_num($away).' روز دیگر',
-            };
+            if (! isset($groups[$key])) {
+                [, $jm, $jd] = Jalali::ofMoment($item->at, $tz);
+                $away = $item->daysFromToday();
+
+                $when = match (true) {
+                    $away <= 0 => 'امروز',
+                    $away === 1 => 'فردا',
+                    default => fa_num($away).' روز دیگر',
+                };
+
+                $groups[$key] = [
+                    'head'  => fa_num($jd).' '.Jalali::monthName($jm).' — '.$when,
+                    'lines' => [],
+                ];
+            }
 
             $layer = (string) (config('calendar.layers.'.$item->type.'.label') ?? $item->type);
+            $line = '• '.$item->title.' — '.$layer;
 
-            // ⚠️ کلیدِ عددی یعنی `AdminNotifier` فقط مقدار را چاپ می‌کند، بی‌برچسب
-            $rows[] = '• '.$item->title.' — '.$layer
-                .' · '.fa_num($jd).' '.Jalali::monthName($jm).' ('.$when.')';
+            /*
+             * مبلغ وقتی هست می‌آید — اجاره، فاکتور، تمدید. در بله رنگ و ستون
+             * نداریم، پس عددی که تصمیمِ صبح را عوض می‌کند باید در خودِ خط باشد.
+             */
+            if ($money = $item->money()) {
+                $line .= ' · '.$money;
+            }
+
+            $groups[$key]['lines'][] = $line;
         }
 
+        $blocks = array_map(
+            static fn (array $g) => $g['head']."\n".implode("\n", $g['lines']),
+            $groups,
+        );
+
+        /*
+         * ⚠️ کلِ بدنه **یک ردیف** است، نه چند ردیف.
+         *
+         * `AdminNotifier::event()` ردیف‌ها را با یک `\n` می‌چسباند و ردیفِ
+         * خالی را حذف می‌کند، پس از راهِ آن نمی‌شود بینِ گروه‌ها خطِ خالی
+         * گذاشت. با یک رشتهٔ چندخطی، فاصله‌گذاری کاملاً در اختیارِ ماست.
+         */
+        /*
+         * ⚠️ خطِ خالیِ ابتدا **داخلِ** همین رشته است، چون `AdminNotifier` تیتر
+         * و ردیف‌ها را با یک `\n` می‌چسباند و بی‌آن سرگروهِ اول به تیتر
+         * می‌چسبید.
+         *
+         * ⚠️ لینک عمداً `null` است (تصمیمِ کارفرما). پیام روی گوشی خوانده
+         * می‌شود و آدرسِ پنل چیزی نیست که آن لحظه لازم باشد؛ یک خطِ اضافه در
+         * پیامی که باید در یک نگاه خوانده شود. به همین دلیل خطِ خالیِ **انتها**
+         * هم برداشته شد — بی‌لینک، فقط یک فاصلهٔ بی‌دلیل در ته پیام می‌مانْد.
+         */
         $admin->event(
             'یادآوری تقویم — '.fa_num($upcoming->count()).' مورد پیشِ رو',
-            $rows,
-            url('/admin/calendar'),
+            ["\n".implode("\n\n", $blocks)],
+            null,
             '📅',
         );
 

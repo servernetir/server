@@ -59,7 +59,10 @@
           <a class="fc" href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
           <a class="fc" href="mailto:{{ $contact['sales_email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['sales_email'] }}</a>
           <a class="fc" href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-message"/></svg>WhatsApp</a>
-          @if($addr = company_address())<span class="fc f-addr"><svg class="icon"><use href="#i-pin"/></svg>{{ $addr }}</span>@endif
+          {{-- 🔴 نشانی عمداً این‌جا **نیست** — تصمیمِ کارفرما. جایش صفحهٔ تماس
+               است، و در دادهٔ ساختاریافتهٔ `site.blade.php` هم می‌آید. فوتر روی
+               هر صفحه تکرار می‌شود و نشانی چیزی است که کاربر یک‌بار و آگاهانه
+               دنبالش می‌گردد، نه چیزی که همه‌جا جلوی چشمش باشد. --}}
         </div></div>
       </div>
     </div>
@@ -86,15 +89,17 @@
     </div>
     @endif
 
-    {{-- شناسه‌های ثبتی — همان قاعده: هرچه پر نباشد اصلاً چاپ نمی‌شود --}}
-    @php($ident = company_identity())
-    @if($ident)
-    <div class="f-legal">
-      @foreach($ident as $row)
-        <span><b>{{ __($row['label']) }}:</b> {{ app()->getLocale() === 'fa' ? fa_num($row['value']) : $row['value'] }}</span>
-      @endforeach
-    </div>
-    @endif
+    {{--
+      شناسه‌های ثبتی عمداً در فوتر **نیستند** — تصمیمِ کارفرما.
+
+      جایشان `/contact` است و `company_identity()` همان‌جا صدا زده می‌شود.
+      مهرِ نماد این‌جا می‌مانَد چون کارکردش فرق دارد: مهر یک نشانِ **دیداری**
+      است که در همان لحظهٔ خرید باید دیده شود، ولی شمارهٔ ثبت چیزی است که
+      کاربر یک‌بار و آگاهانه دنبالش می‌گردد.
+
+      ⚠️ اگر روزی خواستید برگردند، `@php($ident = company_identity())` و حلقهٔ
+      `f-legal` را برگردانید — کلاسِ CSSاش هنوز در `site.css` هست.
+    --}}
 
     <div class="f-bottom">
       <span>{{ __('ui.f_copy') }}</span>

@@ -152,6 +152,17 @@
           </div>
         @endforelse
       </div>
+
+      {{-- ارسالِ آزمایشیِ همان یادآوری که هر روز ۸ صبح می‌رود.
+           این‌جا و نه در نوارِ ابزار: مربوط به همین ستون است و کارِ روزمره
+           نیست، پس نباید بالای صفحه جا بگیرد. --}}
+      <form method="post" action="/admin/calendar/remind-test"
+            style="padding:0 14px 14px;margin:0">
+        @csrf
+        <button type="submit" class="btn btn-ghost" style="width:100%;min-height:36px;font-size:12px">
+          <svg class="icon"><use href="#i-send"/></svg>ارسال آزمایشی به بله
+        </button>
+      </form>
     </div>
   </aside>
 </div>

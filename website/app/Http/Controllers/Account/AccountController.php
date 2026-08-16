@@ -155,6 +155,21 @@ class AccountController extends Controller
                     ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains'), 'url' => lroute('account.domains')],
                     ['key' => 'other', 'icon' => 'wrench', 'label' => __('ui.nav_other_services'), 'url' => lroute('account.other')],
                 ]],
+                /*
+                | نمایندگیِ دامنه — فقط برای نماینده.
+                |
+                | ⚠️ شرط روی ستونی است که از قبل روی همین مدلِ بارگذاری‌شده
+                | هست، پس هیچ پرس‌وجوی اضافه‌ای به `shell()` اضافه نمی‌کند —
+                | همان قیدی که کامنتِ بالا دربارهٔ badgeها می‌گذارد.
+                |
+                | ⚠️ `array_filter` روی آرایهٔ گروه‌ها: گروهِ خالی نباید یک
+                | عنوانِ بی‌آیتم در منو بگذارد.
+                */
+                ...($customer?->is_reseller ? [[
+                    'label' => 'نمایندگی', 'items' => [
+                        ['key' => 'reseller', 'icon' => 'globe', 'label' => 'نمایندگی دامنه', 'url' => lroute('account.reseller')],
+                    ],
+                ]] : []),
                 ['label' => __('ui.nav_finance'), 'items' => [
                     ['key' => 'invoices', 'icon' => 'coins', 'label' => __('ui.nav_invoices'), 'url' => lroute('account.invoices')],
                     ['key' => 'bank', 'icon' => 'db', 'label' => __('ui.nav_bank'), 'url' => lroute('account.bank')],

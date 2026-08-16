@@ -641,6 +641,71 @@
 
 {{-- ─────────── تبِ هویت و حساب: تکهٔ دوم (مدیریت) ─────────── --}}
 <div class="ct-pane" data-pane="account">
+{{-- ══ نمایندگی دامنه ══
+
+  🔴 چرا مدیر روشنش می‌کند و نه خود مشتری: نمایندگی یک قرارداد است. حساب
+  نماینده با یک درخواست HTTP از اعتبارش دامنهٔ واقعی می‌خرد، و مسئولیت
+  سوءاستفاده (فیشینگ/اسپم روی دامنه‌ای که ثبت کرده) در برابر رجیسترار پای
+  ماست — یعنی چیزی که با چک‌باکس خودسرویس واگذار نمی‌شود. --}}
+@php
+  $rsProgram = app(\App\Services\Domain\Reseller\ResellerProgram::class);
+  $rsLevels  = $rsProgram->levels();
+  $rsNow     = $rsProgram->currentLevel($c);
+@endphp
+<div class="ad-panel" style="margin:0 0 16px">
+  <div class="ad-panel-h"><h3>نمایندگی دامنه</h3></div>
+  <form method="post" action="/admin/customers/{{ $c->id }}/reseller"
+        style="padding:16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+    @csrf
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px">
+      <input type="hidden" name="is_reseller" value="0">
+      <input type="checkbox" name="is_reseller" value="1" @checked($c->is_reseller)>
+      نمایندهٔ دامنه است
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim)">سطح (خالی = محاسبهٔ خودکار)
+      <select name="level" style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;font:inherit">
+        <option value="">— خودکار از روی حجم —</option>
+        @foreach($rsLevels as $l)
+          <option value="{{ $l['key'] }}" @selected($c->reseller_level === $l['key'])>
+            {{ lc($l['name'] ?? []) ?: $l['key'] }} ({{ $l['discount_pct'] }}٪)
+          </option>
+        @endforeach
+      </select>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim)">تخفیف توافقی (٪)
+      <input type="number" name="bonus_pct" min="0" max="50" value="{{ (int) $c->reseller_bonus_pct }}" dir="ltr"
+             style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;font:inherit;width:110px;text-align:left">
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim)">سقف خرج روزانه (تومان، ۰ = پیش‌فرض)
+      <input type="number" name="daily_cap_irt" min="0" value="{{ (int) $c->reseller_daily_cap_irt }}" dir="ltr"
+             style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;font:inherit;width:170px;text-align:left">
+    </label>
+
+    <button class="btn btn-primary" type="submit">ذخیره</button>
+  </form>
+
+  <p style="padding:0 16px 14px;margin:0;font-size:12px;color:var(--dim);line-height:2">
+    @if($c->is_reseller)
+      سطح فعلی: <b>{{ lc($rsNow['name'] ?? []) ?: $rsNow['key'] }}</b> ·
+      تخفیف مؤثر: <b>{{ fa_num((string) $rsProgram->discountPct($c)) }}٪</b> ·
+      حجم ۱۲ ماه: {{ fa_num(number_format((int) $c->reseller_volume)) }} تومان
+      @if($c->reseller_level_locked_until)
+        {{-- ⚠️ `--amber` توکنِ واقعیِ admin.css است. `--warn` وجود ندارد و
+             fallbackِ سخت‌کد (`var(--warn,#e0a800)`) با تمِ روشن عوض نمی‌شود —
+             `CssVariablesDefinedTest` دقیقاً همین را می‌گیرد. --}}
+        · <span style="color:var(--amber)">مهلت تنزل تا {{ sdate($c->reseller_level_locked_until) }}</span>
+      @endif
+    @else
+      غیرفعال.
+    @endif
+    <br>
+    ⚠️ تخفیف توافقی هم مثل تخفیف سطح، از کف حاشیهٔ سود عبور نمی‌کند — قیمت هرگز زیر بهای تمام‌شده نمی‌رود.
+  </p>
+</div>
+
 {{-- ══ مدیریت حساب: وضعیت + رمز عبور ══ --}}
 <div class="ad-grid2">
   <div class="ad-panel" style="margin:0">

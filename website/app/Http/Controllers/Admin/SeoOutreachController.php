@@ -35,8 +35,37 @@ use Illuminate\View\View;
  */
 class SeoOutreachController extends Controller
 {
-    /** سقفِ هر فهرست — تا یک paste اشتباهی هزار سایت را بررسی نکند. */
-    public const MAX_LIST = 200;
+    /**
+     * سقفِ هر فهرست — تا یک paste اشتباهی هزار سایت را بررسی نکند.
+     *
+     * ⚠️ ۳۰۰ است نه ۲۰۰، چون تقریباً یک‌پنجمِ سایت‌های یک فهرستِ واقعی اصلاً بالا
+     * نمی‌آیند (روی نمونهٔ ۲۳تایی: ۵ تا). کسی که ۲۰۰ **هدفِ قابلِ‌استفاده**
+     * می‌خواهد باید حدودِ ۲۵۰ ردیف وارد کند؛ سقفِ ۲۰۰ دقیقاً همان‌جا می‌بُرید.
+     */
+    public const MAX_LIST = 300;
+
+    /** سقفِ خطِ یک «رکوردِ شرکت». بزرگ‌تر از این دیگر رکورد نیست — پایین را بخوان. */
+    private const MAX_BLOCK_LINES = 12;
+
+    /**
+     * نشانی‌هایی که دامنه‌شان مالِ خودِ کسب‌وکار نیست، پس سایت را نمی‌شود از
+     * رویشان فهمید. فهرست عمداً کوتاه است: هرچه بلندتر شود، احتمالِ اینکه دامنهٔ
+     * یک کسب‌وکارِ واقعی را اشتباهاً «رایگان» بخوانیم بیشتر می‌شود.
+     */
+    private const FREE_MAIL = [
+        'gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'rocketmail.com',
+        'yahoo.co.uk', 'hotmail.com', 'hotmail.co.uk', 'outlook.com', 'live.com',
+        'msn.com', 'aol.com', 'icloud.com', 'me.com', 'mail.com', 'gmx.com',
+        'zoho.com', 'yandex.com', 'yandex.ru', 'mail.ru', 'protonmail.com',
+        'proton.me', 'chmail.ir', 'mailfa.com',
+    ];
+
+    /** پسوندهایی که دامنه نیستند — تا `logo.png` وسطِ متن «سایت» خوانده نشود. */
+    private const NOT_A_TLD = [
+        'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'pdf', 'zip', 'rar',
+        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'mp3', 'mp4',
+        'html', 'htm', 'php', 'asp', 'aspx', 'css', 'js', 'json', 'xml',
+    ];
 
     public function index(Request $request): View
     {
@@ -114,35 +143,46 @@ class SeoOutreachController extends Controller
         ]);
     }
 
-    /** ۲‑الف) فهرست را بساز — هیچ تماسِ شبکه‌ای این‌جا نیست. */
+    /**
+     * ۲‑الف) فهرست را بساز — هیچ تماسِ شبکه‌ای این‌جا نیست.
+     *
+     * 🔴 علتِ ردشدنِ هر ردیف **ساختاری** برمی‌گردد (`why`+`what`)، نه به‌صورتِ
+     * جملهٔ آماده. دو دلیل: متنِ فارسیِ این صفحه همه در `admin-seo.js` است و
+     * دوپاره‌کردنش یعنی روزی یکی از دو نیمه ترجمه بماند؛ و مهم‌تر، مرورگر باید
+     * بتواند ردشده‌ها را **دسته‌بندی‌شده** نشان دهد. تا امروز فقط تعدادشان چاپ
+     * می‌شد و مدیر نمی‌فهمید چرا از ۲۵۰ سطر ۱۶۰ تا وارد شده.
+     */
     public function importList(Request $request): JsonResponse
     {
-        $data = $this->check($request, ['list' => 'required|string|max:20000']);
+        $data = $this->check($request, ['list' => 'required|string|max:60000']);
         if ($data instanceof JsonResponse) {
             return $data;
         }
 
         abort_unless(Schema::hasTable('outreach_contacts'), 503);
 
+        [$pairs, $orphans] = $this->parseList($data['list']);
+
         $batch = Str::lower(Str::random(10));
         $added = 0;
+        $over = false;
         $skipped = [];
 
-        foreach ($this->parseList($data['list']) as [$host, $email]) {
+        foreach ($pairs as [$host, $email]) {
             if ($added >= self::MAX_LIST) {
-                $skipped[] = __('ui.sx_over_limit', ['max' => self::MAX_LIST]);
+                $over = true;
                 break;
             }
 
             // کسی که یک بار گفته «نفرست»، دوباره وارد فهرست نمی‌شود
             if (OutreachContact::isSuppressed($email)) {
-                $skipped[] = $email.' — '.__('ui.sx_skip_unsub');
+                $skipped[] = ['why' => 'unsub', 'what' => $email];
                 continue;
             }
 
             // همان دامنه برای همان ایمیل دو بار در فهرست نباشد
             if (OutreachContact::where('host', $host)->where('email', $email)->exists()) {
-                $skipped[] = $email.' — '.__('ui.sx_skip_dup');
+                $skipped[] = ['why' => 'dup', 'what' => $host];
                 continue;
             }
 
@@ -155,7 +195,21 @@ class SeoOutreachController extends Controller
             $added++;
         }
 
-        return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
+        // ایمیلی که سایتش معلوم نشد: نه واردش می‌کنیم نه پنهانش. مدیر می‌تواند
+        // سایتش را دستی کنارش بگذارد و همان چند سطر را دوباره بچسباند.
+        foreach ($orphans as $email) {
+            $skipped[] = ['why' => 'nosite', 'what' => $email];
+        }
+
+        return response()->json([
+            'ok'           => true,
+            'added'        => $added,
+            'found'        => count($pairs),
+            'over'         => $over,
+            'max'          => self::MAX_LIST,
+            'skipped'      => array_slice($skipped, 0, 60),
+            'skippedTotal' => count($skipped),
+        ]);
     }
 
     /**
@@ -200,9 +254,11 @@ class SeoOutreachController extends Controller
             ->limit(self::MAX_LIST * 2)
             ->get();
 
+        $over = false;
+
         foreach ($rows as $d) {
             if ($added >= self::MAX_LIST) {
-                $skipped[] = __('ui.sx_over_limit', ['max' => self::MAX_LIST]);
+                $over = true;
                 break;
             }
 
@@ -213,11 +269,11 @@ class SeoOutreachController extends Controller
                 continue;
             }
             if (OutreachContact::isSuppressed($email)) {
-                $skipped[] = $email.' — '.__('ui.sx_skip_unsub');
+                $skipped[] = ['why' => 'unsub', 'what' => $email];
                 continue;
             }
             if (OutreachContact::where('host', $host)->where('email', $email)->exists()) {
-                $skipped[] = $host.' — '.__('ui.sx_skip_dup');
+                $skipped[] = ['why' => 'dup', 'what' => $host];
                 continue;
             }
 
@@ -230,7 +286,8 @@ class SeoOutreachController extends Controller
 
         return response()->json([
             'ok' => true, 'added' => $added, 'candidates' => $rows->count(),
-            'skipped' => array_slice($skipped, 0, 30),
+            'over' => $over, 'max' => self::MAX_LIST,
+            'skipped' => array_slice($skipped, 0, 60), 'skippedTotal' => count($skipped),
         ]);
     }
 
@@ -323,40 +380,195 @@ class SeoOutreachController extends Controller
     }
 
     /**
-     * «دامنه, ایمیل» در هر خط. جداکننده کاما یا سمی‌کالن یا تب.
+     * از متنِ چسبانده‌شده جفت‌های «سایت + ایمیل» را درمی‌آورد.
      *
-     * ⚠️ خطی که ایمیل نداشته باشد **رد** می‌شود، نه اینکه با ایمیلِ حدسی
-     * (info@دامنه) پر شود. حدس‌زدنِ نشانی یعنی فرستادن به صندوقی که شاید مالِ
-     * آن کسب‌وکار نباشد.
+     * 🔴 **ایمیل هرگز حدس زده نمی‌شود** — نه `info@` می‌سازیم و نه از روی دامنه
+     * سرِهم می‌کنیم. نشانیِ ساختگی یعنی نامه به صندوقی که شاید اصلاً مالِ آن
+     * کسب‌وکار نباشد.
+     *
+     * ولی **عکسش** بی‌خطر است و همان چیزی است که این بازنویسی را لازم کرد: وقتی
+     * نشانیِ واقعیِ `info@ariansanat.com` را جلوی چشممان گذاشته‌اند، دامنهٔ خودِ
+     * همان نشانی قطعاً سایتِ همان کسب‌وکار است. پس ورودیِ کمینه یک **ستونِ
+     * ایمیل** است، نه یک CSVِ دوستونیِ دست‌ساز.
+     *
+     * چرا مهم است: فهرستِ واقعی از صفحهٔ وب **کپی** می‌شود، نه از یک فایلِ تمیز.
+     * پارسرِ قبلی هر خطی را که دقیقاً «دامنه، ایمیل» نبود بی‌صدا دور می‌ریخت،
+     * یعنی رسیدن به ۲۵۰ ردیف به ۲۵۰ بار ویرایشِ دستی نیاز داشت. سه شکل حالا
+     * خوانده می‌شود:
+     *   ۱) `example.com, info@example.com`   ← قالبِ قبلی، دست‌نخورده
+     *   ۲) `شرکت…<TAB>۰۲۱…<TAB>example.com<TAB>info@example.com`
+     *   ۳) رکوردِ چندخطی که با **خطِ خالی** از رکوردِ بعدی جدا شده
+     *
+     * @return array{0: list<array{0:string,1:string}>, 1: list<string>}
+     *         جفت‌ها، و نشانی‌هایی که سایتشان معلوم نشد. اینها **دور ریخته
+     *         نمی‌شوند، گزارش می‌شوند** — سکوت یعنی مدیر فکر کند ۲۵۰ ردیف وارد
+     *         شده در حالی که ۹۰ تا افتاده.
      */
     private function parseList(string $raw): array
     {
-        $out = [];
-        foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
+        $pairs = [];
+        $orphans = [];
+        $seen = [];
+
+        foreach ($this->blocksIn($raw) as $lines) {
+            $parsed = [];
+            foreach ($lines as $line) {
+                $emails = $this->emailsIn($line);
+                $parsed[] = [$emails, $this->sitesIn($line, $emails)];
             }
 
-            $parts = preg_split('/[,;\t]+/', $line, 2);
-            if (count($parts) < 2) {
-                continue;
+            /*
+             * سایتِ پشتیبانِ رکورد — برای وقتی ایمیل روی یک خط است و سایت روی
+             * خطِ دیگر (چیدمانِ کارتیِ فهرست‌های شرکتی). چون بلوک با خطِ خالی
+             * بسته می‌شود، ترتیبِ «اول سایت» یا «اول ایمیل» فرقی نمی‌کند.
+             *
+             * 🔴 ولی «بلوک» و «رکوردِ یک شرکت» یکی نیستند، و اشتباه‌گرفتنشان
+             * بدترین خرابیِ ممکنِ این صفحه است: سایتِ ردیفِ اول به ایمیلِ رایگانِ
+             * ردیف‌های بعدی می‌چسبد و ده‌ها نفر گزارشِ سایتِ یک نفرِ **دیگر** را
+             * می‌گیرند — با کدِ ۲۰۰ و بی‌هیچ خطایی.
+             *
+             * تشخیص از روی **تعدادِ ایمیل** است نه تعدادِ خط: رکوردِ یک شرکت یک
+             * نشانی دارد و بقیهٔ خطوطش نام و تلفن و نشانی است؛ فهرستی که چند
+             * ایمیل دارد، چند شرکت است حتی اگر کوتاه باشد. (شمارشِ خط به‌تنهایی
+             * کافی نبود — یک CSVِ چهارخطی زیرِ هر سقفِ معقولی می‌مانَد.)
+             *
+             * سقفِ خط به‌عنوانِ محافظِ دوم می‌مانَد: صفحهٔ «تماس با ما»یی که یک
+             * ایمیل و یک منویِ پر از لینک دارد، نباید لینکِ اولش سایت خوانده شود.
+             */
+            $emailCount = array_sum(array_map(fn ($p) => count($p[0]), $parsed));
+
+            $fallback = null;
+            if ($emailCount === 1 && count($lines) <= self::MAX_BLOCK_LINES) {
+                foreach ($parsed as [, $sites]) {
+                    if ($sites) {
+                        $fallback = $sites[0];
+                        break;
+                    }
+                }
             }
 
-            $host = Str::lower(trim($parts[0]));
-            $email = Str::lower(trim($parts[1]));
+            foreach ($parsed as [$emails, $sites]) {
+                foreach ($emails as $email) {
+                    // ترتیب عمدی: سایتِ همان خط ← دامنهٔ خودِ نشانی ← سایتِ رکورد.
+                    // «دامنهٔ خودِ نشانی» بالاتر از پشتیبان است تا یک پشتیبانِ
+                    // اشتباه نتواند ردیفی را که خودش گویاست خراب کند.
+                    $host = $sites[0] ?? $this->hostOfEmail($email) ?? $fallback;
 
-            $host = preg_replace('#^https?://#i', '', (string) $host);
-            $host = trim((string) preg_replace('#/.*$#', '', (string) $host));
+                    if ($host === null) {
+                        $orphans[] = $email;
+                        continue;
+                    }
 
-            if ($host === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                continue;
+                    $key = $host.'|'.$email;
+                    if (isset($seen[$key])) {
+                        continue;
+                    }
+                    $seen[$key] = true;
+                    $pairs[] = [$host, $email];
+                }
             }
-
-            $out[] = [$host, $email];
         }
 
-        return $out;
+        return [$pairs, array_values(array_unique($orphans))];
+    }
+
+    /** متن را با خطِ خالی به رکوردها می‌شکند؛ خطِ خالی نداشت، یک بلوکِ بزرگ. */
+    private function blocksIn(string $raw): array
+    {
+        $blocks = [];
+        $current = [];
+
+        foreach (preg_split('/\R/', $raw) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                if ($current) {
+                    $blocks[] = $current;
+                    $current = [];
+                }
+
+                continue;
+            }
+            $current[] = $line;
+        }
+        if ($current) {
+            $blocks[] = $current;
+        }
+
+        return $blocks;
+    }
+
+    /** نشانی‌های معتبرِ داخلِ یک متن، یکتا و با حروفِ کوچک. */
+    private function emailsIn(string $text): array
+    {
+        preg_match_all('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/', $text, $m);
+
+        $out = [];
+        foreach ($m[0] as $e) {
+            $e = Str::lower($e);
+            if (filter_var($e, FILTER_VALIDATE_EMAIL)) {
+                $out[$e] = true;
+            }
+        }
+
+        return array_keys($out);
+    }
+
+    /**
+     * دامنه‌هایی که در متن آمده‌اند و **بخشی از یک ایمیل نیستند**.
+     *
+     * ⚠️ نشانی‌ها اول از متن برداشته می‌شوند، وگرنه `example.com`ِ داخلِ
+     * `info@example.com` یک بار دیگر به‌عنوانِ سایت شمرده می‌شود و هر خطی که
+     * فقط ایمیل دارد ظاهراً سایت هم دارد.
+     */
+    private function sitesIn(string $text, array $emails): array
+    {
+        foreach ($emails as $e) {
+            $text = str_ireplace($e, ' ', $text);
+        }
+
+        preg_match_all(
+            '~(?:[A-Za-z][A-Za-z0-9+.\-]*://)?(?:[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}(?:/\S*)?~',
+            $text,
+            $m
+        );
+
+        $out = [];
+        foreach ($m[0] as $raw) {
+            $host = $this->cleanHost($raw);
+            if ($host !== null) {
+                $out[$host] = true;
+            }
+        }
+
+        return array_keys($out);
+    }
+
+    /** `https://www.Example.com/path?x=1` → `example.com`؛ اگر دامنه نبود، `null`. */
+    private function cleanHost(string $raw): ?string
+    {
+        $host = Str::lower(trim($raw));
+        $host = (string) preg_replace('~^[a-z][a-z0-9+.\-]*://~', '', $host);
+        $host = (string) preg_replace('~[/?\#].*$~', '', $host);
+        $host = trim($host, '.');
+        $host = (string) preg_replace('~^www\.~', '', $host);
+
+        if (! str_contains($host, '.')) {
+            return null;
+        }
+
+        $tld = Str::afterLast($host, '.');
+
+        return in_array($tld, self::NOT_A_TLD, true) || strlen($tld) < 2
+            ? null
+            : $host;
+    }
+
+    /** دامنهٔ خودِ نشانی — مگر ارائه‌دهندهٔ رایگان که دربارهٔ سایت چیزی نمی‌گوید. */
+    private function hostOfEmail(string $email): ?string
+    {
+        $domain = Str::lower(Str::afterLast($email, '@'));
+
+        return in_array($domain, self::FREE_MAIL, true) ? null : $this->cleanHost($domain);
     }
 
     /**

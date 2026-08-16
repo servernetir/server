@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
+use App\Models\CalendarLayerPreference;
+use App\Models\User;
 use App\Services\Notify\AdminNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -36,16 +38,16 @@ class CalendarRemindTest extends TestCase
 
             public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
             {
-                $this->test->record($title, $rows);
+                $this->test->record($title, $rows, $url);
             }
         };
 
         $this->app->instance(AdminNotifier::class, $spy);
     }
 
-    public function record(string $title, array $rows): void
+    public function record(string $title, array $rows, ?string $url = null): void
     {
-        $this->sent[] = ['title' => $title, 'rows' => $rows];
+        $this->sent[] = ['title' => $title, 'rows' => $rows, 'url' => $url];
     }
 
     private function tz(): string
@@ -89,6 +91,157 @@ class CalendarRemindTest extends TestCase
         $this->assertStringContainsString('امروز', $body);
         $this->assertStringContainsString('پرداخت اجاره', $body);
         $this->assertStringContainsString('فردا', $body);
+    }
+
+    /**
+     * 🔴 تاریخ **یک بار** به‌عنوان سرگروه می‌آید، نه دنبالِ هر خط.
+     *
+     * نسخهٔ اول به هر ردیف «۲۵ مرداد (امروز)» می‌چسباند؛ در پیامی با چهار
+     * موردِ امروز، همان عبارت چهار بار تکرار می‌شد و عنوانِ خودِ کار — تنها
+     * چیزِ مهم — لای تکرار گم می‌شد.
+     */
+    public function test_the_date_appears_once_per_day_not_on_every_line(): void
+    {
+        $this->reminder('کارِ اول', 0);
+        $this->reminder('کارِ دوم', 0);
+        $this->reminder('کارِ سوم', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertSame(1, substr_count($body, 'امروز'),
+            'سرگروهِ «امروز» باید دقیقاً یک بار بیاید');
+        $this->assertSame(3, substr_count($body, '•'), 'سه کار، سه ردیف');
+    }
+
+    /**
+     * هر روز سرگروهِ خودش را دارد.
+     *
+     * ⚠️ عنوان‌ها عمداً «الف» و «ب» اند: نسخهٔ اول «امروزی» و «فردایی» بود و
+     * چون خودِ عنوان رشتهٔ «امروز» را در خود داشت، `substr_count` دو بار
+     * می‌شمرد و تست دربارهٔ چیزی شکست می‌خورد که سالم بود.
+     */
+    public function test_each_day_gets_its_own_heading(): void
+    {
+        $this->reminder('کارِ الف', 0);
+        $this->reminder('کارِ ب', 1);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertSame(1, substr_count($body, 'امروز'));
+        $this->assertSame(1, substr_count($body, 'فردا'));
+        // گروه‌ها به ترتیبِ زمانی‌اند: امروز پیش از فردا
+        $this->assertLessThan(strpos($body, 'فردا'), strpos($body, 'امروز'));
+    }
+
+    /**
+     * مبلغ در خطِ خودش می‌آید — در بله رنگ و ستون نداریم، پس عددی که تصمیمِ
+     * صبح را عوض می‌کند باید در متن باشد.
+     */
+    public function test_an_amount_is_shown_on_the_line(): void
+    {
+        CalendarEvent::create([
+            'type' => 'payment_due', 'title' => 'اجارهٔ دفتر', 'status' => 'pending',
+            'event_date' => Carbon::now($this->tz())->toDateString(),
+            'amount' => 50000000, 'currency_code' => 'IRT',
+        ]);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+
+        $this->assertStringContainsString('اجارهٔ دفتر', $body);
+        // مبلغ با همان قالبِ بقیهٔ پنل، نه عددِ خام
+        $this->assertStringContainsString(invoice_money(50000000, 'IRT'), $body);
+    }
+
+    /**
+     * لینکِ پنل در پیام نمی‌آید — تصمیمِ صریحِ کارفرما.
+     *
+     * پیام روی گوشی خوانده می‌شود و آدرسِ پنل آن لحظه به کار نمی‌آید؛ فقط یک
+     * خطِ اضافه در پیامی است که باید در یک نگاه خوانده شود.
+     *
+     * ⚠️ این تست هست چون `AdminNotifier::event()` پارامترِ `$url` دارد و
+     * پرکردنش خیلی طبیعی به‌نظر می‌رسد — بی‌این نگهبان، اولین کسی که این فرمان
+     * را دست بزند لینک را برمی‌گرداند.
+     */
+    public function test_no_panel_link_is_attached(): void
+    {
+        $this->reminder('یک کار', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $this->assertNull($this->sent[0]['url'], 'لینکِ پنل نباید فرستاده شود');
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $this->assertStringNotContainsString('/admin/calendar', $body);
+        // و ته پیام نباید فاصلهٔ بی‌دلیل داشته باشد
+        $this->assertSame(rtrim($body), $body, 'ته پیام نباید خطِ خالی داشته باشد');
+    }
+
+    /**
+     * 🔴 لایه‌ای که پیش‌فرض خاموش است، در پیامِ بله هم نمی‌آید.
+     *
+     * «انتشار محتوا» از تقویم برداشته شد چون ۹۷٪ رویدادها را می‌ساخت. اگر
+     * پیامِ بله همان را می‌فرستاد، همان شلوغی از درِ دیگر برمی‌گشت — و این‌بار
+     * در جایی که حتی نمی‌شود خاموشش کرد.
+     */
+    public function test_a_default_off_layer_is_not_included_in_the_digest(): void
+    {
+        $today = Carbon::now($this->tz())->toDateString();
+
+        CalendarEvent::create([
+            'type' => 'social_post', 'title' => 'مقالهٔ زمان‌بندی‌شده',
+            'event_date' => $today, 'status' => 'pending',
+        ]);
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'کارِ واقعی',
+            'event_date' => $today, 'status' => 'pending',
+        ]);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $this->assertStringContainsString('کارِ واقعی', $body);
+        $this->assertStringNotContainsString('مقالهٔ زمان‌بندی‌شده', $body);
+    }
+
+    /**
+     * ⚠️ ترجیحِ **کاربر** روی پیام اثر ندارد و نباید داشته باشد.
+     *
+     * کرون کاربری ندارد؛ و اگر ترجیح خوانده می‌شد، یک نفر با خاموش‌کردنِ یک
+     * چیپ یادآوریِ کلِ تیم را قطع می‌کرد. پیش‌فرضِ config تصمیمِ سازمانی است،
+     * چیپ تصمیمِ شخصی.
+     */
+    public function test_a_users_chip_preference_does_not_silence_the_digest(): void
+    {
+        $user = User::create([
+            'name' => 'مدیر', 'email' => 'r'.random_int(1, 999999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        CalendarLayerPreference::store($user->id, ['task' => false]);
+        $this->reminder('کارِ مهم', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $this->assertStringContainsString('کارِ مهم', implode("\n", $this->sent[0]['rows']));
+    }
+
+    /** رویدادِ بی‌مبلغ نباید جداکنندهٔ خالی بگیرد */
+    public function test_an_event_without_an_amount_has_no_trailing_separator(): void
+    {
+        $this->reminder('کارِ بی‌پول', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $line = collect(explode("\n", $body))->first(fn ($l) => str_contains($l, 'کارِ بی‌پول'));
+
+        $this->assertStringEndsWith('یادآوری و کار', trim((string) $line));
     }
 
     /** رویدادِ انجام‌شده کاری برای انجام ندارد و نباید یادآوری شود */
