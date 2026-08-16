@@ -20,6 +20,8 @@ html[data-theme="light"] .btn-primary{color:#04121a}
 html[data-theme="light"] .ad-side{box-shadow:1px 0 0 var(--line)}
 html[data-theme="light"] .ad-nav a.on{background:linear-gradient(100deg,rgba(34,211,238,.16),rgba(139,92,246,.14));color:#0B1220}
 html[data-theme="light"] .ad-table thead th{background:var(--surface2)}
+html[data-theme="light"] .btn-glass{background:rgba(15,23,42,.05)}
+html[data-theme="light"] .btn-glass:hover{background:rgba(15,23,42,.09)}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 .icon{width:18px;height:18px;display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -28,6 +30,16 @@ a{color:inherit;text-decoration:none}
 .btn-primary:hover{filter:brightness(1.08)}
 .btn-ghost{background:var(--surface);border:1px solid var(--line2);color:var(--muted)}
 .btn-ghost:hover{color:var(--text);border-color:var(--cyan)}
+/* ۳۳ جای پنل `btn-glass` می‌زد و این‌جا تعریف نشده بود، پس فقط `.btn` می‌گرفت:
+   بی‌پس‌زمینه و بی‌قاب (§۸ — «کلاسِ CSSِ نبود، بی‌هیچ خطایی بی‌استایل می‌شود»).
+   معادلِ site.css:68 است ولی **کپیِ عینی نیست**: آن‌جا توکن‌ها `--surface-2` و
+   `--line-2`اند و در این فایل چنین نامی وجود ندارد ⇒ کپیِ خط‌به‌خط دوباره همان
+   بی‌استایلی را می‌ساخت. واشِ نیمه‌شفاف مستقیم نوشته می‌شود تا هم روی `--bg` و
+   هم روی پنلِ `--surface` بنشیند؛ `--surface2`ِ مات از پنل تیره‌تر است و شیشه
+   را برعکس می‌کرد. `backdrop-filter` حذف شد (زیرِ پس‌زمینهٔ مات بی‌اثر است) و
+   پرشِ hoverِ سایت هم، چون این دکمه داخلِ ردیفِ جدول و نوارِ ابزار می‌نشیند. */
+.btn-glass{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--text)}
+.btn-glass:hover{background:rgba(255,255,255,.1)}
 .btn-danger{background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.35);color:var(--red)}
 .btn .icon{width:16px;height:16px}
 
