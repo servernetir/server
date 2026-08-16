@@ -3472,3 +3472,16 @@ html[data-theme="light"] .aib-pop{background:#FFFFFF;box-shadow:0 24px 60px rgba
   .aib-pop .aib-messages{max-height:38vh}
   .aib-wide .aib-preview-full{min-height:60vh}
 }
+
+/* ═══ سایت‌ساز — دو رفعِ گزارشِ کارفرما (شهریور ۱۴۰۵) ═══
+   ۱) `hidden` در برابرِ displayِ صریح می‌بازد (§۳ CLAUDE.md): .aib-loading
+      display:flex دارد، پس پردهٔ «۱۰۰٪ / آماده‌سازی پیش‌نمایش» بعدِ اتمامِ
+      ساخت هم روی iframe می‌مانْد — سایتِ ساخته‌شده زیرش بود و دیده نمی‌شد.
+   ۲) چتِ شناور با inset-inline-end در RTL به **چپ** می‌چسبید — همان گوشه‌ای
+      که دستیارِ هوشمندِ سایت نشسته. پیش‌فرض باید گوشهٔ راست باشد. */
+.aib-empty[hidden],.aib-loading[hidden],#aib-frame[hidden],.aib-deploy[hidden],
+.aib-fab[hidden],.aib-deploy-ref[hidden],.aib-reassure[hidden]{display:none !important}
+.aib-pop,.aib-fab{inset-inline-end:auto;right:22px;left:auto}
+@media (max-width:720px){
+  .aib-pop{left:10px !important;right:10px !important}
+}

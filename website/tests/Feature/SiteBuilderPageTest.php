@@ -104,6 +104,21 @@ class SiteBuilderPageTest extends TestCase
         }
     }
 
+    public function test_hidden_actually_hides_the_builder_overlays_and_chat_docks_right(): void
+    {
+        $css = file_get_contents(public_path('assets/css/site.css'));
+
+        // §۳: hidden در برابرِ displayِ صریح می‌بازد. بدونِ این قاعده‌ها پردهٔ
+        // «۱۰۰٪» بعدِ اتمامِ ساخت هم روی iframe می‌مانْد و سایت دیده نمی‌شد.
+        foreach (['.aib-loading[hidden]', '.aib-empty[hidden]', '#aib-frame[hidden]', '.aib-fab[hidden]'] as $sel) {
+            $this->assertStringContainsString($sel, $css, "قاعدهٔ $sel در site.css نیست — تلهٔ hidden/display برمی‌گردد.");
+        }
+
+        // چتِ شناور پیش‌فرض گوشهٔ **راست** — چپ مالِ دستیارِ هوشمندِ سایت است.
+        // inset-inline-end در RTL یعنی چپ؛ باید راستِ فیزیکی باشد.
+        $this->assertMatchesRegularExpression('~\.aib-pop,\.aib-fab\{[^}]*right:22px~', $css);
+    }
+
     public function test_the_stream_endpoint_speaks_sse_and_reports_missing_key_in_band(): void
     {
         config(['services.gapgpt.key' => null]);
