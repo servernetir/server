@@ -88,7 +88,23 @@ class TrustSignalsNeverFakeTest extends TestCase
         $home = $this->get('/')->assertOk()->getContent();
 
         $this->assertStringContainsString('trustseal.enamad.ir', $home, 'مهرِ نماد نیامد');
-        $this->assertStringContainsString('f-legal', $home);
+
+        /*
+        | ⚠️ این تست قبلاً `f-legal` را در صفحهٔ اصلی می‌خواست، چون شناسه‌های
+        | ثبتی در فوتر بودند. کارفرما تصمیم گرفت فقط در `/contact` باشند، پس
+        | آن انتظار غلط شد. عوض کردنش تصمیمِ آگاهانه است نه دور زدنِ شکست، و
+        | `CompanyIdentityFromPanelTest::test_the_footer_shows_neither_identity_nor_address`
+        | همان تصمیم را از سمتِ مقابل هم قفل می‌کند.
+        |
+        | 🔴 مهرِ نماد این‌جا **می‌مانَد**؛ فرقش کارکردی است: مهر نشانی دیداری
+        | است که در لحظهٔ خرید باید دیده شود، ولی شمارهٔ ثبت چیزی است که کاربر
+        | یک‌بار و آگاهانه دنبالش می‌گردد.
+        */
+        $this->assertStringNotContainsString('f-legal', $home, 'شناسه‌های ثبتی به فوتر برگشتند');
+
+        $this->assertStringContainsString('123456',
+            $this->get('/contact')->assertOk()->getContent(),
+            'شناسه‌های ثبتی روی صفحهٔ تماس نیامدند');
 
         $org = json_decode(
             preg_match('~<script type="application/ld\+json">(\{"@context".*?"Organization".*?)</script>~s', $home, $m) ? $m[1] : '{}',

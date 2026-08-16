@@ -84,6 +84,82 @@
     @endif
   </div>
 
+  {{-- ── هویت حقوقی ──────────────────────────────────────────────────
+       نامِ ثبتی، شناسه‌ها و نشانی. کنارِ مهر و نماد، چون هر سه «هویتِ رسمیِ
+       شرکت»اند و مدیر یک‌جا می‌خواهدشان.
+
+       🔴 هرچه خالی بماند **هیچ‌جای سایت رندر نمی‌شود** — نه کادرِ خالی، نه
+       «۰۰۰۰۰۰»، نه «به‌زودی». شمارهٔ ثبتِ ساختگی از نداشتنش بدتر است، همان
+       قاعدهٔ `/status` که هیچ عددِ آپتایمِ جعلی نمی‌سازد.
+
+       ⚠️ خالی فرستادن یعنی **پاک کردن**، نه «بدونِ تغییر». --}}
+  <div class="ad-panel" style="margin-top:18px">
+    <div class="ad-panel-h"><h2>هویت حقوقی شرکت</h2></div>
+    <p class="set-lead">
+      در صفحهٔ <a href="{{ url('/contact') }}" target="_blank" rel="noopener">تماس با ما</a>
+      نمایش داده می‌شود و در دادهٔ ساختاریافتهٔ <code dir="ltr">Organization</code>
+      همهٔ صفحات می‌آید — همان چیزی که گوگل و دستیارهای هوش مصنوعی می‌خوانند.
+      در فوتر عمداً نمی‌آید.
+    </p>
+
+    <div class="set-grid" style="padding:0 18px 8px">
+      <label>
+        <span>نام ثبتی</span>
+        <input type="text" name="company_legal_name" autocomplete="off"
+               value="{{ $company['legal_name'] ?? '' }}" placeholder="شرکت … (سهامی خاص)">
+      </label>
+      <label>
+        <span>شماره ثبت</span>
+        <input type="text" name="company_reg_no" dir="ltr" autocomplete="off"
+               value="{{ $company['reg_no'] ?? '' }}">
+      </label>
+      <label>
+        <span>شناسهٔ ملی</span>
+        <input type="text" name="company_national_id" dir="ltr" autocomplete="off"
+               value="{{ $company['national_id'] ?? '' }}">
+      </label>
+      <label>
+        <span>کد اقتصادی</span>
+        <input type="text" name="company_economic_code" dir="ltr" autocomplete="off"
+               value="{{ $company['economic_code'] ?? '' }}">
+      </label>
+    </div>
+
+    {{-- 🔴 نشانی فقط وقتی معنا دارد که **خیابان و شهر هر دو** پر باشند.
+         «تهران» به‌تنهایی نشانی نیست و در schema یک `PostalAddress`ِ ناقص
+         می‌سازد که از نبودنش بدتر است. `company_address()` همین را اعمال
+         می‌کند، پس نیمه‌پر یعنی هیچ نشانی — و متنِ پایین همین را می‌گوید تا
+         مدیر دنبالِ باگی که وجود ندارد نگردد. --}}
+    <div class="set-grid" style="padding:0 18px 18px">
+      <label style="grid-column:1/-1">
+        <span>نشانی — خیابان و پلاک</span>
+        <input type="text" name="company_address" autocomplete="off"
+               value="{{ $company['address'] ?? '' }}" placeholder="خیابان …، پلاک …، واحد …">
+      </label>
+      <label>
+        <span>شهر</span>
+        <input type="text" name="company_city" autocomplete="off" value="{{ $company['city'] ?? '' }}">
+      </label>
+      <label>
+        <span>استان</span>
+        <input type="text" name="company_province" autocomplete="off" value="{{ $company['province'] ?? '' }}">
+      </label>
+      <label>
+        <span>کد پستی</span>
+        <input type="text" name="company_postcode" dir="ltr" autocomplete="off" value="{{ $company['postcode'] ?? '' }}">
+      </label>
+    </div>
+
+    @php($currentAddress = company_address())
+    <div style="padding:0 18px 18px;font-size:12.5px;color:var(--dim);line-height:2">
+      @if($currentAddress)
+        نشانیِ فعلی: <span style="color:var(--text)">{{ fa_num($currentAddress) }}</span>
+      @else
+        ⚠️ تا وقتی «خیابان» و «شهر» هر دو پر نشوند، نشانی هیچ‌جا نمایش داده نمی‌شود.
+      @endif
+    </div>
+  </div>
+
   {{-- ── گوگل‌کلندر ──────────────────────────────────────────────────
        اعتبارنامهٔ **اپ** این‌جاست، نه حسابِ شخصیِ کسی: یک OAuth client برای کلِ
        نصب. اتصالِ حسابِ گوگلِ هر کاربرِ پنل جداگانه است و توکنش per-user ذخیره

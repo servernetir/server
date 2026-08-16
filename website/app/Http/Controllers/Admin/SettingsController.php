@@ -93,6 +93,26 @@ class SettingsController extends Controller
             */
             'enamad_id'            => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9]*$/'],
             'enamad_code'          => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9]*$/'],
+            /*
+            | هویتِ حقوقی — نامِ ثبتی، شناسه‌ها و نشانی.
+            |
+            | 🔴 تا امروز فقط از `.env` خوانده می‌شدند و این غلط بود: برداشتنشان
+            | از روزنامهٔ رسمی کارِ **اداری** است نه دیپلوی، و کسی که آن‌ها را
+            | دارد لزوماً به `.env` سرور دسترسی ندارد. `.env` راهِ دوم می‌مانَد.
+            |
+            | ⚠️ برخلافِ نماد، الگوی حروف‌وعدد **ندارند** و این عمدی است: هیچ‌کدام
+            | داخلِ `href` یا `src` نمی‌نشیند — فقط متنِ صفحه و مقدارِ JSON-LD
+            | می‌شوند و هر دو مسیر خودشان escape می‌کنند. الگوی سخت‌گیرانه فقط
+            | نامِ شرکتی با پرانتز یا نشانیِ واقعی با خط‌تیره را رد می‌کرد.
+            */
+            'company_legal_name'    => ['nullable', 'string', 'max:150'],
+            'company_reg_no'        => ['nullable', 'string', 'max:40'],
+            'company_national_id'   => ['nullable', 'string', 'max:40'],
+            'company_economic_code' => ['nullable', 'string', 'max:40'],
+            'company_address'       => ['nullable', 'string', 'max:250'],
+            'company_city'          => ['nullable', 'string', 'max:60'],
+            'company_province'      => ['nullable', 'string', 'max:60'],
+            'company_postcode'      => ['nullable', 'string', 'max:20'],
             'google_client_id'     => ['nullable', 'string', 'max:200'],
             'google_client_secret' => ['nullable', 'string', 'max:200'],
             'google_forget'        => ['nullable', 'boolean'],
@@ -242,6 +262,24 @@ class SettingsController extends Controller
             'enamad' => [
                 'id'   => $ready ? (string) Setting::get('enamad_id', '') : '',
                 'code' => $ready ? (string) Setting::get('enamad_code', '') : '',
+            ],
+            /*
+             * هویتِ حقوقی.
+             *
+             * ⚠️ `company_value()` و نه `Setting::get()`: اگر مقداری از قبل در
+             * `.env` باشد باید در فرم **دیده شود**، وگرنه مدیر فیلد را خالی
+             * می‌بیند، پُرش می‌کند و بی‌آنکه بداند یک مقدارِ دوم جای دیگری
+             * می‌مانَد که تشخیصِ منبعش بعداً کابوس است.
+             */
+            'company' => [
+                'legal_name'    => $ready ? company_value('legal_name') : '',
+                'reg_no'        => $ready ? company_value('registration_no') : '',
+                'national_id'   => $ready ? company_value('national_id') : '',
+                'economic_code' => $ready ? company_value('economic_code') : '',
+                'address'       => $ready ? company_value('address.street') : '',
+                'city'          => $ready ? company_value('address.city') : '',
+                'province'      => $ready ? company_value('address.province') : '',
+                'postcode'      => $ready ? company_value('address.postcode') : '',
             ],
             'google'    => [
                 'client_id' => $ready ? (string) Setting::get('google_client_id') : '',
@@ -457,7 +495,22 @@ class SettingsController extends Controller
          * ⚠️ `putSecret()` عمداً نه: هر دو مقدار روی هر صفحهٔ سایت داخلِ آدرسِ
          * تصویر چاپ می‌شوند، پس راز نیستند.
          */
-        foreach (['enamad_id', 'enamad_code'] as $k) {
+        /*
+         * نماد + هویتِ حقوقی — هر دو با همان قاعده: **خالی یعنی پاک کن**.
+         *
+         * ⚠️ افزودن به `FIELDS` کافی نیست و یک بار همین‌جا گیر کرد: آن آرایه
+         * فقط اعتبارسنجی می‌کند و نوشتن در `save*()` صریح است. بی‌این حلقه،
+         * فرم بی‌هیچ خطایی ذخیره نمی‌کرد — بدترین حالت، چون «ذخیره شد» هم
+         * می‌گفت.
+         */
+        $plain = [
+            'enamad_id', 'enamad_code',
+            'company_legal_name', 'company_reg_no', 'company_national_id',
+            'company_economic_code', 'company_address', 'company_city',
+            'company_province', 'company_postcode',
+        ];
+
+        foreach ($plain as $k) {
             if (array_key_exists($k, $data)) {
                 Setting::put($k, filled($data[$k]) ? trim((string) $data[$k]) : null);
             }
