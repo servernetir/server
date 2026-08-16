@@ -57,7 +57,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -271,6 +271,8 @@ class AdminBaleRouter
             $this->sender->answerCallback($id, match ($verb) {
                 'ping' => '✅ رسید',
                 'td'   => '✍️ در حالِ نوشتن…',      // مدل چند ثانیه طول می‌کشد
+                'cs'   => '🧠 در حالِ خواندنِ پرونده…',
+                'me'   => '✍️ در حالِ نوشتن…',
                 'ma'   => '📥 بایگانی شد',
                 default => '',
             });
@@ -328,10 +330,20 @@ class AdminBaleRouter
                 'rj' => $this->receiptRejectAsk($arg),
                 'sx' => $this->serviceTerminateAsk($arg),
                 'sxy' => $this->serviceTerminateDo($arg),
+                'cn'  => $this->newCustomerStart(),
+                'cne' => $this->newCustomerFinish(null),
+                'cs'  => $this->customerBrief((int) $arg),
+                'sell' => $this->sellStart((int) $arg),
+                'sep' => $this->sellPickedProduct((int) $arg),
+                'seo' => $this->sellPickedCountry($arg),
+                'sec' => $this->sellPickedCycle($arg),
+                'sed' => $this->sellFreeSubdomain(),
+                'sey' => $this->sellConfirm($arg),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
                 'ma' => $this->archiveMail($arg),
+                'me' => $this->mailDraft($arg),
                 default => $this->replyToOwner('این دکمه دیگر معتبر نیست.'),
             };
         } catch (\Throwable $e) {
@@ -499,9 +511,9 @@ class AdminBaleRouter
         */
         if ($this->gate->flow() !== null && $anchored !== null) {
             $this->sendButtons(
-                "شما در میانهٔ «جستجو» هستید و هم‌زمان روی یک تیکت ریپلای زده‌اید.\n"
+                "شما در میانهٔ یک کارِ نیمه‌تمام هستید و هم‌زمان روی یک تیکت ریپلای زده‌اید.\n"
                 ."برای امنیت هیچ‌کدام اجرا نشد.\n\n«".mb_substr($text, 0, 200).'»',
-                [[['text' => '✖️ انصرافِ جستجو', 'data' => self::CB_PREFIX.'fx']]],
+                [[['text' => '✖️ لغوِ کارِ نیمه‌تمام', 'data' => self::CB_PREFIX.'fx']]],
             );
 
             return;
@@ -512,6 +524,19 @@ class AdminBaleRouter
         if ($flow === 'search') {
             $this->gate->clearFlow();
             $this->runSearch($text);
+
+            return;
+        }
+
+        // جریانِ چندمرحله‌ای: هر مرحله فقط داده جمع می‌کند و هیچ‌چیز نمی‌نویسد
+        if ($flow !== null && str_starts_with($flow, 'cn:')) {
+            $this->newCustomerStep(substr($flow, 3), $text);
+
+            return;
+        }
+
+        if ($flow === 'sell:domain') {
+            $this->sellGotDomain($text);
 
             return;
         }
@@ -977,6 +1002,7 @@ class AdminBaleRouter
                 ['text' => '🔎 جستجو', 'data' => self::CB_PREFIX.'cf'],
                 ['text' => '🕒 تازه‌ترین‌ها', 'data' => self::CB_PREFIX.'cl'],
             ],
+            [['text' => '🆕 مشتریِ جدید', 'data' => self::CB_PREFIX.'cn']],
             $this->nav(),
         ]);
     }
@@ -1023,6 +1049,10 @@ class AdminBaleRouter
             [
                 ['text' => '🖥 سرویس‌ها', 'data' => self::CB_PREFIX.'sl:'.$c->id],
                 ['text' => '🧾 فاکتورها', 'data' => self::CB_PREFIX.'il:'.$c->id],
+            ],
+            [
+                ['text' => '🛒 فروشِ سرویس', 'data' => self::CB_PREFIX.'sell:'.$c->id],
+                ['text' => '🧠 خلاصه', 'data' => self::CB_PREFIX.'cs:'.$c->id],
             ],
             $this->nav('cm'),
         ]);
@@ -1591,6 +1621,463 @@ class AdminBaleRouter
         $this->replyToOwner('⏳ «'.$human."» در صف قرار گرفت.\nنتیجه را همین‌جا می‌فرستم (تا یک دقیقه).");
     }
 
+    // ─────────────────── مشتریِ جدید (سه پرسش) ───────────────────
+
+    /**
+     * ⚠️ تا تپِ آخر **هیچ ردیفی نوشته نمی‌شود**. اگر کارفرما وسطِ کار رهایش
+     * کند، جریان بعد از ۱۰ دقیقه خودش می‌میرد و پروندهٔ نیمه‌کاره‌ای نمی‌مانَد.
+     */
+    private function newCustomerStart(): void
+    {
+        $this->gate->armFlow('cn:name');
+
+        $this->sendButtons(
+            "🆕 مشتریِ جدید — گامِ ۱ از ۳\n\nنام و نامِ خانوادگی را بفرستید.",
+            [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+        );
+    }
+
+    private function newCustomerStep(string $step, string $text): void
+    {
+        $data = $this->gate->flowData();
+
+        if ($step === 'name') {
+            if (mb_strlen(trim($text)) < 3) {
+                $this->replyToOwner('نام خیلی کوتاه است. دوباره بفرستید.');
+
+                return;
+            }
+
+            $this->gate->armFlow('cn:mobile', ['name' => mb_substr(trim($text), 0, 120)]);
+
+            $this->sendButtons(
+                "🆕 گامِ ۲ از ۳\n\nشمارهٔ موبایل را بفرستید (۰۹…).",
+                [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+            );
+
+            return;
+        }
+
+        if ($step === 'mobile') {
+            // ⚠️ همان نرمال‌سازیِ ثبت‌نام (`09…`)، نه نسخهٔ دوم — دلیلش در
+            //    `QuickCustomerCreator` نوشته شده.
+            $mobile = app(\App\Services\Otp\OtpService::class)->normalize('sms', $text) ?: null;
+
+            if ($mobile === null) {
+                $this->replyToOwner('شماره معتبر نیست. مثلِ ۰۹۱۲۳۴۵۶۷۸۹ بفرستید.');
+
+                return;
+            }
+
+            $this->gate->armFlow('cn:email', $data + ['mobile' => $mobile]);
+
+            $this->sendButtons(
+                "🆕 گامِ ۳ از ۳\n\nایمیل را بفرستید — یا اگر ندارد دکمهٔ زیر را بزنید.",
+                [
+                    [['text' => '⏭ ایمیل ندارد', 'data' => self::CB_PREFIX.'cne']],
+                    [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']],
+                ],
+            );
+
+            return;
+        }
+
+        $this->newCustomerFinish(trim($text));
+    }
+
+    private function newCustomerFinish(?string $email): void
+    {
+        $data = $this->gate->flowData();
+        $this->gate->clearFlow();
+
+        if (($data['name'] ?? '') === '' || ($data['mobile'] ?? '') === '') {
+            $this->replyToOwner('⌛️ این جریان منقضی شده. از «مشتریِ جدید» دوباره شروع کنید.');
+
+            return;
+        }
+
+        $res = app(\App\Services\Customer\QuickCustomerCreator::class)->create(
+            (string) $data['name'], (string) $data['mobile'], $email,
+        );
+
+        if (! $res['ok'] || $res['customer'] === null) {
+            $this->replyToOwner('⚠️ '.$res['message']);
+
+            return;
+        }
+
+        $c = $res['customer'];
+
+        /*
+        | فقط ساختِ واقعی لاگ می‌خورد. بازشدنِ پروندهٔ موجود هیچ‌چیز را عوض
+        | نکرده و ثبتش فقط تاریخچهٔ مشتری را شلوغ می‌کند.
+        */
+        if (! $res['existing']) {
+            \App\Models\ActivityLog::record($c->id, 'register',
+                'مشتری از رباتِ بله توسط مدیر ثبت شد — بدونِ احرازِ هویت',
+                null, 'staff');
+        }
+
+        $this->sendButtons(
+            ($res['existing'] ? 'ℹ️ ' : '✅ ').$res['message']
+            ."\n\n👤 ".$c->displayName().' · '.$c->code
+            .($res['existing'] ? '' : "\n⚠️ این حساب **احراز نشده** است و رمز ندارد؛"
+                ." مشتری از «فراموشی رمز» خودش وارد می‌شود."),
+            [
+                [['text' => '🛒 فروشِ سرویس', 'data' => self::CB_PREFIX.'sell:'.$c->id]],
+                [['text' => '👤 پرونده', 'data' => self::CB_PREFIX.'c:'.$c->id]],
+                $this->nav('cm'),
+            ],
+        );
+    }
+
+    // ───────────────────────── فروشِ تلفنی ─────────────────────────
+
+    /*
+    | 🔴 قیمت در هیچ گامی تایپ نمی‌شود — فقط از کاتالوگ می‌آید.
+    |
+    | دلیلِ کاملش در `App\Services\Sales\PhoneSale` است. خلاصه‌اش: عددی که
+    | این‌جا ثبت شود، تا ابد هر دوره صورت‌حساب می‌شود و هیچ سقفِ منطقی ندارد.
+    |
+    | ⚠️ گام‌ها در `flowData` جمع می‌شوند نه در `callback_data`: سقفِ ۶۴ بایت
+    | جای پکیج و مکان و دوره و دامنه را با هم ندارد.
+    */
+
+    private function sellStart(int $customerId): void
+    {
+        $c = \App\Models\Customer::find($customerId);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $products = \Illuminate\Support\Facades\Schema::hasTable('products')
+            ? \App\Models\Product::where('is_active', true)
+                ->orderBy('sort')->orderBy('name')->limit(AdminBaleScreens::PAGE)->get()
+            : collect();
+
+        if ($products->isEmpty()) {
+            $this->replyToOwner('پکیجِ فعالی در کاتالوگ نیست. اول از /admin/products اضافه کنید.');
+
+            return;
+        }
+
+        $this->gate->armFlow('sell:product', ['cid' => $c->id]);
+
+        $rows = $products->map(fn ($p) => [[
+            'text' => '📦 '.mb_substr((string) $p->name, 0, 30),
+            'data' => self::CB_PREFIX.'sep:'.$p->id,
+        ]])->all();
+
+        $rows[] = [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']];
+
+        $this->sendButtons('🛒 فروش به '.$c->displayName()."\n\nپکیج را انتخاب کنید.", $rows);
+    }
+
+    private function sellPickedProduct(int $productId): void
+    {
+        $data = $this->gate->flowData();
+        $p    = \App\Models\Product::find($productId);
+
+        if (($data['cid'] ?? 0) === 0 || $p === null) {
+            $this->staleFlow();
+
+            return;
+        }
+
+        $data['pid'] = $p->id;
+
+        /*
+        | مکان فقط وقتی پرسیده می‌شود که واقعاً انتخابی در کار باشد. پکیجی که
+        | یک مکان دارد یا اصلاً مکان‌محور نیست، یک تپِ بی‌معنی اضافه می‌کرد.
+        */
+        $countries = $p->availableCountries();
+
+        if (count($countries) > 1) {
+            $this->gate->armFlow('sell:country', $data);
+
+            $rows = array_map(fn ($code) => [[
+                'text' => trim((string) (config('billing.locations.'.$code.'.flag') ?? ''))
+                    .' '.(config('billing.locations.'.$code.'.label.fa') ?? $code),
+                'data' => self::CB_PREFIX.'seo:'.$code,
+            ]], $countries);
+
+            $rows[] = [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']];
+
+            $this->sendButtons('📦 «'.$p->name."»\n\nمحلِ سرور را انتخاب کنید.", $rows);
+
+            return;
+        }
+
+        $data['country'] = $countries[0] ?? null;
+
+        $this->askCycle($data, $p);
+    }
+
+    private function sellPickedCountry(string $code): void
+    {
+        $data = $this->gate->flowData();
+        $p    = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+
+        if ($p === null) {
+            $this->staleFlow();
+
+            return;
+        }
+
+        // ⚠️ فقط از فهرستِ خودِ پکیج — نه هر کدی که در دکمه آمده
+        if (! in_array($code, $p->availableCountries(), true)) {
+            $this->replyToOwner('این مکان دیگر موجود نیست. از اول انتخاب کنید.');
+
+            return;
+        }
+
+        $data['country'] = $code;
+
+        $this->askCycle($data, $p);
+    }
+
+    private function askCycle(array $data, \App\Models\Product $p): void
+    {
+        $this->gate->armFlow('sell:cycle', $data);
+
+        $country = $data['country'] ?? null;
+
+        $rows = array_map(fn ($cycle) => [[
+            'text' => \App\Models\Service::labelFor($cycle).' · '
+                .fa_num(number_format($p->priceForCycle($cycle, $country))).' ت',
+            'data' => self::CB_PREFIX.'sec:'.$cycle,
+        ]], \App\Models\Service::cycles());
+
+        $rows[] = [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']];
+
+        $this->sendButtons('📦 «'.$p->name."»\n\nدورهٔ پرداخت را انتخاب کنید.", $rows);
+    }
+
+    private function sellPickedCycle(string $cycle): void
+    {
+        $data = $this->gate->flowData();
+        $p    = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+
+        if ($p === null || ! in_array($cycle, \App\Models\Service::cycles(), true)) {
+            $this->staleFlow();
+
+            return;
+        }
+
+        $data['cycle'] = $cycle;
+
+        /*
+        | 🔴 پکیجی که دامنه می‌خواهد، بی‌دامنه تحویل نمی‌شود.
+        |
+        | بی‌این گام، فروش ثبت می‌شد، مشتری پول می‌داد و `createacct` روی
+        | دامنهٔ خالی شکست می‌خورد — یعنی همان «پول گرفته، سرور نیامده» که
+        | یک بار رخ داد.
+        */
+        if ($p->requires_domain) {
+            $this->gate->armFlow('sell:domain', $data);
+
+            $this->sendButtons(
+                "🌐 دامنهٔ این سرویس را بفرستید (مثلاً example.com).\n"
+                .'اگر دامنه ندارد، زیردامنهٔ رایگانِ سرورنت را بزنید.',
+                [
+                    [['text' => '🆓 زیردامنهٔ رایگان', 'data' => self::CB_PREFIX.'sed']],
+                    [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']],
+                ],
+            );
+
+            return;
+        }
+
+        $this->sellRecap($data);
+    }
+
+    private function sellGotDomain(string $text): void
+    {
+        $domain = strtolower(trim($this->anchor->asciiDigits($text)));
+        $domain = ltrim(preg_replace('#^https?://#i', '', $domain) ?? $domain, '/');
+        $domain = rtrim(explode('/', $domain)[0], '.');
+
+        if (! preg_match('/^[a-z0-9.-]+\.[a-z]{2,}$/', $domain)) {
+            $this->replyToOwner('دامنه معتبر نیست. مثلِ example.com بفرستید.');
+
+            return;
+        }
+
+        $data = $this->gate->flowData();
+        $data['domain'] = $domain;
+
+        $this->sellRecap($data);
+    }
+
+    /** زیردامنهٔ رایگان — از کدِ مشتری ساخته می‌شود، پس تکراری نمی‌شود */
+    private function sellFreeSubdomain(): void
+    {
+        $data = $this->gate->flowData();
+        $c    = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
+
+        if ($c === null) {
+            $this->staleFlow();
+
+            return;
+        }
+
+        $zone  = (string) config('servernet.subdomain_zone', 'servernet.cloud');
+        $label = strtolower(str_replace('-', '', (string) $c->code));
+
+        for ($i = 0; $i < 20; $i++) {
+            $try = $label.($i === 0 ? '' : $i);
+
+            if (! \App\Models\Service::where('domain', $try.'.'.$zone)
+                ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)->exists()) {
+                $data['domain'] = $try.'.'.$zone;
+
+                $this->sellRecap($data);
+
+                return;
+            }
+        }
+
+        $this->replyToOwner('زیردامنهٔ آزادی برای این مشتری ساخته نشد؛ دامنه را دستی بفرستید.');
+    }
+
+    /** آخرین صفحه پیش از پول — همه‌چیز پیشِ چشم، بعد یک تپ */
+    private function sellRecap(array $data): void
+    {
+        $c = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
+        $p = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $cycle = (string) ($data['cycle'] ?? '');
+
+        if ($c === null || $p === null || $cycle === '') {
+            $this->staleFlow();
+
+            return;
+        }
+
+        $this->gate->armFlow('sell:confirm', $data);
+
+        $country = $data['country'] ?? null;
+        $price   = $p->priceForCycle($cycle, $country);
+        $setup   = $p->effectiveSetup();
+        $tax     = (int) round(($price + $setup) * (int) $p->tax_percent / 100);
+
+        $key = 'sey:'.$c->id.':'.$p->id.':'.$cycle;
+
+        $this->sendButtons(
+            implode("\n", array_filter([
+                '🧾 پیش از ثبت، یک بار بخوانید:',
+                '',
+                '👤 '.$c->displayName().' · '.$c->code,
+                '📦 '.$p->name.' · '.\App\Models\Service::labelFor($cycle),
+                $country ? ('📍 '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : null,
+                ($data['domain'] ?? null) ? ('🌐 '.$data['domain']) : null,
+                '',
+                'مبلغِ دوره: '.fa_num(number_format($price)).' تومان',
+                $setup > 0 ? ('راه‌اندازی: '.fa_num(number_format($setup)).' تومان') : null,
+                $tax > 0 ? ('مالیات: '.fa_num(number_format($tax)).' تومان') : null,
+                '💰 جمعِ فاکتور: '.fa_num(number_format($price + $setup + $tax)).' تومان',
+                '',
+                '⚠️ سرویس پس از **پرداخت** تحویل می‌شود، نه حالا.',
+            ])),
+            [
+                [['text' => '✅ ثبت و صدورِ پیش‌فاکتور',
+                  'data' => self::CB_PREFIX.'sey:'.$this->gate->stamp($key)]],
+                [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']],
+            ],
+        );
+    }
+
+    private function sellConfirm(string $stamp): void
+    {
+        $data = $this->gate->flowData();
+
+        $c = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
+        $p = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $cycle = (string) ($data['cycle'] ?? '');
+
+        if ($c === null || $p === null || $cycle === '') {
+            $this->staleFlow();
+
+            return;
+        }
+
+        /*
+        | مهر روی **همان سه چیزی** است که در بازبینی نشان داده شد. یعنی اگر
+        | جریان بینِ نمایش و تپ عوض شده باشد (کارفرما وسطش فروشِ دیگری شروع
+        | کرده)، این دکمه دیگر نمی‌خوانَد و اجرا نمی‌شود.
+        */
+        if (! $this->gate->verifyStamp('sey:'.$c->id.':'.$p->id.':'.$cycle, $stamp)) {
+            $this->staleButton();
+
+            return;
+        }
+
+        // 🔴 پیش از فروش مصرف می‌شود: تپِ دوم دیگر جریانی برای اجرا ندارد
+        $this->gate->clearFlow();
+
+        $res = app(\App\Services\Sales\PhoneSale::class)->sell(
+            $c, $p, $cycle,
+            $data['country'] ?? null,
+            $data['domain'] ?? null,
+            $this->gate->boundUser()?->id,
+            $this->gate->boundUser()?->name,
+        );
+
+        if (! $res['ok'] || $res['invoice'] === null) {
+            $this->replyToOwner('⚠️ '.$res['message']);
+
+            return;
+        }
+
+        $inv = $res['invoice'];
+
+        $this->sendButtons(
+            "✅ فروش ثبت و پیش‌فاکتور صادر شد.\n\n"
+            .'👤 '.$c->displayName().' · '.$c->code."\n"
+            .'📦 '.$p->name.' · '.\App\Models\Service::labelFor($cycle)."\n"
+            .'💰 '.fa_num(number_format((int) $inv->total)).' تومان',
+            [
+                [['text' => '🧾 دیدنِ فاکتور', 'data' => self::CB_PREFIX.'i:'.$inv->id]],
+                $this->nav('c:'.$c->id),
+            ],
+        );
+    }
+
+    private function staleFlow(): void
+    {
+        $this->gate->clearFlow();
+
+        $this->replyToOwner(
+            "⌛️ این جریان منقضی شده یا نیمه‌کاره ماند.\n"
+            .'برای امنیت اجرا نشد — از پروندهٔ مشتری دوباره شروع کنید.'
+        );
+    }
+
+    // ─────────────────── خلاصهٔ هوشمندِ مشتری ───────────────────
+
+    /** فقط **خلاصه**: هیچ کاری نمی‌کند و هیچ‌چیز به مشتری نمی‌رود */
+    private function customerBrief(int $id): void
+    {
+        $c = \App\Models\Customer::find($id);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $text = app(\App\Services\Customer\CustomerBriefWriter::class)->brief($c);
+
+        $this->sendButtons(
+            $text !== null
+                ? "🧠 خلاصهٔ پرونده\n\n".$text
+                : 'خلاصه ساخته نشد (مدل جواب نداد). خودِ پرونده را ببینید.',
+            [$this->nav('c:'.$c->id)],
+        );
+    }
+
     // ─────────────────── صندوقِ ایمیل ───────────────────
 
     private function showMailbox(): void
@@ -1636,17 +2123,65 @@ class AdminBaleRouter
             return;
         }
 
+        /*
+        | ⚠️ متن از `snippet` می‌آید. این‌جا قبلاً `body_text` خوانده می‌شد —
+        | ستونی که **در این جدول وجود ندارد**؛ Eloquent برای صفتِ ناموجود null
+        | می‌دهد، پس کارت بی‌هیچ خطایی همیشه بی‌متن بود.
+        */
         $text = implode("\n", array_filter([
             '📧 '.mb_substr((string) $m->subject, 0, 120),
             'از: '.mb_substr((string) $m->from_email, 0, 90),
             $m->summary ? ('خلاصه: '.$m->summary) : null,
             '',
-            mb_substr(trim((string) ($m->body_text ?: '')), 0, 2200),
+            mb_substr(trim((string) $m->snippet), 0, 2200),
         ]));
 
-        $this->sendButtons($text, [[
-            ['text' => '📥 بایگانی', 'data' => self::CB_PREFIX.'ma:'.$m->id],
-        ]]);
+        $this->sendButtons($text, [
+            [['text' => '✍️ پیش‌نویسِ پاسخ', 'data' => self::CB_PREFIX.'me:'.$m->id]],
+            [['text' => '📥 بایگانی', 'data' => self::CB_PREFIX.'ma:'.$m->id]],
+            $this->nav('m'),
+        ]);
+    }
+
+    /**
+     * پیش‌نویسِ پاسخِ ایمیل — **فقط متن**.
+     *
+     * ⚠️ دکمهٔ «ارسال» عمداً نیست و نبودش یک تصمیمِ محافظه‌کارانه نیست:
+     * صندوق فقط با IMAP خوانده می‌شود و هیچ مسیرِ ارسالی در اپ وجود ندارد.
+     * پس متن برای کپی‌کردن در برنامهٔ ایمیلِ خودِ کارفرما ساخته می‌شود، و
+     * پیام هم همین را می‌گوید تا کسی منتظرِ ارسالِ خودکار نمانَد.
+     */
+    private function mailDraft(string $arg): void
+    {
+        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
+            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+
+        if ($m === null) {
+            $this->replyToOwner('ایمیل پیدا نشد.');
+
+            return;
+        }
+
+        $draft = app(\App\Services\Mail\MailReplyDraftWriter::class)->draft($m);
+
+        if ($draft === null) {
+            $this->sendButtons(
+                'پیش‌نویسی ساخته نشد — یا مدل جواب نداد، یا این نامه پاسخ نمی‌خواهد.',
+                [$this->nav('mv:'.$m->id)],
+            );
+
+            return;
+        }
+
+        $this->sendButtons(
+            "✍️ پیش‌نویسِ پاسخ\n(از روی چکیدهٔ نامه — بدنهٔ کامل ذخیره نمی‌شود)\n\n"
+            .$draft
+            ."\n\n⚠️ این متن **ارسال نمی‌شود**؛ از برنامهٔ ایمیلِ خودتان بفرستید.",
+            [
+                [['text' => '📥 بایگانی', 'data' => self::CB_PREFIX.'ma:'.$m->id]],
+                $this->nav('mv:'.$m->id),
+            ],
+        );
     }
 
     /** ⚠️ نامه **حذف نمی‌شود** — فقط از صفِ «منتظرِ پاسخ» بیرون می‌رود */

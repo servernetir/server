@@ -612,15 +612,43 @@ class AdminBaleGate
      * ⚠️ عمر دارد (۱۰ دقیقه). جریانی که تا ابد باز بماند یعنی کارفرما فردا یک
      * پیامِ بی‌ربط می‌فرستد و آن به‌عنوانِ جستجو خوانده می‌شود.
      */
-    public function armFlow(string $kind): void
+    public function armFlow(string $kind, array $data = []): void
     {
         try {
             $this->putState(['flow' => [
                 'kind' => $kind,
+                'data' => $data,
                 'exp'  => now()->addMinutes(10)->getTimestamp(),
             ]]);
         } catch (\Throwable $e) {
             ErrorTracker::note('bale-admin', $e, ['step' => 'armFlow']);
+        }
+    }
+
+    /**
+     * دادهٔ جمع‌شدهٔ یک جریانِ چندمرحله‌ای (مشتریِ جدید، فروشِ تلفنی).
+     *
+     * ⚠️ در `callback_data` نمی‌گنجد (سقفِ ۶۴ بایت) و جدولِ تازه هم نمی‌سازیم —
+     * همان دلیلِ `putDraft()`. چون `putState()` قفل دارد، مرحله‌ها همدیگر را
+     * پاک نمی‌کنند.
+     *
+     * ⚠️ عمرش همان عمرِ جریان است. یعنی سبدِ نیمه‌کاره خودش می‌میرد و هیچ‌چیزِ
+     * نیمه‌ساخته‌ای در دیتابیس نمی‌مانَد — تا لحظهٔ تأیید، هیچ ردیفی نوشته نشده.
+     *
+     * @return array<string,mixed>
+     */
+    public function flowData(): array
+    {
+        try {
+            $f = $this->state()['flow'] ?? null;
+
+            if (! is_array($f) || (int) ($f['exp'] ?? 0) < now()->getTimestamp()) {
+                return [];
+            }
+
+            return (array) ($f['data'] ?? []);
+        } catch (\Throwable) {
+            return [];
         }
     }
 

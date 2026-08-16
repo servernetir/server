@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
@@ -187,53 +186,16 @@ class StoreController extends Controller
         };
     }
 
-    /** پیش‌فاکتورِ اولین دوره — شاملِ هزینهٔ راه‌اندازی (اگر باشد) */
+    /**
+     * پیش‌فاکتورِ اولین دوره — شاملِ هزینهٔ راه‌اندازی (اگر باشد).
+     *
+     * ⚠️ خودِ ساختِ فاکتور در `ProductInvoiceIssuer` است، چون فروشِ تلفنی از
+     * رباتِ بله هم دقیقاً همان فاکتور را می‌خواهد. اعلانِ زیر مالِ همین مسیر
+     * است (مشتری خودش سفارش داده) و عمداً منتقل نشد.
+     */
     private function issueOrderInvoice(Service $service, Product $product): Invoice
     {
-        $lineTax = fn (int $amount) => (int) round($amount * $service->tax_percent / 100);
-
-        $unitPrice = (int) $service->price;
-        $setupFee  = $product->effectiveSetup();
-
-        $subtotal = $unitPrice + $setupFee;
-        $tax      = $lineTax($unitPrice) + $lineTax($setupFee);
-
-        $invoice = Invoice::create([
-            'customer_id'   => $service->customer_id,
-            'service_id'    => $service->id,
-            'kind'          => 'service',
-            'currency_code' => $service->currency_code,
-            'subtotal'      => $subtotal,
-            'tax'           => $tax,
-            'total'         => $subtotal + $tax,
-            'paid'          => 0,
-            'status'        => 'unpaid',
-            'issued_at'     => now(),
-            'note'          => $product->name,
-        ]);
-
-        InvoiceItem::create([
-            'invoice_id'  => $invoice->id,
-            'title'       => $product->name.' ('.$service->cycleLabel().')',
-            'description' => $service->domain,
-            'quantity'    => 1,
-            'unit_price'  => $unitPrice,
-            'line_total'  => $unitPrice,
-            'tax_rate_bp' => $service->tax_percent * 100,
-            'tax_amount'  => $lineTax($unitPrice),
-        ]);
-
-        if ($setupFee > 0) {
-            InvoiceItem::create([
-                'invoice_id'  => $invoice->id,
-                'title'       => 'هزینهٔ راه‌اندازی — '.$product->name,
-                'quantity'    => 1,
-                'unit_price'  => $setupFee,
-                'line_total'  => $setupFee,
-                'tax_rate_bp' => $service->tax_percent * 100,
-                'tax_amount'  => $lineTax($setupFee),
-            ]);
-        }
+        $invoice = app(\App\Services\Billing\ProductInvoiceIssuer::class)->issue($service, $product);
 
         /*
         | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ
