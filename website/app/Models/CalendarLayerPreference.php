@@ -38,8 +38,19 @@ class CalendarLayerPreference extends Model
      */
     public static function forUser(?int $userId): array
     {
-        $layers = array_keys((array) config('calendar.layers', []));
-        $defaults = array_fill_keys($layers, true);
+        /*
+         * ⚠️ پیش‌فرضِ هر لایه از config می‌آید، نه «همه روشن».
+         *
+         * تقریباً همهٔ لایه‌ها باید پیش‌فرض روشن باشند و هستند؛ ولی
+         * `social_post` عمداً خاموش است چون روی دادهٔ واقعی ۹۷٪ رویدادهای ماه
+         * را می‌سازد و بقیه را خفه می‌کند (توضیحِ کامل در `config/calendar.php`).
+         * نوشتنِ `true` ثابت این‌جا یعنی آن تصمیم بی‌صدا نادیده گرفته شود.
+         */
+        $defaults = [];
+
+        foreach ((array) config('calendar.layers', []) as $key => $meta) {
+            $defaults[$key] = (bool) ($meta['default'] ?? true);
+        }
 
         if ($userId === null || ! Schema::hasTable('calendar_layer_preferences')) {
             return $defaults;
