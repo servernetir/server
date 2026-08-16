@@ -12,9 +12,13 @@
       <p>{{ __('ui.aib_sub') }}</p>
     </div>
 
+    {{-- ⚠️ data-stream با گاردِ Route::has: این ویو لحظهٔ آپلود زنده می‌شود ولی
+         روتِ PHP تا ریستِ opcache ممکن است هنوز قدیمی باشد؛ بی‌گارد یعنی ۵۰۰
+         روی کلِ صفحه در همان پنجره. مقدارِ خالی = builder.js خودش به مسیرِ
+         JSONِ قدیمی برمی‌گردد. --}}
     <div class="aib aib-wide reveal"
          data-chat="{{ route($routePrefix.'builder.chat') }}"
-         data-stream="{{ route($routePrefix.'builder.stream') }}"
+         data-stream="{{ \Illuminate\Support\Facades\Route::has($routePrefix.'builder.stream') ? route($routePrefix.'builder.stream') : '' }}"
          data-save="{{ route($routePrefix.'builder.save') }}"
          data-domaincheck="{{ route($routePrefix.'domain.check') }}"
          data-cart="{{ whmcs_url('cart.php') }}">

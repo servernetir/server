@@ -182,6 +182,7 @@
 
   /* ---------- تماس با سازنده — اول SSE، بعد fallback به JSON ---------- */
   async function streamRequest(msg, pro, typing) {
+    if (!root.dataset.stream) throw new Error('no-stream');
     const res = await fetch(root.dataset.stream, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'Accept': 'text/event-stream' },
