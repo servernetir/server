@@ -163,41 +163,185 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | نمایندگی دامنه — صفحهٔ فروشِ برنامه‌ای که واقعاً ساخته شده
+    |--------------------------------------------------------------------------
+    |
+    | 🔴 این ورودی شهریور ۱۴۰۵ **بازنویسی شد** چون نسخهٔ قبلی‌اش چیزهایی وعده
+    | می‌داد که وجود ندارند، و هر کدام یک شکایتِ قابلِ پیش‌بینی می‌ساخت:
+    |
+    |   • «مدیریت DNS با REST API»    → API رکوردِ DNS ندارد و عمداً هم ندارد
+    |   • «ماژول WordPress»           → فقط ماژولِ WHMCS ساخته شده
+    |   • «WHOIS با برند شما»         → مالکِ ثبت‌شده حسابِ نمایندگی است، نه
+    |                                    برندِ او روی WHOISِ مشتریِ نهایی
+    |   • «قیمت رجیستری»              → قیمتِ خرده‌فروشی منهای تخفیفِ سطح است
+    |   • «تخفیف تا ۱۲٪»              → پله‌های واقعی ۵ / ۱۰ / ۱۵ درصدند
+    |   • دکمه‌های خرید → `cart.php`  → WHMCSِ بیرونی؛ این محصول آن‌جا نیست
+    |
+    | صفحهٔ فروشی که چیزی را وعده دهد که محصول ندارد، سخت‌ترین نوع بدهی است:
+    | هزینه‌اش را پشتیبانی و بازگشتِ وجه می‌دهد، ماه‌ها بعد، و کسی ردش را به
+    | این فایل نمی‌زند.
+    |
+    | ⚠️ نردبانِ سطح‌ها این‌جا **تکرار نشده**. `partials/sig-tiers` مستقیماً از
+    | `config/domain_reseller.levels` می‌خوانَد، پس صفحهٔ بازاریابی هرگز نمی‌تواند
+    | با چیزی که کد واقعاً حساب می‌کند واگرا شود.
+    */
     'reseller' => [
         'icon' => 'user', 'group' => 'services', 'billing' => 'yearly',
         'unit' => ['fa' => '/ شارژ اعتبار', 'en' => '/ credit top-up', 'tr' => '/ kredi yükleme'],
-        'fa' => ['t' => 'نمایندگی دامنه', 'tag' => 'API کامل · قیمت رجیستری',
-            'hero_t' => 'دامنه بفروشید،', 'hero_g' => 'با قیمت رجیستری.',
-            'hero_d' => 'پنل نمایندگی با API کامل ثبت/تمدید/انتقال و قیمت پلکانی — هرچه بیشتر بفروشید، تمام‌شده ارزان‌تر. مناسب وب‌مسترها و شرکت‌های طراحی.'],
-        'en' => ['t' => 'Domain Reseller', 'tag' => 'Full API · Registry pricing',
-            'hero_t' => 'Sell domains', 'hero_g' => 'at registry prices.',
-            'hero_d' => 'A reseller panel with a full register/renew/transfer API and tiered pricing — the more you sell, the cheaper your cost. Built for webmasters and agencies.'],
-        'tr' => ['t' => 'Alan Adı Bayiliği', 'tag' => 'Tam API · Kayıt fiyatları',
-            'hero_t' => 'Kayıt fiyatlarına', 'hero_g' => 'alan adı satın.',
-            'hero_d' => 'Tam kayıt/yenileme/transfer API\'li bayi paneli ve kademeli fiyatlandırma.'],
-        'chips' => ['REST API', 'Tiered Pricing', 'WHMCS Module', '500+ TLDs', 'White-Label'],
+        'fa' => ['t' => 'نمایندگی دامنه', 'tag' => 'API + افزونهٔ WHMCS · تخفیف پلکانی',
+            'seo_t' => 'نمایندگی دامنه — فروش دامنه با API و افزونهٔ WHMCS',
+            'hero_t' => 'دامنه بفروشید،', 'hero_g' => 'از پنل خودتان.',
+            'hero_d' => 'پنل نمایندگی دامنه با API کامل ثبت و تمدید، افزونهٔ آمادهٔ WHMCS و تخفیف پلکانی بر اساس فروش. دامنه را از سامانهٔ خودتان و با برند خودتان بفروشید — تحویل خودکار، بدون تماس با پشتیبانی.'],
+        'en' => ['t' => 'Domain Reseller', 'tag' => 'API + WHMCS module · Volume tiers',
+            'seo_t' => 'Domain Reseller Programme — API & WHMCS Module',
+            'hero_t' => 'Sell domains', 'hero_g' => 'from your own panel.',
+            'hero_d' => 'A domain reseller programme with a full register/renew API, a ready WHMCS registrar module and volume-based discount tiers. Sell under your own brand with automatic delivery.'],
+        'tr' => ['t' => 'Alan Adı Bayiliği', 'tag' => 'API + WHMCS modülü · Hacim indirimi',
+            'seo_t' => 'Alan Adı Bayilik Programı — API ve WHMCS Modülü',
+            'hero_t' => 'Alan adlarını', 'hero_g' => 'kendi panelinizden satın.',
+            'hero_d' => 'Tam kayıt/yenileme API\'si, hazır WHMCS modülü ve satış hacmine dayalı kademeli indirim.'],
+        'chips' => ['REST API', 'WHMCS Module', 'WordPress + WooCommerce', 'تخفیف پلکانی', 'تحویل خودکار'],
+
+        /*
+        | «پلن» این‌جا یعنی **شارژِ اعتبار**، نه اشتراکِ ماهانه — و همان چیزی
+        | است که واقعاً پرداخت می‌شود. عضویت در برنامه رایگان است؛ چیزی که
+        | می‌خرید اعتبار است و چیزی که می‌سازید سطح.
+        |
+        | ⚠️ `route` (نه `url`): مقصد پنلِ خودمان است. `url` از `whmcs_url()`
+        | رد می‌شود و به WHMCSِ بیرونی می‌رود — یعنی بن‌بست.
+        */
         'plans' => [
-            array_merge($mkTld('Starter', 5000000, 49.00, [['fa' => 'اعتبار اولیه ۵ میلیون تومانی', 'en' => '€49 starting credit', 'tr' => '€49 başlangıç kredisi'], ['fa' => 'تخفیف پلکانی سطح ۱', 'en' => 'Tier-1 discount', 'tr' => 'Seviye-1 indirim'], ['fa' => 'API + ماژول WHMCS', 'en' => 'API + WHMCS module', 'tr' => 'API + WHMCS modülü']]), ['url' => 'cart.php']),
-            array_merge($mkTld('Business', 20000000, 199.00, [['fa' => 'اعتبار اولیه ۲۰ میلیون تومانی', 'en' => '€199 starting credit', 'tr' => '€199 başlangıç kredisi'], ['fa' => 'تخفیف پلکانی سطح ۲ (تا ۱۲٪)', 'en' => 'Tier-2 discount (up to 12%)', 'tr' => 'Seviye-2 indirim (%12\'ye kadar)'], ['fa' => 'پشتیبانی اولویت‌دار نماینده', 'en' => 'Priority reseller support', 'tr' => 'Öncelikli bayi desteği']], true), ['url' => 'cart.php']),
-            array_merge($mkTld('Enterprise', 0, 0, [['fa' => 'قیمت رجیستری + قرارداد', 'en' => 'Registry pricing + contract', 'tr' => 'Kayıt fiyatı + sözleşme'], ['fa' => 'مدیر اکانت اختصاصی', 'en' => 'Dedicated account manager', 'tr' => 'Özel hesap yöneticisi'], ['fa' => 'SLA اختصاصی API', 'en' => 'Custom API SLA', 'tr' => 'Özel API SLA']]), ['contact' => true]),
+            array_merge($mkTld('شروع', 5000000, 49.00, [
+                ['fa' => 'شارژ اولیهٔ ۵ میلیون تومان', 'en' => '€49 starting credit', 'tr' => '€49 başlangıç kredisi'],
+                ['fa' => 'API + افزونهٔ WHMCS', 'en' => 'API + WHMCS module', 'tr' => 'API + WHMCS modülü'],
+                ['fa' => 'تحویل خودکار دامنه', 'en' => 'Automatic delivery', 'tr' => 'Otomatik teslim'],
+            ]), ['route' => ['account.reseller'], 'url' => null]),
+            array_merge($mkTld('حرفه‌ای', 20000000, 199.00, [
+                ['fa' => 'شارژ اولیهٔ ۲۰ میلیون تومان', 'en' => '€199 starting credit', 'tr' => '€199 başlangıç kredisi'],
+                ['fa' => 'رسیدن سریع‌تر به سطح برنز', 'en' => 'Reach Bronze sooner', 'tr' => 'Bronz seviyeye daha hızlı'],
+                ['fa' => 'پشتیبانی اولویت‌دار نماینده', 'en' => 'Priority reseller support', 'tr' => 'Öncelikli bayi desteği'],
+            ], true), ['route' => ['account.reseller'], 'url' => null]),
+            array_merge($mkTld('سازمانی', 0, 0, [
+                ['fa' => 'تخفیف توافقی روی سطح', 'en' => 'Negotiated discount on top of tier', 'tr' => 'Seviye üstü anlaşmalı indirim'],
+                ['fa' => 'قرارداد و مدیر اکانت', 'en' => 'Contract + account manager', 'tr' => 'Sözleşme + hesap yöneticisi'],
+                ['fa' => 'سقف اعتبار اختصاصی', 'en' => 'Custom credit limits', 'tr' => 'Özel kredi limitleri'],
+            ]), ['contact' => true]),
         ],
-        'features' => ['whitelabel', 'support', 'instant',
+
+        /*
+        | چهار قدم تا اولین فروش.
+        |
+        | ⚠️ قدم‌ها با **واقعیتِ کد** یکی‌اند و ترتیبشان هم دلخواه نیست: توکن
+        | پیش از افزونه می‌آید چون افزونه بی‌توکن اصلاً تست اتصالش رد نمی‌شود،
+        | و شارژ پیش از فروش می‌آید چون ثبت از اعتبار کسر می‌شود و حسابِ خالی
+        | یعنی اولین سفارشِ مشتریِ نماینده شکست می‌خورد.
+        */
+        'howto' => [
+            'fa' => ['badge' => 'شروع کنید', 't' => 'چهار قدم تا اولین فروش',
+                'd' => 'همه‌چیز خودسرویس است؛ برای شروع لازم نیست منتظر کسی بمانید.'],
+            'en' => ['badge' => 'Get started', 't' => 'Four steps to your first sale',
+                'd' => 'Everything is self-service — you do not have to wait for anyone.'],
+            'tr' => ['badge' => 'Başlayın', 't' => 'İlk satışınıza dört adım',
+                'd' => 'Her şey self servis.'],
+            'steps' => [
+                [
+                    'fa' => ['t' => 'حساب نمایندگی را فعال کنید', 'd' => 'اگر هنوز حساب کاربری ندارید بسازید، و از پشتیبانی بخواهید حسابتان را به‌عنوان نمایندهٔ دامنه فعال کند. نمایندگی یک قرارداد است، پس این قدم دستی و آگاهانه انجام می‌شود.'],
+                    'en' => ['t' => 'Activate your reseller account', 'd' => 'Create an account if you do not have one, then ask support to enable domain reselling. This is a contract, so the step is deliberate and manual.'],
+                    'tr' => ['t' => 'Bayi hesabınızı etkinleştirin', 'd' => 'Hesap oluşturun ve destekten bayiliği etkinleştirmesini isteyin.'],
+                    'route' => ['account.reseller'],
+                    'cta' => ['fa' => 'پنل نمایندگی', 'en' => 'Reseller panel', 'tr' => 'Bayi paneli'],
+                ],
+                [
+                    'fa' => ['t' => 'توکن API بسازید', 'd' => 'در بخش امنیت پنل، توکنی با دسترسی ثبت و مدیریت دامنه بسازید و حتماً IP سرور خودتان را در فهرست مجاز آن بگذارید. توکن فقط یک بار نمایش داده می‌شود.'],
+                    'en' => ['t' => 'Create an API token', 'd' => 'In your panel security page, create a token with register and manage scopes and lock it to your own server IP. The token is shown only once.'],
+                    'tr' => ['t' => 'API token oluşturun', 'd' => 'Panel güvenlik sayfasından kayıt ve yönetim izinli bir token oluşturun ve IP kısıtlayın.'],
+                    'route' => ['account.security'],
+                    'cta' => ['fa' => 'صفحهٔ امنیت', 'en' => 'Security page', 'tr' => 'Güvenlik sayfası'],
+                ],
+                [
+                    'fa' => ['t' => 'افزونه را نصب کنید', 'd' => 'WHMCS دارید؟ افزونهٔ رجیسترار را نصب کنید. وردپرس یا ووکامرس دارید؟ افزونهٔ وردپرس، جعبهٔ جستجو و سبد خرید را روی سایت خودتان می‌آورد. هیچ‌کدام؟ مستقیم از API استفاده کنید.'],
+                    'en' => ['t' => 'Install a plugin', 'd' => 'On WHMCS, install the registrar module. On WordPress or WooCommerce, the WordPress plugin adds search and cart to your own site. Neither? Call the API directly.'],
+                    'tr' => ['t' => 'WHMCS modülünü kurun', 'd' => 'Bayi panelinden indirin, WHMCS registrar klasörüne koyun ve token girin.'],
+                    'route' => ['developers'],
+                    'cta' => ['fa' => 'مستندات API', 'en' => 'API documentation', 'tr' => 'API belgeleri'],
+                ],
+                [
+                    'fa' => ['t' => 'حساب را شارژ و شروع به فروش کنید', 'd' => 'ثبت و تمدید از اعتبار حساب کسر می‌شود، پس پیش از اولین سفارش شارژ کنید. از همان لحظه، هر فروش روی سطح تخفیف سال آیندهٔ شما حساب می‌شود.'],
+                    'en' => ['t' => 'Top up and start selling', 'd' => 'Registrations and renewals are deducted from your credit, so top up before your first order. From then on every sale counts toward your tier.'],
+                    'tr' => ['t' => 'Kredi yükleyin ve satmaya başlayın', 'd' => 'Kayıt ve yenilemeler kredinizden düşülür.'],
+                    'route' => ['account.topup'],
+                    'cta' => ['fa' => 'شارژ حساب', 'en' => 'Top up', 'tr' => 'Kredi yükle'],
+                ],
+            ],
+        ],
+
+        // نردبانِ سطح‌ها — از `config/domain_reseller.php` خوانده می‌شود
+        'signature' => ['type' => 'tiers',
+            'fa' => ['t' => 'هرچه بیشتر بفروشید، ارزان‌تر می‌خرید',
+                'd' => 'سطح شما از مجموع خرید ۱۲ ماه گذشته و تعداد دامنهٔ فعالتان ساخته می‌شود. ارتقا همان لحظه اعمال می‌شود.'],
+            'en' => ['t' => 'The more you sell, the less you pay',
+                'd' => 'Your tier comes from your last 12 months of purchases and your active domain count. Upgrades apply instantly.'],
+            'tr' => ['t' => 'Ne kadar çok satarsanız o kadar ucuza alırsınız',
+                'd' => 'Seviyeniz son 12 aylık alımınızdan ve aktif alan adı sayınızdan gelir.'],
+        ],
+
+        'features' => ['support', 'instant',
             ['icon' => 'code',
-                'fa' => ['t' => 'API کامل و مستند', 'd' => 'ثبت، تمدید، انتقال و مدیریت DNS با REST API — به‌همراه ماژول آماده WHMCS و WordPress.'],
-                'en' => ['t' => 'Complete Documented API', 'd' => 'Register, renew, transfer and manage DNS via REST — with ready WHMCS and WordPress modules.'],
-                'tr' => ['t' => 'Eksiksiz Belgeli API', 'd' => 'REST ile kayıt, yenileme, transfer ve DNS yönetimi — hazır WHMCS modülüyle.']],
+                'fa' => ['t' => 'API مستند + افزونهٔ WHMCS و وردپرس', 'd' => 'ثبت، تمدید، استعلام قیمت، تغییر نام‌سرور و همگام‌سازی وضعیت با REST API — به‌همراه دو افزونهٔ آماده: WHMCS، و وردپرس/ووکامرس برای فروش دامنه از سایت خودتان با درگاه خودتان.'],
+                'en' => ['t' => 'Documented API + WHMCS and WordPress plugins', 'd' => 'Register, renew, price lookup, nameservers and status sync over REST — plus two ready plugins: WHMCS, and WordPress/WooCommerce so you can sell from your own site through your own gateway.'],
+                'tr' => ['t' => 'Belgeli API + WHMCS modülü', 'd' => 'REST ile kayıt, yenileme, fiyat sorgu ve durum senkronizasyonu.']],
             ['icon' => 'coins',
-                'fa' => ['t' => 'قیمت پلکانی شفاف', 'd' => 'با افزایش حجم، خودکار به سطح تخفیف بالاتر می‌روید — جدول قیمت هر ۱۰۰+ پسوند در پنل شفاف است.'],
-                'en' => ['t' => 'Transparent Tiered Pricing', 'd' => 'Higher volume moves you to better tiers automatically — full price tables for 100+ TLDs in your panel.'],
-                'tr' => ['t' => 'Şeffaf Kademeli Fiyat', 'd' => 'Hacim arttıkça otomatik olarak daha iyi seviyeye geçersiniz.']],
+                'fa' => ['t' => 'تخفیف پلکانی بر اساس فروش', 'd' => 'با بالا رفتن حجم خریدتان خودکار به سطح بالاتر می‌روید. ارتقا فوری است و افت حجم تا ۳۰ روز مهلت دارد — یک ماه کم‌فروش سطحتان را نمی‌سوزاند.'],
+                'en' => ['t' => 'Volume-based discount tiers', 'd' => 'Higher purchase volume moves you up automatically. Upgrades are instant; a drop has a 30-day grace period.'],
+                'tr' => ['t' => 'Hacme dayalı kademeli indirim', 'd' => 'Yükselme anında, düşüş için 30 gün süre tanınır.']],
+            ['icon' => 'shield',
+                'fa' => ['t' => 'توکن با محدودیت IP و سقف خرج', 'd' => 'توکن API را به IP سرور خودتان محدود کنید و سقف خرج روزانه بگذارید. اگر روزی سرورتان نفوذ شود، خسارت به همان سقف محدود می‌مانَد.'],
+                'en' => ['t' => 'IP-locked tokens with spend caps', 'd' => 'Restrict the API token to your own server IP and set a daily spend ceiling, so a breach stays bounded.'],
+                'tr' => ['t' => 'IP kısıtlı token ve harcama limiti', 'd' => 'Token\'ı kendi sunucu IP\'nize kilitleyin ve günlük harcama limiti koyun.']],
+            ['icon' => 'coins',
+                'fa' => ['t' => 'پیش‌پرداخت، بدون فاکتور معوق', 'd' => 'از اعتبار حسابتان کسر می‌شود؛ اعتبار تاریخ انقضا ندارد. هیچ صورت‌حساب ماهانه و هیچ بدهی انباشته‌ای در کار نیست.'],
+                'en' => ['t' => 'Prepaid, no outstanding invoices', 'd' => 'Everything is deducted from your credit balance, which never expires. No monthly bill, no accumulating debt.'],
+                'tr' => ['t' => 'Ön ödemeli, açık fatura yok', 'd' => 'Her şey süresi dolmayan kredi bakiyenizden düşülür.']],
         ],
+
+        /*
+        | FAQ عمداً بلند است — هم برای سئو (FAQPage JSON-LD) و هم چون هر
+        | سؤالِ بی‌جوابِ این‌جا یک تیکتِ پشتیبانی می‌شود.
+        |
+        | ⚠️ سؤالِ `.ir` و سؤالِ WHOIS **باید** بمانند. هر دو محدودیتِ واقعی‌اند
+        | و نگفتنشان فقط زمانِ کشفشان را به بعد از فروش موکول می‌کند.
+        */
         'faqs' => [
-            ['fa' => ['q' => 'اعتبار شارژشده منقضی می‌شود؟', 'a' => 'خیر — اعتبار پنل نمایندگی هیچ تاریخ انقضایی ندارد و هر زمان می‌توانید شارژ بیشتری اضافه کنید.'],
-             'en' => ['q' => 'Does the credit expire?', 'a' => 'No — reseller credit never expires, and you can top up anytime.'],
-             'tr' => ['q' => 'Kredi süresi dolar mı?', 'a' => 'Hayır — bayi kredisinin süresi asla dolmaz.']],
-            ['fa' => ['q' => 'مشتریانم نام سرورنت را می‌بینند؟', 'a' => 'خیر — پنل، ایمیل‌ها و WHOIS با برند شما تنظیم می‌شود؛ سرورنت فقط در پس‌زمینه است.'],
-             'en' => ['q' => 'Will my clients see ServerNet\'s name?', 'a' => 'No — the panel, emails and WHOIS carry your brand; ServerNet stays behind the scenes.'],
-             'tr' => ['q' => 'Müşterilerim ServerNet adını görür mü?', 'a' => 'Hayır — panel, e-postalar ve WHOIS sizin markanızı taşır.']],
+            ['fa' => ['q' => 'برای شروع چقدر باید بپردازم؟', 'a' => 'عضویت در برنامهٔ نمایندگی رایگان است؛ فقط حسابتان را شارژ می‌کنید و همان اعتبار خرج ثبت و تمدید دامنه می‌شود. اعتبار هیچ تاریخ انقضایی ندارد و هر زمان می‌توانید بیشتر شارژ کنید.'],
+             'en' => ['q' => 'What does it cost to start?', 'a' => 'Joining is free — you simply top up your account and that credit pays for registrations and renewals. Credit never expires.'],
+             'tr' => ['q' => 'Başlamak ne kadar tutar?', 'a' => 'Katılım ücretsizdir; sadece hesabınıza kredi yüklersiniz ve süresi dolmaz.']],
+
+            ['fa' => ['q' => 'سطح تخفیف چطور بالا می‌رود؟', 'a' => 'سطح از مجموع خرید ۱۲ ماه گذشته و تعداد دامنهٔ فعال شما ساخته می‌شود و روزانه بازبینی می‌شود. ارتقا همان لحظه‌ای که از آستانه رد شوید اعمال می‌شود؛ اگر حجمتان افت کند ۳۰ روز مهلت دارید و بعد حداکثر یک پله پایین می‌آیید. پیشرفت دقیقتان تا سطح بعد در پنل نمایندگی دیده می‌شود.'],
+             'en' => ['q' => 'How do I move up a tier?', 'a' => 'Your tier comes from your last 12 months of purchases plus your active domain count, reviewed daily. Upgrades apply the moment you cross a threshold; a drop gets a 30-day grace period and then at most one step down.'],
+             'tr' => ['q' => 'Seviye nasıl yükselir?', 'a' => 'Son 12 aylık alım hacminiz ve aktif alan adı sayınıza göre günlük olarak değerlendirilir.']],
+
+            ['fa' => ['q' => 'آیا تخفیف سطح روی همهٔ پسوندها یکسان اعمال می‌شود؟', 'a' => 'نه همیشه — و این را صریح می‌گوییم. سود ما روی هر پسوند متفاوت است و روی پسوندهای کم‌حاشیه (که معمولاً پرفروش‌ترین‌ها هم هستند) تخفیف فقط تا جایی اعمال می‌شود که قیمت زیر بهای تمام‌شدهٔ ما نرود. هر جا این اتفاق بیفتد، هم در پاسخ API و هم در پنل با نشانهٔ روشن اعلام می‌شود؛ پنهانش نمی‌کنیم.'],
+             'en' => ['q' => 'Does the tier discount apply equally to every TLD?', 'a' => 'Not always, and we say so plainly. Our margin differs per TLD; on thin-margin extensions the discount only applies down to a floor above our own cost. Whenever that floor is hit, both the API response and your panel flag it explicitly.'],
+             'tr' => ['q' => 'İndirim her uzantıda aynı mı uygulanır?', 'a' => 'Her zaman değil — düşük marjlı uzantılarda indirim bir taban fiyata kadar uygulanır ve bu durum panelde açıkça belirtilir.']],
+
+            ['fa' => ['q' => 'دامنه‌های .ir را هم می‌توانم بفروشم؟', 'a' => 'فعلاً نه. پسوندهای ایرانی از رجیسترار بین‌المللی ما چند ده برابر قیمت واقعی ایرنیک درمی‌آیند و فروختنشان با آن قیمت به نفع هیچ‌کس نیست. تا زمانی که اتصال مستقیم ایرنیک را بسازیم، این پنل برای پسوندهای بین‌المللی است. ترجیح دادیم این را همین‌جا بگوییم تا بعد از ثبت‌نام کشفش کنید.'],
+             'en' => ['q' => 'Can I sell .ir domains?', 'a' => 'Not yet. Iranian extensions come from our international registrar at many times the real IRNIC price. Until we build a direct IRNIC path, this panel covers international TLDs. We would rather you know now than discover it after signing up.'],
+             'tr' => ['q' => '.ir alan adı satabilir miyim?', 'a' => 'Henüz hayır — doğrudan IRNIC bağlantısı kurulana kadar bu panel uluslararası uzantılar içindir.']],
+
+            ['fa' => ['q' => 'مالک ثبت‌شدهٔ دامنه (WHOIS) کیست؟', 'a' => 'در این نسخه، مالک ثبت‌شده حساب نمایندگی شماست، نه مشتری نهایی شما. یعنی مشتری شما در فرایند خرید با سرورنت روبه‌رو نمی‌شود و همه‌چیز از پنل خودتان انجام می‌شود، ولی مشخصات WHOIS برند شما را به‌عنوان مالک نشان می‌دهد نه برند مشتری را. اگر برای کارتان لازم است مالک، مشتری نهایی باشد، پیش از شروع با ما تماس بگیرید.'],
+             'en' => ['q' => 'Who is the registered owner (WHOIS)?', 'a' => 'In this version the registrant is your reseller account, not your end customer. Your customers never deal with ServerNet, but WHOIS shows you as the owner rather than them. If your business needs the end customer as registrant, talk to us before you start.'],
+             'tr' => ['q' => 'WHOIS sahibi kimdir?', 'a' => 'Bu sürümde kayıt sahibi sizin bayi hesabınızdır, son müşteriniz değil.']],
+
+            ['fa' => ['q' => 'اگر WHMCS نداشته باشم چه؟', 'a' => 'اگر وردپرس یا ووکامرس دارید، افزونهٔ وردپرس ما جعبهٔ جستجو، سبد خرید و ثبت خودکار پس از پرداخت را روی سایت خودتان می‌آورد؛ مشتری از درگاه خودتان پرداخت می‌کند. اگر هیچ‌کدام را ندارید، API عمومی و مستند است و از هر سامانه‌ای می‌شود صدایش زد.'],
+             'en' => ['q' => 'What if I do not use WHMCS?', 'a' => 'The API is public and documented, callable from any system — just create a token in your panel. Full docs with request samples and error codes live in the developers section.'],
+             'tr' => ['q' => 'WHMCS kullanmıyorsam?', 'a' => 'API herkese açık ve belgelidir; panelinizden bir token oluşturmanız yeterlidir.']],
+
+            ['fa' => ['q' => 'اگر ارتباط قطع شود، پولم دو بار کسر می‌شود؟', 'a' => 'خیر. هر سفارش یک کلید یکتا دارد و درخواست تکراری همان پاسخ قبلی را می‌گیرد، نه یک خرید تازه. افزونهٔ WHMCS این کلید را خودش می‌سازد و اگر ثبتی ناتمام بماند، صف خودکار ما دنبالش را می‌گیرد و در صورت شکست، مبلغ به اعتبارتان برمی‌گردد.'],
+             'en' => ['q' => 'If the connection drops, am I charged twice?', 'a' => 'No. Every order carries a unique key, so a repeated request returns the original response rather than buying again. Our queue finishes any incomplete registration, and refunds credit if it truly fails.'],
+             'tr' => ['q' => 'Bağlantı koparsa iki kez mi ücretlendirilirim?', 'a' => 'Hayır — her sipariş benzersiz bir anahtar taşır ve tekrarlanan istek yeni bir satın alma yapmaz.']],
+
             'activation',
         ],
     ],
