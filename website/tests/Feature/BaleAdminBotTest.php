@@ -687,4 +687,161 @@ class BaleAdminBotTest extends TestCase
         $this->assertSame($before['invoices'], \App\Models\Invoice::count());
         $this->assertSame('open', $t->fresh()->status, 'یک صفحهٔ خواندنی وضعیتِ تیکت را عوض کرد');
     }
+    // ═══════════════ فاز ۳: کارهای برگشت‌پذیر ═══════════════
+
+    private function service(?Customer $c = null, array $over = []): \App\Models\Service
+    {
+        return \App\Models\Service::create(array_merge([
+            'customer_id' => ($c ?? $this->customer())->id,
+            'name' => 'هاستِ لینوکسی', 'currency_code' => 'IRT', 'price' => 500000,
+            'tax_percent' => 0, 'cycle' => 'monthly', 'status' => 'active',
+            'activated_at' => now(), 'next_due_at' => now()->addMonth(),
+        ], $over));
+    }
+
+    /** مهرِ تازه‌ای که کارت روی دکمه می‌گذارد */
+    private function stamp(string $verb, int $id): string
+    {
+        return app(AdminBaleGate::class)->stamp($verb.':'.$id);
+    }
+
+    /**
+     * 🔴 هستهٔ محافظِ فاز ۳.
+     *
+     * دکمه‌های بله در تاریخچهٔ چت **تا ابد** کلیک‌شدنی می‌مانند. یک «⏸ تعلیق»
+     * که سه هفته پیش فرستاده شده، امروز با یک کلیکِ اتفاقی سرویسِ زندهٔ مشتری
+     * را می‌خواباند و مشتری پیامکِ «سرویس شما غیرفعال شد» می‌گیرد.
+     *
+     * ⚠️ محافظ عمداً یک مرحلهٔ تأییدِ اضافه **نیست** — کارفرما آن را برداشت و
+     * حق داشت. مهر در جریانِ عادی نامرئی است و فقط دکمهٔ کهنه را می‌گیرد.
+     */
+    public function test_a_stale_button_never_fires(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        // مهرِ متعلق به ۲۴ ساعت پیش
+        $old = $this->travelTo(now()->subDay(), fn () => $this->stamp('su', $s->id));
+
+        $this->click('v1:su:'.$s->id.':'.$old);
+
+        $this->assertSame('active', $s->fresh()->status, 'دکمهٔ کهنه سرویسِ زنده را معلق کرد');
+        $this->assertStringContainsString('کهنه', $this->outbox());
+    }
+
+    /** و دکمهٔ جعلی هم رد می‌شود — مهر با APP_KEY امضا شده */
+    public function test_a_forged_stamp_never_fires(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        $this->click('v1:su:'.$s->id.':dead');
+
+        $this->assertSame('active', $s->fresh()->status);
+    }
+
+    /** مهرِ تازه: کار انجام می‌شود و دکمهٔ برگشت همان‌جاست */
+    public function test_a_fresh_suspend_works_and_offers_an_undo(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        $this->click('v1:su:'.$s->id.':'.$this->stamp('su', $s->id));
+
+        $this->assertSame('suspended', $s->fresh()->status);
+
+        // ⚠️ کارِ برگشت‌پذیر باید برگشتش هم یک تپ باشد
+        $undo = array_filter($this->buttonsSent(), fn ($d) => str_starts_with($d, 'v1:sr:'.$s->id));
+        $this->assertNotEmpty($undo, 'دکمهٔ برگشت نیامد');
+    }
+
+    /** مهرِ یک فعل روی فعلِ دیگر کار نمی‌کند */
+    public function test_a_stamp_is_bound_to_its_verb(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        // مهرِ «رفعِ تعلیق» را روی «تعلیق» می‌زنیم
+        $this->click('v1:su:'.$s->id.':'.$this->stamp('sr', $s->id));
+
+        $this->assertSame('active', $s->fresh()->status, 'مهر بینِ دو فعل جابه‌جا پذیرفته شد');
+    }
+
+    /** ⚠️ و به شناسه هم بند است — مهرِ سرویسِ دیگری نباید این یکی را بخواباند */
+    public function test_a_stamp_is_bound_to_its_row(): void
+    {
+        $this->bind();
+        $a = $this->service();
+        $b = $this->service();
+
+        $this->click('v1:su:'.$a->id.':'.$this->stamp('su', $b->id));
+
+        $this->assertSame('active', $a->fresh()->status, 'مهرِ یک ردیف روی ردیفِ دیگر کار کرد');
+    }
+
+    /** وضعیت و اولویتِ تیکت مهر نمی‌خواهد: هیچ پیامی به مشتری نمی‌رود */
+    public function test_ticket_priority_changes_without_a_stamp_and_notifies_nobody(): void
+    {
+        $box = $this->spyOnNotifications();
+        $this->bind();
+        $t = $this->ticket();
+
+        $this->click('v1:tps:'.$t->id.':p_urgent');
+
+        $this->assertSame('urgent', $t->fresh()->priority);
+        $this->assertSame([], (array) $box, 'تغییرِ اولویت به مشتری اعلان فرستاد');
+    }
+
+    /** صدورِ فاکتورِ تمدید از همان متدِ پنل می‌رود، نه نسخهٔ دوم */
+    public function test_renewal_invoice_is_issued_from_the_bot(): void
+    {
+        $this->bind();
+        $s = $this->service();
+
+        $before = \App\Models\Invoice::count();
+
+        $this->click('v1:sv:'.$s->id.':'.$this->stamp('sv', $s->id));
+
+        $this->assertSame($before + 1, \App\Models\Invoice::count(), 'فاکتورِ تمدید صادر نشد');
+        $this->assertSame('active', $s->fresh()->status, 'صدورِ فاکتور نباید وضعیتِ سرویس را عوض کند');
+    }
+
+    /**
+     * ⚠️ تلاشِ دوبارهٔ تحویل فقط **پرچم را برمی‌گرداند** و خودش تماسی نمی‌گیرد.
+     *
+     * `createacct` تا ۱۸۰ ثانیه طول می‌کشد و مهلتِ وب‌هوکِ بله را رد می‌کند؛
+     * آن‌وقت بله آپدیت را دوباره می‌فرستد و آن ترافیک در همان سطلِ throttleای
+     * می‌نشیند که پرداختِ مشتری هم در آن است.
+     */
+    public function test_provision_retry_only_flips_the_flag_and_makes_no_http_call(): void
+    {
+        $this->bind();
+        $s = $this->service(null, ['provision_status' => 'failed', 'status' => 'provision_failed']);
+
+        $this->click('v1:sp:'.$s->id.':'.$this->stamp('sp', $s->id));
+
+        $this->assertSame('pending', $s->fresh()->provision_status);
+
+        foreach (Http::recorded() as [$req, ]) {
+            $this->assertStringNotContainsString('createacct', $req->url(),
+                'دکمهٔ تلاشِ دوباره خودش به سرور زنگ زد — مهلتِ وب‌هوک رد می‌شود');
+        }
+    }
+
+    /** لغوِ فاکتور از همان تعریفِ مشترک می‌رود و فاکتورِ پرداخت‌شده را نمی‌گیرد */
+    public function test_cancelling_a_paid_invoice_from_the_bot_is_refused(): void
+    {
+        $this->bind();
+        $c = $this->customer();
+
+        $paid = \App\Models\Invoice::create([
+            'customer_id' => $c->id, 'kind' => 'service', 'currency_code' => 'IRT',
+            'subtotal' => 100000, 'tax' => 0, 'total' => 100000, 'paid' => 100000,
+            'status' => 'paid', 'issued_at' => now(), 'paid_at' => now(),
+        ]);
+
+        $this->click('v1:ic:'.$paid->id.':'.$this->stamp('ic', $paid->id));
+
+        $this->assertSame('paid', $paid->fresh()->status, 'فاکتورِ پرداخت‌شده لغو شد');
+    }
 }

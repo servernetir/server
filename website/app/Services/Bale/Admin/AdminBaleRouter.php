@@ -278,6 +278,13 @@ class AdminBaleRouter
                 'dl' => $this->domainList(),
                 'd'  => $this->domainCard((int) $arg),
                 'sq' => $this->stuckList(),
+                'su' => $this->serviceSuspend($arg, true),
+                'sr' => $this->serviceSuspend($arg, false),
+                'sv' => $this->serviceRenew($arg),
+                'sp' => $this->serviceRetry($arg),
+                'ic' => $this->invoiceCancel($arg),
+                'tp' => $this->ticketStatusMenu($arg),
+                'tps' => $this->ticketStatusSet($arg),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
@@ -742,11 +749,16 @@ class AdminBaleRouter
         $rows = [[
             ['text' => '✍️ پیش‌نویسِ هوشمند', 'data' => self::CB_PREFIX.'td:'.$t->id],
             ['text' => '✏️ خودم می‌نویسم', 'data' => self::CB_PREFIX.'tw:'.$t->id],
+        ], [
+            ['text' => '🏷 وضعیت/اولویت', 'data' => self::CB_PREFIX.'tp:'.$t->id],
+            ['text' => '👤 مشتری', 'data' => self::CB_PREFIX.'c:'.((int) $t->customer_id)],
         ]];
 
         if (! $t->isClosed()) {
             $rows[] = [['text' => '🔒 بستنِ تیکت', 'data' => self::CB_PREFIX.'tc:'.$t->id]];
         }
+
+        $rows[] = $this->nav('q');
 
         $this->sendButtons($this->ui->ticket($t), $rows);
     }
@@ -959,8 +971,25 @@ class AdminBaleRouter
             return;
         }
 
-        $this->sendButtons($this->screens->service($s),
-            [$this->nav($s->customer_id ? 'c:'.$s->customer_id : '')]);
+        $rows = [];
+
+        if ($s->status === 'suspended') {
+            $rows[] = [$this->stamped('▶️ رفعِ تعلیق', 'sr', $s->id)];
+        } elseif (! in_array($s->status, \App\Models\Service::DEAD_STATUSES, true)) {
+            $rows[] = [$this->stamped('⏸ تعلیق', 'su', $s->id)];
+        }
+
+        if (in_array($s->provision_status, ['failed', 'manual'], true)) {
+            $rows[] = [$this->stamped('🔁 تلاشِ دوبارهٔ تحویل', 'sp', $s->id)];
+        }
+
+        if ($s->isRecurring()) {
+            $rows[] = [$this->stamped('🧾 صدورِ فاکتورِ تمدید', 'sv', $s->id)];
+        }
+
+        $rows[] = $this->nav($s->customer_id ? 'c:'.$s->customer_id : '');
+
+        $this->sendButtons($this->screens->service($s), $rows);
     }
 
     private function invoiceList(int $customerId): void
@@ -992,8 +1021,16 @@ class AdminBaleRouter
             return;
         }
 
-        $this->sendButtons($this->screens->invoice($i),
-            [$this->nav($i->customer_id ? 'c:'.$i->customer_id : '')]);
+        $rows = [];
+
+        // فقط فاکتورِ پرداخت‌نشده و دست‌نخورده لغو می‌شود
+        if ((int) $i->paid <= 0 && in_array($i->status, ['unpaid', 'draft'], true)) {
+            $rows[] = [$this->stamped('⚪️ لغوِ فاکتور', 'ic', $i->id)];
+        }
+
+        $rows[] = $this->nav($i->customer_id ? 'c:'.$i->customer_id : '');
+
+        $this->sendButtons($this->screens->invoice($i), $rows);
     }
 
     private function receiptList(): void
@@ -1085,6 +1122,247 @@ class AdminBaleRouter
         $rows[] = $this->nav();
 
         $this->sendButtons($r['text'], $rows);
+    }
+
+    // ─────────────────── فاز ۳: کارهای برگشت‌پذیر ───────────────────
+
+    /**
+     * دکمهٔ مهردار — تازگی‌اش سنجیده می‌شود، ولی در جریانِ عادی نامرئی است.
+     *
+     * @return array{text:string,data:string}
+     */
+    private function stamped(string $text, string $verb, int $id): array
+    {
+        return [
+            'text' => $text,
+            'data' => self::CB_PREFIX.$verb.':'.$id.':'.$this->gate->stamp($verb.':'.$id),
+        ];
+    }
+
+    /**
+     * @return array{0:int,1:bool} شناسه و اینکه مهر تازه بود یا نه
+     */
+    private function unstamp(string $arg, string $verb): array
+    {
+        [$id, $stamp] = array_pad(explode(':', $arg, 2), 2, '');
+
+        return [(int) $id, $this->gate->verifyStamp($verb.':'.(int) $id, $stamp)];
+    }
+
+    private function staleButton(): void
+    {
+        $this->replyToOwner(
+            "⌛️ این دکمه کهنه است.\n"
+            .'برای امنیت اجرا نشد — کارت را دوباره باز کنید و از همان‌جا بزنید.'
+        );
+    }
+
+    private function serviceSuspend(string $arg, bool $suspend): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, $suspend ? 'su' : 'sr');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $s = \App\Models\Service::find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        $prov = app(\App\Services\Provisioning\ProvisioningService::class);
+        $r = $suspend ? $prov->suspend($s) : $prov->unsuspend($s);
+
+        if (! $r->ok && ! $r->manual) {
+            $this->replyToOwner('⚠️ انجام نشد: '.mb_substr((string) $r->error, 0, 200));
+
+            return;
+        }
+
+        \App\Models\ActivityLog::forService($s, $suspend ? 'suspend' : 'reactivate',
+            'از رباتِ بله توسط مدیر «'.($this->gate->boundUser()?->name ?? 'مدیر').'»', 'staff');
+
+        // ⚠️ دکمهٔ برگشت همان‌جا: کارِ برگشت‌پذیر باید برگشتش هم یک تپ باشد
+        $this->sendButtons(
+            ($suspend ? '⏸ «'.$s->name.'» معلق شد' : '▶️ «'.$s->name.'» فعال شد')
+            .($s->customer ? ' — '.$s->customer->displayName() : '')
+            .($r->manual ? "\n⚠️ روی سرور دستی انجام دهید." : ''),
+            [[$this->stamped($suspend ? '↩️ برگرداندن' : '↩️ تعلیقِ دوباره',
+                $suspend ? 'sr' : 'su', $s->id)],
+             $this->nav('s:'.$s->id)],
+        );
+    }
+
+    private function serviceRenew(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'sv');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $s = \App\Models\Service::find($id);
+
+        if ($s === null || ! $s->isRecurring()) {
+            $this->replyToOwner('این سرویس دوره‌ای نیست یا پیدا نشد.');
+
+            return;
+        }
+
+        try {
+            // ⚠️ همان متدِ پنل، نه نسخهٔ دوم: مبلغ و مالیات و سررسید یک‌جا حساب
+            // می‌شوند و دو پیاده‌سازی روزی واگرا می‌شوند.
+            $inv = app(\App\Http\Controllers\Admin\ServiceController::class)->issueInvoice($s);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('bale-admin', $e, ['step' => 'renew', 'service' => $s->id]);
+            $this->replyToOwner('⚠️ صدورِ فاکتور انجام نشد.');
+
+            return;
+        }
+
+        \App\Models\ActivityLog::forService($s, 'renew',
+            'فاکتورِ تمدید از رباتِ بله صادر شد', 'staff');
+
+        $this->sendButtons(
+            '🧾 فاکتورِ تمدیدِ «'.$s->name.'» صادر شد.'
+            ."\n".'مبلغ: '.fa_num(number_format((int) $inv->total)).' تومان'
+            ."\n".'پس از پرداخت، سررسید یک دوره جلو می‌رود.',
+            [[['text' => '🧾 دیدنِ فاکتور', 'data' => self::CB_PREFIX.'i:'.$inv->id]],
+             $this->nav('s:'.$s->id)],
+        );
+    }
+
+    /**
+     * تلاشِ دوبارهٔ تحویل.
+     *
+     * ⚠️ فقط پرچم را به `pending` برمی‌گرداند و **خودش تماسی نمی‌گیرد**:
+     * `createacct` تا ۱۸۰ ثانیه طول می‌کشد و مهلتِ وب‌هوکِ بله را رد می‌کند.
+     * کرونِ `provision:run` همان دقیقه برش می‌دارد.
+     */
+    private function serviceRetry(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'sp');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $s = \App\Models\Service::find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        if (! in_array($s->provision_status, ['failed', 'manual'], true)) {
+            $this->replyToOwner('این سرویس در صفِ تلاشِ دوباره نیست (وضعیت: '.$s->provision_status.').');
+
+            return;
+        }
+
+        $s->forceFill(['provision_status' => 'pending', 'provision_error' => null])->save();
+
+        $this->sendButtons(
+            '🔁 «'.$s->name.'» به صفِ تحویل برگشت. کرون ظرفِ یک دقیقه سراغش می‌رود.',
+            [$this->nav('s:'.$s->id)],
+        );
+    }
+
+    /** لغوِ فاکتورِ پرداخت‌نشده — همان تعریفی که مشتری و کرون از آن استفاده می‌کنند */
+    private function invoiceCancel(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'ic');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $i = \App\Models\Invoice::find($id);
+
+        if ($i === null) {
+            $this->replyToOwner('فاکتور پیدا نشد.');
+
+            return;
+        }
+
+        $ok = app(\App\Services\Billing\InvoiceCanceller::class)
+            ->cancel($i, 'لغو توسط مدیر از رباتِ بله', rejectPendingReceipt: false);
+
+        $this->sendButtons(
+            $ok ? '⚪️ فاکتورِ '.$i->number.' لغو شد.'
+                : '⚠️ لغو نشد — پول رویش حرکت کرده یا از قبل لغو شده.',
+            [$this->nav($i->customer_id ? 'c:'.$i->customer_id : '')],
+        );
+    }
+
+    private function ticketStatusMenu(string $arg): void
+    {
+        $t = Ticket::find((int) $arg);
+
+        if ($t === null) {
+            $this->replyToOwner('تیکت پیدا نشد.');
+
+            return;
+        }
+
+        $this->sendButtons('🏷 وضعیت و اولویتِ '.$t->number, [
+            [
+                ['text' => '🟠 باز', 'data' => self::CB_PREFIX.'tps:'.$t->id.':s_open'],
+                ['text' => '🟢 پاسخ‌داده', 'data' => self::CB_PREFIX.'tps:'.$t->id.':s_answered'],
+            ],
+            [
+                ['text' => '🔺 زیاد', 'data' => self::CB_PREFIX.'tps:'.$t->id.':p_high'],
+                ['text' => '🚨 فوری', 'data' => self::CB_PREFIX.'tps:'.$t->id.':p_urgent'],
+            ],
+            [
+                ['text' => '▫️ معمولی', 'data' => self::CB_PREFIX.'tps:'.$t->id.':p_normal'],
+                ['text' => '🔽 کم', 'data' => self::CB_PREFIX.'tps:'.$t->id.':p_low'],
+            ],
+            $this->nav('t:'.$t->id),
+        ]);
+    }
+
+    /**
+     * ⚠️ این یکی مهر ندارد و لازم هم ندارد: وضعیت و اولویتِ تیکت **هیچ پیامی به
+     * مشتری نمی‌فرستد** و با یک تپ برمی‌گردد. مهر برای کارهایی است که مشتری
+     * می‌بیندشان.
+     */
+    private function ticketStatusSet(string $arg): void
+    {
+        [$id, $what] = array_pad(explode(':', $arg, 2), 2, '');
+        $t = Ticket::find((int) $id);
+
+        if ($t === null || $what === '') {
+            $this->replyToOwner('تیکت پیدا نشد.');
+
+            return;
+        }
+
+        [$kind, $value] = array_pad(explode('_', $what, 2), 2, '');
+
+        if ($kind === 's' && in_array($value, ['open', 'answered', 'closed'], true)) {
+            $t->forceFill(['status' => $value, 'closed_at' => $value === 'closed' ? now() : null])->save();
+        } elseif ($kind === 'p' && in_array($value, ['low', 'normal', 'high', 'urgent'], true)) {
+            $t->forceFill(['priority' => $value])->save();
+        } else {
+            $this->replyToOwner('مقدارِ ناشناخته.');
+
+            return;
+        }
+
+        $this->showTicket((string) $t->id);
     }
 
     // ─────────────────── صندوقِ ایمیل ───────────────────
