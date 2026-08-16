@@ -10,6 +10,10 @@
 @section('title', $c['meta_t'].' — '.__('ui.brand'))
 @section('description', $c['meta_d'])
 
+{{-- `/lookup` همان `/lookup/a` را رندر می‌کند؛ بی‌این خط هر دو خودشان را
+     canonical اعلام می‌کردند و برای یک کوئری رقابت می‌کردند. چرایی در کنترلر. --}}
+@section('canonical', $canonical)
+
 @section('content')
 
 {{-- ============ HERO + FORM ============ --}}
