@@ -5,6 +5,7 @@ namespace App\Services\Mail;
 use App\Models\ActivityLog;
 use App\Mail\MailboxReplyMail;
 use App\Models\MailboxMessage;
+use App\Services\HtmlSanitizer;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Mail;
 
@@ -35,9 +36,10 @@ use Illuminate\Support\Facades\Mail;
 class MailboxReplier
 {
     /**
+     * @param  array{html?:?string, attachments?:list<array{name:string,mime:string,data:string}>}  $opts
      * @return array{ok:bool,message:string}
      */
-    public function reply(MailboxMessage $m, string $body, ?int $userId = null, ?string $userName = null): array
+    public function reply(MailboxMessage $m, string $body, ?int $userId = null, ?string $userName = null, array $opts = []): array
     {
         $body = trim($body);
 
@@ -112,7 +114,27 @@ class MailboxReplier
         $subject = $this->replySubject((string) $m->subject);
         $text    = $this->compose($body, $m);
 
-        $mail = new MailboxReplyMail($text, $subject, trim((string) $m->message_id) ?: null);
+        /*
+        | ⚠️ HTML **دوباره** پاک‌سازی می‌شود، حتی با اینکه از پنلِ خودمان
+        | می‌آید. `contenteditable` مرورگر آشغالِ خودش را تولید می‌کند
+        | (`<font>`، `style` درهم، تگِ نیمه‌باز)، و مهم‌تر: یک POSTِ دستی
+        | می‌تواند هرچه بخواهد در آن فیلد بگذارد. اعتماد به «فرمِ خودمان»
+        | همان جایی است که XSS از آن وارد می‌شود.
+        */
+        $html = trim((string) ($opts['html'] ?? ''));
+        $html = $html === '' ? null : HtmlSanitizer::clean($html);
+
+        $files = $this->normalizeFiles($opts['attachments'] ?? []);
+
+        $mail = new MailboxReplyMail(
+            $text,
+            $subject,
+            trim((string) $m->message_id) ?: null,
+            $html,
+            trim((string) config('mailboxes.signature', '')),
+            $this->quotedSource($m),
+            $files,
+        );
 
         /*
         | ⚠️ `from()` روی خودِ Mailable، نه در قالب: نشانهٔ فرستنده باید همان
@@ -194,6 +216,42 @@ class MailboxReplier
             $sig !== '' ? "\n-- \n".$sig : null,
             $quoted !== '' ? "\n\nدر پاسخ به (بخشی از نامهٔ شما):\n".$quoted : null,
         ]));
+    }
+
+    /** متنِ نامهٔ اصلی که در پاسخ نقل می‌شود — همان چیزی که `compose()` هم می‌بُرد. */
+    private function quotedSource(MailboxMessage $m): string
+    {
+        return trim(mb_substr(trim((string) $m->snippet), 0, 1200));
+    }
+
+    /**
+     * پیوست‌ها را به شکلی درمی‌آورد که `MailboxReplyMail` می‌فهمد.
+     *
+     * 🔴 ردیفِ بی‌داده **دور ریخته می‌شود، نه با نامِ خالی فرستاده**: پیوستِ
+     * صفر بایتی در بعضی کلاینت‌ها کلِ نامه را خراب نشان می‌دهد.
+     *
+     * @param  mixed  $files
+     * @return list<array{name:string, mime:string, data:string}>
+     */
+    private function normalizeFiles($files): array
+    {
+        $out = [];
+
+        foreach ((array) $files as $f) {
+            $data = (string) ($f['data'] ?? '');
+
+            if ($data === '') {
+                continue;
+            }
+
+            $out[] = [
+                'name' => (string) ($f['name'] ?? 'attachment'),
+                'mime' => (string) ($f['mime'] ?? 'application/octet-stream'),
+                'data' => $data,
+            ];
+        }
+
+        return $out;
     }
 
     private function fail(string $message): array

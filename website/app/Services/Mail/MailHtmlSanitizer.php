@@ -200,6 +200,38 @@ class MailHtmlSanitizer
         return [$out ?? $html, $map];
     }
 
+    /**
+     * نسخهٔ متنیِ سادهٔ یک HTML — برای بخشِ `text/plain`ِ نامهٔ خروجی.
+     *
+     * 🔴 چرا لازم است: نامهٔ فقط-HTML امتیازِ اسپمِ بالاتری می‌گیرد، و ساعتِ
+     * هوشمند و اعلانِ گوشی و کلاینتِ متنی همین بخش را نشان می‌دهند. کاربر
+     * هرگز این متن را نمی‌نویسد؛ از همان چیزی که در ادیتور نوشته ساخته می‌شود.
+     *
+     * ⚠️ ترتیبِ جایگزینی مهم است: اول تگ‌های بلوکی به خطِ تازه تبدیل می‌شوند،
+     * بعد بقیه حذف. برعکسش، کلِ نامه یک پاراگرافِ بی‌نفس می‌شود.
+     */
+    public static function toText(string $html): string
+    {
+        if (trim($html) === '') {
+            return '';
+        }
+
+        $s = preg_replace('~<(script|style)\b[^>]*>.*?</\1>~is', '', $html) ?? $html;
+        $s = preg_replace('~<li\b[^>]*>~i', "\n• ", $s) ?? $s;
+        $s = preg_replace('~<br\s*/?>~i', "\n", $s) ?? $s;
+        // ⚠️ `li` عمداً این‌جا نیست: `<li>` بالاتر خودش خطِ تازه گذاشته، و
+        // شمردنِ دوباره‌اش بینِ هر بندِ فهرست یک خطِ خالی می‌انداخت.
+        $s = preg_replace('~</(p|div|h[1-6]|ul|ol|blockquote|tr)>~i', "\n", $s) ?? $s;
+        $s = strip_tags($s);
+        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // سه خطِ خالی پشتِ هم از `<div><p>` های تودرتو می‌آید، نه از نیتِ نویسنده.
+        $s = preg_replace('~[ \t]+~u', ' ', $s) ?? $s;
+        $s = preg_replace('~\n{3,}~u', "\n\n", $s) ?? $s;
+
+        return trim($s);
+    }
+
     /** نوعِ فایلی که می‌شود درون‌خط نشانش داد. بقیه فقط دانلود می‌شوند. */
     public static function isDisplayableImage(string $mime): bool
     {

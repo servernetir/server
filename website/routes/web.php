@@ -2206,6 +2206,14 @@ Route::prefix('admin')->group(function () {
         Route::get('/mail/{message}', [\App\Http\Controllers\Admin\MailboxController::class, 'show'])->name('admin.mail.show')->middleware('admin');
         Route::get('/mail/{message}/attachment/{index}', [\App\Http\Controllers\Admin\MailboxController::class, 'attachment'])->whereNumber('index')->middleware('admin');
         Route::post('/mail/{message}/reply', [\App\Http\Controllers\Admin\MailboxController::class, 'reply'])->middleware('admin');
+        /*
+        | ⚠️ `move` روی **خودِ صندوق** اثر دارد، نه فقط روی ردیفِ دیتابیس. پس
+        | POST است نه GET: یک پیش‌واکشیِ مرورگر یا رباتِ لینک‌خوان نباید بتواند
+        | نامهٔ کسی را به سطلِ زباله ببرد.
+        */
+        Route::post('/mail/{message}/move/{kind}', [\App\Http\Controllers\Admin\MailboxController::class, 'move'])
+            ->whereIn('kind', ['trash', 'junk', 'archive'])->middleware('admin');
+        Route::post('/mail/{message}/remind', [\App\Http\Controllers\Admin\MailboxController::class, 'remind'])->middleware('admin');
 
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');

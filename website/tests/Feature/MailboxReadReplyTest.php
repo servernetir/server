@@ -4,9 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\MailboxMessage;
 use App\Models\User;
+use App\Mail\MailboxReplyMail;
+use App\Models\CalendarEvent;
 use App\Services\Mail\MailboxReader;
 use App\Services\Mail\MailHtmlSanitizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -27,6 +31,8 @@ class MailboxReadReplyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        config(['mailboxes.signature' => 'سرورنت']);
 
         config(['mailboxes.accounts' => [
             [
@@ -93,6 +99,20 @@ class MailboxReadReplyTest extends TestCase
                     'size'      => 2048,
                     'truncated' => $this->cut,
                 ];
+            }
+
+            /** @var list<array{id:int,kind:string}> */
+            public static array $moved = [];
+
+            public bool $moveOk = true;
+
+            public function move(MailboxMessage $m, string $kind): array
+            {
+                self::$moved[] = ['id' => $m->id, 'kind' => $kind];
+
+                return $this->moveOk
+                    ? ['ok' => true, 'message' => 'رفت.']
+                    : ['ok' => false, 'message' => 'سرور جابه‌جایی را نپذیرفت. نامه سرِ جایش است.'];
             }
 
             public function attachment(MailboxMessage $m, int $index): array
@@ -309,7 +329,9 @@ class MailboxReadReplyTest extends TestCase
 
         $r->assertOk();
         $r->assertSee('SMTPش تعریف نشده');
-        $r->assertDontSee('بفرست');
+        // ⚠️ ادعا روی خودِ فرم است نه واژهٔ «بفرست» — آن واژه در متنِ نمونهٔ
+        // یادآوری هم هست و تست را به‌خاطرِ چیزی بی‌ربط قرمز می‌کرد.
+        $r->assertDontSee('id="mail-reply"', false);
     }
 
     /** ⚠️ ولی جیمیل SMTPِ صریح دارد، پس باید بتواند. */
@@ -322,7 +344,7 @@ class MailboxReadReplyTest extends TestCase
         $r = $this->actingAs($this->admin(), 'web')->get('/admin/mail/'.$m->id);
 
         $r->assertOk();
-        $r->assertSee('بفرست');
+        $r->assertSee('id="mail-reply"', false);
     }
 
     /** فرستندهٔ بی‌نشانیِ معتبر: پاسخ ممکن نیست و همان‌جا گفته می‌شود. */
@@ -336,6 +358,258 @@ class MailboxReadReplyTest extends TestCase
 
         $r->assertOk();
         $r->assertSee('نشانیِ فرستندهٔ این نامه معتبر نیست');
+    }
+
+    // ───────────────────────── ادیتور و پیوست ─────────────────────────
+
+    /**
+     * 🔴 HTMLِ فرمِ خودمان هم پاک‌سازی می‌شود.
+     *
+     * `contenteditable` آشغالِ خودش را می‌سازد، و مهم‌تر: یک POSTِ دستی
+     * می‌تواند هرچه بخواهد در آن فیلد بگذارد. «فرمِ خودمان است» همان جمله‌ای
+     * است که XSS از آن وارد می‌شود.
+     */
+    public function test_the_composed_reply_is_sanitized_before_it_leaves(): void
+    {
+        Mail::fake();
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/reply', [
+                'body' => '<p>سلام <b>دوست</b></p><script>steal()</script><img src=x onerror="bad()">',
+            ]);
+
+        Mail::assertSent(MailboxReplyMail::class, function (MailboxReplyMail $mail) {
+            $this->assertStringNotContainsString('<script', (string) $mail->bodyHtml);
+            $this->assertStringNotContainsString('onerror', (string) $mail->bodyHtml);
+            $this->assertStringContainsString('<b>دوست</b>', (string) $mail->bodyHtml);
+
+            return true;
+        });
+    }
+
+    /** نسخهٔ متنی از خودِ HTML ساخته می‌شود — کاربر هرگز دو کادر پر نمی‌کند. */
+    public function test_a_plain_text_part_is_derived_from_the_html(): void
+    {
+        Mail::fake();
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/reply', ['body' => '<p>خط یک</p><p>خط دو</p>']);
+
+        Mail::assertSent(MailboxReplyMail::class, function (MailboxReplyMail $mail) {
+            $this->assertStringContainsString('خط یک', $mail->bodyText);
+            $this->assertStringContainsString('خط دو', $mail->bodyText);
+            $this->assertStringNotContainsString('<p>', $mail->bodyText);
+
+            return true;
+        });
+    }
+
+    /** HTMLی که بعد از پاک‌سازی هیچ متنی ندارد، نباید نامهٔ خالی بفرستد. */
+    public function test_markup_with_no_text_is_refused(): void
+    {
+        Mail::fake();
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->from('/admin/mail/'.$m->id)
+            ->post('/admin/mail/'.$m->id.'/reply', ['body' => '<p><br></p><div>   </div>'])
+            ->assertSessionHasErrors('body');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_an_attachment_rides_along_with_the_reply(): void
+    {
+        Mail::fake();
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/reply', [
+                'body'  => '<p>فاکتور پیوست است</p>',
+                // ⚠️ `create()` فایلِ **خالی** می‌سازد و فقط اندازه را دروغ می‌گوید؛
+                // با آن، این تست چیزی را می‌سنجید که هرگز پیوست نمی‌شد.
+                'files' => [UploadedFile::fake()->createWithContent('invoice.pdf', '%PDF-1.4 fake')],
+            ]);
+
+        Mail::assertSent(MailboxReplyMail::class, function (MailboxReplyMail $mail) {
+            $this->assertCount(1, $mail->files);
+            $this->assertSame('invoice.pdf', $mail->files[0]['name']);
+
+            return true;
+        });
+    }
+
+    /**
+     * ⚠️ ردِ پسوندِ اجرایی به‌خاطرِ **گیرنده** است نه ما: جیمیل نامه‌ای با
+     * `.exe` را کامل رد می‌کند، پس کلِ پاسخ گم می‌شود نه فقط پیوستش.
+     */
+    public function test_an_executable_attachment_is_refused_with_a_reason(): void
+    {
+        Mail::fake();
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->from('/admin/mail/'.$m->id)
+            ->post('/admin/mail/'.$m->id.'/reply', [
+                'body'  => '<p>سلام</p>',
+                'files' => [UploadedFile::fake()->createWithContent('setup.exe', 'MZ')],
+            ])
+            ->assertSessionHasErrors('files');
+
+        Mail::assertNothingSent();
+    }
+
+    // ───────────────────────── حذف و اسپم ─────────────────────────
+
+    /**
+     * 🔴 «حذف» یعنی سطلِ زباله. اگر روزی این تست به `expunge` تغییر کند،
+     * یعنی وعده‌ای که روی دکمه به کاربر داده‌ایم شکسته شده.
+     */
+    public function test_delete_means_trash_and_the_row_stays(): void
+    {
+        $this->fakeReader($this->mail());
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/move/trash')
+            ->assertRedirect('/admin/mail?box=support');
+
+        $this->assertSame('trash', $this->lastMoved()['kind']);
+        $this->assertNotNull($m->fresh()->handled_at);
+        $this->assertNotNull(MailboxMessage::find($m->id), 'ردیف نباید پاک شود وگرنه sync دوباره می‌آوردش');
+    }
+
+    public function test_marking_junk_also_files_it_as_spam(): void
+    {
+        $this->fakeReader($this->mail());
+        $m = $this->msg(['needs_reply' => true]);
+
+        $this->actingAs($this->admin(), 'web')->post('/admin/mail/'.$m->id.'/move/junk');
+
+        $fresh = $m->fresh();
+        $this->assertSame('junk', $this->lastMoved()['kind']);
+        $this->assertSame('spam', $fresh->category);
+        $this->assertFalse((bool) $fresh->needs_reply);
+    }
+
+    /** اگر سرور جابه‌جایی را نپذیرفت، ردیف نباید «رسیدگی‌شده» بخورد. */
+    public function test_a_failed_move_changes_nothing(): void
+    {
+        $this->fakeReader($this->mail());
+        app(MailboxReader::class)->moveOk = false;
+
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->from('/admin/mail/'.$m->id)
+            ->post('/admin/mail/'.$m->id.'/move/trash')
+            ->assertRedirect('/admin/mail/'.$m->id);
+
+        $this->assertNull($m->fresh()->handled_at);
+    }
+
+    public function test_an_unknown_destination_is_refused(): void
+    {
+        $this->fakeReader($this->mail());
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$this->msg()->id.'/move/nowhere')
+            ->assertNotFound();
+    }
+
+    // ───────────────────────── یادآوری ─────────────────────────
+
+    public function test_a_reminder_lands_in_the_business_calendar(): void
+    {
+        $m = $this->msg(['subject' => 'پیشنهاد همکاری']);
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/remind', ['when' => 'three_days', 'note' => 'قیمت بفرست']);
+
+        $e = CalendarEvent::latest('id')->first();
+
+        $this->assertNotNull($e);
+        $this->assertSame('task', $e->type);
+        $this->assertStringContainsString('پیشنهاد همکاری', $e->title);
+        $this->assertStringContainsString('قیمت بفرست', $e->description);
+        $this->assertSame(now()->addDays(3)->toDateString(), $e->event_date->toDateString());
+        $this->assertSame($m->id, $e->meta['mailbox_message_id'] ?? null);
+    }
+
+    /**
+     * 🔴 متنِ نامه نباید در تقویم کپی شود — همان دادهٔ مشتری که عمداً در
+     * دیتابیس نگه نمی‌داریم، نباید از درِ پشتی وارد شود.
+     */
+    public function test_a_reminder_never_copies_the_message_body(): void
+    {
+        $m = $this->msg(['snippet' => 'شمارهٔ کارت من ۶۰۳۷۹۹۱۱۱۱۱۱۱۱۱۱ است']);
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/mail/'.$m->id.'/remind', ['when' => 'tomorrow']);
+
+        $e = CalendarEvent::latest('id')->first();
+
+        $this->assertStringNotContainsString('۶۰۳۷۹۹', (string) $e->description);
+    }
+
+    public function test_an_unknown_reminder_window_is_refused(): void
+    {
+        $m = $this->msg();
+
+        $this->actingAs($this->admin(), 'web')
+            ->from('/admin/mail/'.$m->id)
+            ->post('/admin/mail/'.$m->id.'/remind', ['when' => 'never'])
+            ->assertSessionHasErrors('when');
+
+        $this->assertSame(0, CalendarEvent::count());
+    }
+
+    // ───────────────────────── ناوبری ─────────────────────────
+
+    /**
+     * ⚠️ «بعدی» یعنی قدیمی‌تر. ترتیب با `id` شکسته می‌شود چون دو نامه
+     * می‌توانند دقیقاً یک ثانیه `received_at` داشته باشند و بی‌آن، ناوبری
+     * بینِ همان دو تا حلقه می‌زد.
+     */
+    public function test_navigation_points_at_the_neighbours_in_the_same_box(): void
+    {
+        $this->fakeReader($this->mail());
+
+        $old = $this->msg(['received_at' => now()->subDays(2)]);
+        $mid = $this->msg(['received_at' => now()->subDay()]);
+        $new = $this->msg(['received_at' => now()]);
+
+        $r = $this->actingAs($this->admin(), 'web')->get('/admin/mail/'.$mid->id);
+
+        $r->assertOk();
+        $r->assertSee('/admin/mail/'.$old->id, false);
+        $r->assertSee('/admin/mail/'.$new->id, false);
+    }
+
+    public function test_other_mail_from_the_same_sender_is_linked(): void
+    {
+        $this->fakeReader($this->mail());
+
+        $this->msg(['from_email' => 'repeat@example.test']);
+        $m = $this->msg(['from_email' => 'repeat@example.test']);
+
+        $r = $this->actingAs($this->admin(), 'web')->get('/admin/mail/'.$m->id);
+
+        $r->assertOk();
+        $r->assertSee('نامهٔ دیگر از این فرستنده');
+        $r->assertSee('from='.urlencode('repeat@example.test'), false);
+    }
+
+    /** @return array{id:int,kind:string} */
+    private function lastMoved(): array
+    {
+        $moved = app(MailboxReader::class)::$moved;
+
+        $this->assertNotEmpty($moved, 'هیچ جابه‌جایی روی صندوق انجام نشد');
+
+        return end($moved);
     }
 
     public function test_an_empty_reply_is_refused(): void

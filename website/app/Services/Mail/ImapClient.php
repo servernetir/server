@@ -219,6 +219,134 @@ class ImapClient
         ];
     }
 
+    // ───────────────────────── پوشه‌ها و جابه‌جایی ─────────────────────────
+
+    /**
+     * پوشه‌های صندوق، با پرچم‌های SPECIAL-USE اگر سرور بدهد.
+     *
+     * @return list<array{name:string, flags:list<string>}>
+     */
+    public function folders(): array
+    {
+        $out = [];
+
+        /*
+        | ⚠️ `(SPECIAL-USE)` را همهٔ سرورها نمی‌فهمند. Dovecotِ cPanel می‌دهد،
+        | ولی اگر ندهد پاسخ خالی می‌شود و ما بی‌صدا هیچ پوشه‌ای پیدا نمی‌کنیم —
+        | پس اگر نتیجه تهی بود، `LIST` ساده هم زده می‌شود.
+        */
+        foreach (['LIST (SPECIAL-USE) "" "*"', 'LIST "" "*"'] as $cmd) {
+            foreach ($this->cmd($cmd) as $line) {
+                if (! preg_match('~^\* LIST \(([^)]*)\)\s+("[^"]*"|NIL)\s+(.+)$~i', $line, $m)) {
+                    continue;
+                }
+
+                $flags = array_values(array_filter(preg_split('~\s+~', trim($m[1])) ?: []));
+                $name  = trim($m[3]);
+                $name  = trim($name, '"');
+
+                if ($name !== '') {
+                    $out[] = ['name' => $name, 'flags' => $flags];
+                }
+            }
+
+            if ($out !== []) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * پوشهٔ «سطلِ زباله» / «هرزنامه» / «بایگانی» — با نامِ واقعیِ همین سرور.
+     *
+     * 🔴 نامِ این پوشه‌ها **حدس‌زدنی نیست**. Dovecotِ cPanel `INBOX.Trash`
+     * می‌گوید، جیمیل `[Gmail]/Trash`، بعضی سرورها فقط `Trash`، و روی حسابِ
+     * فارسی حتی نامِ محلی‌شده. سخت‌کدکردنِ یکی یعنی «حذف» روی صندوقِ دیگری
+     * بی‌صدا شکست بخورد — یا بدتر، پوشهٔ تازه‌ای بسازد که کاربر هرگز نمی‌بیندش.
+     *
+     * پس اول پرچمِ استاندارد را می‌پرسیم و فقط اگر سرور پرچم نداد، سراغِ
+     * نام‌های رایج می‌رویم — و اگر هیچ‌کدام نبود، `null` می‌دهیم تا فراخوان
+     * **صریح** بگوید نشد، نه اینکه چیزی بسازد.
+     *
+     * @param  'trash'|'junk'|'archive'  $kind
+     */
+    public function specialFolder(string $kind): ?string
+    {
+        $flag = match ($kind) {
+            'trash'   => '\\trash',
+            'junk'    => '\\junk',
+            'archive' => '\\archive',
+            default   => '',
+        };
+
+        $names = match ($kind) {
+            'trash'   => ['INBOX.Trash', 'Trash', '[Gmail]/Trash', '[Gmail]/Bin', 'INBOX.Deleted Messages', 'Deleted Items'],
+            'junk'    => ['INBOX.spam', 'INBOX.Junk', 'Junk', 'Spam', '[Gmail]/Spam', 'INBOX.Junk E-mail'],
+            'archive' => ['INBOX.Archive', 'Archive', '[Gmail]/All Mail', 'INBOX.Archives'],
+            default   => [],
+        };
+
+        $folders = $this->folders();
+
+        if ($flag !== '') {
+            foreach ($folders as $f) {
+                foreach ($f['flags'] as $fl) {
+                    if (strtolower($fl) === $flag) {
+                        return $f['name'];
+                    }
+                }
+            }
+        }
+
+        $have = array_map(fn ($f) => $f['name'], $folders);
+
+        foreach ($names as $candidate) {
+            foreach ($have as $name) {
+                if (strcasecmp($name, $candidate) === 0) {
+                    return $name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * بردنِ یک نامه به پوشهٔ دیگر.
+     *
+     * 🔴 **هیچ‌جا EXPUNGE بی‌COPY زده نمی‌شود.** یعنی این متد هرگز نامه‌ای را
+     * نابود نمی‌کند؛ فقط جابه‌جایش می‌کند. «حذف» در این پنل یعنی «ببر به سطلِ
+     * زباله» و از وب‌میل برگشت‌پذیر است — یک کلیکِ اشتباه نباید نامهٔ مشتری را
+     * برای همیشه ببرد.
+     *
+     * ⚠️ `MOVE` (RFC 6851) روی همهٔ سرورها نیست. اگر نبود، همان کارِ سه‌مرحله‌ای
+     * دستی انجام می‌شود: کپی، علامتِ حذف، پاک‌کردنِ نسخهٔ مبدأ. ترتیب مهم است —
+     * اگر EXPUNGE پیش از COPYِ موفق بیاید، نامه رفته و هیچ‌جا هم نرسیده.
+     */
+    public function moveTo(int $id, string $folder): bool
+    {
+        if (trim($folder) === '') {
+            return false;
+        }
+
+        if ($this->ok($this->cmd("MOVE {$id} ".$this->quote($folder)))) {
+            return true;
+        }
+
+        if (! $this->ok($this->cmd("COPY {$id} ".$this->quote($folder)))) {
+            return false;
+        }
+
+        if (! $this->ok($this->cmd("STORE {$id} +FLAGS (\\Deleted)"))) {
+            // کپی رفته ولی نسخهٔ مبدأ مانده: نامه دو جا هست، که از نبودنش بهتر است.
+            return false;
+        }
+
+        return $this->ok($this->cmd('EXPUNGE'));
+    }
+
     // ───────────────────────── پارسِ سرآیند ─────────────────────────
 
     public function header(string $raw, string $name): string

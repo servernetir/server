@@ -46,13 +46,7 @@ class MailboxReader
         | استفاده می‌شد، نامهٔ جیمیل را در صندوقِ سرورنت می‌گشتیم و «پیدا نشد»
         | می‌گرفتیم بی‌آنکه بفهمیم چرا.
         */
-        $imap = new ImapClient([
-            'host'   => (string) ($account['host'] ?? config('mailboxes.host')),
-            'port'   => (int) ($account['port'] ?? config('mailboxes.port', 993)),
-            'user'   => (string) ($account['user'] ?? ''),
-            'pass'   => (string) ($account['pass'] ?? ''),
-            'folder' => (string) ($account['folder'] ?? 'INBOX'),
-        ]);
+        $imap = $this->client($account);
 
         try {
             $imap->open();
@@ -130,6 +124,88 @@ class MailboxReader
         }
 
         return ['ok' => true, 'message' => '', 'attachment' => $list[$index]];
+    }
+
+    /**
+     * بردنِ نامه به سطلِ زباله / هرزنامه / بایگانی — روی **خودِ صندوق**.
+     *
+     * 🔴 «حذف» این‌جا یعنی جابه‌جایی، نه نابودی. `ImapClient::moveTo()` هرگز
+     * EXPUNGEِ بی‌COPY نمی‌زند، پس نامه از وب‌میل برگشت‌پذیر می‌مانَد. کارفرما
+     * صریح همین را خواست، و بی‌آن یک کلیکِ اشتباه روی نامهٔ مشتری
+     * جبران‌ناپذیر بود.
+     *
+     * ⚠️ ردیفِ دیتابیس **پاک نمی‌شود**، فقط «رسیدگی‌شده» می‌خورد. اگر پاک شود،
+     * `mailbox:sync` در اجرای بعدی همان نامه را دوباره می‌آورد (پنجرهٔ عقب‌گرد
+     * چند روزه است) و کاربر فکر می‌کند حذف کار نکرده.
+     *
+     * @param  'trash'|'junk'|'archive'  $kind
+     * @return array{ok:bool, message:string}
+     */
+    public function move(MailboxMessage $m, string $kind): array
+    {
+        $messageId = trim((string) $m->message_id);
+
+        if ($messageId === '') {
+            return ['ok' => false, 'message' => 'این نامه شناسهٔ پیام ندارد، پس روی سرور پیدایش نمی‌کنیم.'];
+        }
+
+        $account = $this->account((string) $m->account);
+
+        if ($account === null) {
+            return ['ok' => false, 'message' => 'صندوقِ «'.$m->account.'» دیگر در پیکربندی نیست.'];
+        }
+
+        $imap = $this->client($account);
+
+        try {
+            $imap->open();
+
+            $folder = $imap->specialFolder($kind);
+
+            if ($folder === null) {
+                return ['ok' => false, 'message' => 'این صندوق پوشهٔ «'.$this->kindLabel($kind).'» ندارد؛ از وب‌میل انجامش دهید.'];
+            }
+
+            $id = $imap->searchMessageId($messageId);
+
+            if ($id === null) {
+                return ['ok' => false, 'message' => 'این نامه دیگر در صندوق نیست — احتمالاً قبلاً جابه‌جا شده.'];
+            }
+
+            if (! $imap->moveTo($id, $folder)) {
+                return ['ok' => false, 'message' => 'سرور جابه‌جایی را نپذیرفت. نامه سرِ جایش است.'];
+            }
+
+            return ['ok' => true, 'message' => 'نامه به «'.$this->kindLabel($kind).'» رفت.'];
+        } catch (\Throwable $e) {
+            ErrorTracker::note('mailbox', $e, ['step' => 'move', 'account' => $m->account, 'kind' => $kind]);
+
+            return ['ok' => false, 'message' => 'جابه‌جایی انجام نشد: '.mb_substr($e->getMessage(), 0, 160)];
+        } finally {
+            $imap->close();
+        }
+    }
+
+    private function kindLabel(string $kind): string
+    {
+        return match ($kind) {
+            'trash'   => 'سطلِ زباله',
+            'junk'    => 'هرزنامه',
+            'archive' => 'بایگانی',
+            default   => $kind,
+        };
+    }
+
+    /** @param  array<string,mixed>  $account */
+    private function client(array $account): ImapClient
+    {
+        return new ImapClient([
+            'host'   => (string) ($account['host'] ?? config('mailboxes.host')),
+            'port'   => (int) ($account['port'] ?? config('mailboxes.port', 993)),
+            'user'   => (string) ($account['user'] ?? ''),
+            'pass'   => (string) ($account['pass'] ?? ''),
+            'folder' => (string) ($account['folder'] ?? 'INBOX'),
+        ]);
     }
 
     /** @return array<string,mixed>|null */
