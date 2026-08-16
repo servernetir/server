@@ -7,6 +7,7 @@ use App\Models\CalendarLayerPreference;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\Invoice;
+use App\Models\Post;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\Calendar\CalendarEventProvider;
@@ -844,6 +845,57 @@ class AdminCalendarTest extends TestCase
         $this->assertFalse($prefs['task']);
         $this->assertTrue($prefs['domain_renewal']);
         $this->assertTrue($prefs['payment_due']);
+    }
+
+    /**
+     * 🔴 پیش‌فرضِ هر لایه از config می‌آید، نه «همه روشن».
+     *
+     * `social_post` عمداً خاموش است: روی دادهٔ واقعی ۱۲۳ از ۱۲۷ رویدادِ ماه
+     * را می‌ساخت و سررسیدهای پولی زیرش گم می‌شدند. اگر کسی روزی
+     * `array_fill_keys(..., true)` را برگرداند، این تست می‌شکند.
+     */
+    public function test_the_content_layer_is_off_by_default(): void
+    {
+        $prefs = CalendarLayerPreference::forUser($this->staff()->id);
+
+        $this->assertFalse($prefs['social_post'], 'انتشار محتوا باید پیش‌فرض خاموش باشد');
+
+        // و بقیه دست‌نخورده روشن
+        foreach (['domain_renewal', 'hosting_renewal', 'payment_due', 'task'] as $layer) {
+            $this->assertTrue($prefs[$layer], "لایهٔ {$layer} باید پیش‌فرض روشن باشد");
+        }
+    }
+
+    /** ولی انتخابِ صریحِ کاربر بر پیش‌فرض می‌چربد */
+    public function test_an_explicit_choice_beats_the_default(): void
+    {
+        $a = $this->staff();
+
+        CalendarLayerPreference::store($a->id, ['social_post' => true]);
+
+        $this->assertTrue(CalendarLayerPreference::forUser($a->id)['social_post']);
+    }
+
+    /**
+     * و پیش‌فرضِ خاموش یعنی آن لایه در صفحه هم نمی‌آید — نه اینکه فقط چیپش
+     * خاکستری باشد و رویدادها همچنان رندر شوند.
+     */
+    public function test_the_default_off_layer_is_absent_from_the_first_paint(): void
+    {
+        Post::create([
+            'slug' => 'x'.random_int(1, 99999), 'type' => 'blog', 'category' => 'general',
+            'status' => 'draft', 'published_at' => '2026-08-03 10:00:00',
+        ]);
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'کارِ من', 'event_date' => '2026-08-03', 'status' => 'pending',
+        ]);
+
+        $res = $this->actingAs($this->staff(), 'web')
+            ->getJson('/admin/calendar/events?y=1405&m=5')->assertOk()->json();
+
+        $types = array_column($res['events'], 'type');
+        $this->assertNotContains('social_post', $types);
+        $this->assertContains('task', $types);
     }
 
     /* ═════════════════════ مقاومت ═════════════════════ */
