@@ -35,6 +35,24 @@ class Customer extends Authenticatable
             'last_login_at'           => 'datetime',
             'locked_until'            => 'datetime',
             'password'                => 'hashed',
+
+            /*
+            | نمایندگی دامنه.
+            |
+            | ⚠️ بدونِ این cast، `reseller_level_locked_until` یک **رشته**
+            | برمی‌گردد و `->isFuture()` روی آن خطا می‌دهد — یعنی مهلتِ تنزل
+            | اصلاً کار نمی‌کند. و چون آن کد داخلِ کرون است، خطایش فقط در لاگِ
+            | کرون می‌نشیند نه در سایت: نماینده‌ها بی‌صدا سطحشان را از دست
+            | می‌دهند یا برای همیشه نگه می‌دارند، بسته به اینکه استثنا کجا
+            | گرفته شود.
+            */
+            'is_reseller'                 => 'boolean',
+            'reseller_joined_at'          => 'datetime',
+            'reseller_level_reviewed_at'  => 'datetime',
+            'reseller_level_locked_until' => 'datetime',
+            'reseller_volume'             => 'integer',
+            'reseller_bonus_pct'          => 'integer',
+            'reseller_daily_cap_irt'      => 'integer',
             // رمزنگاری در سطح مدل: مقدار خام هرگز وارد دیتابیس نمی‌شود
             'two_factor_secret'       => 'encrypted',
             'two_factor_recovery'     => 'encrypted',
