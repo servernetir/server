@@ -71,7 +71,21 @@ class PaymentController extends Controller
             'invoice'   => $invoice,
             'paid'      => $invoice->payments->firstWhere('status', 'paid'),
             'contact'   => site_contact(),
-            'legalName' => Setting::get('bank_holder'),
+            /*
+            | 🔴 نامِ ثبتی از **هویتِ حقوقیِ شرکت** می‌آید، نه از `bank_holder`.
+            |
+            | `bank_holder` نامِ صاحبِ حسابِ بانکی است و لزوماً نامِ ثبتیِ شرکت
+            | نیست؛ نشاندنش روی فاکتورِ رسمی یعنی سندی که نامِ حقوقیِ اشتباه
+            | دارد. حالا مدیر یک‌جا در `/admin/settings` واردش می‌کند و همه‌جا
+            | یکی است: صفحهٔ تماس، دادهٔ ساختاریافته، و فاکتور.
+            |
+            | ⚠️ `bank_holder` راهِ دوم می‌مانَد تا نصبی که هنوز هویتِ حقوقی را
+            | پر نکرده، فاکتورِ بی‌نامِ فروشنده ندهد.
+            */
+            'legalName'      => company_value('legal_name') ?: Setting::get('bank_holder'),
+            // شناسه‌های ثبتی و نشانی — هرچه پر نباشد اصلاً چاپ نمی‌شود
+            'sellerIdentity' => company_identity(),
+            'sellerAddress'  => company_address(),
             // مهر فقط روی فاکتورِ پرداخت‌شده (رسمی)، نه پیش‌فاکتور — به‌صورت
             // data-uri جاسازی می‌شود تا در PDF هم بیاید
             'stamp'     => (function () use ($invoice) {

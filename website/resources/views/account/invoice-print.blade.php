@@ -60,6 +60,15 @@ tbody tr:last-child td{ border-bottom:0 }
 .pay .grid b{ color:#1a2233 } .pay .grid .ltr{ direction:ltr }
 .stamp{ display:inline-block; border:2px solid #1a8a4a; color:#1a8a4a; border-radius:8px; padding:2px 10px; font-size:12px; font-weight:700; transform:rotate(-3deg) }
 
+/* مهرِ شرکت داخلِ همان جعبهٔ سبزِ رسید.
+   ⚠️ `align-items:flex-start` عمدی است: مهر نباید ارتفاعِ جعبه را بکشد و
+   ردیف‌های پرداخت را عمودی وسط‌چین کند. */
+.pay-receipt{ display:flex; align-items:flex-start; gap:18px }
+.pay-receipt .pay-body{ flex:1; min-width:0 }
+.pay-seal{ flex:0 0 auto; text-align:center; padding-top:2px }
+.pay-seal img{ max-width:120px; max-height:96px; display:block; margin:0 auto }
+.pay-seal div{ font-size:10px; color:#6d7a88; margin-top:2px }
+
 .foot{ padding:16px 32px 26px; border-top:1px solid #eef1f6; font-size:11.5px; color:#8a93a6; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px }
 .foot .ltr{ direction:ltr }
 
@@ -94,6 +103,14 @@ tbody tr:last-child td{ border-bottom:0 }
     <div class="party">
       <h3>{{ __('ui.invp_seller') }}</h3>
       <b>{{ $legalName ?: __('ui.invp_brand') }}</b>
+      {{-- 🔴 شناسه‌های ثبتی روی فاکتورِ رسمی لازم‌اند، ولی فقط آن‌هایی که
+           **واقعاً** پر شده‌اند. `company_identity()` خالی‌ها را برنمی‌گرداند،
+           پس این حلقه هیچ‌وقت «شماره ثبت: —» چاپ نمی‌کند. --}}
+      @foreach($sellerIdentity as $row)
+        @continue($row['label'] === 'ui.trust_legal_name')   {{-- بالا آمده --}}
+        <div>{{ __($row['label']) }}: <b>{{ fa_num($row['value']) }}</b></div>
+      @endforeach
+      @if($sellerAddress)<div>{{ fa_num($sellerAddress) }}</div>@endif
       <div class="ltr">{{ $contact['phone'] ?? '' }}</div>
       <div class="ltr">{{ $contact['email'] ?? '' }}</div>
     </div>
@@ -141,28 +158,31 @@ tbody tr:last-child td{ border-bottom:0 }
   </div>
 
   @if($paid)
-    <div class="pay ok">
-      <h4><span class="stamp">{{ __('ui.invp_stamp_paid') }}</span> {{ __('ui.invp_receipt_title') }}</h4>
-      <div class="grid">
-        <span>{{ __('ui.invp_pay_method') }} <b>{{ ['zarinpal'=>__('ui.invp_gw_zarinpal'),'bale'=>__('ui.invp_gw_bale'),'bank_transfer'=>__('ui.invp_gw_bank_transfer')][$paid->gateway] ?? $paid->gateway }}</b></span>
-        <span>{{ __('ui.invp_amount') }} <b>{{ invoice_money($paid->amount, $invoice->currency_code) }}</b></span>
-        @if($paid->ref_id)<span>{{ __('ui.invp_ref_no') }} <b class="ltr">{{ $paid->ref_id }}</b></span>@endif
-        <span>{{ __('ui.invp_time') }} <b>{{ stime($paid->paid_at) }}</b></span>
+    {{-- 🔴 مهرِ شرکت **داخلِ** همین جعبهٔ سبز است، نه زیرِ آن.
+         مهر معنایش «این پرداخت را تأیید می‌کنیم» است، پس باید کنارِ همان
+         چیزی بنشیند که تأییدش می‌کند. جدا افتادنش پایینِ صفحه، در چاپ گاهی
+         به صفحهٔ بعد می‌رفت و از رسید جدا می‌شد. --}}
+    <div class="pay ok pay-receipt">
+      <div class="pay-body">
+        <h4><span class="stamp">{{ __('ui.invp_stamp_paid') }}</span> {{ __('ui.invp_receipt_title') }}</h4>
+        <div class="grid">
+          <span>{{ __('ui.invp_pay_method') }} <b>{{ ['zarinpal'=>__('ui.invp_gw_zarinpal'),'bale'=>__('ui.invp_gw_bale'),'bank_transfer'=>__('ui.invp_gw_bank_transfer')][$paid->gateway] ?? $paid->gateway }}</b></span>
+          <span>{{ __('ui.invp_amount') }} <b>{{ invoice_money($paid->amount, $invoice->currency_code) }}</b></span>
+          @if($paid->ref_id)<span>{{ __('ui.invp_ref_no') }} <b class="ltr">{{ $paid->ref_id }}</b></span>@endif
+          <span>{{ __('ui.invp_time') }} <b>{{ stime($paid->paid_at) }}</b></span>
+        </div>
       </div>
+      @if($stamp)
+        <div class="pay-seal">
+          <img src="{{ $stamp }}" alt="{{ __('ui.invp_company_seal_alt') }}">
+          <div>{{ __('ui.invp_authorized_seal') }}</div>
+        </div>
+      @endif
     </div>
   @elseif($invoice->due() > 0)
     <div class="pay due">
       <h4>{{ __('ui.invp_awaiting') }}</h4>
       <div class="grid"><span>{{ __('ui.invp_unpaid_notice') }} <b>{{ invoice_money($invoice->due(), $invoice->currency_code) }}</b></span></div>
-    </div>
-  @endif
-
-  @if($stamp)
-    <div style="padding:6px 32px 22px; text-align:left;">
-      <div style="display:inline-block; text-align:center;">
-        <img src="{{ $stamp }}" alt="{{ __('ui.invp_company_seal_alt') }}" style="max-width:150px; max-height:120px;">
-        <div style="font-size:10.5px; color:#8a93a6; margin-top:2px;">{{ __('ui.invp_authorized_seal') }}</div>
-      </div>
     </div>
   @endif
 
