@@ -12,6 +12,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\ServerShopController;
 use App\Http\Controllers\SolutionController;
 use App\Http\Controllers\ToolController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -74,6 +75,21 @@ $site = function (): void {
     Route::post('/api/audit', [ToolController::class, 'audit'])->name('api.audit')->middleware('throttle:tools');
     Route::post('/api/whois', [ToolController::class, 'whois'])->name('api.whois')->middleware('throttle:tools');
     Route::post('/api/ip', [ToolController::class, 'ip'])->name('api.ip')->middleware('throttle:tools');
+
+    /*
+     * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.
+     *
+     * داخلِ همین closure است، پس در هر سه زبان ساخته می‌شود و گزارشی که به
+     * زبانِ انگلیسی گرفته شده با لینکِ `/en/report/…` باز می‌شود
+     * (`AuditReport::url()` همین را می‌سازد).
+     *
+     * ⚠️ ترتیب مهم است: «unsubscribe» پیش از «{token}» بیاید وگرنه خودش یک
+     * توکن خوانده می‌شود و ۴۰۴ می‌گیرد.
+     */
+    Route::get('/report/unsubscribe/{token}', [ReportController::class, 'unsubscribe'])
+        ->name('report.unsubscribe')->where('token', '[a-z0-9]{16,40}');
+    Route::get('/report/{token}', [ReportController::class, 'show'])
+        ->name('report')->where('token', '[a-z0-9]{16,40}');
 
     // ابزارهای جامع DNS و شبکه (هاب)
     Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
@@ -1422,6 +1438,27 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
 
     @set_time_limit(300);
 
+    /*
+    | 🔴 ریستِ opcache **پیش از** سیدرها، نه بعدشان.
+    |
+    | سرور با `validate_timestamps=0` اجرا می‌شود: فایلِ PHPِ تازه‌آپلودشده تا
+    | ریست‌نشدنِ opcache **زنده نمی‌شود**. تا امروز این ریست انتهای همین روت بود،
+    | یعنی ترتیب این می‌شد:
+    |
+    |     سیدرها با بایت‌کدِ **قدیمی** اجرا می‌شوند → بعد opcache ریست می‌شود
+    |
+    | نتیجهٔ عملی: هر دیپلویی که سیدری را عوض کرده بود، **اجرای اولش بی‌اثر بود**
+    | و صفحه هم «موفق» می‌گفت. فقط اجرای دومِ همین روت کار می‌کرد. مرداد ۱۴۰۵
+    | دقیقاً همین رخ داد: ردیفِ تازهٔ الگوی پیام ساخته نشد و از بیرون شبیهِ
+    | «سیدر خراب است» به‌نظر می‌رسید.
+    |
+    | ⚠️ `opcache_reset()` تضمین نمی‌کند فایلی که در **همین** درخواست از قبل
+    | کامپایل شده دوباره خوانده شود، برای همین پایین‌تر هر فایلِ سیدر جداگانه با
+    | `opcache_invalidate($f, true)` هم باطل می‌شود — آن یکی روی همان درخواست
+    | اثر دارد و به کلاسی که هنوز autoload نشده می‌رسد.
+    */
+    $opcacheReset = function_exists('opcache_reset') ? @opcache_reset() : null;
+
     // اگر یک مهاجرت خطا دهد، بدون try/catch کل روت ۵۰۰ (HTML) می‌شد و JSِ
     // فرم روی «در حال اجرا…» هنگ می‌کرد. حالا خطا را برمی‌گردانیم تا دیده شود.
     $migrateError = null;
@@ -1433,10 +1470,46 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         $migrateError = $e->getMessage();
     }
 
-    try {
+    /*
+    | 🔴 هیچ `catch`ی این‌جا خالی نیست — و این درسِ گران‌قیمتِ همین روت است.
+    |
+    | تا امروز شکستِ هر سیدر بی‌صدا بلعیده می‌شد و صفحه همچنان «موفق» نشان
+    | می‌داد. یعنی دقیقاً در ابزاری که برای **دیدنِ** نتیجهٔ دیپلوی ساخته شده،
+    | خرابی نامرئی بود. هر خطا حالا در `errors` برمی‌گردد.
+    |
+    | ⚠️ ولی `catch` همچنان لازم است: یک سیدرِ خراب نباید بقیه را متوقف کند —
+    | ادامه می‌دهیم و آخرش گزارش می‌کنیم.
+    */
+    $errors = [];
+
+    $step = function (string $name, callable $fn) use (&$errors) {
+        try {
+            $fn();
+        } catch (\Throwable $e) {
+            $errors[$name] = mb_substr($e->getMessage(), 0, 300);
+        }
+    };
+
+    $step('clear', function () {
         \Illuminate\Support\Facades\Artisan::call('view:clear');
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
-    } catch (\Throwable) {
+    });
+
+    /*
+    | فایل‌های سیدر را **پیش از اولین autoload** صریح باطل کن، وگرنه با
+    | `validate_timestamps=0` نسخهٔ تازه‌آپلودشده در همین درخواست خوانده نمی‌شود.
+    |
+    | ⚠️ عمداً از `ReflectionClass` برای پیداکردنِ مسیر استفاده نشده: آن خودش
+    | کلاس را autoload می‌کند، یعنی فایل همان لحظه کامپایل و کش می‌شود و
+    | باطل‌کردنِ بعدش دیگر بی‌فایده است. مسیرِ پوشه را مستقیم می‌خوانیم.
+    */
+    $invalidated = 0;
+    if (function_exists('opcache_invalidate')) {
+        foreach ((array) glob(base_path('database/seeders/*.php')) as $file) {
+            if (@opcache_invalidate($file, true)) {
+                $invalidated++;
+            }
+        }
     }
 
     // کاتالوگِ هاست را فقط اگر جدولِ products خالی است یک‌بار می‌سازد (پکیج‌های
@@ -1448,17 +1521,19 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
         }
     } catch (\Throwable $e) {
+        // متنش از قبل در `seeded` دیده می‌شد، ولی روی `ok` اثر نداشت — پس یک
+        // شکستِ واقعی همچنان «موفق» گزارش می‌شد.
         $seeded = 'seed error: '.$e->getMessage();
+        $errors['products'] = mb_substr($e->getMessage(), 0, 300);
     }
 
     // کاتالوگِ الگوی پیام‌ها — همان الگو: firstOrCreate، پس متنی که مدیر در
     // /admin/templates ویرایش کرده هرگز با دیپلوی بعدی به متنِ کد برنمی‌گردد.
-    try {
+    $step('notification_templates', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('notification_templates')) {
             (new \Database\Seeders\NotificationTemplateSeeder())->run();
         }
-    } catch (\Throwable) {
-    }
+    });
 
     /*
     | اسنادِ حقوقی — بی‌این، **هیچ مشتری‌ای قوانین را نپذیرفته**.
@@ -1471,26 +1546,24 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     | ⚠️ نسخه از هشِ خودِ متن ساخته می‌شود، پس ویرایشِ قوانین خودبه‌خود نسخهٔ
     | تازه می‌سازد و پذیرشِ قبلی‌ها دست‌نخورده می‌مانَد.
     */
-    try {
+    $step('legal_documents', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('legal_documents')) {
             (new \Database\Seeders\LegalDocumentSeeder())->run();
         }
-    } catch (\Throwable) {
-    }
+    });
 
     // کاتالوگِ سرورِ فیزیکی — insert-missing از config. هر بار امن است (اسلاگِ
     // موجود را دست نمی‌زند)، پس مدل‌های تازهٔ config در هر دیپلوی سینک می‌شوند.
-    try {
+    $step('physical_servers', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('physical_servers')) {
             (new \Database\Seeders\PhysicalServerSeeder())->run();
         }
-    } catch (\Throwable) {
-    }
+    });
 
-    // سرور با opcache و validate_timestamps=0 اجرا می‌شود: بدون این ریست،
-    // کدِ تازه دپلوی‌شده (روت‌ها، ویوها) روی دیسک عوض شده ولی بایت‌کد قدیمی
-    // سرو می‌شود. این‌جا کنار مهاجرت ریست می‌کنیم تا هر دپلوی با یک migrate
-    // زنده شود.
+    /*
+    | ریستِ دوم، برای بقیهٔ کد (روت‌ها، ویوها، کلاس‌های اپ) که این درخواست
+    | اجراشان نکرد. ریستِ اولِ بالای تابع فقط سیدرها را هدف داشت.
+    */
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
@@ -1502,12 +1575,21 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         $present[$t] = \Illuminate\Support\Facades\Schema::hasTable($t);
     }
 
+    /*
+    | ⚠️ `ok` حالا شکستِ سیدر را هم می‌بیند، نه فقط مهاجرت را.
+    |
+    | پیش از این `ok` فقط به `$migrateError` نگاه می‌کرد، پس یک سیدرِ خراب
+    | «موفق» گزارش می‌شد. همان قاعدهٔ ثبت‌شده در CLAUDE.md: پرس‌وجوی ناظر باید
+    | خودِ خرابی را ببیند، نه ستونِ همسایه.
+    */
     return response()->json([
-        'ok'      => $migrateError === null,
-        'error'   => $migrateError,
-        'migrate' => $migrate,
-        'seeded'  => $seeded,
-        'tables'  => $present,
+        'ok'          => $migrateError === null && $errors === [],
+        'error'       => $migrateError,
+        'errors'      => $errors === [] ? null : $errors,
+        'migrate'     => $migrate,
+        'seeded'      => $seeded,
+        'opcache'     => ['reset' => $opcacheReset, 'seeders_invalidated' => $invalidated],
+        'tables'      => $present,
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:6,1');
 
@@ -2024,6 +2106,19 @@ Route::prefix('admin')->group(function () {
         Route::patch('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'update']);
         Route::delete('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'destroy']);
         Route::post('/calendar/preferences', [\App\Http\Controllers\Admin\CalendarController::class, 'preferences']);
+
+        /*
+         * بررسیِ سایت + ارسالِ گزارش.
+         *
+         * ⚠️ همهٔ POSTها JSON برمی‌گردانند و مرورگر حلقه می‌زند (هر بررسی چند
+         * ثانیه است). هیچ‌کدام زمان‌بندی نشده‌اند: این کار به آدم‌های واقعی
+         * ایمیل می‌فرستد و باید هر بار یک انسان دکمه را بزند.
+         */
+        Route::get('/seo', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'index'])->name('admin.seo');
+        Route::post('/seo/send-one', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendOne']);
+        Route::post('/seo/list', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importList']);
+        Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
+        Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
 
         /*
          * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل
