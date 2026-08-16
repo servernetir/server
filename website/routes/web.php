@@ -1577,10 +1577,21 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         if (\Illuminate\Support\Facades\Schema::hasTable('products') && \App\Models\Product::count() === 0) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-hosting');
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
+        }
 
-            // پکیج‌های سایت‌ساز — تسویهٔ builder بی‌این‌ها به fallbackِ WHMCS می‌افتد
+        /*
+        | 🔴 پکیج‌های سایت‌ساز **بیرونِ** شرطِ `count() === 0` — عمداً.
+        |
+        | آن شرط یعنی «فقط روی دیتابیسِ خالی»، و پروداکشن هرگز خالی نیست؛ پس
+        | seedِ سایت‌ساز که داخلِ همان بلاک بود روی سرورِ واقعی **هرگز اجرا
+        | نمی‌شد** — `seeded: null`، بی‌هیچ خطایی، و دکمهٔ استقرار برای همیشه
+        | روی fallbackِ WHMCS می‌مانْد. فرمانِ خودش idempotent است
+        | (firstOrCreate روی slug)، پس هر بار اجرا امن است و ویرایش‌های مدیر
+        | دست نمی‌خورد.
+        */
+        if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
-            $seeded .= "\n".trim(\Illuminate\Support\Facades\Artisan::output());
+            $seeded = trim(($seeded ?? '')."\n".trim(\Illuminate\Support\Facades\Artisan::output()));
         }
     } catch (\Throwable $e) {
         // متنش از قبل در `seeded` دیده می‌شد، ولی روی `ok` اثر نداشت — پس یک
