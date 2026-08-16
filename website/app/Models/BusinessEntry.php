@@ -17,6 +17,8 @@ class BusinessEntry extends Model
     protected $fillable = [
         'currency_code', 'direction', 'kind', 'category', 'amount',
         'source_type', 'source_id', 'occurred_at', 'note', 'created_by',
+        // هزینهٔ تکرارشوندهٔ ماهانه — کلیدِ یکتایی‌اش در مهاجرتِ add_period_to_business_ledger
+        'period', 'ref_id',
     ];
 
     protected function casts(): array

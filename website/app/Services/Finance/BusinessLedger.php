@@ -127,6 +127,98 @@ class BusinessLedger
             note: 'هزینهٔ '.$service.' — '.$ref);
     }
 
+    /**
+     * ثبتِ اجارهٔ **یک ماهِ** یک سرور.
+     *
+     * ═══ چرا این متد لازم بود ═══
+     *
+     * تا امروز درآمد خودکار ثبت می‌شد و هزینه فقط دستی، پس «سودِ خالص» عملاً
+     * درآمد منهای چیزی بود که صاحبِ کسب‌وکار یادش مانده وارد کند — و همیشه به
+     * نفعِ خوش‌بینی خطا می‌داد. اجارهٔ سرور بزرگ‌ترین قلمِ همان هزینهٔ فراموش‌شده
+     * است.
+     *
+     * 🔴 **idempotency از دیتابیس می‌آید، نه از حافظهٔ کرون.** کلیدِ طبیعی
+     * (kind, category, period, ref_id) در ایندکسِ یکتا نشسته، پس حتی اگر کرون
+     * ده بار در روز بدود یا دو نفر هم‌زمان دستی اجرا کنند، ماهِ تکراری ثبت
+     * نمی‌شود. تکیه بر «قبلاً چک کردم» در کدِ مالی کافی نیست.
+     *
+     * ⚠️ `source` عمداً ست نمی‌شود. ایندکسِ یکتای قدیمیِ
+     * (source_type, source_id, kind) فقط **یک** ردیف به‌ازای هر منبع اجازه
+     * می‌دهد؛ با آن، ماهِ دوم هر سرور بی‌صدا رد می‌شد. شناسهٔ سرور در `ref_id`
+     * می‌نشیند که کلیدِ خارجی ندارد — سابقهٔ مالی نباید با حذفِ ماشین از تاریخ
+     * پاک شود.
+     *
+     * ⚠️ مبلغ **تومان** است و تبدیلش بیرون از این متد انجام شده. دلیلش این
+     * است که نرخِ تاریخی در این پروژه ذخیره نمی‌شود؛ فراخوان باید بداند با
+     * نرخِ چه روزی حساب کرده و در `note` بنویسد.
+     *
+     * @return BusinessEntry|null  ردیفِ تازه یا موجود؛ null اگر ثبت‌شدنی نبود
+     */
+    public function recordServerRent(int $serverId, string $period, int $amountToman, Carbon $occurredAt, string $note): ?BusinessEntry
+    {
+        if (! $this->ready() || $amountToman <= 0 || $serverId <= 0) {
+            return null;
+        }
+
+        if (! $this->supportsPeriods()) {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}$/', $period) !== 1) {
+            return null;
+        }
+
+        try {
+            return BusinessEntry::firstOrCreate(
+                ['kind' => 'expense', 'category' => 'server', 'period' => $period, 'ref_id' => $serverId],
+                [
+                    'currency_code' => 'IRT',
+                    'direction'     => self::DIRECTION['expense'],
+                    'amount'        => $amountToman,
+                    'occurred_at'   => $occurredAt->toDateString(),
+                    'note'          => mb_substr($note, 0, 255),
+                    'created_by'    => null,          // خودکار، نه دستی
+                ],
+            );
+        } catch (\Throwable $e) {
+            /*
+            | 🔴 «از قبل بود» و «نشد» دو چیزِ کاملاً متفاوت‌اند و نباید هر دو
+            | `null` برگردانند.
+            |
+            | نسخهٔ اول هر خطا را به null تبدیل می‌کرد و فراخوان آن را «از قبل
+            | ثبت شده» می‌شمرد. یعنی یک ستونِ جامانده یا قفلِ دیتابیس، خروجیِ
+            | **بایت‌به‌بایت یکسان** با یک ماهِ سالم می‌داد: «ثبت‌شده: ۰ · از
+            | قبل بود: ۵» با کدِ خروجیِ موفق — و هزینهٔ آن ماه بی‌صدا از دفتر
+            | غایب می‌مانْد.
+            |
+            | پس برخوردِ یکتایی دوباره پرس‌وجو می‌شود و **خودِ ردیف** برمی‌گردد؛
+            | فقط شکستِ واقعی `null` می‌دهد.
+            */
+            $msg = mb_strtolower($e->getMessage());
+
+            if (str_contains($msg, 'unique') || str_contains($msg, 'duplicate')) {
+                return BusinessEntry::where('kind', 'expense')->where('category', 'server')
+                    ->where('period', $period)->where('ref_id', $serverId)->first();
+            }
+
+            \App\Support\ErrorTracker::note('finance', $e, ['step' => 'server-rent', 'server' => $serverId]);
+
+            return null;
+        }
+    }
+
+    /**
+     * آیا این نصب ستون‌های دوره‌ای را دارد؟
+     *
+     * ⚠️ مهاجرت‌های پروداکشن دستی اجرا می‌شوند، پس کد همیشه مدتی جلوتر از
+     * دیتابیس است. بی‌این گارد، کرونِ ماهانه در آن پنجره هر بار استثنا
+     * می‌داد — و یک استثنا در `schedule:run` کلِ آن دقیقه را می‌کشد.
+     */
+    public function supportsPeriods(): bool
+    {
+        return $this->ready() && Schema::hasColumn('business_ledger', 'period');
+    }
+
     /** ثبت خودکار بازگشت وجه به مشتری */
     public function recordRefund(Payment $payment, int $amount, ?string $note = null): void
     {
