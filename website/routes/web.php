@@ -2171,6 +2171,11 @@ Route::prefix('admin')->group(function () {
         Route::delete('/calendar/events/{event}', [\App\Http\Controllers\Admin\CalendarController::class, 'destroy']);
         Route::post('/calendar/preferences', [\App\Http\Controllers\Admin\CalendarController::class, 'preferences']);
 
+        // ارسالِ آزمایشیِ یادآوری — همان الگوی `/admin/templates/{t}/test`.
+        // throttle چون هر بار یک پیامِ واقعیِ بله و یک ایمیل می‌فرستد.
+        Route::post('/calendar/remind-test', [\App\Http\Controllers\Admin\CalendarController::class, 'remindTest'])
+            ->middleware('throttle:6,1');
+
         /*
          * بررسیِ سایت + ارسالِ گزارش.
          *

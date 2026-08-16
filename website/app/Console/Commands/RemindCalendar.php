@@ -38,10 +38,28 @@ class RemindCalendar extends Command
          * دنبالِ «چرا جلسهٔ گوگلم در یادآوری نبود» گشت، جوابش این‌جا باشد —
          * نه اینکه فکر کند خراب است.
          */
-        $layers = array_values(array_diff(
-            array_keys((array) config('calendar.layers', [])),
-            ['google'],
-        ));
+        /*
+         * 🔴 همان **مجموعهٔ پیش‌فرضِ** تقویم، نه همهٔ لایه‌ها.
+         *
+         * لایه‌ای که `default => false` دارد (انتشار محتوا) عمداً از صفحه
+         * برداشته شد چون ۹۷٪ رویدادها را می‌ساخت. اگر پیامِ بله همان را
+         * می‌فرستاد، همان شلوغی از درِ دیگر برمی‌گشت — و این‌بار در جایی که
+         * حتی نمی‌شود خاموشش کرد.
+         *
+         * ⚠️ ترجیحِ **کاربر** این‌جا خوانده نمی‌شود و نباید بشود: کرون کاربری
+         * ندارد، و اگر داشت هم یک نفر با خاموش‌کردنِ یک چیپ، یادآوریِ کلِ تیم
+         * را قطع می‌کرد. پیش‌فرضِ config یک تصمیمِ سازمانی است، ترجیحِ چیپ یک
+         * تصمیمِ شخصی.
+         */
+        $layers = [];
+
+        foreach ((array) config('calendar.layers', []) as $key => $meta) {
+            if ($key === 'google' || ($meta['default'] ?? true) === false) {
+                continue;
+            }
+
+            $layers[] = $key;
+        }
 
         $upcoming = $calendar->upcoming($layers, max(1, $days))
             ->reject(fn (CalendarItem $i) => $i->status === 'done')

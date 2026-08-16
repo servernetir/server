@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
+use App\Models\CalendarLayerPreference;
+use App\Models\User;
 use App\Services\Notify\AdminNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -178,6 +180,55 @@ class CalendarRemindTest extends TestCase
         $this->assertStringNotContainsString('/admin/calendar', $body);
         // و ته پیام نباید فاصلهٔ بی‌دلیل داشته باشد
         $this->assertSame(rtrim($body), $body, 'ته پیام نباید خطِ خالی داشته باشد');
+    }
+
+    /**
+     * 🔴 لایه‌ای که پیش‌فرض خاموش است، در پیامِ بله هم نمی‌آید.
+     *
+     * «انتشار محتوا» از تقویم برداشته شد چون ۹۷٪ رویدادها را می‌ساخت. اگر
+     * پیامِ بله همان را می‌فرستاد، همان شلوغی از درِ دیگر برمی‌گشت — و این‌بار
+     * در جایی که حتی نمی‌شود خاموشش کرد.
+     */
+    public function test_a_default_off_layer_is_not_included_in_the_digest(): void
+    {
+        $today = Carbon::now($this->tz())->toDateString();
+
+        CalendarEvent::create([
+            'type' => 'social_post', 'title' => 'مقالهٔ زمان‌بندی‌شده',
+            'event_date' => $today, 'status' => 'pending',
+        ]);
+        CalendarEvent::create([
+            'type' => 'task', 'title' => 'کارِ واقعی',
+            'event_date' => $today, 'status' => 'pending',
+        ]);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $body = implode("\n", $this->sent[0]['rows']);
+        $this->assertStringContainsString('کارِ واقعی', $body);
+        $this->assertStringNotContainsString('مقالهٔ زمان‌بندی‌شده', $body);
+    }
+
+    /**
+     * ⚠️ ترجیحِ **کاربر** روی پیام اثر ندارد و نباید داشته باشد.
+     *
+     * کرون کاربری ندارد؛ و اگر ترجیح خوانده می‌شد، یک نفر با خاموش‌کردنِ یک
+     * چیپ یادآوریِ کلِ تیم را قطع می‌کرد. پیش‌فرضِ config تصمیمِ سازمانی است،
+     * چیپ تصمیمِ شخصی.
+     */
+    public function test_a_users_chip_preference_does_not_silence_the_digest(): void
+    {
+        $user = User::create([
+            'name' => 'مدیر', 'email' => 'r'.random_int(1, 999999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        CalendarLayerPreference::store($user->id, ['task' => false]);
+        $this->reminder('کارِ مهم', 0);
+
+        $this->artisan('calendar:remind')->assertOk();
+
+        $this->assertStringContainsString('کارِ مهم', implode("\n", $this->sent[0]['rows']));
     }
 
     /** رویدادِ بی‌مبلغ نباید جداکنندهٔ خالی بگیرد */
