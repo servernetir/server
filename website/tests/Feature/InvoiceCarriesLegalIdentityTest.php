@@ -192,6 +192,87 @@ class InvoiceCarriesLegalIdentityTest extends TestCase
             'مهر باید data-uri باشد تا در PDF هم بیاید');
     }
 
+    /**
+     * 🔴 فاکتور باید در **یک برگهٔ A4 عمودی** جا شود.
+     *
+     * کارفرما گزارش داد که حتی با یک ردیف محصول دو برگه می‌شود. ریشه‌اش
+     * `size:A4 landscape` بود: افقی فقط ۲۱۰ میلی‌متر ارتفاع دارد (با حاشیه
+     * ~۱۸۶) در حالی که عمودی ۲۹۷ است (~۲۷۷) — نزدیک ۵۰٪ فضای عمودیِ بیشتر.
+     *
+     * ⚠️ ارتفاعِ واقعی را نمی‌شود در PHPUnit سنجید؛ در مرورگر با فونتِ واقعیِ
+     * IRANSans اندازه گرفته شد: با ۴ ردیف ۱۷۹٫۹ میلی‌متر، یعنی ۹۷ میلی‌متر
+     * فضای اضافه و جا برای ~۱۲ ردیف. آنچه این‌جا قفل می‌شود، همان تصمیم‌هایی
+     * است که آن عدد را ممکن کردند.
+     */
+    public function test_the_print_sheet_is_built_for_one_portrait_page(): void
+    {
+        [$customer, $invoice] = $this->paidInvoice();
+        $html = $this->print($customer, $invoice);
+
+        $this->assertMatchesRegularExpression('~@page\s*\{[^}]*size:\s*A4\s+portrait~i', $html,
+            'اندازهٔ صفحه دیگر A4 عمودی نیست — همین باعثِ دو برگه شدن بود');
+
+        /*
+        | ⚠️ فقط داخلِ خودِ قانونِ `@page` سنجیده می‌شود.
+        |
+        | `assertStringNotContainsString('landscape', …)` ساده به‌نظر می‌رسید و
+        | شکست خورد — چون واژه در **کامنتِ توضیحیِ** همان فایل هست («قبلاً
+        | landscape بود»). این سومین بار امروز است که آشکارسازِ متنی به کامنت
+        | گیر می‌کند؛ ادعا باید روی چیزی باشد که مرورگر می‌خوانَد، نه روی متنِ فایل.
+        */
+        preg_match('~@page\s*\{([^}]*)\}~i', $html, $page);
+        $this->assertStringNotContainsString('landscape', $page[1] ?? '',
+            'حالتِ افقی به قانونِ @page برگشت');
+
+        // فشرده‌سازی فقط برای چاپ؛ نسخهٔ روی صفحه نباید تغییر کند
+        $this->assertMatchesRegularExpression('~@media\s+print\s*\{~', $html,
+            'بلوکِ فشرده‌سازیِ چاپ نیست');
+
+        /*
+        | 🔴 بلوکِ پایانی نباید وسطش بشکند.
+        |
+        | بدترین حالت این نیست که سند دو برگه شود؛ این است که «جمعِ کل» یا مهر
+        | تنها روی برگهٔ دوم بیفتد و برگهٔ اول ناقص به‌نظر برسد.
+        */
+        foreach (['.totals', '.pay', '.foot'] as $sel) {
+            $this->assertStringContainsString($sel, $html);
+        }
+        $this->assertStringContainsString('page-break-inside:avoid', $html,
+            'محافظِ نشکستنِ بلوکِ پایانی برداشته شده');
+    }
+
+    /** ⚠️ کد اقتصادی به‌خواستِ کارفرما روی فاکتور نمی‌آید — ولی در صفحهٔ تماس می‌مانَد. */
+    public function test_the_economic_code_stays_off_the_invoice_but_not_off_the_site(): void
+    {
+        Setting::put('company_legal_name', 'شرکت آزمون (سهامی خاص)');
+        Setting::put('company_economic_code', '411122223333');
+
+        [$customer, $invoice] = $this->paidInvoice();
+
+        $this->assertStringNotContainsString(fa_num('411122223333'), $this->print($customer, $invoice),
+            'کد اقتصادی روی فاکتور چاپ شد');
+
+        // ولی `company_identity()` همچنان برش می‌گرداند — منبعِ مشترکِ صفحهٔ تماس است
+        $this->assertContains('411122223333', collect(company_identity())->pluck('value')->all(),
+            'کد اقتصادی از منبعِ مشترک حذف شده — صفحهٔ تماس هم آن را از دست می‌دهد');
+    }
+
+    /** 🔴 نشانیِ روی فاکتور، حسابداری است نه پشتیبانیِ فنی. */
+    public function test_the_invoice_shows_the_billing_address_not_support(): void
+    {
+        config([
+            'servernet.contact.email'         => 'support@servernet.cloud',
+            'servernet.contact.billing_email' => 'acc@servernet.cloud',
+        ]);
+
+        [$customer, $invoice] = $this->paidInvoice();
+        $html = $this->print($customer, $invoice);
+
+        $this->assertStringContainsString('acc@servernet.cloud', $html);
+        $this->assertStringNotContainsString('support@servernet.cloud', $html,
+            'نشانیِ پشتیبانیِ فنی روی سندِ مالی نشست');
+    }
+
     /** ⚠️ روی پیش‌فاکتورِ پرداخت‌نشده هیچ مهری نیست — سندِ رسمی نیست. */
     public function test_no_seal_on_an_unpaid_proforma(): void
     {

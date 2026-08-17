@@ -72,15 +72,65 @@ tbody tr:last-child td{ border-bottom:0 }
 .foot{ padding:16px 32px 26px; border-top:1px solid #eef1f6; font-size:11.5px; color:#8a93a6; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px }
 .foot .ltr{ direction:ltr }
 
-/* A4 افقی (landscape) — به‌خواستِ کارفرما */
-@page{ size:A4 landscape; margin:12mm }
+/*
+| ── چاپ: یک برگهٔ A4، و جا برای چند ردیف ──
+|
+| 🔴 عمودی، نه افقی. قبلاً `landscape` بود و همان ریشهٔ «دو برگه شدن» است:
+| A4ِ افقی فقط ۲۱۰ میلی‌متر ارتفاع دارد که با حاشیه ~۱۸۶ می‌مانَد، در حالی که
+| عمودی ۲۹۷ است و ~۲۷۷ می‌مانَد — نزدیک **۵۰٪ فضای عمودیِ بیشتر**. با یک ردیف
+| محصول هم افقی سرریز می‌کرد.
+|
+| ⚠️ فشرده‌سازی فقط زیرِ `@media print` است و نسخهٔ روی صفحه دست‌نخورده
+| می‌مانَد: سندی که روی مانیتور خوانا باشد و روی کاغذ جا شود، دو نیازِ متفاوت
+| است و یکی‌کردنشان یکی را خراب می‌کند.
+|
+| ⚠️ `line-height` سراسری ۱٫۹ است که برای متنِ فارسیِ وب درست است ولی روی سند
+| ارتفاع را باد می‌کند؛ در چاپ ۱٫۵ می‌شود.
+*/
+@page{ size:A4 portrait; margin:10mm }
+
 @media print{
-  body{ background:#fff }
+  body{ background:#fff; line-height:1.5; font-size:12px }
   .bar{ display:none }
   .sheet{ box-shadow:none; margin:0; border-radius:0; max-width:100%; width:100% }
+
+  .head{ padding:14px 18px }
+  .brand{ font-size:17px } .brand small{ font-size:10px; margin-top:1px }
+  .doc h1{ font-size:14px } .doc .num{ font-size:11px }
+
+  .meta{ padding:10px 18px; gap:14px }
+  .party h3{ font-size:9.5px; margin-bottom:3px }
+  .party b{ font-size:12px }
+  .party div{ font-size:10.5px; margin-top:0 }
+
+  thead th{ padding:6px 18px; font-size:10.5px }
+  tbody td{ padding:7px 18px; font-size:11.5px }
+  .desc{ font-size:10px }
+
+  .totals{ padding:8px 18px 2px }
+  .totals div{ font-size:11.5px; padding:3px 0 }
+  .totals .grand{ font-size:13px; margin-top:3px; padding-top:7px }
+
+  .pay{ margin:6px 18px 10px; padding:10px 12px; border-radius:8px }
+  .pay h4{ font-size:12px; margin-bottom:5px }
+  .pay .grid{ font-size:11px; gap:3px 16px }
+  .pay-seal img{ max-width:86px; max-height:68px }
+  .pay-seal div{ font-size:9px }
+
+  .foot{ padding:8px 18px 10px; font-size:10px }
+
+  /*
+  | 🔴 بلوکِ پایانی نباید وسطش بشکند.
+  |
+  | بدترین حالتِ ممکن این نیست که سند دو برگه شود؛ این است که «جمعِ کل» یا
+  | مهرِ تأیید تنها روی برگهٔ دوم بیفتد و برگهٔ اول سندی ناقص به‌نظر برسد.
+  | پس اگر روزی ردیف‌ها آن‌قدر زیاد شدند که سرریز شد، شکست از **وسطِ جدول**
+  | می‌افتد نه از وسطِ رسید.
+  */
+  .totals, .pay, .foot{ break-inside:avoid; page-break-inside:avoid }
+  tbody tr{ break-inside:avoid; page-break-inside:avoid }
+  thead{ display:table-header-group }
 }
-/* روی صفحه هم پهن‌تر تا حس A4 افقی بدهد */
-@media screen and (min-width:900px){ .sheet, .bar{ max-width:1040px } }
 </style>
 </head>
 <body>
@@ -105,14 +155,21 @@ tbody tr:last-child td{ border-bottom:0 }
       <b>{{ $legalName ?: __('ui.invp_brand') }}</b>
       {{-- 🔴 شناسه‌های ثبتی روی فاکتورِ رسمی لازم‌اند، ولی فقط آن‌هایی که
            **واقعاً** پر شده‌اند. `company_identity()` خالی‌ها را برنمی‌گرداند،
-           پس این حلقه هیچ‌وقت «شماره ثبت: —» چاپ نمی‌کند. --}}
+           پس این حلقه هیچ‌وقت «شماره ثبت: —» چاپ نمی‌کند.
+
+           ⚠️ نامِ ثبتی بالا آمده و **کد اقتصادی** به‌خواستِ کارفرما اصلاً روی
+           فاکتور نمی‌آید؛ هر دو این‌جا رد می‌شوند. حذفشان از خودِ
+           `company_identity()` غلط بود: صفحهٔ تماس همچنان به کد اقتصادی نیاز
+           دارد و آن تابع منبعِ مشترکِ هر دو است. --}}
       @foreach($sellerIdentity as $row)
-        @continue($row['label'] === 'ui.trust_legal_name')   {{-- بالا آمده --}}
+        @continue(in_array($row['label'], ['ui.trust_legal_name', 'ui.trust_economic'], true))
         <div>{{ __($row['label']) }}: <b>{{ fa_num($row['value']) }}</b></div>
       @endforeach
       @if($sellerAddress)<div>{{ fa_num($sellerAddress) }}</div>@endif
       <div class="ltr">{{ $contact['phone'] ?? '' }}</div>
-      <div class="ltr">{{ $contact['email'] ?? '' }}</div>
+      {{-- 🔴 نشانیِ **حسابداری**، نه پشتیبانیِ فنی: کسی که دربارهٔ فاکتور
+           می‌نویسد نباید در صفِ تیکتِ فنی بیفتد. --}}
+      <div class="ltr">{{ $contact['billing_email'] ?? $contact['email'] ?? '' }}</div>
     </div>
     <div class="party">
       <h3>{{ __('ui.invp_buyer') }}</h3>

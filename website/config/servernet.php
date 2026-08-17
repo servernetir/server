@@ -25,6 +25,17 @@ return [
         'phone_intl_link' => env('SITE_SUPPORT_PHONE_INTL_LINK', '+17166660425'),
         'email'         => env('SITE_SUPPORT_EMAIL', 'support@servernet.cloud'),
         'sales_email'   => env('SITE_SALES_EMAIL', 'sales@servernet.cloud'),
+        /*
+        | نشانیِ حسابداری — فقط روی **فاکتور**، نه در فوتر و صفحهٔ تماس.
+        |
+        | 🔴 چرا جدا از `email` و `sales_email`: کسی که دربارهٔ یک فاکتور سؤال
+        | دارد نباید به صفِ پشتیبانیِ فنی برود، و `sales_email` هم مالِ پیش از
+        | فروش است نه بعدش.
+        |
+        | ⚠️ این صندوق باید **واقعاً وجود داشته باشد**. نشانیِ روی سندِ مالی که
+        | برگشت بخورَد از نبودنش بدتر است: مشتری فکر می‌کند پیامش رسیده.
+        */
+        'billing_email' => env('SITE_BILLING_EMAIL', 'acc@servernet.cloud'),
         'whatsapp'      => env('SITE_WHATSAPP', '17166660425'),
         // شمارهٔ موبایلِ پشتیبانی برای اعلانِ بله (تأییدِ کاربرِ حقوقی و…) — 09xxxxxxxxx
         'notify_phone'  => env('SUPPORT_NOTIFY_PHONE', ''),
