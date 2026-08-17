@@ -396,9 +396,20 @@ class ServiceController extends Controller
                 : back()->withErrors('آدرسِ کنترل‌پنل تعیین نشده است.');
         }
 
-        // «وب‌میل» نشستِ جداگانهٔ خودش را دارد؛ `createUserSession` از قبل
-        // پارامترش را می‌گرفت و هیچ‌وقت پاس داده نمی‌شد.
-        $svc = $request->query('app') === 'webmail' ? 'webmaild' : 'cpaneld';
+        /*
+        | «وب‌میل» نشستِ جداگانهٔ خودش را دارد؛ `createUserSession` از قبل
+        | پارامترش را می‌گرفت و هیچ‌وقت پاس داده نمی‌شد.
+        |
+        | 🔴 نماینده باید به **WHM** برود (`whostmgrd`), نه cPanel. با `cpaneld`
+        | نشست ساخته می‌شود و ورود هم موفق است — ولی مشتری داخلِ cPanelِ حسابِ
+        | خودش می‌افتد و هیچ‌جا اکانت‌های مشتریانش را نمی‌بیند. یعنی خرابی کدِ
+        | ۳۰۲ می‌دهد و «کار می‌کند»، فقط محصولی که خریده را تحویل نمی‌دهد.
+        */
+        $svc = match (true) {
+            $request->query('app') === 'webmail' => 'webmaild',
+            (bool) $service->is_reseller         => 'whostmgrd',
+            default                              => 'cpaneld',
+        };
 
         $res = (new WhmClient($service->server))->createUserSession($service->username, $svc);
         $url = $res['data']['url'] ?? ($res['raw']['data']['url'] ?? null);
@@ -409,7 +420,10 @@ class ServiceController extends Controller
 
         // ورودِ عمیق به یک ابزارِ خاصِ cPanel (قالبِ Jupiter؛ اگر مسیر نخورد،
         // روی خانهٔ cPanel می‌نشیند — بی‌خطر)
-        $goto = match ($request->query('app')) {
+        //
+        // ⚠️ برای نماینده اصلاً اعمال نمی‌شود: این مسیرها زیرِ `frontend/jupiter`
+        // یعنی داخلِ cPanel، و در نشستِ WHM بی‌معنی‌اند.
+        $goto = $service->is_reseller ? null : match ($request->query('app')) {
             'files' => '/frontend/jupiter/filemanager/index.html',
             'db'    => '/frontend/jupiter/sql/index.html',
             'email' => '/frontend/jupiter/mail/index.html',

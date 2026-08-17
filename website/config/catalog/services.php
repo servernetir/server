@@ -416,30 +416,75 @@ return [
             'hero_d' => 'cPanel, DirectAdmin, Plesk ve LiteSpeed — yerel ödemeyle çevrimiçi sipariş, ödemeden sonra sunucu IP\'nizde etkinleştirme ve otomatik aylık yenileme.'],
         'chips' => ['Monthly Licenses', 'Local Billing', 'Auto-Renew', 'Any Server IP'],
         'plans' => [
-            $mk('DirectAdmin', 229, 690000, 6.90, [
+            /*
+            | ═══ چرا هر لایسنس **دو** رده دارد (مجازی / اختصاصی) ═══
+            |
+            | خودِ cPanel و Plesk قیمتشان را بر همین محور می‌بندند و بازارِ
+            | ایران هم همین‌طور می‌فروشد (بررسیِ toshan.net، مرداد ۱۴۰۵:
+            | cPanel مجازی ۳۷۰k در برابرِ اختصاصی ۷۴۰k).
+            |
+            | قیمتِ تخت یعنی مشتریِ VPS — که اکثریتِ خریدارند — عددی ببیند که
+            | برای سرورِ اختصاصی بسته شده و از رقیب دو برابر گران به‌نظر برسد.
+            | تا پیش از این، cPanel ما ۹۹۰k بود در برابرِ ۳۷۰k بازار.
+            |
+            | ⚠️ چهار اسلاگِ اصلی (`license-directadmin`, `-cpanel`, `-plesk`,
+            | `-litespeed`) عمداً **دست‌نخورده** ماندند و ردهٔ «مجازی» شدند:
+            | این‌ها روی پروداکشن از قبل ساخته شده‌اند و عوض‌کردنِ اسلاگ یعنی
+            | محصولِ یتیم در دیتابیس و دکمهٔ خریدی که پکیجش را پیدا نمی‌کند.
+            |
+            | ⚠️ قیمت‌ها بر مبنای بازار است، نه بهای تمام‌شدهٔ ما (که در کد
+            | نیست). پیش از فروش با هزینهٔ واقعی تطبیق دهید.
+            */
+            $mk('DirectAdmin — سرور مجازی', 229, 350000, 3.50, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
+                ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
                 ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
-                ['fa' => 'دریافت آپدیت‌ها', 'en' => 'Receives updates', 'tr' => 'Güncellemeleri alır'],
             ], true) + ['product' => 'license-directadmin'],
-            $mk('cPanel/WHM', 230, 990000, 9.90, [
+            $mk('DirectAdmin — سرور اختصاصی', 233, 590000, 5.90, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
-                ['fa' => 'تا ۱۰۰ اکانت', 'en' => 'Up to 100 accounts', 'tr' => '100 hesaba kadar'],
+                ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
+                ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
-                ['fa' => 'دریافت آپدیت‌ها', 'en' => 'Receives updates', 'tr' => 'Güncellemeleri alır'],
+            ]) + ['product' => 'license-directadmin-ded'],
+            $mk('cPanel/WHM — سرور مجازی', 230, 390000, 3.90, [
+                ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
+                ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
+                ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works inside and outside Iran', 'tr' => 'İran içinde ve dışında'],
+                ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
             ]) + ['product' => 'license-cpanel'],
-            $mk('Plesk Web Host', 231, 890000, 8.90, [
+            $mk('cPanel/WHM — سرور اختصاصی', 234, 740000, 7.40, [
+                ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
+                ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
+                ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works inside and outside Iran', 'tr' => 'İran içinde ve dışında'],
+                ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
+            ]) + ['product' => 'license-cpanel-ded'],
+            $mk('Plesk — سرور مجازی', 231, 450000, 4.50, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],
                 ['fa' => 'لینوکس و ویندوز', 'en' => 'Linux & Windows', 'tr' => 'Linux ve Windows'],
                 ['fa' => 'همه اکستنشن‌های پایه', 'en' => 'All core extensions', 'tr' => 'Tüm temel eklentiler'],
             ]) + ['product' => 'license-plesk'],
-            $mk('LiteSpeed', 232, 790000, 7.90, [
-                ['fa' => 'Web Server Enterprise', 'en' => 'Web Server Enterprise', 'tr' => 'Web Server Enterprise'],
+            $mk('Plesk — سرور اختصاصی', 235, 690000, 6.90, [
+                ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
+                ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
+                ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],
+                ['fa' => 'لینوکس و ویندوز', 'en' => 'Linux & Windows', 'tr' => 'Linux ve Windows'],
+            ]) + ['product' => 'license-plesk-ded'],
+            $mk('LiteSpeed Enterprise', 232, 390000, 3.90, [
+                ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'تا ۸ هسته CPU', 'en' => 'Up to 8 CPU cores', 'tr' => '8 CPU çekirdeğine kadar'],
                 ['fa' => 'LSCache همه CMSها', 'en' => 'LSCache for every CMS', 'tr' => 'Tüm CMS\'ler için LSCache'],
                 ['fa' => 'جایگزین مستقیم Apache', 'en' => 'Drop-in Apache replacement', 'tr' => 'Apache\'nin birebir yedeği'],
             ]) + ['product' => 'license-litespeed'],
+            // CloudLinux عمداً اضافه شد: خریدارش دقیقاً همان نماینده‌ای است که
+            // پکیجِ نمایندگی می‌خرد — بی‌LVE، «اکانت زیاد» فروختن ریسکِ نود است.
+            $mk('CloudLinux', 236, 390000, 3.90, [
+                ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
+                ['fa' => 'ایزولاسیون منابع با LVE', 'en' => 'LVE resource isolation', 'tr' => 'LVE kaynak izolasyonu'],
+                ['fa' => 'PHP Selector چندنسخه‌ای', 'en' => 'Multi-version PHP Selector', 'tr' => 'Çok sürümlü PHP Selector'],
+                ['fa' => 'لازمهٔ نمایندگی پایدار', 'en' => 'Essential for stable reselling', 'tr' => 'Kararlı bayilik için gerekli'],
+            ]) + ['product' => 'license-cloudlinux'],
         ],
         // کلید pool «instant» عمداً نیست: تحویل لایسنس دستی است
         'features' => ['support',

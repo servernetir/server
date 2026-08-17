@@ -580,4 +580,58 @@ class ResellerDomainApiTest extends TestCase
         $this->assertLessThan(2_500_000, $charged,
             "محافظِ ارز قیمتی را بالا برد که از قبل بالای کف بود");
     }
+    // ═══════════════ ۱۰) پسوندی که نمی‌فروشیم ═══════════════
+
+    /**
+     * 🔴 `.ir` هرگز قیمت نمی‌گیرد — حتی وقتی رجیسترار «آزاد» می‌گوید.
+     *
+     * روی سایتِ زنده سنجیده شد (مرداد ۱۴۰۵): `.ir` با «آزاد» و ۱۳٬۳۸۰٬۰۰۰
+     * تومان و یک `quote_id` واقعی برمی‌گشت، در حالی که همان دامنه از ایرنیک
+     * حدودِ ۱۷۰٬۰۰۰ تومان است — تقریباً ۸۰ برابر. و چون مسیرِ سفارش فقط
+     * `TldGate` را می‌سنجید، مشتری واقعاً می‌توانست فاکتورش را بگیرد.
+     *
+     * علتِ ساختاری: `UNSOLD_TLDS` فقط در فهرستِ پیشنهاد و دفترچهٔ قیمت اثر
+     * داشت؛ `stateOf()` هم فقط در شاخهٔ «وضعیتِ ناشناخته» از `sells()`
+     * می‌پرسید. پس کافی بود کاربر خودش پسوند را تایپ کند.
+     */
+    public function test_a_tld_we_do_not_sell_never_gets_a_price_or_a_quote(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
+            '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [[
+                // رجیسترار صریح می‌گوید آزاد است و قیمت هم می‌دهد
+                'domain' => 'sanjesh.ir', 'status' => 'free', 'is_premium' => false,
+                'price' => ['reseller' => ['price' => 120.0, 'currency' => 'EUR']],
+            ]]]]),
+        ]);
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+
+        $rows = app(\App\Services\Domain\DomainSearch::class)->search('sanjesh.ir', ['ir']);
+        $ir = collect($rows)->firstWhere('tld', 'ir');
+
+        $this->assertSame('unsupported', $ir['state'],
+            'پسوندی که نمی‌فروشیم «آزاد» اعلام شد');
+        $this->assertFalse((bool) $ir['orderable']);
+        $this->assertNull($ir['price_toman'], 'برای پسوندی که نمی‌فروشیم قیمت ساخته شد');
+        $this->assertNull($ir['quote_id'] ?? null, 'استعلامِ قابلِ سفارش ساخته شد');
+
+        // و هیچ ردیفِ استعلامی در دیتابیس ننشسته باشد
+        $this->assertSame(0, \App\Models\DomainQuote::where('tld', 'ir')->count());
+    }
+
+    /** و نیمهٔ دوم: پسوندی که **می‌فروشیم** دست‌نخورده می‌مانَد */
+    public function test_a_tld_we_do_sell_is_untouched_by_that_gate(): void
+    {
+        $this->fakeRegistrar();
+        $c = $this->reseller(credit: 50_000_000);
+        $t = $this->token($c);
+
+        $row = $this->call_($t, '/api/v1/domains/check', ['domain' => 'sanjesh-nemayande.com'])->json('data.0');
+
+        $this->assertSame('free', $row['state']);
+        $this->assertTrue((bool) $row['orderable']);
+        $this->assertGreaterThan(0, (int) $row['price']['register']);
+    }
 }

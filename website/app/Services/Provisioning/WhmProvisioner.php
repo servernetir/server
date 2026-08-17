@@ -33,11 +33,27 @@ class WhmProvisioner implements Provisioner
         }
 
         $client = new WhmClient($server);
-        $panelUrl = 'https://'.$server->hostname.':2083';
+        $reseller = (bool) $service->is_reseller;
+
+        // نماینده وارد **WHM** می‌شود (۲۰۸۷)، نه cPanel (۲۰۸۳). آدرسِ غلط یعنی
+        // مشتری‌ای که پنلِ نمایندگی خریده و صفحهٔ یک هاستِ ساده می‌بیند.
+        $panelUrl = 'https://'.$server->hostname.':'.($reseller ? '2087' : '2083');
 
         // idempotency: اگر حساب هست، دوباره نساز
         if ($client->accountState($user, $domain) === true) {
-            return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, ['reused' => true]);
+            /*
+            | ⚠️ «حساب هست» برای نماینده کافی **نیست**. اگر تلاشِ قبلی بینِ
+            | `createacct` و `setresellerlimits` نصفه مانده باشد، حساب هست ولی
+            | نماینده نیست یا بی‌سقف است — و ما «استفادهٔ دوباره» ثبت می‌کردیم
+            | و برای همیشه از کنارش رد می‌شدیم. پس گام‌های نمایندگی دوباره
+            | اجرا می‌شوند؛ هر سه idempotentاند.
+            */
+            $meta = ['reused' => true];
+            if ($reseller) {
+                $meta += $this->applyResellerSetup($client, $service, $user);
+            }
+
+            return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, $meta);
         }
 
         /*
@@ -46,13 +62,16 @@ class WhmProvisioner implements Provisioner
         | قطعی و از پیش ذخیره‌شده است، پس اگر حساب واقعاً باشد WHM خودش
         | «این نام از قبل هست» می‌دهد و شاخهٔ پایین همان را می‌گیرد.
         */
-        $res = $client->createAccount([
+        $res = $client->createAccount(array_filter([
             'username'     => $user,
             'domain'       => $domain,
             'plan'         => $service->plan ?: 'default',
             'password'     => (string) $service->password,
             'contactemail' => (string) ($service->customer->email ?? ''),
-        ]);
+            // `reseller=1` فقط بیتِ نمایندگی را می‌گذارد؛ ACL و سقف دو تماسِ
+            // جدا هستند و در applyResellerSetup() می‌آیند.
+            'reseller'     => $reseller ? 1 : null,
+        ], fn ($v) => $v !== null));
 
         if (! $res['ok']) {
             /*
@@ -73,10 +92,18 @@ class WhmProvisioner implements Provisioner
             $after = $client->accountState($user, $domain);
 
             if ($after === true) {
-                return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, [
+                $meta = [
                     'reused'               => true,
                     'verified_after_error' => mb_substr((string) $res['reason'], 0, 160),
-                ]);
+                ];
+                // حساب ساخته شده ولی تایم‌اوت نگذاشت گام‌های نمایندگی اجرا
+                // شوند — دقیقاً همان حالتی که «نمایندهٔ بی‌ACL و بی‌سقف» از آن
+                // درمی‌آید. این‌جا جبرانش می‌کنیم، نه در اجرای بعدیِ کرون.
+                if ($reseller) {
+                    $meta += $this->applyResellerSetup($client, $service, $user);
+                }
+
+                return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, $meta);
             }
 
             if ($after === null) {
@@ -96,7 +123,92 @@ class WhmProvisioner implements Provisioner
             return ProvisionResult::fail($res['reason'] ?: 'ساختِ حساب روی WHM ناموفق بود.', $res['raw']);
         }
 
-        return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, $res['data']);
+        $meta = (array) $res['data'];
+        if ($reseller) {
+            $meta += $this->applyResellerSetup($client, $service, $user);
+        }
+
+        return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, $meta);
+    }
+
+    /**
+     * دو گامِ بعد از `createacct`: مجوزها و سقفِ منابع.
+     *
+     * ═══ 🔴 چرا شکستِ این دو، تحویل را شکست‌خورده **نمی‌کند** ═══
+     *
+     * در این نقطه حسابِ نماینده روی سرور **ساخته شده** و رمزش دستِ ماست. اگر
+     * این‌جا `fail` برگردانیم، مشتری «تحویل ناموفق» می‌بیند و می‌تواند لغو کند
+     * و پولش را پس بگیرد — در حالی که حسابش زنده روی نود است. همان الگوی
+     * دقیقِ رخدادِ zhina.shop، فقط یک گام جلوتر.
+     *
+     * ⚠️ ولی سکوت هم جواب نیست: نمایندهٔ بی‌سقف می‌تواند نود را پر کند.
+     * نتیجه در `provision_meta` می‌نشیند و شکست علاوه بر آن در ردیابِ خطا
+     * ثبت می‌شود، پس در `/admin/errors` دیده می‌شود بی‌آنکه فروش بخوابد.
+     *
+     * @return array<string,mixed>
+     */
+    private function applyResellerSetup(WhmClient $client, Service $service, string $user): array
+    {
+        $meta = [];
+
+        // ── مجوزها ─────────────────────────────────────────────────────────
+        $acl = (string) (config('provisioning.reseller_acl') ?: '');
+        if ($acl !== '') {
+            $aclRes = $client->setResellerAcl($user, $acl);
+            $meta['reseller_acl'] = $aclRes['ok'] ? $acl : 'failed: '.mb_substr((string) $aclRes['reason'], 0, 120);
+            if (! $aclRes['ok']) {
+                $this->shout($service, 'setacls', $user, (string) $aclRes['reason']);
+            }
+        } else {
+            // بی‌ACL، نماینده وارد WHM می‌شود و هیچ دکمه‌ای ندارد. این را
+            // نمی‌شود بی‌صدا رد کرد.
+            $meta['reseller_acl'] = 'not-configured';
+            $this->shout($service, 'setacls', $user, 'provisioning.reseller_acl تنظیم نشده — نماینده بدونِ مجوز ساخته شد.');
+        }
+
+        // ── سقفِ منابع ──────────────────────────────────────────────────────
+        $limits = ResellerLimits::forService($service);
+        $meta['reseller_limits_source'] = $limits['source'];
+
+        if ($limits['source'] === 'unknown') {
+            // «ندانستیم» ≠ «نامحدود». سقف نمی‌گذاریم چون عددی نداریم، ولی
+            // فریاد می‌زنیم تا مدیر دستی ببندد.
+            $meta['reseller_limits'] = 'unknown';
+            $this->shout($service, 'setresellerlimits', $user,
+                'سقفِ نمایندگی از مشخصاتِ پکیج «'.$service->plan.'» درنیامد — نماینده بی‌سقف ماند.');
+
+            return $meta;
+        }
+
+        // 0 در خروجیِ ResellerLimits یعنی «نامحدودِ صریح» ⇒ سقف نگذار (null)
+        $accounts = ($limits['accounts'] ?? 0) > 0 ? $limits['accounts'] : null;
+        $disk = ($limits['disk_mb'] ?? 0) > 0 ? $limits['disk_mb'] : null;
+        $bw = ($limits['bw_mb'] ?? 0) > 0 ? $limits['bw_mb'] : null;
+
+        $limRes = $client->setResellerLimits($user, $accounts, $disk, $bw);
+        $meta['reseller_limits'] = $limRes['ok']
+            ? ['accounts' => $accounts, 'disk_mb' => $disk, 'bw_mb' => $bw]
+            : 'failed: '.mb_substr((string) $limRes['reason'], 0, 120);
+
+        if (! $limRes['ok']) {
+            $this->shout($service, 'setresellerlimits', $user, (string) $limRes['reason']);
+        }
+
+        return $meta;
+    }
+
+    /**
+     * ثبتِ خرابیِ نیمه‌کارهٔ نمایندگی — تحویل را نمی‌خواباند، ولی ساکت هم نمی‌ماند.
+     *
+     * ⚠️ شناسهٔ سرویس **داخلِ خودِ متن** است، چون `noteOnce` کلیدِ گلوگاه را از
+     * md5ِ همین متن می‌سازد. بی‌آن، نمایندهٔ دومی که ده دقیقه بعد خراب شود پشتِ
+     * گلوگاهِ اولی می‌ماند و هیچ ردی نمی‌گذارد — همان درسِ امضای وضعیت.
+     */
+    private function shout(Service $service, string $step, string $user, string $reason): void
+    {
+        \App\Support\ErrorTracker::noteOnce('provision',
+            'گامِ نمایندگی «'.$step.'» برای سرویس #'.$service->id.' (کاربر '.$user.') انجام نشد: '
+            .mb_substr($reason, 0, 200));
     }
 
     public function suspend(Service $service): ProvisionResult

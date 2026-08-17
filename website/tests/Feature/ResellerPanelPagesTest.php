@@ -55,6 +55,171 @@ class ResellerPanelPagesTest extends TestCase
         $this->get('/developers')->assertSee(fa_num('7'), false);
     }
 
+    /**
+     * 🔴 هر سه زبان باید **متنِ ترجمه‌شده** بدهند، نه فارسی زیرِ پرچمِ دیگر.
+     *
+     * ═══ چرا این تست هست ═══
+     *
+     * نسخهٔ اولِ این صفحه فقط فارسی نوشته شده بود، با این استدلال که مخاطبش
+     * نمایندهٔ ایرانی است. ولی روت داخلِ closureِ `$site` است، پس
+     * `/en/developers` و `/tr/developers` از همان روزِ اول ساخته می‌شدند و
+     * ۲۰۰ می‌دادند — با محتوای کاملاً فارسی. یعنی بازدیدکنندهٔ انگلیسی‌زبان
+     * صفحه‌ای می‌دید که به‌نظر **خراب** می‌رسد، نه ترجمه‌نشده. و هیچ تستی
+     * نمی‌گرفتش چون هر سه نسخه سالم ۲۰۰ می‌دادند.
+     *
+     * ⚠️ ادعا روی **رشتهٔ ترجمه‌شده** است نه روی وضعیتِ ۲۰۰ — همان قاعدهٔ
+     * «کدِ ۲۰۰ یعنی هیچ» در CLAUDE.md §۸.
+     */
+    public function test_the_documentation_is_actually_translated_in_all_three_locales(): void
+    {
+        $c = require resource_path('content/developers.php');
+
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $loc => $prefix) {
+            $res = $this->get($prefix.'/developers');
+            $res->assertOk();
+
+            // عنوان و مقدمهٔ همان زبان، از فایلِ محتوا خوانده می‌شوند تا تست
+            // با ویرایشِ متن نشکند ولی با **نبودِ ترجمه** بشکند
+            $res->assertSee($c['title'][$loc], false);
+            $res->assertSee($c['s5_warn_title'][$loc], false);
+
+            // و متنِ زبانِ دیگری نباید نشت کند
+            foreach (array_diff(['fa', 'en', 'tr'], [$loc]) as $other) {
+                $res->assertDontSee($c['s5_warn_title'][$other], false);
+            }
+        }
+    }
+
+    /**
+     * دسترسی‌ها و عملیاتِ پنل‌محور در **هر سه** زبان توضیح دارند.
+     *
+     * ⚠️ فهرستشان از `CustomerApiToken::ABILITIES` و `config()` می‌آید (که
+     * فارسی‌اند) و ترجمه در `content/developers.php` می‌نشیند. اگر روزی
+     * دسترسیِ تازه‌ای اضافه شود و ترجمه‌اش جا بیفتد، صفحهٔ انگلیسی یک ردیفِ
+     * فارسی نشان می‌دهد — بی‌هیچ خطایی. این تست همان را می‌گیرد.
+     */
+    public function test_every_scope_and_panel_only_operation_is_translated(): void
+    {
+        $c = require resource_path('content/developers.php');
+
+        $expected = [
+            's2_scope_desc' => array_keys(\App\Models\CustomerApiToken::ABILITIES),
+            's9_desc'       => array_keys((array) config('domain_reseller.panel_only_operations')),
+        ];
+
+        $missing = [];
+
+        foreach ($expected as $key => $keys) {
+            foreach (['en', 'tr'] as $loc) {          // fa از خودِ منبع می‌آید
+                foreach (array_diff($keys, array_keys($c[$key][$loc] ?? [])) as $k) {
+                    $missing[] = $key.'.'.$loc.'.'.$k;
+                }
+            }
+        }
+
+        $this->assertSame([], $missing,
+            "\nترجمه‌ی جاافتاده — صفحهٔ en/tr این ردیف‌ها را فارسی نشان می‌دهد:\n  "
+            .implode("\n  ", $missing));
+    }
+
+    /**
+     * 🔴 جدولِ خطاها باید **هر** شناسه‌ای را که API می‌تواند برگرداند پوشش دهد.
+     *
+     * ═══ چرا ═══
+     *
+     * نسخهٔ اولِ این صفحه ۱۸ شناسه را مستند کرده بود در حالی که کد ۲۸ تا
+     * برمی‌گرداند. شناسهٔ مستندنشده بدترین نوعِ خطاست: سرویس‌گیرنده روی
+     * `error` شرط می‌گذارد (چون خودِ مستندات همین را می‌گوید)، به شاخهٔ
+     * ناشناخته می‌رسد، و آن‌جا یا می‌ترکد یا خطا را «موفق» می‌خوانَد. و چون
+     * فقط در مسیرهای کم‌تکرار رخ می‌دهد، ماه‌ها دیده نمی‌شود.
+     *
+     * ⚠️ استخراج **از خودِ کد** است نه از یک فهرستِ دستی. فهرستِ دستی همان
+     * چیزی است که از اول کهنه شد.
+     */
+    public function test_the_error_table_documents_every_identifier_the_api_can_emit(): void
+    {
+        $sources = [
+            app_path('Http/Controllers/Api/DomainApiController.php'),
+            app_path('Http/Middleware/CustomerApiToken.php'),
+            app_path('Services/Domain/Reseller/ResellerOrderService.php'),
+        ];
+
+        $emitted = [];
+
+        foreach ($sources as $file) {
+            $src = file_get_contents($file);
+            // کامنت‌ها حذف شوند، وگرنه نامِ شناسه‌ای که فقط در توضیح آمده هم شمرده می‌شود
+            $src = preg_replace('~/\*.*?\*/|//[^\n]*~s', '', $src);
+
+            /*
+            | سه شکلِ صدورِ خطا در این کد، و هر سه لازم‌اند:
+            |   ۱ فراخوانیِ کمکی        ->err('x' / ->deny('x' / ->fail('x'
+            |   ۲ آرایهٔ خام             'error' => 'x'   (مسیرِ کسرِ اتمی)
+            |   ۳ سه‌گانه داخلِ fail()   fail($a ? 'x' : 'y'
+            |
+            | ⚠️ نسخهٔ اولِ همین تست فقط شکلِ ۱ را می‌دید و چهار شناسه را
+            | «مستندِ بی‌مصرف» گزارش کرد — یعنی استخراج‌گرِ ناقص، مستنداتِ درست
+            | را متهم کرد. اگر آن‌وقت به تست اعتماد می‌کردم، ردیف‌های درست را
+            | از مستندات حذف می‌کردم.
+            */
+            preg_match_all("~(?:->err|->deny|->fail)\(\s*'([a-z_]+)'~", $src, $m);
+            $emitted = array_merge($emitted, $m[1]);
+
+            preg_match_all("~'error'\s*=>\s*'([a-z_]+)'~", $src, $m2);
+            $emitted = array_merge($emitted, $m2[1]);
+
+            preg_match_all("~->fail\(\s*[^;]*?\?\s*'([a-z_]+)'\s*:\s*'([a-z_]+)'~s", $src, $m3);
+            $emitted = array_merge($emitted, $m3[1], $m3[2]);
+
+            preg_match_all("~'(token_expired|token_revoked)'\s*=>~", $src, $m4);
+            $emitted = array_merge($emitted, $m4[1]);
+        }
+
+        $emitted = array_values(array_unique($emitted));
+        sort($emitted);
+
+        $c = require resource_path('content/developers.php');
+
+        $undocumented = [];
+
+        foreach ($emitted as $code) {
+            foreach (['fa', 'en', 'tr'] as $loc) {
+                if (! array_key_exists($code, $c['s6_rows'][$loc] ?? [])) {
+                    $undocumented[] = $code.' ('.$loc.')';
+                }
+            }
+        }
+
+        $this->assertSame([], $undocumented,
+            "\nشناسهٔ خطایی که API برمی‌گرداند ولی مستندات ندارد. سرویس‌گیرنده\n"
+            ."روی شاخهٔ ناشناخته می‌افتد:\n  ".implode("\n  ", $undocumented));
+
+        // و برعکس: ردیفِ مستندشده‌ای که هیچ کدی تولیدش نمی‌کند هم بدهی است،
+        // چون یکپارچه‌سازی برایش شاخهٔ مرده می‌نویسد.
+        $stale = array_values(array_diff(array_keys($c['s6_rows']['fa']), $emitted));
+
+        $this->assertSame([], $stale,
+            "\nردیفِ مستندشده‌ای که هیچ‌جای کد تولید نمی‌شود:\n  ".implode("\n  ", $stale));
+    }
+
+    /**
+     * نسخهٔ چاپی/PDF واقعاً وجود دارد و همان محتوا را می‌دهد.
+     *
+     * ⚠️ پروژه هیچ کتابخانهٔ PDF ندارد و دیپلویِ پروداکشن فایل‌به‌فایل و بی‌SSH
+     * است، پس افزودنِ وابستگیِ composer عملی نیست. الگوی جاافتادهٔ خودِ پروژه
+     * (`account/invoice-print`) همین است: HTMLِ بهینه‌شده برای چاپ + «ذخیره به
+     * PDF»ِ خودِ مرورگر.
+     */
+    public function test_the_print_view_serves_the_same_documentation(): void
+    {
+        $res = $this->get('/developers?print=1');
+
+        $res->assertOk();
+        $res->assertSee('Idempotency-Key', false);
+        // چاپ باید خودکار باز شود، وگرنه دکمه فقط یک صفحهٔ دیگر است
+        $res->assertSee('window.print()', false);
+    }
+
     /** صفحهٔ نمایندگی برای مشتریِ عادی هم باز است و حالتِ معرفی نشان می‌دهد */
     public function test_a_non_reseller_sees_the_intro_state_not_a_404(): void
     {

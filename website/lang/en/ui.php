@@ -1670,6 +1670,8 @@ return [
     'cvb_a_label' => 'server name',
     'cvb_a_ip' => 'number of extra IPs',
     // ═══ کنسولِ مشتری: مسیرِ پرداخت + پنل (بومی‌سازیِ خودکار) ═══
+    'inv_due_until' => 'Payable until',
+    'inv_due_passed' => 'The payment window for this proforma has passed; it may be cancelled shortly.',
     'inv_invoice' => 'Invoice',
     'inv_brand' => 'ServerNet',
     'inv_download_receipt' => 'Download receipt (PDF)',
@@ -1765,6 +1767,9 @@ return [
     'chk_q_cycle' => 'Choose your billing period',
     'chk_per_month' => 'Monthly',
     'chk_cheaper' => 'cheaper',
+    'chk_q_server_ip' => 'Enter your server IP',
+    'chk_lbl_server_ip' => 'Public server IP',
+    'chk_server_ip_note' => 'The license is activated on this exact IP, so enter it carefully. It must be a public address (not 192.168.x.x or 127.0.0.1). We never ask for your root password or server access. If the IP changes later, open a ticket and we will move it.',
     'chk_q_domain' => 'For this hosting, do you already have a domain or want to get one?',
     'chk_q_ip' => 'Which server should this license activate on?',
     'chk_lbl_ip' => 'Your server IP (IPv4)',

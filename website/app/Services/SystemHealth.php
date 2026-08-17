@@ -57,6 +57,7 @@ class SystemHealth
             $this->database(),
             $this->stuckDomains(),
             $this->stuckServices(),
+            $this->unbilledServices(),
             $this->undeliveredCloud(),
             $this->cloudRelease(),
             $this->mailboxes(),
@@ -195,6 +196,59 @@ class SystemHealth
     }
 
     /** سرویسی که پول گرفته‌ایم و تحویل نشده — همان پرس‌وجوی `provision:run` */
+    /**
+     * 🔴 سرویسِ زنده‌ای که **سررسید ندارد** یعنی سرویسِ رایگانِ ابدی.
+     *
+     * `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس ردیفِ
+     * بی‌سررسید نه فاکتور می‌گیرد، نه یادآوری، نه تعلیق می‌شود. هیچ خطایی هم
+     * تولید نمی‌کند — از نظرِ سامانه اصلاً وجود ندارد.
+     *
+     * یک نمونه‌اش را کارفرما دستی پیدا کرد (سرویسی از پیش از ساخته‌شدنِ سیستمِ
+     * سررسید). مسئله اما یک ردیف نیست: هر مسیرِ فروشِ تازه‌ای که این ستون را
+     * پر نکند، بی‌صدا همین را می‌سازد. پس به‌جای اصلاحِ آن یک ردیف، این چک
+     * اضافه شد تا **موردِ بعدی** دیده شود.
+     *
+     * رفعش: `php artisan services:backfill-due --dry` و بعد بدونِ `--dry`.
+     *
+     * ⚠️ `warn` است نه `fail`: پول از دست می‌رود ولی هیچ سرویسی قطع نیست و
+     * هیچ مشتری‌ای معطل نمانده. `fail`ِ بی‌فوریت، `fail`های واقعی را بی‌ارزش
+     * می‌کند.
+     */
+    private function unbilledServices(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'next_due_at')) {
+            return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'ستونِ سررسید هنوز ساخته نشده.');
+        }
+
+        /*
+        | ⚠️ `customer_id` و رابطهٔ `customer` هر دو لازم‌اند.
+        |
+        | نسخهٔ اول فقط `['id','name']` را select می‌کرد؛ `serviceLinks()` روی
+        | `$s->customer !== null` فیلتر می‌کند و بی‌`customer_id` آن رابطه هرگز
+        | حل نمی‌شود — پس چک روی پروداکشن «۴ سرویس» می‌گفت و **هیچ لینکی**
+        | نمی‌داد. هشداری که نگوید کدام ردیف، مدیر را به گشتنِ دستی می‌فرستد و
+        | همان‌جا نادیده گرفته می‌شود.
+        |
+        | با نگاه‌کردن به خودِ صفحهٔ زنده پیدا شد، نه با تست: تستِ اولیه فقط
+        | `level` را می‌سنجید.
+        */
+        $rows = \App\Models\Service::query()
+            ->whereNull('next_due_at')
+            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->with('customer')
+            ->limit(20)
+            ->get(['id', 'name', 'customer_id']);
+
+        if ($rows->isEmpty()) {
+            return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'همهٔ سرویس‌های زنده سررسید دارند.');
+        }
+
+        return $this->row('unbilled', false, 'warn', 'سررسیدِ سرویس‌ها',
+            fa_num($rows->count()).' سرویسِ زنده سررسید ندارد و هرگز فاکتورِ تمدید نمی‌گیرد. '
+            .'برای رفع: services:backfill-due',
+            $this->serviceLinks($rows));
+    }
+
     private function stuckServices(): array
     {
         if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_status')) {

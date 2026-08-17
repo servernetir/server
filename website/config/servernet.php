@@ -293,10 +293,13 @@ return [
                     ['slug' => 'linux',   'fa' => 'هاست لینوکس', 'en' => 'Linux Hosting', 'tr' => 'Linux Hosting'],
                     ['slug' => 'windows', 'fa' => 'هاست ویندوز', 'en' => 'Windows Hosting', 'tr' => 'Windows Hosting'],
                 ]],
+                // ترتیب عمدی: ارزان‌ترین پله اول، تا کاربرِ مردد قیمتِ ورودی را
+                // اول ببیند. سی‌پنل زیرِ آن چون بیشترین جستجو را دارد.
                 ['fa' => 'نمایندگی هاست', 'en' => 'Reseller hosting', 'tr' => 'Bayilik (Reseller)', 'items' => [
-                    ['slug' => 'reseller-wordpress', 'fa' => 'نمایندگی هاست وردپرس', 'en' => 'WordPress Reseller', 'tr' => 'WordPress Reseller'],
-                    ['slug' => 'reseller-linux',     'fa' => 'نمایندگی هاست لینوکس', 'en' => 'Linux Reseller', 'tr' => 'Linux Reseller'],
-                    ['slug' => 'reseller-windows',   'fa' => 'نمایندگی هاست ویندوز', 'en' => 'Windows Reseller', 'tr' => 'Windows Reseller'],
+                    ['slug' => 'reseller-directadmin', 'fa' => 'نمایندگی هاست دایرکت‌ادمین', 'en' => 'DirectAdmin Reseller', 'tr' => 'DirectAdmin Reseller'],
+                    ['slug' => 'reseller-linux',       'fa' => 'نمایندگی هاست سی‌پنل', 'en' => 'cPanel Reseller', 'tr' => 'cPanel Reseller'],
+                    ['slug' => 'reseller-wordpress',   'fa' => 'نمایندگی هاست وردپرس', 'en' => 'WordPress Reseller', 'tr' => 'WordPress Reseller'],
+                    ['slug' => 'reseller-windows',     'fa' => 'نمایندگی هاست ویندوز (پلسک)', 'en' => 'Windows / Plesk Reseller', 'tr' => 'Windows / Plesk Reseller'],
                 ]],
             ],
         ],
@@ -317,6 +320,13 @@ return [
                 ['fa' => 'ثبت و انتقال دامنه', 'en' => 'Register & transfer', 'tr' => 'Kayıt ve transfer', 'items' => [
                     ['route' => ['domain.search'], 'new' => true,
                         'fa' => 'جستجو و ثبت دامنه', 'en' => 'Search & register', 'tr' => 'Ara ve kaydet'],
+                    /*
+                    | ⚠️ عنوانِ همین گروه از روزِ اول «ثبت و انتقال» بود ولی
+                    | هیچ لینکِ انتقالی نداشت — منویی که چیزی را وعده می‌دهد و
+                    | راهش را نشان نمی‌دهد، از نبودنش بدتر است.
+                    */
+                    ['route' => ['domain.transfer.page'], 'new' => true,
+                        'fa' => 'انتقال دامنه', 'en' => 'Transfer a domain', 'tr' => 'Alan adi transferi'],
                     ['slug' => 'popular-tlds', 'fa' => 'دامنه عمومی', 'en' => 'Popular TLDs', 'tr' => 'Popüler Uzantılar'],
                     ['slug' => 'ir',           'fa' => 'دامنه IR', 'en' => '.ir Domains', 'tr' => '.ir Alan Adları'],
                     ['slug' => 'persian',      'fa' => 'دامنه فارسی', 'en' => 'Persian IDN Domains', 'tr' => 'Farsça (IDN) Alan Adları'],
@@ -418,7 +428,9 @@ return [
         ['icon' => 'shield',   'slug' => 'security', 'fa' => ['t' => 'امنیت', 'd' => 'حفاظت از سرویس‌های شما در برابر تهدیدات سایبری'],          'en' => ['t' => 'Security', 'd' => 'Protect your services against cyber threats'],          'tr' => ['t' => 'Güvenlik', 'd' => 'Hizmetlerinizi siber tehditlere karşı koruyun']],
         ['icon' => 'lifebuoy', 'slug' => 'wordpress-care', 'fa' => ['t' => 'پشتیبانی وردپرس', 'd' => 'حل مشکلات وب‌سایت وردپرسی شما'],                'en' => ['t' => 'WordPress Care', 'd' => 'We fix your WordPress site issues'],              'tr' => ['t' => 'WordPress Bakımı', 'd' => 'WordPress sitenizin sorunlarını çözüyoruz']],
         ['icon' => 'lock',     'slug' => 'ssl', 'fa' => ['t' => 'گواهینامه SSL', 'd' => 'برای کاربران وب‌سایتتان محیطی امن‌تر بسازید'],     'en' => ['t' => 'SSL Certificates', 'd' => 'Build a safer environment for your users'],     'tr' => ['t' => 'SSL Sertifikaları', 'd' => 'Kullanıcılarınız için daha güvenli bir ortam']],
-        ['icon' => 'key',      'slug' => 'licenses', 'fa' => ['t' => 'لایسنس‌ها', 'd' => 'لایسنس نرم‌افزار با پرداخت ریالی'],                    'en' => ['t' => 'Licenses', 'd' => 'Software licenses with local billing'],                      'tr' => ['t' => 'Lisanslar', 'd' => 'Yerel ödemeyle yazılım lisansları']],
+        // ⚠️ توضیحِ این آیتم عمداً «اورجینال» نمی‌گوید — لایسنس‌ها اشتراکی‌اند.
+        // دلیلِ کاملش در بالای بلوکِ `licenses` در config/catalog/services.php.
+        ['icon' => 'key',      'slug' => 'licenses', 'fa' => ['t' => 'لایسنس‌ها', 'd' => 'لایسنس کنترل‌پنل با قیمت اقتصادی'],                   'en' => ['t' => 'Licenses', 'd' => 'Control panel licenses, economically priced'],        'tr' => ['t' => 'Lisanslar', 'd' => 'Ekonomik kontrol paneli lisansları']],
         ['icon' => 'restore',  'cat' => 'hosting', 'slug' => 'backup', 'fa' => ['t' => 'هاست بکاپ', 'd' => 'در صورت بروز مشکل، اطلاعات شما حفظ خواهد شد'],        'en' => ['t' => 'Backup Hosting', 'd' => 'Your data stays safe, whatever happens'],         'tr' => ['t' => 'Yedek Hosting', 'd' => 'Ne olursa olsun verileriniz güvende']],
         ['icon' => 'box',      'slug' => 'more', 'fa' => ['t' => 'خدمات بیشتر', 'd' => 'سایر خدمات تکمیلی سرورنت'],                          'en' => ['t' => 'More Services', 'd' => 'Other complementary services'],                    'tr' => ['t' => 'Diğer Hizmetler', 'd' => 'ServerNet\'in tamamlayıcı hizmetleri']],
     ],

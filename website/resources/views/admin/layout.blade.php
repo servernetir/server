@@ -36,9 +36,10 @@
       @php $custCount = \Illuminate\Support\Facades\Schema::hasTable('customers')
               ? \App\Models\Customer::count() : 0; @endphp
       <a href="/admin/customers" class="@yield('nav_customers')"><svg class="icon"><use href="#i-users"/></svg>مشتریان@if($custCount)<span class="ad-pill" style="background:rgba(34,211,238,.18);color:#22d3ee">{{ $custCount }}</span>@endif</a>
-      @php $pendingKyc = \Illuminate\Support\Facades\Schema::hasTable('customer_profiles')
-              ? \App\Models\CustomerProfile::where('status', 'pending')->count() : 0; @endphp
-      <a href="/admin/verifications" class="@yield('nav_verifications')"><svg class="icon"><use href="#i-shield"/></svg>احراز هویت@if($pendingKyc)<span class="ad-pill">{{ $pendingKyc }}</span>@endif</a>
+      {{-- «احراز هویت» عمداً آیتمِ مستقلِ منو نیست: زیرمجموعهٔ مشتریان است و
+           به‌صورت دکمه (با همان شمارشِ در انتظار) بالای /admin/customers نشسته.
+           ⚠️ روتِ /admin/verifications دست‌نخورده است — فقط از نوارِ کناری
+           برداشته شد، حذف نشد. --}}
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
@@ -143,6 +144,9 @@
 {{-- فیلتر و مرتب‌سازیِ همهٔ جدول‌ها — عمومی است و هیچ ویویی لازم نیست چیزی
      اضافه کند. انصراف با `data-no-enhance` روی خودِ <table>. --}}
 <script src="{{ asset_ver('assets/js/admin-tables.js') }}" defer></script>
+{{-- دیت‌پیکرِ شمسی. خودمیزبان و بی‌کتابخانه (CSP هر CDN را بی‌صدا بلاک
+     می‌کند)، و هیچ ریاضیِ جلالی در مرورگر ندارد — شبکهٔ ماه از سرور می‌آید. --}}
+<script src="{{ asset_ver('assets/js/jdate.js') }}" defer></script>
 <script>
 (function(){
   var b = document.getElementById('ad-theme');

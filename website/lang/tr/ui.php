@@ -1670,6 +1670,8 @@ return [
     'cvb_a_label' => 'sunucu adı',
     'cvb_a_ip' => 'ek IP sayısı',
     // ═══ کنسولِ مشتری: مسیرِ پرداخت + پنل (بومی‌سازیِ خودکار) ═══
+    'inv_due_until' => 'Son ödeme',
+    'inv_due_passed' => 'Bu proforma için ödeme süresi doldu; kısa süre içinde iptal edilebilir.',
     'inv_invoice' => 'Fatura',
     'inv_brand' => 'ServerNet',
     'inv_download_receipt' => 'Makbuzu indir (PDF)',
@@ -1765,6 +1767,9 @@ return [
     'chk_q_cycle' => 'Ödeme dönemini seçin',
     'chk_per_month' => 'Aylık',
     'chk_cheaper' => 'daha ucuz',
+    'chk_q_server_ip' => 'Sunucu IP adresinizi girin',
+    'chk_lbl_server_ip' => 'Genel sunucu IP adresi',
+    'chk_server_ip_note' => 'Lisans tam olarak bu IP üzerinde etkinleştirilir, dikkatli girin. Genel bir adres olmalıdır (192.168.x.x veya 127.0.0.1 değil). Root şifresi veya sunucu erişimi istemiyoruz. IP sonradan değişirse bilet açın, taşıyalım.',
     'chk_q_domain' => 'Bu hosting için bir alan adınız var mı, yoksa almak ister misiniz?',
     'chk_q_ip' => 'Lisans hangi sunucuda etkinleştirilsin?',
     'chk_lbl_ip' => 'Sunucu IP\'niz (IPv4)',

@@ -201,6 +201,81 @@ class WhmClient
         return $this->call('createacct', $params);
     }
 
+    // ───────────────────────── نمایندگی (reseller) ─────────────────────────
+
+    /*
+    | ساختِ نماینده در WHM **سه** تماس است، نه یکی. `createacct` با
+    | `reseller=1` فقط بیتِ «این کاربر نماینده است» را می‌گذارد؛ بی‌دو تماسِ
+    | بعدی، نماینده‌ای می‌سازیم که:
+    |   • هیچ ACLای ندارد ⇒ وارد WHM می‌شود و **هیچ دکمه‌ای** نمی‌بیند
+    |   • هیچ سقفی ندارد ⇒ می‌تواند تا پرشدنِ کلِ نود اکانت بسازد، یعنی
+    |     نمایندهٔ ۱۰ اکانتی عملاً نامحدود است و بقیهٔ مشتریانِ همان نود قربانی.
+    |
+    | هر دو خرابی **بی‌صدا**ست: تحویل «موفق» ثبت می‌شود و رمز ایمیل می‌شود.
+    */
+
+    /**
+     * سقفِ منابعِ نماینده — دیسک/پهنای‌باند بر حسب **مگابایت**.
+     *
+     * ⚠️ `setresellerlimits` برای «نامحدود» پرچمِ جدا می‌خواهد
+     * (`enable_account_limit=0`)، نه عددِ ۰ در فیلدِ سقف. اگر عدد ۰ بفرستی،
+     * WHM آن را «سقف = صفر» می‌فهمد و نماینده **هیچ** اکانتی نمی‌تواند بسازد.
+     */
+    public function setResellerLimits(string $user, ?int $accounts, ?int $diskMb, ?int $bwMb): array
+    {
+        $p = ['user' => $user];
+
+        $p['enable_account_limit'] = $accounts !== null ? 1 : 0;
+        if ($accounts !== null) {
+            $p['account_limit'] = $accounts;
+        }
+
+        // دیسک و پهنای‌باند یک پرچمِ **مشترک** دارند (`enable_resource_limits`),
+        // پس اگر فقط یکی‌شان را بدهی، آن یکی هم فعال می‌شود و مقدارش پیش‌فرضِ
+        // WHM می‌شود. هر دو با هم یا هیچ‌کدام.
+        $hasResource = $diskMb !== null || $bwMb !== null;
+        $p['enable_resource_limits'] = $hasResource ? 1 : 0;
+        if ($hasResource) {
+            $p['diskspace_limit'] = $diskMb ?? 0;
+            $p['bandwidth_limit'] = $bwMb ?? 0;
+        }
+
+        return $this->call('setresellerlimits', $p);
+    }
+
+    /**
+     * مجوزهای نماینده. `acllist` نامِ یک ACL از پیش‌ساخته در WHM است.
+     *
+     * ⚠️ ACLِ نبود، خطای صریح می‌دهد و همان درست است: بی‌ACL پنل خالی است، و
+     * سقوطِ بی‌صدا به «همه‌چیز» یعنی دادنِ دسترسیِ روت‌گونه به مشتری.
+     */
+    public function setResellerAcl(string $user, string $acl): array
+    {
+        return $this->call('setacls', ['reseller' => $user, 'acllist' => $acl]);
+    }
+
+    /** آیا این کاربر همین حالا نماینده است؟ null = نتوانستیم بپرسیم */
+    public function isReseller(string $user): ?bool
+    {
+        $res = $this->call('listresellers');
+
+        if (! $res['ok']) {
+            return null;
+        }
+
+        $list = $res['data']['reseller'] ?? [];
+
+        // WHM بسته به نسخه یا فهرستِ رشته می‌دهد یا فهرستِ آبجکت
+        foreach ((array) $list as $row) {
+            $name = is_array($row) ? ($row['user'] ?? $row['name'] ?? null) : $row;
+            if ((string) $name === $user) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function accountSummary(string $user): array
     {
         return $this->call('accountsummary', ['user' => $user]);
