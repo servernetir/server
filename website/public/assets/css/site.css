@@ -3617,6 +3617,8 @@ html.aib-lock,html.aib-lock body{overflow:hidden}
   font-size:14px;line-height:1;opacity:0;transition:opacity .2s var(--ease),color .2s var(--ease)}
 .dev-code:hover .dev-copy,.dev-copy:focus-visible{opacity:1}
 .dev-copy:hover{color:var(--info)}
+/* شکستِ کپی باید دیده شود، نه اینکه دکمه بی‌صدا هیچ‌کاری نکند */
+.dev-copy.is-bad{color:var(--danger);opacity:1}
 
 @media (max-width:960px){
   .dev-grid{grid-template-columns:minmax(0,1fr);gap:24px}
