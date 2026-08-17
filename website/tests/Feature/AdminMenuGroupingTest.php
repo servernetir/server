@@ -105,7 +105,7 @@ class AdminMenuGroupingTest extends TestCase
         $nav = $this->nav();
 
         foreach ([
-            '/admin/calendar', '/admin/customers', '/admin/verifications',
+            '/admin/calendar', '/admin/customers',
             '/admin/tickets', '/admin/broadcasts', '/admin/servers',
             '/admin/products', '/admin/cloud', '/admin/server-shop',
             '/admin/exit-infra', '/admin/domains', '/admin/finance',
@@ -144,5 +144,38 @@ class AdminMenuGroupingTest extends TestCase
             ]);
             $this->actingAs($admin)->get($old)->assertRedirect('/admin/settings?tab='.$tab);
         }
+    }
+
+    /**
+     * 🔴 «احراز هویت» هم از منو برداشته شد — پس مثلِ چهار صفحهٔ بالا، ادعایش
+     * به **مقصدِ تازه** منتقل می‌شود، نه اینکه حذف شود.
+     *
+     * ═══ چرا حذفِ ساده غلط بود ═══
+     *
+     * برداشتنِ خطِ `/admin/verifications` از فهرستِ بالا، تست را سبز می‌کرد و
+     * دقیقاً همان چیزی را از دست می‌داد که آن فهرست برای نگه‌داشتنش هست: اگر
+     * فردا کسی دکمه را از صفحهٔ مشتریان هم بردارد، آن صفحه بی‌هیچ خطایی
+     * ناپدید می‌شود و هیچ‌کس خبردار نمی‌شود.
+     *
+     * ⚠️ ادعا **دو نیمه** دارد و هر دو لازم است: راهِ رسیدن هست، و شمارشِ
+     * در انتظار هم رویش دیده می‌شود. دکمهٔ بی‌شمارش یعنی صفِ پر و پنلِ ساکت.
+     */
+    public function test_verifications_moved_out_of_the_nav_but_stayed_reachable(): void
+    {
+        $this->assertStringNotContainsString('/admin/verifications', $this->nav(),
+            '«احراز هویت» زیرمجموعهٔ مشتریان است و نباید در نوارِ کناری تکرار شود');
+
+        $admin = User::create([
+            'name' => 'مدیر', 'email' => 'vf'.random_int(1000, 9999).'@example.test',
+            'password' => bcrypt('secret-for-test'), 'role' => 'admin',
+        ]);
+
+        $html = (string) $this->actingAs($admin)->get('/admin/customers')->assertOk()->getContent();
+
+        $this->assertStringContainsString('/admin/verifications', $html,
+            'راهِ رسیدن به صفِ احراز هویت از فهرستِ مشتریان قطع شد');
+
+        // و خودِ صفحه هنوز زنده است (بوکمارکِ قدیمی نمی‌شکند)
+        $this->actingAs($admin)->get('/admin/verifications')->assertOk();
     }
 }
