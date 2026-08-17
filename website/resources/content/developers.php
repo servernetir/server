@@ -520,19 +520,19 @@ return [
 
     "s11_rows" => [
         "fa" => [
-            "transfer" => "انتقالِ دامنه از رجیسترارِ دیگر — ارسالِ کدِ انتقال، پیگیریِ وضعیتِ درخواست و تسویهٔ سالِ اضافه‌شده. در دستِ توسعه است.",
+            "transfer" => "انتقالِ دامنه از رجیسترارِ دیگر — ارسالِ کدِ انتقال، پیگیریِ وضعیتِ درخواست و تسویهٔ سالِ اضافه‌شده. در دستِ توسعه است. توجه: نقطهٔ پایانیِ فهرستِ پسوندها از هم‌اکنون قیمتِ انتقال را برمی‌گرداند تا بتوانید جدولِ قیمتِ خود را کامل بسازید؛ ولی عملیاتِ انتقال هنوز قابلِ فراخوانی نیست.",
             "ir" => "عرضهٔ پسوندهای ملیِ ایران از راهِ اتصالِ مستقیم، به‌جای رجیسترارِ بین‌المللی.",
             "webhook" => "اعلانِ رویداد به نشانیِ شما، تا برای تغییرِ حالتِ سفارش‌های غیرنهایی به استعلامِ دوره‌ای نیاز نباشد.",
             "contact" => "مسیرِ دادهٔ مالکِ ثبت‌شده به تفکیکِ مشتریِ نهایی، همراه با سازوکارِ رضایت و حذف.",
         ],
         "en" => [
-            "transfer" => "inbound domain transfer — submitting the authorization code, tracking request state and settling the added year. In development.",
+            "transfer" => "inbound domain transfer — submitting the authorization code, tracking request state and settling the added year. In development. Note that the TLD listing endpoint already returns a transfer price so you can build a complete price table; the transfer operation itself is not yet callable.",
             "ir" => "supply of Iranian national extensions through a direct connection rather than an international registrar.",
             "webhook" => "event delivery to an endpoint of yours, removing the need to poll for state changes on non-terminal orders.",
             "contact" => "a per-end-customer registrant data path, with the accompanying consent and erasure mechanics.",
         ],
         "tr" => [
-            "transfer" => "gelen alan adi transferi — yetki kodunun gonderilmesi, istek durumunun izlenmesi ve eklenen yilin tahsili. Gelistirme asamasinda.",
+            "transfer" => "gelen alan adi transferi — yetki kodunun gonderilmesi, istek durumunun izlenmesi ve eklenen yilin tahsili. Gelistirme asamasinda. TLD listeleme uc noktasi transfer fiyatini simdiden dondurur; ancak transfer islemi henuz cagrilabilir degildir.",
             "ir" => "Iran ulusal uzantilarinin uluslararasi kayit sirketi yerine dogrudan baglantiyla saglanmasi.",
             "webhook" => "kendi uc noktaniza olay iletimi; nihai olmayan siparisler icin surekli sorgulama gereksinimini kaldirir.",
             "contact" => "son musteri bazinda kayit sahibi veri yolu, ilgili riza ve silme mekanizmalariyla.",
