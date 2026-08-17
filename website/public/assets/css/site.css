@@ -3275,6 +3275,10 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
     --surface:#FFFFFF; --surface-2:#F7F8FA;
     --line:#E3E7EE; --line-2:#CAD1DC;
     --text:#0B1220; --muted:#48526A; --dim:#6A7488;
+    /* جعبه‌های هشدارِ /developers هم باید جوهرپسند شوند، نه اینکه تینتِ
+       طراحیِ تیره را روی کاغذ ببرند */
+    --info:#0E7490;   --info-bg:#F2FAFC;  --info-line:#BEE0E9;
+    --danger:#B91C1C; --danger-bg:#FEF3F3; --danger-line:#EFC9C9;
   }
 
   @page{ size:A4; margin:14mm 12mm 15mm }
@@ -3286,7 +3290,8 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .aurora,.grid-overlay,#progress,.site-header-wrap,.imp-bar,
   .site-footer,.chat-fab,.chat-panel,.chat-launcher,
   .drawer,.drawer-backdrop,.au-cta,.audit-filter,.tool-search,.aud-dims,
-  .au-share,.aud-stage,.rp-stale a,.tl-content,.hero .badge{display:none !important}
+  .au-share,.aud-stage,.rp-stale a,.tl-content,.hero .badge,
+  .dev-toc,.dev-copy,.dev-hero .hero-ctas,.dev-doc .btn{display:none !important}
 
   /* ── ۳) سربرگ و پابرگِ سند ────────────────────────────────────────────── */
   .au-print-head{display:flex !important;align-items:center;justify-content:space-between;
@@ -3312,8 +3317,13 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .hero-sub-inner{max-width:none !important}
   .reveal{opacity:1 !important;transform:none !important}
 
-  /* عنوانِ صفحهٔ گزارش روی کاغذ تکراری است — سربرگ همان را می‌گوید */
-  .hero-sub h1,.hero-sub .lead,.rp-when{display:none !important}
+  /* عنوانِ صفحهٔ گزارش روی کاغذ تکراری است — سربرگ همان را می‌گوید.
+     🔴 ولی مستنداتِ API سربرگِ چاپ ندارد، پس اگر این قاعده آن را هم بگیرد
+     PDF **بی‌عنوان** بیرون می‌آید — سندی که صفحهٔ اولش نمی‌گوید چیست. یک بار
+     همین شد و فقط با نگاه‌کردن به خروجیِ چاپ پیدا شد، نه با تست. */
+  .hero-sub:not(.dev-hero) h1,.hero-sub:not(.dev-hero) .lead,.rp-when{display:none !important}
+  .dev-printurl{display:block !important;font-size:8.5pt;color:#6A7488;
+    margin-top:10px;padding-top:8px;border-top:1px solid #CAD1DC;direction:ltr}
 
   /* ── ۵) کارت‌ها ────────────────────────────────────────────────────────── */
   .audit-hero,.audit-plan,.adetail-group,.audit-vitals{
@@ -3348,8 +3358,15 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   /* ── ۸) شکستنِ صفحه ────────────────────────────────────────────────────
      بی این، یک ردیفِ چک وسطِ خودش دو تکه می‌شود و عنوانِ گروه ته صفحه تنها
      می‌مانَد — همان چیزی که یک PDF را «ارزان» نشان می‌دهد. */
-  .audit-hero,.aplan-item,.adetail-group,.acheck,.vitem,.acat{break-inside:avoid;page-break-inside:avoid}
-  .adetail-group h3,.audit-plan h3{break-after:avoid;page-break-after:avoid}
+  .audit-hero,.aplan-item,.adetail-group,.acheck,.vitem,.acat,
+  .dev-code,.dev-note,.dev-ep,.dev-plugin,.dev-tablewrap{break-inside:avoid;page-break-inside:avoid}
+  .adetail-group h3,.audit-plan h3,
+  .dev-doc h2,.dev-doc h3{break-after:avoid;page-break-after:avoid}
+
+  /* مستندات روی کاغذ تک‌ستونه است و کد باید بشکند نه اینکه از کاغذ بیرون بزند */
+  .dev-grid{display:block !important}
+  .dev-code{white-space:pre-wrap;word-break:break-word;font-size:8.5pt}
+  .dev-m{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .audit-detail{break-before:auto}
 
   /* ── ۹) لینک‌ها ────────────────────────────────────────────────────────
@@ -3615,27 +3632,3 @@ html.aib-lock,html.aib-lock body{overflow:hidden}
   .dev-ep-p{overflow-x:auto}
 }
 
-/* ═══ نسخهٔ چاپی / PDF ═══
-   پروژه هیچ کتابخانهٔ PDF ندارد و دیپلویِ پروداکشن فایل‌به‌فایل است، پس
-   افزودنِ وابستگیِ composer عملاً ممکن نیست. الگوی جاافتادهٔ خودِ پروژه
-   (`account/invoice-print`) همین است: HTMLِ بهینه‌شده + «ذخیره به PDF»ِ مرورگر. */
-@media print{
-  header,#header,footer,.topbar,nav.mobile,.aurora,.grid-overlay,
-  .dev-toc,.dev-copy,.hero-ctas,.btn{display:none !important}
-  /* 🔴 یک بلوکِ @media printِ **قدیمی‌تر** در همین فایل `.hero-sub h1` و
-     `.hero-sub .lead` را پنهان می‌کند (برای صفحاتِ گزارش نوشته شده بود). بی‌این
-     دو خط، PDFِ مستندات **بی‌عنوان** بیرون می‌آمد — سندی که اولین صفحه‌اش
-     نمی‌گوید چیست. با نگاه‌کردن به خروجیِ چاپ پیدا شد، نه با تست. */
-  .dev-hero h1,.dev-hero .lead{display:block !important}
-  .dev-printurl{display:block !important;font-size:11px;color:#555;margin-top:10px;direction:ltr}
-  #main{padding-top:0 !important}
-  body{background:#fff !important;color:#000 !important}
-  .section,.dev-wrap{padding:0 !important}
-  .dev-grid{display:block}
-  .dev-doc h2{page-break-after:avoid;break-after:avoid}
-  .dev-code,.dev-note,.dev-ep,.dev-tablewrap{page-break-inside:avoid;break-inside:avoid}
-  .dev-code,.dev-note,.dev-ep,.dev-plugin,.dev-table th,.dev-table td{
-    background:#fff !important;border-color:#bbb !important;color:#000 !important}
-  .dev-sub,.dev-ep-d,.dev-plugin p{color:#333 !important}
-  a[href^="http"]::after{content:" (" attr(href) ")";font-size:10px;color:#555}
-}
