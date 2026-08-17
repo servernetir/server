@@ -303,7 +303,26 @@
           <td>{{ $s->cycleLabel() }}</td>
           <td>{{ $money($s->total()) }}</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
-          <td dir="ltr" style="color:var(--muted)">{{ $s->next_due_at ? sdate($s->next_due_at) : '—' }}</td>
+          {{-- 🔴 سرویسِ **زندهٔ بی‌سررسید** یعنی سرویسِ رایگانِ ابدی:
+               `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس
+               این ردیف نه فاکتور می‌گیرد، نه یادآوری، نه تعلیق می‌شود — و هیچ
+               خطایی هم تولید نمی‌کند. پس به‌جای یک خطِ تیره، همین‌جا هم هشدار
+               داده می‌شود و هم راهِ رفعش هست. --}}
+          <td dir="ltr" style="color:var(--muted)">
+            @if($s->next_due_at)
+              {{ sdate($s->next_due_at) }}
+            @elseif(! $s->isDead())
+              <form method="post" action="/admin/services/{{ $s->id }}/due" style="display:flex;gap:5px;align-items:center"
+                    data-confirm="سررسیدِ این سرویس تنظیم شود؟ از این پس فاکتورِ تمدید و یادآوری می‌گیرد.">
+                @csrf
+                <input type="date" name="next_due_at" required min="{{ now()->addDay()->toDateString() }}"
+                       style="background:var(--surface2);border:1px solid #fbbf24;border-radius:7px;color:var(--text);padding:4px 7px;font:inherit;font-size:12px">
+                <button class="del" style="color:#fbbf24" type="submit" title="بدونِ سررسید، این سرویس هرگز فاکتورِ تمدید نمی‌گیرد">تنظیم</button>
+              </form>
+            @else
+              —
+            @endif
+          </td>
           <td class="ad-row-act" style="white-space:nowrap">
             <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)" title="تاریخچهٔ مالکیت: کی خرید، تمدید، تعلیق یا حذف کرد">تاریخچه</a>
             <form method="post" action="/admin/services/{{ $s->id }}/status" style="display:inline">@csrf

@@ -147,4 +147,35 @@ class ServiceDueBackfillTest extends TestCase
 
         $this->assertSame('ok', $checks['unbilled']['level']);
     }
+
+    /**
+     * دکمهٔ پنل هم همان قاعده را دارد: سررسیدِ گذشته پذیرفته نمی‌شود.
+     *
+     * 🔴 بی‌این اعتبارسنجی، مدیر سررسید را «درست» می‌کند و نیم‌ساعت بعد
+     * سرویسِ سالمِ مشتری با پیامکِ «سرویس شما غیرفعال شد» قطع می‌شود.
+     */
+    public function test_the_admin_button_refuses_a_past_due_date(): void
+    {
+        $s = $this->service();
+
+        $admin = \App\Models\User::create([
+            'name' => 'مدیر', 'email' => 'ad'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->post("/admin/services/{$s->id}/due", ['next_due_at' => now()->subDay()->toDateString()])
+            ->assertSessionHasErrors('next_due_at');
+
+        $this->assertNull($s->fresh()?->next_due_at);
+
+        // و تاریخِ آینده پذیرفته می‌شود
+        $when = now()->addDays(21);
+
+        $this->actingAs($admin, 'web')
+            ->post("/admin/services/{$s->id}/due", ['next_due_at' => $when->toDateString()])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($when->toDateString(), $s->fresh()?->next_due_at?->toDateString());
+    }
 }

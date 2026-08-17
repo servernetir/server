@@ -2141,6 +2141,9 @@ Route::prefix('admin')->group(function () {
         */
         Route::delete('/services/{service}', [\App\Http\Controllers\Admin\ServiceController::class, 'destroy']);
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
+        // تنظیمِ سررسیدِ سرویسِ قدیمیِ بی‌سررسید — بی‌آن، آن سرویس هرگز
+        // فاکتورِ تمدید نمی‌گیرد. اعتبارسنجیِ `after:today` در کنترلر است.
+        Route::post('/services/{service}/due', [\App\Http\Controllers\Admin\ServiceController::class, 'setDue']);
 
         // سرورهای تحویل (WHM/cPanel/…)
         // ورودِ مدیر به پنلِ مشتری (جای او نشستن) — فقط نقشِ مدیر، با لاگ
