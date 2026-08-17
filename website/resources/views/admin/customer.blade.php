@@ -86,6 +86,10 @@
   <button type="button" class="ct-tab" data-tab="account" role="tab">
     <svg class="icon"><use href="#i-user"/></svg>هویت و حساب
   </button>
+  <button type="button" class="ct-tab" data-tab="activity" role="tab">
+    <svg class="icon"><use href="#i-flow"/></svg>فعالیت
+    @if($activity->total())<i class="ct-n">{{ fa_num($activity->total()) }}</i>@endif
+  </button>
 </div>
 
 {{-- هر تب می‌تواند چند تکهٔ جدا در صفحه داشته باشد؛ JS همهٔ تکه‌های هم‌نام را
@@ -650,33 +654,92 @@
   </div>
 </div>
 
-{{-- ══ فعالیت (لاگ با IP) ══ — تکهٔ دومِ همان تبِ پشتیبانی --}}
-<div class="ct-pane" data-pane="support">
-@if($activity->isNotEmpty())
-<div class="ad-panel">
-  <div class="ad-panel-h"><h3>فعالیت اخیر</h3></div>
-  <table class="ad-table">
-    <tbody>
-      @foreach($activity as $a)
-      <tr>
-        <td style="width:34px"><svg class="icon" style="width:16px;height:16px;color:var(--muted)"><use href="#{{ $a->icon() }}"/></svg></td>
-        <td>{{ $a->description }}@if($a->actor === 'staff')<span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee;margin-inline-start:6px">پشتیبانی</span>@endif</td>
-        <td dir="ltr" style="color:var(--muted)">
-          {{ $a->ip ?: '—' }}
-          @php $adev = $a->device(); $ageo = $a->geoLabel(); @endphp
-          @if($adev['label'] !== '—' || $ageo)
-            <div dir="rtl" style="color:var(--dim);font-size:11.5px;margin-top:2px">{{ $adev['label'] !== '—' ? $adev['label'] : '' }}{{ $ageo ? (($adev['label'] !== '—' ? ' · ' : '').$ageo) : '' }}</div>
-          @endif
-        </td>
-        <td dir="ltr" style="color:var(--dim)">{{ stime($a->created_at) }}</td>
-      </tr>
-      @endforeach
-    </tbody>
-  </table>
-</div>
-@endif
+{{-- ══ فعالیت — تبِ مستقل با فیلتر و صفحه‌بندی ══
 
-</div>{{-- /pane support (تکهٔ فعالیت) --}}
+  🔴 چرا فیلتر سمتِ سرور است و نه مرورگر: تاریخچهٔ یک مشتریِ قدیمی هزاران ردیف
+  می‌شود. فرستادنِ همه به مرورگر برای فیلترِ محلی یعنی صفحه‌ای که بارگذاری‌اش
+  طول می‌کشد و حافظه می‌خورد — و همان صفحه‌ای است که مدیر روزی ده بار بازش
+  می‌کند.
+
+  ⚠️ فرمِ فیلتر `#activity` را در action دارد تا بعد از ثبت، همین تب باز
+  بمانَد. بی‌آن، مدیر فیلتر می‌زد و صفحه روی تبِ «سرویس‌ها» برمی‌گشت. --}}
+<div class="ct-pane" data-pane="activity">
+<div class="ad-panel">
+  <div class="ad-panel-h"><h3>تاریخچهٔ فعالیت</h3>
+    <span class="ad-badge" style="background:var(--surface2);color:var(--muted)">
+      {{ fa_num($activity->total()) }} رویداد
+    </span>
+  </div>
+
+  <form method="get" action="{{ url()->current() }}#activity" class="act-filter">
+    <input type="search" name="q" value="{{ request('q') }}" placeholder="جستجو در شرح یا IP…">
+
+    <select name="act">
+      <option value="">همهٔ رویدادها</option>
+      @foreach($activityFacets['actions'] as $a)
+        <option value="{{ $a }}" @selected(request('act') === $a)>{{ \App\Models\ActivityLog::label($a) }}</option>
+      @endforeach
+    </select>
+
+    <select name="who">
+      <option value="">همه</option>
+      @foreach($activityFacets['actors'] as $w)
+        <option value="{{ $w }}" @selected(request('who') === $w)>{{ \App\Models\ActivityLog::actorLabel($w) }}</option>
+      @endforeach
+    </select>
+
+    {{-- تاریخ‌ها با همان دیت‌پیکرِ شمسی؛ مقدارِ ارسالی میلادیِ ISO است چون
+         سرور می‌سازدش — هیچ تبدیلی در مرورگر انجام نمی‌شود. --}}
+    <span class="act-dt"><label>از</label><input type="hidden" name="from" data-jdate value="{{ request('from') }}"></span>
+    <span class="act-dt"><label>تا</label><input type="hidden" name="to" data-jdate value="{{ request('to') }}"></span>
+
+    <button class="ad-btn" type="submit"><svg class="icon"><use href="#i-filter"/></svg>فیلتر</button>
+    @if(request()->hasAny(['q','act','who','from','to']))
+      <a class="ad-btn" href="{{ url()->current() }}#activity">پاک کردن</a>
+    @endif
+  </form>
+
+  @if($activity->isEmpty())
+    <p style="padding:18px;color:var(--muted)">
+      {{ request()->hasAny(['q','act','who','from','to'])
+          ? 'با این فیلترها رویدادی پیدا نشد.'
+          : 'هنوز فعالیتی برای این مشتری ثبت نشده.' }}
+    </p>
+  @else
+    <table class="ad-table">
+      <thead>
+        <tr><th style="width:34px"></th><th>رویداد</th><th>شرح</th><th>مبدأ</th><th>تاریخ</th></tr>
+      </thead>
+      <tbody>
+        @foreach($activity as $a)
+        <tr>
+          <td><svg class="icon" style="width:16px;height:16px;color:var(--muted)"><use href="#{{ $a->icon() }}"/></svg></td>
+          <td style="white-space:nowrap">
+            {{ \App\Models\ActivityLog::label($a->action) }}
+            @if($a->actor === 'staff')<span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee;margin-inline-start:6px">پشتیبانی</span>
+            @elseif($a->actor === 'system')<span class="ad-badge" style="background:var(--surface2);color:var(--muted);margin-inline-start:6px">سامانه</span>@endif
+          </td>
+          <td>{{ $a->description }}</td>
+          <td dir="ltr" style="color:var(--muted)">
+            {{ $a->ip ?: '—' }}
+            @php $adev = $a->device(); $ageo = $a->geoLabel(); @endphp
+            @if($adev['label'] !== '—' || $ageo)
+              <div dir="rtl" style="color:var(--dim);font-size:11.5px;margin-top:2px">{{ $adev['label'] !== '—' ? $adev['label'] : '' }}{{ $ageo ? (($adev['label'] !== '—' ? ' · ' : '').$ageo) : '' }}</div>
+            @endif
+          </td>
+          {{-- تاریخ شمسی — `stime()` خودش شمسی می‌دهد --}}
+          <td style="color:var(--dim);white-space:nowrap">{{ stime($a->created_at) }}</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+
+    @if($activity->hasPages())
+      <div class="act-pager">{{ $activity->onEachSide(1)->links() }}</div>
+    @endif
+  @endif
+</div>
+</div>{{-- /pane activity --}}
 
 {{-- ─────────── تبِ هویت و حساب: تکهٔ دوم (مدیریت) ─────────── --}}
 <div class="ct-pane" data-pane="account">

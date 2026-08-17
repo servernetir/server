@@ -871,3 +871,28 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 @media(max-width:900px){
   .ad-grid2{grid-template-columns:1fr}
 }
+
+/* ═══════════ فیلترِ تاریخچهٔ فعالیت ═══════════ */
+.act-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:14px 16px;
+  border-bottom:1px solid var(--line)}
+.act-filter input[type=search],.act-filter select{background:var(--surface2);
+  border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 11px;
+  font:inherit;font-size:13px}
+.act-filter input[type=search]{min-width:200px;flex:1 1 200px}
+.act-filter select{cursor:pointer}
+.act-filter input:focus,.act-filter select:focus{outline:none;border-color:var(--cyan)}
+.act-dt{display:inline-flex;align-items:center;gap:6px}
+.act-dt label{font-size:12px;color:var(--muted)}
+.act-pager{padding:12px 16px;border-top:1px solid var(--line)}
+/* ⚠️ صفحه‌بندیِ لاراول کلاس‌های Tailwind دارد که این پنل ندارد؛ فقط چیدمانِ
+   ساده لازم است تا لینک‌ها به‌هم نریزند. */
+.act-pager nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.act-pager a,.act-pager span{font-size:12.5px;padding:5px 9px;border-radius:7px;
+  border:1px solid var(--line);color:var(--muted);text-decoration:none}
+.act-pager a:hover{border-color:var(--cyan);color:var(--text)}
+.act-pager [aria-current] span{background:var(--cyan);color:#04121a;border-color:transparent}
+.act-pager svg{width:14px;height:14px}
+
+@media(max-width:640px){
+  .act-filter input[type=search]{min-width:0}
+}

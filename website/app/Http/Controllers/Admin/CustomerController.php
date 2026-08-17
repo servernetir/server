@@ -94,7 +94,58 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function show(Customer $customer): View
+
+    /**
+     * تاریخچهٔ فعالیتِ مشتری، فیلترشده و صفحه‌بندی‌شده.
+     *
+     * ⚠️ اعتبارسنجیِ دستی و بی‌استثنا. این یک روتِ **نمایشی** است؛ ورودیِ
+     * نامعتبر (تاریخِ بی‌معنی، اکشنِ ناموجود) نباید صفحهٔ پروندهٔ مشتری را
+     * بخواباند — فقط نادیده گرفته می‌شود.
+     *
+     * ⚠️ `whereDate` و نه مقایسهٔ رشته‌ای: ستون `datetime` است و مقایسهٔ
+     * رشته‌ایِ «تا فلان روز» آخرین روزِ بازه را می‌انداخت — همان باگِ ثبت‌شدهٔ
+     * تقویم که فقط روی **مرزِ** بازه دیده می‌شد.
+     */
+    private function activityQuery(Request $request, Customer $customer)
+    {
+        if (! Schema::hasTable('activity_logs')) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
+        }
+
+        $q = \App\Models\ActivityLog::where('customer_id', $customer->id);
+
+        if (($a = trim((string) $request->query('act', ''))) !== '') {
+            $q->where('action', $a);
+        }
+
+        if (($w = trim((string) $request->query('who', ''))) !== '') {
+            $q->where('actor', $w);
+        }
+
+        if (($t = trim((string) $request->query('q', ''))) !== '') {
+            // ⚠️ `like` روی توضیح و IP — همان دو چیزی که مدیر واقعاً دنبالشان می‌گردد
+            $q->where(fn ($w2) => $w2->where('description', 'like', '%'.$t.'%')
+                ->orWhere('ip', 'like', '%'.$t.'%'));
+        }
+
+        foreach (['from' => '>=', 'to' => '<='] as $key => $op) {
+            $raw = trim((string) $request->query($key, ''));
+
+            if ($raw === '') {
+                continue;
+            }
+
+            try {
+                $q->whereDate('created_at', $op, \Illuminate\Support\Carbon::parse($raw)->toDateString());
+            } catch (\Throwable) {
+                // تاریخِ نامعتبر = بی‌فیلتر، نه خطا
+            }
+        }
+
+        return $q->latest('id')->paginate(25)->withQueryString();
+    }
+
+    public function show(Request $request, Customer $customer): View
     {
         $load = [
             'identityVerification',
@@ -135,9 +186,26 @@ class CustomerController extends Controller
                 ? \App\Models\Domain::where('customer_id', $customer->id)
                     ->orderByDesc('id')->limit(50)->get()
                 : collect(),
-            'activity'      => Schema::hasTable('activity_logs')
-                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(20)->get()
-                : collect(),
+            /*
+            | فعالیت حالا تبِ خودش را دارد: جدول + فیلتر + صفحه‌بندی.
+            |
+            | ⚠️ فیلتر **سمتِ سرور** است نه مرورگر. تاریخچهٔ یک مشتریِ قدیمی
+            | هزاران ردیف می‌شود؛ فرستادنِ همه به مرورگر برای فیلترِ محلی یعنی
+            | صفحه‌ای که بارگذاری‌اش دقیقه‌ای طول می‌کشد و حافظه را می‌خورد.
+            |
+            | ⚠️ `withQueryString()` اجباری است، وگرنه صفحهٔ دومِ نتیجهٔ فیلترشده
+            | فیلترها را گم می‌کند و کلِ تاریخچه را نشان می‌دهد — خرابیِ خاموشی
+            | که مدیر آن را «فیلتر کار نمی‌کند» می‌بیند.
+            */
+            'activity'      => $this->activityQuery($request, $customer),
+            'activityFacets' => Schema::hasTable('activity_logs')
+                ? [
+                    'actions' => \App\Models\ActivityLog::where('customer_id', $customer->id)
+                        ->distinct()->orderBy('action')->pluck('action')->filter()->values(),
+                    'actors' => \App\Models\ActivityLog::where('customer_id', $customer->id)
+                        ->distinct()->orderBy('actor')->pluck('actor')->filter()->values(),
+                ]
+                : ['actions' => collect(), 'actors' => collect()],
             'servers'       => Schema::hasTable('servers')
                 ? \App\Models\Server::where('status', 'active')->orderBy('name')->get()
                 : collect(),
