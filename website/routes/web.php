@@ -188,6 +188,15 @@ $site = function (): void {
 
     // جستجوی دامنه از رسیلری (OpenProvider) — مسیر جدید، جدا از مسیر WHMCS بالا
     Route::get('/domains', [\App\Http\Controllers\DomainSearchController::class, 'page'])->name('domain.search');
+
+    /*
+    | صفحهٔ عمومیِ انتقالِ دامنه.
+    |
+    | ⚠️ زیرِ `/domains/` است و نه `/domain/transfer`: مسیرِ دوم را روتِ
+    | کاتالوگ (`/{category}/{slug}` با category در فهرستِ domain) می‌بلعد و
+    | نتیجه‌اش یک ۴۰۴ می‌شود که علتش هیچ‌جا پیدا نیست.
+    */
+    Route::view('/domains/transfer', 'pages.domain-transfer')->name('domain.transfer.page');
     Route::post('/api/domains/search', [\App\Http\Controllers\DomainSearchController::class, 'check'])
         ->name('domain.search.check')->middleware('throttle:tools');
     Route::get('/api/domains/status', [\App\Http\Controllers\DomainSearchController::class, 'status'])
@@ -370,6 +379,19 @@ $site = function (): void {
 
         Route::post('/domains/order', [Account\DomainController::class, 'order'])
             ->name('domains.order')->middleware('throttle:12,1');
+
+        /*
+        | انتقالِ دامنه — دو مرحله، و ترتیبشان اجباری است:
+        |   order  → فاکتور (هیچ تماسی با رجیسترار)
+        |   submit → کدِ انتقال + ارسالِ واقعی (فقط پس از پرداخت)
+        | دلیلِ کاملِ دو مرحله بودن در `DomainController::transferOrder()`.
+        |
+        | ⚠️ `transfer` پیش از `/domains/{domain}` می‌آید، وگرنه لاراول آن را
+        | «دامنه‌ای به نامِ transfer» می‌خوانَد — همان تله‌ای که چند خط پایین‌تر
+        | برای `checkout` هم نوشته شده.
+        */
+        Route::post('/domains/transfer', [Account\DomainController::class, 'transferOrder'])
+            ->name('domains.transfer')->middleware('throttle:12,1');
         Route::get('/domains/{domain}', [Account\DomainController::class, 'show'])->name('domain');
         Route::post('/domains/{domain}/nameservers', [Account\DomainController::class, 'nameservers'])
             ->name('domain.ns')->middleware('throttle:20,1');
@@ -379,6 +401,9 @@ $site = function (): void {
             ->name('domain.authcode')->middleware('throttle:6,1');
         Route::post('/domains/{domain}/auto-renew', [Account\DomainController::class, 'autoRenew'])
             ->name('domain.autorenew')->middleware('throttle:20,1');
+        // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
+        Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
+            ->name('domain.transfer.submit')->middleware('throttle:6,1');
 
         // احراز هویت — به‌ویژه کاربرِ حقوقی (اطلاعات شرکت + معرفی‌نامه + اساسنامه)
         Route::get('/verify', [Account\VerificationController::class, 'show'])->name('verify');
@@ -2116,6 +2141,9 @@ Route::prefix('admin')->group(function () {
         */
         Route::delete('/services/{service}', [\App\Http\Controllers\Admin\ServiceController::class, 'destroy']);
         Route::post('/services/{service}/renew', [\App\Http\Controllers\Admin\ServiceController::class, 'renew']);
+        // تنظیمِ سررسیدِ سرویسِ قدیمیِ بی‌سررسید — بی‌آن، آن سرویس هرگز
+        // فاکتورِ تمدید نمی‌گیرد. اعتبارسنجیِ `after:today` در کنترلر است.
+        Route::post('/services/{service}/due', [\App\Http\Controllers\Admin\ServiceController::class, 'setDue']);
 
         // سرورهای تحویل (WHM/cPanel/…)
         // ورودِ مدیر به پنلِ مشتری (جای او نشستن) — فقط نقشِ مدیر، با لاگ

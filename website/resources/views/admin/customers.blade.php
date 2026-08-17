@@ -10,12 +10,32 @@
     <a href="/admin/customers?status=pending"   class="{{ $status === 'pending' ? 'on' : '' }}">در انتظار ({{ fa_num($counts['pending']) }})</a>
     <a href="/admin/customers?status=suspended" class="{{ $status === 'suspended' ? 'on' : '' }}">معلق ({{ fa_num($counts['suspended']) }})</a>
   </div>
-  <form method="get" action="/admin/customers" style="display:flex;gap:8px">
-    <input type="hidden" name="status" value="{{ $status }}">
-    <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام…"
-           style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:240px;font:inherit">
-    <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
-  </form>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    {{-- ══ احراز هویت ══
+         آیتمِ مستقلِ منوی مدیریت برداشته شد: صف‌ِ احراز هویت زیرمجموعهٔ همین
+         مشتریان است و یک ردیفِ دائمی در نوارِ کناری برای صفی که معمولاً خالی
+         است، فقط جا می‌گیرد.
+
+         🔴 ولی **شمارشِ در انتظار با آن حذف نشد** و همین‌جا آمد. اگر فقط لینک
+         را برمی‌داشتیم، تنها سیگنالِ «N نفر منتظرِ تأییدند» از پنل غیب می‌شد و
+         مدیر تا شکایتِ خودِ مشتری خبردار نمی‌شد — همان الگوی «حذفِ هشدار به‌جای
+         حذفِ شلوغی» که در این پروژه ثبت شده.
+
+         ⚠️ صف که خالی باشد دکمه ساده است؛ که پر باشد، رنگِ هشدار می‌گیرد. --}}
+    @php $pendingKyc = \Illuminate\Support\Facades\Schema::hasTable('customer_profiles')
+            ? \App\Models\CustomerProfile::where('status', 'pending')->count() : 0; @endphp
+    <a class="btn {{ $pendingKyc ? 'btn-primary' : 'btn-glass' }}" href="/admin/verifications">
+      <svg class="icon"><use href="#i-shield"/></svg>احراز هویت
+      @if($pendingKyc)<span class="ad-pill">{{ fa_num($pendingKyc) }}</span>@endif
+    </a>
+
+    <form method="get" action="/admin/customers" style="display:flex;gap:8px">
+      <input type="hidden" name="status" value="{{ $status }}">
+      <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام…"
+             style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:240px;font:inherit">
+      <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
+    </form>
+  </div>
 </div>
 
 

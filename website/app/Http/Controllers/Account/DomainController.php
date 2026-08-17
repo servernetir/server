@@ -532,6 +532,168 @@ class DomainController extends Controller
             ->with('ok', 'فاکتورِ دامنه صادر شد. پس از پرداخت، ثبت خودکار انجام می‌شود.');
     }
 
+    // ═══════════════════════ انتقالِ دامنه ═══════════════════════
+
+    /**
+     * سفارشِ انتقال — فاکتور می‌سازد، هیچ تماسی با رجیسترار نمی‌زند.
+     *
+     * ═══ 🔴 چرا کدِ انتقال این‌جا گرفته نمی‌شود ═══
+     *
+     * انتقال دو مرحله است و این عمدی است:
+     *
+     *   ۱ این متد  → بررسیِ امکان‌پذیری، فاکتور، پرداخت
+     *   ۲ `transferSubmit()` → مشتری کدِ انتقال را وارد می‌کند و همان لحظه
+     *      درخواست به رجیسترار می‌رود
+     *
+     * دلیلش یک قید است، نه سلیقه: رجیسترار در **لحظهٔ ثبتِ درخواست** هزینه را
+     * از حسابِ ما برمی‌دارد، پس نمی‌شود پیش از پرداختِ مشتری درخواست داد. و از
+     * آن طرف، کدِ انتقال **ذخیره نمی‌شود** (کلیدِ مالکیتِ دامنه است)، پس
+     * نمی‌شود موقعِ سفارش گرفتش و بعد از پرداخت مصرفش کرد.
+     *
+     * تنها ترکیبی که هم پول را امن نگه می‌دارد هم کلید را ذخیره نمی‌کند، همین
+     * دو مرحله است — و صفحه صریح به مشتری می‌گوید که مرحلهٔ دوم مانده.
+     */
+    public function transferOrder(Request $request, \App\Services\Domain\DomainTransfer $transfers): RedirectResponse
+    {
+        $data = $request->validate([
+            'domain' => ['required', 'string', 'max:253'],
+        ], [], ['domain' => 'نامِ دامنه']);
+
+        [$sld, $tld] = Domain::splitFqdn(strtolower(trim($data['domain'])));
+
+        if ($sld === '' || $tld === '') {
+            return back()->withErrors('نامِ دامنه معتبر نیست. مثال: example.com');
+        }
+
+        // 🔴 همهٔ گیت‌ها پیش از ساختِ فاکتور — نه بعدش
+        $gate = $transfers->eligibility($sld, $tld);
+
+        if (! $gate['ok']) {
+            return back()->withErrors($gate['message']);
+        }
+
+        /*
+        | قیمتِ انتقال از دفترچهٔ پسوندها می‌آید، نه از `domain_quotes`.
+        |
+        | ⚠️ استعلامِ ذخیره‌شده فقط برای دامنهٔ **آزاد** ساخته می‌شود
+        | (`DomainSearch::shape()` فقط در شاخهٔ available یک quote می‌نویسد) و
+        | دامنهٔ در حالِ انتقال طبق تعریف آزاد نیست. پس این‌جا هیچ quoteای وجود
+        | ندارد که بشود به آن تکیه کرد.
+        */
+        $book = app(\App\Services\Domain\TldPriceBook::class)->fullForTlds([$tld]);
+        $price = (int) data_get($book, $tld.'.transfer', 0);
+        $renew = (int) data_get($book, $tld.'.renew', $price);
+
+        if ($price <= 0) {
+            return back()->withErrors(
+                'برای انتقالِ پسوندِ «.'.$tld.'» قیمتِ قابلِ اتکایی نداریم. با پشتیبانی تماس بگیرید.'
+            );
+        }
+
+        $customerId = $this->customerId();
+        $fqdn = $sld.'.'.$tld;
+        $invoice = null;
+
+        DB::transaction(function () use ($customerId, $fqdn, $sld, $tld, $price, $renew, &$invoice) {
+            $domain = Domain::create([
+                'customer_id'      => $customerId,
+                'domain'           => $fqdn,
+                'sld'              => $sld,
+                'tld'              => $tld,
+                'registrar'        => 'openprovider',
+                'order_type'       => 'transfer',
+                'status'           => Domain::STATUS_TRANSFERRING,
+                'transfer_status'  => 'pending',
+                // ⚠️ `none` تا فاکتور پرداخت شود — دقیقاً مثلِ مسیرِ ثبت.
+                'provision_status' => 'none',
+                'period_years'     => 1,
+                'price_toman'      => $price,
+                'renew_toman'      => $renew,
+            ]);
+
+            $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
+            $tax = (int) round($price * $taxPct / 100);
+
+            $invoice = Invoice::create([
+                'customer_id'   => $customerId,
+                'domain_id'     => $domain->id,
+                'kind'          => 'domain',
+                'currency_code' => 'IRT',
+                'subtotal'      => $price,
+                'tax'           => $tax,
+                'total'         => $price + $tax,
+                'paid'          => 0,
+                'status'        => 'unpaid',
+                'issued_at'     => now(),
+                'note'          => 'انتقالِ دامنهٔ '.$fqdn,
+            ]);
+
+            InvoiceItem::create([
+                'invoice_id'  => $invoice->id,
+                'title'       => 'انتقالِ دامنهٔ '.$fqdn,
+                // ⚠️ «۱ سال تمدید» بخشی از خودِ انتقال است و باید روی فاکتور
+                //    دیده شود، وگرنه مشتری فکر می‌کند فقط جابه‌جایی خریده.
+                'description' => 'شاملِ یک سال تمدید',
+                'quantity'    => 1,
+                'unit_price'  => $price,
+                'line_total'  => $price,
+                'tax_rate_bp' => (int) ($taxPct * 100),
+                'tax_amount'  => $tax,
+            ]);
+        });
+
+        return redirect()->route('account.invoice', $invoice)
+            ->with('ok', 'فاکتورِ انتقال صادر شد. پس از پرداخت، کدِ انتقال (EPP) را در همان صفحهٔ دامنه وارد کنید.');
+    }
+
+    /**
+     * کدِ انتقال را می‌گیرد و همان لحظه درخواست را به رجیسترار می‌فرستد.
+     *
+     * ⚠️ کد نه ذخیره می‌شود نه لاگ. از `$request` مستقیم به سرویس می‌رود.
+     */
+    public function transferSubmit(
+        Request $request,
+        Domain $domain,
+        \App\Services\Domain\DomainTransfer $transfers,
+    ): RedirectResponse {
+        $this->owned($domain);
+
+        if (! $domain->isTransfer()) {
+            return back()->withErrors('این دامنه سفارشِ انتقال نیست.');
+        }
+
+        if ($domain->transfer_status !== 'pending') {
+            return back()->withErrors('این درخواست از قبل به رجیسترار ارسال شده است.');
+        }
+
+        /*
+        | 🔴 بی‌فاکتورِ پرداخت‌شده هیچ درخواستی نمی‌رود.
+        |
+        | ثبتِ درخواستِ انتقال نزدِ رجیسترار **همان لحظه** از حسابِ ما پول
+        | برمی‌دارد. بی‌این شرط، مشتری می‌توانست فاکتور را نپردازد و با وارد
+        | کردنِ کد، انتقال را با هزینهٔ ما شروع کند.
+        */
+        if (! $domain->hasPaidInvoice()) {
+            return back()->withErrors('ابتدا فاکتورِ انتقال را پرداخت کنید.');
+        }
+
+        $data = $request->validate([
+            'auth_code' => ['required', 'string', 'min:4', 'max:190'],
+        ], [], ['auth_code' => 'کدِ انتقال']);
+
+        $res = $transfers->submit($domain, $data['auth_code']);
+
+        // ⚠️ خودِ `$data` هم باید از حافظه برود — همان کد داخلش است
+        unset($data);
+
+        if (! $res['ok']) {
+            return back()->withErrors($this->safeMessage($res['message']));
+        }
+
+        return back()->with('ok',
+            'درخواستِ انتقال ثبت شد. تأییدِ رجیسترارِ فعلی معمولاً تا ۵ روزِ کاری طول می‌کشد.');
+    }
+
     // ═══════════════════════ کمکی ═══════════════════════
 
     private function customerId(): int

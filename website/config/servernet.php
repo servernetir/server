@@ -316,6 +316,13 @@ return [
                 ['fa' => 'ثبت و انتقال دامنه', 'en' => 'Register & transfer', 'tr' => 'Kayıt ve transfer', 'items' => [
                     ['route' => ['domain.search'], 'new' => true,
                         'fa' => 'جستجو و ثبت دامنه', 'en' => 'Search & register', 'tr' => 'Ara ve kaydet'],
+                    /*
+                    | ⚠️ عنوانِ همین گروه از روزِ اول «ثبت و انتقال» بود ولی
+                    | هیچ لینکِ انتقالی نداشت — منویی که چیزی را وعده می‌دهد و
+                    | راهش را نشان نمی‌دهد، از نبودنش بدتر است.
+                    */
+                    ['route' => ['domain.transfer.page'], 'new' => true,
+                        'fa' => 'انتقال دامنه', 'en' => 'Transfer a domain', 'tr' => 'Alan adi transferi'],
                     ['slug' => 'popular-tlds', 'fa' => 'دامنه عمومی', 'en' => 'Popular TLDs', 'tr' => 'Popüler Uzantılar'],
                     ['slug' => 'ir',           'fa' => 'دامنه IR', 'en' => '.ir Domains', 'tr' => '.ir Alan Adları'],
                     ['slug' => 'persian',      'fa' => 'دامنه فارسی', 'en' => 'Persian IDN Domains', 'tr' => 'Farsça (IDN) Alan Adları'],

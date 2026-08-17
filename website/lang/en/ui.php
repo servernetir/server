@@ -1670,6 +1670,8 @@ return [
     'cvb_a_label' => 'server name',
     'cvb_a_ip' => 'number of extra IPs',
     // ═══ کنسولِ مشتری: مسیرِ پرداخت + پنل (بومی‌سازیِ خودکار) ═══
+    'inv_due_until' => 'Payable until',
+    'inv_due_passed' => 'The payment window for this proforma has passed; it may be cancelled shortly.',
     'inv_invoice' => 'Invoice',
     'inv_brand' => 'ServerNet',
     'inv_download_receipt' => 'Download receipt (PDF)',

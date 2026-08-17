@@ -21,6 +21,21 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }};font-size:13px;padding:6px 14px">{{ $st[0] }}</span>
+    {{-- ورود به پنلِ مشتری — تا امروز فقط در **فهرستِ** مشتریان بود.
+         پشتیبانی معمولاً از پروندهٔ مشتری شروع می‌شود (این‌جا)، پس مدیر مجبور
+         بود برگردد به فهرست و همان ردیف را پیدا کند. همان کنش، همان تأیید،
+         همان لاگ — فقط جایی که واقعاً لازم می‌شود.
+         ⚠️ هر دو شرطِ فهرست عیناً تکرار شده‌اند: فقط مدیر (نه نویسنده) و فقط
+         حسابِ بسته‌نشده. کنترلر هم خودش دوباره می‌سنجد. --}}
+    @if(auth()->user()->isAdmin() && $c->status !== 'closed')
+      <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
+            data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
+        @csrf
+        <button class="btn btn-glass" type="submit">
+          <svg class="icon"><use href="#i-key"/></svg>ورود به پنل کاربری
+        </button>
+      </form>
+    @endif
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
   </div>
 </div>
@@ -288,7 +303,26 @@
           <td>{{ $s->cycleLabel() }}</td>
           <td>{{ $money($s->total()) }}</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
-          <td dir="ltr" style="color:var(--muted)">{{ $s->next_due_at ? sdate($s->next_due_at) : '—' }}</td>
+          {{-- 🔴 سرویسِ **زندهٔ بی‌سررسید** یعنی سرویسِ رایگانِ ابدی:
+               `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس
+               این ردیف نه فاکتور می‌گیرد، نه یادآوری، نه تعلیق می‌شود — و هیچ
+               خطایی هم تولید نمی‌کند. پس به‌جای یک خطِ تیره، همین‌جا هم هشدار
+               داده می‌شود و هم راهِ رفعش هست. --}}
+          <td dir="ltr" style="color:var(--muted)">
+            @if($s->next_due_at)
+              {{ sdate($s->next_due_at) }}
+            @elseif(! $s->isDead())
+              <form method="post" action="/admin/services/{{ $s->id }}/due" style="display:flex;gap:5px;align-items:center"
+                    data-confirm="سررسیدِ این سرویس تنظیم شود؟ از این پس فاکتورِ تمدید و یادآوری می‌گیرد.">
+                @csrf
+                <input type="date" name="next_due_at" required min="{{ now()->addDay()->toDateString() }}"
+                       style="background:var(--surface2);border:1px solid #fbbf24;border-radius:7px;color:var(--text);padding:4px 7px;font:inherit;font-size:12px">
+                <button class="del" style="color:#fbbf24" type="submit" title="بدونِ سررسید، این سرویس هرگز فاکتورِ تمدید نمی‌گیرد">تنظیم</button>
+              </form>
+            @else
+              —
+            @endif
+          </td>
           <td class="ad-row-act" style="white-space:nowrap">
             <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)" title="تاریخچهٔ مالکیت: کی خرید، تمدید، تعلیق یا حذف کرد">تاریخچه</a>
             <form method="post" action="/admin/services/{{ $s->id }}/status" style="display:inline">@csrf

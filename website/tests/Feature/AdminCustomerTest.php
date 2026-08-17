@@ -121,4 +121,41 @@ class AdminCustomerTest extends TestCase
             ->post("/admin/customers/{$c->id}/status", ['status' => 'banana'])
             ->assertSessionHasErrors('status');
     }
+
+    /**
+     * 🔴 «احراز هویت» از نوارِ کناری برداشته شد — ولی **شمارشِ در انتظار** نه.
+     *
+     * ═══ چرا این تست هست ═══
+     *
+     * حذفِ یک آیتمِ منو ساده است؛ چیزی که با آن بی‌صدا می‌رود، تنها سیگنالِ
+     * «N نفر منتظرِ تأییدند» است. اگر آن گم شود، مدیر تا شکایتِ خودِ مشتری
+     * خبردار نمی‌شود — یعنی شلوغی کم شد و هشدار هم با آن رفت.
+     *
+     * پس ادعا دو نیمه دارد و هر دو لازم است: دکمه روی صفحهٔ مشتریان هست، و
+     * عددِ در انتظار رویش دیده می‌شود.
+     */
+    public function test_the_verification_queue_stays_visible_from_the_customer_list(): void
+    {
+        $c = $this->customer();
+
+        \App\Models\CustomerProfile::create([
+            'customer_id' => $c->id,
+            'type'        => 'individual',
+            'status'      => 'pending',
+            'email'       => $c->email,
+            'mobile'      => $c->phone,
+            'country'     => 'IR',
+        ]);
+
+        $html = $this->actingAs($this->staff(), 'web')
+            ->get('/admin/customers')->assertOk()->getContent();
+
+        $this->assertStringContainsString('/admin/verifications', (string) $html,
+            'راهِ رسیدن به صفِ احراز هویت از فهرستِ مشتریان قطع شد.');
+
+        // ⚠️ ادعا روی **عدد** است نه بر وجودِ دکمه: دکمهٔ بی‌شمارش یعنی صفِ پر
+        //    و پنلِ ساکت.
+        $this->assertMatchesRegularExpression('~/admin/verifications.*?ad-pill~s', (string) $html,
+            'شمارشِ در انتظارِ احراز هویت با حذفِ آیتمِ منو ناپدید شد.');
+    }
 }

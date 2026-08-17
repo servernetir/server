@@ -1490,3 +1490,12 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
 .sec-abilities .sec-lbl{color:var(--muted);font-size:13px}
 .sec-abilities .sec-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.8}
 .sec-abilities .sec-chk code{font-size:12px}
+
+/* ═══════════ ورودی و زیرعنوانِ پنل ═══════════
+   🔴 `.pnl-input` روی `<select>` و `<input>`ِ صفحهٔ **تسویهٔ دامنه** استفاده
+   می‌شد و تعریف نشده بود: یعنی فرمِ یک مسیرِ پولی با کنترل‌های خامِ مرورگر
+   رندر می‌شد. `.pnl-sub` هم زیرعنوانِ همان صفحه بود. */
+.pnl-input{background:var(--bg2);border:1px solid var(--line-2);border-radius:10px;
+  padding:10px 13px;color:var(--text);font:inherit;font-size:14px;width:100%;min-width:0}
+.pnl-input:focus{outline:none;border-color:var(--cyan)}
+.pnl-sub{color:var(--muted);font-size:14px;line-height:2;margin:6px 0 0}

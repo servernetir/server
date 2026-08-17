@@ -18,8 +18,17 @@ class Domain extends Model
     /** دامنه دیگر مالِ ما نیست یا عمرش تمام شده */
     public const DEAD_STATUSES = ['cancelled', 'transferred_away', 'expired'];
 
+    /**
+     * انتقال به ما در جریان است — نه مرده، نه هنوز مالِ ما.
+     *
+     * ⚠️ عمداً در `DEAD_STATUSES` نیست: مشتری پول داده و باید ردیف را در پنلش
+     * ببیند. و عمداً `pending` هم نیست، چون آن یکی یعنی «در صفِ **ثبت**».
+     */
+    public const STATUS_TRANSFERRING = 'transferring';
+
     protected $fillable = [
         'customer_id', 'domain', 'sld', 'tld', 'registrar', 'status',
+        'order_type', 'transfer_status', 'transfer_submitted_at', 'transfer_checked_at',
         'provision_status', 'provision_tries', 'provision_error',
         'op_id', 'owner_handle', 'period_years', 'auto_renew', 'is_locked',
         'whois_privacy', 'name_servers', 'registered_at', 'expires_at',
@@ -35,6 +44,8 @@ class Domain extends Model
         'whois_privacy'  => 'boolean',
         'registered_at'  => 'datetime',
         'expires_at'     => 'datetime',
+        'transfer_submitted_at' => 'datetime',
+        'transfer_checked_at'   => 'datetime',
         'price_toman'    => 'integer',
         'renew_toman'    => 'integer',
         'cost_amount'    => 'integer',
@@ -99,11 +110,61 @@ class Domain extends Model
     public function scopeAwaitingRegistration(Builder $q): Builder
     {
         return $q->where('status', 'pending')
+            /*
+            | 🔴 ردیفِ انتقال هرگز نباید در صفِ **ثبت** بیفتد.
+            |
+            | همان درسِ ثبت‌شدهٔ «صفِ تمدید و صفِ ثبت با status از هم جدا
+            | می‌شوند». انتقال دو محافظ دارد چون هرکدام یک اشتباهِ متفاوت را
+            | می‌گیرد: `status = transferring` اگر کسی روزی `order_type` را
+            | فراموش کند، و این شرط اگر کسی روزی مقدارِ `status` را عوض کند.
+            |
+            | بی‌این، دامنه‌ای که مشتری برای **انتقال** پول داده به
+            | `registerDomain()` می‌رفت — یعنی تلاش برای خریدِ نامی که از قبل
+            | مالِ شخصِ دیگری است. رجیسترار ردش می‌کند، ولی ردیف `failed`
+            | می‌شود و مشتری پیامِ «ثبت ناموفق» می‌گیرد برای کاری که اصلاً
+            | ثبت نبود.
+            */
+            ->where('order_type', 'register')
             ->where(fn ($w) => $w
                 ->where('provision_status', 'pending')
                 ->orWhere(fn ($s) => $s
                     ->where('provision_status', 'running')
                     ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
+    }
+
+    // ───────────────────────── انتقال ─────────────────────────
+
+    public function isTransfer(): bool
+    {
+        return $this->order_type === 'transfer';
+    }
+
+    /** انتقالی که هنوز به رجیسترار نرفته — کرون باید بردارد */
+    public function scopeAwaitingTransferSubmit(Builder $q): Builder
+    {
+        return $q->where('order_type', 'transfer')
+            ->where('transfer_status', 'pending')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
+    }
+
+    /**
+     * انتقالی که ثبت شده و منتظرِ سمتِ مقابل است.
+     *
+     * ⚠️ `transfer_checked_at` فاصله می‌گذارد. این ردیف‌ها روزها زنده می‌مانند
+     * و بی‌فاصله، هر اجرای کرون همهٔ آنها را از رجیسترار می‌پرسد — روی حسابی که
+     * یک بار به‌خاطرِ تماسِ زیاد علامت خورده است.
+     */
+    public function scopeAwaitingTransferResult(Builder $q, int $minutes = 180): Builder
+    {
+        return $q->where('order_type', 'transfer')
+            ->where('transfer_status', 'submitted')
+            ->where(fn ($w) => $w
+                ->whereNull('transfer_checked_at')
+                ->orWhere('transfer_checked_at', '<', now()->subMinutes($minutes)));
     }
 
     /**

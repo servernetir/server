@@ -289,6 +289,46 @@ class ServiceController extends Controller
         return back()->with('ok', 'وضعیت سرویس به‌روزرسانی شد.');
     }
 
+    /**
+     * تنظیمِ سررسیدِ سرویسی که ندارد.
+     *
+     * ═══ چرا این دکمه لازم شد ═══
+     *
+     * سرویس‌هایی از پیش از ساخته‌شدنِ سیستمِ سررسید مانده‌اند که `next_due_at`
+     * ندارند. `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس
+     * آن ردیف‌ها از دیدِ کلِ صورت‌حساب **غایب**اند: نه فاکتور، نه یادآوری، نه
+     * تعلیق — و هیچ خطایی هم تولید نمی‌کنند. یعنی سرویسِ رایگانِ ابدی.
+     *
+     * فرمانِ `services:backfill-due` دسته‌ای حلش می‌کند، ولی روی پروداکشن
+     * دسترسیِ خط‌فرمان نداریم؛ این دکمه همان کار را برای یک ردیف می‌کند.
+     *
+     * 🔴 `after:today` اجباری است و اختیاری نیست. سررسیدِ گذشته یعنی:
+     *     ۰۷:۰۰ services:renew-due → فاکتورِ تمدیدِ سررسیدگذشته
+     *     ۰۷:۳۰ services:lifecycle → همان فاکتورِ پرداخت‌نشده → تعلیقِ واقعی
+     * یعنی مدیر سررسید را «درست» می‌کند و نیم‌ساعت بعد سرویسِ سالمِ مشتری با
+     * پیامکِ «سرویس شما غیرفعال شد» قطع می‌شود. همان تلهٔ `/admin/cloud/attach`.
+     */
+    public function setDue(Request $request, Service $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'next_due_at' => ['required', 'date', 'after:today'],
+        ], [
+            'next_due_at.after' => 'سررسید باید در آینده باشد؛ تاریخِ گذشته همان روز سرویس را تعلیق می‌کند.',
+        ], ['next_due_at' => 'سررسید']);
+
+        if ($service->isDead()) {
+            return back()->with('err', 'سرویسِ لغوشده سررسید نمی‌گیرد.');
+        }
+
+        $service->forceFill(['next_due_at' => \Illuminate\Support\Carbon::parse($data['next_due_at'])])->save();
+
+        \App\Models\ActivityLog::forService($service, 'renew',
+            'سررسیدِ سرویس روی '.sdate($service->next_due_at).' تنظیم شد — توسط '
+            .($request->user()?->name ?: 'مدیر'), 'staff');
+
+        return back()->with('ok', 'سررسید تنظیم شد. از این پس فاکتورِ تمدید و یادآوری صادر می‌شود.');
+    }
+
     /** صدور دستیِ فاکتور تمدید برای یک سرویس (وقتی کارفرما زودتر می‌خواهد) */
     public function renew(Service $service): RedirectResponse
     {
