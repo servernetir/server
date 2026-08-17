@@ -45,17 +45,27 @@
   function render(host, input, box, state) {
     box.textContent = '';
 
+    /* 🔴 جهتِ فلش‌ها در RTL — دو بار اشتباه شد، پس صریح نوشته می‌شود.
+       در چیدمانِ راست‌به‌چپ، **اولین فرزند سمتِ راست** می‌نشیند و زمان از راست
+       به چپ جلو می‌رود. یعنی:
+           راست  = ماهِ قبل  → نشانه رو به راست  ›
+           چپ    = ماهِ بعد  → نشانه رو به چپ    ‹
+       چیدمانِ قبلی هر دو را برعکس داشت. `title` و `aria-label` هم گذاشته شده
+       تا اگر روزی کسی فقط به نویسه نگاه کرد، نیت مکتوب باشد. */
     var head = el('div', 'jd-head');
-    var prev = el('button', 'jd-nav', '‹');
-    var next = el('button', 'jd-nav', '›');
+    var prev = el('button', 'jd-nav', '›');
+    var next = el('button', 'jd-nav', '‹');
     prev.type = 'button';
     next.type = 'button';
+    prev.title = 'ماه قبل';
+    next.title = 'ماه بعد';
+    prev.setAttribute('aria-label', 'ماه قبل');
+    next.setAttribute('aria-label', 'ماه بعد');
     var title = el('b', null, state.title);
 
-    // ⚠️ در RTL جهتِ بصری برعکس است: «قبلی» سمتِ راست می‌نشیند
-    head.appendChild(next);
+    head.appendChild(prev);    // راست‌ترین
     head.appendChild(title);
-    head.appendChild(prev);
+    head.appendChild(next);    // چپ‌ترین
     box.appendChild(head);
 
     var grid = el('div', 'jd-grid');
