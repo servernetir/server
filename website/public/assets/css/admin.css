@@ -779,7 +779,8 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 /* گزارشِ ردشده‌های ورودِ فهرست — خالی که باشد هیچ جایی نمی‌گیرد */
 .sx-skips:empty{display:none}
 .sx-skips{margin-top:10px;display:grid;gap:8px}
-.sx-skip-g{border:1px solid var(--line);background:var(--bg2);
+/* ⚠️ `--bg2` نامِ site.css است و admin.css تنها لود می‌شود؛ معادلش `--surface2` */
+.sx-skip-g{border:1px solid var(--line);background:var(--surface2);
   border-radius:10px;padding:9px 12px}
 .sx-skip-g b{display:block;font-size:12.5px;margin-bottom:4px;color:var(--muted)}
 .sx-skip-l{font-size:12px;color:var(--dim);line-height:1.9;word-break:break-all}
