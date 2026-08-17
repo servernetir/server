@@ -14,6 +14,14 @@
   --grad:linear-gradient(100deg,#3B82F6,#22D3EE);
   --grad-txt:linear-gradient(100deg,#60A5FA 0%,#22D3EE 55%,#A78BFA 100%);
   --r:18px; --r-lg:24px;
+  /* 🔴 اینها تا امروز **فقط** در panel.css تعریف شده بودند و site.css مصرفشان
+     می‌کرد. لایوتِ عمومی تنها همین فایل را لود می‌کند، پس هر `var()` به متغیرِ
+     تعریف‌نشده یعنی مرورگر **کلِ آن اعلان** را بی‌صدا دور می‌اندازد: جعبه‌های
+     هشدارِ صفحهٔ /developers بی‌کادر و بی‌پس‌زمینه رندر می‌شدند، با کدِ ۲۰۰.
+     CssVariablesDefinedTest هم نگرفته بودش چون تعریف‌ها را از **هر سه** شیت
+     یک‌کاسه می‌کرد — و panel.css اصلاً روی صفحهٔ عمومی نیست. */
+  --info:#22D3EE;   --info-bg:rgba(34,211,238,.10);  --info-line:rgba(34,211,238,.30);
+  --danger:#F87171; --danger-bg:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.32);
   --ease:cubic-bezier(.22,1,.36,1);
   --font-body:'IRANSans',system-ui,'Segoe UI',sans-serif;
   --font-disp:'IRANSans',system-ui,'Segoe UI',sans-serif;
@@ -810,6 +818,8 @@ html[data-theme="light"]{
   --line:rgba(15,23,42,.1); --line-2:rgba(15,23,42,.17);
   --text:#0B1220; --muted:#45506B; --dim:#828CA6;
   --grad-txt:linear-gradient(100deg,#2563EB 0%,#0891B2 55%,#7C3AED 100%);
+  --info:#0891B2;   --info-bg:rgba(8,145,178,.09);   --info-line:rgba(8,145,178,.30);
+  --danger:#DC2626; --danger-bg:rgba(220,38,38,.08); --danger-line:rgba(220,38,38,.28);
 }
 html[data-theme="light"] body{background:var(--bg)}
 html[data-theme="light"] .aurora{background:var(--bg)}
@@ -3265,6 +3275,10 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
     --surface:#FFFFFF; --surface-2:#F7F8FA;
     --line:#E3E7EE; --line-2:#CAD1DC;
     --text:#0B1220; --muted:#48526A; --dim:#6A7488;
+    /* جعبه‌های هشدارِ /developers هم باید جوهرپسند شوند، نه اینکه تینتِ
+       طراحیِ تیره را روی کاغذ ببرند */
+    --info:#0E7490;   --info-bg:#F2FAFC;  --info-line:#BEE0E9;
+    --danger:#B91C1C; --danger-bg:#FEF3F3; --danger-line:#EFC9C9;
   }
 
   @page{ size:A4; margin:14mm 12mm 15mm }
@@ -3276,7 +3290,8 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .aurora,.grid-overlay,#progress,.site-header-wrap,.imp-bar,
   .site-footer,.chat-fab,.chat-panel,.chat-launcher,
   .drawer,.drawer-backdrop,.au-cta,.audit-filter,.tool-search,.aud-dims,
-  .au-share,.aud-stage,.rp-stale a,.tl-content,.hero .badge{display:none !important}
+  .au-share,.aud-stage,.rp-stale a,.tl-content,.hero .badge,
+  .dev-toc,.dev-copy,.dev-hero .hero-ctas,.dev-doc .btn{display:none !important}
 
   /* ── ۳) سربرگ و پابرگِ سند ────────────────────────────────────────────── */
   .au-print-head{display:flex !important;align-items:center;justify-content:space-between;
@@ -3302,8 +3317,13 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   .hero-sub-inner{max-width:none !important}
   .reveal{opacity:1 !important;transform:none !important}
 
-  /* عنوانِ صفحهٔ گزارش روی کاغذ تکراری است — سربرگ همان را می‌گوید */
-  .hero-sub h1,.hero-sub .lead,.rp-when{display:none !important}
+  /* عنوانِ صفحهٔ گزارش روی کاغذ تکراری است — سربرگ همان را می‌گوید.
+     🔴 ولی مستنداتِ API سربرگِ چاپ ندارد، پس اگر این قاعده آن را هم بگیرد
+     PDF **بی‌عنوان** بیرون می‌آید — سندی که صفحهٔ اولش نمی‌گوید چیست. یک بار
+     همین شد و فقط با نگاه‌کردن به خروجیِ چاپ پیدا شد، نه با تست. */
+  .hero-sub:not(.dev-hero) h1,.hero-sub:not(.dev-hero) .lead,.rp-when{display:none !important}
+  .dev-printurl{display:block !important;font-size:8.5pt;color:#6A7488;
+    margin-top:10px;padding-top:8px;border-top:1px solid #CAD1DC;direction:ltr}
 
   /* ── ۵) کارت‌ها ────────────────────────────────────────────────────────── */
   .audit-hero,.audit-plan,.adetail-group,.audit-vitals{
@@ -3338,8 +3358,15 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
   /* ── ۸) شکستنِ صفحه ────────────────────────────────────────────────────
      بی این، یک ردیفِ چک وسطِ خودش دو تکه می‌شود و عنوانِ گروه ته صفحه تنها
      می‌مانَد — همان چیزی که یک PDF را «ارزان» نشان می‌دهد. */
-  .audit-hero,.aplan-item,.adetail-group,.acheck,.vitem,.acat{break-inside:avoid;page-break-inside:avoid}
-  .adetail-group h3,.audit-plan h3{break-after:avoid;page-break-after:avoid}
+  .audit-hero,.aplan-item,.adetail-group,.acheck,.vitem,.acat,
+  .dev-code,.dev-note,.dev-ep,.dev-plugin,.dev-tablewrap{break-inside:avoid;page-break-inside:avoid}
+  .adetail-group h3,.audit-plan h3,
+  .dev-doc h2,.dev-doc h3{break-after:avoid;page-break-after:avoid}
+
+  /* مستندات روی کاغذ تک‌ستونه است و کد باید بشکند نه اینکه از کاغذ بیرون بزند */
+  .dev-grid{display:block !important}
+  .dev-code{white-space:pre-wrap;word-break:break-word;font-size:8.5pt}
+  .dev-m{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .audit-detail{break-before:auto}
 
   /* ── ۹) لینک‌ها ────────────────────────────────────────────────────────
@@ -3402,16 +3429,19 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
 
 /* ═══════════ نردبان سطح نمایندگی (partials/sig-tiers) ═══════════ */
 .tier-ladder{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-top:26px}
-.tier{position:relative;background:var(--surface2);border:1px solid var(--line);border-radius:16px;
+/* ⚠️ نامِ متغیرها در این پروژه بینِ شیت‌ها **یکی نیست**: در admin.css
+   `--surface2`/`--line2`/`--font` است و در site.css `--surface-2`/`--line-2`/
+   `--font-body`. اسمِ ادمینی این‌جا یعنی اعلانِ دورریخته و کارتِ بی‌پس‌زمینه. */
+.tier{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;
   padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px}
 /* پله‌های بالاتر پررنگ‌تر — نردبان باید در یک نگاه «بالا رفتن» را نشان دهد */
-.tier:not(.is-base){border-color:var(--line2)}
+.tier:not(.is-base){border-color:var(--line-2)}
 .tier:last-child{border-color:var(--green);box-shadow:0 0 0 1px color-mix(in srgb,var(--green) 30%,transparent)}
 .tier-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .tier-name{font-family:var(--font-disp);font-size:17px}
 .tier-off{font-family:var(--font-disp);font-size:30px;line-height:1;color:var(--green)}
 .tier-off small{font-size:15px}
-.tier-off .tier-off-base{font-size:13px;color:var(--dim);font-family:var(--font)}
+.tier-off .tier-off-base{font-size:13px;color:var(--dim);font-family:var(--font-body)}
 .tier-req{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;
   font-size:13px;line-height:1.9;color:var(--muted)}
 .tier-note{margin:20px 0 0;font-size:13.5px;line-height:2.1;color:var(--muted);max-width:760px}
@@ -3423,7 +3453,7 @@ a.pt-c:hover,a.pt-c:focus-visible{color:var(--text);border-color:var(--cyan)}
 /* ═══════════ قدم‌های شروع (HowTo روی صفحهٔ محصول) ═══════════ */
 .howto-steps{list-style:none;margin:30px 0 0;padding:0;display:grid;gap:14px;
   grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.howto-step{display:flex;gap:14px;align-items:flex-start;background:var(--surface2);
+.howto-step{display:flex;gap:14px;align-items:flex-start;background:var(--surface-2);
   border:1px solid var(--line);border-radius:16px;padding:18px}
 .howto-n{flex:0 0 34px;height:34px;border-radius:50%;display:grid;place-items:center;
   background:var(--grad);color:#fff;font-family:var(--font-disp);font-size:15px}
@@ -3509,3 +3539,96 @@ html.aib-lock,html.aib-lock body{overflow:hidden}
   border-radius:12px;background:var(--surface-2);padding:8px 16px;margin-top:23px}
 .aib-total b{font-size:19px}
 @media(max-width:760px){.aib-deploy-grid{grid-template-columns:1fr}.aib-total{margin-top:0}}
+
+/* ═══════════ مستندات API — بازطراحی سه‌زبانه (شهریور ۱۴۰۵) ═══════════
+   ⚠️ انتهای فایل، طبق قاعدهٔ append-only. بلوکِ قدیمیِ .dev-doc بالاتر است و
+   دست نخورده؛ این‌جا فقط چیزهای تازه اضافه می‌شود. */
+
+.dev-hero{padding-bottom:40px}
+/* فقط در چاپ دیده می‌شود: نشانیِ مرجع و تاریخ، تا PDFِ دست‌به‌دست‌شده منبعش
+   معلوم باشد و کسی نسخهٔ کهنه را سندِ امروز نخوانَد. */
+.dev-printurl{display:none}
+.dev-wrap{padding-top:34px}
+
+/* دو ستون: فهرستِ چسبان + متن. زیرِ ۹۶۰ به یک نوارِ افقی تبدیل می‌شود، نه
+   ۱۰ ردیفِ عمودی که صفحه را دو برابر کند. */
+.dev-grid{display:grid;grid-template-columns:236px minmax(0,1fr);gap:44px;align-items:start}
+.dev-grid .dev-doc{max-width:none;margin-inline:0}
+
+.dev-toc{position:sticky;top:calc(var(--header-h) + 16px);font-size:13.5px}
+.dev-toc > b{display:block;font-family:var(--font-disp);font-size:13px;color:var(--muted);
+  letter-spacing:.4px;margin-bottom:12px}
+.dev-toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;
+  border-inline-start:1px solid var(--line);padding-inline-start:0}
+.dev-toc a{display:flex;gap:9px;align-items:baseline;padding:7px 12px;color:var(--muted);
+  border-inline-start:2px solid transparent;margin-inline-start:-1px;line-height:1.7;
+  transition:color .2s var(--ease),border-color .2s var(--ease)}
+.dev-toc a:hover{color:var(--text);border-inline-start-color:var(--info)}
+.dev-toc-n{font-size:11px;color:var(--dim);min-width:14px}
+
+/* ⚠️ رقم با رنگِ متن است نه با رنگِ لهجه: #0891B2 روی زمینهٔ روشن نسبتِ
+   کنتراستِ ۳٫۴ می‌دهد و برای متنِ ۱۴ پیکسلی زیرِ حدِ ۴٫۵ است. لهجه به کادر و
+   پس‌زمینهٔ چیپ منتقل شد، که کنتراستِ متن روی آن اهمیتی ندارد. */
+.dev-h-n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;
+  background:var(--info-bg);border:1px solid var(--info-line);font-size:14px;color:var(--text);
+  margin-inline-end:11px;vertical-align:middle}
+.dev-doc h2{scroll-margin-top:calc(var(--header-h) + 20px)}
+
+/* ── فهرستِ نقاط پایانی ── */
+.dev-eps{display:flex;flex-direction:column;gap:8px;margin:0 0 20px}
+/* ⚠️ `minmax(0,1fr)` و نه `1fr`: پیش‌فرضِ ترک گرید `minmax(auto,1fr)` است، پس
+   محتوای عریض (مسیرِ بلندِ نقطهٔ پایانی) ترک را از عرضِ ظرف بزرگ‌تر می‌کند. و
+   چون body این پروژه `overflow-x:clip` دارد، سرریز **اسکرول نمی‌شود، بریده
+   می‌شود** — یعنی متن بی‌هیچ نشانه‌ای ناپدید می‌شود. */
+.dev-ep{display:grid;grid-template-columns:64px auto minmax(0,1fr) auto;gap:12px;align-items:center;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+.dev-m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+  font-weight:700;letter-spacing:.5px;text-align:center;padding:4px 0;border-radius:6px;color:#fff}
+.dev-m-get{background:rgba(52,211,153,.22);color:var(--green);border:1px solid rgba(52,211,153,.35)}
+.dev-m-post{background:rgba(34,211,238,.18);color:var(--cyan);border:1px solid var(--info-line)}
+.dev-m-put{background:rgba(139,92,246,.2);color:var(--violet);border:1px solid rgba(139,92,246,.35)}
+.dev-ep-p{direction:ltr;font-size:12.5px;white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.dev-ep-d{font-size:13px;color:var(--muted);line-height:1.7}
+.dev-ep-s{direction:ltr;font-size:11px;color:var(--dim);white-space:nowrap;
+  background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+
+.dev-states{display:flex;flex-wrap:wrap;gap:7px 14px;font-size:13px}
+.dev-states code{font-size:11.5px;background:var(--info-bg);border:1px solid var(--info-line);
+  border-radius:5px;padding:1px 6px}
+
+/* ── افزونه‌ها ── */
+.dev-plugins{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin:0 0 18px}
+.dev-plugin{background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:18px}
+.dev-plugin b{display:block;font-family:var(--font-disp);font-size:16px;margin-bottom:8px}
+.dev-plugin > code{display:block;direction:ltr;font-size:11.5px;color:var(--dim);margin-bottom:10px;
+  overflow-x:auto;white-space:nowrap}
+.dev-plugin p{margin:0;font-size:13.5px;line-height:2;color:var(--muted)}
+
+/* جدول در ظرفِ خودش اسکرول شود و ستون‌هایش هم‌تراز بمانند
+   (.dev-table بالاتر display:block دارد؛ داخلِ ظرف به جدولِ واقعی برمی‌گردد) */
+.dev-tablewrap{overflow-x:auto;margin:0 0 18px}
+.dev-tablewrap .dev-table{display:table;margin:0}
+
+/* ── کپیِ بلوکِ کد ── */
+.dev-code{position:relative}
+.dev-copy{position:absolute;inset-block-start:8px;inset-inline-end:8px;width:30px;height:30px;
+  border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);
+  font-size:14px;line-height:1;opacity:0;transition:opacity .2s var(--ease),color .2s var(--ease)}
+.dev-code:hover .dev-copy,.dev-copy:focus-visible{opacity:1}
+.dev-copy:hover{color:var(--info)}
+
+@media (max-width:960px){
+  .dev-grid{grid-template-columns:minmax(0,1fr);gap:24px}
+  /* فهرست می‌شود یک نوارِ افقیِ اسکرول‌شونده.
+     `min-width:0` روی خودِ ol لازم است، وگرنه min-contentِ یازده قرصِ
+     nowrap ترکِ گرید را باز می‌کند و به‌جای اسکرول، سرریزِ بریده می‌سازد. */
+  .dev-toc{position:static;border-bottom:1px solid var(--line);padding-bottom:10px;min-width:0}
+  .dev-toc ol{flex-direction:row;overflow-x:auto;border:0;gap:6px;scrollbar-width:none;min-width:0}
+  .dev-toc ol::-webkit-scrollbar{display:none}
+  .dev-toc a{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 13px;margin:0}
+  .dev-ep{grid-template-columns:58px minmax(0,1fr);row-gap:6px}
+  .dev-ep-d,.dev-ep-s{grid-column:1/-1}
+  .dev-ep-p{overflow-x:auto}
+}
+

@@ -28,6 +28,16 @@ class CustomerApiToken extends Model
         'domains:manage' => 'تغییرِ نام‌سرور و تمدیدِ خودکارِ دامنه‌های موجود',
     ];
 
+    /**
+     * حداکثر توکنِ فعالِ هم‌زمان برای هر حساب.
+     *
+     * ⚠️ عدد عمداً این‌جاست و نه در کنترلر: مستنداتِ `/developers` همین را چاپ
+     * می‌کند. سقفی که در دو جا نوشته شود، روزی که یکی‌اش عوض شود مستندات را
+     * دروغ‌گو می‌کند — و نماینده‌ای که بر اساسش کد نوشته، خرابی‌اش را وقتی
+     * می‌بیند که صدورِ توکنِ سرورِ تازه‌اش رد می‌شود.
+     */
+    public const MAX_ACTIVE = 20;
+
     protected $fillable = [
         'customer_id', 'name', 'token_hash', 'abilities', 'allowed_cidrs',
         'expires_at', 'revoked_at', 'daily_spend_cap_irt',

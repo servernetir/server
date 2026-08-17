@@ -147,4 +147,59 @@ class CssVariablesDefinedTest extends TestCase
         $this->assertSame([], $bad,
             "\nرنگِ سخت‌کد به‌عنوان fallback — با تم عوض نمی‌شود:\n  ".implode("\n  ", $bad));
     }
+
+    /**
+     * 🔴 شیتی که **تنها** لود می‌شود باید خودکفا باشد.
+     *
+     * ═══ باگی که این تست برای تکرارنشدنش نوشته شد ═══
+     *
+     * تستِ بالا تعریف‌ها را از **هر سه** شیت یک‌کاسه می‌کند، و آن برای
+     * `panel.css`/`auth.css` درست است چون لایوتشان `site.css` را هم لود
+     * می‌کند. ولی دو شیت **به‌تنهایی** سرو می‌شوند:
+     *
+     *   layouts/site.blade.php  → فقط site.css
+     *   admin/layout.blade.php  → فقط admin.css
+     *
+     * `.dev-note` (جعبه‌های هشدارِ صفحهٔ /developers) از `--info-bg` و
+     * `--danger-line` استفاده می‌کرد که **فقط** در panel.css تعریف شده بودند،
+     * و `.tier` از `--surface2`/`--line2`/`--font` که نام‌های admin.css اند.
+     * `var()`ِ نامعتبر یعنی مرورگر کلِ آن اعلان را بی‌صدا دور می‌اندازد: کارتِ
+     * بی‌پس‌زمینه و جعبهٔ بی‌کادر، روی صفحهٔ زنده، با کدِ ۲۰۰ و بدونِ هیچ خطایی.
+     * تستِ بالا سبز بود چون panel.css را هم می‌شمرد — یعنی دقیقاً محافظی که
+     * باید می‌گرفتش، خودش پنهانش کرده بود.
+     *
+     * ⚠️ نامِ متغیرها بینِ شیت‌ها یکی نیست و این تست همان را می‌گیرد:
+     * `--surface-2`/`--line-2`/`--font-body` در site.css در برابرِ
+     * `--surface2`/`--line2`/`--font` در admin.css.
+     */
+    public function test_a_standalone_stylesheet_defines_every_variable_it_uses(): void
+    {
+        // شیت => لایوتی که آن را **بدونِ** شیتِ دیگری لود می‌کند
+        $standalone = [
+            'site.css'  => 'layouts/site.blade.php',
+            'admin.css' => 'admin/layout.blade.php',
+        ];
+
+        $bad = [];
+
+        foreach ($standalone as $sheet => $layout) {
+            $src = $this->strip(file_get_contents(public_path('assets/css/'.$sheet)));
+
+            preg_match_all('~(--[a-zA-Z0-9_-]+)\s*:~', $src, $own);
+            preg_match_all('~var\(\s*(--[a-zA-Z0-9_-]+)~', $src, $uses);
+
+            $known = array_merge($own[1], self::SET_INLINE, self::EXTERNAL);
+
+            foreach (array_unique(array_diff($uses[1], $known)) as $v) {
+                $bad[] = $sheet.' → var('.$v.')   ['.$layout.' هیچ شیتِ دیگری لود نمی‌کند]';
+            }
+        }
+
+        sort($bad);
+
+        $this->assertSame([], $bad,
+            "\nمتغیری که در شیتِ **خودکفا** تعریف نشده. مرورگر کلِ اعلان را\n"
+            ."بی‌صدا دور می‌اندازد — صفحه ۲۰۰ می‌دهد و بی‌استایل رندر می‌شود:\n  "
+            .implode("\n  ", $bad));
+    }
 }
