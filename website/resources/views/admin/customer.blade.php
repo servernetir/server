@@ -108,7 +108,7 @@
         <div><span>شاهکار</span><b>{{ $iv->shahkar_matched ? 'تطابق موبایل ✓' : 'تطابق نشد' }}</b></div>
         @if($iv->fail_reason)<div><span>دلیل رد</span><b style="color:#ff6b6b">{{ $iv->fail_reason }}</b></div>@endif
       @else
-        <div style="color:var(--dim);padding:8px 0">این مشتری هنوز احراز هویت نکرده است.</div>
+        <div class="kv-wide" style="color:var(--dim)">این مشتری هنوز احراز هویت نکرده است.</div>
       @endif
     </div>
   </div>
@@ -315,8 +315,11 @@
               <form method="post" action="/admin/services/{{ $s->id }}/due" style="display:flex;gap:5px;align-items:center"
                     data-confirm="سررسیدِ این سرویس تنظیم شود؟ از این پس فاکتورِ تمدید و یادآوری می‌گیرد.">
                 @csrf
-                <input type="date" name="next_due_at" required min="{{ now()->addDay()->toDateString() }}"
-                       style="background:var(--surface2);border:1px solid #fbbf24;border-radius:7px;color:var(--text);padding:4px 7px;font:inherit;font-size:12px">
+                {{-- دیت‌پیکرِ شمسی: فیلد مخفی می‌مانَد و jdate.js کنارش دکمهٔ
+                     انتخاب می‌سازد. مقدار همیشه میلادیِ ISO است چون سرور
+                     می‌سازدش — هیچ تبدیلی در مرورگر انجام نمی‌شود. --}}
+                <input type="hidden" name="next_due_at" data-jdate required
+                       data-min="{{ now()->addDay()->toDateString() }}">
                 <button class="del" style="color:#fbbf24" type="submit" title="بدونِ سررسید، این سرویس هرگز فاکتورِ تمدید نمی‌گیرد">تنظیم</button>
               </form>
             @else
@@ -801,11 +804,7 @@
 .cust-kpi{ padding:14px 16px; background:var(--panel,var(--surface)); border:1px solid var(--line); border-radius:12px }
 .cust-kpi b{ display:block; font-size:18px; color:var(--text); font-variant-numeric:tabular-nums }
 .cust-kpi span{ font-size:11.5px; color:var(--muted) }
-.kv{ padding:8px 16px 16px }
-.kv > div{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line) }
-.kv > div:last-child{ border-bottom:0 }
-.kv span{ color:var(--muted); font-size:13px }
-.kv b{ color:var(--text); font-size:13.5px; font-weight:600; text-align:left }
+/* .kv حالا در admin.css است (شبکهٔ توریِ دوستونه) — این‌جا تکرار نشود */
 
 /* ── تب‌ها ─────────────────────────────────────────────────────────────── */
 .ct-tabs{ display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--line); flex-wrap:wrap }

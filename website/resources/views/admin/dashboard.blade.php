@@ -87,7 +87,7 @@
 .ad-kpi b{ font-size:26px; color:var(--text); font-variant-numeric:tabular-nums; line-height:1 }
 .ad-kpi span{ font-size:12.5px; color:var(--muted) }
 .ad-kpi span i{ font-style:normal; font-size:11px }
-.ad-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
-@media(max-width:900px){ .ad-kpis{ grid-template-columns:repeat(2,1fr) } .ad-grid2{ grid-template-columns:1fr } }
+/* .ad-grid2 حالا در admin.css است — تعریفِ درون‌خطی فقط روی همین صفحه اثر داشت */
+@media(max-width:900px){ .ad-kpis{ grid-template-columns:repeat(2,1fr) } }
 </style>
 @endsection

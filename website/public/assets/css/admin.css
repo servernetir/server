@@ -799,3 +799,72 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
   background:var(--surface2);color:var(--text);border:1px solid var(--line2)}
 .ad-btn:hover{background:var(--line);border-color:var(--cyan)}
 .ad-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* ═══════════ دیت‌پیکر شمسی (assets/js/jdate.js) ═══════════
+   ⚠️ پاپ‌آور مستقیم فرزندِ body است تا هیچ `overflow` یا بسترِ چینشی نبُرَدش —
+   همان درسی که نوارِ بازگشت داد. پس z-index باید از جدول و مودال‌ها بالاتر
+   بماند ولی زیرِ نوارِ impersonation (که راهِ خروجِ مدیر است). */
+.jd-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--font);font-size:12.5px;
+  background:var(--surface2);border:1px solid #fbbf24;border-radius:8px;color:var(--muted);
+  padding:5px 10px;cursor:pointer}
+.jd-btn:hover{border-color:var(--cyan);color:var(--text)}
+.jd-btn.has-val{color:var(--text);border-color:var(--line2)}
+.jd-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+.jd-pop{position:absolute;z-index:900;width:252px;padding:10px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--line2);
+  box-shadow:0 18px 44px rgba(0,0,0,.45);direction:rtl}
+.jd-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.jd-head b{font-size:13px}
+.jd-nav{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface2);color:var(--text);cursor:pointer;font-size:15px;line-height:1}
+.jd-nav:hover{border-color:var(--cyan)}
+
+.jd-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.jd-dow{font-size:10.5px;color:var(--dim);text-align:center;padding:3px 0}
+.jd-pad{visibility:hidden}
+.jd-day{height:28px;border-radius:7px;border:1px solid transparent;background:transparent;
+  color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.jd-day:hover:not(:disabled){background:var(--surface2);border-color:var(--cyan)}
+.jd-day.is-today{border-color:var(--line2);font-weight:700}
+.jd-day.is-on{background:var(--cyan);color:#04121a;font-weight:700}
+/* روزِ غیرمجاز فقط راهنماست؛ محافظِ واقعی `after:today` سمتِ سرور است */
+.jd-day.is-off{color:var(--dim);cursor:not-allowed;opacity:.45}
+
+.jd-load{text-align:center;color:var(--muted);padding:22px 0}
+/* شکست باید دیده شود و راهِ دوم بدهد، نه اینکه تقویم خالی بماند */
+.jd-err{color:#ff6b6b;font-size:12px;margin-bottom:7px}
+.jd-manual{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:7px;
+  color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
+
+/* ═══════════ شبکهٔ دو ستونه + جدولِ کلید/مقدار ═══════════
+
+   🔴 باگی که این بلوک برای رفعش نوشته شد
+   `.ad-grid2` فقط داخلِ `<style>`ِ `dashboard.blade.php` تعریف شده بود. کلاسِ
+   درونِ یک Blade فقط روی **همان صفحه** وجود دارد، پس در `/admin/customers/{id}`
+   هیچ کاری نمی‌کرد: دو پنلِ «هویت و احراز» و «حساب و تماس» به‌جای کنارِ هم،
+   تمام‌عرض روی هم می‌افتادند و نصفِ صفحه را می‌گرفتند. بی‌هیچ خطایی و با کدِ ۲۰۰.
+
+   ⚠️ تعریف حالا **یک‌جاست**. اگر روزی به Blade برگردانده شود، همان باگ روی هر
+   صفحهٔ تازه‌ای که این کلاس را به کار ببرد تکرار می‌شود.
+
+   ⚠️ `minmax(0,1fr)` و نه `1fr`: محتوای عریض (ایمیلِ بلند، IP) ستون را باز
+   می‌کند و شبکه از عرضِ ظرف بیرون می‌زند. */
+.ad-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+
+/* جدولِ توریِ کلید/مقدار — دوستونه داخلِ هر پنل.
+   قبلاً هر قلم یک ردیفِ تمام‌عرض بود؛ با شش قلم یعنی شش ردیف. حالا هر پنل
+   خودش دو ستون دارد، پس ارتفاع تقریباً نصف می‌شود و چشم هم ستونی می‌خوانَد. */
+.kv{padding:10px 16px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:0 16px}
+.kv > div{display:flex;flex-direction:column;gap:2px;min-width:0;
+  padding:8px 0;border-bottom:1px solid var(--line)}
+.kv span{color:var(--muted);font-size:11.5px;line-height:1.6}
+.kv b{color:var(--text);font-size:13px;font-weight:600;line-height:1.7;
+  overflow-wrap:anywhere}   /* ایمیلِ بلند نباید ستون را پاره کند */
+/* پیامِ «هنوز احراز نکرده» یک جمله است، نه یک قلم — کلِ عرض را بگیرد */
+.kv > .kv-wide{grid-column:1/-1;flex-direction:row;border-bottom:0}
+
+@media(max-width:900px){
+  .ad-grid2{grid-template-columns:1fr}
+}

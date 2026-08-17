@@ -144,6 +144,9 @@
 {{-- فیلتر و مرتب‌سازیِ همهٔ جدول‌ها — عمومی است و هیچ ویویی لازم نیست چیزی
      اضافه کند. انصراف با `data-no-enhance` روی خودِ <table>. --}}
 <script src="{{ asset_ver('assets/js/admin-tables.js') }}" defer></script>
+{{-- دیت‌پیکرِ شمسی. خودمیزبان و بی‌کتابخانه (CSP هر CDN را بی‌صدا بلاک
+     می‌کند)، و هیچ ریاضیِ جلالی در مرورگر ندارد — شبکهٔ ماه از سرور می‌آید. --}}
+<script src="{{ asset_ver('assets/js/jdate.js') }}" defer></script>
 <script>
 (function(){
   var b = document.getElementById('ad-theme');
