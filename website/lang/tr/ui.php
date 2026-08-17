@@ -1670,6 +1670,8 @@ return [
     'cvb_a_label' => 'sunucu adı',
     'cvb_a_ip' => 'ek IP sayısı',
     // ═══ کنسولِ مشتری: مسیرِ پرداخت + پنل (بومی‌سازیِ خودکار) ═══
+    'inv_due_until' => 'Son ödeme',
+    'inv_due_passed' => 'Bu proforma için ödeme süresi doldu; kısa süre içinde iptal edilebilir.',
     'inv_invoice' => 'Fatura',
     'inv_brand' => 'ServerNet',
     'inv_download_receipt' => 'Makbuzu indir (PDF)',

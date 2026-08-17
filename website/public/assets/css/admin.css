@@ -261,7 +261,10 @@ textarea.ad-input{resize:vertical;line-height:1.8;min-height:90px}
 .ad-fold>summary small{ font-weight:400; color:var(--dim); font-size:12px }
 
 /* ══ انتخابِ گروهیِ ردیف‌های جدول ══ */
-.ad-pick{ width:15px; height:15px; margin:0; accent-color:var(--cyan); cursor:pointer; vertical-align:middle }
+/* ⚠️ `.sx-pick` (چک‌باکسِ انتخابِ گروهیِ /admin/seo) هم همین‌جاست: تنها
+   کنترلی بود که هیچ منبعِ استایلی نداشت و با بقیهٔ چک‌باکس‌های پنل
+   هم‌شکل نبود. افزودنش به همین قاعده از استثناگذاشتن در تست بهتر است. */
+.ad-pick,.sx-pick{ width:15px; height:15px; margin:0; accent-color:var(--cyan); cursor:pointer; vertical-align:middle }
 /* ⚠️ نوارِ اقدام با صفتِ hidden پنهان می‌شود، ولی display:flexِ نویسنده بر
    [hidden]ِ مرورگر می‌چربد — پس صریح خاموشش می‌کنیم. */
 .ad-bulk[hidden]{ display:none }
@@ -784,3 +787,15 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
   border-radius:10px;padding:9px 12px}
 .sx-skip-g b{display:block;font-size:12.5px;margin-bottom:4px;color:var(--muted)}
 .sx-skip-l{font-size:12px;color:var(--dim);line-height:1.9;word-break:break-all}
+
+/* ═══════════ دکمهٔ ثانویهٔ پنل مدیریت ═══════════
+   🔴 `.ad-btn` در چند صفحه استفاده می‌شد و **هیچ‌جا تعریف نشده بود**، پس
+   «+ فروش سرویس جدید» در پروندهٔ مشتری یک دکمهٔ خامِ مرورگر بود. کلاسِ CSSِ
+   نبود بی‌هیچ خطایی بی‌استایل رندر می‌شود — نه ۵۰۰ می‌دهد نه در لاگ می‌آید،
+   و تنها راهِ دیدنش نگاه‌کردن به صفحه است. نگهبانش:
+   tests/Feature/UnstyledControlsTest.php */
+.ad-btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--font);font-size:13.5px;
+  font-weight:600;border-radius:10px;padding:9px 15px;cursor:pointer;transition:.2s;
+  background:var(--surface2);color:var(--text);border:1px solid var(--line2)}
+.ad-btn:hover{background:var(--line);border-color:var(--cyan)}
+.ad-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}

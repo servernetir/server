@@ -7,6 +7,19 @@
   <div>
     <h1>{{ __('ui.inv_invoice') }} <span dir="ltr">{{ $invoice->number }}</span></h1>
     <p>{{ sdate($invoice->issued_at ?? $invoice->created_at) }}</p>
+    {{-- 🔴 مهلتِ پرداخت باید **دیده شود**.
+         فاکتوری که بی‌خبر لغو شود، از فاکتورِ معلق بدتر است: مشتری برمی‌گردد،
+         چیزی پیدا نمی‌کند و فکر می‌کند سامانه سفارشش را گم کرده. تاریخ فقط
+         وقتی نشان داده می‌شود که واقعاً معنا دارد — پرداخت‌نشده و مهلت‌دار. --}}
+    @if($invoice->status === 'unpaid' && $invoice->paid == 0 && $invoice->due_at)
+      <p class="pnl-sub" @style(['color:var(--danger)' => $invoice->due_at->isPast()])>
+        @if($invoice->due_at->isPast())
+          {{ __('ui.inv_due_passed') }}
+        @else
+          {{ __('ui.inv_due_until') }} {{ sdate($invoice->due_at, true) }}
+        @endif
+      </p>
+    @endif
   </div>
   <div class="pnl-acts">
     <a class="pnl-btn {{ $invoice->status === 'paid' ? 'primary' : '' }}" href="{{ lroute('account.invoice.print', $invoice) }}" target="_blank" rel="noopener">
