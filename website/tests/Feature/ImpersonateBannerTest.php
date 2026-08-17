@@ -162,10 +162,11 @@ class ImpersonateBannerTest extends TestCase
         $this->assertMatchesRegularExpression('/--imp-h:\s*\d+px/', $site,
             'متغیرِ ارتفاعِ نوار تعریف نشده');
 
-        // نوار داخلِ .site-header-wrap (z-index:200) است، پس خودش باید بالاتر
-        // از .topbar (z-index:201) در همان بستر بنشیند
-        $this->assertMatchesRegularExpression('/\.imp-bar\{[^}]*z-index:\s*202/', $site,
-            'z-indexِ نوار داخلِ هدر درست نیست');
+        // نوار حالا از بسترِ هدر بیرون آمده و خودش fixed است
+        $this->assertMatchesRegularExpression('/\.imp-bar\{[^}]*position:fixed/', $site,
+            'نوار دیگر fixed نیست — داخلِ بسترِ هدر برمی‌گردد و لایه‌های بالاتر می‌پوشانندش');
+        $this->assertStringContainsString('body.imp-on .site-header-wrap{top:var(--imp-h)}', $site,
+            'هدر به‌اندازهٔ نوار پایین نیامده — نوار روی هدر می‌افتد');
 
         // اسکرول‌بار و سایدبارهای چسبیده باید جابه‌جا شده باشند
         $this->assertStringContainsString('body.imp-on #progress', $site);
@@ -174,6 +175,40 @@ class ImpersonateBannerTest extends TestCase
         $panel = file_get_contents(public_path('assets/css/panel.css'));
         $this->assertStringContainsString('body.imp-on .pnl-side', $panel,
             'سایدبارِ پنل با هدرِ بلندشده جابه‌جا نشده');
+    }
+
+    /**
+     * 🔴 نوار باید از **هر** لایهٔ دیگری در سایت بالاتر بماند.
+     *
+     * ═══ باگی که این تست نگهبانش است ═══
+     *
+     * نوار داخلِ `.site-header-wrap` بود (z-index:200) و z-indexِ ۲۰۲ خودش فقط
+     * **درونِ همان wrap** معنا داشت. هر عنصری با z-index بالاتر از ۲۰۰ رویش
+     * می‌افتاد و کلیک را می‌بلعید — مشخصاً
+     * `.aib-preview-full.aib-full` با `position:fixed;inset:0;z-index:980`،
+     * که کلِ صفحه را می‌پوشاند. یعنی مدیرِ جای‌نشسته در آن صفحه هیچ راهِ
+     * بازگشتی نداشت، بی‌هیچ خطایی و با کدِ ۲۰۰.
+     *
+     * ⚠️ تست عددِ ثابت نمی‌سنجد، بلکه **بیشترین z-indexِ کلِ فایل** را پیدا
+     * می‌کند: هر لایهٔ تازه‌ای که فردا اضافه شود هم خودبه‌خود در این دام
+     * می‌افتد. تستی که ۱۰۰۰ را سخت‌کد کند، اولین overlayِ ۱۲۰۰ را نمی‌بیند.
+     */
+    public function test_the_bar_outranks_every_overlay_on_the_site(): void
+    {
+        $site = (string) file_get_contents(public_path('assets/css/site.css'));
+
+        // کامنت‌ها حذف شوند، وگرنه عددی که فقط در توضیح آمده هم شمرده می‌شود
+        $clean = (string) preg_replace('~/\*.*?\*/~s', '', $site);
+
+        preg_match('/\.imp-bar\{[^}]*z-index:\s*(\d+)/', $clean, $bar);
+        $this->assertNotEmpty($bar[1] ?? '', 'z-indexِ نوار پیدا نشد');
+
+        preg_match_all('/z-index:\s*(\d+)/', $clean, $all);
+        $highest = max(array_map('intval', $all[1]));
+
+        $this->assertSame($highest, (int) $bar[1],
+            'لایه‌ای در site.css از نوارِ بازگشت بالاتر است و کلیکش را می‌بلعد — '
+            .'بالاترین z-index فایل '.$highest.' است و نوار '.$bar[1]);
     }
 
     /**
@@ -229,5 +264,65 @@ class ImpersonateBannerTest extends TestCase
         // حالا نه نوار می‌ماند نه دسترسیِ مشتری
         $this->assertFalse(\Illuminate\Support\Facades\Auth::guard('customer')->check());
         $this->assertStringNotContainsString('imp-bar', $this->html('/'));
+    }
+
+    /**
+     * 🔴 چیدمانِ **دو-میزبانیِ پروداکشن** — همان حالتی که کارفرما گزارش کرد.
+     *
+     * ═══ چرا تست‌های بالا این را نمی‌گرفتند ═══
+     *
+     * همه روی میزبانِ پیش‌فرضِ تست (`localhost`) اجرا می‌شوند، و `panelUrl()`
+     * روی هر میزبانی جز `servernet.cloud` عمداً مسیرِ **نسبی** می‌دهد. یعنی
+     * کلِ شاخه‌ای که فقط در پروداکشن اجرا می‌شود — نشانیِ مطلقِ کنسول — هرگز
+     * زیرِ تست نمی‌رفت. دقیقاً همان الگوی `AssetVersionTest`: شاخهٔ خرابِ
+     * پروداکشن محلی هرگز اجرا نمی‌شد.
+     *
+     * ⚠️ ادعا روی **نشانیِ واقعیِ فرم** است نه بر وجودِ نوار: نواری که دیده شود
+     * و دکمه‌اش جای دیگری پست کند، از نبودنش بدتر است — مدیر فکر می‌کند راهِ
+     * بازگشت دارد.
+     */
+    public function test_on_the_main_host_the_exit_form_posts_to_the_console(): void
+    {
+        $this->impersonate();
+
+        /*
+        | ⚠️ نشانیِ **مطلق** لازم است، نه `withServerVariables`.
+        | `Symfony\Request::create()` مقدارِ `HTTP_HOST` را از خودِ URI بازنویسی
+        | می‌کند، پس ست‌کردنِ سرور-متغیر با مسیرِ نسبی بی‌صدا بی‌اثر است و تست
+        | همچنان روی `localhost` می‌دود — یعنی دقیقاً شاخه‌ای که می‌خواهیم
+        | بسنجیم اجرا نمی‌شود. اولین نسخهٔ همین تست به همین دلیل قرمز شد و
+        | کدِ سالم را متهم کرد.
+        */
+        $html = $this->get('https://servernet.cloud/')->getContent();
+
+        $this->assertStringContainsString('class="imp-bar"', (string) $html,
+            'نوار روی دامنهٔ اصلی رندر نشد.');
+
+        preg_match('~<form[^>]*action="([^"]+)"[^>]*class="imp-f"~', (string) $html, $m);
+
+        $this->assertNotEmpty($m[1] ?? '', 'فرمِ خروج روی دامنهٔ اصلی پیدا نشد.');
+        $this->assertSame('https://console.servernet.cloud/admin/impersonate/stop', $m[1],
+            'فرمِ بازگشت به میزبانِ اشتباه پست می‌کند — روی دامنهٔ اصلی باید نشانیِ مطلقِ کنسول باشد.');
+    }
+
+    /**
+     * 🔴 و روی کنسول، `ConsoleHost` نباید این POST را ۳۰۱ کند.
+     *
+     * ریدایرکتِ ۳۰۱ روی POST بدنه را دور می‌ریزد (خودِ `ConsoleHost` این را در
+     * داکِ کلاسش نوشته). اگر روزی `admin/*` از فهرستِ مسیرهای پنلی بیفتد،
+     * دکمهٔ بازگشت بی‌هیچ خطایی به صفحهٔ اصلی می‌پرد و مدیر داخلِ حسابِ مشتری
+     * گیر می‌افتد.
+     */
+    public function test_the_console_never_redirects_the_exit_post_away(): void
+    {
+        $this->impersonate();
+
+        $res = $this->post('https://console.servernet.cloud/admin/impersonate/stop');
+
+        $this->assertNotSame(301, $res->getStatusCode(),
+            'POSTِ خروج روی کنسول ۳۰۱ شد — بدنه دور ریخته می‌شود و بازگشت انجام نمی‌شود.');
+
+        $this->assertFalse(\Illuminate\Support\Facades\Auth::guard('customer')->check(),
+            'بازگشت انجام نشد: مشتری هنوز واردِ گارد است.');
     }
 }

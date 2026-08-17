@@ -21,6 +21,21 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }};font-size:13px;padding:6px 14px">{{ $st[0] }}</span>
+    {{-- ورود به پنلِ مشتری — تا امروز فقط در **فهرستِ** مشتریان بود.
+         پشتیبانی معمولاً از پروندهٔ مشتری شروع می‌شود (این‌جا)، پس مدیر مجبور
+         بود برگردد به فهرست و همان ردیف را پیدا کند. همان کنش، همان تأیید،
+         همان لاگ — فقط جایی که واقعاً لازم می‌شود.
+         ⚠️ هر دو شرطِ فهرست عیناً تکرار شده‌اند: فقط مدیر (نه نویسنده) و فقط
+         حسابِ بسته‌نشده. کنترلر هم خودش دوباره می‌سنجد. --}}
+    @if(auth()->user()->isAdmin() && $c->status !== 'closed')
+      <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
+            data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
+        @csrf
+        <button class="btn btn-glass" type="submit">
+          <svg class="icon"><use href="#i-key"/></svg>ورود به پنل کاربری
+        </button>
+      </form>
+    @endif
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
   </div>
 </div>

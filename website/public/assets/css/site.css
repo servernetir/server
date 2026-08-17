@@ -2371,9 +2371,27 @@ body.imp-on .wt-side-in{top:calc(96px + var(--imp-h))}
 body.imp-on .drawer,
 body.imp-on .drawer-backdrop{top:var(--imp-h)}
 
-.imp-bar{position:relative;z-index:202;height:var(--imp-h);
+/* 🔴 نوار از بسترِ چینشِ هدر **بیرون** می‌آید.
+   ═══ باگی که این را لازم کرد ═══
+   نوار داخلِ `.site-header-wrap` بود که خودش `z-index:200` دارد. یعنی
+   `z-index:202`ِ نوار فقط **درونِ همان wrap** معنا داشت و هر عنصری در صفحه با
+   z-indexِ بالاتر از ۲۰۰ رویش می‌افتاد و کلیک را می‌بلعید:
+       .aib-preview-full.aib-full   position:fixed; inset:0; z-index:980
+       .chat-panel / .usr-drop      z-index:400
+       .drawer / .drawer-backdrop   z-index:395/390   (این دو جبران شده بودند)
+   یعنی مدیرِ جای‌نشسته در صفحهٔ سایت‌ساز راهِ بازگشت نداشت — همان خرابیِ
+   z-indexِ ثبت‌شده در تاریخچهٔ همین فایل، از یک درِ دیگر.
+   ⚠️ راهِ حل «z-index را داخلِ wrap زیاد کن» نیست (آن‌وقت نوار روی لوگو و منو
+   می‌نشیند). نوار `fixed` می‌شود و **خودِ wrap** به‌اندازهٔ ارتفاعِ نوار پایین
+   می‌آید، پس ظاهر مو نمی‌خورد ولی هیچ لایه‌ای دیگر رویش نمی‌افتد.
+   ⚠️ عدد باید از بالاترین z-indexِ فایل بیشتر بماند؛ نگهبانش
+   ImpersonateBannerTest::test_the_bar_outranks_every_overlay_on_the_site */
+.imp-bar{position:fixed;inset-block-start:0;inset-inline:0;z-index:1000;height:var(--imp-h);
   background:linear-gradient(90deg,#F59E0B,#FBBF24);color:#231703;
   border-bottom:1px solid rgba(0,0,0,.24);box-shadow:0 2px 10px rgba(0,0,0,.3)}
+/* هدرِ ثابت به‌اندازهٔ نوار پایین می‌آید؛ `body.imp-on` از قبل همین فضا را
+   با padding-top رزرو کرده، پس چیدمانِ صفحه دست‌نخورده می‌مانَد. */
+body.imp-on .site-header-wrap{top:var(--imp-h)}
 .imp-in{display:flex;align-items:center;justify-content:space-between;
   gap:12px;height:100%;flex-wrap:nowrap}
 .imp-tx{display:flex;align-items:center;gap:7px;min-width:0;

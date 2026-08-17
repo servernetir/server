@@ -1,6 +1,6 @@
 @extends('admin.layout')
 @section('title', 'احراز هویت')
-@section('nav_verifications', 'on')
+@section('nav_customers', 'on')
 @section('content')
 
 @unless($notReady ?? false)
