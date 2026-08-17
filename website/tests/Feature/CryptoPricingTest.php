@@ -25,6 +25,21 @@ use Tests\TestCase;
 class CryptoPricingTest extends TestCase
 {
     use RefreshDatabase;
+    /**
+     * ⚠️ این کلاس عمداً **مسیرِ دریافتِ زنده** را می‌سنجد (با transportِ فِیک)،
+     * پس کلیدِ خاموشیِ سراسریِ تست را صریح روشن می‌کند.
+     *
+     * `phpunit.xml` آن را خاموش می‌گذارد تا هیچ تستی ناخواسته به اینترنت وصل
+     * نشود — دلیلش در PricingNeverPhonesHomeTest. روشن‌کردنِ صریح این‌جا یعنی
+     * «می‌دانم دارم چه می‌کنم»، نه یک نشتِ تصادفی.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.exchange.enabled', true);
+    }
+
 
     private function customer(): Customer
     {

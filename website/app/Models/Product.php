@@ -51,6 +51,22 @@ class Product extends Model
         return $this->category === 'license';
     }
 
+    /**
+     * آیا خریدِ این پکیج باید یک **حسابِ نمایندگی** بسازد (نه هاستِ معمولی)؟
+     *
+     * 🔴 تنها تعریفِ «نمایندگی» در کلِ پروژه. بی‌این، `WhmProvisioner` همان
+     * `createacct`ِ حسابِ عادی را می‌فرستد — بی‌`reseller=1`، بی‌ACL، بی‌سقف —
+     * و مشتری پولِ «پنل نمایندگی» می‌دهد و یک cPanelِ ساده می‌گیرد. تحویل
+     * «موفق» ثبت می‌شود و هیچ خطایی هیچ‌جا نیست.
+     *
+     * هم‌خانوادهٔ `isLicense()` بالا: هر دو دسته‌ای‌اند که مسیرِ تحویلشان با
+     * هاستِ معمولی فرق دارد.
+     */
+    public function isReseller(): bool
+    {
+        return $this->category === 'reseller';
+    }
+
     protected static function booted(): void
     {
         static::saving(function (self $p) {

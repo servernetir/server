@@ -23,6 +23,9 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- نرخِ زندهٔ ارز در تست خاموش: بی‌این، «نرخ سرد» ساختنی نیست و سوئیت
+             به در دسترس بودنِ alanchand.com گره می‌خورَد -->
+        <env name="EXCHANGE_ENABLED" value="false"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>

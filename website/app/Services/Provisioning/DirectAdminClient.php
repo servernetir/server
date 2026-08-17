@@ -65,6 +65,44 @@ class DirectAdminClient
         return $this->call('CMD_API_ACCOUNT_USER', array_merge(['action' => 'create', 'add' => 'Submit', 'notify' => 'no'], $params), 'POST');
     }
 
+    /**
+     * ساختِ **نماینده** — دستورِ جدا، نه پرچم روی همان دستور.
+     *
+     * 🔴 برخلافِ WHM (که `reseller=1` روی `createacct` است), در DirectAdmin
+     * نماینده و کاربرِ عادی دو endpointِ متفاوت‌اند. اگر
+     * `CMD_API_ACCOUNT_USER` صدا زده شود، DirectAdmin **موفق** برمی‌گرداند و
+     * یک کاربرِ کاملاً معمولی می‌سازد — یعنی مشتری پولِ نمایندگی می‌دهد و
+     * حسابِ ساده می‌گیرد، بی‌هیچ خطایی در هیچ لاگی.
+     *
+     * ⚠️ `package` این‌جا باید نامِ یک **Reseller Package** باشد، نه
+     * User Package. نامِ پکیجِ کاربری روی این دستور خطای «package not found»
+     * می‌دهد.
+     */
+    public function createReseller(array $params): array
+    {
+        return $this->call('CMD_API_ACCOUNT_RESELLER', array_merge([
+            'action' => 'create', 'add' => 'Submit', 'notify' => 'no',
+            // نماینده باید بتواند برای مشتریانش حساب بسازد؛ بی‌این، پنلی
+            // تحویل می‌دهیم که کارِ اصلی‌اش را نمی‌کند.
+            'ip'     => 'shared',
+        ], $params), 'POST');
+    }
+
+    /** آیا این کاربر در فهرستِ نمایندگان است؟ null = نتوانستیم بپرسیم */
+    public function isReseller(string $user): ?bool
+    {
+        $r = $this->call('CMD_API_SHOW_RESELLERS');
+
+        if (! $r['ok']) {
+            return null;
+        }
+
+        // پاسخ به شکلِ list[]=name&list[]=name برمی‌گردد
+        $list = $r['data']['list'] ?? [];
+
+        return in_array($user, array_map('strval', (array) $list), true);
+    }
+
     public function userExists(string $user): bool
     {
         $r = $this->call('CMD_API_SHOW_USER_CONFIG', ['user' => $user]);

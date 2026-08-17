@@ -109,6 +109,7 @@ class PhoneSale
                     'status'        => 'pending',
                     'server_id'     => $server?->id ?? $product->server_id,
                     'plan'          => $product->plan,
+                    'is_reseller'   => $product->isReseller(),
                     'domain'        => $domain ?: null,
                     'created_by'    => $actorId,
                 ]);
