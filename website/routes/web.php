@@ -188,6 +188,15 @@ $site = function (): void {
 
     // جستجوی دامنه از رسیلری (OpenProvider) — مسیر جدید، جدا از مسیر WHMCS بالا
     Route::get('/domains', [\App\Http\Controllers\DomainSearchController::class, 'page'])->name('domain.search');
+
+    /*
+    | صفحهٔ عمومیِ انتقالِ دامنه.
+    |
+    | ⚠️ زیرِ `/domains/` است و نه `/domain/transfer`: مسیرِ دوم را روتِ
+    | کاتالوگ (`/{category}/{slug}` با category در فهرستِ domain) می‌بلعد و
+    | نتیجه‌اش یک ۴۰۴ می‌شود که علتش هیچ‌جا پیدا نیست.
+    */
+    Route::view('/domains/transfer', 'pages.domain-transfer')->name('domain.transfer.page');
     Route::post('/api/domains/search', [\App\Http\Controllers\DomainSearchController::class, 'check'])
         ->name('domain.search.check')->middleware('throttle:tools');
     Route::get('/api/domains/status', [\App\Http\Controllers\DomainSearchController::class, 'status'])
