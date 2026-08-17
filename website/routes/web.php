@@ -2200,6 +2200,13 @@ Route::prefix('admin')->group(function () {
         // تنظیمِ سررسیدِ سرویسِ قدیمیِ بی‌سررسید — بی‌آن، آن سرویس هرگز
         // فاکتورِ تمدید نمی‌گیرد. اعتبارسنجیِ `after:today` در کنترلر است.
         Route::post('/services/{service}/due', [\App\Http\Controllers\Admin\ServiceController::class, 'setDue']);
+        /*
+        | شبکهٔ ماهِ شمسیِ دیت‌پیکر.
+        |
+        | ⚠️ فقط می‌خوانَد و هیچ دادهٔ مشتری نمی‌دهد، ولی زیرِ گروهِ admin است
+        | چون تنها مصرف‌کننده‌اش پنلِ مدیریت است و سطحِ حمله بی‌دلیل باز نشود.
+        */
+        Route::get('/jdate', [\App\Http\Controllers\Admin\JalaliDateController::class, 'month']);
 
         // سرورهای تحویل (WHM/cPanel/…)
         // ورودِ مدیر به پنلِ مشتری (جای او نشستن) — فقط نقشِ مدیر، با لاگ

@@ -34,8 +34,12 @@ return [
         |
         | ⚠️ این صندوق باید **واقعاً وجود داشته باشد**. نشانیِ روی سندِ مالی که
         | برگشت بخورَد از نبودنش بدتر است: مشتری فکر می‌کند پیامش رسیده.
+        |
+        | ⚠️ پیش‌فرض باید با صندوقِ اعلام‌شده در `config/mailboxes.php` یکی
+        | بمانَد. `MailboxBillingIsWatchedTest` همین را قفل کرده و همان هم
+        | ناسازگاریِ اولیه را گرفت: این‌جا `acc@` بود و صندوق `billing@`.
         */
-        'billing_email' => env('SITE_BILLING_EMAIL', 'acc@servernet.cloud'),
+        'billing_email' => env('SITE_BILLING_EMAIL', 'billing@servernet.cloud'),
         'whatsapp'      => env('SITE_WHATSAPP', '17166660425'),
         // شمارهٔ موبایلِ پشتیبانی برای اعلانِ بله (تأییدِ کاربرِ حقوقی و…) — 09xxxxxxxxx
         'notify_phone'  => env('SUPPORT_NOTIFY_PHONE', ''),
