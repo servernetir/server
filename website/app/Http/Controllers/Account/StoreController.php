@@ -149,6 +149,9 @@ class StoreController extends Controller
                 'status'        => 'pending',
                 'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
+                // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
+                // حدس زده نمی‌شود — دلیلش روی `Product::isReseller()`.
+                'is_reseller'   => $product->isReseller(),
                 'domain'        => $domain,
             ]);
 
@@ -190,6 +193,16 @@ class StoreController extends Controller
         $data = $request->validate([
             'cycle'      => ['required', \Illuminate\Validation\Rule::in($cycles)],
             'license_ip' => [
+                /*
+                | ⚠️ `ipv4` عمدی است و **نباید** به `ip` باز شود.
+                |
+                | یک بار همین کار را کردم به این گمان که «سرور اروپایی شاید
+                | فقط IPv6 داشته باشد» — ولی خودِ لایسنسِ cPanel و DirectAdmin
+                | به IPv4ِ اصلیِ سرور گره می‌خورد. پذیرفتنِ IPv6 یعنی سفارشی
+                | ثبت شود که **قابلِ فعال‌سازی نیست**، و مشتری تازه چند روز
+                | بعد بفهمد. ضمناً `isPublicIp` رنجِ مستندسازیِ IPv6
+                | (`2001:db8::/32`) را رد نمی‌کند، پس گارد هم شل‌تر می‌شد.
+                */
                 'required', 'ipv4',
                 function ($attr, $value, $fail) {
                     // لایسنس روی IP خصوصی/رزرو فعال‌شدنی نیست؛ همان قاعده‌ی SafeUrl

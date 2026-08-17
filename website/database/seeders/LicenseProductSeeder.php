@@ -20,6 +20,23 @@ use Illuminate\Support\Facades\Schema;
  */
 class LicenseProductSeeder extends Seeder
 {
+    /**
+     * قیمت‌هایی که **نسخهٔ قبلیِ همین seeder** روی پروداکشن نوشته بود.
+     *
+     * تنها کاربردش تشخیصِ «این ردیف دست‌نخورده است» هنگام به‌روزرسانیِ قیمت
+     * است (پایین، در `run()`). اگر روزی قیمت‌ها را دوباره عوض کردی، این نقشه
+     * را هم به مقادیرِ **فعلی** به‌روز کن، وگرنه اجرای بعدی چیزی را به‌روز
+     * نمی‌کند و قیمتِ تازه هرگز روی سایت زنده نمی‌شود.
+     *
+     * @var array<string,int>
+     */
+    private const PREVIOUS_SEEDED_PRICES = [
+        'license-directadmin' => 690000,
+        'license-cpanel'      => 990000,
+        'license-plesk'       => 890000,
+        'license-litespeed'   => 790000,
+    ];
+
     /** @return array<string, array<string, mixed>> slug => attributes */
     public static function catalog(): array
     {
@@ -27,11 +44,11 @@ class LicenseProductSeeder extends Seeder
 
         return [
             'license-directadmin' => [
-                'name'        => 'لایسنس DirectAdmin',
+                'name'        => 'لایسنس DirectAdmin — سرور مجازی',
                 'category'    => 'license',
                 'group'       => 'license',
-                'price'       => 690000,
-                'price_eur'   => 690,
+                'price'       => 350000,
+                'price_eur'   => 350,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
                 'description' => 'لایسنس ماهانه DirectAdmin — فعال‌سازی روی IP سرور شما پس از پرداخت، اکانت نامحدود و دریافت آپدیت‌ها.',
@@ -43,11 +60,11 @@ class LicenseProductSeeder extends Seeder
                 ],
             ],
             'license-cpanel' => [
-                'name'        => 'لایسنس cPanel/WHM',
+                'name'        => 'لایسنس cPanel/WHM — سرور مجازی',
                 'category'    => 'license',
                 'group'       => 'license',
-                'price'       => 990000,
-                'price_eur'   => 990,
+                'price'       => 390000,
+                'price_eur'   => 390,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
                 'description' => 'لایسنس ماهانه cPanel/WHM تا ۱۰۰ اکانت — فعال‌سازی روی IP سرور شما پس از پرداخت و دریافت آپدیت‌ها.',
@@ -59,11 +76,11 @@ class LicenseProductSeeder extends Seeder
                 ],
             ],
             'license-plesk' => [
-                'name'        => 'لایسنس Plesk Web Host',
+                'name'        => 'لایسنس Plesk — سرور مجازی',
                 'category'    => 'license',
                 'group'       => 'license',
-                'price'       => 890000,
-                'price_eur'   => 890,
+                'price'       => 450000,
+                'price_eur'   => 450,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
                 'description' => 'لایسنس ماهانه Plesk Web Host — دامنه نامحدود، لینوکس و ویندوز، همه اکستنشن‌های پایه.',
@@ -75,11 +92,11 @@ class LicenseProductSeeder extends Seeder
                 ],
             ],
             'license-litespeed' => [
-                'name'        => 'لایسنس LiteSpeed',
+                'name'        => 'لایسنس LiteSpeed Enterprise',
                 'category'    => 'license',
                 'group'       => 'license',
-                'price'       => 790000,
-                'price_eur'   => 790,
+                'price'       => 390000,
+                'price_eur'   => 390,
                 'cycle'       => 'monthly',
                 'tax_percent' => 10,
                 'description' => 'لایسنس ماهانه LiteSpeed Web Server Enterprise تا ۸ هسته — LSCache برای همه CMSها، جایگزین مستقیم Apache.',
@@ -88,6 +105,84 @@ class LicenseProductSeeder extends Seeder
                     $spec('تا ۸ هسته CPU'),
                     $spec('LSCache همه CMSها'),
                     $spec('جایگزین مستقیم Apache'),
+                ],
+            ],
+
+            /*
+            | ═══ ردهٔ «سرور اختصاصی» + CloudLinux ═══
+            |
+            | cPanel و Plesk خودشان قیمت را بر محورِ مجازی/اختصاصی می‌بندند و
+            | بازارِ ایران هم همین‌طور می‌فروشد. قیمتِ تخت یعنی مشتریِ VPS —
+            | اکثریتِ خریدار — عددی ببیند که برای سرورِ اختصاصی بسته شده.
+            |
+            | ⚠️ چهار اسلاگِ بالا عمداً دست‌نخورده ماندند و ردهٔ «مجازی» شدند:
+            | روی پروداکشن از قبل ساخته شده‌اند و عوض‌کردنِ اسلاگ یعنی محصولِ
+            | یتیم در دیتابیس.
+            */
+            'license-directadmin-ded' => [
+                'name'        => 'لایسنس DirectAdmin — سرور اختصاصی',
+                'category'    => 'license',
+                'group'       => 'license',
+                'price'       => 590000,
+                'price_eur'   => 590,
+                'cycle'       => 'monthly',
+                'tax_percent' => 10,
+                'description' => 'لایسنس ماهانه DirectAdmin برای سرور اختصاصی — فعال‌سازی روی IP سرور شما پس از پرداخت، اکانت نامحدود.',
+                'specs'       => [
+                    $spec('لایسنس ماهانه'),
+                    $spec('مخصوص سرور اختصاصی'),
+                    $spec('اکانت نامحدود'),
+                    $spec('فعال‌سازی روی IP شما'),
+                ],
+            ],
+            'license-cpanel-ded' => [
+                'name'        => 'لایسنس cPanel/WHM — سرور اختصاصی',
+                'category'    => 'license',
+                'group'       => 'license',
+                'price'       => 740000,
+                'price_eur'   => 740,
+                'cycle'       => 'monthly',
+                'tax_percent' => 10,
+                'description' => 'لایسنس ماهانه cPanel/WHM برای سرور اختصاصی — فعال‌سازی روی IP سرور شما، روی سرور داخل و خارج ایران.',
+                'specs'       => [
+                    $spec('لایسنس ماهانه'),
+                    $spec('مخصوص سرور اختصاصی'),
+                    $spec('روی سرور داخل و خارج ایران'),
+                    $spec('فعال‌سازی روی IP شما'),
+                ],
+            ],
+            'license-plesk-ded' => [
+                'name'        => 'لایسنس Plesk — سرور اختصاصی',
+                'category'    => 'license',
+                'group'       => 'license',
+                'price'       => 690000,
+                'price_eur'   => 690,
+                'cycle'       => 'monthly',
+                'tax_percent' => 10,
+                'description' => 'لایسنس ماهانه Plesk برای سرور اختصاصی — دامنه نامحدود، لینوکس و ویندوز.',
+                'specs'       => [
+                    $spec('لایسنس ماهانه'),
+                    $spec('مخصوص سرور اختصاصی'),
+                    $spec('دامنه نامحدود'),
+                    $spec('لینوکس و ویندوز'),
+                ],
+            ],
+            // خریدارِ CloudLinux دقیقاً همان نماینده‌ای است که پکیجِ نمایندگی
+            // می‌خرد — بی‌LVE، «اکانت زیاد» فروختن ریسکِ نود است.
+            'license-cloudlinux' => [
+                'name'        => 'لایسنس CloudLinux',
+                'category'    => 'license',
+                'group'       => 'license',
+                'price'       => 390000,
+                'price_eur'   => 390,
+                'cycle'       => 'monthly',
+                'tax_percent' => 10,
+                'description' => 'لایسنس ماهانه CloudLinux — ایزولاسیون منابع با LVE و PHP Selector چندنسخه‌ای؛ لازمهٔ فروش نمایندگی پایدار.',
+                'specs'       => [
+                    $spec('لایسنس ماهانه'),
+                    $spec('ایزولاسیون منابع با LVE'),
+                    $spec('PHP Selector چندنسخه‌ای'),
+                    $spec('لازمهٔ نمایندگی پایدار'),
                 ],
             ],
         ];
@@ -99,20 +194,59 @@ class LicenseProductSeeder extends Seeder
             return;
         }
 
-        $existing = Product::whereIn('slug', array_keys(self::catalog()))->pluck('slug')->all();
-
         foreach (self::catalog() as $slug => $attrs) {
-            if (in_array($slug, $existing, true)) {
-                continue;   // موجود است — قیمت/ویرایشِ مدیر را پاک نکن
+            $product = Product::where('slug', $slug)->first();
+
+            if (! $product) {
+                Product::create($attrs + [
+                    'slug'            => $slug,
+                    'currency_code'   => 'IRT',
+                    'setup_fee'       => 0,
+                    'requires_domain' => false,
+                    'is_active'       => true,
+                    'sort'            => 0,
+                ]);
+
+                continue;
             }
 
-            Product::create($attrs + [
-                'slug'            => $slug,
-                'currency_code'   => 'IRT',
-                'setup_fee'       => 0,
-                'requires_domain' => false,
-                'is_active'       => true,
-                'sort'            => 0,
+            /*
+            | ═══ 🔴 چرا «موجود بود ⇒ رد کن» کافی نبود ═══
+            |
+            | صفحهٔ کاتالوگ قیمت را از **دیتابیس** می‌خواند. پس وقتی قیمتِ
+            | config عوض شود ولی ردیفِ دیتابیس عددِ قدیمی را نگه دارد، اصلاحِ
+            | قیمت روی سایتِ زنده **هرگز** اثر نمی‌کند — و هیچ خطایی هم
+            | نمی‌دهد. دقیقاً همین باعث شد قیمت‌های تازه (cPanel از ۹۹۰k به
+            | ۳۹۰k) بعد از دیپلوی روی prod دیده نشوند.
+            |
+            | ⚠️ ولی ویرایشِ آگاهانهٔ مدیر **هرگز** نباید پاک شود — این تضمینِ
+            | نسخهٔ اولِ همین seeder بود و درست است.
+            |
+            | نشانه صریح است: قیمتِ فعلی **دقیقاً** همان عددی است که نسخهٔ
+            | قبلیِ همین seeder نوشته بود؟ پس دستِ کسی نخورده و می‌شود
+            | به‌روزش کرد. هر عددِ دیگری یعنی مدیر آگاهانه عوضش کرده.
+            |
+            | 🔴 دو نشانهٔ اشتباه که قبلش امتحان کردم و هر دو رد شدند:
+            |   • «هنوز فروش نرفته» — ویرایشِ مدیر روی پکیجِ نفروخته را پاک
+            |     می‌کرد.
+            |   • `updated_at !== created_at` — هر دو در **یک ثانیه** نوشته
+            |     می‌شوند، پس ویرایشِ بلافاصله را نمی‌دید.
+            | تستِ خودِ همین seeder هر دو را گرفت.
+            */
+            $previous = self::PREVIOUS_SEEDED_PRICES[$slug] ?? null;
+
+            if ($previous === null || (int) $product->price !== $previous) {
+                continue;   // یا تازه است، یا مدیر عوضش کرده — دست نزن
+            }
+
+            $product->update([
+                'name'        => $attrs['name'],
+                'price'       => $attrs['price'],
+                'price_eur'   => $attrs['price_eur'],
+                'description' => $attrs['description'],
+                'specs'       => $attrs['specs'],
+                'category'    => $attrs['category'],
+                'group'       => $attrs['group'],
             ]);
         }
     }

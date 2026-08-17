@@ -107,6 +107,21 @@ $site = function (): void {
     Route::get('/report/{token}', [ReportController::class, 'show'])
         ->name('report')->where('token', '[a-z0-9]{16,40}');
 
+    /*
+     * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.
+     *
+     * داخلِ همین closure است، پس در هر سه زبان ساخته می‌شود و گزارشی که به
+     * زبانِ انگلیسی گرفته شده با لینکِ `/en/report/…` باز می‌شود
+     * (`AuditReport::url()` همین را می‌سازد).
+     *
+     * ⚠️ ترتیب مهم است: «unsubscribe» پیش از «{token}» بیاید وگرنه خودش یک
+     * توکن خوانده می‌شود و ۴۰۴ می‌گیرد.
+     */
+    Route::get('/report/unsubscribe/{token}', [ReportController::class, 'unsubscribe'])
+        ->name('report.unsubscribe')->where('token', '[a-z0-9]{16,40}');
+    Route::get('/report/{token}', [ReportController::class, 'show'])
+        ->name('report')->where('token', '[a-z0-9]{16,40}');
+
     // ابزارهای جامع DNS و شبکه (هاب)
     Route::get('/dns-lookup', [LookupController::class, 'hub'])->name('hub.dns')->defaults('hub', 'dns');
     Route::get('/network-scan', [LookupController::class, 'hub'])->name('hub.network')->defaults('hub', 'network');
@@ -1585,9 +1600,39 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     // ویرایش‌شدهٔ بعدی را پاک نمی‌کند). ~۵۲ پکیج از config/hosting.php.
     $seeded = null;
     try {
-        if (\Illuminate\Support\Facades\Schema::hasTable('products') && \App\Models\Product::count() === 0) {
+        /*
+        | 🔴 شرطِ `Product::count() === 0` برداشته شد.
+        |
+        | آن شرط یعنی seeder فقط روی دیتابیسِ **خالی** می‌دوید — یعنی روی
+        | پروداکشن که از قبل ده‌ها پکیج دارد، **هرگز**. نتیجه‌اش این بود که هر
+        | خطِ محصولِ تازه‌ای که به کاتالوگ اضافه می‌شد، بعد از دیپلوی روی سایت
+        | زنده ساخته نمی‌شد: صفحه قیمت را نشان می‌داد و دکمهٔ خرید به سبدِ
+        | WHMCSِ بیرونی برمی‌گشت. دقیقاً همین برای ۴ پکیجِ نمایندگیِ
+        | دایرکت‌ادمین و ۸ پکیجِ لایسنس پیش می‌آمد.
+        |
+        | ⚠️ برداشتنِ شرط بی‌خطر است چون **هر دو فرمان insert-missing هستند**
+        | (firstOrCreate روی slug): پکیجِ موجود دست نمی‌خورد و قیمتی که مدیر در
+        | پنل ویرایش کرده بازنویسی نمی‌شود. فقط ردیفِ نبوده ساخته می‌شود.
+        */
+        if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
             \Illuminate\Support\Facades\Artisan::call('products:seed-hosting');
             $seeded = trim(\Illuminate\Support\Facades\Artisan::output());
+
+            /*
+            | لایسنس‌ها — از `LicenseProductSeeder` که در develop هم همین‌جا
+            | صدا زده می‌شود. عمداً همان کلاس، نه یک فرمانِ موازیِ دیگر: دو
+            | مسیرِ seed برای یک کاتالوگ یعنی روزی یکی‌شان کهنه می‌شود و
+            | هیچ‌کس نمی‌فهمد کدام روی prod دویده.
+            |
+            | ⚠️ خودش idempotent است و ردیفی را که مدیر ویرایش کرده دست
+            | نمی‌زند (تشخیص با «قیمتِ فعلی = قیمتِ نسخهٔ قبلیِ seeder»).
+            */
+            (new \Database\Seeders\LicenseProductSeeder)->run();
+            $seeded .= "\nلایسنس‌ها: seed اجرا شد.";
+
+            // پکیج‌های سایت‌ساز — تسویهٔ builder بی‌این‌ها به fallbackِ WHMCS می‌افتد
+            \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
+            $seeded .= "\n".trim(\Illuminate\Support\Facades\Artisan::output());
         }
 
         /*

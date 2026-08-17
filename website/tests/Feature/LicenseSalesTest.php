@@ -57,14 +57,16 @@ class LicenseSalesTest extends TestCase
 
     public function test_seeder_is_insert_missing_and_idempotent(): void
     {
+        $expected = count(LicenseProductSeeder::catalog());
+
         $this->seed4();
-        $this->assertSame(4, Product::where('category', 'license')->count());
+        $this->assertSame($expected, Product::where('category', 'license')->count());
 
         // ویرایش مدیر نباید با اجرای دوباره پاک شود
         Product::where('slug', 'license-cpanel')->update(['price' => 1234567]);
         $this->seed4();
 
-        $this->assertSame(4, Product::where('category', 'license')->count());
+        $this->assertSame($expected, Product::where('category', 'license')->count());
         $this->assertSame(1234567, (int) Product::where('slug', 'license-cpanel')->value('price'));
     }
 
@@ -90,7 +92,11 @@ class LicenseSalesTest extends TestCase
                 "قیمت seeder برای {$slug} با عدد تبلیغ‌شده‌ی config نمی‌خواند");
         }
 
-        $this->assertSame(4, $linked, 'هر چهار پلن لایسنس باید به پکیج وصل باشند');
+        // ⚠️ عددِ سخت‌کد نه: هر پلنی که به کاتالوگ اضافه شود باید همین‌جا
+        // شمرده شود، وگرنه پلنِ تازه بی‌پکیج می‌مانَد و تست ساکت سبز است.
+        $this->assertSame(count($plans), $linked, 'هر پلنِ لایسنس باید به پکیج وصل باشد');
+        $this->assertSame(count(LicenseProductSeeder::catalog()), $linked,
+            'تعدادِ پلنِ config با تعدادِ پکیجِ seeder نمی‌خوانَد');
     }
 
     /* ═══════════════ صفحه‌ی عمومی کاتالوگ ═══════════════ */

@@ -19,7 +19,7 @@ class Service extends Model
         // «چرا حذف کردی؟» — کدِ پایدار + متنِ آزاد، هر دو اختیاری
         'terminate_reason', 'terminate_reason_note',
         // تحویل/فراهم‌سازی
-        'server_id', 'plan', 'username', 'domain', 'password', 'panel_url',
+        'server_id', 'plan', 'is_reseller', 'username', 'domain', 'server_ip', 'password', 'panel_url',
         'provision_status', 'provision_error', 'provisioned_at', 'provision_meta',
         // سرورِ ابری — به پلن اشاره می‌کند نه به سرور (پیش از خرید وجود ندارد)
         'cloud_plan_id', 'cloud_image_key', 'cloud_ssh_key_id', 'cloud_addons',
@@ -29,11 +29,64 @@ class Service extends Model
         'billing_mode', 'hourly_rate_irt', 'hourly_rate_eur', 'last_metered_at', 'on_credit_out',
     ];
 
+    /**
+     * ستون‌هایی که در مهاجرتِ تازه اضافه شده‌اند و ممکن است روی سروری که هنوز
+     * مهاجرت نخورده وجود نداشته باشند.
+     *
+     * 🔴 چرا این نگهبان لازم است: دیپلویِ این پروژه فایل‌به‌فایل است و مهاجرتِ
+     * پروداکشن **دستی** با کلیکِ مدیر اجرا می‌شود. یعنی همیشه یک پنجره هست که
+     * کدِ تازه بالاست و ستون هنوز نیست. بی‌این نگهبان، در آن پنجره هر
+     * `Service::create` یک INSERT با ستونِ ناموجود می‌زند و **کلِ ثبتِ سفارش
+     * برای همهٔ مشتریان** ۵۰۰ می‌دهد — نه فقط خریدارِ لایسنس.
+     *
+     * با این نگهبان، بدترین حالت این است که قابلیتِ تازه تا اجرای مهاجرت
+     * خاموش بماند. سفارش ثبت می‌شود، فروش نمی‌خوابد.
+     *
+     * ⚠️ بعد از اجرای مهاجرت روی سرور، این فهرست را می‌شود خالی کرد — ولی
+     * لازم نیست: هزینه‌اش یک `Schema::hasColumn` کش‌شده در هر پروسه است.
+     */
+    private const FRESH_COLUMNS = ['is_reseller', 'server_ip'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $s) {
+            foreach (self::FRESH_COLUMNS as $col) {
+                if (array_key_exists($col, $s->getAttributes()) && ! self::columnExists($col)) {
+                    unset($s->attributes[$col]);
+                }
+            }
+        });
+    }
+
+    /** @var array<string,bool> کشِ درون‌پروسه‌ای — یک پرسش از Schema به‌ازای هر ستون */
+    private static array $columnCache = [];
+
+    /** آیا ستون واقعاً روی این دیتابیس هست؟ */
+    public static function columnExists(string $column): bool
+    {
+        return self::$columnCache[$column]
+            ??= \Illuminate\Support\Facades\Schema::hasColumn('services', $column);
+    }
+
+    /**
+     * پاک‌کردنِ کش — برای تستی که شمای دیتابیس را وسطِ اجرا عوض می‌کند.
+     *
+     * ⚠️ بی‌این، تستی که سرورِ مهاجرت‌نخورده را شبیه‌سازی می‌کند نمی‌تواند
+     * کارش را بکند و **بی‌صدا سبز می‌شود** — چون مدل هنوز جوابِ کش‌شدهٔ
+     * «ستون هست» را می‌دهد. یعنی نگهبانی که این تست باید بسنجد، اصلاً
+     * سنجیده نمی‌شود.
+     */
+    public static function flushColumnCache(): void
+    {
+        self::$columnCache = [];
+    }
+
     protected function casts(): array
     {
         return [
             'price'          => 'integer',
             'tax_percent'    => 'integer',
+            'is_reseller'    => 'boolean',
             'next_due_at'    => 'date',
             'activated_at'   => 'datetime',
             'cancelled_at'   => 'datetime',

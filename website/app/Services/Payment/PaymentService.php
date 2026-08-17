@@ -281,8 +281,21 @@ class PaymentService
                     // کرون در RunProvisioning.
                     $autoDelivered = $service->server_id !== null || $service->isCloud();
 
+                    /*
+                    | 🔴 چهارمین بار به همان تله: **لایسنس**.
+                    |
+                    | سرویسِ لایسنس نه `server_id` دارد، نه پلنِ ابری، نه دامنه —
+                    | چون روی IP فعال می‌شود. با شرطِ قبلی مستقیم `active`
+                    | می‌شد: نه صفی، نه کاری برای اپراتور، نه هیچ ردی. مشتری
+                    | پول می‌داد، پنلِ خودش می‌گفت «فعال»، و **هیچ‌کس نمی‌فهمید
+                    | که باید لایسنسی ثبت شود**. دقیقاً همان خرابیِ سرورِ ابری،
+                    | از درِ چهارم.
+                    |
+                    | `server_ip` نشانهٔ درست است: فقط پکیجی آن را دارد که
+                    | `requires_server_ip` داشته و مشتری در فرمِ سفارش پرش کرده.
+                    */
                     $needsDelivery = $service->provision_status !== 'done'
-                        && ($autoDelivered || filled($service->domain));
+                        && ($autoDelivered || filled($service->domain) || filled($service->server_ip));
                     if ($needsDelivery) {
                         $service->status = 'awaiting_provision';
                         $service->provision_status = $autoDelivered ? 'pending' : 'manual';
@@ -499,6 +512,21 @@ class PaymentService
                 Log::warning('ثبت درآمد در دفتر مالی انجام نشد', [
                     'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
                 ]);
+            }
+
+            /*
+            | تیکتِ سفارشِ لایسنس — بیرونِ تراکنش، مثلِ دفترِ مالی.
+            |
+            | صفحهٔ محصول وعده می‌دهد «نتیجه در تیکتِ اختصاصیِ همان سفارش اعلام
+            | می‌شود»؛ این تنها جایی است که آن وعده را واقعی می‌کند. سرویسِ
+            | لایسنس هیچ صفِ تحویلی ندارد، پس بی‌این تیکت مشتری در سکوت
+            | می‌مانْد و اپراتور هم هیچ کارِ قابلِ‌دیدنی نمی‌گرفت.
+            |
+            | ⚠️ خودش idempotent است و هرگز throw نمی‌کند — یک خطای تیکت نباید
+            | تسویه‌ای که انجام شده را خراب کند.
+            */
+            if (($svcForTicket = $outcome->payment->invoice?->service) !== null) {
+                \App\Services\Ticket\LicenseOrderTicket::openFor($svcForTicket);
             }
 
             // اعلان تأیید پرداخت — پیامک و بله. فقط تسویهٔ واقعی، نه تکرار

@@ -32,6 +32,7 @@ class DirectAdminProvisioner implements Provisioner
 
         $client = new DirectAdminClient($server);
         $panelUrl = 'https://'.$server->hostname.':'.$server->effectivePort();
+        $reseller = (bool) $service->is_reseller;
 
         if ($client->userExists($user)) {
             return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, ['reused' => true]);
@@ -45,17 +46,32 @@ class DirectAdminProvisioner implements Provisioner
             'domain'   => $domain,
             'package'  => $service->plan ?: '',
         ];
-        if ($server->server_ip) {
+        // ⚠️ `ip` فقط برای کاربرِ عادی از سرور می‌آید؛ `createReseller()` خودش
+        // `ip=shared` می‌گذارد و IPِ نودِ ما آن‌جا معنای دیگری دارد.
+        if ($server->server_ip && ! $reseller) {
             $params['ip'] = $server->server_ip;
         }
 
-        $res = $client->createAccount($params);
+        $res = $reseller ? $client->createReseller($params) : $client->createAccount($params);
 
         if (! $res['ok']) {
+            /*
+            | 🔴 همان تعمیرِ zhina.shop، این‌بار روی DirectAdmin: بعد از شکست
+            | یک بار دیگر از سرور بپرس. تایم‌اوت/قطعیِ گذرا حساب را می‌سازد و
+            | ما به مشتری «ناموفق» می‌گفتیم در حالی که پنلش زنده بود.
+            */
+            if ($client->userExists($user)) {
+                return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, [
+                    'reused'               => true,
+                    'verified_after_error' => mb_substr((string) $res['reason'], 0, 160),
+                ]);
+            }
+
             return ProvisionResult::fail($res['reason'] ?: 'ساختِ حساب روی DirectAdmin ناموفق بود.', ['raw' => $res['raw']]);
         }
 
-        return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, $res['data']);
+        return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl,
+            (array) $res['data'] + ($reseller ? ['reseller' => true] : []));
     }
 
     public function suspend(Service $service): ProvisionResult
