@@ -49,21 +49,31 @@ class PullController extends Controller
         // «زیرساختِ اکسیت» از رویش می‌فهمد ایجنت زنده است یا خوابیده.
         Setting::put('agent_seen_countryroutes', now()->toIso8601String());
 
+        // نامزدها: هم اکسیت‌های کاتالوگی (`location_code = exit-*`)، هم هر ماشینی
+        // که override دستیِ `meta['exit_country']` خورده باشد (سوییچِ کشور از پنل).
+        // کدِ کشور را در PHP با exitCountryCode() حساب می‌کنیم تا override بر
+        // location_code مقدم باشد و مقدارِ «ir/none» یعنی «مسیرِ کشوری نده».
         $rows = CloudInstance::query()
             ->where('provider', 'proxmox')
             ->whereIn('status', ['building', 'running'])
             ->whereNotNull('ipv4')
             ->where('ipv4', '!=', '')
-            ->where('location_code', 'like', 'exit-%')
-            ->get(['ipv4', 'location_code']);
+            ->where(function ($q) {
+                $q->where('location_code', 'like', 'exit-%')
+                    ->orWhereNotNull('meta->exit_country');
+            })
+            ->get();
 
         $out = [];
 
         foreach ($rows as $inst) {
-            $out[] = [
-                'ip' => (string) $inst->ipv4,
-                'cc' => substr((string) $inst->location_code, 5),   // پس از «exit-»
-            ];
+            $cc = $inst->exitCountryCode();     // override بر location_code مقدم
+
+            if ($cc === null) {
+                continue;                        // خروجِ عادیِ ایران — مسیرِ کشوری لازم نیست
+            }
+
+            $out[] = ['ip' => (string) $inst->ipv4, 'cc' => $cc];
         }
 
         return response()->json($out);

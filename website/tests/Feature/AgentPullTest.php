@@ -87,6 +87,25 @@ class AgentPullTest extends TestCase
         $this->assertSame('10.10.10.62', $byCc['nl']['ip']);
     }
 
+    public function test_countryroutes_honors_meta_exit_country_override(): void
+    {
+        // ماشینِ عادی (بی‌مکانِ اکسیت) که از پنل روی nl سوییچ شده
+        $this->mkInstance(['location_code' => null, 'ipv4' => '10.10.10.90', 'meta' => ['exit_country' => 'nl']]);
+        // ماشینِ exit-de که override روی fi خورده → باید fi برگردد نه de
+        $this->mkInstance(['location_code' => 'exit-de', 'ipv4' => '10.10.10.91', 'meta' => ['exit_country' => 'fi']]);
+        // ماشینِ exit-de که روی «بدونِ اکسیت» (ir) خاموش شده → نباید در پاسخ باشد
+        $this->mkInstance(['location_code' => 'exit-de', 'ipv4' => '10.10.10.92', 'meta' => ['exit_country' => 'ir']]);
+
+        $data = collect(
+            $this->getJson('/agent/countryroutes', ['X-Agent-Token' => $this->token])->assertOk()->json()
+        )->keyBy('ip');
+
+        $this->assertCount(2, $data);
+        $this->assertSame('nl', $data['10.10.10.90']['cc']);   // override روی ماشینِ عادی
+        $this->assertSame('fi', $data['10.10.10.91']['cc']);   // override بر location_code مقدم
+        $this->assertArrayNotHasKey('10.10.10.92', $data->all()); // ir = خاموش، مسیرِ کشوری نمی‌گیرد
+    }
+
     // ═══════════════════ portforwards ═══════════════════
 
     public function test_portforwards_allocates_persists_and_is_stable(): void

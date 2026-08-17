@@ -71,7 +71,7 @@
       <table class="ad-table">
         <thead><tr>
           <th>کشورِ خروج</th><th>آی‌پیِ داخلی</th><th>دسترسیِ عمومی</th>
-          <th>وضعیت</th><th>مشتری</th><th>ساخته‌شده</th>
+          <th>وضعیت</th><th>مشتری</th><th>ساخته‌شده</th><th>سوییچِ کشور</th>
         </tr></thead>
         <tbody>
           @foreach($rows as $r)
@@ -89,6 +89,23 @@
                 @endif
               </td>
               <td style="font-size:12.5px;color:var(--muted);white-space:nowrap">{{ sdate($r['created_at']) }}</td>
+              <td>
+                <form method="post" action="{{ route('admin.exit-infra.country', $r['id']) }}"
+                      style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+                  @csrf
+                  <select name="country" dir="ltr"
+                          style="background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.3);border-radius:8px;padding:5px 8px;font-size:12.5px">
+                    @foreach($exitOptions as $opt)
+                      <option value="{{ $opt['code'] }}" @selected($r['exit_cc'] === $opt['code'])>{{ $opt['flag'] }} {{ $opt['name'] }}</option>
+                    @endforeach
+                  </select>
+                  <button type="submit" class="ad-badge"
+                          style="background:rgba(34,211,238,.16);color:var(--text);border:0;cursor:pointer;font-size:12.5px;padding:6px 12px">اعمال</button>
+                  @if($r['exit_override'])
+                    <span title="کشور با override دستی تعیین شده" style="font-size:11px;color:var(--dim)">دستی</span>
+                  @endif
+                </form>
+              </td>
             </tr>
           @endforeach
         </tbody>

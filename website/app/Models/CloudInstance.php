@@ -220,4 +220,56 @@ class CloudInstance extends Model
             ? CloudLocation::where('code', $this->location_code)->first()
             : null;
     }
+
+    // ───────────────────────── اکسیتِ کشوری ─────────────────────────
+
+    /*
+    | ═══ چرا override در meta و نه در location_code ═══
+    |
+    | `location_code` مرجعِ **کاتالوگ/قیمت** است (`exit-de` یعنی «محصولِ اکسیتِ
+    | آلمان»). ولی کارفرما می‌خواهد کشورِ خروجِ **هر** ماشین را ادهاک از پنل عوض
+    | کند — حتی ماشینی که اکسیت نخریده. اگر برای این کار location_code را دست
+    | بزنیم، مرجعِ قیمت/محصول را خراب کرده‌ایم. پس یک override سبک در
+    | `meta['exit_country']` می‌گذاریم که بر location_code مقدم است و هر دو جهت را
+    | می‌پوشاند: هم افزودنِ اکسیت به ماشینِ عادی، هم برداشتنِ اکسیت از ماشینِ اکسیت.
+    |
+    | مقدارِ ویژهٔ `ir`/`none`/`''` در override یعنی «خروجِ عادیِ ایران» — حتی اگر
+    | location_code هنوز `exit-<cc>` باشد. نبودِ کلید یعنی «چیزی override نشده،
+    | از location_code بخوان».
+    */
+
+    /**
+     * کدِ کشورِ خروجِ **مؤثر** (lowercase مثلِ `de`)، یا `null` اگر خروجِ عادیِ
+     * ایران است. `meta['exit_country']` بر `location_code` مقدم است.
+     */
+    public function exitCountryCode(): ?string
+    {
+        $meta = $this->meta ?? [];
+
+        if (array_key_exists('exit_country', $meta)) {
+            $cc = strtolower(trim((string) $meta['exit_country']));
+
+            return ($cc === '' || $cc === 'ir' || $cc === 'none') ? null : $cc;
+        }
+
+        if (is_string($this->location_code) && str_starts_with($this->location_code, 'exit-')) {
+            $cc = strtolower(substr($this->location_code, 5));
+
+            return ($cc === '' || $cc === 'ir') ? null : $cc;
+        }
+
+        return null;
+    }
+
+    /** آیا خروجِ این ماشین از کشوری غیرِ ایران است؟ */
+    public function hasCountryExit(): bool
+    {
+        return $this->exitCountryCode() !== null;
+    }
+
+    /** آیا کشورِ خروج با override دستی تعیین شده (نه از روی location_code)؟ */
+    public function exitCountryIsOverride(): bool
+    {
+        return array_key_exists('exit_country', $this->meta ?? []);
+    }
 }

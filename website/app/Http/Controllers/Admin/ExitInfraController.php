@@ -6,21 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\Setting;
+use App\Support\ExitCountries;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
- * دیدِ فقط‌خواندنیِ اپراتور به پلتفرمِ Exit VPS (فازهای D1/D2).
+ * دیدِ اپراتور به پلتفرمِ Exit VPS + **سوییچِ کشورِ خروج** (فازِ A).
  *
  * دو چیز را یک‌جا نشان می‌دهد:
- *   • کدام Exit VPSها هستند و از کدام کشور خارج می‌شوند (نمونه‌های Proxmox که
- *     مکانشان `exit-<cc>` است) — با آی‌پیِ داخلی، دسترسیِ عمومیِ host:port،
- *     وضعیت، و مشتریِ صاحبِ سرویس.
+ *   • کدام ماشین‌های Proxmox هستند و از کدام کشور خارج می‌شوند — با آی‌پیِ
+ *     داخلی، دسترسیِ عمومیِ host:port، وضعیت، و مشتریِ صاحبِ سرویس.
  *   • آیا pull-agentِ میزبانِ ایران زنده است — از ضربانی که PullController در
  *     هر پیمایش ثبت می‌کند (`agent_seen_*`). کهنه‌تر از ۵ دقیقه = خوابیده.
  *
- * هیچ عملیاتی این‌جا نیست؛ همه‌چیز خواندنی است.
+ * ═══ فازِ A: سوییچِ کشور ═══
+ *
+ * هر ردیف یک منوی انتخابِ کشور دارد. اپراتور کشور را عوض می‌کند →
+ * `meta['exit_country']` ست می‌شود → PullController آن را در `countryroutes`
+ * برمی‌گرداند → ایجنتِ ایران در پیمایشِ بعدی `servernet-vm-country` را با کشورِ
+ * تازه می‌زند (که خودش قاعدهٔ کشورِ قبلی را پاک و تازه را می‌نشاند). گزینهٔ
+ * «بدونِ اکسیت» → ایجنت در reconcile آن IP را از split-routing درمی‌آورد.
+ *
+ * ⚠️ این‌جا هیچ دستوری روی هاست اجرا نمی‌شود؛ فقط «حالتِ مطلوب» در دیتابیس عوض
+ * می‌شود و ایجنتِ ایران (که مالکِ iptables/routing است) آن را می‌کشد. یعنی
+ * تغییرِ کشور چند دقیقه (تا پیمایشِ بعدیِ ایجنت) طول می‌کشد — و همین درست است:
+ * یک منبعِ حقیقت، نه دو جا که از هم بیفتند.
  */
 class ExitInfraController extends Controller
 {
@@ -45,10 +58,9 @@ class ExitInfraController extends Controller
         $perCountry = [];
 
         foreach ($instances as $inst) {
-            // کدِ کشور از خودِ کدِ مکان: `exit-de` → `de` (مثلِ PullController)
-            $cc  = str_starts_with((string) $inst->location_code, 'exit-')
-                ? substr((string) $inst->location_code, 5)
-                : '';
+            // کدِ کشورِ خروجِ **مؤثر** (override بر location_code مقدم) — همان چیزی
+            // که ایجنت واقعاً اعمال می‌کند. null یعنی خروجِ عادیِ ایران.
+            $cc  = $inst->exitCountryCode() ?? '';
             $iso = strtoupper($cc);
             $country = CloudLocation::COUNTRIES[$iso] ?? null;
 
@@ -66,9 +78,10 @@ class ExitInfraController extends Controller
             }
 
             $rows[] = [
+                'id'            => $inst->id,
                 'iso'           => $iso,
-                'country_name'  => $country['fa'] ?? ($iso !== '' ? $iso : '—'),
-                'flag'          => $country['flag'] ?? '🏳️',
+                'country_name'  => $country['fa'] ?? ($iso !== '' ? $iso : 'ایران (بدونِ اکسیت)'),
+                'flag'          => $country['flag'] ?? ($iso === '' ? '🇮🇷' : '🏳️'),
                 'ipv4'          => (string) $inst->ipv4,
                 'public_host'   => $public,
                 'status_label'  => $inst->statusLabel('fa'),
@@ -76,6 +89,10 @@ class ExitInfraController extends Controller
                 'customer_name' => $customer?->displayName(),
                 'customer_code' => $customer?->code,
                 'created_at'    => $inst->created_at,
+                // فازِ A: انتخابِ جاریِ منو + آیا override دستی خورده
+                'exit_cc'       => $cc !== '' ? $cc : ExitCountries::NONE,
+                'exit_override' => $inst->exitCountryIsOverride(),
+                'actionable'    => in_array($inst->status, ['running', 'off', 'building'], true),
             ];
 
             if ($iso !== '') {
@@ -102,6 +119,7 @@ class ExitInfraController extends Controller
             'total'          => count($rows),
             'countrySummary' => $countrySummary,
             'publicIp'       => $publicIp,
+            'exitOptions'    => ExitCountries::options('fa'),   // فازِ A: منوی سوییچ
             'agents'         => [
                 'countryroutes' => $this->agentPulse('agent_seen_countryroutes'),
                 'portforwards'  => $this->agentPulse('agent_seen_portforwards'),
@@ -112,6 +130,41 @@ class ExitInfraController extends Controller
                 'proxmox_token'  => filled(Setting::getSecret('proxmox_token_secret')),
             ],
         ]);
+    }
+
+    /**
+     * سوییچِ کشورِ خروجِ یک ماشین (فازِ A).
+     *
+     * فقط «حالتِ مطلوب» را در `meta['exit_country']` می‌نویسد؛ اعمالِ واقعی با
+     * ایجنتِ ایران در پیمایشِ بعدی است. ورودیِ `ir/none/''` یعنی خاموش‌کردنِ
+     * اکسیت (خروجِ عادیِ ایران).
+     */
+    public function setCountry(Request $request, CloudInstance $instance): RedirectResponse
+    {
+        // فقط ماشین‌های Proxmoxِ میزبانِ ایران split-routing کشوری دارند.
+        if ($instance->provider !== 'proxmox') {
+            return back()->with('err', 'فقط ماشین‌های میزبانِ ایران (Proxmox) اکسیتِ کشوری دارند.');
+        }
+
+        $cc = strtolower(trim((string) $request->input('country')));
+
+        if (! ExitCountries::accepts($cc)) {
+            return back()->with('err', 'کشورِ انتخابی مجاز نیست. کشورهای مجاز: '.implode('، ', ExitCountries::codes()).' (یا «بدونِ اکسیت»).');
+        }
+
+        $disable = ExitCountries::isNone($cc);
+
+        $meta = $instance->meta ?? [];
+        $meta['exit_country']    = $disable ? ExitCountries::NONE : $cc;
+        $meta['exit_country_at'] = now()->toIso8601String();
+        $meta['exit_country_by'] = 'admin';         // ردِ حداقلی برای ممیزی
+        $instance->meta = $meta;
+        $instance->save();
+
+        $label = $disable ? 'بدونِ اکسیت (ایران)' : strtoupper($cc);
+        $where = $instance->ipv4 ?: ('#'.$instance->id);
+
+        return back()->with('ok', "کشورِ خروجِ سرورِ {$where} روی «{$label}» تنظیم شد. ایجنتِ ایران در پیمایشِ بعدی (چند دقیقه) اعمال می‌کند.");
     }
 
     /**

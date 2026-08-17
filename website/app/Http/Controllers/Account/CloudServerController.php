@@ -8,6 +8,7 @@ use App\Models\CloudImage;
 use App\Models\CloudInstance;
 use App\Models\Service;
 use App\Services\Cloud\CloudManager;
+use App\Support\ExitCountries;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,6 +127,10 @@ class CloudServerController extends Controller
         $password = session('revealed_root_password');
         $canReveal = $instance && ! $instance->password_seen && $instance->hasPassword();
 
+        // فازِ A: سوییچِ کشورِ خروج — فقط برای سرورهای میزبانِ ایران (Proxmox) که
+        // تحویل شده‌اند. نامِ زیرساخت هیچ‌جا بیرون نمی‌رود (قاعدهٔ سفیدبرچسبی).
+        $exitCapable = $instance && $instance->provider === 'proxmox' && $instance->isDelivered();
+
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
         return view('account.cloud-server', AccountController::shell('servers') + [
@@ -136,7 +141,65 @@ class CloudServerController extends Controller
             'canReveal' => $canReveal,
             'osList'   => $instance ? CloudImage::catalog('os', $instance->provider) : collect(),
             'appList'  => $instance ? CloudImage::catalog('app', $instance->provider) : collect(),
+            // فازِ A
+            'exitCapable' => $exitCapable,
+            'exitOptions' => $exitCapable ? ExitCountries::options('fa') : [],
+            'exitCurrent' => $exitCapable ? ($instance->exitCountryCode() ?: ExitCountries::NONE) : null,
         ]);
+    }
+
+    /**
+     * سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A).
+     *
+     * فقط «حالتِ مطلوب» را در `meta['exit_country']` می‌نویسد؛ اعمالِ واقعی با
+     * ایجنتِ ایران در پیمایشِ بعدی است. مثلِ بقیهٔ کنش‌ها: مالکیت + گیتِ
+     * نوشتنی + محدودیتِ نرخ. پیام‌ها نامِ زیرساخت را نمی‌گویند.
+     */
+    public function setExitCountry(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        if ($resp = $this->denyIfNotWritable($service)) {
+            return $resp;
+        }
+
+        $instance = $this->instanceOf($service);
+
+        if ($instance === null || $instance->provider !== 'proxmox' || ! $instance->isDelivered()) {
+            return back()->withErrors('تغییرِ کشورِ خروج برای این سرور در دسترس نیست.');
+        }
+
+        // محدودیتِ نرخ — مثلِ الگوی throttleِ بقیهٔ عملیاتِ این کنترلر
+        $key = 'cloud-exit:'.$service->id;
+
+        if (RateLimiter::tooManyAttempts($key, 6)) {
+            $seconds = RateLimiter::availableIn($key);
+
+            return back()->withErrors('درخواست‌های زیاد. '.fa_num($seconds).' ثانیه دیگر تلاش کنید.');
+        }
+
+        RateLimiter::hit($key, 60);
+
+        $cc = strtolower(trim((string) $request->input('country')));
+
+        if (! ExitCountries::accepts($cc)) {
+            return back()->withErrors('این کشور در دسترس نیست.');
+        }
+
+        $disable = ExitCountries::isNone($cc);
+
+        $meta = $instance->meta ?? [];
+        $meta['exit_country']    = $disable ? ExitCountries::NONE : $cc;
+        $meta['exit_country_at'] = now()->toIso8601String();
+        $meta['exit_country_by'] = 'customer';
+        $instance->meta = $meta;
+        $instance->save();
+
+        $label = $disable ? 'ایران (بدونِ اکسیت)' : mb_strtoupper($cc);
+
+        $this->log($service, 'کشورِ خروج → '.$label);
+
+        return back()->with('ok', "کشورِ خروجِ سرور روی «{$label}» تنظیم شد. تا چند دقیقه اعمال می‌شود.");
     }
 
     /**

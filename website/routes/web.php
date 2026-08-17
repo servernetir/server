@@ -309,6 +309,9 @@ $site = function (): void {
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
         Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
+        // سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A) — فقط برای سرورهای دارای اکسیت
+        Route::post('/cloud/{service}/exit-country', [Account\CloudServerController::class, 'setExitCountry'])
+            ->name('cloud.exit-country')->middleware('throttle:12,1');
         // صفحهٔ کنسولِ زنده روی **دامنهٔ خودمان** + بلیتِ یک‌بارمصرفِ آدرسِ اتصال.
         // ⚠️ الگوی مسیرِ view در SecurityHeaders هم آمده (تنها جایی که CSP اجازهٔ
         // wss: می‌دهد). اگر مسیر را عوض کردی، آن‌جا را هم عوض کن وگرنه مرورگر
@@ -2265,9 +2268,12 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
-        // زیرساختِ اکسیت — دیدِ فقط‌خواندنیِ اپراتور به Exit VPSها و ضربانِ pull-agentِ ایران
+        // زیرساختِ اکسیت — دیدِ اپراتور به Exit VPSها + سوییچِ کشورِ خروج (فازِ A)
         Route::get('/exit-infra', [\App\Http\Controllers\Admin\ExitInfraController::class, 'index'])
             ->name('admin.exit-infra')->middleware('admin');
+        // سوییچِ کشورِ خروجِ یک ماشین — فقط meta را می‌نویسد؛ ایجنتِ ایران اعمال می‌کند
+        Route::post('/exit-infra/{instance}/country', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setCountry'])
+            ->name('admin.exit-infra.country')->middleware('admin');
 
         /*
         | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.
