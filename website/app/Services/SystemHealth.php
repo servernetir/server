@@ -220,11 +220,24 @@ class SystemHealth
             return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'ستونِ سررسید هنوز ساخته نشده.');
         }
 
+        /*
+        | ⚠️ `customer_id` و رابطهٔ `customer` هر دو لازم‌اند.
+        |
+        | نسخهٔ اول فقط `['id','name']` را select می‌کرد؛ `serviceLinks()` روی
+        | `$s->customer !== null` فیلتر می‌کند و بی‌`customer_id` آن رابطه هرگز
+        | حل نمی‌شود — پس چک روی پروداکشن «۴ سرویس» می‌گفت و **هیچ لینکی**
+        | نمی‌داد. هشداری که نگوید کدام ردیف، مدیر را به گشتنِ دستی می‌فرستد و
+        | همان‌جا نادیده گرفته می‌شود.
+        |
+        | با نگاه‌کردن به خودِ صفحهٔ زنده پیدا شد، نه با تست: تستِ اولیه فقط
+        | `level` را می‌سنجید.
+        */
         $rows = \App\Models\Service::query()
             ->whereNull('next_due_at')
             ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->with('customer')
             ->limit(20)
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'customer_id']);
 
         if ($rows->isEmpty()) {
             return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'همهٔ سرویس‌های زنده سررسید دارند.');

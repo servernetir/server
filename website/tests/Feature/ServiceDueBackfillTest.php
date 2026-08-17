@@ -137,6 +137,17 @@ class ServiceDueBackfillTest extends TestCase
             'چکِ سررسیدِ سرویس‌ها در لایهٔ سلامت نیست.');
         $this->assertSame('warn', $checks['unbilled']['level'],
             'سرویسِ بی‌سررسید هشدار تولید نکرد — یعنی بی‌صدا رایگان می‌مانَد.');
+
+        /*
+        | ⚠️ ادعا روی **لینک** هم هست، نه فقط شدت.
+        |
+        | نسخهٔ اولِ چک روی پروداکشن «۴ سرویس» می‌گفت و هیچ لینکی نمی‌داد (چون
+        | `customer_id` را select نمی‌کرد و رابطه حل نمی‌شد). هشداری که نگوید
+        | **کدام** ردیف، مدیر را به گشتنِ دستی می‌فرستد و همان‌جا نادیده گرفته
+        | می‌شود — یعنی عملاً هشدار نیست.
+        */
+        $this->assertNotEmpty($checks['unbilled']['links'],
+            'هشدار می‌گوید چند تا، ولی نمی‌گوید کدام — مدیر باید دستی بگردد.');
     }
 
     public function test_system_health_is_green_when_every_service_is_billed(): void
