@@ -370,6 +370,19 @@ $site = function (): void {
 
         Route::post('/domains/order', [Account\DomainController::class, 'order'])
             ->name('domains.order')->middleware('throttle:12,1');
+
+        /*
+        | انتقالِ دامنه — دو مرحله، و ترتیبشان اجباری است:
+        |   order  → فاکتور (هیچ تماسی با رجیسترار)
+        |   submit → کدِ انتقال + ارسالِ واقعی (فقط پس از پرداخت)
+        | دلیلِ کاملِ دو مرحله بودن در `DomainController::transferOrder()`.
+        |
+        | ⚠️ `transfer` پیش از `/domains/{domain}` می‌آید، وگرنه لاراول آن را
+        | «دامنه‌ای به نامِ transfer» می‌خوانَد — همان تله‌ای که چند خط پایین‌تر
+        | برای `checkout` هم نوشته شده.
+        */
+        Route::post('/domains/transfer', [Account\DomainController::class, 'transferOrder'])
+            ->name('domains.transfer')->middleware('throttle:12,1');
         Route::get('/domains/{domain}', [Account\DomainController::class, 'show'])->name('domain');
         Route::post('/domains/{domain}/nameservers', [Account\DomainController::class, 'nameservers'])
             ->name('domain.ns')->middleware('throttle:20,1');
@@ -379,6 +392,9 @@ $site = function (): void {
             ->name('domain.authcode')->middleware('throttle:6,1');
         Route::post('/domains/{domain}/auto-renew', [Account\DomainController::class, 'autoRenew'])
             ->name('domain.autorenew')->middleware('throttle:20,1');
+        // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
+        Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
+            ->name('domain.transfer.submit')->middleware('throttle:6,1');
 
         // احراز هویت — به‌ویژه کاربرِ حقوقی (اطلاعات شرکت + معرفی‌نامه + اساسنامه)
         Route::get('/verify', [Account\VerificationController::class, 'show'])->name('verify');
