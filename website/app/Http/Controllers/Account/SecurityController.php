@@ -158,8 +158,11 @@ class SecurityController extends Controller
             'expires_days'=> ['nullable', 'integer', 'min:1', 'max:1825'],
         ], [], ['name' => 'نام توکن']);
 
-        if ($c->apiTokens()->usable()->count() >= 20) {
-            return back()->withErrors(['name' => 'حداکثر ۲۰ توکنِ فعال.'])->withFragment('sec-api');
+        // سقف از مدل می‌آید چون مستنداتِ /developers هم همان را چاپ می‌کند
+        if ($c->apiTokens()->usable()->count() >= CustomerApiToken::MAX_ACTIVE) {
+            return back()->withErrors([
+                'name' => 'حداکثر '.fa_num(CustomerApiToken::MAX_ACTIVE).' توکنِ فعال.',
+            ])->withFragment('sec-api');
         }
 
         // ⚠️ پیش‌فرضِ `read` می‌مانَد: فرمی که تیک نخورده نباید ناخواسته توکنِ
