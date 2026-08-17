@@ -124,6 +124,24 @@ class CryptoPrice
      */
     public function refresh(string $asset): ?float
     {
+        /*
+        | همان کلیدِ خاموشیِ `ExchangeRate::refresh()` و به همان دلیل.
+        |
+        | 🔴 `usd()` روی کشِ سرد خودش می‌رود بیرون، پس «قیمتِ بازار نداریم» در
+        | این سیستم رخ‌دادنی نبود — و تستی که همان سناریو را می‌ساخت
+        | (`test_trx_is_not_offered_without_a_market_price`) در عمل به صرافیِ
+        | واقعی وصل می‌شد و قیمتِ واقعی می‌گرفت. یعنی گاردی که قرار بود «TRX
+        | بی‌قیمت عرضه نشود» را قفل کند، فقط وقتی کار می‌کرد که اینترنت قطع
+        | باشد.
+        |
+        | ⚠️ عمداً همان کلیدِ `services.exchange.enabled` است، نه یک پرچمِ
+        | دوم: هر دو یک چیزند — «قیمت‌گذاری حق ندارد به بیرون وصل شود». دو
+        | پرچم یعنی روزی یکی خاموش و دیگری روشن بماند.
+        */
+        if (! config('services.exchange.enabled', true)) {
+            return null;
+        }
+
         $urls = self::SOURCES[$asset] ?? null;
 
         if ($urls === null) {
