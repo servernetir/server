@@ -104,7 +104,9 @@
         <div><span>نام رسمی</span><b>{{ trim($iv->first_name.' '.$iv->last_name) ?: '—' }}</b></div>
         <div><span>نام پدر</span><b>{{ $iv->father_name ?: '—' }}</b></div>
         <div><span>کد ملی</span><b dir="ltr">••••• رمزنگاری‌شده</b></div>
-        <div><span>تاریخ تولد</span><b dir="ltr">{{ $iv->birth_date ?: '—' }}</b></div>
+        {{-- ⚠️ ستون `date` کست شده، پس چاپِ مستقیمش «۱۳۶۹-۱۱-۰۳ 00:00:00» می‌داد —
+             ساعتِ بی‌معنی روی تاریخِ تولد. مقدار از قبل شمسی است، فقط بریده می‌شود. --}}
+        <div><span>تاریخ تولد</span><b dir="ltr">{{ $iv->birth_date ? substr((string) $iv->birth_date, 0, 10) : '—' }}</b></div>
         <div><span>شاهکار</span><b>{{ $iv->shahkar_matched ? 'تطابق موبایل ✓' : 'تطابق نشد' }}</b></div>
         @if($iv->fail_reason)<div><span>دلیل رد</span><b style="color:#ff6b6b">{{ $iv->fail_reason }}</b></div>@endif
       @else
