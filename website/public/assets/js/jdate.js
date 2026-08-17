@@ -77,7 +77,8 @@
         b.disabled = true;
         b.classList.add('is-off');
       } else {
-        b.addEventListener('click', function () {
+        b.addEventListener('click', function (ev) {
+          ev.stopPropagation();
           input.value = c.iso;
           host.textContent = state.title.split(' ')[0] + ' ' + c.label;
           host.classList.add('has-val');
@@ -95,8 +96,13 @@
       load(host, input, box, state.jy, state.jm + delta);
     }
 
-    prev.addEventListener('click', function () { go(-1); });
-    next.addEventListener('click', function () { go(1); });
+    /* 🔴 `stopPropagation` این‌جا اختیاری نیست.
+       هندلرِ زیر محتوای پاپ‌آور را **همان لحظه** خالی می‌کند، پس وقتی همین
+       کلیک به `document` می‌رسد، دکمه دیگر فرزندِ پاپ‌آور نیست و شرطِ
+       «کلیک بیرون بود؟» درست می‌شود ⇒ تقویم به‌جای عوض‌کردنِ ماه بسته می‌شد.
+       فقط با کلیکِ واقعی روی سایتِ زنده پیدا شد؛ هیچ خطایی هم تولید نمی‌کرد. */
+    prev.addEventListener('click', function (ev) { ev.stopPropagation(); go(-1); });
+    next.addEventListener('click', function (ev) { ev.stopPropagation(); go(1); });
   }
 
   function load(host, input, box, y, m) {
