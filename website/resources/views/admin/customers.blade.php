@@ -43,9 +43,9 @@
   /* دکمهٔ تماس یک بار برای کلِ جدول ارزیابی می‌شود، نه به ازای هر ردیف —
      `OutgoingCallService::enabled()` فقط config می‌خواند ولی ساختنِ سرویس در
      حلقهٔ ۵۰ ردیفی بی‌دلیل است. */
-  $canCall = auth()->user()->isAdmin()
-      && auth()->user()->canPlaceCalls()
-      && app(\App\Services\CloudPhone\OutgoingCallService::class)->enabled();
+  $callSvc   = app(\App\Services\CloudPhone\OutgoingCallService::class);
+  $callAgent = $callSvc->agentNumberFor(auth()->user()->phoneExtension());
+  $canCall   = auth()->user()->isAdmin() && $callSvc->enabled() && $callAgent;
 @endphp
 
 @if($notReady)
@@ -107,12 +107,11 @@
                 </form>
               @endif
               {{-- تماسِ یک‌کلیکی.
-                   ⚠️ فقط وقتی هر سه شرط برقرار است دکمه ظاهر می‌شود: مدیر
-                   باشیم، مشتری شماره داشته باشد، و داخلیِ خودمان ثبت شده باشد.
-                   دکمه‌ای که کلیکش خطا بدهد، بدتر از نبودنِ دکمه است. --}}
+                   ⚠️ دو شرط: مدیر باشیم و مشتری شماره داشته باشد. دکمه‌ای که
+                   کلیکش خطا بدهد بدتر از نبودنِ دکمه است. --}}
               @if($canCall && $c->phone)
                 <form method="post" action="/admin/customers/{{ $c->id }}/call" style="display:inline"
-                      data-confirm="تماس با {{ $c->phone }} برقرار شود؟ ابتدا داخلیِ شما زنگ می‌خورد.">
+                      data-confirm="تماس با {{ $c->phone }} برقرار شود؟ اول {{ $callAgent }} زنگ می‌خورد، بعد مشتری.">
                   @csrf<button class="cust-a" type="submit" title="تماس با {{ $c->phone }}"><svg class="icon"><use href="#i-phone"/></svg></button>
                 </form>
               @endif

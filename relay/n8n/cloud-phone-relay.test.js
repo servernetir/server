@@ -99,7 +99,8 @@ const baseConfig = (envelope, over = {}) => Object.assign({
 const payload = (over = {}) => Object.assign({
   version: 1,
   action: 'outgoing_call',
-  to_number: '9142223343',
+  to_number: '9121112222',
+  from_number: '9142223343',
   caller_extension: '71057757',
   request_id: 'e7a1c2d4-0000-4000-8000-000000000001',
   issued_at: Math.floor(Date.now() / 1000),
@@ -123,9 +124,9 @@ const payload = (over = {}) => Object.assign({
     eq(result[0].json.status, 'sent', 'پاکتِ ساختهٔ PHP در JS تأیید می‌شود');
     ok(calls.length === 1, 'دقیقاً یک درخواست به API رفت');
     eq(calls[0].url, 'https://coreapi.daftareshoma.com/api/Customize/OutgoingCall', 'اندپوینتِ درست');
-    eq(calls[0].body.to_number, '09142223343', 'صفرِ ابتدایی برگردانده می‌شود');
-    eq(calls[0].body.caller_extension, '71057757', 'داخلی عبور می‌کند');
-    eq(calls[0].body.from_number, '02171057757', 'شمارهٔ خطِ ما از Relay Config می‌آید');
+    eq(calls[0].body.to_number, '09121112222', 'مقصد، با صفرِ ابتدایی');
+    eq(calls[0].body.from_number, '09142223343', 'پایی که اول زنگ می‌خورد، از پاکت');
+    eq(calls[0].body.caller_extension, '71057757', 'خطِ ابری، از پاکت');
     ok(calls[0].headers.Authorization === 'Bearer ' + TOKEN, 'توکن از Relay Config به هدر می‌رود');
   }
 
@@ -142,7 +143,7 @@ const payload = (over = {}) => Object.assign({
 
     // 🔴 تعویضِ شمارهٔ مقصد با امضای قدیمی — حملهٔ واقعی
     const good = phpEnvelope(payload(), SECRET);
-    const evil = phpEnvelope(payload({ to_number: '9999999999' }), SECRET);
+    const evil = phpEnvelope(payload({ to_number: '9199999999' }), SECRET);
     const swapped = evil.split('.')[0] + '.' + good.split('.').slice(1).join('.');
     const r2 = await runNodeWithThis(baseConfig(swapped));
     eq(r2.result[0].json.reason, 'bad_signature', 'تعویضِ بدنه با امضای قدیمی رد می‌شود');
@@ -204,8 +205,22 @@ const payload = (over = {}) => Object.assign({
     const noDest = phpEnvelope(payload({ to_number: '' }), SECRET);
     eq((await runNodeWithThis(baseConfig(noDest))).result[0].json.reason, 'no_destination', 'مقصدِ خالی رد می‌شود');
 
+    const noFrom = phpEnvelope(payload({ from_number: '' }), SECRET);
+    eq((await runNodeWithThis(baseConfig(noFrom))).result[0].json.reason, 'no_from_number', 'شمارهٔ تماس‌گیرندهٔ خالی رد می‌شود');
+
+    /*
+    | ⚠️ خطِ ابریِ خالی در پاکت **رد نمی‌شود** — از Relay Config برداشته می‌شود.
+    | عمدی است: خط یکی است و ثابت، و اگر روزی پاکتِ قدیمی‌تری بیاید نباید
+    | تماسش بیفتد.
+    */
     const noExt = phpEnvelope(payload({ caller_extension: '' }), SECRET);
-    eq((await runNodeWithThis(baseConfig(noExt))).result[0].json.reason, 'no_extension', 'داخلیِ خالی رد می‌شود');
+    const rNoExt = await runNodeWithThis(baseConfig(noExt, { extension: '71057757' }));
+    eq(rNoExt.result[0].json.status, 'sent', 'خطِ ابریِ نبود از Relay Config پر می‌شود');
+    eq(rNoExt.calls[0].body.caller_extension, '71057757', 'و همان مقدار به API می‌رود');
+
+    const noExtAnywhere = phpEnvelope(payload({ caller_extension: '' }), SECRET);
+    const rNone = await runNodeWithThis(baseConfig(noExtAnywhere, { extension: '', fromNumber: '' }));
+    eq(rNone.result[0].json.reason, 'no_extension', 'ولی اگر هیچ‌جا نبود، رد می‌شود');
   }
 
   // ── ۶. پاسخِ API ─────────────────────────────────────────────────────

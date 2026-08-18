@@ -30,6 +30,8 @@ class CloudPhoneAdminTest extends TestCase
 
         config()->set('services.cloud_phone.relay_url', self::RELAY);
         config()->set('services.cloud_phone.relay_secret', 'shared-secret-for-tests');
+        config()->set('services.cloud_phone.extension', '71057757');
+        config()->set('services.cloud_phone.agent_number', '09142223343');
     }
 
     private function admin(?string $extension = '71057757'): User
@@ -60,7 +62,7 @@ class CloudPhoneAdminTest extends TestCase
     {
         Http::fake([self::RELAY => Http::response(['status' => 'sent'], 200)]);
 
-        $result = app(OutgoingCallService::class)->place('09142223343', '71057757');
+        $result = app(OutgoingCallService::class)->place('09121112222');
 
         $this->assertSame(OutgoingCallService::OK, $result['status']);
 
@@ -81,8 +83,10 @@ class CloudPhoneAdminTest extends TestCase
             $payload = json_decode(base64_decode(strtr($b64, '-_', '+/')), true);
 
             $this->assertSame('outgoing_call', $payload['action']);
-            $this->assertSame('9142223343', $payload['to_number'], 'شماره باید نرمال‌شده برود');
-            $this->assertSame('71057757', $payload['caller_extension']);
+            $this->assertSame('9121112222', $payload['to_number'], 'مقصد، نرمال‌شده');
+            // نگاشتِ تأییدشده با رویدادِ واقعی: from_number = پایی که اول زنگ می‌خورد
+            $this->assertSame('9142223343', $payload['from_number']);
+            $this->assertSame('71057757', $payload['caller_extension'], 'خطِ ابری');
             $this->assertNotEmpty($payload['request_id']);
             $this->assertNotEmpty($payload['issued_at']);
 
@@ -100,7 +104,7 @@ class CloudPhoneAdminTest extends TestCase
 
         Http::fake([self::RELAY => Http::response(['status' => 'sent'], 200)]);
 
-        app(OutgoingCallService::class)->place('09142223343', '71057757');
+        app(OutgoingCallService::class)->place('09121112222');
 
         Http::assertSent(function ($request) {
             $this->assertStringNotContainsString('super-secret-api-token', json_encode($request->data()));
@@ -119,7 +123,7 @@ class CloudPhoneAdminTest extends TestCase
         */
         Http::fake([self::RELAY => Http::response(['status' => 'ignored', 'reason' => 'bad_signature'], 200)]);
 
-        $result = app(OutgoingCallService::class)->place('09142223343', '71057757');
+        $result = app(OutgoingCallService::class)->place('09121112222');
 
         $this->assertSame(OutgoingCallService::FAILED, $result['status']);
     }
@@ -131,18 +135,60 @@ class CloudPhoneAdminTest extends TestCase
 
         $this->assertSame(
             OutgoingCallService::FAILED,
-            app(OutgoingCallService::class)->place('09142223343', '71057757')['status'],
+            app(OutgoingCallService::class)->place('09121112222')['status'],
         );
     }
 
-    public function test_no_extension_means_no_call_is_attempted(): void
+    public function test_no_agent_number_anywhere_means_no_call_is_attempted(): void
     {
+        // نه شمارهٔ شخصیِ کاربر، نه پیش‌فرضِ سراسری
+        config()->set('services.cloud_phone.agent_number', '');
+
         Http::fake();
 
-        $result = app(OutgoingCallService::class)->place('09142223343', null);
+        $result = app(OutgoingCallService::class)->place('09121112222');
 
-        $this->assertSame(OutgoingCallService::NO_EXTENSION, $result['status']);
+        $this->assertSame(OutgoingCallService::NO_AGENT, $result['status']);
         Http::assertNothingSent();
+    }
+
+    public function test_the_global_default_is_used_when_the_user_has_no_personal_number(): void
+    {
+        /*
+        | 🔴 خواستهٔ صریحِ کارفرما: «فعلاً فقط خودم مدیریت می‌کنم» — یعنی دکمهٔ
+        | تماس نباید به ثبتِ شمارهٔ تک‌تکِ کاربران گره بخورد.
+        */
+        Http::fake([self::RELAY => Http::response(['status' => 'sent'], 200)]);
+
+        $this->assertSame(
+            OutgoingCallService::OK,
+            app(OutgoingCallService::class)->place('09121112222', null)['status'],
+        );
+
+        Http::assertSent(function ($request) {
+            $b64 = explode('.', substr($request['envelope'], strlen('CLOUD_PHONE_V1:')), 2)[0];
+            $p = json_decode(base64_decode(strtr($b64, '-_', '+/')), true);
+
+            $this->assertSame('9142223343', $p['from_number'], 'پیش‌فرضِ سراسری باید استفاده شود');
+
+            return true;
+        });
+    }
+
+    public function test_a_personal_number_overrides_the_global_default(): void
+    {
+        Http::fake([self::RELAY => Http::response(['status' => 'sent'], 200)]);
+
+        app(OutgoingCallService::class)->place('09121112222', '09351234567');
+
+        Http::assertSent(function ($request) {
+            $b64 = explode('.', substr($request['envelope'], strlen('CLOUD_PHONE_V1:')), 2)[0];
+            $p = json_decode(base64_decode(strtr($b64, '-_', '+/')), true);
+
+            $this->assertSame('9351234567', $p['from_number'], 'شمارهٔ شخصی مقدم است');
+
+            return true;
+        });
     }
 
     public function test_a_local_number_without_area_code_is_refused(): void
@@ -156,7 +202,7 @@ class CloudPhoneAdminTest extends TestCase
         */
         Http::fake();
 
-        $result = app(OutgoingCallService::class)->place('34261000', '71057757');
+        $result = app(OutgoingCallService::class)->place('34261000');
 
         $this->assertSame(OutgoingCallService::BAD_NUMBER, $result['status']);
         Http::assertNothingSent();
@@ -171,7 +217,7 @@ class CloudPhoneAdminTest extends TestCase
 
         $this->assertSame(
             OutgoingCallService::DISABLED,
-            app(OutgoingCallService::class)->place('09142223343', '71057757')['status'],
+            app(OutgoingCallService::class)->place('09121112222')['status'],
         );
         Http::assertNothingSent();
     }
@@ -359,18 +405,32 @@ class CloudPhoneAdminTest extends TestCase
             ->assertSee('data-pane="calls"', false);
     }
 
-    public function test_the_call_button_is_hidden_when_the_admin_has_no_extension(): void
+    public function test_the_call_button_works_without_a_personal_number(): void
     {
-        /*
-        | دکمه‌ای که کلیکش خطا بدهد بدتر از نبودنِ دکمه است — و مدیر را
-        | می‌فرستد سراغِ تیم فنی به‌جای اینکه بگوید چه چیزی کم است.
-        */
+        // خواستهٔ کارفرما: دکمه نباید به ثبتِ شمارهٔ هر کاربر گره بخورد
         $customer = $this->seedCalls();
 
         $this->actingAs($this->admin(extension: null))
             ->get('/admin/customers/'.$customer->id)
             ->assertOk()
-            ->assertSee('داخلیِ شما ثبت نشده');
+            ->assertSee('تماس با')
+            ->assertDontSee('شمارهٔ تماس‌گیرنده تنظیم نشده');
+    }
+
+    public function test_the_button_explains_itself_when_no_number_is_configured_at_all(): void
+    {
+        /*
+        | دکمه‌ای که کلیکش خطا بدهد بدتر از نبودنِ دکمه است — و مدیر را می‌فرستد
+        | سراغِ تیم فنی به‌جای اینکه بگوید چه چیزی کم است.
+        */
+        config()->set('services.cloud_phone.agent_number', '');
+
+        $customer = $this->seedCalls();
+
+        $this->actingAs($this->admin(extension: null))
+            ->get('/admin/customers/'.$customer->id)
+            ->assertOk()
+            ->assertSee('شمارهٔ تماس‌گیرنده تنظیم نشده');
     }
 
     public function test_the_call_log_survives_a_server_without_the_migration(): void
@@ -401,9 +461,8 @@ class CloudPhoneAdminTest extends TestCase
             ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => ''])
             ->assertRedirect();
 
-        // ⚠️ رشتهٔ خالی باید null شود، وگرنه دکمهٔ تماس فعال می‌ماند و می‌شکند
+        // ⚠️ رشتهٔ خالی باید null شود، وگرنه پیش‌فرضِ سراسری بی‌صدا دور زده می‌شود
         $this->assertNull($admin->fresh()->phoneExtension());
-        $this->assertFalse($admin->fresh()->canPlaceCalls());
     }
 
     public function test_a_non_numeric_extension_is_rejected(): void

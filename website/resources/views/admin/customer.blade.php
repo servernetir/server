@@ -114,24 +114,25 @@
         نیست») سه کارِ متفاوت لازم دارند.
       --}}
       @php
-        $callRelay   = app(\App\Services\CloudPhone\OutgoingCallService::class);
-        $callCanUser = auth()->user()->isAdmin();
-        $callExt     = auth()->user()->phoneExtension();
+        $callRelay = app(\App\Services\CloudPhone\OutgoingCallService::class);
+        /* شماره‌ای که اول زنگ می‌خورد: شخصیِ کاربر، وگرنه پیش‌فرضِ سراسری */
+        $callAgent = $callRelay->agentNumberFor(auth()->user()->phoneExtension());
       @endphp
 
-      @if(! $callCanUser)
+      @if(! auth()->user()->isAdmin())
         <span style="font-size:12px;color:var(--dim)">برقراری تماس فقط برای مدیر</span>
       @elseif(! $callTo)
         <span style="font-size:12px;color:var(--dim)">شماره‌ای برای این مشتری ثبت نشده</span>
-      @elseif(! $callExt)
-        <a class="btn btn-glass" href="/admin/users" title="داخلی‌تان را در کاربران پنل ثبت کنید">
-          <svg class="icon"><use href="#i-phone"/></svg>داخلیِ شما ثبت نشده
-        </a>
       @elseif(! $callRelay->enabled())
         <span style="font-size:12px;color:#fbbf24">رلهٔ تلفن ابری پیکربندی نشده</span>
+      @elseif(! $callAgent)
+        <span style="font-size:12px;color:#fbbf24">شمارهٔ تماس‌گیرنده تنظیم نشده</span>
       @else
+        {{-- ⚠️ متنِ تأیید صریحاً می‌گوید **کدام تلفن** اول زنگ می‌خورد.
+             بی‌آن، مدیر کلیک می‌کند و منتظرِ زنگی می‌ماند که روی تلفنِ دیگری
+             است — و فکر می‌کند تماس نرفته. --}}
         <form method="post" action="/admin/customers/{{ $c->id }}/call"
-              data-confirm="تماس با {{ $callTo }} برقرار شود؟ ابتدا داخلیِ {{ $callExt }} زنگ می‌خورد.">
+              data-confirm="تماس با {{ $callTo }} برقرار شود؟ اول {{ $callAgent }} زنگ می‌خورد، بعد مشتری.">
           @csrf
           <button class="btn btn-primary" type="submit">
             <svg class="icon"><use href="#i-phone"/></svg>تماس با {{ $callTo }}

@@ -42,7 +42,7 @@ final class OutgoingCallService
 
     public const BAD_NUMBER = 'bad_number';
 
-    public const NO_EXTENSION = 'no_extension';
+    public const NO_AGENT = 'no_agent';
 
     public const FAILED = 'failed';
 
@@ -61,11 +61,37 @@ final class OutgoingCallService
     }
 
     /**
+     * شماره‌ای که **اول** زنگ می‌خورد.
+     *
+     * ترتیب عمدی است: شمارهٔ شخصیِ کاربر (اگر ثبت کرده) مقدم بر پیش‌فرضِ
+     * سراسری. تا وقتی تیم یک نفره است `.env` کافی است؛ روزی که چند نفر شدند،
+     * هر کس شمارهٔ خودش را ثبت می‌کند و هیچ کدی عوض نمی‌شود.
+     */
+    public function agentNumberFor(?string $userNumber): ?string
+    {
+        $candidate = trim((string) ($userNumber ?? '')) !== ''
+            ? (string) $userNumber
+            : (string) config('services.cloud_phone.agent_number');
+
+        return trim($candidate) === '' ? null : trim($candidate);
+    }
+
+    /** خطِ ابری — همان که روی کالر آی‌دیِ مشتری می‌افتد. */
+    public function extension(): ?string
+    {
+        $ext = trim((string) config('services.cloud_phone.extension'));
+
+        return $ext === '' ? null : $ext;
+    }
+
+    /**
      * یک تماس خروجی برقرار کن.
      *
+     * @param  string  $toNumber  شمارهٔ مشتری
+     * @param  ?string  $agentNumber  شماره‌ای که اول زنگ می‌خورد (نال ⇒ پیش‌فرضِ سراسری)
      * @return array{status: string, message: string, request_id: ?string}
      */
-    public function place(string $toNumber, ?string $callerExtension): array
+    public function place(string $toNumber, ?string $agentNumber = null): array
     {
         if (! $this->enabled()) {
             return $this->result(
@@ -75,17 +101,30 @@ final class OutgoingCallService
         }
 
         /*
-        | 🔴 بدونِ داخلی هیچ تماسی برقرار نمی‌شود.
+        | 🔴 بدونِ شمارهٔ تماس‌گیرنده هیچ تماسی برقرار نمی‌شود.
         |
-        | سامانه اول داخلیِ کارشناس را زنگ می‌زند و بعد مقصد را می‌گیرد. اگر
-        | داخلی خالی برود، بهترین حالت خطای تأمین‌کننده است و بدترین حالت این
-        | که تماس از یک داخلیِ پیش‌فرضِ نامعلوم برقرار شود و کارشناس هیچ‌وقت
-        | نفهمد چرا تلفنش زنگ نخورد.
+        | سامانه اول این شماره را می‌گیرد و وقتی برداشتی، مشتری را با کالر
+        | آی‌دیِ خطِ ابری صدا می‌زند. اگر خالی برود، بهترین حالت خطای
+        | تأمین‌کننده است و بدترین حالت این که تماس از یک شمارهٔ نامعلوم برقرار
+        | شود و هیچ‌کس نفهمد چرا تلفنش زنگ نخورد.
         */
-        if ($callerExtension === null || trim($callerExtension) === '') {
+        $agent = $this->agentNumberFor($agentNumber);
+
+        if ($agent === null) {
             return $this->result(
-                self::NO_EXTENSION,
-                'داخلیِ شما ثبت نشده. در تنظیمات حساب کاربری داخلی‌تان را وارد کنید.',
+                self::NO_AGENT,
+                'شمارهٔ تماس‌گیرنده تنظیم نشده (CLOUD_PHONE_AGENT_NUMBER در .env).',
+            );
+        }
+
+        if (IranianPhone::normalize($agent) === null) {
+            return $this->result(self::NO_AGENT, 'شمارهٔ تماس‌گیرندهٔ تنظیم‌شده معتبر نیست: '.$agent);
+        }
+
+        if ($this->extension() === null) {
+            return $this->result(
+                self::NO_AGENT,
+                'خطِ ابری تنظیم نشده (CLOUD_PHONE_EXTENSION در .env).',
             );
         }
 
@@ -117,7 +156,13 @@ final class OutgoingCallService
             'action' => 'outgoing_call',
             // شکلِ ملیِ بدونِ صفر — n8n خودش قالبِ موردِ نیازِ API را می‌سازد
             'to_number' => $normalised,
-            'caller_extension' => trim($callerExtension),
+            /*
+            | نگاشت با رویدادِ واقعیِ `CallOutgoingEnded` تأیید شد:
+            |   CallerNumber    ← from_number       (پایی که اول زنگ می‌خورد)
+            |   CalleeExtension ← caller_extension  (خطِ ابری)
+            */
+            'from_number' => IranianPhone::normalize($agent),
+            'caller_extension' => $this->extension(),
             // 🔴 برای idempotency در سمتِ n8n: اگر HTTP retry بخورد، مشتری
             //    نباید دو بار زنگ بخورد.
             'request_id' => $requestId,
@@ -156,7 +201,7 @@ final class OutgoingCallService
 
         return [
             'status' => self::OK,
-            'message' => 'تماس در حال برقراری است — ابتدا داخلیِ شما زنگ می‌خورد.',
+            'message' => 'تماس در حال برقراری است — ابتدا '.$agent.' زنگ می‌خورد، بعد مشتری.',
             'request_id' => $requestId,
         ];
     }
