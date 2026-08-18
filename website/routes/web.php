@@ -600,6 +600,22 @@ Route::post('/system/bale-setup', function (\Illuminate\Http\Request $r) {
 Route::post('/bale/webhook/{token}', \App\Http\Controllers\BaleWebhookController::class)
     ->middleware('throttle:60,1')->where('token', '[a-f0-9]{32}');
 
+/*
+| وبهوکِ تلفن ابری «دفتر شما» — رویدادهای لحظه‌ایِ تماس.
+|
+| ⚠️ سقفِ نرخ سخاوتمندانه است و عمداً. یک تماسِ واحد تا **۵ رویداد** می‌دهد
+| (شروع، دو رویدادِ انتقال، و یک `Ended` به ازای هر پا)، و در ساعتِ شلوغ چند
+| تماس هم‌زمان‌اند. وبهوکی که ۴۲۹ بگیرد از سمتِ فرستنده retry و بعد **غیرفعال**
+| می‌شود — یعنی سقفِ تنگ، خودش ابزارِ خاموشیِ ماست.
+|
+| ⚠️ الگوی توکن `[A-Za-z0-9_-]{16,80}` است نه هگزِ ۳۲تایی: مسیرِ وبهوک را
+| خودمان می‌سازیم و ممکن است base64url باشد. اگر روزی توکن با الگو نخواند،
+| لاراول ۴۰۴ می‌دهد **پیش از** کنترلر — یعنی نه لاگی، نه ردی، و از بیرون شبیه
+| «دفتر شما وبهوک نمی‌فرستد».
+*/
+Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebhookController::class)
+    ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
+
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
 /*

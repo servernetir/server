@@ -455,4 +455,42 @@ return [
         'enabled' => env('EXCHANGE_ENABLED', true),
     ],
 
+    /*
+    |----------------------------------------------------------------------
+    | تلفن ابری «دفتر شما»
+    |----------------------------------------------------------------------
+    |
+    | دو جهتِ کاملاً متفاوت — و این تفاوت کلِ پیکربندی را توضیح می‌دهد:
+    |
+    |   ورودی (وبهوک)   دفتر شما ──▶ servernet.cloud       مستقیم ✅
+    |   خروجی (API)     ما ──▶ coreapi.daftareshoma.com    از آلمان ❌
+    |
+    | جهتِ ورودی با ۱۰ رویدادِ واقعی تأیید شد. جهتِ خروجی از سرورِ آلمان
+    | نمی‌رسد و مثلِ رلهٔ پیامک باید از n8nِ ایرانی رد شود.
+    |
+    | 🔴 `webhook_token` اگر خالی باشد، روتِ وبهوک ۴۰۴ می‌دهد — عمدی است.
+    | پیکربندیِ جاافتاده باید ببندد، نه اینکه وبهوک را برای همه باز بگذارد.
+    |
+    | ⚠️ `webhook_ips` رشتهٔ کاماجدا در `.env` است ولی این‌جا آرایه می‌شود.
+    | خالی گذاشتنش بررسیِ IP را **خاموش** می‌کند (لایهٔ توکن سرِ جایش است).
+    | در نمونه‌ها فقط `93.118.115.48` دیده شده، ولی تأمین‌کننده تأیید نکرده
+    | که IP دیگری ندارد — پس افزودنش باید یک خطِ `.env` باشد، نه یک دیپلوی.
+    |
+    | خواننده: App\Http\Controllers\CloudPhoneWebhookController
+    */
+    'cloud_phone' => [
+        'base_url' => env('CLOUD_PHONE_BASE_URL', 'https://coreapi.daftareshoma.com'),
+        'token' => env('PHONE_TOKEN'),
+
+        'webhook_token' => env('CLOUD_PHONE_WEBHOOK_TOKEN'),
+        'webhook_ips' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('CLOUD_PHONE_WEBHOOK_IPS', '93.118.115.48')),
+        ))),
+
+        // رلهٔ n8n برای تماس‌های خروجی — فازِ بعد
+        'relay_url' => env('CLOUD_PHONE_RELAY_URL'),
+        'relay_secret' => env('CLOUD_PHONE_RELAY_SECRET'),
+    ],
+
 ];
