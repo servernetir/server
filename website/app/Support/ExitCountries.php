@@ -90,16 +90,33 @@ class ExitCountries
             'flag' => $ir['flag'] ?? '🇮🇷',
         ]];
 
-        foreach (self::codes() as $cc) {
+        foreach (self::codeOptions($locale) as $opt) {
+            $out[] = $opt;
+        }
+
+        return $out;
+    }
+
+    /**
+     * فقط کشورهای مجازِ خروج (بدونِ گزینه‌ی «بدونِ اکسیت») — با نام و پرچم.
+     * برای فرم‌هایی که کشورِ مقصد می‌خواهند نه خاموش‌کردنِ اکسیت (مثلِ افزودنِ
+     * اکسیتِ اختصاصی، که «ایران» بی‌معنی است).
+     *
+     * @return array<int, array{code:string, name:string, flag:string}>
+     */
+    public static function codeOptions(?string $locale = 'fa'): array
+    {
+        $locale = $locale ?: 'fa';
+
+        return collect(self::codes())->map(function ($cc) use ($locale) {
             $iso = strtoupper($cc);
             $c = CloudLocation::COUNTRIES[$iso] ?? null;
-            $out[] = [
+
+            return [
                 'code' => $cc,
                 'name' => $c[$locale] ?? $c['fa'] ?? $iso,
                 'flag' => $c['flag'] ?? '🏳️',
             ];
-        }
-
-        return $out;
+        })->all();
     }
 }

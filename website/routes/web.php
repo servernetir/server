@@ -2275,6 +2275,37 @@ Route::prefix('admin')->group(function () {
         Route::post('/exit-infra/{instance}/country', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setCountry'])
             ->name('admin.exit-infra.country')->middleware('admin');
 
+        // مدیریتِ ماشین‌ها: وارد کردن (اسکنِ Proxmox یا دستی)، پورت، و حذف از فهرست.
+        // 🔴 گاردِ خطِ‌قرمز (VM108) در کنترلر است؛ اسکن فقط با ?scan=1.
+        Route::get('/exit-infra/import', [\App\Http\Controllers\Admin\ExitInfraController::class, 'importForm'])
+            ->name('admin.exit-infra.import')->middleware('admin');
+        Route::post('/exit-infra/import', [\App\Http\Controllers\Admin\ExitInfraController::class, 'import'])
+            ->name('admin.exit-infra.import.store')->middleware('admin');
+        Route::post('/exit-infra/{instance}/port', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setPort'])
+            ->name('admin.exit-infra.port')->middleware('admin');
+        Route::post('/exit-infra/{instance}/detach', [\App\Http\Controllers\Admin\ExitInfraController::class, 'detach'])
+            ->name('admin.exit-infra.detach')->middleware('admin');
+
+        // آپ‌استریم‌های اکسیت — رله‌های SSH و نودهای VLESS که موتورِ اکسیت از راهشان
+        // از کشور خارج می‌شود. پنل «حالتِ مطلوب» را می‌نویسد؛ میزبانِ ایران آن را از
+        // /agent/exitupstreams می‌کشد و اعمال می‌کند (همان الگوی countryroutes).
+        // ⚠️ مسیرِ ثابتِ /upstreams/create پیش از {upstream} تعریفِ نمی‌خواهد چون
+        // شمارِ segmentها فرق دارد و {upstream} فقط در ۴-segmentها می‌آید.
+        Route::get('/exit-infra/upstreams', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'index'])
+            ->name('admin.exit-upstreams')->middleware('admin');
+        Route::get('/exit-infra/upstreams/create', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'create'])
+            ->name('admin.exit-upstreams.create')->middleware('admin');
+        Route::post('/exit-infra/upstreams', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'store'])
+            ->name('admin.exit-upstreams.store')->middleware('admin');
+        Route::get('/exit-infra/upstreams/{upstream}/edit', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'edit'])
+            ->name('admin.exit-upstreams.edit')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'update'])
+            ->name('admin.exit-upstreams.update')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}/toggle', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'toggle'])
+            ->name('admin.exit-upstreams.toggle')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}/delete', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'destroy'])
+            ->name('admin.exit-upstreams.delete')->middleware('admin');
+
         /*
         | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.
         |
@@ -2558,4 +2589,7 @@ Route::prefix('api/v1')
 Route::prefix('agent')->group(function () {
     Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
     Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+    // رله‌های SSH و نودهای VLESSِ اکسیت — با مقدارِ خامِ اعتبارنامه (هاست برای dial
+    // لازمش دارد). همان احرازِ توکن؛ خروجی no-store.
+    Route::get('exitupstreams', [\App\Http\Controllers\Agent\PullController::class, 'exitUpstreams']);
 });

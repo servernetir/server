@@ -71,6 +71,7 @@
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
       <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
+      <a href="/admin/exit-infra/upstreams" class="@yield('nav_exit_upstreams')"><svg class="icon"><use href="#i-server"/></svg>رله و نودِ اکسیت</a>
 
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>

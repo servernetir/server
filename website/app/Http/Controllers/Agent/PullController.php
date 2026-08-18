@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Agent;
 
 use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
+use App\Models\ExitUpstream;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent).
@@ -146,6 +148,60 @@ class PullController extends Controller
         }
 
         return response()->json($out);
+    }
+
+    /**
+     * آپ‌استریم‌های اکسیت — رله‌های SSH (آپ‌لینک) و نودهای VLESS/exitِ کشوری که
+     * مدیر از پنل اضافه کرده. میزبانِ ایران این را می‌کشد تا استخرِ رله و اکسیت‌های
+     * اختصاصی‌اش را با «حالتِ مطلوب» هماهنگ کند (معادلِ `servernet-relay-set` و
+     * `servernet-exit-set` ولی داده‌محور).
+     *
+     * 🔴 این پاسخ **مقدارِ خامِ اعتبارنامه** (کلیدِ SSH، لینکِ vless، رمز) را دارد،
+     * چون هاست بی‌آن نمی‌تواند dial کند. برای همین: فقط با توکنِ معتبر، فقط
+     * آپ‌استریم‌های `enabled`، و با هدرِ `Cache-Control: no-store` تا هیچ واسطی
+     * کشش نکند. شکل:
+     *   { "relays": [ {..,secret} ], "exits": { "de": [ {..,cc,secret} ], … } }
+     */
+    public function exitUpstreams(Request $request): JsonResponse
+    {
+        $this->authorizeAgent($request);
+
+        Setting::put('agent_seen_exitupstreams', now()->toIso8601String());
+
+        // روی سروری که هنوز مهاجرت نخورده، پاسخِ خالیِ سالم بده (نه ۵۰۰).
+        if (! Schema::hasTable('exit_upstreams')) {
+            return response()->json(['relays' => [], 'exits' => (object) []])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        $rows = ExitUpstream::query()
+            ->where('enabled', true)
+            ->orderBy('priority')
+            ->orderBy('id')
+            ->get();
+
+        $relays = [];
+        $exits  = [];
+
+        foreach ($rows as $u) {
+            if ($u->isExit()) {
+                $cc = $u->cc();
+
+                if ($cc === null) {
+                    continue;                   // اکسیتِ بی‌کشور بی‌معنی است؛ رد
+                }
+
+                $exits[$cc][] = $u->toAgentArray();
+            } else {
+                $relays[] = $u->toAgentArray();
+            }
+        }
+
+        return response()->json([
+            'relays' => $relays,
+            // آرایه‌ی تهی را به‌صورتِ آبجکتِ JSON بده تا سمتِ هاست همیشه map باشد
+            'exits'  => empty($exits) ? (object) [] : $exits,
+        ])->header('Cache-Control', 'no-store');
     }
 
     /**
