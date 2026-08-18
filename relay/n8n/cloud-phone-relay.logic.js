@@ -99,6 +99,19 @@ if (!fromNational) return reply('ignored', { reason: 'no_from_number' });
 if (!extension) return reply('ignored', { reason: 'no_extension' });
 
 /*
+| 🔴 لایهٔ دوم: طولِ شماره.
+|
+| لاراول از قبل اعتبارسنجی می‌کند، ولی یک بار عددِ `1` از همهٔ نگهبان‌هایش رد
+| شد و `from_number: "01"` به تأمین‌کننده رفت. رله آخرین جایی است که می‌شود
+| جلویش را گرفت — و ارزانش هم هست.
+|
+| ⚠️ شکستِ صریح، نه اصلاحِ خودکار. اگر این‌جا شماره را «درست» کنیم، خطای
+| پیکربندی بالادست پنهان می‌شود و ماه‌ها با یک شمارهٔ اشتباه تماس می‌گیریم.
+*/
+if (toNational.length < 10) return reply('ignored', { reason: 'destination_too_short', value: toNational });
+if (fromNational.length < 10) return reply('ignored', { reason: 'from_number_too_short', value: fromNational });
+
+/*
 | ⚠️ لاراول شکلِ ملیِ بدونِ صفر می‌فرستد (`9142223343`). تأمین‌کننده در
 | نمونه‌های واقعی شکلِ `09142223343` را نشان می‌دهد، پس صفر را این‌جا برمی‌گردانیم
 | — یک جا، تا اگر روزی قالبش عوض شد فقط همین خط عوض شود.

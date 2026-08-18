@@ -205,6 +205,18 @@ const payload = (over = {}) => Object.assign({
     const noDest = phpEnvelope(payload({ to_number: '' }), SECRET);
     eq((await runNodeWithThis(baseConfig(noDest))).result[0].json.reason, 'no_destination', 'مقصدِ خالی رد می‌شود');
 
+    /*
+    | 🔴 خرابیِ واقعیِ ۱۸ آگوست: عددِ `1` در فیلدِ شمارهٔ تماس‌گیرنده.
+    | از همهٔ نگهبان‌های لاراول رد شد و `from_number: "01"` به API رفت.
+    */
+    const oneDigit = phpEnvelope(payload({ from_number: '1' }), SECRET);
+    const rOne = await runNodeWithThis(baseConfig(oneDigit));
+    eq(rOne.result[0].json.reason, 'from_number_too_short', 'شمارهٔ تک‌رقمی رد می‌شود');
+    ok(rOne.calls.length === 0, 'و به تأمین‌کننده نمی‌رسد');
+
+    const shortTo = phpEnvelope(payload({ to_number: '12345' }), SECRET);
+    eq((await runNodeWithThis(baseConfig(shortTo))).result[0].json.reason, 'destination_too_short', 'مقصدِ کوتاه هم رد می‌شود');
+
     const noFrom = phpEnvelope(payload({ from_number: '' }), SECRET);
     eq((await runNodeWithThis(baseConfig(noFrom))).result[0].json.reason, 'no_from_number', 'شمارهٔ تماس‌گیرندهٔ خالی رد می‌شود');
 

@@ -27,8 +27,12 @@ class UserController extends Controller
             'email' => 'required|email|max:120|unique:users,email',
             'role' => 'required|in:admin,author',
             'password' => 'required|string|min:8|max:100',
-            // داخلیِ تلفن ابری — بدونِ آن دکمهٔ تماس برای این کاربر غیرفعال است
-            'phone_extension' => 'nullable|string|max:16|regex:/^[0-9]+$/',
+            /*
+            | شمارهٔ تماس‌گیرنده — ⚠️ «فقط رقم» کافی نیست.
+            | یک بار عددِ `1` ثبت شد، از همهٔ لایه‌ها رد شد و تماس را شکست.
+            | حداقل ۱۰ رقم یعنی موبایل یا ثابتِ با پیش‌شماره.
+            */
+            'phone_extension' => ['nullable', 'string', 'max:16', 'regex:/^0?[0-9]{10}$/'],
         ]);
 
         User::create([
@@ -56,8 +60,15 @@ class UserController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
+        /*
+        | رشتهٔ خالی مجاز است (یعنی «بردار»)، ولی هر چیزِ دیگری باید شمارهٔ کامل باشد.
+        |
+        | 🔴 قانون‌ها **آرایه**‌اند نه رشتهٔ `|`-جدا: رجکسِ این‌جا خودش `|` دارد و
+        | لاراول رشته را روی همان می‌شکند — نتیجه‌اش رجکسِ نصفه و
+        | «No ending delimiter '/' found» در زمانِ اجرا، نه در زمانِ نوشتن.
+        */
         $data = $request->validate([
-            'phone_extension' => 'nullable|string|max:16|regex:/^[0-9]*$/',
+            'phone_extension' => ['nullable', 'string', 'max:16', 'regex:/^(|0?[0-9]{10})$/'],
         ]);
 
         $ext = trim((string) ($data['phone_extension'] ?? ''));

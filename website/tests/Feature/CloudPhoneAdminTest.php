@@ -34,7 +34,14 @@ class CloudPhoneAdminTest extends TestCase
         config()->set('services.cloud_phone.agent_number', '09142223343');
     }
 
-    private function admin(?string $extension = '71057757'): User
+    /*
+    | ⚠️ پیش‌فرض `null` است، نه `71057757`.
+    |
+    | آن عدد **خطِ ابری** است نه شماره‌ای که بشود زنگ زد — بی‌پیش‌شمارهٔ شهر و
+    | فقط ۸ رقم. تا وقتی اعتبارسنجی سست بود این fixture بی‌سروصدا سبز می‌ماند؛
+    | حالا که سفت شده، خودش نشان داد که از اول اشتباه بوده.
+    */
+    private function admin(?string $extension = null): User
     {
         return User::create([
             'name' => 'مدیر',
@@ -173,6 +180,51 @@ class CloudPhoneAdminTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_a_one_digit_personal_number_is_refused(): void
+    {
+        /*
+        | 🔴 رگرسیونِ خرابیِ واقعیِ ۱۸ آگوست.
+        |
+        | عددِ `1` در فیلدِ شمارهٔ تماس‌گیرندهٔ کاربر ثبت شده بود.
+        | `normalize('1')` مقدارِ `'1'` می‌داد نه `null`، پس از نگهبان رد شد و
+        | رله `from_number: "01"` را به تأمین‌کننده فرستاد — تماس شکست خورد و
+        | علتش سه لایه آن‌طرف‌تر پیدا شد.
+        */
+        Http::fake();
+
+        $result = app(OutgoingCallService::class)->place('09121112222', '1');
+
+        $this->assertSame(OutgoingCallService::NO_AGENT, $result['status']);
+        $this->assertStringContainsString('1', $result['message']);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_local_agent_number_without_area_code_is_refused(): void
+    {
+        // شمارهٔ ثابتِ بی‌پیش‌شماره شماره‌گیری‌شدنی نیست — همان قاعدهٔ مقصد
+        Http::fake();
+
+        $this->assertSame(
+            OutgoingCallService::NO_AGENT,
+            app(OutgoingCallService::class)->place('09121112222', '34261000')['status'],
+        );
+        Http::assertNothingSent();
+    }
+
+    public function test_the_users_form_rejects_a_number_that_is_too_short(): void
+    {
+        $admin = $this->admin(extension: null);
+
+        $this->actingAs($admin)
+            ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => '1'])
+            ->assertSessionHasErrors('phone_extension');
+
+        // ولی شمارهٔ کامل قبول می‌شود
+        $this->actingAs($admin)
+            ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => '09351234567'])
+            ->assertSessionHasNoErrors();
     }
 
     public function test_a_personal_number_overrides_the_global_default(): void
@@ -452,10 +504,10 @@ class CloudPhoneAdminTest extends TestCase
         $admin = $this->admin(extension: null);
 
         $this->actingAs($admin)
-            ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => '71057757'])
+            ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => '09351234567'])
             ->assertRedirect();
 
-        $this->assertSame('71057757', $admin->fresh()->phoneExtension());
+        $this->assertSame('09351234567', $admin->fresh()->phoneExtension());
 
         $this->actingAs($admin)
             ->post('/admin/users/'.$admin->id.'/extension', ['phone_extension' => ''])
