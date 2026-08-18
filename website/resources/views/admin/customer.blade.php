@@ -88,7 +88,9 @@
   </button>
   <button type="button" class="ct-tab" data-tab="activity" role="tab">
     <svg class="icon"><use href="#i-flow"/></svg>فعالیت
-    @if($activity->total())<i class="ct-n">{{ fa_num($activity->total()) }}</i>@endif
+    {{-- ⚠️ کلِ تاریخچه، نه نتیجهٔ فیلتر: وگرنه با هر فیلتر عددِ تب هم عوض
+         می‌شد و «۳ رویداد» نشان می‌داد برای مشتری‌ای که هزار تا دارد. --}}
+    @if($activityTotal)<i class="ct-n">{{ fa_num($activityTotal) }}</i>@endif
   </button>
 </div>
 
@@ -665,14 +667,25 @@
   بمانَد. بی‌آن، مدیر فیلتر می‌زد و صفحه روی تبِ «سرویس‌ها» برمی‌گشت. --}}
 <div class="ct-pane" data-pane="activity">
 <div class="ad-panel">
+  @php $actFiltered = request()->hasAny(['q','act','who','from','to']); @endphp
   <div class="ad-panel-h"><h3>تاریخچهٔ فعالیت</h3>
+    {{-- 🔴 «چند از چند» صریح گفته می‌شود.
+         جدولِ صفحه‌بندی‌شده‌ای که فقط تعدادِ همین صفحه را نشان دهد، این توهم را
+         می‌سازد که کلِ تاریخچه همین است — و جستجویی که کلِ تاریخچه را می‌گردد،
+         بی‌این عدد قابلِ اعتماد نیست. --}}
     <span class="ad-badge" style="background:var(--surface2);color:var(--muted)">
-      {{ fa_num($activity->total()) }} رویداد
+      @if($actFiltered)
+        {{ fa_num($activity->total()) }} از {{ fa_num($activityTotal) }} رویداد
+      @else
+        {{ fa_num($activityTotal) }} رویداد
+      @endif
     </span>
   </div>
 
   <form method="get" action="{{ url()->current() }}#activity" class="act-filter">
-    <input type="search" name="q" value="{{ request('q') }}" placeholder="جستجو در شرح یا IP…">
+    {{-- جستجو **کلِ** تاریخچه را می‌گردد، نه فقط صفحهٔ جاری (فیلتر سمتِ سرور
+         است). متنِ placeholder همین را می‌گوید تا کسی فرض نکند محلی است. --}}
+    <input type="search" name="q" value="{{ request('q') }}" placeholder="جستجو در کلِ تاریخچه (شرح یا IP)…">
 
     <select name="act">
       <option value="">همهٔ رویدادها</option>
@@ -693,8 +706,14 @@
     <span class="act-dt"><label>از</label><input type="hidden" name="from" data-jdate value="{{ request('from') }}"></span>
     <span class="act-dt"><label>تا</label><input type="hidden" name="to" data-jdate value="{{ request('to') }}"></span>
 
+    <select name="per" title="تعداد ردیف در هر صفحه">
+      @foreach(\App\Http\Controllers\Admin\CustomerController::ACTIVITY_SIZES as $sz)
+        <option value="{{ $sz }}" @selected((int) request('per', 100) === $sz)>{{ fa_num($sz) }} ردیف</option>
+      @endforeach
+    </select>
+
     <button class="ad-btn" type="submit"><svg class="icon"><use href="#i-filter"/></svg>فیلتر</button>
-    @if(request()->hasAny(['q','act','who','from','to']))
+    @if($actFiltered || request('per'))
       <a class="ad-btn" href="{{ url()->current() }}#activity">پاک کردن</a>
     @endif
   </form>

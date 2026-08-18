@@ -142,7 +142,23 @@ class CustomerController extends Controller
             }
         }
 
-        return $q->latest('id')->paginate(25)->withQueryString();
+        return $q->latest('id')->paginate(self::activityPerPage($request))->withQueryString();
+    }
+
+    /**
+     * اندازهٔ صفحهٔ تاریخچه.
+     *
+     * ⚠️ فهرستِ سفید، نه هر عددی از URL. `?per=100000` یعنی کلِ تاریخچهٔ یک
+     * مشتریِ قدیمی در یک درخواست از دیتابیس بیرون بیاید و حافظهٔ PHP را پر کند
+     * — یک DoSِ رایگان از راهِ یک پارامترِ نمایشی.
+     */
+    public const ACTIVITY_SIZES = [50, 100, 200];
+
+    private static function activityPerPage(Request $request): int
+    {
+        $per = (int) $request->query('per', 100);
+
+        return in_array($per, self::ACTIVITY_SIZES, true) ? $per : 100;
     }
 
     public function show(Request $request, Customer $customer): View
@@ -198,6 +214,16 @@ class CustomerController extends Controller
             | که مدیر آن را «فیلتر کار نمی‌کند» می‌بیند.
             */
             'activity'      => $this->activityQuery($request, $customer),
+            /*
+            | 🔴 شمارشِ **کل**، جدا از نتیجهٔ فیلترشده.
+            |
+            | بجِ کنارِ تب باید همیشه کلِ تاریخچه را بگوید. اگر از `total()`ِ
+            | نتیجهٔ فیلترشده بیاید، مدیر فیلتر می‌زند و عددِ تب هم عوض می‌شود —
+            | یعنی «این مشتری ۳ رویداد دارد» در حالی که هزار تا دارد.
+            */
+            'activityTotal' => Schema::hasTable('activity_logs')
+                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->count()
+                : 0,
             'activityFacets' => Schema::hasTable('activity_logs')
                 ? [
                     'actions' => \App\Models\ActivityLog::where('customer_id', $customer->id)

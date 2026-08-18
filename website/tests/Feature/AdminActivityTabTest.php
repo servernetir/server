@@ -144,17 +144,82 @@ class AdminActivityTabTest extends TestCase
     {
         $c = $this->customer();
 
-        for ($i = 0; $i < 30; $i++) {
+        // ⚠️ بیش از یک صفحه با کوچک‌ترین اندازهٔ مجاز (۵۰)
+        for ($i = 0; $i < 55; $i++) {
             $this->log($c, ['action' => 'payment', 'description' => 'پرداخت شمارهٔ '.$i]);
         }
 
         $this->log($c, ['action' => 'login', 'description' => 'ورود از مرورگر']);
 
         $html = (string) $this->actingAs($this->staff(), 'web')
-            ->get("/admin/customers/{$c->id}?act=payment")->assertOk()->getContent();
+            ->get("/admin/customers/{$c->id}?act=payment&per=50")->assertOk()->getContent();
 
         $this->assertStringContainsString('act=payment', $html,
             'لینکِ صفحهٔ بعد فیلتر را نگه نداشت.');
+        $this->assertStringContainsString('per=50', $html,
+            'لینکِ صفحهٔ بعد اندازهٔ صفحه را نگه نداشت.');
+    }
+
+    /** پیش‌فرض ۱۰۰ ردیف است، نه ۲۵ */
+    public function test_the_default_page_size_is_one_hundred(): void
+    {
+        $c = $this->customer();
+
+        for ($i = 0; $i < 105; $i++) {
+            $this->log($c, ['description' => 'رویداد '.$i]);
+        }
+
+        $html = (string) $this->actingAs($this->staff(), 'web')
+            ->get("/admin/customers/{$c->id}")->assertOk()->getContent();
+
+        // ۱۰۰ ردیفِ اول رندر شده باشد و ردیفِ ۱۰۱ام نه
+        $this->assertSame(100, substr_count($html, '<td>رویداد '),
+            'اندازهٔ پیش‌فرضِ صفحه ۱۰۰ نیست.');
+    }
+
+    /**
+     * 🔴 اندازهٔ صفحه از فهرستِ سفید می‌آید، نه از URL.
+     *
+     * `?per=100000` یعنی کلِ تاریخچهٔ یک مشتریِ قدیمی در یک درخواست از دیتابیس
+     * بیرون بیاید و حافظهٔ PHP را پر کند — یک DoSِ رایگان از راهِ یک پارامترِ
+     * صرفاً نمایشی.
+     */
+    public function test_an_absurd_page_size_is_ignored(): void
+    {
+        $c = $this->customer();
+
+        for ($i = 0; $i < 105; $i++) {
+            $this->log($c, ['description' => 'رویداد '.$i]);
+        }
+
+        $html = (string) $this->actingAs($this->staff(), 'web')
+            ->get("/admin/customers/{$c->id}?per=100000")->assertOk()->getContent();
+
+        $this->assertSame(100, substr_count($html, '<td>رویداد '),
+            'اندازهٔ دلبخواهِ URL پذیرفته شد.');
+    }
+
+    /**
+     * بجِ کنارِ تب باید **کلِ** تاریخچه را بگوید، نه نتیجهٔ فیلتر.
+     *
+     * وگرنه مدیر فیلتر می‌زند و عددِ تب هم عوض می‌شود — «۱ رویداد» برای مشتری‌ای
+     * که ۳ تا دارد.
+     */
+    public function test_the_tab_badge_shows_the_unfiltered_total(): void
+    {
+        $c = $this->customer();
+        $this->log($c, ['action' => 'login']);
+        $this->log($c, ['action' => 'payment']);
+        $this->log($c, ['action' => 'payment']);
+
+        $html = (string) $this->actingAs($this->staff(), 'web')
+            ->get("/admin/customers/{$c->id}?act=login")->assertOk()->getContent();
+
+        // بجِ تب: ۳ (کل) — و سرصفحهٔ پنل: «۱ از ۳»
+        $this->assertMatchesRegularExpression('~data-tab="activity".*?<i class="ct-n">'.fa_num('3').'</i>~s', $html,
+            'بجِ تب با فیلتر عوض شد.');
+        $this->assertStringContainsString(fa_num('1').' از '.fa_num('3'), $html,
+            'سرصفحه «چند از چند» را نمی‌گوید.');
     }
 
     /** تاریخ باید شمسی باشد، نه میلادی */
