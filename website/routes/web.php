@@ -2150,6 +2150,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+        // داخلیِ تلفن ابری هر کارمند — بدونِ آن دکمهٔ تماسِ او غیرفعال است
+        Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
 
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
@@ -2191,6 +2193,17 @@ Route::prefix('admin')->group(function () {
             ->middleware('admin');
         Route::post('/bale/toggle', [\App\Http\Controllers\Admin\BaleAdminController::class, 'toggle'])
             ->middleware('admin');
+
+        /*
+        | تلفن ابری.
+        |
+        | ⚠️ `/calls` عمداً برای نقشِ نویسنده هم باز است (مثلِ بقیهٔ این گروه)
+        | چون پشتیبانی باید تماس‌ها را ببیند. ولی **برقراریِ تماس** پول خرج
+        | می‌کند و از خطِ شرکت می‌رود، پس `admin` می‌خواهد.
+        */
+        Route::get('/calls', [\App\Http\Controllers\Admin\PhoneCallController::class, 'index'])->name('admin.calls');
+        Route::post('/customers/{customer}/call', [\App\Http\Controllers\Admin\PhoneCallController::class, 'call'])
+            ->middleware('admin')->name('admin.customer.call');
 
         // مدیریت مشتریان — بخشِ شبیه‌WHMCS
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');

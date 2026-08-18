@@ -3,10 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\BankTransferReceipt;
+use App\Models\CreditEntry;
 use App\Models\Customer;
+use App\Models\Domain;
 use App\Models\Invoice;
+use App\Models\PhoneCall;
+use App\Models\Server;
+use App\Models\Service;
+use App\Services\Domain\Reseller\ResellerProgram;
+use App\Services\Notify\CustomerNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -27,14 +38,14 @@ class CustomerController extends Controller
         if (! Schema::hasTable('customers')) {
             return view('admin.customers', [
                 'customers' => collect()->paginate(30),
-                'q'         => '',
-                'status'    => 'all',
-                'counts'    => ['all' => 0, 'active' => 0, 'pending' => 0, 'suspended' => 0],
-                'notReady'  => true,
+                'q' => '',
+                'status' => 'all',
+                'counts' => ['all' => 0, 'active' => 0, 'pending' => 0, 'suspended' => 0],
+                'notReady' => true,
             ]);
         }
 
-        $q      = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', 'all');
 
         $query = Customer::query()
@@ -56,7 +67,7 @@ class CustomerController extends Controller
         // دو سرویس روی یک دامنه داشته باشد).
         if (Schema::hasTable('services')) {
             $query->addSelect([
-                'active_domains_count' => \App\Models\Service::selectRaw('COUNT(DISTINCT domain)')
+                'active_domains_count' => Service::selectRaw('COUNT(DISTINCT domain)')
                     ->whereColumn('services.customer_id', 'customers.id')
                     ->whereIn('status', ['active', 'awaiting_provision'])
                     ->whereNotNull('domain')
@@ -82,18 +93,17 @@ class CustomerController extends Controller
 
         return view('admin.customers', [
             'customers' => $query->paginate(30)->withQueryString(),
-            'q'         => $q,
-            'status'    => $status,
-            'counts'    => [
-                'all'       => Customer::count(),
-                'active'    => Customer::where('status', 'active')->count(),
-                'pending'   => Customer::where('status', 'pending')->count(),
+            'q' => $q,
+            'status' => $status,
+            'counts' => [
+                'all' => Customer::count(),
+                'active' => Customer::where('status', 'active')->count(),
+                'pending' => Customer::where('status', 'pending')->count(),
                 'suspended' => Customer::where('status', 'suspended')->count(),
             ],
-            'notReady'  => false,
+            'notReady' => false,
         ]);
     }
-
 
     /**
      * تاریخچهٔ فعالیتِ مشتری، فیلترشده و صفحه‌بندی‌شده.
@@ -109,10 +119,10 @@ class CustomerController extends Controller
     private function activityQuery(Request $request, Customer $customer)
     {
         if (! Schema::hasTable('activity_logs')) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
+            return new LengthAwarePaginator([], 0, 25);
         }
 
-        $q = \App\Models\ActivityLog::where('customer_id', $customer->id);
+        $q = ActivityLog::where('customer_id', $customer->id);
 
         if (($a = trim((string) $request->query('act', ''))) !== '') {
             $q->where('action', $a);
@@ -136,7 +146,7 @@ class CustomerController extends Controller
             }
 
             try {
-                $q->whereDate('created_at', $op, \Illuminate\Support\Carbon::parse($raw)->toDateString());
+                $q->whereDate('created_at', $op, Carbon::parse($raw)->toDateString());
             } catch (\Throwable) {
                 // تاریخِ نامعتبر = بی‌فیلتر، نه خطا
             }
@@ -168,10 +178,10 @@ class CustomerController extends Controller
             'bankAccounts',
             'profiles',
             'ipRules',
-            'invoices'      => fn ($q) => $q->orderByDesc('id')->limit(50),
-            'payments'      => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'invoices' => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'payments' => fn ($q) => $q->orderByDesc('id')->limit(50),
             'creditEntries' => fn ($q) => $q->orderByDesc('id')->limit(50),
-            'tickets'       => fn ($q) => $q->orderByDesc('last_reply_at')->limit(50),
+            'tickets' => fn ($q) => $q->orderByDesc('last_reply_at')->limit(50),
         ];
 
         // نگهبان: جدول services تازه اضافه شده؛ روی سروری که هنوز مهاجرت
@@ -185,9 +195,9 @@ class CustomerController extends Controller
         $customer->load($load);
 
         return view('admin.customer', [
-            'c'             => $customer,
+            'c' => $customer,
             'creditBalance' => $customer->creditBalance(),
-            'services'      => $customer->relationLoaded('services') ? $customer->services : collect(),
+            'services' => $customer->relationLoaded('services') ? $customer->services : collect(),
             /*
             | دامنه‌های همین مشتری — کنارِ سرویس‌ها، چون از دیدِ پشتیبانی هر دو
             | «چیزی که این آدم خریده» هستند و تبِ جدا یعنی جایی که کسی بازش
@@ -199,7 +209,7 @@ class CustomerController extends Controller
             | رندر می‌شد — نه خطایی، نه هشداری.
             */
             'customerDomains' => Schema::hasTable('domains')
-                ? \App\Models\Domain::where('customer_id', $customer->id)
+                ? Domain::where('customer_id', $customer->id)
                     ->orderByDesc('id')->limit(50)->get()
                 : collect(),
             /*
@@ -213,7 +223,7 @@ class CustomerController extends Controller
             | فیلترها را گم می‌کند و کلِ تاریخچه را نشان می‌دهد — خرابیِ خاموشی
             | که مدیر آن را «فیلتر کار نمی‌کند» می‌بیند.
             */
-            'activity'      => $this->activityQuery($request, $customer),
+            'activity' => $this->activityQuery($request, $customer),
             /*
             | 🔴 شمارشِ **کل**، جدا از نتیجهٔ فیلترشده.
             |
@@ -222,24 +232,45 @@ class CustomerController extends Controller
             | یعنی «این مشتری ۳ رویداد دارد» در حالی که هزار تا دارد.
             */
             'activityTotal' => Schema::hasTable('activity_logs')
-                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->count()
+                ? ActivityLog::where('customer_id', $customer->id)->count()
                 : 0,
             'activityFacets' => Schema::hasTable('activity_logs')
                 ? [
-                    'actions' => \App\Models\ActivityLog::where('customer_id', $customer->id)
+                    'actions' => ActivityLog::where('customer_id', $customer->id)
                         ->distinct()->orderBy('action')->pluck('action')->filter()->values(),
-                    'actors' => \App\Models\ActivityLog::where('customer_id', $customer->id)
+                    'actors' => ActivityLog::where('customer_id', $customer->id)
                         ->distinct()->orderBy('actor')->pluck('actor')->filter()->values(),
                 ]
                 : ['actions' => collect(), 'actors' => collect()],
-            'servers'       => Schema::hasTable('servers')
-                ? \App\Models\Server::where('status', 'active')->orderBy('name')->get()
+            'servers' => Schema::hasTable('servers')
+                ? Server::where('status', 'active')->orderBy('name')->get()
                 : collect(),
             'invoiceTotals' => [
-                'count'  => $customer->invoices->count(),
+                'count' => $customer->invoices->count(),
                 'unpaid' => $customer->invoices->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
-                'paid'   => $customer->invoices->where('status', 'paid')->sum('total'),
+                'paid' => $customer->invoices->where('status', 'paid')->sum('total'),
             ],
+            /*
+            | تماس‌های تلفن ابری.
+            |
+            | ⚠️ نگهبانِ `hasTable` مثلِ بقیهٔ بلوک‌های این صفحه: جدول تازه است و
+            | روی سروری که هنوز مهاجرت نکرده، پروندهٔ مشتری نباید ۵۰۰ شود.
+            |
+            | ⚠️ سقفِ ۵۰ ردیف — یک مشتریِ پرتماس می‌تواند هزاران ردیف داشته باشد
+            | و این صفحه از قبل سنگین است.
+            */
+            'calls' => Schema::hasTable('phone_calls')
+                ? PhoneCall::where('customer_id', $customer->id)
+                    ->orderByDesc('started_at')->orderByDesc('id')->limit(50)->get()
+                : collect(),
+            /*
+            | 🔴 `answered = false` صریح، نه `!answered`.
+            | تماسِ در جریان (`null`) از‌دست‌رفته نیست و نباید بجِ قرمز بگیرد.
+            */
+            'callsMissed' => Schema::hasTable('phone_calls')
+                ? PhoneCall::where('customer_id', $customer->id)
+                    ->where('answered', false)->count()
+                : 0,
         ]);
     }
 
@@ -283,19 +314,19 @@ class CustomerController extends Controller
     public function reseller(Request $request, Customer $customer): RedirectResponse
     {
         $data = $request->validate([
-            'is_reseller'   => ['nullable', 'boolean'],
-            'level'         => ['nullable', 'string', 'max:24'],
-            'bonus_pct'     => ['nullable', 'integer', 'min:0', 'max:50'],
+            'is_reseller' => ['nullable', 'boolean'],
+            'level' => ['nullable', 'string', 'max:24'],
+            'bonus_pct' => ['nullable', 'integer', 'min:0', 'max:50'],
             'daily_cap_irt' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $program = app(\App\Services\Domain\Reseller\ResellerProgram::class);
+        $program = app(ResellerProgram::class);
         $on = (bool) ($data['is_reseller'] ?? false);
 
         $customer->forceFill([
-            'is_reseller'            => $on,
-            'reseller_joined_at'     => $on ? ($customer->reseller_joined_at ?? now()) : null,
-            'reseller_bonus_pct'     => (int) ($data['bonus_pct'] ?? 0),
+            'is_reseller' => $on,
+            'reseller_joined_at' => $on ? ($customer->reseller_joined_at ?? now()) : null,
+            'reseller_bonus_pct' => (int) ($data['bonus_pct'] ?? 0),
             'reseller_daily_cap_irt' => (int) ($data['daily_cap_irt'] ?? 0),
         ])->save();
 
@@ -313,8 +344,8 @@ class CustomerController extends Controller
         */
         if (filled($data['level'] ?? null)) {
             $customer->forceFill([
-                'reseller_level'              => $program->levelByKey($data['level'])['key'],
-                'reseller_level_reviewed_at'  => now(),
+                'reseller_level' => $program->levelByKey($data['level'])['key'],
+                'reseller_level_reviewed_at' => now(),
                 'reseller_level_locked_until' => null,
             ])->save();
         } else {
@@ -345,7 +376,7 @@ class CustomerController extends Controller
         $customer->save();
 
         try {
-            app(\App\Services\Notify\CustomerNotifier::class)->event(
+            app(CustomerNotifier::class)->event(
                 $customer,
                 'password_changed',
                 [],
@@ -355,7 +386,7 @@ class CustomerController extends Controller
             // اعلان نباید تغییر رمز را بشکند
         }
 
-        \App\Models\ActivityLog::record($customer->id, 'password',
+        ActivityLog::record($customer->id, 'password',
             'رمز عبور توسط پشتیبانی تغییر کرد', $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
@@ -377,7 +408,7 @@ class CustomerController extends Controller
 
         $hasPaid = $customer->invoices()->where('status', 'paid')->exists();
         // اعتبار در هر ارزی (نه فقط تومان) — برای اطمینان از نبودِ سابقهٔ مالی
-        $anyCredit = (int) \App\Models\CreditEntry::where('customer_id', $customer->id)->sum('amount');
+        $anyCredit = (int) CreditEntry::where('customer_id', $customer->id)->sum('amount');
 
         if ($hasPaid || $anyCredit !== 0) {
             return back()->withErrors(
@@ -391,13 +422,13 @@ class CustomerController extends Controller
         DB::transaction(function () use ($customer) {
             // جدول‌های بدونِ FK آبشاری — دستی پاک می‌شوند (services / bank_transfer_receipts / activity_logs)
             if (Schema::hasTable('services')) {
-                \App\Models\Service::where('customer_id', $customer->id)->delete();
+                Service::where('customer_id', $customer->id)->delete();
             }
             if (Schema::hasTable('bank_transfer_receipts')) {
-                \App\Models\BankTransferReceipt::where('customer_id', $customer->id)->delete();
+                BankTransferReceipt::where('customer_id', $customer->id)->delete();
             }
             if (Schema::hasTable('activity_logs')) {
-                \App\Models\ActivityLog::where('customer_id', $customer->id)->delete();
+                ActivityLog::where('customer_id', $customer->id)->delete();
             }
 
             // بقیه (فاکتور، آیتم، پرداخت، پروفایل، هویت، تیکت، اعتبار، …) با FK آبشاری پاک می‌شوند
@@ -427,7 +458,7 @@ class CustomerController extends Controller
 
         // سرویسِ منتظرِ همین فاکتور را هم لغو کن (سرویسِ فعال دست‌نخورده می‌ماند)
         if ($invoice->service_id && Schema::hasTable('services')) {
-            $service = \App\Models\Service::find($invoice->service_id);
+            $service = Service::find($invoice->service_id);
             if ($service && in_array($service->status, ['pending', 'awaiting_provision'], true)) {
                 $service->status = 'cancelled';
                 $service->save();
@@ -443,7 +474,7 @@ class CustomerController extends Controller
         | نبندیمش، آن نام تا ابد در سامانه قفل می‌مانَد.
         */
         if ($invoice->domain_id && Schema::hasTable('domains')) {
-            \App\Models\Domain::where('id', $invoice->domain_id)
+            Domain::where('id', $invoice->domain_id)
                 ->where('status', 'pending')
                 ->where('provision_status', 'none')
                 ->update(['status' => 'cancelled', 'updated_at' => now()]);

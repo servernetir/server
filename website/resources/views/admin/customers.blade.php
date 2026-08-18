@@ -39,6 +39,15 @@
 </div>
 
 
+@php
+  /* دکمهٔ تماس یک بار برای کلِ جدول ارزیابی می‌شود، نه به ازای هر ردیف —
+     `OutgoingCallService::enabled()` فقط config می‌خواند ولی ساختنِ سرویس در
+     حلقهٔ ۵۰ ردیفی بی‌دلیل است. */
+  $canCall = auth()->user()->isAdmin()
+      && auth()->user()->canPlaceCalls()
+      && app(\App\Services\CloudPhone\OutgoingCallService::class)->enabled();
+@endphp
+
 @if($notReady)
   <div class="ad-panel"><p style="padding:20px;color:#fbbf24">جدول مشتریان روی این سرور هنوز ساخته نشده. پس از اجرای مهاجرت، مشتریان این‌جا نمایش داده می‌شوند.</p></div>
 @else
@@ -95,6 +104,16 @@
                 <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
                       data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
                   @csrf<button class="cust-a" type="submit" title="ورود به پنل کاربری"><svg class="icon"><use href="#i-key"/></svg></button>
+                </form>
+              @endif
+              {{-- تماسِ یک‌کلیکی.
+                   ⚠️ فقط وقتی هر سه شرط برقرار است دکمه ظاهر می‌شود: مدیر
+                   باشیم، مشتری شماره داشته باشد، و داخلیِ خودمان ثبت شده باشد.
+                   دکمه‌ای که کلیکش خطا بدهد، بدتر از نبودنِ دکمه است. --}}
+              @if($canCall && $c->phone)
+                <form method="post" action="/admin/customers/{{ $c->id }}/call" style="display:inline"
+                      data-confirm="تماس با {{ $c->phone }} برقرار شود؟ ابتدا داخلیِ شما زنگ می‌خورد.">
+                  @csrf<button class="cust-a" type="submit" title="تماس با {{ $c->phone }}"><svg class="icon"><use href="#i-phone"/></svg></button>
                 </form>
               @endif
               <a class="cust-a" href="/admin/broadcasts?customer={{ $c->id }}" title="ارسال اعلان"><svg class="icon"><use href="#i-message"/></svg></a>

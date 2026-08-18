@@ -43,6 +43,15 @@
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
+      {{-- ⚠️ شمارش فقط تماس‌های از‌دست‌رفتهٔ **۲۴ ساعت اخیر** است، نه کل تاریخ.
+           نشانِ دائمیِ سه‌رقمی که هیچ‌وقت صفر نمی‌شود، از روز دوم نادیده گرفته
+           می‌شود — همان درسِ «اعلانِ تکراری بدتر از نبودِ هشدار» که در
+           SystemHealth ثبت شده.
+           و `answered = false` صریح: تماسِ در جریان از‌دست‌رفته نیست. --}}
+      @php $missedCalls = \Illuminate\Support\Facades\Schema::hasTable('phone_calls')
+              ? \App\Models\PhoneCall::where('answered', false)
+                  ->where('started_at', '>=', now()->subDay())->count() : 0; @endphp
+      <a href="/admin/calls" class="@yield('nav_calls')"><svg class="icon"><use href="#i-phone"/></svg>تماس‌ها@if($missedCalls)<span class="ad-pill">{{ fa_num($missedCalls) }}</span>@endif</a>
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
       <a href="/admin/seo" class="@yield('nav_seo')"><svg class="icon"><use href="#i-gauge"/></svg>بررسی سایت</a>
 

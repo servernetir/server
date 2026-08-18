@@ -83,6 +83,10 @@
     <svg class="icon"><use href="#i-lifebuoy"/></svg>پشتیبانی
     @if($openTickets)<i class="ct-n warn">{{ fa_num($openTickets) }}</i>@endif
   </button>
+  <button type="button" class="ct-tab" data-tab="calls" role="tab">
+    <svg class="icon"><use href="#i-phone"/></svg>تماس‌ها
+    @if($callsMissed)<i class="ct-n warn">{{ fa_num($callsMissed) }}</i>@endif
+  </button>
   <button type="button" class="ct-tab" data-tab="account" role="tab">
     <svg class="icon"><use href="#i-user"/></svg>هویت و حساب
   </button>
@@ -92,6 +96,100 @@
          می‌شد و «۳ رویداد» نشان می‌داد برای مشتری‌ای که هزار تا دارد. --}}
     @if($activityTotal)<i class="ct-n">{{ fa_num($activityTotal) }}</i>@endif
   </button>
+</div>
+
+{{-- ══════════════════════ تماس‌ها ══════════════════════ --}}
+<div class="ct-pane" data-pane="calls">
+  <div class="ad-panel">
+    <div class="ad-panel-h" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <h2>تماس‌های این مشتری</h2>
+
+      @php $callTo = $c->phone ?: optional($c->profiles->firstWhere('is_default', true))->mobile ?: optional($c->profiles->first())->mobile; @endphp
+
+      {{--
+        🔴 دکمهٔ تماس سه شرطِ **جدا** دارد و هر کدام پیامِ خودش را می‌دهد.
+
+        یک دکمهٔ خاکستریِ بی‌توضیح، مدیر را می‌فرستد سراغِ تیم فنی. سه دلیلِ
+        متفاوت («شمارهٔ مشتری نداریم» / «داخلیِ خودت ثبت نشده» / «رله وصل
+        نیست») سه کارِ متفاوت لازم دارند.
+      --}}
+      @php
+        $callRelay   = app(\App\Services\CloudPhone\OutgoingCallService::class);
+        $callCanUser = auth()->user()->isAdmin();
+        $callExt     = auth()->user()->phoneExtension();
+      @endphp
+
+      @if(! $callCanUser)
+        <span style="font-size:12px;color:var(--dim)">برقراری تماس فقط برای مدیر</span>
+      @elseif(! $callTo)
+        <span style="font-size:12px;color:var(--dim)">شماره‌ای برای این مشتری ثبت نشده</span>
+      @elseif(! $callExt)
+        <a class="btn btn-glass" href="/admin/users" title="داخلی‌تان را در کاربران پنل ثبت کنید">
+          <svg class="icon"><use href="#i-phone"/></svg>داخلیِ شما ثبت نشده
+        </a>
+      @elseif(! $callRelay->enabled())
+        <span style="font-size:12px;color:#fbbf24">رلهٔ تلفن ابری پیکربندی نشده</span>
+      @else
+        <form method="post" action="/admin/customers/{{ $c->id }}/call"
+              data-confirm="تماس با {{ $callTo }} برقرار شود؟ ابتدا داخلیِ {{ $callExt }} زنگ می‌خورد.">
+          @csrf
+          <button class="btn btn-primary" type="submit">
+            <svg class="icon"><use href="#i-phone"/></svg>تماس با {{ $callTo }}
+          </button>
+        </form>
+      @endif
+    </div>
+
+    @if($calls->isEmpty())
+      <p style="padding:20px;color:var(--muted)">تماسی از این مشتری ثبت نشده.</p>
+    @else
+      <table class="ad-table">
+        <thead><tr><th>زمان</th><th>جهت</th><th>شماره</th><th>نتیجه</th><th>مدت</th><th>مسیر</th></tr></thead>
+        <tbody>
+          @foreach($calls as $call)
+            <tr>
+              <td dir="ltr" style="color:var(--muted);white-space:nowrap">
+                {{ $call->started_at ? sdate($call->started_at) : '—' }}
+                <div style="font-size:12px;color:var(--dim)">{{ $call->started_at?->format('H:i') }}</div>
+              </td>
+              <td>
+                @if($call->direction === 'incoming')
+                  <span class="ad-badge" style="background:rgba(34,211,238,.15);color:#22d3ee">ورودی</span>
+                @else
+                  <span class="ad-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">خروجی</span>
+                @endif
+              </td>
+              <td dir="ltr" style="color:var(--muted)">{{ $call->caller_number ?: '—' }}</td>
+              <td>
+                @if($call->answered === true)
+                  <span class="ad-badge" style="background:rgba(52,211,153,.15);color:#34d399">پاسخ داده شد</span>
+                @elseif($call->answered === false)
+                  <span class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b">بی‌پاسخ</span>
+                @else
+                  <span class="ad-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">در جریان</span>
+                @endif
+                @if(! $call->isConfidentMatch())
+                  <div style="font-size:11px;color:#fbbf24" title="شماره بدون پیش‌شمارهٔ شهر آمده">تطبیق نامطمئن</div>
+                @endif
+              </td>
+              <td dir="ltr" style="color:var(--muted)">
+                @if($call->duration_seconds !== null)
+                  {{ fa_num(gmdate($call->duration_seconds >= 3600 ? 'H:i:s' : 'i:s', $call->duration_seconds)) }}
+                @else<span style="color:var(--dim)">—</span>@endif
+              </td>
+              <td style="font-size:12px;color:var(--dim)">
+                @if($call->was_transferred)منتقل شد@endif
+                @if($call->menu_name) · {{ $call->menu_name }}@endif
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+      <p style="padding:12px 20px;color:var(--dim);font-size:12px">
+        ۵۰ تماس اخیر. همه‌شان در <a href="/admin/calls?q={{ urlencode((string) ($c->phone ?: '')) }}" style="color:var(--muted)">گزارش تماس‌ها</a>.
+      </p>
+    @endif
+  </div>
 </div>
 
 {{-- هر تب می‌تواند چند تکهٔ جدا در صفحه داشته باشد؛ JS همهٔ تکه‌های هم‌نام را
