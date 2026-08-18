@@ -136,6 +136,46 @@ class ActivityLog extends Model
     }
 
     /** آیکن مناسب هر action برای نمایش */
+    /**
+     * نامِ فارسیِ رویداد — برای جدول و فیلترِ تاریخچه.
+     *
+     * ⚠️ اسلاگِ ناشناخته **خودش** برگردانده می‌شود، نه «نامشخص». یک رویدادِ
+     * تازه که این‌جا ثبت نشده باشد باید در پنل دیده شود تا کسی بفهمد جا مانده؛
+     * «نامشخص» همهٔ رویدادهای تازه را یک‌شکل می‌کند و اشکال را پنهان می‌سازد.
+     */
+    public static function label(?string $action): string
+    {
+        return match ($action) {
+            'login'        => 'ورود',
+            'logout'       => 'خروج',
+            'password'     => 'تغییر رمز',
+            'payment'      => 'پرداخت',
+            'service'      => 'سرویس',
+            'purchase'     => 'خرید',
+            'renew'        => 'تمدید',
+            'suspend'      => 'تعلیق',
+            'reactivate'   => 'فعال‌سازی دوباره',
+            'terminate'    => 'خاتمه',
+            'provision'    => 'تحویل',
+            'impersonate'  => 'ورود پشتیبانی به پنل',
+            'bank_receipt' => 'ثبت رسید بانکی',
+            'bank_approved' => 'تأیید رسید بانکی',
+            'profile'      => 'ویرایش پروفایل',
+            'ticket'       => 'تیکت',
+            default        => (string) ($action ?: '—'),
+        };
+    }
+
+    public static function actorLabel(?string $actor): string
+    {
+        return match ($actor) {
+            'customer' => 'مشتری',
+            'staff'    => 'پشتیبانی',
+            'system'   => 'سامانه',
+            default    => (string) ($actor ?: '—'),
+        };
+    }
+
     public function icon(): string
     {
         return match ($this->action) {

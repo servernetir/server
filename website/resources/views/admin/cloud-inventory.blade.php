@@ -134,8 +134,82 @@
     </div>
   @endif
 
-  <div style="padding:0 18px 18px;color:var(--muted);font-size:12px">
-    {{ fa_num(count($report['attached'])) }} سرور به سرویس وصل و سالم است.
-  </div>
+  {{-- ── ماشینِ زندهٔ سرویسِ بسته‌شده ──
+
+    🔴 برعکسِ شبح، و پرهزینه‌ترین حالتِ این صفحه: سرور هنوز نزدِ زیرساخت است و
+    اجاره‌اش می‌رود، ولی سرویسش لغو/خاتمه یافته و هیچ‌کس پولی نمی‌دهد.
+
+    تا امروز در سطلِ «وصل و سالم» می‌افتاد. شبح‌ها هم نمی‌گرفتندش، چون آن‌جا
+    سرویسِ مرده **عمداً** کنار گذاشته می‌شود (نبودنِ سرورِ سرویسِ بسته‌شده طبیعی
+    است). یعنی این حالت در هیچ سطلی نبود و صفحه با خیالِ راحت سبز می‌ماند. --}}
+  @php
+    $deadStill = array_values(array_filter($report['attached'], fn ($a) => $a['service_dead'] ?? false));
+    $healthy   = array_values(array_filter($report['attached'], fn ($a) => ! ($a['service_dead'] ?? false)));
+  @endphp
+
+  @if($deadStill)
+    <div style="padding:0 18px 6px">
+      <h3 style="font-size:13.5px;color:var(--danger,#f87171);margin:14px 0 10px">
+        سرورِ سرویسِ بسته‌شده ({{ fa_num(count($deadStill)) }})
+      </h3>
+      <p style="color:var(--muted);font-size:12.5px;line-height:1.9;margin:0 0 10px">
+        سرویس لغو یا خاتمه یافته ولی ماشین هنوز نزدِ زیرساخت است — یعنی اجاره‌اش
+        از حسابِ ما می‌رود و هیچ مشتری‌ای پشتش نیست. کرونِ
+        <code dir="ltr">cloud:release-retry</code> ساعتی تلاش می‌کند؛ اگر ماند،
+        نزدِ زیرساخت دستی پاکش کنید.
+      </p>
+    </div>
+    <div style="padding:0 18px 18px;overflow-x:auto">
+      <table class="ad-table" data-no-enhance>
+        <thead><tr><th>سرویس</th><th>مشتری</th><th>نامِ ماشین</th><th>آی‌پی</th><th>وضعیتِ ماشین</th><th>زیرساخت</th></tr></thead>
+        <tbody>
+          @foreach($deadStill as $d)
+            <tr>
+              <td><b>{{ $d['service_name'] ?: '—' }}</b>
+                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($d['service_id']) }} · {{ $d['service_status'] }}</div></td>
+              <td dir="ltr" style="font-size:12px">{{ $d['customer_code'] ?: '—' }}</td>
+              <td dir="ltr" style="font-size:12px">{{ $d['name'] ?: '—' }}</td>
+              <td dir="ltr" style="font-size:12px">{{ $d['ipv4'] ?: '—' }}</td>
+              <td style="font-size:12px">{{ $d['status'] ?: '—' }}</td>
+              <td style="font-size:12px">{{ $d['provider_label'] }}</td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  @endif
+
+  {{-- ⚠️ فهرست، نه فقط شمارنده. «۳ سرور سالم است» ادعایی است که مدیر هیچ راهی
+       برای راستی‌آزمایی‌اش ندارد — و دقیقاً وقتی لازم می‌شود که یک ردیف مشکوک
+       است و باید بشود دید کدام. --}}
+  @if($healthy)
+    <details class="ad-fold" style="margin:0 18px 18px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:12.5px">
+        {{ fa_num(count($healthy)) }} سرور به سرویسِ زنده وصل و سالم است — نمایش فهرست
+      </summary>
+      <div style="overflow-x:auto;margin-top:10px">
+        <table class="ad-table" data-no-enhance>
+          <thead><tr><th>سرویس</th><th>مشتری</th><th>نامِ ماشین</th><th>آی‌پی</th><th>وضعیت</th><th>زیرساخت</th></tr></thead>
+          <tbody>
+            @foreach($healthy as $h)
+              <tr>
+                <td><b>{{ $h['service_name'] ?: '—' }}</b>
+                  <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($h['service_id']) }}</div></td>
+                <td dir="ltr" style="font-size:12px">{{ $h['customer_code'] ?: '—' }}</td>
+                <td dir="ltr" style="font-size:12px">{{ $h['name'] ?: '—' }}</td>
+                <td dir="ltr" style="font-size:12px">{{ $h['ipv4'] ?: '—' }}</td>
+                <td style="font-size:12px">{{ $h['status'] ?: '—' }}</td>
+                <td style="font-size:12px">{{ $h['provider_label'] }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    </details>
+  @else
+    <div style="padding:0 18px 18px;color:var(--muted);font-size:12px">
+      هیچ سرورِ وصل‌شده‌ای پیدا نشد.
+    </div>
+  @endif
 </div>
 @endsection
