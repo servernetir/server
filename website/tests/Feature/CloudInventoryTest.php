@@ -269,6 +269,45 @@ class CloudInventoryTest extends TestCase
 
         $this->assertEmpty($this->report()['ghosts']);
     }
+    /**
+     * 🔴 نیمهٔ گم‌شدهٔ دو تستِ بالا.
+     *
+     * «سرویسِ بسته‌شده شبح نیست» درست است — ولی فقط وقتی سرورش **واقعاً رفته
+     * باشد**. اگر ماشین هنوز نزدِ زیرساخت باشد، همان شرط آن را از تنها سطلِ
+     * هشدار بیرون می‌انداخت و در «وصل و سالم» می‌نشاند: اجاره می‌رود، هیچ
+     * مشتری‌ای پشتش نیست، و صفحه سبز است.
+     *
+     * برعکسِ شبح است و از آن گران‌تر — چون شبح فقط دکمهٔ خراب می‌سازد، این
+     * هر ماه پول می‌بَرد.
+     */
+    public function test_a_live_machine_behind_a_dead_service_is_not_called_healthy(): void
+    {
+        $dead = $this->makeInstance('hetzner', '881');
+        $dead->service->update(['status' => 'cancelled']);
+
+        $live = $this->makeInstance('hetzner', '882');
+        $live->service->update(['status' => 'active']);
+
+        $this->withDrivers(['hetzner' => $this->driver('hetzner', [
+            $this->srv(['ref' => '881']),
+            $this->srv(['ref' => '882']),
+        ])]);
+
+        $report = $this->report();
+
+        $this->assertEmpty($report['ghosts'], 'هیچ‌کدام شبح نیستند — هر دو ماشین هستند.');
+
+        $flagged = array_values(array_filter($report['attached'], fn ($a) => $a['service_dead'] ?? false));
+
+        $this->assertCount(1, $flagged, 'ماشینِ زندهٔ سرویسِ بسته‌شده علامت نخورد.');
+        $this->assertSame($dead->service_id, $flagged[0]['service_id']);
+
+        $healthy = array_values(array_filter($report['attached'], fn ($a) => ! ($a['service_dead'] ?? false)));
+
+        $this->assertCount(1, $healthy, 'سرویسِ زنده اشتباهاً مرده علامت خورد.');
+        $this->assertSame($live->service_id, $healthy[0]['service_id']);
+    }
+
     // ═══════════════════ صفحه‌ها ═══════════════════
 
     private function admin(): User
