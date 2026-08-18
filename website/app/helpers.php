@@ -446,6 +446,137 @@ if (! function_exists('img_url')) {
     }
 }
 
+if (! function_exists('blog_related_product')) {
+    /**
+     * محصولِ فروختنیِ متناظر با یک دستهٔ بلاگ — پلِ بلاگ→محصول (ممیزی ۳).
+     *
+     * ═══ چرا این تابع وجود دارد ═══
+     *
+     * سه ممیزیِ پیاپی یک عدد را تکرار کردند: ۱۰۷ پست، **صفر** لینک به محصول.
+     * ویجتِ «مطالب مرتبط» پویا شد ولی هر لینکش از بلاگ شروع می‌شد و در بلاگ
+     * تمام می‌شد — «جزیره جاده‌کشی شد؛ پل هنوز ندارد». این تابع پل است: قالبِ
+     * تک‌پست با آن، بالای مطالب مرتبط یک بلاکِ «سرویس مرتبط» می‌سازد. چون در
+     * **قالب** است نه در متنِ پست‌ها، هر ۱۰۷ پستِ موجود و هر پستِ آینده
+     * خودبه‌خود می‌گیرندش — هیچ ویرایشِ دستی‌ای در کار نیست.
+     *
+     * ⚠️ عنوان/توضیح از configِ **خودِ محصول** خوانده می‌شود (نه کپی در
+     * config/blog.php) تا با تغییرِ نامِ محصول، انکرِ لینک خودش به‌روز شود —
+     * انکرِ توصیفی همان چیزی است که ممیزی صریح خواست.
+     *
+     * ⚠️ نگاشتِ ناقص یا محصولِ حذف‌شده ⇒ `null` و بلاک اصلاً رندر نمی‌شود.
+     * لینکِ مرده بدتر از نبودِ لینک است (قاعدهٔ ثبت‌شدهٔ همین پروژه).
+     *
+     * @return array{href:string,title:string,desc:string}|null
+     */
+    function blog_related_product(?string $blogCategory): ?array
+    {
+        if ($blogCategory === null || $blogCategory === '') {
+            return null;
+        }
+
+        $map = (array) config('blog.category_products.'.$blogCategory);
+
+        if ($map === []) {
+            return null;
+        }
+
+        $kind = (string) ($map['kind'] ?? '');
+        $slug = (string) ($map['slug'] ?? '');
+
+        if ($kind === 'hosting') {
+            $p = config('hosting.products.'.$slug);
+
+            return is_array($p) ? [
+                'href'  => lroute('hosting', $slug),
+                'title' => (string) (lc($p)['t'] ?? $slug),
+                'desc'  => (string) (lc($p)['hero_d'] ?? ''),
+            ] : null;
+        }
+
+        if ($kind === 'catalog') {
+            $cat = (string) ($map['category'] ?? '');
+            $p = config("catalog.$cat.$slug");
+
+            return is_array($p) ? [
+                'href'  => lroute('catalog', ['category' => $cat, 'slug' => $slug]),
+                'title' => (string) (lc($p)['t'] ?? $slug),
+                'desc'  => (string) (lc($p)['hero_d'] ?? ''),
+            ] : null;
+        }
+
+        if ($kind === 'solution') {
+            $s = config('solutions.'.$slug);
+
+            if (! is_array($s)) {
+                return null;
+            }
+
+            $L = (array) lc($s);
+
+            /*
+            | راهکارها کلیدِ `t` ندارند؛ نامِ کوتاهشان بخشِ اولِ `meta_t` است
+            | («خدمات سئو — رشد ارگانیک…» ⇒ «خدمات سئو»). اگر الگو نبود، کلِ
+            | meta_t می‌آید — طولانی ولی درست، هرگز اسلاگِ خام.
+            */
+            $title = trim((string) ($L['t'] ?? ''));
+
+            if ($title === '') {
+                $meta = (string) ($L['meta_t'] ?? '');
+                $title = trim(explode('—', $meta)[0]) ?: $slug;
+            }
+
+            return [
+                'href'  => lroute('solution', $slug),
+                'title' => $title,
+                'desc'  => (string) ($L['lead'] ?? ($L['meta_d'] ?? '')),
+            ];
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('blog_guides')) {
+    /**
+     * ۳ پستِ تازهٔ یک دستهٔ بلاگ برای بلاکِ «راهنماها»ی صفحاتِ محصول —
+     * پلِ محصول→بلاگ (ممیزی ۳). جهتِ معکوس بدونِ هیچ ویرایشِ دستی بسته می‌شود.
+     *
+     * ⚠️ اگر دسته پستِ کافی نداشت، تازه‌ترین‌های کلِ بلاگ پُر می‌کنند — همان
+     * قاعدهٔ `BlogRepository::related()`: بلاکِ خالی از بلاکِ نه‌چندان‌مرتبط
+     * بدتر است. و اگر بلاگ کلاً خالی بود (نصبِ تازه)، آرایهٔ خالی برمی‌گردد و
+     * قالب بخش را اصلاً رندر نمی‌کند.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    function blog_guides(?string $blogCategory, int $n = 3): array
+    {
+        try {
+            $repo = app(\App\Services\BlogRepository::class);
+
+            $out = $blogCategory ? array_slice($repo->byCategory($blogCategory), 0, $n) : [];
+
+            if (count($out) < $n) {
+                $have = array_column($out, 'slug');
+
+                foreach ($repo->index() as $p) {
+                    if (count($out) >= $n) {
+                        break;
+                    }
+
+                    if (! in_array($p['slug'] ?? '', $have, true)) {
+                        $out[] = $p;
+                    }
+                }
+            }
+
+            return $out;
+        } catch (\Throwable) {
+            // صفحهٔ محصول حق ندارد به‌خاطرِ بلاگ (جدولِ مهاجرت‌نخورده) ۵۰۰ شود
+            return [];
+        }
+    }
+}
+
 if (! function_exists('whmcs_url')) {
     /** آدرس WHMCS متناسب با زبان جاری (fa → my.servernet.ir / en → my.servernet.cloud) */
     function whmcs_url(string $path = ''): string
@@ -471,9 +602,12 @@ if (! function_exists('cloud_buy_url')) {
      * بیرونی می‌رفتند — همان سیستمی که داریم جایش را می‌گیریم. یعنی مشتری از
      * سایتِ ما بیرون پرت می‌شد به سیستمی که سرورِ مجازیِ تازه در آن وجود ندارد.
      *
-     * حالا به سرورسازِ پنل می‌رود. اگر کاتالوگِ ابری خالی باشد (مهاجرت نزده،
-     * همگام‌سازی نشده، یا نرخِ ارز نبوده) به WHMCS برمی‌گردیم — چون دکمهٔ مرده
-     * از دکمهٔ قدیمی بدتر است.
+     * حالا به سرورسازِ پنل می‌رود. پشتیبانِ «کاتالوگِ خالی» هم **دیگر WHMCS
+     * نیست**: خزندهٔ ممیزیِ سوم نشان داد `my.servernet.cloud` اصلاً resolve
+     * نمی‌شود و `cart.php` روی `my.servernet.ir` به هر درخواست ۵۰۰ می‌دهد —
+     * یعنی همان پشتیبانی که قرار بود «دکمهٔ مرده» را نجات دهد، خودش مرده بود.
+     * فروشگاهِ کنسول حتی با کاتالوگِ خالی یک صفحهٔ زنده با حالتِ خالیِ صریح
+     * است؛ از دامنهٔ بی‌DNS بهتر.
      */
     function cloud_buy_url(?string $locationCode = null, ?string $planSlug = null): string
     {
@@ -488,7 +622,7 @@ if (! function_exists('cloud_buy_url')) {
             // پایین به پشتیبان می‌رویم
         }
 
-        return whmcs_url('cart.php');
+        return lroute('account.cloud.store');
     }
 }
 

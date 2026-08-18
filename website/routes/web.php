@@ -60,6 +60,8 @@ $site = function (): void {
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
+    // AUP — منع بازفروش سرویس عبور روی زیرساخت ایران (ممیزی ۳، مدیر حقوقی/امنیت)
+    Route::get('/aup', fn () => app(SiteController::class)->page('aup'))->name('aup');
 
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.

@@ -116,4 +116,50 @@ return [
              'tr' => ['t' => 'Değişiklikler', 'b' => 'Bu şartları güncelleyebiliriz. Önemli değişiklikler e-posta ile bildirilir.']],
         ],
     ],
+
+    /*
+    |----------------------------------------------------------------------
+    | AUP — سیاست استفادهٔ پذیرفته (ممیزی ۳، بند ۷ پیشنهادی مدیر حقوقی)
+    |----------------------------------------------------------------------
+    | 🔴 چرا فوری بود: رژیم ردیابی هویتِ خریدارانِ سرور، اتصال بین‌الملل را
+    | مشروط به انطباق کرده و صریحاً سرورهای مجریِ VPN را هدف گرفته است. بدون
+    | سند عمومیِ ضدبازفروشِ VPN، در یک بررسی نظارتی بار اثبات روی شرکت است و
+    | دستش خالی — به‌خصوص با کانال ۱۰۶هزارنفریِ هم‌نامِ توزیع‌کنندهٔ کانفیگ.
+    |
+    | ⚠️ پیش‌نویس کاری است؛ باید پیش از استناد قراردادی توسط وکیل نهایی شود
+    | (خودِ صفحه هم همین را صریح می‌گوید). برای تبدیل به بند قرارداد، همین متن
+    | باید به legal_documents پنل مشتری هم اضافه شود.
+    */
+    'aup' => [
+        'icon' => 'shield',
+        'fa' => ['tag' => 'سیاست استفادهٔ پذیرفته', 'h1a' => 'قواعد استفاده از', 'h1b' => 'زیرساخت سرورنت.',
+            'lead' => 'این سند مشخص می‌کند چه استفاده‌هایی روی زیرساخت سرورنت مجاز نیست — از جمله ممنوعیت صریح ارائه و بازفروش سرویس عبور (VPN/پروکسی) روی زیرساخت داخل ایران. نسخهٔ پیش‌نویس، مرداد ۱۴۰۵؛ متن نهایی پس از تأیید مشاور حقوقی جایگزین می‌شود.'],
+        'en' => ['tag' => 'Acceptable Use Policy', 'h1a' => 'Rules for using', 'h1b' => 'ServerNet infrastructure.',
+            'lead' => 'This document defines what is not permitted on ServerNet infrastructure — including an explicit ban on providing or reselling transit services (VPN/proxy) on infrastructure located in Iran. Working draft, August 2026; the final text will replace this after legal review.'],
+        'tr' => ['tag' => 'Kabul Edilebilir Kullanım Politikası', 'h1a' => 'ServerNet altyapısını', 'h1b' => 'kullanma kuralları.',
+            'lead' => 'Bu belge ServerNet altyapısında nelere izin verilmediğini tanımlar — İran\'daki altyapı üzerinde geçiş hizmeti (VPN/proxy) sunma ve yeniden satmanın açık yasağı dahil. Çalışma taslağı, Ağustos 2026; hukuki incelemeden sonra nihai metin yayınlanacaktır.'],
+        'sections' => [
+            ['fa' => ['t' => 'تعاریف', 'b' => '«زیرساخت داخل ایران» یعنی هر سرور اختصاصی، سرور مجازی، منبع ابری یا نشانی آی‌پی که سرورنت در دیتاسنترهای مستقر در ایران در اختیار مشتری قرار می‌دهد. «سرویس عبور» یعنی هر سامانهٔ VPN، پروکسی، تانل یا شبکهٔ خصوصی مجازی که برای دسترسی اشخاص ثالث به شبکهٔ بین‌الملل به کار رود.'],
+             'en' => ['t' => 'Definitions', 'b' => '"Infrastructure in Iran" means any dedicated server, virtual server, cloud resource or IP address that ServerNet provides to the customer in data centres located in Iran. "Transit service" means any VPN, proxy, tunnel or virtual private network used to give third parties access to the international network.'],
+             'tr' => ['t' => 'Tanımlar', 'b' => '"İran\'daki altyapı", ServerNet\'in İran\'daki veri merkezlerinde müşteriye sağladığı her türlü fiziksel sunucu, sanal sunucu, bulut kaynağı veya IP adresi anlamına gelir. "Geçiş hizmeti", üçüncü kişilere uluslararası ağa erişim sağlamak için kullanılan her türlü VPN, proxy veya tünel anlamına gelir.']],
+            ['fa' => ['t' => 'ممنوعیت ارائه و بازفروش سرویس عبور', 'b' => 'مشتری مجاز نیست روی زیرساخت داخل ایران، سرویس عبور را به اشخاص ثالث ارائه، اجاره، بازفروش، اشتراک‌گذاری یا توزیع کند؛ اعم از فروش اشتراک، توزیع کانفیگ، عرضهٔ پنل کاربری یا واگذاری دسترسی — چه با دریافت وجه و چه رایگان.'],
+             'en' => ['t' => 'Ban on providing or reselling transit services', 'b' => 'The customer may not provide, rent, resell, share or distribute transit services to third parties on infrastructure in Iran — whether by selling subscriptions, distributing configs, offering a user panel or handing over access, for payment or free of charge.'],
+             'tr' => ['t' => 'Geçiş hizmeti sunma ve yeniden satma yasağı', 'b' => 'Müşteri, İran\'daki altyapı üzerinde üçüncü kişilere geçiş hizmeti sunamaz, kiralayamaz, yeniden satamaz, paylaşamaz veya dağıtamaz — abonelik satışı, config dağıtımı, kullanıcı paneli sunumu veya erişim devri dahil, ücretli ya da ücretsiz.']],
+            ['fa' => ['t' => 'استثنای اتصال سازمانی', 'b' => 'استفاده از VPN صرفاً برای اتصال امن کارکنان، شعب یا سامانه‌های خودِ مشتری به منابع خودش مجاز است، مشروط به اعلام کتبی پیشین و ثبت در پروندهٔ مشتری.'],
+             'en' => ['t' => 'Corporate connectivity exception', 'b' => 'Using a VPN solely to securely connect the customer\'s own staff, branches or systems to the customer\'s own resources is permitted, subject to prior written notice recorded in the customer file.'],
+             'tr' => ['t' => 'Kurumsal bağlantı istisnası', 'b' => 'VPN\'in yalnızca müşterinin kendi personelini, şubelerini veya sistemlerini kendi kaynaklarına güvenle bağlamak için kullanılması, önceden yazılı bildirim ve müşteri dosyasına kayıt şartıyla serbesttir.']],
+            ['fa' => ['t' => 'تعهد اطلاعاتی و سوابق', 'b' => 'مشتری متعهد است اطلاعات هویتی خود را صحیح و به‌روز نگه دارد. سرورنت مجاز است سوابق هویت، نوع سرویس و تخصیص آی‌پی را مطابق الزامات مراجع ذی‌صلاح نگهداری و در صورت درخواست قانونی ارائه کند. این سوابق فقط بسته می‌شوند و هرگز حذف نمی‌شوند.'],
+             'en' => ['t' => 'Information obligations & records', 'b' => 'The customer must keep their identity information accurate and up to date. ServerNet may retain records of identity, service type and IP allocation as required by the competent authorities, and provide them upon lawful request. Such records are closed, never deleted.'],
+             'tr' => ['t' => 'Bilgi yükümlülüğü ve kayıtlar', 'b' => 'Müşteri kimlik bilgilerini doğru ve güncel tutmakla yükümlüdür. ServerNet; kimlik, hizmet türü ve IP tahsis kayıtlarını yetkili makamların gerektirdiği şekilde saklayabilir ve yasal talep üzerine sunabilir.']],
+            ['fa' => ['t' => 'ضمانت اجرا', 'b' => 'در صورت تخلف، سرورنت مجاز است سرویس را بدون اطلاع قبلی تعلیق کند. تکرار تخلف موجب فسخ بدون بازگشت وجه است و مشتری مسئول جبران خسارات وارده به سرورنت — از جمله محدودیت اتصال بین‌الملل مجموعه — خواهد بود.'],
+             'en' => ['t' => 'Enforcement', 'b' => 'In case of violation, ServerNet may suspend the service without prior notice. Repeated violation leads to termination without refund, and the customer is liable for damages caused to ServerNet — including any restriction of the company\'s international connectivity.'],
+             'tr' => ['t' => 'Yaptırım', 'b' => 'İhlal durumunda ServerNet hizmeti önceden bildirimde bulunmadan askıya alabilir. Tekrarlanan ihlal, iade olmaksızın fesihle sonuçlanır ve müşteri ServerNet\'e verilen zararlardan sorumludur.']],
+            ['fa' => ['t' => 'گزارش تخلف', 'b' => 'اگر از استفادهٔ متخلفانه از زیرساخت سرورنت مطلع شدید (توزیع کانفیگ، فروش اشتراک عبور، اسپم یا بدافزار)، با support@servernet.cloud گزارش دهید. گزارش‌ها محرمانه بررسی می‌شوند.'],
+             'en' => ['t' => 'Reporting violations', 'b' => 'If you become aware of abusive use of ServerNet infrastructure (config distribution, selling transit subscriptions, spam or malware), report it to support@servernet.cloud. Reports are handled confidentially.'],
+             'tr' => ['t' => 'İhlal bildirimi', 'b' => 'ServerNet altyapısının kötüye kullanımını fark ederseniz (config dağıtımı, geçiş aboneliği satışı, spam veya zararlı yazılım) support@servernet.cloud adresine bildirin. Bildirimler gizli tutulur.']],
+            ['fa' => ['t' => 'وضعیت این سند', 'b' => 'این متن پیش‌نویس کاری است و پیش از استناد قراردادی توسط مشاور حقوقی بازبینی و نهایی می‌شود. نسخهٔ نهایی به‌عنوان پیوست قرارداد سرویس در پنل مشتری نیز ارائه خواهد شد.'],
+             'en' => ['t' => 'Status of this document', 'b' => 'This text is a working draft and will be reviewed and finalised by legal counsel before contractual reliance. The final version will also be provided as a service-contract annex in the customer panel.'],
+             'tr' => ['t' => 'Bu belgenin durumu', 'b' => 'Bu metin bir çalışma taslağıdır ve sözleşmesel dayanak olmadan önce hukuk danışmanı tarafından incelenip kesinleştirilecektir.']],
+        ],
+    ],
 ];

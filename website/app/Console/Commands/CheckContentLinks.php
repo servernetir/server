@@ -85,8 +85,13 @@ class CheckContentLinks extends Command
         return self::FAILURE;
     }
 
-    /** مسیرهای ثابتِ ثبت‌شده در روتر — برای تشخیصِ سریع بی‌درخواستِ HTTP. */
-    private function knownPaths(): array
+    /**
+     * مسیرهای ثابتِ ثبت‌شده در روتر — برای تشخیصِ سریع بی‌درخواستِ HTTP.
+     *
+     * ⚠️ static public است چون `links:site` (خزندهٔ هفتگیِ کلِ سایت — ممیزی ۳)
+     * دقیقاً همین منطق را لازم دارد و نسخهٔ دوم یعنی روزی یکی‌شان کهنه شود.
+     */
+    public static function knownPaths(): array
     {
         $paths = [];
 
@@ -104,7 +109,7 @@ class CheckContentLinks extends Command
      * آن‌ها واقعاً درخواست زده می‌شود. بی‌این، هر لینکِ پست‌به‌پست «شکسته»
      * گزارش می‌شد — همان مثبتِ کاذبی که این فرمان قرار است نسازد.
      */
-    private function resolves(string $path, array $known): bool
+    public static function resolves(string $path, array $known): bool
     {
         if (isset($known[rtrim($path, '/') ?: '/'])) {
             return true;
@@ -120,7 +125,7 @@ class CheckContentLinks extends Command
         }
     }
 
-    private function internalPath(string $href): ?string
+    public static function internalPath(string $href): ?string
     {
         $href = trim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 

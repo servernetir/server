@@ -60,7 +60,7 @@ return [
     'sol_lead'   => 'Every business has its own bottleneck — some need infrastructure, some automation, some visibility. These are the solutions we implement for organizations, factories and growing teams.',
     'sol_cross_t' => 'Looking for a specific service?',
     'f_contact' => 'Contact us',
-    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service',
+    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service', 'f_aup' => 'Acceptable Use Policy',
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
 
     'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Toolbox',
@@ -346,6 +346,10 @@ return [
     'bl_pending' => 'Your comment was submitted and will appear after approval. Thanks!',
     'bl_busy' => 'Too many comments; please try again shortly.',
     'bl_err' => 'Please enter a valid name and comment.',
+    'bl_product_badge' => 'Related service',
+    'bl_product_cta' => 'View plans & pricing',
+    'hp_guides_title' => 'Related guides & articles',
+    'hp_guides_all' => 'All blog articles',
 
     /* Careers */
     'cr_title' => 'Careers', 'cr_meta_d' => 'Join the ServerNet team — open roles in servers, networking, development, support, sales and content.',

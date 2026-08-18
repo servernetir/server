@@ -29,6 +29,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // هدرهای امنیتی روی همه‌ی پاسخ‌ها
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        /*
+         * کشِ کاملِ صفحه برای مهمان — عمداً داخلِ گروهِ web (بعد از
+         * StartSession)، چون در لحظهٔ HIT توکنِ CSRF نشستِ جاری را در HTML
+         * می‌نشاند؛ global می‌بود، توکنِ نفرِ قبلی پخش می‌شد و اولین POSTِ
+         * هر بازدیدکنندهٔ تازه ۴۱۹ می‌گرفت. (ممیزی ۳ — سه دور «X-Cache: none»)
+         */
+        $middleware->web(append: \App\Http\Middleware\PageCache::class);
+
         // ثبت ۴۰۴ها بر اساس وضعیت پاسخ — چون ۴۰۴ استثنایی است که report()
         // نمی‌گیردش. ۵۰۰ها از مسیر withExceptions پایین ثبت می‌شوند.
         $middleware->append(\App\Http\Middleware\TrackNotFound::class);

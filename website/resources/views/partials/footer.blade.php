@@ -47,6 +47,7 @@
           <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>
           <a href="{{ lroute('sla') }}">{{ __('ui.sla_title') }}</a>
           <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
+          <a href="{{ lroute('aup') }}">{{ __('ui.f_aup') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           {{-- ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی --}}
           <a href="{{ console_lroute('account.home') }}">{{ __('ui.f_c5') }}</a>

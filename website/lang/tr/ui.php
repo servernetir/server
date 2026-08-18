@@ -60,7 +60,7 @@ return [
     'sol_lead'   => 'Her işletmenin kendi darboğazı vardır — biri altyapı, biri otomasyon, biri görünürlük ister. Bunlar kuruluşlar, fabrikalar ve büyüyen ekipler için hayata geçirdiğimiz çözümlerdir.',
     'sol_cross_t' => 'Belirli bir hizmet mi arıyorsunuz?',
     'f_contact' => 'Bize ulaşın',
-    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları',
+    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları', 'f_aup' => 'Kabul Edilebilir Kullanım',
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
 
     'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Araç Kutusu',
@@ -346,6 +346,10 @@ return [
     'bl_pending' => 'Yorumunuz gönderildi ve onaydan sonra görünecek. Teşekkürler!',
     'bl_busy' => 'Çok fazla yorum; lütfen birazdan tekrar deneyin.',
     'bl_err' => 'Lütfen geçerli bir ad ve yorum girin.',
+    'bl_product_badge' => 'İlgili hizmet',
+    'bl_product_cta' => 'Planları ve fiyatları gör',
+    'hp_guides_title' => 'İlgili rehberler ve yazılar',
+    'hp_guides_all' => 'Tüm blog yazıları',
 
     /* Kariyer */
     'cr_title' => 'Kariyer', 'cr_meta_d' => 'ServerNet ekibine katılın — sunucu, ağ, geliştirme, destek, satış ve içerik alanlarında açık pozisyonlar.',

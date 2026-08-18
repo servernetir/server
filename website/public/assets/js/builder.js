@@ -474,6 +474,10 @@
     }
 
     // fallback: سبد خرید WHMCS با هاست (+ دامنه)
+    // ⚠️ data-cart خالی یعنی WHMCS در دسترس نیست (ممیزی ۳: cart.php مرده).
+    //    ذخیره و اعلانِ فروش بالاتر انجام شده و پیامِ ref نمایش داده شده؛
+    //    بازکردنِ پنجره به مقصدِ مرده فقط اعتماد را می‌سوزاند.
+    if (!root.dataset.cart) { return; }
     let url = root.dataset.cart + '?a=add&pid=' + encodeURIComponent(pid);
     if (domain && domain.includes('.')) {
       url += '&domain=register&query=' + encodeURIComponent(domain);

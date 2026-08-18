@@ -175,6 +175,7 @@ class SiteController extends Controller
             '/status'        => 'Service status',
             '/sla'           => 'Service level agreement',
             '/terms'         => 'Terms of service',
+            '/aup'           => 'Acceptable use policy (no VPN/proxy resale on Iran infrastructure)',
             '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
@@ -221,7 +222,7 @@ class SiteController extends Controller
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
@@ -287,6 +288,13 @@ class SiteController extends Controller
                 $add('catalog', ['category' => $category, 'slug' => $slug]);
             }
         }
+
+        /*
+        | `/llms.txt` — سه ممیزیِ پیاپی غیبتش در نقشهٔ سایت را علامت زدند.
+        | تک‌زبانه است (متنش انگلیسی و برای مدلِ زبانی)، پس مستقیم و بدونِ
+        | پیشوندِ زبان اضافه می‌شود، نه از مسیرِ `$add()`.
+        */
+        $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
