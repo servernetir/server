@@ -315,6 +315,22 @@ if (typeof this === 'undefined' || !this.helpers || typeof this.helpers.httpRequ
   }
 }
 
+/*
+| 🔴 هدرِ Authorization: اسکیم را **دو بار** نگذار.
+|
+| Swagger می‌گوید «Bearer [space] token»، ولی مقداری که پنل تحویل می‌دهد خودش
+| با نامِ اسکیم شروع می‌شود (`Custom 3Wkf…`). چسباندنِ `Bearer ` به آن،
+| `Authorization: Bearer Custom 3Wkf…` می‌سازد — دو اسکیم پشت سر هم، که سرور
+| با ۵۰۰ جواب می‌دهد نه ۴۰۱.
+|
+| پس: اگر مقدار از قبل اسکیم دارد، دست‌نخورده می‌رود؛ وگرنه `Bearer ` جلویش
+| گذاشته می‌شود. هر دو حالت پشتیبانی می‌شود تا اگر روزی قالبِ توکن عوض شد،
+| چیزی نشکند.
+*/
+const authHeader = /^[A-Za-z][A-Za-z0-9_-]*\s+\S/.test(phoneToken)
+  ? phoneToken
+  : 'Bearer ' + phoneToken;
+
 let res;
 try {
   const options = {
@@ -324,7 +340,7 @@ try {
     returnFullResponse: true,
     ignoreHttpStatusErrors: true,
     headers: {
-      Authorization: 'Bearer ' + phoneToken,
+      Authorization: authHeader,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
@@ -350,7 +366,7 @@ try {
       headers: options.headers,
       body: JSON.stringify(options.body),
     });
-    res = { statusCode: r.status };
+    res = { statusCode: r.status, body: await r.text().catch(() => '') };
   }
 } catch (e) {
   return reply('failed', { reason: 'request_failed', detail: String((e && e.message) || e).slice(0, 200) });
@@ -369,4 +385,26 @@ if (status >= 200 && status < 300) {
   return reply('sent', { request_id: payload.request_id, http_status: status });
 }
 
-return reply('failed', { reason: 'api_status_' + status, request_id: payload.request_id });
+/*
+| ⚠️ بدنهٔ پاسخ هم برمی‌گردد.
+|
+| «api_status_500» به‌تنهایی هیچ نمی‌گوید و ما را فرستاد سراغِ حدس‌زدن.
+| ASP.NET معمولاً پیامِ خطا را در بدنه می‌گذارد؛ همان یک جمله جای یک ساعت
+| عیب‌یابی را می‌گیرد.
+|
+| 🔴 بریده می‌شود تا اگر روزی صفحهٔ خطای کاملِ HTML برگشت، لاگِ لاراول را
+| نترکاند.
+*/
+let detail = '';
+try {
+  detail = typeof res.body === 'string' ? res.body : JSON.stringify(res.body);
+} catch (e) {
+  detail = '(unreadable body)';
+}
+
+return reply('failed', {
+  reason: 'api_status_' + status,
+  detail: String(detail || '').slice(0, 300),
+  auth_scheme: authHeader.split(' ')[0],
+  request_id: payload.request_id,
+});

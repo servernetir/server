@@ -127,7 +127,43 @@ const payload = (over = {}) => Object.assign({
     eq(calls[0].body.to_number, '09121112222', 'مقصد، با صفرِ ابتدایی');
     eq(calls[0].body.from_number, '09142223343', 'پایی که اول زنگ می‌خورد، از پاکت');
     eq(calls[0].body.caller_extension, '71057757', 'خطِ ابری، از پاکت');
-    ok(calls[0].headers.Authorization === 'Bearer ' + TOKEN, 'توکن از Relay Config به هدر می‌رود');
+    ok(calls[0].headers.Authorization === 'Bearer ' + TOKEN, 'توکنِ بی‌اسکیم، Bearer می‌گیرد');
+  }
+
+  // ── ۱.۵ اسکیمِ Authorization ─────────────────────────────────────────
+  console.log('\n  ── هدرِ Authorization ──');
+  {
+    /*
+    | 🔴 خرابیِ واقعی: مقداری که پنلِ دفتر شما می‌دهد خودش با «Custom » شروع
+    | می‌شود. چسباندنِ «Bearer » به آن، `Bearer Custom …` می‌سازد و سرور ۵۰۰
+    | می‌دهد — نه ۴۰۱، پس اصلاً شبیهِ مشکلِ احراز هویت به‌نظر نمی‌رسد.
+    */
+    const env = phpEnvelope(payload(), SECRET);
+
+    const withScheme = await runNodeWithThis(baseConfig(env, { phoneToken: 'Custom abc123XYZ' }));
+    eq(withScheme.calls[0].headers.Authorization, 'Custom abc123XYZ', 'توکنی که خودش اسکیم دارد دست‌نخورده می‌رود');
+
+    const bearerish = await runNodeWithThis(baseConfig(env, { phoneToken: 'Bearer already' }));
+    eq(bearerish.calls[0].headers.Authorization, 'Bearer already', 'Bearer دوباره اضافه نمی‌شود');
+
+    const plain = await runNodeWithThis(baseConfig(env, { phoneToken: 'plaintoken123' }));
+    eq(plain.calls[0].headers.Authorization, 'Bearer plaintoken123', 'توکنِ ساده Bearer می‌گیرد');
+  }
+
+  // ── ۱.۶ بدنهٔ خطا برمی‌گردد ──────────────────────────────────────────
+  console.log('\n  ── جزئیاتِ خطا ──');
+  {
+    const env = phpEnvelope(payload(), SECRET);
+
+    const r = await runNodeWithThis(
+      baseConfig(env),
+      () => ({ statusCode: 500, body: '{"error":"caller_extension not found"}' }),
+    );
+
+    eq(r.result[0].json.reason, 'api_status_500', 'کدِ خطا');
+    ok(String(r.result[0].json.detail).includes('caller_extension'),
+       'بدنهٔ پاسخ هم برمی‌گردد — «api_status_500» به‌تنهایی هیچ نمی‌گوید');
+    eq(r.result[0].json.auth_scheme, 'Bearer', 'اسکیمِ استفاده‌شده هم گزارش می‌شود');
   }
 
   // ── ۲. امضا ──────────────────────────────────────────────────────────

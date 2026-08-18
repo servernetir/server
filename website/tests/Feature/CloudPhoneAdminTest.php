@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\PhoneCall;
 use App\Models\User;
 use App\Services\CloudPhone\OutgoingCallService;
+use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -133,6 +134,31 @@ class CloudPhoneAdminTest extends TestCase
         $result = app(OutgoingCallService::class)->place('09121112222');
 
         $this->assertSame(OutgoingCallService::FAILED, $result['status']);
+    }
+
+    public function test_the_suppliers_error_detail_reaches_the_error_tracker(): void
+    {
+        /*
+        | ⚠️ «api_status_500» به‌تنهایی هیچ نمی‌گوید. گره بدنهٔ پاسخِ
+        | تأمین‌کننده را هم برمی‌گرداند و باید تا ردیابِ خطا برسد — وگرنه
+        | عیب‌یابی می‌شود حدس‌زدن.
+        */
+        Http::fake([self::RELAY => Http::response([
+            'status' => 'failed',
+            'reason' => 'api_status_500',
+            'detail' => '{"error":"caller_extension not found"}',
+        ], 200)]);
+
+        ErrorTracker::clear();
+
+        $result = app(OutgoingCallService::class)->place('09121112222');
+
+        $this->assertSame(OutgoingCallService::FAILED, $result['status']);
+
+        $logged = json_encode(ErrorTracker::recent(20), JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringContainsString('api_status_500', $logged);
+        $this->assertStringContainsString('caller_extension not found', $logged);
     }
 
     public function test_an_unknown_200_body_is_also_a_failure(): void

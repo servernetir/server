@@ -207,9 +207,19 @@ final class OutgoingCallService
             | مدیر منتظرِ زنگی می‌ماند که هرگز نمی‌آید. همان درسِ رلهٔ پیامک.
             */
             if (($res->json('status') ?? null) !== 'sent') {
+                /*
+                | ⚠️ `detail` هم ثبت می‌شود.
+                |
+                | «api_status_500» به‌تنهایی ما را یک ساعت دنبالِ حدس فرستاد.
+                | گره حالا بدنهٔ پاسخِ تأمین‌کننده را هم برمی‌گرداند و همان یک
+                | جمله معمولاً مستقیم می‌گوید چه چیزی را نپسندیده.
+                */
+                $detail = (string) ($res->json('detail') ?? '');
+
                 return $this->fail(
                     $requestId,
-                    'رله تماس را برقرار نکرد: '.(string) ($res->json('reason') ?? 'پاسخ ناشناخته'),
+                    'رله تماس را برقرار نکرد: '.(string) ($res->json('reason') ?? 'پاسخ ناشناخته')
+                    .($detail !== '' ? ' — '.mb_substr($detail, 0, 300) : ''),
                 );
             }
         } catch (\Throwable $e) {
