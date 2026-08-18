@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Domain\DomainSearch;
 use App\Services\Domain\TldPriceBook;
 use Illuminate\View\View;
 
@@ -323,10 +324,17 @@ class SiteController extends Controller
      * می‌زند، و این تابع در رندرِ صفحهٔ اول است — جایی که نه انتظارِ شبکه
      * قابل‌قبول است نه تماسِ ناخواسته.
      *
-     * 🔴 `.ir` از OpenProvider نمی‌آید و نباید بیاید (در `UNSOLD_TLDS` است،
-     * چون از IRNIC ثبت می‌شود). قیمتش از `config('servernet.tlds')` می‌آید که
-     * دستی نگه‌داری می‌شود. بی‌این شاخه، مهم‌ترین پسوندِ بازارِ ایران بی‌صدا از
-     * صفحهٔ اول حذف می‌شد.
+     * 🔴 پسوندی که **نمی‌فروشیم** اصلاً تبلیغ نمی‌شود.
+     *
+     * صافی `DomainSearch::sells()` است، نه فهرستی جدا. `.ir` امروز در
+     * `UNSOLD_TLDS` است (به‌خواستِ کارفرما فعلاً فروخته نمی‌شود) و همان یک جا
+     * تصمیم می‌گیرد: هم جلوی ساختِ پیش‌فاکتور را می‌گیرد، هم چیپِ صفحهٔ اول
+     * را برمی‌دارد.
+     *
+     * ⚠️ فهرستِ موازی نساختم و `featured_tlds` را هم دست نزدم. اگر روزی `.ir`
+     * فروخته شود، برداشتنش از `UNSOLD_TLDS` کافی است تا همه‌جا با هم برگردد —
+     * وگرنه روزی یکی از دو فهرست کهنه می‌شود و پسوندی تبلیغ می‌شود که سبدِ
+     * خرید قبولش نمی‌کند. همان نقصی که یک بار رخ داد.
      *
      * ⚠️ پسوندِ بی‌قیمت **اصلاً نشان داده نمی‌شود** — نه صفر، نه «—». همان
      * قاعدهٔ `site_price()`: صفر یعنی «نمی‌دانم»، نه «رایگان».
@@ -342,6 +350,10 @@ class SiteController extends Controller
         $out = [];
 
         foreach (config('servernet.featured_tlds', []) as $tld) {
+            if (! DomainSearch::sells($tld)) {
+                continue;
+            }
+
             $key = ltrim($tld, '.');
 
             if ((int) ($prices[$key] ?? 0) > 0) {
@@ -350,7 +362,7 @@ class SiteController extends Controller
                 continue;
             }
 
-            // پسوندی که رجیسترار قیمتش نمی‌دهد (`.ir`) — قیمتِ دستی
+            // دفترچه هنوز این پسوند را نگرفته — قیمتِ دستی، اگر واقعی باشد
             $row = $manual->get($tld);
 
             if ($row && (int) ($row['irt'] ?? 0) > 0) {
@@ -358,7 +370,16 @@ class SiteController extends Controller
             }
         }
 
-        // کشِ کاملاً سرد (اولین بازدید پس از دیپلوی، پیش از کرون) ⇒ فهرستِ دستی
-        return $out !== [] ? $out : config('servernet.tlds', []);
+        /*
+        | کشِ کاملاً سرد (اولین بازدید پس از دیپلوی، پیش از کرون) ⇒ فهرستِ دستی.
+        |
+        | ⚠️ این‌جا هم صافیِ «می‌فروشیم؟» اعمال می‌شود. بی‌آن، همان مسیرِ
+        | اضطراری پسوندِ نافروشی را از درِ پشتی برمی‌گرداند — و چون فقط روی
+        | کشِ سرد رخ می‌دهد، ماه‌ها دیده نمی‌شود.
+        */
+        return $out !== [] ? $out : array_values(array_filter(
+            config('servernet.tlds', []),
+            fn ($r) => DomainSearch::sells((string) ($r['tld'] ?? ''))
+        ));
     }
 }

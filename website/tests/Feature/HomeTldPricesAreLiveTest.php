@@ -149,21 +149,44 @@ class HomeTldPricesAreLiveTest extends TestCase
     }
 
     /**
-     * 🔴 `.ir` نباید از صفحهٔ اول حذف شود.
+     * 🔴 پسوندی که نمی‌فروشیم روی صفحهٔ اول تبلیغ نمی‌شود.
      *
-     * در `UNSOLD_TLDS` است (از IRNIC ثبت می‌شود، نه OpenProvider) پس دفترچه
-     * هرگز قیمتش نمی‌دهد. مهم‌ترین پسوندِ بازارِ ایران است؛ حذفِ بی‌صدایش
-     * بدترین نتیجهٔ ممکنِ این تغییر بود.
+     * `.ir` به‌خواستِ کارفرما فعلاً فروخته نمی‌شود و در `UNSOLD_TLDS` است.
+     * تبلیغِ پسوندی که سبدِ خرید قبولش نمی‌کند، بازدیدکننده را به بن‌بست
+     * می‌بَرد — و آن از نبودِ چیپ بدتر است.
+     *
+     * ⚠️ صافی `DomainSearch::sells()` است نه فهرستی جدا، پس اگر روزی `.ir`
+     * فروخته شود برداشتنش از `UNSOLD_TLDS` کافی است تا همه‌جا با هم برگردد.
      */
-    public function test_the_iranian_tld_survives_with_its_manual_price(): void
+    public function test_a_tld_we_do_not_sell_is_never_advertised(): void
     {
         $this->warmBook(['com' => 1_777_000]);
 
         $chips = $this->chips($this->get('/')->assertOk()->getContent());
 
-        $this->assertArrayHasKey('.ir', $chips, '.ir از صفحهٔ اول حذف شد');
-        $this->assertNotSame('—', $chips['.ir']);
-        $this->assertNotSame('', $chips['.ir']);
+        foreach (array_keys($chips) as $tld) {
+            $this->assertTrue(\App\Services\Domain\DomainSearch::sells($tld),
+                "«{$tld}» را نمی‌فروشیم ولی روی صفحهٔ اول تبلیغ شد");
+        }
+
+        $this->assertArrayNotHasKey('.ir', $chips);
+    }
+
+    /**
+     * ⚠️ همان قاعده روی مسیرِ اضطراریِ کشِ سرد.
+     *
+     * فهرستِ دستیِ `config('servernet.tlds')` هنوز `.ir` دارد. بی‌صافی، آن
+     * مسیر پسوندِ نافروشی را از درِ پشتی برمی‌گرداند — و چون فقط روی کشِ سرد
+     * رخ می‌دهد، ماه‌ها دیده نمی‌شود.
+     */
+    public function test_the_cold_cache_fallback_also_hides_unsold_tlds(): void
+    {
+        Cache::flush();
+
+        $chips = $this->chips($this->get('/')->assertOk()->getContent());
+
+        $this->assertNotEmpty($chips, 'با کشِ سرد هیچ چیپی نماند');
+        $this->assertArrayNotHasKey('.ir', $chips, '.ir از مسیرِ اضطراری برگشت');
     }
 
     /**
