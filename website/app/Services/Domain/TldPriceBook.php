@@ -60,34 +60,85 @@ class TldPriceBook
      */
     public function forTlds(array $tlds): array
     {
-        $tlds = array_values(array_unique(array_filter(array_map(
-            fn ($t) => strtolower(ltrim(trim((string) $t), '.')),
-            $tlds
-        ))));
-
-        // ⚠️ پیش از هر چیز: پسوندِ ایرانی حذف می‌شود. نه استعلام می‌شود، نه
-        //    کش، نه برگردانده — تا فراخوان شاخهٔ «استعلام» را نشان دهد.
-        $tlds = array_values(array_diff($tlds, self::NEVER_QUOTE));
+        /*
+        | ⚠️ نرمال‌سازی **مشترک** با `cachedForTlds()` است و باید بمانَد.
+        |
+        | اگر این دو مسیر فهرست را جور دیگری تمیز کنند، کلیدِ کششان فرق می‌کند
+        | و خواننده هرگز به چیزی که کرون گرم کرده نمی‌رسد — یعنی بی‌صدا به
+        | استعلامِ زنده می‌افتد. همان چیزی که همهٔ این کلاس برای جلوگیری از آن
+        | نوشته شده.
+        |
+        | ⚠️ پسوندِ ایرانی همان‌جا حذف می‌شود: نه استعلام، نه کش، نه بازگشت.
+        */
+        $tlds = $this->normalise($tlds);
 
         if ($tlds === []) {
             return [];
         }
 
-        /*
-        | 🔴 حاشیهٔ سود و نرخِ ارز در **کلیدِ کش**اند.
-        |
-        | بی‌این، مدیر حاشیه را در تنظیمات صفر می‌کند و صفحه تا شش ساعت همان
-        | قیمتِ قدیم را نشان می‌دهد — و او فکر می‌کند تنظیمات کار نمی‌کند.
-        | همان‌طور برای جهشِ نرخِ ارز: قیمتِ کهنه یعنی فروش زیرِ قیمتِ خرید.
-        */
-        $stamp = md5(implode('|', [
+        return Cache::remember($this->cacheKey($tlds), now()->addHours(self::TTL_HOURS),
+            fn () => $this->quote($tlds));
+    }
+
+    /**
+     * همان دفترچه، ولی **فقط از کش** — هرگز به رجیسترار تماس نمی‌گیرد.
+     *
+     * 🔴 برای مصرف‌کننده‌هایی که وسطِ رندرِ یک صفحهٔ عمومی‌اند.
+     *
+     * `forTlds()` روی کشِ سرد استعلامِ زنده می‌زند. آن رفتار برای کرون درست
+     * است ولی روی یک درخواستِ وب دو فاجعه دارد: صفحه پشتِ شبکهٔ رجیسترار
+     * می‌مانَد (همان TTFB که رویش کار کردیم)، و مهم‌تر — **بازدیدکننده** به
+     * تماسِ API تبدیل می‌شود. حسابِ ما یک بار به‌خاطرِ تماسِ زیاد از آی‌پیِ
+     * ایران علامت خورده؛ صفحهٔ اولی که خزنده هم می‌بیند نباید آن را تکرار کند.
+     *
+     * ⚠️ آرایهٔ خالی یعنی «هنوز نمی‌دانم»، نه «رایگان». فراخوان باید خودش
+     * تصمیم بگیرد چه نشان دهد — این‌جا عمداً هیچ حدسی زده نمی‌شود.
+     *
+     * @param  array<int,string>  $tlds  باید **دقیقاً** همان فهرستی باشد که کرون گرم می‌کند
+     * @return array<string,int>
+     */
+    public function cachedForTlds(array $tlds): array
+    {
+        $tlds = $this->normalise($tlds);
+
+        if ($tlds === []) {
+            return [];
+        }
+
+        return (array) Cache::get($this->cacheKey($tlds), []);
+    }
+
+    /**
+     * 🔴 حاشیهٔ سود و نرخِ ارز در **کلیدِ کش**اند.
+     *
+     * بی‌این، مدیر حاشیه را در تنظیمات صفر می‌کند و صفحه تا شش ساعت همان
+     * قیمتِ قدیم را نشان می‌دهد — و او فکر می‌کند تنظیمات کار نمی‌کند.
+     * همان‌طور برای جهشِ نرخِ ارز: قیمتِ کهنه یعنی فروش زیرِ قیمتِ خرید.
+     *
+     * ⚠️ کلید از **فهرستِ پسوندها** هم ساخته می‌شود، پس دو فراخوان با دو
+     * فهرستِ متفاوت هرگز به کشِ هم نمی‌رسند. `cachedForTlds()` بی‌فایده است
+     * مگر با همان فهرستی صدا زده شود که کرون گرم می‌کند.
+     *
+     * @param  array<int,string>  $tlds  نرمال‌شده
+     */
+    private function cacheKey(array $tlds): string
+    {
+        return 'tld.prices.'.md5(implode('|', [
             (string) Setting::get('domain_margin_pct'),
             (string) Setting::get('pricing_rate_override'),
             implode(',', $tlds),
         ]));
+    }
 
-        return Cache::remember('tld.prices.'.$stamp, now()->addHours(self::TTL_HOURS),
-            fn () => $this->quote($tlds));
+    /** پاک‌سازیِ مشترکِ فهرستِ پسوندها — نقطه‌ها، تکراری‌ها، و پسوندهای نافروشی. */
+    private function normalise(array $tlds): array
+    {
+        $tlds = array_values(array_unique(array_filter(array_map(
+            fn ($t) => strtolower(ltrim(trim((string) $t), '.')),
+            $tlds
+        ))));
+
+        return array_values(array_diff($tlds, self::NEVER_QUOTE));
     }
 
     /**

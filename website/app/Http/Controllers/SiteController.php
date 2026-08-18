@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Whmcs;
+use App\Services\Domain\TldPriceBook;
 use Illuminate\View\View;
 
 class SiteController extends Controller
@@ -303,29 +303,62 @@ class SiteController extends Controller
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }
 
-    /** قیمت زنده از WHMCS؛ اگر API تنظیم/در دسترس نبود، نمونه‌های config */
+    /**
+     * چیپ‌های قیمتِ زیرِ جعبهٔ جست‌وجوی صفحهٔ اول.
+     *
+     * 🔴 پیش از این از **WHMCS** می‌خواند. WHMCS سامانهٔ قدیمی است که داریم از
+     * آن مهاجرت می‌کنیم؛ فروشِ واقعی از OpenProvider می‌آید. نتیجه این بود که
+     * صفحهٔ اول قیمتی نشان می‌داد که دیگر قیمتِ فروشِ ما نبود — و چون WHMCS
+     * پاسخ می‌داد، هیچ‌جا خطایی هم دیده نمی‌شد.
+     *
+     * ⚠️ فهرست عمداً `DomainCheckController::SUGGEST` است، نه `featured_tlds`.
+     *
+     * کلیدِ کشِ `TldPriceBook` از **فهرستِ پسوندها** ساخته می‌شود و کرونِ
+     * `domains:price-book` همان `SUGGEST` را گرم می‌کند. با فهرستِ دیگر، کلید
+     * فرق می‌کرد، کش همیشه خالی می‌مانْد، و **هر بازدیدکننده به یک تماسِ
+     * زندهٔ OpenProvider تبدیل می‌شد**. حسابِ ما یک بار به‌خاطرِ تماسِ زیاد از
+     * آی‌پیِ ایران علامت خورده.
+     *
+     * ⚠️ و `cachedForTlds()` نه `forTlds()`: دومی روی کشِ سرد استعلامِ زنده
+     * می‌زند، و این تابع در رندرِ صفحهٔ اول است — جایی که نه انتظارِ شبکه
+     * قابل‌قبول است نه تماسِ ناخواسته.
+     *
+     * 🔴 `.ir` از OpenProvider نمی‌آید و نباید بیاید (در `UNSOLD_TLDS` است،
+     * چون از IRNIC ثبت می‌شود). قیمتش از `config('servernet.tlds')` می‌آید که
+     * دستی نگه‌داری می‌شود. بی‌این شاخه، مهم‌ترین پسوندِ بازارِ ایران بی‌صدا از
+     * صفحهٔ اول حذف می‌شد.
+     *
+     * ⚠️ پسوندِ بی‌قیمت **اصلاً نشان داده نمی‌شود** — نه صفر، نه «—». همان
+     * قاعدهٔ `site_price()`: صفر یعنی «نمی‌دانم»، نه «رایگان».
+     *
+     * ⚠️ `irt` برمی‌گردد نه `display`: `site_price()` خودش برای en/tr با نرخِ
+     * زنده به یورو تبدیل می‌کند. رشتهٔ آمادهٔ تومانی آن دو زبان را می‌شکست.
+     */
     private function tlds(): array
     {
-        $pricing = Whmcs::forLocale()->tldPricing();
-
-        if ($pricing === null) {
-            return config('servernet.tlds');
-        }
+        $prices = app(TldPriceBook::class)->cachedForTlds(DomainCheckController::SUGGEST);
+        $manual = collect(config('servernet.tlds', []))->keyBy('tld');
 
         $out = [];
-        foreach (config('servernet.featured_tlds') as $tld) {
-            if (isset($pricing['prices'][$tld])) {
-                $out[] = ['tld' => $tld, 'display' => whmcs_price($pricing['prices'][$tld], $pricing['currency'])];
+
+        foreach (config('servernet.featured_tlds', []) as $tld) {
+            $key = ltrim($tld, '.');
+
+            if ((int) ($prices[$key] ?? 0) > 0) {
+                $out[] = ['tld' => $tld, 'irt' => (int) $prices[$key]];
+
+                continue;
+            }
+
+            // پسوندی که رجیسترار قیمتش نمی‌دهد (`.ir`) — قیمتِ دستی
+            $row = $manual->get($tld);
+
+            if ($row && (int) ($row['irt'] ?? 0) > 0) {
+                $out[] = ['tld' => $tld, 'irt' => (int) $row['irt']];
             }
         }
 
-        // اگر هیچ‌کدام از منتخب‌ها در WHMCS نبود، ۱۰ پسوند اول
-        if ($out === []) {
-            foreach (array_slice($pricing['prices'], 0, 10, true) as $tld => $price) {
-                $out[] = ['tld' => $tld, 'display' => whmcs_price($price, $pricing['currency'])];
-            }
-        }
-
-        return $out;
+        // کشِ کاملاً سرد (اولین بازدید پس از دیپلوی، پیش از کرون) ⇒ فهرستِ دستی
+        return $out !== [] ? $out : config('servernet.tlds', []);
     }
 }
