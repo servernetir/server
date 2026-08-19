@@ -146,7 +146,7 @@ class MailboxSyncVisibleFailureTest extends TestCase
         });
 
         foreach (range(1, 3) as $ignored) {
-            $this->artisan('mailbox:sync')->assertExitCode(1);
+            $this->artisan('mailbox:sync')->assertExitCode(0);
         }
 
         $hits = collect(ErrorTracker::recent(500))
@@ -155,6 +155,62 @@ class MailboxSyncVisibleFailureTest extends TestCase
         $this->assertCount(1, $hits, 'سه اجرا باید یک ردِ throttleشده بگذارد، نه سه تا');
         $this->assertStringContainsString('LOGIN failed', $hits->first()['message'],
             'ردِ ثبت‌شده باید متنِ واقعیِ خطا را داشته باشد، نه «خطایی رخ داد»');
+    }
+
+    // ═══════════════ کدِ خروجی ═══════════════
+
+    /** یک صندوقِ خراب را شبیه‌سازی می‌کند، بی‌هیچ تماسِ IMAP. */
+    private function mockOneBadBox(): void
+    {
+        $this->configureBoxes();
+
+        $this->mock(MailboxSync::class, function ($m) {
+            $m->shouldReceive('run')->andReturn(['ceo' => ['new' => 0, 'seen' => 0, 'error' => 'LOGIN failed']]);
+        });
+    }
+
+    /**
+     * 🔴 خرابیِ واقعی: بخشِ «خطاهای سرور (۵۰۰)» با یک رمزِ باطل پر می‌شد.
+     *
+     * با کدِ خروجیِ ۱، زمان‌بند هر ساعت یک استثنا می‌ساخت:
+     * «Scheduled command [… mailbox:sync] failed with exit code [1]» — و آن
+     * استثنا کنارِ کرشِ واقعیِ سایت می‌نشست، با متنی که هیچ نمی‌گفت. پنجرهٔ
+     * ردیاب ۴۰۰ خط است، پس یک رمزِ باطلِ هفتگی ۵۰۰های واقعی را بیرون می‌انداخت.
+     *
+     * ⚠️ ادعای این تست «کدِ صفر» نیست، **«این خبر جای دیگری هست»** است — پس
+     * هر دو نیمه سنجیده می‌شوند.
+     */
+    public function test_a_bad_mailbox_is_not_reported_as_a_broken_cron(): void
+    {
+        $this->mockOneBadBox();
+
+        $this->artisan('mailbox:sync')->assertExitCode(0);
+
+        $noted = collect(ErrorTracker::recent(500))
+            ->contains(fn ($e) => str_contains((string) ($e['message'] ?? ''), 'صندوق خوانده نشد'));
+
+        $this->assertTrue($noted, 'ساکت‌شدنِ کدِ خروجی نباید خبر را هم ببرد');
+        $this->assertFalse($this->health('mailboxes')['ok'], 'و لایهٔ سلامت باید همچنان قرمز بمانَد');
+    }
+
+    /** اجرای دستی هنوز کدِ خروجیِ معنادار می‌خواهد. */
+    public function test_strict_still_fails_for_a_human_running_it_by_hand(): void
+    {
+        $this->mockOneBadBox();
+
+        $this->artisan('mailbox:sync --strict')->assertExitCode(1);
+    }
+
+    /** صندوقِ سالم در هر دو حالت سبز است. */
+    public function test_a_healthy_run_succeeds_even_in_strict_mode(): void
+    {
+        $this->configureBoxes();
+
+        $this->mock(MailboxSync::class, function ($m) {
+            $m->shouldReceive('run')->andReturn(['ceo' => ['new' => 2, 'seen' => 9]]);
+        });
+
+        $this->artisan('mailbox:sync --strict')->assertExitCode(0);
     }
 
     // ═══════════════ خودِ ذخیرهٔ وضعیت ═══════════════
