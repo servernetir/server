@@ -217,7 +217,27 @@ final class OutgoingCallService
             | اگر فقط به کدِ HTTP نگاه کنیم، رازِ ناهماهنگ «موفق» گزارش می‌شود و
             | مدیر منتظرِ زنگی می‌ماند که هرگز نمی‌آید. همان درسِ رلهٔ پیامک.
             */
-            $relayStatus = $res->json('status') ?? null;
+            /*
+            | 🔴 گرهٔ `Respond` با `respondWith: allIncomingItems` پاسخ را
+            | **در آرایه** می‌پیچد:
+            |
+            |     [{"status":"sent","request_id":"…","http_status":200}]
+            |
+            | و `$res->json('status')` روی آرایه `null` می‌دهد — یعنی ما تماسِ
+            | کاملاً موفق را «ناخوانا» می‌خواندیم. این را خودِ ورک‌فلو تعیین
+            | می‌کند، پس اگر روزی کسی گرهٔ Respond را عوض کند نباید بشکند.
+            |
+            | ⚠️ هر دو شکل پذیرفته می‌شود: آبجکتِ تنها، یا آرایه‌ای که عضوِ اولش
+            | همان آبجکت است. باز کردنِ آرایه ارزان است؛ وابسته‌ماندن به یک
+            | تنظیمِ رابطِ گرافیکی نیست.
+            */
+            $body = $res->json();
+
+            if (is_array($body) && array_is_list($body)) {
+                $body = $body[0] ?? null;
+            }
+
+            $relayStatus = is_array($body) ? ($body['status'] ?? null) : null;
 
             /*
             | پاسخی که اصلاً `status` ندارد یعنی چیزی جز ورک‌فلوی ما جواب داده:
@@ -251,11 +271,11 @@ final class OutgoingCallService
                 | گره حالا بدنهٔ پاسخِ تأمین‌کننده را هم برمی‌گرداند و همان یک
                 | جمله معمولاً مستقیم می‌گوید چه چیزی را نپسندیده.
                 */
-                $detail = (string) ($res->json('detail') ?? '');
+                $detail = (string) ($body['detail'] ?? '');
 
                 return $this->fail(
                     $requestId,
-                    'رله تماس را برقرار نکرد: '.(string) ($res->json('reason') ?? 'پاسخ ناشناخته')
+                    'رله تماس را برقرار نکرد: '.(string) ($body['reason'] ?? 'پاسخ ناشناخته')
                     .($detail !== '' ? ' — '.mb_substr($detail, 0, 300) : ''),
                 );
             }

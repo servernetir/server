@@ -185,6 +185,56 @@ class CloudPhoneAdminTest extends TestCase
         $this->assertStringContainsString('OK', json_encode(ErrorTracker::recent(20)));
     }
 
+    public function test_an_array_wrapped_relay_response_is_understood(): void
+    {
+        /*
+        | 🔴 خرابیِ واقعیِ ۱۹ آگوست، دورِ دوم.
+        |
+        | گرهٔ `Respond` با `respondWith: allIncomingItems` پاسخ را در آرایه
+        | می‌پیچد. تماس کاملاً موفق بود و n8n هم `sent` گفت، ولی
+        | `$res->json('status')` روی آرایه `null` می‌دهد — پس ما موفقیت را
+        | «ناخوانا» گزارش می‌کردیم.
+        */
+        Http::fake([self::RELAY => Http::response([
+            ['status' => 'sent', 'request_id' => 'x', 'http_status' => 200],
+        ], 200)]);
+
+        $this->assertSame(
+            OutgoingCallService::OK,
+            app(OutgoingCallService::class)->place('09121112222')['status'],
+        );
+    }
+
+    public function test_an_array_wrapped_failure_is_still_a_failure(): void
+    {
+        // باز کردنِ آرایه نباید شکست را به موفقیت تبدیل کند
+        Http::fake([self::RELAY => Http::response([
+            ['status' => 'failed', 'reason' => 'api_status_500', 'detail' => 'boom'],
+        ], 200)]);
+
+        ErrorTracker::clear();
+
+        $this->assertSame(
+            OutgoingCallService::FAILED,
+            app(OutgoingCallService::class)->place('09121112222')['status'],
+        );
+
+        // ⚠️ reason و detail هم باید از داخلِ آرایه خوانده شوند
+        $logged = json_encode(ErrorTracker::recent(20), JSON_UNESCAPED_UNICODE);
+        $this->assertStringContainsString('api_status_500', $logged);
+        $this->assertStringContainsString('boom', $logged);
+    }
+
+    public function test_an_empty_array_response_is_unknown_not_success(): void
+    {
+        Http::fake([self::RELAY => Http::response([], 200)]);
+
+        $this->assertSame(
+            OutgoingCallService::UNKNOWN,
+            app(OutgoingCallService::class)->place('09121112222')['status'],
+        );
+    }
+
     public function test_an_explicit_not_sent_is_still_a_failure(): void
     {
         // «رد شد» با «نمی‌دانم» فرق دارد — این یکی قطعاً شکست است
