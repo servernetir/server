@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#
+# دیپلوی اصلاحات ممیزی ۳ (کامیت d53c820) روی سرور — با احترام به کار دیگران.
+#
+# چرا این‌قدر محتاط: توسعه‌دهنده‌های دیگر هم‌زمان روی سرور کار می‌کنند، پس
+# هیچ فایلی کورکورانه replace نمی‌شود:
+#   · اگر فایل سرور == نسخهٔ پایه (8e3fa6d) → نسخهٔ جدید می‌نشیند (UP)
+#   · اگر فایل سرور == نسخهٔ جدید → کاری لازم نیست (OK)
+#   · اگر کس دیگری تغییرش داده → merge سه‌طرفه (MG)؛ تداخل واقعی → فایل
+#     دست‌نخورده می‌مانَد و فقط گزارش می‌شود (CF) — هرگز مارکر تداخل روی
+#     سایتِ زنده نمی‌نشیند.
+#   · قبل از هر تغییری از همهٔ فایل‌های هدف بکاپ کامل گرفته می‌شود.
+#
+# bootstrap/app.php عمداً آخر از همه اعمال می‌شود (میدل‌ور جدید را ثبت
+# می‌کند؛ اگر اول برود، تا رسیدن فایل میدل‌ور کل سایت ۵۰۰ می‌شود).
+#
+set -u
+
+MINE=d53c820        # نسخهٔ جدید (develop)
+BASE=8e3fa6d        # نسخهٔ پایه = آخرین دیپلوی شناخته‌شده
+APP="$HOME/servernet_app"
+PUB="$HOME/public_html"
+WORK="$HOME/deploy-audit3"
+STAMP=$(date +%Y%m%d-%H%M%S)
+BK="$WORK/backup-$STAMP"
+
+mkdir -p "$WORK" "$BK"
+cd "$WORK"
+
+command -v git >/dev/null || { echo "FATAL: git روی سرور نیست"; exit 1; }
+
+if [ -d repo/.git ]; then
+  git -C repo fetch --depth 200 origin develop || { echo "FATAL: fetch"; exit 1; }
+else
+  git clone --depth 200 --branch develop https://github.com/servernetir/server.git repo \
+    || { echo "FATAL: clone"; exit 1; }
+fi
+
+git -C repo rev-parse --verify "$MINE" >/dev/null || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
+git -C repo rev-parse --verify "$BASE" >/dev/null || { echo "FATAL: $BASE در مخزن نیست"; exit 1; }
+
+# ── فهرست فایل‌ها (نسبت به website/ در مخزن) ─────────────────────────────
+# bootstrap/app.php این‌جا نیست — جدا و در انتها اعمال می‌شود.
+APP_FILES="
+app/Console/Commands/CheckSiteLinks.php
+app/Http/Middleware/PageCache.php
+config/pagecache.php
+resources/views/partials/product-guides.blade.php
+app/Console/Commands/CheckContentLinks.php
+app/Http/Controllers/SiteController.php
+app/Services/AiContent.php
+app/helpers.php
+config/blog.php
+config/pages.php
+lang/en/ui.php
+lang/fa/ui.php
+lang/tr/ui.php
+resources/views/pages/blog-post.blade.php
+resources/views/pages/cloud-location.blade.php
+resources/views/pages/cloud.blade.php
+resources/views/pages/hosting.blade.php
+resources/views/pages/server-detail.blade.php
+resources/views/pages/solution.blade.php
+resources/views/partials/footer.blade.php
+resources/views/partials/sig-ai-builder.blade.php
+routes/console.php
+routes/web.php
+"
+
+CONFLICTS=""
+
+apply_one() {                       # $1 = مسیر نسبی، $2 = ریشهٔ مقصد
+  rel="$1"; destroot="$2"
+  dest="$destroot/$rel"
+  mine_f="$WORK/mine.tmp"; base_f="$WORK/base.tmp"
+
+  git -C repo show "$MINE:website/$rel" > "$mine_f" 2>/dev/null \
+    || { echo "SKIP  (در $MINE نیست)  $rel"; return; }
+
+  # بکاپ از وضع فعلی سرور (اگر هست)
+  if [ -f "$dest" ]; then
+    mkdir -p "$BK/$(dirname "$destroot/$rel" | sed "s|^$HOME/||")" 2>/dev/null
+    cp -p "$dest" "$BK/$(echo "$destroot/$rel" | sed "s|^$HOME/||")"
+  fi
+
+  if [ ! -f "$dest" ]; then
+    mkdir -p "$(dirname "$dest")"
+    cp "$mine_f" "$dest"; echo "NEW   $rel"; return
+  fi
+
+  if cmp -s "$dest" "$mine_f"; then echo "OK    $rel"; return; fi
+
+  # نسخهٔ پایه لازم است؛ اگر فایل در BASE نبوده ولی روی سرور نسخهٔ متفاوتی
+  # هست، یعنی کس دیگری هم‌نامش را ساخته — سه‌طرفه ممکن نیست، دست نمی‌زنیم.
+  if ! git -C repo show "$BASE:website/$rel" > "$base_f" 2>/dev/null; then
+    echo "CF    $rel   ← روی سرور نسخهٔ ناشناخته دارد؛ دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
+    cp "$dest" "$keep.server"; cp "$mine_f" "$keep.new"
+    return
+  fi
+
+  if cmp -s "$dest" "$base_f"; then
+    cp "$mine_f" "$dest"; echo "UP    $rel"; return
+  fi
+
+  # کس دیگری دست برده — merge سه‌طرفه روی کپی، نه روی فایل زنده
+  m="$WORK/merged.tmp"; cp "$dest" "$m"
+  if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
+    cp "$m" "$dest"; echo "MG    $rel   (تغییر دیگران حفظ شد)"
+  else
+    echo "CF    $rel   ← تداخل واقعی؛ دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    # نسخه‌ها برای بررسی دستی می‌مانند
+    keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
+    cp "$dest" "$keep.server"; cp "$base_f" "$keep.base"; cp "$mine_f" "$keep.new"
+  fi
+}
+
+echo "── بکاپ در: $BK"
+for f in $APP_FILES; do apply_one "$f" "$APP"; done
+# ⚠️ به کپیِ وستیجیالِ servernet_app/public دست نمی‌زنیم — DocumentRoot واقعی
+#    public_html است (قاعدهٔ CLAUDE.md) و آن پوشه عمداً کهنه می‌مانَد.
+
+# دارایی استاتیک واقعی → public_html (DocumentRoot جداست — قاعدهٔ CLAUDE.md)
+rel="assets/js/builder.js"
+dest="$PUB/$rel"
+git -C repo show "$MINE:website/public/$rel" > "$WORK/mine.tmp"
+if [ -f "$dest" ]; then
+  mkdir -p "$BK/public_html/assets/js"; cp -p "$dest" "$BK/public_html/$rel"
+  if cmp -s "$dest" "$WORK/mine.tmp"; then echo "OK    public_html/$rel"
+  else
+    git -C repo show "$BASE:website/public/$rel" > "$WORK/base.tmp" 2>/dev/null
+    if cmp -s "$dest" "$WORK/base.tmp"; then cp "$WORK/mine.tmp" "$dest"; echo "UP    public_html/$rel"
+    else
+      m="$WORK/merged.tmp"; cp "$dest" "$m"
+      if git merge-file -L server -L base -L new "$m" "$WORK/base.tmp" "$WORK/mine.tmp" >/dev/null 2>&1; then
+        cp "$m" "$dest"; echo "MG    public_html/$rel"
+      else
+        echo "CF    public_html/$rel ← دست نخورد"; CONFLICTS="$CONFLICTS public_html/$rel"
+      fi
+    fi
+  fi
+else
+  mkdir -p "$(dirname "$dest")"; cp "$WORK/mine.tmp" "$dest"; echo "NEW   public_html/$rel"
+fi
+
+# ── bootstrap/app.php — آخر از همه، و فقط اگر خودش گیر نکند ──────────────
+apply_one "bootstrap/app.php" "$APP"
+
+# ── کش‌ها: تا پاک نشوند config/روت تازه دیده نمی‌شود ─────────────────────
+PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
+[ -x "$PHPBIN" ] || PHPBIN=$(command -v php)
+if [ -n "$PHPBIN" ]; then
+  cd "$APP" && "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
+else
+  rm -f "$APP/bootstrap/cache/config.php" "$APP/bootstrap/cache/routes-v7.php"
+  echo "WARN: php پیدا نشد — کش‌ها دستی پاک شدند"
+fi
+
+echo
+echo "══════════ تمام ══════════"
+echo "بکاپ: $BK"
+if [ -n "$CONFLICTS" ]; then
+  echo "🔴 فایل‌های تداخل‌دار (دست‌نخورده، نیازمند merge دستی):$CONFLICTS"
+  echo "   نسخه‌ها در $WORK/conflicts/ (پسوند .server / .base / .new)"
+else
+  echo "✅ هیچ تداخلی نبود"
+fi
