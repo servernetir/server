@@ -6,13 +6,24 @@
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>کاربران و دسترسی‌ها</h3></div>
     <table class="ad-table">
-      <thead><tr><th>نام</th><th>ایمیل</th><th>نقش</th><th></th></tr></thead>
+      <thead><tr><th>نام</th><th>ایمیل</th><th>نقش</th><th>شمارهٔ تماس‌گیرنده</th><th></th></tr></thead>
       <tbody>
         @foreach($users as $u)
         <tr>
           <td class="t">{{ $u->name }}</td>
           <td dir="ltr" style="color:var(--muted)">{{ $u->email }}</td>
           <td><span class="ad-badge {{ $u->role === 'admin' ? 'pub' : 'draft' }}">{{ $u->role === 'admin' ? 'مدیر' : 'نویسنده' }}</span></td>
+          {{-- شماره‌ای که موقعِ Click-to-Call **اول** زنگ می‌خورد.
+               ⚠️ اختیاری: خالی یعنی پیش‌فرضِ سراسری (CLOUD_PHONE_AGENT_NUMBER).
+               ذخیرهٔ درجا، چون تنها فیلدِ قابلِ ویرایشِ این جدول است. --}}
+          <td>
+            <form method="post" action="/admin/users/{{ $u->id }}/extension" style="display:flex;gap:6px;align-items:center">
+              @csrf
+              <input class="ad-input" type="text" name="phone_extension" dir="ltr" inputmode="numeric"
+                     value="{{ $u->phone_extension }}" placeholder="پیش‌فرض" style="width:130px;padding:5px 8px">
+              <button class="btn btn-glass" type="submit" style="padding:5px 10px">ثبت</button>
+            </form>
+          </td>
           <td class="ad-row-act">
             @if($u->id !== auth()->id())
             <form method="post" action="/admin/users/{{ $u->id }}/delete" data-confirm="حذف این کاربر؟" data-confirm-danger style="display:inline">@csrf<button class="del" type="submit">حذف</button></form>
@@ -31,6 +42,7 @@
         @csrf
         <div class="ad-field"><label>نام</label><input class="ad-input" type="text" name="name" required></div>
         <div class="ad-field"><label>ایمیل</label><input class="ad-input" type="email" name="email" dir="ltr" required></div>
+        <div class="ad-field"><label>شمارهٔ تماس‌گیرنده <span style="color:var(--dim);font-weight:400">(اختیاری)</span></label><input class="ad-input" type="text" name="phone_extension" dir="ltr" inputmode="numeric" placeholder="خالی = پیش‌فرض سراسری"></div>
         <div class="ad-field"><label>نقش</label>
           <select class="ad-input" name="role">
             <option value="author">نویسنده (فقط محتوا)</option>

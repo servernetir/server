@@ -237,6 +237,73 @@ if (! function_exists('stime')) {
     }
 }
 
+if (! function_exists('sdate_full')) {
+    /**
+     * تاریخِ گفتاری: «سه‌شنبه ۲۸ مرداد ۱۴۰۵ · ۱۱:۵۸».
+     *
+     * ═══ چرا جدا از `sdate()` ═══
+     *
+     * `sdate()` عددی است (۱۴۰۵/۰۵/۲۸) و برای **جدول** درست است: کوتاه، هم‌عرض،
+     * و قابلِ مرور. ولی کاربردِ تاریخِ تماس فرق دارد — کارفرما آن را **پشتِ
+     * تلفن می‌خوانَد**: «شما سه‌شنبه ۲۸ مرداد تماس گرفته بودید». برای گفتن،
+     * «۱۴۰۵/۰۵/۲۸» باید در ذهن ترجمه شود و روزِ هفته اصلاً در آن نیست.
+     *
+     * ⚠️ روزِ هفته **پس از** انتقال به وقتِ تهران گرفته می‌شود. تماسِ ۲۱:۳۰
+     * به‌وقتِ UTC، به‌وقتِ تهران بامدادِ **فردا**ست — یعنی هم روزش عوض می‌شود
+     * هم نامِ روزِ هفته‌اش. همان تلهٔ ثبت‌شدهٔ تقویم در CLAUDE.md.
+     *
+     * ⚠️ برخلافِ `sdate()` به `app()->getLocale()` نگاه **نمی‌کند** — و این
+     * عمدی است.
+     *
+     * روت‌های `/admin/*` بیرونِ closureِ `$site`اند و هیچ middlewareِ `locale`
+     * رویشان نمی‌دود، پس زبانِ پنل هرچه `APP_LOCALE` در `.env` باشد همان است.
+     * یعنی `sdate()` در پنل به یک متغیرِ محیطی بند است که اصلاً دربارهٔ پنل
+     * نیست: اگر روزی `APP_LOCALE=en` شود، کلِ تاریخ‌های پنل بی‌هیچ خطایی
+     * میلادی می‌شوند. (همان نقصِ ثبت‌شده در CLAUDE.md دربارهٔ
+     * `TicketReplyService`، از درِ دیگر.)
+     *
+     * این تابع یک کارِ مشخص دارد: جمله‌ای که کارفرما **پشتِ تلفن می‌گوید**.
+     * آن جمله فارسی است، مستقل از زبانِ سایت. پس شاخهٔ زبان ندارد.
+     *
+     * @param  \DateTimeInterface|string|null  $date
+     */
+    function sdate_full($date, bool $withTime = true): string
+    {
+        if ($date === null || $date === '') {
+            return '—';
+        }
+
+        try {
+            $c = $date instanceof \DateTimeInterface
+                ? \Illuminate\Support\Carbon::instance($date)
+                : \Illuminate\Support\Carbon::parse((string) $date);
+        } catch (\Throwable) {
+            return '—';
+        }
+
+        $c = $c->copy()->setTimezone('Asia/Tehran');
+        [$jy, $jm, $jd] = jalali_ymd((int) $c->format('Y'), (int) $c->format('m'), (int) $c->format('d'));
+
+        $out = \App\Support\Jalali::WEEKDAY_NAMES[\App\Support\Jalali::weekdayIndex($c)]
+            .' '.$jd.' '.\App\Support\Jalali::monthName($jm).' '.$jy;
+
+        if ($withTime) {
+            $out .= ' · '.$c->format('H:i');
+        }
+
+        /*
+        | ⚠️ `fa_num()` این‌جا کار نمی‌کند: خودش هم به `getLocale()` نگاه می‌کند
+        | و زیرِ `APP_LOCALE=en` ارقام را لاتین برمی‌گردانَد — یعنی همان
+        | وابستگی‌ای که این تابع برای نداشتنش نوشته شد، از درِ پشتی برمی‌گشت و
+        | خروجی «چهارشنبه 28 مرداد 1405» می‌شد.
+        */
+        return strtr($out, [
+            '0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴',
+            '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹',
+        ]);
+    }
+}
+
 if (! function_exists('site_price')) {
     /** قیمت نمایشی بر اساس زبان جاری: تومان برای fa، یورو برای en */
     function site_price(array $item): string

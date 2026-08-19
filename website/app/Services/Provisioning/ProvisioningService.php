@@ -461,6 +461,78 @@ class ProvisioningService
         return $r;
     }
 
+    /**
+     * «خودم دستی پاکش کردم — دیگر تلاش نکن.»
+     *
+     * ═══ 🔴 چرا این وجود دارد ═══
+     *
+     * صفِ آزادسازی فرض می‌کند تنها راهِ بسته‌شدنش تأییدِ **زیرساخت** است. ولی
+     * یک راهِ دیگر هم هست که کد نمی‌بیندش: کارفرما می‌رود در پنلِ دیتاسنتر و
+     * ماشین را با دست پاک می‌کند. از آن لحظه، API دیگر آن سرور را نمی‌شناسد و
+     * هر تلاشِ خودکار برای همیشه شکست می‌خورد — یعنی صف هرگز خالی نمی‌شود و
+     * هشدارِ «ماشین شاید زنده است» هر ساعت می‌آید برای ماشینی که وجود ندارد.
+     *
+     * ۴۶ تلاشِ ناموفق روی سرویسِ #۳۰ دقیقاً همین بود.
+     *
+     * ⚠️ عمداً **همان** وضعیتی نوشته می‌شود که مسیرِ موفق می‌نویسد
+     * (`PROVISION_NONE`)، نه یک وضعیتِ تازه. وضعیتِ تازه یعنی هر پرس‌وجویی که
+     * امروز روی این دو مقدار حساب می‌کند، فردا یک حالتِ نادیده داشته باشد.
+     *
+     * ⚠️ ولی در `provision_meta` رد می‌گذارد: تفاوتِ «زیرساخت تأیید کرد» و
+     * «آدمی گفت تأیید شده» باید بعداً قابلِ تشخیص باشد — به‌خصوص اگر روزی
+     * صورت‌حسابِ ارائه‌دهنده بگوید ماشین هنوز زنده بوده.
+     *
+     * @param  string  $by  چه کسی این را اعلام کرد (برای لاگِ فعالیت)
+     */
+    public function markReleasedManually(Service $service, string $by = 'admin'): bool
+    {
+        if ($service->provision_status !== Service::PROVISION_RELEASING) {
+            return false;   // در صفِ آزادسازی نیست — کاری برای انجام نیست
+        }
+
+        $meta = (array) ($service->provision_meta ?? []);
+        $meta['released_manually_at'] = now()->toIso8601String();
+        $meta['released_manually_by'] = $by;
+
+        $service->forceFill([
+            'provision_status' => Service::PROVISION_NONE,
+            'provision_meta' => $meta,
+        ])->save();
+
+        try {
+            $instance = \App\Models\CloudInstance::where('service_id', $service->id)->first();
+
+            if ($instance !== null) {
+                $imeta = (array) ($instance->meta ?? []);
+                $imeta['released_manually_at'] = $meta['released_manually_at'];
+
+                // ⚠️ وضعیتِ نمونه هم بسته می‌شود، وگرنه در فهرستِ موجودی «زنده» می‌مانَد
+                $instance->update(['status' => 'deleted', 'last_error' => null, 'meta' => $imeta]);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'release-manual', 'service' => $service->id]);
+        }
+
+        try {
+            \App\Models\ActivityLog::forService($service, 'terminate',
+                'آزادسازیِ سرور دستی اعلام شد — تلاشِ خودکار متوقف شد', $by);
+        } catch (\Throwable $e) {
+            /*
+            | 🔴 این یکی عمداً `catch` خالی **نیست**.
+            |
+            | این تنها ردِ ماندگارِ «آدمی گفت پاک شده» است. اگر روزی صورت‌حسابِ
+            | ارائه‌دهنده بگوید ماشین زنده بوده، سؤال دقیقاً همین است: چه کسی و
+            | کِی گفت تمام شد. لاگی که بی‌صدا نیفتد، همان لحظه‌ای که لازمش داریم
+            | نیست و ما هم نمی‌دانیم که نیست.
+            */
+            \App\Support\ErrorTracker::note('provision', $e, [
+                'area' => 'release-manual-log', 'service' => $service->id, 'by' => $by,
+            ]);
+        }
+
+        return true;
+    }
+
     public function terminate(Service $service): ProvisionResult
     {
         /*

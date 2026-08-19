@@ -37,6 +37,42 @@
       </form>
     @endif
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
+
+    {{-- ══ تماس با مشتری ══
+         🔴 جایش این‌جاست، نه داخلِ تبِ تماس‌ها.
+
+         تماس یک **کنشِ** روی این مشتری است، مثلِ «ورود به پنل» و «ارسال
+         اعلان» — نه بخشی از خواندنِ تاریخچه. وقتی داخلِ تب بود، برای زنگ‌زدن
+         باید یک تب عوض می‌شد، و تبِ تماس‌ها هم‌زمان دو کارِ نامربوط داشت.
+
+         🔴 سه شرطِ **جدا** با سه پیامِ جدا. یک دکمهٔ خاکستریِ بی‌توضیح، مدیر
+         را می‌فرستد سراغِ تیم فنی؛ «شمارهٔ مشتری نداریم» و «داخلیِ خودت ثبت
+         نشده» و «رله وصل نیست» سه کارِ کاملاً متفاوت لازم دارند. --}}
+    @php
+      $callTo = $c->phone ?: optional($c->profiles->firstWhere('is_default', true))->mobile ?: optional($c->profiles->first())->mobile;
+      $callRelay = app(\App\Services\CloudPhone\OutgoingCallService::class);
+      /* شماره‌ای که اول زنگ می‌خورد: شخصیِ کاربر، وگرنه پیش‌فرضِ سراسری */
+      $callAgent = $callRelay->agentNumberFor(auth()->user()->phoneExtension());
+    @endphp
+
+    @if(auth()->user()->isAdmin() && $callTo && $callRelay->enabled() && $callAgent)
+      {{-- ⚠️ متنِ تأیید صریحاً می‌گوید **کدام تلفن** اول زنگ می‌خورد. بی‌آن،
+           مدیر کلیک می‌کند و منتظرِ زنگی می‌ماند که روی تلفنِ دیگری است — و
+           فکر می‌کند تماس نرفته. --}}
+      <form method="post" action="/admin/customers/{{ $c->id }}/call" style="display:inline"
+            data-confirm="تماس با {{ $callTo }} برقرار شود؟ اول {{ $callAgent }} زنگ می‌خورد، بعد مشتری.">
+        @csrf
+        <button class="btn btn-primary" type="submit">
+          <svg class="icon"><use href="#i-phone"/></svg>تماس
+        </button>
+      </form>
+    @elseif(auth()->user()->isAdmin())
+      {{-- علتِ نبودنِ دکمه دیده می‌شود، وگرنه «چرا دکمه نیست؟» خودش یک تیکت است --}}
+      <span class="btn btn-glass" style="opacity:.55;cursor:not-allowed"
+            title="{{ ! $callTo ? 'شماره‌ای برای این مشتری ثبت نشده' : (! $callRelay->enabled() ? 'رلهٔ تلفن ابری پیکربندی نشده' : 'شمارهٔ تماس‌گیرنده تنظیم نشده') }}">
+        <svg class="icon"><use href="#i-phone"/></svg>تماس
+      </span>
+    @endif
   </div>
 </div>
 
@@ -83,6 +119,10 @@
     <svg class="icon"><use href="#i-lifebuoy"/></svg>پشتیبانی
     @if($openTickets)<i class="ct-n warn">{{ fa_num($openTickets) }}</i>@endif
   </button>
+  <button type="button" class="ct-tab" data-tab="calls" role="tab">
+    <svg class="icon"><use href="#i-phone"/></svg>تماس‌ها
+    @if($callsMissed)<i class="ct-n warn">{{ fa_num($callsMissed) }}</i>@endif
+  </button>
   <button type="button" class="ct-tab" data-tab="account" role="tab">
     <svg class="icon"><use href="#i-user"/></svg>هویت و حساب
   </button>
@@ -92,6 +132,72 @@
          می‌شد و «۳ رویداد» نشان می‌داد برای مشتری‌ای که هزار تا دارد. --}}
     @if($activityTotal)<i class="ct-n">{{ fa_num($activityTotal) }}</i>@endif
   </button>
+</div>
+
+{{-- ══════════════════════ تماس‌ها ══════════════════════ --}}
+<div class="ct-pane" data-pane="calls">
+  <div class="ad-panel">
+    {{-- ⚠️ دکمهٔ تماس عمداً این‌جا **نیست** — به نوارِ بالای صفحه رفت، کنارِ
+         «ورود به پنل کاربری». این پنل فقط تاریخچه است: کارفرما پشتِ تلفن
+         می‌خواهد بگوید «شما فلان روز تماس گرفته بودید»، و برای آن باید
+         تاریخچه را بخوانَد نه دکمه بزند. --}}
+    <div class="ad-panel-h"><h2>تماس‌های این مشتری</h2></div>
+
+    @if($calls->isEmpty())
+      <p style="padding:20px;color:var(--muted)">تماسی از این مشتری ثبت نشده.</p>
+    @else
+      <table class="ad-table">
+        <thead><tr><th>زمان</th><th>جهت</th><th>شماره</th><th>نتیجه</th><th>مدت</th><th>مسیر</th></tr></thead>
+        <tbody>
+          @foreach($calls as $call)
+            <tr>
+              {{-- 🔴 «روزِ هفته + تاریخِ شمسی» چون کارفرما این را **پشتِ تلفن
+                   می‌خوانَد**: «شما سه‌شنبه ۲۸ مرداد تماس گرفته بودید». عددِ
+                   ۱۴۰۵/۰۵/۲۸ باید در ذهن ترجمه شود و روزِ هفته اصلاً در آن نیست.
+                   ⚠️ ساعت هم از همان تابع می‌آید تا با تاریخ **یک منطقهٔ زمانی**
+                   داشته باشد؛ `format('H:i')`ِ خام UTC است و شب‌ها یک روز
+                   اختلاف می‌ساخت. --}}
+              <td style="color:var(--muted);white-space:nowrap">
+                {{ sdate_full($call->started_at) }}
+              </td>
+              <td>
+                @if($call->direction === 'incoming')
+                  <span class="ad-badge" style="background:rgba(34,211,238,.15);color:#22d3ee">ورودی</span>
+                @else
+                  <span class="ad-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">خروجی</span>
+                @endif
+              </td>
+              <td dir="ltr" style="color:var(--muted)">{{ $call->caller_number ?: '—' }}</td>
+              <td>
+                @if($call->answered === true)
+                  <span class="ad-badge" style="background:rgba(52,211,153,.15);color:#34d399">پاسخ داده شد</span>
+                @elseif($call->answered === false)
+                  <span class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b">بی‌پاسخ</span>
+                @else
+                  <span class="ad-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">در جریان</span>
+                @endif
+                @if(! $call->isConfidentMatch())
+                  <div style="font-size:11px;color:#fbbf24" title="شماره بدون پیش‌شمارهٔ شهر آمده">تطبیق نامطمئن</div>
+                @endif
+              </td>
+              <td dir="ltr" style="color:var(--muted)">
+                @if($call->duration_seconds !== null)
+                  {{ fa_num(gmdate($call->duration_seconds >= 3600 ? 'H:i:s' : 'i:s', $call->duration_seconds)) }}
+                @else<span style="color:var(--dim)">—</span>@endif
+              </td>
+              <td style="font-size:12px;color:var(--dim)">
+                @if($call->was_transferred)منتقل شد@endif
+                @if($call->menu_name) · {{ $call->menu_name }}@endif
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+      <p style="padding:12px 20px;color:var(--dim);font-size:12px">
+        ۵۰ تماس اخیر. همه‌شان در <a href="/admin/calls?q={{ urlencode((string) ($c->phone ?: '')) }}" style="color:var(--muted)">گزارش تماس‌ها</a>.
+      </p>
+    @endif
+  </div>
 </div>
 
 {{-- هر تب می‌تواند چند تکهٔ جدا در صفحه داشته باشد؛ JS همهٔ تکه‌های هم‌نام را

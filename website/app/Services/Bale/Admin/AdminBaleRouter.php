@@ -2,11 +2,30 @@
 
 namespace App\Services\Bale\Admin;
 
+use App\Http\Controllers\Admin\ServiceController;
 use App\Models\ActivityLog;
+use App\Models\BankTransferReceipt;
+use App\Models\Customer;
+use App\Models\Domain;
+use App\Models\Invoice;
+use App\Models\MailboxMessage;
+use App\Models\Product;
+use App\Models\Service;
 use App\Models\Ticket;
 use App\Services\Bale\BaleSender;
+use App\Services\Billing\InvoiceCanceller;
+use App\Services\CloudPhone\OutgoingCallService;
+use App\Services\Customer\CustomerBriefWriter;
+use App\Services\Customer\QuickCustomerCreator;
+use App\Services\Mail\MailReplyDraftWriter;
+use App\Services\Otp\OtpService;
+use App\Services\Provisioning\ProvisioningService;
+use App\Services\Sales\PhoneSale;
+use App\Services\Ticket\TicketDraftWriter;
 use App\Services\Ticket\TicketReplyService;
 use App\Support\ErrorTracker;
+use App\Support\IranianPhone;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * کنسولِ مدیر در بله — مسیریابیِ آپدیت به فرمان.
@@ -57,7 +76,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm', 'dn'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -109,7 +128,7 @@ class AdminBaleRouter
             }
 
             // کمربند و بند: این‌ها بالاتر برگشته‌اند، ولی ترتیب روزی عوض می‌شود
-            if (isset($update['pre_checkout_query'], )) {
+            if (isset($update['pre_checkout_query'])) {
                 return false;
             }
 
@@ -270,10 +289,14 @@ class AdminBaleRouter
             */
             $this->sender->answerCallback($id, match ($verb) {
                 'ping' => '✅ رسید',
-                'td'   => '✍️ در حالِ نوشتن…',      // مدل چند ثانیه طول می‌کشد
-                'cs'   => '🧠 در حالِ خواندنِ پرونده…',
-                'me'   => '✍️ در حالِ نوشتن…',
-                'ma'   => '📥 بایگانی شد',
+                'td' => '✍️ در حالِ نوشتن…',      // مدل چند ثانیه طول می‌کشد
+                'cs' => '🧠 در حالِ خواندنِ پرونده…',
+                'me' => '✍️ در حالِ نوشتن…',
+                'ma' => '📥 بایگانی شد',
+                // تماس چند صدم ثانیه طول می‌کشد؛ بی‌این، دکمه «در حالِ بارگذاری» می‌مانَد
+                'cc' => '📞 در حالِ برقراری…',
+                'rm' => '✅ ثبت شد',
+                'dn' => '📞 در حالِ برقراری…',
                 default => '',
             });
 
@@ -293,30 +316,30 @@ class AdminBaleRouter
                 // آزمونِ زنده — نگه داشته شد چون تنها راهِ سنجیدنِ خودِ مسیر است
                 'ping' => $this->replyToOwner(
                     "✅ دکمه‌های شیشه‌ای کار می‌کنند.\n"
-                    ."کلیکِ شما به سرور رسید و پاسخش از همین‌جا رفت."
+                    .'کلیکِ شما به سرور رسید و پاسخش از همین‌جا رفت.'
                 ),
-                'q'  => $this->showQueue(),
-                't'  => $this->showTicket($arg),
+                'q' => $this->showQueue(),
+                't' => $this->showTicket($arg),
                 'tc' => $this->armCloseById($arg),
                 'td' => $this->draft($arg),
                 'tw' => $this->howToWrite($arg),
                 'ts' => $this->armStoredDraft($arg),
-                'h'  => $this->replyToOwner($this->ui->health()),
-                'x'  => $this->menu(),
+                'h' => $this->replyToOwner($this->ui->health()),
+                'x' => $this->menu(),
                 'fx' => $this->cancelFlow(),
-                '?'  => $this->replyToOwner($this->ui->panel()),
+                '?' => $this->replyToOwner($this->ui->panel()),
                 'cm' => $this->customersMenu(),
                 'cf' => $this->armSearch(),
                 'cl' => $this->customerList($arg === '' ? null : (int) $arg),
-                'c'  => $this->customerCard((int) $arg),
+                'c' => $this->customerCard((int) $arg),
                 'sl' => $this->serviceList((int) $arg),
-                's'  => $this->serviceCard((int) $arg),
+                's' => $this->serviceCard((int) $arg),
                 'il' => $this->invoiceList((int) $arg),
-                'i'  => $this->invoiceCard((int) $arg),
+                'i' => $this->invoiceCard((int) $arg),
                 'rl' => $this->receiptList(),
-                'r'  => $this->receiptCard((int) $arg),
+                'r' => $this->receiptCard((int) $arg),
                 'dl' => $this->domainList(),
-                'd'  => $this->domainCard((int) $arg),
+                'd' => $this->domainCard((int) $arg),
                 'sq' => $this->stuckList(),
                 'su' => $this->serviceSuspend($arg, true),
                 'sr' => $this->serviceSuspend($arg, false),
@@ -330,20 +353,23 @@ class AdminBaleRouter
                 'rj' => $this->receiptRejectAsk($arg),
                 'sx' => $this->serviceTerminateAsk($arg),
                 'sxy' => $this->serviceTerminateDo($arg),
-                'cn'  => $this->newCustomerStart(),
+                'cn' => $this->newCustomerStart(),
                 'cne' => $this->newCustomerFinish(null),
-                'cs'  => $this->customerBrief((int) $arg),
+                'cs' => $this->customerBrief((int) $arg),
+                'cc' => $this->customerCall($arg),
+                'rm' => $this->releasedManually($arg),
+                'dn' => $this->dialConfirmed($arg),
                 'sell' => $this->sellStart((int) $arg),
                 'sep' => $this->sellPickedProduct((int) $arg),
                 'seo' => $this->sellPickedCountry($arg),
                 'sec' => $this->sellPickedCycle($arg),
                 'sed' => $this->sellFreeSubdomain(),
                 'sey' => $this->sellConfirm($arg),
-                'w'  => $this->replyToOwner($this->ui->who($this->gate)),
-                'm'  => $this->showMailbox(),
+                'w' => $this->replyToOwner($this->ui->who($this->gate)),
+                'm' => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
                 'ma' => $this->archiveMail($arg),
-                'me'  => $this->mailDraft($arg),
+                'me' => $this->mailDraft($arg),
                 'mes' => $this->mailSend($arg),
                 'mew' => $this->mailWriteMyself($arg),
                 default => $this->replyToOwner('این دکمه دیگر معتبر نیست.'),
@@ -363,7 +389,7 @@ class AdminBaleRouter
     public function handle(array $update): void
     {
         try {
-            $m    = (array) ($update['message'] ?? []);
+            $m = (array) ($update['message'] ?? []);
             $text = trim((string) ($m['text'] ?? ''));
             $from = (string) ($m['from']['id'] ?? '');
 
@@ -459,6 +485,21 @@ class AdminBaleRouter
             return;
         }
 
+        /*
+        | تماس با یک شمارهٔ دلخواه — «مشتریم نبود هم بتوانم تماس بگیرم».
+        |
+        | ⚠️ خودِ این فرمان **هیچ تماسی نمی‌گیرد**؛ فقط شماره را می‌خوانَد و یک
+        | دکمهٔ تأیید می‌سازد. دلیلش یک ریسکِ واقعیِ همین محیط است: در بله متن
+        | با یک تپ فرستاده می‌شود و اصلاحش ممکن نیست، پس یک رقمِ جاافتاده یعنی
+        | زنگ‌زدن به یک غریبه با شمارهٔ شرکت روی کالر آی‌دی. کارفرما پیش از
+        | زنگ، شماره را روی دکمه می‌بیند.
+        */
+        if (in_array($verb, ['/call', '/dial', 'تماس', 'زنگ'], true)) {
+            $this->dialAsk($rest);
+
+            return;
+        }
+
         if (in_array($verb, ['/health', 'سلامت', 'وضعیت‌سامانه'], true)) {
             $this->replyToOwner($this->ui->health());
 
@@ -468,11 +509,11 @@ class AdminBaleRouter
         // آزمونِ زندهٔ دکمه‌ها — عمداً بی‌عارضه: هیچ‌چیز نمی‌نویسد
         if (in_array($verb, ['/test', 'دکمه', 'آزمون'], true)) {
             $this->sendButtons(
-                "🧪 آزمونِ دکمه‌های شیشه‌ای
+                '🧪 آزمونِ دکمه‌های شیشه‌ای
 
-یکی از دکمه‌های زیر را بزنید. "
-                ."اگر پاسخ گرفتید، یعنی بله کلیک را به ما می‌رساند و می‌توانیم "
-                ."کلِ کنسول را دکمه‌ای کنیم.",
+یکی از دکمه‌های زیر را بزنید. '
+                .'اگر پاسخ گرفتید، یعنی بله کلیک را به ما می‌رساند و می‌توانیم '
+                .'کلِ کنسول را دکمه‌ای کنیم.',
                 [[
                     ['text' => '✅ دکمهٔ یک', 'data' => self::CB_PREFIX.'ping:1'],
                     ['text' => '🔵 دکمهٔ دو', 'data' => self::CB_PREFIX.'ping:2'],
@@ -667,7 +708,7 @@ class AdminBaleRouter
         if ($ticket === null) {
             [$ref, $body] = $this->split($rest);
             $ticket = $this->anchor->resolve($ref);
-            $body   = trim($body);
+            $body = trim($body);
         }
 
         if ($ticket === null) {
@@ -719,7 +760,7 @@ class AdminBaleRouter
     private function confirm(string $rest): void
     {
         $code = $this->anchor->asciiDigits(trim($rest));
-        $job  = $this->gate->takeConfirm($code);
+        $job = $this->gate->takeConfirm($code);
 
         if ($job === null) {
             $this->replyToOwner('کدِ تأیید درست نیست یا منقضی شده. فرمان را دوباره بفرستید.');
@@ -842,6 +883,18 @@ class AdminBaleRouter
             ['text' => '👤 مشتری', 'data' => self::CB_PREFIX.'c:'.((int) $t->customer_id)],
         ]];
 
+        /*
+        | تماس از داخلِ خودِ تیکت — خواستهٔ کارفرما: «وقتی تیکتش را می‌خوانم
+        | بتوانم همان‌جا زنگ بزنم».
+        |
+        | ⚠️ شناسهٔ **مشتری** مهر می‌خورد نه شناسهٔ تیکت: مقصدِ تماس مالِ مشتری
+        | است، و اگر تیکت را مبنا بگیریم دو مسیرِ متفاوت به یک کار می‌رسند و
+        | دیر یا زود یکی‌شان نگهبانِ دیگری را ندارد.
+        */
+        if ($t->customer && ($label = $this->callButtonLabel($t->customer)) !== null) {
+            $rows[] = [$this->stamped($label, 'cc', (int) $t->customer_id)];
+        }
+
         if (! $t->isClosed()) {
             $rows[] = [['text' => '🔒 بستنِ تیکت', 'data' => self::CB_PREFIX.'tc:'.$t->id]];
         }
@@ -874,7 +927,7 @@ class AdminBaleRouter
             return;
         }
 
-        $text = app(\App\Services\Ticket\TicketDraftWriter::class)->draft($ticket, $tone ?: 'n');
+        $text = app(TicketDraftWriter::class)->draft($ticket, $tone ?: 'n');
 
         if ($text === null) {
             $this->replyToOwner('پیش‌نویس ساخته نشد (مدل جواب نداد). دوباره بزنید یا خودتان بنویسید.');
@@ -887,7 +940,7 @@ class AdminBaleRouter
         $labels = ['n' => '🙂 معمولی', 's' => '✂️ کوتاه', 'f' => '🎩 رسمی', 'a' => '🙏 با عذرخواهی'];
 
         $others = array_values(array_filter(
-            array_keys(\App\Services\Ticket\TicketDraftWriter::TONES),
+            array_keys(TicketDraftWriter::TONES),
             fn ($k) => $k !== ($tone ?: 'n'),
         ));
 
@@ -917,16 +970,16 @@ class AdminBaleRouter
 
         $this->replyToOwner($t === null
             ? 'تیکت پیدا نشد.'
-            : "✏️ روی کارتِ ".$t->number." **ریپلای** بزنید و متنتان را بنویسید.\n"
+            : '✏️ روی کارتِ '.$t->number." **ریپلای** بزنید و متنتان را بنویسید.\n"
               ."همان لحظه برای مشتری می‌رود.\n\n"
-              ."برای بستنِ هم‌زمان: «بستن ".$t->number." متنِ شما»");
+              .'برای بستنِ هم‌زمان: «بستن '.$t->number.' متنِ شما»');
     }
 
     /** ارسالِ پیش‌نویسِ ذخیره‌شده */
     private function armStoredDraft(string $arg): void
     {
         $ticket = Ticket::find((int) $arg);
-        $body   = $ticket ? $this->gate->takeDraft($ticket->id) : null;
+        $body = $ticket ? $this->gate->takeDraft($ticket->id) : null;
 
         if ($ticket === null || $body === null) {
             $this->replyToOwner('پیش‌نویس پیدا نشد یا منقضی شده. دوباره بسازید.');
@@ -959,9 +1012,9 @@ class AdminBaleRouter
         }
 
         $text = $this->clickedText !== ''
-            ? mb_substr($this->clickedText, 0, 3400)."
+            ? mb_substr($this->clickedText, 0, 3400).'
 
-☑️ انجام شد"
+☑️ انجام شد'
             : '☑️ انجام شد';
 
         try {
@@ -1046,7 +1099,7 @@ class AdminBaleRouter
 
     private function customerCard(int $id): void
     {
-        $c = \App\Models\Customer::find($id);
+        $c = Customer::find($id);
 
         if ($c === null) {
             $this->replyToOwner('مشتری پیدا نشد.');
@@ -1054,7 +1107,7 @@ class AdminBaleRouter
             return;
         }
 
-        $this->sendButtons($this->screens->customer($c), [
+        $rows = [
             [
                 ['text' => '🖥 سرویس‌ها', 'data' => self::CB_PREFIX.'sl:'.$c->id],
                 ['text' => '🧾 فاکتورها', 'data' => self::CB_PREFIX.'il:'.$c->id],
@@ -1063,13 +1116,138 @@ class AdminBaleRouter
                 ['text' => '🛒 فروشِ سرویس', 'data' => self::CB_PREFIX.'sell:'.$c->id],
                 ['text' => '🧠 خلاصه', 'data' => self::CB_PREFIX.'cs:'.$c->id],
             ],
-            $this->nav('cm'),
-        ]);
+        ];
+
+        if (($label = $this->callButtonLabel($c)) !== null) {
+            $rows[] = [$this->stamped($label, 'cc', $c->id)];
+        }
+
+        $rows[] = $this->nav('cm');
+
+        $this->sendButtons($this->screens->customer($c), $rows);
+    }
+
+    /*
+    |==========================================================================
+    | تماس با مشتری از داخلِ کنسولِ بله
+    |==========================================================================
+    |
+    | ═══ چرا دکمه فقط گاهی ظاهر می‌شود ═══
+    |
+    | دکمه‌ای که کلیکش خطا بدهد، در بله بدتر از پنل است: کارفرما وسطِ کار و
+    | معمولاً روی موبایل است، و یک پیامِ خطا یعنی باید برود سراغِ پنل تا بفهمد
+    | چه چیزی کم بوده. پس اگر تماس شدنی نیست، اصلاً دکمه‌ای نمی‌سازیم.
+    |
+    | ═══ امنیت ═══
+    |
+    | سه لایه، و هیچ‌کدام تازه نیست:
+    |   ۱) `matchesCallback` فقط چتِ **متصل‌شده** را می‌پذیرد
+    |   ۲) دکمه مهردار است، پس کلیکِ روی کارتِ سه‌ماه‌پیش اجرا نمی‌شود
+    |   ۳) `cc` در `CONSUMING` است، پس دکمه بعدِ کلیک برداشته می‌شود و
+    |      دوباره‌کلیک مشتری را دو بار زنگ نمی‌زند
+    |
+    | 🔴 شمارهٔ مقصد از **دیتابیس** خوانده می‌شود، نه از `callback_data`.
+    | همان قاعدهٔ پنل: وگرنه هر کسی که بتواند callback بسازد، از خطِ شرکت به
+    | هر شماره‌ای زنگ می‌زند.
+    */
+
+    /**
+     * برچسبِ دکمهٔ تماس، یا `null` اگر تماس شدنی نیست.
+     */
+    private function callButtonLabel(Customer $c): ?string
+    {
+        $svc = app(OutgoingCallService::class);
+
+        if (! $svc->enabled() || $svc->agentNumberFor(null) === null) {
+            return null;
+        }
+
+        $number = $this->customerCallNumber($c);
+
+        if ($number === null) {
+            return null;
+        }
+
+        // ⚠️ شماره روی خودِ دکمه: کارفرما پیش از کلیک می‌بیند به چه کسی زنگ می‌زند
+        return '📞 تماس با '.$number;
+    }
+
+    /**
+     * شمارهٔ قابلِ شماره‌گیریِ مشتری — یا `null`.
+     *
+     * ⚠️ ترتیب همان ترتیبِ پنل است. اگر این دو واگرا شوند، دکمهٔ بله و دکمهٔ
+     * پنل به دو شماره زنگ می‌زنند و هیچ‌کس نمی‌فهمد چرا.
+     */
+    private function customerCallNumber(Customer $c): ?string
+    {
+        $number = $c->phone
+            ?: optional($c->profiles->firstWhere('is_default', true))->mobile
+            ?: optional($c->profiles->first())->mobile;
+
+        if (! $number) {
+            return null;
+        }
+
+        $kind = IranianPhone::kind((string) $number);
+
+        // شمارهٔ محلیِ بی‌پیش‌شماره شماره‌گیری‌شدنی نیست — دکمه‌اش هم ساخته نشود
+        return in_array($kind, [
+            IranianPhone::KIND_MOBILE,
+            IranianPhone::KIND_LANDLINE,
+        ], true) ? (string) $number : null;
+    }
+
+    private function customerCall(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'cc');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $c = Customer::find($id);
+
+        if ($c === null) {
+            $this->replyToOwner('مشتری پیدا نشد.');
+
+            return;
+        }
+
+        $number = $this->customerCallNumber($c);
+
+        if ($number === null) {
+            $this->replyToOwner('برای این مشتری شماره‌ی قابلِ تماسی ثبت نشده.');
+
+            return;
+        }
+
+        $svc = app(OutgoingCallService::class);
+        $agent = $svc->agentNumberFor(null);
+
+        $result = $svc->place($number, null);
+
+        /*
+        | ⚠️ سه حالت، همان‌طور که در پنل. «نمی‌دانم» نباید شبیهِ شکست گزارش شود
+        | — یک بار همین باعث شد پنل بگوید تماس نرفته در حالی که تلفن زنگ خورده
+        | بود.
+        */
+        $this->replyToOwner(match ($result['status']) {
+            OutgoingCallService::OK => "📞 تماس با {$c->displayName()} در حالِ برقراری است.\n"
+                ."ابتدا {$agent} زنگ می‌خورد، بعد {$number}.",
+
+            OutgoingCallService::UNKNOWN => "⚠️ پاسخِ رله قابلِ فهم نبود.\n"
+                ."ممکن است تماس برقرار شده باشد — چند لحظه صبر کنید.\n"
+                .'جزئیات در ردیابِ خطا ثبت شد.',
+
+            default => "❌ تماس برقرار نشد.\n".$result['message'],
+        });
     }
 
     private function serviceList(int $customerId): void
     {
-        $c = \App\Models\Customer::find($customerId);
+        $c = Customer::find($customerId);
 
         if ($c === null) {
             $this->replyToOwner('مشتری پیدا نشد.');
@@ -1088,7 +1266,7 @@ class AdminBaleRouter
 
     private function serviceCard(int $id): void
     {
-        $s = \App\Models\Service::find($id);
+        $s = Service::find($id);
 
         if ($s === null) {
             $this->replyToOwner('سرویس پیدا نشد.');
@@ -1100,7 +1278,7 @@ class AdminBaleRouter
 
         if ($s->status === 'suspended') {
             $rows[] = [$this->stamped('▶️ رفعِ تعلیق', 'sr', $s->id)];
-        } elseif (! in_array($s->status, \App\Models\Service::DEAD_STATUSES, true)) {
+        } elseif (! in_array($s->status, Service::DEAD_STATUSES, true)) {
             $rows[] = [$this->stamped('⏸ تعلیق', 'su', $s->id)];
         }
 
@@ -1112,8 +1290,21 @@ class AdminBaleRouter
             $rows[] = [$this->stamped('🧾 صدورِ فاکتورِ تمدید', 'sv', $s->id)];
         }
 
-        if (! in_array($s->status, \App\Models\Service::DEAD_STATUSES, true)) {
+        if (! in_array($s->status, Service::DEAD_STATUSES, true)) {
             $rows[] = [['text' => '🗑 خاتمهٔ سرویس', 'data' => self::CB_PREFIX.'sx:'.$s->id]];
+        }
+
+        /*
+        | «خودم دستی پاکش کردم» — تنها راهِ بستنِ صفی که زیرساخت هرگز تأییدش
+        | نمی‌کند، چون ماشین از پنلِ دیتاسنتر با دست پاک شده و API دیگر
+        | نمی‌شناسدش.
+        |
+        | ⚠️ فقط وقتی ظاهر می‌شود که سرویس واقعاً در صفِ آزادسازی باشد. دکمه‌ای
+        | که همیشه باشد، دیر یا زود روی سرویسی زده می‌شود که ماشینش **واقعاً**
+        | زنده است — و آن‌وقت نشتی را از رادار پاک می‌کنیم بی‌آنکه بسته باشیمش.
+        */
+        if ($s->provision_status === Service::PROVISION_RELEASING) {
+            $rows[] = [$this->stamped('✅ آزادسازی دستی انجام شد', 'rm', $s->id)];
         }
 
         $rows[] = $this->nav($s->customer_id ? 'c:'.$s->customer_id : '');
@@ -1123,7 +1314,7 @@ class AdminBaleRouter
 
     private function invoiceList(int $customerId): void
     {
-        $c = \App\Models\Customer::find($customerId);
+        $c = Customer::find($customerId);
 
         if ($c === null) {
             $this->replyToOwner('مشتری پیدا نشد.');
@@ -1142,7 +1333,7 @@ class AdminBaleRouter
 
     private function invoiceCard(int $id): void
     {
-        $i = \App\Models\Invoice::find($id);
+        $i = Invoice::find($id);
 
         if ($i === null) {
             $this->replyToOwner('فاکتور پیدا نشد.');
@@ -1177,8 +1368,8 @@ class AdminBaleRouter
 
     private function receiptCard(int $id): void
     {
-        $r = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
-            ? \App\Models\BankTransferReceipt::find($id) : null;
+        $r = Schema::hasTable('bank_transfer_receipts')
+            ? BankTransferReceipt::find($id) : null;
 
         if ($r === null) {
             $this->replyToOwner('رسید پیدا نشد.');
@@ -1227,8 +1418,8 @@ class AdminBaleRouter
 
     private function domainCard(int $id): void
     {
-        $d = \Illuminate\Support\Facades\Schema::hasTable('domains')
-            ? \App\Models\Domain::find($id) : null;
+        $d = Schema::hasTable('domains')
+            ? Domain::find($id) : null;
 
         if ($d === null) {
             $this->replyToOwner('دامنه پیدا نشد.');
@@ -1258,6 +1449,150 @@ class AdminBaleRouter
         $rows[] = $this->nav();
 
         $this->sendButtons($r['text'], $rows);
+    }
+
+    /**
+     * «/تماس ۰۹۱۲…» — شماره را بخوان و دکمهٔ تأیید بساز.
+     *
+     * ⚠️ هیچ تماسی این‌جا برقرار نمی‌شود. علتِ دو مرحله‌ای بودن در دستور
+     * توضیح داده شده: متنِ بله اصلاح‌شدنی نیست و یک رقمِ اشتباه پول خرج
+     * می‌کند و به یک غریبه زنگ می‌زند.
+     *
+     * ⚠️ اعتبارسنجی **پیش از** ساختِ دکمه است، نه بعدش. دکمه‌ای که کلیکش خطا
+     * بدهد، روی موبایل بدتر از نبودنِ دکمه است.
+     */
+    private function dialAsk(string $rest): void
+    {
+        $raw = $this->anchor->asciiDigits(trim($rest));
+        $number = IranianPhone::normalize($raw);
+        $kind = IranianPhone::kind($raw);
+
+        if ($number === null || $raw === '') {
+            $this->replyToOwner(
+                "شماره را همراهِ فرمان بفرستید.\n"
+                .'مثال: «تماس ۰۹۱۲۳۴۵۶۷۸۹»'
+            );
+
+            return;
+        }
+
+        if (! in_array($kind, [IranianPhone::KIND_MOBILE, IranianPhone::KIND_LANDLINE], true)) {
+            /*
+            | ⚠️ پیام می‌گوید **چه چیزی** کم است، نه فقط «نامعتبر». شمارهٔ محلیِ
+            | بی‌پیش‌شماره رایج‌ترین ورودیِ اشتباه است و حدس‌زدنِ پیش‌شماره یعنی
+            | زنگ‌زدن به یک غریبه در شهرِ دیگر.
+            */
+            $this->replyToOwner(
+                "این شماره قابلِ شماره‌گیری نیست: «{$raw}»\n"
+                .'شمارهٔ کامل با پیش‌شماره لازم است — مثلاً ۰۹۱۲۳۴۵۶۷۸۹ یا ۰۲۱۷۱۰۵۷۷۵۷.'
+            );
+
+            return;
+        }
+
+        $svc = app(OutgoingCallService::class);
+
+        if (! $svc->enabled()) {
+            $this->replyToOwner('رلهٔ تلفن ابری پیکربندی نشده؛ تماس ممکن نیست.');
+
+            return;
+        }
+
+        $agent = $svc->agentNumberFor(null);
+
+        if ($agent === null || $svc->extension() === null) {
+            $this->replyToOwner('شمارهٔ تماس‌گیرنده یا خطِ ابری تنظیم نشده؛ تماس ممکن نیست.');
+
+            return;
+        }
+
+        $this->sendButtons(
+            "📞 تماس با «{$number}»؟\n"
+            ."ابتدا {$agent} زنگ می‌خورد، بعد این شماره.",
+            [[$this->stamped('✅ بگیر '.$number, 'dn', (int) $number)]],
+        );
+    }
+
+    /** دکمهٔ تأییدِ شماره‌گیریِ دستی خورده شد. */
+    private function dialConfirmed(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'dn');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $number = (string) $id;
+        $svc = app(OutgoingCallService::class);
+        $agent = $svc->agentNumberFor(null);
+
+        $result = $svc->place($number, null);
+
+        /*
+        | ⚠️ رد در `ActivityLog` — همان دلیلِ پنل: تماس با غریبه به هیچ پرونده‌ای
+        | نمی‌چسبد، پس بی‌این لاگ تنها ردش صورت‌حسابِ تأمین‌کننده بود.
+        */
+        try {
+            \App\Models\ActivityLog::record(null, 'call',
+                'شماره‌گیریِ دستی از بله: '.$number.' — نتیجه: '.$result['status'], null, 'staff');
+        } catch (\Throwable $e) {
+            /*
+            | 🔴 عمداً `catch` خالی نیست.
+            |
+            | این تنها ردِ ماندگارِ تماس با یک غریبه است — به هیچ پرونده‌ای
+            | نمی‌چسبد، پس اگر بی‌صدا بیفتد تنها جای دیگرش صورت‌حسابِ
+            | تأمین‌کننده است و آن فقط جمعِ کل را می‌گوید.
+            */
+            ErrorTracker::note('cloud-phone', $e, ['area' => 'bale-dial-log', 'to' => $number]);
+        }
+
+        $this->replyToOwner(match ($result['status']) {
+            OutgoingCallService::OK => "📞 تماس با {$number} در حالِ برقراری است.\n"
+                ."ابتدا {$agent} زنگ می‌خورد.",
+
+            OutgoingCallService::UNKNOWN => "⚠️ پاسخِ رله قابلِ فهم نبود.\n"
+                ."ممکن است تماس برقرار شده باشد — چند لحظه صبر کنید.\n"
+                .'جزئیات در ردیابِ خطا ثبت شد.',
+
+            default => "❌ تماس برقرار نشد.\n".$result['message'],
+        });
+    }
+
+    /**
+     * اعلامِ «این سرور را خودم دستی پاک کردم».
+     *
+     * 🔴 خطرش واقعی است: اگر ماشین هنوز زنده باشد و ما صف را ببندیم، نشتی از
+     * رادار پاک می‌شود و اجاره‌اش تا ابد از حسابِ ما می‌رود، بی‌هیچ هشداری. پس
+     * پیامِ تأیید صریح می‌گوید چه چیزی را پذیرفته‌ایم.
+     */
+    private function releasedManually(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'rm');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $s = Service::find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        $done = app(ProvisioningService::class)->markReleasedManually($s, 'bale');
+
+        $this->replyToOwner($done
+            ? "✅ سرویسِ «{$s->name}» (#{$s->id}) از صفِ آزادسازی خارج شد.\n"
+              ."تلاشِ خودکار و هشدارِ ساعتی متوقف شد.\n\n"
+              .'⚠️ اگر ماشین در واقع هنوز زنده باشد، دیگر هشداری نمی‌آید — '
+              .'پس مطمئن شوید واقعاً پاک شده.'
+            : 'این سرویس در صفِ آزادسازی نیست؛ کاری لازم نبود.');
     }
 
     // ─────────────────── فاز ۳: کارهای برگشت‌پذیر ───────────────────
@@ -1303,7 +1638,7 @@ class AdminBaleRouter
             return;
         }
 
-        $s = \App\Models\Service::find($id);
+        $s = Service::find($id);
 
         if ($s === null) {
             $this->replyToOwner('سرویس پیدا نشد.');
@@ -1311,7 +1646,7 @@ class AdminBaleRouter
             return;
         }
 
-        $prov = app(\App\Services\Provisioning\ProvisioningService::class);
+        $prov = app(ProvisioningService::class);
         $r = $suspend ? $prov->suspend($s) : $prov->unsuspend($s);
 
         if (! $r->ok && ! $r->manual) {
@@ -1320,7 +1655,7 @@ class AdminBaleRouter
             return;
         }
 
-        \App\Models\ActivityLog::forService($s, $suspend ? 'suspend' : 'reactivate',
+        ActivityLog::forService($s, $suspend ? 'suspend' : 'reactivate',
             'از رباتِ بله توسط مدیر «'.($this->gate->boundUser()?->name ?? 'مدیر').'»', 'staff');
 
         // ⚠️ دکمهٔ برگشت همان‌جا: کارِ برگشت‌پذیر باید برگشتش هم یک تپ باشد
@@ -1330,7 +1665,7 @@ class AdminBaleRouter
             .($r->manual ? "\n⚠️ روی سرور دستی انجام دهید." : ''),
             [[$this->stamped($suspend ? '↩️ برگرداندن' : '↩️ تعلیقِ دوباره',
                 $suspend ? 'sr' : 'su', $s->id)],
-             $this->nav('s:'.$s->id)],
+                $this->nav('s:'.$s->id)],
         );
     }
 
@@ -1344,7 +1679,7 @@ class AdminBaleRouter
             return;
         }
 
-        $s = \App\Models\Service::find($id);
+        $s = Service::find($id);
 
         if ($s === null || ! $s->isRecurring()) {
             $this->replyToOwner('این سرویس دوره‌ای نیست یا پیدا نشد.');
@@ -1355,7 +1690,7 @@ class AdminBaleRouter
         try {
             // ⚠️ همان متدِ پنل، نه نسخهٔ دوم: مبلغ و مالیات و سررسید یک‌جا حساب
             // می‌شوند و دو پیاده‌سازی روزی واگرا می‌شوند.
-            $inv = app(\App\Http\Controllers\Admin\ServiceController::class)->issueInvoice($s);
+            $inv = app(ServiceController::class)->issueInvoice($s);
         } catch (\Throwable $e) {
             ErrorTracker::note('bale-admin', $e, ['step' => 'renew', 'service' => $s->id]);
             $this->replyToOwner('⚠️ صدورِ فاکتور انجام نشد.');
@@ -1363,7 +1698,7 @@ class AdminBaleRouter
             return;
         }
 
-        \App\Models\ActivityLog::forService($s, 'renew',
+        ActivityLog::forService($s, 'renew',
             'فاکتورِ تمدید از رباتِ بله صادر شد', 'staff');
 
         $this->sendButtons(
@@ -1371,7 +1706,7 @@ class AdminBaleRouter
             ."\n".'مبلغ: '.fa_num(number_format((int) $inv->total)).' تومان'
             ."\n".'پس از پرداخت، سررسید یک دوره جلو می‌رود.',
             [[['text' => '🧾 دیدنِ فاکتور', 'data' => self::CB_PREFIX.'i:'.$inv->id]],
-             $this->nav('s:'.$s->id)],
+                $this->nav('s:'.$s->id)],
         );
     }
 
@@ -1392,7 +1727,7 @@ class AdminBaleRouter
             return;
         }
 
-        $s = \App\Models\Service::find($id);
+        $s = Service::find($id);
 
         if ($s === null) {
             $this->replyToOwner('سرویس پیدا نشد.');
@@ -1425,7 +1760,7 @@ class AdminBaleRouter
             return;
         }
 
-        $i = \App\Models\Invoice::find($id);
+        $i = Invoice::find($id);
 
         if ($i === null) {
             $this->replyToOwner('فاکتور پیدا نشد.');
@@ -1433,7 +1768,7 @@ class AdminBaleRouter
             return;
         }
 
-        $ok = app(\App\Services\Billing\InvoiceCanceller::class)
+        $ok = app(InvoiceCanceller::class)
             ->cancel($i, 'لغو توسط مدیر از رباتِ بله', rejectPendingReceipt: false);
 
         $this->sendButtons(
@@ -1515,7 +1850,7 @@ class AdminBaleRouter
      */
     private function receiptApproveAsk(string $arg): void
     {
-        $r = \App\Models\BankTransferReceipt::find((int) $arg);
+        $r = BankTransferReceipt::find((int) $arg);
 
         if ($r === null || ! $r->isPending()) {
             $this->replyToOwner('رسید پیدا نشد یا قبلاً بررسی شده.');
@@ -1557,7 +1892,7 @@ class AdminBaleRouter
     /** ردِ رسید دلیل می‌خواهد — مشتری آن متن را می‌بیند */
     private function receiptRejectAsk(string $arg): void
     {
-        $r = \App\Models\BankTransferReceipt::find((int) $arg);
+        $r = BankTransferReceipt::find((int) $arg);
 
         if ($r === null || ! $r->isPending()) {
             $this->replyToOwner('رسید پیدا نشد یا قبلاً بررسی شده.');
@@ -1568,7 +1903,7 @@ class AdminBaleRouter
         $this->gate->armFlow('reject:'.$r->id);
 
         $this->sendButtons(
-            "⛔️ ردِ رسیدِ ".fa_num(number_format((int) $r->amount))." تومان\n\n"
+            '⛔️ ردِ رسیدِ '.fa_num(number_format((int) $r->amount))." تومان\n\n"
             .'دلیلِ رد را بنویسید — مشتری همین متن را می‌بیند.',
             [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
         );
@@ -1576,7 +1911,7 @@ class AdminBaleRouter
 
     private function serviceTerminateAsk(string $arg): void
     {
-        $s = \App\Models\Service::find((int) $arg);
+        $s = Service::find((int) $arg);
 
         if ($s === null) {
             $this->replyToOwner('سرویس پیدا نشد.');
@@ -1670,7 +2005,7 @@ class AdminBaleRouter
         if ($step === 'mobile') {
             // ⚠️ همان نرمال‌سازیِ ثبت‌نام (`09…`)، نه نسخهٔ دوم — دلیلش در
             //    `QuickCustomerCreator` نوشته شده.
-            $mobile = app(\App\Services\Otp\OtpService::class)->normalize('sms', $text) ?: null;
+            $mobile = app(OtpService::class)->normalize('sms', $text) ?: null;
 
             if ($mobile === null) {
                 $this->replyToOwner('شماره معتبر نیست. مثلِ ۰۹۱۲۳۴۵۶۷۸۹ بفرستید.');
@@ -1705,7 +2040,7 @@ class AdminBaleRouter
             return;
         }
 
-        $res = app(\App\Services\Customer\QuickCustomerCreator::class)->create(
+        $res = app(QuickCustomerCreator::class)->create(
             (string) $data['name'], (string) $data['mobile'], $email,
         );
 
@@ -1722,7 +2057,7 @@ class AdminBaleRouter
         | نکرده و ثبتش فقط تاریخچهٔ مشتری را شلوغ می‌کند.
         */
         if (! $res['existing']) {
-            \App\Models\ActivityLog::record($c->id, 'register',
+            ActivityLog::record($c->id, 'register',
                 'مشتری از رباتِ بله توسط مدیر ثبت شد — بدونِ احرازِ هویت',
                 null, 'staff');
         }
@@ -1731,7 +2066,7 @@ class AdminBaleRouter
             ($res['existing'] ? 'ℹ️ ' : '✅ ').$res['message']
             ."\n\n👤 ".$c->displayName().' · '.$c->code
             .($res['existing'] ? '' : "\n⚠️ این حساب **احراز نشده** است و رمز ندارد؛"
-                ." مشتری از «فراموشی رمز» خودش وارد می‌شود."),
+                .' مشتری از «فراموشی رمز» خودش وارد می‌شود.'),
             [
                 [['text' => '🛒 فروشِ سرویس', 'data' => self::CB_PREFIX.'sell:'.$c->id]],
                 [['text' => '👤 پرونده', 'data' => self::CB_PREFIX.'c:'.$c->id]],
@@ -1754,7 +2089,7 @@ class AdminBaleRouter
 
     private function sellStart(int $customerId): void
     {
-        $c = \App\Models\Customer::find($customerId);
+        $c = Customer::find($customerId);
 
         if ($c === null) {
             $this->replyToOwner('مشتری پیدا نشد.');
@@ -1762,8 +2097,8 @@ class AdminBaleRouter
             return;
         }
 
-        $products = \Illuminate\Support\Facades\Schema::hasTable('products')
-            ? \App\Models\Product::where('is_active', true)
+        $products = Schema::hasTable('products')
+            ? Product::where('is_active', true)
                 ->orderBy('sort')->orderBy('name')->limit(AdminBaleScreens::PAGE)->get()
             : collect();
 
@@ -1788,7 +2123,7 @@ class AdminBaleRouter
     private function sellPickedProduct(int $productId): void
     {
         $data = $this->gate->flowData();
-        $p    = \App\Models\Product::find($productId);
+        $p = Product::find($productId);
 
         if (($data['cid'] ?? 0) === 0 || $p === null) {
             $this->staleFlow();
@@ -1828,7 +2163,7 @@ class AdminBaleRouter
     private function sellPickedCountry(string $code): void
     {
         $data = $this->gate->flowData();
-        $p    = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $p = Product::find((int) ($data['pid'] ?? 0));
 
         if ($p === null) {
             $this->staleFlow();
@@ -1848,17 +2183,17 @@ class AdminBaleRouter
         $this->askCycle($data, $p);
     }
 
-    private function askCycle(array $data, \App\Models\Product $p): void
+    private function askCycle(array $data, Product $p): void
     {
         $this->gate->armFlow('sell:cycle', $data);
 
         $country = $data['country'] ?? null;
 
         $rows = array_map(fn ($cycle) => [[
-            'text' => \App\Models\Service::labelFor($cycle).' · '
+            'text' => Service::labelFor($cycle).' · '
                 .fa_num(number_format($p->priceForCycle($cycle, $country))).' ت',
             'data' => self::CB_PREFIX.'sec:'.$cycle,
-        ]], \App\Models\Service::cycles());
+        ]], Service::cycles());
 
         $rows[] = [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']];
 
@@ -1868,9 +2203,9 @@ class AdminBaleRouter
     private function sellPickedCycle(string $cycle): void
     {
         $data = $this->gate->flowData();
-        $p    = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $p = Product::find((int) ($data['pid'] ?? 0));
 
-        if ($p === null || ! in_array($cycle, \App\Models\Service::cycles(), true)) {
+        if ($p === null || ! in_array($cycle, Service::cycles(), true)) {
             $this->staleFlow();
 
             return;
@@ -1925,7 +2260,7 @@ class AdminBaleRouter
     private function sellFreeSubdomain(): void
     {
         $data = $this->gate->flowData();
-        $c    = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
+        $c = Customer::find((int) ($data['cid'] ?? 0));
 
         if ($c === null) {
             $this->staleFlow();
@@ -1933,14 +2268,14 @@ class AdminBaleRouter
             return;
         }
 
-        $zone  = (string) config('servernet.subdomain_zone', 'servernet.cloud');
+        $zone = (string) config('servernet.subdomain_zone', 'servernet.cloud');
         $label = strtolower(str_replace('-', '', (string) $c->code));
 
         for ($i = 0; $i < 20; $i++) {
             $try = $label.($i === 0 ? '' : $i);
 
-            if (! \App\Models\Service::where('domain', $try.'.'.$zone)
-                ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)->exists()) {
+            if (! Service::where('domain', $try.'.'.$zone)
+                ->whereNotIn('status', Service::DEAD_STATUSES)->exists()) {
                 $data['domain'] = $try.'.'.$zone;
 
                 $this->sellRecap($data);
@@ -1955,8 +2290,8 @@ class AdminBaleRouter
     /** آخرین صفحه پیش از پول — همه‌چیز پیشِ چشم، بعد یک تپ */
     private function sellRecap(array $data): void
     {
-        $c = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
-        $p = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $c = Customer::find((int) ($data['cid'] ?? 0));
+        $p = Product::find((int) ($data['pid'] ?? 0));
         $cycle = (string) ($data['cycle'] ?? '');
 
         if ($c === null || $p === null || $cycle === '') {
@@ -1968,9 +2303,9 @@ class AdminBaleRouter
         $this->gate->armFlow('sell:confirm', $data);
 
         $country = $data['country'] ?? null;
-        $price   = $p->priceForCycle($cycle, $country);
-        $setup   = $p->effectiveSetup();
-        $tax     = (int) round(($price + $setup) * (int) $p->tax_percent / 100);
+        $price = $p->priceForCycle($cycle, $country);
+        $setup = $p->effectiveSetup();
+        $tax = (int) round(($price + $setup) * (int) $p->tax_percent / 100);
 
         $key = 'sey:'.$c->id.':'.$p->id.':'.$cycle;
 
@@ -1979,7 +2314,7 @@ class AdminBaleRouter
                 '🧾 پیش از ثبت، یک بار بخوانید:',
                 '',
                 '👤 '.$c->displayName().' · '.$c->code,
-                '📦 '.$p->name.' · '.\App\Models\Service::labelFor($cycle),
+                '📦 '.$p->name.' · '.Service::labelFor($cycle),
                 $country ? ('📍 '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : null,
                 ($data['domain'] ?? null) ? ('🌐 '.$data['domain']) : null,
                 '',
@@ -1992,7 +2327,7 @@ class AdminBaleRouter
             ])),
             [
                 [['text' => '✅ ثبت و صدورِ پیش‌فاکتور',
-                  'data' => self::CB_PREFIX.'sey:'.$this->gate->stamp($key)]],
+                    'data' => self::CB_PREFIX.'sey:'.$this->gate->stamp($key)]],
                 [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']],
             ],
         );
@@ -2002,8 +2337,8 @@ class AdminBaleRouter
     {
         $data = $this->gate->flowData();
 
-        $c = \App\Models\Customer::find((int) ($data['cid'] ?? 0));
-        $p = \App\Models\Product::find((int) ($data['pid'] ?? 0));
+        $c = Customer::find((int) ($data['cid'] ?? 0));
+        $p = Product::find((int) ($data['pid'] ?? 0));
         $cycle = (string) ($data['cycle'] ?? '');
 
         if ($c === null || $p === null || $cycle === '') {
@@ -2026,7 +2361,7 @@ class AdminBaleRouter
         // 🔴 پیش از فروش مصرف می‌شود: تپِ دوم دیگر جریانی برای اجرا ندارد
         $this->gate->clearFlow();
 
-        $res = app(\App\Services\Sales\PhoneSale::class)->sell(
+        $res = app(PhoneSale::class)->sell(
             $c, $p, $cycle,
             $data['country'] ?? null,
             $data['domain'] ?? null,
@@ -2045,7 +2380,7 @@ class AdminBaleRouter
         $this->sendButtons(
             "✅ فروش ثبت و پیش‌فاکتور صادر شد.\n\n"
             .'👤 '.$c->displayName().' · '.$c->code."\n"
-            .'📦 '.$p->name.' · '.\App\Models\Service::labelFor($cycle)."\n"
+            .'📦 '.$p->name.' · '.Service::labelFor($cycle)."\n"
             .'💰 '.fa_num(number_format((int) $inv->total)).' تومان',
             [
                 [['text' => '🧾 دیدنِ فاکتور', 'data' => self::CB_PREFIX.'i:'.$inv->id]],
@@ -2069,7 +2404,7 @@ class AdminBaleRouter
     /** فقط **خلاصه**: هیچ کاری نمی‌کند و هیچ‌چیز به مشتری نمی‌رود */
     private function customerBrief(int $id): void
     {
-        $c = \App\Models\Customer::find($id);
+        $c = Customer::find($id);
 
         if ($c === null) {
             $this->replyToOwner('مشتری پیدا نشد.');
@@ -2077,7 +2412,7 @@ class AdminBaleRouter
             return;
         }
 
-        $text = app(\App\Services\Customer\CustomerBriefWriter::class)->brief($c);
+        $text = app(CustomerBriefWriter::class)->brief($c);
 
         $this->sendButtons(
             $text !== null
@@ -2091,13 +2426,13 @@ class AdminBaleRouter
 
     private function showMailbox(): void
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')) {
+        if (! Schema::hasTable('mailbox_messages')) {
             $this->replyToOwner('صندوقِ ایمیل روی این نصب فعال نیست.');
 
             return;
         }
 
-        $rows = \App\Models\MailboxMessage::open()->where('needs_reply', true)
+        $rows = MailboxMessage::open()->where('needs_reply', true)
             ->orderByDesc('importance')->orderByDesc('id')->limit(6)->get();
 
         if ($rows->isEmpty()) {
@@ -2123,8 +2458,8 @@ class AdminBaleRouter
 
     private function showMail(string $arg): void
     {
-        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
-            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+        $m = Schema::hasTable('mailbox_messages')
+            ? MailboxMessage::find((int) $arg) : null;
 
         if ($m === null) {
             $this->replyToOwner('ایمیل پیدا نشد.');
@@ -2162,8 +2497,8 @@ class AdminBaleRouter
      */
     private function mailDraft(string $arg): void
     {
-        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
-            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+        $m = Schema::hasTable('mailbox_messages')
+            ? MailboxMessage::find((int) $arg) : null;
 
         if ($m === null) {
             $this->replyToOwner('ایمیل پیدا نشد.');
@@ -2171,7 +2506,7 @@ class AdminBaleRouter
             return;
         }
 
-        $draft = app(\App\Services\Mail\MailReplyDraftWriter::class)->draft($m);
+        $draft = app(MailReplyDraftWriter::class)->draft($m);
 
         if ($draft === null) {
             $this->sendButtons(
@@ -2204,8 +2539,8 @@ class AdminBaleRouter
     /** «خودم می‌نویسم» — متنِ آزاد به‌جای پیش‌نویسِ مدل */
     private function mailWriteMyself(string $arg): void
     {
-        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
-            ? \App\Models\MailboxMessage::find((int) $arg) : null;
+        $m = Schema::hasTable('mailbox_messages')
+            ? MailboxMessage::find((int) $arg) : null;
 
         if ($m === null) {
             $this->replyToOwner('ایمیل پیدا نشد.');
@@ -2226,7 +2561,7 @@ class AdminBaleRouter
     /** ارسالِ پیش‌نویسِ ذخیره‌شده */
     private function mailSend(string $arg): void
     {
-        $id    = (int) $arg;
+        $id = (int) $arg;
         $draft = $this->gate->takeMailDraft($id);
 
         if ($draft === null) {
@@ -2253,8 +2588,8 @@ class AdminBaleRouter
      */
     private function mailQueue(int $mailId, string $body): void
     {
-        $m = \Illuminate\Support\Facades\Schema::hasTable('mailbox_messages')
-            ? \App\Models\MailboxMessage::find($mailId) : null;
+        $m = Schema::hasTable('mailbox_messages')
+            ? MailboxMessage::find($mailId) : null;
 
         if ($m === null) {
             $this->replyToOwner('ایمیل پیدا نشد.');
@@ -2279,7 +2614,7 @@ class AdminBaleRouter
     private function archiveMail(string $arg): void
     {
         try {
-            $m = \App\Models\MailboxMessage::find((int) $arg);
+            $m = MailboxMessage::find((int) $arg);
 
             if ($m === null) {
                 return;
@@ -2390,7 +2725,7 @@ class AdminBaleRouter
     private function split(string $text): array
     {
         $text = trim($text);
-        $pos  = preg_match('/\s/u', $text, $m, PREG_OFFSET_CAPTURE) === 1 ? $m[0][1] : false;
+        $pos = preg_match('/\s/u', $text, $m, PREG_OFFSET_CAPTURE) === 1 ? $m[0][1] : false;
 
         if ($pos === false) {
             return [mb_strtolower($text), ''];
