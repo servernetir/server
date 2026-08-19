@@ -76,7 +76,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -295,6 +295,7 @@ class AdminBaleRouter
                 'ma' => '📥 بایگانی شد',
                 // تماس چند صدم ثانیه طول می‌کشد؛ بی‌این، دکمه «در حالِ بارگذاری» می‌مانَد
                 'cc' => '📞 در حالِ برقراری…',
+                'rm' => '✅ ثبت شد',
                 default => '',
             });
 
@@ -355,6 +356,7 @@ class AdminBaleRouter
                 'cne' => $this->newCustomerFinish(null),
                 'cs' => $this->customerBrief((int) $arg),
                 'cc' => $this->customerCall($arg),
+                'rm' => $this->releasedManually($arg),
                 'sell' => $this->sellStart((int) $arg),
                 'sep' => $this->sellPickedProduct((int) $arg),
                 'seo' => $this->sellPickedCountry($arg),
@@ -1275,6 +1277,19 @@ class AdminBaleRouter
             $rows[] = [['text' => '🗑 خاتمهٔ سرویس', 'data' => self::CB_PREFIX.'sx:'.$s->id]];
         }
 
+        /*
+        | «خودم دستی پاکش کردم» — تنها راهِ بستنِ صفی که زیرساخت هرگز تأییدش
+        | نمی‌کند، چون ماشین از پنلِ دیتاسنتر با دست پاک شده و API دیگر
+        | نمی‌شناسدش.
+        |
+        | ⚠️ فقط وقتی ظاهر می‌شود که سرویس واقعاً در صفِ آزادسازی باشد. دکمه‌ای
+        | که همیشه باشد، دیر یا زود روی سرویسی زده می‌شود که ماشینش **واقعاً**
+        | زنده است — و آن‌وقت نشتی را از رادار پاک می‌کنیم بی‌آنکه بسته باشیمش.
+        */
+        if ($s->provision_status === Service::PROVISION_RELEASING) {
+            $rows[] = [$this->stamped('✅ آزادسازی دستی انجام شد', 'rm', $s->id)];
+        }
+
         $rows[] = $this->nav($s->customer_id ? 'c:'.$s->customer_id : '');
 
         $this->sendButtons($this->screens->service($s), $rows);
@@ -1417,6 +1432,41 @@ class AdminBaleRouter
         $rows[] = $this->nav();
 
         $this->sendButtons($r['text'], $rows);
+    }
+
+    /**
+     * اعلامِ «این سرور را خودم دستی پاک کردم».
+     *
+     * 🔴 خطرش واقعی است: اگر ماشین هنوز زنده باشد و ما صف را ببندیم، نشتی از
+     * رادار پاک می‌شود و اجاره‌اش تا ابد از حسابِ ما می‌رود، بی‌هیچ هشداری. پس
+     * پیامِ تأیید صریح می‌گوید چه چیزی را پذیرفته‌ایم.
+     */
+    private function releasedManually(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'rm');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $s = Service::find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        $done = app(ProvisioningService::class)->markReleasedManually($s, 'bale');
+
+        $this->replyToOwner($done
+            ? "✅ سرویسِ «{$s->name}» (#{$s->id}) از صفِ آزادسازی خارج شد.\n"
+              ."تلاشِ خودکار و هشدارِ ساعتی متوقف شد.\n\n"
+              .'⚠️ اگر ماشین در واقع هنوز زنده باشد، دیگر هشداری نمی‌آید — '
+              .'پس مطمئن شوید واقعاً پاک شده.'
+            : 'این سرویس در صفِ آزادسازی نیست؛ کاری لازم نبود.');
     }
 
     // ─────────────────── فاز ۳: کارهای برگشت‌پذیر ───────────────────
