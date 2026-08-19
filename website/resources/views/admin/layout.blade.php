@@ -141,6 +141,10 @@
          مدیریت **بی‌صدا** گم می‌شدند: «پلن پیدا نشد»، «زیرساخت ناشناخته»،
          «هیچ توکنی ذخیره نشده» — همه فلش می‌شدند و هیچ‌جا رندر نمی‌شدند، پس
          مدیر یک ریدایرکتِ بی‌پیام می‌دید و می‌گفت دکمه کار نمی‌کند. --}}
+    {{-- ⚠️ «نمی‌دانیم» رنگِ خودش را دارد.
+         بدونِ این، یک نتیجهٔ نامعلوم یا سبز نشان داده می‌شود (دروغِ خوش‌بینانه)
+         یا قرمز (دروغِ بدبینانه). هر دو بار مدیر را گمراه می‌کند. --}}
+    @if(session('warn'))<div class="ad-flash" style="background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35);color:#fbbf24">{{ session('warn') }}</div>@endif
     @if(session('err'))<div class="ad-flash err">{{ session('err') }}</div>@endif
     @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
     <div class="ad-content">@yield('content')</div>

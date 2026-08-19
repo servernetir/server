@@ -104,8 +104,14 @@ class PhoneCallController extends Controller
 
         $result = $service->place((string) $number, $user?->phoneExtension());
 
-        return $result['status'] === OutgoingCallService::OK
-            ? back()->with('ok', $result['message'])
-            : back()->with('err', $result['message']);
+        /*
+        | ⚠️ سه حالت، نه دو تا. «نمی‌دانیم» نباید به «نشد» تبدیل شود — یک بار
+        | همین باعث شد پنل بگوید تماس برقرار نشد در حالی که تلفن زنگ خورده بود.
+        */
+        return match ($result['status']) {
+            OutgoingCallService::OK => back()->with('ok', $result['message']),
+            OutgoingCallService::UNKNOWN => back()->with('warn', $result['message']),
+            default => back()->with('err', $result['message']),
+        };
     }
 }

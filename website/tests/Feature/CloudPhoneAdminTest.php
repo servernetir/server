@@ -161,15 +161,50 @@ class CloudPhoneAdminTest extends TestCase
         $this->assertStringContainsString('caller_extension not found', $logged);
     }
 
-    public function test_an_unknown_200_body_is_also_a_failure(): void
+    public function test_an_unreadable_relay_response_is_unknown_not_failed(): void
     {
-        // صفحهٔ خطای HTML با کدِ ۲۰۰، پاسخِ پروکسی، ورک‌فلوی نیمه‌ویرایش‌شده…
-        Http::fake([self::RELAY => Http::response('<html>OK</html>', 200)]);
+        /*
+        | 🔴 خرابیِ واقعیِ ۱۹ آگوست.
+        |
+        | دو ورک‌فلوی n8n با هم ادغام شده بودند، پس گرهٔ Respondِ اشتباه جواب
+        | می‌داد. n8n `status: sent` تولید کرده بود و تلفن هم زنگ خورده بود،
+        | ولی پاسخی که به لاراول رسید JSONِ ما نبود — و ما ناخوانا را «شکست»
+        | تعبیر کردیم و به مدیر گفتیم «تماس برقرار نشد».
+        |
+        | پنلی که با اطمینان چیزِ غلط بگوید بدتر از پنلی است که بگوید نمی‌دانم.
+        */
+        Http::fake([self::RELAY => Http::response('OK', 200)]);
+
+        ErrorTracker::clear();
+
+        $result = app(OutgoingCallService::class)->place('09121112222');
+
+        $this->assertSame(OutgoingCallService::UNKNOWN, $result['status']);
+
+        // ⚠️ بدنهٔ خام باید لاگ شود، وگرنه تشخیص دوباره ساعت‌ها طول می‌کشد
+        $this->assertStringContainsString('OK', json_encode(ErrorTracker::recent(20)));
+    }
+
+    public function test_an_explicit_not_sent_is_still_a_failure(): void
+    {
+        // «رد شد» با «نمی‌دانم» فرق دارد — این یکی قطعاً شکست است
+        Http::fake([self::RELAY => Http::response(['status' => 'ignored', 'reason' => 'stale_envelope'], 200)]);
 
         $this->assertSame(
             OutgoingCallService::FAILED,
             app(OutgoingCallService::class)->place('09121112222')['status'],
         );
+    }
+
+    public function test_the_panel_shows_unknown_as_a_warning_not_an_error(): void
+    {
+        Http::fake([self::RELAY => Http::response('OK', 200)]);
+
+        $this->actingAs($this->admin())
+            ->post('/admin/customers/'.$this->customer()->id.'/call')
+            ->assertRedirect()
+            ->assertSessionHas('warn')
+            ->assertSessionMissing('err');
     }
 
     public function test_no_agent_number_anywhere_means_no_call_is_attempted(): void

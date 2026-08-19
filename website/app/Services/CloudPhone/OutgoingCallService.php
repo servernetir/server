@@ -46,6 +46,17 @@ final class OutgoingCallService
 
     public const FAILED = 'failed';
 
+    /*
+    | 🔴 «نمی‌دانیم» یک وضعیتِ سوم است، نه مترادفِ شکست.
+    |
+    | ۱۹ آگوست: تماس واقعاً برقرار شد (تلفن زنگ خورد و n8n هم `status: sent`
+    | داد) ولی پنل گفت «تماس برقرار نشد». علت این بود که پاسخِ رله دستِ ما
+    | ناخوانا رسید و ما ناخوانا را «شکست» تعبیر کردیم.
+    |
+    | پنلی که با اطمینان چیزِ غلط بگوید، بدتر از پنلی است که بگوید نمی‌دانم.
+    */
+    public const UNKNOWN = 'unknown';
+
     public function enabled(): bool
     {
         $url = (string) config('services.cloud_phone.relay_url');
@@ -206,7 +217,33 @@ final class OutgoingCallService
             | اگر فقط به کدِ HTTP نگاه کنیم، رازِ ناهماهنگ «موفق» گزارش می‌شود و
             | مدیر منتظرِ زنگی می‌ماند که هرگز نمی‌آید. همان درسِ رلهٔ پیامک.
             */
-            if (($res->json('status') ?? null) !== 'sent') {
+            $relayStatus = $res->json('status') ?? null;
+
+            /*
+            | پاسخی که اصلاً `status` ندارد یعنی چیزی جز ورک‌فلوی ما جواب داده:
+            | گرهٔ Respond اشتباه، صفحهٔ خطای پروکسی، یا ورک‌فلوی ادغام‌شده.
+            |
+            | ⚠️ بدنهٔ خام لاگ می‌شود. بارِ اول که این رخ داد، پیامِ «پاسخ
+            | ناشناخته» هیچ نگفت و تشخیص یک ساعت طول کشید — در حالی که یک نگاه
+            | به بدنه فوراً می‌گفت چه چیزی برگشته.
+            */
+            if ($relayStatus === null) {
+                $raw = trim($res->body());
+
+                ErrorTracker::note('cloud-phone', 'پاسخِ ناخوانا از رله (تماس ممکن است برقرار شده باشد): '
+                    .mb_substr($raw === '' ? '(بدنهٔ خالی)' : $raw, 0, 300), [
+                        'request_id' => $requestId,
+                        'http_status' => $res->status(),
+                    ]);
+
+                return [
+                    'status' => self::UNKNOWN,
+                    'message' => 'پاسخِ رله قابل‌فهم نبود — ممکن است تماس برقرار شده باشد. جزئیات در ردیاب خطا.',
+                    'request_id' => $requestId,
+                ];
+            }
+
+            if ($relayStatus !== 'sent') {
                 /*
                 | ⚠️ `detail` هم ثبت می‌شود.
                 |
