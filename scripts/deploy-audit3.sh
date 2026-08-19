@@ -16,8 +16,8 @@
 #
 set -u
 
-MINE=d53c820        # نسخهٔ جدید (develop)
-BASE=8e3fa6d        # نسخهٔ پایه = آخرین دیپلوی شناخته‌شده
+MINE=cbf889f        # نسخهٔ جدید (ممیزی ۴)
+BASE=d53c820        # نسخهٔ پایه = آخرین دیپلویِ راستی‌آزمایی‌شده (ممیزی ۳)
 APP="$HOME/servernet_app"
 PUB="$HOME/public_html"
 WORK="$HOME/deploy-audit3"
@@ -44,13 +44,20 @@ git -C repo rev-parse --verify "$BASE" >/dev/null || { echo "FATAL: $BASE در �
 APP_FILES="
 app/Console/Commands/CheckSiteLinks.php
 app/Http/Middleware/PageCache.php
+app/Http/Controllers/OrderSummaryController.php
+app/Http/Controllers/AbuseController.php
+resources/views/pages/order-summary.blade.php
+resources/views/pages/abuse.blade.php
 config/pagecache.php
 resources/views/partials/product-guides.blade.php
 app/Console/Commands/CheckContentLinks.php
 app/Http/Controllers/SiteController.php
+app/Http/Controllers/CatalogController.php
+app/Providers/AppServiceProvider.php
 app/Services/AiContent.php
 app/helpers.php
 config/blog.php
+config/hosting.php
 config/pages.php
 lang/en/ui.php
 lang/fa/ui.php
@@ -58,8 +65,10 @@ lang/tr/ui.php
 resources/views/pages/blog-post.blade.php
 resources/views/pages/cloud-location.blade.php
 resources/views/pages/cloud.blade.php
+resources/views/pages/content.blade.php
 resources/views/pages/hosting.blade.php
 resources/views/pages/server-detail.blade.php
+resources/views/pages/sla.blade.php
 resources/views/pages/solution.blade.php
 resources/views/partials/footer.blade.php
 resources/views/partials/sig-ai-builder.blade.php
