@@ -63,6 +63,20 @@ $site = function (): void {
     // AUP — منع بازفروش سرویس عبور روی زیرساخت ایران (ممیزی ۳، مدیر حقوقی/امنیت)
     Route::get('/aup', fn () => app(SiteController::class)->page('aup'))->name('aup');
 
+    // خلاصهٔ سفارشِ پیش از ورود (ممیزی ۴ — «اگر فقط یک کار در ۳۰ روز»):
+    // قیمت و دوره‌ها بی‌نشست روی خودِ سایت؛ console فقط در گامِ پرداخت.
+    Route::get('/order/{slug}', [\App\Http\Controllers\OrderSummaryController::class, 'show'])
+        ->name('order.summary')->where('slug', '[a-z0-9-]+');
+
+    // متدولوژی سرعت — جایگزینِ ادعای بی‌سندِ req/s (ممیزی ۴، مارکتینگ/حقوقی)
+    Route::get('/speed', fn () => app(SiteController::class)->page('speed'))->name('speed');
+
+    // گزارش سوءاستفاده (ممیزی ۴ — امنیت): «AUP بدونِ کانالِ ورودی اجرا
+    // نمی‌شود؛ فقط مسئولیت می‌سازد.» فرم عمومی + گلوگاهِ فرم‌ها.
+    Route::get('/abuse', [\App\Http\Controllers\AbuseController::class, 'show'])->name('abuse');
+    Route::post('/abuse', [\App\Http\Controllers\AbuseController::class, 'report'])
+        ->name('abuse.report')->middleware('throttle:forms');
+
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
     Route::get('/status', [SiteController::class, 'status'])->name('status');

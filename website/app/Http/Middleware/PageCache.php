@@ -9,74 +9,125 @@ use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * کشِ کاملِ صفحه برای مهمان — قلمِ «سه دور دست‌نخورده»ی هر سه ممیزی.
+ * کشِ کاملِ صفحه برای مهمان — قلمِ «سه دور دست‌نخورده»ی ممیزی که در دورِ ۳
+ * ساخته شد و دورِ ۴ راستی‌آزمایی‌اش کرد (HIT در ۱۶۰–۱۹۵ms).
  *
- * ═══ قرارداد (همان نسخهٔ حداقلیِ CTO در ممیزی ۳، در لایهٔ اپ) ═══
+ * ═══ قرارداد ═══
  *
- *   · فقط GET، فقط روت‌های فهرستِ config/pagecache.php، فقط بی‌رشتهٔ کوئری،
- *     فقط بازدیدکنندهٔ بدونِ احراز هویت، فقط پاسخِ 200ِ HTML.
- *   · هر پاسخِ این روت‌ها هدرِ `X-Cache: HIT|MISS|BYPASS` می‌گیرد — «always»،
- *     تا قابلِ راستی‌آزمایی با یک curl باشد؛ سه دور «ندارد» دقیقاً یعنی
- *     هیچ‌کس نمی‌توانست بسنجد.
- *   · TTL کوتاه (پیش‌فرض ۶۰s) — صفحهٔ حداکثر یک‌دقیقه کهنه، در ازای حذفِ
- *     کاملِ رندر برای پربازدیدترین صفحات.
+ *   · فقط GET، فقط روت‌های config/pagecache.php، بی‌رشتهٔ کوئری، بی‌کوکیِ
+ *     نشست، بی‌احراز هویت، فقط پاسخِ 200ِ HTML.
+ *   · هدرِ `X-Cache: HIT|MISS|BYPASS|STALE` — همیشه، تا با یک curl سنجیدنی باشد.
+ *   · توکنِ CSRF در لحظهٔ HIT با توکنِ نشستِ جاری تعویض می‌شود (دلیل کامل
+ *     پایین، بالای handle).
  *
- * ═══ چرا داخلِ گروهِ web است، نه global ═══
+ * ═══ آنچه ممیزی ۴ اضافه کرد ═══
  *
- * لایوتِ سایت روی هر صفحه `<meta name="csrf-token">` دارد و فرم‌ها `_token`.
- * اگر HTML بینِ بازدیدکننده‌ها عیناً بازپخش شود، توکنِ نشستِ بازدیدکنندهٔ
- * اول به بقیه می‌رسد و اولین POSTشان (نظر، چت، فرم استخدام) ۴۱۹ می‌گیرد —
- * خرابیِ بی‌صدایی که فقط در کنسولِ کاربر دیده می‌شود. پس این میدل‌ور بعد از
- * StartSession می‌نشیند و در لحظهٔ HIT، توکنِ ذخیره‌شده را با توکنِ نشستِ
- * همین بازدیدکننده تعویض می‌کند. هزینهٔ نشست ناچیز است؛ آنچه حذف می‌شود
- * رندرِ Blade و پرس‌وجوهای دیتابیس است.
+ * ۱) **ابطال (purge)** — CTO: «کش بدونِ ابطال بدهی است، نه دارایی: بعد از
+ *    تغییرِ قیمت، HIT تا پایانِ TTL قیمتِ قدیمی را نشان می‌دهد.» راه‌حل،
+ *    شمارهٔ نسل است: کلیدِ هر صفحه شاملِ `gen` است و `PageCache::purge()`
+ *    فقط nesl را جلو می‌برد — O(1)، بدونِ نیاز به فهرستِ کلیدها، روی هر
+ *    storeی. مدل‌های قیمت/محتوا در AppServiceProvider با saved/deleted
+ *    purge می‌زنند؛ کهنگیِ قیمت حالا «تا اولین ذخیره» است نه «تا پایان TTL».
  *
- * ⚠️ ذخیره فقط محتواست، نه هدرها: پاسخِ کش‌شده نباید Set-Cookieِ نفرِ قبلی
- * را حمل کند؛ کوکی‌های نشستِ جاری را میدل‌ورهای بیرونی خودشان می‌گذارند.
+ * ۲) **stale-while-error** — همتای `proxy_cache_use_stale error` در نسخهٔ
+ *    nginxِ پیشنهادیِ CTO: نسخهٔ منقضی تا `hard_ttl` نگه داشته می‌شود و اگر
+ *    رندرِ تازه ۵xx شد، همان نسخهٔ سالمِ قبلی با `X-Cache: STALE` سرو می‌شود.
+ *    مهمانِ ناشناس به‌جای صفحهٔ خطا، صفحهٔ چند‌دقیقه‌پیش را می‌بیند؛ خطای
+ *    واقعی همچنان در ردیاب ثبت می‌شود چون رندر واقعاً اجرا شده.
+ *    ⚠️ فقط ۵xx — ۴۰۴ عمداً stale نمی‌گیرد: پستِ حذف‌شده باید ۴۰۴ بماند.
+ *
+ * ═══ برای QA (ریسکِ «کش رگرسیون را پنهان می‌کند») ═══
+ *
+ * هر تستِ دستی/خودکارِ سایتِ زنده باید یا رشتهٔ کوئری داشته باشد (?qa=1 ⇒
+ * BYPASS) یا کوکی بفرستد. تستِ بی‌کوکیِ بی‌کوئری ممکن است نسخهٔ سالمِ کهنه
+ * را ببیند و بیلدِ خراب را پاس کند. (CLAUDE.md §۱۳)
  */
 class PageCache
 {
+    /** کلیدِ شمارهٔ نسل — bump یعنی ابطالِ آنیِ همهٔ صفحه‌های کش‌شده. */
+    private const GEN_KEY = 'page:gen';
+
     public function handle(Request $request, Closure $next): Response
     {
         if (! $this->eligible($request)) {
             return $this->tag($next($request), 'BYPASS');
         }
 
-        $key = 'page:'.sha1($request->getHost().'|'.$request->path());
         $store = Cache::store();
 
+        $gen = (int) $store->get(self::GEN_KEY, 0);
+        $key = 'page:g'.$gen.':'.sha1($request->getHost().'|'.$request->path());
+
         $hit = $store->get($key);
+        $hasCopy = is_array($hit) && isset($hit['html'], $hit['token']);
 
-        if (is_array($hit) && isset($hit['html'], $hit['token'])) {
-            $html = $hit['html'];
-
-            /*
-            | تعویضِ توکن: هر جای HTML که توکنِ لحظهٔ ذخیره نشسته (متا و
-            | input های _token)، توکنِ نشستِ جاری می‌نشیند. جایگزینیِ رشته‌ایِ
-            | ساده کافی و قطعی است چون توکن ۴۰نویسهٔ تصادفی است و جز خودش
-            | جایی ظاهر نمی‌شود.
-            */
-            if ($hit['token'] !== '' && $request->hasSession()) {
-                $html = str_replace($hit['token'], $request->session()->token(), $html);
-            }
-
-            return $this->tag(
-                response($html, 200, ['Content-Type' => $hit['type'] ?? 'text/html; charset=UTF-8']),
-                'HIT'
-            );
+        if ($hasCopy && (int) ($hit['fresh_until'] ?? 0) >= time()) {
+            return $this->tag($this->serve($hit, $request), 'HIT');
         }
 
-        $response = $next($request);
+        // MISS یا کهنه — رندرِ تازه؛ اگر ۵xx شد و نسخهٔ سالمِ قبلی داریم، همان.
+        try {
+            $response = $next($request);
+        } catch (\Throwable $e) {
+            if ($hasCopy) {
+                report($e);
+
+                return $this->tag($this->serve($hit, $request), 'STALE');
+            }
+
+            throw $e;
+        }
+
+        if ($response->getStatusCode() >= 500 && $hasCopy) {
+            return $this->tag($this->serve($hit, $request), 'STALE');
+        }
 
         if ($this->storable($response)) {
             $store->put($key, [
-                'html'  => $response->getContent(),
-                'token' => $request->hasSession() ? (string) $request->session()->token() : '',
-                'type'  => (string) $response->headers->get('Content-Type', 'text/html; charset=UTF-8'),
-            ], (int) config('pagecache.ttl', 60));
+                'html'        => $response->getContent(),
+                'token'       => $request->hasSession() ? (string) $request->session()->token() : '',
+                'type'        => (string) $response->headers->get('Content-Type', 'text/html; charset=UTF-8'),
+                'fresh_until' => time() + (int) config('pagecache.ttl', 60),
+            ], (int) config('pagecache.hard_ttl', 86400));
         }
 
         return $this->tag($response, 'MISS');
+    }
+
+    /**
+     * ابطالِ کلِ کشِ صفحه — O(1) با جلوبردنِ نسل.
+     *
+     * ⚠️ پیش‌فرضِ get صفر است و increment روی کلیدِ نبود آن را ۱ می‌کند؛
+     * اگر پیش‌فرض ۱ بود، اولین purge به همان نسلِ پیش‌فرض می‌رسید و هیچ
+     * چیزی باطل نمی‌شد — ابطالی که فقط از بارِ دوم کار کند، در دقیقاً اولین
+     * تغییرِ قیمتِ بعد از دیپلوی ساکت شکست می‌خورَد.
+     */
+    public static function purge(): void
+    {
+        try {
+            Cache::store()->increment(self::GEN_KEY);
+        } catch (\Throwable) {
+            // ابطال هرگز نباید ذخیرهٔ مدل را بشکند؛ بدترین حالت TTL کوتاه است
+        }
+    }
+
+    /** بازسازیِ پاسخ از نسخهٔ ذخیره‌شده + تعویضِ توکنِ CSRF با نشستِ جاری. */
+    private function serve(array $hit, Request $request): Response
+    {
+        $html = $hit['html'];
+
+        /*
+        | تعویضِ توکن: هر جای HTML که توکنِ لحظهٔ ذخیره نشسته (متا و
+        | input های _token)، توکنِ نشستِ جاری می‌نشیند. بدونِ این، اولین
+        | POSTِ هر بازدیدکنندهٔ تازه (نظر، چت، فرم) ۴۱۹ می‌گرفت — بی‌لاگ،
+        | فقط در کنسولِ مرورگرِ کاربر. جایگزینیِ رشته‌ایِ ساده قطعی است چون
+        | توکن ۴۰نویسهٔ تصادفی است و جز خودش جایی ظاهر نمی‌شود.
+        */
+        if ($hit['token'] !== '' && $request->hasSession()) {
+            $html = str_replace($hit['token'], $request->session()->token(), $html);
+        }
+
+        return response($html, 200, ['Content-Type' => $hit['type'] ?? 'text/html; charset=UTF-8']);
     }
 
     private function eligible(Request $request): bool
@@ -107,8 +158,11 @@ class PageCache
         | صفحه‌ای که برای کاربرِ نشست‌دار رندر می‌شود می‌تواند محتوای همان نشست
         | را حمل کند (پیامِ flashِ «نظرت ثبت شد»، سبدِ در جریان…). ذخیره‌اش یعنی
         | پیامِ خصوصیِ یک نفر برای بقیه؛ سروِ کش به او یعنی بلعیدنِ flash.
-        | بازدیدکنندهٔ تازه و خزنده — یعنی همان ترافیکی که کش برایش ساخته
-        | شده — کوکی ندارند و کامل پوشش داده می‌شوند.
+        |
+        | ⚠️ ممیزی ۴ (زیرساخت) درست دید که «کوکیِ ساختگی = دورزدنِ کش و رسیدن
+        | به origin». پذیرفته و عمدی است — همان رفتارِ نسخهٔ nginx — چون بدیلش
+        | (اعتبارسنجیِ نشست پیش از BYPASS) یعنی نشست‌خوانی برای هر درخواست و
+        | خطرِ سروِ flashِ دیگران. سپرِ حجمی، Cloudflare جلوی ماست.
         */
         if ($request->cookies->has((string) config('session.cookie'))) {
             return false;

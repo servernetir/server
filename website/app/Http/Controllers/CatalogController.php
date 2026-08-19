@@ -246,7 +246,8 @@ class CatalogController extends Controller
                     if ((int) $db->price_eur > 0) {
                         $p['eur'] = $db->price_eur / 100;
                     }
-                    $p['order_url'] = lroute('account.order', $db->slug);
+                    // ممیزی ۴: اول خلاصهٔ سفارشِ بی‌نشست، بعد console (فقط در پرداخت)
+                    $p['order_url'] = lroute('order.summary', $db->slug);
                 } else {
                     unset($p['irt'], $p['eur']);
                     $p['contact'] = true;
@@ -329,6 +330,38 @@ class CatalogController extends Controller
         if ($iso === null || ! \Illuminate\Support\Facades\Schema::hasTable('cloud_plans')) {
             return [[], []];
         }
+
+        /*
+        | میکروکشِ ۶۰ ثانیه‌ای (ممیزی ۴): `/vps/iran` تنها outlierِ TTFB بود
+        | (۵۰۹ms در برابر ~۲۳۰ms بقیه) و CTO حدس زد «صفحهٔ سنگینِ دیتابیسی با
+        | قیمت/موجودی زنده» — درست است: به ازای هر شهر یک `shelf()` + prune.
+        |
+        | ⚠️ کلید شاملِ **نسلِ کشِ صفحه** است، پس همان purgeی که با ذخیرهٔ هر
+        | CloudPlan/CloudLocation می‌خورد این را هم همان لحظه باطل می‌کند —
+        | قیمتِ کهنه «تا اولین ذخیره» است نه تا پایانِ TTL. و شاملِ **زبان**،
+        | چون `site_price`/`lroute` داخلِ خروجی زبان‌محورند.
+        */
+        try {
+            $gen = (int) \Illuminate\Support\Facades\Cache::get('page:gen', 0);
+
+            return \Illuminate\Support\Facades\Cache::remember(
+                'liveplans:g'.$gen.':'.app()->getLocale().':'.$category.':'.$slug,
+                60,
+                fn () => $this->buildLivePlans($iso)
+            );
+        } catch (\Throwable) {
+            // کشِ خراب نباید صفحهٔ محصول را بیندازد — مستقیم می‌سازیم
+            return $this->buildLivePlans($iso);
+        }
+    }
+
+    /**
+     * بدنهٔ واقعیِ ساختِ پلن‌های زنده — جدا شد تا میکروکشِ بالا دورش بنشیند.
+     *
+     * @return array{0:array<int,array<string,mixed>>,1:array<int,string>}
+     */
+    private function buildLivePlans(string $iso): array
+    {
 
         /*
         | یک پرس‌وجو برای هم کد و هم **برچسبِ نمایشیِ** شهر.

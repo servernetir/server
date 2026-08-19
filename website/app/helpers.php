@@ -470,11 +470,18 @@ if (! function_exists('blog_related_product')) {
      */
     function blog_related_product(?string $blogCategory): ?array
     {
-        if ($blogCategory === null || $blogCategory === '') {
-            return null;
-        }
+        $map = $blogCategory !== null && $blogCategory !== ''
+            ? (array) config('blog.category_products.'.$blogCategory)
+            : [];
 
-        $map = (array) config('blog.category_products.'.$blogCategory);
+        /*
+        | زنجیرهٔ fallback (ممیزی ۴): دستهٔ بی‌نگاشت/ناشناخته ⇒ hubِ خطِ
+        | محصولِ پرچم‌دار. دورِ چهارم ۲۳ پست را شمرد که «مدلِ نگاشت برایشان
+        | جوابی نداشت» و صفر لینک رندر می‌کردند — حالا هیچ پستی نمی‌تواند.
+        */
+        if ($map === []) {
+            $map = (array) config('blog.category_products_fallback');
+        }
 
         if ($map === []) {
             return null;

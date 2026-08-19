@@ -40,6 +40,29 @@
       </div>
     </div>
   </section>
+  {{-- شناسه‌های ثبتی (ممیزی ۴ — «قلمِ صفر کدِ» آزمون): به‌محضِ اینکه مدیر
+       مقادیر را در /admin/settings وارد کند، این‌جا و صفحهٔ تماس با هم ظاهر
+       می‌شوند. تا آن موقع هیچ‌چیز رندر نمی‌شود — جای‌نگهدارِ «شماره ثبت: —»
+       از نبودنش بدتر است (قاعدهٔ ثبت‌شدهٔ company_identity). --}}
+  @php($aboutIdentity = company_identity())
+  @if($aboutIdentity !== [] || company_address() !== null)
+  <section class="section" style="padding-top:10px;padding-bottom:10px">
+    <div class="container" style="max-width:860px">
+      <div class="legal-doc reveal">
+        <h2 style="font-size:20px">{{ __('ui.about_reg_t') }}</h2>
+        <ul>
+          @foreach($aboutIdentity as $row)
+          <li>{{ __($row['label']) }}: <b>{{ $isFa ? fa_num($row['value']) : $row['value'] }}</b></li>
+          @endforeach
+          @if(company_address() !== null)
+          <li>{{ __('ui.about_reg_addr') }}: <b>{{ company_address() }}</b></li>
+          @endif
+        </ul>
+      </div>
+    </div>
+  </section>
+  @endif
+
   {{-- ارزش‌ها --}}
   <section class="section" style="padding-top:20px">
     <div class="container">

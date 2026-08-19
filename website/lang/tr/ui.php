@@ -60,7 +60,7 @@ return [
     'sol_lead'   => 'Her işletmenin kendi darboğazı vardır — biri altyapı, biri otomasyon, biri görünürlük ister. Bunlar kuruluşlar, fabrikalar ve büyüyen ekipler için hayata geçirdiğimiz çözümlerdir.',
     'sol_cross_t' => 'Belirli bir hizmet mi arıyorsunuz?',
     'f_contact' => 'Bize ulaşın',
-    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları', 'f_aup' => 'Kabul Edilebilir Kullanım',
+    'f_company' => 'Şirket', 'f_c1' => 'Hakkımızda', 'f_c2' => 'İletişim', 'f_c3' => 'Blog', 'f_c4' => 'Gizlilik Politikası', 'f_c5' => 'Müşteri Paneli', 'f_terms' => 'Hizmet Şartları', 'f_aup' => 'Kabul Edilebilir Kullanım', 'f_speed' => 'Hız Raporu', 'f_abuse' => 'Kötüye Kullanım Bildir',
     'f_copy' => '© 2026 ServerNet. Tüm hakları saklıdır.',
 
     'nav_products' => 'Ürünler', 'nav_services' => 'Hizmetler', 'nav_tools' => 'Araç Kutusu',
@@ -2333,4 +2333,38 @@ return [
     'rs_tier_spend' => 'Son :months ayda :amount tomandan fazla alım',
     'rs_tier_domains' => 've en az :count aktif alan adı',
     'rs_tier_note' => 'Yükselme eşiği geçtiğiniz anda uygulanır. Hacminiz düşerse :gün süre tanınır, sonra en fazla bir kademe iner.',
+
+    /* Giriş öncesi sipariş özeti (denetim r4) */
+    'os_badge' => 'Sipariş özeti',
+    'os_lead' => 'Fiyatı ve tüm dönemleri burada görün — giriş gerekmez. Giriş yalnızca ödeme adımında.',
+    'os_specs' => 'Paket özellikleri',
+    'os_cycles_t' => 'Fiyat ve ödeme dönemleri',
+    'os_col_cycle' => 'Dönem', 'os_col_monthly' => 'Aylık karşılık', 'os_col_saving' => 'İndirim', 'os_col_total' => 'Dönem toplamı',
+    'os_setup' => 'Kurulum ücreti (tek seferlik)',
+    'os_tax_note' => 'Toplama %:p KDV dahildir.',
+    'os_cycle_note' => 'Nihai dönem ödeme adımında seçilir.',
+    'os_login_note' => 'Bu sayfa için üyelik gerekmedi; giriş yalnızca ödeme içindir.',
+    'os_continue' => 'Güvenli ödemeye devam et',
+
+    /* Kötüye kullanım bildirimi (denetim r4) */
+    'ab_title' => 'Kötüye kullanım bildir',
+    'ab_meta_d' => 'ServerNet altyapısının kötüye kullanımını bildirin: geçiş/VPN satışı, spam, zararlı yazılım veya AUP ihlali. 2 iş günü içinde incelenir.',
+    'ab_h1' => 'Kötüye kullanım mı gördünüz? Bildirin.',
+    'ab_lead' => 'ServerNet altyapısı geçiş hizmeti satışı, spam, zararlı yazılım veya başka bir AUP ihlali için kullanılıyorsa burada bildirin. Bildirimler gizli tutulur.',
+    'ab_form_t' => 'Bildirim gönder',
+    'ab_target' => 'Bildirilen alan adı veya IP',
+    'ab_email' => 'E-postanız (isteğe bağlı, takip için)',
+    'ab_desc' => 'Ne gördünüz, nerede ve ne zaman…',
+    'ab_submit' => 'Bildirimi gönder',
+    'ab_ok' => 'Bildirim alındı. 2 iş günü içinde incelenecek.',
+    'ab_busy' => 'Çok fazla bildirim; lütfen birazdan tekrar deneyin.',
+    'ab_err' => 'Lütfen geçerli bir alan adı/IP ve en az 20 karakterlik açıklama girin.',
+    'ab_sla' => 'Yanıt taahhüdü: en fazla 2 iş günü.',
+
+    /* SLA ağ mücbir sebebi (denetim r4 — hukuk taslağı) */
+    'sla_fm5' => 'Ülke altyapı ağının veya uluslararası rotaların kesintisi, kısıtlanması veya bant genişliği düşürülmesi — yetkili makam kararları dahil her nedenle; durum durum sayfasında duyurulur ve bu madde 14 günlük para iade garantisini engellemez.',
+
+    /* Hakkında sayfasında şirket kayıt kimlikleri (denetim r4) */
+    'about_reg_t' => 'Şirket kayıt kimlikleri',
+    'about_reg_addr' => 'Kayıtlı adres',
 ];

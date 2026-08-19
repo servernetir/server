@@ -60,7 +60,7 @@ return [
     'sol_lead'   => 'Every business has its own bottleneck — some need infrastructure, some automation, some visibility. These are the solutions we implement for organizations, factories and growing teams.',
     'sol_cross_t' => 'Looking for a specific service?',
     'f_contact' => 'Contact us',
-    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service', 'f_aup' => 'Acceptable Use Policy',
+    'f_company' => 'Company', 'f_c1' => 'About us', 'f_c2' => 'Contact', 'f_c3' => 'Blog', 'f_c4' => 'Privacy Policy', 'f_c5' => 'Client Area', 'f_terms' => 'Terms of Service', 'f_aup' => 'Acceptable Use Policy', 'f_speed' => 'Speed Report', 'f_abuse' => 'Report Abuse',
     'f_copy' => '© 2026 ServerNet. All rights reserved.',
 
     'nav_products' => 'Products', 'nav_services' => 'Services', 'nav_tools' => 'Toolbox',
@@ -2333,4 +2333,38 @@ return [
     'rs_tier_spend' => 'From :amount toman spent in the last :months months',
     'rs_tier_domains' => 'and at least :count active domains',
     'rs_tier_note' => 'Upgrades apply the moment you cross a threshold. If your volume drops you get :days days of grace, then at most one step down — a single slow month will not burn your tier.',
+
+    /* Pre-login order summary (audit r4) */
+    'os_badge' => 'Order summary',
+    'os_lead' => 'See the price and every billing cycle right here — no login needed. Sign in only at the payment step.',
+    'os_specs' => 'Package specs',
+    'os_cycles_t' => 'Pricing & billing cycles',
+    'os_col_cycle' => 'Cycle', 'os_col_monthly' => 'Monthly equivalent', 'os_col_saving' => 'Discount', 'os_col_total' => 'Total per cycle',
+    'os_setup' => 'Setup fee (one-time)',
+    'os_tax_note' => ':p% VAT is included in the total.',
+    'os_cycle_note' => 'The final cycle is chosen at the payment step.',
+    'os_login_note' => 'No account was needed to see this page; login is only for payment.',
+    'os_continue' => 'Continue to secure payment',
+
+    /* Abuse reports (audit r4) */
+    'ab_title' => 'Report abuse',
+    'ab_meta_d' => 'Report abuse of ServerNet infrastructure: transit/VPN resale, spam, malware or any AUP violation. Reviewed within 2 business days.',
+    'ab_h1' => 'Seen abuse? Report it.',
+    'ab_lead' => 'If ServerNet infrastructure is being used for transit-service resale, spam, malware or any other AUP violation, tell us here. Reports are handled confidentially.',
+    'ab_form_t' => 'Submit a report',
+    'ab_target' => 'Domain or IP being reported',
+    'ab_email' => 'Your email (optional, for follow-up)',
+    'ab_desc' => 'What you saw, where and when…',
+    'ab_submit' => 'Submit report',
+    'ab_ok' => 'Report received. It will be reviewed within 2 business days.',
+    'ab_busy' => 'Too many reports; please try again shortly.',
+    'ab_err' => 'Please enter a valid domain/IP and a description of at least 20 characters.',
+    'ab_sla' => 'Response commitment: within 2 business days.',
+
+    /* Network force majeure in SLA (audit r4 — legal draft) */
+    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network infrastructure or international routes, for any reason including decisions of competent authorities; status is announced on the status page, and this clause does not block the 14-day money-back guarantee.',
+
+    /* Company registration identifiers on About (audit r4) */
+    'about_reg_t' => 'Company registration identifiers',
+    'about_reg_addr' => 'Registered address',
 ];
