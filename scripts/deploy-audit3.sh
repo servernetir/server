@@ -162,6 +162,44 @@ fi
 # ── bootstrap/app.php — آخر از همه، و فقط اگر خودش گیر نکند ──────────────
 apply_one "bootstrap/app.php" "$APP"
 
+# ── رفعِ رانشِ دیپلویِ قدیمی (کشفِ ۲۶ مرداد ۱۴۰۵) ────────────────────────
+#
+# دیپلویِ کامیت 860fd9b («قیمتِ پسوندها از OpenProvider، نه WHMCS») روی سرور
+# ناقص مانده بود: SiteController با tlds()ِ قدیمیِ WHMCSخوان و TldPriceBookِ
+# بدونِ cachedForTlds. نتیجهٔ دیده‌شده روی سایتِ زنده: چیپِ «.ir» با قیمت
+# تبلیغ می‌شد در حالی که در UNSOLD_TLDS است و سبد قبولش نمی‌کند.
+#
+# 🔴 این «تغییرِ همکار» نیست که باید حفظ شود — کدِ کهنهٔ جامانده است (با
+# دیفِ دستی اثبات شد: دقیقاً نسخهٔ پیش از 860fd9b). ولی چون این اسکریپت
+# قرار است به کارِ دیگران احترام بگذارد، جایگزینی فقط با «اثرانگشتِ کهنگی»
+# انجام می‌شود: اگر فایل نشانهٔ قطعیِ نسخهٔ کهنه را نداشت، دست نمی‌خورد.
+drift_fix() {                       # $1 = مسیر نسبی، $2 = grep اثرانگشت، $3 = نوع (has|lacks)
+  rel="$1"; fp="$2"; mode="$3"
+  dest="$APP/$rel"
+
+  [ -f "$dest" ] || { echo "SKIP  $rel (نیست)"; return; }
+
+  git --git-dir="$WORK/repo/.git" show "$MINE:website/$rel" > "$WORK/mine.tmp" 2>/dev/null || return
+
+  if cmp -s "$dest" "$WORK/mine.tmp"; then echo "OK    $rel (drift قبلاً رفع شده)"; return; fi
+
+  stale=0
+  if [ "$mode" = has ] && grep -q "$fp" "$dest"; then stale=1; fi
+  if [ "$mode" = lacks ] && ! grep -q "$fp" "$dest"; then stale=1; fi
+
+  if [ "$stale" = 1 ]; then
+    mkdir -p "$BK/servernet_app/$(dirname "$rel")"
+    cp -p "$dest" "$BK/servernet_app/$rel"
+    cp "$WORK/mine.tmp" "$dest"
+    echo "DRIFT $rel   ← نسخهٔ کهنهٔ جامانده با نسخهٔ مخزن جایگزین شد"
+  else
+    echo "⚠️  $rel با مخزن فرق دارد ولی اثرانگشتِ کهنگی ندارد — دستی بررسی شود"
+  fi
+}
+
+drift_fix "app/Services/Domain/TldPriceBook.php" "function cachedForTlds" lacks
+drift_fix "app/Http/Controllers/SiteController.php" "Whmcs::forLocale()->tldPricing()" has
+
 # ── کش‌ها: تا پاک نشوند config/روت تازه دیده نمی‌شود ─────────────────────
 PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
 [ -x "$PHPBIN" ] || PHPBIN=$(command -v php)
