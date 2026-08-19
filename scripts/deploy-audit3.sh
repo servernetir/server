@@ -16,7 +16,8 @@
 #
 set -u
 
-MINE=cbf889f        # نسخهٔ جدید (ممیزی ۴)
+MINE=7e79110        # نسخهٔ جدید = unionِ ممیزی ۴ + شاخهٔ cloud-phone همکار
+FBASE=6911175       # نوکِ شاخهٔ همکار — پایهٔ دومِ پذیرفته (سرور کپی‌اش را دارد)
 BASE=d53c820        # نسخهٔ پایه = آخرین دیپلویِ راستی‌آزمایی‌شده (ممیزی ۳)
 APP="$HOME/servernet_app"
 PUB="$HOME/public_html"
@@ -38,6 +39,11 @@ fi
 
 git -C repo rev-parse --verify "$MINE" >/dev/null || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 git -C repo rev-parse --verify "$BASE" >/dev/null || { echo "FATAL: $BASE در مخزن نیست"; exit 1; }
+
+# شاخهٔ همکار (پایهٔ دوم) — کلون تک‌شاخه است، جدا fetch می‌شود. شکستش کشنده
+# نیست: فقط مسیرِ «سرور کپیِ شاخهٔ همکار است» تشخیص داده نمی‌شود.
+git -C repo fetch --depth 100 origin feature/cloud-phone 2>/dev/null || true
+git -C repo rev-parse --verify "$FBASE" >/dev/null 2>&1 || FBASE=""
 
 # ── فهرست فایل‌ها (نسبت به website/ در مخزن) ─────────────────────────────
 # bootstrap/app.php این‌جا نیست — جدا و در انتها اعمال می‌شود.
@@ -74,7 +80,29 @@ resources/views/partials/footer.blade.php
 resources/views/partials/sig-ai-builder.blade.php
 routes/console.php
 routes/web.php
+app/Http/Controllers/Admin/CustomerController.php
+app/Http/Controllers/Admin/PhoneCallController.php
+app/Http/Controllers/Admin/UserController.php
+app/Http/Controllers/CloudPhoneWebhookController.php
+app/Models/PhoneCall.php
+app/Models/PhoneCallEvent.php
+app/Models/User.php
+app/Services/CloudPhone/CallIngestor.php
+app/Services/CloudPhone/CustomerMatcher.php
+app/Services/CloudPhone/OutgoingCallService.php
+app/Services/CloudPhone/WebhookPayload.php
+app/Support/IranianPhone.php
+config/services.php
+resources/views/admin/calls.blade.php
+resources/views/admin/customer.blade.php
+resources/views/admin/customers.blade.php
+resources/views/admin/layout.blade.php
+resources/views/admin/users.blade.php
 "
+# ↑ بلوکِ دوم، فایل‌های خطِ cloud-phone همکار است — از این کامیتِ merge دیگر
+#   بخشی از develop اند. سرور نسخهٔ آپلودِ دستیِ خودِ او را دارد؛ اگر با
+#   شاخه‌اش یکی باشد UP می‌شود و اگر تغییرِ محلیِ ثبت‌نشده داشته باشد CF
+#   می‌ماند و گزارش می‌شود — کارش پایمال نمی‌شود.
 
 CONFLICTS=""
 MERGED=""
@@ -124,6 +152,17 @@ apply_one() {                       # $1 = مسیر نسبی، $2 = ریشهٔ �
   # همان پایه ولی با CRLF — باز هم «بدونِ تغییرِ دیگران» شمرده می‌شود
   if tr -d '\r' < "$dest" | cmp -s - "$base_f"; then
     cp "$mine_f" "$dest"; echo "UP    $rel   (پایان‌خطِ کهنه هم تمیز شد)"; return
+  fi
+
+  # پایهٔ دوم: نسخهٔ شاخهٔ همکار (cloud-phone). سرور کپیِ آن را دارد و
+  # MINE حالا **merge** همان شاخه است، پس جایگزینی هیچ کاری از او را پاک
+  # نمی‌کند — این دقیقاً همان حفره‌ای بود که دیپلوی قبلی را به حذفِ ناخواستهٔ
+  # روتِ aup و ۵۰۰ سراسری رساند: merge-file با پایهٔ اشتباه، «نداشتنِ» کدِ
+  # جدید در کپیِ شاخهٔ همکار را «حذفِ عمدی» تفسیر می‌کرد.
+  if [ -n "$FBASE" ] && git -C repo show "$FBASE:website/$rel" > "$WORK/fbase.tmp" 2>/dev/null; then
+    if cmp -s "$dest" "$WORK/fbase.tmp" || tr -d '\r' < "$dest" | cmp -s - "$WORK/fbase.tmp"; then
+      cp "$mine_f" "$dest"; echo "UP    $rel   (پایه: شاخهٔ همکار — کارش داخل union هست)"; return
+    fi
   fi
 
   # کس دیگری دست برده — merge سه‌طرفه روی کپی، نه روی فایل زنده.
@@ -208,6 +247,37 @@ drift_fix() {                       # $1 = مسیر نسبی، $2 = grep اثر�
 
 drift_fix "app/Services/Domain/TldPriceBook.php" "function cachedForTlds" lacks
 drift_fix "app/Http/Controllers/SiteController.php" "Whmcs::forLocale()->tldPricing()" has
+
+# ── تضمینِ union — هیچ نشانگرِ حیاتیِ هیچ‌کدام از دو خطِ کار نباید گم بماند ──
+#
+# درسِ ۵۰۰ِ سراسریِ ۲۸ مرداد: فوترِ همهٔ صفحات lroute('aup') می‌زند؛ روتی که
+# از merge بیفتد یعنی exception روی هر صفحه. MINE اکنون unionِ هر دو خطِ کار
+# است، پس اگر بعد از همهٔ مراحل نشانگری غایب بود، جایگزینیِ کامل با MINE
+# **هیچ‌چیزِ شناخته‌شده‌ای را حذف نمی‌کند** — و بکاپِ همین اجرا برای هر چیزِ
+# ناشناخته هست.
+ensure_union() {                    # $1 = مسیر نسبی، $2.. = نشانگرهای اجباری
+  rel="$1"; shift
+  dest="$APP/$rel"; missing=0
+
+  [ -f "$dest" ] || missing=1
+  if [ "$missing" = 0 ]; then
+    for probe in "$@"; do
+      grep -qF "$probe" "$dest" || { missing=1; break; }
+    done
+  fi
+
+  [ "$missing" = 0 ] && return
+
+  git --git-dir="$WORK/repo/.git" show "$MINE:website/$rel" > "$WORK/union.tmp" 2>/dev/null || return
+  mkdir -p "$BK/servernet_app/$(dirname "$rel")"
+  [ -f "$dest" ] && cp -p "$dest" "$BK/servernet_app/$rel.pre-union"
+  cp "$WORK/union.tmp" "$dest"
+  echo "FIX   $rel   ← نشانگرِ حیاتی «$probe» غایب بود؛ نسخهٔ union نشست"
+}
+
+ensure_union "routes/web.php"     "name('aup')" "name('order.summary')" "cloud-phone/webhook"
+ensure_union "app/helpers.php"    "function blog_related_product" "function sdate_full"
+ensure_union "bootstrap/app.php"  "PageCache::class" "cloud-phone/webhook"
 
 # ── کش‌ها: تا پاک نشوند config/روت تازه دیده نمی‌شود ─────────────────────
 PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
