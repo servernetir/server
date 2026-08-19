@@ -177,7 +177,10 @@ if [ -n "$MERGED" ]; then
   echo "── تغییراتِ سرور-فقط که در merge حفظ شد (باید در گیت هم ثبت شود):"
   for f in $MERGED; do
     echo "---- $f"
-    git -C repo show "$MINE:website/$f" > "$WORK/mine.tmp" 2>/dev/null \
+    # 🔴 مسیرِ مطلق، نه `-C repo`: بلوکِ پاک‌سازیِ کش بالاتر cd کرده و مسیرِ
+    #    نسبی این‌جا بی‌صدا می‌شکست (git شکست می‌خورد، && دیف را می‌پراند، و
+    #    گزارش خالی چاپ می‌شد — دقیقاً همان چیزی که در اجرای دوم دیده شد).
+    git --git-dir="$WORK/repo/.git" show "$MINE:website/$f" > "$WORK/mine.tmp" 2>/dev/null \
       && diff -u "$WORK/mine.tmp" "$APP/$f" | sed -n '1,60p'
   done
 fi
