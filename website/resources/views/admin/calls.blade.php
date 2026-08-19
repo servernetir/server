@@ -11,12 +11,36 @@
     <a href="/admin/calls?f=outgoing"  class="{{ $filter === 'outgoing' ? 'on' : '' }}">خروجی ({{ fa_num($counts['outgoing']) }})</a>
     <a href="/admin/calls?f=unmatched" class="{{ $filter === 'unmatched' ? 'on' : '' }}">ناشناس ({{ fa_num($counts['unmatched'] ?? 0) }})</a>
   </div>
-  <form method="get" action="/admin/calls" style="display:flex;gap:8px">
-    <input type="hidden" name="f" value="{{ $filter }}">
-    <input type="search" name="q" value="{{ $q }}" placeholder="شمارهٔ تماس‌گیرنده…"
-           style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:220px;font:inherit">
-    <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
-  </form>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <form method="get" action="/admin/calls" style="display:flex;gap:8px">
+      <input type="hidden" name="f" value="{{ $filter }}">
+      <input type="search" name="q" value="{{ $q }}" placeholder="شمارهٔ تماس‌گیرنده…"
+             style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:200px;font:inherit">
+      <button class="btn btn-glass" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
+    </form>
+
+    {{-- ══ شماره‌گیرِ دلخواه ══
+         خواستهٔ کارفرما: «مشتریم نبود هم بتوانم تماس بگیرم.»
+
+         ⚠️ این فقط برای **مدیر** است، نه نقشِ نویسنده — تماس پول خرج می‌کند و
+         از خطِ شرکت می‌رود. همان تفکیکی که روتِ تماس با مشتری دارد.
+
+         ⚠️ فرم `data-confirm` دارد چون برخلافِ دکمهٔ تماس با مشتری، این‌جا
+         مقصد **تایپ** می‌شود و یک رقمِ اشتباه یعنی زنگ‌زدن به یک غریبه با
+         شمارهٔ ما روی کالر آی‌دی. --}}
+    @if(auth()->user()->isAdmin() && $dialer['ready'])
+      <form method="post" action="/admin/calls/dial" style="display:flex;gap:8px"
+            data-confirm="با این شماره تماس گرفته شود؟ اول {{ $dialer['agent'] }} زنگ می‌خورد، بعد مقصد.">
+        @csrf
+        <input type="tel" name="number" required inputmode="tel" dir="ltr" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+               style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:170px;font:inherit">
+        <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-phone"/></svg>تماس</button>
+      </form>
+    @elseif(auth()->user()->isAdmin())
+      {{-- علتِ نبودن دیده می‌شود، وگرنه «چرا دکمه نیست؟» خودش یک تیکت است --}}
+      <span style="font-size:12px;color:#fbbf24;align-self:center">{{ $dialer['why'] }}</span>
+    @endif
+  </div>
 </div>
 
 @if($notReady)
@@ -37,9 +61,11 @@
       <tbody>
         @foreach($calls as $call)
           <tr>
-            <td dir="ltr" style="color:var(--muted);white-space:nowrap">
-              {{ $call->started_at ? sdate($call->started_at) : '—' }}
-              <div style="font-size:12px;color:var(--dim)">{{ $call->started_at?->format('H:i') }}</div>
+            {{-- روزِ هفته + تاریخِ شمسی + ساعت، همه از یک تابع و یک منطقهٔ
+                 زمانی. `format('H:i')`ِ خام UTC می‌داد و با تاریخِ تهرانی
+                 کنارش نمی‌خواند — شب‌ها یک روز اختلاف. --}}
+            <td style="color:var(--muted);white-space:nowrap">
+              {{ sdate_full($call->started_at) }}
             </td>
 
             <td>

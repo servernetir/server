@@ -37,6 +37,42 @@
       </form>
     @endif
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
+
+    {{-- ══ تماس با مشتری ══
+         🔴 جایش این‌جاست، نه داخلِ تبِ تماس‌ها.
+
+         تماس یک **کنشِ** روی این مشتری است، مثلِ «ورود به پنل» و «ارسال
+         اعلان» — نه بخشی از خواندنِ تاریخچه. وقتی داخلِ تب بود، برای زنگ‌زدن
+         باید یک تب عوض می‌شد، و تبِ تماس‌ها هم‌زمان دو کارِ نامربوط داشت.
+
+         🔴 سه شرطِ **جدا** با سه پیامِ جدا. یک دکمهٔ خاکستریِ بی‌توضیح، مدیر
+         را می‌فرستد سراغِ تیم فنی؛ «شمارهٔ مشتری نداریم» و «داخلیِ خودت ثبت
+         نشده» و «رله وصل نیست» سه کارِ کاملاً متفاوت لازم دارند. --}}
+    @php
+      $callTo = $c->phone ?: optional($c->profiles->firstWhere('is_default', true))->mobile ?: optional($c->profiles->first())->mobile;
+      $callRelay = app(\App\Services\CloudPhone\OutgoingCallService::class);
+      /* شماره‌ای که اول زنگ می‌خورد: شخصیِ کاربر، وگرنه پیش‌فرضِ سراسری */
+      $callAgent = $callRelay->agentNumberFor(auth()->user()->phoneExtension());
+    @endphp
+
+    @if(auth()->user()->isAdmin() && $callTo && $callRelay->enabled() && $callAgent)
+      {{-- ⚠️ متنِ تأیید صریحاً می‌گوید **کدام تلفن** اول زنگ می‌خورد. بی‌آن،
+           مدیر کلیک می‌کند و منتظرِ زنگی می‌ماند که روی تلفنِ دیگری است — و
+           فکر می‌کند تماس نرفته. --}}
+      <form method="post" action="/admin/customers/{{ $c->id }}/call" style="display:inline"
+            data-confirm="تماس با {{ $callTo }} برقرار شود؟ اول {{ $callAgent }} زنگ می‌خورد، بعد مشتری.">
+        @csrf
+        <button class="btn btn-primary" type="submit">
+          <svg class="icon"><use href="#i-phone"/></svg>تماس
+        </button>
+      </form>
+    @elseif(auth()->user()->isAdmin())
+      {{-- علتِ نبودنِ دکمه دیده می‌شود، وگرنه «چرا دکمه نیست؟» خودش یک تیکت است --}}
+      <span class="btn btn-glass" style="opacity:.55;cursor:not-allowed"
+            title="{{ ! $callTo ? 'شماره‌ای برای این مشتری ثبت نشده' : (! $callRelay->enabled() ? 'رلهٔ تلفن ابری پیکربندی نشده' : 'شمارهٔ تماس‌گیرنده تنظیم نشده') }}">
+        <svg class="icon"><use href="#i-phone"/></svg>تماس
+      </span>
+    @endif
   </div>
 </div>
 
@@ -101,45 +137,11 @@
 {{-- ══════════════════════ تماس‌ها ══════════════════════ --}}
 <div class="ct-pane" data-pane="calls">
   <div class="ad-panel">
-    <div class="ad-panel-h" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <h2>تماس‌های این مشتری</h2>
-
-      @php $callTo = $c->phone ?: optional($c->profiles->firstWhere('is_default', true))->mobile ?: optional($c->profiles->first())->mobile; @endphp
-
-      {{--
-        🔴 دکمهٔ تماس سه شرطِ **جدا** دارد و هر کدام پیامِ خودش را می‌دهد.
-
-        یک دکمهٔ خاکستریِ بی‌توضیح، مدیر را می‌فرستد سراغِ تیم فنی. سه دلیلِ
-        متفاوت («شمارهٔ مشتری نداریم» / «داخلیِ خودت ثبت نشده» / «رله وصل
-        نیست») سه کارِ متفاوت لازم دارند.
-      --}}
-      @php
-        $callRelay = app(\App\Services\CloudPhone\OutgoingCallService::class);
-        /* شماره‌ای که اول زنگ می‌خورد: شخصیِ کاربر، وگرنه پیش‌فرضِ سراسری */
-        $callAgent = $callRelay->agentNumberFor(auth()->user()->phoneExtension());
-      @endphp
-
-      @if(! auth()->user()->isAdmin())
-        <span style="font-size:12px;color:var(--dim)">برقراری تماس فقط برای مدیر</span>
-      @elseif(! $callTo)
-        <span style="font-size:12px;color:var(--dim)">شماره‌ای برای این مشتری ثبت نشده</span>
-      @elseif(! $callRelay->enabled())
-        <span style="font-size:12px;color:#fbbf24">رلهٔ تلفن ابری پیکربندی نشده</span>
-      @elseif(! $callAgent)
-        <span style="font-size:12px;color:#fbbf24">شمارهٔ تماس‌گیرنده تنظیم نشده</span>
-      @else
-        {{-- ⚠️ متنِ تأیید صریحاً می‌گوید **کدام تلفن** اول زنگ می‌خورد.
-             بی‌آن، مدیر کلیک می‌کند و منتظرِ زنگی می‌ماند که روی تلفنِ دیگری
-             است — و فکر می‌کند تماس نرفته. --}}
-        <form method="post" action="/admin/customers/{{ $c->id }}/call"
-              data-confirm="تماس با {{ $callTo }} برقرار شود؟ اول {{ $callAgent }} زنگ می‌خورد، بعد مشتری.">
-          @csrf
-          <button class="btn btn-primary" type="submit">
-            <svg class="icon"><use href="#i-phone"/></svg>تماس با {{ $callTo }}
-          </button>
-        </form>
-      @endif
-    </div>
+    {{-- ⚠️ دکمهٔ تماس عمداً این‌جا **نیست** — به نوارِ بالای صفحه رفت، کنارِ
+         «ورود به پنل کاربری». این پنل فقط تاریخچه است: کارفرما پشتِ تلفن
+         می‌خواهد بگوید «شما فلان روز تماس گرفته بودید»، و برای آن باید
+         تاریخچه را بخوانَد نه دکمه بزند. --}}
+    <div class="ad-panel-h"><h2>تماس‌های این مشتری</h2></div>
 
     @if($calls->isEmpty())
       <p style="padding:20px;color:var(--muted)">تماسی از این مشتری ثبت نشده.</p>
@@ -149,9 +151,14 @@
         <tbody>
           @foreach($calls as $call)
             <tr>
-              <td dir="ltr" style="color:var(--muted);white-space:nowrap">
-                {{ $call->started_at ? sdate($call->started_at) : '—' }}
-                <div style="font-size:12px;color:var(--dim)">{{ $call->started_at?->format('H:i') }}</div>
+              {{-- 🔴 «روزِ هفته + تاریخِ شمسی» چون کارفرما این را **پشتِ تلفن
+                   می‌خوانَد**: «شما سه‌شنبه ۲۸ مرداد تماس گرفته بودید». عددِ
+                   ۱۴۰۵/۰۵/۲۸ باید در ذهن ترجمه شود و روزِ هفته اصلاً در آن نیست.
+                   ⚠️ ساعت هم از همان تابع می‌آید تا با تاریخ **یک منطقهٔ زمانی**
+                   داشته باشد؛ `format('H:i')`ِ خام UTC است و شب‌ها یک روز
+                   اختلاف می‌ساخت. --}}
+              <td style="color:var(--muted);white-space:nowrap">
+                {{ sdate_full($call->started_at) }}
               </td>
               <td>
                 @if($call->direction === 'incoming')

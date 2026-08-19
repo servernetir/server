@@ -76,7 +76,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm', 'dn'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -296,6 +296,7 @@ class AdminBaleRouter
                 // تماس چند صدم ثانیه طول می‌کشد؛ بی‌این، دکمه «در حالِ بارگذاری» می‌مانَد
                 'cc' => '📞 در حالِ برقراری…',
                 'rm' => '✅ ثبت شد',
+                'dn' => '📞 در حالِ برقراری…',
                 default => '',
             });
 
@@ -357,6 +358,7 @@ class AdminBaleRouter
                 'cs' => $this->customerBrief((int) $arg),
                 'cc' => $this->customerCall($arg),
                 'rm' => $this->releasedManually($arg),
+                'dn' => $this->dialConfirmed($arg),
                 'sell' => $this->sellStart((int) $arg),
                 'sep' => $this->sellPickedProduct((int) $arg),
                 'seo' => $this->sellPickedCountry($arg),
@@ -479,6 +481,21 @@ class AdminBaleRouter
 
         if (in_array($verb, ['/mail', 'ایمیل', 'ایمیل‌ها', 'ایمیلها'], true)) {
             $this->showMailbox();
+
+            return;
+        }
+
+        /*
+        | تماس با یک شمارهٔ دلخواه — «مشتریم نبود هم بتوانم تماس بگیرم».
+        |
+        | ⚠️ خودِ این فرمان **هیچ تماسی نمی‌گیرد**؛ فقط شماره را می‌خوانَد و یک
+        | دکمهٔ تأیید می‌سازد. دلیلش یک ریسکِ واقعیِ همین محیط است: در بله متن
+        | با یک تپ فرستاده می‌شود و اصلاحش ممکن نیست، پس یک رقمِ جاافتاده یعنی
+        | زنگ‌زدن به یک غریبه با شمارهٔ شرکت روی کالر آی‌دی. کارفرما پیش از
+        | زنگ، شماره را روی دکمه می‌بیند.
+        */
+        if (in_array($verb, ['/call', '/dial', 'تماس', 'زنگ'], true)) {
+            $this->dialAsk($rest);
 
             return;
         }
@@ -1432,6 +1449,115 @@ class AdminBaleRouter
         $rows[] = $this->nav();
 
         $this->sendButtons($r['text'], $rows);
+    }
+
+    /**
+     * «/تماس ۰۹۱۲…» — شماره را بخوان و دکمهٔ تأیید بساز.
+     *
+     * ⚠️ هیچ تماسی این‌جا برقرار نمی‌شود. علتِ دو مرحله‌ای بودن در دستور
+     * توضیح داده شده: متنِ بله اصلاح‌شدنی نیست و یک رقمِ اشتباه پول خرج
+     * می‌کند و به یک غریبه زنگ می‌زند.
+     *
+     * ⚠️ اعتبارسنجی **پیش از** ساختِ دکمه است، نه بعدش. دکمه‌ای که کلیکش خطا
+     * بدهد، روی موبایل بدتر از نبودنِ دکمه است.
+     */
+    private function dialAsk(string $rest): void
+    {
+        $raw = $this->anchor->asciiDigits(trim($rest));
+        $number = IranianPhone::normalize($raw);
+        $kind = IranianPhone::kind($raw);
+
+        if ($number === null || $raw === '') {
+            $this->replyToOwner(
+                "شماره را همراهِ فرمان بفرستید.\n"
+                .'مثال: «تماس ۰۹۱۲۳۴۵۶۷۸۹»'
+            );
+
+            return;
+        }
+
+        if (! in_array($kind, [IranianPhone::KIND_MOBILE, IranianPhone::KIND_LANDLINE], true)) {
+            /*
+            | ⚠️ پیام می‌گوید **چه چیزی** کم است، نه فقط «نامعتبر». شمارهٔ محلیِ
+            | بی‌پیش‌شماره رایج‌ترین ورودیِ اشتباه است و حدس‌زدنِ پیش‌شماره یعنی
+            | زنگ‌زدن به یک غریبه در شهرِ دیگر.
+            */
+            $this->replyToOwner(
+                "این شماره قابلِ شماره‌گیری نیست: «{$raw}»\n"
+                .'شمارهٔ کامل با پیش‌شماره لازم است — مثلاً ۰۹۱۲۳۴۵۶۷۸۹ یا ۰۲۱۷۱۰۵۷۷۵۷.'
+            );
+
+            return;
+        }
+
+        $svc = app(OutgoingCallService::class);
+
+        if (! $svc->enabled()) {
+            $this->replyToOwner('رلهٔ تلفن ابری پیکربندی نشده؛ تماس ممکن نیست.');
+
+            return;
+        }
+
+        $agent = $svc->agentNumberFor(null);
+
+        if ($agent === null || $svc->extension() === null) {
+            $this->replyToOwner('شمارهٔ تماس‌گیرنده یا خطِ ابری تنظیم نشده؛ تماس ممکن نیست.');
+
+            return;
+        }
+
+        $this->sendButtons(
+            "📞 تماس با «{$number}»؟\n"
+            ."ابتدا {$agent} زنگ می‌خورد، بعد این شماره.",
+            [[$this->stamped('✅ بگیر '.$number, 'dn', (int) $number)]],
+        );
+    }
+
+    /** دکمهٔ تأییدِ شماره‌گیریِ دستی خورده شد. */
+    private function dialConfirmed(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'dn');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $number = (string) $id;
+        $svc = app(OutgoingCallService::class);
+        $agent = $svc->agentNumberFor(null);
+
+        $result = $svc->place($number, null);
+
+        /*
+        | ⚠️ رد در `ActivityLog` — همان دلیلِ پنل: تماس با غریبه به هیچ پرونده‌ای
+        | نمی‌چسبد، پس بی‌این لاگ تنها ردش صورت‌حسابِ تأمین‌کننده بود.
+        */
+        try {
+            \App\Models\ActivityLog::record(null, 'call',
+                'شماره‌گیریِ دستی از بله: '.$number.' — نتیجه: '.$result['status'], null, 'staff');
+        } catch (\Throwable $e) {
+            /*
+            | 🔴 عمداً `catch` خالی نیست.
+            |
+            | این تنها ردِ ماندگارِ تماس با یک غریبه است — به هیچ پرونده‌ای
+            | نمی‌چسبد، پس اگر بی‌صدا بیفتد تنها جای دیگرش صورت‌حسابِ
+            | تأمین‌کننده است و آن فقط جمعِ کل را می‌گوید.
+            */
+            ErrorTracker::note('cloud-phone', $e, ['area' => 'bale-dial-log', 'to' => $number]);
+        }
+
+        $this->replyToOwner(match ($result['status']) {
+            OutgoingCallService::OK => "📞 تماس با {$number} در حالِ برقراری است.\n"
+                ."ابتدا {$agent} زنگ می‌خورد.",
+
+            OutgoingCallService::UNKNOWN => "⚠️ پاسخِ رله قابلِ فهم نبود.\n"
+                ."ممکن است تماس برقرار شده باشد — چند لحظه صبر کنید.\n"
+                .'جزئیات در ردیابِ خطا ثبت شد.',
+
+            default => "❌ تماس برقرار نشد.\n".$result['message'],
+        });
     }
 
     /**

@@ -2205,6 +2205,16 @@ Route::prefix('admin')->group(function () {
         Route::post('/customers/{customer}/call', [\App\Http\Controllers\Admin\PhoneCallController::class, 'call'])
             ->middleware('admin')->name('admin.customer.call');
 
+        /*
+        | شماره‌گیریِ دلخواه — «مشتریم نبود هم بتوانم تماس بگیرم».
+        |
+        | ⚠️ `throttle` این‌جا تزئینی نیست: برخلافِ تماس با مشتری، مقصد از فرم
+        | می‌آید. اگر روزی نشستِ مدیر لو برود، بی‌این سقف می‌شد با یک حلقه صدها
+        | تماس از خطِ شرکت گرفت. ۱۰ تماس در دقیقه از هر سرعتِ انسانی بیشتر است.
+        */
+        Route::post('/calls/dial', [\App\Http\Controllers\Admin\PhoneCallController::class, 'dial'])
+            ->middleware(['admin', 'throttle:10,1'])->name('admin.calls.dial');
+
         // مدیریت مشتریان — بخشِ شبیه‌WHMCS
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
         Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
