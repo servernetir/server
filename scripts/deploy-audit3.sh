@@ -68,6 +68,7 @@ routes/web.php
 "
 
 CONFLICTS=""
+MERGED=""
 
 apply_one() {                       # $1 = مسیر نسبی، $2 = ریشهٔ مقصد
   rel="$1"; destroot="$2"
@@ -90,6 +91,13 @@ apply_one() {                       # $1 = مسیر نسبی، $2 = ریشهٔ �
 
   if cmp -s "$dest" "$mine_f"; then echo "OK    $rel"; return; fi
 
+  # محتوای یکسان، فقط پایان‌خطِ ویندوزی (CRLF از آپلود/ادیتورِ قدیمی — دورِ
+  # اول همین AiContent را «تداخل» جا زد در حالی که هیچ کدِ واقعی‌ای فرق
+  # نداشت). تفاوتِ واقعی نیست؛ نسخهٔ LFِ مخزن می‌نشیند تا پایدار شود.
+  if tr -d '\r' < "$dest" | cmp -s - "$mine_f"; then
+    cp "$mine_f" "$dest"; echo "EOL   $rel   (فقط پایان‌خط)"; return
+  fi
+
   # نسخهٔ پایه لازم است؛ اگر فایل در BASE نبوده ولی روی سرور نسخهٔ متفاوتی
   # هست، یعنی کس دیگری هم‌نامش را ساخته — سه‌طرفه ممکن نیست، دست نمی‌زنیم.
   if ! git -C repo show "$BASE:website/$rel" > "$base_f" 2>/dev/null; then
@@ -104,10 +112,16 @@ apply_one() {                       # $1 = مسیر نسبی، $2 = ریشهٔ �
     cp "$mine_f" "$dest"; echo "UP    $rel"; return
   fi
 
-  # کس دیگری دست برده — merge سه‌طرفه روی کپی، نه روی فایل زنده
-  m="$WORK/merged.tmp"; cp "$dest" "$m"
+  # همان پایه ولی با CRLF — باز هم «بدونِ تغییرِ دیگران» شمرده می‌شود
+  if tr -d '\r' < "$dest" | cmp -s - "$base_f"; then
+    cp "$mine_f" "$dest"; echo "UP    $rel   (پایان‌خطِ کهنه هم تمیز شد)"; return
+  fi
+
+  # کس دیگری دست برده — merge سه‌طرفه روی کپی، نه روی فایل زنده.
+  # پایان‌خط پیش از merge نرمال می‌شود وگرنه CRLF هر خط را «تغییر» جا می‌زند.
+  m="$WORK/merged.tmp"; tr -d '\r' < "$dest" > "$m"
   if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
-    cp "$m" "$dest"; echo "MG    $rel   (تغییر دیگران حفظ شد)"
+    cp "$m" "$dest"; echo "MG    $rel   (تغییر دیگران حفظ شد)"; MERGED="$MERGED $rel"
   else
     echo "CF    $rel   ← تداخل واقعی؛ دست نخورد"
     CONFLICTS="$CONFLICTS $rel"
@@ -156,6 +170,16 @@ if [ -n "$PHPBIN" ]; then
 else
   rm -f "$APP/bootstrap/cache/config.php" "$APP/bootstrap/cache/routes-v7.php"
   echo "WARN: php پیدا نشد — کش‌ها دستی پاک شدند"
+fi
+
+if [ -n "$MERGED" ]; then
+  echo
+  echo "── تغییراتِ سرور-فقط که در merge حفظ شد (باید در گیت هم ثبت شود):"
+  for f in $MERGED; do
+    echo "---- $f"
+    git -C repo show "$MINE:website/$f" > "$WORK/mine.tmp" 2>/dev/null \
+      && diff -u "$WORK/mine.tmp" "$APP/$f" | sed -n '1,60p'
+  done
 fi
 
 echo
