@@ -54,7 +54,10 @@ panel_country_feature: true
 
 # Panel container IP on vmbr1 (LXC 115) — where the host agent pulls desired state.
 panel_lan_ip: "{{ control_ip | default('10.10.10.30') }}"
-panel_agent_api_url: "http://{{ panel_lan_ip }}/agent/countryroutes"
+
+# ⚠️ حالتِ مطلوب از **پنلِ اصلی روی آلمان** کشیده می‌شود، نه پنلِ interimِ LXC115.
+# (اگر روزی به پنلِ داخلی برگشتید، این را به http://{{ panel_lan_ip }}/... بدهید.)
+panel_agent_api_url: "https://servernet.cloud/agent/countryroutes"
 
 # How often the host agent reconciles VM outbound routing against the panel.
 # audit H1: kept short so a newly-sold country VM is marked before its guest

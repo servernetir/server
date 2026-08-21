@@ -138,7 +138,12 @@ Everything targets the `proxmox` host; container work goes through `pct`.
 | `mihomo_killswitch` | **Module 2b**: `servernet-killswitch.service` — a cgroup iptables rule restricting `mihomo.service` to loopback-only egress, so an empty/dead country is CUT, never leaks the Iran IP. Idempotent, persisted. Stage/apply (`killswitch_apply`). |
 | `exit_country_routing` | **Module 2b Phase B**: per-country `servernet-country@<cc>` tun2socks services + policy-routing tables with a fail-closed blackhole default + `servernet-vm-country[-del]` customer-assignment helpers. The host helper does **connmark split-routing** (VM gateway stays `10.10.10.1`, inbound SSH/RDP preserved; only new-outbound is marked → table 50 → LXC 113 → tun`<cc>`), plus host prereqs (`send_redirects=0`, `ip_forward=1`, table 50 → LXC 113 + blackhole). Generated from the same `exit_countries` list. Stage/apply (`country_routing_apply`). |
 | `exit_dedicated` | **Module 2b**: attach YOUR OWN foreign servers as GUARANTEED per-country exits so MOST countries become sellable with a stable IP. `servernet-exit-set <cc> --ssh\|--socks\|--link` repoints that country's tun (via the `UPSTREAM` var) at a dedicated self-healing SOCKS (`ssh -D` uplink, a SOCKS you run, or a share-link converter), and auto-syncs the panel catalog. `servernet-exit-del <cc>` reverts to the free pool. Stage/apply (`dedicated_apply`); declarative `dedicated_exits` list for full IaC. |
-| `pf_agent` | Host DNAT agent in the dedicated `SERVERNET-PF` chain + systemd timer. Stage/apply. |
+| `pf_agent` | Host DNAT agent in the dedicated `SERVERNET-PF` chain + systemd timer. Also owns `/etc/servernet/pf-agent.env` — the shared URL/token both host agents read. Stage/apply. |
+
+> 📘 **قرارداد عامل‌ها و عیب‌یابی:** [`docs/exit-platform.md`](../../docs/exit-platform.md)
+> شکلِ دقیقِ JSON و هدرِ احراز (`X-Agent-Token` — نه Bearer) را تعریف می‌کند.
+> پیش از تغییرِ هر کدام از این دو عامل یا `Agent\PullController` بخوانیدش: هر سه
+> باید هم‌زمان عوض شوند، وگرنه عامل **بی‌صدا** می‌خوابد.
 
 ### 6b. Module 2b — multi-country exit (relay → mihomo → kill-switch → routing)
 
