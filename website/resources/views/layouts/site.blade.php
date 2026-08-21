@@ -34,10 +34,17 @@
 <meta name="robots" content="noindex,follow">
 @else
 <link rel="canonical" href="@yield('canonical', url()->current())">
+@hasSection('faOnly')
+{{-- صفحهٔ فقط‌فارسی (مثل /urmia/*): نسخهٔ en/tr ندارد. اگر foreachِ پایین
+     اجرا می‌شد، hreflangِ en/tr به «خانهٔ» آن زبان اشاره می‌کرد (fallbackِ
+     سوییچر) — یعنی ادعای دروغ به گوگل که ترجمهٔ این صفحه، صفحهٔ اصلی است. --}}
+<link rel="alternate" hreflang="fa" href="@yield('canonical', url()->current())">
+@else
 @foreach($localeUrls as $langCode => $langUrl)
 <link rel="alternate" hreflang="{{ $langCode }}" href="{{ $langUrl }}">
 @endforeach
 <link rel="alternate" hreflang="x-default" href="{{ $localeUrls['fa'] }}">
+@endif
 @endif
 <meta property="og:title" content="@yield('title', __('ui.meta_title'))">
 <meta property="og:description" content="@yield('description', __('ui.meta_desc'))">

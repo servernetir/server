@@ -490,6 +490,24 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 /*
+| بخشِ محلی ارومیه — عمداً بیرونِ closureِ $site و **فقط فارسی**.
+|
+| 🔴 داخلِ $site هر روت سه بار ثبت می‌شود و نسخهٔ en/tr این صفحات محتوای
+|    فارسی می‌گرفت (همان باگِ panel-preview). مخاطب این بخش خریدارِ محلی
+|    است؛ /en/urmia/* باید ۴۰۴ بدهد. تست: UrmiaPagesTest.
+|    جانشینِ سئوی محلیِ servernet.ir در مهاجرت است — نقشهٔ ۳۰۱ آن دامنه به
+|    همین آدرس‌ها اشاره می‌کند، پس تغییرِ اسلاگ‌ها یعنی شکستنِ ریدایرکت‌ها.
+| ⚠️ «cities» پیش از «{slug}» بیاید وگرنه خودش یک slug خوانده می‌شود.
+*/
+Route::middleware('locale:fa')->group(function () {
+    Route::get('/urmia', [\App\Http\Controllers\UrmiaController::class, 'hub'])->name('urmia.hub');
+    Route::get('/urmia/cities/{slug}', [\App\Http\Controllers\UrmiaController::class, 'city'])
+        ->name('urmia.city')->where('slug', '[a-z0-9-]+');
+    Route::get('/urmia/{slug}', [\App\Http\Controllers\UrmiaController::class, 'page'])
+        ->name('urmia.page')->where('slug', '[a-z0-9-]+');
+});
+
+/*
 | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
 | ۴۸ ساعت زنده است (سنجه: mtime فایل)، noindex، و با CSP sandbox در originِ
 | یکتا سرو می‌شود تا خروجیِ کاربرساخته به کوکی/نشستِ دامنهٔ ما نرسد.
