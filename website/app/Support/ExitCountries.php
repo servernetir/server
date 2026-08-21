@@ -48,6 +48,23 @@ class ExitCountries
             ->all();
     }
 
+    /**
+     * مثلِ `options()` ولی **بدونِ** ردیفِ «بدونِ اکسیت (ایران)».
+     *
+     * فرم‌هایی که خودشان گزینهٔ خالی را دستی می‌گذارند (وارد کردنِ ماشین، و
+     * فرمِ آپ‌استریم که اصلاً «ایران» برایش بی‌معنی است) این را می‌خواهند؛
+     * وگرنه یک ردیفِ تکراری با `value=""` در منو ظاهر می‌شود.
+     *
+     * @return array<int, array{code:string, name:string, flag:string}>
+     */
+    public static function codeOptions(?string $locale = 'fa'): array
+    {
+        return array_values(array_filter(
+            self::options($locale),
+            fn (array $o) => ($o['code'] ?? '') !== self::NONE,
+        ));
+    }
+
     /** آیا این کد یک کشورِ خروجِ مجاز است؟ (بدونِ `ir`) */
     public static function allows(?string $cc): bool
     {

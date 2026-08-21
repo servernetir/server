@@ -16,6 +16,7 @@
     - { src: servernet-pf-agent.sh.j2,      dest: servernet-pf-agent.sh,      mode: "0750" }
     - { src: servernet-pf-agent.service.j2, dest: servernet-pf-agent.service, mode: "0644" }
     - { src: servernet-pf-agent.timer.j2,   dest: servernet-pf-agent.timer,   mode: "0644" }
+    - { src: pf-agent.env.j2,               dest: pf-agent.env,               mode: "0640" }
   no_log: true                      # script carries the agent token
 
 - name: Stage-only notice
@@ -28,6 +29,21 @@
 - name: Apply pf-agent to host
   when: pf_apply | bool
   block:
+    - name: Ensure /etc/servernet exists
+      ansible.builtin.file:
+        path: /etc/servernet
+        state: directory
+        mode: "0750"
+
+    # هر دو عامل (port-forward و country) آدرس/توکن را از این فایل می‌خوانند.
+    # مالکیتش دستِ IaC است تا دیگر کهنه و بی‌صدا نمانَد.
+    - name: Install shared agent env
+      ansible.builtin.copy:
+        src: "{{ pf_stage_dir }}/pf-agent.env"
+        dest: /etc/servernet/pf-agent.env
+        mode: "0640"
+        remote_src: true
+
     - name: Install agent script
       ansible.builtin.copy:
         src: "{{ pf_stage_dir }}/servernet-pf-agent.sh"
