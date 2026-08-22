@@ -13,7 +13,7 @@
 --}}
 
 @php
-  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone']) : null;
+  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone_link'] ?? $identity['phone']) : null;
 
   // ترتیبِ نمایش: پرتقاضاترین خدمات اول
   $order = ['web-design', 'ecommerce-website', 'corporate-website', 'web-design-price',

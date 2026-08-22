@@ -120,9 +120,15 @@ class UrmiaPagesTest extends TestCase
 
     public function test_no_placeholder_leaks_when_phone_and_address_are_empty(): void
     {
-        // تا وقتی مدیر URMIA_PHONE/URMIA_ADDRESS را نداده، هیچ جای‌نگهداری نمایش
+        // تلفن/نشانی از تماسِ فارسیِ سایت می‌آید (خواستِ مدیر)؛ این تست هر دو
+        // منبع را خالی می‌کند تا ثابت شود در نبودشان هیچ جای‌نگهداری نمایش
         // داده نمی‌شود (قاعدهٔ /about) و schema هم فیلد خالی ندارد.
-        config(['urmia.identity.phone' => null, 'urmia.identity.address' => null]);
+        config([
+            'urmia.identity.phone'          => null,
+            'urmia.identity.address'        => null,
+            'servernet.contact.phone'       => null,
+            'servernet.contact.phone_link'  => null,
+        ]);
 
         $html = $this->get('/urmia')->getContent();
 

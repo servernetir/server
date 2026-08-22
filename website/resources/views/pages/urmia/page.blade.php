@@ -16,7 +16,7 @@
 
 @php
   $md  = fn ($s) => preg_replace('~\*\*(.+?)\*\*~us', '<b>$1</b>', e($s));
-  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone']) : null;
+  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone_link'] ?? $identity['phone']) : null;
 @endphp
 
 <section class="hero hero-sub">
