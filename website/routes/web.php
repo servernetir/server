@@ -1510,8 +1510,9 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
     | دوباره بی‌خطر است. اینجاست چون SSH نداریم و کارِ پروداکشن طبق قرارداد
     | با POST توکن‌دار توسط خود مدیر اجرا می‌شود — همان الگوی migrate.
     */
-    if ($step === 'blogseed') {
-        \Illuminate\Support\Facades\Artisan::call('blog:seed-db');
+    if ($step === 'blogseed' || $step === 'blogrefresh') {
+        \Illuminate\Support\Facades\Artisan::call('blog:seed-db',
+            $step === 'blogrefresh' ? ['--refresh' => true] : []);
 
         return response()->json([
             'step'   => $step,
