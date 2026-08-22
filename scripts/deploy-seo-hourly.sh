@@ -4,7 +4,10 @@
 #
 # اجرا از ترمینال cPanel (اکانت servernetcloud):
 #   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/<SHA>/scripts/deploy-seo-hourly.sh) [<SHA>]
-#   ← SHA همان کامیتِ develop است که می‌خواهی بنشیند؛ اگر ندهی، نوکِ origin/develop.
+#   ← SHA همان کامیتِ develop است که می‌خواهی بنشیند؛ پیش‌فرض 76ec369 = فقط همین
+#     کارِ سئو. ⚠️ عمداً نوکِ develop نیست: روی develop کارِ دیپلوی‌نشدهٔ
+#     همکاران (فروشگاه قطعات، اکسیت) هست و routes/web.phpِ نوک به کنترلرهایی
+#     اشاره می‌کند که روی سرور نیستند ⇒ ۵۰۰ سراسری. آن‌ها دیپلوی خودشان را دارند.
 #
 # ═══ چرا با اسکریپتِ ممیزی ۳ فرق دارد: پایهٔ **خودکار به ازای هر فایل** ═══
 #
@@ -46,7 +49,7 @@ else
     || { echo "FATAL: clone"; exit 1; }
 fi
 
-MINE="${1:-$(git -C repo rev-parse origin/develop)}"
+MINE="${1:-76ec369}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
