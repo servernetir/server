@@ -92,6 +92,22 @@ class PageCacheTest extends TestCase
         $this->get('/status')->assertHeader('X-Cache', 'BYPASS');
     }
 
+    /**
+     * ممیزی ۴ (CTO): «کش بدونِ ابطال بدهی است — بعد از تغییرِ قیمت، HIT تا
+     * پایانِ TTL قیمتِ قدیمی را نشان می‌دهد.» purge باید **همان لحظه** همهٔ
+     * نسخه‌ها را باطل کند، نه در انتهای TTL.
+     */
+    public function test_purge_invalidates_instantly(): void
+    {
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        $this->get('/')->assertHeader('X-Cache', 'HIT');
+
+        \App\Http\Middleware\PageCache::purge();
+
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        $this->get('/')->assertHeader('X-Cache', 'HIT');
+    }
+
     public function test_all_three_locales_cache_independently(): void
     {
         $this->get('/')->assertHeader('X-Cache', 'MISS');

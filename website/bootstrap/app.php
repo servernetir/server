@@ -80,8 +80,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/*',
             // محافظش DEPLOY_TOKEN است، نه نشست؛ فرم بی‌نشست هم باید کار کند
             'system/migrate',
+            // همان منطق — POSTِ توکن‌دارِ migrate/blogseed باید با curl هم اجرا شود
+            // (بی‌این، فقط فرمِ خودِ صفحه با نشست کار می‌کرد و ۴۱۹ می‌گرفتی)
+            'system/setup',
             // بله یک سرور است، نشست ندارد؛ محافظش توکن در مسیر است
             'bale/webhook/*',
+            // تلفن ابری هم همین‌طور. با ۱۰ رویداد واقعی تأیید شد که «دفتر شما»
+            // هیچ هدرِ احراز هویتی نمی‌فرستد، پس محافظ = توکنِ مسیر + IP allowlist
+            'cloud-phone/webhook/*',
             'system/bale-setup',
             // ریست opcache/کش بعد از دپلوی — محافظش DEPLOY_TOKEN است، نه نشست
             'system/opcache',

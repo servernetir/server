@@ -60,6 +60,22 @@
         <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
           <input type="checkbox" name="internal" value="1"> یادداشت داخلی (مشتری نمی‌بیند)
         </label>
+        {{-- ══ تصحیح نگارش با AI ══
+             🔴 هیچ‌چیز ارسال نمی‌شود. متنِ صیقل‌خورده در همان کادر می‌نشیند و
+             کارفرما می‌تواند با «بازگردانی» به نوشتهٔ خودش برگردد.
+
+             ⚠️ دکمه `type="button"` است. بی‌آن، داخلِ `<form>` پیش‌فرضش submit
+             می‌شود و کلیک روی «تصحیح» پاسخ را **می‌فرستد** — همان اشتباهی که
+             متنِ خام را به مشتری می‌رسانْد. --}}
+        <div class="tk-polish">
+          <button type="button" class="tk-polish-btn" id="tk-polish">
+            <svg class="icon"><use href="#i-sparkles"/></svg>
+            <span>تصحیح نگارش با AI</span>
+          </button>
+          <button type="button" class="tk-polish-undo" id="tk-polish-undo" hidden>بازگردانی</button>
+          <span class="tk-polish-msg" id="tk-polish-msg"></span>
+        </div>
+
         <div style="display:flex;gap:10px">
           <button type="submit" class="ad-badge" style="background:#22d3ee;color:#04121f;border:0;padding:10px 18px;cursor:pointer;font:inherit">ارسال</button>
           <button type="submit" name="close" value="1" class="ad-badge" style="background:rgba(95,108,130,.2);color:var(--text);border:0;padding:10px 18px;cursor:pointer;font:inherit">پاسخ و بستن</button>
@@ -132,4 +148,76 @@
 .tka-fchip{ background:rgba(34,211,238,.15); color:#22d3ee; border-radius:7px; padding:3px 8px; font-size:11px }
 </style>
 
+{{-- ⚠️ اسکریپت مستقیم داخلِ همین `@section` است، نه `@push('scripts')`.
+     لایوتِ ادمین هیچ `@stack` ندارد، پس هر چیزی که push شود بی‌صدا دور
+     ریخته می‌شود — دکمه رندر می‌شد و هیچ‌وقت کار نمی‌کرد، بی‌هیچ خطایی. --}}
+<script>
+/*
+ | تصحیحِ نگارش — فقط متنِ کادر را عوض می‌کند.
+ |
+ | 🔴 نسخهٔ اصلیِ کارفرما نگه داشته می‌شود تا «بازگردانی» ممکن باشد. بی‌آن،
+ | یک تصحیحِ بد یعنی نوشتهٔ او از دست رفته و باید از نو بنویسد.
+ */
+(function () {
+  var btn  = document.getElementById('tk-polish');
+  var undo = document.getElementById('tk-polish-undo');
+  var msg  = document.getElementById('tk-polish-msg');
+  var ta   = document.querySelector('textarea[name="body"]');
+  if (!btn || !ta) return;
+
+  var original = null;
+
+  function say(t, bad) {
+    msg.textContent = t || '';
+    msg.className = 'tk-polish-msg' + (bad ? ' bad' : '');
+  }
+
+  btn.addEventListener('click', async function () {
+    var body = ta.value.trim();
+    if (body.length < 12) { say('اول متنِ پاسخ را بنویسید.', true); return; }
+
+    btn.disabled = true;
+    say('در حال تصحیح…');
+
+    try {
+      var r = await fetch('/admin/tickets/{{ $ticket->id }}/polish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ body: body })
+      });
+
+      /* ⚠️ متن را اول می‌خوانیم و بعد پارس می‌کنیم: اگر روزی مسیر ۳۰۲ِ HTML
+         برگرداند، `r.json()` با خطای پارس می‌میرد و کاربر هیچ پیامی نمی‌بیند. */
+      var raw = await r.text();
+      var j;
+      try { j = JSON.parse(raw); }
+      catch (e) { say('پاسخِ نامعتبر از سرور.', true); return; }
+
+      if (!j.ok) { say(j.error || 'تصحیح انجام نشد.', true); return; }
+
+      original = ta.value;
+      ta.value = j.text;
+      undo.hidden = false;
+      say('تصحیح شد — پیش از ارسال یک بار بخوانید.');
+    } catch (e) {
+      say('ارتباط برقرار نشد.', true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  undo.addEventListener('click', function () {
+    if (original === null) return;
+    ta.value = original;
+    original = null;
+    undo.hidden = true;
+    say('به نوشتهٔ خودتان برگشت.');
+  });
+})();
+</script>
 @endsection
+

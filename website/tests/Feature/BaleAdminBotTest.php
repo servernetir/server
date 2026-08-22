@@ -131,7 +131,7 @@ class BaleAdminBotTest extends TestCase
             public function __construct(private \ArrayObject $box) {}
 
             public function fire(string $key, ?Customer $customer, array $vars, string $text,
-                array $adminRows = [], ?string $url = null, string $emoji = '🔔'): void
+                array $adminRows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
             {
                 $this->box[] = $key;
             }
@@ -390,7 +390,7 @@ class BaleAdminBotTest extends TestCase
             public function __construct(private \ArrayObject $box) {}
 
             public function fire(string $key, ?Customer $customer, array $vars, string $text,
-                array $adminRows = [], ?string $url = null, string $emoji = '🔔'): void
+                array $adminRows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
             {
                 $this->box[] = $text;
             }

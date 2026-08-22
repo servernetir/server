@@ -228,7 +228,22 @@ TXT;
      */
     protected function call(string $system, string $user, int $maxTokens, int $timeout = 140, bool $stream = false): ?string
     {
-        @set_time_limit($timeout + 20);
+        /*
+        | ⚠️ فقط روی وب.
+        |
+        | روی ویندوز `set_time_limit()` زمانِ **دیواریِ کلِ پروسه** را محدود
+        | می‌کند، نه زمانِ همین درخواست را. در اجرای سوئیت یعنی هر تستی که از
+        | مسیرِ هوش مصنوعی رد شود، سقفی روی کلِ پروسه می‌گذارد و چند دقیقه بعد
+        | یک تستِ کاملاً بی‌ربط با «Maximum execution time exceeded» می‌میرد —
+        | و رد‌گیری‌اش تقریباً ناممکن است، چون خطا جایی می‌افتد که هیچ ربطی به
+        | علت ندارد.
+        |
+        | `WebProbe::psi()` دقیقاً همین را کشف کرده و همان‌جا مستند کرده بود؛
+        | این‌جا از قلم افتاده بود.
+        */
+        if (! app()->runningInConsole()) {
+            @set_time_limit($timeout + 20);
+        }
         $p = $this->provider($this->purpose);
         $url = rtrim($p['base'], '/').'/chat/completions';
         $ch = curl_init($url);

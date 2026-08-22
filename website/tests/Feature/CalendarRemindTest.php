@@ -36,7 +36,9 @@ class CalendarRemindTest extends TestCase
                 // عمداً parent::__construct صدا زده نمی‌شود: وابستگیِ بله لازم نیست
             }
 
-            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
+            /* ⚠️ امضا باید دقیقاً با والد بخواند؛ `$buttons` وقتی اضافه شد که
+               اعلان‌ها دکمهٔ شیشه‌ای گرفتند. */
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
             {
                 $this->test->record($title, $rows, $url);
             }

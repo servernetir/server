@@ -3,6 +3,19 @@
 @section('nav_exit_infra', 'on')
 @section('content')
 
+{{-- نوارِ ابزارِ اکسیت: وارد کردنِ VM + مدیریتِ رله/نودها --}}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+  <a href="{{ route('admin.exit-infra.import') }}" class="ad-badge"
+     style="background:rgba(34,211,238,.18);color:var(--text);padding:8px 14px;text-decoration:none">
+    + وارد کردنِ VM (اسکنِ Proxmox یا دستی)
+  </a>
+  <a href="{{ route('admin.exit-upstreams') }}" class="ad-badge"
+     style="background:rgba(148,163,184,.14);color:var(--text);padding:8px 14px;text-decoration:none">
+    <svg class="icon" style="width:14px;height:14px"><use href="#i-server"/></svg>
+    رله و نودهای اکسیت (SSH-VPN / VLESS)
+  </a>
+</div>
+
 {{-- ── نوارِ سلامت: ضربانِ ایجنت‌ها + وضعیتِ توکن‌ها ── --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>سلامتِ زیرساختِ اکسیت</h2></div>
@@ -70,15 +83,28 @@
     <div style="padding:0 4px 8px;overflow-x:auto">
       <table class="ad-table">
         <thead><tr>
-          <th>کشورِ خروج</th><th>آی‌پیِ داخلی</th><th>دسترسیِ عمومی</th>
-          <th>وضعیت</th><th>مشتری</th><th>ساخته‌شده</th><th>سوییچِ کشور</th>
+          <th>کشورِ خروج</th><th>آی‌پیِ داخلی</th><th>دسترسیِ عمومی</th><th>پورت</th>
+          <th>وضعیت</th><th>مشتری</th><th>سوییچِ کشور</th><th></th>
         </tr></thead>
         <tbody>
           @foreach($rows as $r)
             <tr>
-              <td style="white-space:nowrap">{{ $r['flag'] }} {{ $r['country_name'] }}</td>
+              <td style="white-space:nowrap">{{ $r['flag'] }} {{ $r['country_name'] }}@if($r['protected'])<span title="خطِ‌قرمز" style="color:#ff6b6b"> 🔴</span>@endif</td>
               <td dir="ltr" style="font-size:12.5px">{{ $r['ipv4'] !== '' ? $r['ipv4'] : '—' }}</td>
               <td dir="ltr" style="font-size:12.5px;color:var(--muted)">{{ $r['public_host'] !== '' ? $r['public_host'] : '—' }}</td>
+              <td>
+                @if($r['protected'])
+                  <span style="font-size:12px;color:var(--dim)">{{ $r['port'] > 0 ? fa_num($r['port']) : '—' }}</span>
+                @else
+                  <form method="post" action="{{ route('admin.exit-infra.port', $r['id']) }}" style="display:flex;gap:5px;align-items:center">
+                    @csrf
+                    <input type="number" name="port" min="1" max="65535" value="{{ $r['port'] > 0 ? $r['port'] : '' }}" placeholder="خودکار" dir="ltr"
+                           style="width:74px;background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.3);border-radius:7px;padding:5px 7px;font-size:12px">
+                    <button type="submit" title="ثبتِ پورت" class="ad-badge"
+                            style="background:rgba(148,163,184,.16);color:var(--text);border:0;cursor:pointer;font-size:12px;padding:5px 8px">↵</button>
+                  </form>
+                @endif
+              </td>
               <td><span class="ad-badge" style="background:{{ $r['status_color'] }}22;color:{{ $r['status_color'] }}">{{ $r['status_label'] }}</span></td>
               <td style="font-size:12.5px">
                 @if($r['customer_name'])
@@ -88,23 +114,36 @@
                   <span style="color:var(--dim)">— بی‌مشتری</span>
                 @endif
               </td>
-              <td style="font-size:12.5px;color:var(--muted);white-space:nowrap">{{ sdate($r['created_at']) }}</td>
               <td>
-                <form method="post" action="{{ route('admin.exit-infra.country', $r['id']) }}"
-                      style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
-                  @csrf
-                  <select name="country" dir="ltr"
-                          style="background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.3);border-radius:8px;padding:5px 8px;font-size:12.5px">
-                    @foreach($exitOptions as $opt)
-                      <option value="{{ $opt['code'] }}" @selected($r['exit_cc'] === $opt['code'])>{{ $opt['flag'] }} {{ $opt['name'] }}</option>
-                    @endforeach
-                  </select>
-                  <button type="submit" class="ad-badge"
-                          style="background:rgba(34,211,238,.16);color:var(--text);border:0;cursor:pointer;font-size:12.5px;padding:6px 12px">اعمال</button>
-                  @if($r['exit_override'])
-                    <span title="کشور با override دستی تعیین شده" style="font-size:11px;color:var(--dim)">دستی</span>
-                  @endif
-                </form>
+                @if($r['protected'])
+                  <span title="خطِ‌قرمز — از پنل تغییر نمی‌کند" style="font-size:12px;color:#ff6b6b">🔴 قفل</span>
+                @else
+                  <form method="post" action="{{ route('admin.exit-infra.country', $r['id']) }}"
+                        style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+                    @csrf
+                    <select name="country" dir="ltr"
+                            style="background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.3);border-radius:8px;padding:5px 8px;font-size:12.5px">
+                      @foreach($exitOptions as $opt)
+                        <option value="{{ $opt['code'] }}" @selected($r['exit_cc'] === $opt['code'])>{{ $opt['flag'] }} {{ $opt['name'] }}</option>
+                      @endforeach
+                    </select>
+                    <button type="submit" class="ad-badge"
+                            style="background:rgba(34,211,238,.16);color:var(--text);border:0;cursor:pointer;font-size:12.5px;padding:6px 12px">اعمال</button>
+                    @if($r['exit_override'])
+                      <span title="کشور با override دستی تعیین شده" style="font-size:11px;color:var(--dim)">دستی</span>
+                    @endif
+                  </form>
+                @endif
+              </td>
+              <td>
+                @if($r['is_orphan'] && ! $r['protected'])
+                  <form method="post" action="{{ route('admin.exit-infra.detach', $r['id']) }}" style="display:inline"
+                        data-confirm="«{{ $r['ipv4'] ?: $r['id'] }}» از فهرستِ اکسیت حذف شود؟ (خودِ VM دست‌نخورده می‌ماند)" data-confirm-danger data-confirm-ok="حذف">
+                    @csrf
+                    <button type="submit" class="ad-badge" title="حذف از فهرست (نه از Proxmox)"
+                            style="background:rgba(255,107,107,.13);color:#ff6b6b;border:0;cursor:pointer;font-size:11.5px;padding:5px 9px">حذف از فهرست</button>
+                  </form>
+                @endif
               </td>
             </tr>
           @endforeach

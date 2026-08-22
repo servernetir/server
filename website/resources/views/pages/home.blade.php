@@ -223,6 +223,20 @@
   </div>
 </section>
 
+{{-- ============ پلِ متنی به بخشِ محلی ارومیه — فقط فارسی ============
+     لینکِ **متنی** (نه منو): ممیزیِ مهاجرت نشان داد صفحاتی که فقط از منو
+     لینک دارند ایندکس نمی‌شوند. مقصد، هابِ /urmia است (routes/web.php). --}}
+@if($isFa)
+<section class="section" style="padding-top:0">
+  <div class="container" style="max-width:860px">
+    <p class="reveal" style="text-align:center;opacity:.9">
+      ریشهٔ سرورنت در ارومیه است — از سال ۱۳۸۸ برای کسب‌وکارهای آذربایجان غربی سایت و نرم‌افزار ساخته‌ایم.
+      اگر کسب‌وکارتان در استان است، صفحهٔ <a href="{{ route('urmia.hub') }}"><b>طراحی سایت در ارومیه</b></a> را ببینید.
+    </p>
+  </div>
+</section>
+@endif
+
 {{-- ============ FAQ ============ --}}
 <section class="section" id="faq" style="padding-top:40px">
   <div class="container">

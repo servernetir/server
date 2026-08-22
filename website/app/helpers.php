@@ -237,6 +237,73 @@ if (! function_exists('stime')) {
     }
 }
 
+if (! function_exists('sdate_full')) {
+    /**
+     * تاریخِ گفتاری: «سه‌شنبه ۲۸ مرداد ۱۴۰۵ · ۱۱:۵۸».
+     *
+     * ═══ چرا جدا از `sdate()` ═══
+     *
+     * `sdate()` عددی است (۱۴۰۵/۰۵/۲۸) و برای **جدول** درست است: کوتاه، هم‌عرض،
+     * و قابلِ مرور. ولی کاربردِ تاریخِ تماس فرق دارد — کارفرما آن را **پشتِ
+     * تلفن می‌خوانَد**: «شما سه‌شنبه ۲۸ مرداد تماس گرفته بودید». برای گفتن،
+     * «۱۴۰۵/۰۵/۲۸» باید در ذهن ترجمه شود و روزِ هفته اصلاً در آن نیست.
+     *
+     * ⚠️ روزِ هفته **پس از** انتقال به وقتِ تهران گرفته می‌شود. تماسِ ۲۱:۳۰
+     * به‌وقتِ UTC، به‌وقتِ تهران بامدادِ **فردا**ست — یعنی هم روزش عوض می‌شود
+     * هم نامِ روزِ هفته‌اش. همان تلهٔ ثبت‌شدهٔ تقویم در CLAUDE.md.
+     *
+     * ⚠️ برخلافِ `sdate()` به `app()->getLocale()` نگاه **نمی‌کند** — و این
+     * عمدی است.
+     *
+     * روت‌های `/admin/*` بیرونِ closureِ `$site`اند و هیچ middlewareِ `locale`
+     * رویشان نمی‌دود، پس زبانِ پنل هرچه `APP_LOCALE` در `.env` باشد همان است.
+     * یعنی `sdate()` در پنل به یک متغیرِ محیطی بند است که اصلاً دربارهٔ پنل
+     * نیست: اگر روزی `APP_LOCALE=en` شود، کلِ تاریخ‌های پنل بی‌هیچ خطایی
+     * میلادی می‌شوند. (همان نقصِ ثبت‌شده در CLAUDE.md دربارهٔ
+     * `TicketReplyService`، از درِ دیگر.)
+     *
+     * این تابع یک کارِ مشخص دارد: جمله‌ای که کارفرما **پشتِ تلفن می‌گوید**.
+     * آن جمله فارسی است، مستقل از زبانِ سایت. پس شاخهٔ زبان ندارد.
+     *
+     * @param  \DateTimeInterface|string|null  $date
+     */
+    function sdate_full($date, bool $withTime = true): string
+    {
+        if ($date === null || $date === '') {
+            return '—';
+        }
+
+        try {
+            $c = $date instanceof \DateTimeInterface
+                ? \Illuminate\Support\Carbon::instance($date)
+                : \Illuminate\Support\Carbon::parse((string) $date);
+        } catch (\Throwable) {
+            return '—';
+        }
+
+        $c = $c->copy()->setTimezone('Asia/Tehran');
+        [$jy, $jm, $jd] = jalali_ymd((int) $c->format('Y'), (int) $c->format('m'), (int) $c->format('d'));
+
+        $out = \App\Support\Jalali::WEEKDAY_NAMES[\App\Support\Jalali::weekdayIndex($c)]
+            .' '.$jd.' '.\App\Support\Jalali::monthName($jm).' '.$jy;
+
+        if ($withTime) {
+            $out .= ' · '.$c->format('H:i');
+        }
+
+        /*
+        | ⚠️ `fa_num()` این‌جا کار نمی‌کند: خودش هم به `getLocale()` نگاه می‌کند
+        | و زیرِ `APP_LOCALE=en` ارقام را لاتین برمی‌گردانَد — یعنی همان
+        | وابستگی‌ای که این تابع برای نداشتنش نوشته شد، از درِ پشتی برمی‌گشت و
+        | خروجی «چهارشنبه 28 مرداد 1405» می‌شد.
+        */
+        return strtr($out, [
+            '0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴',
+            '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹',
+        ]);
+    }
+}
+
 if (! function_exists('site_price')) {
     /** قیمت نمایشی بر اساس زبان جاری: تومان برای fa، یورو برای en */
     function site_price(array $item): string
@@ -470,11 +537,18 @@ if (! function_exists('blog_related_product')) {
      */
     function blog_related_product(?string $blogCategory): ?array
     {
-        if ($blogCategory === null || $blogCategory === '') {
-            return null;
-        }
+        $map = $blogCategory !== null && $blogCategory !== ''
+            ? (array) config('blog.category_products.'.$blogCategory)
+            : [];
 
-        $map = (array) config('blog.category_products.'.$blogCategory);
+        /*
+        | زنجیرهٔ fallback (ممیزی ۴): دستهٔ بی‌نگاشت/ناشناخته ⇒ hubِ خطِ
+        | محصولِ پرچم‌دار. دورِ چهارم ۲۳ پست را شمرد که «مدلِ نگاشت برایشان
+        | جوابی نداشت» و صفر لینک رندر می‌کردند — حالا هیچ پستی نمی‌تواند.
+        */
+        if ($map === []) {
+            $map = (array) config('blog.category_products_fallback');
+        }
 
         if ($map === []) {
             return null;
@@ -762,6 +836,57 @@ if (! function_exists('cloud_eur_rate')) {
     }
 }
 
+if (! function_exists('part_price')) {
+    /**
+     * قیمتِ یک قطعهٔ سرور — **از یورو**، به زبانِ کاربر.
+     *
+     * 🔴 چرا مبنا یورو است و نه تومان:
+     *
+     * قطعهٔ سرور از بازارِ جهانی خریده می‌شود و قیمتِ واقعی‌اش یورویی است.
+     * ذخیرهٔ عددِ تومانی یعنی با هر جهشِ ارز، کلِ کاتالوگ باید دستی به‌روز
+     * شود — و در عمل نمی‌شود، پس فروشگاه زیرِ قیمتِ خرید می‌فروشد بی‌آنکه
+     * کسی بفهمد. با مبنای یورو، یک نرخ عوض می‌شود و همه‌چیز درست می‌مانَد.
+     *
+     * فارسی تومان می‌بیند (با نرخِ زندهٔ همان تنظیماتی که سرورِ ابری استفاده
+     * می‌کند)، انگلیسی و ترکی یورو.
+     *
+     * ⚠️ نرخ که نبود، `null` برمی‌گردد نه عددِ خام. قیمتِ بی‌نرخ یعنی
+     * فروشِ احتمالی زیرِ قیمتِ خرید؛ «استعلام کنید» صادقانه‌تر است. همان
+     * تصمیمی که `site_price()` هم می‌گیرد.
+     *
+     * @param  int|null  $eurCents  قیمت به **سنتِ یورو**
+     */
+    function part_price(?int $eurCents): ?string
+    {
+        if ($eurCents === null || $eurCents <= 0) {
+            return null;
+        }
+
+        $eur = $eurCents / 100;
+
+        if (app()->getLocale() !== 'fa') {
+            return '€'.number_format($eur, 2);
+        }
+
+        $rate = cloud_eur_rate();
+
+        if ($rate <= 0) {
+            return null;
+        }
+
+        /*
+        | ⚠️ گردکردن به ۱۰٬۰۰۰ تومان عمدی است.
+        |
+        | نرخِ ارز چند بار در روز تکان می‌خورد و عددِ دقیق یعنی قیمتِ صفحه هر
+        | ساعت چند تومان جابه‌جا شود — که هم بدقواره است هم بی‌اعتمادکننده.
+        | گردکردن قیمت را پایدار نگه می‌دارد بی‌آنکه معنایش عوض شود.
+        */
+        $toman = (int) round($eur * $rate, -4);
+
+        return fa_num(number_format($toman)).' تومان';
+    }
+}
+
 if (! function_exists('public_asset_path')) {
     /**
      * مسیرِ **واقعیِ** یک فایلِ استاتیک روی دیسک — یا `null` اگر نبود.
@@ -1018,6 +1143,57 @@ if (! function_exists('schema_price_irr')) {
     }
 }
 
+if (! function_exists('site_social')) {
+    /**
+     * شبکه‌های اجتماعی برای زبانِ جاری.
+     *
+     * 🔴 سه صفحهٔ اینستاگرام داریم و هر کدام به زبانِ خودش می‌نویسد. تا امروز
+     * هر سه نسخهٔ سایت به صفحهٔ فارسی لینک می‌دادند، یعنی بازدیدکنندهٔ ترک یا
+     * انگلیسی روی صفحه‌ای می‌افتاد که یک کلمه‌اش را نمی‌فهمد. آن از نداشتنِ
+     * لینک بدتر است: کلیک کرده و برنمی‌گردد.
+     *
+     * ⚠️ همان الگوی `site_contact()`: نبودِ نسخهٔ زبانی به فارسی برمی‌گردد، تا
+     * جای خالی هرگز لینکِ شکسته نسازد.
+     *
+     * @return array<string,string>
+     */
+    function site_social(?string $locale = null): array
+    {
+        $s = (array) config('servernet.social', []);
+        $loc = $locale ?? app()->getLocale();
+
+        $out = [
+            'linkedin'  => (string) ($s['linkedin'] ?? ''),
+            'instagram' => (string) ($s['instagram'] ?? ''),
+        ];
+
+        if ($loc !== 'fa' && filled($s['instagram_'.$loc] ?? null)) {
+            $out['instagram'] = (string) $s['instagram_'.$loc];
+        }
+
+        return array_filter($out, fn ($v) => $v !== '');
+    }
+}
+
+if (! function_exists('social_profiles')) {
+    /**
+     * **همهٔ** پروفایل‌های رسمی — برای `sameAs`ِ دادهٔ ساختاریافته.
+     *
+     * 🔴 عمداً با `site_social()` فرق دارد. آن‌جا سؤال «کاربر کجا برود؟» است و
+     * پاسخ یکی است؛ این‌جا سؤال «این سازمان کدام حساب‌ها را دارد؟» است و پاسخ
+     * همهٔ آن‌هاست. فهرستِ کاملِ `sameAs` همان چیزی است که به گوگل می‌فهماند این
+     * سه حساب یک شرکت‌اند، نه سه شرکت.
+     *
+     * @return array<int,string>
+     */
+    function social_profiles(): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map('strval', (array) config('servernet.social', [])),
+            fn ($v) => $v !== ''
+        )));
+    }
+}
 if (! function_exists('company_value')) {
     /**
      * یک فیلدِ هویتِ شرکت — **تنها منبعِ خواندن**.

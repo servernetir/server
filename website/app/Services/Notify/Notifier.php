@@ -46,6 +46,7 @@ class Notifier
         array $adminRows = [],
         ?string $url = null,
         string $emoji = '🔔',
+        array $buttons = [],
     ): void {
         /*
         | 🔴 کلیدِ ناشناخته **بی‌صدا رد نمی‌شود**.
@@ -75,6 +76,8 @@ class Notifier
                     $this->adminRows($key, $customer, $vars, $adminRows),
                     $url,
                     $emoji,
+                    // دکمه‌های شیشه‌ای — فقط در بله؛ ایمیل متن می‌مانَد
+                    $buttons,
                 );
             } catch (\Throwable $e) {
                 \App\Support\ErrorTracker::note('notify', $e, ['event' => $key, 'to' => 'admin']);

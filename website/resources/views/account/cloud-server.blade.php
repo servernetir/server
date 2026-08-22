@@ -350,6 +350,127 @@
 </section>
 @endif
 
+{{-- ═══ اکانت‌های اتصال (WireGuard روی TCP) ═══ --}}
+@if($tunnel ?? null)
+<section class="pnl-sec" id="tunnel">
+  <div class="pnl-sec-h"><h2>اکانت‌های اتصال — WireGuard روی TCP</h2></div>
+  <div class="pnl-sec-b">
+
+    <p style="margin:0 0 14px;font-size:12.5px;color:var(--dim);line-height:1.9">
+      برای هر دستگاه یک اکانتِ جداگانه بسازید. کلید همین‌جا ساخته می‌شود و
+      <b>فقط یک‌بار</b> نمایش داده می‌شود؛ ما آن را نگه نمی‌داریم. ساخت در دو گام است:
+      اجرای یک خط دستور روی روترِ خودتان، و دادنِ فایلِ کانفیگ به کاربر.
+      کاربر پس از اتصال، هم اینترنت دارد و هم شبکهٔ داخلی
+      (<span dir="ltr">{{ $tunnel->routerAddress() }}</span>).
+    </p>
+
+    @if($tunnelIssued ?? null)
+      <div class="pnl-sec" style="border-color:var(--ok-line);margin:0 0 16px">
+        <div class="pnl-sec-b">
+          <p style="margin:0 0 10px;font-size:13px;color:var(--ok)">
+            اکانتِ «{{ $tunnelIssued['name'] }}» ({{ $tunnelIssued['ip'] }}) ساخته شد —
+            این دو مورد را همین حالا بردارید، دوباره نمایش داده نمی‌شوند.
+          </p>
+
+          <p style="margin:14px 0 6px;font-size:12.5px;color:var(--dim)">
+            گامِ ۱ — این خط را در روترِ خود (WinBox ← New Terminal) اجرا کنید:
+          </p>
+          <div style="position:relative">
+            <pre id="tn-cmd" dir="ltr" style="margin:0;padding:12px;border-radius:10px;background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.22);font-size:12px;line-height:1.7;overflow-x:auto;white-space:pre-wrap;word-break:break-all">{{ $tunnelIssued['command'] }}</pre>
+            <button type="button" class="pnl-btn" data-tn-copy="tn-cmd" style="margin-top:8px">کپیِ دستور</button>
+          </div>
+
+          <p style="margin:18px 0 6px;font-size:12.5px;color:var(--dim)">
+            گامِ ۲ — این متن را با نامِ <span dir="ltr">{{ $tunnelIssued['file'] }}</span>
+            ذخیره کنید و به کاربر بدهید (اپِ sing-box یا Hiddify ← Import from file):
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px">
+            <button type="button" class="pnl-btn" id="tn-fmt-new" style="opacity:1">نسخهٔ استاندارد</button>
+            <button type="button" class="pnl-btn" id="tn-fmt-old" style="opacity:.55">نسخهٔ سازگار با اپ‌های قدیمی</button>
+          </div>
+          <pre id="tn-cfg" dir="ltr" style="margin:0;padding:12px;border-radius:10px;background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.22);font-size:11.5px;line-height:1.65;max-height:280px;overflow:auto">{{ $tunnelIssued['config'] }}</pre>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button type="button" class="pnl-btn" data-tn-copy="tn-cfg">کپیِ کانفیگ</button>
+            <button type="button" class="pnl-btn" id="tn-dl">دانلودِ فایل</button>
+          </div>
+          @php($tnData = ['new' => $tunnelIssued['config'], 'old' => $tunnelIssued['legacy'], 'file' => $tunnelIssued['file']])
+          <script type="application/json" id="tn-data">@json($tnData)</script>
+        </div>
+      </div>
+    @endif
+
+    @if(session('tunnel_removed'))
+      <div class="pnl-sec" style="border-color:var(--danger-line);margin:0 0 16px">
+        <div class="pnl-sec-b">
+          <p style="margin:0 0 8px;font-size:12.5px;color:var(--dim)">
+            برای قطعِ واقعیِ دسترسی، این خط را روی روتر اجرا کنید:
+          </p>
+          <pre id="tn-del" dir="ltr" style="margin:0;padding:12px;border-radius:10px;background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.22);font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all">{{ session('tunnel_removed') }}</pre>
+          <button type="button" class="pnl-btn" data-tn-copy="tn-del" style="margin-top:8px">کپیِ دستور</button>
+        </div>
+      </div>
+    @endif
+
+    @if($tunnelNextIp)
+      <form method="post" action="{{ route('account.cloud.tunnel.issue', $service) }}"
+            style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        @csrf
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim)">
+          نامِ اکانت
+          <input type="text" name="name" dir="ltr" value="{{ old('name', $tunnelNextName) }}"
+                 maxlength="24" required
+                 style="min-width:180px;padding:9px 12px;border-radius:10px;background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.28);font-size:13px">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim)">
+          آدرسِ داخلِ تونل
+          <input type="text" name="ip" dir="ltr" value="{{ old('ip', $tunnelNextIp) }}"
+                 maxlength="15" required
+                 style="min-width:150px;padding:9px 12px;border-radius:10px;background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.28);font-size:13px">
+        </label>
+        <button type="submit" class="pnl-btn">ساختِ اکانت</button>
+      </form>
+    @else
+      <p style="margin:0;font-size:12.5px;color:var(--dim)">
+        همهٔ آدرس‌های این رنج استفاده شده‌اند. برای ساختِ اکانتِ تازه، یکی از اکانت‌های زیر را حذف کنید.
+      </p>
+    @endif
+
+    @if(count($tunnelPeers ?? []))
+      <div style="overflow-x:auto;margin-top:18px">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead>
+            <tr style="color:var(--dim);font-size:11.5px">
+              <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">نام</th>
+              <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">آدرس</th>
+              <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">کلیدِ عمومی</th>
+              <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($tunnelPeers as $peer)
+              <tr>
+                <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">{{ $peer['name'] }}</td>
+                <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">{{ $peer['ip'] }}</td>
+                <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12);color:var(--dim)">{{ \Illuminate\Support\Str::limit($peer['pub'], 14, '…') }}</td>
+                <td style="text-align:left;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">
+                  <form method="post" action="{{ route('account.cloud.tunnel.remove', $service) }}"
+                        onsubmit="return confirm('اکانتِ «{{ $peer['name'] }}» حذف شود؟')" style="margin:0">
+                    @csrf
+                    <input type="hidden" name="name" value="{{ $peer['name'] }}">
+                    <button type="submit" class="pnl-btn" style="padding:5px 12px;font-size:12px">حذف</button>
+                  </form>
+                </td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    @endif
+
+  </div>
+</section>
+@endif
+
 {{-- ═══ مشخصات ═══ --}}
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>{{ __('ui.cs_specs_h') }}</h2></div>
@@ -620,4 +741,55 @@
     });
 })();
 </script>
+
+{{-- اکانت‌های تونل: کپی، دانلود و جابه‌جاییِ نسخهٔ کانفیگ --}}
+<script>
+(function () {
+  var data = document.getElementById('tn-data');
+
+  document.querySelectorAll('[data-tn-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var el = document.getElementById(btn.getAttribute('data-tn-copy'));
+      if (!el || !navigator.clipboard) { return; }
+      var old = btn.textContent;
+      navigator.clipboard.writeText(el.textContent).then(function () {
+        btn.textContent = 'کپی شد';
+        setTimeout(function () { btn.textContent = old; }, 1500);
+      });
+    });
+  });
+
+  if (!data) { return; }
+
+  var cfg = JSON.parse(data.textContent);
+  var pre = document.getElementById('tn-cfg');
+  var bNew = document.getElementById('tn-fmt-new');
+  var bOld = document.getElementById('tn-fmt-old');
+
+  function pick(which) {
+    pre.textContent = which === 'old' ? cfg.old : cfg.new;
+    bNew.style.opacity = which === 'old' ? '.55' : '1';
+    bOld.style.opacity = which === 'old' ? '1' : '.55';
+  }
+
+  bNew.addEventListener('click', function () { pick('new'); });
+  bOld.addEventListener('click', function () { pick('old'); });
+
+  var dl = document.getElementById('tn-dl');
+
+  if (dl) {
+    dl.addEventListener('click', function () {
+      var blob = new Blob([pre.textContent], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = cfg.file;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    });
+  }
+})();
+</script>
+
 @endsection

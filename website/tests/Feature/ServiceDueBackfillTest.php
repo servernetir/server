@@ -150,6 +150,30 @@ class ServiceDueBackfillTest extends TestCase
             'هشدار می‌گوید چند تا، ولی نمی‌گوید کدام — مدیر باید دستی بگردد.');
     }
 
+    /**
+     * 🔴 راهِ رفع باید از **همان‌جا** شدنی باشد.
+     *
+     * متنِ قبلی `services:backfill-due` را نام می‌برد. ولی پروداکشن cPanel است
+     * و SSH نداریم — یعنی هشدار به مدیری که روی موبایل نگاهش می‌کند فرمانی
+     * پیشنهاد می‌داد که هیچ‌وقت نمی‌شد اجرایش کرد. بن‌بست، و برای همین ماه‌ها
+     * روی صفحه ماند.
+     *
+     * ⚠️ ادعا «این رشتهٔ خاص» نیست — «نامِ یک فرمانِ artisan نباشد» است، چون هر
+     * فرمانِ دیگری هم همین بن‌بست را می‌سازد.
+     */
+    public function test_the_fix_hint_does_not_send_the_admin_to_a_shell_they_do_not_have(): void
+    {
+        $this->service();
+
+        $detail = collect(app(SystemHealth::class)->checks())->keyBy('key')['unbilled']['detail'];
+
+        $this->assertStringNotContainsString('artisan', $detail);
+        $this->assertDoesNotMatchRegularExpression('/[a-z-]+:[a-z-]+/', $detail,
+            'متنِ رفع نباید فرمانِ خطِ فرمان باشد — روی cPanel اجرا نمی‌شود');
+        $this->assertStringContainsString('تنظیم', $detail,
+            'باید به همان دکمه‌ای اشاره کند که در پروندهٔ مشتری هست');
+    }
+
     public function test_system_health_is_green_when_every_service_is_billed(): void
     {
         $this->service(['next_due_at' => now()->addDays(10)]);

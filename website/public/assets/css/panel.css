@@ -944,7 +944,14 @@ html[data-theme="light"] .svc-row{background:var(--surface)}
 .svc-qbtn{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;
   padding:12px 14px;min-width:86px;border:1px solid var(--line);border-radius:13px;
   background:var(--surface);color:var(--text);font-size:12px;transition:transform .14s,border-color .16s}
-html[data-theme="light"] .svc-qbtn{background:#fff}
+/* 🔴 `:not(.primary)` حیاتی است، نه آرایش.
+   `html[data-theme="light"] .svc-qbtn` ویژگیِ (0,2,1) دارد و بر
+   `.svc-qbtn.primary` با (0,2,0) می‌چربد — حتی با اینکه بالاتر نوشته شده.
+   نتیجه: دکمهٔ «ورود به سی‌پنل» در تمِ روشن پس‌زمینه‌اش سفید می‌شد ولی
+   `color:#fff` را نگه می‌داشت ⇒ آیکن و متنِ سفید روی سفید، نامرئی. در تمِ
+   تیره این قانون اصلاً اعمال نمی‌شود، پس فقط لایت‌مود خراب بود و ماه‌ها
+   کسی ندیدش. */
+html[data-theme="light"] .svc-qbtn:not(.primary){background:#fff}
 .svc-qbtn:hover{transform:translateY(-2px);border-color:var(--info)}
 .svc-qbtn.primary{background:var(--grad);color:#fff;border-color:transparent;font-weight:700}
 .svc-qbtn.primary:hover{color:#fff;filter:brightness(1.08)}

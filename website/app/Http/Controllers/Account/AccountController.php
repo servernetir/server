@@ -74,7 +74,10 @@ class AccountController extends Controller
             'recent'       => $customer->payments()->latest('id')->limit(5)->get(),
             // لاگ فعالیت و IP — حس پویایی و امنیت
             'activity'     => \Illuminate\Support\Facades\Schema::hasTable('activity_logs')
-                ? \App\Models\ActivityLog::where('customer_id', $customer->id)->latest('id')->limit(8)->get()
+                ? \App\Models\ActivityLog::where('customer_id', $customer->id)
+                    // ⚠️ ورودِ مدیر به پنل عمداً دیده نمی‌شود — رویدادِ ماست نه او
+                    ->visibleToCustomer()
+                    ->latest('id')->limit(8)->get()
                 : collect(),
             'currentIp'    => request()->ip(),
             // شمارش واقعی به‌جای صفرِ ثابت

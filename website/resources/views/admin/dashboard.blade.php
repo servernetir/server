@@ -68,6 +68,84 @@
   </div>
 </div>
 
+{{-- ══ آخرین اتفاقات ══
+     🔴 هر سه فهرست **زنده** از منبعِ خودشان می‌آیند؛ هیچ جدولِ خلاصه‌ای در
+     میان نیست. خلاصهٔ کپی‌شده روزی با واقعیت drift می‌کند و داشبورد چیزی
+     نشان می‌دهد که دیگر درست نیست.
+
+     ⚠️ تاریخ‌ها با `sdate()` شمسی می‌شوند — همان تابعی که کلِ پنل استفاده
+     می‌کند، نه قالب‌بندیِ دستیِ تازه. --}}
+<div class="ad-latest" style="margin-top:16px">
+
+  <div class="ad-panel" style="margin:0">
+    <div class="ad-panel-h">
+      <h3>آخرین پرداخت‌ها</h3>
+      <a href="/admin/invoices" style="font-size:13px;color:var(--cyan)">همه</a>
+    </div>
+    <div class="ad-lat-b">
+      @forelse($latest['payments'] as $p)
+        <a class="ad-lat-row" href="{{ $p->customer_id ? '/admin/customers/'.$p->customer_id : '#' }}">
+          <span class="ad-lat-ic ok"><svg class="icon"><use href="#i-check"/></svg></span>
+          <span class="ad-lat-t">
+            <b>{{ $p->customer?->displayName() ?? '—' }}</b>
+            <small>{{ $p->gateway }} · {{ sdate($p->paid_at ?? $p->created_at, true) }}</small>
+          </span>
+          <span class="ad-lat-n">{{ invoice_money((int) $p->amount, $p->currency_code ?: 'IRT') }}</span>
+        </a>
+      @empty
+        {{-- ⚠️ «هنوز چیزی نیست» و نه ردیفِ ساختگی --}}
+        <p class="ad-lat-empty">هنوز پرداختی ثبت نشده.</p>
+      @endforelse
+    </div>
+  </div>
+
+  <div class="ad-panel" style="margin:0">
+    <div class="ad-panel-h">
+      <h3>تازه‌ترین سرویس‌ها</h3>
+      <a href="/admin/services" style="font-size:13px;color:var(--cyan)">همه</a>
+    </div>
+    <div class="ad-lat-b">
+      @forelse($latest['services'] as $sv)
+        <a class="ad-lat-row" href="{{ $sv->customer_id ? '/admin/customers/'.$sv->customer_id : '#' }}">
+          <span class="ad-lat-ic info"><svg class="icon"><use href="#i-server"/></svg></span>
+          <span class="ad-lat-t">
+            <b>{{ $sv->name }}</b>
+            <small>{{ $sv->customer?->displayName() ?? '—' }} · {{ sdate($sv->created_at) }}</small>
+          </span>
+          <span class="ad-lat-n">{{ invoice_money((int) $sv->price, $sv->currency_code ?: 'IRT') }}</span>
+        </a>
+      @empty
+        <p class="ad-lat-empty">هنوز سرویسی ثبت نشده.</p>
+      @endforelse
+    </div>
+  </div>
+
+  <div class="ad-panel" style="margin:0">
+    <div class="ad-panel-h">
+      <h3>آخرین تیکت‌ها</h3>
+      <a href="/admin/tickets" style="font-size:13px;color:var(--cyan)">همه</a>
+    </div>
+    <div class="ad-lat-b">
+      @forelse($latest['tickets'] as $t)
+        <a class="ad-lat-row" href="/admin/tickets/{{ $t->id }}">
+          <span class="ad-lat-ic {{ $t->status === 'open' ? 'warn' : 'mute' }}"><svg class="icon"><use href="#i-message"/></svg></span>
+          <span class="ad-lat-t">
+            <b>{{ $t->subject }}</b>
+            <small>{{ $t->customer?->displayName() ?? '—' }} · {{ sdate($t->last_reply_at ?? $t->created_at, true) }}</small>
+          </span>
+          {{-- ⚠️ «پاسخ با ماست» را از `last_reply_role` می‌گیرد، نه از وضعیت:
+               تیکتِ بازی که خودمان آخرین پاسخ را داده‌ایم منتظرِ ما نیست. --}}
+          @if($t->status === 'open' && $t->last_reply_role === 'customer')
+            <span class="ad-lat-tag">منتظر پاسخ</span>
+          @endif
+        </a>
+      @empty
+        <p class="ad-lat-empty">هنوز تیکتی ثبت نشده.</p>
+      @endforelse
+    </div>
+  </div>
+
+</div>
 {{-- ══ محتوا: آمار ثانویه ══ --}}
 <div class="ad-stats" style="margin-top:16px">
   <div class="ad-stat"><b style="color:var(--cyan)">{{ fa_num($stats['blog']) }}</b><span>پست بلاگ</span></div>
@@ -79,6 +157,23 @@
 </div>
 
 <style>
+.ad-latest{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px }
+.ad-lat-b{ padding:6px 0 10px }
+.ad-lat-row{ display:flex; align-items:center; gap:10px; padding:9px 16px; text-decoration:none; color:var(--text); transition:background .14s }
+.ad-lat-row:hover{ background:var(--surface) }
+.ad-lat-ic{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:none }
+.ad-lat-ic .icon{ width:15px; height:15px }
+.ad-lat-ic.ok{ background:rgba(52,211,153,.12); color:#34d399 }
+.ad-lat-ic.info{ background:rgba(34,211,238,.12); color:#22d3ee }
+.ad-lat-ic.warn{ background:rgba(245,158,11,.12); color:#f59e0b }
+.ad-lat-ic.mute{ background:var(--surface); color:var(--muted) }
+.ad-lat-t{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px }
+.ad-lat-t b{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.ad-lat-t small{ font-size:11.5px; color:var(--muted) }
+.ad-lat-n{ font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap }
+.ad-lat-tag{ font-size:11px; padding:2px 8px; border-radius:20px; background:rgba(245,158,11,.12); color:#f59e0b; white-space:nowrap }
+.ad-lat-empty{ padding:14px 16px; font-size:12.5px; color:var(--muted) }
+@media(max-width:1100px){ .ad-latest{ grid-template-columns:1fr } }
 .ad-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px }
 .ad-kpi{ display:flex; flex-direction:column; gap:4px; padding:16px; background:var(--panel,var(--surface)); border:1px solid var(--line); border-radius:14px; text-decoration:none; transition:border-color .15s }
 .ad-kpi:hover{ border-color:#334155 }

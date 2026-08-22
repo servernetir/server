@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Post;
+use App\Models\Service;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Finance\BusinessLedger;
@@ -46,6 +48,40 @@ class DashboardController extends Controller
             'newCustomers' => $hasCustomers
                 ? Customer::with('identityVerification')->orderByDesc('id')->limit(6)->get()
                 : collect(),
+
+            /*
+            | «آخرین اتفاقات» — کارفرما خواست یک‌نگاه بفهمد چه گذشته.
+            |
+            | 🔴 هیچ‌چیز کپی نمی‌شود؛ هر سه فهرست **زنده** از منبعِ خودشان
+            | خوانده می‌شوند. جدولِ خلاصهٔ جدا یعنی روزی با واقعیت drift کند و
+            | داشبورد چیزی نشان دهد که دیگر درست نیست — همان قاعده‌ای که در
+            | تقویمِ کسب‌وکار هم رعایت شده.
+            |
+            | ⚠️ `hasTable` روی هر سه: روی نصبی که هنوز مهاجرت نکرده، داشبورد
+            | باید خالی بیاید نه ۵۰۰.
+            |
+            | ⚠️ فقط پرداختِ **موفق**. تلاشِ ناموفق در این فهرست یعنی مدیر
+            | درآمدی می‌بیند که وجود ندارد.
+            */
+            'latest' => [
+                'payments' => Schema::hasTable('payments')
+                    ? Payment::with('customer')
+                        ->where('status', 'paid')
+                        ->orderByDesc('paid_at')->orderByDesc('id')
+                        ->limit(6)->get()
+                    : collect(),
+
+                'services' => Schema::hasTable('services')
+                    ? Service::with('customer')
+                        ->orderByDesc('id')->limit(6)->get()
+                    : collect(),
+
+                'tickets' => $hasTickets
+                    ? Ticket::with('customer')
+                        ->orderByDesc('last_reply_at')->orderByDesc('id')
+                        ->limit(6)->get()
+                    : collect(),
+            ],
         ]);
     }
 }

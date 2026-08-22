@@ -68,6 +68,39 @@ class BaleNotifier
      * خرابی خبر دهد نباید خودش بی‌صدا بمیرد (§۳ در CLAUDE.md). ایمیلِ مدیر
      * مستقل از این مسیر می‌رود، پس مدیر در بدترین حالت هم کور نمی‌شود.
      */
+    /**
+     * همان `toAdmin()`، ولی با دکمه‌های شیشه‌ای.
+     *
+     * 🔴 جدا از `toAdmin()` و نه یک پارامترِ اختیاری روی آن: مسیرِ ایران
+     * (`fallback`) دکمه ندارد و اگر پارامتر می‌گذاشتم، آن مسیر بی‌صدا
+     * دکمه‌ها را می‌انداخت و مدیر پیامی می‌گرفت که نصفش کار نمی‌کند.
+     *
+     * ⚠️ نبودِ مقصد یا شکستِ ارسال ⇒ `false`. فراخوان می‌تواند به متنِ ساده
+     * برگردد؛ پیامِ بی‌دکمه از هیچ پیامی بهتر است.
+     *
+     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     */
+    public function toAdminButtons(string $mobile, string $text, array $rows): bool
+    {
+        try {
+            $chatId = trim((string) config('servernet.contact.notify_chat_id', ''));
+
+            if ($chatId === '' && $mobile !== '' && Schema::hasTable('bale_contacts')) {
+                $chatId = (string) (BaleContact::chatIdFor($mobile) ?? '');
+            }
+
+            if ($chatId === '') {
+                return false;
+            }
+
+            return $this->sender->sendButtons($chatId, $text, $rows) !== null;
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'bale-admin-buttons']);
+
+            return false;
+        }
+    }
+
     public function toAdmin(string $mobile, string $text): void
     {
         try {

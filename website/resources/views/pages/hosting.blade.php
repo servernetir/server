@@ -398,9 +398,12 @@
 
         // پلنِ وصل‌شده به پکیجِ واقعی (لایسنس‌ها) لینکِ خریدِ خودش را از
         // کنترلر می‌آورد؛ بقیه همان دو مسیرِ قبلی.
+        // ممیزی ۴: «انتخاب» دیگر مستقیم به دیوارِ ورودِ console نمی‌خورد؛
+        // اول خلاصهٔ سفارشِ بی‌نشست روی خودِ سایت (قیمت، دوره‌ها، جمعِ کل،
+        // ضمانت)، و فقط دکمهٔ پرداختِ آن صفحه به console می‌رود.
         $storeHref = ($p['order_url'] ?? null)
             ?: (($category === 'hosting')
-                ? (isset($orderable[$orderSlug]) ? lroute('account.order', $orderSlug) : null)
+                ? (isset($orderable[$orderSlug]) ? lroute('order.summary', $orderSlug) : null)
                 : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null)));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">

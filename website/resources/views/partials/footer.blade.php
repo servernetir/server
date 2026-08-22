@@ -42,12 +42,19 @@
         <h5 class="f-head">{{ __('ui.f_company') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
+          @if($isFa)
+          {{-- بخشِ محلی فقط فارسی است (routes/web.php) — روی en/tr لینک نمی‌گیرد --}}
+          <a href="{{ route('urmia.hub') }}">خدمات ما در ارومیه</a>
+          @endif
           <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
           <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
           <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>
           <a href="{{ lroute('sla') }}">{{ __('ui.sla_title') }}</a>
+          {{-- دو صفحهٔ اثباتِ تازهٔ ممیزی ۴ — بی‌لینکِ ورودی، صفحهٔ یتیم می‌شدند --}}
+          <a href="{{ lroute('speed') }}">{{ __('ui.f_speed') }}</a>
           <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
           <a href="{{ lroute('aup') }}">{{ __('ui.f_aup') }}</a>
+          <a href="{{ lroute('abuse') }}">{{ __('ui.f_abuse') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           {{-- ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی --}}
           <a href="{{ console_lroute('account.home') }}">{{ __('ui.f_c5') }}</a>

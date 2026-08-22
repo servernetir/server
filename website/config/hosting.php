@@ -146,14 +146,21 @@ return [
                 'hero_t' => 'WordPress Hosting,', 'hero_g' => 'her zamankinden hızlı.',
                 'hero_d' => 'LiteSpeed Enterprise ve NVMe üzerinde WordPress\'e özel altyapı — otomatik kurulum, güvenli güncelleme, staging ve sizi Google\'da üstte tutan önbellek.'],
             'chips' => ['LiteSpeed + LSCache', 'NVMe RAID-10', 'WP-CLI', 'Staging', 'Free SSL'],
+            /*
+            | ممیزی ۴ (حقوقی + مارکتینگ): ادعای «۱۲٬۴۰۰ req/s» چهار دور بدونِ
+            | متدولوژی ماند و «یک عددِ بی‌پشتوانه، عددهای باپشتوانه را آلوده
+            | می‌کند». جایگزین: TTFBِ واقعاً اندازه‌گیری‌شدهٔ خودِ سایت (اعدادِ
+            | ممیزی ۴، ۲۷ مرداد ۱۴۰۵) — با روشِ کامل در /speed. عددِ رقبا
+            | اختراع نمی‌شود؛ نوارها سه سنجهٔ خودِ ما را مقایسه می‌کنند.
+            */
             'signature' => ['type' => 'bars',
-                'fa' => ['t' => 'سرعتی که رقبا فقط ادعایش را دارند', 'd' => 'درخواست در ثانیه روی سخت‌افزار یکسان — بنچمارک داخلی سرورنت، وردپرس ۶ + ووکامرس'],
-                'en' => ['t' => 'Speed others only claim', 'd' => 'Requests per second on identical hardware — internal ServerNet benchmark, WordPress 6 + WooCommerce'],
-                'tr' => ['t' => 'Başkalarının sadece iddia ettiği hız', 'd' => 'Aynı donanımda saniye başına istek — ServerNet iç testi, WordPress 6 + WooCommerce'],
+                'fa' => ['t' => 'سرعتی که اندازه گرفته‌ایم، نه ادعا', 'd' => 'زمان تا اولین بایت (TTFB) روی سایت زنده — اندازه‌گیری ۲۷ مرداد ۱۴۰۵؛ روش کامل و آرشیو در servernet.cloud/speed'],
+                'en' => ['t' => 'Speed we measured, not claimed', 'd' => 'Time-to-first-byte on the live site — measured 18 Aug 2026; full methodology and archive at servernet.cloud/speed'],
+                'tr' => ['t' => 'İddia değil, ölçülmüş hız', 'd' => 'Canlı sitede ilk bayta kadar süre (TTFB) — 18 Ağu 2026 ölçümü; yöntem ve arşiv: servernet.cloud/speed'],
                 'items' => [
-                    ['fa' => 'سرورنت — LiteSpeed Enterprise', 'en' => 'ServerNet — LiteSpeed Enterprise', 'tr' => 'ServerNet — LiteSpeed Enterprise', 'val' => '12,400 req/s', 'w' => '100%', 'hl' => true],
-                    ['fa' => 'هاست معمولی — Nginx', 'en' => 'Typical host — Nginx', 'tr' => 'Tipik hosting — Nginx', 'val' => '6,100 req/s', 'w' => '49%'],
-                    ['fa' => 'هاست معمولی — Apache', 'en' => 'Typical host — Apache', 'tr' => 'Tipik hosting — Apache', 'val' => '2,300 req/s', 'w' => '19%'],
+                    ['fa' => 'صفحهٔ کش‌شده (HIT)', 'en' => 'Cached page (HIT)', 'tr' => 'Önbellekli sayfa (HIT)', 'val' => '160–195ms', 'w' => '100%', 'hl' => true],
+                    ['fa' => 'رندرِ کاملِ بدونِ کش', 'en' => 'Full render, no cache', 'tr' => 'Önbelleksiz tam render', 'val' => '~226ms', 'w' => '80%'],
+                    ['fa' => 'سنگین‌ترین صفحه (vps/iran)', 'en' => 'Heaviest page (vps/iran)', 'tr' => 'En ağır sayfa (vps/iran)', 'val' => '509ms', 'w' => '36%'],
                 ]],
             'plans' => [
                 ['name' => 'WP-5', 'pid' => 20, 'irt' => 250000, 'eur' => 2.49, 'specs' => [

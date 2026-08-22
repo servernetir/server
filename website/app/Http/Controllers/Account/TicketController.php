@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Account;
 
+use App\Services\Bale\Admin\AdminBaleRouter;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
@@ -150,6 +151,33 @@ class TicketController extends Controller
             ['وضعیت' => $ticket->isOpen() ? 'باز' : 'بسته بود و دوباره باز شد'],
             url('/admin/tickets/'.$ticket->id),
             '💬',
+
+            /*
+            | ══ دکمه‌های شیشه‌ای روی همین اعلان ══
+            |
+            | 🔴 کارفرما: «وقتی پاسخِ مشتری می‌آید بتوانم همان‌جا جواب بدهم و
+            | مشتری را ببینم، مثلِ تیکت‌ها.» تا امروز این اعلان فقط متن و یک
+            | لینک بود؛ یعنی برای یک جملهٔ کوتاه باید پنل باز می‌شد و عملاً
+            | جواب عقب می‌افتاد.
+            |
+            | ⚠️ افعال **موجود**اند، نه تازه: `t` کارتِ تیکت، `tw` جریانِ
+            | پاسخ، `td` پیش‌نویسِ AI، `c` کارتِ مشتری. فعلِ تازه یعنی یک
+            | مسیرِ نسنجیده در روتر و یک `default` که «این دکمه معتبر نیست»
+            | می‌گوید.
+            |
+            | ⚠️ `CB_PREFIX` نسخه‌دار است و از خودِ روتر خوانده می‌شود تا اگر
+            | نسخه بالا رفت، این‌جا جا نمانَد.
+            */
+            $ticket->customer_id ? [
+                [
+                    ['text' => '💬 پاسخ', 'data' => AdminBaleRouter::CB_PREFIX.'tw:'.$ticket->id],
+                    ['text' => '🧠 پیش‌نویس', 'data' => AdminBaleRouter::CB_PREFIX.'td:'.$ticket->id],
+                ],
+                [
+                    ['text' => '🎫 تیکت', 'data' => AdminBaleRouter::CB_PREFIX.'t:'.$ticket->id],
+                    ['text' => '👤 مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$ticket->customer_id],
+                ],
+            ] : [],
         );
 
         return redirect()->route($this->rp().'account.ticket', $ticket)

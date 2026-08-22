@@ -60,7 +60,9 @@ class DomainContractMonitorTest extends TestCase
                 // عمداً parent::__construct صدا نمی‌شود: وابستگیِ بله لازم نیست
             }
 
-            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
+            /* ⚠️ امضا باید دقیقاً با والد بخواند؛ `$buttons` وقتی اضافه شد که
+               اعلان‌ها دکمهٔ شیشه‌ای گرفتند. */
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
             {
                 $this->box[] = ['title' => $title, 'rows' => $rows, 'url' => $url];
             }

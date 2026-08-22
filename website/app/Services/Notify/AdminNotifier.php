@@ -28,8 +28,13 @@ class AdminNotifier
      * @param  string  $title   تیترِ کوتاه (در ایمیل موضوع می‌شود)
      * @param  array<string,string|int|null>  $rows  جفت‌های «برچسب => مقدار» برای بدنه
      * @param  string|null  $url  لینکِ مربوط در پنل مدیریت (اختیاری)
+     * @param  array<int,array<int,array{text:string,data:string}>>  $buttons
+     *         دکمه‌های شیشه‌ای — **فقط در بله**. ایمیل متن می‌مانَد.
+     *
+     * ⚠️ دکمه اختیاری است و نبودش رفتارِ قبلی را عوض نمی‌کند: ده‌ها فراخوانِ
+     * موجود بی‌تغییر کار می‌کنند.
      */
-    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
+    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
     {
         $lines = [$emoji.' '.$title];
 
@@ -46,14 +51,25 @@ class AdminNotifier
 
         $text = implode("\n", $lines);
 
-        $this->sendBale($text);
+        $this->sendBale($text, $buttons);
         $this->sendMail($title, $text);
     }
 
-    private function sendBale(string $text): void
+    private function sendBale(string $text, array $buttons = []): void
     {
         try {
             $phone = trim((string) config('servernet.contact.notify_phone', ''));
+
+            /*
+            | ⚠️ اگر ارسالِ دکمه‌دار نشد، به متنِ ساده برمی‌گردیم.
+            |
+            | 🔴 و نه `return`: پیامی که دکمه‌اش نرسیده باز هم باید برسد. نسخهٔ
+            | بی‌این شاخه یعنی یک شکستِ کوچکِ کیبورد، کلِ اعلانِ «مشتری جواب
+            | داد» را می‌بلعید — همان سکوتی که این پروژه بارها خورده.
+            */
+            if ($buttons !== [] && $this->bale->toAdminButtons($phone, $text, $buttons)) {
+                return;
+            }
 
             /*
             | 🔴 `toAdmin()` نه `notify()` — سفیر فقط برای مشتریان.

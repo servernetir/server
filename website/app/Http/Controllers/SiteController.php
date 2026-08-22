@@ -160,6 +160,13 @@ class SiteController extends Controller
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
             '/servers'       => 'Refurbished physical servers for sale',
+            /*
+             * ⚠️ فروشگاهِ قطعات صفحهٔ جدایی است، نه زیرمجموعهٔ `/servers`.
+             * مدلِ زبانی که «قطعهٔ سرور» را جستجو می‌کند، اگر فقط `/servers`
+             * را بشناسد کاربر را به فهرستِ سرورِ کامل می‌فرستد — یعنی همان
+             * پاسخِ «تقریباً درست» که بدتر از نبودن است.
+             */
+            '/parts'         => 'HPE ProLiant Gen8-Gen12 server parts sold individually (CPU, ECC memory, drives, RAID, NICs, PSUs)',
             '/blog'          => 'Blog',
             '/knowledge'     => 'Knowledge base',
             '/docs'          => 'Documentation',
@@ -177,6 +184,8 @@ class SiteController extends Controller
             '/sla'           => 'Service level agreement',
             '/terms'         => 'Terms of service',
             '/aup'           => 'Acceptable use policy (no VPN/proxy resale on Iran infrastructure)',
+            '/abuse'         => 'Report abuse of ServerNet infrastructure (reviewed within 2 business days)',
+            '/speed'         => 'Public speed report with reproducible methodology (measured TTFB, all numbers)',
             '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
@@ -223,8 +232,21 @@ class SiteController extends Controller
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
+        }
+
+        /*
+        | بخشِ محلی ارومیه — **فقط فارسی**، پس بیرونِ $add (روتِ en.urmia.*
+        | وجود ندارد و $add می‌ترکید). مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛
+        | مثل webdesign: در منو نیست ولی در نقشهٔ سایت هست.
+        */
+        $urls[] = ['loc' => route('urmia.hub'), 'lastmod' => null];
+        foreach (array_keys((array) config('urmia.pages')) as $slug) {
+            $urls[] = ['loc' => route('urmia.page', $slug), 'lastmod' => null];
+        }
+        foreach (array_keys((array) config('urmia.cities')) as $slug) {
+            $urls[] = ['loc' => route('urmia.city', $slug), 'lastmod' => null];
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
@@ -236,6 +258,32 @@ class SiteController extends Controller
                 : array_keys((array) config('servers.models'));
         foreach ($serverSlugs as $slug) {
             $add('servers.show', $slug);
+        }
+
+        /*
+        | فروشگاهِ قطعات — هاب، هر دسته، هر صفحهٔ نسل، و هر قطعهٔ فعال.
+        |
+        | 🔴 صفحاتِ دسته و نسل عمداً این‌جا هستند و نه فقط صفحهٔ هاب: هرکدام
+        | متنِ یکتا و کلیدواژهٔ خودشان را دارند («رم سرور ECC»، «قطعات HP نسل
+        | ۹») و بدونِ نقشه، تنها راهِ کشفشان مگامنو است — که خزنده لزوماً
+        | دنبال نمی‌کند.
+        |
+        | ⚠️ `parts.compare` عمداً **نیست**: خروجی‌اش ترکیبِ انتخابیِ کاربر است
+        | و بی‌نهایت آدرسِ تقریباً یکسان می‌سازد. صفحه‌اش هم `noindex` است.
+        |
+        | ⚠️ پشتِ `hasTable` است تا نقشه روی سرورِ مهاجرت‌نخورده ۵۰۰ ندهد.
+        */
+        $add('parts.index');
+        foreach (array_keys(\App\Models\ServerPart::CATEGORIES) as $cat) {
+            $add('parts.category', $cat);
+        }
+        foreach (array_keys((array) config('hp_generations', [])) as $gen) {
+            $add('servers.generation', $gen);
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('server_parts')) {
+            foreach (\App\Models\ServerPart::active()->orderBy('sort')->get(['category', 'slug', 'updated_at']) as $part) {
+                $add('parts.show', [$part->category, $part->slug], $part->updated_at?->toDateString());
+            }
         }
         foreach (['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas', 'speedtest'] as $slug) {
             $add('tools', $slug);
