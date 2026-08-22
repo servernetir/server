@@ -37,7 +37,7 @@ return [
     'routes' => [
         'home',
         'hosting', 'hosting.index', 'catalog',
-        'cloud.index', 'cloud.location',
+        'cloud.index', 'cloud.location', 'vps.hourly',
         'blog.index', 'blog',
         'solutions.index', 'solution',
         'knowledge', 'docs.index', 'docs',

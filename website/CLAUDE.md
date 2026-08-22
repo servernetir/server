@@ -434,6 +434,16 @@ tests/Feature/           CustomerIdentity, DomainSearch, IranianKyc, ZohalProvid
 - `config/solutions.php` → `/solutions/{slug}`
 - منوها در `config/servernet.php`
 - **افزودن محصول جدید:** یک آیتم در config + (در صورت نیاز) روت در `$site`
+- **عنوان و دسکریپشنِ جست‌وجو:** هر محصول می‌تواند `seo_t` و `seo_d` (به ازای
+  هر زبان) داشته باشد؛ `seo_t` عنوانِ تب است (برند خودکار می‌چسبد) و `seo_d`
+  متای description. بدونِ آن‌ها `t` و `hero_d` استفاده می‌شوند — که شعاری‌اند و
+  CTR زیر ۱٪ می‌گرفتند. برای صفحاتِ تراکنشی (VPS، دامنه) هر دو را بنویس:
+  «خرید …»، مزیتِ عددی، «تحویل آنی».
+- **`/vps/hourly` (سرور مجازی ساعتی)** روتِ صریح + `HourlyVpsController` +
+  `pages/vps-hourly.blade.php` است، نه ورودیِ کاتالوگ: نرخِ ساعتی و کفِ اعتبار
+  را زنده از `CloudPlan::hourlyIrt()` می‌خواند. رشته‌ها `ui.hv_*`. تست:
+  `HourlyVpsPageTest`. لینکِ خریدش با `?billing_mode=hourly` به فروشگاه می‌رود
+  و `cloud-store.blade` همان را به تیکِ ساعتی ترجمه می‌کند.
 
 ### ب) CMS — بلاگ و پایگاه دانش
 - جدول `posts` + `post_translations`؛ ستون `type` تفکیک می‌کند: `blog` یا `kb`

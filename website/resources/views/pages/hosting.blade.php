@@ -3,7 +3,10 @@
 {{-- `seo_t` اختیاری است: عنوانِ تبِ مرورگر جای بیشتری برای کلیدواژه دارد تا
      برچسبِ منو، و یکی‌کردنشان یعنی یا منو طولانی می‌شود یا عنوان لاغر. --}}
 @section('title', (lc($product)['seo_t'] ?? lc($product)['t']).' — '.__('ui.brand'))
-@section('description', lc($product)['hero_d'])
+{{-- `seo_d` هم اختیاری است: متنِ hero برای خواننده نوشته شده (شعاری، بی‌قیمت)،
+     ولی دسکریپشنِ نتیجهٔ جست‌وجو باید نیتِ خرید را جواب دهد — «خرید»، «قیمت»،
+     «تحویل آنی». Search Console نشان داد CTR صفحاتِ محصول زیرِ ۱٪ است. --}}
+@section('description', lc($product)['seo_d'] ?? lc($product)['hero_d'])
 
 @section('content')
 @php
@@ -628,6 +631,13 @@
       <h2 style="font-size:27px">{{ __('ui.hp_related_title') }}</h2>
     </div>
     <div class="loc-strip reveal">
+      {{-- «سرور مجازی ساعتی» روتِ صریح دارد نه ورودیِ config، پس در `$related`
+           نمی‌آید؛ ولی هر صفحهٔ VPS باید به آن لینک دهد — هم برای خریدارِ
+           «فقط چند ساعت می‌خواهم»، هم برای اینکه لنگرِ دقیقِ کلیدواژه از همهٔ
+           صفحاتِ هم‌خانواده به صفحهٔ فرود برسد. --}}
+      @if($category === 'vps')
+      <a class="loc" href="{{ lroute('vps.hourly') }}"><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.hv_badge') }}</a>
+      @endif
       @foreach($related as $rSlug => $r)
       <a class="loc" href="{{ $category === 'hosting' ? lroute('hosting', $rSlug) : lroute('catalog', ['category' => $category, 'slug' => $rSlug]) }}"><svg class="icon"><use href="#i-{{ $r['icon'] }}"/></svg>{{ lc($r)['t'] }}</a>
       @endforeach

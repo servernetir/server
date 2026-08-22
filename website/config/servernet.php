@@ -127,9 +127,9 @@ return [
          'fa' => ['t' => 'هاست وردپرس', 'd' => 'بهینه‌شده برای وردپرس و ووکامرس همراه با کش اختصاصی و محیط استیجینگ.'],
          'tr' => ['t' => 'WordPress Hosting', 'd' => 'WordPress ve WooCommerce için optimize altyapı; staging ve önbellek dahili.']],
         ['icon' => 'cpu',    'pid' => 3, 'eur' => 4.90, 'irt' => 490000, 'link' => ['catalog', ['category' => 'vps', 'slug' => 'iran']],
-         'en' => ['t' => 'VPS Servers', 'd' => 'Instant-deploy virtual servers with dedicated resources in Iran & Europe.'],
-         'fa' => ['t' => 'سرور مجازی', 'd' => 'تحویل آنی با منابع اختصاصی در لوکیشن‌های ایران و اروپا.'],
-         'tr' => ['t' => 'VPS Sunucular', 'd' => 'İran ve Avrupa\'da anında kurulan, kaynakları özel sanal sunucular.']],
+         'en' => ['t' => 'VPS Servers', 'd' => 'Instant-deploy virtual servers with dedicated resources in Iran & Europe — monthly or hourly billing.'],
+         'fa' => ['t' => 'سرور مجازی ایران و خارج', 'd' => 'تحویل آنی با منابع اختصاصی در ایران و اروپا — پرداخت ماهانه یا ساعتی.'],
+         'tr' => ['t' => 'VPS Sunucular', 'd' => 'İran ve Avrupa\'da anında kurulan, kaynakları özel sanal sunucular — aylık veya saatlik.']],
         ['icon' => 'server', 'pid' => 4, 'eur' => 39,   'irt' => 4900000, 'link' => ['catalog', ['category' => 'dedicated', 'slug' => 'iran']],
          'en' => ['t' => 'Dedicated Servers', 'd' => 'Bare-metal power in Iran, Germany, France, Canada & the Netherlands.'],
          'fa' => ['t' => 'سرور اختصاصی', 'd' => 'قدرت سخت‌افزار اختصاصی در ایران، آلمان، فرانسه، کانادا و هلند.'],
@@ -355,6 +355,11 @@ return [
                     ['route' => ['cloud.index', []], 'fa' => 'سرور مجازی اشتراکی', 'en' => 'Shared-CPU VPS', 'tr' => 'Paylaşımlı CPU VPS'],
                     ['slug' => 'iran',              'fa' => 'سرور مجازی ایران', 'en' => 'Iran VPS', 'tr' => 'İran VPS'],
                     ['slug' => 'international',     'fa' => 'سرور مجازی خارج', 'en' => 'International VPS', 'tr' => 'Yurt Dışı VPS'],
+                    // صفحهٔ فرودِ فروشِ ساعتی — محصولِ زنده‌ای که تا مرداد ۱۴۰۵ هیچ
+                    // لینکی در منو نداشت (و هیچ صفحه‌ای). لینکِ منو یعنی هر صفحهٔ
+                    // سایت یک لینکِ داخلی با متنِ لنگرِ دقیقِ کلیدواژه به آن می‌دهد.
+                    ['route' => ['vps.hourly', []], 'new' => true,
+                        'fa' => 'سرور مجازی ساعتی', 'en' => 'Hourly VPS', 'tr' => 'Saatlik VPS'],
                 ]],
                 ['fa' => 'پردازندهٔ اختصاصی', 'en' => 'Dedicated CPU', 'tr' => 'Özel CPU', 'items' => [
                     ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'iran']],    'fa' => 'سرور اختصاصی ایران', 'en' => 'Iran dedicated', 'tr' => 'İran özel sunucu'],

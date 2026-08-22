@@ -288,7 +288,8 @@
     <div class="cvps-cross">
       <a href="{{ lroute('solutions.index') }}">{{ __('ui.sol_h1') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.f_p5') }}</a>
-      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.f_p2') }}</a>
+      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.hv_cross_iran') }}</a>
+      <a href="{{ lroute('vps.hourly') }}">{{ __('ui.hv_badge') }}</a>
       <a href="{{ lroute('hosting', 'linux') }}">{{ __('ui.f_p1') }}</a>
       <a href="{{ lroute('domain.search') }}">{{ __('ui.nav_domains') }}</a>
       <a href="{{ lroute('knowledge') }}">{{ __('ui.nav_knowledge') }}</a>

@@ -268,14 +268,14 @@ class CloudCatalogController extends Controller
      */
     public const STRINGS = [
         'cloud_meta_t' => [
-            'fa' => 'سرور مجازی ابری در همهٔ کشورها — تحویل آنی | سرورنت',
-            'en' => 'Cloud VPS in every country — instant delivery | ServerNet',
-            'tr' => 'Her ülkede bulut VPS — anında teslim | ServerNet',
+            'fa' => 'خرید سرور مجازی (VPS) | ایران و ده‌ها کشور، تحویل آنی | سرورنت',
+            'en' => 'Buy a Cloud VPS | Iran and dozens of countries, instant delivery | ServerNet',
+            'tr' => 'Bulut VPS satın al | İran ve onlarca ülke, anında teslim | ServerNet',
         ],
         'cloud_meta_d' => [
-            'fa' => 'سرور مجازی ابری با دیسک NVMe، آی‌پی اختصاصی و تحویلِ خودکار در ده‌ها شهرِ اروپا، خاورمیانه، آسیا و آمریکا. قیمتِ شفافِ ماهانه، پرداختِ ریالی، مدیریتِ کامل از پنل.',
-            'en' => 'Cloud VPS with NVMe storage, a dedicated IP and automatic delivery in dozens of cities across Europe, the Middle East, Asia and America. Transparent monthly pricing, full panel control.',
-            'tr' => 'Avrupa, Orta Doğu, Asya ve Amerika’daki onlarca şehirde NVMe diskli, özel IP’li ve otomatik teslimli bulut VPS. Şeffaf aylık fiyat, panelden tam kontrol.',
+            'fa' => 'خرید سرور مجازی با دیسک NVMe، آی‌پی اختصاصی و تحویلِ خودکار در ایران و ده‌ها شهرِ اروپا، خاورمیانه، آسیا و آمریکا. قیمتِ شفاف، پرداختِ ریالی، انتخابِ پرداختِ ساعتی یا ماهانه و مدیریتِ کامل از پنل.',
+            'en' => 'Buy a cloud VPS with NVMe storage, a dedicated IP and automatic delivery in Iran and dozens of cities across Europe, the Middle East, Asia and America. Transparent pricing, hourly or monthly billing, full panel control.',
+            'tr' => 'İran ile Avrupa, Orta Doğu, Asya ve Amerika’daki onlarca şehirde NVMe diskli, özel IP’li ve otomatik teslimli bulut VPS. Şeffaf fiyat, saatlik veya aylık ödeme, panelden tam kontrol.',
         ],
         'cloud_badge' => ['fa' => 'سرور مجازی ابری', 'en' => 'Cloud VPS', 'tr' => 'Bulut VPS'],
         'cloud_h1' => [

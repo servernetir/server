@@ -158,6 +158,7 @@ class SiteController extends Controller
             '/about'         => 'About ServerNet',
             '/contact'       => 'Contact and support',
             '/domains'       => 'Domain search and registration',
+            '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
             '/servers'       => 'Refurbished physical servers for sale',
             '/blog'          => 'Blog',
             '/knowledge'     => 'Knowledge base',
@@ -250,6 +251,8 @@ class SiteController extends Controller
         | ⚠️ پشتِ `hasTable` است تا روی سرورِ مهاجرت‌نخورده نقشه ۵۰۰ ندهد.
         */
         $add('cloud.index');
+        // صفحهٔ فرودِ «سرور مجازی ساعتی» — روتِ صریح، خارج از کاتالوگِ config
+        $add('vps.hourly');
 
         if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
             foreach (\App\Models\CloudLocation::where('is_active', true)->pluck('code') as $code) {

@@ -48,6 +48,15 @@ $site = function (): void {
     */
     Route::get('/hosting', fn () => redirect()->to(lroute('hosting', 'linux'), 301))->name('hosting.index');
     Route::get('/vps', fn () => redirect()->to(lroute('cloud.index'), 301))->name('vps.index');
+    /*
+    | 🔴 صفحهٔ فرودِ «سرور مجازی ساعتی».
+    |
+    | فروشِ ساعتی محصولِ زنده‌ای بود که هیچ صفحهٔ عمومی نداشت؛ Search Console
+    | همین عبارت را با CTR ۷۵٪ ولی فقط ۴ نمایش نشان می‌داد. باید **پیش از**
+    | روتِ فراگیرِ `/{category}/{slug}` ثبت شود وگرنه کاتالوگ `/vps/hourly` را
+    | می‌قاپد و ۴۰۴ می‌دهد (چون 'hourly' در config/catalog/vps.php نیست).
+    */
+    Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
     Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
