@@ -9,6 +9,8 @@ use App\Models\CloudInstance;
 use App\Models\Service;
 use App\Services\Cloud\CloudManager;
 use App\Support\ExitCountries;
+use App\Support\TunnelProfile;
+use App\Support\WireGuardKey;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -131,6 +133,9 @@ class CloudServerController extends Controller
         // تحویل شده‌اند. نامِ زیرساخت هیچ‌جا بیرون نمی‌رود (قاعدهٔ سفیدبرچسبی).
         $exitCapable = $instance && $instance->provider === 'proxmox' && $instance->isDelivered();
 
+        // اکانت‌های تونلِ TCP — فقط اگر برای این سرور پروفایل تعریف شده باشد.
+        $tunnel = TunnelProfile::fromInstance($instance);
+
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
         return view('account.cloud-server', AccountController::shell('servers') + [
@@ -145,6 +150,12 @@ class CloudServerController extends Controller
             'exitCapable' => $exitCapable,
             'exitOptions' => $exitCapable ? ExitCountries::options('fa') : [],
             'exitCurrent' => $exitCapable ? ($instance->exitCountryCode() ?: ExitCountries::NONE) : null,
+            // اکانت‌های تونلِ TCP
+            'tunnel' => $tunnel,
+            'tunnelPeers' => $tunnel?->peers() ?? [],
+            'tunnelNextIp' => $tunnel?->nextIp(),
+            'tunnelNextName' => $tunnel?->suggestedName() ?? '',
+            'tunnelIssued' => session('tunnel_issued'),
         ]);
     }
 
@@ -618,6 +629,122 @@ class CloudServerController extends Controller
         $this->log($service, $logAction);
 
         return back()->with('ok', $okMessage);
+    }
+
+    // ────────────────── اکانت‌های تونلِ TCP ──────────────────
+
+    /**
+     * صدورِ یک اکانتِ تازهٔ «WireGuard روی TCP» برای این سرور.
+     *
+     * چرا این‌جا و نه روی روتر: پنل به روترِ مشتری راه ندارد (سرویسِ SSHـش با
+     * `available-from` بسته است و API خاموش). پس پنل کلید را می‌سازد، کانفیگِ
+     * کاربر را تحویل می‌دهد و **یک خط دستور** می‌دهد که مشتری در ترمینالِ روترِ
+     * خودش اجرا می‌کند. وقتی دسترسیِ API فراهم شد، فقط همان یک خط خودکار
+     * می‌شود و بقیهٔ این جریان دست‌نخورده می‌ماند.
+     *
+     * 🔴 کلیدِ خصوصی ذخیره نمی‌شود. یک‌بار در پاسخِ همین درخواست دیده می‌شود و
+     * می‌رود — مثلِ «نمایشِ یک‌بارهٔ رمزِ روت». در `meta` فقط نام، آدرس و کلیدِ
+     * عمومی می‌ماند، که هیچ‌کدام رازِ قابلِ‌سوءاستفاده نیستند.
+     */
+    public function issueTunnelAccount(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        if ($resp = $this->denyIfNotWritable($service)) {
+            return $resp;
+        }
+
+        $instance = $this->instanceOf($service);
+        $tunnel = TunnelProfile::fromInstance($instance);
+
+        if ($tunnel === null) {
+            return back()->withErrors('اکانتِ تونل برای این سرور در دسترس نیست.');
+        }
+
+        if ($resp = $this->rateLimit($service, 'tunnel', 10)) {
+            return $resp;
+        }
+
+        if (count($tunnel->peers()) >= TunnelProfile::MAX_PEERS) {
+            return back()->withErrors(
+                'به سقفِ '.fa_num(TunnelProfile::MAX_PEERS).' اکانت رسیده‌اید. یکی را حذف کنید و دوباره تلاش کنید.'
+            );
+        }
+
+        $name = strtolower(trim((string) $request->input('name')));
+
+        if (! preg_match('~^[a-z0-9][a-z0-9_-]{1,23}$~', $name)) {
+            return back()->withErrors('نامِ اکانت باید ۲ تا ۲۴ نویسهٔ لاتین، رقم، خط‌تیره یا زیرخط باشد.');
+        }
+
+        if (! $tunnel->nameIsFree($name)) {
+            return back()->withErrors('اکانتی با این نام از قبل وجود دارد.');
+        }
+
+        $ip = trim((string) $request->input('ip')) ?: (string) $tunnel->nextIp();
+
+        if (! $tunnel->ipInSubnet($ip)) {
+            return back()->withErrors('آدرس باید از رنجِ داخلیِ همین سرور باشد.');
+        }
+
+        if (! $tunnel->ipIsFree($ip)) {
+            return back()->withErrors('این آدرس قبلاً استفاده شده است.');
+        }
+
+        $keys = WireGuardKey::generate();
+
+        $tunnel->addPeer($name, $ip, $keys['public']);
+
+        $this->log($service, 'اکانتِ تونل «'.$name.'» ('.$ip.') صادر شد');
+
+        // یک‌بارمصرف: کلیدِ خصوصی و کانفیگ فقط در همین flash می‌مانَد.
+        return back()->with('tunnel_issued', [
+            'name' => $name,
+            'ip' => $ip,
+            'command' => $tunnel->routerAddCommand($name, $ip, $keys['public']),
+            'config' => $tunnel->configJson($ip, $keys['private']),
+            'legacy' => $tunnel->configJson($ip, $keys['private'], 'legacy'),
+            'file' => 'tunnel-'.$name.'.json',
+        ])->with('ok', 'اکانتِ «'.$name.'» ساخته شد. کانفیگ را همین حالا ذخیره کنید — دوباره نمایش داده نمی‌شود.');
+    }
+
+    /**
+     * حذفِ یک اکانت از فهرست + دستورِ حذفِ متناظر برای روتر.
+     *
+     * حذف از فهرستِ پنل به‌تنهایی دسترسی را قطع نمی‌کند؛ تا وقتی peer روی روتر
+     * هست کار می‌کند. برای همین پیام، دستورِ حذف را هم برمی‌گرداند و صریح
+     * می‌گوید که اجرای آن لازم است.
+     */
+    public function removeTunnelAccount(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        if ($resp = $this->denyIfNotWritable($service)) {
+            return $resp;
+        }
+
+        $instance = $this->instanceOf($service);
+        $tunnel = TunnelProfile::fromInstance($instance);
+
+        if ($tunnel === null) {
+            return back()->withErrors('اکانتِ تونل برای این سرور در دسترس نیست.');
+        }
+
+        if ($resp = $this->rateLimit($service, 'tunnel-del', 20)) {
+            return $resp;
+        }
+
+        $name = strtolower(trim((string) $request->input('name')));
+
+        if ($name === '' || ! $tunnel->removePeer($name)) {
+            return back()->withErrors('چنین اکانتی در فهرست نیست.');
+        }
+
+        $this->log($service, 'اکانتِ تونل «'.$name.'» حذف شد');
+
+        return back()
+            ->with('tunnel_removed', $tunnel->routerRemoveCommand($name))
+            ->with('ok', 'اکانتِ «'.$name.'» از فهرست حذف شد. برای قطعِ واقعیِ دسترسی، دستورِ زیر را روی روتر اجرا کنید.');
     }
 
     /**

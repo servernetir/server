@@ -353,6 +353,12 @@ $site = function (): void {
         // سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A) — فقط برای سرورهای دارای اکسیت
         Route::post('/cloud/{service}/exit-country', [Account\CloudServerController::class, 'setExitCountry'])
             ->name('cloud.exit-country')->middleware('throttle:12,1');
+
+        // اکانت‌های «WireGuard روی TCP» — فقط برای سرورهایی که پروفایلِ تونل دارند.
+        Route::post('/cloud/{service}/tunnel', [Account\CloudServerController::class, 'issueTunnelAccount'])
+            ->name('cloud.tunnel.issue')->middleware('throttle:12,1');
+        Route::post('/cloud/{service}/tunnel/remove', [Account\CloudServerController::class, 'removeTunnelAccount'])
+            ->name('cloud.tunnel.remove')->middleware('throttle:20,1');
         // صفحهٔ کنسولِ زنده روی **دامنهٔ خودمان** + بلیتِ یک‌بارمصرفِ آدرسِ اتصال.
         // ⚠️ الگوی مسیرِ view در SecurityHeaders هم آمده (تنها جایی که CSP اجازهٔ
         // wss: می‌دهد). اگر مسیر را عوض کردی، آن‌جا را هم عوض کن وگرنه مرورگر
