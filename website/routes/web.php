@@ -1503,6 +1503,22 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
     @set_time_limit(300);
 
     $step = (string) $r->input('step', 'check');
+
+    /*
+    | seed پست‌های بلاگ از resources/blog/posts (مهاجرت servernet.ir).
+    | SeedBlogDb فقط اسلاگِ ناموجود را می‌سازد (insert-missing) پس اجرای
+    | دوباره بی‌خطر است. اینجاست چون SSH نداریم و کارِ پروداکشن طبق قرارداد
+    | با POST توکن‌دار توسط خود مدیر اجرا می‌شود — همان الگوی migrate.
+    */
+    if ($step === 'blogseed') {
+        \Illuminate\Support\Facades\Artisan::call('blog:seed-db');
+
+        return response()->json([
+            'step'   => $step,
+            'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
     $flags = match ($step) {
         'migrate' => ['--migrate' => true],
         'port'    => ['--port' => true],
