@@ -14,6 +14,9 @@
     $author = $post['author'] ?? __('ui.brand');
     $initial = mb_strtoupper(mb_substr(trim($author), 0, 1));
     $reading = $isFa ? fa_num($post['reading']) : $post['reading'];
+    /* پلِ بلاگ→محصول (ممیزی ۳): سرویسِ فروختنیِ متناظر با دستهٔ همین پست.
+       null یعنی نگاشت/محصول نیست و بلاک اصلاً رندر نمی‌شود — لینکِ مرده ممنوع. */
+    $relProduct = blog_related_product($post['category'] ?? null);
 @endphp
 
 @section('title', $post['title'].' — '.__('ui.brand'))
@@ -54,10 +57,15 @@
             <span><svg class="icon"><use href="#i-book"/></svg>{{ $reading }} {{ __('ui.bl_min') }}</span>
           </small>
         </div>
+        {{-- ممیزی ۴ (QA، ۴ دور): هیچ hrefی با الگوی share نماند — نقطه‌های
+             اشتراکِ تلگرام و لینکدین بدونِ کوئری ۴۰۴اند و چهار دور «لینکِ
+             اشتراک‌گذاری شکسته» شمرده شدند (Audit4RegressionTest سورسِ همین
+             فایل را قفل کرده، پس آن الگوها حتی در کامنت هم ممنوع‌اند).
+             جایگزین: لینک ایستا + اشتراکِ بومی (موبایل، تلگرام را هم می‌گیرد). --}}
         <div class="bp-share-inline">
-          <a class="bsh tg" href="https://t.me/share/url?url={{ $shareUrl }}&text={{ $shareTitle }}" target="_blank" rel="noopener" aria-label="Telegram"><svg class="icon"><use href="#i-send"/></svg></a>
           <a class="bsh wa" href="https://wa.me/?text={{ $shareTitle }}%20{{ $shareUrl }}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg class="icon"><use href="#i-message"/></svg></a>
-          <a class="bsh in" href="https://www.linkedin.com/sharing/share-offsite/?url={{ $shareUrl }}" target="_blank" rel="noopener" aria-label="LinkedIn"><svg class="icon"><use href="#i-linkedin"/></svg></a>
+          <a class="bsh em" href="mailto:?subject={{ $shareTitle }}&body={{ $shareTitle }}%0A{{ $shareUrl }}" aria-label="Email"><svg class="icon"><use href="#i-mail"/></svg></a>
+          <button class="bsh ns" type="button" data-native-share data-title="{{ $post['title'] }}" data-url="{{ $url }}" hidden aria-label="{{ __('ui.bl_share') }}"><svg class="icon"><use href="#i-send"/></svg></button>
           <button class="bsh cp" type="button" id="blog-copy" data-url="{{ $url }}" data-done="{{ __('ui.bl_copied') }}" aria-label="{{ __('ui.bl_share') }}"><svg class="icon"><use href="#i-link"/></svg></button>
         </div>
       </div>
@@ -101,15 +109,22 @@
             <b>{{ $author }}</b>
             <p>{{ __('ui.bl_author_bio') }}</p>
           </div>
+          {{-- CTA به محصولِ مرتبط، نه /contact: ممیزی ۳ نشان داد ۱۰۷ پست ×
+               «تماس با ما» بزرگ‌ترین تغذیه‌کنندهٔ /contact بود (۲۶۰ لینک) در
+               حالی که مسیرِ خرید صفر لینک می‌گرفت. تماس در هدر/فوتر هست. --}}
+          @if($relProduct)
+          <a class="btn btn-glass bp-author-cta" href="{{ $relProduct['href'] }}"><svg class="icon"><use href="#i-server"/></svg>{{ $relProduct['title'] }}</a>
+          @else
           <a class="btn btn-glass bp-author-cta" href="{{ lroute('contact') }}"><svg class="icon"><use href="#i-headset"/></svg>{{ __('ui.nav_contact') }}</a>
+          @endif
         </div>
 
-        {{-- اشتراک‌گذاری --}}
+        {{-- اشتراک‌گذاری — همان قاعدهٔ ردیفِ بالای صفحه: صفر href با /share|/sharing --}}
         <div class="blog-share reveal">
           <span>{{ __('ui.bl_share') }}</span>
-          <a class="bsh tg" href="https://t.me/share/url?url={{ $shareUrl }}&text={{ $shareTitle }}" target="_blank" rel="noopener" aria-label="Telegram"><svg class="icon"><use href="#i-send"/></svg></a>
           <a class="bsh wa" href="https://wa.me/?text={{ $shareTitle }}%20{{ $shareUrl }}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg class="icon"><use href="#i-message"/></svg></a>
-          <a class="bsh in" href="https://www.linkedin.com/sharing/share-offsite/?url={{ $shareUrl }}" target="_blank" rel="noopener" aria-label="LinkedIn"><svg class="icon"><use href="#i-linkedin"/></svg></a>
+          <a class="bsh em" href="mailto:?subject={{ $shareTitle }}&body={{ $shareTitle }}%0A{{ $shareUrl }}" aria-label="Email"><svg class="icon"><use href="#i-mail"/></svg></a>
+          <button class="bsh ns" type="button" data-native-share data-title="{{ $post['title'] }}" data-url="{{ $url }}" hidden aria-label="{{ __('ui.bl_share') }}"><svg class="icon"><use href="#i-send"/></svg></button>
           <button class="bsh cp" type="button" data-copy data-url="{{ $url }}" data-done="{{ __('ui.bl_copied') }}" aria-label="{{ __('ui.bl_share') }}"><svg class="icon"><use href="#i-link"/></svg></button>
         </div>
 
@@ -180,6 +195,26 @@
   </div>
 </section>
 
+{{-- ============ سرویس مرتبط (پل بلاگ→محصول — ممیزی ۳) ============
+     بالای «مطالب مرتبط»، dofollow و با انکرِ توصیفی (نامِ واقعیِ محصول از
+     configِ خودش). چون در قالب است، هر ۱۰۷ پستِ موجود و هر پستِ آینده
+     خودبه‌خود حداقل یک لینک به صفحهٔ قابلِ خرید می‌دهند. --}}
+@if($relProduct)
+<section class="section" style="padding-top:0;padding-bottom:0">
+  <div class="container">
+    <div class="sol-cta reveal" style="padding:38px 30px">
+      <div class="sol-cta-glow"></div>
+      <span class="badge">{{ __('ui.bl_product_badge') }}</span>
+      <h2 style="margin-top:12px">{{ $relProduct['title'] }}</h2>
+      @if($relProduct['desc'] !== '')<p>{{ $relProduct['desc'] }}</p>@endif
+      <div class="sol-cta-btns">
+        <a class="btn btn-primary" href="{{ $relProduct['href'] }}">{{ $relProduct['title'] }} — {{ __('ui.bl_product_cta') }}<svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+@endif
+
 {{-- ============ مطالب مرتبط ============ --}}
 @if(count($related))
 <section class="section bp-related">
@@ -225,6 +260,17 @@
 <script>
 (function () {
   const article = document.getElementById('bp-article');
+
+  /* ---- اشتراکِ بومی (موبایل) — فقط وقتی مرورگر پشتیبانی کند دیده می‌شود.
+     روی موبایل شیتِ سیستم باز می‌شود و تلگرام/هرچیزِ نصب‌شده را پوشش می‌دهد —
+     بدونِ هیچ hrefِ /share که ممیزی ۴ دور شکسته شمرد. ---- */
+  document.querySelectorAll('[data-native-share]').forEach(btn => {
+    if (!navigator.share) return;
+    btn.hidden = false;
+    btn.addEventListener('click', () => {
+      navigator.share({ title: btn.dataset.title, url: btn.dataset.url }).catch(() => {});
+    });
+  });
 
   /* ---- کپی لینک ---- */
   document.querySelectorAll('#blog-copy,[data-copy]').forEach(btn => {

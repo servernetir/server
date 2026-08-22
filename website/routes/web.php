@@ -85,6 +85,22 @@ $site = function (): void {
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
     Route::get('/privacy', fn () => app(SiteController::class)->page('privacy'))->name('privacy');
     Route::get('/terms', fn () => app(SiteController::class)->page('terms'))->name('terms');
+    // AUP — منع بازفروش سرویس عبور روی زیرساخت ایران (ممیزی ۳، مدیر حقوقی/امنیت)
+    Route::get('/aup', fn () => app(SiteController::class)->page('aup'))->name('aup');
+
+    // خلاصهٔ سفارشِ پیش از ورود (ممیزی ۴ — «اگر فقط یک کار در ۳۰ روز»):
+    // قیمت و دوره‌ها بی‌نشست روی خودِ سایت؛ console فقط در گامِ پرداخت.
+    Route::get('/order/{slug}', [\App\Http\Controllers\OrderSummaryController::class, 'show'])
+        ->name('order.summary')->where('slug', '[a-z0-9-]+');
+
+    // متدولوژی سرعت — جایگزینِ ادعای بی‌سندِ req/s (ممیزی ۴، مارکتینگ/حقوقی)
+    Route::get('/speed', fn () => app(SiteController::class)->page('speed'))->name('speed');
+
+    // گزارش سوءاستفاده (ممیزی ۴ — امنیت): «AUP بدونِ کانالِ ورودی اجرا
+    // نمی‌شود؛ فقط مسئولیت می‌سازد.» فرم عمومی + گلوگاهِ فرم‌ها.
+    Route::get('/abuse', [\App\Http\Controllers\AbuseController::class, 'show'])->name('abuse');
+    Route::post('/abuse', [\App\Http\Controllers\AbuseController::class, 'report'])
+        ->name('abuse.report')->middleware('throttle:forms');
 
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
@@ -334,6 +350,9 @@ $site = function (): void {
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
         Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
+        // سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A) — فقط برای سرورهای دارای اکسیت
+        Route::post('/cloud/{service}/exit-country', [Account\CloudServerController::class, 'setExitCountry'])
+            ->name('cloud.exit-country')->middleware('throttle:12,1');
         // صفحهٔ کنسولِ زنده روی **دامنهٔ خودمان** + بلیتِ یک‌بارمصرفِ آدرسِ اتصال.
         // ⚠️ الگوی مسیرِ view در SecurityHeaders هم آمده (تنها جایی که CSP اجازهٔ
         // wss: می‌دهد). اگر مسیر را عوض کردی، آن‌جا را هم عوض کن وگرنه مرورگر
@@ -496,6 +515,24 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 /*
+| بخشِ محلی ارومیه — عمداً بیرونِ closureِ $site و **فقط فارسی**.
+|
+| 🔴 داخلِ $site هر روت سه بار ثبت می‌شود و نسخهٔ en/tr این صفحات محتوای
+|    فارسی می‌گرفت (همان باگِ panel-preview). مخاطب این بخش خریدارِ محلی
+|    است؛ /en/urmia/* باید ۴۰۴ بدهد. تست: UrmiaPagesTest.
+|    جانشینِ سئوی محلیِ servernet.ir در مهاجرت است — نقشهٔ ۳۰۱ آن دامنه به
+|    همین آدرس‌ها اشاره می‌کند، پس تغییرِ اسلاگ‌ها یعنی شکستنِ ریدایرکت‌ها.
+| ⚠️ «cities» پیش از «{slug}» بیاید وگرنه خودش یک slug خوانده می‌شود.
+*/
+Route::middleware('locale:fa')->group(function () {
+    Route::get('/urmia', [\App\Http\Controllers\UrmiaController::class, 'hub'])->name('urmia.hub');
+    Route::get('/urmia/cities/{slug}', [\App\Http\Controllers\UrmiaController::class, 'city'])
+        ->name('urmia.city')->where('slug', '[a-z0-9-]+');
+    Route::get('/urmia/{slug}', [\App\Http\Controllers\UrmiaController::class, 'page'])
+        ->name('urmia.page')->where('slug', '[a-z0-9-]+');
+});
+
+/*
 | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
 | ۴۸ ساعت زنده است (سنجه: mtime فایل)، noindex، و با CSP sandbox در originِ
 | یکتا سرو می‌شود تا خروجیِ کاربرساخته به کوکی/نشستِ دامنهٔ ما نرسد.
@@ -621,6 +658,22 @@ Route::post('/system/bale-setup', function (\Illuminate\Http\Request $r) {
 
 Route::post('/bale/webhook/{token}', \App\Http\Controllers\BaleWebhookController::class)
     ->middleware('throttle:60,1')->where('token', '[a-f0-9]{32}');
+
+/*
+| وبهوکِ تلفن ابری «دفتر شما» — رویدادهای لحظه‌ایِ تماس.
+|
+| ⚠️ سقفِ نرخ سخاوتمندانه است و عمداً. یک تماسِ واحد تا **۵ رویداد** می‌دهد
+| (شروع، دو رویدادِ انتقال، و یک `Ended` به ازای هر پا)، و در ساعتِ شلوغ چند
+| تماس هم‌زمان‌اند. وبهوکی که ۴۲۹ بگیرد از سمتِ فرستنده retry و بعد **غیرفعال**
+| می‌شود — یعنی سقفِ تنگ، خودش ابزارِ خاموشیِ ماست.
+|
+| ⚠️ الگوی توکن `[A-Za-z0-9_-]{16,80}` است نه هگزِ ۳۲تایی: مسیرِ وبهوک را
+| خودمان می‌سازیم و ممکن است base64url باشد. اگر روزی توکن با الگو نخواند،
+| لاراول ۴۰۴ می‌دهد **پیش از** کنترلر — یعنی نه لاگی، نه ردی، و از بیرون شبیه
+| «دفتر شما وبهوک نمی‌فرستد».
+*/
+Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebhookController::class)
+    ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
@@ -1475,6 +1528,23 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
     @set_time_limit(300);
 
     $step = (string) $r->input('step', 'check');
+
+    /*
+    | seed پست‌های بلاگ از resources/blog/posts (مهاجرت servernet.ir).
+    | SeedBlogDb فقط اسلاگِ ناموجود را می‌سازد (insert-missing) پس اجرای
+    | دوباره بی‌خطر است. اینجاست چون SSH نداریم و کارِ پروداکشن طبق قرارداد
+    | با POST توکن‌دار توسط خود مدیر اجرا می‌شود — همان الگوی migrate.
+    */
+    if ($step === 'blogseed' || $step === 'blogrefresh') {
+        \Illuminate\Support\Facades\Artisan::call('blog:seed-db',
+            $step === 'blogrefresh' ? ['--refresh' => true] : []);
+
+        return response()->json([
+            'step'   => $step,
+            'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
     $flags = match ($step) {
         'migrate' => ['--migrate' => true],
         'port'    => ['--port' => true],
@@ -2165,6 +2235,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminUser::class, 'index']);
         Route::post('/users', [AdminUser::class, 'store']);
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
+        // داخلیِ تلفن ابری هر کارمند — بدونِ آن دکمهٔ تماسِ او غیرفعال است
+        Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
 
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
@@ -2208,6 +2280,27 @@ Route::prefix('admin')->group(function () {
             ->middleware('admin');
         Route::post('/bale/toggle', [\App\Http\Controllers\Admin\BaleAdminController::class, 'toggle'])
             ->middleware('admin');
+
+        /*
+        | تلفن ابری.
+        |
+        | ⚠️ `/calls` عمداً برای نقشِ نویسنده هم باز است (مثلِ بقیهٔ این گروه)
+        | چون پشتیبانی باید تماس‌ها را ببیند. ولی **برقراریِ تماس** پول خرج
+        | می‌کند و از خطِ شرکت می‌رود، پس `admin` می‌خواهد.
+        */
+        Route::get('/calls', [\App\Http\Controllers\Admin\PhoneCallController::class, 'index'])->name('admin.calls');
+        Route::post('/customers/{customer}/call', [\App\Http\Controllers\Admin\PhoneCallController::class, 'call'])
+            ->middleware('admin')->name('admin.customer.call');
+
+        /*
+        | شماره‌گیریِ دلخواه — «مشتریم نبود هم بتوانم تماس بگیرم».
+        |
+        | ⚠️ `throttle` این‌جا تزئینی نیست: برخلافِ تماس با مشتری، مقصد از فرم
+        | می‌آید. اگر روزی نشستِ مدیر لو برود، بی‌این سقف می‌شد با یک حلقه صدها
+        | تماس از خطِ شرکت گرفت. ۱۰ تماس در دقیقه از هر سرعتِ انسانی بیشتر است.
+        */
+        Route::post('/calls/dial', [\App\Http\Controllers\Admin\PhoneCallController::class, 'dial'])
+            ->middleware(['admin', 'throttle:10,1'])->name('admin.calls.dial');
 
         // مدیریت مشتریان — بخشِ شبیه‌WHMCS
         Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
@@ -2310,9 +2403,44 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
-        // زیرساختِ اکسیت — دیدِ فقط‌خواندنیِ اپراتور به Exit VPSها و ضربانِ pull-agentِ ایران
+        // زیرساختِ اکسیت — دیدِ اپراتور به Exit VPSها + سوییچِ کشورِ خروج (فازِ A)
         Route::get('/exit-infra', [\App\Http\Controllers\Admin\ExitInfraController::class, 'index'])
             ->name('admin.exit-infra')->middleware('admin');
+        // سوییچِ کشورِ خروجِ یک ماشین — فقط meta را می‌نویسد؛ ایجنتِ ایران اعمال می‌کند
+        Route::post('/exit-infra/{instance}/country', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setCountry'])
+            ->name('admin.exit-infra.country')->middleware('admin');
+
+        // مدیریتِ ماشین‌ها: وارد کردن (اسکنِ Proxmox یا دستی)، پورتِ عمومی، و
+        // حذف از فهرستِ اکسیت. 🔴 گاردِ خطِ‌قرمز (VM108 و زیرساخت) در کنترلر است؛
+        // اسکن فقط با ?scan=1 اجرا می‌شود تا بازکردنِ صفحه تماسِ API نزند.
+        Route::get('/exit-infra/import', [\App\Http\Controllers\Admin\ExitInfraController::class, 'importForm'])
+            ->name('admin.exit-infra.import')->middleware('admin');
+        Route::post('/exit-infra/import', [\App\Http\Controllers\Admin\ExitInfraController::class, 'import'])
+            ->name('admin.exit-infra.import.store')->middleware('admin');
+        Route::post('/exit-infra/{instance}/port', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setPort'])
+            ->name('admin.exit-infra.port')->middleware('admin');
+        Route::post('/exit-infra/{instance}/detach', [\App\Http\Controllers\Admin\ExitInfraController::class, 'detach'])
+            ->name('admin.exit-infra.detach')->middleware('admin');
+
+        // آپ‌استریم‌های اکسیت — رله‌های SSH و نودهای VLESS که موتورِ اکسیت از
+        // راهشان از کشور خارج می‌شود. پنل «حالتِ مطلوب» را می‌نویسد و میزبانِ
+        // ایران آن را می‌کشد (همان الگوی countryroutes).
+        // ⚠️ /upstreams/create پیش از {upstream} تعریف‌شدن لازم ندارد چون شمارِ
+        // segmentها فرق دارد و {upstream} فقط در ۴-segmentها می‌آید.
+        Route::get('/exit-infra/upstreams', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'index'])
+            ->name('admin.exit-upstreams')->middleware('admin');
+        Route::get('/exit-infra/upstreams/create', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'create'])
+            ->name('admin.exit-upstreams.create')->middleware('admin');
+        Route::post('/exit-infra/upstreams', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'store'])
+            ->name('admin.exit-upstreams.store')->middleware('admin');
+        Route::get('/exit-infra/upstreams/{upstream}/edit', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'edit'])
+            ->name('admin.exit-upstreams.edit')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'update'])
+            ->name('admin.exit-upstreams.update')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}/toggle', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'toggle'])
+            ->name('admin.exit-upstreams.toggle')->middleware('admin');
+        Route::post('/exit-infra/upstreams/{upstream}/delete', [\App\Http\Controllers\Admin\ExitUpstreamController::class, 'destroy'])
+            ->name('admin.exit-upstreams.delete')->middleware('admin');
 
         /*
         | دامنه‌ها — و مهم‌تر از فهرست، **صفِ دستی**.

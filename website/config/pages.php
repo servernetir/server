@@ -63,6 +63,15 @@ return [
             ['fa' => ['t' => 'حقوق شما', 'b' => 'شما حق دارید به اطلاعات خود دسترسی داشته باشید، آن‌ها را اصلاح کنید یا حذف حساب خود را درخواست دهید. برای هر درخواست مرتبط با حریم خصوصی با support@servernet.cloud تماس بگیرید.'],
              'en' => ['t' => 'Your rights', 'b' => 'You have the right to access, correct or request deletion of your data. For any privacy-related request, contact support@servernet.cloud.'],
              'tr' => ['t' => 'Haklarınız', 'b' => 'Verilerinize erişme, düzeltme veya silinmesini isteme hakkınız vardır. support@servernet.cloud ile iletişime geçin.']],
+            /*
+            | ممیزی ۴ (حقوقی/امنیت): AUP «تعهد نگهداری سوابق» را پذیرفته بود ولی
+            | حریم خصوصی هم‌زمان به‌روز نشده بود — «دو سند منتشرشده دربارهٔ دادهٔ
+            | مشتری حرف‌های ناهماهنگ می‌زدند». این بخش دو سند را هم‌راستا می‌کند
+            | و مدت نگهداری را — که ممیزی گفت اعلام نشده — اعلام می‌کند.
+            */
+            ['fa' => ['t' => 'سوابق قانونی و مدت نگهداری', 'b' => 'مطابق سیاست استفاده‌ی پذیرفته (AUP)، سوابق هویت مشتری، نوع سرویس و تخصیص نشانی‌های IP برای پاسخ‌گویی به مراجع ذی‌صلاح نگهداری می‌شوند؛ این سوابق فقط بسته می‌شوند و در طول دوره‌ی الزام قانونی حذف نمی‌شوند. لاگ‌های فنی شبکه و دسترسی حداکثر ۹۰ روز نگهداری و سپس حذف یا ناشناس می‌شوند، مگر آنکه الزام قانونی یا رسیدگی به یک رخداد مشخص، نگهداری طولانی‌تر همان مورد را ایجاب کند. (نسخه‌ی پیش‌نویس؛ متن نهایی پس از تأیید مشاور حقوقی.)'],
+             'en' => ['t' => 'Legal records & retention', 'b' => 'In line with our Acceptable Use Policy (AUP), customer identity records, service type and IP-allocation history are retained to answer competent authorities; such records are closed, not deleted, for the legally required period. Technical network and access logs are kept for at most 90 days and then deleted or anonymised, unless a legal obligation or a specific incident requires keeping that particular record longer. (Working draft; final text after legal review.)'],
+             'tr' => ['t' => 'Yasal kayıtlar ve saklama', 'b' => 'Kabul Edilebilir Kullanım Politikası (AUP) uyarınca müşteri kimlik kayıtları, hizmet türü ve IP tahsis geçmişi yetkili makamlara yanıt için saklanır; bu kayıtlar yasal süre boyunca silinmez, yalnızca kapatılır. Teknik ağ ve erişim logları en fazla 90 gün tutulur, sonra silinir veya anonimleştirilir. (Çalışma taslağı; nihai metin hukuki incelemeden sonra.)']],
         ],
     ],
 
@@ -114,6 +123,98 @@ return [
             ['fa' => ['t' => 'تغییرات', 'b' => 'ممکن است این شرایط را به‌روزرسانی کنیم. تغییرات مهم از طریق ایمیل یا اعلان در ناحیه کاربری اطلاع‌رسانی می‌شود. ادامه استفاده پس از تغییر، به‌منزله پذیرش شرایط جدید است.'],
              'en' => ['t' => 'Changes', 'b' => 'We may update these terms. Material changes are announced by email or a notice in the client area. Continued use after a change means acceptance of the new terms.'],
              'tr' => ['t' => 'Değişiklikler', 'b' => 'Bu şartları güncelleyebiliriz. Önemli değişiklikler e-posta ile bildirilir.']],
+            // ارجاعِ متقابل به AUP — ممیزی ۴ (حقوقی): AUP باید از شرایط استفاده
+            // و SLA ارجاع بگیرد تا مبنای قراردادیِ تعلیق باشد، نه سندی جزیره‌ای.
+            ['fa' => ['t' => 'سیاست استفاده‌ی پذیرفته (AUP)', 'b' => 'سیاست استفاده‌ی پذیرفته — از جمله منع ارائه و بازفروش سرویس عبور (VPN/پروکسی) روی زیرساخت داخل ایران — جزء جدایی‌ناپذیر همین شرایط است و در نشانی servernet.cloud/aup منتشر شده. نقض آن سیاست، نقض همین قرارداد محسوب می‌شود.'],
+             'en' => ['t' => 'Acceptable Use Policy (AUP)', 'b' => 'The Acceptable Use Policy — including the ban on providing or reselling transit services (VPN/proxy) on infrastructure located in Iran — is an integral part of these terms and is published at servernet.cloud/aup. Violating that policy is a violation of this agreement.'],
+             'tr' => ['t' => 'Kabul Edilebilir Kullanım Politikası (AUP)', 'b' => 'AUP — İran\'daki altyapıda geçiş hizmeti (VPN/proxy) sunma ve satma yasağı dahil — bu şartların ayrılmaz parçasıdır ve servernet.cloud/aup adresinde yayımlanmıştır. Politikanın ihlali bu sözleşmenin ihlalidir.']],
+        ],
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | AUP — سیاست استفادهٔ پذیرفته (ممیزی ۳، بند ۷ پیشنهادی مدیر حقوقی)
+    |----------------------------------------------------------------------
+    | 🔴 چرا فوری بود: رژیم ردیابی هویتِ خریدارانِ سرور، اتصال بین‌الملل را
+    | مشروط به انطباق کرده و صریحاً سرورهای مجریِ VPN را هدف گرفته است. بدون
+    | سند عمومیِ ضدبازفروشِ VPN، در یک بررسی نظارتی بار اثبات روی شرکت است و
+    | دستش خالی — به‌خصوص با کانال ۱۰۶هزارنفریِ هم‌نامِ توزیع‌کنندهٔ کانفیگ.
+    |
+    | ⚠️ پیش‌نویس کاری است؛ باید پیش از استناد قراردادی توسط وکیل نهایی شود
+    | (خودِ صفحه هم همین را صریح می‌گوید). برای تبدیل به بند قرارداد، همین متن
+    | باید به legal_documents پنل مشتری هم اضافه شود.
+    */
+    'aup' => [
+        'icon' => 'shield',
+        'fa' => ['tag' => 'سیاست استفادهٔ پذیرفته', 'h1a' => 'قواعد استفاده از', 'h1b' => 'زیرساخت سرورنت.',
+            'lead' => 'این سند مشخص می‌کند چه استفاده‌هایی روی زیرساخت سرورنت مجاز نیست — از جمله ممنوعیت صریح ارائه و بازفروش سرویس عبور (VPN/پروکسی) روی زیرساخت داخل ایران. نسخهٔ پیش‌نویس، مرداد ۱۴۰۵؛ متن نهایی پس از تأیید مشاور حقوقی جایگزین می‌شود.'],
+        'en' => ['tag' => 'Acceptable Use Policy', 'h1a' => 'Rules for using', 'h1b' => 'ServerNet infrastructure.',
+            'lead' => 'This document defines what is not permitted on ServerNet infrastructure — including an explicit ban on providing or reselling transit services (VPN/proxy) on infrastructure located in Iran. Working draft, August 2026; the final text will replace this after legal review.'],
+        'tr' => ['tag' => 'Kabul Edilebilir Kullanım Politikası', 'h1a' => 'ServerNet altyapısını', 'h1b' => 'kullanma kuralları.',
+            'lead' => 'Bu belge ServerNet altyapısında nelere izin verilmediğini tanımlar — İran\'daki altyapı üzerinde geçiş hizmeti (VPN/proxy) sunma ve yeniden satmanın açık yasağı dahil. Çalışma taslağı, Ağustos 2026; hukuki incelemeden sonra nihai metin yayınlanacaktır.'],
+        'sections' => [
+            ['fa' => ['t' => 'تعاریف', 'b' => '«زیرساخت داخل ایران» یعنی هر سرور اختصاصی، سرور مجازی، منبع ابری یا نشانی آی‌پی که سرورنت در دیتاسنترهای مستقر در ایران در اختیار مشتری قرار می‌دهد. «سرویس عبور» یعنی هر سامانهٔ VPN، پروکسی، تانل یا شبکهٔ خصوصی مجازی که برای دسترسی اشخاص ثالث به شبکهٔ بین‌الملل به کار رود.'],
+             'en' => ['t' => 'Definitions', 'b' => '"Infrastructure in Iran" means any dedicated server, virtual server, cloud resource or IP address that ServerNet provides to the customer in data centres located in Iran. "Transit service" means any VPN, proxy, tunnel or virtual private network used to give third parties access to the international network.'],
+             'tr' => ['t' => 'Tanımlar', 'b' => '"İran\'daki altyapı", ServerNet\'in İran\'daki veri merkezlerinde müşteriye sağladığı her türlü fiziksel sunucu, sanal sunucu, bulut kaynağı veya IP adresi anlamına gelir. "Geçiş hizmeti", üçüncü kişilere uluslararası ağa erişim sağlamak için kullanılan her türlü VPN, proxy veya tünel anlamına gelir.']],
+            ['fa' => ['t' => 'ممنوعیت ارائه و بازفروش سرویس عبور', 'b' => 'مشتری مجاز نیست روی زیرساخت داخل ایران، سرویس عبور را به اشخاص ثالث ارائه، اجاره، بازفروش، اشتراک‌گذاری یا توزیع کند؛ اعم از فروش اشتراک، توزیع کانفیگ، عرضهٔ پنل کاربری یا واگذاری دسترسی — چه با دریافت وجه و چه رایگان.'],
+             'en' => ['t' => 'Ban on providing or reselling transit services', 'b' => 'The customer may not provide, rent, resell, share or distribute transit services to third parties on infrastructure in Iran — whether by selling subscriptions, distributing configs, offering a user panel or handing over access, for payment or free of charge.'],
+             'tr' => ['t' => 'Geçiş hizmeti sunma ve yeniden satma yasağı', 'b' => 'Müşteri, İran\'daki altyapı üzerinde üçüncü kişilere geçiş hizmeti sunamaz, kiralayamaz, yeniden satamaz, paylaşamaz veya dağıtamaz — abonelik satışı, config dağıtımı, kullanıcı paneli sunumu veya erişim devri dahil, ücretli ya da ücretsiz.']],
+            ['fa' => ['t' => 'استثنای اتصال سازمانی', 'b' => 'استفاده از VPN صرفاً برای اتصال امن کارکنان، شعب یا سامانه‌های خودِ مشتری به منابع خودش مجاز است، مشروط به اعلام کتبی پیشین و ثبت در پروندهٔ مشتری.'],
+             'en' => ['t' => 'Corporate connectivity exception', 'b' => 'Using a VPN solely to securely connect the customer\'s own staff, branches or systems to the customer\'s own resources is permitted, subject to prior written notice recorded in the customer file.'],
+             'tr' => ['t' => 'Kurumsal bağlantı istisnası', 'b' => 'VPN\'in yalnızca müşterinin kendi personelini, şubelerini veya sistemlerini kendi kaynaklarına güvenle bağlamak için kullanılması, önceden yazılı bildirim ve müşteri dosyasına kayıt şartıyla serbesttir.']],
+            ['fa' => ['t' => 'تعهد اطلاعاتی و سوابق', 'b' => 'مشتری متعهد است اطلاعات هویتی خود را صحیح و به‌روز نگه دارد. سرورنت مجاز است سوابق هویت، نوع سرویس و تخصیص آی‌پی را مطابق الزامات مراجع ذی‌صلاح نگهداری و در صورت درخواست قانونی ارائه کند. این سوابق فقط بسته می‌شوند و هرگز حذف نمی‌شوند.'],
+             'en' => ['t' => 'Information obligations & records', 'b' => 'The customer must keep their identity information accurate and up to date. ServerNet may retain records of identity, service type and IP allocation as required by the competent authorities, and provide them upon lawful request. Such records are closed, never deleted.'],
+             'tr' => ['t' => 'Bilgi yükümlülüğü ve kayıtlar', 'b' => 'Müşteri kimlik bilgilerini doğru ve güncel tutmakla yükümlüdür. ServerNet; kimlik, hizmet türü ve IP tahsis kayıtlarını yetkili makamların gerektirdiği şekilde saklayabilir ve yasal talep üzerine sunabilir.']],
+            ['fa' => ['t' => 'ضمانت اجرا', 'b' => 'در صورت تخلف، سرورنت مجاز است سرویس را بدون اطلاع قبلی تعلیق کند. تکرار تخلف موجب فسخ بدون بازگشت وجه است و مشتری مسئول جبران خسارات وارده به سرورنت — از جمله محدودیت اتصال بین‌الملل مجموعه — خواهد بود.'],
+             'en' => ['t' => 'Enforcement', 'b' => 'In case of violation, ServerNet may suspend the service without prior notice. Repeated violation leads to termination without refund, and the customer is liable for damages caused to ServerNet — including any restriction of the company\'s international connectivity.'],
+             'tr' => ['t' => 'Yaptırım', 'b' => 'İhlal durumunda ServerNet hizmeti önceden bildirimde bulunmadan askıya alabilir. Tekrarlanan ihlal, iade olmaksızın fesihle sonuçlanır ve müşteri ServerNet\'e verilen zararlardan sorumludur.']],
+            /*
+            | ممیزی ۴ (امنیت): «سیاستی که راهِ گزارش ندارد اجرا نمی‌شود.» کانالِ
+            | اختصاصی + تعهدِ زمانِ پاسخِ اعلام‌شده جایگزینِ support@ شد؛ فرمِ
+            | /abuse هم بدونِ نیاز به ایمیل کار می‌کند.
+            */
+            ['fa' => ['t' => 'گزارش تخلف', 'b' => 'اگر از استفادهٔ متخلفانه از زیرساخت سرورنت مطلع شدید (توزیع کانفیگ، فروش اشتراک عبور، اسپم یا بدافزار)، از فرم servernet.cloud/abuse یا نشانی abuse@servernet.cloud گزارش دهید. گزارش‌ها محرمانه بررسی می‌شوند و حداکثر تا ۲ روز کاری رسیدگی آغاز می‌شود.'],
+             'en' => ['t' => 'Reporting violations', 'b' => 'If you become aware of abusive use of ServerNet infrastructure (config distribution, selling transit subscriptions, spam or malware), report it via servernet.cloud/abuse or abuse@servernet.cloud. Reports are handled confidentially and review starts within 2 business days.'],
+             'tr' => ['t' => 'İhlal bildirimi', 'b' => 'ServerNet altyapısının kötüye kullanımını fark ederseniz (config dağıtımı, geçiş aboneliği satışı, spam veya zararlı yazılım) servernet.cloud/abuse formundan veya abuse@servernet.cloud adresinden bildirin. Bildirimler gizli tutulur; inceleme en geç 2 iş günü içinde başlar.']],
+            ['fa' => ['t' => 'وضعیت این سند', 'b' => 'این متن پیش‌نویس کاری است و پیش از استناد قراردادی توسط مشاور حقوقی بازبینی و نهایی می‌شود. نسخهٔ نهایی به‌عنوان پیوست قرارداد سرویس در پنل مشتری نیز ارائه خواهد شد.'],
+             'en' => ['t' => 'Status of this document', 'b' => 'This text is a working draft and will be reviewed and finalised by legal counsel before contractual reliance. The final version will also be provided as a service-contract annex in the customer panel.'],
+             'tr' => ['t' => 'Bu belgenin durumu', 'b' => 'Bu metin bir çalışma taslağıdır ve sözleşmesel dayanak olmadan önce hukuk danışmanı tarafından incelenip kesinleştirilecektir.']],
+        ],
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | /speed — گزارش سرعت با متدولوژی (ممیزی ۴، مارکتینگ)
+    |----------------------------------------------------------------------
+    | «یک متدولوژی، نه یک عدد — تنها نوع ادعایی که رقیب بدونِ انجامِ کار
+    | نمی‌تواند کپی کند. صادقانه منتشر کردنِ عددِ بد، عددِ خوب را باورپذیر
+    | می‌کند.» بدترین عدد (۵۰۹ms) عمداً منتشر می‌شود. پیش‌شرطِ مارکتینگ هم
+    | رعایت شده: ادعای ۱۲٬۴۰۰ req/sِ بی‌روش هم‌زمان از سایت حذف شد.
+    |
+    | ⚠️ با هر دورِ اندازه‌گیریِ تازه، بخشِ «نتایج» همین‌جا به‌روز و تاریخ در
+    | lead عوض می‌شود — صفحهٔ کهنه‌مانده اعتبارِ کلِ روش را می‌سوزاند.
+    */
+    'speed' => [
+        'icon' => 'gauge',
+        'fa' => ['tag' => 'گزارش سرعت', 'h1a' => 'سرعتی که اندازه گرفته‌ایم،', 'h1b' => 'با روشی که می‌توانید تکرارش کنید.',
+            'lead' => 'به‌جای عدد تبلیغاتی، اندازه‌گیری واقعی روی سایت زنده منتشر می‌کنیم — با روش کامل، همه‌ی اعداد از جمله بدترینشان، و تعهد به تکرار. آخرین اندازه‌گیری: ۲۷ مرداد ۱۴۰۵.'],
+        'en' => ['tag' => 'Speed report', 'h1a' => 'Speed we measured,', 'h1b' => 'with a method you can reproduce.',
+            'lead' => 'Instead of a marketing number we publish real measurements of the live site — full method, every number including the worst one, and a commitment to repeat. Last measured: 18 August 2026.'],
+        'tr' => ['tag' => 'Hız raporu', 'h1a' => 'Ölçtüğümüz hız,', 'h1b' => 'tekrarlayabileceğiniz bir yöntemle.',
+            'lead' => 'Pazarlama rakamı yerine canlı sitenin gerçek ölçümlerini yayımlıyoruz — tam yöntem, en kötüsü dahil tüm sayılar ve tekrar taahhüdü. Son ölçüm: 18 Ağustos 2026.'],
+        'sections' => [
+            ['fa' => ['t' => 'چه چیزی اندازه می‌گیریم', 'b' => 'زمان تا اولین بایت (TTFB) صفحات عمومی سایت از دید یک بازدیدکننده‌ی ناشناس — یعنی همان چیزی که کاربر واقعی و خزنده‌ی گوگل تجربه می‌کنند. TTFB را اندازه می‌گیریم چون برخلاف «درخواست در ثانیه»، از بیرون و توسط هر کسی قابل راستی‌آزمایی است.'],
+             'en' => ['t' => 'What we measure', 'b' => 'Time-to-first-byte (TTFB) of the public pages as an anonymous visitor sees them — the same thing a real user and Google\'s crawler experience. We measure TTFB because, unlike "requests per second", anyone can verify it from outside.'],
+             'tr' => ['t' => 'Neyi ölçüyoruz', 'b' => 'Herkese açık sayfaların anonim ziyaretçi gözünden ilk bayta kadar süresi (TTFB) — gerçek kullanıcının ve Google tarayıcısının yaşadığı şey. TTFB\'yi ölçüyoruz çünkü dışarıdan herkes doğrulayabilir.']],
+            ['fa' => ['t' => 'روش دقیق — تکرارش کنید', 'b' => 'ابزار: curl از یک کلاینت خارج از شبکه‌ی سرور. هر صفحه دو حالت: (۱) بدون کوکی و بدون رشته‌ی کوئری، که ممکن است از کش پاسخ بگیرد (هدر X-Cache: HIT)؛ (۲) با یک پارامتر کوئری یکتا (cache-buster) که کش را دور می‌زند (X-Cache: BYPASS) و هزینه‌ی کامل رندر را نشان می‌دهد. هدر X-Cache روی همه‌ی پاسخ‌های صفحات عمومی سرورنت همیشه حاضر است تا هر کسی بتواند همین تفکیک را ببیند. دستور نمونه: curl -s -o /dev/null -w "%{time_starttransfer}" آدرس‌صفحه'],
+             'en' => ['t' => 'Exact method — reproduce it', 'b' => 'Tool: curl from a client outside the server\'s network. Each page in two modes: (1) no cookies and no query string, which may be served from cache (X-Cache: HIT header); (2) with a unique query parameter (cache-buster) that bypasses the cache (X-Cache: BYPASS) and shows the full render cost. The X-Cache header is always present on ServerNet\'s public pages so anyone can see the same split. Sample: curl -s -o /dev/null -w "%{time_starttransfer}" PAGE-URL'],
+             'tr' => ['t' => 'Tam yöntem — tekrarlayın', 'b' => 'Araç: sunucu ağının dışından curl. Her sayfa iki modda: (1) çerezsiz ve sorgusuz — önbellekten dönebilir (X-Cache: HIT); (2) benzersiz bir sorgu parametresiyle (cache-buster) önbelleği atlar (X-Cache: BYPASS) ve tam render maliyetini gösterir. X-Cache başlığı tüm genel sayfalarda her zaman vardır.']],
+            ['fa' => ['t' => 'نتایج — ۲۷ مرداد ۱۴۰۵ (همه‌ی اعداد، از جمله بدترین)', 'b' => 'صفحه‌ی کش‌شده (HIT): ۱۶۰ تا ۱۹۵ میلی‌ثانیه در سه اندازه‌گیری پیاپی. رندر کامل بدون کش (BYPASS): صفحه‌ی اصلی ۲۲۶ms، هاست وردپرس ۲۳۴ms، درباره‌ی ما ۲۱۸ms — و بدترین صفحه، سرور مجازی ایران، ۵۰۹ms که در حال بهینه‌سازی است. برای مقایسه، همین صفحات یک ماه قبل بدون کش ۴۱۴ تا ۷۵۹ms بودند.'],
+             'en' => ['t' => 'Results — 18 Aug 2026 (every number, including the worst)', 'b' => 'Cached page (HIT): 160–195ms across three consecutive measurements. Full render without cache (BYPASS): homepage 226ms, WordPress hosting 234ms, About 218ms — and the worst page, Iran VPS, 509ms, which is being optimised. For comparison, a month earlier the same pages rendered in 414–759ms without cache.'],
+             'tr' => ['t' => 'Sonuçlar — 18 Ağu 2026 (en kötüsü dahil)', 'b' => 'Önbellekli sayfa (HIT): art arda üç ölçümde 160–195ms. Önbelleksiz tam render (BYPASS): ana sayfa 226ms, WordPress hosting 234ms, Hakkımızda 218ms — ve en kötü sayfa İran VPS 509ms (optimizasyon sürüyor). Bir ay önce aynı sayfalar önbelleksiz 414–759ms idi.']],
+            ['fa' => ['t' => 'تعهد به تکرار', 'b' => 'این اندازه‌گیری با هر دور ممیزی داخلی (حداقل فصلی) تکرار می‌شود و نتایج قبلی همین‌جا آرشیو می‌ماند. اگر عددی بدتر شد، همان را منتشر می‌کنیم — اعتبار این صفحه به کامل بودنش است، نه به خوب بودن اعداد.'],
+             'en' => ['t' => 'Commitment to repeat', 'b' => 'This measurement is repeated with every internal audit round (at least quarterly) and previous results stay archived here. If a number gets worse, we publish it — this page\'s credibility comes from being complete, not from the numbers being good.'],
+             'tr' => ['t' => 'Tekrar taahhüdü', 'b' => 'Bu ölçüm her iç denetim turunda (en az üç ayda bir) tekrarlanır ve önceki sonuçlar burada arşivlenir. Bir sayı kötüleşirse onu da yayımlarız.']],
         ],
     ],
 ];

@@ -11,7 +11,10 @@
 set -uo pipefail
 ENVFILE=/etc/servernet/pf-agent.env
 [ -f "$ENVFILE" ] && . "$ENVFILE"
-API="${CR_API:-http://10.10.10.30/agent/countryroutes}"
+# پیش‌فرض = پنلِ اصلی روی آلمان. (پیش‌تر 10.10.10.30 بود — پنلِ interimِ قدیمی —
+# و چون env هم توکنِ قدیمی داشت، ایجنت ۳٫۵ روز ۴۰۳ می‌گرفت و هیچ مسیری اعمال
+# نمی‌شد؛ باگِ ۲۰۲۶-۰۸-۲۱.) با CR_API در pf-agent.env قابلِ override است.
+API="${CR_API:-https://servernet.cloud/agent/countryroutes}"
 TOKEN="${PF_AGENT_TOKEN:-}"
 STATE=/etc/servernet/split.state
 

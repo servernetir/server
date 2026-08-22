@@ -297,6 +297,9 @@
   </div>
 </section>
 
+{{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) --}}
+@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
+
 <style>
 /* صفحهٔ سرورِ مجازی — استایلِ درجا، چون کلاسِ تازه در site.css مرزِ agentِ دیگری
    است و کلاسِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود. */

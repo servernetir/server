@@ -70,4 +70,64 @@ class AdminExitInfraTest extends TestCase
     {
         $this->get('/admin/exit-infra')->assertRedirect();
     }
+
+    // ═══════════════════ سوییچِ کشور (فازِ A) ═══════════════════
+
+    public function test_admin_sees_the_country_switch_dropdown(): void
+    {
+        $this->seedExitVps();
+
+        $this->actingAs($this->admin(), 'web')
+            ->get('/admin/exit-infra')
+            ->assertOk()
+            ->assertSee('سوییچِ کشور')                    // سرستونِ ستونِ سوییچ
+            ->assertSee('بدونِ اکسیت');                    // گزینهٔ خاموش‌کردن در منو
+    }
+
+    public function test_admin_can_switch_exit_country(): void
+    {
+        $vps = $this->seedExitVps();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/exit-infra/'.$vps->id.'/country', ['country' => 'nl'])
+            ->assertRedirect();
+
+        $this->assertSame('nl', $vps->fresh()->meta['exit_country']);
+        $this->assertSame('nl', $vps->fresh()->exitCountryCode());
+    }
+
+    public function test_admin_can_disable_exit_with_ir(): void
+    {
+        $vps = $this->seedExitVps();
+
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/exit-infra/'.$vps->id.'/country', ['country' => 'ir'])
+            ->assertRedirect();
+
+        $this->assertSame('ir', $vps->fresh()->meta['exit_country']);
+        $this->assertNull($vps->fresh()->exitCountryCode());   // ir → بدونِ اکسیت
+    }
+
+    public function test_admin_switch_rejects_country_without_a_pool(): void
+    {
+        $vps = $this->seedExitVps();
+
+        // proxmox_exit_countries پیش‌فرض de,nl,fi است → us مجاز نیست
+        $this->actingAs($this->admin(), 'web')
+            ->post('/admin/exit-infra/'.$vps->id.'/country', ['country' => 'us'])
+            ->assertRedirect();
+
+        $this->assertArrayNotHasKey('exit_country', $vps->fresh()->meta ?? []);
+    }
+
+    public function test_country_switch_requires_admin(): void
+    {
+        $vps = $this->seedExitVps();
+
+        $this->actingAs(User::factory()->create(['role' => 'author']), 'web')
+            ->post('/admin/exit-infra/'.$vps->id.'/country', ['country' => 'nl'])
+            ->assertForbidden();
+
+        $this->assertArrayNotHasKey('exit_country', $vps->fresh()->meta ?? []);
+    }
 }

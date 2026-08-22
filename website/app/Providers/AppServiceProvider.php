@@ -239,6 +239,7 @@ class AppServiceProvider extends ServiceProvider
         $this->syncSiteMenu();
         $this->keepSchedulerOffTheDatabase();
         $this->feedTheServicesOverview();
+        $this->purgePageCacheOnContentChanges();
         // ↑ ترتیب مهم است: تنظیمِ دامنهٔ کوکی باید پیش از میدل‌ورِ StartSession
         //   انجام شود، و boot()ِ provider همیشه قبل از میدل‌ورها اجرا می‌شود.
 
@@ -461,6 +462,47 @@ class AppServiceProvider extends ServiceProvider
                 fn (\Illuminate\Http\Request $request) => \Illuminate\Cache\RateLimiting\Limit::perMinutes($minutes, $max)
                     ->by($name.'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())),
             );
+        }
+    }
+
+    /**
+     * ابطالِ کشِ صفحه با هر تغییری در محتوایی که روی صفحه‌های عمومی می‌نشیند.
+     *
+     * ═══ چرا (ممیزی ۴ — CTO) ═══
+     *
+     * «کش بدونِ ابطال یک بدهی است، نه دارایی: بعد از تغییرِ قیمت، نسخهٔ HIT
+     * تا پایانِ TTL قیمتِ قدیمی را به کاربرِ ناشناس نشان می‌دهد — ریسکِ حقوقی
+     * و تجاری، دقیقاً روی ادعای قیمت‌گذاریِ شفاف.» با این هوک‌ها، کهنگی «تا
+     * اولین ذخیره» است: هر saved/deleted روی مدل‌های قیمت/محتوا، نسلِ کش را
+     * جلو می‌برد و همهٔ صفحه‌های کش‌شده در همان لحظه نامعتبر می‌شوند.
+     *
+     * ⚠️ فهرستِ مدل‌ها عمداً «هر چیزی که صفحهٔ عمومی می‌سازد» است، نه فقط
+     * قیمت: پستِ ویرایش‌شده، پلنِ ابری، سرورِ فیزیکی، تنظیماتِ نرخ. مدلی که
+     * این‌جا جا بیفتد یعنی همان «قیمتِ کهنه تا TTL» برای همان موجودیت.
+     *
+     * ⚠️ `class_exists` برای اینکه autoload نشکسته روی نصبِ ناقص، بوتِ کلِ
+     * اپ را نخواباند — همان قاعدهٔ «فوتر حق ندارد سایت را ۵۰۰ کند».
+     */
+    private function purgePageCacheOnContentChanges(): void
+    {
+        $models = [
+            \App\Models\Product::class,
+            \App\Models\CloudPlan::class,
+            \App\Models\CloudLocation::class,
+            \App\Models\PhysicalServer::class,
+            \App\Models\Post::class,
+            \App\Models\PostTranslation::class,
+            \App\Models\Setting::class,
+            \App\Models\StatusIncident::class,
+        ];
+
+        $purge = fn () => \App\Http\Middleware\PageCache::purge();
+
+        foreach ($models as $model) {
+            if (class_exists($model)) {
+                $model::saved($purge);
+                $model::deleted($purge);
+            }
         }
     }
 }

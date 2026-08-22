@@ -115,6 +115,11 @@ Requirements:
   and at least one "common mistake" or troubleshooting note.
 - NEVER invent ServerNet prices, SLA figures, plan specs, or promotional claims. You may mention that
   ServerNet offers a relevant service in general terms, at most once, and only where it genuinely helps.
+- If the brief contains a `related_product` (title + url), include EXACTLY ONE in-text link to that url:
+  <a href="...">descriptive Persian anchor (the product name or a close variant)</a>, placed where it
+  genuinely helps the reader — typically a practical tip or the closing section. Never invent any other
+  URL and never add more promotional links. (Editorial rule from the third business audit: every new
+  post must carry at least one in-text link to a sellable product page.)
 - Persian technical writing: use standard Persian terms, keep English technical tokens in Latin script
   (DNS, SSL, SSH, MySQL…). Use ZWNJ correctly (می‌شود, نمی‌کند).
 - SEO: work the focus keyword naturally into the title, the opening paragraph and 2–3 headings.
@@ -132,12 +137,27 @@ Return PLAIN TEXT in EXACTLY this delimited format — no JSON, no markdown fenc
 <the article body as clean HTML: no <html>/<body> wrapper, no <h1>>
 TXT;
 
-        $user = json_encode([
+        /*
+        | قاعدهٔ تحریریهٔ ممیزی ۳: هر پستِ تازه حداقل یک لینکِ درون‌متنی به
+        | محصول. آدرس این‌جا حساب می‌شود و آماده به مدل داده می‌شود — اگر مدل
+        | خودش URL بسازد، لینکِ ساختگی/شکسته تولید می‌کند و `links:content`
+        | بعداً باید جمعش کند.
+        */
+        $rel = null;
+
+        try {
+            $rel = blog_related_product($brief['category'] ?? null);
+        } catch (\Throwable) {
+            // بی‌لینک بهتر از مقالهٔ تولیدنشده؛ روتر/فرهنگ ممکن است در CLI آماده نباشد
+        }
+
+        $user = json_encode(array_filter([
             'working_title'  => $brief['title'] ?? '',
             'focus_keyword'  => $brief['keyword'] ?? ($brief['title'] ?? ''),
             'category'       => $brief['category'] ?? '',
             'angle'          => $brief['brief'] ?? '',
-        ], JSON_UNESCAPED_UNICODE);
+            'related_product' => $rel ? ['title' => $rel['title'], 'url' => $rel['href']] : null,
+        ]), JSON_UNESCAPED_UNICODE);
 
         $out = $this->call($sys, $user, 8000, 280, true);
         if ($out === null) {

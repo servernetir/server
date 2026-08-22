@@ -38,7 +38,11 @@
          data-publish="{{ \Illuminate\Support\Facades\Route::has($routePrefix.'builder.publish') ? route($routePrefix.'builder.publish') : '' }}"
          data-domaincheck="{{ route($routePrefix.'domain.check') }}"
          data-checkout="{{ $sbCheckout }}"
-         data-cart="{{ whmcs_url('cart.php') }}">
+         {{-- 🔴 خالی عمدی است: پشتیبانِ WHMCS مرده (my.servernet.cloud بی‌DNS،
+              cart.php روی my.servernet.ir همیشه ۵۰۰ — خزندهٔ ممیزی ۳). ذخیره +
+              اعلانِ فروش پیش از این نقطه انجام شده و builder.js با data-cart
+              خالی همان‌جا می‌ایستد؛ پنجرهٔ مرده باز نمی‌کند. --}}
+         data-cart="">
 
       {{-- پیش‌نمایش — حالا تمامِ عرض؛ چت رویش شناور است --}}
       <div class="aib-preview aib-preview-full">

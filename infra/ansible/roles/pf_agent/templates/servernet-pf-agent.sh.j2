@@ -9,14 +9,15 @@
 set -euo pipefail
 
 PANEL="{{ pf_panel_url }}"
-HEALTH="{{ pf_health_url }}"
 TOKEN="{{ vault_pf_agent_token }}"
 PUBIF="{{ pf_public_iface }}"
 CHAIN="{{ pf_chain }}"
 LO={{ sale_port_min }}
 HI={{ sale_port_max }}
 
-data="$(curl -fsS -m 10 -H "Authorization: Bearer ${TOKEN}" "${PANEL}" || true)"
+# احراز: PullController هدرِ X-Agent-Token (نو) یا X-PF-Token (قدیمی) را می‌پذیرد
+# — نه Authorization: Bearer. با Bearer پاسخ ۴۰۳ می‌شود و ایجنت بی‌صدا می‌خوابد.
+data="$(curl -fsS -m 10 -H "X-Agent-Token: ${TOKEN}" "${PANEL}" || true)"
 if [ -z "${data}" ]; then
   echo "$(date -u +%FT%TZ) WARN no data from panel; leaving current rules intact" >&2
   exit 0
@@ -32,11 +33,19 @@ try:
 except Exception:
     sys.exit(0)
 items = d.get("portforwards", d) if isinstance(d, dict) else d
+# قراردادِ رسمیِ پنل (Agent\PullController::portForwards):
+#     {"ip", "dest_port", "public_port", "public_ip"}
+# نامهای قدیمیِ pub_port/svc_port/dest_ip هم پذیرفته می‌شوند تا نسخه‌های
+# قدیمی‌ترِ عامل/پنل نشکنند (باگِ ۲۰۲۶-۰۸-۲۱: KeyError: 'port').
 for r in items:
     try:
-        pub = int(r["pub_port"]); ip = str(r["ip"]); svc = int(r["svc_port"])
+        pub = int(r.get("public_port", r.get("pub_port")))
+        ip = str(r.get("ip", r.get("dest_ip")))
+        svc = int(r.get("dest_port", r.get("svc_port", 22)))
         proto = str(r.get("proto", "tcp"))
     except Exception:
+        continue
+    if not ip or ip == "None":
         continue
     if not (lo <= pub <= hi):
         continue
@@ -61,4 +70,5 @@ while IFS=' ' read -r proto pub ip svc; do
 done <<< "${rules}"
 
 echo "$(date -u +%FT%TZ) OK applied ${n} forward(s)"
-curl -fsS -m 5 -X POST -H "Authorization: Bearer ${TOKEN}" "${HEALTH}" >/dev/null 2>&1 || true
+# ضربان جداگانه لازم نیست: خودِ PullController هنگامِ همین pull مقدارِ
+# agent_seen_portforwards را می‌نویسد و صفحهٔ «زیرساختِ اکسیت» از رویش می‌خوانَد.

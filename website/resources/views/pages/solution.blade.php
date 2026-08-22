@@ -313,6 +313,10 @@
 </section>
 @endif
 
+{{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳). دستهٔ اختصاصی از config راهکار
+     (blog_cat)، وگرنه پیش‌فرضِ راهکارها. --}}
+@include('partials.product-guides', ['guidesCat' => $s['blog_cat'] ?? config('blog.product_guides.solutions')])
+
 {{-- ============ CTA ============ --}}
 <section class="section" style="padding-top:0;padding-bottom:80px">
   <div class="container">

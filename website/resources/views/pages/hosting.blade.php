@@ -395,9 +395,12 @@
 
         // پلنِ وصل‌شده به پکیجِ واقعی (لایسنس‌ها) لینکِ خریدِ خودش را از
         // کنترلر می‌آورد؛ بقیه همان دو مسیرِ قبلی.
+        // ممیزی ۴: «انتخاب» دیگر مستقیم به دیوارِ ورودِ console نمی‌خورد؛
+        // اول خلاصهٔ سفارشِ بی‌نشست روی خودِ سایت (قیمت، دوره‌ها، جمعِ کل،
+        // ضمانت)، و فقط دکمهٔ پرداختِ آن صفحه به console می‌رود.
         $storeHref = ($p['order_url'] ?? null)
             ?: (($category === 'hosting')
-                ? (isset($orderable[$orderSlug]) ? lroute('account.order', $orderSlug) : null)
+                ? (isset($orderable[$orderSlug]) ? lroute('order.summary', $orderSlug) : null)
                 : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null)));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
@@ -443,16 +446,17 @@
            href="{{ lroute($p['route'][0], $p['route'][1] ?? []) }}">{{ lc($p['cta'] ?? []) ?: __('ui.choose') }}</a>
         @elseif($storeHref)
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}">{{ __('ui.choose') }}</a>
-        @elseif($yearlyOnly)
-        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
-           href="{{ isset($p['url']) ? whmcs_url($p['url']) : buy_url($p['pid']) }}"
-           target="_blank" rel="noopener">{{ __('ui.choose') }}</a>
         @else
-        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }} plan-buy"
-           href="{{ buy_url($p['pid']) }}&billingcycle=monthly"
-           data-url-m="{{ buy_url($p['pid']) }}&billingcycle=monthly"
-           data-url-y="{{ buy_url($p['pid']) }}&billingcycle=annually"
-           target="_blank" rel="noopener">{{ __('ui.choose') }}</a>
+        {{-- 🔴 این‌جا قبلاً دو شاخهٔ `buy_url()` بود که به سبدِ WHMCSِ بیرونی
+             می‌رفتند. خزندهٔ لینکِ ممیزیِ سوم (مرداد ۱۴۰۵) نشان داد آن مقصد
+             **مرده** است: `my.servernet.cloud` اصلاً resolve نمی‌شود و
+             `cart.php` روی `my.servernet.ir` به هر درخواستی — حتی بی‌پارامتر —
+             ۵۰۰ می‌دهد؛ ۴۴ دکمهٔ «انتخاب» در services/* و cloud/* به آن صفحهٔ
+             مرده می‌رفتند. دکمه‌ای که دیده و کلیک می‌شود و می‌شکند بدترین
+             کلاسِ خطاست، پس پلنی که مسیرِ خریدِ داخلی ندارد صادقانه «مشاوره»
+             می‌گیرد — همان رفتارِ شاخهٔ `contact`. مسیرِ برگشت: اتصالِ پلن به
+             پکیجِ واقعی با کلیدِ `product` (نه احیای WHMCS). --}}
+        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
         @endif
       </article>
       @endforeach
@@ -616,6 +620,9 @@
     </div>
   </div>
 </section>
+
+{{-- ============ راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) ============ --}}
+@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.'.$category)])
 
 {{-- ============ RELATED ============ --}}
 <section class="section" style="padding-top:0;padding-bottom:70px">

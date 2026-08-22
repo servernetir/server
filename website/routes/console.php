@@ -495,3 +495,21 @@ Schedule::command('mailbox:digest --skip-sync')
 Schedule::command('domains:reseller-tiers')
     ->dailyAt('04:10')
     ->withoutOverlapping(30);
+
+/*
+|--------------------------------------------------------------------------
+| دروازهٔ هفتگیِ لینکِ شکسته — ممیزی ۳ (QA): «۴۰۴ باید در cron بمیرد، نه در
+| ممیزیِ سه‌ماهه.»
+|--------------------------------------------------------------------------
+| جمعه ۰۲:۱۰ UTC (~۵:۴۰ صبحِ جمعهٔ تهران — تعطیل و کم‌ترافیک‌ترین ساعت).
+| `links:site` کلِ نقشهٔ سایت را درون-پروسه‌ای رندر می‌کند (سنگین ⇒ ۶۰) و
+| `links:content` متنِ پست‌ها را. یافته‌ها با noteOnce به /admin/errors می‌روند
+| — همان‌جایی که مدیر واقعاً نگاه می‌کند.
+*/
+Schedule::command('links:site')
+    ->cron('10 2 * * 5')
+    ->withoutOverlapping(60);
+
+Schedule::command('links:content')
+    ->cron('40 2 * * 5')
+    ->withoutOverlapping(45);

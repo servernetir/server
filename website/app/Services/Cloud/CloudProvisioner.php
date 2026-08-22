@@ -1765,7 +1765,25 @@ class CloudProvisioner
             // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
             // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
             // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
-            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, 3600, md5($what.'|'.$why.'|'.$bucket))) {
+            /*
+            | 🔴 هرچه تلاش‌ها بیشتر، هشدار کم‌تر.
+            |
+            | ۴۶ بار «تلاشِ ۴۶اُم ناموفق بود» خبر نیست، نویز است. و بدتر: از
+            | جایی به بعد کارفرما همهٔ پیام‌های 🔴 را نادیده می‌گیرد — یعنی
+            | هشداری که برای دیده‌شدن ساخته شده، دقیقاً چیزی می‌شود که
+            | دیده‌نشدن را یاد می‌دهد. همان درسی که در `SystemHealth` ثبت است.
+            |
+            | خبرِ واقعی سه بارِ اول است؛ بقیه یادآوری‌اند و یادآوری روزی یک بار
+            | کافی است. مشکل با کم‌شدنِ هشدار از بین نمی‌رود — با زدنِ دکمهٔ
+            | «آزادسازی دستی انجام شد» از بین می‌رود.
+            */
+            $window = match (true) {
+                $attempt === null, $attempt <= 3 => 3600,        // ساعتی
+                $attempt <= 10 => 6 * 3600,                      // هر ۶ ساعت
+                default => 24 * 3600,                            // روزی یک بار
+            };
+
+            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, $window, md5($what.'|'.$why.'|'.$bucket))) {
                 return;
             }
 
@@ -1777,18 +1795,63 @@ class CloudProvisioner
 
             app(\App\Services\Notify\AdminNotifier::class)->event(
                 '🔴 '.$what,
-                array_filter([
-                    'سرویس' => $service->name.' (#'.$service->id.')',
-                    'علت'   => mb_substr($why, 0, 200),
-                    'تلاش'  => $attempt === null ? null : fa_num($attempt).'اُم',
-                    'خطر'   => 'ماشین ممکن است زنده مانده باشد و هزینه‌اش را ما بدهیم.',
-                ]),
+                array_filter($this->lingeringFields($service, $instance, $why, $attempt)),
                 url('/admin/cloud/inventory'),
                 '🔴'
             );
         } catch (\Throwable $e) {
             Log::warning('cloud.lingering-notice', ['err' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * فیلدهای هشدارِ «ماشینِ رهاشده».
+     *
+     * ═══ 🔴 چرا این‌قدر فیلد ═══
+     *
+     * نسخهٔ اول فقط نام و شمارهٔ سرویس را می‌گفت. کارفرما پیامِ ساعتی می‌گرفت
+     * و برای فهمیدنِ **کدام ماشین**، باید پنل را باز می‌کرد، سرویس را پیدا
+     * می‌کرد، و IP را می‌دید — روی موبایل، وسطِ کار. عملاً یعنی هشدار خوانده
+     * نمی‌شد.
+     *
+     * حالا هر چیزی که برای اقدام لازم است در خودِ پیام است: IP برای پیداکردنِ
+     * ماشین در پنلِ دیتاسنتر، نامِ مشتری برای فهمیدنِ اینکه مالِ کیست، و دامنه
+     * و سرور برای ردیف‌های غیرابری.
+     *
+     * ⚠️ `provider` در `$hidden`ِ مدل است (نباید در JSON بیرون برود) ولی
+     * این‌جا پیامِ داخلیِ مدیر است، نه پاسخِ API.
+     *
+     * @return array<string,string|null>
+     */
+    private function lingeringFields(Service $service, ?CloudInstance $instance, string $why, ?int $attempt): array
+    {
+        $ip = $instance?->ipv4 ?: ($service->server_ip ?: null);
+
+        $where = array_filter([
+            $instance?->provider,
+            $instance?->location_code,
+        ]);
+
+        return [
+            'سرویس' => $service->name.' (#'.$service->id.')',
+            'مشتری' => optional($service->customer)->displayName(),
+            'IP' => $ip,
+            'شناسه نزدِ ارائه‌دهنده' => $instance?->provider_ref,
+            'زیرساخت' => $where === [] ? null : implode(' · ', $where),
+            'دامنه' => $service->domain ?: null,
+            'سرور' => optional($service->server)->name,
+            'علت' => mb_substr($why, 0, 200),
+            'تلاش' => $attempt === null ? null : fa_num($attempt).'اُم',
+            'خطر' => 'ماشین ممکن است زنده مانده باشد و هزینه‌اش را ما بدهیم.',
+            /*
+            | ⚠️ راهِ خاموش‌کردن **در خودِ هشدار** است.
+            |
+            | کارفرما ماشین را دستی از پنلِ دیتاسنتر پاک کرده بود و هشدار
+            | همچنان می‌آمد — چون هیچ‌جا نگفته بودیم چطور می‌شود گفت «تمام شد».
+            | هشداری که راهِ بستنش را نگوید، فقط انتظار می‌سازد.
+            */
+            'اگر خودتان پاکش کرده‌اید' => 'در ربات بله → کارتِ همین سرویس → «✅ آزادسازی دستی انجام شد»',
+        ];
     }
 
     private function act(Service $service, callable $fn, string $expectStatus): bool

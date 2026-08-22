@@ -325,6 +325,31 @@
   </div>
 </section>
 
+{{-- ═══ کشورِ خروج (فازِ A) — فقط اگر سرور اکسیتِ کشوری داشته باشد ═══ --}}
+@if($exitCapable ?? false)
+<section class="pnl-sec">
+  <div class="pnl-sec-h"><h2>کشورِ خروجِ اینترنت</h2></div>
+  <div class="pnl-sec-b">
+    <p style="margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.9">
+      انتخاب کنید ترافیکِ خروجیِ این سرور از کدام کشور خارج شود. دسترسیِ ورودی
+      (اتصال به سرور) از همان آدرسِ فعلی باقی می‌ماند؛ فقط مسیرِ خروجی عوض می‌شود
+      و چند دقیقه بعد اعمال می‌گردد.
+    </p>
+    <form method="post" action="{{ route('account.cloud.exit-country', $service) }}"
+          style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      @csrf
+      <select name="country" dir="ltr"
+              style="min-width:210px;padding:9px 12px;border-radius:10px;background:rgba(148,163,184,.10);color:var(--text);border:1px solid rgba(148,163,184,.28);font-size:13px">
+        @foreach($exitOptions as $opt)
+          <option value="{{ $opt['code'] }}" @selected(($exitCurrent ?? '') === $opt['code'])>{{ $opt['flag'] }} {{ $opt['name'] }}</option>
+        @endforeach
+      </select>
+      <button type="submit" class="pnl-btn">تغییرِ کشور</button>
+    </form>
+  </div>
+</section>
+@endif
+
 {{-- ═══ مشخصات ═══ --}}
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>{{ __('ui.cs_specs_h') }}</h2></div>

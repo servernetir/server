@@ -182,6 +182,9 @@ class SiteController extends Controller
             '/status'        => 'Service status',
             '/sla'           => 'Service level agreement',
             '/terms'         => 'Terms of service',
+            '/aup'           => 'Acceptable use policy (no VPN/proxy resale on Iran infrastructure)',
+            '/abuse'         => 'Report abuse of ServerNet infrastructure (reviewed within 2 business days)',
+            '/speed'         => 'Public speed report with reproducible methodology (measured TTFB, all numbers)',
             '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
@@ -228,8 +231,21 @@ class SiteController extends Controller
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
+        }
+
+        /*
+        | بخشِ محلی ارومیه — **فقط فارسی**، پس بیرونِ $add (روتِ en.urmia.*
+        | وجود ندارد و $add می‌ترکید). مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛
+        | مثل webdesign: در منو نیست ولی در نقشهٔ سایت هست.
+        */
+        $urls[] = ['loc' => route('urmia.hub'), 'lastmod' => null];
+        foreach (array_keys((array) config('urmia.pages')) as $slug) {
+            $urls[] = ['loc' => route('urmia.page', $slug), 'lastmod' => null];
+        }
+        foreach (array_keys((array) config('urmia.cities')) as $slug) {
+            $urls[] = ['loc' => route('urmia.city', $slug), 'lastmod' => null];
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
@@ -320,6 +336,13 @@ class SiteController extends Controller
                 $add('catalog', ['category' => $category, 'slug' => $slug]);
             }
         }
+
+        /*
+        | `/llms.txt` — سه ممیزیِ پیاپی غیبتش در نقشهٔ سایت را علامت زدند.
+        | تک‌زبانه است (متنش انگلیسی و برای مدلِ زبانی)، پس مستقیم و بدونِ
+        | پیشوندِ زبان اضافه می‌شود، نه از مسیرِ `$add()`.
+        */
+        $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";

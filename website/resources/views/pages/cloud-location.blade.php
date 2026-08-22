@@ -207,6 +207,9 @@
   </div>
 </section>
 
+{{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) --}}
+@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
+
 <style>
 /* صفحهٔ یک مکان — استایلِ درجا (site.css مرزِ agentِ دیگری است) */
 .cvl-top{ padding:120px 0 34px }

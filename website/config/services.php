@@ -48,9 +48,9 @@ return [
     // نام مدل اینجا ثابت است چون در اکانت GapGPT فقط claude-fable-5 تأمین شده؛
     // key/base از .env می‌آیند تا رمز در کد نباشد.
     'gapgpt' => [
-        'key'       => env('GAPGPT_API_KEY'),
-        'base'      => env('GAPGPT_BASE_URL', 'https://api.gapgpt.app/v1'),
-        'model'     => 'claude-fable-5',
+        'key' => env('GAPGPT_API_KEY'),
+        'base' => env('GAPGPT_BASE_URL', 'https://api.gapgpt.app/v1'),
+        'model' => 'claude-fable-5',
         'model_pro' => 'claude-fable-5',
     ],
 
@@ -62,8 +62,8 @@ return [
     | یکی را گذاشتید هر دو کار می‌کنند.
     */
     'deepseek' => [
-        'key'   => env('DEEPSEEK_API_KEY'),
-        'base'  => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'key' => env('DEEPSEEK_API_KEY'),
+        'base' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
         'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
     ],
 
@@ -79,22 +79,22 @@ return [
     */
     'ai_routing' => [
         'translate' => env('AI_PROVIDER_TRANSLATE', 'deepseek'),
-        'article'   => env('AI_PROVIDER_ARTICLE', 'deepseek'),
-        'comments'  => env('AI_PROVIDER_COMMENTS', 'deepseek'),
-        'seo'       => env('AI_PROVIDER_SEO', 'deepseek'),
+        'article' => env('AI_PROVIDER_ARTICLE', 'deepseek'),
+        'comments' => env('AI_PROVIDER_COMMENTS', 'deepseek'),
+        'seo' => env('AI_PROVIDER_SEO', 'deepseek'),
         // پیش‌نویسِ پاسخِ تیکت در کنسولِ بله (App\Services\Ticket\TicketDraftWriter).
         // ⚠️ پیش‌نویس است نه ارسال: خروجی را کارفرما در ربات می‌بیند و خودش
         // تأیید می‌کند. مدل قیمت و مهلت را از خودش می‌سازد و آن یک تعهدِ واقعی است.
-        'support'   => env('AI_PROVIDER_SUPPORT', 'deepseek'),
+        'support' => env('AI_PROVIDER_SUPPORT', 'deepseek'),
 
         // پیامِ فروشِ سرد (App\Services\Crm\OutreachWriter)
-        'outreach'  => env('AI_PROVIDER_OUTREACH', 'deepseek'),
+        'outreach' => env('AI_PROVIDER_OUTREACH', 'deepseek'),
 
         // دسته‌بندیِ صندوق‌های ایمیل (App\Services\Mail\MailboxTriage)
-        'triage'    => env('AI_PROVIDER_TRIAGE', 'deepseek'),
+        'triage' => env('AI_PROVIDER_TRIAGE', 'deepseek'),
 
         // پیشنهادگر نام دامنه (App\Services\DomainIdeas — ابزار عمومی /tools/domain-ideas)
-        'ideas'     => env('AI_PROVIDER_IDEAS', 'deepseek'),
+        'ideas' => env('AI_PROVIDER_IDEAS', 'deepseek'),
     ],
 
     /*
@@ -107,7 +107,7 @@ return [
     | خواننده: App\Services\WebProbe (config('services.iran_probe.url')).
     */
     'iran_probe' => [
-        'url'   => env('IRAN_PROBE_URL'),
+        'url' => env('IRAN_PROBE_URL'),
         'token' => env('IRAN_PROBE_TOKEN'),
     ],
 
@@ -120,7 +120,7 @@ return [
     */
     'zohal' => [
         'base_url' => env('ZOHAL_BASE_URL', 'https://service.zohal.io'),
-        'token'    => env('ZOHAL_TOKEN'),
+        'token' => env('ZOHAL_TOKEN'),
     ],
 
     /*
@@ -149,7 +149,7 @@ return [
     |   IPPANEL_PATTERN_TICKET_REPLY=...   ← پاسخ پشتیبانی
     */
     'sms' => [
-        'driver'      => env('SMS_DRIVER', 'log'),
+        'driver' => env('SMS_DRIVER', 'log'),
         'log_channel' => env('SMS_LOG_CHANNEL', 'stack'),
 
         /*
@@ -174,28 +174,27 @@ return [
         |   SMS_RELAY_URL=https://servernet.ir/sms-relay.php
         |   SMS_RELAY_SECRET=«همان رشته‌ای که در sms-relay-secret.php گذاشتید»
         */
-        'relay_url'    => env('SMS_RELAY_URL'),
+        'relay_url' => env('SMS_RELAY_URL'),
         'relay_secret' => env('SMS_RELAY_SECRET'),
-
 
         'ippanel' => [
             // IPPANEL_KEY نامی است که در .env استفاده شده؛ IPPANEL_TOKEN هم
             // پذیرفته می‌شود تا اگر جایی نام دیگری گذاشته شد از کار نیفتد.
             'token' => env('IPPANEL_KEY', env('IPPANEL_TOKEN')),
-            'from'  => env('IPPANEL_FROM'),
+            'from' => env('IPPANEL_FROM'),
 
             // نام متغیر پیش‌فرض داخل الگوها. اگر در پنل نام دیگری گذاشتید،
             // اینجا عوضش کنید — یا برای هر الگو جداگانه در patterns.
             'variable' => env('IPPANEL_PATTERN_VARIABLE', 'code'),
 
             'patterns' => [
-                'otp'           => env('IPPANEL_PATTERN_OTP'),
-                'welcome'       => env('IPPANEL_PATTERN_WELCOME'),
-                'invoice'       => env('IPPANEL_PATTERN_INVOICE'),
-                'paid'          => env('IPPANEL_PATTERN_PAID'),
+                'otp' => env('IPPANEL_PATTERN_OTP'),
+                'welcome' => env('IPPANEL_PATTERN_WELCOME'),
+                'invoice' => env('IPPANEL_PATTERN_INVOICE'),
+                'paid' => env('IPPANEL_PATTERN_PAID'),
                 'service_ready' => env('IPPANEL_PATTERN_SERVICE_READY'),
-                'expiring'      => env('IPPANEL_PATTERN_EXPIRING'),
-                'ticket_reply'  => env('IPPANEL_PATTERN_TICKET_REPLY'),
+                'expiring' => env('IPPANEL_PATTERN_EXPIRING'),
+                'ticket_reply' => env('IPPANEL_PATTERN_TICKET_REPLY'),
 
                 // کدِ حذفِ سرور. ⚠️ درایورِ فعال `n8n_relay` است و کدِ این
                 // الگو در `relay/n8n/verify-and-map-template.js` نشسته — تنها
@@ -233,9 +232,9 @@ return [
         */
         'bale_relay' => [
             'bot_token' => env('BALE_OTP_SENDER_BOT_TOKEN', env('BALE_SMS_RELAY_BOT_TOKEN')),
-            'chat_id'   => env('BALE_OTP_RELAY_CHAT_ID', env('BALE_SMS_RELAY_CHAT_ID')),
-            'secret'    => env('BALE_OTP_RELAY_SECRET', env('BALE_SMS_RELAY_SECRET')),
-            'base'      => env('BALE_BASE', 'https://tapi.bale.ai'),
+            'chat_id' => env('BALE_OTP_RELAY_CHAT_ID', env('BALE_SMS_RELAY_CHAT_ID')),
+            'secret' => env('BALE_OTP_RELAY_SECRET', env('BALE_SMS_RELAY_SECRET')),
+            'base' => env('BALE_BASE', 'https://tapi.bale.ai'),
         ],
 
         /*
@@ -257,15 +256,15 @@ return [
         |    `SMS_DRIVER` کار کند؛ اگر روزی جدا شد، کلیدِ خودش را بگذار.
         */
         'n8n_relay' => [
-            'url'    => env('SMS_RELAY_N8N_URL', 'https://flow.servernet.cloud/webhook/servernet-sms-relay'),
+            'url' => env('SMS_RELAY_N8N_URL', 'https://flow.servernet.cloud/webhook/servernet-sms-relay'),
             'secret' => env('SMS_RELAY_N8N_SECRET', env('BALE_OTP_RELAY_SECRET', env('BALE_SMS_RELAY_SECRET'))),
         ],
 
         // جایگزین — اگر روزی از آی‌پی‌پنل رفتیم
         'kavenegar' => [
-            'key'      => env('KAVENEGAR_API_KEY'),
+            'key' => env('KAVENEGAR_API_KEY'),
             'template' => env('KAVENEGAR_OTP_TEMPLATE'),
-            'sender'   => env('KAVENEGAR_SENDER'),
+            'sender' => env('KAVENEGAR_SENDER'),
         ],
     ],
 
@@ -295,15 +294,15 @@ return [
     | ⚠️ `bot_id` عددِ شناسهٔ ربات است، نه توکن.
     */
     'bale_safir' => [
-        'key'    => env('BALE_SAFIR_KEY'),
+        'key' => env('BALE_SAFIR_KEY'),
         'bot_id' => env('BALE_SAFIR_BOT_ID'),
-        'base'   => env('BALE_SAFIR_BASE', 'https://safir.bale.ai'),
+        'base' => env('BALE_SAFIR_BASE', 'https://safir.bale.ai'),
     ],
 
     'bale' => [
-        'token'    => env('BALE_BOT_TOKEN'),
+        'token' => env('BALE_BOT_TOKEN'),
         'username' => env('BALE_BOT_USERNAME'),
-        'base'     => env('BALE_BASE_URL', 'https://tapi.bale.ai'),
+        'base' => env('BALE_BASE_URL', 'https://tapi.bale.ai'),
 
         // توکن پرداخت کیف پول — جدا از توکن ربات، از @botfather بخش پرداخت.
         // نام env همان است که کارفرما گذاشت: BALE_BOT_WALLET
@@ -327,7 +326,7 @@ return [
     */
     'zarinpal' => [
         'merchant_id' => env('ZARINPAL_KEY', env('ZARINPAL_MERCHANT_ID')),
-        'sandbox'     => (bool) env('ZARINPAL_SANDBOX', false),
+        'sandbox' => (bool) env('ZARINPAL_SANDBOX', false),
     ],
 
     /*
@@ -341,9 +340,9 @@ return [
     |   DOMAIN_MARGIN_PCT=۲۵ (درصد سود پیش‌فرض)
     */
     'openprovider' => [
-        'base_url'     => env('OPENPROVIDER_BASE_URL', 'https://api.openprovider.eu/v1beta'),
-        'username'     => env('OPENPROVIDER_USERNAME'),
-        'password'     => env('OPENPROVIDER_PASSWORD'),
+        'base_url' => env('OPENPROVIDER_BASE_URL', 'https://api.openprovider.eu/v1beta'),
+        'username' => env('OPENPROVIDER_USERNAME'),
+        'password' => env('OPENPROVIDER_PASSWORD'),
         'suggest_tlds' => ['com', 'net', 'org', 'ir'],
 
         /*
@@ -402,19 +401,19 @@ return [
         | خوانده می‌شود. یعنی این قابلیت با نگذاشتنِ کلیدها خودبه‌خود خاموش است.
         */
         'registrant' => [
-            'first_name'  => env('DOMAIN_OWNER_FIRST_NAME'),
-            'last_name'   => env('DOMAIN_OWNER_LAST_NAME'),
-            'email'       => env('DOMAIN_OWNER_EMAIL'),
-            'address'     => env('DOMAIN_OWNER_ADDRESS'),
-            'city'        => env('DOMAIN_OWNER_CITY'),
-            'province'    => env('DOMAIN_OWNER_PROVINCE'),
+            'first_name' => env('DOMAIN_OWNER_FIRST_NAME'),
+            'last_name' => env('DOMAIN_OWNER_LAST_NAME'),
+            'email' => env('DOMAIN_OWNER_EMAIL'),
+            'address' => env('DOMAIN_OWNER_ADDRESS'),
+            'city' => env('DOMAIN_OWNER_CITY'),
+            'province' => env('DOMAIN_OWNER_PROVINCE'),
             'postal_code' => env('DOMAIN_OWNER_POSTAL_CODE'),
-            'country'     => env('DOMAIN_OWNER_COUNTRY', 'IR'),
-            'phone'       => env('DOMAIN_OWNER_PHONE'),
-            'company'     => env('DOMAIN_OWNER_COMPANY'),
+            'country' => env('DOMAIN_OWNER_COUNTRY', 'IR'),
+            'phone' => env('DOMAIN_OWNER_PHONE'),
+            'company' => env('DOMAIN_OWNER_COMPANY'),
         ],
 
-        'margin'       => [
+        'margin' => [
             'default' => (float) env('DOMAIN_MARGIN_PCT', 0),
         ],
     ],
@@ -432,9 +431,9 @@ return [
     |   TRON_USDT_CONTRACT=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
     */
     'tron' => [
-        'api_key'       => env('TRONGRID_API_KEY'),
-        'base_url'      => env('TRONGRID_BASE_URL', 'https://api.trongrid.io'),
-        'xpub'          => env('TRON_XPUB'),
+        'api_key' => env('TRONGRID_API_KEY'),
+        'base_url' => env('TRONGRID_BASE_URL', 'https://api.trongrid.io'),
+        'xpub' => env('TRON_XPUB'),
         'usdt_contract' => env('TRON_USDT_CONTRACT', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'),
     ],
 
@@ -453,6 +452,67 @@ return [
     */
     'exchange' => [
         'enabled' => env('EXCHANGE_ENABLED', true),
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | تلفن ابری «دفتر شما»
+    |----------------------------------------------------------------------
+    |
+    | دو جهتِ کاملاً متفاوت — و این تفاوت کلِ پیکربندی را توضیح می‌دهد:
+    |
+    |   ورودی (وبهوک)   دفتر شما ──▶ servernet.cloud       مستقیم ✅
+    |   خروجی (API)     ما ──▶ coreapi.daftareshoma.com    از آلمان ❌
+    |
+    | جهتِ ورودی با ۱۰ رویدادِ واقعی تأیید شد. جهتِ خروجی از سرورِ آلمان
+    | نمی‌رسد و مثلِ رلهٔ پیامک باید از n8nِ ایرانی رد شود.
+    |
+    | 🔴 `webhook_token` اگر خالی باشد، روتِ وبهوک ۴۰۴ می‌دهد — عمدی است.
+    | پیکربندیِ جاافتاده باید ببندد، نه اینکه وبهوک را برای همه باز بگذارد.
+    |
+    | ⚠️ `webhook_ips` رشتهٔ کاماجدا در `.env` است ولی این‌جا آرایه می‌شود.
+    | خالی گذاشتنش بررسیِ IP را **خاموش** می‌کند (لایهٔ توکن سرِ جایش است).
+    | در نمونه‌ها فقط `93.118.115.48` دیده شده، ولی تأمین‌کننده تأیید نکرده
+    | که IP دیگری ندارد — پس افزودنش باید یک خطِ `.env` باشد، نه یک دیپلوی.
+    |
+    | خواننده: App\Http\Controllers\CloudPhoneWebhookController
+    */
+    'cloud_phone' => [
+        'base_url' => env('CLOUD_PHONE_BASE_URL', 'https://coreapi.daftareshoma.com'),
+        'token' => env('PHONE_TOKEN'),
+
+        /*
+        | تماس خروجی — دو شمارهٔ ثابت.
+        |
+        | با رویدادِ واقعیِ `CallOutgoingEnded` (۱۸ آگوست) نگاشتشان تأیید شد:
+        |
+        |     CallerNumber        09142223343  ← پایی که **اول** زنگ می‌خورد
+        |     CalleeExtension     71057757     ← خطِ ابری، بدونِ پیش‌شماره
+        |     TransferredToNumber <مشتری>      ← مقصد
+        |
+        | یعنی سامانه اول `agent_number` را می‌گیرد، و وقتی برداشتی مشتری را
+        | با کالر آی‌دیِ خطِ ابری صدا می‌زند.
+        |
+        | ⚠️ `extension` شمارهٔ خطِ ابری است **بدونِ پیش‌شمارهٔ شهر** — دقیقاً
+        | همان شکلی که تأمین‌کننده در payload تحویل می‌دهد. `02171057757` این‌جا
+        | `71057757` است.
+        |
+        | ⚠️ `agent_number` پیش‌فرضِ سراسری است. اگر کاربرِ پنل شمارهٔ خودش را
+        | ثبت کرده باشد، آن مقدم است — تا وقتی تیم چند نفره شد، تماسِ هر کس از
+        | تلفنِ خودش برود و در گزارش هم قابلِ تفکیک باشد.
+        */
+        'extension' => env('CLOUD_PHONE_EXTENSION', '71057757'),
+        'agent_number' => env('CLOUD_PHONE_AGENT_NUMBER'),
+
+        'webhook_token' => env('CLOUD_PHONE_WEBHOOK_TOKEN'),
+        'webhook_ips' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('CLOUD_PHONE_WEBHOOK_IPS', '93.118.115.48')),
+        ))),
+
+        // رلهٔ n8n برای تماس‌های خروجی — فازِ بعد
+        'relay_url' => env('CLOUD_PHONE_RELAY_URL'),
+        'relay_secret' => env('CLOUD_PHONE_RELAY_SECRET'),
     ],
 
 ];

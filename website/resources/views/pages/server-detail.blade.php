@@ -169,6 +169,9 @@
   @endif
 </section>
 
+{{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) --}}
+@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.servers')])
+
 {{-- لایت‌باکسِ گالری — فقط وقتی عکسِ واقعی هست (وگرنه img با src خالی = عکسِ شکسته) --}}
 @if($imgs !== [])
 <div class="sd-lightbox" id="sd-lightbox" hidden>
