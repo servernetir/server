@@ -13,7 +13,7 @@
 --}}
 
 @php
-  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone']) : null;
+  $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone_link'] ?? $identity['phone']) : null;
   $others = collect($cities)->except($slug)->take(8);
 @endphp
 
