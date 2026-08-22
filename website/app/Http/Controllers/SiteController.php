@@ -227,6 +227,19 @@ class SiteController extends Controller
         foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
         }
+
+        /*
+        | بخشِ محلی ارومیه — **فقط فارسی**، پس بیرونِ $add (روتِ en.urmia.*
+        | وجود ندارد و $add می‌ترکید). مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛
+        | مثل webdesign: در منو نیست ولی در نقشهٔ سایت هست.
+        */
+        $urls[] = ['loc' => route('urmia.hub'), 'lastmod' => null];
+        foreach (array_keys((array) config('urmia.pages')) as $slug) {
+            $urls[] = ['loc' => route('urmia.page', $slug), 'lastmod' => null];
+        }
+        foreach (array_keys((array) config('urmia.cities')) as $slug) {
+            $urls[] = ['loc' => route('urmia.city', $slug), 'lastmod' => null];
+        }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
         // در نقشهٔ سایت بیایند.
