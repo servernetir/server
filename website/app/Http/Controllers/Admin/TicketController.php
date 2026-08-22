@@ -122,6 +122,55 @@ class TicketController extends Controller
         return back()->with('ok', $internal ? 'یادداشت داخلی ثبت شد.' : 'پاسخ ثبت شد.');
     }
 
+
+    /**
+     * تصحیحِ نگارشِ پیش‌نویسِ کارفرما با AI.
+     *
+     * 🔴 هیچ‌چیز ارسال نمی‌شود. خروجی برمی‌گردد تا کارفرما ببیند و خودش
+     * تصمیم بگیرد؛ متنِ اصلی هم دست‌نخورده باقی می‌مانَد.
+     *
+     * ⚠️ اعتبارسنجیِ **صریح** و نه `$request->validate()`.
+     *
+     * تلهٔ ثبت‌شدهٔ این پروژه: `shouldRenderJsonWhen(api/*)` یعنی روی مسیرهای
+     * `/admin` شکستِ اعتبارسنجی یک ریدایرکتِ ۳۰۲ِ HTML می‌دهد، نه ۴۲۲. جاوااسکریپت
+     * آن را `response.json()` می‌کند و با خطای پارس می‌میرد — بی‌هیچ پیامی
+     * برای کاربر.
+     */
+    public function polish(Request $request, Ticket $ticket): \Illuminate\Http\JsonResponse
+    {
+        $body = trim((string) $request->input('body', ''));
+
+        if ($body === '') {
+            return response()->json(['ok' => false, 'error' => 'متنی برای تصحیح نیست.'], 422);
+        }
+
+        if (mb_strlen($body) > self::MAX_BODY) {
+            return response()->json(['ok' => false, 'error' => 'متن بلندتر از حدِ مجاز است.'], 422);
+        }
+
+        $polisher = app(\App\Services\Ticket\ReplyPolisher::class);
+
+        if (! $polisher->enabled()) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'سرویسِ هوش مصنوعی تنظیم نشده است.',
+            ], 503);
+        }
+
+        $out = $polisher->polish($body);
+
+        if ($out === null) {
+            /*
+            | ⚠️ ۲۰۰ با `ok=false` و نه ۵۰۰: نرسیدنِ پاسخ از مدل خرابیِ ما
+            | نیست و نباید در ردیابِ خطا سروصدا کند. رابط پیام را نشان
+            | می‌دهد و متنِ کارفرما دست‌نخورده می‌مانَد.
+            */
+            return response()->json(['ok' => false, 'error' => 'تصحیح انجام نشد؛ دوباره تلاش کنید.']);
+        }
+
+        return response()->json(['ok' => true, 'text' => $out]);
+    }
+
     public function update(Request $request, Ticket $ticket): RedirectResponse
     {
         $data = $request->validate([

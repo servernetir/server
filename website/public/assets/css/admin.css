@@ -896,3 +896,24 @@ html[data-theme="light"]{ --cal-google:#5b21b6; --cal-google-soft:rgba(91,33,182
 @media(max-width:640px){
   .act-filter input[type=search]{min-width:0}
 }
+
+/* ══ تصحیح نگارش با AI (فرمِ پاسخِ تیکت) ══
+   ⚠️ رنگ‌ها از توکن می‌آیند نه هگزِ خام: `admin.css` هم در تمِ روشن بار
+   می‌شود و رنگِ ثابت همان‌جا بی‌کنتراست می‌شود — همان چیزی که سرِ دکمهٔ
+   سی‌پنل اتفاق افتاد. */
+.tk-polish{ display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.tk-polish-btn{ display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:13px;
+  padding:8px 14px; border-radius:10px; cursor:pointer;
+  /* ⚠️ `--info*` در admin.css تعریف نشده و این شیت روی کنسول تنها شیت است؛
+     مرورگر کلِ اعلان را بی‌صدا دور می‌انداخت و دکمه خام رندر می‌شد. */
+  background:rgba(34,211,238,.12); color:var(--cyan); border:1px solid rgba(34,211,238,.3); transition:filter .15s }
+.tk-polish-btn:hover:not(:disabled){ filter:brightness(1.15) }
+.tk-polish-btn:disabled{ opacity:.55; cursor:default }
+.tk-polish-btn .icon{ width:15px; height:15px }
+.tk-polish-undo{ font:inherit; font-size:12.5px; padding:7px 12px; border-radius:9px; cursor:pointer;
+  background:var(--surface); color:var(--muted); border:1px solid var(--line) }
+.tk-polish-msg{ font-size:12.5px; color:var(--muted) }
+/* ⚠️ `--red` نه `--danger`: admin.css تنها شیتِ صفحاتِ کنسول است و
+   `--danger` هیچ‌جا در آن تعریف نشده. مرورگر کلِ اعلان را بی‌صدا دور
+   می‌انداخت و پیامِ خطا با رنگِ متنِ عادی رندر می‌شد. */
+.tk-polish-msg.bad{ color:var(--red) }

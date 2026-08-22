@@ -48,7 +48,14 @@ class AdminBaleRouter
      * تاریخچهٔ چت هنوز کلیک‌شدنی‌اند. بی‌نسخه، یک کلیکِ روی پیامِ سه‌ماه‌پیش
      * کارِ اشتباهی را اجرا می‌کرد.
      */
-    private const CB_PREFIX = 'v1:';
+    /*
+    | ⚠️ `public` است چون فرستندگانِ اعلان هم دکمه می‌سازند.
+    |
+    | `TicketController` روی اعلانِ «پاسخِ مشتری» دکمهٔ شیشه‌ای می‌گذارد و
+    | باید **همین** پیشوند را بزند. کپی‌کردنِ رشته آن‌جا یعنی روزی نسخه
+    | بالا برود و آن دکمه‌ها بی‌صدا «معتبر نیست» بگیرند.
+    */
+    public const CB_PREFIX = 'v1:';
 
     /**
      * افعالی که یک بار مصرف می‌شوند — دکمه‌شان پس از کلیک برداشته می‌شود.
@@ -340,6 +347,9 @@ class AdminBaleRouter
                 'sed' => $this->sellFreeSubdomain(),
                 'sey' => $this->sellConfirm($arg),
                 'w'  => $this->replyToOwner($this->ui->who($this->gate)),
+                // هزینهٔ شرکت — در همان دفترِ مالیِ پنل ثبت می‌شود
+                'xp' => $this->expenseMenu(),
+                'xc' => $this->expensePickedCategory($arg),
                 'm'  => $this->showMailbox(),
                 'mv' => $this->showMail($arg),
                 'ma' => $this->archiveMail($arg),
@@ -544,6 +554,16 @@ class AdminBaleRouter
             return;
         }
 
+        /*
+        | مبلغِ هزینه. جریان عمر دارد، پس پیامِ بی‌ربطِ فردا به‌عنوانِ مبلغ
+        | خوانده نمی‌شود.
+        */
+        if ($flow !== null && str_starts_with($flow, 'expense:')) {
+            $this->expenseAmount(substr($flow, 8), $text);
+
+            return;
+        }
+
         if ($flow === 'sell:domain') {
             $this->sellGotDomain($text);
 
@@ -573,6 +593,27 @@ class AdminBaleRouter
 
         if (in_array($verb, ['/r', '/reply', 'پاسخ'], true)) {
             $this->armReply($anchored, $rest, explicitRef: $anchored === null);
+
+            return;
+        }
+
+        /*
+        | «تصحیح» — متنِ خودِ کارفرما را صیقل می‌دهد و برای تأیید نشان می‌دهد.
+        |
+        | ⚠️ عمداً **بعد** از «پاسخ» نشسته و فعلِ جداست: اگر با «پاسخ» یکی
+        | می‌شد، هر پاسخِ عادی هم از مدل می‌گذشت — یعنی تأخیر و هزینه روی
+        | مسیری که کارفرما بارها در روز استفاده می‌کند.
+        |
+        | 🔴 و هرگز خودش نمی‌فرستد؛ خروجی با دکمهٔ «ارسال» می‌رود.
+        */
+        if (in_array($verb, ['/expense', 'هزینه'], true)) {
+            $this->expenseMenu();
+
+            return;
+        }
+
+        if (in_array($verb, ['/polish', 'تصحیح', 'صیقل'], true)) {
+            $this->polishDraft($anchored, $rest, explicitRef: $anchored === null);
 
             return;
         }
@@ -901,6 +942,190 @@ class AdminBaleRouter
                     'data' => self::CB_PREFIX.'td:'.$ticket->id.':'.$k,
                 ], array_slice($others, 0, 3)),
             ],
+        );
+    }
+
+
+    /**
+     * «تصحیح نگارش» — متنِ **خودِ کارفرما** را صیقل می‌دهد و برای تأیید
+     * نشان می‌دهد.
+     *
+     * 🔴 هیچ‌چیز ارسال نمی‌شود. خروجی مثل پیش‌نویسِ AI در همان انبار می‌نشیند
+     * و با دکمهٔ «ارسال» (`ts`) می‌رود — یعنی کارفرما همیشه یک بار می‌بیند.
+     *
+     * ⚠️ چرا فرمانِ متنی و نه دکمه: در بله، پاسخ با «ریپلای روی کارت» **فوراً**
+     * می‌رود. دکمه‌ای که بخواهد وسطِ آن بنشیند یعنی عوض‌کردنِ جریانی که کار
+     * می‌کند و کارفرما به آن عادت دارد. این مسیر اختیاری است و کنارش می‌ماند.
+     *
+     * ⚠️ متنِ اصلی در پیام نگه داشته می‌شود تا اگر صیقل بدتر شد، کارفرما
+     * بتواند همان را دستی بفرستد. بی‌آن، نوشته‌اش از دست می‌رفت.
+     */
+
+    // ───────────────────────── هزینهٔ شرکت ─────────────────────────
+
+    /**
+     * منوی دسته‌های هزینه.
+     *
+     * 🔴 در **همان** دفترِ مالیِ پنل ثبت می‌شود (`BusinessLedger::manual()`)،
+     * نه جدولی جدا. انبارِ موازی یعنی جمعِ داشبورد با جمعِ ربات نخوانَد و
+     * هیچ‌کدام معلوم نباشد کدام درست است.
+     *
+     * ⚠️ دسته‌ها و برچسب‌هایشان از خودِ `BusinessLedger` می‌آیند؛ فهرستِ
+     * دستی این‌جا روزی از پنل عقب می‌افتاد.
+     */
+    private function expenseMenu(): void
+    {
+        if (! app(\App\Services\Finance\BusinessLedger::class)->ready()) {
+            $this->replyToOwner('دفترِ مالی هنوز مهاجرت نشده است.');
+
+            return;
+        }
+
+        $cats = \App\Services\Finance\BusinessLedger::EXPENSE_CATEGORIES;
+        $rows = [];
+
+        foreach (array_chunk($cats, 2) as $pair) {
+            $rows[] = array_map(fn ($c) => [
+                'text' => \App\Services\Finance\BusinessLedger::categoryLabel($c),
+                'data' => self::CB_PREFIX.'xc:'.$c,
+            ], $pair);
+        }
+
+        $this->sendButtons('💸 هزینه در کدام دسته بود؟', $rows);
+    }
+
+    /**
+     * دسته انتخاب شد — حالا منتظرِ مبلغ.
+     *
+     * ⚠️ هیچ ردیفی هنوز نوشته نمی‌شود. جریان عمر دارد و اگر نیمه‌کاره رها
+     * شود خودش می‌میرد؛ یعنی هزینهٔ نیمه‌ثبت‌شده در دفتر نمی‌مانَد.
+     */
+    private function expensePickedCategory(string $cat): void
+    {
+        if (! in_array($cat, \App\Services\Finance\BusinessLedger::EXPENSE_CATEGORIES, true)) {
+            $this->replyToOwner('این دسته معتبر نیست.');
+
+            return;
+        }
+
+        $this->gate->armFlow('expense:'.$cat);
+
+        $this->replyToOwner(
+            '💸 دستهٔ «'.\App\Services\Finance\BusinessLedger::categoryLabel($cat)."».
+
+"
+            ."حالا مبلغ را به **تومان** بفرستید. می‌توانید توضیح را هم بعدش بنویسید:
+"
+            ."«۲۵۰۰۰۰ اجارهٔ سرور هتزنر»"
+        );
+    }
+
+    /**
+     * مبلغ (و توضیحِ اختیاری) رسید — ثبت کن.
+     *
+     * ⚠️ ارقامِ فارسی هم پذیرفته می‌شوند. کارفرما از گوشی می‌نویسد و
+     * صفحه‌کلیدِ فارسی «۲۵۰۰۰۰» می‌دهد؛ ردکردنش یعنی ویژگی‌ای که در عمل
+     * کار نمی‌کند.
+     *
+     * 🔴 صفر یا منفی رد می‌شود. `manual()` خودش هم نگهبان دارد ولی سکوت
+     * می‌کند — و کارفرما باید بفهمد ثبت **نشد**، نه اینکه فکر کند شد.
+     */
+    private function expenseAmount(string $cat, string $text): void
+    {
+        $this->gate->clearFlow();
+
+        $text = trim($text);
+        [$rawAmount, $note] = array_pad(explode(' ', $text, 2), 2, '');
+
+        $digits = strtr($rawAmount, [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        ]);
+        $amount = (int) preg_replace('~[^0-9]~', '', $digits);
+
+        if ($amount <= 0) {
+            $this->replyToOwner('مبلغ خوانده نشد. دوباره «هزینه» بزنید و عدد را اول بنویسید.');
+
+            return;
+        }
+
+        $entry = app(\App\Services\Finance\BusinessLedger::class)->manual(
+            'expense',
+            $amount,
+            $cat,
+            null,
+            trim($note) !== '' ? trim($note) : null,
+            // ⚠️ `boundUser()` است نه `userId()` — گیت متدِ دوم را ندارد و
+            //    فرضش یعنی شکستِ زمانِ اجرا روی اولین ثبتِ واقعی.
+            $this->gate->boundUser()?->id,
+        );
+
+        if ($entry === null) {
+            $this->replyToOwner('ثبت نشد. دفترِ مالی آماده نیست.');
+
+            return;
+        }
+
+        $this->replyToOwner(
+            "✅ هزینه ثبت شد.
+"
+            .'دسته: '.\App\Services\Finance\BusinessLedger::categoryLabel($cat)."
+"
+            .'مبلغ: '.fa_num(number_format($amount))." تومان
+"
+            .(trim($note) !== '' ? 'توضیح: '.trim($note)."
+" : '')
+            ."
+در /admin/finance دیده می‌شود."
+        );
+    }
+
+    private function polishDraft(?Ticket $ticket, string $rest, bool $explicitRef): void
+    {
+        $body = $rest;
+
+        /*
+        | ⚠️ همان الگوی `armReply()`: مرجعِ صریح («تصحیح TK-123 …») از لنگرِ
+        | ریپلای جدا حساب می‌شود. کپی‌نکردنِ این منطق عمدی است — دو راهِ
+        | متفاوتِ یافتنِ تیکت یعنی روزی یکی‌شان تیکتِ اشتباه را پیدا کند.
+        */
+        if ($explicitRef) {
+            [$ref, $body] = $this->split($rest);
+            $ticket = $this->anchor->resolve($ref);
+        }
+
+        if ($ticket === null) {
+            $this->replyToOwner('کدام تیکت؟ روی کارتِ آن ریپلای بزنید یا «تصحیح <شماره> <متن>» بفرستید.');
+
+            return;
+        }
+
+        $body = trim($body);
+
+        if (mb_strlen($body) < 12) {
+            $this->replyToOwner('متنِ کوتاه چیزی برای تصحیح ندارد.');
+
+            return;
+        }
+
+        $out = app(\App\Services\Ticket\ReplyPolisher::class)->polish($body);
+
+        if ($out === null) {
+            $this->replyToOwner('تصحیح انجام نشد (مدل جواب نداد). متنِ خودتان دست‌نخورده است.');
+
+            return;
+        }
+
+        $this->gate->putDraft($ticket->id, $out);
+
+        $this->sendButtons(
+            '✨ متنِ تصحیح‌شده برای '.$ticket->number."
+
+".$out
+            ."
+
+⚠️ هنوز چیزی نرفته. یک بار بخوانید؛ با «ارسال» می‌رود.",
+            [[['text' => '📤 ارسال به مشتری', 'data' => self::CB_PREFIX.'ts:'.$ticket->id]]],
         );
     }
 

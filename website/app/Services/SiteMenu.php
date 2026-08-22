@@ -119,9 +119,20 @@ class SiteMenu
                 fn ($it) => isset($it['slug'])
             ));
 
+            /*
+            | 🔴 حذفِ تکراری باید کلِ **بخش** را ببیند، نه فقط همین گروه را.
+            |
+            | «سرور مجازی ایران» در گروهِ «سرور مجازی» است، نه «موقعیت مکانی».
+            | نسخهٔ قبلی فقط آیتم‌های همین گروه را به‌عنوانِ «پوشش‌داده‌شده»
+            | می‌شناخت، پس ایران — که فروشِ زنده دارد — دوباره به «موقعیت مکانی»
+            | اضافه می‌شد و در منو **دو بار** می‌آمد.
+            |
+            | ⚠️ کاربر آن را «تکراری» می‌بیند ولی هیچ‌چیز خراب نیست: هر دو لینک
+            | به `/vps/iran` می‌روند و صفحه ۲۰۰ است. برای همین ماه‌ها ماند.
+            */
             $section['groups'][$i]['items'] = array_merge(
                 $config,
-                $this->extraLiveCountryItems($config),
+                $this->extraLiveCountryItems($this->allSectionSlugItems($section)),
                 [[
                     'route' => ['cloud.index', []],
                     'fa'    => 'همهٔ سرورهای مجازی',
@@ -134,6 +145,30 @@ class SiteMenu
         }
     }
 
+    /**
+     * همهٔ آیتم‌های اسلاگ‌دارِ **کلِ** تبِ سرور — پایهٔ حذفِ تکراری.
+     *
+     * ⚠️ عمداً از همهٔ گروه‌ها می‌خوانَد، نه فقط «موقعیت مکانی». کشوری که در
+     * هر گروهی از این تب آمده باشد، دیگر نباید به‌عنوانِ «کشورِ زندهٔ تازه»
+     * دوباره اضافه شود.
+     *
+     * @param  array<string, mixed>  $section
+     * @return array<int, array<string, mixed>>
+     */
+    private function allSectionSlugItems(array $section): array
+    {
+        $out = [];
+
+        foreach ((array) ($section['groups'] ?? []) as $group) {
+            foreach ((array) ($group['items'] ?? []) as $it) {
+                if (isset($it['slug'])) {
+                    $out[] = $it;
+                }
+            }
+        }
+
+        return $out;
+    }
     /**
      * کشورهایی که واقعاً پلنِ قابلِ فروش دارند ولی در فهرستِ config نیستند —
      * به شکلِ آیتمِ سادهٔ منو.
@@ -149,6 +184,19 @@ class SiteMenu
      */
     private function extraLiveCountryItems(array $configItems): array
     {
+        /*
+        | ⚠️ کلیدِ **ثابت**، عمداً.
+        |
+        | یک بار این را به `KEY.'.'.md5($configItems)` تغییر دادم تا تعمیرِ
+        | «ایرانِ تکراری» بی‌درنگ دیده شود. نتیجه‌اش این بود که `forget()` —
+        | که کلیدِ ثابت را پاک می‌کند — دیگر به کلیدِ پویا نمی‌رسید، و
+        | `cloud:sync` هرگز منو را تازه نمی‌کرد. یعنی یک مشکلِ ۱۰ دقیقه‌ای را
+        | با یک مشکلِ همیشگی عوض کرده بودم.
+        |
+        | هزینهٔ کلیدِ ثابت کراندار است: حداکثر تا انقضای TTL (۱۰ دقیقه) پس از
+        | تغییرِ فهرستِ config، منو کهنه می‌مانَد. `forget()` هم هست اگر کسی
+        | بخواهد فوری تازه‌اش کند.
+        */
         return Cache::remember(self::KEY, self::TTL, function () use ($configItems) {
             // ISOهایی که config از قبل پوشش می‌دهد
             $covered = [];

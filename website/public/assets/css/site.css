@@ -3710,3 +3710,385 @@ html[dir="rtl"] .dt-steps li{padding:16px 60px 16px 18px}
    هر کدام بی‌هیچ خطایی بی‌استایل رندر می‌شد. */
 .hero-lead{color:var(--muted);font-size:17px;line-height:1.95;margin:0 auto 26px}
 .sd-buy{display:flex;flex-direction:column;gap:10px;min-width:0}
+
+/* ===========================================================================
+   فروشگاهِ قطعاتِ سرور — /parts، /parts/{cat}، /parts/compare، /servers/hp/genN
+   ---------------------------------------------------------------------------
+   ⚠️ همهٔ انتخابگرها با پیشوندِ `.pt-` بسته شده‌اند و **هیچ انتخابگرِ عنصرِ
+   برهنه‌ای** (مثلِ `header{}` یا `table{}`) این‌جا نیست. یک بار در همین فایل
+   `header{position:fixed}` هر `<header>`ِ سایت را ربود و دو بار اشتباه
+   تشخیص داده شد؛ تکرارش نمی‌کنیم.
+
+   ⚠️ فقط از توکن‌هایی استفاده می‌شود که در `:root`ِ **همین فایل** تعریف
+   شده‌اند. site.css روی صفحهٔ عمومی تنها شیت است و `var()`ِ تعریف‌نشده یعنی
+   مرورگر کلِ آن اعلان را بی‌صدا دور می‌اندازد.
+
+   ⚠️ ویژگی‌های منطقی (`inline-start`) و نه چپ/راست: سایت در فارسی RTL است و
+   در en/tr LTR. هر `margin-left` این‌جا یعنی یکی از دو جهت خراب شود.
+   =========================================================================== */
+
+.sp-hero{ padding:14px 0 4px; }
+.sp-hero h1{ font-size:32px; font-family:var(--font-disp); margin:8px 0 8px; }
+.sp-lead{ color:var(--muted); max-width:70ch; line-height:1.9; }
+
+/* ── قابِ دوستونه: سایدبار + محتوا ────────────────────────────────────── */
+.sp-shell{
+  display:grid; grid-template-columns:264px minmax(0,1fr);
+  gap:26px; align-items:start; padding:20px 0 70px;
+}
+.sp-main{ min-width:0; }   /* بی‌این، جدولِ عریضِ مقایسه ستون را باز می‌کند */
+
+.sp-h2{ font-size:20px; font-family:var(--font-disp); margin:30px 0 14px; }
+.sp-h2:first-child{ margin-top:4px; }
+.sp-h3{ display:flex; align-items:center; gap:8px; font-size:16px; margin:24px 0 12px; }
+.sp-h3 .icon{ width:17px; height:17px; color:var(--cyan); }
+.sp-h3 a{ color:var(--text); text-decoration:none; }
+.sp-h3 a:hover{ color:var(--cyan); }
+
+/* ── سایدبار ──────────────────────────────────────────────────────────── */
+.sp-side{
+  position:sticky; top:calc(var(--header-h) + 12px);
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r); overflow:hidden;
+}
+.sp-side-toggle{
+  display:none; align-items:center; gap:9px; padding:13px 16px;
+  cursor:pointer; font-weight:700; list-style:none; color:var(--text);
+}
+.sp-side-toggle::-webkit-details-marker{ display:none; }
+.sp-side-toggle .icon{ width:17px; height:17px; color:var(--cyan); }
+.sp-side-chev{ margin-inline-start:auto; transition:transform .2s var(--ease); }
+.sp-side[open] .sp-side-chev{ transform:rotate(180deg); }
+
+/* ⚠️ این‌جا `display:block` **کارساز نیست** و تکیه‌کردن بهش یک بار ستونِ
+   سایدبار را کاملاً خالی کرد: کروم محتوای `<details>`ِ بسته را به slot
+   نمی‌فرستد، پس CSS نمی‌تواند بازش کند. باز/بستهٔ سایدبار را اسکریپتِ کوتاهِ
+   کنارِ خودِ partial می‌گرداند؛ این‌جا فقط فاصله است. */
+.sp-side-inner{ padding:14px; }
+.sp-side-group + .sp-side-group{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+.sp-side-group h3{
+  font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--dim); margin:0 0 9px; padding-inline:6px;
+}
+.sp-side-group ul{ list-style:none; display:flex; flex-direction:column; gap:2px; }
+.sp-side-group a{
+  display:flex; align-items:center; gap:9px; padding:8px 10px;
+  border-radius:10px; color:var(--muted); text-decoration:none;
+  font-size:13.5px; transition:background .16s, color .16s;
+}
+.sp-side-group a:hover{ background:var(--surface-2); color:var(--text); }
+.sp-side-group a.on{ background:var(--info-bg); color:var(--text); font-weight:700; }
+.sp-side-group a .icon{ width:16px; height:16px; flex:none; opacity:.85; }
+.sp-side-group a span{ flex:1; min-width:0; }
+.sp-side-group a b{
+  font-size:11px; font-weight:700; color:var(--dim);
+  background:var(--surface-2); border-radius:20px; padding:1px 7px;
+}
+.sp-side-group a.on b{ color:var(--cyan); }
+.sp-side-years{ font-size:11px; color:var(--dim); font-style:normal; }
+
+.sp-side-cta{
+  display:flex; gap:10px; margin-top:16px; padding:12px;
+  border-radius:12px; background:var(--info-bg); border:1px solid var(--info-line);
+  color:var(--muted); text-decoration:none; font-size:12px; line-height:1.7;
+}
+.sp-side-cta .icon{ width:17px; height:17px; color:var(--cyan); flex:none; margin-top:2px; }
+.sp-side-cta b{ display:block; color:var(--text); font-size:13px; margin-bottom:2px; }
+
+/* ── شبکهٔ دسته‌ها و نسل‌ها (صفحهٔ هاب) ───────────────────────────────── */
+.sp-cat-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:12px; }
+.sp-cat-card{
+  display:flex; flex-direction:column; gap:7px; padding:16px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  text-decoration:none; color:var(--text); transition:border-color .18s, transform .18s var(--ease);
+}
+.sp-cat-card:hover{ border-color:var(--cyan); transform:translateY(-2px); }
+.sp-cat-card .icon{ width:22px; height:22px; color:var(--cyan); }
+.sp-cat-card h3{ font-size:14.5px; font-weight:700; }
+.sp-cat-card span{ font-size:12px; color:var(--muted); }
+.sp-cat-card span.muted{ color:var(--dim); }
+
+.sp-gen-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:12px; }
+.sp-gen-card{
+  display:flex; flex-direction:column; gap:8px; padding:16px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  text-decoration:none; color:var(--text); transition:border-color .18s;
+}
+.sp-gen-card:hover{ border-color:var(--cyan); }
+.sp-gen-top{ display:flex; align-items:baseline; gap:8px; }
+.sp-gen-top b{ font-size:15px; }
+.sp-gen-years{ font-size:11.5px; color:var(--dim); margin-inline-start:auto; }
+.sp-gen-card p{ font-size:12.5px; color:var(--muted); line-height:1.8; }
+.sp-gen-go{ font-size:12px; color:var(--cyan); display:flex; align-items:center; gap:5px; }
+.sp-gen-go .dir{ width:13px; height:13px; }
+
+/* ── کارتِ قطعه ───────────────────────────────────────────────────────── */
+.sp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:13px; }
+.sp-card{
+  display:flex; flex-direction:column;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  overflow:hidden; transition:border-color .18s, transform .18s var(--ease);
+}
+.sp-card:hover{ border-color:var(--cyan); transform:translateY(-2px); }
+.sp-card-main{
+  display:flex; flex-direction:column; gap:8px; padding:15px;
+  text-decoration:none; color:var(--text); flex:1;
+}
+.sp-thumb{
+  display:block; margin:-15px -15px 4px; aspect-ratio:4/3; overflow:hidden;
+  background:var(--bg2); border-bottom:1px solid var(--line);
+}
+.sp-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.sp-card-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.sp-cat{ font-size:10.5px; color:var(--dim); letter-spacing:.03em; }
+.sp-cond{
+  font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px;
+  background:var(--surface-2); color:var(--muted);
+}
+.sp-cond.new{ background:rgba(52,211,153,.13); color:var(--green); }
+.sp-cond.refurb{ background:rgba(34,211,238,.12); color:var(--cyan); }
+.sp-card h3{ font-size:14.5px; font-weight:700; line-height:1.55; }
+.sp-tag{ font-size:12px; color:var(--muted); line-height:1.75; }
+
+.sp-gens{ list-style:none; display:flex; flex-wrap:wrap; gap:4px; margin-top:auto; padding-top:6px; }
+.sp-gens li{
+  font-size:10.5px; color:var(--dim); border:1px solid var(--line);
+  border-radius:6px; padding:1px 6px;
+}
+
+.sp-card-foot{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding-top:10px; margin-top:6px; border-top:1px solid var(--line);
+}
+.sp-price{ font-size:14.5px; font-weight:700; color:var(--text); }
+.sp-price.contact{ font-size:12.5px; font-weight:600; color:var(--cyan); }
+.sp-stock{ font-size:11px; color:var(--green); }
+.sp-stock.out{ color:var(--dim); }
+
+.sp-cmp{
+  display:flex; align-items:center; gap:7px; padding:9px 15px;
+  border-top:1px solid var(--line); background:var(--bg2);
+  font-size:12px; color:var(--muted); cursor:pointer; user-select:none;
+}
+/* ⚠️ کلاس، نه انتخابگرِ فرزند: `.sp-cmp input` وابسته به ساختار بود و
+   چک‌باکس بیرونِ آن (صفحهٔ محصول) بی‌استایل می‌مانْد. */
+.sp-cmp-box{ accent-color:var(--cyan); width:14px; height:14px; cursor:pointer; }
+.sp-cmp-box:disabled{ cursor:not-allowed; opacity:.45; }
+.sp-cmp:has(.sp-cmp-box:disabled){ opacity:.55; }
+.sp-cmp.standalone{ border:1px solid var(--line); border-radius:10px; background:transparent; margin-top:4px; }
+
+/* ── فیلترها ──────────────────────────────────────────────────────────── */
+.sp-filters{
+  display:flex; flex-direction:column; gap:10px; margin-bottom:18px;
+  padding:14px 16px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+}
+.sp-search{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; margin-bottom:4px;
+  background:var(--bg2); border:1px solid var(--line); border-radius:12px;
+}
+.sp-search .icon{ width:15px; height:15px; color:var(--dim); flex:none; }
+.sp-search input{
+  flex:1; min-width:0; background:none; border:0; outline:none;
+  color:var(--text); font:inherit; font-size:13px;
+}
+.sp-search input::placeholder{ color:var(--dim); }
+.sp-search button{
+  flex:none; font:inherit; font-size:12px; font-weight:700; cursor:pointer;
+  padding:5px 14px; border-radius:20px; border:1px solid var(--info-line);
+  background:var(--info-bg); color:var(--cyan);
+}
+.sp-search button:hover{ filter:brightness(1.15); }
+.sp-filter-row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.sp-filter-lbl{ font-size:11.5px; color:var(--dim); min-width:74px; }
+.sp-chip{
+  font-size:12px; padding:5px 12px; border-radius:20px; text-decoration:none;
+  border:1px solid var(--line); color:var(--muted); background:transparent;
+  transition:border-color .16s, color .16s, background .16s;
+}
+.sp-chip:hover{ border-color:var(--line-2); color:var(--text); }
+.sp-chip.on{ background:var(--info-bg); border-color:var(--info-line); color:var(--cyan); font-weight:700; }
+.sp-chip.sm{ font-size:11px; padding:3px 9px; }
+.sp-clear{
+  display:inline-flex; align-items:center; gap:5px; margin-inline-start:auto;
+  font-size:11.5px; color:var(--danger); text-decoration:none;
+}
+.sp-clear .icon{ width:12px; height:12px; }
+
+.sp-count{ font-size:12px; color:var(--dim); margin-bottom:10px; }
+.sp-more{ color:var(--cyan); margin-inline-start:6px; }
+.sp-note{ font-size:11.5px; color:var(--dim); margin-top:16px; line-height:1.8; }
+.sp-empty{
+  padding:26px; text-align:center; color:var(--muted); line-height:1.9;
+  background:var(--surface); border:1px dashed var(--line); border-radius:var(--r);
+}
+
+/* ── صفحهٔ محصول ──────────────────────────────────────────────────────── */
+.sp-detail-top{ display:grid; grid-template-columns:minmax(0,1fr) 262px; gap:22px; align-items:start; }
+.sp-shots{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.sp-shots img{
+  width:110px; height:82px; object-fit:cover; border-radius:10px;
+  border:1px solid var(--line); background:var(--bg2); display:block;
+}
+.sp-shots img.on{ width:100%; max-width:360px; height:auto; aspect-ratio:4/3; border-color:var(--line-2); }
+.sp-detail-name{ font-size:26px; font-family:var(--font-disp); margin:10px 0 6px; line-height:1.5; }
+.sp-detail-tag{ font-size:14px; color:var(--cyan); margin-bottom:10px; }
+.sp-detail-sum{ font-size:13.5px; color:var(--muted); line-height:2; max-width:70ch; }
+.sp-compat{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:14px; font-size:12.5px; color:var(--muted); }
+
+.sp-buy{
+  display:flex; flex-direction:column; gap:10px; padding:18px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  position:sticky; top:calc(var(--header-h) + 12px);
+}
+.sp-buy-price{ font-size:23px; font-weight:800; color:var(--text); }
+.sp-buy-price.contact{ font-size:16px; color:var(--cyan); }
+.sp-buy-note{ font-size:11px; color:var(--dim); line-height:1.75; }
+
+.sp-spec-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.sp-spec-table th,
+.sp-spec-table td{ padding:10px 14px; border-bottom:1px solid var(--line); text-align:start; }
+.sp-spec-table th{ color:var(--muted); font-weight:600; width:40%; background:var(--surface); }
+.sp-spec-table td{ color:var(--text); }
+.sp-spec-table tr:last-child th,
+.sp-spec-table tr:last-child td{ border-bottom:0; }
+
+/* ⚠️ `pre-line` و نه `nl2br()`: متن از پنل می‌آید و باید escape بماند. */
+.sp-body{ font-size:13.5px; color:var(--muted); line-height:2.1; white-space:pre-line; max-width:78ch; }
+
+/* ── صفحهٔ نسل ────────────────────────────────────────────────────────── */
+.sp-status{
+  display:inline-block; font-size:11.5px; font-weight:700; padding:3px 11px;
+  border-radius:20px; background:var(--surface-2); color:var(--muted);
+}
+.sp-status.sweet-spot,
+.sp-status.current,
+.sp-status.newest{ background:rgba(52,211,153,.13); color:var(--green); }
+.sp-status.modern{ background:rgba(34,211,238,.12); color:var(--cyan); }
+.sp-status.legacy{ background:var(--danger-bg); color:var(--danger); }
+
+.sp-gen-sum{ font-size:13.5px; color:var(--muted); line-height:2.05; max-width:78ch; margin-bottom:18px; }
+.sp-facts{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; margin-bottom:20px; }
+.sp-fact{
+  display:flex; flex-direction:column; gap:4px; padding:12px 14px;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+}
+.sp-fact span{ font-size:11px; color:var(--dim); }
+.sp-fact b{ font-size:13px; color:var(--text); line-height:1.6; }
+
+.sp-pros{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+.sp-pro{ padding:15px 17px; border-radius:var(--r); border:1px solid var(--line); background:var(--surface); }
+.sp-pro h3{ display:flex; align-items:center; gap:7px; font-size:13.5px; margin-bottom:7px; }
+.sp-pro h3 .icon{ width:15px; height:15px; }
+.sp-pro p{ font-size:12.5px; color:var(--muted); line-height:2; }
+.sp-pro-list{ list-style:none; display:flex; flex-direction:column; gap:5px; }
+.sp-pro-list li{ font-size:12.5px; color:var(--muted); line-height:1.85; padding-inline-start:15px; position:relative; }
+.sp-pro-list li::before{
+  content:''; position:absolute; inset-inline-start:0; top:.62em;
+  width:5px; height:5px; border-radius:50%; background:var(--green);
+}
+.sp-pro.good{ border-color:rgba(52,211,153,.28); }
+.sp-pro.good h3 .icon{ color:var(--green); }
+.sp-pro.warn{ border-color:var(--info-line); }
+.sp-pro.warn h3 .icon{ color:var(--info); }
+
+/* ── جدولِ مقایسه ─────────────────────────────────────────────────────── */
+.sp-cmp-scroll{ overflow-x:auto; border:1px solid var(--line); border-radius:var(--r); }
+.sp-cmp-table{ width:100%; border-collapse:collapse; font-size:13px; min-width:520px; }
+.sp-cmp-table th,
+.sp-cmp-table td{ padding:11px 14px; border-bottom:1px solid var(--line); text-align:start; vertical-align:top; }
+.sp-cmp-table thead th{ background:var(--bg2); font-size:13.5px; }
+.sp-cmp-table thead a{ color:var(--text); text-decoration:none; display:block; margin-bottom:3px; }
+.sp-cmp-table thead a:hover{ color:var(--cyan); }
+.sp-cmp-table thead .sp-cat{ display:block; font-weight:400; }
+.sp-cmp-corner{ background:transparent !important; width:150px; }
+.sp-cmp-table tbody th{ color:var(--muted); font-weight:600; background:var(--surface); }
+.sp-cmp-table tbody td{ color:var(--text); }
+.sp-cmp-table tr:last-child th,
+.sp-cmp-table tr:last-child td{ border-bottom:0; }
+.sp-cmp-table .muted{ color:var(--dim); }
+.sp-best{ color:var(--green) !important; font-weight:800; }
+
+/* ── نوارِ شناورِ مقایسه ───────────────────────────────────────────────── */
+/* 🔴 `[hidden]` بدونِ این خط بی‌اثر بود.
+   `hidden` را شیتِ خودِ مرورگر با `display:none` پیاده می‌کند، و **هر** قاعدهٔ
+   نویسنده بر آن مقدم است — پس `display:flex`ِ پایین آن را می‌بلعید و نوارِ
+   مقایسه روی هر صفحه دیده می‌شد، حتی وقتی هیچ قطعه‌ای انتخاب نشده بود. */
+.sp-bar[hidden]{ display:none; }
+.sp-bar{
+  position:fixed; inset-inline:0; bottom:0; z-index:60;
+  display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+  padding:11px 20px; background:var(--bg2);
+  border-top:1px solid var(--line-2); box-shadow:0 -8px 26px rgba(0,0,0,.28);
+  /* ⚠️ جا برای دکمهٔ شناورِ چت (`.chat-fab`: ۵۸px + ۲۴px فاصله، z-index ۴۰۰).
+     بی‌این، دکمهٔ «مقایسه» دقیقاً زیرِ حباب چت می‌نشست و کلیک‌ناپذیر می‌شد —
+     در هر دو جهت، چون هر دو با `inset-inline-end` چیده شده‌اند. */
+  padding-inline-end:96px;
+}
+.sp-bar-n{ font-size:12.5px; font-weight:700; color:var(--text); }
+.sp-bar-list{ display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:0; }
+.sp-bar-chip{
+  font-size:11.5px; padding:3px 10px 3px 8px; border-radius:20px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+}
+.sp-bar-chip::after{ content:'×'; margin-inline-start:6px; color:var(--danger); font-weight:700; }
+.sp-bar-chip:hover{ border-color:var(--danger-line); color:var(--text); }
+.sp-bar-hint{ font-size:11.5px; color:var(--info); }
+.sp-bar-clear{
+  font-size:11.5px; color:var(--muted); background:none; border:0; cursor:pointer;
+}
+.sp-bar-clear:hover{ color:var(--danger); }
+
+/* ── راهنمای خرید و پرسش‌های متداول ──────────────────────────────────── */
+.sp-guide{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+.sp-guide section{
+  padding:16px 18px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+}
+.sp-guide h3{ font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text); }
+.sp-guide p{ font-size:12.5px; color:var(--muted); line-height:2.05; }
+
+.sp-faq{ display:flex; flex-direction:column; gap:8px; }
+.sp-faq details{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+}
+.sp-faq summary{
+  padding:13px 16px; cursor:pointer; font-size:13.5px; font-weight:700; color:var(--text);
+  list-style:none; display:flex; align-items:center; gap:9px;
+}
+.sp-faq summary::-webkit-details-marker{ display:none; }
+/* ⚠️ نشانگر با `::before` ساخته می‌شود نه با آیکونِ SVG: این بخش داخلِ
+   `<summary>` است و اسپرایت آیکون‌ها همیشه پیش از آن لود نشده. */
+.sp-faq summary::before{
+  content:'+'; flex:none; width:18px; height:18px; border-radius:50%;
+  background:var(--info-bg); color:var(--cyan); font-weight:700;
+  display:grid; place-items:center; font-size:13px; line-height:1;
+}
+.sp-faq details[open] summary::before{ content:'−'; }
+.sp-faq details[open] summary{ border-bottom:1px solid var(--line); }
+.sp-faq p{ padding:13px 16px 15px; font-size:12.5px; color:var(--muted); line-height:2.1; }
+
+/* ── جعبهٔ «قطعه‌ای که می‌خواهید نیست؟» ──────────────────────────────── */
+.sp-ask{
+  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  margin-top:34px; padding:22px 24px; border-radius:var(--r-lg);
+  background:var(--surface); border:1px solid var(--line);
+}
+.sp-ask h2{ font-size:17px; font-family:var(--font-disp); margin-bottom:5px; }
+.sp-ask p{ font-size:12.5px; color:var(--muted); line-height:1.9; max-width:60ch; }
+
+/* ── موبایل و تبلت ────────────────────────────────────────────────────── */
+@media(max-width:1000px){
+  .sp-shell{ grid-template-columns:1fr; gap:16px; }
+  .sp-side{ position:static; }
+  .sp-side-toggle{ display:flex; }
+  .sp-side:not([open]) .sp-side-inner{ display:none; }
+  .sp-detail-top{ grid-template-columns:1fr; }
+  .sp-buy{ position:static; }
+}
+@media(max-width:640px){
+  .sp-hero h1{ font-size:25px; }
+  .sp-detail-name{ font-size:21px; }
+  .sp-filter-lbl{ min-width:100%; }
+  .sp-clear{ margin-inline-start:0; }
+  .sp-bar{ padding:9px 13px; padding-inline-end:82px; }
+  .sp-bar-list{ order:3; width:100%; }
+}

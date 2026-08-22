@@ -112,9 +112,22 @@ return [
         ],
     ],
 
+    /*
+    | شبکه‌های اجتماعی — اینستاگرام **زبان‌محور** است.
+    |
+    | 🔴 سه صفحهٔ جدا داریم و هر کدام به زبانِ خودش می‌نویسد. تا امروز هر سه
+    | نسخهٔ سایت به صفحهٔ فارسی لینک می‌دادند، یعنی بازدیدکنندهٔ ترک یا انگلیسی
+    | روی صفحه‌ای می‌افتاد که یک کلمه‌اش را نمی‌فهمد — بدتر از نداشتنِ لینک،
+    | چون کلیک کرده و برنمی‌گردد.
+    |
+    | ⚠️ خواندنش از `site_social()` است نه مستقیم از این‌جا، دقیقاً مثلِ
+    | شمارهٔ تماس که `site_contact()` زبان‌محور می‌کند.
+    */
     'social' => [
-        'linkedin'  => 'https://www.linkedin.com/company/servernet-co/',
-        'instagram' => 'https://www.instagram.com/servernet.ir/',
+        'linkedin'     => env('SITE_LINKEDIN', 'https://www.linkedin.com/company/servernet-co/'),
+        'instagram'    => env('SITE_INSTAGRAM_FA', 'https://www.instagram.com/servernet.ir/'),
+        'instagram_en' => env('SITE_INSTAGRAM_EN', 'https://www.instagram.com/servernet.cloud/'),
+        'instagram_tr' => env('SITE_INSTAGRAM_TR', 'https://www.instagram.com/servernet.tr/'),
     ],
 
     'products' => [
@@ -365,6 +378,21 @@ return [
                     ['route' => ['servers.show', 'hpe-proliant-dl380-gen10'], 'fa' => 'HPE ProLiant DL380 Gen10', 'en' => 'HPE ProLiant DL380 Gen10', 'tr' => 'HPE ProLiant DL380 Gen10'],
                     ['route' => ['servers.show', 'hpe-proliant-dl380-gen9'],  'fa' => 'HPE ProLiant DL380 Gen9', 'en' => 'HPE ProLiant DL380 Gen9', 'tr' => 'HPE ProLiant DL380 Gen9'],
                     ['route' => ['servers.index', []], 'fa' => 'همهٔ سرورهای فیزیکی', 'en' => 'All physical servers', 'tr' => 'Tüm fiziksel sunucular'],
+                ]],
+                /*
+                | فروشگاهِ قطعات — گروهِ جدا از «سرورِ فیزیکی».
+                |
+                | ⚠️ عمداً ادغام نشد: آن‌جا واحدِ فروش یک **دستگاه** است و این‌جا
+                | یک **قطعه**. خریدارِ این دو یکی نیست و قاطی‌کردنشان یعنی هرکس
+                | باید از میانِ سیاههٔ دیگری رد شود.
+                */
+                ['fa' => 'قطعات سرور', 'en' => 'Server parts', 'tr' => 'Sunucu parçaları', 'items' => [
+                    ['route' => ['parts.category', 'cpu'],  'fa' => 'پردازندهٔ سرور', 'en' => 'Server processors', 'tr' => 'Sunucu işlemcileri'],
+                    ['route' => ['parts.category', 'ram'],  'fa' => 'رم سرور (ECC)', 'en' => 'Server memory (ECC)', 'tr' => 'Sunucu belleği (ECC)'],
+                    ['route' => ['parts.category', 'disk'], 'fa' => 'هارد و SSD سرور', 'en' => 'Server drives & SSD', 'tr' => 'Sunucu diskleri ve SSD'],
+                    ['route' => ['servers.generation', 'gen9'],  'fa' => 'قطعات HP نسل ۹', 'en' => 'HP Gen9 parts', 'tr' => 'HP Gen9 parçaları'],
+                    ['route' => ['servers.generation', 'gen10'], 'fa' => 'قطعات HP نسل ۱۰', 'en' => 'HP Gen10 parts', 'tr' => 'HP Gen10 parçaları'],
+                    ['route' => ['parts.index', []], 'fa' => 'همهٔ قطعات سرور', 'en' => 'All server parts', 'tr' => 'Tüm sunucu parçaları'],
                 ]],
                 ['fa' => 'بر اساس کاربرد', 'en' => 'By use case', 'tr' => 'Kullanım amacına göre', 'items' => [
                     ['slug' => 'trading', 'fa' => 'سرور مجازی ترید', 'en' => 'Trading VPS', 'tr' => 'Trade VPS'],

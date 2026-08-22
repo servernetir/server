@@ -628,6 +628,57 @@ if (! function_exists('cloud_eur_rate')) {
     }
 }
 
+if (! function_exists('part_price')) {
+    /**
+     * قیمتِ یک قطعهٔ سرور — **از یورو**، به زبانِ کاربر.
+     *
+     * 🔴 چرا مبنا یورو است و نه تومان:
+     *
+     * قطعهٔ سرور از بازارِ جهانی خریده می‌شود و قیمتِ واقعی‌اش یورویی است.
+     * ذخیرهٔ عددِ تومانی یعنی با هر جهشِ ارز، کلِ کاتالوگ باید دستی به‌روز
+     * شود — و در عمل نمی‌شود، پس فروشگاه زیرِ قیمتِ خرید می‌فروشد بی‌آنکه
+     * کسی بفهمد. با مبنای یورو، یک نرخ عوض می‌شود و همه‌چیز درست می‌مانَد.
+     *
+     * فارسی تومان می‌بیند (با نرخِ زندهٔ همان تنظیماتی که سرورِ ابری استفاده
+     * می‌کند)، انگلیسی و ترکی یورو.
+     *
+     * ⚠️ نرخ که نبود، `null` برمی‌گردد نه عددِ خام. قیمتِ بی‌نرخ یعنی
+     * فروشِ احتمالی زیرِ قیمتِ خرید؛ «استعلام کنید» صادقانه‌تر است. همان
+     * تصمیمی که `site_price()` هم می‌گیرد.
+     *
+     * @param  int|null  $eurCents  قیمت به **سنتِ یورو**
+     */
+    function part_price(?int $eurCents): ?string
+    {
+        if ($eurCents === null || $eurCents <= 0) {
+            return null;
+        }
+
+        $eur = $eurCents / 100;
+
+        if (app()->getLocale() !== 'fa') {
+            return '€'.number_format($eur, 2);
+        }
+
+        $rate = cloud_eur_rate();
+
+        if ($rate <= 0) {
+            return null;
+        }
+
+        /*
+        | ⚠️ گردکردن به ۱۰٬۰۰۰ تومان عمدی است.
+        |
+        | نرخِ ارز چند بار در روز تکان می‌خورد و عددِ دقیق یعنی قیمتِ صفحه هر
+        | ساعت چند تومان جابه‌جا شود — که هم بدقواره است هم بی‌اعتمادکننده.
+        | گردکردن قیمت را پایدار نگه می‌دارد بی‌آنکه معنایش عوض شود.
+        */
+        $toman = (int) round($eur * $rate, -4);
+
+        return fa_num(number_format($toman)).' تومان';
+    }
+}
+
 if (! function_exists('public_asset_path')) {
     /**
      * مسیرِ **واقعیِ** یک فایلِ استاتیک روی دیسک — یا `null` اگر نبود.
@@ -884,6 +935,57 @@ if (! function_exists('schema_price_irr')) {
     }
 }
 
+if (! function_exists('site_social')) {
+    /**
+     * شبکه‌های اجتماعی برای زبانِ جاری.
+     *
+     * 🔴 سه صفحهٔ اینستاگرام داریم و هر کدام به زبانِ خودش می‌نویسد. تا امروز
+     * هر سه نسخهٔ سایت به صفحهٔ فارسی لینک می‌دادند، یعنی بازدیدکنندهٔ ترک یا
+     * انگلیسی روی صفحه‌ای می‌افتاد که یک کلمه‌اش را نمی‌فهمد. آن از نداشتنِ
+     * لینک بدتر است: کلیک کرده و برنمی‌گردد.
+     *
+     * ⚠️ همان الگوی `site_contact()`: نبودِ نسخهٔ زبانی به فارسی برمی‌گردد، تا
+     * جای خالی هرگز لینکِ شکسته نسازد.
+     *
+     * @return array<string,string>
+     */
+    function site_social(?string $locale = null): array
+    {
+        $s = (array) config('servernet.social', []);
+        $loc = $locale ?? app()->getLocale();
+
+        $out = [
+            'linkedin'  => (string) ($s['linkedin'] ?? ''),
+            'instagram' => (string) ($s['instagram'] ?? ''),
+        ];
+
+        if ($loc !== 'fa' && filled($s['instagram_'.$loc] ?? null)) {
+            $out['instagram'] = (string) $s['instagram_'.$loc];
+        }
+
+        return array_filter($out, fn ($v) => $v !== '');
+    }
+}
+
+if (! function_exists('social_profiles')) {
+    /**
+     * **همهٔ** پروفایل‌های رسمی — برای `sameAs`ِ دادهٔ ساختاریافته.
+     *
+     * 🔴 عمداً با `site_social()` فرق دارد. آن‌جا سؤال «کاربر کجا برود؟» است و
+     * پاسخ یکی است؛ این‌جا سؤال «این سازمان کدام حساب‌ها را دارد؟» است و پاسخ
+     * همهٔ آن‌هاست. فهرستِ کاملِ `sameAs` همان چیزی است که به گوگل می‌فهماند این
+     * سه حساب یک شرکت‌اند، نه سه شرکت.
+     *
+     * @return array<int,string>
+     */
+    function social_profiles(): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map('strval', (array) config('servernet.social', [])),
+            fn ($v) => $v !== ''
+        )));
+    }
+}
 if (! function_exists('company_value')) {
     /**
      * یک فیلدِ هویتِ شرکت — **تنها منبعِ خواندن**.

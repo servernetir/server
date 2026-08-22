@@ -8,6 +8,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DomainCheckController;
 use App\Http\Controllers\LookupController;
+use App\Http\Controllers\PartsShopController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\ServerShopController;
 use App\Http\Controllers\SolutionController;
@@ -55,6 +56,30 @@ $site = function (): void {
     // فروشگاهِ سرورِ فیزیکی (HP/Dell/Lenovo/Supermicro) — فهرست + صفحهٔ هر مدل با گالری
     Route::get('/servers', [ServerShopController::class, 'index'])->name('servers.index');
     Route::get('/servers/{slug}', [ServerShopController::class, 'show'])->name('servers.show')->where('slug', '[a-z0-9-]+');
+
+    /*
+    |--------------------------------------------------------------------------
+    | فروشگاهِ قطعاتِ سرور
+    |--------------------------------------------------------------------------
+    |
+    | 🔴 ترتیبِ این چهار خط **معنادار** است.
+    |
+    | `/parts/compare` باید **پیش از** `/parts/{category}` ثبت شود، وگرنه لاراول
+    | «compare» را یک دستهٔ نامعتبر می‌بیند و صفحهٔ مقایسه — که قلبِ تصمیم‌گیریِ
+    | خریدارِ فنی است — همیشه ۴۰۴ می‌دهد. هیچ خطایی هم دیده نمی‌شود؛ فقط یک
+    | دکمه که کار نمی‌کند. `ServerPartsRoutingTest` همین را قفل می‌کند.
+    |
+    | `/servers/hp/{gen}` با `/servers/{slug}` تداخل ندارد (دو بخش در برابرِ یک
+    | بخش)، پس جایش این‌جا امن است و کنارِ فروشگاهِ سرور خواناتر می‌ماند.
+    */
+    Route::get('/parts', [PartsShopController::class, 'index'])->name('parts.index');
+    Route::get('/parts/compare', [PartsShopController::class, 'compare'])->name('parts.compare');
+    Route::get('/parts/{category}', [PartsShopController::class, 'category'])
+        ->name('parts.category')->where('category', '[a-z]+');
+    Route::get('/parts/{category}/{slug}', [PartsShopController::class, 'show'])
+        ->name('parts.show')->where(['category' => '[a-z]+', 'slug' => '[a-z0-9-]+']);
+    Route::get('/servers/hp/{gen}', [PartsShopController::class, 'generation'])
+        ->name('servers.generation')->where('gen', 'gen(8|9|10|11|12)');
     Route::get('/careers', [\App\Http\Controllers\CareersController::class, 'show'])->name('careers');
     Route::post('/careers/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('careers.apply')->middleware('throttle:forms');
     Route::get('/about', fn () => app(SiteController::class)->page('about'))->name('about');
@@ -1770,6 +1795,15 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
         }
     });
 
+    // کاتالوگِ قطعاتِ سرور — همان الگوی insert-missing. قیمتِ یوروییِ ویرایش‌شده
+    // در /admin/parts با دیپلویِ بعدی به عددِ سیدر برنمی‌گردد.
+    $step('server_parts', function () {
+        if (\Illuminate\Support\Facades\Schema::hasTable('server_parts')) {
+            (new \Database\Seeders\ServerPartSeeder())->run();
+            app(\App\Services\Shop\PartsCatalog::class)->flush();
+        }
+    });
+
     // پکیج‌های لایسنس — insert-missing؛ قیمتِ ویرایش‌شده‌ی مدیر دست نمی‌خورد.
     $step('license_products', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
@@ -2152,6 +2186,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
         Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
         Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
+        // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+        Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
         Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
         Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
 
@@ -2242,6 +2278,15 @@ Route::prefix('admin')->group(function () {
         Route::get('/server-shop/{server}/edit', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'edit'])->middleware('admin');
         Route::post('/server-shop/{server}', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'update'])->middleware('admin');
         Route::post('/server-shop/{server}/delete', [\App\Http\Controllers\Admin\PhysicalServerController::class, 'destroy'])->middleware('admin');
+
+        // فروشگاهِ قطعات — همان الگوی server-shop. `{part}` با اتصالِ مدلِ
+        // ServerPart حل می‌شود، پس شناسهٔ ناموجود خودبه‌خود ۴۰۴ می‌دهد.
+        Route::get('/parts', [\App\Http\Controllers\Admin\ServerPartController::class, 'index'])->name('admin.parts')->middleware('admin');
+        Route::get('/parts/create', [\App\Http\Controllers\Admin\ServerPartController::class, 'create'])->middleware('admin');
+        Route::post('/parts', [\App\Http\Controllers\Admin\ServerPartController::class, 'store'])->middleware('admin');
+        Route::get('/parts/{part}/edit', [\App\Http\Controllers\Admin\ServerPartController::class, 'edit'])->middleware('admin');
+        Route::post('/parts/{part}', [\App\Http\Controllers\Admin\ServerPartController::class, 'update'])->middleware('admin');
+        Route::post('/parts/{part}/delete', [\App\Http\Controllers\Admin\ServerPartController::class, 'destroy'])->middleware('admin');
 
         // زیرساختِ سرورِ ابری — کاتالوگ، آزمونِ اتصال، همگام‌سازی
         // الگوی پیام‌ها — متنِ ایمیل/بله/اعلان یک‌جا

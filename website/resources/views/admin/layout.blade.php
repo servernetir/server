@@ -70,6 +70,7 @@
       <div class="ad-nav-sep">سرور</div>
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
       <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
+      <a href="/admin/parts" class="@yield('nav_parts')"><svg class="icon"><use href="#i-cpu"/></svg>قطعاتِ سرور</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
 
       <div class="ad-nav-sep">دامنه</div>

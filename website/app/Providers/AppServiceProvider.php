@@ -312,7 +312,7 @@ class AppServiceProvider extends ServiceProvider
                     'homeUrl'     => route($routePrefix.'home'),
                     // ⚠️ `site_contact()` نه `config()` — شماره زبان‌محور است
                     'contact'     => site_contact(),
-                    'social'      => config('servernet.social'),
+                    'social'      => site_social(),
                 ];
             }
 

@@ -8,11 +8,14 @@
   // کمک‌تابع نمایش تومان با جداکنندهٔ فارسی
   $t = fn ($n) => fa_num(number_format((int) $n)).' ت';
   $maxTrend = max(1, collect($trend)->flatMap(fn ($m) => [$m['revenue'], $m['expense']])->max() ?: 1);
-  $catLabels = [
-    'server'=>'سرور و زیرساخت','api_kyc'=>'احراز هویت (زحل)','api_sms'=>'پیامک',
-    'domain_wholesale'=>'خرید عمده دامنه','payment_fee'=>'کارمزد درگاه','salary'=>'حقوق',
-    'marketing'=>'بازاریابی','other'=>'سایر',
-  ];
+  /*
+   | ⚠️ نگاشت از `BusinessLedger` می‌آید، نه کپیِ محلی: رباتِ بله هم همین
+   | دسته‌ها را نشان می‌دهد و دو نگاشت روزی از هم جدا می‌شوند.
+   |
+   | 🔴 کامنتِ Blade (`{{-- --}}`) داخلِ `@php` کار نمی‌کند: آن‌جا
+   | PHP خالص است و نتیجه‌اش ParseError و ۵۰۰ روی کلِ صفحهٔ مالی بود.
+   */
+  $catLabels = \App\Services\Finance\BusinessLedger::CATEGORY_LABELS;
 @endphp
 
 @if($errors->any())<div class="ad-note" style="border-color:#ff6b6b;color:#ff6b6b">{{ $errors->first() }}</div>@endif

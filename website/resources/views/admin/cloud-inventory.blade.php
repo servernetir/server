@@ -149,7 +149,7 @@
 
   @if($deadStill)
     <div style="padding:0 18px 6px">
-      <h3 style="font-size:13.5px;color:var(--danger,#f87171);margin:14px 0 10px">
+      <h3 style="font-size:13.5px;color:var(--red);margin:14px 0 10px">
         سرورِ سرویسِ بسته‌شده ({{ fa_num(count($deadStill)) }})
       </h3>
       <p style="color:var(--muted);font-size:12.5px;line-height:1.9;margin:0 0 10px">

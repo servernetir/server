@@ -54,9 +54,17 @@ class AdminAwarenessNotifyTest extends TestCase
                 // عمداً parent::__construct صدا نمی‌شود: وابستگیِ بله لازم نیست
             }
 
-            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔'): void
+            /*
+            | ⚠️ امضا باید **دقیقاً** با والد بخوانَد وگرنه PHP خطای مرگبار
+            | می‌دهد و کلِ فایلِ تست نصفه می‌مانَد.
+            |
+            | `$buttons` وقتی اضافه شد که اعلانِ «پاسخِ مشتری» دکمهٔ شیشه‌ای
+            | گرفت. این جایگزین دکمه‌ها را هم ثبت می‌کند تا تست بتواند
+            | بسنجدشان — نه اینکه بی‌صدا دورشان بریزد.
+            */
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
             {
-                $this->box[] = ['title' => $title, 'rows' => $rows, 'url' => $url];
+                $this->box[] = ['title' => $title, 'rows' => $rows, 'url' => $url, 'buttons' => $buttons];
             }
         });
 

@@ -78,7 +78,11 @@ $org = [
     'name' => 'ServerNet',
     'url' => config('app.url'),
     'foundingDate' => (string) config('company.founded', '2009'),
-    'sameAs' => array_values($social),
+    // ⚠️ `social_profiles()` نه `$social`: `sameAs` باید **همهٔ** حساب‌های
+    //    رسمی را بدهد تا گوگل بفهمد سه اینستاگرامِ ما یک شرکت‌اند، نه سه
+    //    شرکت. `$social` عمداً فقط حسابِ همین زبان است — آن برای لینکِ
+    //    دیداری درست است و برای schema غلط.
+    'sameAs' => social_profiles(),
     'contactPoint' => [
         '@type' => 'ContactPoint',
         'telephone' => $contact['phone'],
