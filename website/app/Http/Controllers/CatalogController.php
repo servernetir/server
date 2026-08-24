@@ -145,9 +145,24 @@ class CatalogController extends Controller
             try {
                 $ask = array_values(array_filter(array_map($tldOf, $product['plans'])));
 
+                /*
+                | 🔴 فقط از کشِ گرم‌شده — بازدیدکننده هرگز تماسِ رجیسترار نمی‌شود.
+                |
+                | نسخهٔ قبلی `forTlds()` می‌زد که روی کشِ سرد استعلامِ **زنده**
+                | است: هر بازدید/خزندهٔ صفحهٔ /domain/* یک تماسِ API به حسابی
+                | که یک بار به‌خاطرِ تماسِ زیاد علامت خورده. کرونِ
+                | `domains:price-book` فهرستِ SUGGEST را هر ۳ ساعت گرم می‌کند؛
+                | همان را می‌خوانیم و پسوندِ خواسته‌شده را از تویش برمی‌داریم.
+                | پسوندِ خارج از آن فهرست بی‌قیمت می‌مانَد — دکمهٔ «بررسی و
+                | ثبت» هست و قیمتِ دقیق را جستجو می‌گوید.
+                */
                 $live = $ask === []
                     ? []
-                    : app(\App\Services\Domain\TldPriceBook::class)->forTlds($ask);
+                    : array_intersect_key(
+                        app(\App\Services\Domain\TldPriceBook::class)
+                            ->cachedForTlds(\App\Http\Controllers\DomainCheckController::SUGGEST),
+                        array_flip($ask),
+                    );
             } catch (\Throwable) {
                 // بی‌قیمت بهتر از قیمتِ غلط است؛ دکمهٔ «بررسی و ثبت» می‌مانَد
             }
