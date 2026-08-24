@@ -39,6 +39,17 @@ class DomainStuckResolutionTest extends TestCase
 
         // هیچ تماسِ واقعی‌ای در این مسیر نباید برود
         Http::fake(['*' => Http::response([], 500)]);
+
+        /*
+        | ⚠️ اعتبارنامهٔ ساختگی لازم است: «مانع هنوز هست؟» حالا از
+        | `registrationBlocker()` پرسیده می‌شود و اولین گیتش «اتصالِ رجیسترار
+        | پیکربندی شده؟» است. بی‌این، هیچ دامنه‌ای در تست آزاد نمی‌شد و
+        | ادعاهای مسیرِ آزادسازی بی‌اثر می‌شدند.
+        */
+        config([
+            'services.openprovider.username' => 'test-user',
+            'services.openprovider.password' => 'test-pass',
+        ]);
     }
 
     private function customer(): Customer
@@ -275,5 +286,97 @@ class DomainStuckResolutionTest extends TestCase
 
         $this->assertSame('cancelled', $d->refresh()->status);
         $this->assertSame(0, CreditEntry::count(), 'برای فاکتورِ پرداخت‌نشده پول ساخته شد');
+    }
+
+    // ═══════════════ سؤالِ درست از مانع — ممیزیِ شهریور ۱۴۰۵ ═══════════════
+
+    /**
+     * 🔴 حلقه‌ای که پولِ مشتری را در برزخ نگه می‌داشت.
+     *
+     * پروفایل کامل بود ولی مانعِ واقعی قراردادِ امضانشدهٔ پسوند بود. نسخهٔ
+     * قبلی فقط پروفایل را می‌پرسید ⇒ هر ساعت «آزاد» ⇒ ثبتِ دوباره ⇒ همان
+     * شکست ⇒ دوباره manual، با `updated_at`ِ تازه ⇒ مهلتِ ۲۴ساعتهٔ بازگشتِ
+     * وجه **هرگز** فرا نمی‌رسید.
+     */
+    public function test_a_contract_blocked_domain_is_never_freed_and_the_refund_clock_runs(): void
+    {
+        $c = $this->customer();
+        $this->profile($c, complete: true);           // پروفایل کامل — بهانه‌ای برای آزادسازی
+        $d = $this->parked($c, 48);
+
+        \App\Services\Domain\TldGate::block('shop', 'قراردادِ رجیستری امضا نشده است.');
+
+        $this->artisan('domains:resolve-stuck')->assertSuccessful();
+
+        $d->refresh();
+        $this->assertNotSame('pending', $d->provision_status,
+            'دامنهٔ پشتِ قراردادِ امضانشده آزاد شد — حلقهٔ بی‌پایانِ ثبتِ محکوم به شکست');
+        $this->assertSame('cancelled', $d->status, 'مهلت گذشته بود؛ باید لغو و رفاند می‌شد');
+        $this->assertSame(1, CreditEntry::where('reason', ResolveStuckDomains::REFUND_REASON)->count(),
+            'پولِ مشتری بعد از مهلت برنگشت');
+
+        \App\Services\Domain\TldGate::clear('shop');
+    }
+
+    /**
+     * 🔴 قرینهٔ همان باگ: با مالکِ ثابتِ شرکت (DOMAIN_OWNER_*)، ناقص‌بودنِ
+     * پروفایلِ مشتری اصلاً مانعِ ثبت نیست — دامنه باید آزاد شود، نه اینکه
+     * بعد از ۲۴ ساعت دامنهٔ قابلِ ثبت لغو و رفاند شود.
+     */
+    public function test_an_incomplete_profile_is_no_blocker_when_the_company_registrant_is_set(): void
+    {
+        config(['services.openprovider.registrant' => [
+            'first_name' => 'جعفر', 'last_name' => 'ابراهیمی',
+            'email' => 'owner@servernet.cloud', 'address' => 'تهران، خیابان آزادی',
+            'city' => 'تهران', 'phone' => '+989121234567', 'country' => 'IR',
+        ]]);
+
+        $c = $this->customer();
+        $this->profile($c, complete: false);          // ناقص — ولی دیگر مهم نیست
+        $d = $this->parked($c, 48);
+
+        $this->artisan('domains:resolve-stuck')->assertSuccessful();
+
+        $d->refresh();
+        $this->assertSame('pending', $d->provision_status,
+            'با مالکِ شرکتی، پروفایلِ ناقص مانع نیست — دامنه باید به صف برگردد');
+        $this->assertSame('pending', $d->status);
+        $this->assertSame(0, CreditEntry::count(),
+            'دامنهٔ قابلِ ثبت لغو و رفاند شد — پولِ مشتری برای هیچ برگشت');
+    }
+
+    /**
+     * ترمزِ حلقه: دامنه‌ای که چند بار آزاد شده و هر بار برگشته، مانعی دارد
+     * که ما نمی‌بینیم — از جایی به بعد باید مهلت بدود و پول برگردد.
+     */
+    public function test_the_requeue_brake_stops_an_endless_free_fail_loop(): void
+    {
+        $c = $this->customer();
+        $this->profile($c, complete: true);
+        $d = $this->parked($c, 48);
+        $d->putMeta(['stuck_requeues' => ResolveStuckDomains::MAX_REQUEUES]);
+        $d->forceFill(['updated_at' => now()->subHours(48)])->saveQuietly();
+
+        $this->artisan('domains:resolve-stuck')->assertSuccessful();
+
+        $d->refresh();
+        $this->assertSame('cancelled', $d->status,
+            'بعد از سه آزادسازیِ بی‌نتیجه باید تسلیمِ مهلت می‌شد، نه دورِ چهارم');
+        $this->assertSame(1, CreditEntry::where('reason', ResolveStuckDomains::REFUND_REASON)->count());
+    }
+
+    /** هر آزادسازی شمرده می‌شود تا ترمز واقعاً بگیرد */
+    public function test_each_requeue_is_counted(): void
+    {
+        $c = $this->customer();
+        $this->profile($c, complete: true);
+        $d = $this->parked($c, 48);
+
+        $this->artisan('domains:resolve-stuck')->assertSuccessful();
+
+        $d->refresh();
+        $this->assertSame('pending', $d->provision_status);
+        $this->assertSame(1, (int) ($d->meta['stuck_requeues'] ?? 0),
+            'شمارندهٔ آزادسازی ثبت نشد — ترمزِ حلقه هرگز نمی‌گیرد');
     }
 }

@@ -55,6 +55,9 @@ class ResolveStuckDomains extends Command
     /** بازگشتِ وجهِ تمدیدِ شکست‌خورده — جدا از ثبت، چون دامنه زنده می‌مانَد */
     public const RENEW_REFUND_REASON = 'domain_renewal_refund';
 
+    /** بیش از این تعداد آزادسازیِ بی‌نتیجه یعنی مانعی هست که نمی‌بینیم */
+    public const MAX_REQUEUES = 3;
+
     public function handle(DomainRegistrar $registrar, CustomerNotifier $customers, AdminNotifier $admin): int
     {
         $hours = (int) ($this->option('hours') ?: config('services.openprovider.manual_grace_hours', 24));
@@ -94,15 +97,32 @@ class ResolveStuckDomains extends Command
             /*
             | ── گام ۱: هنوز مانعی هست؟ ──
             |
-            | ⚠️ همان تابعی پرسیده می‌شود که خودِ ثبت استفاده می‌کند. شرطِ
-            | دست‌نویسِ موازی یعنی روزی رجیسترار فیلدی اضافه کند و این فرمان
-            | دامنه‌ای را «آزاد» کند که دقیقاً همان لحظه دوباره `manual` می‌شود
-            | — یک حلقه که هر دور یک اعلان برای مشتری می‌فرستد.
+            | 🔴 سؤال باید **کامل** باشد. نسخهٔ قبلی فقط کامل‌بودنِ پروفایل را
+            | می‌پرسید و ممیزی دو خرابیِ متضادش را پیدا کرد: مانعِ غیرپروفایلی
+            | (قراردادِ امضانشده…) هر ساعت «آزاد» می‌شد و شکست می‌خورد — و چون
+            | هر دور `updated_at` را تازه می‌کرد، مهلتِ بازگشتِ وجه هرگز
+            | نمی‌رسید؛ و با مالکِ ثابتِ شرکت، دامنهٔ قابلِ ثبت «مسدود» شمرده
+            | و بعد از مهلت لغو/رفاند می‌شد.
+            |
+            | حالا همان گیت‌های خودِ ثبت پرسیده می‌شوند (`registrationBlocker`)
+            | — یک منبع، بدونِ تماسِ API.
             */
-            $profile = $domain->customer?->defaultProfile();
-            $blocked = $profile === null || $registrar->profileToCustomer($profile) === null;
+            $blocker = $registrar->registrationBlocker($domain);
 
-            if (! $blocked) {
+            /*
+            | ⚠️ ترمزِ حلقه: اگر چند بار آزاد شد و هر بار دوباره به صفِ دستی
+            | برگشت، مانعی هست که ما نمی‌بینیم (مثلاً رجیسترار همین نام را
+            | ساختاری رد می‌کند). آزادسازیِ بی‌پایان یعنی تماسِ بی‌فایدهٔ
+            | ساعتی + مهلتی که هرگز تمام نمی‌شود؛ از این‌جا به بعد بگذار
+            | مهلت بدود و پولِ مشتری برگردد.
+            */
+            $requeues = (int) ($domain->meta['stuck_requeues'] ?? 0);
+
+            if ($blocker === null && $requeues >= self::MAX_REQUEUES) {
+                $blocker = 'پس از '.$requeues.' بار بازگشت به صف، هر بار دوباره شکست خورد.';
+            }
+
+            if ($blocker === null) {
                 $this->line(($dry ? '[خشک] ' : '').'↻ آزاد شد: '.$domain->domain);
                 $freed++;
 
@@ -112,6 +132,8 @@ class ResolveStuckDomains extends Command
                         'provision_tries'  => 0,
                         'provision_error'  => null,
                     ])->save();
+
+                    $domain->putMeta(['stuck_requeues' => $requeues + 1]);
                 }
 
                 continue;
