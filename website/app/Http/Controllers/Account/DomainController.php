@@ -114,9 +114,25 @@ class DomainController extends Controller
     {
         $this->owned($domain);
 
+        /*
+        | ⚠️ برای سفارشِ انتقال، صفحه باید بداند فاکتور پرداخت شده یا نه:
+        | پیش از پرداخت لینکِ فاکتور نشان می‌دهد، پس از پرداخت فرمِ کدِ
+        | انتقال (EPP). بی‌این، مشتری پیامِ «کد را در صفحهٔ دامنه وارد کنید»
+        | را می‌گرفت و در صفحه هیچ فرمی نبود — بن‌بستی که ممیزی پیدا کرد.
+        */
+        $openInvoice = null;
+
+        if ($domain->isTransfer() && $domain->transfer_status === 'pending' && ! $domain->hasPaidInvoice()) {
+            $openInvoice = Invoice::where('domain_id', $domain->id)
+                ->whereIn('status', ['unpaid', 'draft', 'partial'])
+                ->latest('id')
+                ->first();
+        }
+
         return view('account.domain-show', AccountController::shell('domains') + [
-            'domain'     => $domain,
-            'defaultNs'  => Domain::defaultNameServers(),
+            'domain'         => $domain,
+            'defaultNs'      => Domain::defaultNameServers(),
+            'transferUnpaid' => $openInvoice,
         ]);
     }
 

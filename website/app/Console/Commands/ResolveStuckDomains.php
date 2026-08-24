@@ -58,8 +58,15 @@ class ResolveStuckDomains extends Command
     /** بیش از این تعداد آزادسازیِ بی‌نتیجه یعنی مانعی هست که نمی‌بینیم */
     public const MAX_REQUEUES = 3;
 
-    public function handle(DomainRegistrar $registrar, CustomerNotifier $customers, AdminNotifier $admin): int
-    {
+    /** چند روز به مشتری فرصت بدهیم کدِ EPP انتقالِ پرداخت‌شده را وارد کند */
+    public const TRANSFER_SUBMIT_GRACE_DAYS = 7;
+
+    public function handle(
+        DomainRegistrar $registrar,
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        \App\Services\Domain\DomainTransfer $transfers,
+    ): int {
         $hours = (int) ($this->option('hours') ?: config('services.openprovider.manual_grace_hours', 24));
         $dry = (bool) $this->option('dry-run');
 
@@ -83,7 +90,27 @@ class ResolveStuckDomains extends Command
             ->orderBy('updated_at')
             ->get();
 
-        if ($stuck->isEmpty() && $stuckRenewals->isEmpty()) {
+        /*
+        | 🔴 دو صفِ گیرِ انتقال — هر دو تا ممیزیِ شهریور ۱۴۰۵ نامرئی بودند:
+        |
+        |   • پرداخت‌شده ولی کدِ EPP هرگز وارد نشده (`transfer_status=pending`):
+        |     هیچ کرونی نمی‌دیدش — نه timeout، نه رفاند، تا ابد.
+        |   • ثبتِ درخواست شکست‌خورده (`transfer_status=failed` + `manual`):
+        |     status هنوز transferring بود و از فیلترِ status='pending' بیرون
+        |     می‌مانْد.
+        */
+        $stuckTransfers = Domain::where('order_type', 'transfer')
+            ->where('status', Domain::STATUS_TRANSFERRING)
+            ->where(fn ($w) => $w
+                ->where(fn ($a) => $a
+                    ->where('transfer_status', 'failed')
+                    ->where('provision_status', 'manual'))
+                ->orWhere('transfer_status', 'pending'))
+            ->with('customer')
+            ->orderBy('updated_at')
+            ->get();
+
+        if ($stuck->isEmpty() && $stuckRenewals->isEmpty() && $stuckTransfers->isEmpty()) {
             $this->line('هیچ دامنه‌ای در صفِ دستی نیست.');
 
             return self::SUCCESS;
@@ -183,6 +210,47 @@ class ResolveStuckDomains extends Command
 
             if (! $dry) {
                 $this->refundFailedRenewal($domain, $customers, $admin);
+            }
+        }
+
+        /*
+        | ── صفِ سوم: انتقال‌های گیرکرده ──
+        |
+        | دو حالت، دو مهلتِ متفاوت:
+        |
+        |   • در انتظارِ کدِ EPP (پرداخت‌شده): مشتری باید خودش کد را وارد کند،
+        |     پس مهلت سخاوتمندانه است (TRANSFER_SUBMIT_GRACE_DAYS روز). ردیفِ
+        |     پرداخت‌نشده کارِ این فرمان نیست — انقضای پیش‌فاکتور جمعش می‌کند.
+        |   • ثبتِ درخواست شکست‌خورده (failed/manual): کدِ غلط یا خطای
+        |     ساختاری؛ همان مهلتِ استانداردِ صفِ دستی.
+        |
+        | خروجی در هر دو `DomainTransfer::reject()` است: لغو + بازگشتِ کاملِ
+        | پرداختی (محافظِ دوباره‌رفاند داخلِ خودِ refund است) + اعلان.
+        */
+        foreach ($stuckTransfers as $domain) {
+            $awaitingEpp = $domain->transfer_status === 'pending';
+
+            if ($awaitingEpp && ! $domain->hasPaidInvoice()) {
+                continue;       // پیش‌فاکتورِ پرداخت‌نشده — کارِ invoices:expire-orders
+            }
+
+            $limitHours = $awaitingEpp ? self::TRANSFER_SUBMIT_GRACE_DAYS * 24 : $hours;
+            $parkedFor = $domain->updated_at?->diffInHours(now()) ?? 0;
+
+            if ($parkedFor < $limitHours) {
+                $waiting++;
+                $this->warn('… انتقال در مهلت ('.$parkedFor.'/'.$limitHours.' ساعت): '.$domain->domain);
+
+                continue;
+            }
+
+            $this->error(($dry ? '[خشک] ' : '').'✗ لغوِ انتقال و بازگشتِ پول: '.$domain->domain);
+            $refunded++;
+
+            if (! $dry) {
+                $transfers->reject($domain, $awaitingEpp
+                    ? 'کدِ انتقال (EPP) واردنشده ماند و مهلتِ '.self::TRANSFER_SUBMIT_GRACE_DAYS.'روزه تمام شد.'
+                    : 'ثبتِ درخواستِ انتقال ممکن نشد و مهلتِ بررسیِ دستی تمام شد.');
             }
         }
 

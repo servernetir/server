@@ -104,11 +104,19 @@ class InvoiceCanceller
             | هر مشتریِ دیگری** می‌سوزاند.
             |
             | ⚠️ فقط ردیفی که هرگز پول نگرفته و هرگز ثبت نشده.
+            |
+            | 🔴 سفارشِ **انتقالِ** پرداخت‌نشده هم همین قفل را داشت و جا مانده
+            | بود: `status='transferring'` است نه `pending`، پس شرطِ قبلی هرگز
+            | نمی‌گرفتش و آن نام برای همیشه می‌سوخت (ممیزیِ شهریور ۱۴۰۵).
             */
             if ($fresh->domain_id !== null && Schema::hasTable('domains')) {
                 Domain::where('id', $fresh->domain_id)
-                    ->where('status', 'pending')
                     ->where('provision_status', 'none')
+                    ->where(fn ($w) => $w
+                        ->where('status', 'pending')
+                        ->orWhere(fn ($s) => $s
+                            ->where('status', Domain::STATUS_TRANSFERRING)
+                            ->where('transfer_status', 'pending')))
                     ->update(['status' => 'cancelled', 'updated_at' => now()]);
             }
 

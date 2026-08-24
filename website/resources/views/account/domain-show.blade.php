@@ -39,7 +39,46 @@
   </div>
 @endif
 
-@if(! $domain->isActive())
+{{-- 🔴 سفارشِ انتقال پیامِ خودش را دارد. تا ممیزیِ شهریور ۱۴۰۵ این صفحه به
+     ردیفِ انتقال هم می‌گفت «در صف ثبت است» — و بدتر: پیامِ بعد از پرداخت
+     می‌گفت «کد انتقال را در همین صفحه وارد کنید» ولی فرمی وجود نداشت.
+     مشتری پول داده بود و به بن‌بست می‌خورد. --}}
+@if($domain->isTransfer() && ! $domain->isActive())
+  <section class="pnl-sec">
+    <div class="pnl-sec-h"><h2>انتقال دامنه به سرورنت</h2></div>
+    <div class="pnl-sec-b">
+      @if($domain->transfer_status === 'pending' && $transferUnpaid !== null)
+        <p style="margin-top:0">برای شروعِ انتقال، ابتدا فاکتور را پرداخت کنید. پس از پرداخت، همین‌جا کدِ انتقال (EPP) را وارد می‌کنید.</p>
+        <a class="pnl-btn" href="{{ lroute('account.invoice', $transferUnpaid) }}">پرداخت فاکتور انتقال</a>
+      @elseif($domain->transfer_status === 'pending')
+        <p style="margin-top:0">
+          پرداخت انجام شده است. حالا کدِ انتقال (EPP) را وارد کنید — این کد را از رجیسترارِ فعلیِ دامنه می‌گیرید
+          و پیش از آن باید قفلِ انتقال را نزدِ همان رجیسترار خاموش کرده باشید.
+        </p>
+        <form method="post" action="{{ lroute('account.domain.transfer.submit', $domain) }}"
+              style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          @csrf
+          <input name="auth_code" dir="ltr" class="pnl-input" style="max-width:280px"
+                 autocomplete="off" placeholder="EPP / Auth Code" required minlength="4">
+          <button class="pnl-btn" type="submit">شروع انتقال</button>
+        </form>
+        <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+          کدِ انتقال ذخیره نمی‌شود و فقط برای همین درخواست به رجیسترار می‌رود.
+        </p>
+      @elseif($domain->transfer_status === 'submitted')
+        <p style="margin:0">
+          درخواستِ انتقال به رجیسترار ارسال شده و در انتظارِ تأییدِ رجیسترارِ فعلی است — معمولاً تا ۵ روزِ کاری.
+          وضعیت به‌صورت خودکار پیگیری می‌شود و نتیجه به شما اطلاع داده می‌شود.
+        </p>
+      @elseif($domain->transfer_status === 'failed')
+        <p style="margin:0">
+          ثبتِ درخواستِ انتقال ممکن نشد و همکاران ما در حالِ بررسی‌اند.
+          اگر ظرفِ ۲۴ ساعت انجام نشود، مبلغ به اعتبارِ حسابتان بازمی‌گردد.
+        </p>
+      @endif
+    </div>
+  </section>
+@elseif(! $domain->isActive())
   <section class="pnl-sec">
     <div class="pnl-sec-b">
       @if($domain->provision_status === 'manual')
