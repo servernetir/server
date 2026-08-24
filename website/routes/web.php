@@ -460,6 +460,9 @@ $site = function (): void {
             ->name('domain.authcode')->middleware('throttle:6,1');
         Route::post('/domains/{domain}/auto-renew', [Account\DomainController::class, 'autoRenew'])
             ->name('domain.autorenew')->middleware('throttle:20,1');
+        // تمدیدِ دستی: فقط فاکتور می‌سازد؛ تماسِ رجیسترار پس از پرداخت و با کرون
+        Route::post('/domains/{domain}/renew', [Account\DomainController::class, 'renew'])
+            ->name('domain.renew')->middleware('throttle:6,1');
         // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
         Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
             ->name('domain.transfer.submit')->middleware('throttle:6,1');

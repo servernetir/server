@@ -68,6 +68,38 @@
 </section>
 
 @if($domain->isActive())
+{{-- 🔴 تمدیدِ دستی — تا مرداد ۱۴۰۵ اصلاً وجود نداشت: تنها مسیرِ تمدید،
+     فاکتورِ خودکارِ کرون در ۲۱ روزِ آخر بود و مشتریِ نگران هیچ دکمه‌ای
+     نداشت. مدتِ تازه به پایانِ دورهٔ فعلی اضافه می‌شود؛ تمدیدِ زودتر
+     یعنی هیچ روزی از دست نمی‌رود. --}}
+<section class="pnl-sec">
+  <div class="pnl-sec-h"><h2>تمدید دامنه</h2></div>
+  <div class="pnl-sec-b">
+    @php $dmRenewUnit = (int) ($domain->renew_toman ?: $domain->price_toman); @endphp
+    @if($dmRenewUnit > 0)
+      <p style="font-size:13px;color:var(--dim);line-height:2;margin-top:0">
+        هر زمان می‌توانید تمدید کنید — مدتِ تازه به پایانِ دورهٔ فعلی اضافه می‌شود و روزی از دست نمی‌رود.
+        پس از پرداختِ فاکتور، تمدید خودکار انجام و تاریخِ انقضای تازه همین‌جا دیده می‌شود.
+      </p>
+      <form method="post" action="{{ lroute('account.domain.renew', $domain) }}"
+            style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        @csrf
+        <select name="years" class="pnl-input" style="max-width:260px">
+          @foreach(range(1, 5) as $y)
+            <option value="{{ $y }}">{{ fa_num($y) }} سال — {{ cloud_price($dmRenewUnit * $y) }}</option>
+          @endforeach
+        </select>
+        <button class="pnl-btn" type="submit">صدور فاکتور تمدید</button>
+      </form>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+        مبلغِ بالا بدونِ مالیات است؛ مالیات روی فاکتور محاسبه می‌شود.
+      </p>
+    @else
+      <p style="margin:0">قیمتِ تمدید برای این دامنه ثبت نشده است؛ برای تمدید با پشتیبانی تماس بگیرید.</p>
+    @endif
+  </div>
+</section>
+
 <section class="pnl-sec">
   <div class="pnl-sec-h">
     <h2>نام‌سرورها</h2>

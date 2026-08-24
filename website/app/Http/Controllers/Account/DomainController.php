@@ -222,6 +222,61 @@ class DomainController extends Controller
             : 'تمدیدِ خودکار خاموش شد.');
     }
 
+    /**
+     * تمدیدِ دستی — دکمهٔ «تمدید دامنه» در پنل.
+     *
+     * ═══ چرا این متد ساخته شد ═══
+     *
+     * 🔴 تنها مسیرِ تمدید، فاکتورِ خودکارِ کرون در ۲۱ روزِ آخر بود. مشتری‌ای
+     * که می‌خواست زودتر خیالش را راحت کند یا چندساله تمدید کند **هیچ راهی
+     * نداشت** — دکمه‌ای وجود نداشت و کامنتِ کرون می‌گفت «چندساله را مشتری
+     * دستی می‌خرد»، ولی آن مسیرِ دستی هرگز ساخته نشده بود.
+     *
+     * هیچ تماسی با رجیسترار این‌جا نیست؛ فقط فاکتور ساخته می‌شود. تمدیدِ
+     * واقعی پس از پرداخت و با کرونِ `domains:renew` است — همان قاعدهٔ
+     * «ثبت هرگز از وب صدا زده نمی‌شود».
+     */
+    public function renew(Request $request, Domain $domain, \App\Services\Domain\DomainRenewalInvoicer $invoicer): RedirectResponse
+    {
+        $this->owned($domain);
+
+        if (! $domain->isActive()) {
+            return back()->withErrors('فقط دامنهٔ فعال از این‌جا تمدید می‌شود. اگر دامنه منقضی شده، با پشتیبانی تماس بگیرید.');
+        }
+
+        // تمدیدِ پرداخت‌شده‌ای همین حالا در صفِ رجیسترار است؛ فاکتورِ تازه
+        // یعنی پولِ دوباره برای همان کار.
+        if (in_array($domain->provision_status, ['pending', 'running'], true)) {
+            return back()->with('ok', 'تمدید در حالِ انجام است؛ تا چند دقیقهٔ دیگر تاریخِ انقضای تازه را می‌بینید.');
+        }
+
+        // تمدیدِ قبلی شکست خورده و در صفِ بررسیِ انسانی است. فاکتورِ دوم
+        // همان خطای «دو بار پول، صفر تمدید» را می‌سازد که ممیزی پیدا کرد.
+        if ($domain->provision_status === 'manual') {
+            return back()->withErrors('تمدیدِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+        }
+
+        $years = (int) $request->validate([
+            'years' => ['required', 'integer', 'min:1', 'max:5'],
+        ], [], ['years' => 'مدتِ تمدید'])['years'];
+
+        if ((int) ($domain->renew_toman ?: $domain->price_toman) <= 0) {
+            return back()->withErrors('قیمتِ تمدید برای این دامنه ثبت نشده است؛ با پشتیبانی تماس بگیرید.');
+        }
+
+        // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
+        // دو فاکتور بسازد — فاکتورِ باز همیشه بازمصرف می‌شود.
+        $invoice = DB::transaction(function () use ($domain, $years, $invoicer) {
+            Domain::whereKey($domain->id)->lockForUpdate()->first();
+
+            return $invoicer->open($domain) ?? $invoicer->issue($domain, $years);
+        });
+
+        // ⚠️ lroute و نه route: کاربرِ /en/ و /tr/ نباید وسطِ پرداخت به صفحهٔ
+        //    فارسی بیفتد — همان قاعدهٔ بالای domain-show.blade.php.
+        return redirect()->to(lroute('account.invoice', $invoice));
+    }
+
     // ═══════════════════════ خرید ═══════════════════════
 
     /**

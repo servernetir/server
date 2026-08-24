@@ -4,11 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Domain;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
+use App\Services\Domain\DomainRenewalInvoicer;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -54,7 +53,7 @@ class RunDomainLifecycle extends Command
     /** مراحلِ یادآوری — از دور به نزدیک */
     private const STAGES = [7, 3, 1];
 
-    public function handle(CustomerNotifier $customers, AdminNotifier $admin): int
+    public function handle(CustomerNotifier $customers, AdminNotifier $admin, DomainRenewalInvoicer $invoicer): int
     {
         if (! Schema::hasTable('domains')) {
             $this->warn('جدول domains ساخته نشده؛ اول مهاجرت را اجرا کنید.');
@@ -79,7 +78,7 @@ class RunDomainLifecycle extends Command
 
         foreach ($domains as $domain) {
             try {
-                $this->handleOne($domain, $today, $lead, $dry, $stats, $customers, $admin);
+                $this->handleOne($domain, $today, $lead, $dry, $stats, $customers, $admin, $invoicer);
             } catch (\Throwable $e) {
                 Log::error('چرخهٔ عمرِ دامنه خطا داد', [
                     'domain' => $domain->domain,
@@ -105,6 +104,7 @@ class RunDomainLifecycle extends Command
         array &$stats,
         CustomerNotifier $customers,
         AdminNotifier $admin,
+        DomainRenewalInvoicer $invoicer,
     ): void {
         $daysLeft = (int) $today->diffInDays($domain->expires_at->copy()->startOfDay(), false);
 
@@ -134,7 +134,7 @@ class RunDomainLifecycle extends Command
             return;
         }
 
-        $open = $this->openInvoice($domain);
+        $open = $invoicer->open($domain);
 
         // ── ۳) فاکتورِ تمدید ─────────────────────────────────────────────────
         //
@@ -143,7 +143,9 @@ class RunDomainLifecycle extends Command
         //    باید بتواند تصمیم بگیرد؛ سکوت تصمیم را از او می‌گیرد.
         if ($open === null) {
             if (! $dry) {
-                $open = $this->issueRenewalInvoice($domain);
+                // تمدیدِ خودکار همیشه یک‌ساله؛ چندساله را مشتری با دکمهٔ
+                // «تمدید» در پنل می‌خرد (Account\DomainController::renew).
+                $open = $invoicer->issue($domain, 1);
             }
             $stats['invoiced']++;
         }
@@ -167,67 +169,6 @@ class RunDomainLifecycle extends Command
         }
 
         $stats['reminded']++;
-    }
-
-    /**
-     * فاکتورِ تمدید — همان شکلِ فاکتورِ ثبت، با مبلغِ `renew_toman`.
-     *
-     * ⚠️ `renew_toman` در لحظهٔ خرید ذخیره شده و ممکن است کهنه باشد؛ عمداً
-     * همان را می‌گیریم و استعلامِ زنده نمی‌زنیم. دلیلش این است که این کرون
-     * روزی یک‌بار روی همهٔ دامنه‌ها می‌دود و استعلامِ زنده یعنی صدها تماسِ API
-     * در دقیقه به رجیستراری که حسابش قبلاً به‌خاطرِ تماسِ زیاد علامت خورده.
-     * اگر قیمت خیلی عقب افتاده باشد، مدیر از `/admin/domains` می‌بیند.
-     */
-    private function issueRenewalInvoice(Domain $domain): Invoice
-    {
-        $years = 1;      // تمدیدِ خودکار همیشه یک‌ساله؛ چندساله را مشتری دستی می‌خرد
-        $unit = (int) ($domain->renew_toman ?: $domain->price_toman) * $years;
-
-        $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
-        $tax = (int) round($unit * $taxPct / 100);
-
-        return DB::transaction(function () use ($domain, $years, $unit, $tax, $taxPct) {
-            $invoice = Invoice::create([
-                'customer_id'   => $domain->customer_id,
-                'domain_id'     => $domain->id,
-                'kind'          => 'domain',
-                'currency_code' => 'IRT',
-                'subtotal'      => $unit,
-                'tax'           => $tax,
-                'total'         => $unit + $tax,
-                'paid'          => 0,
-                'status'        => 'unpaid',
-                'issued_at'     => now(),
-                'note'          => 'تمدیدِ دامنهٔ '.$domain->domain,
-            ]);
-
-            InvoiceItem::create([
-                'invoice_id'  => $invoice->id,
-                'title'       => 'تمدیدِ دامنهٔ '.$domain->domain,
-                'description' => $years.' سال',
-                'quantity'    => 1,
-                'unit_price'  => $unit,
-                'line_total'  => $unit,
-                'tax_rate_bp' => (int) ($taxPct * 100),
-                'tax_amount'  => $tax,
-            ]);
-
-            // 🔴 چند سال پرداخت شده را همین‌جا ثبت کن. بعد از پرداخت، کرونِ
-            //    تمدید باید بداند چند سال بخرد و راهِ دیگری برای دانستنش
-            //    نیست — خواندنش از متنِ آیتمِ فاکتور شکننده است.
-            $domain->putMeta(['renew_years' => $years]);
-
-            return $invoice;
-        });
-    }
-
-    /** فاکتورِ بازِ همین دامنه */
-    private function openInvoice(Domain $domain): ?Invoice
-    {
-        return Invoice::where('domain_id', $domain->id)
-            ->whereIn('status', ['unpaid', 'draft', 'partial'])
-            ->latest('id')
-            ->first();
     }
 
     private function stageFor(int $daysLeft): ?int
