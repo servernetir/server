@@ -435,37 +435,44 @@ return [
             | ⚠️ قیمت‌ها بر مبنای بازار است، نه بهای تمام‌شدهٔ ما (که در کد
             | نیست). پیش از فروش با هزینهٔ واقعی تطبیق دهید.
             */
-            $mk('DirectAdmin — سرور مجازی', 229, 350000, 3.50, [
+            /*
+            | ⚠️ نامِ پلن‌ها لاتین/خنثی است (مثل Personal/Business بالای همین
+            | فایل): این رشته در هر سه زبان خام چاپ می‌شود و «سرور مجازی» روی
+            | /en و /tr فارسی نشت می‌کرد (بررسی سراسری زبان، مرداد ۱۴۰۵).
+            | ردهٔ مجازی/اختصاصی در اولین سطرِ مشخصاتِ سه‌زبانه گفته می‌شود.
+            | نامِ فارسیِ محصولِ دیتابیس (فاکتور) در LicenseProductSeeder جداست.
+            */
+            $mk('DirectAdmin — VPS', 229, 350000, 3.50, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
                 ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
             ], true) + ['product' => 'license-directadmin'],
-            $mk('DirectAdmin — سرور اختصاصی', 233, 590000, 5.90, [
+            $mk('DirectAdmin — Dedicated', 233, 590000, 5.90, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
                 ['fa' => 'اکانت نامحدود', 'en' => 'Unlimited accounts', 'tr' => 'Sınırsız hesap'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
             ]) + ['product' => 'license-directadmin-ded'],
-            $mk('cPanel/WHM — سرور مجازی', 230, 390000, 3.90, [
+            $mk('cPanel/WHM — VPS', 230, 390000, 3.90, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'مخصوص VPS', 'en' => 'For VPS', 'tr' => 'VPS için'],
                 ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works inside and outside Iran', 'tr' => 'İran içinde ve dışında'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
             ]) + ['product' => 'license-cpanel'],
-            $mk('cPanel/WHM — سرور اختصاصی', 234, 740000, 7.40, [
+            $mk('cPanel/WHM — Dedicated', 234, 740000, 7.40, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
                 ['fa' => 'روی سرور داخل و خارج ایران', 'en' => 'Works inside and outside Iran', 'tr' => 'İran içinde ve dışında'],
                 ['fa' => 'فعال‌سازی روی IP شما', 'en' => 'Activated on your IP', 'tr' => 'IP\'nizde etkinleştirme'],
             ]) + ['product' => 'license-cpanel-ded'],
-            $mk('Plesk — سرور مجازی', 231, 450000, 4.50, [
+            $mk('Plesk — VPS', 231, 450000, 4.50, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],
                 ['fa' => 'لینوکس و ویندوز', 'en' => 'Linux & Windows', 'tr' => 'Linux ve Windows'],
                 ['fa' => 'همه اکستنشن‌های پایه', 'en' => 'All core extensions', 'tr' => 'Tüm temel eklentiler'],
             ]) + ['product' => 'license-plesk'],
-            $mk('Plesk — سرور اختصاصی', 235, 690000, 6.90, [
+            $mk('Plesk — Dedicated', 235, 690000, 6.90, [
                 ['fa' => 'لایسنس ماهانه', 'en' => 'Monthly license', 'tr' => 'Aylık lisans'],
                 ['fa' => 'مخصوص سرور اختصاصی', 'en' => 'For dedicated servers', 'tr' => 'Dedicated için'],
                 ['fa' => 'دامنه نامحدود', 'en' => 'Unlimited domains', 'tr' => 'Sınırsız alan adı'],

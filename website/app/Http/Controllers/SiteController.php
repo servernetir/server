@@ -229,16 +229,17 @@ class SiteController extends Controller
         }
 
         /*
-        | بخشِ محلی ارومیه — **فقط فارسی**، پس بیرونِ $add (روتِ en.urmia.*
-        | وجود ندارد و $add می‌ترکید). مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛
-        | مثل webdesign: در منو نیست ولی در نقشهٔ سایت هست.
+        | بخشِ محلی ارومیه — از مرداد ۱۴۰۵ سه‌زبانه است (روت‌های en./tr. ثبت
+        | می‌شوند و UrmiaController ترجمهٔ واقعی می‌دهد)، پس مثل بقیه از $add.
+        | مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛ مثل webdesign: در منو نیست ولی
+        | در نقشهٔ سایت هست.
         */
-        $urls[] = ['loc' => route('urmia.hub'), 'lastmod' => null];
+        $add('urmia.hub');
         foreach (array_keys((array) config('urmia.pages')) as $slug) {
-            $urls[] = ['loc' => route('urmia.page', $slug), 'lastmod' => null];
+            $add('urmia.page', $slug);
         }
         foreach (array_keys((array) config('urmia.cities')) as $slug) {
-            $urls[] = ['loc' => route('urmia.city', $slug), 'lastmod' => null];
+            $add('urmia.city', $slug);
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
@@ -272,8 +273,29 @@ class SiteController extends Controller
             }
         }
         $add('blog.index');
-        foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
-            $add('blog', $post['slug'], $post['date'] ?? null);
+        /*
+        | پست‌ها به‌ازای هر زبان فقط اگر ترجمهٔ همان زبان موجود باشد. بی‌این،
+        | نقشهٔ سایت /en/blog/x را تبلیغ می‌کرد در حالی که find() آن را با
+        | fallbackِ فارسی رندر می‌کند — یعنی صفحهٔ «انگلیسیِ» تمام‌فارسی به
+        | خزنده معرفی می‌شد (بررسی سراسری زبان، مرداد ۱۴۰۵). fa همیشه هست؛
+        | با رسیدنِ ترجمه (کرون یا stepِ translate) نسخهٔ آن زبان خودکار
+        | برمی‌گردد. $add این‌جا به‌کار نمی‌آید چون همهٔ زبان‌ها را یک‌جا می‌زند.
+        */
+        try {
+            $blogPosts = \App\Models\Post::query()
+                ->where('type', 'blog')->where('status', 'published')
+                ->with('translations')
+                ->orderByDesc('published_at')->orderByDesc('id')->get();
+            foreach ($blogPosts as $p) {
+                $date = optional($p->published_at ?? $p->created_at)->toDateString();
+                foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
+                    if ($code === 'fa' || $p->translations->contains('locale', $code)) {
+                        $urls[] = ['loc' => route($prefix.'blog', $p->slug), 'lastmod' => $date];
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // جدولِ مهاجرت‌نشده — بلاگ از نقشه می‌افتد، صفحه ۵۰۰ نمی‌شود (قاعدهٔ BlogRepository)
         }
         $add('webtools.index');
         foreach (\App\Http\Controllers\WebToolsController::slugs() as $wt) {
