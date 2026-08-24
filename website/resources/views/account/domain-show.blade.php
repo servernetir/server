@@ -114,7 +114,9 @@
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>تمدید دامنه</h2></div>
   <div class="pnl-sec-b">
-    @php $dmRenewUnit = (int) ($domain->renew_toman ?: $domain->price_toman); @endphp
+    {{-- قیمتِ مؤثرِ تمدید از کنترلر می‌آید (renew_toman یا کفِ ارزی، هرکدام بالاتر)
+         تا عددِ روی فرم همانی باشد که فاکتور می‌گیرد. --}}
+    @php $dmRenewUnit = (int) ($renewUnit ?? ($domain->renew_toman ?: $domain->price_toman)); @endphp
     @if($dmRenewUnit > 0)
       <p style="font-size:13px;color:var(--dim);line-height:2;margin-top:0">
         هر زمان می‌توانید تمدید کنید — مدتِ تازه به پایانِ دورهٔ فعلی اضافه می‌شود و روزی از دست نمی‌رود.

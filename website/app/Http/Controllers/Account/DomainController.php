@@ -129,10 +129,25 @@ class DomainController extends Controller
                 ->first();
         }
 
+        /*
+        | قیمتِ تمدیدی که فرم نشان می‌دهد باید همانی باشد که فاکتور می‌گیرد —
+        | یعنی پس از اعمالِ کفِ ارزی. بی‌این، مشتری عددی می‌دید و فاکتورِ
+        | بزرگ‌تری می‌گرفت.
+        */
+        $renewUnit = 0;
+
+        if ($domain->isActive()) {
+            $renewUnit = max(
+                (int) ($domain->renew_toman ?: $domain->price_toman),
+                app(\App\Services\Domain\DomainCostFloor::class)->renewPerYear($domain),
+            );
+        }
+
         return view('account.domain-show', AccountController::shell('domains') + [
             'domain'         => $domain,
             'defaultNs'      => Domain::defaultNameServers(),
             'transferUnpaid' => $openInvoice,
+            'renewUnit'      => $renewUnit,
         ]);
     }
 
@@ -510,6 +525,16 @@ class DomainController extends Controller
         DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns) {
             $domain = $existing;
 
+            static $hasRenewCost = null;
+            $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domains', 'cost_renew_amount');
+
+            $money = [
+                'price_toman'   => (int) $quote->sell_toman,
+                'renew_toman'   => (int) ($quote->renew_toman ?: $quote->sell_toman),
+                'cost_amount'   => (int) $quote->cost_amount,
+                'cost_currency' => (string) $quote->cost_currency,
+            ] + ($hasRenewCost ? ['cost_renew_amount' => $quote->cost_renew_amount] : []);
+
             if ($domain === null) {
                 $domain = Domain::create([
                     'customer_id'   => $customerId,
@@ -523,20 +548,28 @@ class DomainController extends Controller
                     // `pending` می‌کند.
                     'provision_status' => 'none',
                     'period_years'  => $years,
-                    'price_toman'   => (int) $quote->sell_toman,
-                    'renew_toman'   => (int) ($quote->renew_toman ?: $quote->sell_toman),
-                    'cost_amount'   => (int) $quote->cost_amount,
-                    'cost_currency' => (string) $quote->cost_currency,
                     'quote_id'      => $quote->id,
                     'name_servers'  => $ns,
-                ]);
+                ] + $money);
             } else {
+                /*
+                | 🔴 بازمصرفِ ردیفِ مرده باید **کامل** باشد (ممیزیِ شهریور ۱۴۰۵):
+                |
+                | • `order_type`/`transfer_status` ریست نمی‌شد: اگر ردیفِ قبلی یک
+                |   انتقالِ ردشده بود، خریدِ تازه با order_type='transfer' در
+                |   **هیچ** صفی نمی‌افتاد — پرداخت‌شده و نامرئی، بی‌رفاند.
+                | • قیمت‌ها و بهای تمام‌شدهٔ کهنه می‌ماند: تمدیدِ سال‌های بعد به
+                |   نرخِ پارسال و کفِ ارزی با بهای پارسال حساب می‌شد.
+                | • `provision_tries` کهنه یعنی اولین شکستِ ثبتِ تازه یکراست
+                |   `manual` می‌شد.
+                */
                 $domain->forceFill([
                     'customer_id' => $customerId, 'status' => 'pending',
-                    'provision_status' => 'none', 'period_years' => $years,
-                    'price_toman' => (int) $quote->sell_toman, 'quote_id' => $quote->id,
-                    'name_servers' => $ns,
-                ])->save();
+                    'order_type' => 'register', 'transfer_status' => null,
+                    'provision_status' => 'none', 'provision_tries' => 0,
+                    'provision_error' => null, 'period_years' => $years,
+                    'quote_id' => $quote->id, 'name_servers' => $ns,
+                ] + $money)->save();
             }
 
             /*

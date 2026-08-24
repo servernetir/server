@@ -32,7 +32,7 @@ class Domain extends Model
         'provision_status', 'provision_tries', 'provision_error',
         'op_id', 'owner_handle', 'period_years', 'auto_renew', 'is_locked',
         'whois_privacy', 'name_servers', 'registered_at', 'expires_at',
-        'price_toman', 'renew_toman', 'cost_amount', 'cost_currency',
+        'price_toman', 'renew_toman', 'cost_amount', 'cost_renew_amount', 'cost_currency',
         'quote_id', 'invoice_id', 'meta',
     ];
 
@@ -56,7 +56,7 @@ class Domain extends Model
      * ⚠️ بهایِ تمام‌شده هرگز نباید در JSONی که به مشتری می‌رود ظاهر شود —
      * همان قاعدهٔ `CloudPlan::$hidden`. حاشیهٔ سودِ ما دادهٔ داخلی است.
      */
-    protected $hidden = ['cost_amount', 'cost_currency', 'owner_handle', 'op_id'];
+    protected $hidden = ['cost_amount', 'cost_renew_amount', 'cost_currency', 'owner_handle', 'op_id'];
 
     public function customer(): BelongsTo
     {

@@ -651,6 +651,19 @@ class DomainSearch
             ]);
         }
 
+        /*
+        | 🔴 بهای **تمدید** هم ذخیره می‌شود — تا امروز «خوانده و دور ریخته»
+        | می‌شد و هر دو کفِ ارزی مجبور بودند از بهای تبلیغاتیِ سالِ اول حساب
+        | کنند (کفِ ~€2 برای پسوندی با تمدیدِ €14.90 — محافظِ بی‌اثر).
+        |
+        | ⚠️ فقط وقتی هم‌ارز با بهای ثبت است: دو واحدِ فرعیِ ارزِ متفاوت در
+        | یک ردیف یعنی جمعِ سیب و پرتقال در گزارش‌ها.
+        | ⚠️ گاردِ hasColumn (کش‌شده): این کد پیش از اجرای مهاجرت روی سرور هم
+        | نباید جستجو را بشکند — مهاجرت‌های پروداکشن دستی اجرا می‌شوند.
+        */
+        static $hasRenewCost = null;
+        $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domain_quotes', 'cost_renew_amount');
+
         $quote = DomainQuote::create([
             'domain'         => $fqdn,
             'tld'            => $ext,
@@ -662,7 +675,9 @@ class DomainSearch
             'renew_toman'    => $sellR,
             'honour_until'   => now()->addMinutes(self::QUOTE_TTL_MINUTES),
             'raw'            => $raw,
-        ]);
+        ] + ($hasRenewCost && $renew !== null && $renew['currency'] === $cost['currency']
+            ? ['cost_renew_amount' => (int) round($renew['amount'] * 100)]
+            : []));
 
         return [
             'domain'      => $fqdn,

@@ -50,7 +50,29 @@ class DomainRenewalInvoicer
     public function issue(Domain $domain, int $years = 1): Invoice
     {
         $years = max(1, min(10, $years));
-        $unit = (int) ($domain->renew_toman ?: $domain->price_toman) * $years;
+        $perYear = (int) ($domain->renew_toman ?: $domain->price_toman);
+
+        /*
+        | 🔴 کفِ ارزی — «تمدید هرگز زیرِ بهای تمام‌شده فروخته نمی‌شود».
+        |
+        | `renew_toman` در روزِ خرید فریز شده و یک سال بعد، با جهشِ ارز، از
+        | بهای امروزِ رجیسترار پایین‌تر می‌افتد: تا ممیزیِ شهریور ۱۴۰۵ این کرون
+        | خودش فاکتورِ ضررده صادر می‌کرد. مسیرِ نمایندگی همین محافظ را داشت و
+        | خرده‌فروشی نه. بدونِ تماسِ رجیسترار — فقط بهای ذخیره‌شده × نرخِ روز.
+        */
+        $floor = app(DomainCostFloor::class)->renewPerYear($domain);
+
+        if ($floor > $perYear) {
+            \App\Support\ErrorTracker::noteOnce('domain', 'retail renewal repriced to the cost floor', 3600, [
+                'domain' => $domain->domain,
+                'stored' => $perYear,
+                'floor'  => $floor,
+            ]);
+
+            $perYear = $floor;
+        }
+
+        $unit = $perYear * $years;
 
         $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
         $tax = (int) round($unit * $taxPct / 100);
