@@ -776,7 +776,10 @@ class DomainRegistrar
 
         // 🔴 `exp_stage` صفر می‌شود وگرنه دورهٔ بعد هیچ یادآوری‌ای نمی‌رود:
         //    مرحلهٔ ۱ ثبت شده می‌مانْد و شرطِ «قبلاً رفته» همه را رد می‌کرد.
-        $domain->putMeta(['exp_stage' => null, 'renewed_at' => now()->toDateTimeString()]);
+        // ⚠️ `renew_invoice_id` هم پاک می‌شود: کارش تمام شد. اگر بماند و
+        //    تمدیدِ سالِ بعد شکست بخورد، فرمانِ بازگشتِ وجه فاکتورِ **پارسال**
+        //    را برمی‌گردانْد.
+        $domain->putMeta(['exp_stage' => null, 'renew_invoice_id' => null, 'renewed_at' => now()->toDateTimeString()]);
 
         $domain->forceFill(['provision_status' => 'done', 'provision_error' => null])->save();
 
@@ -814,6 +817,25 @@ class DomainRegistrar
             'domain' => $domain->domain,
             'tries'  => $tries,
         ]);
+
+        /*
+        | 🔴 پارک‌شدنِ تمدیدِ **پرداخت‌شده** نباید بی‌صدا باشد — همان قاعدهٔ
+        | `fail()` در مسیرِ ثبت. تا امروز شکستِ ثبت اعلانِ مدیر داشت و شکستِ
+        | تمدید نه؛ در حالی که این‌جا گران‌تر است: دامنهٔ **زندهٔ** مشتری دارد
+        | به‌سمتِ انقضا می‌رود و پولش هم گرفته شده.
+        */
+        if ($manual) {
+            try {
+                app(\App\Services\Notify\AdminNotifier::class)->event(
+                    'تمدیدِ دامنه خودکار انجام نشد',
+                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
+                    url('/admin/domains'),
+                    '⏳',
+                );
+            } catch (\Throwable $e) {
+                Log::warning('اعلانِ شکستِ تمدید نرفت', ['err' => $e->getMessage()]);
+            }
+        }
 
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
     }
