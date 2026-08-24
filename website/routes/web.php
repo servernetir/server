@@ -535,22 +535,26 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 /*
-| بخشِ محلی ارومیه — عمداً بیرونِ closureِ $site و **فقط فارسی**.
+| بخشِ محلی ارومیه — سه‌زبانه (مرداد ۱۴۰۵، خواستِ مدیر: «هر صفحه‌ای en/tr
+| نداشت درستش کن»). closureِ جدا از $site مانده تا ترتیبِ ثبت و whereها
+| دست‌نخورده بمانند، ولی مثل $site سه بار ثبت می‌شود.
 |
-| 🔴 داخلِ $site هر روت سه بار ثبت می‌شود و نسخهٔ en/tr این صفحات محتوای
-|    فارسی می‌گرفت (همان باگِ panel-preview). مخاطب این بخش خریدارِ محلی
-|    است؛ /en/urmia/* باید ۴۰۴ بدهد. تست: UrmiaPagesTest.
+| 🔵 نسخهٔ en/tr دیگر فارسی نمی‌گیرد: UrmiaController ترجمه‌های واقعی را از
+|    config/urmia_i18n.php در لحظهٔ رندر overlay می‌کند. تست: UrmiaPagesTest.
 |    جانشینِ سئوی محلیِ servernet.ir در مهاجرت است — نقشهٔ ۳۰۱ آن دامنه به
 |    همین آدرس‌ها اشاره می‌کند، پس تغییرِ اسلاگ‌ها یعنی شکستنِ ریدایرکت‌ها.
 | ⚠️ «cities» پیش از «{slug}» بیاید وگرنه خودش یک slug خوانده می‌شود.
 */
-Route::middleware('locale:fa')->group(function () {
+$urmia = function () {
     Route::get('/urmia', [\App\Http\Controllers\UrmiaController::class, 'hub'])->name('urmia.hub');
     Route::get('/urmia/cities/{slug}', [\App\Http\Controllers\UrmiaController::class, 'city'])
         ->name('urmia.city')->where('slug', '[a-z0-9-]+');
     Route::get('/urmia/{slug}', [\App\Http\Controllers\UrmiaController::class, 'page'])
         ->name('urmia.page')->where('slug', '[a-z0-9-]+');
-});
+};
+Route::middleware('locale:fa')->group($urmia);
+Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmia);
+Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmia);
 
 /*
 | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
@@ -1561,6 +1565,24 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
 
         return response()->json([
             'step'   => $step,
+            'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /*
+    | ترجمهٔ en/tr پست‌های بی‌ترجمه (مقالات مهاجرت‌شده از servernet.ir).
+    | همان کرونِ content:translate-missing است ولی دستی و دسته‌ای: هر ترجمه
+    | یک تماسِ AI پولی و ~۳۰-۹۰ ثانیه است، پس سقفِ هر فراخوان کوچک می‌ماند
+    | (وگرنه از مهلتِ ۳۰۰ ثانیه‌ای رد می‌شود) و مدیر آن‌قدر تکرار می‌کند تا
+    | بگوید «همه‌ی پست‌ها هر سه زبان را دارند». limit از فرم: ۱ تا ۴.
+    */
+    if ($step === 'translate') {
+        $limit = min(4, max(1, (int) $r->input('limit', 2)));
+        \Illuminate\Support\Facades\Artisan::call('content:translate-missing', ['--limit' => $limit]);
+
+        return response()->json([
+            'step'   => 'translate',
+            'limit'  => $limit,
             'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }

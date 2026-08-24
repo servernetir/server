@@ -20,12 +20,23 @@ class BlogRepository
         $locale = app()->getLocale();
 
         try {
-            return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () {
+            return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () use ($locale) {
                 return Post::query()
                     ->where('type', $this->type)->where('status', 'published')
                     ->with('translations')
                     ->orderByDesc('published_at')->orderByDesc('id')
                     ->get()
+                    /*
+                    | روی en/tr فقط پستِ واقعاً ترجمه‌شده فهرست می‌شود. بی‌این،
+                    | fallbackِ fa در tr() عنوانِ فارسی را به فهرستِ بلاگ، بلوکِ
+                    | «راهنماها»ی ~۱۱۰ صفحهٔ محصول و «مطالبِ مرتبط» می‌برد
+                    | (بررسی سراسری زبان، مرداد ۱۴۰۵). پست با رسیدنِ ترجمه‌اش
+                    | (کرونِ translate-missing یا stepِ دستی) خودکار ظاهر می‌شود.
+                    | find() عمداً فیلتر ندارد: URL مستقیم بهتر است fa بدهد تا ۴۰۴.
+                    */
+                    ->when($locale !== 'fa', fn ($posts) => $posts->filter(
+                        fn (Post $p) => $p->translations->contains('locale', $locale)))
+                    ->values()
                     ->map(fn (Post $p) => $this->toArray($p, false))
                     ->all();
             });
