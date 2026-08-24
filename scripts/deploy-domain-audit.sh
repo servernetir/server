@@ -87,12 +87,27 @@ UPD=0
 
 dist() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
 
+# ── یکسان‌سازیِ پایانِ خط پیش از هر مقایسه/merge ─────────────────────────
+#
+# 🔴 درسِ اجرای اول (۲ شهریور): OpenProviderClient روی سرور CRLF بود (و
+#    بی‌newlineِ پایانی). diff هر ۴۷۹ خط را «متفاوت» می‌دید، پس هیچ نسخهٔ
+#    تاریخی exact match نمی‌شد و پایه‌یاب «کوچک‌ترین فایلِ تاریخچه» (نسخهٔ
+#    اولیهٔ ۱۴۹خطی) را نزدیک‌ترین می‌گرفت ⇒ merge با پایهٔ غلط ⇒ تداخلِ
+#    قلابی ⇒ کلِ دیپلوی برمی‌گشت. همان بیماریِ ثبت‌شدهٔ TicketController
+#    («مقایسه پس از یکسان‌سازیِ پایانِ خط»)، این بار در لایهٔ دیپلوی.
+#
+#    همهٔ مقایسه‌ها و mergeها روی نسخهٔ نرمال‌شده (LF + newlineِ پایانی)
+#    انجام می‌شوند و خروجی هم LF می‌نشیند — فایلِ CRLFِ سرور همین‌جا
+#    درمان می‌شود، برای همهٔ فایل‌ها نه فقط آن یکی.
+normalize() { tr -d '\r' < "$1" | sed -e '$a\' > "$2"; }
+
 apply_one() {
   rel="$1"; dest="$APP/$rel"
   mine_f="$WORK/mine.tmp"; base_f="$WORK/base.tmp"
 
-  git -C repo show "$MINE:website/$rel" > "$mine_f" 2>/dev/null \
+  git -C repo show "$MINE:website/$rel" > "$WORK/mine.raw" 2>/dev/null \
     || { echo "SKIP  (در $MINE نیست)  $rel"; return; }
+  normalize "$WORK/mine.raw" "$mine_f"
 
   if [ -f "$dest" ]; then
     mkdir -p "$BK/$(dirname "$rel")"
@@ -104,14 +119,21 @@ apply_one() {
     cp "$mine_f" "$dest"; echo "NEW   $rel"; UPD=$((UPD+1)); return
   fi
 
-  if cmp -s "$dest" "$mine_f"; then echo "OK    $rel"; return; fi
+  dest_n="$WORK/dest.tmp"; normalize "$dest" "$dest_n"
+
+  if cmp -s "$dest_n" "$mine_f"; then
+    # محتوا یکی است؛ اگر بایت‌ها فرق دارند (CRLF)، نسخهٔ سالم بنشیند
+    cmp -s "$dest" "$mine_f" || { cp "$mine_f" "$dest"; echo "EOL   $rel   (فقط پایانِ خط درمان شد)"; UPD=$((UPD+1)); return; }
+    echo "OK    $rel"; return
+  fi
 
   # پایهٔ خودکار: نزدیک‌ترین نسخهٔ تاریخیِ همین فایل به آنچه روی سرور است
   best=""; bestd=999999999
   for sha in $(git -C repo log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
-    git -C repo show "$sha:website/$rel" > "$WORK/cand.tmp" 2>/dev/null || continue
-    if cmp -s "$dest" "$WORK/cand.tmp"; then best="$sha"; bestd=0; break; fi
-    d=$(dist "$dest" "$WORK/cand.tmp")
+    git -C repo show "$sha:website/$rel" > "$WORK/cand.raw" 2>/dev/null || continue
+    normalize "$WORK/cand.raw" "$WORK/cand.tmp"
+    if cmp -s "$dest_n" "$WORK/cand.tmp"; then best="$sha"; bestd=0; break; fi
+    d=$(dist "$dest_n" "$WORK/cand.tmp")
     if [ "$d" -lt "$bestd" ]; then bestd=$d; best="$sha"; fi
   done
 
@@ -127,14 +149,15 @@ apply_one() {
     cp "$mine_f" "$dest"; echo "UP    $rel   (سرور = $(git -C repo rev-parse --short "$best"))"; UPD=$((UPD+1)); return
   fi
 
-  git -C repo show "$best:website/$rel" > "$base_f"
-  m="$WORK/merged.tmp"; cp "$dest" "$m"
+  git -C repo show "$best:website/$rel" > "$WORK/base.raw"
+  normalize "$WORK/base.raw" "$base_f"
+  m="$WORK/merged.tmp"; cp "$dest_n" "$m"
   if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
     cp "$m" "$dest"
     echo "MG    $rel   (پایه $(git -C repo rev-parse --short "$best")، فاصلهٔ سرور $bestd خط — تغییرِ دیگران حفظ شد)"
     UPD=$((UPD+1))
   else
-    echo "CF    $rel   ← تداخل واقعی؛ دست نخورد"
+    echo "CF    $rel   ← تداخل واقعی؛ دست نخورد (پایه $(git -C repo rev-parse --short "$best")، فاصله $bestd خط)"
     CONFLICTS="$CONFLICTS $rel"
     keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
     cp "$dest" "$keep.server"; cp "$base_f" "$keep.base"; cp "$mine_f" "$keep.new"
