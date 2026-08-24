@@ -327,7 +327,14 @@ class DomainRenewalTest extends TestCase
 
     // ═══════════════ سلامت ═══════════════
 
-    /** انقضای نزدیک باید در پنلِ سلامت دیده شود، نه فقط در یک تبِ خاموش */
+    /**
+     * انقضای نزدیک باید در پنلِ سلامت دیده شود، نه فقط در یک تبِ خاموش.
+     *
+     * ⚠️ از ممیزیِ شهریور ۱۴۰۵ در چکِ **جدای** `domains_expiry` و با سطحِ
+     * `warn`: وقتی با صفِ گیرکرده در یک چک بود، انقضای روزمره آن چک را
+     * دائم `fail` نگه می‌داشت و امضای هشدار عوض نمی‌شد — یعنی گیرکردنِ
+     * واقعیِ صف هرگز اعلان نمی‌گرفت.
+     */
     public function test_health_reports_domains_expiring_soon(): void
     {
         \Illuminate\Support\Facades\File::put(
@@ -338,7 +345,26 @@ class DomainRenewalTest extends TestCase
 
         $checks = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
 
-        $this->assertSame('fail', $checks['domains']['level']);
-        $this->assertStringContainsString('منقضی', $checks['domains']['detail']);
+        $this->assertSame('warn', $checks['domains_expiry']['level']);
+        $this->assertStringContainsString('منقضی', $checks['domains_expiry']['detail']);
+    }
+
+    /**
+     * 🔴 قلبِ باگِ «آژیرِ خفه»: انقضای روزمره نباید چکِ صفِ دامنه را اشغال
+     * کند — وگرنه گیرکردنِ واقعیِ صف، امضای هشدار را عوض نمی‌کند و هیچ
+     * اعلانی نمی‌رود.
+     */
+    public function test_routine_expiry_does_not_occupy_the_stuck_queue_check(): void
+    {
+        \Illuminate\Support\Facades\File::put(
+            storage_path('app/'.\App\Services\SystemHealth::HEARTBEAT), now()->toDateTimeString()
+        );
+
+        $this->domain(['expires_at' => now()->addDays(3)]);
+
+        $checks = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+
+        $this->assertTrue((bool) $checks['domains']['ok'],
+            'انقضای عادی چکِ صف را خراب کرد — خرابیِ واقعیِ بعدی دیگر اعلان نمی‌گیرد');
     }
 }

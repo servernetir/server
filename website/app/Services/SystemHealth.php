@@ -56,6 +56,8 @@ class SystemHealth
             $this->cron(),
             $this->database(),
             $this->stuckDomains(),
+            $this->expiringDomains(),
+            $this->domainMargin(),
             $this->stuckServices(),
             $this->unbilledServices(),
             $this->undeliveredCloud(),
@@ -158,14 +160,8 @@ class SystemHealth
             ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
-        // 🔴 انقضا هم این‌جاست، و نبودنش یک کوریِ واقعی بود: ممیزی نشان داد
-        //    هیچ چیزی در سامانه انقضای دامنه را **هُل** نمی‌داد؛ فقط یک تبِ
-        //    خاموش در پنلِ مدیر بود که کسی باید سراغش می‌رفت. دامنه‌ای که
-        //    ۷ روز دیگر می‌میرد باید خودش داد بزند.
-        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
-
-        if ($manual > 0 || $old > 0 || $soon > 0) {
-            $level = ($old > 0 || $soon > 0) ? 'fail' : 'warn';
+        if ($manual > 0 || $old > 0) {
+            $level = $old > 0 ? 'fail' : 'warn';
 
             /*
             | همان قاعدهٔ `stuckServices()`: شمارنده بدونِ **نام** یعنی مدیر باید
@@ -186,13 +182,72 @@ class SystemHealth
 
             return $this->row('domains', false, $level, 'صفِ دامنه',
                 ($old > 0 ? fa_num($old).' دامنهٔ پرداخت‌شده بیش از نیم‌ساعت ثبت نشده — یعنی صف پیش نمی‌رود. ' : '')
-                .($soon > 0 ? fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود. ' : '')
                 .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : '')
                 .$list,
                 $names->isEmpty() ? [] : [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
         }
 
         return $this->row('domains', true, 'ok', 'صفِ دامنه', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * انقضای نزدیک — **جدا** از صفِ گیرکرده، و عمداً هرگز `fail` نمی‌شود.
+     *
+     * ═══ چرا جدا شد (ممیزیِ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 وقتی هر دو در چکِ `domains` بودند، «انقضای عادی» — که در هر
+     * پورتفوی زنده‌ای تقریباً همیشه هست — آن چک را برای همیشه `fail` نگه
+     * می‌داشت. امضای هشدار «سطح + نامِ چک‌های خراب» است؛ پس وقتی خرابیِ
+     * **واقعی** (صفِ گیرکرده) اضافه می‌شد، امضا همان `fail|domains` می‌مانْد
+     * و **هیچ اعلانی نمی‌رفت**. سروصدای روزمره، آژیرِ واقعی را خفه کرده بود
+     * — همان «توهمِ پایش»، این بار از راهِ امضا.
+     *
+     * حالا کلیدِ جدا یعنی گیرکردنِ صف امضا را عوض می‌کند و اعلان می‌رود،
+     * حتی وقتی همیشه دامنه‌ای در پنجرهٔ ۷روزه هست. `warn` و نه `fail`:
+     * فاکتور و یادآوری‌اش را کرونِ چرخهٔ عمر خودکار می‌فرستد؛ این ردیف فقط
+     * دیدِ مدیر است.
+     */
+    private function expiringDomains(): array
+    {
+        if (! Schema::hasTable('domains')) {
+            return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
+        }
+
+        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
+
+        if ($soon > 0) {
+            return $this->row('domains_expiry', false, 'warn', 'انقضای دامنه',
+                fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود؛ فاکتور و یادآوری خودکار رفته است.',
+                [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
+        }
+
+        return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'هیچ دامنه‌ای نزدیکِ انقضا نیست.');
+    }
+
+    /**
+     * حاشیهٔ سودِ صفر — فروش به قیمتِ تمام‌شده.
+     *
+     * 🔴 ممیزی: پیش‌فرضِ `DOMAIN_MARGIN_PCT` صفر است (عمدی — عدد باید از
+     * /admin/settings بیاید) ولی هیچ‌چیز به مدیر نمی‌گفت که آن عدد را
+     * **نگذاشته**. نتیجه: هر دامنه به بهای عمده + گردکردن فروخته می‌شد و
+     * کلِ نردبانِ تخفیفِ نمایندگی هم بی‌اثر بود — بی‌صداترین ضررِ ممکن.
+     */
+    private function domainMargin(): array
+    {
+        $setting = trim((string) (\App\Models\Setting::get('domain_margin_pct') ?? ''));
+        $pct = $setting !== ''
+            ? (float) $setting
+            : (float) config('services.openprovider.margin.default', 0);
+
+        if ($pct <= 0) {
+            return $this->row('domain_margin', false, 'warn', 'حاشیهٔ سودِ دامنه',
+                'حاشیهٔ سودِ دامنه صفر است — هر فروش به قیمتِ تمام‌شده انجام می‌شود و تخفیفِ نمایندگی هم بی‌اثر است. '
+                .'در تنظیمات (domain_margin_pct) درصد بگذارید.',
+                [['label' => 'تنظیمات', 'url' => url('/admin/settings')]]);
+        }
+
+        return $this->row('domain_margin', true, 'ok', 'حاشیهٔ سودِ دامنه',
+            'حاشیهٔ سودِ دامنه '.fa_num($pct).'٪ است.');
     }
 
     /** سرویسی که پول گرفته‌ایم و تحویل نشده — همان پرس‌وجوی `provision:run` */
