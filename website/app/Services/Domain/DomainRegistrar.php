@@ -680,6 +680,10 @@ class DomainRegistrar
             'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد'
             .($until ? ' و تا '.sdate($until).' اعتبار دارد.' : '.'));
 
+        // بهای واقعیِ رجیسترار همین لحظه از حسابِ ما رفت — دفتر باید بداند.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'register', max(1, (int) $domain->period_years));
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
 
@@ -896,6 +900,10 @@ class DomainRegistrar
         $this->announce('domain_renewed', $domain,
             'دامنهٔ «'.$domain->domain.'» تمدید شد و تا '
             .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
+
+        // بهای تمدید نزدِ رجیسترار — هزینهٔ واقعی، همان لحظهٔ وقوع در دفتر.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'renew', $domain->renewYears());
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }

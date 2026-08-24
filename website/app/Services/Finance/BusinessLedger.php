@@ -256,6 +256,119 @@ class BusinessLedger
     }
 
     /**
+     * درآمدِ فاکتوری که با **اعتبار** تسویه شده — نه از درگاه.
+     *
+     * ═══ حفره‌ای که ممیزیِ شهریور ۱۴۰۵ پیدا کرد ═══
+     *
+     * 🔴 `recordPayment()` به ردیفِ `Payment` بند است؛ ولی API نمایندگیِ
+     * دامنه از اعتبارِ داخلی کم می‌کند و هیچ `Payment`ی نمی‌سازد. نتیجه:
+     * **۱۰۰٪ درآمدِ دامنهٔ نمایندگی و مالیاتش از /admin/finance غایب بود** —
+     * پول واقعی می‌آمد و دفتر چیزی نمی‌دید.
+     *
+     * idempotent روی (فاکتور، نوع) — دو بار صدازدن یک ردیف می‌سازد.
+     */
+    public function recordCreditSale(Invoice $invoice): void
+    {
+        if (! $this->ready() || (int) $invoice->paid <= 0) {
+            return;
+        }
+
+        $paid  = (int) $invoice->paid;
+        $total = max(1, (int) $invoice->total);
+
+        $taxPortion     = intdiv((int) $invoice->tax * $paid, $total);
+        $revenuePortion = $paid - $taxPortion;
+
+        if ($revenuePortion > 0) {
+            $this->post('revenue', $revenuePortion, occurredAt: now(), source: $invoice,
+                note: 'درآمد فاکتور '.$invoice->number.' (تسویه از اعتبار)', currency: $invoice->currency_code);
+        }
+
+        if ($taxPortion > 0) {
+            $this->post('tax_collected', $taxPortion, occurredAt: now(), source: $invoice,
+                note: 'مالیات فاکتور '.$invoice->number, currency: $invoice->currency_code);
+        }
+    }
+
+    /**
+     * بازگشتِ وجه بر مبنای **فاکتور** — برای مسیرهایی که Payment ندارند.
+     *
+     * 🔴 `recordRefund()` صفر فراخوان داشت: هر سه مسیرِ بازگشتِ وجهِ دامنه
+     * (ثبتِ ناموفق، تمدیدِ ناموفق، انتقالِ ردشده) به `credit_ledger` واریز
+     * می‌کنند نه به درگاه، پس Payment در دست ندارند — و دفترِ کسب‌وکار
+     * رفاندها را نمی‌دید: ستونِ `refund` در /admin/finance همیشه صفر بود و
+     * سودِ گزارش‌شده به همان اندازه دروغ می‌گفت.
+     *
+     * idempotent روی (فاکتور، refund) — کرونِ ساعتی دو بار ثبت نمی‌کند.
+     */
+    public function recordInvoiceRefund(Invoice $invoice, int $amount, ?string $note = null): void
+    {
+        if (! $this->ready() || $amount <= 0) {
+            return;
+        }
+
+        $this->post('refund', $amount, occurredAt: now(), source: $invoice,
+            note: $note ?? ('بازگشت وجه فاکتور '.$invoice->number),
+            currency: $invoice->currency_code);
+    }
+
+    /**
+     * هزینهٔ **خریدِ عمدهٔ دامنه** — دستهٔ `domain_wholesale` که تا ممیزیِ
+     * شهریور ۱۴۰۵ تعریف شده بود ولی هیچ نویسنده‌ای نداشت: بهای واقعیِ
+     * رجیسترار هیچ‌جا ثبت نمی‌شد و مارجینِ دامنه در گزارش‌ها ~۱۰۰٪ نمایش
+     * داده می‌شد.
+     *
+     * در لحظهٔ **موفقیتِ واقعی** (ثبت/تمدید/انتقال نزدِ رجیسترار) صدا زده
+     * می‌شود — همان لحظه‌ای که پول واقعاً از حسابِ ما نزدِ رجیسترار رفت.
+     * منبعِ idempotency فاکتورِ همان رویداد است، پس تمدیدِ سالِ بعد ردیفِ
+     * تازهٔ خودش را می‌گیرد.
+     *
+     * ⚠️ اگر بهای تمام‌شده یا نرخِ ارز در دست نباشد، هیچ ردیفی ثبت نمی‌شود
+     * — حدسِ ساختگی وارد دفتر نمی‌شود (همان قاعدهٔ `recordApiCost`) ولی در
+     * ردیاب دیده می‌شود تا «هزینهٔ گمشده» بی‌صدا نماند.
+     */
+    public function recordDomainWholesale(\App\Models\Domain $domain, string $stage, int $years = 1): void
+    {
+        if (! $this->ready()) {
+            return;
+        }
+
+        try {
+            $amount = app(\App\Services\Domain\DomainCostFloor::class)
+                ->wholesaleToman($domain, $stage, $years);
+
+            if ($amount <= 0) {
+                if ((int) $domain->cost_amount > 0) {
+                    \App\Support\ErrorTracker::noteOnce('domain',
+                        'هزینهٔ عمدهٔ دامنه ثبت نشد — نرخِ ارز در دسترس نیست', 3600,
+                        ['domain' => $domain->domain, 'stage' => $stage]);
+                }
+
+                return;
+            }
+
+            $invoice = Invoice::where('domain_id', $domain->id)
+                ->where('kind', 'domain')
+                ->where('paid', '>', 0)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($invoice === null) {
+                return;     // ردیفِ دستیِ بی‌فاکتور — چیزی برای اتصال نیست
+            }
+
+            $labels = ['register' => 'ثبت', 'renew' => 'تمدید', 'transfer' => 'انتقال'];
+
+            $this->post('expense', $amount, category: 'domain_wholesale',
+                occurredAt: now(), source: $invoice,
+                note: 'خرید عمده — '.($labels[$stage] ?? $stage).' '.$domain->domain);
+        } catch (\Throwable $e) {
+            // دفتر هرگز مسیرِ ثبت/تمدید را نمی‌شکند
+            \App\Support\ErrorTracker::note('finance', $e, ['area' => 'domain-wholesale', 'domain' => $domain->domain]);
+        }
+    }
+
+    /**
      * ثبت دستی توسط صاحب کسب‌وکار — سرمایه، هزینه، برداشت، پرداخت مالیات.
      */
     public function manual(string $kind, int $amount, ?string $category, ?Carbon $occurredAt, ?string $note, ?int $userId): ?BusinessEntry

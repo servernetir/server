@@ -374,6 +374,10 @@ class DomainTransfer
         $this->tell($domain, 'domain_transfer_completed',
             'انتقالِ دامنهٔ «'.$domain->domain.'» با موفقیت انجام شد و از این پس در پنلِ شما مدیریت می‌شود.');
 
+        // بهای انتقال نزدِ رجیسترار (اگر ثبت شده باشد) — هزینهٔ واقعی در دفتر.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'transfer', 1);
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
 
@@ -477,6 +481,12 @@ class DomainTransfer
 
                 // ⚠️ فاکتور حذف نمی‌شود: سابقهٔ مالی و مالیاتی باید بماند.
                 $invoice?->forceFill(['status' => 'refunded'])->save();
+
+                // دفترِ کسب‌وکار هم باید این برگشت را ببیند (idempotent)
+                if ($invoice !== null) {
+                    app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                        $invoice, $amount, 'بازگشتِ وجه — انتقالِ '.$domain->domain);
+                }
             });
 
             return true;

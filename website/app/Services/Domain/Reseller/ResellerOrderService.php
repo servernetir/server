@@ -436,6 +436,18 @@ class ResellerOrderService
                     'note'          => $title,
                 ]);
 
+                /*
+                | 🔴 درآمدِ این فروش باید به دفترِ کسب‌وکار برسد. این مسیر
+                | Payment نمی‌سازد (پرداخت از اعتبار است)، پس recordPayment
+                | هرگز صدایش نمی‌زد و ۱۰۰٪ درآمدِ نمایندگی + مالیاتش از
+                | /admin/finance غایب بود (ممیزیِ شهریور ۱۴۰۵).
+                */
+                try {
+                    app(\App\Services\Finance\BusinessLedger::class)->recordCreditSale($invoice);
+                } catch (\Throwable $e) {
+                    ErrorTracker::note('finance', $e, ['area' => 'reseller-ledger', 'invoice' => $invoice->id]);
+                }
+
                 $result = [
                     'ok'      => true,
                     'domain'  => $domain,

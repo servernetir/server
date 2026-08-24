@@ -332,6 +332,10 @@ class ResolveStuckDomains extends Command
                 // ⚠️ فاکتور حذف نمی‌شود: سابقهٔ مالی و مالیاتی باید بماند.
                 $invoice->forceFill(['status' => 'refunded'])->save();
 
+                // دفترِ کسب‌وکار هم برگشت را ببیند (idempotent روی فاکتور)
+                app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                    $invoice, $amount, 'بازگشتِ وجه — تمدیدِ '.$domain->domain.' ممکن نشد');
+
                 $domain->forceFill([
                     'provision_status' => 'done',
                     'provision_tries'  => 0,
@@ -425,6 +429,12 @@ class ResolveStuckDomains extends Command
                 if ($invoice !== null) {
                     // ⚠️ فاکتور **حذف نمی‌شود**: سابقهٔ مالی و مالیاتی باید بماند.
                     $invoice->forceFill(['status' => 'refunded'])->save();
+
+                    // دفترِ کسب‌وکار هم برگشت را ببیند (idempotent روی فاکتور)
+                    if ($amount > 0) {
+                        app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                            $invoice, $amount, 'بازگشتِ وجه — ثبتِ '.$domain->domain.' ممکن نشد');
+                    }
                 }
 
                 $domain->forceFill([
