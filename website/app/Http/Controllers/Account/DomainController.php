@@ -333,6 +333,13 @@ class DomainController extends Controller
      */
     public function checkout(Request $request, DomainQuote $quote): View|RedirectResponse
     {
+        /*
+        | 🔴 مالکیت پیش از هر چیز: شناسهٔ ترتیبی + نبودِ این گارد یعنی هر
+        | مشتری می‌توانست ۱..N را بپیماید و جستجوهای دامنهٔ بقیه را ببیند.
+        | ۴۰۴ و نه ۴۰۳ — وجودِ استعلامِ دیگران هم اطلاعات است.
+        */
+        abort_unless($quote->claimFor($this->customerId()), 404);
+
         if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
             return redirect()->route('account.domains')
                 ->withErrors(__('ui.dch_quote_expired'));
@@ -384,6 +391,11 @@ class DomainController extends Controller
         $quote = DomainQuote::find($data['quote_id']);
 
         if ($quote === null) {
+            return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
+        }
+
+        // مالکیتِ استعلام — همان گاردِ checkout؛ مسیرِ پول بی‌مالک نمی‌ماند.
+        if (! $quote->claimFor($this->customerId())) {
             return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
         }
 

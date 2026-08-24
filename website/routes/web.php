@@ -433,8 +433,10 @@ $site = function (): void {
         | پس اگر پایین‌تر بنشیند، `/domains/checkout/12` به‌عنوانِ «دامنه‌ای به
         | نامِ checkout» تفسیر و ۴۰۴ می‌شود.
         */
+        // ⚠️ throttle: شناسهٔ استعلام ترتیبی است؛ نرخِ محدود پیمایش را کند و
+        //    پرهزینه می‌کند (گاردِ اصلی مالکیتِ quote در خودِ کنترلر است).
         Route::get('/domains/checkout/{quote}', [Account\DomainController::class, 'checkout'])
-            ->name('domains.checkout');
+            ->name('domains.checkout')->middleware('throttle:30,1');
 
         Route::post('/domains/order', [Account\DomainController::class, 'order'])
             ->name('domains.order')->middleware('throttle:12,1');
