@@ -129,17 +129,18 @@ $T = [
       <label class="dsx-chk">
         <input type="checkbox" id="f-taken" checked>
         <span>{{ __('ui.dsr_f_hide_taken') }}</span>
-        <i class="dsx-n" id="n-taken">۰</i>
+        {{-- fa_num: رقمِ فارسیِ ثابت روی /en و /tr نشت می‌کرد (بررسی زبان) --}}
+        <i class="dsx-n" id="n-taken">{{ fa_num(0) }}</i>
       </label>
       <label class="dsx-chk">
         <input type="checkbox" id="f-premium">
         <span>{{ __('ui.dsr_f_hide_premium') }}</span>
-        <i class="dsx-n" id="n-premium">۰</i>
+        <i class="dsx-n" id="n-premium">{{ fa_num(0) }}</i>
       </label>
       <label class="dsx-chk">
         <input type="checkbox" id="f-unavail" checked>
         <span>{{ __('ui.dsr_f_hide_unorderable') }}</span>
-        <i class="dsx-n" id="n-unavail">۰</i>
+        <i class="dsx-n" id="n-unavail">{{ fa_num(0) }}</i>
       </label>
 
       <span class="dsx-sep" aria-hidden="true"></span>

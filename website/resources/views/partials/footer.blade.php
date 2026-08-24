@@ -42,10 +42,8 @@
         <h5 class="f-head">{{ __('ui.f_company') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
-          @if($isFa)
-          {{-- بخشِ محلی فقط فارسی است (routes/web.php) — روی en/tr لینک نمی‌گیرد --}}
-          <a href="{{ route('urmia.hub') }}">خدمات ما در ارومیه</a>
-          @endif
+          {{-- بخشِ ارومیه از مرداد ۱۴۰۵ سه‌زبانه است؛ برچسب inline چون فقط همین‌جاست --}}
+          <a href="{{ lroute('urmia.hub') }}">{{ ['fa' => 'خدمات ما در ارومیه', 'en' => 'Our services in Urmia', 'tr' => 'Urmiye hizmetlerimiz'][app()->getLocale()] ?? 'Urmia' }}</a>
           <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
           <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
           <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>

@@ -2,14 +2,13 @@
 
 @section('title', $page['title'])
 @section('description', $page['desc'])
-@section('faOnly', '1')
 
 @section('content')
 
 {{--
-  صفحهٔ خدمتِ محلی ارومیه — /urmia/{slug}
-  کاملاً config-driven (config/urmia.php). فقط فارسی — faOnly در بالا،
-  hreflangِ en/tr را خاموش می‌کند (layout).
+  صفحهٔ خدمتِ محلی ارومیه — /urmia/{slug} (سه‌زبانه از مرداد ۱۴۰۵)
+  کاملاً config-driven: فارسی از config/urmia.php، ترجمه‌ها از urmia_i18n.php
+  که UrmiaController به زبانِ جاری overlay کرده — این view زبان نمی‌فهمد.
   ⚠️ هیچ کلاسِ CSS تازه‌ای ندارد: sla-doc / lk-faq / sol-* / btn از site.css.
   ⚠️ padding-top ندارد — #main جبرانِ هدر را سراسری می‌دهد.
 --}}
@@ -17,22 +16,26 @@
 @php
   $md  = fn ($s) => preg_replace('~\*\*(.+?)\*\*~us', '<b>$1</b>', e($s));
   $tel = $identity['phone'] ? 'tel:'.preg_replace('/[^0-9+]/', '', $identity['phone_link'] ?? $identity['phone']) : null;
+  $idBody = str_replace(
+      ['%BRAND%', '%COMPANY%', '%CITY%', '%REG%', '%SINCE%'],
+      [$identity['brand'], $identity['company'], $identity['city'], $identity['reg_no'], $identity['since']],
+      config('urmia_i18n.identity_body.'.app()->getLocale()) ?? config('urmia_i18n.identity_body.fa'));
 @endphp
 
 <section class="hero hero-sub">
   <div class="container">
     <div class="hero-sub-inner">
-      <span class="badge reveal"><span class="pulse"></span><span>{{ $identity['brand'] }} · {{ $identity['city'] }} · از سال {{ $identity['since'] }}</span></span>
+      <span class="badge reveal"><span class="pulse"></span><span>{{ sprintf($ui['badge_page'], $identity['brand'], $identity['city'], $identity['since']) }}</span></span>
       <h1 class="reveal" style="transition-delay:.08s">{{ $page['h1'] }}</h1>
       <p class="lead reveal" style="transition-delay:.16s">{{ $page['lead'] }}</p>
       <div class="sol-hero-cta reveal" style="transition-delay:.22s">
         @if($tel)
-        <a class="btn btn-primary" href="{{ $tel }}"><span>تماس با دفتر ارومیه — {{ fa_num($identity['phone']) }}</span></a>
+        <a class="btn btn-primary" href="{{ $tel }}"><span>{{ $ui['call_office'] }} — {{ fa_num($identity['phone']) }}</span></a>
         @else
-        <a class="btn btn-primary" href="{{ lroute('contact') }}"><span>درخواست مشاوره رایگان</span>
+        <a class="btn btn-primary" href="{{ lroute('contact') }}"><span>{{ $ui['free_consult'] }}</span>
           <svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
         @endif
-        <a class="btn btn-glass" href="{{ route('urmia.hub') }}">همه خدمات ما در ارومیه</a>
+        <a class="btn btn-glass" href="{{ lroute('urmia.hub') }}">{{ $ui['all_services'] }}</a>
       </div>
     </div>
   </div>
@@ -62,8 +65,8 @@
 <section class="section" style="padding-top:0">
   <div class="container" style="max-width:860px">
     <div class="section-head reveal">
-      <span class="kicker">پرسش‌های پرتکرار</span>
-      <h2>سؤال‌هایی که پیش از شروع می‌پرسند</h2>
+      <span class="kicker">{{ $ui['faq_kicker'] }}</span>
+      <h2>{{ $ui['faq_h2'] }}</h2>
     </div>
     <div class="lk-faq reveal">
       @foreach($page['faq'] as $f)
@@ -77,18 +80,16 @@
 <section class="section" style="padding-top:0">
   <div class="container" style="max-width:860px">
     <div class="sla-doc reveal">
-      <h2>یک شرکت واقعی در {{ $identity['city'] }}</h2>
+      <h2>{{ sprintf($ui['identity_h2'], $identity['city']) }}</h2>
       <p>
-        «{{ $identity['brand'] }}» برند تجاری شرکت <b>{{ $identity['company'] }}</b> است؛
-        ثبت‌شده در {{ $identity['city'] }} به شمارهٔ ثبت {{ $identity['reg_no'] }}، فعال از سال {{ $identity['since'] }}
-        در حوزهٔ طراحی سایت، نرم‌افزار و زیرساخت میزبانی.
+        {!! $idBody !!}
         @if($identity['address'])
-        دفتر ما: {{ $identity['address'] }}.
+        {{ sprintf($ui['office_line'], $identity['address']) }}
         @endif
         @if($identity['phone'])
-        تلفن ثابت دفتر: <span dir="ltr">{{ fa_num($identity['phone']) }}</span>.
+        {{ $ui['phone_line'] }} <span dir="ltr">{{ fa_num($identity['phone']) }}</span>.
         @endif
-        جلسهٔ اول شناخت، حضوری و رایگان است.
+        {{ $ui['first_free'] }}
       </p>
     </div>
   </div>
@@ -99,16 +100,16 @@
 <section class="section" style="padding-top:0">
   <div class="container" style="max-width:860px">
     <div class="section-head reveal">
-      <span class="kicker">مرتبط</span>
-      <h2>خدمات مرتبط در ارومیه</h2>
+      <span class="kicker">{{ $ui['related_kicker'] }}</span>
+      <h2>{{ $ui['related_h2'] }}</h2>
     </div>
     <div class="sol-hero-cta reveal" style="flex-wrap:wrap">
       @foreach($page['related'] as $rel)
         @if(isset($pages[$rel]))
-        <a class="btn btn-glass" href="{{ route('urmia.page', $rel) }}">{{ $pages[$rel]['h1'] }}</a>
+        <a class="btn btn-glass" href="{{ lroute('urmia.page', $rel) }}">{{ $pages[$rel]['h1'] }}</a>
         @endif
       @endforeach
-      <a class="btn btn-glass" href="{{ route('urmia.hub') }}">هاب ارومیه</a>
+      <a class="btn btn-glass" href="{{ lroute('urmia.hub') }}">{{ $ui['hub_link'] }}</a>
     </div>
   </div>
 </section>
@@ -119,11 +120,11 @@
   <div class="container">
     <div class="sol-cta reveal">
       <div class="sol-cta-glow"></div>
-      <h2>پروژه‌تان را با یک جلسهٔ بی‌تعهد شروع کنید</h2>
-      <p>در یک جلسهٔ حضوری در ارومیه — یا تماس تصویری — نیازتان را می‌شنویم و پیشنهاد شفاف فنی و مالی می‌دهیم.</p>
+      <h2>{{ $ui['cta_h2'] }}</h2>
+      <p>{{ $ui['cta_p'] }}</p>
       <div class="sol-cta-btns">
         <a class="btn btn-primary" href="{{ lroute('contact') }}">
-          <span>درخواست جلسه</span>
+          <span>{{ $ui['cta_btn'] }}</span>
           <svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg>
         </a>
         @if($tel)
@@ -170,8 +171,8 @@
 
   $ldCrumb = [
       'itemListElement' => [
-          [$T => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => url('/')],
-          [$T => 'ListItem', 'position' => 2, 'name' => 'خدمات ارومیه', 'item' => route('urmia.hub')],
+          [$T => 'ListItem', 'position' => 1, 'name' => $ui['crumb_home'], 'item' => url('/')],
+          [$T => 'ListItem', 'position' => 2, 'name' => $ui['crumb_hub'], 'item' => lroute('urmia.hub')],
           [$T => 'ListItem', 'position' => 3, 'name' => $page['h1'], 'item' => url()->current()],
       ],
   ];
