@@ -53,8 +53,12 @@ class RunDomainLifecycle extends Command
     /** مراحلِ یادآوری — از دور به نزدیک */
     private const STAGES = [7, 3, 1];
 
-    public function handle(CustomerNotifier $customers, AdminNotifier $admin, DomainRenewalInvoicer $invoicer): int
-    {
+    public function handle(
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        DomainRenewalInvoicer $invoicer,
+        \App\Services\Domain\OpenProviderClient $op,
+    ): int {
         if (! Schema::hasTable('domains')) {
             $this->warn('جدول domains ساخته نشده؛ اول مهاجرت را اجرا کنید.');
 
@@ -64,6 +68,10 @@ class RunDomainLifecycle extends Command
         $dry = (bool) $this->option('dry');
         $lead = max(1, (int) ($this->option('lead') ?: Domain::RENEW_LEAD_DAYS));
         $today = now()->startOfDay();
+
+        if (! $dry) {
+            $this->repairMissingExpiry($op);
+        }
 
         // ⚠️ دامنهٔ بی‌تاریخِ انقضا کنار می‌رود: یا هنوز ثبت نشده یا رجیسترار
         //    تاریخ نداده. حدس‌زدنِ تاریخ یعنی فاکتورِ تمدید برای دامنه‌ای که
@@ -186,6 +194,54 @@ class RunDomainLifecycle extends Command
         }
 
         $stats['reminded']++;
+    }
+
+    /**
+     * ترمیمِ تاریخِ انقضای گمشده — تنها تماسِ رجیسترار در این فرمان، سقف‌دار.
+     *
+     * ═══ چرا لازم شد ═══
+     *
+     * `succeed()` دیگر تاریخِ انقضا **جعل نمی‌کند**: اگر رجیسترار در لحظهٔ ثبت
+     * جزئیات نداد، `expires_at` تهی می‌مانَد. ردیفِ بی‌تاریخ از چرخهٔ تمدید و
+     * یادآوری بیرون است (پرس‌وجوی پایین `whereNotNull` دارد) — پس اگر کسی
+     * تاریخِ واقعی را نیاورد، آن دامنه **بی‌صدا منقضی می‌شود**.
+     *
+     * ⚠️ قاعدهٔ «این کرون به رجیسترار زنگ نمی‌زند» دربارهٔ استعلامِ قیمت برای
+     * صدها دامنه بود. این‌جا حداکثر ۱۰ تماسِ ترمیمی در روز است، فقط برای
+     * ردیف‌هایی که داده‌شان ناقص است — و بی‌آن، نقصِ داده دائمی می‌شود.
+     */
+    private function repairMissingExpiry(\App\Services\Domain\OpenProviderClient $op): void
+    {
+        if (! $op->enabled()) {
+            return;
+        }
+
+        $rows = Domain::where('status', 'active')
+            ->whereNull('expires_at')
+            ->whereNotNull('op_id')
+            ->limit(10)
+            ->get();
+
+        foreach ($rows as $domain) {
+            try {
+                $detail = $op->getDomain((int) $domain->op_id);
+                $raw = data_get($detail, 'data.expiration_date')
+                    ?: data_get($detail, 'data.expiration_date_time');
+
+                if (blank($raw)) {
+                    continue;
+                }
+
+                $domain->forceFill([
+                    'expires_at' => \Illuminate\Support\Carbon::parse((string) $raw),
+                ])->save();
+            } catch (\Throwable $e) {
+                Log::warning('ترمیمِ تاریخِ انقضای دامنه نشد', [
+                    'domain' => $domain->domain,
+                    'err'    => mb_substr($e->getMessage(), 0, 120),
+                ]);
+            }
+        }
     }
 
     private function stageFor(int $daysLeft): ?int

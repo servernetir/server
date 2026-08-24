@@ -71,6 +71,14 @@ class DomainRegistrar
     /** نشانیِ صفحهٔ امضای قراردادها در پنلِ رجیسترار */
     public const CONTRACTS_URL = 'https://cp.openprovider.eu/documentation/contracts.php';
 
+    /**
+     * واژگانِ وضعیتِ رجیسترار — همان فهرستِ `DomainTransfer::poll()`.
+     * ⚠️ حساس به بزرگی/کوچکی نیست؛ همان API هر دو `ACT` و `act` را داده.
+     */
+    private const REMOTE_ACTIVE = ['act', 'active', 'ok'];
+
+    private const REMOTE_FAILED = ['fai', 'failed', 'del', 'deleted', 'rej', 'rejected'];
+
     public function __construct(private OpenProviderClient $op) {}
 
     // ═══════════════════════ handle مالک ═══════════════════════
@@ -603,10 +611,59 @@ class DomainRegistrar
         | واقعی لازم داشت. این‌جا دامنهٔ پارک‌شده از قبل پرداخت شده است، پس
         | تلاشِ دوباره‌اش هیچ پولِ تازه‌ای خرج نمی‌کند و خودش همان اثبات است.
         */
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 وضعیتِ پاسخِ رجیسترار قانون است — «هر جوابی = موفق» ممنوع
+        |----------------------------------------------------------------------
+        |
+        | تا ممیزیِ شهریور ۱۴۰۵ این متد `status` پاسخ را **دور می‌ریخت**: هر
+        | ردیفی که `findDomain` در حسابِ ما پیدا می‌کرد — حتی REQ (در انتظارِ
+        | رجیستری) یا FAI (شکست‌خورده) — «active» اعلام و به مشتری پیامِ
+        | «با موفقیت ثبت شد» فرستاده می‌شد. یعنی پولِ گرفته، دامنهٔ بالانیامده،
+        | و یک اطمینانِ دروغ — بدتر از خطا.
+        |
+        | حالا همان واژگانِ `DomainTransfer::poll()`:
+        |   act/active            → واقعاً ثبت شده
+        |   fai/del/rej           → شکستِ قطعی نزدِ رجیستری → صفِ دستی
+        |   req/sch/pen/ناشناخته  → هنوز در جریان → «شکستِ» گذرا؛ چند تلاشِ
+        |                            بعدیِ کرون دوباره می‌پرسد و بعد صفِ دستی
+        |
+        | ⚠️ وضعیتِ **خالی** موفق حساب می‌شود: یعنی خودِ `registerDomain` جواب
+        | داد ولی `getDomain` برای جزئیات در دسترس نبود — ثبت واقعاً انجام
+        | شده و فقط جزئیات کم است.
+        */
+        $state = strtolower(trim((string) data_get($remote, 'status')));
+
+        if ($state !== '' && ! in_array($state, self::REMOTE_ACTIVE, true)) {
+            // شناسهٔ رجیسترار را نگه دار تا مدیر بتواند همین ردیف را پیگیری کند
+            if (data_get($remote, 'id')) {
+                $domain->forceFill(['op_id' => data_get($remote, 'id')])->save();
+            }
+
+            if (in_array($state, self::REMOTE_FAILED, true)) {
+                return $this->fail($domain,
+                    'رجیستری وضعیتِ «'.$state.'» برگرداند — ثبت انجام نشده است.',
+                    manual: true);
+            }
+
+            $tries = (int) $domain->provision_tries + 1;
+
+            return $this->fail($domain,
+                'در انتظارِ تأییدِ رجیستری (وضعیت: '.$state.') — هنوز نهایی نشده.',
+                manual: $tries >= self::MAX_TRIES, tries: $tries);
+        }
+
         TldGate::clear((string) $domain->tld);
 
         $expires = data_get($remote, 'expiration_date') ?: data_get($remote, 'expiration_date_time');
 
+        /*
+        | ⚠️ تاریخِ انقضا هرگز **جعل نمی‌شود**. نسخهٔ قبلی وقتی رجیسترار تاریخ
+        | نمی‌داد `now()+سال‌ها` می‌گذاشت — و کرونِ چرخهٔ عمر بر پایهٔ همان
+        | تاریخِ ساختگی فاکتورِ تمدید صادر می‌کرد. «نمی‌دانیم» (null) درست است:
+        | چرخهٔ عمر ردیفِ بی‌تاریخ را کنار می‌گذارد و خودش روزانه تاریخِ واقعی
+        | را از رجیسترار ترمیم می‌کند (سقف‌دار، در همان فرمان).
+        */
         $domain->forceFill([
             'status'           => 'active',
             'provision_status' => 'done',
@@ -614,13 +671,14 @@ class DomainRegistrar
             'op_id'            => data_get($remote, 'id') ?: $domain->op_id,
             'owner_handle'     => $handle,
             'registered_at'    => $domain->registered_at ?: now(),
-            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at
-                ?: now()->addYears(max(1, (int) $domain->period_years)),
+            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
+        $until = $domain->fresh()?->expires_at;
+
         $this->announce('domain_registered', $domain,
-            'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد و تا '
-            .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
+            'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد'
+            .($until ? ' و تا '.sdate($until).' اعتبار دارد.' : '.'));
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
