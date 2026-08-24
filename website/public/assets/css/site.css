@@ -315,6 +315,16 @@ footer{border-top:1px solid var(--line);margin-top:110px;padding:70px 0 30px;bac
   html{scroll-behavior:auto}
   .reveal{opacity:1;transform:none}
 }
+/* ============ CWV: موبایل بدونِ reveal ============
+   .reveal با opacity:0 شروع می‌شود و تا site.jsِ defer لود و IntersectionObserver
+   اجرا نشود هیچ‌چیز — از جمله هیروی بالای صفحه — رنگ نمی‌شود. روی شبکهٔ موبایل
+   یعنی LCP گروگانِ JS است: Search Console هر ۷۴ URLِ موبایل را «LCP > 4s»
+   (Poor) گزارش کرد — ممیزی ۲۴ اوت ۲۰۲۶. روی صفحهٔ کوچک، انیمیشنِ ورودِ
+   اسکرولی ارزشِ دیده‌شدنی هم ندارد؛ پس موبایل = رندرِ آنی، دسکتاپ = همان
+   افکتِ قبلی. (768px = آستانهٔ موبایل/تبلتِ CrUX، عمداً از 640ِ همبرگر پهن‌تر) */
+@media(max-width:768px){
+  .reveal{opacity:1;transform:none;transition:none}
+}
 
 /* ============ TOPBAR (trust: phone/email/status) ============ */
 .topbar{background:rgba(8,11,22,.9);border-bottom:1px solid var(--line);font-size:12.5px;position:relative;z-index:201}

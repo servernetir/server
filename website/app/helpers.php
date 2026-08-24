@@ -720,6 +720,43 @@ if (! function_exists('schema_ld')) {
     }
 }
 
+if (! function_exists('schema_offer_extras')) {
+    /**
+     * فیلدهای مشترکی که Search Console در گزارشِ «Merchant listings» برای هر
+     * Offer بدونشان هشدار می‌دهد: validFrom، hasMerchantReturnPolicy و
+     * shippingDetails (ممیزی ۲۴ اوت ۲۰۲۶ — ۶۷ آیتم، سه هشدار در هر آیتم).
+     *
+     * سرویس‌ها دیجیتال‌اند و کالایی پست نمی‌شود؛ ارسال = صفر-هزینه/آنی، و
+     * ضمانتِ بازگشتِ وجه همان وعدهٔ ۱۴ روزه‌ای است که FAQ و صفحهٔ terms به
+     * مشتری می‌دهند — این‌جا فقط نشانه‌گذاری می‌شود، نه وعدهٔ تازه.
+     */
+    function schema_offer_extras(string $currency): array
+    {
+        return [
+            // اولِ ماه، نه now(): اسکیما نباید هر روز عوض شود (pagecache و
+            // خزشِ مجدد بی‌دلیل).
+            'validFrom' => now()->startOfMonth()->toDateString(),
+            'hasMerchantReturnPolicy' => [
+                '@type' => 'MerchantReturnPolicy',
+                'applicableCountry' => 'IR',
+                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+                'merchantReturnDays' => 14,
+                'returnFees' => 'https://schema.org/FreeReturn',
+            ],
+            'shippingDetails' => [
+                '@type' => 'OfferShippingDetails',
+                'shippingRate' => ['@type' => 'MonetaryAmount', 'value' => 0, 'currency' => $currency],
+                'shippingDestination' => ['@type' => 'DefinedRegion', 'addressCountry' => 'IR'],
+                'deliveryTime' => [
+                    '@type' => 'ShippingDeliveryTime',
+                    'handlingTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 0, 'unitCode' => 'DAY'],
+                    'transitTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 0, 'unitCode' => 'DAY'],
+                ],
+            ],
+        ];
+    }
+}
+
 if (! function_exists('word_count_fa')) {
     /** شمارش کلمه که با فارسی و ترکی هم کار می‌کند (str_word_count فقط لاتین را می‌شمارد) */
     function word_count_fa(string $text): int

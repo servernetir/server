@@ -864,8 +864,11 @@ class CloudCatalogController extends Controller
                     'name' => $r['name'].' — '.$r['loc'],
                     'description' => $r['vcpu'].' vCPU · '.$r['ram'].' RAM · '.$r['disk'].' · '.$r['loc'],
                     'category' => 'Cloud VPS',
+                    // image + schema_offer_extras: رفعِ خطا/هشدارهای Merchant
+                    // listings در Search Console (ممیزی ۲۴ اوت ۲۰۲۶).
+                    'image' => [asset('assets/img/og.png')],
                     'brand' => ['@type' => 'Brand', 'name' => __('ui.brand')],
-                    'offers' => [
+                    'offers' => schema_offer_extras($fa ? 'IRR' : 'EUR') + [
                         '@type' => 'Offer',
                         'url' => $r['loc_url'],
                         'price' => $price,

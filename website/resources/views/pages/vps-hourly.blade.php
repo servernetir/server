@@ -81,7 +81,8 @@
       if ($hvRaw === null || $hvRaw <= 0) {
           continue;
       }
-      $hvOffers[] = [
+      // + schema_offer_extras: هشدارهای Merchant listings (ممیزی ۲۴ اوت ۲۰۲۶)
+      $hvOffers[] = schema_offer_extras($hvCur) + [
           '@type' => 'Offer',
           'name' => $hvF['name'].' — '.$hvF['city'],
           'priceCurrency' => $hvCur,
@@ -102,6 +103,8 @@
       'name' => __('ui.hv_badge'),
       'description' => $hvMetaD,
       'url' => url()->current(),
+      // image: بدونش Merchant listings آیتم را invalid می‌کند.
+      'image' => [asset('assets/img/og.png')],
       'brand' => ['@type' => 'Brand', 'name' => __('ui.brand')],
       'offers' => $hvOffers,
   ];

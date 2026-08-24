@@ -59,6 +59,20 @@ $site = function (): void {
     */
     Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
     Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
+    /*
+    | 🔴 آدرس‌های مردهٔ دورانِ وردپرس/WHMCS که Search Console هنوز ۴۰۴شان را
+    | گزارش می‌کند (ممیزی ۲۴ اوت ۲۰۲۶): /privacy-policy (اسلاگِ استاندارد
+    | وردپرس)، /home، /cart (سبدِ WHMCSِ مرده)، /services، /marketing و
+    | /servernet. مقصدها نزدیک‌ترین معادلِ واقعی‌اند؛ همان الگویِ closure +
+    | lroute بالا (سه‌بار ثبت، مقصدِ هم‌زبان). بقیهٔ ۴۰۴ها (wp-*.php،
+    | cgi-bin…) عمداً ۴۰۴ می‌مانند — آدرسِ آشغال مقصد ندارد.
+    */
+    Route::get('/privacy-policy', fn () => redirect()->to(lroute('privacy'), 301))->name('privacy.legacy');
+    Route::get('/home', fn () => redirect()->to(lroute('home'), 301))->name('home.legacy');
+    Route::get('/cart', fn () => redirect()->to(lroute('cloud.index'), 301))->name('cart.legacy');
+    Route::get('/services', fn () => redirect()->to(lroute('home'), 301))->name('services.legacy');
+    Route::get('/marketing', fn () => redirect()->to(lroute('home'), 301))->name('marketing.legacy');
+    Route::get('/servernet', fn () => redirect()->to(lroute('home'), 301))->name('servernet.legacy');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
 
