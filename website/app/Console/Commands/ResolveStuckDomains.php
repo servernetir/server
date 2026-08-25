@@ -84,8 +84,10 @@ class ResolveStuckDomains extends Command
         | بازگشتی هم در کار نبود — نقضِ همان قاعدهٔ کارفرما، فقط در لباسِ
         | تمدید به‌جای ثبت.
         */
+        // «active» = تمدیدِ شکست‌خورده؛ «expired» = بازیابیِ شکست‌خورده —
+        // هر دو پول گرفته‌اند و هر دو باید یا انجام شوند یا پولشان برگردد.
         $stuckRenewals = Domain::where('provision_status', 'manual')
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'expired'])
             ->with('customer')
             ->orderBy('updated_at')
             ->get();
@@ -279,7 +281,8 @@ class ResolveStuckDomains extends Command
      */
     private function refundFailedRenewal(Domain $domain, CustomerNotifier $customers, AdminNotifier $admin): void
     {
-        $invoiceId = (int) ($domain->meta['renew_invoice_id'] ?? 0);
+        // تمدید و بازیابی هر دو از همین در می‌آیند؛ نشانِ فاکتور فرق دارد
+        $invoiceId = (int) ($domain->meta['renew_invoice_id'] ?? $domain->meta['restore_invoice_id'] ?? 0);
 
         $invoice = $invoiceId > 0
             ? Invoice::where('id', $invoiceId)
@@ -342,7 +345,7 @@ class ResolveStuckDomains extends Command
                     'provision_error'  => 'تمدید ممکن نشد؛ وجهِ فاکتور به اعتبارِ مشتری بازگشت.',
                 ])->save();
 
-                $domain->putMeta(['renew_invoice_id' => null, 'renew_years' => null]);
+                $domain->putMeta(['renew_invoice_id' => null, 'restore_invoice_id' => null, 'renew_years' => null]);
             });
         } catch (\Throwable $e) {
             ErrorTracker::note('domain', $e, ['area' => 'renewal-refund', 'domain' => $domain->domain]);
@@ -355,12 +358,16 @@ class ResolveStuckDomains extends Command
 
         try {
             if ($domain->customer !== null) {
+                $what = $domain->status === 'expired' ? 'بازیابی' : 'تمدید';
+
                 $customers->event($domain->customer, 'domain_refunded', [
                     'domain' => $domain->domain,
                     'amount' => $money,
-                ], 'تمدیدِ دامنهٔ '.$domain->domain.' انجام نشد و مبلغ '.$money
-                    .' به اعتبارِ حسابِ شما بازگشت. دامنه تا تاریخِ انقضای فعلی برقرار است؛ '
-                    .'می‌توانید دوباره تمدید کنید یا با پشتیبانی تماس بگیرید.');
+                ], $what.'ِ دامنهٔ '.$domain->domain.' انجام نشد و مبلغ '.$money
+                    .' به اعتبارِ حسابِ شما بازگشت. '
+                    .($domain->status === 'expired'
+                        ? 'برای پیگیریِ نجاتِ دامنه با پشتیبانی تماس بگیرید — هر روز تأخیر شانس را کم می‌کند.'
+                        : 'دامنه تا تاریخِ انقضای فعلی برقرار است؛ می‌توانید دوباره تمدید کنید یا با پشتیبانی تماس بگیرید.'));
             }
 
             $admin->event('تمدیدِ دامنه ناموفق — وجه بازگشت',

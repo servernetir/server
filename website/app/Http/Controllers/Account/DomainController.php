@@ -46,9 +46,15 @@ class DomainController extends Controller
      */
     public function index(Request $request, \App\Services\Domain\DomainSearch $search): View
     {
+        /*
+        | ⚠️ `expired` عمداً **دیده می‌شود** (برخلافِ `alive()`): دورهٔ redemption
+        | یعنی دامنه هنوز قابلِ نجات است و پنهان‌کردنش از پنل همان «بن‌بستِ
+        | بازیابی» بود که ممیزی پیدا کرد. مرده‌های واقعی (لغو/منتقل‌شده)
+        | همچنان پنهان‌اند. منقضی‌ها تهِ فهرست، ثبت‌درجریان‌ها اول.
+        */
         $domains = Domain::where('customer_id', $this->customerId())
-            ->alive()
-            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->whereNotIn('status', ['cancelled', 'transferred_away'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 WHEN status = 'expired' THEN 2 ELSE 1 END")
             ->orderBy('expires_at')
             ->get();
 
@@ -302,6 +308,101 @@ class DomainController extends Controller
 
         // ⚠️ lroute و نه route: کاربرِ /en/ و /tr/ نباید وسطِ پرداخت به صفحهٔ
         //    فارسی بیفتد — همان قاعدهٔ بالای domain-show.blade.php.
+        return redirect()->to(lroute('account.invoice', $invoice));
+    }
+
+    /**
+     * بازیابیِ دامنهٔ منقضی (redemption) — مسیرِ نجاتی که وجود نداشت.
+     *
+     * ═══ چرا (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 دامنهٔ `expired` از پنل غیب می‌شد و تنها راهش «تماس با پشتیبانی»
+     * بود — دقیقاً در پنجره‌ای که رجیستری هنوز بازیابی را می‌پذیرد و هر روز
+     * تأخیر شانسِ نجات را کم می‌کند.
+     *
+     * قیمت = قیمتِ مؤثرِ تمدید + کارمزدِ بازیابی (`domain_restore_fee_toman`
+     * در تنظیمات — کارمزدِ redemption نزدِ رجیستری چند برابرِ تمدید است و
+     * per-TLD از API نمی‌آید، پس عددش تصمیمِ کارفرماست). تا وقتی آن تنظیم
+     * خالی است، این مسیر عمداً بسته می‌مانَد و به پشتیبانی ارجاع می‌دهد —
+     * فروختنِ نجات زیرِ قیمتِ تمام‌شده بدتر از نفروختنش است.
+     *
+     * مثلِ renew: این‌جا فقط فاکتور؛ تماسِ رجیسترار پس از پرداخت با کرون
+     * (`restorePaid`)، و شکستِ قطعی = رفاندِ خودکار.
+     */
+    public function restore(Request $request, Domain $domain, \App\Services\Domain\DomainRenewalInvoicer $invoicer): RedirectResponse
+    {
+        $this->owned($domain);
+
+        if ($domain->status !== 'expired') {
+            return back()->withErrors('این دامنه در وضعیتِ بازیابی نیست.');
+        }
+
+        if (! $domain->op_id) {
+            return back()->withErrors('بازیابیِ این دامنه فقط از راهِ پشتیبانی ممکن است.');
+        }
+
+        if (in_array($domain->provision_status, ['pending', 'running'], true)) {
+            return back()->with('ok', 'بازیابی در حالِ انجام است؛ نتیجه به شما اطلاع داده می‌شود.');
+        }
+
+        if ($domain->provision_status === 'manual') {
+            return back()->withErrors('بازیابیِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+        }
+
+        $fee = (int) \App\Models\Setting::get('domain_restore_fee_toman');
+
+        if ($fee <= 0) {
+            return back()->withErrors('بازیابیِ آنلاین فعلاً فعال نیست؛ برای نجاتِ دامنه با پشتیبانی تماس بگیرید.');
+        }
+
+        $renewPerYear = $invoicer->effectivePerYear($domain);
+
+        if ($renewPerYear <= 0) {
+            return back()->withErrors('قیمتِ بازیابی در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
+        }
+
+        $invoice = DB::transaction(function () use ($domain, $invoicer, $renewPerYear, $fee) {
+            Domain::whereKey($domain->id)->lockForUpdate()->first();
+
+            if ($open = $invoicer->open($domain)) {
+                return $open;
+            }
+
+            $subtotal = $renewPerYear + $fee;
+            $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
+            $tax = (int) round($subtotal * $taxPct / 100);
+
+            $invoice = Invoice::create([
+                'customer_id'   => $domain->customer_id,
+                'domain_id'     => $domain->id,
+                'kind'          => 'domain',
+                'currency_code' => 'IRT',
+                'subtotal'      => $subtotal,
+                'tax'           => $tax,
+                'total'         => $subtotal + $tax,
+                'paid'          => 0,
+                'status'        => 'unpaid',
+                'issued_at'     => now(),
+                'note'          => 'بازیابیِ دامنهٔ منقضیِ '.$domain->domain,
+            ]);
+
+            InvoiceItem::create([
+                'invoice_id'  => $invoice->id,
+                'title'       => 'بازیابیِ دامنهٔ '.$domain->domain,
+                'description' => 'نجات از دورهٔ redemption + یک سال تمدید',
+                'quantity'    => 1,
+                'unit_price'  => $subtotal,
+                'line_total'  => $subtotal,
+                'tax_rate_bp' => (int) ($taxPct * 100),
+                'tax_amount'  => $tax,
+            ]);
+
+            // نشانِ فاکتور برای رفاندِ هدفمند + یک‌سالِ تمدیدِ همراهِ بازیابی
+            $domain->putMeta(['restore_invoice_id' => $invoice->id, 'renew_years' => 1]);
+
+            return $invoice;
+        });
+
         return redirect()->to(lroute('account.invoice', $invoice));
     }
 

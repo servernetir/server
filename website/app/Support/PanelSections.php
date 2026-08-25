@@ -197,6 +197,11 @@ final class PanelSections
             return ['info', 'dmn_state_pending', null];
         }
 
+        // منقضی ولی شاید هنوز قابلِ نجات (redemption) — نباید «نامشخص» بگیرد
+        if ($d->status === 'expired') {
+            return ['danger', 'dmn_state_expired', null];
+        }
+
         return ['mute', 'dmn_state_other', null];
     }
 }

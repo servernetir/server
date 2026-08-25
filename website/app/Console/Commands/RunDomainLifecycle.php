@@ -53,6 +53,20 @@ class RunDomainLifecycle extends Command
     /** مراحلِ یادآوری — از دور به نزدیک */
     private const STAGES = [7, 3, 1];
 
+    /**
+     * یادآوری‌های **دورهٔ بازیابی** — روزهای گذشته از انقضا (عددِ منفی).
+     *
+     * ═══ چرا (ممیزی شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 «پنجرهٔ سکوت»: آخرین پیامِ مشتری «فردا منقضی می‌شود» بود و بعد ۳۰
+     * روز هیچ — و بعد «منقضی شد و دورهٔ بازیابی هم گذشت». دقیقاً پنجره‌ای
+     * که هنوز می‌شد دامنه را نجات داد، ساکت‌ترین پنجره بود.
+     *
+     * ⚠️ منفی‌ها هم نزولی‌اند تا منطقِ «این مرحله یا نزدیک‌ترش رفته»
+     * (`sent <= stage`) بدونِ تغییر کار کند: ۷ → ۳ → ۱ → ۳- → ۱۰- → ۲۰-.
+     */
+    private const GRACE_STAGES = [-3, -10, -20];
+
     public function handle(
         CustomerNotifier $customers,
         AdminNotifier $admin,
@@ -123,8 +137,9 @@ class RunDomainLifecycle extends Command
 
                 $customers->templated($domain->customer, 'domain_expired',
                     ['domain' => $domain->domain],
-                    '⛔ دامنهٔ «'.$domain->domain.'» منقضی شد و دورهٔ بازیابی‌اش هم گذشت. '
-                    .'اگر هنوز لازمش دارید با پشتیبانی تماس بگیرید.');
+                    '⛔ دامنهٔ «'.$domain->domain.'» منقضی شد و مهلتِ سی‌روزه هم گذشت. '
+                    .'شاید هنوز در دورهٔ redemption رجیستری قابلِ بازیابی باشد — از صفحهٔ دامنه '
+                    .'در پنل («بازیابی دامنه») یا با پشتیبانی اقدام کنید؛ هر روز تأخیر شانسِ نجات را کم می‌کند.');
 
                 $admin->event('دامنه منقضی شد', [
                     'دامنه'  => $domain->domain,
@@ -246,7 +261,7 @@ class RunDomainLifecycle extends Command
 
     private function stageFor(int $daysLeft): ?int
     {
-        foreach (self::STAGES as $s) {
+        foreach ([...self::STAGES, ...self::GRACE_STAGES] as $s) {
             if ($daysLeft === $s) {
                 return $s;
             }
@@ -257,20 +272,32 @@ class RunDomainLifecycle extends Command
 
     private function remind(Domain $domain, ?Invoice $invoice, int $stage, CustomerNotifier $customers): void
     {
-        $when = $stage === 1 ? 'فردا' : fa_num($stage).' روز دیگر';
         $amount = $invoice ? fa_num(number_format((int) $invoice->total)).' تومان' : null;
 
-        $text = '⏰ دامنهٔ «'.$domain->domain.'» '.$when.' منقضی می‌شود'
-            .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
-            .'برای اینکه دامنه‌تان را از دست ندهید، از پنل کاربری پرداخت کنید: '
-            .console_lroute('account.invoices');
+        if ($stage < 0) {
+            // دورهٔ بازیابی — دامنه منقضی شده ولی هنوز قابلِ نجات است
+            $left = max(1, Domain::EXPIRY_GRACE_DAYS + $stage);
+
+            $text = '🚨 دامنهٔ «'.$domain->domain.'» '.fa_num(abs($stage)).' روز پیش منقضی شده '
+                .'ولی هنوز تا '.fa_num($left).' روز دیگر قابلِ نجات است'
+                .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
+                .'اگر الان اقدام نکنید، دامنه برای همیشه آزاد می‌شود و هرکسی می‌تواند ثبتش کند: '
+                .console_lroute('account.invoices');
+        } else {
+            $when = $stage === 1 ? 'فردا' : fa_num($stage).' روز دیگر';
+
+            $text = '⏰ دامنهٔ «'.$domain->domain.'» '.$when.' منقضی می‌شود'
+                .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
+                .'برای اینکه دامنه‌تان را از دست ندهید، از پنل کاربری پرداخت کنید: '
+                .console_lroute('account.invoices');
+        }
 
         // ⚠️ متغیرها حتماً پاس داده می‌شوند: هر دو خوانندهٔ الگو اگر بعد از
         //    جایگزینی هنوز `{چیزی}` ببینند، الگو را کنار می‌گذارند — یعنی
         //    مدیر متن را ویرایش می‌کند و هیچ اتفاقی نمی‌افتد.
         $customers->templated($domain->customer, 'domain_expiring', [
             'domain' => $domain->domain,
-            'days'   => fa_num($stage),
+            'days'   => fa_num(abs($stage)),
             'amount' => $amount ?? '—',
             'link'   => console_lroute('account.invoices'),
         ], $text);

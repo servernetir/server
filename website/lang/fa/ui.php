@@ -2275,6 +2275,7 @@ return [
     'dmn_state_transfer_epp' => 'در انتظار کد انتقال',
     'dmn_state_transfer_wait' => 'انتقال در جریان',
     'dmn_state_transfer_failed' => 'انتقال نیازمند بررسی',
+    'dmn_state_expired' => 'منقضی — شاید قابل بازیابی',
     'dmn_state_other' => 'نامشخص',
     'dmn_days_left' => 'روز مانده',
     'dmn_days_to_delete' => 'روز تا حذف قطعی',

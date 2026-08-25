@@ -2258,6 +2258,7 @@ return [
     'dmn_state_transfer_epp' => 'Transfer kodu bekleniyor',
     'dmn_state_transfer_wait' => 'Transfer sürüyor',
     'dmn_state_transfer_failed' => 'Transfer ilgi bekliyor',
+    'dmn_state_expired' => 'Süresi doldu — kurtarılabilir',
     'dmn_state_other' => 'Bilinmiyor',
     'dmn_days_left' => 'gün kaldı',
     'dmn_days_to_delete' => 'gün sonra kalıcı olarak silinir',

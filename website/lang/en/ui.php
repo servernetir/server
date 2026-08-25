@@ -2258,6 +2258,7 @@ return [
     'dmn_state_transfer_epp' => 'Awaiting transfer code',
     'dmn_state_transfer_wait' => 'Transfer in progress',
     'dmn_state_transfer_failed' => 'Transfer needs attention',
+    'dmn_state_expired' => 'Expired — may be recoverable',
     'dmn_state_other' => 'Unknown',
     'dmn_days_left' => 'days left',
     'dmn_days_to_delete' => 'days until permanent deletion',

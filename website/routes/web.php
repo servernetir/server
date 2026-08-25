@@ -479,6 +479,9 @@ $site = function (): void {
         // تمدیدِ دستی: فقط فاکتور می‌سازد؛ تماسِ رجیسترار پس از پرداخت و با کرون
         Route::post('/domains/{domain}/renew', [Account\DomainController::class, 'renew'])
             ->name('domain.renew')->middleware('throttle:6,1');
+        // بازیابیِ دامنهٔ منقضی (redemption) — همان قاعده: فقط فاکتور
+        Route::post('/domains/{domain}/restore', [Account\DomainController::class, 'restore'])
+            ->name('domain.restore')->middleware('throttle:6,1');
         // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
         Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
             ->name('domain.transfer.submit')->middleware('throttle:6,1');
