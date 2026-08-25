@@ -68,7 +68,9 @@ class DocsRepository
             'slug'     => $p->slug,
             'title'    => $t?->title ?? $p->slug,
             'excerpt'  => $t?->excerpt ?? '',
-            'content'  => $t?->content ?? '',
+            // تنزل h1→h2 در بدنه — همان قاعدهٔ BlogRepository (ممیزی ۷، RG-H1-15):
+            // H1 مالِ قالب است؛ مولدِ AI گاهی تیترِ بدنه را h1 می‌نویسد.
+            'content'  => preg_replace('~<(/?)h1\b~i', '<$1h2', $t?->content ?? ''),
             'tags'     => $t?->tags ?? [],
             'category' => $p->category,
             'section'  => $section,

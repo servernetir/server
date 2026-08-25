@@ -29,9 +29,10 @@ FAIL=0
 say() { printf '%s\n' "$*"; }
 
 # ── sitemap ← فقط مسیرهای فارسی ────────────────────────────────────────────
+# ‎.txt/.xml (مثل llms.txt) صفحهٔ HTML نیستند — در تستِ عنوان/H1 خطای کاذب می‌سازند
 curl -s --max-time 30 -A "$UA" "$BASE/sitemap.xml" \
   | grep -oE '<loc>[^<]+' | sed 's|<loc>||' \
-  | grep -vE "^$BASE/(en|tr)(/|$)" | sort -u > "$O/urls.txt"
+  | grep -vE "^$BASE/(en|tr)(/|$)" | grep -vE '\.(txt|xml)$' | sort -u > "$O/urls.txt"
 
 N_PAGES=$(wc -l < "$O/urls.txt" | tr -d ' ')
 
