@@ -1295,10 +1295,31 @@ domains:renew      (هر دقیقه)          DomainRegistrar::renewPaid()
 ⚠️ **دو مهاجرتِ جدید** (`cost_renew_amount`، `domain_quotes.customer_id`) روی
 سرور باید دستی اجرا شوند؛ تا آن موقع همهٔ مسیرها با گاردِ `hasColumn` امن‌اند.
 
-⚠️ **هنوز ساخته نشده** (تصمیمِ کارفرما لازم): ساختِ خودکارِ DNS zone برای
-NSهای پیش‌فرض (دامنهٔ تحویلی به جایی resolve نمی‌شود)، مسیرِ redemption بعد
-از انقضا، درگاهِ «پرداخت از اعتبار»، همگام‌سازیِ دوره‌ای با رجیسترار و پایشِ
-موجودیِ حسابِ OpenProvider.
+**تکمیلِ ۳ شهریور — چهار قابلیتِ باز هم ساخته شد:**
+
+- **zone خودکارِ DNS** (`Dns\DomainZoneProvisioner`): ns1/ns2 به سرورِ cPanelِ
+  core اشاره می‌کنند؛ ثبت/انتقالِ موفق و برگشتِ NS به پیش‌فرض، روی WHM همان
+  سرور `adddns` می‌زنند (خودیابِ سرور از IPِ ns1؛ override با تنظیماتِ
+  `domain_zone_server_id`/`domain_zone_ip`). شکستِ zone هرگز تحویل را خراب
+  نمی‌کند — اعلانِ مدیر با نامِ دامنه. تست: `DomainZoneProvisionTest`.
+- **پرداخت از اعتبار** (`PaymentController::payCredit` + دکمه روی فاکتور):
+  Payment از جنسِ `credit` + همان `settleConfirmed` — فعال‌سازی/صف‌گذاری/
+  درآمد خودکار. فقط پرداختِ کاملِ مانده؛ topup ممنوع. تست:
+  `CreditInvoicePaymentTest`.
+- **redemption** : یادآورهای دورهٔ بازیابی (۳-/۱۰-/۲۰-)؛ دامنهٔ `expired` در
+  پنل می‌مانَد و دکمهٔ «بازیابی» فاکتورِ «تمدیدِ مؤثر + `Setting:
+  domain_restore_fee_toman`» می‌سازد (تنظیمِ خالی = مسیر بسته و ارجاع به
+  پشتیبانی). صفِ `awaitingRestore` روی `expired` (بی‌اشتراک با ثبت/تمدید) در
+  `domains:renew` مصرف می‌شود → `restorePaid` (restore + تمدیدِ تکمیلی)؛
+  شکستِ قطعی = رفاندِ خودکارِ فاکتورِ `restore_invoice_id`. تست:
+  `DomainRestoreTest`.
+- **پایشِ موجودیِ رجیسترار**: چکِ سلامتِ `domain_balance` (کش ۶ساعته) از
+  `GET /resellers` با جست‌وجوی بازگشتیِ کلیدِ balance؛ زیرِ
+  `OPENPROVIDER_MIN_BALANCE` (پیش‌فرض ۱۰) قرمز؛ «ناخوانا» هرگز هشدارِ قلابی
+  نمی‌شود. تست: `DomainRegistrarBalanceTest`.
+
+⚠️ **هنوز ساخته نشده**: همگام‌سازیِ دوره‌ایِ کاملِ موجودیِ دامنه‌ها با
+رجیسترار (`listDomains` هنوز بی‌مصرف است — orphan/ghost نامرئی‌اند).
 
 ### 🔴 قراردادِ رجیستریِ امضانشده — شکستی که تلاشِ دوباره هرگز حلش نمی‌کند
 
