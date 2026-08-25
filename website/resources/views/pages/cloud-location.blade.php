@@ -23,6 +23,13 @@
 @section('title', $metaT)
 @section('description', $metaD)
 
+{{-- مکانِ بدونِ پلنِ قابل‌فروش = صفحهٔ «۰ پلن، از —» در هر سه زبان؛ گوگل
+     همین‌ها را Duplicate/کم‌ارزش گزارش کرد (ممیزی ۲۴ اوت ۲۰۲۶). تا وقتی
+     پلن برگردد noindex — با برگشتنِ پلن، خودکار دوباره ایندکس‌پذیر است. --}}
+@if(count($rows) === 0)
+@section('noindex', 'y')
+@endif
+
 @section('content')
 
 <script type="application/ld+json">{!! schema_ld($ld['crumbs'], 'BreadcrumbList') !!}</script>

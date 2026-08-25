@@ -66,7 +66,9 @@
           continue;
       }
 
-      $sdOffers[] = [
+      // + schema_offer_extras: سه هشدارِ Merchant listings (validFrom،
+      //   return policy، shipping) را برای هر Offer می‌بندد.
+      $sdOffers[] = schema_offer_extras($sdCur) + [
           '@type'           => 'Offer',
           'name'            => $sdP['name'] ?? '',
           // 🔴 IRR یعنی **ریال**، پس عدد باید ریال باشد نه تومان.
@@ -101,6 +103,10 @@
       'name'        => $sdName,
       'description' => lc($product)['hero_d'],
       'url'         => url()->current(),
+      // «image» برای Merchant listings الزامی‌ست — نبودش هر ۶۷ آیتم را در
+      // Search Console از دورِ نتایجِ غنی حذف کرده بود. تا وقتی تصویرِ
+      // اختصاصیِ محصول نداریم، همان og برند (۱۲۰۰×۶۳۰، URL مطلق).
+      'image'       => [asset('assets/img/og.png')],
       'brand'       => ['@type' => 'Brand', 'name' => __('ui.brand')],
       'offers'      => $sdOffers,
   ];

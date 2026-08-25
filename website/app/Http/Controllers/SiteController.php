@@ -304,7 +304,18 @@ class SiteController extends Controller
         $add('vps.hourly');
 
         if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
-            foreach (\App\Models\CloudLocation::where('is_active', true)->pluck('code') as $code) {
+            /*
+            | فقط مکان‌هایی که واقعاً پلنِ قابل‌فروش دارند. ردیف‌های میراثیِ
+            | syncِ قدیمی (ru-intel، de-shared، ws-dedicated…) فعال مانده‌اند
+            | ولی «۰ پلن، از —» رندر می‌کنند؛ Search Console همین‌ها را
+            | «Duplicate, Google chose different canonical» گزارش کرد (۲۱
+            | صفحه، ممیزی ۲۴ اوت ۲۰۲۶). صفحهٔ خالی در نقشهٔ سایت = دعوتِ
+            | خزنده به محتوای هیچ.
+            */
+            $sellableLocs = \App\Models\CloudPlan::query()->sellable()
+                ->distinct()->pluck('location_code')->all();
+            foreach (\App\Models\CloudLocation::where('is_active', true)
+                ->whereIn('code', $sellableLocs)->pluck('code') as $code) {
                 $add('cloud.location', $code);
             }
         }
