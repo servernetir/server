@@ -39,7 +39,17 @@ class RunDomainRenewal extends Command
 
         $domains = $q->orderBy('expires_at')->limit((int) $this->option('limit'))->get();
 
-        if ($domains->isEmpty()) {
+        /*
+        | 🔴 صفِ **بازیابی** هم همین‌جا مصرف می‌شود (شهریور ۱۴۰۵): دامنهٔ
+        | منقضی که نجاتش پرداخت شده. اسکوپش روی `status='expired'` سوار است —
+        | بی‌اشتراک با تمدید (`active`) و ثبت (`pending`)، پس هیچ ردیفی
+        | دوبار برداشته نمی‌شود.
+        */
+        $restores = Domain::query()->awaitingRestore()->with('customer')
+            ->when($this->option('id'), fn ($w, $id) => $w->whereKey($id))
+            ->orderBy('expires_at')->limit((int) $this->option('limit'))->get();
+
+        if ($domains->isEmpty() && $restores->isEmpty()) {
             $this->line('چیزی در صفِ تمدید نیست.');
 
             return self::SUCCESS;
@@ -47,6 +57,22 @@ class RunDomainRenewal extends Command
 
         $ok = 0;
         $failed = 0;
+
+        foreach ($restores as $domain) {
+            $res = $registrar->restorePaid($domain);
+
+            if ($res['ok']) {
+                $ok++;
+                $this->info('✓ بازیابی: '.$domain->domain);
+
+                continue;
+            }
+
+            $failed++;
+            $this->{$res['manual'] ? 'error' : 'warn'}(
+                ($res['manual'] ? '✗ بازیابی، نیازِ بررسیِ دستی: ' : '… بازیابی، تلاشِ دوباره: ').$domain->domain.' — '.$res['message']
+            );
+        }
 
         foreach ($domains as $domain) {
             $res = $registrar->renewPaid($domain);

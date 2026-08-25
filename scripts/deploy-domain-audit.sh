@@ -51,6 +51,7 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    همهٔ قبلی‌ها اشاره می‌کنند).
 APP_FILES="
 config/catalog/domain.php
+config/services.php
 app/Models/Domain.php
 app/Models/DomainQuote.php
 app/Services/Domain/DomainCostFloor.php
@@ -60,19 +61,24 @@ app/Services/Domain/DomainSearch.php
 app/Services/Domain/DomainRegistrar.php
 app/Services/Domain/DomainTransfer.php
 app/Services/Domain/Reseller/ResellerOrderService.php
+app/Services/Dns/DomainZoneProvisioner.php
 app/Services/Billing/InvoiceCanceller.php
 app/Services/Finance/BusinessLedger.php
+app/Services/Payment/PaymentService.php
 app/Services/SystemHealth.php
 app/Support/PanelSections.php
 app/Console/Commands/RunDomainLifecycle.php
+app/Console/Commands/RunDomainRenewal.php
 app/Console/Commands/ResolveStuckDomains.php
 app/Console/Commands/ExpireOrderInvoices.php
 app/Console/Commands/PruneDomainQuotes.php
 app/Http/Controllers/Account/DomainController.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
+app/Http/Controllers/Account/PaymentController.php
 app/Http/Controllers/CatalogController.php
 app/Http/Controllers/DomainCheckController.php
 resources/views/account/domain-show.blade.php
+resources/views/account/invoice.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
@@ -202,6 +208,35 @@ grep -qF "domains:prune-quotes" "$APP/routes/console.php" 2>/dev/null \
   || { echo "🔴 routes/console.php: کرونِ هرس ثبت نشده"; union_ok=0; }
 grep -qF "account.domain.renew" "$APP/resources/views/account/domain-show.blade.php" 2>/dev/null \
   || { echo "🔴 صفحهٔ دامنه هنوز دکمهٔ تمدید ندارد"; union_ok=0; }
+
+# ── چهار قابلیتِ ۳ شهریور ──
+need_file "$APP/app/Services/Dns/DomainZoneProvisioner.php"
+grep -q "payCredit" "$APP/app/Http/Controllers/Account/PaymentController.php" 2>/dev/null \
+  || { echo "🔴 PaymentController هنوز payCredit ندارد"; union_ok=0; }
+grep -qF "name('invoice.paycredit')" "$APP/routes/web.php" 2>/dev/null \
+  || { echo "🔴 routes: روتِ پرداخت از اعتبار نیست"; union_ok=0; }
+grep -q "inv_credit_btn" "$APP/lang/fa/ui.php" 2>/dev/null \
+  || { echo "🔴 lang: کلیدِ دکمهٔ اعتبار نیست"; union_ok=0; }
+# ⚠️ در مدل، نامِ متد طبقِ قراردادِ لاراول scopeAwaitingRestore است (A بزرگ)؛
+#    اجرای اول همین گرپِ اشتباهِ حروف، دیپلویِ سالم را برگرداند.
+grep -q "scopeAwaitingRestore" "$APP/app/Models/Domain.php" 2>/dev/null \
+  || { echo "🔴 Domain هنوز صفِ بازیابی ندارد"; union_ok=0; }
+grep -q "awaitingRestore" "$APP/app/Console/Commands/RunDomainRenewal.php" 2>/dev/null \
+  || { echo "🔴 کرونِ تمدید صفِ بازیابی را مصرف نمی‌کند"; union_ok=0; }
+grep -q "restoreDomain" "$APP/app/Services/Domain/OpenProviderClient.php" 2>/dev/null \
+  || { echo "🔴 کلاینت هنوز restore ندارد"; union_ok=0; }
+grep -q "restorePaid" "$APP/app/Services/Domain/DomainRegistrar.php" 2>/dev/null \
+  || { echo "🔴 DomainRegistrar هنوز restorePaid ندارد"; union_ok=0; }
+grep -qF "name('domain.restore')" "$APP/routes/web.php" 2>/dev/null \
+  || { echo "🔴 routes: روتِ بازیابی نیست"; union_ok=0; }
+grep -q "GRACE_STAGES" "$APP/app/Console/Commands/RunDomainLifecycle.php" 2>/dev/null \
+  || { echo "🔴 یادآورهای دورهٔ بازیابی ننشسته"; union_ok=0; }
+grep -q "registrarBalance" "$APP/app/Services/SystemHealth.php" 2>/dev/null \
+  || { echo "🔴 پایشِ موجودی ننشسته"; union_ok=0; }
+grep -q "min_balance" "$APP/config/services.php" 2>/dev/null \
+  || { echo "🔴 config: آستانهٔ موجودی نیست"; union_ok=0; }
+grep -q "DomainZoneProvisioner" "$APP/app/Services/Domain/DomainRegistrar.php" 2>/dev/null \
+  || { echo "🔴 ثبتِ موفق هنوز zone نمی‌سازد"; union_ok=0; }
 
 # روت‌های موجود نباید بیفتند (درسِ ۲۸ مرداد)
 for r in "name('aup')" "name('cloud.index')" "name('domain.search')" "name('contact')" "name('blog')" "name('domain.transfer.submit')"; do

@@ -58,6 +58,7 @@ class SystemHealth
             $this->stuckDomains(),
             $this->expiringDomains(),
             $this->domainMargin(),
+            $this->registrarBalance(),
             $this->stuckServices(),
             $this->unbilledServices(),
             $this->undeliveredCloud(),
@@ -248,6 +249,58 @@ class SystemHealth
 
         return $this->row('domain_margin', true, 'ok', 'حاشیهٔ سودِ دامنه',
             'حاشیهٔ سودِ دامنه '.fa_num($pct).'٪ است.');
+    }
+
+    /**
+     * موجودیِ حسابِ ما نزدِ رجیسترارِ دامنه.
+     *
+     * ═══ چرا (ممیزی شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 اگر اعتبارِ حساب ته بکشد، هر ثبت و تمدیدی شکست می‌خورد و تنها
+     * علامتش انباشتِ بی‌صدای صفِ دستی است. این چک **پیش از** آن خبر می‌دهد.
+     *
+     * ⚠️ کشِ ۶ساعته: پایش هر ۱۵ دقیقه می‌دود و بی‌کش یعنی ~۱۰۰ تماس در روز
+     * به حسابی که به‌خاطرِ تماسِ زیاد پرچم خورده. چهار تماس در روز کافی است.
+     *
+     * ⚠️ «نتوانستم بخوانم» هرگز fail نمی‌شود: جای فیلدِ موجودی در پاسخِ
+     * واقعی را ندیده‌ایم و یک ردیفِ دائم-خراب همان «آژیرِ خفه»ای می‌شود که
+     * تازه درمانش کردیم. ناخوانا = ok با توضیح + ثبت در ردیاب، تا دیده شود
+     * بی‌آنکه امضای هشدار را اشغال کند.
+     */
+    private function registrarBalance(): array
+    {
+        $op = app(\App\Services\Domain\OpenProviderClient::class);
+
+        if (! $op->enabled()) {
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار', 'اتصالِ رجیسترار پیکربندی نشده است.');
+        }
+
+        $snap = \Illuminate\Support\Facades\Cache::remember(
+            'openprovider.balance.snapshot',
+            now()->addHours(6),
+            fn () => $op->balance(),
+        );
+
+        if (! ($snap['known'] ?? false)) {
+            \App\Support\ErrorTracker::noteOnce('domain',
+                'موجودیِ حسابِ OpenProvider از API خوانده نشد — پایشِ موجودی فعلاً کور است.', 21600);
+
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+                'موجودی از API خوانده نشد (در ردیاب ثبت شد).');
+        }
+
+        $amount = (float) $snap['amount'];
+        $cur = (string) ($snap['currency'] ?: '');
+        $min = (float) config('services.openprovider.min_balance', 10);
+
+        if ($amount < $min) {
+            return $this->row('domain_balance', false, 'fail', 'موجودیِ رجیسترار',
+                'اعتبارِ حساب OpenProvider رو به اتمام است: '.$amount.' '.$cur
+                .' (آستانه: '.$min.'). ثبت و تمدیدِ بعدی ممکن است شکست بخورد — حساب را شارژ کنید.');
+        }
+
+        return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+            'موجودی: '.$amount.' '.$cur.'.');
     }
 
     /** سرویسی که پول گرفته‌ایم و تحویل نشده — همان پرس‌وجوی `provision:run` */

@@ -58,6 +58,12 @@ $site = function (): void {
     | می‌قاپد و ۴۰۴ می‌دهد (چون 'hourly' در config/catalog/vps.php نیست).
     */
     Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
+    /*
+    | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
+    | واقعیِ کسب‌شده تقریباً صفر بود). صفحهٔ ایستا؛ همهٔ داده در خودِ ویو ساخته
+    | می‌شود، پس Route::view کافی است.
+    */
+    Route::view('/badge', 'pages.badge')->name('badge');
     Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
     /*
     | 🔴 آدرس‌های مردهٔ دورانِ وردپرس/WHMCS که Search Console هنوز ۴۰۴شان را
@@ -512,6 +518,9 @@ $site = function (): void {
         // تمدیدِ دستی: فقط فاکتور می‌سازد؛ تماسِ رجیسترار پس از پرداخت و با کرون
         Route::post('/domains/{domain}/renew', [Account\DomainController::class, 'renew'])
             ->name('domain.renew')->middleware('throttle:6,1');
+        // بازیابیِ دامنهٔ منقضی (redemption) — همان قاعده: فقط فاکتور
+        Route::post('/domains/{domain}/restore', [Account\DomainController::class, 'restore'])
+            ->name('domain.restore')->middleware('throttle:6,1');
         // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
         Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
             ->name('domain.transfer.submit')->middleware('throttle:6,1');
@@ -541,6 +550,9 @@ $site = function (): void {
         Route::get('/invoices/{invoice}/print', [Account\PaymentController::class, 'printInvoice'])->name('invoice.print');
         Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
             ->name('invoice.pay')->middleware('throttle:pay');
+        // پرداخت از اعتبارِ داخلی — همان مسیرِ تسویهٔ رسمی (settleConfirmed)
+        Route::post('/invoices/{invoice}/pay-credit', [Account\PaymentController::class, 'payCredit'])
+            ->name('invoice.paycredit')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
             ->name('invoice.bank')->middleware('throttle:forms');
         Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])

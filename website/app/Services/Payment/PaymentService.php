@@ -459,6 +459,25 @@ class PaymentService
                             'updated_at'       => now(),
                         ]);
 
+                    /*
+                    | 🔴 فاکتورِ **بازیابی** — دامنهٔ منقضی (شهریور ۱۴۰۵).
+                    |
+                    | پرداختِ فاکتورِ دامنهٔ `expired` یعنی مشتری نجاتش را
+                    | خریده. صفِ بازیابی (`awaitingRestore`) روی همین
+                    | `expired + pending` سوار است — مجموعهٔ بی‌اشتراک با ثبت
+                    | (`pending`) و تمدید (`active`). همان قیدِ `done`: پرداختِ
+                    | دوم وسطِ بازیابیِ در جریان قفل را باز نمی‌کند.
+                    */
+                    \Illuminate\Support\Facades\DB::table('domains')
+                        ->where('id', $invoice->domain_id)
+                        ->where('status', 'expired')
+                        ->where('provision_status', 'done')
+                        ->update([
+                            'provision_status' => 'pending',
+                            'provision_tries'  => 0,
+                            'updated_at'       => now(),
+                        ]);
+
                     \Illuminate\Support\Facades\DB::table('domains')
                         ->where('id', $invoice->domain_id)
                         ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)

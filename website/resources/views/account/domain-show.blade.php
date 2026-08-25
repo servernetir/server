@@ -19,6 +19,8 @@
   </div>
   @if($domain->isActive())
     <span class="pnl-pill ok">فعال</span>
+  @elseif($domain->status === 'expired')
+    <span class="pnl-pill danger">منقضی — شاید قابل بازیابی</span>
   @elseif($domain->provision_status === 'manual')
     <span class="pnl-pill danger">بررسی دستی</span>
   @else
@@ -43,7 +45,7 @@
      ردیفِ انتقال هم می‌گفت «در صف ثبت است» — و بدتر: پیامِ بعد از پرداخت
      می‌گفت «کد انتقال را در همین صفحه وارد کنید» ولی فرمی وجود نداشت.
      مشتری پول داده بود و به بن‌بست می‌خورد. --}}
-@if($domain->isTransfer() && ! $domain->isActive())
+@if($domain->isTransfer() && ! $domain->isActive() && $domain->status !== 'expired')
   <section class="pnl-sec">
     <div class="pnl-sec-h"><h2>انتقال دامنه به سرورنت</h2></div>
     <div class="pnl-sec-b">
@@ -75,6 +77,36 @@
           ثبتِ درخواستِ انتقال ممکن نشد و همکاران ما در حالِ بررسی‌اند.
           اگر ظرفِ ۲۴ ساعت انجام نشود، مبلغ به اعتبارِ حسابتان بازمی‌گردد.
         </p>
+      @endif
+    </div>
+  </section>
+@elseif($domain->status === 'expired')
+  {{-- 🔴 مسیرِ نجات (redemption) — تا شهریور ۱۴۰۵ دامنهٔ منقضی از پنل غیب
+       می‌شد و تنها راهش «تماس با پشتیبانی» بود، دقیقاً در پنجره‌ای که هنوز
+       می‌شد نجاتش داد. --}}
+  <section class="pnl-sec">
+    <div class="pnl-sec-h"><h2>بازیابی دامنهٔ منقضی</h2></div>
+    <div class="pnl-sec-b">
+      @php $dmRestoreFee = (int) \App\Models\Setting::get('domain_restore_fee_toman'); @endphp
+      @if($domain->provision_status === 'pending' || $domain->provision_status === 'running')
+        <p style="margin:0">پرداخت شما رسید و بازیابی در حال انجام است — نتیجه به شما اطلاع داده می‌شود.</p>
+      @elseif($domain->provision_status === 'manual')
+        <p style="margin:0">بازیابی در دست بررسی همکاران ماست. اگر ممکن نشود، مبلغ به اعتبار حسابتان بازمی‌گردد.</p>
+      @elseif($dmRestoreFee > 0 && $domain->op_id)
+        <p style="margin-top:0">
+          این دامنه منقضی شده ولی احتمالاً هنوز در دورهٔ بازیابی رجیستری است.
+          هزینهٔ نجات = هزینهٔ تمدید یک‌ساله + کارمزد بازیابی ({{ cloud_price($dmRestoreFee) }})؛
+          <b>هر روز تأخیر شانس نجات را کم می‌کند.</b>
+        </p>
+        <form method="post" action="{{ lroute('account.domain.restore', $domain) }}">
+          @csrf
+          <button class="pnl-btn" type="submit">صدور فاکتور بازیابی</button>
+        </form>
+        <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+          اگر بازیابی نزد رجیستری ممکن نشود، کل مبلغ به اعتبار حسابتان بازمی‌گردد.
+        </p>
+      @else
+        <p style="margin:0">برای بررسی امکان نجات این دامنه با پشتیبانی تماس بگیرید — هر روز تأخیر شانس را کم می‌کند.</p>
       @endif
     </div>
   </section>

@@ -225,6 +225,24 @@ class Domain extends Model
         return max(1, (int) (($this->meta['renew_years'] ?? 1)));
     }
 
+    /**
+     * دامنه‌های منقضی که **بازیابی‌شان پرداخت شده** و منتظرِ رجیسترارند.
+     *
+     * 🔴 همان قاعدهٔ جداییِ صف‌ها با `status`: ثبت روی `pending`، تمدید روی
+     * `active`، بازیابی روی `expired` — سه مجموعهٔ قطعاً بی‌اشتراک. اگر
+     * روزی یکی از این شرط‌ها را برداری، یک بازیابی می‌تواند به‌جای ثبتِ
+     * تازه پردازش شود و دامنه دوباره خریده شود.
+     */
+    public function scopeAwaitingRestore(Builder $q): Builder
+    {
+        return $q->where('status', 'expired')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
+    }
+
     /** آخرین مرحلهٔ یادآوریِ انقضا که فرستاده شده — جلوی پیامِ تکراری */
     public function expiryStage(): ?int
     {

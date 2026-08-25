@@ -280,6 +280,22 @@ class OpenProviderClient
     }
 
     /**
+     * بازیابیِ دامنهٔ منقضی از دورهٔ redemption رجیستری.
+     *
+     * ⚠️ عملیاتِ **پولی** است (کارمزدِ بازیابی نزدِ بیشترِ رجیستری‌ها چند
+     * برابرِ تمدید است) و فقط باید بعد از پرداختِ مشتری صدا زده شود — همان
+     * قاعدهٔ ثبت/تمدید.
+     *
+     * ⚠️ پاسخِ واقعی‌اش را روی حسابِ خودمان ندیده‌ایم؛ فراخوان باید شکست را
+     * «صفِ دستی» بخواند نه «تلاشِ بی‌پایان» — رفتارِ redemption بینِ
+     * رجیستری‌ها یکدست نیست.
+     */
+    public function restoreDomain(int $id): array
+    {
+        return $this->result($this->call('POST', '/domains/'.$id.'/restore', []));
+    }
+
+    /**
      * تغییرِ صفاتِ دامنه: nameserver، قفلِ انتقال، تمدیدِ خودکار.
      *
      * @param  array<string,mixed>  $data
@@ -421,6 +437,86 @@ class OpenProviderClient
         return $this->result($res, [
             'contracts' => (array) data_get($res, 'data.signed_contracts', []),
         ]);
+    }
+
+    /**
+     * موجودی و اطلاعاتِ حسابِ ریسلری — فقط خواندنی.
+     *
+     * ═══ چرا هست (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * اگر اعتبارِ حسابِ ما نزدِ رجیسترار ته بکشد، هر ثبت و تمدیدی شکست
+     * می‌خورد و تنها علامتش انباشتِ بی‌صدا در صفِ دستی است — خبری که همیشه
+     * یک خرابیِ انجام‌شده دیرتر می‌رسد. این متد اجازه می‌دهد **پیش از** آن
+     * بپرسیم؛ مصرفش پایشِ سلامت است (کش‌دار، چهار تماس در روز).
+     *
+     * ⚠️ جای دقیقِ فیلدِ موجودی در پاسخ را روی حسابِ واقعی ندیده‌ایم؛ پس
+     * `balance()` به‌جای اعتماد به یک مسیرِ حدسی، کلِ پاسخ را بازگشتی
+     * می‌گردد و اولین کلیدِ `balance`ِ عددی را برمی‌دارد. اگر نبود،
+     * «نمی‌دانم» گزارش می‌شود — نه صفر و نه هشدارِ الکی.
+     *
+     * @return array{ok:bool, data:array, code:int, message:string}
+     */
+    public function resellerInfo(): array
+    {
+        $res = $this->call('GET', '/resellers');
+
+        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+    }
+
+    /**
+     * موجودیِ حساب، اگر از پاسخ پیدا شود.
+     *
+     * @return array{known:bool, amount:float, currency:string}
+     */
+    public function balance(): array
+    {
+        $info = $this->resellerInfo();
+
+        if (! $info['ok']) {
+            return ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        }
+
+        $found = null;
+        $currency = '';
+
+        $walk = function ($node) use (&$walk, &$found, &$currency) {
+            if ($found !== null || ! is_array($node)) {
+                return;
+            }
+
+            foreach ($node as $key => $value) {
+                if ($found !== null) {
+                    return;
+                }
+
+                if (is_string($key) && strtolower($key) === 'balance') {
+                    // شکل‌های دیده‌شده در اسپک: عددِ خام یا {value, currency}
+                    if (is_numeric($value)) {
+                        $found = (float) $value;
+                        $currency = (string) ($node['currency'] ?? $node['balance_currency'] ?? '');
+
+                        return;
+                    }
+
+                    if (is_array($value) && is_numeric($value['value'] ?? null)) {
+                        $found = (float) $value['value'];
+                        $currency = (string) ($value['currency'] ?? '');
+
+                        return;
+                    }
+                }
+
+                if (is_array($value)) {
+                    $walk($value);
+                }
+            }
+        };
+
+        $walk($info['data']);
+
+        return $found === null
+            ? ['known' => false, 'amount' => 0.0, 'currency' => '']
+            : ['known' => true, 'amount' => $found, 'currency' => $currency];
     }
 
     private function result(array $res, array $extra = []): array
