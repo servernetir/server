@@ -58,6 +58,12 @@ $site = function (): void {
     | می‌قاپد و ۴۰۴ می‌دهد (چون 'hourly' در config/catalog/vps.php نیست).
     */
     Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
+    /*
+    | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
+    | واقعیِ کسب‌شده تقریباً صفر بود). صفحهٔ ایستا؛ همهٔ داده در خودِ ویو ساخته
+    | می‌شود، پس Route::view کافی است.
+    */
+    Route::view('/badge', 'pages.badge')->name('badge');
     Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
     /*
     | 🔴 آدرس‌های مردهٔ دورانِ وردپرس/WHMCS که Search Console هنوز ۴۰۴شان را

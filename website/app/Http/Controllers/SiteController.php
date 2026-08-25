@@ -276,7 +276,7 @@ class SiteController extends Controller
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'developers', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'developers', 'careers', 'status', 'sla', 'webdesign', 'badge'] as $n) {
             $add($n);
         }
 

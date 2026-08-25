@@ -54,6 +54,9 @@
           <a href="{{ lroute('aup') }}">{{ __('ui.f_aup') }}</a>
           <a href="{{ lroute('abuse') }}">{{ __('ui.f_abuse') }}</a>
           <a href="{{ lroute('official') }}">{{ __('ui.f_official') }}</a>
+          {{-- نشانِ «میزبانی روی سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها؛ بدونِ این
+               لینکِ فوتر، صفحه یتیم می‌شد و هیچ مشتری‌ای پیدایش نمی‌کرد --}}
+          <a href="{{ lroute('badge') }}">{{ __('ui.bdg_badge') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           {{-- ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی --}}
           <a href="{{ console_lroute('account.home') }}">{{ __('ui.f_c5') }}</a>
