@@ -268,6 +268,9 @@ class SiteController extends Controller
         $add('home');
         // /domains صفحهٔ فرودِ «ثبت دامنه» با کلیدواژهٔ ارزشمند است و جا افتاده بود
         $add('domain.search');
+        // اولین اجرای site:gate روی سرور (۳ شهریور) این را به‌عنوان RG-SITEMAP-04
+        // گرفت: صفحهٔ عمومیِ ایندکس‌پذیر، لینک‌شده از /domains، غایب از نقشه.
+        $add('domain.transfer.page');
         // status و sla عمداً در نقشهٔ سایت‌اند: هر دو صفحهٔ «اثبات»اند و
         // خریدارِ سازمانی مستقیم دنبالشان می‌گردد.
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
@@ -275,6 +278,25 @@ class SiteController extends Controller
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
         foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'developers', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
+        }
+
+        /*
+        | صفحاتی که فعلاً فقط روی **سرور** روت دارند (کدِ سرور از مخزن جلوتر است —
+        | مثل /developers/tunnel که site:gate کشفش کرد). اعلامِ کور با route()
+        | روی نصبی که روت را ندارد کلِ sitemap را ۵۰۰ می‌کند؛ پس هر مسیر اول با
+        | روترِ همان نصب match می‌شود و فقط اگر واقعاً پاسخ‌گوست اعلام می‌شود.
+        | 🔴 راه‌حلِ ریشه‌ای: آن کد به مخزن برگردد (check-live-state.sh دقیقاً
+        | برای دیدنِ همین دریفت است)؛ این بلوک فقط پل است، نه جای دائمی.
+        */
+        foreach (['/developers/tunnel'] as $serverOnly) {
+            foreach (['', '/en', '/tr'] as $lp) {
+                try {
+                    app('router')->getRoutes()->match(\Illuminate\Http\Request::create($lp.$serverOnly, 'GET'));
+                    $urls[] = ['loc' => rtrim(config('app.url'), '/').$lp.$serverOnly, 'lastmod' => null];
+                } catch (\Throwable) {
+                    // این نصب چنین روتی ندارد — چیزی اعلام نمی‌شود
+                }
+            }
         }
 
         /*
