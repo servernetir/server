@@ -108,9 +108,10 @@ return [
             'en' => ['q' => 'How does migration from my current host work?', 'a' => 'It\'s completely free and handled by our engineers. Just share your current hosting details — we move everything with zero downtime.'],
             'tr' => ['q' => 'Mevcut sağlayıcımdan taşınma nasıl olur?', 'a' => 'Tamamen ücretsizdir ve mühendislerimiz tarafından yapılır. Mevcut hosting bilgilerinizi paylaşın; her şeyi kesintisiz taşıyalım.']],
         'refund' => [
-            'fa' => ['q' => 'اگر راضی نبودم چه؟', 'a' => 'تا ۱۴ روز ضمانت بازگشت کامل وجه دارید — بدون سوال و بدون شرط. کیفیت سرویس ما ریسک شما نیست.'],
-            'en' => ['q' => 'What if I\'m not satisfied?', 'a' => 'You\'re covered by a 14-day full money-back guarantee — no questions asked. Our quality is never your risk.'],
-            'tr' => ['q' => 'Memnun kalmazsam ne olur?', 'a' => '14 gün koşulsuz para iade garantiniz var. Kalitemiz sizin riskiniz değildir.']],
+            // ممیزی ۶ (حقوقی): «بدون سوال و بدون شرط» با بندِ شمول/استثنای terms نمی‌خواند — همان بند ملاک است
+            'fa' => ['q' => 'اگر راضی نبودم چه؟', 'a' => 'تا ۱۴ روز از تحویل، در دوره‌ی نخست خرید، ضمانت بازگشت وجه دارید — طبق شرایط خدمات (دامنه، لایسنس، سرور اختصاصی و هزینه‌ی راه‌اندازی مستثنا هستند). کیفیت سرویس ما ریسک شما نیست.'],
+            'en' => ['q' => 'What if I\'m not satisfied?', 'a' => 'You\'re covered by a 14-day money-back guarantee on the first billing cycle, per our terms (domains, licenses, dedicated servers and setup fees are excluded). Our quality is never your risk.'],
+            'tr' => ['q' => 'Memnun kalmazsam ne olur?', 'a' => 'İlk ödeme döneminde, teslimden itibaren 14 gün para iade garantiniz var — hizmet şartlarına göre (alan adı, lisans, fiziksel sunucu ve kurulum ücreti hariç). Kalitemiz sizin riskiniz değildir.']],
         'upgrade' => [
             'fa' => ['q' => 'بعداً می‌توانم پلن را ارتقا دهم؟', 'a' => 'بله، در هر لحظه و فقط با پرداخت مابه‌التفاوت. ارتقا خودکار است و هیچ قطعی یا جابه‌جایی‌ای ندارد.'],
             'en' => ['q' => 'Can I upgrade my plan later?', 'a' => 'Yes — anytime, paying only the prorated difference. Upgrades are automatic with no downtime or migration.'],

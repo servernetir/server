@@ -16,6 +16,7 @@ use App\Models\Service;
 use App\Models\TaxRate;
 use App\Services\Cloud\CloudAddons;
 use App\Services\Notify\AdminNotifier;
+use App\Support\Funnel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -1173,6 +1174,11 @@ class CloudStoreController extends Controller
             \App\Support\ErrorTracker::note('cloud', $e, ['area' => 'order-activity-log']);
         }
 
+        // رویدادِ قیف (ممیزی ۶/شورا — رشد): مسیرِ ابری هم «سفارش ثبت شد» را می‌شمارد، وگرنه
+        // قیفِ ابری در checkout_click قطع می‌شد. sid/ref از تحویلِ امضاشده اگر بوده.
+        $ho = (array) session('order_handoff', []);
+        Funnel::log('order_placed', ['sku' => 'cloud-'.$offer->id, 'cycle' => $cycle, 'sid' => $ho['sid'] ?? '', 'ref' => $ho['ref'] ?? '', 'handoff_cycle' => $ho['cycle'] ?? '', 'line' => 'cloud']);
+
         /*
         | 🔴 مشتری هم باید خبردار شود.
         |
@@ -1352,6 +1358,9 @@ class CloudStoreController extends Controller
                 .' · '.fa_num(number_format($hourly)).' تومان/ساعت (پرداخت از کیفِ پول)', 'customer', $request);
         } catch (\Throwable) {
         }
+
+        $ho = (array) session('order_handoff', []);
+        Funnel::log('order_placed', ['sku' => 'cloud-'.$offer->id, 'cycle' => 'hourly', 'sid' => $ho['sid'] ?? '', 'ref' => $ho['ref'] ?? '', 'handoff_cycle' => $ho['cycle'] ?? '', 'line' => 'cloud']);
 
         try {
             app(AdminNotifier::class)->event('سفارشِ سرورِ مجازیِ ساعتی (پرداخت‌شده از اعتبار)', [

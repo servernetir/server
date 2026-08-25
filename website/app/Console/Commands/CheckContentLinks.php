@@ -116,7 +116,7 @@ class CheckContentLinks extends Command
         }
 
         try {
-            $request = \Illuminate\Http\Request::create($path, 'GET');
+            $request = \Illuminate\Http\Request::create(rtrim((string) config('app.url'), '/').$path, 'GET');
             $response = app(\Illuminate\Contracts\Http\Kernel::class)->handle($request);
 
             return $response->getStatusCode() < 400;

@@ -522,3 +522,12 @@ Schedule::command('links:site')
 Schedule::command('links:content')
     ->cron('40 2 * * 5')
     ->withoutOverlapping(45);
+
+/*
+| دروازهٔ انتشار — ممیزی ۶ (QA): «مجموعهٔ رگرسیونِ خودکار، هر شب + هر انتشار».
+| ۰۳:۰۰ UTC (۶:۳۰ صبحِ تهران)، بعد از خزندهٔ لینک و قبل از شروعِ روز؛ قرمز ⇒
+| noteOnce در /admin/errors. در چک‌لیستِ انتشار هم دستی اجرا می‌شود.
+*/
+Schedule::command('site:gate')
+    ->dailyAt('03:00')
+    ->withoutOverlapping(60);

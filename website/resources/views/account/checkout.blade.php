@@ -7,6 +7,11 @@
   <div>
     <h1 class="dash-h">{{ __('ui.chk_heading') }}</h1>
     <p>{{ __('ui.chk_subtitle') }}</p>
+    {{-- تأییدِ دیداریِ «همان چیزی که انتخاب کردی» (UX ممیزی ۶) — فقط وقتی
+         تحویلِ امضاشده از سایت آمده باشد؛ state حمل شده، نه دوباره پرسیده. --}}
+    @if(!empty($handoffCycle))
+    <p class="chk-handoff" style="margin-top:8px;font-size:13.5px;color:var(--cyan)">{{ __('ui.chk_handoff', ['cycle' => \App\Models\Service::labelFor($handoffCycle)]) }}</p>
+    @endif
   </div>
 </div>
 
@@ -22,7 +27,8 @@
   $setupFee = $product->effectiveSetup();
   $defCycle = in_array(config('billing.default_cycle'), $cycles, true) ? config('billing.default_cycle') : ($cycles[0] ?? 'monthly');
   $defCountry = old('country', $countries[0] ?? null);
-  $defCycle = old('cycle', $defCycle);
+  // ممیزی ۶ (SN-ORDER-001): دورهٔ منتقل‌شدهٔ امضاشده از سایت، پیش از پیش‌فرضِ config
+  $defCycle = old('cycle', (isset($handoffCycle) && in_array($handoffCycle, $cycles, true)) ? $handoffCycle : $defCycle);
 
   $priceMatrix = [];
   foreach (($countries ?: [null]) as $cc) {

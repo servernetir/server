@@ -35,8 +35,52 @@ return [
     'hard_ttl' => (int) env('PAGE_CACHE_HARD_TTL', 86400),
 
     /*
+    |----------------------------------------------------------------------
+    | حالت (ممیزی ۶): denylist — «هر بخشِ تازه به‌صورت پیش‌فرض کش می‌شود»
+    |----------------------------------------------------------------------
+    | ۲۲۳ صفحهٔ تازه (/parts، /urmia، /lookup، /order) از کش بیرون افتادند چون
+    | در فهرستِ `routes` نبودند. حالا همه‌چیز کش می‌شود مگر آنچه این‌جا صریح
+    | مستثنا شده. `allowlist` فقط برای برگشتِ اضطراری (PAGE_CACHE_MODE=allowlist).
+    */
+    'mode' => env('PAGE_CACHE_MODE', 'denylist'),
+
+    // نامِ کاملِ روت (بی‌پیشوندِ زبان) که هرگز کش نمی‌شود
+    'exclude_routes' => [
+        'status',          // لحظه‌ای؛ کشِ ۶۰ثانیه‌ای در لحظهٔ رخداد یعنی «سبز»ِ دروغ
+        'report', 'report.unsubscribe',
+        'abuse', 'abuse.report', 'careers.apply', 'blog.comment',
+        'share.gone', 'sharing.gone',
+        'vps.index', 'hosting.index', 'domain.index',   // ریدایرکتِ ۳۰۱ — بی‌معنی برای کش
+        /*
+        | شورا (امنیت): صفحه‌هایی که HTMLشان به IPِ بازدیدکننده وابسته است — در HIT
+        | IPِ نفرِ اول به نفرِ دوم نشان داده می‌شد. و sandboxِ سایت‌ساز (HTMLِ کاربر
+        | با CSPِ خودش) جایش در کشِ عمومی نیست.
+        */
+        'tools', 'lookup', 'lookup.index',
+        'builder.shared',
+    ],
+
+    // پیشوندِ نامِ روت — گروه‌های کاملاً خصوصی/تعاملی
+    'exclude_prefixes' => [
+        'account.', 'admin.', 'api.', 'auth.', 'login', 'register', 'password.',
+        'system.', 'bale.', 'cloud-phone.', 'agent.', 'sms.',
+        'builder.', 'payment.',
+    ],
+
+    // پیشوندِ مسیر (بی‌پیشوندِ زبان) — سپرِ دوم برای روت‌های بی‌نام
+    'exclude_paths' => [
+        '/account', '/admin', '/api', '/login', '/register', '/password', '/logout',
+        '/system', '/cart', '/checkout', '/panel-preview', '/bale', '/cloud-phone', '/agent', '/up',
+        '/sb', '/tools/ip', '/lookup', '/payment',
+        // ممیزی ۷: ریدایرکتِ شمارش‌پذیرِ پرداخت و مسیرِ سلامت — هر دو باید
+        // **هر بار** به PHP برسند وگرنه چیزی را نمی‌شمارند/نمی‌سنجند.
+        '/go', '/healthz',
+    ],
+
+    /*
     | نامِ روتِ بدونِ پیشوندِ زبان (en./tr. خودکار پوشش داده می‌شوند، چون
     | کلیدِ کش از URL کامل ساخته می‌شود و نامِ روت فقط دروازهٔ ورود است).
+    | ⚠️ فقط در حالتِ allowlist خوانده می‌شود.
     |
     | چه چیزی عمداً نیست:
     |   · status — صفحهٔ وضعیت باید لحظه‌ای باشد؛ کشِ حتی ۶۰ثانیه‌ای در

@@ -2786,3 +2786,144 @@ web** است: در HIT توکنِ CSRFِ ذخیره‌شده با توکنِ ن�
 شماره ثبت/ساماندهی (سندِ بنیان‌گذار)، نهایی‌سازیِ AUP/SLA توسط وکیل، صفحات
 `/compare` و `/urmia` (نوشتنِ اصیل — عقب‌انداختنش تصمیمِ آگاهانهٔ ممیزی بود)،
 سبدِ چندآیتمی (پروژهٔ CMS).
+
+---
+
+## ۱۴. ممیزی ششم (۱ شهریور ۱۴۰۵) — دروازه، تحویلِ امضاشده، کشِ پیش‌فرض
+
+> قفلِ شش‌دوره (سبد) شکست: `/order/{sku}` تحویل شد. تشخیصِ تازه: مانع «مسیریابیِ
+> کار» بود نه ظرفیت — هر یافته باید تکلیفِ مالک‌دار با معیارِ دودویی شود، وگرنه
+> شش دور «گزارش» می‌ماند (قلمِ شاهد: /share/url).
+
+### کش — denylist + purge + stale + هدرها
+- `pagecache.mode = denylist` (پیش‌فرض): **هر** GETِ بی‌کوئریِ بی‌نشست کش می‌شود
+  مگر `exclude_routes` / `exclude_prefixes` / `exclude_paths`. ۲۲۳ صفحهٔ تازه
+  (parts/urmia/lookup/order) به همین دلیل BYPASS بودند. بخشِ تازه ساختی؟ هیچ کاری
+  لازم نیست؛ بخشِ **خصوصی** ساختی؟ به denylist اضافه کن.
+- پاسخِ کش‌شدنی (۲۰۰ِ HTMLِ ذخیره‌شده یا HIT/STALE — نه ۴۰۴/۳۰۲ِ MISS)
+  `Cache-Control: private, max-age=60, stale-while-revalidate=600` + `Vary: Cookie`
+  می‌گیرد — 🔴 **private، نه public** (شورا/امنیت): HTML توکنِ CSRF دارد و فقط
+  PageCache می‌تواند در HIT تعویضش کند؛ public به هر پروکسیِ مشترکِ بینِ راه اجازهٔ
+  سروِ همان HTML به همه را می‌داد. کشِ لبه تا CSRF به endpoint نرود ممنوع است.
+  `Server-Timing: app;dur=…` روی همهٔ پاسخ‌ها (CTO). کنترلری که خودش `no-store`/
+  `private` بگذارد هرگز ذخیره نمی‌شود (لایهٔ دوم بعد از denylist). هدرهای
+  `Content-Security-Policy` و `X-Robots-Tag` هر صفحه در payload ذخیره و در HIT
+  عیناً برمی‌گردند. خطای store (DB قطع) ⇒ BYPASS، نه ۵۰۰.
+- denylist شاملِ صفحه‌هایی است که HTMLشان به IPِ بازدیدکننده وابسته است
+  (`tools`/`lookup`) و sandboxِ سایت‌ساز (`/sb`) — در HIT، IPِ نفرِ اول به نفرِ دوم
+  می‌رسید. **هر صفحهٔ تازه‌ای که `request()->ip()` را چاپ کند باید به denylist برود.**
+- `/order/*` هم کش می‌شود (purge با هر ذخیرهٔ Product). به همین دلیل `sid`/`ref`
+  **در مرورگر** ساخته می‌شوند (crypto.getRandomValues / document.referrer) و در
+  لحظهٔ کلیک به لینک می‌چسبند — sidِ سمتِ سرور بینِ همهٔ بازدیدکننده‌های یک دقیقه
+  مشترک می‌شد و قیف بی‌معنا.
+- برگشتِ اضطراری بدونِ دیپلوی: `PAGE_CACHE_MODE=allowlist` (فقط فهرستِ قدیمی) یا
+  `PAGE_CACHE=false` در `.env` + `config:clear`.
+
+### خلاصهٔ سفارش v2 — `/order/{sku}`
+- رادیوگروپِ دوره (fieldset/legend، پیش‌فرض سالانه + «بیشترین صرفه‌جویی»)، برچسبِ
+  صرفه‌جویی به تومان، «قیمت پایه» به‌جای ستونِ خالی، CTA پویا با مبلغ (جمع و CTA
+  سمتِ سرور هم پر می‌شوند — بدونِ JS کامل است)، کارتِ جمعِ چسبان با پس‌زمینهٔ تخت در
+  موبایل، نوارِ پیشرفتِ ۴گامی که در console ادامه دارد. هزینهٔ راه‌اندازی در «پرداخت
+  اول» جمع می‌شود. اعدادِ فارسی `dir="ltr"` نمی‌گیرند (فقط €/لاتین).
+  پرچم‌دارها عنوان/توضیحِ تراکنشی (`os_meta_title`: نام + کمترین قیمت) دارند.
+- **تحویلِ امضاشده** (`App\Support\OrderHandoff`): یک لینک به ازای هر دوره با
+  `sku/cycle/exp/sig` (HMAC با APP_KEY روی **فقط** همین سه، عمر ۲۴h = hard_ttlِ کش،
+  **هیچ قیمتی در URL**)؛ `sid`/`ref` را مرورگر اضافه می‌کند و console فقط با regex
+  می‌پذیرد (هیچ تصمیمی به آن‌ها وابسته نیست ⇒ امضا نمی‌خواهند).
+  `Account\StoreController::checkout` راستی‌آزمایی می‌کند و دوره را از پیش انتخاب
+  می‌کند (`$handoffCycle`)؛ نامعتبر/منقضی ⇒ نادیده + `handoff_invalid` با `reason`
+  (missing/sku/cycle/expired/tampered)، هرگز دیوار.
+  این اولین «کامیتِ متقابلِ» سایت↔console است (شرطِ هفت‌روزهٔ CMS).
+- اسکیمای Product + AggregateOffer (۴ Offer، **ارزِ زبانِ صفحه**: fa ریال، en/tr یورو
+  با نرخِ `cloud_eur_rate()` — نرخ نبود ⇒ بدونِ offers؛ `Offer.url` لنگرِ `#cy-{cycle}`
+  نه `?cycle=`؛ priceValidUntil میلادی؛ `valueAddedTaxIncluded` فقط با VAT تأییدشده؛
+  MerchantReturnPolicy فقط برای `Product::isRefundable()`).
+- ضمانتِ ۱۴روزه فقط روی shared/reseller/vps/plesk/directadmin؛ بندِ کاملِ
+  شمول/مستثنیات در terms (پیش‌نویسِ حقوقی).
+- جملهٔ VAT فقط با `company_vat_verified` در پنل (تا تأییدِ حسابدار، عبارتِ خنثی).
+- sitemap/llms: فقط `Product::flagshipSlugs()` (= پلنِ `popular` در config)؛ بقیه
+  `noindex,follow` در خودِ صفحه.
+
+### رویدادنگاریِ قیف — `App\Support\Funnel`
+شش رویداد در `storage/app/funnel/events-YYYY-MM.jsonl`: product_page_view،
+order_summary_view، cycle_selected، checkout_click (از مرورگر با sendBeacon به
+`POST /api/funnel` — چون HIT به PHP نمی‌رسد)؛ handoff_landed / handoff_invalid /
+order_placed (سمتِ console — هم StoreController هم هر دو مسیرِ CloudStore — با همان
+`sid`). فایل، نه DB؛ هرگز پرتاب نمی‌کند؛ در تست به `storage/framework/testing/funnel`.
+`POST /api/funnel` سطلِ جدای `throttle:beacon` (۱۲۰/دقیقه/IP) دارد.
+
+### دروازهٔ انتشار — `php artisan site:gate`
+RG-SITEMAP-03/04، RG-CACHE-01، RG-SCHEMA-05، RG-GONE-10، RG-SEC-09 — درون‌پروسه‌ای
+(با URLِ مطلقِ `app.url`، نه مسیرِ نسبی — میزبانِ localhost قرمزِ دروغین می‌داد؛
+`links:site`/`links:content` هم همین‌طور)، هر شب ۰۳:۰۰ UTC + در چک‌لیستِ انتشار؛ قرمز = بلاکر (+ noteOnce). لینکِ شکسته در
+`links:site`. 🔴 `/share/{any}` و `/sharing/{any}` عمداً ۴۱۰اند — تصمیم، نه باگ.
+
+### یتیم‌ها
+`blog_guides()` حالا با بذرِ مسیرِ صفحه می‌چرخد (هر صفحهٔ محصول سه پستِ متفاوت)؛
+`partials/cloud-locations-links` روی هابِ ابر و صفحاتِ vps/dedicated/cloud همهٔ
+مکان‌ها را با انکرِ توصیفی لینک می‌دهد (۳۰ صفحهٔ /cloud/* یتیم بودند).
+
+### سایر
+- فوترِ سراسری شناسه‌های ثبتی را (وقتی پر باشند) نشان می‌دهد — برگشتِ تصمیمِ قبلی
+  با استدلالِ حقوقیِ ممیزی ۶.
+- `/official-channels` (پاسخ به کانالِ هم‌نام؛ هر سه اینستاگرام + شمارهٔ بین‌المللی/
+  واتس‌اپ از `config/servernet`)، SLA abuse **یکسان در سه جا** (`ab_ok`/`ab_sla`/AUP:
+  تأیید خودکار · شروع ≤ ۲ روز کاری · فیشینگ/بدافزار فعال هدفِ ۴ ساعت کاری — هدف، نه
+  تعهد)، CSP form-action شاملِ console. بندِ بازگشتِ وجه یک منبعِ حقیقت دارد (بندِ
+  کاملِ terms)؛ بندِ کوتاه و FAQ هاست به آن ارجاع می‌دهند (دیگر «بدون شرط» نیست)؛
+  `hp_inc5` روی dedicated/license رندر نمی‌شود.
+- `docs/ops-r6.md` برای اقلامِ غیرکدی (نرخ‌محدودسازی ۴۲۹، بکاپ RPO/RTO، Uptime Kuma،
+  VAT، ساماندهی، مدرکِ ارومیه). ⚠️ بودنِ Cloudflare جلوی مبدأ **تأیید نشده**
+  (پاسخ‌ها `Server: Apache` و IPِ مستقیم) — قانونِ ۴۲۹ را هر جا لبه واقعاً هست بگذار.
+- دیپلوی: کارِ این دور هرگز جدا دیپلوی نشد و با ممیزی ۷ یک‌جا می‌رود —
+  `scripts/deploy-audit7.sh` (deploy-audit6.sh حذف شد؛ به SHAیی پین بود که هرگز push نشد).
+
+---
+
+## ۱۵. ممیزی هفتم (۲ شهریور ۱۴۰۵) — کد-کشور-دوبل، /go/pay، دروازهٔ محتوابین
+
+> گزارش: audit-r7 · اقلامِ غیرکدی: `docs/ops-r7.md` · دیپلوی: `scripts/deploy-audit7.sh`
+
+### قاعدهٔ کدِ لوکیشنِ ابری — مهم‌ترین درسِ این دور
+
+دو نسل از **یک** باگِ سینک، ۲۲+۲۱ صفحهٔ تکراری/خالی ساخت: کدِ لوکیشنی که
+به‌جای شهر، «گروهِ محصول» است (`de-de-dedicated`، `ru-intel`، `ws-…`).
+منبعِ حقیقتِ تشخیص: `CloudLocation::isLegacyCode()` — سه الگو:
+کدِ دوبل `^([a-z]{2})-\1`، پسوندِ `-shared|-dedicated|-intel|-amd|-promo|-hi-cpu`، پیشوندِ `ws-`.
+
+- `/cloud/{code}`ِ legacy ← **۳۰۱ تک‌پرش** به صفحهٔ کشور (`CloudCountry::url`)،
+  پیش از هر پرس‌وجوی DB. نه ۴۱۰، نه کنونیکال (حکمِ سئو: ۳۰۱ در هر دو حالت بی‌ضرر).
+- ردیف‌های legacyِ **دارای پلن** عمداً فعال می‌مانند (پلن باید فروختنی بماند)؛
+  فقط صفحه و sitemap و لینکِ داخلی ندارند (`locUrl`/`nearby`/پارشالِ لینک‌ها فیلتر می‌کنند).
+- `CloudCatalogSync::syncLocations` **تولدِ** ردیفِ legacy را رد می‌کند (noteOnce)
+  — بدونِ این گارد، هر importِ بعدی ۳۰۱ها را دوباره تولید می‌کرد.
+- ⚠️ لوکیشنِ تازه فقط با کدِ «کشور-شهر» (de-frankfurt). تست: `Audit7RegressionTest`.
+
+### /go/pay — تنها گذرگاهِ سفارش ← پرداخت
+
+CTAهای `/order/{sku}` دیگر به console لینکِ مستقیم نمی‌دهند؛ به
+`lroute('go.pay', [sku, cycle, src])` می‌روند (روت داخلِ `$site` است تا locale
+در تحویل بماند) و آن‌جا امضای `OrderHandoff` در
+**لحظهٔ کلیک** ساخته و ۳۰۲ می‌شود + رویدادِ `pay_redirect` سمتِ سرور ثبت
+(اولین عددِ قیف — شمارش: `grep -c '"e":"pay_redirect"' storage/app/funnel/events-*.jsonl`).
+هرگز کش نمی‌شود (exclude_paths)، robots هم `Disallow: /go/`.
+
+### صفحاتِ سفارش — تصمیمِ ممیزی ۶ برگشت
+
+**همهٔ** SKUهای فعال ایندکس و در sitemap (`Product::orderableSlugs`)، همه
+عنوان/توضیحِ تراکنشی (`os_meta_title`). پرچم‌دارها (`flagshipSlugs`) فقط برای
+llms.txt و RG-SCHEMA-05 مانده‌اند.
+
+### دروازهٔ انتشار v2 — «تستی که محتوا را باز نمی‌کند، کور است»
+
+`site:gate` حالا در همان رندر: RG-DUP-PATH-11 (کدِ دوبل در sitemap=۰)،
+RG-META-UNIQ-13 (عنوانِ تکراریِ هم‌زبان=۰)، RG-ALT-14 (imgِ بی‌alt: صفحه>۵۰٪ یا
+کل>۲۵٪)، RG-H1-15 (دقیقاً یک h1)، RG-BUDGET (سقفِ صفحه از `config/seo.php` —
+cloud=21، parts/urmia/webtools منجمد؛ بالابردنِ سقف فقط با ویرایشِ آگاهانهٔ همان config).
+بیرون از کد: `scripts/rg-core.sh` همین‌ها را روی سایتِ زنده می‌سنجد + «هشت عدد»
+هفتگی — تا ۳۰ روز جایگزینِ ممیزیِ کامل است.
+
+### /healthz
+
+پاسخِ ثابتِ بدونِ DB/view/کش با `Server-Timing` — تفکیکِ «زیرِ لاراول یا لایهٔ اپ»
+برای هر بحثِ کندی. مثلِ /go در exclude_paths کش است؛ تستش در Audit7RegressionTest.

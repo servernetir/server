@@ -622,17 +622,38 @@ if (! function_exists('blog_guides')) {
      *
      * @return array<int,array<string,mixed>>
      */
-    function blog_guides(?string $blogCategory, int $n = 3): array
+    function blog_guides(?string $blogCategory, int $n = 3, ?string $seed = null): array
     {
         try {
             $repo = app(\App\Services\BlogRepository::class);
 
-            $out = $blogCategory ? array_slice($repo->byCategory($blogCategory), 0, $n) : [];
+            /*
+            | پخشِ لینک (ممیزی ۶): «۳۶ پست یتیم» چون هر ۱۳۳ صفحهٔ محصول همان
+            | ۳ پستِ تازهٔ هر دسته را لینک می‌دادند و بقیهٔ پست‌ها هیچ‌وقت نوبتشان
+            | نمی‌شد. حالا نقطهٔ شروعِ فهرست از hashِ **همین صفحه** می‌آید —
+            | قطعی (هر بار همان؛ کش و خزنده گیج نمی‌شوند) ولی بینِ صفحه‌ها
+            | متفاوت، پس در مجموع همهٔ پست‌های دسته لینک می‌گیرند. (و انکرها
+            | عنوانِ خودِ پست‌اند، نه متنِ ثابت — ریسکِ یکنواختیِ انکر هم نیست.)
+            */
+            $rotate = function (array $list) use ($seed): array {
+                $c = count($list);
+
+                if ($c <= 1 || $seed === null || $seed === '') {
+                    return $list;
+                }
+
+                $off = crc32($seed) % $c;
+
+                return array_merge(array_slice($list, $off), array_slice($list, 0, $off));
+            };
+
+            $pool = $blogCategory ? $rotate($repo->byCategory($blogCategory)) : [];
+            $out = array_slice($pool, 0, $n);
 
             if (count($out) < $n) {
                 $have = array_column($out, 'slug');
 
-                foreach ($repo->index() as $p) {
+                foreach ($rotate($repo->index()) as $p) {
                     if (count($out) >= $n) {
                         break;
                     }

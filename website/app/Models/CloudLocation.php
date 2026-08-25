@@ -23,6 +23,38 @@ class CloudLocation extends Model
         'longitude' => 'float',
     ];
 
+    /**
+     * آیا این کد «گروهِ محصول به‌جای شهر» است؟ — ممیزی ۷، یافتهٔ ۱.
+     *
+     * دو نسل از یک باگِ واحدِ سینک: نسلِ اول `de-dedicated`/`ru-intel`
+     * (غیرفعال‌شده با مهاجرتِ ۲۴ اوت)، نسلِ دوم `de-de-dedicated` — کدِ کشور
+     * به اسلاگی چسبید که خودش کد را داشت (۲۲ صفحهٔ تکراری در sitemap، هر
+     * کدام self-canonical، هم‌پوشانی متنی ۰.۸۳ با نسخهٔ درست).
+     *
+     * سه الگو، همان‌های مهاجرتِ deactivate_legacy_cloud_locations + کدِ دوبل:
+     *   · `^([a-z]{2})-\1(-|$)`   کدِ کشورِ دوبل (de-de-…، ru-ru-rx32-hi-cpu)
+     *   · پسوندِ گروهِ محصول      -shared، -dedicated، -intel، -amd، -promo، -hi-cpu
+     *   · `ws-`                    کشورِ خیالی
+     *
+     * شهرِ واقعی هیچ‌کدام را ندارد (de-falkenstein، us-ashburn-va، sg-singapore).
+     * مصرف‌کننده‌ها: ۳۰۱ در CloudCatalogController، فیلترِ sitemap، فیلترِ
+     * پارشالِ لینکِ مکان‌ها، و گاردِ CloudCatalogSync که نمی‌گذارد ردیفِ تازه‌ای
+     * با این الگوها ساخته شود. ردیف‌های موجودِ دارای پلنِ فروختنی عمداً فعال
+     * می‌مانند تا پلن‌ها از فهرست/صفحهٔ کشور نیفتند؛ فقط صفحه و sitemap ندارند.
+     */
+    public static function isLegacyCode(?string $code): bool
+    {
+        $code = strtolower(trim((string) $code));
+
+        if ($code === '') {
+            return true;
+        }
+
+        return preg_match('/^([a-z]{2})-\1(-|$)/', $code) === 1
+            || str_starts_with($code, 'ws-')
+            || preg_match('/-(shared|dedicated|intel|amd|promo|hi-cpu)$/', $code) === 1;
+    }
+
     /** نامِ کشور به سه زبان — برای مکان‌هایی که برچسبِ دستی نخورده‌اند */
     public const COUNTRIES = [
         'DE' => ['fa' => 'آلمان',      'en' => 'Germany',        'tr' => 'Almanya',      'flag' => '🇩🇪'],

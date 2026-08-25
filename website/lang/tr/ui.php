@@ -2446,15 +2446,9 @@ return [
 
     /* Giriş öncesi sipariş özeti (denetim r4) */
     'os_badge' => 'Sipariş özeti',
-    'os_lead' => 'Fiyatı ve tüm dönemleri burada görün — giriş gerekmez. Giriş yalnızca ödeme adımında.',
     'os_specs' => 'Paket özellikleri',
-    'os_cycles_t' => 'Fiyat ve ödeme dönemleri',
-    'os_col_cycle' => 'Dönem', 'os_col_monthly' => 'Aylık karşılık', 'os_col_saving' => 'İndirim', 'os_col_total' => 'Dönem toplamı',
     'os_setup' => 'Kurulum ücreti (tek seferlik)',
     'os_tax_note' => 'Toplama %:p KDV dahildir.',
-    'os_cycle_note' => 'Nihai dönem ödeme adımında seçilir.',
-    'os_login_note' => 'Bu sayfa için üyelik gerekmedi; giriş yalnızca ödeme içindir.',
-    'os_continue' => 'Güvenli ödemeye devam et',
 
     /* Kötüye kullanım bildirimi (denetim r4) */
     'ab_title' => 'Kötüye kullanım bildir',
@@ -2466,10 +2460,10 @@ return [
     'ab_email' => 'E-postanız (isteğe bağlı, takip için)',
     'ab_desc' => 'Ne gördünüz, nerede ve ne zaman…',
     'ab_submit' => 'Bildirimi gönder',
-    'ab_ok' => 'Bildirim alındı. 2 iş günü içinde incelenecek.',
+    'ab_ok' => 'Bildirim alındı ve otomatik alındı bilgisi gönderildi. İnceleme en geç 2 iş günü içinde başlar.',
     'ab_busy' => 'Çok fazla bildirim; lütfen birazdan tekrar deneyin.',
     'ab_err' => 'Lütfen geçerli bir alan adı/IP ve en az 20 karakterlik açıklama girin.',
-    'ab_sla' => 'Yanıt taahhüdü: en fazla 2 iş günü.',
+    'ab_sla' => 'Yanıt taahhüdü: otomatik alındı bilgisi · en geç 2 iş günü içinde inceleme başlangıcı · aktif phishing/zararlı yazılım: 4 iş saati hedefi.',
 
     /* SLA ağ mücbir sebebi (denetim r4 — hukuk taslağı) */
     'sla_fm5' => 'Ülke altyapı ağının veya uluslararası rotaların kesintisi, kısıtlanması veya bant genişliği düşürülmesi — yetkili makam kararları dahil her nedenle; durum durum sayfasında duyurulur ve bu madde 14 günlük para iade garantisini engellemez.',
@@ -2548,4 +2542,30 @@ return [
     'parts_filter_price' => 'Azami fiyat',
     'parts_under' => ':amount’a kadar',
     'parts_no_match' => '“:q” ile eşleşen bulunamadı. Yazımı kontrol edin veya parça numarasını bize gönderin — listelediğimizden fazlasını stokta tutuyoruz.',
+
+    /* Denetim r6 — sipariş sayfası (radyo grubu, tasarruf, dinamik CTA), konumlar, imzalı devir */
+    'os_h1' => ':name siparişi',
+    'os_sub' => 'Ödeme dönemini burada seçin. Nihai fiyatı görürsünüz — üyelik gerekmez.',
+    'os_steps_label' => 'Sipariş adımları',
+    'os_step1' => '1 Seçim', 'os_step2' => '2 Hesap', 'os_step3' => '3 Ödeme', 'os_step4' => '4 Teslimat',
+    'os_choose_legend' => 'Ödeme dönemini seçin',
+    'os_popular' => 'En avantajlı',
+    'os_saving_pct' => '%:p daha az',
+    'os_base' => 'Temel fiyat',
+    'os_saved' => ':months ayda aylık ödemeye göre :amount daha az',
+    'os_tax_neutral' => 'Bu, ödenecek nihai tutardır; yasal vergi ve harçlar dahildir.',
+    'os_refund_policy' => 'İade koşulları',
+    'os_no_refund' => 'Bu hizmet teslimattan sonra iade edilemez',
+    'os_total_label' => 'Toplam',
+    'os_cta_dynamic' => ':cycle ödemeyle devam et — :total',
+    'os_saved_note' => 'Seçtiğiniz dönem ödeme adımında önceden seçili gelir; giriş yalnızca fatura düzenlemek içindir.',
+    'cl_all_locations' => 'Tüm bulut sunucu konumları',
+    'cl_other_locations' => 'Aynı hizmet diğer konumlarda (İran dışı)',
+    'cl_anchor' => ':city bulut sunucusu — :country',
+    'chk_handoff' => 'Siteden aktarıldı: :cycle dönemi önceden seçili.',
+    'f_official' => 'Resmi kanallar',
+    'os_meta_title' => ':name satın al — ayda :price itibarıyla',
+    'os_meta_desc' => ':name için tüm ödeme dönemleri :price itibarıyla, vergi dahil. Dönemi seçin ve güvenle ödeyin — fiyatı görmek için üyelik gerekmez.',
+    'os_first_label' => 'İlk ödeme',
+    'os_first_note' => '"İlk ödeme"ye dahildir; yenilemeler yalnızca dönem tutarıdır.',
 ];

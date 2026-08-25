@@ -116,6 +116,23 @@ $site = function (): void {
     Route::get('/order/{slug}', [\App\Http\Controllers\OrderSummaryController::class, 'show'])
         ->name('order.summary')->where('slug', '[a-z0-9-]+');
 
+    /*
+    | /go/pay — تنها گذرگاهِ «سفارش ← پرداخت» (ممیزی ۷ — رشد، قلم ۳ رودمپ).
+    |
+    | چرا ریدایرکتِ داخلی به‌جای لینکِ مستقیم به console:
+    |   · هر کلیک در **اکسس‌لاگِ خودِ سایت** و در Funnel ثبت می‌شود — اولین
+    |     عددِ قیف (نرخِ تبدیلِ سفارش ← پرداخت)، بدونِ کوکی و JS.
+    |   · امضای HMAC (OrderHandoff) در لحظهٔ کلیک ساخته می‌شود، نه در رندرِ
+    |     صفحهٔ کش‌شده — exp همیشه تازه است و لینکِ تبِ شبانه نمی‌میرد.
+    |
+    | داخلِ $site است تا سه‌زبانه ثبت شود و console_lroute دورهٔ زبانِ درست را
+    | بسازد (زبان فقط از پیشوندِ URL — قراردادِ پروژه). هرگز کش نمی‌شود
+    | (exclude_paths) و robots هم Disallow /go/ دارد. هیچ open-redirectی ممکن
+    | نیست: مقصد همیشه روتِ ثابتِ console است.
+    */
+    Route::get('/go/pay', [\App\Http\Controllers\OrderSummaryController::class, 'pay'])
+        ->name('go.pay')->middleware('throttle:60,1');
+
     // متدولوژی سرعت — جایگزینِ ادعای بی‌سندِ req/s (ممیزی ۴، مارکتینگ/حقوقی)
     Route::get('/speed', fn () => app(SiteController::class)->page('speed'))->name('speed');
 
@@ -124,6 +141,22 @@ $site = function (): void {
     Route::get('/abuse', [\App\Http\Controllers\AbuseController::class, 'show'])->name('abuse');
     Route::post('/abuse', [\App\Http\Controllers\AbuseController::class, 'report'])
         ->name('abuse.report')->middleware('throttle:forms');
+
+    /*
+    | ممیزی ۶ — «قلمِ شاهد» شش دور: /share/url و /sharing/share-offsite.
+    | حکم: «بساز یا کامل حذف کن — ۲۰۰ یا ۴۱۰؛ آنچه می‌سنجیم تصمیم است.»
+    | تصمیم: ۴۱۰ Gone — همان کاری که /panel-preview را بست. هیچ backendی برای
+    | اشتراک‌گذاری وجود ندارد و نخواهد داشت؛ اشتراک با لینکِ ایستا/بومی است.
+    */
+    Route::get('/share/{any?}', fn () => abort(410))->where('any', '.*')->name('share.gone');
+    Route::get('/sharing/{any?}', fn () => abort(410))->where('any', '.*')->name('sharing.gone');
+
+    // رویدادهای قیف از مرورگر (ممیزی ۶ — رشد) — صفحاتِ HIT به PHP نمی‌رسند
+    Route::post('/api/funnel', [\App\Http\Controllers\FunnelController::class, 'store'])
+        ->name('api.funnel')->middleware('throttle:beacon');
+
+    // کانال‌های رسمی (ممیزی ۶ — مارکتینگ/حقوقی): پاسخ به کانالِ هم‌نامِ جعلی
+    Route::get('/official-channels', fn () => app(SiteController::class)->page('official-channels'))->name('official');
 
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
@@ -720,6 +753,26 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+
+/*
+| /healthz — «تفکیک‌کنندهٔ قطعی»ِ ممیزی ۷ (CTO): یک پاسخِ ثابت، بدونِ دیتابیس،
+| بدونِ view و بدونِ کشِ صفحه. اگر همین مسیر هم کند شد، مشکل زیرِ لاراول است
+| (PHP-FPM/OPcache/CPU steal)؛ اگر نشد، مشکل در لایهٔ اپلیکیشن است.
+|
+| ⚠️ no-store عمدی است: این مسیر باید **هر بار** کلِ بوتِ فریم‌ورک را طی کند
+| وگرنه چیزی را نمی‌سنجد. Server-Timing از PageCache::tag روی آن نمی‌نشیند
+| (storable نیست)، پس زمانِ اپ را خودش می‌نویسد.
+*/
+Route::get('/healthz', function () {
+    $t0 = defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+
+    return response('ok', 200, [
+        'Content-Type'  => 'text/plain; charset=UTF-8',
+        'Cache-Control' => 'no-store',
+        'X-Robots-Tag'  => 'noindex',
+        'Server-Timing' => 'app;dur='.(int) round((microtime(true) - (float) $t0) * 1000),
+    ]);
+})->name('healthz');
 
 /*
 | llms.txt — معرفیِ سرورنت به مدلِ زبانی، نه به خزندهٔ جست‌وجو.

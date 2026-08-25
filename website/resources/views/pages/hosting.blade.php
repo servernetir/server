@@ -479,7 +479,9 @@
     <div class="inc-strip reveal">
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">
-        @foreach(['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc5', 'hp_inc6'] as $inc)
+        {{-- hp_inc5 (ضمانتِ ۱۴روزه) فقط برای دسته‌های مشمول — حقوقی/شورا: سرور اختصاصی و لایسنس مشمول نیستند --}}
+        @php $incKeys = in_array($category, ['dedicated', 'license'], true) ? ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc6'] : ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc5', 'hp_inc6']; @endphp
+        @foreach($incKeys as $inc)
         <span><svg class="icon"><use href="#i-check"/></svg>{{ __('ui.'.$inc) }}</span>
         @endforeach
       </div>
@@ -630,8 +632,14 @@
   </div>
 </section>
 
+{{-- نسخهٔ خارج از ایران / سایر مکان‌های ابری — ممیزی ۶ (سئو): «از /vps/iran و
+     /hosting/* به de-dedicated، nl-shared… با انکرِ توصیفی». فقط خطوطِ سرور. --}}
+@if(in_array($category, ['vps', 'dedicated', 'cloud'], true))
+@include('partials.cloud-locations-links', ['clHeading' => __('ui.cl_other_locations')])
+@endif
+
 {{-- ============ راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) ============ --}}
-@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.'.$category)])
+@include('partials.product-guides', ['guidesCat' => config('blog.product_guides.'.$category), 'guidesSeed' => $category.'/'.$slug])
 
 {{-- ============ RELATED ============ --}}
 <section class="section" style="padding-top:0;padding-bottom:70px">
@@ -667,4 +675,19 @@
     </div>
   </div>
 </section>
+
+{{-- رویدادِ product_page_view (ممیزی ۶ — رشد): از مرورگر، چون صفحهٔ HIT به PHP
+     نمی‌رسد. هیچ دادهٔ شخصی؛ فقط sku/خطِ محصول/دسته‌ی Referer. --}}
+@php $ppvCfg = ['u' => lroute('api.funnel'), 'sku' => $slug, 'line' => $category]; @endphp
+<script>
+(function () {
+  var c = @json($ppvCfg);
+  try {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    var ref = /\/blog\//.test(document.referrer) ? 'blog' : (document.referrer ? (document.referrer.indexOf(location.host) > -1 ? 'site' : 'external') : 'direct');
+    var b = new Blob([JSON.stringify({ event: 'product_page_view', sku: c.sku, product_line: c.line, ref: ref, _token: m ? m.content : '' })], { type: 'application/json' });
+    if (navigator.sendBeacon) { navigator.sendBeacon(c.u, b); }
+  } catch (e) {}
+})();
+</script>
 @endsection

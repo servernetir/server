@@ -43,7 +43,9 @@ class CheckSiteLinks extends Command
         $known = CheckContentLinks::knownPaths();
 
         // فهرستِ صفحه‌ها از همان منبعی که به گوگل می‌دهیم — نه فهرستِ دستی
-        $response = $kernel->handle(Request::create('/sitemap.xml', 'GET'));
+        // URLِ مطلق (ممیزی ۶/شورا): با مسیرِ نسبی میزبان localhost می‌شد و HSTS/www-redirect خطای دروغین می‌داد
+        $base = rtrim((string) config('app.url'), '/');
+        $response = $kernel->handle(Request::create($base.'/sitemap.xml', 'GET'));
 
         if ($response->getStatusCode() !== 200) {
             $this->error('sitemap.xml رندر نشد: '.$response->getStatusCode());
@@ -86,7 +88,7 @@ class CheckSiteLinks extends Command
 
         foreach (array_keys($pages) as $path) {
             try {
-                $r = $kernel->handle(Request::create($path, 'GET'));
+                $r = $kernel->handle(Request::create($base.$path, 'GET'));
             } catch (\Throwable $e) {
                 $broken[] = [$path, '(خودِ صفحه)', get_class($e)];
 
