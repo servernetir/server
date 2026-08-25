@@ -40,7 +40,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ ممیزی ۷ — نوکِ متحرکِ develop را دیپلوی نکن (قاعدهٔ ثبت‌شده)
-MINE="${1:-822d092d3469960789935748df874a2fa5f06949}"
+MINE="${1:-537a0de80414dc7d7d59f5b032f4c27ceef2bd3e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
