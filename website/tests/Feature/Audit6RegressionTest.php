@@ -130,12 +130,16 @@ class Audit6RegressionTest extends TestCase
         $this->assertStringContainsString('"AggregateOffer"', $html);
         $this->assertStringContainsString('"priceCurrency":"IRR"', $html);
         $this->assertStringContainsString('"merchantReturnDays":14', $html, 'هاستِ اشتراکی قابلِ بازگشت است');
-        $this->assertStringContainsString('#cy-yearly', $html, 'Offer.url لنگرِ همین صفحه است، نه ?cycle=');
-        $this->assertStringNotContainsString('?cycle=', $html);
+        $this->assertStringContainsString('#cy-yearly', $html, 'Offer.url لنگرِ همین صفحه است');
 
-        // چهار دوره، هر کدام یک لینکِ امضاشدهٔ جدا — هیچ قیمتی و هیچ sidِ سروری در لینک
+        /*
+        | ممیزی ۷ (قلم ۳): CTA دیگر لینکِ مستقیم و امضاشدهٔ console نیست؛ از
+        | گذرگاهِ شمارش‌پذیرِ /go/pay می‌گذرد که sku و cycle را حمل می‌کند و
+        | امضا را در لحظهٔ کلیک می‌سازد. هیچ قیمتی و هیچ sidِ سروری در لینک.
+        */
         $this->assertSame(4, substr_count($html, 'type="radio" name="cycle"'));
-        $this->assertMatchesRegularExpression('~data-href="https://console\.servernet\.cloud/[^"]*sku=wp-test-1[^"]*cycle=yearly[^"]*sig=~', $html);
+        $this->assertMatchesRegularExpression('~data-href="[^"]*/go/pay\?[^"]*sku=wp-test-1[^"]*cycle=yearly~', $html);
+        $this->assertStringNotContainsString('sig=', $html, 'امضا در /go/pay ساخته می‌شود، نه در صفحهٔ کش‌شده');
         $this->assertStringNotContainsString('price=', $html);
         $this->assertStringNotContainsString('sid=', $html, 'sid را مرورگر می‌سازد — صفحه کش می‌شود');
 
@@ -151,8 +155,10 @@ class Audit6RegressionTest extends TestCase
         $this->assertNotEmpty($form);
         $this->assertStringNotContainsString('dir="ltr"', $form[0]);
 
-        // غیرِ پرچم‌دار ⇒ noindex,follow
-        $this->assertStringContainsString('name="robots" content="noindex,follow"', $html);
+        // ممیزی ۷ (قلم ۲): همهٔ صفحاتِ سفارش ایندکس‌پذیرند و عنوانِ تراکنشیِ
+        // یکتا دارند — تصمیمِ «فقط پرچم‌دار»ِ ممیزی ۶ برگشت.
+        $this->assertStringNotContainsString('name="robots" content="noindex', $html);
+        $this->assertStringContainsString(e($p->name), $html);
     }
 
     public function test_setup_fee_is_folded_into_the_first_payment(): void

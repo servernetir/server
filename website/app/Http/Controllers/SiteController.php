@@ -422,11 +422,12 @@ class SiteController extends Controller
         $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
 
         /*
-        | صفحاتِ سفارش (ممیزی ۶): «۶۴ صفحه در sitemap: صفر از ۶۴» — فقط
-        | SKUهای پرچم‌دار اعلام می‌شوند (بقیه noindex,follow در خودِ صفحه) تا
-        | صفحهٔ محصول رتبه‌گیر بمانَد و صفحهٔ سفارش مکملِ قیمتی‌اش باشد.
+        | صفحاتِ سفارش — ممیزی ۷ قلم ۲ («۶۴ از ۶۴ در sitemap») تصمیمِ
+        | «فقط پرچم‌دار»ِ ممیزی ۶ را برگرداند: هر SKUی فعال صفحهٔ سفارشِ
+        | ایندکس‌پذیر با عنوانِ تراکنشیِ یکتا و اسکیمای Product/AggregateOffer
+        | دارد — تنها قلمِ رودمپ که مستقیم روی درآمد اثر دارد.
         */
-        foreach (\App\Models\Product::flagshipSlugs() as $sku) {
+        foreach (\App\Models\Product::orderableSlugs() as $sku) {
             $add('order.summary', $sku);
         }
 

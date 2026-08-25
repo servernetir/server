@@ -293,4 +293,39 @@ class Product extends Model
 
         return array_slice($out, 0, $cap);
     }
+
+    /**
+     * همهٔ SKUهای فعالِ دارای صفحهٔ /order — برای sitemap (ممیزی ۷، قلم ۲:
+     * «۶۴ از ۶۴ در sitemap»). همان منبعِ حقیقتِ flagshipSlugs، بدونِ شرطِ
+     * popular و بدونِ سقف؛ ترتیب همان ترتیبِ config تا خروجی قطعی باشد.
+     *
+     * ⚠️ فقط اسلاگ‌هایی که هم در config هستند هم (اگر DB در دسترس است) ردیفِ
+     * فعالِ products دارند — صفحهٔ سفارشِ محصولِ غیرفعال ۴۰۴ است و نباید
+     * به sitemap برود.
+     *
+     * @return list<string>
+     */
+    public static function orderableSlugs(): array
+    {
+        $out = [];
+
+        foreach ((array) config('hosting.products', []) as $group => $p) {
+            foreach (array_keys((array) ($p['plans'] ?? [])) as $i) {
+                $out[] = $group.'-'.($i + 1);
+            }
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                // صفحهٔ /order فقط برای ردیفِ فعالِ DB رندر می‌شود، پس با DB
+                // در دسترس، خودِ DB منبعِ حقیقت است (شاملِ محصولی که مدیر
+                // مستقیم ساخته و در config نیست). ترتیبِ اسلاگ قطعی است.
+                return static::where('is_active', true)->orderBy('slug')->pluck('slug')->all();
+            }
+        } catch (\Throwable) {
+            // بی‌DB، فهرستِ configی؛ sitemap نباید ۵۰۰ شود
+        }
+
+        return $out;
+    }
 }

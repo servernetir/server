@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Service;
+use App\Support\Funnel;
 use App\Support\OrderHandoff;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -30,10 +33,16 @@ use Illuminate\View\View;
  * · جملهٔ «۱۰٪ مالیات» فقط وقتی مدیر ثبت‌نامِ ارزش افزوده را در پنل تأیید
  *   کرده باشد (`company_vat_verified`) — وگرنه عبارتِ خنثی. مبلغ در هر دو حالت
  *   همان مبلغِ فاکتور است (نه یک منبعِ حقیقتِ دوم).
- * · فقط SKUهای پرچم‌دار ایندکس/در sitemap؛ بقیه noindex,follow. پرچم‌دارها
- *   عنوان/توضیحِ تراکنشی می‌گیرند (نام + کمترین قیمت) نه «خلاصهٔ سفارش».
  * · هزینهٔ راه‌اندازی (اگر هست) در «پرداختِ اول» جمع می‌شود — UX: کاربر نباید
  *   در console عددی بزرگ‌تر از آنچه این‌جا دید ببیند.
+ *
+ * ═══ آنچه ممیزی ۷ عوض کرد ═══
+ *
+ * · «فقط پرچم‌دار در sitemap»ِ ممیزی ۶ برگشت: **همهٔ** صفحاتِ سفارشِ فعال
+ *   ایندکس و در sitemap‌اند (معیارِ پذیرش: ۶۴ از ۶۴) و همه عنوان/توضیحِ
+ *   تراکنشیِ یکتا می‌گیرند. پرچم‌دارها فقط برای llms.txt مانده‌اند.
+ * · CTA به /go/pay می‌رود (متد pay همین کلاس): شمارشِ هر کلیک در اکسس‌لاگ و
+ *   Funnel + امضای تازه در لحظهٔ کلیک — قلم ۳ رودمپِ ممیزی ۷.
  *
  * ⚠️ قیمت از همان `Product::priceForCycle()` می‌آید که فاکتورِ واقعی را
  * می‌سازد — و در لینکِ تحویل **هیچ قیمتی** نیست. sid/ref را مرورگر می‌سازد
@@ -77,7 +86,10 @@ class OrderSummaryController extends Controller
                 'total'   => $total,
                 'grand'   => $grand,
                 'first'   => $grand + $setup + $setupTax,
-                'href'    => OrderHandoff::url($product->slug, $cycle),
+                // ممیزی ۷ (قلم ۳ رودمپ): CTA از /go/pay می‌گذرد، نه لینکِ مستقیمِ
+                // console — هر کلیک در اکسس‌لاگ و Funnel شمرده می‌شود و امضا در
+                // لحظهٔ کلیک ساخته می‌شود نه در لحظهٔ رندرِ صفحهٔ کش‌شده.
+                'href'    => route('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order']),
             ];
         }
 
@@ -94,7 +106,7 @@ class OrderSummaryController extends Controller
                 'total'   => $total,
                 'grand'   => $total + $tax,
                 'first'   => $total + $tax + $setup + $setupTax,
-                'href'    => OrderHandoff::url($product->slug, 'once'),
+                'href'    => route('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order']),
             ];
         }
 
@@ -115,8 +127,6 @@ class OrderSummaryController extends Controller
         $default = in_array('yearly', $cycles, true) ? 'yearly' : ($cycles[0] ?? 'monthly');
         $defaultRow = collect($rows)->firstWhere('cycle', $default) ?? $rows[0];
 
-        $flagship = in_array($product->slug, Product::flagshipSlugs(), true);
-
         $lowest = min(array_column($rows, 'grand'));
         $lowestMonthly = min(array_column($rows, 'monthly'));
 
@@ -128,19 +138,64 @@ class OrderSummaryController extends Controller
             'default'     => $default,
             'defaultRow'  => $defaultRow,
             'setup'       => $setup,
-            'flagship'    => $flagship,
             'vatVerified' => $this->vatVerified(),
             'schema'      => $this->schema($product, $rows),
             /*
-            | عنوانِ تراکنشی برای پرچم‌دارها (سئو): «نام — از ماهی X» به‌جای
-            | «خلاصهٔ سفارش — نام». بقیه noindexاند و عنوانِ عمومی کافی است.
+            | ممیزی ۷ (قلم ۲ رودمپ) تصمیمِ «فقط پرچم‌دارها ایندکس» ممیزی ۶ را
+            | برگرداند: معیارِ پذیرش «۶۴ از ۶۴ در sitemap» است — تنها قلمی که
+            | مستقیم روی درآمد اثر دارد. عنوان/توضیحِ هر SKU تراکنشی و یکتاست
+            | (نام + قیمت)، پس شرطِ new_page_gate (عنوانِ یکتا) هم برقرار است.
             */
-            'metaTitle'   => $flagship
-                ? __('ui.os_meta_title', ['name' => $product->name, 'price' => cloud_price($lowestMonthly)])
-                : __('ui.os_badge').' — '.$product->name,
-            'metaDesc'    => $flagship
-                ? __('ui.os_meta_desc', ['name' => $product->name, 'price' => cloud_price($lowest)])
-                : __('ui.os_sub'),
+            'metaTitle'   => __('ui.os_meta_title', ['name' => $product->name, 'price' => cloud_price($lowestMonthly)]),
+            'metaDesc'    => __('ui.os_meta_desc', ['name' => $product->name, 'price' => cloud_price($lowest)]),
+        ]);
+    }
+
+    /**
+     * GET /go/pay — گذرگاهِ شمارش‌پذیرِ «سفارش ← پرداخت» (ممیزی ۷، قلم ۳).
+     *
+     * ۳۰۲ به همان روتِ سفارشِ console، با امضای HMACِ تازه (OrderHandoff).
+     * مقصد ثابت است و فقط sku/cycle واردش می‌شوند — open redirect ممکن نیست.
+     * هر کلیک با Funnel::log شمرده می‌شود؛ شمارشِ روزانه:
+     * `php artisan tinker` یا `grep '"event":"pay_redirect"' storage/app/funnel/*.jsonl | wc -l`
+     * و مستقل از آن، اکسس‌لاگِ وب‌سرور روی مسیرِ /go/pay.
+     */
+    public function pay(Request $request): RedirectResponse
+    {
+        $sku = strtolower((string) $request->query('sku', ''));
+
+        abort_unless(preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $sku) === 1, 404);
+
+        $cycles = array_keys((array) config('billing.cycles', []));
+        $cycle = (string) $request->query('cycle', '');
+
+        if (! in_array($cycle, array_merge($cycles, ['once']), true)) {
+            $cycle = (string) config('billing.default_cycle', 'monthly');
+        }
+
+        $sid = OrderHandoff::clean($request->query('sid'), OrderHandoff::SID_RE);
+        $ref = OrderHandoff::clean($request->query('ref'), OrderHandoff::REF_RE);
+        $src = OrderHandoff::clean($request->query('src'), OrderHandoff::REF_RE);
+
+        Funnel::log('pay_redirect', [
+            'sku'   => $sku,
+            'cycle' => $cycle,
+            'sid'   => $sid,
+            'ref'   => $ref,
+            'src'   => $src,
+            'lang'  => app()->getLocale(),
+        ]);
+
+        $url = OrderHandoff::url($sku, $cycle);
+        $extra = array_filter(['sid' => $sid, 'ref' => $ref]);
+
+        if ($extra !== []) {
+            $url .= '&'.http_build_query($extra);
+        }
+
+        return redirect()->away($url, 302, [
+            'Cache-Control' => 'no-store',
+            'X-Robots-Tag'  => 'noindex',
         ]);
     }
 

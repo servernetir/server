@@ -732,6 +732,42 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
 
 /*
+| /healthz — «تفکیک‌کنندهٔ قطعی»ِ ممیزی ۷ (CTO): یک پاسخِ ثابت، بدونِ دیتابیس،
+| بدونِ view و بدونِ کشِ صفحه. اگر همین مسیر هم کند شد، مشکل زیرِ لاراول است
+| (PHP-FPM/OPcache/CPU steal)؛ اگر نشد، مشکل در لایهٔ اپلیکیشن است.
+|
+| ⚠️ no-store عمدی است: این مسیر باید **هر بار** کلِ بوتِ فریم‌ورک را طی کند
+| وگرنه چیزی را نمی‌سنجد. Server-Timing از PageCache::tag روی آن نمی‌نشیند
+| (storable نیست)، پس زمانِ اپ را خودش می‌نویسد.
+*/
+Route::get('/healthz', function () {
+    $t0 = defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+
+    return response('ok', 200, [
+        'Content-Type'  => 'text/plain; charset=UTF-8',
+        'Cache-Control' => 'no-store',
+        'X-Robots-Tag'  => 'noindex',
+        'Server-Timing' => 'app;dur='.(int) round((microtime(true) - (float) $t0) * 1000),
+    ]);
+})->name('healthz');
+
+/*
+| /go/pay — تنها گذرگاهِ «سفارش ← پرداخت» (ممیزی ۷ — رشد، قلم ۳ رودمپ).
+|
+| چرا یک ریدایرکتِ داخلی به‌جای لینکِ مستقیم به console:
+|   · هر کلیک در **اکسس‌لاگِ خودِ سایت** و در Funnel ثبت می‌شود — اولین عددِ
+|     قیفِ تاریخِ شرکت (نرخِ تبدیلِ صفحهٔ سفارش ← پرداخت)، بدونِ کوکی و JS.
+|   · امضای HMAC (OrderHandoff) در لحظهٔ کلیک ساخته می‌شود، نه در لحظهٔ رندرِ
+|     صفحهٔ کش‌شده — پس exp همیشه تازه است و لینکِ مانده در تبِ شبانه نمی‌میرد.
+|
+| اعتبارسنجی: sku با الگوی اسلاگ، cycle فقط از config/billing (وگرنه پیش‌فرض)،
+| sid/ref/src فقط با الگوهای OrderHandoff — هیچ متنِ آزادی وارد لاگ نمی‌شود.
+| هیچ open-redirectی ممکن نیست: مقصد همیشه روتِ ثابتِ console است.
+*/
+Route::get('/go/pay', [\App\Http\Controllers\OrderSummaryController::class, 'pay'])
+    ->name('go.pay')->middleware('throttle:60,1');
+
+/*
 | llms.txt — معرفیِ سرورنت به مدلِ زبانی، نه به خزندهٔ جست‌وجو.
 |
 | چرا: امروز بخشی از خریدارها به‌جای گوگل از ChatGPT و Perplexity می‌پرسند

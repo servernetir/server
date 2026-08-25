@@ -72,6 +72,9 @@ return [
         '/account', '/admin', '/api', '/login', '/register', '/password', '/logout',
         '/system', '/cart', '/checkout', '/panel-preview', '/bale', '/cloud-phone', '/agent', '/up',
         '/sb', '/tools/ip', '/lookup', '/payment',
+        // ممیزی ۷: ریدایرکتِ شمارش‌پذیرِ پرداخت و مسیرِ سلامت — هر دو باید
+        // **هر بار** به PHP برسند وگرنه چیزی را نمی‌شمارند/نمی‌سنجند.
+        '/go', '/healthz',
     ],
 
     /*
