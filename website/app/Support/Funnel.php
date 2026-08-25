@@ -24,6 +24,9 @@ class Funnel
     public const EVENTS = [
         'product_page_view', 'order_summary_view', 'cycle_selected',
         'checkout_click', 'handoff_landed', 'handoff_invalid', 'order_placed',
+        // ممیزی ۷ (قلم ۳): کلیکِ سفارش←پرداخت، سمتِ سرور در /go/pay — تنها
+        // رویدادی که بدونِ JS و کوکی هم شمرده می‌شود؛ مخرجش بازدیدِ /order است.
+        'pay_redirect',
     ];
 
     /** @param array<string,scalar|null> $attrs */

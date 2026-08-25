@@ -27,6 +27,14 @@ use Illuminate\Http\Request;
  *   RG-SEC-09      شش هدرِ امنیتی روی صفحهٔ اصلی
  *   RG-LINK-06     لینکِ شکسته ← links:site (فرمانِ جدا، همان شب)
  *
+ * ═══ افزوده‌های ممیزی ۷ («مجموعهٔ دیروز کور بود — هیچ‌کدام محتوا را باز نمی‌کرد») ═══
+ *
+ *   RG-DUP-PATH-11  هیچ URLِ sitemap با الگوی کدِ کشورِ دوبل /([a-z]{2})-\1-
+ *   RG-META-UNIQ-13 عنوانِ تکراری در همان زبان ← صفر (مسدودکننده)
+ *   RG-ALT-14       imgِ بدونِ صفتِ alt: صفحه >۵۰٪ یا سایت‌واید >۲۵٪ ← قرمز
+ *   RG-H1-15        دقیقاً یک <h1> در هر صفحهٔ HTML
+ *   RG-BUDGET       سقفِ صفحهٔ هر بخش از config/seo.php (page_budget)
+ *
  * درون‌پروسه‌ای است (بدونِ HTTP، بدونِ نویزِ Cloudflare) — همان دلیلِ links:site.
  *
  *     php artisan site:gate            ← کامل
@@ -94,8 +102,39 @@ class ReleaseGate extends Command
 
         $this->info('صفحاتِ sitemap برای رندر: '.count($pages));
 
+        /*
+        | RG-DUP-PATH-11 (ممیزی ۷): هیچ URLِ sitemap با الگوی «کدِ کشورِ دوبل»
+        | — ۲۲ صفحهٔ /cloud/de-de-… شش دور نامرئی ماندند چون هیچ تستی
+        | «آنچه اعلام می‌شود» را با الگو نمی‌سنجید. مسدودکننده، آستانه: صفر.
+        */
+        foreach (array_keys($inSitemap) as $p) {
+            if (preg_match('~/([a-z]{2})-\1-~', $p) === 1) {
+                $fails[] = "RG-DUP-PATH-11 {$p} — کدِ کشورِ دوبل در sitemap";
+            }
+        }
+
+        /*
+        | RG-BUDGET (ممیزی ۷ — «قاعدهٔ سقفِ صفحه»): شمارِ صفحاتِ فارسیِ هر بخش
+        | از سقفِ config/seo.php بالا نرود. «بدونِ assert، قاعده فقط یک آرزوست.»
+        | سقف را فقط با ویرایشِ آگاهانهٔ همان config می‌شود بالا برد.
+        */
+        foreach ((array) config('seo.page_budget', []) as $prefix => $cap) {
+            $n = count(array_filter(
+                array_keys($inSitemap),
+                fn ($p) => $p === $prefix || str_starts_with($p, rtrim($prefix, '/').'/')
+            ));
+
+            if ($n > (int) $cap) {
+                $fails[] = "RG-BUDGET      {$prefix} ← {$n} صفحه (سقف: {$cap}) — انتشارِ تازه بدونِ تصمیمِ آگاهانه";
+            }
+        }
+
         // ── RG-SITEMAP-03 + کشفِ لینک‌ها برای RG-SITEMAP-04 ────────────
+        // + جمع‌آوریِ عنوان/H1/alt برای سنجه‌های ممیزی ۷ در همان یک رندر
         $discovered = [];
+        $titles = [];          // locale-prefix ⇒ title ⇒ [paths]
+        $imgTotal = 0;
+        $imgNoAlt = 0;
 
         foreach ($pages as $path) {
             try {
@@ -112,7 +151,42 @@ class ReleaseGate extends Command
                 continue;
             }
 
-            preg_match_all('~href=["\']([^"\']+)["\']~i', (string) $r->getContent(), $hm);
+            $html = (string) $r->getContent();
+
+            // سنجه‌های کیفیت فقط برای HTML — llms.txt و فیدها عنوان/H1 ندارند
+            if (! str_contains((string) $r->headers->get('Content-Type', ''), 'text/html')) {
+                continue;
+            }
+
+            /*
+            | RG-META-UNIQ-13: عنوانِ تکراری در همان زبان = مسدودکننده. «۴۶
+            | صفحه با عنوانِ تکراری یعنی گوگل نمی‌تواند تشخیص دهد کدام صفحه
+            | برای کدام کوئری است — خودِ سایت هم نتوانسته تفاوت را بیان کند.»
+            */
+            if (preg_match('~<title>(.*?)</title>~su', $html, $tm) === 1) {
+                $bucket = preg_match('~^/(en|tr)(/|$)~', $path, $lm) === 1 ? $lm[1] : 'fa';
+                $titles[$bucket][trim($tm[1])][] = $path;
+            }
+
+            // RG-H1-15: دقیقاً یک H1 (۷ صفحهٔ چند-H1 در ممیزی ۷ — P2 ولی ارزان)
+            $h1 = preg_match_all('~<h1[\s>]~i', $html);
+
+            if ($h1 !== 1) {
+                $fails[] = "RG-H1-15       {$path} ← {$h1} تا <h1> (باید ۱ باشد)";
+            }
+
+            // RG-ALT-14: شمارشِ imgِ بدونِ صفتِ alt — آستانه‌های خودِ ممیزی
+            preg_match_all('~<img\b[^>]*>~i', $html, $im);
+            $pageTotal = count($im[0]);
+            $pageNoAlt = count(array_filter($im[0], fn ($tag) => stripos($tag, 'alt=') === false));
+            $imgTotal += $pageTotal;
+            $imgNoAlt += $pageNoAlt;
+
+            if ($pageTotal > 0 && $pageNoAlt / $pageTotal > 0.5) {
+                $fails[] = "RG-ALT-14      {$path} ← {$pageNoAlt} از {$pageTotal} تصویر بدونِ صفتِ alt (حدِ صفحه: ۵۰٪)";
+            }
+
+            preg_match_all('~href=["\']([^"\']+)["\']~i', $html, $hm);
 
             foreach (array_unique($hm[1]) as $href) {
                 $p = CheckContentLinks::internalPath($href);
@@ -121,6 +195,18 @@ class ReleaseGate extends Command
                     $discovered[$p] = $path;
                 }
             }
+        }
+
+        foreach ($titles as $bucket => $byTitle) {
+            foreach ($byTitle as $title => $paths) {
+                if (count($paths) > 1) {
+                    $fails[] = 'RG-META-UNIQ-13 ['.$bucket.'] «'.mb_substr($title, 0, 60).'» × '.count($paths).': '.implode(' · ', array_slice($paths, 0, 4));
+                }
+            }
+        }
+
+        if ($imgTotal > 0 && $imgNoAlt / $imgTotal > 0.25) {
+            $fails[] = "RG-ALT-14      سایت‌واید: {$imgNoAlt} از {$imgTotal} تصویر بدونِ صفتِ alt (حدِ کل: ۲۵٪)";
         }
 
         /*

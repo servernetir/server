@@ -157,7 +157,7 @@ class OrderSummaryController extends Controller
      * ۳۰۲ به همان روتِ سفارشِ console، با امضای HMACِ تازه (OrderHandoff).
      * مقصد ثابت است و فقط sku/cycle واردش می‌شوند — open redirect ممکن نیست.
      * هر کلیک با Funnel::log شمرده می‌شود؛ شمارشِ روزانه:
-     * `php artisan tinker` یا `grep '"event":"pay_redirect"' storage/app/funnel/*.jsonl | wc -l`
+     * `grep -c '"e":"pay_redirect"' storage/app/funnel/events-*.jsonl`
      * و مستقل از آن، اکسس‌لاگِ وب‌سرور روی مسیرِ /go/pay.
      */
     public function pay(Request $request): RedirectResponse
