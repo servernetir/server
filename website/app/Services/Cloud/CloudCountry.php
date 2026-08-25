@@ -212,8 +212,12 @@ class CloudCountry
             return lroute('catalog', ['category' => 'vps', 'slug' => $slug]);
         }
 
+        // کدهای legacy (گروهِ محصول به‌جای شهر) صفحهٔ مکان ندارند — ۳۰۱اند
+        // (ممیزی ۷)؛ مقصدِ بازگشتی باید یک صفحهٔ واقعی باشد وگرنه حلقهٔ
+        // «۳۰۱ به ۳۰۱ به خودش» ساخته می‌شد.
         $first = CloudLocation::where('country', strtoupper(trim($iso)))
-            ->where('is_active', true)->orderBy('sort')->value('code');
+            ->where('is_active', true)->orderBy('sort')->orderBy('code')->pluck('code')
+            ->first(fn ($code) => ! CloudLocation::isLegacyCode((string) $code));
 
         return $first
             ? lroute('cloud.location', ['location' => $first])

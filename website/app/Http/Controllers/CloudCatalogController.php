@@ -446,8 +446,24 @@ class CloudCatalogController extends Controller
     }
 
     /** /cloud/{location} — صفحهٔ یک مکان با متنِ سئوی یکتا */
-    public function location(string $location): View
+    public function location(string $location): View|\Illuminate\Http\RedirectResponse
     {
+        /*
+        | ممیزی ۷، یافتهٔ ۱: ۲۲ صفحهٔ `/cloud/{cc}-{cc}-{type}` (کدِ کشورِ دوبل)
+        | کنارِ نسخهٔ تک‌کد، همه self-canonical و همه در sitemap — به‌علاوهٔ
+        | نسلِ اولِ همان باگ (`de-dedicated`، `ru-amd`…) که از ۲۴ اوت ۴۰۴ شده
+        | بودند. حکمِ سئو: **۳۰۱ تک‌پرش به صفحهٔ کشور**، نه ۴۰۴ و نه کنونیکال
+        | («چون ۳۰۱ در هر دو حالت بی‌ضرر است، پیش‌فرض را ۳۰۱ بگذار»).
+        |
+        | پیش از هر پرس‌وجوی DB می‌آید: ردیفِ legacyِ دارای پلن هنوز فعال است
+        | (پلن‌هایش باید فروختنی بمانند) ولی صفحه‌اش نباید رندر شود.
+        */
+        if (CloudLocation::isLegacyCode($location)) {
+            $cc = substr($location, 0, 2);
+
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url($cc), 301);
+        }
+
         $loc = CloudLocation::query()
             ->where('code', $location)
             ->where('is_active', true)
@@ -763,6 +779,11 @@ class CloudCatalogController extends Controller
             if ($code === $loc->code) {
                 continue;
             }
+            // کدِ legacy صفحهٔ مکان ندارد (۳۰۱ به صفحهٔ کشور) — در «مکان‌های
+            // نزدیک» جایی ندارد وگرنه چند انکرِ هم‌مقصدِ تکراری می‌ساخت.
+            if (CloudLocation::isLegacyCode($code)) {
+                continue;
+            }
             $other = $locations->get($code);
             if ($other === null) {
                 continue;
@@ -967,6 +988,15 @@ class CloudCatalogController extends Controller
      */
     private function locUrl(string $code): string
     {
+        /*
+        | ممیزی ۷: کدِ legacy (گروهِ محصول به‌جای شهر) صفحهٔ خودش را ندارد —
+        | `/cloud/{code}`اش ۳۰۱ است. لینک باید مستقیم به مقصدِ نهایی برود
+        | («هر ۲۲ تا ۳۰۱ تک‌پرش») نه اینکه خودِ ما به ریدایرکت لینک بدهیم.
+        */
+        if (CloudLocation::isLegacyCode($code)) {
+            return \App\Services\Cloud\CloudCountry::url(substr($code, 0, 2));
+        }
+
         $prefix = AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
 
         return Route::has($prefix.'cloud.location')

@@ -357,6 +357,15 @@ class SiteController extends Controller
                 ->distinct()->pluck('location_code')->all();
             foreach (\App\Models\CloudLocation::where('is_active', true)
                 ->whereIn('code', $sellableLocs)->pluck('code') as $code) {
+                /*
+                | ممیزی ۷، یافتهٔ ۱: نسلِ دومِ همان باگ — کدِ کشورِ دوبل
+                | (de-de-dedicated…) که **پلنِ فروختنی دارد** و برای همین از
+                | فیلترِ بالا رد می‌شود. صفحه‌اش ۳۰۱ به صفحهٔ کشور است؛
+                | sitemap فقط URLِ ۲۰۰ اعلام می‌کند.
+                */
+                if (\App\Models\CloudLocation::isLegacyCode((string) $code)) {
+                    continue;
+                }
                 $add('cloud.location', $code);
             }
         }

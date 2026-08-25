@@ -125,6 +125,24 @@ class CloudCatalogSync
 
             $loc = CloudLocation::firstOrNew(['code' => $code]);
 
+            /*
+            | گاردِ ریشه‌ای — ممیزی ۷ (CTO): «بدونِ این، هر ۳۰۱ در importِ بعدی
+            | دوباره تولید می‌شود.» کدِ «گروهِ محصول به‌جای شهر» (de-de-dedicated،
+            | ru-intel، ws-…) دیگر **هرگز ردیفِ تازه** نمی‌سازد — دو بار این باگ
+            | از دو درایورِ مختلف وارد جدول شد و ۲۲+۲۱ صفحهٔ تکراری/خالی ساخت.
+            | ردیفِ موجود به‌روز می‌ماند (پلن‌هایش زنده‌اند)؛ فقط تولد ممنوع است.
+            */
+            if (! $loc->exists && CloudLocation::isLegacyCode($code)) {
+                \App\Support\ErrorTracker::noteOnce(
+                    'cloud',
+                    'سینکِ کاتالوگ کدِ مکانِ نامعتبر داد و رد شد: '.$code.' (گروهِ محصول به‌جای شهر — ممیزی ۷)',
+                    86400,
+                    ['code' => $code]
+                );
+
+                continue;
+            }
+
             // ستون‌های واقعی همیشه تازه می‌شوند…
             $loc->country = (string) ($r['country'] ?? $loc->country ?? '');
             $loc->city = $r['city'] ?? $loc->city;
