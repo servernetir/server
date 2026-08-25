@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\DB;
  */
 class DomainRenewalInvoicer
 {
+    public function __construct(private TldPriceBook $book) {}
+
     /**
      * فاکتورِ بازِ همین دامنه — باز یعنی تمدید قبلاً صادر شده و صدورِ دوباره
      * فقط مشتری را دو بار به پرداختِ همان کار می‌کشانَد.
@@ -39,38 +41,66 @@ class DomainRenewalInvoicer
     }
 
     /**
-     * فاکتورِ تمدید — همان شکلِ فاکتورِ ثبت، با مبلغِ `renew_toman`.
+     * قیمتِ مؤثرِ یک سال تمدید — «قیمتِ تمدید با قیمتِ ثبت فرق دارد و باید
+     * دوباره استعلام شود» (قاعدهٔ کارفرما، ۳ شهریور ۱۴۰۵).
      *
-     * ⚠️ `renew_toman` در لحظهٔ خرید ذخیره شده و ممکن است کهنه باشد؛ عمداً
-     * همان را می‌گیریم و استعلامِ زنده نمی‌زنیم. کرونِ چرخهٔ عمر روزی یک‌بار
-     * روی همهٔ دامنه‌ها می‌دود و استعلامِ زنده یعنی صدها تماسِ API در دقیقه به
-     * رجیستراری که حسابش قبلاً به‌خاطرِ تماسِ زیاد علامت خورده.
-     * اگر قیمت خیلی عقب افتاده باشد، مدیر از `/admin/domains` می‌بیند.
+     * سه منبع، بلندترین برنده است:
+     *
+     *   ۱) `renew_toman`ِ ذخیره‌شده — قیمتِ روزِ خرید (برای پرمیوم تنها
+     *      منبعِ درست، چون استعلامِ پسوندی قیمتِ پرمیوم را نمی‌بیند).
+     *   ۲) **استعلامِ تازهٔ** قیمتِ تمدیدِ پسوند از `TldPriceBook` — اگر
+     *      رجیسترار قیمتِ پسوند را بالا برده باشد، همین می‌گیردش. کشِ
+     *      ۶ساعته + پشتِ مدارشکن؛ حجم هم کوچک است (صدور فاکتور یک بار در
+     *      سال به‌ازای هر دامنه است، نه گردشِ روزانهٔ کرون) — پس قاعدهٔ
+     *      «طوفانِ تماس ممنوع» نقض نمی‌شود.
+     *   ۳) کفِ ارزی (`DomainCostFloor`) — پشتیبانِ بی‌تماس برای وقتی
+     *      استعلام در دسترس نیست.
+     *
+     * ⚠️ استعلامِ تازه قیمت را فقط **بالا** می‌برد، پایین نه: پایین‌آوردن
+     * برای دامنهٔ پرمیوم یعنی فروشِ زیرِ قیمت (استعلامِ پسوندی پرمیوم را
+     * نمی‌بیند)، و برای بقیه «ارزان‌کردن» تصمیمِ مالیِ کارفرماست نه کارِ
+     * خودکارِ کد — همان قاعدهٔ ثبت‌شدهٔ کف.
+     */
+    public function effectivePerYear(Domain $domain): int
+    {
+        $stored = (int) ($domain->renew_toman ?: $domain->price_toman);
+
+        $tld = strtolower(ltrim((string) $domain->tld, '.'));
+        $fresh = 0;
+
+        try {
+            $fresh = (int) data_get($this->book->fullForTlds([$tld]), $tld.'.renew', 0);
+        } catch (\Throwable) {
+            // استعلام‌نشدنی → پشتیبان‌ها (ذخیره + کف) تصمیم می‌گیرند
+        }
+
+        $floor = app(DomainCostFloor::class)->renewPerYear($domain);
+
+        $per = max($stored, $fresh, $floor);
+
+        if ($per > $stored && $stored > 0) {
+            \App\Support\ErrorTracker::noteOnce('domain', 'renewal repriced above the stored figure', 3600, [
+                'domain' => $domain->domain,
+                'stored' => $stored,
+                'fresh'  => $fresh,
+                'floor'  => $floor,
+            ]);
+        }
+
+        return $per;
+    }
+
+    /**
+     * فاکتورِ تمدید — همان شکلِ فاکتورِ ثبت، با قیمتِ مؤثرِ روز.
+     *
+     * قیمت از `effectivePerYear()` می‌آید: ذخیره‌شده + استعلامِ تازهٔ پسوند +
+     * کفِ ارزی، هرکدام بلندتر. عددِ نهایی روی خودِ ردیف هم می‌نشیند تا
+     * صفحهٔ دامنه و فاکتور همیشه یک حرف بزنند.
      */
     public function issue(Domain $domain, int $years = 1): Invoice
     {
         $years = max(1, min(10, $years));
-        $perYear = (int) ($domain->renew_toman ?: $domain->price_toman);
-
-        /*
-        | 🔴 کفِ ارزی — «تمدید هرگز زیرِ بهای تمام‌شده فروخته نمی‌شود».
-        |
-        | `renew_toman` در روزِ خرید فریز شده و یک سال بعد، با جهشِ ارز، از
-        | بهای امروزِ رجیسترار پایین‌تر می‌افتد: تا ممیزیِ شهریور ۱۴۰۵ این کرون
-        | خودش فاکتورِ ضررده صادر می‌کرد. مسیرِ نمایندگی همین محافظ را داشت و
-        | خرده‌فروشی نه. بدونِ تماسِ رجیسترار — فقط بهای ذخیره‌شده × نرخِ روز.
-        */
-        $floor = app(DomainCostFloor::class)->renewPerYear($domain);
-
-        if ($floor > $perYear) {
-            \App\Support\ErrorTracker::noteOnce('domain', 'retail renewal repriced to the cost floor', 3600, [
-                'domain' => $domain->domain,
-                'stored' => $perYear,
-                'floor'  => $floor,
-            ]);
-
-            $perYear = $floor;
-        }
+        $perYear = $this->effectivePerYear($domain);
 
         $unit = $perYear * $years;
 
@@ -112,6 +142,17 @@ class DomainRenewalInvoicer
             //    فاکتور را برگرداند — نه «آخرین فاکتورِ پرداخت‌شده» که ممکن
             //    است فاکتورِ ثبتِ سالِ پیش باشد.
             $domain->putMeta(['renew_years' => $years, 'renew_invoice_id' => $invoice->id]);
+
+            /*
+            | ⚠️ قیمتِ مؤثر روی خودِ ردیف هم می‌نشیند: صفحهٔ دامنه، فهرست و
+            | فاکتور باید همیشه یک عدد بگویند، و سالِ بعد هم مبنای تازه از
+            | همین‌جا شروع شود — نه از قیمتِ دو سال پیش.
+            */
+            $per = intdiv((int) $unit, $years);
+
+            if ($per > 0 && $per !== (int) $domain->renew_toman) {
+                $domain->forceFill(['renew_toman' => $per])->save();
+            }
 
             return $invoice;
         });

@@ -99,7 +99,9 @@
           <tr><th>تاریخ ثبت</th><td>{{ $domain->registered_at ? sdate($domain->registered_at) : '—' }}</td></tr>
           <tr><th>تاریخ انقضا</th><td>{{ $domain->expires_at ? sdate($domain->expires_at) : '—' }}</td></tr>
           <tr><th>دورهٔ ثبت</th><td>{{ fa_num($domain->period_years) }} سال</td></tr>
-          <tr><th>هزینهٔ تمدید</th><td>{{ cloud_price($domain->renew_toman) }} / سال</td></tr>
+          {{-- قیمتِ مؤثرِ روز (ذخیره + استعلامِ تازه + کفِ ارزی) — همان عددی
+               که فاکتورِ تمدید می‌گیرد، نه عددِ فریزشدهٔ روزِ خرید. --}}
+          <tr><th>هزینهٔ تمدید</th><td>{{ cloud_price(($renewUnit ?? 0) > 0 ? $renewUnit : $domain->renew_toman) }} / سال</td></tr>
         </tbody>
       </table>
     </div>
