@@ -1705,6 +1705,8 @@ return [
     'inv_remaining' => 'مانده',
     'inv_pay_heading' => 'پرداخت فاکتور',
     'inv_choose_method' => 'روش پرداخت را انتخاب کنید:',
+    'inv_credit_lead' => 'موجودی اعتبار شما این فاکتور را پوشش می‌دهد —',
+    'inv_credit_btn' => 'پرداخت از اعتبار',
     'inv_zp_title' => 'پرداخت آنلاین',
     'inv_zp_sub' => 'کارت بانکی · زرین‌پال',
     'inv_bale_title' => 'پرداخت با بله',

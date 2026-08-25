@@ -508,6 +508,9 @@ $site = function (): void {
         Route::get('/invoices/{invoice}/print', [Account\PaymentController::class, 'printInvoice'])->name('invoice.print');
         Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
             ->name('invoice.pay')->middleware('throttle:pay');
+        // پرداخت از اعتبارِ داخلی — همان مسیرِ تسویهٔ رسمی (settleConfirmed)
+        Route::post('/invoices/{invoice}/pay-credit', [Account\PaymentController::class, 'payCredit'])
+            ->name('invoice.paycredit')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
             ->name('invoice.bank')->middleware('throttle:forms');
         Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])

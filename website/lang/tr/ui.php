@@ -1698,6 +1698,8 @@ return [
     'inv_remaining' => 'Kalan',
     'inv_pay_heading' => 'Faturayı öde',
     'inv_choose_method' => 'Bir ödeme yöntemi seçin:',
+    'inv_credit_lead' => 'Hesap krediniz bu faturayı karşılıyor —',
+    'inv_credit_btn' => 'Krediyle öde',
     'inv_zp_title' => 'Çevrim içi ödeme',
     'inv_zp_sub' => 'Banka kartı · ZarinPal',
     'inv_bale_title' => 'Bale ile öde',

@@ -1698,6 +1698,8 @@ return [
     'inv_remaining' => 'Remaining',
     'inv_pay_heading' => 'Pay invoice',
     'inv_choose_method' => 'Choose a payment method:',
+    'inv_credit_lead' => 'Your account credit covers this invoice —',
+    'inv_credit_btn' => 'Pay with credit',
     'inv_zp_title' => 'Online payment',
     'inv_zp_sub' => 'Bank card · ZarinPal',
     'inv_bale_title' => 'Pay with Bale',
