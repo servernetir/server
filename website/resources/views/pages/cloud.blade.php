@@ -298,6 +298,9 @@
   </div>
 </section>
 
+{{-- همهٔ مکان‌های ابری با انکرِ توصیفی (ممیزی ۶: ۳۰ صفحهٔ /cloud/* یتیم بودند) --}}
+@include('partials.cloud-locations-links')
+
 {{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) --}}
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
 

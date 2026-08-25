@@ -308,4 +308,20 @@
   .cvl-sec{ padding:32px 0 }
 }
 </style>
+
+{{-- رویدادِ product_page_view (ممیزی ۶ — رشد/شورا): صفحهٔ مکانِ ابری هم صفحهٔ
+     محصول است؛ بدونِ این، قیفِ ابری از هاست جدا می‌افتاد. از مرورگر، چون HIT
+     به PHP نمی‌رسد. هیچ دادهٔ شخصی؛ sku = کدِ مکان. --}}
+@php $ppvCfg = ['u' => lroute('api.funnel'), 'sku' => 'cloud-'.$loc->code, 'line' => 'cloud']; @endphp
+<script>
+(function () {
+  var c = @json($ppvCfg);
+  try {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    var ref = /\/blog\//.test(document.referrer) ? 'blog' : (document.referrer ? (document.referrer.indexOf(location.host) > -1 ? 'site' : 'external') : 'direct');
+    var b = new Blob([JSON.stringify({ event: 'product_page_view', sku: c.sku, product_line: c.line, ref: ref, _token: m ? m.content : '' })], { type: 'application/json' });
+    if (navigator.sendBeacon) { navigator.sendBeacon(c.u, b); }
+  } catch (e) {}
+})();
+</script>
 @endsection

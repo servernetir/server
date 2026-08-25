@@ -93,9 +93,9 @@ return [
             ['fa' => ['t' => 'پرداخت و تمدید', 'b' => 'سرویس‌ها به‌صورت پیش‌پرداخت ارائه می‌شوند. عدم تمدید پیش از سررسید ممکن است به تعلیق و سپس حذف سرویس منجر شود. مسئولیت تمدید به‌موقع بر عهده مشتری است، هرچند ما یادآوری ارسال می‌کنیم.'],
              'en' => ['t' => 'Payment & renewal', 'b' => 'Services are prepaid. Failure to renew before the due date may lead to suspension and then termination. Timely renewal is the customer\'s responsibility, though we do send reminders.'],
              'tr' => ['t' => 'Ödeme ve yenileme', 'b' => 'Hizmetler ön ödemelidir. Zamanında yenilememe askıya alma ve sonlandırmaya yol açabilir.']],
-            ['fa' => ['t' => 'ضمانت بازگشت وجه', 'b' => 'برای سرویس‌های واجد شرایط، ضمانت بازگشت وجه ۱۴ روزه ارائه می‌شود. دامنه‌ها، لایسنس‌ها و هزینه‌های راه‌اندازی سفارشی مشمول این ضمانت نیستند.'],
-             'en' => ['t' => 'Money-back guarantee', 'b' => 'Eligible services include a 14-day money-back guarantee. Domains, licenses and custom setup fees are excluded.'],
-             'tr' => ['t' => 'Para iade garantisi', 'b' => 'Uygun hizmetler 14 gün para iade garantisi içerir. Alan adı ve lisanslar hariçtir.']],
+            ['fa' => ['t' => 'ضمانت بازگشت وجه', 'b' => 'برای سرویس‌های مشمول، ضمانت بازگشت وجه ۱۴ روزه ارائه می‌شود. شمول، مستثنیات و رویه‌ی دقیق آن در بند «ضمانت ۱۴ روزه‌ی بازگشت وجه — شمول و استثنا» همین صفحه آمده و همان بند ملاک است.'],
+             'en' => ['t' => 'Money-back guarantee', 'b' => 'Eligible services include a 14-day money-back guarantee. The exact scope, exclusions and procedure are set out in the "14-day money-back guarantee — scope and exclusions" clause on this page, which prevails.'],
+             'tr' => ['t' => 'Para iade garantisi', 'b' => 'Kapsam dahilindeki hizmetler 14 gün para iade garantisi içerir. Kapsam, istisnalar ve usul bu sayfadaki "14 gün para iade garantisi — kapsam ve istisnalar" maddesinde yer alır ve o madde esastır.']],
             ['fa' => ['t' => 'آپتایم و مسئولیت', 'b' => 'ما آپتایم ۹۹.۹٪ را طبق توافق‌نامه سطح خدمات (SLA) تضمین می‌کنیم. مسئولیت ما محدود به جبران طبق SLA است و شامل خسارات غیرمستقیم یا از دست رفتن سود نمی‌شود. مشتری مسئول تهیه بکاپ مستقل از داده‌های حیاتی خود است.'],
              'en' => ['t' => 'Uptime & liability', 'b' => 'We guarantee 99.9% uptime under our SLA. Our liability is limited to SLA compensation and excludes indirect damages or lost profit. Customers are responsible for keeping independent backups of critical data.'],
              'tr' => ['t' => 'Çalışma süresi ve sorumluluk', 'b' => 'SLA kapsamında %99,9 çalışma süresi garanti ederiz. Sorumluluğumuz SLA tazminatıyla sınırlıdır.']],
@@ -128,6 +128,17 @@ return [
             ['fa' => ['t' => 'سیاست استفاده‌ی پذیرفته (AUP)', 'b' => 'سیاست استفاده‌ی پذیرفته — از جمله منع ارائه و بازفروش سرویس عبور (VPN/پروکسی) روی زیرساخت داخل ایران — جزء جدایی‌ناپذیر همین شرایط است و در نشانی servernet.cloud/aup منتشر شده. نقض آن سیاست، نقض همین قرارداد محسوب می‌شود.'],
              'en' => ['t' => 'Acceptable Use Policy (AUP)', 'b' => 'The Acceptable Use Policy — including the ban on providing or reselling transit services (VPN/proxy) on infrastructure located in Iran — is an integral part of these terms and is published at servernet.cloud/aup. Violating that policy is a violation of this agreement.'],
              'tr' => ['t' => 'Kabul Edilebilir Kullanım Politikası (AUP)', 'b' => 'AUP — İran\'daki altyapıda geçiş hizmeti (VPN/proxy) sunma ve satma yasağı dahil — bu şartların ayrılmaz parçasıdır ve servernet.cloud/aup adresinde yayımlanmıştır. Politikanın ihlali bu sözleşmenin ihlalidir.']],
+            /*
+            | بندِ بازگشتِ وجه — ممیزی ۶ (حقوقی): ضمانتِ ۱۴روزه روی ۶۴ صفحهٔ عمومی
+            | اعلام می‌شد ولی فقط یک جملهٔ کلی در ToS داشت؛ یعنی همان وعده به
+            | دامنه/SSL/لایسنس/سرورِ اختصاصی هم تعمیم یافته بود که عملاً
+            | غیرقابلِ بازگشت‌اند. شمول و مستثنیات حالا صریح است و صفحهٔ سفارش
+            | فقط روی دسته‌های مشمول ضمانت را نشان می‌دهد (Product::isRefundable).
+            | پیش‌نویسِ کاری — پیش از استنادِ قراردادی وکیل ببیند.
+            */
+            ['fa' => ['t' => 'ضمانت ۱۴ روزه‌ی بازگشت وجه — شمول و استثنا', 'b' => 'شمول: هاست لینوکس و وردپرس، نمایندگی هاست، سرور مجازی و ابری و پنل‌های میزبانی — تا ۱۴ روز از لحظه‌ی تحویل و فقط برای دوره‌ی نخست خرید (نه تمدید). مستثنیات صریح: ثبت، تمدید و انتقال دامنه؛ گواهی SSL پس از صدور؛ لایسنس نرم‌افزار پس از تحویل کلید؛ سرور اختصاصی و سخت‌افزار سفارشی؛ IP اضافه؛ هزینه‌ی راه‌اندازی؛ خدمات پروژه‌ای پس از شروع کار. در سرویس‌های ساعتی و ابری، بهای منابع تخصیص‌یافته و ترافیک مصرف‌شده کسر می‌شود. تعلیق یا فسخ به دلیل نقض AUP، حق بازگشت وجه را ساقط می‌کند. حداکثر یک بار برای هر مشتری و هر نوع سرویس. رویه: ثبت درخواست از پنل یا تیکت؛ رسیدگی حداکثر ۷ روز کاری؛ واریز به همان روش پرداخت حداکثر ۱۴ روز کاری. این ضمانت مانع اعمال حق انصراف قانونی موضوع قانون تجارت الکترونیکی نیست. (پیش‌نویس؛ متن نهایی پس از تأیید مشاور حقوقی.)'],
+             'en' => ['t' => '14-day money-back guarantee — scope and exclusions', 'b' => 'Covered: Linux and WordPress hosting, reseller hosting, virtual/cloud servers and hosting panels — within 14 days of delivery and only for the first billing period (not renewals). Explicitly excluded: domain registration, renewal and transfer; SSL certificates once issued; software licences once the key is delivered; dedicated servers and custom hardware; additional IPs; setup fees; project services once work has started. For hourly/cloud services, the cost of allocated resources and consumed traffic is deducted. Suspension or termination for AUP violation voids the guarantee. At most once per customer per service type. Procedure: request via the panel or a ticket; handled within 7 business days; refund to the original payment method within 14 business days. This guarantee does not limit any statutory right of withdrawal. (Working draft; final text after legal review.)'],
+             'tr' => ['t' => '14 gün para iade garantisi — kapsam ve istisnalar', 'b' => 'Kapsam: Linux ve WordPress hosting, bayi hosting, sanal/bulut sunucular ve hosting panelleri — teslimattan itibaren 14 gün ve yalnızca ilk dönem için (yenilemeler hariç). Açık istisnalar: alan adı kaydı/yenileme/transfer; düzenlenmiş SSL; anahtarı teslim edilmiş lisanslar; fiziksel sunucu ve özel donanım; ek IP; kurulum ücreti; başlamış proje hizmetleri. Saatlik/bulut hizmetlerde tahsis edilen kaynak ve tüketilen trafik düşülür. AUP ihlali nedeniyle askıya alma garantiyi düşürür. Müşteri ve hizmet türü başına en fazla bir kez. Süreç: panel veya bilet; 7 iş günü içinde inceleme; 14 iş günü içinde aynı yöntemle iade. (Taslak; nihai metin hukuki incelemeden sonra.)']],
         ],
     ],
 
@@ -173,9 +184,9 @@ return [
             | اختصاصی + تعهدِ زمانِ پاسخِ اعلام‌شده جایگزینِ support@ شد؛ فرمِ
             | /abuse هم بدونِ نیاز به ایمیل کار می‌کند.
             */
-            ['fa' => ['t' => 'گزارش تخلف', 'b' => 'اگر از استفادهٔ متخلفانه از زیرساخت سرورنت مطلع شدید (توزیع کانفیگ، فروش اشتراک عبور، اسپم یا بدافزار)، از فرم servernet.cloud/abuse یا نشانی abuse@servernet.cloud گزارش دهید. گزارش‌ها محرمانه بررسی می‌شوند و حداکثر تا ۲ روز کاری رسیدگی آغاز می‌شود.'],
-             'en' => ['t' => 'Reporting violations', 'b' => 'If you become aware of abusive use of ServerNet infrastructure (config distribution, selling transit subscriptions, spam or malware), report it via servernet.cloud/abuse or abuse@servernet.cloud. Reports are handled confidentially and review starts within 2 business days.'],
-             'tr' => ['t' => 'İhlal bildirimi', 'b' => 'ServerNet altyapısının kötüye kullanımını fark ederseniz (config dağıtımı, geçiş aboneliği satışı, spam veya zararlı yazılım) servernet.cloud/abuse formundan veya abuse@servernet.cloud adresinden bildirin. Bildirimler gizli tutulur; inceleme en geç 2 iş günü içinde başlar.']],
+            ['fa' => ['t' => 'گزارش تخلف', 'b' => 'اگر از استفادهٔ متخلفانه از زیرساخت سرورنت مطلع شدید (توزیع کانفیگ، فروش اشتراک عبور، اسپم یا بدافزار)، از فرم servernet.cloud/abuse یا نشانی abuse@servernet.cloud گزارش دهید. گزارش‌ها محرمانه بررسی می‌شوند؛ تأیید دریافت خودکار است و رسیدگی حداکثر تا ۲ روز کاری آغاز می‌شود. برای فیشینگ و بدافزار فعال، هدف ما شروع رسیدگی در ۴ ساعت کاری است.'],
+             'en' => ['t' => 'Reporting violations', 'b' => 'If you become aware of abusive use of ServerNet infrastructure (config distribution, selling transit subscriptions, spam or malware), report it via servernet.cloud/abuse or abuse@servernet.cloud. Reports are handled confidentially; acknowledgement is automatic and handling starts within 2 business days. For active phishing or malware our target is to start within 4 business hours.'],
+             'tr' => ['t' => 'İhlal bildirimi', 'b' => 'ServerNet altyapısının kötüye kullanımını fark ederseniz (config dağıtımı, geçiş aboneliği satışı, spam veya zararlı yazılım) servernet.cloud/abuse formundan veya abuse@servernet.cloud adresinden bildirin. Bildirimler gizli tutulur; alındı bilgisi otomatiktir ve inceleme en geç 2 iş günü içinde başlar. Aktif phishing veya zararlı yazılım için hedefimiz 4 iş saati içinde başlamaktır.']],
             ['fa' => ['t' => 'وضعیت این سند', 'b' => 'این متن پیش‌نویس کاری است و پیش از استناد قراردادی توسط مشاور حقوقی بازبینی و نهایی می‌شود. نسخهٔ نهایی به‌عنوان پیوست قرارداد سرویس در پنل مشتری نیز ارائه خواهد شد.'],
              'en' => ['t' => 'Status of this document', 'b' => 'This text is a working draft and will be reviewed and finalised by legal counsel before contractual reliance. The final version will also be provided as a service-contract annex in the customer panel.'],
              'tr' => ['t' => 'Bu belgenin durumu', 'b' => 'Bu metin bir çalışma taslağıdır ve sözleşmesel dayanak olmadan önce hukuk danışmanı tarafından incelenip kesinleştirilecektir.']],
@@ -215,6 +226,39 @@ return [
             ['fa' => ['t' => 'تعهد به تکرار', 'b' => 'این اندازه‌گیری با هر دور ممیزی داخلی (حداقل فصلی) تکرار می‌شود و نتایج قبلی همین‌جا آرشیو می‌ماند. اگر عددی بدتر شد، همان را منتشر می‌کنیم — اعتبار این صفحه به کامل بودنش است، نه به خوب بودن اعداد.'],
              'en' => ['t' => 'Commitment to repeat', 'b' => 'This measurement is repeated with every internal audit round (at least quarterly) and previous results stay archived here. If a number gets worse, we publish it — this page\'s credibility comes from being complete, not from the numbers being good.'],
              'tr' => ['t' => 'Tekrar taahhüdü', 'b' => 'Bu ölçüm her iç denetim turunda (en az üç ayda bir) tekrarlanır ve önceki sonuçlar burada arşivlenir. Bir sayı kötüleşirse onu da yayımlarız.']],
+        ],
+    ],
+
+    /*
+    |----------------------------------------------------------------------
+    | /official-channels — کانال‌های رسمی (ممیزی ۶، مارکتینگ + حقوقی)
+    |----------------------------------------------------------------------
+    | یک کانالِ تلگرامیِ هم‌نام با ۱۰۶ هزار عضو کانفیگِ VPN پخش می‌کند. پاسخِ
+    | درست: فهرستِ دقیقِ کانال‌های رسمی + جملهٔ «هیچ کانالِ دیگری متعلق به
+    | سرورنت نیست» + لینک از فوتر — و **هرگز** اشارهٔ عمومی به آن کانال
+    | (تبلیغِ رایگان است). نشانی‌ها از همان config/servernet می‌آیند که فوتر.
+    */
+    'official-channels' => [
+        'icon' => 'shield',
+        'fa' => ['tag' => 'کانال‌های رسمی', 'h1a' => 'فقط این‌ها', 'h1b' => 'کانال‌های رسمی سرورنت هستند.',
+            'lead' => 'هر پیام، کانال، پشتیبانی یا پیشنهادی که از نشانی‌های این فهرست نیامده باشد، از طرف سرورنت نیست. اگر مورد مشکوکی دیدید، از صفحه‌ی گزارش سوءاستفاده به ما خبر دهید.'],
+        'en' => ['tag' => 'Official channels', 'h1a' => 'Only these', 'h1b' => 'are ServerNet\'s official channels.',
+            'lead' => 'Any message, channel, support contact or offer that does not come from an address on this list is not from ServerNet. If you see something suspicious, tell us via the abuse report page.'],
+        'tr' => ['tag' => 'Resmi kanallar', 'h1a' => 'Yalnızca bunlar', 'h1b' => 'ServerNet\'in resmi kanallarıdır.',
+            'lead' => 'Bu listedeki adreslerden gelmeyen hiçbir mesaj, kanal, destek veya teklif ServerNet\'e ait değildir. Şüpheli bir durum görürseniz kötüye kullanım bildirimi sayfasından bize bildirin.'],
+        'sections' => [
+            ['fa' => ['t' => 'وب‌سایت و پنل', 'b' => 'سایت اصلی: servernet.cloud (و نسخه‌ی قدیمی servernet.ir). پنل مشتریان: console.servernet.cloud. هیچ دامنه‌ی دیگری — با هر پسوند یا املای مشابه — متعلق به سرورنت نیست.'],
+             'en' => ['t' => 'Website and panel', 'b' => 'Main site: servernet.cloud (legacy: servernet.ir). Customer panel: console.servernet.cloud. No other domain — any TLD or look-alike spelling — belongs to ServerNet.'],
+             'tr' => ['t' => 'Web sitesi ve panel', 'b' => 'Ana site: servernet.cloud (eski: servernet.ir). Müşteri paneli: console.servernet.cloud. Başka hiçbir alan adı ServerNet\'e ait değildir.']],
+            ['fa' => ['t' => 'شبکه‌های اجتماعی', 'b' => 'لینکدین: linkedin.com/company/servernet-co · اینستاگرام: instagram.com/servernet.ir (فارسی)، instagram.com/servernet.cloud (انگلیسی)، instagram.com/servernet.tr (ترکی). در این فهرست هیچ کانال یا گروه تلگرامی اعلام نشده است؛ تا وقتی همین صفحه به‌روز نشده، هیچ کانال تلگرامی با نام مشابه را رسمی تلقی نکنید — محتوای چنین کانال‌هایی ربطی به سرورنت ندارد.'],
+             'en' => ['t' => 'Social media', 'b' => 'LinkedIn: linkedin.com/company/servernet-co · Instagram: instagram.com/servernet.cloud (English), instagram.com/servernet.ir (Persian), instagram.com/servernet.tr (Turkish). No Telegram channel or group is listed here; until this page says otherwise, treat any similarly named Telegram channel as unofficial — its content is not ours.'],
+             'tr' => ['t' => 'Sosyal medya', 'b' => 'LinkedIn: linkedin.com/company/servernet-co · Instagram: instagram.com/servernet.tr (Türkçe), instagram.com/servernet.cloud (İngilizce), instagram.com/servernet.ir (Farsça). Burada hiçbir Telegram kanalı listelenmemiştir; bu sayfa güncellenene kadar benzer adlı kanalları resmi saymayın.']],
+            ['fa' => ['t' => 'تماس و پشتیبانی', 'b' => 'تلفن: ۰۲۱-۷۱۰۵۷۷۵۷ (ایران) · تلفن و واتس‌اپ بین‌المللی: +1 716 666 0425 · ایمیل پشتیبانی: support@servernet.cloud · فروش: sales@servernet.cloud · گزارش سوءاستفاده: abuse@servernet.cloud. کارکنان سرورنت هرگز رمز عبور، کد یک‌بارمصرف یا اطلاعات کارت بانکی را از شما نمی‌پرسند.'],
+             'en' => ['t' => 'Contact and support', 'b' => 'Phone: +98 21 7105 7757 (Iran) · International phone and WhatsApp: +1 716 666 0425 · Support: support@servernet.cloud · Sales: sales@servernet.cloud · Abuse: abuse@servernet.cloud. ServerNet staff never ask for your password, one-time codes or card details.'],
+             'tr' => ['t' => 'İletişim ve destek', 'b' => 'Telefon: +98 21 7105 7757 · Uluslararası telefon ve WhatsApp: +1 716 666 0425 · Destek: support@servernet.cloud · Satış: sales@servernet.cloud · Kötüye kullanım: abuse@servernet.cloud. ServerNet çalışanları asla şifre, tek kullanımlık kod veya kart bilgisi istemez.']],
+            ['fa' => ['t' => 'اگر کانال یا پیام جعلی دیدید', 'b' => 'نشانی، تاریخ و اسکرین‌شات را از صفحه‌ی گزارش سوءاستفاده (servernet.cloud/abuse) برایمان بفرستید. سرورنت پس از بررسی و در صورت احراز، گزارش نقض برند را نزد پلتفرم مربوط با مستندات ثبت شرکت پیگیری می‌کند.'],
+             'en' => ['t' => 'If you see a fake channel or message', 'b' => 'Send us the address, date and a screenshot via the abuse report page (servernet.cloud/abuse). Where the report is substantiated, ServerNet pursues a brand-infringement complaint with the platform, backed by company registration documents.'],
+             'tr' => ['t' => 'Sahte kanal veya mesaj görürseniz', 'b' => 'Adres, tarih ve ekran görüntüsünü kötüye kullanım sayfasından (servernet.cloud/abuse) gönderin. Bildirim doğrulanırsa ServerNet ilgili platforma marka ihlali başvurusu yapar.']],
         ],
     ],
 ];

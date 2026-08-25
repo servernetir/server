@@ -2443,15 +2443,9 @@ return [
 
     /* Pre-login order summary (audit r4) */
     'os_badge' => 'Order summary',
-    'os_lead' => 'See the price and every billing cycle right here — no login needed. Sign in only at the payment step.',
     'os_specs' => 'Package specs',
-    'os_cycles_t' => 'Pricing & billing cycles',
-    'os_col_cycle' => 'Cycle', 'os_col_monthly' => 'Monthly equivalent', 'os_col_saving' => 'Discount', 'os_col_total' => 'Total per cycle',
     'os_setup' => 'Setup fee (one-time)',
     'os_tax_note' => ':p% VAT is included in the total.',
-    'os_cycle_note' => 'The final cycle is chosen at the payment step.',
-    'os_login_note' => 'No account was needed to see this page; login is only for payment.',
-    'os_continue' => 'Continue to secure payment',
 
     /* Abuse reports (audit r4) */
     'ab_title' => 'Report abuse',
@@ -2463,10 +2457,10 @@ return [
     'ab_email' => 'Your email (optional, for follow-up)',
     'ab_desc' => 'What you saw, where and when…',
     'ab_submit' => 'Submit report',
-    'ab_ok' => 'Report received. It will be reviewed within 2 business days.',
+    'ab_ok' => 'Report received and an automatic acknowledgement was sent. Handling starts within 2 business days.',
     'ab_busy' => 'Too many reports; please try again shortly.',
     'ab_err' => 'Please enter a valid domain/IP and a description of at least 20 characters.',
-    'ab_sla' => 'Response commitment: within 2 business days.',
+    'ab_sla' => 'Response commitment: automatic acknowledgement · handling starts within 2 business days · active phishing/malware: 4 business hours target.',
 
     /* Network force majeure in SLA (audit r4 — legal draft) */
     'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network infrastructure or international routes, for any reason including decisions of competent authorities; status is announced on the status page, and this clause does not block the 14-day money-back guarantee.',
@@ -2545,4 +2539,30 @@ return [
     'parts_filter_price' => 'Max price',
     'parts_under' => 'up to :amount',
     'parts_no_match' => 'Nothing matched “:q”. Check the spelling, or send us the part number — we stock more than we list here.',
+
+    /* Audit r6 — order page (radio group, savings, dynamic CTA), locations, signed handoff */
+    'os_h1' => 'Order :name',
+    'os_sub' => 'Pick your billing cycle right here. You see the final price — no account needed.',
+    'os_steps_label' => 'Order steps',
+    'os_step1' => '1 Choose', 'os_step2' => '2 Account', 'os_step3' => '3 Payment', 'os_step4' => '4 Delivery',
+    'os_choose_legend' => 'Choose a billing cycle',
+    'os_popular' => 'Best value',
+    'os_saving_pct' => ':p% less',
+    'os_base' => 'Base price',
+    'os_saved' => ':amount less than paying monthly over :months months',
+    'os_tax_neutral' => 'This is the final amount payable; statutory taxes and duties are included.',
+    'os_refund_policy' => 'Refund policy',
+    'os_no_refund' => 'This service is non-refundable after delivery',
+    'os_total_label' => 'Total',
+    'os_cta_dynamic' => 'Continue with :cycle payment — :total',
+    'os_saved_note' => 'Your chosen cycle is preselected at the payment step; signing in is only for issuing the invoice.',
+    'cl_all_locations' => 'All cloud server locations',
+    'cl_other_locations' => 'The same service in other locations (outside Iran)',
+    'cl_anchor' => 'Cloud server in :city — :country',
+    'chk_handoff' => 'Carried over from the site: the :cycle cycle is preselected.',
+    'f_official' => 'Official channels',
+    'os_meta_title' => 'Buy :name — from :price/mo',
+    'os_meta_desc' => 'All billing cycles for :name from :price incl. tax. Pick a cycle and pay securely — no account needed to see prices.',
+    'os_first_label' => 'First payment',
+    'os_first_note' => 'Included in the "first payment"; renewals are the cycle amount only.',
 ];

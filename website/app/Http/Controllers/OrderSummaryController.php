@@ -4,24 +4,40 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Service;
+use App\Support\OrderHandoff;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
- * خلاصهٔ سفارشِ **پیش از ورود** — قلمِ «اگر فقط یک کار در ۳۰ روز»ِ ممیزی ۴.
+ * خلاصهٔ سفارشِ **پیش از ورود** — ساخته در ممیزی ۴، بازطراحی در ممیزی ۶.
  *
  * ═══ چرا این صفحه وجود دارد ═══
  *
  * چهار دور ممیزی یک چیز را تکرار کرد: کاربر برای دیدنِ قیمتِ نهایی مجبور به
- * ورود بود («تعهد را می‌گیریم، اطلاعات را نمی‌دهیم — بدترین ترتیبِ ممکن») و
- * پرشِ ناگهانی به console در حساس‌ترین لحظهٔ قیف، یک دیوارِ ورود بود. این
- * صفحه روی **خودِ سایت** است، بی‌نشست و بی‌وابستگی به console: قیمت، همهٔ
- * دوره‌ها با تخفیفشان، جمعِ کلِ با مالیات، و ضمانتِ ۱۴روزه — و فقط در گامِ
- * پرداخت به console تحویل می‌دهد. («در همان مرزی که ثابت شده تحویل می‌شود.»)
+ * ورود بود. این صفحه روی **خودِ سایت** است، بی‌نشست: قیمتِ همهٔ دوره‌ها،
+ * جمعِ با مالیات، ضمانت — و فقط در گامِ پرداخت به console تحویل می‌دهد.
+ *
+ * ═══ آنچه ممیزی ۶ عوض کرد ═══
+ *
+ * · **انتخابِ دوره همین‌جا** (رادیوگروپ، پیش‌فرض سالانه) و لینکِ پرداختِ
+ *   **امضاشده به ازای هر دوره** (`OrderHandoff`) — console همان دوره را از
+ *   پیش انتخاب می‌کند. SN-ORDER-001 بسته، و اولین کامیتِ متقابلِ دو مرز.
+ * · اسکیمای Product/AggregateOffer با هر چهار Offer، **به ارزِ زبانِ صفحه**
+ *   (فارسی ریال، en/tr یورو — همان عددی که کاربر می‌بیند؛ شورا/سئو: قیمتِ
+ *   اسکیما و قیمتِ صفحه باید یکی باشند وگرنه Rich Result رد می‌شود)،
+ *   priceValidUntil میلادی، MerchantReturnPolicy فقط برای پکیجِ قابلِ بازگشت.
+ * · ضمانتِ ۱۴روزه فقط روی دسته‌های قابلِ بازگشت (حقوقی).
+ * · جملهٔ «۱۰٪ مالیات» فقط وقتی مدیر ثبت‌نامِ ارزش افزوده را در پنل تأیید
+ *   کرده باشد (`company_vat_verified`) — وگرنه عبارتِ خنثی. مبلغ در هر دو حالت
+ *   همان مبلغِ فاکتور است (نه یک منبعِ حقیقتِ دوم).
+ * · فقط SKUهای پرچم‌دار ایندکس/در sitemap؛ بقیه noindex,follow. پرچم‌دارها
+ *   عنوان/توضیحِ تراکنشی می‌گیرند (نام + کمترین قیمت) نه «خلاصهٔ سفارش».
+ * · هزینهٔ راه‌اندازی (اگر هست) در «پرداختِ اول» جمع می‌شود — UX: کاربر نباید
+ *   در console عددی بزرگ‌تر از آنچه این‌جا دید ببیند.
  *
  * ⚠️ قیمت از همان `Product::priceForCycle()` می‌آید که فاکتورِ واقعی را
- * می‌سازد — دو منبعِ حقیقت همان بیماریِ «قیمتی که نمی‌شود خرید» است که
- * این پروژه سه بار درمان کرده.
+ * می‌سازد — و در لینکِ تحویل **هیچ قیمتی** نیست. sid/ref را مرورگر می‌سازد
+ * (صفحه کش می‌شود؛ sidِ سمتِ سرور بینِ بازدیدکننده‌ها مشترک می‌شد).
  */
 class OrderSummaryController extends Controller
 {
@@ -31,11 +47,10 @@ class OrderSummaryController extends Controller
 
         $product = Product::where('slug', $slug)->where('is_active', true)->firstOrFail();
 
-        /*
-        | یک ردیف به ازای هر دورهٔ تعریف‌شده در config/billing — همان منبعی
-        | که تسویه از آن می‌خواند. «once» فقط وقتی می‌آید که پکیج اصلاً
-        | دوره‌ای نباشد (لایسنس/کارِ یک‌بار).
-        */
+        $setup = $product->setup_fee > 0 ? $product->effectiveSetup() : 0;
+        $setupTax = (int) round($setup * $product->tax_percent / 100);
+
+        $monthlyGrand = null;
         $rows = [];
 
         foreach (Service::cycles() as $cycle) {
@@ -47,6 +62,11 @@ class OrderSummaryController extends Controller
 
             $total = $product->priceForCycle($cycle);
             $tax = (int) round($total * $product->tax_percent / 100);
+            $grand = $total + $tax;
+
+            if ($cycle === 'monthly') {
+                $monthlyGrand = $grand;
+            }
 
             $rows[] = [
                 'cycle'   => $cycle,
@@ -54,7 +74,10 @@ class OrderSummaryController extends Controller
                 'months'  => $months,
                 'monthly' => $product->monthlyEquivalent($cycle),
                 'saving'  => $product->savingPct($cycle),
-                'grand'   => $total + $tax,
+                'total'   => $total,
+                'grand'   => $grand,
+                'first'   => $grand + $setup + $setupTax,
+                'href'    => OrderHandoff::url($product->slug, $cycle),
             ];
         }
 
@@ -68,57 +91,164 @@ class OrderSummaryController extends Controller
                 'months'  => 0,
                 'monthly' => $total,
                 'saving'  => 0,
+                'total'   => $total,
                 'grand'   => $total + $tax,
+                'first'   => $total + $tax + $setup + $setupTax,
+                'href'    => OrderHandoff::url($product->slug, 'once'),
             ];
         }
 
-        $this->logFunnel($slug);
+        /*
+        | «برچسبِ صرفه‌جویی» (UX): نه درصد، بلکه تومانِ واقعی نسبت به پرداختِ
+        | ماهانه در همان مدت — «۱٬۸۴۸٬۰۰۰ تومان کمتر از پرداخت ماهانه در یک سال».
+        | چشم عددِ بزرگِ سالانه را «گران» می‌خوانَد؛ این برچسب لنگر را درست می‌کند.
+        */
+        foreach ($rows as &$r) {
+            $r['saved'] = ($monthlyGrand !== null && $r['months'] > 1)
+                ? max(0, $monthlyGrand * $r['months'] - $r['grand'])
+                : 0;
+        }
+        unset($r);
+
+        // پیش‌فرضِ انتخاب: سالانه اگر هست (بزرگ‌ترین اهرمِ قیمتی)، وگرنه اولی
+        $cycles = array_column($rows, 'cycle');
+        $default = in_array('yearly', $cycles, true) ? 'yearly' : ($cycles[0] ?? 'monthly');
+        $defaultRow = collect($rows)->firstWhere('cycle', $default) ?? $rows[0];
+
+        $flagship = in_array($product->slug, Product::flagshipSlugs(), true);
+
+        $lowest = min(array_column($rows, 'grand'));
+        $lowestMonthly = min(array_column($rows, 'monthly'));
+
+        // order_summary_view از مرورگر ثبت می‌شود (صفحه کش می‌شود و HIT به این‌جا نمی‌رسد)
 
         return view('pages.order-summary', [
-            'product' => $product,
-            'rows'    => $rows,
+            'product'     => $product,
+            'rows'        => $rows,
+            'default'     => $default,
+            'defaultRow'  => $defaultRow,
+            'setup'       => $setup,
+            'flagship'    => $flagship,
+            'vatVerified' => $this->vatVerified(),
+            'schema'      => $this->schema($product, $rows),
+            /*
+            | عنوانِ تراکنشی برای پرچم‌دارها (سئو): «نام — از ماهی X» به‌جای
+            | «خلاصهٔ سفارش — نام». بقیه noindexاند و عنوانِ عمومی کافی است.
+            */
+            'metaTitle'   => $flagship
+                ? __('ui.os_meta_title', ['name' => $product->name, 'price' => cloud_price($lowestMonthly)])
+                : __('ui.os_badge').' — '.$product->name,
+            'metaDesc'    => $flagship
+                ? __('ui.os_meta_desc', ['name' => $product->name, 'price' => cloud_price($lowest)])
+                : __('ui.os_sub'),
         ]);
     }
 
     /**
-     * شمارندهٔ قیفِ بلاگ→سفارش — سنجهٔ شمارهٔ ۳ مدیر رشد (ممیزی ۴).
-     *
-     * «سهم شروع‌های سفارش که سشنشان شاملِ یک صفحهٔ بلاگ بوده» — پایهٔ چهار
-     * دورِ قبل صفر بود، پس این تمیزترین آزمونِ قبل/بعدی است که گیرمان می‌آید.
-     * این صفحه عمداً کش نمی‌شود، پس هر بازدید واقعاً به این‌جا می‌رسد و
-     * برخلافِ صفحات HIT، شمارش کامل است.
-     *
-     * ⚠️ فایل، نه دیتابیس: شمارنده حق ندارد صفحهٔ فروش را به یک قطعیِ گذرای
-     * DB گره بزند (قاعدهٔ ثبت‌شدهٔ پروژه). JSONL ماهانه؛ تحلیل با یک grep.
+     * «۱۰٪ مالیات لحاظ شده» یعنی اعلامِ مؤدیِ ثبت‌شده — حقوقی (ممیزی ۶): تا
+     * گواهیِ ارزش افزوده تأیید نشده، این جمله روی صفحه نیاید. مدیر پس از تأیید
+     * حسابدارِ رسمی، کلیدِ `company_vat_verified` را در پنل پر می‌کند.
      */
-    private function logFunnel(string $slug): void
+    private function vatVerified(): bool
     {
         try {
-            $ref = (string) request()->headers->get('referer', '');
-            $host = (string) parse_url($ref, PHP_URL_HOST);
-            $path = (string) parse_url($ref, PHP_URL_PATH);
-            $ours = $host === (string) parse_url((string) config('app.url'), PHP_URL_HOST);
+            return filled(\App\Models\Setting::get('company_vat_verified', ''));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
 
-            $bucket = match (true) {
-                $ref === ''                                  => 'direct',
-                $ours && str_contains($path, '/blog')        => 'blog',
-                $ours                                        => 'site',
-                default                                      => 'external',
-            };
+    /**
+     * Product + AggregateOffer (ممیزی ۶ — سئو): صفحه‌ای که چهار قیمت و تخفیف و
+     * مالیات دارد باید همه را ماشین‌خوان اعلام کند.
+     *
+     * ارز = ارزِ نمایشِ همان زبان (شورا/سئو): فارسی ریال (IRR، واحدِ ISO؛ تومان×۱۰)،
+     * en/tr یورو با همان نرخی که `cloud_price` نشان می‌دهد. اگر نرخِ یورو در
+     * دسترس نبود، صفحهٔ en/tr عددِ بی‌واحد نشان می‌دهد و اسکیما **بدونِ offers**
+     * می‌رود — Offerِ بی‌ارزِ درست بدتر از نبودنش است.
+     *
+     * @param  array<int,array<string,mixed>>  $rows
+     * @return array<string,mixed>
+     */
+    private function schema(Product $product, array $rows): array
+    {
+        $url = lroute('order.summary', $product->slug);
+        $validUntil = date('Y-m-d', strtotime('+30 days'));
 
-            $dir = storage_path('app/funnel');
+        $data = [
+            'name'  => $product->name,
+            'sku'   => $product->slug,
+            'brand' => ['@type' => 'Brand', 'name' => 'ServerNet'],
+            'url'   => $url,
+        ];
 
-            if (! is_dir($dir)) {
-                @mkdir($dir, 0755, true);
+        $fa = app()->getLocale() === 'fa';
+        $rate = $fa ? 0 : cloud_eur_rate();
+
+        if (! $fa && $rate <= 0) {
+            return $data;
+        }
+
+        $currency = $fa ? 'IRR' : 'EUR';
+        $price = fn (int $toman): string => $fa ? schema_price_irr($toman) : number_format($toman / $rate, 2, '.', '');
+
+        $offers = [];
+        $prices = [];
+
+        foreach ($rows as $r) {
+            $prices[] = (int) $r['grand'];
+
+            $offer = [
+                '@type'           => 'Offer',
+                'name'            => $r['label'],
+                'price'           => $price((int) $r['grand']),
+                'priceCurrency'   => $currency,
+                'availability'    => 'https://schema.org/InStock',
+                // لنگرِ همان رادیو روی همین صفحه — نه ?cycle= که رشتهٔ کوئری است و
+                // PageCache آن را BYPASS می‌کرد (و صفحهٔ «دوم»ی برای گوگل می‌ساخت)
+                'url'             => $url.'#cy-'.$r['cycle'],
+                'priceValidUntil' => $validUntil,
+            ];
+
+            if ($r['months'] > 0) {
+                $spec = [
+                    '@type'           => 'UnitPriceSpecification',
+                    'price'           => $price((int) $r['grand']),
+                    'priceCurrency'   => $currency,
+                    'billingDuration' => $r['months'],
+                    'unitCode'        => 'MON',
+                ];
+
+                // فقط وقتی مؤدیِ تأییدشده‌ایم ادعای «شاملِ VAT» ماشین‌خوان می‌شود (حقوقی)
+                if ($product->tax_percent > 0 && $this->vatVerified()) {
+                    $spec['valueAddedTaxIncluded'] = true;
+                }
+
+                $offer['priceSpecification'] = $spec;
             }
 
-            @file_put_contents(
-                $dir.'/order-summary-'.date('Y-m').'.jsonl',
-                json_encode(['t' => date('c'), 'slug' => $slug, 'ref' => $bucket], JSON_UNESCAPED_SLASHES)."\n",
-                FILE_APPEND | LOCK_EX
-            );
-        } catch (\Throwable) {
-            // شمارنده هرگز نباید صفحهٔ فروش را بیندازد
+            $offers[] = $offer;
         }
+
+        $data['offers'] = [
+            '@type'           => 'AggregateOffer',
+            'priceCurrency'   => $currency,
+            'lowPrice'        => $price(min($prices)),
+            'highPrice'       => $price(max($prices)),
+            'offerCount'      => count($offers),
+            'priceValidUntil' => $validUntil,
+            'offers'          => $offers,
+        ];
+
+        if ($product->isRefundable()) {
+            $data['hasMerchantReturnPolicy'] = [
+                '@type'                => 'MerchantReturnPolicy',
+                'applicableCountry'    => 'IR',
+                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+                'merchantReturnDays'   => 14,
+            ];
+        }
+
+        return $data;
     }
 }

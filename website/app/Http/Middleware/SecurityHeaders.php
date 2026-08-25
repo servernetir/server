@@ -80,7 +80,9 @@ class SecurityHeaders
                 // ۳۰۲ می‌دهد. مرورگرها form-action را روی ریدایرکتِ بعد از submit
                 // هم اعمال می‌کنند، پس بدون این دامنه‌ها، هدایت به درگاه بی‌صدا
                 // بلاک می‌شد و «هیچ اتفاقی نمی‌افتاد».
-                "form-action 'self' https://*.zarinpal.com https://zarinpal.com",
+                // + console (ممیزی ۶ — امنیت): فرمی که از سایت به پنل تحویل می‌دهد
+                //   (خلاصهٔ سفارش → پرداخت) بدونِ این بی‌صدا بلاک می‌شود.
+                "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com",
                 'upgrade-insecure-requests',
             ]);
             /*

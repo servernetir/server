@@ -125,6 +125,22 @@ $site = function (): void {
     Route::post('/abuse', [\App\Http\Controllers\AbuseController::class, 'report'])
         ->name('abuse.report')->middleware('throttle:forms');
 
+    /*
+    | ممیزی ۶ — «قلمِ شاهد» شش دور: /share/url و /sharing/share-offsite.
+    | حکم: «بساز یا کامل حذف کن — ۲۰۰ یا ۴۱۰؛ آنچه می‌سنجیم تصمیم است.»
+    | تصمیم: ۴۱۰ Gone — همان کاری که /panel-preview را بست. هیچ backendی برای
+    | اشتراک‌گذاری وجود ندارد و نخواهد داشت؛ اشتراک با لینکِ ایستا/بومی است.
+    */
+    Route::get('/share/{any?}', fn () => abort(410))->where('any', '.*')->name('share.gone');
+    Route::get('/sharing/{any?}', fn () => abort(410))->where('any', '.*')->name('sharing.gone');
+
+    // رویدادهای قیف از مرورگر (ممیزی ۶ — رشد) — صفحاتِ HIT به PHP نمی‌رسند
+    Route::post('/api/funnel', [\App\Http\Controllers\FunnelController::class, 'store'])
+        ->name('api.funnel')->middleware('throttle:beacon');
+
+    // کانال‌های رسمی (ممیزی ۶ — مارکتینگ/حقوقی): پاسخ به کانالِ هم‌نامِ جعلی
+    Route::get('/official-channels', fn () => app(SiteController::class)->page('official-channels'))->name('official');
+
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
     Route::get('/status', [SiteController::class, 'status'])->name('status');

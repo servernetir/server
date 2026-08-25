@@ -186,9 +186,50 @@ class SiteController extends Controller
             '/aup'           => 'Acceptable use policy (no VPN/proxy resale on Iran infrastructure)',
             '/abuse'         => 'Report abuse of ServerNet infrastructure (reviewed within 2 business days)',
             '/speed'         => 'Public speed report with reproducible methodology (measured TTFB, all numbers)',
+            '/official-channels' => 'The only official ServerNet channels and contact points (beware of look-alike Telegram channels)',
             '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
+        }
+
+        /*
+        | ممیزی ۶ (سئو/AEO): «/order/* و /urmia/* در llms.txt نیستند — یعنی
+        | صفحاتِ قیمت و کلِ استراتژیِ ارومیه برای موتورهای پاسخِ AI اعلام
+        | نشده‌اند.» چیزی که باعثِ نقل‌شدن می‌شود قیمتِ عددیِ تاریخ‌دار است، و
+        | آن دقیقاً روی /order/{sku} نشسته. فقط پرچم‌دارها (همان‌هایی که در
+        | sitemap هستند) — نه ۶۴ صفحهٔ هم‌قالب.
+        */
+        $flagship = \App\Models\Product::flagshipSlugs();
+
+        if ($flagship !== []) {
+            $lines[] = '';
+            $lines[] = '## Order pages (public pricing, all billing cycles, tax-inclusive totals, no login)';
+
+            // برچسب = نامِ محصول + کمترین قیمتِ ماهانه (شورا/سئو): «group-3» برای مدل بی‌معنی است
+            $products = \App\Models\Product::whereIn('slug', $flagship)->get()->keyBy('slug');
+
+            foreach ($flagship as $sku) {
+                $p = $products[$sku] ?? null;
+                $label = $p
+                    ? $p->name.' — from '.cloud_price($p->monthlyEquivalent('yearly')).'/mo'
+                    : $sku;
+                $lines[] = "- [{$label}]({$base}/order/{$sku})";
+            }
+        }
+
+        // ارومیه — فقط فارسی؛ عنوانِ واقعیِ هر صفحه از config تا مدل همان را نقل کند
+        if (is_array(config('urmia.pages'))) {
+            $lines[] = '';
+            $lines[] = '## Urmia (West Azerbaijan) local services — Persian only';
+            $lines[] = "- [Web design & software in Urmia]({$base}/urmia)";
+
+            foreach ((array) config('urmia.pages') as $slug => $pg) {
+                $lines[] = '- ['.((string) ($pg['title'] ?? $slug))."]({$base}/urmia/{$slug})";
+            }
+
+            foreach (array_keys((array) config('urmia.cities', [])) as $slug) {
+                $lines[] = "- [{$slug}]({$base}/urmia/cities/{$slug})";
+            }
         }
 
         $lines[] = '';
@@ -232,7 +273,7 @@ class SiteController extends Controller
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'developers', 'careers', 'status', 'sla', 'webdesign'] as $n) {
             $add($n);
         }
 
@@ -379,6 +420,17 @@ class SiteController extends Controller
         | پیشوندِ زبان اضافه می‌شود، نه از مسیرِ `$add()`.
         */
         $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
+
+        /*
+        | صفحاتِ سفارش (ممیزی ۶): «۶۴ صفحه در sitemap: صفر از ۶۴» — فقط
+        | SKUهای پرچم‌دار اعلام می‌شوند (بقیه noindex,follow در خودِ صفحه) تا
+        | صفحهٔ محصول رتبه‌گیر بمانَد و صفحهٔ سفارش مکملِ قیمتی‌اش باشد.
+        */
+        foreach (\App\Models\Product::flagshipSlugs() as $sku) {
+            $add('order.summary', $sku);
+        }
+
+        $add('official');
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";

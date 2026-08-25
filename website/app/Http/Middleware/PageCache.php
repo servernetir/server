@@ -55,10 +55,19 @@ class PageCache
 
         $store = Cache::store();
 
-        $gen = (int) $store->get(self::GEN_KEY, 0);
-        $key = 'page:g'.$gen.':'.sha1($request->getHost().'|'.$request->path());
+        /*
+        | شورای مدیران (زیرساخت): با CACHE_STORE=database، قطعیِ DB پیش از $next
+        | همین‌جا می‌ترکید و «stale» فقط خطای اپ را می‌پوشاند. کش که در دسترس نبود،
+        | مثلِ BYPASS رفتار می‌کنیم — کشِ مرده هرگز نباید صفحه را بکشد.
+        */
+        try {
+            $gen = (int) $store->get(self::GEN_KEY, 0);
+            $key = 'page:g'.$gen.':'.sha1($request->getHost().'|'.$request->path());
+            $hit = $store->get($key);
+        } catch (\Throwable) {
+            return $this->tag($next($request), 'BYPASS');
+        }
 
-        $hit = $store->get($key);
         $hasCopy = is_array($hit) && isset($hit['html'], $hit['token']);
 
         if ($hasCopy && (int) ($hit['fresh_until'] ?? 0) >= time()) {
@@ -83,12 +92,24 @@ class PageCache
         }
 
         if ($this->storable($response)) {
-            $store->put($key, [
-                'html'        => $response->getContent(),
-                'token'       => $request->hasSession() ? (string) $request->session()->token() : '',
-                'type'        => (string) $response->headers->get('Content-Type', 'text/html; charset=UTF-8'),
-                'fresh_until' => time() + (int) config('pagecache.ttl', 60),
-            ], (int) config('pagecache.hard_ttl', 86400));
+            try {
+                $store->put($key, [
+                    'html'        => $response->getContent(),
+                    'token'       => $request->hasSession() ? (string) $request->session()->token() : '',
+                    'type'        => (string) $response->headers->get('Content-Type', 'text/html; charset=UTF-8'),
+                    // هدرهای امنیتیِ هر-صفحه هم ذخیره می‌شوند (شورا/امنیت): CSPِ sandbox یا
+                    // noindexی که کنترلر گذاشته، در HIT باید عیناً برگردد.
+                    'headers'     => array_filter([
+                        'Content-Security-Policy' => $response->headers->get('Content-Security-Policy'),
+                        'X-Robots-Tag'            => $response->headers->get('X-Robots-Tag'),
+                    ]),
+                    'fresh_until' => time() + (int) config('pagecache.ttl', 60),
+                ], (int) config('pagecache.hard_ttl', 86400));
+            } catch (\Throwable) {
+                // ذخیره‌نشدن یعنی MISSِ بعدی — نه خطا برای کاربر
+            }
+
+            return $this->tag($response, 'MISS', true);
         }
 
         return $this->tag($response, 'MISS');
@@ -127,7 +148,7 @@ class PageCache
             $html = str_replace($hit['token'], $request->session()->token(), $html);
         }
 
-        return response($html, 200, ['Content-Type' => $hit['type'] ?? 'text/html; charset=UTF-8']);
+        return response($html, 200, ['Content-Type' => $hit['type'] ?? 'text/html; charset=UTF-8'] + (array) ($hit['headers'] ?? []));
     }
 
     private function eligible(Request $request): bool
@@ -148,8 +169,39 @@ class PageCache
         $name = (string) ($request->route()?->getName() ?? '');
         $base = preg_replace('/^(en|tr)\./', '', $name);
 
-        if (! in_array($base, (array) config('pagecache.routes', []), true)) {
-            return false;
+        /*
+        | 🔴 denylist، نه allowlist — ممیزی ۶ (زیرساخت): «هر بخشی که فردا ساخته
+        | شود باید به‌صورت پیش‌فرض کش شود، نه اینکه منتظرِ افزوده‌شدن به فهرست
+        | بماند. دلیلِ حادثهٔ امروز دقیقاً همین بود»: ۲۲۳ صفحهٔ تازه (/parts،
+        | /urmia، /lookup، /order) چون در فهرستِ allowlist نبودند BYPASS می‌شدند.
+        |
+        | حالا قاعده برعکس است: هر GETِ بی‌کوئریِ بی‌نشست کش می‌شود مگر اینکه
+        | نامِ روت یا مسیرش در denylist باشد (حساب/ادمین/ورود/API/سیستم/وضعیت).
+        | `pagecache.mode = allowlist` هنوز برای برگشتِ اضطراری هست.
+        */
+        if (config('pagecache.mode', 'denylist') === 'allowlist') {
+            if (! in_array($base, (array) config('pagecache.routes', []), true)) {
+                return false;
+            }
+        } else {
+            if ($base === '' || in_array($base, (array) config('pagecache.exclude_routes', []), true)) {
+                return false;
+            }
+
+            foreach ((array) config('pagecache.exclude_prefixes', []) as $prefix) {
+                if (str_starts_with($base, $prefix)) {
+                    return false;
+                }
+            }
+
+            $path = '/'.ltrim($request->path(), '/');
+            $path = preg_replace('~^/(en|tr)(/|$)~', '/', $path);
+
+            foreach ((array) config('pagecache.exclude_paths', []) as $p) {
+                if ($path === $p || str_starts_with($path, rtrim($p, '/').'/')) {
+                    return false;
+                }
+            }
         }
 
         /*
@@ -185,12 +237,58 @@ class PageCache
         $type = (string) $response->headers->get('Content-Type', '');
 
         // فقط HTML؛ sitemap/llms/feedها سبک‌اند و هدرهای خودشان را دارند.
-        return str_contains($type, 'text/html');
+        if (! str_contains($type, 'text/html')) {
+            return false;
+        }
+
+        /*
+        | شورا (امنیت): کنترلری که خودش «no-store» یا «private» گذاشته (مثلاً
+        | صفحهٔ sandboxِ سایت‌ساز یا پاسخی با دادهٔ شخصی) هرگز به کشِ صفحه نرود —
+        | denylist لایهٔ اول است، این هدر لایهٔ دوم و به دستِ خودِ کنترلر.
+        */
+        $cc = strtolower((string) $response->headers->get('Cache-Control', ''));
+
+        return ! str_contains($cc, 'no-store') && ! str_contains($cc, 'private');
     }
 
-    private function tag(Response $response, string $state): Response
+    /**
+     * @param  bool  $cacheable  پاسخِ MISSی که واقعاً ذخیره شد (۲۰۰ِ HTML) — فقط این
+     *                           و HIT/STALE هدرِ Cache-Control می‌گیرند؛ ۴۰۴/۳۰۲ِ MISS نه.
+     */
+    private function tag(Response $response, string $state, bool $cacheable = false): Response
     {
         $response->headers->set('X-Cache', $state);
+
+        /*
+        | Server-Timing (ممیزی ۶ — CTO): «profile دو outlier» — زمانِ کلِ اپ از
+        | LARAVEL_START تا این‌جا، خوانا در DevTools و با curl. بدونِ این، هر
+        | بحثِ TTFB بینِ شبکه و PHP حدس است. (REQUEST_TIME_FLOAT برای وقتی که
+        | public/index.php ثابت را تعریف نکرده — مثلاً octane/تست.)
+        */
+        $t0 = defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? null);
+
+        if ($t0 !== null) {
+            $ms = (int) round((microtime(true) - (float) $t0) * 1000);
+            $response->headers->set('Server-Timing', 'app;dur='.$ms.', cache;desc="'.$state.'"');
+        }
+
+        /*
+        | Cache-Control فقط برای نسخه‌ای که واقعاً از کشِ صفحه آمده/به آن رفته:
+        | مرورگر ۶۰ ثانیه نگه می‌دارد و تا ۱۰ دقیقه stale-while-revalidate.
+        |
+        | ⚠️ **private** و **Vary: Cookie**، نه public (شورا — امنیت/زیرساخت): HTML
+        | این سایت توکنِ CSRF دارد و فقط این میدل‌ور می‌تواند در HIT تعویضش کند.
+        | «public» به هر کشِ مشترکِ بینِ راه (Cloudflare/پروکسیِ ISP/پروکسیِ
+        | شرکتی) اجازه می‌داد همان HTML را بی‌تعویض به همه بدهد ⇒ اولین POSTِ
+        | هر بازدیدکننده ۴۱۹؛ و اگر فردا کسی نشستی را از denylist جا بیندازد،
+        | صفحهٔ یک کاربر به کاربرِ دیگر می‌رسید. private این در را می‌بندد و
+        | سرعتِ مرورگرِ خودِ کاربر را کم نمی‌کند. تا CSRF از HTML به یک endpoint
+        | نرود، کشِ HTML در لبه ممنوع است (CLAUDE.md §۱۴).
+        */
+        if ($cacheable || $state === 'HIT' || $state === 'STALE') {
+            $response->headers->set('Cache-Control', 'private, max-age=60, stale-while-revalidate=600');
+            $response->headers->set('Vary', 'Cookie', false);
+        }
 
         return $response;
     }
