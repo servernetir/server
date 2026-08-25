@@ -378,6 +378,9 @@ class DomainTransfer
         app(\App\Services\Finance\BusinessLedger::class)
             ->recordDomainWholesale($domain, 'transfer', 1);
 
+        // اگر روی نیم‌سرورهای ما نشسته، همان لحظه zone — وگرنه resolve نمی‌شود.
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
 

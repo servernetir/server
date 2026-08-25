@@ -684,6 +684,14 @@ class DomainRegistrar
         app(\App\Services\Finance\BusinessLedger::class)
             ->recordDomainWholesale($domain, 'register', max(1, (int) $domain->period_years));
 
+        /*
+        | 🔴 دامنه‌ای که روی نیم‌سرورهای ماست باید همان لحظه zone بگیرد وگرنه
+        | «فعال» است و به هیچ‌جا resolve نمی‌شود (بزرگ‌ترین یافتهٔ ممیزی).
+        | ensure هرگز throw نمی‌کند و شکستش ثبتِ موفق را خراب نمی‌کند —
+        | فقط مدیر را با نامِ دامنه صدا می‌زند.
+        */
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
 

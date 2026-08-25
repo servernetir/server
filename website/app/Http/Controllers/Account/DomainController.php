@@ -188,6 +188,9 @@ class DomainController extends Controller
 
         $domain->update(['name_servers' => $ns]);
 
+        // برگشت به نیم‌سرورهای ما؟ zone باید باشد وگرنه دامنه از هوا می‌افتد.
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
+
         return back()->with('ok', 'نام‌سرورها به‌روز شد. انتشارِ کامل تا ۲۴ ساعت طول می‌کشد.');
     }
 
