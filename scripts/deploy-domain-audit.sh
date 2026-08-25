@@ -217,7 +217,9 @@ grep -qF "name('invoice.paycredit')" "$APP/routes/web.php" 2>/dev/null \
   || { echo "🔴 routes: روتِ پرداخت از اعتبار نیست"; union_ok=0; }
 grep -q "inv_credit_btn" "$APP/lang/fa/ui.php" 2>/dev/null \
   || { echo "🔴 lang: کلیدِ دکمهٔ اعتبار نیست"; union_ok=0; }
-grep -q "awaitingRestore" "$APP/app/Models/Domain.php" 2>/dev/null \
+# ⚠️ در مدل، نامِ متد طبقِ قراردادِ لاراول scopeAwaitingRestore است (A بزرگ)؛
+#    اجرای اول همین گرپِ اشتباهِ حروف، دیپلویِ سالم را برگرداند.
+grep -q "scopeAwaitingRestore" "$APP/app/Models/Domain.php" 2>/dev/null \
   || { echo "🔴 Domain هنوز صفِ بازیابی ندارد"; union_ok=0; }
 grep -q "awaitingRestore" "$APP/app/Console/Commands/RunDomainRenewal.php" 2>/dev/null \
   || { echo "🔴 کرونِ تمدید صفِ بازیابی را مصرف نمی‌کند"; union_ok=0; }
