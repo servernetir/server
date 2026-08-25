@@ -6,5 +6,7 @@ Disallow: /tr/api/
 Disallow: /system/
 # /go/* ریدایرکتِ شمارش‌پذیرِ پرداخت است، نه محتوا (ممیزی ۷)
 Disallow: /go/
+Disallow: /en/go/
+Disallow: /tr/go/
 
 Sitemap: https://servernet.cloud/sitemap.xml

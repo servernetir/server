@@ -2881,7 +2881,8 @@ RG-SITEMAP-03/04، RG-CACHE-01، RG-SCHEMA-05، RG-GONE-10، RG-SEC-09 — در�
 ### /go/pay — تنها گذرگاهِ سفارش ← پرداخت
 
 CTAهای `/order/{sku}` دیگر به console لینکِ مستقیم نمی‌دهند؛ به
-`route('go.pay', [sku, cycle, src])` می‌روند و آن‌جا امضای `OrderHandoff` در
+`lroute('go.pay', [sku, cycle, src])` می‌روند (روت داخلِ `$site` است تا locale
+در تحویل بماند) و آن‌جا امضای `OrderHandoff` در
 **لحظهٔ کلیک** ساخته و ۳۰۲ می‌شود + رویدادِ `pay_redirect` سمتِ سرور ثبت
 (اولین عددِ قیف — شمارش: `grep -c '"e":"pay_redirect"' storage/app/funnel/events-*.jsonl`).
 هرگز کش نمی‌شود (exclude_paths)، robots هم `Disallow: /go/`.

@@ -89,7 +89,8 @@ class OrderSummaryController extends Controller
                 // ممیزی ۷ (قلم ۳ رودمپ): CTA از /go/pay می‌گذرد، نه لینکِ مستقیمِ
                 // console — هر کلیک در اکسس‌لاگ و Funnel شمرده می‌شود و امضا در
                 // لحظهٔ کلیک ساخته می‌شود نه در لحظهٔ رندرِ صفحهٔ کش‌شده.
-                'href'    => route('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order']),
+                // lroute تا صفحهٔ en/tr به /en/go/pay برود و locale در تحویل بماند.
+                'href'    => lroute('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order']),
             ];
         }
 
@@ -106,7 +107,7 @@ class OrderSummaryController extends Controller
                 'total'   => $total,
                 'grand'   => $total + $tax,
                 'first'   => $total + $tax + $setup + $setupTax,
-                'href'    => route('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order']),
+                'href'    => lroute('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order']),
             ];
         }
 

@@ -116,6 +116,23 @@ $site = function (): void {
     Route::get('/order/{slug}', [\App\Http\Controllers\OrderSummaryController::class, 'show'])
         ->name('order.summary')->where('slug', '[a-z0-9-]+');
 
+    /*
+    | /go/pay — تنها گذرگاهِ «سفارش ← پرداخت» (ممیزی ۷ — رشد، قلم ۳ رودمپ).
+    |
+    | چرا ریدایرکتِ داخلی به‌جای لینکِ مستقیم به console:
+    |   · هر کلیک در **اکسس‌لاگِ خودِ سایت** و در Funnel ثبت می‌شود — اولین
+    |     عددِ قیف (نرخِ تبدیلِ سفارش ← پرداخت)، بدونِ کوکی و JS.
+    |   · امضای HMAC (OrderHandoff) در لحظهٔ کلیک ساخته می‌شود، نه در رندرِ
+    |     صفحهٔ کش‌شده — exp همیشه تازه است و لینکِ تبِ شبانه نمی‌میرد.
+    |
+    | داخلِ $site است تا سه‌زبانه ثبت شود و console_lroute دورهٔ زبانِ درست را
+    | بسازد (زبان فقط از پیشوندِ URL — قراردادِ پروژه). هرگز کش نمی‌شود
+    | (exclude_paths) و robots هم Disallow /go/ دارد. هیچ open-redirectی ممکن
+    | نیست: مقصد همیشه روتِ ثابتِ console است.
+    */
+    Route::get('/go/pay', [\App\Http\Controllers\OrderSummaryController::class, 'pay'])
+        ->name('go.pay')->middleware('throttle:60,1');
+
     // متدولوژی سرعت — جایگزینِ ادعای بی‌سندِ req/s (ممیزی ۴، مارکتینگ/حقوقی)
     Route::get('/speed', fn () => app(SiteController::class)->page('speed'))->name('speed');
 
@@ -750,22 +767,6 @@ Route::get('/healthz', function () {
         'Server-Timing' => 'app;dur='.(int) round((microtime(true) - (float) $t0) * 1000),
     ]);
 })->name('healthz');
-
-/*
-| /go/pay — تنها گذرگاهِ «سفارش ← پرداخت» (ممیزی ۷ — رشد، قلم ۳ رودمپ).
-|
-| چرا یک ریدایرکتِ داخلی به‌جای لینکِ مستقیم به console:
-|   · هر کلیک در **اکسس‌لاگِ خودِ سایت** و در Funnel ثبت می‌شود — اولین عددِ
-|     قیفِ تاریخِ شرکت (نرخِ تبدیلِ صفحهٔ سفارش ← پرداخت)، بدونِ کوکی و JS.
-|   · امضای HMAC (OrderHandoff) در لحظهٔ کلیک ساخته می‌شود، نه در لحظهٔ رندرِ
-|     صفحهٔ کش‌شده — پس exp همیشه تازه است و لینکِ مانده در تبِ شبانه نمی‌میرد.
-|
-| اعتبارسنجی: sku با الگوی اسلاگ، cycle فقط از config/billing (وگرنه پیش‌فرض)،
-| sid/ref/src فقط با الگوهای OrderHandoff — هیچ متنِ آزادی وارد لاگ نمی‌شود.
-| هیچ open-redirectی ممکن نیست: مقصد همیشه روتِ ثابتِ console است.
-*/
-Route::get('/go/pay', [\App\Http\Controllers\OrderSummaryController::class, 'pay'])
-    ->name('go.pay')->middleware('throttle:60,1');
 
 /*
 | llms.txt — معرفیِ سرورنت به مدلِ زبانی، نه به خزندهٔ جست‌وجو.
