@@ -245,10 +245,21 @@ class PageCache
         | شورا (امنیت): کنترلری که خودش «no-store» یا «private» گذاشته (مثلاً
         | صفحهٔ sandboxِ سایت‌ساز یا پاسخی با دادهٔ شخصی) هرگز به کشِ صفحه نرود —
         | denylist لایهٔ اول است، این هدر لایهٔ دوم و به دستِ خودِ کنترلر.
+        |
+        | 🔴 اما «no-cache, private» دقیقاً **پیش‌فرضِ Symfony برای پاسخِ بی‌هدر**
+        | است، نه انتخابِ کنترلر. راستی‌آزماییِ زندهٔ ۳ شهریور نشان داد ردکردنش
+        | یعنی هیچ صفحه‌ای هرگز ذخیره نمی‌شود و کلِ کش MISS→MISS ابدی می‌ماند —
+        | این متد تا آن روز هرگز اجرا نشده بود (تست‌ها روی ماشینِ بی‌PHP نوشته
+        | شدند). پس: no-store همیشه رد؛ private فقط وقتی رد که چیزی جز همان
+        | رشتهٔ پیش‌فرض باشد (یعنی واقعاً کسی آگاهانه گذاشته باشدش).
         */
         $cc = strtolower((string) $response->headers->get('Cache-Control', ''));
 
-        return ! str_contains($cc, 'no-store') && ! str_contains($cc, 'private');
+        if (str_contains($cc, 'no-store')) {
+            return false;
+        }
+
+        return $cc === 'no-cache, private' || ! str_contains($cc, 'private');
     }
 
     /**
