@@ -131,17 +131,13 @@ class DomainController extends Controller
 
         /*
         | قیمتِ تمدیدی که فرم نشان می‌دهد باید همانی باشد که فاکتور می‌گیرد —
-        | یعنی پس از اعمالِ کفِ ارزی. بی‌این، مشتری عددی می‌دید و فاکتورِ
-        | بزرگ‌تری می‌گرفت.
+        | ذخیره + استعلامِ تازهٔ پسوند + کفِ ارزی، هرکدام بلندتر
+        | (`DomainRenewalInvoicer::effectivePerYear`، کشِ ۶ساعته). بی‌این،
+        | مشتری عددی می‌دید و فاکتورِ بزرگ‌تری می‌گرفت.
         */
-        $renewUnit = 0;
-
-        if ($domain->isActive()) {
-            $renewUnit = max(
-                (int) ($domain->renew_toman ?: $domain->price_toman),
-                app(\App\Services\Domain\DomainCostFloor::class)->renewPerYear($domain),
-            );
-        }
+        $renewUnit = $domain->isActive()
+            ? app(\App\Services\Domain\DomainRenewalInvoicer::class)->effectivePerYear($domain)
+            : 0;
 
         return view('account.domain-show', AccountController::shell('domains') + [
             'domain'         => $domain,
@@ -291,8 +287,9 @@ class DomainController extends Controller
             'years' => ['required', 'integer', 'min:1', 'max:5'],
         ], [], ['years' => 'مدتِ تمدید'])['years'];
 
-        if ((int) ($domain->renew_toman ?: $domain->price_toman) <= 0) {
-            return back()->withErrors('قیمتِ تمدید برای این دامنه ثبت نشده است؛ با پشتیبانی تماس بگیرید.');
+        // قیمتِ مؤثر (ذخیره + استعلامِ تازه + کف) — صفر یعنی هیچ منبعی قیمت ندارد
+        if ($invoicer->effectivePerYear($domain) <= 0) {
+            return back()->withErrors('قیمتِ تمدید برای این دامنه در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
         }
 
         // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
