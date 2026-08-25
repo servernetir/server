@@ -1,5 +1,12 @@
 @extends('layouts.site')
 
+{{-- ترجمهٔ این زبان نرسیده و بدنه fallback فارسی است — نسخهٔ fallback عمداً ۲۰۰
+     می‌ماند (تصمیم ثبت‌شده) ولی نه ایندکس می‌شود نه در sitemap است؛ با رسیدنِ
+     ترجمه (کرونِ translate-missing) هر دو خودکار برمی‌گردند. (RG-SITEMAP-04) --}}
+@if(!empty($post['untranslated']))
+@section('noindex', '1')
+@endif
+
 @php
     $cats = config('blog.categories');
     $covers = config('blog.covers');

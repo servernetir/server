@@ -77,6 +77,7 @@ app/Http/Controllers/Account/StoreController.php
 app/Http/Controllers/Account/DomainController.php
 resources/views/account/checkout.blade.php
 resources/views/account/domain-show.blade.php
+resources/views/pages/blog-post.blade.php
 resources/views/pages/cloud-location.blade.php
 resources/views/pages/cloud.blade.php
 resources/views/pages/hosting.blade.php

@@ -81,6 +81,14 @@ class BlogRepository
             'reading'  => $p->reading ?: 5,
             // نام پیش‌فرض باید ترجمه‌شده باشد، وگرنه «تیم سرورنت» در نسخه‌ی en/tr هم ظاهر می‌شود
             'author'   => optional($p->author)->name ?? __('ui.bl_reply_by'),
+            /*
+            | fallback است یا ترجمهٔ واقعی؟ — site:gate کامل (۳ شهریور، RG-SITEMAP-04):
+            | ۳۲ نسخهٔ en/tr پستِ ترجمه‌نشده ۲۰۰ و ایندکس‌پذیر بودند ولی (به‌درستی)
+            | در sitemap نبودند. تصمیمِ ثبت‌شده سر جایش است («URL مستقیم بهتر است
+            | fa بدهد تا ۴۰۴»)؛ این پرچم فقط می‌گذارد blade همان نسخهٔ fallback را
+            | noindex,follow کند. با رسیدنِ ترجمه، خودکار ایندکس‌پذیر می‌شود.
+            */
+            'untranslated' => $t === null || $t->locale !== app()->getLocale(),
         ];
         if ($withContent) {
             /*
