@@ -2848,5 +2848,54 @@ RG-SITEMAP-03/04، RG-CACHE-01، RG-SCHEMA-05، RG-GONE-10، RG-SEC-09 — در�
 - `docs/ops-r6.md` برای اقلامِ غیرکدی (نرخ‌محدودسازی ۴۲۹، بکاپ RPO/RTO، Uptime Kuma،
   VAT، ساماندهی، مدرکِ ارومیه). ⚠️ بودنِ Cloudflare جلوی مبدأ **تأیید نشده**
   (پاسخ‌ها `Server: Apache` و IPِ مستقیم) — قانونِ ۴۲۹ را هر جا لبه واقعاً هست بگذار.
-- دیپلوی: `scripts/deploy-audit6.sh <sha>` — `php -l` بعد از هر فایل، شکستِ اتحاد یا
-  نحو ⇒ برگشتِ **کاملِ** بکاپ؛ بعدش `/system/opcache` (validate_timestamps=0).
+- دیپلوی: کارِ این دور هرگز جدا دیپلوی نشد و با ممیزی ۷ یک‌جا می‌رود —
+  `scripts/deploy-audit7.sh` (deploy-audit6.sh حذف شد؛ به SHAیی پین بود که هرگز push نشد).
+
+---
+
+## ۱۵. ممیزی هفتم (۲ شهریور ۱۴۰۵) — کد-کشور-دوبل، /go/pay، دروازهٔ محتوابین
+
+> گزارش: audit-r7 · اقلامِ غیرکدی: `docs/ops-r7.md` · دیپلوی: `scripts/deploy-audit7.sh`
+
+### قاعدهٔ کدِ لوکیشنِ ابری — مهم‌ترین درسِ این دور
+
+دو نسل از **یک** باگِ سینک، ۲۲+۲۱ صفحهٔ تکراری/خالی ساخت: کدِ لوکیشنی که
+به‌جای شهر، «گروهِ محصول» است (`de-de-dedicated`، `ru-intel`، `ws-…`).
+منبعِ حقیقتِ تشخیص: `CloudLocation::isLegacyCode()` — سه الگو:
+کدِ دوبل `^([a-z]{2})-\1`، پسوندِ `-shared|-dedicated|-intel|-amd|-promo|-hi-cpu`، پیشوندِ `ws-`.
+
+- `/cloud/{code}`ِ legacy ← **۳۰۱ تک‌پرش** به صفحهٔ کشور (`CloudCountry::url`)،
+  پیش از هر پرس‌وجوی DB. نه ۴۱۰، نه کنونیکال (حکمِ سئو: ۳۰۱ در هر دو حالت بی‌ضرر).
+- ردیف‌های legacyِ **دارای پلن** عمداً فعال می‌مانند (پلن باید فروختنی بماند)؛
+  فقط صفحه و sitemap و لینکِ داخلی ندارند (`locUrl`/`nearby`/پارشالِ لینک‌ها فیلتر می‌کنند).
+- `CloudCatalogSync::syncLocations` **تولدِ** ردیفِ legacy را رد می‌کند (noteOnce)
+  — بدونِ این گارد، هر importِ بعدی ۳۰۱ها را دوباره تولید می‌کرد.
+- ⚠️ لوکیشنِ تازه فقط با کدِ «کشور-شهر» (de-frankfurt). تست: `Audit7RegressionTest`.
+
+### /go/pay — تنها گذرگاهِ سفارش ← پرداخت
+
+CTAهای `/order/{sku}` دیگر به console لینکِ مستقیم نمی‌دهند؛ به
+`route('go.pay', [sku, cycle, src])` می‌روند و آن‌جا امضای `OrderHandoff` در
+**لحظهٔ کلیک** ساخته و ۳۰۲ می‌شود + رویدادِ `pay_redirect` سمتِ سرور ثبت
+(اولین عددِ قیف — شمارش: `grep -c '"e":"pay_redirect"' storage/app/funnel/events-*.jsonl`).
+هرگز کش نمی‌شود (exclude_paths)، robots هم `Disallow: /go/`.
+
+### صفحاتِ سفارش — تصمیمِ ممیزی ۶ برگشت
+
+**همهٔ** SKUهای فعال ایندکس و در sitemap (`Product::orderableSlugs`)، همه
+عنوان/توضیحِ تراکنشی (`os_meta_title`). پرچم‌دارها (`flagshipSlugs`) فقط برای
+llms.txt و RG-SCHEMA-05 مانده‌اند.
+
+### دروازهٔ انتشار v2 — «تستی که محتوا را باز نمی‌کند، کور است»
+
+`site:gate` حالا در همان رندر: RG-DUP-PATH-11 (کدِ دوبل در sitemap=۰)،
+RG-META-UNIQ-13 (عنوانِ تکراریِ هم‌زبان=۰)، RG-ALT-14 (imgِ بی‌alt: صفحه>۵۰٪ یا
+کل>۲۵٪)، RG-H1-15 (دقیقاً یک h1)، RG-BUDGET (سقفِ صفحه از `config/seo.php` —
+cloud=21، parts/urmia/webtools منجمد؛ بالابردنِ سقف فقط با ویرایشِ آگاهانهٔ همان config).
+بیرون از کد: `scripts/rg-core.sh` همین‌ها را روی سایتِ زنده می‌سنجد + «هشت عدد»
+هفتگی — تا ۳۰ روز جایگزینِ ممیزیِ کامل است.
+
+### /healthz
+
+پاسخِ ثابتِ بدونِ DB/view/کش با `Server-Timing` — تفکیکِ «زیرِ لاراول یا لایهٔ اپ»
+برای هر بحثِ کندی. مثلِ /go در exclude_paths کش است؛ تستش در Audit7RegressionTest.
