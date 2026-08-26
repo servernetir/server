@@ -365,4 +365,52 @@ class CloudSaladGpuTest extends TestCase
 
         $this->assertStringNotContainsString('k-test', $msg);
     }
+    /**
+     * 🔴 نامِ **پروژه** باید در آزمونِ اتصال سنجیده شود، نه سرِ اولین سفارش.
+     *
+     * تماسِ `gpu-classes` فقط کلید و **سازمان** را می‌سنجد؛ نامِ پروژه تنها در
+     * مسیرِ ساختِ کانتینر ظاهر می‌شود. اگر آزمون آن را نبیند، یک غلطِ تایپی در
+     * فرمِ تنظیمات تا لحظه‌ای پنهان می‌مانَد که پولِ مشتری گرفته شده و تحویل
+     * شکست می‌خورد — همان الگوی «محافظی که در بدترین لحظه امتحان می‌شود».
+     */
+    public function test_a_wrong_project_name_fails_the_connection_test(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            // سازمان درست است
+            'api.salad.com/api/public/organizations/servernet/gpu-classes'
+                => Http::response(['items' => [$this->gpuClass()]], 200),
+            // ولی پروژه وجود ندارد
+            'api.salad.com/api/public/organizations/servernet/projects/*'
+                => Http::response(['message' => 'not found'], 404),
+        ]);
+
+        $r = app(SaladClient::class)->testConnection();
+
+        $this->assertFalse($r['ok'], 'پروژهٔ ناموجود «اتصالِ برقرار» گزارش شد.');
+        $this->assertStringContainsString('پروژه', $r['message'],
+            'پیام نمی‌گوید مشکل از پروژه است — مدیر دنبالِ کلید و سازمان می‌گردد.');
+    }
+
+    /** وقتی هر دو درست‌اند، آزمون سبز است و هر دو تماس زده شده */
+    public function test_the_connection_test_checks_both_org_and_project(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            'api.salad.com/api/public/organizations/servernet/gpu-classes'
+                => Http::response(['items' => [$this->gpuClass()]], 200),
+            'api.salad.com/api/public/organizations/servernet/projects/prod/containers'
+                => Http::response(['items' => []], 200),
+        ]);
+
+        $r = app(SaladClient::class)->testConnection();
+
+        $this->assertTrue($r['ok'], $r['message']);
+
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/gpu-classes'));
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/projects/prod/containers'));
+    }
+
 }

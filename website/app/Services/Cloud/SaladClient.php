@@ -242,11 +242,27 @@ class SaladClient implements CloudProvider
         $r = $this->req('GET', '/organizations/'.rawurlencode($this->org()).'/gpu-classes');
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']];
+            return ['ok' => false, 'message' => 'سازمان یا کلید: '.$r['message']];
         }
 
-        return ['ok' => true, 'message' => 'اتصال برقرار است — '
-            .fa_num((string) count($this->items($r['body']))).' کلاسِ GPU خوانده شد.'];
+        $classes = fa_num((string) count($this->items($r['body'])));
+
+        /*
+        | 🔴 نامِ **پروژه** را هم همین‌جا بسنج، وگرنه تنها جایی که امتحان
+        |    می‌شود مسیرِ ساختِ کانتینر است — یعنی اولین سفارشِ واقعیِ مشتری.
+        |    آن‌وقت پول گرفته شده و تحویل شکست می‌خورد، به‌خاطرِ یک غلطِ
+        |    تایپی در فرمِ تنظیمات که همین‌جا در یک تماسِ خواندنی معلوم می‌شد.
+        |    (نامِ سازمان در تماسِ بالا هست، نامِ پروژه فقط در این مسیر.)
+        */
+        $p = $this->req('GET', $this->proj());
+
+        if (! $p['ok']) {
+            return ['ok' => false, 'message' => 'کلید و سازمان درست‌اند ('.$classes
+                .' کلاسِ GPU)، ولی پروژه خوانده نشد: '.$p['message']];
+        }
+
+        return ['ok' => true, 'message' => 'اتصال برقرار است — '.$classes
+            .' کلاسِ GPU، و پروژه هم خوانده شد.'];
     }
 
     /** آرایهٔ ردیف‌ها از پاسخ، هرجا که باشد */
