@@ -129,6 +129,7 @@ class SettingsController extends Controller
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'pricing_fx_fee_pct'        => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
@@ -362,6 +363,7 @@ class SettingsController extends Controller
                 'pricing_baseline_rate' => $ready ? Setting::get('pricing_baseline_rate') : null,
                 'pricing_rate_override' => $ready ? Setting::get('pricing_rate_override') : null,
                 'pricing_usd_rate_override' => $ready ? Setting::get('pricing_usd_rate_override') : null,
+                'pricing_fx_fee_pct'        => $ready ? Setting::get('pricing_fx_fee_pct') : null,
                 'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,

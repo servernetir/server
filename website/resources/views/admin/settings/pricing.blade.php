@@ -36,7 +36,11 @@
       <label class="set-f">نرخِ دستیِ دلار (تومان)
         <span style="color:var(--dim);font-size:11.5px">زیرساختِ GPU به دلار می‌فروشد؛ بی‌نرخ، پلن‌هایش صفر و نافروختنی می‌شوند.</span>
         <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0"
-               value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده">
+               value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
+      <label class="set-f">کارمزد انتقال ارز (٪)
+        <span style="color:var(--dim);font-size:11.5px">کارمزد حواله/صرافی که تا امروز در بهای تمام‌شده حساب نمی‌شد. خالی = صفر.</span>
+        <input type="number" name="pricing_fx_fee_pct" dir="ltr" min="0" max="25" step="0.1"
+               value="{{ $pricing['pricing_fx_fee_pct'] }}" placeholder="مثلاً 1.5">
         <small>وقتی نرخِ بازار را خودتان می‌دانید و نمی‌خواهید به منبعِ زنده تکیه کنید.</small></label>
       <label class="set-f">حاشیهٔ سودِ عمومی (٪)
         <input type="number" name="price_margin_pct" dir="ltr" step="0.1"

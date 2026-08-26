@@ -63,6 +63,7 @@ class SystemHealth
             $this->unbilledServices(),
             $this->undeliveredCloud(),
             $this->cloudRelease(),
+            $this->unsellableCatalogue(),
             $this->mailboxes(),
             $this->recentErrors(),
         ];
@@ -611,6 +612,64 @@ class SystemHealth
      * با متنِ ثابت یعنی وقتی ردیفِ تازه‌ای اضافه شود هیچ اعلانی نمی‌رود (اعلان
      * فقط روی تغییرِ وضعیت است) — همان توهمِ پایش که بدتر از نبودِ هشدار است.
      */
+    /**
+     * 🔴 پلنی که **قیمت ندارد** از فروشگاه غیب می‌شود — بی‌هیچ خطایی.
+     *
+     * `scopeSellable` عمداً `price_irt > 0` می‌خواهد، و این تصمیمِ درستی است
+     * (بهتر از فروشِ کارتِ گران به قیمتِ هیچ). ولی عارضه‌اش سکوت است: اگر
+     * نرخِ ارز نباشد، بهایِ **همهٔ** پلن‌های یک زیرساخت صفر می‌شود و کلِ آن
+     * خطِ محصول از سایت ناپدید می‌شود، در حالی که کاتالوگ پر است و کرون هم
+     * موفق گزارش می‌دهد.
+     *
+     * این دقیقاً همان الگوی «گران‌ترین خرابی‌های این پروژه هیچ استثنایی
+     * نساختند» است — و روی زیرساختِ GPU حادتر، چون **دلاری** است و نرخِ دلار
+     * راهِ فرارِ دستی‌اش تازه ساخته شده.
+     *
+     * ⚠️ ادعا روی «کاتالوگ دارد ولی هیچ‌کدام فروختنی نیست» است، نه بر خودِ
+     * صفر بودنِ قیمت: زیرساختی که مدیر عمداً همه‌اش را بسته باشد نباید هشدار
+     * بسازد، و پلنِ ناموجود هم علتِ خودش را دارد.
+     */
+    private function unsellableCatalogue(): array
+    {
+        try {
+            if (! Schema::hasTable('cloud_plans')) {
+                return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ', 'روی این نصب فعال نیست.');
+            }
+
+            $bad = [];
+
+            foreach (\App\Models\CloudPlan::query()
+                ->where('is_active', true)
+                ->where('admin_disabled', false)
+                ->selectRaw('provider, count(*) as n, sum(case when price_irt > 0 then 1 else 0 end) as priced')
+                ->groupBy('provider')
+                ->get() as $g) {
+                if ((int) $g->n > 0 && (int) $g->priced === 0) {
+                    $bad[] = (string) $g->provider;
+                }
+            }
+        } catch (\Throwable $e) {
+            return $this->row('catalogue_price', false, 'warn', 'قیمتِ کاتالوگ',
+                'کاتالوگ خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($bad === []) {
+            return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ',
+                'هر زیرساختِ فعالی دستِ‌کم یک پلنِ قیمت‌دار دارد.');
+        }
+
+        $manager = app(\App\Services\Cloud\CloudManager::class);
+
+        // ⚠️ نامِ زیرساخت در **متن** است، وگرنه امضای وضعیت ثابت می‌مانَد و
+        //    خرابیِ زیرساختِ دوم هیچ اعلانی نمی‌سازد. همان قاعدهٔ این فایل.
+        $names = implode('، ', array_map(fn ($p) => $manager->label($p), $bad));
+
+        return $this->row('catalogue_price', false, 'fail', 'قیمتِ کاتالوگ',
+            'همهٔ پلن‌های '.$names.' قیمتِ صفر دارند، پس از فروشگاه **کاملاً غیب**
+             شده‌اند — بی‌هیچ خطایی. معمولاً یعنی نرخِ ارزِ آن زیرساخت خوانده
+             نشده؛ نرخِ دستی را در تنظیمات ← قیمت‌گذاری بگذارید (یورو و دلار جدا).');
+    }
+
     private function cloudRelease(): array
     {
         try {

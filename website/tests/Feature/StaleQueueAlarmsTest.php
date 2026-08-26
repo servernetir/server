@@ -105,4 +105,53 @@ class StaleQueueAlarmsTest extends TestCase
             'تعدادِ نام‌ها با آنچه شمرده شد نمی‌خوانَد — همان ناهماهنگیِ اصلی.');
     }
 
+    /**
+     * 🔴 خطِ محصولی که قیمتش صفر شده، **کاملاً** از سایت غیب می‌شود و هیچ
+     * خطایی نمی‌سازد — کاتالوگ پر است و کرون هم موفق گزارش می‌دهد.
+     *
+     * روی زیرساختِ دلاری حادتر است: نبودِ نرخِ دلار یعنی همهٔ کارت‌های GPU
+     * صفر می‌شوند و صفحهٔ /gpu خالی می‌مانَد، بی‌آنکه کسی بفهمد.
+     */
+    public function test_a_catalogue_priced_at_zero_is_reported_not_silent(): void
+    {
+        $this->gpuPlan(['price_irt' => 0]);
+
+        $row = $this->check('catalogue_price');
+
+        $this->assertFalse($row['ok'], 'کاتالوگِ بی‌قیمت بی‌صدا ماند.');
+        $this->assertStringContainsString('غیب', $row['detail']);
+    }
+
+    /** ⚠️ و نیمهٔ دیگر: یک پلنِ قیمت‌دار کافی است تا هشدار ساخته نشود. */
+    public function test_a_priced_catalogue_raises_nothing(): void
+    {
+        $this->gpuPlan(['price_irt' => 7_200_000]);
+
+        $this->assertTrue($this->check('catalogue_price')['ok']);
+    }
+
+    /**
+     * ⚠️ زیرساختی که مدیر **عمداً** بسته نباید هشدار بسازد — وگرنه هر
+     * خاموش‌کردنِ آگاهانه یک قرمزِ دائمی می‌گذارد و آژیر بی‌اعتبار می‌شود.
+     */
+    public function test_a_deliberately_disabled_plan_is_not_an_alarm(): void
+    {
+        $this->gpuPlan(['price_irt' => 0, 'admin_disabled' => true]);
+
+        $this->assertTrue($this->check('catalogue_price')['ok']);
+    }
+
+    private function gpuPlan(array $over = []): \App\Models\CloudPlan
+    {
+        return \App\Models\CloudPlan::create(array_merge([
+            'provider' => 'salad', 'provider_ref' => 'gc-1',
+            'location_code' => 'global-gpu', 'public_name' => 'RTX 4090',
+            'slug' => 'cv-8c-30g-100d-global-gpu-rtx-4090',
+            'vcpu' => 8, 'ram_mb' => 30720, 'disk_gb' => 100,
+            'disk_type' => 'ssd', 'traffic_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'cost_eur_cents' => 4000, 'price_eur_cents' => 6000, 'price_irt' => 0,
+            'is_active' => true, 'in_stock' => true, 'admin_disabled' => false,
+            'gpu_model' => 'RTX 4090', 'gpu_count' => 1, 'is_interruptible' => true,
+        ], $over));
+    }
 }

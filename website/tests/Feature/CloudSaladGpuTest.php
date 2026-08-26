@@ -104,10 +104,65 @@ class CloudSaladGpuTest extends TestCase
             'بهایِ تمام‌شده فقط قیمتِ GPU را گرفته — vCPU و رم جا افتاده‌اند.');
     }
 
+    /**
+     * 🔴 کارمزدِ انتقالِ ارز روی **بهایِ تمام‌شده** می‌نشیند، نه روی قیمتِ فروش.
+     *
+     * دلاری که واقعاً به حسابِ زیرساخت می‌رسد گران‌تر از نرخِ اسمیِ بازار تمام
+     * می‌شود (کارمزدِ حواله، اسپردِ صرافی). تا امروز این تکه هیچ‌جا حساب نمی‌شد،
+     * پس حاشیهٔ سودِ واقعی از آنچه فکر می‌کردیم کمتر بود.
+     *
+     * ⚠️ جای نشستنش تستِ جدایی می‌خواهد: اگر روی قیمتِ فروش بنشیند، کارمزد از
+     * جیبِ حاشیه می‌رود و در گزارشِ مالی نامرئی می‌مانَد.
+     */
+    public function test_the_fx_transfer_fee_raises_the_cost_basis(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+        $this->fakeClasses([$this->gpuClass()]);
+
+        $without = app(CloudManager::class)->driver('salad')->fetchCatalog()['plans'][0]['cost_eur_cents'];
+
+        Setting::put('pricing_fx_fee_pct', '10');
+        app()->forgetInstance(CloudManager::class);
+
+        $with = app(CloudManager::class)->driver('salad')->fetchCatalog()['plans'][0]['cost_eur_cents'];
+
+        $this->assertGreaterThan($without, $with, 'کارمزد به بهایِ تمام‌شده اضافه نشد.');
+
+        // ۱۰٪ یعنی حدودِ ۱۰٪ — نه دو برابر، نه بی‌اثر.
+        $this->assertEqualsWithDelta($without * 1.10, $with, max(2, $without * 0.005));
+    }
+
+    /**
+     * ⚠️ پیش‌فرض **صفر** است، نه عددِ حدسی: کارمزدِ هر مسیر فرق دارد و حدسِ ما
+     * به‌جای مدیر یعنی قیمتی که هیچ‌کس نمی‌داند از کجا آمده.
+     */
+    public function test_no_fee_is_assumed_when_the_setting_is_empty(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+        Setting::put('pricing_fx_fee_pct', null);
+        $this->fakeClasses([$this->gpuClass()]);
+
+        $plan = app(CloudManager::class)->driver('salad')->fetchCatalog()['plans'][0];
+
+        // بی‌کارمزد، عدد باید دقیقاً همان زنجیرهٔ خام باشد
+        $raw = 0.500 + (8 * SaladClient::DEFAULT_VCPU_USD_HOUR) + (30 * SaladClient::DEFAULT_RAM_GB_USD_HOUR);
+
+        $this->assertSame($this->eurCentsFor($raw), $plan['cost_eur_cents']);
+    }
+
     /** کمکی: همان زنجیرهٔ تبدیلِ درایور، برای ادعای نسبی */
     private function eurCentsFor(float $usdHour): int
     {
-        $usdToman = (int) (app(\App\Services\ExchangeRate::class)->toToman('USD') ?? 0);
+        // ⚠️ همان زنجیرهٔ درایور: **اول** نرخِ دستی، بعد زنده. اگر این‌جا مستقیم
+        // نرخِ زنده خوانده شود، در تست صفر می‌دهد و ادعا بی‌معنا می‌شود — همان
+        // ناهماهنگیِ فیکسچر که یک بار همین‌جا رخ داد.
+        $usdToman = (int) (Setting::get('pricing_usd_rate_override', '0') ?: 0);
+
+        if ($usdToman <= 0) {
+            $usdToman = (int) (app(\App\Services\ExchangeRate::class)->toToman('USD') ?? 0);
+        }
         $eurToman = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
 
         if ($usdToman <= 0 || $eurToman <= 0) {
