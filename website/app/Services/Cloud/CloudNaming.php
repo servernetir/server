@@ -148,12 +148,42 @@ class CloudNaming
     }
 
     /** اسلاگِ عمومیِ پلن = کلیدِ گروه. دو ارائه‌دهنده با مشخصاتِ یکسان → یک اسلاگ. */
-    public static function planSlug(int $vcpu, int $ramMb, int $diskGb, string $locationCode, string $cpuKind = 'shared'): string
-    {
+    public static function planSlug(
+        int $vcpu,
+        int $ramMb,
+        int $diskGb,
+        string $locationCode,
+        string $cpuKind = 'shared',
+        ?string $gpuModel = null,
+        ?int $gpuCount = null,
+    ): string {
         $ram = self::gb($ramMb);
         $prefix = $cpuKind === 'dedicated' ? 'cvd' : 'cv';
 
-        return substr("{$prefix}-{$vcpu}c-{$ram}g-{$diskGb}d-{$locationCode}", 0, 96);
+        /*
+        | 🔴 GPU **باید** در اسلاگ باشد، وگرنه دو محصولِ کاملاً متفاوت یکی
+        | می‌شوند و پول از دست می‌رود.
+        |
+        | همین اسلاگ کلیدِ گروه‌بندیِ `CloudPlan::offers()` است و
+        | `bestForSlug()` از هر گروه **ارزان‌ترین** را برمی‌دارد. پس یک
+        | RTX 3060 و یک H100 با vCPU/رم/دیسکِ یکسان در یک مکان، اسلاگِ یکسان
+        | می‌گرفتند ⇒ مشتری پولِ H100 می‌داد و 3060 تحویل می‌گرفت. بی‌هیچ خطایی.
+        |
+        | دقیقاً همان تلهٔ ثبت‌شدهٔ «ARM و x86 با اسلاگِ یکسان»، منتها آن‌جا
+        | نتیجه‌اش تحویلِ ناممکن بود و این‌جا تحویلِ **کالای ارزان‌تر**.
+        |
+        | ⚠️ پسوند فقط وقتی اضافه می‌شود که GPU باشد، پس اسلاگِ همهٔ پلن‌های
+        | امروزی بایت‌به‌بایت دست‌نخورده می‌مانَد و هیچ ردیفی دوباره‌اسلاگ
+        | نمی‌شود.
+        */
+        $tail = '';
+
+        if (filled($gpuModel)) {
+            $n = max(1, (int) ($gpuCount ?: 1));
+            $tail = '-'.($n > 1 ? $n.'x' : '').self::slug($gpuModel);
+        }
+
+        return substr("{$prefix}-{$vcpu}c-{$ram}g-{$diskGb}d-{$locationCode}{$tail}", 0, 96);
     }
 
     /** مگابایت → عددِ گیگابایتِ خوانا (۵۱۲ مگ → «0.5») */

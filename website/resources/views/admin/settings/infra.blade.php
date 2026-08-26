@@ -96,6 +96,65 @@
       @endif
     </div>
 
+    {{-- زیرساختِ ۶ — GPU. از هر پنجِ بالا متفاوت است و متنِ زیر عمداً صریح
+         می‌گوید چرا: این‌جا ماشینِ مجازی نیست، کانتینر است؛ و نمونه‌ها **قطع
+         می‌شوند** حتی در بالاترین اولویت. مدیری که این را نداند، محصول را با
+         زبانِ «سرورِ اختصاصیِ پایدار» می‌فروشد و تعهدِ /sla را زیرش می‌گذارد. --}}
+    <div class="set-box">
+      <div class="set-box-h">
+        <b>زیرساختِ ۶ — GPU</b>
+        @if($cloud['salad'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">کلید و سازمان ذخیره‌شده</span>@endif
+      </div>
+      <p>
+        کلید را از بخشِ <span dir="ltr">API Access</span> حسابتان بردارید. نامِ
+        سازمان و پروژه در <b>هر</b> مسیرِ این API هستند، پس بدونشان هیچ درخواستی
+        ساخته نمی‌شود.
+        <br>⚠️ <b>این زیرساخت ماشینِ مجازی ندارد — کانتینر است.</b> نه سیستم‌عاملِ
+        انتخابی، نه رمزِ root، نه IP اضافه؛ دسترسی با کلیدِ SSH به خودِ نمونه.
+        <br>🔴 <b>نمونه‌ها قطع می‌شوند — حتی در بالاترین اولویت</b>، چون گره‌ها
+        رایانه‌های خانگیِ بی‌کارند. برای بارِ کاریِ تحمل‌پذیر (استنتاج، رندر،
+        آموزش) مناسب است، نه برای سرورِ همیشه‌روشنِ مشتری.
+      </p>
+      <div class="set-grid">
+        <label class="set-f full">API Key
+          <input type="password" name="salad_api_key" dir="ltr" autocomplete="new-password" maxlength="300"
+                 placeholder="{{ $cloud['salad'] ? '••••••••••  خالی = بدونِ تغییر' : 'کلید را این‌جا بچسبانید' }}"></label>
+        <label class="set-f">نامِ سازمان
+          <input type="text" name="salad_org" dir="ltr" maxlength="120"
+                 value="{{ $cloud['sl']['org'] }}" placeholder="organization name"></label>
+        <label class="set-f">نامِ پروژه
+          <input type="text" name="salad_project" dir="ltr" maxlength="120"
+                 value="{{ $cloud['sl']['project'] }}" placeholder="default"></label>
+
+        {{-- 🔴 بی‌این، تحویل عمداً انجام **نمی‌شود**: کانتینری که بالا بیاید و
+             مشتری راهی به داخلش نداشته باشد، از تحویل‌نشدن بدتر است. --}}
+        <label class="set-f full">ایمیجِ کانتینر <span style="color:var(--dim)">(بدونِ آن تحویل انجام نمی‌شود)</span>
+          <input type="text" name="salad_image" dir="ltr" maxlength="200"
+                 value="{{ $cloud['sl']['image'] }}" placeholder="registry/image:tag — باید SSH و SSH_PUBLIC_KEY را بشناسد"></label>
+
+        <label class="set-f">اولویت
+          <select name="salad_priority">
+            @foreach(['high' => 'بالا (گران‌تر، کم‌ترین قطعی)', 'medium' => 'متوسط', 'low' => 'پایین', 'batch' => 'کمینه (ارزان‌ترین، بیشترین قطعی)'] as $k => $lbl)
+              <option value="{{ $k }}" @selected(($cloud['sl']['priority'] ?: 'high') === $k)>{{ $lbl }}</option>
+            @endforeach
+          </select></label>
+
+        {{-- 🔴 این دو نرخ در API آنها **نیستند** و فقط در مستنداتِ متنی‌اند.
+             بهایِ تمام‌شده = قیمتِ GPU + vCPU×نرخ + گیگ‌رم×نرخ؛ اگر تکهٔ GPU را
+             تنها بگیریم، روی پیکربندیِ بزرگ زیرِ قیمتِ خرید می‌فروشیم. --}}
+        <label class="set-f">نرخِ هر vCPU در ساعت (دلار)
+          <input type="text" name="salad_vcpu_usd_hour" dir="ltr" inputmode="decimal" maxlength="12"
+                 value="{{ $cloud['sl']['vcpu'] }}" placeholder="0.004"></label>
+        <label class="set-f">نرخِ هر گیگ رم در ساعت (دلار)
+          <input type="text" name="salad_ram_gb_usd_hour" dir="ltr" inputmode="decimal" maxlength="12"
+                 value="{{ $cloud['sl']['ram'] }}" placeholder="0.001"></label>
+
+        <label class="set-f full" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" name="salad_forget" value="1">
+          <span>کلید را فراموش کن <span style="color:var(--dim)">(سازمان و پروژه می‌مانند)</span></span></label>
+      </div>
+    </div>
+
     {{-- زیرساختِ ۵ — Proxmox VE: میزبانِ خودمان در ایران، برای Exit VPS. فقط
          Token Secret رمزنگاری‌شده است؛ بقیه کانفیگِ ساده‌اند و خالی = پیش‌فرضِ
          درایور. برای «تعویضِ» میزبان کافی است API URL عوض شود — بی‌دیپلوی. --}}

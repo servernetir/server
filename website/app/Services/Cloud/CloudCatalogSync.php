@@ -250,12 +250,28 @@ class CloudCatalogSync
                 ];
             }
 
+            $gpuModel = filled($r['gpu_model'] ?? null) ? (string) $r['gpu_model'] : null;
+            $gpuCount = $gpuModel !== null ? max(1, (int) ($r['gpu_count'] ?? 1)) : null;
+
             CloudPlan::updateOrCreate(
                 ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
                 [
                     'provider_location' => $r['provider_location'] ?? null,
                     'public_name'       => CloudNaming::planName($vcpu, $ram, $cpuKind),
-                    'slug'              => CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind),
+                    /*
+                    | 🔴 GPU **باید** به اسلاگ برسد.
+                    |
+                    | اسلاگ کلیدِ گروه‌بندیِ `offers()` است و `bestForSlug()`
+                    | ارزان‌ترینِ گروه را برمی‌دارد. بی‌این آرگومان، یک RTX 3060
+                    | و یک H100 با vCPU/رم/دیسکِ یکسان اسلاگِ یکسان می‌گیرند و
+                    | مشتری پولِ گران را می‌دهد و ارزان را تحویل می‌گیرد.
+                    |
+                    | ⚠️ افزودنِ پارامتر به `planSlug()` به‌تنهایی کافی نبود —
+                    | تا وقتی **این فراخوان** آن را پاس ندهد، گارد هرگز اجرا
+                    | نمی‌شود. همان تلهٔ ثبت‌شده: تستی که خودش تابع را مستقیم
+                    | صدا می‌زند، سیم‌کشی را نمی‌سنجد.
+                    */
+                    'slug'              => CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount),
                     'vcpu'              => $vcpu,
                     'ram_mb'            => $ram,
                     'disk_gb'           => $disk,
@@ -272,6 +288,12 @@ class CloudCatalogSync
                     // پلنِ ۸هسته/۱۶گیگ بعد از ۸هسته/۸گیگ بیاید.
                     'sort'              => min(65535, $vcpu * 1000 + (int) ($ram / 1024)),
                     'synced_at'         => now(),
+                    // ستون‌های GPU — برای پلنِ بی‌کارت `null` می‌مانند، و
+                    // `null` این‌جا یعنی «کارت ندارد» نه «نمی‌دانیم».
+                    'gpu_model'         => $gpuModel,
+                    'gpu_count'         => $gpuCount,
+                    'gpu_vram_mb'       => ($v = (int) ($r['gpu_vram_mb'] ?? 0)) > 0 ? $v : null,
+                    'is_interruptible'  => (bool) ($r['is_interruptible'] ?? false),
                     // ⚠️ `admin_disabled` و `admin_note` عمداً این‌جا **نیستند**.
                     // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
                     // عمداً بسته، دو روز بعد خودش باز می‌شد.

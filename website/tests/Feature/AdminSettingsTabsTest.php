@@ -142,6 +142,61 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertNull(Setting::get('cloud_traffic_unlimited'));
     }
 
+    /**
+     * زیرساختِ ۶ (GPU) واقعاً در تبِ زیرساخت **رندر** می‌شود.
+     *
+     * ⚠️ ادعا روی خودِ HTMLِ رندرشده است، نه بر کدِ ۲۰۰: یک فرمِ ثبت‌نشده هم
+     * صفحه را سالم برمی‌گرداند و مدیر فقط می‌بیند «چیزی اضافه نشده».
+     */
+    public function test_the_gpu_provider_block_renders_in_the_infra_tab(): void
+    {
+        $html = (string) $this->actingAs($this->admin())
+            ->get('/admin/settings?tab=infra')->assertOk()->getContent();
+
+        $this->assertStringContainsString('زیرساختِ ۶', $html, 'بلوکِ زیرساختِ GPU در صفحه نیست');
+
+        foreach (['salad_api_key', 'salad_org', 'salad_project', 'salad_image',
+            'salad_priority', 'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour'] as $f) {
+            $this->assertStringContainsString('name="'.$f.'"', $html, "فیلدِ «{$f}» رندر نشد");
+        }
+
+        // 🔴 هشدارِ قطع‌شدنی‌بودن باید روی همان صفحه باشد. مدیری که نداند،
+        //    محصول را با زبانِ «سرورِ پایدار» می‌فروشد و تعهدِ /sla زیرش می‌رود.
+        $this->assertStringContainsString('قطع می‌شوند', $html,
+            'هشدارِ قطع‌شدنی‌بودنِ نمونه‌ها از فرم افتاده');
+    }
+
+    /**
+     * و رفت‌وبرگشتِ واقعی: کلید **رمزنگاری‌شده** می‌نشیند و بقیه ساده.
+     *
+     * ⚠️ اگر کلید در `Setting::get` هم پیدا شود یعنی جایی رمزنگاری نشده ذخیره
+     * شده — همان چیزی که این پروژه برای هر پنج زیرساختِ دیگر رعایت می‌کند.
+     */
+    public function test_the_gpu_credentials_round_trip_with_the_key_encrypted(): void
+    {
+        $this->actingAs($this->admin())->post('/admin/settings', [
+            'tab'                   => 'infra',
+            'salad_api_key'         => 'salad-live-key-9',
+            'salad_org'             => 'servernet',
+            'salad_project'         => 'prod',
+            'salad_image'           => 'ghcr.io/servernet/gpu-ssh:1',
+            'salad_priority'        => 'high',
+            'salad_vcpu_usd_hour'   => '0.004',
+            'salad_ram_gb_usd_hour' => '0.001',
+        ])->assertRedirect();
+
+        $this->assertSame('salad-live-key-9', Setting::getSecret('salad_api_key'));
+        $this->assertSame('servernet', Setting::get('salad_org'));
+        $this->assertSame('ghcr.io/servernet/gpu-ssh:1', Setting::get('salad_image'));
+
+        $this->assertNotSame('salad-live-key-9', Setting::get('salad_api_key'),
+            'کلیدِ API رمزنگاری‌نشده ذخیره شده است.');
+
+        // و درایور از همین‌ها «تنظیم‌شده» می‌شود — وگرنه فرم پر است و
+        // زیرساخت همچنان خاموش، بی‌هیچ نشانه‌ای.
+        $this->assertTrue(app(\App\Services\Cloud\CloudManager::class)->driver('salad')->isConfigured());
+    }
+
     // ═══════════════ ۳) راهنمای الگو، به‌شکلِ اجراشدنی ═══════════════
 
     public function test_no_setting_key_belongs_to_two_tabs(): void

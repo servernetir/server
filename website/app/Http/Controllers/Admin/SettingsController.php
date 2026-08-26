@@ -128,6 +128,8 @@ class SettingsController extends Controller
         'pricing' => [
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'pricing_fx_fee_pct'        => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
@@ -148,6 +150,14 @@ class SettingsController extends Controller
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
             'ovh_forget'         => ['nullable', 'boolean'],
+            'salad_api_key'      => ['nullable', 'string', 'max:300'],
+            'salad_forget'       => ['nullable', 'boolean'],
+            'salad_org'          => ['nullable', 'string', 'max:120'],
+            'salad_project'      => ['nullable', 'string', 'max:120'],
+            'salad_image'        => ['nullable', 'string', 'max:200'],
+            'salad_priority'     => ['nullable', 'string', 'in:high,medium,low,batch'],
+            'salad_vcpu_usd_hour'   => ['nullable', 'numeric', 'min:0', 'max:10'],
+            'salad_ram_gb_usd_hour' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'proxmox_token_secret'   => ['nullable', 'string', 'max:200'],
             'proxmox_forget'         => ['nullable', 'boolean'],
             'proxmox_api_url'        => ['nullable', 'string', 'max:200'],
@@ -190,6 +200,19 @@ class SettingsController extends Controller
         'proxmox_api_url', 'proxmox_node', 'proxmox_token_id', 'proxmox_template_vmid',
         'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start',
         'proxmox_exit_countries',
+    ];
+
+    /**
+     * پیکربندیِ سادهٔ زیرساختِ GPU — سرّی نیست، پس رمزنگاری نمی‌شود.
+     *
+     * ⚠️ دو نرخِ آخر عمداً تنظیماتی‌اند نه سخت‌کد: بهایِ تمام‌شدهٔ آن زیرساخت
+     * «قیمتِ GPU + vCPU + رم» است و دو تکهٔ دوم **در API نیستند**. اگر روزی
+     * عوض شوند و ما عددِ کهنه را نگه داریم، روی هر ساعت زیرِ قیمتِ خرید
+     * می‌فروشیم — بی‌هیچ خطایی. همان تلهٔ `aeza_price_divisor`.
+     */
+    private const SALAD_PLAIN = [
+        'salad_org', 'salad_project', 'salad_image', 'salad_priority',
+        'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour',
     ];
 
     /** فیلدهای اعتبارسنجیِ یک تب — برای تست هم استفاده می‌شود. */
@@ -339,6 +362,8 @@ class SettingsController extends Controller
             'pricing' => [
                 'pricing_baseline_rate' => $ready ? Setting::get('pricing_baseline_rate') : null,
                 'pricing_rate_override' => $ready ? Setting::get('pricing_rate_override') : null,
+                'pricing_usd_rate_override' => $ready ? Setting::get('pricing_usd_rate_override') : null,
+                'pricing_fx_fee_pct'        => $ready ? Setting::get('pricing_fx_fee_pct') : null,
                 'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
@@ -364,6 +389,18 @@ class SettingsController extends Controller
                     && filled(Setting::getSecret('ovh_app_secret'))
                     && filled(Setting::getSecret('ovh_consumer_key')),
                 'proxmox'        => $ready && filled(Setting::getSecret('proxmox_token_secret')),
+                // ⚠️ «تنظیم‌شده» یعنی کلید **و** نامِ سازمان — هر مسیرِ آن API
+                // نامِ سازمان را در خودش دارد، پس کلیدِ تنها هیچ کاری نمی‌کند.
+                'salad' => $ready && filled(Setting::getSecret('salad_api_key'))
+                    && filled(Setting::get('salad_org')),
+                'sl' => [
+                    'org'      => $ready ? Setting::get('salad_org') : null,
+                    'project'  => $ready ? Setting::get('salad_project') : null,
+                    'image'    => $ready ? Setting::get('salad_image') : null,
+                    'priority' => $ready ? Setting::get('salad_priority') : null,
+                    'vcpu'     => $ready ? Setting::get('salad_vcpu_usd_hour') : null,
+                    'ram'      => $ready ? Setting::get('salad_ram_gb_usd_hour') : null,
+                ],
                 'agent'          => $ready && filled(Setting::getSecret('agent_pull_token')),
                 'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
                 'guard'          => $ready ? Setting::get('cloud_guard_daily_max') : null,
@@ -590,6 +627,18 @@ class SettingsController extends Controller
             Setting::putSecret('agent_pull_token', null);
         } elseif (filled($data['agent_pull_token'] ?? null)) {
             Setting::putSecret('agent_pull_token', trim((string) $data['agent_pull_token']));
+        }
+
+        // زیرساختِ GPU: فقط کلیدِ API سرّی است. «فراموش کن» فقط کلید را پاک
+        // می‌کند؛ نامِ سازمان و پروژه می‌مانند تا با کلیدِ تازه دوباره کار کند.
+        if ($request->boolean('salad_forget')) {
+            Setting::putSecret('salad_api_key', null);
+        } elseif (filled($data['salad_api_key'] ?? null)) {
+            Setting::putSecret('salad_api_key', trim((string) $data['salad_api_key']));
+        }
+
+        foreach (self::SALAD_PLAIN as $k) {
+            Setting::put($k, filled($data[$k] ?? null) ? trim((string) $data[$k]) : null);
         }
 
         foreach (self::PROXMOX_PLAIN as $k) {
