@@ -14,6 +14,33 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Ticket extends Model
 {
+    /**
+     * وضعیت‌های تیکت — **تنها منبع**، با برچسبِ کارکنان.
+     *
+     * ═══ چرا فقط همین چهار تا ═══
+     *
+     * هر وضعیت باید به یک سؤال جوابِ بی‌ابهام بدهد: «نوبتِ کیست؟»
+     *
+     *   open     → نوبتِ ما (تیکتِ تازه یا پاسخِ مشتری) — در صف
+     *   answered → نوبتِ مشتری — بیرونِ صف
+     *   held     → عمداً کنار گذاشته شده (منتظرِ قطعه، تأمین‌کننده، …) —
+     *              بیرونِ صف؛ پاسخِ مشتری خودکار به open برش می‌گرداند
+     *   closed   → تمام
+     *
+     * وضعیتی مثلِ «در حال بررسی» عمداً نیست: نوبت را عوض نمی‌کند، و برچسبی
+     * که با واقعیت جلو نرود می‌پوسد — تیکتی که ساعتِ ۹ «در حال بررسی» شد و
+     * فراموش شد، تا ابد همان می‌مانَد و صف را دروغگو می‌کند.
+     *
+     * ⚠️ صف (پنل + رباتِ بله) فقط `open` را می‌بیند؛ `held` بودنش در صف
+     * نقضِ غرض است — نگه‌داشتن یعنی «الان دستم به این نمی‌رسد».
+     */
+    public const STATUSES = [
+        'open'     => 'در انتظار بررسی',
+        'answered' => 'پاسخ داده شد',
+        'held'     => 'نگه‌داشته‌شده',
+        'closed'   => 'بسته',
+    ];
+
     protected $fillable = [
         'customer_id', 'number', 'subject', 'department', 'priority',
         'status', 'last_reply_role', 'last_reply_at',
@@ -67,6 +94,41 @@ class Ticket extends Model
     public function awaitingStaff(): bool
     {
         return $this->status === 'open';
+    }
+
+    public function isHeld(): bool
+    {
+        return $this->status === 'held';
+    }
+
+    /**
+     * تغییرِ وضعیت با قاعدهٔ واحد — پنل، عملیاتِ گروهی و ربات همه از همین.
+     *
+     * 🔴 `closed_at` این‌جا مدیریت می‌شود و نه در هر کنترلر: بستن مهر می‌زند،
+     * هر وضعیتِ دیگری پاکش می‌کند. اگر هر فراخوان خودش تصمیم می‌گرفت، دیر یا
+     * زود یکی جا می‌انداخت و تیکتِ «باز» با تاریخِ بسته‌شدن می‌ماند — که
+     * گزارش‌ها و تقویمِ کسب‌وکار را بی‌صدا غلط می‌کند.
+     *
+     * وضعیتِ ناشناخته نادیده گرفته می‌شود، نه استثنا: ورودی از فرم می‌آید و
+     * فرمِ دست‌کاری‌شده نباید ۵۰۰ بسازد.
+     */
+    public function transitionTo(string $status): bool
+    {
+        if (! array_key_exists($status, self::STATUSES) || $status === $this->status) {
+            return false;
+        }
+
+        $this->status = $status;
+        $this->closed_at = $status === 'closed' ? now() : null;
+        $this->save();
+
+        return true;
+    }
+
+    /** برچسبِ فارسیِ وضعیت برای کارکنان. */
+    public function statusLabel(): string
+    {
+        return self::STATUSES[$this->status] ?? $this->status;
     }
 
     /**

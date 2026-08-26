@@ -313,6 +313,7 @@ class AdminBaleCommands
         return match ($t->status) {
             'open'     => '🟠 منتظرِ پاسخِ ما',
             'answered' => '🟢 پاسخ داده شده',
+            'held'     => '🟣 نگه‌داشته‌شده',
             'closed'   => '⚪️ بسته',
             default    => (string) $t->status,
         };

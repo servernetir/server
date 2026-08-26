@@ -68,6 +68,19 @@
              می‌شود و کلیک روی «تصحیح» پاسخ را **می‌فرستد** — همان اشتباهی که
              متنِ خام را به مشتری می‌رسانْد. --}}
         <div class="tk-polish">
+          {{-- ══ پیشنهادِ پاسخ با AI — همان موتورِ رباتِ بله ══
+               🔴 پیش‌نویس در کادر می‌نشیند؛ هیچ‌چیز ارسال نمی‌شود. «بازگردانی»
+               متنِ قبلی کادر را برمی‌گرداند. --}}
+          <button type="button" class="tk-polish-btn" id="tk-draft">
+            <svg class="icon"><use href="#i-bot"/></svg>
+            <span>پیشنهاد پاسخ</span>
+          </button>
+          <select id="tk-draft-tone" class="ad-input" style="width:auto;padding:6px 9px;font-size:12px"
+                  title="لحنِ پیش‌نویس">
+            @foreach(\App\Services\Ticket\TicketDraftWriter::TONES as $k => $t)
+              <option value="{{ $k }}">{{ $t }}</option>
+            @endforeach
+          </select>
           <button type="button" class="tk-polish-btn" id="tk-polish">
             <svg class="icon"><use href="#i-sparkles"/></svg>
             <span>تصحیح نگارش با AI</span>
@@ -106,7 +119,7 @@
         @csrf
         <label style="color:var(--dim)">وضعیت</label>
         <select name="status" class="ad-input">
-          @foreach(['open'=>'در انتظار پاسخ','answered'=>'پاسخ داده‌شده','closed'=>'بسته'] as $v=>$t)
+          @foreach(\App\Models\Ticket::STATUSES as $v=>$t)
             <option value="{{ $v }}" @selected($ticket->status===$v)>{{ $t }}</option>
           @endforeach
         </select>
@@ -216,6 +229,48 @@
     original = null;
     undo.hidden = true;
     say('به نوشتهٔ خودتان برگشت.');
+  });
+
+  /*
+   | پیشنهادِ پاسخ — برخلافِ «تصحیح» به متنِ موجود نیاز ندارد؛ از خودِ
+   | گفتگو می‌نویسد. همان `original`/`undo` مشترک است تا اگر کارفرما وسطِ
+   | نوشتن دکمه را زد، متنش با یک کلیک برگردد.
+   */
+  var draftBtn = document.getElementById('tk-draft');
+  var toneSel  = document.getElementById('tk-draft-tone');
+
+  if (draftBtn) draftBtn.addEventListener('click', async function () {
+    draftBtn.disabled = true;
+    say('در حال نوشتنِ پیش‌نویس…');
+
+    try {
+      var r = await fetch('/admin/tickets/{{ $ticket->id }}/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ tone: toneSel ? toneSel.value : 'n' })
+      });
+
+      var raw = await r.text();
+      var j;
+      try { j = JSON.parse(raw); }
+      catch (e) { say('پاسخِ نامعتبر از سرور.', true); return; }
+
+      if (!j.ok) { say(j.error || 'پیش‌نویس ساخته نشد.', true); return; }
+
+      original = ta.value;
+      ta.value = j.text;
+      undo.hidden = false;
+      say('پیش‌نویس آماده است — پیش از ارسال حتماً بخوانید و در صورت نیاز ویرایش کنید.');
+      ta.focus();
+    } catch (e) {
+      say('ارتباط برقرار نشد.', true);
+    } finally {
+      draftBtn.disabled = false;
+    }
   });
 })();
 </script>

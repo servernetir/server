@@ -2271,10 +2271,18 @@ Route::prefix('admin')->group(function () {
 
         // تیکت پشتیبانی — روی همان احراز هویت کارکنان
         Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
+        /*
+        | ⚠️ `bulk` پیش از `{ticket}` ثبت می‌شود — درسِ روتِ compare در
+        | فروشگاهِ قطعات: مسیرِ ثابتی که بعدِ پارامتری بیاید بلعیده می‌شود و
+        | دکمه بی‌صدا از کار می‌افتد.
+        */
+        Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
         Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
         Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
         // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
         Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
+        // پیشنهادِ پاسخ با AI — همان موتورِ بله؛ فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+        Route::post('/tickets/{ticket}/draft', [\App\Http\Controllers\Admin\TicketController::class, 'draft']);
         Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
         Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
 

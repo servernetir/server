@@ -32,10 +32,10 @@ class TicketController extends Controller
         // را می‌شکند. ترتیب: باز، بعد پاسخ‌داده، بعد بسته؛ و داخل هر گروه
         // قدیمی‌ترینِ منتظر اول.
         $query = Ticket::with('customer')
-            ->orderByRaw("case status when 'open' then 0 when 'answered' then 1 else 2 end")
+            ->orderByRaw("case status when 'open' then 0 when 'answered' then 1 when 'held' then 2 else 3 end")
             ->orderBy('last_reply_at');
 
-        if (in_array($filter, ['open', 'answered', 'closed'], true)) {
+        if (array_key_exists($filter, Ticket::STATUSES)) {
             $query->where('status', $filter);
         }
         if (in_array($priority, ['low', 'normal', 'high', 'urgent'], true)) {
@@ -66,11 +66,15 @@ class TicketController extends Controller
             'priority' => $priority,
             'dept'     => $dept,
             'q'        => $q,
-            'counts'   => [
-                'open'     => Ticket::where('status', 'open')->count(),
-                'answered' => Ticket::where('status', 'answered')->count(),
-                'closed'   => Ticket::where('status', 'closed')->count(),
-            ],
+            /*
+            | یک پرس‌وجو برای همهٔ وضعیت‌ها. ⚠️ ادغام با صفرها حیاتی است:
+            | groupBy فقط وضعیت‌های موجود را برمی‌گرداند و ویو `$counts['open']`
+            | را مستقیم می‌خواند — روی دیتابیسِ خالی undefined key می‌شد.
+            */
+            'counts'   => array_map('intval', Ticket::query()
+                ->selectRaw('status, count(*) as c')->groupBy('status')
+                ->pluck('c', 'status')->all())
+                + array_fill_keys(array_keys(Ticket::STATUSES), 0),
         ]);
     }
 
@@ -174,22 +178,99 @@ class TicketController extends Controller
     public function update(Request $request, Ticket $ticket): RedirectResponse
     {
         $data = $request->validate([
-            'status'   => ['nullable', 'in:open,answered,closed'],
+            'status'   => ['nullable', 'in:'.implode(',', array_keys(Ticket::STATUSES))],
             'priority' => ['nullable', 'in:low,normal,high,urgent'],
         ]);
 
         if (! empty($data['status'])) {
-            $ticket->status = $data['status'];
-            $ticket->closed_at = $data['status'] === 'closed' ? now() : null;
+            // closed_at را قاعدهٔ متمرکزِ مدل مدیریت می‌کند، نه این‌جا
+            $ticket->transitionTo($data['status']);
         }
 
         if (! empty($data['priority'])) {
             $ticket->priority = $data['priority'];
+            $ticket->save();
         }
 
-        $ticket->save();
-
         return back()->with('ok', 'تیکت به‌روزرسانی شد.');
+    }
+
+    /**
+     * عملیاتِ گروهی روی تیکت‌ها — بستن، نگه‌داشتن، بازگشایی، پاسخ‌داده.
+     *
+     * ⚠️ فرمِ معمولی و ریدایرکت، نه JSON. تلهٔ ثبت‌شدهٔ این پروژه:
+     * `shouldRenderJsonWhen(api/*)` یعنی شکستِ اعتبارسنجی روی `/admin` یک
+     * ریدایرکتِ HTML می‌دهد نه ۴۲۲ — برای فرمِ کلاسیک این دقیقاً رفتارِ درست
+     * است، پس این‌جا `validate()` امن است.
+     *
+     * 🔴 سقفِ ۱۰۰: «همه را انتخاب کن» فقط صفحهٔ جاری را می‌گیرد (۲۰ ردیف)،
+     * پس ۱۰۰ سخاوتمندانه است؛ بی‌سقف، یک فرمِ دست‌ساز می‌تواند کلِ جدول را
+     * یک‌جا ببندد.
+     *
+     * شناسهٔ ناموجود بی‌صدا رد می‌شود و شمارِ گزارش‌شده = واقعاً تغییرکرده،
+     * نه تعدادِ انتخاب — تا پیام هرگز بیشتر از واقعیت ادعا نکند.
+     */
+    public function bulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'    => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*'  => ['integer'],
+            'status' => ['required', 'in:'.implode(',', array_keys(Ticket::STATUSES))],
+        ], [], ['ids' => 'تیکت‌ها', 'status' => 'وضعیت']);
+
+        $changed = 0;
+
+        foreach (Ticket::whereIn('id', $data['ids'])->get() as $ticket) {
+            if ($ticket->transitionTo($data['status'])) {
+                $changed++;
+            }
+        }
+
+        \App\Models\ActivityLog::record(
+            null,
+            'ticket',
+            'گروهی: '.$changed.' تیکت → '.Ticket::STATUSES[$data['status']],
+            $request,
+            'staff'
+        );
+
+        return back()->with('ok', $changed > 0
+            ? fa_num((string) $changed).' تیکت به «'.Ticket::STATUSES[$data['status']].'» تغییر کرد.'
+            : 'چیزی تغییر نکرد — تیکت‌ها از قبل در همان وضعیت بودند.');
+    }
+
+    /**
+     * پیشنهادِ پاسخ با AI — همان موتورِ رباتِ بله (`TicketDraftWriter`).
+     *
+     * 🔴 **پیش‌نویس، نه ارسال.** خروجی فقط برمی‌گردد و در کادرِ پاسخ می‌نشیند؛
+     * کارفرما می‌خوانَد، ویرایش می‌کند و خودش می‌فرستد. هیچ مسیری در این متد
+     * پیامی نمی‌سازد.
+     *
+     * ⚠️ اعتبارسنجیِ صریح، نه `validate()` — پاسخ JSON است و شکستِ
+     * `validate()` روی /admin ریدایرکتِ HTML می‌دهد که `r.json()` را می‌کشد.
+     */
+    public function draft(Request $request, Ticket $ticket): \Illuminate\Http\JsonResponse
+    {
+        $tone = (string) $request->input('tone', 'n');
+
+        if (! array_key_exists($tone, \App\Services\Ticket\TicketDraftWriter::TONES)) {
+            $tone = 'n';
+        }
+
+        $writer = app(\App\Services\Ticket\TicketDraftWriter::class);
+
+        if (! $writer->enabled()) {
+            return response()->json(['ok' => false, 'error' => 'سرویسِ هوش مصنوعی تنظیم نشده است.'], 503);
+        }
+
+        $text = $writer->draft($ticket, $tone);
+
+        if ($text === null) {
+            // ⚠️ ۲۰۰ با ok=false و نه ۵۰۰: نرسیدنِ جوابِ مدل خرابیِ ما نیست
+            return response()->json(['ok' => false, 'error' => 'پیش‌نویس ساخته نشد؛ دوباره تلاش کنید.']);
+        }
+
+        return response()->json(['ok' => true, 'text' => $text]);
     }
 
     /** دانلود پیوست — کارکنان همه‌چیز را می‌بینند، حتی پیوستِ یادداشت داخلی */
