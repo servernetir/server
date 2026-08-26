@@ -26,6 +26,10 @@ class CloudPlan extends Model
         'price_irt', 'is_active', 'in_stock', 'sort', 'synced_at',
         'previous_cost_eur_cents', 'cost_changed_at',
         'admin_disabled', 'admin_note',
+        // ⚠️ بی‌این‌ها `updateOrCreate` همگام‌ساز آنها را **بی‌صدا** دور
+        //    می‌ریزد و صفحهٔ /gpu برای همیشه خالی می‌مانَد — همان تلهٔ
+        //    `created_at`ِ ActivityLog، این‌بار روی یک محصولِ کامل.
+        'gpu_model', 'gpu_count', 'gpu_vram_mb', 'is_interruptible',
     ];
 
     /** حفاظِ سفیدبرچسبی: این ستون‌ها در هیچ JSONای بیرون نمی‌روند */

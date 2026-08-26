@@ -133,6 +133,46 @@ class CloudSaladGpuTest extends TestCase
     }
 
     /**
+     * 🔴 گاردِ اسلاگ باید در **مسیرِ واقعی** اجرا شود، نه فقط وقتی تست تابع را
+     * مستقیم صدا می‌زند.
+     *
+     * افزودنِ پارامتر به `planSlug()` کافی نبود: `CloudCatalogSync` آن را پاس
+     * نمی‌داد، پس دو کارتِ متفاوت باز هم یک اسلاگ می‌گرفتند و تستِ بالا سبز
+     * می‌مانْد در حالی که پروداکشن خراب بود. همان تلهٔ ثبت‌شده — تستی که خودش
+     * تابع را صدا می‌زند، سیم‌کشی را نمی‌سنجد.
+     *
+     * پس این تست از **بیرون** می‌رود: کاتالوگ را می‌سازد و روی ردیف‌های
+     * ذخیره‌شده در دیتابیس ادعا می‌کند.
+     */
+    public function test_the_catalogue_sync_actually_writes_the_gpu_columns(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-h100', 'name' => 'H100', 'prices' => [
+                ['priority' => 'high', 'price' => '2.500'],
+            ]]),
+        ]);
+
+        app(\App\Services\Cloud\CloudCatalogSync::class)->sync('salad');
+
+        $rows = \App\Models\CloudPlan::where('provider', 'salad')->get();
+
+        $this->assertCount(2, $rows, 'همگام‌ساز پلن‌های GPU را ننوشت.');
+
+        foreach ($rows as $r) {
+            $this->assertNotNull($r->gpu_model, 'ستونِ gpu_model خالی ماند — `$fillable` جا افتاده؟');
+            $this->assertTrue((bool) $r->is_interruptible, 'پرچمِ قطع‌شدنی ذخیره نشد.');
+        }
+
+        // 🔴 و مهم‌ترین ادعا: دو کارتِ متفاوت **در دیتابیس** دو اسلاگ دارند.
+        $this->assertCount(2, $rows->pluck('slug')->unique(),
+            'دو کارتِ متفاوت در مسیرِ واقعی اسلاگِ یکسان گرفتند — گارد صدا زده نشد.');
+    }
+
+    /**
      * ⚠️ و نیمهٔ دیگر: اسلاگِ پلن‌های **بی‌GPU** باید بایت‌به‌بایت دست‌نخورده
      * بماند، وگرنه هر ردیفِ موجود دوباره‌اسلاگ می‌شود و گروه‌بندیِ امروز می‌شکند.
      */
