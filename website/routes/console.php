@@ -303,6 +303,15 @@ Schedule::command('domains:price-book')
     ->withoutOverlapping(60);
 
 /*
+| هرسِ استعلام‌های منقضی — هر جستجو تا ۶۴ ردیف با JSONِ خامِ رجیسترار
+| می‌سازد و هیچ‌کس پاکشان نمی‌کرد (ممیزیِ شهریور ۱۴۰۵). استعلامِ ارجاع‌شده
+| از ردیفِ دامنه هرگز پاک نمی‌شود — سندِ قیمتِ لحظهٔ فروش است.
+*/
+Schedule::command('domains:prune-quotes')
+    ->dailyAt('04:40')
+    ->withoutOverlapping(30);
+
+/*
 | قراردادِ امضانشدهٔ رجیستری را **پیش از** فروش پیدا کن، نه بعد از شکستِ ثبت.
 |
 | 🔴 رخداد: مشتری `partolastik.com` را خرید، پول رفت، و ثبت شکست خورد چون
@@ -513,3 +522,12 @@ Schedule::command('links:site')
 Schedule::command('links:content')
     ->cron('40 2 * * 5')
     ->withoutOverlapping(45);
+
+/*
+| دروازهٔ انتشار — ممیزی ۶ (QA): «مجموعهٔ رگرسیونِ خودکار، هر شب + هر انتشار».
+| ۰۳:۰۰ UTC (۶:۳۰ صبحِ تهران)، بعد از خزندهٔ لینک و قبل از شروعِ روز؛ قرمز ⇒
+| noteOnce در /admin/errors. در چک‌لیستِ انتشار هم دستی اجرا می‌شود.
+*/
+Schedule::command('site:gate')
+    ->dailyAt('03:00')
+    ->withoutOverlapping(60);

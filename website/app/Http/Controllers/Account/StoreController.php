@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Service;
+use App\Support\Funnel;
+use App\Support\OrderHandoff;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -56,8 +58,33 @@ class StoreController extends Controller
                 ->with('err', 'این پکیج دیگر در دسترس نیست. لطفاً پکیجِ دیگری انتخاب کنید یا با پشتیبانی تماس بگیرید.');
         }
 
+        /*
+        | تحویلِ امضاشده از /order/{sku} (ممیزی ۶ — SN-ORDER-001): دوره‌ای که کاربر
+        | روی سایت انتخاب کرده همین‌جا از پیش انتخاب می‌شود. امضای نامعتبر/منقضی
+        | خرید را نمی‌بندد — فقط نادیده گرفته و شمرده می‌شود. هیچ قیمتی از URL.
+        */
+        $reason = null;
+        $handoff = OrderHandoff::verify(request()->query(), $product->slug, array_keys((array) config('billing.cycles', [])), $reason);
+
+        if ($handoff !== null) {
+            session(['order_handoff' => $handoff]);
+            Funnel::log('handoff_landed', $handoff + ['lang' => app()->getLocale()]);
+        } elseif (request()->query('sig') !== null) {
+            // دلیل برای تفکیکِ «لینکِ کهنه» از «دستکاری» (شورا/امنیت) — بدونِ خودِ امضا
+            Funnel::log('handoff_invalid', [
+                'sku'           => $product->slug,
+                'reason'        => (string) $reason,
+                'sid'           => OrderHandoff::clean(request()->query('sid'), OrderHandoff::SID_RE),
+                'ref'           => OrderHandoff::clean(request()->query('ref'), OrderHandoff::REF_RE),
+                'default_cycle' => (string) config('billing.default_cycle', 'monthly'),
+                'lang'          => app()->getLocale(),
+            ]);
+        }
+
         return view('account.checkout', AccountController::shell('') + [
             'product'   => $product,
+            // دورهٔ منتقل‌شده از سایت — null یعنی پیش‌فرضِ config
+            'handoffCycle' => $handoff['cycle'] ?? null,
             // لایسنس نه سرور می‌خواهد نه مکان — فهرستِ خالی یعنی ویو بخشِ
             // «محلِ سرور» را اصلاً رندر نمی‌کند (و با پرچمِ isLicense، هشدارِ
             // «سرور نداریم» و غیرفعال‌شدنِ دکمه هم نمی‌آید).
@@ -172,6 +199,13 @@ class StoreController extends Controller
             'مکان'  => $country,
             'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
         ], url('/admin/customers/'.$customer->id), '🛒');
+
+        /*
+        | رویدادِ پشتِ مرزِ console (ممیزی ۶ — رشد): با همان sid که از /order آمد،
+        | تا «نرخِ بقای مرز» و «سهمِ دوره‌ها در سفارشِ نهایی» شمردنی شود.
+        */
+        $ho = (array) session('order_handoff', []);
+        Funnel::log('order_placed', ['sku' => $product->slug, 'cycle' => $cycle, 'sid' => $ho['sid'] ?? '', 'ref' => $ho['ref'] ?? '', 'handoff_cycle' => $ho['cycle'] ?? '']);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');

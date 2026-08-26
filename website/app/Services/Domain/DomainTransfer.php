@@ -374,6 +374,13 @@ class DomainTransfer
         $this->tell($domain, 'domain_transfer_completed',
             'انتقالِ دامنهٔ «'.$domain->domain.'» با موفقیت انجام شد و از این پس در پنلِ شما مدیریت می‌شود.');
 
+        // بهای انتقال نزدِ رجیسترار (اگر ثبت شده باشد) — هزینهٔ واقعی در دفتر.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'transfer', 1);
+
+        // اگر روی نیم‌سرورهای ما نشسته، همان لحظه zone — وگرنه resolve نمی‌شود.
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
+
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
 
@@ -414,13 +421,23 @@ class DomainTransfer
     /**
      * بازگرداندنِ مبلغ به اعتبارِ مشتری.
      *
-     * ⚠️ فقط وقتی واقعاً پولی گرفته شده باشد. `price_toman` صفر یعنی این ردیف
-     * را مدیر دستی ساخته و هیچ فاکتوری پشتش نیست؛ ردیفِ اعتبارِ صفر فقط دفتر
-     * را شلوغ می‌کند.
+     * 🔴 مبلغ از **فاکتورِ واقعاً پرداخت‌شده** می‌آید، نه از `price_toman`:
+     * آن ستون مالیات ندارد و برگرداندنش یعنی هر انتقالِ ردشده دقیقاً به‌اندازهٔ
+     * مالیات کم‌رفاند می‌شد — همان اختلافی که ممیزی بینِ دو مسیرِ رفاند پیدا
+     * کرد. `price_toman` فقط پشتیبانِ ردیفِ دستیِ بی‌فاکتور است.
+     *
+     * ⚠️ فقط وقتی واقعاً پولی گرفته شده باشد؛ ردیفِ اعتبارِ صفر فقط دفتر را
+     * شلوغ می‌کند.
      */
     private function refund(Domain $domain, string $why): bool
     {
-        $amount = (int) $domain->price_toman;
+        $invoice = \App\Models\Invoice::where('domain_id', $domain->id)
+            ->where('kind', 'domain')
+            ->where('paid', '>', 0)
+            ->orderByDesc('id')
+            ->first();
+
+        $amount = (int) ($invoice?->paid ?? $domain->price_toman);
 
         if ($amount <= 0 || ! $domain->customer) {
             return false;
@@ -433,8 +450,23 @@ class DomainTransfer
             | جداگانه‌ای ندارد. قفلِ ردیفِ مشتری هم لازم است تا دو بازگشتِ
             | هم‌زمان دو `balance_after`ِ یکسان ننویسند.
             */
-            DB::transaction(function () use ($domain, $amount, $why) {
+            DB::transaction(function () use ($domain, $invoice, $amount, $why) {
                 \App\Models\Customer::whereKey($domain->customer_id)->lockForUpdate()->first();
+
+                /*
+                | ⚠️ محافظِ «دو بار برنگردان» — `reject()` عمومی است و حالا
+                | `domains:resolve-stuck` هم صدایش می‌زند؛ بی‌این، هر مسیرِ
+                | دوم یک اعتبارِ تازه می‌ساخت.
+                */
+                $already = \App\Models\CreditEntry::where('customer_id', $domain->customer_id)
+                    ->where('reason', 'domain_transfer_refund')
+                    ->where('source_type', Domain::class)
+                    ->where('source_id', $domain->id)
+                    ->exists();
+
+                if ($already) {
+                    return;
+                }
 
                 $balance = (int) \App\Models\CreditEntry::where('customer_id', $domain->customer_id)
                     ->where('currency_code', 'IRT')->sum('amount');
@@ -449,6 +481,15 @@ class DomainTransfer
                     'source_id'     => $domain->id,
                     'note'          => 'بازگشتِ وجهِ انتقالِ ناموفقِ '.$domain->domain.' — '.mb_substr($why, 0, 120),
                 ]);
+
+                // ⚠️ فاکتور حذف نمی‌شود: سابقهٔ مالی و مالیاتی باید بماند.
+                $invoice?->forceFill(['status' => 'refunded'])->save();
+
+                // دفترِ کسب‌وکار هم باید این برگشت را ببیند (idempotent)
+                if ($invoice !== null) {
+                    app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                        $invoice, $amount, 'بازگشتِ وجه — انتقالِ '.$domain->domain);
+                }
             });
 
             return true;

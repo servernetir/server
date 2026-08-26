@@ -42,10 +42,8 @@
         <h5 class="f-head">{{ __('ui.f_company') }}<svg class="icon chev"><use href="#i-chev"/></svg></h5>
         <div class="f-links"><div class="f-in">
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
-          @if($isFa)
-          {{-- بخشِ محلی فقط فارسی است (routes/web.php) — روی en/tr لینک نمی‌گیرد --}}
-          <a href="{{ route('urmia.hub') }}">خدمات ما در ارومیه</a>
-          @endif
+          {{-- بخشِ ارومیه از مرداد ۱۴۰۵ سه‌زبانه است؛ برچسب inline چون فقط همین‌جاست --}}
+          <a href="{{ lroute('urmia.hub') }}">{{ ['fa' => 'خدمات ما در ارومیه', 'en' => 'Our services in Urmia', 'tr' => 'Urmiye hizmetlerimiz'][app()->getLocale()] ?? 'Urmia' }}</a>
           <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
           <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
           <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>
@@ -55,6 +53,10 @@
           <a href="{{ lroute('terms') }}">{{ __('ui.f_terms') }}</a>
           <a href="{{ lroute('aup') }}">{{ __('ui.f_aup') }}</a>
           <a href="{{ lroute('abuse') }}">{{ __('ui.f_abuse') }}</a>
+          <a href="{{ lroute('official') }}">{{ __('ui.f_official') }}</a>
+          {{-- نشانِ «میزبانی روی سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها؛ بدونِ این
+               لینکِ فوتر، صفحه یتیم می‌شد و هیچ مشتری‌ای پیدایش نمی‌کرد --}}
+          <a href="{{ lroute('badge') }}">{{ __('ui.bdg_badge') }}</a>
           <a href="{{ lroute('privacy') }}">{{ __('ui.f_c4') }}</a>
           {{-- ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی --}}
           <a href="{{ console_lroute('account.home') }}">{{ __('ui.f_c5') }}</a>
@@ -98,7 +100,8 @@
     @endif
 
     {{--
-      شناسه‌های ثبتی عمداً در فوتر **نیستند** — تصمیمِ کارفرما.
+      (تاریخچه) تا ممیزی ۶، شناسه‌های ثبتی عمداً در فوتر نبودند — تصمیمِ کارفرما.
+      پایین‌تر با استدلالِ حقوقیِ ممیزی ۶ برگشتند؛ این بلوک فقط برای فهمِ گذشته مانده.
 
       جایشان `/contact` است و `company_identity()` همان‌جا صدا زده می‌شود.
       مهرِ نماد این‌جا می‌مانَد چون کارکردش فرق دارد: مهر یک نشانِ **دیداری**
@@ -113,6 +116,29 @@
       دستورِ پایانیِ بعدی جفت می‌شود و همه‌چیزِ میانشان را بی‌صدا از DOM حذف
       می‌کند — صفحه ۲۰۰ می‌ماند و شبیهِ باگِ CSS دیده می‌شود.
     --}}
+
+    {{--
+      شناسه‌های ثبتی در فوتر — برگشتِ تصمیم در ممیزی ۶ (حقوقی): «الزامِ
+      قانونی، افشای در دسترس است؛ راه‌حلِ استاندارد فوترِ سراسری است که هر ۵۶۷
+      صفحه را پوشش می‌دهد. /about تنها، کافی ولی شکننده است.» مارکتینگ هم همین
+      را برای ۲۹ صفحهٔ ارومیه خواست. تصمیمِ قبلیِ کارفرما (فقط /contact) با
+      همین استدلالِ حقوقی کنار گذاشته شد — اگر نپذیرفت، همین یک بلوک را بردار.
+
+      همان قاعدهٔ همیشگی: فقط مقادیرِ **واقعاً پرشده** (company_identity)،
+      هیچ جای‌نگهداری. تا مدیر در /admin/settings چیزی وارد نکند، هیچ‌چیز
+      رندر نمی‌شود.
+    --}}
+    @php($fLegal = company_identity())
+    @if($fLegal !== [] || company_address() !== null)
+    <div class="f-legal">
+      @foreach($fLegal as $row)
+        <span><b>{{ __($row['label']) }}:</b> {{ $isFa ? fa_num($row['value']) : $row['value'] }}</span>
+      @endforeach
+      @if(company_address() !== null)
+        <span><b>{{ __('ui.about_reg_addr') }}:</b> {{ company_address() }}</span>
+      @endif
+    </div>
+    @endif
 
     <div class="f-bottom">
       <span>{{ __('ui.f_copy') }}</span>

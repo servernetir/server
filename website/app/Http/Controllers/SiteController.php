@@ -159,6 +159,7 @@ class SiteController extends Controller
             '/contact'       => 'Contact and support',
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
+            '/gpu'           => 'Hourly GPU servers for AI inference, rendering and training (interruptible, SSH access)',
             '/servers'       => 'Refurbished physical servers for sale',
             /*
              * ⚠️ فروشگاهِ قطعات صفحهٔ جدایی است، نه زیرمجموعهٔ `/servers`.
@@ -186,9 +187,50 @@ class SiteController extends Controller
             '/aup'           => 'Acceptable use policy (no VPN/proxy resale on Iran infrastructure)',
             '/abuse'         => 'Report abuse of ServerNet infrastructure (reviewed within 2 business days)',
             '/speed'         => 'Public speed report with reproducible methodology (measured TTFB, all numbers)',
+            '/official-channels' => 'The only official ServerNet channels and contact points (beware of look-alike Telegram channels)',
             '/privacy'       => 'Privacy policy',
         ] as $path => $label) {
             $lines[] = "- [{$label}]({$base}{$path})";
+        }
+
+        /*
+        | ممیزی ۶ (سئو/AEO): «/order/* و /urmia/* در llms.txt نیستند — یعنی
+        | صفحاتِ قیمت و کلِ استراتژیِ ارومیه برای موتورهای پاسخِ AI اعلام
+        | نشده‌اند.» چیزی که باعثِ نقل‌شدن می‌شود قیمتِ عددیِ تاریخ‌دار است، و
+        | آن دقیقاً روی /order/{sku} نشسته. فقط پرچم‌دارها (همان‌هایی که در
+        | sitemap هستند) — نه ۶۴ صفحهٔ هم‌قالب.
+        */
+        $flagship = \App\Models\Product::flagshipSlugs();
+
+        if ($flagship !== []) {
+            $lines[] = '';
+            $lines[] = '## Order pages (public pricing, all billing cycles, tax-inclusive totals, no login)';
+
+            // برچسب = نامِ محصول + کمترین قیمتِ ماهانه (شورا/سئو): «group-3» برای مدل بی‌معنی است
+            $products = \App\Models\Product::whereIn('slug', $flagship)->get()->keyBy('slug');
+
+            foreach ($flagship as $sku) {
+                $p = $products[$sku] ?? null;
+                $label = $p
+                    ? $p->name.' — from '.cloud_price($p->monthlyEquivalent('yearly')).'/mo'
+                    : $sku;
+                $lines[] = "- [{$label}]({$base}/order/{$sku})";
+            }
+        }
+
+        // ارومیه — فقط فارسی؛ عنوانِ واقعیِ هر صفحه از config تا مدل همان را نقل کند
+        if (is_array(config('urmia.pages'))) {
+            $lines[] = '';
+            $lines[] = '## Urmia (West Azerbaijan) local services — Persian only';
+            $lines[] = "- [Web design & software in Urmia]({$base}/urmia)";
+
+            foreach ((array) config('urmia.pages') as $slug => $pg) {
+                $lines[] = '- ['.((string) ($pg['title'] ?? $slug))."]({$base}/urmia/{$slug})";
+            }
+
+            foreach (array_keys((array) config('urmia.cities', [])) as $slug) {
+                $lines[] = "- [{$slug}]({$base}/urmia/cities/{$slug})";
+            }
         }
 
         $lines[] = '';
@@ -227,26 +269,49 @@ class SiteController extends Controller
         $add('home');
         // /domains صفحهٔ فرودِ «ثبت دامنه» با کلیدواژهٔ ارزشمند است و جا افتاده بود
         $add('domain.search');
+        // اولین اجرای site:gate روی سرور (۳ شهریور) این را به‌عنوان RG-SITEMAP-04
+        // گرفت: صفحهٔ عمومیِ ایندکس‌پذیر، لینک‌شده از /domains، غایب از نقشه.
+        $add('domain.transfer.page');
         // status و sla عمداً در نقشهٔ سایت‌اند: هر دو صفحهٔ «اثبات»اند و
         // خریدارِ سازمانی مستقیم دنبالشان می‌گردد.
         // ⚠️ webdesign عمداً در **منو** نیست ولی در نقشهٔ سایت **هست** — این دو
         //    یکی نیستند. صفحه‌ای که از هیچ‌جای سایت لینک نمی‌شود، بدونِ نقشه ممکن
         //    است هرگز ایندکس نشود، و کلِ هدفش ورودیِ ارگانیکِ محلی است.
-        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'careers', 'status', 'sla', 'webdesign'] as $n) {
+        foreach (['contact', 'knowledge', 'about', 'privacy', 'terms', 'aup', 'speed', 'abuse', 'developers', 'careers', 'status', 'sla', 'webdesign', 'badge'] as $n) {
             $add($n);
         }
 
         /*
-        | بخشِ محلی ارومیه — **فقط فارسی**، پس بیرونِ $add (روتِ en.urmia.*
-        | وجود ندارد و $add می‌ترکید). مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛
-        | مثل webdesign: در منو نیست ولی در نقشهٔ سایت هست.
+        | صفحاتی که فعلاً فقط روی **سرور** روت دارند (کدِ سرور از مخزن جلوتر است —
+        | مثل /developers/tunnel که site:gate کشفش کرد). اعلامِ کور با route()
+        | روی نصبی که روت را ندارد کلِ sitemap را ۵۰۰ می‌کند؛ پس هر مسیر اول با
+        | روترِ همان نصب match می‌شود و فقط اگر واقعاً پاسخ‌گوست اعلام می‌شود.
+        | 🔴 راه‌حلِ ریشه‌ای: آن کد به مخزن برگردد (check-live-state.sh دقیقاً
+        | برای دیدنِ همین دریفت است)؛ این بلوک فقط پل است، نه جای دائمی.
         */
-        $urls[] = ['loc' => route('urmia.hub'), 'lastmod' => null];
+        foreach (['/developers/tunnel'] as $serverOnly) {
+            foreach (['', '/en', '/tr'] as $lp) {
+                try {
+                    app('router')->getRoutes()->match(\Illuminate\Http\Request::create($lp.$serverOnly, 'GET'));
+                    $urls[] = ['loc' => rtrim(config('app.url'), '/').$lp.$serverOnly, 'lastmod' => null];
+                } catch (\Throwable) {
+                    // این نصب چنین روتی ندارد — چیزی اعلام نمی‌شود
+                }
+            }
+        }
+
+        /*
+        | بخشِ محلی ارومیه — از مرداد ۱۴۰۵ سه‌زبانه است (روت‌های en./tr. ثبت
+        | می‌شوند و UrmiaController ترجمهٔ واقعی می‌دهد)، پس مثل بقیه از $add.
+        | مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛ مثل webdesign: در منو نیست ولی
+        | در نقشهٔ سایت هست.
+        */
+        $add('urmia.hub');
         foreach (array_keys((array) config('urmia.pages')) as $slug) {
-            $urls[] = ['loc' => route('urmia.page', $slug), 'lastmod' => null];
+            $add('urmia.page', $slug);
         }
         foreach (array_keys((array) config('urmia.cities')) as $slug) {
-            $urls[] = ['loc' => route('urmia.city', $slug), 'lastmod' => null];
+            $add('urmia.city', $slug);
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم
@@ -301,15 +366,58 @@ class SiteController extends Controller
         $add('cloud.index');
         // صفحهٔ فرودِ «سرور مجازی ساعتی» — روتِ صریح، خارج از کاتالوگِ config
         $add('vps.hourly');
+        // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
+        $add('gpu');
 
         if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
-            foreach (\App\Models\CloudLocation::where('is_active', true)->pluck('code') as $code) {
+            /*
+            | فقط مکان‌هایی که واقعاً پلنِ قابل‌فروش دارند. ردیف‌های میراثیِ
+            | syncِ قدیمی (ru-intel، de-shared، ws-dedicated…) فعال مانده‌اند
+            | ولی «۰ پلن، از —» رندر می‌کنند؛ Search Console همین‌ها را
+            | «Duplicate, Google chose different canonical» گزارش کرد (۲۱
+            | صفحه، ممیزی ۲۴ اوت ۲۰۲۶). صفحهٔ خالی در نقشهٔ سایت = دعوتِ
+            | خزنده به محتوای هیچ.
+            */
+            $sellableLocs = \App\Models\CloudPlan::query()->sellable()
+                ->distinct()->pluck('location_code')->all();
+            foreach (\App\Models\CloudLocation::where('is_active', true)
+                ->whereIn('code', $sellableLocs)->pluck('code') as $code) {
+                /*
+                | ممیزی ۷، یافتهٔ ۱: نسلِ دومِ همان باگ — کدِ کشورِ دوبل
+                | (de-de-dedicated…) که **پلنِ فروختنی دارد** و برای همین از
+                | فیلترِ بالا رد می‌شود. صفحه‌اش ۳۰۱ به صفحهٔ کشور است؛
+                | sitemap فقط URLِ ۲۰۰ اعلام می‌کند.
+                */
+                if (\App\Models\CloudLocation::isLegacyCode((string) $code)) {
+                    continue;
+                }
                 $add('cloud.location', $code);
             }
         }
         $add('blog.index');
-        foreach (app(\App\Services\BlogRepository::class)->index() as $post) {
-            $add('blog', $post['slug'], $post['date'] ?? null);
+        /*
+        | پست‌ها به‌ازای هر زبان فقط اگر ترجمهٔ همان زبان موجود باشد. بی‌این،
+        | نقشهٔ سایت /en/blog/x را تبلیغ می‌کرد در حالی که find() آن را با
+        | fallbackِ فارسی رندر می‌کند — یعنی صفحهٔ «انگلیسیِ» تمام‌فارسی به
+        | خزنده معرفی می‌شد (بررسی سراسری زبان، مرداد ۱۴۰۵). fa همیشه هست؛
+        | با رسیدنِ ترجمه (کرون یا stepِ translate) نسخهٔ آن زبان خودکار
+        | برمی‌گردد. $add این‌جا به‌کار نمی‌آید چون همهٔ زبان‌ها را یک‌جا می‌زند.
+        */
+        try {
+            $blogPosts = \App\Models\Post::query()
+                ->where('type', 'blog')->where('status', 'published')
+                ->with('translations')
+                ->orderByDesc('published_at')->orderByDesc('id')->get();
+            foreach ($blogPosts as $p) {
+                $date = optional($p->published_at ?? $p->created_at)->toDateString();
+                foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
+                    if ($code === 'fa' || $p->translations->contains('locale', $code)) {
+                        $urls[] = ['loc' => route($prefix.'blog', $p->slug), 'lastmod' => $date];
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // جدولِ مهاجرت‌نشده — بلاگ از نقشه می‌افتد، صفحه ۵۰۰ نمی‌شود (قاعدهٔ BlogRepository)
         }
         $add('webtools.index');
         foreach (\App\Http\Controllers\WebToolsController::slugs() as $wt) {
@@ -346,6 +454,18 @@ class SiteController extends Controller
         | پیشوندِ زبان اضافه می‌شود، نه از مسیرِ `$add()`.
         */
         $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
+
+        /*
+        | صفحاتِ سفارش — ممیزی ۷ قلم ۲ («۶۴ از ۶۴ در sitemap») تصمیمِ
+        | «فقط پرچم‌دار»ِ ممیزی ۶ را برگرداند: هر SKUی فعال صفحهٔ سفارشِ
+        | ایندکس‌پذیر با عنوانِ تراکنشیِ یکتا و اسکیمای Product/AggregateOffer
+        | دارد — تنها قلمِ رودمپ که مستقیم روی درآمد اثر دارد.
+        */
+        foreach (\App\Models\Product::orderableSlugs() as $sku) {
+            $add('order.summary', $sku);
+        }
+
+        $add('official');
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";

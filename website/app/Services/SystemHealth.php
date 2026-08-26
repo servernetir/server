@@ -56,10 +56,14 @@ class SystemHealth
             $this->cron(),
             $this->database(),
             $this->stuckDomains(),
+            $this->expiringDomains(),
+            $this->domainMargin(),
+            $this->registrarBalance(),
             $this->stuckServices(),
             $this->unbilledServices(),
             $this->undeliveredCloud(),
             $this->cloudRelease(),
+            $this->unsellableCatalogue(),
             $this->mailboxes(),
             $this->recentErrors(),
         ];
@@ -158,14 +162,8 @@ class SystemHealth
             ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
-        // 🔴 انقضا هم این‌جاست، و نبودنش یک کوریِ واقعی بود: ممیزی نشان داد
-        //    هیچ چیزی در سامانه انقضای دامنه را **هُل** نمی‌داد؛ فقط یک تبِ
-        //    خاموش در پنلِ مدیر بود که کسی باید سراغش می‌رفت. دامنه‌ای که
-        //    ۷ روز دیگر می‌میرد باید خودش داد بزند.
-        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
-
-        if ($manual > 0 || $old > 0 || $soon > 0) {
-            $level = ($old > 0 || $soon > 0) ? 'fail' : 'warn';
+        if ($manual > 0 || $old > 0) {
+            $level = $old > 0 ? 'fail' : 'warn';
 
             /*
             | همان قاعدهٔ `stuckServices()`: شمارنده بدونِ **نام** یعنی مدیر باید
@@ -186,13 +184,124 @@ class SystemHealth
 
             return $this->row('domains', false, $level, 'صفِ دامنه',
                 ($old > 0 ? fa_num($old).' دامنهٔ پرداخت‌شده بیش از نیم‌ساعت ثبت نشده — یعنی صف پیش نمی‌رود. ' : '')
-                .($soon > 0 ? fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود. ' : '')
                 .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : '')
                 .$list,
                 $names->isEmpty() ? [] : [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
         }
 
         return $this->row('domains', true, 'ok', 'صفِ دامنه', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * انقضای نزدیک — **جدا** از صفِ گیرکرده، و عمداً هرگز `fail` نمی‌شود.
+     *
+     * ═══ چرا جدا شد (ممیزیِ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 وقتی هر دو در چکِ `domains` بودند، «انقضای عادی» — که در هر
+     * پورتفوی زنده‌ای تقریباً همیشه هست — آن چک را برای همیشه `fail` نگه
+     * می‌داشت. امضای هشدار «سطح + نامِ چک‌های خراب» است؛ پس وقتی خرابیِ
+     * **واقعی** (صفِ گیرکرده) اضافه می‌شد، امضا همان `fail|domains` می‌مانْد
+     * و **هیچ اعلانی نمی‌رفت**. سروصدای روزمره، آژیرِ واقعی را خفه کرده بود
+     * — همان «توهمِ پایش»، این بار از راهِ امضا.
+     *
+     * حالا کلیدِ جدا یعنی گیرکردنِ صف امضا را عوض می‌کند و اعلان می‌رود،
+     * حتی وقتی همیشه دامنه‌ای در پنجرهٔ ۷روزه هست. `warn` و نه `fail`:
+     * فاکتور و یادآوری‌اش را کرونِ چرخهٔ عمر خودکار می‌فرستد؛ این ردیف فقط
+     * دیدِ مدیر است.
+     */
+    private function expiringDomains(): array
+    {
+        if (! Schema::hasTable('domains')) {
+            return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
+        }
+
+        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
+
+        if ($soon > 0) {
+            return $this->row('domains_expiry', false, 'warn', 'انقضای دامنه',
+                fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود؛ فاکتور و یادآوری خودکار رفته است.',
+                [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
+        }
+
+        return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'هیچ دامنه‌ای نزدیکِ انقضا نیست.');
+    }
+
+    /**
+     * حاشیهٔ سودِ صفر — فروش به قیمتِ تمام‌شده.
+     *
+     * 🔴 ممیزی: پیش‌فرضِ `DOMAIN_MARGIN_PCT` صفر است (عمدی — عدد باید از
+     * /admin/settings بیاید) ولی هیچ‌چیز به مدیر نمی‌گفت که آن عدد را
+     * **نگذاشته**. نتیجه: هر دامنه به بهای عمده + گردکردن فروخته می‌شد و
+     * کلِ نردبانِ تخفیفِ نمایندگی هم بی‌اثر بود — بی‌صداترین ضررِ ممکن.
+     */
+    private function domainMargin(): array
+    {
+        $setting = trim((string) (\App\Models\Setting::get('domain_margin_pct') ?? ''));
+        $pct = $setting !== ''
+            ? (float) $setting
+            : (float) config('services.openprovider.margin.default', 0);
+
+        if ($pct <= 0) {
+            return $this->row('domain_margin', false, 'warn', 'حاشیهٔ سودِ دامنه',
+                'حاشیهٔ سودِ دامنه صفر است — هر فروش به قیمتِ تمام‌شده انجام می‌شود و تخفیفِ نمایندگی هم بی‌اثر است. '
+                .'در تنظیمات (domain_margin_pct) درصد بگذارید.',
+                [['label' => 'تنظیمات', 'url' => url('/admin/settings')]]);
+        }
+
+        return $this->row('domain_margin', true, 'ok', 'حاشیهٔ سودِ دامنه',
+            'حاشیهٔ سودِ دامنه '.fa_num($pct).'٪ است.');
+    }
+
+    /**
+     * موجودیِ حسابِ ما نزدِ رجیسترارِ دامنه.
+     *
+     * ═══ چرا (ممیزی شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 اگر اعتبارِ حساب ته بکشد، هر ثبت و تمدیدی شکست می‌خورد و تنها
+     * علامتش انباشتِ بی‌صدای صفِ دستی است. این چک **پیش از** آن خبر می‌دهد.
+     *
+     * ⚠️ کشِ ۶ساعته: پایش هر ۱۵ دقیقه می‌دود و بی‌کش یعنی ~۱۰۰ تماس در روز
+     * به حسابی که به‌خاطرِ تماسِ زیاد پرچم خورده. چهار تماس در روز کافی است.
+     *
+     * ⚠️ «نتوانستم بخوانم» هرگز fail نمی‌شود: جای فیلدِ موجودی در پاسخِ
+     * واقعی را ندیده‌ایم و یک ردیفِ دائم-خراب همان «آژیرِ خفه»ای می‌شود که
+     * تازه درمانش کردیم. ناخوانا = ok با توضیح + ثبت در ردیاب، تا دیده شود
+     * بی‌آنکه امضای هشدار را اشغال کند.
+     */
+    private function registrarBalance(): array
+    {
+        $op = app(\App\Services\Domain\OpenProviderClient::class);
+
+        if (! $op->enabled()) {
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار', 'اتصالِ رجیسترار پیکربندی نشده است.');
+        }
+
+        $snap = \Illuminate\Support\Facades\Cache::remember(
+            'openprovider.balance.snapshot',
+            now()->addHours(6),
+            fn () => $op->balance(),
+        );
+
+        if (! ($snap['known'] ?? false)) {
+            \App\Support\ErrorTracker::noteOnce('domain',
+                'موجودیِ حسابِ OpenProvider از API خوانده نشد — پایشِ موجودی فعلاً کور است.', 21600);
+
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+                'موجودی از API خوانده نشد (در ردیاب ثبت شد).');
+        }
+
+        $amount = (float) $snap['amount'];
+        $cur = (string) ($snap['currency'] ?: '');
+        $min = (float) config('services.openprovider.min_balance', 10);
+
+        if ($amount < $min) {
+            return $this->row('domain_balance', false, 'fail', 'موجودیِ رجیسترار',
+                'اعتبارِ حساب OpenProvider رو به اتمام است: '.$amount.' '.$cur
+                .' (آستانه: '.$min.'). ثبت و تمدیدِ بعدی ممکن است شکست بخورد — حساب را شارژ کنید.');
+        }
+
+        return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+            'موجودی: '.$amount.' '.$cur.'.');
     }
 
     /** سرویسی که پول گرفته‌ایم و تحویل نشده — همان پرس‌وجوی `provision:run` */
@@ -503,6 +612,64 @@ class SystemHealth
      * با متنِ ثابت یعنی وقتی ردیفِ تازه‌ای اضافه شود هیچ اعلانی نمی‌رود (اعلان
      * فقط روی تغییرِ وضعیت است) — همان توهمِ پایش که بدتر از نبودِ هشدار است.
      */
+    /**
+     * 🔴 پلنی که **قیمت ندارد** از فروشگاه غیب می‌شود — بی‌هیچ خطایی.
+     *
+     * `scopeSellable` عمداً `price_irt > 0` می‌خواهد، و این تصمیمِ درستی است
+     * (بهتر از فروشِ کارتِ گران به قیمتِ هیچ). ولی عارضه‌اش سکوت است: اگر
+     * نرخِ ارز نباشد، بهایِ **همهٔ** پلن‌های یک زیرساخت صفر می‌شود و کلِ آن
+     * خطِ محصول از سایت ناپدید می‌شود، در حالی که کاتالوگ پر است و کرون هم
+     * موفق گزارش می‌دهد.
+     *
+     * این دقیقاً همان الگوی «گران‌ترین خرابی‌های این پروژه هیچ استثنایی
+     * نساختند» است — و روی زیرساختِ GPU حادتر، چون **دلاری** است و نرخِ دلار
+     * راهِ فرارِ دستی‌اش تازه ساخته شده.
+     *
+     * ⚠️ ادعا روی «کاتالوگ دارد ولی هیچ‌کدام فروختنی نیست» است، نه بر خودِ
+     * صفر بودنِ قیمت: زیرساختی که مدیر عمداً همه‌اش را بسته باشد نباید هشدار
+     * بسازد، و پلنِ ناموجود هم علتِ خودش را دارد.
+     */
+    private function unsellableCatalogue(): array
+    {
+        try {
+            if (! Schema::hasTable('cloud_plans')) {
+                return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ', 'روی این نصب فعال نیست.');
+            }
+
+            $bad = [];
+
+            foreach (\App\Models\CloudPlan::query()
+                ->where('is_active', true)
+                ->where('admin_disabled', false)
+                ->selectRaw('provider, count(*) as n, sum(case when price_irt > 0 then 1 else 0 end) as priced')
+                ->groupBy('provider')
+                ->get() as $g) {
+                if ((int) $g->n > 0 && (int) $g->priced === 0) {
+                    $bad[] = (string) $g->provider;
+                }
+            }
+        } catch (\Throwable $e) {
+            return $this->row('catalogue_price', false, 'warn', 'قیمتِ کاتالوگ',
+                'کاتالوگ خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($bad === []) {
+            return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ',
+                'هر زیرساختِ فعالی دستِ‌کم یک پلنِ قیمت‌دار دارد.');
+        }
+
+        $manager = app(\App\Services\Cloud\CloudManager::class);
+
+        // ⚠️ نامِ زیرساخت در **متن** است، وگرنه امضای وضعیت ثابت می‌مانَد و
+        //    خرابیِ زیرساختِ دوم هیچ اعلانی نمی‌سازد. همان قاعدهٔ این فایل.
+        $names = implode('، ', array_map(fn ($p) => $manager->label($p), $bad));
+
+        return $this->row('catalogue_price', false, 'fail', 'قیمتِ کاتالوگ',
+            'همهٔ پلن‌های '.$names.' قیمتِ صفر دارند، پس از فروشگاه **کاملاً غیب**
+             شده‌اند — بی‌هیچ خطایی. معمولاً یعنی نرخِ ارزِ آن زیرساخت خوانده
+             نشده؛ نرخِ دستی را در تنظیمات ← قیمت‌گذاری بگذارید (یورو و دلار جدا).');
+    }
+
     private function cloudRelease(): array
     {
         try {

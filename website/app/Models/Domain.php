@@ -32,7 +32,7 @@ class Domain extends Model
         'provision_status', 'provision_tries', 'provision_error',
         'op_id', 'owner_handle', 'period_years', 'auto_renew', 'is_locked',
         'whois_privacy', 'name_servers', 'registered_at', 'expires_at',
-        'price_toman', 'renew_toman', 'cost_amount', 'cost_currency',
+        'price_toman', 'renew_toman', 'cost_amount', 'cost_renew_amount', 'cost_currency',
         'quote_id', 'invoice_id', 'meta',
     ];
 
@@ -56,7 +56,7 @@ class Domain extends Model
      * ⚠️ بهایِ تمام‌شده هرگز نباید در JSONی که به مشتری می‌رود ظاهر شود —
      * همان قاعدهٔ `CloudPlan::$hidden`. حاشیهٔ سودِ ما دادهٔ داخلی است.
      */
-    protected $hidden = ['cost_amount', 'cost_currency', 'owner_handle', 'op_id'];
+    protected $hidden = ['cost_amount', 'cost_renew_amount', 'cost_currency', 'owner_handle', 'op_id'];
 
     public function customer(): BelongsTo
     {
@@ -223,6 +223,24 @@ class Domain extends Model
     public function renewYears(): int
     {
         return max(1, (int) (($this->meta['renew_years'] ?? 1)));
+    }
+
+    /**
+     * دامنه‌های منقضی که **بازیابی‌شان پرداخت شده** و منتظرِ رجیسترارند.
+     *
+     * 🔴 همان قاعدهٔ جداییِ صف‌ها با `status`: ثبت روی `pending`، تمدید روی
+     * `active`، بازیابی روی `expired` — سه مجموعهٔ قطعاً بی‌اشتراک. اگر
+     * روزی یکی از این شرط‌ها را برداری، یک بازیابی می‌تواند به‌جای ثبتِ
+     * تازه پردازش شود و دامنه دوباره خریده شود.
+     */
+    public function scopeAwaitingRestore(Builder $q): Builder
+    {
+        return $q->where('status', 'expired')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(self::STALE_LOCK_MINUTES))));
     }
 
     /** آخرین مرحلهٔ یادآوریِ انقضا که فرستاده شده — جلوی پیامِ تکراری */

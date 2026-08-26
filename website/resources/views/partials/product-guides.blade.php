@@ -11,7 +11,8 @@
   کلاسِ CSS تازه‌ای لازم نشود — کلاسِ نبود، بی‌خطا بی‌استایل رندر می‌شود.
 --}}
 @php
-  $gPosts = blog_guides($guidesCat ?? null, 3);
+  // بذرِ پخش: مسیرِ همین صفحه — هر صفحهٔ محصول سه پستِ متفاوتِ همان دسته را لینک می‌دهد (ممیزی ۶)
+  $gPosts = blog_guides($guidesCat ?? null, 3, $guidesSeed ?? request()->path());
   $gCats = config('blog.categories');
   $gCovers = config('blog.covers');
 @endphp

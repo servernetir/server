@@ -244,4 +244,88 @@ class Product extends Model
     {
         return self::CATEGORIES[$this->category] ?? $this->category;
     }
+
+    /**
+     * آیا ضمانتِ ۱۴روزهٔ بازگشتِ وجه شاملِ این پکیج می‌شود؟ — ممیزی ۶ (حقوقی)
+     *
+     * ضمانت روی ۶۴ صفحهٔ /order تعمیم داده شده بود، از جمله دامنه/SSL/لایسنس/
+     * سرورِ اختصاصی که **عملاً غیرقابلِ بازگشت**اند: «ادعای عمومی گسترده‌تر از
+     * چیزی که می‌توان اجرا کرد». شمول از پیش‌نویسِ بندِ بازگشتِ وجه: هاست،
+     * نمایندگی، سرور مجازی/ابری، پنل‌ها. مستثنیات صریح: لایسنس پس از تحویلِ
+     * کلید، سرورِ اختصاصی/سخت‌افزارِ سفارشی، «سایر». دامنه/SSL اصلاً از این
+     * مسیر فروخته نمی‌شوند.
+     */
+    public function isRefundable(): bool
+    {
+        return in_array($this->category, ['shared', 'reseller', 'vps', 'plesk', 'directadmin'], true);
+    }
+
+    /**
+     * پکیج‌های «پرچم‌دار» برای sitemap و llms — ممیزی ۶ (سئو): «ایندکس کن،
+     * اما فقط ۱۰–۱۵ SKU پرچم‌دار در sitemap؛ بقیه noindex,follow» تا ۶۴ صفحهٔ
+     * هم‌قالب، ریسکِ «محتوای مقیاس‌شده» نسازد.
+     *
+     * تعریفِ پرچم‌دار، همان `popular => true`ِ config است که صفحهٔ محصول نشان
+     * می‌دهد (اسلاگِ DB = `{group}-{شمارهٔ پلن}`). یک منبعِ حقیقت، نه فهرستِ دستی.
+     *
+     * @return list<string>
+     */
+    public static function flagshipSlugs(int $cap = 15): array
+    {
+        $out = [];
+
+        foreach ((array) config('hosting.products', []) as $group => $p) {
+            foreach ((array) ($p['plans'] ?? []) as $i => $plan) {
+                if (! empty($plan['popular'])) {
+                    $out[] = $group.'-'.($i + 1);
+                }
+            }
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                $active = static::where('is_active', true)->whereIn('slug', $out)->pluck('slug')->all();
+                $out = array_values(array_intersect($out, $active));
+            }
+        } catch (\Throwable) {
+            // بی‌DB هم فهرستِ configی کافی است؛ sitemap نباید ۵۰۰ شود
+        }
+
+        return array_slice($out, 0, $cap);
+    }
+
+    /**
+     * همهٔ SKUهای فعالِ دارای صفحهٔ /order — برای sitemap (ممیزی ۷، قلم ۲:
+     * «۶۴ از ۶۴ در sitemap»). همان منبعِ حقیقتِ flagshipSlugs، بدونِ شرطِ
+     * popular و بدونِ سقف؛ ترتیب همان ترتیبِ config تا خروجی قطعی باشد.
+     *
+     * ⚠️ فقط اسلاگ‌هایی که هم در config هستند هم (اگر DB در دسترس است) ردیفِ
+     * فعالِ products دارند — صفحهٔ سفارشِ محصولِ غیرفعال ۴۰۴ است و نباید
+     * به sitemap برود.
+     *
+     * @return list<string>
+     */
+    public static function orderableSlugs(): array
+    {
+        $out = [];
+
+        foreach ((array) config('hosting.products', []) as $group => $p) {
+            foreach (array_keys((array) ($p['plans'] ?? [])) as $i) {
+                $out[] = $group.'-'.($i + 1);
+            }
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                // صفحهٔ /order فقط برای ردیفِ فعالِ DB رندر می‌شود، پس با DB
+                // در دسترس، خودِ DB منبعِ حقیقت است (شاملِ محصولی که مدیر
+                // مستقیم ساخته و در config نیست). ترتیبِ اسلاگ قطعی است.
+                return static::where('is_active', true)->orderBy('slug')->pluck('slug')->all();
+            }
+        } catch (\Throwable) {
+            // بی‌DB، فهرستِ configی؛ sitemap نباید ۵۰۰ شود
+        }
+
+        return $out;
+    }
 }

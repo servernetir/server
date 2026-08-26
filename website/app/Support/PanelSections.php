@@ -175,12 +175,31 @@ final class PanelSections
             return ['ok', 'dmn_state_active', null];
         }
 
+        /*
+        | 🔴 انتقال پیش از صفِ دستی می‌آید، وگرنه انتقالِ شکست‌خورده
+        | (provision=manual) برچسبِ «در صف ثبت دستی» می‌گرفت — و تا ممیزیِ
+        | شهریور ۱۴۰۵ اصلاً هیچ شاخه‌ای برای `transferring` نبود: مشتریِ
+        | پرداخت‌کرده «نامشخص» می‌دید.
+        */
+        if ($d->status === Domain::STATUS_TRANSFERRING) {
+            return match ($d->transfer_status) {
+                'submitted' => ['info', 'dmn_state_transfer_wait', null],
+                'failed'    => ['danger', 'dmn_state_transfer_failed', null],
+                default     => ['warn', 'dmn_state_transfer_epp', null],
+            };
+        }
+
         if ($d->provision_status === 'manual') {
             return ['warn', 'dmn_state_manual', null];
         }
 
         if ($d->isPending()) {
             return ['info', 'dmn_state_pending', null];
+        }
+
+        // منقضی ولی شاید هنوز قابلِ نجات (redemption) — نباید «نامشخص» بگیرد
+        if ($d->status === 'expired') {
+            return ['danger', 'dmn_state_expired', null];
         }
 
         return ['mute', 'dmn_state_other', null];

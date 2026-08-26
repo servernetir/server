@@ -5,41 +5,48 @@
 | کاتالوگ دامنه — ۶ صفحه (fa / en / tr)
 |--------------------------------------------------------------------------
 | billing=yearly یعنی سوییچ ماهانه/سالانه ندارد و قیمت‌ها سالانه‌اند.
-| plan['url'] لینک خرید WHMCS را جایگزین buy_url(pid) می‌کند.
+|
+| 🔴 قاعدهٔ ممیزیِ شهریور ۱۴۰۵: **این صفحه فقط چیزی را وعده می‌دهد که کد
+| واقعاً دارد.** نسخهٔ قبلی «پنل DNS پیشرفته + DNSSEC»، «حریم خصوصی WHOIS»،
+| «تمدید خودکار تا دامنه هرگز منقضی نشود» و «قیمت تمدید = قیمت ثبت» را وعده
+| می‌داد — هیچ‌کدام وجود نداشت و هرکدام یک شکایتِ قابلِ پیش‌بینی بود (همان
+| درسی که ورودیِ «نمایندگی» پایینِ همین فایل مستند کرده). چیزی به این فهرست
+| اضافه نکن مگر کدش را نشان بدهی.
+|
+| لینک‌های cart.php (WHMCSِ بیرونیِ مرده) هم حذف شدند؛ خرید از جستجوی داخلی.
 */
 
-$regUrl = 'cart.php?a=add&domain=register';
-$dns = ['fa' => 'مدیریت DNS رایگان', 'en' => 'Free DNS management', 'tr' => 'Ücretsiz DNS yönetimi'];
-$lock = ['fa' => 'قفل انتقال + تمدید خودکار', 'en' => 'Transfer lock + auto-renew', 'tr' => 'Transfer kilidi + otomatik yenileme'];
+$dns = ['fa' => 'مدیریت نام‌سرور از پنل', 'en' => 'Nameserver management', 'tr' => 'Panelden NS yönetimi'];
+$lock = ['fa' => 'قفل انتقال + یادآوری تمدید', 'en' => 'Transfer lock + renewal reminders', 'tr' => 'Transfer kilidi + yenileme hatırlatması'];
 
 $mkTld = fn (string $name, int $irt, float $eur, array $specs, bool $pop = false) =>
-    array_filter(['name' => $name, 'pid' => 0, 'url' => 'cart.php?a=add&domain=register', 'irt' => $irt, 'eur' => $eur, 'specs' => $specs, 'popular' => $pop]);
+    array_filter(['name' => $name, 'pid' => 0, 'irt' => $irt, 'eur' => $eur, 'specs' => $specs, 'popular' => $pop]);
 
 $domainFeatures = [
     ['icon' => 'layout',
-        'fa' => ['t' => 'پنل DNS پیشرفته رایگان', 'd' => 'رکوردهای A، CNAME، MX، TXT و SRV با اعمال آنی — به‌همراه DNSSEC برای امنیت بیشتر.'],
-        'en' => ['t' => 'Free Advanced DNS Panel', 'd' => 'A, CNAME, MX, TXT and SRV records with instant propagation — plus DNSSEC for extra security.'],
-        'tr' => ['t' => 'Ücretsiz Gelişmiş DNS Paneli', 'd' => 'Anında yayılan A, CNAME, MX, TXT ve SRV kayıtları — ek güvenlik için DNSSEC.']],
+        'fa' => ['t' => 'مدیریت کامل از پنل', 'd' => 'نام‌سرورها، قفل انتقال، کد EPP و تمدید — همه از پنل سرورنت، بدون تیکت و بدون معطلی.'],
+        'en' => ['t' => 'Full Panel Management', 'd' => 'Nameservers, transfer lock, EPP code and renewals — all from your ServerNet panel, no tickets needed.'],
+        'tr' => ['t' => 'Panelden Tam Yönetim', 'd' => 'Ad sunucuları, transfer kilidi, EPP kodu ve yenileme — hepsi ServerNet panelinden.']],
     ['icon' => 'lock',
-        'fa' => ['t' => 'حریم خصوصی WHOIS', 'd' => 'اطلاعات تماس شما در WHOIS عمومی مخفی می‌ماند — خداحافظ اسپم و تماس‌های مزاحم.'],
-        'en' => ['t' => 'WHOIS Privacy', 'd' => 'Your contact details stay hidden from public WHOIS — goodbye spam and cold calls.'],
-        'tr' => ['t' => 'WHOIS Gizliliği', 'd' => 'İletişim bilgileriniz genel WHOIS\'te gizli kalır.']],
+        'fa' => ['t' => 'ثبت با شناسه شرکتی', 'd' => 'ثبت از طریق شناسه رسمی سرورنت نزد رجیسترار انجام می‌شود و مالکیت شما در پنل ثبت و پشتیبانی می‌شود.'],
+        'en' => ['t' => 'Company-Handle Registration', 'd' => 'Registration goes through ServerNet\'s official registrar handle; your ownership is recorded and supported in your panel.'],
+        'tr' => ['t' => 'Kurumsal Kimlikle Kayıt', 'd' => 'Kayıt, ServerNet\'in resmî kimliğiyle yapılır; sahipliğiniz panelde kayıtlıdır.']],
     ['icon' => 'shield',
-        'fa' => ['t' => 'قفل امنیتی انتقال', 'd' => 'دامنه بدون تایید دومرحله‌ای شما هرگز منتقل نمی‌شود — حتی اگر حساب ایمیلتان لو برود.'],
-        'en' => ['t' => 'Transfer Security Lock', 'd' => 'Your domain never transfers without your two-step confirmation — even if your email is compromised.'],
-        'tr' => ['t' => 'Transfer Güvenlik Kilidi', 'd' => 'İki adımlı onayınız olmadan alan adınız asla transfer edilmez.']],
+        'fa' => ['t' => 'قفل امنیتی انتقال', 'd' => 'قفل انتقال از پنل در اختیار شماست و کد انتقال فقط پس از ورود به حساب و خاموش‌کردن قفل، یک‌بار نمایش داده می‌شود.'],
+        'en' => ['t' => 'Transfer Security Lock', 'd' => 'You control the transfer lock from your panel; the EPP code is shown once, only after you sign in and disable the lock.'],
+        'tr' => ['t' => 'Transfer Güvenlik Kilidi', 'd' => 'Transfer kilidi panelinizde; EPP kodu yalnızca giriş yapıp kilidi kapattıktan sonra bir kez gösterilir.']],
 ];
 
 $renewFaq = [
-    'fa' => ['q' => 'هزینه تمدید سال‌های بعد چقدر است؟', 'a' => 'قیمت تمدید همان قیمت ثبت است و قبل از سررسید با ایمیل و پیامک خبر می‌دهیم. تمدید خودکار را هم می‌توانید فعال کنید تا دامنه هرگز منقضی نشود.'],
-    'en' => ['q' => 'What does renewal cost in later years?', 'a' => 'Renewal costs the same as registration, and we notify you by email and SMS before expiry. Enable auto-renew and your domain will never lapse.'],
-    'tr' => ['q' => 'Sonraki yıllarda yenileme ne kadar?', 'a' => 'Yenileme, kayıtla aynı fiyattadır; süresi dolmadan e-posta ve SMS ile bildiririz.'],
+    'fa' => ['q' => 'هزینه تمدید سال‌های بعد چقدر است؟', 'a' => 'قیمت تمدید هر پسوند جداست و ممکن است از قیمت ثبت سال اول بیشتر باشد؛ عدد دقیق را همان لحظه در نتیجه جستجو و صفحه پرداخت می‌بینید. ۲۱ روز مانده به سررسید فاکتور تمدید صادر و با ایمیل و پیامک یادآوری می‌شود؛ از پنل هم هر زمان می‌توانید زودتر یا چندساله تمدید کنید.'],
+    'en' => ['q' => 'What does renewal cost in later years?', 'a' => 'Each TLD has its own renewal price, which may be higher than the first-year price; you see the exact figure during search and at checkout. A renewal invoice is issued 21 days before expiry with email and SMS reminders, and you can renew early or for multiple years from your panel at any time.'],
+    'tr' => ['q' => 'Sonraki yıllarda yenileme ne kadar?', 'a' => 'Her uzantının kendi yenileme fiyatı vardır ve ilk yıl fiyatından yüksek olabilir; kesin rakamı arama ve ödeme sayfasında görürsünüz. Süre dolmadan 21 gün önce fatura kesilir ve hatırlatma gönderilir; panelden istediğiniz zaman erken veya çok yıllık yenileyebilirsiniz.'],
 ];
 
 $transferFaq = [
-    'fa' => ['q' => 'انتقال دامنه از شرکت دیگر چطور است؟', 'a' => 'کد انتقال (EPP) را از شرکت فعلی بگیرید و در سفارش وارد کنید؛ انتقال معمولاً ۵ تا ۷ روز طول می‌کشد و یک سال تمدید رایگان به دامنه اضافه می‌شود.'],
-    'en' => ['q' => 'How do I transfer a domain from another registrar?', 'a' => 'Get the EPP code from your current registrar and enter it at checkout; transfers usually take 5–7 days and add a free year of renewal.'],
-    'tr' => ['q' => 'Başka kayıt şirketinden nasıl transfer ederim?', 'a' => 'Mevcut şirketten EPP kodunu alın ve siparişte girin; transfer 5–7 gün sürer ve bir yıl ücretsiz yenileme ekler.'],
+    'fa' => ['q' => 'انتقال دامنه از شرکت دیگر چطور است؟', 'a' => 'کد انتقال (EPP) را از شرکت فعلی بگیرید و پس از پرداخت، در صفحه دامنه وارد کنید؛ انتقال معمولاً ۵ تا ۷ روز طول می‌کشد و هزینه آن شامل یک سال تمدید است.'],
+    'en' => ['q' => 'How do I transfer a domain from another registrar?', 'a' => 'Get the EPP code from your current registrar and enter it on the domain page after payment; transfers usually take 5–7 days and the fee includes one year of renewal.'],
+    'tr' => ['q' => 'Başka kayıt şirketinden nasıl transfer ederim?', 'a' => 'Mevcut şirketten EPP kodunu alın ve ödemeden sonra alan adı sayfasında girin; transfer 5–7 gün sürer ve ücrete bir yıllık yenileme dahildir.'],
 ];
 
 return [
@@ -48,20 +55,20 @@ return [
         'icon' => 'db', 'group' => 'register', 'billing' => 'yearly',
         'fa' => ['t' => 'دامنه عمومی',
             'seo_t' => 'خرید دامنه | ثبت دامنه com، net، org و ۱۰۰+ پسوند',
-            'seo_d' => 'خرید و ثبت آنلاین دامنه .com، .net، .org و بیش از ۱۰۰ پسوند بین‌المللی با قیمت لحظه‌ای، پرداخت ریالی، پنل DNS حرفه‌ای و WHOIS Privacy.',
-            'tag' => 'com. · net. · org. و ۱۰۰+ پسوند',
+            'seo_d' => 'خرید و ثبت آنلاین دامنه .com، .net، .org و ده‌ها پسوند بین‌المللی با قیمت لحظه‌ای از رجیسترار، پرداخت ریالی و مدیریت کامل از پنل سرورنت.',
+            'tag' => 'com. · net. · org. و ده‌ها پسوند',
             'hero_t' => 'نام کسب‌وکارتان را', 'hero_g' => 'همین امروز ثبت کنید.',
-            'hero_d' => 'ثبت آنی بیش از ۱۰۰ پسوند بین‌المللی با پنل DNS حرفه‌ای، WHOIS Privacy و قیمت شفاف — دامنه‌ای که حق شماست، قبل از بقیه بردارید.'],
+            'hero_d' => 'ثبت آنی ده‌ها پسوند بین‌المللی با قیمت لحظه‌ای و شفاف از رجیسترار و مدیریت کامل از پنل — دامنه‌ای که حق شماست، قبل از بقیه بردارید.'],
         'en' => ['t' => 'Popular TLDs',
-            'seo_t' => 'Buy a Domain | .com, .net, .org and 100+ TLDs',
-            'seo_d' => 'Search and register .com, .net, .org and 100+ international domains online with live pricing, a pro DNS panel and WHOIS privacy.',
-            'tag' => '.com · .net · .org & 100+ more',
+            'seo_t' => 'Buy a Domain | .com, .net, .org and more TLDs',
+            'seo_d' => 'Search and register .com, .net, .org and dozens of international domains online with live registrar pricing and full panel management.',
+            'tag' => '.com · .net · .org & more',
             'hero_t' => 'Register your business name', 'hero_g' => 'today, before someone else.',
-            'hero_d' => 'Instant registration of 100+ international TLDs with a pro DNS panel, WHOIS privacy and transparent pricing.'],
-        'tr' => ['t' => 'Popüler Uzantılar', 'tag' => '.com · .net · .org ve 100+ uzantı',
+            'hero_d' => 'Instant registration of dozens of international TLDs with live, transparent pricing and full panel management.'],
+        'tr' => ['t' => 'Popüler Uzantılar', 'tag' => '.com · .net · .org ve onlarca uzantı',
             'hero_t' => 'İşletme adınızı', 'hero_g' => 'bugün kaydedin.',
-            'hero_d' => 'Profesyonel DNS paneli, WHOIS gizliliği ve şeffaf fiyatlarla 100\'den fazla uluslararası uzantının anında kaydı.'],
-        'chips' => ['Instant Registration', 'DNSSEC', 'WHOIS Privacy', 'Free DNS', 'EPP Transfer'],
+            'hero_d' => 'Canlı ve şeffaf fiyatlarla onlarca uluslararası uzantının anında kaydı, tam panel yönetimiyle.'],
+        'chips' => ['Instant Registration', 'Live Pricing', 'NS Management', 'Transfer Lock', 'EPP Transfer'],
         'signature' => ['type' => 'domainsearch',
             'fa' => ['t' => 'همین حالا امتحان کنید', 'd' => 'استعلام زنده از رجیسترار — نام دلخواهتان آزاد است؟'],
             'en' => ['t' => 'Try it right now', 'd' => 'Live registrar lookup — is your name still available?'],
@@ -80,20 +87,20 @@ return [
         'icon' => 'pin', 'group' => 'register', 'billing' => 'yearly',
         'fa' => ['t' => 'دامنه IR',
             'seo_t' => 'ثبت دامنه ir | خرید دامنه ملی .ir آنلاین و فوری',
-            'seo_d' => 'ثبت آنلاین و آنی دامنه .ir زیر نظر ایرنیک با پشتیبانی کامل فرایند شناسه (هندل)؛ پنل DNS، تمدید خودکار، پرداخت ریالی و مدیریت از پنل سرورنت.',
+            'seo_d' => 'ثبت دامنه .ir زیر نظر ایرنیک با پشتیبانی کامل فرایند شناسه (هندل)، پرداخت ریالی و مدیریت از پنل سرورنت.',
             'tag' => 'نماینده ثبت ایرنیک',
             'hero_t' => 'هویت ایرانی کسب‌وکار شما،', 'hero_g' => 'با دامنه ir.',
             'hero_d' => 'ثبت مستقیم و آنی دامنه‌های ir. زیر نظر ایرنیک — ارزان‌ترین راه حضور رسمی آنلاین در ایران، با پشتیبانی کامل فرایند شناسه ایرنیک.'],
         'en' => ['t' => '.ir Domains',
             'seo_t' => 'Register .ir Domain | Iran national TLD, instant',
-            'seo_d' => 'Register a .ir domain online and instantly under IRNIC with full handle support; DNS panel, auto-renew and full management from your ServerNet panel.',
+            'seo_d' => 'Register a .ir domain under IRNIC with full handle support and full management from your ServerNet panel.',
             'tag' => 'IRNIC accredited',
             'hero_t' => 'Your Iranian identity', 'hero_g' => 'with a .ir domain.',
             'hero_d' => 'Direct, instant .ir registration under IRNIC — the most affordable official web presence in Iran, with full IRNIC-handle support.'],
         'tr' => ['t' => '.ir Alan Adları', 'tag' => 'IRNIC akredite',
             'hero_t' => '.ir alan adıyla', 'hero_g' => 'İran kimliğiniz.',
             'hero_d' => 'IRNIC altında doğrudan ve anında .ir kaydı — İran\'da resmi web varlığının en uygun yolu.'],
-        'chips' => ['IRNIC Accredited', 'Instant Setup', 'Free DNS', '1–5 Year Terms', 'Local Support'],
+        'chips' => ['IRNIC Handle Support', 'NS Management', '1–5 Year Terms', 'Local Support'],
         'signature' => ['type' => 'domainsearch',
             'fa' => ['t' => 'دامنه ir دلخواهتان آزاد است؟', 'd' => 'استعلام زنده — همین الان چک کنید'],
             'en' => ['t' => 'Is your .ir available?', 'd' => 'Live lookup — check right now'],
@@ -129,7 +136,7 @@ return [
         'tr' => ['t' => 'Farsça (IDN) Alan Adları', 'tag' => 'IDN · Fars alfabesiyle',
             'hero_t' => 'Web adresiniz,', 'hero_g' => 'ana dilinizde.',
             'hero_d' => 'Fars alfabesiyle yazılan alan adları — müşterinin okuduğu gibi yazacağı adresler.'],
-        'chips' => ['Persian Script', '.ایران TLD', 'Punycode Auto', 'Free DNS', 'IRNIC Accredited'],
+        'chips' => ['Persian Script', '.ایران TLD', 'Punycode Auto', 'NS Management'],
         'signature' => ['type' => 'domainsearch',
             'fa' => ['t' => 'نام فارسی دلخواهتان آزاد است؟', 'd' => 'فارسی تایپ کنید — استعلام زنده'],
             'en' => ['t' => 'Is your Persian name available?', 'd' => 'Type in Persian — live lookup'],
@@ -162,7 +169,7 @@ return [
         'tr' => ['t' => 'Premium Uzantılar', 'tag' => '.ai · .io · .dev · premium',
             'hero_t' => 'Markanızı benzersiz kılan', 'hero_g' => 'uzantılar.',
             'hero_d' => 'AI girişiminiz için .ai\'den ekibiniz için .dev\'e — daha kısa, daha akılda kalıcı modern uzantılar.'],
-        'chips' => ['.ai / .io / .dev', 'Premium Names', 'Brand Protection', 'Free DNS', 'WHOIS Privacy'],
+        'chips' => ['.ai / .io / .dev', 'Premium Names', 'Live Pricing', 'NS Management'],
         'signature' => ['type' => 'domainsearch',
             'fa' => ['t' => 'برند خاصتان را چک کنید', 'd' => 'استعلام زنده پسوندهای خاص و پرمیوم'],
             'en' => ['t' => 'Check your special brand', 'd' => 'Live lookup for premium TLDs'],

@@ -622,17 +622,38 @@ if (! function_exists('blog_guides')) {
      *
      * @return array<int,array<string,mixed>>
      */
-    function blog_guides(?string $blogCategory, int $n = 3): array
+    function blog_guides(?string $blogCategory, int $n = 3, ?string $seed = null): array
     {
         try {
             $repo = app(\App\Services\BlogRepository::class);
 
-            $out = $blogCategory ? array_slice($repo->byCategory($blogCategory), 0, $n) : [];
+            /*
+            | پخشِ لینک (ممیزی ۶): «۳۶ پست یتیم» چون هر ۱۳۳ صفحهٔ محصول همان
+            | ۳ پستِ تازهٔ هر دسته را لینک می‌دادند و بقیهٔ پست‌ها هیچ‌وقت نوبتشان
+            | نمی‌شد. حالا نقطهٔ شروعِ فهرست از hashِ **همین صفحه** می‌آید —
+            | قطعی (هر بار همان؛ کش و خزنده گیج نمی‌شوند) ولی بینِ صفحه‌ها
+            | متفاوت، پس در مجموع همهٔ پست‌های دسته لینک می‌گیرند. (و انکرها
+            | عنوانِ خودِ پست‌اند، نه متنِ ثابت — ریسکِ یکنواختیِ انکر هم نیست.)
+            */
+            $rotate = function (array $list) use ($seed): array {
+                $c = count($list);
+
+                if ($c <= 1 || $seed === null || $seed === '') {
+                    return $list;
+                }
+
+                $off = crc32($seed) % $c;
+
+                return array_merge(array_slice($list, $off), array_slice($list, 0, $off));
+            };
+
+            $pool = $blogCategory ? $rotate($repo->byCategory($blogCategory)) : [];
+            $out = array_slice($pool, 0, $n);
 
             if (count($out) < $n) {
                 $have = array_column($out, 'slug');
 
-                foreach ($repo->index() as $p) {
+                foreach ($rotate($repo->index()) as $p) {
                     if (count($out) >= $n) {
                         break;
                     }
@@ -717,6 +738,43 @@ if (! function_exists('schema_ld')) {
         );
 
         return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+}
+
+if (! function_exists('schema_offer_extras')) {
+    /**
+     * فیلدهای مشترکی که Search Console در گزارشِ «Merchant listings» برای هر
+     * Offer بدونشان هشدار می‌دهد: validFrom، hasMerchantReturnPolicy و
+     * shippingDetails (ممیزی ۲۴ اوت ۲۰۲۶ — ۶۷ آیتم، سه هشدار در هر آیتم).
+     *
+     * سرویس‌ها دیجیتال‌اند و کالایی پست نمی‌شود؛ ارسال = صفر-هزینه/آنی، و
+     * ضمانتِ بازگشتِ وجه همان وعدهٔ ۱۴ روزه‌ای است که FAQ و صفحهٔ terms به
+     * مشتری می‌دهند — این‌جا فقط نشانه‌گذاری می‌شود، نه وعدهٔ تازه.
+     */
+    function schema_offer_extras(string $currency): array
+    {
+        return [
+            // اولِ ماه، نه now(): اسکیما نباید هر روز عوض شود (pagecache و
+            // خزشِ مجدد بی‌دلیل).
+            'validFrom' => now()->startOfMonth()->toDateString(),
+            'hasMerchantReturnPolicy' => [
+                '@type' => 'MerchantReturnPolicy',
+                'applicableCountry' => 'IR',
+                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+                'merchantReturnDays' => 14,
+                'returnFees' => 'https://schema.org/FreeReturn',
+            ],
+            'shippingDetails' => [
+                '@type' => 'OfferShippingDetails',
+                'shippingRate' => ['@type' => 'MonetaryAmount', 'value' => 0, 'currency' => $currency],
+                'shippingDestination' => ['@type' => 'DefinedRegion', 'addressCountry' => 'IR'],
+                'deliveryTime' => [
+                    '@type' => 'ShippingDeliveryTime',
+                    'handlingTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 0, 'unitCode' => 'DAY'],
+                    'transitTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 0, 'unitCode' => 'DAY'],
+                ],
+            ],
+        ];
     }
 }
 

@@ -226,18 +226,20 @@ class DomainCheckController extends Controller
     }
 
     /**
-     * دفترچهٔ قیمتِ کش‌شده.
+     * دفترچهٔ قیمت — **فقط از کش**.
      *
-     * ⚠️ در try/catch: اگر رجیسترار در لحظهٔ تازه‌سازیِ کش نخوابد، جعبهٔ جستجوی
-     * صفحهٔ اول نباید خطا بدهد. قیمتِ نبود بدتر از صفحهٔ شکسته نیست — نتیجهٔ
-     * زنده هنوز سرِ جایش است.
+     * 🔴 `forTlds()` روی کشِ سرد استعلامِ زنده می‌زند؛ یعنی این endpointِ
+     * عمومی (جعبهٔ جستجوی صفحهٔ اول، ۴۰ درخواست در دقیقه به‌ازای هر IP)
+     * بازدیدکننده را به تماسِ API با حسابی تبدیل می‌کرد که یک بار به‌خاطرِ
+     * تماسِ زیاد علامت خورده. گرم‌کردنِ کش کارِ کرونِ `domains:price-book`
+     * است؛ اگر هنوز گرم نشده، بی‌قیمت نشان می‌دهیم — نتیجهٔ زنده سرِ جایش است.
      *
      * @return array<string,int>
      */
     private function priceBook(TldPriceBook $book): array
     {
         try {
-            return $book->forTlds(self::SUGGEST);
+            return $book->cachedForTlds(self::SUGGEST);
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('domain', $e, ['area' => 'price-book']);
 

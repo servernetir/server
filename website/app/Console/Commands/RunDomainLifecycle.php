@@ -4,11 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Domain;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
+use App\Services\Domain\DomainRenewalInvoicer;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -54,8 +53,26 @@ class RunDomainLifecycle extends Command
     /** مراحلِ یادآوری — از دور به نزدیک */
     private const STAGES = [7, 3, 1];
 
-    public function handle(CustomerNotifier $customers, AdminNotifier $admin): int
-    {
+    /**
+     * یادآوری‌های **دورهٔ بازیابی** — روزهای گذشته از انقضا (عددِ منفی).
+     *
+     * ═══ چرا (ممیزی شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 «پنجرهٔ سکوت»: آخرین پیامِ مشتری «فردا منقضی می‌شود» بود و بعد ۳۰
+     * روز هیچ — و بعد «منقضی شد و دورهٔ بازیابی هم گذشت». دقیقاً پنجره‌ای
+     * که هنوز می‌شد دامنه را نجات داد، ساکت‌ترین پنجره بود.
+     *
+     * ⚠️ منفی‌ها هم نزولی‌اند تا منطقِ «این مرحله یا نزدیک‌ترش رفته»
+     * (`sent <= stage`) بدونِ تغییر کار کند: ۷ → ۳ → ۱ → ۳- → ۱۰- → ۲۰-.
+     */
+    private const GRACE_STAGES = [-3, -10, -20];
+
+    public function handle(
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        DomainRenewalInvoicer $invoicer,
+        \App\Services\Domain\OpenProviderClient $op,
+    ): int {
         if (! Schema::hasTable('domains')) {
             $this->warn('جدول domains ساخته نشده؛ اول مهاجرت را اجرا کنید.');
 
@@ -65,6 +82,10 @@ class RunDomainLifecycle extends Command
         $dry = (bool) $this->option('dry');
         $lead = max(1, (int) ($this->option('lead') ?: Domain::RENEW_LEAD_DAYS));
         $today = now()->startOfDay();
+
+        if (! $dry) {
+            $this->repairMissingExpiry($op);
+        }
 
         // ⚠️ دامنهٔ بی‌تاریخِ انقضا کنار می‌رود: یا هنوز ثبت نشده یا رجیسترار
         //    تاریخ نداده. حدس‌زدنِ تاریخ یعنی فاکتورِ تمدید برای دامنه‌ای که
@@ -79,7 +100,7 @@ class RunDomainLifecycle extends Command
 
         foreach ($domains as $domain) {
             try {
-                $this->handleOne($domain, $today, $lead, $dry, $stats, $customers, $admin);
+                $this->handleOne($domain, $today, $lead, $dry, $stats, $customers, $admin, $invoicer);
             } catch (\Throwable $e) {
                 Log::error('چرخهٔ عمرِ دامنه خطا داد', [
                     'domain' => $domain->domain,
@@ -105,6 +126,7 @@ class RunDomainLifecycle extends Command
         array &$stats,
         CustomerNotifier $customers,
         AdminNotifier $admin,
+        DomainRenewalInvoicer $invoicer,
     ): void {
         $daysLeft = (int) $today->diffInDays($domain->expires_at->copy()->startOfDay(), false);
 
@@ -115,8 +137,9 @@ class RunDomainLifecycle extends Command
 
                 $customers->templated($domain->customer, 'domain_expired',
                     ['domain' => $domain->domain],
-                    '⛔ دامنهٔ «'.$domain->domain.'» منقضی شد و دورهٔ بازیابی‌اش هم گذشت. '
-                    .'اگر هنوز لازمش دارید با پشتیبانی تماس بگیرید.');
+                    '⛔ دامنهٔ «'.$domain->domain.'» منقضی شد و مهلتِ سی‌روزه هم گذشت. '
+                    .'شاید هنوز در دورهٔ redemption رجیستری قابلِ بازیابی باشد — از صفحهٔ دامنه '
+                    .'در پنل («بازیابی دامنه») یا با پشتیبانی اقدام کنید؛ هر روز تأخیر شانسِ نجات را کم می‌کند.');
 
                 $admin->event('دامنه منقضی شد', [
                     'دامنه'  => $domain->domain,
@@ -134,7 +157,24 @@ class RunDomainLifecycle extends Command
             return;
         }
 
-        $open = $this->openInvoice($domain);
+        /*
+        | ── ۲.۵) تمدیدی در جریان یا در صفِ دستی است → نه فاکتور، نه یادآوری ──
+        |
+        | 🔴 باگی که ممیزی پیدا کرد: مشتری فاکتورِ تمدید را پرداخته بود، تمدید
+        | نزدِ رجیسترار شکست خورده و در `manual` پارک شده بود — و این کرون چون
+        | فاکتورِ «باز»ی نمی‌دید، فردا یک فاکتورِ تمدیدِ **دوم** صادر می‌کرد.
+        | اگر مشتری آن را هم می‌پرداخت: دو بار پول، صفر تمدید، هیچ هشداری.
+        |
+        | `pending`/`running` یعنی پرداخت انجام شده و کرونِ تمدید دارد کار
+        | می‌کند؛ `manual` یعنی شکست خورده و `domains:resolve-stuck` یا مدیر
+        | باید تعیین تکلیف کند. در هر سه حالت، فاکتور یا یادآوریِ «تمدید کن»
+        | برای کاری که پولش گرفته شده فقط مشتری را به پرداختِ دوباره می‌کشانَد.
+        */
+        if (in_array($domain->provision_status, ['pending', 'running', 'manual'], true)) {
+            return;
+        }
+
+        $open = $invoicer->open($domain);
 
         // ── ۳) فاکتورِ تمدید ─────────────────────────────────────────────────
         //
@@ -143,7 +183,9 @@ class RunDomainLifecycle extends Command
         //    باید بتواند تصمیم بگیرد؛ سکوت تصمیم را از او می‌گیرد.
         if ($open === null) {
             if (! $dry) {
-                $open = $this->issueRenewalInvoice($domain);
+                // تمدیدِ خودکار همیشه یک‌ساله؛ چندساله را مشتری با دکمهٔ
+                // «تمدید» در پنل می‌خرد (Account\DomainController::renew).
+                $open = $invoicer->issue($domain, 1);
             }
             $stats['invoiced']++;
         }
@@ -170,69 +212,56 @@ class RunDomainLifecycle extends Command
     }
 
     /**
-     * فاکتورِ تمدید — همان شکلِ فاکتورِ ثبت، با مبلغِ `renew_toman`.
+     * ترمیمِ تاریخِ انقضای گمشده — تنها تماسِ رجیسترار در این فرمان، سقف‌دار.
      *
-     * ⚠️ `renew_toman` در لحظهٔ خرید ذخیره شده و ممکن است کهنه باشد؛ عمداً
-     * همان را می‌گیریم و استعلامِ زنده نمی‌زنیم. دلیلش این است که این کرون
-     * روزی یک‌بار روی همهٔ دامنه‌ها می‌دود و استعلامِ زنده یعنی صدها تماسِ API
-     * در دقیقه به رجیستراری که حسابش قبلاً به‌خاطرِ تماسِ زیاد علامت خورده.
-     * اگر قیمت خیلی عقب افتاده باشد، مدیر از `/admin/domains` می‌بیند.
+     * ═══ چرا لازم شد ═══
+     *
+     * `succeed()` دیگر تاریخِ انقضا **جعل نمی‌کند**: اگر رجیسترار در لحظهٔ ثبت
+     * جزئیات نداد، `expires_at` تهی می‌مانَد. ردیفِ بی‌تاریخ از چرخهٔ تمدید و
+     * یادآوری بیرون است (پرس‌وجوی پایین `whereNotNull` دارد) — پس اگر کسی
+     * تاریخِ واقعی را نیاورد، آن دامنه **بی‌صدا منقضی می‌شود**.
+     *
+     * ⚠️ قاعدهٔ «این کرون به رجیسترار زنگ نمی‌زند» دربارهٔ استعلامِ قیمت برای
+     * صدها دامنه بود. این‌جا حداکثر ۱۰ تماسِ ترمیمی در روز است، فقط برای
+     * ردیف‌هایی که داده‌شان ناقص است — و بی‌آن، نقصِ داده دائمی می‌شود.
      */
-    private function issueRenewalInvoice(Domain $domain): Invoice
+    private function repairMissingExpiry(\App\Services\Domain\OpenProviderClient $op): void
     {
-        $years = 1;      // تمدیدِ خودکار همیشه یک‌ساله؛ چندساله را مشتری دستی می‌خرد
-        $unit = (int) ($domain->renew_toman ?: $domain->price_toman) * $years;
+        if (! $op->enabled()) {
+            return;
+        }
 
-        $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
-        $tax = (int) round($unit * $taxPct / 100);
+        $rows = Domain::where('status', 'active')
+            ->whereNull('expires_at')
+            ->whereNotNull('op_id')
+            ->limit(10)
+            ->get();
 
-        return DB::transaction(function () use ($domain, $years, $unit, $tax, $taxPct) {
-            $invoice = Invoice::create([
-                'customer_id'   => $domain->customer_id,
-                'domain_id'     => $domain->id,
-                'kind'          => 'domain',
-                'currency_code' => 'IRT',
-                'subtotal'      => $unit,
-                'tax'           => $tax,
-                'total'         => $unit + $tax,
-                'paid'          => 0,
-                'status'        => 'unpaid',
-                'issued_at'     => now(),
-                'note'          => 'تمدیدِ دامنهٔ '.$domain->domain,
-            ]);
+        foreach ($rows as $domain) {
+            try {
+                $detail = $op->getDomain((int) $domain->op_id);
+                $raw = data_get($detail, 'data.expiration_date')
+                    ?: data_get($detail, 'data.expiration_date_time');
 
-            InvoiceItem::create([
-                'invoice_id'  => $invoice->id,
-                'title'       => 'تمدیدِ دامنهٔ '.$domain->domain,
-                'description' => $years.' سال',
-                'quantity'    => 1,
-                'unit_price'  => $unit,
-                'line_total'  => $unit,
-                'tax_rate_bp' => (int) ($taxPct * 100),
-                'tax_amount'  => $tax,
-            ]);
+                if (blank($raw)) {
+                    continue;
+                }
 
-            // 🔴 چند سال پرداخت شده را همین‌جا ثبت کن. بعد از پرداخت، کرونِ
-            //    تمدید باید بداند چند سال بخرد و راهِ دیگری برای دانستنش
-            //    نیست — خواندنش از متنِ آیتمِ فاکتور شکننده است.
-            $domain->putMeta(['renew_years' => $years]);
-
-            return $invoice;
-        });
-    }
-
-    /** فاکتورِ بازِ همین دامنه */
-    private function openInvoice(Domain $domain): ?Invoice
-    {
-        return Invoice::where('domain_id', $domain->id)
-            ->whereIn('status', ['unpaid', 'draft', 'partial'])
-            ->latest('id')
-            ->first();
+                $domain->forceFill([
+                    'expires_at' => \Illuminate\Support\Carbon::parse((string) $raw),
+                ])->save();
+            } catch (\Throwable $e) {
+                Log::warning('ترمیمِ تاریخِ انقضای دامنه نشد', [
+                    'domain' => $domain->domain,
+                    'err'    => mb_substr($e->getMessage(), 0, 120),
+                ]);
+            }
+        }
     }
 
     private function stageFor(int $daysLeft): ?int
     {
-        foreach (self::STAGES as $s) {
+        foreach ([...self::STAGES, ...self::GRACE_STAGES] as $s) {
             if ($daysLeft === $s) {
                 return $s;
             }
@@ -243,20 +272,32 @@ class RunDomainLifecycle extends Command
 
     private function remind(Domain $domain, ?Invoice $invoice, int $stage, CustomerNotifier $customers): void
     {
-        $when = $stage === 1 ? 'فردا' : fa_num($stage).' روز دیگر';
         $amount = $invoice ? fa_num(number_format((int) $invoice->total)).' تومان' : null;
 
-        $text = '⏰ دامنهٔ «'.$domain->domain.'» '.$when.' منقضی می‌شود'
-            .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
-            .'برای اینکه دامنه‌تان را از دست ندهید، از پنل کاربری پرداخت کنید: '
-            .console_lroute('account.invoices');
+        if ($stage < 0) {
+            // دورهٔ بازیابی — دامنه منقضی شده ولی هنوز قابلِ نجات است
+            $left = max(1, Domain::EXPIRY_GRACE_DAYS + $stage);
+
+            $text = '🚨 دامنهٔ «'.$domain->domain.'» '.fa_num(abs($stage)).' روز پیش منقضی شده '
+                .'ولی هنوز تا '.fa_num($left).' روز دیگر قابلِ نجات است'
+                .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
+                .'اگر الان اقدام نکنید، دامنه برای همیشه آزاد می‌شود و هرکسی می‌تواند ثبتش کند: '
+                .console_lroute('account.invoices');
+        } else {
+            $when = $stage === 1 ? 'فردا' : fa_num($stage).' روز دیگر';
+
+            $text = '⏰ دامنهٔ «'.$domain->domain.'» '.$when.' منقضی می‌شود'
+                .($amount ? ' (هزینهٔ تمدید: '.$amount.')' : '').'. '
+                .'برای اینکه دامنه‌تان را از دست ندهید، از پنل کاربری پرداخت کنید: '
+                .console_lroute('account.invoices');
+        }
 
         // ⚠️ متغیرها حتماً پاس داده می‌شوند: هر دو خوانندهٔ الگو اگر بعد از
         //    جایگزینی هنوز `{چیزی}` ببینند، الگو را کنار می‌گذارند — یعنی
         //    مدیر متن را ویرایش می‌کند و هیچ اتفاقی نمی‌افتد.
         $customers->templated($domain->customer, 'domain_expiring', [
             'domain' => $domain->domain,
-            'days'   => fa_num($stage),
+            'days'   => fa_num(abs($stage)),
             'amount' => $amount ?? '—',
             'link'   => console_lroute('account.invoices'),
         ], $text);

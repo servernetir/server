@@ -94,6 +94,11 @@ class BuilderCheckoutController extends Controller
             return back()->withErrors('استعلامِ دامنه پیدا نشد. صفحه را تازه کنید.');
         }
 
+        // مالکیتِ استعلام — همان گاردِ مسیرِ دامنه (شناسهٔ ترتیبی قابلِ پیمایش است)
+        if (! $quote->claimFor((int) Auth::guard('customer')->id())) {
+            return back()->withErrors('استعلامِ دامنه پیدا نشد. صفحه را تازه کنید.');
+        }
+
         // همان سه گاردِ مسیرِ دامنه — پیش از گرفتنِ پول، نه ساعت‌ها بعد در صف
         if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
             return back()->withErrors('قیمتِ استعلام منقضی شده است. صفحه را تازه کنید تا قیمتِ روز بیاید.');

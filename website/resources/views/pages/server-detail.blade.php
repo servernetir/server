@@ -17,6 +17,12 @@
     'brand' => ['@'.'type' => 'Brand', 'name' => $brand['label'] ?? $model['brand']],
     'category' => __('ui.srv_title'),
   ];
+  // «image» برای Product الزامی‌ست (Search Console بدونش آیتم را invalid می‌کند)؛
+  // الگوی part-detail: فقط وقتی عکس هست، و همیشه URL مطلق — آرایهٔ خالی از نبودنِ
+  // کلید بدتر است.
+  if ($imgs !== []) {
+    $ld['image'] = array_map(fn ($u) => url($u), $imgs);
+  }
   if (empty($model['price_from']['contact'])) {
     // ⚠️ `schema_price_irr()` چون IRR یعنی ریال؛ عددِ تومان ده برابر کمتر بود.
     // ⚠️ `priceValidUntil` هم نبود، در حالی که `/llms.txt` به مدل‌های زبانی
@@ -31,14 +37,22 @@
       : (float) ($model['price_from']['eur'] ?? 0);
 
     if ($sdRaw > 0) {
-      $ld['offers'] = ['@'.'type' => 'Offer', 'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
+      // + schema_offer_extras: هشدارهای Merchant listings (ممیزی ۲۴ اوت ۲۰۲۶)
+      $ld['offers'] = schema_offer_extras(app()->getLocale() === 'fa' ? 'IRR' : 'EUR')
+        + ['@'.'type' => 'Offer', 'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
         'price' => app()->getLocale() === 'fa' ? schema_price_irr((int) $sdRaw) : $sdRaw,
         'priceValidUntil' => now()->addDays(30)->toDateString(),
         'availability' => 'https://schema.org/InStock'];
     }
   }
 @endphp
+{{-- Productِ بدونِ offers/review/aggregateRating در Search Console «آیتمِ
+     invalid» است (خطای واقعیِ hpe-proliant-dl380-gen9 — همهٔ مدل‌ها فعلاً
+     «تماس بگیرید»اند). نشانه‌گذاریِ ناقص از نبودنش بدتر است؛ بدونِ قیمت فقط
+     Breadcrumb صفحه می‌ماند و با آمدنِ قیمت خودبه‌خود برمی‌گردد. --}}
+@if(isset($ld['offers']))
 <script type="application/ld+json">{!! schema_ld($ld, 'Product') !!}</script>
+@endif
 
 <section class="container sd-wrap">
   <nav class="blog-crumbs" style="margin-bottom:16px">

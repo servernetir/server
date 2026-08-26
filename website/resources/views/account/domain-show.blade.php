@@ -19,6 +19,8 @@
   </div>
   @if($domain->isActive())
     <span class="pnl-pill ok">فعال</span>
+  @elseif($domain->status === 'expired')
+    <span class="pnl-pill danger">منقضی — شاید قابل بازیابی</span>
   @elseif($domain->provision_status === 'manual')
     <span class="pnl-pill danger">بررسی دستی</span>
   @else
@@ -39,7 +41,76 @@
   </div>
 @endif
 
-@if(! $domain->isActive())
+{{-- 🔴 سفارشِ انتقال پیامِ خودش را دارد. تا ممیزیِ شهریور ۱۴۰۵ این صفحه به
+     ردیفِ انتقال هم می‌گفت «در صف ثبت است» — و بدتر: پیامِ بعد از پرداخت
+     می‌گفت «کد انتقال را در همین صفحه وارد کنید» ولی فرمی وجود نداشت.
+     مشتری پول داده بود و به بن‌بست می‌خورد. --}}
+@if($domain->isTransfer() && ! $domain->isActive() && $domain->status !== 'expired')
+  <section class="pnl-sec">
+    <div class="pnl-sec-h"><h2>انتقال دامنه به سرورنت</h2></div>
+    <div class="pnl-sec-b">
+      @if($domain->transfer_status === 'pending' && $transferUnpaid !== null)
+        <p style="margin-top:0">برای شروعِ انتقال، ابتدا فاکتور را پرداخت کنید. پس از پرداخت، همین‌جا کدِ انتقال (EPP) را وارد می‌کنید.</p>
+        <a class="pnl-btn" href="{{ lroute('account.invoice', $transferUnpaid) }}">پرداخت فاکتور انتقال</a>
+      @elseif($domain->transfer_status === 'pending')
+        <p style="margin-top:0">
+          پرداخت انجام شده است. حالا کدِ انتقال (EPP) را وارد کنید — این کد را از رجیسترارِ فعلیِ دامنه می‌گیرید
+          و پیش از آن باید قفلِ انتقال را نزدِ همان رجیسترار خاموش کرده باشید.
+        </p>
+        <form method="post" action="{{ lroute('account.domain.transfer.submit', $domain) }}"
+              style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          @csrf
+          <input name="auth_code" dir="ltr" class="pnl-input" style="max-width:280px"
+                 autocomplete="off" placeholder="EPP / Auth Code" required minlength="4">
+          <button class="pnl-btn" type="submit">شروع انتقال</button>
+        </form>
+        <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+          کدِ انتقال ذخیره نمی‌شود و فقط برای همین درخواست به رجیسترار می‌رود.
+        </p>
+      @elseif($domain->transfer_status === 'submitted')
+        <p style="margin:0">
+          درخواستِ انتقال به رجیسترار ارسال شده و در انتظارِ تأییدِ رجیسترارِ فعلی است — معمولاً تا ۵ روزِ کاری.
+          وضعیت به‌صورت خودکار پیگیری می‌شود و نتیجه به شما اطلاع داده می‌شود.
+        </p>
+      @elseif($domain->transfer_status === 'failed')
+        <p style="margin:0">
+          ثبتِ درخواستِ انتقال ممکن نشد و همکاران ما در حالِ بررسی‌اند.
+          اگر ظرفِ ۲۴ ساعت انجام نشود، مبلغ به اعتبارِ حسابتان بازمی‌گردد.
+        </p>
+      @endif
+    </div>
+  </section>
+@elseif($domain->status === 'expired')
+  {{-- 🔴 مسیرِ نجات (redemption) — تا شهریور ۱۴۰۵ دامنهٔ منقضی از پنل غیب
+       می‌شد و تنها راهش «تماس با پشتیبانی» بود، دقیقاً در پنجره‌ای که هنوز
+       می‌شد نجاتش داد. --}}
+  <section class="pnl-sec">
+    <div class="pnl-sec-h"><h2>بازیابی دامنهٔ منقضی</h2></div>
+    <div class="pnl-sec-b">
+      @php $dmRestoreFee = (int) \App\Models\Setting::get('domain_restore_fee_toman'); @endphp
+      @if($domain->provision_status === 'pending' || $domain->provision_status === 'running')
+        <p style="margin:0">پرداخت شما رسید و بازیابی در حال انجام است — نتیجه به شما اطلاع داده می‌شود.</p>
+      @elseif($domain->provision_status === 'manual')
+        <p style="margin:0">بازیابی در دست بررسی همکاران ماست. اگر ممکن نشود، مبلغ به اعتبار حسابتان بازمی‌گردد.</p>
+      @elseif($dmRestoreFee > 0 && $domain->op_id)
+        <p style="margin-top:0">
+          این دامنه منقضی شده ولی احتمالاً هنوز در دورهٔ بازیابی رجیستری است.
+          هزینهٔ نجات = هزینهٔ تمدید یک‌ساله + کارمزد بازیابی ({{ cloud_price($dmRestoreFee) }})؛
+          <b>هر روز تأخیر شانس نجات را کم می‌کند.</b>
+        </p>
+        <form method="post" action="{{ lroute('account.domain.restore', $domain) }}">
+          @csrf
+          <button class="pnl-btn" type="submit">صدور فاکتور بازیابی</button>
+        </form>
+        <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+          اگر بازیابی نزد رجیستری ممکن نشود، کل مبلغ به اعتبار حسابتان بازمی‌گردد.
+        </p>
+      @else
+        <p style="margin:0">برای بررسی امکان نجات این دامنه با پشتیبانی تماس بگیرید — هر روز تأخیر شانس را کم می‌کند.</p>
+      @endif
+    </div>
+  </section>
+@elseif(! $domain->isActive())
   <section class="pnl-sec">
     <div class="pnl-sec-b">
       @if($domain->provision_status === 'manual')
@@ -60,7 +131,9 @@
           <tr><th>تاریخ ثبت</th><td>{{ $domain->registered_at ? sdate($domain->registered_at) : '—' }}</td></tr>
           <tr><th>تاریخ انقضا</th><td>{{ $domain->expires_at ? sdate($domain->expires_at) : '—' }}</td></tr>
           <tr><th>دورهٔ ثبت</th><td>{{ fa_num($domain->period_years) }} سال</td></tr>
-          <tr><th>هزینهٔ تمدید</th><td>{{ cloud_price($domain->renew_toman) }} / سال</td></tr>
+          {{-- قیمتِ مؤثرِ روز (ذخیره + استعلامِ تازه + کفِ ارزی) — همان عددی
+               که فاکتورِ تمدید می‌گیرد، نه عددِ فریزشدهٔ روزِ خرید. --}}
+          <tr><th>هزینهٔ تمدید</th><td>{{ cloud_price(($renewUnit ?? 0) > 0 ? $renewUnit : $domain->renew_toman) }} / سال</td></tr>
         </tbody>
       </table>
     </div>
@@ -68,6 +141,40 @@
 </section>
 
 @if($domain->isActive())
+{{-- 🔴 تمدیدِ دستی — تا مرداد ۱۴۰۵ اصلاً وجود نداشت: تنها مسیرِ تمدید،
+     فاکتورِ خودکارِ کرون در ۲۱ روزِ آخر بود و مشتریِ نگران هیچ دکمه‌ای
+     نداشت. مدتِ تازه به پایانِ دورهٔ فعلی اضافه می‌شود؛ تمدیدِ زودتر
+     یعنی هیچ روزی از دست نمی‌رود. --}}
+<section class="pnl-sec">
+  <div class="pnl-sec-h"><h2>تمدید دامنه</h2></div>
+  <div class="pnl-sec-b">
+    {{-- قیمتِ مؤثرِ تمدید از کنترلر می‌آید (renew_toman یا کفِ ارزی، هرکدام بالاتر)
+         تا عددِ روی فرم همانی باشد که فاکتور می‌گیرد. --}}
+    @php $dmRenewUnit = (int) ($renewUnit ?? ($domain->renew_toman ?: $domain->price_toman)); @endphp
+    @if($dmRenewUnit > 0)
+      <p style="font-size:13px;color:var(--dim);line-height:2;margin-top:0">
+        هر زمان می‌توانید تمدید کنید — مدتِ تازه به پایانِ دورهٔ فعلی اضافه می‌شود و روزی از دست نمی‌رود.
+        پس از پرداختِ فاکتور، تمدید خودکار انجام و تاریخِ انقضای تازه همین‌جا دیده می‌شود.
+      </p>
+      <form method="post" action="{{ lroute('account.domain.renew', $domain) }}"
+            style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        @csrf
+        <select name="years" class="pnl-input" style="max-width:260px">
+          @foreach(range(1, 5) as $y)
+            <option value="{{ $y }}">{{ fa_num($y) }} سال — {{ cloud_price($dmRenewUnit * $y) }}</option>
+          @endforeach
+        </select>
+        <button class="pnl-btn" type="submit">صدور فاکتور تمدید</button>
+      </form>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
+        مبلغِ بالا بدونِ مالیات است؛ مالیات روی فاکتور محاسبه می‌شود.
+      </p>
+    @else
+      <p style="margin:0">قیمتِ تمدید برای این دامنه ثبت نشده است؛ برای تمدید با پشتیبانی تماس بگیرید.</p>
+    @endif
+  </div>
+</section>
+
 <section class="pnl-sec">
   <div class="pnl-sec-h">
     <h2>نام‌سرورها</h2>

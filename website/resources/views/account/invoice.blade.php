@@ -105,6 +105,22 @@
   </div>
   <div class="pnl-sec-b">
 
+    {{-- پرداخت از اعتبار — بالاتر از درگاه‌ها، چون سریع‌ترین و بی‌کارمزدترین
+         راه است. فقط وقتی دیده می‌شود که موجودی، کلِ مانده را پوشش دهد
+         (پرداختِ جزئی عمداً نیست). فاکتورِ topup این دکمه را نمی‌گیرد —
+         اعتبار با اعتبار، دور است. --}}
+    @if(($creditBalance ?? 0) >= $invoice->due() && $invoice->due() > 0 && $invoice->kind !== 'topup' && $invoice->currency_code === 'IRT')
+      <form method="POST" action="{{ lroute('account.invoice.paycredit', $invoice) }}"
+            style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2,rgba(0,0,0,.04));border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+        @csrf
+        <span style="font-size:13.5px;line-height:2">
+          {{ __('ui.inv_credit_lead') }}
+          <b>{{ invoice_money($creditBalance, 'IRT') }}</b>
+        </span>
+        <button class="pnl-btn" type="submit">{{ __('ui.inv_credit_btn') }}</button>
+      </form>
+    @endif
+
     {{-- گام ۱: انتخاب روش (کارتی) --}}
     <p class="pm-lead">{{ __('ui.inv_choose_method') }}</p>
     <div class="pm-grid">

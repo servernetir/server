@@ -163,7 +163,14 @@ class ExpireOrderInvoices extends Command
             ->orderBy('id')->limit($limit)->get();
     }
 
-    /** سفارشِ ثبتِ دامنه — فقط ردیفی که هرگز ثبت نشده */
+    /**
+     * سفارشِ دامنه — فقط ردیفی که هرگز پولی نگرفته و کاری برایش نشده.
+     *
+     * 🔴 سفارشِ **انتقال** هم پوشش داده می‌شود: `status='transferring'` است نه
+     * `pending`، و تا ممیزیِ شهریور ۱۴۰۵ شرطِ قبلی نمی‌گرفتش — پیش‌فاکتورِ
+     * انتقالِ رهاشده هرگز منقضی نمی‌شد و نامِ دامنه (قیدِ یکتایی) برای همیشه
+     * قفل می‌مانْد.
+     */
     private function domainOrders(\Illuminate\Support\Carbon $cutoff, int $limit)
     {
         if (! Schema::hasTable('domains')) {
@@ -178,8 +185,12 @@ class ExpireOrderInvoices extends Command
             ->where('created_at', '<', $cutoff)
             ->whereExists(fn ($q) => $q->from('domains')
                 ->whereColumn('domains.id', 'invoices.domain_id')
-                ->where('domains.status', 'pending')
-                ->where('domains.provision_status', 'none'))
+                ->where('domains.provision_status', 'none')
+                ->where(fn ($w) => $w
+                    ->where('domains.status', 'pending')
+                    ->orWhere(fn ($s) => $s
+                        ->where('domains.status', \App\Models\Domain::STATUS_TRANSFERRING)
+                        ->where('domains.transfer_status', 'pending'))))
             ->orderBy('id')->limit($limit)->get();
     }
 

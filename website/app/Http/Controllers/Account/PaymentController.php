@@ -162,6 +162,10 @@ class PaymentController extends Controller
 
         return view('account.invoice', AccountController::shell('invoices') + [
             'invoice'      => $invoice->load('items', 'payments'),
+            // موجودیِ اعتبار — برای دکمهٔ «پرداخت از اعتبار» روی فاکتورهای تومانی
+            'creditBalance' => $invoice->currency_code === 'IRT'
+                ? $this->balance((int) Auth::guard('customer')->id())
+                : 0,
             'gateways'     => $this->gatewaysFor($invoice->currency_code),
             'bank'         => $this->bankDetails(),
             // آخرین رسیدِ در انتظارِ همین فاکتور — تا کاربر بداند ثبت شده
@@ -507,6 +511,123 @@ class PaymentController extends Controller
 
         // به صفحهٔ فاکتور که همهٔ روش‌های پرداخت آن‌جاست
         return redirect()->route($this->rp().'account.invoice', $invoice);
+    }
+
+    /**
+     * پرداختِ فاکتور از اعتبارِ داخلی.
+     *
+     * ═══ چرا (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 هر بازگشتِ وجهِ خودکار (ثبت/تمدید/انتقالِ ناموفقِ دامنه، فاکتورِ
+     * لغوشده) به `credit_ledger` می‌نشیند و به مشتری می‌گوییم «می‌توانید
+     * دوباره اقدام کنید» — ولی هیچ درگاهی برای خرجِ آن اعتبار روی فاکتور
+     * نبود. پولی که مشتری می‌دید و نمی‌توانست خرج کند.
+     *
+     * ═══ قواعد ═══
+     *
+     * • تسویه از **همان** مسیرِ رسمیِ درگاه‌ها می‌رود (`settleConfirmed` با
+     *   یک ردیفِ Payment از جنسِ `credit`) — پس فعال‌سازیِ سرویس، صف‌گذاریِ
+     *   دامنه و ثبتِ درآمد همه خودکار و از یک جا. منطقِ تسویهٔ موازی ممنوع
+     *   (همان قاعدهٔ BankReceiptReviewer).
+     * • درآمدِ اعتبارِ خرج‌شده همین‌جا شناسایی می‌شود — `recordPayment` روی
+     *   topup عمداً هیچ نمی‌نویسد و می‌گوید «درآمد موقعِ مصرفِ اعتبار».
+     * • فقط پرداختِ **کامل**ِ مانده: پرداختِ جزئی حالت‌های partial را باز
+     *   می‌کند که هیچ مصرف‌کننده‌ای درست نمی‌شناسدشان.
+     * • فاکتورِ topup با اعتبار پرداخت نمی‌شود — اعتبار با اعتبار، دور است.
+     * • کسرِ اعتبار و ساختِ Payment و تسویه همه در **یک** تراکنش با قفلِ
+     *   ردیفِ مشتری‌اند؛ دو کلیکِ هم‌زمان یک موجودی را دو بار خرج نمی‌کند.
+     */
+    public function payCredit(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice);
+
+        if ($invoice->kind === 'topup') {
+            return back()->withErrors('شارژِ اعتبار را نمی‌توان با خودِ اعتبار پرداخت.');
+        }
+
+        if (! in_array($invoice->status, ['unpaid', 'partial'], true) || $invoice->due() <= 0) {
+            return back()->withErrors('این فاکتور در وضعیتِ قابلِ پرداخت نیست.');
+        }
+
+        if ($invoice->currency_code !== 'IRT') {
+            return back()->withErrors('پرداخت از اعتبار فقط برای فاکتورهای تومانی فعال است.');
+        }
+
+        $customerId = (int) Auth::guard('customer')->id();
+
+        try {
+            $outcome = DB::transaction(function () use ($invoice, $customerId) {
+                // قفلِ مشتری: موازی‌ترین دشمنِ این مسیر دوبار-خرج‌شدنِ یک موجودی است
+                \App\Models\Customer::whereKey($customerId)->lockForUpdate()->first();
+
+                /** @var Invoice $fresh */
+                $fresh = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+                $due = $fresh->due();
+
+                if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
+                    return ['ok' => false, 'msg' => 'این فاکتور در وضعیتِ قابلِ پرداخت نیست.'];
+                }
+
+                $balance = $this->balance($customerId);
+
+                if ($balance < $due) {
+                    return ['ok' => false, 'msg' => 'اعتبارِ حساب کافی نیست (موجودی: '
+                        .number_format($balance).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
+                }
+
+                CreditEntry::create([
+                    'customer_id'   => $customerId,
+                    'currency_code' => 'IRT',
+                    'amount'        => -$due,
+                    'balance_after' => $balance - $due,
+                    'reason'        => 'invoice_payment',
+                    'source_type'   => Invoice::class,
+                    'source_id'     => $fresh->id,
+                    'note'          => 'پرداختِ فاکتور '.$fresh->number.' از اعتبار',
+                ]);
+
+                /*
+                | ⚠️ `firstOrCreate` روی `external_ref` — دو کلیکِ هم‌زمان (یا
+                | تلاشِ نیمه‌شکسته) یک Payment می‌سازد، و `settleConfirmed`
+                | روی پرداختِ قبلاً تسویه‌شده idempotent است.
+                */
+                $payment = Payment::firstOrCreate(
+                    ['external_ref' => 'credit-inv-'.$fresh->id],
+                    [
+                        'invoice_id'    => $fresh->id,
+                        'customer_id'   => $customerId,
+                        'gateway'       => 'credit',
+                        'currency_code' => 'IRT',
+                        'amount'        => $due,
+                        'status'        => 'redirected',
+                    ],
+                );
+
+                $settle = $this->payments->settleConfirmed($payment, 'credit-inv-'.$fresh->id);
+
+                /*
+                | 🔴 استثنا **داخلِ** تراکنش، تا تسویهٔ ناموفق کسرِ اعتبار و
+                | ردیفِ Payment را هم با خودش برگرداند — «مبلغی کسر نشد» باید
+                | حقیقت باشد، نه آرزو.
+                */
+                if (! $settle->ok) {
+                    throw new \RuntimeException('credit settle failed for invoice '.$fresh->id);
+                }
+
+                return ['ok' => true, 'msg' => ''];
+            });
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('payment', $e, ['area' => 'pay-credit', 'invoice' => $invoice->id]);
+
+            return back()->withErrors('پرداخت از اعتبار انجام نشد؛ مبلغی کسر نشد.');
+        }
+
+        if (! $outcome['ok']) {
+            return back()->withErrors($outcome['msg']);
+        }
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)
+            ->with('ok', 'فاکتور از اعتبارِ حسابتان پرداخت شد.');
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────

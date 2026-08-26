@@ -71,6 +71,14 @@ class DomainRegistrar
     /** نشانیِ صفحهٔ امضای قراردادها در پنلِ رجیسترار */
     public const CONTRACTS_URL = 'https://cp.openprovider.eu/documentation/contracts.php';
 
+    /**
+     * واژگانِ وضعیتِ رجیسترار — همان فهرستِ `DomainTransfer::poll()`.
+     * ⚠️ حساس به بزرگی/کوچکی نیست؛ همان API هر دو `ACT` و `act` را داده.
+     */
+    private const REMOTE_ACTIVE = ['act', 'active', 'ok'];
+
+    private const REMOTE_FAILED = ['fai', 'failed', 'del', 'deleted', 'rej', 'rejected'];
+
     public function __construct(private OpenProviderClient $op) {}
 
     // ═══════════════════════ handle مالک ═══════════════════════
@@ -401,6 +409,58 @@ class DomainRegistrar
      *
      * @return array{ok:bool, message:string, manual:bool}
      */
+    /**
+     * چه چیزی جلوی ثبتِ این دامنه را می‌گیرد؟ — `null` یعنی راه باز است.
+     *
+     * ═══ چرا این متد ساخته شد ═══
+     *
+     * 🔴 `domains:resolve-stuck` باید بپرسد «مانع هنوز هست؟» و تا شهریور ۱۴۰۵
+     * فقط **کامل‌بودنِ پروفایل** را می‌پرسید — سؤالِ اشتباه، با دو خرابیِ متضاد:
+     *
+     *   • مانعِ واقعی چیزِ دیگری بود (قراردادِ امضانشده، رجیسترارِ خاموش):
+     *     پروفایلِ کامل ⇒ «آزاد» ⇒ ثبتِ دوباره ⇒ شکستِ همان ⇒ دوباره manual —
+     *     حلقهٔ ساعتی که هر دور `updated_at` را تازه می‌کرد و **مهلتِ ۲۴ساعتهٔ
+     *     بازگشتِ وجه هرگز فرا نمی‌رسید**. پولِ مشتری در برزخ، برای همیشه.
+     *
+     *   • مالکِ ثابتِ شرکت پیکربندی بود (DOMAIN_OWNER_*): ناقص‌بودنِ پروفایلِ
+     *     مشتری اصلاً مانعِ ثبت نیست، ولی «مانع» شمرده می‌شد ⇒ بعد از ۲۴ ساعت
+     *     دامنه‌ای که ثبت می‌شد **لغو و رفاند** می‌شد.
+     *
+     * این متد همان گیت‌های `doRegister()` را می‌پرسد — به همان ترتیب و از
+     * همان توابع — فقط **بدونِ هیچ تماسِ API**. شرطِ دست‌نویسِ موازی در
+     * فرمانِ دیگر، همان دردی است که کامنتِ خودِ آن فرمان هشدار داده بود.
+     *
+     * ⚠️ `TldGate` هم این‌جاست با اینکه در `doRegister()` نیست: دروازهٔ بسته
+     * یعنی «می‌دانیم شکست می‌خورد»؛ آزادکردنِ ردیف به‌سمتِ شکستِ حتمی فقط
+     * تماسِ بی‌فایده با حسابِ علامت‌خورده است. بعد از امضا، مدیر با «ارسال
+     * دوباره به صف» مسیر را باز می‌کند و ثبتِ موفق دروازه را خودکار می‌گشاید.
+     */
+    public function registrationBlocker(Domain $domain): ?string
+    {
+        if (! $this->op->enabled()) {
+            return 'اتصالِ رجیسترار پیکربندی نشده است.';
+        }
+
+        if (TldGate::isBlocked((string) $domain->tld)) {
+            return 'قراردادِ رجیستریِ پسوندِ «.'.$domain->tld.'» هنوز امضا نشده است.';
+        }
+
+        // مالکِ ثابتِ شرکت که باشد، پروفایلِ مشتری هیچ نقشی در ثبت ندارد.
+        if ($this->companyRegistrant() === null) {
+            $profile = $domain->customer?->defaultProfile();
+
+            if ($profile === null || $this->profileToCustomer($profile) === null) {
+                return 'مشخصاتِ مالک ناقص است (نام، نشانی، شهر، تلفن و ایمیل لازم است).';
+            }
+        }
+
+        if (count($domain->effectiveNameServers()) < 2) {
+            return 'نام‌سرورِ پیش‌فرضِ شرکت تنظیم نشده است (تنظیماتِ domain_nameservers).';
+        }
+
+        return null;
+    }
+
     public function register(Domain $domain): array
     {
         // ── قفلِ اتمی: فقط یک اجرا می‌تواند این دامنه را بردارد ──
@@ -551,10 +611,59 @@ class DomainRegistrar
         | واقعی لازم داشت. این‌جا دامنهٔ پارک‌شده از قبل پرداخت شده است، پس
         | تلاشِ دوباره‌اش هیچ پولِ تازه‌ای خرج نمی‌کند و خودش همان اثبات است.
         */
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 وضعیتِ پاسخِ رجیسترار قانون است — «هر جوابی = موفق» ممنوع
+        |----------------------------------------------------------------------
+        |
+        | تا ممیزیِ شهریور ۱۴۰۵ این متد `status` پاسخ را **دور می‌ریخت**: هر
+        | ردیفی که `findDomain` در حسابِ ما پیدا می‌کرد — حتی REQ (در انتظارِ
+        | رجیستری) یا FAI (شکست‌خورده) — «active» اعلام و به مشتری پیامِ
+        | «با موفقیت ثبت شد» فرستاده می‌شد. یعنی پولِ گرفته، دامنهٔ بالانیامده،
+        | و یک اطمینانِ دروغ — بدتر از خطا.
+        |
+        | حالا همان واژگانِ `DomainTransfer::poll()`:
+        |   act/active            → واقعاً ثبت شده
+        |   fai/del/rej           → شکستِ قطعی نزدِ رجیستری → صفِ دستی
+        |   req/sch/pen/ناشناخته  → هنوز در جریان → «شکستِ» گذرا؛ چند تلاشِ
+        |                            بعدیِ کرون دوباره می‌پرسد و بعد صفِ دستی
+        |
+        | ⚠️ وضعیتِ **خالی** موفق حساب می‌شود: یعنی خودِ `registerDomain` جواب
+        | داد ولی `getDomain` برای جزئیات در دسترس نبود — ثبت واقعاً انجام
+        | شده و فقط جزئیات کم است.
+        */
+        $state = strtolower(trim((string) data_get($remote, 'status')));
+
+        if ($state !== '' && ! in_array($state, self::REMOTE_ACTIVE, true)) {
+            // شناسهٔ رجیسترار را نگه دار تا مدیر بتواند همین ردیف را پیگیری کند
+            if (data_get($remote, 'id')) {
+                $domain->forceFill(['op_id' => data_get($remote, 'id')])->save();
+            }
+
+            if (in_array($state, self::REMOTE_FAILED, true)) {
+                return $this->fail($domain,
+                    'رجیستری وضعیتِ «'.$state.'» برگرداند — ثبت انجام نشده است.',
+                    manual: true);
+            }
+
+            $tries = (int) $domain->provision_tries + 1;
+
+            return $this->fail($domain,
+                'در انتظارِ تأییدِ رجیستری (وضعیت: '.$state.') — هنوز نهایی نشده.',
+                manual: $tries >= self::MAX_TRIES, tries: $tries);
+        }
+
         TldGate::clear((string) $domain->tld);
 
         $expires = data_get($remote, 'expiration_date') ?: data_get($remote, 'expiration_date_time');
 
+        /*
+        | ⚠️ تاریخِ انقضا هرگز **جعل نمی‌شود**. نسخهٔ قبلی وقتی رجیسترار تاریخ
+        | نمی‌داد `now()+سال‌ها` می‌گذاشت — و کرونِ چرخهٔ عمر بر پایهٔ همان
+        | تاریخِ ساختگی فاکتورِ تمدید صادر می‌کرد. «نمی‌دانیم» (null) درست است:
+        | چرخهٔ عمر ردیفِ بی‌تاریخ را کنار می‌گذارد و خودش روزانه تاریخِ واقعی
+        | را از رجیسترار ترمیم می‌کند (سقف‌دار، در همان فرمان).
+        */
         $domain->forceFill([
             'status'           => 'active',
             'provision_status' => 'done',
@@ -562,13 +671,26 @@ class DomainRegistrar
             'op_id'            => data_get($remote, 'id') ?: $domain->op_id,
             'owner_handle'     => $handle,
             'registered_at'    => $domain->registered_at ?: now(),
-            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at
-                ?: now()->addYears(max(1, (int) $domain->period_years)),
+            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
+        $until = $domain->fresh()?->expires_at;
+
         $this->announce('domain_registered', $domain,
-            'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد و تا '
-            .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
+            'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد'
+            .($until ? ' و تا '.sdate($until).' اعتبار دارد.' : '.'));
+
+        // بهای واقعیِ رجیسترار همین لحظه از حسابِ ما رفت — دفتر باید بداند.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'register', max(1, (int) $domain->period_years));
+
+        /*
+        | 🔴 دامنه‌ای که روی نیم‌سرورهای ماست باید همان لحظه zone بگیرد وگرنه
+        | «فعال» است و به هیچ‌جا resolve نمی‌شود (بزرگ‌ترین یافتهٔ ممیزی).
+        | ensure هرگز throw نمی‌کند و شکستش ثبتِ موفق را خراب نمی‌کند —
+        | فقط مدیر را با نامِ دامنه صدا می‌زند.
+        */
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
@@ -776,13 +898,20 @@ class DomainRegistrar
 
         // 🔴 `exp_stage` صفر می‌شود وگرنه دورهٔ بعد هیچ یادآوری‌ای نمی‌رود:
         //    مرحلهٔ ۱ ثبت شده می‌مانْد و شرطِ «قبلاً رفته» همه را رد می‌کرد.
-        $domain->putMeta(['exp_stage' => null, 'renewed_at' => now()->toDateTimeString()]);
+        // ⚠️ `renew_invoice_id` هم پاک می‌شود: کارش تمام شد. اگر بماند و
+        //    تمدیدِ سالِ بعد شکست بخورد، فرمانِ بازگشتِ وجه فاکتورِ **پارسال**
+        //    را برمی‌گردانْد.
+        $domain->putMeta(['exp_stage' => null, 'renew_invoice_id' => null, 'renewed_at' => now()->toDateTimeString()]);
 
         $domain->forceFill(['provision_status' => 'done', 'provision_error' => null])->save();
 
         $this->announce('domain_renewed', $domain,
             'دامنهٔ «'.$domain->domain.'» تمدید شد و تا '
             .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
+
+        // بهای تمدید نزدِ رجیسترار — هزینهٔ واقعی، همان لحظهٔ وقوع در دفتر.
+        app(\App\Services\Finance\BusinessLedger::class)
+            ->recordDomainWholesale($domain, 'renew', $domain->renewYears());
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
@@ -814,6 +943,147 @@ class DomainRegistrar
             'domain' => $domain->domain,
             'tries'  => $tries,
         ]);
+
+        /*
+        | 🔴 پارک‌شدنِ تمدیدِ **پرداخت‌شده** نباید بی‌صدا باشد — همان قاعدهٔ
+        | `fail()` در مسیرِ ثبت. تا امروز شکستِ ثبت اعلانِ مدیر داشت و شکستِ
+        | تمدید نه؛ در حالی که این‌جا گران‌تر است: دامنهٔ **زندهٔ** مشتری دارد
+        | به‌سمتِ انقضا می‌رود و پولش هم گرفته شده.
+        */
+        if ($manual) {
+            try {
+                app(\App\Services\Notify\AdminNotifier::class)->event(
+                    'تمدیدِ دامنه خودکار انجام نشد',
+                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
+                    url('/admin/domains'),
+                    '⏳',
+                );
+            } catch (\Throwable $e) {
+                Log::warning('اعلانِ شکستِ تمدید نرفت', ['err' => $e->getMessage()]);
+            }
+        }
+
+        return ['ok' => false, 'manual' => $manual, 'message' => $message];
+    }
+
+    // ═══════════════════════ بازیابی (redemption) ═══════════════════════
+
+    /**
+     * بازیابیِ یک دامنهٔ منقضیِ **پرداخت‌شده** — مسیرِ نجات پس از انقضا.
+     *
+     * ═══ چرا (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 دامنهٔ `expired` تا امروز بن‌بست بود: از پنل غیب می‌شد (`alive()`)،
+     * صفِ تمدید نمی‌گرفتش (`status='active'` می‌خواهد)، و تنها راه «با
+     * پشتیبانی تماس بگیرید» بود — دقیقاً در پنجره‌ای که رجیستری هنوز
+     * بازیابی را می‌پذیرد و هر روز تأخیر شانسِ نجات را کم می‌کند.
+     *
+     * همان انضباطِ renewPaid: قفلِ اتمی روی `status='expired'` (مجموعهٔ
+     * بی‌اشتراک با ثبت و تمدید)، شکست = صفِ دستی، هرگز لغوِ خودکارِ دامنه.
+     *
+     * ترتیبِ دفاعی (پاسخِ restore را روی حسابِ واقعی ندیده‌ایم):
+     *   ۱) restore — اگر رد شد، صفِ دستی.
+     *   ۲) خواندنِ انقضای تازه از خودِ رجیسترار.
+     *   ۳) اگر انقضا هنوز گذشته بود، یک تمدیدِ تکمیلی (بعضی رجیستری‌ها
+     *      restore را بدونِ سالِ تازه انجام می‌دهند).
+     *
+     * @return array{ok:bool, message:string, manual:bool}
+     */
+    public function restorePaid(Domain $domain): array
+    {
+        $claimed = DB::table('domains')
+            ->where('id', $domain->id)
+            ->where('status', 'expired')
+            ->where(fn ($w) => $w
+                ->where('provision_status', 'pending')
+                ->orWhere(fn ($s) => $s
+                    ->where('provision_status', 'running')
+                    ->where('updated_at', '<', now()->subMinutes(Domain::STALE_LOCK_MINUTES))))
+            ->update(['provision_status' => 'running', 'updated_at' => now()]);
+
+        if ($claimed === 0) {
+            return ['ok' => false, 'manual' => false, 'message' => 'در حالِ پردازش توسطِ اجرای دیگری است.'];
+        }
+
+        $domain->refresh();
+
+        if (! $this->op->enabled()) {
+            return $this->failRestore($domain, 'اتصالِ رجیسترار پیکربندی نشده است.', manual: true);
+        }
+
+        if (! $domain->op_id) {
+            return $this->failRestore($domain, 'این دامنه شناسهٔ رجیسترار ندارد.', manual: true);
+        }
+
+        try {
+            $res = $this->op->restoreDomain((int) $domain->op_id);
+
+            if (! $res['ok']) {
+                return $this->failRestore($domain, $res['message'] ?: 'بازیابی نزدِ رجیسترار رد شد.');
+            }
+
+            $expires = $this->parseDate(data_get($this->op->getDomain((int) $domain->op_id), 'data.expiration_date'));
+
+            // بعضی رجیستری‌ها restore را بدونِ سالِ تازه برمی‌گردانند —
+            // مشتری برای یک سالِ زنده پول داده، پس تکمیلش کن.
+            if ($expires === null || $expires->isPast()) {
+                $this->op->renewDomain((int) $domain->op_id, $domain->renewYears());
+                $expires = $this->parseDate(data_get($this->op->getDomain((int) $domain->op_id), 'data.expiration_date')) ?: $expires;
+            }
+        } catch (\Throwable $e) {
+            Log::error('domain restore crashed', ['domain' => $domain->domain, 'err' => $e->getMessage()]);
+
+            return $this->failRestore($domain, 'خطای غیرمنتظره: '.$e->getMessage());
+        }
+
+        $domain->putMeta(['exp_stage' => null, 'restore_invoice_id' => null, 'restored_at' => now()->toDateTimeString()]);
+
+        $domain->forceFill([
+            'status'           => 'active',
+            'provision_status' => 'done',
+            'provision_error'  => null,
+            'expires_at'       => $expires ?: $domain->expires_at,
+        ])->save();
+
+        $this->announce('domain_renewed', $domain,
+            'دامنهٔ «'.$domain->domain.'» با موفقیت بازیابی شد'
+            .($expires ? ' و تا '.sdate($expires).' اعتبار دارد.' : '.'));
+
+        return ['ok' => true, 'manual' => false, 'message' => ''];
+    }
+
+    /**
+     * شکستِ بازیابی — `status` روی `expired` می‌مانَد (واقعیت همین است) و
+     * پس از چند تلاش، تصمیم با آدم. رفاندِ پس از مهلت با `resolve-stuck`.
+     */
+    private function failRestore(Domain $domain, string $message, bool $manual = false): array
+    {
+        $tries = (int) $domain->provision_tries + 1;
+        $manual = $manual || $tries >= 3;
+
+        $domain->forceFill([
+            'provision_status' => $manual ? 'manual' : 'pending',
+            'provision_tries'  => $tries,
+            'provision_error'  => mb_substr('بازیابی: '.$message, 0, 300),
+        ])->save();
+
+        \App\Support\ErrorTracker::note('provision', 'بازیابیِ دامنه ناموفق: '.$message, [
+            'domain' => $domain->domain,
+            'tries'  => $tries,
+        ]);
+
+        if ($manual) {
+            try {
+                app(\App\Services\Notify\AdminNotifier::class)->event(
+                    'بازیابیِ دامنهٔ منقضی انجام نشد',
+                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
+                    url('/admin/domains'),
+                    '🚨',
+                );
+            } catch (\Throwable $e) {
+                Log::warning('اعلانِ شکستِ بازیابی نرفت', ['err' => $e->getMessage()]);
+            }
+        }
 
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
     }

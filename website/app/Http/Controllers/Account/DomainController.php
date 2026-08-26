@@ -46,9 +46,15 @@ class DomainController extends Controller
      */
     public function index(Request $request, \App\Services\Domain\DomainSearch $search): View
     {
+        /*
+        | ⚠️ `expired` عمداً **دیده می‌شود** (برخلافِ `alive()`): دورهٔ redemption
+        | یعنی دامنه هنوز قابلِ نجات است و پنهان‌کردنش از پنل همان «بن‌بستِ
+        | بازیابی» بود که ممیزی پیدا کرد. مرده‌های واقعی (لغو/منتقل‌شده)
+        | همچنان پنهان‌اند. منقضی‌ها تهِ فهرست، ثبت‌درجریان‌ها اول.
+        */
         $domains = Domain::where('customer_id', $this->customerId())
-            ->alive()
-            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->whereNotIn('status', ['cancelled', 'transferred_away'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 WHEN status = 'expired' THEN 2 ELSE 1 END")
             ->orderBy('expires_at')
             ->get();
 
@@ -114,9 +120,36 @@ class DomainController extends Controller
     {
         $this->owned($domain);
 
+        /*
+        | ⚠️ برای سفارشِ انتقال، صفحه باید بداند فاکتور پرداخت شده یا نه:
+        | پیش از پرداخت لینکِ فاکتور نشان می‌دهد، پس از پرداخت فرمِ کدِ
+        | انتقال (EPP). بی‌این، مشتری پیامِ «کد را در صفحهٔ دامنه وارد کنید»
+        | را می‌گرفت و در صفحه هیچ فرمی نبود — بن‌بستی که ممیزی پیدا کرد.
+        */
+        $openInvoice = null;
+
+        if ($domain->isTransfer() && $domain->transfer_status === 'pending' && ! $domain->hasPaidInvoice()) {
+            $openInvoice = Invoice::where('domain_id', $domain->id)
+                ->whereIn('status', ['unpaid', 'draft', 'partial'])
+                ->latest('id')
+                ->first();
+        }
+
+        /*
+        | قیمتِ تمدیدی که فرم نشان می‌دهد باید همانی باشد که فاکتور می‌گیرد —
+        | ذخیره + استعلامِ تازهٔ پسوند + کفِ ارزی، هرکدام بلندتر
+        | (`DomainRenewalInvoicer::effectivePerYear`، کشِ ۶ساعته). بی‌این،
+        | مشتری عددی می‌دید و فاکتورِ بزرگ‌تری می‌گرفت.
+        */
+        $renewUnit = $domain->isActive()
+            ? app(\App\Services\Domain\DomainRenewalInvoicer::class)->effectivePerYear($domain)
+            : 0;
+
         return view('account.domain-show', AccountController::shell('domains') + [
-            'domain'     => $domain,
-            'defaultNs'  => Domain::defaultNameServers(),
+            'domain'         => $domain,
+            'defaultNs'      => Domain::defaultNameServers(),
+            'transferUnpaid' => $openInvoice,
+            'renewUnit'      => $renewUnit,
         ]);
     }
 
@@ -154,6 +187,9 @@ class DomainController extends Controller
         }
 
         $domain->update(['name_servers' => $ns]);
+
+        // برگشت به نیم‌سرورهای ما؟ zone باید باشد وگرنه دامنه از هوا می‌افتد.
+        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
 
         return back()->with('ok', 'نام‌سرورها به‌روز شد. انتشارِ کامل تا ۲۴ ساعت طول می‌کشد.');
     }
@@ -222,6 +258,157 @@ class DomainController extends Controller
             : 'تمدیدِ خودکار خاموش شد.');
     }
 
+    /**
+     * تمدیدِ دستی — دکمهٔ «تمدید دامنه» در پنل.
+     *
+     * ═══ چرا این متد ساخته شد ═══
+     *
+     * 🔴 تنها مسیرِ تمدید، فاکتورِ خودکارِ کرون در ۲۱ روزِ آخر بود. مشتری‌ای
+     * که می‌خواست زودتر خیالش را راحت کند یا چندساله تمدید کند **هیچ راهی
+     * نداشت** — دکمه‌ای وجود نداشت و کامنتِ کرون می‌گفت «چندساله را مشتری
+     * دستی می‌خرد»، ولی آن مسیرِ دستی هرگز ساخته نشده بود.
+     *
+     * هیچ تماسی با رجیسترار این‌جا نیست؛ فقط فاکتور ساخته می‌شود. تمدیدِ
+     * واقعی پس از پرداخت و با کرونِ `domains:renew` است — همان قاعدهٔ
+     * «ثبت هرگز از وب صدا زده نمی‌شود».
+     */
+    public function renew(Request $request, Domain $domain, \App\Services\Domain\DomainRenewalInvoicer $invoicer): RedirectResponse
+    {
+        $this->owned($domain);
+
+        if (! $domain->isActive()) {
+            return back()->withErrors('فقط دامنهٔ فعال از این‌جا تمدید می‌شود. اگر دامنه منقضی شده، با پشتیبانی تماس بگیرید.');
+        }
+
+        // تمدیدِ پرداخت‌شده‌ای همین حالا در صفِ رجیسترار است؛ فاکتورِ تازه
+        // یعنی پولِ دوباره برای همان کار.
+        if (in_array($domain->provision_status, ['pending', 'running'], true)) {
+            return back()->with('ok', 'تمدید در حالِ انجام است؛ تا چند دقیقهٔ دیگر تاریخِ انقضای تازه را می‌بینید.');
+        }
+
+        // تمدیدِ قبلی شکست خورده و در صفِ بررسیِ انسانی است. فاکتورِ دوم
+        // همان خطای «دو بار پول، صفر تمدید» را می‌سازد که ممیزی پیدا کرد.
+        if ($domain->provision_status === 'manual') {
+            return back()->withErrors('تمدیدِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+        }
+
+        $years = (int) $request->validate([
+            'years' => ['required', 'integer', 'min:1', 'max:5'],
+        ], [], ['years' => 'مدتِ تمدید'])['years'];
+
+        // قیمتِ مؤثر (ذخیره + استعلامِ تازه + کف) — صفر یعنی هیچ منبعی قیمت ندارد
+        if ($invoicer->effectivePerYear($domain) <= 0) {
+            return back()->withErrors('قیمتِ تمدید برای این دامنه در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
+        }
+
+        // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
+        // دو فاکتور بسازد — فاکتورِ باز همیشه بازمصرف می‌شود.
+        $invoice = DB::transaction(function () use ($domain, $years, $invoicer) {
+            Domain::whereKey($domain->id)->lockForUpdate()->first();
+
+            return $invoicer->open($domain) ?? $invoicer->issue($domain, $years);
+        });
+
+        // ⚠️ lroute و نه route: کاربرِ /en/ و /tr/ نباید وسطِ پرداخت به صفحهٔ
+        //    فارسی بیفتد — همان قاعدهٔ بالای domain-show.blade.php.
+        return redirect()->to(lroute('account.invoice', $invoice));
+    }
+
+    /**
+     * بازیابیِ دامنهٔ منقضی (redemption) — مسیرِ نجاتی که وجود نداشت.
+     *
+     * ═══ چرا (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 دامنهٔ `expired` از پنل غیب می‌شد و تنها راهش «تماس با پشتیبانی»
+     * بود — دقیقاً در پنجره‌ای که رجیستری هنوز بازیابی را می‌پذیرد و هر روز
+     * تأخیر شانسِ نجات را کم می‌کند.
+     *
+     * قیمت = قیمتِ مؤثرِ تمدید + کارمزدِ بازیابی (`domain_restore_fee_toman`
+     * در تنظیمات — کارمزدِ redemption نزدِ رجیستری چند برابرِ تمدید است و
+     * per-TLD از API نمی‌آید، پس عددش تصمیمِ کارفرماست). تا وقتی آن تنظیم
+     * خالی است، این مسیر عمداً بسته می‌مانَد و به پشتیبانی ارجاع می‌دهد —
+     * فروختنِ نجات زیرِ قیمتِ تمام‌شده بدتر از نفروختنش است.
+     *
+     * مثلِ renew: این‌جا فقط فاکتور؛ تماسِ رجیسترار پس از پرداخت با کرون
+     * (`restorePaid`)، و شکستِ قطعی = رفاندِ خودکار.
+     */
+    public function restore(Request $request, Domain $domain, \App\Services\Domain\DomainRenewalInvoicer $invoicer): RedirectResponse
+    {
+        $this->owned($domain);
+
+        if ($domain->status !== 'expired') {
+            return back()->withErrors('این دامنه در وضعیتِ بازیابی نیست.');
+        }
+
+        if (! $domain->op_id) {
+            return back()->withErrors('بازیابیِ این دامنه فقط از راهِ پشتیبانی ممکن است.');
+        }
+
+        if (in_array($domain->provision_status, ['pending', 'running'], true)) {
+            return back()->with('ok', 'بازیابی در حالِ انجام است؛ نتیجه به شما اطلاع داده می‌شود.');
+        }
+
+        if ($domain->provision_status === 'manual') {
+            return back()->withErrors('بازیابیِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+        }
+
+        $fee = (int) \App\Models\Setting::get('domain_restore_fee_toman');
+
+        if ($fee <= 0) {
+            return back()->withErrors('بازیابیِ آنلاین فعلاً فعال نیست؛ برای نجاتِ دامنه با پشتیبانی تماس بگیرید.');
+        }
+
+        $renewPerYear = $invoicer->effectivePerYear($domain);
+
+        if ($renewPerYear <= 0) {
+            return back()->withErrors('قیمتِ بازیابی در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
+        }
+
+        $invoice = DB::transaction(function () use ($domain, $invoicer, $renewPerYear, $fee) {
+            Domain::whereKey($domain->id)->lockForUpdate()->first();
+
+            if ($open = $invoicer->open($domain)) {
+                return $open;
+            }
+
+            $subtotal = $renewPerYear + $fee;
+            $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
+            $tax = (int) round($subtotal * $taxPct / 100);
+
+            $invoice = Invoice::create([
+                'customer_id'   => $domain->customer_id,
+                'domain_id'     => $domain->id,
+                'kind'          => 'domain',
+                'currency_code' => 'IRT',
+                'subtotal'      => $subtotal,
+                'tax'           => $tax,
+                'total'         => $subtotal + $tax,
+                'paid'          => 0,
+                'status'        => 'unpaid',
+                'issued_at'     => now(),
+                'note'          => 'بازیابیِ دامنهٔ منقضیِ '.$domain->domain,
+            ]);
+
+            InvoiceItem::create([
+                'invoice_id'  => $invoice->id,
+                'title'       => 'بازیابیِ دامنهٔ '.$domain->domain,
+                'description' => 'نجات از دورهٔ redemption + یک سال تمدید',
+                'quantity'    => 1,
+                'unit_price'  => $subtotal,
+                'line_total'  => $subtotal,
+                'tax_rate_bp' => (int) ($taxPct * 100),
+                'tax_amount'  => $tax,
+            ]);
+
+            // نشانِ فاکتور برای رفاندِ هدفمند + یک‌سالِ تمدیدِ همراهِ بازیابی
+            $domain->putMeta(['restore_invoice_id' => $invoice->id, 'renew_years' => 1]);
+
+            return $invoice;
+        });
+
+        return redirect()->to(lroute('account.invoice', $invoice));
+    }
+
     // ═══════════════════════ خرید ═══════════════════════
 
     /**
@@ -247,6 +434,13 @@ class DomainController extends Controller
      */
     public function checkout(Request $request, DomainQuote $quote): View|RedirectResponse
     {
+        /*
+        | 🔴 مالکیت پیش از هر چیز: شناسهٔ ترتیبی + نبودِ این گارد یعنی هر
+        | مشتری می‌توانست ۱..N را بپیماید و جستجوهای دامنهٔ بقیه را ببیند.
+        | ۴۰۴ و نه ۴۰۳ — وجودِ استعلامِ دیگران هم اطلاعات است.
+        */
+        abort_unless($quote->claimFor($this->customerId()), 404);
+
         if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
             return redirect()->route('account.domains')
                 ->withErrors(__('ui.dch_quote_expired'));
@@ -298,6 +492,11 @@ class DomainController extends Controller
         $quote = DomainQuote::find($data['quote_id']);
 
         if ($quote === null) {
+            return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
+        }
+
+        // مالکیتِ استعلام — همان گاردِ checkout؛ مسیرِ پول بی‌مالک نمی‌ماند.
+        if (! $quote->claimFor($this->customerId())) {
             return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
         }
 
@@ -439,6 +638,16 @@ class DomainController extends Controller
         DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns) {
             $domain = $existing;
 
+            static $hasRenewCost = null;
+            $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domains', 'cost_renew_amount');
+
+            $money = [
+                'price_toman'   => (int) $quote->sell_toman,
+                'renew_toman'   => (int) ($quote->renew_toman ?: $quote->sell_toman),
+                'cost_amount'   => (int) $quote->cost_amount,
+                'cost_currency' => (string) $quote->cost_currency,
+            ] + ($hasRenewCost ? ['cost_renew_amount' => $quote->cost_renew_amount] : []);
+
             if ($domain === null) {
                 $domain = Domain::create([
                     'customer_id'   => $customerId,
@@ -452,20 +661,28 @@ class DomainController extends Controller
                     // `pending` می‌کند.
                     'provision_status' => 'none',
                     'period_years'  => $years,
-                    'price_toman'   => (int) $quote->sell_toman,
-                    'renew_toman'   => (int) ($quote->renew_toman ?: $quote->sell_toman),
-                    'cost_amount'   => (int) $quote->cost_amount,
-                    'cost_currency' => (string) $quote->cost_currency,
                     'quote_id'      => $quote->id,
                     'name_servers'  => $ns,
-                ]);
+                ] + $money);
             } else {
+                /*
+                | 🔴 بازمصرفِ ردیفِ مرده باید **کامل** باشد (ممیزیِ شهریور ۱۴۰۵):
+                |
+                | • `order_type`/`transfer_status` ریست نمی‌شد: اگر ردیفِ قبلی یک
+                |   انتقالِ ردشده بود، خریدِ تازه با order_type='transfer' در
+                |   **هیچ** صفی نمی‌افتاد — پرداخت‌شده و نامرئی، بی‌رفاند.
+                | • قیمت‌ها و بهای تمام‌شدهٔ کهنه می‌ماند: تمدیدِ سال‌های بعد به
+                |   نرخِ پارسال و کفِ ارزی با بهای پارسال حساب می‌شد.
+                | • `provision_tries` کهنه یعنی اولین شکستِ ثبتِ تازه یکراست
+                |   `manual` می‌شد.
+                */
                 $domain->forceFill([
                     'customer_id' => $customerId, 'status' => 'pending',
-                    'provision_status' => 'none', 'period_years' => $years,
-                    'price_toman' => (int) $quote->sell_toman, 'quote_id' => $quote->id,
-                    'name_servers' => $ns,
-                ])->save();
+                    'order_type' => 'register', 'transfer_status' => null,
+                    'provision_status' => 'none', 'provision_tries' => 0,
+                    'provision_error' => null, 'period_years' => $years,
+                    'quote_id' => $quote->id, 'name_servers' => $ns,
+                ] + $money)->save();
             }
 
             /*

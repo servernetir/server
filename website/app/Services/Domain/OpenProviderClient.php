@@ -19,6 +19,24 @@ class OpenProviderClient
 {
     private const TOKEN_KEY = 'openprovider.token';
 
+    /**
+     * 🔴 مدارشکنِ احراز هویت — پایانِ «طوفانِ لاگین».
+     *
+     * وقتی حساب واقعاً رد می‌شود (کد ۱۹۶ — IP در allowlist نیست یا حساب
+     * علامت خورده)، پاسخ تا دخالتِ انسان عوض نمی‌شود. تا ممیزیِ شهریور ۱۴۰۵
+     * هیچ ترمزی نبود: هر کالِ منطقی = تلاشِ لاگین → ۱۹۶ → فراموشیِ توکن →
+     * تلاشِ لاگینِ دوم → ۱۹۶. یک جستجوی ساده (۷ بچ) یعنی **۱۴ تلاشِ لاگین**
+     * به حسابی که قبلاً به‌خاطرِ تماسِ زیاد پرچم خورده — خودِ درمان، بیماری
+     * را بدتر می‌کرد.
+     *
+     * تا این کلید در کش باشد، هیچ تماسِ HTTPای نمی‌رود و همان ۱۹۶ فوراً
+     * برمی‌گردد؛ لایه‌های بالاتر (fail-closed جستجو، fx_unavailable و…)
+     * همان رفتارِ همیشگیِ «رجیسترار در دسترس نیست» را می‌گیرند.
+     */
+    private const AUTH_DOWN_KEY = 'openprovider.auth_down';
+
+    private const AUTH_DOWN_MINUTES = 10;
+
     public function __construct(
         private ?string $base = null,
         private ?string $username = null,
@@ -49,6 +67,11 @@ class OpenProviderClient
             return $cached;
         }
 
+        // مدار باز است؟ لاگینِ تازه نزن — پاسخ تا دخالتِ انسان عوض نمی‌شود.
+        if (Cache::get(self::AUTH_DOWN_KEY)) {
+            return null;
+        }
+
         $res = $this->raw('POST', '/auth/login', [
             'username' => $this->username,
             'password' => $this->password,
@@ -57,13 +80,31 @@ class OpenProviderClient
         $token = data_get($res, 'data.token');
 
         if (blank($token)) {
+            Cache::put(self::AUTH_DOWN_KEY, (int) data_get($res, 'code', -1),
+                now()->addMinutes(self::AUTH_DOWN_MINUTES));
+
             Log::warning('OpenProvider login failed', [
                 'code' => data_get($res, 'code'),
                 'desc' => data_get($res, 'desc'),
             ]);
+
+            /*
+            | 🔴 این خطا باید به /admin/errors برسد، نه فقط به فایلِ لاگ.
+            | لاگینِ شکست‌خورده یعنی **کلِ** فروش و تمدید و انتقالِ دامنه
+            | خوابیده است — بی‌صدا ماندنش همان «خرابیِ خاموش» است.
+            */
+            try {
+                \App\Support\ErrorTracker::noteOnce('domain',
+                    'ورود به OpenProvider رد شد (کد '.data_get($res, 'code', '؟').') — فروش و تمدیدِ دامنه خوابیده است.',
+                    900, ['desc' => mb_substr((string) data_get($res, 'desc', ''), 0, 160)]);
+            } catch (\Throwable) {
+                // ردیاب هرگز مسیرِ اصلی را نمی‌شکند
+            }
+
             return null;
         }
 
+        Cache::forget(self::AUTH_DOWN_KEY);
         Cache::put(self::TOKEN_KEY, $token, now()->addHours(6));
 
         return $token;
@@ -239,6 +280,22 @@ class OpenProviderClient
     }
 
     /**
+     * بازیابیِ دامنهٔ منقضی از دورهٔ redemption رجیستری.
+     *
+     * ⚠️ عملیاتِ **پولی** است (کارمزدِ بازیابی نزدِ بیشترِ رجیستری‌ها چند
+     * برابرِ تمدید است) و فقط باید بعد از پرداختِ مشتری صدا زده شود — همان
+     * قاعدهٔ ثبت/تمدید.
+     *
+     * ⚠️ پاسخِ واقعی‌اش را روی حسابِ خودمان ندیده‌ایم؛ فراخوان باید شکست را
+     * «صفِ دستی» بخواند نه «تلاشِ بی‌پایان» — رفتارِ redemption بینِ
+     * رجیستری‌ها یکدست نیست.
+     */
+    public function restoreDomain(int $id): array
+    {
+        return $this->result($this->call('POST', '/domains/'.$id.'/restore', []));
+    }
+
+    /**
      * تغییرِ صفاتِ دامنه: nameserver، قفلِ انتقال، تمدیدِ خودکار.
      *
      * @param  array<string,mixed>  $data
@@ -382,6 +439,86 @@ class OpenProviderClient
         ]);
     }
 
+    /**
+     * موجودی و اطلاعاتِ حسابِ ریسلری — فقط خواندنی.
+     *
+     * ═══ چرا هست (ممیزی + خواستهٔ کارفرما، ۳ شهریور ۱۴۰۵) ═══
+     *
+     * اگر اعتبارِ حسابِ ما نزدِ رجیسترار ته بکشد، هر ثبت و تمدیدی شکست
+     * می‌خورد و تنها علامتش انباشتِ بی‌صدا در صفِ دستی است — خبری که همیشه
+     * یک خرابیِ انجام‌شده دیرتر می‌رسد. این متد اجازه می‌دهد **پیش از** آن
+     * بپرسیم؛ مصرفش پایشِ سلامت است (کش‌دار، چهار تماس در روز).
+     *
+     * ⚠️ جای دقیقِ فیلدِ موجودی در پاسخ را روی حسابِ واقعی ندیده‌ایم؛ پس
+     * `balance()` به‌جای اعتماد به یک مسیرِ حدسی، کلِ پاسخ را بازگشتی
+     * می‌گردد و اولین کلیدِ `balance`ِ عددی را برمی‌دارد. اگر نبود،
+     * «نمی‌دانم» گزارش می‌شود — نه صفر و نه هشدارِ الکی.
+     *
+     * @return array{ok:bool, data:array, code:int, message:string}
+     */
+    public function resellerInfo(): array
+    {
+        $res = $this->call('GET', '/resellers');
+
+        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+    }
+
+    /**
+     * موجودیِ حساب، اگر از پاسخ پیدا شود.
+     *
+     * @return array{known:bool, amount:float, currency:string}
+     */
+    public function balance(): array
+    {
+        $info = $this->resellerInfo();
+
+        if (! $info['ok']) {
+            return ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        }
+
+        $found = null;
+        $currency = '';
+
+        $walk = function ($node) use (&$walk, &$found, &$currency) {
+            if ($found !== null || ! is_array($node)) {
+                return;
+            }
+
+            foreach ($node as $key => $value) {
+                if ($found !== null) {
+                    return;
+                }
+
+                if (is_string($key) && strtolower($key) === 'balance') {
+                    // شکل‌های دیده‌شده در اسپک: عددِ خام یا {value, currency}
+                    if (is_numeric($value)) {
+                        $found = (float) $value;
+                        $currency = (string) ($node['currency'] ?? $node['balance_currency'] ?? '');
+
+                        return;
+                    }
+
+                    if (is_array($value) && is_numeric($value['value'] ?? null)) {
+                        $found = (float) $value['value'];
+                        $currency = (string) ($value['currency'] ?? '');
+
+                        return;
+                    }
+                }
+
+                if (is_array($value)) {
+                    $walk($value);
+                }
+            }
+        };
+
+        $walk($info['data']);
+
+        return $found === null
+            ? ['known' => false, 'amount' => 0.0, 'currency' => '']
+            : ['known' => true, 'amount' => $found, 'currency' => $currency];
+    }
+
     private function result(array $res, array $extra = []): array
     {
         $code = (int) ($res['code'] ?? -1);
@@ -398,10 +535,26 @@ class OpenProviderClient
     {
         $res = $this->raw($method, $path, $payload);
 
-        // ۱۹۶ = احراز هویت رد شد → شاید توکن کهنه است، یک بار تازه بگیر
-        if ((int) data_get($res, 'code') === 196) {
+        /*
+        | ۱۹۶ = احراز هویت رد شد → شاید توکن کهنه است، یک بار تازه بگیر.
+        |
+        | ⚠️ فقط وقتی واقعاً توکنی **داشتیم**: اگر همین الان لاگین شکست خورده
+        | («No token available»)، تلاشِ دوباره یعنی لاگینِ دوم به حسابی که
+        | جواب داده «نه» — همان طوفانی که مدارشکن برای خاموشی‌اش آمده.
+        */
+        if ((int) data_get($res, 'code') === 196
+            && data_get($res, 'desc') !== 'No token available') {
             Cache::forget(self::TOKEN_KEY);
             $res = $this->raw($method, $path, $payload, forceFreshToken: true);
+
+            /*
+            | توکنِ تازه گرفتیم و باز هم ۱۹۶؟ مشکل از کهنگیِ توکن نیست —
+            | حساب/آی‌پی رد می‌شود. مدار را باز کن تا کال‌های بعدی بی‌تماس
+            | برگردند؛ وگرنه هر کالِ منطقی دو درخواست + یک لاگین می‌سوزانْد.
+            */
+            if ((int) data_get($res, 'code') === 196) {
+                Cache::put(self::AUTH_DOWN_KEY, 196, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+            }
         }
 
         return $res;

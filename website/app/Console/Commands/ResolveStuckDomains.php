@@ -52,8 +52,21 @@ class ResolveStuckDomains extends Command
     /** دلیلِ یکتای بازگشت — محافظِ «دو بار برنگردان» روی همین می‌گردد */
     public const REFUND_REASON = 'domain_failed_refund';
 
-    public function handle(DomainRegistrar $registrar, CustomerNotifier $customers, AdminNotifier $admin): int
-    {
+    /** بازگشتِ وجهِ تمدیدِ شکست‌خورده — جدا از ثبت، چون دامنه زنده می‌مانَد */
+    public const RENEW_REFUND_REASON = 'domain_renewal_refund';
+
+    /** بیش از این تعداد آزادسازیِ بی‌نتیجه یعنی مانعی هست که نمی‌بینیم */
+    public const MAX_REQUEUES = 3;
+
+    /** چند روز به مشتری فرصت بدهیم کدِ EPP انتقالِ پرداخت‌شده را وارد کند */
+    public const TRANSFER_SUBMIT_GRACE_DAYS = 7;
+
+    public function handle(
+        DomainRegistrar $registrar,
+        CustomerNotifier $customers,
+        AdminNotifier $admin,
+        \App\Services\Domain\DomainTransfer $transfers,
+    ): int {
         $hours = (int) ($this->option('hours') ?: config('services.openprovider.manual_grace_hours', 24));
         $dry = (bool) $this->option('dry-run');
 
@@ -63,7 +76,43 @@ class ResolveStuckDomains extends Command
             ->orderBy('updated_at')
             ->get();
 
-        if ($stuck->isEmpty()) {
+        /*
+        | 🔴 تمدیدهای شکست‌خورده هم صفِ دستی دارند — و تا ممیزیِ شهریور ۱۴۰۵
+        | هیچ‌کس آن صف را نمی‌دید: `failRenewal()` دامنهٔ **فعال** را در
+        | `manual` پارک می‌کند، ولی پرس‌وجوی بالا فقط `status='pending'` را
+        | می‌گیرد. نتیجه: پولِ تمدید گرفته شده بود، تمدید نشده بود، هیچ
+        | بازگشتی هم در کار نبود — نقضِ همان قاعدهٔ کارفرما، فقط در لباسِ
+        | تمدید به‌جای ثبت.
+        */
+        // «active» = تمدیدِ شکست‌خورده؛ «expired» = بازیابیِ شکست‌خورده —
+        // هر دو پول گرفته‌اند و هر دو باید یا انجام شوند یا پولشان برگردد.
+        $stuckRenewals = Domain::where('provision_status', 'manual')
+            ->whereIn('status', ['active', 'expired'])
+            ->with('customer')
+            ->orderBy('updated_at')
+            ->get();
+
+        /*
+        | 🔴 دو صفِ گیرِ انتقال — هر دو تا ممیزیِ شهریور ۱۴۰۵ نامرئی بودند:
+        |
+        |   • پرداخت‌شده ولی کدِ EPP هرگز وارد نشده (`transfer_status=pending`):
+        |     هیچ کرونی نمی‌دیدش — نه timeout، نه رفاند، تا ابد.
+        |   • ثبتِ درخواست شکست‌خورده (`transfer_status=failed` + `manual`):
+        |     status هنوز transferring بود و از فیلترِ status='pending' بیرون
+        |     می‌مانْد.
+        */
+        $stuckTransfers = Domain::where('order_type', 'transfer')
+            ->where('status', Domain::STATUS_TRANSFERRING)
+            ->where(fn ($w) => $w
+                ->where(fn ($a) => $a
+                    ->where('transfer_status', 'failed')
+                    ->where('provision_status', 'manual'))
+                ->orWhere('transfer_status', 'pending'))
+            ->with('customer')
+            ->orderBy('updated_at')
+            ->get();
+
+        if ($stuck->isEmpty() && $stuckRenewals->isEmpty() && $stuckTransfers->isEmpty()) {
             $this->line('هیچ دامنه‌ای در صفِ دستی نیست.');
 
             return self::SUCCESS;
@@ -77,15 +126,32 @@ class ResolveStuckDomains extends Command
             /*
             | ── گام ۱: هنوز مانعی هست؟ ──
             |
-            | ⚠️ همان تابعی پرسیده می‌شود که خودِ ثبت استفاده می‌کند. شرطِ
-            | دست‌نویسِ موازی یعنی روزی رجیسترار فیلدی اضافه کند و این فرمان
-            | دامنه‌ای را «آزاد» کند که دقیقاً همان لحظه دوباره `manual` می‌شود
-            | — یک حلقه که هر دور یک اعلان برای مشتری می‌فرستد.
+            | 🔴 سؤال باید **کامل** باشد. نسخهٔ قبلی فقط کامل‌بودنِ پروفایل را
+            | می‌پرسید و ممیزی دو خرابیِ متضادش را پیدا کرد: مانعِ غیرپروفایلی
+            | (قراردادِ امضانشده…) هر ساعت «آزاد» می‌شد و شکست می‌خورد — و چون
+            | هر دور `updated_at` را تازه می‌کرد، مهلتِ بازگشتِ وجه هرگز
+            | نمی‌رسید؛ و با مالکِ ثابتِ شرکت، دامنهٔ قابلِ ثبت «مسدود» شمرده
+            | و بعد از مهلت لغو/رفاند می‌شد.
+            |
+            | حالا همان گیت‌های خودِ ثبت پرسیده می‌شوند (`registrationBlocker`)
+            | — یک منبع، بدونِ تماسِ API.
             */
-            $profile = $domain->customer?->defaultProfile();
-            $blocked = $profile === null || $registrar->profileToCustomer($profile) === null;
+            $blocker = $registrar->registrationBlocker($domain);
 
-            if (! $blocked) {
+            /*
+            | ⚠️ ترمزِ حلقه: اگر چند بار آزاد شد و هر بار دوباره به صفِ دستی
+            | برگشت، مانعی هست که ما نمی‌بینیم (مثلاً رجیسترار همین نام را
+            | ساختاری رد می‌کند). آزادسازیِ بی‌پایان یعنی تماسِ بی‌فایدهٔ
+            | ساعتی + مهلتی که هرگز تمام نمی‌شود؛ از این‌جا به بعد بگذار
+            | مهلت بدود و پولِ مشتری برگردد.
+            */
+            $requeues = (int) ($domain->meta['stuck_requeues'] ?? 0);
+
+            if ($blocker === null && $requeues >= self::MAX_REQUEUES) {
+                $blocker = 'پس از '.$requeues.' بار بازگشت به صف، هر بار دوباره شکست خورد.';
+            }
+
+            if ($blocker === null) {
                 $this->line(($dry ? '[خشک] ' : '').'↻ آزاد شد: '.$domain->domain);
                 $freed++;
 
@@ -95,6 +161,8 @@ class ResolveStuckDomains extends Command
                         'provision_tries'  => 0,
                         'provision_error'  => null,
                     ])->save();
+
+                    $domain->putMeta(['stuck_requeues' => $requeues + 1]);
                 }
 
                 continue;
@@ -119,10 +187,195 @@ class ResolveStuckDomains extends Command
             }
         }
 
+        /*
+        | ── صفِ دوم: تمدیدهای شکست‌خورده ──
+        |
+        | این‌جا «آزادسازی» معنا ندارد: تمدید ۵ بار تلاش شده و شکست خورده؛
+        | تلاشِ ششم همان تماسِ بی‌فایده با حسابِ علامت‌خورده است. دو خروجی:
+        | یا مدیر در مهلت دستی حلش می‌کند، یا وجهِ **فاکتورِ تمدید** به
+        | اعتبارِ مشتری برمی‌گردد و دامنه به حالتِ عادی (`done`) بازمی‌گردد
+        | تا چرخهٔ عمر دوباره یادآوری بفرستد — دامنه هنوز زنده است و نباید
+        | بی‌صدا به‌سمتِ انقضا برود.
+        */
+        foreach ($stuckRenewals as $domain) {
+            $parkedFor = $domain->updated_at?->diffInHours(now()) ?? 0;
+
+            if ($parkedFor < $hours) {
+                $waiting++;
+                $this->warn('… تمدید در مهلت ('.$parkedFor.'/'.$hours.' ساعت): '.$domain->domain);
+
+                continue;
+            }
+
+            $this->error(($dry ? '[خشک] ' : '').'↩ بازگشتِ وجهِ تمدید: '.$domain->domain);
+            $refunded++;
+
+            if (! $dry) {
+                $this->refundFailedRenewal($domain, $customers, $admin);
+            }
+        }
+
+        /*
+        | ── صفِ سوم: انتقال‌های گیرکرده ──
+        |
+        | دو حالت، دو مهلتِ متفاوت:
+        |
+        |   • در انتظارِ کدِ EPP (پرداخت‌شده): مشتری باید خودش کد را وارد کند،
+        |     پس مهلت سخاوتمندانه است (TRANSFER_SUBMIT_GRACE_DAYS روز). ردیفِ
+        |     پرداخت‌نشده کارِ این فرمان نیست — انقضای پیش‌فاکتور جمعش می‌کند.
+        |   • ثبتِ درخواست شکست‌خورده (failed/manual): کدِ غلط یا خطای
+        |     ساختاری؛ همان مهلتِ استانداردِ صفِ دستی.
+        |
+        | خروجی در هر دو `DomainTransfer::reject()` است: لغو + بازگشتِ کاملِ
+        | پرداختی (محافظِ دوباره‌رفاند داخلِ خودِ refund است) + اعلان.
+        */
+        foreach ($stuckTransfers as $domain) {
+            $awaitingEpp = $domain->transfer_status === 'pending';
+
+            if ($awaitingEpp && ! $domain->hasPaidInvoice()) {
+                continue;       // پیش‌فاکتورِ پرداخت‌نشده — کارِ invoices:expire-orders
+            }
+
+            $limitHours = $awaitingEpp ? self::TRANSFER_SUBMIT_GRACE_DAYS * 24 : $hours;
+            $parkedFor = $domain->updated_at?->diffInHours(now()) ?? 0;
+
+            if ($parkedFor < $limitHours) {
+                $waiting++;
+                $this->warn('… انتقال در مهلت ('.$parkedFor.'/'.$limitHours.' ساعت): '.$domain->domain);
+
+                continue;
+            }
+
+            $this->error(($dry ? '[خشک] ' : '').'✗ لغوِ انتقال و بازگشتِ پول: '.$domain->domain);
+            $refunded++;
+
+            if (! $dry) {
+                $transfers->reject($domain, $awaitingEpp
+                    ? 'کدِ انتقال (EPP) واردنشده ماند و مهلتِ '.self::TRANSFER_SUBMIT_GRACE_DAYS.'روزه تمام شد.'
+                    : 'ثبتِ درخواستِ انتقال ممکن نشد و مهلتِ بررسیِ دستی تمام شد.');
+            }
+        }
+
         $this->newLine();
         $this->line("آزادشده: {$freed} · لغو و برگشت: {$refunded} · در مهلت: {$waiting}");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * بازگشتِ وجهِ تمدیدِ شکست‌خورده — بدونِ دست‌زدن به خودِ دامنه.
+     *
+     * ═══ تفاوت با `cancelAndRefund()` ═══
+     *
+     * آن‌جا دامنه‌ای است که هرگز ثبت نشد؛ لغوش درست است. این‌جا دامنهٔ
+     * **زندهٔ** مشتری است که فقط تمدیدش شکست خورده — لغو یعنی نابودکردنِ
+     * دارایی مشتری به‌خاطرِ خطای ما. پس: وجهِ فاکتورِ تمدید برمی‌گردد،
+     * `provision_status` به `done` می‌رود (حالتِ عادی)، و چرخهٔ عمر دوباره
+     * فاکتور و یادآوری می‌فرستد؛ اگر مانع برطرف شده باشد پرداختِ بعدی موفق
+     * می‌شود و اگر نه، دوباره همین‌جا برمی‌گردد — پرصداتر از گم‌شدنِ پول.
+     *
+     * 🔴 فقط فاکتوری برمی‌گردد که `meta['renew_invoice_id']` نشانش کرده.
+     * «آخرین فاکتورِ پرداخت‌شده» ممکن است فاکتورِ **ثبتِ** سالِ پیش باشد؛
+     * برگرداندنش یعنی پولِ ثبتِ دامنه‌ای که مشتری دارد و استفاده می‌کند.
+     * ردیفِ بی‌نشان دست نمی‌خورد و فقط به مدیر گزارش می‌شود.
+     */
+    private function refundFailedRenewal(Domain $domain, CustomerNotifier $customers, AdminNotifier $admin): void
+    {
+        // تمدید و بازیابی هر دو از همین در می‌آیند؛ نشانِ فاکتور فرق دارد
+        $invoiceId = (int) ($domain->meta['renew_invoice_id'] ?? $domain->meta['restore_invoice_id'] ?? 0);
+
+        $invoice = $invoiceId > 0
+            ? Invoice::where('id', $invoiceId)
+                ->where('domain_id', $domain->id)
+                ->where('kind', 'domain')
+                ->where('status', 'paid')
+                ->where('paid', '>', 0)
+                ->first()
+            : null;
+
+        if ($invoice === null) {
+            // نشانی نیست یا فاکتور در وضعیتِ قابلِ برگشت نیست → کارِ آدم.
+            ErrorTracker::noteOnce('domain',
+                'تمدیدِ شکست‌خورده بدونِ فاکتورِ قابلِ بازگشت: '.$domain->domain, 21600, [
+                    'domain'  => $domain->domain,
+                    'invoice' => $invoiceId ?: null,
+                ]);
+
+            return;
+        }
+
+        $amount = (int) $invoice->paid;
+
+        try {
+            DB::transaction(function () use ($domain, $invoice, $amount) {
+                /*
+                | ⚠️ محافظِ «دو بار برنگردان» — این‌جا روی **فاکتور** بسته
+                | می‌شود نه دامنه: دامنه سال‌های بعد باز هم تمدید می‌شود و
+                | ممکن است دوباره شکست بخورد؛ هر فاکتور فقط یک بار برمی‌گردد.
+                */
+                $already = CreditEntry::where('customer_id', $domain->customer_id)
+                    ->where('reason', self::RENEW_REFUND_REASON)
+                    ->where('source_type', Invoice::class)
+                    ->where('source_id', $invoice->id)
+                    ->exists();
+
+                if (! $already && $domain->customer !== null) {
+                    CreditEntry::create([
+                        'customer_id'   => $domain->customer_id,
+                        'currency_code' => (string) ($invoice->currency_code ?: 'IRT'),
+                        'amount'        => $amount,
+                        'balance_after' => $domain->customer->creditBalance((string) ($invoice->currency_code ?: 'IRT')) + $amount,
+                        'reason'        => self::RENEW_REFUND_REASON,
+                        'source_type'   => Invoice::class,
+                        'source_id'     => $invoice->id,
+                        'note'          => 'بازگشتِ وجه — تمدیدِ دامنهٔ '.$domain->domain.' ممکن نشد',
+                    ]);
+                }
+
+                // ⚠️ فاکتور حذف نمی‌شود: سابقهٔ مالی و مالیاتی باید بماند.
+                $invoice->forceFill(['status' => 'refunded'])->save();
+
+                // دفترِ کسب‌وکار هم برگشت را ببیند (idempotent روی فاکتور)
+                app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                    $invoice, $amount, 'بازگشتِ وجه — تمدیدِ '.$domain->domain.' ممکن نشد');
+
+                $domain->forceFill([
+                    'provision_status' => 'done',
+                    'provision_tries'  => 0,
+                    'provision_error'  => 'تمدید ممکن نشد؛ وجهِ فاکتور به اعتبارِ مشتری بازگشت.',
+                ])->save();
+
+                $domain->putMeta(['renew_invoice_id' => null, 'restore_invoice_id' => null, 'renew_years' => null]);
+            });
+        } catch (\Throwable $e) {
+            ErrorTracker::note('domain', $e, ['area' => 'renewal-refund', 'domain' => $domain->domain]);
+            $this->error('   بازگشتِ وجهِ تمدید انجام نشد: '.$e->getMessage());
+
+            return;
+        }
+
+        $money = fa_num(number_format($amount)).' تومان';
+
+        try {
+            if ($domain->customer !== null) {
+                $what = $domain->status === 'expired' ? 'بازیابی' : 'تمدید';
+
+                $customers->event($domain->customer, 'domain_refunded', [
+                    'domain' => $domain->domain,
+                    'amount' => $money,
+                ], $what.'ِ دامنهٔ '.$domain->domain.' انجام نشد و مبلغ '.$money
+                    .' به اعتبارِ حسابِ شما بازگشت. '
+                    .($domain->status === 'expired'
+                        ? 'برای پیگیریِ نجاتِ دامنه با پشتیبانی تماس بگیرید — هر روز تأخیر شانس را کم می‌کند.'
+                        : 'دامنه تا تاریخِ انقضای فعلی برقرار است؛ می‌توانید دوباره تمدید کنید یا با پشتیبانی تماس بگیرید.'));
+            }
+
+            $admin->event('تمدیدِ دامنه ناموفق — وجه بازگشت',
+                ['دامنه' => $domain->domain, 'مبلغ' => $money],
+                url('/admin/domains'), '↩️');
+        } catch (\Throwable $e) {
+            ErrorTracker::note('notify', $e, ['area' => 'renewal-refund', 'domain' => $domain->domain]);
+        }
     }
 
     /**
@@ -183,6 +436,12 @@ class ResolveStuckDomains extends Command
                 if ($invoice !== null) {
                     // ⚠️ فاکتور **حذف نمی‌شود**: سابقهٔ مالی و مالیاتی باید بماند.
                     $invoice->forceFill(['status' => 'refunded'])->save();
+
+                    // دفترِ کسب‌وکار هم برگشت را ببیند (idempotent روی فاکتور)
+                    if ($amount > 0) {
+                        app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                            $invoice, $amount, 'بازگشتِ وجه — ثبتِ '.$domain->domain.' ممکن نشد');
+                    }
                 }
 
                 $domain->forceFill([

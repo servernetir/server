@@ -20,12 +20,23 @@ class BlogRepository
         $locale = app()->getLocale();
 
         try {
-            return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () {
+            return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () use ($locale) {
                 return Post::query()
                     ->where('type', $this->type)->where('status', 'published')
                     ->with('translations')
                     ->orderByDesc('published_at')->orderByDesc('id')
                     ->get()
+                    /*
+                    | روی en/tr فقط پستِ واقعاً ترجمه‌شده فهرست می‌شود. بی‌این،
+                    | fallbackِ fa در tr() عنوانِ فارسی را به فهرستِ بلاگ، بلوکِ
+                    | «راهنماها»ی ~۱۱۰ صفحهٔ محصول و «مطالبِ مرتبط» می‌برد
+                    | (بررسی سراسری زبان، مرداد ۱۴۰۵). پست با رسیدنِ ترجمه‌اش
+                    | (کرونِ translate-missing یا stepِ دستی) خودکار ظاهر می‌شود.
+                    | find() عمداً فیلتر ندارد: URL مستقیم بهتر است fa بدهد تا ۴۰۴.
+                    */
+                    ->when($locale !== 'fa', fn ($posts) => $posts->filter(
+                        fn (Post $p) => $p->translations->contains('locale', $locale)))
+                    ->values()
                     ->map(fn (Post $p) => $this->toArray($p, false))
                     ->all();
             });
@@ -70,9 +81,24 @@ class BlogRepository
             'reading'  => $p->reading ?: 5,
             // نام پیش‌فرض باید ترجمه‌شده باشد، وگرنه «تیم سرورنت» در نسخه‌ی en/tr هم ظاهر می‌شود
             'author'   => optional($p->author)->name ?? __('ui.bl_reply_by'),
+            /*
+            | fallback است یا ترجمهٔ واقعی؟ — site:gate کامل (۳ شهریور، RG-SITEMAP-04):
+            | ۳۲ نسخهٔ en/tr پستِ ترجمه‌نشده ۲۰۰ و ایندکس‌پذیر بودند ولی (به‌درستی)
+            | در sitemap نبودند. تصمیمِ ثبت‌شده سر جایش است («URL مستقیم بهتر است
+            | fa بدهد تا ۴۰۴»)؛ این پرچم فقط می‌گذارد blade همان نسخهٔ fallback را
+            | noindex,follow کند. با رسیدنِ ترجمه، خودکار ایندکس‌پذیر می‌شود.
+            */
+            'untranslated' => $t === null || $t->locale !== app()->getLocale(),
         ];
         if ($withContent) {
-            $out['content'] = $t?->content ?? '';
+            /*
+            | تنزلِ h1 → h2 در بدنه — ممیزی ۷ (RG-H1-15): مولدِ هوشِ مصنوعی گاهی
+            | تیترِ اولِ مقاله را <h1> می‌نویسد و صفحه دو H1 می‌گیرد (۷ پستِ زنده
+            | در خزشِ ۳ شهریور). H1ِ صفحه مالِ قالب است؛ سرفصلِ بدنه از h2 شروع
+            | می‌شود. این‌جا و نه در blade، چون هر مصرف‌کنندهٔ آینده هم امن بماند —
+            | و نه در مولد، چون پست‌های موجودِ DB هم باید درمان شوند.
+            */
+            $out['content'] = preg_replace('~<(/?)h1\b~i', '<$1h2', $t?->content ?? '');
         }
 
         return $out;

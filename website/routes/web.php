@@ -58,7 +58,37 @@ $site = function (): void {
     | می‌قاپد و ۴۰۴ می‌دهد (چون 'hourly' در config/catalog/vps.php نیست).
     */
     Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
+
+    /*
+    | سرورِ گرافیکی — /gpu (خطِ محصولِ مستقل، نه زیرِ /vps).
+    |
+    | 🔴 عمداً زیرِ `/vps/` نیست: آن مسیر خودش ۳۰۱ به /cloud می‌خورد، و
+    | مهم‌تر، هر صفحهٔ /vps/* وعدهٔ ماشینِ مجازیِ پایدار با root می‌دهد در حالی
+    | که این محصول هیچ‌کدام را ندارد و قطع هم می‌شود. همان اشتباهِ ثبت‌شدهٔ
+    | «پکیجِ نمایندگی که cPanelِ ساده تحویل می‌داد».
+    */
+    Route::get('/gpu', [\App\Http\Controllers\GpuController::class, 'show'])->name('gpu');
+    /*
+    | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
+    | واقعیِ کسب‌شده تقریباً صفر بود). صفحهٔ ایستا؛ همهٔ داده در خودِ ویو ساخته
+    | می‌شود، پس Route::view کافی است.
+    */
+    Route::view('/badge', 'pages.badge')->name('badge');
     Route::get('/domain', fn () => redirect()->to(lroute('domain.search'), 301))->name('domain.index');
+    /*
+    | 🔴 آدرس‌های مردهٔ دورانِ وردپرس/WHMCS که Search Console هنوز ۴۰۴شان را
+    | گزارش می‌کند (ممیزی ۲۴ اوت ۲۰۲۶): /privacy-policy (اسلاگِ استاندارد
+    | وردپرس)، /home، /cart (سبدِ WHMCSِ مرده)، /services، /marketing و
+    | /servernet. مقصدها نزدیک‌ترین معادلِ واقعی‌اند؛ همان الگویِ closure +
+    | lroute بالا (سه‌بار ثبت، مقصدِ هم‌زبان). بقیهٔ ۴۰۴ها (wp-*.php،
+    | cgi-bin…) عمداً ۴۰۴ می‌مانند — آدرسِ آشغال مقصد ندارد.
+    */
+    Route::get('/privacy-policy', fn () => redirect()->to(lroute('privacy'), 301))->name('privacy.legacy');
+    Route::get('/home', fn () => redirect()->to(lroute('home'), 301))->name('home.legacy');
+    Route::get('/cart', fn () => redirect()->to(lroute('cloud.index'), 301))->name('cart.legacy');
+    Route::get('/services', fn () => redirect()->to(lroute('home'), 301))->name('services.legacy');
+    Route::get('/marketing', fn () => redirect()->to(lroute('home'), 301))->name('marketing.legacy');
+    Route::get('/servernet', fn () => redirect()->to(lroute('home'), 301))->name('servernet.legacy');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
 
@@ -102,6 +132,23 @@ $site = function (): void {
     Route::get('/order/{slug}', [\App\Http\Controllers\OrderSummaryController::class, 'show'])
         ->name('order.summary')->where('slug', '[a-z0-9-]+');
 
+    /*
+    | /go/pay — تنها گذرگاهِ «سفارش ← پرداخت» (ممیزی ۷ — رشد، قلم ۳ رودمپ).
+    |
+    | چرا ریدایرکتِ داخلی به‌جای لینکِ مستقیم به console:
+    |   · هر کلیک در **اکسس‌لاگِ خودِ سایت** و در Funnel ثبت می‌شود — اولین
+    |     عددِ قیف (نرخِ تبدیلِ سفارش ← پرداخت)، بدونِ کوکی و JS.
+    |   · امضای HMAC (OrderHandoff) در لحظهٔ کلیک ساخته می‌شود، نه در رندرِ
+    |     صفحهٔ کش‌شده — exp همیشه تازه است و لینکِ تبِ شبانه نمی‌میرد.
+    |
+    | داخلِ $site است تا سه‌زبانه ثبت شود و console_lroute دورهٔ زبانِ درست را
+    | بسازد (زبان فقط از پیشوندِ URL — قراردادِ پروژه). هرگز کش نمی‌شود
+    | (exclude_paths) و robots هم Disallow /go/ دارد. هیچ open-redirectی ممکن
+    | نیست: مقصد همیشه روتِ ثابتِ console است.
+    */
+    Route::get('/go/pay', [\App\Http\Controllers\OrderSummaryController::class, 'pay'])
+        ->name('go.pay')->middleware('throttle:60,1');
+
     // متدولوژی سرعت — جایگزینِ ادعای بی‌سندِ req/s (ممیزی ۴، مارکتینگ/حقوقی)
     Route::get('/speed', fn () => app(SiteController::class)->page('speed'))->name('speed');
 
@@ -110,6 +157,22 @@ $site = function (): void {
     Route::get('/abuse', [\App\Http\Controllers\AbuseController::class, 'show'])->name('abuse');
     Route::post('/abuse', [\App\Http\Controllers\AbuseController::class, 'report'])
         ->name('abuse.report')->middleware('throttle:forms');
+
+    /*
+    | ممیزی ۶ — «قلمِ شاهد» شش دور: /share/url و /sharing/share-offsite.
+    | حکم: «بساز یا کامل حذف کن — ۲۰۰ یا ۴۱۰؛ آنچه می‌سنجیم تصمیم است.»
+    | تصمیم: ۴۱۰ Gone — همان کاری که /panel-preview را بست. هیچ backendی برای
+    | اشتراک‌گذاری وجود ندارد و نخواهد داشت؛ اشتراک با لینکِ ایستا/بومی است.
+    */
+    Route::get('/share/{any?}', fn () => abort(410))->where('any', '.*')->name('share.gone');
+    Route::get('/sharing/{any?}', fn () => abort(410))->where('any', '.*')->name('sharing.gone');
+
+    // رویدادهای قیف از مرورگر (ممیزی ۶ — رشد) — صفحاتِ HIT به PHP نمی‌رسند
+    Route::post('/api/funnel', [\App\Http\Controllers\FunnelController::class, 'store'])
+        ->name('api.funnel')->middleware('throttle:beacon');
+
+    // کانال‌های رسمی (ممیزی ۶ — مارکتینگ/حقوقی): پاسخ به کانالِ هم‌نامِ جعلی
+    Route::get('/official-channels', fn () => app(SiteController::class)->page('official-channels'))->name('official');
 
     // صفحهٔ وضعیت و سندِ SLA — تبدیلِ «آپتایم تضمینی» از ادعا به سند.
     // بی‌اینها، تعهدِ عمومی بدونِ سقف و بدونِ فرآیندِ مطالبه بود.
@@ -433,8 +496,10 @@ $site = function (): void {
         | پس اگر پایین‌تر بنشیند، `/domains/checkout/12` به‌عنوانِ «دامنه‌ای به
         | نامِ checkout» تفسیر و ۴۰۴ می‌شود.
         */
+        // ⚠️ throttle: شناسهٔ استعلام ترتیبی است؛ نرخِ محدود پیمایش را کند و
+        //    پرهزینه می‌کند (گاردِ اصلی مالکیتِ quote در خودِ کنترلر است).
         Route::get('/domains/checkout/{quote}', [Account\DomainController::class, 'checkout'])
-            ->name('domains.checkout');
+            ->name('domains.checkout')->middleware('throttle:30,1');
 
         Route::post('/domains/order', [Account\DomainController::class, 'order'])
             ->name('domains.order')->middleware('throttle:12,1');
@@ -460,6 +525,12 @@ $site = function (): void {
             ->name('domain.authcode')->middleware('throttle:6,1');
         Route::post('/domains/{domain}/auto-renew', [Account\DomainController::class, 'autoRenew'])
             ->name('domain.autorenew')->middleware('throttle:20,1');
+        // تمدیدِ دستی: فقط فاکتور می‌سازد؛ تماسِ رجیسترار پس از پرداخت و با کرون
+        Route::post('/domains/{domain}/renew', [Account\DomainController::class, 'renew'])
+            ->name('domain.renew')->middleware('throttle:6,1');
+        // بازیابیِ دامنهٔ منقضی (redemption) — همان قاعده: فقط فاکتور
+        Route::post('/domains/{domain}/restore', [Account\DomainController::class, 'restore'])
+            ->name('domain.restore')->middleware('throttle:6,1');
         // ⚠️ نرخِ پایین عمدی است: هر ارسال یک سفارشِ پولی نزدِ رجیسترار است
         Route::post('/domains/{domain}/transfer', [Account\DomainController::class, 'transferSubmit'])
             ->name('domain.transfer.submit')->middleware('throttle:6,1');
@@ -489,6 +560,9 @@ $site = function (): void {
         Route::get('/invoices/{invoice}/print', [Account\PaymentController::class, 'printInvoice'])->name('invoice.print');
         Route::post('/invoices/{invoice}/pay', [Account\PaymentController::class, 'pay'])
             ->name('invoice.pay')->middleware('throttle:pay');
+        // پرداخت از اعتبارِ داخلی — همان مسیرِ تسویهٔ رسمی (settleConfirmed)
+        Route::post('/invoices/{invoice}/pay-credit', [Account\PaymentController::class, 'payCredit'])
+            ->name('invoice.paycredit')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
             ->name('invoice.bank')->middleware('throttle:forms');
         Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])
@@ -530,22 +604,26 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
 /*
-| بخشِ محلی ارومیه — عمداً بیرونِ closureِ $site و **فقط فارسی**.
+| بخشِ محلی ارومیه — سه‌زبانه (مرداد ۱۴۰۵، خواستِ مدیر: «هر صفحه‌ای en/tr
+| نداشت درستش کن»). closureِ جدا از $site مانده تا ترتیبِ ثبت و whereها
+| دست‌نخورده بمانند، ولی مثل $site سه بار ثبت می‌شود.
 |
-| 🔴 داخلِ $site هر روت سه بار ثبت می‌شود و نسخهٔ en/tr این صفحات محتوای
-|    فارسی می‌گرفت (همان باگِ panel-preview). مخاطب این بخش خریدارِ محلی
-|    است؛ /en/urmia/* باید ۴۰۴ بدهد. تست: UrmiaPagesTest.
+| 🔵 نسخهٔ en/tr دیگر فارسی نمی‌گیرد: UrmiaController ترجمه‌های واقعی را از
+|    config/urmia_i18n.php در لحظهٔ رندر overlay می‌کند. تست: UrmiaPagesTest.
 |    جانشینِ سئوی محلیِ servernet.ir در مهاجرت است — نقشهٔ ۳۰۱ آن دامنه به
 |    همین آدرس‌ها اشاره می‌کند، پس تغییرِ اسلاگ‌ها یعنی شکستنِ ریدایرکت‌ها.
 | ⚠️ «cities» پیش از «{slug}» بیاید وگرنه خودش یک slug خوانده می‌شود.
 */
-Route::middleware('locale:fa')->group(function () {
+$urmia = function () {
     Route::get('/urmia', [\App\Http\Controllers\UrmiaController::class, 'hub'])->name('urmia.hub');
     Route::get('/urmia/cities/{slug}', [\App\Http\Controllers\UrmiaController::class, 'city'])
         ->name('urmia.city')->where('slug', '[a-z0-9-]+');
     Route::get('/urmia/{slug}', [\App\Http\Controllers\UrmiaController::class, 'page'])
         ->name('urmia.page')->where('slug', '[a-z0-9-]+');
-});
+};
+Route::middleware('locale:fa')->group($urmia);
+Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmia);
+Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmia);
 
 /*
 | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
@@ -691,6 +769,26 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+
+/*
+| /healthz — «تفکیک‌کنندهٔ قطعی»ِ ممیزی ۷ (CTO): یک پاسخِ ثابت، بدونِ دیتابیس،
+| بدونِ view و بدونِ کشِ صفحه. اگر همین مسیر هم کند شد، مشکل زیرِ لاراول است
+| (PHP-FPM/OPcache/CPU steal)؛ اگر نشد، مشکل در لایهٔ اپلیکیشن است.
+|
+| ⚠️ no-store عمدی است: این مسیر باید **هر بار** کلِ بوتِ فریم‌ورک را طی کند
+| وگرنه چیزی را نمی‌سنجد. Server-Timing از PageCache::tag روی آن نمی‌نشیند
+| (storable نیست)، پس زمانِ اپ را خودش می‌نویسد.
+*/
+Route::get('/healthz', function () {
+    $t0 = defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+
+    return response('ok', 200, [
+        'Content-Type'  => 'text/plain; charset=UTF-8',
+        'Cache-Control' => 'no-store',
+        'X-Robots-Tag'  => 'noindex',
+        'Server-Timing' => 'app;dur='.(int) round((microtime(true) - (float) $t0) * 1000),
+    ]);
+})->name('healthz');
 
 /*
 | llms.txt — معرفیِ سرورنت به مدلِ زبانی، نه به خزندهٔ جست‌وجو.
@@ -1556,6 +1654,24 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
 
         return response()->json([
             'step'   => $step,
+            'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /*
+    | ترجمهٔ en/tr پست‌های بی‌ترجمه (مقالات مهاجرت‌شده از servernet.ir).
+    | همان کرونِ content:translate-missing است ولی دستی و دسته‌ای: هر ترجمه
+    | یک تماسِ AI پولی و ~۳۰-۹۰ ثانیه است، پس سقفِ هر فراخوان کوچک می‌ماند
+    | (وگرنه از مهلتِ ۳۰۰ ثانیه‌ای رد می‌شود) و مدیر آن‌قدر تکرار می‌کند تا
+    | بگوید «همه‌ی پست‌ها هر سه زبان را دارند». limit از فرم: ۱ تا ۴.
+    */
+    if ($step === 'translate') {
+        $limit = min(4, max(1, (int) $r->input('limit', 2)));
+        \Illuminate\Support\Facades\Artisan::call('content:translate-missing', ['--limit' => $limit]);
+
+        return response()->json([
+            'step'   => 'translate',
+            'limit'  => $limit,
             'output' => trim(\Illuminate\Support\Facades\Artisan::output()) ?: '(بدون خروجی)',
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }

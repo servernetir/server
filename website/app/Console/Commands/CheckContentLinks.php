@@ -116,7 +116,7 @@ class CheckContentLinks extends Command
         }
 
         try {
-            $request = \Illuminate\Http\Request::create($path, 'GET');
+            $request = \Illuminate\Http\Request::create(rtrim((string) config('app.url'), '/').$path, 'GET');
             $response = app(\Illuminate\Contracts\Http\Kernel::class)->handle($request);
 
             return $response->getStatusCode() < 400;
@@ -140,6 +140,16 @@ class CheckContentLinks extends Command
                 return null;                    // بیرونی — قضاوتش کارِ این فرمان نیست
             }
             $href = (string) parse_url($href, PHP_URL_PATH);
+
+            /*
+            | «https://servernet.cloud» بدونِ مسیر یعنی صفحهٔ اصلی — PHP_URL_PATH
+            | برایش null می‌دهد و بی‌این خط، خودِ home از sitemap «هیچ» شمرده
+            | می‌شد و هر لینک به «/» یک RG-SITEMAP-04ِ قلابی می‌ساخت (اولین
+            | اجرای کاملِ دروازه، از صفحهٔ /badge).
+            */
+            if ($href === '') {
+                $href = '/';
+            }
         }
 
         $href = (string) strtok($href, '#');

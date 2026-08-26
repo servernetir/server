@@ -21,6 +21,7 @@ class CloudManager
         'arvan'   => ArvanClient::class,
         'ovh'     => OvhClient::class,
         'proxmox' => ProxmoxClient::class,
+        'salad'   => SaladClient::class,
     ];
 
     /**
@@ -41,6 +42,7 @@ class CloudManager
         'arvan'   => 'ArvanCloud (ابرآروان)',
         'ovh'     => 'OVHcloud',
         'proxmox' => 'Proxmox (Tehran)',
+        'salad'   => 'SaladCloud (GPU)',
     ];
 
     /** @var array<string, CloudProvider> */

@@ -148,6 +148,9 @@ class ResellerOrderService
 
                 $domain = $existing ?? new Domain;
 
+                static $hasRenewCost = null;
+                $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domains', 'cost_renew_amount');
+
                 $domain->forceFill([
                     'customer_id'      => $customer->id,
                     'domain'           => $fqdn,
@@ -155,6 +158,15 @@ class ResellerOrderService
                     'tld'              => $tld,
                     'registrar'        => 'openprovider',
                     'status'           => 'pending',
+                    /*
+                    | 🔴 بازمصرفِ ردیفِ مرده باید کامل باشد — اگر ردیفِ قبلی
+                    | انتقالِ ردشده بود و `order_type` ریست نمی‌شد، خریدِ تازه
+                    | در هیچ صفی نمی‌افتاد: پرداخت‌شده و نامرئی (ممیزی ۱۴۰۵).
+                    */
+                    'order_type'       => 'register',
+                    'transfer_status'  => null,
+                    'provision_tries'  => 0,
+                    'provision_error'  => null,
                     // پرداخت همین حالا از اعتبار انجام شد ⇒ مستقیم به صفِ ثبت.
                     // (مسیرِ وب `none` می‌گذارد چون آن‌جا فاکتور هنوز پرداخت نشده.)
                     'provision_status' => 'pending',
@@ -165,7 +177,7 @@ class ResellerOrderService
                     'cost_currency'    => (string) $q->cost_currency,
                     'quote_id'         => $q->id,
                     'name_servers'     => $ns,
-                ])->save();
+                ] + ($hasRenewCost ? ['cost_renew_amount' => $q->cost_renew_amount] : []))->save();
 
                 $domain->putMeta([
                     'source'         => 'reseller_api',
@@ -296,29 +308,12 @@ class ResellerOrderService
      */
     private function renewFloor(Domain $domain): int
     {
-        $minor = (int) $domain->cost_amount;
-        $currency = (string) $domain->cost_currency;
-
-        if ($minor <= 0 || $currency === '') {
-            return 0;
-        }
-
-        $rate = $this->search->rateFor($currency);
-
-        if ($rate === null || $rate <= 0) {
-            ErrorTracker::noteOnce('domain', 'renewal cost floor skipped — no FX rate', 3600, [
-                'currency' => $currency,
-            ]);
-
-            return 0;
-        }
-
-        $costToman = ($minor / 100) * $rate;
-        $minMargin = max(0.0, (float) config('domain_reseller.min_margin_pct', 8));
-
-        $step = \App\Models\Currency::find('IRT')?->rounding_step ?: 1000;
-
-        return (int) (ceil($costToman * (1 + $minMargin / 100) / $step) * $step);
+        /*
+        | 🔴 منطق به `DomainCostFloor` رفت تا خرده‌فروشی و نمایندگی **یک** کف
+        | داشته باشند — و هر دو از بهای واقعیِ تمدید (`cost_renew_amount`)
+        | حساب کنند، نه بهای تبلیغاتیِ سالِ اول.
+        */
+        return app(\App\Services\Domain\DomainCostFloor::class)->renewPerYear($domain);
     }
 
     // ═══════════════════════ پول ═══════════════════════
@@ -440,6 +435,18 @@ class ResellerOrderService
                     'source_id'     => $domain->id,
                     'note'          => $title,
                 ]);
+
+                /*
+                | 🔴 درآمدِ این فروش باید به دفترِ کسب‌وکار برسد. این مسیر
+                | Payment نمی‌سازد (پرداخت از اعتبار است)، پس recordPayment
+                | هرگز صدایش نمی‌زد و ۱۰۰٪ درآمدِ نمایندگی + مالیاتش از
+                | /admin/finance غایب بود (ممیزیِ شهریور ۱۴۰۵).
+                */
+                try {
+                    app(\App\Services\Finance\BusinessLedger::class)->recordCreditSale($invoice);
+                } catch (\Throwable $e) {
+                    ErrorTracker::note('finance', $e, ['area' => 'reseller-ledger', 'invoice' => $invoice->id]);
+                }
 
                 $result = [
                     'ok'      => true,
