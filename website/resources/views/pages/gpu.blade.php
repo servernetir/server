@@ -93,7 +93,10 @@
   .gpu-badge{display:inline-block;margin-inline-start:7px;padding:2px 8px;border-radius:999px;
     background:var(--surface-2);border:1px solid var(--line-2);color:var(--muted);font-size:11px}
 
-  .gpu-side{position:sticky;top:130px;background:var(--surface);border:1px solid var(--line);
+  /* ⚠️ جبرانِ هدر از `--header-h` می‌آید، نه عددِ دستی: قاعدهٔ ثبت‌شدهٔ پروژه.
+     عددِ پراکنده همان چیزی است که چند بار «صفحه رفته زیرِ هدر» ساخت، و زیرِ
+     ۴۰۰px هدر بلندتر می‌شود (۱۳۲px) که هر عددِ ثابتی را می‌شکند. */
+  .gpu-side{position:sticky;top:calc(var(--header-h) + 14px);background:var(--surface);border:1px solid var(--line);
     border-radius:16px;padding:18px}
   @media(max-width:900px){.gpu-side{position:static}}
   .gpu-side h2{margin:0 0 4px;font-size:15px}
