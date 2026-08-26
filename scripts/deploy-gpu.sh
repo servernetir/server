@@ -16,6 +16,20 @@
 # ⚠️ تلهٔ CRLF: بی‌normalize، پایه‌یاب روی سرور کور می‌شود (درسِ اجرای اول).
 set -u
 
+# ── حالتِ آزمایشی ──────────────────────────────────────────────────────────
+#
+#   DRY=1 bash <(curl -fsSL .../deploy-gpu.sh)
+#
+# 🔴 چرا لازم است: پیش از هر دیپلوی باید دید سرور با نسخهٔ ما تداخل دارد یا نه.
+# قاعدهٔ ثبت‌شدهٔ این پروژه: «پروداکشن زیرمجموعهٔ develop است» و فایلی که با هیچ
+# کامیتی نمی‌خواند اغلب کارِ **ازقبل‌دیپلوی‌شدهٔ** session دیگری است، نه خرابی.
+# پس اول گزارش، بعد نوشتن.
+#
+# ⚠️ حالتِ آزمایشی باید **هیچ** عارضه‌ای نداشته باشد — نه فایل، نه مهاجرت، نه
+# پاک‌کردنِ کش. (درسِ `--dry` در `servers:post-rent`: پیش‌نمایشی که گلوگاه را
+# می‌سوزاند، تنها هشدارِ اجرای واقعی را خفه می‌کند.)
+DRY="${DRY:-0}"
+
 APP="$HOME/servernet_app"
 PUB="$HOME/public_html"
 WORK="$HOME/deploy-gpu"
@@ -84,20 +98,20 @@ apply_one() {
     || { echo "SKIP  (در $MINE نیست)  $rel"; return; }
   normalize "$WORK/mine.raw" "$mine_f"
 
-  if [ -f "$dest" ]; then
+  if [ -f "$dest" ] && [ "$DRY" = "0" ]; then
     mkdir -p "$BK/$(dirname "$rel")"
     cp -p "$dest" "$BK/$rel"
   fi
 
   if [ ! -f "$dest" ]; then
-    mkdir -p "$(dirname "$dest")"
-    cp "$mine_f" "$dest"; echo "NEW   $rel"; UPD=$((UPD+1)); return
+    [ "$DRY" = "0" ] && { mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"; }
+    echo "NEW   $rel   (فایلِ تازه — روی سرور نیست)"; UPD=$((UPD+1)); return
   fi
 
   dest_n="$WORK/dest.tmp"; normalize "$dest" "$dest_n"
 
   if cmp -s "$dest_n" "$mine_f"; then
-    cmp -s "$dest" "$mine_f" || { cp "$mine_f" "$dest"; echo "EOL   $rel   (فقط پایانِ خط درمان شد)"; UPD=$((UPD+1)); return; }
+    cmp -s "$dest" "$mine_f" || { [ "$DRY" = "0" ] && cp "$mine_f" "$dest"; echo "EOL   $rel   (فقط پایانِ خط)"; UPD=$((UPD+1)); return; }
     echo "OK    $rel"; return
   fi
 
@@ -119,14 +133,15 @@ apply_one() {
   fi
 
   if [ "$bestd" -eq 0 ]; then
-    cp "$mine_f" "$dest"; echo "UP    $rel   (سرور = $(git -C repo rev-parse --short "$best"))"; UPD=$((UPD+1)); return
+    [ "$DRY" = "0" ] && cp "$mine_f" "$dest"
+    echo "UP    $rel   (سرور = $(git -C repo rev-parse --short "$best") — جایگزینیِ بی‌ریسک)"; UPD=$((UPD+1)); return
   fi
 
   git -C repo show "$best:website/$rel" > "$WORK/base.raw"
   normalize "$WORK/base.raw" "$base_f"
   m="$WORK/merged.tmp"; cp "$dest_n" "$m"
   if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
-    cp "$m" "$dest"
+    [ "$DRY" = "0" ] && cp "$m" "$dest"
     echo "MG    $rel   (پایه $(git -C repo rev-parse --short "$best")، فاصلهٔ سرور $bestd خط — تغییرِ دیگران حفظ شد)"
     UPD=$((UPD+1))
   else
