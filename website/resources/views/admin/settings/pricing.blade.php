@@ -32,7 +32,11 @@
         <small>لنگر. تا پر نشود هیچ قیمتی خودکار جابه‌جا نمی‌شود.</small></label>
       <label class="set-f">نرخِ دستی (به‌جای نرخِ زنده)
         <input type="number" name="pricing_rate_override" dir="ltr" min="0"
-               value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده">
+               value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
+      <label class="set-f">نرخِ دستیِ دلار (تومان)
+        <span style="color:var(--dim);font-size:11.5px">زیرساختِ GPU به دلار می‌فروشد؛ بی‌نرخ، پلن‌هایش صفر و نافروختنی می‌شوند.</span>
+        <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0"
+               value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده">
         <small>وقتی نرخِ بازار را خودتان می‌دانید و نمی‌خواهید به منبعِ زنده تکیه کنید.</small></label>
       <label class="set-f">حاشیهٔ سودِ عمومی (٪)
         <input type="number" name="price_margin_pct" dir="ltr" step="0.1"
