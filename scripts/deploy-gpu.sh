@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-2dc49de}"
+MINE="${1:-4fdd8bc}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -284,6 +284,11 @@ g resources/views/account/cloud-store.blade.php "isGpuStore"
 g lang/fa/ui.php "cvb_step_gpu"
 g lang/en/ui.php "cvb_step_gpu"
 g lang/tr/ui.php "cvb_step_gpu"
+g lang/fa/ui.php "cvb_pill_gpu"
+g lang/en/ui.php "cvb_pill_gpu"
+g lang/tr/ui.php "cvb_pill_gpu"
+g resources/views/account/cloud-server.blade.php "cs_building_gpu_p"
+g resources/views/account/cloud-store.blade.php "cvb_pill_gpu"
 g app/Http/Controllers/CatalogController.php "GONE_TO_GPU"
 g app/Models/CloudInstance.php "accessHost"
 g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
