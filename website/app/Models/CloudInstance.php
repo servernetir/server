@@ -111,6 +111,68 @@ class CloudInstance extends Model
      * تحویل‌شده است. اگر این‌جا فقط `running` را بپذیریم، کسی که سرورش را خاموش
      * می‌کند یک‌باره صفحهٔ «در حالِ ساخت» می‌بیند — یک باگِ تازه به‌جای باگِ قبلی.
      */
+    /**
+     * نشانی‌ای که مشتری واقعاً با آن کار می‌کند (خطِ GPU).
+     *
+     * 🔴 سفیدبرچسبی: نامِ زیرساخت نباید به مشتری برسد، و نشانیِ خامِ دروازه
+     * دقیقاً همان نام را دارد. اگر مدیر «دامنهٔ برندشده» را در تنظیمات پر
+     * کرده باشد (salad_branded_domain — یک Worker روی Cloudflare همان نگاشت
+     * را برمی‌گرداند)، نشانی به g-{label}.{دامنهٔ ما} ترجمه می‌شود؛ وگرنه
+     * همان نشانیِ کارا برمی‌گردد — نشانیِ کارایی که برند را لو می‌دهد بهتر
+     * از نشانیِ برندی است که کار نمی‌کند.
+     *
+     * hostnameِ جای‌نگهدار (sn-svc-N، بی‌نقطه) null می‌دهد: هنوز نشانی نداریم.
+     */
+    public function accessHost(): ?string
+    {
+        $h = strtolower(trim((string) $this->hostname));
+
+        if ($h === '' || ! str_contains($h, '.')) {
+            return null;
+        }
+
+        if (! str_ends_with($h, '.salad.cloud')) {
+            return $h;
+        }
+
+        $base = trim((string) \App\Models\Setting::get('salad_branded_domain', ''), " .	");
+
+        if ($base === '') {
+            return $h;
+        }
+
+        return 'g-'.substr($h, 0, -strlen('.salad.cloud')).'.'.$base;
+    }
+
+    /**
+     * توکنِ دسترسیِ دروازهٔ برندشده — HMAC(برچسبِ ماشین، رازِ مشترک با Worker).
+     *
+     * چرا: هر سه برنامهٔ آماده (Ollama/ComfyUI) خودشان احراز ندارند؛ هر کسی
+     * نشانیِ g-… را بداند می‌تواند GPUِ مشتری را مصرف کند و ساعت‌هایش را
+     * بسوزاند (حکمِ شورای مدیران: مسدودکنندهٔ انتشار). قطعی و بی‌ستون است —
+     * همان راز در Worker (env: GATE_SECRET) نشسته و همین HMAC را می‌سازد؛
+     * اگر یکی عوض شد، دیگری هم باید عوض شود (مثلِ accessHost).
+     *
+     * رازِ خالی ⇒ null ⇒ پنل توکن نشان نمی‌دهد و Worker هم دروازه را باز
+     * می‌گذارد — استقرارِ تدریجیِ بی‌شکست.
+     */
+    public function accessToken(): ?string
+    {
+        $h = strtolower(trim((string) $this->hostname));
+
+        if (! str_ends_with($h, '.salad.cloud')) {
+            return null;
+        }
+
+        $secret = (string) \App\Models\Setting::getSecret('salad_gateway_secret');
+
+        if ($secret === '') {
+            return null;
+        }
+
+        return hash_hmac('sha256', substr($h, 0, -strlen('.salad.cloud')), $secret);
+    }
+
     public function isDelivered(): bool
     {
         return in_array($this->status, self::LIVE_STATUSES, true) && filled($this->ipv4);

@@ -32,7 +32,7 @@
     </nav>
     <h1>{{ __('ui.cvb_h1') }}</h1>
   </div>
-  <span class="pnl-pill info">{{ __('ui.cvb_pill') }}</span>
+  <span class="pnl-pill info">{{ __(($gpuMode ?? false) ? 'ui.cvb_pill_gpu' : 'ui.cvb_pill') }}</span>
 </div>
 
 {{-- پیام‌ها با .dm-note می‌آیند نه .pnl-sec — کامنتِ خودِ panel.css می‌گوید
@@ -69,7 +69,7 @@
 @php
   // دادهٔ امن برای جاوااسکریپت — همه از پیش ساخته می‌شوند، چون json با آرایهٔ
   // درون‌خطی پارسر Blade را می‌شکند. هیچ ستون زیرساختی این‌جا نیست.
-  $jsPlans  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] => $p['name']])->all();
+  $jsPlans  = collect($planCards)->mapWithKeys(fn ($p) => [$p['slug'] => (($p['gpu'] ?? '') !== '' ? $p['gpu'] : $p['name'])])->all();
   // خلاصه باید **همهٔ** چیزی را که مشتری انتخاب کرده بگوید: پردازنده، رم، دیسک
   // و ترافیک — نه فقط دیسک. یک رشته، یک جا ساخته، هم برگه و هم جاوااسکریپت از
   // همین می‌خوانند.
@@ -86,6 +86,10 @@
 
   $okOs  = (array) ($imageMap[$curSlug]['os'] ?? []);
   $okApp = (array) ($imageMap[$curSlug]['app'] ?? []);
+
+  // پلنِ بی‌سیستم‌عامل (GPU) باید روی زبانهٔ «برنامه» باز شود، وگرنه مشتری
+  // یک زبانهٔ خالیِ «سیستم‌عامل» می‌بیند و گزینهٔ واقعی پشتِ کلیکِ دوم است.
+  $startTab = ($okOs === [] && $okApp !== []) ? 'app' : 'os';
 
   // پیش‌فرض سیستم‌عامل: آنچه در آدرس آمده (چیپِ شهر حملش می‌کند)، وگرنه
   // اوبونتو اگر بود، وگرنه اولین گزینهٔ ممکن
@@ -189,6 +193,23 @@
   ];
 
   /*
+  | 🔴 خطِ GPU یک مکان بیشتر ندارد (شبکهٔ توزیع‌شدهٔ جهانی). «کدام کشور؟ کدام
+  | شهر؟» برای این مشتری دو مرحلهٔ بی‌جواب است که هر دو یک مقدارِ ثابت را نشان
+  | می‌دهند — همان که کارفرما «مرحلهٔ تکراری» گزارش کرد. مرحله‌ها ۳تایی
+  | می‌شوند؛ location از قبل در فیلدِ پنهانِ فرم هست و هیچ انتخابی گم نمی‌شود.
+  | کلیدهای آرایه عمداً همان ۳/۴/۵ می‌مانند (id سکشن‌ها و data-go به آن‌ها
+  | بسته‌اند)؛ فقط **شمارهٔ نمایشی** از $stepNo می‌آید.
+  */
+  $isGpuStore = (bool) ($gpuMode ?? false);
+  if ($isGpuStore) {
+    $stepNames = [3 => __('ui.cvb_step_gpu'), 4 => __('ui.cvb_step_app'), 5 => __('ui.cvb_step_name')];
+    if ($openStep < 3) { $openStep = 3; }
+  }
+  $stepNo = []; $i = 0;
+  foreach (array_keys($stepNames) as $k) { $stepNo[$k] = ++$i; }
+  $stepTotal = count($stepNames);
+
+  /*
   | لینکِ شهر/دیتاسنتر — **یک** سازنده برای هر دو سطح.
   | دو جای تولیدِ لینک یعنی روزی ترتیبِ پارامترها در یکی عوض شود و تست که فقط
   | یکی را می‌بیند سبز بماند. ترتیب قفل است: location, plan, cycle, image —
@@ -249,7 +270,7 @@
            بی‌این دو صفت، کاربرِ صفحه‌خوان روی مرحلهٔ باز هیچ کنترلی نمی‌شنید. --}}
       <button type="button" class="cvb-sp @if($n === $openStep) is-now @endif" data-go="{{ $n }}" data-spine="{{ $n }}"
               aria-expanded="{{ $n === $openStep ? 'true' : 'false' }}" aria-controls="cvb-b-{{ $n }}">
-        <span class="cvb-sp-n" aria-hidden="true">{{ fa_num($n) }}</span>
+        <span class="cvb-sp-n" aria-hidden="true">{{ fa_num($stepNo[$n]) }}</span>
         <span class="cvb-sp-t">
           <b>{{ $nm }}</b>
           <small class="cvb-sp-v" data-sp-v="{{ $n }}">{{ $vals[$n] }}</small>
@@ -272,6 +293,7 @@
          هیچ `<details>`ای این‌جا نیست: شهر مرحلهٔ خودش شد، پس سه سطحِ تودرتوی
          افشا (کشور ← شهر ← دیتاسنتر) و بازآراییِ شبکه زیرِ دستِ کاربر
          (`.cvb-cnat[open]{grid-column:1/-1}`) هر دو حذف شدند. --}}
+    @unless($isGpuStore)
     <section class="pnl-sec cvb-step" id="cvb-step-1" data-step="1">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-1">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s1') }}</b></span>
@@ -281,7 +303,7 @@
         <div class="cvb-step-i"><div class="pnl-sec-b">
           @error('location')<div class="dm-note danger">{{ $message }}</div>@enderror
 
-          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num(5)]) }}</p>
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[1] ?? 1), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s1') }}</h3>
           <p class="cvb-lede">{{ __('ui.cvb_loc_note') }}</p>
 
@@ -348,7 +370,7 @@
       <div class="cvb-step-b" id="cvb-b-2">
         <div class="cvb-step-i"><div class="pnl-sec-b">
 
-          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(2), 't' => fa_num(5)]) }}</p>
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[2] ?? 2), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s_city') }}</h3>
 
           @if($curGroup === null)
@@ -415,6 +437,8 @@
     {{-- ═══ ۳ — اندازه (و دورهٔ پرداخت، که همین‌جا بالای فهرست می‌نشیند) ═══
          دوره **پیش از** اندازه انتخاب می‌شود، پس هر قیمتی که روی کارت‌ها
          می‌بینید همان چیزی است که واقعاً می‌پردازید — بی‌هیچ حساب‌وکتابِ ذهنی. --}}
+    @endunless
+
     <section class="pnl-sec cvb-step" id="cvb-step-3" data-step="3">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-3">
         <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s2') }}</b></span>
@@ -423,7 +447,7 @@
       <div class="cvb-step-b" id="cvb-b-3">
         <div class="cvb-step-i"><div class="pnl-sec-b">
 
-          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(3), 't' => fa_num(5)]) }}</p>
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[3] ?? 3), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s2') }}</h3>
 
           @error('plan')<div class="dm-note danger">{{ $message }}</div>@enderror
@@ -517,7 +541,7 @@
                   <label class="cvb-plan @if($p['slug'] === $curSlug) on @endif" data-slug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" data-ord="{{ $loop->index }}" data-sv="{{ $p['vcpu'] }}" data-sr="{{ $p['ramMb'] }}" data-sd="{{ $p['diskGb'] }}"@if(! $uniNet) data-sn="{{ $p['trafficGb'] }}"@endif>
                     <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
                     <span class="cvb-pn">
-                      {{ $p['name'] }}
+                      {{ ($p['gpu'] ?? '') !== '' ? $p['gpu'] : $p['name'] }}
                       <span class="cvb-tick"><svg class="icon"><use href="#i-check"/></svg></span>
                     </span>
                     <span class="cvb-c cvb-c-cpu"><span class="cvb-sr">{{ __('ui.cvb_cores') }} </span>{{ fa_num($p['vcpu']) }} vCPU</span>
@@ -545,7 +569,7 @@
                 @foreach($blockedCards as $p)
                   <div class="cvb-off cvb-plan" data-uslug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" aria-disabled="true">
                     <span class="cvb-pn">
-                      {{ $p['name'] }}
+                      {{ ($p['gpu'] ?? '') !== '' ? $p['gpu'] : $p['name'] }}
                       <span class="pnl-pill mute">{{ __('ui.cvb_off_badge') }}</span>
                     </span>
                     <span class="cvb-c cvb-c-cpu"><span class="cvb-sr">{{ __('ui.cvb_cores') }} </span>{{ fa_num($p['vcpu']) }} vCPU</span>
@@ -597,7 +621,7 @@
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-4">
         <div class="cvb-step-i"><div class="pnl-sec-b">
-          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(4), 't' => fa_num(5)]) }}</p>
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[4] ?? 4), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s3') }}</h3>
           @error('image')<div class="dm-note danger">{{ $message }}</div>@enderror
 
@@ -609,15 +633,15 @@
                زبانه» می‌گفت: یک واژه دو نقش، و کاربر نمی‌فهمید گروه چیست. --}}
           <div class="cvb-billrow">
             <div class="cvb-segs" role="tablist" aria-label="{{ __('ui.cvb_os_group') }}">
-              <button type="button" class="cvb-seg on" data-tab="os" role="tab" aria-selected="true" aria-controls="cvb-pane-os" id="cvb-tab-os">{{ __('ui.cvb_os') }}</button>
-              <button type="button" class="cvb-seg" data-tab="app" role="tab" aria-selected="false" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
+              <button type="button" class="cvb-seg @if($startTab === 'os') on @endif" data-tab="os" role="tab" aria-selected="{{ $startTab === 'os' ? 'true' : 'false' }}" aria-controls="cvb-pane-os" id="cvb-tab-os">{{ __('ui.cvb_os') }}</button>
+              <button type="button" class="cvb-seg @if($startTab === 'app') on @endif" data-tab="app" role="tab" aria-selected="{{ $startTab === 'app' ? 'true' : 'false' }}" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
             </div>
           </div>
 
           {{-- گزینه‌های ناسازگار با پلن انتخابی پنهان می‌شوند (سمت سرور محاسبه شده،
                جاوااسکریپت فقط با عوض شدن پلن به‌روزش می‌کند). گزینه‌ای که تحویلش
                نشدنی است هرگز نباید دیده شود. --}}
-          <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os">
+          <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os" @if($startTab !== 'os') hidden @endif>
             @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($osByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -639,7 +663,7 @@
             <p class="cvb-empty" data-empty="os" hidden>{{ __('ui.cvb_os_empty') }}</p>
           </div>
 
-          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" hidden>
+          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif>
             @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($appByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -677,7 +701,7 @@
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-5">
         <div class="cvb-step-i"><div class="pnl-sec-b">
-          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(5), 't' => fa_num(5)]) }}</p>
+          <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[5] ?? 5), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s6') }}</h3>
           @error('label')<div class="dm-note danger">{{ $message }}</div>@enderror
           <label class="cvb-field">
@@ -705,10 +729,13 @@
       </summary>
       <div class="cvb-adv-b">
 
+        @unless($gpuMode ?? false)
         @error('ssh_key_id')<div class="dm-note danger">{{ $message }}</div>@enderror
         @error('ssh_key_new')<div class="dm-note danger">{{ $message }}</div>@enderror
 
-        {{-- ورود با کلید SSH --}}
+        {{-- ورود با کلید SSH — در خطِ GPU رندر نمی‌شود: این محصول SSH ندارد
+             (دسترسی با نشانی و توکن است) و فرمی که کلیدِ SSH بخواهد، دربارهٔ
+             خودِ محصول دروغ می‌گوید. --}}
         <label class="cvb-field">
           <span>{{ __('ui.cvb_ssh') }} — {{ __('ui.cvb_free') }}</span>
           <select name="ssh_key_id" id="cvb-ssh-pick">
@@ -745,7 +772,9 @@
         {{-- IP اضافه — فقط وقتی این اسلاگ واقعاً بتواند تحویلش دهد. کارت با
              عوض‌شدنِ پلن پنهان/آشکار می‌شود، وگرنه انتخابی می‌ماند که سرِ ثبتِ
              سفارش رد می‌شود. --}}
-        @if(collect($addonMap)->contains(true))
+        @endunless
+
+        @if(! ($gpuMode ?? false) && collect($addonMap)->contains(true))
         <div id="cvb-ip-box" @if(! $addonOk) hidden @endif>
           @error('extra_ipv4')<div class="dm-note danger">{{ $message }}</div>@enderror
           <label class="cvb-field">
@@ -806,17 +835,26 @@
         </div>
 
         <div class="cvb-lines">
-          <button type="button" class="cvb-line @if($curGroup !== null) is-done @endif" data-go="1">
-            <span class="cvb-line-d"></span>
-            <span class="cvb-line-k">{{ __('ui.cvb_step_country') }}</span>
-            <span class="cvb-line-v">{{ $countryLabel }}</span>
-          </button>
+          @if($isGpuStore)
+            {{-- مکانِ GPU ثابت است: یک ردیفِ اطلاع‌رسان، نه دو پرسشِ بی‌جواب --}}
+            <button type="button" class="cvb-line is-done" data-go="3">
+              <span class="cvb-line-d"></span>
+              <span class="cvb-line-k">{{ __('ui.cvb_step_loc') }}</span>
+              <span class="cvb-line-v">{{ $countryLabel }}</span>
+            </button>
+          @else
+            <button type="button" class="cvb-line @if($curGroup !== null) is-done @endif" data-go="1">
+              <span class="cvb-line-d"></span>
+              <span class="cvb-line-k">{{ __('ui.cvb_step_country') }}</span>
+              <span class="cvb-line-v">{{ $countryLabel }}</span>
+            </button>
 
-          <button type="button" class="cvb-line @if($curBucket !== null) is-done @endif" data-go="2">
-            <span class="cvb-line-d"></span>
-            <span class="cvb-line-k">{{ __('ui.cvb_step_city') }}</span>
-            <span class="cvb-line-v" id="cvb-s-city">{{ $cityLabel }}</span>
-          </button>
+            <button type="button" class="cvb-line @if($curBucket !== null) is-done @endif" data-go="2">
+              <span class="cvb-line-d"></span>
+              <span class="cvb-line-k">{{ __('ui.cvb_step_city') }}</span>
+              <span class="cvb-line-v" id="cvb-s-city">{{ $cityLabel }}</span>
+            </button>
+          @endif
 
           <button type="button" class="cvb-line is-done" data-go="3">
             <span class="cvb-line-d"></span>
@@ -878,7 +916,7 @@
         </button>
         <p class="cvb-eta">
           <svg class="icon"><use href="#i-clock"/></svg>
-          <span>{{ __('ui.cvb_eta') }}</span>
+          <span>{{ __(($gpuMode ?? false) ? 'ui.cvb_eta_gpu' : 'ui.cvb_eta') }}</span>
         </p>
       </div>
     </section>

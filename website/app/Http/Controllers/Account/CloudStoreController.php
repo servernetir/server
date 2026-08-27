@@ -754,6 +754,27 @@ class CloudStoreController extends Controller
             ? $wanted
             : ($blank ? null : ($namedFirst ?? $openCodes[0] ?? $allCodes[0] ?? null));
 
+        /*
+        | 🔴 دو خطِ محصول در یک ویترین قاطی نشوند (گزارشِ کارفرما، شهریور ۱۴۰۵):
+        | مشتریِ /gpu بدونِ این جداسازی وسطِ شهرهای VPS می‌افتاد و اسلاگِ GPUاش
+        | بی‌صدا به اولین پلنِ VPS می‌غلتید («planMoved»). کشورِ ساختگیِ XX
+        | (شبکهٔ توزیع‌شدهٔ GPU) نشانهٔ خطِ محصولِ جداست:
+        |   - در حالتِ GPU (مکانِ انتخابی XX است) فقط همان گروه می‌مانَد؛
+        |   - در حالتِ عادی گروهِ XX از پیکربند حذف می‌شود — ورودی‌اش صفحهٔ /gpu
+        |     است، نه ویترینِ سرورِ مجازی.
+        | ⚠️ عمداً بعد از ساختِ $allCodes: کدِ global-gpu همیشه آدرس‌پذیر می‌مانَد.
+        */
+        $gpuMode = false;
+        foreach ($groups as $g) {
+            foreach ($g['locations'] as $l) {
+                if ((string) $l->code === $code && strtoupper((string) $l->country) === 'XX') {
+                    $gpuMode = true;
+                }
+            }
+        }
+        $groups = array_values(array_filter($groups,
+            fn ($g) => (strtoupper((string) $g['country']) === 'XX') === $gpuMode));
+
         $location = null;
         foreach ($groups as $g) {
             foreach ($g['locations'] as $l) {
@@ -857,6 +878,9 @@ class CloudStoreController extends Controller
             $planCards[] = [
                 'slug' => (string) $slug,
                 'name' => (string) $offer->public_name,
+                // مدلِ کارتِ گرافیک — بی‌این، دو پلنِ GPU با هسته/رم/دیسکِ یکسان
+                // دو کارتِ بایت‌به‌بایت یکسان می‌شوند و مشتری «تکراری» می‌بیند
+                'gpu' => trim((string) $offer->gpu_model),
                 'vcpu' => (int) $offer->vcpu,
                 'ram' => $offer->ramLabel(),
                 'disk' => $offer->diskLabel(),
@@ -902,6 +926,7 @@ class CloudStoreController extends Controller
         $blockedCards = $blocked->map(fn (CloudPlan $p) => [
             'slug' => (string) $p->slug,
             'name' => (string) $p->public_name,
+            'gpu' => trim((string) $p->gpu_model),
             'vcpu' => (int) $p->vcpu,
             'ram' => $p->ramLabel(),
             'disk' => $p->diskLabel(),
@@ -943,6 +968,8 @@ class CloudStoreController extends Controller
             'planCards' => $planCards,
             'blockedCards' => $blockedCards,
             'planMoved' => $planMoved,
+            // خطِ GPU: فرم ساده‌تر — کلیدِ SSH و IPِ اضافه برای کانتینر بی‌معناست
+            'gpuMode' => $gpuMode,
             'selectedSlug' => $selectedSlug,
             'osCatalog' => $osCatalog,
             'appCatalog' => $appCatalog,

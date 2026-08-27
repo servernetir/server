@@ -55,8 +55,29 @@ class CloudLocation extends Model
             || preg_match('/-(shared|dedicated|intel|amd|promo|hi-cpu)$/', $code) === 1;
     }
 
+    /**
+     * مکانِ خطِ محصولِ GPU — صفحهٔ خودش /gpu است، نه /cloud/{code}.
+     *
+     * همان الگوی isLegacyCode: از فهرستِ عمومیِ مکان‌ها و sitemap بیرون
+     * می‌مانَد و /cloud/{code}اش ۳۰۱ به /gpu است. بی‌این، فوترِ سراسری
+     * «سرورِ مجازیِ شبکهٔ توزیع‌شده» را تبلیغ می‌کرد — قولِ VPS برای محصولی
+     * که VPS نیست، و دو خطِ محصول دوباره قاطی می‌شدند.
+     *
+     * قرارداد (گسترش‌یافته — شهریور ۱۴۰۵): هر کدی که «gpu» در خود دارد مالِ
+     * خطِ GPU است — global-gpu، و اسلاگ‌های کاتالوگِ حذف‌شدهٔ gpuaas و
+     * gpu-platform که محصولِ قلابی می‌فروختند (A100/H100 بدونِ زیرساخت) و
+     * پرسش‌های تیکتِ یک مشتریِ واقعی از همان‌ها آمده بود. هیچ شهرِ واقعی‌ای
+     * «gpu» در نامش ندارد، پس این گسترش چیزی را به‌غلط نمی‌گیرد.
+     */
+    public static function isGpuCode(?string $code): bool
+    {
+        return str_contains(strtolower(trim((string) $code)), 'gpu');
+    }
+
     /** نامِ کشور به سه زبان — برای مکان‌هایی که برچسبِ دستی نخورده‌اند */
     public const COUNTRIES = [
+        // شبکهٔ توزیع‌شدهٔ GPU — مکانِ جغرافیایی ندارد؛ XX کدِ رزروِ ISO است
+        'XX' => ['fa' => 'شبکهٔ توزیع‌شده', 'en' => 'Distributed network', 'tr' => 'Dağıtık ağ', 'flag' => '🌐'],
         'DE' => ['fa' => 'آلمان',      'en' => 'Germany',        'tr' => 'Almanya',      'flag' => '🇩🇪'],
         'FI' => ['fa' => 'فینلاند',    'en' => 'Finland',        'tr' => 'Finlandiya',   'flag' => '🇫🇮'],
         'NL' => ['fa' => 'هلند',       'en' => 'Netherlands',    'tr' => 'Hollanda',     'flag' => '🇳🇱'],

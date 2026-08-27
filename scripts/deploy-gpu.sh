@@ -51,7 +51,19 @@ fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن (قاعدهٔ ثبت‌شده).
 #    آرگومانِ اول جایگزینش می‌کند.
-MINE="${1:-fa32a51}"
+#
+# ⚠️ چرا پین از fa32a51 به کامیتِ ادغام رفت (و برنگردانش):
+#    هم‌زمان یک دیپلویِ دیگر هست (scripts/deploy-ticket-workflow.sh، پین به
+#    ac0d47a) و **هر دو `routes/web.php` را می‌برند**. آن کامیت روتِ /gpu را
+#    ندارد و کامیتِ من روت‌های تیکت را؛ بدتر، هر دو افزوده در **همان ناحیهٔ**
+#    فایل می‌نشینند. شبیه‌سازیِ merge سه‌طرفه با پینِ قبلی تداخلِ واقعی داد،
+#    و رفتارِ این اسکریپت روی تداخل «دست نزن» است — یعنی /gpu بی‌صدا هرگز
+#    روی سرور نمی‌آمد، با خروجیِ سبز و بی‌هیچ خطایی.
+#    کامیتِ ادغام هر دو تغییر را دارد، پس هر دو اسکریپت هم‌گرا می‌شوند:
+#    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
+#    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
+#    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
+MINE="${1:-bdcc5c5}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -59,6 +71,22 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    بعد ویو و زبان، بعد config، و آخر routeها.
 APP_FILES="
 app/Models/CloudPlan.php
+app/Models/CloudLocation.php
+app/Models/CloudInstance.php
+app/Models/Service.php
+app/Services/Billing/UndeliveredRefund.php
+app/Http/Controllers/Admin/ServiceController.php
+app/Http/Controllers/Account/ServiceController.php
+app/Http/Controllers/Admin/ProductController.php
+app/Services/Cloud/CloudDominance.php
+resources/views/account/partials/card-server.blade.php
+app/Services/Cloud/CloudProvisioner.php
+app/Console/Commands/CloudMeterHourly.php
+app/Http/Controllers/CatalogController.php
+app/Services/Cloud/CloudCountry.php
+app/Services/SiteMenu.php
+app/Http/Controllers/Account/CloudStoreController.php
+app/Http/Controllers/CloudCatalogController.php
 app/Services/Cloud/CloudNaming.php
 app/Services/Cloud/CloudProvider.php
 app/Services/Cloud/SaladOperations.php
@@ -70,12 +98,17 @@ app/Http/Controllers/GpuController.php
 app/Http/Controllers/SiteController.php
 app/Http/Controllers/Admin/SettingsController.php
 resources/views/pages/gpu.blade.php
+resources/views/account/cloud-store.blade.php
+resources/views/account/cloud-server.blade.php
+resources/views/admin/customer.blade.php
+resources/views/partials/cloud-locations-links.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
 config/servernet.php
+config/catalog/cloud.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 routes/web.php
 "
@@ -173,6 +206,27 @@ if [ -n "$PHPBIN" ]; then
   [ "$union_ok" -eq 1 ] && echo "✅ نحو سالم"
 fi
 
+# ── پایانِ حالتِ آزمایشی ────────────────────────────────────────────────────
+# 🔴 راستی‌آزماییِ اتحاد **نباید** در حالتِ آزمایشی بدود: هیچ‌چیز نوشته نشده،
+#    پس هر `need_file`/`g` طبیعتاً «ننشسته» می‌دهد و گزارشی می‌سازد که شبیهِ
+#    دیپلویِ شکست‌خورده است. بدتر، حلقهٔ بازگشتِ بکاپ هم صدا زده می‌شد در حالی
+#    که در این حالت اصلاً بکاپی ساخته نشده — یعنی پیامِ «بکاپ برمی‌گردد» دربارهٔ
+#    کاری حرف می‌زد که هرگز رخ نداده. تنها سؤالی که این حالت جواب می‌دهد این
+#    است: «کدام فایل تداخل دارد؟»
+if [ "$DRY" != "0" ]; then
+  echo
+  echo "═══ حالتِ آزمایشی — هیچ فایلی روی سرور نوشته نشد ═══"
+  echo "برنامه: $UPD فایل به‌روز یا تازه"
+  if [ -n "$CONFLICTS" ]; then
+    echo "🔴 تداخل:$CONFLICTS"
+    echo "   پیش از دیپلویِ واقعی باید حل شود."
+    exit 1
+  fi
+  echo "✅ هیچ تداخلی نیست — همین فرمان را بدونِ DRY=1 بزن."
+  echo "⚠️ راستی‌آزماییِ اتحاد، مهاجرت و پاکسازیِ کش فقط در اجرای واقعی می‌دوند."
+  exit 0
+fi
+
 # ── ضمانتِ اتحاد ────────────────────────────────────────────────────────────
 # 🔴 چرا لازم است: دیپلوی فایل‌به‌فایل است و «یک فایل جا ماند» فرضی نیست. اگر
 #    درایور بنشیند و رجیستری نه، هر تماس ۵۰۰ می‌دهد؛ اگر ویو بنشیند و کلیدِ
@@ -203,6 +257,63 @@ g app/Services/SystemHealth.php "unsellableCatalogue"
 g app/Http/Controllers/SiteController.php "\$add('gpu')"
 g app/Http/Controllers/Admin/SettingsController.php "salad_api_key"
 g config/servernet.php "'gpu', []"
+
+# مدلِ تحویل: برنامهٔ آماده + دروازه + توکن — هر کدام بیفتد خرابی خاموش است
+g app/Services/Cloud/SaladOperations.php "public const APPS"
+g app/Services/Cloud/SaladOperations.php "'networking'"
+g app/Services/Cloud/CloudProvisioner.php "hostname"
+g app/Models/CloudLocation.php "'XX'"
+
+# جداییِ خطِ GPU از VPS — هر تکه بیفتد، دو خطِ محصول دوباره قاطی می‌شوند
+g app/Models/CloudLocation.php "isGpuCode"
+g app/Services/Cloud/SaladOperations.php "=> 'building'"
+g app/Console/Commands/CloudMeterHourly.php "is_interruptible"
+g app/Console/Commands/CloudMeterHourly.php "warnIfCreditLow"
+g app/Models/Service.php "isHourly"
+g app/Services/Billing/UndeliveredRefund.php "maybeRefund"
+g app/Http/Controllers/Admin/ServiceController.php "UndeliveredRefund"
+g app/Http/Controllers/Account/ServiceController.php "UndeliveredRefund"
+g app/Http/Controllers/Admin/ProductController.php "shellPromised"
+g resources/views/account/cloud-server.blade.php "cs_gpu_docs"
+g lang/fa/ui.php "cs_gpu_docs"
+g lang/en/ui.php "cs_gpu_docs"
+g lang/tr/ui.php "cs_gpu_docs"
+g app/Services/Cloud/CloudDominance.php "gpu_model"
+g resources/views/account/partials/card-server.blade.php "accessHost"
+g resources/views/account/cloud-store.blade.php "isGpuStore"
+g lang/fa/ui.php "cvb_step_gpu"
+g lang/en/ui.php "cvb_step_gpu"
+g lang/tr/ui.php "cvb_step_gpu"
+g lang/fa/ui.php "cvb_pill_gpu"
+g lang/en/ui.php "cvb_pill_gpu"
+g lang/tr/ui.php "cvb_pill_gpu"
+g resources/views/account/cloud-server.blade.php "cs_building_gpu_p"
+g resources/views/account/cloud-store.blade.php "cvb_pill_gpu"
+g app/Models/CloudInstance.php "accessToken"
+g resources/views/account/cloud-server.blade.php "X-SN-Token"
+g resources/views/admin/settings/infra.blade.php "salad_gateway_secret"
+g app/Http/Controllers/Admin/SettingsController.php "salad_gateway_secret"
+g lang/fa/ui.php "cs_gpu_gate_token"
+g lang/en/ui.php "cs_gpu_gate_token"
+g lang/tr/ui.php "cs_gpu_gate_token"
+g app/Http/Controllers/CatalogController.php "GONE_TO_GPU"
+g app/Models/CloudInstance.php "accessHost"
+g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
+g lang/fa/ui.php "cs_gpu_endpoint"
+g lang/en/ui.php "cs_gpu_endpoint"
+g lang/tr/ui.php "cs_gpu_endpoint"
+g app/Services/Cloud/SaladClient.php "DEFAULT_VCPU"
+g app/Services/Cloud/SaladOperations.php "self::GIB"
+g app/Http/Controllers/Account/CloudStoreController.php "gpuMode"
+g app/Http/Controllers/CloudCatalogController.php "isGpuCode"
+g app/Services/SiteMenu.php "'XX'"
+g resources/views/account/cloud-store.blade.php "startTab"
+g resources/views/partials/cloud-locations-links.blade.php "isGpuCode"
+g resources/views/pages/gpu.blade.php "location=global-gpu"
+g resources/views/pages/gpu.blade.php "gpu_how_t"
+g lang/fa/ui.php "gpu_how1_t"
+g lang/en/ui.php "gpu_how1_t"
+g lang/tr/ui.php "gpu_how1_t"
 
 # کلیدهای زبان — هر سه فایل، وگرنه یک زبان متنِ خام نشان می‌دهد
 for L in fa en tr; do

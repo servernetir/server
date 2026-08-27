@@ -125,6 +125,20 @@ class CloudMeterHourly extends Command
             return false;
         }
 
+        /*
+        | 🔴 پلنِ **قطع‌شدنی** (GPU روی ظرفیتِ توزیع‌شده) فقط ساعتِ «روشن» را
+        | می‌پردازد — این عینِ وعدهٔ صفحهٔ فروش است («فقط ساعت‌هایی که روشن
+        | بوده») و عینِ صورت‌حسابِ خودِ زیرساخت به ما (مصرفی؛ ماشینِ خاموش
+        | هیچ هزینه‌ای ندارد).
+        |
+        | ⚠️ فقط برای is_interruptible. سرورِ ابریِ معمولی عمداً «خاموش» را هم
+        | می‌پردازد، چون اجارهٔ ماشینِ رزروشده را ما همچنان می‌دهیم — قاعدهٔ
+        | ثبت‌شدهٔ LIVE_STATUSES دست‌نخورده می‌مانَد.
+        */
+        if ($instance->status !== 'running' && (bool) $service->cloudPlan?->is_interruptible) {
+            return false;
+        }
+
         return CloudDeliveryWatch::reasonFor($service) === null;
     }
 
@@ -219,6 +233,8 @@ class CloudMeterHourly extends Command
 
         ActivityLog::forService($service, 'renew', "کسرِ ساعتی: {$hours} ساعت", 'system');
 
+        $this->warnIfCreditLow($service, $customer, $rate, $balance + $amount);
+
         // 🔴 آنچه در این اجرا کسر **نشد** باید ردِ مکتوب داشته باشد. سقفِ ۴۸
         // ساعته پیش از این بی‌صدا بود، و «چرا درآمدِ این ماه کم است» هیچ پاسخی
         // در هیچ لاگی نداشت.
@@ -276,6 +292,10 @@ class CloudMeterHourly extends Command
         $ok = $prov->suspend($service);
         $service->update(['status' => 'suspended', 'suspended_at' => now()]);
         ActivityLog::forService($service, 'suspend', 'اتمامِ اعتبارِ ساعتی → تعلیق', 'system');
+        $this->notifyCustomer($service, 'hourly_credit_out',
+            'اعتبارِ سرویسِ ساعتیِ «'.$service->name.'» تمام شد و سرور موقتاً خاموش شد. '
+            .'با شارژِ کیفِ پول، سرور خودکار روشن می‌شود؛ در غیرِ این صورت پس از مهلتِ '
+            .self::SUSPEND_GRACE_HOURS.' ساعته حذف خواهد شد.');
 
         if (! $ok) {
             $prov->recordSuspendFailure($service);
@@ -384,4 +404,71 @@ class CloudMeterHourly extends Command
             }
         }
     }
+    /**
+     * آستانهٔ هشدارِ «اعتبار رو به اتمام است» — بر حسبِ ساعتِ باقی‌مانده.
+     *
+     * 🔴 تا امروز مترِ ساعتی **هیچ اعلانی** به مشتری نمی‌داد: نه هشداری پیش از
+     * اتمام، نه خبری بعد از تعلیق. سرورِ GPU مشتری بی‌صدا می‌مرد و اولین
+     * نشانه‌اش خطای برنامهٔ خودش بود (چکِ اطلاع‌رسانی — شهریور ۱۴۰۵).
+     */
+    private const LOW_CREDIT_HOURS = 4;
+
+    private function warnIfCreditLow(Service $service, $customer, int $rate, int $balanceAfter): void
+    {
+        if ($rate < 1) {
+            return;
+        }
+
+        $hoursLeft = intdiv(max(0, $balanceAfter), $rate);
+
+        $meta = (array) ($service->provision_meta ?? []);
+
+        if ($hoursLeft >= self::LOW_CREDIT_HOURS * 2) {
+            // اعتبار برگشت بالا — هشدارِ بعدی دوباره مجاز شود
+            if (isset($meta['low_credit_warned_at'])) {
+                unset($meta['low_credit_warned_at']);
+                $service->forceFill(['provision_meta' => $meta])->save();
+            }
+
+            return;
+        }
+
+        if ($hoursLeft >= self::LOW_CREDIT_HOURS) {
+            return;
+        }
+
+        // یک بار به‌ازای هر افتِ اعتبار، نه هر ساعت — ۹۶ پیامِ تکراری در روز
+        // همان «توهمِ پایش»ِ ثبت‌شده است.
+        if (isset($meta['low_credit_warned_at'])) {
+            return;
+        }
+
+        $meta['low_credit_warned_at'] = now()->toIso8601String();
+        $service->forceFill(['provision_meta' => $meta])->save();
+
+        $this->notifyCustomer($service, 'hourly_low_credit',
+            'اعتبارِ سرویسِ ساعتیِ «'.$service->name.'» فقط برای حدودِ '
+            .$hoursLeft.' ساعتِ دیگر کافی است. برای جلوگیری از خاموش‌شدن، کیفِ پول را شارژ کنید.');
+    }
+
+    /** اعلان به زبانِ خودِ مشتری؛ شکستِ اعلان هرگز متر را نمی‌شکند. */
+    private function notifyCustomer(Service $service, string $key, string $text): void
+    {
+        try {
+            $customer = $service->customer;
+
+            if ($customer === null) {
+                return;
+            }
+
+            app()->setLocale($customer->locale ?: 'fa');
+            app(\App\Services\Notify\CustomerNotifier::class)
+                ->templated($customer, $key, ['service' => $service->name], $text);
+        } catch (\Throwable) {
+            // اعلان تزئینِ متر است، نه شرطِ آن
+        } finally {
+            app()->setLocale(config('app.locale'));
+        }
+    }
+
 }

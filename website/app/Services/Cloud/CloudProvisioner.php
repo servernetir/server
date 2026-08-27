@@ -640,6 +640,9 @@ class CloudProvisioner
                     'status'    => $r['status'],
                     'ipv4'      => $r['ipv4'] ?: $instance->ipv4,
                     'ipv6'      => $r['ipv6'] ?: $instance->ipv6,
+                    // زیرساختِ دروازه‌ای (GPU) نشانیِ HTTPS را همین‌جا می‌دهد —
+                    // برای مشتری همین «آدرسِ سرور» است، نه IP.
+                    'hostname'  => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                     'synced_at' => now(),
                 ]);
                 $out['refreshed']++;
@@ -841,6 +844,7 @@ class CloudProvisioner
         $instance->fill([
             'ipv4'       => $info['ipv4'] ?: $instance->ipv4,
             'ipv6'       => $info['ipv6'] ?: $instance->ipv6,
+            'hostname'   => filled($info['hostname'] ?? null) ? $info['hostname'] : $instance->hostname,
             'status'     => $info['status'],
             'last_error' => null,
             'synced_at'  => now(),
@@ -1500,7 +1504,23 @@ class CloudProvisioner
 
             if ($customer && filled($customer->email)) {
                 \Illuminate\Support\Facades\Mail::mailer('smtp')->to($customer->email)->send(
-                    new \App\Mail\ServiceReadyMail(
+                    /*
+                    | خطِ GPU (برنامهٔ آماده روی دروازه): «root» و IP دروغ است —
+                    | نه SSH دارد نه کاربرِ سیستمی. نشانیِ برندشدهٔ دروازه
+                    | می‌رود و راهنمای SSH خاموش می‌شود.
+                    */
+                    ($gpuApp = str_starts_with((string) $instance->image_key, 'gpu-'))
+                        ? new \App\Mail\ServiceReadyMail(
+                            $service->name,
+                            $instance->accessHost() ?: ($instance->ipv4 ?: $service->domain),
+                            $service->panel_url ?: url('/account/cloud/'.$service->id),
+                            null,
+                            null,
+                            $customer->locale ?: 'fa',
+                            passwordInPanel: true,
+                            withSshGuide: false,
+                        )
+                        : new \App\Mail\ServiceReadyMail(
                         $service->name,
                         $instance->ipv4 ?: $service->domain,
                         $service->panel_url ?: url('/account/cloud/'.$service->id),

@@ -429,7 +429,8 @@ return [
             'groups' => [
                 ['fa' => 'پردازش ابری', 'en' => 'Cloud compute', 'tr' => 'Bulut bilişim', 'items' => [
                     ['slug' => 'iaas',       'fa' => 'زیرساخت ابری (IaaS)', 'en' => 'Cloud Infrastructure (IaaS)', 'tr' => 'Bulut Altyapı (IaaS)'],
-                    ['slug' => 'gpuaas',     'fa' => 'زیرساخت گرافیکی (GPUaaS)', 'en' => 'GPU Cloud (GPUaaS)', 'tr' => 'GPU Bulut (GPUaaS)'],
+                    // خطِ واقعیِ GPU — صفحهٔ /gpu (کاتالوگِ قلابیِ gpuaas حذف و ۳۰۱ شد)
+                    ['route' => ['gpu'], 'fa' => 'سرور گرافیکی (GPU)', 'en' => 'GPU Servers', 'tr' => 'GPU Sunucular'],
                     ['slug' => 'bmaas',      'fa' => 'زیرساخت اختصاصی (BMaaS)', 'en' => 'Bare-metal Cloud (BMaaS)', 'tr' => 'Bare-metal Bulut (BMaaS)'],
                     ['slug' => 'kubernetes', 'fa' => 'کلاستر کوبرنتیز (KaaS)', 'en' => 'Kubernetes (KaaS)', 'tr' => 'Kubernetes (KaaS)'],
                 ]],
@@ -442,7 +443,6 @@ return [
                     ['slug' => 'object-storage', 'fa' => 'آبجکت‌استوریج', 'en' => 'Object Storage', 'tr' => 'Object Storage'],
                 ]],
                 ['fa' => 'هوش مصنوعی', 'en' => 'AI', 'tr' => 'Yapay zeka', 'items' => [
-                    ['slug' => 'gpu-platform',      'fa' => 'پلتفرم پردازش گرافیکی', 'en' => 'GPU Platform', 'tr' => 'GPU Platformu'],
                     ['slug' => 'ai-infrastructure', 'fa' => 'زیرساخت هوش مصنوعی', 'en' => 'AI Infrastructure', 'tr' => 'AI Altyapısı'],
                 ]],
                 ['fa' => 'برنامه‌های آماده', 'en' => 'One-click apps', 'tr' => 'Hazır uygulamalar', 'items' => [

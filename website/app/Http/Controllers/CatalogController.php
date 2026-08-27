@@ -22,8 +22,24 @@ class CatalogController extends Controller
         return $this->render('hosting', $slug);
     }
 
-    public function show(string $category, string $slug): View
+    /**
+     * محصولاتِ حذف‌شده‌ای که جانشینِ واقعی دارند — ۳۰۱ تک‌پرش.
+     *
+     * 🔴 gpuaas و gpu-platform (شهریور ۱۴۰۵): پلن‌های A100/H100 و «پلتفرمِ
+     * فاین‌تیون» می‌فروختند که هیچ زیرساختی پشتشان نبود — همان الگوی ثبت‌شدهٔ
+     * «پکیجِ نمایندگی که cPanelِ ساده تحویل می‌داد»، این بار پیش از پول‌گرفتن
+     * گرفته شد (پرسش‌های تیکتِ یک مشتریِ واقعی از همین صفحه‌ها آمده بود:
+     * «بکاپِ روزانه»، «API و CLI کامل» — هیچ‌کدام برای GPU تحویل‌دادنی نبود).
+     * جانشین: خطِ واقعیِ /gpu.
+     */
+    private const GONE_TO_GPU = ['gpuaas', 'gpu-platform'];
+
+    public function show(string $category, string $slug): View|\Illuminate\Http\RedirectResponse
     {
+        if ($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true)) {
+            return redirect()->to(lroute('gpu'), 301);
+        }
+
         return $this->render($category, $slug);
     }
 

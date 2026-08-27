@@ -151,10 +151,13 @@ class SettingsController extends Controller
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
             'ovh_forget'         => ['nullable', 'boolean'],
             'salad_api_key'      => ['nullable', 'string', 'max:300'],
+            'salad_gateway_secret' => ['nullable', 'string', 'max:200'],
             'salad_forget'       => ['nullable', 'boolean'],
             'salad_org'          => ['nullable', 'string', 'max:120'],
             'salad_project'      => ['nullable', 'string', 'max:120'],
             'salad_image'        => ['nullable', 'string', 'max:200'],
+            // فقط دامنهٔ پایه (مثلِ servernet.cloud) — نه اسکیم، نه اسلش
+            'salad_branded_domain' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9.-]*$/'],
             'salad_priority'     => ['nullable', 'string', 'in:high,medium,low,batch'],
             'salad_vcpu_usd_hour'   => ['nullable', 'numeric', 'min:0', 'max:10'],
             'salad_ram_gb_usd_hour' => ['nullable', 'numeric', 'min:0', 'max:10'],
@@ -211,7 +214,7 @@ class SettingsController extends Controller
      * می‌فروشیم — بی‌هیچ خطایی. همان تلهٔ `aeza_price_divisor`.
      */
     private const SALAD_PLAIN = [
-        'salad_org', 'salad_project', 'salad_image', 'salad_priority',
+        'salad_org', 'salad_project', 'salad_image', 'salad_priority', 'salad_branded_domain',
         'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour',
     ];
 
@@ -398,6 +401,7 @@ class SettingsController extends Controller
                     'project'  => $ready ? Setting::get('salad_project') : null,
                     'image'    => $ready ? Setting::get('salad_image') : null,
                     'priority' => $ready ? Setting::get('salad_priority') : null,
+                    'branded'  => $ready ? Setting::get('salad_branded_domain') : null,
                     'vcpu'     => $ready ? Setting::get('salad_vcpu_usd_hour') : null,
                     'ram'      => $ready ? Setting::get('salad_ram_gb_usd_hour') : null,
                 ],
@@ -635,6 +639,11 @@ class SettingsController extends Controller
             Setting::putSecret('salad_api_key', null);
         } elseif (filled($data['salad_api_key'] ?? null)) {
             Setting::putSecret('salad_api_key', trim((string) $data['salad_api_key']));
+        }
+
+        // رازِ دروازهٔ برندشده — باید بایت‌به‌بایت با GATE_SECRETِ Worker یکی باشد
+        if (filled($data['salad_gateway_secret'] ?? null)) {
+            Setting::putSecret('salad_gateway_secret', trim((string) $data['salad_gateway_secret']));
         }
 
         foreach (self::SALAD_PLAIN as $k) {

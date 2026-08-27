@@ -343,6 +343,12 @@ class SystemHealth
         */
         $rows = \App\Models\Service::query()
             ->whereNull('next_due_at')
+            /*
+            | ساعتی **عمداً** سررسید ندارد — صورت‌حسابش مترِ اعتباری است.
+            | بی‌این شرط، هر سرویسِ GPU/ساعتی این‌جا قرمز می‌شد و مدیر را به
+            | «تنظیمِ سررسید» دعوت می‌کرد = فاکتورِ تمدیدِ دوبله روی مترِ ساعتی.
+            */
+            ->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'))
             ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
             ->with('customer')
             ->limit(20)

@@ -272,6 +272,16 @@ class ServiceController extends Controller
             'status' => ['required', 'in:active,suspended,cancelled'],
         ]);
 
+        /*
+        | 🔴 ریفاندِ خودکارِ تحویل‌نشده — لغوِ سرویسی که پولش رفته و هرگز تحویل
+        | نشده، بدونِ این یعنی دو کارِ دستیِ جدا برای مدیر و انتظار برای مشتری.
+        */
+        $refund = 0;
+        if ($data['status'] === 'cancelled') {
+            $refund = app(\App\Services\Billing\UndeliveredRefund::class)
+                ->maybeRefund($service, 'staff');
+        }
+
         $service->status = $data['status'];
         if ($data['status'] === 'cancelled') {
             $service->cancelled_at = now();
@@ -286,7 +296,9 @@ class ServiceController extends Controller
             'وضعیت سرویس به «'.$data['status'].'» تغییر کرد — توسط '.($request->user()?->name ?: 'مدیر'),
             'staff', $request);
 
-        return back()->with('ok', 'وضعیت سرویس به‌روزرسانی شد.');
+        return back()->with('ok', $refund > 0
+            ? 'وضعیت به‌روزرسانی شد و '.number_format($refund).' به کیفِ پولِ مشتری برگشت (تحویل انجام نشده بود).'
+            : 'وضعیت سرویس به‌روزرسانی شد.');
     }
 
     /**

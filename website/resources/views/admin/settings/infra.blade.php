@@ -138,6 +138,16 @@
               <option value="{{ $k }}" @selected(($cloud['sl']['priority'] ?: 'high') === $k)>{{ $lbl }}</option>
             @endforeach
           </select></label>
+      <label class="set-f">دامنهٔ برندشدهٔ دروازه <span style="color:var(--dim)">(اختیاری)</span>
+        <input type="text" name="salad_branded_domain" dir="ltr" maxlength="120"
+               value="{{ $cloud['sl']['branded'] ?? '' }}" placeholder="servernet.cloud">
+        <small style="color:var(--dim)">نشانیِ مشتری g-xxxx.{دامنه} می‌شود — نیازمندِ Workerِ Cloudflare (راهنما در relay/cloudflare)</small>
+      </label>
+      <label class="set-f">رازِ دروازهٔ برندشده (Gateway secret)
+        <input type="password" name="salad_gateway_secret" dir="ltr" autocomplete="new-password" maxlength="200"
+               placeholder="باید با GATE_SECRET در Worker یکی باشد — خالی = بدونِ تغییر">
+        <small style="color:var(--dim)">توکنِ دسترسیِ هر ماشین از این راز ساخته می‌شود؛ بی‌آن، دروازه باز است</small>
+      </label>
 
         {{-- 🔴 این دو نرخ در API آنها **نیستند** و فقط در مستنداتِ متنی‌اند.
              بهایِ تمام‌شده = قیمتِ GPU + vCPU×نرخ + گیگ‌رم×نرخ؛ اگر تکهٔ GPU را

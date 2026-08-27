@@ -64,12 +64,43 @@
   .gpu-from{display:inline-block;margin-top:16px;padding:7px 16px;border-radius:999px;
     background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.28);color:var(--cyan);font-size:14px}
 
-  /* 🔴 نوارِ قطع‌شدنی‌بودن — نه ریزنویسِ پاورقی. مشتری‌ای که این را نبیند و
-     ماشینش وسطِ کار قطع شود، حق دارد شکایت کند. */
-  .gpu-warn{margin:0 auto 34px;max-width:900px;border-radius:14px;padding:16px 18px;
-    background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3)}
-  .gpu-warn b{display:block;color:#fbbf24;font-size:14.5px;margin:0 0 6px}
-  .gpu-warn p{margin:0;color:var(--muted);font-size:13.5px;line-height:2}
+  /* چیپ‌های اعتماد زیرِ تیتر */
+  .gpu-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}
+  .gpu-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;
+    background:var(--surface);border:1px solid var(--line-2);color:var(--muted);font-size:13px}
+  .gpu-chip .icon{width:15px;height:15px;color:var(--cyan)}
+
+  /* 🔴 صداقتِ «قطع‌شدنی» حذف نشده — بازروایت شده. متن هنوز صریح می‌گوید
+     ماشین ممکن است جابه‌جا شود و برای کارِ بی‌وقفه مناسب نیست؛ فقط به‌جای
+     نوارِ زردِ ترسناک، به‌عنوانِ «چرا این قیمت ممکن است» گفته می‌شود.
+     همان تستِ GpuPageTest همچنان وجود و جایگاهش (پیش از پیکربند) را قفل می‌کند. */
+  .gpu-warn{margin:0 auto 34px;max-width:900px;border-radius:16px;padding:20px 22px;
+    background:linear-gradient(135deg,rgba(34,211,238,.07),rgba(34,211,238,.02));
+    border:1px solid rgba(34,211,238,.25)}
+  .gpu-warn b{display:block;color:var(--cyan);font-size:15px;margin:0 0 8px}
+  .gpu-warn p{margin:0;color:var(--muted);font-size:13.5px;line-height:2.1}
+
+  /* «چطور کار می‌کند» — سه گامِ شماره‌دار */
+  .gpu-how{margin:44px 0 0}
+  .gpu-how h2{text-align:center;font-size:20px;margin:0 0 22px}
+  .gpu-how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+  .gpu-step-card{position:relative;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:20px 18px 18px}
+  .gpu-step-n{position:absolute;top:-13px;inset-inline-start:16px;width:26px;height:26px;
+    border-radius:999px;background:var(--cyan);color:#04252b;font-size:13.5px;font-weight:700;
+    display:flex;align-items:center;justify-content:center}
+  .gpu-step-card b{display:block;font-size:14.5px;margin:4px 0 7px}
+  .gpu-step-card p{margin:0;color:var(--muted);font-size:13px;line-height:2}
+
+  /* برنامه‌های آماده */
+  .gpu-apps{margin:44px 0 0;text-align:center}
+  .gpu-apps h2{font-size:20px;margin:0 0 6px}
+  .gpu-apps > p{color:var(--muted);font-size:13.5px;margin:0 0 20px}
+  .gpu-apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;text-align:start}
+  .gpu-app{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .gpu-app b{display:block;font-size:14.5px;margin:0 0 6px}
+  .gpu-app b small{color:var(--dim);font-weight:400;margin-inline-start:6px;font-size:11.5px}
+  .gpu-app p{margin:0;color:var(--muted);font-size:12.5px;line-height:2}
 
   .gpu-cfg{display:grid;grid-template-columns:1fr 320px;gap:22px;align-items:start}
   @media(max-width:900px){.gpu-cfg{grid-template-columns:1fr}}
@@ -93,7 +124,10 @@
   .gpu-badge{display:inline-block;margin-inline-start:7px;padding:2px 8px;border-radius:999px;
     background:var(--surface-2);border:1px solid var(--line-2);color:var(--muted);font-size:11px}
 
-  .gpu-side{position:sticky;top:130px;background:var(--surface);border:1px solid var(--line);
+  /* ⚠️ جبرانِ هدر از `--header-h` می‌آید، نه عددِ دستی: قاعدهٔ ثبت‌شدهٔ پروژه.
+     عددِ پراکنده همان چیزی است که چند بار «صفحه رفته زیرِ هدر» ساخت، و زیرِ
+     ۴۰۰px هدر بلندتر می‌شود (۱۳۲px) که هر عددِ ثابتی را می‌شکند. */
+  .gpu-side{position:sticky;top:calc(var(--header-h) + 14px);background:var(--surface);border:1px solid var(--line);
     border-radius:16px;padding:18px}
   @media(max-width:900px){.gpu-side{position:static}}
   .gpu-side h2{margin:0 0 4px;font-size:15px}
@@ -130,13 +164,18 @@
       @if($fromHourly)
         <div class="gpu-from">{{ __('ui.gpu_from', ['price' => $fromHourly]) }}</div>
       @endif
+      <div class="gpu-chips">
+        <span class="gpu-chip"><svg class="icon"><use href="#i-coins"/></svg>{{ __('ui.gpu_chip1') }}</span>
+        <span class="gpu-chip"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.gpu_chip2') }}</span>
+        <span class="gpu-chip"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.gpu_chip3') }}</span>
+      </div>
     </div>
 
     {{-- 🔴 پیش از پیکربند، نه بعدش: تصمیمِ خرید بعد از دیدنِ قیمت گرفته
          می‌شود، پس هشدار باید **قبلش** دیده شود نه زیرِ دکمه. --}}
     @if($interruptible)
       <div class="gpu-warn">
-        <b>⚠️ {{ __('ui.gpu_warn_t') }}</b>
+        <b>💡 {{ __('ui.gpu_warn_t') }}</b>
         <p>{{ __('ui.gpu_warn_d') }}</p>
       </div>
     @endif
@@ -194,7 +233,7 @@
           </div>
 
           <a class="btn btn-primary" id="gpu-cta" rel="nofollow"
-             href="{{ lroute('account.cloud.store') }}?billing_mode=hourly&plan={{ $cards[0]['slug'] }}">
+             href="{{ lroute('account.cloud.store') }}?billing_mode=hourly&location=global-gpu&plan={{ $cards[0]['slug'] }}">
             {{ __('ui.gpu_cta') }}
           </a>
         </div>
@@ -206,6 +245,29 @@
         <p>{{ __('ui.gpu_empty_d') }}</p>
       </div>
     @endif
+
+    <div class="gpu-how">
+      <h2>{{ __('ui.gpu_how_t') }}</h2>
+      <div class="gpu-how-grid">
+        @foreach([1, 2, 3] as $n)
+          <div class="gpu-step-card">
+            <span class="gpu-step-n">{{ $isFa ? fa_num((string) $n) : $n }}</span>
+            <b>{{ __('ui.gpu_how'.$n.'_t') }}</b>
+            <p>{{ __('ui.gpu_how'.$n.'_d') }}</p>
+          </div>
+        @endforeach
+      </div>
+    </div>
+
+    <div class="gpu-apps">
+      <h2>{{ __('ui.gpu_apps_t') }}</h2>
+      <p>{{ __('ui.gpu_apps_d') }}</p>
+      <div class="gpu-apps-grid">
+        <div class="gpu-app"><b>Ollama <small>Llama 3.1</small></b><p>{{ __('ui.gpu_app_llm_d') }}</p></div>
+        <div class="gpu-app"><b>ComfyUI <small>Stable Diffusion</small></b><p>{{ __('ui.gpu_app_img_d') }}</p></div>
+        <div class="gpu-app"><b>Jupyter <small>PyTorch</small></b><p>{{ __('ui.gpu_app_nb_d') }}</p></div>
+      </div>
+    </div>
 
     <div class="gpu-notes">
       <div class="gpu-note">
@@ -283,7 +345,7 @@
     total.textContent = money(rate * units);
     daily.textContent = money(rate * units * 24);
 
-    cta.href = CFG.store + '?billing_mode=hourly&plan=' + encodeURIComponent(p.value)
+    cta.href = CFG.store + '?billing_mode=hourly&location=global-gpu&plan=' + encodeURIComponent(p.value)
              + '&units=' + units;
 
     Array.prototype.forEach.call(cards.querySelectorAll('.gpu-card'), function (el) {

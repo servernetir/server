@@ -217,7 +217,8 @@ class CloudCountry
         // «۳۰۱ به ۳۰۱ به خودش» ساخته می‌شد.
         $first = CloudLocation::where('country', strtoupper(trim($iso)))
             ->where('is_active', true)->orderBy('sort')->orderBy('code')->pluck('code')
-            ->first(fn ($code) => ! CloudLocation::isLegacyCode((string) $code));
+            ->first(fn ($code) => ! CloudLocation::isLegacyCode((string) $code)
+                && ! CloudLocation::isGpuCode((string) $code));
 
         return $first
             ? lroute('cloud.location', ['location' => $first])

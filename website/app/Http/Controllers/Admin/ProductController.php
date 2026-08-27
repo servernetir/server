@@ -259,6 +259,18 @@ class ProductController extends Controller
         $name = $this->whmPackageName($product);
         $limits = $this->parseLimits($product->specs ?? []);
 
+        /*
+        | 🔴 Shell از وعدهٔ خودِ محصول می‌آید، نه از پیش‌فرض. صفحهٔ «هاست
+        | پایتون» صریح «دسترسی کامل SSH» و pip/venv می‌فروشد ولی addPackage
+        | پیش‌فرضِ hasshell=n دارد — مشتری هاستی می‌گرفت که با آن هیچ pip ای
+        | نمی‌شد زد (۵ شهریور ۱۴۰۵، WHM-IR-01: HASSHELL=n روی sn_python_1).
+        | و چون editpkg در هر همگام‌سازی دوباره اعمال می‌شود، اصلاحِ دستی در
+        | WHM هم با کلیکِ بعدی برمی‌گشت — پس باید همین‌جا باشد.
+        */
+        if ($this->shellPromised($product)) {
+            $limits['hasshell'] = 'y';
+        }
+
         $okOn = [];
         $failOn = [];
 
@@ -295,6 +307,30 @@ class ProductController extends Controller
 
         return [true, 'package «'.$name.'» روی '.implode('، ', $okOn).' آماده است.'
             .($failOn !== [] ? ' ناموفق: '.implode(' | ', $failOn) : '')];
+    }
+
+    /**
+     * آیا این محصول به مشتری Shell/SSH وعده داده است؟
+     *
+     * دو نشانه، هرکدام کافی: خطِ SSH/ترمینال در مشخصاتِ پکیج، یا خطِ
+     * محصولیِ پایتون (کلِ آن خط بدونِ shell بی‌مصرف است — pip و venv و
+     * دیپلوی از Git همه ترمینال می‌خواهند).
+     */
+    private function shellPromised(Product $product): bool
+    {
+        if (str_starts_with($product->packageName(), 'sn_python')) {
+            return true;
+        }
+
+        foreach ($product->specs ?? [] as $spec) {
+            $t = mb_strtolower((string) ($spec['label'] ?? ''));
+
+            if (preg_match('/(ssh|ترمینال|terminal|شل)/u', $t)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** نامِ معتبرِ package در WHM (حروف/رقم/زیرخط) */

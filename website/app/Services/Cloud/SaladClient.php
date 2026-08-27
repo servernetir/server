@@ -47,6 +47,18 @@ class SaladClient implements CloudProvider
     /** تبدیلِ «ساعتی» به «ماهانه»ی قرارداد (۳۰٫۴ روز) */
     public const HOURS_PER_MONTH = 730;
 
+    /** یک گیبی‌بایت — واحدِ واقعیِ storage در APIِ زیرساخت (کمینه 1، بیشینه 250) */
+    public const GIB = 1_073_741_824;
+
+    /*
+    | پیکربندیِ پیش‌فرض وقتی کلاسِ GPU سقفِ CPU/RAM/دیسک اعلام نمی‌کند
+    | (اسپک صفر را مجاز می‌داند و پاسخِ واقعی همین بود). این همان چیزی است که
+    | می‌فروشیم و قیمتش هم از همین ساخته می‌شود — تغییرش یعنی sync دوباره.
+    */
+    public const DEFAULT_VCPU = 8;
+    public const DEFAULT_RAM_MB = 30720;
+    public const DEFAULT_DISK_GB = 50;
+
     /**
      * نرخِ پیش‌فرضِ vCPU و رم بر ساعت به دلار — از `billing.mdx` خودشان:
      * «۱ vCPU × ۰٫۰۰۴ + ۲ گیگ × ۰٫۰۰۱ = ۰٫۰۰۶ دلار در ساعت».
@@ -99,7 +111,7 @@ class SaladClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            // کنسولِ تحتِ وب ندارند؛ دسترسی از راهِ SSH به خودِ نمونه است.
+            // کنسولِ تحتِ وب ندارند؛ دسترسی از راهِ نشانیِ HTTPS و APIِ برنامه است.
             'console'        => false,
             // «نصبِ دوبارهٔ سیستم‌عامل» این‌جا وجود ندارد.
             'rebuild'        => false,
@@ -109,11 +121,11 @@ class SaladClient implements CloudProvider
             'resize'         => false,
             'snapshot'       => false,
             'metrics'        => false,
-            // رمزِ root وجود ندارد؛ ورود با کلیدِ SSH است.
+            // رمزِ root وجود ندارد؛ توکنِ برنامه هنگامِ ساخت تزریق و یک بار نشان داده می‌شود.
             'reset_password' => false,
             'ipv6'           => false,
             'rescue'         => false,
-            // کلید در لحظهٔ ساخت تزریق می‌شود، نه در «حسابِ ما نزدِ زیرساخت».
+            // کلیدِ سطحِ حساب نداریم؛ هرچه لازم است هنگامِ ساخت تزریق می‌شود.
             'ssh_key'        => false,
             'extra_ip'       => false,
         ];
@@ -136,7 +148,7 @@ class SaladClient implements CloudProvider
 
     public function resetPassword(string $ref): array
     {
-        return ['ok' => false, 'message' => 'این سرور رمزِ root ندارد؛ دسترسی با کلیدِ SSH است.', 'root_password' => null];
+        return ['ok' => false, 'message' => 'این سرویس رمزِ root ندارد؛ دسترسی با نشانیِ HTTPS و توکنِ اختصاصی است که هنگامِ تحویل ساخته می‌شود.', 'root_password' => null];
     }
 
     public function console(string $ref): array
@@ -208,9 +220,29 @@ class SaladClient implements CloudProvider
             return ['ok' => true, 'status' => $r->status(), 'body' => $body, 'message' => ''];
         }
 
+        /*
+        | خطاهای این زیرساخت به قالبِ problem+json می‌آیند (title/type/errors)
+        | و مستنداتشان هشدار می‌دهد گاهی هم **سندِ HTML**. نسخهٔ اول فقط
+        | message/error/detail را می‌خواند، پس ۴۰۰ واقعی به «خطای زیرساخت
+        | (کدِ 400)» تخت می‌شد و عیب‌یابیِ پروداکشن کور بود.
+        */
         $msg = is_array($body)
-            ? (string) ($body['message'] ?? $body['error'] ?? $body['detail'] ?? '')
-            : '';
+            ? (string) ($body['message'] ?? $body['error'] ?? $body['detail'] ?? $body['title'] ?? '')
+            : trim(mb_substr(strip_tags((string) $r->body()), 0, 200));
+
+        if (is_array($body) && isset($body['errors']) && is_array($body['errors'])) {
+            $flat = [];
+
+            array_walk_recursive($body['errors'], function ($v, $k) use (&$flat) {
+                if (is_scalar($v) && count($flat) < 4) {
+                    $flat[] = $k.': '.$v;
+                }
+            });
+
+            if ($flat !== []) {
+                $msg = trim($msg.' — '.implode(' · ', $flat));
+            }
+        }
 
         if ($msg === '') {
             $msg = match ($r->status()) {
@@ -242,11 +274,27 @@ class SaladClient implements CloudProvider
         $r = $this->req('GET', '/organizations/'.rawurlencode($this->org()).'/gpu-classes');
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']];
+            return ['ok' => false, 'message' => 'سازمان یا کلید: '.$r['message']];
         }
 
-        return ['ok' => true, 'message' => 'اتصال برقرار است — '
-            .fa_num((string) count($this->items($r['body']))).' کلاسِ GPU خوانده شد.'];
+        $classes = fa_num((string) count($this->items($r['body'])));
+
+        /*
+        | 🔴 نامِ **پروژه** را هم همین‌جا بسنج، وگرنه تنها جایی که امتحان
+        |    می‌شود مسیرِ ساختِ کانتینر است — یعنی اولین سفارشِ واقعیِ مشتری.
+        |    آن‌وقت پول گرفته شده و تحویل شکست می‌خورد، به‌خاطرِ یک غلطِ
+        |    تایپی در فرمِ تنظیمات که همین‌جا در یک تماسِ خواندنی معلوم می‌شد.
+        |    (نامِ سازمان در تماسِ بالا هست، نامِ پروژه فقط در این مسیر.)
+        */
+        $p = $this->req('GET', $this->proj());
+
+        if (! $p['ok']) {
+            return ['ok' => false, 'message' => 'کلید و سازمان درست‌اند ('.$classes
+                .' کلاسِ GPU)، ولی پروژه خوانده نشد: '.$p['message']];
+        }
+
+        return ['ok' => true, 'message' => 'اتصال برقرار است — '.$classes
+            .' کلاسِ GPU، و پروژه هم خوانده شد.'];
     }
 
     /** آرایهٔ ردیف‌ها از پاسخ، هرجا که باشد */
