@@ -2597,10 +2597,10 @@ return [
 
     // -- GPU servers / /gpu --
     'gpu_meta_t' => 'Hourly GPU Server Rental — Pay for What You Use',
-    'gpu_meta_d' => 'Hourly GPU servers from :price. Pick a card, choose how many, pay by the hour. Automatic delivery and SSH access.',
+    'gpu_meta_d' => 'Hourly GPU servers from :price. Pick a card and an app, pay by the hour. Automatic delivery with a dedicated URL and API.',
     'gpu_meta_d_nop' => 'Hourly GPU servers billed by usage. Pick a card, choose how many, and pay by the hour.',
     'gpu_h1' => 'Hourly GPU Servers',
-    'gpu_lead' => 'Choose a graphics card, pick how many machines you need, and pay only for the hours they run. Automatic delivery with SSH access.',
+    'gpu_lead' => 'Choose a graphics card and a ready-made app (Ollama, ComfyUI, Jupyter), and pay only for the hours it runs. Automatic delivery with a dedicated HTTPS endpoint and API you can call from your own server or app.',
     'gpu_from' => 'From :price per hour',
     'gpu_pick_t' => 'Choose your graphics card',
     'gpu_pick_d' => 'Prices are hourly and come from the same rate that appears on your invoice.',
@@ -2622,8 +2622,8 @@ return [
     'gpu_warn_d' => 'GPU machines run on a distributed network of devices and may be interrupted without notice and rebuilt on another node - even at the highest priority. They suit compute work that tolerates interruption (inference, rendering, training with checkpoints), not a service that must stay up. Machine storage is ephemeral too; write your results to external storage.',
     'gpu_hourly_t' => 'How is it billed?',
     'gpu_hourly_d' => 'Pay as you go, by the hour. You need at least :hours hours of credit to start; each hour is deducted from that balance, and deductions stop the moment you delete the machine.',
-    'gpu_ssh_t' => 'How do I connect?',
-    'gpu_ssh_d' => 'With an SSH key. These machines have no root password and no web console - you supply your public key and connect over SSH.',
+    'gpu_ssh_t' => 'How do I use it?',
+    'gpu_ssh_d' => 'Pick a ready-made app at checkout and get a dedicated HTTPS address - open it in your browser or call it as an API from your own server or code. These are not VPS machines with SSH and root; they are a ready app on a dedicated GPU.',
     'gpu_use1_t' => 'Model inference',
     'gpu_use1_d' => 'Serve language and image models without buying hardware.',
     'gpu_use2_t' => 'Rendering and video',

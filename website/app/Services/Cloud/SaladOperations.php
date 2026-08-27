@@ -158,6 +158,59 @@ trait SaladOperations
      *    ایمیجِ کانتینر را ما تعیین می‌کنیم. فهرستِ ایمیجِ جعلی یعنی صفحهٔ
      *    خریدی که انتخابی نشان می‌دهد و در تحویل نادیده‌اش می‌گیرد.
      */
+    /**
+     * برنامه‌های آماده — کپیِ «دستورهای» رسمیِ خودِ زیرساخت (salad-recipes).
+     *
+     * مدلِ تحویلِ خودِ Salad همین است: کاربر یا «دستورِ آماده» را یک‌کلیکی
+     * بالا می‌آورد یا ایمیجِ دلخواهِ خودش را می‌دهد. ما همان را سفیدبرچسب
+     * می‌کنیم: هر ردیف یک `cloud_images` (kind=app) می‌شود و مشتری در فروشگاه
+     * انتخاب می‌کند.
+     *
+     * ⚠️ ایمیج‌ها و پورت‌ها از container-group.jsonِ خودِ مخزنِ رسمی‌اند، نه
+     *    حدس: ollama → 11434، ComfyUI → 3000 (نه 8188ِ خام — رپرِ APIشان روی
+     *    3000 است)، Jupyter → 8888. حتی `auth:false` هم انتخابِ خودشان است.
+     *
+     * 🔴 دروازهٔ ورودی IPv6 است؛ ایمیجی که فقط IPv4 گوش بدهد پشتِ دروازه
+     *    **بی‌صدا** جواب نمی‌دهد (صفحه بالا می‌آید، درخواست تایم‌اوت می‌شود).
+     *    برای همین `OLLAMA_HOST='::'` و `NOTEBOOK_ARGS='--ip=*'` این‌جا تزریق
+     *    می‌شوند — همان کاری که entrypointِ دستورِ رسمی می‌کند.
+     */
+    public const APPS = [
+        'gpu-ollama' => [
+            'ref'       => 'saladtechnologies/ollama-llama3.1-recipe:1.0.0',
+            'label'     => 'Ollama — Llama 3.1 (OpenAI API)',
+            'port'      => 11434,
+            'env'       => ['OLLAMA_MODEL_NAME' => 'llama3.1', 'OLLAMA_HOST' => '::'],
+            'token_env' => null,
+        ],
+        'gpu-comfyui' => [
+            'ref'       => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+            'label'     => 'ComfyUI — Stable Diffusion',
+            'port'      => 3000,
+            'env'       => [],
+            'token_env' => null,
+        ],
+        'gpu-jupyter' => [
+            'ref'       => 'quay.io/jupyter/pytorch-notebook:cuda12-latest',
+            'label'     => 'Jupyter — PyTorch Notebook',
+            'port'      => 8888,
+            'env'       => ['NOTEBOOK_ARGS' => '--ip=*'],
+            'token_env' => 'JUPYTER_TOKEN',
+        ],
+    ];
+
+    /** ردیفِ برنامه از روی ایمیجِ انتخابی؛ null یعنی ایمیجِ دلخواه/ناشناخته */
+    private function appFor(string $imageRef): ?array
+    {
+        foreach (self::APPS as $key => $app) {
+            if ($app['ref'] === $imageRef) {
+                return $app + ['key' => $key];
+            }
+        }
+
+        return null;
+    }
+
     public function fetchCatalog(): array
     {
         if (! $this->isConfigured()) {
@@ -180,7 +233,13 @@ trait SaladOperations
 
         $locations = [[
             'code'              => self::LOCATION,
-            'country'           => 'شبکهٔ توزیع‌شده',
+            /*
+            | 🔴 ستونِ country دو حرفیِ ISO است (string(2)). متنِ فارسی این‌جا
+            |    روی SQLiteِ محلی می‌گذرد و روی MariaDB سینک را می‌کشد
+            |    (Data too long — دیده‌شده روی پروداکشن). برچسبِ نمایشی از
+            |    CloudLocation::COUNTRIES['XX'] می‌آید.
+            */
+            'country'           => 'XX',
             'city'              => null,
             'provider_location' => 'global',
             'latitude'          => null,
@@ -214,7 +273,19 @@ trait SaladOperations
             'message' => $skipped > 0 ? fa_num((string) $skipped).' کلاسِ GPU به‌خاطرِ دادهٔ ناقص کنار گذاشته شد.' : '',
             'locations' => $locations,
             'plans'     => $plans,
-            'images'    => [],
+            'images'    => array_map(
+                fn (string $key, array $a) => [
+                    'provider_ref' => $a['ref'],
+                    'key'          => $key,
+                    'kind'         => 'app',
+                    'family'       => $key,
+                    'version'      => null,
+                    'label'        => $a['label'],
+                    'arch'         => 'x86',
+                ],
+                array_keys(self::APPS),
+                array_values(self::APPS),
+            ),
         ];
     }
 
@@ -331,13 +402,23 @@ trait SaladOperations
             return $fail('این زیرساخت تنظیم نشده است.');
         }
 
-        $image = $this->image();
+        /*
+        | ایمیج اول از **انتخابِ مشتری** می‌آید (image_ref — همان مسیری که همهٔ
+        | زیرساخت‌ها دارند)، و تنظیمِ سراسریِ مدیر فقط پشتیبان است.
+        */
+        $image = trim((string) ($spec['image_ref'] ?? ''));
+
+        if ($image === '') {
+            $image = $this->image();
+        }
 
         if ($image === '') {
             // 🔴 بهتر است تحویل نشود تا اینکه کانتینری بالا بیاید که مشتری
             //    راهی به داخلش ندارد. مدیر در تنظیمات ایمیج را می‌گذارد.
             return $fail('ایمیجِ کانتینر برای این زیرساخت تنظیم نشده است.');
         }
+
+        $app = $this->appFor($image);
 
         $name = (string) ($spec['name'] ?? '');
 
@@ -360,13 +441,30 @@ trait SaladOperations
             return $fail('پلنِ خواسته‌شده در کاتالوگ نیست.');
         }
 
-        $env = [];
+        $env = $app !== null ? $app['env'] : [];
         $keys = array_values(array_filter((array) ($spec['ssh_keys'] ?? [])));
 
         if ($keys !== []) {
             // کلید در لحظهٔ ساخت تزریق می‌شود؛ ایمیجِ انتخابی باید آن را
             // بخوانَد و در `authorized_keys` بگذارد.
             $env['SSH_PUBLIC_KEY'] = implode("\n", $keys);
+        }
+
+        /*
+        | توکنِ دسترسیِ اختصاصیِ این مشتری — فقط برای برنامه‌ای که خودش آن را
+        | می‌فهمد (JUPYTER_TOKEN و مانندش). به‌عنوانِ root_password برگردانده
+        | می‌شود تا از همان مسیرِ «فقط یک بار نشان بده»ی پنل عبور کند.
+        |
+        | 🔴 چرا دروازه با authِ خودِ زیرساخت قفل نمی‌شود: آن auth فقط
+        |    Salad-Api-Key می‌پذیرد — کلیدِ **کلِ حسابِ ما** — و دادنش به مشتری
+        |    یعنی دسترسیِ کامل به کانتینرهای همهٔ مشتریان. حتی دستورهای رسمیِ
+        |    خودشان auth:false می‌گذارند.
+        */
+        $token = null;
+
+        if ($app !== null && filled($app['token_env'])) {
+            $token = \Illuminate\Support\Str::random(40);
+            $env[$app['token_env']] = $token;
         }
 
         $body = [
@@ -386,6 +484,20 @@ trait SaladOperations
                 ],
             ],
         ];
+
+        /*
+        | 🔴 بدونِ این بلوک هیچ نشانی‌ای ساخته نمی‌شود: کانتینر بالا می‌آید،
+        |    GPU مصرف می‌کند، و مشتری هیچ راهی به آن ندارد — با تحویلِ «موفق».
+        |    پورت از ردیفِ برنامه می‌آید نه حدس؛ برای ایمیجِ دلخواه/ناشناخته
+        |    عمداً دروازه روشن نمی‌شود (پورتِ غلط همان خرابیِ خاموش است).
+        */
+        if ($app !== null) {
+            $body['networking'] = [
+                'protocol' => 'http',
+                'port'     => (int) $app['port'],
+                'auth'     => false,
+            ];
+        }
 
         if ($env !== []) {
             $body['container']['environment_variables'] = $env;
@@ -409,7 +521,7 @@ trait SaladOperations
             // `serverStatus()` آن را می‌نشاند.
             'ipv4'          => null,
             'ipv6'          => null,
-            'root_password' => null,
+            'root_password' => $token,
             'status'        => 'provisioning',
             'raw'           => is_array($r['body']) ? $r['body'] : [],
         ];
@@ -451,6 +563,11 @@ trait SaladOperations
             'status'  => $status,
             'ipv4'    => $ip,
             'ipv6'    => null,
+            /*
+            | نشانیِ دروازه — این همان چیزی است که مشتری واقعاً با آن کار
+            | می‌کند (نه IP). سینکِ وضعیت آن را در hostname نمونه می‌نشاند.
+            */
+            'hostname' => (string) data_get($r['body'], 'networking.dns', '') ?: null,
             'traffic_used_gb' => null,
             'raw'     => is_array($r['body']) ? $r['body'] : [],
         ];

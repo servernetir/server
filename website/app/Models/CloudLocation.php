@@ -57,6 +57,8 @@ class CloudLocation extends Model
 
     /** نامِ کشور به سه زبان — برای مکان‌هایی که برچسبِ دستی نخورده‌اند */
     public const COUNTRIES = [
+        // شبکهٔ توزیع‌شدهٔ GPU — مکانِ جغرافیایی ندارد؛ XX کدِ رزروِ ISO است
+        'XX' => ['fa' => 'شبکهٔ توزیع‌شده', 'en' => 'Distributed network', 'tr' => 'Dağıtık ağ', 'flag' => '🌐'],
         'DE' => ['fa' => 'آلمان',      'en' => 'Germany',        'tr' => 'Almanya',      'flag' => '🇩🇪'],
         'FI' => ['fa' => 'فینلاند',    'en' => 'Finland',        'tr' => 'Finlandiya',   'flag' => '🇫🇮'],
         'NL' => ['fa' => 'هلند',       'en' => 'Netherlands',    'tr' => 'Hollanda',     'flag' => '🇳🇱'],

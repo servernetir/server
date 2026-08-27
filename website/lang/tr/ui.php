@@ -2597,10 +2597,10 @@ return [
 
     // -- GPU servers / /gpu --
     'gpu_meta_t' => 'Saatlik GPU Sunucu Kiralama — Kullandiginiz Kadar Odeyin',
-    'gpu_meta_d' => ':price fiyatindan saatlik GPU sunucular. Karti secin, adedi belirleyin, saatlik odeyin. Otomatik teslim ve SSH.',
+    'gpu_meta_d' => ':price fiyatindan saatlik GPU sunucular. Karti ve uygulamayi secin, saatlik odeyin. Ozel URL ve API ile otomatik teslim.',
     'gpu_meta_d_nop' => 'Kullanima gore faturalanan saatlik GPU sunucular. Karti secin, adedi belirleyin ve saatlik odeyin.',
     'gpu_h1' => 'Saatlik GPU Sunucular',
-    'gpu_lead' => 'Ekran kartini secin, kac makine istediginizi belirleyin ve yalnizca calistiklari saatler icin odeyin. Otomatik teslim ve SSH erisimi.',
+    'gpu_lead' => 'Ekran kartini ve hazir uygulamayi (Ollama, ComfyUI, Jupyter) secin, yalnizca calistigi saatler icin odeyin. Kendi sunucunuzdan cagirabileceginiz ozel HTTPS adresi ve API ile otomatik teslim.',
     'gpu_from' => 'Saatlik :price fiyatindan',
     'gpu_pick_t' => 'Ekran kartinizi secin',
     'gpu_pick_d' => 'Fiyatlar saatliktir ve faturanizda gorecefiniz oranla aynidir.',
@@ -2622,8 +2622,8 @@ return [
     'gpu_warn_d' => 'GPU makineleri dagitik bir cihaz aginda calisir ve haber verilmeden kesilip baska bir dugumde yeniden kurulabilir - en yuksek oncelikte bile. Kesintiye dayanikli hesaplama isleri icin uygundur (cikarim, render, ara kayitla egitim), surekli acik kalmasi gereken bir servis icin degil. Makine depolamasi da gecicidir; sonuclarinizi dis depolamaya yazin.',
     'gpu_hourly_t' => 'Nasil faturalanir?',
     'gpu_hourly_d' => 'Kullandiginiz kadar odeyin, saatlik. Baslamak icin hesabinizda en az :hours saatlik bakiye gerekir; her saat bu bakiyeden dusulur ve makineyi sildiginiz anda kesinti durur.',
-    'gpu_ssh_t' => 'Nasil baglanirim?',
-    'gpu_ssh_d' => 'SSH anahtari ile. Bu makinelerde root parolasi ve web konsolu yoktur - genel anahtarinizi verir ve dogrudan SSH ile baglanirsiniz.',
+    'gpu_ssh_t' => 'Nasil kullanirim?',
+    'gpu_ssh_d' => 'Satin alirken hazir uygulamayi secersiniz ve ozel bir HTTPS adresi alirsiniz - tarayicida acin veya kendi sunucunuzdan API olarak cagirin. Bunlar SSH ve root iceren VPS degildir; ozel GPU uzerinde hazir bir uygulamadir.',
     'gpu_use1_t' => 'Model cikarimi',
     'gpu_use1_d' => 'Donanim satin almadan dil ve goruntu modellerini calistirin.',
     'gpu_use2_t' => 'Render ve video',

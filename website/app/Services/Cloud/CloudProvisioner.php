@@ -640,6 +640,9 @@ class CloudProvisioner
                     'status'    => $r['status'],
                     'ipv4'      => $r['ipv4'] ?: $instance->ipv4,
                     'ipv6'      => $r['ipv6'] ?: $instance->ipv6,
+                    // زیرساختِ دروازه‌ای (GPU) نشانیِ HTTPS را همین‌جا می‌دهد —
+                    // برای مشتری همین «آدرسِ سرور» است، نه IP.
+                    'hostname'  => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                     'synced_at' => now(),
                 ]);
                 $out['refreshed']++;
@@ -841,6 +844,7 @@ class CloudProvisioner
         $instance->fill([
             'ipv4'       => $info['ipv4'] ?: $instance->ipv4,
             'ipv6'       => $info['ipv6'] ?: $instance->ipv6,
+            'hostname'   => filled($info['hostname'] ?? null) ? $info['hostname'] : $instance->hostname,
             'status'     => $info['status'],
             'last_error' => null,
             'synced_at'  => now(),

@@ -22,7 +22,7 @@ class GpuPageTest extends TestCase
     {
         CloudLocation::firstOrCreate(
             ['code' => 'global-gpu'],
-            ['country' => 'شبکهٔ توزیع‌شده', 'is_active' => true, 'sort' => 1],
+            ['country' => 'XX', 'is_active' => true, 'sort' => 1],
         );
 
         return CloudPlan::create(array_merge([

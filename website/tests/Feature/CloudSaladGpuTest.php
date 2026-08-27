@@ -413,4 +413,204 @@ class CloudSaladGpuTest extends TestCase
         Http::assertSent(fn ($req) => str_contains($req->url(), '/projects/prod/containers'));
     }
 
+    /** پلنی که createServer لازم دارد (درایور مشخصات را از کاتالوگ می‌خوانَد) */
+    private function seedPlan(): void
+    {
+        \App\Models\CloudLocation::firstOrCreate(
+            ['code' => 'global-gpu'],
+            ['country' => 'XX', 'is_active' => true, 'sort' => 1],
+        );
+        \App\Models\CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'gc-4090',
+            'provider_location' => 'global', 'location_code' => 'global-gpu',
+            'public_name' => 'RTX 4090', 'slug' => 'cv-8c-30g-100d-global-gpu-rtx-4090',
+            'vcpu' => 8, 'ram_mb' => 30720, 'disk_gb' => 100, 'disk_type' => 'ssd',
+            'traffic_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'cost_eur_cents' => 400, 'price_eur_cents' => 600, 'price_irt' => 720000,
+            'is_active' => true, 'in_stock' => true,
+            'gpu_model' => 'RTX 4090', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+    }
+
+    /**
+     * 🔴 انتخابِ فروشگاه (image_ref) باید بر تنظیمِ سراسری بچربد.
+     *
+     * پیش از این درایور فقط تنظیمِ مدیر را می‌خواند و انتخابِ مشتری بی‌صدا
+     * دور ریخته می‌شد — مشتری Jupyter می‌خرید و Ollama تحویل می‌گرفت.
+     */
+    public function test_the_customer_chosen_image_beats_the_global_setting(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Setting::put('salad_image', 'admin/global:latest');
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        $chosen = SaladClient::APPS['gpu-ollama']['ref'];
+
+        $r = app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $chosen,
+        ]);
+
+        $this->assertTrue($r['ok'], $r['message']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $chosen);
+    }
+
+    /**
+     * 🔴 دروازه باید با **پورتِ همان برنامه** روشن شود، وگرنه کانتینر بالا
+     * می‌آید، GPU مصرف می‌کند و مشتری هیچ نشانی‌ای ندارد — تحویلِ «موفق».
+     *
+     * auth هم باید false باشد: authِ زیرساخت فقط کلیدِ کلِ حسابِ ما را
+     * می‌پذیرد و دادنی به مشتری نیست.
+     */
+    public function test_the_gateway_opens_on_the_apps_own_port(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-ollama']['ref'],
+        ]);
+
+        Http::assertSent(function ($req) {
+            $n = data_get($req->data(), 'networking');
+
+            return is_array($n) && $n['port'] === 11434
+                && $n['protocol'] === 'http' && $n['auth'] === false;
+        });
+    }
+
+    /**
+     * ⚠️ ایمیجِ ناشناخته (دلخواهِ مدیر) دروازه **نمی‌گیرد** — پورتش را
+     * نمی‌دانیم و پورتِ حدسی همان خرابیِ خاموش است از درِ دیگر.
+     */
+    public function test_an_unknown_image_gets_no_gateway(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Setting::put('salad_image', 'customer/own-image:v1');
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')
+            ->createServer(['name' => 'sn-svc-9', 'plan_ref' => 'gc-4090']);
+
+        Http::assertSent(fn ($req) => ! array_key_exists('networking', $req->data()));
+    }
+
+    /**
+     * 🔴 برنامه‌ای که توکن می‌فهمد (Jupyter) باید توکنِ **اختصاصی** بگیرد و
+     * همان توکن به‌عنوانِ root_password برگردد تا پنل یک بار نشانش دهد.
+     * بی‌این، نشانیِ عمومیِ بی‌قفل یعنی GPUِ پولیِ مشتری در دستِ هر رهگذر.
+     */
+    public function test_jupyter_gets_a_per_customer_token(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        $r = app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-jupyter']['ref'],
+        ]);
+
+        $this->assertTrue($r['ok'], $r['message']);
+        $this->assertNotNull($r['root_password'], 'توکن به پنل برنگشت — مشتری هرگز نمی‌بیندش.');
+
+        Http::assertSent(function ($req) use ($r) {
+            $env = data_get($req->data(), 'container.environment_variables', []);
+
+            return ($env['JUPYTER_TOKEN'] ?? null) === $r['root_password']
+                && ($env['NOTEBOOK_ARGS'] ?? '') !== '';
+        });
+    }
+
+    /**
+     * ⚠️ ایمیجِ خامِ Ollama پشتِ دروازهٔ IPv6 بی‌صدا جواب نمی‌دهد؛ درایور
+     * باید OLLAMA_HOST='::' را خودش تزریق کند (کاری که entrypointِ دستورِ
+     * رسمیِ زیرساخت می‌کند).
+     */
+    public function test_ollama_gets_the_ipv6_binding_it_needs(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-ollama']['ref'],
+        ]);
+
+        Http::assertSent(fn ($req) => data_get($req->data(),
+            'container.environment_variables.OLLAMA_HOST') === '::');
+    }
+
+    /** کاتالوگ برنامه‌های آماده را به‌عنوانِ ایمیجِ kind=app برمی‌گرداند */
+    public function test_the_catalogue_ships_the_app_images(): void
+    {
+        $this->configure();
+        $this->fakeClasses([$this->gpuClass()]);
+
+        $r = app(CloudManager::class)->driver('salad')->fetchCatalog();
+
+        $this->assertTrue($r['ok']);
+        $keys = array_column($r['images'], 'key');
+        $this->assertContains('gpu-ollama', $keys);
+        $this->assertContains('gpu-jupyter', $keys);
+
+        foreach ($r['images'] as $img) {
+            $this->assertSame('app', $img['kind']);
+        }
+    }
+
+    /**
+     * 🔴 هر رشتهٔ کاتالوگ باید در ستونش **جا شود**.
+     *
+     * ستونِ country دو حرفیِ ISO است؛ درایور یک بار متنِ فارسی در آن گذاشت.
+     * SQLiteِ محلی طول را چک نمی‌کند و MariaDBِ پروداکشن سینک را کشت
+     * (Data too long for column). این تست طول‌ها را روی خودِ خروجیِ درایور
+     * می‌سنجد تا شکاف SQLite/MariaDB دیگر پنهانش نکند.
+     */
+    public function test_catalogue_strings_fit_their_database_columns(): void
+    {
+        $this->configure();
+        $this->fakeClasses([$this->gpuClass()]);
+
+        $r = app(CloudManager::class)->driver('salad')->fetchCatalog();
+
+        $this->assertTrue($r['ok']);
+
+        foreach ($r['locations'] as $loc) {
+            $this->assertLessThanOrEqual(2, mb_strlen((string) $loc['country']),
+                'country باید کدِ ISOِ دوحرفی باشد، نه متن: '.$loc['country']);
+            $this->assertLessThanOrEqual(32, mb_strlen((string) $loc['code']));
+        }
+
+        foreach ($r['images'] as $img) {
+            $this->assertLessThanOrEqual(96, mb_strlen((string) $img['provider_ref']));
+            $this->assertLessThanOrEqual(64, mb_strlen((string) $img['key']));
+            $this->assertLessThanOrEqual(96, mb_strlen((string) $img['label']));
+        }
+
+        foreach ($r['plans'] as $plan) {
+            // slug و public_name را سینک می‌سازد؛ درایور name و ref می‌دهد
+            $this->assertLessThanOrEqual(64, mb_strlen((string) $plan['name']));
+            $this->assertLessThanOrEqual(96, mb_strlen((string) $plan['provider_ref']));
+        }
+    }
+
+    /** برچسبِ «شبکهٔ توزیع‌شده» از نقشهٔ کشورها می‌آید، نه از ستونِ country */
+    public function test_the_distributed_network_label_still_renders(): void
+    {
+        $loc = new \App\Models\CloudLocation(['code' => 'global-gpu', 'country' => 'XX']);
+
+        $this->assertStringContainsString('توزیع', $loc->label('fa'));
+        $this->assertSame('🌐', $loc->flagEmoji());
+    }
+
 }
