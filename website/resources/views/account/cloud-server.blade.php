@@ -29,6 +29,11 @@
   $stage    = $inst?->stage() ?? 'ordered';
   $stageIdx = $inst?->stageIndex() ?? 0;
 
+  /* خطِ GPU: ایمیج باید روی گرهٔ کارت گرافیک دانلود شود — «کمتر از دو دقیقه»ی
+     VPS این‌جا دروغ است (واقعیت ۵ تا ۳۰ دقیقه). image_key در لحظهٔ ساخت روی
+     نمونه هست؛ اگر هنوز نمونه نداریم از خودِ سرویس می‌خوانیم. */
+  $gpuLine = str_starts_with((string) ($inst->image_key ?? $service->cloud_image_key ?? ''), 'gpu-');
+
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
      خراب است؛ همان قاعدهٔ صفحهٔ /status این پروژه. */
@@ -143,7 +148,7 @@
       <span class="cb-live"><i></i>{{ __('ui.cs_build_live') }}</span>
     </div>
     <div class="pnl-sec-b">
-      <p class="cb-lead">{!! __('ui.cs_building_p') !!}</p>
+      <p class="cb-lead">{!! __($gpuLine ? 'ui.cs_building_gpu_p' : 'ui.cs_building_p') !!}</p>
 
       <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
           data-status-url="{{ route('account.cloud.status', $service) }}">

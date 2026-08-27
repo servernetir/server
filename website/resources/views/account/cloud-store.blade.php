@@ -32,7 +32,7 @@
     </nav>
     <h1>{{ __('ui.cvb_h1') }}</h1>
   </div>
-  <span class="pnl-pill info">{{ __('ui.cvb_pill') }}</span>
+  <span class="pnl-pill info">{{ __(($gpuMode ?? false) ? 'ui.cvb_pill_gpu' : 'ui.cvb_pill') }}</span>
 </div>
 
 {{-- پیام‌ها با .dm-note می‌آیند نه .pnl-sec — کامنتِ خودِ panel.css می‌گوید
@@ -916,7 +916,7 @@
         </button>
         <p class="cvb-eta">
           <svg class="icon"><use href="#i-clock"/></svg>
-          <span>{{ __('ui.cvb_eta') }}</span>
+          <span>{{ __(($gpuMode ?? false) ? 'ui.cvb_eta_gpu' : 'ui.cvb_eta') }}</span>
         </p>
       </div>
     </section>

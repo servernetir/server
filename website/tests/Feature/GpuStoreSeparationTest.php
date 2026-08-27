@@ -123,6 +123,20 @@ class GpuStoreSeparationTest extends TestCase
         $this->assertStringContainsString('name="location" value="global-gpu"', $html);
     }
 
+    /** 🔴 بجِ «کمتر از دو دقیقه» در فروشگاهِ GPU دروغ است — بازهٔ واقعی می‌آید */
+    public function test_the_gpu_store_does_not_promise_two_minute_delivery(): void
+    {
+        $this->bothLines();
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+
+        $this->assertStringContainsString(__('ui.cvb_pill_gpu'), $html);
+        $this->assertStringContainsString(__('ui.cvb_eta_gpu'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_pill'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_eta'), $html);
+    }
+
     /** فروشگاهِ VPS دست‌نخورده پنج‌مرحله‌ای می‌مانَد */
     public function test_the_vps_wizard_keeps_all_five_steps(): void
     {

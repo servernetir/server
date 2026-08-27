@@ -127,6 +127,28 @@ class GpuCustomerGuideTest extends CloudProvisionTest
             'نامِ زیرساخت در فهرستِ سرویس‌های مشتری نشت کرد.');
     }
 
+    /**
+     * 🔴 صفحهٔ «در حال ساخت»ِ GPU وعدهٔ دودقیقه‌ایِ VPS را نمی‌دهد.
+     *
+     * گزارشِ کارفرما: «نوشتیم دو دقیقه‌ای تحویل می‌دیم ولی دانلود کانتینر نیم
+     * ساعت طول می‌کشه.» مشتری‌ای که نیم ساعت به «کمتر از دو دقیقه» زل بزند،
+     * نتیجه می‌گیرد سرویس خراب است. متنِ GPU بازهٔ واقعی (۵ تا ۳۰ دقیقه) و
+     * رایگان‌بودنِ زمانِ آماده‌سازی را می‌گوید.
+     */
+    public function test_a_building_gpu_service_gets_the_honest_eta_not_two_minutes(): void
+    {
+        [$service, $instance] = $this->gpuService('gpu-comfyui');
+        $instance->update(['status' => 'building', 'ipv4' => null, 'hostname' => 'sn-svc-'.$service->id]);
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString(strip_tags(__('ui.cs_building_gpu_p')),
+            strip_tags($html), 'متنِ صادقانهٔ GPU نیست.');
+        $this->assertStringNotContainsString('کمتر از دو دقیقه', $html,
+            'وعدهٔ دودقیقه‌ایِ VPS روی سرویسِ GPU دروغ است.');
+    }
+
     /** نشانیِ هنوز-نرسیده، پیامِ صادقانه می‌گیرد نه خط تیره */
     public function test_a_pending_address_says_it_is_coming(): void
     {
