@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-b847036}"
+MINE="${1:-0a68cde}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -73,6 +73,7 @@ APP_FILES="
 app/Models/CloudPlan.php
 app/Models/CloudLocation.php
 app/Services/Cloud/CloudProvisioner.php
+app/Console/Commands/CloudMeterHourly.php
 app/Services/Cloud/CloudCountry.php
 app/Services/SiteMenu.php
 app/Http/Controllers/Account/CloudStoreController.php
@@ -253,6 +254,8 @@ g app/Models/CloudLocation.php "'XX'"
 
 # جداییِ خطِ GPU از VPS — هر تکه بیفتد، دو خطِ محصول دوباره قاطی می‌شوند
 g app/Models/CloudLocation.php "isGpuCode"
+g app/Services/Cloud/SaladOperations.php "=> 'building'"
+g app/Console/Commands/CloudMeterHourly.php "is_interruptible"
 g app/Http/Controllers/Account/CloudStoreController.php "gpuMode"
 g app/Http/Controllers/CloudCatalogController.php "isGpuCode"
 g app/Services/SiteMenu.php "'XX'"
