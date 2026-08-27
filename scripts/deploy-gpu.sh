@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-535a7d4}"
+MINE="${1:-c8919b8}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -72,6 +72,7 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 APP_FILES="
 app/Models/CloudPlan.php
 app/Models/CloudLocation.php
+app/Models/CloudInstance.php
 app/Services/Cloud/CloudProvisioner.php
 app/Console/Commands/CloudMeterHourly.php
 app/Services/Cloud/CloudCountry.php
@@ -90,6 +91,7 @@ app/Http/Controllers/SiteController.php
 app/Http/Controllers/Admin/SettingsController.php
 resources/views/pages/gpu.blade.php
 resources/views/account/cloud-store.blade.php
+resources/views/account/cloud-server.blade.php
 resources/views/partials/cloud-locations-links.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
@@ -256,6 +258,11 @@ g app/Models/CloudLocation.php "'XX'"
 g app/Models/CloudLocation.php "isGpuCode"
 g app/Services/Cloud/SaladOperations.php "=> 'building'"
 g app/Console/Commands/CloudMeterHourly.php "is_interruptible"
+g app/Models/CloudInstance.php "accessHost"
+g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
+g lang/fa/ui.php "cs_gpu_endpoint"
+g lang/en/ui.php "cs_gpu_endpoint"
+g lang/tr/ui.php "cs_gpu_endpoint"
 g app/Services/Cloud/SaladClient.php "DEFAULT_VCPU"
 g app/Services/Cloud/SaladOperations.php "self::GIB"
 g app/Http/Controllers/Account/CloudStoreController.php "gpuMode"
