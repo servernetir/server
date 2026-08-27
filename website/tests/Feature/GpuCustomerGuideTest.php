@@ -72,6 +72,49 @@ class GpuCustomerGuideTest extends CloudProvisionTest
         $this->assertNull($instance->accessHost());
     }
 
+    // ═══════════ توکنِ دروازه (حکمِ شورا: بی‌احراز، هر رهگذری GPU را می‌سوزانَد) ═══════════
+
+    /** 🔴 توکن همان HMACای است که Worker می‌سازد — و بی‌راز، null (دروازهٔ باز) */
+    public function test_the_access_token_matches_the_worker_formula(): void
+    {
+        [, $instance] = $this->gpuService();
+
+        $this->assertNull($instance->accessToken(), 'بی‌راز باید null باشد — استقرارِ تدریجی.');
+
+        Setting::putSecret('salad_gateway_secret', 's3cr3t');
+
+        $this->assertSame(hash_hmac('sha256', 'abc123-def456', 's3cr3t'),
+            $instance->accessToken(), 'فرمول باید عینِ Worker باشد: HMAC(راز، برچسب).');
+    }
+
+    /** با راز، فرمان‌های صفحه هدرِ توکن دارند و لینکِ مستندات توکنِ ورود */
+    public function test_the_guide_carries_the_token_when_the_gate_is_armed(): void
+    {
+        Setting::putSecret('salad_gateway_secret', 's3cr3t');
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service, $instance] = $this->gpuService('gpu-comfyui');
+        $tok = $instance->accessToken();
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString('X-SN-Token: '.$tok, $html, 'فرمانِ curl بی‌توکن، 401 می‌گیرد.');
+        $this->assertStringContainsString('/docs?sn_token='.$tok, $html, 'مرورگر بی‌توکنِ ورود به مستندات نمی‌رسد.');
+        $this->assertStringContainsString(__('ui.cs_gpu_gate_token'), $html);
+    }
+
+    /** بی‌راز، هیچ ردی از توکن نیست — سرویس‌های موجود نمی‌شکنند */
+    public function test_without_a_secret_the_guide_stays_tokenless(): void
+    {
+        [$service] = $this->gpuService('gpu-ollama');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('X-SN-Token', $html);
+        $this->assertStringNotContainsString('sn_token', $html);
+    }
+
     // ═══════════ صفحهٔ مشتری ═══════════
 
     /**

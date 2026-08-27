@@ -2663,6 +2663,7 @@ return [
     'cs_gpu_generic_d' => 'Your app is available at this address.',
     'cs_gpu_open' => 'Open in browser',
     'cs_gpu_docs' => 'API docs (/docs)',
+    'cs_gpu_gate_token' => 'Access token (send with every request - X-SN-Token header)',
     'cs_gpu_token_label' => 'Access token',
     'cs_gpu_first_slow' => 'The first request is slower (model loads into GPU memory - up to 2 minutes); it speeds up from the second one. Only the hours your machine runs are billed.',
 ];

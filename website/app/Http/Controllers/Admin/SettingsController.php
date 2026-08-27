@@ -151,6 +151,7 @@ class SettingsController extends Controller
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
             'ovh_forget'         => ['nullable', 'boolean'],
             'salad_api_key'      => ['nullable', 'string', 'max:300'],
+            'salad_gateway_secret' => ['nullable', 'string', 'max:200'],
             'salad_forget'       => ['nullable', 'boolean'],
             'salad_org'          => ['nullable', 'string', 'max:120'],
             'salad_project'      => ['nullable', 'string', 'max:120'],
@@ -638,6 +639,11 @@ class SettingsController extends Controller
             Setting::putSecret('salad_api_key', null);
         } elseif (filled($data['salad_api_key'] ?? null)) {
             Setting::putSecret('salad_api_key', trim((string) $data['salad_api_key']));
+        }
+
+        // رازِ دروازهٔ برندشده — باید بایت‌به‌بایت با GATE_SECRETِ Worker یکی باشد
+        if (filled($data['salad_gateway_secret'] ?? null)) {
+            Setting::putSecret('salad_gateway_secret', trim((string) $data['salad_gateway_secret']));
         }
 
         foreach (self::SALAD_PLAIN as $k) {

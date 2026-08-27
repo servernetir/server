@@ -2663,6 +2663,7 @@ return [
     'cs_gpu_generic_d' => 'Uygulamaniz bu adreste kullanilabilir.',
     'cs_gpu_open' => 'Tarayicida ac',
     'cs_gpu_docs' => 'API dokumani (/docs)',
+    'cs_gpu_gate_token' => 'Erisim tokeni (her istekle gonderin - X-SN-Token basligi)',
     'cs_gpu_token_label' => 'Erisim tokeni',
     'cs_gpu_first_slow' => 'Ilk istek daha yavastir (model GPU bellegine yuklenir - 2 dakikaya kadar); ikinci istekten itibaren hizlanir. Yalnizca makinenin calistigi saatler faturalanir.',
 ];

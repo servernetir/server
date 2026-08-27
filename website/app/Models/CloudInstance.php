@@ -144,6 +144,35 @@ class CloudInstance extends Model
         return 'g-'.substr($h, 0, -strlen('.salad.cloud')).'.'.$base;
     }
 
+    /**
+     * توکنِ دسترسیِ دروازهٔ برندشده — HMAC(برچسبِ ماشین، رازِ مشترک با Worker).
+     *
+     * چرا: هر سه برنامهٔ آماده (Ollama/ComfyUI) خودشان احراز ندارند؛ هر کسی
+     * نشانیِ g-… را بداند می‌تواند GPUِ مشتری را مصرف کند و ساعت‌هایش را
+     * بسوزاند (حکمِ شورای مدیران: مسدودکنندهٔ انتشار). قطعی و بی‌ستون است —
+     * همان راز در Worker (env: GATE_SECRET) نشسته و همین HMAC را می‌سازد؛
+     * اگر یکی عوض شد، دیگری هم باید عوض شود (مثلِ accessHost).
+     *
+     * رازِ خالی ⇒ null ⇒ پنل توکن نشان نمی‌دهد و Worker هم دروازه را باز
+     * می‌گذارد — استقرارِ تدریجیِ بی‌شکست.
+     */
+    public function accessToken(): ?string
+    {
+        $h = strtolower(trim((string) $this->hostname));
+
+        if (! str_ends_with($h, '.salad.cloud')) {
+            return null;
+        }
+
+        $secret = (string) \App\Models\Setting::getSecret('salad_gateway_secret');
+
+        if ($secret === '') {
+            return null;
+        }
+
+        return hash_hmac('sha256', substr($h, 0, -strlen('.salad.cloud')), $secret);
+    }
+
     public function isDelivered(): bool
     {
         return in_array($this->status, self::LIVE_STATUSES, true) && filled($this->ipv4);

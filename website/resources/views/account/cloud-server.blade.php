@@ -189,6 +189,7 @@
       */
       $gpuApp = str_starts_with((string) ($inst->image_key ?? ''), 'gpu-');
       $gpuHost = $gpuApp ? $inst->accessHost() : null;
+      $gpuTok  = $gpuApp ? $inst->accessToken() : null;
       $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
     @endphp
 
@@ -212,7 +213,8 @@
               // بدنه با json_encode ساخته می‌شود، نه رشتهٔ دست‌نویس — کوتیشن‌های
               // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد.
               $gpuBody = json_encode(['model' => 'llama3.1', 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
-              $gpuCmd = 'curl '.$gpuUrl."/api/chat -d '".$gpuBody."'";
+              $gpuHdr  = $gpuTok ? " -H 'X-SN-Token: ".$gpuTok."'" : '';
+              $gpuCmd = 'curl '.$gpuUrl.'/api/chat'.$gpuHdr." -d '".$gpuBody."'";
             @endphp
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_ollama_d') }}</p>
             <code dir="ltr" class="cs-copy" data-copy="{{ $gpuCmd }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuCmd }}</code>
@@ -222,18 +224,25 @@
               // نشانی در مرورگر 404 می‌دهد — راهنمای «در مرورگر باز کن» یک بار
               // خودِ کارفرما را هم گمراه کرد. بدنه با json_encode، نه دست‌نویس.
               $gpuBody = json_encode(['input' => ['prompt' => 'a red apple on a wooden table']], JSON_UNESCAPED_SLASHES);
-              $gpuCmd = 'curl '.$gpuUrl."/workflow/sd1.5/txt2img -H 'Content-Type: application/json' -d '".$gpuBody."'";
+              $gpuHdr  = $gpuTok ? " -H 'X-SN-Token: ".$gpuTok."'" : '';
+              $gpuCmd = 'curl '.$gpuUrl."/workflow/sd1.5/txt2img -H 'Content-Type: application/json'".$gpuHdr." -d '".$gpuBody."'";
             @endphp
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_comfy_d') }}</p>
             <code dir="ltr" class="cs-copy" data-copy="{{ $gpuCmd }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuCmd }}</code>
-            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}/docs" target="_blank" rel="noopener" style="margin-top:8px">{{ __('ui.cs_gpu_docs') }}</a>
+            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}/docs{{ $gpuTok ? '?sn_token='.$gpuTok : '' }}" target="_blank" rel="noopener" style="margin-top:8px">{{ __('ui.cs_gpu_docs') }}</a>
           @elseif($inst->image_key === 'gpu-jupyter')
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_jupyter_d') }}</p>
-            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
+            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}{{ $gpuTok ? '?sn_token='.$gpuTok : '' }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
           @else
             <p style="margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_generic_d') }}</p>
           @endif
         </div>
+        @if($gpuTok)
+          <div class="cs-ssh" style="margin-top:10px">
+            <small>{{ __('ui.cs_gpu_gate_token') }}</small>
+            <code dir="ltr" class="cs-copy" data-copy="{{ $gpuTok }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuTok }}</code>
+          </div>
+        @endif
         <p style="margin:10px 0 0;font-size:12px;color:var(--dim);line-height:1.9">{{ __('ui.cs_gpu_first_slow') }}</p>
       @endif
     @else
