@@ -335,4 +335,73 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertStringContainsString('152', $notes,
             'ساعت‌های کسرنشده باید ردِ مکتوب داشته باشند');
     }
+    // ═══════════════ پلنِ قطع‌شدنی: فقط ساعتِ روشن ═══════════════
+
+    private function interruptiblePlan(): \App\Models\CloudPlan
+    {
+        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'],
+            ['country' => 'XX', 'is_active' => true, 'sort' => 1]);
+
+        return \App\Models\CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'gc-x', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'public_name' => 'RTX 4090',
+            'slug' => 'cv-8c-30g-50d-global-gpu-rtx-4090', 'vcpu' => 8, 'ram_mb' => 30720,
+            'disk_gb' => 50, 'disk_type' => 'ssd', 'traffic_gb' => 0, 'cpu_kind' => 'shared',
+            'arch' => 'x86', 'cost_eur_cents' => 400, 'price_eur_cents' => 600,
+            'price_irt' => 3_650_000, 'is_active' => true, 'in_stock' => true,
+            'gpu_model' => 'RTX 4090', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+    }
+
+    /**
+     * 🔴 وعدهٔ صفحهٔ فروشِ GPU: «فقط ساعت‌هایی که روشن بوده». ماشینِ قطع‌شده/
+     * متوقفِ پلنِ قطع‌شدنی نباید متر شود — ما هم در همان حالت به زیرساخت
+     * هیچ پولی نمی‌دهیم (صورت‌حسابِ مصرفی)، پس این قاعده ضررِ ما هم نیست.
+     */
+    public function test_an_interruptible_plan_is_not_billed_while_off(): void
+    {
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subMinutes(90),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'off']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(100_000, $c->creditBalance('IRT'),
+            'ماشینِ خاموشِ پلنِ قطع‌شدنی متر شد — نقضِ «فقط ساعتِ روشن».');
+    }
+
+    /** و همان پلن وقتی روشن است عادی متر می‌شود */
+    public function test_an_interruptible_plan_is_billed_while_running(): void
+    {
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subMinutes(60),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'running']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(95_000, $c->creditBalance('IRT'));
+    }
+
+    /**
+     * ⚠️ و سرورِ ابریِ **معمولی** (قطع‌نشدنی) خاموش هم متر می‌شود — قاعدهٔ
+     * ثبت‌شدهٔ LIVE_STATUSES: اجارهٔ ماشینِ رزروشده را ما همچنان می‌دهیم.
+     * این تست نگه می‌دارد که قاعدهٔ تازه آن را نشکسته باشد.
+     */
+    public function test_a_regular_plan_is_still_billed_while_off(): void
+    {
+        $c = $this->customer(100_000);
+        $s = $this->service($c, ['last_metered_at' => now()->subMinutes(60)]);
+        $this->machine($s, ['status' => 'off']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(95_000, $c->creditBalance('IRT'));
+    }
+
 }

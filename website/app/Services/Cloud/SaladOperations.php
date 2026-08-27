@@ -522,7 +522,8 @@ trait SaladOperations
             'ipv4'          => null,
             'ipv6'          => null,
             'root_password' => $token,
-            'status'        => 'provisioning',
+            // 'building' نه 'provisioning' — سینکِ وضعیت فقط building/unknown را برمی‌دارد
+            'status'        => 'building',
             'raw'           => is_array($r['body']) ? $r['body'] : [],
         ];
     }
@@ -574,13 +575,24 @@ trait SaladOperations
     }
 
     /** وضعیتِ آنها → واژگانِ ما */
+    /*
+    | 🔴 خروجی باید در واژگانِ رسمیِ cloud_instances باشد:
+    |    running | off | building | error | deleted | unknown.
+    |
+    |    نسخهٔ اول 'provisioning' و 'stopped' برمی‌گرداند — دو مقداری که هیچ
+    |    مصرف‌کننده‌ای نمی‌فهمید. بدترین عارضه‌اش: cloud:sync-instances فقط
+    |    building/unknown را برمی‌دارد، پس نمونهٔ 'provisioning' برای همیشه از
+    |    دیدِ سینک نامرئی می‌مانْد: IP و نشانیِ دروازه هرگز نمی‌نشست، تحویل
+    |    هرگز کامل نمی‌شد، ماشین آن‌طرف روشن بود و پولش پای ما — بی‌هیچ خطایی.
+    */
     private function mapStatus(string $s): string
     {
         return match (strtolower($s)) {
-            'running'             => 'running',
-            'stopped', 'succeeded', 'failed' => 'stopped',
-            'pending', 'deploying' => 'provisioning',
-            default               => 'unknown',
+            'running'              => 'running',
+            'stopped', 'succeeded' => 'off',
+            'failed'               => 'error',
+            'pending', 'deploying' => 'building',
+            default                => 'unknown',
         };
     }
 

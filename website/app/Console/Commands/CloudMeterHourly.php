@@ -125,6 +125,20 @@ class CloudMeterHourly extends Command
             return false;
         }
 
+        /*
+        | 🔴 پلنِ **قطع‌شدنی** (GPU روی ظرفیتِ توزیع‌شده) فقط ساعتِ «روشن» را
+        | می‌پردازد — این عینِ وعدهٔ صفحهٔ فروش است («فقط ساعت‌هایی که روشن
+        | بوده») و عینِ صورت‌حسابِ خودِ زیرساخت به ما (مصرفی؛ ماشینِ خاموش
+        | هیچ هزینه‌ای ندارد).
+        |
+        | ⚠️ فقط برای is_interruptible. سرورِ ابریِ معمولی عمداً «خاموش» را هم
+        | می‌پردازد، چون اجارهٔ ماشینِ رزروشده را ما همچنان می‌دهیم — قاعدهٔ
+        | ثبت‌شدهٔ LIVE_STATUSES دست‌نخورده می‌مانَد.
+        */
+        if ($instance->status !== 'running' && (bool) $service->cloudPlan?->is_interruptible) {
+            return false;
+        }
+
         return CloudDeliveryWatch::reasonFor($service) === null;
     }
 
