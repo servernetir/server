@@ -12,20 +12,23 @@
  * همان نگاشتی که CloudInstance::accessHost() در اپ می‌سازد؛ اگر یکی عوض شد،
  * دیگری هم باید عوض شود.
  *
- * ── نصب (یک بار، در داشبورد Cloudflare) ─────────────────────────────────
- * ۱) Workers & Pages → Create Worker → نام: gpu-proxy → این فایل را بچسبان.
- * ۲) DNS زون servernet.cloud → رکورد جدید:
- *      Type: A · Name: * · IPv4: 192.0.2.1 · Proxy: روشن (ابر نارنجی)
- *    (192.0.2.1 یک IPِ رزروِ مستندسازی است؛ هرگز استفاده نمی‌شود — ترافیک
- *     پیش از رسیدن به آن، توسط Worker پاسخ می‌گیرد.)
- *    ⚠️ رکوردهای موجود (console، my، …) دست نمی‌خورند — رکوردِ صریح همیشه
- *    بر wildcard مقدم است. فقط نام‌های تعریف‌نشده به Worker می‌رسند که ۴۰۴
- *    می‌گیرند.
- * ۳) Worker → Settings → Triggers → Add Route:
- *      Route: g-*.servernet.cloud/*   ·   Zone: servernet.cloud
- * ۴) پنل مدیریت → تنظیمات → زیرساختِ GPU → «دامنهٔ برندشدهٔ دروازه» =
- *      servernet.cloud → ذخیره.
- *    از این لحظه پنل و ایمیلِ تحویل نشانیِ g-….servernet.cloud می‌دهند.
+ * ── نصبِ انجام‌شده (۵ شهریور ۱۴۰۵ — از داشبورد؛ برای بازسازی) ────────────
+ * ۱) Workers & Pages → Worker به نامِ gpu-proxy با همین کد.
+ * ۲) DNS زونِ servernet.cloud → رکوردِ A با نامِ `*` → 192.0.2.1، پروکسی
+ *    روشن. (IPِ رزروِ مستندسازی؛ Worker پیش از رسیدن به آن پاسخ می‌دهد.
+ *    رکوردهای صریحِ موجود همیشه بر wildcard مقدم‌اند.)
+ * ۳) ⚠️ Cloudflare الگویِ `g-*.host` را نمی‌پذیرد (wildcard فقط ابتدای
+ *    hostname). پس مسیرها در زون → Workers Routes این‌طورند:
+ *      *.servernet.cloud/*     → gpu-proxy
+ *      cdn.servernet.cloud/*   → None   ← استثنای هر رکوردِ پروکسی‌شده
+ *      ns3.servernet.cloud/*   → None
+ *    🔴 قاعده: هر رکوردِ **پروکسی‌شدهٔ** تازه‌ای که ساختی، یک مسیرِ None
+ *    هم بگیرد، وگرنه ترافیکش از این Worker رد می‌شود و ۴۰۴ می‌گیرد.
+ *    (رکوردهای DNS-only اصلاً به Cloudflare/Worker نمی‌رسند.)
+ * ۴) پنل مدیریت → تنظیمات → زیرساخت → «دامنهٔ برندشدهٔ دروازه» =
+ *    servernet.cloud (انجام شد). پنل و ایمیلِ تحویل نشانیِ برندشده می‌دهند.
+ * راستی‌آزماییِ انجام‌شده: g-test.servernet.cloud از Worker به لبهٔ زیرساخت
+ * رسید؛ میزبانِ بی‌الگو 404ِ خودِ Worker گرفت؛ cdn دست‌نخورده ماند.
  *
  * SSE و WebSocket از Worker رد می‌شوند؛ TLS مالِ Cloudflare است (پوششِ
  * Universal SSL برای *.servernet.cloud — تک‌سطحی، برای همین g-{label} است
