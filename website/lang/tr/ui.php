@@ -1646,6 +1646,8 @@ return [
     'cvb_plan_moved' => 'O boyut bu konumda sunulmuyor; en yakın boyut seçildi.',
     'cvb_no_price' => 'Bu boyutun fiyatı şu anda kullanılamıyor.',
     'cvb_step_loc' => 'Konum',
+    'cvb_step_gpu' => 'GPU karti',
+    'cvb_step_app' => 'Hazir uygulama',
     'cvb_step_size' => 'Boyut',
     'cvb_step_os' => 'İşletim sistemi',
     'cvb_step_name' => 'Sunucu adı',

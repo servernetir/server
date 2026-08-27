@@ -85,6 +85,18 @@ class CloudDominance
             return false;
         }
 
+        /*
+        | کارتِ گرافیک: RTX 4090 و GTX 1650 دو محصولِ متفاوت‌اند حتی با هسته/
+        | رم/دیسکِ یکسان — قدرتِ واقعیِ این خط در خودِ GPU است که این کلاس
+        | نمی‌سنجد. بی‌این گارد، ورودِ یک GPUِ ارزان همهٔ GPUهای گران‌ترِ
+        | هم‌مشخصات را بی‌صدا از فروشگاه حذف می‌کرد (۵ شهریور ۱۴۰۵: RTX 4090
+        | با آمدنِ GTX 1650ِ هم‌مشخصات و ارزان‌تر از ویترین غیب شد).
+        */
+        if (strtolower(trim((string) $a->gpu_model)) !== strtolower(trim((string) $b->gpu_model))
+            || (int) $a->gpu_count !== (int) $b->gpu_count) {
+            return false;
+        }
+
         $pa = (int) $a->price_irt;
         $pb = (int) $b->price_irt;
 

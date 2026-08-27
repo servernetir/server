@@ -53,7 +53,10 @@
     <span class="pnl-svc-ic"><svg class="icon"><use href="#i-{{ $cloud ? 'cloud' : 'server' }}"/></svg></span>
     <span class="svc-card-t">
       <b>{{ $s->name }}</b>
-      @if($ci?->hostname)<small dir="ltr">{{ $ci->hostname }}</small>
+      {{-- 🔴 نشانی از accessHost — hostnameِ خام نامِ زیرساخت را لو می‌داد
+           (گزارشِ کارفرما: «…salad.cloud» در فهرستِ سرویس‌های مشتری) --}}
+      @php $cardHost = $ci?->accessHost() ?? $ci?->hostname; @endphp
+      @if($cardHost)<small dir="ltr">{{ $cardHost }}</small>
       @elseif($s->server?->hostname)<small dir="ltr">{{ $s->server->hostname }}</small>@endif
     </span>
     @include('account.partials.status-pill', ['s' => $s])

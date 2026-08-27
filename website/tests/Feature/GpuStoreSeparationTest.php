@@ -101,6 +101,70 @@ class GpuStoreSeparationTest extends TestCase
     }
 
     /**
+     * 🔴 ویزاردِ GPU سه مرحله دارد، نه پنج (گزارشِ کارفرما: «مرحلهٔ تکراری»).
+     *
+     * خطِ GPU یک مکان بیشتر ندارد؛ «کدام کشور؟ کدام شهر؟» دو مرحلهٔ بی‌جواب
+     * بودند که هر دو یک مقدارِ ثابت را نشان می‌دادند. مکان از فیلدِ پنهانِ
+     * فرم می‌رود و هیچ انتخابی گم نمی‌شود.
+     */
+    public function test_the_gpu_wizard_has_three_steps_not_five(): void
+    {
+        $this->bothLines();
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('id="cvb-step-1"', $html, 'مرحلهٔ «کشور» برای GPU بی‌معنی است.');
+        $this->assertStringNotContainsString('id="cvb-step-2"', $html, 'مرحلهٔ «شهر» برای GPU بی‌معنی است.');
+        $this->assertStringContainsString(__('ui.cvb_step_gpu'), $html);
+        // شمارهٔ نمایشی از ۱ شروع می‌شود، نه از ۳
+        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num(3)]), $html);
+        // و فرم هنوز مکان را حمل می‌کند
+        $this->assertStringContainsString('name="location" value="global-gpu"', $html);
+    }
+
+    /** فروشگاهِ VPS دست‌نخورده پنج‌مرحله‌ای می‌مانَد */
+    public function test_the_vps_wizard_keeps_all_five_steps(): void
+    {
+        $this->bothLines();
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="cvb-step-1"', $html);
+        $this->assertStringContainsString('id="cvb-step-2"', $html);
+        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(5), 't' => fa_num(5)]), $html);
+    }
+
+    /**
+     * 🔴 دو پلنِ هم‌مشخصات با GPUِ متفاوت باید دو کارتِ **متمایز** بسازند.
+     *
+     * گزارشِ کارفرما: «مرحله ۳ تکراری نشون میده» — GTX 1050 Ti و GTX 1650 هر
+     * دو «CV-8-30» با یک قیمت رندر می‌شدند، چون کارت مدلِ GPU را چاپ نمی‌کرد؛
+     * مهم‌ترین صفتِ محصول از دیدِ خریدارِ این خط.
+     */
+    public function test_same_spec_plans_with_different_gpus_render_distinct_cards(): void
+    {
+        $this->bothLines();
+
+        CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'gc-1650', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'public_name' => 'CV-8-30',
+            'slug' => 'cv-8c-30g-100d-global-gpu-gtx-1650', 'vcpu' => 8, 'ram_mb' => 30720,
+            'disk_gb' => 100, 'disk_type' => 'ssd', 'traffic_gb' => 0, 'cpu_kind' => 'shared',
+            'arch' => 'x86', 'cost_eur_cents' => 100, 'price_eur_cents' => 150, 'price_irt' => 180_000,
+            'is_active' => true, 'in_stock' => true,
+            'gpu_model' => 'GTX 1650', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+
+        $this->assertStringContainsString('RTX 4090', $html);
+        $this->assertStringContainsString('GTX 1650', $html, 'مدلِ GPU روی کارت نیست — دو پلن «تکراری» دیده می‌شوند.');
+    }
+
+    /**
      * 🔴 بازتولیدِ عینِ گزارش: لینکِ GPU با مکان، باید پلنِ GPU را نگه دارد
      * و فرمِ VPS (شهرها) را نیاورد.
      */

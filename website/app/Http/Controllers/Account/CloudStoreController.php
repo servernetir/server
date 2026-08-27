@@ -878,6 +878,9 @@ class CloudStoreController extends Controller
             $planCards[] = [
                 'slug' => (string) $slug,
                 'name' => (string) $offer->public_name,
+                // مدلِ کارتِ گرافیک — بی‌این، دو پلنِ GPU با هسته/رم/دیسکِ یکسان
+                // دو کارتِ بایت‌به‌بایت یکسان می‌شوند و مشتری «تکراری» می‌بیند
+                'gpu' => trim((string) $offer->gpu_model),
                 'vcpu' => (int) $offer->vcpu,
                 'ram' => $offer->ramLabel(),
                 'disk' => $offer->diskLabel(),
@@ -923,6 +926,7 @@ class CloudStoreController extends Controller
         $blockedCards = $blocked->map(fn (CloudPlan $p) => [
             'slug' => (string) $p->slug,
             'name' => (string) $p->public_name,
+            'gpu' => trim((string) $p->gpu_model),
             'vcpu' => (int) $p->vcpu,
             'ram' => $p->ramLabel(),
             'disk' => $p->diskLabel(),

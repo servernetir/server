@@ -108,6 +108,25 @@ class GpuCustomerGuideTest extends CloudProvisionTest
             'نامِ زیرساخت به صفحهٔ مشتری نشت کرد — نقضِ سفیدبرچسبی.');
     }
 
+    /**
+     * 🔴 فهرستِ سرویس‌ها هم برندشده است، نه فقط صفحهٔ خودِ سرویس.
+     *
+     * گزارشِ کارفرما (۵ شهریور): «تو پروفایل مشتری باز داره …salad.cloud رو
+     * نشون میده» — کارتِ card-server هنوز hostname خام را چاپ می‌کرد.
+     */
+    public function test_the_services_list_card_shows_the_branded_host(): void
+    {
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service] = $this->gpuService('gpu-comfyui');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.services'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('g-abc123-def456.servernet.cloud', $html);
+        $this->assertStringNotContainsString('salad', $html,
+            'نامِ زیرساخت در فهرستِ سرویس‌های مشتری نشت کرد.');
+    }
+
     /** نشانیِ هنوز-نرسیده، پیامِ صادقانه می‌گیرد نه خط تیره */
     public function test_a_pending_address_says_it_is_coming(): void
     {

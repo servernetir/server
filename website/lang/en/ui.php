@@ -1646,6 +1646,8 @@ return [
     'cvb_plan_moved' => 'That size is not offered in this location; the closest one was selected.',
     'cvb_no_price' => 'Pricing for this size is unavailable right now.',
     'cvb_step_loc' => 'Location',
+    'cvb_step_gpu' => 'GPU card',
+    'cvb_step_app' => 'Ready app',
     'cvb_step_size' => 'Size',
     'cvb_step_os' => 'Operating system',
     'cvb_step_name' => 'Server name',
