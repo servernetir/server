@@ -2653,10 +2653,11 @@ return [
     'cs_gpu_endpoint_wait' => 'Preparing your address - it will appear here in a few minutes.',
     'cs_gpu_use_h' => 'How do I use it?',
     'cs_gpu_ollama_d' => 'Your LLM is ready. Call this address like an API from anywhere - your code, server or laptop:',
-    'cs_gpu_comfy_d' => 'ComfyUI is ready - open the address in your browser and start generating. The same address also serves an API.',
+    'cs_gpu_comfy_d' => 'Your image-generation service is an API (it has no web page - opening the bare address in a browser returns a 404, which is normal). Generate an image with the command below; the response contains the image as base64. Full capabilities are in the docs:',
     'cs_gpu_jupyter_d' => 'Your Jupyter notebook is ready - open the address and enter the token below.',
     'cs_gpu_generic_d' => 'Your app is available at this address.',
     'cs_gpu_open' => 'Open in browser',
+    'cs_gpu_docs' => 'API docs (/docs)',
     'cs_gpu_token_label' => 'Access token',
     'cs_gpu_first_slow' => 'The first request is slower (model loads into GPU memory - up to 2 minutes); it speeds up from the second one. Only the hours your machine runs are billed.',
 ];

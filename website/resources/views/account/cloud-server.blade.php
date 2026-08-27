@@ -212,8 +212,16 @@
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_ollama_d') }}</p>
             <code dir="ltr" class="cs-copy" data-copy="{{ $gpuCmd }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuCmd }}</code>
           @elseif($inst->image_key === 'gpu-comfyui')
+            @php
+              // این ایمیج فقط API است (رَپرِ comfyui-api روی پورت ۳۰۰۰)؛ ریشهٔ
+              // نشانی در مرورگر 404 می‌دهد — راهنمای «در مرورگر باز کن» یک بار
+              // خودِ کارفرما را هم گمراه کرد. بدنه با json_encode، نه دست‌نویس.
+              $gpuBody = json_encode(['input' => ['prompt' => 'a red apple on a wooden table']], JSON_UNESCAPED_SLASHES);
+              $gpuCmd = 'curl '.$gpuUrl."/workflow/sd1.5/txt2img -H 'Content-Type: application/json' -d '".$gpuBody."'";
+            @endphp
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_comfy_d') }}</p>
-            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
+            <code dir="ltr" class="cs-copy" data-copy="{{ $gpuCmd }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuCmd }}</code>
+            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}/docs" target="_blank" rel="noopener" style="margin-top:8px">{{ __('ui.cs_gpu_docs') }}</a>
           @elseif($inst->image_key === 'gpu-jupyter')
             <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_jupyter_d') }}</p>
             <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
