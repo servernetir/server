@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-02b37d6}"
+MINE="${1:-e1a1d6c}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -71,6 +71,8 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    بعد ویو و زبان، بعد config، و آخر routeها.
 APP_FILES="
 app/Models/CloudPlan.php
+app/Models/CloudLocation.php
+app/Services/Cloud/CloudProvisioner.php
 app/Services/Cloud/CloudNaming.php
 app/Services/Cloud/CloudProvider.php
 app/Services/Cloud/SaladOperations.php
@@ -236,6 +238,12 @@ g app/Services/SystemHealth.php "unsellableCatalogue"
 g app/Http/Controllers/SiteController.php "\$add('gpu')"
 g app/Http/Controllers/Admin/SettingsController.php "salad_api_key"
 g config/servernet.php "'gpu', []"
+
+# مدلِ تحویل: برنامهٔ آماده + دروازه + توکن — هر کدام بیفتد خرابی خاموش است
+g app/Services/Cloud/SaladOperations.php "public const APPS"
+g app/Services/Cloud/SaladOperations.php "'networking'"
+g app/Services/Cloud/CloudProvisioner.php "hostname"
+g app/Models/CloudLocation.php "'XX'"
 
 # کلیدهای زبان — هر سه فایل، وگرنه یک زبان متنِ خام نشان می‌دهد
 for L in fa en tr; do
