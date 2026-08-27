@@ -613,4 +613,76 @@ class CloudSaladGpuTest extends TestCase
         $this->assertSame('🌐', $loc->flagEmoji());
     }
 
+    // ═══════ سه قفل از خرابیِ واقعیِ سرویسِ #۶۲ (کدِ ۴۰۰ روی پروداکشن) ═══════
+
+    /**
+     * 🔴 کلاسِ بی‌مشخصات (اسپک صفر را مجاز می‌داند و پاسخِ واقعی همین بود)
+     * نباید پلنِ «۱ هسته/۱ گیگ» بسازد — clampِ پیش از گارد همین را ساخت و
+     * CV-1-1ِ قلابی روی /gpu فروخته شد.
+     */
+    public function test_a_class_without_limits_gets_sellable_defaults_not_one_core(): void
+    {
+        $this->configure();
+        $this->fakeClasses([$this->gpuClass([
+            'max_vcpu' => 0, 'max_ram' => 0, 'max_storage' => 0,
+        ])]);
+
+        $r = app(CloudManager::class)->driver('salad')->fetchCatalog();
+
+        $this->assertTrue($r['ok']);
+        $plan = $r['plans'][0];
+
+        $this->assertSame(SaladClient::DEFAULT_VCPU, $plan['vcpu']);
+        $this->assertSame(SaladClient::DEFAULT_RAM_MB, $plan['ram_mb']);
+        $this->assertSame(SaladClient::DEFAULT_DISK_GB, $plan['disk_gb']);
+    }
+
+    /**
+     * 🔴 storage_amount باید بر پایهٔ GiB برود و هرگز زیرِ کمینهٔ API نیفتد.
+     * ضریبِ ده‌دهی برای دیسکِ کوچک زیرِ 1073741824 می‌افتاد ⇒ کدِ ۴۰۰.
+     */
+    public function test_storage_bytes_use_gib_and_never_fall_below_the_api_minimum(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        \App\Models\CloudPlan::query()->update(['disk_gb' => 1]);
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-ollama']['ref'],
+        ]);
+
+        Http::assertSent(function ($req) {
+            $bytes = (int) data_get($req->data(), 'container.resources.storage_amount', 0);
+
+            return $bytes === SaladClient::GIB && $bytes >= 1_073_741_824;
+        });
+    }
+
+    /**
+     * 🔴 پیامِ ۴۰۰ باید از بدنهٔ problem+json بیرون بیاید، نه «خطای زیرساخت
+     * (کدِ 400)»ِ کور — عیب‌یابیِ پروداکشن با پیامِ تخت یک روز طول کشید.
+     */
+    public function test_a_problem_json_error_surfaces_its_real_reason(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response([
+            'title' => 'Validation failed',
+            'errors' => ['storage_amount' => ['must be at least 1073741824']],
+        ], 400)]);
+
+        $r = app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-ollama']['ref'],
+        ]);
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('Validation failed', $r['message']);
+        $this->assertStringContainsString('1073741824', $r['message']);
+    }
+
 }

@@ -309,17 +309,27 @@ trait SaladOperations
             return null;
         }
 
-        // بیشترین پیکربندیِ مجازِ همان کلاس — همان چیزی که می‌فروشیم.
-        // ⚠️ سقفِ خودِ API هم اعمال می‌شود (۱۶ هسته، ۶۱۴۴۰ مگ، ۲۵۰ گیگ)،
-        //    وگرنه ساختِ سرور با «مقدارِ خارج از بازه» رد می‌شود.
-        $vcpu = max(1, min(16, (int) ($g['max_vcpu'] ?? $g['min_vcpu'] ?? 0)));
-        $ramMb = max(1024, min(61440, (int) ($g['max_ram'] ?? $g['min_ram'] ?? 0)));
-        $storageBytes = (int) ($g['max_storage'] ?? $g['min_storage'] ?? 0);
-        $diskGb = max(1, min(250, (int) round($storageBytes / 1_000_000_000)));
+        /*
+        | 🔴 اسپک برای max_vcpu/max_ram/max_storage «minimum: 0» دارد و پاسخِ
+        |    واقعی همین صفر/غایب را داد. نسخهٔ اول clamp را **پیش از** گارد
+        |    می‌زد (همان تلهٔ ثبت‌شدهٔ «بازه پیش از گارد»)، پس صفر بی‌صدا
+        |    «۱ هسته / ۱ گیگ / ۱ گیگ» می‌شد: پلنی به‌نامِ CV-1-1 فروخته شد و
+        |    ساختش با storage زیرِ کمینهٔ API (۱GiB) کدِ ۴۰۰ گرفت —
+        |    سرویسِ #۶۲ روی پروداکشن دقیقاً همین بود.
+        |
+        |    کلاسِ GPU ماهیتاً مشخصاتِ CPU/RAM «تا سقف» است نه ثابت؛ وقتی
+        |    زیرساخت سقف نمی‌گوید، پیکربندیِ فروختنیِ خودمان را می‌فروشیم.
+        */
+        $rawVcpu = (int) ($g['max_vcpu'] ?? $g['min_vcpu'] ?? 0);
+        $rawRam = (int) ($g['max_ram'] ?? $g['min_ram'] ?? 0);
+        $rawStorage = (int) ($g['max_storage'] ?? $g['min_storage'] ?? 0);
 
-        if ($vcpu < 1 || $ramMb < 1024) {
-            return null;
-        }
+        $vcpu = $rawVcpu > 0 ? min(16, $rawVcpu) : self::DEFAULT_VCPU;
+        $ramMb = $rawRam >= 1024 ? min(61440, $rawRam) : self::DEFAULT_RAM_MB;
+        // ⚠️ GiB نه GB: کمینه/بیشینهٔ API دقیقاً 1..250 GiB است (1073741824).
+        $diskGb = $rawStorage >= self::GIB
+            ? min(250, (int) floor($rawStorage / self::GIB))
+            : self::DEFAULT_DISK_GB;
 
         $totalUsdHour = $gpuUsd
             + ($vcpu * $this->vcpuUsdHour())
@@ -480,7 +490,10 @@ trait SaladOperations
                     'cpu'            => (int) $plan->vcpu,
                     'memory'         => (int) $plan->ram_mb,
                     'gpu_classes'    => [$planRef],
-                    'storage_amount' => (int) $plan->disk_gb * 1_000_000_000,
+                    // 🔴 GiB نه GB — کمینهٔ API «۱GiB=1073741824» است؛ ضریبِ
+                    //    ده‌دهی برای دیسکِ ۱ گیگی زیرِ کمینه می‌افتاد و کلِ
+                    //    ساخت ۴۰۰ می‌گرفت (سرویسِ #۶۲).
+                    'storage_amount' => (int) $plan->disk_gb * self::GIB,
                 ],
             ],
         ];

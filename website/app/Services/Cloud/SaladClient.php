@@ -47,6 +47,18 @@ class SaladClient implements CloudProvider
     /** تبدیلِ «ساعتی» به «ماهانه»ی قرارداد (۳۰٫۴ روز) */
     public const HOURS_PER_MONTH = 730;
 
+    /** یک گیبی‌بایت — واحدِ واقعیِ storage در APIِ زیرساخت (کمینه 1، بیشینه 250) */
+    public const GIB = 1_073_741_824;
+
+    /*
+    | پیکربندیِ پیش‌فرض وقتی کلاسِ GPU سقفِ CPU/RAM/دیسک اعلام نمی‌کند
+    | (اسپک صفر را مجاز می‌داند و پاسخِ واقعی همین بود). این همان چیزی است که
+    | می‌فروشیم و قیمتش هم از همین ساخته می‌شود — تغییرش یعنی sync دوباره.
+    */
+    public const DEFAULT_VCPU = 8;
+    public const DEFAULT_RAM_MB = 30720;
+    public const DEFAULT_DISK_GB = 50;
+
     /**
      * نرخِ پیش‌فرضِ vCPU و رم بر ساعت به دلار — از `billing.mdx` خودشان:
      * «۱ vCPU × ۰٫۰۰۴ + ۲ گیگ × ۰٫۰۰۱ = ۰٫۰۰۶ دلار در ساعت».
@@ -208,9 +220,29 @@ class SaladClient implements CloudProvider
             return ['ok' => true, 'status' => $r->status(), 'body' => $body, 'message' => ''];
         }
 
+        /*
+        | خطاهای این زیرساخت به قالبِ problem+json می‌آیند (title/type/errors)
+        | و مستنداتشان هشدار می‌دهد گاهی هم **سندِ HTML**. نسخهٔ اول فقط
+        | message/error/detail را می‌خواند، پس ۴۰۰ واقعی به «خطای زیرساخت
+        | (کدِ 400)» تخت می‌شد و عیب‌یابیِ پروداکشن کور بود.
+        */
         $msg = is_array($body)
-            ? (string) ($body['message'] ?? $body['error'] ?? $body['detail'] ?? '')
-            : '';
+            ? (string) ($body['message'] ?? $body['error'] ?? $body['detail'] ?? $body['title'] ?? '')
+            : trim(mb_substr(strip_tags((string) $r->body()), 0, 200));
+
+        if (is_array($body) && isset($body['errors']) && is_array($body['errors'])) {
+            $flat = [];
+
+            array_walk_recursive($body['errors'], function ($v, $k) use (&$flat) {
+                if (is_scalar($v) && count($flat) < 4) {
+                    $flat[] = $k.': '.$v;
+                }
+            });
+
+            if ($flat !== []) {
+                $msg = trim($msg.' — '.implode(' · ', $flat));
+            }
+        }
 
         if ($msg === '') {
             $msg = match ($r->status()) {
