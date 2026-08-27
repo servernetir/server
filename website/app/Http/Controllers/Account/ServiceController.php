@@ -142,6 +142,11 @@ class ServiceController extends Controller
         DB::transaction(function () use ($service, $reasonCols) {
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
+            // ریفاندِ خودکارِ تحویل‌نشده — پیش از قفلِ وضعیت، بر پایهٔ provision_status
+            if ($fresh !== null) {
+                app(\App\Services\Billing\UndeliveredRefund::class)->maybeRefund($fresh, 'customer');
+            }
+
             if ($fresh === null || in_array($fresh->status, ['terminated', 'cancelled'], true)) {
                 return;                          // قبلاً بسته شده
             }
