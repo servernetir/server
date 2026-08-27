@@ -1504,7 +1504,23 @@ class CloudProvisioner
 
             if ($customer && filled($customer->email)) {
                 \Illuminate\Support\Facades\Mail::mailer('smtp')->to($customer->email)->send(
-                    new \App\Mail\ServiceReadyMail(
+                    /*
+                    | خطِ GPU (برنامهٔ آماده روی دروازه): «root» و IP دروغ است —
+                    | نه SSH دارد نه کاربرِ سیستمی. نشانیِ برندشدهٔ دروازه
+                    | می‌رود و راهنمای SSH خاموش می‌شود.
+                    */
+                    ($gpuApp = str_starts_with((string) $instance->image_key, 'gpu-'))
+                        ? new \App\Mail\ServiceReadyMail(
+                            $service->name,
+                            $instance->accessHost() ?: ($instance->ipv4 ?: $service->domain),
+                            $service->panel_url ?: url('/account/cloud/'.$service->id),
+                            null,
+                            null,
+                            $customer->locale ?: 'fa',
+                            passwordInPanel: true,
+                            withSshGuide: false,
+                        )
+                        : new \App\Mail\ServiceReadyMail(
                         $service->name,
                         $instance->ipv4 ?: $service->domain,
                         $service->panel_url ?: url('/account/cloud/'.$service->id),

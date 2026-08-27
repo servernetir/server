@@ -138,6 +138,11 @@
               <option value="{{ $k }}" @selected(($cloud['sl']['priority'] ?: 'high') === $k)>{{ $lbl }}</option>
             @endforeach
           </select></label>
+      <label class="set-f">دامنهٔ برندشدهٔ دروازه <span style="color:var(--dim)">(اختیاری)</span>
+        <input type="text" name="salad_branded_domain" dir="ltr" maxlength="120"
+               value="{{ $cloud['sl']['branded'] ?? '' }}" placeholder="servernet.cloud">
+        <small style="color:var(--dim)">نشانیِ مشتری g-xxxx.{دامنه} می‌شود — نیازمندِ Workerِ Cloudflare (راهنما در relay/cloudflare)</small>
+      </label>
 
         {{-- 🔴 این دو نرخ در API آنها **نیستند** و فقط در مستنداتِ متنی‌اند.
              بهایِ تمام‌شده = قیمتِ GPU + vCPU×نرخ + گیگ‌رم×نرخ؛ اگر تکهٔ GPU را

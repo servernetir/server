@@ -2647,4 +2647,16 @@ return [
     'gpu_app_llm_d' => 'OpenAI uyumlu API ile LLM - kendi kodunuzdan cagirin.',
     'gpu_app_img_d' => 'Stable Diffusion ile goruntu uretimi - web arayuzu ve API.',
     'gpu_app_nb_d' => 'GPU uzerinde Python not defteri - deney ve model gelistirme icin.',
+
+    // Musteri panelinde GPU hizmet erisimi
+    'cs_gpu_endpoint' => 'Hizmet adresiniz',
+    'cs_gpu_endpoint_wait' => 'Adresiniz hazirlaniyor - birkac dakika icinde burada gorunecek.',
+    'cs_gpu_use_h' => 'Nasil kullanirim?',
+    'cs_gpu_ollama_d' => 'LLM hazir. Bu adresi bir API gibi her yerden cagirin - kodunuz, sunucunuz veya bilgisayariniz:',
+    'cs_gpu_comfy_d' => 'ComfyUI hazir - adresi tarayicida acin ve uretmeye baslayin. Ayni adres API olarak da calisir.',
+    'cs_gpu_jupyter_d' => 'Jupyter not defteriniz hazir - adresi acin ve asagidaki tokeni girin.',
+    'cs_gpu_generic_d' => 'Uygulamaniz bu adreste kullanilabilir.',
+    'cs_gpu_open' => 'Tarayicida ac',
+    'cs_gpu_token_label' => 'Erisim tokeni',
+    'cs_gpu_first_slow' => 'Ilk istek daha yavastir (model GPU bellegine yuklenir - 2 dakikaya kadar); ikinci istekten itibaren hizlanir. Yalnizca makinenin calistigi saatler faturalanir.',
 ];

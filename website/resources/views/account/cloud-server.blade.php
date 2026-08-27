@@ -176,6 +176,54 @@
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>{{ __('ui.cs_access_h') }}</h2></div>
   <div class="pnl-sec-b">
+    @php
+      /*
+      | خطِ GPU: برنامهٔ آماده روی دروازهٔ HTTPS — نه ماشینِ SSHدار.
+      | نمایشِ «root» و فرمانِ ssh این‌جا دروغ است: نه رمزِ root وجود دارد نه
+      | راهِ SSH. نشانی از accessHost می‌آید (برندشده اگر تنظیم شده باشد).
+      */
+      $gpuApp = str_starts_with((string) ($inst->image_key ?? ''), 'gpu-');
+      $gpuHost = $gpuApp ? $inst->accessHost() : null;
+      $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
+    @endphp
+
+    @if($gpuApp)
+      <div class="cs-grid">
+        <div class="cs-kv" style="grid-column:1/-1"><small>{{ __('ui.cs_gpu_endpoint') }}</small>
+          @if($gpuUrl)
+            <b dir="ltr" class="cs-copy" data-copy="{{ $gpuUrl }}">{{ $gpuUrl }}</b>
+          @else
+            <b>{{ __('ui.cs_gpu_endpoint_wait') }}</b>
+          @endif
+        </div>
+        <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
+      </div>
+
+      @if($gpuUrl)
+        <div class="cs-ssh" style="margin-top:12px">
+          <small>{{ __('ui.cs_gpu_use_h') }}</small>
+          @if($inst->image_key === 'gpu-ollama')
+            @php
+              // بدنه با json_encode ساخته می‌شود، نه رشتهٔ دست‌نویس — کوتیشن‌های
+              // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد.
+              $gpuBody = json_encode(['model' => 'llama3.1', 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
+              $gpuCmd = 'curl '.$gpuUrl."/api/chat -d '".$gpuBody."'";
+            @endphp
+            <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_ollama_d') }}</p>
+            <code dir="ltr" class="cs-copy" data-copy="{{ $gpuCmd }}" style="white-space:pre-wrap;word-break:break-all">{{ $gpuCmd }}</code>
+          @elseif($inst->image_key === 'gpu-comfyui')
+            <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_comfy_d') }}</p>
+            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
+          @elseif($inst->image_key === 'gpu-jupyter')
+            <p style="margin:6px 0 8px;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_jupyter_d') }}</p>
+            <a class="btn btn-glass" dir="ltr" href="{{ $gpuUrl }}" target="_blank" rel="noopener">{{ __('ui.cs_gpu_open') }}</a>
+          @else
+            <p style="margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.9">{{ __('ui.cs_gpu_generic_d') }}</p>
+          @endif
+        </div>
+        <p style="margin:10px 0 0;font-size:12px;color:var(--dim);line-height:1.9">{{ __('ui.cs_gpu_first_slow') }}</p>
+      @endif
+    @else
     <div class="cs-grid">
       <div class="cs-kv"><small>IPv4</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv4 }}">{{ $inst->ipv4 ?: '—' }}</b></div>
       @if($inst->ipv6)
@@ -184,8 +232,9 @@
       <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
+    @endif
 
-    @if($inst->ipv4)
+    @if(! $gpuApp && $inst->ipv4)
       {{-- ⚠️ رشته را در PHP می‌سازیم، نه در قالب. اگر «root» و «{{» با یک @
            به هم بچسبند، Blade آن را **دستورِ فرار** می‌فهمد و به‌جای IP، خودِ
            عبارتِ آکولادی را چاپ می‌کند — همان تلهٔ آشنای این پروژه. --}}
@@ -211,7 +260,7 @@
       --}}
       <div class="cs-pw">
         <div style="min-width:0">
-          <small>{{ __('ui.cs_pw_label') }}</small>
+          <small>{{ __($inst->image_key === 'gpu-jupyter' ? 'ui.cs_gpu_token_label' : 'ui.cs_pw_label') }}</small>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <code dir="ltr" class="cs-pw-val is-masked" data-pw="{{ $password }}">••••••••••••</code>
 
@@ -244,9 +293,11 @@
         که هیچ مقاله‌ای با آن نبود — یعنی یک لینکِ ۴۰۴ در لحظه‌ای که مشتری
         بیشترین نیاز را به راهنما دارد. تستِ همراهش همین را قفل می‌کند.
       --}}
+      @unless($gpuApp)
       <p style="margin:10px 0 0;font-size:12.5px;line-height:1.9">
         <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
       </p>
+      @endunless
     @elseif($canReveal ?? false)
       {{--
         🔴 دکمه، نه نمایشِ خودکار.
