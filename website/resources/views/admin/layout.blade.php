@@ -17,8 +17,20 @@
 <body>
 @include('partials.icons')
 @auth
+{{-- ══ نوارِ موبایل ══
+     🔴 تا امروز در ≤۸۲۰px سایدبار یک دیوارِ افقیِ ~۳۵ لینک بالای هر صفحه
+     می‌شد: محتوا یک صفحه پایین می‌رفت، لینک‌ها بیرون می‌زدند و عملاً چیزی
+     قابلِ مدیریت نبود — همان «همه‌چیز بهم ریخته» که گزارش شد. حالا منو
+     کشوی کناری است و با همبرگر باز می‌شود. --}}
+<header class="ad-mob" aria-label="نوار مدیریت">
+  <button type="button" class="ad-burger" id="ad-burger" aria-label="باز و بسته کردن منو" aria-expanded="false">
+    <svg class="icon"><use href="#i-list"/></svg>
+  </button>
+  <a class="ad-mob-brand" href="/admin"><svg class="icon"><use href="#i-server"/></svg>سرورنت <b>مدیریت</b></a>
+</header>
+<div class="ad-scrim" id="ad-scrim" hidden></div>
 <div class="ad-shell">
-  <aside class="ad-side">
+  <aside class="ad-side" id="ad-side">
     <a class="ad-logo" href="/admin"><span class="ad-logo-m"><svg class="icon"><use href="#i-server"/></svg></span> سرورنت <b>مدیریت</b></a>
     <nav class="ad-nav">
       <a href="/admin" class="@yield('nav_dash')"><svg class="icon"><use href="#i-layout"/></svg>داشبورد</a>
@@ -178,6 +190,33 @@
       document.cookie = 'snet-theme=' + val + '; path=/; max-age=31536000; samesite=lax'
         + d + (location.protocol === 'https:' ? '; secure' : '');
     } catch (e) {}
+  });
+})();
+</script>
+<script>
+/* کشوی موبایل — بدونِ وابستگی؛ Escape و کلیک روی رویه هم می‌بندند. */
+(function () {
+  var burger = document.getElementById('ad-burger');
+  var side = document.getElementById('ad-side');
+  var scrim = document.getElementById('ad-scrim');
+  if (!burger || !side || !scrim) return;
+
+  function set(open) {
+    document.body.classList.toggle('nav-open', open);
+    scrim.hidden = !open;
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  burger.addEventListener('click', function () {
+    set(!document.body.classList.contains('nav-open'));
+  });
+  scrim.addEventListener('click', function () { set(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') set(false);
+  });
+  /* کلیک روی هر لینکِ منو کشو را می‌بندد — وگرنه بعدِ رفتن به صفحهٔ بعد،
+     منو دوباره بازِ رویِ محتوا ظاهر می‌شد (bfcache). */
+  side.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('a')) set(false);
   });
 })();
 </script>

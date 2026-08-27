@@ -2455,6 +2455,8 @@ Route::prefix('admin')->group(function () {
         // فروش و مدیریت سرویس‌های مشتری
         Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);
         Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);
+        // لغو + بازگشتِ وجه به کیف پول — مسیرِ کاملِ خاتمه (زیرساخت هم آزاد می‌شود)
+        Route::post('/services/{service}/cancel-refund', [\App\Http\Controllers\Admin\ServiceController::class, 'cancelRefund']);
 
         /*
         | حذفِ کاملِ یک سرویسِ لغوشده‌ای که هرگز ساخته نشده.

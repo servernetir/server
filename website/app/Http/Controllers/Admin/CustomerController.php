@@ -42,11 +42,33 @@ class CustomerController extends Controller
                 'status' => 'all',
                 'counts' => ['all' => 0, 'active' => 0, 'pending' => 0, 'suspended' => 0],
                 'notReady' => true,
+                'filters' => ['service' => '', 'verified' => '', 'reseller' => '', 'sort' => 'newest', 'from' => '', 'to' => ''],
             ]);
         }
 
-        $q = trim((string) $request->query('q', ''));
+        /*
+        | 🔴 نرمال‌سازیِ ارقام پیش از هر چیز.
+        |
+        | مدیر شماره را با صفحه‌کلیدِ فارسی می‌زند: «۰۹۱۲…». ستونِ phone لاتین
+        | است، پس LIKE هیچ‌وقت نمی‌گرفت و جستجو «خراب» به نظر می‌رسید — بی‌هیچ
+        | خطایی، فقط نتیجهٔ خالی.
+        */
+        $q = trim(strtr((string) $request->query('q', ''), [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]));
         $status = (string) $request->query('status', 'all');
+
+        // ── فیلترهای پیشرفته — مقدارِ نامعتبر بی‌اثر است، نه خطا ──
+        $fService  = in_array($request->query('service'),  ['with', 'without'], true) ? $request->query('service') : '';
+        $fVerified = in_array($request->query('verified'), ['yes', 'no'], true) ? $request->query('verified') : '';
+        $fReseller = in_array($request->query('reseller'), ['yes', 'no'], true) ? $request->query('reseller') : '';
+        $fSort     = in_array($request->query('sort'), ['newest', 'oldest', 'services', 'invoices'], true)
+            ? $request->query('sort') : 'newest';
+        $fFrom = $this->validDate($request->query('from'));
+        $fTo   = $this->validDate($request->query('to'));
 
         $query = Customer::query()
             // ⚠️ صریح لازم است: با addSelectِ زیرپرس‌وجو و بدونِ این، ستون‌ها فقط
@@ -76,16 +98,60 @@ class CustomerController extends Controller
         }
 
         if ($q !== '') {
-            $query->where(function ($w) use ($q) {
-                $w->where('code', 'like', "%{$q}%")
-                    ->orWhere('email', 'like', "%{$q}%")
-                    ->orWhere('phone', 'like', "%{$q}%")
-                    ->orWhereHas('identityVerification', function ($iv) use ($q) {
-                        $iv->where('first_name', 'like', "%{$q}%")
-                            ->orWhere('last_name', 'like', "%{$q}%");
-                    });
-            });
+            /*
+            | 🔴 جستجوی چندواژه‌ای: هر واژه باید **جایی** بخورد، نه کلِ عبارت
+            | به یک ستون.
+            |
+            | «علی رضایی» با LIKE تک‌عبارتی هیچ‌وقت پیدا نمی‌شد: نام در
+            | first_name است و نام‌خانوادگی در last_name، و رشتهٔ کامل با
+            | هیچ‌کدام تطابق ندارد. این دقیقاً همان جستجویی است که مدیر
+            | طبیعتاً می‌زند — و «درست نیست»ی که گزارش شد همین بود.
+            */
+            foreach (preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) as $term) {
+                $query->where(function ($w) use ($term) {
+                    $w->where('code', 'like', "%{$term}%")
+                        ->orWhere('email', 'like', "%{$term}%")
+                        ->orWhere('phone', 'like', "%{$term}%")
+                        ->orWhereHas('identityVerification', function ($iv) use ($term) {
+                            $iv->where('first_name', 'like', "%{$term}%")
+                                ->orWhere('last_name', 'like', "%{$term}%");
+                        });
+                });
+            }
         }
+
+        if ($fService === 'with') {
+            $query->whereHas('services', fn ($s) => $s->whereIn('status', ['active', 'awaiting_provision']));
+        } elseif ($fService === 'without') {
+            $query->whereDoesntHave('services', fn ($s) => $s->whereIn('status', ['active', 'awaiting_provision']));
+        }
+
+        if ($fVerified === 'yes') {
+            // ⚠️ وضعیتِ تأیید در این جدول `verified` است نه `approved` — با
+            //    مقدارِ اشتباه، فیلتر همیشه خالی برمی‌گشت و «کار می‌کرد».
+            $query->whereHas('identityVerification', fn ($iv) => $iv->where('status', 'verified'));
+        } elseif ($fVerified === 'no') {
+            $query->whereDoesntHave('identityVerification', fn ($iv) => $iv->where('status', 'verified'));
+        }
+
+        if ($fReseller !== '' && \Illuminate\Support\Facades\Schema::hasColumn('customers', 'is_reseller')) {
+            $query->where('is_reseller', $fReseller === 'yes');
+        }
+
+        if ($fFrom !== null) {
+            $query->where('customers.created_at', '>=', $fFrom.' 00:00:00');
+        }
+        if ($fTo !== null) {
+            $query->where('customers.created_at', '<=', $fTo.' 23:59:59');
+        }
+
+        // مرتب‌سازی — پیشِ‌فرضِ orderByDesc('id') بالاتر خورده؛ این بازنویسی‌اش می‌کند
+        match ($fSort) {
+            'oldest'   => $query->reorder('customers.id'),
+            'services' => $query->reorder('active_services_count', 'desc'),
+            'invoices' => $query->reorder('invoices_count', 'desc'),
+            default    => null,
+        };
 
         if (in_array($status, ['active', 'pending', 'suspended', 'closed'], true)) {
             $query->where('status', $status);
@@ -102,7 +168,17 @@ class CustomerController extends Controller
                 'suspended' => Customer::where('status', 'suspended')->count(),
             ],
             'notReady' => false,
+            'filters'  => [
+                'service' => $fService, 'verified' => $fVerified, 'reseller' => $fReseller,
+                'sort' => $fSort, 'from' => (string) $request->query('from', ''), 'to' => (string) $request->query('to', ''),
+            ],
         ]);
+    }
+
+    /** تاریخِ معتبرِ Y-m-d یا null — ورودیِ خراب بی‌صدا نادیده. */
+    private function validDate(mixed $v): ?string
+    {
+        return (is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) ? $v : null;
     }
 
     /**

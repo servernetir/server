@@ -253,6 +253,9 @@ $T = [
   filter:blur(40px)}
 
 .dsx-head{text-align:center;margin-bottom:26px}
+/* ردیفِ دامنهٔ خودِ کاربر — همیشه سطرِ اول، با قابِ متمایز */
+.dsx-row.dsx-primary{border-color:rgba(34,211,238,.45);background:rgba(34,211,238,.05)}
+.dsx-row.dsx-primary .dsx-name{font-weight:800}
 .dsx-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;
   font-size:12.5px;font-weight:600;color:var(--cyan);
   background:rgba(34,211,238,.09);border:1px solid rgba(34,211,238,.25)}
@@ -521,8 +524,9 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
     }
 
     var el = document.createElement('div');
-    el.className = 'dsx-tr dsx-row';
+    el.className = 'dsx-tr dsx-row' + (r.primary ? ' dsx-primary' : '');
     el.setAttribute('role', 'listitem');
+    if (r.primary) { el.dataset.primary = '1'; }
     el.dataset.state = st;
     el.dataset.bucket = bucketOf(st);
     el.dataset.price = r.price_toman || 0;
@@ -586,9 +590,13 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       //    پس هیچ تیکی نمی‌تواند یک خرابیِ رجیسترار را از چشمِ مشتری پنهان کند.
       var b = el.dataset.bucket;
       if (b in n) { n[b]++; }
-      var hidden = (b === 'taken' && hide.taken)
+      /* 🔴 ردیفِ اصلی هرگز پنهان نمی‌شود: «گرفته‌شده‌ها را پنهان کن» نباید
+       * پاسخِ سؤالِ خودِ کاربر را هم ببلعد — او دقیقاً برای همین یک ردیف
+       * جستجو کرده. */
+      var hidden = !el.dataset.primary
+               && ((b === 'taken' && hide.taken)
                 || (b === 'premium' && hide.premium)
-                || (b === 'unavail' && hide.unavail);
+                || (b === 'unavail' && hide.unavail));
       el.classList.toggle('is-hidden', hidden);
       if (!hidden) { shown++; }
     });
@@ -597,6 +605,10 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
     var visible = els.filter(function (el) { return !el.classList.contains('is-hidden'); });
 
     visible.sort(function (a, b) {
+      /* دامنهٔ خودِ کاربر در **هر** مرتب‌سازی‌ای سطرِ اول است — جواب اول،
+       * پیشنهاد بعد. */
+      var prim = (b.dataset.primary ? 1 : 0) - (a.dataset.primary ? 1 : 0);
+      if (prim !== 0) { return prim; }
       var pa = +a.dataset.price || 0, pb = +b.dataset.price || 0;
       if (mode === 'price')  { return (pa || 1e15) - (pb || 1e15); }
       if (mode === '-price') { return pb - pa; }
@@ -678,12 +690,21 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
       }
     };
 
+    /* جستجویِ بی‌پسوند («example»): سرور نمی‌تواند «اصلی» را حدس بزند چون
+     * در هر دستهٔ بعدی یک ردیفِ اشتباه پرچم می‌خورد؛ ولی رابط می‌داند اولین
+     * پسوندِ دستهٔ اول کدام است. جستجوی پسونددار را خودِ سرور دقیق پرچم
+     * می‌زند و این فقط پشتیبان است. */
+    var primaryGuess = term.indexOf('.') === -1
+      ? (term.toLowerCase().replace(/\s+/g, '') + '.' + (T.tld_first[0] || 'com'))
+      : null;
+
     var append = function (list) {
       var added = 0;
       (list || []).forEach(function (r) {
         var k = String(r.domain || '').toLowerCase();
         if (!k || seen[k]) { return; }   // پسوندِ خودِ کاربر در دستهٔ اول هم هست
         seen[k] = true;
+        if (primaryGuess && k === primaryGuess) { r.primary = true; }
         rows.push(r);
         box.appendChild(render(r));
         added++;

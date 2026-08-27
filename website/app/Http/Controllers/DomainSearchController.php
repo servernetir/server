@@ -34,6 +34,20 @@ class DomainSearchController extends Controller
         $results = $search->search($data['q'], $data['tlds'] ?? []);
 
         /*
+        | ردیفِ دامنهٔ **خودِ کاربر** پرچم می‌خورد تا رابط سنجاقش کند بالای
+        | فهرست — وگرنه مرتب‌سازیِ «بهترین» دقیقاً وقتی که آن دامنه گرفته
+        | شده، پاسخِ اصلیِ کاربر را تهِ فهرست دفن می‌کرد.
+        */
+        if ($fqdn = $search->primaryFqdn($data['q'])) {
+            foreach ($results as $i => $r) {
+                if (strtolower((string) ($r['domain'] ?? '')) === $fqdn) {
+                    $results[$i]['primary'] = true;
+                    break;
+                }
+            }
+        }
+
+        /*
         | 🔴 `ok` و `lookup_ok` دو چیزِ متفاوت‌اند و قاطی‌کردنشان گران است.
         |
         |   ok        = درخواست سرو شد (گاردِ حمل‌ونقلِ سمتِ مرورگر)

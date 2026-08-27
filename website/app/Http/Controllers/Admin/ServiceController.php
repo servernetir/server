@@ -308,6 +308,100 @@ class ServiceController extends Controller
      * یعنی مدیر سررسید را «درست» می‌کند و نیم‌ساعت بعد سرویسِ سالمِ مشتری با
      * پیامکِ «سرویس شما غیرفعال شد» قطع می‌شود. همان تلهٔ `/admin/cloud/attach`.
      */
+    /**
+     * لغوِ سرویس + بازگشتِ وجه به کیف پولِ مشتری — یک اقدام، از پروفایل.
+     *
+     * ═══ چرا از «تغییر وضعیت به لغو» جداست ═══
+     *
+     * آن سلکت فقط `status` را می‌نویسد: نه زیرساخت را آزاد می‌کند، نه پولی
+     * برمی‌گرداند، نه به مشتری خبر می‌دهد. این‌جا مسیرِ کاملِ خاتمه است —
+     * همان `ProvisioningService::terminate` که رباتِ بله استفاده می‌کند
+     * (بستنِ صورت‌حساب + آزادسازیِ زیرساخت + اطلاع به مشتری) — به‌علاوهٔ
+     * اعتبارِ کیف پول. دو پیاده‌سازیِ خاتمه یعنی روزی یکی‌شان سروری را روی
+     * زیرساخت زنده جا می‌گذارد که اجاره‌اش پای ماست.
+     *
+     * ═══ قواعدِ پول ═══
+     *
+     * 🔴 سقفِ بازگشت = جمعِ پرداختیِ فاکتورهای همین سرویس. مدیر عدد را
+     * می‌تواند کم کند (بازگشتِ جزئی/pro-rata) ولی نه بیشتر — یک صفرِ اضافه
+     * در فیلدِ آزاد، پولِ واقعی است. بازگشتِ بیش از پرداختی اگر روزی لازم
+     * شد، ابزارِ جدایِ خودش را می‌خواهد نه شل‌کردنِ این سقف.
+     *
+     * 🔴 گاردِ دوباره‌پرداخت: برای هر سرویس فقط **یک** ردیفِ refund. دکمهٔ
+     * دوبار کلیک‌شده یا دو تبِ باز، نباید دو بار پول برگرداند. همان الگویی
+     * که مسیرِ لغوِ خودِ مشتری دارد.
+     *
+     * ⚠️ ترتیب: اول خاتمه، بعد اعتبار. خاتمه حتی وقتی زیرساخت پس بزند
+     * صورت‌حساب را می‌بندد و در صفِ تلاشِ دوباره می‌مانَد — پولِ مشتری نباید
+     * منتظرِ پاک‌شدنِ ماشین بماند.
+     */
+    public function cancelRefund(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $paidTotal = (int) $service->invoices()->where('status', 'paid')->sum('paid');
+
+        $data = $request->validate([
+            'amount' => ['required', 'integer', 'min:0', 'max:'.max(0, $paidTotal)],
+            'note'   => ['nullable', 'string', 'max:200'],
+        ], [
+            'amount.max' => 'سقفِ بازگشت، جمعِ پرداختیِ همین سرویس است: '.number_format($paidTotal).' تومان.',
+        ], ['amount' => 'مبلغ']);
+
+        $amount = (int) $data['amount'];
+        $customer = $service->customer;
+
+        if ($customer === null) {
+            return back()->withErrors('این سرویس مشتری ندارد — بازگشتِ وجه مقصدی ندارد.');
+        }
+
+        $alreadyRefunded = Schema::hasTable('credit_ledger')
+            && \App\Models\CreditEntry::where('source_type', Service::class)
+                ->where('source_id', $service->id)
+                ->where('reason', 'refund')->exists();
+
+        if ($amount > 0 && $alreadyRefunded) {
+            return back()->withErrors('برای این سرویس قبلاً بازگشتِ وجه ثبت شده — دوباره پرداخت نمی‌شود.');
+        }
+
+        $wasDead = $service->isDead();
+
+        if (! $wasDead) {
+            $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
+        }
+
+        if ($amount > 0) {
+            $balance = $customer->creditBalance('IRT');
+
+            \App\Models\CreditEntry::create([
+                'customer_id'   => $customer->id,
+                'currency_code' => 'IRT',
+                'amount'        => $amount,
+                'balance_after' => $balance + $amount,
+                'reason'        => 'refund',
+                'source_type'   => Service::class,
+                'source_id'     => $service->id,
+                'note'          => 'بازگشتِ وجه — لغوِ «'.mb_substr((string) $service->name, 0, 60).'» توسط مدیر'
+                    .(filled($data['note'] ?? null) ? ' — '.$data['note'] : ''),
+            ]);
+        }
+
+        \App\Models\ActivityLog::forService($service, 'terminate',
+            'لغو از پنل توسط «'.($request->user()->name ?: 'مدیر').'»'
+            .($amount > 0 ? ' + بازگشتِ '.number_format($amount).' تومان به کیف پول' : ' (بدونِ بازگشتِ وجه)'),
+            'staff', $request);
+
+        $msg = $wasDead
+            ? ($amount > 0 ? fa_num(number_format($amount)).' تومان به کیف پولِ مشتری برگشت.' : 'تغییری لازم نبود — سرویس از قبل بسته بود.')
+            : 'سرویس لغو شد'.($amount > 0 ? ' و '.fa_num(number_format($amount)).' تومان به کیف پولِ مشتری برگشت.' : ' (بدونِ بازگشتِ وجه).');
+
+        if (! $wasDead && isset($r) && ! $r->ok && ! $r->manual) {
+            $msg .= ' ⚠️ زیرساخت حذف را نپذیرفت؛ در صفِ تلاشِ دوباره مانْد.';
+        }
+
+        return back()->with('ok', $msg);
+    }
+
     public function setDue(Request $request, Service $service): RedirectResponse
     {
         $data = $request->validate([

@@ -453,6 +453,28 @@
             @if($s->isRecurring() && $s->status === 'active')
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
             @endif
+            {{-- ══ لغو + بازگشتِ وجه به کیف پول ══
+                 مسیرِ کاملِ خاتمه (زیرساخت هم آزاد می‌شود) + اعتبار — نه فقط
+                 تغییرِ وضعیت. مبلغ از جمعِ پرداختیِ همین سرویس پیش‌پر می‌شود و
+                 سقفش هم همان است؛ مدیر برای بازگشتِ جزئی کمش می‌کند. --}}
+            @php $svcPaid = (int) $s->invoices->where('status', 'paid')->sum('paid'); @endphp
+            <details class="svc-refund">
+              <summary style="color:#ff6b6b;cursor:pointer;font-size:12.5px;display:inline-block">لغو + بازگشت وجه</summary>
+              <form method="post" action="/admin/services/{{ $s->id }}/cancel-refund"
+                    style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;padding:8px;border:1px solid rgba(255,107,107,.3);border-radius:9px;background:rgba(255,107,107,.05)"
+                    data-confirm="سرویس «{{ $s->name }}» لغو و مبلغِ واردشده به کیف پول برگردد؟ داده‌های سرویس حذف می‌شود و برگشت‌پذیر نیست."
+                    data-confirm-danger>
+                @csrf
+                <input type="number" name="amount" dir="ltr" min="0" max="{{ $svcPaid }}" step="1000"
+                       value="{{ $svcPaid }}"
+                       style="width:120px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 8px;font:inherit;font-size:12px"
+                       title="سقف: جمعِ پرداختیِ همین سرویس ({{ number_format($svcPaid) }} تومان)">
+                <span style="font-size:11px;color:var(--dim)">تومان (سقف {{ fa_num(number_format($svcPaid)) }})</span>
+                <input type="text" name="note" placeholder="یادداشت (اختیاری)" maxlength="200"
+                       style="width:130px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:5px 8px;font:inherit;font-size:12px">
+                <button class="del" style="color:#ff6b6b" type="submit">لغو و بازگشت</button>
+              </form>
+            </details>
             @php
               /* 🔴 گیتِ قبلی `@if($s->server_id || $s->domain)` بود، و سرورِ ابری
                  هیچ‌کدام را ندارد: `server_id` هرگز (سرور پیش از خرید وجود ندارد) و

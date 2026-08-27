@@ -31,12 +31,52 @@
 
     <form method="get" action="/admin/customers" style="display:flex;gap:8px">
       <input type="hidden" name="status" value="{{ $status }}">
-      <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام…"
+      {{-- فیلترهای فعال باید با جستجوی تازه بمانند، وگرنه هر جستجو انتخاب‌ها را بی‌صدا پاک می‌کند --}}
+      @foreach(['service','verified','reseller','sort','from','to'] as $f)
+        @if(($filters[$f] ?? '') !== '' && $filters[$f] !== 'newest')<input type="hidden" name="{{ $f }}" value="{{ $filters[$f] }}">@endif
+      @endforeach
+      <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام و نام‌خانوادگی…"
              style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:240px;font:inherit">
       <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
     </form>
   </div>
 </div>
+
+@php $inp2 = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px'; @endphp
+{{-- ══ فیلترهای پیشرفته ══ --}}
+<form method="get" action="/admin/customers" class="ad-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+  <input type="hidden" name="status" value="{{ $status }}">
+  <input type="hidden" name="q" value="{{ $q }}">
+  <select name="service" style="{{ $inp2 }}">
+    <option value="">سرویس: همه</option>
+    <option value="with"    @selected(($filters['service'] ?? '') === 'with')>دارای سرویس فعال</option>
+    <option value="without" @selected(($filters['service'] ?? '') === 'without')>بدون سرویس فعال</option>
+  </select>
+  <select name="verified" style="{{ $inp2 }}">
+    <option value="">احراز هویت: همه</option>
+    <option value="yes" @selected(($filters['verified'] ?? '') === 'yes')>احرازشده</option>
+    <option value="no"  @selected(($filters['verified'] ?? '') === 'no')>احرازنشده</option>
+  </select>
+  <select name="reseller" style="{{ $inp2 }}">
+    <option value="">نوع: همه</option>
+    <option value="yes" @selected(($filters['reseller'] ?? '') === 'yes')>نماینده</option>
+    <option value="no"  @selected(($filters['reseller'] ?? '') === 'no')>عادی</option>
+  </select>
+  <label style="display:flex;align-items:center;gap:5px;color:var(--dim);font-size:12px">از
+    <input type="date" name="from" value="{{ $filters['from'] ?? '' }}" style="{{ $inp2 }}" dir="ltr"></label>
+  <label style="display:flex;align-items:center;gap:5px;color:var(--dim);font-size:12px">تا
+    <input type="date" name="to" value="{{ $filters['to'] ?? '' }}" style="{{ $inp2 }}" dir="ltr"></label>
+  <select name="sort" style="{{ $inp2 }}">
+    <option value="newest"   @selected(($filters['sort'] ?? 'newest') === 'newest')>جدیدترین</option>
+    <option value="oldest"   @selected(($filters['sort'] ?? '') === 'oldest')>قدیمی‌ترین</option>
+    <option value="services" @selected(($filters['sort'] ?? '') === 'services')>بیشترین سرویس</option>
+    <option value="invoices" @selected(($filters['sort'] ?? '') === 'invoices')>بیشترین فاکتور</option>
+  </select>
+  <button class="btn" type="submit" style="font-size:12.5px">اعمال فیلتر</button>
+  @if(($filters['service'] ?? '') !== '' || ($filters['verified'] ?? '') !== '' || ($filters['reseller'] ?? '') !== '' || ($filters['from'] ?? '') !== '' || ($filters['to'] ?? '') !== '' || ($filters['sort'] ?? 'newest') !== 'newest')
+    <a href="/admin/customers?status={{ $status }}{{ $q !== '' ? '&q='.urlencode($q) : '' }}" style="font-size:12px;color:#ff6b6b">حذف فیلترها</a>
+  @endif
+</form>
 
 
 @php
