@@ -63,11 +63,15 @@ class CloudLocation extends Model
      * «سرورِ مجازیِ شبکهٔ توزیع‌شده» را تبلیغ می‌کرد — قولِ VPS برای محصولی
      * که VPS نیست، و دو خطِ محصول دوباره قاطی می‌شدند.
      *
-     * قرارداد: کدِ مکانِ GPU همیشه به `-gpu` ختم می‌شود (امروز فقط global-gpu).
+     * قرارداد (گسترش‌یافته — شهریور ۱۴۰۵): هر کدی که «gpu» در خود دارد مالِ
+     * خطِ GPU است — global-gpu، و اسلاگ‌های کاتالوگِ حذف‌شدهٔ gpuaas و
+     * gpu-platform که محصولِ قلابی می‌فروختند (A100/H100 بدونِ زیرساخت) و
+     * پرسش‌های تیکتِ یک مشتریِ واقعی از همان‌ها آمده بود. هیچ شهرِ واقعی‌ای
+     * «gpu» در نامش ندارد، پس این گسترش چیزی را به‌غلط نمی‌گیرد.
      */
     public static function isGpuCode(?string $code): bool
     {
-        return str_ends_with(strtolower(trim((string) $code)), '-gpu');
+        return str_contains(strtolower(trim((string) $code)), 'gpu');
     }
 
     /** نامِ کشور به سه زبان — برای مکان‌هایی که برچسبِ دستی نخورده‌اند */

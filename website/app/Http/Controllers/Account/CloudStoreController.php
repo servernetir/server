@@ -964,6 +964,8 @@ class CloudStoreController extends Controller
             'planCards' => $planCards,
             'blockedCards' => $blockedCards,
             'planMoved' => $planMoved,
+            // خطِ GPU: فرم ساده‌تر — کلیدِ SSH و IPِ اضافه برای کانتینر بی‌معناست
+            'gpuMode' => $gpuMode,
             'selectedSlug' => $selectedSlug,
             'osCatalog' => $osCatalog,
             'appCatalog' => $appCatalog,

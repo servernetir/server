@@ -415,7 +415,8 @@
             @unless($s->domain || $svcIp)<span style="color:var(--dim)">—</span>@endunless
           </td>
           <td>{{ $s->cycleLabel() }}</td>
-          <td>{{ $money($s->total()) }}</td>
+          {{-- ساعتی: نرخِ واقعیِ کسر، نه معادلِ ماهانه که هرگز فاکتور نمی‌شود --}}
+          <td>@if($s->isHourly()){{ number_format((int) $s->hourly_rate_irt) }} ت/ساعت@else{{ $money($s->total()) }}@endif</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
           {{-- 🔴 سرویسِ **زندهٔ بی‌سررسید** یعنی سرویسِ رایگانِ ابدی:
                `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس
@@ -425,6 +426,10 @@
           <td dir="ltr" style="color:var(--muted)">
             @if($s->next_due_at)
               {{ sdate($s->next_due_at) }}
+            @elseif($s->isHourly())
+              {{-- ساعتی عمداً سررسید ندارد: صورت‌حسابش متر است، نه فاکتورِ دوره‌ای.
+                   دکمهٔ «تنظیم» این‌جا یعنی دعوت به فاکتورِ دوبله. --}}
+              <span style="color:var(--dim)" title="صورت‌حسابِ ساعتی از اعتبار کسر می‌شود؛ سررسیدِ دوره‌ای ندارد">ساعتی</span>
             @elseif(! $s->isDead())
               <form method="post" action="/admin/services/{{ $s->id }}/due" style="display:flex;gap:5px;align-items:center"
                     data-confirm="سررسیدِ این سرویس تنظیم شود؟ از این پس فاکتورِ تمدید و یادآوری می‌گیرد.">

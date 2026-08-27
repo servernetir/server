@@ -458,6 +458,15 @@ class Service extends Model
 
     public function cycleLabel(): string
     {
+        /*
+        | 🔴 سرویسِ ساعتی cycle=monthly دارد (برای ساختارِ داده) ولی صورت‌حسابش
+        | متر است نه فاکتورِ ماهانه. نمایشِ «ماهانه» به مدیر دروغ می‌گفت —
+        | گزارشِ کارفرما: «کاربر ساعتی خریده ولی در پنل ماهانه نوشته بود».
+        */
+        if ($this->isHourly()) {
+            return app()->getLocale() === 'fa' ? 'ساعتی' : 'Hourly';
+        }
+
         return self::labelFor((string) $this->cycle);
     }
 

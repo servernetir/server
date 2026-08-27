@@ -709,10 +709,13 @@
       </summary>
       <div class="cvb-adv-b">
 
+        @unless($gpuMode ?? false)
         @error('ssh_key_id')<div class="dm-note danger">{{ $message }}</div>@enderror
         @error('ssh_key_new')<div class="dm-note danger">{{ $message }}</div>@enderror
 
-        {{-- ورود با کلید SSH --}}
+        {{-- ورود با کلید SSH — در خطِ GPU رندر نمی‌شود: این محصول SSH ندارد
+             (دسترسی با نشانی و توکن است) و فرمی که کلیدِ SSH بخواهد، دربارهٔ
+             خودِ محصول دروغ می‌گوید. --}}
         <label class="cvb-field">
           <span>{{ __('ui.cvb_ssh') }} — {{ __('ui.cvb_free') }}</span>
           <select name="ssh_key_id" id="cvb-ssh-pick">
@@ -749,7 +752,9 @@
         {{-- IP اضافه — فقط وقتی این اسلاگ واقعاً بتواند تحویلش دهد. کارت با
              عوض‌شدنِ پلن پنهان/آشکار می‌شود، وگرنه انتخابی می‌ماند که سرِ ثبتِ
              سفارش رد می‌شود. --}}
-        @if(collect($addonMap)->contains(true))
+        @endunless
+
+        @if(! ($gpuMode ?? false) && collect($addonMap)->contains(true))
         <div id="cvb-ip-box" @if(! $addonOk) hidden @endif>
           @error('extra_ipv4')<div class="dm-note danger">{{ $message }}</div>@enderror
           <label class="cvb-field">

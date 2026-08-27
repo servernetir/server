@@ -404,4 +404,55 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame(95_000, $c->creditBalance('IRT'));
     }
 
+    // ═══════════════ اطلاع‌رسانیِ ساعتی (چکِ شهریور ۱۴۰۵) ═══════════════
+
+    /**
+     * 🔴 وقتی اعتبار زیرِ آستانه می‌افتد، مشتری باید **یک بار** خبردار شود —
+     * نه هرگز (وضعِ قبلی: سرور بی‌صدا می‌مرد) و نه هر ساعت (توهمِ پایش).
+     */
+    public function test_low_credit_warns_the_customer_exactly_once(): void
+    {
+        $c = $this->customer(4 * self::RATE + 100);   // بعد از یک کسر: <۴ ساعت
+        $s = $this->service($c, ['last_metered_at' => now()->subMinutes(60)]);
+        $this->machine($s);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $s->refresh();
+        $this->assertNotNull(data_get($s->provision_meta, 'low_credit_warned_at'),
+            'هشدارِ اعتبارِ کم ثبت نشد — مشتری بی‌خبر می‌مانَد.');
+
+        // ساعتِ بعد: هشدارِ دوباره نه
+        $stamp = data_get($s->provision_meta, 'low_credit_warned_at');
+        $s->forceFill(['last_metered_at' => now()->subMinutes(61)])->save();
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame($stamp, data_get($s->fresh()->provision_meta, 'low_credit_warned_at'),
+            'هشدار هر ساعت تکرار شد.');
+    }
+
+    /** شارژِ دوباره، مهرِ هشدار را پاک می‌کند تا افتِ بعدی دوباره خبر بدهد */
+    public function test_topping_up_re_arms_the_low_credit_warning(): void
+    {
+        $c = $this->customer(4 * self::RATE + 100);
+        $s = $this->service($c, ['last_metered_at' => now()->subMinutes(60)]);
+        $this->machine($s);
+
+        $this->artisan('cloud:meter')->assertOk();
+        $this->assertNotNull(data_get($s->fresh()->provision_meta, 'low_credit_warned_at'));
+
+        // شارژِ بزرگ
+        \App\Models\CreditEntry::create([
+            'customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => 100 * self::RATE,
+            'balance_after' => 0, 'reason' => 'topup', 'source_type' => \App\Models\Customer::class,
+            'source_id' => $c->id, 'note' => 'test',
+        ]);
+
+        $s->forceFill(['last_metered_at' => now()->subMinutes(61)])->save();
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertNull(data_get($s->fresh()->provision_meta, 'low_credit_warned_at'),
+            'مهرِ هشدار بعد از شارژ پاک نشد — افتِ بعدی بی‌خبر می‌مانَد.');
+    }
+
 }
