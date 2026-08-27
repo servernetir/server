@@ -55,6 +55,21 @@ class CloudLocation extends Model
             || preg_match('/-(shared|dedicated|intel|amd|promo|hi-cpu)$/', $code) === 1;
     }
 
+    /**
+     * مکانِ خطِ محصولِ GPU — صفحهٔ خودش /gpu است، نه /cloud/{code}.
+     *
+     * همان الگوی isLegacyCode: از فهرستِ عمومیِ مکان‌ها و sitemap بیرون
+     * می‌مانَد و /cloud/{code}اش ۳۰۱ به /gpu است. بی‌این، فوترِ سراسری
+     * «سرورِ مجازیِ شبکهٔ توزیع‌شده» را تبلیغ می‌کرد — قولِ VPS برای محصولی
+     * که VPS نیست، و دو خطِ محصول دوباره قاطی می‌شدند.
+     *
+     * قرارداد: کدِ مکانِ GPU همیشه به `-gpu` ختم می‌شود (امروز فقط global-gpu).
+     */
+    public static function isGpuCode(?string $code): bool
+    {
+        return str_ends_with(strtolower(trim((string) $code)), '-gpu');
+    }
+
     /** نامِ کشور به سه زبان — برای مکان‌هایی که برچسبِ دستی نخورده‌اند */
     public const COUNTRIES = [
         // شبکهٔ توزیع‌شدهٔ GPU — مکانِ جغرافیایی ندارد؛ XX کدِ رزروِ ISO است

@@ -388,7 +388,8 @@ class SiteController extends Controller
                 | فیلترِ بالا رد می‌شود. صفحه‌اش ۳۰۱ به صفحهٔ کشور است؛
                 | sitemap فقط URLِ ۲۰۰ اعلام می‌کند.
                 */
-                if (\App\Models\CloudLocation::isLegacyCode((string) $code)) {
+                if (\App\Models\CloudLocation::isLegacyCode((string) $code)
+                    || \App\Models\CloudLocation::isGpuCode((string) $code)) {
                     continue;
                 }
                 $add('cloud.location', $code);

@@ -464,6 +464,11 @@ class CloudCatalogController extends Controller
             return redirect()->to(\App\Services\Cloud\CloudCountry::url($cc), 301);
         }
 
+        // مکانِ GPU صفحهٔ محصولِ خودش را دارد — همان قاعدهٔ legacy، مقصدِ /gpu
+        if (CloudLocation::isGpuCode($location)) {
+            return redirect()->to(lroute('gpu'), 301);
+        }
+
         $loc = CloudLocation::query()
             ->where('code', $location)
             ->where('is_active', true)
@@ -781,7 +786,7 @@ class CloudCatalogController extends Controller
             }
             // کدِ legacy صفحهٔ مکان ندارد (۳۰۱ به صفحهٔ کشور) — در «مکان‌های
             // نزدیک» جایی ندارد وگرنه چند انکرِ هم‌مقصدِ تکراری می‌ساخت.
-            if (CloudLocation::isLegacyCode($code)) {
+            if (CloudLocation::isLegacyCode($code) || CloudLocation::isGpuCode($code)) {
                 continue;
             }
             $other = $locations->get($code);
@@ -995,6 +1000,10 @@ class CloudCatalogController extends Controller
         */
         if (CloudLocation::isLegacyCode($code)) {
             return \App\Services\Cloud\CloudCountry::url(substr($code, 0, 2));
+        }
+
+        if (CloudLocation::isGpuCode($code)) {
+            return lroute('gpu');
         }
 
         $prefix = AppServiceProvider::LOCALES[app()->getLocale()] ?? '';

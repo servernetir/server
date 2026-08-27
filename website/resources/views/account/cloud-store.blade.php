@@ -87,6 +87,10 @@
   $okOs  = (array) ($imageMap[$curSlug]['os'] ?? []);
   $okApp = (array) ($imageMap[$curSlug]['app'] ?? []);
 
+  // پلنِ بی‌سیستم‌عامل (GPU) باید روی زبانهٔ «برنامه» باز شود، وگرنه مشتری
+  // یک زبانهٔ خالیِ «سیستم‌عامل» می‌بیند و گزینهٔ واقعی پشتِ کلیکِ دوم است.
+  $startTab = ($okOs === [] && $okApp !== []) ? 'app' : 'os';
+
   // پیش‌فرض سیستم‌عامل: آنچه در آدرس آمده (چیپِ شهر حملش می‌کند)، وگرنه
   // اوبونتو اگر بود، وگرنه اولین گزینهٔ ممکن
   $defImage = in_array($wantImage, array_merge($okOs, $okApp), true)
@@ -609,15 +613,15 @@
                زبانه» می‌گفت: یک واژه دو نقش، و کاربر نمی‌فهمید گروه چیست. --}}
           <div class="cvb-billrow">
             <div class="cvb-segs" role="tablist" aria-label="{{ __('ui.cvb_os_group') }}">
-              <button type="button" class="cvb-seg on" data-tab="os" role="tab" aria-selected="true" aria-controls="cvb-pane-os" id="cvb-tab-os">{{ __('ui.cvb_os') }}</button>
-              <button type="button" class="cvb-seg" data-tab="app" role="tab" aria-selected="false" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
+              <button type="button" class="cvb-seg @if($startTab === 'os') on @endif" data-tab="os" role="tab" aria-selected="{{ $startTab === 'os' ? 'true' : 'false' }}" aria-controls="cvb-pane-os" id="cvb-tab-os">{{ __('ui.cvb_os') }}</button>
+              <button type="button" class="cvb-seg @if($startTab === 'app') on @endif" data-tab="app" role="tab" aria-selected="{{ $startTab === 'app' ? 'true' : 'false' }}" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
             </div>
           </div>
 
           {{-- گزینه‌های ناسازگار با پلن انتخابی پنهان می‌شوند (سمت سرور محاسبه شده،
                جاوااسکریپت فقط با عوض شدن پلن به‌روزش می‌کند). گزینه‌ای که تحویلش
                نشدنی است هرگز نباید دیده شود. --}}
-          <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os">
+          <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os" @if($startTab !== 'os') hidden @endif>
             @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($osByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -639,7 +643,7 @@
             <p class="cvb-empty" data-empty="os" hidden>{{ __('ui.cvb_os_empty') }}</p>
           </div>
 
-          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" hidden>
+          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif>
             @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($appByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">

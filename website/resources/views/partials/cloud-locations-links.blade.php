@@ -14,7 +14,9 @@
               ->reject(fn ($l) => isset($clExcept) && (string) $l->code === (string) $clExcept)
               // ممیزی ۷: کدِ legacy صفحهٔ مکان ندارد (۳۰۱ به صفحهٔ کشور) —
               // لینک‌دادن به ریدایرکت، همان چیزی است که این پارشال آمده بود حل کند
-              ->reject(fn ($l) => \App\Models\CloudLocation::isLegacyCode((string) $l->code));
+              ->reject(fn ($l) => \App\Models\CloudLocation::isLegacyCode((string) $l->code))
+              // مکانِ GPU صفحهٔ /cloud ندارد؛ محصولش /gpu است (خطِ محصولِ جدا)
+              ->reject(fn ($l) => \App\Models\CloudLocation::isGpuCode((string) $l->code));
       }
   } catch (\Throwable) {
       $clLocs = collect();

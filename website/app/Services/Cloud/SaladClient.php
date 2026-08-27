@@ -99,7 +99,7 @@ class SaladClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            // کنسولِ تحتِ وب ندارند؛ دسترسی از راهِ SSH به خودِ نمونه است.
+            // کنسولِ تحتِ وب ندارند؛ دسترسی از راهِ نشانیِ HTTPS و APIِ برنامه است.
             'console'        => false,
             // «نصبِ دوبارهٔ سیستم‌عامل» این‌جا وجود ندارد.
             'rebuild'        => false,
@@ -109,11 +109,11 @@ class SaladClient implements CloudProvider
             'resize'         => false,
             'snapshot'       => false,
             'metrics'        => false,
-            // رمزِ root وجود ندارد؛ ورود با کلیدِ SSH است.
+            // رمزِ root وجود ندارد؛ توکنِ برنامه هنگامِ ساخت تزریق و یک بار نشان داده می‌شود.
             'reset_password' => false,
             'ipv6'           => false,
             'rescue'         => false,
-            // کلید در لحظهٔ ساخت تزریق می‌شود، نه در «حسابِ ما نزدِ زیرساخت».
+            // کلیدِ سطحِ حساب نداریم؛ هرچه لازم است هنگامِ ساخت تزریق می‌شود.
             'ssh_key'        => false,
             'extra_ip'       => false,
         ];
@@ -136,7 +136,7 @@ class SaladClient implements CloudProvider
 
     public function resetPassword(string $ref): array
     {
-        return ['ok' => false, 'message' => 'این سرور رمزِ root ندارد؛ دسترسی با کلیدِ SSH است.', 'root_password' => null];
+        return ['ok' => false, 'message' => 'این سرویس رمزِ root ندارد؛ دسترسی با نشانیِ HTTPS و توکنِ اختصاصی است که هنگامِ تحویل ساخته می‌شود.', 'root_password' => null];
     }
 
     public function console(string $ref): array
