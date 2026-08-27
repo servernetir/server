@@ -109,6 +109,7 @@ class ExitInfraController extends Controller
                 'country_name'  => $country['fa'] ?? ($iso !== '' ? $iso : 'ایران (بدونِ اکسیت)'),
                 'flag'          => $country['flag'] ?? ($iso === '' ? '🇮🇷' : '🏳️'),
                 'ipv4'          => (string) $inst->ipv4,
+                'kind'          => ($inst->meta['kind'] ?? 'qemu') === 'lxc' ? 'lxc' : 'qemu',
                 'port'          => $port,
                 'public_host'   => $public,
                 'status_label'  => $inst->statusLabel('fa'),
@@ -236,12 +237,26 @@ class ExitInfraController extends Controller
                     'name'       => (string) ($s['name'] ?? $ref),
                     'status'     => (string) ($s['status'] ?? ''),
                     'ipv4'       => (string) ($s['ipv4'] ?? ''),
+                    // نوع و نودِ واقعی — کانتینر و ماشینِ مجازی دو مسیرِ APIِ
+                    // متفاوت دارند و بی‌این تمایز، عملیاتِ بعدی روی ردیفِ
+                    // اشتباه می‌رود.
+                    'kind'       => (string) ($s['kind'] ?? 'qemu'),
+                    'node'       => (string) ($s['node'] ?? ''),
                     'registered' => $registered->has($ref),
                     'protected'  => $this->isProtectedVmid($ref),
                 ];
             })->values()->all();
 
-            $scan = ['ok' => (bool) ($res['ok'] ?? false), 'message' => (string) ($res['message'] ?? ''), 'servers' => $servers];
+            $scan = [
+                'ok'      => (bool) ($res['ok'] ?? false),
+                'message' => (string) ($res['message'] ?? ''),
+                'servers' => $servers,
+                // شمارشِ تفکیکی: «۰ کانتینر» با «۰ ماشین» یک معنی ندارد و
+                // بی‌این عدد، فهرستِ خالی از خرابیِ دسترسی قابلِ‌تشخیص نیست.
+                'vms'     => count(array_filter($servers, fn ($s) => $s['kind'] !== 'lxc')),
+                'cts'     => count(array_filter($servers, fn ($s) => $s['kind'] === 'lxc')),
+                'nodes'   => array_values(array_unique(array_filter(array_column($servers, 'node')))),
+            ];
         }
 
         return view('admin.exit-infra-import', [
@@ -277,6 +292,9 @@ class ExitInfraController extends Controller
             'country'  => ['nullable', 'string', 'size:2'],
             'port'     => ['nullable', 'integer', 'min:1', 'max:65535'],
             'status'   => ['nullable', 'string', 'max:16'],
+            // از اسکن می‌آیند؛ در ثبتِ دستی خالی‌اند و پیش‌فرض می‌گیرند.
+            'kind'     => ['nullable', 'string', 'in:qemu,lxc'],
+            'node'     => ['nullable', 'string', 'max:64'],
         ]);
 
         $ref = trim((string) ($data['ref'] ?? ''));
@@ -304,6 +322,18 @@ class ExitInfraController extends Controller
 
         if (! empty($data['port'])) {
             $meta['public_port'] = (int) $data['port'];
+        }
+
+        /*
+         * نوع و نود ذخیره می‌شوند تا در پنل دیده شوند و ردیفِ کانتینر با ردیفِ
+         * ماشینِ مجازی اشتباه نشود. خودِ درایور برای عملیات به این‌ها تکیه
+         * **نمی‌کند** — هر بار از `/cluster/resources` می‌پرسد — چون ماشین
+         * می‌تواند بینِ نودها مهاجرت کند و مقدارِ ذخیره‌شده کهنه شود.
+         */
+        $meta['kind'] = in_array($data['kind'] ?? '', ['qemu', 'lxc'], true) ? $data['kind'] : 'qemu';
+
+        if (filled($data['node'] ?? null)) {
+            $meta['node'] = (string) $data['node'];
         }
 
         $status = in_array($data['status'] ?? '', ['running', 'off', 'building'], true)

@@ -90,7 +90,12 @@
           @foreach($rows as $r)
             <tr>
               <td style="white-space:nowrap">{{ $r['flag'] }} {{ $r['country_name'] }}@if($r['protected'])<span title="خطِ‌قرمز" style="color:#ff6b6b"> 🔴</span>@endif</td>
-              <td dir="ltr" style="font-size:12.5px">{{ $r['ipv4'] !== '' ? $r['ipv4'] : '—' }}</td>
+              <td dir="ltr" style="font-size:12.5px">
+                {{ $r['ipv4'] !== '' ? $r['ipv4'] : '—' }}
+                @if(($r['kind'] ?? 'qemu') === 'lxc')
+                  <span dir="rtl" class="ad-badge" style="background:rgba(167,139,250,.16);color:#a78bfa;font-size:11px;margin-inline-start:6px">کانتینر</span>
+                @endif
+              </td>
               <td dir="ltr" style="font-size:12.5px;color:var(--muted)">{{ $r['public_host'] !== '' ? $r['public_host'] : '—' }}</td>
               <td>
                 @if($r['protected'])
