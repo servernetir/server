@@ -73,6 +73,10 @@ APP_FILES="
 app/Models/CloudPlan.php
 app/Models/CloudLocation.php
 app/Services/Cloud/CloudProvisioner.php
+app/Services/Cloud/CloudCountry.php
+app/Services/SiteMenu.php
+app/Http/Controllers/Account/CloudStoreController.php
+app/Http/Controllers/CloudCatalogController.php
 app/Services/Cloud/CloudNaming.php
 app/Services/Cloud/CloudProvider.php
 app/Services/Cloud/SaladOperations.php
@@ -84,6 +88,8 @@ app/Http/Controllers/GpuController.php
 app/Http/Controllers/SiteController.php
 app/Http/Controllers/Admin/SettingsController.php
 resources/views/pages/gpu.blade.php
+resources/views/account/cloud-store.blade.php
+resources/views/partials/cloud-locations-links.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
 lang/fa/ui.php
@@ -244,6 +250,19 @@ g app/Services/Cloud/SaladOperations.php "public const APPS"
 g app/Services/Cloud/SaladOperations.php "'networking'"
 g app/Services/Cloud/CloudProvisioner.php "hostname"
 g app/Models/CloudLocation.php "'XX'"
+
+# جداییِ خطِ GPU از VPS — هر تکه بیفتد، دو خطِ محصول دوباره قاطی می‌شوند
+g app/Models/CloudLocation.php "isGpuCode"
+g app/Http/Controllers/Account/CloudStoreController.php "gpuMode"
+g app/Http/Controllers/CloudCatalogController.php "isGpuCode"
+g app/Services/SiteMenu.php "'XX'"
+g resources/views/account/cloud-store.blade.php "startTab"
+g resources/views/partials/cloud-locations-links.blade.php "isGpuCode"
+g resources/views/pages/gpu.blade.php "location=global-gpu"
+g resources/views/pages/gpu.blade.php "gpu_how_t"
+g lang/fa/ui.php "gpu_how1_t"
+g lang/en/ui.php "gpu_how1_t"
+g lang/tr/ui.php "gpu_how1_t"
 
 # کلیدهای زبان — هر سه فایل، وگرنه یک زبان متنِ خام نشان می‌دهد
 for L in fa en tr; do
