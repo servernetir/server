@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-478697f}"
+MINE="${1:-b9ca0e6}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -77,6 +77,7 @@ app/Models/Service.php
 app/Services/Billing/UndeliveredRefund.php
 app/Http/Controllers/Admin/ServiceController.php
 app/Http/Controllers/Account/ServiceController.php
+app/Http/Controllers/Admin/ProductController.php
 app/Services/Cloud/CloudProvisioner.php
 app/Console/Commands/CloudMeterHourly.php
 app/Http/Controllers/CatalogController.php
@@ -270,6 +271,11 @@ g app/Models/Service.php "isHourly"
 g app/Services/Billing/UndeliveredRefund.php "maybeRefund"
 g app/Http/Controllers/Admin/ServiceController.php "UndeliveredRefund"
 g app/Http/Controllers/Account/ServiceController.php "UndeliveredRefund"
+g app/Http/Controllers/Admin/ProductController.php "shellPromised"
+g resources/views/account/cloud-server.blade.php "cs_gpu_docs"
+g lang/fa/ui.php "cs_gpu_docs"
+g lang/en/ui.php "cs_gpu_docs"
+g lang/tr/ui.php "cs_gpu_docs"
 g app/Http/Controllers/CatalogController.php "GONE_TO_GPU"
 g app/Models/CloudInstance.php "accessHost"
 g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
