@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-5fbb55d}"
+MINE="${1:-3012fe4}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -95,6 +95,7 @@ app/Services/Bale/Admin/AdminBaleWorker.php
 app/Services/Bale/Admin/AdminBaleCommands.php
 app/Services/Bale/Admin/AdminBaleScreens.php
 app/Services/Payment/PaymentService.php
+app/Services/Payment/CryptoIssuer.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
 app/Http/Controllers/Account/CloudServerController.php
@@ -425,6 +426,7 @@ g app/Models/Payment.php "pay_desc_topup"
 g app/Console/Commands/RunServiceLifecycle.php "ui.act_auto_suspend"
 g app/Services/Cloud/CloudProvisioner.php "ui.act_prov_ordered"
 g routes/web.php "crypto-status"
+g app/Services/Payment/CryptoIssuer.php "pricing_usd_rate_override"
 
 # محافظِ مالیِ ساعتی (درسِ sn-svc-76) — فرمان‌ها + کرون + آژیرِ متر
 g app/Console/Commands/CloudHourlyAudit.php "UNDERWATER"
