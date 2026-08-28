@@ -261,12 +261,25 @@ class CloudProvisioner
         ]);
 
         if (! ($result['ok'] ?? false)) {
-            $instance->update(['status' => 'error', 'last_error' => mb_substr((string) $result['message'], 0, 500)]);
+            /*
+            | 🔴 علتِ واقعی در `raw.detail` است، نه فقط در `message`.
+            |
+            | درایورهایی که پیام را فارسی می‌پیچند (Proxmox: «ساختِ ماشین از
+            | قالب انجام نشد») متنِ خامِ زیرساخت را در detail می‌گذارند. تا
+            | امروز همین‌جا دور ریخته می‌شد — سرویس #74 با «قالب انجام نشد»ِ
+            | خالی ماند و مدیر هیچ راهی برای فهمیدنِ علت نداشت؛ و قرنطینهٔ
+            | خودکار هم که روی همین متن مچ می‌کند، برای آن درایورها هرگز
+            | نمی‌توانست permission/quota را ببیند.
+            */
+            $detail = trim((string) ($result['raw']['detail'] ?? ''));
+            $why = trim((string) $result['message'].($detail !== '' ? ' — '.$detail : ''));
+
+            $instance->update(['status' => 'error', 'last_error' => mb_substr($why, 0, 500)]);
 
             // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
-            $this->quarantineProvider($plan, (string) $result['message']);
+            $this->quarantineProvider($plan, $why);
 
-            $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$result['message'], 0, 290));
+            $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$why, 0, 290));
 
             return false;
         }
