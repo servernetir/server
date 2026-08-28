@@ -155,28 +155,54 @@
            ⚠️ اگر هیچ حسابی ثبت نشده باشد، به‌جای کارتِ خرابِ بی‌مقصد، همان
            «به‌زودی» را نشان می‌دهیم — گزینه‌ای که پول را به ناکجا بفرستد از
            نبودِ گزینه بدتر است. --}}
-      @forelse($offline as $acc)
-        <label class="pm-card" data-m="off{{ $acc->id }}">
-          <input type="radio" name="pm" value="off{{ $acc->id }}" hidden>
-          <span class="pm-badge {{ $acc->isCrypto() ? 'cy' : 'bk' }}">
-            <svg class="icon"><use href="#i-{{ $acc->isCrypto() ? 'coins' : 'db' }}"/></svg>
-          </span>
+      @php
+        /*
+        | 🔴 همهٔ حساب‌های بانکیِ ارزی **یک** کارت‌اند (خواستِ کارفرما، ۶ شهریور):
+        | کارتِ جدا به‌ازای هر حساب هم صفحه را شلوغ می‌کرد هم برچسبِ آزادِ
+        | مدیر (که فارسی بود) روی صفحهٔ انگلیسی می‌نشست. روی کارت فقط متنِ
+        | ترجمه‌شده + فهرستِ ارزها (لاتین)؛ جزئیاتِ هر حساب در پنلِ پایین.
+        | متنِ آزادِ مدیر (label/note/نامِ بانک) روی زبانِ غیرفارسی فقط اگر
+        | حرفِ فارسی نداشته باشد چاپ می‌شود.
+        */
+        $wireAccounts  = $offline->reject(fn ($a) => $a->isCrypto())->values();
+        $offlineCrypto = $offline->filter(fn ($a) => $a->isCrypto())->values();
+        $latinOk = fn ($t) => app()->getLocale() === 'fa'
+            || preg_match('/[\x{0600}-\x{06FF}]/u', (string) $t) !== 1;
+      @endphp
+
+      @if($wireAccounts->isNotEmpty())
+        <label class="pm-card" data-m="wire">
+          <input type="radio" name="pm" value="wire" hidden>
+          <span class="pm-badge bk"><svg class="icon"><use href="#i-db"/></svg></span>
           <span class="pm-tt">
-            <b>{{ $acc->isCrypto() ? __('ui.inv_crypto') : __('ui.inv_wire_title') }}</b>
-            <small dir="ltr">{{ $acc->displayLabel() }}</small>
+            <b>{{ __('ui.inv_wire_title') }}</b>
+            <small dir="ltr">{{ $wireAccounts->pluck('currency_code')->map(fn ($c) => strtoupper($c))->unique()->implode(' · ') }} · SWIFT/SEPA</small>
           </span>
           <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
         </label>
-      @empty
-        @if(app()->getLocale() !== 'fa')
-          <label class="pm-card is-off" data-m="soon" title="{{ __('ui.inv_soon') }}">
-            <input type="radio" name="pm" value="soon" hidden disabled>
-            <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
-            <span class="pm-tt"><b>{{ __('ui.inv_wire_title') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
-            <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
-          </label>
-        @endif
-      @endforelse
+      @endif
+
+      @foreach($offlineCrypto as $acc)
+        <label class="pm-card" data-m="off{{ $acc->id }}">
+          <input type="radio" name="pm" value="off{{ $acc->id }}" hidden>
+          <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
+          <span class="pm-tt">
+            <b>{{ __('ui.inv_crypto') }}</b>
+            {{-- برچسبِ آزادِ مدیر فقط روی فارسی؛ وگرنه برچسبِ خودکارِ لاتین --}}
+            <small dir="ltr">{{ $latinOk($acc->label) ? $acc->displayLabel() : strtoupper($acc->currency_code).' · '.strtoupper((string) $acc->network) }}</small>
+          </span>
+          <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+        </label>
+      @endforeach
+
+      @if($offline->isEmpty() && app()->getLocale() !== 'fa')
+        <label class="pm-card is-off" data-m="soon" title="{{ __('ui.inv_soon') }}">
+          <input type="radio" name="pm" value="soon" hidden disabled>
+          <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
+          <span class="pm-tt"><b>{{ __('ui.inv_wire_title') }}</b><small>{{ __('ui.inv_soon_activate') }}</small></span>
+          <span class="pm-soon">{{ __('ui.inv_soon') }}</span>
+        </label>
+      @endif
 
       {{-- رمزارز — درگاهِ خودمان.
            ⚠️ دارایی‌ای که **قیمتش را نداریم** اصلاً این‌جا نیست؛ حدس زدنِ نرخ
@@ -266,10 +292,64 @@
       </div>
     @endif
 
-    {{-- پنلِ هر مقصدِ ارزی/رمزارزی --}}
-    @foreach($offline as $acc)
+    {{-- ═══ حوالهٔ بین‌المللی — یک پنل برای همهٔ حساب‌های بانکی ═══ --}}
+    @if($wireAccounts->isNotEmpty())
+      <div class="pm-pane" id="pane-wire" hidden>
+        <div class="pm-pane-h"><b>{{ __('ui.inv_wire_pane') }}</b></div>
+
+        @if($pendingBank)
+          <div class="pm-note" style="color:var(--warn)">
+            {!! __('ui.inv_bank_pending', ['ref' => '<b dir="ltr">'.e($pendingBank->reference).'</b>']) !!}
+          </div>
+        @else
+          @foreach($wireAccounts as $acc)
+            <div class="bank-box" @if(! $loop->first) style="margin-top:10px" @endif>
+              @if($wireAccounts->count() > 1)
+                <div><span>{{ __('ui.inv_wire_pick') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}{{ $acc->bank_name && $latinOk($acc->bank_name) ? ' · '.$acc->bank_name : '' }}</b></div>
+              @endif
+              @if($acc->holder && $latinOk($acc->holder))<div><span>{{ __('ui.inv_bank_holder') }}</span><b dir="ltr">{{ $acc->holder }}</b></div>@endif
+              @if($acc->bank_name && $latinOk($acc->bank_name))<div><span>{{ __('ui.inv_bank_name') }}</span><b dir="ltr">{{ $acc->bank_name }}</b></div>@endif
+              @if($acc->iban)<div><span>IBAN</span><b dir="ltr" class="copyable">{{ $acc->iban }}</b></div>@endif
+              @if($acc->swift)<div><span>SWIFT / BIC</span><b dir="ltr" class="copyable">{{ $acc->swift }}</b></div>@endif
+              @if($acc->account_no)<div><span>{{ __('ui.inv_bank_account') }}</span><b dir="ltr" class="copyable">{{ $acc->account_no }}</b></div>@endif
+              @if($acc->country)<div><span>{{ __('ui.inv_wire_country') }}</span><b dir="ltr">{{ $acc->country }}</b></div>@endif
+              <div><span>{{ __('ui.inv_wire_currency') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
+              @if($acc->note && $latinOk($acc->note))<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $acc->note }}</b></div>@endif
+            </div>
+          @endforeach
+
+          <p class="pm-note">
+            {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
+          </p>
+
+          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+            @csrf
+            @if($wireAccounts->count() === 1)
+              <input type="hidden" name="payment_account_id" value="{{ $wireAccounts->first()->id }}">
+            @else
+              <select name="payment_account_id" class="bank-input" dir="ltr">
+                @foreach($wireAccounts as $acc)
+                  <option value="{{ $acc->id }}">{{ strtoupper($acc->currency_code) }} — {{ $acc->iban ?: $acc->account_no }}</option>
+                @endforeach
+              </select>
+            @endif
+            <input type="text" name="reference" required maxlength="120" dir="ltr" class="bank-input"
+                   placeholder="{{ __('ui.inv_wire_ref_ph') }}">
+            {{-- مبلغِ فرستاده‌شده جداست چون می‌تواند با ارزِ فاکتور فرق کند --}}
+            <input type="text" name="sent_amount" inputmode="decimal" dir="ltr" class="bank-input"
+                   placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => $wireAccounts->pluck('currency_code')->map(fn ($c) => strtoupper($c))->unique()->implode('/')]) }}">
+            <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
+                   placeholder="{{ __('ui.inv_wire_from_ph') }}">
+            <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
+          </form>
+        @endif
+      </div>
+    @endif
+
+    {{-- پنلِ هر مقصدِ رمزارزیِ دستی --}}
+    @foreach($offlineCrypto as $acc)
       <div class="pm-pane" id="pane-off{{ $acc->id }}" hidden>
-        <div class="pm-pane-h"><b>{{ $acc->isCrypto() ? __('ui.inv_crypto_pane') : __('ui.inv_wire_pane') }}</b></div>
+        <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }}</b></div>
 
         @if($pendingBank)
           <div class="pm-note" style="color:var(--warn)">
@@ -277,27 +357,16 @@
           </div>
         @else
           <div class="bank-box">
-            @if($acc->isCrypto())
-              {{-- 🔴 شبکه **بالای** آدرس و برجسته: انتقالِ روی شبکهٔ اشتباه
-                   برگشت‌ناپذیر است و کاربر معمولاً آدرس را کپی می‌کند و می‌رود. --}}
-              <div><span>{{ __('ui.inv_cy_asset') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
-              <div><span>{{ __('ui.inv_cy_network') }}</span><b dir="ltr">{{ $acc->network }}</b></div>
-              <div><span>{{ __('ui.inv_cy_address') }}</span><b dir="ltr" class="copyable">{{ $acc->address }}</b></div>
-            @else
-              @if($acc->holder)<div><span>{{ __('ui.inv_bank_holder') }}</span><b dir="ltr">{{ $acc->holder }}</b></div>@endif
-              @if($acc->bank_name)<div><span>{{ __('ui.inv_bank_name') }}</span><b dir="ltr">{{ $acc->bank_name }}</b></div>@endif
-              @if($acc->iban)<div><span>IBAN</span><b dir="ltr" class="copyable">{{ $acc->iban }}</b></div>@endif
-              @if($acc->swift)<div><span>SWIFT / BIC</span><b dir="ltr" class="copyable">{{ $acc->swift }}</b></div>@endif
-              @if($acc->account_no)<div><span>{{ __('ui.inv_bank_account') }}</span><b dir="ltr" class="copyable">{{ $acc->account_no }}</b></div>@endif
-              @if($acc->country)<div><span>{{ __('ui.inv_wire_country') }}</span><b dir="ltr">{{ $acc->country }}</b></div>@endif
-            @endif
+            {{-- 🔴 شبکه **بالای** آدرس و برجسته: انتقالِ روی شبکهٔ اشتباه
+                 برگشت‌ناپذیر است و کاربر معمولاً آدرس را کپی می‌کند و می‌رود. --}}
+            <div><span>{{ __('ui.inv_cy_asset') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
+            <div><span>{{ __('ui.inv_cy_network') }}</span><b dir="ltr">{{ $acc->network }}</b></div>
+            <div><span>{{ __('ui.inv_cy_address') }}</span><b dir="ltr" class="copyable">{{ $acc->address }}</b></div>
             <div><span>{{ __('ui.inv_wire_currency') }}</span><b dir="ltr">{{ strtoupper($acc->currency_code) }}</b></div>
-            @if($acc->note)<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $acc->note }}</b></div>@endif
+            @if($acc->note && $latinOk($acc->note))<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $acc->note }}</b></div>@endif
           </div>
 
-          @if($acc->isCrypto())
-            <p class="pm-note" style="color:var(--warn)">{{ __('ui.inv_cy_warn') }}</p>
-          @endif
+          <p class="pm-note" style="color:var(--warn)">{{ __('ui.inv_cy_warn') }}</p>
 
           <p class="pm-note">
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}

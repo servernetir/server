@@ -1725,6 +1725,7 @@ return [
     'pnl_act_verify' => 'Verify identity',
     'pnl_act_bank' => 'Add account',
     'pnl_act_pay' => 'Pay invoice',
+    'inv_wire_pick' => 'Account',
     'pnl_paid' => 'Paid',
     'pnl_all' => 'All',
     'pnl_profile_sub' => 'The details that appear on invoices and contracts',

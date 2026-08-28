@@ -114,6 +114,34 @@ class OfflinePaymentAccountsTest extends TestCase
      * ارز، حسابِ EUR را به هیچ فاکتوری نمی‌رساند. جریانِ حواله آفلاین است و
      * مبلغ را مدیر دستی تأیید می‌کند، پس تطبیقِ ماشینیِ ارز محافظِ هیچ‌چیز نبود.
      */
+    /**
+     * 🔴 همهٔ حساب‌های بانکی **یک** کارت‌اند و متنِ آزادِ فارسیِ مدیر روی
+     * صفحهٔ انگلیسی چاپ نمی‌شود (خواستِ کارفرما، ۶ شهریور: «همه را در یک
+     * کارتِ INTERNATIONAL BANK TRANSFER بیاور؛ فارسی ننویسد»).
+     */
+    public function test_all_wire_accounts_share_one_card_and_persian_labels_never_leak(): void
+    {
+        $c = $this->customer();
+        $inv = $this->invoice($c, 'IRT');
+        $this->bank(['label' => 'حساب اصلی شرکت', 'note' => 'فقط حواله']);
+        $this->bank(['currency_code' => 'GBP', 'iban' => 'GB29NWBK60161331926819', 'label' => 'حساب پوندی']);
+
+        $html = $this->actingAs($c, 'customer')->get('/en/account/invoices/'.$inv->id)
+            ->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, 'data-m="wire"'),
+            'دو حسابِ بانکی باید یک کارتِ واحد بسازند، نه دو کارت.');
+        $this->assertStringContainsString('DE89370400440532013000', $html);
+        $this->assertStringContainsString('GB29NWBK60161331926819', $html, 'هر دو حساب در پنل باشند.');
+        $this->assertStringContainsString('<select name="payment_account_id"', $html,
+            'با بیش از یک حساب، انتخابِ مقصد لازم است.');
+
+        $this->assertStringNotContainsString('حساب اصلی شرکت', $html,
+            'برچسبِ فارسیِ مدیر نباید روی صفحهٔ انگلیسی بیاید.');
+        $this->assertStringNotContainsString('فقط حواله', $html,
+            'یادداشتِ فارسی نباید روی صفحهٔ انگلیسی بیاید.');
+    }
+
     public function test_an_irt_invoice_offers_the_foreign_wire_account(): void
     {
         $c = $this->customer();

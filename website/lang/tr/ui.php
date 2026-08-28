@@ -1725,6 +1725,7 @@ return [
     'pnl_act_verify' => 'Kimligi dogrula',
     'pnl_act_bank' => 'Hesap ekle',
     'pnl_act_pay' => 'Faturayi ode',
+    'inv_wire_pick' => 'Hesap',
     'pnl_paid' => 'Ödendi',
     'pnl_all' => 'Tümü',
     'pnl_profile_sub' => 'Fatura ve sözleşmelerde görünen bilgiler',
