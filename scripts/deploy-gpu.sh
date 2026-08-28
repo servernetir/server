@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-3012fe4}"
+MINE="${1:-0d8d15c}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -145,6 +145,8 @@ app/Services/Cloud/SaladOperations.php
 app/Services/Cloud/SaladClient.php
 app/Services/Cloud/CloudManager.php
 app/Services/Cloud/CloudCatalogSync.php
+app/Services/Cloud/AezaClient.php
+app/Services/Cloud/HetznerClient.php
 app/Services/SystemHealth.php
 app/Http/Controllers/GpuController.php
 app/Http/Controllers/SiteController.php
@@ -164,6 +166,7 @@ config/catalog/cloud.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
+database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php
 routes/web.php
 "
 
@@ -314,6 +317,7 @@ need_file "$APP/resources/views/pages/gpu.blade.php"
 need_file "$APP/database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php"
 need_file "$APP/database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php"
 need_file "$APP/database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php"
+need_file "$APP/database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php"
 
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
@@ -434,6 +438,13 @@ g app/Console/Commands/CloudHourlyReprice.php "hourly_rate_irt"
 g app/Console/Commands/CloudMeterHourly.php "alarmIfUnderwater"
 g routes/console.php "cloud:hourly-audit"
 g lang/en/ui.php "act_hourly_reprice"
+
+# کفِ ساعتی از بهایِ واقعیِ زیرساخت (sn-svc-76) — کلِ زنجیره باید با هم بنشیند
+g app/Models/CloudPlan.php "hourlyCostFloorEurMicro"
+g app/Services/Cloud/AezaClient.php "hourlyEurMicro"
+g app/Services/Cloud/HetznerClient.php "cost_hour_eur_micro"
+g app/Services/Cloud/CloudCatalogSync.php "cost_hour_eur_micro"
+g app/Services/Cloud/SaladOperations.php "cost_hour_eur_micro"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
 g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
@@ -541,6 +552,11 @@ if [ -n "$PHPBIN" ]; then
     --path=database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php \
     || { echo "🔴 مهاجرتِ ترجمهٔ لاگ‌های فعالیت نخورد. خروجی را بفرست."; }
 
+  echo "═══ ستونِ بهایِ ساعتیِ زیرساخت (sn-svc-76) ═══"
+  "$PHPBIN" artisan migrate --force \
+    --path=database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php \
+    || { echo "🔴 مهاجرتِ بهایِ ساعتی نخورد — کفِ ضدضرر فعال نمی‌شود. خروجی را بفرست."; }
+
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
     || echo "⚠️ purge کشِ صفحه دستی: از /admin یا صبر تا TTL"
@@ -560,6 +576,12 @@ else
 fi
 echo
 echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache (validate_timestamps=0 — بی‌ریست کدِ تازه اجرا نمی‌شود)"
+echo
+echo "═══ بستنِ ضررِ ساعتی (بعد از ریستِ opcache، به همین ترتیب) ═══"
+echo "  $PHPBIN artisan cloud:sync            ← بهایِ ساعتیِ واقعی را از زیرساخت‌ها می‌گیرد"
+echo "  $PHPBIN artisan cloud:hourly-audit    ← باید #75 و #76 را UNDERWATER نشان دهد"
+echo "  $PHPBIN artisan cloud:hourly-reprice --apply   ← نرخ‌ها را به کفِ سودده می‌رساند + خبر به مشتری"
+echo "  $PHPBIN artisan cloud:hourly-audit    ← حالا باید سبز باشد"
 echo
 echo "═══ سپس در /admin/settings ═══"
 echo "  تبِ زیرساخت  → «زیرساختِ ۶ — GPU»: کلیدِ API، نامِ سازمان، نامِ پروژه، ایمیجِ کانتینر"
