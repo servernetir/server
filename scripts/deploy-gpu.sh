@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-31f6f40}"
+MINE="${1:-dc915c4}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -76,6 +76,8 @@ app/Models/CloudInstance.php
 app/Models/Service.php
 app/Services/Billing/UndeliveredRefund.php
 app/Services/Sms/SnsSender.php
+app/Services/Customer/IranSalesGate.php
+app/Http/Controllers/Account/StoreController.php
 app/Services/Otp/OtpService.php
 app/Http/Controllers/Auth/RegisterController.php
 app/Models/Customer.php
@@ -317,6 +319,14 @@ g resources/views/auth/register/verify.blade.php "reg_notice"
 g lang/fa/ui.php "auth_sms_stage_sent"
 g lang/en/ui.php "auth_sms_stage_sent"
 g lang/tr/ui.php "auth_sms_stage_sent"
+g app/Services/Customer/IranSalesGate.php "iran_sales_open_to_unverified"
+g app/Http/Controllers/Account/StoreController.php "IranSalesGate"
+g app/Http/Controllers/Account/CloudStoreController.php "IranSalesGate"
+g app/Http/Controllers/Admin/SettingsController.php "iran_sales_open_to_unverified"
+g resources/views/admin/settings/general.blade.php "iran_sales_open_to_unverified"
+g lang/fa/ui.php "iran_gate_blocked"
+g lang/en/ui.php "iran_gate_blocked"
+g lang/tr/ui.php "iran_gate_blocked"
 g app/Http/Controllers/CatalogController.php "GONE_TO_GPU"
 g app/Models/CloudInstance.php "accessHost"
 g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
