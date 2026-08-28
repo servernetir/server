@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-835f31e}"
+MINE="${1:-b2b2314}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -85,6 +85,11 @@ resources/views/admin/verifications.blade.php
 app/Http/Controllers/Account/StoreController.php
 app/Services/Otp/OtpService.php
 app/Http/Controllers/Auth/RegisterController.php
+app/Http/Controllers/Auth/LoginController.php
+app/Http/Controllers/Account/PaymentController.php
+app/Services/Notify/CustomerNotifier.php
+resources/views/account/topup.blade.php
+resources/views/account/home.blade.php
 app/Models/Customer.php
 resources/views/admin/settings/general.blade.php
 resources/views/auth/register/start.blade.php
@@ -324,6 +329,16 @@ g resources/views/admin/verifications.blade.php "selfie"
 g lang/fa/ui.php "prof_doc_selfie"
 g lang/en/ui.php "prof_doc_selfie"
 g lang/tr/ui.php "prof_doc_selfie"
+g app/Services/Notify/CustomerNotifier.php "localizedEmail"
+g app/Http/Controllers/Account/PaymentController.php "top_item_title"
+g resources/views/account/topup.blade.php "euroMode"
+g resources/views/account/home.blade.php "isVerified"
+g resources/views/account/profile.blade.php "GeoIp"
+g lang/fa/ui.php "ntf_welcome_s"
+g lang/en/ui.php "ntf_welcome_s"
+g lang/tr/ui.php "ntf_welcome_s"
+g lang/en/ui.php "auth_account_created"
+g lang/en/ui.php "iv_credit_paid"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
