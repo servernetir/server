@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-b2b2314}"
+MINE="${1:-d6cebd5}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -88,6 +88,15 @@ app/Http/Controllers/Auth/RegisterController.php
 app/Http/Controllers/Auth/LoginController.php
 app/Http/Controllers/Account/PaymentController.php
 app/Services/Notify/CustomerNotifier.php
+app/Services/Customer/KycReview.php
+app/Services/Bale/BaleSender.php
+app/Services/Bale/Admin/AdminBaleRouter.php
+app/Services/Bale/Admin/AdminBaleWorker.php
+app/Services/Bale/Admin/AdminBaleCommands.php
+app/Services/Bale/Admin/AdminBaleScreens.php
+app/Services/Payment/PaymentService.php
+app/Services/Provisioning/ProvisioningService.php
+app/Http/Controllers/Account/BuilderCheckoutController.php
 resources/views/account/topup.blade.php
 resources/views/account/home.blade.php
 app/Models/Customer.php
@@ -339,6 +348,14 @@ g lang/en/ui.php "ntf_welcome_s"
 g lang/tr/ui.php "ntf_welcome_s"
 g lang/en/ui.php "auth_account_created"
 g lang/en/ui.php "iv_credit_paid"
+g app/Services/Customer/KycReview.php "IranSalesGate"
+g app/Services/Bale/BaleSender.php "sendDocument"
+g app/Services/Bale/Admin/AdminBaleRouter.php "kycApproveAsk"
+g app/Services/Bale/Admin/AdminBaleWorker.php "kyc_approve"
+g app/Http/Controllers/Account/VerificationController.php "kd:"
+g app/Http/Controllers/Auth/RegisterController.php "CB_PREFIX"
+g app/Services/Provisioning/ProvisioningService.php "spa:"
+g app/Services/Cloud/CloudProvisioner.php "spa:"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
