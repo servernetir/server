@@ -56,10 +56,21 @@ resources/views/pages/domain-search.blade.php
 routes/web.php
 "
 
+#
+# v2 — فایل‌های «مالکیت انحصاری همین کار»: در اجرای اول CF شدند چون نسخهٔ
+# روی سرور از آپلودِ مرورگری قدیم است و با هیچ نسخهٔ گیت بایت‌به‌بایت
+# نمی‌خوانَد. هیچ‌کس جز همین workstream این فایل‌ها را روی سرور ویرایش
+# نمی‌کند، پس git منبعِ قطعی است: به‌جای CF، با بکاپ جایگزینِ اجباری (FR)
+# می‌شوند. فایل‌های مشترک (routes/footer/layout/SiteController/…) عمداً
+# همان منطقِ محتاط را نگه می‌دارند.
+FORCE_FILES=" config/urmia.php app/Http/Controllers/UrmiaController.php resources/views/pages/urmia/hub.blade.php resources/views/pages/urmia/page.blade.php resources/views/pages/urmia/city.blade.php "
+
 CONFLICTS=""
 UPD=0
 
 dist() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
+
+is_forced() { case "$FORCE_FILES" in *" $1 "*) return 0;; *) return 1;; esac; }
 
 apply_one() {
   rel="$1"; dest="$APP/$rel"
@@ -90,6 +101,9 @@ apply_one() {
   done
 
   if [ -z "$best" ]; then
+    if is_forced "$rel"; then
+      cp "$mine_f" "$dest"; echo "FR    $rel   (نسخهٔ ناشناختهٔ آپلودِ قدیمی — مالکیت انحصاری، جایگزین شد؛ بکاپ هست)"; UPD=$((UPD+1)); return
+    fi
     echo "CF    $rel   ← در تاریخچهٔ develop نیست؛ نسخهٔ ناشناخته روی سرور — دست نخورد"
     CONFLICTS="$CONFLICTS $rel"
     keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
@@ -108,6 +122,9 @@ apply_one() {
     echo "MG    $rel   (پایه $(git -C repo rev-parse --short "$best")، فاصلهٔ سرور $bestd خط — تغییرِ دیگران حفظ شد)"
     UPD=$((UPD+1))
   else
+    if is_forced "$rel"; then
+      cp "$mine_f" "$dest"; echo "FR    $rel   (تداخل ولی مالکیت انحصاری — جایگزین شد؛ بکاپ هست)"; UPD=$((UPD+1)); return
+    fi
     echo "CF    $rel   ← تداخل واقعی؛ دست نخورد"
     CONFLICTS="$CONFLICTS $rel"
     keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
@@ -176,9 +193,8 @@ fi
 echo
 echo "کارِ باقی‌مانده: ریستِ opcache (validate_timestamps=0 — بی‌ریست کدِ تازه اجرا نمی‌شود)"
 echo
-echo "راستی‌آزمایی:"
+echo "راستی‌آزمایی (۲۰۰ کافی نیست — h1 باید واقعاً انگلیسی/ترکی باشد):"
 echo "  curl -sI https://servernet.cloud/?qa=1               | head -1   ← 200"
-echo "  curl -sI https://servernet.cloud/en/urmia?qa=1        | head -1   ← 200"
-echo "  curl -sI https://servernet.cloud/tr/urmia/web-design?qa=1 | head -1 ← 200"
-echo "  curl -sI https://servernet.cloud/en/urmia/cities/khoy?qa=1 | head -1 ← 200"
+echo "  curl -s 'https://servernet.cloud/en/urmia?qa=1' | grep -o '<h1[^>]*>[^<]*</h1>'   ← Web Design & Software Services in Urmia"
+echo "  curl -s 'https://servernet.cloud/tr/urmia/web-design?qa=1' | grep -o '<h1[^>]*>[^<]*</h1>'   ← Urmiye’de Web Tasarım"
 echo "  curl -s  https://servernet.cloud/sitemap.xml | grep -c '/en/urmia'   ← ۲۹"
