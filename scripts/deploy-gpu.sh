@@ -71,7 +71,7 @@ fi
 #    merge سه‌طرفه می‌افتد — و روی تداخل «دست نزن» است، یعنی کلیدهای GPU
 #    بی‌صدا هرگز نمی‌نشینند. کامیتِ ادغام هر دو را دارد، پس هر دو هم‌گرا
 #    می‌شوند و ترتیبِ اجرا دیگر مهم نیست.
-MINE="${1:-6633743}"
+MINE="${1:-8b63fc9}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -112,6 +112,7 @@ app/Http/Controllers/Account/CloudServerController.php
 app/Models/TunnelAgent.php
 app/Models/TunnelJob.php
 app/Models/CustomerApiToken.php
+app/Models/CryptoWallet.php
 app/Support/TunnelAgentScript.php
 app/Http/Controllers/Agent/TunnelAgentController.php
 app/Http/Controllers/Api/TunnelApiController.php
@@ -130,6 +131,7 @@ resources/views/account/builder-checkout.blade.php
 resources/views/account/reseller.blade.php
 resources/views/account/topup.blade.php
 resources/views/account/home.blade.php
+resources/views/account/invoice.blade.php
 app/Models/Customer.php
 resources/views/admin/settings/general.blade.php
 resources/views/auth/register/start.blade.php
@@ -173,6 +175,7 @@ resources/views/admin/customer.blade.php
 resources/views/partials/cloud-locations-links.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
+resources/views/admin/settings/accounts.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
@@ -469,6 +472,12 @@ g config/billing.php "order_expiry_hours' => 24"
 g lang/en/ui.php "pnl_act_pay"
 g app/helpers.php "cloud_hourly_price"
 g app/Models/PaymentAccount.php "IRT"
+
+# حوالهٔ تک‌کارت + دیدِ استخرِ رمزارز (۶ شهریور)
+g resources/views/account/invoice.blade.php "data-m=\"wire\""
+g resources/views/admin/settings/accounts.blade.php "crypto_cooldown_hours"
+g app/Models/CryptoWallet.php "cooldownHours"
+g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
 
