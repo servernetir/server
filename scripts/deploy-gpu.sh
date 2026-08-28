@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-d4401b4}"
+MINE="${1:-87de123}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -87,6 +87,7 @@ app/Services/Otp/OtpService.php
 app/Http/Controllers/Auth/RegisterController.php
 app/Http/Controllers/Auth/LoginController.php
 app/Http/Controllers/Account/PaymentController.php
+app/Http/Controllers/Account/AccountController.php
 app/Services/Notify/CustomerNotifier.php
 app/Services/Customer/KycReview.php
 app/Services/Bale/BaleSender.php
@@ -148,6 +149,7 @@ app/Services/Cloud/SaladOperations.php
 app/Services/Cloud/SaladClient.php
 app/Services/Cloud/CloudManager.php
 app/Services/Cloud/CloudCatalogSync.php
+app/Services/Cloud/CloudPricing.php
 app/Services/Cloud/AezaClient.php
 app/Services/Cloud/HetznerClient.php
 app/Services/SystemHealth.php
@@ -164,6 +166,7 @@ resources/views/admin/settings/pricing.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
+config/billing.php
 config/servernet.php
 config/catalog/cloud.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
@@ -444,6 +447,13 @@ g routes/console.php "cloud:hourly-audit"
 # اعلان‌های کاربردی ادمین (۶ شهریور) — دکمهٔ عمل روی پیامِ «گیر کرده»
 g app/Services/Cloud/CloudProvisioner.php "تحویلِ دوباره #"
 g app/Services/Domain/DomainRegistrar.php "CB_PREFIX"
+
+# کفِ حاشیه + شمارشِ «فعال» + انقضای ۲۴ساعته (۶ شهریور)
+g app/Services/Cloud/CloudPricing.php "MIN_MARGIN_PCT"
+g app/Models/Service.php "ACTIVE_STATUSES"
+g app/Http/Controllers/Account/AccountController.php "countsAsActive"
+g config/billing.php "order_expiry_hours' => 24"
+g lang/en/ui.php "pnl_act_pay"
 g lang/en/ui.php "act_hourly_reprice"
 
 # کفِ ساعتی از بهایِ واقعیِ زیرساخت (sn-svc-76) — کلِ زنجیره باید با هم بنشیند
@@ -585,6 +595,8 @@ echo
 echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache (validate_timestamps=0 — بی‌ریست کدِ تازه اجرا نمی‌شود)"
 echo
 echo "═══ بستنِ ضررِ ساعتی (بعد از ریستِ opcache، به همین ترتیب) ═══"
+echo "  ۰) در /admin/settings تبِ قیمت‌گذاری «حاشیهٔ سود سرور ابری» را روی ۴۵ بگذار (روی سرور ۲ بود!)"
+echo "  $PHPBIN artisan cloud:sync --prices   ← بازقیمت‌گذاری با حاشیهٔ تازه"
 echo "  $PHPBIN artisan cloud:sync            ← بهایِ ساعتیِ واقعی را از زیرساخت‌ها می‌گیرد"
 echo "  $PHPBIN artisan cloud:hourly-audit    ← باید #75 و #76 را UNDERWATER نشان دهد"
 echo "  $PHPBIN artisan cloud:hourly-reprice --apply   ← نرخ‌ها را به کفِ سودده می‌رساند + خبر به مشتری"
