@@ -113,7 +113,7 @@ class LoginController extends Controller
 
         if (! is_array($ctx)) {
             return redirect()->route($this->rp().'login')
-                ->withErrors(['identifier' => 'نشست منقضی شد. دوباره وارد شوید.']);
+                ->withErrors(['identifier' => __('ui.auth_session_expired')]);
         }
 
         $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'login', $data['code']);
@@ -128,17 +128,17 @@ class LoginController extends Controller
             $request->session()->forget('login_otp');
 
             return redirect()->route($this->rp().'login')
-                ->withErrors(['identifier' => 'حسابی با این مشخصات پیدا نشد.']);
+                ->withErrors(['identifier' => __('ui.auth_not_found')]);
         }
 
         if ($customer->status === 'pending') {
             return redirect()->route($this->rp().'register')
-                ->withErrors(['mobile' => 'ثبت‌نام این حساب کامل نشده است. دوباره از ابتدا شروع کنید.']);
+                ->withErrors(['mobile' => __('ui.auth_reg_incomplete')]);
         }
 
         if (! $customer->isActive()) {
             return redirect()->route($this->rp().'login.code')
-                ->withErrors(['code' => 'این حساب فعال نیست. با پشتیبانی تماس بگیرید.']);
+                ->withErrors(['code' => __('ui.auth_account_blocked')]);
         }
 
         // قوانین IP (فقط اگر خودِ کاربر «سخت‌گیرانه» را روشن کرده باشد)
@@ -146,7 +146,7 @@ class LoginController extends Controller
             $request->session()->forget('login_otp');
 
             return redirect()->route($this->rp().'login')
-                ->withErrors(['identifier' => 'ورود از این IP برای حساب شما مجاز نیست. برای رفعِ محدودیت با پشتیبانی تماس بگیرید.']);
+                ->withErrors(['identifier' => __('ui.auth_ip_blocked')]);
         }
 
         // ورود موفق
@@ -208,7 +208,7 @@ class LoginController extends Controller
                 ->with($issue->retryAfter === null ? 'err' : 'ok', $issue->error);
         }
 
-        return redirect()->route($this->rp().'login.code')->with('ok', 'کد دوباره فرستاده شد.');
+        return redirect()->route($this->rp().'login.code')->with('ok', __('ui.auth_code_resent'));
     }
 
     public function logout(Request $request): RedirectResponse

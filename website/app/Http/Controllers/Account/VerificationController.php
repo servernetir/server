@@ -160,7 +160,7 @@ class VerificationController extends Controller
 
         // به بخشِ حقوقیِ همان صفحهٔ پروفایل برمی‌گردد (صفحهٔ جدا حذف شده)
         return redirect()->to(lroute('account.profile').'#company')
-            ->with('ok', 'اطلاعات و مدارک ثبت و برای بررسیِ پشتیبانی ارسال شد. پس از تأیید، پروفایلتان تأیید می‌شود.');
+            ->with('ok', __('ui.prof_vf_submitted'));
     }
 
     /** پروفایلِ پیش‌فرضِ مشتری را برمی‌گرداند یا می‌سازد (AccountController هم استفاده می‌کند) */

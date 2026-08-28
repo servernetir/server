@@ -154,10 +154,22 @@
           <label class="vf-f">{{ __('ui.prof_last_name') }}<input type="text" name="last_name" value="{{ old('last_name', $profile->last_name) }}" maxlength="80" autocomplete="family-name"></label>
           <label class="vf-f">{{ __('ui.prof_birth_date') }}<input type="date" name="birth_date" dir="ltr" value="{{ old('birth_date', optional($profile->birth_date)->format('Y-m-d')) }}" max="{{ now()->subYears(18)->toDateString() }}" autocomplete="bday"></label>
           <label class="vf-f">{{ __('ui.prof_country') }}
+            @php
+              /*
+              | پیش‌فرضِ کشور برای خارجی از IPِ خودش می‌آید، نه «IR»ِ پیش‌فرضِ
+              | ستون (گزارشِ کارفرما). GeoIp کشِ ۲۴ساعته دارد و روی ورود از قبل
+              | گرم شده؛ مقدارِ صریحاً ذخیره‌شدهٔ غیرایرانی دست‌نخورده می‌مانَد.
+              */
+              $savedCc = strtoupper(trim((string) $profile->country));
+              $defCc = $savedCc !== '' && $savedCc !== 'IR'
+                  ? $savedCc
+                  : strtoupper((string) (app(\App\Services\GeoIp::class)->locate(request()->ip())['cc'] ?? ''));
+              $defCc = strtoupper((string) old('country', $defCc));
+            @endphp
             <select name="country" autocomplete="country">
-              <option value="" disabled @selected(! old('country', $profile->country))>—</option>
+              <option value="" disabled @selected($defCc === '')>—</option>
               @foreach(\App\Support\Countries::options() as $cc => $cn)
-                <option value="{{ $cc }}" @selected(strtoupper((string) old('country', $profile->country)) === $cc)>{{ $cn }}</option>
+                <option value="{{ $cc }}" @selected($defCc === $cc)>{{ $cn }}</option>
               @endforeach
             </select>
           </label>

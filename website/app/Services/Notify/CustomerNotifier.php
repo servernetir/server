@@ -77,6 +77,22 @@ class CustomerNotifier
      */
     public function templated(Customer $customer, string $key, array $vars, string $text): bool
     {
+        /*
+        | 🔴 مشتریِ غیرفارسی‌زبان هرگز نباید اعلانِ فارسی بگیرد (گزارشِ کارفرما،
+        | ۶ شهریور ۱۴۰۵: ایمیلِ خوش‌آمدِ فارسی برای ثبت‌نامِ انگلیسی رفت).
+        |
+        | الگوهای /admin/templates فارسی‌اند و برای این مشتری‌ها مصرف نمی‌شوند؛
+        | متن از کلیدهای ntf_{key}_s/_b در زبانِ خودِ مشتری می‌آید و اگر رویدادی
+        | هنوز ترجمه نشده، متنِ عمومیِ «حسابتان به‌روزرسانی دارد» می‌رود — بدتر
+        | از همه ارسالِ فارسی است، نه ارسالِ عمومی. پیامکِ اپراتورِ ایرانی هم
+        | برای شمارهٔ +بین‌المللی بی‌معنی است و زده نمی‌شود.
+        */
+        $locale = in_array($customer->locale, ['en', 'tr'], true) ? $customer->locale : null;
+
+        if ($locale !== null) {
+            return $this->localizedEmail($customer, $key, $vars, $locale);
+        }
+
         $text = \App\Models\NotificationTemplate::body($key, $vars, $text);
 
         /*
@@ -104,6 +120,46 @@ class CustomerNotifier
         $this->event($customer, $key, $vars, $text);
 
         return $this->emailFromTemplate($customer, $key, $vars);
+    }
+
+    /**
+     * ایمیلِ اعلان به زبانِ خودِ مشتری (en/tr).
+     *
+     * موضوع/بدنه از `ui.ntf_{key}_s` و `ui.ntf_{key}_b` می‌آید؛ `:url` همیشه به
+     * پنلِ همان زبان اشاره می‌کند و بقیهٔ متغیرها همان `$vars`ی است که فراخوان
+     * داده. رویدادِ بی‌ترجمه به `ntf_generic_*` سقوط می‌کند.
+     */
+    private function localizedEmail(Customer $customer, string $key, array $vars, string $locale): bool
+    {
+        $email = (string) $customer->email;
+
+        if ($email === '') {
+            return false;
+        }
+
+        $repl = $vars + [
+            'url' => 'https://console.servernet.cloud'
+                .route(($locale === 'en' ? 'en.' : 'tr.').'account.home', [], false),
+        ];
+
+        $subject = trans('ui.ntf_'.$key.'_s', $repl, $locale);
+        $body = trans('ui.ntf_'.$key.'_b', $repl, $locale);
+
+        if ($subject === 'ui.ntf_'.$key.'_s' || $body === 'ui.ntf_'.$key.'_b') {
+            $subject = trans('ui.ntf_generic_s', $repl, $locale);
+            $body = trans('ui.ntf_generic_b', $repl, $locale);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)
+                ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body))));
+
+            return true;
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['event' => $key, 'to' => 'customer-intl']);
+
+            return false;
+        }
     }
 
     /**

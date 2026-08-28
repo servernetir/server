@@ -22,6 +22,9 @@
   <div class="pnl-sec-h"><h2>{{ __('ui.top_choose_amount') }}</h2></div>
   <div class="pnl-sec-b">
 
+      {{-- مشتریِ en/tr مبلغ را یورو وارد می‌کند؛ تبدیل به تومان در کنترلر است --}}
+      @php $euroMode = app()->getLocale() !== 'fa'; @endphp
+
       <form method="POST" action="{{ lroute('account.topup.start') }}"
             style="display:flex;flex-direction:column;gap:18px;max-width:460px">
         @csrf
@@ -38,14 +41,14 @@
                         font-variant-numeric:tabular-nums;letter-spacing:.03em">
           <input type="hidden" name="amount" id="amount" value="{{ old('amount') }}">
           <small style="display:block;margin-top:8px;font-size:11.5px;color:var(--dim);line-height:1.85">
-            {{ __('ui.top_min_note') }}
+            {{ __('ui.top_min_note') }}@if($euroMode) {{ __('ui.top_rate_note') }}@endif
           </small>
         </div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          @foreach([200000, 500000, 1000000, 2000000] as $q)
+          @foreach($euroMode ? [5, 10, 25, 50] : [200000, 500000, 1000000, 2000000] as $q)
             <button type="button" class="pnl-btn quick" data-v="{{ $q }}">
-              {{ cloud_price($q) }}
+              @if($euroMode)€{{ $q }}@else{{ cloud_price($q) }}@endif
             </button>
           @endforeach
         </div>
@@ -58,15 +61,17 @@
       <script>
       (function () {
         var view = document.getElementById('amount-view'), real = document.getElementById('amount');
+        var fa = @json(! $euroMode);
         var faDigits = function (s) { return s.replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
         var toEn = function (s) {
           return s.replace(/[۰-۹]/g, function (d) { return d.charCodeAt(0) - 1776; })
                   .replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; });
         };
-        // نمایش با جداکنندهٔ فارسی، ارسال با رقم لاتین — سرور عدد خام می‌خواهد
+        // fa: نمایش با رقمِ فارسی؛ en/tr: رقمِ لاتین. ارسال همیشه عددِ خام است
         function render(n) {
           real.value = n || '';
-          view.value = n ? faDigits(Number(n).toLocaleString('en-US')) : '';
+          var shown = n ? Number(n).toLocaleString('en-US') : '';
+          view.value = fa ? faDigits(shown) : shown;
         }
         view.addEventListener('input', function () {
           render(toEn(this.value).replace(/[^0-9]/g, '').slice(0, 12));

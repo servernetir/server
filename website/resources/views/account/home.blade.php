@@ -19,10 +19,13 @@
     <h1 class="dash-h">{{ __('ui.pnl_dash_hi') }}@if($identity?->first_name)، {{ $identity->first_name }}@endif</h1>
     <p>
       <span dir="ltr">{{ $customer->code }}</span>
-      @if($identity?->status === 'verified')
+      {{-- «تأییدشده» برای خارجی از پروفایلِ KYC می‌آید نه استعلامِ ایرانی؛ و
+           پیلِ «احرازنشده» لینک است — کاربر باید یک‌کلیکی به فرمِ احراز برسد --}}
+      @if($identity?->status === 'verified' || $customer->isVerified())
         <span class="pnl-pill ok" style="font-size:10.5px">{{ __('ui.pnl_identity_ok') }}</span>
       @else
-        <span class="pnl-pill warn" style="font-size:10.5px">{{ __('ui.pnl_identity_no') }}</span>
+        <a class="pnl-pill warn" style="font-size:10.5px;text-decoration:none"
+           href="{{ lroute('account.profile') }}#company">{{ __('ui.pnl_identity_no') }}</a>
       @endif
     </p>
   </div>

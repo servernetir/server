@@ -119,7 +119,7 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         if ($invoice->status === 'paid' || $invoice->paid > 0) {
-            return back()->withErrors(['invoice' => 'فاکتوری که پرداخت روی آن انجام شده قابل حذف نیست.']);
+            return back()->withErrors(['invoice' => __('ui.iv_no_delete_paid')]);
         }
 
         /*
@@ -137,7 +137,7 @@ class PaymentController extends Controller
             ->cancel($invoice, 'فاکتور توسط مشتری لغو شد', rejectPendingReceipt: true);
 
         return redirect()->route($this->rp().'account.invoices')
-            ->with('ok', 'فاکتور لغو شد.'.($invoice->service_id ? ' سرویس مربوطه هم غیرفعال شد.' : ''));
+            ->with('ok', $invoice->service_id ? __('ui.iv_canceled_svc') : __('ui.iv_canceled'));
     }
 
     public function show(Invoice $invoice)
@@ -286,7 +286,7 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         if (! $invoice->isPayable()) {
-            return back()->withErrors(['reference' => 'این فاکتور قابل پرداخت نیست.']);
+            return back()->withErrors(['reference' => __('ui.iv_not_payable')]);
         }
 
         $data = $request->validate([
@@ -311,10 +311,10 @@ class PaymentController extends Controller
                 ->firstWhere('id', (int) $data['payment_account_id']);
 
             if ($account === null) {
-                return back()->withErrors(['reference' => 'روش پرداخت انتخاب‌شده در دسترس نیست.']);
+                return back()->withErrors(['reference' => __('ui.iv_gw_unavailable')]);
             }
         } elseif ($this->bankDetails() === null) {
-            return back()->withErrors(['reference' => 'واریز به حساب فعلاً در دسترس نیست.']);
+            return back()->withErrors(['reference' => __('ui.iv_bank_unavailable')]);
         }
 
         // رسیدِ باز تکراری نساز
@@ -371,7 +371,7 @@ class PaymentController extends Controller
             'رسید واریز برای فاکتور '.$invoice->number.' با شناسهٔ '.$data['reference'].' ثبت شد', $request, 'customer');
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
-            ->with('ok', 'رسید واریز شما ثبت شد و در انتظار تأیید پشتیبانی است. پس از تأیید، فاکتور تسویه و سرویس فعال می‌شود.');
+            ->with('ok', __('ui.iv_receipt_saved'));
     }
 
     /**
@@ -478,11 +478,33 @@ class PaymentController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
-        $request->validate([
-            'amount' => ['required', 'integer', 'min:1000', 'max:'.self::MAX_TOPUP],
-        ], [], ['amount' => 'مبلغ']);
+        /*
+        | مشتریِ en/tr مبلغ را **یورو** وارد می‌کند (خواستِ کارفرما، ۶ شهریور:
+        | «همه‌چیز به یورو باشد؛ تبدیل به تومان فقط در پس‌زمینه»). دفترِ اعتبار
+        | و فاکتور تومانی می‌مانند — نمایششان برای en/tr از قبل یورویی است
+        | (invoice_money/cloud_price) — پس فقط ورودی تبدیل می‌شود، با همان
+        | نرخِ زنده‌ای که قیمت‌های فروشگاه را می‌سازد. گردِ رو به بالا به
+        | ۱۰هزار تومان، همان قاعدهٔ CloudPricing.
+        */
+        if (app()->getLocale() !== 'fa') {
+            $request->validate([
+                'amount' => ['required', 'integer', 'min:5', 'max:5000'],
+            ], [], ['amount' => __('ui.top_amount_label')]);
 
-        $amount = (int) $request->integer('amount');
+            $rate = cloud_eur_rate();
+
+            if ($rate <= 0) {
+                return back()->withErrors(['amount' => __('ui.top_rate_missing')]);
+            }
+
+            $amount = (int) (ceil(((int) $request->integer('amount')) * $rate / 10_000) * 10_000);
+        } else {
+            $request->validate([
+                'amount' => ['required', 'integer', 'min:1000', 'max:'.self::MAX_TOPUP],
+            ], [], ['amount' => __('ui.top_amount_label')]);
+
+            $amount = (int) $request->integer('amount');
+        }
 
         $invoice = DB::transaction(function () use ($customer, $amount) {
             $invoice = Invoice::create([
@@ -500,7 +522,7 @@ class PaymentController extends Controller
 
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
-                'title'      => 'افزایش اعتبار حساب کاربری',
+                'title'      => __('ui.top_item_title'),
                 'quantity'   => 1,
                 'unit_price' => $amount,
                 'line_total' => $amount,
@@ -542,15 +564,15 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         if ($invoice->kind === 'topup') {
-            return back()->withErrors('شارژِ اعتبار را نمی‌توان با خودِ اعتبار پرداخت.');
+            return back()->withErrors(__('ui.iv_credit_self'));
         }
 
         if (! in_array($invoice->status, ['unpaid', 'partial'], true) || $invoice->due() <= 0) {
-            return back()->withErrors('این فاکتور در وضعیتِ قابلِ پرداخت نیست.');
+            return back()->withErrors(__('ui.iv_credit_state'));
         }
 
         if ($invoice->currency_code !== 'IRT') {
-            return back()->withErrors('پرداخت از اعتبار فقط برای فاکتورهای تومانی فعال است.');
+            return back()->withErrors(__('ui.iv_credit_irt_only'));
         }
 
         $customerId = (int) Auth::guard('customer')->id();
@@ -619,7 +641,7 @@ class PaymentController extends Controller
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('payment', $e, ['area' => 'pay-credit', 'invoice' => $invoice->id]);
 
-            return back()->withErrors('پرداخت از اعتبار انجام نشد؛ مبلغی کسر نشد.');
+            return back()->withErrors(__('ui.iv_credit_failed'));
         }
 
         if (! $outcome['ok']) {
@@ -627,7 +649,7 @@ class PaymentController extends Controller
         }
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
-            ->with('ok', 'فاکتور از اعتبارِ حسابتان پرداخت شد.');
+            ->with('ok', __('ui.iv_credit_paid'));
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────

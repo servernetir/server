@@ -90,9 +90,9 @@ class RegisterController extends Controller
         }
 
         $data = $request->validate($rules, [], [
-            'email' => 'ایمیل',
-            'phone' => 'شمارهٔ موبایل',
-            'type'  => 'نوع حساب',
+            'email' => __('ui.auth_email'),
+            'phone' => __('ui.auth_mobile'),
+            'type'  => __('ui.auth_acct_type'),
             'first_name' => __('ui.auth_first_name'),
             'last_name'  => __('ui.auth_last_name'),
         ]);
@@ -115,13 +115,13 @@ class RegisterController extends Controller
         // حساب فعال با این ایمیل یا شماره؟ ثبت‌نام دوباره معنی ندارد
         if ($this->takenByActive('email', $email)) {
             return back()->withInput()->withErrors([
-                'email' => 'با این ایمیل قبلاً حساب ساخته شده. وارد شوید یا رمز را بازیابی کنید.',
+                'email' => __('ui.auth_email_taken'),
             ]);
         }
 
         if ($phone !== null && $this->takenByActive('phone', $phone)) {
             return back()->withInput()->withErrors([
-                'phone' => 'با این شماره قبلاً حساب ساخته شده. وارد شوید یا رمز را بازیابی کنید.',
+                'phone' => __('ui.auth_phone_taken'),
             ]);
         }
 
@@ -204,7 +204,7 @@ class RegisterController extends Controller
             return redirect()->route($this->rp().'register');
         }
 
-        $request->validate(['code' => ['required', 'string', 'max:12']], [], ['code' => 'کد']);
+        $request->validate(['code' => ['required', 'string', 'max:12']], [], ['code' => __('ui.auth_code')]);
 
         /*
         | کدِ مرحلهٔ سندباکسی را خودِ AWS ساخته و فقط خودش می‌تواند بسنجد —
@@ -336,7 +336,7 @@ class RegisterController extends Controller
             $ok = app(\App\Services\Sms\SnsSender::class)->sandboxAdd((string) $reg['phone']);
 
             return $ok
-                ? back()->with('ok', 'کد تازه فرستاده شد.')
+                ? back()->with('ok', __('ui.auth_code_resent'))
                 : back()->withErrors(['code' => __('ui.auth_sms_stage_fail')]);
         }
 
@@ -351,7 +351,7 @@ class RegisterController extends Controller
             $this->mailCode($reg['email']);
         }
 
-        return back()->with('ok', 'کد تازه فرستاده شد.');
+        return back()->with('ok', __('ui.auth_code_resent'));
     }
 
     // ─────────────────── مرحلهٔ ۳ — احراز هویت (پولی) ───────────────────
@@ -532,7 +532,7 @@ class RegisterController extends Controller
         | نشستِ مهمان است و چیزِ درستی برنمی‌گردد.
         */
         return redirect()->intended(route($this->rp().'account.home'))
-            ->with('ok', 'حساب شما ساخته شد. خوش آمدید!');
+            ->with('ok', __('ui.auth_account_created'));
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────
