@@ -122,6 +122,8 @@ class SettingsController extends Controller
             'aws_sns_region'       => ['nullable', 'string', 'max:32', 'regex:/^[a-z0-9-]*$/'],
             'aws_sns_forget'       => ['nullable', 'boolean'],
             'aws_sns_sandbox'      => ['nullable', 'boolean'],
+            // خاموشیِ موقتِ مرحلهٔ تأییدِ شمارهٔ مشتریِ خارجی (تا خروج از سندباکس)
+            'foreign_phone_stage_off' => ['nullable', 'boolean'],
             // فروشِ محصولاتِ مستقر در ایران به مشتریِ بدونِ احراز هویت
             'iran_sales_open_to_unverified' => ['nullable', 'boolean'],
         ],
@@ -545,6 +547,12 @@ class SettingsController extends Controller
         | AWS پیامک می‌کند). بعد از تأیید، مدیر تیک را برمی‌دارد.
         */
         Setting::put('aws_sns_sandbox', $request->boolean('aws_sns_sandbox') ? '1' : null);
+
+        /*
+        | تأییدِ شمارهٔ خارجی‌ها — خاموشیِ صریح تا خروج از سندباکس. ایمیل و
+        | KYCِ سندی (پاسپورت/قبض) به این کلید ربطی ندارند و همیشه سرِ جایشان‌اند.
+        */
+        Setting::put('foreign_phone_stage_off', $request->boolean('foreign_phone_stage_off') ? '1' : null);
 
         if ($request->boolean('google_forget')) {
             Setting::put('google_client_id', null);

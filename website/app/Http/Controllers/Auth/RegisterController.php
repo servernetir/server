@@ -252,10 +252,22 @@ class RegisterController extends Controller
             | مرحلهٔ ۲ — کد به موبایل. فقط وقتی SNS آماده است و شماره E.164 است؛
             | وگرنه (کلیدِ AWS نیست، یا شمارهٔ ۰۹ داده) با همان تأییدِ ایمیل
             | جلو می‌رویم — ثبت‌نام هرگز پشتِ یک پیکربندیِ جانبی قفل نمی‌شود.
+            |
+            | کلیدِ خاموشیِ صریح (تصمیمِ کارفرما — ۶ شهریور ۱۴۰۵): تا خروج از
+            | SMS Sandbox، تأییدِ شمارهٔ خارجی‌ها را می‌شود از تنظیمات به‌کل
+            | خاموش کرد؛ احرازِ واقعی همان KYCِ سندی (پاسپورت + قبض) می‌مانَد
+            | و ایمیل همیشه اجباری است. شماره جمع می‌شود ولی مهر نمی‌خورد.
             */
             $sns = app(\App\Services\Sms\SnsSender::class);
+            $phoneStageOff = false;
 
-            if ($sns->enabled() && str_starts_with((string) $reg['phone'], '+')) {
+            try {
+                $phoneStageOff = (string) \App\Models\Setting::get('foreign_phone_stage_off') === '1';
+            } catch (\Throwable) {
+                // دیتابیسِ لنگ = رفتارِ پیش‌فرض (مرحلهٔ پیامکی سرِ جایش)
+            }
+
+            if (! $phoneStageOff && $sns->enabled() && str_starts_with((string) $reg['phone'], '+')) {
                 /*
                 | حسابِ AWS هنوز در SMS Sandbox؟ Publish به شمارهٔ تأییدنشده
                 | ۲۰۰ می‌دهد ولی هرگز تحویل نمی‌شود. راهِ دررو: خودِ AWS کد

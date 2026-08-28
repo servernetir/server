@@ -194,6 +194,32 @@ class SnsSandboxTest extends TestCase
             ->assertRedirect()->assertSessionHasErrors('code');
     }
 
+    /**
+     * 🔴 کلیدِ خاموشیِ تأییدِ شماره (تصمیمِ کارفرما تا خروج از سندباکس):
+     * ثبت‌نامِ خارجی فقط با ایمیل تمام می‌شود، هیچ تماسی با SNS نمی‌رود،
+     * شماره ذخیره می‌شود ولی مهرِ تأیید نمی‌خورد.
+     */
+    public function test_the_phone_stage_can_be_switched_off_entirely(): void
+    {
+        $this->armSns();
+        Setting::put('foreign_phone_stage_off', '1');
+        $this->fakeSns(self::EMPTY_LIST);
+
+        $this->passEmailStage('email-only@example.com');
+
+        $this->post('/en/register/finish', [
+            'password' => 'super-secret-10', 'password_confirmation' => 'super-secret-10',
+            'terms' => '1',
+        ])->assertRedirect();
+
+        $c = Customer::where('email', 'email-only@example.com')->firstOrFail();
+        $this->assertNotNull($c->email_verified_at, 'ایمیل همیشه اجباری و مهرخورده است.');
+        $this->assertNull($c->phone_verified_at, 'با کلیدِ خاموش، شماره نباید مهر بخورد.');
+        $this->assertSame('+905321234567', $c->phone, 'شماره همچنان جمع و ذخیره می‌شود.');
+
+        Http::assertNothingSent();
+    }
+
     /** با تیکِ خاموش (پیش‌فرض)، هیچ Actionِ سندباکسی صدا زده نمی‌شود */
     public function test_with_the_toggle_off_the_normal_path_is_untouched(): void
     {

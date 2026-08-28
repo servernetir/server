@@ -224,6 +224,17 @@
 
     <div style="padding:0 18px 8px">
       <label class="set-danger" style="color:#fbbf24">
+        <input type="checkbox" name="foreign_phone_stage_off" value="1"
+               @checked(\App\Models\Setting::get('foreign_phone_stage_off') === '1')>
+        مرحلهٔ <b>تأیید شمارهٔ</b> مشتریِ خارجی فعلاً <b>خاموش</b> باشد —
+        فقط تأییدِ ایمیل (همیشه اجباری) + KYCِ سندی (پاسپورت و قبضِ آدرس).
+        شماره در ثبت‌نام گرفته می‌شود ولی مهرِ تأیید نمی‌خورد. بعد از خروج از
+        سندباکس این تیک را بردارید تا تأیید پیامکی برگردد.
+      </label>
+    </div>
+
+    <div style="padding:0 18px 8px">
+      <label class="set-danger" style="color:#fbbf24">
         <input type="checkbox" name="aws_sns_sandbox" value="1"
                @checked(\App\Models\Setting::get('aws_sns_sandbox') === '1')>
         حساب هنوز در <b>SMS Sandbox</b> است — کدِ تأیید را خودِ AWS بفرستد
