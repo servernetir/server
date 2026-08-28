@@ -128,6 +128,27 @@ class ForeignKycTest extends TestCase
         $res->assertSessionDoesntHaveErrors(['doc_passport', 'doc_address', 'first_name']);
     }
 
+    /** 🔴 صفِ بررسیِ مدیر، نام و کشورِ صاحبِ مدارک را کنارِ خودِ مدارک می‌گوید */
+    public function test_the_review_queue_shows_who_and_which_country(): void
+    {
+        $c = $this->foreigner();
+
+        $this->actingAs($c, 'customer')->post('/en/account/verify', [
+            'type' => 'individual',
+            'first_name' => 'Mehmet', 'last_name' => 'Yilmaz', 'country' => 'Türkiye',
+            'doc_passport' => UploadedFile::fake()->create('passport.pdf', 300, 'application/pdf'),
+            'doc_address'  => UploadedFile::fake()->image('bill.png'),
+        ])->assertSessionHasNoErrors();
+
+        $html = (string) $this->actingAs($this->admin(), 'web')
+            ->get('/admin/verifications')->assertOk()->getContent();
+
+        $this->assertStringContainsString('Mehmet Yilmaz', $html, 'نامِ روی پاسپورت باید کنارِ مدارک باشد.');
+        $this->assertStringContainsString('Türkiye', $html, 'مدیر باید بداند مدارک مالِ کدام کشور است.');
+        $this->assertStringContainsString($c->code, $html, 'کدِ مشتری برای رهگیری لازم است.');
+        $this->assertStringContainsString('پاسپورت', $html);
+    }
+
     /** صفحهٔ پروفایلِ خارجی، فرمِ پاسپورت را نشان می‌دهد */
     public function test_the_profile_page_shows_the_passport_form_to_foreigners(): void
     {
