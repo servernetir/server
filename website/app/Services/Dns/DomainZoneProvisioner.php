@@ -171,9 +171,12 @@ class DomainZoneProvisioner
         try {
             app(\App\Services\Notify\AdminNotifier::class)->event(
                 'DNS zone ساخته نشد — دستی بسازید',
-                ['دامنه' => $domain->domain, 'علت' => mb_substr($why, 0, 160)],
-                url('/admin/domains'),
+                ['دامنه' => $domain->domain,
+                    'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
+                    'علت' => mb_substr($why, 0, 160)],
+                null,
                 '🌐',
+                [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
             );
         } catch (\Throwable) {
             // اعلان هرگز مسیرِ تحویل را نمی‌شکند

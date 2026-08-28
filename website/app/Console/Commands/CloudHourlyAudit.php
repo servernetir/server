@@ -118,11 +118,26 @@ class CloudHourlyAudit extends Command
 
         if ($underwater !== [] && $this->option('notify')) {
             try {
-                app(AdminNotifier::class)->event('ضررِ در جریان: سرورِ ساعتیِ زیرِ بها', [
-                    'تعداد' => count($underwater),
-                    'سرویس‌ها' => implode('، ', array_map(fn ($u) => '#'.$u[0]->id, $underwater)),
-                    'اصلاح' => 'php artisan cloud:hourly-reprice --apply',
-                ], null, '💸');
+                // پیامِ کاربردی: هر سرویس یک سطرِ کامل + دکمهٔ پروفایلِ مشتری
+                $rows = ['اصلاح' => 'php artisan cloud:hourly-reprice --apply'];
+                $buttons = [];
+
+                foreach (array_slice($underwater, 0, 4) as [$s, $locked, $cost, $providerLabel]) {
+                    $rows['#'.$s->id] =
+                        ($s->customer ? $s->customer->displayName().' ('.$s->customer->code.')' : 'مشتری؟')
+                        .' · '.((string) ($s->plan ?: $s->name))
+                        .' · قفل‌شده €'.number_format($locked, 4).'/h، بها €'.number_format($cost, 4).'/h ('.$providerLabel.')';
+                    $buttons[] = [[
+                        'text' => '👤 مشتری #'.$s->id,
+                        'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$s->customer_id,
+                    ]];
+                }
+
+                if (count($underwater) > 4) {
+                    $rows['و'] = fa_num((string) (count($underwater) - 4)).' سرویسِ دیگر (cloud:hourly-audit را بزن)';
+                }
+
+                app(AdminNotifier::class)->event('ضررِ در جریان: سرورِ ساعتیِ زیرِ بها', $rows, null, '💸', $buttons);
             } catch (\Throwable) {
             }
         }

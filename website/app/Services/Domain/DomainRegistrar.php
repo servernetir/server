@@ -784,9 +784,12 @@ class DomainRegistrar
 
                 app(\App\Services\Notify\AdminNotifier::class)->event(
                     'ثبتِ دامنه خودکار انجام نشد',
-                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
-                    url('/admin/domains'),
+                    ['دامنه' => $domain->domain,
+                        'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
+                        'علت' => mb_substr($message, 0, 160)],
+                    null,
                     '🌐',
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 // هشدار هرگز نباید مسیرِ ثبت را بشکند — ولی خودش هم گم نشود
@@ -954,9 +957,12 @@ class DomainRegistrar
             try {
                 app(\App\Services\Notify\AdminNotifier::class)->event(
                     'تمدیدِ دامنه خودکار انجام نشد',
-                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
-                    url('/admin/domains'),
+                    ['دامنه' => $domain->domain,
+                        'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
+                        'علت' => mb_substr($message, 0, 160)],
+                    null,
                     '⏳',
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 Log::warning('اعلانِ شکستِ تمدید نرفت', ['err' => $e->getMessage()]);
@@ -1076,9 +1082,12 @@ class DomainRegistrar
             try {
                 app(\App\Services\Notify\AdminNotifier::class)->event(
                     'بازیابیِ دامنهٔ منقضی انجام نشد',
-                    ['دامنه' => $domain->domain, 'علت' => mb_substr($message, 0, 160)],
-                    url('/admin/domains'),
+                    ['دامنه' => $domain->domain,
+                        'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
+                        'علت' => mb_substr($message, 0, 160)],
+                    null,
                     '🚨',
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 Log::warning('اعلانِ شکستِ بازیابی نرفت', ['err' => $e->getMessage()]);

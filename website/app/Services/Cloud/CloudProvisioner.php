@@ -774,6 +774,46 @@ class CloudProvisioner
                 ['services' => implode(',', $stalled->pluck('id')->take(10)->all())]
             );
 
+            /*
+            | پیامِ بله باید **کاربردی** باشد (خواستِ صریحِ کارفرما، ۶ شهریور):
+            | نسخهٔ قبلی فقط «#۶۰، #۶۱» و لینکِ inventory می‌داد — نه معلوم بود
+            | کدام مشتری، نه چه پلنی، و لینک هم روی موبایل به دردِ هیچ کاری
+            | نمی‌خورد. حالا هر سرویس یک سطرِ کامل دارد (مشتری، پلن، مکان،
+            | ساعتی/ماهانه، عمرِ انتظار، علت) و دو دکمهٔ عملیاتی: پروفایلِ
+            | مشتری و «تلاشِ دوبارهٔ تحویل» — همان کاری که مدیر واقعاً می‌کند.
+            | سقفِ ۴ سرویس تا پیام و کیبورد از حدِ بله بیرون نزند.
+            */
+            $rows = [];
+            $buttons = [];
+
+            foreach ($stalled->take(4) as $service) {
+                $why = CloudDeliveryWatch::reasonFor($service) ?? '—';
+                $customer = $service->customer;
+                $plan = $service->cloud_plan_id ? \App\Models\CloudPlan::find($service->cloud_plan_id) : null;
+                $loc = $plan?->location_code
+                    ? \App\Models\CloudLocation::where('code', $plan->location_code)->first()?->label('fa')
+                    : null;
+                $since = $service->cloudInstance?->created_at ?? $service->created_at;
+
+                $rows['#'.$service->id] =
+                    ($customer ? $customer->displayName().' ('.$customer->code.')' : 'مشتری؟')
+                    .' · '.((string) ($plan?->public_name ?: $service->plan ?: '—'))
+                    .($plan ? ' — '.fa_num((int) $plan->vcpu).' هسته/'.$plan->ramLabel() : '')
+                    .($loc ? ' · '.$loc : '')
+                    .' · '.($service->isHourly() ? 'ساعتی' : 'ماهانه')
+                    .($since ? ' · از '.$since->diffForHumans() : '')
+                    .' — '.$why;
+
+                $buttons[] = [
+                    ['text' => '👤 مشتری #'.$service->id, 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🔁 تحویلِ دوباره #'.$service->id, 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id],
+                ];
+            }
+
+            if ($stalled->count() > 4) {
+                $rows['و'] = fa_num((string) ($stalled->count() - 4)).' سرویسِ دیگر — فهرستِ کامل در /admin/cloud/inventory';
+            }
+
             // ثبت و پیام با **یک** گلوگاه می‌روند: هر دو یک خبرند و جداکردنشان
             // فقط دو حالتِ ناهماهنگ می‌ساخت (ردی که هست و پیامی که نیست).
             app(\App\Services\Notify\AdminNotifier::class)->event(
@@ -781,13 +821,10 @@ class CloudProvisioner
                 // `CloudDeliveryReadinessTest` همین را می‌جوید و آن گارد باید
                 // زنده بماند.
                 '🔴 سرورِ پول‌داده تحویل نشده — تحویل گیر کرده',
-                [
-                    'تعداد'  => (string) $stalled->count(),
-                    'سرویس'  => implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.$i)->all()),
-                    'علت'    => implode(' · ', $detail),
-                ],
-                url('/admin/cloud/inventory'),
-                '🔴'
+                $rows,
+                null,
+                '🔴',
+                $buttons
             );
         } catch (\Throwable $e) {
             // ⚠️ هیچ‌چیزِ این متد نباید به `schedule:run` برسد: یک استثنا کلِ آن

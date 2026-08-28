@@ -333,6 +333,51 @@ class CloudDeliveryReadinessTest extends TestCase
     }
 
     /**
+     * 🔴 پیامِ «گیر کرده» باید **کاربردی** باشد (خواستِ صریحِ کارفرما، ۶ شهریور):
+     * مشتری و پلن در متن، دکمهٔ پروفایل و «تلاشِ دوباره» در کیبورد، و بدونِ
+     * لینکِ بی‌مصرفِ inventory. نسخهٔ قبلی فقط «#۶۰، #۶۱» می‌داد و مدیر
+     * نمی‌فهمید کدام مشتری با چه مشخصاتی است.
+     */
+    public function test_the_stalled_warning_is_actionable_with_customer_and_retry_buttons(): void
+    {
+        $events = new \ArrayObject;
+
+        $mock = \Mockery::mock(\App\Services\Notify\AdminNotifier::class);
+        $mock->shouldReceive('event')->andReturnUsing(
+            function (string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []) use ($events) {
+                $events->append(compact('title', 'rows', 'url', 'buttons'));
+            });
+        $this->app->instance(\App\Services\Notify\AdminNotifier::class, $mock);
+
+        $service = $this->orderedButNotBuilt();
+
+        CloudInstance::where('service_id', $service->id)
+            ->update(['created_at' => now()->subMinutes(45), 'status' => 'building']);
+
+        Http::swap(new Factory);
+        Http::fake(fn () => Http::response(['data' => ['createdServiceIds' => []]], 200));
+
+        app(CloudProvisioner::class)->syncInstances();
+
+        $stalled = array_values(array_filter($events->getArrayCopy(),
+            fn (array $e) => str_contains($e['title'], 'گیر کرده')));
+        $this->assertNotEmpty($stalled);
+
+        $e = $stalled[0];
+        $body = implode(' ', array_map(fn ($v) => (string) $v, $e['rows']));
+
+        $this->assertStringContainsString((string) $service->customer->code, $body,
+            'کدِ مشتری باید در پیام باشد تا مدیر بفهمد سرویسِ کیست.');
+        $this->assertNull($e['url'], 'لینکِ inventory بی‌مصرف بود و عمداً حذف شد.');
+
+        $data = collect($e['buttons'])->flatten(1)->pluck('data')->implode(' ');
+        $this->assertStringContainsString('spa:'.$service->id, $data,
+            'دکمهٔ «تلاشِ دوبارهٔ تحویل» باید روی پیام باشد.');
+        $this->assertStringContainsString('c:'.$service->customer_id, $data,
+            'دکمهٔ پروفایلِ مشتری باید روی پیام باشد.');
+    }
+
+    /**
      * سرویسِ لغوشده عمداً ایمیل نمی‌گیرد، پس بدهی‌اش برای همیشه باز می‌مانَد.
      * اگر هشدارِ «گیر کرده» آن را بشمارد، هر ساعت یک هشدارِ بی‌عمل می‌سازد — و
      * هشدارِ بی‌عمل، هشدارهای واقعی را بی‌اعتبار می‌کند.
