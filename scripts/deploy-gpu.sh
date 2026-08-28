@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-544be0b}"
+MINE="${1:-e01263e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -78,6 +78,7 @@ app/Services/Billing/UndeliveredRefund.php
 app/Services/Sms/SnsSender.php
 app/Services/Customer/IranSalesGate.php
 app/Support/Countries.php
+app/helpers.php
 app/Http/Controllers/Account/VerificationController.php
 app/Http/Controllers/Admin/VerificationController.php
 resources/views/account/profile.blade.php
@@ -456,6 +457,8 @@ g app/Models/Service.php "ACTIVE_STATUSES"
 g app/Http/Controllers/Account/AccountController.php "countsAsActive"
 g config/billing.php "order_expiry_hours' => 24"
 g lang/en/ui.php "pnl_act_pay"
+g app/helpers.php "cloud_hourly_price"
+g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
 
 # کفِ ساعتی از بهایِ واقعیِ زیرساخت (sn-svc-76) — کلِ زنجیره باید با هم بنشیند
