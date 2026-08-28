@@ -45,6 +45,8 @@ class LicenseProductSeeder extends Seeder
         return [
             'license-directadmin' => [
                 'name'        => 'لایسنس DirectAdmin — سرور مجازی',
+                'name_en'     => 'DirectAdmin License — VPS',
+                'name_tr'     => 'DirectAdmin Lisansı — VPS',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 350000,
@@ -61,6 +63,8 @@ class LicenseProductSeeder extends Seeder
             ],
             'license-cpanel' => [
                 'name'        => 'لایسنس cPanel/WHM — سرور مجازی',
+                'name_en'     => 'cPanel/WHM License — VPS',
+                'name_tr'     => 'cPanel/WHM Lisansı — VPS',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 390000,
@@ -77,6 +81,8 @@ class LicenseProductSeeder extends Seeder
             ],
             'license-plesk' => [
                 'name'        => 'لایسنس Plesk — سرور مجازی',
+                'name_en'     => 'Plesk License — VPS',
+                'name_tr'     => 'Plesk Lisansı — VPS',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 450000,
@@ -93,6 +99,8 @@ class LicenseProductSeeder extends Seeder
             ],
             'license-litespeed' => [
                 'name'        => 'لایسنس LiteSpeed Enterprise',
+                'name_en'     => 'LiteSpeed Enterprise License',
+                'name_tr'     => 'LiteSpeed Enterprise Lisansı',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 390000,
@@ -121,6 +129,8 @@ class LicenseProductSeeder extends Seeder
             */
             'license-directadmin-ded' => [
                 'name'        => 'لایسنس DirectAdmin — سرور اختصاصی',
+                'name_en'     => 'DirectAdmin License — Dedicated',
+                'name_tr'     => 'DirectAdmin Lisansı — Dedicated',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 590000,
@@ -137,6 +147,8 @@ class LicenseProductSeeder extends Seeder
             ],
             'license-cpanel-ded' => [
                 'name'        => 'لایسنس cPanel/WHM — سرور اختصاصی',
+                'name_en'     => 'cPanel/WHM License — Dedicated',
+                'name_tr'     => 'cPanel/WHM Lisansı — Dedicated',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 740000,
@@ -153,6 +165,8 @@ class LicenseProductSeeder extends Seeder
             ],
             'license-plesk-ded' => [
                 'name'        => 'لایسنس Plesk — سرور اختصاصی',
+                'name_en'     => 'Plesk License — Dedicated',
+                'name_tr'     => 'Plesk Lisansı — Dedicated',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 690000,
@@ -171,6 +185,8 @@ class LicenseProductSeeder extends Seeder
             // می‌خرد — بی‌LVE، «اکانت زیاد» فروختن ریسکِ نود است.
             'license-cloudlinux' => [
                 'name'        => 'لایسنس CloudLinux',
+                'name_en'     => 'CloudLinux License',
+                'name_tr'     => 'CloudLinux Lisansı',
                 'category'    => 'license',
                 'group'       => 'license',
                 'price'       => 390000,
@@ -211,6 +227,27 @@ class LicenseProductSeeder extends Seeder
             }
 
             /*
+            | 🔴 ترجمهٔ نام **پیش از** دروازهٔ قیمت پر می‌شود.
+            |
+            | `name_en` / `name_tr` ستون‌های تازه‌اند: `null` یعنی «هرگز ست
+            | نشده»، نه «مدیر پاکش کرده». اگر پشتِ دروازه بماند، هر ردیفی که
+            | مدیر قیمتش را دستی عوض کرده تا ابد بی‌ترجمه می‌مانَد و صفحهٔ
+            | `/en/order/license-*` همان نامِ فارسی را نشان می‌دهد — با کدِ
+            | ۲۰۰ و بی‌هیچ خطایی.
+            |
+            | ⚠️ فقط وقتی خالی است: نامِ انگلیسیِ ویرایش‌شدهٔ مدیر دست نمی‌خورد.
+            */
+            $fill = [];
+            foreach (['name_en', 'name_tr'] as $col) {
+                if (blank($product->{$col}) && filled($attrs[$col] ?? null)) {
+                    $fill[$col] = $attrs[$col];
+                }
+            }
+            if ($fill !== []) {
+                $product->update($fill);
+            }
+
+            /*
             | ═══ 🔴 چرا «موجود بود ⇒ رد کن» کافی نبود ═══
             |
             | صفحهٔ کاتالوگ قیمت را از **دیتابیس** می‌خواند. پس وقتی قیمتِ
@@ -241,6 +278,8 @@ class LicenseProductSeeder extends Seeder
 
             $product->update([
                 'name'        => $attrs['name'],
+                'name_en'     => $attrs['name_en'] ?? null,
+                'name_tr'     => $attrs['name_tr'] ?? null,
                 'price'       => $attrs['price'],
                 'price_eur'   => $attrs['price_eur'],
                 'description' => $attrs['description'],

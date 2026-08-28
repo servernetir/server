@@ -35,6 +35,13 @@ class SeedBuilderProducts extends Command
 
         $cfg = (array) config('catalog.services.site-builder', []);
         $title = $cfg['fa']['t'] ?? 'سایت‌ساز';
+        /*
+        | 🔴 همان یک‌خطیِ SeedHostingProducts: تا امروز فقط `fa.t` برداشته
+        | می‌شد و `en.t`/`tr.t` — که در همین config موجودند — دور ریخته
+        | می‌شدند. نتیجه‌اش سه صفحهٔ `/en/order/site-builder-*` با نامِ فارسی.
+        */
+        $titleEn = $cfg['en']['t'] ?? null;
+        $titleTr = $cfg['tr']['t'] ?? null;
         $created = 0;
         $updated = 0;
 
@@ -42,6 +49,9 @@ class SeedBuilderProducts extends Command
             $pkgSlug = self::SLUG_PREFIX.($i + 1);
             $attrs = [
                 'name'            => $title.' — '.($plan['name'] ?? ('پلن '.($i + 1))),
+                // ⚠️ نامِ پلن (Personal/Business/Shop) ترجمه نمی‌شود — شناسه است
+                'name_en'         => $titleEn !== null ? trim($titleEn.' '.($plan['name'] ?? '')) : null,
+                'name_tr'         => $titleTr !== null ? trim($titleTr.' '.($plan['name'] ?? '')) : null,
                 'category'        => 'shared',
                 'group'           => 'site-builder',
                 'currency_code'   => 'IRT',
@@ -59,9 +69,28 @@ class SeedBuilderProducts extends Command
 
             $existing = Product::where('slug', $pkgSlug)->first();
             if ($existing) {
+                /*
+                | 🔴 بدونِ --force. ستونِ تازه: `null` یعنی «هرگز ست نشده»، نه
+                | «مدیر پاکش کرده». بی‌این، هر سه ردیفِ موجودِ پروداکشن تا ابد
+                | بی‌ترجمه می‌مانند و کدِ تازه هیچ اثری نمی‌گذارد.
+                */
+                $fill = [];
+                foreach (['name_en', 'name_tr'] as $col) {
+                    if (blank($existing->{$col}) && filled($attrs[$col])) {
+                        $fill[$col] = $attrs[$col];
+                    }
+                }
+                if ($fill !== [] && ! $this->option('force')) {
+                    $existing->update($fill);
+                    $updated++;
+                }
+
                 if ($this->option('force')) {
                     $existing->update([
                         'name' => $attrs['name'], 'price' => $attrs['price'],
+                        // ⚠️ `?:` نه `??` — کاتالوگِ بی‌ترجمه نامِ دستیِ مدیر را پاک نکند
+                        'name_en' => $attrs['name_en'] ?: $existing->name_en,
+                        'name_tr' => $attrs['name_tr'] ?: $existing->name_tr,
                         'specs' => $attrs['specs'], 'plan' => $attrs['plan'],
                         'group' => $attrs['group'], 'price_eur' => $attrs['price_eur'],
                     ]);
