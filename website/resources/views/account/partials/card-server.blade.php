@@ -113,7 +113,7 @@
   {{-- ── صورت‌حساب — به همان مدلی که واقعاً هست، نه به زورِ ستونِ ماهانه ── --}}
   <div class="svc-facts">
     @if($s->isHourly())
-      <div class="svc-fact"><small>{{ __('ui.cvb_hourly_t') }}</small><b>{{ cloud_price((int) $s->hourly_rate_irt) }}{{ __('ui.cvb_hourly_per') }}</b></div>
+      <div class="svc-fact"><small>{{ __('ui.cvb_hourly_t') }}</small><b>{{ cloud_hourly_price((int) $s->hourly_rate_irt) }}{{ __('ui.cvb_hourly_per') }}</b></div>
       <div class="svc-fact {{ $hours !== null && $hours < 24 ? 'is-warn' : '' }}">
         <small>{{ __('ui.svc_hours_left') }}</small><b>~{{ fa_num($hours) }} {{ __('ui.srv_credit_hours') }}</b>
       </div>

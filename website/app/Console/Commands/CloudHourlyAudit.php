@@ -68,9 +68,12 @@ class CloudHourlyAudit extends Command
         | مدیر واقعاً کارمزد/VAT می‌پردازد، همین سطر یادش می‌اندازد.
         */
         $pricing = app(CloudPricing::class);
-        $this->line('حاشیهٔ فروش: '.$pricing->marginPct().'٪ · سربارِ بها (کارمزد ارز/VAT): '.$pricing->fxFeePct().'٪'
-            .($pricing->fxFeePct() <= 0
-                ? '  ⚠️ صفر است — اگر برای رساندنِ پول به زیرساخت کارمزد یا VAT می‌دهی، در /admin/settings (قیمت‌گذاری) واردش کن وگرنه حاشیهٔ کوچک در عمل ضرر است'
+        $fees = collect(['hetzner', 'aeza', 'salad'])
+            ->mapWithKeys(fn ($p) => [$p => $pricing->fxFeePctFor($p)]);
+        $this->line('حاشیهٔ فروش: '.$pricing->marginPct().'٪ · سربارِ بها: '
+            .$fees->map(fn ($v, $k) => $k.' '.$v.'٪')->implode(' · ')
+            .($fees->contains(fn ($v) => $v <= 0)
+                ? '  ⚠️ زیرساختِ بی‌سربار داری — اگر برای رساندنِ پول به آن کارمزد/VAT می‌دهی، در /admin/settings (قیمت‌گذاری) واردش کن'
                 : ''));
 
         $eurToman = (int) $pricing->eurToToman();
@@ -90,7 +93,15 @@ class CloudHourlyAudit extends Command
             $costEur = $row
                 ? ($hourMicro > 0 ? round($hourMicro / 1_000_000, 4) : round(((int) $row->cost_eur_cents) / 720 / 100, 4))
                 : null;
-            $priceEur = $row ? round($row->hourlyEurCents() / 100, 4) : null;
+            /*
+            | قیمتِ روز از **تومان** (منبعِ واقعیِ کسر)، نه از سنتِ گردِ رو به
+            | بالا: hourlyEurCents برای €0.0618 عددِ ۷ سنت می‌دهد و ممیزی
+            | سرویسِ سالمِ €0.0660 را «زیرِ قیمتِ روز» می‌خواند — stale کاذب.
+            */
+            $priceEur = $row === null ? null
+                : ($eurToman > 0 && $row->hourlyIrt() > 0
+                    ? round($row->hourlyIrt() / $eurToman, 4)
+                    : round($row->hourlyEurCents() / 100, 4));
 
             $verdict = 'ok';
 
@@ -182,19 +193,21 @@ class CloudHourlyAudit extends Command
         return [$bought, (string) ($provider ?? $bought?->provider ?? '?')];
     }
 
-    /** نرخِ قفل‌شده به یورو در ساعت — از ستونِ یورویی، وگرنه تبدیلِ تومان با نرخِ روز */
+    /**
+     * نرخِ قفل‌شده به یورو در ساعت.
+     *
+     * ⚠️ منبعِ اول **تومان** است، نه ستونِ یورویی: کسرِ واقعیِ متر تومانی است
+     * و `hourly_rate_eur` سنتیِ گردِ رو به بالاست (€0.0106 را €0.02 نشان
+     * می‌داد — تقریباً دو برابر). ستونِ یورویی فقط پشتیبانِ نبودِ نرخ است.
+     */
     private function lockedEurPerHour(Service $s, int $eurToman): ?float
     {
-        $cents = (int) ($s->hourly_rate_eur ?? 0);
-
-        if ($cents > 0) {
-            return round($cents / 100, 4);
-        }
-
-        if ($eurToman > 0) {
+        if ($eurToman > 0 && (int) $s->hourly_rate_irt > 0) {
             return round(((int) $s->hourly_rate_irt) / $eurToman, 4);
         }
 
-        return null;
+        $cents = (int) ($s->hourly_rate_eur ?? 0);
+
+        return $cents > 0 ? round($cents / 100, 4) : null;
     }
 }

@@ -862,6 +862,36 @@ if (! function_exists('cloud_price')) {
     }
 }
 
+if (! function_exists('cloud_hourly_price')) {
+    /**
+     * نرخِ **ساعتی** به ارزِ زبانِ جاری — با دقتِ زیرِ سنت.
+     *
+     * `cloud_price` یورو را به ۲ رقمِ اعشار گرد می‌کند؛ برای نرخِ ساعتیِ
+     * زیرِ ده سنت این یعنی پنهان‌شدنِ عددِ واقعی: sn-svc-72 با €0.0106/h
+     * در پنل «€0.01 /hr» دیده می‌شد و کارفرما به‌حق گفت «غیرمنطقی است».
+     * زیرِ €0.10 چهار رقم، بالاترش دو رقم؛ صفرهای انتهایی حذف می‌شوند.
+     */
+    function cloud_hourly_price(int|float $toman): string
+    {
+        $t = (int) round($toman);
+
+        if (app()->getLocale() === 'fa') {
+            return fa_num(number_format($t)).' تومان';
+        }
+
+        $rate = cloud_eur_rate();
+
+        if ($rate > 0) {
+            $eur = $t / $rate;
+            $s = number_format($eur, $eur < 0.1 ? 4 : 2, '.', '');
+
+            return '€'.(str_contains($s, '.') ? rtrim(rtrim($s, '0'), '.') : $s);
+        }
+
+        return number_format($t);
+    }
+}
+
 if (! function_exists('invoice_money')) {
     /**
      * مبلغِ فاکتور/سرویس در ارزِ **خودِ فاکتور**، با نمایشِ زبان‌محور.

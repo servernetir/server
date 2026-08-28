@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-544be0b}"
+MINE="${1:-ec2c4f4}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -78,6 +78,7 @@ app/Services/Billing/UndeliveredRefund.php
 app/Services/Sms/SnsSender.php
 app/Services/Customer/IranSalesGate.php
 app/Support/Countries.php
+app/helpers.php
 app/Http/Controllers/Account/VerificationController.php
 app/Http/Controllers/Admin/VerificationController.php
 resources/views/account/profile.blade.php
@@ -449,13 +450,16 @@ g app/Services/Cloud/CloudProvisioner.php "تحویلِ دوباره #"
 g app/Services/Domain/DomainRegistrar.php "CB_PREFIX"
 
 # کفِ حاشیه + شمارشِ «فعال» + انقضای ۲۴ساعته (۶ شهریور)
-g app/Services/Cloud/CloudPricing.php "fxFeePct"
+g app/Services/Cloud/CloudPricing.php "fxFeePctFor"
+g resources/views/admin/settings/pricing.blade.php "pricing_fx_fee_pct_hetzner"
 g app/Services/Cloud/HetznerClient.php "costWithFee"
 g app/Services/Cloud/AezaClient.php "costWithFee"
 g app/Models/Service.php "ACTIVE_STATUSES"
 g app/Http/Controllers/Account/AccountController.php "countsAsActive"
 g config/billing.php "order_expiry_hours' => 24"
 g lang/en/ui.php "pnl_act_pay"
+g app/helpers.php "cloud_hourly_price"
+g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
 
 # کفِ ساعتی از بهایِ واقعیِ زیرساخت (sn-svc-76) — کلِ زنجیره باید با هم بنشیند
@@ -598,7 +602,7 @@ echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache (v
 echo
 echo "═══ بستنِ ضررِ ساعتی (بعد از ریستِ opcache، به همین ترتیب) ═══"
 echo "  ۰) در /admin/settings تبِ قیمت‌گذاری: حاشیه هر عددی که خودت می‌خواهی؛ و «کارمزد انتقال ارز» را"
-echo "     برابرِ سربارِ واقعی‌ات بگذار (کارمزد حواله/اسپرد + VAT اگر روی صورت‌حساب زیرساخت هست)"
+echo "     به تفکیک بگذار: هتزنر = VAT+حواله (مثلاً ۲۱) · aeza = فقط حواله (مثلاً ۲) · سالاد = کارمزد دلاری"
 echo "  $PHPBIN artisan cloud:sync --prices   ← بازقیمت‌گذاری با حاشیهٔ تازه"
 echo "  $PHPBIN artisan cloud:sync            ← بهایِ ساعتیِ واقعی را از زیرساخت‌ها می‌گیرد"
 echo "  $PHPBIN artisan cloud:hourly-audit    ← باید #75 و #76 را UNDERWATER نشان دهد"

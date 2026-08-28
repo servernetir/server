@@ -1149,7 +1149,7 @@ class AezaClient implements CloudProvider
         $cents = $this->interpretMonthlyEurCents($raw);
 
         // سربارِ انتقالِ ارز — قاعدهٔ مشترکِ هر سه زیرساخت (درسِ sn-svc-72)
-        return $cents > 0 ? (int) ceil(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($cents)) : 0;
+        return $cents > 0 ? (int) ceil(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($cents, 'aeza')) : 0;
     }
 
     /**
@@ -1200,7 +1200,7 @@ class AezaClient implements CloudProvider
                     }
 
                     // سربارِ انتقالِ ارز — همان قاعدهٔ بهای ماهانه
-                    return (int) round(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($eur * 1_000_000));
+                    return (int) round(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($eur * 1_000_000, 'aeza'));
                 }
             }
         }
