@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-d6cebd5}"
+MINE="${1:-99dc99c}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -97,6 +97,15 @@ app/Services/Bale/Admin/AdminBaleScreens.php
 app/Services/Payment/PaymentService.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
+app/Http/Controllers/Account/CloudServerController.php
+app/Http/Controllers/Account/DomainController.php
+app/Http/Controllers/Account/SecurityController.php
+app/Http/Controllers/Account/BankAccountController.php
+resources/views/account/domain-show.blade.php
+resources/views/account/domain-checkout.blade.php
+resources/views/account/store.blade.php
+resources/views/account/builder-checkout.blade.php
+resources/views/account/reseller.blade.php
 resources/views/account/topup.blade.php
 resources/views/account/home.blade.php
 app/Models/Customer.php
@@ -356,6 +365,15 @@ g app/Http/Controllers/Account/VerificationController.php "kd:"
 g app/Http/Controllers/Auth/RegisterController.php "CB_PREFIX"
 g app/Services/Provisioning/ProvisioningService.php "spa:"
 g app/Services/Cloud/CloudProvisioner.php "spa:"
+g lang/en/ui.php "dpg_renew_h"
+g lang/tr/ui.php "dpg_renew_h"
+g lang/en/ui.php "cxp_tun_h"
+g lang/en/ui.php "rsl_h"
+g resources/views/account/domain-show.blade.php "dpg_renew_h"
+g resources/views/account/store.blade.php "invoice_money"
+g resources/views/account/reseller.blade.php "rsl_h"
+g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
+g app/Http/Controllers/Account/DomainController.php "dm_ns_two"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
