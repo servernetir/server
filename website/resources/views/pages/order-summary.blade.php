@@ -24,7 +24,7 @@
   <div class="container">
     <div class="hero-sub-inner">
       <span class="badge reveal"><span class="pulse"></span><span>{{ __('ui.os_badge') }}</span></span>
-      <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.os_h1', ['name' => $product->name]) }}</h1>
+      <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.os_h1', ['name' => $product->displayName()]) }}</h1>
       <p class="lead reveal" style="transition-delay:.16s">{{ __('ui.os_sub') }}</p>
       {{-- نوارِ پیشرفتِ مشترک دو دامنه: جهشِ دامنه را به «یک گام» تبدیل می‌کند --}}
       <ol class="os-steps reveal" aria-label="{{ __('ui.os_steps_label') }}">
@@ -83,13 +83,20 @@
         @if($setup > 0)
         <li>{{ __('ui.os_setup') }}: <b {!! $ltr !!}>{{ cloud_price($setup) }}</b> — {{ __('ui.os_first_note') }}</li>
         @endif
-        @if($product->tax_percent > 0)
+        {{-- 🔴 تصمیمِ کارفرما (شهریور ۱۴۰۵): «قیمت‌های تومان ارزش افزوده
+             دارد، ولی یورو نه.» ارزش افزوده مالیاتی ایرانی است و به فروشِ
+             داخلی تعلق می‌گیرد. `effectiveTaxPercent()` همان تصمیم را در
+             **یک جا** نگه می‌دارد و مبلغِ صورت‌حساب هم از همان می‌آید —
+             پس جملهٔ صفحه نمی‌تواند از عددِ پرداختی جدا بیفتد. --}}
+        @if($product->effectiveTaxPercent() > 0)
           @if($vatVerified)
-          <li>{{ __('ui.os_tax_note', ['p' => $isFa ? fa_num($product->tax_percent) : $product->tax_percent]) }}</li>
+          <li>{{ __('ui.os_tax_note', ['p' => $isFa ? fa_num($product->effectiveTaxPercent()) : $product->effectiveTaxPercent()]) }}</li>
           @else
           {{-- حقوقی: تا تأییدِ ثبت‌نامِ ارزش افزوده، ادعای «۱۰٪ مالیات» روی صفحه نیاید --}}
           <li>{{ __('ui.os_tax_neutral') }}</li>
           @endif
+        @else
+          <li>{{ __('ui.os_tax_none') }}</li>
         @endif
         @if($product->isRefundable())
         <li>{{ __('ui.hp_inc5') }} — <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></li>
@@ -97,6 +104,16 @@
         <li>{{ __('ui.os_no_refund') }} — <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></li>
         @endif
       </ul>
+@unless($sells ?? true)
+      {{-- 🔴 ممیزی نهم (قلم ۴): بیانیهٔ صادقانهٔ محلِ داده و نبودِ DPA.
+           جایش عمداً همین‌جاست نه فقط صفحهٔ اصلی: خریدارِ اروپایی این تصمیم
+           را روی صفحهٔ سفارش می‌گیرد، و فهمیدنش **بعد** از پرداخت یعنی
+           بازگشتِ وجه و بی‌اعتمادی. --}}
+      <div class="os-note" style="margin-top:14px">
+        <b>{{ __('ui.eu_data_title') }}</b>
+        <p>{{ __('ui.eu_data_body') }}</p>
+      </div>
+      @endunless
 
       {{-- کارتِ جمع — روی موبایل به پایینِ صفحه می‌چسبد؛ مقدارِ اولیه سمتِ سرور --}}
       <div class="os-total">
@@ -105,7 +122,7 @@
           <b id="os-total" {!! $ltr !!}>{{ cloud_price($setup > 0 ? $defaultRow['first'] : $defaultRow['grand']) }}</b>
         </div>
         <a class="btn btn-primary" id="os-cta" href="{{ $defaultRow['href'] }}" rel="nofollow">
-          <span id="os-cta-text">{{ __('ui.os_cta_dynamic', ['cycle' => $defaultRow['label'], 'total' => cloud_price($setup > 0 ? $defaultRow['first'] : $defaultRow['grand'])]) }}</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
+          <span id="os-cta-text">@if($sells ?? true){{ __('ui.os_cta_dynamic', ['cycle' => $defaultRow['label'], 'total' => cloud_price($setup > 0 ? $defaultRow['first'] : $defaultRow['grand'])]) }}@else{{ __('ui.os_cta_quote') }}@endif</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
         </a>
       </div>
       <p class="os-login">{{ __('ui.os_saved_note') }}</p>
@@ -193,13 +210,26 @@ html[data-theme="light"] .os-total{background:#fff}
     } catch (e) {}
   }
 
+  /*
+    🔴 ممیزی نهم (قلم ۴): در زبانی که فروشِ فعال ندارد، JS نباید متنِ
+    «ادامهٔ پرداخت» را برگردانَد. بی‌این دو خط، رندرِ اولِ Blade درست بود و
+    **اولین کلیکِ کاربر روی انتخابِ دوره** همه‌چیز را خنثی می‌کرد — خرابی‌ای
+    که فقط با تعاملِ واقعی دیده می‌شود، نه با دیدنِ HTML.
+  */
+  var SELLS = {{ ($sells ?? true) ? 'true' : 'false' }};
+  var QUOTE_TEXT = @json(__('ui.os_cta_quote'));
+
   function apply(r, fromUser) {
     radios.forEach(function (x) { x.closest('.os-opt').classList.toggle('on', x === r); });
     var amount = cfg.first ? r.dataset.first : r.dataset.total;
     cta.href = r.dataset.href + '&sid=' + sid + '&ref=' + ref;
+    // ⚠️ در زبانِ بی‌فروش، مقصد فرمِ استعلام است و پارامترهای سبد بی‌معنی
+    if (!SELLS) cta.href = r.dataset.href;
     total.textContent = amount;
     name.textContent = r.dataset.label;
-    ctaText.textContent = cfg.cta.replace(':cycle', r.dataset.label).replace(':total', amount);
+    ctaText.textContent = SELLS
+      ? cfg.cta.replace(':cycle', r.dataset.label).replace(':total', amount)
+      : QUOTE_TEXT;
     if (fromUser) {
       idx += 1;
       beacon('cycle_selected', { cycle: r.value, discount_pct: r.dataset.saving, selection_index: idx });

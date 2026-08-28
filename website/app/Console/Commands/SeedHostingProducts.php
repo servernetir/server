@@ -36,11 +36,22 @@ class SeedHostingProducts extends Command
             $group = $prod['group'] ?? 'use';
             $category = $group === 'reseller' ? 'reseller' : 'shared';
             $title = $prod['fa']['t'] ?? $slug;
+            /*
+            | 🔴 ممیزی نهم: تا امروز فقط همین یک خطِ فارسی برداشته می‌شد و
+            | `en.t`/`tr.t` — که در config موجودند — دور ریخته می‌شدند. از آن
+            | لحظه جدولِ products تنها منبعِ نام بود و صفحهٔ `/en/order/*` هیچ
+            | راهی به عقب نداشت: ۱۳۴ صفحه با نامِ فارسی در عنوان.
+            */
+            $titleEn = $prod['en']['t'] ?? null;
+            $titleTr = $prod['tr']['t'] ?? null;
 
             foreach (($prod['plans'] ?? []) as $i => $plan) {
                 $pkgSlug = $slug.'-'.($i + 1);
                 $attrs = [
                     'name'            => $title.' — '.($plan['name'] ?? ('پلن '.($i + 1))),
+                    // ⚠️ SKU (LX-2, BK-1T…) هرگز ترجمه نمی‌شود — شناسهٔ محصول است
+                    'name_en'         => $titleEn !== null ? trim($titleEn.' '.($plan['name'] ?? '')) : null,
+                    'name_tr'         => $titleTr !== null ? trim($titleTr.' '.($plan['name'] ?? '')) : null,
                     'category'        => $category,
                     // گروه = کلیدِ کاتالوگ (wordpress، backup، reseller-linux…)
                     // تا تغییرِ قیمتِ گروهی در پنل روی همان دسته کار کند.
@@ -65,12 +76,45 @@ class SeedHostingProducts extends Command
 
                 $existing = Product::where('slug', $pkgSlug)->first();
                 if ($existing) {
+                    /*
+                    | 🔴 پرکردنِ ترجمهٔ نام، **بدونِ** --force.
+                    |
+                    | این seeder insert-missing است و ردیفِ موجود را جز با
+                    | --force دست نمی‌زند — قاعدهٔ درستی است، چون قیمت و
+                    | مشخصات را مدیر در پنل ویرایش می‌کند.
+                    |
+                    | ولی `name_en`/`name_tr` ستون‌های **تازه**اند: `null` یعنی
+                    | «هرگز ست نشده»، نه «مدیر پاکش کرده». بی‌این پرکردن، هر ۶۷
+                    | محصولِ موجودِ پروداکشن تا ابد بی‌ترجمه می‌مانند و ۱۳۴ صفحهٔ
+                    | سفارشِ en/tr همان نامِ فارسی را نشان می‌دهند — یعنی مهاجرت
+                    | و کدِ تازه هیچ اثری نمی‌گذارند و کسی هم خطایی نمی‌بیند.
+                    |
+                    | ⚠️ فقط وقتی خالی است. اگر مدیر روزی نامِ انگلیسی را دستی
+                    | عوض کند، اجرای بعدی پاکش نمی‌کند.
+                    */
+                    $fill = [];
+                    if (blank($existing->name_en) && filled($attrs['name_en'])) {
+                        $fill['name_en'] = $attrs['name_en'];
+                    }
+                    if (blank($existing->name_tr) && filled($attrs['name_tr'])) {
+                        $fill['name_tr'] = $attrs['name_tr'];
+                    }
+                    if ($fill !== [] && ! $this->option('force')) {
+                        $existing->update($fill);
+                        $updated++;
+                    }
+
                     if ($this->option('force')) {
                         // فقط قیمت/مشخصات را تازه کن، سرورِ انتخاب‌شده را دست نزن.
                         // plan هم اصلاح می‌شود چون ردیف‌های قدیمی نامِ پلنِ کاتالوگ
                         // را دارند و با آن، تحویلِ خودکار روی WHM شکست می‌خورد.
                         $existing->update([
-                            'name' => $attrs['name'], 'price' => $attrs['price'],
+                            'name' => $attrs['name'],
+                            // ⚠️ `?:` نه `??` — کاتالوگِ بی‌ترجمه نباید نامِ
+                            //    دستیِ مدیر را با null پاک کند.
+                            'name_en' => $attrs['name_en'] ?: $existing->name_en,
+                            'name_tr' => $attrs['name_tr'] ?: $existing->name_tr,
+                            'price' => $attrs['price'],
                             'specs' => $attrs['specs'], 'category' => $attrs['category'],
                             'plan' => $attrs['plan'], 'group' => $attrs['group'],
                             'price_eur' => $attrs['price_eur'],

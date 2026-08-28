@@ -57,7 +57,7 @@ class OrderSummaryController extends Controller
         $product = Product::where('slug', $slug)->where('is_active', true)->firstOrFail();
 
         $setup = $product->setup_fee > 0 ? $product->effectiveSetup() : 0;
-        $setupTax = (int) round($setup * $product->tax_percent / 100);
+        $setupTax = (int) round($setup * $product->effectiveTaxPercent() / 100);
 
         $monthlyGrand = null;
         $rows = [];
@@ -70,7 +70,7 @@ class OrderSummaryController extends Controller
             }
 
             $total = $product->priceForCycle($cycle);
-            $tax = (int) round($total * $product->tax_percent / 100);
+            $tax = (int) round($total * $product->effectiveTaxPercent() / 100);
             $grand = $total + $tax;
 
             if ($cycle === 'monthly') {
@@ -90,13 +90,15 @@ class OrderSummaryController extends Controller
                 // console — هر کلیک در اکسس‌لاگ و Funnel شمرده می‌شود و امضا در
                 // لحظهٔ کلیک ساخته می‌شود نه در لحظهٔ رندرِ صفحهٔ کش‌شده.
                 // lroute تا صفحهٔ en/tr به /en/go/pay برود و locale در تحویل بماند.
-                'href'    => lroute('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order']),
+                'href'    => $this->sellsInCurrentLocale()
+                    ? lroute('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order'])
+                    : lroute('contact'),
             ];
         }
 
         if ($rows === []) {
             $total = $product->effectivePrice();
-            $tax = (int) round($total * $product->tax_percent / 100);
+            $tax = (int) round($total * $product->effectiveTaxPercent() / 100);
 
             $rows[] = [
                 'cycle'   => 'once',
@@ -107,7 +109,9 @@ class OrderSummaryController extends Controller
                 'total'   => $total,
                 'grand'   => $total + $tax,
                 'first'   => $total + $tax + $setup + $setupTax,
-                'href'    => lroute('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order']),
+                'href'    => $this->sellsInCurrentLocale()
+                    ? lroute('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order'])
+                    : lroute('contact'),
             ];
         }
 
@@ -140,6 +144,7 @@ class OrderSummaryController extends Controller
             'defaultRow'  => $defaultRow,
             'setup'       => $setup,
             'vatVerified' => $this->vatVerified(),
+            'sells'       => $this->sellsInCurrentLocale(),
             'schema'      => $this->schema($product, $rows),
             /*
             | ممیزی ۷ (قلم ۲ رودمپ) تصمیمِ «فقط پرچم‌دارها ایندکس» ممیزی ۶ را
@@ -147,9 +152,30 @@ class OrderSummaryController extends Controller
             | مستقیم روی درآمد اثر دارد. عنوان/توضیحِ هر SKU تراکنشی و یکتاست
             | (نام + قیمت)، پس شرطِ new_page_gate (عنوانِ یکتا) هم برقرار است.
             */
-            'metaTitle'   => __('ui.os_meta_title', ['name' => $product->name, 'price' => cloud_price($lowestMonthly)]),
-            'metaDesc'    => __('ui.os_meta_desc', ['name' => $product->name, 'price' => cloud_price($lowest)]),
+            'metaTitle'   => __('ui.os_meta_title', ['name' => $product->displayName(), 'price' => cloud_price($lowestMonthly)]),
+            'metaDesc'    => __('ui.os_meta_desc', ['name' => $product->displayName(), 'price' => cloud_price($lowest)]),
         ]);
+    }
+
+    /**
+     * آیا در زبانِ جاری **فروشِ فعال** داریم؟
+     *
+     * 🔴 ممیزی نهم (قلم ۴): بازارِ اروپا به «حضور و اعتبار» تنزل کرد.
+     *
+     * دلیلش حقوقی است نه بازاریابی: بدونِ DPA و مادهٔ ۲۸ GDPR، فروش به مشتریِ
+     * اروپایی یک نقصِ قراردادی روی **هر معاملهٔ B2B** است — به‌علاوهٔ نبودِ
+     * بیانیهٔ محلِ نگهداریِ داده، رضایتِ کوکی، و نوبتِ پشتیبانیِ اروپایی.
+     *
+     * ⚠️ صفحات و قیمتِ یورویی **می‌مانند**: سرمایهٔ entity و AEO هستند و
+     * قیمتِ شفاف با اسکیما هم‌راستاست. فقط مسیرِ پرداخت بسته می‌شود.
+     *
+     * ⚠️ دروازهٔ بازفعال‌سازی (تصمیمِ آگاهانه، نه این‌جا): DPA + فهرستِ
+     * subprocessor مادهٔ ۲۸ · بیانیهٔ محلِ داده · رضایتِ کوکی · نمایندهٔ مادهٔ
+     * ۲۷ · معادلِ KVKK برای ترکی. تا آن روز این متد `false` می‌مانَد.
+     */
+    private function sellsInCurrentLocale(): bool
+    {
+        return app()->getLocale() === 'fa';
     }
 
     /**
@@ -232,7 +258,7 @@ class OrderSummaryController extends Controller
         $validUntil = date('Y-m-d', strtotime('+30 days'));
 
         $data = [
-            'name'  => $product->name,
+            'name'  => $product->displayName(),   // ⚠️ باید آینهٔ H1 باشد؛ یک منبع هر دو را تغذیه کند
             'sku'   => $product->slug,
             'brand' => ['@type' => 'Brand', 'name' => 'ServerNet'],
             'url'   => $url,
@@ -259,7 +285,11 @@ class OrderSummaryController extends Controller
                 'name'            => $r['label'],
                 'price'           => $price((int) $r['grand']),
                 'priceCurrency'   => $currency,
-                'availability'    => 'https://schema.org/InStock',
+                // ⚠️ اسکیما باید همان چیزی را بگوید که دکمه می‌کند: وقتی CTA
+                // به فرمِ استعلام می‌رود، ادعای InStock یک ناهمخوانیِ ساختاری است.
+                'availability'    => $this->sellsInCurrentLocale()
+                    ? 'https://schema.org/InStock'
+                    : 'https://schema.org/LimitedAvailability',
                 // لنگرِ همان رادیو روی همین صفحه — نه ?cycle= که رشتهٔ کوئری است و
                 // PageCache آن را BYPASS می‌کرد (و صفحهٔ «دوم»ی برای گوگل می‌ساخت)
                 'url'             => $url.'#cy-'.$r['cycle'],
@@ -276,7 +306,7 @@ class OrderSummaryController extends Controller
                 ];
 
                 // فقط وقتی مؤدیِ تأییدشده‌ایم ادعای «شاملِ VAT» ماشین‌خوان می‌شود (حقوقی)
-                if ($product->tax_percent > 0 && $this->vatVerified()) {
+                if ($product->effectiveTaxPercent() > 0 && $this->vatVerified()) {
                     $spec['valueAddedTaxIncluded'] = true;
                 }
 
