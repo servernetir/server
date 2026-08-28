@@ -53,8 +53,8 @@ trait SaladOperations
      */
     private function fxFeePct(): float
     {
-        // منبعِ یگانه: CloudPricing — هر سه زیرساخت همین سربار را می‌نشانند
-        return app(CloudPricing::class)->fxFeePct();
+        // منبعِ یگانه: CloudPricing — با سربارِ اختصاصیِ این زیرساخت
+        return app(CloudPricing::class)->fxFeePctFor('salad');
     }
 
     /** نرخِ vCPU بر ساعت (دلار) — قابلِ اصلاح از تنظیمات */

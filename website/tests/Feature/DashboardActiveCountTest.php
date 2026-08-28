@@ -145,4 +145,24 @@ class DashboardActiveCountTest extends TestCase
         Setting::put('pricing_fx_fee_pct', '400');
         $this->assertSame(25.0, $pricing->fxFeePct());
     }
+
+    /**
+     * سربار به تفکیکِ زیرساخت (تصمیمِ کارفرما): هتزنر VAT دارد و aeza نه؛
+     * عددِ اختصاصی مقدم است و خالی = پشتیبانِ عمومی، نه صفر و نه جمع.
+     */
+    public function test_the_fx_fee_can_differ_per_provider_with_a_shared_fallback(): void
+    {
+        $pricing = app(CloudPricing::class);
+
+        Setting::put('pricing_fx_fee_pct', '3');
+        $this->assertSame(3.0, $pricing->fxFeePctFor('hetzner'), 'خالی = پشتیبانِ عمومی.');
+        $this->assertSame(3.0, $pricing->fxFeePctFor('aeza'));
+
+        Setting::put('pricing_fx_fee_pct_hetzner', '21');
+        $this->assertSame(21.0, $pricing->fxFeePctFor('hetzner'), 'عددِ اختصاصی مقدم است.');
+        $this->assertSame(3.0, $pricing->fxFeePctFor('aeza'), 'اختصاصیِ یکی، دیگری را عوض نمی‌کند.');
+
+        $this->assertSame(1210.0, $pricing->costWithFee(1000, 'hetzner'));
+        $this->assertSame(1030.0, $pricing->costWithFee(1000, 'aeza'));
+    }
 }

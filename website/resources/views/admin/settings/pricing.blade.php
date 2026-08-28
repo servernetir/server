@@ -37,11 +37,25 @@
         <span style="color:var(--dim);font-size:11.5px">زیرساختِ GPU به دلار می‌فروشد؛ بی‌نرخ، پلن‌هایش صفر و نافروختنی می‌شوند.</span>
         <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0"
                value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
-      <label class="set-f">کارمزد انتقال ارز (٪)
-        <span style="color:var(--dim);font-size:11.5px">روی بهای <b>همهٔ</b> زیرساخت‌های ابری (ماهانه و ساعتی) پیش از حاشیه می‌نشیند — کارمزد حواله/اسپرد صرافی و VAT اگر روی صورت‌حساب‌هایت هست. خالی = صفر.</span>
+      <label class="set-f">کارمزد انتقال ارز — پیش‌فرض (٪)
+        <span style="color:var(--dim);font-size:11.5px">روی بهای زیرساخت (ماهانه و ساعتی) پیش از حاشیه می‌نشیند — کارمزد حواله/اسپرد و VAT. این عدد <b>پشتیبانِ</b> زیرساخت‌هایی است که پایین عددِ اختصاصی ندارند.</span>
         <input type="number" name="pricing_fx_fee_pct" dir="ltr" min="0" max="25" step="0.1"
-               value="{{ $pricing['pricing_fx_fee_pct'] }}" placeholder="مثلاً 1.5">
-        <small>وقتی نرخِ بازار را خودتان می‌دانید و نمی‌خواهید به منبعِ زنده تکیه کنید.</small></label>
+               value="{{ $pricing['pricing_fx_fee_pct'] }}" placeholder="مثلاً 1.5"></label>
+      {{-- سربار به تفکیکِ زیرساخت — واقعیتِ مالی‌شان یکی نیست: هتزنر روی
+           صورت‌حساب VAT آلمان می‌زند، قیمتِ aeza نهایی است. یک عددِ مشترک یا
+           هتزنر را ضررده می‌کرد یا aeza را غیررقابتی. --}}
+      <label class="set-f">سربارِ هتزنر (٪)
+        <input type="number" name="pricing_fx_fee_pct_hetzner" dir="ltr" min="0" max="25" step="0.1"
+               value="{{ $pricing['pricing_fx_fee_pct_hetzner'] }}" placeholder="خالی = پیش‌فرض">
+        <small>اگر روی فاکتورهایت VAT آلمان (۱۹٪) هست: ۱۹ + کارمزد حواله (مثلاً ۲۱).</small></label>
+      <label class="set-f">سربارِ aeza (٪)
+        <input type="number" name="pricing_fx_fee_pct_aeza" dir="ltr" min="0" max="25" step="0.1"
+               value="{{ $pricing['pricing_fx_fee_pct_aeza'] }}" placeholder="خالی = پیش‌فرض">
+        <small>قیمتش نهایی است؛ معمولاً فقط کارمزد حواله/صرافی (۱ تا ۵).</small></label>
+      <label class="set-f">سربارِ GPU/سالاد (٪)
+        <input type="number" name="pricing_fx_fee_pct_salad" dir="ltr" min="0" max="25" step="0.1"
+               value="{{ $pricing['pricing_fx_fee_pct_salad'] }}" placeholder="خالی = پیش‌فرض">
+        <small>پرداختِ دلاری؛ کارمزد کارت/حواله‌ات به آن‌ها.</small></label>
       <label class="set-f">حاشیهٔ سودِ عمومی (٪)
         <input type="number" name="price_margin_pct" dir="ltr" step="0.1"
                value="{{ $pricing['price_margin_pct'] }}" placeholder="۰">

@@ -295,7 +295,7 @@ class HetznerClient implements CloudProvider
         $ipv4Cents = $this->ipv4MonthlyCents();
 
         // سربارِ انتقالِ ارز — منبعِ یگانه در CloudPricing (درسِ sn-svc-72)
-        $fee = fn (float $x): float => app(CloudPricing::class)->costWithFee($x);
+        $fee = fn (float $x): float => app(CloudPricing::class)->costWithFee($x, 'hetzner');
 
         $outPlans = [];
         foreach ($this->paged('/server_types', 'server_types') as $t) {

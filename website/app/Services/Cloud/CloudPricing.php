@@ -57,10 +57,30 @@ class CloudPricing
         return $v > 0 ? min(25.0, $v) : 0.0;
     }
 
-    /** ضریبِ سربار — برای درایورها که بها را با آن ذخیره می‌کنند */
-    public function costWithFee(float $eur): float
+    /**
+     * سربار به تفکیکِ **زیرساخت** — چون واقعیتِ مالی‌شان یکی نیست (تصمیمِ
+     * کارفرما، ۶ شهریور): هتزنر روی صورت‌حساب VAT آلمان (۱۹٪) می‌زند ولی
+     * قیمتِ aeza نهایی است؛ یک عددِ مشترک یا هتزنر را ضررده می‌کرد یا aeza
+     * را گران و غیررقابتی. کلید: `pricing_fx_fee_pct_{slug}`؛ خالی = عددِ
+     * عمومیِ `pricing_fx_fee_pct` (پشتیبان، نه جمع).
+     */
+    public function fxFeePctFor(?string $provider): float
     {
-        return $eur * (1 + $this->fxFeePct() / 100);
+        if (filled($provider)) {
+            $v = (float) Setting::get('pricing_fx_fee_pct_'.strtolower(trim($provider)), '');
+
+            if ($v > 0) {
+                return min(25.0, $v);
+            }
+        }
+
+        return $this->fxFeePct();
+    }
+
+    /** ضریبِ سربار — برای درایورها که بها را با آن ذخیره می‌کنند */
+    public function costWithFee(float $eur, ?string $provider = null): float
+    {
+        return $eur * (1 + $this->fxFeePctFor($provider) / 100);
     }
 
     /** قیمتِ فروشِ یورویی به سنت — گردشده رو به بالا به ۱۰ سنت */

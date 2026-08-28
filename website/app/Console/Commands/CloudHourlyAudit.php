@@ -68,9 +68,12 @@ class CloudHourlyAudit extends Command
         | مدیر واقعاً کارمزد/VAT می‌پردازد، همین سطر یادش می‌اندازد.
         */
         $pricing = app(CloudPricing::class);
-        $this->line('حاشیهٔ فروش: '.$pricing->marginPct().'٪ · سربارِ بها (کارمزد ارز/VAT): '.$pricing->fxFeePct().'٪'
-            .($pricing->fxFeePct() <= 0
-                ? '  ⚠️ صفر است — اگر برای رساندنِ پول به زیرساخت کارمزد یا VAT می‌دهی، در /admin/settings (قیمت‌گذاری) واردش کن وگرنه حاشیهٔ کوچک در عمل ضرر است'
+        $fees = collect(['hetzner', 'aeza', 'salad'])
+            ->mapWithKeys(fn ($p) => [$p => $pricing->fxFeePctFor($p)]);
+        $this->line('حاشیهٔ فروش: '.$pricing->marginPct().'٪ · سربارِ بها: '
+            .$fees->map(fn ($v, $k) => $k.' '.$v.'٪')->implode(' · ')
+            .($fees->contains(fn ($v) => $v <= 0)
+                ? '  ⚠️ زیرساختِ بی‌سربار داری — اگر برای رساندنِ پول به آن کارمزد/VAT می‌دهی، در /admin/settings (قیمت‌گذاری) واردش کن'
                 : ''));
 
         $eurToman = (int) $pricing->eurToToman();
