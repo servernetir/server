@@ -84,6 +84,28 @@ class DashboardActiveCountTest extends TestCase
     }
 
     /**
+     * 🔴 نمایشِ نرخِ ساعتی دقتِ زیرِ سنت را نگه می‌دارد.
+     *
+     * cloud_price به ۲ رقم گرد می‌کرد و sn-svc-72 با €0.0106/h در پنل
+     * «€0.01 /hr» دیده می‌شد — کارفرما به‌حق گفت «این عدد غیرمنطقی است».
+     */
+    public function test_the_hourly_rate_display_keeps_sub_cent_precision(): void
+    {
+        Setting::put('pricing_rate_override', '236100');
+
+        app()->setLocale('en');
+        $this->assertSame('€0.0106', cloud_hourly_price(2500));
+        $this->assertSame('€0.07', cloud_hourly_price(16527), 'بالای ده سنت دو رقم کافی است.');
+
+        app()->setLocale('fa');
+        $this->assertStringContainsString('تومان', cloud_hourly_price(2500));
+
+        // کارتِ سرویس هم از همین کمک‌تابع می‌خواند، نه cloud_price گردکننده
+        $this->assertStringContainsString('cloud_hourly_price',
+            (string) file_get_contents(resource_path('views/account/partials/card-server.blade.php')));
+    }
+
+    /**
      * حاشیه دقیقاً همان تنظیمِ مدیر است — **بی‌هیچ کفی** (تصمیمِ صریحِ
      * کارفرما: «حاشیهٔ سود من همان عددی است که در تنظیمات می‌نویسم»).
      * محافظِ ضدِ ضرر جای دیگری است: سربارِ بها (تستِ بعدی).

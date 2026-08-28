@@ -182,19 +182,21 @@ class CloudHourlyAudit extends Command
         return [$bought, (string) ($provider ?? $bought?->provider ?? '?')];
     }
 
-    /** نرخِ قفل‌شده به یورو در ساعت — از ستونِ یورویی، وگرنه تبدیلِ تومان با نرخِ روز */
+    /**
+     * نرخِ قفل‌شده به یورو در ساعت.
+     *
+     * ⚠️ منبعِ اول **تومان** است، نه ستونِ یورویی: کسرِ واقعیِ متر تومانی است
+     * و `hourly_rate_eur` سنتیِ گردِ رو به بالاست (€0.0106 را €0.02 نشان
+     * می‌داد — تقریباً دو برابر). ستونِ یورویی فقط پشتیبانِ نبودِ نرخ است.
+     */
     private function lockedEurPerHour(Service $s, int $eurToman): ?float
     {
-        $cents = (int) ($s->hourly_rate_eur ?? 0);
-
-        if ($cents > 0) {
-            return round($cents / 100, 4);
-        }
-
-        if ($eurToman > 0) {
+        if ($eurToman > 0 && (int) $s->hourly_rate_irt > 0) {
             return round(((int) $s->hourly_rate_irt) / $eurToman, 4);
         }
 
-        return null;
+        $cents = (int) ($s->hourly_rate_eur ?? 0);
+
+        return $cents > 0 ? round($cents / 100, 4) : null;
     }
 }
