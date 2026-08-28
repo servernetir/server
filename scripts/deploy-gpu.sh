@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-99dc99c}"
+MINE="${1:-1c41ab4}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -98,6 +98,14 @@ app/Services/Payment/PaymentService.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
 app/Http/Controllers/Account/CloudServerController.php
+app/Models/TunnelAgent.php
+app/Models/TunnelJob.php
+app/Models/CustomerApiToken.php
+app/Support/TunnelAgentScript.php
+app/Http/Controllers/Agent/TunnelAgentController.php
+app/Http/Controllers/Api/TunnelApiController.php
+resources/views/pages/developers-tunnel.blade.php
+database/migrations/2026_10_02_000101_create_tunnel_jobs_table.php
 app/Http/Controllers/Account/DomainController.php
 app/Http/Controllers/Account/SecurityController.php
 app/Http/Controllers/Account/BankAccountController.php
@@ -376,8 +384,15 @@ g lang/en/ui.php "rsl_h"
 g resources/views/account/domain-show.blade.php "dpg_renew_h"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
-# (موقت — تا حلِ تداخلِ سرور) g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
+g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
 g app/Http/Controllers/Account/DomainController.php "dm_ns_two"
+g app/Http/Controllers/Account/CloudServerController.php "enrollTunnelAgent"
+g resources/views/account/cloud-server.blade.php "cxp_ag_off_h"
+g app/Models/TunnelAgent.php "issueFor"
+g app/Models/CustomerApiToken.php "tunnel:write"
+g routes/web.php "TunnelAgentController"
+g lang/en/ui.php "cxp_ag_off_h"
+g lang/tr/ui.php "cxp_ag_off_h"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
