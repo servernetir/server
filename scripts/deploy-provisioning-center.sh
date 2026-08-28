@@ -30,7 +30,7 @@ else
   git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
 fi
 
-MINE="${1:-314f453}"
+MINE="${1:-0a0276e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
