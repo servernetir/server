@@ -99,11 +99,36 @@ class OfflinePaymentAccountsTest extends TestCase
             $this->assertCount(1, $found, "برای فاکتورِ {$cur} کیفِ رمزارز باید پیشنهاد شود");
         }
 
-        // ولی حسابِ بانکی فقط برای ارزِ خودش
+        // ولی حسابِ بانکی فقط برای ارزِ خودش — مگر فاکتورِ تومانی (پایین)
         $this->bank();
         $this->assertCount(2, PaymentAccount::forInvoiceCurrency('EUR'));
         $this->assertCount(1, PaymentAccount::forInvoiceCurrency('GBP'),
             'حسابِ یورویی نباید در فاکتورِ پوندی پیشنهاد شود');
+    }
+
+    /**
+     * 🔴 فاکتورِ **تومانی** هر مقصدِ ارزی را می‌پذیرد — رخدادِ واقعی (۶ شهریور):
+     *
+     * مدیر حسابِ حوالهٔ یورویی ساخت و مشتریِ خارجی همچنان «Coming soon» می‌دید،
+     * چون فاکتورهای مشتریِ خارجی درونی IRT هستند (یورو فقط نمایش است) و تطبیقِ
+     * ارز، حسابِ EUR را به هیچ فاکتوری نمی‌رساند. جریانِ حواله آفلاین است و
+     * مبلغ را مدیر دستی تأیید می‌کند، پس تطبیقِ ماشینیِ ارز محافظِ هیچ‌چیز نبود.
+     */
+    public function test_an_irt_invoice_offers_the_foreign_wire_account(): void
+    {
+        $c = $this->customer();
+        $inv = $this->invoice($c, 'IRT');
+        $this->bank();
+
+        $this->assertCount(1, PaymentAccount::forInvoiceCurrency('IRT'),
+            'حسابِ ارزی باید روی فاکتورِ تومانی پیشنهاد شود — وگرنه مشتریِ خارجی برای همیشه «به‌زودی» می‌بیند.');
+
+        $html = $this->actingAs($c, 'customer')->get('/en/account/invoices/'.$inv->id)
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('DE89370400440532013000', $html, 'IBAN باید دیده شود');
+        $this->assertStringNotContainsString(__('ui.inv_soon_activate'), $html,
+            'با حسابِ واقعی، «Coming soon» نباید بماند');
     }
 
     /**
