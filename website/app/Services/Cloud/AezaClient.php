@@ -1146,7 +1146,10 @@ class AezaClient implements CloudProvider
             return 0;
         }
 
-        return $this->interpretMonthlyEurCents($raw);
+        $cents = $this->interpretMonthlyEurCents($raw);
+
+        // سربارِ انتقالِ ارز — قاعدهٔ مشترکِ هر سه زیرساخت (درسِ sn-svc-72)
+        return $cents > 0 ? (int) ceil(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($cents)) : 0;
     }
 
     /**
@@ -1192,8 +1195,12 @@ class AezaClient implements CloudProvider
                 if (is_numeric($v) && (float) $v > 0) {
                     $eur = (float) $v / self::priceDivisor();
 
-                    // بازهٔ معقولِ ساعتی؛ بیرونش = دادهٔ بی‌معنا، نه واحدِ دیگر
-                    return ($eur >= 0.001 && $eur <= 10.0) ? (int) round($eur * 1_000_000) : 0;
+                    if ($eur < 0.001 || $eur > 10.0) {
+                        return 0;    // بازهٔ معقولِ ساعتی؛ بیرونش = دادهٔ بی‌معنا
+                    }
+
+                    // سربارِ انتقالِ ارز — همان قاعدهٔ بهای ماهانه
+                    return (int) round(app(\App\Services\Cloud\CloudPricing::class)->costWithFee($eur * 1_000_000));
                 }
             }
         }

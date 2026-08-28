@@ -38,7 +38,7 @@
         <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0"
                value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
       <label class="set-f">کارمزد انتقال ارز (٪)
-        <span style="color:var(--dim);font-size:11.5px">کارمزد حواله/صرافی که تا امروز در بهای تمام‌شده حساب نمی‌شد. خالی = صفر.</span>
+        <span style="color:var(--dim);font-size:11.5px">روی بهای <b>همهٔ</b> زیرساخت‌های ابری (ماهانه و ساعتی) پیش از حاشیه می‌نشیند — کارمزد حواله/اسپرد صرافی و VAT اگر روی صورت‌حساب‌هایت هست. خالی = صفر.</span>
         <input type="number" name="pricing_fx_fee_pct" dir="ltr" min="0" max="25" step="0.1"
                value="{{ $pricing['pricing_fx_fee_pct'] }}" placeholder="مثلاً 1.5">
         <small>وقتی نرخِ بازار را خودتان می‌دانید و نمی‌خواهید به منبعِ زنده تکیه کنید.</small></label>
@@ -58,7 +58,7 @@
 
     <div class="set-grid three" style="padding:0 18px 18px">
       <label class="set-f">سرورِ ابری (٪)
-        <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="10" max="500"
+        <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
                value="{{ $pricing['cloud_margin_pct'] }}"
                placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)">
         <small>روی بهایِ یوروییِ زیرساخت اعمال و بعد با نرخِ روز به تومان می‌آید.</small></label>

@@ -53,9 +53,8 @@ trait SaladOperations
      */
     private function fxFeePct(): float
     {
-        $v = (float) Setting::get('pricing_fx_fee_pct', '');
-
-        return $v > 0 ? min(25.0, $v) : 0.0;
+        // منبعِ یگانه: CloudPricing — هر سه زیرساخت همین سربار را می‌نشانند
+        return app(CloudPricing::class)->fxFeePct();
     }
 
     /** نرخِ vCPU بر ساعت (دلار) — قابلِ اصلاح از تنظیمات */

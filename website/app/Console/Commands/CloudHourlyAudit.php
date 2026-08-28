@@ -62,16 +62,15 @@ class CloudHourlyAudit extends Command
         }
 
         /*
-        | حاشیهٔ مؤثر هم چاپ می‌شود — رخدادِ واقعی: cloud_margin_pct روی سرور
-        | «۲» بود و همه‌چیز «ok» دیده می‌شد در حالی که کلِ خط عملاً به بها
-        | فروخته می‌شد. حالا CloudPricing کفِ سختِ ۱۰٪ دارد؛ اگر تنظیمِ
-        | ذخیره‌شده زیرِ کف باشد، این‌جا صریح گفته می‌شود تا مدیر اصلاحش کند.
+        | حاشیه و سربار چاپ می‌شوند تا «سبز» قابلِ تفسیر باشد: حاشیه تصمیمِ
+        | آزادِ مدیر است (حتی ۲٪)، ولی فقط وقتی سودِ واقعی است که سربارِ
+        | رساندنِ پول (pricing_fx_fee_pct) در بها نشسته باشد — اگر صفر است و
+        | مدیر واقعاً کارمزد/VAT می‌پردازد، همین سطر یادش می‌اندازد.
         */
         $pricing = app(CloudPricing::class);
-        $rawMargin = \App\Models\Setting::get('cloud_margin_pct');
-        $this->line('حاشیهٔ مؤثرِ فروش: '.$pricing->marginPct().'٪'
-            .((is_numeric($rawMargin) && (float) $rawMargin < $pricing->marginPct())
-                ? '  ⚠️ تنظیمِ ذخیره‌شده '.$rawMargin.'٪ بود و به کفِ سخت مهار شد — در /admin/settings (قیمت‌گذاری) اصلاحش کن'
+        $this->line('حاشیهٔ فروش: '.$pricing->marginPct().'٪ · سربارِ بها (کارمزد ارز/VAT): '.$pricing->fxFeePct().'٪'
+            .($pricing->fxFeePct() <= 0
+                ? '  ⚠️ صفر است — اگر برای رساندنِ پول به زیرساخت کارمزد یا VAT می‌دهی، در /admin/settings (قیمت‌گذاری) واردش کن وگرنه حاشیهٔ کوچک در عمل ضرر است'
                 : ''));
 
         $eurToman = (int) $pricing->eurToToman();

@@ -294,6 +294,9 @@ class HetznerClient implements CloudProvider
 
         $ipv4Cents = $this->ipv4MonthlyCents();
 
+        // سربارِ انتقالِ ارز — منبعِ یگانه در CloudPricing (درسِ sn-svc-72)
+        $fee = fn (float $x): float => app(CloudPricing::class)->costWithFee($x);
+
         $outPlans = [];
         foreach ($this->paged('/server_types', 'server_types') as $t) {
             if (! empty($t['deprecated'])) {
@@ -335,7 +338,10 @@ class HetznerClient implements CloudProvider
                     'traffic_gb'        => $traffic,
                     'cpu_kind'          => ((string) ($t['cpu_type'] ?? 'shared')) === 'dedicated' ? 'dedicated' : 'shared',
                     'arch'              => ((string) ($t['architecture'] ?? 'x86')) === 'arm' ? 'arm' : 'x86',
-                    'cost_eur_cents'    => (int) round($monthly * 100) + $ipv4Cents,
+                    // سربارِ انتقالِ ارز (pricing_fx_fee_pct) روی بها می‌نشیند —
+                    // همان قاعدهٔ درایورِ GPU؛ بی‌آن، حاشیهٔ کوچکِ مدیر روی
+                    // بهایِ خوش‌بینانه سود بود و در عمل ضرر (درسِ sn-svc-72).
+                    'cost_eur_cents'    => (int) ceil($fee((float) round($monthly * 100) + $ipv4Cents)),
                     /*
                     | نرخِ ساعتیِ خودِ هتزنر (net) + سهمِ ساعتیِ IPv4 — به
                     | میکرو‌یورو، چون زیرِ یک سنت است و در سنت گم می‌شد.
@@ -343,7 +349,7 @@ class HetznerClient implements CloudProvider
                     | بی‌این ستون، کفِ فروشِ ساعتی از بهایِ واقعی کمتر می‌ماند.
                     */
                     'cost_hour_eur_micro' => ($h = (float) data_get($p, 'price_hourly.net', 0)) > 0
-                        ? (int) round($h * 1_000_000 + ($ipv4Cents / 720) * 10_000)
+                        ? (int) round($fee($h * 1_000_000 + ($ipv4Cents / 720) * 10_000))
                         : null,
                     'in_stock'          => (bool) ($availability[$locRef][$id] ?? false),
                 ];

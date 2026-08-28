@@ -83,17 +83,44 @@ class DashboardActiveCountTest extends TestCase
         $resp->assertDontSee('>Open<', false);
     }
 
-    /** 🔴 کفِ سختِ حاشیه: مقدارِ ۲٪ (رخدادِ واقعیِ پروداکشن) مهار می‌شود */
-    public function test_the_margin_has_a_hard_floor(): void
+    /**
+     * حاشیه دقیقاً همان تنظیمِ مدیر است — **بی‌هیچ کفی** (تصمیمِ صریحِ
+     * کارفرما: «حاشیهٔ سود من همان عددی است که در تنظیمات می‌نویسم»).
+     * محافظِ ضدِ ضرر جای دیگری است: سربارِ بها (تستِ بعدی).
+     */
+    public function test_the_margin_setting_is_respected_exactly(): void
     {
         Setting::put('cloud_margin_pct', '2');
-        $this->assertSame(10.0, app(CloudPricing::class)->marginPct(),
-            'حاشیهٔ ۲٪ یعنی فروش به بها — باید به کفِ سخت مهار شود.');
+        $this->assertSame(2.0, app(CloudPricing::class)->marginPct(),
+            'حاشیه تصمیمِ مدیر است؛ کفِ سخت عمداً برداشته شد.');
 
         Setting::put('cloud_margin_pct', '45');
         $this->assertSame(45.0, app(CloudPricing::class)->marginPct());
 
         Setting::put('cloud_margin_pct', '');
         $this->assertSame(45.0, app(CloudPricing::class)->marginPct(), 'خالی = پیش‌فرضِ ۴۵.');
+    }
+
+    /**
+     * 🔴 محافظِ واقعیِ «۲٪ سود ولی در عمل ضرر»: سربارِ رساندنِ پول
+     * (pricing_fx_fee_pct) باید واردِ بها شود تا حاشیهٔ کوچک هم سودِ واقعی
+     * باشد. sn-svc-72 دقیقاً همین بود: بها نرخِ اسمیِ هتزنر بود، بی‌کارمزدِ
+     * حواله/VAT.
+     */
+    public function test_the_fx_fee_uplifts_the_cost_basis(): void
+    {
+        $pricing = app(CloudPricing::class);
+
+        Setting::put('pricing_fx_fee_pct', null);
+        $this->assertSame(0.0, $pricing->fxFeePct(), 'پیش‌فرض صفر — عددِ حدسی ممنوع.');
+        $this->assertSame(1000.0, $pricing->costWithFee(1000));
+
+        Setting::put('pricing_fx_fee_pct', '10');
+        $this->assertSame(10.0, $pricing->fxFeePct());
+        $this->assertSame(1100.0, $pricing->costWithFee(1000));
+
+        // سقفِ ۲۵: عددِ بزرگ‌تر تقریباً همیشه غلطِ تایپی است
+        Setting::put('pricing_fx_fee_pct', '400');
+        $this->assertSame(25.0, $pricing->fxFeePct());
     }
 }
