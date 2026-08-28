@@ -1067,6 +1067,58 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 });
 
 /*
+| وضعیتِ درگاهِ رمزارز — چرا کارتِ پرداخت «مشغول» است.
+|
+| 🔴 فقط شمارش و بولین؛ **هیچ آدرسی** برنمی‌گردد (این روت عمومی است).
+|
+| کارفرما دید هر دو داراییِ رمزارز روی فاکتور «موقتاً در دسترس نیست» شده و
+| از این‌جا نمی‌شد فهمید علت کدام است: استخرِ بی‌آدرسِ آزاد (مشغول/دورهٔ
+| خنک‌شدنِ ۶ساعته) یا کشِ سردِ نرخِ ارز (کرونِ ساعتیِ fx:dollar). این روت
+| همان تفکیک را می‌دهد — الگوی /system/sms-status.
+*/
+Route::middleware('throttle:tools')->get('/system/crypto-status', function () {
+    if (! \Illuminate\Support\Facades\Schema::hasTable('crypto_wallets')) {
+        return response()->json(['ready' => false, 'reason' => 'no_tables']);
+    }
+
+    $fx = app(\App\Services\ExchangeRate::class);
+    $issuer = app(\App\Services\Payment\CryptoIssuer::class);
+
+    $pools = [];
+    foreach (array_unique(array_column(\App\Services\Payment\CryptoIssuer::ASSETS, 'chain')) as $chain) {
+        $pools[$chain] = [
+            'active'  => \App\Models\CryptoWallet::where('chain', $chain)->where('is_active', true)->count(),
+            'free'    => \App\Models\CryptoWallet::free($chain)->count(),
+            'busy'    => \App\Models\CryptoWallet::where('chain', $chain)->where('is_active', true)
+                ->whereNotNull('busy_payment_id')->count(),
+            'cooling' => \App\Models\CryptoWallet::where('chain', $chain)->where('is_active', true)
+                ->whereNull('busy_payment_id')->where('cooldown_until', '>', now())->count(),
+        ];
+    }
+
+    return response()->json([
+        'pools' => $pools,
+        // نرخِ کش‌شده — سرد بودنِ هرکدام یعنی state=busy حتی با آدرسِ آزاد
+        'fx_cached' => [
+            'usd' => (float) ($fx->current('USD')['rate_toman'] ?? 0) > 0,
+            'eur' => (float) ($fx->current('EUR')['rate_toman'] ?? 0) > 0,
+        ],
+        // وضعیتِ نهایی همان‌طور که صفحهٔ فاکتور می‌بیند
+        'state_irt' => array_map(fn ($a) => $a['state'], $issuer->offers('IRT')),
+        'state_eur' => array_map(fn ($a) => $a['state'], $issuer->offers('EUR')),
+        'open_payments' => \Illuminate\Support\Facades\Schema::hasTable('crypto_payments')
+            ? \App\Models\CryptoPayment::whereIn('status', ['pending', 'seen'])
+                ->where('expires_at', '>', now())->count()
+            : null,
+        // پرداختِ منقضی که هنوز pending مانده = کرونِ crypto:watch نمی‌دود
+        'stale_pending' => \Illuminate\Support\Facades\Schema::hasTable('crypto_payments')
+            ? \App\Models\CryptoPayment::where('status', 'pending')
+                ->where('expires_at', '<', now())->count()
+            : null,
+    ]);
+});
+
+/*
 | در دسترس بودن سرویس‌های بیرونی — از دید خود سرور.
 |
 | لازم است چون هر سه سرویس ایرانی‌اند و گاهی قطع می‌شوند، و ماشین توسعه

@@ -116,7 +116,7 @@ class UndeliveredRefund
         if ($total > 0) {
             try {
                 \App\Models\ActivityLog::forService($service, 'terminate',
-                    'بازگشتِ خودکارِ وجه به کیفِ پول — تحویل انجام نشده بود ('.number_format($total).')', $actor);
+                    __('ui.act_auto_refund', ['amount' => number_format($total)], $service->customer?->locale ?: 'fa'), $actor);
             } catch (\Throwable) {
             }
 

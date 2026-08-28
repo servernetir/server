@@ -91,7 +91,7 @@ class SecurityController extends Controller
         $c->forceFill(['password' => Hash::make($data['password'])])->save();
         $request->session()->forget('pw_change_ctx');
 
-        \App\Models\ActivityLog::record($c->id, 'password', 'رمز عبور توسط خودِ کاربر تنظیم شد', $request, 'customer');
+        \App\Models\ActivityLog::record($c->id, 'password', __('ui.act_pw_self'), $request, 'customer');
 
         return back()->with('ok', __('ui.scf_pw_set'))->withFragment('sec-pw');
     }

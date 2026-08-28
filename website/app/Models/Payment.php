@@ -57,9 +57,10 @@ class Payment extends Model
     {
         $invoice = $this->invoice;
 
+        // در لحظهٔ نمایش ترجمه می‌شود (متنِ ذخیره‌شده نیست) — زبانِ صفحهٔ جاری
         return match ($invoice?->kind) {
-            'topup' => 'افزایش اعتبار سرورنت',
-            default => 'پرداخت فاکتور '.($invoice?->number ?? ''),
+            'topup' => __('ui.pay_desc_topup'),
+            default => __('ui.pay_desc_invoice', ['n' => $invoice?->number ?? '']),
         };
     }
 }

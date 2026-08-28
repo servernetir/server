@@ -368,7 +368,7 @@ class PaymentController extends Controller
         }
 
         \App\Models\ActivityLog::record($invoice->customer_id, 'bank_receipt',
-            'رسید واریز برای فاکتور '.$invoice->number.' با شناسهٔ '.$data['reference'].' ثبت شد', $request, 'customer');
+            __('ui.act_bank_receipt', ['n' => $invoice->number, 'ref' => $data['reference']]), $request, 'customer');
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', __('ui.iv_receipt_saved'));

@@ -225,7 +225,7 @@ class BuilderCheckoutController extends Controller
         });
 
         \App\Models\ActivityLog::record($customer->id, 'purchase',
-            'سفارشِ سایت‌ساز «'.$product->name.'» ('.$quote->domain.') — مرجعِ '.$ref,
+            __('ui.act_order_builder', ['name' => $product->name, 'domain' => $quote->domain, 'ref' => $ref]),
             $request, 'customer', $invoice->service_id);
 
         app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ سایت‌ساز (در انتظارِ پرداخت)', [

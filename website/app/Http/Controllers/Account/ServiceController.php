@@ -182,8 +182,8 @@ class ServiceController extends Controller
             $why = Service::terminateReasonLabel($data['reason'] ?? null);
 
             ActivityLog::forService($service, 'terminate',
-                'حذفِ سرویس به‌خواستِ مشتری با تأییدِ کدِ یک‌بارمصرف'
-                .($why !== null ? ' — دلیل: '.$why : ''), 'customer', $request);
+                __('ui.act_svc_delete')
+                .($why !== null ? __('ui.act_reason', ['why' => $why]) : ''), 'customer', $request);
         } catch (\Throwable) {
         }
 
@@ -339,7 +339,8 @@ class ServiceController extends Controller
 
         try {
             ActivityLog::forService($service, 'terminate',
-                'لغوِ سفارشِ تحویل‌نشده توسط مشتری'.($refund > 0 ? ' — بازگشتِ '.fa_num(number_format($refund)).' تومان به کیفِ پول' : ''),
+                __('ui.act_svc_cancel')
+                .($refund > 0 ? __('ui.act_refund_suffix', ['amount' => invoice_money($refund)]) : ''),
                 'customer', $request);
         } catch (\Throwable) {
         }

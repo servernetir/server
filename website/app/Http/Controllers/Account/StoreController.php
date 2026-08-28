@@ -197,8 +197,11 @@ class StoreController extends Controller
         });
 
         \App\Models\ActivityLog::record($customer->id, 'purchase',
-            'سفارشِ آنلاینِ پکیج «'.$product->name.'» ('.$domain.') — '
-            .Service::labelFor($cycle).($country ? ' · '.$country : '').' توسط مشتری ثبت شد',
+            __('ui.act_order_pkg', [
+                'name'   => $product->name,
+                'domain' => $domain,
+                'tail'   => Service::labelFor($cycle).($country ? ' · '.$country : ''),
+            ]),
             $request, 'customer', $invoice->service_id);
 
         // اعلانِ سفارشِ تازه به مدیر (هنوز پرداخت نشده — پرداختش اعلانِ جدا دارد)
@@ -290,8 +293,7 @@ class StoreController extends Controller
         });
 
         \App\Models\ActivityLog::record($customer->id, 'purchase',
-            'سفارشِ آنلاینِ لایسنس «'.$product->name.'» (IP: '.$ip.') — '
-            .Service::labelFor($cycle).' توسط مشتری ثبت شد',
+            __('ui.act_order_lic', ['name' => $product->name, 'ip' => $ip, 'cycle' => Service::labelFor($cycle)]),
             $request, 'customer', $invoice->service_id);
 
         app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ لایسنس (در انتظارِ پرداخت)', [

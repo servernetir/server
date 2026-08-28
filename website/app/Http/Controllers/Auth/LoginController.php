@@ -162,7 +162,8 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         \App\Models\ActivityLog::record($customer->id, 'login',
-            'ورود موفق با '.($ctx['channel'] === 'email' ? 'ایمیل' : 'موبایل'), $request, 'customer');
+            __('ui.act_login', ['channel' => __($ctx['channel'] === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile')]),
+            $request, 'customer');
 
         return redirect()->intended(route($this->rp().'account.home'));
     }

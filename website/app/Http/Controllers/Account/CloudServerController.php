@@ -225,7 +225,7 @@ class CloudServerController extends Controller
 
         $label = $disable ? 'ایران (بدونِ اکسیت)' : mb_strtoupper($cc);
 
-        $this->log($service, 'کشورِ خروج → '.$label);
+        $this->log($service, __('ui.act_cloud_exit', ['label' => $label]));
 
         return back()->with('ok', __('ui.cx_egress_set', ['label' => $label]));
     }
@@ -471,7 +471,7 @@ class CloudServerController extends Controller
 
         $instance->save();
 
-        $this->log($service, 'نصبِ دوبارهٔ سیستم‌عامل: '.$data['image']);
+        $this->log($service, __('ui.act_cloud_reinstall', ['image' => $data['image']]));
 
         return back()->with('ok', __('ui.cx_reinstall_ok'));
     }
@@ -508,7 +508,7 @@ class CloudServerController extends Controller
         // رمز را در سرویس هم تازه می‌کنیم تا صفحهٔ فهرستِ سرویس‌ها همان را بگوید
         $service->forceFill(['password' => $r['root_password']])->save();
 
-        $this->log($service, 'رمزِ root تازه شد.');
+        $this->log($service, __('ui.act_cloud_rootpw'));
 
         return back()->with('ok', __('ui.cx_newpass_ok'));
     }
@@ -569,7 +569,7 @@ class CloudServerController extends Controller
             now()->addSeconds(90)
         );
 
-        $this->log($service, 'کنسولِ تحتِ وب باز شد.');
+        $this->log($service, __('ui.act_cloud_console'));
 
         return redirect()->route('account.cloud.console.view', [$service, 't' => $ticket]);
     }
@@ -714,7 +714,7 @@ class CloudServerController extends Controller
 
         $agented = $this->dispatchTunnelJob($service, TunnelJob::OP_ADD, $name, $ip, $keys['public']);
 
-        $this->log($service, 'اکانتِ تونل «'.$name.'» ('.$ip.') صادر شد');
+        $this->log($service, __('ui.act_cloud_tun_new', ['name' => $name, 'ip' => $ip]));
 
         // یک‌بارمصرف: کلیدِ خصوصی و کانفیگ فقط در همین flash می‌مانَد.
         return back()->with('tunnel_issued', [
@@ -766,7 +766,7 @@ class CloudServerController extends Controller
 
         $agented = $this->dispatchTunnelJob($service, TunnelJob::OP_REMOVE, $name);
 
-        $this->log($service, 'اکانتِ تونل «'.$name.'» حذف شد');
+        $this->log($service, __('ui.act_cloud_tun_del', ['name' => $name]));
 
         return back()
             ->with('tunnel_removed', $tunnel->routerRemoveCommand($name))
@@ -810,7 +810,7 @@ class CloudServerController extends Controller
 
         [, $plain] = TunnelAgent::issueFor((int) $service->id);
 
-        $this->log($service, $existed ? 'توکنِ ایجنتِ روتر دوباره صادر شد' : 'ایجنتِ روتر ثبت شد');
+        $this->log($service, $existed ? __('ui.act_cloud_agent_re') : __('ui.act_cloud_agent_new'));
 
         $base = rtrim(url('/agent/tunnel'), '/');
 
@@ -870,7 +870,7 @@ class CloudServerController extends Controller
     {
         try {
             ActivityLog::record($service->customer_id, 'service',
-                'سرورِ ابری #'.$service->id.' — '.$text, null, 'customer');
+                __('ui.act_cloud_evt', ['id' => $service->id, 'text' => $text]), null, 'customer');
         } catch (\Throwable) {
             // لاگ نباید عملیات را بشکند
         }

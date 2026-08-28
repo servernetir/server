@@ -474,7 +474,7 @@ class CloudProvisioner
 
         try {
             \App\Models\ActivityLog::forService($service, 'provision',
-                'سفارشِ سرور ثبت شد؛ ایمیلِ تحویل تا رسیدنِ IP نگه داشته شد.', 'system');
+                __('ui.act_prov_ordered', [], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
@@ -1140,7 +1140,7 @@ class CloudProvisioner
             //    نمی‌چسبد و در `/admin/services/{id}/history` **دیده نمی‌شود**.
             //    یعنی تنها جایی که مدیر دنبالِ علت می‌گردد، خالی می‌مانَد.
             \App\Models\ActivityLog::forService($service, 'provision',
-                'تحویلِ سرورِ ابری ناموفق: '.$reason, 'system');
+                __('ui.act_prov_failed', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
@@ -1215,7 +1215,7 @@ class CloudProvisioner
         */
         try {
             \App\Models\ActivityLog::forService($service, 'provision',
-                'سفارش به صفِ بازبینیِ دستی رفت: '.$reason, 'system');
+                __('ui.act_prov_manual', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
@@ -1579,7 +1579,7 @@ class CloudProvisioner
 
         try {
             \App\Models\ActivityLog::forService($service, 'provision',
-                'ایمیلِ تحویلِ سرور فرستاده شد (IP: '.$instance->ipv4.').', 'system');
+                __('ui.act_prov_mail', ['ip' => $instance->ipv4], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 

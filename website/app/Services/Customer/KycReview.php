@@ -57,7 +57,8 @@ class KycReview
             : '✅ Your identity has been verified at ServerNet. All services — including Iran-hosted plans — are now available to your account.');
 
         try {
-            ActivityLog::record($profile->customer_id, 'verify', 'هویت تأیید شد: '.$who, null, 'admin');
+            ActivityLog::record($profile->customer_id, 'verify',
+                __('ui.act_kyc_ok', ['who' => $who], $profile->customer?->locale ?: 'fa'), null, 'admin');
         } catch (\Throwable) {
         }
 
@@ -94,7 +95,8 @@ class KycReview
                 .$reason.' — please correct and re-submit them from your panel (Profile → Identity).');
 
         try {
-            ActivityLog::record($profile->customer_id, 'verify', 'هویت رد شد: '.$reason, null, 'admin');
+            ActivityLog::record($profile->customer_id, 'verify',
+                __('ui.act_kyc_no', ['reason' => $reason], $profile->customer?->locale ?: 'fa'), null, 'admin');
         } catch (\Throwable) {
         }
 

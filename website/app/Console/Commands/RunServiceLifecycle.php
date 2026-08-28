@@ -122,7 +122,7 @@ class RunServiceLifecycle extends Command
                     'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
 
                 \App\Models\ActivityLog::forService($service, 'reactivate',
-                    'رفعِ تعلیقِ خودکار — فاکتورِ تمدید پرداخت شد', 'system');
+                    __('ui.act_auto_unsuspend', [], $service->customer?->locale ?: 'fa'), 'system');
             }
             $stats['restored']++;
 
@@ -220,7 +220,7 @@ class RunServiceLifecycle extends Command
                 $this->alertAdmin($admin, $service, 'سرویس به‌خاطرِ عدمِ تمدید غیرفعال شد', '⛔');
 
                 \App\Models\ActivityLog::forService($service, 'suspend',
-                    'تعلیقِ خودکار — فاکتورِ سررسیدشده ('.$daysOverdue.' روز) پرداخت نشد', 'system');
+                    __('ui.act_auto_suspend', ['days' => $daysOverdue], $service->customer?->locale ?: 'fa'), 'system');
             }
             $stats['suspended']++;
 

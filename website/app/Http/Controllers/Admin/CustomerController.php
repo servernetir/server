@@ -463,7 +463,7 @@ class CustomerController extends Controller
         }
 
         ActivityLog::record($customer->id, 'password',
-            'رمز عبور توسط پشتیبانی تغییر کرد', $request, 'staff');
+            __('ui.act_pw_staff', [], $customer->locale ?: 'fa'), $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
     }

@@ -581,9 +581,19 @@ class PaymentService
                     // اعلان هرگز تسویه را نمی‌شکند
                 }
 
-                \App\Models\ActivityLog::record($customer->id, 'payment',
-                    'پرداخت '.number_format($outcome->payment->amount).' تومان از طریق '
-                    .($outcome->payment->gateway ?? '').' انجام شد', null, 'customer');
+                // لاگ به زبان و ارزِ خودِ مشتری — کال‌بکِ درگاه لوکالِ او را ندارد
+                $prevLoc = app()->getLocale();
+
+                try {
+                    app()->setLocale($customer->locale ?: 'fa');
+                    \App\Models\ActivityLog::record($customer->id, 'payment',
+                        __('ui.act_payment', [
+                            'amount' => invoice_money($outcome->payment->amount, $outcome->payment->currency_code ?? 'IRT'),
+                            'gw'     => $outcome->payment->gateway ?? '',
+                        ]), null, 'customer');
+                } finally {
+                    app()->setLocale($prevLoc);
+                }
 
                 // اعلان به **مدیر**: پول رسید. بیرونِ تراکنش و در try، تا خطای
                 // بله/SMTP نتواند تسویه‌ای که موفق شده را برگرداند.

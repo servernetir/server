@@ -156,7 +156,7 @@ class VerificationController extends Controller
         $this->notifySupport($customer, $profile);
 
         \App\Models\ActivityLog::record($customer->id, 'service',
-            'درخواستِ تأییدِ هویت'.($isCompany ? 'ِ حقوقی' : '').' ثبت شد', $request, 'customer');
+            __($isCompany ? 'ui.act_kyc_req_co' : 'ui.act_kyc_req'), $request, 'customer');
 
         // به بخشِ حقوقیِ همان صفحهٔ پروفایل برمی‌گردد (صفحهٔ جدا حذف شده)
         return redirect()->to(lroute('account.profile').'#company')
