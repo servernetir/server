@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-86bf3de}"
+MINE="${1:-31f6f40}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -81,6 +81,7 @@ app/Http/Controllers/Auth/RegisterController.php
 app/Models/Customer.php
 resources/views/admin/settings/general.blade.php
 resources/views/auth/register/start.blade.php
+resources/views/auth/register/verify.blade.php
 app/Http/Controllers/Admin/ServiceController.php
 app/Http/Controllers/Account/ServiceController.php
 app/Http/Controllers/Admin/ProductController.php
@@ -311,6 +312,11 @@ g resources/views/auth/register/start.blade.php "auth_first_name"
 g lang/fa/ui.php "auth_first_name"
 g lang/en/ui.php "auth_first_name"
 g lang/tr/ui.php "auth_first_name"
+g app/Http/Controllers/Auth/RegisterController.php "auth_sms_stage_sent"
+g resources/views/auth/register/verify.blade.php "reg_notice"
+g lang/fa/ui.php "auth_sms_stage_sent"
+g lang/en/ui.php "auth_sms_stage_sent"
+g lang/tr/ui.php "auth_sms_stage_sent"
 g app/Http/Controllers/CatalogController.php "GONE_TO_GPU"
 g app/Models/CloudInstance.php "accessHost"
 g resources/views/account/cloud-server.blade.php "cs_gpu_use_h"
