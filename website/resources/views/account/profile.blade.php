@@ -143,6 +143,34 @@
         </select>
       </label>
 
+      @php $foreignKyc = ($identity ?? null) === null; @endphp
+      @if($foreignKyc)
+      {{-- فردِ خارجی: پاسپورت + مدرکِ آدرس (تصمیمِ ۶ شهریور — تأییدِ دستیِ ما).
+           ایرانی این بلوک را نمی‌بیند؛ هویتش از استعلامِ ثبتِ احوال آمده. --}}
+      <div id="vf-foreign" @if($isCompany) hidden @endif>
+        <p class="vf-note">{{ __('ui.prof_foreign_note') }}</p>
+        <div class="vf-grid">
+          <label class="vf-f">{{ __('ui.prof_first_name') }}<input type="text" name="first_name" value="{{ old('first_name', $profile->first_name) }}" maxlength="80" autocomplete="given-name"></label>
+          <label class="vf-f">{{ __('ui.prof_last_name') }}<input type="text" name="last_name" value="{{ old('last_name', $profile->last_name) }}" maxlength="80" autocomplete="family-name"></label>
+          <label class="vf-f">{{ __('ui.prof_country') }}<input type="text" name="country" value="{{ old('country', $profile->country) }}" maxlength="60" autocomplete="country-name" placeholder="Türkiye / Deutschland / …"></label>
+        </div>
+        <div class="vf-docs">
+          <label class="vf-doc">
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_passport') }}</b></span>
+            @if($docs->has('passport'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['passport']->original_name, 26) }}</span>@endif
+            <input type="file" name="doc_passport" accept="application/pdf,image/png,image/jpeg">
+            <small>{{ __('ui.prof_doc_hint') }}</small>
+          </label>
+          <label class="vf-doc">
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_address') }}</b></span>
+            @if($docs->has('address_proof'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['address_proof']->original_name, 26) }}</span>@endif
+            <input type="file" name="doc_address" accept="application/pdf,image/png,image/jpeg">
+            <small>{{ __('ui.prof_doc_address_hint') }}</small>
+          </label>
+        </div>
+      </div>
+      @endif
+
       <div id="vf-company" @unless($isCompany) hidden @endunless>
         <div class="vf-grid">
           <label class="vf-f">{{ __('ui.prof_company_name') }}<input type="text" name="company_name" value="{{ old('company_name', $profile->company_name) }}" maxlength="190" placeholder="{{ __('ui.prof_company_name_ph') }}"></label>
@@ -200,9 +228,13 @@
 </style>
 <script>
 (function(){
-  var t=document.getElementById('vf-type'), c=document.getElementById('vf-company');
+  var t=document.getElementById('vf-type'), c=document.getElementById('vf-company'),
+      f=document.getElementById('vf-foreign');
   if(!t||!c) return;
-  t.addEventListener('change', function(){ c.hidden = this.value !== 'company'; });
+  t.addEventListener('change', function(){
+    c.hidden = this.value !== 'company';
+    if (f) { f.hidden = this.value === 'company'; }
+  });
 })();
 </script>
 

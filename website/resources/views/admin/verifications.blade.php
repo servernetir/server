@@ -64,7 +64,7 @@
         {{-- مدارک --}}
         <div class="kyc-docs">
           @forelse($p->documents as $d)
-            @php $kn = ['rep_letter' => 'معرفی‌نامهٔ نماینده', 'articles' => 'اساسنامه', 'national_id' => 'کارت ملی'][$d->kind] ?? $d->kind; @endphp
+            @php $kn = ['rep_letter' => 'معرفی‌نامهٔ نماینده', 'articles' => 'اساسنامه', 'national_id' => 'کارت ملی', 'passport' => 'پاسپورت', 'address_proof' => 'مدرکِ آدرس (قبض/بانک)'][$d->kind] ?? $d->kind; @endphp
             <a class="kyc-doc" href="/admin/verifications/{{ $p->id }}/doc/{{ $d->id }}" target="_blank" rel="noopener">
               <svg class="icon"><use href="#i-file"/></svg>
               <span>{{ $kn }}</span>
