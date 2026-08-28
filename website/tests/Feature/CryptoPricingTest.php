@@ -81,6 +81,37 @@ class CryptoPricingTest extends TestCase
         return app(CryptoIssuer::class)->issue($inv, $asset);
     }
 
+    /**
+     * 🔴 نرخِ دستیِ مدیر باید درگاه را زنده نگه دارد — رخدادِ ۶ شهریور: کشِ
+     * دلار سرد بود و هر دو دارایی «مشغول» شدند با استخرِ ۴ آدرسِ آزاد؛ در
+     * حالی که مدیر «نرخِ دستیِ دلار» را در تنظیمات داشت و فقط GPU می‌خواندش.
+     */
+    public function test_a_manual_dollar_rate_keeps_the_gateway_ready_when_the_cache_is_cold(): void
+    {
+        $this->wallet();
+
+        // بدونِ هیچ کشِ نرخی و بدونِ override ⇒ مشغول
+        $offers = app(CryptoIssuer::class)->offers('IRT');
+        $this->assertSame(CryptoIssuer::BUSY, $offers['USDT']['state'] ?? null,
+            'بی‌نرخ باید مشغول باشد، نه ناپدید و نه آماده.');
+
+        // نرخِ دستی — همان کلیدی که قیمت‌گذاریِ GPU می‌خواند
+        \App\Models\Setting::put('pricing_usd_rate_override', '110000');
+
+        $offers = app(CryptoIssuer::class)->offers('IRT');
+        $this->assertSame(CryptoIssuer::READY, $offers['USDT']['state'] ?? null,
+            'نرخِ دستیِ دلار باید درگاه را آماده کند.');
+
+        // فاکتورِ یورویی هم با نرخِ دستیِ یورو
+        \App\Models\Setting::put('pricing_rate_override', '120000');
+        $offers = app(CryptoIssuer::class)->offers('EUR');
+        $this->assertSame(CryptoIssuer::READY, $offers['USDT']['state'] ?? null);
+
+        // و صدور واقعاً کار می‌کند: €12 با تتر=۱۱۰هزار و یورو=۱۲۰هزار
+        $cp = $this->issue($this->invoice('EUR', 1200), 'USDT');
+        $this->assertNotNull($cp, 'با نرخِ دستی صدور نباید شکست بخورد.');
+    }
+
     // ══════════════ نرخ برای هر دو ارزِ فاکتور ══════════════
 
     /**

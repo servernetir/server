@@ -265,6 +265,25 @@ class CryptoIssuer
      */
     private function tomanPerCurrency(string $currency, bool $live): float
     {
+        /*
+        | 🔴 نرخِ دستیِ مدیر مقدم است — همان کلیدهایی که قیمت‌گذاری می‌خواند.
+        |
+        | رخدادِ واقعی (۶ شهریور ۱۴۰۵): کشِ نرخِ دلار سرد بود (منبعِ زنده
+        | نمی‌آمد) و هر دو داراییِ رمزارز روی فاکتور «موقتاً در دسترس نیست»
+        | شدند — با استخرِ سالمِ ۴ آدرسِ آزاد. مدیر «نرخِ دستیِ دلار» را در
+        | تنظیمات داشت، ولی فقط قیمت‌گذاری GPU آن را می‌خواند و این‌جا نه؛
+        | یعنی روشِ پرداختِ اصلیِ مشتریِ خارجی گروگانِ یک منبعِ نرخِ ایرانی بود.
+        */
+        $override = (int) \App\Models\Setting::get(match (strtoupper($currency)) {
+            'USD' => 'pricing_usd_rate_override',
+            'EUR' => 'pricing_rate_override',
+            default => '',
+        }, '0');
+
+        if ($override > 0) {
+            return (float) $override;
+        }
+
         if ($live) {
             return (float) ($this->fx->toToman($currency) ?? 0);
         }
