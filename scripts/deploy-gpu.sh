@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-fb25278}"
+MINE="${1:-5fbb55d}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -128,6 +128,9 @@ resources/views/account/partials/card-server.blade.php
 app/Services/Cloud/CloudProvisioner.php
 app/Console/Commands/CloudMeterHourly.php
 app/Console/Commands/RunServiceLifecycle.php
+app/Console/Commands/CloudHourlyAudit.php
+app/Console/Commands/CloudHourlyReprice.php
+routes/console.php
 app/Http/Controllers/Admin/CustomerController.php
 app/Models/Payment.php
 app/Http/Controllers/CatalogController.php
@@ -422,6 +425,13 @@ g app/Models/Payment.php "pay_desc_topup"
 g app/Console/Commands/RunServiceLifecycle.php "ui.act_auto_suspend"
 g app/Services/Cloud/CloudProvisioner.php "ui.act_prov_ordered"
 g routes/web.php "crypto-status"
+
+# محافظِ مالیِ ساعتی (درسِ sn-svc-76) — فرمان‌ها + کرون + آژیرِ متر
+g app/Console/Commands/CloudHourlyAudit.php "UNDERWATER"
+g app/Console/Commands/CloudHourlyReprice.php "hourly_rate_irt"
+g app/Console/Commands/CloudMeterHourly.php "alarmIfUnderwater"
+g routes/console.php "cloud:hourly-audit"
+g lang/en/ui.php "act_hourly_reprice"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
 g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
