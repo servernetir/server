@@ -67,9 +67,12 @@ class CloudHourlyReprice extends Command
                 continue;
             }
 
+            // یورو از تومان (منبعِ واقعیِ کسر) — سنتِ گردشده تغییرِ واقعی را پنهان می‌کرد
+            $rate = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
             $this->line(sprintf('#%d: %s → %s تومان/ساعت (€%s → €%s)  [%s/%s]',
                 $s->id, number_format($oldIrt), number_format($newIrt),
-                number_format($oldEur / 100, 4), number_format($newEur / 100, 4),
+                number_format($rate > 0 ? $oldIrt / $rate : $oldEur / 100, 4),
+                number_format($rate > 0 ? $newIrt / $rate : $newEur / 100, 4),
                 $row->provider, $row->slug));
 
             if (! $apply) {
@@ -126,11 +129,21 @@ class CloudHourlyReprice extends Command
         return $bought;
     }
 
-    /** «۱٬۲۰۰ تومان (€0.01)» برای فارسی، «€0.01» برای بقیه */
+    /**
+     * fa تومان؛ بقیه یورو از **تومان** (منبعِ واقعیِ کسر) با ۴ رقم — ستونِ
+     * سنتیِ گردِ رو به بالا «€0.0200 → €0.0200» چاپ می‌کرد در حالی که نرخ
+     * واقعاً از €0.0106 به €0.0119 رفته بود.
+     */
     private function money(int $irt, int $eurCents, string $loc): string
     {
-        return $loc === 'fa'
-            ? fa_num(number_format($irt)).' تومان در ساعت'
+        if ($loc === 'fa') {
+            return fa_num(number_format($irt)).' تومان در ساعت';
+        }
+
+        $rate = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+
+        return $rate > 0
+            ? '€'.number_format($irt / $rate, 4).'/h'
             : '€'.number_format($eurCents / 100, 4).'/h';
     }
 }
