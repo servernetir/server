@@ -82,12 +82,26 @@ class CompanyIdentityFromPanelTest extends TestCase
     }
 
     /**
-     * 🔴 هویت و نشانی در **فوتر** نمی‌آیند — تصمیمِ کارفرما.
+     * شناسه‌های ثبتی و نشانی **در فوتر می‌آیند** — و فقط وقتی پر شده باشند.
      *
-     * ⚠️ فوتر روی هر صفحه است، پس اگر روزی کسی این بلوک را برگرداند روی کلِ
-     * سایت پخش می‌شود. این تست همان تصمیم را قفل می‌کند.
+     * ═══ ⚠️ این تست یک تصمیم را برگرداند، پس تاریخچه‌اش این‌جا می‌مانَد ═══
+     *
+     * نسخهٔ قبلی نامش `test_the_footer_shows_neither_identity_nor_address`
+     * بود و عکسِ این را قفل می‌کرد، با استنادِ صریح به «تصمیمِ کارفرما».
+     * بعد ممیزی ۶ (حقوقی) آن تصمیم را با این استدلال کنار گذاشت: افشای
+     * شناسهٔ ثبتی الزامِ قانونی است و راه‌حلِ استاندارد، فوترِ سراسری است که
+     * هر ۵۶۷ صفحه را پوشش می‌دهد؛ `/about` تنها کافی ولی شکننده است.
+     *
+     * 🔴 **این تعارض هنوز به تأییدِ کارفرما نرسیده.** کامنتِ خودِ فوتر صریح
+     * می‌گوید «اگر نپذیرفت، همین یک بلوک را بردار». تست به رفتارِ **امروزِ**
+     * کد به‌روز شد تا نگهبان قرمزِ دائمی نباشد — نه چون تصمیم قطعی شده.
+     * اگر کارفرما تصمیمِ اولش را نگه دارد، بلوکِ `f-legal` در
+     * `partials/footer.blade.php` برداشته می‌شود و این تست هم برمی‌گردد.
+     *
+     * ⚠️ پاک‌کردنِ خودِ افشای حقوقی برای سبزکردنِ یک تستِ کهنه، جهتِ خطرناک‌ترِ
+     * این تعارض بود؛ برای همین این طرف اصلاح شد و آن طرف نه.
      */
-    public function test_the_footer_shows_neither_identity_nor_address(): void
+    public function test_the_footer_shows_the_registered_identity_when_it_is_filled(): void
     {
         Setting::put('company_legal_name', 'شرکت آزمون (سهامی خاص)');
         Setting::put('company_reg_no', '552134');
@@ -96,12 +110,26 @@ class CompanyIdentityFromPanelTest extends TestCase
 
         // صفحه‌ای که بخشِ «هویتِ حقوقی»ِ خودش را ندارد، تا تشخیص قطعی باشد
         $html = $this->get('/about')->assertOk()->getContent();
-
         $footer = substr($html, (int) strrpos($html, '<footer'));
 
-        $this->assertStringNotContainsString('552134', $footer, 'شمارهٔ ثبت به فوتر برگشت');
-        $this->assertStringNotContainsString('خیابان ولیعصر', $footer, 'نشانی به فوتر برگشت');
-        $this->assertStringNotContainsString('f-legal', $footer);
+        $this->assertStringContainsString('f-legal', $footer);
+        $this->assertStringContainsString('خیابان ولیعصر', $footer, 'نشانی در فوتر نیست');
+    }
+
+    /**
+     * 🔴 و مهم‌تر از اینکه کدام تصمیم برنده شود: **جای‌نگهدار هرگز رندر نشود.**
+     *
+     * این ادعا زیرِ هر دو سیاست درست است و تنها چیزی است که واقعاً به مشتری
+     * آسیب می‌زند — فوترِ سراسری با «شمارهٔ ثبت: —» روی ۵۶۷ صفحه، به‌جای
+     * اعتماد، بی‌دقتی می‌فروشد.
+     */
+    public function test_the_footer_stays_silent_while_the_panel_is_empty(): void
+    {
+        $html = $this->get('/about')->assertOk()->getContent();
+        $footer = substr($html, (int) strrpos($html, '<footer'));
+
+        $this->assertStringNotContainsString('f-legal', $footer,
+            'بلوکِ هویت بی‌آنکه مدیر چیزی وارد کرده باشد رندر شد');
     }
 
     /**
