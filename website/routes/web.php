@@ -189,6 +189,15 @@ $site = function (): void {
     */
     Route::get('/developers', fn () => view('pages.developers'))->name('developers');
 
+    /*
+    | مرجعِ دومِ API — تونلِ سرورِ اکسیت.
+    |
+    | ⚠️ عمداً صفحهٔ جداست و نه بخشی از `/developers`: آن صفحه عنوانش «مرجع
+    | API نمایندگی دامنه» است و مشتریِ سرورِ اکسیت چهار ردیفِ لخت میانِ چهارده
+    | ردیفِ دامنه می‌دید. فهرست‌شدن مستندسازی نیست.
+    */
+    Route::get('/developers/tunnel', fn () => view('pages.developers-tunnel'))->name('developers.tunnel');
+
     // صفحهٔ فرودِ شخصیِ «طراحی سایت و زیرساخت» — مقصدِ لینکِ لینکدین/اینستاگرام.
     // ⚠️ عمداً در منوی اصلی نیست، ولی در نقشهٔ سایت **هست**: کلِ هدفش ورودیِ
     //    ارگانیک از «طراحی سایت در ارومیه» است و صفحهٔ بی‌نقشه دیرتر ایندکس می‌شود.
@@ -431,6 +440,8 @@ $site = function (): void {
             ->name('cloud.tunnel.issue')->middleware('throttle:12,1');
         Route::post('/cloud/{service}/tunnel/remove', [Account\CloudServerController::class, 'removeTunnelAccount'])
             ->name('cloud.tunnel.remove')->middleware('throttle:20,1');
+        Route::post('/cloud/{service}/tunnel/agent', [Account\CloudServerController::class, 'enrollTunnelAgent'])
+            ->name('cloud.tunnel.agent')->middleware('throttle:5,1');
         // صفحهٔ کنسولِ زنده روی **دامنهٔ خودمان** + بلیتِ یک‌بارمصرفِ آدرسِ اتصال.
         // ⚠️ الگوی مسیرِ view در SecurityHeaders هم آمده (تنها جایی که CSP اجازهٔ
         // wss: می‌دهد). اگر مسیر را عوض کردی، آن‌جا را هم عوض کن وگرنه مرورگر
@@ -2878,6 +2889,36 @@ Route::prefix('api/v1')
                 Route::post('/domains', [\App\Http\Controllers\Api\DomainApiController::class, 'register']);
                 Route::post('/domains/{domain}/renew', [\App\Http\Controllers\Api\DomainApiController::class, 'renew']);
             });
+
+        /*
+        |----------------------------------------------------------------------
+        | تونلِ WireGuard-روی-TCP — همان کارِ پنل، با توکن
+        |----------------------------------------------------------------------
+        |
+        | مشتریِ سرورِ اکسیت اکانت‌های تونلش را از سامانهٔ خودش می‌سازد.
+        | ⚠️ هیچ‌کدام از این‌ها به روتر دست نمی‌زند؛ پاسخ `router_command` دارد
+        |    و اجرایش کارِ مشتری است (روتر از سمتِ ما در دسترس نیست).
+        |
+        | سقفِ نوشتن جدا و سخت‌گیرانه است: هر ساخت یک جفت‌کلیدِ تازه و یک
+        | نوشتن در `meta` است، و برخلافِ دامنه پولی خرج نمی‌کند — یعنی چیزی
+        | جز همین سقف جلوی یک حلقهٔ اشتباه را نمی‌گیرد.
+        */
+        Route::middleware([$api.':tunnel:read', 'throttle:'.($rate['read'] ?? '120,1')])
+            ->group(function () {
+                Route::get('/tunnel/servers', [\App\Http\Controllers\Api\TunnelApiController::class, 'servers']);
+                Route::get('/tunnel/{service}/accounts', [\App\Http\Controllers\Api\TunnelApiController::class, 'accounts']);
+                Route::get('/tunnel/{service}/agent', [\App\Http\Controllers\Api\TunnelApiController::class, 'agentStatus']);
+            });
+
+        Route::middleware([$api.':tunnel:write', 'throttle:20,1'])
+            ->group(function () {
+                Route::post('/tunnel/{service}/accounts', [\App\Http\Controllers\Api\TunnelApiController::class, 'issue']);
+                Route::delete('/tunnel/{service}/accounts/{name}', [\App\Http\Controllers\Api\TunnelApiController::class, 'remove']);
+                // صدورِ توکنِ ایجنت. سقفِ سخت‌گیرانه‌تر چون هر فراخوان توکنِ
+                // قبلی را می‌کُشد — تکرارِ تصادفی نباید روترِ زنده را قطع کند.
+                Route::post('/tunnel/{service}/agent', [\App\Http\Controllers\Api\TunnelApiController::class, 'agentEnroll'])
+                    ->middleware('throttle:5,1');
+            });
     });
 
 /*
@@ -2886,6 +2927,31 @@ Route::prefix('api/v1')
  * GET و فقط‌خواندنی؛ ایجنت هر چند دقیقه این‌ها را می‌خوانَد تا حالتِ مطلوب
  * (مسیرِ کشوریِ خروج + port-forward) را یاد بگیرد.
  */
+/*
+ * ایجنتِ روترِ **مشتری** — جدا از ایجنتِ هاستِ ایران، با احرازِ per-service.
+ *
+ * 🔴 نشست عمداً استارت نمی‌شود. هر روتر هر ۳۰ ثانیه می‌پرسد و هیچ کوکی‌ای
+ * نمی‌فرستد، پس `StartSession` برای هر پیمایش یک نشستِ تازه می‌ساخت:
+ * ۲۸۸۰ فایلِ نشستِ دورریز در روز به‌ازای هر مشتری، روی همان دیسکی که
+ * `storage/` رویش است. هیچ خطایی هم تولید نمی‌کرد تا روزی که دیسک پر شود.
+ *
+ * CSRF هم با همان حذف می‌رود — و درست است: تماس‌گیرنده یک روتر است نه
+ * مرورگر. محافظش `X-Agent-Token` است.
+ */
+Route::prefix('agent/tunnel')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+    ])
+    ->middleware('throttle:120,1')
+    ->group(function () {
+        Route::get('pending', [\App\Http\Controllers\Agent\TunnelAgentController::class, 'pending']);
+        Route::post('ack',    [\App\Http\Controllers\Agent\TunnelAgentController::class, 'ack']);
+        Route::get('install', [\App\Http\Controllers\Agent\TunnelAgentController::class, 'install']);
+    });
+
 Route::prefix('agent')->group(function () {
     Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
     Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);

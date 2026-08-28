@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\CloudImage;
 use App\Models\CloudInstance;
 use App\Models\Service;
+use App\Models\TunnelAgent;
+use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
 use App\Support\ExitCountries;
 use App\Support\TunnelProfile;
@@ -156,6 +158,21 @@ class CloudServerController extends Controller
             'tunnelNextIp' => $tunnel?->nextIp(),
             'tunnelNextName' => $tunnel?->suggestedName() ?? '',
             'tunnelIssued' => session('tunnel_issued'),
+            // ایجنتِ روتر: نصب‌شده؟ زنده؟ چند کار در صف؟
+            // ⚠️ «نصب‌شده» و «زنده» عمداً دو چیزند — ایجنتی که سه روز است
+            //    خبری ازش نیست از نظرِ مشتری کار نمی‌کند، و اگر یک برچسب
+            //    نشانشان دهیم تا اولین اکانتِ ساخته‌نشده کسی خبردار نمی‌شود.
+            'tunnelAgent' => $tunnel === null ? null : TunnelAgent::where('service_id', $service->id)->first(),
+            'tunnelPending' => $tunnel === null ? 0 : TunnelJob::query()->forService((int) $service->id)->pending()->count(),
+            // نام → وضعیتِ تحویل، فقط برای اکانت‌هایی که کارِ بازی دارند.
+            'tunnelStates' => $tunnel === null ? [] : TunnelJob::query()
+                ->forService((int) $service->id)
+                ->where('status', '!=', 'done')
+                ->orderBy('id')
+                ->pluck('status', 'name')
+                ->map(fn (string $st): string => $st === 'pending' ? 'pending' : 'failed')
+                ->mapWithKeys(fn (string $st, string $n): array => [mb_strtolower($n) => $st])
+                ->all(),
         ]);
     }
 
@@ -695,17 +712,24 @@ class CloudServerController extends Controller
 
         $tunnel->addPeer($name, $ip, $keys['public']);
 
+        $agented = $this->dispatchTunnelJob($service, TunnelJob::OP_ADD, $name, $ip, $keys['public']);
+
         $this->log($service, 'اکانتِ تونل «'.$name.'» ('.$ip.') صادر شد');
 
         // یک‌بارمصرف: کلیدِ خصوصی و کانفیگ فقط در همین flash می‌مانَد.
         return back()->with('tunnel_issued', [
             'name' => $name,
             'ip' => $ip,
+            // ⚠️ دستور حتی در حالتِ ایجنت هم می‌ماند: ایجنت ممکن است خاموش باشد
+            //    و این تنها راهِ نجاتِ مشتری در همان لحظه است.
             'command' => $tunnel->routerAddCommand($name, $ip, $keys['public']),
+            'agented' => $agented,
             'config' => $tunnel->configJson($ip, $keys['private']),
             'legacy' => $tunnel->configJson($ip, $keys['private'], 'legacy'),
             'file' => 'tunnel-'.$name.'.json',
-        ])->with('ok', __('ui.cx_tun_created', ['name' => $name]));
+        ])->with('ok', $agented
+            ? __('ui.cx_tun_created_agent', ['name' => $name])
+            : __('ui.cx_tun_created', ['name' => $name]));
     }
 
     /**
@@ -740,11 +764,84 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_tun_missing'));
         }
 
+        $agented = $this->dispatchTunnelJob($service, TunnelJob::OP_REMOVE, $name);
+
         $this->log($service, 'اکانتِ تونل «'.$name.'» حذف شد');
 
         return back()
             ->with('tunnel_removed', $tunnel->routerRemoveCommand($name))
-            ->with('ok', __('ui.cx_tun_deleted', ['name' => $name]));
+            ->with('tunnel_removed_agented', $agented)
+            ->with('ok', $agented
+                ? __('ui.cx_tun_deleted_agent', ['name' => $name])
+                : __('ui.cx_tun_deleted', ['name' => $name]));
+    }
+
+    /**
+     * ثبتِ ایجنتِ روتر — «از این به بعد خودش انجام بده».
+     *
+     * 🔴 توکن فقط همین یک بار دیده می‌شود و در flash می‌نشیند. ذخیره‌اش در
+     * دیتابیس به‌شکلِ خوانا وسوسه‌کننده است («اگر مشتری گمش کرد») ولی همان
+     * توکن روی روترِ مشتری زندگی می‌کند — جایی که نه وصله‌اش می‌کنیم نه لاگش
+     * را می‌بینیم. صدورِ دوباره ارزان است؛ نگه‌داشتنِ نسخهٔ خوانا نیست.
+     *
+     * ⚠️ صدورِ دوباره توکنِ قبلی را می‌کُشد و متنِ صفحه صریح همین را می‌گوید.
+     * وگرنه مشتری روی دکمه می‌زند تا «دوباره ببیندش» و روترِ زنده‌اش را قطع
+     * می‌کند، بی‌آنکه بفهمد چرا از فردا اکانت‌ها ساخته نمی‌شوند.
+     */
+    public function enrollTunnelAgent(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        if ($resp = $this->denyIfNotWritable($service)) {
+            return $resp;
+        }
+
+        $tunnel = TunnelProfile::fromInstance($this->instanceOf($service));
+
+        if ($tunnel === null) {
+            return back()->withErrors(__('ui.cx_tunnel_na'));
+        }
+
+        if ($resp = $this->rateLimit($service, 'tunnel-agent', 5)) {
+            return $resp;
+        }
+
+        $existed = TunnelAgent::where('service_id', $service->id)->exists();
+
+        [, $plain] = TunnelAgent::issueFor((int) $service->id);
+
+        $this->log($service, $existed ? 'توکنِ ایجنتِ روتر دوباره صادر شد' : 'ایجنتِ روتر ثبت شد');
+
+        $base = rtrim(url('/agent/tunnel'), '/');
+
+        return back()->with('tunnel_agent', [
+            'replaced' => $existed,
+            'lines' => [
+                '/tool fetch url="'.$base.'/install" http-header-field="X-Agent-Token: '.$plain.'" dst-path=snet-agent.rsc',
+                '/import file-name=snet-agent.rsc',
+            ],
+        ])->with('ok', $existed
+            ? __('ui.cx_agent_reissued')
+            : __('ui.cx_agent_enrolled'));
+    }
+
+    /**
+     * اگر ایجنتی هست، کار را در صفش بگذار. `true` یعنی گذاشته شد.
+     *
+     * 🔴 بی‌ایجنت هیچ ردیفی ساخته نمی‌شود. صفی که هیچ‌کس از آن برنمی‌دارد فقط
+     * انبوهی کارِ «منتظر» می‌سازد که ۲۴ ساعت بعد `failed` می‌شوند — یعنی به
+     * مشتریِ بی‌ایجنت خبرِ خرابی می‌دادیم برای کاری که او از اول قرار بود دستی
+     * انجام دهد.
+     */
+    private function dispatchTunnelJob(Service $service, string $op, string $name, ?string $ip = null, ?string $pub = null): bool
+    {
+        if (! TunnelAgent::where('service_id', $service->id)->exists()) {
+            return false;
+        }
+
+        TunnelJob::enqueue((int) $service->id, $op, $name, $ip, $pub);
+
+        return true;
     }
 
     /**

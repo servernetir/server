@@ -432,6 +432,74 @@
       (<span dir="ltr">{{ $tunnel->routerAddress() }}</span>).
     </p>
 
+    {{-- نشانیِ بازنشسته — بعد از انتقالِ سرور به آی‌پیِ تازه --}}
+    @if(count($tunnel->retiredHosts()))
+      <div style="margin:0 0 14px;padding:12px 14px;border-radius:10px;border:1px solid rgba(148,163,184,.28);background:rgba(148,163,184,.08)">
+        <p style="margin:0;font-size:12.5px;line-height:1.9;color:var(--dim)">
+          {{ __('ui.cxp_retired_a') }} <b dir="ltr">{{ $tunnel->str('host') }}</b>{{ __('ui.cxp_retired_b') }}
+          @foreach($tunnel->retiredHosts() as $rh)<span dir="ltr" style="text-decoration:line-through;opacity:.75">{{ $rh }}</span>@if(! $loop->last)، @endif @endforeach
+        </p>
+      </div>
+    @endif
+
+    {{-- ══ ایجنتِ روتر — «خودش بسازد» ══
+         بی‌ایجنت، ساختِ اکانت دو گام دارد و گامِ دوم دستِ انسان است. با
+         ایجنت، همان گام خودکار می‌شود. ⚠️ متنِ این بخش عمداً می‌گوید «نصب
+         شده» و «آخرین تماس» را جدا — ایجنتی که سه روز است خبری ازش نیست از
+         نظرِ مشتری کار نمی‌کند، و یک برچسبِ واحد آن را پنهان می‌کرد. --}}
+    @php($tnAgentOk = ($tunnelAgent ?? null) && $tunnelAgent->isAlive())
+    <div style="margin:0 0 16px;padding:13px 15px;border-radius:11px;border:1px solid {{ $tnAgentOk ? 'var(--ok-line)' : 'rgba(148,163,184,.28)' }};background:rgba(148,163,184,.06)">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+        <div style="font-size:12.5px;line-height:1.9">
+          @if(! ($tunnelAgent ?? null))
+            <b>{{ __('ui.cxp_ag_off_h') }}</b>
+            <span style="color:var(--dim)">{{ __('ui.cxp_ag_off_b', ['s' => fa_num(30)]) }}</span>
+          @elseif($tnAgentOk)
+            <b style="color:var(--ok)">{{ __('ui.cxp_ag_on_h') }}</b>
+            <span style="color:var(--dim)">{{ __('ui.cxp_ag_last') }} {{ sdate($tunnelAgent->last_seen_at, true) }}
+            @if(($tunnelPending ?? 0) > 0) · <b>{{ fa_num($tunnelPending) }}</b> {{ __('ui.cxp_ag_queue') }} @endif</span>
+          @else
+            <b style="color:var(--danger)">{{ __('ui.cxp_ag_dead_h') }}</b>
+            <span style="color:var(--dim)">
+              @if($tunnelAgent->last_seen_at)
+                {{ __('ui.cxp_ag_last') }} {{ sdate($tunnelAgent->last_seen_at, true) }}.
+              @else
+                {{ __('ui.cxp_ag_never') }}
+              @endif
+              {{ __('ui.cxp_ag_dead_b') }}
+              @if(($tunnelPending ?? 0) > 0) <b>{{ fa_num($tunnelPending) }}</b> {{ __('ui.cxp_ag_queue') }} @endif
+            </span>
+          @endif
+        </div>
+        {{-- ⚠️ گفت‌وگوی تأییدِ بومیِ مرورگر در این پروژه ممنوع است و تستِ محافظ
+             دارد: قابلِ استایل نیست و روی موبایل رفتارِ متفاوتی دارد. قرارداد
+             `data-confirm` است. --}}
+        <form method="post" action="{{ route('account.cloud.tunnel.agent', $service) }}"
+              @if($tunnelAgent ?? null) data-confirm="{{ __('ui.cxp_ag_reissue_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.cxp_ag_reissue_title') }}" data-confirm-ok="{{ __('ui.cxp_ag_reissue_ok') }}" @endif>
+          @csrf
+          <button class="pnl-btn" type="submit">{{ ($tunnelAgent ?? null) ? __('ui.cxp_ag_reissue_title') : __('ui.cxp_ag_btn_new') }}</button>
+        </form>
+      </div>
+    </div>
+
+    {{-- دو خطِ نصب — فقط یک بار، بلافاصله پس از صدور. توکن دیگر بازیابی نمی‌شود. --}}
+    @if(session('tunnel_agent'))
+      @php($tnAg = session('tunnel_agent'))
+      <div class="pnl-sec" style="border-color:var(--ok-line);margin:0 0 16px">
+        <div class="pnl-sec-b">
+          <p style="margin:0 0 8px;font-size:12.5px;color:var(--ok)">
+            {{ __('ui.cxp_ag_lines_note') }}
+            @if($tnAg['replaced'] ?? false) {{ __('ui.cxp_ag_replaced') }} @endif
+          </p>
+          <pre id="tn-agent" dir="ltr" style="margin:0;padding:12px;border-radius:10px;background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.22);font-size:12px;line-height:1.8;overflow-x:auto;white-space:pre-wrap;word-break:break-all">{{ implode("\n", $tnAg['lines'] ?? []) }}</pre>
+          <button type="button" class="pnl-btn" data-tn-copy="tn-agent" style="margin-top:8px">{{ __('ui.cxp_ag_copy2') }}</button>
+          <p style="margin:10px 0 0;font-size:11.5px;color:var(--dim);line-height:1.9">
+            {{ __('ui.cxp_ag_first_note') }}
+          </p>
+        </div>
+      </div>
+    @endif
+
     @if($tunnelIssued ?? null)
       <div class="pnl-sec" style="border-color:var(--ok-line);margin:0 0 16px">
         <div class="pnl-sec-b">
@@ -510,6 +578,7 @@
               <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">{{ __('ui.cxp_th_name') }}</th>
               <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">{{ __('ui.cxp_th_ip') }}</th>
               <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">{{ __('ui.cxp_th_pub') }}</th>
+              <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)">{{ __('ui.cxp_th_status') }}</th>
               <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.20)"></th>
             </tr>
           </thead>
@@ -519,9 +588,25 @@
                 <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">{{ $peer['name'] }}</td>
                 <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">{{ $peer['ip'] }}</td>
                 <td dir="ltr" style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12);color:var(--dim)">{{ \Illuminate\Support\Str::limit($peer['pub'], 14, '…') }}</td>
+                {{-- 🔴 وضعیتِ **تحویل**، نه وضعیتِ ردیف. اکانتی که در فهرست هست
+                     ولی هنوز روی روتر ننشسته، از نظرِ کاربر وصل نمی‌شود — و
+                     نشان‌دادنش به‌عنوانِ «فعال» همان دروغی است که این صف برای
+                     رفعش ساخته شد. اکانت‌های پیش از این صف ردیفی ندارند و
+                     عمداً «فعال»اند، نه «نامعلوم». --}}
+                @php($tnSt = ($tunnelStates ?? [])[strtolower($peer['name'])] ?? 'active')
+                <td style="text-align:right;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">
+                  @if($tnSt === 'pending')
+                    <span style="color:var(--warn)">{{ __('ui.cxp_st_pending') }}</span>
+                  @elseif($tnSt === 'failed')
+                    <span style="color:var(--danger)">{{ __('ui.cxp_st_failed') }}</span>
+                  @else
+                    <span style="color:var(--ok)">{{ __('ui.cxp_st_active') }}</span>
+                  @endif
+                </td>
                 <td style="text-align:left;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">
                   <form method="post" action="{{ route('account.cloud.tunnel.remove', $service) }}"
-                        onsubmit="return confirm(@js(__('ui.cxp_del_confirm')))" style="margin:0">
+                        data-confirm="{{ __('ui.cxp_del_confirm') }}" data-confirm-danger
+                        data-confirm-title="{{ __('ui.cxp_del_title') }}" data-confirm-ok="{{ __('ui.cxp_delete') }}" style="margin:0">
                     @csrf
                     <input type="hidden" name="name" value="{{ $peer['name'] }}">
                     <button type="submit" class="pnl-btn" style="padding:5px 12px;font-size:12px">{{ __('ui.cxp_delete') }}</button>

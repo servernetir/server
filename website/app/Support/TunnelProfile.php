@@ -101,6 +101,37 @@ class TunnelProfile
         return is_scalar($v) ? trim((string) $v) : $default;
     }
 
+    /**
+     * نشانی‌های بازنشسته — hostهای قبلیِ همین سرویس، پس از انتقال به IPِ تازه.
+     *
+     * پنل این‌ها را خط‌خورده نشان می‌دهد تا مدیر/مشتری بداند کانفیگ‌های قدیمی
+     * دیگر پاسخ نمی‌گیرند. نویسنده‌اش مسیرِ جابه‌جاییِ سرور است که هنگامِ تغییرِ
+     * host، مقدارِ قبلی را به همین فهرست می‌راند؛ نبودِ کلید یعنی فهرستِ خالی
+     * و بخشِ مربوطه اصلاً رندر نمی‌شود.
+     *
+     * (بازسازی‌شده از رفتارِ نسخهٔ سرور — ۶ شهریور ۱۴۰۵؛ کلید: retired_hosts)
+     *
+     * @return list<string>
+     */
+    public function retiredHosts(): array
+    {
+        $raw = $this->data['retired_hosts'] ?? [];
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach ($raw as $h) {
+            if (is_string($h) && trim($h) !== '') {
+                $out[] = trim($h);
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
     public function int(string $key, int $default = 0): int
     {
         $v = $this->data[$key] ?? $default;
