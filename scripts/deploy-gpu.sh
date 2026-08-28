@@ -173,11 +173,7 @@ normalize() { tr -d '\r' < "$1" | sed -e '$a\' > "$2"; }
 # (بازیابیِ ایجنتِ تونل، ۶ شهریور). منطقِ سه‌طرفه این‌جا وارونه عمل می‌کند:
 # «تغییرِ دیگران» که حفظ می‌کند همان نسخهٔ پیشاادغام است. بکاپ و php -l و
 # گاردها سرِ جایشان‌اند. ⚠️ بعد از اولین دیپلویِ موفق این فهرست را خالی کن.
-FORCE_FILES="
-app/Http/Controllers/Account/CloudServerController.php
-resources/views/account/cloud-server.blade.php
-database/migrations/2026_10_02_000101_create_tunnel_jobs_table.php
-"
+FORCE_FILES=""   # خالی — فقط برای ادغام‌های ازپیش‌انجام‌شده در مخزن پر شود
 
 apply_one() {
   rel="$1"; dest="$2/$rel"
