@@ -1146,19 +1146,30 @@ class CloudStoreController extends Controller
 
         $location = CloudLocation::where('code', (string) $offer->location_code)->first();
         $locText = $location
-            ? trim($location->flagEmoji().' '.$location->label('fa'))
+            ? trim($location->flagEmoji().' '.$location->label())
             : (string) $offer->location_code;
 
+        /*
+        | متنِ description روی ردیفِ سرویس **ذخیره** می‌شود و بعداً در پنلِ
+        | مشتری همان‌طور نمایش داده می‌شود — پس باید همین‌جا به زبانِ خودِ
+        | مشتری نوشته شود. (سطرهای فارسیِ سخت‌کدِ قبلی برای مشتریِ en/tr هم
+        | فارسی می‌ماندند؛ ردیف‌های قدیمی را مهاجرتِ
+        | localize_foreign_customer_service_rows ترجمه می‌کند.)
+        */
         $description = implode("\n", array_filter([
-            'مشخصات: '.fa_num((int) $offer->vcpu).' هسته · '.$offer->ramLabel().' رم · '
-                .$offer->diskLabel().' · ترافیک '.$offer->trafficLabel('fa'),
-            'مکان: '.$locText,
-            'سیستم‌عامل: '.($image?->label ?: $data['image']),
-            'نامِ سرور: '.$label,
+            __('ui.svd_specs', [
+                'core'    => fa_num((int) $offer->vcpu),
+                'ram'     => $offer->ramLabel(),
+                'disk'    => $offer->diskLabel(),
+                'traffic' => $offer->trafficLabel(),
+            ]),
+            __('ui.svd_loc', ['loc' => $locText]),
+            __('ui.svd_os', ['os' => $image?->label ?: $data['image']]),
+            __('ui.svd_srvname', ['name' => $label]),
             ($addons['extra_ipv4'] ?? 0) > 0
-                ? 'IP اضافه: '.fa_num((int) $addons['extra_ipv4']).' عدد'
+                ? __('ui.svd_extra_ip', ['n' => fa_num((int) $addons['extra_ipv4'])])
                 : null,
-            $sshKey !== null ? 'ورود با کلیدِ SSH: '.$sshKey->label() : null,
+            $sshKey !== null ? __('ui.svd_ssh', ['key' => $sshKey->label()]) : null,
         ]));
 
         // ── مسیرِ ساعتی: پیش‌پرداخت از کیفِ پول، بی‌فاکتور ──

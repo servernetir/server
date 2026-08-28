@@ -141,6 +141,73 @@ class HourlyCreditControlTest extends TestCase
         $this->assertStringStartsWith('سرور مجازی', $sf->name);
     }
 
+    /** 🔴 توضیحِ ذخیره‌شدهٔ سرویس هم به زبانِ مشتری است، نه فارسیِ سخت‌کد */
+    public function test_the_stored_service_description_follows_the_customer_language(): void
+    {
+        $this->catalog();
+
+        $en = $this->customer('en');
+        $this->topup($en, 10_000_000);
+        $this->orderHourly($en, '/en')->assertSessionHasNoErrors();
+
+        $s = Service::where('customer_id', $en->id)->firstOrFail();
+        $this->assertStringStartsWith('Specs:', (string) $s->description,
+            'توضیحِ سرویسِ مشتریِ انگلیسی نباید فارسی باشد.');
+        $this->assertStringContainsString('Location:', (string) $s->description);
+        $this->assertStringNotContainsString('مشخصات', (string) $s->description);
+    }
+
+    // ═══════════ مهاجرتِ اصلاحِ دادهٔ قدیمی ═══════════
+
+    /**
+     * 🔴 ردیف‌های فارسیِ ازپیش‌ذخیره‌شدهٔ مشتریِ خارجی (نام، توضیح، لاگ) با
+     * مهاجرتِ داده ترجمه می‌شوند — علتِ «ریست شد، بازم فارسی است»: کدِ تازه
+     * فقط ردیفِ تازه می‌سازد و ردیفِ قدیمی متنِ ذخیره‌شده است.
+     */
+    public function test_the_data_migration_translates_old_persian_rows_for_foreign_customers(): void
+    {
+        $this->catalog();
+        $en = $this->customer('en');
+
+        // ردیف‌هایی دقیقاً به شکلی که کدِ قدیم می‌نوشت
+        $s = Service::create([
+            'customer_id' => $en->id, 'kind' => 'cloud', 'status' => 'active',
+            'name' => 'سرور مجازی vps-abc123 (ساعتی)',
+            'description' => "مشخصات: 2 هسته · 4 GB رم · 40 GB NVME · ترافیک 20 TB\nمکان: 🇩🇪 فرانکفورت\nسیستم‌عامل: Ubuntu 24.04\nنامِ سرور: vps-abc123",
+            'currency_code' => 'IRT', 'price' => 0, 'cycle' => 'monthly',
+        ]);
+        ActivityLog::forService($s, 'renew', 'کسرِ ساعتی: 1 ساعت', 'system');
+        ActivityLog::forService($s, 'suspend', 'اتمامِ اعتبارِ ساعتی → تعلیق', 'system');
+
+        // مشتریِ فارسی نباید دست بخورد
+        $fa = $this->customer('fa');
+        $sf = Service::create([
+            'customer_id' => $fa->id, 'kind' => 'cloud', 'status' => 'active',
+            'name' => 'سرور مجازی vps-fa1 (ساعتی)',
+            'currency_code' => 'IRT', 'price' => 0, 'cycle' => 'monthly',
+        ]);
+
+        $migration = require base_path('database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php');
+        $migration->up();
+
+        $s->refresh();
+        $this->assertSame('Cloud VPS vps-abc123 (hourly)', $s->name);
+        $this->assertStringStartsWith('Specs: 2 vCPU · 4 GB RAM · 40 GB NVME · traffic 20 TB', (string) $s->description);
+        $this->assertStringContainsString('Location: 🇩🇪 فرانکفورت', (string) $s->description);
+        $this->assertStringContainsString('OS: Ubuntu 24.04', (string) $s->description);
+
+        $logs = ActivityLog::where('service_id', $s->id)->pluck('description')->all();
+        $this->assertContains('Hourly charge: 1 h', $logs);
+        $this->assertContains('Hourly credit ran out - server suspended', $logs);
+
+        $this->assertSame('سرور مجازی vps-fa1 (ساعتی)', $sf->fresh()->name,
+            'ردیفِ مشتریِ فارسی نباید ترجمه شود.');
+
+        // اجرای دوباره بی‌اثر است (پس از ترجمه دیگر الگوی فارسی نیست)
+        $migration->up();
+        $this->assertSame('Cloud VPS vps-abc123 (hourly)', $s->fresh()->name);
+    }
+
     /** 🔴 لاگِ کسرِ ساعتی: زبانِ مشتری + مبلغِ کسرشده + مانده */
     public function test_the_hourly_charge_log_has_amount_and_balance_in_the_customers_language(): void
     {
