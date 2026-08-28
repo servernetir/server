@@ -74,6 +74,12 @@ class ProxmoxClient implements CloudProvider
         return (string) (Setting::get('proxmox_storage') ?: 'vmstoreid');
     }
 
+    /** poolِ مقصدِ ماشین‌های مشتری — ACLِ توکن فقط همین‌جا اجازهٔ ساخت دارد */
+    private function pool(): string
+    {
+        return (string) (Setting::get('proxmox_pool') ?: 'customers');
+    }
+
     private function bridge(): string
     {
         return (string) (Setting::get('proxmox_bridge') ?: 'vmbr1');
@@ -350,11 +356,21 @@ class ProxmoxClient implements CloudProvider
 
             $password = $this->randomPassword();
 
+            /*
+            | 🔴 `pool` اجباری است، نه سلیقه‌ای (رخدادِ سرویس #74).
+            |
+            | ACLِ توکنِ کنترلر روی Proxmox عمداً کم‌دسترسی است: VM.Allocate
+            | فقط روی `/pool/customers` — نه روی `/vms`. کلونِ بدونِ pool یعنی
+            | بررسیِ allocate روی `/vms/{newid}` انجام می‌شود و رد می‌شود؛ و
+            | تازه اگر هم می‌گذشت، ماشینِ بیرون‌ازpool برای همهٔ فراخوان‌های
+            | بعدیِ همین توکن (config/start/حذف) نامرئی می‌ماند.
+            */
             $clone = $this->req('POST', '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($tpl).'/clone', [
                 'newid'   => (int) $vmid,
                 'name'    => $name,
                 'full'    => 1,
                 'storage' => $this->storage(),
+                'pool'    => $this->pool(),
             ]);
 
             if (! $clone['ok']) {
