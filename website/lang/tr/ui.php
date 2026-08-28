@@ -1186,6 +1186,8 @@ return [
     'auth_mobile_intl_bad' => 'Cep numaranizi ulke kodu ile girin (orn. +905321234567).',
     'auth_sms_stage_sent' => 'E-posta dogrulandi ✓ - ikinci kod cep telefonunuza SMS ile gonderildi.',
     'auth_sms_stage_fail' => 'E-postaniz dogrulandi ancak bu numaraya SMS gonderilemedi. "Tekrar gonder"e basin veya geri donup farkli bir numara girin.',
+    'auth_sms_sandbox_sent' => 'E-posta dogrulandi ✓ - dogrulama kodu Amazon Web Services (AWS) tarafindan cep telefonunuza SMS ile gonderildi; o kodu girin.',
+    'auth_code_wrong' => 'Kod gecersiz veya suresi dolmus. Tekrar deneyin veya "Yeniden gonder" e basin.',
     'iran_gate_blocked' => 'Iran da barindirilan hizmetler su anda yalnizca kimligi dogrulanmis musterilere aciktir. Kimlik dogrulamasi icin destek ile iletisime gecin veya baska bir konum (orn. Almanya) secin.',
     'prof_first_name' => 'Ad (pasaporttaki gibi)',
     'prof_last_name' => 'Soyad (pasaporttaki gibi)',

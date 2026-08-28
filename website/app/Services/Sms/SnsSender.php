@@ -3,6 +3,7 @@
 namespace App\Services\Sms;
 
 use App\Models\Setting;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -12,14 +13,13 @@ use Illuminate\Support\Facades\Http;
  *
  * اپراتورهای ایرانی (و رلهٔ n8n) فقط شمارهٔ ۰۹ می‌فرستند؛ مشتریِ خارجی تا
  * امروز اصلاً شماره نمی‌داد. حالا ثبت‌نامِ en/tr موبایل می‌خواهد و کدِ
- * تأییدش از SNS می‌رود (تصمیمِ کارفرما — ۵ شهریور ۱۴۰۵؛ حسابش production
- * access دارد).
+ * تأییدش از SNS می‌رود (تصمیمِ کارفرما — ۵ شهریور ۱۴۰۵).
  *
  * ═══ قراردادها ═══
  *
  * - فقط شمارهٔ E.164 (`+…`) — مسیریابی در OtpService است: ۰۹ به درایورِ
  *   ایرانی، `+` به این‌جا. این کلاس شمارهٔ بی‌`+` را نمی‌پذیرد.
- * - امضای SigV4 دستی است (SDK نصب نیست و برای یک Publish ارزشش را ندارد) —
+ * - امضای SigV4 دستی است (SDK نصب نیست و برای چند Action ارزشش را ندارد) —
  *   همان الگوی OVH: بدنه باید **بایت‌به‌بایت** همان باشد که امضا شده.
  * - SMSType=Transactional: مسیرِ OTPِ آمازون، اولویتِ تحویل دارد و از سقفِ
  *   promotional جدا است.
@@ -28,6 +28,22 @@ use Illuminate\Support\Facades\Http;
  *   می‌دهد، نه شکستِ خاموش.
  * - پاسخِ موفق XML است و MessageId دارد؛ کدِ ۲۰۰ به‌تنهایی ملاک نیست
  *   (قاعدهٔ ثبت‌شدهٔ این پروژه: «۲۰۰ ولی نرفت»).
+ *
+ * ═══ SMS Sandbox (۶ شهریور ۱۴۰۵) ═══
+ *
+ * حسابِ AWS تا تأییدِ کیسِ «SMS Production Access» در سندباکس است: Publish
+ * به شمارهٔ تأییدنشده ۲۰۰ و MessageId می‌دهد ولی **هرگز تحویل نمی‌شود**
+ * (در کنسول: Sent 3 / Failed 3). تنها استثنا شماره‌هایی است که در خودِ
+ * سندباکس تأیید شده باشند (سقفِ ~۱۰ شماره).
+ *
+ * راهِ دررو تا خروج از سندباکس: به‌جای Publishِ کدِ خودمان،
+ * CreateSMSSandboxPhoneNumber را صدا می‌زنیم — **خودِ آمازون** یک کدِ تأیید
+ * به مشتری پیامک می‌کند (این پیام در سندباکس هم تحویل می‌شود)؛ مشتری همان
+ * کد را وارد می‌کند و ما با VerifySMSSandboxPhoneNumber می‌سنجیم. موفق =
+ * مالکیتِ شماره ثابت شده و از آن پس Publishِ عادی هم به همان شماره می‌رسد.
+ *
+ * حالتِ سندباکس یک تیکِ صریحِ مدیر است (aws_sns_sandbox) نه حدسِ کد — بعد
+ * از تأییدِ کیس، مدیر تیک را برمی‌دارد و مسیرِ عادی برمی‌گردد.
  */
 class SnsSender implements SmsSender
 {
@@ -55,25 +71,129 @@ class SnsSender implements SmsSender
         return $this->publish($mobile, 'Your ServerNet verification code: '.$code);
     }
 
+    // ───────────────────────── SMS Sandbox ─────────────────────────
+
+    /** آیا مدیر گفته حساب هنوز در SMS Sandbox است؟ */
+    public function sandboxMode(): bool
+    {
+        try {
+            return (string) Setting::get('aws_sns_sandbox') === '1';
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * وضعیتِ شماره در سندباکس: 'Verified' | 'Pending' | null (نیست/ناخوانا).
+     *
+     * ⚠️ null دو معنی دارد (شماره در فهرست نیست، یا خودِ فهرست خوانده نشد) و
+     * عمداً یکی‌اند: در هر دو حالت قدمِ بعدی «تلاش برای Create» است، که خودش
+     * جوابِ قطعی می‌دهد. جدا کردنشان هیچ تصمیمی را عوض نمی‌کرد.
+     */
+    public function sandboxStatus(string $mobile): ?string
+    {
+        if (! $this->enabled() || ! str_starts_with($mobile, '+')) {
+            return null;
+        }
+
+        $res = $this->call([
+            'Action' => 'ListSMSSandboxPhoneNumbers',
+            'MaxResults' => '100',
+        ]);
+
+        if ($res === null || ! $res->successful()) {
+            return null;
+        }
+
+        /*
+        | XML: <member><PhoneNumber>+90…</PhoneNumber><Status>Verified</Status></member>
+        | شماره را escape می‌کنیم چون + در regex معنی دارد.
+        */
+        $pattern = '~<PhoneNumber>'.preg_quote($mobile, '~').'</PhoneNumber>\s*<Status>([A-Za-z]+)</Status>~';
+
+        return preg_match($pattern, $res->body(), $m) ? $m[1] : null;
+    }
+
+    /**
+     * افزودنِ شماره به سندباکس — خودِ AWS کدِ تأیید را پیامک می‌کند.
+     * صدازدنِ دوباره برای شمارهٔ Pending همان کد را دوباره می‌فرستد (resend).
+     */
+    public function sandboxAdd(string $mobile): bool
+    {
+        if (! $this->enabled() || ! str_starts_with($mobile, '+')) {
+            return false;
+        }
+
+        $res = $this->call([
+            'Action' => 'CreateSMSSandboxPhoneNumber',
+            'PhoneNumber' => $mobile,
+            'LanguageCode' => 'en-US',
+        ]);
+
+        if ($res !== null && $res->successful()) {
+            return true;
+        }
+
+        $this->noteRefusal('sandbox-add', $res);
+
+        return false;
+    }
+
+    /** سنجیدنِ کدی که AWS فرستاده. موفق = شماره برای همیشه Verified. */
+    public function sandboxVerify(string $mobile, string $code): bool
+    {
+        if (! $this->enabled() || ! str_starts_with($mobile, '+')) {
+            return false;
+        }
+
+        $res = $this->call([
+            'Action' => 'VerifySMSSandboxPhoneNumber',
+            'PhoneNumber' => $mobile,
+            'OneTimePassword' => trim($code),
+        ]);
+
+        // کدِ غلط خطای ۴xx می‌دهد؛ آن یک خرابی نیست و ثبت نمی‌شود —
+        // کاربر فقط دوباره تلاش می‌کند.
+        return $res !== null && $res->successful();
+    }
+
+    // ───────────────────────── هستهٔ امضاشده ─────────────────────────
+
     private function publish(string $mobile, string $text): bool
     {
         if (! $this->enabled() || ! str_starts_with($mobile, '+')) {
             return false;
         }
 
-        $region = trim((string) Setting::get('aws_sns_region'));
-        $host = 'sns.'.$region.'.amazonaws.com';
-
-        $params = [
+        $res = $this->call([
             'Action' => 'Publish',
             'PhoneNumber' => $mobile,
             'Message' => $text,
             'MessageAttributes.entry.1.Name' => 'AWS.SNS.SMS.SMSType',
             'MessageAttributes.entry.1.Value.DataType' => 'String',
             'MessageAttributes.entry.1.Value.StringValue' => 'Transactional',
-            'Version' => '2010-03-31',
-        ];
+        ]);
 
+        if ($res === null) {
+            return false;
+        }
+
+        if ($res->successful() && str_contains($res->body(), '<MessageId>')) {
+            return true;
+        }
+
+        $this->noteRefusal('publish', $res);
+
+        return false;
+    }
+
+    /** یک تماسِ امضاشدهٔ SigV4 با SNS؛ null یعنی اصلاً نرسیدیم (شبکه). */
+    private function call(array $params): ?Response
+    {
+        $region = trim((string) Setting::get('aws_sns_region'));
+        $host = 'sns.'.$region.'.amazonaws.com';
+
+        $params['Version'] = '2010-03-31';
         ksort($params);
         $body = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
 
@@ -113,7 +233,7 @@ class SnsSender implements SmsSender
             .', Signature='.$signature;
 
         try {
-            $res = Http::timeout(12)
+            return Http::timeout(12)
                 ->withHeaders([
                     'Authorization' => $auth,
                     'X-Amz-Date' => $amzDate,
@@ -126,23 +246,24 @@ class SnsSender implements SmsSender
                 'SNS unreachable: '.class_basename($e)
             ));
 
-            return false;
+            return null;
+        }
+    }
+
+    /*
+    | خطای SNS در XML است (<Code>…</Code>) — برای عیب‌یابیِ مدیر لازم است
+    | (sandbox؟ سقفِ خرج؟ کشورِ بسته؟) ولی متنِ کامل ممکن است شماره داشته
+    | باشد؛ فقط کد و وضعیت ثبت می‌شود.
+    */
+    private function noteRefusal(string $where, ?Response $res): void
+    {
+        if ($res === null) {
+            return;     // «نرسیدیم» را خودِ call ثبت کرده
         }
 
-        if ($res->successful() && str_contains($res->body(), '<MessageId>')) {
-            return true;
-        }
-
-        /*
-        | خطای SNS در XML است (<Code>…</Code>) — برای عیب‌یابیِ مدیر لازم است
-        | (sandbox؟ سقفِ خرج؟ کشورِ بسته؟) ولی متنِ کامل ممکن است شماره داشته
-        | باشد؛ فقط کد و وضعیت ثبت می‌شود.
-        */
         preg_match('~<Code>([^<]{1,80})</Code>~', $res->body(), $m);
         \App\Support\ErrorTracker::noteOnce('sms', new \RuntimeException(
-            'SNS refused: HTTP '.$res->status().' '.($m[1] ?? 'unknown')
+            'SNS refused ('.$where.'): HTTP '.$res->status().' '.($m[1] ?? 'unknown')
         ));
-
-        return false;
     }
 }

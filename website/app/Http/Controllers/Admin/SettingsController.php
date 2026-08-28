@@ -121,6 +121,7 @@ class SettingsController extends Controller
             'aws_sns_secret'       => ['nullable', 'string', 'max:128'],
             'aws_sns_region'       => ['nullable', 'string', 'max:32', 'regex:/^[a-z0-9-]*$/'],
             'aws_sns_forget'       => ['nullable', 'boolean'],
+            'aws_sns_sandbox'      => ['nullable', 'boolean'],
             // فروشِ محصولاتِ مستقر در ایران به مشتریِ بدونِ احراز هویت
             'iran_sales_open_to_unverified' => ['nullable', 'boolean'],
         ],
@@ -537,6 +538,13 @@ class SettingsController extends Controller
                 Setting::putSecret('aws_sns_secret', trim((string) $data['aws_sns_secret']));
             }
         }
+
+        /*
+        | حالتِ SMS Sandbox — تا AWS کیسِ «SMS Production Access» را تأیید کند،
+        | کدِ تأییدِ خارجی‌ها از راهِ CreateSMSSandboxPhoneNumber می‌رود (خودِ
+        | AWS پیامک می‌کند). بعد از تأیید، مدیر تیک را برمی‌دارد.
+        */
+        Setting::put('aws_sns_sandbox', $request->boolean('aws_sns_sandbox') ? '1' : null);
 
         if ($request->boolean('google_forget')) {
             Setting::put('google_client_id', null);

@@ -222,6 +222,15 @@
                value="{{ \App\Models\Setting::get('aws_sns_region') }}" placeholder="eu-central-1"></label>
     </div>
 
+    <div style="padding:0 18px 8px">
+      <label class="set-danger" style="color:#fbbf24">
+        <input type="checkbox" name="aws_sns_sandbox" value="1"
+               @checked(\App\Models\Setting::get('aws_sns_sandbox') === '1')>
+        حساب هنوز در <b>SMS Sandbox</b> است — کدِ تأیید را خودِ AWS بفرستد
+        (CreateSMSSandboxPhoneNumber). بعد از تأییدِ کیسِ production این تیک را بردارید.
+      </label>
+    </div>
+
     <div style="padding:0 18px 16px">
       <label class="set-danger">
         <input type="checkbox" name="aws_sns_forget" value="1">

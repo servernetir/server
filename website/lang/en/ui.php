@@ -1186,6 +1186,8 @@ return [
     'auth_mobile_intl_bad' => 'Enter your mobile number with country code (e.g. +905321234567).',
     'auth_sms_stage_sent' => 'Email verified ✓ - a second code was just texted to your mobile.',
     'auth_sms_stage_fail' => 'Your email is verified, but we could not text this number. Tap "Resend" to retry, or go back and enter a different number.',
+    'auth_sms_sandbox_sent' => 'Email verified ✓ - a verification code was texted to your mobile by Amazon Web Services (AWS); enter that code below.',
+    'auth_code_wrong' => 'That code is not valid or has expired. Try again, or tap "Resend".',
     'iran_gate_blocked' => 'Services hosted in Iran are currently available to identity-verified customers only. Contact support to verify your identity, or choose another location (e.g. Germany).',
     'prof_first_name' => 'First name (as in passport)',
     'prof_last_name' => 'Last name (as in passport)',

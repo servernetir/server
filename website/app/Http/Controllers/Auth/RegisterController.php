@@ -206,6 +206,25 @@ class RegisterController extends Controller
 
         $request->validate(['code' => ['required', 'string', 'max:12']], [], ['code' => 'کد']);
 
+        /*
+        | کدِ مرحلهٔ سندباکسی را خودِ AWS ساخته و فقط خودش می‌تواند بسنجد —
+        | OtpService هیچ چالشی برای آن صادر نکرده و ابدی ردش می‌کرد.
+        */
+        if ($reg['channel'] === 'sms' && ! empty($reg['sandbox'])) {
+            $ok = app(\App\Services\Sms\SnsSender::class)
+                ->sandboxVerify((string) $reg['phone'], $request->string('code')->toString());
+
+            if (! $ok) {
+                return back()->withErrors(['code' => __('ui.auth_code_wrong')]);
+            }
+
+            $reg['phone_ok'] = true;
+            $reg['verified'] = true;
+            $request->session()->put('reg', $reg);
+
+            return redirect()->route($this->rp().'register.finish');
+        }
+
         // 🔴 مقصد از خودِ کانال — نه از حدسِ «ایرانی/خارجی». کانالِ sms یعنی
         // چالش روی شماره صادر شده؛ سنجیدنِ ایمیل جای آن، کد را ابدی رد می‌کرد.
         $check = $this->otp->verify(
@@ -237,6 +256,33 @@ class RegisterController extends Controller
             $sns = app(\App\Services\Sms\SnsSender::class);
 
             if ($sns->enabled() && str_starts_with((string) $reg['phone'], '+')) {
+                /*
+                | حسابِ AWS هنوز در SMS Sandbox؟ Publish به شمارهٔ تأییدنشده
+                | ۲۰۰ می‌دهد ولی هرگز تحویل نمی‌شود. راهِ دررو: خودِ AWS کد
+                | بفرستد (CreateSMSSandboxPhoneNumber) و ما همان را بسنجیم.
+                | شماره‌ای که قبلاً در سندباکس Verified شده مسیرِ عادی می‌رود.
+                */
+                if ($sns->sandboxMode() && $sns->sandboxStatus((string) $reg['phone']) !== 'Verified') {
+                    if ($sns->sandboxAdd((string) $reg['phone'])) {
+                        $reg['channel'] = 'sms';
+                        $reg['sandbox'] = true;
+                        $request->session()->put('reg', $reg);
+
+                        return redirect()->route($this->rp().'register.verify')
+                            ->with('reg_notice', __('ui.auth_sms_sandbox_sent'));
+                    }
+
+                    /*
+                    | سندباکس پر است (سقفِ ~۱۰ شماره) یا AWS رد کرد — ثبت‌نام
+                    | با همان ایمیلِ تأییدشده تمام می‌شود؛ خطایش ثبت شده و
+                    | راهِ حلِ واقعی تأییدِ کیسِ production است، نه قفلِ مشتری.
+                    */
+                    $reg['verified'] = true;
+                    $request->session()->put('reg', $reg);
+
+                    return redirect()->route($this->rp().'register.finish');
+                }
+
                 $issue = $this->otp->issue('sms', $reg['phone'], 'register', $request->ip());
 
                 $reg['channel'] = 'sms';
@@ -271,6 +317,15 @@ class RegisterController extends Controller
     {
         if (($reg = $this->reg($request)) === null) {
             return redirect()->route($this->rp().'register');
+        }
+
+        // ارسالِ دوبارهٔ مرحلهٔ سندباکسی = Createِ دوباره (AWS همان کد را بازمی‌فرستد)
+        if (($reg['channel'] ?? '') === 'sms' && ! empty($reg['sandbox'])) {
+            $ok = app(\App\Services\Sms\SnsSender::class)->sandboxAdd((string) $reg['phone']);
+
+            return $ok
+                ? back()->with('ok', 'کد تازه فرستاده شد.')
+                : back()->withErrors(['code' => __('ui.auth_sms_stage_fail')]);
         }
 
         $destination = $reg['channel'] === 'sms' ? $reg['phone'] : $reg['email'];
