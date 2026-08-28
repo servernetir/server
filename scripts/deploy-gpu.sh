@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-6637cdb}"
+MINE="${1:-95b803f}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -155,6 +155,7 @@ lang/tr/ui.php
 config/servernet.php
 config/catalog/cloud.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
+database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 routes/web.php
 "
 
@@ -303,6 +304,7 @@ need_file "$APP/app/Services/Cloud/SaladOperations.php"
 need_file "$APP/app/Http/Controllers/GpuController.php"
 need_file "$APP/resources/views/pages/gpu.blade.php"
 need_file "$APP/database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php"
+need_file "$APP/database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php"
 
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
@@ -398,6 +400,12 @@ g lang/tr/ui.php "dpg_renew_h"
 g lang/en/ui.php "cxp_tun_h"
 g lang/en/ui.php "rsl_h"
 g resources/views/account/domain-show.blade.php "dpg_renew_h"
+
+# توضیح/نامِ سه‌زبانهٔ سرویس + مهاجرتِ ترجمهٔ ردیف‌های قدیمی (۶ شهریور)
+g lang/fa/ui.php "svd_specs"
+g lang/en/ui.php "svd_specs"
+g lang/tr/ui.php "svd_specs"
+g app/Http/Controllers/Account/CloudStoreController.php "ui.svd_specs"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
 g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
@@ -492,6 +500,14 @@ if [ -n "$PHPBIN" ]; then
   "$PHPBIN" artisan migrate --force \
     --path=database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php \
     || { echo "🔴 مهاجرت نخورد — /gpu خالی می‌مانَد. خروجی را بفرست."; }
+
+  echo "═══ ترجمهٔ ردیف‌های فارسیِ قدیمیِ مشتریانِ خارجی ═══"
+  # نام/توضیحِ سرویس و لاگ‌های ساعتیِ ازپیش‌ذخیره‌شده — بی‌این، مشتریِ en/tr
+  # همچنان «سرور مجازی … (ساعتی)» و «کسرِ ساعتی» می‌بیند (متنِ ذخیره‌شده است؛
+  # ریستِ opcache عوضش نمی‌کند). اجرای دوباره no-op است.
+  "$PHPBIN" artisan migrate --force \
+    --path=database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php \
+    || { echo "🔴 مهاجرتِ ترجمهٔ دادهٔ قدیمی نخورد. خروجی را بفرست."; }
 
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
