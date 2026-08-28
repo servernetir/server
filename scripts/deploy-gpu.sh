@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-87de123}"
+MINE="${1:-544be0b}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -449,7 +449,9 @@ g app/Services/Cloud/CloudProvisioner.php "تحویلِ دوباره #"
 g app/Services/Domain/DomainRegistrar.php "CB_PREFIX"
 
 # کفِ حاشیه + شمارشِ «فعال» + انقضای ۲۴ساعته (۶ شهریور)
-g app/Services/Cloud/CloudPricing.php "MIN_MARGIN_PCT"
+g app/Services/Cloud/CloudPricing.php "fxFeePct"
+g app/Services/Cloud/HetznerClient.php "costWithFee"
+g app/Services/Cloud/AezaClient.php "costWithFee"
 g app/Models/Service.php "ACTIVE_STATUSES"
 g app/Http/Controllers/Account/AccountController.php "countsAsActive"
 g config/billing.php "order_expiry_hours' => 24"
@@ -595,7 +597,8 @@ echo
 echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache (validate_timestamps=0 — بی‌ریست کدِ تازه اجرا نمی‌شود)"
 echo
 echo "═══ بستنِ ضررِ ساعتی (بعد از ریستِ opcache، به همین ترتیب) ═══"
-echo "  ۰) در /admin/settings تبِ قیمت‌گذاری «حاشیهٔ سود سرور ابری» را روی ۴۵ بگذار (روی سرور ۲ بود!)"
+echo "  ۰) در /admin/settings تبِ قیمت‌گذاری: حاشیه هر عددی که خودت می‌خواهی؛ و «کارمزد انتقال ارز» را"
+echo "     برابرِ سربارِ واقعی‌ات بگذار (کارمزد حواله/اسپرد + VAT اگر روی صورت‌حساب زیرساخت هست)"
 echo "  $PHPBIN artisan cloud:sync --prices   ← بازقیمت‌گذاری با حاشیهٔ تازه"
 echo "  $PHPBIN artisan cloud:sync            ← بهایِ ساعتیِ واقعی را از زیرساخت‌ها می‌گیرد"
 echo "  $PHPBIN artisan cloud:hourly-audit    ← باید #75 و #76 را UNDERWATER نشان دهد"
