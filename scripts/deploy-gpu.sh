@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-b9f16ea}"
+MINE="${1:-d4401b4}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -108,6 +108,9 @@ app/Http/Controllers/Api/TunnelApiController.php
 resources/views/pages/developers-tunnel.blade.php
 database/migrations/2026_10_02_000101_create_tunnel_jobs_table.php
 app/Http/Controllers/Account/DomainController.php
+app/Services/Domain/DomainRegistrar.php
+app/Services/Domain/DomainTransfer.php
+app/Services/Dns/DomainZoneProvisioner.php
 app/Http/Controllers/Account/SecurityController.php
 app/Http/Controllers/Account/BankAccountController.php
 resources/views/account/domain-show.blade.php
@@ -437,6 +440,10 @@ g app/Console/Commands/CloudHourlyAudit.php "UNDERWATER"
 g app/Console/Commands/CloudHourlyReprice.php "hourly_rate_irt"
 g app/Console/Commands/CloudMeterHourly.php "alarmIfUnderwater"
 g routes/console.php "cloud:hourly-audit"
+
+# اعلان‌های کاربردی ادمین (۶ شهریور) — دکمهٔ عمل روی پیامِ «گیر کرده»
+g app/Services/Cloud/CloudProvisioner.php "تحویلِ دوباره #"
+g app/Services/Domain/DomainRegistrar.php "CB_PREFIX"
 g lang/en/ui.php "act_hourly_reprice"
 
 # کفِ ساعتی از بهایِ واقعیِ زیرساخت (sn-svc-76) — کلِ زنجیره باید با هم بنشیند
