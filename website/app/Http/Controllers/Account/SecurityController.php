@@ -55,7 +55,7 @@ class SecurityController extends Controller
         $destination = $channel === 'sms' ? $c->phone : $c->email;
 
         if (! $destination) {
-            return back()->withErrors(['password' => 'راهی برای ارسال کد نداریم؛ ابتدا ایمیل یا موبایل ثبت کنید.']);
+            return back()->withErrors(['password' => __('ui.scf_no_dest')]);
         }
 
         $issue = $this->otp->issue($channel, $destination, 'password_change', $request->ip());
@@ -65,7 +65,7 @@ class SecurityController extends Controller
 
         $request->session()->put('pw_change_ctx', ['channel' => $channel, 'destination' => $destination]);
 
-        return back()->with('ok', 'کد تأیید فرستاده شد. آن را وارد کنید و رمز جدید را بگذارید.')
+        return back()->with('ok', __('ui.scf_code_sent'))
             ->withFragment('sec-pw');
     }
 
@@ -75,7 +75,7 @@ class SecurityController extends Controller
         $ctx = $request->session()->get('pw_change_ctx');
 
         if (! is_array($ctx)) {
-            return back()->withErrors(['password' => 'ابتدا کد تأیید را درخواست کنید.']);
+            return back()->withErrors(['password' => __('ui.scf_ask_code_first')]);
         }
 
         $data = $request->validate([
@@ -93,7 +93,7 @@ class SecurityController extends Controller
 
         \App\Models\ActivityLog::record($c->id, 'password', 'رمز عبور توسط خودِ کاربر تنظیم شد', $request, 'customer');
 
-        return back()->with('ok', 'رمز عبور با موفقیت تنظیم شد.')->withFragment('sec-pw');
+        return back()->with('ok', __('ui.scf_pw_set'))->withFragment('sec-pw');
     }
 
     // ───────────────────────── قوانین IP ─────────────────────────
@@ -109,11 +109,11 @@ class SecurityController extends Controller
 
         $cidr = $this->normalizeCidr($data['cidr']);
         if ($cidr === null) {
-            return back()->withErrors(['cidr' => 'IP یا رنجِ CIDR معتبر نیست (مثل 1.2.3.4 یا 1.2.3.0/24).'])->withFragment('sec-ip');
+            return back()->withErrors(['cidr' => __('ui.scf_cidr_bad')])->withFragment('sec-ip');
         }
 
         if ($c->ipRules()->count() >= 50) {
-            return back()->withErrors(['cidr' => 'حداکثر ۵۰ قاعده می‌توانید داشته باشید.'])->withFragment('sec-ip');
+            return back()->withErrors(['cidr' => __('ui.scf_rule_cap')])->withFragment('sec-ip');
         }
 
         $c->ipRules()->create([
@@ -123,7 +123,7 @@ class SecurityController extends Controller
             'is_active' => true,
         ]);
 
-        return back()->with('ok', 'قاعدهٔ IP اضافه شد.')->withFragment('sec-ip');
+        return back()->with('ok', __('ui.scf_rule_added'))->withFragment('sec-ip');
     }
 
     public function ipDestroy(Request $request, CustomerIpRule $rule): RedirectResponse
@@ -131,7 +131,7 @@ class SecurityController extends Controller
         abort_unless($rule->customer_id === $this->customer()->id, 404);
         $rule->delete();
 
-        return back()->with('ok', 'قاعده حذف شد.')->withFragment('sec-ip');
+        return back()->with('ok', __('ui.scf_rule_deleted'))->withFragment('sec-ip');
     }
 
     public function ipMode(Request $request): RedirectResponse
@@ -141,7 +141,7 @@ class SecurityController extends Controller
         $c->ip_restriction_mode = $data['mode'];
         $c->save();
 
-        return back()->with('ok', 'حالتِ محدودسازیِ IP ذخیره شد.')->withFragment('sec-ip');
+        return back()->with('ok', __('ui.scf_mode_saved'))->withFragment('sec-ip');
     }
 
     // ───────────────────────── توکن API ─────────────────────────
@@ -188,7 +188,7 @@ class SecurityController extends Controller
             $norm = $this->normalizeCidr($raw);
 
             if ($norm === null) {
-                return back()->withErrors(['cidrs' => 'نشانی «'.$raw.'» معتبر نیست.'])
+                return back()->withErrors(['cidrs' => __('ui.scf_addr_bad', ['raw' => $raw])])
                     ->withFragment('sec-api');
             }
 
@@ -206,7 +206,7 @@ class SecurityController extends Controller
         );
 
         // متنِ خامِ توکن فقط همین یک‌بار نشان داده می‌شود
-        return back()->with('ok', 'توکن ساخته شد. همین حالا کپی‌اش کنید — دیگر نشان داده نمی‌شود.')
+        return back()->with('ok', __('ui.scf_token_ok'))
             ->with('new_token', $plain)->withFragment('sec-api');
     }
 
@@ -223,7 +223,7 @@ class SecurityController extends Controller
         abort_unless($token->customer_id === $this->customer()->id, 404);
         $token->revoke();
 
-        return back()->with('ok', 'توکن باطل شد و دیگر کار نمی‌کند.')->withFragment('sec-api');
+        return back()->with('ok', __('ui.scf_token_revoked'))->withFragment('sec-api');
     }
 
     // ───────────────────────── کمکی ─────────────────────────

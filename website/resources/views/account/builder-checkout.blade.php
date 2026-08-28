@@ -5,8 +5,8 @@
 
 <div class="pnl-head">
   <div>
-    <h1 class="dash-h">استقرار سایت شما روی زیرساخت سرورنت</h1>
-    <p>هاست + دامنه در یک فاکتور — پس از پرداخت، همه‌چیز خودکار انجام می‌شود.</p>
+    <h1 class="dash-h">{{ __('ui.bcp_h') }}</h1>
+    <p>{{ __('ui.bcp_sub') }}</p>
   </div>
 </div>
 
@@ -26,11 +26,10 @@
   <section class="pnl-sec">
     <div class="pnl-sec-h"><h2>سفارش سایت‌ساز — مرجع {{ $ref }}</h2></div>
     <div class="pnl-sec-b" style="font-size:13.5px;line-height:2.2">
-      <div>پکیج هاست: <b>{{ $product->name }}</b> — {{ fa_num(number_format($hostPrice)) }} تومان / ماهانه</div>
+      <div>{{ __('ui.bcp_host_pkg') }} <b>{{ $product->name }}</b> — {{ invoice_money($hostPrice) }} / {{ \App\Models\Service::labelFor('monthly') }}</div>
 
       @if($check !== null)
-        <div>دامنهٔ <b dir="ltr">{{ $domain }}</b> برای ثبت آزاد است —
-          {{ fa_num(number_format($domPrice)) }} تومان / سالانه</div>
+        <div>{{ __('ui.lbl_domain') }} <b dir="ltr">{{ $domain }}</b> {{ __('ui.bcp_domain_free') }} — {{ invoice_money($domPrice) }} / {{ \App\Models\Service::labelFor('yearly') }}</div>
         <div style="color:var(--muted)">نیم‌سرورها به‌صورت خودکار روی نیم‌سرورهای سرورنت تنظیم می‌شود و پس از پرداخت،
           سایتِ ساخته‌شده بدونِ هیچ اقدامی از سمتِ شما روی هاست مستقر و در دسترس قرار می‌گیرد.</div>
 
@@ -45,12 +44,12 @@
           <input type="hidden" name="ref" value="{{ $ref }}">
           <input type="hidden" name="plan" value="{{ $product->slug }}">
           <input type="hidden" name="quote_id" value="{{ $check['quote_id'] }}">
-          <button class="btn btn-primary" type="submit">صدور پیش‌فاکتور و پرداخت</button>
+          <button class="btn btn-primary" type="submit">{{ __('ui.bcp_pay_btn') }}</button>
         </form>
       @else
         <div style="color:var(--danger)">{{ $quoteErr }}</div>
         <a class="btn btn-glass" style="margin-top:10px"
-           href="{{ lroute('account.builder.checkout') }}?ref={{ $ref }}&plan={{ $product->slug }}&domain={{ urlencode($domain) }}">تلاش دوباره</a>
+           href="{{ lroute('account.builder.checkout') }}?ref={{ $ref }}&plan={{ $product->slug }}&domain={{ urlencode($domain) }}">{{ __('ui.bcp_retry') }}</a>
       @endif
     </div>
   </section>

@@ -173,11 +173,11 @@ class DomainController extends Controller
         $ns = array_values(array_filter(array_map('trim', $data['ns'])));
 
         if (count($ns) < 2) {
-            return back()->withErrors('دستِ‌کم دو نام‌سرور لازم است.');
+            return back()->withErrors(__('ui.dm_ns_two'));
         }
 
         if (! $domain->op_id) {
-            return back()->withErrors('این دامنه هنوز نزدِ رجیسترار ثبت نشده است.');
+            return back()->withErrors(__('ui.dm_not_registered'));
         }
 
         $res = $this->op->setNameServers((int) $domain->op_id, $ns);
@@ -191,7 +191,7 @@ class DomainController extends Controller
         // برگشت به نیم‌سرورهای ما؟ zone باید باشد وگرنه دامنه از هوا می‌افتد.
         app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
 
-        return back()->with('ok', 'نام‌سرورها به‌روز شد. انتشارِ کامل تا ۲۴ ساعت طول می‌کشد.');
+        return back()->with('ok', __('ui.dm_ns_ok'));
     }
 
     /** قفلِ انتقال — روشن یعنی کسی نمی‌تواند دامنه را ببرد */
@@ -200,7 +200,7 @@ class DomainController extends Controller
         $this->owned($domain);
 
         if (! $domain->op_id) {
-            return back()->withErrors('این دامنه هنوز نزدِ رجیسترار ثبت نشده است.');
+            return back()->withErrors(__('ui.dm_not_registered'));
         }
 
         $lock = $request->boolean('lock');
@@ -212,7 +212,7 @@ class DomainController extends Controller
 
         $domain->update(['is_locked' => $lock]);
 
-        return back()->with('ok', $lock ? 'قفلِ انتقال روشن شد.' : 'قفلِ انتقال خاموش شد.');
+        return back()->with('ok', $lock ? __('ui.dm_lock_on') : __('ui.dm_lock_off'));
     }
 
     /**
@@ -227,17 +227,17 @@ class DomainController extends Controller
         $this->owned($domain);
 
         if (! $domain->op_id) {
-            return back()->withErrors('این دامنه هنوز نزدِ رجیسترار ثبت نشده است.');
+            return back()->withErrors(__('ui.dm_not_registered'));
         }
 
         if ($domain->is_locked) {
-            return back()->withErrors('برای گرفتنِ کدِ انتقال، اول قفلِ انتقال را خاموش کنید.');
+            return back()->withErrors(__('ui.dm_unlock_first'));
         }
 
         $res = $this->op->authCode((int) $domain->op_id);
 
         if (! $res['ok'] || blank($res['auth_code'])) {
-            return back()->withErrors($this->safeMessage($res['message'] ?: 'کدِ انتقال در دسترس نیست.'));
+            return back()->withErrors($this->safeMessage($res['message'] ?: __('ui.dm_epp_na')));
         }
 
         return back()->with('authCode', $res['auth_code']);
@@ -277,19 +277,19 @@ class DomainController extends Controller
         $this->owned($domain);
 
         if (! $domain->isActive()) {
-            return back()->withErrors('فقط دامنهٔ فعال از این‌جا تمدید می‌شود. اگر دامنه منقضی شده، با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_renew_active_only'));
         }
 
         // تمدیدِ پرداخت‌شده‌ای همین حالا در صفِ رجیسترار است؛ فاکتورِ تازه
         // یعنی پولِ دوباره برای همان کار.
         if (in_array($domain->provision_status, ['pending', 'running'], true)) {
-            return back()->with('ok', 'تمدید در حالِ انجام است؛ تا چند دقیقهٔ دیگر تاریخِ انقضای تازه را می‌بینید.');
+            return back()->with('ok', __('ui.dm_renew_running'));
         }
 
         // تمدیدِ قبلی شکست خورده و در صفِ بررسیِ انسانی است. فاکتورِ دوم
         // همان خطای «دو بار پول، صفر تمدید» را می‌سازد که ممیزی پیدا کرد.
         if ($domain->provision_status === 'manual') {
-            return back()->withErrors('تمدیدِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+            return back()->withErrors(__('ui.dm_renew_pending'));
         }
 
         $years = (int) $request->validate([
@@ -298,7 +298,7 @@ class DomainController extends Controller
 
         // قیمتِ مؤثر (ذخیره + استعلامِ تازه + کف) — صفر یعنی هیچ منبعی قیمت ندارد
         if ($invoicer->effectivePerYear($domain) <= 0) {
-            return back()->withErrors('قیمتِ تمدید برای این دامنه در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_renew_noprice'));
         }
 
         // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
@@ -337,31 +337,31 @@ class DomainController extends Controller
         $this->owned($domain);
 
         if ($domain->status !== 'expired') {
-            return back()->withErrors('این دامنه در وضعیتِ بازیابی نیست.');
+            return back()->withErrors(__('ui.dm_restore_state'));
         }
 
         if (! $domain->op_id) {
-            return back()->withErrors('بازیابیِ این دامنه فقط از راهِ پشتیبانی ممکن است.');
+            return back()->withErrors(__('ui.dm_restore_support'));
         }
 
         if (in_array($domain->provision_status, ['pending', 'running'], true)) {
-            return back()->with('ok', 'بازیابی در حالِ انجام است؛ نتیجه به شما اطلاع داده می‌شود.');
+            return back()->with('ok', __('ui.dm_restore_running'));
         }
 
         if ($domain->provision_status === 'manual') {
-            return back()->withErrors('بازیابیِ قبلی در دستِ بررسی است؛ تا روشن‌شدنِ نتیجه فاکتورِ تازه صادر نمی‌شود.');
+            return back()->withErrors(__('ui.dm_restore_pending'));
         }
 
         $fee = (int) \App\Models\Setting::get('domain_restore_fee_toman');
 
         if ($fee <= 0) {
-            return back()->withErrors('بازیابیِ آنلاین فعلاً فعال نیست؛ برای نجاتِ دامنه با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_restore_off'));
         }
 
         $renewPerYear = $invoicer->effectivePerYear($domain);
 
         if ($renewPerYear <= 0) {
-            return back()->withErrors('قیمتِ بازیابی در دسترس نیست؛ با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_restore_noprice'));
         }
 
         $invoice = DB::transaction(function () use ($domain, $invoicer, $renewPerYear, $fee) {
@@ -492,22 +492,22 @@ class DomainController extends Controller
         $quote = DomainQuote::find($data['quote_id']);
 
         if ($quote === null) {
-            return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
+            return back()->withErrors(__('ui.dm_quote_missing'));
         }
 
         // مالکیتِ استعلام — همان گاردِ checkout؛ مسیرِ پول بی‌مالک نمی‌ماند.
         if (! $quote->claimFor($this->customerId())) {
-            return back()->withErrors('استعلامِ این دامنه پیدا نشد. دوباره جستجو کنید.');
+            return back()->withErrors(__('ui.dm_quote_missing'));
         }
 
         // 🔴 پنجرهٔ اعتبار: قیمتِ کهنه یعنی فروش به نرخِ دیروز و خرید به نرخِ
         // امروز. روی دامنه که حاشیه‌اش کم است، یک جهشِ ارز کلِ سود را می‌خورد.
         if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
-            return back()->withErrors('قیمتِ این استعلام منقضی شده است. دوباره جستجو کنید تا قیمتِ روز را ببینید.');
+            return back()->withErrors(__('ui.dm_quote_expired'));
         }
 
         if ((int) $quote->sell_toman <= 0) {
-            return back()->withErrors('برای این دامنه قیمتِ قابلِ اتکایی نداریم. با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_no_price'));
         }
 
         /*
@@ -614,7 +614,7 @@ class DomainController extends Controller
         $existing = Domain::where('domain', $quote->domain)->where('registrar', 'openprovider')->first();
 
         if ($existing !== null && ! $existing->isDead()) {
-            return back()->withErrors('این دامنه از قبل در سامانه ثبت شده است.');
+            return back()->withErrors(__('ui.dm_already'));
         }
 
         /*
@@ -746,7 +746,7 @@ class DomainController extends Controller
         });
 
         return redirect()->route('account.invoice', $invoice)
-            ->with('ok', 'فاکتورِ دامنه صادر شد. پس از پرداخت، ثبت خودکار انجام می‌شود.');
+            ->with('ok', __('ui.dm_invoice_ok'));
     }
 
     // ═══════════════════════ انتقالِ دامنه ═══════════════════════
@@ -779,7 +779,7 @@ class DomainController extends Controller
         [$sld, $tld] = Domain::splitFqdn(strtolower(trim($data['domain'])));
 
         if ($sld === '' || $tld === '') {
-            return back()->withErrors('نامِ دامنه معتبر نیست. مثال: example.com');
+            return back()->withErrors(__('ui.dm_bad_name'));
         }
 
         // 🔴 همهٔ گیت‌ها پیش از ساختِ فاکتور — نه بعدش
@@ -860,7 +860,7 @@ class DomainController extends Controller
         });
 
         return redirect()->route('account.invoice', $invoice)
-            ->with('ok', 'فاکتورِ انتقال صادر شد. پس از پرداخت، کدِ انتقال (EPP) را در همان صفحهٔ دامنه وارد کنید.');
+            ->with('ok', __('ui.dm_transfer_invoice_ok'));
     }
 
     /**
@@ -876,11 +876,11 @@ class DomainController extends Controller
         $this->owned($domain);
 
         if (! $domain->isTransfer()) {
-            return back()->withErrors('این دامنه سفارشِ انتقال نیست.');
+            return back()->withErrors(__('ui.dm_not_transfer'));
         }
 
         if ($domain->transfer_status !== 'pending') {
-            return back()->withErrors('این درخواست از قبل به رجیسترار ارسال شده است.');
+            return back()->withErrors(__('ui.dm_transfer_sent'));
         }
 
         /*
@@ -891,7 +891,7 @@ class DomainController extends Controller
         | کردنِ کد، انتقال را با هزینهٔ ما شروع کند.
         */
         if (! $domain->hasPaidInvoice()) {
-            return back()->withErrors('ابتدا فاکتورِ انتقال را پرداخت کنید.');
+            return back()->withErrors(__('ui.dm_pay_first'));
         }
 
         $data = $request->validate([

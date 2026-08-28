@@ -55,7 +55,7 @@ class StoreController extends Controller
             | «خرید سرویس» را هم به حلقهٔ بسته تبدیل کرده بود.
             */
             return redirect(lroute('account.services'))
-                ->with('err', 'این پکیج دیگر در دسترس نیست. لطفاً پکیجِ دیگری انتخاب کنید یا با پشتیبانی تماس بگیرید.');
+                ->with('err', __('ui.stf_pkg_gone'));
         }
 
         /*
@@ -103,7 +103,7 @@ class StoreController extends Controller
     public function order(Request $request, Product $product): RedirectResponse
     {
         if (! $product->is_active) {
-            return back()->withErrors('این پکیج در دسترس نیست.');
+            return back()->withErrors(__('ui.stf_pkg_na'));
         }
 
         if ($product->isLicense()) {
@@ -151,7 +151,7 @@ class StoreController extends Controller
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
         [$domain, $note] = $this->resolveDomain($data);
         if ($domain === null) {
-            return back()->withInput()->withErrors(['domain' => 'دامنه را کامل وارد کنید.']);
+            return back()->withInput()->withErrors(['domain' => __('ui.stf_domain_full')]);
         }
 
         $customer = Auth::guard('customer')->user();
@@ -167,7 +167,7 @@ class StoreController extends Controller
         // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
         $server = $country ? \App\Models\Server::pickForCountry($country) : null;
         if ($country && $server === null) {
-            return back()->withInput()->withErrors(['country' => 'ظرفیتِ این مکان همین حالا پر شد؛ مکانِ دیگری را انتخاب کنید.']);
+            return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
         }
 
         // مبلغِ دوره در لحظهٔ سفارش قفل می‌شود؛ تغییرِ بعدیِ تخفیف‌ها یا نرخِ ارز
@@ -222,7 +222,7 @@ class StoreController extends Controller
         Funnel::log('order_placed', ['sku' => $product->slug, 'cycle' => $cycle, 'sid' => $ho['sid'] ?? '', 'ref' => $ho['ref'] ?? '', 'handoff_cycle' => $ho['cycle'] ?? '']);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
-            ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی، پیش‌فاکتور را پرداخت کنید.');
+            ->with('ok', __('ui.stf_order_ok'));
     }
 
     /**
@@ -306,7 +306,7 @@ class StoreController extends Controller
         ]]);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
-            ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی لایسنس، پیش‌فاکتور را پرداخت کنید.');
+            ->with('ok', __('ui.stf_order_ok_lic'));
     }
 
     /** دامنهٔ نهایی + یادداشت بر اساس حالت (دارم/می‌خرم/زیردامنه) */

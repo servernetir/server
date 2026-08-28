@@ -43,14 +43,14 @@ class ServiceController extends Controller
         $customer = $this->ownedOr404($service);
 
         if (! $this->terminable($service)) {
-            return back()->withErrors('این سرویس در وضعیتی نیست که بتوان حذفش کرد.');
+            return back()->withErrors(__('ui.svf_state'));
         }
 
         $channel = $customer->phone ? 'sms' : 'email';
         $destination = $channel === 'sms' ? $customer->phone : $customer->email;
 
         if (! $destination) {
-            return back()->withErrors('راهی برای ارسالِ کد نداریم؛ ابتدا ایمیل یا موبایل ثبت کنید.');
+            return back()->withErrors(__('ui.scf_no_dest'));
         }
 
         $issue = $this->otp->issue($channel, $destination, 'service_terminate', $request->ip());
@@ -65,7 +65,7 @@ class ServiceController extends Controller
             'destination' => $destination,
         ]);
 
-        return back()->with('ok', 'کدِ تأیید فرستاده شد. برای حذفِ سرویس آن را وارد کنید.');
+        return back()->with('ok', __('ui.svf_code_sent'));
     }
 
     /** مرحلهٔ دوم: بررسیِ کد و حذفِ واقعیِ سرور نزدِ زیرساخت */
@@ -75,13 +75,13 @@ class ServiceController extends Controller
         $ctx = $request->session()->get('svc_terminate_ctx');
 
         if (! is_array($ctx) || (int) ($ctx['service_id'] ?? 0) !== (int) $service->id) {
-            return back()->withErrors('ابتدا برای همین سرویس کدِ تأیید بگیرید.');
+            return back()->withErrors(__('ui.svf_ask_code'));
         }
 
         if (! $this->terminable($service)) {
             $request->session()->forget('svc_terminate_ctx');
 
-            return back()->withErrors('این سرویس در وضعیتی نیست که بتوان حذفش کرد.');
+            return back()->withErrors(__('ui.svf_state'));
         }
 
         /*
@@ -188,8 +188,7 @@ class ServiceController extends Controller
         }
 
         return redirect()->to(lroute('account.services'))
-            ->with('ok', 'سرویس حذف شد و از این لحظه هیچ هزینه‌ای برای شما ثبت نمی‌شود. '
-                .'اعتبارِ استفاده‌نشده در کیفِ پولتان می‌مانَد (ساعتی که پیش‌تر پرداخت شده بازنمی‌گردد).');
+            ->with('ok', __('ui.svf_deleted'));
     }
 
     /**
@@ -252,7 +251,7 @@ class ServiceController extends Controller
 
         // فقط سفارشِ تحویل‌نشده. سرویسِ فعالِ تحویل‌شده مسیرِ خودش را دارد.
         if (! $this->cancellable($service)) {
-            return back()->withErrors('این سرویس در وضعیتی نیست که بتوان از این‌جا لغوش کرد. با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.svf_cancel_state'));
         }
 
         $refund = 0;
@@ -392,13 +391,13 @@ class ServiceController extends Controller
         abort_unless($service->customer_id === $customer->id, 404);
 
         if ($service->provision_status !== 'done' || ! $service->server || blank($service->username)) {
-            return back()->withErrors('ورودِ یک‌کلیک برای این سرویس هنوز در دسترس نیست.');
+            return back()->withErrors(__('ui.svf_sso_na'));
         }
 
         // فقط WHM نشستِ ورود دارد؛ بقیه به آدرسِ کنترل‌پنل هدایت می‌شوند
         if ($service->server->type !== 'whm') {
             return $service->panel_url ? redirect()->away($service->panel_url)
-                : back()->withErrors('آدرسِ کنترل‌پنل تعیین نشده است.');
+                : back()->withErrors(__('ui.svf_panel_url'));
         }
 
         /*
@@ -420,7 +419,7 @@ class ServiceController extends Controller
         $url = $res['data']['url'] ?? ($res['raw']['data']['url'] ?? null);
 
         if (! $res['ok'] || ! $url) {
-            return back()->withErrors('ورود به cPanel ناموفق بود: '.($res['reason'] ?? 'نامشخص'));
+            return back()->withErrors(__('ui.svf_cpanel_fail', ['reason' => $res['reason'] ?? '—']));
         }
 
         // ورودِ عمیق به یک ابزارِ خاصِ cPanel (قالبِ Jupiter؛ اگر مسیر نخورد،

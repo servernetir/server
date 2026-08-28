@@ -48,15 +48,15 @@ class BankAccountController extends Controller
 
         // ── بررسی‌های رایگان اول ──
         if (strlen($card) !== 16) {
-            return back()->withErrors(['card' => 'شمارهٔ کارت باید ۱۶ رقم باشد.']);
+            return back()->withErrors(['card' => __('ui.bnk_len')]);
         }
 
         if (! $this->luhn($card)) {
-            return back()->withErrors(['card' => 'شمارهٔ کارت معتبر نیست؛ دوباره بررسی کنید.']);
+            return back()->withErrors(['card' => __('ui.bnk_invalid')]);
         }
 
         if ($customer->identityVerification?->status !== 'verified') {
-            return back()->withErrors(['card' => 'اول باید احراز هویت را کامل کنید.']);
+            return back()->withErrors(['card' => __('ui.bnk_kyc_first')]);
         }
 
         $key = 'bank:'.$customer->id;
@@ -80,7 +80,7 @@ class BankAccountController extends Controller
             ]);
         }
 
-        return back()->with('ok', 'حساب بانکی شما ثبت و تأیید شد.');
+        return back()->with('ok', __('ui.bnk_ok'));
     }
 
     /** الگوریتم لومن — همان بررسی‌ای که درگاه‌های بانکی می‌کنند */

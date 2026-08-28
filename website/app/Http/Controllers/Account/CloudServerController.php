@@ -177,7 +177,7 @@ class CloudServerController extends Controller
         $instance = $this->instanceOf($service);
 
         if ($instance === null || $instance->provider !== 'proxmox' || ! $instance->isDelivered()) {
-            return back()->withErrors('تغییرِ کشورِ خروج برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_egress_na'));
         }
 
         // محدودیتِ نرخ — مثلِ الگوی throttleِ بقیهٔ عملیاتِ این کنترلر
@@ -186,7 +186,7 @@ class CloudServerController extends Controller
         if (RateLimiter::tooManyAttempts($key, 6)) {
             $seconds = RateLimiter::availableIn($key);
 
-            return back()->withErrors('درخواست‌های زیاد. '.fa_num($seconds).' ثانیه دیگر تلاش کنید.');
+            return back()->withErrors(__('ui.cx_throttle', ['sec' => fa_num($seconds)]));
         }
 
         RateLimiter::hit($key, 60);
@@ -194,7 +194,7 @@ class CloudServerController extends Controller
         $cc = strtolower(trim((string) $request->input('country')));
 
         if (! ExitCountries::accepts($cc)) {
-            return back()->withErrors('این کشور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_country_na'));
         }
 
         $disable = ExitCountries::isNone($cc);
@@ -210,7 +210,7 @@ class CloudServerController extends Controller
 
         $this->log($service, 'کشورِ خروج → '.$label);
 
-        return back()->with('ok', "کشورِ خروجِ سرور روی «{$label}» تنظیم شد. تا چند دقیقه اعمال می‌شود.");
+        return back()->with('ok', __('ui.cx_egress_set', ['label' => $label]));
     }
 
     /**
@@ -349,11 +349,11 @@ class CloudServerController extends Controller
         $instance = $service->cloudInstance;
 
         if ($instance === null || ! $instance->hasPassword()) {
-            return back()->withErrors('رمزی برای این سرور ذخیره نشده است. «رمز تازه بسازید».');
+            return back()->withErrors(__('ui.cx_no_pass'));
         }
 
         if ($instance->password_seen) {
-            return back()->withErrors('این رمز قبلاً یک بار نمایش داده شده. برای دسترسیِ تازه «رمز تازه بسازید».');
+            return back()->withErrors(__('ui.cx_pass_seen'));
         }
 
         $password = $instance->password();
@@ -369,7 +369,7 @@ class CloudServerController extends Controller
         $action = (string) $request->input('action');
 
         if (! in_array($action, ['on', 'off', 'reboot'], true)) {
-            return back()->withErrors('عملیاتِ نامعتبر.');
+            return back()->withErrors(__('ui.cx_bad_op'));
         }
 
         if ($denied = $this->denyIfNotWritable($service)) {
@@ -410,13 +410,13 @@ class CloudServerController extends Controller
         ]);
 
         if (strtoupper(trim($data['confirm'])) !== 'DELETE') {
-            return back()->withErrors('برای نصبِ دوباره باید عبارتِ DELETE را تایپ کنید — همهٔ داده‌های سرور پاک می‌شود.');
+            return back()->withErrors(__('ui.cx_type_delete'));
         }
 
         $instance = $this->instanceOf($service);
 
         if ($instance === null) {
-            return back()->withErrors('سرور هنوز آماده نیست.');
+            return back()->withErrors(__('ui.cx_not_ready'));
         }
 
         // ایمیج باید واقعاً روی همین زیرساخت **و همین معماری** باشد؛ ورودیِ
@@ -425,7 +425,7 @@ class CloudServerController extends Controller
         $ref = CloudImage::refFor($instance->provider, $data['image'], $service->cloudPlan?->arch);
 
         if ($ref === null) {
-            return back()->withErrors('این سیستم‌عامل برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_os_na'));
         }
 
         if ($limited = $this->rateLimit($service, 'rebuild', 3)) {
@@ -435,7 +435,7 @@ class CloudServerController extends Controller
         $driver = $this->manager->forInstance($instance);
 
         if ($driver === null) {
-            return back()->withErrors('این عملیات برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_op_na'));
         }
 
         $r = $driver->rebuild((string) $instance->provider_ref, $ref);
@@ -443,7 +443,7 @@ class CloudServerController extends Controller
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
-            return back()->withErrors('نصبِ دوباره انجام نشد: '.$this->safeMessage((string) $r['message'], $instance));
+            return back()->withErrors(__('ui.cx_reinstall_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
 
         $instance->fill(['status' => 'building', 'image_key' => $data['image'], 'last_error' => null]);
@@ -456,7 +456,7 @@ class CloudServerController extends Controller
 
         $this->log($service, 'نصبِ دوبارهٔ سیستم‌عامل: '.$data['image']);
 
-        return back()->with('ok', 'نصبِ دوباره آغاز شد. چند دقیقه بعد سرور با سیستم‌عاملِ تازه بالا می‌آید.');
+        return back()->with('ok', __('ui.cx_reinstall_ok'));
     }
 
     /** رمزِ تازهٔ root */
@@ -476,13 +476,13 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            return back()->withErrors('این عملیات برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_op_na'));
         }
 
         $r = $driver->resetPassword((string) $instance->provider_ref);
 
         if (! ($r['ok'] ?? false) || blank($r['root_password'] ?? null)) {
-            return back()->withErrors('رمزِ تازه ساخته نشد: '.$this->safeMessage((string) ($r['message'] ?: '—'), $instance));
+            return back()->withErrors(__('ui.cx_newpass_fail', ['msg' => $this->safeMessage((string) ($r['message'] ?: '—'), $instance)]));
         }
 
         $instance->setPassword($r['root_password']);
@@ -493,7 +493,7 @@ class CloudServerController extends Controller
 
         $this->log($service, 'رمزِ root تازه شد.');
 
-        return back()->with('ok', 'رمزِ تازه ساخته شد و پایینِ صفحه نمایش داده می‌شود.');
+        return back()->with('ok', __('ui.cx_newpass_ok'));
     }
 
     /**
@@ -531,7 +531,7 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            return back()->withErrors('کنسول برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_console_na'));
         }
 
         $r = $driver->console((string) $instance->provider_ref);
@@ -566,7 +566,7 @@ class CloudServerController extends Controller
 
         if ($ticket === '' || ! \Illuminate\Support\Facades\Cache::has($this->ticketKey($service, $ticket))) {
             return redirect()->route('account.cloud.show', $service)
-                ->withErrors('نشستِ کنسول منقضی شده است. دوباره «کنسولِ تحتِ وب» را بزنید.');
+                ->withErrors(__('ui.cx_console_expired'));
         }
 
         return view('account.cloud-console', AccountController::shell('servers') + [
@@ -614,7 +614,7 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            return back()->withErrors('سرور هنوز آماده نیست.');
+            return back()->withErrors(__('ui.cx_not_ready'));
         }
 
         $r = $fn($driver, (string) $instance->provider_ref);
@@ -622,7 +622,7 @@ class CloudServerController extends Controller
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
-            return back()->withErrors('انجام نشد: '.$this->safeMessage((string) $r['message'], $instance));
+            return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
 
         $instance->update(['last_error' => null, 'synced_at' => now()]);
@@ -658,7 +658,7 @@ class CloudServerController extends Controller
         $tunnel = TunnelProfile::fromInstance($instance);
 
         if ($tunnel === null) {
-            return back()->withErrors('اکانتِ تونل برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_tunnel_na'));
         }
 
         if ($resp = $this->rateLimit($service, 'tunnel', 10)) {
@@ -674,21 +674,21 @@ class CloudServerController extends Controller
         $name = strtolower(trim((string) $request->input('name')));
 
         if (! preg_match('~^[a-z0-9][a-z0-9_-]{1,23}$~', $name)) {
-            return back()->withErrors('نامِ اکانت باید ۲ تا ۲۴ نویسهٔ لاتین، رقم، خط‌تیره یا زیرخط باشد.');
+            return back()->withErrors(__('ui.cx_tun_name_bad'));
         }
 
         if (! $tunnel->nameIsFree($name)) {
-            return back()->withErrors('اکانتی با این نام از قبل وجود دارد.');
+            return back()->withErrors(__('ui.cx_tun_dup'));
         }
 
         $ip = trim((string) $request->input('ip')) ?: (string) $tunnel->nextIp();
 
         if (! $tunnel->ipInSubnet($ip)) {
-            return back()->withErrors('آدرس باید از رنجِ داخلیِ همین سرور باشد.');
+            return back()->withErrors(__('ui.cx_tun_ip_range'));
         }
 
         if (! $tunnel->ipIsFree($ip)) {
-            return back()->withErrors('این آدرس قبلاً استفاده شده است.');
+            return back()->withErrors(__('ui.cx_tun_ip_used'));
         }
 
         $keys = WireGuardKey::generate();
@@ -705,7 +705,7 @@ class CloudServerController extends Controller
             'config' => $tunnel->configJson($ip, $keys['private']),
             'legacy' => $tunnel->configJson($ip, $keys['private'], 'legacy'),
             'file' => 'tunnel-'.$name.'.json',
-        ])->with('ok', 'اکانتِ «'.$name.'» ساخته شد. کانفیگ را همین حالا ذخیره کنید — دوباره نمایش داده نمی‌شود.');
+        ])->with('ok', __('ui.cx_tun_created', ['name' => $name]));
     }
 
     /**
@@ -727,7 +727,7 @@ class CloudServerController extends Controller
         $tunnel = TunnelProfile::fromInstance($instance);
 
         if ($tunnel === null) {
-            return back()->withErrors('اکانتِ تونل برای این سرور در دسترس نیست.');
+            return back()->withErrors(__('ui.cx_tunnel_na'));
         }
 
         if ($resp = $this->rateLimit($service, 'tunnel-del', 20)) {
@@ -737,14 +737,14 @@ class CloudServerController extends Controller
         $name = strtolower(trim((string) $request->input('name')));
 
         if ($name === '' || ! $tunnel->removePeer($name)) {
-            return back()->withErrors('چنین اکانتی در فهرست نیست.');
+            return back()->withErrors(__('ui.cx_tun_missing'));
         }
 
         $this->log($service, 'اکانتِ تونل «'.$name.'» حذف شد');
 
         return back()
             ->with('tunnel_removed', $tunnel->routerRemoveCommand($name))
-            ->with('ok', 'اکانتِ «'.$name.'» از فهرست حذف شد. برای قطعِ واقعیِ دسترسی، دستورِ زیر را روی روتر اجرا کنید.');
+            ->with('ok', __('ui.cx_tun_deleted', ['name' => $name]));
     }
 
     /**
@@ -761,7 +761,7 @@ class CloudServerController extends Controller
         if (RateLimiter::tooManyAttempts($key, $perMinute)) {
             $seconds = RateLimiter::availableIn($key);
 
-            return back()->withErrors('درخواست‌های زیاد. '.fa_num($seconds).' ثانیه دیگر تلاش کنید.');
+            return back()->withErrors(__('ui.cx_throttle', ['sec' => fa_num($seconds)]));
         }
 
         RateLimiter::hit($key, 60);

@@ -25,8 +25,8 @@
       {{-- ⚠️ همان برچسب‌های `domain-show.blade.php` — عمداً سخت‌کد، چون آن صفحه
            هم همین است و کلیدِ `ui.*`ی برایشان وجود ندارد. اگر روزی کلید ساخته
            شد، هر دو صفحه با هم عوض شوند. --}}
-      <a href="{{ lroute('account.home') }}">پنل</a><span>/</span>
-      <a href="{{ lroute('account.domains') }}">دامنه‌ها</a><span>/</span>
+      <a href="{{ lroute('account.home') }}">{{ __('ui.crumb_panel') }}</a><span>/</span>
+      <a href="{{ lroute('account.domains') }}">{{ __('ui.crumb_domains') }}</a><span>/</span>
       <span dir="ltr">{{ $quote->domain }}</span>
     </nav>
     <h1>{{ __('ui.dch_title') }}</h1>

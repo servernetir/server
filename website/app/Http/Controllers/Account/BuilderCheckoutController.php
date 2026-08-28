@@ -46,14 +46,14 @@ class BuilderCheckoutController extends Controller
 
         if ($product === null) {
             return redirect(lroute('account.services'))
-                ->with('err', 'پکیجِ سایت‌ساز پیدا نشد. لطفاً دوباره از صفحهٔ سایت‌ساز اقدام کنید.');
+                ->with('err', __('ui.bcf_pkg_missing'));
         }
 
         // سایتِ ساخته‌شده باید واقعاً موجود باشد — وگرنه بعد از پرداخت چیزی
         // برای انتشار نیست. پیش از پول، نه بعدش.
         if (BuilderSitePublisher::htmlFor($ref) === null) {
             return redirect(lroute('account.services'))
-                ->with('err', 'خروجیِ سایتِ ساخته‌شده منقضی شده است. لطفاً در سایت‌ساز دوباره «استقرار» را بزنید.');
+                ->with('err', __('ui.bcf_export_expired'));
         }
 
         [$check, $err] = $this->quoteDomain($search, strtolower(trim($data['domain'])));
@@ -81,47 +81,47 @@ class BuilderCheckoutController extends Controller
         $product = $this->productFor($data['plan']);
 
         if ($product === null) {
-            return back()->withErrors('این پکیج در دسترس نیست.');
+            return back()->withErrors(__('ui.stf_pkg_na'));
         }
 
         if (BuilderSitePublisher::htmlFor($ref) === null) {
-            return back()->withErrors('خروجیِ سایتِ ساخته‌شده منقضی شده است. در سایت‌ساز دوباره «استقرار» را بزنید.');
+            return back()->withErrors(__('ui.bcf_export_expired'));
         }
 
         $quote = \App\Models\DomainQuote::find($data['quote_id']);
 
         if ($quote === null) {
-            return back()->withErrors('استعلامِ دامنه پیدا نشد. صفحه را تازه کنید.');
+            return back()->withErrors(__('ui.bcf_quote_missing'));
         }
 
         // مالکیتِ استعلام — همان گاردِ مسیرِ دامنه (شناسهٔ ترتیبی قابلِ پیمایش است)
         if (! $quote->claimFor((int) Auth::guard('customer')->id())) {
-            return back()->withErrors('استعلامِ دامنه پیدا نشد. صفحه را تازه کنید.');
+            return back()->withErrors(__('ui.bcf_quote_missing'));
         }
 
         // همان سه گاردِ مسیرِ دامنه — پیش از گرفتنِ پول، نه ساعت‌ها بعد در صف
         if ($quote->honour_until !== null && $quote->honour_until->isPast()) {
-            return back()->withErrors('قیمتِ استعلام منقضی شده است. صفحه را تازه کنید تا قیمتِ روز بیاید.');
+            return back()->withErrors(__('ui.bcf_quote_expired'));
         }
 
         if ((int) $quote->sell_toman <= 0) {
-            return back()->withErrors('برای این دامنه قیمتِ قابلِ اتکایی نداریم. با پشتیبانی تماس بگیرید.');
+            return back()->withErrors(__('ui.dm_no_price'));
         }
 
         [$sld, $tld] = Domain::splitFqdn((string) $quote->domain);
 
         if (! DomainSearch::sells($tld)) {
-            return back()->withErrors('این پسوند از سایت‌ساز قابلِ ثبت نیست؛ پسوندِ بین‌المللی انتخاب کنید.');
+            return back()->withErrors(__('ui.bcf_tld_na'));
         }
 
         if (\App\Services\Domain\TldGate::isBlocked($tld)) {
-            return back()->withErrors('ثبتِ پسوندِ «.'.$tld.'» موقتاً از سمتِ ما مقدور نیست. پولی کسر نشد؛ پسوندِ دیگری انتخاب کنید.');
+            return back()->withErrors(__('ui.bcf_tld_blocked', ['tld' => $tld]));
         }
 
         $existing = Domain::where('domain', $quote->domain)->where('registrar', 'openprovider')->first();
 
         if ($existing !== null && ! $existing->isDead()) {
-            return back()->withErrors('این دامنه از قبل در سامانه ثبت شده است.');
+            return back()->withErrors(__('ui.dm_already'));
         }
 
         $customer = Auth::guard('customer')->user();
@@ -138,7 +138,7 @@ class BuilderCheckoutController extends Controller
             }
 
             if ($server === null) {
-                return back()->withErrors('ظرفیتِ سرورها همین حالا تکمیل شد؛ کمی بعد دوباره تلاش کنید.');
+                return back()->withErrors(__('ui.bcf_cap_full'));
             }
         }
 
@@ -240,7 +240,7 @@ class BuilderCheckoutController extends Controller
         ]]);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
-            ->with('ok', 'سفارش ثبت شد. پس از پرداخت، دامنه ثبت و سایتِ شما به‌صورت خودکار مستقر می‌شود.');
+            ->with('ok', __('ui.bcf_order_ok'));
     }
 
     // ───────────────────────── کمکی ─────────────────────────

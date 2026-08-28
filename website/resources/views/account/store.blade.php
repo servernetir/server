@@ -5,8 +5,8 @@
 
 <div class="pnl-head">
   <div>
-    <h1 class="dash-h">خرید سرویس</h1>
-    <p>یک پکیج را انتخاب و همین‌جا آنلاین سفارش دهید؛ پس از پرداخت، سرویس خودکار ساخته و تحویل می‌شود.</p>
+    <h1 class="dash-h">{{ __('ui.sto_h') }}</h1>
+    <p>{{ __('ui.sto_sub') }}</p>
   </div>
 </div>
 
@@ -19,7 +19,7 @@
 
 @if($byCategory->isEmpty())
   <section class="pnl-sec"><div class="pnl-sec-b">
-    <p style="font-size:13.5px;color:var(--muted);line-height:2;margin:0">در حال حاضر پکیجی برای فروش تعریف نشده است. به‌زودی اضافه می‌شود.</p>
+    <p style="font-size:13.5px;color:var(--muted);line-height:2;margin:0">{{ __('ui.sto_empty') }}</p>
   </div></section>
 @else
   @foreach($byCategory as $cat => $items)
@@ -44,21 +44,21 @@
               @endif
 
               <div class="store-price">
-                <b class="pnl-num">{{ fa_num(number_format($p->recurringTotal())) }}</b>
-                <span>تومان / {{ $p->cycleLabel() }}</span>
+                <b class="pnl-num">{{ invoice_money($p->recurringTotal()) }}</b>
+                <span>/ {{ $p->cycleLabel() }}</span>
               </div>
               @if($p->setup_fee > 0)
-                <div class="store-setup">+ راه‌اندازی {{ fa_num(number_format($p->setup_fee)) }} تومان (یک‌بار)</div>
+                <div class="store-setup">+ {{ invoice_money($p->setup_fee) }} {{ __('ui.sto_setup_once') }}</div>
               @endif
 
               @if($p->requires_domain)
-                <label class="store-dom">دامنه
+                <label class="store-dom">{{ __('ui.lbl_domain') }}
                   <input type="text" name="domain" dir="ltr" required placeholder="your-domain.com" value="{{ old('domain') }}">
                 </label>
               @endif
 
-              <button type="submit" class="pnl-btn primary" style="justify-content:center;margin-top:auto">سفارش و پرداخت</button>
-              @if($p->server_id)<div class="store-auto"><svg class="icon"><use href="#i-zap"/></svg> تحویلِ خودکار پس از پرداخت</div>@endif
+              <button type="submit" class="pnl-btn primary" style="justify-content:center;margin-top:auto">{{ __('ui.sto_order_btn') }}</button>
+              @if($p->server_id)<div class="store-auto"><svg class="icon"><use href="#i-zap"/></svg> {{ __('ui.sto_auto_note') }}</div>@endif
             </form>
           @endforeach
         </div>

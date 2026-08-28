@@ -29,10 +29,21 @@ class SubdomainDnsTest extends TestCase
 
     private function customer(): Customer
     {
-        return Customer::create([
+        $c = Customer::create([
             'email' => 'c'.random_int(1, 99999).'@x.com', 'phone' => '0912'.random_int(1000000, 9999999),
             'password' => 'x', 'status' => 'active', 'locale' => 'fa',
         ]);
+
+        /*
+        | موضوعِ این تست DNSِ زیردامنه است، نه دروازهٔ فروشِ ایران — مشتریِ
+        | احرازشده تا سفارشِ IR از IranSalesGate (پیش‌فرض بسته) رد شود.
+        */
+        \App\Models\CustomerProfile::create([
+            'customer_id' => $c->id, 'is_default' => true, 'type' => 'individual',
+            'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
+        ]);
+
+        return $c;
     }
 
     private function server(): Server
