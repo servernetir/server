@@ -43,6 +43,7 @@ class AccountController extends Controller
                 'title' => __('ui.auth_kyc_title'),
                 'note'  => __('ui.auth_kyc_sub'),
                 'url'   => lroute('account.profile'),
+                'btn'   => __('ui.pnl_act_verify'),
             ];
         }
 
@@ -52,6 +53,7 @@ class AccountController extends Controller
                 'title' => __('ui.pnl_bank_add'),
                 'note'  => __('ui.pnl_bank_why'),
                 'url'   => lroute('account.bank'),
+                'btn'   => __('ui.pnl_act_bank'),
             ];
         }
 
@@ -59,8 +61,10 @@ class AccountController extends Controller
             $todo[] = [
                 'icon' => 'coins', 'tone' => 'w',
                 'title' => __('ui.pnl_invoice_due', ['number' => $inv->number]),
-                'note'  => fa_num(number_format($inv->due())).' '.__('ui.pnl_toman'),
+                // ارزِ خودِ فاکتور — «تومانِ» سخت‌کد برای فاکتورِ یورویی غلط بود
+                'note'  => invoice_money($inv->due(), $inv->currency_code),
                 'url'   => lroute('account.invoice', $inv),
+                'btn'   => __('ui.pnl_act_pay'),
             ];
         }
 
@@ -80,9 +84,10 @@ class AccountController extends Controller
                     ->latest('id')->limit(8)->get()
                 : collect(),
             'currentIp'    => request()->ip(),
-            // شمارش واقعی به‌جای صفرِ ثابت
+            // شمارش واقعی به‌جای صفرِ ثابت — فقط پرداخت‌شده‌ها (Service::ACTIVE_STATUSES):
+            // پیش‌فاکتورِ پرداخت‌نشده «سرویسِ فعال» نیست (خواستِ کارفرما، ۶ شهریور)
             'serviceCount' => \Illuminate\Support\Facades\Schema::hasTable('services')
-                ? $customer->services()->whereIn('status', ['active', 'pending'])->count() : 0,
+                ? $customer->services()->countsAsActive()->count() : 0,
             'ticketOpen'   => \Illuminate\Support\Facades\Schema::hasTable('tickets')
                 ? $customer->tickets()->whereIn('status', ['open', 'answered'])->count() : 0,
         ]);

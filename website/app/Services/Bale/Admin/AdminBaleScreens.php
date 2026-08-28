@@ -136,7 +136,10 @@ class AdminBaleScreens
     /** پروندهٔ مشتری — بی‌ایمیل، بی‌موبایل */
     public function customer(Customer $c): string
     {
-        $services = $this->safeCount(fn () => $c->services()->whereNotIn('status', Service::DEAD_STATUSES)->count());
+        // «فعال» = پرداخت‌شده؛ سفارشِ پرداخت‌نشده جدا شمرده می‌شود تا کارتِ
+        // مشتریِ تازه «سرویسِ فعال: ۱» نگوید (خواستِ کارفرما، ۶ شهریور)
+        $services = $this->safeCount(fn () => $c->services()->countsAsActive()->count());
+        $unpaid = $this->safeCount(fn () => $c->services()->where('status', 'pending')->count());
         $unpaid   = $this->safeCount(fn () => $c->invoices()->where('status', 'unpaid')->count());
         $tickets  = $this->safeCount(fn () => $c->tickets()->where('status', 'open')->count());
         $credit   = $this->safeCount(fn () => $c->creditBalance('IRT'));
@@ -145,7 +148,8 @@ class AdminBaleScreens
             '👤 '.$c->displayName(),
             $c->code.' · '.$this->customerStatus($c),
             '',
-            '🖥 سرویسِ فعال: '.fa_num((string) $services),
+            '🖥 سرویسِ فعال: '.fa_num((string) $services)
+                .($unpaid > 0 ? ' · منتظرِ پرداخت: '.fa_num((string) $unpaid) : ''),
             '🧾 فاکتورِ پرداخت‌نشده: '.fa_num((string) $unpaid),
             '🎫 تیکتِ باز: '.fa_num((string) $tickets),
             $credit > 0 ? ('💰 اعتبار: '.fa_num(number_format($credit)).' تومان') : null,

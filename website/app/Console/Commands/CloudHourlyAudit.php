@@ -61,7 +61,20 @@ class CloudHourlyAudit extends Command
                 .($filled === 0 ? '  🔴 صفر است — cloud:sync هنوز نرخِ ساعتی نگرفته؛ این گزارش قابلِ اتکا نیست' : ''));
         }
 
-        $eurToman = (int) app(CloudPricing::class)->eurToToman();
+        /*
+        | حاشیهٔ مؤثر هم چاپ می‌شود — رخدادِ واقعی: cloud_margin_pct روی سرور
+        | «۲» بود و همه‌چیز «ok» دیده می‌شد در حالی که کلِ خط عملاً به بها
+        | فروخته می‌شد. حالا CloudPricing کفِ سختِ ۱۰٪ دارد؛ اگر تنظیمِ
+        | ذخیره‌شده زیرِ کف باشد، این‌جا صریح گفته می‌شود تا مدیر اصلاحش کند.
+        */
+        $pricing = app(CloudPricing::class);
+        $rawMargin = \App\Models\Setting::get('cloud_margin_pct');
+        $this->line('حاشیهٔ مؤثرِ فروش: '.$pricing->marginPct().'٪'
+            .((is_numeric($rawMargin) && (float) $rawMargin < $pricing->marginPct())
+                ? '  ⚠️ تنظیمِ ذخیره‌شده '.$rawMargin.'٪ بود و به کفِ سخت مهار شد — در /admin/settings (قیمت‌گذاری) اصلاحش کن'
+                : ''));
+
+        $eurToman = (int) $pricing->eurToToman();
         $underwater = [];
         $stale = [];
 

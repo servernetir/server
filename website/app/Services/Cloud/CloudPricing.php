@@ -24,12 +24,26 @@ class CloudPricing
 {
     public const DEFAULT_MARGIN_PCT = 45;
 
+    /**
+     * 🔴 کفِ سختِ حاشیه — خطِ قرمزِ کارفرما: «هیچ‌چیز مفت/زیرِ بها نفروشیم».
+     *
+     * روی پروداکشن `cloud_margin_pct` مقدارِ ۲ داشت و کلِ خطِ ابری عملاً به
+     * بهایِ خرید فروخته می‌شد (sn-svc-72: فروش €0.0100/h روی بهایِ €0.0095/h)
+     * — بی‌هیچ خطا و هشداری. حاشیهٔ زیرِ این کف تقریباً همیشه غلطِ تایپی یا
+     * آزمایشِ فراموش‌شده است، نه تصمیم؛ و غلطش مستقیم پول می‌سوزاند (همان
+     * قاعدهٔ ثبت‌شدهٔ aeza_price_divisor: تنظیمی که فقط بازهٔ معقول دارد،
+     * بیرونِ بازه باید مهار شود). فرمِ تنظیمات هم min=10 گرفت.
+     */
+    public const MIN_MARGIN_PCT = 10;
+
     /** حاشیهٔ سودِ سرورِ ابری (درصد) — جدا از `price_margin_pct` هاست */
     public function marginPct(): float
     {
         $v = Setting::get('cloud_margin_pct');
 
-        return $v === null || $v === '' ? (float) self::DEFAULT_MARGIN_PCT : max(0, (float) $v);
+        $pct = $v === null || $v === '' ? (float) self::DEFAULT_MARGIN_PCT : max(0, (float) $v);
+
+        return max($pct, (float) self::MIN_MARGIN_PCT);
     }
 
     /** قیمتِ فروشِ یورویی به سنت — گردشده رو به بالا به ۱۰ سنت */

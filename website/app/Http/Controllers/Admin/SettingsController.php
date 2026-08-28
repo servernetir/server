@@ -141,7 +141,7 @@ class SettingsController extends Controller
             'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'pricing_fx_fee_pct'        => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
-            'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'cloud_margin_pct'      => ['nullable', 'numeric', 'min:10', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],

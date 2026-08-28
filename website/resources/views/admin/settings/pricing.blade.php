@@ -58,7 +58,7 @@
 
     <div class="set-grid three" style="padding:0 18px 18px">
       <label class="set-f">سرورِ ابری (٪)
-        <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="0" max="500"
+        <input type="number" name="cloud_margin_pct" dir="ltr" step="1" min="10" max="500"
                value="{{ $pricing['cloud_margin_pct'] }}"
                placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)">
         <small>روی بهایِ یوروییِ زیرساخت اعمال و بعد با نرخِ روز به تومان می‌آید.</small></label>

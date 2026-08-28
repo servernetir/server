@@ -74,7 +74,7 @@
       <li>
         <span class="pnl-todo-ic {{ $t['tone'] }}"><svg class="icon"><use href="#i-{{ $t['icon'] }}"/></svg></span>
         <span class="pnl-todo-t"><b>{{ $t['title'] }}</b><small>{{ $t['note'] }}</small></span>
-        <a class="pnl-btn {{ $t['tone'] === 'd' ? 'primary' : '' }}" href="{{ $t['url'] }}">{{ __('ui.pnl_open') }}</a>
+        <a class="pnl-btn {{ $t['tone'] === 'd' ? 'primary' : '' }}" href="{{ $t['url'] }}">{{ $t['btn'] ?? __('ui.pnl_open') }}</a>
       </li>
     @endforeach
   </ul>

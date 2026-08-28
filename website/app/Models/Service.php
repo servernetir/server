@@ -486,6 +486,23 @@ class Service extends Model
      */
     public const DEAD_STATUSES = ['cancelled', 'terminated'];
 
+    /**
+     * سرویسی که برای مشتری «فعال» شمرده می‌شود — یعنی **پولش داده شده**.
+     *
+     * 🔴 `pending` عمداً این‌جا نیست (خواستِ صریحِ کارفرما، ۶ شهریور):
+     * سفارشِ با پیش‌فاکتورِ پرداخت‌نشده هنوز سرویس نیست؛ داشبوردِ مشتری و
+     * کارتِ رباتِ بله «سرویسِ فعال: ۱» نشان می‌دادند برای مشتری‌ای که فقط
+     * ثبت‌نام کرده و یک پیش‌فاکتورِ باز دارد. تعریف یک‌جاست تا شمارنده‌های
+     * موازی روزی دوباره از هم جدا نشوند.
+     */
+    public const ACTIVE_STATUSES = ['active', 'awaiting_provision'];
+
+    /** فقط سرویس‌های واقعاً فعال (پرداخت‌شده) — برای شمارنده‌های رو به مشتری */
+    public function scopeCountsAsActive($q)
+    {
+        return $q->whereIn('status', self::ACTIVE_STATUSES);
+    }
+
     /** «هیچ صفی این را نمی‌خواهد» — پرونده نزدِ زیرساخت بسته است. */
     public const PROVISION_NONE = 'none';
 
