@@ -169,6 +169,40 @@
        Secret با `putSecret()` رمزنگاری می‌شود و هرگز به فرم برنمی‌گردد. --}}
   <div class="ad-panel">
     <div class="ad-panel-h">
+      <h2>پیامکِ بین‌المللی — Amazon SNS</h2>
+      @if(\App\Models\Setting::get('aws_sns_key') && \App\Models\Setting::get('aws_sns_region'))<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">اعتبارنامه ذخیره‌شده</span>@endif
+    </div>
+    <p class="set-lead">
+      کدِ تأییدِ موبایلِ مشتریِ <b>غیرایرانی</b> (ثبت‌نامِ en/tr) از این راه می‌رود؛
+      شماره‌های ۰۹ همچنان از اپراتورِ ایرانی. تا این‌جا خالی باشد، تأییدِ خارجی‌ها
+      با ایمیل انجام می‌شود — چیزی نمی‌شکند.
+      <br>در <span dir="ltr">AWS Console → IAM</span> یک کاربر با فقط مجوزِ
+      <code dir="ltr">sns:Publish</code> بسازید و کلیدش را این‌جا بگذارید.
+      حساب باید از sandbox خارج شده باشد (production access).
+    </p>
+
+    <div class="set-grid" style="padding:0 18px 16px">
+      <label class="set-f">Access key ID
+        <input type="text" name="aws_sns_key" dir="ltr" maxlength="128"
+               value="{{ \App\Models\Setting::get('aws_sns_key') }}" placeholder="AKIA…"></label>
+      <label class="set-f">Secret access key
+        <input type="password" name="aws_sns_secret" dir="ltr" autocomplete="new-password" maxlength="128"
+               placeholder="••••••••  خالی = بدونِ تغییر"></label>
+      <label class="set-f">Region
+        <input type="text" name="aws_sns_region" dir="ltr" maxlength="32"
+               value="{{ \App\Models\Setting::get('aws_sns_region') }}" placeholder="eu-central-1"></label>
+    </div>
+
+    <div style="padding:0 18px 16px">
+      <label class="set-danger">
+        <input type="checkbox" name="aws_sns_forget" value="1">
+        اعتبارنامهٔ SNS را فراموش کن (تأییدِ خارجی‌ها به ایمیل برمی‌گردد)
+      </label>
+    </div>
+  </div>
+
+  <div class="ad-panel">
+    <div class="ad-panel-h">
       <h2>گوگل‌کلندر — همگام‌سازی تقویم</h2>
       @if($google['ready'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">اعتبارنامه ذخیره‌شده</span>@endif
     </div>

@@ -203,6 +203,13 @@ class Customer extends Authenticatable
             return trim($iv->first_name.' '.$iv->last_name);
         }
 
+        // مشتریِ خارجی استعلامِ هویتی ندارد؛ نامش از فرمِ ثبت‌نام در پروفایل است
+        $p = $this->profiles()->where('is_default', true)->first();
+
+        if ($p !== null && filled($p->first_name)) {
+            return trim($p->first_name.' '.$p->last_name);
+        }
+
         return Str::before((string) $this->email, '@');
     }
 

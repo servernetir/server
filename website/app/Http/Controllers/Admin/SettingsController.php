@@ -116,6 +116,11 @@ class SettingsController extends Controller
             'google_client_id'     => ['nullable', 'string', 'max:200'],
             'google_client_secret' => ['nullable', 'string', 'max:200'],
             'google_forget'        => ['nullable', 'boolean'],
+            // پیامکِ بین‌المللی (Amazon SNS) — کدِ تأییدِ مشتریِ خارجی
+            'aws_sns_key'          => ['nullable', 'string', 'max:128', 'regex:/^[A-Z0-9]*$/'],
+            'aws_sns_secret'       => ['nullable', 'string', 'max:128'],
+            'aws_sns_region'       => ['nullable', 'string', 'max:32', 'regex:/^[a-z0-9-]*$/'],
+            'aws_sns_forget'       => ['nullable', 'boolean'],
         ],
         'accounts' => [
             'bank_holder'  => ['nullable', 'string', 'max:120'],
@@ -514,6 +519,23 @@ class SettingsController extends Controller
          * اعتبارنامهٔ اپ، آن refresh tokenها دیگر قابلِ تبدیل نیستند و ماندنشان
          * فقط یک ردیفِ مرده است که وانمود می‌کند حساب هنوز وصل است.
          */
+        // پیامکِ بین‌المللی — همان الگوی گوگل: شناسه ساده، راز رمزنگاری‌شده
+        if ($request->boolean('aws_sns_forget')) {
+            Setting::put('aws_sns_key', null);
+            Setting::put('aws_sns_region', null);
+            Setting::putSecret('aws_sns_secret', null);
+        } else {
+            foreach (['aws_sns_key', 'aws_sns_region'] as $k) {
+                if (filled($data[$k] ?? null)) {
+                    Setting::put($k, trim((string) $data[$k]));
+                }
+            }
+
+            if (filled($data['aws_sns_secret'] ?? null)) {
+                Setting::putSecret('aws_sns_secret', trim((string) $data['aws_sns_secret']));
+            }
+        }
+
         if ($request->boolean('google_forget')) {
             Setting::put('google_client_id', null);
             Setting::putSecret('google_client_secret', null);
