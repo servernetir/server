@@ -37,6 +37,9 @@ class AdminBaleWorker
                 'receipt_reject'  => $this->rejectReceipt((int) ($args['id'] ?? 0), (string) ($args['reason'] ?? '')),
                 'service_terminate' => $this->terminateService((int) ($args['id'] ?? 0)),
                 'mail_reply'      => $this->replyToMail((int) ($args['id'] ?? 0), (string) ($args['body'] ?? '')),
+                'kyc_docs'        => $this->sendKycDocs((int) ($args['id'] ?? 0)),
+                'kyc_approve'     => $this->kycApprove((int) ($args['id'] ?? 0)),
+                'kyc_reject'      => $this->kycReject((int) ($args['id'] ?? 0), (string) ($args['reason'] ?? '')),
                 default => $this->tell('⚠️ کارِ ناشناخته در صف بود و اجرا نشد.'),
             };
         } catch (\Throwable $e) {
@@ -128,6 +131,95 @@ class AdminBaleWorker
         $this->tell('🗑 «'.$name.'»'.($who ? ' — '.$who : '')
             ."\n🔴 صورت‌حساب بسته شد ولی زیرساخت حذف را نپذیرفت."
             ."\nدر صفِ تلاشِ دوباره مانْد؛ تا بسته نشود اجاره‌اش پای ماست.");
+    }
+
+    // ───────────────────── احراز هویت (KYC) ─────────────────────
+
+    /**
+     * ارسالِ خودِ فایل‌های مدرک به چتِ متصل — این‌جا و نه در وب‌هوک، چون
+     * آپلودِ چند فایلِ چندمگابایتی به بله از مهلتِ وب‌هوک بلندتر است.
+     *
+     * ⚠️ مقصد همیشه چتِ متصل است (tell/sendDocument همان‌جا می‌روند) — این
+     * فایل‌ها مدرکِ هویتیِ مشتری‌اند و هیچ مقصدِ دیگری مجاز نیست.
+     */
+    private function sendKycDocs(int $id): void
+    {
+        $p = \App\Models\CustomerProfile::with('customer')->find($id);
+
+        if ($p === null) {
+            $this->tell('پروفایل پیدا نشد.');
+
+            return;
+        }
+
+        $labels = [
+            'passport' => 'پاسپورت', 'national_id' => 'کارت ملی',
+            'driving_license' => 'گواهینامهٔ رانندگی', 'id_back' => 'پشتِ مدرک',
+            'selfie' => 'سلفی با مدرک', 'address_proof' => 'مدرکِ آدرس',
+            'rep_letter' => 'معرفی‌نامهٔ نماینده', 'articles' => 'اساسنامه',
+        ];
+
+        $chat = (string) ($this->gate->binding()['chat_id'] ?? '');
+        $docs = \App\Models\CustomerDocument::where('customer_profile_id', $p->id)->get();
+        $sent = 0;
+
+        foreach ($docs as $d) {
+            $path = \Illuminate\Support\Facades\Storage::disk('local')->path($d->disk_path);
+
+            if ($chat !== '' && $this->sender->sendDocument($chat, $path,
+                ($labels[$d->kind] ?? $d->kind).' — '.($p->customer?->code ?? ''))) {
+                $sent++;
+            }
+        }
+
+        $who = $p->company_name ?: trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+
+        // خلاصه + همان دکمه‌های تصمیم، تا بعد از دیدنِ مدارک لازم نباشد
+        // به اعلانِ اولیه برگردد
+        $cb = AdminBaleRouter::CB_PREFIX;
+        $this->sender->sendButtons($chat, implode("\n", array_filter([
+            '📄 '.fa_num($sent).' از '.fa_num($docs->count()).' مدرک فرستاده شد.',
+            '👤 '.($who ?: '—').' · '.($p->customer?->code ?? ''),
+            $p->country ? '🌍 '.\App\Support\Countries::name($p->country) : null,
+            $p->birth_date ? '🎂 '.$p->birth_date->format('Y-m-d') : null,
+            $p->address ? '🏠 '.mb_substr(trim($p->address.($p->city ? '، '.$p->city : '')), 0, 120) : null,
+        ])), [
+            [
+                ['text' => '✅ تأیید', 'data' => $cb.'ka:'.$p->id],
+                ['text' => '⛔️ رد', 'data' => $cb.'kr:'.$p->id],
+            ],
+        ]);
+    }
+
+    private function kycApprove(int $id): void
+    {
+        $p = \App\Models\CustomerProfile::find($id);
+
+        if ($p === null) {
+            $this->tell('پروفایل پیدا نشد.');
+
+            return;
+        }
+
+        $res = app(\App\Services\Customer\KycReview::class)->approve($p, $this->gate->boundUser()?->id);
+
+        $this->tell(($res['ok'] ? '✅ ' : '⚠️ ').$res['message']);
+    }
+
+    private function kycReject(int $id, string $reason): void
+    {
+        $p = \App\Models\CustomerProfile::find($id);
+
+        if ($p === null) {
+            $this->tell('پروفایل پیدا نشد.');
+
+            return;
+        }
+
+        $res = app(\App\Services\Customer\KycReview::class)->reject($p, $reason, $this->gate->boundUser()?->id);
+
+        $this->tell(($res['ok'] ? '⛔️ ' : '⚠️ ').$res['message']
+            .($res['ok'] ? "\nدلیل: ".mb_substr($reason, 0, 120) : ''));
     }
 
     // ───────────────────────── پاسخِ ایمیل ─────────────────────────

@@ -492,7 +492,10 @@ class RegisterController extends Controller
             'موبایل' => $customer->phone,
             'ایمیل'  => $customer->email,
             'نوع'    => ($reg['type'] ?? 'individual') === 'company' ? 'حقوقی' : 'حقیقی',
-        ], url('/admin/customers/'.$customer->id), '🙋');
+        ], null, '🙋', [[
+            // کارتِ مشتری داخلِ خودِ بله باز می‌شود — «لینک به کارِ من نمی‌آید»
+            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+        ]]);
 
         /*
         | خوش‌آمد — الگویش سال‌ها بود و هیچ کدی صدایش نمی‌زد.

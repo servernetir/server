@@ -68,71 +68,24 @@ class VerificationController extends Controller
         );
     }
 
+    /*
+    | 🔴 منطقِ تأیید/رد در `KycReview` است، نه این‌جا — رباتِ بله هم همان را صدا
+    | می‌زند و دو تعریف از «تأیید» یعنی روزی دروازهٔ ایران با پنل نخوانَد.
+    */
+
     public function approve(Request $request, CustomerProfile $profile): RedirectResponse
     {
-        $profile->status = 'verified';
-        $profile->verified_at = now();
-        $profile->reject_reason = null;
-        $profile->save();
+        $res = app(\App\Services\Customer\KycReview::class)->approve($profile, $request->user()->id);
 
-        CustomerDocument::where('customer_profile_id', $profile->id)
-            ->update(['status' => 'approved', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-
-        $who = $profile->company_name ?: ($profile->customer?->displayName() ?? '');
-
-        // متن به زبانِ خودِ مشتری — مشتریِ خارجی پیامِ فارسی را نمی‌فهمد
-        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
-            ? '✅ هویتِ شما در سرورنت تأیید شد'
-                .($profile->company_name ? ' («'.$profile->company_name.'»)' : '').'. حالا می‌توانید از همهٔ خدمات استفاده کنید.'
-            : '✅ Your identity has been verified at ServerNet. All services — including Iran-hosted plans — are now available to your account.');
-
-        ActivityLog::record($profile->customer_id, 'verify', 'هویت تأیید شد: '.$who, $request, 'admin');
-
-        return back()->with('ok', 'هویت تأیید شد و به مشتری اطلاع داده شد.');
+        return back()->with($res['ok'] ? 'ok' : 'err', $res['message']);
     }
 
     public function reject(Request $request, CustomerProfile $profile): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:400']], [], ['reason' => 'دلیلِ رد']);
 
-        $profile->status = 'rejected';
-        $profile->reject_reason = $data['reason'];
-        $profile->verified_at = null;
-        $profile->save();
+        $res = app(\App\Services\Customer\KycReview::class)->reject($profile, $data['reason'], $request->user()->id);
 
-        CustomerDocument::where('customer_profile_id', $profile->id)
-            ->update(['status' => 'rejected', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-
-        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
-            ? '❌ مدارکِ احراز هویتِ شما در سرورنت تأیید نشد. دلیل: '
-                .$data['reason'].' — لطفاً از پنل، بخشِ احراز هویت، مدارک را اصلاح و دوباره ارسال کنید.'
-            : '❌ Your identity documents could not be verified at ServerNet. Reason: '
-                .$data['reason'].' — please correct and re-submit them from your panel (Profile → Identity).');
-
-        ActivityLog::record($profile->customer_id, 'verify', 'هویت رد شد: '.$data['reason'], $request, 'admin');
-
-        return back()->with('ok', 'مدارک رد شد و دلیل به مشتری اطلاع داده شد.');
-    }
-
-    /** اعلان به مشتری از هر دو کانالِ پیام‌رسان + ایمیل. */
-    private function notifyCustomer(CustomerProfile $profile, string $text): void
-    {
-        $customer = $profile->customer;
-        if (! $customer) {
-            return;
-        }
-
-        try {
-            app(CustomerNotifier::class)->message($customer, $text);
-        } catch (\Throwable) {
-        }
-
-        $email = $profile->email ?: $customer->email;
-        if ($email) {
-            try {
-                Mail::mailer('smtp')->raw($text, fn ($m) => $m->to($email)->subject('وضعیتِ احراز هویت — سرورنت'));
-            } catch (\Throwable) {
-            }
-        }
+        return back()->with($res['ok'] ? 'ok' : 'err', $res['message']);
     }
 }

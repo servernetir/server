@@ -209,7 +209,10 @@ class StoreController extends Controller
             'دوره'  => Service::labelFor($cycle),
             'مکان'  => $country,
             'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
-        ], url('/admin/customers/'.$customer->id), '🛒');
+        ], null, '🛒', [[
+            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ['text' => '🧾 فاکتور', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
+        ]]);
 
         /*
         | رویدادِ پشتِ مرزِ console (ممیزی ۶ — رشد): با همان sid که از /order آمد،
@@ -297,7 +300,10 @@ class StoreController extends Controller
             'IP'     => $ip,
             'دوره'   => Service::labelFor($cycle),
             'مبلغ'   => fa_num(number_format((int) $invoice->total)).' تومان',
-        ], url('/admin/customers/'.$customer->id), '🔑');
+        ], null, '🔑', [[
+            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ['text' => '🧾 فاکتور', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
+        ]]);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. برای فعال‌سازی لایسنس، پیش‌فاکتور را پرداخت کنید.');

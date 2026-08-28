@@ -201,6 +201,45 @@ class BaleSender
     }
 
     /**
+     * ارسالِ یک فایل (مدرکِ KYC و مانندش) به چت — multipart، مثلِ تلگرام.
+     *
+     * ⚠️ فقط برای چتِ **متصلِ مدیر** استفاده شود: محتوای این فایل‌ها مدرکِ
+     * هویتیِ مشتری است و فرستادنش به هر مقصدِ دیگری نشتِ داده است.
+     * عکس‌ها هم عمداً با sendDocument می‌روند نه sendPhoto — فشرده‌سازیِ
+     * عکسِ پاسپورت یعنی مدرکی که ریزچاپش ناخواناست.
+     */
+    public function sendDocument(string $chatId, string $absolutePath, string $caption = ''): bool
+    {
+        if (! $this->enabled() || ! is_file($absolutePath)) {
+            return false;
+        }
+
+        try {
+            $res = Http::timeout(30)
+                ->attach('document', file_get_contents($absolutePath), basename($absolutePath))
+                ->post(rtrim($this->base, '/').'/bot'.$this->token.'/sendDocument', array_filter([
+                    'chat_id' => $chatId,
+                    'caption' => $caption !== '' ? mb_substr($caption, 0, 190) : null,
+                ], fn ($v) => $v !== null));
+        } catch (\Throwable $e) {
+            Log::warning('بله (sendDocument) در دسترس نبود', ['error' => $e->getMessage()]);
+
+            return false;
+        }
+
+        if ($res->json('ok') === true) {
+            return true;
+        }
+
+        Log::warning('بله سند را رد کرد', [
+            'http' => $res->status(),
+            'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+        ]);
+
+        return false;
+    }
+
+    /**
      * پاسخ به کلیکِ دکمه — بی‌این، دکمه در کلاینتِ کاربر تا ابد «در حالِ
      * بارگذاری» می‌مانَد و کاربر فکر می‌کند هنگ کرده.
      *

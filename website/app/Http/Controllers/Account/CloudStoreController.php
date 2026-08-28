@@ -1407,7 +1407,9 @@ class CloudStoreController extends Controller
                 'پلن'   => (string) $offer->public_name,
                 'مکان'  => $locText,
                 'نرخ'   => fa_num(number_format($hourly)).' تومان/ساعت',
-            ], url('/admin/customers/'.$customer->id), '⏱️');
+            ], null, '⏱️', [[
+                ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ]]);
         } catch (\Throwable) {
         }
 

@@ -487,8 +487,12 @@ class CloudProvisioner
                     'مکان'  => $instance->location_code ?: '—',
                     'وضعیت' => $instance->statusLabel('fa'),
                 ],
-                url('/admin/services'),
-                '⏳'
+                null,
+                '⏳',
+                [[
+                    ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🧾 سرویس', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+                ]]
             );
         } catch (\Throwable) {
         }
@@ -1167,8 +1171,18 @@ class CloudProvisioner
                     'service_failed', $service->customer,
                     ['service' => (string) $service->name],
                     'تحویلِ «'.$service->name.'» انجام نشد. تیمِ پشتیبانی در حالِ بررسی است؛ مبلغی از دست نمی‌رود.',
-                    ['سرویس' => '#'.$service->id.' — '.$service->name, 'علت' => $reason],
-                    url('/admin/services/'.$service->id), '⚠️',
+                    [
+                        'سرویس' => '#'.$service->id.' — '.$service->name,
+                        'پلن'   => (string) $service->plan,
+                        'علت'   => $reason,
+                    ],
+                    null, '⚠️',
+                    // «مشکل را رفع کردم، همان‌جا دوباره تحویل بده» — تأییدِ
+                    // نهایی در spa/sp است تا کلیکِ اتفاقی سرورِ واقعی نخرد
+                    [
+                        [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
+                        [['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id]],
+                    ],
                 );
             }
         } catch (\Throwable $e) {
@@ -1462,7 +1476,10 @@ class CloudProvisioner
                 'سرویس' => '#'.$service->id.' — '.$service->name,
                 'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
                 'علت'   => mb_substr($reason, 0, 200),
-            ], url('/admin/customers/'.$service->customer_id), '⏳');
+            ], null, '⏳', [[
+                ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                ['text' => '🧾 سرویس', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+            ]]);
         } catch (\Throwable) {
         }
     }

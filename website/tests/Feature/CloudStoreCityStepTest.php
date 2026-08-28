@@ -88,11 +88,22 @@ class CloudStoreCityStepTest extends TestCase
 
     private function customer(): Customer
     {
-        return Customer::create([
+        $c = Customer::create([
             'email' => 'city'.random_int(1, 999999).'@example.com',
             'phone' => '0913'.random_int(1000000, 9999999),
             'password' => 'secret1234', 'status' => 'active', 'locale' => 'fa',
         ]);
+
+        /*
+        | این تست‌ها دربارهٔ نمایشِ شهرند، نه دروازهٔ فروشِ ایران — مشتریِ
+        | احرازشده تا مکان‌های ir-* دیده شوند (IranSalesGate پیش‌فرض بسته است).
+        */
+        \App\Models\CustomerProfile::create([
+            'customer_id' => $c->id, 'is_default' => true, 'type' => 'individual',
+            'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
+        ]);
+
+        return $c;
     }
 
     /** @return array<int,string> کدهای ساخته‌شده */

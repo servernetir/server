@@ -202,23 +202,37 @@ class VerificationController extends Controller
         ]);
     }
 
+    /*
+    | اعلانِ «نیازمندِ تأیید» با دکمه‌های بررسی — خواستِ کارفرما (۶ شهریور):
+    | «همان‌جا در بله مدارک را ببینم و تأیید/رد کنم؛ دیگر لازم نباشد جای
+    | دیگری بروم.» دکمه‌ها callbackاند و روتر بله رسیدگی می‌کند؛ خودِ لینکِ
+    | پنل عمداً حذف شد («لینک به کارِ من نمی‌آید»).
+    */
     private function notifySupport(Customer $customer, CustomerProfile $profile): void
     {
-        $who = $profile->company_name ?: $customer->email;
-        $text = '🔔 کاربرِ '.($profile->type === 'company' ? 'حقوقی' : ($customer->identityVerification === null ? 'خارجی (پاسپورت)' : 'حقیقی'))
-            .' نیازمندِ تأیید: «'.$who.'» ('.$customer->code.'). در پنل مدیریت → احراز هویت بررسی کنید.';
+        $who = $profile->company_name
+            ?: trim(($profile->first_name ?? '').' '.($profile->last_name ?? ''))
+            ?: $customer->email;
+        $kind = $profile->type === 'company' ? 'حقوقی'
+            : ($customer->identityVerification === null ? 'خارجی (مدرکِ سندی)' : 'حقیقی');
+        $cb = \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX;
 
-        // بله به شمارهٔ پشتیبانی — از APIِ ربات، نه سفیر (پشتیبانی مشتری نیست)
         try {
-            $phone = (string) config('servernet.contact.notify_phone', '');
-            app(\App\Services\Bale\BaleNotifier::class)->toAdmin($phone, $text);
-        } catch (\Throwable) {
-        }
-
-        // ایمیل به پشتیبانی
-        try {
-            $email = (string) config('servernet.contact.email', 'support@servernet.cloud');
-            Mail::mailer('smtp')->raw($text, fn ($m) => $m->to($email)->subject('تأیید کاربر جدید — '.$customer->code));
+            app(\App\Services\Notify\AdminNotifier::class)->event('کاربر نیازمندِ تأییدِ هویت', [
+                'نوع'   => $kind,
+                'نام (مطابق مدرک)' => $who,
+                'کشور'  => \App\Support\Countries::name($profile->country),
+                'زبانِ مشتری' => strtoupper((string) $customer->locale),
+                'کد'    => $customer->code,
+                'مدارک' => fa_num(\App\Models\CustomerDocument::where('customer_profile_id', $profile->id)->count()).' فایل',
+            ], null, '🪪', [
+                [['text' => '📄 مشاهدهٔ مدارک', 'data' => $cb.'kd:'.$profile->id]],
+                [
+                    ['text' => '✅ تأیید', 'data' => $cb.'ka:'.$profile->id],
+                    ['text' => '⛔️ رد', 'data' => $cb.'kr:'.$profile->id],
+                ],
+                [['text' => '👤 پروفایلِ مشتری', 'data' => $cb.'c:'.$customer->id]],
+            ]);
         } catch (\Throwable) {
         }
     }

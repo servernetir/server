@@ -234,7 +234,10 @@ class BuilderCheckoutController extends Controller
             'دامنه' => $quote->domain,
             'مرجع'  => $ref,
             'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
-        ], url('/admin/customers/'.$customer->id), '🚀');
+        ], null, '🚀', [[
+            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ['text' => '🧾 فاکتور', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
+        ]]);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', 'سفارش ثبت شد. پس از پرداخت، دامنه ثبت و سایتِ شما به‌صورت خودکار مستقر می‌شود.');

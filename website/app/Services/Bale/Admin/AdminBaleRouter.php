@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ServiceController;
 use App\Models\ActivityLog;
 use App\Models\BankTransferReceipt;
 use App\Models\Customer;
+use App\Models\CustomerProfile;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\MailboxMessage;
@@ -83,7 +84,7 @@ class AdminBaleRouter
      * پیش‌فرضش «دکمه می‌مانَد» است. اگر برعکس بود، یک فعلِ نوشتنیِ جامانده
      * بی‌صدا دوباره‌کلیک‌شدنی می‌مانْد.
      */
-    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm', 'dn'];
+    private const CONSUMING = ['su', 'sr', 'sv', 'sp', 'ic', 'tc', 'ts', 'ma', 'tps', 'ray', 'sxy', 'sey', 'mes', 'cc', 'rm', 'dn', 'kay'];
 
     /** بیشترین پیامِ خروجی به‌ازای هر آپدیتِ ورودی */
     /**
@@ -303,6 +304,7 @@ class AdminBaleRouter
                 // تماس چند صدم ثانیه طول می‌کشد؛ بی‌این، دکمه «در حالِ بارگذاری» می‌مانَد
                 'cc' => '📞 در حالِ برقراری…',
                 'rm' => '✅ ثبت شد',
+                'kd' => '📄 مدارک در صف قرار گرفت…',
                 'dn' => '📞 در حالِ برقراری…',
                 default => '',
             });
@@ -355,6 +357,11 @@ class AdminBaleRouter
                 'ic' => $this->invoiceCancel($arg),
                 'tp' => $this->ticketStatusMenu($arg),
                 'tps' => $this->ticketStatusSet($arg),
+                'kd' => $this->kycDocs((int) $arg),
+                'ka' => $this->kycApproveAsk((int) $arg),
+                'kay' => $this->kycApproveDo($arg),
+                'kr' => $this->kycRejectAsk((int) $arg),
+                'spa' => $this->provisionRetryAsk((int) $arg),
                 'ra' => $this->receiptApproveAsk($arg),
                 'ray' => $this->receiptApproveDo($arg),
                 'rj' => $this->receiptRejectAsk($arg),
@@ -616,6 +623,15 @@ class AdminBaleRouter
             $this->enqueue('receipt_reject',
                 ['id' => (int) substr($flow, 7), 'reason' => mb_substr($text, 0, 190)],
                 'ردِ رسید');
+
+            return;
+        }
+
+        if ($flow !== null && str_starts_with($flow, 'kycreject:')) {
+            $this->gate->clearFlow();
+            $this->enqueue('kyc_reject',
+                ['id' => (int) substr($flow, 10), 'reason' => mb_substr($text, 0, 400)],
+                'ردِ مدارکِ هویتی');
 
             return;
         }
@@ -2185,6 +2201,128 @@ class AdminBaleRouter
      * نمی‌شوند، و ردشدن از آن مهلت یعنی بله آپدیت را دوباره می‌فرستد — یعنی
      * کارِ پولی **دو بار**.
      */
+    // ───────────────────── احراز هویت (KYC) از بله ─────────────────────
+    //
+    // خواستِ کارفرما (۶ شهریور ۱۴۰۵): «در ادامهٔ همان اعلانِ "نیازمندِ تأیید"،
+    // دکمهٔ مشاهدهٔ مدارک و تأیید و رد باشد؛ لازم نباشد جای دیگری بروم.»
+    // منطقِ تأیید/رد در `KycReview` است — همان که پنل صدا می‌زند — و اجرای
+    // واقعی در صفِ `bale:work` تا وب‌هوک زیرِ ارسالِ فایل و SMTP نمانَد.
+
+    private function kycDocs(int $id): void
+    {
+        $p = CustomerProfile::with('customer')->find($id);
+
+        if ($p === null) {
+            $this->replyToOwner('پروفایل پیدا نشد.');
+
+            return;
+        }
+
+        // آپلودِ چند فایل به بله کُند است — در صف، بیرونِ مهلتِ وب‌هوک
+        $this->enqueue('kyc_docs', ['id' => $id],
+            'ارسالِ مدارکِ '.($p->customer?->code ?? '#'.$id));
+    }
+
+    private function kycApproveAsk(int $id): void
+    {
+        $p = CustomerProfile::with('customer')->find($id);
+
+        if ($p === null || $p->status !== 'pending') {
+            $this->replyToOwner('پروفایل پیدا نشد یا قبلاً بررسی شده.');
+
+            return;
+        }
+
+        $who = $p->company_name ?: trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+
+        $this->sendButtons(implode("\n", array_filter([
+            '✅ تأییدِ هویت؟',
+            '',
+            '👤 '.($who ?: '—').' · '.($p->customer?->code ?? ''),
+            $p->country ? '🌍 '.\App\Support\Countries::name($p->country) : null,
+            $p->birth_date ? '🎂 '.$p->birth_date->format('Y-m-d') : null,
+            '',
+            'با تأیید، همهٔ خدمات — از جمله سرویس‌های مستقر در ایران — برای این مشتری باز می‌شود و به خودش هم خبر می‌رود.',
+        ])), [
+            [$this->stamped('✅ بله، تأیید کن', 'kay', $p->id)],
+            [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'c:'.$p->customer_id]],
+        ]);
+    }
+
+    private function kycApproveDo(string $arg): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, 'kay');
+
+        if (! $fresh) {
+            $this->staleButton();
+
+            return;
+        }
+
+        $this->enqueue('kyc_approve', ['id' => $id], 'تأییدِ هویت');
+    }
+
+    /** ردِ مدارک دلیل می‌خواهد — مشتری همان متن را (به زبانِ خودش) می‌بیند */
+    private function kycRejectAsk(int $id): void
+    {
+        $p = CustomerProfile::with('customer')->find($id);
+
+        if ($p === null || $p->status !== 'pending') {
+            $this->replyToOwner('پروفایل پیدا نشد یا قبلاً بررسی شده.');
+
+            return;
+        }
+
+        $this->gate->armFlow('kycreject:'.$p->id);
+
+        $this->sendButtons(
+            '⛔️ ردِ مدارکِ '.($p->customer?->code ?? '#'.$p->id)."\n\n"
+            .'دلیلِ رد را بنویسید — مشتری همین متن را می‌بیند و باید بداند چه چیزی را اصلاح کند.',
+            [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
+        );
+    }
+
+    // ───────────────── تلاشِ دوبارهٔ تحویل از اعلانِ شکست ─────────────────
+
+    /**
+     * دکمهٔ روی اعلانِ «شکست در تحویل» — کارفرما مشکل را رفع کرده و همان‌جا
+     * می‌زند. تأییدِ نهایی همان `sp`ِ مهردارِ موجود است؛ این‌جا فقط وضعیت و
+     * هشدارِ پول (برای ابری، تلاشِ دوباره = خریدِ واقعی) نشان داده می‌شود.
+     */
+    private function provisionRetryAsk(int $id): void
+    {
+        $s = Service::with('customer')->find($id);
+
+        if ($s === null) {
+            $this->replyToOwner('سرویس پیدا نشد.');
+
+            return;
+        }
+
+        if (! in_array($s->provision_status, ['failed', 'manual'], true)) {
+            $this->replyToOwner('این سرویس در صفِ تلاشِ دوباره نیست (وضعیت: '.$s->provision_status.').');
+
+            return;
+        }
+
+        $this->sendButtons(implode("\n", array_filter([
+            '🔁 تلاشِ دوبارهٔ تحویل؟',
+            '',
+            '🧾 «'.$s->name.'» (#'.$s->id.')',
+            $s->customer ? '👤 '.$s->customer->displayName().' · '.$s->customer->code : null,
+            $s->plan ? '📦 '.$s->plan : null,
+            $s->server?->name ? '🖥 '.$s->server->name : null,
+            $s->provision_error ? '⚠️ آخرین خطا: '.mb_substr((string) $s->provision_error, 0, 160) : null,
+            '',
+            $s->isCloud()
+                ? '🔴 سرویسِ ابری است: تلاشِ دوباره یعنی سفارشِ واقعی نزدِ زیرساخت. فقط اگر علت را رفع کرده‌اید بزنید.'
+                : 'سرویس به صفِ تحویل برمی‌گردد و کرون ظرفِ یک دقیقه می‌سازدش.',
+        ])), [
+            [$this->stamped('🔁 بله، دوباره تحویل بده', 'sp', $s->id)],
+            [['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'s:'.$s->id]],
+        ]);
+    }
+
     private function enqueue(string $verb, array $args, string $human): void
     {
         if (! $this->gate->queueJob($verb, $args)) {

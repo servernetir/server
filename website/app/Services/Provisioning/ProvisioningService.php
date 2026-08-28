@@ -621,9 +621,20 @@ class ProvisioningService
                 '⚠️ در آماده‌سازیِ سرویسِ «'.$service->name.'» مشکلی پیش آمد و تیمِ ما در حالِ بررسی است. '
                 .'اگر ترجیح می‌دهید منتظر نمانید، می‌توانید از پنل سفارش را لغو کنید و مبلغ کامل به '
                 .'اعتبارتان برمی‌گردد: '.console_lroute('account.services'),
-                ['خطا' => mb_substr($error, 0, 160)],
-                $service->customer ? url('/admin/customers/'.$service->customer->id) : null,
+                [
+                    'سرویس'  => '#'.$service->id.' — '.$service->name,
+                    'پلن'    => (string) $service->plan,
+                    'سرور'   => (string) ($service->server?->name ?? '—'),
+                    'خطا'    => mb_substr($error, 0, 160),
+                ],
+                null,
                 '⚠️',
+                [
+                    [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
+                    $service->customer
+                        ? [['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer->id]]
+                        : [],
+                ],
             );
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('notify', $e, ['event' => 'service_failed', 'service' => $service->id]);

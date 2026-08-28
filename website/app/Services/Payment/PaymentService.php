@@ -597,7 +597,9 @@ class PaymentService
                         'فاکتور' => $inv?->number,
                         'بابت'   => $inv?->service?->name ?? ($inv?->kind === 'topup' ? 'افزایش اعتبار' : null),
                         'پیگیری' => $outcome->payment->ref_id,
-                    ], url('/admin/customers/'.$customer->id), '💰');
+                    ], null, '💰', [[
+                        ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+                    ]]);
                 } catch (\Throwable) {
                 }
             }
