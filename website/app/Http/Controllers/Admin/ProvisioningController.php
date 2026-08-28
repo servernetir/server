@@ -67,7 +67,10 @@ class ProvisioningController extends Controller
 
         try {
             $heartbeat = app(\App\Services\SystemHealth::class)->heartbeatAt();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            // ضربان فقط نمایشی است؛ صفحه نباید با آن بمیرد — ولی شکستش هم
+            // نباید بی‌صدا بماند (قانونِ SwallowedFailuresRatchet).
+            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'heartbeat-read']);
         }
 
         return view('admin.provisioning', [
