@@ -7,6 +7,12 @@
 @endsection
 
 @section('form')
+@if(session('reg_notice'))
+  <div style="margin-bottom:14px;padding:11px 14px;border-radius:11px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#2fae7d;font-size:13px;line-height:1.9">{{ session('reg_notice') }}</div>
+@endif
+@if($errors->has('code'))
+  <div style="margin-bottom:14px;padding:11px 14px;border-radius:11px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);color:#e05b5b;font-size:13px;line-height:1.9">{{ $errors->first('code') }}</div>
+@endif
 <form method="POST" action="{{ lroute('register.verify') }}" class="auth-f" id="otp-form">
   @csrf
   <input type="hidden" name="code" id="code">
@@ -36,7 +42,7 @@
     </button>
   </form>
   <a class="auth-ghost" href="{{ lroute('register') }}">
-    {{ $iranian ? __('ui.auth_change_mobile') : __('ui.auth_change_email') }}
+    {{ ($reg['channel'] ?? '') === 'sms' ? __('ui.auth_change_mobile') : __('ui.auth_change_email') }}
   </a>
 </div>
 

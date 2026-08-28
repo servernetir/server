@@ -111,31 +111,103 @@ class IntlOtpSnsTest extends TestCase
         $res->assertSessionHasErrors(['phone', 'first_name', 'last_name']);
     }
 
-    /** با SNSِ آماده، کدِ خارجی به موبایل می‌رود و چالش روی کانالِ sms است */
-    public function test_a_foreign_signup_gets_an_sms_challenge_when_sns_is_armed(): void
+    /**
+     * 🔴 جریانِ کاملِ دومرحله‌ای (خواستِ کارفرما: «شماره و ایمیل هر دو تأیید
+     * شوند»): اول کدِ ایمیل، بعد از قبولی کدِ پیامکی، و در پایان **هر دو**
+     * مهرِ تأیید روی حساب.
+     */
+    public function test_a_foreign_signup_verifies_email_then_phone(): void
     {
         $this->armSns();
-        Http::fake(['sns.eu-central-1.amazonaws.com/*' => Http::response(
-            '<PublishResponse><PublishResult><MessageId>ok</MessageId></PublishResult></PublishResponse>'
-        )]);
+        \Illuminate\Support\Facades\Mail::fake();
 
-        $res = $this->post('/en/register', [
+        // کدِ پیامکی مثلِ گوشیِ واقعی از خودِ درایور ضبط می‌شود (در DB فقط hash است)
+        $smsCode = null;
+        $this->app->instance(\App\Services\Sms\SnsSender::class,
+            new class($smsCode) extends \App\Services\Sms\SnsSender {
+                public function __construct(private mixed &$slot) {}
+                public function enabled(): bool { return true; }
+                public function sendOtp(string $m, string $code): bool { $this->slot = $code; return true; }
+            });
+
+        // ── گامِ ۱: شروع ⇒ چالشِ ایمیلی، نه پیامکی
+        $this->post('/en/register', [
             'email' => 'tr-customer@example.com', 'type' => 'individual',
             'first_name' => 'Mehmet', 'last_name' => 'Yilmaz',
             'phone' => '+90 532 123 45 67',
-        ]);
+        ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $res->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('otp_challenges', [
-            'channel' => 'sms', 'destination' => '+905321234567', 'purpose' => 'register',
+            'channel' => 'email', 'destination' => 'tr-customer@example.com', 'purpose' => 'register',
         ]);
+        $this->assertNull($smsCode, 'پیامک نباید پیش از تأییدِ ایمیل برود.');
+
+        // کدِ ایمیلی از خودِ نامهٔ ارسالی (transport آرایه‌ای)
+        $emailCode = null;
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($m) use (&$emailCode) {
+            $emailCode = $m->code;
+
+            return true;
+        });
+        $this->assertNotNull($emailCode, 'کدِ ایمیلی صادر نشد.');
+
+        // ── گامِ ۲: تأییدِ ایمیل ⇒ کدِ دوم پیامک می‌شود
+        $this->post('/en/register/verify', ['code' => $emailCode])
+            ->assertRedirect('/en/register/verify')
+            ->assertSessionHas('reg_notice');
+
+        $this->assertNotNull($smsCode, 'بعد از ایمیل باید کدِ پیامکی برود.');
+
+        // ── گامِ ۳: تأییدِ پیامک ⇒ رمز و پایان ⇒ هر دو مهر
+        $this->post('/en/register/verify', ['code' => $smsCode])
+            ->assertRedirect('/en/register/finish');
+
+        $this->post('/en/register/finish', [
+            'password' => 'super-secret-10', 'password_confirmation' => 'super-secret-10',
+            'terms' => '1',
+        ])->assertRedirect();
+
+        $c = \App\Models\Customer::where('email', 'tr-customer@example.com')->firstOrFail();
+        $this->assertNotNull($c->email_verified_at, 'ایمیل باید تأییدشده مهر بخورد.');
+        $this->assertNotNull($c->phone_verified_at, 'موبایل باید تأییدشده مهر بخورد.');
+        $this->assertSame('+905321234567', $c->phone);
+
+        $p = \App\Models\CustomerProfile::where('customer_id', $c->id)->where('is_default', true)->first();
+        $this->assertSame('Mehmet', $p?->first_name);
+        $this->assertSame('Yilmaz', $p?->last_name);
+    }
+
+    /** شکستِ پیامکِ مرحلهٔ دوم، ثبت‌نام را گروگان نمی‌گیرد — خطای روشن + راهِ برگشت */
+    public function test_a_failed_sms_stage_shows_a_clear_error_not_a_dead_end(): void
+    {
+        $this->armSns();
+        \Illuminate\Support\Facades\Mail::fake();
+        Http::fake(['sns.us-east-1.amazonaws.com/*' => Http::response('err', 500),
+            'sns.eu-central-1.amazonaws.com/*' => Http::response('err', 500)]);
+
+        $this->post('/en/register', [
+            'email' => 'us-customer@example.com', 'type' => 'individual',
+            'first_name' => 'John', 'last_name' => 'Doe',
+            'phone' => '+1 202 555 0147',
+        ])->assertRedirect();
+
+        $emailCode = null;
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($m) use (&$emailCode) {
+            $emailCode = $m->code;
+
+            return true;
+        });
+
+        $this->post('/en/register/verify', ['code' => $emailCode])
+            ->assertRedirect('/en/register/verify')
+            ->assertSessionHasErrors('code');
     }
 
     /** بی‌SNS، ثبت‌نامِ خارجی نمی‌شکند — کد به ایمیل برمی‌گردد */
     public function test_without_sns_the_foreign_signup_falls_back_to_email(): void
     {
         // مسیرِ ایمیلی صریحاً mailer('smtp') می‌زند؛ در تست transport آرایه‌ای می‌شود
-        config()->set('mail.mailers.smtp', ['transport' => 'array']);
+        \Illuminate\Support\Facades\Mail::fake();
 
         $res = $this->post('/en/register', [
             'email' => 'fallback@example.com', 'type' => 'individual',

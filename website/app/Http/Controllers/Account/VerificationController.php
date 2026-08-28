@@ -41,7 +41,24 @@ class VerificationController extends Controller
 
         $isCompany = $request->input('type') === 'company' || $profile->type === 'company';
 
+        /*
+        | فردِ خارجی = فردی که استعلامِ هویتِ ایرانی (شاهکار/ثبتِ احوال) ندارد.
+        | ایرانی در ثبت‌نام از آن مسیر رد شده و این‌جا مدرکی از او نمی‌خواهیم؛
+        | خارجی پاسپورت + مدرکِ آدرس می‌دهد و تیمِ پشتیبانی دستی تأیید می‌کند
+        | (تصمیمِ کارفرما — ۶ شهریور ۱۴۰۵). تأییدِ مدیر همان پرچمِ verified را
+        | می‌زند که IranSalesGate می‌خوانَد — دروازهٔ ایران خودکار باز می‌شود.
+        */
+        $foreign = ! $isCompany && $customer->identityVerification === null;
+
         $rules = ['type' => ['required', 'in:individual,company']];
+
+        if ($foreign) {
+            $rules += [
+                'first_name' => ['required', 'string', 'max:80'],
+                'last_name'  => ['required', 'string', 'max:80'],
+                'country'    => ['required', 'string', 'max:60'],
+            ];
+        }
         if ($isCompany) {
             $rules += [
                 'company_name'        => ['required', 'string', 'max:190'],
@@ -61,12 +78,28 @@ class VerificationController extends Controller
         $rules['doc_letter']   = $docRule('rep_letter');
         $rules['doc_articles'] = $docRule('articles');
 
+        // مدارکِ فردِ خارجی — بارِ اول اجباری، بعد از آن جایگزینیِ اختیاری
+        $foreignRule = fn ($kind) => [
+            in_array($kind, $have, true) ? 'nullable' : ($foreign ? 'required' : 'nullable'),
+            'file', 'mimetypes:application/pdf,image/png,image/jpeg', 'max:5120',
+        ];
+        $rules['doc_passport'] = $foreignRule('passport');
+        $rules['doc_address']  = $foreignRule('address_proof');
+
         $data = $request->validate($rules, [], [
             'company_name' => 'نام شرکت', 'rep_first_name' => 'نامِ نماینده', 'rep_last_name' => 'نام‌خانوادگیِ نماینده',
             'doc_letter' => 'معرفی‌نامهٔ نماینده', 'doc_articles' => 'اساسنامه',
+            'first_name' => __('ui.prof_first_name'), 'last_name' => __('ui.prof_last_name'),
+            'country' => __('ui.prof_country'),
+            'doc_passport' => __('ui.prof_doc_passport'), 'doc_address' => __('ui.prof_doc_address'),
         ]);
 
         $profile->type = $data['type'];
+
+        if ($foreign) {
+            $profile->fill(array_intersect_key($data, array_flip(['first_name', 'last_name', 'country'])));
+        }
+
         if ($isCompany) {
             $profile->fill(array_intersect_key($data, array_flip([
                 'company_name', 'registration_number', 'economic_code',
@@ -77,7 +110,8 @@ class VerificationController extends Controller
         $profile->reject_reason = null;
         $profile->save();
 
-        foreach (['doc_letter' => 'rep_letter', 'doc_articles' => 'articles'] as $field => $kind) {
+        foreach (['doc_letter' => 'rep_letter', 'doc_articles' => 'articles',
+            'doc_passport' => 'passport', 'doc_address' => 'address_proof'] as $field => $kind) {
             if ($request->hasFile($field) && $request->file($field)->isValid()) {
                 $this->storeDoc($profile, $request->file($field), $kind);
             }
@@ -134,7 +168,7 @@ class VerificationController extends Controller
     private function notifySupport(Customer $customer, CustomerProfile $profile): void
     {
         $who = $profile->company_name ?: $customer->email;
-        $text = '🔔 کاربرِ '.($profile->type === 'company' ? 'حقوقی' : 'حقیقی')
+        $text = '🔔 کاربرِ '.($profile->type === 'company' ? 'حقوقی' : ($customer->identityVerification === null ? 'خارجی (پاسپورت)' : 'حقیقی'))
             .' نیازمندِ تأیید: «'.$who.'» ('.$customer->code.'). در پنل مدیریت → احراز هویت بررسی کنید.';
 
         // بله به شمارهٔ پشتیبانی — از APIِ ربات، نه سفیر (پشتیبانی مشتری نیست)

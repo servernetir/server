@@ -126,13 +126,17 @@ class RegisterController extends Controller
         }
 
         /*
-        | کانالِ تأییدِ خارجی: اگر SNS پیکربندی شده، کد به موبایل می‌رود (همان
-        | چیزی که «شمارهٔ اجباری» را واقعاً راستی‌آزمایی می‌کند)؛ وگرنه ایمیل —
-        | تا نبودِ کلیدِ AWS ثبت‌نام را نخواباند.
+        | خارجی **دو** تأیید دارد (خواستِ کارفرما، ۵ شهریور: «شماره و ایمیل هر
+        | دو تأیید شوند»): اول ایمیل (رایگان و همه‌جا می‌رسد)، بعد از قبولیِ آن
+        | کدِ دوم به موبایل (SNS). پس این‌جا همیشه از ایمیل شروع می‌شود؛ مرحلهٔ
+        | پیامکی در verify() زنجیر می‌شود.
+        |
+        | ⚠️ باگی که این ترتیب بست: نسخهٔ قبل کدِ خارجی را به موبایل می‌فرستاد
+        | ولی verify مقصد را با «iranian ? phone : email» می‌سنجید — یعنی کدِ
+        | پیامکی هرگز قابلِ تأیید نبود. حالا مقصد همه‌جا از خودِ channel می‌آید.
         */
-        $intlSms     = ! $iranian && app(\App\Services\Sms\SnsSender::class)->enabled();
-        $channel     = ($iranian || $intlSms) ? 'sms' : 'email';
-        $destination = ($iranian || $intlSms) ? $phone : $email;
+        $channel     = $iranian ? 'sms' : 'email';
+        $destination = $iranian ? $phone : $email;
 
         /*
          * اگر کاربر برگشته و مقصد را عوض کرده، کد قبلی باید بمیرد.
@@ -202,9 +206,11 @@ class RegisterController extends Controller
 
         $request->validate(['code' => ['required', 'string', 'max:12']], [], ['code' => 'کد']);
 
+        // 🔴 مقصد از خودِ کانال — نه از حدسِ «ایرانی/خارجی». کانالِ sms یعنی
+        // چالش روی شماره صادر شده؛ سنجیدنِ ایمیل جای آن، کد را ابدی رد می‌کرد.
         $check = $this->otp->verify(
             $reg['channel'],
-            $reg['iranian'] ? $reg['phone'] : $reg['email'],
+            $reg['channel'] === 'sms' ? $reg['phone'] : $reg['email'],
             'register',
             $request->string('code')->toString(),
         );
@@ -213,12 +219,52 @@ class RegisterController extends Controller
             return back()->withErrors(['code' => $check->error]);
         }
 
+        if ($reg['iranian']) {
+            $reg['verified'] = true;
+            $request->session()->put('reg', $reg);
+
+            return redirect()->route($this->rp().'register.identity');
+        }
+
+        if ($reg['channel'] === 'email') {
+            $reg['email_ok'] = true;
+
+            /*
+            | مرحلهٔ ۲ — کد به موبایل. فقط وقتی SNS آماده است و شماره E.164 است؛
+            | وگرنه (کلیدِ AWS نیست، یا شمارهٔ ۰۹ داده) با همان تأییدِ ایمیل
+            | جلو می‌رویم — ثبت‌نام هرگز پشتِ یک پیکربندیِ جانبی قفل نمی‌شود.
+            */
+            $sns = app(\App\Services\Sms\SnsSender::class);
+
+            if ($sns->enabled() && str_starts_with((string) $reg['phone'], '+')) {
+                $issue = $this->otp->issue('sms', $reg['phone'], 'register', $request->ip());
+
+                $reg['channel'] = 'sms';
+                $request->session()->put('reg', $reg);
+
+                if (! $issue->ok) {
+                    // ایمیل تأیید شده و می‌مانَد؛ «ارسال دوباره» همین مرحلهٔ
+                    // پیامکی را دوباره می‌زند و «تغییر شماره» به فرمِ اول برمی‌گردد.
+                    return redirect()->route($this->rp().'register.verify')
+                        ->withErrors(['code' => __('ui.auth_sms_stage_fail')]);
+                }
+
+                return redirect()->route($this->rp().'register.verify')
+                    ->with('reg_notice', __('ui.auth_sms_stage_sent'));
+            }
+
+            $reg['verified'] = true;
+            $request->session()->put('reg', $reg);
+
+            return redirect()->route($this->rp().'register.finish');
+        }
+
+        // مرحلهٔ پیامکیِ خارجی قبول شد — هر دو مقصد تأییدشده
+        $reg['phone_ok'] = true;
         $reg['verified'] = true;
         $request->session()->put('reg', $reg);
 
-        return redirect()->route(
-            $this->rp().($reg['iranian'] ? 'register.identity' : 'register.finish'),
-        );
+        return redirect()->route($this->rp().'register.finish');
     }
 
     public function resend(Request $request): RedirectResponse
@@ -227,14 +273,14 @@ class RegisterController extends Controller
             return redirect()->route($this->rp().'register');
         }
 
-        $destination = $reg['iranian'] ? $reg['phone'] : $reg['email'];
+        $destination = $reg['channel'] === 'sms' ? $reg['phone'] : $reg['email'];
         $issue = $this->otp->issue($reg['channel'], $destination, 'register', $request->ip());
 
         if (! $issue->ok) {
             return back()->withErrors(['code' => $issue->error]);
         }
 
-        if (! $reg['iranian']) {
+        if ($reg['channel'] === 'email' && ! $reg['iranian']) {
             $this->mailCode($reg['email']);
         }
 
@@ -364,7 +410,7 @@ class RegisterController extends Controller
         $customer->forceFill([
             'password'           => Hash::make($request->string('password')->toString()),
             'status'             => 'active',
-            'phone_verified_at'  => ($reg['iranian'] || ($reg['channel'] ?? '') === 'sms')
+            'phone_verified_at'  => ($reg['iranian'] || ! empty($reg['phone_ok']))
                 ? now() : $customer->phone_verified_at,
             'email_verified_at'  => $reg['iranian'] ? $customer->email_verified_at : now(),
         ])->save();
@@ -577,7 +623,8 @@ class RegisterController extends Controller
 
     private function mask(array $reg): string
     {
-        if ($reg['iranian']) {
+        // مرحلهٔ پیامکی (ایرانی، یا گامِ دومِ خارجی): شماره را نشان بده نه ایمیل
+        if (($reg['channel'] ?? '') === 'sms') {
             $p = (string) $reg['phone'];
 
             return substr($p, 0, 4).'***'.substr($p, -4);

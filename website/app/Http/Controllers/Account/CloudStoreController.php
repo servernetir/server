@@ -288,6 +288,13 @@ class CloudStoreController extends Controller
             ]));
         }
 
+        // مشتریِ احرازنشده مکان‌های ایران را نمی‌بیند (گیتِ سختِ سفارش جداست)
+        if (\App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
+            $usable = $usable->reject(
+                fn (CloudLocation $l) => strtoupper((string) $l->country) === 'IR'
+            )->values();
+        }
+
         // ترتیبِ کشورها از فهرستِ سه‌زبانهٔ خودمان می‌آید (منظم و پایدار)؛
         // کشورِ ناشناخته آخر می‌نشیند تا ترتیب هرگز تصادفی نشود.
         $order = array_keys(CloudLocation::COUNTRIES);
@@ -1062,6 +1069,11 @@ class CloudStoreController extends Controller
             'image' => __('ui.cvb_a_image'), 'cycle' => __('ui.cvb_a_cycle'),
             'label' => __('ui.cvb_a_label'), 'extra_ipv4' => __('ui.cvb_a_ip'),
         ]);
+
+        // 🔴 دروازهٔ فروشِ ایران — مکانِ ir-* فقط برای مشتریِ احرازشده
+        if (\App\Services\Customer\IranSalesGate::blocks($customer, (string) $data['location'])) {
+            return back()->withInput()->withErrors(['location' => \App\Services\Customer\IranSalesGate::message()]);
+        }
 
         // ── مکان باید همین حالا موجودی داشته باشد ──
         $codes = [];

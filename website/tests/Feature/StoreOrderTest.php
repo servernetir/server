@@ -163,6 +163,13 @@ class StoreOrderTest extends TestCase
         $product = $this->product(['price' => 250000]);
         $customer = $this->customer();
 
+        // مقصدِ IR از این تاریخ پشتِ دروازهٔ احراز است (IranSalesGate)؛ این
+        // تست دربارهٔ قیمت است نه دروازه — مشتری‌اش احرازشده می‌شود.
+        \App\Models\CustomerProfile::create([
+            'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
+            'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone,
+        ]);
+
         $this->actingAs($customer, 'customer')
             ->post("/account/order/{$product->slug}", [
                 'country' => 'IR', 'cycle' => 'yearly',

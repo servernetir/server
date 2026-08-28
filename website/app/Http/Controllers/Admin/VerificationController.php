@@ -79,8 +79,12 @@ class VerificationController extends Controller
             ->update(['status' => 'approved', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
 
         $who = $profile->company_name ?: ($profile->customer?->displayName() ?? '');
-        $this->notifyCustomer($profile, '✅ هویتِ شما در سرورنت تأیید شد'
-            .($profile->company_name ? ' («'.$profile->company_name.'»)' : '').'. حالا می‌توانید از همهٔ خدمات استفاده کنید.');
+
+        // متن به زبانِ خودِ مشتری — مشتریِ خارجی پیامِ فارسی را نمی‌فهمد
+        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
+            ? '✅ هویتِ شما در سرورنت تأیید شد'
+                .($profile->company_name ? ' («'.$profile->company_name.'»)' : '').'. حالا می‌توانید از همهٔ خدمات استفاده کنید.'
+            : '✅ Your identity has been verified at ServerNet. All services — including Iran-hosted plans — are now available to your account.');
 
         ActivityLog::record($profile->customer_id, 'verify', 'هویت تأیید شد: '.$who, $request, 'admin');
 
@@ -99,8 +103,11 @@ class VerificationController extends Controller
         CustomerDocument::where('customer_profile_id', $profile->id)
             ->update(['status' => 'rejected', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
 
-        $this->notifyCustomer($profile, '❌ مدارکِ احراز هویتِ شما در سرورنت تأیید نشد. دلیل: '
-            .$data['reason'].' — لطفاً از پنل، بخشِ احراز هویت، مدارک را اصلاح و دوباره ارسال کنید.');
+        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
+            ? '❌ مدارکِ احراز هویتِ شما در سرورنت تأیید نشد. دلیل: '
+                .$data['reason'].' — لطفاً از پنل، بخشِ احراز هویت، مدارک را اصلاح و دوباره ارسال کنید.'
+            : '❌ Your identity documents could not be verified at ServerNet. Reason: '
+                .$data['reason'].' — please correct and re-submit them from your panel (Profile → Identity).');
 
         ActivityLog::record($profile->customer_id, 'verify', 'هویت رد شد: '.$data['reason'], $request, 'admin');
 
