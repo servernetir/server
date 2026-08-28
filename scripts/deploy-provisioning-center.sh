@@ -103,7 +103,12 @@ for f in $APP_FILES; do apply_one "$f"; done
 echo
 ok=1
 grep -q "class ProvisioningController" "$APP/app/Http/Controllers/Admin/ProvisioningController.php" 2>/dev/null || { echo "🔴 کنترلر نیست"; ok=0; }
-grep -q "admin/provisioning" "$APP/routes/web.php" || { echo "🔴 روتِ /provisioning ننشست"; ok=0; }
+# ⚠️ درسِ اجرای اول: الگوی قبلی «admin/provisioning» بود که در فایل وجود
+# ندارد (نامِ روت با نقطه است: admin.provisioning) — گارد همیشه می‌شکست و
+# دیپلویِ سالم را رول‌بک می‌کرد. الگو باید عینِ متنِ فایل باشد، پس هر دو
+# تکهٔ واقعی را می‌گیریم:
+grep -qF "Route::get('/provisioning'" "$APP/routes/web.php" || { echo "🔴 روتِ /provisioning ننشست"; ok=0; }
+grep -qF "name('admin.provisioning')" "$APP/routes/web.php" || { echo "🔴 نامِ روتِ admin.provisioning ننشست"; ok=0; }
 grep -q "ProvisioningController" "$APP/routes/web.php" || { echo "🔴 routes به کنترلر اشاره نمی‌کند"; ok=0; }
 [ -f "$APP/resources/views/admin/provisioning.blade.php" ] || { echo "🔴 ویوی مرکز نیست"; ok=0; }
 grep -q "nav_provisioning" "$APP/resources/views/admin/layout.blade.php" || { echo "🔴 آیتمِ منو نیست — صفحهٔ کشف‌نشدنی"; ok=0; }
