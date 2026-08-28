@@ -47,6 +47,20 @@ class CloudHourlyAudit extends Command
             return self::SUCCESS;
         }
 
+        /*
+        | سلامتِ خودِ داده، پیش از قضاوت: اگر ستونِ بهایِ ساعتی نباشد یا خالی
+        | باشد، ممیزی دارد با «ماهانه÷۷۲۰» می‌سنجد و «سبز»ش قابلِ اتکا نیست —
+        | دقیقاً همین یک‌بار رخ داد (ستون بیرون از $fillable، sync بی‌صدا
+        | دورش می‌ریخت و ممیزی سبزِ دروغ می‌داد).
+        */
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'cost_hour_eur_micro')) {
+            $this->error('🔴 ستونِ cost_hour_eur_micro ساخته نشده — مهاجرتِ 000103 نخورده و بها از «ماهانه÷۷۲۰» است.');
+        } else {
+            $filled = \App\Models\CloudPlan::whereNotNull('cost_hour_eur_micro')->count();
+            $this->line('ستونِ بهایِ ساعتی: پرشده روی '.$filled.' پلن'
+                .($filled === 0 ? '  🔴 صفر است — cloud:sync هنوز نرخِ ساعتی نگرفته؛ این گزارش قابلِ اتکا نیست' : ''));
+        }
+
         $eurToman = (int) app(CloudPricing::class)->eurToToman();
         $underwater = [];
         $stale = [];

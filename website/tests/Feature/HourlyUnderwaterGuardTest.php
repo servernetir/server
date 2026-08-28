@@ -138,7 +138,16 @@ class HourlyUnderwaterGuardTest extends TestCase
     public function test_the_provider_hourly_cost_floors_the_sale_price_and_trips_the_audit(): void
     {
         $plan = $this->plan('aeza', 1218, 1_020_000, 1440);
-        $plan->forceFill(['cost_hour_eur_micro' => 50_000])->save(); // €0.05/h
+
+        /*
+        | 🔴 عمداً mass-assignment، نه forceFill: همگام‌ساز با updateOrCreate
+        | می‌نویسد و ستونِ بیرون از $fillable **بی‌صدا** دور ریخته می‌شود —
+        | دقیقاً همین رخ داد: روی پروداکشن sync سبز بود و ستون NULL می‌مانْد،
+        | چون تستِ اولیه با forceFill این تله را دور زده بود.
+        */
+        $plan->update(['cost_hour_eur_micro' => 50_000]); // €0.05/h
+        $this->assertSame(50_000, (int) $plan->fresh()->cost_hour_eur_micro,
+            'cost_hour_eur_micro باید fillable باشد وگرنه sync بی‌صدا دورش می‌ریزد.');
 
         // کفِ فروش: €0.05 × ۱٫۴۵ = €0.0725 ⇒ ۸ سنت (ceil) / ۷٬۳۰۰ تومان
         $this->assertSame(8, $plan->fresh()->hourlyEurCents(),

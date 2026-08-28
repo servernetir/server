@@ -22,7 +22,7 @@ class CloudPlan extends Model
     protected $fillable = [
         'provider', 'provider_ref', 'provider_location', 'location_code',
         'public_name', 'slug', 'vcpu', 'ram_mb', 'disk_gb', 'disk_type',
-        'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'price_eur_cents',
+        'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'cost_hour_eur_micro', 'price_eur_cents',
         'price_irt', 'is_active', 'in_stock', 'sort', 'synced_at',
         'previous_cost_eur_cents', 'cost_changed_at',
         'admin_disabled', 'admin_note',
