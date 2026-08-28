@@ -142,6 +142,54 @@ class CloudMeterHourly extends Command
         return CloudDeliveryWatch::reasonFor($service) === null;
     }
 
+    /** نرخِ یورو یک بار در هر اجرا — همان قاعدهٔ BusinessReport::rateFor. */
+    private ?int $eurTomanMemo = null;
+
+    /**
+     * اگر نرخِ قفل‌شده از بهایِ تمام‌شدهٔ **امروزِ** همان ردیف کمتر است، فریاد.
+     * ردیفِ مرجع = (اسلاگِ خرید + زیرساختِ ماشینِ تحویل‌شده)؛ تحویل می‌تواند
+     * روی زیرساختِ گران‌ترِ همان اسلاگ رفته باشد.
+     */
+    private function alarmIfUnderwater(Service $service, int $rate): void
+    {
+        try {
+            $bought = $service->cloud_plan_id ? \App\Models\CloudPlan::find($service->cloud_plan_id) : null;
+
+            if ($bought === null) {
+                return;
+            }
+
+            $provider = $service->cloudInstance?->provider;
+            $row = ($provider !== null && $provider !== $bought->provider)
+                ? (\App\Models\CloudPlan::where('slug', $bought->slug)->where('provider', $provider)->orderByDesc('id')->first() ?? $bought)
+                : $bought;
+
+            $costCents = (int) $row->cost_eur_cents;
+
+            if ($costCents <= 0) {
+                return;                               // بها نداریم ⇒ ادعا هم نداریم
+            }
+
+            $this->eurTomanMemo ??= (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+
+            if ($this->eurTomanMemo <= 0) {
+                return;
+            }
+
+            $floorIrt = (int) ceil(($costCents / 100) * $this->eurTomanMemo / 720);
+
+            if ($rate < $floorIrt) {
+                \App\Support\ErrorTracker::noteOnce('cloud',
+                    "سرورِ ساعتیِ #{$service->id} زیرِ بهایِ تمام‌شده شارژ می‌شود: قفل‌شده "
+                    .number_format($rate).' تومان/ساعت، کفِ بها '.number_format($floorIrt)
+                    ." تومان/ساعت ({$row->provider}/{$row->slug}). اصلاح: php artisan cloud:hourly-reprice --service={$service->id} --apply",
+                    21600);
+            }
+        } catch (\Throwable) {
+            // آژیر هرگز خودِ متر را نمی‌شکند
+        }
+    }
+
     /**
      * کسرِ یک سرویس.
      *
@@ -160,6 +208,17 @@ class CloudMeterHourly extends Command
         if (! $this->billable($service)) {
             return 'skipped';
         }
+
+        /*
+        | 🔴 آژیرِ «زیرِ بها» — درسِ sn-svc-76 (۶ شهریور ۱۴۰۵).
+        |
+        | نرخ در لحظهٔ خرید قفل می‌شود؛ اگر آن روز کاتالوگ خراب بوده یا بهایِ
+        | زیرساخت بعداً بالا رفته باشد، هر ساعتِ روشن ضررِ نقد است و تا امروز
+        | **هیچ‌جا دیده نمی‌شد** — کارفرما اتفاقی در پنلِ زیرساخت دید.
+        | کسر عوض نمی‌شود (تصمیمِ مالی = cloud:hourly-reprice به دستِ مدیر)؛
+        | فقط فریادِ پایدار در /admin/errors. گلوگاه ۶ساعته و امضا شاملِ شناسه.
+        */
+        $this->alarmIfUnderwater($service, $rate);
 
         $prev = $service->last_metered_at ?? $service->activated_at ?? $service->created_at;
         $prev = $prev instanceof Carbon ? $prev : Carbon::parse((string) $prev);
