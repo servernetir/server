@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-95b803f}"
+MINE="${1:-fb25278}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -127,6 +127,9 @@ app/Services/Cloud/CloudDominance.php
 resources/views/account/partials/card-server.blade.php
 app/Services/Cloud/CloudProvisioner.php
 app/Console/Commands/CloudMeterHourly.php
+app/Console/Commands/RunServiceLifecycle.php
+app/Http/Controllers/Admin/CustomerController.php
+app/Models/Payment.php
 app/Http/Controllers/CatalogController.php
 app/Services/Cloud/CloudCountry.php
 app/Services/SiteMenu.php
@@ -156,6 +159,7 @@ config/servernet.php
 config/catalog/cloud.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
+database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
 routes/web.php
 "
 
@@ -305,6 +309,7 @@ need_file "$APP/app/Http/Controllers/GpuController.php"
 need_file "$APP/resources/views/pages/gpu.blade.php"
 need_file "$APP/database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php"
 need_file "$APP/database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php"
+need_file "$APP/database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php"
 
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
@@ -406,6 +411,17 @@ g lang/fa/ui.php "svd_specs"
 g lang/en/ui.php "svd_specs"
 g lang/tr/ui.php "svd_specs"
 g app/Http/Controllers/Account/CloudStoreController.php "ui.svd_specs"
+
+# لاگِ فعالیت به زبانِ مشتری (۶ شهریور، دورِ دوم) — نویسنده‌ها + کلیدها + روتِ تشخیص
+g lang/fa/ui.php "act_login"
+g lang/en/ui.php "act_login"
+g lang/tr/ui.php "act_login"
+g app/Http/Controllers/Auth/LoginController.php "ui.act_login"
+g app/Services/Payment/PaymentService.php "ui.act_payment"
+g app/Models/Payment.php "pay_desc_topup"
+g app/Console/Commands/RunServiceLifecycle.php "ui.act_auto_suspend"
+g app/Services/Cloud/CloudProvisioner.php "ui.act_prov_ordered"
+g routes/web.php "crypto-status"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
 g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
@@ -508,6 +524,10 @@ if [ -n "$PHPBIN" ]; then
   "$PHPBIN" artisan migrate --force \
     --path=database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php \
     || { echo "🔴 مهاجرتِ ترجمهٔ دادهٔ قدیمی نخورد. خروجی را بفرست."; }
+
+  "$PHPBIN" artisan migrate --force \
+    --path=database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php \
+    || { echo "🔴 مهاجرتِ ترجمهٔ لاگ‌های فعالیت نخورد. خروجی را بفرست."; }
 
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
