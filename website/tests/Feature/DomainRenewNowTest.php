@@ -160,10 +160,21 @@ class DomainRenewNowTest extends TestCase
         $this->assertSame(0, Invoice::where('domain_id', $d->id)->count());
     }
 
-    /** دامنه‌ای که هیچ قیمتِ تمدیدی ندارد فاکتورِ صفرتومانی نمی‌گیرد */
+    /**
+     * دامنه‌ای که هیچ قیمتِ تمدیدی ندارد فاکتورِ صفرتومانی نمی‌گیرد.
+     *
+     * ⚠️ «بی‌قیمت» این‌جا **صفر** است، نه `null`. ستونِ `domains.renew_toman`
+     * غیرِ nullable با پیش‌فرضِ صفر تعریف شده و گاردِ کنترلر هم
+     * `effectivePerYear($domain) <= 0` را می‌سنجد. فیکسچرِ قبلی `null`
+     * می‌گذاشت و روی `NOT NULL constraint` می‌ترکید — یعنی حالتی می‌ساخت که
+     * دیتابیسِ واقعی هرگز نمی‌تواند داشته باشد، و ادعا اصلاً اجرا نمی‌شد.
+     *
+     * درس: فیکسچری که اسکیما ردش می‌کند، تست را قرمز می‌کند بی‌آنکه چیزی را
+     * سنجیده باشد — همان‌قدر بی‌فایده که سبزِ کاذب، فقط پرسروصداتر.
+     */
     public function test_a_domain_with_no_stored_price_is_refused(): void
     {
-        $d = $this->domain(['renew_toman' => null, 'price_toman' => 0]);
+        $d = $this->domain(['renew_toman' => 0, 'price_toman' => 0]);
 
         $this->renew($d)->assertSessionHasErrors();
 
