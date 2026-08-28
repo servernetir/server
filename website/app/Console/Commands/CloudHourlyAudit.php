@@ -93,7 +93,15 @@ class CloudHourlyAudit extends Command
             $costEur = $row
                 ? ($hourMicro > 0 ? round($hourMicro / 1_000_000, 4) : round(((int) $row->cost_eur_cents) / 720 / 100, 4))
                 : null;
-            $priceEur = $row ? round($row->hourlyEurCents() / 100, 4) : null;
+            /*
+            | قیمتِ روز از **تومان** (منبعِ واقعیِ کسر)، نه از سنتِ گردِ رو به
+            | بالا: hourlyEurCents برای €0.0618 عددِ ۷ سنت می‌دهد و ممیزی
+            | سرویسِ سالمِ €0.0660 را «زیرِ قیمتِ روز» می‌خواند — stale کاذب.
+            */
+            $priceEur = $row === null ? null
+                : ($eurToman > 0 && $row->hourlyIrt() > 0
+                    ? round($row->hourlyIrt() / $eurToman, 4)
+                    : round($row->hourlyEurCents() / 100, 4));
 
             $verdict = 'ok';
 
