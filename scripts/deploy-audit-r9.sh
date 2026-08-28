@@ -54,7 +54,7 @@ fi
 #    این دیپلوی با کارِ session‌های دیگر (خطِ ابری/GPU/حواله) مشترک نیست —
 #    با merge-tree بررسی شد و همپوشانیِ فایلی **صفر** بود. پس این دیپلوی و
 #    دیپلویِ ابری می‌توانند به هر ترتیبی بدوند.
-MINE="${1:-6633743}"
+MINE="${1:-b982e7f}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -64,6 +64,8 @@ APP_FILES="
 app/Models/Product.php
 app/Services/Mail/MailboxReplier.php
 app/Console/Commands/SeedHostingProducts.php
+app/Console/Commands/SeedBuilderProducts.php
+database/seeders/LicenseProductSeeder.php
 app/Http/Controllers/OrderSummaryController.php
 resources/views/pages/order-summary.blade.php
 lang/fa/ui.php
@@ -212,6 +214,8 @@ g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشست�
 g app/Models/Product.php "public function displayName"
 g app/Models/Product.php "name_en"
 g app/Console/Commands/SeedHostingProducts.php "name_en"
+g app/Console/Commands/SeedBuilderProducts.php "name_en"
+g database/seeders/LicenseProductSeeder.php "name_en"
 g app/Http/Controllers/OrderSummaryController.php "displayName"
 g resources/views/pages/order-summary.blade.php "displayName"
 
@@ -265,6 +269,15 @@ if [ -n "$PHPBIN" ]; then
   "$PHPBIN" artisan products:seed-hosting \
     || { echo "🔴 seeder نخورد — نامِ محصولات بی‌ترجمه می‌مانَد. خروجی را بفرست."; }
 
+  # 🔴 سه منبعِ جدا برای ساختِ محصول هست و دیپلویِ اولِ ممیزی نهم فقط
+  #    یکی را می‌دواند — ۲۲ صفحه (۸ لایسنس + ۳ سایت‌ساز، × دو زبان) فارسی
+  #    مانده بودند، با کدِ ۲۰۰ و بی‌هیچ خطایی. هر سه باید با هم بدوند.
+  "$PHPBIN" artisan products:seed-builder \
+    || { echo "🔴 seederِ سایت‌ساز نخورد — ۳ محصول بی‌ترجمه می‌مانَد."; }
+
+  "$PHPBIN" artisan db:seed --force --class='Database\Seeders\LicenseProductSeeder' \
+    || { echo "🔴 seederِ لایسنس نخورد — ۸ محصول بی‌ترجمه می‌مانَد."; }
+
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
     || echo "⚠️ purge کشِ صفحه دستی: از /admin یا صبر تا TTL"
@@ -293,3 +306,7 @@ echo "     ← باید ترکی باشد"
 echo "  curl -s https://servernet.cloud/order/backup-1 | grep -o '<title>[^<]*</title>'"
 echo "     ← فارسی، دست‌نخورده"
 echo "  curl -s https://servernet.cloud/en/terms | grep -c 'Value added tax'    ← 1"
+echo "  curl -s https://servernet.cloud/en/order/license-cpanel | grep -o '<title>[^<]*</title>'"
+echo "     ← باید انگلیسی باشد (این یکی در دیپلویِ اول جا مانده بود)"
+echo "  curl -s https://servernet.cloud/en/order/site-builder-1 | grep -o '<title>[^<]*</title>'"
+echo "     ← باید انگلیسی باشد"
