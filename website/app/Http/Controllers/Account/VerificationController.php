@@ -43,10 +43,14 @@ class VerificationController extends Controller
 
         /*
         | فردِ خارجی = فردی که استعلامِ هویتِ ایرانی (شاهکار/ثبتِ احوال) ندارد.
-        | ایرانی در ثبت‌نام از آن مسیر رد شده و این‌جا مدرکی از او نمی‌خواهیم؛
-        | خارجی پاسپورت + مدرکِ آدرس می‌دهد و تیمِ پشتیبانی دستی تأیید می‌کند
-        | (تصمیمِ کارفرما — ۶ شهریور ۱۴۰۵). تأییدِ مدیر همان پرچمِ verified را
-        | می‌زند که IranSalesGate می‌خوانَد — دروازهٔ ایران خودکار باز می‌شود.
+        | ایرانی در ثبت‌نام از آن مسیر رد شده و این‌جا مدرکی از او نمی‌خواهیم.
+        |
+        | مجموعهٔ خارجی همان الگویِ Wise/Binance است (خواستِ صریحِ کارفرما —
+        | ۶ شهریور ۱۴۰۵): نامِ کامل + تاریخِ تولد (۱۸+) + آدرسِ کاملِ سکونت +
+        | کشور (کدِ ISO — ستون char(2) است؛ متنِ آزاد روی MariaDB می‌شکست) +
+        | مدرکِ هویتی به انتخاب (پاسپورت/کارتِ ملی/گواهینامه، کارت‌ها با پشت) +
+        | سلفی با همان مدرک + مدرکِ آدرسِ ≤۳ ماه. تأییدِ دستیِ تیمِ ماست و
+        | همان پرچمِ verified را می‌زند که IranSalesGate می‌خوانَد.
         */
         $foreign = ! $isCompany && $customer->identityVerification === null;
 
@@ -54,9 +58,16 @@ class VerificationController extends Controller
 
         if ($foreign) {
             $rules += [
-                'first_name' => ['required', 'string', 'max:80'],
-                'last_name'  => ['required', 'string', 'max:80'],
-                'country'    => ['required', 'string', 'max:60'],
+                'first_name'  => ['required', 'string', 'max:80'],
+                'last_name'   => ['required', 'string', 'max:80'],
+                // ۱۸+ : هر دو مرجعِ الگو (Wise/Binance) زیرِ ۱۸ را نمی‌پذیرند
+                'birth_date'  => ['required', 'date_format:Y-m-d',
+                    'before_or_equal:'.now()->subYears(18)->toDateString()],
+                'country'     => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(\App\Support\Countries::ALL))],
+                'address'     => ['required', 'string', 'max:500'],
+                'city'        => ['required', 'string', 'max:64'],
+                'postal_code' => ['nullable', 'string', 'max:20'],
+                'id_type'     => ['required', 'in:passport,national_id,driving_license'],
             ];
         }
         if ($isCompany) {
@@ -78,26 +89,47 @@ class VerificationController extends Controller
         $rules['doc_letter']   = $docRule('rep_letter');
         $rules['doc_articles'] = $docRule('articles');
 
-        // مدارکِ فردِ خارجی — بارِ اول اجباری، بعد از آن جایگزینیِ اختیاری
-        $foreignRule = fn ($kind) => [
-            in_array($kind, $have, true) ? 'nullable' : ($foreign ? 'required' : 'nullable'),
-            'file', 'mimetypes:application/pdf,image/png,image/jpeg', 'max:5120',
-        ];
-        $rules['doc_passport'] = $foreignRule('passport');
-        $rules['doc_address']  = $foreignRule('address_proof');
+        /*
+        | مدارکِ فردِ خارجی — بارِ اول اجباری، بعد از آن جایگزینیِ اختیاری.
+        | جای «پاسپورتِ» ثابت، حالا نوعِ مدرک انتخابی است و kindِ ذخیره‌شده
+        | همان نوع است (passport/national_id/driving_license) تا مدیر دقیقاً
+        | بداند چه چیزی را باز می‌کند. پشتِ کارت فقط برای کارت/گواهینامه
+        | معنا دارد؛ پاسپورت یک‌صفحه‌ای است.
+        */
+        $idKinds = ['passport', 'national_id', 'driving_license'];
+        $haveId = count(array_intersect($idKinds, $have)) > 0;
+        $idType = (string) $request->input('id_type', 'passport');
+        $needBack = $foreign && $idType !== 'passport';
+
+        $fileRule = ['file', 'mimetypes:application/pdf,image/png,image/jpeg', 'max:5120'];
+        $rules['doc_passport'] = array_merge([$haveId || ! $foreign ? 'nullable' : 'required'], $fileRule);
+        $rules['doc_id_back']  = array_merge([
+            ($needBack && ! in_array('id_back', $have, true)) ? 'required' : 'nullable',
+        ], $fileRule);
+        $rules['doc_selfie']   = array_merge([
+            in_array('selfie', $have, true) || ! $foreign ? 'nullable' : 'required',
+        ], $fileRule);
+        $rules['doc_address']  = array_merge([
+            in_array('address_proof', $have, true) || ! $foreign ? 'nullable' : 'required',
+        ], $fileRule);
 
         $data = $request->validate($rules, [], [
             'company_name' => 'نام شرکت', 'rep_first_name' => 'نامِ نماینده', 'rep_last_name' => 'نام‌خانوادگیِ نماینده',
             'doc_letter' => 'معرفی‌نامهٔ نماینده', 'doc_articles' => 'اساسنامه',
             'first_name' => __('ui.prof_first_name'), 'last_name' => __('ui.prof_last_name'),
-            'country' => __('ui.prof_country'),
-            'doc_passport' => __('ui.prof_doc_passport'), 'doc_address' => __('ui.prof_doc_address'),
+            'country' => __('ui.prof_country'), 'birth_date' => __('ui.prof_birth_date'),
+            'address' => __('ui.prof_address'), 'city' => __('ui.prof_city'),
+            'postal_code' => __('ui.prof_postal'), 'id_type' => __('ui.prof_id_type'),
+            'doc_passport' => __('ui.prof_doc_id_front'), 'doc_id_back' => __('ui.prof_doc_id_back'),
+            'doc_selfie' => __('ui.prof_doc_selfie'), 'doc_address' => __('ui.prof_doc_address'),
         ]);
 
         $profile->type = $data['type'];
 
         if ($foreign) {
-            $profile->fill(array_intersect_key($data, array_flip(['first_name', 'last_name', 'country'])));
+            $profile->fill(array_intersect_key($data, array_flip([
+                'first_name', 'last_name', 'birth_date', 'country', 'address', 'city', 'postal_code',
+            ])));
         }
 
         if ($isCompany) {
@@ -111,9 +143,13 @@ class VerificationController extends Controller
         $profile->save();
 
         foreach (['doc_letter' => 'rep_letter', 'doc_articles' => 'articles',
-            'doc_passport' => 'passport', 'doc_address' => 'address_proof'] as $field => $kind) {
+            'doc_passport' => $idType, 'doc_id_back' => 'id_back',
+            'doc_selfie' => 'selfie', 'doc_address' => 'address_proof'] as $field => $kind) {
             if ($request->hasFile($field) && $request->file($field)->isValid()) {
-                $this->storeDoc($profile, $request->file($field), $kind);
+                // مدرکِ هویتیِ تازه، هر نوعِ قبلی را جایگزین می‌کند (کاربر
+                // ممکن است از کارتِ ملی به پاسپورت برگردد — دو ID نمی‌مانَد)
+                $this->storeDoc($profile, $request->file($field), $kind,
+                    in_array($kind, $idKinds, true) ? $idKinds : [$kind]);
             }
         }
 
@@ -141,10 +177,11 @@ class VerificationController extends Controller
             ]);
     }
 
-    private function storeDoc(CustomerProfile $profile, UploadedFile $file, string $kind): void
+    private function storeDoc(CustomerProfile $profile, UploadedFile $file, string $kind, ?array $replaces = null): void
     {
-        // نسخهٔ قبلیِ همین نوع را حذف کن (فقط آخرین معتبر است)
-        foreach (CustomerDocument::where('customer_profile_id', $profile->id)->where('kind', $kind)->get() as $old) {
+        // نسخهٔ قبلیِ همین نوع (یا خانوادهٔ هم‌ردیف) را حذف کن — فقط آخرین معتبر است
+        foreach (CustomerDocument::where('customer_profile_id', $profile->id)
+            ->whereIn('kind', $replaces ?? [$kind])->get() as $old) {
             Storage::disk('local')->delete($old->disk_path);
             $old->delete();
         }

@@ -152,14 +152,46 @@
         <div class="vf-grid">
           <label class="vf-f">{{ __('ui.prof_first_name') }}<input type="text" name="first_name" value="{{ old('first_name', $profile->first_name) }}" maxlength="80" autocomplete="given-name"></label>
           <label class="vf-f">{{ __('ui.prof_last_name') }}<input type="text" name="last_name" value="{{ old('last_name', $profile->last_name) }}" maxlength="80" autocomplete="family-name"></label>
-          <label class="vf-f">{{ __('ui.prof_country') }}<input type="text" name="country" value="{{ old('country', $profile->country) }}" maxlength="60" autocomplete="country-name" placeholder="Türkiye / Deutschland / …"></label>
+          <label class="vf-f">{{ __('ui.prof_birth_date') }}<input type="date" name="birth_date" dir="ltr" value="{{ old('birth_date', optional($profile->birth_date)->format('Y-m-d')) }}" max="{{ now()->subYears(18)->toDateString() }}" autocomplete="bday"></label>
+          <label class="vf-f">{{ __('ui.prof_country') }}
+            <select name="country" autocomplete="country">
+              <option value="" disabled @selected(! old('country', $profile->country))>—</option>
+              @foreach(\App\Support\Countries::options() as $cc => $cn)
+                <option value="{{ $cc }}" @selected(strtoupper((string) old('country', $profile->country)) === $cc)>{{ $cn }}</option>
+              @endforeach
+            </select>
+          </label>
+          <label class="vf-f" style="grid-column:1/-1">{{ __('ui.prof_address') }}<input type="text" name="address" value="{{ old('address', $profile->address) }}" maxlength="500" autocomplete="street-address"></label>
+          <label class="vf-f">{{ __('ui.prof_city') }}<input type="text" name="city" value="{{ old('city', $profile->city) }}" maxlength="64" autocomplete="address-level2"></label>
+          <label class="vf-f">{{ __('ui.prof_postal') }}<input type="text" name="postal_code" dir="ltr" value="{{ old('postal_code', $profile->postal_code) }}" maxlength="20" autocomplete="postal-code"></label>
+          <label class="vf-f">{{ __('ui.prof_id_type') }}
+            @php $curIdType = old('id_type', $docs->has('national_id') ? 'national_id' : ($docs->has('driving_license') ? 'driving_license' : 'passport')); @endphp
+            <select name="id_type" id="vf-id-type">
+              <option value="passport" @selected($curIdType === 'passport')>{{ __('ui.prof_id_passport') }}</option>
+              <option value="national_id" @selected($curIdType === 'national_id')>{{ __('ui.prof_id_national') }}</option>
+              <option value="driving_license" @selected($curIdType === 'driving_license')>{{ __('ui.prof_id_license') }}</option>
+            </select>
+          </label>
         </div>
+        @php $idDoc = $docs['passport'] ?? $docs['national_id'] ?? $docs['driving_license'] ?? null; @endphp
         <div class="vf-docs">
           <label class="vf-doc">
-            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_passport') }}</b></span>
-            @if($docs->has('passport'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['passport']->original_name, 26) }}</span>@endif
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_id_front') }}</b></span>
+            @if($idDoc)<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($idDoc->original_name, 26) }}</span>@endif
             <input type="file" name="doc_passport" accept="application/pdf,image/png,image/jpeg">
             <small>{{ __('ui.prof_doc_hint') }}</small>
+          </label>
+          <label class="vf-doc" id="vf-id-back" @if($curIdType === 'passport') hidden @endif>
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_id_back') }}</b></span>
+            @if($docs->has('id_back'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['id_back']->original_name, 26) }}</span>@endif
+            <input type="file" name="doc_id_back" accept="application/pdf,image/png,image/jpeg">
+            <small>{{ __('ui.prof_doc_hint') }}</small>
+          </label>
+          <label class="vf-doc">
+            <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_selfie') }}</b></span>
+            @if($docs->has('selfie'))<span class="vf-ok">✓ {{ \Illuminate\Support\Str::limit($docs['selfie']->original_name, 26) }}</span>@endif
+            <input type="file" name="doc_selfie" accept="image/png,image/jpeg">
+            <small>{{ __('ui.prof_selfie_hint') }}</small>
           </label>
           <label class="vf-doc">
             <span class="vf-doc-h"><svg class="icon"><use href="#i-file"/></svg><b>{{ __('ui.prof_doc_address') }}</b></span>
@@ -218,6 +250,8 @@
 .vf-docs{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
 @media(max-width:560px){ .vf-docs{ grid-template-columns:1fr; } }
 .vf-doc{ border:1px dashed var(--line-2); border-radius:13px; padding:13px 14px; display:flex; flex-direction:column; gap:7px; cursor:pointer; transition:border-color .16s, background .16s; }
+/* hidden به‌تنهایی به display:flexِ بالا می‌بازد (تلهٔ ثبت‌شدهٔ پروژه) */
+.vf-doc[hidden]{ display:none; }
 .vf-doc:hover{ border-color:var(--cyan); background:var(--surface); }
 .vf-doc-h{ display:flex; align-items:center; gap:8px; }
 .vf-doc-h .icon{ width:16px; height:16px; color:var(--info); }
@@ -235,6 +269,12 @@
     c.hidden = this.value !== 'company';
     if (f) { f.hidden = this.value === 'company'; }
   });
+
+  // پشتِ مدرک فقط برای کارتِ ملی/گواهینامه — پاسپورت یک‌صفحه‌ای است
+  var it=document.getElementById('vf-id-type'), back=document.getElementById('vf-id-back');
+  if(it && back){
+    it.addEventListener('change', function(){ back.hidden = this.value === 'passport'; });
+  }
 })();
 </script>
 

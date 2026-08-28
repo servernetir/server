@@ -58,10 +58,12 @@
             <div><span>نمایندهٔ شرکت</span><b>{{ trim(($p->rep_first_name ?? '').' '.($p->rep_last_name ?? '')) ?: '—' }}@if($p->rep_position) — {{ $p->rep_position }}@endif</b></div>
           @endif
           @if($p->type !== 'company')
-            {{-- خارجی: نامِ روی پاسپورت — همان چیزی که مدیر باید با مدرک تطبیق دهد --}}
+            {{-- خارجی: نامِ روی مدرک — همان چیزی که مدیر باید با مدرک تطبیق دهد --}}
             <div><span>نام (مطابق مدرک)</span><b>{{ trim(($p->first_name ?? '').' '.($p->last_name ?? '')) ?: '—' }}</b></div>
+            @if($p->birth_date)<div><span>تاریخ تولد</span><b dir="ltr">{{ $p->birth_date->format('Y-m-d') }}</b></div>@endif
+            @if($p->address)<div><span>آدرس سکونت</span><b dir="ltr">{{ \Illuminate\Support\Str::limit(trim($p->address.($p->city ? ', '.$p->city : '').($p->postal_code ? ' '.$p->postal_code : '')), 90) }}</b></div>@endif
           @endif
-          <div><span>کشور</span><b>{{ $p->country ?: '—' }}</b></div>
+          <div><span>کشور</span><b>{{ \App\Support\Countries::name($p->country) ?: '—' }}</b></div>
           <div><span>ایمیل</span><b dir="ltr">{{ $p->email ?: $p->customer?->email }}</b></div>
           <div><span>موبایل</span><b dir="ltr">{{ $p->mobile ?: $p->customer?->phone }}</b></div>
           <div><span>زبانِ مشتری</span><b dir="ltr">{{ strtoupper($p->customer?->locale ?? '—') }}</b></div>
@@ -70,7 +72,7 @@
         {{-- مدارک --}}
         <div class="kyc-docs">
           @forelse($p->documents as $d)
-            @php $kn = ['rep_letter' => 'معرفی‌نامهٔ نماینده', 'articles' => 'اساسنامه', 'national_id' => 'کارت ملی', 'passport' => 'پاسپورت', 'address_proof' => 'مدرکِ آدرس (قبض/بانک)'][$d->kind] ?? $d->kind; @endphp
+            @php $kn = ['rep_letter' => 'معرفی‌نامهٔ نماینده', 'articles' => 'اساسنامه', 'national_id' => 'کارت ملی', 'passport' => 'پاسپورت', 'driving_license' => 'گواهینامهٔ رانندگی', 'id_back' => 'پشتِ مدرکِ هویتی', 'selfie' => 'سلفی با مدرک', 'address_proof' => 'مدرکِ آدرس (قبض/بانک، ≤۳ ماه)'][$d->kind] ?? $d->kind; @endphp
             <a class="kyc-doc" href="/admin/verifications/{{ $p->id }}/doc/{{ $d->id }}" target="_blank" rel="noopener">
               <svg class="icon"><use href="#i-file"/></svg>
               <span>{{ $kn }}</span>
@@ -106,7 +108,7 @@
       @foreach($recent as $p)
         @php $b = $badge($p->status); @endphp
         <tr>
-          <td><b>{{ $p->company_name ?: ($p->customer?->displayName() ?: '—') }}</b>@if($p->country) <small style="color:var(--dim)">· {{ $p->country }}</small>@endif
+          <td><b>{{ $p->company_name ?: ($p->customer?->displayName() ?: '—') }}</b>@if($p->country) <small style="color:var(--dim)">· {{ \App\Support\Countries::name($p->country) }}</small>@endif
             <a href="/admin/customers/{{ $p->customer_id }}" style="color:var(--dim);font-size:11.5px;display:block" dir="ltr">{{ $p->customer?->code }}</a></td>
           <td>{{ $typeLabel($p->type) }}</td>
           <td><span class="ad-badge" style="background:{{ $b[1] }}22;color:{{ $b[1] }}">{{ $b[0] }}</span></td>

@@ -50,13 +50,30 @@ class ForeignKycTest extends TestCase
             'password' => bcrypt('secret1234'), 'role' => 'admin']);
     }
 
+
+    /** فیلدها و مدارکِ کاملِ الگوی Wise/Binance — برای تست‌های ارسالِ کامل */
+    private function fullKyc(array $over = []): array
+    {
+        return $over + [
+            'type' => 'individual',
+            'first_name' => 'Mehmet', 'last_name' => 'Yilmaz',
+            'birth_date' => '1990-04-12', 'country' => 'TR',
+            'address' => 'Bagdat Cd. 123, Kadikoy', 'city' => 'Istanbul',
+            'postal_code' => '34710', 'id_type' => 'passport',
+            'doc_passport' => UploadedFile::fake()->create('passport.pdf', 300, 'application/pdf'),
+            'doc_selfie'   => UploadedFile::fake()->image('selfie.jpg'),
+            'doc_address'  => UploadedFile::fake()->image('bill.png'),
+        ];
+    }
+
     /** 🔴 فردِ خارجی بدونِ پاسپورت و مدرکِ آدرس رد می‌شود — با نام و کشورِ اجباری */
     public function test_a_foreigner_must_supply_passport_address_and_name(): void
     {
         $res = $this->actingAs($this->foreigner(), 'customer')
             ->post('/en/account/verify', ['type' => 'individual']);
 
-        $res->assertSessionHasErrors(['first_name', 'last_name', 'country', 'doc_passport', 'doc_address']);
+        $res->assertSessionHasErrors(['first_name', 'last_name', 'country', 'birth_date',
+            'address', 'city', 'id_type', 'doc_passport', 'doc_selfie', 'doc_address']);
     }
 
     /** ثبتِ کامل: پروفایل pending، مدارک ذخیره، نام و کشور روی پروفایل */
@@ -64,22 +81,20 @@ class ForeignKycTest extends TestCase
     {
         $c = $this->foreigner();
 
-        $res = $this->actingAs($c, 'customer')->post('/en/account/verify', [
-            'type' => 'individual',
-            'first_name' => 'Mehmet', 'last_name' => 'Yilmaz', 'country' => 'Türkiye',
-            'doc_passport' => UploadedFile::fake()->create('passport.pdf', 300, 'application/pdf'),
-            'doc_address'  => UploadedFile::fake()->image('bill.png'),
-        ]);
+        $res = $this->actingAs($c, 'customer')->post('/en/account/verify', $this->fullKyc());
 
         $res->assertRedirect()->assertSessionHasNoErrors();
 
         $p = CustomerProfile::where('customer_id', $c->id)->firstOrFail();
         $this->assertSame('pending', $p->status);
         $this->assertSame('Mehmet', $p->first_name);
-        $this->assertSame('Türkiye', $p->country);
+        // کشور به‌صورت کدِ ISO ذخیره می‌شود — ستون char(2) است و متنِ آزاد روی MariaDB می‌شکست
+        $this->assertSame('TR', $p->country);
+        $this->assertSame('1990-04-12', $p->birth_date?->format('Y-m-d'));
+        $this->assertSame('Istanbul', $p->city);
 
         $kinds = CustomerDocument::where('customer_profile_id', $p->id)->pluck('kind')->sort()->values()->all();
-        $this->assertSame(['address_proof', 'passport'], $kinds);
+        $this->assertSame(['address_proof', 'passport', 'selfie'], $kinds);
 
         // فایل واقعاً بیرونِ webroot نشسته
         foreach (CustomerDocument::where('customer_profile_id', $p->id)->get() as $d) {
@@ -92,12 +107,9 @@ class ForeignKycTest extends TestCase
     {
         $c = $this->foreigner();
 
-        $this->actingAs($c, 'customer')->post('/en/account/verify', [
-            'type' => 'individual',
-            'first_name' => 'Jane', 'last_name' => 'Doe', 'country' => 'Germany',
-            'doc_passport' => UploadedFile::fake()->create('passport.pdf', 300, 'application/pdf'),
-            'doc_address'  => UploadedFile::fake()->image('bill.png'),
-        ])->assertSessionHasNoErrors();
+        $this->actingAs($c, 'customer')->post('/en/account/verify',
+            $this->fullKyc(['first_name' => 'Jane', 'last_name' => 'Doe', 'country' => 'DE'])
+        )->assertSessionHasNoErrors();
 
         $p = CustomerProfile::where('customer_id', $c->id)->firstOrFail();
         $this->assertTrue(IranSalesGate::blocks($c->fresh(), 'IR'), 'پیش از تأیید باید بسته باشد.');
@@ -133,12 +145,8 @@ class ForeignKycTest extends TestCase
     {
         $c = $this->foreigner();
 
-        $this->actingAs($c, 'customer')->post('/en/account/verify', [
-            'type' => 'individual',
-            'first_name' => 'Mehmet', 'last_name' => 'Yilmaz', 'country' => 'Türkiye',
-            'doc_passport' => UploadedFile::fake()->create('passport.pdf', 300, 'application/pdf'),
-            'doc_address'  => UploadedFile::fake()->image('bill.png'),
-        ])->assertSessionHasNoErrors();
+        $this->actingAs($c, 'customer')->post('/en/account/verify', $this->fullKyc())
+            ->assertSessionHasNoErrors();
 
         $html = (string) $this->actingAs($this->admin(), 'web')
             ->get('/admin/verifications')->assertOk()->getContent();
@@ -147,6 +155,8 @@ class ForeignKycTest extends TestCase
         $this->assertStringContainsString('Türkiye', $html, 'مدیر باید بداند مدارک مالِ کدام کشور است.');
         $this->assertStringContainsString($c->code, $html, 'کدِ مشتری برای رهگیری لازم است.');
         $this->assertStringContainsString('پاسپورت', $html);
+        $this->assertStringContainsString('سلفی با مدرک', $html, 'سلفی باید در فهرستِ مدارک باشد.');
+        $this->assertStringContainsString('1990-04-12', $html, 'تاریخِ تولد باید کنارِ مدارک باشد.');
     }
 
     /** صفحهٔ پروفایلِ خارجی، فرمِ پاسپورت را نشان می‌دهد */
@@ -155,7 +165,42 @@ class ForeignKycTest extends TestCase
         $html = (string) $this->actingAs($this->foreigner(), 'customer')
             ->get('/en/account/profile')->assertOk()->getContent();
 
-        $this->assertStringContainsString(__('ui.prof_doc_passport'), $html);
+        $this->assertStringContainsString(__('ui.prof_doc_id_front'), $html);
         $this->assertStringContainsString('name="doc_passport"', $html);
+        $this->assertStringContainsString('name="doc_selfie"', $html);
+        $this->assertStringContainsString('name="birth_date"', $html);
+        $this->assertStringContainsString('name="id_type"', $html);
+    }
+
+    /** 🔴 کارتِ ملی/گواهینامه پشتِ مدرک هم می‌خواهد و kindِ ذخیره‌شده همان نوع است */
+    public function test_a_card_id_requires_its_back_side(): void
+    {
+        $c = $this->foreigner();
+
+        // بدونِ پشتِ کارت ⇒ رد
+        $this->actingAs($c, 'customer')->post('/en/account/verify',
+            $this->fullKyc(['id_type' => 'national_id'])
+        )->assertSessionHasErrors(['doc_id_back']);
+
+        // با پشتِ کارت ⇒ قبول، و kind = national_id (نه «پاسپورت»)
+        $this->actingAs($c, 'customer')->post('/en/account/verify',
+            $this->fullKyc([
+                'id_type' => 'national_id',
+                'doc_id_back' => UploadedFile::fake()->image('back.jpg'),
+            ])
+        )->assertSessionHasNoErrors();
+
+        $p = CustomerProfile::where('customer_id', $c->id)->firstOrFail();
+        $kinds = CustomerDocument::where('customer_profile_id', $p->id)->pluck('kind')->sort()->values()->all();
+        $this->assertSame(['address_proof', 'id_back', 'national_id', 'selfie'], $kinds);
+    }
+
+    /** زیرِ ۱۸ سال پذیرفته نمی‌شود — همان قاعدهٔ Wise/Binance */
+    public function test_minors_are_rejected(): void
+    {
+        $res = $this->actingAs($this->foreigner(), 'customer')->post('/en/account/verify',
+            $this->fullKyc(['birth_date' => now()->subYears(17)->toDateString()]));
+
+        $res->assertSessionHasErrors(['birth_date']);
     }
 }
