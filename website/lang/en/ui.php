@@ -1184,6 +1184,8 @@ return [
     'auth_last_name' => 'Last name',
     'auth_mobile_intl_hint' => 'Include your country code - e.g. +905321234567',
     'auth_mobile_intl_bad' => 'Enter your mobile number with country code (e.g. +905321234567).',
+    'auth_sms_stage_sent' => 'Email verified ✓ - a second code was just texted to your mobile.',
+    'auth_sms_stage_fail' => 'Your email is verified, but we could not text this number. Tap "Resend" to retry, or go back and enter a different number.',
     'auth_email' => 'Email',
     'auth_email_bad' => 'That email address does not look valid.',
     'auth_email_hint' => 'Invoices, renewal reminders and service notices go to this address.',

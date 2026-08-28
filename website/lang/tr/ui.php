@@ -1184,6 +1184,8 @@ return [
     'auth_last_name' => 'Soyad',
     'auth_mobile_intl_hint' => 'Ulke kodu ile girin - orn. +905321234567',
     'auth_mobile_intl_bad' => 'Cep numaranizi ulke kodu ile girin (orn. +905321234567).',
+    'auth_sms_stage_sent' => 'E-posta dogrulandi ✓ - ikinci kod cep telefonunuza SMS ile gonderildi.',
+    'auth_sms_stage_fail' => 'E-postaniz dogrulandi ancak bu numaraya SMS gonderilemedi. "Tekrar gonder"e basin veya geri donup farkli bir numara girin.',
     'auth_email' => 'E-posta',
     'auth_email_bad' => 'Bu e-posta adresi geçerli görünmüyor.',
     'auth_email_hint' => 'Faturalar, yenileme hatırlatmaları ve hizmet bildirimleri bu adrese gelir.',
