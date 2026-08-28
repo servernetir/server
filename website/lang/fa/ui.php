@@ -1726,6 +1726,7 @@ return [
     'pnl_act_verify' => 'احراز هویت',
     'pnl_act_bank' => 'افزودن حساب',
     'pnl_act_pay' => 'پرداخت پیش‌فاکتور',
+    'inv_wire_pick' => 'حساب',
     'pnl_paid' => 'موفق',
     'pnl_all' => 'همه',
     'pnl_profile_sub' => 'اطلاعاتی که روی فاکتور و قراردادها می‌نشیند',

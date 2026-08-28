@@ -121,4 +121,28 @@ class AdminCryptoWalletsTest extends TestCase
         $res->assertSee('استخر آدرس‌های دریافت');
         $res->assertSee('الان هیچ پرداخت رمزارزی باز نیست.');
     }
+
+    /**
+     * دورهٔ خنک‌شدن تنظیم‌پذیر است (۶ شهریور: «کریپتو هی غیرفعال می‌شود»)
+     * — ۶ ساعتِ ثابت با استخرِ کوچک یعنی روشِ پرداختِ ساعت‌ها بسته.
+     */
+    public function test_the_cooldown_window_is_configurable(): void
+    {
+        $w = \App\Models\CryptoWallet::create([
+            'chain' => 'tron', 'address' => 'TCooldown00000000000000000000000000',
+            'is_active' => true, 'busy_payment_id' => 123,
+        ]);
+
+        \App\Models\Setting::put('crypto_cooldown_hours', '1');
+        $w->release();
+        $this->assertTrue($w->fresh()->cooldown_until->between(now()->addMinutes(55), now()->addMinutes(65)),
+            'با تنظیمِ ۱، خنک‌شدن باید حدودِ یک ساعت باشد.');
+
+        // خالی/نامعتبر = پیش‌فرضِ کد؛ سقف ۴۸
+        \App\Models\Setting::put('crypto_cooldown_hours', null);
+        $this->assertSame(\App\Models\CryptoWallet::COOLDOWN_HOURS, \App\Models\CryptoWallet::cooldownHours());
+
+        \App\Models\Setting::put('crypto_cooldown_hours', '999');
+        $this->assertSame(48, \App\Models\CryptoWallet::cooldownHours());
+    }
 }

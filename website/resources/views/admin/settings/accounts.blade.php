@@ -36,6 +36,23 @@
     </div>
   </div>
 
+  <div class="ad-panel">
+    <div class="ad-panel-h"><h2>دورهٔ خنک‌شدن آدرس رمزارز</h2></div>
+    <p class="set-lead">
+      بعد از انقضای هر پرداخت، آدرسش تا این مدت به مشتری بعدی داده نمی‌شود تا
+      «پرداخت دیرهنگام به آدرسی که دستِ نفرِ بعدی است» رخ ندهد. با استخرِ کوچک،
+      عددِ بزرگ یعنی روشِ رمزارز ساعت‌ها «موقتاً در دسترس نیست» — عددِ کوچک‌تر
+      بگذار و در عوض آدرسِ بیشتری به استخر اضافه کن.
+    </p>
+    <div class="set-grid three" style="padding:0 18px 18px">
+      <label class="set-f">خنک‌شدن (ساعت)
+        <input type="number" name="crypto_cooldown_hours" dir="ltr" min="0" max="48" step="1"
+               value="{{ \App\Models\Setting::get('crypto_cooldown_hours') }}"
+               placeholder="خالی = {{ \App\Models\CryptoWallet::COOLDOWN_HOURS }} ساعت (پیش‌فرض)">
+        <small>مقدارِ مؤثرِ فعلی: {{ fa_num($cryptoCooldownHours) }} ساعت</small></label>
+    </div>
+  </div>
+
   @include('admin.settings._save')
 </form>
 
@@ -132,6 +149,19 @@
 {{-- ═══ ۳) استخرِ آدرسِ رمزارز ═══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>استخر آدرس‌های دریافت رمزارز</h2><span class="ad-pill">{{ $wallets->count() }}</span></div>
+  @php
+    $wFree = $wallets->filter(fn ($w) => $w->is_active && ! $w->busy_payment_id && (! $w->cooldown_until || $w->cooldown_until->isPast()))->count();
+    $wBusy = $wallets->filter(fn ($w) => $w->is_active && $w->busy_payment_id)->count();
+    $wCool = $wallets->filter(fn ($w) => $w->is_active && ! $w->busy_payment_id && $w->cooldown_until && $w->cooldown_until->isFuture())->count();
+  @endphp
+  @if($wallets->isNotEmpty())
+    <p class="set-lead" style="margin-bottom:0">
+      وضعیتِ الان: <b style="color:#34d399">{{ fa_num($wFree) }} آزاد</b> ·
+      <b style="color:#fbbf24">{{ fa_num($wBusy) }} در حال استفاده</b> ·
+      <b style="color:#38bdf8">{{ fa_num($wCool) }} در خنک‌شدن</b>
+      — تا آدرسِ آزادی نباشد، کارتِ رمزارز روی فاکتور «موقتاً در دسترس نیست» می‌شود.
+    </p>
+  @endif
 
   <p class="set-lead">
     آدرس‌ها را در کیف خودتان (TronLink، تراست‌ولت) بسازید و فقط <b>خودِ آدرس</b> را
@@ -158,10 +188,24 @@
                 @if(! $w->is_active)
                   <span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">غیرفعال</span>
                 @elseif($w->busy_payment_id)
+                  @php $wp = $walletPayments->get($w->busy_payment_id); @endphp
                   <span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">در حال استفاده</span>
+                  @if($wp)
+                    <small style="display:block;color:var(--muted);margin-top:4px">
+                      پرداخت #{{ $wp->id }}{{ $wp->invoice_id ? ' · فاکتور '.$wp->invoice_id : '' }}
+                      @if($wp->expires_at)
+                        · {{ $wp->expires_at->isFuture()
+                              ? 'آزاد می‌شود تا '.fa_num($wp->expires_at->diffInMinutes(now())).' دقیقهٔ دیگر'
+                              : 'منقضی شده — منتظرِ کرونِ crypto:watch (هر دقیقه)' }}
+                      @endif
+                    </small>
+                  @endif
                 @elseif($w->cooldown_until && $w->cooldown_until->isFuture())
                   <span class="ad-badge" style="background:rgba(56,189,248,.14);color:#38bdf8"
                         title="پس از آزادسازی، برای جلوگیری از پرداخت دیرهنگام مدتی رزرو می‌مانَد">در دورهٔ خنک‌شدن</span>
+                  <small style="display:block;color:var(--muted);margin-top:4px">
+                    آزاد می‌شود تا {{ fa_num($w->cooldown_until->diffInMinutes(now())) }} دقیقهٔ دیگر ({{ stime($w->cooldown_until) }})
+                  </small>
                 @else
                   <span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">آزاد</span>
                 @endif
