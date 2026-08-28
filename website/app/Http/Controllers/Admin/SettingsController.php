@@ -121,6 +121,8 @@ class SettingsController extends Controller
             'aws_sns_secret'       => ['nullable', 'string', 'max:128'],
             'aws_sns_region'       => ['nullable', 'string', 'max:32', 'regex:/^[a-z0-9-]*$/'],
             'aws_sns_forget'       => ['nullable', 'boolean'],
+            // فروشِ محصولاتِ مستقر در ایران به مشتریِ بدونِ احراز هویت
+            'iran_sales_open_to_unverified' => ['nullable', 'boolean'],
         ],
         'accounts' => [
             'bank_holder'  => ['nullable', 'string', 'max:120'],
@@ -662,6 +664,14 @@ class SettingsController extends Controller
         } elseif (filled($data['salad_api_key'] ?? null)) {
             Setting::putSecret('salad_api_key', trim((string) $data['salad_api_key']));
         }
+
+        /*
+        | دروازهٔ فروشِ ایران — ذخیرهٔ صریحِ '1' یعنی باز؛ هر چیزِ دیگر (از
+        | جمله نبودِ ردیف) یعنی بسته. پیش‌فرضِ بسته عمدی است: تنظیمی که گم
+        | شود نباید بازار را به روی احرازنشده باز کند.
+        */
+        Setting::put(\App\Services\Customer\IranSalesGate::SETTING,
+            $request->boolean('iran_sales_open_to_unverified') ? '1' : null);
 
         // رازِ دروازهٔ برندشده — باید بایت‌به‌بایت با GATE_SECRETِ Worker یکی باشد
         if (filled($data['salad_gateway_secret'] ?? null)) {

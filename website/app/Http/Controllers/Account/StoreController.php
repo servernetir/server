@@ -88,7 +88,12 @@ class StoreController extends Controller
             // لایسنس نه سرور می‌خواهد نه مکان — فهرستِ خالی یعنی ویو بخشِ
             // «محلِ سرور» را اصلاً رندر نمی‌کند (و با پرچمِ isLicense، هشدارِ
             // «سرور نداریم» و غیرفعال‌شدنِ دکمه هم نمی‌آید).
-            'countries' => $product->isLicense() ? [] : $product->availableCountries(),
+            // مشتریِ احرازنشده «ایران» را اصلاً نمی‌بیند (لایهٔ نمایش؛ گیتِ
+            // سختِ سفارش پایین‌تر است — نمایش قابلِ دورزدن است، سفارش نه)
+            'countries' => $product->isLicense() ? [] : array_values(array_filter(
+                $product->availableCountries(),
+                fn ($c) => ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
+            )),
             'cycles'    => array_keys((array) config('billing.cycles', [])),
             'isLicense' => $product->isLicense(),
         ]);
@@ -151,6 +156,12 @@ class StoreController extends Controller
 
         $customer = Auth::guard('customer')->user();
         $country = $data['country'] ?? null;
+
+        // 🔴 دروازهٔ فروشِ ایران — محصولِ مستقر در ایران فقط به مشتریِ
+        // احرازشده (تصمیمِ کارفرما، ۶ شهریور ۱۴۰۵؛ تنظیمات → عمومی)
+        if (\App\Services\Customer\IranSalesGate::blocks($customer, $country)) {
+            return back()->withInput()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
+        }
         $cycle = $data['cycle'];
 
         // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
