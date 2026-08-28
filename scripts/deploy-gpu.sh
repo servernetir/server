@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-90469da}"
+MINE="${1:-835f31e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -77,6 +77,7 @@ app/Models/Service.php
 app/Services/Billing/UndeliveredRefund.php
 app/Services/Sms/SnsSender.php
 app/Services/Customer/IranSalesGate.php
+app/Support/Countries.php
 app/Http/Controllers/Account/VerificationController.php
 app/Http/Controllers/Admin/VerificationController.php
 resources/views/account/profile.blade.php
@@ -316,6 +317,13 @@ g app/Http/Controllers/Admin/SettingsController.php "aws_sns_sandbox"
 g app/Http/Controllers/Auth/RegisterController.php "foreign_phone_stage_off"
 g app/Http/Controllers/Admin/SettingsController.php "foreign_phone_stage_off"
 g resources/views/admin/settings/general.blade.php "foreign_phone_stage_off"
+g app/Support/Countries.php "ISO 3166"
+g app/Http/Controllers/Account/VerificationController.php "doc_selfie"
+g resources/views/account/profile.blade.php "vf-id-back"
+g resources/views/admin/verifications.blade.php "selfie"
+g lang/fa/ui.php "prof_doc_selfie"
+g lang/en/ui.php "prof_doc_selfie"
+g lang/tr/ui.php "prof_doc_selfie"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
