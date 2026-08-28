@@ -282,16 +282,48 @@ class CloudPlan extends Model
     // رو به **بالا** — چون ساعتی همیشه گران‌تر از تعهدِ ماهانه است و نباید زیرِ
     // قیمت برویم. ۷۲۰ همان ضریبی است که در تبدیلِ ساعتی→ماهانهٔ آروان به کار رفت.
 
+    /**
+     * 🔴 کفِ فروشِ ساعتی از بهایِ **ساعتیِ** واقعیِ زیرساخت (میکرو‌یورو).
+     *
+     * درسِ sn-svc-76 (۶ شهریور ۱۴۰۵): «ماهانه ÷ ۷۲۰» برای زیرساختی که
+     * صورت‌حسابِ ساعتی‌اش نرخِ جدا دارد (aeza: ~۳×) یعنی فروشِ زیرِ بها روی
+     * هر ساعت — و تحویلِ ساعتی عمداً با term=hour از همان نرخِ گران می‌خرد.
+     * صفر یعنی زیرساخت نرخِ ساعتی اعلام نکرده و کف همان مسیرِ ماهانه است.
+     */
+    public function hourlyCostFloorEurMicro(): int
+    {
+        $cost = (int) ($this->cost_hour_eur_micro ?? 0);
+
+        if ($cost <= 0) {
+            return 0;
+        }
+
+        $margin = app(\App\Services\Cloud\CloudPricing::class)->marginPct();
+
+        return (int) ceil($cost * (1 + $margin / 100));
+    }
+
     /** نرخِ ساعتی به تومان (گردِ رو به بالا به نزدیک‌ترین ۱۰۰ تومان برای ظاهرِ تمیز). */
     public function hourlyIrt(): int
     {
         $monthly = (int) $this->price_irt;
 
-        if ($monthly <= 0) {
-            return 0;
+        $base = $monthly > 0 ? (int) (ceil(ceil($monthly / 720) / 100) * 100) : 0;
+
+        // کفِ بهایِ ساعتیِ واقعی — بدونِ نرخِ یورو، کف قابلِ‌تبدیل نیست و base می‌مانَد
+        $floorMicro = $this->hourlyCostFloorEurMicro();
+
+        if ($floorMicro > 0) {
+            $rate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+
+            if ($rate > 0) {
+                $floorIrt = (int) (ceil(($floorMicro / 1_000_000) * $rate / 100) * 100);
+
+                return max($base, $floorIrt);
+            }
         }
 
-        return (int) (ceil(ceil($monthly / 720) / 100) * 100);
+        return $base;
     }
 
     /** نرخِ ساعتی به سنتِ یورو (برای نمایشِ en/tr). */
@@ -299,7 +331,13 @@ class CloudPlan extends Model
     {
         $monthly = (int) $this->price_eur_cents;
 
-        return $monthly > 0 ? (int) ceil($monthly / 720) : 0;
+        $base = $monthly > 0 ? (int) ceil($monthly / 720) : 0;
+
+        // ceil عمدی: خطِ قرمزِ کارفرما «هرگز زیرِ بها» است؛ گردِ پایین می‌تواند
+        // روی بهایِ یک‌سنتی حاشیه را صفر کند.
+        $floorMicro = $this->hourlyCostFloorEurMicro();
+
+        return $floorMicro > 0 ? max($base, (int) ceil($floorMicro / 10_000)) : $base;
     }
 
     /**

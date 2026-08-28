@@ -129,6 +129,33 @@ class HourlyUnderwaterGuardTest extends TestCase
         $this->assertSame(99_999, (int) $s->fresh()->hourly_rate_irt, 'reprice هرگز نرخ را پایین نمی‌آورد.');
     }
 
+    /**
+     * 🔴 بازتولیدِ دقیقِ sn-svc-76: زیرساخت نرخِ ساعتیِ جدا دارد (aeza LND-1:
+     * ماهانه €12.18 ولی ساعتی €0.05) و تحویلِ ساعتی با term=hour از همان
+     * نرخِ گران می‌خرد. «ماهانه÷۷۲۰» می‌گفت €0.0169 و همه‌چیز سبز بود؛
+     * بهایِ واقعی €0.05 بود و مشتری €0.02 می‌داد.
+     */
+    public function test_the_provider_hourly_cost_floors_the_sale_price_and_trips_the_audit(): void
+    {
+        $plan = $this->plan('aeza', 1218, 1_020_000, 1440);
+        $plan->forceFill(['cost_hour_eur_micro' => 50_000])->save(); // €0.05/h
+
+        // کفِ فروش: €0.05 × ۱٫۴۵ = €0.0725 ⇒ ۸ سنت (ceil) / ۷٬۳۰۰ تومان
+        $this->assertSame(8, $plan->fresh()->hourlyEurCents(),
+            'کفِ ساعتی باید از بهایِ ساعتیِ واقعی بیاید، نه ماهانه÷۷۲۰.');
+        $this->assertSame(7300, $plan->fresh()->hourlyIrt());
+
+        // سرویسی که با قیمتِ قدیمِ زیرِ بها قفل شده ⇒ ممیزی قرمز
+        $s = $this->hourlyService($this->customer(), $plan, 1500, 2);
+        $this->artisan('cloud:hourly-audit')->assertFailed();
+
+        // و reprice به کفِ درست می‌رساندش
+        $this->artisan('cloud:hourly-reprice --apply')->assertSuccessful();
+        $s = $s->fresh();
+        $this->assertSame(7300, (int) $s->hourly_rate_irt);
+        $this->assertSame(8, (int) $s->hourly_rate_eur);
+    }
+
     /** کرونِ ممیزی ثبت شده باشد — فرمانِ ثبت‌نشده اجرا نمی‌شود */
     public function test_the_audit_is_scheduled(): void
     {

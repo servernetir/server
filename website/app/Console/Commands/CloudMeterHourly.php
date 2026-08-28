@@ -164,9 +164,11 @@ class CloudMeterHourly extends Command
                 ? (\App\Models\CloudPlan::where('slug', $bought->slug)->where('provider', $provider)->orderByDesc('id')->first() ?? $bought)
                 : $bought;
 
+            // بهایِ ساعتیِ واقعیِ زیرساخت مقدم بر «ماهانه ÷ ۷۲۰» (درسِ sn-svc-76)
+            $hourMicro = (int) ($row->cost_hour_eur_micro ?? 0);
             $costCents = (int) $row->cost_eur_cents;
 
-            if ($costCents <= 0) {
+            if ($hourMicro <= 0 && $costCents <= 0) {
                 return;                               // بها نداریم ⇒ ادعا هم نداریم
             }
 
@@ -176,7 +178,9 @@ class CloudMeterHourly extends Command
                 return;
             }
 
-            $floorIrt = (int) ceil(($costCents / 100) * $this->eurTomanMemo / 720);
+            $floorIrt = $hourMicro > 0
+                ? (int) ceil(($hourMicro / 1_000_000) * $this->eurTomanMemo)
+                : (int) ceil(($costCents / 100) * $this->eurTomanMemo / 720);
 
             if ($rate < $floorIrt) {
                 \App\Support\ErrorTracker::noteOnce('cloud',

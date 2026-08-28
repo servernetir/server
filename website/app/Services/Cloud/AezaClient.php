@@ -632,6 +632,9 @@ class AezaClient implements CloudProvider
                 // ⚠️ هیچ تبدیلِ ارزی: حسابِ ما فقط یورو است، پس عددِ خودِ API
                 // (پس از مقسومِ صریحِ مدیر) همان سنتِ یورو است.
                 'cost_eur_cents'    => $eurCents,
+                // نرخِ ساعتیِ خودِ زیرساخت — تحویلِ ساعتی با term=hour از همین
+                // نرخ خریده می‌شود، که ~۳ برابرِ «ماهانه÷۷۲۰» است (درسِ sn-svc-76)
+                'cost_hour_eur_micro' => $this->hourlyEurMicro($p) ?: null,
                 'in_stock'          => $this->inStock($p),
             ];
         }
@@ -1168,6 +1171,36 @@ class AezaClient implements CloudProvider
      *
      * بازهٔ منطقی فقط عددِ **بی‌معنا** را رد می‌کند، نه واحد را انتخاب.
      */
+    /**
+     * قیمتِ **ساعتی** به میکرو‌یورو — همان ظرف‌ها و همان مقسومِ قیمتِ ماهانه.
+     *
+     * میکرو‌یورو چون سنت کم‌دقت است (ساعتیِ ارزان‌ترین‌ها ۳ تا ۵ سنت است و
+     * گردکردن یعنی تا ۳۰٪ خطا روی خودِ بها). ۰ یعنی این محصول نرخِ ساعتی
+     * ندارد — آن‌وقت کفِ فروشِ ساعتی از ماهانه می‌آید (رفتارِ قبلی).
+     */
+    private function hourlyEurMicro(array $p): int
+    {
+        foreach (['individualPrices', 'individual_prices', 'rawPrices', 'raw_prices',
+            'prices', 'price', 'payment'] as $bag) {
+            foreach (['hour', 'hourly', '1_hour', 'hr'] as $term) {
+                $v = data_get($p, $bag.'.'.$term);
+
+                if (is_array($v)) {
+                    $v = $v['value'] ?? $v['amount'] ?? null;
+                }
+
+                if (is_numeric($v) && (float) $v > 0) {
+                    $eur = (float) $v / self::priceDivisor();
+
+                    // بازهٔ معقولِ ساعتی؛ بیرونش = دادهٔ بی‌معنا، نه واحدِ دیگر
+                    return ($eur >= 0.001 && $eur <= 10.0) ? (int) round($eur * 1_000_000) : 0;
+                }
+            }
+        }
+
+        return 0;
+    }
+
     private function interpretMonthlyEurCents(float $raw): int
     {
         $divisor = self::priceDivisor();

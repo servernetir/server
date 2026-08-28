@@ -58,7 +58,12 @@ class CloudHourlyAudit extends Command
             [$row, $providerLabel] = $this->currentRowFor($s);
 
             $lockedEur = $this->lockedEurPerHour($s, $eurToman);
-            $costEur = $row ? round(((int) $row->cost_eur_cents) / 720 / 100, 4) : null;
+            // 🔴 بهایِ ساعتیِ واقعی مقدم است: تحویلِ ساعتی با term=hour از نرخِ
+            // ساعتیِ زیرساخت خریده می‌شود که می‌تواند ~۳×ِ «ماهانه÷۷۲۰» باشد.
+            $hourMicro = (int) ($row->cost_hour_eur_micro ?? 0);
+            $costEur = $row
+                ? ($hourMicro > 0 ? round($hourMicro / 1_000_000, 4) : round(((int) $row->cost_eur_cents) / 720 / 100, 4))
+                : null;
             $priceEur = $row ? round($row->hourlyEurCents() / 100, 4) : null;
 
             $verdict = 'ok';

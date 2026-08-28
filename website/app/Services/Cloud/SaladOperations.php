@@ -348,7 +348,11 @@ trait SaladOperations
             'traffic_gb'        => 0,
             'cpu_kind'          => 'shared',
             'arch'              => 'x86',
-            'cost_eur_cents'    => $this->monthlyEurCents($totalUsdHour),
+            'cost_eur_cents'    => ($monthlyCents = $this->monthlyEurCents($totalUsdHour)),
+            // بهایِ این زیرساخت ذاتاً ساعتی است؛ همان ماهانه ÷ ۷۳۰ به میکرو‌یورو
+            'cost_hour_eur_micro' => $monthlyCents > 0
+                ? (int) round($monthlyCents / self::HOURS_PER_MONTH * 10_000)
+                : null,
             // ⚠️ «پرتقاضا» را همان‌طور که خودشان می‌گویند منتقل می‌کنیم؛
             //    فروشِ کارتی که موجود نیست یعنی پولِ گرفته‌شده و تحویلِ ناممکن.
             'in_stock'          => ! (bool) ($g['is_high_demand'] ?? false),

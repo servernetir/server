@@ -336,6 +336,15 @@ class HetznerClient implements CloudProvider
                     'cpu_kind'          => ((string) ($t['cpu_type'] ?? 'shared')) === 'dedicated' ? 'dedicated' : 'shared',
                     'arch'              => ((string) ($t['architecture'] ?? 'x86')) === 'arm' ? 'arm' : 'x86',
                     'cost_eur_cents'    => (int) round($monthly * 100) + $ipv4Cents,
+                    /*
+                    | نرخِ ساعتیِ خودِ هتزنر (net) + سهمِ ساعتیِ IPv4 — به
+                    | میکرو‌یورو، چون زیرِ یک سنت است و در سنت گم می‌شد.
+                    | صورت‌حسابِ ساعتیِ هتزنر از «ماهانه÷۷۲۰» گران‌تر است؛
+                    | بی‌این ستون، کفِ فروشِ ساعتی از بهایِ واقعی کمتر می‌ماند.
+                    */
+                    'cost_hour_eur_micro' => ($h = (float) data_get($p, 'price_hourly.net', 0)) > 0
+                        ? (int) round($h * 1_000_000 + ($ipv4Cents / 720) * 10_000)
+                        : null,
                     'in_stock'          => (bool) ($availability[$locRef][$id] ?? false),
                 ];
             }

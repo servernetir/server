@@ -298,6 +298,12 @@ class CloudCatalogSync
                     // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
                     // عمداً بسته، دو روز بعد خودش باز می‌شد.
                 ] + $costTrack
+                // بهایِ ساعتیِ واقعیِ زیرساخت (درسِ sn-svc-76) — فقط اگر ستونش
+                // ساخته شده باشد، تا syncِ پیش از مهاجرت نشکند.
+                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'cost_hour_eur_micro')
+                    ? ['cost_hour_eur_micro' => (int) ($r['cost_hour_eur_micro'] ?? 0) > 0
+                        ? (int) $r['cost_hour_eur_micro'] : null]
+                    : [])
             );
 
             $seen[] = $ref.'@'.$code;
