@@ -50,6 +50,18 @@ class PageCacheTest extends TestCase
     /**
      * 🔴 مهم‌ترین ادعای این پرونده: HIT توکنِ نشستِ **همین** بازدیدکننده را
      * حمل می‌کند، نه توکنِ ذخیره‌شده‌ی نفرِ اول را.
+     *
+     * ⚠️ نسخهٔ قبلی دو بار `get('/')` می‌زد و انتظار داشت توکن‌ها فرق کنند،
+     * با این توضیح که «کلاینتِ تست کوکی حمل نمی‌کند». آن فرض غلط است:
+     * کلاینتِ تستِ لاراول نشست را بینِ درخواست‌های یک تست **نگه می‌دارد**، پس
+     * هر دو درخواست یک توکن داشتند و تست قرمز می‌شد بی‌آنکه چیزی خراب باشد.
+     *
+     * 🔴 و بدتر از قرمزیِ کاذب: آن‌طور نوشته‌شده، تست **هرگز** نمی‌توانست
+     * تعویضِ توکن را بسنجد — با گاردِ حذف‌شده هم دو توکن یکسان می‌ماندند و
+     * باز هم قرمز بود. تستی که در هر دو حالت یک جواب می‌دهد، هیچ نمی‌سنجد.
+     *
+     * حالا نشستِ بازدیدکنندهٔ دوم **صریح** ساخته می‌شود و ادعا مستقیم است:
+     * توکنِ او در HTML باشد و توکنِ نفرِ اول هیچ‌جا نمانده باشد.
      */
     public function test_a_cache_hit_carries_the_current_visitors_csrf_token(): void
     {
@@ -60,17 +72,23 @@ class PageCacheTest extends TestCase
         };
 
         $first = $this->get('/');
+        $first->assertHeader('X-Cache', 'MISS');
         $tokenA = $grab($first);
         $this->assertNotSame('', $tokenA, 'متا توکن در صفحه نیست — پیش‌فرضِ این تست عوض شده');
 
-        // درخواستِ دوم نشستِ تازه دارد (کلاینتِ تست کوکی حمل نمی‌کند)
-        $second = $this->get('/');
-        $second->assertHeader('X-Cache', 'HIT');
-        $tokenB = $grab($second);
+        // بازدیدکنندهٔ دوم: نشستی با توکنِ کاملاً متفاوت و قابلِ تشخیص
+        $tokenB = 'SecondVisitorToken'.str_repeat('b', 22);
+        $this->assertNotSame($tokenA, $tokenB);
 
-        $this->assertNotSame('', $tokenB);
-        $this->assertNotSame($tokenA, $tokenB,
-            'توکنِ نفرِ اول از کش بازپخش شده — اولین POSTِ هر بازدیدکنندهٔ تازه ۴۱۹ می‌گیرد');
+        $second = $this->withSession(['_token' => $tokenB])->get('/');
+        $second->assertHeader('X-Cache', 'HIT');
+
+        $this->assertSame($tokenB, $grab($second),
+            'HIT توکنِ نفرِ اول را بازپخش کرد — اولین POSTِ هر بازدیدکنندهٔ تازه ۴۱۹ می‌گیرد');
+
+        // و هیچ ردی از توکنِ نفرِ اول نمانده باشد (input های _token هم عوض شوند)
+        $this->assertStringNotContainsString($tokenA, $second->getContent(),
+            'توکنِ نفرِ اول هنوز جایی در HTML مانده');
     }
 
     public function test_a_session_cookie_bypasses_the_cache(): void

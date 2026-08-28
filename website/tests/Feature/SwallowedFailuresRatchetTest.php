@@ -51,7 +51,9 @@ class SwallowedFailuresRatchetTest extends TestCase
         'app/Console/Commands/RunServiceLifecycle.php'            => 1,
         'app/Http/Controllers/Account/CloudStoreController.php'   => 2,
         'app/Http/Controllers/Account/ServiceController.php'      => 3,
-        'app/Http/Controllers/Account/VerificationController.php' => 2,
+        // ⚠️ ۲ ← ۱ (شهریور ۱۴۰۵): یکی از این دو رد گرفت. خطِ پایه پایین آمد
+        //    تا امتیازِ به‌دست‌آمده پس نرود — همان جهتِ دومِ این خط‌کش.
+        'app/Http/Controllers/Account/VerificationController.php' => 1,
         'app/Http/Controllers/Admin/BankTransferController.php'   => 1,
         /*
         | ⚠️ این یکی با ادغامِ «سایت‌ساز فاز C» آمد و **کارِ من نیست**؛ خط‌پایه
@@ -62,7 +64,9 @@ class SwallowedFailuresRatchetTest extends TestCase
         | نویسنده‌اش تصمیم بگیرد.
         */
         'app/Http/Controllers/Api/DomainApiController.php'        => 1,
-        'app/Http/Controllers/Admin/VerificationController.php'   => 2,
+        // ⚠️ `Admin/VerificationController.php` از این فهرست **حذف** شد: هر دو
+        //    catch خالی‌اش رد گرفتند. ردیفِ صفر نمی‌گذاریم تا فهرست فقط چیزی
+        //    را نشان دهد که واقعاً هست.
         'app/Http/Middleware/CustomerApiToken.php'                => 1,
         'app/Services/Bale/Admin/AdminBaleGate.php'               => 1,
         'app/Services/Cloud/CloudProvisioner.php'                 => 11,
@@ -70,6 +74,40 @@ class SwallowedFailuresRatchetTest extends TestCase
         'app/Services/Payment/PaymentService.php'                 => 2,
         'app/Services/Provisioning/ProvisioningService.php'       => 1,
         'routes/web.php'                                          => 3,
+
+        /*
+        | ═══ افزوده‌های شهریور ۱۴۰۵ — هر شش مورد خوانده شد ═══
+        |
+        | این‌ها با کارِ خطِ ابری/GPU و بازبینیِ احراز هویت آمدند. چهار موردِ
+        | دیگرِ همان دسته **باعثِ بلعِ بی‌رد بودند و رد گرفتند** (آژیرِ «زیرِ
+        | بها»، خبرِ تغییرِ نرخ به مشتری، و دو مسیرِ اعلامِ نتیجهٔ احراز هویت)؛
+        | آن‌ها دیگر خالی نیستند و این‌جا هم نیامده‌اند.
+        |
+        | شش موردِ زیر عمداً خالی می‌مانند، چون شکستشان جای دیگری دیده می‌شود:
+        |
+        |   · `SaladClient` — `$r->json()` روی بدنهٔ غیرِ JSON. نتیجهٔ شکست
+        |     خودِ `body = null` است و هر فراخوان همان را می‌سنجد.
+        |
+        |   · `UndeliveredRefund` ×۲ — یکی دفترداریِ `BusinessLedger` (دلیلش
+        |     در خودِ کد نوشته شده: ردِ پول در `CreditEntry` هست و دفترداری
+        |     نباید بازگشتِ پولِ مشتری را بشکند)، یکی `ActivityLog`.
+        |
+        |   · `CloudHourlyReprice` ×۱ و `KycReview` ×۲ — همگی `ActivityLog`.
+        |
+        | ⚠️ دلیلِ مشترکِ ردنگرفتنِ `ActivityLog`: خودش یک نوشتنِ دیتابیسی است،
+        | درست کنارِ نوشتنِ اصلی که همان لحظه موفق شده. تنها راهِ شکستش قطعیِ
+        | دیتابیس است — و در آن حالت `ErrorTracker` هم که روی همان دیتابیس
+        | می‌نویسد شکست می‌خورد. ردِ دوم این‌جا نویزِ تکراری است، نه اطلاعات.
+        |
+        | 🔴 و مرزش دقیقاً همین است: هر جا خروجیِ آن catch به **بیرون** می‌رود
+        | (پیامک، ایمیل، بله) شکستش قابلِ اطلاع است و باید رد بگذارد — چون
+        | دیتابیس سالم است و فقط مقصد نرسیده. برای همین آن چهار مورد رد
+        | گرفتند و این شش مورد نه.
+        */
+        'app/Console/Commands/CloudHourlyReprice.php'             => 1,
+        'app/Services/Billing/UndeliveredRefund.php'              => 2,
+        'app/Services/Cloud/SaladClient.php'                      => 1,
+        'app/Services/Customer/KycReview.php'                     => 2,
     ];
 
     /** شمارشِ `catch` با بدنهٔ کاملاً خالی، به تفکیکِ فایل. */

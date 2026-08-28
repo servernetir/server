@@ -112,9 +112,17 @@ class KycReview
             return;
         }
 
+        /*
+        | 🔴 هر دو مسیرِ زیر ممکن است بشکنند و هیچ‌کدام نباید بازبینی را
+        | بشکند (تصمیمِ مدیر از قبل ثبت شده). ولی «نشکستن» یعنی ادامه دادن،
+        | نه فراموش‌کردن: مشتری‌ای که نتیجهٔ احراز هویتش را نگیرد، تا ابد منتظر
+        | می‌مانَد و بعد تیکت می‌زند — و آن‌وقت کسی نمی‌داند چرا خبر نرفته.
+        */
         try {
             app(CustomerNotifier::class)->message($customer, $text);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::noteOnce('kyc',
+                'نتیجهٔ احراز هویت به مشتریِ #'.$customer->id.' اعلام نشد (پیام‌رسان): '.$e->getMessage(), 900);
         }
 
         $email = $profile->email ?: $customer->email;
@@ -125,7 +133,9 @@ class KycReview
                     ? 'وضعیتِ احراز هویت — سرورنت'
                     : 'Identity verification — ServerNet';
                 Mail::mailer('smtp')->raw($text, fn ($m) => $m->to($email)->subject($subject));
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                \App\Support\ErrorTracker::noteOnce('kyc',
+                    'ایمیلِ نتیجهٔ احراز هویت به مشتریِ #'.$customer->id.' نرفت: '.$e->getMessage(), 900);
             }
         }
     }

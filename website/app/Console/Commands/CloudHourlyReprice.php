@@ -101,7 +101,15 @@ class CloudHourlyReprice extends Command
                         'rate'    => $this->money($newIrt, $newEur, $loc),
                     ], $loc));
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                /*
+                | 🔴 نرخِ مشتری **همین حالا** بالا رفت و در دیتابیس نشست. اگر خبرش
+                | نرسد، اولین نشانه‌اش برای مشتری کسرِ بیشتر از کیفِ پول است —
+                | یعنی همان تغییرِ قیمتی که آگاهانه و باخبر انجام دادیم، از دیدِ او
+                | یک کسرِ بی‌توضیح می‌شود.
+                */
+                \App\Support\ErrorTracker::noteOnce('billing',
+                    'خبرِ تغییرِ نرخِ ساعتی به مشتریِ سرویسِ #'.$s->id.' نرفت: '.$e->getMessage(), 3600);
             }
         }
 

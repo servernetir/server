@@ -161,7 +161,17 @@ class CloudHourlyAudit extends Command
                 }
 
                 app(AdminNotifier::class)->event('ضررِ در جریان: سرورِ ساعتیِ زیرِ بها', $rows, null, '💸', $buttons);
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                /*
+                | 🔴 این آژیر است، نه یک اعلانِ تزئینی. اگر بی‌صدا شکست بخورد،
+                | تنها چیزی که دربارهٔ ضررِ در جریان خبر می‌داد از بین می‌رود و
+                | کرون با کدِ FAILURE تمام می‌شود که هیچ‌کس نمی‌بیندش.
+                |
+                | همان قاعدهٔ ثبت‌شدهٔ پروژه: چیزی که قرار است از مرگِ یک وابستگی
+                | خبر دهد، نباید خودش بی‌رد بمیرد.
+                */
+                \App\Support\ErrorTracker::noteOnce('pricing',
+                    'آژیرِ «سرورِ ساعتیِ زیرِ بها» فرستاده نشد ('.count($underwater).' سرویس): '.$e->getMessage(), 3600);
             }
         }
 
