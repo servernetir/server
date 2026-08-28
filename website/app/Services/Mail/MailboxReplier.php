@@ -98,18 +98,49 @@ class MailboxReplier
         | هم می‌برد) پاسخِ دوم با اعتبارنامهٔ صندوقِ اول می‌رفت — دقیقاً همان
         | ناسازگاریِ From/احرازشده که این کلاس برای جلوگیری از آن نوشته شده.
         */
-        $mailerKey = 'mailbox_runtime_'.preg_replace('~[^a-z0-9_]~i', '_', (string) $m->account);
+        /*
+        | ═══ 🔴 این کلاس از `MAIL_MAILER` رد می‌شد ═══
+        |
+        | پایین یک mailerِ `transport => smtp` **در لحظه** ساخته می‌شود تا
+        | پاسخ از نشانیِ خودِ صندوق برود (دلیلش بالا). ولی همین یعنی
+        | تنظیمِ سراسریِ «ایمیل نفرست» بی‌اثر است: در محیطی که
+        | `MAIL_MAILER=array` یا `log` است، این کلاس باز هم یک سوکتِ
+        | **واقعی** به SMTP باز می‌کند.
+        |
+        | اثرِ واقعی‌اش در سوئیت دیده شد — نه به‌صورتِ تستِ قرمز، بلکه:
+        |
+        |     Fatal error: Maximum execution time of 200 seconds exceeded
+        |     in symfony/mailer/Transport/Smtp/Stream/SocketStream.php
+        |
+        | یعنی کلِ اجرا وسطِ کار مُرد و هیچ گزارشی نداد. همان خانوادهٔ باگی که
+        | در `ExchangeRate`/`CryptoPrice` بود: کدی که تنظیمِ محیط را دور می‌زند
+        | و به بیرون وصل می‌شود.
+        |
+        | ⚠️ این فقط محافظِ تست نیست: هر محیطی که آگاهانه روی «نفرست» تنظیم
+        | شده (staging، اجرای محلی، بازیابیِ حادثه) نباید از این‌جا نامهٔ
+        | واقعی بفرستد. برگرداندنِ mailerِ پیش‌فرض دقیقاً همان کارِ درست است —
+        | نامه ساخته و ثبت می‌شود، ولی روی سیم نمی‌رود.
+        */
+        $default = (string) config('mail.default');
 
-        config(['mail.mailers.'.$mailerKey => [
-            'transport'    => 'smtp',
-            'scheme'       => $smtpScheme,
-            'host'         => $smtpHost,
-            'port'         => $smtpPort,
-            'username'     => $from,
-            'password'     => $pass,
-            'timeout'      => 20,
-            'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST),
-        ]]);
+        if (in_array($default, ['array', 'log', 'null'], true)) {
+            $mailerKey = $default;
+        } else {
+            $mailerKey = 'mailbox_runtime_'.preg_replace('~[^a-z0-9_]~i', '_', (string) $m->account);
+        }
+
+        if ($mailerKey !== $default) {
+            config(['mail.mailers.'.$mailerKey => [
+                'transport'    => 'smtp',
+                'scheme'       => $smtpScheme,
+                'host'         => $smtpHost,
+                'port'         => $smtpPort,
+                'username'     => $from,
+                'password'     => $pass,
+                'timeout'      => 20,
+                'local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST),
+            ]]);
+        }
 
         $subject = $this->replySubject((string) $m->subject);
         $text    = $this->compose($body, $m);
