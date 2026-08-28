@@ -231,7 +231,18 @@ class CloudMeterHourly extends Command
             'note'          => "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان',
         ]);
 
-        ActivityLog::forService($service, 'renew', "کسرِ ساعتی: {$hours} ساعت", 'system');
+        /*
+        | لاگی که مشتری می‌بیند: به زبانِ خودش، با مبلغِ کسرشده و ماندهٔ اعتبار
+        | (خواستِ صریحِ کارفرما). invoice_money داخلِ زبانِ مشتری، تومان/یورو را
+        | خودش درست می‌کند.
+        */
+        $this->asCustomer($customer, fn () => ActivityLog::forService(
+            $service, 'renew',
+            __('ui.act_hourly_charge', [
+                'hours'  => fa_num($hours),
+                'amount' => invoice_money(abs($amount)),
+                'left'   => invoice_money(max(0, $balance + $amount)),
+            ]), 'system'));
 
         $this->warnIfCreditLow($service, $customer, $rate, $balance + $amount);
 
@@ -275,7 +286,7 @@ class CloudMeterHourly extends Command
         }
 
         if ($mode === 'terminate') {
-            $this->closeAndRelease($service, 'اتمامِ اعتبارِ ساعتی → حذفِ سرور');
+            $this->closeAndRelease($service, __('ui.act_hourly_creditout_del', [], $service->customer?->locale ?: 'fa'));
 
             return;
         }
@@ -291,11 +302,13 @@ class CloudMeterHourly extends Command
         */
         $ok = $prov->suspend($service);
         $service->update(['status' => 'suspended', 'suspended_at' => now()]);
-        ActivityLog::forService($service, 'suspend', 'اتمامِ اعتبارِ ساعتی → تعلیق', 'system');
+        $this->asCustomer($service->customer, fn () => ActivityLog::forService(
+            $service, 'suspend', __('ui.act_hourly_suspend'), 'system'));
         $this->notifyCustomer($service, 'hourly_credit_out',
             'اعتبارِ سرویسِ ساعتیِ «'.$service->name.'» تمام شد و سرور موقتاً خاموش شد. '
             .'با شارژِ کیفِ پول، سرور خودکار روشن می‌شود؛ در غیرِ این صورت پس از مهلتِ '
-            .self::SUSPEND_GRACE_HOURS.' ساعته حذف خواهد شد.');
+            .self::SUSPEND_GRACE_HOURS.' ساعته حذف خواهد شد.',
+            ['grace' => self::SUSPEND_GRACE_HOURS]);
 
         if (! $ok) {
             $prov->recordSuspendFailure($service);
@@ -348,7 +361,8 @@ class CloudMeterHourly extends Command
             'status'       => 'active',
         ]);
 
-        ActivityLog::forService($service, 'renew', 'تبدیلِ ساعتی → ماهانه (اتمامِ اعتبار)', 'system');
+        $this->asCustomer($customer, fn () => ActivityLog::forService(
+            $service, 'renew', __('ui.act_hourly_convert', ['amount' => invoice_money($monthly)]), 'system'));
 
         return true;
     }
@@ -391,7 +405,8 @@ class CloudMeterHourly extends Command
             if ($rate > 0 && $customer->creditBalance('IRT') >= $rate) {
                 $prov->unsuspend($service);
                 $service->update(['status' => 'active', 'suspended_at' => null, 'last_metered_at' => now()]);
-                ActivityLog::forService($service, 'reactivate', 'شارژِ مجدد → روشن‌شدنِ سرورِ ساعتی', 'system');
+                $this->asCustomer($customer, fn () => ActivityLog::forService(
+                    $service, 'reactivate', __('ui.act_hourly_resume'), 'system'));
 
                 continue;
             }
@@ -400,7 +415,7 @@ class CloudMeterHourly extends Command
             $since = $service->suspended_at instanceof Carbon ? $service->suspended_at : null;
 
             if ($since !== null && $since->diffInHours(now()) >= self::SUSPEND_GRACE_HOURS) {
-                $this->closeAndRelease($service, 'پایانِ مهلتِ تعلیقِ ساعتی → حذفِ سرور');
+                $this->closeAndRelease($service, __('ui.act_hourly_grace_del', [], $service->customer?->locale ?: 'fa'));
             }
         }
     }
@@ -448,11 +463,12 @@ class CloudMeterHourly extends Command
 
         $this->notifyCustomer($service, 'hourly_low_credit',
             'اعتبارِ سرویسِ ساعتیِ «'.$service->name.'» فقط برای حدودِ '
-            .$hoursLeft.' ساعتِ دیگر کافی است. برای جلوگیری از خاموش‌شدن، کیفِ پول را شارژ کنید.');
+            .$hoursLeft.' ساعتِ دیگر کافی است. برای جلوگیری از خاموش‌شدن، کیفِ پول را شارژ کنید.',
+            ['hours' => $hoursLeft]);
     }
 
     /** اعلان به زبانِ خودِ مشتری؛ شکستِ اعلان هرگز متر را نمی‌شکند. */
-    private function notifyCustomer(Service $service, string $key, string $text): void
+    private function notifyCustomer(Service $service, string $key, string $text, array $vars = []): void
     {
         try {
             $customer = $service->customer;
@@ -463,11 +479,29 @@ class CloudMeterHourly extends Command
 
             app()->setLocale($customer->locale ?: 'fa');
             app(\App\Services\Notify\CustomerNotifier::class)
-                ->templated($customer, $key, ['service' => $service->name], $text);
+                ->templated($customer, $key, ['service' => $service->name] + $vars, $text);
         } catch (\Throwable) {
             // اعلان تزئینِ متر است، نه شرطِ آن
         } finally {
             app()->setLocale(config('app.locale'));
+        }
+    }
+
+    /**
+     * اجرای یک بلوک با زبانِ خودِ مشتری — تا __() و invoice_money هر دو به
+     * زبان/ارزِ درست دربیایند. لاگِ فعالیت و یادداشتِ دفترِ اعتبار را **مشتری**
+     * می‌خوانَد (گزارشِ کارفرما، ۶ شهریور: «کسر ساعتی ۱ ساعت» فارسی روی حسابِ
+     * انگلیسی)، پس زبانِ نوشتنشان زبانِ اوست، نه زبانِ کرون.
+     */
+    private function asCustomer(?\App\Models\Customer $customer, \Closure $fn): mixed
+    {
+        $prev = app()->getLocale();
+        app()->setLocale($customer?->locale ?: 'fa');
+
+        try {
+            return $fn();
+        } finally {
+            app()->setLocale($prev);
         }
     }
 

@@ -1178,7 +1178,7 @@ class CloudStoreController extends Controller
         [$service, $invoice] = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
             $service = Service::create([
                 'customer_id' => $customer->id,
-                'name' => mb_substr('سرور مجازی '.$label, 0, 150),
+                'name' => mb_substr(__('ui.svc_name_vps', ['label' => $label]), 0, 150),
                 'description' => $description,
                 'currency_code' => 'IRT',
                 'price' => $price,
@@ -1343,7 +1343,7 @@ class CloudStoreController extends Controller
         $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $balance) {
             $service = Service::create([
                 'customer_id'      => $customer->id,
-                'name'             => mb_substr('سرور مجازی '.$label.' (ساعتی)', 0, 150),
+                'name'             => mb_substr(__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
                 'description'      => $description,
                 'currency_code'    => 'IRT',
                 'price'            => $monthly,        // مرجعِ تبدیل به ماهانه
@@ -1393,8 +1393,11 @@ class CloudStoreController extends Controller
 
         try {
             ActivityLog::forService($service, 'purchase',
-                'سفارشِ سرورِ ساعتی «'.$label.'» — '.$offer->public_name.' · '.$locText
-                .' · '.fa_num(number_format($hourly)).' تومان/ساعت (پرداخت از کیفِ پول)', 'customer', $request);
+                __('ui.act_hourly_order', [
+                    'label' => $label,
+                    'loc'   => $locText,
+                    'rate'  => invoice_money($hourly),
+                ]), 'customer', $request);
         } catch (\Throwable) {
         }
 
@@ -1464,12 +1467,12 @@ class CloudStoreController extends Controller
             'paid' => 0,
             'status' => 'unpaid',
             'issued_at' => now(),
-            'note' => 'سرور مجازی '.$offer->public_name,
+            'note' => __('ui.svc_name_vps', ['label' => $offer->public_name]),
         ]);
 
         InvoiceItem::create([
             'invoice_id' => $invoice->id,
-            'title' => 'سرور مجازی '.$offer->public_name.' ('.$service->cycleLabel().')',
+            'title' => __('ui.svc_name_vps', ['label' => $offer->public_name]).' ('.$service->cycleLabel().')',
             'description' => $label,
             'quantity' => 1,
             'unit_price' => $unitPrice,
