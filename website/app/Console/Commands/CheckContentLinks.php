@@ -44,8 +44,21 @@ class CheckContentLinks extends Command
         $known = $this->knownPaths();
         $limit = (int) $this->option('limit');
 
+        /*
+         * ⚠️ ستون‌ها `content` و `posts.slug` اند — نه `body` و نه `slug` روی
+         * همین جدول. نسخهٔ اول هر دوی آن نام‌ها را می‌خواست، پس این فرمان از
+         * روزِ نوشته‌شدنش با «no such column: body» می‌ترکید و هرگز حتی یک لینک
+         * را نسنجید. کرونی نداشت که خبر دهد، و خروجی‌اش را کسی ندید — یعنی یک
+         * ابزارِ ممیزی که خودش خراب بود و «هیچ لینکِ شکسته‌ای نیست» هم نمی‌گفت.
+         */
         $rows = PostTranslation::query()
-            ->select(['id', 'post_id', 'locale', 'slug', 'body'])
+            ->join('posts', 'posts.id', '=', 'post_translations.post_id')
+            ->select([
+                'post_translations.id',
+                'post_translations.locale',
+                'post_translations.content',
+                'posts.slug',
+            ])
             ->when($limit > 0, fn ($q) => $q->limit($limit))
             ->get();
 
@@ -53,7 +66,7 @@ class CheckContentLinks extends Command
         $checked = 0;
 
         foreach ($rows as $t) {
-            preg_match_all('~href=["\']([^"\']+)["\']~i', (string) $t->body, $m);
+            preg_match_all('~href=["\']([^"\']+)["\']~i', (string) $t->content, $m);
 
             foreach (array_unique($m[1]) as $href) {
                 $path = $this->internalPath($href);

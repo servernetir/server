@@ -1486,3 +1486,65 @@ if (! function_exists('trust_seals')) {
         return $out;
     }
 }
+
+if (! function_exists('article_faq_ld')) {
+    /**
+     * استخراجِ بلوکِ «پرسش‌های پرتکرار» از متنِ مقاله و ساختِ FAQPage JSON-LD.
+     *
+     * ═══ چرا از خودِ متن و نه یک ستونِ جدا ═══
+     *
+     * پرسش‌ها را نویسنده در همان بدنه می‌نویسد. اگر برای schema یک ستونِ جدا
+     * بسازیم، دو نسخه از یک محتوا داریم و روزی که یکی ویرایش شود، گوگل
+     * پاسخی را نشان می‌دهد که دیگر در صفحه نیست — و آن نقضِ صریحِ قواعدِ
+     * structured data است (جریمه‌اش حذفِ کلِ rich resultِ دامنه است، نه یک صفحه).
+     *
+     * پس تنها منبع، خودِ HTML است. اگر بخشِ پرسش نبود، خروجی رشتهٔ خالی است و
+     * قالب هیچ تگی چاپ نمی‌کند — schemaِ خالی بدتر از نبودنش است.
+     *
+     * ⚠️ هر سه زبان الگوی عنوانِ خودشان را دارند. تطبیق روی **همهٔ** آنهاست،
+     * نه فقط فارسی: نسخهٔ انگلیسی هم باید rich result بگیرد.
+     */
+    function article_faq_ld(string $html): string
+    {
+        if (trim($html) === '') {
+            return '';
+        }
+
+        $heads = 'پرسش‌های پرتکرار|پرسش‌های متداول|سوالات متداول'
+            .'|frequently asked questions|faq|common questions'
+            .'|sıkça sorulan sorular|sss';
+
+        // بدنه را از عنوانِ پرسش‌ها تا انتها (یا تا h2ِ بعدی) جدا کن
+        if (! preg_match('~<h2[^>]*>\s*(?:'.$heads.')\s*</h2>(.*?)(?=<h2\b|$)~isu', $html, $m)) {
+            return '';
+        }
+
+        // هر <h3> یک پرسش است و هرچه تا h3ِ بعدی بیاید پاسخِ آن
+        if (! preg_match_all('~<h3[^>]*>(.*?)</h3>(.*?)(?=<h3\b|$)~isu', $m[1], $qa, PREG_SET_ORDER)) {
+            return '';
+        }
+
+        $items = [];
+        foreach ($qa as $pair) {
+            $q = trim(html_entity_decode(strip_tags($pair[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $a = trim(html_entity_decode(strip_tags($pair[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $a = trim(preg_replace('~\s+~u', ' ', $a));
+
+            // پرسشِ بی‌پاسخ در schema یعنی آیتمِ نامعتبر و ردِ کلِ صفحه
+            if ($q === '' || mb_strlen($a) < 20) {
+                continue;
+            }
+
+            $items[] = [
+                '@'.'type' => 'Question',
+                'name' => mb_substr($q, 0, 300),
+                'acceptedAnswer' => [
+                    '@'.'type' => 'Answer',
+                    'text' => mb_substr($a, 0, 1200),
+                ],
+            ];
+        }
+
+        return $items === [] ? '' : schema_ld(['mainEntity' => $items], 'FAQPage');
+    }
+}
