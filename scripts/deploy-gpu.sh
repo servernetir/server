@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-1c41ab4}"
+MINE="${1:-6637cdb}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -168,6 +168,17 @@ dist() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
 
 normalize() { tr -d '\r' < "$1" | sed -e '$a\' > "$2"; }
 
+# ═══ جایگزینیِ اجباری ═══
+# فقط برای فایل‌هایی که نسخهٔ مخزن **ادغامِ کاملِ** کارِ سرور + کارِ ماست
+# (بازیابیِ ایجنتِ تونل، ۶ شهریور). منطقِ سه‌طرفه این‌جا وارونه عمل می‌کند:
+# «تغییرِ دیگران» که حفظ می‌کند همان نسخهٔ پیشاادغام است. بکاپ و php -l و
+# گاردها سرِ جایشان‌اند. ⚠️ بعد از اولین دیپلویِ موفق این فهرست را خالی کن.
+FORCE_FILES="
+app/Http/Controllers/Account/CloudServerController.php
+resources/views/account/cloud-server.blade.php
+database/migrations/2026_10_02_000101_create_tunnel_jobs_table.php
+"
+
 apply_one() {
   rel="$1"; dest="$2/$rel"
   mine_f="$WORK/mine.tmp"; base_f="$WORK/base.tmp"
@@ -187,6 +198,15 @@ apply_one() {
   fi
 
   dest_n="$WORK/dest.tmp"; normalize "$dest" "$dest_n"
+
+  case " $(echo $FORCE_FILES) " in *" $rel "*)
+    if cmp -s "$dest_n" "$mine_f"; then
+      echo "OK    $rel"; return
+    fi
+    [ "$DRY" = "0" ] && cp "$mine_f" "$dest"
+    echo "FR    $rel   (جایگزینیِ اجباری — ادغام از قبل در مخزن انجام شده)"
+    UPD=$((UPD+1)); return
+  ;; esac
 
   if cmp -s "$dest_n" "$mine_f"; then
     cmp -s "$dest" "$mine_f" || { [ "$DRY" = "0" ] && cp "$mine_f" "$dest"; echo "EOL   $rel   (فقط پایانِ خط)"; UPD=$((UPD+1)); return; }
@@ -393,6 +413,11 @@ g app/Models/CustomerApiToken.php "tunnel:write"
 g routes/web.php "TunnelAgentController"
 g lang/en/ui.php "cxp_ag_off_h"
 g lang/tr/ui.php "cxp_ag_off_h"
+g app/Console/Commands/CloudMeterHourly.php "act_hourly_charge"
+g app/Http/Controllers/Account/CloudStoreController.php "svc_name_vps"
+g lang/en/ui.php "act_hourly_charge"
+g lang/tr/ui.php "act_hourly_charge"
+g lang/en/ui.php "ntf_hourly_credit_out_b"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
 g lang/en/ui.php "auth_sms_sandbox_sent"
