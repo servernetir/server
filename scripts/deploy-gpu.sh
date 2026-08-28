@@ -219,6 +219,10 @@ apply_one() {
     CONFLICTS="$CONFLICTS $rel"
     keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
     cp "$dest" "$keep.server"; cp "$base_f" "$keep.base"; cp "$mine_f" "$keep.new"
+    # تفاوتِ «سرور نسبت به پایه» = کاری که فقط روی سرور هست و باید در مخزن ادغام شود
+    echo "──── سرور − پایه ($rel) — این تکه در مخزن نیست:"
+    diff -u "$base_f" "$dest_n" | sed -n '1,140p'
+    echo "──── پایانِ diff"
   fi
 }
 
@@ -372,7 +376,7 @@ g lang/en/ui.php "rsl_h"
 g resources/views/account/domain-show.blade.php "dpg_renew_h"
 g resources/views/account/store.blade.php "invoice_money"
 g resources/views/account/reseller.blade.php "rsl_h"
-g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
+# (موقت — تا حلِ تداخلِ سرور) g app/Http/Controllers/Account/CloudServerController.php "cx_throttle"
 g app/Http/Controllers/Account/DomainController.php "dm_ns_two"
 g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
 g lang/fa/ui.php "auth_sms_sandbox_sent"
