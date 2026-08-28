@@ -2452,6 +2452,11 @@ Route::prefix('admin')->group(function () {
         // حذف فاکتورِ پرداخت‌نشده (فاکتورِ پرداخت‌شده هرگز حذف نمی‌شود)
         Route::post('/invoices/{invoice}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroyInvoice']);
 
+        // مرکزِ تحویل‌ها — هر سفارشِ پول‌آمده که سرویسش هنوز دستِ مشتری نیست،
+        // با تشخیصِ علت و دکمهٔ اقدامِ درست (روت‌های اقدام همان‌های موجودند)
+        Route::get('/provisioning', [\App\Http\Controllers\Admin\ProvisioningController::class, 'index'])
+            ->middleware('admin')->name('admin.provisioning');
+
         // فروش و مدیریت سرویس‌های مشتری
         Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);
         Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);

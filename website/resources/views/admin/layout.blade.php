@@ -52,6 +52,23 @@
            به‌صورت دکمه (با همان شمارشِ در انتظار) بالای /admin/customers نشسته.
            ⚠️ روتِ /admin/verifications دست‌نخورده است — فقط از نوارِ کناری
            برداشته شد، حذف نشد. --}}
+      {{-- تحویل‌های گیرکرده: پولِ آمده که سرویسش نرسیده. شمارش فقط حالت‌هایی
+           که **بدونِ آدم** از جا تکان نمی‌خورند (failed/manual/قفلِ کهنه) —
+           صفِ سالمِ pending عمداً شمرده نمی‌شود وگرنه نشان همیشه روشن می‌مانْد
+           و از روزِ دوم نادیده گرفته می‌شد. --}}
+      @php
+        try {
+          $provStuck = \Illuminate\Support\Facades\Cache::remember('admin.nav.prov-stuck', 60,
+              fn () => \Illuminate\Support\Facades\Schema::hasTable('services')
+                  ? \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+                      ->where(fn ($q) => $q->whereIn('provision_status', ['failed', 'manual'])
+                          ->orWhere(fn ($qq) => $qq->where('provision_status', 'running')
+                              ->where('updated_at', '<', now()->subMinutes(15))))
+                      ->count()
+                  : 0);
+        } catch (\Throwable) { $provStuck = 0; }
+      @endphp
+      <a href="/admin/provisioning" class="@yield('nav_provisioning')"><svg class="icon"><use href="#i-box"/></svg>تحویل‌ها@if($provStuck)<span class="ad-pill">{{ fa_num($provStuck) }}</span>@endif</a>
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
