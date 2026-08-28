@@ -195,7 +195,15 @@
   <div class="ad-panel">
     <div class="ad-panel-h">
       <h2>پیامکِ بین‌المللی — Amazon SNS</h2>
-      @if(\App\Models\Setting::get('aws_sns_key') && \App\Models\Setting::get('aws_sns_region'))<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">اعتبارنامه ذخیره‌شده</span>@endif
+      {{-- 🔴 بج باید **راز** را هم بسنجد — یک بار کلید و ریجن ذخیره شد ولی راز
+           نه، بج سبز بود و OTPِ پیامکی بی‌صدا به ایمیل سقوط می‌کرد (۶ شهریور) --}}
+      @php $snsArmed = filled(\App\Models\Setting::get('aws_sns_key')) && filled(\App\Models\Setting::get('aws_sns_region'));
+           $snsSecret = filled(\App\Models\Setting::getSecret('aws_sns_secret')); @endphp
+      @if($snsArmed && $snsSecret)
+        <span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">فعال — پیامکِ بین‌المللی روشن</span>
+      @elseif($snsArmed)
+        <span class="ad-badge" style="background:rgba(255,107,107,.12);color:#ff6b6b">راز ذخیره نشده — Secret را دوباره وارد کنید</span>
+      @endif
     </div>
     <p class="set-lead">
       کدِ تأییدِ موبایلِ مشتریِ <b>غیرایرانی</b> (ثبت‌نامِ en/tr) از این راه می‌رود؛
