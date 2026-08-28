@@ -63,7 +63,7 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-388772f}"
+MINE="${1:-c2c7674}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -310,6 +310,13 @@ g lang/fa/ui.php "cs_gpu_gate_token"
 g lang/en/ui.php "cs_gpu_gate_token"
 g lang/tr/ui.php "cs_gpu_gate_token"
 g app/Services/Sms/SnsSender.php "aws_sns_secret"
+g app/Services/Sms/SnsSender.php "CreateSMSSandboxPhoneNumber"
+g app/Http/Controllers/Auth/RegisterController.php "sandboxVerify"
+g app/Http/Controllers/Admin/SettingsController.php "aws_sns_sandbox"
+g resources/views/admin/settings/general.blade.php "aws_sns_sandbox"
+g lang/fa/ui.php "auth_sms_sandbox_sent"
+g lang/en/ui.php "auth_sms_sandbox_sent"
+g lang/tr/ui.php "auth_sms_sandbox_sent"
 g app/Services/Otp/OtpService.php "SnsSender"
 g app/Http/Controllers/Auth/RegisterController.php "first_name"
 g app/Http/Controllers/Admin/SettingsController.php "aws_sns_key"
