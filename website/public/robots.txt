@@ -8,5 +8,14 @@ Disallow: /system/
 Disallow: /go/
 Disallow: /en/go/
 Disallow: /tr/go/
+# پنل مشتری noindex است ولی خزیده می‌شد: ده‌ها URL پارامتریِ cloud-store داشت
+# بودجهٔ خزش را می‌سوزاند (GSC، شهریور ۱۴۰۵). بستنِ خزش، بودجه را به ۶۵۰+
+# صفحهٔ «Discovered - not indexed» برمی‌گرداند.
+Disallow: /account/
+Disallow: /en/account/
+Disallow: /tr/account/
+Disallow: /login
+Disallow: /en/login
+Disallow: /tr/login
 
 Sitemap: https://servernet.cloud/sitemap.xml

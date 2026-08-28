@@ -626,6 +626,24 @@ Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmia);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmia);
 
 /*
+| ریدایرکتِ آدرس‌های میراثیِ وردپرسیِ خودِ .cloud — گزارشِ 404 در GSC
+| (شهریور ۱۴۰۵): این‌ها لینکِ ورودی/تاریخچهٔ خزش دارند و مقصدِ روشن. ۳۰۱
+| اعتبارشان را نگه می‌دارد؛ بقیهٔ 404ها (wp-*, cgi-bin, …) عمداً 404 می‌مانند.
+| بدونِ پیشوندِ زبان: این آدرس‌ها فقط در نسخهٔ قدیمیِ فارسی وجود داشتند.
+*/
+foreach ([
+    '/privacy-policy'     => '/privacy',
+    '/guide/privacy.php'  => '/privacy',
+    '/services'           => '/solutions',
+    '/marketing'          => '/solutions',
+    '/home'               => '/',
+    '/cart'               => '/',
+    '/servernet'          => '/',
+] as $legacyFrom => $legacyTo) {
+    Route::redirect($legacyFrom, $legacyTo, 301);
+}
+
+/*
 | پیش‌نمایشِ منتشرشدهٔ سایت‌ساز — عمداً بیرونِ closureِ $site (یک لینک، نه سه).
 | ۴۸ ساعت زنده است (سنجه: mtime فایل)، noindex، و با CSP sandbox در originِ
 | یکتا سرو می‌شود تا خروجیِ کاربرساخته به کوکی/نشستِ دامنهٔ ما نرسد.

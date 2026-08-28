@@ -4102,3 +4102,13 @@ html[dir="rtl"] .dt-steps li{padding:16px 60px 16px 18px}
   .sp-bar{ padding:9px 13px; padding-inline-end:82px; }
   .sp-bar-list{ order:3; width:100%; }
 }
+
+/* ═══════════ LCP: قهرمانِ صفحه منتظرِ JS نمی‌مانَد (GSC شهریور ۱۴۰۵) ═══════════
+   .reveal با opacity:0 شروع می‌شود و فقط IntersectionObserverِ site.js (defer)
+   .in را می‌زند — یعنی H1ِ هر صفحه (عنصرِ LCP) تا دانلود+اجرای JS نامرئی بود:
+   ۷۴ صفحه در CrUX موبایل LCP=۵.۰s «Poor». بالای صفحه (hero) حالا با انیمیشنِ
+   خالصِ CSS همان ورود را می‌گیرد و از لحظهٔ رسیدنِ CSS رندر می‌شود؛ .in که
+   بعداً بنشیند no-op بصری است. پایینِ صفحه عمداً دست‌نخورده (LCP نیست). */
+.hero .reveal{opacity:1;transform:none;transition:none;animation:hero-rise .55s var(--ease) both}
+@keyframes hero-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.hero .reveal{animation:none}}
