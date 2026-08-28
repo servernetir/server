@@ -316,14 +316,32 @@ class OtpService
 
         $d = $this->digits($destination);
 
-        $d = match (true) {
+        $iran = match (true) {
             str_starts_with($d, '0098') => '0'.substr($d, 4),
             str_starts_with($d, '98')   => '0'.substr($d, 2),
             str_starts_with($d, '9')    => '0'.$d,
             default                     => $d,
         };
 
-        return preg_match('/^09\d{9}$/', $d) === 1 ? $d : '';
+        if (preg_match('/^09\d{9}$/', $iran) === 1) {
+            return $iran;
+        }
+
+        /*
+        | بین‌المللی (E.164) — مشتریِ خارجی حالا موبایل می‌دهد (۵ شهریور ۱۴۰۵).
+        |
+        | ورودی می‌تواند «+90…»، «0090…» یا «90…» باشد؛ خروجی همیشه «+رقم‌ها».
+        | شمارهٔ ملیِ بی‌کدِ کشور (مثلاً 05xx ترکیه) عمداً رد می‌شود: کشور را
+        | نمی‌شود حدس زد و حدسِ غلط یعنی کدِ تأییدِ کسی به گوشیِ کسِ دیگر.
+        | 98 هم این‌جا رد می‌شود — ایرانی همان بالا با قالبِ ۰۹ پذیرفته شده.
+        */
+        $intl = str_starts_with($d, '00') ? substr($d, 2) : $d;
+
+        if (preg_match('/^[1-9]\d{7,14}$/', $intl) === 1 && ! str_starts_with($intl, '98')) {
+            return '+'.$intl;
+        }
+
+        return '';
     }
 
     private function activeChallenge(string $destination, string $purpose): ?OtpChallenge
@@ -398,6 +416,16 @@ class OtpService
      */
     private function sendSms(string $destination, string $code, string $purpose): bool
     {
+        /*
+        | 🔴 شمارهٔ بین‌المللی از Amazon SNS می‌رود، نه از اپراتورِ ایرانی.
+        | درایورهای ایرانی شمارهٔ +90 را یا رد می‌کنند یا بی‌صدا می‌خورند؛
+        | مسیریابی روی خودِ شکلِ مقصد است (+ = E.164) تا هیچ پیکربندی‌ای
+        | نتواند کدِ مشتریِ خارجی را به رلهٔ ایرانی بفرستد.
+        */
+        if (str_starts_with($destination, '+')) {
+            return app(\App\Services\Sms\SnsSender::class)->sendOtp($destination, $code);
+        }
+
         $template = self::SMS_TEMPLATES[$purpose] ?? null;
 
         if ($template !== null && $this->sms instanceof SupportsPatterns) {

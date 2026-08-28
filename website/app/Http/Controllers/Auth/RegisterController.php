@@ -72,27 +72,43 @@ class RegisterController extends Controller
     {
         $iranian = $this->isIranianFlow();
 
+        /*
+        | موبایل حالا برای **هر دو** جریان اجباری است (خواستِ کارفرما، ۵
+        | شهریور ۱۴۰۵: «خارجی‌ها هم اجباری شماره بدهند»). نام/نام‌خانوادگی فقط
+        | برای خارجی از فرم می‌آید — ایرانی نامش را از ثبتِ احوال می‌گیرد و
+        | پرسیدنش دوباره همان چیزی است که جریانِ KYC عمداً حذف کرده.
+        */
         $rules = [
             'email' => ['required', 'email:rfc', 'max:190'],
             'type'  => ['required', 'in:individual,company'],
+            'phone' => ['required', 'string', 'max:24'],
         ];
 
-        if ($iranian) {
-            $rules['phone'] = ['required', 'string', 'max:20'];
+        if (! $iranian) {
+            $rules['first_name'] = ['required', 'string', 'max:100'];
+            $rules['last_name']  = ['required', 'string', 'max:100'];
         }
 
         $data = $request->validate($rules, [], [
             'email' => 'ایمیل',
             'phone' => 'شمارهٔ موبایل',
             'type'  => 'نوع حساب',
+            'first_name' => __('ui.auth_first_name'),
+            'last_name'  => __('ui.auth_last_name'),
         ]);
 
         $email = mb_strtolower(trim($data['email']));
-        $phone = $iranian ? $this->otp->normalize('sms', $data['phone']) : null;
+        $phone = $this->otp->normalize('sms', $data['phone']);
 
-        if ($iranian && $phone === '') {
+        if ($iranian && ! str_starts_with($phone, '09')) {
             return back()->withInput()->withErrors([
                 'phone' => 'شمارهٔ موبایل باید مثل ۰۹۱۲۱۲۳۴۵۶۷ باشد.',
+            ]);
+        }
+
+        if (! $iranian && $phone === '') {
+            return back()->withInput()->withErrors([
+                'phone' => __('ui.auth_mobile_intl_bad'),
             ]);
         }
 
@@ -109,8 +125,14 @@ class RegisterController extends Controller
             ]);
         }
 
-        $channel     = $iranian ? 'sms' : 'email';
-        $destination = $iranian ? $phone : $email;
+        /*
+        | کانالِ تأییدِ خارجی: اگر SNS پیکربندی شده، کد به موبایل می‌رود (همان
+        | چیزی که «شمارهٔ اجباری» را واقعاً راستی‌آزمایی می‌کند)؛ وگرنه ایمیل —
+        | تا نبودِ کلیدِ AWS ثبت‌نام را نخواباند.
+        */
+        $intlSms     = ! $iranian && app(\App\Services\Sms\SnsSender::class)->enabled();
+        $channel     = ($iranian || $intlSms) ? 'sms' : 'email';
+        $destination = ($iranian || $intlSms) ? $phone : $email;
 
         /*
          * اگر کاربر برگشته و مقصد را عوض کرده، کد قبلی باید بمیرد.
@@ -139,7 +161,7 @@ class RegisterController extends Controller
             ]);
         }
 
-        if (! $iranian) {
+        if ($channel === 'email') {
             $this->mailCode($email);
         }
 
@@ -150,6 +172,8 @@ class RegisterController extends Controller
             'iranian'  => $iranian,
             'channel'  => $channel,
             'verified' => false,
+            'first_name' => trim((string) ($data['first_name'] ?? '')),
+            'last_name'  => trim((string) ($data['last_name'] ?? '')),
         ]);
 
         return redirect()->route($this->rp().'register.verify');
@@ -340,7 +364,8 @@ class RegisterController extends Controller
         $customer->forceFill([
             'password'           => Hash::make($request->string('password')->toString()),
             'status'             => 'active',
-            'phone_verified_at'  => $reg['iranian'] ? now() : $customer->phone_verified_at,
+            'phone_verified_at'  => ($reg['iranian'] || ($reg['channel'] ?? '') === 'sms')
+                ? now() : $customer->phone_verified_at,
             'email_verified_at'  => $reg['iranian'] ? $customer->email_verified_at : now(),
         ])->save();
 
@@ -495,8 +520,8 @@ class RegisterController extends Controller
                 'mobile'           => $reg['phone'] ?? null,
                 'email'            => $reg['email'],
                 'country'          => $reg['iranian'] ? 'IR' : null,
-                'first_name'       => $identity?->first_name,
-                'last_name'        => $identity?->last_name,
+                'first_name'       => $identity?->first_name ?? (filled($reg['first_name'] ?? null) ? $reg['first_name'] : null),
+                'last_name'        => $identity?->last_name ?? (filled($reg['last_name'] ?? null) ? $reg['last_name'] : null),
                 'birth_date'       => $identity?->birth_date,
                 'national_id_enc'  => $identity?->national_id_enc,
                 'national_id_hash' => $identity?->national_id_hash,

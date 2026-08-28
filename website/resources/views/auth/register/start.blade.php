@@ -22,6 +22,19 @@
     </div>
   </div>
 
+  @unless($iranian)
+  <div class="auth-field">
+    <label for="first_name">{{ __('ui.auth_first_name') }}</label>
+    <input type="text" id="first_name" name="first_name" autocomplete="given-name"
+           maxlength="100" value="{{ old('first_name') }}" required>
+  </div>
+  <div class="auth-field">
+    <label for="last_name">{{ __('ui.auth_last_name') }}</label>
+    <input type="text" id="last_name" name="last_name" autocomplete="family-name"
+           maxlength="100" value="{{ old('last_name') }}" required>
+  </div>
+  @endunless
+
   @if($iranian)
   <div class="auth-field" data-check="mobile">
     <label for="phone">{{ __('ui.auth_mobile') }}</label>
@@ -30,6 +43,14 @@
            required aria-describedby="hint-phone">
     <span class="msg">{{ __('ui.auth_mobile_bad') }}</span>
     <small id="hint-phone">{{ __('ui.auth_mobile_hint') }}</small>
+  </div>
+  @else
+  <div class="auth-field">
+    <label for="phone">{{ __('ui.auth_mobile') }}</label>
+    <input type="tel" id="phone" name="phone" dir="ltr" inputmode="tel"
+           autocomplete="tel" placeholder="+90 5xx xxx xx xx" value="{{ old('phone') }}"
+           required aria-describedby="hint-phone">
+    <small id="hint-phone">{{ __('ui.auth_mobile_intl_hint') }}</small>
   </div>
   @endif
 
