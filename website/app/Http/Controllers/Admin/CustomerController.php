@@ -14,6 +14,7 @@ use App\Models\Server;
 use App\Models\Service;
 use App\Services\Domain\Reseller\ResellerProgram;
 use App\Services\Notify\CustomerNotifier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -53,12 +54,7 @@ class CustomerController extends Controller
         | است، پس LIKE هیچ‌وقت نمی‌گرفت و جستجو «خراب» به نظر می‌رسید — بی‌هیچ
         | خطایی، فقط نتیجهٔ خالی.
         */
-        $q = trim(strtr((string) $request->query('q', ''), [
-            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
-            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
-            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
-            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
-        ]));
+        $q = self::normalizeDigits((string) $request->query('q', ''));
         $status = (string) $request->query('status', 'all');
 
         // ── فیلترهای پیشرفته — مقدارِ نامعتبر بی‌اثر است، نه خطا ──
@@ -97,28 +93,7 @@ class CustomerController extends Controller
             ]);
         }
 
-        if ($q !== '') {
-            /*
-            | 🔴 جستجوی چندواژه‌ای: هر واژه باید **جایی** بخورد، نه کلِ عبارت
-            | به یک ستون.
-            |
-            | «علی رضایی» با LIKE تک‌عبارتی هیچ‌وقت پیدا نمی‌شد: نام در
-            | first_name است و نام‌خانوادگی در last_name، و رشتهٔ کامل با
-            | هیچ‌کدام تطابق ندارد. این دقیقاً همان جستجویی است که مدیر
-            | طبیعتاً می‌زند — و «درست نیست»ی که گزارش شد همین بود.
-            */
-            foreach (preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) as $term) {
-                $query->where(function ($w) use ($term) {
-                    $w->where('code', 'like', "%{$term}%")
-                        ->orWhere('email', 'like', "%{$term}%")
-                        ->orWhere('phone', 'like', "%{$term}%")
-                        ->orWhereHas('identityVerification', function ($iv) use ($term) {
-                            $iv->where('first_name', 'like', "%{$term}%")
-                                ->orWhere('last_name', 'like', "%{$term}%");
-                        });
-                });
-            }
-        }
+        self::applySearch($query, $q);
 
         if ($fService === 'with') {
             $query->whereHas('services', fn ($s) => $s->whereIn('status', ['active', 'awaiting_provision']));
@@ -180,6 +155,110 @@ class CustomerController extends Controller
     {
         return (is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) ? $v : null;
     }
+
+    /**
+     * ارقامِ فارسی/عربی → لاتین.
+     *
+     * 🔴 مدیر شماره را با صفحه‌کلیدِ فارسی می‌زند («۰۹۱۲…») ولی ستونِ phone
+     * لاتین است، پس LIKE هیچ‌وقت نمی‌گرفت: نتیجهٔ خالی، بی‌هیچ خطایی.
+     */
+    public static function normalizeDigits(string $raw): string
+    {
+        return trim(strtr($raw, [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]));
+    }
+
+    /**
+     * شرطِ جستجوی مشتری روی یک پرس‌وجو — **یک** پیاده‌سازی برای صفحه و AJAX.
+     *
+     * 🔴 چندواژه‌ای: هر واژه باید **جایی** بخورد، نه کلِ عبارت به یک ستون.
+     * «علی رضایی» با LIKEِ تک‌عبارتی هیچ‌وقت پیدا نمی‌شد (نام در `first_name`
+     * است و فامیل در `last_name`) — همان «جستجو درست نیست»ی که گزارش شد.
+     *
+     * ⚠️ چرا استخراج شد: نقطهٔ AJAX همین منطق را می‌خواهد. دو نسخهٔ موازی یعنی
+     * روزی که یکی ستونِ تازه‌ای بگیرد، آن‌یکی بی‌صدا کهنه می‌شود و کاربر
+     * می‌بیند «زنده چیزی پیدا می‌کند که صفحه نمی‌کند» — یا برعکس.
+     */
+    public static function applySearch($query, string $q): void
+    {
+        if ($q === '') {
+            return;
+        }
+
+        foreach (preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) as $term) {
+            $query->where(function ($w) use ($term) {
+                $w->where('code', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%")
+                    ->orWhereHas('identityVerification', function ($iv) use ($term) {
+                        $iv->where('first_name', 'like', "%{$term}%")
+                            ->orWhere('last_name', 'like', "%{$term}%");
+                    });
+            });
+        }
+    }
+
+    /**
+     * جستجوی زندهٔ مشتری — JSON برای کادرِ جستجوی فهرست.
+     *
+     * ⚠️ اعتبارسنجیِ **صریح**، نه `$request->validate()`: تلهٔ ثبت‌شدهٔ پروژه —
+     * `shouldRenderJsonWhen(api/*)` یعنی روی مسیرهای `/admin/*` شکستِ
+     * اعتبارسنجی یک ریدایرکتِ ۳۰۲ HTML برمی‌گرداند، نه ۴۲۲ JSON؛ و جاوااسکریپت
+     * روبه‌رو `r.json()` می‌زند و روی HTML می‌شکند.
+     *
+     * ⚠️ سقفِ نتایج ثابت است و از ورودی نمی‌آید: `?limit=100000` روی جدولِ
+     * مشتریان یعنی یک DoSِ رایگان از راهِ یک پارامترِ نمایشی.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->isStaff(), 403);
+
+        if (! Schema::hasTable('customers')) {
+            return response()->json(['ok' => true, 'results' => [], 'total' => 0]);
+        }
+
+        $q = self::normalizeDigits((string) $request->query('q', ''));
+
+        // کمتر از دو نویسه یعنی هنوز دارد تایپ می‌کند — کلِ جدول را نمی‌کِشیم
+        if (mb_strlen($q) < 2) {
+            return response()->json(['ok' => true, 'results' => [], 'total' => 0, 'short' => true]);
+        }
+
+        $query = Customer::query()
+            ->select('customers.*')
+            ->withCount([
+                'services as active_services_count' => fn ($s) => $s->whereIn('status', ['active', 'awaiting_provision']),
+            ])
+            ->with('identityVerification')
+            ->orderByDesc('id');
+
+        self::applySearch($query, $q);
+
+        $total = (clone $query)->count();
+        $rows = $query->limit(self::SEARCH_LIMIT)->get();
+
+        return response()->json([
+            'ok'      => true,
+            'total'   => $total,
+            'results' => $rows->map(fn (Customer $c) => [
+                'id'       => $c->id,
+                'code'     => (string) $c->code,
+                'name'     => trim((string) ($c->identityVerification?->first_name.' '.$c->identityVerification?->last_name)),
+                'email'    => (string) $c->email,
+                'phone'    => (string) $c->phone,
+                'status'   => (string) $c->status,
+                'services' => (int) ($c->active_services_count ?? 0),
+                'url'      => '/admin/customers/'.$c->id,
+            ])->all(),
+        ]);
+    }
+
+    /** سقفِ نتایجِ جستجوی زنده — عمداً ثابت، نه از ورودی */
+    private const SEARCH_LIMIT = 12;
 
     /**
      * تاریخچهٔ فعالیتِ مشتری، فیلترشده و صفحه‌بندی‌شده.

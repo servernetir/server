@@ -60,6 +60,19 @@
         <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
           <input type="checkbox" name="internal" value="1"> یادداشت داخلی (مشتری نمی‌بیند)
         </label>
+        {{-- ══ پاسخ به نامِ چه کسی ══
+             فقط برای مدیر رندر می‌شود — کنترلر برای پشتیبان `staff` را خالی
+             می‌فرستد و **دوباره** هم می‌سنجد؛ ویو هیچ‌وقت محافظ نیست. --}}
+        @if($staff->isNotEmpty())
+          <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">
+            <span>پاسخ به نامِ</span>
+            <select name="as_user" id="tk-as-user" class="ad-input" style="width:auto;padding:6px 9px;font-size:12px">
+              @foreach($staff as $s)
+                <option value="{{ $s->id }}" @selected($s->id === auth()->id())>{{ $s->name }}@if($s->id === auth()->id()) — خودم @endif</option>
+              @endforeach
+            </select>
+          </label>
+        @endif
         {{-- ══ تصحیح نگارش با AI ══
              🔴 هیچ‌چیز ارسال نمی‌شود. متنِ صیقل‌خورده در همان کادر می‌نشیند و
              کارفرما می‌تواند با «بازگردانی» به نوشتهٔ خودش برگردد.

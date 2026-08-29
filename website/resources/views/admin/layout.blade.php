@@ -32,17 +32,36 @@
 <div class="ad-shell">
   <aside class="ad-side" id="ad-side">
     <a class="ad-logo" href="/admin"><span class="ad-logo-m"><svg class="icon"><use href="#i-server"/></svg></span> سرورنت <b>مدیریت</b></a>
+    {{--
+      ═══ منو بر اساسِ نقش ═══
+
+      🔴 منویی که به صفحهٔ ۴۰۳ لینک می‌دهد بدتر از منوی کوتاه است: کارشناس
+      کلیک می‌کند، «دسترسی ندارید» می‌گیرد، و دفعهٔ بعد به کلِ منو بی‌اعتماد
+      می‌شود. پس آنچه پشتیبان نمی‌تواند باز کند، اصلاً رندر نمی‌شود.
+
+      ⚠️ این فقط **نمایش** است، نه امنیت. گارد در روت و میان‌افزار است؛ اگر
+      روزی این شرط‌ها اشتباه شوند، بدترین حالت یک لینکِ ۴۰۳ است نه دسترسی.
+    --}}
+    @php
+      $navUser  = auth()->user();
+      $navAdmin = (bool) $navUser?->isAdmin();
+      $navSup   = (bool) $navUser?->isSupport();
+    @endphp
     <nav class="ad-nav">
       <a href="/admin" class="@yield('nav_dash')"><svg class="icon"><use href="#i-layout"/></svg>داشبورد</a>
-      <a href="/admin/posts?type=blog" class="@yield('nav_blog')"><svg class="icon"><use href="#i-book"/></svg>بلاگ</a>
-      <a href="/admin/posts?type=kb" class="@yield('nav_kb')"><svg class="icon"><use href="#i-lifebuoy"/></svg>پایگاه دانش</a>
-      @php $pendingComments = \App\Models\Comment::where('approved', false)->count(); @endphp
-      <a href="/admin/comments" class="@yield('nav_comments')"><svg class="icon"><use href="#i-message"/></svg>کامنت‌ها@if($pendingComments)<span class="ad-pill">{{ $pendingComments }}</span>@endif</a>
+      @unless($navSup)
+        <a href="/admin/posts?type=blog" class="@yield('nav_blog')"><svg class="icon"><use href="#i-book"/></svg>بلاگ</a>
+        <a href="/admin/posts?type=kb" class="@yield('nav_kb')"><svg class="icon"><use href="#i-lifebuoy"/></svg>پایگاه دانش</a>
+        @php $pendingComments = \App\Models\Comment::where('approved', false)->count(); @endphp
+        <a href="/admin/comments" class="@yield('nav_comments')"><svg class="icon"><use href="#i-message"/></svg>کامنت‌ها@if($pendingComments)<span class="ad-pill">{{ $pendingComments }}</span>@endif</a>
+      @endunless
 
-      <div class="ad-nav-sep">کسب‌وکار</div>
+      <div class="ad-nav-sep">{{ $navSup ? 'پشتیبانی' : 'کسب‌وکار' }}</div>
       {{-- نمای یک‌جای همهٔ سررسیدهای این گروه — عمداً اولین آیتم، چون خودش
            چیزی نمی‌سازد و فقط به بقیه اشاره می‌کند --}}
-      <a href="/admin/calendar" class="@yield('nav_calendar')"><svg class="icon"><use href="#i-calendar"/></svg>تقویم کسب‌وکار</a>
+      @unless($navSup)
+        <a href="/admin/calendar" class="@yield('nav_calendar')"><svg class="icon"><use href="#i-calendar"/></svg>تقویم کسب‌وکار</a>
+      @endunless
       {{-- نگهبان hasTable همه‌جا: روی سروری که هنوز جدول‌های CMS را نساخته،
            این شمارش‌ها نباید کل پنل را ۵۰۰ کنند --}}
       @php $custCount = \Illuminate\Support\Facades\Schema::hasTable('customers')
@@ -68,7 +87,9 @@
                   : 0);
         } catch (\Throwable) { $provStuck = 0; }
       @endphp
-      <a href="/admin/provisioning" class="@yield('nav_provisioning')"><svg class="icon"><use href="#i-box"/></svg>تحویل‌ها@if($provStuck)<span class="ad-pill">{{ fa_num($provStuck) }}</span>@endif</a>
+      @unless($navSup)
+        <a href="/admin/provisioning" class="@yield('nav_provisioning')"><svg class="icon"><use href="#i-box"/></svg>تحویل‌ها@if($provStuck)<span class="ad-pill">{{ fa_num($provStuck) }}</span>@endif</a>
+      @endunless
       @php $openTickets = \Illuminate\Support\Facades\Schema::hasTable('tickets')
               ? \App\Models\Ticket::where('status', 'open')->count() : 0; @endphp
       <a href="/admin/tickets" class="@yield('nav_tickets')"><svg class="icon"><use href="#i-lifebuoy"/></svg>تیکت‌ها@if($openTickets)<span class="ad-pill">{{ $openTickets }}</span>@endif</a>
@@ -77,12 +98,14 @@
            می‌شود — همان درسِ «اعلانِ تکراری بدتر از نبودِ هشدار» که در
            SystemHealth ثبت شده.
            و `answered = false` صریح: تماسِ در جریان از‌دست‌رفته نیست. --}}
+      @unless($navSup)
       @php $missedCalls = \Illuminate\Support\Facades\Schema::hasTable('phone_calls')
               ? \App\Models\PhoneCall::where('answered', false)
                   ->where('started_at', '>=', now()->subDay())->count() : 0; @endphp
       <a href="/admin/calls" class="@yield('nav_calls')"><svg class="icon"><use href="#i-phone"/></svg>تماس‌ها@if($missedCalls)<span class="ad-pill">{{ fa_num($missedCalls) }}</span>@endif</a>
       <a href="/admin/broadcasts" class="@yield('nav_broadcasts')"><svg class="icon"><use href="#i-bell"/></svg>اعلان‌ها</a>
       <a href="/admin/seo" class="@yield('nav_seo')"><svg class="icon"><use href="#i-gauge"/></svg>بررسی سایت</a>
+      @endunless
 
       {{--
         ═══ گروه‌بندیِ منو بر اساسِ **محصول**، نه بر اساسِ تاریخِ ساخت ═══
@@ -101,6 +124,9 @@
         باشد. تغییرِ نام پیش از راستی‌آزماییِ آن ردیف‌ها یعنی چیزی بی‌صدا از
         دسترس خارج شود. نام وقتی عوض می‌شود که مطمئن باشیم.
       --}}
+      {{-- از این‌جا به بعد کارِ پشتیبان نیست: زیرساخت، فروش، مالی و تنظیمات.
+           پشتیبان همین‌جا فهرستش تمام می‌شود. --}}
+      @unless($navSup)
       <div class="ad-nav-sep">هاست</div>
       <a href="/admin/servers" class="@yield('nav_servers')"><svg class="icon"><use href="#i-server"/></svg>سرورهای تحویل</a>
       <a href="/admin/products" class="@yield('nav_products')"><svg class="icon"><use href="#i-box"/></svg>پکیج‌های فروش</a>
@@ -151,6 +177,7 @@
       <a href="/admin/settings" class="@yield('nav_settings')"><svg class="icon"><use href="#i-wrench"/></svg>تنظیمات</a>
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif
+      @endunless {{-- پایانِ بخش‌های غیرپشتیبانی (از «هاست» تا این‌جا) --}}
       <a href="/" target="_blank"><svg class="icon"><use href="#i-globe"/></svg>مشاهده‌ی سایت</a>
     </nav>
     <form class="ad-logout" method="post" action="/admin/logout">@csrf<button type="submit"><svg class="icon"><use href="#i-x"/></svg>خروج</button></form>

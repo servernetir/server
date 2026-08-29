@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
+use App\Models\User;
 use App\Services\Ticket\AttachmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,8 +79,21 @@ class TicketController extends Controller
         ]);
     }
 
-    public function show(Ticket $ticket): View
+    public function show(Request $request, Ticket $ticket): View
     {
+        /*
+        | فیلترِ فهرست را به یاد بسپار تا پس از پاسخ به **همان** نما برگردیم.
+        |
+        | 🔴 فقط query string ذخیره می‌شود، نه کلِ آدرسِ ارجاع‌دهنده: ریدایرکت به
+        | مقداری که مهاجم در هدرِ Referer می‌گذارد یعنی open-redirect. این‌جا
+        | مقصد همیشه روتِ خودمان است و فقط پرسمانش از بیرون می‌آید.
+        */
+        $ref = (string) $request->headers->get('referer', '');
+
+        if ($ref !== '' && str_contains(parse_url($ref, PHP_URL_PATH) ?? '', '/admin/tickets')) {
+            $request->session()->put('tickets.back', (string) (parse_url($ref, PHP_URL_QUERY) ?? ''));
+        }
+
         return view('admin.ticket', [
             'ticket'   => $ticket->load('customer'),
             // نگهبان hasTable: تا مهاجرت ticket_attachments روی سرور نرفته، ۵۰۰ نشود
@@ -87,6 +101,8 @@ class TicketController extends Controller
                 ->when(\Illuminate\Support\Facades\Schema::hasTable('ticket_attachments'),
                     fn ($q) => $q->with('attachments'))
                 ->orderBy('id')->get(),  // شامل یادداشت داخلی
+            // فهرستِ «به نامِ چه کسی» — فقط برای مدیر پر می‌شود
+            'staff'    => $request->user()?->isAdmin() ? User::staffMembers() : collect(),
         ]);
     }
 
@@ -96,10 +112,35 @@ class TicketController extends Controller
             'body'     => ['required', 'string', 'max:'.self::MAX_BODY],
             'internal' => ['nullable', 'boolean'],
             'close'    => ['nullable', 'boolean'],
+            'as_user'  => ['nullable', 'integer'],
         ] + AttachmentService::rules());
 
         $user     = $request->user();
         $internal = (bool) ($data['internal'] ?? false);
+
+        /*
+        | ═══ پاسخ «به نامِ» یک کارشناسِ دیگر ═══
+        |
+        | 🔴 فقط مدیر، و فقط به نامِ کسی که واقعاً کارمندِ پشتیبانی است.
+        |
+        | بی‌این دو قید، هر کاربرِ واردشده می‌توانست با یک فیلدِ دست‌ساز
+        | (`as_user=<هر شناسه‌ای>`) پاسخی به نامِ **هر کسی** ثبت کند — یعنی
+        | جعلِ امضا در همان جایی که تاریخچه‌اش سندِ گفتگو با مشتری است.
+        | نامِ ثبت‌شده تزیین نیست؛ مشتری همان را می‌بیند.
+        |
+        | ⚠️ شناسهٔ نامعتبر بی‌صدا به خودِ نویسنده برمی‌گردد، نه خطا: فرم برای
+        | پشتیبان اصلاً این فیلد را ندارد و یک مقدارِ کهنه نباید پاسخ را
+        | بیندازد.
+        */
+        $author = $user;
+
+        if ($user->isAdmin() && filled($data['as_user'] ?? null)) {
+            $picked = User::find((int) $data['as_user']);
+
+            if ($picked !== null && $picked->isStaff()) {
+                $author = $picked;
+            }
+        }
 
         /*
         | 🔴 منطقِ واقعی در `TicketReplyService` است، نه این‌جا.
@@ -114,8 +155,8 @@ class TicketController extends Controller
         */
         app(\App\Services\Ticket\TicketReplyService::class)->post(
             $ticket,
-            $user->id,
-            $user->name,
+            $author->id,
+            $author->name,
             $data['body'],
             internal: $internal,
             close: (bool) ($data['close'] ?? false),
@@ -123,7 +164,29 @@ class TicketController extends Controller
                 ->store($message, $request->file('attachments', [])),
         );
 
-        return back()->with('ok', $internal ? 'یادداشت داخلی ثبت شد.' : 'پاسخ ثبت شد.');
+        $byOther = $author->id !== $user->id ? ' (به نامِ '.$author->name.')' : '';
+
+        /*
+        | ═══ پس از پاسخ، برگرد به فهرست ═══
+        |
+        | خواستهٔ سرعتِ کار: پشتیبان تیکت را جواب می‌دهد و باید فوراً سراغِ
+        | بعدی برود؛ ماندن در همان صفحه یعنی یک کلیکِ «بازگشت» در هر تیکت.
+        |
+        | ⚠️ یادداشتِ داخلی **استثناست** و در همان صفحه می‌مانَد: یادداشت یعنی
+        | کارِ روی همین تیکت هنوز تمام نشده (دارد برای خودش یا همکار می‌نویسد و
+        | بعد پاسخ می‌دهد). پرت‌کردنش به فهرست یعنی از دست‌دادنِ همان زمینه.
+        |
+        | فیلترِ فهرست از session برمی‌گردد تا اگر در نمای «در انتظار بررسی»
+        | بود، به همان‌جا برگردد نه به فهرستِ خام.
+        */
+        if ($internal) {
+            return back()->with('ok', 'یادداشت داخلی ثبت شد.');
+        }
+
+        $back = (string) $request->session()->get('tickets.back', '');
+
+        return redirect()->to('/admin/tickets'.($back !== '' ? '?'.$back : ''))
+            ->with('ok', 'پاسخِ تیکت '.$ticket->number.' ثبت شد'.$byOther.'.');
     }
 
 
