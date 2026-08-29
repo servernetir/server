@@ -71,6 +71,8 @@ class HetznerRobotClient implements CloudProvider
         // AMD Ryzen / EPYC / Threadripper
         'ryzen 5 3600' => 6, 'ryzen 7 1700x' => 8, 'ryzen 7 3700x' => 8, 'ryzen 7 7700' => 8,
         'ryzen 7 pro 8700ge' => 8, 'ryzen 5 pro 8600ge' => 6,
+        // Intel Core Ultra (Arrow Lake) — خطِ EX63
+        'core ultra 7 265' => 20,
         'ryzen 9 3900' => 12, 'ryzen 9 5950x' => 16, 'ryzen 9 7950x3d' => 16, 'ryzen 9 9950x' => 16,
         'threadripper 2950x' => 16,
         'epyc 7401p' => 24, 'epyc 7502p' => 32, 'epyc 9454p' => 48,
@@ -314,6 +316,19 @@ class HetznerRobotClient implements CloudProvider
         foreach (self::CPU_CORES as $needle => $cores) {
             if (str_contains($c, $needle)) {
                 return $cores;
+            }
+        }
+
+        /*
+        | قاعدهٔ عمومی: هتزنر برای خط‌های تازه تعداد هسته را در خودِ متن می‌نویسد
+        | («6741P 48-Core»، «6787P 86-Core») — از خودِ داده بخوان، نه از جدولِ دستی.
+        | مدلِ آینده هم خودکار پوشش می‌گیرد. سقف برای ایمنی در برابرِ متنِ بی‌ربط.
+        */
+        if (preg_match('/(\d{1,3})[\s-]?core/i', $c, $m)) {
+            $n = (int) $m[1];
+
+            if ($n >= 1 && $n <= 256) {
+                return $n;
             }
         }
 
