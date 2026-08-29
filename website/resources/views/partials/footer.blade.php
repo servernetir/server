@@ -43,7 +43,12 @@
         <div class="f-links"><div class="f-in">
           <a href="{{ lroute('about') }}">{{ __('ui.f_c1') }}</a>
           {{-- بخشِ ارومیه از مرداد ۱۴۰۵ سه‌زبانه است؛ برچسب inline چون فقط همین‌جاست --}}
-          <a href="{{ lroute('urmia.hub') }}">{{ ['fa' => 'خدمات ما در ارومیه', 'en' => 'Our services in Urmia', 'tr' => 'Urmiye hizmetlerimiz'][app()->getLocale()] ?? 'Urmia' }}</a>
+          {{-- ⚠️ فقط فارسی: نسخهٔ en/tr این صفحات با ۴۱۰ برداشته شد و روتشان
+               نام ندارد، پس `lroute()` در آن دو زبان استثنا می‌دهد و فوتر —
+               که روی **هر** صفحه است — کلِ سایت را ۵۰۰ می‌کرد. --}}
+          @if(app()->getLocale() === 'fa')
+          <a href="{{ lroute('urmia.hub') }}">خدمات ما در ارومیه</a>
+          @endif
           <a href="{{ lroute('blog.index') }}">{{ __('ui.f_c3') }}</a>
           <a href="{{ lroute('careers') }}">{{ __('ui.cr_title') }}</a>
           <a href="{{ lroute('status') }}">{{ __('ui.status_title') }}</a>

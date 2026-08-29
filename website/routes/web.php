@@ -656,12 +656,27 @@ Route::middleware('locale:fa')->group($urmia);
 | ⚠️ نسخهٔ **فارسی** دست‌نخورده می‌مانَد: نقشهٔ ۳۰۱ مهاجرتِ servernet.ir به
 | همان آدرس‌ها اشاره می‌کند.
 */
+/*
+| 🔴 این روت‌ها عمداً **نام ندارند** — و نبودِ نام خودش یک قابلیت است.
+|
+| سوییچرِ زبان در `AppServiceProvider` لینکِ هر زبان را با
+| `route($prefix.$baseRoute, $params)` می‌سازد و روی استثنا به خانهٔ همان
+| زبان برمی‌گردد. اگر این روت‌ها نام داشتند، `route('en.urmia.hub')` با
+| موفقیت `/en/urmia` را می‌ساخت و بازدیدکنندهٔ صفحهٔ فارسی با کلیک روی
+| «English» به یک ۴۱۰ می‌رسید — بدتر از قبل از این تغییر.
+|
+| بی‌نام، همان `catch` که برای ۴۰۴ها نوشته شده بود این را هم می‌گیرد و
+| کاربر به خانهٔ انگلیسی می‌رود. یعنی صفحه برای گوگل «رفته» است و برای
+| آدم «این‌جا نیست، بفرما خانه».
+|
+| ⚠️ پس هیچ‌جای دیگری هم نباید `lroute('urmia.*')` در زبانِ en/tr صدا زده
+| شود، وگرنه همان استثنا این‌بار وسطِ رندر می‌افتد. تنها فراخوانِ سراسری،
+| لینکِ فوترِ ارومیه بود که حالا فقط در فارسی رندر می‌شود.
+*/
 $urmiaGone = function () {
-    Route::get('/urmia', fn () => response('', 410))->name('urmia.hub');
-    Route::get('/urmia/cities/{slug}', fn () => response('', 410))
-        ->name('urmia.city')->where('slug', '[a-z0-9-]+');
-    Route::get('/urmia/{slug}', fn () => response('', 410))
-        ->name('urmia.page')->where('slug', '[a-z0-9-]+');
+    Route::get('/urmia', fn () => response('', 410));
+    Route::get('/urmia/cities/{slug}', fn () => response('', 410))->where('slug', '[a-z0-9-]+');
+    Route::get('/urmia/{slug}', fn () => response('', 410))->where('slug', '[a-z0-9-]+');
 };
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmiaGone);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmiaGone);

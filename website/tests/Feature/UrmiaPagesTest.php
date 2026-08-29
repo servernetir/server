@@ -95,20 +95,37 @@ class UrmiaPagesTest extends TestCase
     */
     public function test_no_raw_placeholders_leak_into_any_locale(): void
     {
-        foreach (['', '/en', '/tr'] as $p) {
-            foreach (["$p/urmia", "$p/urmia/web-design", "$p/urmia/cities/khoy"] as $url) {
-                $html = $this->get($url)->getContent();
-                $this->assertDoesNotMatchRegularExpression('/%(CITY|BRAND|COMPANY|REG|SINCE)%/', $html, $url);
-            }
+        /*
+        | ⚠️ فقط فارسی — و این محدودشدن عمدی است، نه کوتاه‌آمدن.
+        |
+        | نسخهٔ en/tr با ۴۱۰ برداشته شد و بدنهٔ ۴۱۰ **خالی** است، پس حلقه
+        | روی آن دو زبان regex را روی رشتهٔ خالی می‌دواند و همیشه سبز
+        | می‌مانَد. تستی که روی ورودیِ خالی ادعا می‌کند، ادعا نمی‌کند.
+        */
+        foreach (['/urmia', '/urmia/web-design', '/urmia/cities/khoy'] as $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+            $this->assertDoesNotMatchRegularExpression('/%(CITY|BRAND|COMPANY|REG|SINCE)%/', $html, $url);
         }
     }
 
-    public function test_homepage_links_to_the_hub_and_footer_links_in_every_locale(): void
+    /**
+     * لینکِ فوتر **فقط** در فارسی — و صفحاتِ en/tr باید سالم بمانند.
+     *
+     * 🔴 نسخهٔ قبلی هر سه زبان را می‌خواست. حالا روتِ en/tr نام ندارد (تا
+     * سوییچرِ زبان به یک ۴۱۰ لینک ندهد)، پس `lroute('urmia.hub')` در آن دو
+     * زبان استثنا می‌دهد — و چون فوتر روی **هر** صفحه است، بی‌گیتِ زبان کلِ
+     * سایتِ انگلیسی ۵۰۰ می‌شد.
+     *
+     * ⚠️ ادعای دومِ این تست مهم‌تر از اولی است: نه‌بودنِ لینک آسان دیده
+     * می‌شود، ولی ۵۰۰ شدنِ کلِ سایت را فقط بازکردنِ یک صفحهٔ بی‌ربط نشان
+     * می‌دهد.
+     */
+    public function test_the_footer_links_to_the_hub_in_persian_only(): void
     {
-        // پلِ متنیِ خانه فقط فارسی است (محتوای تحریری)، ولی فوتر در هر سه زبان
-        // به نسخهٔ همان زبان لینک می‌دهد.
         $this->get('/')->assertSee('href="'.route('urmia.hub').'"', false);
-        $this->get('/en')->assertSee('href="'.route('en.urmia.hub').'"', false);
-        $this->get('/tr')->assertSee('href="'.route('tr.urmia.hub').'"', false);
+
+        foreach (['/en', '/tr'] as $p) {
+            $this->get($p)->assertOk()->assertDontSee('/urmia', false);
+        }
     }
 }

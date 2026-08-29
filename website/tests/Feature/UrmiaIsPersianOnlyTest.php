@@ -96,6 +96,40 @@ class UrmiaIsPersianOnlyTest extends TestCase
     }
 
     /**
+     * 🔴 ادعای چهارم که در نگاهِ اول جا افتاده بود: **سوییچرِ زبان**.
+     *
+     * روت‌های ۴۱۰ اگر نام داشته باشند، `route('en.urmia.hub')` با موفقیت
+     * `/en/urmia` را می‌سازد و بازدیدکنندهٔ صفحهٔ فارسی با کلیک روی «English»
+     * به یک صفحهٔ رفته می‌رسد — از قبل از این تغییر بدتر. بی‌نام، همان
+     * `catch`ِ سوییچر او را به خانهٔ انگلیسی می‌برد.
+     */
+    public function test_the_language_switcher_never_points_at_a_gone_page(): void
+    {
+        foreach ($this->paths() as $p) {
+            $html = $this->get($p)->assertOk()->getContent();
+
+            $this->assertStringNotContainsString('/en/urmia', $html,
+                "«{$p}» هنوز به نسخهٔ انگلیسیِ رفته لینک می‌دهد");
+            $this->assertStringNotContainsString('/tr/urmia', $html);
+        }
+    }
+
+    /**
+     * 🔴 و فوتر روی **هر** صفحه است.
+     *
+     * لینکِ «خدمات ما در ارومیه» در فوتر `lroute('urmia.hub')` می‌زد. حالا که
+     * روتِ en/tr نام ندارد، آن فراخوان در آن دو زبان استثنا می‌دهد و کلِ سایت
+     * را ۵۰۰ می‌کرد — نه فقط صفحاتِ ارومیه. این تست همان انفجارِ شعاعی را
+     * می‌سنجد، نه خودِ لینک را.
+     */
+    public function test_removing_the_routes_did_not_break_every_foreign_page(): void
+    {
+        foreach (['/en', '/tr', '/en/about', '/tr/contact', '/en/blog'] as $p) {
+            $this->get($p)->assertOk();
+        }
+    }
+
+    /**
      * ⚠️ اسلاگِ ناشناخته در زبانِ خارجی هم باید ۴۱۰ بدهد، نه ۴۰۴.
      *
      * روتِ ۴۱۰ الگوی اسلاگ را نگه داشته، پس هر چیزی که شکلِ اسلاگ داشته باشد
