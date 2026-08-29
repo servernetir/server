@@ -24,6 +24,8 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:80',
+            // نامِ لاتین — در پیام‌های پشتیبانی به مشتریِ en/tr نشان داده می‌شود
+            'name_latin' => 'nullable|string|max:80',
             'email' => 'required|email|max:120|unique:users,email',
             // فهرست از خودِ مدل — تا نقشِ تازه در یک جا اضافه شود، نه دو جا
             'role' => ['required', \Illuminate\Validation\Rule::in(array_keys(User::ROLES))],
@@ -38,6 +40,7 @@ class UserController extends Controller
 
         User::create([
             'name' => $data['name'],
+            'name_latin' => filled($data['name_latin'] ?? null) ? trim($data['name_latin']) : null,
             'email' => $data['email'],
             'role' => $data['role'],
             'password' => Hash::make($data['password']),
@@ -45,6 +48,33 @@ class UserController extends Controller
         ]);
 
         return back()->with('ok', 'کاربر ساخته شد.');
+    }
+
+    /**
+     * ویرایشِ نامِ فارسی و لاتینِ یک کاربرِ موجود.
+     *
+     * ⚠️ چرا روت جدا (همان الگوی `extension`): کاربران از قبل ساخته شده‌اند و
+     * نامِ لاتین ستونِ تازه است — بدونِ این فرم، تنها راهِ اصلاحِ نام ساختنِ
+     * حسابِ تازه بود. نامِ لاتینِ خالی مجاز است و یعنی «بردار»؛ آن‌وقت مشتریِ
+     * en/tr فقط برچسبِ عمومیِ «ServerNet Support» را می‌بیند، نه نامِ فارسی.
+     */
+    public function names(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => 'required|string|max:80',
+            'name_latin' => 'nullable|string|max:80',
+        ]);
+
+        $latin = trim((string) ($data['name_latin'] ?? ''));
+
+        $user->update([
+            'name' => trim($data['name']),
+            'name_latin' => $latin === '' ? null : $latin,
+        ]);
+
+        return back()->with('ok', 'نامِ «'.$user->name.'» به‌روز شد.');
     }
 
     /**

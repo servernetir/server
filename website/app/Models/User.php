@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone_extension'])]
+#[Fillable(['name', 'name_latin', 'email', 'password', 'role', 'phone_extension'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -55,6 +55,29 @@ class User extends Authenticatable
     public function isStaff(): bool
     {
         return $this->isAdmin() || $this->isSupport();
+    }
+
+    /**
+     * نامِ نمایشیِ این کارمند به زبانِ مخاطب.
+     *
+     * فارسی → `name` (فارسی)؛ en/tr → `name_latin`. اگر نامِ لاتین ثبت نشده،
+     * `null` برمی‌گردد — نه نامِ فارسی: نامِ فارسی وسطِ رابطِ انگلیسی از
+     * ننوشتنش بدتر است و فراخوان با `null` به برچسبِ عمومیِ «ServerNet
+     * Support» سقوط می‌کند.
+     */
+    public function displayNameFor(?string $locale = null): ?string
+    {
+        $locale = $locale ?? app()->getLocale();
+
+        if ($locale === 'fa') {
+            $name = trim((string) $this->name);
+
+            return $name === '' ? null : $name;
+        }
+
+        $latin = trim((string) ($this->name_latin ?? ''));
+
+        return $latin === '' ? null : $latin;
     }
 
     public function roleLabel(): string

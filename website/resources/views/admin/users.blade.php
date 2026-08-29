@@ -10,7 +10,16 @@
       <tbody>
         @foreach($users as $u)
         <tr>
-          <td class="t">{{ $u->name }}</td>
+          {{-- نامِ فارسی + لاتین، هر دو ویرایش‌شدنیِ درجا — نامِ لاتین همان
+               چیزی است که مشتریِ en/tr در پاسخِ تیکت می‌بیند. --}}
+          <td class="t">
+            <form method="post" action="/admin/users/{{ $u->id }}/names" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              @csrf
+              <input class="ad-input" type="text" name="name" value="{{ $u->name }}" required style="width:150px;padding:5px 8px">
+              <input class="ad-input" type="text" name="name_latin" dir="ltr" value="{{ $u->name_latin }}" placeholder="Latin name" style="width:150px;padding:5px 8px">
+              <button class="btn btn-glass" type="submit" style="padding:5px 10px">ثبت</button>
+            </form>
+          </td>
           <td dir="ltr" style="color:var(--muted)">{{ $u->email }}</td>
           {{-- ⚠️ برچسب از `User::ROLES` می‌آید، نه از یک شرطِ دوحالته: شکلِ
                قبلی (`admin ? مدیر : نویسنده`) هر نقشِ سومی را «نویسنده»
@@ -45,6 +54,7 @@
       <form method="post" action="/admin/users">
         @csrf
         <div class="ad-field"><label>نام</label><input class="ad-input" type="text" name="name" required></div>
+        <div class="ad-field"><label>نام لاتین <span style="color:var(--dim);font-weight:400">(برای مشتری خارجی در تیکت)</span></label><input class="ad-input" type="text" name="name_latin" dir="ltr" placeholder="Ehsan Ebrahimi"></div>
         <div class="ad-field"><label>ایمیل</label><input class="ad-input" type="email" name="email" dir="ltr" required></div>
         <div class="ad-field"><label>شمارهٔ تماس‌گیرنده <span style="color:var(--dim);font-weight:400">(اختیاری)</span></label><input class="ad-input" type="text" name="phone_extension" dir="ltr" inputmode="numeric" placeholder="خالی = پیش‌فرض سراسری"></div>
         <div class="ad-field"><label>نقش</label>

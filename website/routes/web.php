@@ -2494,6 +2494,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
         // داخلیِ تلفن ابری هر کارمند — بدونِ آن دکمهٔ تماسِ او غیرفعال است
         Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
+        Route::post('/users/{user}/names', [AdminUser::class, 'names']);
 
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
