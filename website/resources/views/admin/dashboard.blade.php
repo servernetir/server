@@ -14,6 +14,17 @@
     <span class="ad-kpi-ic" style="background:rgba(251,191,36,.14);color:#fbbf24"><svg class="icon"><use href="#i-lifebuoy"/></svg></span>
     <b>{{ fa_num($biz['tickets_open']) }}</b><span>تیکت باز</span>
   </a>
+  {{--
+    🔴 دو کاشیِ مالی برای پشتیبان رندر نمی‌شوند.
+
+    داشبورد تنها صفحه‌ای است که پشتیبان هم بازش می‌کند، و **سودِ خالصِ شرکت**
+    روی همان صفحه بود. صفحهٔ `/admin/finance` پشتِ گاردِ مدیر است، ولی عددش
+    این‌جا بی‌گارد نشسته بود — همان الگوی «در به قفل، پنجره باز».
+
+    ⚠️ کاشیِ فاکتورِ پرداخت‌نشده هم می‌رود، چون هم مبلغ را نشان می‌دهد و هم
+    لینکش به `/admin/finance` است؛ لینکی که برای پشتیبان ۴۰۳ می‌دهد.
+  --}}
+  @if(auth()->user()?->isAdmin())
   <a class="ad-kpi" href="/admin/finance">
     <span class="ad-kpi-ic" style="background:rgba(255,107,107,.14);color:#ff6b6b"><svg class="icon"><use href="#i-coins"/></svg></span>
     <b>{{ fa_num($biz['invoices_unpaid']) }}</b>
@@ -24,6 +35,7 @@
     <b style="color:{{ $fin['net_profit'] >= 0 ? '#34d399' : '#ff6b6b' }}">{{ fa_num(number_format($fin['net_profit'])) }}</b>
     <span>سود خالص (تومان)</span>
   </a>
+  @endif
 </div>
 
 <div class="ad-grid2">
@@ -49,7 +61,8 @@
     </table>
   </div>
 
-  {{-- محتوا --}}
+  {{-- محتوا — کارِ نویسنده و مدیر است، نه پشتیبان --}}
+  @unless(auth()->user()?->isSupport())
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>آخرین مطالب</h3><a class="btn btn-primary" href="/admin/posts/new?type=blog"><svg class="icon"><use href="#i-plus"/></svg>مطلب جدید</a></div>
     <table class="ad-table">
@@ -66,6 +79,7 @@
       </tbody>
     </table>
   </div>
+  @endunless
 </div>
 
 {{-- ══ آخرین اتفاقات ══
@@ -77,6 +91,9 @@
      می‌کند، نه قالب‌بندیِ دستیِ تازه. --}}
 <div class="ad-latest" style="margin-top:16px">
 
+  {{-- پرداخت‌ها: مبلغ + درگاه + مشتری. پشتیبان لازم ندارد و
+       `/admin/invoices` هم برایش ۴۰۳ است. --}}
+  @if(auth()->user()?->isAdmin())
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h">
       <h3>آخرین پرداخت‌ها</h3>
@@ -98,7 +115,11 @@
       @endforelse
     </div>
   </div>
+  @endif
 
+  {{-- سرویس‌ها: مبلغِ فروش دارد و لینکِ `/admin/services` هم برای پشتیبان
+       ۴۰۳ است. تیکت‌ها (پایین‌تر) عمداً برای همه می‌مانَد. --}}
+  @if(auth()->user()?->isAdmin())
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h">
       <h3>تازه‌ترین سرویس‌ها</h3>
@@ -119,6 +140,7 @@
       @endforelse
     </div>
   </div>
+  @endif
 
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h">
@@ -146,7 +168,9 @@
   </div>
 
 </div>
-{{-- ══ محتوا: آمار ثانویه ══ --}}
+{{-- ══ محتوا: آمار ثانویه ══
+     شمارشِ پست و کامنت و «کاربر پنل» کارِ پشتیبان نیست. --}}
+@unless(auth()->user()?->isSupport())
 <div class="ad-stats" style="margin-top:16px">
   <div class="ad-stat"><b style="color:var(--cyan)">{{ fa_num($stats['blog']) }}</b><span>پست بلاگ</span></div>
   <div class="ad-stat"><b style="color:var(--violet)">{{ fa_num($stats['kb']) }}</b><span>مقاله دانش</span></div>
@@ -155,6 +179,7 @@
   <div class="ad-stat"><b style="color:var(--amber)">{{ fa_num($stats['comments']) }}</b><span>کامنت در انتظار</span></div>
   <div class="ad-stat"><b>{{ fa_num($stats['users']) }}</b><span>کاربر پنل</span></div>
 </div>
+@endunless
 
 <style>
 .ad-latest{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px }

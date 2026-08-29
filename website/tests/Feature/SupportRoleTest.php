@@ -151,6 +151,37 @@ class SupportRoleTest extends TestCase
         $this->assertStringNotContainsString('/admin/cloud', $html);
     }
 
+    /**
+     * 🔴 داشبورد سودِ شرکت را به پشتیبان نشان نمی‌دهد.
+     *
+     * ⚠️ چرا این تست جداست و مهم: `/admin/finance` پشتِ گاردِ مدیر است، ولی
+     * **عددش** روی داشبورد نشسته بود — و داشبورد تنها صفحه‌ای است که پشتیبان
+     * هم بازش می‌کند. الگوی «در به قفل، پنجره باز»: بستنِ صفحه کافی نیست اگر
+     * همان داده جای دیگری بی‌گارد رندر شود.
+     */
+    public function test_the_dashboard_hides_company_finances_from_support(): void
+    {
+        $supHtml = $this->actingAs($this->support())->get('/admin')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('سود خالص', $supHtml, 'سودِ شرکت به پشتیبان نشان داده شد');
+        $this->assertStringNotContainsString('آخرین پرداخت‌ها', $supHtml);
+        $this->assertStringNotContainsString('فاکتور پرداخت‌نشده', $supHtml);
+
+        // ...و برای مدیر سرِ جایش است — تست نباید کاشی را برای همه بکُشد
+        $admHtml = $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->get('/admin')->assertOk()->getContent();
+        $this->assertStringContainsString('سود خالص', $admHtml);
+    }
+
+    /** تیکت‌ها روی داشبورد برای پشتیبان می‌مانَد — کارِ خودش است. */
+    public function test_the_dashboard_still_shows_tickets_to_support(): void
+    {
+        $html = $this->actingAs($this->support())->get('/admin')->assertOk()->getContent();
+
+        $this->assertStringContainsString('آخرین تیکت‌ها', $html);
+        $this->assertStringContainsString('تیکت باز', $html);
+    }
+
     /** ساختِ کاربر با نقشِ پشتیبان از فرمِ /admin/users. */
     public function test_an_admin_can_create_a_support_user(): void
     {
