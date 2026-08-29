@@ -35,8 +35,17 @@
       @foreach(['service','verified','reseller','sort','from','to'] as $f)
         @if(($filters[$f] ?? '') !== '' && $filters[$f] !== 'newest')<input type="hidden" name="{{ $f }}" value="{{ $filters[$f] }}">@endif
       @endforeach
-      <input type="search" name="q" value="{{ $q }}" placeholder="کد، ایمیل، موبایل یا نام و نام‌خانوادگی…"
-             style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:240px;font:inherit">
+      {{-- ══ جستجوی زنده ══
+           کادر همان کادرِ قبلی است و Enter هنوز جستجوی کاملِ صفحه‌بندی‌شده را
+           می‌دهد؛ فقط حین تایپ، نتایجِ کلِ جدول (نه فقط این صفحه) زیرش می‌آید.
+           `autocomplete=off` لازم است وگرنه پیشنهادِ خودِ مرورگر روی فهرست
+           می‌افتد و کلیک را می‌خورَد. --}}
+      <div class="cs-live">
+        <input type="search" name="q" id="cs-q" value="{{ $q }}" autocomplete="off"
+               placeholder="کد، ایمیل، موبایل یا نام و نام‌خانوادگی…"
+               style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;min-width:240px;font:inherit">
+        <div class="cs-drop" id="cs-drop" hidden></div>
+      </div>
       <button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-search"/></svg>جستجو</button>
     </form>
   </div>
@@ -170,4 +179,94 @@
 {{-- استایلِ ستونِ عملیات (.cust-act / .cust-a) به `admin.css` منتقل شد.
      چرایش آن‌جا نوشته شده: `display:flex` روی یک <td> سلول را از جدول جدا
      می‌کرد. این‌جا دوباره تعریفش نکن. --}}
+
+{{--
+  ══ جستجوی زندهٔ مشتری ══
+
+  🔴 لایوتِ ادمین `@stack('scripts')` ندارد — درسِ ثبت‌شدهٔ دکمهٔ «پیشنهاد
+  پاسخ»: اسکریپتِ push‌شده بی‌صدا دور ریخته می‌شود و چیزی رندر می‌شود که
+  هرگز کار نمی‌کند. پس اسکریپت مستقیم داخلِ همین بخش می‌نشیند.
+--}}
+<script>
+(function () {
+  var inp  = document.getElementById('cs-q');
+  var drop = document.getElementById('cs-drop');
+  if (!inp || !drop) return;
+
+  var timer = null, lastQ = null, ctrl = null;
+
+  function hide() { drop.hidden = true; drop.innerHTML = ''; }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function render(data) {
+    if (!data.results.length) {
+      drop.innerHTML = '<div class="cs-empty">چیزی پیدا نشد</div>';
+      drop.hidden = false;
+      return;
+    }
+
+    var html = data.results.map(function (r) {
+      var line2 = [r.email, r.phone].filter(Boolean).join(' · ');
+      return '<a class="cs-row" href="' + esc(r.url) + '">'
+        + '<span class="cs-code">' + esc(r.code) + '</span>'
+        + '<span class="cs-main"><b>' + (r.name ? esc(r.name) : '<i>بی‌نام</i>') + '</b>'
+        + '<small>' + esc(line2) + '</small></span>'
+        + (r.services ? '<span class="cs-badge">' + r.services + ' سرویس</span>' : '')
+        + '</a>';
+    }).join('');
+
+    // 🔴 «چند تا بیشتر هست» را صریح بگو: کاربر باید بداند فهرست بریده شده،
+    //    وگرنه نبودِ یک مشتری در این ۱۲ تا را «نیست» می‌خواند.
+    if (data.total > data.results.length) {
+      html += '<div class="cs-more">' + (data.total - data.results.length)
+        + ' نتیجهٔ دیگر — Enter بزنید تا همه را ببینید</div>';
+    }
+
+    drop.innerHTML = html;
+    drop.hidden = false;
+  }
+
+  function run() {
+    var q = inp.value.trim();
+
+    if (q === lastQ) return;
+    lastQ = q;
+
+    if (q.length < 2) { hide(); return; }
+
+    // درخواستِ قبلی را لغو کن — وگرنه پاسخِ کُندِ «عل» می‌تواند بعد از
+    // پاسخِ «علی رضایی» برسد و نتیجهٔ کهنه را روی تازه بنشاند.
+    if (ctrl) ctrl.abort();
+    ctrl = new AbortController();
+
+    fetch('/admin/customers/search?q=' + encodeURIComponent(q), {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      signal: ctrl.signal,
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.ok) render(d); })
+      .catch(function () { /* لغو یا قطعی شبکه — کادر دست‌نخورده می‌مانَد */ });
+  }
+
+  inp.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(run, 220);      // ضربه‌گیر: هر کلید یک درخواست نشود
+  });
+
+  inp.addEventListener('focus', function () { if (drop.innerHTML) drop.hidden = false; });
+
+  document.addEventListener('click', function (e) {
+    if (!drop.contains(e.target) && e.target !== inp) hide();
+  });
+
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') hide();
+  });
+})();
+</script>
 @endsection

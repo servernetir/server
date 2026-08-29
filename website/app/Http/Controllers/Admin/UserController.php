@@ -25,7 +25,8 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:80',
             'email' => 'required|email|max:120|unique:users,email',
-            'role' => 'required|in:admin,author',
+            // فهرست از خودِ مدل — تا نقشِ تازه در یک جا اضافه شود، نه دو جا
+            'role' => ['required', \Illuminate\Validation\Rule::in(array_keys(User::ROLES))],
             'password' => 'required|string|min:8|max:100',
             /*
             | شمارهٔ تماس‌گیرنده — ⚠️ «فقط رقم» کافی نیست.

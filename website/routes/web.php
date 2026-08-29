@@ -2511,22 +2511,37 @@ Route::prefix('admin')->group(function () {
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
-        // تیکت پشتیبانی — روی همان احراز هویت کارکنان
-        Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
+        /*
+        | ═══ تیکت پشتیبانی — مدیر **یا** پشتیبان ═══
+        |
+        | 🔴 `withoutMiddleware('admin')` لازم است، نه اضافه: کلِ این گروه پشتِ
+        | `['auth:web','admin']` است، پس افزودنِ `staff` به‌تنهایی هیچ دری باز
+        | نمی‌کرد — `EnsureAdmin` زودتر ۴۰۳ می‌داد و پشتیبان همچنان بیرون
+        | می‌مانْد. گاردِ نقش این‌جا **جایگزین** می‌شود، نه افزوده.
+        |
+        | ⚠️ ترتیب مهم است: اول `admin` برداشته می‌شود، بعد `staff` می‌نشیند —
+        | یعنی این مسیرها هرگز بی‌گارد نمی‌مانند.
+        */
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])
+                ->name('admin.tickets');
+        });
         /*
         | ⚠️ `bulk` پیش از `{ticket}` ثبت می‌شود — درسِ روتِ compare در
         | فروشگاهِ قطعات: مسیرِ ثابتی که بعدِ پارامتری بیاید بلعیده می‌شود و
         | دکمه بی‌صدا از کار می‌افتد.
         */
-        Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
-        Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
-        Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
-        // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
-        Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
-        // پیشنهادِ پاسخ با AI — همان موتورِ بله؛ فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
-        Route::post('/tickets/{ticket}/draft', [\App\Http\Controllers\Admin\TicketController::class, 'draft']);
-        Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
-        Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
+            Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
+            Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
+            // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+            Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
+            // پیشنهادِ پاسخ با AI — همان موتورِ بله؛ فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+            Route::post('/tickets/{ticket}/draft', [\App\Http\Controllers\Admin\TicketController::class, 'draft']);
+            Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
+            Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
+        });
 
         /*
         | کنسولِ مدیر در بله — روشن/خاموش، اتصال، قطع.
@@ -2567,9 +2582,27 @@ Route::prefix('admin')->group(function () {
         Route::post('/calls/dial', [\App\Http\Controllers\Admin\PhoneCallController::class, 'dial'])
             ->middleware(['admin', 'throttle:10,1'])->name('admin.calls.dial');
 
-        // مدیریت مشتریان — بخشِ شبیه‌WHMCS
-        Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
-        Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
+        /*
+        | ═══ مدیریت مشتریان — بخشِ شبیه‌WHMCS ═══
+        |
+        | 🔴 **دیدن** برای پشتیبان باز است، **تغییر** نه. پشتیبان باید بتواند
+        | پروندهٔ مشتری را بخواند تا تیکتش را جواب دهد؛ ولی عوض‌کردنِ رمز،
+        | تعلیقِ حساب، نمایندگی و حذف تصمیمِ مدیر است و پشتِ `admin` (گاردِ
+        | خودِ گروه) می‌مانَد — بی‌آنکه خطی این‌جا لازم باشد.
+        */
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])
+                ->name('admin.customers');
+            /*
+            | ⚠️ جستجوی زنده **پیش از** `{customer}` — وگرنه لاراول «search» را
+            | شناسهٔ مشتری می‌خوانَد و روت هرگز صدا زده نمی‌شود. همان درسِ
+            | `tickets/bulk` و `parts/compare`: مسیرِ ثابت قبل از پارامتری.
+            */
+            Route::get('/customers/search', [\App\Http\Controllers\Admin\CustomerController::class, 'search'])
+                ->name('admin.customers.search');
+            Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])
+                ->name('admin.customer');
+        });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه

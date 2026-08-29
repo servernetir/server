@@ -12,7 +12,11 @@
         <tr>
           <td class="t">{{ $u->name }}</td>
           <td dir="ltr" style="color:var(--muted)">{{ $u->email }}</td>
-          <td><span class="ad-badge {{ $u->role === 'admin' ? 'pub' : 'draft' }}">{{ $u->role === 'admin' ? 'مدیر' : 'نویسنده' }}</span></td>
+          {{-- ⚠️ برچسب از `User::ROLES` می‌آید، نه از یک شرطِ دوحالته: شکلِ
+               قبلی (`admin ? مدیر : نویسنده`) هر نقشِ سومی را «نویسنده»
+               نشان می‌داد — یعنی پشتیبان‌ها با نقشِ اشتباه دیده می‌شدند و
+               مدیر فکر می‌کرد دسترسی را اشتباه داده است. --}}
+          <td><span class="ad-badge {{ $u->role === 'admin' ? 'pub' : ($u->role === 'support' ? 'ok' : 'draft') }}">{{ $u->roleLabel() }}</span></td>
           {{-- شماره‌ای که موقعِ Click-to-Call **اول** زنگ می‌خورد.
                ⚠️ اختیاری: خالی یعنی پیش‌فرضِ سراسری (CLOUD_PHONE_AGENT_NUMBER).
                ذخیرهٔ درجا، چون تنها فیلدِ قابلِ ویرایشِ این جدول است. --}}
@@ -46,12 +50,18 @@
         <div class="ad-field"><label>نقش</label>
           <select class="ad-input" name="role">
             <option value="author">نویسنده (فقط محتوا)</option>
+            <option value="support">پشتیبان (تیکت و مشتریان)</option>
             <option value="admin">مدیر (دسترسی کامل)</option>
           </select>
         </div>
         <div class="ad-field"><label>رمز عبور</label><input class="ad-input" type="text" name="password" required minlength="8"></div>
         <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">ساخت کاربر</button>
-        <p class="ad-hint">نویسنده فقط می‌تواند محتوا بسازد و ویرایش کند؛ مدیر به کاربران و همه‌چیز دسترسی دارد.</p>
+        <p class="ad-hint">
+          <b>نویسنده</b> فقط محتوا (بلاگ و پایگاه دانش).<br>
+          <b>پشتیبان</b> تیکت‌ها و پروندهٔ مشتریان — بدونِ تنظیمات، مالی، زیرساخت
+          و بدونِ تغییرِ حسابِ مشتری (رمز، تعلیق، حذف).<br>
+          <b>مدیر</b> همه‌چیز، از جمله ساختِ همین کاربران.
+        </p>
       </form>
     </div>
   </div>
