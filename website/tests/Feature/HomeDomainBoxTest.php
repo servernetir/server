@@ -177,36 +177,62 @@ class HomeDomainBoxTest extends TestCase
     /**
      * 🔴 قیمتِ پیشنهادها از دفترچهٔ کش‌شده می‌آید، نه از پاسخِ زنده.
      *
-     * دفترچه با یک نامِ **بلندِ قطعاً آزاد** (`sn7price9check4base`) هر ۶ ساعت
-     * قیمتِ پایه را می‌گیرد. این‌جا عمداً به آن نام قیمتی متفاوت می‌دهیم تا
-     * ثابت شود عددی که روی پیشنهاد می‌نشیند واقعاً از دفترچه آمده.
+     * دفترچه با یک نامِ **بلندِ قطعاً آزاد** (`sn7price9check4base`) قیمتِ پایهٔ
+     * هر پسوند را می‌گیرد. این‌جا عمداً به آن نام قیمتی متفاوت از قیمتِ زنده
+     * می‌دهیم تا ثابت شود عددی که روی پیشنهاد می‌نشیند واقعاً از دفترچه آمده.
+     *
+     * ═══ ⚠️ چرا این تست دو مرحله شد ═══
+     *
+     * نسخهٔ قبلی هر دو پاسخ را در **یک** `Http::sequence` می‌گذاشت، با این
+     * فرض که خودِ endpoint دفترچه را گرم می‌کند. آن فرض دیگر درست نیست و
+     * **نباید** هم درست باشد: مسیرِ وب `cachedForTlds()` می‌زند که فقط کش را
+     * می‌خوانَد. `forTlds()` روی کشِ سرد استعلامِ زنده می‌زند و اگر این
+     * endpointِ عمومی آن را صدا بزند، یک ربات می‌تواند حسابِ ما را نزدِ
+     * رجیسترار نرخ‌محدود کند — همان اتفاقی که یک بار افتاد.
+     *
+     * پس دفترچه این‌جا هم مثلِ پروداکشن **جداگانه** گرم می‌شود (کارِ کرونِ
+     * `domains:refresh-price-book`)، و تازه بعدش استعلامِ کاربر می‌آید.
+     *
+     * ⚠️ دو `Http::swap` عمدی است: تلهٔ ثبت‌شدهٔ این پروژه می‌گوید استابِ `'*'`
+     * هر fakeِ بعدی را بی‌اثر می‌کند، پس هر مرحله factoryِ خودش را دارد.
      */
     public function test_suggestion_prices_come_from_the_cached_price_book(): void
     {
-        Http::swap(new Factory);
-        Http::fake([
-            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
-            '*/domains/check*' => Http::sequence()
-                // ۱) استعلامِ خودِ کاربر — قیمتِ زنده عمداً گران
-                ->push(['code' => 0, 'data' => ['results' => [
-                    ['domain' => 'example.com', 'status' => 'active'],
-                    ['domain' => 'example.net', 'status' => 'free',
-                        'price' => ['reseller' => ['price' => 99.0, 'currency' => 'EUR']]],
-                ]]], 200)
-                // ۲) کاوشِ دفترچه با نامِ بلند — قیمتِ پایهٔ ارزان
-                ->push(['code' => 0, 'data' => ['results' => [
-                    ['domain' => 'sn7price9check4base.net', 'status' => 'free',
-                        'price' => ['reseller' => ['price' => 5.0, 'currency' => 'EUR']]],
-                ]]], 200),
-            '*' => Http::response(['code' => 0, 'data' => []], 200),
-        ]);
-
         config([
             'services.openprovider.username' => 'u',
             'services.openprovider.password' => 'p',
             'services.openprovider.base_url' => 'https://api.example.test/v1beta',
         ]);
         \App\Models\Setting::put('pricing_rate_override', '100000');
+
+        // ── مرحلهٔ ۱: گرم‌کردنِ دفترچه، همان‌طور که کرون می‌کند ──
+        Http::swap(new Factory);
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
+            '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [
+                ['domain' => 'sn7price9check4base.net', 'status' => 'free',
+                    'price' => ['reseller' => ['price' => 5.0, 'currency' => 'EUR']]],
+            ]]], 200),
+            '*' => Http::response(['code' => 0, 'data' => []], 200),
+        ]);
+
+        $book = app(\App\Services\Domain\TldPriceBook::class)
+            ->forTlds(\App\Http\Controllers\DomainCheckController::SUGGEST);
+
+        $this->assertArrayHasKey('net', $book,
+            'دفترچه گرم نشد — بقیهٔ این تست چیزی را ثابت نمی‌کند');
+
+        // ── مرحلهٔ ۲: استعلامِ کاربر، با قیمتِ زندهٔ عمداً گران ──
+        Http::swap(new Factory);
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
+            '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [
+                ['domain' => 'example.com', 'status' => 'active'],
+                ['domain' => 'example.net', 'status' => 'free',
+                    'price' => ['reseller' => ['price' => 99.0, 'currency' => 'EUR']]],
+            ]]], 200),
+            '*' => Http::response(['code' => 0, 'data' => []], 200),
+        ]);
 
         $json = $this->check('example.com');
         $net = collect($json['suggestions'])->firstWhere('domain', 'example.net');

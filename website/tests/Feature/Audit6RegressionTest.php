@@ -141,7 +141,25 @@ class Audit6RegressionTest extends TestCase
         $this->assertMatchesRegularExpression('~data-href="[^"]*/go/pay\?[^"]*sku=wp-test-1[^"]*cycle=yearly~', $html);
         $this->assertStringNotContainsString('sig=', $html, 'امضا در /go/pay ساخته می‌شود، نه در صفحهٔ کش‌شده');
         $this->assertStringNotContainsString('price=', $html);
-        $this->assertStringNotContainsString('sid=', $html, 'sid را مرورگر می‌سازد — صفحه کش می‌شود');
+        /*
+        | ⚠️ ادعا روی **لینک‌های رندرشده** است، نه روی کلِ سند.
+        |
+        | نسخهٔ قبلی `sid=` را در تمامِ HTML می‌گشت و به سورسِ خودِ جاوااسکریپت
+        | گیر می‌کرد (`cta.href = r.dataset.href + '&sid=' + sid`) — یعنی دقیقاً
+        | به همان کدی که کامنتِ بالا می‌گوید **باید** آن‌جا باشد. تست چیزی را
+        | قرمز می‌کرد که خودش تجویزش کرده بود.
+        |
+        | خطرِ واقعی این است که یک sidِ **سروری** داخلِ یک آدرس بنشیند و با
+        | صفحه کش شود؛ پس همان‌جا را می‌سنجیم.
+        */
+        preg_match_all('~(?:data-)?href="([^"]*)"~', $html, $hrefs);
+
+        $this->assertNotEmpty($hrefs[1], 'هیچ لینکی در صفحه نیست — پیش‌فرضِ این ادعا عوض شده');
+
+        foreach ($hrefs[1] as $href) {
+            $this->assertStringNotContainsString('sid=', $href,
+                'sid را مرورگر می‌سازد — این لینک با صفحه کش می‌شود: '.$href);
+        }
 
         // ستونِ خالی حذف شد؛ برچسبِ صرفه‌جویی و «بیشترین صرفه‌جویی» هستند
         $this->assertStringContainsString(__('ui.os_base'), $html);

@@ -4,13 +4,9 @@ Disallow: /api/
 Disallow: /en/api/
 Disallow: /tr/api/
 Disallow: /system/
-# /go/* ریدایرکتِ شمارش‌پذیرِ پرداخت است، نه محتوا (ممیزی ۷)
 Disallow: /go/
 Disallow: /en/go/
 Disallow: /tr/go/
-# پنل مشتری noindex است ولی خزیده می‌شد: ده‌ها URL پارامتریِ cloud-store داشت
-# بودجهٔ خزش را می‌سوزاند (GSC، شهریور ۱۴۰۵). بستنِ خزش، بودجه را به ۶۵۰+
-# صفحهٔ «Discovered - not indexed» برمی‌گرداند.
 Disallow: /account/
 Disallow: /en/account/
 Disallow: /tr/account/

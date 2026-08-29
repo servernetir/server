@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
+        'name', 'name_en', 'name_tr', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
         'price', 'price_eur', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
         'requires_domain', 'is_active', 'sort',
     ];
@@ -62,6 +62,36 @@ class Product extends Model
      * هم‌خانوادهٔ `isLicense()` بالا: هر دو دسته‌ای‌اند که مسیرِ تحویلشان با
      * هاستِ معمولی فرق دارد.
      */
+    /**
+     * نامِ محصول به زبانِ صفحه — تنها جایی که این تصمیم گرفته می‌شود.
+     *
+     * 🔴 ممیزی نهم: هر ۱۳۴ صفحهٔ سفارشِ en/tr نامِ **فارسی** نشان می‌دادند،
+     * چون همه‌جا مستقیم `$product->name` خوانده می‌شد و آن ستون فقط فارسی
+     * دارد. رشتهٔ RTL داخلِ عنوانِ LTR علاوه بر بدخوانی، بازچینشِ bidi
+     * می‌سازد و `— €2.31/mo` جابه‌جا رندر می‌شود.
+     *
+     * ⚠️ بازگشت به فارسی عمدی است: محصولی که هنوز ترجمه ندارد باید نامِ
+     * فارسی نشان دهد، نه رشتهٔ خالی. عنوانِ خالی از عنوانِ بدخوان بدتر است.
+     *
+     * ⚠️ **این متد باید تنها درِ ورودی باشد.** هر جا `$product->name` مستقیم
+     * روی صفحهٔ عمومی چاپ شود، همان یک‌جا دوباره نشت می‌کند و هیچ تستی جز
+     * پیمایشِ کاملِ سایت نمی‌بیندش.
+     */
+    public function displayName(?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+
+        $col = match ($locale) {
+            'en' => 'name_en',
+            'tr' => 'name_tr',
+            default => null,
+        };
+
+        return $col !== null && filled($this->{$col})
+            ? (string) $this->{$col}
+            : (string) $this->name;
+    }
+
     public function isReseller(): bool
     {
         return $this->category === 'reseller';
@@ -215,10 +245,31 @@ class Product extends Model
         return array_values(array_intersect($available, $allowed));
     }
 
+    /**
+     * نرخِ مالیاتِ **قابلِ اعمال** روی این فروش — نه صرفاً ستونِ محصول.
+     *
+     * ═══ 🔴 تصمیمِ کارفرما (شهریور ۱۴۰۵) ═══
+     *
+     * «قیمت‌های تومان بله ارزش افزوده دارد، ولی یورو نه.»
+     *
+     * ارزش افزوده یک مالیاتِ **ایرانی** است و به فروشِ داخلی تعلق می‌گیرد.
+     * تا امروز `tax_percent` بی‌قیدِ زبان اعمال می‌شد، یعنی مشتریِ یورویی هم
+     * ۱۰٪ مالیاتِ ایران می‌پرداخت — عددی که نه ما موظف به وصولش بودیم و نه
+     * او به پرداختش. **بی‌هیچ خطایی، روی هر تراکنش.**
+     *
+     * ⚠️ نشانه عمداً **ارز** است نه زبان: اگر روزی مشتریِ ایرانی صفحهٔ
+     * انگلیسی را ببیند ولی تومان بپردازد، مالیات باید بیاید. آنچه مالیات را
+     * تعیین می‌کند پولِ معامله است، نه زبانِ صفحه.
+     */
+    public function effectiveTaxPercent(): int
+    {
+        return app()->getLocale() === 'fa' ? (int) $this->tax_percent : 0;
+    }
+
     /** مالیاتِ هر دوره (روی قیمتِ مؤثر) */
     public function taxAmount(): int
     {
-        return (int) round($this->effectivePrice() * $this->tax_percent / 100);
+        return (int) round($this->effectivePrice() * $this->effectiveTaxPercent() / 100);
     }
 
     /** مبلغِ کلِ اولین صورت‌حساب (دوره + راه‌اندازی + مالیاتِ هردو) */
@@ -226,7 +277,7 @@ class Product extends Model
     {
         $base = $this->effectivePrice() + $this->effectiveSetup();
 
-        return $base + (int) round($base * $this->tax_percent / 100);
+        return $base + (int) round($base * $this->effectiveTaxPercent() / 100);
     }
 
     /** مبلغِ دوره‌ایِ بعدی (بدونِ راه‌اندازی) */

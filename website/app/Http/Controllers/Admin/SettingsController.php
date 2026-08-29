@@ -134,6 +134,7 @@ class SettingsController extends Controller
             'bank_sheba'   => ['nullable', 'string', 'max:34'],
             'bank_card'    => ['nullable', 'string', 'max:20'],
             'bank_note'    => ['nullable', 'string', 'max:300'],
+            'crypto_cooldown_hours' => ['nullable', 'integer', 'min:0', 'max:48'],
         ],
         'pricing' => [
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
@@ -348,6 +349,13 @@ class SettingsController extends Controller
             'accounts'     => $paReady ? PaymentAccount::ordered()->get() : collect(),
             'paNotReady'   => ! $paReady,
             'wallets'      => $cwReady ? CryptoWallet::orderBy('chain')->orderBy('id')->get() : collect(),
+            // پرداختِ گرفتارکنندهٔ هر ولتِ مشغول — تا مدیر ببیند «چرا» و «تا کی»
+            'walletPayments' => $cwReady && Schema::hasTable('crypto_payments')
+                ? \App\Models\CryptoPayment::whereIn('id',
+                        CryptoWallet::whereNotNull('busy_payment_id')->pluck('busy_payment_id'))
+                    ->get()->keyBy('id')
+                : collect(),
+            'cryptoCooldownHours' => CryptoWallet::cooldownHours(),
             'cwNotReady'   => ! $cwReady,
             // پرداخت‌هایی که خودکار تسویه نشدند و منتظرِ چشمِ آدم‌اند
             'review' => $hasPayments
@@ -616,6 +624,10 @@ class SettingsController extends Controller
         foreach (self::BANK_KEYS as $k) {
             Setting::put($k, isset($data[$k]) ? trim((string) $data[$k]) : null);
         }
+
+        // دورهٔ خنک‌شدنِ آدرسِ رمزارز — خالی = پیش‌فرضِ کد (۶ ساعت)
+        Setting::put('crypto_cooldown_hours',
+            filled($data['crypto_cooldown_hours'] ?? null) ? (string) (int) $data['crypto_cooldown_hours'] : null);
     }
 
     private function savePricing(array $data): void

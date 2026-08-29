@@ -124,12 +124,16 @@ return [
             "domains:read" => "read the domain portfolio, availability and tier pricing",
             "domains:write" => "register and renew domains — settles against account credit",
             "domains:manage" => "modify nameservers and the auto-renew flag on existing domains",
+            "tunnel:read" => "read the WireGuard-over-TCP tunnel accounts on your exit server",
+            "tunnel:write" => "create and delete tunnel accounts — the private key is returned once",
         ],
         "tr" => [
             "read" => "hesap profili, hizmetler, faturalar ve kredi bakiyesini okuma",
             "domains:read" => "alan adi portfoyu, uygunluk ve kademe fiyatlarini okuma",
             "domains:write" => "alan adi kaydi ve yenileme — hesap kredisinden tahsil edilir",
             "domains:manage" => "mevcut alan adlarinda ad sunucu ve otomatik yenileme degisikligi",
+            "tunnel:read" => "çıkış sunucunuzdaki WireGuard-over-TCP tünel hesaplarını okuma",
+            "tunnel:write" => "tünel hesabı oluşturma ve silme — özel anahtar yalnızca bir kez döner",
         ],
     ],
 

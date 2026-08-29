@@ -63,7 +63,15 @@ fi
 #    هرکدام زودتر بدود، تغییرِ آن‌یکی برای دیپلویِ بعدی یک تغییرِ سمتِ سرور
 #    است و merge حفظش می‌کند. تنها فایلی که با این جابه‌جایی عوض می‌شود
 #    همین `routes/web.php` است (۲۷ فایلِ دیگرِ فهرست بایت‌به‌بایت یکسان‌اند).
-MINE="${1:-ec2c4f4}"
+#
+# ⚠️ پین دوباره جلو رفت (ممیزی نهم، ۶ شهریور) و دلیلش همان دلیلِ بالاست:
+#    scripts/deploy-audit-r9.sh هم `lang/{fa,en,tr}/ui.php` را می‌برد. پینِ
+#    قبلی (7f67164) کلیدهای آن دیپلوی را ندارد، پس اگر این اسکریپت **بعد**
+#    از آن بدود، پایه‌یاب نسخهٔ سرور را در تاریخچهٔ خودش پیدا نمی‌کند و به
+#    merge سه‌طرفه می‌افتد — و روی تداخل «دست نزن» است، یعنی کلیدهای GPU
+#    بی‌صدا هرگز نمی‌نشینند. کامیتِ ادغام هر دو را دارد، پس هر دو هم‌گرا
+#    می‌شوند و ترتیبِ اجرا دیگر مهم نیست.
+MINE="${1:-8b63fc9}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -104,6 +112,7 @@ app/Http/Controllers/Account/CloudServerController.php
 app/Models/TunnelAgent.php
 app/Models/TunnelJob.php
 app/Models/CustomerApiToken.php
+app/Models/CryptoWallet.php
 app/Support/TunnelAgentScript.php
 app/Http/Controllers/Agent/TunnelAgentController.php
 app/Http/Controllers/Api/TunnelApiController.php
@@ -122,6 +131,7 @@ resources/views/account/builder-checkout.blade.php
 resources/views/account/reseller.blade.php
 resources/views/account/topup.blade.php
 resources/views/account/home.blade.php
+resources/views/account/invoice.blade.php
 app/Models/Customer.php
 resources/views/admin/settings/general.blade.php
 resources/views/auth/register/start.blade.php
@@ -139,6 +149,7 @@ app/Console/Commands/CloudHourlyReprice.php
 routes/console.php
 app/Http/Controllers/Admin/CustomerController.php
 app/Models/Payment.php
+app/Models/PaymentAccount.php
 app/Http/Controllers/CatalogController.php
 app/Services/Cloud/CloudCountry.php
 app/Services/SiteMenu.php
@@ -164,6 +175,7 @@ resources/views/admin/customer.blade.php
 resources/views/partials/cloud-locations-links.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
+resources/views/admin/settings/accounts.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
@@ -459,6 +471,13 @@ g app/Http/Controllers/Account/AccountController.php "countsAsActive"
 g config/billing.php "order_expiry_hours' => 24"
 g lang/en/ui.php "pnl_act_pay"
 g app/helpers.php "cloud_hourly_price"
+g app/Models/PaymentAccount.php "IRT"
+
+# حوالهٔ تک‌کارت + دیدِ استخرِ رمزارز (۶ شهریور)
+g resources/views/account/invoice.blade.php "data-m=\"wire\""
+g resources/views/admin/settings/accounts.blade.php "crypto_cooldown_hours"
+g app/Models/CryptoWallet.php "cooldownHours"
+g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
 

@@ -14,6 +14,25 @@ class CryptoWallet extends Model
     /** ⚠️ آدرسِ آزادشده تا این مدت دوباره داده نمی‌شود — تلهٔ پرداختِ دیرهنگام */
     public const COOLDOWN_HOURS = 6;
 
+    /**
+     * دورهٔ خنک‌شدن — تنظیم‌پذیر (۶ شهریور: کارفرما «چرا هی غیرفعال است؟»).
+     *
+     * با استخرِ کوچک، ۶ ساعتِ ثابت یعنی هر تلاشِ منقضی روشِ پرداخت را
+     * ساعت‌ها می‌بندد. حالا مدیر آگاهانه کوتاهش می‌کند و بهایش را می‌داند:
+     * خنک‌شدنِ کوتاه‌تر = ریسکِ بیشترِ «پرداختِ دیرهنگام به آدرسی که به
+     * فاکتورِ بعدی داده شده». صفر مجاز است؛ سقف ۴۸.
+     */
+    public static function cooldownHours(): int
+    {
+        $v = \App\Models\Setting::get('crypto_cooldown_hours');
+
+        if ($v === null || $v === '' || ! is_numeric($v)) {
+            return self::COOLDOWN_HOURS;
+        }
+
+        return max(0, min(48, (int) $v));
+    }
+
     protected $fillable = ['chain', 'address', 'label', 'is_active', 'busy_payment_id', 'cooldown_until'];
 
     protected function casts(): array
@@ -57,7 +76,7 @@ class CryptoWallet extends Model
     {
         $this->forceFill([
             'busy_payment_id' => null,
-            'cooldown_until' => now()->addHours(self::COOLDOWN_HOURS),
+            'cooldown_until' => now()->addHours(static::cooldownHours()),
         ])->save();
     }
 }

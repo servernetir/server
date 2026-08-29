@@ -73,6 +73,15 @@ class PaymentAccount extends Model
      * ⚠️ رمزارز به **ارزِ فاکتور وابسته نیست**: تتر مقصدِ همه‌کاره است و اگر
      * فیلترِ ارز رویش بخورد، فاکتورِ یورویی هیچ گزینهٔ رمزارزی نمی‌بیند —
      * یعنی همان قابلیتی که کارفرما صریح خواست، بی‌صدا ناپدید می‌شود.
+     *
+     * 🔴 حسابِ بانکیِ ارزی هم همان تله را داشت (۶ شهریور ۱۴۰۵): فاکتورهای
+     * مشتریِ خارجی **درونی IRT** هستند (یورو فقط نمایش است — قاعدهٔ ثبت‌شدهٔ
+     * invoice_money)، پس حسابِ EURی که مدیر ساخته بود به هیچ فاکتوری
+     * نمی‌خورد و مشتری برای همیشه «Coming soon» می‌دید. جریانِ حواله آفلاین
+     * است — مشتری می‌فرستد، شناسه ثبت می‌کند، **مدیر مبلغ را دستی تأیید
+     * می‌کند** — پس تطبیقِ ارزِ ماشینی این‌جا محافظِ هیچ‌چیز نیست. فاکتورِ
+     * تومانی هر مقصدِ ارزی را می‌پذیرد؛ تطبیقِ دقیق فقط برای فاکتورِ
+     * غیرتومانی می‌مانَد (فاکتورِ EUR فقط حسابِ EUR).
      */
     public static function forInvoiceCurrency(string $currency): \Illuminate\Support\Collection
     {
@@ -82,7 +91,9 @@ class PaymentAccount extends Model
 
         return static::active()->ordered()->get()
             ->filter(fn (self $a) => $a->isUsable())
-            ->filter(fn (self $a) => $a->isCrypto() || strcasecmp($a->currency_code, $currency) === 0)
+            ->filter(fn (self $a) => $a->isCrypto()
+                || strcasecmp($a->currency_code, $currency) === 0
+                || strcasecmp($currency, 'IRT') === 0)
             ->values();
     }
 

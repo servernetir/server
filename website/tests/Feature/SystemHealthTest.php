@@ -29,6 +29,31 @@ class SystemHealthTest extends TestCase
         foreach ([SystemHealth::HEARTBEAT, 'health-state'] as $f) {
             @unlink(storage_path('app/'.$f));
         }
+
+        $this->greenTheChecksThisFileIsNotAbout();
+    }
+
+    /**
+     * چک‌هایی که در نصبِ خالی قرمزند ولی موضوعِ این پرونده نیستند.
+     *
+     * 🔴 `test_recovery_is_announced` ذاتاً به «همهٔ چک‌ها سبز» نیاز دارد،
+     * پس هر چکِ تازه‌ای که در نصبِ خالی قرمز باشد آن را می‌شکند — بی‌آنکه
+     * چیزی خراب شده باشد. دقیقاً همین رخ داد: چکِ `domain_margin` اضافه شد و
+     * چون `DOMAIN_MARGIN_PCT` پیش‌فرضِ صفر دارد، همیشه هشدار می‌داد.
+     *
+     * ⚠️ **این متد نباید به یک زباله‌دانِ ساکت تبدیل شود.** اگر چکِ تازه‌ای
+     * این‌جا لازم شد، اول بپرس چرا در نصبِ خالی قرمز است: گاهی جواب «تنظیمِ
+     * اختیاری» است (مثلِ این)، و گاهی «پیش‌فرضِ کد غلط است» — و آن دومی یک
+     * باگِ واقعی است که این تست تازه لوش داده.
+     *
+     * ⚠️ حاشیهٔ سود عمداً این‌جا ست می‌شود و نه در `config`: پیش‌فرضِ صفرِ
+     * `DOMAIN_MARGIN_PCT` دست‌نخورده می‌مانَد تا چک روی پروداکشن واقعاً
+     * هشدار بدهد. فروش به قیمتِ تمام‌شده خطِ قرمزِ کارفراست و نباید با یک
+     * پیش‌فرضِ راحت‌کننده پنهان شود.
+     */
+    private function greenTheChecksThisFileIsNotAbout(): void
+    {
+        \App\Models\Setting::put('domain_margin_pct', '25');
     }
 
     private function beat(?\Carbon\Carbon $at = null): void

@@ -104,25 +104,34 @@ class TrackNotFoundTest extends TestCase
      * 🔴 مهم‌ترین ادعا: ۴۰۴ِ **واقعی** باید ثبت شود.
      *
      * فیلترِ بیش‌ازحد پهن یعنی لینکِ خرابِ واقعی هم گم می‌شود — و آن‌وقت این
-     * ابزار هیچ فایده‌ای ندارد. این همان مسیرهایی است که در لاگِ زنده دیده شد
-     * و واقعاً باید بررسی شوند.
+     * ابزار هیچ فایده‌ای ندارد.
+     *
+     * ⚠️ **نمونه‌ها عمداً مسیرهایی‌اند که هیچ سیاستی نمی‌تواند ادعایشان کند.**
+     * نسخهٔ قبلی از `/marketing` استفاده می‌کرد — یکی از همان ۴۰۴های واقعیِ
+     * لاگِ زنده. ولی ممیزیِ ۲۴ اوت آن را به یک ریدایرکتِ ۳۰۱ِ عمدی تبدیل کرد
+     * (بازیابیِ آدرس‌های مردهٔ وردپرس)، و از آن لحظه این تست قرمز شد بی‌آنکه
+     * چیزی خراب شده باشد: فیکسچر کهنه شده بود، نه کد.
+     *
+     * درس: وقتی فیکسچرِ یک تست را از دادهٔ **زندهٔ امروز** برمی‌داری، همان داده
+     * فردا می‌تواند موضوعِ یک تصمیمِ محصولی شود. اسلاگِ ساختگیِ بی‌ادعا
+     * (`/mktg-9f3a…`) همان ادعا را می‌سنجد و کهنه نمی‌شود.
      */
     public function test_real_broken_links_are_still_recorded(): void
     {
-        $this->get('/marketing')->assertNotFound();
+        $this->get('/mktg-9f3a-landing')->assertNotFound();
         $this->get('/en/blog/kubernetes-for-beginners/comment')->assertNotFound();
 
         $urls = $this->urls();
 
         $this->assertCount(2, $urls);
-        $this->assertStringContainsString('/marketing', implode(' ', $urls));
+        $this->assertStringContainsString('/mktg-9f3a-landing', implode(' ', $urls));
         $this->assertStringContainsString('kubernetes', implode(' ', $urls));
     }
 
     /** ⚠️ فایلِ ۴۰۴ جداست — نباید در سطلِ خطاهای واقعی بیفتد */
     public function test_404s_never_pollute_the_error_bucket(): void
     {
-        $this->get('/marketing')->assertNotFound();
+        $this->get('/mktg-9f3a-landing')->assertNotFound();
 
         $this->assertSame([], ErrorTracker::recent(50, 'error'));
     }
