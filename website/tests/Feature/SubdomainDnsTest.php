@@ -144,6 +144,7 @@ class SubdomainDnsTest extends TestCase
         Http::fake([
             '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 0, 'reason' => 'not found']]),
             '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 1], 'data' => []]),
+            '*/json-api/start_autossl*'  => Http::response(['metadata' => ['result' => 1, 'reason' => 'ok']]),
             '*/dns_records?*'            => Http::response(['success' => true, 'result' => []]),   // رکوردی نیست
             '*/dns_records'              => Http::response(['success' => true, 'result' => ['id' => 'rec1']]),
         ]);
@@ -194,6 +195,7 @@ class SubdomainDnsTest extends TestCase
         Http::fake([
             '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 0, 'reason' => 'not found']]),
             '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 1], 'data' => []]),
+            '*/json-api/start_autossl*'  => Http::response(['metadata' => ['result' => 1, 'reason' => 'ok']]),
             // Cloudflare روی خطا هم HTTP 200 می‌دهد؛ نتیجه در بدنه است
             '*cloudflare.com*' => Http::response(['success' => false, 'errors' => [['message' => 'Invalid token']]]),
         ]);

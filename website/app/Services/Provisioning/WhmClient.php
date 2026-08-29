@@ -364,6 +364,22 @@ class WhmClient
         return $this->call('create_user_session', ['user' => $user, 'service' => $service]);
     }
 
+    /**
+     * اجرای فوریِ چکِ AutoSSL برای **یک** کاربر — بلافاصله بعد از تحویل.
+     *
+     * چرا لازم است: AutoSSLِ خودِ WHM فقط یک اجرای شبانه دارد (این سرور:
+     * ۹:۱۸ صبح). یعنی اکانتی که ظهر ساخته می‌شود تا فردا صبح بی‌گواهی
+     * می‌مانَد و مشتری همان ساعتِ اول تیکتِ «سایتم قفل ندارد» می‌زند —
+     * و مدیر مجبور بود دستی در Manage AutoSSL دکمهٔ Check را بزند.
+     * این فراخوان همان دکمه است، از راهِ API.
+     *
+     * ⚠️ فقط **صف می‌اندازد** و چیزی نمی‌سازد؛ اجرای دوباره‌اش بی‌ضرر است.
+     */
+    public function startAutoSslCheck(string $user): array
+    {
+        return $this->call('start_autossl_check_for_one_user', ['username' => $user]);
+    }
+
     /** آیا حساب از قبل روی سرور هست؟ (برای idempotency) */
     public function accountExists(string $user): bool
     {

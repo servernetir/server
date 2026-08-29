@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-5779d86}"
+MINE="${1:-06709cc}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -116,6 +116,7 @@ app/Services/Payment/PaymentService.php
 app/Services/Payment/CryptoIssuer.php
 app/Services/Payment/CryptoReconciler.php
 app/Services/Provisioning/ProvisioningService.php
+app/Services/Provisioning/WhmClient.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
 app/Http/Controllers/Account/CloudServerController.php
 app/Models/TunnelAgent.php
@@ -441,6 +442,8 @@ g app/Services/Bale/Admin/AdminBaleWorker.php "kyc_approve"
 g app/Http/Controllers/Account/VerificationController.php "kd:"
 g app/Http/Controllers/Auth/RegisterController.php "CB_PREFIX"
 g app/Services/Provisioning/ProvisioningService.php "spa:"
+g app/Services/Provisioning/ProvisioningService.php "kickAutoSsl"
+g app/Services/Provisioning/WhmClient.php "start_autossl_check_for_one_user"
 g app/Services/Cloud/CloudProvisioner.php "spa:"
 g lang/en/ui.php "dpg_renew_h"
 g lang/tr/ui.php "dpg_renew_h"
