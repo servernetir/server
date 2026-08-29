@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-7a1182c}"
+MINE="${1:-e318d37}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -193,6 +193,7 @@ lang/tr/ui.php
 config/billing.php
 config/servernet.php
 config/catalog/cloud.php
+config/catalog/dedicated.php
 database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
@@ -493,6 +494,8 @@ g app/Services/Cloud/HetznerRobotClient.php "fetchCatalog"
 g app/Http/Controllers/Admin/CloudController.php "rawProbe"
 g app/Services/Cloud/CloudManager.php "hetzner-robot"
 g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
+g config/servernet.php "bare-metal"
+g config/catalog/dedicated.php "seo_t"
 g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
