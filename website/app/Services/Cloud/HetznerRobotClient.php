@@ -70,6 +70,7 @@ class HetznerRobotClient implements CloudProvider
         'w-2145' => 8, 'w-2295' => 18, 'gold 5412u' => 24,
         // AMD Ryzen / EPYC / Threadripper
         'ryzen 5 3600' => 6, 'ryzen 7 1700x' => 8, 'ryzen 7 3700x' => 8, 'ryzen 7 7700' => 8,
+        'ryzen 7 pro 8700ge' => 8, 'ryzen 5 pro 8600ge' => 6,
         'ryzen 9 3900' => 12, 'ryzen 9 5950x' => 16, 'ryzen 9 7950x3d' => 16, 'ryzen 9 9950x' => 16,
         'threadripper 2950x' => 16,
         'epyc 7401p' => 24, 'epyc 7502p' => 32, 'epyc 9454p' => 48,
@@ -296,7 +297,15 @@ class HetznerRobotClient implements CloudProvider
     /** «Intel Core i7-8700» → 6 · ناشناخته → null */
     public static function coresFor(?string $cpu): ?int
     {
+        /*
+        | 🔴 نمادهای تجاری را پیش از تطبیق بردار. هتزنر می‌نویسد
+        | «AMD Ryzen™ 9 7950X3D» و «AMD EPYC™ 9454P» — با ™ِ وسطِ رشته،
+        | زیررشتهٔ «ryzen 9 7950x3d» هرگز پیدا نمی‌شد و ۳۶ محصولِ استاندارد
+        | با CPUِ **موجود در جدول** رد شدند (اولین سینکِ واقعیِ Ordering).
+        */
         $c = strtolower(trim((string) $cpu));
+        $c = preg_replace('/[\x{2122}\x{00AE}\x{00A9}\x{FE0F}]/u', '', $c) ?? $c;   // ™ ® © + variation selector
+        $c = preg_replace('/\s+/u', ' ', str_replace("\u{00A0}", ' ', $c)) ?? $c;
 
         if ($c === '') {
             return null;
@@ -371,7 +380,10 @@ class HetznerRobotClient implements CloudProvider
             $vcpu = self::coresFor($desc);
 
             if ($vcpu === null) {
-                $skippedCpu[] = $name;
+                // متنِ CPU را هم بیاور — «AX162-1 رد شد» بدونِ نامِ پردازنده،
+                // جدولِ CPU_CORES را نمی‌شود کامل کرد.
+                $cpuLine = trim((string) (array_values(array_filter((array) ($p['description'] ?? []), 'is_string'))[0] ?? ''));
+                $skippedCpu[] = $name.($cpuLine !== '' ? ' ['.$cpuLine.']' : '');
 
                 return;
             }

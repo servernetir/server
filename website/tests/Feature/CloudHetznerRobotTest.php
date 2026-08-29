@@ -178,6 +178,17 @@ class CloudHetznerRobotTest extends TestCase
         $this->assertStringNotContainsString('cost_eur_cents', (string) $json);
     }
 
+    /**
+     * 🔴 نمادِ ™ در نامِ CPU تطبیق را نمی‌شکند — ۳۶ محصولِ واقعی فقط به‌خاطرِ «Ryzen™» رد شده بودند.
+     */
+    public function test_trademark_symbols_do_not_break_the_cpu_map(): void
+    {
+        $this->assertSame(16, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 9 7950X3D'));
+        $this->assertSame(48, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD EPYC™ 9454P'));
+        $this->assertSame(8, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 7 PRO 8700GE'));
+        $this->assertNull(\App\Services\Cloud\HetznerRobotClient::coresFor('Totally Unknown CPU 9000'));
+    }
+
     public function test_ordering_never_buys_automatically(): void
     {
         $r = app(HetznerRobotClient::class)->createServer([
