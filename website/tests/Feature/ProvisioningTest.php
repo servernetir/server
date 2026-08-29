@@ -52,6 +52,7 @@ class ProvisioningTest extends TestCase
         Http::fake([
             '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 0, 'reason' => 'account does not exist']]),
             '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 1, 'reason' => 'Account Creation Ok'], 'data' => ['ip' => '1.2.3.4']]),
+            '*/json-api/start_autossl_check_for_one_user*' => Http::response(['metadata' => ['result' => 1, 'reason' => 'ok']]),
         ]);
 
         $server = $this->whmServer();
@@ -67,6 +68,16 @@ class ProvisioningTest extends TestCase
         $this->assertNotEmpty($service->password);          // رمز ساخته و رمزنگاری شد
         $this->assertStringContainsString('whm.test', $service->panel_url);
         $this->assertSame(1, $server->fresh()->active_accounts);   // شمارندهٔ ظرفیت
+
+        /*
+        | 🔴 گواهیِ SSL نباید تا اجرای شبانهٔ AutoSSL صبر کند.
+        |
+        | بی‌این فراخوان، اکانتِ ساخته‌شده در ظهر تا فردا صبح بی‌گواهی می‌مانَد
+        | و مشتری تیکت می‌زند و مدیر دستی در Manage AutoSSL دکمهٔ Check را
+        | می‌زند. ادعا روی خودِ درخواست است، نه روی نیتِ کد.
+        */
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'start_autossl_check_for_one_user')
+            && str_contains($r->url(), 'username='.$service->username));
     }
 
     public function test_provision_is_idempotent_when_account_already_exists(): void
@@ -163,6 +174,9 @@ class ProvisioningTest extends TestCase
         $this->assertSame('active', $service->status);
         $this->assertNotEmpty($service->username);
         Http::assertSent(fn ($r) => str_contains($r->url(), 'CMD_API_ACCOUNT_USER'));
+
+        // چکِ AutoSSL یک WHM API است؛ روی DirectAdmin نباید صدا زده شود
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'start_autossl_check_for_one_user'));
     }
 
     public function test_directadmin_failure_marks_failed(): void
