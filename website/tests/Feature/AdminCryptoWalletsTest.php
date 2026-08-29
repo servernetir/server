@@ -145,4 +145,49 @@ class AdminCryptoWalletsTest extends TestCase
         \App\Models\Setting::put('crypto_cooldown_hours', '999');
         $this->assertSame(48, \App\Models\CryptoWallet::cooldownHours());
     }
+
+    /**
+     * 🔴 خودترمیمیِ استخر: ولتِ «مشغول»ی که پرداختش دیگر باز نیست آزاد می‌شود.
+     *
+     * رخدادِ واقعی: busy:1 با open_payments:0 در /system/crypto-status — یک
+     * ادعای قدیمی، آدرس را برای همیشه از استخر کم کرده بود.
+     */
+    public function test_the_sweep_frees_wallets_held_by_dead_payments(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        // گرفتارِ پرداختِ ناموجود ⇒ آزاد (با خنک‌شدن)
+        $orphan = \App\Models\CryptoWallet::create([
+            'chain' => 'tron', 'address' => 'TOrphan0000000000000000000000000000',
+            'is_active' => true, 'busy_payment_id' => 999999,
+        ]);
+
+        // گرفتارِ پرداختِ هنوز باز ⇒ دست‌نخورده
+        $c = \App\Models\Customer::create([
+            'email' => 'cw'.random_int(1, 99999).'@example.com',
+            'password' => 'secret1234', 'status' => 'active',
+        ]);
+        $inv = \App\Models\Invoice::create([
+            'customer_id' => $c->id, 'kind' => 'topup', 'currency_code' => 'IRT',
+            'subtotal' => 1000, 'tax' => 0, 'total' => 1000, 'paid' => 0,
+            'status' => 'unpaid', 'issued_at' => now(),
+        ]);
+        $cp = \App\Models\CryptoPayment::create([
+            'invoice_id' => $inv->id, 'customer_id' => $c->id, 'chain' => 'tron',
+            'asset' => 'USDT', 'network' => 'TRC20', 'address' => 'TBusy00000000000000000000000000000x',
+            'amount_atomic' => 1000, 'decimals' => 6, 'invoice_amount' => 1000,
+            'invoice_currency' => 'IRT', 'rate_micro' => 1, 'status' => 'seen',
+            'expires_at' => now()->addHour(),
+        ]);
+        $held = \App\Models\CryptoWallet::create([
+            'chain' => 'tron', 'address' => 'TBusy00000000000000000000000000000x',
+            'is_active' => true, 'busy_payment_id' => $cp->id,
+        ]);
+
+        app(\App\Services\Payment\CryptoReconciler::class)->sweep();
+
+        $this->assertNull($orphan->fresh()->busy_payment_id, 'ادعای مرده باید آزاد شود.');
+        $this->assertNotNull($orphan->fresh()->cooldown_until, 'آزادسازی با خنک‌شدن — پرداختِ دیرهنگام.');
+        $this->assertSame($cp->id, (int) $held->fresh()->busy_payment_id, 'پرداختِ باز نباید آزاد شود.');
+    }
 }
