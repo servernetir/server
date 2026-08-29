@@ -35,7 +35,7 @@ else
   git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
 fi
 
-MINE="${1:-f336d09}"
+MINE="${1:-469c53d}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
@@ -53,6 +53,7 @@ resources/views/admin/layout.blade.php
 resources/views/admin/customers.blade.php
 resources/views/admin/ticket.blade.php
 resources/views/admin/users.blade.php
+resources/views/admin/dashboard.blade.php
 routes/web.php
 "
 PUB_FILES="
@@ -169,6 +170,8 @@ grep -qF "function search" "$APP/app/Http/Controllers/Admin/CustomerController.p
 grep -qF "as_user" "$APP/app/Http/Controllers/Admin/TicketController.php" || { echo "🔴 امضای پاسخ‌دهنده نیست"; ok=0; }
 grep -qF "id=\"cs-drop\"" "$APP/resources/views/admin/customers.blade.php" || { echo "🔴 فهرستِ زنده در ویو نیست"; ok=0; }
 grep -qF ".cs-drop[hidden]" "$PUB/assets/css/admin.css" || { echo "🔴 گاردِ [hidden] فهرستِ زنده نیست"; ok=0; }
+# مرزِ مالیِ داشبورد: سودِ شرکت نباید بی‌شرط رندر شود
+grep -qF "isSupport()" "$APP/resources/views/admin/dashboard.blade.php" || { echo "🔴 مرزِ مالیِ داشبورد نیست"; ok=0; }
 # اجزای دیپلوی‌های قبلی نباید در merge پریده باشند
 grep -qF "ad-burger" "$APP/resources/views/admin/layout.blade.php" || { echo "🔴 همبرگرِ موبایل از layout پرید"; ok=0; }
 grep -qF "nav_provisioning" "$APP/resources/views/admin/layout.blade.php" || { echo "🔴 آیتمِ تحویل‌ها از layout پرید"; ok=0; }
