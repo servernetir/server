@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-2d450e1}"
+MINE="${1:-c3508a0}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -203,6 +203,12 @@ database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
 database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php
 database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php
+database/migrations/2026_10_06_000101_add_latin_name_to_users.php
+app/Models/User.php
+app/Models/TicketMessage.php
+app/Http/Controllers/Admin/UserController.php
+resources/views/admin/users.blade.php
+resources/views/account/ticket.blade.php
 routes/web.php
 "
 
@@ -435,6 +441,12 @@ g lang/en/ui.php "ntf_suspended_s"
 g lang/tr/ui.php "ntf_suspended_s"
 g lang/fa/ui.php "ntf_suspended_s"
 g app/Services/Customer/KycReview.php "ntf_kyc_ok"
+g app/Models/User.php "displayNameFor"
+g app/Models/TicketMessage.php "staffDisplayName"
+g resources/views/account/ticket.blade.php "staffDisplayName"
+g resources/views/admin/users.blade.php "name_latin"
+g app/Http/Controllers/Admin/UserController.php "name_latin"
+g routes/web.php "users/{user}/names"
 g app/Http/Controllers/Account/PaymentController.php "top_item_title"
 g resources/views/account/topup.blade.php "euroMode"
 g resources/views/account/home.blade.php "isVerified"
@@ -641,6 +653,7 @@ if [ -n "$PHPBIN" ]; then
 
   echo "═══ ستونِ هزینهٔ راه‌اندازی (سرورِ اختصاصی) ═══"
   "$PHPBIN" artisan migrate --force     --path=database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php     || { echo "🔴 مهاجرتِ setup نخورد — خطِ استانداردِ EX/AX واردِ کاتالوگ نمی‌شود. خروجی را بفرست."; }
+  "$PHPBIN" artisan migrate --force     --path=database/migrations/2026_10_06_000101_add_latin_name_to_users.php     || { echo "🔴 مهاجرتِ name_latin نخورد — نامِ کارشناس در تیکتِ خارجی نمی‌نشیند. خروجی را بفرست."; }
 
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \

@@ -36,7 +36,11 @@
   @foreach($messages as $m)
     <div class="tk-msg {{ $m->fromStaff() ? 'staff' : 'me' }}">
       <div class="tk-msg-h">
-        <span class="tk-msg-who">{{ $m->fromStaff() ? __('ui.tk_staff') : __('ui.tk_you') }}</span>
+        @php
+          // نامِ کارشناس به زبانِ مشتری؛ نبودش = فقط برچسبِ عمومی
+          $staffName = $m->fromStaff() ? $m->staffDisplayName() : null;
+        @endphp
+        <span class="tk-msg-who">{{ $m->fromStaff() ? ($staffName ? $staffName.' · '.__('ui.tk_staff') : __('ui.tk_staff')) : __('ui.tk_you') }}</span>
         <span class="tk-msg-t">{{ stime($m->created_at) }}</span>
       </div>
       <div class="tk-msg-b">{!! nl2br(e($m->body)) !!}</div>
