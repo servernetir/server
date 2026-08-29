@@ -50,11 +50,12 @@ class KycReview
 
         $who = $profile->company_name ?: ($profile->customer?->displayName() ?? '');
 
-        // متن به زبانِ خودِ مشتری — مشتریِ خارجی پیامِ فارسی را نمی‌فهمد
-        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
-            ? '✅ هویتِ شما در سرورنت تأیید شد'
-                .($profile->company_name ? ' («'.$profile->company_name.'»)' : '').'. حالا می‌توانید از همهٔ خدمات استفاده کنید.'
-            : '✅ Your identity has been verified at ServerNet. All services — including Iran-hosted plans — are now available to your account.');
+        /*
+        | متن به زبانِ خودِ مشتری (fa/en/tr) از ui.ntf_kyc_ok — یک منبع برای
+        | پیام‌رسان و ایمیل. ⚠️ نسخهٔ قبلی در متنِ انگلیسی «Iran-hosted plans»
+        | داشت — قاعدهٔ کارفرما: ایمیلِ مشتریِ خارجی هیچ اشاره‌ای به ایران ندارد.
+        */
+        $this->notifyCustomer($profile, 'kyc_ok', []);
 
         try {
             ActivityLog::record($profile->customer_id, 'verify',
@@ -88,11 +89,7 @@ class KycReview
             return ['ok' => false, 'message' => 'ثبتِ رد شکست خورد؛ در /admin/errors ثبت شد.'];
         }
 
-        $this->notifyCustomer($profile, ($profile->customer?->locale ?? 'fa') === 'fa'
-            ? '❌ مدارکِ احراز هویتِ شما در سرورنت تأیید نشد. دلیل: '
-                .$reason.' — لطفاً از پنل، بخشِ احراز هویت، مدارک را اصلاح و دوباره ارسال کنید.'
-            : '❌ Your identity documents could not be verified at ServerNet. Reason: '
-                .$reason.' — please correct and re-submit them from your panel (Profile → Identity).');
+        $this->notifyCustomer($profile, 'kyc_no', ['reason' => $reason]);
 
         try {
             ActivityLog::record($profile->customer_id, 'verify',
@@ -103,14 +100,24 @@ class KycReview
         return ['ok' => true, 'message' => 'مدارک رد شد و دلیل به مشتری اطلاع داده شد.'];
     }
 
-    /** اعلان به مشتری — پیام‌رسان + ایمیل، با موضوعِ هم‌زبان. */
-    private function notifyCustomer(CustomerProfile $profile, string $text): void
+    /**
+     * اعلان به مشتری — پیام‌رسان + ایمیلِ برنددار، هر دو به زبانِ خودِ مشتری.
+     *
+     * متن از `ui.ntf_{key}_s/_b` می‌آید (fa/en/tr)؛ ایمیل با `TemplateMail`
+     * می‌رود تا مثلِ بقیهٔ ایمیل‌ها لوگو/قالب داشته باشد — نه `Mail::raw`ِ لخت.
+     */
+    private function notifyCustomer(CustomerProfile $profile, string $key, array $vars): void
     {
         $customer = $profile->customer;
 
         if (! $customer) {
             return;
         }
+
+        $locale = in_array($customer->locale, ['en', 'tr'], true) ? $customer->locale : 'fa';
+        $repl = $vars + ['url' => 'https://console.servernet.cloud'];
+        $subject = trans('ui.ntf_'.$key.'_s', $repl, $locale);
+        $text = trans('ui.ntf_'.$key.'_b', $repl, $locale);
 
         /*
         | 🔴 هر دو مسیرِ زیر ممکن است بشکنند و هیچ‌کدام نباید بازبینی را
@@ -129,10 +136,8 @@ class KycReview
 
         if ($email) {
             try {
-                $subject = ($customer->locale ?? 'fa') === 'fa'
-                    ? 'وضعیتِ احراز هویت — سرورنت'
-                    : 'Identity verification — ServerNet';
-                Mail::mailer('smtp')->raw($text, fn ($m) => $m->to($email)->subject($subject));
+                Mail::mailer('smtp')->to($email)
+                    ->send(new \App\Mail\TemplateMail($subject, nl2br(e($text)), $locale));
             } catch (\Throwable $e) {
                 \App\Support\ErrorTracker::noteOnce('kyc',
                     'ایمیلِ نتیجهٔ احراز هویت به مشتریِ #'.$customer->id.' نرفت: '.$e->getMessage(), 900);
