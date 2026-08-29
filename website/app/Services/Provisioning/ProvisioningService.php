@@ -263,8 +263,16 @@ class ProvisioningService
                 : ProvisionResult::fail('سرور خاموش نشد؛ وضعیتِ سرویس معلق ثبت شد.');
         }
 
+        /*
+        | 🔴 «سروری نیست» یعنی تحویلش دستی بوده، نه اینکه کاری لازم نیست.
+        |
+        | این شاخه `success` می‌داد و تمام — پس لایسنسِ مشتریِ بدهکار نزدِ
+        | تأمین‌کننده **فعال** می‌مانْد و هزینه‌اش پای ما بود، بی‌هیچ ردی.
+        */
         if (! $service->server) {
             $service->update(['status' => 'suspended']);
+
+            app(ManualLifecycleNotice::class)->flag($service, 'suspend');
 
             return ProvisionResult::success(null, null, null);
         }
@@ -363,6 +371,11 @@ class ProvisioningService
         $r = ($service->server && filled($service->username))
             ? $this->driverFor($service->server)->terminate($service)
             : ProvisionResult::success(null, null, null);
+
+        // 🔴 همان‌جا که `success` می‌دهد چون سروری نیست: اگر تحویل دستی بوده،
+        //    لایسنس باید نزدِ تأمین‌کننده **ابطال** شود وگرنه ماهانه بابتِ
+        //    سرویسِ بسته‌شده پول می‌دهیم.
+        app(ManualLifecycleNotice::class)->flag($service, 'terminate');
 
         if ($r->ok || $r->manual) {
             // ظرفیتِ آزادشده را برگردان — وگرنه شمارنده فقط بالا می‌رفت و

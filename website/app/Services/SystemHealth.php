@@ -60,6 +60,7 @@ class SystemHealth
             $this->domainMargin(),
             $this->registrarBalance(),
             $this->stuckServices(),
+            $this->manualLifecycle(),
             $this->unbilledServices(),
             $this->undeliveredCloud(),
             $this->cloudRelease(),
@@ -378,6 +379,62 @@ class SystemHealth
             fa_num($rows->count()).' سرویسِ زنده سررسید ندارد و هرگز فاکتورِ تمدید نمی‌گیرد. '
             .'برای رفع: پروندهٔ مشتری → ستونِ سررسید → دکمهٔ «تنظیم»',
             $this->serviceLinks($rows));
+    }
+
+    /**
+     * 🔴 کارِ انسانیِ معلق روی سرویسِ دستی — تمدید، تعلیق یا ابطال.
+     *
+     * `stuckServices()` فقط **تحویلِ اول** را می‌بیند (`provision_status`).
+     * سه رخدادِ دیگرِ چرخهٔ عمر هیچ ردی در آن ستون نمی‌گذارند، پس تا امروز
+     * بی‌صدا رد می‌شدند: مشتری تمدید می‌کرد و لایسنسِ بالادست تمدید نمی‌شد،
+     * یا سرویس بسته می‌شد و ما ماهانه بابتش پول می‌دادیم.
+     *
+     * ⚠️ این چک عمداً از `stuckServices` جداست و کلیدِ خودش را دارد: امضای
+     * اعلان شاملِ **کلیدِ** چکِ خراب است، پس اگر هر دو یک کلید داشتند،
+     * «صفِ تحویل درست شد ولی یک ابطال معلق ماند» هیچ خبری نمی‌ساخت.
+     *
+     * ⚠️ و بی‌سن است: برخلافِ صفِ تحویل، این‌جا «تازه» بودن دلیلِ نادیده
+     * گرفتن نیست — ابطالِ نکرده از همان دقیقهٔ اول پول می‌سوزاند.
+     */
+    private function manualLifecycle(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_meta')) {
+            return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر', 'ستونش هنوز ساخته نشده.');
+        }
+
+        $rows = \App\Models\Service::awaitingManualAction()->limit(40)->get();
+
+        if ($rows->isEmpty()) {
+            return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر',
+                'هیچ تمدید، تعلیق یا ابطالِ دستی معلق نیست.');
+        }
+
+        $by = ['renew' => 0, 'suspend' => 0, 'terminate' => 0];
+        $names = [];
+
+        foreach ($rows as $r) {
+            $k = (string) ($r->pendingManualAction()['kind'] ?? '');
+            if (isset($by[$k])) { $by[$k]++; }
+            if (count($names) < 6) { $names[] = '#'.$r->id.' '.$k; }
+        }
+
+        $parts = [];
+        foreach (['renew' => 'تمدید', 'suspend' => 'تعلیق', 'terminate' => 'ابطال'] as $k => $label) {
+            if ($by[$k] > 0) { $parts[] = $label.': '.fa_num((string) $by[$k]); }
+        }
+
+        /*
+        | ⚠️ ابطالِ نکرده `fail` است و تمدیدِ نکرده `warn`.
+        | هر دو کارِ آدم می‌خواهند، ولی جهتِ ضررشان فرق دارد: ابطال یعنی ما
+        | همین حالا داریم پول می‌دهیم؛ تمدید یعنی مشتری در آیندهٔ نزدیک قطع
+        | می‌شود. یک‌سطح‌کردنشان یعنی فوری‌ترین کار در انبوهِ بقیه گم شود.
+        */
+        $worst = $by['terminate'] > 0 ? 'fail' : 'warn';
+
+        return $this->row('manual_lifecycle', false, $worst, 'کارِ دستیِ چرخهٔ عمر',
+            fa_num((string) $rows->count()).' سرویسِ دستی منتظرِ کارِ شما نزدِ تأمین‌کننده است ('
+            .implode('، ', $parts).'). '.implode('، ', $names),
+            [['label' => 'مشتریان', 'url' => url('/admin/customers')]]);
     }
 
     private function stuckServices(): array

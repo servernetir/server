@@ -492,6 +492,29 @@
             @if($s->server_id || $s->domain || $isCloudSvc)
               {{-- «در حال آزادسازی» یعنی سرویس بسته شده و فقط حذفِ نزدِ زیرساخت مانده؛
                    دکمهٔ «ساخت روی سرور» آن‌جا بی‌معنی است (کنترلر هم ردش می‌کند). --}}
+              {{-- 🔴 کارِ دستیِ چرخهٔ عمر: تمدید/تعلیق/ابطالِ نزدِ تأمین‌کننده.
+                   جدا از «صفِ تحویل» است چون آن ستون فقط تحویلِ **اول** را
+                   می‌شناسد. بی‌این دکمه، چکِ سلامت برای همیشه قرمز می‌مانْد. --}}
+              {{-- ⚠️ انتساب داخلِ خودِ @ if، و **نه** `@ php(...)`.
+                   شکلِ درون‌خطیِ `@ php(…)` این‌جا به `<?php(` کامپایل شد — تگِ
+                   بازِ بی‌بسته — و از همان نقطه بقیهٔ صفحه خام مانْد. جالب اینکه
+                   همان چند خط به‌تنهایی درست کامپایل می‌شود؛ فقط در این فایلِ
+                   بزرگ می‌شکند. علتش هرچه باشد، این فایل تا امروز **هیچ**
+                   `@ php(…)`ای نداشته و ۶۵ بار `@ if(…)` دارد — پس همان را
+                   می‌بریم. (فاصله‌های داخلِ این کامنت عمدی است: نامِ خامِ دستور
+                   داخلِ کامنت با دستورِ پایانیِ بعدی جفت می‌شود.) --}}
+              @if($ma = $s->pendingManualAction())
+                <div style="margin-top:6px;padding:7px 9px;border:1px solid #fbbf24;border-radius:8px;background:rgba(251,191,36,.08)">
+                  <div style="font-size:12px;color:#fbbf24">
+                    🔔 کارِ دستی: <b>{{ ['renew' => 'تمدیدِ نزدِ تأمین‌کننده', 'suspend' => 'غیرفعال‌سازیِ نزدِ تأمین‌کننده', 'terminate' => 'ابطالِ نزدِ تأمین‌کننده'][$ma['kind']] ?? $ma['kind'] }}</b>
+                  </div>
+                  <div style="font-size:11px;color:var(--dim);margin-top:2px">{{ $ma['note'] ?? '' }}</div>
+                  <form method="post" action="/admin/services/{{ $s->id }}/ack-manual" style="display:inline">@csrf
+                    <button class="del" style="color:#34d399;margin-top:4px" type="submit">انجام شد</button>
+                  </form>
+                </div>
+              @endif
+
               @if($s->provision_status !== 'done' && $s->provision_status !== \App\Models\Service::PROVISION_RELEASING)
                 {{-- نیاز به ساخت — اگر سروری نخورده، همین‌جا سرور/پلن را تعیین کن و بساز --}}
                 <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px">@csrf

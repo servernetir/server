@@ -2759,6 +2759,7 @@ Route::prefix('admin')->group(function () {
         | قابلِ رسیدن باشد یا در تاریخچه شبیهِ یک تلاشِ معمولی دیده شود.
         */
         Route::post('/services/{service}/provision-override', [\App\Http\Controllers\Admin\ServiceController::class, 'provisionOverride']);
+        Route::post('/services/{service}/ack-manual', [\App\Http\Controllers\Admin\ServiceController::class, 'ackManual']);
         Route::post('/services/{service}/suspend', [\App\Http\Controllers\Admin\ServiceController::class, 'suspend']);
         Route::post('/services/{service}/unsuspend', [\App\Http\Controllers\Admin\ServiceController::class, 'unsuspend']);
         Route::post('/services/{service}/terminate', [\App\Http\Controllers\Admin\ServiceController::class, 'terminate']);

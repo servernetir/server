@@ -529,6 +529,35 @@ class ServiceController extends Controller
      * `routes/web.php`، میان‌افزارِ `EnsureAdmin`، `abort_unless` زیر، و اینکه
      * مشتری اصلاً روی گاردِ `web` نمی‌نشیند (گاردِ `customer` جداست).
      */
+    /**
+     * مدیر کارِ دستیِ چرخهٔ عمر را انجام داد — نشانه برداشته می‌شود.
+     *
+     * ⚠️ بی‌این دکمه، چکِ `manual_lifecycle` برای همیشه قرمز می‌مانْد — و
+     * هشدارِ دائمی دقیقاً همان «آژیرِ خفه»ای است که هشدارِ بعدی را می‌بلعد.
+     *
+     * ⚠️ عمداً هیچ کاری نزدِ تأمین‌کننده نمی‌کند: ما APIِ فروشندهٔ لایسنس را
+     * نداریم. این فقط ثبتِ «انجام شد» است، و ردِ حسابرسی‌اش می‌گوید چه کسی
+     * و کِی گفته انجام شده.
+     */
+    public function ackManual(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $a = $service->pendingManualAction();
+
+        if ($a === null) {
+            return back()->withErrors('کارِ دستیِ معلقی روی این سرویس نیست.');
+        }
+
+        $service->clearManualAction();
+
+        \App\Models\ActivityLog::forService($service, 'provision',
+            'مدیر ('.((string) ($request->user()?->name ?: 'مدیر')).') کارِ دستیِ «'
+            .$a['kind'].'» را انجام‌شده اعلام کرد.', 'staff', $request);
+
+        return back()->with('ok', 'کارِ دستی انجام‌شده ثبت شد.');
+    }
+
     public function provisionOverride(Request $request, Service $service): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
