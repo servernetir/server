@@ -22,6 +22,28 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=60
 
+# 🔴 گاردِ محل — قبل از ساختنِ هر چیزی.
+#
+# ۷ شهریور ۱۴۰۵ این اسکریپت با کاربر root روی سرورِ WHM ایران اجرا شد. آنجا
+# $HOME=/root بود، پس APP شد /root/servernet_app که وجود نداشت و اسکریپت
+# با خوش‌رویی «NEW config/hosting.php» را از صفر ساخت، گاردِ محتوا هم روی
+# همان فایلِ تازه‌ساخته سبز شد، و سایتِ زنده اصلاً دست نخورد.
+#
+# درسش: گاردی که فقط محتوا را می‌سنجد، «سرورِ اشتباه» را نمی‌بیند — چون
+# محتوا دقیقاً همانی است که خودت نوشتی. مقصد باید *قبلش* اثبات شود.
+if [ ! -f "$APP/artisan" ] || [ ! -f "$APP/config/hosting.php" ]; then
+  echo "🔴 FATAL: در \"$APP\" اپِ لاراول پیدا نشد (artisan و config/hosting.php لازم است)."
+  echo
+  echo "   کاربر فعلی: $(id -un)   ·   HOME: $HOME"
+  echo
+  echo "   این اسکریپت باید با کاربرِ cPanelِ اکانتِ سایت اجرا شود، نه با root و"
+  echo "   نه روی سرورِ WHM. از ترمینالِ خودِ cPanel اجرایش کن، یا اگر root هستی:"
+  echo "       su - servernetcloud -c 'bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-python-page-truth.sh)'"
+  echo
+  echo "   هیچ فایلی ساخته یا تغییر داده نشد."
+  exit 1
+fi
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
