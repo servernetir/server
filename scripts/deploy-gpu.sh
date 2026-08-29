@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-d76c605}"
+MINE="${1:-7a1182c}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -178,6 +178,7 @@ app/Services/SystemHealth.php
 app/Http/Controllers/GpuController.php
 app/Http/Controllers/SiteController.php
 app/Http/Controllers/Admin/SettingsController.php
+app/Http/Controllers/Admin/CloudController.php
 resources/views/pages/gpu.blade.php
 resources/views/account/cloud-store.blade.php
 resources/views/account/cloud-server.blade.php
@@ -489,6 +490,7 @@ g resources/views/admin/settings/accounts.blade.php "crypto_cooldown_hours"
 g app/Models/CryptoWallet.php "cooldownHours"
 g app/Services/Payment/CryptoReconciler.php "freeOrphanedWallets"
 g app/Services/Cloud/HetznerRobotClient.php "fetchCatalog"
+g app/Http/Controllers/Admin/CloudController.php "rawProbe"
 g app/Services/Cloud/CloudManager.php "hetzner-robot"
 g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g lang/en/ui.php "inv_wire_pick"
