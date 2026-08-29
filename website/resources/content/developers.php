@@ -54,6 +54,18 @@ return [
 
     // ═══════════════════════ فهرست کناری ═══════════════════════
 
+    "tunnel_link" => [
+        "fa" => "دنبال مدیریت کاربران تونل سرور اکسیت هستید؟ آن رابط مرجع خودش را دارد:",
+        "en" => "Looking for exit server tunnel user management? That interface has its own reference:",
+        "tr" => "Cikis sunucusu tunel kullanici yonetimi mi ariyorsunuz? O arayuzun kendi referansi var:",
+    ],
+
+    "tunnel_link_cta" => [
+        "fa" => "مرجع API تونل سرور اکسیت",
+        "en" => "Exit Server Tunnel API Reference",
+        "tr" => "Cikis Sunucusu Tunel API Referansi",
+    ],
+
     "toc_title" => ["fa" => "در این صفحه", "en" => "On this page", "tr" => "Bu sayfada"],
 
     "print" => ["fa" => "نسخهٔ PDF", "en" => "PDF version", "tr" => "PDF surumu"],
@@ -124,16 +136,16 @@ return [
             "domains:read" => "read the domain portfolio, availability and tier pricing",
             "domains:write" => "register and renew domains — settles against account credit",
             "domains:manage" => "modify nameservers and the auto-renew flag on existing domains",
-            "tunnel:read" => "read the WireGuard-over-TCP tunnel accounts on your exit server",
-            "tunnel:write" => "create and delete tunnel accounts — the private key is returned once",
+            "tunnel:read" => "read the WireGuard-over-TCP accounts of your exit server",
+            "tunnel:write" => "create and remove tunnel accounts — the private key is returned once and never stored",
         ],
         "tr" => [
             "read" => "hesap profili, hizmetler, faturalar ve kredi bakiyesini okuma",
             "domains:read" => "alan adi portfoyu, uygunluk ve kademe fiyatlarini okuma",
             "domains:write" => "alan adi kaydi ve yenileme — hesap kredisinden tahsil edilir",
             "domains:manage" => "mevcut alan adlarinda ad sunucu ve otomatik yenileme degisikligi",
-            "tunnel:read" => "çıkış sunucunuzdaki WireGuard-over-TCP tünel hesaplarını okuma",
-            "tunnel:write" => "tünel hesabı oluşturma ve silme — özel anahtar yalnızca bir kez döner",
+            "tunnel:read" => "cikis sunucunuzun WireGuard-over-TCP hesaplarini okuma",
+            "tunnel:write" => "tunel hesabi olusturma ve silme — ozel anahtar yalnizca bir kez doner",
         ],
     ],
 

@@ -59,6 +59,9 @@
       ['PUT',  '/domains/{domain}/nameservers',  'domains:manage', ['fa'=>'تغییر نام‌سرور','en'=>'set nameservers','tr'=>'ad sunucu ayarla']],
       ['POST', '/domains/{domain}/lock',         'domains:manage', ['fa'=>'روشن کردن قفل انتقال','en'=>'turn transfer lock on','tr'=>'transfer kilidini ac']],
       ['POST', '/domains/{domain}/auto-renew',   'domains:manage', ['fa'=>'تمدید خودکار','en'=>'auto-renew flag','tr'=>'otomatik yenileme']],
+      // ⚠️ مسیرهای تونلِ سرورِ اکسیت عمداً این‌جا نیستند: صفحهٔ جداگانه دارند
+      //    (`/developers/tunnel`). چهار ردیفِ لخت میانِ چهارده ردیفِ دامنه
+      //    «مستند» بود ولی مستندسازی نبود — خواننده نمی‌فهمید از کجا شروع کند.
   ];
 
   $toc = ['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11'];
@@ -121,6 +124,13 @@
     </aside>
 
     <div class="dev-doc">
+
+      {{-- مسیرِ صفحهٔ دوم. بی‌این، مشتریِ سرورِ اکسیت که به این صفحه هدایت شده
+           هیچ‌وقت نمی‌فهمد مرجعِ کارِ خودش جای دیگری است. --}}
+      <div class="dev-note">
+        {{ $L('tunnel_link') }}
+        <a href="{{ lroute('developers.tunnel') }}">{{ $L('tunnel_link_cta') }}</a>
+      </div>
 
       {{-- ═════════ ۱ ═════════ --}}
       <h2 id="s1"><span class="dev-h-n">{{ $n(1) }}</span>{{ lc($c['s1']) }}</h2>
@@ -314,5 +324,7 @@ Idempotency-Key: your-order-12345
   </div>
 </section>
 
+{{-- کپیِ بلوک‌های کد.
+     ⚠️ هیچ کتابخانه‌ای؛ CSP این پروژه هر منبعِ خارجی را بی‌صدا بلاک می‌کند. --}}
 @include('partials.dev-copy')
 @endsection

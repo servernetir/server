@@ -184,7 +184,7 @@ return [
     ],
 
     "s3_safe" => [
-        "fa" => "سرور هرگز «دستور» به روتر نمی‌فرستد. پاسخ فقط سه مقدار دارد — نام، آدرس و کلید عمومی — و اسکریپت هرکدام را جداگانه اعتبارسنجی می‌کندو خودش دستور را می‌سازد. آدرس هم فقط از داخل رنج خود شما پذیرفته می‌شود.",
+        "fa" => "سرور هرگز «دستور» به روتر نمی‌فرستد. پاسخ فقط سه مقدار دارد — نام، آدرس و کلید عمومی — و اسکریپت هرکدام را جداگانه اعتبارسنجی می‌کند و خودش دستور را می‌سازد. آدرس هم فقط از داخل رنج خود شما پذیرفته می‌شود.",
         "en" => "The server never sends the router a command. The reply carries only three values, name, address and public key; the script validates each one separately and builds the command itself. The address is only accepted from inside your own range.",
         "tr" => "Sunucu yonlendiriciye asla komut gondermez. Yanit yalnizca ad, adres ve genel anahtar tasir; betik her birini dogrular ve komutu kendisi olusturur.",
     ],
@@ -221,7 +221,7 @@ return [
 
     "s4_cfg" => [
         "fa" => "میدان config یک کانفیگ کامل sing-box است؛ آن را مستقیم به کاربر نهایی بدهید تا با پسوند json ذخیره و در برنامه‌اش import کند. لازم نیست خودتان چیزی بسازید.",
-        "en" => "The config field is a complete sing-box configuration; hand it to the end user to save with a json extension and import into theirapp. You do not have to build anything.",
+        "en" => "The config field is a complete sing-box configuration; hand it to the end user to save with a json extension and import into their app. You do not have to build anything.",
         "tr" => "config alani eksiksiz bir sing-box yapilandirmasidir; son kullaniciya verin, json olarak kaydedip uygulamasina aktarsin.",
     ],
 
