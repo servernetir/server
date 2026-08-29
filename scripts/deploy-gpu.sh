@@ -71,7 +71,7 @@ fi
 #    merge سه‌طرفه می‌افتد — و روی تداخل «دست نزن» است، یعنی کلیدهای GPU
 #    بی‌صدا هرگز نمی‌نشینند. کامیتِ ادغام هر دو را دارد، پس هر دو هم‌گرا
 #    می‌شوند و ترتیبِ اجرا دیگر مهم نیست.
-MINE="${1:-8b63fc9}"
+MINE="${1:-5157b59}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -106,6 +106,7 @@ app/Services/Bale/Admin/AdminBaleCommands.php
 app/Services/Bale/Admin/AdminBaleScreens.php
 app/Services/Payment/PaymentService.php
 app/Services/Payment/CryptoIssuer.php
+app/Services/Payment/CryptoReconciler.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
 app/Http/Controllers/Account/CloudServerController.php
@@ -477,6 +478,7 @@ g app/Models/PaymentAccount.php "IRT"
 g resources/views/account/invoice.blade.php "data-m=\"wire\""
 g resources/views/admin/settings/accounts.blade.php "crypto_cooldown_hours"
 g app/Models/CryptoWallet.php "cooldownHours"
+g app/Services/Payment/CryptoReconciler.php "freeOrphanedWallets"
 g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
