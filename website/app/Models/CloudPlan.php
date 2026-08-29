@@ -259,9 +259,34 @@ class CloudPlan extends Model
             : $this->traffic_gb.' GB';
     }
 
+    /**
+     * برمتال = سرورِ فیزیکی (زیرساختِ ۷). نشانه‌اش پیشوندِ `cbm-` است که
+     * `CloudNaming::planSlug(..., metal: true)` می‌سازد — همان جایی که برمتال
+     * از VPSِ هسته‌اختصاصی جدا شد تا `bestForSlug` عوضی تحویل ندهد.
+     */
+    public function isMetal(): bool
+    {
+        return str_starts_with((string) $this->slug, 'cbm-');
+    }
+
     public function cpuKindLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
+
+        /*
+        | 🔴 برمتال برچسبِ خودش را می‌گیرد. بدونِ این، BM و CVD هر دو
+        | «پردازندهٔ اختصاصی» چاپ می‌شدند و مشتری در جدولِ صفحهٔ کشور
+        | نمی‌توانست سرورِ فیزیکی را از ماشینِ مجازیِ هسته‌اختصاصی تشخیص
+        | دهد — گزارشِ خودِ کارفرما، همان روزِ اولِ زنده‌شدنِ خط.
+        */
+        if ($this->isMetal()) {
+            return match ($locale) {
+                'en' => 'Bare-metal',
+                'tr' => 'Bare-metal (fiziksel)',
+                default => 'سرور فیزیکی (برمتال)',
+            };
+        }
+
         $dedicated = $this->cpu_kind === 'dedicated';
 
         return match ($locale) {

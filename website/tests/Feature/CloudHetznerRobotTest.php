@@ -200,6 +200,8 @@ class CloudHetznerRobotTest extends TestCase
         $res->assertOk();
         // نامِ سفیدبرچسبِ پلن (CVD-6-64) — یعنی جدولِ زندهٔ اختصاصی رندر شده
         $this->assertStringContainsString('BM-6-64', $res->getContent());
+        // و ردیفِ برمتال برچسبِ متمایز دارد، نه «پردازندهٔ اختصاصی»
+        $this->assertStringContainsString('سرور فیزیکی (برمتال)', $res->getContent());
         // و نه «تماس برای قیمت»ِ پلن‌های سخت‌کدِ config
         $this->assertStringNotContainsString('hetzner-robot', $res->getContent());
     }
