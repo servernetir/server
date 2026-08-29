@@ -252,12 +252,15 @@ class CloudCatalogSync
 
             $gpuModel = filled($r['gpu_model'] ?? null) ? (string) $r['gpu_model'] : null;
             $gpuCount = $gpuModel !== null ? max(1, (int) ($r['gpu_count'] ?? 1)) : null;
+            // برمتال (سرورِ فیزیکی) — باید به نام و اسلاگ برسد وگرنه با VPSِ
+            // هسته‌اختصاصیِ هم‌مشخصات یک گروه می‌شود (توضیح در CloudNaming).
+            $metal = (bool) ($r['metal'] ?? false);
 
             CloudPlan::updateOrCreate(
                 ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
                 [
                     'provider_location' => $r['provider_location'] ?? null,
-                    'public_name'       => CloudNaming::planName($vcpu, $ram, $cpuKind),
+                    'public_name'       => CloudNaming::planName($vcpu, $ram, $cpuKind, $metal),
                     /*
                     | 🔴 GPU **باید** به اسلاگ برسد.
                     |
@@ -271,7 +274,7 @@ class CloudCatalogSync
                     | نمی‌شود. همان تلهٔ ثبت‌شده: تستی که خودش تابع را مستقیم
                     | صدا می‌زند، سیم‌کشی را نمی‌سنجد.
                     */
-                    'slug'              => CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount),
+                    'slug'              => CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal),
                     'vcpu'              => $vcpu,
                     'ram_mb'            => $ram,
                     'disk_gb'           => $disk,
