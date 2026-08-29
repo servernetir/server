@@ -1,5 +1,10 @@
 @extends('layouts.site')
 
+{{-- 🔴 ممیزی نهم: نسخهٔ en/tr این بخش با ۴۱۰ برداشته شد، پس این صفحه
+     نباید alternate به آن‌ها بدهد — hreflangِ زنده به سمتِ ۴۱۰ یک حلقهٔ
+     خطای خزش می‌سازد. `faOnly` دقیقاً برای همین ساخته شده بود. --}}
+@section('faOnly', true)
+
 @section('title', $hub['title'])
 @section('description', $hub['desc'])
 

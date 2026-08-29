@@ -84,7 +84,7 @@ class CompanyIdentityFromPanelTest extends TestCase
     /**
      * شناسه‌های ثبتی و نشانی **در فوتر می‌آیند** — و فقط وقتی پر شده باشند.
      *
-     * ═══ ⚠️ این تست یک تصمیم را برگرداند، پس تاریخچه‌اش این‌جا می‌مانَد ═══
+     * ═══ ⚠️ تاریخچهٔ این ادعا، تا کسی از اول شروع نکند ═══
      *
      * نسخهٔ قبلی نامش `test_the_footer_shows_neither_identity_nor_address`
      * بود و عکسِ این را قفل می‌کرد، با استنادِ صریح به «تصمیمِ کارفرما».
@@ -92,16 +92,18 @@ class CompanyIdentityFromPanelTest extends TestCase
      * شناسهٔ ثبتی الزامِ قانونی است و راه‌حلِ استاندارد، فوترِ سراسری است که
      * هر ۵۶۷ صفحه را پوشش می‌دهد؛ `/about` تنها کافی ولی شکننده است.
      *
-     * 🔴 **این تعارض هنوز به تأییدِ کارفرما نرسیده.** کامنتِ خودِ فوتر صریح
-     * می‌گوید «اگر نپذیرفت، همین یک بلوک را بردار». تست به رفتارِ **امروزِ**
-     * کد به‌روز شد تا نگهبان قرمزِ دائمی نباشد — نه چون تصمیم قطعی شده.
-     * اگر کارفرما تصمیمِ اولش را نگه دارد، بلوکِ `f-legal` در
-     * `partials/footer.blade.php` برداشته می‌شود و این تست هم برمی‌گردد.
+     * شهریور ۱۴۰۵: کارفرما تصمیمِ اولش را نگه داشت و بلوکِ `f-legal` از
+     * `partials/footer.blade.php` برداشته شد.
      *
-     * ⚠️ پاک‌کردنِ خودِ افشای حقوقی برای سبزکردنِ یک تستِ کهنه، جهتِ خطرناک‌ترِ
-     * این تعارض بود؛ برای همین این طرف اصلاح شد و آن طرف نه.
+     * 🔴 «برداشته شد» به معنای «افشا نداریم» نیست: `/contact` همان
+     * `company_identity()` را صدا می‌زند. بحث بر سرِ **سراسری‌بودن** بود، نه
+     * بر سرِ بودنِ افشا — و اگر روزی الزامِ حقوقی دوباره مطرح شد، باید همان
+     * تمایز را یادآوری کرد.
+     *
+     * ⚠️ فوتر روی **هر** صفحه است، پس اگر کسی این بلوک را برگرداند روی کلِ
+     * سایت پخش می‌شود. این تست همان تصمیم را قفل می‌کند.
      */
-    public function test_the_footer_shows_the_registered_identity_when_it_is_filled(): void
+    public function test_the_footer_shows_neither_identity_nor_address(): void
     {
         Setting::put('company_legal_name', 'شرکت آزمون (سهامی خاص)');
         Setting::put('company_reg_no', '552134');
@@ -112,8 +114,14 @@ class CompanyIdentityFromPanelTest extends TestCase
         $html = $this->get('/about')->assertOk()->getContent();
         $footer = substr($html, (int) strrpos($html, '<footer'));
 
-        $this->assertStringContainsString('f-legal', $footer);
-        $this->assertStringContainsString('خیابان ولیعصر', $footer, 'نشانی در فوتر نیست');
+        $this->assertStringNotContainsString('552134', $footer, 'شمارهٔ ثبت به فوتر برگشت');
+        $this->assertStringNotContainsString('خیابان ولیعصر', $footer, 'نشانی به فوتر برگشت');
+        $this->assertStringNotContainsString('f-legal', $footer);
+
+        // و در جای درستش **هست** — وگرنه این تست «افشا را حذف کن» می‌شد
+        $this->assertStringContainsString('552134',
+            $this->get('/contact')->assertOk()->getContent(),
+            'شناسهٔ ثبتی از /contact هم غیب شد');
     }
 
     /**

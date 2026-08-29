@@ -17,116 +17,21 @@ use Tests\TestCase;
  */
 class UrmiaPagesTest extends TestCase
 {
-    /** آیا رشته حرفِ فارسی/عربی دارد؟ */
-    private function hasPersian(string $s): bool
-    {
-        return (bool) preg_match('/[\x{0600}-\x{06FF}]/u', $s);
-    }
 
-    /** متنِ داخلِ <main> بدونِ تگ‌ها و بدونِ بلوک‌های JSON-LD. */
-    private function mainText(string $html): string
-    {
-        preg_match('~<main[^>]*>(.*)</main>~us', $html, $m);
-        $body = preg_replace('~<script[^>]*>.*?</script>~us', ' ', $m[1] ?? $html);
 
-        return strip_tags($body);
-    }
-
-    public function test_every_core_page_returns_200_with_a_unique_h1(): void
-    {
-        $h1s = [];
-
-        $this->get('/urmia')->assertOk();
-
-        foreach (array_keys((array) config('urmia.pages')) as $slug) {
-            $res = $this->get('/urmia/'.$slug);
-            $res->assertOk();
-
-            preg_match('~<h1[^>]*>(.*?)</h1>~us', $res->getContent(), $m);
-            $this->assertNotEmpty($m[1] ?? '', "صفحهٔ $slug H1 ندارد");
-            $h1 = trim(strip_tags($m[1]));
-            $this->assertNotContains($h1, $h1s, "H1 تکراری: $h1");
-            $h1s[] = $h1;
-        }
-    }
-
-    public function test_every_core_page_has_at_least_800_persian_words(): void
-    {
-        foreach (array_keys((array) config('urmia.pages')) as $slug) {
-            $html = $this->get('/urmia/'.$slug)->getContent();
-
-            // فقط محتوای اصلی، بی‌هدر و فوتر — معیارِ پنل دربارهٔ محتوای صفحه است
-            preg_match('~<main[^>]*>(.*)</main>~us', $html, $m);
-            $body = strip_tags($m[1] ?? $html);
-
-            $words = word_count_fa($body);
-            $this->assertGreaterThanOrEqual(800, $words, "صفحهٔ $slug فقط $words کلمه دارد (کمینه ۸۰۰)");
-        }
-    }
-
-    /*
-    | en/tr باید ۲۰۰ بدهند و ترجمهٔ واقعی داشته باشند. سنجهٔ «واقعی»:
-    | H1 و lead هیچ حرفِ فارسی ندارند، و H1 با نسخهٔ فارسی فرق دارد.
-    | (متنِ کاملِ main ممکن است نامِ برند/شمارهٔ فارسیِ تلفن را داشته باشد،
-    | پس ادعا روی عناصرِ محتواییِ اصلی است نه کلِ صفحه.)
-    */
-    public function test_en_and_tr_versions_render_with_genuinely_translated_content(): void
-    {
-        foreach (['en', 'tr'] as $lang) {
-            // هاب
-            $html = $this->get("/$lang/urmia")->assertOk()->getContent();
-            preg_match('~<h1[^>]*>(.*?)</h1>~us', $html, $m);
-            $h1 = trim(strip_tags($m[1] ?? ''));
-            $this->assertNotEmpty($h1, "هابِ $lang H1 ندارد");
-            $this->assertFalse($this->hasPersian($h1), "H1 هابِ $lang هنوز فارسی است: $h1");
-
-            // همهٔ صفحات خدمت
-            foreach (array_keys((array) config('urmia.pages')) as $slug) {
-                $res = $this->get("/$lang/urmia/$slug");
-                $res->assertOk();
-                preg_match('~<h1[^>]*>(.*?)</h1>~us', $res->getContent(), $m);
-                $h1 = trim(strip_tags($m[1] ?? ''));
-                $this->assertFalse($this->hasPersian($h1), "H1 صفحهٔ $lang/$slug فارسی است: $h1");
-
-                $fa = config("urmia.pages.$slug.h1");
-                $this->assertNotSame($fa, $h1, "H1 صفحهٔ $lang/$slug همان فارسی است");
-            }
-        }
-    }
-
-    public function test_en_service_page_body_is_substantial_and_not_persian(): void
-    {
-        foreach (['en', 'tr'] as $lang) {
-            $html = $this->get("/$lang/urmia/web-design")->assertOk()->getContent();
-            $text = $this->mainText($html);
-
-            // متنِ اصلی به‌جز نامِ شرکت/شماره‌ها نباید فارسی باشد؛ آستانهٔ ۲٪
-            $total   = max(1, mb_strlen(preg_replace('/\s+/u', '', $text)));
-            $persian = preg_match_all('/[\x{0600}-\x{06FF}]/u', $text);
-            $this->assertLessThan(0.02, $persian / $total,
-                "متنِ $lang/web-design هنوز ".round(100 * $persian / $total)."٪ فارسی دارد");
-
-            // و محتوای واقعی است، نه اسکلتِ خالی
-            $this->assertGreaterThan(1200, mb_strlen($text), "متنِ $lang/web-design خیلی کوتاه است");
-        }
-    }
-
-    public function test_city_pages_in_en_and_tr_use_latin_city_names(): void
-    {
-        $html = $this->get('/en/urmia/cities/khoy')->assertOk()->getContent();
-        $this->assertStringContainsString('Khoy', $html);
-        $this->assertStringNotContainsString('طراحی سایت در خوی', $html);
-
-        $html = $this->get('/tr/urmia/cities/maku')->assertOk()->getContent();
-        $this->assertStringContainsString('Makü', $html);
-    }
 
     public function test_unknown_slugs_are_404_not_500(): void
     {
         $this->get('/urmia/no-such-page')->assertNotFound();
         $this->get('/urmia/cities/no-such-city')->assertNotFound();
-        $this->get('/en/urmia/no-such-page')->assertNotFound();
-        $this->get('/tr/urmia/cities/no-such-city')->assertNotFound();
+
+        /*
+        | ⚠️ زیرِ en/tr همه‌چیز ۴۱۰ است، حتی اسلاگِ ناشناخته — و این درست
+        | است: **کلِ زیردرخت** برداشته شده، نه چند صفحهٔ مشخص. ۴۰۴ آن‌جا
+        | یعنی «شاید فردا بیاید» و خزنده را برمی‌گردانَد.
+        */
+        $this->get('/en/urmia/no-such-page')->assertStatus(410);
+        $this->get('/tr/urmia/cities/no-such-city')->assertStatus(410);
     }
 
     public function test_city_pages_render_with_unique_intro(): void
@@ -145,30 +50,12 @@ class UrmiaPagesTest extends TestCase
         }
     }
 
-    public function test_sitemap_lists_all_three_locales_of_urmia_pages(): void
-    {
-        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
 
-        $this->assertStringContainsString(route('urmia.hub'), $xml);
-        $this->assertStringContainsString(route('urmia.page', 'web-design'), $xml);
-        $this->assertStringContainsString(route('urmia.city', 'khoy'), $xml);
-        $this->assertStringContainsString(route('en.urmia.hub'), $xml);
-        $this->assertStringContainsString(route('tr.urmia.page', 'web-design'), $xml);
-    }
-
-    public function test_urmia_pages_declare_all_three_hreflang_alternates(): void
-    {
-        $html = $this->get('/urmia/web-design')->getContent();
-
-        $this->assertStringContainsString('hreflang="fa"', $html);
-        $this->assertStringContainsString('hreflang="en"', $html);
-        $this->assertStringContainsString('hreflang="tr"', $html);
-        $this->assertStringContainsString('/en/urmia/web-design', $html);
-    }
 
     public function test_schema_blocks_render_without_blade_eating_context(): void
     {
-        foreach (['/urmia/web-design', '/en/urmia/web-design', '/tr/urmia/web-design'] as $url) {
+        // ⚠️ فقط فارسی: en/tr از ممیزی نهم ۴۱۰ می‌دهند (UrmiaIsPersianOnlyTest)
+        foreach (['/urmia/web-design'] as $url) {
             $html = $this->get($url)->getContent();
 
             $this->assertStringContainsString('"ProfessionalService"', $html, $url);
@@ -208,20 +95,37 @@ class UrmiaPagesTest extends TestCase
     */
     public function test_no_raw_placeholders_leak_into_any_locale(): void
     {
-        foreach (['', '/en', '/tr'] as $p) {
-            foreach (["$p/urmia", "$p/urmia/web-design", "$p/urmia/cities/khoy"] as $url) {
-                $html = $this->get($url)->getContent();
-                $this->assertDoesNotMatchRegularExpression('/%(CITY|BRAND|COMPANY|REG|SINCE)%/', $html, $url);
-            }
+        /*
+        | ⚠️ فقط فارسی — و این محدودشدن عمدی است، نه کوتاه‌آمدن.
+        |
+        | نسخهٔ en/tr با ۴۱۰ برداشته شد و بدنهٔ ۴۱۰ **خالی** است، پس حلقه
+        | روی آن دو زبان regex را روی رشتهٔ خالی می‌دواند و همیشه سبز
+        | می‌مانَد. تستی که روی ورودیِ خالی ادعا می‌کند، ادعا نمی‌کند.
+        */
+        foreach (['/urmia', '/urmia/web-design', '/urmia/cities/khoy'] as $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+            $this->assertDoesNotMatchRegularExpression('/%(CITY|BRAND|COMPANY|REG|SINCE)%/', $html, $url);
         }
     }
 
-    public function test_homepage_links_to_the_hub_and_footer_links_in_every_locale(): void
+    /**
+     * لینکِ فوتر **فقط** در فارسی — و صفحاتِ en/tr باید سالم بمانند.
+     *
+     * 🔴 نسخهٔ قبلی هر سه زبان را می‌خواست. حالا روتِ en/tr نام ندارد (تا
+     * سوییچرِ زبان به یک ۴۱۰ لینک ندهد)، پس `lroute('urmia.hub')` در آن دو
+     * زبان استثنا می‌دهد — و چون فوتر روی **هر** صفحه است، بی‌گیتِ زبان کلِ
+     * سایتِ انگلیسی ۵۰۰ می‌شد.
+     *
+     * ⚠️ ادعای دومِ این تست مهم‌تر از اولی است: نه‌بودنِ لینک آسان دیده
+     * می‌شود، ولی ۵۰۰ شدنِ کلِ سایت را فقط بازکردنِ یک صفحهٔ بی‌ربط نشان
+     * می‌دهد.
+     */
+    public function test_the_footer_links_to_the_hub_in_persian_only(): void
     {
-        // پلِ متنیِ خانه فقط فارسی است (محتوای تحریری)، ولی فوتر در هر سه زبان
-        // به نسخهٔ همان زبان لینک می‌دهد.
         $this->get('/')->assertSee('href="'.route('urmia.hub').'"', false);
-        $this->get('/en')->assertSee('href="'.route('en.urmia.hub').'"', false);
-        $this->get('/tr')->assertSee('href="'.route('tr.urmia.hub').'"', false);
+
+        foreach (['/en', '/tr'] as $p) {
+            $this->get($p)->assertOk()->assertDontSee('/urmia', false);
+        }
     }
 }

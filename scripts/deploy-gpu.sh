@@ -71,7 +71,15 @@ fi
 #    merge سه‌طرفه می‌افتد — و روی تداخل «دست نزن» است، یعنی کلیدهای GPU
 #    بی‌صدا هرگز نمی‌نشینند. کامیتِ ادغام هر دو را دارد، پس هر دو هم‌گرا
 #    می‌شوند و ترتیبِ اجرا دیگر مهم نیست.
-MINE="${1:-5157b59}"
+#
+# ⚠️ پین باز هم جلو رفت (ارومیه، ۶ شهریور) و همان دلیلِ بالا:
+#    scripts/deploy-audit-r9-final.sh هم `routes/web.php` را می‌برد و روت‌های
+#    ۴۱۰ِ ارومیه را اضافه می‌کند. پینِ قبلی (5157b59) آن‌ها را ندارد، پس اگر
+#    این اسکریپت **بعد** از آن بدود، پایه‌یاب نسخهٔ سرور را در تاریخچهٔ خودش
+#    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
+#    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
+#    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
+MINE="${1:-d76c605}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -160,6 +168,7 @@ app/Services/Cloud/CloudNaming.php
 app/Services/Cloud/CloudProvider.php
 app/Services/Cloud/SaladOperations.php
 app/Services/Cloud/SaladClient.php
+app/Services/Cloud/HetznerRobotClient.php
 app/Services/Cloud/CloudManager.php
 app/Services/Cloud/CloudCatalogSync.php
 app/Services/Cloud/CloudPricing.php
@@ -479,6 +488,9 @@ g resources/views/account/invoice.blade.php "data-m=\"wire\""
 g resources/views/admin/settings/accounts.blade.php "crypto_cooldown_hours"
 g app/Models/CryptoWallet.php "cooldownHours"
 g app/Services/Payment/CryptoReconciler.php "freeOrphanedWallets"
+g app/Services/Cloud/HetznerRobotClient.php "fetchCatalog"
+g app/Services/Cloud/CloudManager.php "hetzner-robot"
+g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
