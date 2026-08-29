@@ -160,7 +160,7 @@ class SiteMenuSyncTest extends TestCase
         $this->assertNotContains('Operating system', $groupNames);
         // تبِ یگانهٔ «سرور» هر سه نوع را دارد
         $this->assertContains('Virtual servers', $groupNames);
-        $this->assertContains('Dedicated CPU', $groupNames);
+        $this->assertContains('Dedicated & bare-metal', $groupNames);
         $this->assertContains('Physical servers', $groupNames);
 
         foreach ($mega['vps']['groups'] as $g) {

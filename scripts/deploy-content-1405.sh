@@ -7,7 +7,7 @@
 #   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-content-1405.sh) [<SHA>]
 #
 # چه چیزی دیپلوی می‌شود:
-#   · سه برنامهٔ محتوای تازه (۵۴۱ موضوع) + کرونی که مصرفشان می‌کند
+#   · سه برنامهٔ محتوای تازه (۵۸۷ موضوع) + کرونی که مصرفشان می‌کند
 #   · ContentCalendar — زمان‌بندیِ ۲ تا ۵ مطلب در روز تا ۲۹ اسفند ۱۴۰۵
 #   · InternalLinks — لینکِ داخلیِ واقعی به‌جای آدرسِ حدسیِ مدل
 #   · پرامپتِ بازنویسی‌شدهٔ نگارش + FAQPage JSON-LD روی بلاگ و مستندات
@@ -43,9 +43,14 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-71fca97}"
+MINE="${1:-4cb2684}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
+
+# شمارشِ ردیف‌های برنامهٔ بلاگ از خودِ پین — عددِ سخت‌کد لحظه‌ای که
+# برنامه بزرگ شود کهنه می‌شود و راستی‌آزمایی دربارهٔ خودش دروغ می‌گوید.
+BLOG_ROWS=$(git -C repo show "$MINE:website/resources/content/blog-1405.php" 2>/dev/null | grep -c "^\['" )
+[ -n "$BLOG_ROWS" ] || BLOG_ROWS="?" 
 
 # 🔴 ترتیب معنادار است: اول سرویس‌های مستقل، بعد فرمان‌ها، بعد دادهٔ برنامه،
 #    بعد ویو، و آخر routes/console.php (تنها فایلی که کرون در آن است).
@@ -317,7 +322,8 @@ echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache (v
 echo
 echo "═══ راستی‌آزمایی (بعد از ریستِ opcache) ═══"
 echo "  $PHPBIN artisan content:generate --plan=blog-1405 --dry --limit=3"
-echo "      ← باید «باقی‌مانده در برنامه: ۲۶۹» و ظرفیتِ تقویم را نشان دهد"
+echo "      ← باید نزدیکِ $BLOG_ROWS باشد (منهای آنچه از قبل ساخته شده)"
+echo "        و هیچ خطِ «هرگز ساخته نمی‌شود» نداشته باشد"
 echo "  $PHPBIN artisan schedule:list | grep content"
 echo "      ← باید ۵ خط باشد (publish-due + چهار برنامه) + translate-missing"
 echo "  $PHPBIN artisan links:content"

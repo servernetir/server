@@ -22,6 +22,10 @@ class CloudManager
         'ovh'     => OvhClient::class,
         'proxmox' => ProxmoxClient::class,
         'salad'   => SaladClient::class,
+        // ⚠️ «hetzner-robot» جدا از «hetzner» است و باید بماند: Cloud و Robot
+        // دو API با دو اعتبارنامهٔ متفاوت‌اند و ادغامشان یعنی توکنِ یکی روی
+        // دیگری امتحان شود و هر دو بی‌صدا بمیرند.
+        'hetzner-robot' => HetznerRobotClient::class,
     ];
 
     /**
@@ -43,6 +47,7 @@ class CloudManager
         'ovh'     => 'OVHcloud',
         'proxmox' => 'Proxmox (Tehran)',
         'salad'   => 'SaladCloud (GPU)',
+        'hetzner-robot' => 'Hetzner Robot (Dedicated)',
     ];
 
     /** @var array<string, CloudProvider> */

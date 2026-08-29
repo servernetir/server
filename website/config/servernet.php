@@ -380,9 +380,18 @@ return [
                     ['route' => ['gpu', []], 'new' => true,
                         'fa' => 'سرور گرافیکی (GPU)', 'en' => 'GPU servers', 'tr' => 'GPU sunucular'],
                 ]],
-                ['fa' => 'پردازندهٔ اختصاصی', 'en' => 'Dedicated CPU', 'tr' => 'Özel CPU', 'items' => [
+                /*
+                | ستونِ سرورِ اختصاصی/برمتال. «برمتال» عمداً در عنوانِ ستون است:
+                | از شهریور ۱۴۰۵ آلمان و فنلاند موجودیِ زندهٔ برمتال (زیرساختِ ۷)
+                | دارند و مشتریِ حرفه‌ای دقیقاً با همین واژه می‌گردد — سه تیکتِ
+                | «سرور با SSH و سخت‌افزارِ اختصاصی» در یک هفته.
+                */
+                ['fa' => 'سرور اختصاصی و برمتال', 'en' => 'Dedicated & bare-metal', 'tr' => 'Özel / Bare-metal', 'items' => [
                     ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'iran']],    'fa' => 'سرور اختصاصی ایران', 'en' => 'Iran dedicated', 'tr' => 'İran özel sunucu'],
-                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'germany']], 'fa' => 'سرور اختصاصی آلمان', 'en' => 'Germany dedicated', 'tr' => 'Almanya özel sunucu'],
+                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'germany']], 'new' => true,
+                        'fa' => 'سرور برمتال آلمان', 'en' => 'Germany bare-metal', 'tr' => 'Almanya bare-metal'],
+                    ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'finland']], 'new' => true,
+                        'fa' => 'سرور برمتال فنلاند', 'en' => 'Finland bare-metal', 'tr' => 'Finlandiya bare-metal'],
                     ['route' => ['catalog', ['category' => 'dedicated', 'slug' => 'managed']], 'fa' => 'سرور مدیریت‌شده', 'en' => 'Managed servers', 'tr' => 'Yönetilen sunucular'],
                 ]],
                 ['fa' => 'سرور فیزیکی', 'en' => 'Physical servers', 'tr' => 'Fiziksel sunucular', 'items' => [

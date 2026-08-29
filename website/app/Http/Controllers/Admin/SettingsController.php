@@ -164,6 +164,9 @@ class SettingsController extends Controller
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
             'ovh_forget'         => ['nullable', 'boolean'],
+            'hetzner_robot_user'   => ['nullable', 'string', 'max:120'],
+            'hetzner_robot_pass'   => ['nullable', 'string', 'max:200'],
+            'hetzner_robot_forget' => ['nullable', 'boolean'],
             'salad_api_key'      => ['nullable', 'string', 'max:300'],
             'salad_gateway_secret' => ['nullable', 'string', 'max:200'],
             'salad_forget'       => ['nullable', 'boolean'],
@@ -416,6 +419,9 @@ class SettingsController extends Controller
                     && filled(Setting::getSecret('ovh_app_secret'))
                     && filled(Setting::getSecret('ovh_consumer_key')),
                 'proxmox'        => $ready && filled(Setting::getSecret('proxmox_token_secret')),
+                // Robot دو تکه است: کاربر و رمزِ webservice — هر دو لازم‌اند.
+                'hetzner_robot' => $ready && filled(Setting::getSecret('hetzner_robot_user'))
+                    && filled(Setting::getSecret('hetzner_robot_pass')),
                 // ⚠️ «تنظیم‌شده» یعنی کلید **و** نامِ سازمان — هر مسیرِ آن API
                 // نامِ سازمان را در خودش دارد، پس کلیدِ تنها هیچ کاری نمی‌کند.
                 'salad' => $ready && filled(Setting::getSecret('salad_api_key'))
@@ -671,6 +677,20 @@ class SettingsController extends Controller
             }
         } else {
             foreach (['ovh_app_key', 'ovh_app_secret', 'ovh_consumer_key'] as $k) {
+                if (filled($data[$k] ?? null)) {
+                    Setting::putSecret($k, trim((string) $data[$k]));
+                }
+            }
+        }
+
+        // Hetzner Robot: کاربر و رمزِ webservice — دو کلید، مثل OVH با هم
+        // پاک می‌شوند (یکی از دو یعنی 401ِ همیشگی).
+        if ($request->boolean('hetzner_robot_forget')) {
+            foreach (['hetzner_robot_user', 'hetzner_robot_pass'] as $k) {
+                Setting::putSecret($k, null);
+            }
+        } else {
+            foreach (['hetzner_robot_user', 'hetzner_robot_pass'] as $k) {
                 if (filled($data[$k] ?? null)) {
                     Setting::putSecret($k, trim((string) $data[$k]));
                 }

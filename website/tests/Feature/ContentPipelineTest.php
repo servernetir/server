@@ -523,6 +523,64 @@ class ContentPipelineTest extends TestCase
         $this->assertStringContainsString('FAQPage', article_faq_ld($html));
     }
 
+    /* ═══════════════════ برخوردِ اسلاگ ═══════════════════ */
+
+    /**
+     * 🔴 اسلاگی که پستِ بیرونی صاحبش باشد **هرگز** از برنامه در نمی‌آید.
+     *
+     * روی پروداکشن سه موضوع دقیقاً همین شدند و بی‌صدا افتادند، چون
+     * اعتبارسنجی فقط فایل‌های برنامه را با هم می‌سنجید — و آن سه پست در هیچ
+     * فایلی نبودند (بازماندهٔ ایمپورتِ وردپرس، فقط در جدولِ `posts`).
+     */
+    public function test_a_slug_owned_by_a_foreign_post_is_shouted_about(): void
+    {
+        $post = Post::create([
+            'slug' => 'website-speed-complete-guide', 'type' => 'blog',
+            'category' => 'seo', 'status' => 'published', 'published_at' => now()->subYear(),
+        ]);
+        // پستِ ایمپورت‌شده: ترجمهٔ fa دارد ولی auto نیست
+        PostTranslation::create([
+            'post_id' => $post->id, 'locale' => 'fa',
+            'title' => 'مطلبِ قدیمیِ ایمپورت‌شده', 'auto' => false,
+        ]);
+
+        $this->artisan('content:generate', ['--plan' => 'blog-1405', '--dry' => true, '--limit' => 1])
+            ->expectsOutputToContain('هرگز ساخته نمی‌شود')
+            ->assertSuccessful();
+    }
+
+    /**
+     * ⚠️ ولی مصرفِ عادیِ صف باید **ساکت** بماند.
+     *
+     * نسخهٔ اولِ این هشدار هر موضوعِ ردشده را چاپ می‌کرد، و همان روزِ اول یک
+     * خط برای مقاله‌ای زد که خودِ همین فرمان دیشب ساخته بود. فردا دو تا،
+     * ماهِ بعد صد تا — هشداری که به نویز تبدیل می‌شود و برخوردِ واقعی را در
+     * خودش دفن می‌کند.
+     */
+    public function test_a_topic_this_pipeline_already_built_stays_silent(): void
+    {
+        $post = Post::create([
+            'slug' => 'website-speed-complete-guide', 'type' => 'blog',
+            'category' => 'seo', 'status' => 'published', 'published_at' => now()->subDay(),
+        ]);
+        PostTranslation::create([
+            'post_id' => $post->id, 'locale' => 'fa',
+            'title' => 'راهنمای کامل افزایش سرعت سایت', 'auto' => true,
+        ]);
+
+        $this->artisan('content:generate', ['--plan' => 'blog-1405', '--dry' => true, '--limit' => 1])
+            ->doesntExpectOutputToContain('هرگز ساخته نمی‌شود')
+            ->assertSuccessful();
+    }
+
+    /** هیچ اسلاگی از برنامه‌ها نباید با پستِ بیرونیِ موجود برخورد کند. */
+    public function test_a_clean_install_reports_no_foreign_clash(): void
+    {
+        $this->artisan('content:generate', ['--plan' => 'blog-1405', '--dry' => true, '--limit' => 1])
+            ->doesntExpectOutputToContain('هرگز ساخته نمی‌شود')
+            ->assertSuccessful();
+    }
+
     /* ═══════════════════ پایشِ صف ═══════════════════ */
 
     /**
