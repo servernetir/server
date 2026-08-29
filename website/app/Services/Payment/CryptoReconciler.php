@@ -42,8 +42,40 @@ class CryptoReconciler
         }
 
         $stat['expired'] += $this->expireStale();
+        $stat['orphan_freed'] = $this->freeOrphanedWallets();
 
         return $stat;
+    }
+
+    /**
+     * 🔴 خودترمیمیِ استخر: ولتی که «مشغول» مانده ولی پرداختِ گرفتارکننده‌اش
+     * دیگر باز نیست، آزاد می‌شود.
+     *
+     * رخدادِ واقعی (۷ شهریور ۱۴۰۵): /system/crypto-status نشان داد `busy:1`
+     * با `open_payments:0` — یک ادعای قدیمی روی ولت جا مانده بود (کرش/ری‌استارت
+     * بینِ تغییرِ وضعیتِ پرداخت و release) و **هیچ مسیری** آزادش نمی‌کرد؛ آن
+     * آدرس برای همیشه از استخر کم شده بود. با استخرِ کوچک، چند تا از این‌ها
+     * یعنی «رمزارز موقتاً در دسترس نیست»ِ دائمی.
+     *
+     * ⚠️ آزادسازی با همان `release()` است، یعنی **با** دورهٔ خنک‌شدن — چون
+     * نمی‌دانیم پرداختِ قدیمی چگونه بسته شده و مشتری‌اش شاید هنوز آدرس را دارد.
+     */
+    private function freeOrphanedWallets(): int
+    {
+        $n = 0;
+
+        $wallets = \App\Models\CryptoWallet::whereNotNull('busy_payment_id')->get();
+
+        foreach ($wallets as $w) {
+            $holder = CryptoPayment::find($w->busy_payment_id);
+
+            if ($holder === null || ! in_array($holder->status, ['pending', 'seen'], true)) {
+                $w->release();
+                $n++;
+            }
+        }
+
+        return $n;
     }
 
     /**
