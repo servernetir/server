@@ -57,7 +57,17 @@ class SaladClient implements CloudProvider
     */
     public const DEFAULT_VCPU = 8;
     public const DEFAULT_RAM_MB = 30720;
-    public const DEFAULT_DISK_GB = 50;
+
+    /*
+    | 🔴 ۱۵۰ گیگ، نه ۵۰ — و این تغییر **هیچ** هزینه‌ای اضافه نمی‌کند: صورت‌حسابِ
+    | این زیرساخت فقط GPU + vCPU + رم است و storage جزوِ اجزای پولی نیست
+    | (docs.salad.com/container-engine/…/billing — بررسیِ ۷ شهریور ۱۴۰۵).
+    | ۵۰ گیگ برای فاین‌تیونِ واقعی کم بود (مدلِ ۱۵–۲۰ گیگی + checkpointها؛
+    | درخواستِ صریحِ مشتری: «حداقل ۱۰۰»). سقفِ APIِ آن‌ها ۲۵۰ است؛ ۲۵۰ عمداً
+    | نه: هر گیگِ بیشتر استخرِ نودهای واجدِ شرایط را کوچک‌تر و تخصیص را
+    | کندتر می‌کند — ۱۵۰ تعادلِ نیاز و موجودی است.
+    */
+    public const DEFAULT_DISK_GB = 150;
 
     /**
      * نرخِ پیش‌فرضِ vCPU و رم بر ساعت به دلار — از `billing.mdx` خودشان:
