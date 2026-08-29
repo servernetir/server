@@ -71,6 +71,7 @@ routes/console.php
 PUB_FILES=""
 
 CONFLICTS=""
+CREATED=""     # فایل‌های تازه‌ساخته‌شده — برای بازگشتِ کامل
 UPD=0
 
 dist() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
@@ -103,7 +104,11 @@ apply_one() {
   fi
 
   if [ ! -f "$dest" ]; then
-    [ "$DRY" = "0" ] && { mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"; }
+    # 🔴 فایلِ تازه بکاپ ندارد (چیزی نبوده که بکاپ شود)، پس حلقهٔ بازگشت
+    #    نمی‌بیندش و روی سرور جا می‌مانَد. اجرای اول دقیقاً همین شد: ۸ فایل
+    #    برگشت و ۵ فایلِ تازه ماندند — یعنی «بازگشتِ کامل» دروغ بود.
+    #    این‌جا ثبتشان می‌کنیم تا بازگشت واقعاً کامل باشد.
+    [ "$DRY" = "0" ] && { mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"; CREATED="$CREATED $rel"; }
     echo "NEW   $rel   (فایلِ تازه — روی سرور نیست)"; UPD=$((UPD+1)); return
   fi
 
@@ -201,7 +206,27 @@ need_file "$APP/resources/content/blog-1405.php"
 need_file "$APP/resources/content/kb-1405.php"
 need_file "$APP/resources/content/docs-1405.php"
 
-g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
+# 🔴 `--` اجباری است، و نبودش اجرای اول را برگرداند.
+#
+# الگوی این دیپلوی `--plan=blog-1405` است و grep هر آرگومانی که با `-` شروع
+# شود را **گزینه** می‌خواند نه الگو:
+#
+#     grep -qF "--plan=blog-1405" file
+#     → grep: unknown option -- plan=blog-1405     (خروجیِ ۲، یعنی «پیدا نشد»)
+#
+# و چون خطای استاندارد با `2>/dev/null` خفه شده بود، از بیرون دقیقاً شبیهِ
+# «ننشسته» دیده می‌شد. نتیجه: دیپلویِ کاملاً سالم (شمارشِ کرون ۴۱→۴۳ درست بود)
+# با یک گاردِ معیوب برگردانده شد.
+#
+# ⚠️ خفه‌کردنِ stderr همان چیزی بود که خطا را نامرئی کرد. حالا اگر grep خودش
+# شکایتی داشته باشد، متنش چاپ می‌شود — گاردی که بی‌صدا شکست بخورد، از نبودنش
+# بدتر است.
+g() {
+  err=$(grep -qF -- "$2" "$APP/$1" 2>&1) && return 0
+  [ -n "$err" ] && echo "   (grep گفت: $err)"
+  echo "🔴 $1: «$2» ننشسته"
+  union_ok=0
+}
 
 # زنجیرهٔ تولید — هر حلقه بیفتد، تولید بی‌صدا می‌ایستد
 g app/Services/ContentCalendar.php "PLAN_UNTIL_JYEAR"
@@ -260,6 +285,9 @@ if [ "$union_ok" -eq 0 ]; then
       cp "$p" "$APP/$rel"
       echo "   بازگشت: $rel"
     done )
+  for rel in $CREATED; do
+    rm -f "$APP/$rel" && echo "   حذفِ فایلِ تازه: $rel"
+  done
   echo "🔴 دیپلوی ناتمام. خروجیِ بالا را بفرست."
   exit 1
 fi
