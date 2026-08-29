@@ -152,7 +152,14 @@ class ForeignPanelLocaleTest extends TestCase
         $this->assertStringNotContainsString('account/profile#company', $html);
     }
 
-    /** 🔴 اعلانِ عمومیِ رویدادِ بی‌ترجمه هم انگلیسی می‌رود، هرگز فارسی */
+    /**
+     * 🔴 اعلانِ عمومیِ رویدادِ بی‌ترجمه هم انگلیسی می‌رود، هرگز فارسی.
+     *
+     * ⚠️ این تست قبلاً `service_ready` را می‌فرستاد؛ از ۷ شهریور ۱۴۰۵ کلِ
+     * کاتالوگ ترجمهٔ اختصاصی دارد (CustomerEmailLocalizationTest)، پس سقوطِ
+     * عمومی فقط برای رویدادی رخ می‌دهد که هنوز کلیدِ ntf ندارد — همان را
+     * شبیه‌سازی می‌کنیم تا خودِ سازوکارِ پشتیبان تست بماند.
+     */
     public function test_untranslated_events_fall_back_to_a_generic_english_email(): void
     {
         Mail::fake();
@@ -160,7 +167,7 @@ class ForeignPanelLocaleTest extends TestCase
         $c = $this->foreigner();
 
         app(\App\Services\Notify\CustomerNotifier::class)
-            ->templated($c, 'service_ready', ['service' => 'X'], 'سرویس شما آماده شد');
+            ->templated($c, 'some_future_event', ['service' => 'X'], 'سرویس شما آماده شد');
 
         Mail::assertSent(\App\Mail\TemplateMail::class, function ($m) {
             return str_contains((string) $m->title, 'ServerNet - account update');

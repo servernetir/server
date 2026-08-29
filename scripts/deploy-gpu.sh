@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-06709cc}"
+MINE="${1:-2d450e1}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -106,6 +106,8 @@ app/Http/Controllers/Auth/LoginController.php
 app/Http/Controllers/Account/PaymentController.php
 app/Http/Controllers/Account/AccountController.php
 app/Services/Notify/CustomerNotifier.php
+app/Mail/TemplateMail.php
+resources/views/emails/layout.blade.php
 app/Services/Customer/KycReview.php
 app/Services/Bale/BaleSender.php
 app/Services/Bale/Admin/AdminBaleRouter.php
@@ -426,6 +428,13 @@ g lang/fa/ui.php "prof_doc_selfie"
 g lang/en/ui.php "prof_doc_selfie"
 g lang/tr/ui.php "prof_doc_selfie"
 g app/Services/Notify/CustomerNotifier.php "localizedEmail"
+g app/Services/Notify/CustomerNotifier.php "intlVars"
+g app/Mail/TemplateMail.php "locale("
+g resources/views/emails/layout.blade.php "email_tagline"
+g lang/en/ui.php "ntf_suspended_s"
+g lang/tr/ui.php "ntf_suspended_s"
+g lang/fa/ui.php "ntf_suspended_s"
+g app/Services/Customer/KycReview.php "ntf_kyc_ok"
 g app/Http/Controllers/Account/PaymentController.php "top_item_title"
 g resources/views/account/topup.blade.php "euroMode"
 g resources/views/account/home.blade.php "isVerified"

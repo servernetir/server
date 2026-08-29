@@ -305,11 +305,25 @@ class RunServiceLifecycle extends Command
         // اگر الگویی برای ایمیل نبود (یا ارسالش نشد)، همان یادآوریِ سادهٔ قبلی
         // می‌رود. یادآوریِ مالی نباید به وجودِ یک ردیف در دیتابیس بند باشد —
         // نرسیدنش یعنی مشتری بی‌خبر می‌مانَد و سرویسش قطع می‌شود.
+        // ⚠️ برای مشتریِ en/tr همین پشتیبان هم به زبانِ خودش می‌رود — پشتیبانِ
+        // فارسی برای او همان «ایمیلِ نامفهوم»ی است که این چرخه برای رفعش ساخته شد.
         try {
             if (! $mailed && filled($service->customer?->email)) {
-                Mail::mailer('smtp')->raw($text, fn ($m) => $m
-                    ->to($service->customer->email)
-                    ->subject('یادآوریِ تمدید — '.$service->name));
+                $locale = in_array($service->customer->locale, ['en', 'tr'], true)
+                    ? $service->customer->locale : 'fa';
+
+                $subject = $locale === 'fa'
+                    ? 'یادآوریِ تمدید — '.$service->name
+                    : trans('ui.ntf_expiring_s', ['service' => $service->name, 'days' => (string) $stage], $locale);
+                $body = $locale === 'fa' ? $text : trans('ui.ntf_expiring_b', [
+                    'service' => $service->name,
+                    'days'    => (string) $stage,
+                    'amount'  => $invoice ? number_format((int) $invoice->total).' IRT' : '—',
+                    'link'    => console_lroute('account.invoices'),
+                ], $locale);
+
+                Mail::mailer('smtp')->to($service->customer->email)
+                    ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body)), $locale));
             }
         } catch (\Throwable) {
         }

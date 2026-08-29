@@ -137,7 +137,7 @@ class CustomerNotifier
             return false;
         }
 
-        $repl = $vars + [
+        $repl = $this->intlVars($vars) + [
             'url' => 'https://console.servernet.cloud'
                 .route(($locale === 'en' ? 'en.' : 'tr.').'account.home', [], false),
         ];
@@ -151,8 +151,10 @@ class CustomerNotifier
         }
 
         try {
+            // ⚠️ locale به خودِ Mailable می‌رود تا قالبِ برنددار (emails.layout)
+            // هم به زبانِ مشتری رندر شود، نه به locale لحظهٔ اجرا (کرون = fa).
             \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)
-                ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body))));
+                ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body)), $locale));
 
             return true;
         } catch (\Throwable $e) {
@@ -160,6 +162,51 @@ class CustomerNotifier
 
             return false;
         }
+    }
+
+    /**
+     * مقادیرِ متغیرها را برای مشتریِ غیرفارسی «بین‌المللی» می‌کند.
+     *
+     * 🔴 چرا این‌جا و نه در تک‌تکِ فراخوان‌ها: بیشترِ فراخوان‌ها مقدار را برای
+     * مخاطبِ فارسی می‌سازند (`fa_num`، «تومان»، جداکنندهٔ ٬). نوشتنِ شرطِ زبان
+     * در ده‌ها نقطهٔ شلیک یعنی دیر یا زود یکی جا می‌افتد و ایمیلِ انگلیسی با
+     * رقمِ فارسی می‌رود — پس تصمیم همین یک‌جا گرفته می‌شود، برای همهٔ
+     * فرستنده‌های حال و آینده.
+     */
+    private function intlVars(array $vars): array
+    {
+        static $digits = [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '٬' => ',', '،' => ',',
+        ];
+
+        foreach ($vars as $k => $v) {
+            $v = strtr((string) $v, $digits);
+            // واحدِ پول به کدِ بین‌المللی — «تومان» در ایمیلِ انگلیسی/ترکی هم
+            // ناخواناست هم نقضِ «بی‌نشانه از فارسی» بودنِ این ایمیل‌ها.
+            $v = str_replace(['تومان', 'ریال'], ['IRT', 'IRR'], $v);
+
+            /*
+            | 🔴 تاریخِ شمسی → میلادی. فراخوان‌ها تاریخ را با `sdate()` می‌سازند
+            | و کرون‌ها با locale فارسی اجرا می‌شوند، پس «اعتبار تا ۱۴۰۵/۰۶/۰۷»
+            | واردِ متغیر می‌شود؛ لاتین‌کردنِ رقم آن را فقط به «1405/06/07»
+            | تبدیل می‌کرد — سالی که برای مشتریِ خارجی بی‌معنی است.
+            | سالِ ۱۳xx/۱۴xx با هیچ تاریخِ میلادیِ زنده‌ای اشتباه نمی‌شود، پس
+            | تشخیصِ الگویی این‌جا امن است.
+            */
+            $v = preg_replace_callback('/\b(1[34]\d{2})\/(\d{1,2})\/(\d{1,2})\b/', function ($m) {
+                [$gy, $gm, $gd] = \App\Support\Jalali::toGregorian((int) $m[1], (int) $m[2], (int) $m[3]);
+
+                return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+            }, $v);
+
+            $vars[$k] = trim($v);
+        }
+
+        return $vars;
     }
 
     /**
