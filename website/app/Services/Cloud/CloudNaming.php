@@ -139,10 +139,12 @@ class CloudNaming
      * نامِ عمومیِ پلن از مشخصات — بی‌هیچ اشاره‌ای به ارائه‌دهنده.
      * `CV-2-4` = سرورِ ابری، ۲ هسته، ۴ گیگابایت رم.
      */
-    public static function planName(int $vcpu, int $ramMb, string $cpuKind = 'shared'): string
+    public static function planName(int $vcpu, int $ramMb, string $cpuKind = 'shared', bool $metal = false): string
     {
         $ram = self::gb($ramMb);
-        $prefix = $cpuKind === 'dedicated' ? 'CVD' : 'CV';
+        // BM = برمتال (سرورِ فیزیکی) — خانوادهٔ محصولیِ جدا از CV/CVD، تا مشتری
+        // بداند سخت‌افزارِ اختصاصی می‌خرد نه ماشینِ مجازیِ هسته‌اختصاصی.
+        $prefix = $metal ? 'BM' : ($cpuKind === 'dedicated' ? 'CVD' : 'CV');
 
         return $prefix.'-'.$vcpu.'-'.$ram;
     }
@@ -156,9 +158,20 @@ class CloudNaming
         string $cpuKind = 'shared',
         ?string $gpuModel = null,
         ?int $gpuCount = null,
+        bool $metal = false,
     ): string {
         $ram = self::gb($ramMb);
-        $prefix = $cpuKind === 'dedicated' ? 'cvd' : 'cv';
+
+        /*
+        | 🔴 برمتال پیشوندِ خودش را دارد — همان قاعدهٔ GPU، از درِ سوم.
+        |
+        | سرورِ فیزیکی (Robot) و VPSِ هسته‌اختصاصی (CCX) هر دو cpu_kind=dedicated
+        | دارند؛ با پیشوندِ مشترک، مشخصاتِ برابر یعنی اسلاگِ برابر یعنی
+        | `bestForSlug()` می‌توانست به‌جای سختِ‌افزارِ فیزیکیِ فروخته‌شده یک
+        | ماشینِ مجازی تحویل دهد — تفاوتی که مشتری دقیقاً بابتش پول داده.
+        | «اسلاگ باید هر تفاوتِ قابلِ‌فروش را حمل کند.»
+        */
+        $prefix = $metal ? 'cbm' : ($cpuKind === 'dedicated' ? 'cvd' : 'cv');
 
         /*
         | 🔴 GPU **باید** در اسلاگ باشد، وگرنه دو محصولِ کاملاً متفاوت یکی

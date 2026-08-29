@@ -96,6 +96,35 @@
       @endif
     </div>
 
+    {{-- زیرساختِ ۷ — Hetzner Robot. جدا از زیرساختِ ۱ (Cloud): کاربرِ webservice
+         را باید در پنلِ Robot ← Settings ← Webservice ساخت؛ توکنِ Cloud این‌جا
+         کار نمی‌کند. کاتالوگِ سرورِ اختصاصی + مزایده + GPU اختصاصی از همین
+         می‌آید و خریدِ خودکار عمداً خاموش است (صفِ تحویلِ دستی). --}}
+    <div class="set-box">
+      <div class="set-box-h">
+        <b>زیرساختِ ۷ — سرورِ اختصاصی (Robot)</b>
+        @if($cloud['hetzner_robot'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">کاربر و رمز ذخیره‌شده</span>@endif
+      </div>
+      <p>
+        کاربرِ webservice را در پنلِ Robot (<span dir="ltr">Settings → Webservice and app settings</span>)
+        بسازید. بعد از ذخیره، <b>cloud:sync</b> کاتالوگِ سرورهای اختصاصی، مزایده و GPU اختصاصی را
+        می‌کشد و پلن‌ها با همان زنجیرهٔ «بها + کارمزد + حاشیه» قیمت می‌خورند.
+        <br>⚠️ <b>خرید خودکار فعال نیست</b> — سفارشِ مشتری به صفِ تحویلِ دستی می‌رود و
+        شما در پنلِ زیرساخت نهایی‌اش می‌کنید. محصولاتِ دارای هزینهٔ نصب عمداً وارد کاتالوگ نمی‌شوند.
+      </p>
+      <div class="set-grid">
+        <label class="set-f">کاربرِ Webservice
+          <input type="password" name="hetzner_robot_user" dir="ltr" autocomplete="new-password" maxlength="120"
+                 placeholder="{{ $cloud['hetzner_robot'] ? '••••••••  خالی = بدونِ تغییر' : '#ws+XXXXXX' }}"></label>
+        <label class="set-f">رمزِ Webservice
+          <input type="password" name="hetzner_robot_pass" dir="ltr" autocomplete="new-password" maxlength="200"
+                 placeholder="{{ $cloud['hetzner_robot'] ? '••••••••  خالی = بدونِ تغییر' : 'رمز را این‌جا بچسبانید' }}"></label>
+      </div>
+      @if($cloud['hetzner_robot'])
+        <label class="set-danger"><input type="checkbox" name="hetzner_robot_forget" value="1"> کاربر و رمز را فراموش کن</label>
+      @endif
+    </div>
+
     {{-- زیرساختِ ۶ — GPU. از هر پنجِ بالا متفاوت است و متنِ زیر عمداً صریح
          می‌گوید چرا: این‌جا ماشینِ مجازی نیست، کانتینر است؛ و نمونه‌ها **قطع
          می‌شوند** حتی در بالاترین اولویت. مدیری که این را نداند، محصول را با
