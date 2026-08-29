@@ -65,6 +65,7 @@ class SystemHealth
             $this->cloudRelease(),
             $this->unsellableCatalogue(),
             $this->mailboxes(),
+            $this->contentQueue(),
             $this->recentErrors(),
         ];
     }
@@ -830,5 +831,75 @@ class SystemHealth
     private function row(string $key, bool $ok, string $level, string $title, string $detail, array $links = []): array
     {
         return compact('key', 'ok', 'level', 'title', 'detail', 'links');
+    }
+
+    /**
+     * 🔴 صفِ انتشارِ محتوا — چکی که نبودش یک ماه سکوت ساخت.
+     *
+     * ═══ خرابیِ واقعی ═══
+     *
+     * `plan.php` هر ۱۰۲ موضوعش مصرف شد و از ۲۵ مرداد ۱۴۰۵ بلاگ هیچ مطلبِ
+     * تازه‌ای نگرفت. کرون هر روز سرِ ساعت اجرا می‌شد، «همه ساخته شده‌اند ✓»
+     * می‌گفت و با کدِ **موفق** برمی‌گشت. پس:
+     *
+     *   ضربانِ کرون  → سبز (کرون که واقعاً می‌دوید)
+     *   ردیابِ خطا   → خالی (هیچ استثنایی پرتاب نشد)
+     *   چکِ صف‌ها     → وجود نداشت
+     *
+     * دوازده روز طول کشید تا کسی ببیند، و آن هم اتفاقی بود. **صفِ خالی شبیهِ
+     * کارِ تمام‌شده است، نه شبیهِ خرابی** — و این تنها جایی است که فرقشان
+     * گذاشته می‌شود.
+     *
+     * ⚠️ عمداً پیش‌نویسِ **آینده** را می‌شمارد، نه مطالبِ منتشرشده را. تعداد
+     * منتشرشده هرگز کم نمی‌شود، پس چکی که آن را ببیند تا ابد سبز می‌مانَد —
+     * همان تلهٔ «ستونِ همسایه به‌جای خودِ خرابی».
+     */
+    private function contentQueue(): array
+    {
+        try {
+            $scheduled = \App\Models\Post::query()
+                ->where('status', 'draft')
+                ->where('published_at', '>', now())
+                ->count();
+
+            $published = \App\Models\Post::where('status', 'published')->count();
+        } catch (\Throwable $e) {
+            // جدول هنوز مهاجرت نشده — این چک نباید کلِ صفحهٔ سلامت را بخواباند
+            return $this->row('content', true, 'ok', 'صف محتوا', 'جدول محتوا هنوز ساخته نشده.');
+        }
+
+        /*
+         * ⚠️ «صف ته کشید» فقط وقتی معنا دارد که صفی بوده باشد.
+         *
+         * روی نصبِ تازه (و در تست) هیچ مطلبی وجود ندارد و این حالتِ **عادی**
+         * است، نه خرابی. اگر این‌جا هشدار بدهیم، صفحهٔ سلامت روی هر نصبِ نو
+         * قرمز می‌شود — و پایشگری که بی‌دلیل قرمز است، یاد می‌دهد قرمز را
+         * نادیده بگیرند. آن‌وقت روزی که قرمزِ **واقعی** بیاید هم کسی نگاهش
+         * نمی‌کند. (همان قاعدهٔ «اعلان فقط روی تغییرِ وضعیت» در §۳.)
+         */
+        if ($published === 0 && $scheduled === 0) {
+            return $this->row('content', true, 'ok', 'صف محتوا', 'موتور محتوا روی این نصب استفاده نمی‌شود.');
+        }
+
+        $links = [['label' => 'تقویم انتشار', 'url' => '/admin/calendar']];
+
+        if ($scheduled === 0) {
+            return $this->row('content', false, 'fail', 'صف محتوا',
+                'هیچ مطلبی برای انتشار زمان‌بندی نشده. برنامه‌های محتوا تمام شده‌اند یا تولید کار نمی‌کند — '
+                .'بلاگ و پایگاه دانش از امروز ساکت می‌شوند.', $links);
+        }
+
+        // کمتر از یک هفته ذخیره یعنی وقتِ افزودن موضوعِ تازه است، نه وقتِ بحران
+        if ($scheduled < 14) {
+            return $this->row('content', false, 'warn', 'صف محتوا',
+                "فقط {$scheduled} مطلب در صفِ انتشار مانده — کمتر از یک هفته. "
+                .'به `resources/content/` موضوع اضافه کن.', $links);
+        }
+
+        $next = \App\Models\Post::where('status', 'draft')
+            ->where('published_at', '>', now())->min('published_at');
+
+        return $this->row('content', true, 'ok', 'صف محتوا',
+            "{$scheduled} مطلب زمان‌بندی‌شده · بعدی: ".\Illuminate\Support\Carbon::parse($next)->format('Y-m-d H:i'));
     }
 }

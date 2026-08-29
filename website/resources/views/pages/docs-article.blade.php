@@ -113,6 +113,12 @@
     'mainEntityOfPage' => $url,
 ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
+{{-- FAQPage — فقط اگر سند واقعاً بخشِ پرسش داشته باشد --}}
+@php($faqLd = article_faq_ld($doc['content'] ?? ''))
+@if($faqLd)
+<script type="application/ld+json">{!! $faqLd !!}</script>
+@endif
+
 <script>
 (function () {
   /* ---- آکاردئون سایدبار ---- */

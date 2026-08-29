@@ -6,27 +6,38 @@ use App\Models\Post;
 use App\Models\PostTranslation;
 use App\Services\AiContent;
 use App\Services\BlogRepository;
+use App\Services\ContentCalendar;
+use App\Services\DocsRepository;
+use App\Services\InternalLinks;
 use Illuminate\Console\Command;
 
 /**
  * تولید مقاله از روی برنامه‌ی محتوا (resources/content/plan.php).
  * هر مقاله: نگارش فارسی با AI → ترجمه به en/tr → ذخیره به‌صورت پیش‌نویسِ زمان‌بندی‌شده.
  * انتشار واقعی را دستور content:publish-due انجام می‌دهد.
+ *
+ * زمان‌بندی از `ContentCalendar` می‌آید: سهمیهٔ ۲ تا ۵ مطلب در روز که بینِ
+ * **همهٔ** نوع‌ها مشترک است، تا پنجرهٔ انتشار در طولِ سال یکنواخت پر شود.
  */
 class GenerateContent extends Command
 {
     protected $signature = 'content:generate
                             {--limit=3    : چند مقاله در این اجرا}
-                            {--days=2     : بازه‌ی زمان‌بندی انتشار (روز از امروز)}
+                            {--days=2     : بازه‌ی زمان‌بندی انتشار — فقط با --spread}
                             {--plan=plan  : نام فایل برنامه در resources/content}
-                            {--daily      : هر مقاله در یک روز جداگانه منتشر شود}
+                            {--daily      : منسوخ — همان رفتارِ تقویم (نگه داشته شده برای سازگاری)}
+                            {--spread     : زمان‌بندیِ قدیمیِ تصادفی به‌جای تقویم}
                             {--slug=      : تولید یک عنوان مشخص}
                             {--dry        : فقط نشان بده چه چیزی تولید می‌شود}';
 
     protected $description = 'تولید مقاله‌های برنامه‌ریزی‌شده با هوش مصنوعی در سه زبان';
 
-    public function handle(AiContent $ai): int
+    private ContentCalendar $calendar;
+
+    public function handle(AiContent $ai, InternalLinks $links): int
     {
+        $this->calendar = new ContentCalendar;
+
         $plan = $this->plan();
         if (! $plan) {
             $this->error('resources/content/plan.php خالی یا موجود نیست.');
@@ -50,12 +61,23 @@ class GenerateContent extends Command
 
         $limit = max(1, (int) $this->option('limit'));
         $batch = array_slice($pending, 0, $limit);
-        $this->line('باقی‌مانده در برنامه: '.count($pending).' — در این اجرا: '.count($batch));
+
+        $capacity = $this->calendar->remainingCapacity();
+        $this->line('باقی‌مانده در برنامه: '.count($pending)
+            .' — در این اجرا: '.count($batch)
+            .' — ظرفیتِ آزادِ تقویم تا پایان سال: '.$capacity);
 
         if ($this->option('dry')) {
             foreach ($batch as $p) {
                 $this->line('  • '.$p['slug'].'  ['.$p['category'].']  '.$p['fa']);
             }
+
+            return self::SUCCESS;
+        }
+
+        // تقویم پر است — تولیدِ بیشتر یعنی مقاله‌ای که هیچ روزی برای انتشار ندارد
+        if (! $this->option('spread') && $capacity < 1) {
+            $this->warn('تقویمِ انتشار تا پایانِ سال پر است — چیزی تولید نشد.');
 
             return self::SUCCESS;
         }
@@ -70,11 +92,26 @@ class GenerateContent extends Command
         foreach ($batch as $p) {
             $this->line('› '.$p['slug']);
 
+            $type = $p['type'] ?? 'blog';
+
+            // نوبتِ انتشار **پیش از** تماس با هوش مصنوعی گرفته می‌شود: اگر تقویم
+            // پر باشد، نباید پولِ یک مقاله را خرج کنیم که جایی برای انتشار ندارد.
+            $slot = $this->option('spread')
+                ? $this->slot((int) $this->option('days'))
+                : $this->calendar->nextSlot($p['date'] ?? null);
+
+            if ($slot === null) {
+                $this->warn('  ⏹ تقویم پر شد — بقیهٔ صف در اجرای بعدی.');
+                break;
+            }
+
             $fa = $ai->article([
                 'title'    => $p['fa'],
                 'keyword'  => $p['keyword'] ?? $p['fa'],
                 'category' => $p['category'],
                 'brief'    => $p['brief'] ?? '',
+                'audience' => $p['audience'] ?? null,
+                'links'    => $links->promptBlock($p['category'], $type, $p['slug']),
             ]);
 
             if (! $fa) {
@@ -83,7 +120,9 @@ class GenerateContent extends Command
                 continue;
             }
 
-            $type = $p['type'] ?? 'blog';
+            // هر لینکی که مدل ساخته و واقعاً حل نمی‌شود، همین‌جا باز می‌شود
+            $fa['content'] = $links->sanitize($fa['content']);
+
             $post = Post::create([
                 'slug'         => $p['slug'],
                 'type'         => $type,
@@ -92,9 +131,7 @@ class GenerateContent extends Command
                 'cover'        => $p['cover'] ?? ['a', 'b', 'c', 'd'][array_rand(['a', 'b', 'c', 'd'])],
                 'icon'         => $p['icon'] ?? 'book',
                 'reading'      => $this->readingTime($fa['content']),
-                'published_at' => $this->option('daily')
-                    ? $this->nextFreeDay($type)
-                    : $this->slot((int) $this->option('days')),
+                'published_at' => $slot,
             ]);
 
             PostTranslation::create([
@@ -102,7 +139,7 @@ class GenerateContent extends Command
                 'title' => $fa['title'], 'excerpt' => $fa['excerpt'],
                 'content' => $fa['content'], 'tags' => $fa['tags'], 'auto' => true,
             ]);
-            $this->line('  ✓ فارسی');
+            $this->line('  ✓ فارسی · لینکِ داخلی: '.$links->countInternal($fa['content']));
 
             foreach (['en', 'tr'] as $loc) {
                 $t = $ai->translate($fa, $loc);
@@ -115,7 +152,10 @@ class GenerateContent extends Command
                 PostTranslation::create([
                     'post_id' => $post->id, 'locale' => $loc,
                     'title' => $p[$loc] ?? $t['title'], 'excerpt' => $t['excerpt'],
-                    'content' => $t['content'], 'tags' => $t['tags'], 'auto' => true,
+                    // لینک‌های داخلی باید در همان زبان بمانند، وگرنه خوانندهٔ
+                    // انگلیسی وسطِ متن به نسخهٔ فارسی پرتاب می‌شود
+                    'content' => $links->localize($t['content'], $loc),
+                    'tags' => $t['tags'], 'auto' => true,
                 ]);
                 $this->line("  ✓ {$loc}");
             }
@@ -125,12 +165,18 @@ class GenerateContent extends Command
         }
 
         BlogRepository::flush();
+        DocsRepository::flush();
         $this->info("ساخته شد: {$ok} مقاله (پیش‌نویسِ زمان‌بندی‌شده)");
 
         return self::SUCCESS;
     }
 
-    /** یک زمان تصادفی در ساعات کاری طی N روز آینده */
+    /**
+     * زمان‌بندیِ قدیمی: یک لحظهٔ تصادفی در N روزِ آینده. فقط با `--spread`.
+     *
+     * ⚠️ این حالت می‌تواند چند مقاله را روی یک روز بریزد و روزهای دیگر را خالی
+     * بگذارد. برای پرکردنِ یک شکافِ مشخص مفید است، نه برای تولیدِ روزمره.
+     */
     private function slot(int $days): \Illuminate\Support\Carbon
     {
         $days = max(1, $days);
@@ -138,26 +184,6 @@ class GenerateContent extends Command
         return now()
             ->addDays(random_int(0, $days))
             ->setTime(random_int(9, 20), random_int(0, 59));
-    }
-
-    /**
-     * روز آزاد بعدی برای این نوع محتوا — یعنی روزی که هنوز هیچ مطلبی برایش
-     * زمان‌بندی نشده. نتیجه: دقیقاً یک انتشار در هر روز.
-     */
-    private function nextFreeDay(string $type): \Illuminate\Support\Carbon
-    {
-        $taken = Post::where('type', $type)
-            ->whereNotNull('published_at')
-            ->pluck('published_at')
-            ->map(fn ($d) => $d->toDateString())
-            ->flip();
-
-        $day = now()->addDay()->startOfDay();
-        while ($taken->has($day->toDateString())) {
-            $day->addDay();
-        }
-
-        return $day->setTime(random_int(9, 18), random_int(0, 59));
     }
 
     private function readingTime(string $html): int

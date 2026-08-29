@@ -264,6 +264,13 @@
     'mainEntityOfPage' => $url,
 ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
+{{-- FAQPage — فقط اگر مقاله واقعاً بخشِ پرسش داشته باشد.
+     schemaِ خالی یا پرسشِ بی‌پاسخ، rich resultِ کلِ دامنه را رد می‌کند. --}}
+@php($faqLd = article_faq_ld($post['content'] ?? ''))
+@if($faqLd)
+<script type="application/ld+json">{!! $faqLd !!}</script>
+@endif
+
 <script>
 (function () {
   const article = document.getElementById('bp-article');
