@@ -71,6 +71,7 @@ class CloudHetznerRobotTest extends TestCase
                     ['product' => [
                         'id' => 'GEX131', 'name' => 'GEX131',
                         'description' => ['Intel Xeon Gold 5412U', '256 GB DDR5 ECC', '2 x 1.92 TB NVMe SSD'],
+                        'dist' => ['Ubuntu 24.04.2 LTS base', 'Debian 12 base', 'Windows Server 2022'],
                         'traffic' => 'unlimited',
                         'prices' => [
                             ['location' => 'FSN1',
@@ -78,7 +79,7 @@ class CloudHetznerRobotTest extends TestCase
                                 'price_setup' => ['net' => '0.00', 'gross' => '0.00']],
                         ],
                     ]],
-                    // EX با هزینهٔ نصب — باید رد شود (فاز ۱ فقط بی‌نصب)
+                    // EX با هزینهٔ نصب — حالا با setup_eur_cents وارد می‌شود (فاز ۲)
                     ['product' => [
                         'id' => 'EX44', 'name' => 'EX44',
                         'description' => ['Intel Core i5-13500', '64 GB DDR4', '2 x 512 GB NVMe SSD'],
@@ -105,8 +106,21 @@ class CloudHetznerRobotTest extends TestCase
 
         $plans = collect($cat['plans']);
 
-        // فقط دو ردیفِ سالم: مزایدهٔ i7-8700 و GEX131
-        $this->assertCount(2, $plans);
+        // سه ردیفِ سالم: مزایدهٔ i7-8700، GEX131، و EX44 (با هزینهٔ نصب)
+        $this->assertCount(3, $plans);
+
+        // هزینهٔ نصب دیگر ردکننده نیست — با کارمزد در ردیف می‌نشیند و در
+        // فاکتورِ اول از مشتری گرفته می‌شود (۳۹€ × ۱٫۰۸ = ۴۲٫۱۲€)
+        $ex = $plans->firstWhere('provider_ref', 'EX44');
+        $this->assertNotNull($ex);
+        $this->assertSame(4212, $ex['setup_eur_cents']);
+        $this->assertSame(0, $plans->firstWhere('provider_ref', 'market-12345')['setup_eur_cents']);
+
+        // ایمیج‌ها از distِ خودِ محصولات — لینوکسِ قابلِ پارس بله، ویندوز نه
+        $imgs = collect($cat['images']);
+        $this->assertTrue($imgs->contains('key', 'ubuntu-24.04'));
+        $this->assertTrue($imgs->contains('key', 'debian-12'));
+        $this->assertFalse($imgs->contains(fn ($i) => str_contains(strtolower($i['label']), 'windows')));
 
         $sb = $plans->firstWhere('provider_ref', 'market-12345');
         $this->assertNotNull($sb);
@@ -129,7 +143,6 @@ class CloudHetznerRobotTest extends TestCase
 
         // ردشده‌ها ساکت نیستند — پیام علت را می‌گوید
         $this->assertStringContainsString('CPUِ ناشناخته', $cat['message']);
-        $this->assertStringContainsString('هزینهٔ نصب', $cat['message']);
         $this->assertStringContainsString('بی‌دیتاسنتر', $cat['message']);
 
         // هیچ کدِ مکانِ legacy تولید نمی‌شود (قاعدهٔ ممیزی ۷)

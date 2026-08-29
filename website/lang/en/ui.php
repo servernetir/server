@@ -2003,6 +2003,8 @@ return [
     'cvb_slip_live' => 'Live',
     'cvb_slip_edit' => 'Change',
     'cvb_slip_todo' => 'Not chosen yet',
+    'cvb_setup_line' => 'Setup fee (first payment only)',
+    'cvb_e_metal_hourly' => 'Bare-metal servers are not sold hourly — please pick a monthly or longer cycle.',
     'cvb_tax_incl' => 'Includes :pct% VAT',
     'cvb_eta' => 'Usually delivered in under two minutes after payment.',
     'cvb_pill_gpu' => 'Automatic delivery · usually 5-30 minutes',

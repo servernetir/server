@@ -894,4 +894,73 @@ class CloudStoreTest extends TestCase
         $this->assertNotNull($service->last_metered_at);
         $this->assertSame(49_200, $customer->creditBalance('IRT'));        // ۵۰۰۰۰ − ۸۰۰
     }
+
+    // ═══════════════════ برمتال (زیرساختِ ۷) ═══════════════════
+
+    /** پلن + ایمیجِ برمتالِ آزمایشی در فرانکفورتِ همین فیکسچر */
+    private function metalCatalog(int $setupCents = 0): void
+    {
+        $this->loc('de-frankfurt', 'DE', 'Frankfurt');
+
+        $this->plan([
+            'provider' => 'hetzner-robot', 'provider_ref' => 'market-9', 'provider_location' => 'FSN1',
+            'public_name' => 'BM-6-64', 'slug' => 'cbm-6c-64g-1024d-de-frankfurt',
+            'vcpu' => 6, 'ram_mb' => 65536, 'disk_gb' => 1024, 'disk_type' => 'ssd',
+            'traffic_gb' => 0, 'cpu_kind' => 'dedicated',
+            'cost_eur_cents' => 4104, 'price_eur_cents' => 4600, 'price_irt' => 11000000,
+            'setup_eur_cents' => $setupCents > 0 ? $setupCents : null,
+        ]);
+
+        $this->image([
+            'provider' => 'hetzner-robot', 'provider_ref' => 'Ubuntu 24.04.2 LTS base',
+            'key' => 'ubuntu-24.04', 'min_disk_gb' => 5,
+        ]);
+    }
+
+    /**
+     * 🔴 برمتال ساعتی فروخته نمی‌شود — سرورِ فیزیکی را ماهانه می‌خریم و
+     * «ترمِ خرید = ترمِ فروش» خطِ قرمزِ ضرر است (درسِ sn-svc-76).
+     */
+    public function test_a_metal_plan_cannot_be_ordered_hourly(): void
+    {
+        $this->metalCatalog();
+        $customer = $this->customer();
+
+        $res = $this->order($customer, [
+            'plan' => 'cbm-6c-64g-1024d-de-frankfurt',
+            'billing_mode' => 'hourly',
+        ]);
+
+        $res->assertSessionHasErrors('billing_mode');
+        $this->assertSame(0, Service::count(), 'سفارشِ ساعتیِ برمتال نباید سرویسی بسازد.');
+    }
+
+    /**
+     * هزینهٔ راه‌اندازی فقط در فاکتورِ اول — و هرگز روی services.price
+     * (عددی که کرونِ تمدید تا ابد صورت‌حساب می‌کند).
+     */
+    public function test_the_setup_fee_lands_on_the_first_invoice_only(): void
+    {
+        Setting::put('pricing_rate_override', '100000');
+        Setting::put('cloud_margin_pct', '10');
+
+        $this->metalCatalog(4212);     // ۳۹€ نصب × ۱٫۰۸ کارمزد
+        $customer = $this->customer();
+
+        $res = $this->order($customer, ['plan' => 'cbm-6c-64g-1024d-de-frankfurt']);
+        $res->assertSessionDoesntHaveErrors();
+
+        $service = Service::firstOrFail();
+        $invoice = \App\Models\Invoice::firstOrFail();
+        $setup = CloudPlan::firstOrFail()->setupIrt();
+
+        $this->assertGreaterThan(0, $setup, 'قیمتِ فروشِ راه‌اندازی باید ساخته شود.');
+        // قیمتِ سرویس (پایهٔ تمدیدها) بدونِ راه‌اندازی می‌مانَد
+        $this->assertSame((int) $service->price + $setup, (int) $invoice->subtotal);
+        // و ردیفِ جداگانه در فاکتور دارد تا مشتری بداند چه می‌دهد
+        $this->assertTrue(
+            \App\Models\InvoiceItem::where('invoice_id', $invoice->id)
+                ->where('title', __('ui.cvb_setup_line'))->where('line_total', $setup)->exists()
+        );
+    }
 }

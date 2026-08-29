@@ -79,7 +79,11 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
+<<<<<<< HEAD
 MINE="${1:-5caf49c}"
+=======
+MINE="${1:-d6e00b2}"
+>>>>>>> a9770ee (دیپلوی: مهاجرتِ setup + گاردها + پین به فاز ۲ برمتال)
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -199,6 +203,7 @@ database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
 database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php
+database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php
 routes/web.php
 "
 
@@ -350,6 +355,7 @@ need_file "$APP/database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 need_file "$APP/database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php"
 need_file "$APP/database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php"
 need_file "$APP/database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php"
+need_file "$APP/database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php"
 
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
@@ -498,6 +504,11 @@ g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g config/servernet.php "bare-metal"
 g config/catalog/dedicated.php "seo_t"
 g resources/views/partials/footer.blade.php "getLocale() === 'fa'"
+g app/Models/CloudPlan.php "setupIrt"
+g resources/views/account/cloud-store.blade.php "cvb-s-setup"
+g lang/fa/ui.php "cvb_setup_line"
+g lang/en/ui.php "cvb_setup_line"
+g lang/tr/ui.php "cvb_setup_line"
 g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
@@ -619,6 +630,9 @@ if [ -n "$PHPBIN" ]; then
   "$PHPBIN" artisan migrate --force \
     --path=database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php \
     || { echo "🔴 مهاجرتِ بهایِ ساعتی نخورد — کفِ ضدضرر فعال نمی‌شود. خروجی را بفرست."; }
+
+  echo "═══ ستونِ هزینهٔ راه‌اندازی (سرورِ اختصاصی) ═══"
+  "$PHPBIN" artisan migrate --force     --path=database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php     || { echo "🔴 مهاجرتِ setup نخورد — خطِ استانداردِ EX/AX واردِ کاتالوگ نمی‌شود. خروجی را بفرست."; }
 
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
