@@ -1103,9 +1103,44 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 
                 return $at !== null && \Illuminate\Support\Carbon::parse($at)->gt(now()->subMinutes(3));
             })(),
+            /*
+            | 🔴 شمارشِ **۲۴ ساعتِ اخیر**، نه کلِ تاریخِ جدول.
+            |
+            | نسخهٔ قبلی جمعِ همیشگی را می‌داد و همان عدد مرا هم گمراه کرد:
+            | «۲۹ منقضی» را نرخِ امروز خواندم و گزارش کردم بیش از نیمی از
+            | پیام‌ها نمی‌رسد، در حالی که آن‌ها یادگارِ دورانی بودند که رله
+            | خوابیده بود و مسیر همان لحظه سالم بود.
+            |
+            | ⚠️ عددی که هرگز صفر نمی‌شود دو جور خراب است: یا برای همیشه
+            | نگران‌کننده می‌مانَد (و آن‌وقت نادیده گرفته می‌شود)، یا یک خرابیِ
+            | **تازه** را در انبوهِ اعدادِ قدیمی پنهان می‌کند. همان «آژیرِ
+            | همیشه‌قرمز» که هشدارِ بعدی را می‌بلعد.
+            |
+            | ⚠️ و `bale_only` از پیامک **جدا** می‌شود: آن ردیف‌ها اعلانِ بله
+            | برای مشتری‌اند، نه پیامک. یک‌کاسه‌کردنشان یعنی خرابیِ یکی در
+            | عددِ دیگری گم شود — و این دو مسیرِ کاملاً متفاوت دارند.
+            |
+            | `total_all_time` عمداً می‌مانَد ولی **جدا**: برای زمینه مفید است،
+            | فقط نباید جای سنجهٔ زنده را بگیرد.
+            */
             'queue' => \Illuminate\Support\Facades\Schema::hasTable('sms_outbox')
-                ? \App\Models\SmsOutbox::selectRaw('status, count(*) as n')
-                    ->groupBy('status')->pluck('n', 'status')
+                ? (function () {
+                    $since = now()->subDay();
+                    $rows = \App\Models\SmsOutbox::selectRaw(
+                        "status, CASE WHEN event = 'bale_only' THEN 'bale' ELSE 'sms' END AS kind, count(*) AS n"
+                    )->where('created_at', '>=', $since)->groupBy('status', 'kind')->get();
+
+                    $out = ['window' => '24h', 'sms' => [], 'bale' => []];
+
+                    foreach ($rows as $r) {
+                        $out[$r->kind][$r->status] = (int) $r->n;
+                    }
+
+                    $out['total_all_time'] = \App\Models\SmsOutbox::selectRaw('status, count(*) as n')
+                        ->groupBy('status')->pluck('n', 'status');
+
+                    return $out;
+                })()
                 : null,
         ],
     ]);

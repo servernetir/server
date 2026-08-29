@@ -251,6 +251,12 @@ g resources/views/admin/customer.blade.php "pendingManualAction"
 #    می‌شوند، وگرنه دوباره همان می‌شود: متدی که کسی نمی‌تواند صدایش بزند.
 g app/Http/Controllers/Admin/ServiceController.php "resolveRelease"
 g routes/web.php "resolve-release"
+
+# 🔴 شمارندهٔ صفِ پیامک باید پنجرهٔ زمانی داشته باشد.
+#    جمعِ کلِ تاریخ، خرابیِ تازه را در انبوهِ اعدادِ قدیمی پنهان می‌کند —
+#    و یک بار من را هم گمراه کرد. `window` نشانهٔ نسخهٔ اصلاح‌شده است.
+g routes/web.php "total_all_time"
+g routes/web.php "bale_only"
 g resources/views/admin/customer.blade.php "resolve-release"
 
 # سه نقطهٔ فراخوانی — mutation نشان داد حذفِ هرکدام از چشمِ ۵۲ تست گریخت،
