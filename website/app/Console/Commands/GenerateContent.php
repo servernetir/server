@@ -45,9 +45,29 @@ class GenerateContent extends Command
             return self::FAILURE;
         }
 
-        // عنوان‌هایی که هنوز ساخته نشده‌اند
+        /*
+         * عنوان‌هایی که هنوز ساخته نشده‌اند.
+         *
+         * 🔴 حذف باید **دیده شود**. اسلاگ کلیدِ یکتاسازی است، پس موضوعی که
+         * اسلاگش از قبل روی سایت باشد تا ابد از صف می‌افتد — و تا شهریور ۱۴۰۵
+         * این کار بی‌هیچ پیامی انجام می‌شد.
+         *
+         * روی پروداکشن سه موضوعِ برنامهٔ ۱۴۰۵ دقیقاً همین شدند: اسلاگشان با
+         * پستی برخورد داشت که در **هیچ** فایلِ برنامه‌ای نبود (بازماندهٔ ایمپورتِ
+         * وردپرس). اعتبارسنجیِ محلی هم آنها را نمی‌دید، چون فقط برنامه‌ها را با
+         * هم می‌سنجید نه با جدولِ `posts`.
+         *
+         * یک خطِ چاپی کافی است: کرونِ اولِ صبح خودش لو می‌دهد.
+         */
         $done = Post::pluck('slug')->all();
         $pending = array_values(array_filter($plan, fn ($p) => ! in_array($p['slug'], $done, true)));
+
+        if (($skipped = count($plan) - count($pending)) > 0) {
+            $clashes = array_values(array_intersect(array_column($plan, 'slug'), $done));
+            $this->warn('رد شد (اسلاگ از قبل روی سایت است): '.$skipped.' موضوع — '
+                .implode('، ', array_slice($clashes, 0, 8))
+                .(count($clashes) > 8 ? ' …' : ''));
+        }
 
         if ($slug = $this->option('slug')) {
             $pending = array_values(array_filter($pending, fn ($p) => $p['slug'] === $slug));
