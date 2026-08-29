@@ -633,8 +633,38 @@ $urmia = function () {
         ->name('urmia.page')->where('slug', '[a-z0-9-]+');
 };
 Route::middleware('locale:fa')->group($urmia);
-Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmia);
-Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmia);
+
+/*
+| 🔴 ممیزی نهم (قلم ۲ رودمپ): نسخهٔ en/tr ارومیه **برداشته شد**.
+|
+| مرداد ۱۴۰۵ به خواستِ صریحِ مدیر سه‌زبانه شده بود («هر صفحه‌ای en/tr نداشت
+| درستش کن»). ممیزی نهم آن تصمیم را برگرداند، با سه دلیلِ اندازه‌گیری‌شده:
+|
+|   • «طراحی سایت در خوی» به انگلیسی/ترکی تقاضای جست‌وجوی ~صفر دارد
+|   • خدمت ذاتاً محلی و فارسی‌زبان است
+|   • ۳۷۲–۶۵۹ کلمه، **نازک‌تر از نسخهٔ فارسی** (۳۵۰–۱۰۳۸) — سطحِ محتوای
+|     نازکِ کلِ سایت را سه برابر کرد (۲۹ → ۸۷ صفحه)
+|
+| ⚠️ چرا ۴۱۰ و نه noindex: `noindex` صفحه را در خزش، لینکِ داخلی و خوشهٔ
+| hreflang نگه می‌دارد و برای همیشه نگهداری می‌خواهد. این صفحات دو روزه‌اند،
+| بک‌لینک ندارند و احتمالاً هنوز ایندکس نشده‌اند — ۴۱۰ هزینه‌ای ندارد.
+|
+| 🔴 و حذفِ alternateها **باید در همین دیپلوی** باشد: ۴۱۰ با hreflangِ زندهٔ
+| اشاره‌کننده به آن، یک حلقهٔ خطای خزش می‌سازد. ویوهای ارومیه `@section('faOnly')`
+| دارند — همان مکانیسمی که برای همین ساخته شده بود و از مرداد بلااستفاده مانده.
+|
+| ⚠️ نسخهٔ **فارسی** دست‌نخورده می‌مانَد: نقشهٔ ۳۰۱ مهاجرتِ servernet.ir به
+| همان آدرس‌ها اشاره می‌کند.
+*/
+$urmiaGone = function () {
+    Route::get('/urmia', fn () => response('', 410))->name('urmia.hub');
+    Route::get('/urmia/cities/{slug}', fn () => response('', 410))
+        ->name('urmia.city')->where('slug', '[a-z0-9-]+');
+    Route::get('/urmia/{slug}', fn () => response('', 410))
+        ->name('urmia.page')->where('slug', '[a-z0-9-]+');
+};
+Route::prefix('en')->name('en.')->middleware('locale:en')->group($urmiaGone);
+Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($urmiaGone);
 
 /*
 | ریدایرکتِ آدرس‌های میراثیِ وردپرسیِ خودِ .cloud — گزارشِ 404 در GSC

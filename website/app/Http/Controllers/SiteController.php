@@ -306,12 +306,28 @@ class SiteController extends Controller
         | مقصدِ ۳۰۱های مهاجرتِ servernet.ir؛ مثل webdesign: در منو نیست ولی
         | در نقشهٔ سایت هست.
         */
-        $add('urmia.hub');
+        /*
+        | 🔴 ممیزی نهم (قلم ۲): ارومیه فقط **فارسی** در نقشهٔ سایت.
+        |
+        | `$add()` روی هر سه زبان حلقه می‌زند و همین بود که ۵۸ نشانیِ
+        | `/en/urmia/*` و `/tr/urmia/*` را وارد نقشه کرد. آن مسیرها حالا ۴۱۰
+        | می‌دهند — و نشانیِ ۴۱۰ در sitemap یعنی گوگل هر بار می‌رود، خطا
+        | می‌گیرد و بودجهٔ خزش را همان‌جا می‌سوزاند. حذفِ صفحه و ماندنِ نشانی
+        | در نقشه، از نگه‌داشتنِ خودِ صفحه بدتر است.
+        |
+        | ⚠️ `$addFa` عمداً جدا نوشته شده و از `$add` استفاده نمی‌کند: هر
+        | تغییری در `$add` نباید ناخواسته ارومیه را دوباره سه‌زبانه کند.
+        */
+        $addFa = function (string $name, string|array $params = []) use (&$urls) {
+            $urls[] = ['loc' => route($name, $params), 'lastmod' => null];
+        };
+
+        $addFa('urmia.hub');
         foreach (array_keys((array) config('urmia.pages')) as $slug) {
-            $add('urmia.page', $slug);
+            $addFa('urmia.page', $slug);
         }
         foreach (array_keys((array) config('urmia.cities')) as $slug) {
-            $add('urmia.city', $slug);
+            $addFa('urmia.city', $slug);
         }
         // فروشگاهِ سرورِ فیزیکی — فهرست + صفحهٔ هر مدل. منبع همان کاتالوگِ زنده
         // است (DB اگر پر باشد، وگرنه config)، تا مدل‌های افزوده‌شده از پنل هم

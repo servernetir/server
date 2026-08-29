@@ -97,11 +97,12 @@ class TrustSignalsNeverFakeTest extends TestCase
         |   ۲) کارفرما گفت فقط `/contact` — ادعا وارونه شد.
         |   ۳) ممیزی ۶ (حقوقی) آن را برگرداند: افشا الزامِ قانونی است و فوترِ
         |      سراسری هر ۵۶۷ صفحه را پوشش می‌دهد؛ `/contact` تنها شکننده است.
+        |   ۴) شهریور ۱۴۰۵ کارفرما تصمیمِ گامِ ۲ را نگه داشت. بلوک برداشته شد.
         |
-        | 🔴 تصمیمِ گامِ ۳ هنوز به تأییدِ کارفرما نرسیده — کامنتِ خودِ فوتر
-        | می‌گوید «اگر نپذیرفت، همین یک بلوک را بردار».
-        | `CompanyIdentityFromPanelTest::test_the_footer_shows_the_registered_identity_when_it_is_filled`
-        | همین را از سمتِ مقابل نگه می‌دارد و تاریخچهٔ کامل آن‌جاست.
+        | 🔴 و توجه: «در فوتر نیست» یعنی سراسری نیست، نه اینکه افشا نداریم.
+        | ادعای `/contact` سه خط پایین‌تر همان را نگه می‌دارد.
+        | `CompanyIdentityFromPanelTest::test_the_footer_shows_neither_identity_nor_address`
+        | همین را از سمتِ مقابل قفل می‌کند و تاریخچهٔ کامل آن‌جاست.
         |
         | ⚠️ و ادعایی که زیرِ **هر سه** حالت درست می‌مانَد جای دیگری است و
         | دست‌نخورده ماند: با پیکربندیِ خالی هیچ جای‌نگهداری رندر نشود
@@ -111,8 +112,7 @@ class TrustSignalsNeverFakeTest extends TestCase
         | لحظهٔ خرید باید دیده شود، ولی شمارهٔ ثبت چیزی است که کاربر یک‌بار و
         | آگاهانه دنبالش می‌گردد.
         */
-        $this->assertStringContainsString('f-legal', $home,
-            'شناسه‌های ثبتی در فوترِ سراسری نیستند — تصمیمِ ممیزی ۶ اجرا نشده');
+        $this->assertStringNotContainsString('f-legal', $home, 'شناسه‌های ثبتی به فوتر برگشتند');
 
         $this->assertStringContainsString('123456',
             $this->get('/contact')->assertOk()->getContent(),
