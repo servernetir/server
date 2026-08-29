@@ -586,6 +586,25 @@
               <td><span class="ad-badge" style="background:{{ $sb2[1] }}22;color:{{ $sb2[1] }}">{{ $sb2[0] }}</span></td>
               <td class="ad-row-act" style="white-space:nowrap">
                 <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)">تاریخچه</a>
+                {{-- 🔴 «در حالِ آزادسازی» تنها وضعیتی است که خودش بسته نمی‌شود.
+
+                     اگر مدیر ماشین را دستی پاک کرده باشد، حذفِ خودکار هرگز موفق
+                     نمی‌شود و `cloud:release-retry` هر ساعت پیامِ تکراری می‌فرستد.
+
+                     ⚠️ و جایش **همین جدول** است، نه فهرستِ زنده: سرویسی که در
+                     حالِ آزادسازی است طبقِ تعریف لغو/خاتمه‌یافته است، پس همیشه
+                     در `deadServices` می‌افتد. اولین نسخه را در جدولِ بالا
+                     گذاشتم و تست گرفتش — دکمه در جدولی بود که آن سرویس هرگز
+                     به آن نمی‌رسد، یعنی باز هم کدِ مرده.
+
+                     🔴 و متدِ کنترلرش از قبل روی سرور بود ولی هیچ روت و دکمه‌ای
+                     نداشت؛ داکبلاکش می‌گفت مشکل حل شده در حالی که نبود. --}}
+                @if($s->provision_status === \App\Models\Service::PROVISION_RELEASING)
+                  <form method="post" action="/admin/services/{{ $s->id }}/resolve-release" style="display:inline"
+                        onsubmit="event.preventDefault();var f=this;snConfirm('تأیید می‌کنید این سرور دیگر نزدِ زیرساخت وجود ندارد؟ صفِ تلاشِ دوبارهٔ حذف بسته می‌شود.').then(function(ok){if(ok){f.submit();}});">@csrf
+                    <button class="del" style="color:#34d399" type="submit">سرور دستی پاک شد — ببند</button>
+                  </form>
+                @endif
                 {{--
                   🔴 حذف فقط برای سرویسی که **هرگز ساخته نشده و پولی رویش
                   ننشسته**. `Service::isDeletable()` تصمیم می‌گیرد، نه این ویو —

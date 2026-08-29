@@ -669,4 +669,56 @@ class ServiceController extends Controller
                 ->withErrors('حذفِ سرور نزدِ زیرساخت انجام نشد: '.$r->error
                     .' — سرویس در صفِ تلاشِ دوبارهٔ خودکار (cloud:release-retry) قرار گرفت؛ اگر ماند، دستی پاکش کنید.');
     }
+
+    /**
+     * حلِ دستیِ سفارشی که در «آزادسازی» گیر کرده — «این سرور دیگر نزدِ زیرساخت
+     * نیست (خودم دستی پاکش کردم)، تلاشِ خودکار و پیامِ تکراری را ببند».
+     *
+     * ═══ چرا این دکمه لازم شد ═══
+     *
+     * وقتی خاتمهٔ سرویس ثبت می‌شود ولی حذفِ ماشین نزدِ زیرساخت تأیید نمی‌شود،
+     * سرویس در `provision_status='releasing'` می‌مانَد و `cloud:release-retry`
+     * هر ساعت دوباره تلاش می‌کند و به مدیر (بله/ایمیل) خبر می‌دهد. اگر مدیر
+     * ماشین را **دستی** پاک کرده باشد، آن حذفِ خودکار هرگز موفق نمی‌شود و پیام
+     * تا ابد تکرار می‌شود — و تا امروز هیچ راهی برای بستنش نبود. این دکمه ردیف را
+     * از `releasing` به `none` می‌برد، پس از دیدِ `scopeAwaitingRelease` و چکِ
+     * `cloud_release` بیرون می‌رود و صف/پیام بسته می‌شود.
+     *
+     * 🔴 فقط روی ردیفی کار می‌کند که واقعاً `releasing` است — روی سرویسِ زنده
+     * هیچ اثری ندارد (وگرنه یک POSTِ دست‌ساز می‌توانست پروندهٔ سالمی را ببندد).
+     *
+     * ⚠️ ظرفیتِ سرور اگر این حساب شمرده شده بود همین‌جا آزاد می‌شود: مسیرِ
+     * ناموفقِ `releaseServer()` هرگز به decrement نرسید، پس اسلات هنوز «پر» است.
+     * همان منطقِ `counted` که `releaseServer()` دارد، تا نه دوبار کم شود نه صفر بماند.
+     */
+    public function resolveRelease(Request $request, Service $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if ($service->provision_status !== Service::PROVISION_RELEASING) {
+            return back()->with('err',
+                'این سرویس در حالتِ «در حالِ آزادسازی» نیست؛ چیزی برای بستن وجود ندارد.');
+        }
+
+        $meta    = (array) ($service->provision_meta ?? []);
+        $counted = ($meta['released_from_done'] ?? false)
+            && ($meta['counted'] ?? ! ($meta['reused'] ?? false));
+
+        if ($counted && $service->server_id) {
+            \App\Models\Server::whereKey($service->server_id)
+                ->where('active_accounts', '>', 0)
+                ->decrement('active_accounts');
+        }
+
+        $service->forceFill(['provision_status' => Service::PROVISION_NONE])->save();
+
+        $by = (string) ($request->user()?->name ?: 'مدیر');
+
+        \App\Models\ActivityLog::forService($service, 'terminate',
+            'مدیر ('.$by.') تأیید کرد سرور نزدِ زیرساخت دیگر وجود ندارد و صفِ تلاشِ '
+            .'دوبارهٔ حذف (cloud:release-retry) را دستی بست.', 'staff', $request);
+
+        return back()->with('ok',
+            'بسته شد؛ دیگر تلاشِ خودکارِ حذف و پیامِ تکراری برای این سرویس نمی‌آید.');
+    }
 }

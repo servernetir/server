@@ -246,6 +246,13 @@ g app/Http/Controllers/Admin/ServiceController.php "ackManual"
 g routes/web.php "ack-manual"
 g resources/views/admin/customer.blade.php "pendingManualAction"
 
+# 🔴 متدِ `resolveRelease` روی سرور بود ولی **هیچ روت و دکمه‌ای** نداشت —
+#    کدِ مرده‌ای که داکبلاکش می‌گفت مشکل حل شده. هر سه تکه با هم سنجیده
+#    می‌شوند، وگرنه دوباره همان می‌شود: متدی که کسی نمی‌تواند صدایش بزند.
+g app/Http/Controllers/Admin/ServiceController.php "resolveRelease"
+g routes/web.php "resolve-release"
+g resources/views/admin/customer.blade.php "resolve-release"
+
 # سه نقطهٔ فراخوانی — mutation نشان داد حذفِ هرکدام از چشمِ ۵۲ تست گریخت،
 # پس این‌جا هم جداگانه سنجیده می‌شوند نه با یک گاردِ کلی.
 # ⚠️ هیچ گاردی «$» ندارد — و این عمدی است.
