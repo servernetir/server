@@ -62,11 +62,9 @@ class GenerateContent extends Command
         $done = Post::pluck('slug')->all();
         $pending = array_values(array_filter($plan, fn ($p) => ! in_array($p['slug'], $done, true)));
 
-        if (($skipped = count($plan) - count($pending)) > 0) {
-            $clashes = array_values(array_intersect(array_column($plan, 'slug'), $done));
-            $this->warn('رد شد (اسلاگ از قبل روی سایت است): '.$skipped.' موضوع — '
-                .implode('، ', array_slice($clashes, 0, 8))
-                .(count($clashes) > 8 ? ' …' : ''));
+        foreach ($this->foreignClashes($plan) as $slug) {
+            $this->warn('⚠️ «'.$slug.'» هرگز ساخته نمی‌شود: پستی با همین اسلاگ از قبل '
+                .'روی سایت است که این خط تولید نساخته‌اش. اسلاگِ برنامه را عوض کن.');
         }
 
         if ($slug = $this->option('slug')) {
@@ -189,6 +187,39 @@ class GenerateContent extends Command
         $this->info("ساخته شد: {$ok} مقاله (پیش‌نویسِ زمان‌بندی‌شده)");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * اسلاگ‌هایی از برنامه که پستی **بیرون از این خطِ تولید** صاحبشان است.
+     *
+     * ═══ چرا صافیِ ساده کافی نبود ═══
+     *
+     * نسخهٔ اول هر موضوعِ ردشده را گزارش می‌کرد. اجرای اولِ سرور نشان داد چرا
+     * غلط است: همان روز یک خط چاپ شد برای موضوعی که **خودمان دیشب ساخته
+     * بودیم**. مصرفِ عادیِ صف است، نه خرابی — و فردا دو تا می‌شود، ماهِ بعد
+     * صد تا. یعنی هشداری که با گذشتِ زمان به نویز تبدیل می‌شود و برخوردِ
+     * واقعی را در خودش دفن می‌کند. (قاعدهٔ §۳: پایشگری که بی‌دلیل شلوغ باشد،
+     * یاد می‌دهد نادیده‌اش بگیرند.)
+     *
+     * تشخیصِ دقیق: ترجمهٔ **fa** با `auto = true` را فقط همین فرمان می‌نویسد.
+     * `TranslateMissing` فقط en/tr می‌سازد و fa را منبع می‌گیرد؛ seederها و
+     * ایمپورتِ وردپرس و پنلِ مدیر هیچ‌کدام این پرچم را نمی‌زنند. پس نبودنش
+     * یعنی پست را کسِ دیگری ساخته و آن اسلاگ **هرگز** از برنامه در نمی‌آید.
+     *
+     * @param  list<array<string,mixed>>  $plan
+     * @return list<string>
+     */
+    private function foreignClashes(array $plan): array
+    {
+        try {
+            return Post::query()
+                ->whereIn('slug', array_column($plan, 'slug'))
+                ->whereDoesntHave('translations', fn ($q) => $q->where('locale', 'fa')->where('auto', true))
+                ->pluck('slug')
+                ->all();
+        } catch (\Throwable $e) {
+            return [];   // جدول هنوز مهاجرت نشده — گزارشِ نبودن نباید تولید را بخواباند
+        }
     }
 
     /**
