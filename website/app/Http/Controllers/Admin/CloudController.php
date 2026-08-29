@@ -658,11 +658,25 @@ class CloudController extends Controller
      */
     public function probe(): View
     {
-        $driver = $this->manager->driver('aeza');
+        /*
+        | ?provider= هر درایوری که rawProbe دارد (aeza، ovh، hetzner-robot…).
+        | پیش‌فرض همان aeza می‌مانَد تا نشانی‌های قدیمی نشکنند.
+        |
+        | ⚠️ فقط از فهرستِ DRIVERS — ورودیِ آزادِ کوئری هرگز نامِ کلاس نمی‌شود.
+        */
+        $slug = (string) request()->query('provider', 'aeza');
 
-        $data = ($driver instanceof \App\Services\Cloud\AezaClient && $driver->isConfigured())
-            ? $driver->rawProbe()
-            : ['error' => 'توکنِ زیرساختِ ۲ تنظیم نشده است.'];
+        $driver = array_key_exists($slug, \App\Services\Cloud\CloudManager::DRIVERS)
+            ? $this->manager->driver($slug)
+            : null;
+
+        if ($driver === null || ! method_exists($driver, 'rawProbe')) {
+            $data = ['error' => 'این زیرساخت probe ندارد.'];
+        } elseif (! $driver->isConfigured()) {
+            $data = ['error' => 'توکنِ این زیرساخت تنظیم نشده است.'];
+        } else {
+            $data = $driver->rawProbe();
+        }
 
         return view('admin.cloud-probe', ['data' => $data]);
     }

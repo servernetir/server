@@ -183,25 +183,29 @@ class HetznerRobotClient implements CloudProvider
         $messages = [];
 
         // ── محصولاتِ استاندارد (EX/AX/GEX) ──
-        $std = $this->firstOkOf(['/order/server_product', '/order/server/product']);
+        $stdErr = '';
+        $std = $this->firstOkOf(['/order/server_product', '/order/server/product'], $stdErr);
 
         if ($std !== null) {
             foreach ($this->unwrapRows($std) as $row) {
                 $this->standardRowToPlans($row, $plans, $skippedCpu, $skippedSetup);
             }
         } else {
-            $messages[] = 'فهرستِ محصولاتِ استاندارد خوانده نشد.';
+            // ⚠️ علتِ واقعی باید در گزارش باشد — «خوانده نشد»ِ تنها، عیب‌یابی را
+            // به حدس می‌سپارد (درسِ همین امروز: اولین اجرای واقعی همین را داد).
+            $messages[] = 'فهرستِ محصولاتِ استاندارد خوانده نشد ('.$stdErr.').';
         }
 
         // ── مزایده (Server Auction / Serverbörse) ──
-        $mkt = $this->firstOkOf(['/order/server_market/product', '/order/server_market_product']);
+        $mktErr = '';
+        $mkt = $this->firstOkOf(['/order/server_market/product', '/order/server_market_product'], $mktErr);
 
         if ($mkt !== null) {
             foreach ($this->unwrapRows($mkt) as $row) {
                 $this->marketRowToPlans($row, $plans, $skippedCpu, $skippedSetup, $skippedDc);
             }
         } else {
-            $messages[] = 'فهرستِ مزایده خوانده نشد.';
+            $messages[] = 'فهرستِ مزایده خوانده نشد ('.$mktErr.').';
         }
 
         if ($plans === [] && $messages !== []) {
@@ -240,9 +244,11 @@ class HetznerRobotClient implements CloudProvider
         ];
     }
 
-    /** اولین مسیرِ نامزدی که جواب داد. هر دو شکست ⇒ null */
-    private function firstOkOf(array $paths): ?array
+    /** اولین مسیرِ نامزدی که جواب داد. هر دو شکست ⇒ null و علت در $err */
+    private function firstOkOf(array $paths, string &$err = ''): ?array
     {
+        $seen = [];
+
         foreach ($paths as $p) {
             $r = $this->req('GET', $p);
 
@@ -255,7 +261,11 @@ class HetznerRobotClient implements CloudProvider
                 && str_contains(strtolower(json_encode($r['body'])), 'not_found')) {
                 return [];
             }
+
+            $seen[] = $p.' → '.$r['status'].' '.$r['message'];
         }
+
+        $err = implode(' · ', $seen);
 
         return null;
     }
