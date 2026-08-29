@@ -248,9 +248,18 @@ g resources/views/admin/customer.blade.php "pendingManualAction"
 
 # سه نقطهٔ فراخوانی — mutation نشان داد حذفِ هرکدام از چشمِ ۵۲ تست گریخت،
 # پس این‌جا هم جداگانه سنجیده می‌شوند نه با یک گاردِ کلی.
-g app/Services/Payment/PaymentService.php "->flag(\$service, 'renew'"
-g app/Services/Provisioning/ProvisioningService.php "->flag(\$service, 'suspend'"
-g app/Services/Provisioning/ProvisioningService.php "->flag(\$service, 'terminate'"
+# ⚠️ هیچ گاردی «$» ندارد — و این عمدی است.
+#
+# نسخهٔ اول این سه گارد `->flag($service, …` بودند و روی سرور
+# «ننشسته» گزارش دادند، در حالی که رشته **در فایل بود**. نتیجه‌اش بدترین
+# حالت بود: کلِ بکاپ برگشت و علتش هم غلط گزارش شد.
+#
+# گاردی که خودش به نقل‌قول‌گذاریِ شل وابسته باشد، کارِ سالم را برمی‌گرداند.
+# پس رشته‌هایی انتخاب شدند که در هر سه فایل **یکتا** و بی‌$ باشند.
+g app/Services/Payment/PaymentService.php "ManualLifecycleNotice::class)"
+g app/Services/Payment/PaymentService.php "'renew');"
+g app/Services/Provisioning/ProvisioningService.php "'suspend');"
+g app/Services/Provisioning/ProvisioningService.php "'terminate');"
 
 # ⚠️ و روت‌هایی که نباید بیفتند (routes/web.php مشترک است)
 for r in "name('gpu')" "name('go.pay')" "name('healthz')" "urmiaGone"; do
