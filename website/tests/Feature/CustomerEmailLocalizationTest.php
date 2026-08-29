@@ -130,6 +130,46 @@ class CustomerEmailLocalizationTest extends TestCase
         });
     }
 
+    /**
+     * تاریخِ شمسی هم باید برای مشتریِ خارجی میلادی شود.
+     *
+     * فراخوان‌ها تاریخ را با `sdate()` می‌سازند و کرون locale فارسی دارد؛ پس
+     * «اعتبار تا ۱۴۰۵/۰۶/۰۷» واردِ متغیر می‌شود و لاتین‌کردنِ رقم به‌تنهایی
+     * فقط «1405/06/07» می‌ساخت — سالی که برای مشتریِ خارجی بی‌معنی است.
+     */
+    public function test_jalali_dates_become_gregorian_for_intl_customers(): void
+    {
+        Mail::fake();
+
+        $customer = Customer::create([
+            'code' => 'SN-'.random_int(100000, 999999),
+            'email' => 'date'.random_int(1, 99999).'@example.com',
+            'phone' => '+90532'.random_int(1000000, 9999999),
+            'password' => 'secret1234', 'status' => 'active', 'locale' => 'en',
+        ]);
+
+        // دقیقاً مسیرِ واقعی: کرون فارسی است و until از sdate می‌آید
+        app()->setLocale('fa');
+        $due = now()->addYear();
+        $until = sdate($due);   // جلالی، مثلاً «۱۴۰۶/۰۶/۰۷»
+
+        app(CustomerNotifier::class)->templated($customer, 'renewed', [
+            'service' => 'CV-2-4',
+            'until'   => $until,
+        ], 'متنِ فارسیِ پشتیبان');
+
+        $expected = $due->copy()->setTimezone('Asia/Tehran')->format('Y-m-d');
+
+        Mail::assertSent(TemplateMail::class, function (TemplateMail $mail) use ($expected) {
+            $this->assertStringContainsString($expected, $mail->bodyHtml,
+                'تاریخِ جلالی به میلادی تبدیل نشد');
+            $this->assertFalse((bool) preg_match('/\b1[34]\d{2}\//u', $mail->bodyHtml),
+                'سالِ شمسی در ایمیلِ مشتریِ خارجی ماند');
+
+            return true;
+        });
+    }
+
     /** نتیجهٔ KYC: برنددار، به زبانِ مشتری، و بدونِ هیچ نامی از ایران */
     public function test_kyc_result_email_is_branded_localized_and_iran_free(): void
     {
