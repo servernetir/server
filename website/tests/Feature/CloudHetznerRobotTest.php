@@ -186,6 +186,10 @@ class CloudHetznerRobotTest extends TestCase
         $this->assertSame(16, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 9 7950X3D'));
         $this->assertSame(48, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD EPYC™ 9454P'));
         $this->assertSame(8, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 7 PRO 8700GE'));
+        // مدلِ بی‌جدول ولی با شمارشِ هسته در متن — از خودِ داده خوانده می‌شود (خطِ Dell/Granite Rapids)
+        $this->assertSame(48, \App\Services\Cloud\HetznerRobotClient::coresFor('Intel®️ Xeon®️ Gold 6741P 48-Core "Granite Rapids"'));
+        $this->assertSame(86, \App\Services\Cloud\HetznerRobotClient::coresFor('Intel®️ Xeon®️ Gold 6787P 86-Core "Granite Rapids"'));
+        $this->assertSame(20, \App\Services\Cloud\HetznerRobotClient::coresFor('Intel®️ Core™️ Ultra 7 265'));
         $this->assertNull(\App\Services\Cloud\HetznerRobotClient::coresFor('Totally Unknown CPU 9000'));
     }
 
