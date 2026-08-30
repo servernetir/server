@@ -609,6 +609,66 @@ class ArvanClient implements CloudProvider
         );
     }
 
+    /**
+     * ═══ 🔴 گروهِ امنیتیِ اجباری — علتِ «تحویل نشد»های چند روزِ اخیر ═══
+     *
+     * آروان روی ساختِ سرور دستِ‌کم **یک** گروهِ امنیتی می‌خواهد و بی‌آن
+     * می‌گوید: «At least one firewall should be selected». پیلودِ ما هیچ‌وقت
+     * این فیلد را نمی‌فرستاد، پس هر سفارشِ آروان با همان یک جمله شکست
+     * می‌خورد — سرویسِ ۹۳ (۹ شهریور ۱۴۰۵) و چند تای پیش از آن.
+     *
+     * ⚠️ چرا قرنطینهٔ خودکار جلویش را نگرفت: فهرستِ خطاهای «ساختاری» در
+     * CloudProvisioner دنبالِ permission/quota/balance می‌گردد و این پیام
+     * هیچ‌کدام نیست. پس پلن‌ها در فروش ماندند و مشتریِ بعدی همان شکست را
+     * خرید. (فهرستِ «پلن‌های پرخطا» در مرکزِ تحویل‌ها دقیقاً برای همین حالت
+     * است.)
+     *
+     * ⚠️ شناسه **کشف** می‌شود، نه سخت‌نویس: نامِ گروهِ پیش‌فرض روی هر حساب
+     * فرق می‌کند و یک رشتهٔ ثابت روزی بی‌صدا نامعتبر می‌شود. اولویت با گروهی
+     * است که آروان `default` علامت زده؛ وگرنه اولین گروهِ موجود.
+     *
+     * @return array<int,string>
+     */
+    private function securityGroupIds(string $regionCode): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            'arvan.sg.'.$regionCode,
+            3600,
+            function () use ($regionCode) {
+                foreach (['/securities', '/security-groups'] as $path) {
+                    $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
+
+                    if (! $r['ok']) {
+                        continue;
+                    }
+
+                    $rows = array_values(array_filter((array) $r['data'], 'is_array'));
+
+                    if ($rows === []) {
+                        continue;
+                    }
+
+                    foreach ($rows as $g) {
+                        $id = (string) ($g['id'] ?? '');
+                        $name = strtolower((string) ($g['name'] ?? ''));
+
+                        if ($id !== '' && (($g['default'] ?? false) || str_contains($name, 'default'))) {
+                            return [$id];
+                        }
+                    }
+
+                    $first = (string) ($rows[0]['id'] ?? '');
+
+                    if ($first !== '') {
+                        return [$first];
+                    }
+                }
+
+                return [];
+            }
+        );
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
@@ -627,11 +687,24 @@ class ArvanClient implements CloudProvider
             return $this->serverToResult($existing, $region);
         }
 
+        /*
+        | 🔴 بی‌گروهِ امنیتی، آروان سفارش را رد می‌کند. اگر کشف نشد، **همین‌جا**
+        | با پیامِ روشن می‌ایستیم — نه اینکه درخواستِ ناقص بفرستیم و پیامِ گنگِ
+        | زنجیره را به مدیر نشان دهیم.
+        */
+        $securityGroups = $this->securityGroupIds($region);
+
+        if ($securityGroups === []) {
+            return ['ok' => false,
+                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید.'] + $fail;
+        }
+
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name'        => $spec['name'],
             'flavor_id'   => (string) $spec['plan_ref'],
             'image_id'    => (string) $spec['image_ref'],
             'network_ids' => [$networkId],
+            'security_groups' => $securityGroups,
             'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
             'count'       => 1,
             'ha_enabled'  => false,
