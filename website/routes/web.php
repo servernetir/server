@@ -2759,6 +2759,27 @@ Route::prefix('admin')->group(function () {
         // تطبیقِ موجودی: سرورِ بی‌مشتری و سرویسِ بی‌سرور — هر دو نشتیِ پول‌اند
         Route::get('/cloud/inventory', [\App\Http\Controllers\Admin\CloudAttachController::class, 'inventory'])->middleware('admin');
 
+        /*
+        | ناوگانِ زیرساخت — نسخهٔ **ماندگار و قابلِ جست‌وجوی** همان تطبیق.
+        |
+        | `/cloud/inventory` گزارشِ لحظه‌ای می‌دهد؛ این‌جا همان داده در جدول
+        | می‌نشیند تا بشود رویش جست‌وجو کرد، سنِ رهاشدگی و ضررِ انباشته را حساب
+        | کرد، و ماشین را طبقه‌بندی کرد. هر دو می‌مانند: آن یکی برای «همین الان
+        | چه می‌بینی»، این یکی برای «چه چیزی از دستمان در رفته».
+        */
+        Route::get('/fleet', [\App\Http\Controllers\Admin\FleetController::class, 'index'])
+            ->name('admin.fleet')->middleware('admin');
+        Route::get('/fleet/export', [\App\Http\Controllers\Admin\FleetController::class, 'export'])->middleware('admin');
+        // اسکن نرخ‌بندی می‌شود: هر اجرا چند تماسِ زنده با همهٔ زیرساخت‌هاست و
+        // رفرشِ پیاپی می‌تواند ما را به سقفِ نرخِ API آنها برساند.
+        Route::post('/fleet/scan', [\App\Http\Controllers\Admin\FleetController::class, 'scan'])
+            ->middleware(['admin', 'throttle:10,1']);
+        Route::post('/fleet/{asset}/annotate', [\App\Http\Controllers\Admin\FleetController::class, 'annotate'])
+            ->whereNumber('asset')->middleware('admin');
+        // حذفِ واقعیِ ماشین نزدِ زیرساخت — برگشت‌ناپذیر، پس نرخ‌بندیِ سفت‌تر
+        Route::post('/fleet/{asset}/release', [\App\Http\Controllers\Admin\FleetController::class, 'release'])
+            ->whereNumber('asset')->middleware(['admin', 'throttle:6,1']);
+
         // زیرساختِ اکسیت — دیدِ اپراتور به Exit VPSها + سوییچِ کشورِ خروج (فازِ A)
         Route::get('/exit-infra', [\App\Http\Controllers\Admin\ExitInfraController::class, 'index'])
             ->name('admin.exit-infra')->middleware('admin');
