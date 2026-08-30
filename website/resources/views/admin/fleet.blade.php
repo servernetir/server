@@ -379,7 +379,10 @@
                        روی ردیفِ اشتباه زده می‌شود. --}}
                   <form method="post" action="/admin/fleet/{{ $a->id }}/release"
                         style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
-                        onsubmit="return confirm('این ماشین برای همیشه نزد زیرساخت حذف می‌شود. مطمئنید؟')">
+                        data-confirm="ماشینِ «{{ $a->name }}» برای همیشه نزدِ زیرساخت حذف می‌شود و برگشتی ندارد. مطمئنید؟"
+                        data-confirm-title="حذفِ ماشین نزدِ زیرساخت"
+                        data-confirm-ok="بله، حذف کن"
+                        data-confirm-danger>
                     @csrf
                     <input type="text" name="confirm" dir="ltr" autocomplete="off"
                            placeholder="برای حذف، «{{ $a->name }}» را تایپ کنید"
