@@ -1506,6 +1506,69 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
     |
     | عمداً هیچ پیامک واقعی فرستاده نمی‌شود؛ sending_type بی‌معنی است.
     */
+    /*
+    | 🔴 مسیرِ **فعال** سنجیده می‌شود، نه هر مسیری که در .env مانده.
+    |
+    | تا شهریور ۱۴۰۵ این‌جا همیشه رلهٔ قدیمیِ `servernet.ir` را می‌زد، چون
+    | `SMS_RELAY_URL` هنوز در .env بود. آن فایل مدت‌ها پیش بازنشسته شد و ۴۱۰
+    | می‌داد، پس `guard.ok` **همیشه false** بود.
+    |
+    | دو خرابی هم‌زمان، و دومی بدتر:
+    |
+    |   · آژیرِ همیشه‌روشن برای مسیری که هیچ‌کس استفاده نمی‌کند — و آژیری که
+    |     همیشه قرمز است، آژیرِ بعدی را هم می‌بلعد.
+    |   · مسیری که **واقعاً** پیامک را می‌برد (n8n) هیچ ناظری نداشت. یعنی
+    |     صفحهٔ سلامت دربارهٔ تنها چیزی که مهم بود ساکت بود.
+    */
+    $smsDriver = (string) config('services.sms.driver');
+
+    if ($smsDriver === 'n8n_relay') {
+        $n8nUrl    = (string) config('services.sms.n8n_relay.url');
+        $n8nSecret = (string) config('services.sms.n8n_relay.secret');
+
+        if ($n8nUrl === '' || $n8nSecret === '') {
+            $out['relay'] = ['active_path' => 'n8n_relay', 'configured' => false];
+        } else {
+            /*
+            | پاکتِ درست‌شکل با امضای عمداً خراب.
+            |
+            | 🔴 این پاکت **ذاتاً** نمی‌تواند پیامک بفرستد: امضا ۶۴ صفر است و
+            | ورک‌فلو پیش از هر ارسالی ردش می‌کند. پس سنجش هزینه و عارضه ندارد.
+            |
+            | ⚠️ و عمداً پاکتِ **امضاشده** فرستاده نمی‌شود. رلهٔ قدیمی این کار
+            | را می‌کرد چون آی‌پی‌پنل بدنهٔ بی‌معنا را رد می‌کرد؛ این‌جا هیچ
+            | تضمینی برای آن نداریم و یک ورک‌فلوی نیمه‌ویرایش‌شده می‌توانست
+            | واقعاً پیامک بفرستد. سنجشی که خودش عارضه داشته باشد، سنجش نیست.
+            |
+            | ⚠️ کدِ ۲۰۰ کافی نیست: ورک‌فلو برای ردشدن هم ۲۰۰ می‌دهد. نشانهٔ
+            | سلامتِ نگهبان، دیدنِ `bad_signature` در بدنه است — همان قاعده‌ای
+            | که `N8nRelaySender::deliver()` هم رعایت می‌کند.
+            */
+            $probe = ['active_path' => 'n8n_relay', 'url' => $n8nUrl];
+
+            try {
+                $b64 = rtrim(strtr(base64_encode(json_encode(['probe' => 'healthcheck'])), '+/', '-_'), '=');
+
+                $r = \Illuminate\Support\Facades\Http::asJson()->acceptJson()->timeout(15)
+                    ->post($n8nUrl, ['envelope' => 'SMS_RELAY_V1:'.$b64.'.'.str_repeat('0', 64)]);
+
+                $reason = (string) $r->json('reason', '');
+
+                $probe['guard'] = [
+                    'ok'     => $r->successful() && $reason === 'bad_signature',
+                    'http'   => $r->status(),
+                    'reason' => $reason !== '' ? $reason : null,
+                    'body'   => mb_substr(strip_tags($r->body()), 0, 120),
+                ];
+            } catch (\Throwable $e) {
+                $probe['guard'] = ['ok' => false, 'http' => 0,
+                                   'reason' => mb_substr($e->getMessage(), 0, 200)];
+            }
+
+            $out['relay'] = $probe;
+        }
+    } else {
+
     $relayUrl    = (string) config('services.sms.relay_url');
     $relaySecret = (string) config('services.sms.relay_secret');
 
@@ -1559,10 +1622,13 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
             $probe['signed'] = ['ok' => false, 'http' => 0, 'reason' => 'unreachable'];
         }
 
+        $probe['active_path'] = $smsDriver;
         $out['relay'] = $probe;
     } else {
-        $out['relay'] = ['configured' => false];
+        $out['relay'] = ['active_path' => $smsDriver, 'configured' => false];
     }
+
+    } // پایانِ شاخهٔ «درایورِ فعال n8n نیست»
 
         return $out;
     };
@@ -1666,11 +1732,52 @@ Route::middleware('throttle:tools')->get('/system/tables', function () {
         ? \Illuminate\Support\Facades\DB::table('migrations')->orderByDesc('id')->limit(8)->pluck('migration')
         : [];
 
+    /*
+    | 🔴 «مهاجرت خورد» با «کاتالوگ پر شد» یکی نیست.
+    |
+    | seederها داخلِ همان درخواستِ `/system/migrate` می‌دوند و هرکدام اول
+    | وجودِ جدول/ستون را چک می‌کنند. اگر آن چک رد شود، seeder **بی‌صدا** هیچ
+    | نمی‌کند: نه خطا، نه لاگ، و صفحهٔ مربوطه فقط خالی است.
+    |
+    | بعد از دیپلویِ شهریور ۱۴۰۵ هیچ راهی نبود که از بیرون بشود فهمید ۲۰
+    | اعلانِ مدیر ردیف گرفته‌اند یا نه — باید وارد پنل می‌شدی. این بلوک همان
+    | شکاف را می‌بندد: عددِ واقعی کنارِ عددِ انتظار.
+    */
+    $count = function (string $table, ?callable $q = null): ?int {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+                return null;
+            }
+
+            $b = \Illuminate\Support\Facades\DB::table($table);
+
+            return (int) ($q ? $q($b) : $b)->count();
+        } catch (\Throwable) {
+            return null;
+        }
+    };
+
+    $adminAlerts = \Illuminate\Support\Facades\Schema::hasTable('notification_templates')
+        && \Illuminate\Support\Facades\Schema::hasColumn('notification_templates', 'audience')
+            ? $count('notification_templates', fn ($b) => $b->where('audience', 'admin'))
+            : null;
+
     return response()->json([
         'driver'          => config('database.default'),
         'present_count'   => count($present),
         'missing'         => $missing,
         'last_migrations' => $lastMigrations,
+
+        // `have` نال یعنی جدول/ستون هنوز نیست؛ عددِ کمتر از `want` یعنی
+        // seeder دوید و کارش را تمام نکرد — دو خرابیِ متفاوت با یک ظاهر.
+        'seeded' => [
+            'admin_alerts' => [
+                'have' => $adminAlerts,
+                'want' => count(\App\Support\AdminAlerts::EVENTS),
+            ],
+            'notification_templates' => ['have' => $count('notification_templates')],
+            'menu_overrides'         => ['have' => $count('menu_overrides')],
+        ],
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
 
