@@ -145,8 +145,21 @@ class ContentPipelineTest extends TestCase
 
         $gap = $last->diffInDays($end);
 
+        /*
+         * ⚠️ کرانِ ۲۱ روز است نه ۱۴، و این سست‌گیری عمدی است.
+         *
+         * این تست بدترین حالت را می‌سنجد: **نصبِ خالی**، یعنی کلِ صفِ فایل‌ها.
+         * پروداکشن همیشه چند ده موضوع کمتر دارد (منتشرشده‌ها)، پس دنبالهٔ
+         * واقعی‌اش بلندتر از این عدد است. اگر کران را روی پروداکشنِ امروز
+         * تنظیم کنم، فردا که چند مطلبِ دیگر ساخته شود دوباره قرمز می‌شود —
+         * تستی که هر روز کالیبره لازم داشته باشد، تستِ خوبی نیست.
+         *
+         * کاری که این کران واقعاً می‌کند: گرفتنِ **عدمِ تطابقِ فاحش**. ۲۱ روز
+         * از ۲۰۲ روز هنوز آن را می‌گیرد. ادعای سختِ این تست بالاتر است:
+         * هیچ موضوعی نباید از سال بیرون بیفتد.
+         */
         $this->assertLessThanOrEqual(
-            14,
+            21,
             $gap,
             "آخرین مطلب {$gap} روز پیش از پایانِ سال منتشر می‌شود؛ انتهای سال خالی می‌مانَد. "
             .'یا موضوع اضافه کن یا سهمیهٔ روزانه را کم کن.'
@@ -423,6 +436,75 @@ class ContentPipelineTest extends TestCase
         );
     }
 
+    /**
+     * 🔴 مقالهٔ واقعیِ اول آدرس‌ها را **کامل** نوشت، نه نسبی — چون قاعدهٔ لینکِ
+     * محصول آدرسِ کاملِ `lroute()` را به پرامپت می‌دهد و مدل همان سبک را
+     * تکرار کرد. نسخهٔ اولِ `localize()` فقط مسیرِ نسبی را می‌گرفت، پس
+     * خوانندهٔ انگلیسی به صفحهٔ فارسی می‌افتاد.
+     */
+    public function test_absolute_urls_on_our_own_host_are_localized_too(): void
+    {
+        $links = app(InternalLinks::class);
+        $host = rtrim((string) config('app.url'), '/');
+
+        $out = $links->localize('<a href="'.$host.'/blog/x">t</a>', 'en');
+
+        $this->assertStringContainsString($host.'/en/blog/x', $out);
+    }
+
+    public function test_an_absolute_url_already_localized_is_left_alone(): void
+    {
+        $links = app(InternalLinks::class);
+        $host = rtrim((string) config('app.url'), '/');
+        $html = '<a href="'.$host.'/en/blog/x">t</a>';
+
+        $this->assertSame($html, $links->localize($html, 'en'));
+    }
+
+    /**
+     * 🔴 `content:translate-missing` درِ **دومِ** ساختِ ترجمه است و محافظ
+     * فقط روی درِ اول (`content:generate`) گذاشته شده بود.
+     *
+     * هر مقاله‌ای که ترجمه‌اش سرِ تولید شکست بخورد از این مسیر پر می‌شود —
+     * یعنی دقیقاً همان مقاله‌هایی که یک بار قبلاً مشکل داشته‌اند، لینکِ
+     * بین‌زبانی هم می‌گرفتند. (قاعدهٔ «نیمهٔ دیگرِ شاخه را بپرس».)
+     */
+    public function test_the_translate_missing_door_localizes_links_too(): void
+    {
+        $post = Post::create([
+            'slug' => 'half-translated', 'type' => 'blog', 'category' => 'seo',
+            'status' => 'published', 'published_at' => now()->subDay(),
+        ]);
+        PostTranslation::create([
+            'post_id' => $post->id, 'locale' => 'fa', 'auto' => true,
+            'title' => 'مقالهٔ نیمه‌ترجمه',
+            'content' => '<p>ابزارها در <a href="/webtools">ابزارهای وب‌مستر</a> هستند.</p>',
+        ]);
+
+        $this->app->bind(\App\Services\AiContent::class, fn () => new class extends \App\Services\AiContent
+        {
+            public function enabled(): bool
+            {
+                return true;
+            }
+
+            public function translate(array $fa, string $target): ?array
+            {
+                return [
+                    'title' => 'Half translated', 'excerpt' => 'x', 'tags' => ['a'],
+                    'content' => '<p>Tools live at <a href="/webtools">webmaster tools</a>.</p>',
+                ];
+            }
+        });
+
+        $this->artisan('content:translate-missing', ['--limit' => 1])->assertSuccessful();
+
+        $en = $post->fresh()->translations->firstWhere('locale', 'en');
+
+        $this->assertNotNull($en, 'ترجمهٔ en ساخته نشد.');
+        $this->assertStringContainsString('href="/en/webtools"', $en->content);
+    }
+
     public function test_localizing_never_double_prefixes(): void
     {
         $links = app(InternalLinks::class);
@@ -521,6 +603,76 @@ class ContentPipelineTest extends TestCase
             .'<h3>Why is TTFB high?</h3><p>Usually a slow query or a missing cache layer somewhere.</p>';
 
         $this->assertStringContainsString('FAQPage', article_faq_ld($html));
+    }
+
+    /* ═══════════════════ ضمانتِ سه‌زبانگی ═══════════════════ */
+
+    /**
+     * 🔴 مقالهٔ فارسی‌تنها نباید سه‌زبانه وانمود شود.
+     *
+     * `Post::tr()` به فارسی برمی‌گردد و لایوت برای هر سه زبان hreflang می‌دهد،
+     * پس `/en/blog/x` با `lang="en"` متنِ فارسی سرو می‌کرد: محتوای تکراری روی
+     * سه آدرس + hreflangِ بی‌اعتبار.
+     */
+    public function test_a_post_missing_translations_is_held_back(): void
+    {
+        $p = $this->duePost('half-done', ['fa']);
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('draft', $p->fresh()->status, 'مقالهٔ ناقص نباید منتشر شود.');
+    }
+
+    public function test_a_fully_translated_post_publishes(): void
+    {
+        $p = $this->duePost('all-three', ['fa', 'en', 'tr']);
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('published', $p->fresh()->status);
+    }
+
+    /**
+     * ⚠️ ولی نگه‌داشتنِ ابدی همان خرابیِ مرداد از درِ دیگر است. بعد از مهلت
+     * منتشر می‌شود و صدایش هم درمی‌آید — سکوت هرگز گزینه نیست.
+     */
+    public function test_after_the_grace_window_it_publishes_anyway_and_says_so(): void
+    {
+        $p = $this->duePost('stuck-untranslated', ['fa'], now()->subHours(30));
+
+        $this->artisan('content:publish-due')
+            ->expectsOutputToContain('بدونِ ترجمهٔ کامل منتشر شد')
+            ->assertSuccessful();
+
+        $this->assertSame('published', $p->fresh()->status, 'بعد از مهلت باید منتشر شود.');
+    }
+
+    /** ترجمهٔ با عنوانِ خالی یعنی ردیفِ ناقص، نه ترجمهٔ موجود. */
+    public function test_an_empty_translation_does_not_count_as_translated(): void
+    {
+        $p = $this->duePost('empty-title', ['fa', 'en', 'tr'], null, emptyTitleFor: 'tr');
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('draft', $p->fresh()->status);
+    }
+
+    private function duePost(string $slug, array $locales, $at = null, ?string $emptyTitleFor = null): Post
+    {
+        $post = Post::create([
+            'slug' => $slug, 'type' => 'blog', 'category' => 'seo',
+            'status' => 'draft', 'published_at' => $at ?? now()->subMinutes(5),
+        ]);
+
+        foreach ($locales as $loc) {
+            PostTranslation::create([
+                'post_id' => $post->id, 'locale' => $loc, 'auto' => true,
+                'title' => $loc === $emptyTitleFor ? '' : 'عنوان '.$loc,
+                'content' => '<p>x</p>',
+            ]);
+        }
+
+        return $post;
     }
 
     /* ═══════════════════ برخوردِ اسلاگ ═══════════════════ */

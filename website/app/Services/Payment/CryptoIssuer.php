@@ -159,6 +159,8 @@ class CryptoIssuer
             return null;
         }
 
+        $atomic = $this->fingerprint($atomic, $spec['chain']);
+
         $cp = CryptoPayment::create([
             'invoice_id' => $invoice->id,
             'customer_id' => $invoice->customer_id,
@@ -292,6 +294,51 @@ class CryptoIssuer
     }
 
     /** مبلغِ فاکتور → مقدارِ اتمیِ دارایی، همیشه گرد رو به **بالا** */
+    /**
+     * ═══ 🔴 «دمِ» یکتا: هر پرداخت مبلغِ منحصربه‌فردِ خودش را می‌خواهد ═══
+     *
+     * آدرس‌ها از استخر بازاستفاده می‌شوند، پس یک آدرس در طولِ عمرش چند پرداخت
+     * را می‌بیند. تنها چیزی که واریزی را به «کدام پرداخت» گره می‌زند، مبلغ
+     * است — و دو فاکتورِ هم‌مبلغ، مبلغِ اتمیِ **یکسان** می‌گرفتند. یعنی یک
+     * واریزیِ دیرهنگام می‌توانست به‌جای فاکتورِ خودش، فاکتورِ بعدی را تسویه
+     * کند و از چشمِ همهٔ گاردها رد شود.
+     *
+     * راهِ استانداردِ صنعت (همان کاری که درگاه‌های بزرگ می‌کنند): چند واحدِ
+     * اتمیِ ناچیز به مبلغ اضافه کن تا هیچ دو پرداختِ بازی مبلغِ یکسان نداشته
+     * باشند. برای USDT با ۶ رقمِ اعشار، ۹۹۹ واحد یعنی حداکثر ۰.۰۰۰۹۹۹ دلار —
+     * کمتر از یک هزارمِ سنت.
+     *
+     * ⚠️ رو به **بالا** اضافه می‌شود، نه پایین: مشتری همیشه کمی بیشتر
+     * می‌فرستد، نه کمتر. کم‌کردن یعنی فاکتور با کسری تسویه شود.
+     *
+     * ⚠️ یکتایی در برابرِ **پرداخت‌های بازِ همان زنجیره** سنجیده می‌شود، نه کلِ
+     * تاریخ: مبلغِ پرداختِ بسته‌شده دیگر خطری ندارد و سخت‌گیریِ بی‌مورد فقط
+     * حلقه را طولانی می‌کند.
+     */
+    private function fingerprint(int $atomic, string $chain): int
+    {
+        $taken = CryptoPayment::whereIn('status', ['pending', 'seen'])
+            ->where('chain', $chain)
+            ->pluck('amount_atomic')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        if (! in_array($atomic, $taken, true)) {
+            return $atomic;
+        }
+
+        for ($i = 0; $i < 999; $i++) {
+            $candidate = $atomic + random_int(1, 999);
+
+            if (! in_array($candidate, $taken, true)) {
+                return $candidate;
+            }
+        }
+
+        // عملاً نشدنی؛ ولی اگر شد، مبلغِ اصلی از نساختنِ پرداخت بهتر است
+        return $atomic;
+    }
+
     private function atomicFor(int $due, string $currency, int $rateMicro, int $decimals): int
     {
         if ($due <= 0 || $rateMicro <= 0) {

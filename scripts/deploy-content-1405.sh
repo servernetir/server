@@ -43,7 +43,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-4cb2684}"
+MINE="${1:-611f5d1}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -61,6 +61,8 @@ app/Services/AiContent.php
 app/helpers.php
 app/Console/Commands/GenerateContent.php
 app/Console/Commands/CheckContentLinks.php
+app/Console/Commands/TranslateMissing.php
+app/Console/Commands/PublishDue.php
 resources/content/blog-1405.php
 resources/content/kb-1405.php
 resources/content/docs-1405.php
@@ -243,6 +245,10 @@ g app/Console/Commands/GenerateContent.php "promptBlock"
 # لینکِ داخلی — هر دو لایه باید بنشیند، وگرنه مدل دوباره آدرس می‌سازد
 g app/Services/InternalLinks.php "public function sanitize"
 g app/Services/InternalLinks.php "public function localize"
+# درِ دومِ ساختِ ترجمه — بی‌این، لینکِ نسخهٔ en به فارسی می‌رود
+g app/Console/Commands/TranslateMissing.php "localize"
+# ضمانتِ سه‌زبانگی — بی‌این، مقالهٔ فارسی‌تنها روی /en/ سرو می‌شود
+g app/Console/Commands/PublishDue.php "GRACE_HOURS"
 g app/Services/AiContent.php "internal_links"
 
 # ⚠️ قاعدهٔ لینکِ محصولِ ممیزیِ سوم که develop اضافه کرده بود — این دیپلوی

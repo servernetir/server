@@ -89,8 +89,22 @@ Schedule::command('content:generate --limit=1 --plan=docs-1405')
     ->dailyAt('16:40')
     ->withoutOverlapping(30);
 
-// تکمیل ترجمه‌هایی که در تولید جا مانده‌اند
-Schedule::command('content:translate-missing --limit=2')
+/*
+| تکمیل ترجمه‌هایی که در تولید جا مانده‌اند — دو بار در روز.
+|
+| 🔴 نرخِ قبلی (روزی ۲) از نرخِ تولید (روزی ۵) کمتر بود. تا وقتی ترجمه سرِ
+| تولید موفق است اهمیتی ندارد، ولی یک قطعیِ چندساعتهٔ ارائه‌دهنده یعنی چند
+| مقاله بی‌ترجمه می‌مانند و این جبران‌کننده **هرگز** به آنها نمی‌رسد — عقب‌ماندگی
+| هر روز بیشتر می‌شود.
+|
+| ۰۶:۰۰ عمداً پیش از پنجرهٔ انتشار است: `content:publish-due` مقالهٔ ناقص را
+| ۲۴ ساعت نگه می‌دارد، پس این اجرا آخرین فرصتِ جبران پیش از انتشار است.
+*/
+Schedule::command('content:translate-missing --limit=6')
+    ->dailyAt('06:00')
+    ->withoutOverlapping(30);
+
+Schedule::command('content:translate-missing --limit=6')
     ->dailyAt('12:30')
     ->withoutOverlapping(30);
 

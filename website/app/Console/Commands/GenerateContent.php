@@ -102,11 +102,14 @@ class GenerateContent extends Command
 
         if (! $ai->enabled()) {
             $this->error('کلید هوش مصنوعی تنظیم نشده است.');
+            \App\Support\ErrorTracker::noteOnce('content',
+                'کلید هوش مصنوعی تنظیم نشده — تولید محتوا کاملاً متوقف است.', 3600);
 
             return self::FAILURE;
         }
 
         $ok = 0;
+        $failed = 0;
         foreach ($batch as $p) {
             $this->line('› '.$p['slug']);
 
@@ -134,6 +137,19 @@ class GenerateContent extends Command
 
             if (! $fa) {
                 $this->warn('  ✗ نگارش فارسی ناموفق — رد شد');
+
+                /*
+                 * 🔴 شکستِ نگارش باید **همان روز** دیده شود.
+                 *
+                 * بی‌این، یک قطعیِ ارائه‌دهندهٔ هوش مصنوعی فقط در لاگِ کرون
+                 * می‌مانَد. چکِ «صف محتوا» هم فوراً نمی‌گیردش: صف پر است و
+                 * انتشار از ذخیرهٔ پیش‌نویس‌ها ادامه می‌دهد، پس تا ته‌کشیدنِ
+                 * آن ذخیره (حدود چهار روز) همه‌چیز سبز به‌نظر می‌رسد.
+                 * چهار روزِ تولیدِ ازدست‌رفته پیش از اولین نشانه.
+                 */
+                $failed++;
+                \App\Support\ErrorTracker::noteOnce('content',
+                    'نگارش مقاله ناموفق بود (ارائه‌دهندهٔ هوش مصنوعی؟) — نمونه: '.$p['slug'], 3600);
 
                 continue;
             }
@@ -185,6 +201,17 @@ class GenerateContent extends Command
         BlogRepository::flush();
         DocsRepository::flush();
         $this->info("ساخته شد: {$ok} مقاله (پیش‌نویسِ زمان‌بندی‌شده)");
+
+        /*
+         * ⚠️ اگر هیچ‌چیز ساخته نشد ولی صف کار داشت، خروجیِ ناموفق بده.
+         * کدِ خروجیِ موفق روی شکستِ کامل همان چیزی است که خرابیِ مرداد را
+         * دوازده روز پنهان کرد.
+         */
+        if ($ok === 0 && $failed > 0) {
+            $this->error('هیچ مقاله‌ای ساخته نشد — هر '.$failed.' تلاش شکست خورد.');
+
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
     }
