@@ -605,6 +605,76 @@ class ContentPipelineTest extends TestCase
         $this->assertStringContainsString('FAQPage', article_faq_ld($html));
     }
 
+    /* ═══════════════════ ضمانتِ سه‌زبانگی ═══════════════════ */
+
+    /**
+     * 🔴 مقالهٔ فارسی‌تنها نباید سه‌زبانه وانمود شود.
+     *
+     * `Post::tr()` به فارسی برمی‌گردد و لایوت برای هر سه زبان hreflang می‌دهد،
+     * پس `/en/blog/x` با `lang="en"` متنِ فارسی سرو می‌کرد: محتوای تکراری روی
+     * سه آدرس + hreflangِ بی‌اعتبار.
+     */
+    public function test_a_post_missing_translations_is_held_back(): void
+    {
+        $p = $this->duePost('half-done', ['fa']);
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('draft', $p->fresh()->status, 'مقالهٔ ناقص نباید منتشر شود.');
+    }
+
+    public function test_a_fully_translated_post_publishes(): void
+    {
+        $p = $this->duePost('all-three', ['fa', 'en', 'tr']);
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('published', $p->fresh()->status);
+    }
+
+    /**
+     * ⚠️ ولی نگه‌داشتنِ ابدی همان خرابیِ مرداد از درِ دیگر است. بعد از مهلت
+     * منتشر می‌شود و صدایش هم درمی‌آید — سکوت هرگز گزینه نیست.
+     */
+    public function test_after_the_grace_window_it_publishes_anyway_and_says_so(): void
+    {
+        $p = $this->duePost('stuck-untranslated', ['fa'], now()->subHours(30));
+
+        $this->artisan('content:publish-due')
+            ->expectsOutputToContain('بدونِ ترجمهٔ کامل منتشر شد')
+            ->assertSuccessful();
+
+        $this->assertSame('published', $p->fresh()->status, 'بعد از مهلت باید منتشر شود.');
+    }
+
+    /** ترجمهٔ با عنوانِ خالی یعنی ردیفِ ناقص، نه ترجمهٔ موجود. */
+    public function test_an_empty_translation_does_not_count_as_translated(): void
+    {
+        $p = $this->duePost('empty-title', ['fa', 'en', 'tr'], null, emptyTitleFor: 'tr');
+
+        $this->artisan('content:publish-due')->assertSuccessful();
+
+        $this->assertSame('draft', $p->fresh()->status);
+    }
+
+    private function duePost(string $slug, array $locales, $at = null, ?string $emptyTitleFor = null): Post
+    {
+        $post = Post::create([
+            'slug' => $slug, 'type' => 'blog', 'category' => 'seo',
+            'status' => 'draft', 'published_at' => $at ?? now()->subMinutes(5),
+        ]);
+
+        foreach ($locales as $loc) {
+            PostTranslation::create([
+                'post_id' => $post->id, 'locale' => $loc, 'auto' => true,
+                'title' => $loc === $emptyTitleFor ? '' : 'عنوان '.$loc,
+                'content' => '<p>x</p>',
+            ]);
+        }
+
+        return $post;
+    }
+
     /* ═══════════════════ برخوردِ اسلاگ ═══════════════════ */
 
     /**
