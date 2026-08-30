@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\CryptoPayment;
+use App\Services\Notify\AdminNotifier;
 use App\Services\Payment\TronWatcher;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,7 +30,9 @@ use Illuminate\Support\Facades\Schema;
  */
 class CryptoAudit extends Command
 {
-    protected $signature = 'crypto:audit {--days=90 : بازهٔ بررسی بر حسبِ روز}';
+    protected $signature = 'crypto:audit
+        {--days=90 : بازهٔ بررسی بر حسبِ روز}
+        {--notify : اگر پروندهٔ بازی بود به مدیر آژیر بده (برای کرون)}';
 
     protected $description = 'یافتنِ پرداخت‌های رمزارز که با واریزیِ قدیمی‌تر از خودشان تسویه شده‌اند';
 
@@ -128,7 +132,50 @@ class CryptoAudit extends Command
         $this->line('این‌ها فاکتورهایی‌اند که «پرداخت‌شده» شده‌اند ولی پولشان ممکن است هرگز نرسیده باشد.');
         $this->line('تصمیمِ برگرداندن یا بستنِ سرویس با شماست — این فرمان چیزی را عوض نمی‌کند.');
 
+        if ($this->option('notify')) {
+            $this->alertAdmin($bad);
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * آژیر به مدیر — فقط وقتی پروندهٔ **باز** هست.
+     *
+     * 🔴 چرا فقط باز: اگر هر بار همهٔ موارد را می‌فرستاد، از هفتهٔ دوم کسی
+     * بازش نمی‌کرد و یک موردِ واقعیِ تازه بینِ همان پیام‌های تکراری گم می‌شد.
+     * آژیری که همیشه زنگ می‌زند، آژیر نیست.
+     *
+     * ⚠️ شکستِ خودِ آژیر بی‌صدا نمی‌مانَد: چیزی که قرار است از یک ضرر خبر
+     * دهد، نباید خودش بی‌رد بمیرد — همان قاعدهٔ ثبت‌شدهٔ CloudHourlyAudit.
+     *
+     * @param  array<int,array{0:CryptoPayment,1:array,2:int}>  $bad
+     */
+    private function alertAdmin(array $bad): void
+    {
+        try {
+            $rows = ['شمار' => fa_num((string) count($bad)).' پرونده'];
+
+            foreach (array_slice($bad, 0, 4) as $i => [$cp, $dep, $lag]) {
+                $rows['#'.($i + 1)] = ($cp->invoice?->number ?? 'فاکتور؟')
+                    .' · '.($cp->invoice?->customer?->code ?? 'مشتری؟')
+                    .' · واریزی '.$this->human($lag).' پیش از سفارش';
+            }
+
+            if (count($bad) > 4) {
+                $rows['و'] = fa_num((string) (count($bad) - 4)).' موردِ دیگر (crypto:audit را بزن)';
+            }
+
+            app(AdminNotifier::class)->event(
+                'پرداختِ رمزارز با واریزیِ قدیمی تسویه شده',
+                $rows,
+                null,
+                '🚨',
+            );
+        } catch (\Throwable $e) {
+            ErrorTracker::noteOnce('billing',
+                'آژیرِ حسابرسیِ رمزارز فرستاده نشد ('.count($bad).' پرونده): '.$e->getMessage(), 3600);
+        }
     }
 
     /**

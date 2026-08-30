@@ -103,6 +103,62 @@ class CryptoAuditResolvedTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * 🔴 آژیر فقط وقتی پروندهٔ **باز** هست زنگ می‌زند.
+     *
+     * آژیری که هر هفته صدا کند — حتی وقتی همه‌چیز سالم است — از هفتهٔ دوم
+     * خوانده نمی‌شود، و آن‌وقت موردِ واقعی هم دیده نمی‌شود.
+     */
+    public function test_the_alert_only_fires_when_something_is_open(): void
+    {
+        [$inv] = $this->staleCase('TAudit04', 'TX-ALERT-OPEN');
+
+        $spy = new class extends \App\Services\Notify\AdminNotifier
+        {
+            public int $fired = 0;
+
+            public function __construct() {}
+
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
+            {
+                $this->fired++;
+            }
+        };
+        $this->app->instance(\App\Services\Notify\AdminNotifier::class, $spy);
+
+        // پروندهٔ باز ⇒ باید زنگ بزند
+        $this->artisan('crypto:audit --days=60 --notify')->assertSuccessful();
+        $this->assertSame(1, $spy->fired, 'پروندهٔ باز بود ولی آژیر نزد');
+
+        // حالا رسیدگی می‌شود ⇒ دیگر نباید زنگ بزند
+        $inv->forceFill(['status' => 'canceled'])->save();
+
+        $this->artisan('crypto:audit --days=60 --notify')->assertSuccessful();
+        $this->assertSame(1, $spy->fired, 'با پروندهٔ رسیدگی‌شده هم آژیر زد — از هفتهٔ دوم نادیده می‌شود');
+    }
+
+    /** بی‌`--notify` هرگز آژیر نمی‌رود — اجرای دستیِ مدیر نباید به کسی پیام بدهد. */
+    public function test_without_the_flag_no_alert_is_sent(): void
+    {
+        $this->staleCase('TAudit05', 'TX-NO-FLAG');
+
+        $spy = new class extends \App\Services\Notify\AdminNotifier
+        {
+            public int $fired = 0;
+
+            public function __construct() {}
+
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
+            {
+                $this->fired++;
+            }
+        };
+        $this->app->instance(\App\Services\Notify\AdminNotifier::class, $spy);
+
+        $this->artisan('crypto:audit --days=60')->assertSuccessful();
+        $this->assertSame(0, $spy->fired);
+    }
+
     /** ✅ سرویسِ بسته‌شده هم یعنی رسیدگی‌شده — همان کاری که کارفرما کرد. */
     public function test_a_dead_service_marks_the_case_resolved(): void
     {
