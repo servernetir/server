@@ -119,9 +119,11 @@ grep -qF "'security_groups' =>" "$APP/app/Services/Cloud/ArvanClient.php" || { e
 grep -qF "function createServer" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 createServer از فایل پرید"; ok=0; }
 grep -qF "function fetchCatalog" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 کاتالوگ از فایل پرید"; ok=0; }
 grep -qF "'firewall'," "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 قرنطینهٔ خطای فایروال ننشست"; ok=0; }
-grep -qF "CLOCK_SKEW_SECONDS" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 گاردِ زمانیِ رمزارز پرید"; ok=0; }
-grep -qF "function settle" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 تسویه از فایل پرید"; ok=0; }
-grep -qF "freeOrphanedWallets" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 آزادسازیِ ولتِ یتیم پرید"; ok=0; }
+# ارکانِ موجودِ همین فایل نباید در merge پریده باشند
+grep -qF "function quarantineProvider" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 قرنطینه از فایل پرید"; ok=0; }
+grep -qF "function provision" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 provision از فایل پرید"; ok=0; }
+grep -qF "function refundIfPrepaid" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 بازگشتِ ساعتی پرید"; ok=0; }
+grep -qF "QUARANTINE_PREFIX" "$APP/app/Services/Cloud/CloudProvisioner.php" || { echo "🔴 پیشوندِ قرنطینه پرید"; ok=0; }
 
 if [ "$ok" -eq 0 ]; then
   echo "🔴 اتحاد ناقص — فایل از بکاپ برمی‌گردد."
