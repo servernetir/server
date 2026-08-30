@@ -34,8 +34,34 @@ class AdminNotifier
      * ⚠️ دکمه اختیاری است و نبودش رفتارِ قبلی را عوض نمی‌کند: ده‌ها فراخوانِ
      * موجود بی‌تغییر کار می‌کنند.
      */
-    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
+    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
     {
+        /*
+        | 🔴 کلیدِ اختیاری = «این رویداد در تنظیمات قابلِ مدیریت است».
+        |
+        | بی‌کلید، رفتار دقیقاً مثلِ قبل است — و این عمدی است: ۲۴ فراخوانِ موجود
+        | نباید یک‌جا بازنویسی شوند. هر کدام که کلید بگیرد، مدیر می‌تواند
+        | خاموشش کند یا متنش را خودش بنویسد.
+        |
+        | ⚠️ و **خاموش یعنی خاموش**: نه بله، نه ایمیل. اعلانی که مدیر صریح
+        | نخواسته، از درِ دیگر هم نباید بیاید.
+        */
+        /*
+        | کلید از **عنوان** پیدا می‌شود، نه از آرگومان.
+        |
+        | ۲۵ فراخوان شکل‌های متفاوتی دارند و افزودنِ آرگومانِ ششم به هرکدام
+        | یعنی ۲۵ ویرایشِ دستی روی کدی که تست ندارد. عنوان‌ها یکتا و ثابت‌اند،
+        | پس نقشهٔ `AdminAlerts` همان کار را با صفر تغییر می‌کند.
+        |
+        | ⚠️ عنوانِ ناشناخته ⇒ `null` ⇒ رفتارِ امروز. جهتِ خرابی امن است:
+        | اعلان می‌رود، فقط مدیریت‌پذیر نیست.
+        */
+        $key ??= \App\Support\AdminAlerts::keyFor($title);
+
+        if ($key !== null && ! $this->wanted($key)) {
+            return;
+        }
+
         $lines = [$emoji.' '.$title];
 
         foreach ($rows as $label => $value) {
@@ -51,8 +77,76 @@ class AdminNotifier
 
         $text = implode("\n", $lines);
 
+        /*
+        | متنِ دلخواهِ مدیر، با تگ‌هایی که از همان `$rows` می‌آیند.
+        |
+        | ⚠️ برچسبِ هر ردیف **خودش** تگ است: `{مشتری}`، `{مبلغ}`، `{IP}`. یعنی
+        | هیچ فراخوانی لازم نیست فهرستِ متغیر پاس بدهد — داده از قبل آن‌جاست.
+        |
+        | 🔴 طرحِ اولم یک آرایهٔ `vars`ِ جدا داشت و هر ۲۴ فراخوان باید عوض
+        | می‌شد. طبقِ قاعدهٔ ثبت‌شدهٔ این پروژه، فراخوانی که متغیرش را پاس ندهد
+        | الگویش را **هرگز** فعال نمی‌کند و مدیر متن را ویرایش می‌کند و هیچ
+        | اتفاقی نمی‌افتد — یعنی ۲۴ فرصتِ خرابیِ خاموش. این‌طور، صفر.
+        |
+        | 🔴 و اگر متنِ مدیر تگی داشته باشد که این رویداد نمی‌دهد،
+        | `NotificationTemplate::body()` خودش به متنِ پیش‌فرض برمی‌گردد. پیامی
+        | که در آن «{مبلغ}» چاپ شده، از پیامِ پیش‌فرض بدتر است.
+        */
+        if ($key !== null) {
+            $text = \App\Models\NotificationTemplate::body(
+                $key,
+                ['عنوان' => $title] + $this->tagsFrom($rows),
+                $text,
+            );
+        }
+
         $this->sendBale($text, $buttons);
         $this->sendMail($title, $text);
+    }
+
+    /**
+     * آیا مدیر این رویداد را می‌خواهد؟
+     *
+     * ⚠️ نبودِ ردیف یعنی **بله**، نه خیر. رویدادی که هنوز seed نشده باید مثلِ
+     * امروز بیاید؛ وگرنه یک مهاجرتِ نزده روی سرور همهٔ اعلان‌ها را بی‌صدا
+     * خاموش می‌کرد. سکوت باید تصمیمِ صریحِ مدیر باشد، نه پیش‌فرضِ یک نصبِ ناقص.
+     */
+    private function wanted(string $key): bool
+    {
+        /*
+        | 🔴 عمداً `forKey()` نیست.
+        |
+        | `forKey()` برای ردیفِ **خاموش** هم `null` می‌دهد — یعنی «نبود» و
+        | «خاموش» را یکی می‌کند. و چون نبود باید «بفرست» باشد، سوییچِ خاموش
+        | هیچ اثری نداشت: اعلان با وجودِ خاموشی می‌رفت. تستِ خاموشی همین را گرفت.
+        */
+        try {
+            $row = \App\Models\NotificationTemplate::query()
+                ->where('key', $key)->first(['is_active']);
+        } catch (\Throwable) {
+            return true;
+        }
+
+        return $row === null || (bool) $row->is_active;
+    }
+
+    /**
+     * ردیف‌ها → تگ‌ها. برچسبِ عددی (خطِ آزاد) تگ نمی‌شود.
+     *
+     * @param  array<string|int,string|int|null>  $rows
+     * @return array<string,string>
+     */
+    private function tagsFrom(array $rows): array
+    {
+        $out = [];
+
+        foreach ($rows as $label => $value) {
+            if (! is_int($label)) {
+                $out[(string) $label] = (string) ($value ?? '');
+            }
+        }
+
+        return $out;
     }
 
     private function sendBale(string $text, array $buttons = []): void

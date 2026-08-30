@@ -62,7 +62,7 @@ class AdminAwarenessNotifyTest extends TestCase
             | گرفت. این جایگزین دکمه‌ها را هم ثبت می‌کند تا تست بتواند
             | بسنجدشان — نه اینکه بی‌صدا دورشان بریزد.
             */
-            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
             {
                 $this->box[] = ['title' => $title, 'rows' => $rows, 'url' => $url, 'buttons' => $buttons];
             }

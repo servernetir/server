@@ -98,7 +98,10 @@ class ManualLifecycleNotice
             ], null, $emoji, [[
                 ['text' => '👤 مشتری #'.$service->id,
                  'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
-            ]]);
+            ]],
+                // ⚠️ کلیدِ صریح چون $title از $kind ساخته می‌شود؛ بی‌آن، مدیر
+                //    این اعلان را در تنظیمات نمی‌بیند و نمی‌تواند خاموشش کند.
+                key: 'admin.manual_lifecycle');
         } catch (\Throwable $e) {
             ErrorTracker::noteOnce('provision',
                 'اعلانِ کارِ دستیِ «'.$kind.'» برای سرویسِ #'.$service->id.' نرفت: '.$e->getMessage(), 900);

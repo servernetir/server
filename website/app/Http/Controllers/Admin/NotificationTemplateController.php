@@ -33,6 +33,35 @@ class NotificationTemplateController extends Controller
         return view('admin.template-edit', ['t' => $template]);
     }
 
+    /**
+     * روشن/خاموشِ یک اعلان — یک کلیک، بی‌بازکردنِ صفحهٔ ویرایش.
+     *
+     * ⚠️ «این را دیگر برایم نفرست» تصمیمِ یک‌کلیکی است. اگر برای هر
+     * خاموش‌کردن یک صفحه باز شود، عملاً هیچ‌وقت انجام نمی‌شود — و اعلانِ
+     * پرتکرارِ کم‌ارزش همان چیزی است که باعث می‌شود اعلانِ مهم دیده نشود.
+     *
+     * 🔴 فقط اعلانِ **مدیر**. الگوی مشتری از این‌جا خاموش نمی‌شود: آن‌جا
+     * خاموشی یعنی مشتری پیامِ ضروری (کدِ ورود، تحویلِ سرویس) را نگیرد، و
+     * چنین تصمیمی نباید پشتِ یک دکمهٔ کوچک در فهرست باشد.
+     */
+    public function toggle(Request $request, NotificationTemplate $template): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (($template->audience ?? 'customer') !== 'admin') {
+            return back()->withErrors('این الگو به مشتری می‌رود و از این‌جا خاموش نمی‌شود.');
+        }
+
+        $template->forceFill([
+            'is_active'  => ! $template->is_active,
+            'updated_by' => $request->user()?->id,
+        ])->save();
+
+        return back()->with('ok', $template->is_active
+            ? 'از این پس «'.$template->title.'» برایتان فرستاده می‌شود.'
+            : '«'.$template->title.'» دیگر برایتان فرستاده نمی‌شود.');
+    }
+
     public function update(Request $request, NotificationTemplate $template): RedirectResponse
     {
         $data = $request->validate([

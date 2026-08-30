@@ -196,7 +196,14 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('partials.header', function () {
             try {
-                config(['servernet.mega' => app(\App\Services\SiteMenu::class)->mega()]);
+                /*
+                | ⚠️ ترتیب مهم است: اول `SiteMenu` (که گروهِ «موقعیت مکانی» را
+                | زنده از کاتالوگ می‌سازد) و **بعد** رویهٔ مدیر. برعکسش یعنی
+                | کشورِ تازه‌ای که کاتالوگ اضافه می‌کند از فیلترِ خاموشی/ترتیبِ
+                | مدیر رد نمی‌شود و نامش هم قابلِ ویرایش نیست.
+                */
+                config(['servernet.mega' => app(\App\Services\MenuManager::class)
+                    ->mega(app(\App\Services\SiteMenu::class)->mega())]);
             } catch (\Throwable) {
                 // منو هرگز نباید صفحه را بشکند؛ در بدترین حالت همان config می‌مانَد
             }

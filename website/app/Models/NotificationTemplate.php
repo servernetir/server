@@ -16,7 +16,10 @@ use Illuminate\Support\Facades\Schema;
 class NotificationTemplate extends Model
 {
     protected $fillable = [
-        'key', 'title', 'group', 'email_subject', 'email_body',
+        // ⚠️ `audience` باید این‌جا باشد وگرنه mass assignment بی‌صدا دورش
+        //    می‌ریزد: ردیف ساخته می‌شود ولی با پیش‌فرضِ `customer`، و اعلانِ
+        //    مدیر هرگز در صفحهٔ خودش دیده نمی‌شود.
+        'key', 'title', 'group', 'audience', 'email_subject', 'email_body',
         'bale_body', 'sms_event', 'variables', 'is_active', 'updated_by',
     ];
 
@@ -192,9 +195,20 @@ class NotificationTemplate extends Model
         return ['subject' => $subject, 'html' => $html];
     }
 
-    /** هنوز جای‌نگهدارِ پرنشده دارد؟ */
+    /**
+     * هنوز جای‌نگهدارِ پرنشده دارد؟
+     *
+     * 🔴 الگو **باید** یونیکد باشد. نسخهٔ اولش `[a-z_]` بود و تگ‌های فارسی را
+     * اصلاً نمی‌دید: پیامی با «{مشتری}»ِ پرنشده از این محافظ رد می‌شد و همان
+     * چیزی بیرون می‌رفت که این متد قرار بود جلویش را بگیرد. محافظی که فقط
+     * برای نیمی از ورودی‌ها کار کند، دقیقاً برای نیمهٔ دیگر ساکت است.
+     *
+     * ⚠️ و عمداً فقط **حرف/زیرخط/فاصله**، نه هر چیزی داخلِ آکولاد: متنِ ایمیل
+     * CSS دارد و `{margin:0}` نباید «تگِ پرنشده» خوانده شود — وگرنه محافظ
+     * ایمیل‌های سالم را هم جلو می‌گیرد و آن‌ها بی‌صدا فرستاده نمی‌شوند.
+     */
     private static function incomplete(string $text): bool
     {
-        return (bool) preg_match('~\{[a-z_]+\}~i', $text);
+        return (bool) preg_match('~\{[\p{L}\p{M}_][\p{L}\p{M}_ ]*\}~u', $text);
     }
 }

@@ -508,4 +508,86 @@ return [
         ['icon' => 'layout', 'route' => 'docs.index', 'fa' => ['t' => 'مستندات', 'd' => 'راهنمای استفاده از محصولات سرورنت'],           'en' => ['t' => 'Documentation', 'd' => 'Product guides & how-tos'],           'tr' => ['t' => 'Dokümantasyon', 'd' => 'Ürün kullanım kılavuzları']],
         ['icon' => 'cap',    'anchor' => 'learning', 'fa' => ['t' => 'سایر موارد آموزشی', 'd' => 'رویداد، دوره آموزشی، پادکست و…'],          'en' => ['t' => 'Learning & Events', 'd' => 'Events, courses, podcasts & more'], 'tr' => ['t' => 'Eğitim & Etkinlikler', 'd' => 'Etkinlik, kurs, podcast ve daha fazlası']],
     ],
+
+    /*
+    |----------------------------------------------------------------------
+    | لینک‌های فوتر
+    |----------------------------------------------------------------------
+    |
+    | 🔴 این‌ها تا امروز مستقیم در `partials/footer.blade.php` سخت‌کد بودند و
+    | مدیریت‌ناپذیر. داده‌شدنشان پیش‌نیازِ صفحهٔ «منوها» در تنظیمات است: چیزی که
+    | داده نیست، رویه هم نمی‌پذیرد.
+    |
+    | ⚠️ فوتر روی **هر** صفحه رندر می‌شود. پس هر مقصد از `MenuManager` عبور
+    | می‌کند که نشانی را در try می‌سازد و آیتمِ ناساختنی را **رد** می‌کند. مرداد
+    | ۱۴۰۵ یک `lroute()` به روتِ بی‌نام در همین فایل کلِ en/tr را ۵۰۰ کرد.
+    |
+    | `label` یا کلیدِ ترجمه است (`ui.f_p1`) یا آرایهٔ متنِ مستقیمِ هر زبان.
+    | `locales` یعنی فقط در همان زبان‌ها دیده شود.
+    */
+    'footer_menu' => [
+        'products' => [
+            'head'  => 'ui.f_products',
+            'items' => [
+                ['key' => 'hosting', 'label' => 'ui.f_p1', 'route' => ['hosting', 'linux']],
+                ['key' => 'vps',     'label' => 'ui.f_p2', 'route' => ['catalog', ['category' => 'vps', 'slug' => 'iran']]],
+                ['key' => 'ded',     'label' => 'ui.f_p3', 'route' => ['catalog', ['category' => 'dedicated', 'slug' => 'iran']]],
+                ['key' => 'domain',  'label' => 'ui.f_p4', 'route' => ['catalog', ['category' => 'domain', 'slug' => 'popular-tlds']]],
+                ['key' => 'cloud',   'label' => 'ui.f_p5', 'route' => ['catalog', ['category' => 'cloud', 'slug' => 'iaas']]],
+            ],
+        ],
+
+        /*
+        | ⚠️ قبلاً هر پنج لینک به «#enterprise» می‌رفت: کاربر با پنج کلیکِ
+        | مختلف به یک جا می‌رسید و پنج فرصتِ لینک‌سازیِ داخلی هدر می‌شد، در حالی
+        | که برای هرکدام صفحهٔ اختصاصی داریم. «تلفن ابری» هم افزوده شد چون
+        | تنها راهکاری بود که از هیچ‌جای سایت لینک نداشت.
+        */
+        'solutions' => [
+            'head'  => 'ui.f_solutions',
+            'items' => [
+                ['key' => 'infra',   'label' => 'ui.f_s1', 'route' => ['solution', 'infrastructure']],
+                ['key' => 'ai',      'label' => 'ui.f_s2', 'route' => ['solution', 'ai-agents']],
+                ['key' => 'bpmn',    'label' => 'ui.f_s3', 'route' => ['solution', 'bpmn-erp']],
+                ['key' => 'web',     'label' => 'ui.f_s4', 'route' => ['solution', 'web-design']],
+                ['key' => 'seo',     'label' => 'ui.f_s5', 'route' => ['solution', 'seo-services']],
+                ['key' => 'managed', 'label' => 'ui.f_s6', 'route' => ['solution', 'managed']],
+                ['key' => 'phone',   'label' => 'ui.f_s7', 'route' => ['solution', 'cloud-phone']],
+                ['key' => 'all',     'label' => 'ui.f_s_all', 'route' => ['solutions.index'], 'strong' => true, 'arrow' => true],
+            ],
+        ],
+
+        'company' => [
+            'head'  => 'ui.f_company',
+            'items' => [
+                ['key' => 'about', 'label' => 'ui.f_c1', 'route' => ['about']],
+
+                /*
+                | 🔴 فقط فارسی: نسخهٔ en/tr این صفحات با ۴۱۰ برداشته شد و روتشان
+                | نام ندارد، پس `lroute()` در آن دو زبان استثنا می‌دهد.
+                */
+                ['key' => 'urmia', 'label' => ['fa' => 'خدمات ما در ارومیه'],
+                    'route' => ['urmia.hub'], 'locales' => ['fa']],
+
+                ['key' => 'blog',     'label' => 'ui.f_c3',      'route' => ['blog.index']],
+                ['key' => 'careers',  'label' => 'ui.cr_title',  'route' => ['careers']],
+                ['key' => 'status',   'label' => 'ui.status_title', 'route' => ['status']],
+                ['key' => 'sla',      'label' => 'ui.sla_title', 'route' => ['sla']],
+
+                // دو صفحهٔ اثباتِ ممیزی ۴ — بی‌لینکِ ورودی، صفحهٔ یتیم می‌شدند
+                ['key' => 'speed',    'label' => 'ui.f_speed',   'route' => ['speed']],
+                ['key' => 'terms',    'label' => 'ui.f_terms',   'route' => ['terms']],
+                ['key' => 'aup',      'label' => 'ui.f_aup',     'route' => ['aup']],
+                ['key' => 'abuse',    'label' => 'ui.f_abuse',   'route' => ['abuse']],
+                ['key' => 'official', 'label' => 'ui.f_official', 'route' => ['official']],
+
+                // نشانِ «میزبانی روی سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها
+                ['key' => 'badge',    'label' => 'ui.bdg_badge', 'route' => ['badge']],
+                ['key' => 'privacy',  'label' => 'ui.f_c4',      'route' => ['privacy']],
+
+                // ناحیهٔ کاربری = کنسولِ خودمان، نه WHMCSِ بیرونی
+                ['key' => 'account',  'label' => 'ui.f_c5', 'route' => ['account.home'], 'console' => true],
+            ],
+        ],
+    ],
 ];

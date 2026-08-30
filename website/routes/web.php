@@ -2129,6 +2129,8 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     $step('notification_templates', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('notification_templates')) {
             (new \Database\Seeders\NotificationTemplateSeeder())->run();
+            // اعلان‌های خودِ مدیر — تا در تنظیمات قابلِ خاموش‌کردن و ویرایش باشند
+            (new \Database\Seeders\AdminNotificationTemplateSeeder())->run();
         }
     });
 
@@ -2733,6 +2735,19 @@ Route::prefix('admin')->group(function () {
         Route::get('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'edit'])->middleware('admin');
         Route::post('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'update'])->middleware('admin');
         Route::post('/templates/{template}/test', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'test'])->middleware(['admin', 'throttle:6,1']);
+        Route::post('/templates/{template}/toggle', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'toggle'])->middleware('admin');
+
+        /*
+        | منوی هدر و فوتر — ویرایشِ متنِ سه‌زبانه، ترتیب، خاموشی و لینکِ تازه.
+        |
+        | ⚠️ همه `admin` می‌خواهند: فوتر روی **هر** صفحهٔ سایت رندر می‌شود، پس
+        | نوشتن در آن یعنی نوشتن روی کلِ سایت — نه یک تنظیمِ داخلی.
+        */
+        Route::post('/menus/save', [\App\Http\Controllers\Admin\MenuController::class, 'save'])->middleware('admin');
+        Route::post('/menus/hide', [\App\Http\Controllers\Admin\MenuController::class, 'hide'])->middleware('admin');
+        Route::post('/menus/add', [\App\Http\Controllers\Admin\MenuController::class, 'add'])->middleware('admin');
+        Route::post('/menus/{override}/toggle', [\App\Http\Controllers\Admin\MenuController::class, 'toggle'])->middleware('admin');
+        Route::delete('/menus/{override}', [\App\Http\Controllers\Admin\MenuController::class, 'destroy'])->middleware('admin');
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');

@@ -1,9 +1,14 @@
 @php
     $loc = app()->getLocale();
     $mega = config('servernet.mega');
-    $servicesMenu = config('servernet.services_menu');
-    $toolsMenu = config('servernet.tools_menu');
-    $knowledgeMenu = config('servernet.knowledge_menu');
+    // ⚠️ از `MenuManager` و نه مستقیم از config: رویهٔ مدیر (خاموشی، متنِ
+    //    سه‌زبانه، ترتیب، لینکِ افزوده) این‌جا اعمال می‌شود. عمداً `config()`
+    //    بازنویسی نمی‌شود چون `pages/knowledge` به `knowledge_menu[0..3]`
+    //    دسترسیِ **موقعیتی** دارد و جابه‌جایی در پنل آن صفحه را می‌شکست.
+    $mm = app(\App\Services\MenuManager::class);
+    $servicesMenu = $mm->flat('services');
+    $toolsMenu = $mm->flat('tools');
+    $knowledgeMenu = $mm->flat('knowledge');
 @endphp
 <div class="site-header-wrap" id="header-wrap">
   {{-- ══════ نوارِ «جای مشتری نشسته‌اید» (impersonation) ══════
