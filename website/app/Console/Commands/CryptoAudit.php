@@ -85,22 +85,41 @@ class CryptoAudit extends Command
 
             $lagSeconds = (int) $cp->created_at->timestamp - (int) $dep['timestamp'];
 
-            if ($lagSeconds > 120) {
-                $bad[] = [$cp, $dep, $lagSeconds];
-                $this->error(sprintf('  🔴 #%d  فاکتور %s  مشتری %s — واریزی %s پیش از ساختِ پرداخت رخ داده',
-                    $cp->id,
-                    $cp->invoice?->number ?? '—',
-                    $cp->invoice?->customer?->code ?? '—',
-                    $this->human($lagSeconds),
-                ));
-                $this->line('       txid: '.$cp->txid);
+            if ($lagSeconds <= 120) {
+                continue;
             }
+
+            $line = sprintf('#%d  فاکتور %s  مشتری %s — واریزی %s پیش از ساختِ پرداخت رخ داده',
+                $cp->id,
+                $cp->invoice?->number ?? '—',
+                $cp->invoice?->customer?->code ?? '—',
+                $this->human($lagSeconds),
+            );
+
+            /*
+            | ⚠️ پروندهٔ **رسیدگی‌شده** دیگر قرمز نیست.
+            |
+            | نسخهٔ اول هر بار همان موردِ قدیمی را ۴۰ بار قرمز نشان می‌داد،
+            | حتی بعد از اینکه مدیر سرویس را بسته بود. هشداری که همیشه روشن
+            | است از روز دوم نادیده گرفته می‌شود — همان درسی که در
+            | `SystemHealth` و نشانِ منو ثبت شده. حالا فقط چیزی قرمز است که
+            | هنوز کارِ آدم می‌خواهد.
+            */
+            if ($this->settled($cp)) {
+                $this->line('  ✅ '.$line.'  — رسیدگی شده (فاکتور/سرویس بسته است)');
+
+                continue;
+            }
+
+            $bad[] = [$cp, $dep, $lagSeconds];
+            $this->error('  🔴 '.$line);
+            $this->line('       txid: '.$cp->txid);
         }
 
         $this->line('');
 
         if ($bad === []) {
-            $this->info('✅ هیچ پرداختی با واریزیِ قدیمی تسویه نشده است.');
+            $this->info('✅ هیچ پروندهٔ بازی نیست — هر واریزیِ قدیمی که پیدا شد، قبلاً رسیدگی شده.');
 
             return self::SUCCESS;
         }
@@ -110,6 +129,30 @@ class CryptoAudit extends Command
         $this->line('تصمیمِ برگرداندن یا بستنِ سرویس با شماست — این فرمان چیزی را عوض نمی‌کند.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * آیا این پرونده تعیین‌تکلیف شده؟
+     *
+     * ⚠️ دو املا در کدِ پروژه زنده است: فاکتور `canceled` (یک l) و
+     * سرویس `cancelled` (دو l). سنجشِ فقط یکی، نیمی از پرونده‌های بسته را «باز»
+     * می‌خواند.
+     */
+    private function settled(CryptoPayment $cp): bool
+    {
+        $inv = $cp->invoice;
+
+        if ($inv === null) {
+            return true;                     // فاکتور دیگر نیست؛ کاری نمانده
+        }
+
+        if (in_array((string) $inv->status, ['canceled', 'cancelled', 'refunded'], true)) {
+            return true;
+        }
+
+        $service = $inv->service;
+
+        return $service !== null && $service->isDead();
     }
 
     private function human(int $s): string
