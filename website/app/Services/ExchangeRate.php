@@ -25,6 +25,17 @@ class ExchangeRate
         'EUR' => 'eur',
     ];
 
+    /**
+     * مهلتِ دریافتِ صفحهٔ نرخ.
+     *
+     * 🔴 ۱۲ ثانیه کم بود. صفحهٔ دلارِ منبع ~۱.۳ مگابایت است (دو برابرِ یورو) و
+     * از سرورِ آلمان تا میزبانِ ایرانی همیشه در آن پنجره نمی‌رسید. نتیجه‌اش
+     * ساکت بود و شبیهِ هیچ خرابی‌ای نبود: یورو تازه می‌شد، دلار نه — و چون
+     * قیمتِ **رمزارز** روی دلار سوار است، درگاهِ رمزارز خاموش می‌مانْد در حالی
+     * که کاتالوگِ یورویی سالم بود. همان چیزی که کارفرما دید.
+     */
+    private const FETCH_TIMEOUT = 30;
+
     /** بازهٔ عاقلانه به تومان — بیرون از این یعنی استخراج اشتباه */
     private const MIN_TOMAN = 20_000;
     private const MAX_TOMAN = 5_000_000;
@@ -157,7 +168,7 @@ class ExchangeRate
             $html = Http::withHeaders([
                 'User-Agent'      => 'Mozilla/5.0 (compatible; ServerNetBot/1.0)',
                 'Accept-Language' => 'fa,en;q=0.8',
-            ])->timeout(12)->retry(2, 500)
+            ])->timeout(self::FETCH_TIMEOUT)->retry(2, 800)
               ->get("https://alanchand.com/currencies-price/{$slug}")
               ->body();
         } catch (\Throwable $e) {
