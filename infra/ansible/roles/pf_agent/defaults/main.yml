@@ -1,0 +1,20 @@
+---
+# The port-forward agent runs ON THE HOST (public IP lives here) and DNATs
+# public sale ports -> guest private IP:port, driven by the panel's API. It uses
+# a DEDICATED iptables chain (SERVERNET-PF) so it is fully additive: flushing
+# that one chain removes every rule it ever added, touching nothing else.
+#
+# ⚠️ سرورِ اصلی (پنلِ لاراول) روی آلمان است — نه پنلِ interimِ قدیمی روی
+# 10.10.10.30. عاملِ ایران باید از دامنهٔ اصلی pull کند، وگرنه «حالتِ مطلوب» را
+# هرگز نمی‌گیرد و ضربانِ صفحهٔ «زیرساختِ اکسیت» کهنه می‌مانَد (باگِ ۲۰۲۶-۰۸-۲۱:
+# ایجنت ۳٫۵ روز به پنلِ قدیمی می‌زد و هیچ مسیر/پورتی اعمال نمی‌شد).
+pf_panel_url: "https://servernet.cloud/agent/portforwards"
+cr_panel_url: "https://servernet.cloud/agent/countryroutes"
+pf_public_iface: vmbr0        # verify: ip -o addr show | grep {{ public_ip }}
+pf_chain: SERVERNET-PF
+pf_timer_interval: "1min"
+
+# Safe by default: stage the script/units on the host; pf_apply=true to install
+# + enable the timer (this is the only role that edits host firewall state).
+pf_apply: false
+pf_stage_dir: "/root/.servernet/pf"

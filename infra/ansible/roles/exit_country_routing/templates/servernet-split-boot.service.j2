@@ -1,0 +1,15 @@
+[Unit]
+Description=ServerNet split-routing boot persistence (fail-closed table {{ cr_split_table }} + per-VM marks + IPv6 block)
+Wants=network-online.target
+After=network-online.target
+# Run BEFORE customer guests autostart, so no country VM can egress via Iran in
+# the window between boot and the country-agent's first reconcile.
+Before=pve-guests.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/servernet-split-boot
+
+[Install]
+WantedBy=multi-user.target

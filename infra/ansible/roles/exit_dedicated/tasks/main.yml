@@ -1,0 +1,120 @@
+---
+# exit_dedicated — install the dedicated-exit mechanism into LXC {{ ded_ctid }}
+# (+ panel helper into {{ ded_panel_ctid }} + host wrappers). Stage-by-default;
+# dedicated_apply=true installs it, and applies any declared dedicated_exits.
+#
+# ROLLBACK: per country -> servernet-exit-del <cc>. Whole mechanism is additive
+# (only touches a country once you run servernet-exit-set for it).
+
+- name: Ensure host staging dir
+  ansible.builtin.file:
+    path: "{{ dedicated_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Render scripts + units + host wrappers to staging
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ dedicated_stage_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: "servernet-exit-set.j2",              dest: "servernet-exit-set",              mode: "0755" }
+    - { src: "servernet-exit-del.j2",              dest: "servernet-exit-del",              mode: "0755" }
+    - { src: "servernet-exit-list.j2",             dest: "servernet-exit-list",             mode: "0755" }
+    - { src: "servernet-dedicated-ssh-run.j2",     dest: "servernet-dedicated-ssh-run",     mode: "0755" }
+    - { src: "servernet-dedicated-ssh@.service.j2",  dest: "servernet-dedicated-ssh@.service",  mode: "0644" }
+    - { src: "servernet-dedicated-conv@.service.j2", dest: "servernet-dedicated-conv@.service", mode: "0644" }
+    - { src: "sn-panel-countries-sync.j2",         dest: "sn-panel-countries-sync",         mode: "0755" }
+    - { src: "servernet-exit-set.host.j2",         dest: "servernet-exit-set.host",         mode: "0750" }
+    - { src: "servernet-exit-del.host.j2",         dest: "servernet-exit-del.host",         mode: "0750" }
+
+- name: Stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "exit_dedicated staged at {{ dedicated_stage_dir }} (mechanism only; no exits set)."
+      - "Apply with -e dedicated_apply=true. Then add a server at runtime:"
+      - "  servernet-exit-set <cc> --ssh root@<host> [--key <keyfile>]   (or --socks / --link)"
+      - "{{ dedicated_exits | length }} dedicated exit(s) declared in code."
+  when: not (dedicated_apply | bool)
+
+- name: Apply exit_dedicated
+  when: dedicated_apply | bool
+  block:
+    - name: Confirm containers exist
+      ansible.builtin.command: "pct status {{ item }}"
+      loop:
+        - "{{ ded_ctid }}"
+        - "{{ ded_panel_ctid }}"
+      changed_when: false
+
+    - name: Ensure /etc/servernet exists in exit container
+      ansible.builtin.command: pct exec {{ ded_ctid }} -- mkdir -p /etc/servernet
+      changed_when: false
+
+    - name: Push mechanism scripts into exit container ({{ ded_ctid }})
+      ansible.builtin.command: "pct push {{ ded_ctid }} {{ dedicated_stage_dir }}/{{ item.s }} {{ item.d }}"
+      loop:
+        - { s: "servernet-exit-set",          d: "/usr/local/bin/servernet-exit-set" }
+        - { s: "servernet-exit-del",          d: "/usr/local/bin/servernet-exit-del" }
+        - { s: "servernet-exit-list",         d: "/usr/local/bin/servernet-exit-list" }
+        - { s: "servernet-dedicated-ssh-run", d: "/usr/local/bin/servernet-dedicated-ssh-run" }
+      changed_when: true
+
+    - name: Make exit-container scripts executable
+      ansible.builtin.command: "pct exec {{ ded_ctid }} -- chmod 0755 {{ item }}"
+      loop:
+        - /usr/local/bin/servernet-exit-set
+        - /usr/local/bin/servernet-exit-del
+        - /usr/local/bin/servernet-exit-list
+        - /usr/local/bin/servernet-dedicated-ssh-run
+      changed_when: false
+
+    - name: Push dedicated systemd unit templates into exit container
+      ansible.builtin.command: "pct push {{ ded_ctid }} {{ dedicated_stage_dir }}/{{ item }} /etc/systemd/system/{{ item }}"
+      loop:
+        - "servernet-dedicated-ssh@.service"
+        - "servernet-dedicated-conv@.service"
+      changed_when: true
+
+    - name: Reload systemd in exit container
+      ansible.builtin.command: pct exec {{ ded_ctid }} -- systemctl daemon-reload
+      changed_when: false
+
+    - name: Push panel catalog sync helper into panel container ({{ ded_panel_ctid }})
+      ansible.builtin.command: "pct push {{ ded_panel_ctid }} {{ dedicated_stage_dir }}/sn-panel-countries-sync /usr/local/bin/sn-panel-countries-sync"
+      changed_when: true
+
+    - name: Make panel helper executable
+      ansible.builtin.command: pct exec {{ ded_panel_ctid }} -- chmod 0755 /usr/local/bin/sn-panel-countries-sync
+      changed_when: false
+
+    - name: Install host wrappers (orchestrate exit container + panel sync)
+      ansible.builtin.copy:
+        src: "{{ dedicated_stage_dir }}/{{ item.s }}"
+        dest: "/usr/local/sbin/{{ item.d }}"
+        mode: "0750"
+        remote_src: true
+      loop:
+        - { s: "servernet-exit-set.host", d: "servernet-exit-set" }
+        - { s: "servernet-exit-del.host", d: "servernet-exit-del" }
+
+    - name: Apply declared dedicated exits (optional)
+      ansible.builtin.command: >-
+        /usr/local/sbin/servernet-exit-set {{ item.cc }}
+        {% if item.method == 'ssh' %}--ssh {{ item.target }}{% if item.key is defined %} --key {{ item.key }}{% endif %}
+        {% elif item.method == 'socks' %}--socks {{ item.socks }}
+        {% elif item.method == 'link' %}--link {{ item.link }}{% endif %}
+      loop: "{{ dedicated_exits }}"
+      loop_control:
+        label: "{{ item.cc }}/{{ item.method }}"
+      when: dedicated_exits | length > 0
+      no_log: true            # SSH targets/keys and links may be sensitive
+      changed_when: true
+
+    - name: exit_dedicated apply summary
+      ansible.builtin.debug:
+        msg:
+          - "Dedicated-exit mechanism installed in LXC {{ ded_ctid }} (+ panel helper in {{ ded_panel_ctid }}, host wrappers)."
+          - "Add a server:  servernet-exit-set <cc> --ssh root@<host> [--key <keyfile>]   (or --socks host:port / --link <uri>)"
+          - "List: servernet-exit-list   Remove: servernet-exit-del <cc>"
+          - "{{ dedicated_exits | length }} declared exit(s) applied."

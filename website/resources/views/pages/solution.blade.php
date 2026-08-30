@@ -1,0 +1,346 @@
+@extends('layouts.site')
+
+@php
+    $s = lc($sol);                       // محتوای زبان جاری
+    $accent = $sol['accent'] ?? 'cyan';
+    // حل آدرس: انکور/URL خارجی همان‌طور، وگرنه نام روت داخلی (مثل contact)
+    $hrefOf = function ($h) {
+        if (! $h) return lroute('contact');
+        if (str_starts_with($h, '#') || str_starts_with($h, 'http')) return $h;
+        if (str_contains($h, ':')) { [$n, $p] = explode(':', $h, 2); return lroute($n, $p); }
+        return lroute($h);
+    };
+    $isExt = fn ($h) => is_string($h) && str_starts_with($h, 'http');
+@endphp
+
+@section('title', $s['meta_t'].' — '.__('ui.brand'))
+@section('description', $s['meta_d'])
+
+@section('content')
+
+{{-- ============ HERO ============ --}}
+<section class="hero hero-sub sol-hero sol-{{ $accent }}">
+  <div class="sol-hero-glow"></div>
+  <div class="container">
+    <div class="sol-hero-inner">
+      <div class="sol-hero-txt">
+        @if(!empty($s['badge']))
+        <span class="badge reveal"><span class="pulse"></span><span>{{ $s['badge'] }}</span></span>
+        @endif
+        <h1 class="reveal" style="transition-delay:.06s">{{ $s['h1a'] }} <span class="grad">{{ $s['h1b'] }}</span></h1>
+        <p class="lead reveal" style="transition-delay:.14s">{{ $s['lead'] }}</p>
+        <div class="sol-hero-cta reveal" style="transition-delay:.22s">
+          @if(!empty($s['cta1']))
+          <a class="btn btn-primary" href="{{ $hrefOf($s['cta1']['href']) }}" @if($isExt($s['cta1']['href'])) target="_blank" rel="noopener" @endif>{{ $s['cta1']['label'] }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+          @endif
+          @if(!empty($s['cta2']))
+          <a class="btn btn-glass" href="{{ $hrefOf($s['cta2']['href']) }}">{{ $s['cta2']['label'] }}</a>
+          @endif
+        </div>
+      </div>
+      @if(!empty($s['stats']))
+      <div class="sol-hero-stats reveal" style="transition-delay:.3s">
+        @foreach($s['stats'] as $st)
+        <div class="sol-stat"><b>{{ $st['n'] }}</b><span>{{ $st['l'] }}</span></div>
+        @endforeach
+      </div>
+      @endif
+    </div>
+  </div>
+</section>
+
+{{-- ============ TRUST STRIP ============ --}}
+@if(!empty($s['trust']))
+<section class="sol-trust">
+  <div class="container">
+    <div class="sol-trust-row reveal">
+      @foreach($s['trust'] as $tr)
+      <span class="sol-trust-item"><svg class="icon"><use href="#i-{{ $tr['icon'] }}"/></svg>{{ $tr['t'] }}</span>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ PLATFORM ============ --}}
+{{-- بخش‌های زیر **اختیاری**اند: تا وقتی کلیدشان در config نباشد رندر نمی‌شوند،
+     پس نُه راهکارِ دیگر که این کلیدها را ندارند دست‌نخورده می‌مانند. --}}
+@if(!empty($s['platform']))
+<section class="section" id="platform">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['platform_badge']))<span class="kicker">{{ $s['platform_badge'] }}</span>@endif
+      <h2>{{ $s['platform_t'] ?? '' }}</h2>
+      @if(!empty($s['platform_d']))<p>{{ $s['platform_d'] }}</p>@endif
+    </div>
+    <div class="sol-feat-grid">
+      @foreach($s['platform'] as $f)
+      <div class="sol-feat reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $f['icon'] }}"/></svg></span>
+        <h3>{{ $f['t'] }}</h3>
+        <p>{{ $f['d'] }}</p>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ USE CASES ============ --}}
+@if(!empty($s['usecases']))
+<section class="section" id="usecases">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['usecases_badge']))<span class="kicker">{{ $s['usecases_badge'] }}</span>@endif
+      <h2>{{ $s['usecases_t'] ?? '' }}</h2>
+      @if(!empty($s['usecases_d']))<p>{{ $s['usecases_d'] }}</p>@endif
+    </div>
+    <div class="sol-uc-grid">
+      @foreach($s['usecases'] as $u)
+      <div class="sol-uc reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $u['icon'] }}"/></svg></span>
+        <h3>{{ $u['t'] }}</h3>
+        <ul class="sol-uc-list">
+          @foreach($u['items'] as $it)
+          <li><svg class="icon"><use href="#i-check"/></svg>{{ $it }}</li>
+          @endforeach
+        </ul>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ FEATURES ============ --}}
+@if(!empty($s['features']))
+<section class="section">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['features_badge']))<span class="kicker">{{ $s['features_badge'] }}</span>@endif
+      <h2>{{ $s['features_t'] ?? '' }}</h2>
+      @if(!empty($s['features_d']))<p>{{ $s['features_d'] }}</p>@endif
+    </div>
+    <div class="sol-feat-grid">
+      @foreach($s['features'] as $f)
+      <div class="sol-feat reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $f['icon'] }}"/></svg></span>
+        <h3>{{ $f['t'] }}</h3>
+        <p>{{ $f['d'] }}</p>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ STEPS ============ --}}
+@if(!empty($s['steps']))
+<section class="section sol-steps-sec" id="steps">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['steps_badge']))<span class="kicker">{{ $s['steps_badge'] }}</span>@endif
+      <h2>{{ $s['steps_t'] ?? '' }}</h2>
+      @if(!empty($s['steps_d']))<p>{{ $s['steps_d'] }}</p>@endif
+    </div>
+    <div class="sol-steps">
+      @foreach($s['steps'] as $i => $st)
+      <div class="sol-step reveal">
+        <span class="sol-step-n">{{ $isFa ? fa_num($i + 1) : $i + 1 }}</span>
+        <h3>{{ $st['t'] }}</h3>
+        <p>{{ $st['d'] }}</p>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ DOWNLOADS ============ --}}
+@if(!empty($s['downloads']))
+<section class="section" id="download">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['downloads_badge']))<span class="kicker">{{ $s['downloads_badge'] }}</span>@endif
+      <h2>{{ $s['downloads_t'] ?? '' }}</h2>
+      @if(!empty($s['downloads_d']))<p>{{ $s['downloads_d'] }}</p>@endif
+    </div>
+    @if(!empty($release['version']))
+      <p class="sol-dl-ver reveal">{{ __('ui.sol_dl_ver', ['v' => fa_num($release['version'])]) }}</p>
+    @endif
+
+    {{--
+      🔴 دکمهٔ دانلود فقط وقتی دکمه است که **فایلی** پشتش باشد.
+
+      تا امروز هر چهار سکو (ویندوز، اندروید، مک، آیفون) دکمهٔ دانلود داشتند و
+      هر چهارتا به آدرسِ خالیِ پورتال می‌رفتند — در حالی که سه‌تای‌شان روی خودِ
+      پورتال «به‌زودی» بودند. یعنی مشتری کلیک می‌کرد، «به‌زودی» می‌دید، و نتیجه
+      می‌گرفت محصول ادعاست. حالا سکویی که هنوز منتشر نشده صریح «به‌زودی» است و
+      اصلاً لینک نیست؛ و لینکِ سکوی منتشرشده مستقیم به **فایلِ نسخهٔ روز** روی
+      زیردامنه می‌رود، پس انتشارِ تازه خودبه‌خود این‌جا هم عوض می‌شود.
+
+      ⚠️ اگر پورتال در دسترس نبود، `$file` نال می‌شود و به رفتارِ قدیمی
+      (لینک به خودِ پورتال از config) برمی‌گردیم — نه صفحهٔ خراب، نه دکمهٔ مرده.
+    --}}
+    <div class="sol-dl-grid">
+      @foreach($s['downloads'] as $d)
+        @php
+            $platform = $d['platform'] ?? null;
+            $file     = $platform ? ($release['files'][$platform] ?? null) : null;
+            $known    = $platform !== null && ! empty($release['files']);
+            $soon     = $known && $file === null;
+            $href     = $file ?? ($d['href'] ?? '');
+        @endphp
+
+        @if($soon)
+          <div class="sol-dl reveal is-soon" aria-disabled="true">
+            <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
+            <b>{{ $d['t'] }}</b>
+            <small>{{ $d['meta'] }}</small>
+            <span class="sol-dl-btn">{{ __('ui.sol_dl_soon') }}</span>
+          </div>
+        @else
+          <a class="sol-dl reveal" href="{{ $hrefOf($href) }}"
+             @if($isExt($href)) target="_blank" rel="noopener" @endif
+             @if($file) download @endif>
+            <span class="sol-dl-ic"><svg class="icon"><use href="#i-{{ $d['icon'] }}"/></svg></span>
+            <b>{{ $d['t'] }}</b>
+            <small>{{ $d['meta'] }}</small>
+            <span class="sol-dl-btn">{{ $d['btn'] ?? ($s['downloads_btn'] ?? '') }}</span>
+          </a>
+        @endif
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ PACKAGES ============ --}}
+@if(!empty($s['packages']))
+<section class="section" id="packages">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['packages_badge']))<span class="kicker">{{ $s['packages_badge'] }}</span>@endif
+      <h2>{{ $s['packages_t'] ?? '' }}</h2>
+      @if(!empty($s['packages_d']))<p>{{ $s['packages_d'] }}</p>@endif
+    </div>
+    <div class="sol-plans">
+      @foreach($s['packages'] as $p)
+      <div class="sol-plan reveal @if(!empty($p['featured'])) featured @endif">
+        @if(!empty($p['featured']))<span class="sol-plan-tag">{{ $s['popular'] ?? '' }}</span>@endif
+        <h3>{{ $p['name'] }}</h3>
+        @if(!empty($p['tagline']))<p class="sol-plan-tag2">{{ $p['tagline'] }}</p>@endif
+        <div class="sol-plan-price"><b>{{ $p['price'] }}</b>@if(!empty($p['unit']))<span>{{ $p['unit'] }}</span>@endif</div>
+        <ul class="sol-plan-feats">
+          @foreach($p['features'] as $pf)
+          <li><svg class="icon"><use href="#i-check"/></svg>{{ $pf }}</li>
+          @endforeach
+        </ul>
+        <a class="btn @if(!empty($p['featured'])) btn-primary @else btn-glass @endif" href="{{ $hrefOf($p['href'] ?? null) }}">{{ $p['cta'] ?? ($s['cta_btn'] ?? '') }}</a>
+      </div>
+      @endforeach
+    </div>
+    @if(!empty($s['packages_note']))<p class="sol-plans-note reveal">{{ $s['packages_note'] }}</p>@endif
+  </div>
+</section>
+@endif
+
+{{-- ============ COMPARISON ============ --}}
+@if(!empty($s['compare']))
+<section class="section">
+  <div class="container" style="max-width:900px">
+    <div class="section-head reveal"><h2>{{ $s['compare_t'] ?? '' }}</h2></div>
+    <div class="sol-compare reveal">
+      <table>
+        {{-- ستونِ سوم اختیاری است: بی‌آن، جدول دقیقاً مثلِ قبل دو ستونه می‌مانَد
+             و بقیهٔ راهکارها تغییری نمی‌کنند. --}}
+        @php $third = ! empty($s['compare_them2']); @endphp
+        <thead><tr>
+          <th>{{ $s['compare_col0'] ?? '' }}</th>
+          @if($third)<th>{{ $s['compare_them2'] }}</th>@endif
+          <th class="us">{{ $s['compare_us'] ?? 'ServerNet' }}</th>
+          <th>{{ $s['compare_them'] ?? '' }}</th>
+        </tr></thead>
+        <tbody>
+          @foreach($s['compare'] as $row)
+          <tr>
+            <td>{{ $row['f'] }}</td>
+            @if($third)<td>{{ $row['them2'] ?? '—' }}</td>@endif
+            <td class="us"><svg class="icon ok"><use href="#i-check"/></svg>{{ $row['us'] }}</td>
+            <td>{{ $row['them'] }}</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ SECURITY & DATA GOVERNANCE ============ --}}
+@if(!empty($s['security']))
+<section class="section" id="security">
+  <div class="container">
+    <div class="section-head reveal">
+      @if(!empty($s['security_badge']))<span class="kicker">{{ $s['security_badge'] }}</span>@endif
+      <h2>{{ $s['security_t'] ?? '' }}</h2>
+      @if(!empty($s['security_d']))<p>{{ $s['security_d'] }}</p>@endif
+    </div>
+    <div class="sol-feat-grid">
+      @foreach($s['security'] as $f)
+      <div class="sol-feat reveal">
+        <span class="sol-feat-ic"><svg class="icon"><use href="#i-{{ $f['icon'] }}"/></svg></span>
+        <h3>{{ $f['t'] }}</h3>
+        <p>{{ $f['d'] }}</p>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- ============ FAQ ============ --}}
+@if(!empty($s['faq']))
+<section class="section">
+  <div class="container" style="max-width:820px">
+    <div class="section-head reveal"><h2>{{ $s['faq_t'] ?? __('ui.lk_faq') }}</h2></div>
+    <div class="lk-faq reveal">
+      @foreach($s['faq'] as $f)
+      <details class="lk-faq-item"><summary>{{ $f['q'] }}</summary><p>{{ $f['a'] }}</p></details>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+{{-- راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳). دستهٔ اختصاصی از config راهکار
+     (blog_cat)، وگرنه پیش‌فرضِ راهکارها. --}}
+@include('partials.product-guides', ['guidesCat' => $s['blog_cat'] ?? config('blog.product_guides.solutions')])
+
+{{-- ============ CTA ============ --}}
+<section class="section" style="padding-top:0;padding-bottom:80px">
+  <div class="container">
+    <div class="sol-cta reveal">
+      <div class="sol-cta-glow"></div>
+      <h2>{{ $s['cta_t'] ?? '' }}</h2>
+      <p>{{ $s['cta_d'] ?? '' }}</p>
+      <div class="sol-cta-btns">
+        {{-- 🔴 از $hrefOf رد می‌شود، نه مقدارِ خام.
+             config برای راهکارِ BPMN مقدارِ نسبیِ 'contact' دارد؛ خام که چاپ
+             شود، مرورگر نسبت به /solutions/ حلش می‌کند ⇒ /en/solutions/contact
+             و ۴۰۴. یعنی مهم‌ترین دکمهٔ آن صفحه، در هر سه زبان، مرده بود. --}}
+        <a class="btn btn-primary" href="{{ $hrefOf($s['cta_href'] ?? null) }}" @if($isExt($s['cta_href'] ?? null)) target="_blank" rel="noopener" @endif>{{ $s['cta_btn'] ?? '' }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-glass" href="{{ lroute('contact') }}">{{ $s['cta_btn2'] ?? __('ui.nav_contact') }}</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{{-- ============ JSON-LD ============ --}}
+@if(!empty($s['faq']))
+<script type="application/ld+json">{!! json_encode([
+    '@'.'context' => 'https://schema.org', '@type' => 'FAQPage',
+    'mainEntity' => array_map(fn ($f) => ['@type' => 'Question', 'name' => $f['q'], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f['a']]], $s['faq']),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endif
+@endsection

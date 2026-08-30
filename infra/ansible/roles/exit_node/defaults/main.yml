@@ -1,0 +1,18 @@
+---
+exit_ctid: "{{ exit_ctid | default(113) }}"
+singbox_version: "1.13.15"
+singbox_bin: /usr/local/bin/sing-box
+singbox_conf_dir: /etc/sing-box
+singbox_clash_port: 9090
+singbox_socks_listen: "127.0.0.1"
+singbox_socks_port: 1081
+
+# Safe by default: render config to host staging; set exit_apply=true to push
+# into container {{ exit_ctid }} and (re)start sing-box.
+exit_apply: false
+exit_stage_dir: "/root/.servernet/exit"
+
+# If you drop the REAL live config.json into files/, it is used verbatim instead
+# of the rendered baseline (export once with:
+#   pct exec 113 -- cat /etc/sing-box/config.json > roles/exit_node/files/config.json )
+exit_config_file: config.json

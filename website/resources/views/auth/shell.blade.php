@@ -1,0 +1,201 @@
+{{--
+  پوستهٔ صفحه‌های ورود و ثبت‌نام.
+
+  چیدمان: عنوان صفحه وسط و بیرون از قاب (زیر منوی سایت)، بعد یک قاب دو ستونه —
+  فرم در ستون شروع، «ریل اطمینان» در ستون پایان. ریل دو کار می‌کند: می‌گوید
+  کجای مسیریم، و می‌گوید با اطلاعاتی که می‌دهید چه می‌کنیم. دومی مهم‌تر است:
+  کاربر قرار است کد ملی بدهد و باید همان‌جا ببیند چه تعهدی داریم، نه در صفحهٔ
+  «حریم خصوصی» که کسی نمی‌خواند.
+
+  زیر ۸۶۰px ریل حذف و جایش یک نوار پیشرفت باریک می‌نشیند.
+
+  ⚠ عمداً <div> است نه <header>. در site.css یک قاعدهٔ سراسری روی خود تگ هست:
+      header{position:fixed;top:0;left:0;right:0;z-index:200}
+  که هر <header> را — هر جای صفحه — به گوشهٔ بالای viewport می‌چسباند. یک بار
+  عنوان همین صفحه را برد بالای صفحه. اگر روزی اینجا <header> گذاشتید، باید
+  position را صریح خنثی کنید.
+
+  متغیرهای ورودی (از کنترلر):
+    $authSteps  آرایه‌ای از ['key','title','desc']
+    $authStep   کلید گام جاری — یا null برای صفحه‌هایی که گام ندارند (ورود)
+--}}
+@extends('layouts.site')
+
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/auth.css') }}">
+<meta name="robots" content="noindex,follow">
+@endpush
+
+@section('content')
+@php
+  $steps   = $authSteps ?? [];
+  $current = $authStep ?? null;
+  $index   = $current ? array_search($current, array_column($steps, 'key'), true) : false;
+  $index   = $index === false ? 0 : $index;
+  $total   = count($steps);
+@endphp
+
+<section class="auth-wrap">
+  <div class="container">
+
+    <div class="auth-title">
+      <h1>@yield('heading')</h1>
+      @hasSection('sub')<p>@yield('sub')</p>@endif
+    </div>
+
+    {{--
+      🔴 «انتخابِ شما محفوظ است» — نیمهٔ دومِ رفعِ نشتِ نیتِ خرید.
+
+      نشستْ آدرسِ مقصد را نگه می‌دارد و بعد از ورود/ثبت‌نام کاربر به همان‌جا
+      برمی‌گردد؛ ولی تا امروز **هیچ‌جا این را نمی‌گفت**. کسی که روی «انتخاب
+      پلن» کلیک کرده بود، ناگهان یک دیوارِ ورود می‌دید که هیچ نشانی از پلنِ
+      انتخابی‌اش نداشت — و از نظرِ او انتخابش گم شده بود، حتی وقتی نشده بود.
+
+      ⚠️ عمداً از `url.intended`ِ همان نشست خوانده می‌شود، نه از یک پارامترِ
+      URL: تنها منبعی که واقعاً تعیین می‌کند کاربر بعد از ورود کجا می‌رود
+      همان است. اگر متن از جای دیگری بیاید، روزی چیزی را وعده می‌دهد که
+      ریدایرکت به آن عمل نمی‌کند.
+    --}}
+    @php $pending = pending_order_label(); @endphp
+    @if($pending)
+      <div class="auth-pending">
+        <svg class="icon"><use href="#i-check"/></svg>
+        <span>{{ __('ui.auth_pending_kept') }} <b>{{ $pending }}</b></span>
+      </div>
+    @endif
+
+    <div class="auth-shell">
+
+      <div class="auth-main">
+
+        @if($total)
+          {{-- نوار پیشرفت موبایل — معادل ریل، نه اضافه بر آن --}}
+          <div class="auth-prog">
+            <div class="auth-prog-h">
+              <b>{{ $steps[$index]['title'] }}</b>
+              <span>{{ __('ui.auth_step_of', ['n' => fa_num($index + 1), 'total' => fa_num($total)]) }}</span>
+            </div>
+            <div class="auth-prog-bar">
+              <i style="width:{{ round((($index + 1) / $total) * 100) }}%"></i>
+            </div>
+          </div>
+        @endif
+
+        @if(session('ok'))
+          <div class="auth-note ok" role="status">{{ session('ok') }}</div>
+        @endif
+
+        @if($errors->any())
+          <div class="auth-note bad" role="alert">
+            @foreach($errors->all() as $e)<span>{{ $e }}</span>@endforeach
+          </div>
+        @endif
+
+        @yield('form')
+
+        @hasSection('aside')
+          <p class="auth-alt">@yield('aside')</p>
+        @endif
+      </div>
+
+      <aside class="auth-rail">
+        @if($total)
+          <div>
+            <div class="auth-rail-t">{{ __('ui.auth_steps') }}</div>
+            <ol class="stp" style="margin-top:16px">
+              @foreach($steps as $i => $s)
+                <li class="{{ $i < $index ? 'done' : ($i === $index ? 'on' : '') }}">
+                  <b>{{ $i < $index ? '✓' : fa_num($i + 1) }}</b>
+                  <i>{{ $s['title'] }}</i>
+                  <small>{{ $s['desc'] }}</small>
+                </li>
+              @endforeach
+            </ol>
+          </div>
+        @else
+          <div>
+            <div class="auth-rail-t">ServerNet</div>
+            <p style="margin:14px 0 0;font-size:13px;color:var(--muted);line-height:2">
+              {{ __('ui.auth_panel_intro') }}
+            </p>
+          </div>
+        @endif
+
+        {{-- نشانه‌های اطمینان: عمداً همان چیزی که کد واقعاً انجام می‌دهد،
+             نه شعار. اگر روزی رفتار عوض شد، این متن هم باید عوض شود. --}}
+        <div class="auth-assure">
+          @hasSection('assure')
+            @yield('assure')
+          @else
+            <div>
+              <svg class="icon"><use href="#i-shield"/></svg>
+              <span>{!! __('ui.auth_secure') !!}</span>
+            </div>
+            <div>
+              <svg class="icon"><use href="#i-check"/></svg>
+              <span>{!! __('ui.auth_identity_use') !!}</span>
+            </div>
+          @endif
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</section>
+
+<script>
+/*
+  دکمهٔ نمایش رمز — یک بار برای همهٔ صفحه‌های احراز هویت.
+
+  دکمه با جاوااسکریپت ساخته می‌شود و نه در قالب، به دو دلیل: بدون
+  جاوااسکریپت دکمه‌ای که کار نکند نمایش داده نمی‌شود، و هر فیلد رمزی که
+  بعداً اضافه شود خودکار آن را می‌گیرد.
+
+  رمز موقع ارسال فرم دوباره پنهان می‌شود تا اگر مرورگر صفحه را در تاریخچه
+  نگه داشت، رمز آشکار روی صفحه نماند.
+*/
+(function () {
+  var SHOW = @json(__('ui.auth_pw_show')),
+      HIDE = @json(__('ui.auth_pw_hide'));
+
+  document.querySelectorAll('.auth-f input[type="password"]').forEach(function (input) {
+    var wrap = document.createElement('div');
+    wrap.className = 'auth-pw';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'auth-pw-eye';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', SHOW);
+    btn.title = SHOW;
+    btn.innerHTML =
+      '<svg class="icon on" aria-hidden="true"><use href="#i-eye"/></svg>' +
+      '<svg class="icon off" aria-hidden="true"><use href="#i-eye-off"/></svg>';
+
+    btn.addEventListener('click', function () {
+      var shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      btn.setAttribute('aria-pressed', shown ? 'false' : 'true');
+      btn.setAttribute('aria-label', shown ? SHOW : HIDE);
+      btn.title = btn.getAttribute('aria-label');
+      // مکان‌نما همان‌جا که بود بماند، نه ابتدای فیلد
+      var end = input.value.length;
+      input.focus();
+      try { input.setSelectionRange(end, end); } catch (e) {}
+    });
+
+    wrap.appendChild(btn);
+
+    var form = input.form;
+    if (form) {
+      form.addEventListener('submit', function () {
+        input.type = 'password';
+        btn.setAttribute('aria-pressed', 'false');
+      });
+    }
+  });
+})();
+</script>
+@endsection

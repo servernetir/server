@@ -1,0 +1,205 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CloudInstance;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Http;
+
+/**
+ * راهنمای استفادهٔ مشتری + دامنهٔ برندشده — خطِ GPU در پنل.
+ *
+ * ═══ چرا ═══
+ *
+ * صفحهٔ سرویس برای GPU همان قالبِ VPS را نشان می‌داد: «کاربر root» و فرمانِ
+ * `ssh root@IP` — دو چیزی که این محصول اصلاً ندارد. و نشانیِ خامِ دروازه
+ * نامِ زیرساخت را لو می‌دهد (*.salad.cloud)، نقضِ قاعدهٔ سفیدبرچسبیِ پروژه.
+ * کارفرما: «مشتری باید بدونه چطوری استفاده کنه» + «با ساب‌دامنهٔ خودمون بدیم».
+ */
+class GpuCustomerGuideTest extends CloudProvisionTest
+{
+    private function gpuService(string $imageKey = 'gpu-ollama', array $inst = []): array
+    {
+        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'],
+            ['country' => 'XX', 'is_active' => true, 'sort' => 1]);
+
+        $plan = $this->plan('salad', [
+            'provider_ref' => 'gc-1', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'public_name' => 'RTX 4090',
+            'slug' => 'cv-8c-30g-50d-global-gpu-rtx-4090',
+            'gpu_model' => 'RTX 4090', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+
+        $service = $this->service($plan, [
+            'cloud_image_key' => $imageKey, 'status' => 'active', 'provision_status' => 'done',
+        ]);
+
+        $instance = CloudInstance::create(array_merge([
+            'service_id' => $service->id, 'provider' => 'salad',
+            'provider_ref' => 'sn-svc-'.$service->id, 'location_code' => 'global-gpu',
+            'image_key' => $imageKey, 'hostname' => 'abc123-def456.salad.cloud',
+            'ipv4' => '203.0.113.9', 'status' => 'running',
+            'ready_notified_at' => now(),
+        ], $inst));
+
+        return [$service, $instance];
+    }
+
+    // ═══════════ accessHost — سفیدبرچسبی ═══════════
+
+    /** بدونِ تنظیم، نشانیِ کارا برمی‌گردد (کارایی بر برند مقدم است) */
+    public function test_access_host_falls_back_to_the_raw_gateway(): void
+    {
+        [, $instance] = $this->gpuService();
+
+        $this->assertSame('abc123-def456.salad.cloud', $instance->accessHost());
+    }
+
+    /** 🔴 با تنظیمِ دامنهٔ برندشده، نگاشتِ قطعیِ g-{label}.{دامنهٔ ما} */
+    public function test_access_host_brands_the_gateway_when_configured(): void
+    {
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [, $instance] = $this->gpuService();
+
+        $this->assertSame('g-abc123-def456.servernet.cloud', $instance->accessHost());
+    }
+
+    /** جای‌نگهدارِ بی‌نقطه (sn-svc-N) نشانی نیست */
+    public function test_a_placeholder_hostname_is_not_an_address(): void
+    {
+        [, $instance] = $this->gpuService('gpu-ollama', ['hostname' => 'sn-svc-9']);
+
+        $this->assertNull($instance->accessHost());
+    }
+
+    // ═══════════ توکنِ دروازه (حکمِ شورا: بی‌احراز، هر رهگذری GPU را می‌سوزانَد) ═══════════
+
+    /** 🔴 توکن همان HMACای است که Worker می‌سازد — و بی‌راز، null (دروازهٔ باز) */
+    public function test_the_access_token_matches_the_worker_formula(): void
+    {
+        [, $instance] = $this->gpuService();
+
+        $this->assertNull($instance->accessToken(), 'بی‌راز باید null باشد — استقرارِ تدریجی.');
+
+        Setting::putSecret('salad_gateway_secret', 's3cr3t');
+
+        $this->assertSame(hash_hmac('sha256', 'abc123-def456', 's3cr3t'),
+            $instance->accessToken(), 'فرمول باید عینِ Worker باشد: HMAC(راز، برچسب).');
+    }
+
+    /** با راز، فرمان‌های صفحه هدرِ توکن دارند و لینکِ مستندات توکنِ ورود */
+    public function test_the_guide_carries_the_token_when_the_gate_is_armed(): void
+    {
+        Setting::putSecret('salad_gateway_secret', 's3cr3t');
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service, $instance] = $this->gpuService('gpu-comfyui');
+        $tok = $instance->accessToken();
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString('X-SN-Token: '.$tok, $html, 'فرمانِ curl بی‌توکن، 401 می‌گیرد.');
+        $this->assertStringContainsString('/docs?sn_token='.$tok, $html, 'مرورگر بی‌توکنِ ورود به مستندات نمی‌رسد.');
+        $this->assertStringContainsString(__('ui.cs_gpu_gate_token'), $html);
+    }
+
+    /** بی‌راز، هیچ ردی از توکن نیست — سرویس‌های موجود نمی‌شکنند */
+    public function test_without_a_secret_the_guide_stays_tokenless(): void
+    {
+        [$service] = $this->gpuService('gpu-ollama');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('X-SN-Token', $html);
+        $this->assertStringNotContainsString('sn_token', $html);
+    }
+
+    // ═══════════ صفحهٔ مشتری ═══════════
+
+    /**
+     * 🔴 مشتریِ Ollama باید نشانی + مثالِ فراخوانی ببیند، و هرگز «root» و
+     * فرمانِ ssh را نبیند — این محصول هیچ‌کدام را ندارد.
+     */
+    public function test_the_ollama_customer_sees_the_endpoint_and_a_curl_example(): void
+    {
+        [$service] = $this->gpuService('gpu-ollama');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString('https://abc123-def456.salad.cloud', $html);
+        $this->assertStringContainsString('/api/chat', $html, 'مثالِ فراخوانیِ API نیست.');
+        $this->assertStringContainsString(__('ui.cs_gpu_use_h'), $html);
+        $this->assertStringNotContainsString('ssh root', $html, 'فرمانِ SSH برای محصولِ بی‌SSH.');
+        // ساختاری، نه واژه‌ای: «کاربر» در متن‌های دیگرِ صفحه هم هست
+        $this->assertStringNotContainsString('<b dir="ltr">root</b>', $html,
+            'ردیفِ «کاربر root» برای کانتینر دروغ است.');
+    }
+
+    /** و با دامنهٔ برندشده، نامِ زیرساخت هیچ‌جای صفحه نیست */
+    public function test_the_branded_page_never_leaks_the_provider_domain(): void
+    {
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service] = $this->gpuService('gpu-comfyui');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString('g-abc123-def456.servernet.cloud', $html);
+        $this->assertStringNotContainsString('salad', $html,
+            'نامِ زیرساخت به صفحهٔ مشتری نشت کرد — نقضِ سفیدبرچسبی.');
+    }
+
+    /**
+     * 🔴 فهرستِ سرویس‌ها هم برندشده است، نه فقط صفحهٔ خودِ سرویس.
+     *
+     * گزارشِ کارفرما (۵ شهریور): «تو پروفایل مشتری باز داره …salad.cloud رو
+     * نشون میده» — کارتِ card-server هنوز hostname خام را چاپ می‌کرد.
+     */
+    public function test_the_services_list_card_shows_the_branded_host(): void
+    {
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service] = $this->gpuService('gpu-comfyui');
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.services'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('g-abc123-def456.servernet.cloud', $html);
+        $this->assertStringNotContainsString('salad', $html,
+            'نامِ زیرساخت در فهرستِ سرویس‌های مشتری نشت کرد.');
+    }
+
+    /**
+     * 🔴 صفحهٔ «در حال ساخت»ِ GPU وعدهٔ دودقیقه‌ایِ VPS را نمی‌دهد.
+     *
+     * گزارشِ کارفرما: «نوشتیم دو دقیقه‌ای تحویل می‌دیم ولی دانلود کانتینر نیم
+     * ساعت طول می‌کشه.» مشتری‌ای که نیم ساعت به «کمتر از دو دقیقه» زل بزند،
+     * نتیجه می‌گیرد سرویس خراب است. متنِ GPU بازهٔ واقعی (۵ تا ۳۰ دقیقه) و
+     * رایگان‌بودنِ زمانِ آماده‌سازی را می‌گوید.
+     */
+    public function test_a_building_gpu_service_gets_the_honest_eta_not_two_minutes(): void
+    {
+        [$service, $instance] = $this->gpuService('gpu-comfyui');
+        $instance->update(['status' => 'building', 'ipv4' => null, 'hostname' => 'sn-svc-'.$service->id]);
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString(strip_tags(__('ui.cs_building_gpu_p')),
+            strip_tags($html), 'متنِ صادقانهٔ GPU نیست.');
+        $this->assertStringNotContainsString('کمتر از دو دقیقه', $html,
+            'وعدهٔ دودقیقه‌ایِ VPS روی سرویسِ GPU دروغ است.');
+    }
+
+    /** نشانیِ هنوز-نرسیده، پیامِ صادقانه می‌گیرد نه خط تیره */
+    public function test_a_pending_address_says_it_is_coming(): void
+    {
+        [$service] = $this->gpuService('gpu-ollama', ['hostname' => 'sn-svc-9']);
+
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString(__('ui.cs_gpu_endpoint_wait'), $html);
+    }
+}

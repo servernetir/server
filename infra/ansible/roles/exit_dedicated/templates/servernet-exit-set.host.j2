@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# servernet-exit-set <cc> <method...>  — runs on the Proxmox HOST. Sets up the
+# dedicated exit inside LXC {{ ded_ctid }} and then syncs the panel catalog in
+# LXC {{ ded_panel_ctid }} so the country shows in the sale-time dropdown.
+set -uo pipefail
+CT_EXIT={{ ded_ctid }}; CT_PANEL={{ ded_panel_ctid }}
+
+pct exec "$CT_EXIT" -- /usr/local/bin/servernet-exit-set "$@" || exit $?
+
+# sync panel: push the registry from the exit container, regenerate the overlay
+REG="$(pct exec "$CT_EXIT" -- cat /etc/servernet/dedicated-exits.list 2>/dev/null || true)"
+printf '%s' "$REG" | pct exec "$CT_PANEL" -- sh -c 'cat > /tmp/sn-ded.list'
+pct exec "$CT_PANEL" -- /usr/local/bin/sn-panel-countries-sync /tmp/sn-ded.list || true
+echo "panel catalog synced ($CT_PANEL)"

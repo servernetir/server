@@ -1,0 +1,168 @@
+---
+# =============================================================================
+#  Panel country-selection feature — codifies mod2b/17-panel-deploy.sh 1:1.
+#
+#  Adds to the Laravel panel (LXC {{ panel_ctid }}):
+#    * exit_country column on vm_records (nullable migration, hasColumn-guarded)
+#    * config/countries.php sellable-exit catalog (de/nl/fi by default)
+#    * "کشور خروجی" dropdown at sale time (Provisioner/VmController/ProvisionVm/blade)
+#    * GET /agent/countryroutes desired-state API (token = proxmox.agent_token)
+#  and on the Proxmox HOST:
+#    * servernet-country-agent.{sh,service,timer} that polls the panel every
+#      {{ country_agent_interval_sec }}s and applies per-VM split-routing via
+#      /usr/local/sbin/servernet-vm-country[-del] (installed by exit_country_routing).
+#
+#  The customer gateway is UNCHANGED (10.10.10.1): inbound SSH/RDP still arrives
+#  via the Iran IP:port; only NEW outbound is redirected to the country tun.
+#
+#  Depends on: exit_country_routing role (servernet-vm-country[-del] host scripts).
+#  Stage-by-default; live changes happen only with -e panel_apply=true.
+# =============================================================================
+
+# ---------------------------------------------------------------- stage (always)
+- name: Ensure panel staging dir exists
+  ansible.builtin.file:
+    path: "{{ panel_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Stage country-feature source tree for review
+  ansible.builtin.copy:
+    src: country/
+    dest: "{{ panel_stage_dir }}/country/"
+    mode: "0644"
+    directory_mode: "0755"
+
+- name: Stage route snippet for review
+  ansible.builtin.copy:
+    src: country_route_snippet.txt
+    dest: "{{ panel_stage_dir }}/country_route_snippet.txt"
+    mode: "0644"
+
+- name: Stage host country-agent script for review
+  ansible.builtin.copy:
+    src: servernet-country-agent.sh
+    dest: "{{ panel_stage_dir }}/servernet-country-agent.sh"
+    mode: "0755"
+
+- name: Render host country-agent units to staging
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ panel_stage_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - servernet-country-agent.service
+    - servernet-country-agent.timer
+
+- name: Country-feature stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "Staged panel country-selection feature to {{ panel_stage_dir }}/country + host agent units."
+      - "Nothing was applied (panel_apply=false). Re-run with -e panel_apply=true to go live."
+  when: not (panel_apply | bool)
+
+# ---------------------------------------------------------------- apply (opt-in)
+- name: Apply panel country-selection feature
+  when: panel_apply | bool
+  block:
+    - name: One-time backup of panel dirs this feature touches
+      ansible.builtin.command:
+        argv:
+          - pct
+          - exec
+          - "{{ panel_ctid }}"
+          - --
+          - sh
+          - -c
+          - >-
+            test -f {{ panel_app_dir }}/.sn-country-bak.tgz ||
+            tar czf {{ panel_app_dir }}/.sn-country-bak.tgz -C {{ panel_app_dir }}
+            app config routes database/migrations resources/views 2>/dev/null || true
+      changed_when: true
+
+    - name: Ensure parent dirs for each file exist in the container
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- mkdir -p {{ panel_app_dir }}/{{ item | dirname }}
+      loop: "{{ panel_country_files }}"
+      changed_when: false
+
+    - name: Push country-feature files into the container
+      ansible.builtin.command: >-
+        pct push {{ panel_ctid }}
+        {{ panel_stage_dir }}/country/{{ item }}
+        {{ panel_app_dir }}/{{ item }}
+      loop: "{{ panel_country_files }}"
+      changed_when: true
+
+    # --- register the desired-state route (idempotent, no use-block edit) ------
+    - name: Check whether /agent/countryroutes route already exists
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- grep -q agent/countryroutes {{ panel_app_dir }}/routes/web.php
+      register: _route_present
+      changed_when: false
+      failed_when: false
+
+    - name: Push route snippet into container
+      ansible.builtin.command: >-
+        pct push {{ panel_ctid }}
+        {{ panel_stage_dir }}/country_route_snippet.txt
+        /tmp/sn_country_route.txt
+      when: _route_present.rc != 0
+      changed_when: true
+
+    - name: Append route snippet to routes/web.php
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -c
+        'cat /tmp/sn_country_route.txt >> {{ panel_app_dir }}/routes/web.php && rm -f /tmp/sn_country_route.txt'
+      when: _route_present.rc != 0
+      changed_when: true
+
+    # --- laravel bring-up -----------------------------------------------------
+    - name: Migrate + clear caches
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -c
+        'cd {{ panel_app_dir }} && php artisan migrate --force && php artisan config:clear && php artisan route:clear && php artisan view:clear'
+      register: _artisan_country
+      changed_when: true
+
+    - name: Fix ownership (root-run artisan leaves wrong owner)
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -c
+        'chown -R www-data:www-data {{ panel_app_dir }}/database {{ panel_app_dir }}/storage {{ panel_app_dir }}/bootstrap/cache'
+      changed_when: true
+
+    # --- host country-routing agent ------------------------------------------
+    - name: Install host country-routing agent script
+      ansible.builtin.copy:
+        src: servernet-country-agent.sh
+        dest: /usr/local/bin/servernet-country-agent.sh
+        mode: "0755"
+
+    - name: Install host country-agent systemd units
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        mode: "0644"
+      loop:
+        - servernet-country-agent.service
+        - servernet-country-agent.timer
+
+    - name: Enable + start the country-agent timer
+      ansible.builtin.systemd:
+        name: servernet-country-agent.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Restart panel php-fpm
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -c
+        'systemctl restart php{{ php_version }}-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true'
+      changed_when: true
+
+    - name: Country-feature apply summary
+      ansible.builtin.debug:
+        msg:
+          - "Panel country-selection applied to container {{ panel_ctid }}."
+          - "Host agent servernet-country-agent.timer active (reconciles every {{ country_agent_interval_sec }}s from {{ panel_agent_api_url }})."
+          - "Rollback: pct exec {{ panel_ctid }} -- tar xzf {{ panel_app_dir }}/.sn-country-bak.tgz -C {{ panel_app_dir }} ; systemctl disable --now servernet-country-agent.timer"

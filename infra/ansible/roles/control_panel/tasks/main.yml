@@ -1,0 +1,186 @@
+---
+# Deploy/configure the Laravel control panel in LXC {{ panel_ctid }} via pct.
+# Safe by default: renders config to a host staging dir. Set panel_apply=true to
+# back up + push into the live container.
+
+# ---------------------------------------------------------------- stage (always)
+- name: Ensure host staging dir
+  ansible.builtin.file:
+    path: "{{ panel_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Render .env to staging
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ panel_stage_dir }}/.env"
+    mode: "0600"
+  no_log: true                       # contains secrets
+
+- name: Render nginx site to staging
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ panel_stage_dir }}/servernet-panel.conf"
+    mode: "0644"
+
+- name: Render reference php configs to staging (optional)
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ panel_stage_dir }}/{{ item }}"
+    mode: "0644"
+  loop: [proxmox.php, cloudflare.php, os.php]
+  when: panel_render_php_configs | bool
+
+- name: Stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "Rendered panel config to {{ panel_stage_dir }} (review/diff it)."
+      - "Nothing was pushed to container {{ panel_ctid }} (panel_apply=false)."
+      - "Re-run with -e panel_apply=true to back up + apply."
+  when: not (panel_apply | bool)
+
+# ---------------------------------------------------------------- apply (opt-in)
+- name: Apply to live container
+  when: panel_apply | bool
+  block:
+    - name: Confirm container {{ panel_ctid }} exists
+      ansible.builtin.command: pct status {{ panel_ctid }}
+      register: _ctstat
+      changed_when: false
+
+    - name: Install panel packages inside container
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y {{ panel_packages | join(" ") }}'
+      register: _pkg
+      changed_when: "'newly installed' in _pkg.stdout or '0 upgraded' not in _pkg.stdout"
+
+    # --- app code from exported artifact (optional) --------------------------
+    - name: Check for app archive on controller
+      ansible.builtin.stat:
+        path: "{{ role_path }}/files/{{ panel_app_archive }}"
+      delegate_to: localhost
+      register: _archive
+
+    - name: Deploy app code from archive
+      when: _archive.stat.exists
+      block:
+        - name: Copy archive to host
+          ansible.builtin.copy:
+            src: "{{ panel_app_archive }}"
+            dest: "{{ panel_stage_dir }}/{{ panel_app_archive }}"
+            mode: "0600"
+
+        - name: Back up existing app dir in container
+          ansible.builtin.command: >-
+            pct exec {{ panel_ctid }} -- bash -lc
+            'test -d {{ panel_app_dir }} && cp -a {{ panel_app_dir }} {{ panel_app_dir }}.bak.$(date +%s) || true'
+          changed_when: true
+
+        - name: Push + extract archive into container
+          ansible.builtin.command: >-
+            pct push {{ panel_ctid }} {{ panel_stage_dir }}/{{ panel_app_archive }} /tmp/{{ panel_app_archive }}
+          changed_when: true
+
+        - name: Extract archive to /opt
+          ansible.builtin.command: >-
+            pct exec {{ panel_ctid }} -- bash -lc
+            'tar xzf /tmp/{{ panel_app_archive }} -C /opt && rm -f /tmp/{{ panel_app_archive }}'
+          changed_when: true
+
+    - name: Archive-absent notice
+      ansible.builtin.debug:
+        msg: "No app archive found — assuming code already present in {{ panel_app_dir }}. Only config will be applied."
+      when: not _archive.stat.exists
+
+    # --- config overlay ------------------------------------------------------
+    - name: Back up existing .env
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'test -f {{ panel_app_dir }}/.env && cp -a {{ panel_app_dir }}/.env {{ panel_app_dir }}/.env.bak.$(date +%s) || true'
+      changed_when: true
+
+    - name: Push .env into container
+      ansible.builtin.command: >-
+        pct push {{ panel_ctid }} {{ panel_stage_dir }}/.env {{ panel_app_dir }}/.env
+      changed_when: true
+      no_log: true
+
+    - name: Push reference php configs (optional)
+      ansible.builtin.command: >-
+        pct push {{ panel_ctid }} {{ panel_stage_dir }}/{{ item }} {{ panel_app_dir }}/config/{{ item }}
+      loop: [proxmox.php, cloudflare.php, os.php]
+      when: panel_render_php_configs | bool
+      changed_when: true
+
+    # --- laravel bring-up ----------------------------------------------------
+    - name: Composer install if vendor missing
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'cd {{ panel_app_dir }} && test -d vendor || (command -v composer >/dev/null || (curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer); composer install --no-dev --optimize-autoloader --no-interaction)'
+      register: _composer
+      changed_when: "'Generating optimized autoload' in _composer.stdout"
+
+    - name: Ensure sqlite database file exists
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'touch {{ panel_app_dir }}/database/database.sqlite'
+      changed_when: false
+
+    - name: Run migrations + refresh caches
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'cd {{ panel_app_dir }} && php artisan migrate --force && php artisan config:clear && php artisan route:clear && php artisan view:clear'
+      register: _artisan
+      changed_when: true
+
+    - name: Fix ownership (root-run artisan/CLI leaves wrong owner)
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'chown -R www-data:www-data {{ panel_app_dir }}/database {{ panel_app_dir }}/storage {{ panel_app_dir }}/bootstrap/cache'
+      changed_when: true
+
+    # --- TLS cert (audit SSL) ------------------------------------------------
+    - name: Check for panel TLS cert in container
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- test -f {{ panel_tls_cert }}
+      register: _tlscert
+      changed_when: false
+      failed_when: false
+
+    - name: Generate self-signed panel cert if missing
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'install -d /etc/ssl/servernet && openssl req -x509 -nodes -newkey rsa:2048 -days 3650
+         -keyout {{ panel_tls_key }} -out {{ panel_tls_cert }}
+         -subj "/CN=panel.servernet.cloud"
+         -addext "subjectAltName=DNS:panel.servernet.cloud,IP:{{ control_ip }}" &&
+         chmod 600 {{ panel_tls_key }}'
+      when:
+        - panel_tls_selfsigned_if_missing | bool
+        - _tlscert.rc != 0
+      changed_when: true
+
+    # --- web server ----------------------------------------------------------
+    - name: Push nginx site
+      ansible.builtin.command: >-
+        pct push {{ panel_ctid }} {{ panel_stage_dir }}/servernet-panel.conf /etc/nginx/sites-available/servernet-panel.conf
+      changed_when: true
+
+    - name: Enable site + reload services
+      ansible.builtin.command: >-
+        pct exec {{ panel_ctid }} -- bash -lc
+        'ln -sf /etc/nginx/sites-available/servernet-panel.conf /etc/nginx/sites-enabled/servernet-panel.conf && nginx -t && systemctl reload nginx && systemctl enable --now php{{ php_version }}-fpm nginx'
+      register: _web
+      changed_when: true
+
+    - name: Apply summary
+      ansible.builtin.debug:
+        msg: "Panel applied to container {{ panel_ctid }}. Backups (.bak.<ts>) left in place for rollback."
+
+# ------------------------------------------------------- country-selection feature
+# Runs after the base panel (staging always; live only with panel_apply=true).
+# Codifies mod2b/17-panel-deploy.sh — see tasks/country_feature.yml.
+- name: Panel country-selection feature (exit_country + dropdown + host routing agent)
+  ansible.builtin.include_tasks: country_feature.yml
+  when: panel_country_feature | bool

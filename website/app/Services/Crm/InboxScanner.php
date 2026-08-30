@@ -1,0 +1,238 @@
+<?php
+
+namespace App\Services\Crm;
+
+use App\Models\CrmLead;
+use App\Models\CrmMessage;
+use App\Models\CrmSuppression;
+use App\Services\Mail\ImapClient;
+use App\Services\Notify\AdminNotifier;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+/**
+ * خواندنِ صندوقِ فروش.
+ *
+ * پروتکل در `App\Services\Mail\ImapClient` است و با بخشِ صندوق‌های مدیریتی
+ * مشترک. دو پیاده‌سازیِ IMAP یعنی دو جا برای خراب شدن و یکی که همیشه عقب
+ * می‌مانَد.
+ *
+ * سه چیز را تشخیص می‌دهد و هر سه **باید** تشخیص داده شوند:
+ *   • «no» / unsubscribe → فهرستِ سیاهِ دائمی
+ *   • بانس → فهرستِ سیاه، چون نشانی وجود ندارد و تکرارش شهرت را می‌سوزاند
+ *   • جوابِ واقعی → صفِ فالوآپ فوراً می‌ایستد و به احسان خبر می‌رود
+ *
+ * 🔴 بدترین حالتِ ممکن این است: کسی جواب بدهد «علاقه‌مندم، قیمت؟» و سه روز
+ * بعد فالوآپِ خودکارِ «یادآوری» برایش برود. آن یک فروشِ ازدست‌رفته است.
+ */
+class InboxScanner
+{
+    private const BOUNCE_FROM = ['mailer-daemon', 'postmaster', 'no-reply@', 'noreply@'];
+
+    private const BOUNCE_SUBJECT = '~(undeliverable|delivery status notification|returned mail|'
+        .'delivery has failed|failure notice|mail delivery failed|undelivered mail)~i';
+
+    private const OPT_OUT = '~^\s*(no|stop|unsubscribe)\b|\b(unsubscribe|remove me from|take me off|'
+        .'do not contact|don.t contact me|not interested|no thanks|no thank you)\b~i';
+
+    /**
+     * @return array{replies:int, optouts:int, bounces:int, seen:int, error?:string}
+     */
+    public function scan(int $days = 14): array
+    {
+        $out = ['replies' => 0, 'optouts' => 0, 'bounces' => 0, 'seen' => 0];
+        $cfg = (array) config('crm.inbox');
+
+        if (blank($cfg['host'] ?? null) || blank($cfg['pass'] ?? null)) {
+            Log::warning('crm.inbox.not_configured');
+
+            return $out + ['error' => 'not_configured'];
+        }
+
+        $imap = new ImapClient($cfg);
+
+        try {
+            $imap->open();
+            $ids = $imap->searchSince($days);
+            $out['seen'] = count($ids);
+
+            foreach (array_slice($ids, -200) as $id) {
+                $mail = $imap->fetch($id);
+
+                if ($mail === null) {
+                    continue;
+                }
+
+                $kind = $this->handle($mail);
+
+                if ($kind) {
+                    $out[$kind]++;
+                }
+            }
+        } catch (Throwable $e) {
+            Log::error('crm.inbox.error', ['err' => $e->getMessage()]);
+            $out['error'] = mb_substr($e->getMessage(), 0, 200);
+        } finally {
+            $imap->close();
+        }
+
+        Log::info('crm.inbox.done', $out);
+
+        return $out;
+    }
+
+    // ───────────────────────── تصمیم ─────────────────────────
+
+    /** @return 'replies'|'optouts'|'bounces'|null */
+    private function handle(array $mail): ?string
+    {
+        $from = $mail['from'];
+        $subject = $mail['subject'];
+        $body = $mail['body'];
+        $messageId = $mail['message_id'];
+
+        // قبلاً پردازش شده؟ (اجرای دوباره نباید دو بار حساب کند)
+        if ($messageId !== '' && CrmMessage::where('provider_id', $messageId)->exists()) {
+            return null;
+        }
+
+        $kind = $this->classify($from, $subject, $body);
+        $isBounce = $kind === 'bounce';
+
+        // نشانیِ واقعیِ گیرنده در بانس داخلِ متن است، نه در From.
+        $lead = $isBounce
+            ? $this->leadFromBounceBody($body)
+            : CrmLead::where('email', $from)->orderByDesc('id')->first();
+
+        if (! $lead) {
+            return null;   // ایمیلی که ربطی به این سیستم ندارد
+        }
+
+        if ($isBounce) {
+            CrmSuppression::add($lead->email, 'bounce', mb_substr($subject, 0, 190));
+            $this->stop($lead, 'بانس — نشانی وجود ندارد');
+            $this->record($lead, $messageId, $subject, $body, 'bounce');
+
+            return 'bounces';
+        }
+
+        if ($kind === 'optout') {
+            CrmSuppression::add($lead->email, 'unsubscribe');
+            $this->stop($lead, 'درخواستِ عدمِ تماس');
+            $this->record($lead, $messageId, $subject, $body, 'optout');
+
+            return 'optouts';
+        }
+
+        // جوابِ واقعی — از این لحظه هیچ پیامِ خودکاری برای این نفر نمی‌رود.
+        $this->cancelQueued($lead);
+        $lead->stage = 'replied';
+        $lead->replied_at = now();
+        $lead->next_action_at = now()->addDay()->toDateString();
+        $lead->save();
+
+        $this->record($lead, $messageId, $subject, $body, 'reply');
+        $this->notify($lead, $subject, $body);
+
+        return 'replies';
+    }
+
+    /**
+     * این نامه چیست؟ `bounce` | `optout` | `reply`
+     *
+     * جدا و عمومی است تا بشود بدونِ صندوقِ پستیِ واقعی تستش کرد. اشتباهِ این
+     * تابع گران است: «بانس» که «جواب» خوانده شود، سرنخِ مرده را داغ نشان
+     * می‌دهد؛ «no» که «جواب» خوانده شود، یعنی فالوآپ برای کسی می‌رود که همین
+     * دیروز گفته دیگر ننویس.
+     */
+    public function classify(string $from, string $subject, string $body): string
+    {
+        if (preg_match(self::BOUNCE_SUBJECT, $subject)) {
+            return 'bounce';
+        }
+
+        foreach (self::BOUNCE_FROM as $needle) {
+            if (str_contains(mb_strtolower($from), $needle)) {
+                return 'bounce';
+            }
+        }
+
+        if (preg_match(self::OPT_OUT, $subject) || preg_match(self::OPT_OUT, trim($body))) {
+            return 'optout';
+        }
+
+        return 'reply';
+    }
+
+    /** فالوآپِ در صف را می‌بندد — پیامِ خودکار بعد از جواب، فروش را می‌کُشد. */
+    private function cancelQueued(CrmLead $lead): void
+    {
+        CrmMessage::where('lead_id', $lead->id)
+            ->where('direction', 'out')
+            ->whereIn('status', ['queued', 'draft'])
+            ->update(['status' => 'cancelled', 'error' => 'lead replied']);
+    }
+
+    private function stop(CrmLead $lead, string $reason): void
+    {
+        $this->cancelQueued($lead);
+        $lead->stage = 'lost';
+        $lead->lost_at = now();
+        $lead->lost_reason = $reason;
+        $lead->next_action_at = null;
+        $lead->save();
+    }
+
+    private function record(CrmLead $lead, string $messageId, string $subject, string $body, string $kind): void
+    {
+        CrmMessage::create([
+            'lead_id'     => $lead->id,
+            'channel'     => 'email',
+            'direction'   => 'in',
+            'subject'     => mb_substr($subject, 0, 190),
+            'body'        => mb_substr($body, 0, 20000),
+            'status'      => $kind,
+            'sequence'    => 0,
+            'provider_id' => $messageId !== '' ? mb_substr($messageId, 0, 190) : null,
+            'sent_at'     => now(),
+        ]);
+    }
+
+    private function notify(CrmLead $lead, string $subject, string $body): void
+    {
+        try {
+            app(AdminNotifier::class)->event(
+                'جوابِ سرنخِ فروش',
+                [
+                    'شرکت'   => $lead->company,
+                    'نشانی'  => (string) $lead->email,
+                    'موضوع'  => mb_substr($subject, 0, 120),
+                    'متن'    => mb_substr(trim($body), 0, 300),
+                ],
+                url('/admin/marketing/'.$lead->id),
+                '📩',
+            );
+        } catch (Throwable $e) {
+            Log::warning('crm.inbox.notify_failed', ['err' => $e->getMessage()]);
+        }
+    }
+
+    /** در بانس، نشانیِ اصلی معمولاً در متنِ گزارش تکرار شده است. */
+    private function leadFromBounceBody(string $body): ?CrmLead
+    {
+        if (! preg_match_all('~[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,24}~i', $body, $m)) {
+            return null;
+        }
+
+        foreach (array_unique(array_map('mb_strtolower', $m[0])) as $candidate) {
+            $lead = CrmLead::where('email', $candidate)->orderByDesc('id')->first();
+
+            if ($lead) {
+                return $lead;
+            }
+        }
+
+        return null;
+    }
+
+}

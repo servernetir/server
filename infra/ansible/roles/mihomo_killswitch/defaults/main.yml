@@ -1,0 +1,18 @@
+---
+# Module 2b / step 4 — mihomo egress KILL-SWITCH in LXC {{ ks_ctid }}.
+# Restricts the mihomo.service cgroup so it may ONLY egress via loopback
+# (127.0.0.1 = the relay SOCKS + local API/httpd). Any direct/COMPATIBLE attempt
+# is DROPPED, so an EMPTY / all-dead country group is CUT — never leaks the Iran
+# IP. Persisted by servernet-killswitch.service. Additive + reversible.
+ks_ctid: "{{ exit_ctid | default(113) }}"
+
+# Safe by default: stage the unit on the host; killswitch_apply=true to install
+# + enable it inside the container (this inserts a live iptables DROP rule).
+killswitch_apply: false
+killswitch_stage_dir: "/root/.servernet/killswitch"
+
+# Ports used only by the post-apply VERIFY NOTE (see tasks): after apply, DE
+# (:{{ ks_verify_de_port }}) must still exit DE, and a country with no live nodes
+# (e.g. UK :{{ ks_verify_uk_port }}) must return EMPTY — never loc=IR.
+ks_verify_de_port: 42001
+ks_verify_uk_port: 42004

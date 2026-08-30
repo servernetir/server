@@ -1,0 +1,886 @@
+<?php
+
+namespace App\Services\Domain;
+
+use App\Models\Currency;
+use App\Models\DomainQuote;
+use App\Services\ExchangeRate;
+use App\Support\ErrorTracker;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
+/**
+ * جستجوی دامنه: استعلام زنده از رسیلری، تبدیل قیمت به تومان، اعمال سود.
+ *
+ * قاعدهٔ بنیادی: **هیچ قیمتی نمایش داده نمی‌شود مگر از یک استعلام زندهٔ
+ * ذخیره‌شده آمده باشد.** اگر نتوانیم قیمت قابل‌احترام بدهیم، به‌جای عدد،
+ * `orderable=false` با دلیل برمی‌گردانیم.
+ *
+ * این همان چیزی است که مشکل «۲۰ دلار → ۲ دلار → رسیلری نمی‌فروشد» را
+ * از ریشه می‌بندد.
+ */
+class DomainSearch
+{
+    /** مدت اعتبار قیمت اعلام‌شده */
+    private const QUOTE_TTL_MINUTES = 15;
+
+    /**
+     * بیشینهٔ پسوند در یک استعلام — رسیلری درخواستِ بی‌اندازه را رد می‌کند.
+     *
+     * ⚠️ عمداً بزرگ‌تر از فهرستِ پیشنهادی است تا آن فهرست هرگز بی‌صدا بریده
+     * نشود. این سقف فقط جلوی فراخوانی را می‌گیرد که فهرستِ دلخواهِ غول‌آسا
+     * بدهد.
+     */
+    private const MAX_TLDS = 70;
+
+    /**
+     * وضعیت‌هایی که **قطعاً** یعنی «این دامنه گرفته شده».
+     *
+     * ⚠️ فهرستِ سفید است، نه سیاه. هر چیزِ دیگری «نمی‌دانم» است. اگر روزی
+     * رجیسترار وضعیتِ تازه‌ای اضافه کرد که واقعاً یعنی گرفته‌شده، بدترین
+     * نتیجه این است که آن دامنه «استعلام نشد» دیده شود — نه اینکه یک دامنهٔ
+     * آزاد را از فروش خارج کنیم یا یک خرابی را جای واقعیت بفروشیم. اضافه
+     * کردنِ یک وضعیت به این فهرست باید با **دیدنِ پاسخِ واقعی** باشد.
+     */
+    private const TAKEN_STATUSES = [
+        'active', 'inuse', 'in use', 'in_use',
+        'registered', 'taken', 'parked',
+        'in transfer', 'in_transfer',
+    ];
+
+    /** کدِ داخلیِ «رسیلری اصلاً پیکربندی نشده» — با کدهای خودِ رجیسترار تصادم ندارد. */
+    private const DISABLED_CODE = -2;
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 واژگانِ یگانهٔ وضعیت — تنها تعریفِ «این ردیف چه حالی دارد»
+    |--------------------------------------------------------------------------
+    |
+    | تا امروز هر صفحه خودش از روی `status`/`available`/`orderable` نتیجه‌گیری
+    | می‌کرد و سه تعریفِ متفاوت ساخته بود:
+    |
+    |   • پنل: پرمیوم را «آزاد» می‌خواند و به قیمتِ پرمیوم دکمهٔ خرید می‌داد.
+    |   • صفحهٔ عمومی: «نتوانستیم استعلام کنیم» را «فعلاً قابل سفارش نیست»
+    |     می‌خواند — عبارتی که پنل برای حالتِ **دیگری** به کار می‌برد.
+    |   • جعبهٔ صفحهٔ اول: هر چیزی جز `available` را «قبلاً ثبت شده» می‌خواند —
+    |     یعنی همان دروغی که یک لایه پایین‌تر رفع شده بود، یک لایه بالاتر زنده
+    |     مانده بود.
+    |
+    | حالا وضعیت **سمتِ سرور** یک بار حساب می‌شود و در فیلدِ `state` می‌نشیند.
+    | هر رابطی که وضعیت را دوباره از روی فیلدهای خام حدس بزند، دوباره همان
+    | واگرایی را می‌سازد.
+    |
+    | ⚠️ جهتِ خطا: هر چیزی که مطمئن نیستیم به `unchecked` می‌افتد، هرگز به
+    | `free` و هرگز به `taken`.
+    */
+    public const STATE_FREE = 'free';
+    public const STATE_PREMIUM = 'premium';
+    public const STATE_TAKEN = 'taken';
+    public const STATE_UNCHECKED = 'unchecked';
+    public const STATE_UNSUPPORTED = 'unsupported';
+    public const STATE_NO_PRICE = 'no_price';
+
+    /** همهٔ وضعیت‌های ممکن — تست‌ها و رابط‌ها از همین می‌خوانند. */
+    public const STATES = [
+        self::STATE_FREE,
+        self::STATE_PREMIUM,
+        self::STATE_TAKEN,
+        self::STATE_UNCHECKED,
+        self::STATE_UNSUPPORTED,
+        self::STATE_NO_PRICE,
+    ];
+
+    /**
+     * پسوندهایی که **نمی‌فروشیم**.
+     *
+     * رسیلرِ اروپایی یا اصلاً نمی‌شناسدشان یا ده‌ها برابرِ قیمتِ واقعی می‌دهد
+     * (نگاه کن به `TldPriceBook::NEVER_QUOTE` که از همین می‌خوانَد). تا وقتی
+     * مسیرِ مستقیمِ ایرنیک ساخته نشده، پاسخِ صادقانه «این پسوند را نمی‌فروشیم»
+     * است — نه «استعلام نشد» که مشتری را به تلاشِ دوباره دعوت می‌کند، و نه
+     * «ارتباط برقرار نشد» که علتِ صریحاً غلطی اعلام می‌کند.
+     *
+     * @var array<int,string>
+     */
+    public const UNSOLD_TLDS = ['ir', 'co.ir', 'ac.ir', 'org.ir', 'net.ir', 'gov.ir', 'id.ir', 'sch.ir', 'ایران'];
+
+    /**
+     * وضعیتِ نمایشیِ یک ردیف.
+     *
+     * ⚠️ فقط از فیلدهایی می‌خوانَد که خودِ همین کلاس ساخته — پس اگر شکلِ ردیف
+     * عوض شود، این‌جا هم عوض می‌شود و سه رابط با هم عوض می‌شوند.
+     *
+     * @param  array<string,mixed>  $row
+     */
+    public static function stateOf(array $row): string
+    {
+        $status = (string) ($row['status'] ?? 'unknown');
+
+        if ($status === 'unavailable') {
+            return self::STATE_TAKEN;
+        }
+
+        if ($status !== 'available' && $status !== 'premium') {
+            // «نمی‌دانیم». اگر پسوندی است که اصلاً نمی‌فروشیم، علتِ واقعی همان
+            // است و گفتنش از «دوباره تلاش کنید» صادقانه‌تر است.
+            return self::sells((string) ($row['tld'] ?? ''))
+                ? self::STATE_UNCHECKED
+                : self::STATE_UNSUPPORTED;
+        }
+
+        // آزاد است ولی قیمتِ قابلِ اتکا نداریم (`no_price` یا `fx_unavailable`)
+        if (! ($row['orderable'] ?? false)) {
+            return self::STATE_NO_PRICE;
+        }
+
+        return ($row['is_premium'] ?? false) ? self::STATE_PREMIUM : self::STATE_FREE;
+    }
+
+    /** آیا این پسوند را می‌فروشیم؟ */
+    public static function sells(string $tld): bool
+    {
+        return ! in_array(strtolower(trim($tld, " \t.")), self::UNSOLD_TLDS, true);
+    }
+
+    /**
+     * آیا آخرین `search()` واقعاً از رجیسترار پاسخ گرفت؟
+     *
+     * 🔴 این را از روی ردیف‌ها **حدس نزن**. «همهٔ ردیف‌ها unknown شدند» با
+     * «خودِ استعلام شکست خورد» یکی نیست: یک جستجوی تک‌پسوندیِ `.ir` هم همهٔ
+     * ردیف‌هایش unknown است بی‌آنکه چیزی خراب باشد.
+     */
+    private bool $lookupOk = true;
+
+    private ?string $lookupReason = null;
+
+    public function lookupOk(): bool
+    {
+        return $this->lookupOk;
+    }
+
+    /** `lookup_failed` یا `registrar_disabled` — برای مدیر، نه برای مشتری. */
+    public function lookupReason(): ?string
+    {
+        return $this->lookupReason;
+    }
+
+    /**
+     * پسوندهایی که به کاربر پیشنهاد می‌شوند.
+     *
+     * ترتیب مهم است: آنچه بالاتر است زودتر دیده می‌شود. اول کلاسیک‌های
+     * پرتقاضا، بعد پسوندهای فناوری و کسب‌وکار که در بازار ایران رشد کرده‌اند،
+     * بعد منطقه‌ای و صنعتی.
+     *
+     * ⚠️ `.ir` عمداً **این‌جا نیست**. از رسیلرِ اروپایی گران درمی‌آید (ده‌ها
+     * برابرِ قیمتِ مستقیمِ ایرنیک) و نشان‌دادنش با آن قیمت، به کلِ صفحه
+     * می‌گوید «قیمت‌های این‌جا بی‌ربط است». تا وقتی مسیرِ ایرنیک ساخته نشده،
+     * پیشنهاد نمی‌شود — ولی اگر کاربر خودش تایپش کند استعلام می‌شود.
+     */
+    private const SUGGEST_TLDS = [
+        // کلاسیک
+        'com', 'net', 'org', 'info', 'biz', 'co',
+        // فناوری و توسعه
+        'dev', 'app', 'io', 'ai', 'tech', 'cloud', 'digital', 'software',
+        'systems', 'network', 'host', 'site', 'website', 'online', 'space',
+        // کسب‌وکار و فروشگاه
+        'shop', 'store', 'company', 'agency', 'group', 'team', 'services',
+        'solutions', 'consulting', 'management', 'business', 'market',
+        // محتوا و رسانه
+        'blog', 'news', 'media', 'studio', 'design', 'art', 'photo', 'video',
+        // حرفه‌ای و شخصی
+        'me', 'pro', 'name', 'expert', 'academy', 'institute', 'education',
+        // منطقه‌ای و پرکاربرد
+        'eu', 'de', 'nl', 'uk', 'fr', 'es', 'it', 'tr', 'asia',
+        // صنعتی
+        'energy', 'finance', 'clinic', 'travel', 'events', 'games', 'live',
+    ];
+
+    public function __construct(
+        private OpenProviderClient $op,
+        private ExchangeRate $fx,
+    ) {}
+
+    /**
+     * جستجوی یک دامنه در چند پسوند.
+     *
+     * @param  string    $query   ورودی کاربر: «example» یا «example.com»
+     * @param  string[]  $tlds    پسوندهای پیشنهادی وقتی کاربر پسوند نداده
+     * @return array<int,array>
+     */
+    /**
+     * اندازهٔ هر دستهٔ استعلامِ تدریجی.
+     *
+     * 🔴 عمداً کمتر از سقفِ اعتبارسنجیِ روت (`tlds` حداکثر ۱۲) است. اگر
+     * بزرگ‌ترش کنی، هر درخواست با خطای اعتبارسنجی برمی‌گردد و کاربر هیچ
+     * نتیجه‌ای نمی‌بیند — خرابی‌ای که فقط در مرورگر پیداست، نه در تستِ سرور.
+     */
+    public const BATCH = 10;
+
+    /**
+     * دستهٔ اول: چیزی که کاربر بلافاصله باید ببیند.
+     *
+     * @return array<int,string>
+     */
+    public static function firstBatch(): array
+    {
+        return array_slice(self::SUGGEST_TLDS, 0, self::BATCH);
+    }
+
+    /**
+     * بقیهٔ پسوندها، دسته‌دسته — برای بارگذاریِ تدریجی در پس‌زمینه.
+     *
+     * @return array<int,array<int,string>>
+     */
+    public static function restBatches(): array
+    {
+        return array_values(array_chunk(
+            array_slice(self::SUGGEST_TLDS, self::BATCH),
+            self::BATCH
+        ));
+    }
+
+    public function search(string $query, array $tlds = []): array
+    {
+        $this->lookupOk = true;
+        $this->lookupReason = null;
+
+        [$name, $ext] = $this->split($query);
+
+        if ($name === '') {
+            return [];
+        }
+
+        /*
+        | پسوندها: خواستهٔ کاربر اول، بعد پیشنهادها.
+        |
+        | ⚠️ حتی وقتی کاربر پسوند داده، پیشنهادها هم می‌آیند — کسی که
+        | `example.com` را جستجو می‌کند و می‌بیند گرفته شده، باید همان‌جا
+        | جایگزین ببیند، نه اینکه دستِ خالی برگردد.
+        */
+        $suggest = $tlds !== [] ? $tlds : self::SUGGEST_TLDS;
+
+        $extensions = $ext !== ''
+            ? array_values(array_unique(array_merge([$ext], $suggest)))
+            : $suggest;
+
+        // سقفِ ایمنی: هر پسوند یک ردیفِ استعلام است و رسیلری درخواستِ
+        // بی‌اندازه را رد می‌کند.
+        $extensions = array_slice($extensions, 0, self::MAX_TLDS);
+
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 دسته‌بندی — علتش از پروداکشن اثبات شد، نه از حدس
+        |----------------------------------------------------------------------
+        |
+        | رجیسترار برگرداند:
+        |     code 701 · «The domains limit exceeded. Please send less domains
+        |     in one request.» · domains=64
+        |
+        | و ۶۴ دقیقاً تعدادِ `SUGGEST_TLDS` است. یعنی هر جستجوی پنلِ مشتری
+        | (`Account\DomainController::index()` بی‌آرگومانِ دوم صدا می‌زند) کلِ
+        | فهرست را در **یک** درخواست می‌فرستاد و همیشه رد می‌شد. صفحهٔ عمومیِ
+        | `/domains` سالم بود چون خودش در جاوااسکریپت دسته‌دسته می‌فرستاد.
+        |
+        | پس دسته‌بندی به **همین‌جا** آمد نه به فراخوان‌ها: از چهار فراخوانِ
+        | `search()` تنها سه‌تایشان دسته می‌کردند، و همان یکی که نمی‌کرد خرابی
+        | را می‌ساخت.
+        |
+        | ⚠️ اندازه = `self::BATCH` (۱۰) و نه بزرگ‌تر. ۱۰ تنها اندازه‌ای است که
+        | شاهدِ زندهٔ **موفقیت** دارد (صفحهٔ عمومی و `TldPriceBook` سال‌هاست
+        | همین را می‌فرستند)، و سقفِ اعتبارسنجیِ روتِ عمومی هم ۱۲ است. تعدادِ
+        | درخواست هم بیشتر از چیزی که صفحهٔ عمومی از قبل می‌فرستاد نمی‌شود:
+        | ۶۴ پسوند ⇒ ۷ درخواست، دقیقاً همان‌قدر.
+        |
+        | ⚠️ و هیچ **تلاشِ دوباره**ای در کار نیست: `OpenProviderClient::raw()`
+        | عمداً فقط خرابیِ انتقال را دوباره می‌زند، چون تکرارِ یک «نه»ی آگاهانهٔ
+        | رجیسترار فقط اعتبارِ حساب را می‌سوزاند — و این حساب از قبل علامت خورده.
+        */
+        if (! $this->op->enabled()) {
+            $this->lookupOk = false;
+            $this->lookupReason = 'registrar_disabled';
+
+            ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.self::DISABLED_CODE.')', 900, [
+                'reason'  => 'registrar_disabled',
+                'code'    => self::DISABLED_CODE,
+                'desc'    => 'registrar disabled',
+                'domains' => count($extensions),
+            ]);
+
+            return array_map(
+                fn (string $e) => $this->withState($this->unknownRow($name.'.'.$e, $e, 'registrar_disabled')),
+                $extensions
+            );
+        }
+
+        // نگاشت پاسخ رسیلری بر اساس دامنه، تا ترتیب درخواست حفظ شود
+        $byDomain = [];
+
+        /*
+        | پسوندهایی که دستهٔ خودشان شکست خورد.
+        |
+        | 🔴 مهم‌ترین قیدِ این تغییر: شکستِ یک دسته فقط ردیف‌های **همان دسته** را
+        | «استعلام نشد» می‌کند. شکلِ قبلی یک شکست را به کلِ نتیجه تعمیم می‌داد؛
+        | با دسته‌بندی، همان رفتار یعنی یک قطعیِ لحظه‌ای روی دستهٔ چهارم، ۶۴
+        | ردیفِ سالم را هم دور می‌ریخت.
+        */
+        $failed = [];
+
+        foreach (array_chunk($extensions, self::BATCH) as $chunk) {
+            $payload = array_map(
+                fn (string $e) => ['name' => $name, 'extension' => $e],
+                $chunk
+            );
+
+            $lookup = $this->op->check($payload);
+
+            /*
+            | 🔴 «نتوانستیم استعلام کنیم» هرگز نباید «ثبت‌شده» خوانده شود.
+            |
+            | این دقیقاً همان چیزی است که کارفرما دید: یک استعلامِ شکست‌خورده،
+            | ۶۴ ردیفِ «ثبت‌شده» روی صفحه. سکوت هم نبود — دروغِ **مطمئن** بود، که
+            | بدتر است: مشتری نتیجه می‌گیرد اسمِ دلخواهش گرفته شده و می‌رود، و ما
+            | هیچ شکایتی هم نمی‌شنویم تا بفهمیم چیزی خراب است.
+            |
+            | ⚠️ جهتِ خطا هم مهم است: به همان اندازه ممنوع است که «نمی‌دانم» را
+            | «آزاد» بخوانیم — آن‌وقت دامنهٔ گرفته‌شده را می‌فروشیم، پول می‌گیریم و
+            | ثبت شکست می‌خورد.
+            */
+            if (! ($lookup['ok'] ?? false)) {
+                $code = (int) ($lookup['code'] ?? -1);
+
+                Log::warning('domain check failed', [
+                    'code'    => $code,
+                    'desc'    => (string) ($lookup['message'] ?? ''),
+                    'domains' => count($payload),
+                ]);
+
+                $reason = 'lookup_failed';
+
+                /*
+                | 🔴 `Log::warning` به `storage/logs/laravel.log` می‌رود و **هرگز**
+                | به `/admin/errors` نمی‌رسد — آن صفحه فقط `tracker.jsonl` را
+                | می‌خواند که تنها با `ErrorTracker::*` پر می‌شود.
+                |
+                | نتیجهٔ عملی‌اش این بود: کارفرما خرابی را با چشم دید، ردیابِ خطا
+                | صفر نشان داد، و ما «پس لابد استعلام موفق بوده» نتیجه گرفتیم.
+                | یعنی تنها سطحی که کسی نگاهش می‌کند، ساختاراً کور بود.
+                |
+                | ⚠️ `noteOnce` و نه `note`: این متد در هر جستجو صدا زده می‌شود و
+                | پنجرهٔ ردیاب ۴۰۰ خط است — یک قطعیِ یک‌ساعته با `note` کلِ پنجره را
+                | می‌شست و بقیهٔ خطاها را بیرون می‌انداخت (همان خرابیِ سیلِ ۴۰۴).
+                */
+                ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.$code.')', 900, [
+                    'reason'  => $reason,
+                    'code'    => $code,
+                    'desc'    => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
+                    'domains' => count($payload),
+                ]);
+
+                $this->lookupOk = false;
+                $this->lookupReason ??= $reason;
+
+                // فقط ردیف‌های همین دسته «استعلام نشد» می‌شوند؛ دسته‌های دیگر
+                // حقیقتِ خودشان را نگه می‌دارند.
+                foreach ($chunk as $e) {
+                    $failed[$e] = $reason;
+                }
+
+                continue;
+            }
+
+            $answered = 0;
+
+            foreach ((array) ($lookup['results'] ?? []) as $r) {
+                if (! is_array($r)) {
+                    continue;
+                }
+
+                $key = $this->rowKey($r);
+
+                if ($key !== '' && ! isset($byDomain[$key])) {
+                    $byDomain[$key] = $r;
+                    $answered++;
+                }
+            }
+
+            /*
+            | پاسخِ **ناقص** هم یک خرابی است، نه یک جواب.
+            |
+            | پیش از این هیچ‌جا تعدادِ ردیفِ پاسخ با تعدادِ درخواست مقایسه نمی‌شد،
+            | پس رجیستراری که ۶۴ تا پرسیده‌ایم و ۶ تا جواب داده، ۵۸ ردیفِ
+            | «ثبت‌شده»ی ساختگی می‌ساخت و هیچ ردی از خودش نمی‌گذاشت.
+            |
+            | ⚠️ مقایسه **در همین دسته** انجام می‌شود. اگر مثلِ قبل با کلِ فهرست
+            | سنجیده می‌شد، با دسته‌بندی روی هر جستجو درست بود و ردیاب را پر
+            | می‌کرد — همان سیلی که این پروژه یک بار خورد.
+            */
+            if ($answered < count($chunk)) {
+                Log::warning('domain check answered fewer domains than asked', [
+                    'asked'    => count($chunk),
+                    'answered' => $answered,
+                ]);
+
+                // پاسخِ ناقص هم خرابی است و باید در `/admin/errors` دیده شود؛ ولی
+                // چون هر جستجوی حاویِ پسوندی که رسیلری نمی‌شناسد این را می‌سازد،
+                // گلوگاهش بلندتر است تا صفحه را پر نکند.
+                ErrorTracker::noteOnce('domain', 'domain lookup answered fewer domains than asked', 3600, [
+                    'asked'    => count($chunk),
+                    'answered' => $answered,
+                ]);
+            }
+        }
+
+        $out = [];
+        foreach ($extensions as $e) {
+            $fqdn = $name.'.'.$e;
+            $out[] = isset($failed[$e])
+                ? $this->withState($this->unknownRow($fqdn, $e, $failed[$e]))
+                : $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null));
+        }
+
+        return $out;
+    }
+
+    /**
+     * وضعیتِ نمایشی را روی خودِ ردیف مهر می‌زند.
+     *
+     * ⚠️ عمداً یک فیلدِ **اضافه** است و فیلدهای خام حذف نشده‌اند: مصرف‌کننده‌های
+     * موجود (فاکتور، دفترچهٔ قیمت، تست‌ها) هنوز `available`/`orderable` را
+     * می‌خوانند. چیزی که عوض شد این است که **رابطِ کاربری** دیگر حق ندارد
+     * خودش نتیجه‌گیری کند.
+     *
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function withState(array $row): array
+    {
+        $row['state'] = self::stateOf($row);
+
+        return $row;
+    }
+
+    /**
+     * کلیدِ نگاشتِ یک ردیفِ پاسخ.
+     *
+     * `/domains/check` نامِ دامنه را رشته‌ای می‌دهد، ولی `/domains` همان مفهوم
+     * را شیءِ `{name, extension}` می‌دهد (نگاه کن به `findDomain()`). اگر روزی
+     * این نقطهٔ پایانی هم شیء بدهد، شکلِ قبلی — `(string) $r['domain']` — یک
+     * «Array to string conversion» پرتاب می‌کرد که کنترلر می‌بلعید و صفحه
+     * «نتیجه‌ای پیدا نشد» می‌شد. هر دو شکل را می‌فهمیم؛ ارزانش همین است.
+     */
+    private function rowKey(array $row): string
+    {
+        $d = $row['domain'] ?? null;
+
+        if (is_array($d)) {
+            $n = trim((string) ($d['name'] ?? ''));
+            $x = trim((string) ($d['extension'] ?? ''), " \t.");
+
+            return ($n === '' || $x === '') ? '' : strtolower($n.'.'.$x);
+        }
+
+        return is_scalar($d) ? strtolower(trim((string) $d)) : '';
+    }
+
+    /** ردیفِ «استعلام نشد» — نه آزاد، نه گرفته‌شده. */
+    private function unknownRow(string $fqdn, string $ext, string $reason): array
+    {
+        return [
+            'domain'         => $fqdn,
+            'tld'            => $ext,
+            'status'         => 'unknown',
+            'available'      => false,
+            'is_premium'     => false,
+            'orderable'      => false,
+            'price_toman'    => null,
+            'renew_toman'    => null,
+            'transfer_toman' => null,
+            'reason'         => $reason,
+            'quote_id'       => null,
+        ];
+    }
+
+    /**
+     * تبدیل پاسخ خام رسیلری به شکلی که رابط کاربری می‌فهمد.
+     *
+     * سه وضعیت مجزا که کارفرما خواست:
+     *   available            — آزاد و قابل ثبت
+     *   premium              — آزاد ولی قیمت ویژه
+     *   unavailable          — گرفته‌شده یا غیرقابل فروش
+     */
+    private function shape(string $fqdn, string $name, string $ext, ?array $raw): array
+    {
+        $base = [
+            'domain'      => $fqdn,
+            'tld'         => $ext,
+            'status'      => 'unknown',
+            'available'   => false,
+            'is_premium'  => false,
+            'orderable'   => false,
+            'price_toman'    => null,
+            'renew_toman'    => null,
+            'transfer_toman' => null,
+            'reason'         => null,
+            'quote_id'    => null,
+        ];
+
+        /*
+        |----------------------------------------------------------------------
+        | 🔴 پسوندی که نمی‌فروشیم، هرگز قیمت نمی‌گیرد — حتی اگر رجیسترار
+        |    بگوید آزاد است
+        |----------------------------------------------------------------------
+        |
+        | `UNSOLD_TLDS` تا امروز فقط در دو جا اثر داشت: فهرستِ پیشنهادها
+        | (`SUGGEST_TLDS`) و دفترچهٔ قیمت (`TldPriceBook::NEVER_QUOTE`). ولی
+        | `stateOf()` فقط در شاخهٔ «وضعیتِ ناشناخته» از `sells()` می‌پرسید — پس
+        | اگر کاربر خودش `.ir` را تایپ می‌کرد و رجیسترار `free` می‌داد، ردیف
+        | `state = free` و `orderable = true` می‌گرفت و یک `DomainQuote` واقعی
+        | ساخته می‌شد.
+        |
+        | نتیجه روی سایتِ زنده (سنجیده شد، مرداد ۱۴۰۵):
+        |
+        |     sanjesh-…-1405.ir → «آزاد» · ۱۳٬۳۸۰٬۰۰۰ تومان · quote_id واقعی
+        |
+        | در حالی که همان دامنه از ایرنیک حدودِ ۱۷۰٬۰۰۰ تومان است — تقریباً
+        | **۸۰ برابر**. و چون `Account\DomainController::order()` فقط
+        | `TldGate` را می‌سنجید و نه `sells()`, مشتری واقعاً می‌توانست سفارش
+        | بدهد و فاکتورِ سیزده‌میلیونی بگیرد برای چیزی که ثبتش هم نمی‌شد.
+        |
+        | ⚠️ گیت این‌جاست و نه در `stateOf()`، چون این‌جا جلوی **ساختِ استعلام**
+        | را هم می‌گیرد. `stateOf()` تنها وضعیت را برچسب می‌زند؛ اگر فقط آن را
+        | درست می‌کردیم، ردیفِ `DomainQuote` با قیمتِ ۱۳ میلیون همچنان در
+        | دیتابیس می‌نشست و هر مسیری که مستقیم از `quote_id` بخواند دوباره
+        | همان فاجعه را می‌ساخت.
+        |
+        | خروجی به `STATE_UNSUPPORTED` می‌رسد («این پسوند را نمی‌فروشیم») —
+        | صادقانه‌تر از «استعلام نشد» که کاربر را به تلاشِ دوباره دعوت می‌کند.
+        */
+        if (! self::sells($ext)) {
+            return array_merge($base, ['reason' => 'tld_not_sold']);
+        }
+
+        // ⚠️ حتماً array_merge، نه عملگر +: عملگر + کلیدهای موجود در سمت چپ را
+        // بازنویسی نمی‌کند، پس status همیشه 'unknown' می‌ماند.
+        if ($raw === null) {
+            return array_merge($base, ['reason' => 'no_response']);
+        }
+
+        // OpenProvider: free = آزاد · active/inuse = گرفته‌شده
+        $status = strtolower(trim((string) ($raw['status'] ?? '')));
+        $available = $status === 'free';
+        $isPremium = (bool) ($raw['is_premium'] ?? false);
+
+        if (! $available) {
+            /*
+            | 🔴 فقط وضعیتی که **می‌شناسیم** به «ثبت‌شده» ترجمه می‌شود.
+            |
+            | قبلاً هر چیزی جز `free` یعنی گرفته‌شده. ولی `/domains/check` برای
+            | ردیفی که نتوانسته بررسی کند `status: "error"` می‌دهد (پسوندی که
+            | رسیلری نمی‌فروشد، نامِ نامعتبر، سکسکهٔ رجیستری) — و ما همان را
+            | با اطمینان «این دامنه قبلاً ثبت شده» نشان می‌دادیم. یعنی نامی که
+            | همین حالا آزاد است و می‌شد فروخت، به مشتری «گرفته‌شده» اعلام
+            | می‌شد. وضعیتِ ناشناخته = «استعلام نشد»، نه «گرفته‌شده».
+            |
+            | ⚠️ عمداً به سمتِ «نمی‌دانم» خطا می‌کنیم و نه «آزاد»: دامنهٔ
+            | آزادِ ازدست‌رفته یک فروشِ نرفته است، ولی دامنهٔ گرفته‌شده‌ای که
+            | «آزاد» بفروشیم یعنی پولِ گرفته‌شده و ثبتِ شکست‌خورده.
+            */
+            if (! in_array($status, self::TAKEN_STATUSES, true)) {
+                Log::warning('domain check returned an unrecognised status', [
+                    'domain' => $fqdn,
+                    'status' => $status,
+                    'reason' => (string) data_get($raw, 'reason', ''),
+                ]);
+
+                // ⚠️ فقط برای پسوندی که **می‌فروشیم** داد می‌زنیم: `.ir` در هر
+                // جستجویی که کاربر تایپش کند همین شاخه را می‌گیرد و ردیاب را
+                // با یک واقعیتِ شناخته‌شده پر می‌کند.
+                if (self::sells($ext)) {
+                    ErrorTracker::noteOnce('domain', 'domain check returned an unrecognised status: '.($status ?: '(empty)'), 3600, [
+                        'domain' => $fqdn,
+                        'status' => $status,
+                    ]);
+                }
+
+                return array_merge($base, [
+                    'reason' => $status !== '' ? 'check_'.$status : 'no_status',
+                ]);
+            }
+
+            return array_merge($base, [
+                'status' => 'unavailable',
+                'reason' => $status,
+            ]);
+        }
+
+        // قیمت پرمیوم فقط از همین پاسخ می‌آید، نه از فهرست قیمت TLD.
+        // و مهم‌تر: طبق مشخصات رسمی OpenProvider، قیمت پرمیوم در شاخهٔ جداگانهٔ
+        // `premium` می‌نشیند نه در `price.reseller`. اگر آن را نخوانیم، برای
+        // دامنهٔ پرمیوم قیمت پایه نشان می‌دهیم — همان فاجعه‌ای که این طراحی
+        // برای جلوگیری از آن ساخته شد.
+        $cost  = $this->premiumPrice($raw)
+              ?? $this->extractPrice($raw, 'reseller')
+              ?? $this->extractPrice($raw, 'product');
+        $renew = $this->extractPrice($raw, 'reseller', 'renewal') ?? $cost;
+
+        // انتقال هم در همان لحظه استعلام می‌شود. اگر رسیلری قیمتِ انتقال ندهد،
+        // قیمتِ ثبت جایگزین می‌شود — تقریباً همیشه برابرند و «نمی‌دانم» روی
+        // صفحهٔ فروش بدترین گزینه است.
+        $transfer = $this->extractPrice($raw, 'reseller', 'transfer') ?? $cost;
+
+        if ($cost === null) {
+            // آزاد است ولی قیمت نداریم → قیمت نمی‌سازیم
+            return array_merge($base, [
+                'status'    => $isPremium ? 'premium' : 'available',
+                'available' => true,
+                'is_premium'=> $isPremium,
+                'reason'    => 'no_price',
+            ]);
+        }
+
+        $sell  = $this->toSellingToman($cost['amount'], $cost['currency'], $ext);
+        $sellR = $this->toSellingToman($renew['amount'], $renew['currency'], $ext);
+        $sellT = $this->toSellingToman($transfer['amount'], $transfer['currency'], $ext);
+
+        if ($sell === null) {
+            // نرخ ارز در دسترس نیست → قیمتی که نمی‌توانیم پایش بایستیم نشان نمی‌دهیم
+            return array_merge($base, [
+                'status'    => $isPremium ? 'premium' : 'available',
+                'available' => true,
+                'is_premium'=> $isPremium,
+                'reason'    => 'fx_unavailable',
+            ]);
+        }
+
+        /*
+        | 🔴 بهای **تمدید** هم ذخیره می‌شود — تا امروز «خوانده و دور ریخته»
+        | می‌شد و هر دو کفِ ارزی مجبور بودند از بهای تبلیغاتیِ سالِ اول حساب
+        | کنند (کفِ ~€2 برای پسوندی با تمدیدِ €14.90 — محافظِ بی‌اثر).
+        |
+        | ⚠️ فقط وقتی هم‌ارز با بهای ثبت است: دو واحدِ فرعیِ ارزِ متفاوت در
+        | یک ردیف یعنی جمعِ سیب و پرتقال در گزارش‌ها.
+        | ⚠️ گاردِ hasColumn (کش‌شده): این کد پیش از اجرای مهاجرت روی سرور هم
+        | نباید جستجو را بشکند — مهاجرت‌های پروداکشن دستی اجرا می‌شوند.
+        */
+        static $hasRenewCost = null;
+        $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domain_quotes', 'cost_renew_amount');
+
+        $quote = DomainQuote::create([
+            'domain'         => $fqdn,
+            'tld'            => $ext,
+            'registrar'      => 'openprovider',
+            'is_premium'     => $isPremium,
+            'cost_amount'    => (int) round($cost['amount'] * 100), // واحد فرعی ارز مبدأ
+            'cost_currency'  => $cost['currency'],
+            'sell_toman'     => $sell,
+            'renew_toman'    => $sellR,
+            'honour_until'   => now()->addMinutes(self::QUOTE_TTL_MINUTES),
+            'raw'            => $raw,
+        ] + ($hasRenewCost && $renew !== null && $renew['currency'] === $cost['currency']
+            ? ['cost_renew_amount' => (int) round($renew['amount'] * 100)]
+            : []));
+
+        return [
+            'domain'      => $fqdn,
+            'tld'         => $ext,
+            'status'      => $isPremium ? 'premium' : 'available',
+            'available'   => true,
+            'is_premium'  => $isPremium,
+            'orderable'   => true,
+            'price_toman'    => $sell,
+            'renew_toman'    => $sellR,
+            'transfer_toman' => $sellT,
+            'reason'      => null,
+            'quote_id'    => $quote->id,
+        ];
+    }
+
+    /**
+     * قیمت پرمیوم، طبق مشخصات رسمی OpenProvider:
+     *   premium: { currency: "USD", price: { create: 2500.0 } }
+     *
+     * این شاخه از price.reseller جداست و برای دامنهٔ پرمیوم حرف آخر را می‌زند.
+     */
+    private function premiumPrice(array $raw): ?array
+    {
+        $amount = data_get($raw, 'premium.price.create');
+
+        if (! is_numeric($amount) || (float) $amount <= 0) {
+            return null;
+        }
+
+        return [
+            'amount'   => (float) $amount,
+            'currency' => strtoupper((string) (data_get($raw, 'premium.currency') ?: 'USD')),
+        ];
+    }
+
+    /**
+     * قیمت را از ساختار تودرتوی OpenProvider بیرون می‌کشد.
+     * شکل رسمی: price.reseller.price / price.reseller.currency
+     */
+    private function extractPrice(array $raw, string $who, string $kind = 'create'): ?array
+    {
+        /*
+         * 🔴 مسیرهای **نوع‌محور اول**، مسیرِ عمومی آخر.
+         *
+         * قبلاً `price.$who.price` اولین الگو بود و چون در پاسخ همیشه وجود دارد،
+         * برای هر `$kind`ی همان را برمی‌گرداند — یعنی پارامترِ `$kind` عملاً
+         * مرده بود و قیمتِ **تمدید** و **انتقال** همیشه برابرِ قیمتِ ثبت
+         * می‌شد، حتی وقتی رسیلری عددِ متفاوتی می‌داد.
+         *
+         * ⚠️ چرا این خطرناک است: قیمتِ تمدید معمولاً از قیمتِ سالِ اولِ تبلیغاتی
+         * **بالاتر** است. اگر تمدید را به قیمتِ ثبت بفروشیم، روی هر تمدید ضرر
+         * می‌کنیم — و چون تمدید سالانه تکرار می‌شود، ضرر انباشته می‌شود.
+         *
+         * ⚠️ پاسخِ `/domains/check` معمولاً فقط قیمتِ ثبت دارد؛ پس برگشت به
+         * مسیرِ عمومی رفتارِ درست و مورد انتظار است، نه پوششِ خطا.
+         */
+        $paths = [];
+
+        if ($kind !== 'create') {
+            $paths[] = ["price.$who.$kind.price", "price.$who.$kind.currency"];
+            $paths[] = ["price.$kind.$who.price", "price.$kind.$who.currency"];
+            $paths[] = ["{$kind}_price.$who.price", "{$kind}_price.$who.currency"];
+        }
+
+        $paths[] = ["price.$who.price", "price.$who.currency"];
+
+        foreach ($paths as [$pKey, $cKey]) {
+            $amount = data_get($raw, $pKey);
+            if (is_numeric($amount)) {
+                return [
+                    'amount'   => (float) $amount,
+                    'currency' => strtoupper((string) (data_get($raw, $cKey) ?: 'EUR')),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * قیمت خرید (ارز رسیلری) → قیمت فروش (تومان).
+     * نرخ زندهٔ ارز × مبلغ + درصد سود، سپس گرد کردن به پلهٔ ارز.
+     */
+    private function toSellingToman(float $amount, string $currency, string $tld): ?int
+    {
+        $rate = $this->rateFor($currency);
+        if ($rate === null || $rate <= 0) {
+            return null;
+        }
+
+        $costToman = $amount * $rate;
+
+        $marginPct = $this->marginFor($tld);
+        $withMargin = $costToman * (1 + $marginPct / 100);
+
+        $irt = Currency::find('IRT');
+        $step = $irt?->rounding_step ?: 1000;
+
+        return (int) (ceil($withMargin / $step) * $step);
+    }
+
+    /**
+     * نرخِ یک واحدِ ارزِ رسیلری به تومان.
+     *
+     * 🔴 منبعِ نرخ باید **همانِ بقیهٔ سایت** باشد. قبلاً این‌جا مستقیم
+     * `ExchangeRate` صدا زده می‌شد و نرخِ مبنایی که مدیر در `/admin/settings`
+     * می‌گذارد (`pricing_rate_override`) اصلاً دیده نمی‌شد — یعنی سرورِ ابری با
+     * نرخِ مدیر قیمت می‌خورد و دامنه با نرخِ اسکرپ‌شده. دو قیمتِ ناهماهنگ روی
+     * یک سایت، و مدیری که نرخ را عوض می‌کند و می‌بیند دامنه‌ها تکان نمی‌خورند.
+     *
+     * یورو از `CloudPricing` می‌آید (همان منبعِ یگانه). ارزِ دیگر — رسیلری
+     * گاهی دلاری قیمت می‌دهد — با نرخِ زندهٔ خودش، چون نرخِ مبنا فقط یورویی است.
+     */
+    /**
+     * ⚠️ عمومی شد تا `Reseller\ResellerPricing` بتواند **کفِ قیمت** را از روی
+     * بهای تمام‌شده حساب کند. اگر آن‌جا نرخِ دیگری استفاده می‌شد، کفِ محافظ با
+     * قیمتی که این کلاس ساخته هم‌مبنا نبود و در جهشِ ارز، کف یا بی‌اثر می‌شد
+     * یا کلِ تخفیف را می‌خورد — هر دو بی‌هیچ خطایی.
+     */
+    public function rateFor(string $currency): ?int
+    {
+        $currency = strtoupper($currency);
+
+        if ($currency === 'EUR') {
+            $rate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+
+            // صفر یعنی «نمی‌دانیم» — نه اینکه دامنه رایگان است
+            return $rate > 0 ? $rate : null;
+        }
+
+        return $this->fx->toToman($currency);
+    }
+
+    /**
+     * درصد سود دامنه.
+     *
+     * 🔴 اولویت با تنظیماتِ مدیر است (`domain_margin_pct` در `/admin/settings`)،
+     * بعد config، و در نهایت **صفر**.
+     *
+     * ⚠️ پیش‌فرضِ قبلی ۲۵٪ بود و از `.env` می‌آمد — یعنی مدیر نه می‌دید نه
+     * می‌توانست عوضش کند، و روی یک دامنهٔ ۲ میلیونی نیم میلیون تومان اضافه
+     * می‌کرد بی‌آنکه کسی تصمیمش را گرفته باشد. صفر یعنی «تا وقتی آگاهانه
+     * تصمیم نگرفته‌ای، به بهای تمام‌شده بفروش» — که برای دامنه، که محصولِ
+     * جذبِ مشتری است، انتخابِ بهتری از حدسِ ۲۵٪ است.
+     */
+    private function marginFor(string $tld): float
+    {
+        $override = \App\Models\Setting::get('domain_margin_pct');
+
+        if ($override !== null && $override !== '') {
+            return max(0, (float) $override);
+        }
+
+        $cfg = (array) config('services.openprovider.margin', []);
+
+        return max(0, (float) ($cfg[$tld] ?? $cfg['default'] ?? 0));
+    }
+
+    /**
+     * دامنهٔ **اصلیِ** یک جستجو — همان که کاربر واقعاً تایپ کرده.
+     *
+     * 🔴 چرا لازم شد: صفحهٔ /domains نتیجه‌ها را با «بهترین» مرتب می‌کند و
+     * گرفته‌شده‌ها آخر می‌روند — یعنی دقیقاً وقتی دامنهٔ خودِ کاربر آزاد
+     * نیست، پاسخِ سؤالش تهِ فهرست دفن می‌شد و او فقط دیواری از پیشنهاد
+     * می‌دید. رابط باید بتواند این یک ردیف را بشناسد و سنجاق کند.
+     *
+     * ⚠️ فقط وقتی پسوندِ صریح دارد جواب می‌دهد؛ «example»ِ بی‌پسوند در چند
+     * دسته استعلام می‌شود و «اصلی»‌اش را رابط از اولین دسته می‌فهمد، نه ما —
+     * اگر این‌جا حدس می‌زدیم، در هر دستهٔ بعدی یک ردیفِ اشتباه پرچم می‌خورد.
+     */
+    public function primaryFqdn(string $query): ?string
+    {
+        [$name, $ext] = $this->split($query);
+
+        return ($name !== '' && $ext !== '') ? $name.'.'.$ext : null;
+    }
+
+    /** «example.com» یا «Example.COM» یا «example» → [name, ext] */
+    private function split(string $query): array
+    {
+        $q = trim(mb_strtolower($query));
+        $q = preg_replace('#^https?://#', '', $q);
+        $q = preg_replace('#[/?].*$#', '', $q);
+        $q = ltrim($q, '.');
+        $q = preg_replace('/\s+/u', '', $q) ?? '';
+
+        if ($q === '') {
+            return ['', ''];
+        }
+
+        if (! str_contains($q, '.')) {
+            return [$this->sanitizeLabel($q), ''];
+        }
+
+        $parts = explode('.', $q, 2);
+
+        return [$this->sanitizeLabel($parts[0]), trim($parts[1], '.')];
+    }
+
+    private function sanitizeLabel(string $s): string
+    {
+        // فقط حروف/رقم/خط تیره — دامنهٔ یونیکد بعداً با punycode اضافه می‌شود
+        return trim(preg_replace('/[^\p{L}\p{N}-]/u', '', $s) ?? '', '-');
+    }
+}

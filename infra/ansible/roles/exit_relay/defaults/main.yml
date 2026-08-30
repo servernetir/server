@@ -1,0 +1,38 @@
+---
+# Module 2b / step 2 — self-healing swappable RELAY POOL in LXC {{ relay_ctid }}.
+# Provides a relay-AGNOSTIC clean uplink SOCKS at 127.0.0.1:{{ relay_local_socks }}
+# that mihomo (UPLINK) and any downstream dial through. A monitor auto-rotates to
+# the next HEALTHY relay in the pool the moment egress drops. This is why the free
+# per-country nodes keep working despite Iran DPI. Additive + reversible.
+relay_ctid: "{{ exit_ctid | default(113) }}"
+
+# Local SOCKS port the resilient SSH -D tunnel binds INSIDE the container.
+# Everything downstream (mihomo UPLINK) rides this, fully relay-agnostic.
+relay_local_socks: 1080
+
+# ACTIVE relay seeded into /etc/servernet/relay.conf. relay_key is a PATH to a
+# private key that MUST already exist INSIDE the container — never key CONTENT.
+relay_host: "91.107.173.226"
+relay_port: 22
+relay_user: "root"
+relay_key: "/root/de_relay_key"
+
+# Relay POOL seeded into /etc/servernet/relays.list (one per line:
+# "HOST PORT USER KEYFILE"). The self-heal monitor rotates through these on egress
+# failure. Add more at runtime with the host helper: servernet-relay-set add ...
+relay_pool:
+  - { host: "91.107.173.226", port: 22, user: "root", key: "/root/de_relay_key" }
+
+# Health probe the monitor + host helper use to decide a relay is up (loc= line).
+relay_probe_url: "https://www.cloudflare.com/cdn-cgi/trace"
+
+# Safe by default: stage the units/scripts on the host; relay_apply=true to
+# install + enable inside the container (+ the host helper on the host).
+relay_apply: false
+relay_stage_dir: "/root/.servernet/relay"
+
+# OPTIONAL, guarded: migrate the legacy de-ssh-socks.service uplink onto
+# servernet-relay (same port {{ relay_local_socks }}), with auto-rollback if the
+# generic tunnel can't egress. OFF unless explicitly set true, and only acts when
+# relay_apply is also true. Leave false for a fresh / parallel install.
+relay_migrate_de_ssh_socks: false

@@ -1,0 +1,335 @@
+/* ============================================================================
+   ورود و ثبت‌نام سرورنت
+   ----------------------------------------------------------------------------
+   این صفحه‌ها لحن سایت فروش را ندارند. اینجا کاربر کد ملی و شمارهٔ کارتش را
+   می‌دهد، پس لحن باید مالی باشد: آرام، دقیق، با نشانهٔ امنیتی آشکار.
+
+   قاعدهٔ رنگ: گرادیان برند فقط روی دو چیز می‌نشیند — گام فعال و دکمهٔ اصلی.
+   هر جای دیگری خنثی است. رنگ زیاد روی صفحه‌ای که پول و هویت دارد، حس
+   «تبلیغات» می‌دهد نه «بانک».
+
+   چیدمان: دو ستون. فرم در ستون شروع (راست در فارسی)، ریل اطمینان در ستون
+   پایان. زیر �860px ریل به یک نوار پیشرفتِ باریک بالای فرم تبدیل می‌شود —
+   عمداً نه دایره‌های افقی، چون آن الگو با برچسب فارسی و RTL شکننده است.
+
+   همه‌جا ویژگی‌های منطقی (inline-start/end) تا نسخهٔ en/tr بدون هیچ override
+   برعکس شود.
+   ========================================================================== */
+
+:root{
+  --ok:#34D399;      --ok-bg:rgba(52,211,153,.10);      --ok-line:rgba(52,211,153,.32);
+  --warn:#FBBF24;    --warn-bg:rgba(251,191,36,.10);    --warn-line:rgba(251,191,36,.32);
+  --danger:#F87171;  --danger-bg:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.32);
+  --auth-rail:rgba(255,255,255,.028);
+}
+html[data-theme="light"]{
+  --ok:#059669;      --ok-bg:rgba(5,150,105,.09);
+  --warn:#B45309;    --warn-bg:rgba(180,83,9,.09);
+  --danger:#DC2626;  --danger-bg:rgba(220,38,38,.08);
+  --auth-rail:rgba(15,23,42,.028);
+}
+
+/* ⚠️ این توضیح **کهنه است و اصلاح شد**: قرارداد پروژه دیگر «هر صفحه خودش جا
+   باز کند» نیست. `#main{padding-top:var(--header-h)}` در site.css فضای هدرِ
+   ثابت را یک‌جا رزرو می‌کند (CLAUDE.md §۳)، و `.pnl-wrap` هم به همین دلیل از
+   ۱۱۸px به ۳۴px آمد.
+
+   🔴 `.auth-wrap` همان باگ را دارد و **بزرگ‌تر** است: ۱۱۲ + ۱۵۰ = ۲۶۲px فضای
+   مرده روی login / login-code / register و `account/payment-result` — صفحه‌ای
+   که مشتری اغلب با نشستِ منقضی رویش می‌افتد. عمداً در این تغییر دست نخورد
+   (سطحِ دیگری است و مسیرِ ورود را جابه‌جا می‌کند)، ولی توضیحِ غلط باید
+   می‌رفت، وگرنه خوانندهٔ بعدی همان عدد را جای دیگری هم می‌گذاشت. */
+.auth-wrap{ padding:150px 0 78px; }
+@media(max-width:640px){ .auth-wrap{ padding:132px 0 56px; } }
+
+.auth-wrap .container{ max-width:900px; }
+
+/* ── عنوان صفحه: وسط، بیرون از قاب، زیر منوی سایت ────────────────────────
+   ⚠ این بلوک عمداً <div> است نه <header>. در site.css خط ۶۸ یک قاعده روی خودِ
+   تگ هست: header{position:fixed;top:0;left:0;right:0} — که هر <header> را،
+   هر جای صفحه، به گوشهٔ بالای viewport می‌چسباند. یک بار همین عنوان را برد
+   بالای صفحه. اگر لازم شد <header> بگذارید، position را صریح خنثی کنید. */
+.auth-title{
+  position:static;                     /* بیمه در برابر همان قاعدهٔ سراسری */
+  text-align:center; max-width:600px; margin:0 auto clamp(24px,3vw,32px);
+}
+.auth-title h1{
+  font-family:var(--font-disp); font-size:clamp(22px,3.6vw,30px);
+  margin:0 0 10px; line-height:1.45; letter-spacing:-.3px;
+}
+.auth-title p{ margin:0; font-size:14px; color:var(--muted); line-height:2; }
+.auth-title p b{ color:var(--text); font-weight:600; }
+
+/* ── قاب دو ستونه ────────────────────────────────────────────────────────── */
+.auth-shell{
+  display:grid; grid-template-columns:minmax(0,1fr) 296px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-lg); overflow:hidden;
+}
+.auth-main{ padding:clamp(26px,4vw,40px); min-width:0; }
+
+.auth-rail{
+  padding:clamp(24px,3vw,34px) clamp(20px,2.4vw,28px);
+  background:var(--auth-rail);
+  border-inline-start:1px solid var(--line);
+  display:flex; flex-direction:column; gap:26px;
+}
+
+/* ── ریل: گام‌های عمودی ──────────────────────────────────────────────────── */
+.auth-rail-t{
+  font-size:11px; font-weight:700; letter-spacing:.09em;
+  color:var(--dim); text-transform:uppercase;
+}
+
+.stp{ list-style:none; margin:0; padding:0; }
+.stp li{
+  display:grid; grid-template-columns:24px minmax(0,1fr); gap:12px;
+  padding-bottom:20px; position:relative;
+}
+.stp li:last-child{ padding-bottom:0; }
+
+/* خط رابط عمودی — زیر نشانگر، از پایینش تا گام بعد */
+.stp li:not(:last-child)::before{
+  content:""; position:absolute; inset-inline-start:11px;
+  top:26px; bottom:2px; width:2px; background:var(--line);
+}
+.stp li.done:not(:last-child)::before{ background:var(--ok); opacity:.45; }
+
+.stp b{
+  grid-row:1 / span 2; align-self:start;
+  width:24px; height:24px; border-radius:50%;
+  display:grid; place-items:center;
+  font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums;
+  background:var(--bg); border:1.5px solid var(--line); color:var(--dim);
+  position:relative; z-index:1;
+}
+.stp li.on b{ background:var(--grad); border-color:transparent; color:#04121f; }
+.stp li.done b{ border-color:var(--ok); color:var(--ok); background:var(--ok-bg); }
+
+.stp i{ font-style:normal; font-size:13px; font-weight:600; color:var(--muted); line-height:1.5; }
+.stp small{ display:block; font-size:11.5px; color:var(--dim); line-height:1.7; margin-top:2px; }
+.stp li.on i{ color:var(--text); }
+.stp li.done i{ color:var(--muted); }
+
+/* ── ریل: نشانه‌های اطمینان ──────────────────────────────────────────────── */
+.auth-assure{
+  margin-top:auto; display:flex; flex-direction:column; gap:11px;
+  border-top:1px solid var(--line); padding-top:20px;
+}
+.auth-assure div{
+  display:grid; grid-template-columns:15px minmax(0,1fr); gap:9px; align-items:start;
+  font-size:11.5px; color:var(--dim); line-height:1.75;
+}
+.auth-assure .icon{ width:15px; height:15px; color:var(--ok); margin-top:2px; }
+.auth-assure b{ color:var(--muted); font-weight:600; }
+
+/* ── نوار پیشرفت موبایل (جایگزین ریل) ───────────────────────────────────── */
+.auth-prog{ display:none; margin-bottom:24px; }
+.auth-prog-h{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  font-size:12px; margin-bottom:9px;
+}
+.auth-prog-h b{ color:var(--text); font-weight:600; font-size:12.5px; }
+.auth-prog-h span{ color:var(--dim); font-variant-numeric:tabular-nums; }
+.auth-prog-bar{ height:3px; border-radius:99px; background:var(--line); overflow:hidden; }
+.auth-prog-bar i{ display:block; height:100%; background:var(--grad); border-radius:99px;
+                  transition:width .45s var(--ease); }
+
+/* ── پیام‌ها ────────────────────────────────────────────────────────────── */
+.auth-note{
+  display:flex; flex-direction:column; gap:5px;
+  border-radius:12px; padding:12px 15px; margin-bottom:20px;
+  font-size:12.5px; line-height:1.9;
+  border:1px solid; border-inline-start-width:3px;
+}
+.auth-note.ok{  background:var(--ok-bg);     border-color:var(--ok-line);     color:var(--ok); }
+.auth-note.bad{ background:var(--danger-bg); border-color:var(--danger-line); color:var(--danger); }
+
+/* ── فرم ────────────────────────────────────────────────────────────────── */
+.auth-f{ display:flex; flex-direction:column; gap:18px; }
+
+.auth-field > label{
+  display:block; font-size:12.5px; font-weight:600;
+  margin-bottom:8px; color:var(--text);
+}
+.auth-field input[type=text],
+.auth-field input[type=email],
+.auth-field input[type=tel],
+.auth-field input[type=password]{
+  width:100%; box-sizing:border-box; min-height:48px;   /* هدف لمسی */
+  background:var(--surface-2); border:1px solid var(--line);
+  border-radius:12px; padding:12px 15px;
+  font:inherit; font-size:14.5px; color:var(--text);
+  transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.auth-field input:focus{
+  outline:none; border-color:var(--line-2);
+  box-shadow:0 0 0 3px rgba(34,211,238,.16);
+}
+.auth-field input::placeholder{ color:var(--dim); }
+.auth-field small{
+  display:block; margin-top:7px;
+  font-size:11.5px; color:var(--dim); line-height:1.85;
+}
+/* اعداد همیشه چپ‌به‌راست، حتی در فرم فارسی */
+.auth-field input[dir=ltr]{
+  text-align:start; font-variant-numeric:tabular-nums; letter-spacing:.03em;
+}
+
+/* اعتبارسنجی روی blur، نه روی هر کلید — حالت موفق هم دیده می‌شود */
+.auth-field.is-bad input{ border-color:var(--danger-line); }
+.auth-field.is-ok  input{ border-color:var(--ok-line); }
+.auth-field .msg{ display:none; margin-top:7px; font-size:11.5px; line-height:1.8; }
+.auth-field.is-bad .msg{ display:block; color:var(--danger); }
+
+/* ── نمایش/پنهان کردن رمز ───────────────────────────────────────────────
+   ⚠ فیلد رمز dir="ltr" است (رمز چپ‌به‌راست تایپ می‌شود). قبلاً دکمه در
+   wrapper با جهت RTL سمت چپ می‌نشست ولی padding سمت راست رزرو می‌شد —
+   نامتقارن، پس دکمه روی متن می‌افتاد.
+
+   راه‌حل: wrapper هم dir=ltr شود تا دکمه و padding هر دو یک سمت (راستِ فیلد)
+   باشند. برای فیلد رمزِ چپ‌به‌راست، آیکن در انتهای همان فیلد می‌نشیند و با
+   متن تداخل ندارد — چه صفحه فارسی باشد چه انگلیسی. */
+.auth-pw{ position:relative; direction:ltr; }
+.auth-pw input{ padding-inline-end:46px !important; }
+.auth-pw-eye{
+  position:absolute; inset-inline-end:6px; top:50%; transform:translateY(-50%);
+  width:36px; height:36px; display:grid; place-items:center;
+  background:none; border:0; padding:0; cursor:pointer;
+  color:var(--dim); border-radius:9px;
+  transition:color .16s var(--ease), background .16s var(--ease);
+}
+.auth-pw-eye:hover{ color:var(--text); background:var(--surface-2); }
+.auth-pw-eye:focus-visible{ outline:2px solid var(--line-2); outline-offset:1px; color:var(--text); }
+.auth-pw-eye .icon{ width:18px; height:18px; }
+/* آیکن فعال با حالت دکمه عوض می‌شود، نه با جاوااسکریپتِ جداگانه */
+.auth-pw-eye .off{ display:none; }
+.auth-pw-eye[aria-pressed="true"] .on{ display:none; }
+.auth-pw-eye[aria-pressed="true"] .off{ display:block; }
+.auth-pw-eye[aria-pressed="true"]{ color:var(--text); }
+
+/* برچسبی که فقط صفحه‌خوان باید ببیند — حذفش از DOM دسترسی‌پذیری را می‌شکند */
+.visually-hidden{
+  position:absolute; width:1px; height:1px; overflow:hidden;
+  clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap;
+}
+
+/* ── کد یک‌بارمصرف: شش خانهٔ جدا ─────────────────────────────────────────── */
+.otp{ display:flex; gap:9px; direction:ltr; justify-content:center; }
+.otp input{
+  width:48px; height:56px; padding:0; text-align:center;
+  font-family:var(--font-disp); font-size:22px; font-weight:700;
+  font-variant-numeric:tabular-nums;
+  background:var(--surface-2); border:1px solid var(--line);
+  border-radius:12px; color:var(--text);
+  transition:border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
+}
+.otp input:focus{
+  outline:none; border-color:var(--line-2); transform:translateY(-1px);
+  box-shadow:0 0 0 3px rgba(34,211,238,.18);
+}
+.otp input.filled{ border-color:var(--ok-line); }
+@media(max-width:400px){ .otp{ gap:6px } .otp input{ width:42px; height:50px; font-size:19px } }
+
+/* ── انتخاب نوع حساب ─────────────────────────────────────────────────────── */
+.auth-pick{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.auth-pick label{
+  display:flex; flex-direction:column; gap:4px; cursor:pointer; margin:0;
+  border:1px solid var(--line); border-radius:12px; padding:14px 15px;
+  background:var(--surface-2);
+  transition:border-color .18s var(--ease), background .18s var(--ease);
+}
+.auth-pick label b{ font-size:13px; color:var(--text); }
+.auth-pick label span{ font-size:11px; color:var(--dim); line-height:1.7; }
+.auth-pick input{ position:absolute; opacity:0; pointer-events:none; }
+.auth-pick input:checked + label{ border-color:var(--line-2); background:var(--surface); }
+.auth-pick input:checked + label b::after{
+  content:"✓"; color:var(--ok); font-size:11px; margin-inline-start:6px;
+}
+.auth-pick input:focus-visible + label{ box-shadow:0 0 0 3px rgba(34,211,238,.18); }
+
+/* ── تیک شرایط ──────────────────────────────────────────────────────────── */
+.auth-check{
+  display:flex; align-items:flex-start; gap:10px; margin:0;
+  font-size:12.5px; color:var(--muted); line-height:1.95;
+}
+.auth-check input{ margin-top:5px; flex:none; width:16px; height:16px; accent-color:#22D3EE; }
+.auth-check a{ color:var(--text); text-decoration:underline; text-underline-offset:3px; }
+
+/* ── دکمه‌ها ────────────────────────────────────────────────────────────── */
+.auth-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; min-height:48px; border:0; cursor:pointer;
+  background:var(--grad); color:#04121f;
+  border-radius:12px; padding:13px 20px;
+  font:inherit; font-size:14.5px; font-weight:700;
+  transition:transform .16s var(--ease), opacity .16s var(--ease);
+}
+.auth-btn:hover{ transform:translateY(-1px); }
+.auth-btn:focus-visible{ outline:2px solid var(--text); outline-offset:3px; }
+.auth-btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+
+.auth-btn .spin{
+  width:15px; height:15px; border-radius:50%; display:none;
+  border:2px solid rgba(4,18,31,.25); border-top-color:#04121f;
+  animation:auth-spin .7s linear infinite;
+}
+.auth-btn.busy .spin{ display:block; }
+@keyframes auth-spin{ to{ transform:rotate(360deg) } }
+
+.auth-ghost{
+  background:none; border:0; padding:6px 2px; cursor:pointer;
+  font:inherit; font-size:12.5px; color:var(--muted);
+  text-decoration:underline; text-underline-offset:3px;
+}
+.auth-ghost:hover{ color:var(--text); }
+.auth-ghost[disabled]{ opacity:.5; cursor:default; text-decoration:none; }
+
+.auth-row{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  flex-wrap:wrap; margin-top:6px;
+}
+
+.auth-alt{
+  text-align:center; margin:22px 0 0;
+  font-size:13px; color:var(--muted); line-height:2;
+}
+.auth-alt a{ color:var(--text); font-weight:600; }
+
+/* ── جعبهٔ توضیح داخل فرم ────────────────────────────────────────────────── */
+.auth-info{
+  border:1px solid var(--line); border-inline-start:3px solid var(--ok);
+  border-radius:12px; padding:13px 15px; margin-bottom:22px;
+  background:var(--surface-2);
+  font-size:12.5px; color:var(--muted); line-height:2;
+}
+.auth-info b{ color:var(--text); font-weight:600; }
+
+/* ── واکنش‌گرا ──────────────────────────────────────────────────────────── */
+@media(max-width:860px){
+  .auth-shell{ grid-template-columns:1fr; }
+  .auth-rail{ display:none; }
+  .auth-prog{ display:block; }
+}
+@media(max-width:420px){
+  .auth-pick{ grid-template-columns:1fr; }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .auth-btn, .otp input, .auth-prog-bar i{ transition:none; }
+  .auth-btn:hover{ transform:none; }
+  .auth-btn .spin{ animation:none; }
+}
+
+/* راهنمای ربات بله در صفحهٔ کد ورود — کد هم‌زمان از پیامک/ایمیل/بله می‌رود،
+   پس اگر پیامک نرسید کاربر راهِ دیگری دارد و پشتِ درِ بسته نمی‌ماند. */
+.auth-bale{
+  display:flex; align-items:flex-start; gap:9px; margin-top:14px;
+  padding:11px 13px; border-radius:12px;
+  background:color-mix(in srgb, var(--cyan,#22D3EE) 8%, transparent);
+  border:1px solid color-mix(in srgb, var(--cyan,#22D3EE) 26%, transparent);
+  font-size:12.5px; line-height:1.95; color:var(--muted,#8A94AC);
+}
+.auth-bale .icon{ width:16px; height:16px; flex:0 0 auto; margin-top:3px; color:var(--cyan,#22D3EE); }
+.auth-bale a{ color:var(--cyan,#22D3EE); font-weight:700; text-decoration:none; }
+.auth-bale a:hover{ text-decoration:underline; }

@@ -1,0 +1,126 @@
+---
+# Module 2b — deploy the mihomo per-country pool into LXC {{ mc_ctid }}.
+# Additive alongside sing-box. Stage-by-default; mc_apply=true to install + run.
+# Every free node dials through UPLINK (the exit_relay SOCKS) and rules end in
+# MATCH,REJECT; pair with exit_relay (before) and mihomo_killswitch (after).
+#
+# ROLLBACK (manual): the previous config is backed up in-container to
+#   {{ mihomo_conf_dir }}/config.yaml.bak-mc
+#   pct exec {{ mc_ctid }} -- cp {{ mihomo_conf_dir }}/config.yaml.bak-mc {{ mihomo_conf_dir }}/config.yaml \
+#     && pct exec {{ mc_ctid }} -- systemctl restart mihomo
+
+- name: Ensure host staging dir
+  ansible.builtin.file:
+    path: "{{ mc_stage_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Render mihomo config + sync script + units to staging
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ mc_stage_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: mihomo-config.yaml.j2,      dest: config.yaml,            mode: "0640" }
+    - { src: sn-exit-sync.sh.j2,         dest: sn-exit-sync.sh,        mode: "0750" }
+    - { src: mihomo.service.j2,          dest: mihomo.service,         mode: "0644" }
+    - { src: sn-subs-httpd.service.j2,   dest: sn-subs-httpd.service,  mode: "0644" }
+    - { src: sn-exit-sync.service.j2,    dest: sn-exit-sync.service,   mode: "0644" }
+    - { src: sn-exit-sync.timer.j2,      dest: sn-exit-sync.timer,     mode: "0644" }
+  no_log: true                      # config carries the API secret
+
+- name: Stage-only notice (with honesty caveat)
+  ansible.builtin.debug:
+    msg:
+      - "Module 2b (mihomo pool) staged at {{ mc_stage_dir }}."
+      - "Countries ({{ exit_countries | length }}): {{ exit_countries | map(attribute='group') | join(', ') }} — each with same-country url-test failover."
+      - "Every node is dialed through UPLINK (SOCKS5 127.0.0.1:{{ mihomo_uplink_socks_port }}) — requires the exit_relay role applied first."
+      - "Rules end in MATCH,REJECT (kill-switch base); pair with mihomo_killswitch for the cgroup-level guarantee."
+      - "Nothing pushed to container {{ mc_ctid }} (mc_apply=false)."
+      - "CAVEAT: free public nodes are run by strangers — free/fallback tier only, never paid."
+  when: not (mc_apply | bool)
+
+- name: Apply Module 2 to exit container
+  when: mc_apply | bool
+  block:
+    - name: Confirm container {{ mc_ctid }} exists
+      ansible.builtin.command: pct status {{ mc_ctid }}
+      register: _mcstat
+      changed_when: false
+
+    - name: Query installed mihomo version (if any)
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc '{{ mihomo_bin }} -v 2>/dev/null | head -1 || true'
+      register: _mhver
+      changed_when: false
+
+    - name: Install pinned mihomo + ensure python3
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'set -e; command -v python3 >/dev/null || (apt-get update -qq && apt-get install -y python3);
+         cd /tmp;
+         curl -fsSL -o mihomo.gz https://github.com/MetaCubeX/mihomo/releases/download/v{{ mihomo_version }}/mihomo-linux-amd64-v{{ mihomo_version }}.gz;
+         gunzip -f mihomo.gz;
+         install -m0755 mihomo {{ mihomo_bin }};
+         rm -f mihomo'
+      when: mihomo_version not in (_mhver.stdout | default(''))
+      changed_when: true
+
+    - name: Create dirs in container
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'mkdir -p {{ mihomo_conf_dir }}/providers {{ subs_dir }}'
+      changed_when: false
+
+    - name: Push config + script + units into container
+      ansible.builtin.command: "pct push {{ mc_ctid }} {{ mc_stage_dir }}/{{ item.s }} {{ item.d }}"
+      loop:
+        # config lands as .new; the next task preserves any existing secret + activates it atomically.
+        - { s: config.yaml,           d: "{{ mihomo_conf_dir }}/config.yaml.new" }
+        - { s: sn-exit-sync.sh,       d: "/usr/local/bin/sn-exit-sync.sh" }
+        - { s: mihomo.service,        d: "/etc/systemd/system/mihomo.service" }
+        - { s: sn-subs-httpd.service, d: "/etc/systemd/system/sn-subs-httpd.service" }
+        - { s: sn-exit-sync.service,  d: "/etc/systemd/system/sn-exit-sync.service" }
+        - { s: sn-exit-sync.timer,    d: "/etc/systemd/system/sn-exit-sync.timer" }
+      changed_when: true
+
+    - name: Preserve any existing mihomo secret, back up, and activate the new config
+      # NEVER overwrite a live secret: if config.yaml already has one, keep it
+      # (the sync script also reads it live). Else the vault-var value stands.
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'cp -n {{ mihomo_conf_dir }}/config.yaml {{ mihomo_conf_dir }}/config.yaml.bak-mc 2>/dev/null || true;
+         S="$(grep -oP "^secret:\s*\K.*" {{ mihomo_conf_dir }}/config.yaml 2>/dev/null | tr -d "\"")";
+         if [ -n "$S" ]; then sed -i "s|^secret:.*|secret: \"$S\"|" {{ mihomo_conf_dir }}/config.yaml.new; fi;
+         mv -f {{ mihomo_conf_dir }}/config.yaml.new {{ mihomo_conf_dir }}/config.yaml'
+      changed_when: true
+      no_log: true                    # touches the API secret
+
+    - name: Make sync script executable
+      ansible.builtin.command: pct exec {{ mc_ctid }} -- chmod 0750 /usr/local/bin/sn-exit-sync.sh
+      changed_when: false
+
+    - name: Start subscription httpd, then seed subscriptions once
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'systemctl daemon-reload && systemctl enable --now sn-subs-httpd && /usr/local/bin/sn-exit-sync.sh'
+      register: _seed
+      changed_when: true
+
+    - name: Enable + start mihomo and the sync timer
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'systemctl enable --now mihomo && systemctl enable --now sn-exit-sync.timer'
+      changed_when: true
+
+    - name: Confirm mihomo + httpd active
+      ansible.builtin.command: >-
+        pct exec {{ mc_ctid }} -- bash -lc
+        'systemctl is-active mihomo sn-subs-httpd'
+      register: _mcactive
+      changed_when: false
+      failed_when: "'inactive' in _mcactive.stdout or 'failed' in _mcactive.stdout"
+
+    - name: Module 2 apply summary
+      ansible.builtin.debug:
+        msg: "Module 2 active in container {{ mc_ctid }}: mihomo API {{ mihomo_api_listen }}, {{ exit_countries | length }} countries, sync every {{ sync_interval }}."

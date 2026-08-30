@@ -1,0 +1,11 @@
+#!/bin/sh
+# servernet-vm-country <customer-ip> <cc>  — the IN-CONTAINER half: route this
+# source out country cc's tun. Called by the HOST wrapper (which does the connmark
+# split); the host forwards the VM's marked new-outbound here, this sends it to tun<cc>.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ip="$1"; cc="$2"; . /etc/servernet/country-$cc.env
+while ip rule del from $ip 2>/dev/null; do :; done
+ip rule add from $ip lookup $TABLE priority 1000
+iptables -t nat -C POSTROUTING -s $ip -o tun$cc -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s $ip -o tun$cc -j MASQUERADE
+iptables -C FORWARD -s $ip -o tun$cc -j ACCEPT 2>/dev/null || iptables -A FORWARD -s $ip -o tun$cc -j ACCEPT
+echo "routed $ip -> $cc (table $TABLE via tun$cc)"

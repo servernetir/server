@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# ServerNet Module 2b — multi-source per-country subscription sync.
+# For each country: download SoliSpirit + ConfigForge (shatakvpn) lists, MERGE +
+# dedup, KEEP only vmess/vless/trojan (drop fragile ss/ssr that abort providers),
+# cap to {{ mc_node_cap }}/country, base64-wrap as a subscription, and write it
+# where the local httpd serves it. mihomo reloads on its interval (+ hot PUT).
+# NOTE: `set -uo pipefail` WITHOUT -e on purpose — grep -c returns 1 on 0 matches
+# and the awk cap replaces `head` so the pipeline is SIGPIPE-safe.
+set -uo pipefail
+
+SUBS="{{ subs_dir }}"
+SOLI="{{ soli_base }}"
+CF="{{ configforge_base }}"
+API="http://{{ mihomo_api_listen }}"
+# Read the LIVE on-box secret so we never bake it into this script.
+SECRET="$(grep -oP '^secret:\s*\K.*' {{ mihomo_conf_dir }}/config.yaml | tr -d '"')"
+CAP={{ mc_node_cap }}
+
+mkdir -p "$SUBS"
+ts() { date -u +%FT%TZ; }
+enc() { python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$1"; }
+
+declare -A SOLIF=(
+{% for c in exit_countries %}
+  ["{{ c.key }}"]="{{ c.soli_file }}"
+{% endfor %}
+)
+
+ok=0; warn=0
+for cc in "${!SOLIF[@]}"; do
+  s="$(curl -fsSL --max-time 40 "$SOLI/$(enc "${SOLIF[$cc]}")" 2>/dev/null)"
+  c="$(curl -fsSL --max-time 40 "$CF/$cc/all.txt" 2>/dev/null)"
+  all="$(printf '%s\n%s\n' "$s" "$c" | grep -aiE '^(vmess|vless|trojan)://' | sort -u | awk -v k="$CAP" 'NR<=k')"
+  n="$(printf '%s' "$all" | grep -c . )"
+  if [ "${n:-0}" -eq 0 ]; then echo "$(ts) WARN  $cc: 0 usable nodes; keeping previous file" >&2; warn=$((warn+1)); continue; fi
+  if printf '%s\n' "$all" | base64 -w0 > "$SUBS/$cc.txt.new"; then
+    mv -f "$SUBS/$cc.txt.new" "$SUBS/$cc.txt" && { echo "$(ts) OK    $cc: $n nodes"; ok=$((ok+1)); }
+  else warn=$((warn+1)); rm -f "$SUBS/$cc.txt.new"; fi
+  # Best-effort: force mihomo to reload this provider immediately.
+  curl -fsS -m5 -X PUT -H "Authorization: Bearer $SECRET" "$API/providers/proxies/$cc" >/dev/null 2>&1 || true
+done
+echo "$(ts) sync complete: ok=$ok warn=$warn"

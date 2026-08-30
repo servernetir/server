@@ -7,16 +7,17 @@ use Illuminate\Http\Request;
 
 class RotateSession
 {
-    //هر 15 دقیقه شناسه سشن را عوض میکنیم تا سرقت سشن سخت تر شود. (Session Rotation)
+    // Rotate session every 15 minutes for extra security
     public function handle(Request $request, Closure $next)
     {
         $rotatedAt = session('rotated_at');
 
-        if (! $rotatedAt || now()->diffInMinutes($rotatedAt) >= 15) {
-            if (auth()->check()) {
-                $request->session()->migrate(true); // regenerate + destroy old
-                session(['rotated_at' => now()]);
-            }
+        // Check if the user is authenticated through WHMCS session, not Laravel Auth
+        $isWhmcsAuthenticated = session()->has('whmcs_auth.client_id');
+
+        if ($isWhmcsAuthenticated && (! $rotatedAt || now()->diffInMinutes($rotatedAt) >= 15)) {
+            $request->session()->migrate(true); // regenerate + destroy old
+            session(['rotated_at' => now()]);
         }
 
         return $next($request);

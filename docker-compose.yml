@@ -4,6 +4,7 @@ services:
   web:
     build: .
     container_name: servernet-web-1
+    restart: unless-stopped
     ports:
       - "8080:80"
     volumes:
@@ -15,6 +16,7 @@ services:
     image: mysql:8.0
     container_name: servernet-db-1
     platform: linux/amd64
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: SuperStrongPass456
       MYSQL_DATABASE: servernet_db

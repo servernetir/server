@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: exit_relay
+  author: ServerNet
+  description: "Module 2b: self-healing swappable relay pool (clean uplink SOCKS)"
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions: [all]
+dependencies: []

@@ -1,0 +1,212 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Customer;
+use App\Models\Server;
+use App\Models\Service;
+use App\Services\Provisioning\ProvisioningService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+/**
+ * موتورِ فراهم‌سازی — ساختِ خودکارِ حساب روی WHM، idempotency و چرخهٔ حیات.
+ */
+class ProvisioningTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Mail::fake();   // ایمیلِ «سرویس آماده شد» SMTP واقعی نزند
+    }
+
+    private function whmServer(): Server
+    {
+        return Server::create([
+            'name' => 'WHM-Test', 'type' => 'whm', 'hostname' => 'whm.test',
+            'port' => 2087, 'username' => 'root', 'api_token' => 'TESTTOKEN',
+            'verify_tls' => false, 'status' => 'active',
+        ]);
+    }
+
+    private function service(Server $server, array $over = []): Service
+    {
+        $c = Customer::create([
+            'email' => 'c'.random_int(1, 99999).'@x.com', 'phone' => '0912'.random_int(1000000, 9999999),
+            'password' => 'x', 'status' => 'active', 'locale' => 'fa',
+        ]);
+
+        return Service::create(array_merge([
+            'customer_id' => $c->id, 'server_id' => $server->id, 'name' => 'هاست لینوکس',
+            'currency_code' => 'IRT', 'price' => 250000, 'tax_percent' => 0, 'cycle' => 'monthly',
+            'status' => 'awaiting_provision', 'provision_status' => 'pending',
+            'domain' => 'client-site.com', 'plan' => 'WP-5',
+        ], $over));
+    }
+
+    public function test_whm_account_is_created_and_service_activated(): void
+    {
+        Http::fake([
+            '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 0, 'reason' => 'account does not exist']]),
+            '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 1, 'reason' => 'Account Creation Ok'], 'data' => ['ip' => '1.2.3.4']]),
+            '*/json-api/start_autossl_check_for_one_user*' => Http::response(['metadata' => ['result' => 1, 'reason' => 'ok']]),
+        ]);
+
+        $server = $this->whmServer();
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertTrue($ok);
+        $service->refresh();
+        $this->assertSame('done', $service->provision_status);
+        $this->assertSame('active', $service->status);
+        $this->assertNotEmpty($service->username);
+        $this->assertNotEmpty($service->password);          // رمز ساخته و رمزنگاری شد
+        $this->assertStringContainsString('whm.test', $service->panel_url);
+        $this->assertSame(1, $server->fresh()->active_accounts);   // شمارندهٔ ظرفیت
+
+        /*
+        | 🔴 گواهیِ SSL نباید تا اجرای شبانهٔ AutoSSL صبر کند.
+        |
+        | بی‌این فراخوان، اکانتِ ساخته‌شده در ظهر تا فردا صبح بی‌گواهی می‌مانَد
+        | و مشتری تیکت می‌زند و مدیر دستی در Manage AutoSSL دکمهٔ Check را
+        | می‌زند. ادعا روی خودِ درخواست است، نه روی نیتِ کد.
+        */
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'start_autossl_check_for_one_user')
+            && str_contains($r->url(), 'username='.$service->username));
+    }
+
+    public function test_provision_is_idempotent_when_account_already_exists(): void
+    {
+        /*
+        | accountsummary موفق = حساب هست → نباید دوباره بسازد.
+        |
+        | ⚠️ فیکسچر عمداً `data.acct[0]` دارد. نسخهٔ قبلی `'data' => []` بود —
+        | چیزی که WHM **هرگز** برنمی‌گرداند: پاسخِ موفقِ `accountsummary` همیشه
+        | ردیفِ حساب را همراه دارد.
+        |
+        | آن فیکسچرِ غیرواقعی بی‌ضرر به‌نظر می‌رسید، ولی دقیقاً همان چیزی بود که
+        | اجازه می‌داد پذیرشِ **کور** سبز بماند: تا وقتی ردیفی در کار نباشد،
+        | هیچ تستی نمی‌پرسید «این حساب همانی است که فروخته‌ایم؟». حالا
+        | `accountState()` نام و دامنه را تطبیق می‌دهد و معلق‌بودن را می‌سنجد،
+        | پس فیکسچر هم باید شکلِ واقعی داشته باشد.
+        */
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), 'createacct')) {
+                return Http::response(['metadata' => ['result' => 0, 'reason' => 'username already exists']]);
+            }
+
+            // نام‌کاربری را خودِ سرویس می‌سازد، پس همان را برمی‌گردانیم — دقیقاً
+            // کاری که WHM می‌کند: ردیفِ حسابی که پرسیده‌ای.
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $q);
+
+            return Http::response([
+                'metadata' => ['result' => 1, 'reason' => 'ok'],
+                'data' => ['acct' => [[
+                    'user' => $q['user'] ?? '', 'domain' => 'client-site.com', 'suspended' => 0,
+                ]]],
+            ]);
+        });
+
+        $server = $this->whmServer();
+        $service = $this->service($server, ['username' => 'existinguser']);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertTrue($ok);
+        $this->assertSame('done', $service->fresh()->provision_status);
+
+        /*
+        | 🔴 این ادعا عوض شد، و عمداً: حسابِ پذیرفته‌شده **ظرفیت اشغال می‌کند**.
+        |
+        | نسخهٔ قبلی `0` انتظار داشت، چون شرطِ شمارش `! reused` بود. ولی «reused»
+        | یعنی «ما نساختیمش»، نه «جا اشغال نکرده». روی رخدادِ zhina.shop همین
+        | باعث شد سرور یک‌واحد بیشتر از واقعیت «جای خالی» نشان دهد و بیش‌فروش
+        | شود — یعنی همان تستِ سبز، خودِ باگ را قفل کرده بود.
+        |
+        | حالا مهرِ `counted` تصمیم می‌گیرد و دوباره‌شماری هم ممکن نیست: این
+        | سرویس پیش از این هرگز شمرده نشده بود، پس یک بار شمرده می‌شود.
+        */
+        $this->assertSame(1, $server->fresh()->active_accounts);
+        $this->assertTrue((bool) ($service->fresh()->provision_meta['counted'] ?? false));
+
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'createacct'));
+    }
+
+    public function test_whm_failure_marks_service_failed(): void
+    {
+        Http::fake([
+            '*/json-api/accountsummary*' => Http::response(['metadata' => ['result' => 0, 'reason' => 'no account']]),
+            '*/json-api/createacct*'     => Http::response(['metadata' => ['result' => 0, 'reason' => 'Sorry, a DNS entry for this domain already exists']]),
+        ]);
+
+        $server = $this->whmServer();
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertFalse($ok);
+        $service->refresh();
+        $this->assertSame('failed', $service->provision_status);
+        $this->assertSame('provision_failed', $service->status);
+        $this->assertStringContainsString('DNS entry', $service->provision_error);
+    }
+
+    public function test_directadmin_account_is_created(): void
+    {
+        Http::fake([
+            '*/CMD_API_SHOW_USER_CONFIG*' => Http::response('error=1&text=unknown+user', 200),
+            '*/CMD_API_ACCOUNT_USER*'     => Http::response('error=0&text=Account+Created', 200),
+        ]);
+
+        $server = Server::create(['name' => 'DA-1', 'type' => 'directadmin', 'hostname' => 'da.test', 'port' => 2222, 'username' => 'admin', 'api_token' => 'pw', 'verify_tls' => false, 'status' => 'active']);
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertTrue($ok);
+        $service->refresh();
+        $this->assertSame('done', $service->provision_status);
+        $this->assertSame('active', $service->status);
+        $this->assertNotEmpty($service->username);
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'CMD_API_ACCOUNT_USER'));
+
+        // چکِ AutoSSL یک WHM API است؛ روی DirectAdmin نباید صدا زده شود
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'start_autossl_check_for_one_user'));
+    }
+
+    public function test_directadmin_failure_marks_failed(): void
+    {
+        Http::fake([
+            '*/CMD_API_SHOW_USER_CONFIG*' => Http::response('error=1&text=unknown', 200),
+            '*/CMD_API_ACCOUNT_USER*'     => Http::response('error=1&text=Cannot+Create&details=domain+exists', 200),
+        ]);
+
+        $server = Server::create(['name' => 'DA-2', 'type' => 'directadmin', 'hostname' => 'da2.test', 'username' => 'admin', 'api_token' => 'pw', 'verify_tls' => false, 'status' => 'active']);
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertFalse($ok);
+        $this->assertSame('failed', $service->fresh()->provision_status);
+        $this->assertStringContainsString('Cannot', $service->fresh()->provision_error);
+    }
+
+    public function test_manual_server_flags_for_manual_delivery(): void
+    {
+        Http::fake();   // نباید تماسی برود
+        $server = Server::create(['name' => 'VPS-1', 'type' => 'vps', 'status' => 'active']);
+        $service = $this->service($server);
+
+        $ok = app(ProvisioningService::class)->provision($service);
+
+        $this->assertFalse($ok);
+        $this->assertSame('manual', $service->fresh()->provision_status);
+        $this->assertSame('awaiting_provision', $service->fresh()->status);
+        Http::assertNothingSent();
+    }
+}

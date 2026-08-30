@@ -1,0 +1,22 @@
+---
+# Canonical upstream cloud images (GenericCloud / server cloudimg, amd64).
+# Keyed by the same os keys as os_catalog in group_vars/all.yml.
+linux_images:
+  debian13:
+    url: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
+    file: "debian-13-genericcloud-amd64.qcow2"
+  ubuntu2204:
+    url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    file: "jammy-server-cloudimg-amd64.img"
+  ubuntu2404:
+    url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+    file: "noble-server-cloudimg-amd64.img"
+  debian12:
+    url: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2"
+    file: "debian-12-genericcloud-amd64.qcow2"
+  rocky9:
+    url: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2"
+    file: "Rocky-9-GenericCloud-Base.latest.x86_64.qcow2"
+  alma9:
+    url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    file: "AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"

@@ -1,0 +1,13 @@
+---
+# Where downloaded cloud images are cached on the node.
+image_cache_dir: "{{ iso_storage_path }}/cloudimg-cache"
+
+# Base template hardware (customers get resized/overridden at clone time).
+template_memory: 2048
+template_cores: 2
+template_cpu: host
+template_disk_import_extra: ""     # e.g. resize handled per-sale, not here
+
+# Set true to destroy+rebuild templates that already exist (DANGEROUS on a
+# live node — off by default; existing templates are otherwise left untouched).
+rebuild_templates: false

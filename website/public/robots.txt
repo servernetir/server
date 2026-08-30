@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /en/api/
+Disallow: /tr/api/
+Disallow: /system/
+Disallow: /go/
+Disallow: /en/go/
+Disallow: /tr/go/
+Disallow: /account/
+Disallow: /en/account/
+Disallow: /tr/account/
+Disallow: /login
+Disallow: /en/login
+Disallow: /tr/login
+
+Sitemap: https://servernet.cloud/sitemap.xml

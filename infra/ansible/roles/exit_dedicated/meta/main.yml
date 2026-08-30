@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: exit_dedicated
+  author: ServerNet
+  description: Attach your own foreign servers as guaranteed per-country exits (ssh -D / socks / share-link), repointing the country tun and syncing the panel catalog.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions: [all]
+dependencies: []

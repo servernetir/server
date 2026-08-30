@@ -1,0 +1,83 @@
+@extends('auth.shell')
+@section('title', __('ui.auth_reg_title').' — ServerNet')
+
+@section('heading', __('ui.auth_reg_title'))
+@section('sub', __('ui.auth_reg_sub'))
+
+@section('form')
+@if(session('reg_notice'))
+  <div style="margin-bottom:14px;padding:11px 14px;border-radius:11px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.28);color:#22a5bd;font-size:13px;line-height:1.9">{{ session('reg_notice') }}</div>
+@endif
+<form method="POST" action="{{ lroute('register.start') }}" class="auth-f" novalidate>
+  @csrf
+
+  <div class="auth-field">
+    <label id="lbl-type">{{ __('ui.auth_acct_type') }}</label>
+    <div class="auth-pick" role="radiogroup" aria-labelledby="lbl-type">
+      <input type="radio" name="type" id="t-ind" value="individual" {{ old('type', 'individual') === 'individual' ? 'checked' : '' }}>
+      <label for="t-ind"><b>{{ __('ui.auth_individual') }}</b><span>{{ __('ui.auth_individual_d') }}</span></label>
+
+      <input type="radio" name="type" id="t-co" value="company" {{ old('type') === 'company' ? 'checked' : '' }}>
+      <label for="t-co"><b>{{ __('ui.auth_company') }}</b><span>{{ __('ui.auth_company_d') }}</span></label>
+    </div>
+  </div>
+
+  @unless($iranian)
+  <div class="auth-field">
+    <label for="first_name">{{ __('ui.auth_first_name') }}</label>
+    <input type="text" id="first_name" name="first_name" autocomplete="given-name"
+           maxlength="100" value="{{ old('first_name') }}" required>
+  </div>
+  <div class="auth-field">
+    <label for="last_name">{{ __('ui.auth_last_name') }}</label>
+    <input type="text" id="last_name" name="last_name" autocomplete="family-name"
+           maxlength="100" value="{{ old('last_name') }}" required>
+  </div>
+  @endunless
+
+  @if($iranian)
+  <div class="auth-field" data-check="mobile">
+    <label for="phone">{{ __('ui.auth_mobile') }}</label>
+    <input type="tel" id="phone" name="phone" dir="ltr" inputmode="numeric"
+           autocomplete="tel" placeholder="{{ __('ui.auth_mobile_ph') }}" value="{{ old('phone') }}"
+           required aria-describedby="hint-phone">
+    <span class="msg">{{ __('ui.auth_mobile_bad') }}</span>
+    <small id="hint-phone">{{ __('ui.auth_mobile_hint') }}</small>
+  </div>
+  @else
+  <div class="auth-field">
+    <label for="phone">{{ __('ui.auth_mobile') }}</label>
+    <input type="tel" id="phone" name="phone" dir="ltr" inputmode="tel"
+           autocomplete="tel" placeholder="+90 5xx xxx xx xx" value="{{ old('phone') }}"
+           required aria-describedby="hint-phone">
+    <small id="hint-phone">{{ __('ui.auth_mobile_intl_hint') }}</small>
+  </div>
+  @endif
+
+  <div class="auth-field" data-check="email">
+    <label for="email">{{ __('ui.auth_email') }}</label>
+    <input type="email" id="email" name="email" dir="ltr"
+           autocomplete="email" placeholder="you@example.com" value="{{ old('email') }}"
+           required aria-describedby="hint-email">
+    <span class="msg">{{ __('ui.auth_email_bad') }}</span>
+    <small id="hint-email">{{ __('ui.auth_email_hint') }}</small>
+  </div>
+
+  <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ __('ui.auth_send_code') }}</span></button>
+</form>
+@endsection
+
+@section('assure')
+  <div>
+    <svg class="icon"><use href="#i-shield"/></svg>
+    <span>{!! __('ui.auth_secure') !!}</span>
+  </div>
+  <div>
+    <svg class="icon"><use href="#i-mail"/></svg>
+    <span>{!! __('ui.auth_email_private') !!}</span>
+  </div>
+@endsection
+
+@section('aside')
+  {{ __('ui.auth_have_account') }} <a href="{{ lroute('login') }}">{{ __('ui.auth_do_login') }}</a>
+@endsection

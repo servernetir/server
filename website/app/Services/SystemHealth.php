@@ -1,0 +1,962 @@
+<?php
+
+namespace App\Services;
+
+use App\Support\ErrorTracker;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * سلامتِ سامانه — یک جا که می‌گوید «همه‌چیز درست است» یا **دقیقاً** چه چیزی نیست.
+ *
+ * ═══ چرا این لازم شد ═══
+ *
+ * ردیابِ خطا نشان داد امروز ۱۳ بار `Connection refused` روی MariaDB خورده‌ایم.
+ * هرکدام یک دقیقهٔ کرونِ مرده است — و کرون همان چیزی است که سرور تحویل می‌دهد،
+ * دامنه ثبت می‌کند و فاکتورِ تمدید می‌فرستد. هیچ‌کس خبردار نشد.
+ *
+ * الگوی تکرارشوندهٔ این پروژه همین است: کاری که باید خودکار انجام شود، بی‌صدا
+ * انجام **نمی‌شود** و ماه‌ها بعد از روی شکایتِ مشتری کشف می‌شود. این کلاس آن
+ * سکوت را می‌شکند.
+ *
+ * ⚠️ هیچ چکی این‌جا استثنا پرتاب نمی‌کند: صفحهٔ سلامت باید دقیقاً وقتی کار کند
+ * که چیزی خراب است.
+ */
+class SystemHealth
+{
+    /** اگر کرون بیش از این دقیقه ساکت باشد، یعنی نمی‌دود */
+    public const CRON_SILENT_MINUTES = 10;
+
+    /** فایلِ ضربان — عمداً **فایل** است نه کش */
+    public const HEARTBEAT = 'cron-heartbeat';
+
+    /**
+     * بیش از این دقیقه در صف = گیر کرده.
+     *
+     * ⚠️ از قفلِ کهنهٔ ۱۵ دقیقه‌ای بزرگ‌تر است تا تلاشِ دوبارهٔ عادی هشدار نسازد:
+     * پایشگری که برای کارِ سالم زنگ بزند، از دومین هفته نادیده گرفته می‌شود.
+     */
+    public const STUCK_MINUTES = 30;
+
+    /**
+     * چند ردیف در متنِ هشدار نام برده شود.
+     *
+     * ⚠️ سقف لازم است: این متن به بله و ایمیل هم می‌رود و فهرستِ سی‌تایی
+     * خوانده نمی‌شود. مازاد با «و N مورد دیگر» می‌آید تا چیزی بی‌صدا پنهان نشود.
+     */
+    public const NAME_LIMIT = 5;
+
+    /**
+     * @return array<int,array{key:string,ok:bool,level:string,title:string,detail:string}>
+     */
+    public function checks(): array
+    {
+        return [
+            $this->cron(),
+            $this->database(),
+            $this->stuckDomains(),
+            $this->expiringDomains(),
+            $this->domainMargin(),
+            $this->registrarBalance(),
+            $this->stuckServices(),
+            $this->manualLifecycle(),
+            $this->unbilledServices(),
+            $this->undeliveredCloud(),
+            $this->cloudRelease(),
+            $this->unsellableCatalogue(),
+            $this->mailboxes(),
+            $this->contentQueue(),
+            $this->recentErrors(),
+        ];
+    }
+
+    /**
+     * بدترین وضعیت در یک مجموعه چک: fail > warn > ok.
+     *
+     * چک‌ها را **ورودی** می‌گیرد و خودش دوباره صداشان نمی‌زند — وگرنه هر
+     * فراخوان یک دورِ کاملِ پرس‌وجو و خواندنِ فایل بود، و بدتر: دو دورِ جدا
+     * می‌توانستند نتیجهٔ متفاوت بدهند و متن با شدت نخوانَد.
+     *
+     * @param  array<int,array<string,mixed>>  $checks
+     */
+    public static function worst(array $checks): string
+    {
+        $levels = array_column($checks, 'level');
+
+        return in_array('fail', $levels, true) ? 'fail'
+            : (in_array('warn', $levels, true) ? 'warn' : 'ok');
+    }
+
+    // ───────────────────────── چک‌ها ─────────────────────────
+
+    /**
+     * 🔴 مهم‌ترین چک.
+     *
+     * ⚠️ ضربان از **فایل** خوانده می‌شود نه کش، و این عمدی است: کش روی همان
+     * دیتابیسی است که گاهی جواب نمی‌دهد. ضربانی که با مرگِ دیتابیس می‌میرد،
+     * نمی‌تواند خبر دهد که دیتابیس مرده — دقیقاً همان لحظه‌ای که به آن نیاز
+     * داریم، ساکت می‌شود.
+     */
+    private function cron(): array
+    {
+        $at = $this->heartbeatAt();
+
+        if ($at === null) {
+            return $this->row('cron', false, 'fail', 'زمان‌بند',
+                'هیچ اجرایی ثبت نشده. یا کرونِ سرور تنظیم نیست یا از اولین اجرا خطا داده.');
+        }
+
+        $mins = (int) $at->diffInMinutes(now());
+
+        if ($mins > self::CRON_SILENT_MINUTES) {
+            return $this->row('cron', false, 'fail', 'زمان‌بند',
+                'آخرین اجرا '.fa_num($mins).' دقیقه پیش بود. تحویلِ سرور، ثبتِ دامنه و '
+                .'فاکتورِ تمدید همگی روی همین کرون‌اند و الان متوقف‌اند.');
+        }
+
+        return $this->row('cron', true, 'ok', 'زمان‌بند',
+            'آخرین اجرا '.fa_num($mins).' دقیقه پیش.');
+    }
+
+    private function database(): array
+    {
+        try {
+            DB::connection()->getPdo();
+            DB::select('select 1');
+        } catch (\Throwable $e) {
+            return $this->row('db', false, 'fail', 'دیتابیس',
+                'پاسخ نمی‌دهد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        // ⚠️ «وصل است» کافی نیست: قطعیِ گذرا هم کرون را می‌کشد و در ردیاب
+        // می‌ماند. پس تاریخچه هم دیده می‌شود.
+        $recent = $this->countErrors(fn ($e) => str_contains((string) ($e['class'] ?? ''), 'QueryException'), 24);
+
+        if ($recent > 0) {
+            return $this->row('db', false, 'warn', 'دیتابیس',
+                'الان وصل است، ولی در ۲۴ ساعت گذشته '.fa_num($recent).' بار قطع شده. '
+                .'هر قطعی یعنی یک دقیقهٔ کرونِ ازدست‌رفته.');
+        }
+
+        return $this->row('db', true, 'ok', 'دیتابیس', 'وصل و پاسخ‌گو.');
+    }
+
+    /**
+     * دامنه‌ای که پول گرفته‌ایم و ثبت نشده.
+     *
+     * ⚠️ از **همان اسکوپی** می‌پرسد که کرون برمی‌دارد (`awaitingRegistration`).
+     * اگر شرط را این‌جا دست‌نویس تکرار می‌کردیم، روزی که تعریفِ صف عوض شود این
+     * چک بی‌صدا کهنه می‌شد و می‌گفت «چیزی گیر نکرده» در حالی که صف پر بود —
+     * یعنی یک پایشگرِ دروغ‌گو، که از نبودِ پایش بدتر است.
+     *
+     * ⚠️ `provision_status='none'` هم عمداً بیرون است: ردیفِ دامنهٔ
+     * **پرداخت‌نشده** همان است و در صفِ تحویل نیست.
+     */
+    private function stuckDomains(): array
+    {
+        if (! Schema::hasTable('domains')) {
+            return $this->row('domains', true, 'ok', 'صفِ دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
+        }
+
+        $manual = \App\Models\Domain::where('provision_status', 'manual')->count();
+        $old = \App\Models\Domain::query()->awaitingRegistration()
+            ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
+            ->count();
+
+        if ($manual > 0 || $old > 0) {
+            $level = $old > 0 ? 'fail' : 'warn';
+
+            /*
+            | همان قاعدهٔ `stuckServices()`: شمارنده بدونِ **نام** یعنی مدیر باید
+            | خودش دنبالِ ردیف بگردد. این‌جا نامِ خودِ دامنه از هر شناسه‌ای
+            | گویاتر است، پس همان چاپ می‌شود.
+            */
+            $names = \App\Models\Domain::query()
+                ->where(fn ($q) => $q
+                    ->where('provision_status', 'manual')
+                    ->orWhere(fn ($e) => $e->awaitingRegistration()
+                        ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))))
+                ->orderBy('id')->limit(self::NAME_LIMIT + 1)
+                ->pluck('domain');
+
+            $extra = max(0, $names->count() - self::NAME_LIMIT);
+            $list = $names->isEmpty() ? '' : ' — '.$names->take(self::NAME_LIMIT)->implode('، ')
+                .($extra > 0 ? ' و '.fa_num($extra).' مورد دیگر' : '').'.';
+
+            return $this->row('domains', false, $level, 'صفِ دامنه',
+                ($old > 0 ? fa_num($old).' دامنهٔ پرداخت‌شده بیش از نیم‌ساعت ثبت نشده — یعنی صف پیش نمی‌رود. ' : '')
+                .($manual > 0 ? fa_num($manual).' دامنه منتظرِ بررسیِ دستیِ شماست.' : '')
+                .$list,
+                $names->isEmpty() ? [] : [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
+        }
+
+        return $this->row('domains', true, 'ok', 'صفِ دامنه', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * انقضای نزدیک — **جدا** از صفِ گیرکرده، و عمداً هرگز `fail` نمی‌شود.
+     *
+     * ═══ چرا جدا شد (ممیزیِ شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 وقتی هر دو در چکِ `domains` بودند، «انقضای عادی» — که در هر
+     * پورتفوی زنده‌ای تقریباً همیشه هست — آن چک را برای همیشه `fail` نگه
+     * می‌داشت. امضای هشدار «سطح + نامِ چک‌های خراب» است؛ پس وقتی خرابیِ
+     * **واقعی** (صفِ گیرکرده) اضافه می‌شد، امضا همان `fail|domains` می‌مانْد
+     * و **هیچ اعلانی نمی‌رفت**. سروصدای روزمره، آژیرِ واقعی را خفه کرده بود
+     * — همان «توهمِ پایش»، این بار از راهِ امضا.
+     *
+     * حالا کلیدِ جدا یعنی گیرکردنِ صف امضا را عوض می‌کند و اعلان می‌رود،
+     * حتی وقتی همیشه دامنه‌ای در پنجرهٔ ۷روزه هست. `warn` و نه `fail`:
+     * فاکتور و یادآوری‌اش را کرونِ چرخهٔ عمر خودکار می‌فرستد؛ این ردیف فقط
+     * دیدِ مدیر است.
+     */
+    private function expiringDomains(): array
+    {
+        if (! Schema::hasTable('domains')) {
+            return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
+        }
+
+        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
+
+        if ($soon > 0) {
+            return $this->row('domains_expiry', false, 'warn', 'انقضای دامنه',
+                fa_num($soon).' دامنه تا ۷ روز دیگر منقضی می‌شود؛ فاکتور و یادآوری خودکار رفته است.',
+                [['label' => 'صفِ دامنه‌ها', 'url' => route('admin.domains')]]);
+        }
+
+        return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'هیچ دامنه‌ای نزدیکِ انقضا نیست.');
+    }
+
+    /**
+     * حاشیهٔ سودِ صفر — فروش به قیمتِ تمام‌شده.
+     *
+     * 🔴 ممیزی: پیش‌فرضِ `DOMAIN_MARGIN_PCT` صفر است (عمدی — عدد باید از
+     * /admin/settings بیاید) ولی هیچ‌چیز به مدیر نمی‌گفت که آن عدد را
+     * **نگذاشته**. نتیجه: هر دامنه به بهای عمده + گردکردن فروخته می‌شد و
+     * کلِ نردبانِ تخفیفِ نمایندگی هم بی‌اثر بود — بی‌صداترین ضررِ ممکن.
+     */
+    private function domainMargin(): array
+    {
+        $setting = trim((string) (\App\Models\Setting::get('domain_margin_pct') ?? ''));
+        $pct = $setting !== ''
+            ? (float) $setting
+            : (float) config('services.openprovider.margin.default', 0);
+
+        if ($pct <= 0) {
+            return $this->row('domain_margin', false, 'warn', 'حاشیهٔ سودِ دامنه',
+                'حاشیهٔ سودِ دامنه صفر است — هر فروش به قیمتِ تمام‌شده انجام می‌شود و تخفیفِ نمایندگی هم بی‌اثر است. '
+                .'در تنظیمات (domain_margin_pct) درصد بگذارید.',
+                [['label' => 'تنظیمات', 'url' => url('/admin/settings')]]);
+        }
+
+        return $this->row('domain_margin', true, 'ok', 'حاشیهٔ سودِ دامنه',
+            'حاشیهٔ سودِ دامنه '.fa_num($pct).'٪ است.');
+    }
+
+    /**
+     * موجودیِ حسابِ ما نزدِ رجیسترارِ دامنه.
+     *
+     * ═══ چرا (ممیزی شهریور ۱۴۰۵) ═══
+     *
+     * 🔴 اگر اعتبارِ حساب ته بکشد، هر ثبت و تمدیدی شکست می‌خورد و تنها
+     * علامتش انباشتِ بی‌صدای صفِ دستی است. این چک **پیش از** آن خبر می‌دهد.
+     *
+     * ⚠️ کشِ ۶ساعته: پایش هر ۱۵ دقیقه می‌دود و بی‌کش یعنی ~۱۰۰ تماس در روز
+     * به حسابی که به‌خاطرِ تماسِ زیاد پرچم خورده. چهار تماس در روز کافی است.
+     *
+     * ⚠️ «نتوانستم بخوانم» هرگز fail نمی‌شود: جای فیلدِ موجودی در پاسخِ
+     * واقعی را ندیده‌ایم و یک ردیفِ دائم-خراب همان «آژیرِ خفه»ای می‌شود که
+     * تازه درمانش کردیم. ناخوانا = ok با توضیح + ثبت در ردیاب، تا دیده شود
+     * بی‌آنکه امضای هشدار را اشغال کند.
+     */
+    private function registrarBalance(): array
+    {
+        $op = app(\App\Services\Domain\OpenProviderClient::class);
+
+        if (! $op->enabled()) {
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار', 'اتصالِ رجیسترار پیکربندی نشده است.');
+        }
+
+        $snap = \Illuminate\Support\Facades\Cache::remember(
+            'openprovider.balance.snapshot',
+            now()->addHours(6),
+            fn () => $op->balance(),
+        );
+
+        if (! ($snap['known'] ?? false)) {
+            \App\Support\ErrorTracker::noteOnce('domain',
+                'موجودیِ حسابِ OpenProvider از API خوانده نشد — پایشِ موجودی فعلاً کور است.', 21600);
+
+            return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+                'موجودی از API خوانده نشد (در ردیاب ثبت شد).');
+        }
+
+        $amount = (float) $snap['amount'];
+        $cur = (string) ($snap['currency'] ?: '');
+        $min = (float) config('services.openprovider.min_balance', 10);
+
+        if ($amount < $min) {
+            return $this->row('domain_balance', false, 'fail', 'موجودیِ رجیسترار',
+                'اعتبارِ حساب OpenProvider رو به اتمام است: '.$amount.' '.$cur
+                .' (آستانه: '.$min.'). ثبت و تمدیدِ بعدی ممکن است شکست بخورد — حساب را شارژ کنید.');
+        }
+
+        return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
+            'موجودی: '.$amount.' '.$cur.'.');
+    }
+
+    /** سرویسی که پول گرفته‌ایم و تحویل نشده — همان پرس‌وجوی `provision:run` */
+    /**
+     * 🔴 سرویسِ زنده‌ای که **سررسید ندارد** یعنی سرویسِ رایگانِ ابدی.
+     *
+     * `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس ردیفِ
+     * بی‌سررسید نه فاکتور می‌گیرد، نه یادآوری، نه تعلیق می‌شود. هیچ خطایی هم
+     * تولید نمی‌کند — از نظرِ سامانه اصلاً وجود ندارد.
+     *
+     * یک نمونه‌اش را کارفرما دستی پیدا کرد (سرویسی از پیش از ساخته‌شدنِ سیستمِ
+     * سررسید). مسئله اما یک ردیف نیست: هر مسیرِ فروشِ تازه‌ای که این ستون را
+     * پر نکند، بی‌صدا همین را می‌سازد. پس به‌جای اصلاحِ آن یک ردیف، این چک
+     * اضافه شد تا **موردِ بعدی** دیده شود.
+     *
+     * رفعش: `php artisan services:backfill-due --dry` و بعد بدونِ `--dry`.
+     *
+     * ⚠️ `warn` است نه `fail`: پول از دست می‌رود ولی هیچ سرویسی قطع نیست و
+     * هیچ مشتری‌ای معطل نمانده. `fail`ِ بی‌فوریت، `fail`های واقعی را بی‌ارزش
+     * می‌کند.
+     */
+    private function unbilledServices(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'next_due_at')) {
+            return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'ستونِ سررسید هنوز ساخته نشده.');
+        }
+
+        /*
+        | ⚠️ `customer_id` و رابطهٔ `customer` هر دو لازم‌اند.
+        |
+        | نسخهٔ اول فقط `['id','name']` را select می‌کرد؛ `serviceLinks()` روی
+        | `$s->customer !== null` فیلتر می‌کند و بی‌`customer_id` آن رابطه هرگز
+        | حل نمی‌شود — پس چک روی پروداکشن «۴ سرویس» می‌گفت و **هیچ لینکی**
+        | نمی‌داد. هشداری که نگوید کدام ردیف، مدیر را به گشتنِ دستی می‌فرستد و
+        | همان‌جا نادیده گرفته می‌شود.
+        |
+        | با نگاه‌کردن به خودِ صفحهٔ زنده پیدا شد، نه با تست: تستِ اولیه فقط
+        | `level` را می‌سنجید.
+        */
+        $rows = \App\Models\Service::query()
+            ->whereNull('next_due_at')
+            /*
+            | ساعتی **عمداً** سررسید ندارد — صورت‌حسابش مترِ اعتباری است.
+            | بی‌این شرط، هر سرویسِ GPU/ساعتی این‌جا قرمز می‌شد و مدیر را به
+            | «تنظیمِ سررسید» دعوت می‌کرد = فاکتورِ تمدیدِ دوبله روی مترِ ساعتی.
+            */
+            ->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'))
+            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->with('customer')
+            ->limit(20)
+            ->get(['id', 'name', 'customer_id']);
+
+        if ($rows->isEmpty()) {
+            return $this->row('unbilled', true, 'ok', 'سررسیدِ سرویس‌ها', 'همهٔ سرویس‌های زنده سررسید دارند.');
+        }
+
+        return $this->row('unbilled', false, 'warn', 'سررسیدِ سرویس‌ها',
+            /*
+            | ⚠️ راهِ رفع باید کاری باشد که **از همین‌جا** شدنی است.
+            |
+            | این متن تا امروز `services:backfill-due` را نام می‌برد. ولی
+            | پروداکشن cPanel است و SSH نداریم — یعنی هشدار به مدیری که روی
+            | موبایل نگاهش می‌کند، فرمانی را پیشنهاد می‌داد که هیچ‌وقت نمی‌شد
+            | اجرایش کرد. نتیجه‌اش یک بن‌بست بود: هشدار درست، غیرقابلِ‌اقدام،
+            | و برای همین ماه‌ها روی صفحه ماند.
+            |
+            | دکمهٔ «تنظیم» در ستونِ سررسیدِ پروندهٔ مشتری از قبل وجود داشت
+            | (`admin/customer.blade.php`) و همان کار را برای یک ردیف می‌کند.
+            | لینک‌های زیرِ همین کارت هم مستقیم به همان پرونده‌ها می‌روند.
+            |
+            | فرمان حذف نشد و برای اصلاحِ دسته‌ای سرِ جایش است.
+            */
+            fa_num($rows->count()).' سرویسِ زنده سررسید ندارد و هرگز فاکتورِ تمدید نمی‌گیرد. '
+            .'برای رفع: پروندهٔ مشتری → ستونِ سررسید → دکمهٔ «تنظیم»',
+            $this->serviceLinks($rows));
+    }
+
+    /**
+     * 🔴 کارِ انسانیِ معلق روی سرویسِ دستی — تمدید، تعلیق یا ابطال.
+     *
+     * `stuckServices()` فقط **تحویلِ اول** را می‌بیند (`provision_status`).
+     * سه رخدادِ دیگرِ چرخهٔ عمر هیچ ردی در آن ستون نمی‌گذارند، پس تا امروز
+     * بی‌صدا رد می‌شدند: مشتری تمدید می‌کرد و لایسنسِ بالادست تمدید نمی‌شد،
+     * یا سرویس بسته می‌شد و ما ماهانه بابتش پول می‌دادیم.
+     *
+     * ⚠️ این چک عمداً از `stuckServices` جداست و کلیدِ خودش را دارد: امضای
+     * اعلان شاملِ **کلیدِ** چکِ خراب است، پس اگر هر دو یک کلید داشتند،
+     * «صفِ تحویل درست شد ولی یک ابطال معلق ماند» هیچ خبری نمی‌ساخت.
+     *
+     * ⚠️ و بی‌سن است: برخلافِ صفِ تحویل، این‌جا «تازه» بودن دلیلِ نادیده
+     * گرفتن نیست — ابطالِ نکرده از همان دقیقهٔ اول پول می‌سوزاند.
+     */
+    private function manualLifecycle(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_meta')) {
+            return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر', 'ستونش هنوز ساخته نشده.');
+        }
+
+        $rows = \App\Models\Service::awaitingManualAction()->limit(40)->get();
+
+        if ($rows->isEmpty()) {
+            return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر',
+                'هیچ تمدید، تعلیق یا ابطالِ دستی معلق نیست.');
+        }
+
+        $by = ['renew' => 0, 'suspend' => 0, 'terminate' => 0];
+        $names = [];
+
+        foreach ($rows as $r) {
+            $k = (string) ($r->pendingManualAction()['kind'] ?? '');
+            if (isset($by[$k])) { $by[$k]++; }
+            if (count($names) < 6) { $names[] = '#'.$r->id.' '.$k; }
+        }
+
+        $parts = [];
+        foreach (['renew' => 'تمدید', 'suspend' => 'تعلیق', 'terminate' => 'ابطال'] as $k => $label) {
+            if ($by[$k] > 0) { $parts[] = $label.': '.fa_num((string) $by[$k]); }
+        }
+
+        /*
+        | ⚠️ ابطالِ نکرده `fail` است و تمدیدِ نکرده `warn`.
+        | هر دو کارِ آدم می‌خواهند، ولی جهتِ ضررشان فرق دارد: ابطال یعنی ما
+        | همین حالا داریم پول می‌دهیم؛ تمدید یعنی مشتری در آیندهٔ نزدیک قطع
+        | می‌شود. یک‌سطح‌کردنشان یعنی فوری‌ترین کار در انبوهِ بقیه گم شود.
+        */
+        $worst = $by['terminate'] > 0 ? 'fail' : 'warn';
+
+        return $this->row('manual_lifecycle', false, $worst, 'کارِ دستیِ چرخهٔ عمر',
+            fa_num((string) $rows->count()).' سرویسِ دستی منتظرِ کارِ شما نزدِ تأمین‌کننده است ('
+            .implode('، ', $parts).'). '.implode('، ', $names),
+            [['label' => 'مشتریان', 'url' => url('/admin/customers')]]);
+    }
+
+    private function stuckServices(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_status')) {
+            return $this->row('services', true, 'ok', 'صفِ تحویل', 'ستونِ تحویل هنوز ساخته نشده.');
+        }
+
+        /*
+        | 🔴 سرویسِ مرده کنار می‌رود — **همان شرطی که `$old` و `$failed` دو خط
+        | پایین‌تر دارند و این‌جا جا افتاده بود.**
+        |
+        | اثرش دقیقاً همان چیزی بود که کامنت‌های زیر هشدار می‌دهند: دو سرویسِ
+        | **لغوشده** در `manual` مانده بودند و این کارت می‌گفت «۲ سرویس منتظرِ
+        | تحویلِ دستیِ شماست» — در حالی که هیچ مشتری‌ای منتظرِ چیزی نبود.
+        |
+        | و نشانه‌اش روی صفحه دیده می‌شد: `stuckServiceRows()` فیلترِ مرده را
+        | **دارد**، پس صفر ردیف برمی‌گرداند ⇒ کارت عدد داشت و هیچ **نامی**
+        | نداشت، در حالی که کارتِ کناری‌اش لینکِ مشتری‌ها را نشان می‌داد.
+        |
+        | 🔴 و بهایش از یک هشدارِ اضافی بیشتر است: امضای نگهبان شاملِ کلیدِ چکِ
+        | خراب است، پس یک هشدارِ **دائمی** یعنی خرابیِ واقعیِ بعدیِ همین چک
+        | هیچ اعلانی تولید نمی‌کند — سفارشِ پرداخت‌شده‌ای که تحویل نمی‌شود، در
+        | سکوت می‌مانَد.
+        */
+        $manual = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->where('provision_status', 'manual')->count();
+
+        /*
+        | 🔴 سن از `created_at` سنجیده می‌شود، نه `updated_at`.
+        |
+        | قفلِ اتمیِ تحویل یک `Builder::update()` است و لاراول خودش
+        | `updated_at` را می‌نویسد. یعنی **هر دقیقه** که کرون سرویسِ گیرکرده را
+        | برمی‌داشت، ساعتش صفر می‌شد و هرگز به آستانهٔ نیم‌ساعت نمی‌رسید.
+        |
+        | نتیجه روی یک اتفاقِ کاملاً روزمره (ناموجودیِ موقتِ یک پلن): مشتری پول
+        | داده، سروری ندارد، صف بسته، و این صفحه **سبز** — دقیقاً همان کوری‌ای
+        | که این لایه برای شکستنش ساخته شد، از درِ دیگر.
+        |
+        | ⚠️ سرویسِ مرده کنار می‌رود: سفارشِ لغوشده نباید تا ابد قرمز نگه دارد.
+        |    امضای نگهبان شاملِ کلیدِ چکِ خراب است، پس یک قرمزِ دائمی یعنی
+        |    خرابیِ **واقعیِ بعدی** هیچ اعلانی تولید نمی‌کند.
+        */
+        $old = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->whereIn('provision_status', ['pending', 'running'])
+            ->where('created_at', '<', now()->subMinutes(self::STUCK_MINUTES))
+            ->count();
+
+        /*
+        | 🔴 `failed` هم شمرده می‌شود، و نبودنش بدترین کوریِ این چک بود.
+        |
+        | `provision:run` فقط `pending` و `running`ِ کهنه را برمی‌دارد، پس یک
+        | سرویسِ `failed` **هرگز** خودبه‌خود دوباره تلاش نمی‌شود. تا حالا این
+        | صفحه با خیالِ راحت می‌گفت «چیزی گیر نکرده» در حالی که مشتری پول داده
+        | بود و سرورش هرگز ساخته نمی‌شد.
+        |
+        | ⚠️ عمداً «تلاشِ خودکارِ دوباره» اضافه **نشد**: نقطهٔ شکست ممکن است
+        | بعد از خریدِ واقعیِ سرور باشد و تلاشِ کور یعنی دو بار خریدن. راهِ درست
+        | این است که آدم ببیندش و تصمیم بگیرد — پس فقط بلندش می‌کنیم.
+        */
+        // ⚠️ سرویسِ مرده کنار می‌رود، به همان دلیلِ بالا: لغوِ وجه‌برگشته یک
+        //    ردیفِ `failed` باقی می‌گذارد و بی‌این شرط، این چک برای همیشه قرمز
+        //    می‌مانْد و امضای نگهبان دیگر هرگز عوض نمی‌شد.
+        $failed = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->where('provision_status', 'failed')->count();
+
+        if ($manual > 0 || $old > 0 || $failed > 0) {
+            $level = ($old > 0 || $failed > 0) ? 'fail' : 'warn';
+            $rows = $this->stuckServiceRows();
+
+            return $this->row('services', false, $level, 'صفِ تحویل',
+                ($old > 0 ? fa_num($old).' سرویس بیش از نیم‌ساعت در صف مانده — مشتری پول داده و سرور ندارد. ' : '')
+                .($failed > 0 ? fa_num($failed).' سرویس در تحویل شکست خورده و هیچ کرونی دوباره تلاش نمی‌کند — خودتان «تلاش دوباره» بزنید. ' : '')
+                .($manual > 0 ? fa_num($manual).' سرویس منتظرِ تحویلِ دستیِ شماست.' : '')
+                .$this->who($rows),
+                $this->serviceLinks($rows));
+        }
+
+        return $this->row('services', true, 'ok', 'صفِ تحویل', 'چیزی گیر نکرده.');
+    }
+
+    /**
+     * 🔴 **کدام** سرویس‌ها، نه فقط چندتا.
+     *
+     * ═══ چرا لازم شد ═══
+     *
+     * کارفرما: «نشون می‌ده صفِ تحویل ۲ سرویس منتظرِ تحویلِ دستی هستند ولی من
+     * نمی‌دونم مربوط به کدوم مشتریاست.»
+     *
+     * و حق داشت: یک شمارنده می‌گوید مشکلی هست، ولی مدیر برای اقدام باید بداند
+     * **سراغِ چه کسی** برود. تا امروز باید در `/admin/services` دنبالِ ردیفِ
+     * گیرکرده می‌گشت — یعنی هشداری که کارِ پیداکردن را به خودِ آدم واگذار
+     * می‌کرد و برای همین دیر یا زود نادیده گرفته می‌شد.
+     *
+     * ⚠️ همان قاعده‌ای که در این فایل برای امضای وضعیت و در `CloudProvisioner`
+     * برای گلوگاهِ هشدار نوشته شده: **پیام باید شناسهٔ ردیف‌ها را داشته باشد**،
+     * وگرنه دو خرابیِ متفاوت یک متنِ یکسان تولید می‌کنند و اعلانِ دومی هرگز
+     * فرستاده نمی‌شود.
+     *
+     * ⚠️ سقفِ ۵ عمدی است: فهرستِ بلند در یک پیامِ بله/ایمیل خوانده نمی‌شود.
+     * بقیه با «و N مورد دیگر» می‌آیند تا معلوم باشد چیزی پنهان نشده.
+     */
+    private function stuckServiceRows(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Service::query()
+            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->where(fn ($q) => $q
+                ->where('provision_status', 'manual')
+                ->orWhere('provision_status', 'failed')
+                ->orWhere(fn ($e) => $e
+                    ->whereIn('provision_status', ['pending', 'running'])
+                    ->where('created_at', '<', now()->subMinutes(self::STUCK_MINUTES))))
+            /*
+            | ⚠️ فقط سه ستون، و نامِ واقعی از `displayName()` می‌آید که خودش
+            | `identityVerification` را می‌خوانَد. ستون‌های نام روی `customers`
+            | **نیستند**؛ انتخابشان این‌جا کوئری را می‌شکست.
+            |
+            | N+1 این‌جا بی‌ضرر است: سقفِ ردیف‌ها شش تاست.
+            */
+            ->with('customer:id,code,email')
+            ->orderBy('id')
+            ->limit(self::NAME_LIMIT + 1)
+            ->get(['id', 'customer_id', 'provision_status']);
+    }
+
+    /** «#۱۲ آقای فلانی (SN-104829) — دستی» × چند تا، برای متنِ هشدار. */
+    private function who(\Illuminate\Support\Collection $rows): string
+    {
+        if ($rows->isEmpty()) {
+            return '';
+        }
+
+        $extra = max(0, $rows->count() - self::NAME_LIMIT);
+
+        $parts = $rows->take(self::NAME_LIMIT)->map(function ($s) {
+            $c = $s->customer;
+            // ⚠️ نامِ خالی نباید یک پرانتزِ تهی بسازد؛ کدِ مشتری همیشه هست
+            $label = $c?->displayName() ?: null;
+            $code = $c?->code ?: ('#'.$s->customer_id);
+
+            // ⚠️ رقمِ فارسی، مثلِ `cloudRelease()` و `undeliveredCloud()` — وگرنه
+            //    متن و چیپِ کنارش دو جور شماره نشان می‌دهند.
+            return '#'.fa_num($s->id).' '.($label ? $label.' ' : '').'('.$code.')';
+        })->implode('، ');
+
+        return ' — '.$parts.($extra > 0 ? ' و '.fa_num($extra).' مورد دیگر' : '').'.';
+    }
+
+    /**
+     * 🔴 همان ردیف‌ها، این‌بار **قابلِ کلیک**.
+     *
+     * نام‌بردن نیمی از کار است؛ کارفرما گفت «بتونم مدیریتش کنم». مقصد عمداً
+     * پروندهٔ **مشتری** است نه صفحهٔ سرویس: `/admin/services` اصلاً وجود ندارد و
+     * دکمه‌های «تحویل» و «تلاشِ دوباره» و «تحویلِ دستی» همگی در همان صفحه‌اند.
+     *
+     * ⚠️ مشتریِ حذف‌شده لینک نمی‌گیرد (ردیفِ یتیم) — لینکِ ۴۰۴ از نبودِ لینک
+     * بدتر است. اسمش در متن هست، پس چیزی پنهان نمی‌شود.
+     *
+     * @param  \Illuminate\Support\Collection<int,\App\Models\Service>  $rows
+     * @return array<int,array{label:string,url:string}>
+     */
+    private function serviceLinks(\Illuminate\Support\Collection $rows): array
+    {
+        return $rows->take(self::NAME_LIMIT)
+            ->filter(fn ($s) => $s->customer !== null)
+            ->map(fn ($s) => [
+                'label' => '#'.fa_num($s->id).' '.($s->customer->displayName() ?: $s->customer->code),
+                'url' => route('admin.customer', $s->customer_id),
+            ])->values()->all();
+    }
+
+    /**
+     * 🔴 سرورِ ابریِ پول‌داده که واقعاً به دستِ مشتری نرسیده.
+     *
+     * ═══ چرا این چک لازم شد ═══
+     *
+     * `stuckServices()` بالا از `provision_status` می‌پرسد. ولی
+     * `CloudProvisioner::finalize()` همان لحظه‌ای که زیرساخت **سفارش** را
+     * می‌پذیرد `done` می‌نویسد — پیش از اینکه شناسهٔ سرور، IP یا ایمیلی وجود
+     * داشته باشد. پس یک تحویلِ کاملاً ناتمام، از دیدِ آن چک `done` است و صف
+     * **سبز** می‌مانَد.
+     *
+     * دقیقاً همین رخ داد: مشتری سرورِ ساعتی خرید، پول رفت، ماشین در پنلِ
+     * زیرساخت ساخته شد و اجاره‌اش از حسابِ ما کم می‌شود — و در پنلِ ما نه سروری
+     * تحویل شد نه ایمیلی رفت نه **یک خط خطا** ثبت شد. کارفرما فقط چون خودش
+     * پنلِ زیرساخت را باز کرد فهمید.
+     *
+     * ⚠️ این چک عمداً از `provision_status` نمی‌پرسد. از همان چیزی می‌پرسد که
+     * مشتری می‌بیند: شناسهٔ واقعیِ سرور، IP، و ایمیلِ رفته. برچسبِ داخلی هرچه
+     * باشد بی‌ربط است — همان درسِ `whereNotNull('server_id')` در CLAUDE.md:
+     * پرس‌وجوی ناظر باید خودِ خرابی را ببیند، نه همسایه‌اش.
+     */
+    private function undeliveredCloud(): array
+    {
+        try {
+            $stalled = \App\Services\Cloud\CloudDeliveryWatch::stalled();
+        } catch (\Throwable $e) {
+            // ⚠️ «نتوانستم بپرسم» با «چیزی نیست» یکی نیست. سبز برگرداندن این‌جا
+            //    یعنی همان سکوتی که این چک برای شکستنش ساخته شد.
+            return $this->row('cloud_delivery', false, 'warn', 'تحویلِ سرورِ ابری',
+                'وضعیتِ تحویل خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($stalled->isEmpty()) {
+            return $this->row('cloud_delivery', true, 'ok', 'تحویلِ سرورِ ابری',
+                'هر سرورِ پرداخت‌شده‌ای تحویل شده.');
+        }
+
+        $reasons = [];
+        foreach ($stalled as $s) {
+            $why = \App\Services\Cloud\CloudDeliveryWatch::reasonFor($s) ?? '—';
+            $reasons[$why] = ($reasons[$why] ?? 0) + 1;
+        }
+
+        $detail = [];
+        foreach ($reasons as $why => $n) {
+            $detail[] = fa_num($n).'× '.$why;
+        }
+
+        return $this->row('cloud_delivery', false, 'fail', 'تحویلِ سرورِ ابری',
+            fa_num($stalled->count()).' سرویسِ ابری پول گرفته و تحویل نشده (سرویسِ '
+            .implode('، ', $stalled->pluck('id')->take(5)->map(fn ($i) => '#'.fa_num($i))->all())
+            .'). '.implode(' · ', $detail)
+            .' — ⚠️ ممکن است ماشینش نزدِ زیرساخت ساخته شده و اجاره‌اش از حسابِ ما برود.',
+            $this->serviceLinks($stalled->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+    }
+
+    /**
+     * 🔴 «مشتری بسته، ماشین شاید هنوز زنده است.»
+     *
+     * این تنها چکی است که هزینهٔ **ما** را می‌بیند، نه تجربهٔ مشتری را: سرویسی که
+     * صورت‌حسابش بسته شده (وضعیتِ مرده) ولی زیرساخت حذفش را تأیید نکرده. تا
+     * مرداد ۱۴۰۵ تنها ردِ چنین ردیفی یک ستونِ `last_error` بود؛ `CloudInventory`
+     * هم آن را «متصل» می‌شمرد نه «یتیم»، پس هیچ صفحه‌ای چیزی غیرعادی نشان
+     * نمی‌داد و اولین خبر، صورت‌حسابِ ماهانهٔ زیرساخت بود که فقط جمعِ کل را
+     * می‌گوید.
+     *
+     * ⚠️ شناسهٔ سرویس‌ها در متن می‌آید تا **امضای وضعیت عوض شود**: چکِ همیشه‌قرمز
+     * با متنِ ثابت یعنی وقتی ردیفِ تازه‌ای اضافه شود هیچ اعلانی نمی‌رود (اعلان
+     * فقط روی تغییرِ وضعیت است) — همان توهمِ پایش که بدتر از نبودِ هشدار است.
+     */
+    /**
+     * 🔴 پلنی که **قیمت ندارد** از فروشگاه غیب می‌شود — بی‌هیچ خطایی.
+     *
+     * `scopeSellable` عمداً `price_irt > 0` می‌خواهد، و این تصمیمِ درستی است
+     * (بهتر از فروشِ کارتِ گران به قیمتِ هیچ). ولی عارضه‌اش سکوت است: اگر
+     * نرخِ ارز نباشد، بهایِ **همهٔ** پلن‌های یک زیرساخت صفر می‌شود و کلِ آن
+     * خطِ محصول از سایت ناپدید می‌شود، در حالی که کاتالوگ پر است و کرون هم
+     * موفق گزارش می‌دهد.
+     *
+     * این دقیقاً همان الگوی «گران‌ترین خرابی‌های این پروژه هیچ استثنایی
+     * نساختند» است — و روی زیرساختِ GPU حادتر، چون **دلاری** است و نرخِ دلار
+     * راهِ فرارِ دستی‌اش تازه ساخته شده.
+     *
+     * ⚠️ ادعا روی «کاتالوگ دارد ولی هیچ‌کدام فروختنی نیست» است، نه بر خودِ
+     * صفر بودنِ قیمت: زیرساختی که مدیر عمداً همه‌اش را بسته باشد نباید هشدار
+     * بسازد، و پلنِ ناموجود هم علتِ خودش را دارد.
+     */
+    private function unsellableCatalogue(): array
+    {
+        try {
+            if (! Schema::hasTable('cloud_plans')) {
+                return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ', 'روی این نصب فعال نیست.');
+            }
+
+            $bad = [];
+
+            foreach (\App\Models\CloudPlan::query()
+                ->where('is_active', true)
+                ->where('admin_disabled', false)
+                ->selectRaw('provider, count(*) as n, sum(case when price_irt > 0 then 1 else 0 end) as priced')
+                ->groupBy('provider')
+                ->get() as $g) {
+                if ((int) $g->n > 0 && (int) $g->priced === 0) {
+                    $bad[] = (string) $g->provider;
+                }
+            }
+        } catch (\Throwable $e) {
+            return $this->row('catalogue_price', false, 'warn', 'قیمتِ کاتالوگ',
+                'کاتالوگ خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($bad === []) {
+            return $this->row('catalogue_price', true, 'ok', 'قیمتِ کاتالوگ',
+                'هر زیرساختِ فعالی دستِ‌کم یک پلنِ قیمت‌دار دارد.');
+        }
+
+        $manager = app(\App\Services\Cloud\CloudManager::class);
+
+        // ⚠️ نامِ زیرساخت در **متن** است، وگرنه امضای وضعیت ثابت می‌مانَد و
+        //    خرابیِ زیرساختِ دوم هیچ اعلانی نمی‌سازد. همان قاعدهٔ این فایل.
+        $names = implode('، ', array_map(fn ($p) => $manager->label($p), $bad));
+
+        return $this->row('catalogue_price', false, 'fail', 'قیمتِ کاتالوگ',
+            'همهٔ پلن‌های '.$names.' قیمتِ صفر دارند، پس از فروشگاه **کاملاً غیب**
+             شده‌اند — بی‌هیچ خطایی. معمولاً یعنی نرخِ ارزِ آن زیرساخت خوانده
+             نشده؛ نرخِ دستی را در تنظیمات ← قیمت‌گذاری بگذارید (یورو و دلار جدا).');
+    }
+
+    private function cloudRelease(): array
+    {
+        try {
+            if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'provision_status')) {
+                return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور', 'روی این نصب فعال نیست.');
+            }
+
+            $rows = \App\Models\Service::query()->awaitingRelease()
+                ->orderBy('id')->limit(50)->get(['id', 'name', 'customer_id']);
+        } catch (\Throwable $e) {
+            // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
+            return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
+                'صفِ آزادسازی خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
+        }
+
+        if ($rows->isEmpty()) {
+            return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
+                'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
+        }
+
+        return $this->row('cloud_release', false, 'fail', 'آزادسازیِ سرور',
+            fa_num($rows->count()).' سرویسِ بسته‌شده هنوز نزدِ زیرساخت آزاد نشده (سرویسِ '
+            .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
+            .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
+            .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.',
+            $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+    }
+
+    /**
+     * 🔴 صندوق‌های مدیریتی: شکستِ خواندن **شبیهِ سکوت** است.
+     *
+     * ═══ چرا این چک لازم شد ═══
+     *
+     * `mailbox:sync` ساعتی می‌دود و وقتی IMAP رد می‌کند (رمزِ عوض‌شده، رمزِ
+     * برنامهٔ باطل، بسته‌بودنِ پورت) فقط یک خط در `laravel.log` می‌نویسد و با
+     * کدِ ۱ تمام می‌شود. آن لاگ روی پروداکشن ۱۰ مگابایت است و از پنل بیرون
+     * نمی‌آید. پس تنها چیزی که مدیر می‌دید این بود: `/admin/mail` نامهٔ تازه‌ای
+     * ندارد — که از «امروز کسی ایمیل نزده» قابلِ تشخیص نیست.
+     *
+     * یعنی دقیقاً همان الگویی که در CLAUDE.md ثبت است: خرابی‌ای که هیچ استثنایی
+     * نمی‌سازد و فقط با **پرسیدن** پیدا می‌شود. پس این‌جا می‌پرسیم، و **متنِ
+     * واقعیِ خطا** را می‌آوریم تا رفعش به SSH گره نخورد.
+     *
+     * ⚠️ اگر هیچ صندوقی پیکربندی نشده باشد این چک سبز و ساکت است — کرونش هم
+     * (`when(filled(...))`) اصلاً بیدار نمی‌شود، پس هشدارش بی‌معنی بود.
+     */
+    private function mailboxes(): array
+    {
+        $accounts = (array) config('mailboxes.accounts', []);
+
+        if ($accounts === []) {
+            return $this->row('mailboxes', true, 'ok', 'صندوق‌های ایمیل', 'روی این نصب فعال نیست.');
+        }
+
+        $state = \App\Services\Mail\MailboxSync::state();
+        $labels = collect($accounts)->pluck('label', 'key')->all();
+
+        $bad = [];
+        foreach ($state as $key => $s) {
+            if (($s['ok'] ?? true) === false) {
+                $bad[] = ($labels[$key] ?? $key).': '.mb_substr((string) ($s['error'] ?? '—'), 0, 90);
+            }
+        }
+
+        if ($bad !== []) {
+            return $this->row('mailboxes', false, 'fail', 'صندوق‌های ایمیل',
+                fa_num(count($bad)).' صندوق خوانده نمی‌شود، پس نامهٔ تازه‌ای هم وارد پنل نمی‌شود — '
+                .implode(' · ', $bad)
+                .' — اگر رمز عوض شده، رمزِ برنامهٔ صندوق را در .env سرور به‌روز کنید.',
+                [['label' => 'صندوق‌ها', 'url' => route('admin.mail')]]);
+        }
+
+        /*
+        | ⚠️ «هرگز اجرا نشده» سبز نیست.
+        |
+        | وضعیتِ خالی یعنی این کرون از زمانِ نصبِ همین قابلیت یک بار هم نرسیده —
+        | که خودش یک خرابیِ کامل است و دقیقاً شبیهِ «همه‌چیز آرام» به‌نظر می‌رسد.
+        | همان تلهٔ `CloudInventory`: نبودِ خبر را «خبرِ خوب» نخوان.
+        */
+        if ($state === []) {
+            return $this->row('mailboxes', false, 'warn', 'صندوق‌های ایمیل',
+                'هنوز هیچ همگام‌سازیِ صندوقی ثبت نشده — یعنی کرونِ mailbox:sync یک بار هم کامل نشده.',
+                [['label' => 'صندوق‌ها', 'url' => route('admin.mail')]]);
+        }
+
+        return $this->row('mailboxes', true, 'ok', 'صندوق‌های ایمیل', 'همهٔ صندوق‌ها خوانده می‌شوند.');
+    }
+
+    private function recentErrors(): array
+    {
+        $n = $this->countErrors(fn ($e) => ($e['type'] ?? '') === 'error', 24);
+
+        if ($n > 50) {
+            return $this->row('errors', false, 'fail', 'خطاها',
+                fa_num($n).' خطا در ۲۴ ساعت گذشته.');
+        }
+
+        if ($n > 0) {
+            return $this->row('errors', false, 'warn', 'خطاها',
+                fa_num($n).' خطا در ۲۴ ساعت گذشته.');
+        }
+
+        return $this->row('errors', true, 'ok', 'خطاها', 'چیزی ثبت نشده.');
+    }
+
+    // ───────────────────────── کمکی ─────────────────────────
+
+    public function heartbeatAt(): ?\Illuminate\Support\Carbon
+    {
+        try {
+            $path = storage_path('app/'.self::HEARTBEAT);
+
+            if (! File::exists($path)) {
+                return null;
+            }
+
+            return \Illuminate\Support\Carbon::parse(trim(File::get($path)));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** @param callable(array):bool $match */
+    private function countErrors(callable $match, int $hours): int
+    {
+        try {
+            $since = now()->subHours($hours);
+            $n = 0;
+
+            foreach (ErrorTracker::recent(400, 'error') as $e) {
+                if (! $match($e)) {
+                    continue;
+                }
+                if (! empty($e['at']) && \Illuminate\Support\Carbon::parse($e['at'])->lt($since)) {
+                    continue;
+                }
+                $n++;
+            }
+
+            return $n;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /**
+     * @param  array<int,array{label:string,url:string}>  $links
+     *                                                            ردیف‌های قابلِ اقدام — فقط برای پنل. متنِ `detail` خودش
+     *                                                            کامل است، چون همان متن به بله و ایمیل هم می‌رود که لینکِ
+     *                                                            پنل در آن‌ها به کار نمی‌آید.
+     */
+    private function row(string $key, bool $ok, string $level, string $title, string $detail, array $links = []): array
+    {
+        return compact('key', 'ok', 'level', 'title', 'detail', 'links');
+    }
+
+    /**
+     * 🔴 صفِ انتشارِ محتوا — چکی که نبودش یک ماه سکوت ساخت.
+     *
+     * ═══ خرابیِ واقعی ═══
+     *
+     * `plan.php` هر ۱۰۲ موضوعش مصرف شد و از ۲۵ مرداد ۱۴۰۵ بلاگ هیچ مطلبِ
+     * تازه‌ای نگرفت. کرون هر روز سرِ ساعت اجرا می‌شد، «همه ساخته شده‌اند ✓»
+     * می‌گفت و با کدِ **موفق** برمی‌گشت. پس:
+     *
+     *   ضربانِ کرون  → سبز (کرون که واقعاً می‌دوید)
+     *   ردیابِ خطا   → خالی (هیچ استثنایی پرتاب نشد)
+     *   چکِ صف‌ها     → وجود نداشت
+     *
+     * دوازده روز طول کشید تا کسی ببیند، و آن هم اتفاقی بود. **صفِ خالی شبیهِ
+     * کارِ تمام‌شده است، نه شبیهِ خرابی** — و این تنها جایی است که فرقشان
+     * گذاشته می‌شود.
+     *
+     * ⚠️ عمداً پیش‌نویسِ **آینده** را می‌شمارد، نه مطالبِ منتشرشده را. تعداد
+     * منتشرشده هرگز کم نمی‌شود، پس چکی که آن را ببیند تا ابد سبز می‌مانَد —
+     * همان تلهٔ «ستونِ همسایه به‌جای خودِ خرابی».
+     */
+    private function contentQueue(): array
+    {
+        try {
+            $scheduled = \App\Models\Post::query()
+                ->where('status', 'draft')
+                ->where('published_at', '>', now())
+                ->count();
+
+            $published = \App\Models\Post::where('status', 'published')->count();
+        } catch (\Throwable $e) {
+            // جدول هنوز مهاجرت نشده — این چک نباید کلِ صفحهٔ سلامت را بخواباند
+            return $this->row('content', true, 'ok', 'صف محتوا', 'جدول محتوا هنوز ساخته نشده.');
+        }
+
+        /*
+         * ⚠️ «صف ته کشید» فقط وقتی معنا دارد که صفی بوده باشد.
+         *
+         * روی نصبِ تازه (و در تست) هیچ مطلبی وجود ندارد و این حالتِ **عادی**
+         * است، نه خرابی. اگر این‌جا هشدار بدهیم، صفحهٔ سلامت روی هر نصبِ نو
+         * قرمز می‌شود — و پایشگری که بی‌دلیل قرمز است، یاد می‌دهد قرمز را
+         * نادیده بگیرند. آن‌وقت روزی که قرمزِ **واقعی** بیاید هم کسی نگاهش
+         * نمی‌کند. (همان قاعدهٔ «اعلان فقط روی تغییرِ وضعیت» در §۳.)
+         */
+        if ($published === 0 && $scheduled === 0) {
+            return $this->row('content', true, 'ok', 'صف محتوا', 'موتور محتوا روی این نصب استفاده نمی‌شود.');
+        }
+
+        $links = [['label' => 'تقویم انتشار', 'url' => '/admin/calendar']];
+
+        if ($scheduled === 0) {
+            return $this->row('content', false, 'fail', 'صف محتوا',
+                'هیچ مطلبی برای انتشار زمان‌بندی نشده. برنامه‌های محتوا تمام شده‌اند یا تولید کار نمی‌کند — '
+                .'بلاگ و پایگاه دانش از امروز ساکت می‌شوند.', $links);
+        }
+
+        // کمتر از یک هفته ذخیره یعنی وقتِ افزودن موضوعِ تازه است، نه وقتِ بحران
+        if ($scheduled < 14) {
+            return $this->row('content', false, 'warn', 'صف محتوا',
+                "فقط {$scheduled} مطلب در صفِ انتشار مانده — کمتر از یک هفته. "
+                .'به `resources/content/` موضوع اضافه کن.', $links);
+        }
+
+        $next = \App\Models\Post::where('status', 'draft')
+            ->where('published_at', '>', now())->min('published_at');
+
+        return $this->row('content', true, 'ok', 'صف محتوا',
+            "{$scheduled} مطلب زمان‌بندی‌شده · بعدی: ".\Illuminate\Support\Carbon::parse($next)->format('Y-m-d H:i'));
+    }
+}

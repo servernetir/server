@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# servernet-vm-country <vm-ip> <cc>  — runs on the Proxmox HOST.
+# INBOUND stays via the Iran IP:port (VM gateway UNCHANGED = {{ cr_customer_gateway }});
+# only NEW OUTBOUND is redirected to country <cc> via LXC {{ cr_ctid }}'s tun<cc>.
+# Per-VM scoped (every rule matches -s <vm-ip>) so other customers are untouched.
+# Idempotent (-C || -A); reversible via servernet-vm-country-del.
+set -uo pipefail
+CT={{ cr_ctid }}; LANIF={{ cr_lan_if }}; T={{ cr_split_table }}; M={{ cr_split_mark }}; MASK={{ cr_split_mask }}
+V="${1:?usage: servernet-vm-country <vm-ip> <cc>}"; CC="${2:?cc}"
+
+# 1) in-{{ cr_ctid }} country-tun routing for this source (from V -> country table -> tun<cc>)
+pct exec "$CT" -- /usr/local/bin/servernet-vm-country "$V" "$CC"
+
+# 2) HOST connmark split (idempotent)
+mg(){ iptables -t mangle -C "$@" 2>/dev/null || iptables -t mangle -A "$@"; }
+mg PREROUTING -i "$LANIF" -s "$V" -j CONNMARK --restore-mark
+mg PREROUTING -i "$LANIF" -s "$V" -m conntrack --ctstate NEW -m mark --mark 0x0/$MASK -j MARK --set-xmark $M/$MASK
+mg PREROUTING -i "$LANIF" -s "$V" -j CONNMARK --save-mark
+
+# new-outbound (marked) from V -> table T (LXC {{ cr_ctid }} -> country tun);
+# inbound replies stay unmarked -> main table -> back out the Iran IP.
+ip rule show | grep -q "from $V fwmark $M" || ip rule add from "$V" fwmark $M/$MASK lookup $T priority 1000
+iptables -C FORWARD -s "$V" -i "$LANIF" -o "$LANIF" -j ACCEPT 2>/dev/null || iptables -A FORWARD -s "$V" -i "$LANIF" -o "$LANIF" -j ACCEPT
+
+echo "split-routed $V: inbound=Iran(main), outbound=$CC"

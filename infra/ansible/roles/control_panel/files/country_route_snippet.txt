@@ -1,0 +1,2 @@
+
+Route::get('/agent/countryroutes', [\App\Http\Controllers\CountryRouteApiController::class, 'index']);

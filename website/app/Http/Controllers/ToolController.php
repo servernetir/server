@@ -1,0 +1,182 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AuditReport;
+use App\Services\DomainTools;
+use App\Services\SiteAudit;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\View\View;
+
+/**
+ * ابزارهای رایگان: بررسی سئو/سلامت سایت، Whois، بررسی IP،
+ * جلسات آنلاین (پروموت meet.servernet.cloud) و اپ‌ساز.
+ */
+class ToolController extends Controller
+{
+    private const PAGES = ['seo', 'whois', 'ip', 'meet', 'app-builder', 'domain-ideas', 'speedtest'];
+
+    public function show(string $slug, Request $request): View
+    {
+        abort_unless(in_array($slug, self::PAGES, true), 404);
+
+        $prefill = null;
+        if ($slug === 'ip') {
+            $prefill = $request->header('CF-Connecting-IP')
+                ?? $request->header('X-Forwarded-For')
+                ?? $request->ip();
+            $prefill = trim(explode(',', (string) $prefill)[0]);
+        }
+
+        return view('pages.tool', [
+            'slug'    => $slug,
+            'prefill' => $prefill,
+            'seo'     => $this->seo($slug),
+        ]);
+    }
+
+    /**
+     * محتوای سئوی صفحهٔ ابزار (مقدمه، گام‌ها، پرسش‌های متداول) در زبان جاری.
+     *
+     * از `resources/content/tools-seo.php` خوانده می‌شود. اسلاگی که هنوز محتوا
+     * ندارد آرایهٔ خالی می‌گیرد و قالب آن بخش را اصلاً رندر نمی‌کند — پس پرکردنِ
+     * تدریجیِ صفحات هیچ صفحهٔ دیگری را نمی‌شکند.
+     */
+    private function seo(string $slug): array
+    {
+        static $all = null;
+        if ($all === null) {
+            $file = resource_path('content/tools-seo.php');
+            $all = is_file($file) ? (array) require $file : [];
+        }
+
+        $entry = $all[$slug][app()->getLocale()] ?? $all[$slug]['fa'] ?? [];
+
+        return [
+            'intro' => $entry['intro'] ?? '',
+            'steps' => $entry['steps'] ?? [],
+            'faq'   => $entry['faq'] ?? [],
+        ];
+    }
+
+    /** POST /api/audit — بررسی سئو و سلامت سایت */
+    public function audit(Request $request, SiteAudit $audit): JsonResponse
+    {
+        $data = $request->validate(['url' => 'required|string|max:255']);
+
+        $result = $audit->run($data['url']);
+
+        /*
+         * گزارش ذخیره می‌شود تا نشانیِ اشتراکیِ خودش را داشته باشد.
+         *
+         * ⚠️ ذخیره‌سازی هرگز نباید خودِ ابزار را بشکند: اگر جدول روی این نصب
+         * نباشد یا نوشتن شکست بخورد، بازدیدکننده باید همچنان گزارشش را ببیند.
+         * پس نتیجه بی‌`report_url` برمی‌گردد و مرورگر بخشِ اشتراک را اصلاً
+         * نشان نمی‌دهد — نه خطا، نه دکمهٔ مرده.
+         */
+        if (($result['ok'] ?? false) === true) {
+            try {
+                if (Schema::hasTable('audit_reports')) {
+                    $report = AuditReport::fromAudit($result, 'tool');
+                    if ($report) {
+                        $result['report_url'] = $report->url();
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * POST /api/domain-ideas — پیشنهاد نام دامنه با AI (fallback محلی).
+     *
+     * اعتبارسنجی دستی و پاسخ همیشه JSON: این روت سه نسخه‌ی زبان‌دار دارد
+     * (/en/api/… و /tr/api/…) که الگوی `api/*` در bootstrap آن‌ها را نمی‌گیرد،
+     * پس `$request->validate()` خطایش را به‌جای JSON با ریدایرکت HTML می‌داد.
+     */
+    public function ideas(Request $request, \App\Services\DomainIdeas $ideas): JsonResponse
+    {
+        $desc = trim((string) $request->input('description', ''));
+        if (mb_strlen($desc) < 10) {
+            return response()->json(['ok' => false, 'error' => 'too_short']);
+        }
+
+        return response()->json($ideas->suggest(mb_substr($desc, 0, 300)));
+    }
+
+    /* ============================================================= تست سرعت اینترنت */
+
+    /** GET /api/speedtest/ping — پاسخ خالی برای سنجش RTT مرورگر↔سرور */
+    public function speedPing(): \Illuminate\Http\Response
+    {
+        return response('', 204, ['Cache-Control' => 'no-store']);
+    }
+
+    /**
+     * GET /api/speedtest/down?mb=N — جریان بایت برای سنجش دانلود.
+     *
+     * سقف ۱۶MB per-request و سطل speedtest، چون این پرهزینه‌ترین endpoint
+     * پهنای‌باند سایت است. یک chunk تصادفی یک‌بار ساخته و تکرار می‌شود —
+     * تصادفی‌بودن فقط برای بی‌اثرکردن فشرده‌سازی مسیر لازم است، نه امنیت.
+     */
+    public function speedDown(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $mb = min(16, max(1, (int) $request->query('mb', 8)));
+        $bytes = $mb * 1048576;
+
+        return response()->stream(function () use ($bytes) {
+            $chunk = random_bytes(262144);
+            for ($sent = 0; $sent < $bytes; $sent += 262144) {
+                echo $chunk;
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
+                flush();
+            }
+        }, 200, [
+            'Content-Type'      => 'application/octet-stream',
+            'Content-Length'    => (string) $bytes,
+            'Cache-Control'     => 'no-store',
+            // فشرده‌سازی/بافر میانی زمان‌سنجی را بی‌معنا می‌کند
+            'Content-Encoding'  => 'identity',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /** POST /api/speedtest/up — فقط طول بدنه را برمی‌گرداند؛ هیچ‌چیز ذخیره نمی‌شود */
+    public function speedUp(Request $request): JsonResponse
+    {
+        return response()->json(
+            ['ok' => true, 'bytes' => strlen((string) $request->getContent())],
+            200,
+            ['Cache-Control' => 'no-store'],
+        );
+    }
+
+    /** POST /api/whois */
+    public function whois(Request $request, DomainTools $tools): JsonResponse
+    {
+        $data = $request->validate(['domain' => 'required|string|max:100']);
+
+        return response()->json($tools->whois($data['domain']));
+    }
+
+    /** POST /api/ip */
+    public function ip(Request $request, DomainTools $tools): JsonResponse
+    {
+        $data = $request->validate(['ip' => 'nullable|string|max:100']);
+        $ip = $data['ip'] ?? '';
+        if ($ip === '') {
+            $ip = $request->header('CF-Connecting-IP')
+                ?? trim(explode(',', (string) $request->header('X-Forwarded-For'))[0])
+                ?: $request->ip();
+        }
+
+        return response()->json($tools->ipInfo($ip));
+    }
+}

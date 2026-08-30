@@ -1,0 +1,11 @@
+[Unit]
+Description=ServerNet country-routing agent (applies per-VM split-routing from panel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Panel desired-state endpoint. Overridable via panel_lan_ip / panel_agent_api_url.
+# The token is read by the script from /etc/servernet/pf-agent.env (PF_AGENT_TOKEN).
+Environment=CR_API={{ panel_agent_api_url }}
+ExecStart=/usr/local/bin/servernet-country-agent.sh

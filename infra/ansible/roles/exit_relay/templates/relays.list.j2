@@ -1,0 +1,6 @@
+# ServerNet relay pool — one per line:  HOST PORT USER KEYFILE
+# The monitor rotates through these when the active one stops egressing.
+# Add more at runtime:  servernet-relay-set add HOST [PORT] [USER] [KEYFILE]
+{% for r in relay_pool %}
+{{ r.host }} {{ r.port | default(22) }} {{ r.user | default('root') }} {{ r.key | default(relay_key) }}
+{% endfor %}

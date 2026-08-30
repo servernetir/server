@@ -1,0 +1,98 @@
+---
+# Build one Linux template. Vars: os_item (.key, .value.vmid, .value.win ...)
+- name: "[{{ os_item.key }}] Resolve facts"
+  ansible.builtin.set_fact:
+    _vmid: "{{ os_item.value.vmid }}"
+    _img: "{{ linux_images[os_item.key] }}"
+    _tname: "t-{{ os_item.key }}"
+
+- name: "[{{ os_item.key }}] Check whether VMID {{ _vmid }} already exists"
+  ansible.builtin.command: qm status {{ _vmid }}
+  register: _exists
+  changed_when: false
+  failed_when: false
+
+# Safety: only ever destroy inside the template ID band, and only on explicit
+# opt-in. This can never touch a customer/infra VM.
+- name: "[{{ os_item.key }}] Rebuild guard"
+  ansible.builtin.assert:
+    that:
+      - (_vmid | int) >= 9000
+      - (_vmid | int) <= 9099
+    fail_msg: "Refusing to rebuild VMID {{ _vmid }} — outside the template band 9000-9099."
+  when:
+    - rebuild_templates | bool
+    - _exists.rc == 0
+
+- name: "[{{ os_item.key }}] Destroy existing template (rebuild only)"
+  ansible.builtin.command: qm destroy {{ _vmid }} --purge --destroy-unreferenced-disks 1
+  when:
+    - rebuild_templates | bool
+    - _exists.rc == 0
+  register: _destroyed
+  changed_when: _destroyed.rc == 0
+
+- name: "[{{ os_item.key }}] Re-check existence after optional rebuild"
+  ansible.builtin.command: qm status {{ _vmid }}
+  register: _exists2
+  changed_when: false
+  failed_when: false
+
+# Everything below runs only when the template is absent.
+- name: "[{{ os_item.key }}] Build block"
+  when: _exists2.rc != 0
+  block:
+    - name: "[{{ os_item.key }}] Download cloud image (cached)"
+      ansible.builtin.get_url:
+        url: "{{ _img.url }}"
+        dest: "{{ image_cache_dir }}/{{ _img.file }}"
+        mode: "0644"
+        timeout: 120
+
+    - name: "[{{ os_item.key }}] Create VM shell"
+      ansible.builtin.command: >-
+        qm create {{ _vmid }}
+        --name {{ _tname }}
+        --memory {{ template_memory }}
+        --cores {{ template_cores }}
+        --cpu {{ template_cpu }}
+        --net0 virtio,bridge={{ private_bridge }}
+        --scsihw virtio-scsi-single
+        --ostype l26
+        --agent 1
+      register: _create
+      changed_when: _create.rc == 0
+
+    - name: "[{{ os_item.key }}] Import + attach root disk (scsi0)"
+      ansible.builtin.command: >-
+        qm set {{ _vmid }} --scsi0 {{ vm_storage }}:0,import-from={{ image_cache_dir }}/{{ _img.file }}
+      register: _import
+      changed_when: _import.rc == 0
+
+    - name: "[{{ os_item.key }}] Attach cloud-init drive + serial + boot"
+      ansible.builtin.command: >-
+        qm set {{ _vmid }}
+        --ide2 {{ vm_storage }}:cloudinit
+        --boot order=scsi0
+        --serial0 socket
+        --vga serial0
+        --ipconfig0 ip=dhcp
+      register: _wire
+      changed_when: _wire.rc == 0
+
+    - name: "[{{ os_item.key }}] Attach access-fix vendor snippet (cicustom)"
+      ansible.builtin.command: >-
+        qm set {{ _vmid }} --cicustom "vendor={{ linux_vendor_snippet }}"
+      register: _cicustom
+      changed_when: _cicustom.rc == 0
+
+    - name: "[{{ os_item.key }}] Convert to template"
+      ansible.builtin.command: qm template {{ _vmid }}
+      register: _tmpl
+      changed_when: _tmpl.rc == 0
+
+- name: "[{{ os_item.key }}] Ensure template is in pool '{{ pve_customer_pool }}'"
+  ansible.builtin.command: pveum pool modify {{ pve_customer_pool }} --vms {{ _vmid }}
+  register: _poolmod
+  changed_when: false          # modify is idempotent; token needs clone access
+  failed_when: _poolmod.rc != 0 and 'already' not in (_poolmod.stderr | lower)

@@ -1,0 +1,8 @@
+[Unit]
+Description=ServerNet Module 2 subscription sync (oneshot)
+After=network-online.target sn-subs-httpd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sn-exit-sync.sh

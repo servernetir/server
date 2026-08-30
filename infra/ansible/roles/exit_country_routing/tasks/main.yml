@@ -1,0 +1,187 @@
+---
+# Module 2b / Phase B — per-country tun routing for LXC {{ cr_ctid }}.
+# Stage-by-default; country_routing_apply=true installs the scripts/units/envs and
+# enables the selected country tuns. Consumes the shared exit_countries list.
+#
+# CUSTOMER NOTE: the VM gateway STAYS the host (gw={{ cr_customer_gateway }}) so
+#   inbound SSH/RDP via the Iran IP:port keeps working. Country routing is a
+#   connmark SPLIT applied at runtime (new-outbound only):
+#   servernet-vm-country <vm-ip> <cc>   /   servernet-vm-country-del <vm-ip>
+#
+# ROLLBACK (manual), per country cc:
+#   pct exec {{ cr_ctid }} -- systemctl disable --now servernet-country@<cc>
+#   pct exec {{ cr_ctid }} -- ip route flush table <table-of-cc>
+
+- name: Ensure host staging dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ country_routing_stage_dir }}"
+    - "{{ country_routing_stage_dir }}/env"
+
+- name: Render scripts + unit + host wrappers to staging
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ country_routing_stage_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: "servernet-country@.service.j2",     dest: "servernet-country@.service",  mode: "0644" }
+    - { src: "servernet-country-up.j2",           dest: "servernet-country-up",        mode: "0755" }
+    - { src: "servernet-country-run.j2",          dest: "servernet-country-run",       mode: "0755" }
+    - { src: "servernet-vm-country.j2",           dest: "servernet-vm-country",        mode: "0755" }
+    - { src: "servernet-vm-country-del.j2",       dest: "servernet-vm-country-del",    mode: "0755" }
+    - { src: "servernet-vm-country.host.j2",      dest: "servernet-vm-country.host",   mode: "0750" }
+    - { src: "servernet-vm-country-del.host.j2",  dest: "servernet-vm-country-del.host", mode: "0750" }
+    - { src: "servernet-split-boot.j2",           dest: "servernet-split-boot",        mode: "0755" }
+    - { src: "servernet-split-boot.service.j2",   dest: "servernet-split-boot.service", mode: "0644" }
+
+- name: Render per-country env files to staging
+  ansible.builtin.template:
+    src: country.env.j2
+    dest: "{{ country_routing_stage_dir }}/env/country-{{ item.key }}.env"
+    mode: "0644"
+  loop: "{{ exit_countries }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Stage-only notice
+  ansible.builtin.debug:
+    msg:
+      - "exit_country_routing staged at {{ country_routing_stage_dir }} for {{ exit_countries | length }} countries."
+      - "Would enable tuns for: {{ country_routing_enable | join(', ') }} (widen with -e country_routing_enable=...)."
+      - "Fail-closed: each country table has a blackhole default, so tun down => DROP, never Iran."
+      - "Nothing pushed to container {{ cr_ctid }} (country_routing_apply=false)."
+  when: not (country_routing_apply | bool)
+
+- name: Apply exit_country_routing to container + host
+  when: country_routing_apply | bool
+  block:
+    - name: Confirm container {{ cr_ctid }} exists
+      ansible.builtin.command: pct status {{ cr_ctid }}
+      register: _crstat
+      changed_when: false
+
+    - name: Confirm tun2socks is present in container
+      ansible.builtin.command: pct exec {{ cr_ctid }} -- test -x {{ tun2socks_bin }}
+      register: _t2s
+      changed_when: false
+      failed_when: _t2s.rc != 0     # tun2socks must be installed by the exit stack first
+
+    - name: Ensure /etc/servernet exists in container
+      ansible.builtin.command: pct exec {{ cr_ctid }} -- mkdir -p /etc/servernet
+      changed_when: false
+
+    - name: Push scripts + unit into container
+      ansible.builtin.command: "pct push {{ cr_ctid }} {{ country_routing_stage_dir }}/{{ item.s }} {{ item.d }}"
+      loop:
+        - { s: "servernet-country-up",         d: "/usr/local/bin/servernet-country-up" }
+        - { s: "servernet-country-run",        d: "/usr/local/bin/servernet-country-run" }
+        - { s: "servernet-vm-country",         d: "/usr/local/bin/servernet-vm-country" }
+        - { s: "servernet-vm-country-del",     d: "/usr/local/bin/servernet-vm-country-del" }
+        - { s: "servernet-country@.service",   d: "/etc/systemd/system/servernet-country@.service" }
+      changed_when: true
+
+    - name: Make in-container scripts executable
+      ansible.builtin.command: pct exec {{ cr_ctid }} -- chmod 0755 {{ item }}
+      loop:
+        - /usr/local/bin/servernet-country-up
+        - /usr/local/bin/servernet-country-run
+        - /usr/local/bin/servernet-vm-country
+        - /usr/local/bin/servernet-vm-country-del
+      changed_when: false
+
+    - name: Push per-country env files into container
+      ansible.builtin.command: >-
+        pct push {{ cr_ctid }} {{ country_routing_stage_dir }}/env/country-{{ item.key }}.env
+        /etc/servernet/country-{{ item.key }}.env
+      loop: "{{ exit_countries }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: true
+
+    # --- HOST connmark split prereqs (table {{ cr_split_table }} -> LXC {{ cr_ctid }} + blackhole) -----
+    - name: Host - persist forwarding + disable ICMP redirects on {{ cr_lan_if }}
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-servernet-split.conf
+        mode: "0644"
+        content: |
+          # ServerNet connmark split-routing prereqs (exit_country_routing role)
+          net.ipv4.ip_forward=1
+          net.ipv4.conf.all.send_redirects=0
+          net.ipv4.conf.{{ cr_lan_if }}.send_redirects=0
+      register: _sn_sysctl
+
+    - name: Host - load the sysctl settings now
+      ansible.builtin.command: sysctl --system
+      when: _sn_sysctl is changed
+      changed_when: true
+
+    - name: Host - policy table {{ cr_split_table }} default via LXC {{ cr_ctid }} ({{ cr_exit_ip }})
+      ansible.builtin.command: >-
+        ip route replace default via {{ cr_exit_ip }} dev {{ cr_lan_if }} table {{ cr_split_table }}
+      changed_when: true
+
+    - name: Host - blackhole fallback in table {{ cr_split_table }} (fail-closed)
+      ansible.builtin.shell: >-
+        ip route replace blackhole default table {{ cr_split_table }} metric 1000 2>/dev/null ||
+        ip route add blackhole default table {{ cr_split_table }} metric 1000 2>/dev/null || true
+      changed_when: true
+
+    - name: Install host customer-assignment wrappers (connmark split)
+      ansible.builtin.copy:
+        src: "{{ country_routing_stage_dir }}/{{ item.s }}"
+        dest: "/usr/local/sbin/{{ item.d }}"
+        mode: "0750"
+        remote_src: true
+      loop:
+        - { s: "servernet-vm-country.host",     d: "servernet-vm-country" }
+        - { s: "servernet-vm-country-del.host", d: "servernet-vm-country-del" }
+
+    # --- C1/C3: persist fail-closed split state across reboot (boot unit) ------
+    - name: Install host split-routing boot persistence script
+      ansible.builtin.copy:
+        src: "{{ country_routing_stage_dir }}/servernet-split-boot"
+        dest: /usr/local/sbin/servernet-split-boot
+        mode: "0755"
+        remote_src: true
+
+    - name: Install servernet-split-boot systemd unit
+      ansible.builtin.copy:
+        src: "{{ country_routing_stage_dir }}/servernet-split-boot.service"
+        dest: /etc/systemd/system/servernet-split-boot.service
+        mode: "0644"
+        remote_src: true
+
+    - name: Enable (and run now) the split-boot persistence unit
+      ansible.builtin.systemd:
+        name: servernet-split-boot.service
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Reload systemd in container
+      ansible.builtin.command: pct exec {{ cr_ctid }} -- systemctl daemon-reload
+      changed_when: false
+
+    - name: Enable + start the selected country tuns
+      ansible.builtin.command: pct exec {{ cr_ctid }} -- systemctl enable --now servernet-country@{{ item }}
+      loop: "{{ country_routing_enable }}"
+      changed_when: true
+
+    - name: Verify country tun devices are present
+      ansible.builtin.command: >-
+        pct exec {{ cr_ctid }} -- bash -lc
+        'sleep 6; ip -br addr show tun{{ item }} 2>/dev/null || echo "tun{{ item }} not up yet"'
+      loop: "{{ country_routing_enable }}"
+      register: _crtuns
+      changed_when: false
+
+    - name: exit_country_routing apply summary
+      ansible.builtin.debug:
+        msg:
+          - "Country tuns enabled in LXC {{ cr_ctid }}: {{ country_routing_enable | join(', ') }} (each fail-closed via blackhole default)."
+          - "Host split ready: table {{ cr_split_table }} -> LXC {{ cr_ctid }} ({{ cr_exit_ip }}) + blackhole; mark {{ cr_split_mark }} for new-outbound."
+          - "Provision a country VPS => (1) create VM with gw={{ cr_customer_gateway }} (UNCHANGED - inbound preserved)  (2) servernet-vm-country <vm-ip> <cc>"
+          - "Destroy => servernet-vm-country-del <vm-ip>"

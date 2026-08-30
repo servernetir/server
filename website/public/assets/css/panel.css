@@ -1,0 +1,1508 @@
+/* ============================================================================
+   پنل کاربری سرورنت
+   ----------------------------------------------------------------------------
+   روی توکن‌های site.css سوار است و فقط چیزهایی را اضافه می‌کند که پنل لازم دارد.
+   فلسفه: سایت اصلی می‌فروشد (گرادیان، درخشش)؛ پنل کار می‌کند — آرام، متراکم،
+   رنگ فقط برای وضعیت و عمل. اینجا یک کلیک اشتباه سرور را خاموش می‌کند.
+   ========================================================================== */
+
+:root{
+  /* رنگ‌های وضعیت — دو تای اول از قبل در سایت استفاده می‌شدند */
+  --ok:#34D399;      --ok-bg:rgba(52,211,153,.10);   --ok-line:rgba(52,211,153,.32);
+  --warn:#FBBF24;    --warn-bg:rgba(251,191,36,.10); --warn-line:rgba(251,191,36,.32);
+  --danger:#F87171;  --danger-bg:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.32);
+  --info:#22D3EE;    --info-bg:rgba(34,211,238,.10); --info-line:rgba(34,211,238,.30);
+
+  --pnl-side:248px;
+  --pnl-gap:22px;
+}
+html[data-theme="light"]{
+  --ok:#059669;      --ok-bg:rgba(5,150,105,.09);
+  --warn:#B45309;    --warn-bg:rgba(180,83,9,.09);
+  --danger:#DC2626;  --danger-bg:rgba(220,38,38,.08);
+  --info:#0891B2;    --info-bg:rgba(8,145,178,.09);
+}
+
+/* اعداد جدولی: بدون این، ستون مبلغ در جدول تراز نمی‌شود */
+.pnl-num, .pnl-table td, .pnl-money, .pnl-stat b{
+  font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
+}
+
+/* ============================ چیدمان ============================ */
+/* 🔴 فاصلهٔ بالا **جبرانِ هدر نیست** — فقط فاصلهٔ تزئینی.
+ *
+ * تا امروز این‌جا ۱۱۸px بود، در حالی که `#main{padding-top:var(--header-h)}`
+ * از قبل ۱۱۲px را یک‌جا رزرو می‌کند. یعنی هر صفحهٔ پنل با ~۲۳۰px فضای مرده باز
+ * می‌شد. عدد ۳۴ من‌درآوردی نیست: همان چیزی است که
+ * `#main > .section:first-child{padding-top:34px}` در site.css برای دقیقاً همین
+ * وضعیت استفاده می‌کند.
+ *
+ * ⚠️ و `.pnl-wrap` عمداً به فهرستِ «بالاکشیده‌ها»ی site.css اضافه **نشد** —
+ * آن فهرست یعنی «زیرِ هدر نقاشی کن» (margin-top منفی) و نوارِ موبایلِ پنل را
+ * پشتِ هدر می‌بُرد. (CLAUDE.md §۳ «قانونِ هدرِ ثابت»؛
+ * نگهبانش: FixedHeaderOffsetTest::test_panel_pages_do_not_double_compensate_for_the_header) */
+.pnl-wrap{padding:34px 0 60px}
+.pnl-layout{display:grid;grid-template-columns:var(--pnl-side) minmax(0,1fr);gap:var(--pnl-gap);align-items:start}
+.pnl-main{min-width:0;display:flex;flex-direction:column;gap:var(--pnl-gap)}
+/* محتوا اول در DOM است (کاربر صفحه‌کلید زودتر به کار اصلی برسد)، ولی سایدبار
+   باید در ستون اول بنشیند — بدون این، عرض دو ستون جابه‌جا می‌شود. */
+.pnl-side{order:-1}
+
+/* ============================ سایدبار ============================ */
+/* ⚠️ لنگر از --cvb-top (انتهای همین فایل) می‌آید، نه از ۹۶: هدرِ ثابت
+   اندازه‌گیری‌شده ۱۱۲px است و site.css زیرِ ۴۰۰px آن را ۱۳۲ می‌کند. */
+.pnl-side{position:sticky;top:var(--cvb-top)}
+.pnl-card{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:18px}
+html[data-theme="light"] .pnl-card{background:#fff}
+
+.pnl-me{display:flex;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.pnl-avatar{width:42px;height:42px;flex:none;border-radius:12px;background:var(--grad);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px}
+.pnl-me-t{min-width:0;flex:1}
+.pnl-me-t b{display:block;font-size:14px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnl-me-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px}
+
+.pnl-nav{display:flex;flex-direction:column;gap:2px}
+.pnl-nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;
+  font-size:13.5px;color:var(--muted);border-inline-start:2px solid transparent;transition:.16s}
+.pnl-nav a .icon{width:16px;height:16px;flex:none;opacity:.7}
+.pnl-nav a span{flex:1;min-width:0}
+.pnl-nav a em{font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;
+  background:var(--danger-bg);color:var(--danger);flex:none}
+.pnl-nav a:hover{background:var(--surface-2);color:var(--text)}
+.pnl-nav a:hover .icon{opacity:1}
+.pnl-nav a.on{background:rgba(34,211,238,.09);color:var(--info);border-inline-start-color:var(--info);font-weight:600}
+.pnl-nav a.on .icon{opacity:1}
+.pnl-nav a:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.pnl-nav-sep{margin:12px 0 6px;padding-inline-start:11px;font-size:10.5px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;color:var(--dim)}
+
+/* ============================ سربرگ صفحه ============================ */
+.pnl-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pnl-head h1{font-size:clamp(20px,2.4vw,26px);font-family:var(--font-disp);line-height:1.3}
+.pnl-head p{font-size:13.5px;color:var(--muted);margin-top:5px}
+
+/* ============================ کارت آمار ============================ */
+.pnl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pnl-stat{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:16px 18px}
+html[data-theme="light"] .pnl-stat{background:#fff}
+.pnl-stat-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:10px}
+.pnl-stat-h .icon{width:14px;height:14px}
+.pnl-stat b{display:block;font-size:26px;font-family:var(--font-disp);line-height:1.1;letter-spacing:-.5px}
+.pnl-stat small{display:block;font-size:11.5px;color:var(--muted);margin-top:5px}
+.pnl-stat.is-warn b{color:var(--warn)}
+.pnl-stat.is-danger b{color:var(--danger)}
+
+/* ============================ بخش ============================ */
+.pnl-sec{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden}
+html[data-theme="light"] .pnl-sec{background:#fff}
+.pnl-sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 18px;border-bottom:1px solid var(--line)}
+.pnl-sec-h h2{font-size:15px;font-family:var(--font-disp)}
+.pnl-sec-h .pnl-more{font-size:12.5px;color:var(--info)}
+.pnl-sec-b{padding:18px}
+.pnl-sec-b.flush{padding:0}
+
+/* ============================ توجه لازم ============================ */
+/* مهم‌ترین بخش پنل: چیزی که اگر نبیند، سرویسش قطع می‌شود */
+.pnl-alert{border-color:var(--warn-line)}
+.pnl-alert .pnl-sec-h{background:var(--warn-bg)}
+.pnl-alert .pnl-sec-h h2{color:var(--warn)}
+
+.pnl-todo{display:flex;flex-direction:column}
+.pnl-todo li{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pnl-todo li:last-child{border-bottom:0}
+.pnl-todo-ic{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center}
+.pnl-todo-ic .icon{width:16px;height:16px}
+.pnl-todo-ic.w{background:var(--warn-bg);color:var(--warn)}
+.pnl-todo-ic.d{background:var(--danger-bg);color:var(--danger)}
+.pnl-todo-t{flex:1;min-width:0}
+.pnl-todo-t b{display:block;font-size:13.5px;line-height:1.5}
+.pnl-todo-t small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ============================ جدول ============================ */
+.pnl-tw{overflow-x:auto}
+.pnl-table{width:100%;border-collapse:collapse;font-size:13.2px}
+.pnl-table th{text-align:start;font-size:11.5px;font-weight:700;letter-spacing:.3px;
+  text-transform:uppercase;color:var(--dim);padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap}
+.pnl-table td{padding:14px 18px;border-bottom:1px solid var(--line);vertical-align:middle}
+.pnl-table tbody tr:last-child td{border-bottom:0}
+.pnl-table tbody tr:hover{background:var(--surface-2)}
+.pnl-table .num{text-align:end;white-space:nowrap}
+.pnl-svc{display:flex;align-items:center;gap:11px;min-width:0}
+.pnl-svc-ic{width:32px;height:32px;flex:none;border-radius:9px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center}
+.pnl-svc-ic .icon{width:15px;height:15px;color:var(--info)}
+.pnl-svc-t{min-width:0}
+.pnl-svc-t b{display:block;font-size:13.5px;line-height:1.4}
+.pnl-svc-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:1px;direction:ltr;text-align:start}
+
+/* ============================ نشان وضعیت ============================ */
+.pnl-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+  padding:4px 11px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
+.pnl-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.pnl-pill.ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.pnl-pill.warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.pnl-pill.danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.pnl-pill.info{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+.pnl-pill.mute{color:var(--dim);background:var(--surface-2);border-color:var(--line)}
+
+/* ============================ دکمه‌ها ============================ */
+.pnl-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:10px;
+  font-family:var(--font-body);font-size:12.8px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);transition:.16s}
+.pnl-btn:hover{border-color:var(--info);color:var(--info)}
+.pnl-btn .icon{width:14px;height:14px}
+.pnl-btn.primary{background:var(--grad);border-color:transparent;color:#fff}
+.pnl-btn.primary:hover{color:#fff;filter:brightness(1.08)}
+/* عمل خطرناک: هرگز به‌طور پیش‌فرض قرمزِ پررنگ نیست — قرمز فقط موقع تأیید */
+.pnl-btn.danger{color:var(--danger);border-color:var(--danger-line)}
+.pnl-btn.danger:hover{background:var(--danger-bg);color:var(--danger)}
+.pnl-btn:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.pnl-acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ============================ حالت خالی ============================ */
+.pnl-empty{padding:44px 20px;text-align:center}
+.pnl-empty .icon{width:34px;height:34px;color:var(--dim);opacity:.5}
+.pnl-empty b{display:block;font-size:14.5px;margin:12px 0 6px}
+.pnl-empty p{font-size:13px;color:var(--muted);line-height:1.9;max-width:38ch;margin:0 auto 16px}
+
+/* ============================ کارت سرور ============================ */
+.pnl-res{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px}
+.pnl-res-i{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.pnl-res-i small{display:block;font-size:11.5px;color:var(--dim);margin-bottom:6px}
+.pnl-res-i b{font-size:15px;font-variant-numeric:tabular-nums}
+.pnl-bar{height:5px;border-radius:99px;background:var(--surface);overflow:hidden;margin-top:8px}
+.pnl-bar span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+.pnl-bar.hot span{background:linear-gradient(100deg,#FBBF24,#F87171)}
+
+/* ============================ نوار موبایل ============================ */
+/* در دسکتاپ پنهان است؛ در موبایل جای سایدبار ثابت را می‌گیرد. */
+.pnl-mobar{display:none}
+.pnl-drawer-bd{display:none}
+
+/* ============================ ریسپانسیو ============================ */
+@media(max-width:1000px){
+  .pnl-layout{grid-template-columns:1fr}
+  .pnl-stats{grid-template-columns:repeat(2,1fr)}
+  .pnl-res{grid-template-columns:1fr}
+
+  /* نوار بالای موبایل: نام کاربر + دکمهٔ منو، همیشه در دسترس */
+  .pnl-mobar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-bottom:16px;padding:12px 14px;background:var(--surface);
+    border:1px solid var(--line-2);border-radius:var(--r)}
+  html[data-theme="light"] .pnl-mobar{background:#fff}
+  .pnl-mobar-me{display:flex;align-items:center;gap:10px;min-width:0}
+  .pnl-mobar-me .pnl-avatar{width:34px;height:34px;font-size:14px}
+  .pnl-mobar-me b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pnl-menu-btn{flex:none;width:40px;height:40px;border-radius:11px;border:1px solid var(--line-2);
+    background:var(--surface-2);color:var(--text);display:grid;place-items:center;cursor:pointer}
+  .pnl-menu-btn .icon{width:20px;height:20px}
+
+  /* سایدبار می‌شود کشوی روییِ تمام‌عرض که از بالا می‌آید.
+     ⚠️ پس‌زمینهٔ مات (نه --surface که فقط ۳٪ شفاف است) — وگرنه متنِ صفحه از
+     پشتِ کشو می‌زند بیرون و «شیشه‌ای/قاطی» دیده می‌شود (باگِ گزارش‌شده). */
+  .pnl-side{position:fixed;inset-inline:0;top:0;z-index:395;
+    max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    transform:translateY(-100%);transition:transform .3s var(--ease);
+    padding:12px 14px 18px;background:var(--bg2);
+    border-bottom:1px solid var(--line-2);box-shadow:0 18px 50px rgba(0,0,0,.6);
+    border-radius:0 0 22px 22px}
+  html[data-theme="light"] .pnl-side{background:#fff;box-shadow:0 18px 50px rgba(20,30,60,.16)}
+  .pnl-side.open{transform:translateY(0)}
+  /* داخلِ کشو، کارت دیگر پس‌زمینه/حاشیهٔ خودش را ندارد؛ خودِ کشو «سطح» است */
+  .pnl-side .pnl-card{background:transparent;border:0;border-radius:0;padding:4px 2px;box-shadow:none}
+  html[data-theme="light"] .pnl-side .pnl-card{background:transparent}
+  /* دستگیرهٔ پایین — نشانهٔ بصری که این یک کشوی کشیدنی است */
+  .pnl-side::after{content:"";display:block;width:44px;height:4px;border-radius:99px;
+    background:var(--line-2);margin:14px auto 2px}
+  .pnl-drawer-bd{position:fixed;inset:0;z-index:390;background:rgba(3,5,12,.62);
+    opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .pnl-drawer-bd.open{opacity:1;pointer-events:auto}
+  /* روی موبایل کارت پروفایلِ داخل سایدبار تکراری است چون بالای نوار هست */
+  .pnl-side .pnl-me{display:none}
+}
+@media(max-width:560px){
+  /* ⚠️ `padding-top:100px` این‌جا حذف شد و **کم نشد**: زیر ۴۰۰px متغیرِ
+     --header-h خودش ۱۳۲px می‌شود، پس ۱۳۲+۱۰۰ بدترین حالتِ همان باگ بود. */
+  .pnl-stats{grid-template-columns:1fr}
+  .pnl-table th,.pnl-table td{padding:11px 13px}
+}
+
+/* ============================================================================
+   آواتار و خروج — افزوده شده با پنل واقعی
+   ========================================================================== */
+
+/* آواتار: حرف اول همیشه زیر است، تصویر گراواتار رویش می‌نشیند.
+   اگر تصویر ۴۰۴ بدهد onerror حذفش می‌کند و حرف سر جایش می‌ماند —
+   بدون پرش چیدمان. رنگ از نام مشتق می‌شود، پس هر کاربر رنگ ثابت خودش
+   را دارد و آواتارها در فهرست از هم قابل تفکیک‌اند. */
+.pnl-avatar{
+  position:relative; overflow:hidden; flex:none;
+  display:grid; place-items:center;
+  background:
+    linear-gradient(140deg,
+      hsl(var(--av-h,200) 62% 52% / .30),
+      hsl(calc(var(--av-h,200) + 40) 62% 48% / .16));
+  border:1px solid hsl(var(--av-h,200) 60% 60% / .28);
+}
+.pnl-avatar i{
+  font-style:normal; font-weight:700;
+  font-family:var(--font-disp); line-height:1;
+  color:hsl(var(--av-h,200) 70% 82%);
+}
+html[data-theme="light"] .pnl-avatar i{ color:hsl(var(--av-h,200) 55% 32%); }
+.pnl-avatar img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0;
+  transition:opacity .35s var(--ease);
+}
+.pnl-avatar img.on{ opacity:1; }
+@media(prefers-reduced-motion:reduce){ .pnl-avatar img{ transition:none } }
+
+/* دکمهٔ خروج — انتهای سایدبار، جدا از منو با یک خط */
+.pnl-signout{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.pnl-signout button{
+  display:flex; align-items:center; gap:10px; width:100%;
+  background:none; border:0; cursor:pointer;
+  padding:10px 12px; border-radius:10px;
+  font:inherit; font-size:13px; color:var(--muted);
+  transition:background .16s var(--ease), color .16s var(--ease);
+}
+.pnl-signout button:hover{ background:var(--danger-bg); color:var(--danger); }
+.pnl-signout button:focus-visible{ outline:2px solid var(--line-2); outline-offset:1px; }
+.pnl-signout .icon{ width:16px; height:16px; transform:scaleX(-1); }
+
+/* ── نشان بانک ───────────────────────────────────────────────────────────
+   رنگ از config/banks.php می‌آید. زمینه و حاشیه از همان رنگ با شفافیت
+   ساخته می‌شوند تا در تم روشن و تیره هر دو خوانا بماند — رنگ ثابت روشن
+   روی زمینهٔ تیره می‌درخشد و برعکس. */
+.bank-mark{
+  width:34px; height:34px; flex:none; border-radius:10px;
+  display:grid; place-items:center;
+  background:color-mix(in srgb, var(--bk, #64748B) 18%, transparent);
+  border:1px solid color-mix(in srgb, var(--bk, #64748B) 42%, transparent);
+}
+.bank-mark i{
+  font-style:normal; font-size:11px; font-weight:700; line-height:1;
+  color:color-mix(in srgb, var(--bk, #64748B) 72%, var(--text));
+}
+.bank-mark .icon{ width:15px; height:15px; color:var(--dim); }
+
+/* عنوان بخش با نشان کنارش */
+.bank-head{ display:flex; align-items:center; gap:11px; min-width:0; }
+.bank-head h2{ margin:0; }
+
+/* ============================================================================
+   نوارِ «جای مشتری نشسته‌اید» — جابه‌جاییِ چیدمانِ پنل
+   ----------------------------------------------------------------------------
+   خودِ نوار سراسری است و انتهای site.css تعریف شده (کلاسِ .imp-bar، متغیرِ
+   --imp-h). اینجا فقط دو عنصرِ پنل که به بالای viewport چسبیده‌اند به اندازهٔ
+   ارتفاعِ نوار پایین می‌آیند؛ بدونِ این، سایدبار زیرِ هدر گم می‌شود و کشوی
+   موبایل روی نوار می‌افتد و راهِ بازگشت را می‌پوشاند.
+   ========================================================================== */
+body.imp-on .pnl-side{top:calc(var(--cvb-top) + var(--imp-h))}
+@media(max-width:1000px){
+  body.imp-on .pnl-side{top:var(--imp-h)}
+}
+
+/* ══════════ جعبهٔ پیام — دامنه و مدیریت ══════════
+ *
+ * ⚠️ `.pnl-alert` موجود یک **modifier برای section** است (فقط رنگِ حاشیه و سرتیتر
+ * را عوض می‌کند) نه جعبهٔ مستقل. استفاده‌اش به‌عنوان جعبه، متن را بی‌قاب و
+ * بی‌رنگ رها می‌کرد — بی‌هیچ خطایی، همان تلهٔ «کلاسِ نبود» در CLAUDE.md.
+ */
+.dm-note{
+  display:block;padding:14px 16px;border-radius:14px;margin:0 0 16px;
+  font-size:13.5px;line-height:2;border:1px solid var(--line);background:var(--surface-2);
+}
+.dm-note.ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.dm-note.warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.dm-note.danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.dm-note code{
+  display:inline-block;padding:4px 10px;border-radius:8px;margin-inline-start:6px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg2);color:var(--text);
+}
+.dm-note small{display:block;margin-top:6px;opacity:.85;font-size:11.8px}
+
+.dm-ns-row{margin:0 0 12px}
+.dm-ns-row label{display:block;font-size:12.5px;margin-bottom:5px}
+.dm-ns-row input{
+  width:100%;max-width:420px;padding:9px 12px;border-radius:10px;font:inherit;font-size:13px;
+  background:var(--bg2);color:var(--text);border:1px solid var(--line);
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.dm-ns-row input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.dm-acts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+
+/* ── جستجو و نتیجهٔ دامنه در پنل ── */
+.dm-search{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.dm-search input{
+  flex:1 1 260px;min-width:0;padding:10px 13px;border-radius:11px;font:inherit;font-size:14px;
+  background:var(--bg2);color:var(--text);border:1px solid var(--line);
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.dm-search input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.dm-res{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 14px;border-radius:12px;margin-bottom:8px;
+  border:1px solid var(--line);background:var(--surface-2);
+}
+.dm-res.ok{border-color:var(--ok-line)}
+.dm-res.no{opacity:.7}
+.dm-res-n{font-weight:700;font-size:14px;flex:1 1 180px;min-width:0;word-break:break-all}
+.dm-res-p{font-weight:700;color:var(--cyan);white-space:nowrap}
+.dm-res-p small{font-weight:400;color:var(--dim)}
+.dm-res form{margin:0}
+
+/* همان مستعار برای پنل — ویوهای account/* از این فایل می‌آیند.
+   ⚠️ panel.css متغیرِ --cyan ندارد، پس به --info می‌رود که هم‌رنگِ آن است و
+   در لایت‌مود هم نسخهٔ تیره‌ترِ خودش را دارد. */
+:root{
+  --accent: var(--info);
+  /* `--brand` هم هیچ‌جا تعریف نشده بود و همه‌جا با fallbackِ سخت‌کدِ
+     #22D3EE استفاده می‌شد. کار می‌کرد، ولی رنگ را از تم جدا می‌کرد و
+     یک تغییرِ نام کافی بود تا بی‌صدا بشکند. */
+  --brand: var(--info);
+}
+
+/* ==========================================================================
+   نوارِ زندهٔ ساختِ سرورِ ابری  (`.cb-*` = cloud build)
+   --------------------------------------------------------------------------
+   🔴 چهار مرحلهٔ **گسسته**، بی‌هیچ نوارِ درصد. همان قاعدهٔ صفحهٔ /status این
+   پروژه: عددِ من‌درآوردی از نبودِ عدد بدتر است، چون مشتری‌ای که روی ۷۰٪ گیر
+   می‌کند نتیجه می‌گیرد سایت خراب است.
+
+   حرکت **فقط** روی مرحلهٔ جاری است. اگر همه‌چیز بجنبد، هیچ‌چیز معنا ندارد.
+   ⚠️ توکن‌ها همان‌های موجودند (--line/--surface/--muted/--dim/--ok/--warn/--info)
+   — کلاس یا متغیرِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود.
+   ========================================================================== */
+.cb-live{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted)}
+.cb-live i{width:7px;height:7px;border-radius:50%;background:var(--info);
+  box-shadow:0 0 0 0 var(--info-line);animation:cbPulse 1.9s var(--ease,ease) infinite}
+.cb-lead{font-size:13.5px;color:var(--muted);line-height:2;margin:0 0 18px}
+.cb-lead b{color:var(--text)}
+
+.cb-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.cb-step{position:relative;display:flex;align-items:flex-start;gap:14px;padding:0 0 20px}
+.cb-step:last-child{padding-bottom:0}
+/* خطِ عمودیِ اتصالِ مرحله‌ها — منطقی (inset-inline) تا در RTL و LTR درست بیفتد */
+.cb-step::before{content:"";position:absolute;top:20px;bottom:0;inset-inline-start:8px;
+  width:2px;background:var(--line)}
+.cb-step:last-child::before{display:none}
+.cb-step.is-done::before{background:var(--ok-line)}
+
+.cb-dot{position:relative;z-index:1;flex:none;width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--line-2);background:var(--surface);margin-top:2px;
+  display:grid;place-items:center;transition:border-color .25s,background .25s}
+.cb-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cb-txt b{font-size:13.5px;color:var(--dim);font-weight:600;transition:color .25s}
+.cb-txt small{font-size:12px;color:var(--dim);line-height:1.85}
+
+/* انجام‌شده: تیکِ آرام، بی‌جلبِ توجه */
+.cb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
+.cb-step.is-done .cb-dot::after{content:"";width:5px;height:9px;border:2px solid #04121a;
+  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+.cb-step.is-done .cb-txt b{color:var(--text)}
+
+/* جاری: تنها چیزی که در صفحه می‌جنبد */
+.cb-step.is-now .cb-dot{border-color:var(--info);background:var(--info-bg);
+  animation:cbPulse 1.9s var(--ease,ease) infinite}
+.cb-step.is-now .cb-dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--info)}
+.cb-step.is-now .cb-txt b{color:var(--info)}
+.cb-step.is-now .cb-txt small{color:var(--muted)}
+
+/* نرسیده: خاموش می‌ماند تا «بعدی» واقعاً بعدی به‌نظر برسد */
+.cb-step.is-todo .cb-dot{border-style:dashed}
+
+.cb-foot{margin:18px 0 0;padding-top:15px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--dim);line-height:1.95}
+.cb-warn{margin:12px 0 0;font-size:12.5px;color:var(--warn);line-height:1.95}
+
+@keyframes cbPulse{
+  0%  {box-shadow:0 0 0 0 var(--info-line)}
+  70% {box-shadow:0 0 0 7px rgba(0,0,0,0)}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}
+}
+/* کسی که حرکت را خوش ندارد، ضربان نبیند — ولی مرحلهٔ جاری باید همچنان
+   قابلِ تشخیص باشد، پس فقط انیمیشن می‌رود نه رنگ. */
+@media (prefers-reduced-motion: reduce){
+  .cb-live i, .cb-step.is-now .cb-dot{animation:none}
+}
+
+/* ==========================================================================
+   «برگهٔ سرور» — فروشگاهِ سرورِ مجازی  (`.cvb-*` = cloud VPS builder)
+   --------------------------------------------------------------------------
+   قبلاً ۱۰۳ خط از این استایل داخلِ خودِ Blade بود «تا کلاسِ بی‌استایل رندر
+   نشود». نتیجه‌اش این شد که CssVariablesDefinedTest اصلاً نمی‌دیدش و دو رنگِ
+   خامِ hex و یک var()ِ تعریف‌نشده سال‌ها آن‌جا ماند. حالا این‌جاست، پس زیرِ
+   همان نگهبان است. تستی هم هست که می‌گوید Blade نباید style داشته باشد، تا
+   این دو دوباره از هم جدا نشوند.
+
+   🔴 دو قلّابِ نشکستنی که تست‌ها **عیناً** می‌سنجند:
+      · class="cvb-plan on" — بعد از on هیچ کلاسِ دیگری نیاید و بلافاصله
+        data-slug بیاید. پس هر حالتِ تازه یا روی والد می‌نشیند یا **پیش از**
+        cvb-plan (مثلِ cvb-off cvb-plan).
+      · id="cvb-s-plan" و id="cvb-h-low".
+
+   قاعدهٔ دیداری: در هر لحظه فقط **یک** ناحیه فیروزه‌ای است (انتخابِ جاری)، و
+   فقط **یک** عدد بزرگ است (جمعِ نهایی روی برگه). hover هیچ‌وقت حاشیهٔ رنگی
+   نمی‌دهد — فقط سطح بالا می‌آید.
+   ========================================================================== */
+:root{ --r-sm:12px; --r-xs:9px; }
+
+.cvb-wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.cvb-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* ── مرحله‌ها ───────────────────────────────────────────────────────────── */
+.cvb-step-h{width:100%;background:none;border:0;border-bottom:1px solid var(--line);
+  font:inherit;color:inherit;text-align:start;cursor:pointer}
+.cvb-step-h:focus-visible{outline:2px solid var(--info);outline-offset:-2px}
+.cvb-step-t{display:flex;align-items:center;gap:11px;min-width:0}
+.cvb-step-t b{font-size:15px;font-family:var(--font-disp);font-weight:700;color:var(--text)}
+.cvb-step-v{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvb-step-v em{font-style:normal;color:var(--info);font-size:12px;flex:none}
+
+/* بازوبستهٔ مرحله. پیش‌فرضِ **باز** است: بی‌جاوااسکریپت هیچ مرحله‌ای پنهان
+   نمی‌شود و فرم کامل کار می‌کند؛ جاوااسکریپت بعداً is-shut می‌گذارد. */
+.cvb-step-b{display:grid;grid-template-rows:1fr;transition:grid-template-rows .28s var(--ease)}
+.cvb-step.is-shut .cvb-step-b{grid-template-rows:0fr}
+.cvb-step-i{overflow:hidden;min-height:0}
+@media (prefers-reduced-motion: reduce){ .cvb-step-b{transition:none} }
+
+/* نقطهٔ وضعیتِ مرحله — همان .cb-dot صفحهٔ ساختِ سرور، عیناً. برگه‌ای که مشتری
+   پر می‌کند و فهرستی که بعد از پرداخت تماشا می‌کند یک زبان دارند. */
+.cvb-step .cb-dot{width:16px;height:16px;margin:0}
+.cvb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
+.cvb-step.is-done .cb-dot::after{content:"";width:4px;height:8px;border:2px solid var(--bg);
+  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+.cvb-step.is-now .cb-dot{border-color:var(--info);background:var(--info-bg)}
+.cvb-step.is-todo .cb-dot{border-style:dashed}
+
+/* ── کنترلِ قطعه‌ای (دوره، نوعِ پردازنده، سیستم‌عامل/نرم‌افزار) ──────────── */
+.cvb-segs{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm)}
+.cvb-seg{position:relative;display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border:0;border-radius:var(--r-xs);background:none;
+  font:inherit;font-size:12.5px;color:var(--muted);cursor:pointer;transition:.16s}
+.cvb-seg:hover{color:var(--text)}
+.cvb-seg.on{background:var(--bg2);color:var(--text);font-weight:700}
+.cvb-seg:has(input:focus-visible),.cvb-seg:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.cvb-seg em{font-style:normal;font-size:10.5px;font-weight:700;color:var(--ok)}
+/* حالتِ ساعتی: قطعه‌های دوره‌ای دیگر «انتخاب‌شده» به نظر نمی‌رسند. جایگزینِ
+   opacity:.45ِ قبلی که هر دو مدلِ صورت‌حساب را هم‌زمان روشن نشان می‌داد و هشت
+   مبلغِ کهنه را روی صفحه جا می‌گذاشت. */
+.cvb-bill.is-hourly .cvb-seg-c.on{background:none;color:var(--muted);font-weight:400}
+.cvb-billrow{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin:0 0 14px}
+.cvb-billrow>span{font-size:12px;color:var(--dim)}
+
+/* ── کارتِ اندازه ───────────────────────────────────────────────────────── */
+.cvb-plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+.cvb-plan{position:relative;display:flex;flex-direction:column;gap:8px;cursor:pointer;
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;
+  transition:background .16s var(--ease),border-color .16s var(--ease)}
+.cvb-plan:hover{background:var(--surface-2)}
+.cvb-plan.on{border-color:var(--info);background:var(--info-bg);box-shadow:inset 0 0 0 1px var(--info)}
+/* رادیو «پنهانِ دیداری» است نه display:none — وگرنه از ترتیبِ Tab بیرون می‌افتد
+   و کاربرِ صفحه‌کلید اصلاً نمی‌تواند انتخاب کند. */
+.cvb-plan input,.cvb-img input,.cvb-seg input{position:absolute;width:1px;height:1px;
+  opacity:0;margin:0;pointer-events:none}
+.cvb-plan:has(input:focus-visible),.cvb-img:has(input:focus-visible){
+  outline:2px solid var(--info);outline-offset:2px}
+.cvb-pn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--text)}
+.cvb-tick{margin-inline-start:auto;width:17px;height:17px;border-radius:50%;
+  display:none;place-items:center;background:var(--info);flex:none}
+.cvb-tick .icon{width:11px;height:11px;color:var(--bg)}
+.cvb-plan.on .cvb-tick{display:grid}
+/* یک خطِ متراکم به‌جای چهار سطرِ آیکن‌دار: ۴ vCPU · ۸ GB · ۸۰ GB NVME · ۲۰ TB */
+.cvb-spec{font-size:12.2px;color:var(--muted);line-height:1.8;
+  font-variant-numeric:tabular-nums;direction:ltr;text-align:start}
+.cvb-pfoot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:2px}
+.cvb-pk{font-size:11px;color:var(--dim)}
+.cvb-pp{font-size:13.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.cvb-plan.on .cvb-pp{color:var(--info)}
+
+/* ناموجود: هست، دیده می‌شود، ولی هیچ قیمتی ندارد و هیچ رادیویی هم ندارد.
+   ⚠️ کلاس **پیش از** cvb-plan می‌آید تا رجکسِ class="cvb-plan on" نشکند. */
+.cvb-plan.cvb-off{cursor:default;background:none;border-style:dashed}
+.cvb-plan.cvb-off:hover{background:none}
+.cvb-plan.cvb-off .cvb-pn,.cvb-plan.cvb-off .cvb-spec{color:var(--dim)}
+.cvb-offr{font-size:11.8px;color:var(--muted);line-height:1.75;margin:0}
+.cvb-offr small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+
+/* ── سیستم‌عامل و نرم‌افزار ─────────────────────────────────────────────── */
+.cvb-fam{margin-top:14px}
+.cvb-fam:first-child{margin-top:0}
+.cvb-famh{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);margin-bottom:8px}
+.cvb-opts{display:flex;flex-wrap:wrap;gap:7px}
+.cvb-img{display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  padding:7px 12px;border-radius:var(--r-xs);border:1px solid transparent;
+  background:var(--surface-2);transition:.16s}
+.cvb-img b{font-size:12.5px;font-weight:400;color:var(--muted)}
+.cvb-img:hover b{color:var(--text)}
+.cvb-img.on{border-color:var(--line-2);background:var(--bg2)}
+.cvb-img.on b{color:var(--text);font-weight:700}
+/* لوگوها **دقیقاً هم‌اندازه** (خواستهٔ کارفرما). SVGِ خودمیزبان، بی‌درخواستِ بیرونی. */
+.cvb-logo{width:20px;height:20px;flex:none;border-radius:5px;object-fit:contain}
+.cvb-logo.sm{width:16px;height:16px}
+
+/* ── فیلدها ─────────────────────────────────────────────────────────────── */
+.cvb-field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted);margin-top:14px}
+.cvb-field:first-child{margin-top:0}
+.cvb-field input,.cvb-field select,.cvb-field textarea{
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:11px 13px;font:inherit;font-size:13.5px;color:var(--text);width:100%}
+.cvb-field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.cvb-field input:focus-visible,.cvb-field select:focus-visible,.cvb-field textarea:focus-visible{
+  outline:2px solid var(--info);outline-offset:-2px}
+
+/* ── تنظیماتِ پیشرفته: details بومی، بی‌ذره‌ای جاوااسکریپت ──────────────── */
+.cvb-adv{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+html[data-theme="light"] .cvb-adv{background:#fff}
+.cvb-adv>summary{display:flex;align-items:center;gap:11px;padding:14px 16px;cursor:pointer;
+  font-size:13.5px;color:var(--text);list-style:none}
+.cvb-adv>summary::-webkit-details-marker{display:none}
+.cvb-adv>summary small{color:var(--dim);font-size:11.5px;font-weight:400}
+.cvb-adv>summary .icon{width:15px;height:15px;color:var(--dim);margin-inline-start:auto;
+  transition:transform .2s var(--ease)}
+.cvb-adv[open]>summary .icon{transform:rotate(180deg)}
+.cvb-adv-b{padding:0 16px 16px}
+
+/* ── متن‌های کمکی ───────────────────────────────────────────────────────── */
+.cvb-note{display:flex;align-items:flex-start;gap:7px;font-size:11.8px;color:var(--dim);
+  line-height:1.9;margin:12px 0 0}
+.cvb-note .icon{width:13px;height:13px;flex:none;margin-top:3px;color:var(--dim)}
+.cvb-warn{font-size:12.5px;color:var(--warn);line-height:1.95;margin:0}
+.cvb-hint{font-size:12px;color:var(--dim)}
+
+/* ── مکان‌ها ──────────────────────────────────────────────────────────────
+   ⚠️ `.cvb-cgroup` و `.cvb-chead` این‌جا بودند و در هیچ ویو/JS/PHPای استفاده
+   نمی‌شدند (ممیزیِ CSS خودش پیدایشان کرد). حذف شدند.
+   ⚠️ چیپِ قدیمیِ شهر (`background:var(--surface-2)` + `.on{background:var(--bg2)}`)
+   هم رفت: آن حالتِ «انتخاب‌شده» از حالتِ عادی **تیره‌تر** بود، بی‌تیک و بی‌رنگِ
+   تأکید — ضعیف‌ترین نشانِ انتخابِ صفحه، دقیقاً روی کنترلی که کارفرما خواست
+   ارتقا پیدا کند. واژگانِ تازه‌اش انتهای همین فایل است. */
+.cvb-flag{font-size:17px;line-height:1}
+
+/* ══════════════════════════ برگهٔ سرور ══════════════════════════ */
+/* ⚠️ لنگر از متغیر می‌آید، نه از عددِ ۹۶. هدرِ ثابت اندازه‌گیری‌شده ۱۱۲px است
+   (و زیرِ ۴۰۰px، site.css خودش --header-h را ۱۳۲ می‌کند)، پس ۹۶ روی هر عرضی
+   ۱۶px زیرِ هدر می‌نشست. --cvb-top انتهای همین فایل تعریف شده. */
+.cvb-slip{position:sticky;top:var(--cvb-top)}
+body.imp-on .cvb-slip{top:calc(var(--cvb-top) + var(--imp-h))}
+.cvb-sliph{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.cvb-sliph h2{font-size:13.5px;font-family:var(--font-disp);margin:0}
+
+.cvb-lines{display:flex;flex-direction:column}
+/* هیچ خطِ افقی‌ای بینِ سطرها نیست — همان ۸ هیرلاینی که برگه را شبیهِ جدول
+   می‌کرد. فاصله کارِ جداسازی را می‌کند. */
+.cvb-line{display:flex;align-items:center;gap:10px;width:100%;padding:8px 0;
+  background:none;border:0;font:inherit;text-align:start;color:inherit}
+button.cvb-line{cursor:pointer}
+button.cvb-line:hover .cvb-line-v{color:var(--info)}
+button.cvb-line:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:var(--r-xs)}
+.cvb-line-d{width:8px;height:8px;flex:none;border-radius:50%;
+  border:1.5px dashed var(--line-2);background:none}
+.cvb-line.is-done .cvb-line-d{border:0;background:var(--ok)}
+.cvb-line-k{font-size:12px;color:var(--dim);flex:none}
+.cvb-line-v{margin-inline-start:auto;font-size:12.5px;color:var(--text);font-weight:700;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cvb-line:not(.is-done) .cvb-line-v{color:var(--dim);font-weight:400}
+
+/* خطِ پارگیِ برگه — دو سوراخِ گِرد روی لبه‌های **منطقی**، پس در fa و en/tr هر
+   دو درست می‌افتد. خالص CSS: نه تصویری، نه درخواستی، نه CDNای. */
+.cvb-tear{position:relative;height:0;margin:14px -18px 16px;border-top:1px dashed var(--line-2)}
+.cvb-tear::before,.cvb-tear::after{content:"";position:absolute;top:-6px;
+  width:12px;height:12px;border-radius:50%;background:var(--bg)}
+.cvb-tear::before{inset-inline-start:-6px}
+.cvb-tear::after{inset-inline-end:-6px}
+
+.cvb-totk{font-size:12px;color:var(--dim);margin-bottom:2px}
+/* تنها چیزِ بلندِ صفحه. همان رنگ‌آمیزیِ عددهای قهرمانِ صفحهٔ اصلی. */
+.cvb-tot{font-size:clamp(22px,3vw,28px);font-family:var(--font-disp);line-height:1.25;
+  font-variant-numeric:tabular-nums;background:var(--grad-txt);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.cvb-tax{font-size:11.5px;color:var(--dim);margin-top:4px}
+.cvb-go{justify-content:center;width:100%;margin-top:14px}
+.cvb-go[disabled]{opacity:.5;cursor:not-allowed}
+.cvb-eta{display:flex;align-items:flex-start;gap:7px;font-size:11.5px;color:var(--dim);
+  line-height:1.85;margin:10px 0 0}
+.cvb-eta .icon{width:13px;height:13px;flex:none;margin-top:3px}
+
+/* ── داکِ موبایل: قیمت و دکمه همیشه روی صفحه ───────────────────────────── */
+/* ⚠️ z-index زیرِ .pnl-drawer-bd (۳۹۰) می‌مانَد تا کشوی منویِ موبایل همچنان
+   برنده باشد و راهِ بازگشتِ کاربر پوشیده نشود. */
+.cvb-dock{display:none}
+@media(max-width:1000px){
+  .cvb-wrap{grid-template-columns:1fr;padding-bottom:84px}
+  .cvb-slip{position:static}
+  .cvb-dock{display:flex;align-items:center;gap:12px;
+    position:fixed;inset-inline:0;bottom:0;z-index:380;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--bg2);border-top:1px solid var(--line-2)}
+  .cvb-dock-t{min-width:0;flex:1}
+  .cvb-dock-t small{display:block;font-size:10.5px;color:var(--dim)}
+  .cvb-dock-t b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)}
+  .cvb-dock .pnl-btn{flex:none}
+}
+
+/* تکمله‌های برگه — پس از نخستین رندرِ واقعی */
+.cvb-empty{font-size:12.5px;color:var(--warn);margin:8px 0 0}
+.cvb-imgs{min-width:0}
+.cvb-line-v small{font-weight:400;color:var(--dim);font-size:11.5px;margin-inline-start:6px}
+.cvb-line-v img{vertical-align:middle;margin-inline-end:6px}
+.cvb-line-v .cvb-logo{display:inline-block}
+
+/* قطعهٔ «ساعتی» یک **مدلِ دیگرِ** صورت‌حساب است، نه یک دورهٔ دیگر — پس با یک خط
+   از دوره‌ها جدا می‌شود تا مرزِ تصمیم دیده شود. */
+.cvb-seg-h{margin-inline-start:5px;padding-inline-start:14px;border-inline-start:1px solid var(--line)}
+
+/* عنوانِ مرحله: الگوی درستِ دسترس‌پذیری h2 > button است، نه button > h2
+   (محتوای button باید phrasing باشد). */
+.cvb-step-hh{margin:0}
+
+/* ==========================================================================
+   «برگهٔ مقایسه» — فهرستِ پلن‌ها به‌شکلِ جدول (یک DOM، دو شکل)
+   --------------------------------------------------------------------------
+   کارت‌ها یک‌به‌یک خوب بودند و کنارِ هم بد: هفت عددِ هم‌معنا در هفت جای متفاوتِ
+   صفحه، پس چشم برای «کدام بزرگ‌تر است» باید می‌گشت. برگه همان داده را در
+   ستون‌های هم‌تراز می‌گذارد.
+
+   🔴 تصمیمِ ساختاریِ اصلی: **پرس‌وجوی ظرف، نه media query.**
+   عرضِ پنجره دربارهٔ این عنصر دروغ می‌گوید — فهرست روی هر دسکتاپی حداکثر
+   ~۴۸۸px است (۱۲۰۰ ظرف → ۲۴۸+۲۲ سایدبار → ۳۴۰+۱۸ برگه → ۳۶ padding)، ولی در
+   پنجرهٔ ۱۰۰۱px فقط ~۲۸۹px و در ۹۹۹px یک‌دفعه ~۹۱۶px می‌شود. یعنی
+   `max-width:1000px` دقیقاً وارونه عمل می‌کرد: جدولِ پنج‌ستونی روی لپ‌تاپِ
+   ۱۳ اینچ و فهرستِ کارت روی تبلت. یک آستانهٔ عددیِ مشتق‌شده از شش ثابتِ دیگر
+   هم همان تلهٔ «نگهبانی که با عوض‌شدنِ حامل می‌میرد» است — کافی است روزی عرضِ
+   برگه تنظیم شود تا آستانه بی‌صدا غلط شود. ظرف خودش را اندازه می‌گیرد.
+
+   🔴 و پیش‌فرضِ **بی‌پرس‌وجو کارت است**: مرورگری که این را نمی‌فهمد، همان
+   طرحِ پذیرفته‌شدهٔ دیروز را می‌بیند — نه یک جدولِ شکسته. هیچ media queryای
+   نمی‌تواند چنین پس‌افتی بدهد.
+
+   بدنهٔ صفحه هرگز افقی اسکرول نمی‌شود: هیچ `overflow-x` تازه‌ای این‌جا نیست،
+   مسیرِ گرید سرتاسر `min-width:0`/`minmax(0,1fr)` است، و مجموعِ ستون‌های ثابت
+   همیشه کمتر از آستانهٔ خودش است (۳۳۶px < ۴۶۰ و ۵۲۰px < ۶۶۰).
+   ========================================================================== */
+
+/* 🔴 خنثی‌کنندهٔ [hidden] — همان الگوی نوشته‌شده در admin.css.
+   `.cvb-plan{display:flex}` یک قاعدهٔ نویسنده است و بر `[hidden]`ِ مرورگر
+   می‌چربد، پس صفتِ hidden در این سه جا **هیچ کاری نمی‌کرد**:
+     · فیلترِ نوعِ پردازنده هیچ ردیفی را پنهان نمی‌کرد،
+     · انتخابگرِ سیستم‌عامل ایمیج‌هایی را نشان می‌داد که روی معماریِ پلنِ
+       انتخابی تحویل نمی‌شوند (CLAUDE.md §۱۰.۵ «پولِ گرفته‌شده، سرورِ تحویل‌نشده»)،
+     · و سطرِ «IP اضافه» با صفر عدد روی برگه می‌ماند.
+   ⚠️ همین قاعده سوراخِ «پلنِ نامرئیِ انتخاب‌شده» را زنده می‌کند، پس ترمیمِ
+   انتخاب در جاوااسکریپت باید هم‌زمان با این خط باشد — نه بعدتر. */
+/* ⚠️ `.cvb-bar` هم به همین فهرست اضافه شد: `display:flex` یک قاعدهٔ نویسنده
+   است و بر `[hidden]`ِ مرورگر می‌چربد، پس در حالتِ ساعتی — که مبلغ دیگر یک
+   دورهٔ ترکیب‌شدنی نیست — نوارِ ترکیبِ هزینه با نسبت‌های **کهنه** روی صفحه
+   می‌مانْد. همان تلهٔ ثبت‌شدهٔ `.ad-bulk` و اسکلتِ تقویم در admin.css. */
+.cvb-plan[hidden],.cvb-img[hidden],.cvb-line[hidden],.cvb-bar[hidden]{display:none}
+
+/* ظرفِ اندازه‌گیری. خودِ .cvb-plans نمی‌تواند ظرفِ خودش باشد، پس یک پوستهٔ
+   بی‌استایل رویش می‌نشیند. */
+.cvb-sheet{container:cvbs / inline-size}
+
+/* ── حالتِ کارت (پیش‌فرضِ بی‌پرس‌وجو) ─────────────────────────────────────── */
+.cvb-plan{flex-direction:row;flex-wrap:wrap;align-items:center;gap:0}
+.cvb-pn{flex:1 0 100%;min-width:0}
+.cvb-pp{flex:1 0 100%;margin-top:8px;text-align:end}
+.cvb-offr{flex:1 0 100%;margin-top:8px}
+
+/* یک سلول در هر دو شکل: روی کارت با نقطه‌چین کنارِ هم، روی برگه یک ستون. */
+.cvb-c{font-size:12.2px;color:var(--muted);line-height:1.8;direction:ltr;text-align:start;
+  font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cvb-c ~ .cvb-c::before{content:"·";color:var(--line-2);margin:0 6px}
+.cvb-c-cpu,.cvb-c-ram,.cvb-c-dsk,.cvb-c-net,.cvb-c-kind{min-width:0}
+/* نوعِ پردازنده متن است نه عدد، پس جهتِ صفحه را می‌گیرد — وگرنه در فارسی
+   ستونش به لبهٔ مخالفِ سرستونش می‌چسبید. */
+.cvb-c-kind{direction:inherit}
+.cvb-plan.cvb-off .cvb-c{color:var(--dim)}
+
+/* برچسبِ فقط-برای-صفحه‌خوان. `.visually-hidden` فقط در auth.css است و پنل
+   هرگز آن شیت را بار نمی‌کند، پس نسخهٔ خودی. بی‌این، نامِ در دسترسِ رادیو
+   «CV-4-8 ۴ ۸ ۸۰ ۲۰» می‌شد — چهار عددِ بی‌عنوان. */
+.cvb-sr{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;padding:0;margin:-1px;border:0}
+
+/* ── سرستون‌ها / کنترلِ مرتب‌سازی ────────────────────────────────────────── */
+/* روی کارت یک نوارِ چیپ، روی برگه سرِ ستون‌ها — همان دکمه‌ها و همان
+   جاوااسکریپت، پس روی موبایل هیچ کنترلِ دومی لازم نیست. */
+.cvb-sheeth{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 2px}
+.cvb-shl{font-size:11.5px;color:var(--dim);margin-inline-end:2px}
+.cvb-sh{position:relative;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--line);border-radius:var(--r-xs);background:var(--surface-2);
+  padding:5px 10px;font:inherit;font-size:11.8px;color:var(--muted);cursor:pointer;transition:.16s}
+.cvb-sh:hover{color:var(--text)}
+.cvb-sh.on{border-color:var(--line-2);background:var(--bg2);color:var(--info);font-weight:700}
+.cvb-sh:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+/* هیچ آیکنِ «مرتب‌سازی» در اسپرایت نیست و CSP اجازهٔ منبعِ تازه نمی‌دهد، پس
+   همان #i-chev با همان اصطلاحِ چرخشی که summaryِ «تنظیماتِ پیشرفته» دارد. */
+.cvb-sh .icon{width:11px;height:11px;color:currentColor;opacity:.35;
+  transition:transform .18s var(--ease),opacity .18s var(--ease)}
+.cvb-sh.on .icon{opacity:1}
+.cvb-sh.on[data-dir="desc"] .icon{transform:rotate(180deg)}
+.cvb-shs{display:none}
+.cvb-shx{display:none}
+.cvb-sh-ord,.cvb-sh-cpu,.cvb-sh-ram,.cvb-sh-dsk,.cvb-sh-net,.cvb-sh-kind,.cvb-sh-pr{min-width:0}
+
+/* ── حالتِ برگه (ظرفِ پهن) ───────────────────────────────────────────────── */
+@container cvbs (min-width:460px){
+  /* نام | هسته | رم | دیسک | مبلغ */
+  .cvb-plans{--cvb-cols:minmax(0,1fr) 50px 62px 100px minmax(92px,124px);
+    grid-template-columns:1fr;gap:6px}
+
+  .cvb-sheeth{display:grid;grid-template-columns:var(--cvb-cols);align-items:center;
+    gap:0 8px;padding:0 14px 7px;margin:0 0 2px;border-bottom:1px solid var(--line)}
+  .cvb-shl{display:none}
+  .cvb-shs{display:inline}
+  .cvb-shc{display:none}
+  .cvb-shx{display:block;font-size:11px;letter-spacing:.3px;color:var(--dim)}
+  .cvb-sh{border:0;background:none;padding:4px 0;font-size:11px;letter-spacing:.3px;justify-content:flex-start}
+  .cvb-sh:hover{background:none}
+  .cvb-sh.on{background:none;border:0}
+  /* سلول‌های عددی direction:ltr دارند و به لبهٔ چپ می‌چسبند؛ سرستونشان هم
+     باید همان‌جا بایستد، وگرنه در RTL ستون و عنوانش دو سرِ خانه می‌افتند. */
+  .cvb-sh-cpu,.cvb-sh-ram,.cvb-sh-dsk,.cvb-sh-net{direction:ltr}
+  .cvb-sh-pr{justify-content:flex-end}
+
+  .cvb-plan{display:grid;grid-template-columns:var(--cvb-cols);align-items:center;
+    gap:0 8px;padding:11px 14px}
+  .cvb-pn{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cvb-c ~ .cvb-c::before{content:none}
+  .cvb-pp{margin-top:0}
+  /* دلیلِ ناموجودی و زیرسطرش در یک سلولِ ۱۲۴پیکسلی له می‌شد؛ سطرِ خودش را
+     می‌گیرد. ستونِ مبلغ **خالی** می‌مانَد — نه خط تیره، نه صفر. */
+  .cvb-offr{grid-column:1/-1;margin-top:6px}
+
+  /* تیک از «نشانِ انتخاب‌شده» به یک رادیوی همیشه‌دیده ارتقا می‌یابد: همان
+     خوانشِ ردیفیِ صفحه‌های مرجع، ساخته از کلاسی که از قبل هست. */
+  .cvb-tick{order:-1;margin-inline-start:0;display:grid;box-sizing:border-box;
+    background:none;border:1.5px solid var(--line-2)}
+  .cvb-tick .icon{opacity:0}
+  .cvb-plan.on .cvb-tick{background:var(--info);border-color:var(--info)}
+  .cvb-plan.on .cvb-tick .icon{opacity:1}
+  /* ردیفِ ناموجود تیک ندارد؛ بی‌این جای‌نگه‌دار، نامش با بقیه هم‌تراز نمی‌ماند. */
+  .cvb-plan.cvb-off .cvb-pn::before{content:"";width:17px;flex:none}
+
+  /* دو ستونِ اختیاری در این عرض جا نمی‌شوند و مسیرِ --cvb-cols هم فقط پنج
+     ستون دارد، پس هر دو با هم می‌روند. */
+  .cvb-c-net,.cvb-c-kind{display:none}
+  .cvb-sh-net,.cvb-sh-kind{display:none}
+}
+
+/* ستون‌های اختیاری فقط وقتی جا هست **و** فقط وقتی سرور دیده که مقدارشان در
+   این مکان یکسان نیست (وگرنه اصلاً رندر نشده‌اند). */
+@container cvbs (min-width:660px){
+  .cvb-plans.has-net{--cvb-cols:minmax(0,1fr) 50px 62px 100px 76px minmax(92px,124px)}
+  .cvb-plans.has-cpu{--cvb-cols:minmax(0,1fr) 50px 62px 100px 92px minmax(92px,124px)}
+  .cvb-plans.has-net.has-cpu{--cvb-cols:minmax(0,1fr) 50px 62px 100px 76px 92px minmax(92px,124px)}
+  .cvb-c-net,.cvb-c-kind{display:block}
+  .cvb-sh-net{display:inline-flex}
+  .cvb-sh-kind{display:block}
+}
+
+/* ==========================================================================
+   «چهار اتاق» — هاست / سرور / دامنه / خدمات   (`.svc-*`)
+   --------------------------------------------------------------------------
+   کارفرما: «همه چی توهم هست و ساختار درستی نداره.»
+
+   علتِ ریشه‌ای یک جدولِ شش‌ستونی بود که چهار محصولِ بی‌هم‌پوشانی را با یک شکلِ
+   ردیف نشان می‌داد. اشتراکِ آن چهار تقریباً هیچ است، پس جدول ناچار بود
+   ستون‌هایش را با «—» پر کند و جزئیاتِ واقعیِ هرکدام را در یک
+   <td colspan="6"> زیرِ ردیف بریزد. نتیجه: صفحه‌ای که هم شلوغ بود هم خالی.
+
+   🔴 دو نکتهٔ ساختاری که باید بمانند:
+
+    ۱) هیچ overflow-x تازه‌ای این‌جا نیست، جز داخلِ خودِ خطوطِ نشانی.
+       IP و خطِ SSH تا امروز داخلِ .pnl-tw{overflow-x:auto} بودند، پس مشتری
+       روی گوشی باید کلِ جدول را افقی می‌کشید تا IP خودش را بخواند. حالا هر
+       مقدارِ ltr جعبهٔ اسکرولِ خودش را دارد و بدنهٔ صفحه هرگز تکان نمی‌خورد.
+    ۲) این بلوک ۲۷ قاعده‌ای را هم در خود گرفت که تا امروز در یک بلوکِ style
+       داخلِ services.blade.php زندگی می‌کردند — یعنی بیرون از دیدِ
+       CssVariablesDefinedTest. هیچ رنگِ خامی این‌جا نیست؛ همه توکن.
+   ========================================================================== */
+
+/* ── سوییچرِ بخش‌ها ─────────────────────────────────────────────────────── */
+.svc-lens{display:flex;flex-wrap:wrap;gap:3px;padding:4px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm)}
+.svc-lens-i{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;
+  border-radius:var(--r-xs);font-size:12.8px;color:var(--muted);transition:.16s}
+.svc-lens-i:hover{color:var(--text)}
+.svc-lens-i.on{background:var(--bg2);color:var(--text);font-weight:700}
+.svc-lens-i:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-lens-i em{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.svc-lens-i.on em{color:var(--info)}
+
+/* آیکنِ کوچکِ کنارِ عنوانِ هر بخش — همان زبانِ .pnl-sec-h */
+.pnl-sec-h h2 .svc-sec-ic{width:15px;height:15px;color:var(--dim);
+  margin-inline-end:8px;vertical-align:-2px}
+
+/* ── شبکهٔ کارت‌ها ───────────────────────────────────────────────────────
+   minmax(0,…) سرتاسر لازم است: بی‌آن یک IPv6ِ بلند ستون را پهن می‌کند و
+   کلِ صفحه افقی می‌شود. */
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.svc-grid>*{min-width:0}
+.svc-card{display:flex;flex-direction:column;gap:12px;min-width:0;
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:15px;
+  background:var(--surface-2)}
+html[data-theme="light"] .svc-card{background:var(--surface)}
+.svc-card.is-susp{border-color:var(--danger-line)}
+.svc-card.is-wait{border-style:dashed}
+
+.svc-card-h{display:flex;align-items:center;gap:11px;min-width:0}
+.svc-card-t{min-width:0;flex:1}
+.svc-card-t b{display:block;font-size:13.8px;line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svc-card-t small{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;
+  direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.svc-chips{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ── حقایق: چند خانهٔ فشرده، نه چند سطرِ برچسب‌دار ───────────────────────── */
+.svc-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px}
+.svc-fact{min-width:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-xs);padding:9px 11px}
+html[data-theme="light"] .svc-fact{background:#fff}
+.svc-fact small{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
+.svc-fact b{font-size:13px;font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;font-weight:700}
+.svc-fact b em{font-style:normal;font-weight:400;font-size:11px;color:var(--dim)}
+.svc-fact.is-warn b{color:var(--warn)}
+
+/* ── نشانیِ شبکه ─────────────────────────────────────────────────────────
+   هر مقدار جعبهٔ اسکرولِ خودش را دارد؛ این تنها overflow-x این بلوک است و
+   عمداً محدود به همین یک عنصر. */
+.svc-net{display:flex;flex-direction:column;gap:7px;min-width:0}
+.svc-net-r{display:flex;align-items:center;gap:10px;min-width:0}
+.svc-net-r small{flex:none;width:64px;font-size:11px;color:var(--dim)}
+.svc-net-r code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.4px;color:var(--text);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:7px 10px;cursor:copy}
+html[data-theme="light"] .svc-net-r code{background:#fff}
+
+/* ── فهرستِ خدمات ───────────────────────────────────────────────────────── */
+.svc-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.svc-row{border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 15px;
+  background:var(--surface-2)}
+html[data-theme="light"] .svc-row{background:var(--surface)}
+.svc-row-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.svc-row-t{flex:1 1 190px;min-width:0}
+.svc-row-t b{display:block;font-size:13.5px;line-height:1.45}
+.svc-row-t small{display:block;font-size:11.8px;color:var(--muted);margin-top:2px;line-height:1.7}
+.svc-row-m{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.svc-row-m small{font-size:11px;color:var(--dim)}
+.svc-row-m b{font-size:13.5px}
+.svc-row-a:empty{display:none}
+
+/* ── حالتِ خالیِ کوتاه (فقط در نمای «همه») ───────────────────────────────── */
+.svc-none{font-size:13px;color:var(--muted);line-height:1.9;margin:0}
+.svc-none a{color:var(--info)}
+.svc-empty-acts{justify-content:center}
+
+/* ── عمل‌ها ─────────────────────────────────────────────────────────────── */
+.svc-acts:empty{display:none}
+.svc-acts form{margin:0}
+
+/* ── مرحلهٔ دومِ حذف ─────────────────────────────────────────────────────── */
+.svc-otp-box{border-top:1px solid var(--line);margin-top:12px;padding-top:13px}
+.svc-otp-why{margin:0 0 14px;max-width:520px}
+.svc-otp-why-h{margin:0 0 3px;font-size:13px;font-weight:700}
+.svc-otp-why-p{margin:0 0 9px;font-size:12px;color:var(--dim);line-height:1.7}
+.svc-otp-go{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.svc-input{width:100%;font:inherit;font-size:13px;padding:9px 12px;
+  border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--text)}
+.svc-ta{margin-top:8px;resize:vertical}
+.svc-input:focus-visible,.svc-code:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-code{width:140px;text-align:center;font:inherit;font-size:16px;letter-spacing:4px;
+  padding:9px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg2);color:var(--text)}
+
+/* ── دفترِ دامنه ────────────────────────────────────────────────────────── */
+.dmn-table td{vertical-align:top}
+.dmn-days{display:block;font-size:11px;color:var(--dim);margin-top:4px;
+  font-variant-numeric:tabular-nums}
+.dmn-bare{display:block;font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.7}
+.dmn-bare a{color:var(--info)}
+.dmn-acts{white-space:nowrap}
+.dmn-acts .pnl-btn{margin-inline-end:6px}
+
+/* ==========================================================================
+   منتقل‌شده از بلوکِ style داخلِ services.blade.php
+   --------------------------------------------------------------------------
+   ⚠️ آن ۲۷ قاعده فقط به لطفِ style-src unsafe-inline رندر می‌شدند و از دیدِ
+   CssVariablesDefinedTest پنهان بودند؛ دو رنگِ خام (ff6b6b در ۱۲ جا و یک
+   گرادیانِ دستی) هم همان‌جا مانده بودند. حالا این‌جایند و توکن گرفته‌اند.
+   ========================================================================== */
+.svc-quick{display:flex;gap:10px;flex-wrap:wrap}
+.svc-qbtn{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;
+  padding:12px 14px;min-width:86px;border:1px solid var(--line);border-radius:13px;
+  background:var(--surface);color:var(--text);font-size:12px;transition:transform .14s,border-color .16s}
+/* 🔴 `:not(.primary)` حیاتی است، نه آرایش.
+   `html[data-theme="light"] .svc-qbtn` ویژگیِ (0,2,1) دارد و بر
+   `.svc-qbtn.primary` با (0,2,0) می‌چربد — حتی با اینکه بالاتر نوشته شده.
+   نتیجه: دکمهٔ «ورود به سی‌پنل» در تمِ روشن پس‌زمینه‌اش سفید می‌شد ولی
+   `color:#fff` را نگه می‌داشت ⇒ آیکن و متنِ سفید روی سفید، نامرئی. در تمِ
+   تیره این قانون اصلاً اعمال نمی‌شود، پس فقط لایت‌مود خراب بود و ماه‌ها
+   کسی ندیدش. */
+html[data-theme="light"] .svc-qbtn:not(.primary){background:#fff}
+.svc-qbtn:hover{transform:translateY(-2px);border-color:var(--info)}
+.svc-qbtn.primary{background:var(--grad);color:#fff;border-color:transparent;font-weight:700}
+.svc-qbtn.primary:hover{color:#fff;filter:brightness(1.08)}
+.svc-qbtn .icon{width:20px;height:20px}
+@media (prefers-reduced-motion: reduce){ .svc-qbtn:hover{transform:none} }
+
+.svc-usage-load{font-size:12px;color:var(--muted);padding:6px 0}
+.svc-usage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.svc-stat{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
+html[data-theme="light"] .svc-stat{background:#fff}
+.svc-stat .lbl{font-size:11px;color:var(--muted)}
+.svc-stat .val{font-size:15px;color:var(--text);font-weight:700;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+/* رنگِ وضعیت از توکن می‌آید، نه از hexِ درون‌خطیِ جاوااسکریپت */
+.svc-stat .val.is-good{color:var(--ok)}
+.svc-stat .val.is-bad{color:var(--danger)}
+.svc-stat .val.val-ip{font-size:13px}
+.svc-bar{height:7px;border-radius:20px;background:var(--line);overflow:hidden;margin-top:9px}
+.svc-bar>i{display:block;height:100%;border-radius:20px;background:var(--grad);transition:width .5s ease}
+.svc-bar>i.hot{background:linear-gradient(100deg,#FBBF24,#F87171)}
+
+.svc-cred{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 22px;min-width:0}
+.svc-cred>div{display:flex;flex-direction:column;gap:3px;font-size:13px;min-width:0}
+.svc-cred span{font-size:11px;color:var(--muted)}
+.svc-cred b,.svc-cred a{color:var(--text);overflow-wrap:anywhere}
+.svc-cred a{color:var(--info)}
+.svc-pw{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pw-eye{background:var(--surface);border:1px solid var(--line);color:var(--info);
+  border-radius:7px;padding:3px 9px;font:inherit;font-size:11px;cursor:pointer}
+.pw-eye:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.svc-note{font-size:12.5px;color:var(--muted);line-height:1.95;margin:0}
+.svc-note.warn{color:var(--warn)}
+.copyable{cursor:copy}
+
+/* ── ریسپانسیو: نقطهٔ شکستِ خودِ پنل ─────────────────────────────────────── */
+@media(max-width:1000px){
+  .svc-grid{grid-template-columns:1fr}
+  .svc-row-main{align-items:flex-start}
+  .svc-row-m{align-items:flex-start}
+}
+@media(max-width:560px){
+  .svc-lens{overflow-x:auto;flex-wrap:nowrap}
+  .svc-lens-i{white-space:nowrap}
+  .svc-net-r{flex-direction:column;align-items:stretch;gap:4px}
+  .svc-net-r small{width:auto}
+  .svc-facts{grid-template-columns:1fr 1fr}
+}
+
+/* ==========================================================================
+   «نقشه‌اول» — سنگِ قبرِ انتخابگرِ سه‌سطحیِ `<details>`
+   --------------------------------------------------------------------------
+   این‌جا ~۷۰ خط بود برای کارتِ کشور (`.cvb-cnat`/`.cvb-ccard`/`.cvb-cname`/
+   `.cvb-cmeta`) و شهرهای تودرتویش (`.cvb-dc`/`.cvb-dcs`) و شبکهٔ ۱۴۸پیکسلیِ
+   `.cvb-countries`. **همه حذف شدند، چون هیچ‌کدام دیگر رندر نمی‌شوند:** شهر
+   مرحلهٔ خودش شد (خواستهٔ صریحِ کارفرما) و کشور و شهر هر دو لینکِ ساده‌اند
+   (`.cvb-nat` / `.cvb-city`، انتهای همین فایل).
+
+   نگه‌داشتنشان وسوسه‌انگیز بود («شاید لازم شود») ولی همان الگویی است که این
+   فایل قبلاً بابتش هزینه داده: قاعده‌ای که هیچ عنصری را هدف نمی‌گیرد، با یک
+   کامنتِ مفصل که رفتاری را توضیح می‌دهد که وجود ندارد — و نفرِ بعدی بر اساسِ
+   همان توضیح تصمیم می‌گیرد.
+
+   دو چیز از آن بلوک **مانده‌اند** چون هنوز استفاده می‌شوند:
+     · `.cvb-cchk` — نشانِ تیکِ انتخاب، حالا روی ردیفِ کشور و شهر.
+     · `.cvb-flag` — بالاتر، کنارِ بقیهٔ واژگانِ مکان.
+
+   و همان سه قیچیِ ساختاری که آن بلوک مستند کرده بود هنوز برقرارند و طرحِ تازه
+   عمداً به هیچ روپوشی نیاز ندارد:
+     `.pnl-sec{overflow:hidden}` · `.cvb-step-i{overflow:hidden}` (موتورِ
+     آکاردئون) · `.cvb-sheet{container:inline-size}` که حتی position:fixed را
+     هم به خودش می‌چسبانَد.
+   ========================================================================== */
+.cvb-cchk{width:17px;height:17px;border-radius:50%;
+  display:none;place-items:center;background:var(--info);flex:none}
+.cvb-cchk .icon{width:11px;height:11px;color:var(--bg)}
+
+/* ==========================================================================
+   کم‌رنگ‌کردنِ ملایمِ گروه‌های دیگر  (`.cvb-main.is-focus`)
+   --------------------------------------------------------------------------
+   🔴 قاعدهٔ نشکستنی: filter فقط روی `.cvb-step-i` می‌نشیند و کم‌رنگی روی
+   `.cvb-step`. هیچ‌وقت روی `.cvb-wrap`، خودِ فرم، `.pnl-main`، `.pnl-layout`،
+   `.pnl-wrap`، `.container`، `#main`، `body` یا `html` — چون
+   `.cvb-dock{position:fixed}` فرزندِ فرم است و هر filter/transform/perspective/
+   will-change/contain روی یکی از آن‌ها، همان گره را بلوکِ دربرگیرندهٔ داک
+   می‌کند: داک از قابِ دید کنده می‌شود و با صفحه پایین می‌رود. خرابی‌اش دیداریِ
+   محض است، ۲۰۰ می‌دهد و هیچ خطایی در کنسول نمی‌سازد و فقط زیرِ ۱۰۰۰px دیده
+   می‌شود. `.cvb-slip` (sticky) هم هم‌نیای `.cvb-main` است، نه فرزندش.
+
+   🔴 نیمهٔ «محوکردن» **حذف شد، چون هیچ‌وقت چیزی را محو نمی‌کرد.**
+   قاعدهٔ قبلی `.cvb-main.is-focus .cvb-step:not(.is-now) .cvb-step-i{filter:blur(.6px)}`
+   بود، ولی `.cvb-step-i` همان جعبه‌ای است که آکاردئون جمعش می‌کند
+   (`.cvb-step.is-shut .cvb-step-b{grid-template-rows:0fr}` + `overflow:hidden`)
+   و مرحله‌ای که `is-now` نیست تقریباً همیشه همان مرحلهٔ جمع‌شده است. یعنی
+   filter فقط روی محتوایی می‌نشست که ارتفاعش صفر بود: یک قاعده که ۲۰۰ می‌دهد،
+   در devtools هم دیده می‌شود، و روی صفحه هیچ پیکسلی را عوض نمی‌کند. بدتر از
+   بی‌اثر بودن، یک تستِ نگهبان هم داشت که وجودِ همان قاعده را قفل کرده بود —
+   پس یک قاعدهٔ مرده، محافظِ خودش شده بود.
+
+   حالا کم‌رنگی فقط با `opacity` روی خودِ `.cvb-step` است، یعنی روی همان چیزی
+   که کاربر از یک مرحلهٔ جمع‌شده واقعاً می‌بیند: **سرصفحه‌اش**. یک اعلان، یک
+   اثرِ دیدنی، بی‌هیچ ادعای اضافه. و این هرگز مودال نمی‌شود: نه پوشش، نه قفلِ
+   اسکرول، نه z-index — و opacity هیچ بلوکِ دربرگیرنده‌ای نمی‌سازد، پس داکِ
+   ثابت هم امن می‌مانَد (برخلافِ filter که اگر یک پله بالاتر می‌رفت می‌ساخت).
+   ⚠️ `filter` اینجا **برنگردد**؛ کارِ دیداری‌اش را opacity می‌کند و ریسکِ
+   بلوکِ دربرگیرنده را ندارد.
+   ========================================================================== */
+.cvb-main.is-focus .cvb-step{transition:opacity .2s var(--ease)}
+.cvb-main.is-focus .cvb-step:not(.is-now){opacity:.78}
+@media (prefers-reduced-motion: reduce){
+  .cvb-main.is-focus .cvb-step{transition:none}
+  .cvb-main.is-focus .cvb-step:not(.is-now){opacity:.85}
+}
+
+/* ── تکمله‌های ریسپانسیو و اصلاح‌های اندازه‌گیری‌شده ────────────────────────
+   هیچ‌کدام قاعدهٔ قفل‌شده‌ای را دست نمی‌زند؛ همه بعد از آن‌ها می‌آیند. */
+
+/* 🔴 text-overflow روی یک جعبهٔ flex هیچ کاری نمی‌کند: فرزندش با
+   min-width:auto کوچک نمی‌شود، سرریز می‌کند و «تغییر»ِ flex:none بیرون
+   می‌افتد و بریده می‌شود. نامِ سرورِ کاربر تا ۶۴ نویسه است. */
+.cvb-step-v>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* مشخصاتِ کاملِ پلن روی برگه: پردازنده · رم · دیسک · ترافیک.
+   سطرِ خودش را می‌گیرد تا نامِ پلن را از خانه بیرون نکند. */
+.cvb-line-v .cvb-sspec{display:block;margin-inline-start:0;white-space:normal;
+  font-weight:400;font-size:11px;line-height:1.7;color:var(--dim);text-align:end}
+
+/* منطقهٔ مردهٔ ۱۰۰۱–۱۱۸۰px — وصلهٔ قدیمی این‌جا **حذف شد**، چون علتش رفت.
+   آن وصله برگه را به ۲۸۰px باریک می‌کرد تا فهرست از آستانهٔ ۴۶۰px نیفتد، ولی
+   خودش هم کافی نبود (پنجرهٔ ۱۰۰۱px با آن هم ۳۵۳px می‌داد). حالا سایدبارِ
+   ۲۴۸پیکسلیِ حساب روی این مسیر رندر نمی‌شود، پس در ۱۰۲۴px فهرست ~۴۹۴px است و
+   خودبه‌خود در حالتِ «برگه» می‌ماند. نگه‌داشتنِ وصله یعنی یک قاعده که قاعدهٔ
+   انتهای فایل بی‌صدا خنثی‌اش می‌کند و کامنتش ادعای کارِ نکرده می‌کند. */
+
+@media(max-width:1000px){
+  /* داک واقعاً ~۶۹px است **به‌علاوهٔ** نوارِ خانهٔ گوشی که ۸۴ِ ثابت حسابش نکرده
+     بود؛ آخرین ~۱۹px محتوا برای همیشه زیرِ داک می‌ماند.
+     رزرو حالا برای **دو سطر** مبلغ هم جا دارد (پایین را ببین): داکی که یک سطر
+     بلندتر می‌شود نباید دوباره محتوا را بخورد. */
+  .cvb-wrap{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+  /* 🔴 پول بیضی نمی‌شود. قاعدهٔ قبلی nowrap+overflow:hidden+text-overflow روی
+     **مبلغِ نهاییِ پرداخت** بود و طبق اندازه‌گیریِ خودِ نویسنده‌اش هم واقعاً
+     شلیک می‌کرد: مشتری در ۳۲۰px «۱٬۲۳۴٬…» می‌دید و تا لحظهٔ فاکتور نمی‌فهمید
+     چقدر می‌پردازد. بریدنِ عدد در ستونِ پول همان ردهٔ خطاست که §۱۰.۵ ممنوع
+     کرده — بدترین جای ممکنش هم دکمهٔ تسویه است.
+     به‌جایش: مبلغ اول **کوچک** می‌شود و اگر باز هم جا نشد **می‌شکند**. هیچ رقمی
+     گم نمی‌شود. `tabular-nums` و رنگ از قاعدهٔ بالاتر ارث می‌رسد. */
+  .cvb-dock-t b{display:block;white-space:normal;overflow-wrap:anywhere;
+    font-size:clamp(13px,4.2vw,16px);line-height:1.3}
+}
+
+@media(max-width:360px){
+  /* ترکِ ۲۳۲px در بدنهٔ ۲۳۶پیکسلیِ ۳۲۰px فقط ۴px فاصله دارد و سرریزش را سه
+     overflow:hidden روی‌هم بی‌صدا می‌بلعند — یعنی ممیزیِ «اسکرول‌بار نیامد»
+     سبز می‌شود در حالی که متن بریده شده. */
+  .cvb-plans{grid-template-columns:1fr}
+}
+
+/* دکمهٔ «افزودن سرور» در سرصفحهٔ بخش — وقتی مشتری از قبل سرور دارد. */
+.pnl-sec-hx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:none}
+.pnl-add{flex:none;font-size:12px;padding:6px 12px}
+.pnl-add .icon{width:13px;height:13px}
+
+/* ریزتعامل‌ها: تیک با یک ظهورِ کوتاه می‌آید، نه با پرش یا بزرگ‌نمایی.
+   transform فقط روی خودِ تیک است — نیای هیچ عنصرِ fixed/sticky نیست. */
+/* ⚠️ نشانه از `.cvb-ccard.on` به `.cvb-nat.on`/`.cvb-city.on` منتقل شد. با
+   حذفِ کارتِ کشور، این انیمیشن روی صفر عنصر می‌دوید — یعنی یک `@keyframes`ِ
+   زنده و یک تیکِ بی‌ظهور. */
+@keyframes cvb-tickin{from{transform:scale(.62);opacity:0}to{transform:scale(1);opacity:1}}
+.cvb-nat.on .cvb-cchk,.cvb-city.on .cvb-cchk{animation:cvb-tickin .16s var(--ease)}
+@media (prefers-reduced-motion: reduce){
+  .cvb-nat.on .cvb-cchk,.cvb-city.on .cvb-cchk{animation:none}
+}
+
+/* ==========================================================================
+   «مسیر» — سرورساز به‌شکلِ یک سفرِ راهنماشده  (بازطراحیِ چهارم، مرداد ۱۴۰۵)
+   --------------------------------------------------------------------------
+   کارفرما سه بار همین صفحه را رد کرد. اندازه‌گیریِ صفحهٔ زنده گفت چرا، و هیچ‌کدام
+   «سلیقه» نبود:
+
+     · ۲۰ اندازهٔ قلم در ۹۰۰ پیکسلِ اول، ۱۵تاش داخلِ یک نوارِ ۶٫۵ پیکسلی.
+       بلندترین متنِ یک صفحهٔ **فروش** ۲۸px اثاثیهٔ صفحه بود و خودِ مبلغ ۲۲px
+       با وزنِ Regular — پنج پیکسل بزرگ‌تر از ایموجیِ پرچمِ کنارش.
+     · ۶۵ جعبه در همان ۹۰۰ پیکسل، ۳۵تاش با حاشیهٔ سخت، با ۸ شعاعِ گوشهٔ هم‌زمان.
+     · سلسله‌مراتب با **کم‌رنگ‌کردنِ متن** ساخته می‌شد: `--dim` روی کارتِ پنل
+       ۳٫۲۱:۱ است (زیرِ AA) و ۲۷ گره — از جمله مبلغ‌ها — را ۱۱–۱۲px می‌کشید.
+     · و مهم‌ترین: `position:sticky` روی **هیچ صفحهٔ پنلی** کار نمی‌کرد، پس
+       «قیمتِ همیشه‌جلوی‌چشم» — همان الگویی که کارفرما نام برد — در CSS بود و
+       در مرورگر نبود. علتش یک واژه در site.css بود، نه این فایل.
+
+   پس این بلوک یک کارِ اصلی می‌کند و بقیه تفریق است: **وارونه‌کردنِ سلسله‌مراتب**.
+   مبلغ ۳۴px/۷۰۰ و بزرگ‌ترین چیزِ صفحه است؛ متنِ بدنه از ۱۱–۱۲٫۵ به ۱۵ می‌آید؛
+   نسبتِ بلندترین به کوتاه‌ترین ۳٫۱ برابر می‌شود (امروز ۱٫۸ **پیکسل** بود).
+
+   قواعدِ ثابت:
+     · وزنِ ۶۰۰ ممنوع — IRANSans نیمه‌ضخیم ندارد و ۶۰۰ پیکسل‌به‌پیکسل با ۷۰۰
+       یکی اندازه‌گیری شد. ۵۰۰ (Medium) که روی هر بارگذاری دانلود می‌شود و در
+       کلِ panel.css یک بار هم استفاده نشده بود، رکابِ میانی است.
+     · `--dim` در این زیردرخت **برای متن** استفاده نمی‌شود.
+     · یک زبانِ «انتخاب‌شده» برای همه: نوارِ ۲px لبهٔ آغازین + ته‌رنگِ --info + تیک.
+     · هیچ روپوشی (dropdown/tooltip/popover) این‌جا ممکن نیست و لازم هم نیست:
+       `.pnl-sec{overflow:hidden}` + `.cvb-step-i{overflow:hidden}` +
+       `.cvb-sheet{container:inline-size}` سه قیچیِ روی‌هم‌اند و سومی حتی
+       position:fixed را هم به خودش می‌چسبانَد.
+   ========================================================================== */
+:root{
+  /* پله‌های فاصله — ۴px، هفت پله. تا امروز تنها توکنِ فاصله --pnl-gap بود و
+     بقیه ~۲۰ عددِ خام با هشت پلهٔ تقریباً یکسان بینِ ۶ و ۱۴. */
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+  /* دو ارتفاع. تا امروز .pnl-sec سایه‌اش none بود و کلِ عمقِ صفحه یک خطِ ۸٪ سفید. */
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 12px 32px rgba(0,0,0,.45);
+  /* لنگرِ چسبندگی — عددِ جادوییِ ۹۶ بازنشسته شد؛ هدر اندازه‌گیری‌شده ۱۱۲px است
+     و زیرِ ۴۰۰px خودِ site.css آن را ۱۳۲ می‌کند. پس عدد از متغیر می‌آید. */
+  --cvb-top:calc(var(--header-h) + var(--sp4));
+}
+html[data-theme="light"]{
+  --sh-1:0 1px 2px rgba(20,30,60,.08);
+  --sh-2:0 12px 32px rgba(20,30,60,.12);
+  /* 🔴 این چهار توکن در پوستهٔ روشن فراموش شده بودند: متنِ وضعیت از پالتِ روشن
+     می‌آمد و حاشیه‌اش از پالتِ تیره — یک قرصِ «اطلاع» با متنِ #0891B2 داخلِ
+     حاشیهٔ rgba(34,211,238,.30). */
+  --ok-line:rgba(5,150,105,.30);
+  --warn-line:rgba(180,83,9,.30);
+  --danger-line:rgba(220,38,38,.28);
+  --info-line:rgba(8,145,178,.30);
+}
+
+/* ── چیدمان: تیرک · صحنه · ریل ─────────────────────────────────────────────
+   ⚠️ اختصاصِ همین صفحه، با `:has()` — نه کلاسِ سراسری روی <body> و نه دست‌زدن
+   به فایلِ پوسته. مرورگری که `:has()` ندارد دقیقاً چیدمانِ دیروز را می‌بیند.
+   ⚠️ و فقط بالای ۱۰۰۰px: زیرِ آن `.pnl-side` **کشویِ موبایل** است، نه ستون —
+   خاموش‌کردنش راهِ ناوبریِ کاربر را می‌بندد. راهِ بازگشت روی همین صفحه، مسیرِ
+   راهنمای بالای عنوان است. */
+@media(min-width:1001px){
+  .pnl-layout:has(.cvb-wrap){grid-template-columns:minmax(0,1fr)}
+  .pnl-layout:has(.cvb-wrap)>.pnl-side{display:none}
+  .cvb-wrap{grid-template-columns:56px minmax(0,1fr) 330px;gap:22px}
+}
+/* سه لکهٔ محوِ ۶۴۰/۵۲۰/۶۰۰ پیکسلی پشتِ یک تصمیمِ پنج‌مرحله‌ای، نور می‌اندازد نه
+   معنا. خاموشِ کامل نه — صفحه از سایت کنده می‌شد؛ فقط آرام. */
+body:has(.cvb-wrap) .aurora{opacity:.3}
+
+.cvb-main{gap:var(--sp4)}
+.cvb-wrap .pnl-sec-b{padding:26px}
+
+/* ── سرصفحهٔ صفحه: یک سطر ──────────────────────────────────────────────── */
+.cvb-head h1{font-size:20px;font-weight:500;line-height:1.5}
+.cvb-head .blog-crumbs{font-size:12px}
+.cvb-head .pnl-pill{font-size:11px}
+
+/* ── تیرکِ مسیر ────────────────────────────────────────────────────────────
+   خطِ مویی + پنج گره. هیچ آیکنی، هیچ تصویری، هیچ روپوشی — پس با سه لایهٔ
+   قیچیِ بالا (.pnl-sec / .cvb-step-i / .cvb-sheet) هم دعوا ندارد.
+   خودِ گره یک دکمه است؛ رقمش تزئین (aria-hidden) و نام و مقدارش متنِ در دسترسِ
+   همان دکمه. یک ایستگاهِ صفحه‌کلید به‌ازای هر مرحله، نه دو. */
+.cvb-spine{position:sticky;top:var(--cvb-top);align-self:start;
+  display:flex;flex-direction:column;gap:var(--sp5);padding:var(--sp2) 0;min-width:0}
+body.imp-on .cvb-spine{top:calc(var(--cvb-top) + var(--imp-h))}
+.cvb-spine::before{content:"";position:absolute;inset-block:18px;inset-inline-start:15px;
+  width:2px;background:var(--line)}
+.cvb-sp{position:relative;display:flex;align-items:center;gap:var(--sp3);
+  background:none;border:0;padding:0;font:inherit;color:inherit;text-align:start;
+  cursor:pointer;min-width:0}
+.cvb-sp-n{position:relative;z-index:1;width:32px;height:32px;flex:none;border-radius:50%;
+  display:grid;place-items:center;background:var(--bg2);
+  box-shadow:inset 0 0 0 2px var(--line);
+  font-size:13px;font-weight:500;color:var(--muted);
+  font-variant-numeric:tabular-nums;transition:.16s var(--ease)}
+.cvb-sp.is-now .cvb-sp-n{box-shadow:inset 0 0 0 2px var(--info);color:var(--info);font-weight:700}
+.cvb-sp.is-done .cvb-sp-n{background:var(--info);box-shadow:none;color:var(--bg);font-weight:700}
+.cvb-sp:focus-visible{outline:2px solid var(--info);outline-offset:var(--sp1);border-radius:var(--r-xs)}
+/* متنِ کنارِ گره فقط روی ستونِ پهن دیده می‌شود؛ زیرِ ۱۰۰۰px تیرک افقی می‌شود.
+   عرضِ ۵۶ پیکسلیِ تیرک جای نامِ مرحله را ندارد، ولی متن در DOM می‌مانَد چون
+   نامِ در دسترسِ دکمه است — صفحه‌خوان «مرحلهٔ ۲، شهر، فرانکفورت» می‌شنود. */
+.cvb-sp-t{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;padding:0;margin:-1px;border:0}
+.cvb-sp-v{font-weight:400}
+
+/* ── تیترها و ابرو ────────────────────────────────────────────────────────
+   ابرو ۱۱/۷۰۰، پرسش ۲۲/۷۰۰، راهنما ۱۳/۴۰۰. سه رکاب، و همه‌شان از --muted و
+   --text — بی‌هیچ --dimی. */
+.cvb-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--info);
+  margin:0 0 var(--sp2)}
+.cvb-reg{color:var(--muted);margin:var(--sp5) 0 var(--sp2)}
+.cvb-reg:first-of-type{margin-top:0}
+.cvb-sub{color:var(--muted);margin:var(--sp4) 0 var(--sp2)}
+.cvb-q{font-size:22px;font-weight:700;line-height:1.45;color:var(--text);margin:0}
+.cvb-lede{font-size:13px;font-weight:400;color:var(--muted);line-height:1.85;
+  margin:var(--sp2) 0 var(--sp5)}
+.cvb-q + .cvb-nats,.cvb-q + .cvb-cities,.cvb-q + .cvb-void{margin-top:var(--sp5)}
+
+/* ── ردیفِ کشور ────────────────────────────────────────────────────────────
+   کارت نه، سطر. یک کشور یک **نام** است و نام روی سطر بهتر خوانده می‌شود؛ ترکِ
+   ۱۴۸پیکسلی مجبورش می‌کرد با ellipsis بریده شود. حاشیه ندارد: حاشیه **همان**
+   نشانِ انتخاب است. */
+.cvb-nats{display:flex;flex-direction:column}
+.cvb-natgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:0 var(--sp5)}
+.cvb-nat,.cvb-city{position:relative;display:flex;align-items:center;gap:var(--sp3);
+  min-height:60px;padding:var(--sp3) var(--sp3);border-radius:var(--r-sm);
+  border:0;background:none;
+  transition:background .16s var(--ease),box-shadow .16s var(--ease)}
+/* خطِ مویی بینِ ردیف‌ها، نه جعبه دورِ هرکدام. */
+.cvb-nat::after,.cvb-city::after{content:"";position:absolute;inset-inline:var(--sp3);
+  bottom:0;height:1px;background:var(--line)}
+/* ⚠️ فقط ستونِ تک‌ردیفهٔ شهر آخرین خطش را می‌اندازد. روی شبکهٔ دوستونهٔ کشور
+   `:last-child` فقط **یکی** از دو خانهٔ ردیفِ آخر را می‌گیرد و نتیجه‌اش یک
+   هیرلاینِ نصفه است؛ آن‌جا خط می‌مانَد و مرزِ ناحیهٔ بعدی را هم می‌کشد. */
+.cvb-cities>.cvb-city:last-child::after{display:none}
+.cvb-nat:hover,.cvb-city:hover{background:var(--surface)}
+.cvb-nat.on,.cvb-city.on{background:var(--info-bg);box-shadow:inset 2px 0 0 0 var(--info)}
+html[dir="rtl"] .cvb-nat.on,html[dir="rtl"] .cvb-city.on{box-shadow:inset -2px 0 0 0 var(--info)}
+.cvb-nat:focus-visible,.cvb-city:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+
+.cvb-nat .cvb-flag{font-size:24px}
+.cvb-nat-t,.cvb-city-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.cvb-nat-t b,.cvb-city-t b{font-size:15px;font-weight:500;color:var(--text);
+  line-height:1.5;min-width:0}
+.cvb-nat-t small,.cvb-city-t small{font-size:12px;font-weight:400;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.cvb-nat-p{flex:none;text-align:end}
+.cvb-nat-p b{font-size:13px;font-weight:500;color:var(--text);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.cvb-nat.on .cvb-nat-p b{color:var(--info)}
+/* تمام‌شده: دیده می‌شود، بی‌قیمت، با دلیل. غیب نمی‌شود — درسِ MAX_MARKETING_PLANS. */
+.cvb-outb{font-style:normal;font-size:11px;font-weight:700;color:var(--warn);white-space:nowrap}
+.cvb-nat.is-shut,.cvb-city.is-shut{opacity:.55}
+.cvb-nat.is-shut:hover,.cvb-city.is-shut:hover{background:none}
+
+/* تیکِ انتخاب — همان `.cvb-cchk`ِ موجود، حالا در یک ظرفِ flex. */
+.cvb-nat .cvb-cchk,.cvb-city .cvb-cchk{flex:none;width:20px;height:20px}
+.cvb-nat.on .cvb-cchk,.cvb-city.on .cvb-cchk{display:grid}
+
+/* ── ردیفِ شهر ─────────────────────────────────────────────────────────── */
+.cvb-cities{display:flex;flex-direction:column;flex-wrap:nowrap;gap:0}
+.cvb-city{min-height:56px;font-size:inherit;color:inherit}
+.cvb-city-dc{margin-inline-start:var(--sp5)}
+.cvb-city-t{flex-direction:row;align-items:baseline;gap:var(--sp3)}
+
+/* ── حالتِ خالیِ صادقانهٔ مرحلهٔ شهر ─────────────────────────────────────── */
+.cvb-void{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp2);
+  padding:var(--sp6);border-radius:var(--r-sm);background:var(--bg2)}
+.cvb-void .icon{width:20px;height:20px;color:var(--muted)}
+.cvb-void b{font-size:15px;font-weight:500;color:var(--text)}
+.cvb-void p{font-size:13px;font-weight:400;color:var(--muted);margin:0}
+.cvb-void-go{margin-top:var(--sp2);background:none;border:0;padding:0;font:inherit;
+  font-size:13px;font-weight:500;color:var(--info);cursor:pointer}
+.cvb-void-go:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:var(--r-xs)}
+.cvb-textlink{font-size:13px;font-weight:500;color:var(--info)}
+
+/* ── مرحله‌ها: کارت‌های آرام‌تر ────────────────────────────────────────── */
+.cvb-wrap .pnl-sec{box-shadow:var(--sh-1)}
+/* سرصفحهٔ مرحلهٔ **جمع‌شده** خطِ زیرش را نگه می‌داشت و روی سه کارتِ خالیِ اولین
+   بارگذاری یک هیرلاینِ سرگردان می‌کشید. */
+.cvb-step.is-shut .cvb-step-h{border-bottom-color:transparent}
+/* 🔴 مرحلهٔ **باز** سرصفحه ندارد.
+   اندازه‌گیری روی صفحهٔ رندرشده: پرسشِ «سرور در کدام کشور باشد؟» دو بار چاپ
+   می‌شد — یک بار در سرصفحهٔ ۱۵px و یک بار در بدنه با ۲۲px — و کنارِ اولی هم
+   مقدارِ انتخاب‌شده و یک «تغییر» می‌نشست. همان الگوی «برچسب · مقدار · [تغییر]
+   × ۳» که صفحه را شبیهِ فرمِ تنظیمات می‌کرد. حالا مرحلهٔ باز فقط **پرسش** است؛
+   ناوبری کارِ تیرک و سرصفحهٔ مرحله‌های جمع‌شده است.
+   ⚠️ `is-now` را فقط جاوااسکریپت می‌گذارد، پس بی‌جاوااسکریپت همهٔ سرصفحه‌ها
+   سرِ جایشان می‌مانند و هیچ راهی بسته نمی‌شود. */
+.cvb-step.is-now>.cvb-step-hh{display:none}
+.cvb-step-t b{font-size:15px;font-weight:500}
+.cvb-step-v{font-size:13px}
+.cvb-step-v em{font-size:12px;font-weight:500}
+.cvb-step.is-shut .cvb-step-v span{color:var(--text);font-weight:500}
+
+/* ── برگهٔ مقایسه: ردیف، نه شش قرصِ حاشیه‌دار ──────────────────────────── */
+.cvb-plan{border-color:transparent;background:none}
+.cvb-plan:hover{background:var(--surface)}
+.cvb-plan.on{background:var(--info-bg);border-color:transparent;
+  box-shadow:inset 2px 0 0 0 var(--info)}
+html[dir="rtl"] .cvb-plan.on{box-shadow:inset -2px 0 0 0 var(--info)}
+.cvb-pn{font-size:15px;font-weight:500}
+.cvb-c{font-size:13px;color:var(--muted)}
+.cvb-pp{font-size:15px;font-weight:700}
+.cvb-plan.cvb-off{border-style:solid;border-color:transparent}
+.cvb-plan.cvb-off .cvb-pn,.cvb-plan.cvb-off .cvb-c{color:var(--muted)}
+.cvb-offr{color:var(--muted)}
+.cvb-offr small{color:var(--muted)}
+@container cvbs (min-width:460px){
+  .cvb-plans{gap:0}
+  .cvb-plan + .cvb-plan{border-top:1px solid var(--line);border-radius:0}
+}
+
+/* ── سیستم‌عامل ───────────────────────────────────────────────────────── */
+.cvb-img{background:none;border:1px solid var(--line);padding:9px 13px}
+.cvb-img b{font-size:14px;font-weight:400}
+.cvb-img:hover{background:var(--surface)}
+.cvb-img.on{background:var(--info-bg);border-color:var(--info)}
+.cvb-img.on b{color:var(--text);font-weight:500}
+.cvb-famh{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+
+/* ── قطعه‌ها و فیلدها ─────────────────────────────────────────────────── */
+/* بازمانده‌های نردبان — اندازه‌گیری‌شده روی صفحهٔ رندرشده، نه حدس:
+   ۱۰٫۵ / ۱۱٫۵ / ۱۳٫۵ سه پلهٔ خارج از رمپ بودند که هیچ‌کس انتخابشان نکرده بود. */
+.cvb-seg{font-size:13px}
+.cvb-seg em{font-size:11px}
+.cvb-adv>summary{font-size:14px}
+.cvb-adv>summary small{font-size:12px;color:var(--muted)}
+.cvb-sliph .cb-live{font-size:12px}
+.cvb-seg.on{background:var(--info-bg);color:var(--text);font-weight:500;
+  box-shadow:inset 0 0 0 1px var(--info-line)}
+.cvb-field{font-size:13px}
+.cvb-field input,.cvb-field select,.cvb-field textarea{font-size:14px}
+.cvb-note,.cvb-hint{font-size:13px;color:var(--muted)}
+.cvb-note .icon{color:var(--muted)}
+.cvb-warn{font-size:13px}
+
+/* ══════════ ریلِ سمتِ صفحه — رسید، نه ویجت ══════════ */
+.cvb-slip .pnl-sec{box-shadow:var(--sh-2)}
+.cvb-sliph h2{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+.cvb-line{padding:10px 0}
+.cvb-line-k{font-size:12px;font-weight:400;color:var(--muted)}
+.cvb-line-v{font-size:13px;font-weight:500}
+.cvb-line:not(.is-done) .cvb-line-v{color:var(--muted);font-weight:400}
+.cvb-line-v .cvb-sspec{font-size:12px;color:var(--muted)}
+.cvb-line-v small{color:var(--muted)}
+
+/* خطِ پارگی: نیم‌دایره‌ها حذف شدند. آن‌ها `-18px` را به paddingِ اعلام‌شده در
+   یک قاعدهٔ **دیگر** سخت‌کد کرده بودند و در پوستهٔ روشن `--bg` (#F3F5FB) را
+   روی کارتِ `#fff` می‌کشیدند — دو لکهٔ خاکستری روی لبهٔ سفید. */
+.cvb-tear{height:1px;margin:var(--sp5) 0 var(--sp4);border-top:1px solid var(--line)}
+.cvb-tear::before,.cvb-tear::after{content:none}
+
+.cvb-totk{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:var(--sp1)}
+/* 🔴 بلندترین و سنگین‌ترین چیزِ صفحه. تا دیروز ۲۲px با وزنِ Regular بود و
+   `font-family:var(--font-disp)` داشت که با --font-body بایت‌به‌بایت یکی است،
+   پس هیچ کاری نمی‌کرد. */
+.cvb-tot{font-size:34px;font-weight:700;line-height:1.2}
+/* سهمِ آغازین در CSS است، نه در صفتِ style — Blade این صفحه هیچ استایلِ
+   درون‌خطی و هیچ <style>ای ندارد و دو تست همین را قفل می‌کنند. جاوااسکریپت
+   بعد از نخستین render نسبت‌های واقعی را می‌نشانَد. */
+.cvb-bar{display:flex;gap:2px;height:6px;margin-top:var(--sp3);border-radius:99px;overflow:hidden}
+.cvb-bar i{display:block;background:var(--info);transition:flex-basis .2s var(--ease)}
+.cvb-bar-a{flex-basis:82%;opacity:1}
+.cvb-bar-b{flex-basis:0%;opacity:.55}
+.cvb-bar-c{flex-basis:18%;opacity:.3}
+.cvb-tax{font-size:11px;color:var(--muted);margin-top:var(--sp2)}
+.cvb-eta{font-size:12px;color:var(--muted)}
+/* دکمهٔ پرداخت تا مرحلهٔ آخر آرام است. اندازه‌گیری: «پرداخت و ساخت سرور» در
+   y=۶۸۵ بلندترین عنصرِ بالای صفحه بود، پیش از پاسخ به نخستین پرسش. */
+/* ⚠️ وزن صریح است چون `.pnl-btn` سراسری ۶۰۰ می‌گذارد و IRANSans نیمه‌ضخیم
+   ندارد — ۶۰۰ همان ۷۰۰ رندر می‌شود، پس یک رکابِ دروغین در رمپ می‌ساخت. */
+.cvb-go{margin-top:var(--sp5);min-height:50px;font-size:15px;font-weight:700}
+/* ⚠️ رنگِ متن `--text` می‌مانَد، نه `--muted`. «آرام» از سطح و وزن می‌آید، نه از
+   محوکردنِ متن: `--muted` روی `--surface-2` اندازه‌گیری‌شده ۲٫۸:۱ است و از AA
+   می‌افتد — و این دکمه بی‌جاوااسکریپت **همیشه** در همین حالت می‌مانَد. */
+.cvb-wrap:not(.is-final) .cvb-go{background:var(--surface-2);color:var(--text);
+  font-weight:500;box-shadow:inset 0 0 0 1px var(--line-2)}
+.cvb-wrap:not(.is-final) .cvb-go:hover{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--info)}
+
+/* ══════════ پوستهٔ روشن — نوشته می‌شود، کشف نمی‌شود ══════════ */
+/* ⚠️ `#fff` دستی این‌جا نیست: `--bg2` در پوستهٔ روشن از قبل #FFFFFF است و
+   panel.css پانزده وصلهٔ `background:#fff` دارد که همان توکن را تکرار می‌کنند.
+   گرهِ تیرک از --bg2 می‌خواند، پس خودبه‌خود درست می‌چرخد. فقط سطحی که توکنِ
+   هم‌ارز ندارد وصله می‌خورد. */
+html[data-theme="light"] .cvb-void{background:var(--surface)}
+html[data-theme="light"] .cvb-nat:hover,html[data-theme="light"] .cvb-city:hover,
+html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
+
+/* ══════════ زیرِ ۱۰۰۰px: تیرک افقی می‌شود ══════════ */
+@media(max-width:1000px){
+  .cvb-spine{position:sticky;top:var(--cvb-top);z-index:2;
+    flex-direction:row;justify-content:space-between;gap:var(--sp2);
+    padding:var(--sp2) var(--sp3);margin-bottom:var(--sp2);
+    background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-sm)}
+  .cvb-spine::before{inset-block:auto;top:50%;inset-inline:24px;width:auto;height:2px}
+  .cvb-sp-n{width:28px;height:28px;font-size:12px}
+  .cvb-natgrid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .cvb-q{font-size:19px}
+  .cvb-tot{font-size:28px}
+  .cvb-wrap .pnl-sec-b{padding:18px}
+  .cvb-city-t{flex-direction:column;align-items:flex-start;gap:2px}
+}
+
+/* ═══ دکمهٔ عملی که در این لحظه ممکن نیست ═══
+   🔴 پیش از این هیچ حالتِ «خاموش» برای `.pnl-btn` وجود نداشت، پس دکمهٔ حذفِ
+   یک سرویسِ در حالِ تحویل دقیقاً مثلِ دکمهٔ فعال دیده می‌شد و مشتری می‌زد و
+   هیچ اتفاقی نمی‌افتاد. `pointer-events` هم لازم است: `disabled` روی
+   `<button>` کلیک را می‌گیرد ولی `aria-disabled` روی لینک نمی‌گیرد. */
+.pnl-btn[disabled],
+.pnl-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* ═══════════════ نمایندگی دامنه (/account/reseller) ═══════════════
+   ⚠️ فقط توکن‌هایی که واقعاً در این فایل تعریف شده‌اند استفاده شده‌اند.
+   `--card` و `--brand` در این پروژه وجود ندارند و استفاده‌شان یعنی رنگِ
+   خالی، بی‌هیچ خطایی. */
+
+.rs-stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.rs-stat{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.rs-stat > span{color:var(--muted);font-size:13px}
+.rs-stat > b{font-size:20px;font-family:var(--font-disp)}
+.rs-stat > small{color:var(--muted);font-size:12px}
+
+.rs-warn{color:var(--danger);font-size:13px}
+
+.rs-progress{margin-top:18px}
+.rs-bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.rs-bar > i{display:block;height:100%;background:var(--grad);border-radius:99px;transition:width .4s var(--ease)}
+.rs-progress > small{display:block;margin-top:8px;color:var(--muted);font-size:13px}
+
+.rs-grace{margin-top:14px;padding:10px 14px;border-radius:12px;
+  background:var(--info-bg);border:1px solid var(--info-line);color:var(--info);font-size:13px}
+
+.rs-levels{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.rs-level{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:4px}
+/* سطحِ فعلی باید در یک نگاه پیدا باشد، وگرنه جدول فقط یک تبلیغ است */
+.rs-level.is-current{border-color:var(--ok-line);background:var(--ok-bg)}
+.rs-level > b{font-family:var(--font-disp)}
+.rs-level .rs-off{font-size:18px;font-family:var(--font-disp);color:var(--ok)}
+.rs-level > small{color:var(--muted);font-size:12px;line-height:1.7}
+
+.rs-steps{margin:14px 0 0;padding-inline-start:20px;line-height:2.1;font-size:14px}
+.rs-steps code{font-size:12px}
+
+.rs-logs{display:flex;flex-direction:column;gap:6px}
+.rs-log{display:grid;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;
+  background:var(--bg2);border:1px solid var(--line);font-size:13px;
+  grid-template-columns:110px 1fr 110px 130px 140px}
+.rs-log.is-err{border-color:var(--danger-line);background:var(--danger-bg)}
+.rs-log-a{font-family:var(--font-disp);color:var(--muted)}
+.rs-log-t,.rs-log-m{color:var(--muted);font-size:12px}
+/* موبایل: شبکهٔ پنج‌ستونی روی ۳۷۵px هر ستون را به ۷۰px می‌رساند و متن می‌شکند */
+@media (max-width:820px){
+  .rs-log{grid-template-columns:1fr 1fr;row-gap:4px}
+  .rs-log-d{grid-column:1/-1}
+}
+
+/* چیپ‌های توکن در صفحهٔ امنیت */
+.sec-token-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sec-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--muted)}
+.sec-chip.danger{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+.sec-chip.ok{border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok)}
+.sec-chip.warn{border-color:var(--danger-line);color:var(--danger)}
+.sec-abilities{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.sec-abilities .sec-lbl{color:var(--muted);font-size:13px}
+.sec-abilities .sec-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.8}
+.sec-abilities .sec-chk code{font-size:12px}
+
+/* ═══════════ ورودی و زیرعنوانِ پنل ═══════════
+   🔴 `.pnl-input` روی `<select>` و `<input>`ِ صفحهٔ **تسویهٔ دامنه** استفاده
+   می‌شد و تعریف نشده بود: یعنی فرمِ یک مسیرِ پولی با کنترل‌های خامِ مرورگر
+   رندر می‌شد. `.pnl-sub` هم زیرعنوانِ همان صفحه بود. */
+.pnl-input{background:var(--bg2);border:1px solid var(--line-2);border-radius:10px;
+  padding:10px 13px;color:var(--text);font:inherit;font-size:14px;width:100%;min-width:0}
+.pnl-input:focus{outline:none;border-color:var(--cyan)}
+.pnl-sub{color:var(--muted);font-size:14px;line-height:2;margin:6px 0 0}

@@ -1,0 +1,16 @@
+---
+# Deploy the Linux password-login vendor snippet onto the `isos` storage so
+# every Linux template can reference it via cicustom.
+- name: Ensure snippets directory exists
+  ansible.builtin.file:
+    path: "{{ iso_storage_path }}/{{ snippets_subdir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install sn-linux.yaml vendor snippet
+  ansible.builtin.copy:
+    src: sn-linux.yaml
+    dest: "{{ iso_storage_path }}/{{ snippets_subdir }}/sn-linux.yaml"
+    mode: "0644"
+    owner: root
+    group: root

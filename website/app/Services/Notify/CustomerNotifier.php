@@ -1,0 +1,249 @@
+<?php
+
+namespace App\Services\Notify;
+
+use App\Models\Customer;
+use App\Services\Bale\BaleNotifier;
+use App\Services\Sms\SmsDispatcher;
+
+/**
+ * تنها نقطه‌ای که برای «اعلان به مشتری» صدا زده می‌شود.
+ *
+ * قاعدهٔ کارفرما: هر چیزی که پیامک می‌شود، بله هم می‌شود. با یک هاب مرکزی
+ * این قاعده در یک جا تضمین می‌شود، نه اینکه هر رویداد یادش باشد هر دو کانال
+ * را بزند و یکی جا بیفتد.
+ *
+ *   پیامک → از طریق SmsDispatcher (صف، مسیر الگو، تحویل از ایران)
+ *   بله   → از طریق BaleNotifier (آلمان اول، اگر نشد ایران)
+ *
+ * هر دو best-effort و مستقل‌اند: اگر یکی نشد، دیگری می‌رود. هیچ‌کدام جریان
+ * اصلی را نمی‌شکند.
+ */
+class CustomerNotifier
+{
+    public function __construct(
+        private SmsDispatcher $sms,
+        private BaleNotifier $bale,
+    ) {}
+
+    /**
+     * اعلان رویدادی به مشتری، هر دو کانال.
+     *
+     * @param  string  $event      نام رویداد برای الگوی پیامک (invoice، paid، ticket_reply…)
+     * @param  array   $smsParams  متغیرهای الگوی پیامک
+     * @param  string  $text       متن کامل — پشتیبان پیامک و متن بله
+     */
+    public function event(Customer $customer, string $event, array $smsParams, string $text): void
+    {
+        $mobile = (string) $customer->phone;
+
+        if ($mobile === '') {
+            return;
+        }
+
+        // متنِ الگو (اگر مدیر در /admin/templates تعریفش کرده) جای متنِ کد
+        // می‌نشیند. اگر الگو نبود، خاموش بود، یا متغیری از قلم افتاده بود،
+        // همین `$text` می‌رود — پس این لایه هیچ اعلانی را نمی‌شکند.
+        $text = \App\Models\NotificationTemplate::body($event, $smsParams, $text);
+
+        // پیامک — الگو اگر باشد، وگرنه متن آزاد
+        try {
+            $this->sms->event($mobile, $event, $smsParams, $text);
+        } catch (\Throwable) {
+            // اعلان هرگز نباید جریان اصلی را بشکند
+        }
+
+        // بله — همان متن، اگر کاربر وصل کرده باشد
+        $this->bale->notify($mobile, $text);
+    }
+
+    /**
+     * رویدادی که متنش از `/admin/templates` می‌آید ولی **الگوی پیامک ندارد**.
+     *
+     * چرا از `event()` جدا: آن‌جا `$event` هم‌زمان دو کار می‌کند — کلیدِ الگوی ما
+     * و کدِ الگوی اپراتورِ پیامک. برای رویدادهای چرخهٔ عمر (تعلیق، رفعِ تعلیق،
+     * یادآوری) خطرناک است که هر دو یکی باشند: `SmsDispatcher::event()` عمداً
+     * وقتی الگویی پیدا شود و ارسالش شکست بخورد، **متنِ آزاد را جایگزین
+     * نمی‌فرستد** (تا یک پیامِ ناموفق دو بار هزینه نکند). پس اگر این‌ها را به
+     * `event()` بدهیم و کدِ الگو در تنظیمات باشد ولی متغیرهایش با اپراتور نخوانَد،
+     * یادآوریِ تمدید بی‌صدا گم می‌شود — یعنی مشتری بی‌خبر می‌ماند و سرویسش قطع
+     * می‌شود. این‌جا پیامک همیشه متنِ آزاد است، و الگو فقط بله/ایمیل را می‌سازد.
+     *
+     * @param  array<string,string|int>  $vars
+     * @param  string  $text  متنِ کد — اگر الگو نبود یا ناقص بود، همین می‌رود
+     * @return bool آیا ایمیلِ الگو واقعاً فرستاده شد؟ فراخوان از روی همین
+     *              تصمیم می‌گیرد که ایمیلِ سادهٔ پشتیبانِ خودش را بفرستد یا نه —
+     *              وگرنه مشتری دو ایمیل می‌گرفت.
+     */
+    public function templated(Customer $customer, string $key, array $vars, string $text): bool
+    {
+        /*
+        | 🔴 مشتریِ غیرفارسی‌زبان هرگز نباید اعلانِ فارسی بگیرد (گزارشِ کارفرما،
+        | ۶ شهریور ۱۴۰۵: ایمیلِ خوش‌آمدِ فارسی برای ثبت‌نامِ انگلیسی رفت).
+        |
+        | الگوهای /admin/templates فارسی‌اند و برای این مشتری‌ها مصرف نمی‌شوند؛
+        | متن از کلیدهای ntf_{key}_s/_b در زبانِ خودِ مشتری می‌آید و اگر رویدادی
+        | هنوز ترجمه نشده، متنِ عمومیِ «حسابتان به‌روزرسانی دارد» می‌رود — بدتر
+        | از همه ارسالِ فارسی است، نه ارسالِ عمومی. پیامکِ اپراتورِ ایرانی هم
+        | برای شمارهٔ +بین‌المللی بی‌معنی است و زده نمی‌شود.
+        */
+        $locale = in_array($customer->locale, ['en', 'tr'], true) ? $customer->locale : null;
+
+        if ($locale !== null) {
+            return $this->localizedEmail($customer, $key, $vars, $locale);
+        }
+
+        $text = \App\Models\NotificationTemplate::body($key, $vars, $text);
+
+        /*
+        | 🔴 کلیدِ **واقعی** پاس داده می‌شود، نه `'__none__'`.
+        |
+        | تا مرداد ۱۴۰۵ این‌جا `'__none__'` و آرایهٔ خالی می‌رفت، با این استدلال
+        | که «پیامکِ این رویدادها همیشه متنِ آزاد باشد تا اگر متغیرهای الگو با
+        | اپراتور نخوانَد، یادآوری بی‌صدا گم نشود».
+        |
+        | آن استدلال وقتی درست بود که درایور `IppanelSender` بود و متنِ آزاد را
+        | واقعاً می‌فرستاد. با رلهٔ n8n، `send()` **عمداً `false`** می‌دهد (متنِ
+        | آزاد به هیچ الگویی نمی‌خورد و اپراتور نگهش می‌دارد یا رد می‌کند). پس
+        | آن محافظ دقیقاً به همان خرابی‌ای تبدیل شد که برای جلوگیری‌اش ساخته
+        | شده بود: `Notifier::fire()` تنها راهش همین متد است، و نتیجه‌اش این بود
+        | که **هیچ‌کدام از ۲۵ رویدادِ کاتالوگ پیامک نمی‌فرستاد** — بی‌خطا،
+        | بی‌لاگ، بی‌`last_error`. کارفرما یک پرداخت زد و هیچ پیامکی نگرفت.
+        |
+        | ⚠️ درسِ کلی‌تر: **وقتی حاملِ زیرین عوض می‌شود، محافظ‌هایی که بر پایهٔ
+        | رفتارِ حاملِ قبلی ساخته شده‌اند را دوباره بسنج.** این‌جا فرضِ «متنِ
+        | آزاد همیشه می‌رود» بی‌سروصدا باطل شد.
+        |
+        | حالا اگر الگو باشد پیامک می‌رود، و اگر نباشد `SmsDispatcher` شکست را
+        | **ثبت** می‌کند — بدترین حالت همان قبلی است، ولی دیگر نامرئی نیست.
+        */
+        $this->event($customer, $key, $vars, $text);
+
+        return $this->emailFromTemplate($customer, $key, $vars);
+    }
+
+    /**
+     * ایمیلِ اعلان به زبانِ خودِ مشتری (en/tr).
+     *
+     * موضوع/بدنه از `ui.ntf_{key}_s` و `ui.ntf_{key}_b` می‌آید؛ `:url` همیشه به
+     * پنلِ همان زبان اشاره می‌کند و بقیهٔ متغیرها همان `$vars`ی است که فراخوان
+     * داده. رویدادِ بی‌ترجمه به `ntf_generic_*` سقوط می‌کند.
+     */
+    private function localizedEmail(Customer $customer, string $key, array $vars, string $locale): bool
+    {
+        $email = (string) $customer->email;
+
+        if ($email === '') {
+            return false;
+        }
+
+        $repl = $this->intlVars($vars) + [
+            'url' => 'https://console.servernet.cloud'
+                .route(($locale === 'en' ? 'en.' : 'tr.').'account.home', [], false),
+        ];
+
+        $subject = trans('ui.ntf_'.$key.'_s', $repl, $locale);
+        $body = trans('ui.ntf_'.$key.'_b', $repl, $locale);
+
+        if ($subject === 'ui.ntf_'.$key.'_s' || $body === 'ui.ntf_'.$key.'_b') {
+            $subject = trans('ui.ntf_generic_s', $repl, $locale);
+            $body = trans('ui.ntf_generic_b', $repl, $locale);
+        }
+
+        try {
+            // ⚠️ locale به خودِ Mailable می‌رود تا قالبِ برنددار (emails.layout)
+            // هم به زبانِ مشتری رندر شود، نه به locale لحظهٔ اجرا (کرون = fa).
+            \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)
+                ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body)), $locale));
+
+            return true;
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['event' => $key, 'to' => 'customer-intl']);
+
+            return false;
+        }
+    }
+
+    /**
+     * مقادیرِ متغیرها را برای مشتریِ غیرفارسی «بین‌المللی» می‌کند.
+     *
+     * 🔴 چرا این‌جا و نه در تک‌تکِ فراخوان‌ها: بیشترِ فراخوان‌ها مقدار را برای
+     * مخاطبِ فارسی می‌سازند (`fa_num`، «تومان»، جداکنندهٔ ٬). نوشتنِ شرطِ زبان
+     * در ده‌ها نقطهٔ شلیک یعنی دیر یا زود یکی جا می‌افتد و ایمیلِ انگلیسی با
+     * رقمِ فارسی می‌رود — پس تصمیم همین یک‌جا گرفته می‌شود، برای همهٔ
+     * فرستنده‌های حال و آینده.
+     */
+    private function intlVars(array $vars): array
+    {
+        static $digits = [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '٬' => ',', '،' => ',',
+        ];
+
+        foreach ($vars as $k => $v) {
+            $v = strtr((string) $v, $digits);
+            // واحدِ پول به کدِ بین‌المللی — «تومان» در ایمیلِ انگلیسی/ترکی هم
+            // ناخواناست هم نقضِ «بی‌نشانه از فارسی» بودنِ این ایمیل‌ها.
+            $v = str_replace(['تومان', 'ریال'], ['IRT', 'IRR'], $v);
+
+            /*
+            | 🔴 تاریخِ شمسی → میلادی. فراخوان‌ها تاریخ را با `sdate()` می‌سازند
+            | و کرون‌ها با locale فارسی اجرا می‌شوند، پس «اعتبار تا ۱۴۰۵/۰۶/۰۷»
+            | واردِ متغیر می‌شود؛ لاتین‌کردنِ رقم آن را فقط به «1405/06/07»
+            | تبدیل می‌کرد — سالی که برای مشتریِ خارجی بی‌معنی است.
+            | سالِ ۱۳xx/۱۴xx با هیچ تاریخِ میلادیِ زنده‌ای اشتباه نمی‌شود، پس
+            | تشخیصِ الگویی این‌جا امن است.
+            */
+            $v = preg_replace_callback('/\b(1[34]\d{2})\/(\d{1,2})\/(\d{1,2})\b/', function ($m) {
+                [$gy, $gm, $gd] = \App\Support\Jalali::toGregorian((int) $m[1], (int) $m[2], (int) $m[3]);
+
+                return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+            }, $v);
+
+            $vars[$k] = trim($v);
+        }
+
+        return $vars;
+    }
+
+    /**
+     * ایمیلِ الگو — فقط اگر الگو متنِ ایمیلِ **کاملی** داشته باشد.
+     *
+     * نبودِ الگو یعنی «ایمیل نفرست»، نه خطا: پیش از این هم این رویدادها یا اصلاً
+     * ایمیل نداشتند یا `Mail::raw`ِ بی‌قالب می‌فرستادند.
+     */
+    private function emailFromTemplate(Customer $customer, string $key, array $vars): bool
+    {
+        $email = (string) $customer->email;
+
+        if ($email === '') {
+            return false;
+        }
+
+        try {
+            $mail = \App\Models\NotificationTemplate::email($key, $vars);
+
+            if ($mail === null) {
+                return false;
+            }
+
+            \Illuminate\Support\Facades\Mail::mailer('smtp')->to($email)
+                ->send(new \App\Mail\TemplateMail($mail['subject'], $mail['html']));
+
+            return true;
+        } catch (\Throwable) {
+            // اعلان هرگز نباید جریان اصلی را بشکند. false یعنی «نرفت»، پس
+            // فراخوان ایمیلِ سادهٔ خودش را می‌فرستد و پیام کلاً گم نمی‌شود.
+            return false;
+        }
+    }
+
+    /** پیام آزاد بدون الگو، هر دو کانال */
+    public function message(Customer $customer, string $text): void
+    {
+        $this->event($customer, '__none__', [], $text);
+    }
+}
