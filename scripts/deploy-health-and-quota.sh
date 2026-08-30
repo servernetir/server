@@ -1,72 +1,72 @@
 #!/usr/bin/env bash
 #
-# دیپلوی «مدیریتِ اعلان‌های بله + منوی هدر و فوتر» — شهریور ۱۴۰۵.
+# دیپلوی سه اصلاح — شهریور ۱۴۰۵، پیرو `deploy-menu-and-alerts.sh`.
 #
 # اجرا از ترمینال cPanel (اکانت servernetcloud):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-menu-and-alerts.sh) [<SHA>]
+#   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-health-and-quota.sh) [<SHA>]
 #
-# ═══ چه چیزی دیپلوی می‌شود ═══
+# ═══ ۱) صفحهٔ سلامت مسیرِ **فعال** را می‌سنجد ═══
 #
-# ۱) اعلان‌هایی که به **خودِ مدیر** می‌روند، مدیریت‌پذیر شدند.
+# `/system/health` همیشه رلهٔ قدیمیِ `servernet.ir` را می‌زد، چون
+# `SMS_RELAY_URL` هنوز در .env هست. آن فایل مدت‌هاست بازنشسته شده و ۴۱۰
+# می‌دهد، پس `relay.guard.ok` روی سرور **همیشه false** بود.
 #
-#    ۲۵ فراخوانِ `AdminNotifier::event()` عنوان و متنِ سخت‌کد داشتند و هیچ
-#    کلیدِ خاموشی. مدیر نمی‌توانست بگوید «این یکی را دیگر نفرست» — و اعلانِ
-#    پرتکرارِ کم‌ارزش دقیقاً همان چیزی است که باعث می‌شود اعلانِ **مهم** هم
-#    دیده نشود.
+# دو خرابیِ هم‌زمان، و دومی خطرناک‌تر:
 #
-#    حالا در `/admin/settings?tab=messages` فهرستِ «اعلان‌های من» هست: هر
-#    رخداد یک سوییچِ روشن/خاموش دارد و متنش با تگ‌هایی مثل {مشتری}، {مبلغ}،
-#    {IP} قابلِ بازنویسی است. تگ‌ها از خودِ همان فراخوان‌ها می‌آیند، پس هیچ‌کدام
-#    از آن ۲۵ نقطه عوض نشد.
+#   · آژیرِ همیشه‌روشن برای مسیری که هیچ‌کس استفاده نمی‌کند — و آژیری که
+#     همیشه قرمز است، آژیرِ بعدی را هم می‌بلعد.
+#   · مسیری که **واقعاً** پیامک را می‌برد (n8n) هیچ ناظری نداشت. صفحهٔ
+#     سلامت دربارهٔ تنها چیزی که مهم بود ساکت بود، و سکوت شبیهِ «سالم» دیده
+#     می‌شد.
 #
-# ۲) منوی هدر و فوتر از پنل مدیریت می‌شود.
+# ⚠️ سنجشِ تازه پاکتی با امضای ۶۴ صفر می‌فرستد: ذاتاً نمی‌تواند پیامک
+#    بفرستد. پاکتِ **امضاشده** عمداً فرستاده نمی‌شود.
 #
-#    لینک‌های فوتر تا امروز در Blade سخت‌کد بودند. حالا داده‌اند
-#    (`config('servernet.footer_menu')`) و `/admin/settings?tab=menus` روی
-#    ۱۲۷ گرهِ منو (مگامنو، خدمات، ابزارها، دانش، فوتر) کنترلِ کامل می‌دهد:
-#    متنِ هر سه زبان، ترتیب، روشن/خاموش، و لینکِ تازه.
+# ═══ ۲) سهمیهٔ تقویمِ محتوا خودش را تنظیم می‌کند ═══
 #
-# ═══ 🔴 دو تلهٔ همین دیپلوی ═══
+# سهمیهٔ روزانه یک عددِ سخت‌کد بود که با دست «کالیبره» شده بود. چیزی که
+# کالیبراسیون را می‌شکست تغییرِ موضوع‌ها نبود — **گذرِ زمان** بود: پایانِ
+# برنامه ثابت است (۲۹ اسفند ۱۴۰۵)، پس هر روز پنجره یک روز کوتاه‌تر و ظرفیت
+# حدودِ ۳٫۵ کمتر می‌شود، در حالی که صف فقط به‌اندازهٔ تولیدِ واقعی آب می‌رود.
 #
-# · **فوتر روی هر صفحهٔ سایت است.** `partials/footer.blade.php` بدونِ
-#   `config/servernet.php` (که `footer_menu` در آن است) و بدونِ
-#   `app/Services/MenuManager.php` معنا ندارد. هر سه با هم می‌روند و گاردِ
-#   پایین جداگانه هر سه را می‌سنجد — چون «فایلی که جا ماند» در این پروژه
-#   فرضی نیست.
+# امروز ظرفیت ۶۴۵ بود و صف ۶۸۸ — یعنی ۴۳ مطلب سرِ جایشان به سالِ بعد
+# می‌افتادند، بی‌هیچ خطایی. حالا سهمیه از خودِ صف مشتق می‌شود و هر دو جهت
+# را می‌بندد (کمبود ⇒ ته صف می‌افتد · زیادی ⇒ اسفند خالی می‌مانَد).
 #
-# · **مهاجرت لازم است ولی شرطِ دیپلوی نیست.** هر سه نقطهٔ مصرف
-#   (`MenuManager`، `menusData`، `messagesData`) وجودِ جدول/ستون را چک
-#   می‌کنند، پس تا وقتی مهاجرت نخورده سایت **دقیقاً مثلِ امروز** کار می‌کند
-#   و فقط دو صفحهٔ تنظیمات می‌گویند «هنوز ساخته نشده».
+# ⚠️ باندِ ۲ تا ۵ در روز شکسته نمی‌شود، حتی اگر صف جا نشود. آن یک تصمیمِ
+#    انسانی است و تست نشانش می‌دهد.
 #
-# ═══ 🔴 چرا این بار پینِ اسکریپت‌های دیگر هم‌گرا **نشد** ═══
+# ═══ ۳) `/system/tables` می‌گوید seeder کارش را کرده یا نه ═══
 #
-# `routes/web.php`، `config/servernet.php`، `footer.blade.php` و
-# `SettingsController.php` را `deploy-gpu.sh` (پین c3508a0) و
-# `deploy-licence-lifecycle.sh` (پین 6132a36) هم می‌برند. هر دو جدِ این
-# کامیت‌اند، پس عادتِ جلسه‌های قبل این بود که پینشان جلو کشیده شود تا
-# ترتیبِ اجرا مهم نباشد.
+# «مهاجرت خورد» با «کاتالوگ پر شد» یکی نیست. seederها اول وجودِ جدول را چک
+# می‌کنند و اگر رد شود **بی‌صدا** هیچ نمی‌کنند. بعد از دیپلویِ قبلی هیچ راهی
+# نبود از بیرون فهمید ۲۲ اعلانِ مدیر ردیف گرفته‌اند یا نه.
 #
-# این بار آن کار **خطرناک** بود و انجام نشد.
+# ═══ ⚠️ کارِ همکار در همین فایل ═══
 #
-# `deploy-gpu.sh` فوتر را می‌برد ولی `MenuManager` را نه. با پینِ جلوکشیده،
-# اجرایش ویوِ تازهٔ فوتر را می‌نشاند که کلاسی را صدا می‌زند که آن اسکریپت
-# نمی‌فرستد ⇒ **هر صفحهٔ سایت ۵۰۰**. همان اسکریپت با پینِ خودش بی‌خطر است:
-# نسخهٔ سرور را با merge سه‌طرفه نگه می‌دارد.
+# ۸ شهریور، همکار هم `ContentCalendar.php` را عوض کرد: همان ریشه را تشخیص
+# داده بود (پنجره کوتاه می‌شود، صف نه) ولی توزیع را یک پله بالا برد.
 #
-# قاعده‌ای که از این بیرون آمد:
+# تشخیص دقیقاً درست بود؛ فقط پلهٔ بعدی هم چند هفته بعد کم می‌آورد. پس
+# نتیجهٔ همان تحلیل ساختاری شد و پلهٔ ایشان هم **حفظ** شده — حالا فقط بافتِ
+# توزیع را تعیین می‌کند و دیگر چیزی به کالیبراسیونش وابسته نیست.
 #
-#   پینِ اسکریپتِ دیگری را فقط وقتی جلو بکش که آن اسکریپت **همهٔ** فایل‌های
-#   وابسته به نسخهٔ تازه را هم بفرستد. وگرنه نیمی از یک تغییرِ به‌هم‌پیوسته
-#   را دیپلوی می‌کند — و merge سه‌طرفه، که برای همین ساخته شده، از
-#   جلوکشیدنِ پین امن‌تر است.
+# 🔴 پس پین `d41129d` است (کامیتِ merge)، نه کامیتِ اصلاحاتِ من. با پینِ
+# قبلی، این دیپلوی کارِ تازه‌نشستهٔ همکار را بی‌صدا برمی‌گرداند.
 #
-# منطق عیناً از scripts/deploy-licence-lifecycle.sh.
+# ═══ ⚠️ نسبت به دیپلویِ قبلی ═══
+#
+# `routes/web.php` روی سرور همان c3d0bd0 است و این کامیت فرزندِ اوست، پس
+# `UP` می‌گیرد و مسیرهای منو از دست نمی‌روند.
+#
+# 🔴 و پینِ هیچ اسکریپتِ دیگری جلو کشیده نشد — قاعده‌ای که در سرصفحهٔ
+# `deploy-menu-and-alerts.sh` نوشته شده: پین را فقط وقتی جلو بکش که آن
+# اسکریپت همهٔ فایل‌های وابسته را هم بفرستد.
 set -u
 
 # ── حالتِ آزمایشی ──────────────────────────────────────────────────────────
 #
-#   DRY=1 bash <(curl -fsSL .../deploy-menu-and-alerts.sh)
+#   DRY=1 bash <(curl -fsSL .../deploy-health-and-quota.sh)
 #
 # 🔴 اول این را بزن. هیچ عارضه‌ای ندارد — نه فایل، نه کش. فقط می‌گوید کدام
 # فایل تداخل دارد.
@@ -74,7 +74,7 @@ DRY="${DRY:-0}"
 
 APP="$HOME/servernet_app"
 PUB="$HOME/public_html"
-WORK="$HOME/deploy-menu-and-alerts"
+WORK="$HOME/deploy-health-and-quota"
 STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
@@ -92,33 +92,14 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-c3d0bd0}"
+MINE="${1:-d41129d}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
 # 🔴 ترتیب معنادار است: اول نقشه و مدل‌ها، بعد سرویس‌ها، بعد provider،
 #    بعد کنترلرها و config، بعد مهاجرت/seeder، بعد ویوها، و **آخر** routeها.
 APP_FILES="
-app/Support/AdminAlerts.php
-app/Models/NotificationTemplate.php
-app/Models/MenuOverride.php
-app/Services/Notify/AdminNotifier.php
-app/Services/Cloud/CloudProvisioner.php
-app/Services/Provisioning/ManualLifecycleNotice.php
-app/Services/MenuManager.php
-app/Services/MenuTree.php
-app/Providers/AppServiceProvider.php
-app/Http/Controllers/Admin/NotificationTemplateController.php
-app/Http/Controllers/Admin/MenuController.php
-app/Http/Controllers/Admin/SettingsController.php
-config/servernet.php
-database/migrations/2026_10_07_000101_add_audience_to_notification_templates.php
-database/migrations/2026_10_08_000100_create_menu_overrides_table.php
-database/seeders/AdminNotificationTemplateSeeder.php
-resources/views/admin/settings/messages.blade.php
-resources/views/admin/settings/menus.blade.php
-resources/views/partials/footer.blade.php
-resources/views/partials/header.blade.php
+app/Services/ContentCalendar.php
 routes/web.php
 "
 
@@ -281,63 +262,33 @@ fi
 #    سالم را برمی‌گرداند. یک بار همین شد.
 need_file() { [ -f "$1" ] || { echo "🔴 نیست: ${1#$APP/}"; union_ok=0; }; }
 
-need_file "$APP/app/Support/AdminAlerts.php"
-need_file "$APP/app/Models/MenuOverride.php"
-need_file "$APP/app/Services/MenuManager.php"
-need_file "$APP/app/Services/MenuTree.php"
-need_file "$APP/app/Http/Controllers/Admin/MenuController.php"
-need_file "$APP/app/Http/Controllers/Admin/SettingsController.php"
-need_file "$APP/resources/views/admin/settings/menus.blade.php"
-need_file "$APP/database/migrations/2026_10_07_000101_add_audience_to_notification_templates.php"
-need_file "$APP/database/migrations/2026_10_08_000100_create_menu_overrides_table.php"
-need_file "$APP/database/seeders/AdminNotificationTemplateSeeder.php"
-
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
-# ═══ زنجیرهٔ اعلانِ مدیر ═══
+# ═══ ۱) سنجشِ سلامت روی مسیرِ فعال ═══
 #
-# 🔴 هر تکه‌ای که جا بماند، خرابیِ **خاموش** است:
-#    نقشه بی‌گیت = سوییچ کار نمی‌کند · گیت بی‌نقشه = هیچ رخدادی کلید نمی‌گیرد
-#    · جدول بی‌seeder = صفحه خالی است و مدیر فکر می‌کند قابلیت نیامده
-g app/Support/AdminAlerts.php "admin.payment_ok"
-g app/Support/AdminAlerts.php "admin.cloud_lingering"
-g app/Services/Notify/AdminNotifier.php "tagsFrom"
-g app/Services/Notify/AdminNotifier.php "wanted("
-g app/Models/NotificationTemplate.php "audience"
-g app/Http/Controllers/Admin/NotificationTemplateController.php "toggle"
-g app/Http/Controllers/Admin/SettingsController.php "adminGroups"
-g resources/views/admin/settings/messages.blade.php "toggle"
-g routes/web.php "templates/"
-g routes/web.php "AdminNotificationTemplateSeeder"
+# 🔴 هر سه با هم معنا دارند: بی‌`active_path` نمی‌شود فهمید کدام مسیر سنجیده
+#    شده، و بی‌`bad_signature` سنجش به کدِ ۲۰۰ بسنده می‌کند — که ورک‌فلو برای
+#    ردشدن هم می‌دهد.
+g routes/web.php "active_path"
+g routes/web.php "n8n_relay"
+g routes/web.php "bad_signature"
 
-# 🔴 دو فراخوانی که عنوانشان **ساخته** می‌شود و بی‌کلیدِ صریح از مدیریت بیرون
-#    می‌افتند: می‌روند، ولی مدیر نه می‌بیندشان نه می‌تواند خاموششان کند.
-g app/Services/Cloud/CloudProvisioner.php "admin.cloud_lingering"
-g app/Services/Provisioning/ManualLifecycleNotice.php "admin.manual_lifecycle"
+# ═══ ۲) تقویمِ خودتنظیم ═══
+g app/Services/ContentCalendar.php "planQuota"
+g app/Services/ContentCalendar.php "QUOTA_MAX"
+g app/Services/ContentCalendar.php "baseQuotaFor"
 
-# ═══ زنجیرهٔ منو ═══
-#
-# 🔴 این سه یک واحدند و جداجدا معنا ندارند. فوتر روی **هر** صفحهٔ سایت است:
-#    ویوِ تازه بدونِ `footer_menu` هیچ لینکی نشان نمی‌دهد و بدونِ `MenuManager`
-#    اصلاً رندر نمی‌شود.
-g config/servernet.php "footer_menu"
-g app/Services/MenuManager.php "customHref"
-g resources/views/partials/footer.blade.php "MenuManager"
+# ═══ ۳) سنجهٔ کاتالوگ‌های seedشده ═══
+g routes/web.php "admin_alerts"
 
-g app/Services/MenuTree.php "withCustom"
-g app/Http/Controllers/Admin/MenuController.php "RouteFacade"
-g app/Http/Controllers/Admin/SettingsController.php "menusData"
-g resources/views/admin/settings/menus.blade.php "menusNotReady"
-g resources/views/partials/header.blade.php "MenuManager"
-g app/Providers/AppServiceProvider.php "MenuManager"
-g routes/web.php "menus/save"
-g routes/web.php "menus/add"
-
-# ⚠️ و روت‌هایی که نباید بیفتند (routes/web.php مشترک است)
-for r in "name('gpu')" "name('go.pay')" "name('healthz')" "urmiaGone" "ack-manual" "resolve-release" "total_all_time"; do
+# ⚠️ و هرچه در دیپلویِ قبلی نشست نباید بیفتد — `routes/web.php` مشترک است و
+#    این فهرست تنها چیزی است که «یک فایلِ عقب‌مانده» را از خرابیِ خاموش
+#    جدا می‌کند.
+for r in "menus/save" "menus/add" "templates/" "AdminNotificationTemplateSeeder" \
+         "name('gpu')" "name('go.pay')" "name('healthz')" "urmiaGone" \
+         "ack-manual" "resolve-release" "total_all_time"; do
   g routes/web.php "$r"
 done
-
 if [ "$union_ok" -eq 0 ]; then
   echo "🔴 اتحادِ فایل‌ها کامل نیست — کلِ بکاپ برمی‌گردد تا سایت ۵۰۰ نشود."
   ( cd "$BK" && find . -type f | while read -r p; do
@@ -361,13 +312,15 @@ fi
 
 # ── پاکسازی کش ────────────────────────────────────────────────────────────
 #
-# ⚠️ کشِ صفحه این بار **حتماً** باید پاک شود: فوتر روی هر صفحه است، پس هر
-#    صفحهٔ کش‌شده هنوز فوترِ قدیمی را نگه داشته.
+# ⚠️ این دیپلوی مهاجرت و seeder **ندارد**.
 if [ -n "$PHPBIN" ]; then
   cd "$APP"
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
-  "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \
-    || echo "⚠️ purge کشِ صفحه دستی: از /admin یا صبر تا TTL"
+
+  # 🔴 عکسِ ۹۰ ثانیه‌ایِ صفحهٔ سلامت هم باید برود، وگرنه تا انقضایش همان
+  #    گزارشِ قرمزِ قبلی را نشان می‌دهد و به‌نظر می‌رسد اصلاح نگرفته.
+  "$PHPBIN" artisan tinker --execute='\Illuminate\Support\Facades\Cache::forget("system.health.snapshot"); echo "health snapshot cleared";' 2>/dev/null \
+    || echo "⚠️ عکسِ سلامت دستی پاک نشد — حداکثر ۹۰ ثانیه صبر کن"
 else
   rm -f "$APP/bootstrap/cache/config.php" "$APP/bootstrap/cache/routes-v7.php"
   echo "WARN: php پیدا نشد — کش‌ها دستی پاک شدند"
@@ -383,20 +336,13 @@ else
   echo "✅ هیچ تداخلی نبود"
 fi
 echo
-echo "کارِ باقی‌مانده — به همین ترتیب:"
+echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache"
 echo
-echo "  ۱) ریستِ opcache از /system/opcache  (validate_timestamps=0)"
-echo
-echo "  ۲) مهاجرت + seeder از /system/migrate"
-echo "     دو جدول/ستونِ تازه می‌آید و ۲۰ اعلانِ مدیر ردیف می‌گیرند."
-echo "     ⚠️ تا این کار نکنی سایت **سالم** است ولی دو صفحهٔ تنظیمات"
-echo "        می‌گویند «هنوز ساخته نشده» — این عمدی است، نه خرابی."
-echo
-echo "راستی‌آزمایی:"
-echo "  · https://servernet.cloud/         ← فوتر باید همان ۲۷ لینکِ قبلی را"
-echo "    داشته باشد. اگر ستونی خالی شد یعنی config ننشسته."
-echo "  · https://servernet.cloud/en  و  /tr  ← باید ۲۰۰ بدهند."
-echo "    🔴 «خدمات ما در ارومیه» فقط در فارسی است؛ اگر در en/tr دیده شد یا"
-echo "       آن دو ۵۰۰ دادند، همان تلهٔ مرداد ۱۴۰۵ برگشته."
-echo "  · /admin/settings?tab=menus      ← ۱۲۷ گره در پنج بخش"
-echo "  · /admin/settings?tab=messages   ← بخشِ «اعلان‌های من» با ۲۰ رخداد"
+echo "راستی‌آزمایی (بعد از ریستِ opcache):"
+echo "  · /system/health  →  relay.active_path باید n8n_relay باشد و"
+echo "    relay.guard.ok برابرِ true. اگر هنوز آدرسِ servernet.ir را دیدی،"
+echo "    یعنی routes ننشسته یا opcache ریست نشده."
+echo "  · /system/tables  →  seeded.admin_alerts.have باید برابرِ want باشد."
+echo "    عددِ کمتر یعنی seeder دوید و کارش را تمام نکرد؛ نال یعنی ستون نیست."
+echo "  · /admin/calendar →  تقویم باید تا اسفند پر باشد، نه اینکه ته سال"
+echo "    خالی بماند."
