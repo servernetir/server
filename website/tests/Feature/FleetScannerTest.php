@@ -490,6 +490,39 @@ class FleetScannerTest extends TestCase
         );
     }
 
+    /**
+     * 🔴 بازکردنِ صفحه نباید هیچ تماسِ شبکه‌ای بزند.
+     *
+     * کلِ ادعای این صفحه «از دفتر می‌خوانَد، پس سریع است» است. ولی نمایشِ
+     * قیمتِ تومانی وسوسه‌کننده است و مسیرِ سادهٔ آن (`cloud_eur_rate()`) روی
+     * کشِ سرد خودش می‌رود اینترنت. یعنی صفحه گاهی پشتِ یک اسکرپِ زنده — و اگر
+     * منبع پایین باشد، پشتِ تایم‌اوتش — می‌مانْد. فقط اسکنِ **دستی** حق دارد
+     * با بیرون حرف بزند.
+     */
+    public function test_opening_the_page_never_touches_the_network(): void
+    {
+        $this->withDrivers(['hetzner' => $this->driver('hetzner', [$this->srv(['ref' => '777'])])]);
+        $this->scan();
+
+        /*
+        | ⚠️ بی این دو خط، تست **هرگز نمی‌تواند شکست بخورد**: `phpunit.xml`
+        | مقدارِ `EXCHANGE_ENABLED=false` دارد، پس نرخِ زنده در کلِ سوئیت خاموش
+        | است و مسیرِ خطرناک اصلاً اجرا نمی‌شود. یعنی تستی که همیشه سبز است و
+        | هیچ‌چیز را نگه نمی‌دارد — بدتر از نبودنش، چون امنیتِ کاذب می‌دهد.
+        |
+        | پس دقیقاً همان شرایطِ پروداکشن ساخته می‌شود: نرخِ زنده روشن، کش سرد،
+        | و هیچ نرخِ پایداری ذخیره نشده.
+        */
+        config(['services.exchange.enabled' => true]);
+        \Illuminate\Support\Facades\Cache::flush();
+
+        Http::fake();
+
+        $this->actingAs($this->admin())->get('/admin/fleet')->assertOk();
+
+        Http::assertNothingSent();
+    }
+
     public function test_guests_cannot_see_the_fleet(): void
     {
         $this->get('/admin/fleet')->assertRedirect();

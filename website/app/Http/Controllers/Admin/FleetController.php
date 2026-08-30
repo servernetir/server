@@ -90,7 +90,7 @@ class FleetController extends Controller
             'lastScan'  => FleetScanner::lastScan(),
             'stale'     => $this->isStale(),
             'providers' => $this->providerOptions(),
-            'eurRate'   => cloud_eur_rate(),
+            'eurRate'   => $this->eurRate(),
             'realLabel' => fn (?string $p) => $this->manager->realLabel($p),
         ]);
     }
@@ -276,6 +276,33 @@ class FleetController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * نرخِ یورو برای نمایشِ تومانی — **بی‌هیچ تماسِ شبکه‌ای**.
+     *
+     * 🔴 چرا `cloud_eur_rate()` نه: زنجیره‌اش به `ExchangeRate::toToman()`
+     * می‌رسد و آن روی کشِ سرد **خودش می‌رود اینترنت**. یعنی صفحه‌ای که کلِ
+     * ادعایش «از دفتر می‌خوانَد پس سریع است» می‌شد، گاهی پشتِ یک اسکرپِ زنده
+     * می‌ماند — و اگر منبعِ نرخ پایین بود، پشتِ تایم‌اوتش.
+     *
+     * `current()` فقط کش و نرخِ پایدارِ ذخیره‌شده را می‌خوانَد. اگر هیچ‌کدام
+     * نبود صفر برمی‌گردد و ویو فقط یورو نشان می‌دهد — که صادقانه است، چون
+     * عددِ تومانیِ ساخته‌شده با نرخِ ناموجود از نبودش بدتر است.
+     */
+    private function eurRate(): int
+    {
+        $override = (int) \App\Models\Setting::get('pricing_rate_override', '0');
+
+        if ($override > 0) {
+            return $override;
+        }
+
+        try {
+            return (int) (app(\App\Services\ExchangeRate::class)->current('EUR')['rate_toman'] ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function isStale(): bool
