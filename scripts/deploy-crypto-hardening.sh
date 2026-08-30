@@ -38,7 +38,7 @@ else
   git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
 fi
 
-MINE="${1:-8a8e20d}"
+MINE="${1:-1c4f130}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
@@ -117,6 +117,7 @@ grep -qF "function settle" "$REC" || { echo "🔴 تسویه از فایل پر�
 grep -qF "freeOrphanedWallets" "$REC" || { echo "🔴 آزادسازیِ ولتِ یتیم پرید"; ok=0; }
 grep -qF "expireStale" "$REC" || { echo "🔴 انقضا پرید"; ok=0; }
 grep -qF "class CryptoAudit" "$APP/app/Console/Commands/CryptoAudit.php" || { echo "🔴 فرمانِ حسابرسی نیست"; ok=0; }
+grep -qF "FETCH_TIMEOUT" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 مهلتِ دریافت ننشست"; ok=0; }
 grep -qF "FALLBACK_MAX_AGE_HOURS" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 پشتوانهٔ نرخ ننشست"; ok=0; }
 grep -qF "function lastKnown" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 خواندنِ نرخِ پایدار نیست"; ok=0; }
 grep -qF "function refresh" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 refresh از فایل پرید"; ok=0; }
