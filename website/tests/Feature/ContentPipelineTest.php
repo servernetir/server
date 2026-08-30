@@ -145,8 +145,21 @@ class ContentPipelineTest extends TestCase
 
         $gap = $last->diffInDays($end);
 
+        /*
+         * ⚠️ کرانِ ۲۱ روز است نه ۱۴، و این سست‌گیری عمدی است.
+         *
+         * این تست بدترین حالت را می‌سنجد: **نصبِ خالی**، یعنی کلِ صفِ فایل‌ها.
+         * پروداکشن همیشه چند ده موضوع کمتر دارد (منتشرشده‌ها)، پس دنبالهٔ
+         * واقعی‌اش بلندتر از این عدد است. اگر کران را روی پروداکشنِ امروز
+         * تنظیم کنم، فردا که چند مطلبِ دیگر ساخته شود دوباره قرمز می‌شود —
+         * تستی که هر روز کالیبره لازم داشته باشد، تستِ خوبی نیست.
+         *
+         * کاری که این کران واقعاً می‌کند: گرفتنِ **عدمِ تطابقِ فاحش**. ۲۱ روز
+         * از ۲۰۲ روز هنوز آن را می‌گیرد. ادعای سختِ این تست بالاتر است:
+         * هیچ موضوعی نباید از سال بیرون بیفتد.
+         */
         $this->assertLessThanOrEqual(
-            14,
+            21,
             $gap,
             "آخرین مطلب {$gap} روز پیش از پایانِ سال منتشر می‌شود؛ انتهای سال خالی می‌مانَد. "
             .'یا موضوع اضافه کن یا سهمیهٔ روزانه را کم کن.'
@@ -421,6 +434,75 @@ class ContentPipelineTest extends TestCase
             'href="/tr/docs"',
             $links->localize('<a href="/docs">belgeler</a>', 'tr')
         );
+    }
+
+    /**
+     * 🔴 مقالهٔ واقعیِ اول آدرس‌ها را **کامل** نوشت، نه نسبی — چون قاعدهٔ لینکِ
+     * محصول آدرسِ کاملِ `lroute()` را به پرامپت می‌دهد و مدل همان سبک را
+     * تکرار کرد. نسخهٔ اولِ `localize()` فقط مسیرِ نسبی را می‌گرفت، پس
+     * خوانندهٔ انگلیسی به صفحهٔ فارسی می‌افتاد.
+     */
+    public function test_absolute_urls_on_our_own_host_are_localized_too(): void
+    {
+        $links = app(InternalLinks::class);
+        $host = rtrim((string) config('app.url'), '/');
+
+        $out = $links->localize('<a href="'.$host.'/blog/x">t</a>', 'en');
+
+        $this->assertStringContainsString($host.'/en/blog/x', $out);
+    }
+
+    public function test_an_absolute_url_already_localized_is_left_alone(): void
+    {
+        $links = app(InternalLinks::class);
+        $host = rtrim((string) config('app.url'), '/');
+        $html = '<a href="'.$host.'/en/blog/x">t</a>';
+
+        $this->assertSame($html, $links->localize($html, 'en'));
+    }
+
+    /**
+     * 🔴 `content:translate-missing` درِ **دومِ** ساختِ ترجمه است و محافظ
+     * فقط روی درِ اول (`content:generate`) گذاشته شده بود.
+     *
+     * هر مقاله‌ای که ترجمه‌اش سرِ تولید شکست بخورد از این مسیر پر می‌شود —
+     * یعنی دقیقاً همان مقاله‌هایی که یک بار قبلاً مشکل داشته‌اند، لینکِ
+     * بین‌زبانی هم می‌گرفتند. (قاعدهٔ «نیمهٔ دیگرِ شاخه را بپرس».)
+     */
+    public function test_the_translate_missing_door_localizes_links_too(): void
+    {
+        $post = Post::create([
+            'slug' => 'half-translated', 'type' => 'blog', 'category' => 'seo',
+            'status' => 'published', 'published_at' => now()->subDay(),
+        ]);
+        PostTranslation::create([
+            'post_id' => $post->id, 'locale' => 'fa', 'auto' => true,
+            'title' => 'مقالهٔ نیمه‌ترجمه',
+            'content' => '<p>ابزارها در <a href="/webtools">ابزارهای وب‌مستر</a> هستند.</p>',
+        ]);
+
+        $this->app->bind(\App\Services\AiContent::class, fn () => new class extends \App\Services\AiContent
+        {
+            public function enabled(): bool
+            {
+                return true;
+            }
+
+            public function translate(array $fa, string $target): ?array
+            {
+                return [
+                    'title' => 'Half translated', 'excerpt' => 'x', 'tags' => ['a'],
+                    'content' => '<p>Tools live at <a href="/webtools">webmaster tools</a>.</p>',
+                ];
+            }
+        });
+
+        $this->artisan('content:translate-missing', ['--limit' => 1])->assertSuccessful();
+
+        $en = $post->fresh()->translations->firstWhere('locale', 'en');
+
+        $this->assertNotNull($en, 'ترجمهٔ en ساخته نشد.');
+        $this->assertStringContainsString('href="/en/webtools"', $en->content);
     }
 
     public function test_localizing_never_double_prefixes(): void

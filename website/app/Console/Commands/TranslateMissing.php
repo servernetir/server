@@ -7,6 +7,7 @@ use App\Models\PostTranslation;
 use App\Services\AiContent;
 use App\Services\BlogRepository;
 use App\Services\DocsRepository;
+use App\Services\InternalLinks;
 use Illuminate\Console\Command;
 
 /**
@@ -18,7 +19,7 @@ class TranslateMissing extends Command
 
     protected $description = 'ساخت ترجمه‌های en/tr که جا افتاده‌اند';
 
-    public function handle(AiContent $ai): int
+    public function handle(AiContent $ai, InternalLinks $links): int
     {
         if (! $ai->enabled()) {
             $this->error('کلید هوش مصنوعی تنظیم نشده است.');
@@ -61,10 +62,25 @@ class TranslateMissing extends Command
 
                     continue;
                 }
+                /*
+                 * 🔴 لینک‌ها باید در همان زبان بمانند — همان کاری که
+                 * `content:generate` می‌کند.
+                 *
+                 * این فرمان ترجمه‌های جامانده را پر می‌کند، پس هر مقاله‌ای که
+                 * ترجمه‌اش سرِ تولید شکست خورده باشد از **این** در وارد
+                 * می‌شود. بی‌این خط، خوانندهٔ انگلیسی وسطِ متنِ انگلیسی به
+                 * صفحهٔ فارسی پرتاب می‌شود و سیگنالِ hreflang خنثی می‌شود.
+                 *
+                 * ⚠️ قاعدهٔ ثبت‌شدهٔ پروژه: «هر جا کدی روی یک شاخه تصمیم
+                 * می‌گیرد، بپرس نیمهٔ دیگر چه می‌شود.» محافظ فقط در
+                 * `GenerateContent` گذاشته شده بود و این مسیرِ دوم بی‌صدا
+                 * بی‌محافظ مانده بود.
+                 */
                 PostTranslation::updateOrCreate(
                     ['post_id' => $p->id, 'locale' => $loc],
                     ['title' => $t['title'], 'excerpt' => $t['excerpt'],
-                        'content' => $t['content'], 'tags' => $t['tags'], 'auto' => true]
+                        'content' => $links->localize($t['content'], $loc),
+                        'tags' => $t['tags'], 'auto' => true]
                 );
                 $this->line("  ✓ {$loc}");
                 $done++;
