@@ -212,6 +212,33 @@ class FleetScannerTest extends TestCase
         $this->assertSame(InfraAsset::STATE_ZOMBIE, InfraAsset::firstWhere('provider_ref', '882')->link_state);
     }
 
+    /**
+     * ردیفِ شبح نباید هویتِ ماشین را پاک کند.
+     *
+     * ردیفِ شبح از `cloud_instances` ساخته می‌شود، پس `name`ِ آن نامِ **سرویس**
+     * است و پلن/مکان ندارد. اگر همین‌ها روی ردیفِ موجود بنشینند، ماشینی که
+     * دیروز هویت داشت درست در لحظهٔ گم‌شدن بی‌هویت می‌شود.
+     */
+    public function test_a_vanishing_machine_keeps_its_identity(): void
+    {
+        $this->makeInstance('hetzner', '990');
+        $this->withDrivers(['hetzner' => $this->driver('hetzner', [
+            $this->srv(['ref' => '990', 'name' => 'sn-svc-42', 'plan' => 'CX22', 'location' => 'Falkenstein']),
+        ])]);
+        $this->scan();
+
+        // حالا ماشین از زیرساخت ناپدید می‌شود
+        $this->withDrivers(['hetzner' => $this->driver('hetzner', [])]);
+        $this->scan();
+
+        $a = InfraAsset::firstWhere('provider_ref', '990');
+
+        $this->assertSame(InfraAsset::STATE_GHOST, $a->link_state);
+        $this->assertSame('sn-svc-42', $a->name, 'نامِ ماشین نباید با نامِ سرویس جایگزین شود');
+        $this->assertSame('CX22', $a->plan_ref);
+        $this->assertSame('Falkenstein', $a->location_ref);
+    }
+
     public function test_a_service_whose_machine_is_gone_becomes_a_ghost(): void
     {
         $this->makeInstance('hetzner', '999');

@@ -264,6 +264,21 @@ class FleetScanner
 
         $isLeaking = in_array($row['link_state'], InfraAsset::LEAKING_STATES, true);
 
+        /*
+        | ⚠️ ردیفِ شبح مشخصاتِ ماشین را ندارد — از `cloud_instances` ساخته شده،
+        | پس `name`ِ آن نامِ **سرویس** است نه هاست‌نیمِ ماشین، و پلن/مکان اصلاً
+        | ندارد. اگر همین‌ها روی ردیفِ موجود بنشینند، ماشینی که تا دیروز
+        | `sn-svc-101` بود و پلن و مکان داشت، به‌محضِ ناپدیدشدن هویتش را از دست
+        | می‌دهد — درست همان لحظه‌ای که مدیر می‌خواهد بداند چه چیزی گم شده.
+        */
+        if ($row['link_state'] === InfraAsset::STATE_GHOST && $asset->exists) {
+            foreach (['name', 'plan_ref', 'location_ref', 'provider_created_at'] as $keep) {
+                if (filled($asset->{$keep})) {
+                    unset($row[$keep]);
+                }
+            }
+        }
+
         $asset->fill($row);
 
         if (! $asset->exists) {
