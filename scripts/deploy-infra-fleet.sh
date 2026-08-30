@@ -49,7 +49,14 @@ else
   git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
 fi
 
-MINE="${1:-PLACEHOLDER_SHA}"
+MINE="${1:-185f5ec}"
+
+# ⚠️ اگر هنوز به develop مرج نشده، همان کامیت از شاخهٔ خودش کشیده می‌شود.
+# بی‌این شاخه، ترتیبِ «اول مرج بعد دیپلوی» یک شرطِ نانوشته می‌شد و اسکریپت با
+# پیامِ گمراه‌کنندهٔ «در مخزن نیست» می‌ایستاد.
+if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
+  git -C repo fetch --depth 600 origin feature/infra-fleet >/dev/null 2>&1 || true
+fi
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
