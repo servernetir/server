@@ -65,11 +65,16 @@ class HetznerRobotClient implements CloudProvider
         // Intel Core
         'i7-2600' => 4, 'i7-3770' => 4, 'i7-4770' => 4, 'i7-6700' => 4, 'i7-7700' => 4,
         'i7-8700' => 6, 'i9-9900k' => 8, 'i9-12900k' => 16, 'i9-13900' => 24, 'i5-13500' => 14,
+        'i5-12500' => 6,
         // Intel Xeon
-        'e3-1246' => 4, 'e3-1270' => 4, 'e3-1275' => 4, 'e5-1650' => 6,
+        'e3-1246' => 4, 'e3-1270' => 4, 'e3-1271' => 4, 'e3-1275' => 4, 'e5-1650' => 6,
+        'e-2176g' => 6, 'e-2276g' => 6,
         'w-2145' => 8, 'w-2295' => 18, 'gold 5412u' => 24,
         // AMD Ryzen / EPYC / Threadripper
         'ryzen 5 3600' => 6, 'ryzen 7 1700x' => 8, 'ryzen 7 3700x' => 8, 'ryzen 7 7700' => 8,
+        'ryzen 7 pro 8700ge' => 8, 'ryzen 5 pro 8600ge' => 6,
+        // Intel Core Ultra (Arrow Lake) — خطِ EX63
+        'core ultra 7 265' => 20,
         'ryzen 9 3900' => 12, 'ryzen 9 5950x' => 16, 'ryzen 9 7950x3d' => 16, 'ryzen 9 9950x' => 16,
         'threadripper 2950x' => 16,
         'epyc 7401p' => 24, 'epyc 7502p' => 32, 'epyc 9454p' => 48,
@@ -115,7 +120,10 @@ class HetznerRobotClient implements CloudProvider
             'reset_password' => false,
             'ipv6'           => false,
             'ssh_key'        => false,
-            'extra_ip'       => false,
+            // IPِ اضافه از پنلِ Robot **دستی** سفارش داده می‌شود — مثل خودِ
+            // سرور؛ true یعنی افزودنی در فروشگاه پرسیده و در description/صفِ
+            // دستی ثبت می‌شود تا مدیر هنگامِ تحویل سفارشش دهد.
+            'extra_ip'       => true,
         ];
     }
 
@@ -178,17 +186,18 @@ class HetznerRobotClient implements CloudProvider
     {
         $plans = [];
         $skippedCpu = [];
-        $skippedSetup = 0;
         $skippedDc = 0;
         $messages = [];
 
         // ── محصولاتِ استاندارد (EX/AX/GEX) ──
+        // ⚠️ فقط مسیرِ تأییدشده — نامزدِ دوم ۴۰۴ می‌داد و هر تماسِ اضافه در
+        // پنجرهٔ بلاکِ «۳ شکست = ۱۰ دقیقه»ی Robot خودِ بلاک را تمدید می‌کرد.
         $stdErr = '';
-        $std = $this->firstOkOf(['/order/server_product', '/order/server/product'], $stdErr);
+        $std = $this->firstOkOf(['/order/server/product'], $stdErr);
 
         if ($std !== null) {
             foreach ($this->unwrapRows($std) as $row) {
-                $this->standardRowToPlans($row, $plans, $skippedCpu, $skippedSetup);
+                $this->standardRowToPlans($row, $plans, $skippedCpu);
             }
         } else {
             // ⚠️ علتِ واقعی باید در گزارش باشد — «خوانده نشد»ِ تنها، عیب‌یابی را
@@ -197,12 +206,20 @@ class HetznerRobotClient implements CloudProvider
         }
 
         // ── مزایده (Server Auction / Serverbörse) ──
+        // 🔴 اگر تماسِ قبلی 401 خورد، ادامه نده: هر تلاشِ ناموفقِ بعدی شمارندهٔ
+        // بلاکِ IP را پر می‌کند و «۱۰ دقیقه صبر» را از نو شروع می‌کند.
         $mktErr = '';
-        $mkt = $this->firstOkOf(['/order/server_market/product', '/order/server_market_product'], $mktErr);
+        $mkt = str_contains($stdErr, '401')
+            ? null
+            : $this->firstOkOf(['/order/server_market/product'], $mktErr);
+
+        if (str_contains($stdErr, '401')) {
+            $mktErr = 'به‌خاطرِ 401ِ تماسِ قبلی زده نشد (بلاکِ ۱۰دقیقه‌ایِ IP پس از ۳ شکست — ربع ساعت بعد دوباره)';
+        }
 
         if ($mkt !== null) {
             foreach ($this->unwrapRows($mkt) as $row) {
-                $this->marketRowToPlans($row, $plans, $skippedCpu, $skippedSetup, $skippedDc);
+                $this->marketRowToPlans($row, $plans, $skippedCpu, $skippedDc);
             }
         } else {
             $messages[] = 'فهرستِ مزایده خوانده نشد ('.$mktErr.').';
@@ -215,10 +232,6 @@ class HetznerRobotClient implements CloudProvider
         if ($skippedCpu !== []) {
             $models = array_slice(array_unique($skippedCpu), 0, 8);
             $messages[] = count($skippedCpu).' ردیف به‌خاطرِ CPUِ ناشناخته رد شد ('.implode('، ', $models).') — CPU_CORES را کامل کنید.';
-        }
-
-        if ($skippedSetup > 0) {
-            $messages[] = $skippedSetup.' محصول به‌خاطرِ هزینهٔ نصب رد شد (فاز ۱ فقط بی‌نصب می‌فروشد).';
         }
 
         if ($skippedDc > 0) {
@@ -239,9 +252,63 @@ class HetznerRobotClient implements CloudProvider
             'message'   => count($plans).' پلنِ اختصاصی ساخته شد.'.($messages !== [] ? ' · '.implode(' · ', $messages) : ''),
             'locations' => $locations,
             'plans'     => $plans,
-            // تحویل دستی است؛ فهرستِ توزیع‌ها به تصمیمِ مدیر در لحظهٔ نصب است.
-            'images'    => [],
+            /*
+            | 🔴 بدونِ ایمیج، سفارش اصلاً بسته نمی‌شود: فیلدِ سیستم‌عامل در
+            | فروشگاه **اجباری** است و فهرستش از CloudImageهای همین provider
+            | ساخته می‌شود — روزِ اول خالی بود و ۱۴۶ پلنِ برمتال عملاً
+            | غیرقابلِ خرید. توزیع‌ها از `dist` خودِ محصولات می‌آیند؛ انتخابِ
+            | مشتری در سفارش ثبت و توسطِ مدیر هنگامِ تحویلِ دستی نصب می‌شود.
+            */
+            'images'    => $this->imagesFromDists(array_merge((array) $std, (array) ($mkt ?? []))),
         ];
+    }
+
+    /**
+     * توزیع‌های اعلام‌شدهٔ خودِ محصولات → ردیف‌های ایمیج.
+     *
+     * فقط لینوکس‌های شناخته‌شده (خانواده + نسخهٔ قابلِ پارس)؛ ویندوز (لایسنس
+     * جدا می‌خواهد) و rescue و نام‌های ناخوانا عمداً کنار می‌مانند — گزینه‌ای
+     * که تحویلش تعهدِ گنگ بسازد بدتر از نبودنش است.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function imagesFromDists(array $body): array
+    {
+        $out = [];
+        $seen = [];
+
+        foreach ($this->unwrapRows($body) as $row) {
+            foreach ((array) ($row['dist'] ?? []) as $dist) {
+                if (! is_string($dist) || isset($seen[$dist])) {
+                    continue;
+                }
+
+                $seen[$dist] = true;
+
+                if (! preg_match('/^(ubuntu|debian|centos|almalinux|alma\s*linux|rocky\s*linux|rockylinux|fedora)\s+([\d.]+)/i', trim($dist), $m)) {
+                    continue;
+                }
+
+                $family = str_replace(' ', '', strtolower($m[1]));
+                $family = $family === 'almalinux' ? 'alma' : ($family === 'rockylinux' ? 'rocky' : $family);
+                // «24.04.2» → «24.04»: کلید باید با فضای کلیدِ ایمیج‌های Cloud
+                // (ubuntu-24.04) یکی بمانَد تا مشتری یک «اوبونتو ۲۴.۰۴» ببیند.
+                $version = implode('.', array_slice(explode('.', rtrim($m[2], '.')), 0, 2));
+
+                $out[] = [
+                    'provider_ref' => $dist,           // نامِ خام — همان که مدیر در Robot انتخاب می‌کند
+                    'key'          => CloudNaming::imageKey('os', $family, $version, $dist),
+                    'kind'         => 'os',
+                    'family'       => $family,
+                    'version'      => $version,
+                    'label'        => trim($dist),
+                    'arch'         => 'x86',
+                    'min_disk_gb'  => 0,
+                ];
+            }
+        }
+
+        return $out;
     }
 
     /** اولین مسیرِ نامزدی که جواب داد. هر دو شکست ⇒ null و علت در $err */
@@ -296,7 +363,15 @@ class HetznerRobotClient implements CloudProvider
     /** «Intel Core i7-8700» → 6 · ناشناخته → null */
     public static function coresFor(?string $cpu): ?int
     {
+        /*
+        | 🔴 نمادهای تجاری را پیش از تطبیق بردار. هتزنر می‌نویسد
+        | «AMD Ryzen™ 9 7950X3D» و «AMD EPYC™ 9454P» — با ™ِ وسطِ رشته،
+        | زیررشتهٔ «ryzen 9 7950x3d» هرگز پیدا نمی‌شد و ۳۶ محصولِ استاندارد
+        | با CPUِ **موجود در جدول** رد شدند (اولین سینکِ واقعیِ Ordering).
+        */
         $c = strtolower(trim((string) $cpu));
+        $c = preg_replace('/[\x{2122}\x{00AE}\x{00A9}\x{FE0F}]/u', '', $c) ?? $c;   // ™ ® © + variation selector
+        $c = preg_replace('/\s+/u', ' ', str_replace("\u{00A0}", ' ', $c)) ?? $c;
 
         if ($c === '') {
             return null;
@@ -305,6 +380,19 @@ class HetznerRobotClient implements CloudProvider
         foreach (self::CPU_CORES as $needle => $cores) {
             if (str_contains($c, $needle)) {
                 return $cores;
+            }
+        }
+
+        /*
+        | قاعدهٔ عمومی: هتزنر برای خط‌های تازه تعداد هسته را در خودِ متن می‌نویسد
+        | («6741P 48-Core»، «6787P 86-Core») — از خودِ داده بخوان، نه از جدولِ دستی.
+        | مدلِ آینده هم خودکار پوشش می‌گیرد. سقف برای ایمنی در برابرِ متنِ بی‌ربط.
+        */
+        if (preg_match('/(\d{1,3})[\s-]?core/i', $c, $m)) {
+            $n = (int) $m[1];
+
+            if ($n >= 1 && $n <= 256) {
+                return $n;
             }
         }
 
@@ -340,7 +428,7 @@ class HetznerRobotClient implements CloudProvider
      *   id, name, description[], traffic, location[], prices:[{location,
      *   price:{net,gross}, price_setup:{net,gross}}]
      */
-    private function standardRowToPlans(array $p, array &$plans, array &$skippedCpu, int &$skippedSetup): void
+    private function standardRowToPlans(array $p, array &$plans, array &$skippedCpu): void
     {
         $id = (string) ($p['id'] ?? '');
         $name = (string) ($p['name'] ?? $id);
@@ -371,7 +459,10 @@ class HetznerRobotClient implements CloudProvider
             $vcpu = self::coresFor($desc);
 
             if ($vcpu === null) {
-                $skippedCpu[] = $name;
+                // متنِ CPU را هم بیاور — «AX162-1 رد شد» بدونِ نامِ پردازنده،
+                // جدولِ CPU_CORES را نمی‌شود کامل کرد.
+                $cpuLine = trim((string) (array_values(array_filter((array) ($p['description'] ?? []), 'is_string'))[0] ?? ''));
+                $skippedCpu[] = $name.($cpuLine !== '' ? ' ['.$cpuLine.']' : '');
 
                 return;
             }
@@ -401,12 +492,6 @@ class HetznerRobotClient implements CloudProvider
                 continue;
             }
 
-            if ($setup > 0) {
-                $skippedSetup++;
-
-                continue;
-            }
-
             $plans[] = [
                 'provider_ref'       => $id,
                 'provider_location'  => (string) $pr['location'],
@@ -425,6 +510,9 @@ class HetznerRobotClient implements CloudProvider
                 'gpu_count'          => $gpuModel !== null ? 1 : null,
                 'gpu_vram_mb'        => $gpuVram,
                 'metal'              => true,
+                // هزینهٔ نصبِ یک‌باره — با کارمزد، مثلِ خودِ بها. در فاکتورِ
+                // اولِ مشتری گرفته می‌شود (CloudPlan::setupIrt).
+                'setup_eur_cents'    => $setup > 0 ? $this->costCents($setup) : 0,
             ];
         }
     }
@@ -436,7 +524,7 @@ class HetznerRobotClient implements CloudProvider
      *   id(int), name, cpu, memory_size(GB), hdd_size(GB), hdd_count,
      *   price(net/ماهانه), price_setup, datacenter?, fixed_price, next_reduce
      */
-    private function marketRowToPlans(array $p, array &$plans, array &$skippedCpu, int &$skippedSetup, int &$skippedDc): void
+    private function marketRowToPlans(array $p, array &$plans, array &$skippedCpu, int &$skippedDc): void
     {
         $id = (string) ($p['id'] ?? '');
 
@@ -467,12 +555,6 @@ class HetznerRobotClient implements CloudProvider
         $setup = (float) ($p['price_setup'] ?? 0);
 
         if ($net <= 0) {
-            return;
-        }
-
-        if ($setup > 0) {
-            $skippedSetup++;
-
             return;
         }
 
@@ -512,6 +594,7 @@ class HetznerRobotClient implements CloudProvider
             'gpu_count'         => null,
             'gpu_vram_mb'       => null,
             'metal'             => true,
+            'setup_eur_cents'   => $setup > 0 ? $this->costCents($setup) : 0,
         ];
     }
 

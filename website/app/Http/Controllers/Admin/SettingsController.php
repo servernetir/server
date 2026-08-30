@@ -62,6 +62,7 @@ class SettingsController extends Controller
         'infra'    => ['t' => 'زیرساخت و CDN',   'icon' => 'i-cloud'],
         'costs'    => ['t' => 'هزینه‌ها',         'icon' => 'i-tag'],
         'messages' => ['t' => 'الگوی پیام‌ها',    'icon' => 'i-mail'],
+        'menus'    => ['t' => 'منوی سایت',       'icon' => 'i-layout'],
         'bale'     => ['t' => 'رباتِ بله',         'icon' => 'i-bot'],
         'guide'    => ['t' => 'راهنما',           'icon' => 'i-info'],
     ];
@@ -272,6 +273,7 @@ class SettingsController extends Controller
             'costs'    => $this->costsData(),
             'bale'     => $this->baleData(),
             'messages' => $this->messagesData(),
+            'menus'    => $this->menusData(),
             default    => [],
         };
     }
@@ -492,10 +494,45 @@ class SettingsController extends Controller
         $ready = Schema::hasTable('notification_templates');
         $rows = $ready ? NotificationTemplate::query()->orderBy('group')->orderBy('id')->get() : collect();
 
+        /*
+        | 🔴 دو مخاطبِ کاملاً متفاوت، دو فهرستِ جدا.
+        |
+        | «پیامی که به مشتری می‌رود» و «اعلانی که به خودِ من می‌رسد» دو
+        | تصمیمِ متفاوت‌اند: اولی متنِ برند است، دومی صدای آژیر. یک‌کاسه‌کردنشان
+        | یعنی مدیر برای خاموش‌کردنِ یک اعلانِ پرتکرار، لای متن‌های مشتری
+        | بگردد — و آن‌قدر نگردد که بی‌خیال شود.
+        |
+        | ⚠️ ستونِ `audience` روی نصبِ مهاجرت‌نخورده وجود ندارد. بی‌این گارد،
+        | کلِ تبِ پیام‌ها ۵۰۰ می‌داد — یعنی یک ستونِ نبود، صفحهٔ سالم را
+        | می‌خواباند.
+        */
+        $hasAudience = $ready && Schema::hasColumn('notification_templates', 'audience');
+
+        $admin = $hasAudience ? $rows->where('audience', 'admin') : collect();
+        $customer = $hasAudience ? $rows->where('audience', '!=', 'admin') : $rows;
+
         return [
-            'groups'    => $rows->groupBy('group'),
-            'labels'    => NotificationTemplate::GROUPS,
+            'groups'      => $customer->groupBy('group'),
+            'adminGroups' => $admin->groupBy('group'),
+            'labels'      => NotificationTemplate::GROUPS + \App\Support\AdminAlerts::GROUP_LABELS,
             'tplNotReady' => ! $ready,
+        ];
+    }
+
+    private function menusData(): array
+    {
+        /*
+        | ⚠️ اگر جدول نباشد (مهاجرتِ نزده روی سرور)، صفحه باید **باز شود** و
+        | بگوید چرا — نه اینکه ۵۰۰ بدهد. تبِ پیام‌ها همین درس را داده بود.
+        */
+        if (! Schema::hasTable('menu_overrides')) {
+            return ['menuTree' => [], 'menusNotReady' => true, 'footerColumns' => []];
+        }
+
+        return [
+            'menuTree'      => app(\App\Services\MenuTree::class)->all(),
+            'menusNotReady' => false,
+            'footerColumns' => array_keys((array) config('servernet.footer_menu', [])),
         ];
     }
 

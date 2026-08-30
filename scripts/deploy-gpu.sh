@@ -79,7 +79,7 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-e318d37}"
+MINE="${1:-c3508a0}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -106,6 +106,8 @@ app/Http/Controllers/Auth/LoginController.php
 app/Http/Controllers/Account/PaymentController.php
 app/Http/Controllers/Account/AccountController.php
 app/Services/Notify/CustomerNotifier.php
+app/Mail/TemplateMail.php
+resources/views/emails/layout.blade.php
 app/Services/Customer/KycReview.php
 app/Services/Bale/BaleSender.php
 app/Services/Bale/Admin/AdminBaleRouter.php
@@ -116,6 +118,7 @@ app/Services/Payment/PaymentService.php
 app/Services/Payment/CryptoIssuer.php
 app/Services/Payment/CryptoReconciler.php
 app/Services/Provisioning/ProvisioningService.php
+app/Services/Provisioning/WhmClient.php
 app/Http/Controllers/Account/BuilderCheckoutController.php
 app/Http/Controllers/Account/CloudServerController.php
 app/Models/TunnelAgent.php
@@ -184,6 +187,7 @@ resources/views/account/cloud-store.blade.php
 resources/views/account/cloud-server.blade.php
 resources/views/admin/customer.blade.php
 resources/views/partials/cloud-locations-links.blade.php
+resources/views/partials/footer.blade.php
 resources/views/admin/settings/infra.blade.php
 resources/views/admin/settings/pricing.blade.php
 resources/views/admin/settings/accounts.blade.php
@@ -198,6 +202,13 @@ database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php
 database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php
 database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php
+database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php
+database/migrations/2026_10_06_000101_add_latin_name_to_users.php
+app/Models/User.php
+app/Models/TicketMessage.php
+app/Http/Controllers/Admin/UserController.php
+resources/views/admin/users.blade.php
+resources/views/account/ticket.blade.php
 routes/web.php
 "
 
@@ -349,6 +360,7 @@ need_file "$APP/database/migrations/2026_10_03_000101_add_gpu_to_cloud_plans.php
 need_file "$APP/database/migrations/2026_10_04_000101_localize_foreign_customer_service_rows.php"
 need_file "$APP/database/migrations/2026_10_04_000102_localize_foreign_activity_logs.php"
 need_file "$APP/database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php"
+need_file "$APP/database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php"
 
 g() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 $1: «$2» ننشسته"; union_ok=0; }; }
 
@@ -422,6 +434,19 @@ g lang/fa/ui.php "prof_doc_selfie"
 g lang/en/ui.php "prof_doc_selfie"
 g lang/tr/ui.php "prof_doc_selfie"
 g app/Services/Notify/CustomerNotifier.php "localizedEmail"
+g app/Services/Notify/CustomerNotifier.php "intlVars"
+g app/Mail/TemplateMail.php "locale("
+g resources/views/emails/layout.blade.php "email_tagline"
+g lang/en/ui.php "ntf_suspended_s"
+g lang/tr/ui.php "ntf_suspended_s"
+g lang/fa/ui.php "ntf_suspended_s"
+g app/Services/Customer/KycReview.php "ntf_kyc_ok"
+g app/Models/User.php "displayNameFor"
+g app/Models/TicketMessage.php "staffDisplayName"
+g resources/views/account/ticket.blade.php "staffDisplayName"
+g resources/views/admin/users.blade.php "name_latin"
+g app/Http/Controllers/Admin/UserController.php "name_latin"
+g routes/web.php "users/{user}/names"
 g app/Http/Controllers/Account/PaymentController.php "top_item_title"
 g resources/views/account/topup.blade.php "euroMode"
 g resources/views/account/home.blade.php "isVerified"
@@ -438,6 +463,8 @@ g app/Services/Bale/Admin/AdminBaleWorker.php "kyc_approve"
 g app/Http/Controllers/Account/VerificationController.php "kd:"
 g app/Http/Controllers/Auth/RegisterController.php "CB_PREFIX"
 g app/Services/Provisioning/ProvisioningService.php "spa:"
+g app/Services/Provisioning/ProvisioningService.php "kickAutoSsl"
+g app/Services/Provisioning/WhmClient.php "start_autossl_check_for_one_user"
 g app/Services/Cloud/CloudProvisioner.php "spa:"
 g lang/en/ui.php "dpg_renew_h"
 g lang/tr/ui.php "dpg_renew_h"
@@ -496,6 +523,12 @@ g app/Services/Cloud/CloudManager.php "hetzner-robot"
 g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g config/servernet.php "bare-metal"
 g config/catalog/dedicated.php "seo_t"
+g resources/views/partials/footer.blade.php "getLocale() === 'fa'"
+g app/Models/CloudPlan.php "setupIrt"
+g resources/views/account/cloud-store.blade.php "cvb-s-setup"
+g lang/fa/ui.php "cvb_setup_line"
+g lang/en/ui.php "cvb_setup_line"
+g lang/tr/ui.php "cvb_setup_line"
 g lang/en/ui.php "inv_wire_pick"
 g resources/views/account/partials/card-server.blade.php "cloud_hourly_price"
 g lang/en/ui.php "act_hourly_reprice"
@@ -617,6 +650,10 @@ if [ -n "$PHPBIN" ]; then
   "$PHPBIN" artisan migrate --force \
     --path=database/migrations/2026_10_04_000103_add_hourly_cost_to_cloud_plans.php \
     || { echo "🔴 مهاجرتِ بهایِ ساعتی نخورد — کفِ ضدضرر فعال نمی‌شود. خروجی را بفرست."; }
+
+  echo "═══ ستونِ هزینهٔ راه‌اندازی (سرورِ اختصاصی) ═══"
+  "$PHPBIN" artisan migrate --force     --path=database/migrations/2026_10_05_000101_add_setup_to_cloud_plans.php     || { echo "🔴 مهاجرتِ setup نخورد — خطِ استانداردِ EX/AX واردِ کاتالوگ نمی‌شود. خروجی را بفرست."; }
+  "$PHPBIN" artisan migrate --force     --path=database/migrations/2026_10_06_000101_add_latin_name_to_users.php     || { echo "🔴 مهاجرتِ name_latin نخورد — نامِ کارشناس در تیکتِ خارجی نمی‌نشیند. خروجی را بفرست."; }
 
   "$PHPBIN" artisan config:clear && "$PHPBIN" artisan route:clear && "$PHPBIN" artisan view:clear
   "$PHPBIN" artisan tinker --execute='\App\Http\Middleware\PageCache::purge(); echo "pagecache purged";' 2>/dev/null \

@@ -872,12 +872,18 @@ class CloudStoreController extends Controller
                 $imageMap[$slug][$kind] = $keys;
             }
 
+            // هزینهٔ راه‌اندازیِ یک‌باره (سرورِ اختصاصی) — فقط در «پرداختِ اول».
+            // 🔴 عددِ روی دکمه باید با فاکتور یکی باشد، پس setup همین‌جا در
+            // first می‌نشیند نه فقط در لحظهٔ صدورِ فاکتور.
+            $setupIrt = $offer->setupIrt();
+
             foreach ($cycles as $cy) {
                 $price = self::priceForCycle($offer, $cy);
                 $priceMap[$slug][$cy] = [
                     'cycle' => $price,
                     'per' => self::monthlyEquivalent($offer, $cy),
-                    'first' => $price + (int) round($price * $taxPct / 100),
+                    'setup' => $setupIrt,
+                    'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
                     'save' => (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
                 ];
             }
@@ -894,6 +900,8 @@ class CloudStoreController extends Controller
                 'traffic' => $offer->trafficLabel(),
                 'cpu' => $offer->cpuKindLabel(),
                 'cpuKind' => (string) $offer->cpu_kind === 'dedicated' ? 'dedicated' : 'shared',
+                // برمتال: فروشِ ساعتی ندارد (ترمِ خرید = ترمِ فروش) و UI باید بداند
+                'metal' => $offer->isMetal(),
                 /*
                 | کلیدهای مرتب‌سازیِ «برگهٔ مقایسه» — عددِ خام و اسکیِ، چون برچسبِ
                 | دیداری هرگز قابلِ مرتب‌سازی نیست: `fa_num()` رقم‌ها را فارسی
@@ -1173,6 +1181,12 @@ class CloudStoreController extends Controller
         ]));
 
         // ── مسیرِ ساعتی: پیش‌پرداخت از کیفِ پول، بی‌فاکتور ──
+        // 🔴 برمتال ساعتی فروخته نمی‌شود: سرورِ فیزیکی را **ماهانه** می‌خریم و
+        // «ترمِ خرید = ترمِ فروش» خطِ قرمزِ ضرر است (درسِ sn-svc-76).
+        if (($data['billing_mode'] ?? 'cycle') === 'hourly' && $offer->isMetal()) {
+            return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_metal_hourly')]);
+        }
+
         if (($data['billing_mode'] ?? 'cycle') === 'hourly') {
             return $this->orderHourly($request, $customer, $offer, $data, $addons, $sshKey, $label, $locText, $description);
         }
@@ -1465,21 +1479,33 @@ class CloudStoreController extends Controller
     private function issueOrderInvoice(Service $service, CloudPlan $offer, string $label): Invoice
     {
         $unitPrice = (int) $service->price;
-        $tax = (int) round($unitPrice * $service->tax_percent / 100);
+
+        /*
+        | هزینهٔ راه‌اندازیِ یک‌باره — فقط در همین فاکتورِ اول.
+        |
+        | 🔴 عمداً روی `services.price` نمی‌نشیند: آن عدد همان است که
+        | `services:renew-due` تا ابد هر دوره صورت‌حساب می‌کند؛ اگر setup
+        | تویش برود، مشتری هر تمدید دوباره هزینهٔ نصب می‌دهد.
+        */
+        $setup = $offer->setupIrt();
+        $subtotal = $unitPrice + $setup;
+        $tax = (int) round($subtotal * $service->tax_percent / 100);
 
         $invoice = Invoice::create([
             'customer_id' => $service->customer_id,
             'service_id' => $service->id,
             'kind' => 'service',
             'currency_code' => $service->currency_code,
-            'subtotal' => $unitPrice,
+            'subtotal' => $subtotal,
             'tax' => $tax,
-            'total' => $unitPrice + $tax,
+            'total' => $subtotal + $tax,
             'paid' => 0,
             'status' => 'unpaid',
             'issued_at' => now(),
             'note' => __('ui.svc_name_vps', ['label' => $offer->public_name]),
         ]);
+
+        $unitTax = (int) round($unitPrice * $service->tax_percent / 100);
 
         InvoiceItem::create([
             'invoice_id' => $invoice->id,
@@ -1489,8 +1515,21 @@ class CloudStoreController extends Controller
             'unit_price' => $unitPrice,
             'line_total' => $unitPrice,
             'tax_rate_bp' => (int) $service->tax_percent * 100,
-            'tax_amount' => $tax,
+            'tax_amount' => $unitTax,
         ]);
+
+        if ($setup > 0) {
+            InvoiceItem::create([
+                'invoice_id' => $invoice->id,
+                'title' => __('ui.cvb_setup_line'),
+                'description' => (string) $offer->public_name,
+                'quantity' => 1,
+                'unit_price' => $setup,
+                'line_total' => $setup,
+                'tax_rate_bp' => (int) $service->tax_percent * 100,
+                'tax_amount' => $tax - $unitTax,
+            ]);
+        }
 
         return $invoice;
     }

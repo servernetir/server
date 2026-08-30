@@ -1103,9 +1103,44 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 
                 return $at !== null && \Illuminate\Support\Carbon::parse($at)->gt(now()->subMinutes(3));
             })(),
+            /*
+            | 🔴 شمارشِ **۲۴ ساعتِ اخیر**، نه کلِ تاریخِ جدول.
+            |
+            | نسخهٔ قبلی جمعِ همیشگی را می‌داد و همان عدد مرا هم گمراه کرد:
+            | «۲۹ منقضی» را نرخِ امروز خواندم و گزارش کردم بیش از نیمی از
+            | پیام‌ها نمی‌رسد، در حالی که آن‌ها یادگارِ دورانی بودند که رله
+            | خوابیده بود و مسیر همان لحظه سالم بود.
+            |
+            | ⚠️ عددی که هرگز صفر نمی‌شود دو جور خراب است: یا برای همیشه
+            | نگران‌کننده می‌مانَد (و آن‌وقت نادیده گرفته می‌شود)، یا یک خرابیِ
+            | **تازه** را در انبوهِ اعدادِ قدیمی پنهان می‌کند. همان «آژیرِ
+            | همیشه‌قرمز» که هشدارِ بعدی را می‌بلعد.
+            |
+            | ⚠️ و `bale_only` از پیامک **جدا** می‌شود: آن ردیف‌ها اعلانِ بله
+            | برای مشتری‌اند، نه پیامک. یک‌کاسه‌کردنشان یعنی خرابیِ یکی در
+            | عددِ دیگری گم شود — و این دو مسیرِ کاملاً متفاوت دارند.
+            |
+            | `total_all_time` عمداً می‌مانَد ولی **جدا**: برای زمینه مفید است،
+            | فقط نباید جای سنجهٔ زنده را بگیرد.
+            */
             'queue' => \Illuminate\Support\Facades\Schema::hasTable('sms_outbox')
-                ? \App\Models\SmsOutbox::selectRaw('status, count(*) as n')
-                    ->groupBy('status')->pluck('n', 'status')
+                ? (function () {
+                    $since = now()->subDay();
+                    $rows = \App\Models\SmsOutbox::selectRaw(
+                        "status, CASE WHEN event = 'bale_only' THEN 'bale' ELSE 'sms' END AS kind, count(*) AS n"
+                    )->where('created_at', '>=', $since)->groupBy('status', 'kind')->get();
+
+                    $out = ['window' => '24h', 'sms' => [], 'bale' => []];
+
+                    foreach ($rows as $r) {
+                        $out[$r->kind][$r->status] = (int) $r->n;
+                    }
+
+                    $out['total_all_time'] = \App\Models\SmsOutbox::selectRaw('status, count(*) as n')
+                        ->groupBy('status')->pluck('n', 'status');
+
+                    return $out;
+                })()
                 : null,
         ],
     ]);
@@ -2094,6 +2129,8 @@ Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     $step('notification_templates', function () {
         if (\Illuminate\Support\Facades\Schema::hasTable('notification_templates')) {
             (new \Database\Seeders\NotificationTemplateSeeder())->run();
+            // اعلان‌های خودِ مدیر — تا در تنظیمات قابلِ خاموش‌کردن و ویرایش باشند
+            (new \Database\Seeders\AdminNotificationTemplateSeeder())->run();
         }
     });
 
@@ -2494,6 +2531,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/users/{user}/delete', [AdminUser::class, 'destroy']);
         // داخلیِ تلفن ابری هر کارمند — بدونِ آن دکمهٔ تماسِ او غیرفعال است
         Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
+        Route::post('/users/{user}/names', [AdminUser::class, 'names']);
 
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
@@ -2511,22 +2549,37 @@ Route::prefix('admin')->group(function () {
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
-        // تیکت پشتیبانی — روی همان احراز هویت کارکنان
-        Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('admin.tickets');
+        /*
+        | ═══ تیکت پشتیبانی — مدیر **یا** پشتیبان ═══
+        |
+        | 🔴 `withoutMiddleware('admin')` لازم است، نه اضافه: کلِ این گروه پشتِ
+        | `['auth:web','admin']` است، پس افزودنِ `staff` به‌تنهایی هیچ دری باز
+        | نمی‌کرد — `EnsureAdmin` زودتر ۴۰۳ می‌داد و پشتیبان همچنان بیرون
+        | می‌مانْد. گاردِ نقش این‌جا **جایگزین** می‌شود، نه افزوده.
+        |
+        | ⚠️ ترتیب مهم است: اول `admin` برداشته می‌شود، بعد `staff` می‌نشیند —
+        | یعنی این مسیرها هرگز بی‌گارد نمی‌مانند.
+        */
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])
+                ->name('admin.tickets');
+        });
         /*
         | ⚠️ `bulk` پیش از `{ticket}` ثبت می‌شود — درسِ روتِ compare در
         | فروشگاهِ قطعات: مسیرِ ثابتی که بعدِ پارامتری بیاید بلعیده می‌شود و
         | دکمه بی‌صدا از کار می‌افتد.
         */
-        Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
-        Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
-        Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
-        // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
-        Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
-        // پیشنهادِ پاسخ با AI — همان موتورِ بله؛ فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
-        Route::post('/tickets/{ticket}/draft', [\App\Http\Controllers\Admin\TicketController::class, 'draft']);
-        Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
-        Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
+            Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
+            Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);
+            // تصحیحِ نگارش با AI — فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+            Route::post('/tickets/{ticket}/polish', [\App\Http\Controllers\Admin\TicketController::class, 'polish']);
+            // پیشنهادِ پاسخ با AI — همان موتورِ بله؛ فقط برمی‌گرداند، هیچ‌چیز نمی‌فرستد
+            Route::post('/tickets/{ticket}/draft', [\App\Http\Controllers\Admin\TicketController::class, 'draft']);
+            Route::post('/tickets/{ticket}/update', [\App\Http\Controllers\Admin\TicketController::class, 'update']);
+            Route::get('/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\TicketController::class, 'attachment']);
+        });
 
         /*
         | کنسولِ مدیر در بله — روشن/خاموش، اتصال، قطع.
@@ -2567,9 +2620,27 @@ Route::prefix('admin')->group(function () {
         Route::post('/calls/dial', [\App\Http\Controllers\Admin\PhoneCallController::class, 'dial'])
             ->middleware(['admin', 'throttle:10,1'])->name('admin.calls.dial');
 
-        // مدیریت مشتریان — بخشِ شبیه‌WHMCS
-        Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])->name('admin.customers');
-        Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])->name('admin.customer');
+        /*
+        | ═══ مدیریت مشتریان — بخشِ شبیه‌WHMCS ═══
+        |
+        | 🔴 **دیدن** برای پشتیبان باز است، **تغییر** نه. پشتیبان باید بتواند
+        | پروندهٔ مشتری را بخواند تا تیکتش را جواب دهد؛ ولی عوض‌کردنِ رمز،
+        | تعلیقِ حساب، نمایندگی و حذف تصمیمِ مدیر است و پشتِ `admin` (گاردِ
+        | خودِ گروه) می‌مانَد — بی‌آنکه خطی این‌جا لازم باشد.
+        */
+        Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index'])
+                ->name('admin.customers');
+            /*
+            | ⚠️ جستجوی زنده **پیش از** `{customer}` — وگرنه لاراول «search» را
+            | شناسهٔ مشتری می‌خوانَد و روت هرگز صدا زده نمی‌شود. همان درسِ
+            | `tickets/bulk` و `parts/compare`: مسیرِ ثابت قبل از پارامتری.
+            */
+            Route::get('/customers/search', [\App\Http\Controllers\Admin\CustomerController::class, 'search'])
+                ->name('admin.customers.search');
+            Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])
+                ->name('admin.customer');
+        });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه
@@ -2664,6 +2735,19 @@ Route::prefix('admin')->group(function () {
         Route::get('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'edit'])->middleware('admin');
         Route::post('/templates/{template}', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'update'])->middleware('admin');
         Route::post('/templates/{template}/test', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'test'])->middleware(['admin', 'throttle:6,1']);
+        Route::post('/templates/{template}/toggle', [\App\Http\Controllers\Admin\NotificationTemplateController::class, 'toggle'])->middleware('admin');
+
+        /*
+        | منوی هدر و فوتر — ویرایشِ متنِ سه‌زبانه، ترتیب، خاموشی و لینکِ تازه.
+        |
+        | ⚠️ همه `admin` می‌خواهند: فوتر روی **هر** صفحهٔ سایت رندر می‌شود، پس
+        | نوشتن در آن یعنی نوشتن روی کلِ سایت — نه یک تنظیمِ داخلی.
+        */
+        Route::post('/menus/save', [\App\Http\Controllers\Admin\MenuController::class, 'save'])->middleware('admin');
+        Route::post('/menus/hide', [\App\Http\Controllers\Admin\MenuController::class, 'hide'])->middleware('admin');
+        Route::post('/menus/add', [\App\Http\Controllers\Admin\MenuController::class, 'add'])->middleware('admin');
+        Route::post('/menus/{override}/toggle', [\App\Http\Controllers\Admin\MenuController::class, 'toggle'])->middleware('admin');
+        Route::delete('/menus/{override}', [\App\Http\Controllers\Admin\MenuController::class, 'destroy'])->middleware('admin');
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
@@ -2759,6 +2843,8 @@ Route::prefix('admin')->group(function () {
         | قابلِ رسیدن باشد یا در تاریخچه شبیهِ یک تلاشِ معمولی دیده شود.
         */
         Route::post('/services/{service}/provision-override', [\App\Http\Controllers\Admin\ServiceController::class, 'provisionOverride']);
+        Route::post('/services/{service}/ack-manual', [\App\Http\Controllers\Admin\ServiceController::class, 'ackManual']);
+        Route::post('/services/{service}/resolve-release', [\App\Http\Controllers\Admin\ServiceController::class, 'resolveRelease']);
         Route::post('/services/{service}/suspend', [\App\Http\Controllers\Admin\ServiceController::class, 'suspend']);
         Route::post('/services/{service}/unsuspend', [\App\Http\Controllers\Admin\ServiceController::class, 'unsuspend']);
         Route::post('/services/{service}/terminate', [\App\Http\Controllers\Admin\ServiceController::class, 'terminate']);

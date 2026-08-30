@@ -1884,7 +1884,9 @@ class CloudProvisioner
                 '🔴 '.$what,
                 array_filter($this->lingeringFields($service, $instance, $why, $attempt)),
                 url('/admin/cloud/inventory'),
-                '🔴'
+                '🔴',
+                // ⚠️ کلیدِ صریح چون عنوان ساخته می‌شود و از رویش پیدا نمی‌شود.
+                key: 'admin.cloud_lingering',
             );
         } catch (\Throwable $e) {
             Log::warning('cloud.lingering-notice', ['err' => $e->getMessage()]);

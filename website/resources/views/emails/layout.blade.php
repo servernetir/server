@@ -35,7 +35,7 @@
                     <span style="font-size:22px; font-weight:800; color:#0b1220; letter-spacing:.3px;">
                       <span style="color:#0891b2;">●</span> {{ $brand }}
                     </span>
-                    <span style="display:block; font-size:11.5px; color:#8a93a6; margin-top:3px;">servernet.cloud · زیرساخت ابری</span>
+                    <span style="display:block; font-size:11.5px; color:#8a93a6; margin-top:3px;">servernet.cloud · {{ __('ui.email_tagline') }}</span>
                   </td>
                 </tr>
               </table>

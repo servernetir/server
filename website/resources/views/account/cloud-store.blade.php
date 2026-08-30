@@ -908,6 +908,10 @@
           <i class="cvb-bar-c"></i>
         </div>
         <div class="cvb-tax" id="cvb-s-tax">{{ __('ui.cvb_tax_incl', ['pct' => fa_num($taxPct)]) }}</div>
+        @php $initSetup = (int) ($priceMap[$curSlug][$curCycle]['setup'] ?? 0); @endphp
+        {{-- هزینهٔ راه‌اندازیِ یک‌باره — عددِ روی دکمه باید با فاکتور یکی باشد،
+             پس همین‌جا صادقانه گفته می‌شود که بخشی از «پرداختِ اول» نصب است. --}}
+        <div class="cvb-tax" id="cvb-s-setup" @if($initSetup < 1) hidden @endif>{{ __('ui.cvb_setup_line') }}: <span class="pnl-num" id="cvb-s-setup-n">{{ cloud_price($initSetup) }}</span></div>
         <p class="cvb-warn" id="cvb-s-noprice" @if($hasPrice) hidden @endif>{{ __('ui.cvb_no_price') }}</p>
 
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
@@ -946,6 +950,8 @@
     'imgLbl' => $jsImgLbl,
     'imgLogo' => $jsImgLogo,
     'addon'  => $addonMap,
+    // برمتال: فروشِ ساعتی ندارد — کلیدِ ساعتی برایش پنهان می‌شود
+    'metal'  => collect($planCards)->mapWithKeys(fn ($c) => [$c['slug'] => (bool) ($c['metal'] ?? false)])->all(),
     'extraIp' => (int) $extraIpPrice,
     'tax'    => (int) $taxPct,
     'auto'   => (string) $autoLabel,
@@ -1153,6 +1159,12 @@
       set('cvb-s-ip', D.fa ? faN(String(ipN)) : String(ipN));
     }
 
+    // ── برمتال: کلیدِ ساعتی پنهان و خاموش ──
+    var isMetal = !!((D.metal || {})[slug]);
+    var hSeg = form.querySelector('.cvb-seg-h');
+    if (hSeg) { hSeg.hidden = isMetal; }
+    if (isMetal && hChk && hChk.checked) { hChk.checked = false; }
+
     // ── نرخِ ساعتی ──
     var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
     set('cvb-h-rate', money(h.rate));
@@ -1197,12 +1209,16 @@
 
     if (warn) warn.hidden = true;
     var addon = addonForCycle(cyc, row.save);
-    var total = row.cycle + addon;
+    var setup = row.setup || 0;
+    var total = row.cycle + addon + setup;
     var vat = Math.round(total * D.tax / 100);
     var first = total + vat;
     set('cvb-s-first', money(first));
     set('cvb-d-first', money(first));
-    bar(row.cycle, addon, vat);
+    var setupRow = document.getElementById('cvb-s-setup');
+    if (setupRow) { setupRow.hidden = setup < 1; }
+    set('cvb-s-setup-n', money(setup));
+    bar(row.cycle + setup, addon, vat);
     lockSubmit(false);
   };
 

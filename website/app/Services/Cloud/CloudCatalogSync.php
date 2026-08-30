@@ -307,6 +307,11 @@ class CloudCatalogSync
                     ? ['cost_hour_eur_micro' => (int) ($r['cost_hour_eur_micro'] ?? 0) > 0
                         ? (int) $r['cost_hour_eur_micro'] : null]
                     : [])
+                // هزینهٔ راه‌اندازیِ یک‌باره (سرورِ اختصاصی) — null یعنی «ندارد»
+                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'setup_eur_cents')
+                    ? ['setup_eur_cents' => (int) ($r['setup_eur_cents'] ?? 0) > 0
+                        ? (int) $r['setup_eur_cents'] : null]
+                    : [])
             );
 
             $seen[] = $ref.'@'.$code;

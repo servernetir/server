@@ -177,6 +177,12 @@ class ProvisioningService
         // «بی‌صدا» است: اگر DNS نشد، سرویس نباید شکست‌خورده اعلام شود.
         $this->pointFreeSubdomain($service, $server);
 
+        // گواهیِ SSL همان لحظه در صفِ AutoSSL می‌رود، نه فردا صبح. بعد از DNS
+        // صدا زده می‌شود تا زیردامنهٔ رایگان هم شانسِ اعتبارسنجی داشته باشد.
+        // مثلِ DNS بی‌صداست: شکستش تحویل را شکست نمی‌دهد، چون اجرای شبانهٔ
+        // خودِ WHM پشتیبانِ همیشگی است.
+        $this->kickAutoSsl($service, $server);
+
         // سفارشِ سایت‌ساز: کدِ HTML آماده همان لحظه روی اکانت نوشته می‌شود.
         // مثلِ DNS بیرونِ تراکنش و بی‌صداست — شکستش تحویل را شکست نمی‌دهد،
         // فقط فریادِ ماشین‌خوان می‌گذارد (جزئیات در BuilderSitePublisher).
@@ -236,6 +242,33 @@ class ProvisioningService
             : 'تنظیمِ DNS زیردامنه ناموفق: '.($res['reason'] ?? '—'));
     }
 
+    /**
+     * چکِ فوریِ AutoSSL برای اکانتِ تازه — فقط سرورهای WHM.
+     *
+     * 🔴 چرا این‌جا و نه در WhmProvisioner: تحویلِ «پذیرفته پس از شکست»
+     * (accountState پس از تایم‌اوت) هم از همین مسیرِ موفق رد می‌شود و آن
+     * اکانت هم گواهی می‌خواهد. DirectAdmin/Plesk سازوکارِ LE خودشان را
+     * دارند و این WHM API را نمی‌فهمند — رویشان صدا نمی‌زنیم.
+     */
+    private function kickAutoSsl(Service $service, Server $server): void
+    {
+        if ($server->type !== 'whm' || blank($service->username)) {
+            return;
+        }
+
+        try {
+            $res = (new WhmClient($server))->startAutoSslCheck((string) $service->username);
+        } catch (\Throwable $e) {
+            $res = ['ok' => false, 'reason' => mb_substr($e->getMessage(), 0, 140)];
+        }
+
+        if (! ($res['ok'] ?? false)) {
+            // فقط ردِ ماشین‌خوان؛ اجرای شبانهٔ WHM خودش جبران می‌کند.
+            \App\Support\ErrorTracker::noteOnce('provision',
+                'AutoSSL: صف‌گذاریِ فوری برای سرویسِ #'.$service->id.' نشد — '.($res['reason'] ?? '—'));
+        }
+    }
+
     /** نتیجهٔ DNS در provision_meta و لاگِ فعالیت می‌نشیند تا مدیر ببیند */
     private function noteDns(Service $service, string $message): void
     {
@@ -263,8 +296,16 @@ class ProvisioningService
                 : ProvisionResult::fail('سرور خاموش نشد؛ وضعیتِ سرویس معلق ثبت شد.');
         }
 
+        /*
+        | 🔴 «سروری نیست» یعنی تحویلش دستی بوده، نه اینکه کاری لازم نیست.
+        |
+        | این شاخه `success` می‌داد و تمام — پس لایسنسِ مشتریِ بدهکار نزدِ
+        | تأمین‌کننده **فعال** می‌مانْد و هزینه‌اش پای ما بود، بی‌هیچ ردی.
+        */
         if (! $service->server) {
             $service->update(['status' => 'suspended']);
+
+            app(ManualLifecycleNotice::class)->flag($service, 'suspend');
 
             return ProvisionResult::success(null, null, null);
         }
@@ -363,6 +404,11 @@ class ProvisioningService
         $r = ($service->server && filled($service->username))
             ? $this->driverFor($service->server)->terminate($service)
             : ProvisionResult::success(null, null, null);
+
+        // 🔴 همان‌جا که `success` می‌دهد چون سروری نیست: اگر تحویل دستی بوده،
+        //    لایسنس باید نزدِ تأمین‌کننده **ابطال** شود وگرنه ماهانه بابتِ
+        //    سرویسِ بسته‌شده پول می‌دهیم.
+        app(ManualLifecycleNotice::class)->flag($service, 'terminate');
 
         if ($r->ok || $r->manual) {
             // ظرفیتِ آزادشده را برگردان — وگرنه شمارنده فقط بالا می‌رفت و

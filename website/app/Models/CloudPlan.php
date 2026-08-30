@@ -22,7 +22,7 @@ class CloudPlan extends Model
     protected $fillable = [
         'provider', 'provider_ref', 'provider_location', 'location_code',
         'public_name', 'slug', 'vcpu', 'ram_mb', 'disk_gb', 'disk_type',
-        'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'cost_hour_eur_micro', 'price_eur_cents',
+        'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'cost_hour_eur_micro', 'setup_eur_cents', 'price_eur_cents',
         'price_irt', 'is_active', 'in_stock', 'sort', 'synced_at',
         'previous_cost_eur_cents', 'cost_changed_at',
         'admin_disabled', 'admin_note',
@@ -38,6 +38,8 @@ class CloudPlan extends Model
         // بهایِ تمام‌شده و تاریخِ تغییرش دادهٔ داخلیِ ما است؛ مشتری نباید
         // بتواند حاشیهٔ سودمان را حساب کند.
         'cost_eur_cents', 'previous_cost_eur_cents', 'cost_changed_at',
+        // بهایِ راه‌اندازی هم بهاست — از هر JSON بیرون می‌مانَد
+        'setup_eur_cents',
     ];
 
     protected $casts = [
@@ -267,6 +269,24 @@ class CloudPlan extends Model
     public function isMetal(): bool
     {
         return str_starts_with((string) $this->slug, 'cbm-');
+    }
+
+    /**
+     * قیمتِ فروشِ «هزینهٔ راه‌اندازی» به تومان — یک‌بار، فقط در فاکتورِ اول.
+     *
+     * از همان زنجیرهٔ قیمتِ ماهانه می‌گذرد (بها با کارمزد × (۱+حاشیه) × نرخِ
+     * روز) تا حاشیهٔ مدیر روی این تکه هم اعمال شود؛ ذخیره نمی‌شود چون با نرخِ
+     * روز عوض می‌شود — فاکتور در لحظهٔ سفارش عدد را قفل می‌کند.
+     */
+    public function setupIrt(): int
+    {
+        $cents = (int) ($this->setup_eur_cents ?? 0);
+
+        if ($cents <= 0) {
+            return 0;
+        }
+
+        return (int) (app(\App\Services\Cloud\CloudPricing::class)->priceFor($cents)['irt'] ?? 0);
     }
 
     public function cpuKindLabel(?string $locale = null): string

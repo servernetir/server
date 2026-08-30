@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // فقط مدیر — روی مسیرهای پرهزینه/حساسِ پنلِ مدیریت. مدیریتِ محتوا
             // عمداً برای نقشِ نویسنده باز می‌مانَد.
             'admin'  => \App\Http\Middleware\EnsureAdmin::class,
+            // مدیر **یا** پشتیبان — امورِ پشتیبانی (تیکت، مشتری، تماس).
+            // تا پیش از این، آن مسیرها هیچ گاردِ نقشی نداشتند.
+            'staff'  => \App\Http\Middleware\EnsureStaff::class,
         ]);
         // کنسول قبل از هر چیز — تا ریدایرکت میزبان زودتر از رندر انجام شود
         $middleware->prepend(\App\Http\Middleware\ConsoleHost::class);

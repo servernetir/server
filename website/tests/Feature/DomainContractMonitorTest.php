@@ -62,7 +62,7 @@ class DomainContractMonitorTest extends TestCase
 
             /* ⚠️ امضا باید دقیقاً با والد بخواند؛ `$buttons` وقتی اضافه شد که
                اعلان‌ها دکمهٔ شیشه‌ای گرفتند. */
-            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = []): void
+            public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
             {
                 $this->box[] = ['title' => $title, 'rows' => $rows, 'url' => $url];
             }

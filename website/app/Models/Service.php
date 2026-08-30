@@ -266,6 +266,76 @@ class Service extends Model
     }
 
     /**
+     * سرویسی که تحویلش کارِ **آدم** است، نه هیچ درایوری.
+     *
+     * لایسنس، و هر پکیجی که نه سرورِ ما را دارد نه ابری است. همان شرطی که
+     * `PaymentService` با آن `provision_status` را `manual` می‌گذارد — این‌جا
+     * **یک بار** نوشته شده تا سه رخدادِ چرخهٔ عمر با هم اختلاف پیدا نکنند.
+     */
+    public function isManuallyDelivered(): bool
+    {
+        return $this->server_id === null && ! $this->isCloud();
+    }
+
+    /**
+     * 🔴 کارِ انسانیِ معلق روی یک سرویسِ دستی — تمدید، تعلیق یا ابطال.
+     *
+     * ═══ خرابی‌ای که این می‌بندد ═══
+     *
+     * اتوماسیون فرض می‌کرد محصولِ دستی فقط در **خریدِ اول** آدم لازم دارد.
+     * برای خریدِ اول درست بود (`provision_status='manual'` و صفِ مدیر)، ولی
+     * سه رخدادِ دیگر بی‌صدا رد می‌شدند:
+     *
+     *   · تمدید  — سررسید جلو می‌رفت و مدیر فقط اعلانِ عمومیِ «پرداختِ موفق»
+     *     می‌گرفت که از تمدیدِ هاست فرقی ندارد. لایسنسِ بالادست تمدید نمی‌شد
+     *     و پنلِ مشتریِ **پول‌داده** قفل می‌شد.
+     *   · تعلیق  — `suspend()` چون `server` نبود `success` می‌داد.
+     *   · خاتمه  — `terminate()` هم همین.
+     *
+     * 🔴 دو موردِ آخر پول در جریان‌اند: مشتری نمی‌پردازد و ما به فروشندهٔ
+     * بالادست می‌پردازیم. خطِ قرمزِ «هرگز زیرِ بها» دقیقاً همین است.
+     *
+     * ⚠️ نشانه روی **خودِ سرویس** می‌نشیند، نه فقط در یک اعلان: اعلان یک بار
+     * می‌آید و اگر دیده نشود رفته است. این ردیف تا پاک‌شدن می‌مانَد و
+     * `SystemHealth` رویش قرمز نگه می‌دارد — همان قاعدهٔ ثبت‌شدهٔ پروژه که
+     * خبررسان نباید تنها ردِ یک کارِ نکرده باشد.
+     *
+     * ⚠️ و عمداً `provision_status` را دست نمی‌زند: آن ستون وضعیتِ **تحویلِ
+     * اول** است و `PaymentService` رویش شرط دارد. نوشتنِ `manual` روی یک
+     * سرویسِ زنده، تمدیدِ بعدی را به `awaiting_provision` می‌بُرد و مشتری
+     * سرویسِ سالمش را «در انتظارِ تحویل» می‌دید.
+     */
+    public function flagManualAction(string $kind, string $note): void
+    {
+        $meta = (array) ($this->provision_meta ?? []);
+        $meta['manual_action'] = ['kind' => $kind, 'note' => $note, 'at' => now()->toIso8601String()];
+        $this->forceFill(['provision_meta' => $meta])->save();
+    }
+
+    /** مدیر کار را انجام داد — نشانه برداشته می‌شود. */
+    public function clearManualAction(): void
+    {
+        $meta = (array) ($this->provision_meta ?? []);
+        unset($meta['manual_action']);
+        $this->forceFill(['provision_meta' => $meta])->save();
+    }
+
+    /** @return array{kind:string,note:string,at:string}|null */
+    public function pendingManualAction(): ?array
+    {
+        $a = ($this->provision_meta ?? [])['manual_action'] ?? null;
+
+        return is_array($a) && filled($a['kind'] ?? null) ? $a : null;
+    }
+
+    /** سرویس‌هایی که کارِ انسانیِ معلق دارند — پرس‌وجوی مشترکِ ناظر و پنل. */
+    public function scopeAwaitingManualAction($q)
+    {
+        return $q->whereNotIn('status', self::DEAD_STATUSES)
+            ->where('provision_meta', 'like', '%"manual_action"%');
+    }
+
+    /**
      * سرورِ ابری‌ای که پولش گرفته شده ولی ماشینش هنوز واقعاً تحویل نشده.
      *
      * ═══ 🔴 چرا این متد لازم شد ═══

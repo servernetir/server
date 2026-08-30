@@ -22,10 +22,22 @@ class TemplateMail extends Mailable
      * بی‌نوع دارد و تعریفِ دوبارهٔ نوع‌دار، PHP را با خطای کشندهٔ
      * «Type of ... must not be defined» متوقف می‌کند. همین برای `$html` هم صادق است.
      */
+    /**
+     * 🔴 `$locale` باید زبانِ **مشتری** باشد، نه زبانِ لحظهٔ اجرا.
+     *
+     * بی‌آن، قالب (`emails.layout`) با locale جاری رندر می‌شود — و کرون‌ها
+     * همیشه fa اجرا می‌شوند؛ یعنی بدنهٔ انگلیسیِ localizedEmail داخل پوستهٔ
+     * راست‌به‌چپِ فارسی با سربرگِ «سرورنت» می‌نشست.
+     */
     public function __construct(
         public string $title,
         public string $bodyHtml,
-    ) {}
+        ?string $locale = null,
+    ) {
+        if ($locale !== null && $locale !== '') {
+            $this->locale($locale);
+        }
+    }
 
     public function build(): self
     {

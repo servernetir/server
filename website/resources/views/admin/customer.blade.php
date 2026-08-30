@@ -492,6 +492,35 @@
             @if($s->server_id || $s->domain || $isCloudSvc)
               {{-- «در حال آزادسازی» یعنی سرویس بسته شده و فقط حذفِ نزدِ زیرساخت مانده؛
                    دکمهٔ «ساخت روی سرور» آن‌جا بی‌معنی است (کنترلر هم ردش می‌کند). --}}
+              {{-- 🔴 کارِ دستیِ چرخهٔ عمر: تمدید/تعلیق/ابطالِ نزدِ تأمین‌کننده.
+                   جدا از «صفِ تحویل» است چون آن ستون فقط تحویلِ **اول** را
+                   می‌شناسد. بی‌این دکمه، چکِ سلامت برای همیشه قرمز می‌مانْد. --}}
+              {{-- ⚠️ انتساب داخلِ خودِ @ if، و **نه** شکلِ درون‌خطیِ @ php.
+                   آن شکل این‌جا به یک تگِ بازِ بی‌بسته کامپایل شد و از همان
+                   نقطه بقیهٔ صفحه خام مانْد. جالب اینکه همان چند خط به‌تنهایی
+                   درست کامپایل می‌شود؛ فقط در این فایلِ بزرگ می‌شکند. علتش
+                   هرچه باشد، این فایل تا امروز **هیچ** موردی از آن شکل نداشته
+                   و ۶۵ بار @ if دارد — پس همان را می‌بریم.
+
+                   🔴 و نسخهٔ اولِ همین کامنت، خودش تلهٔ شمارهٔ یکِ پروژه را
+                   ساخت: برای «نشان‌دادنِ» آن تگ، تگِ واقعی را داخلِ متن نوشتم.
+                   محلی php -l پاس شد و روی سرور نشد — و دیپلوی کلِ بکاپ را
+                   برگرداند. **هرگز نامِ خامِ تگِ PHP را در Blade ننویس، حتی
+                   داخلِ کامنت و حتی برای توضیح‌دادنِ خودش.**
+                   (فاصله‌های داخلِ این کامنت عمدی است: نامِ خامِ دستور
+                   داخلِ کامنت با دستورِ پایانیِ بعدی جفت می‌شود.) --}}
+              @if($ma = $s->pendingManualAction())
+                <div style="margin-top:6px;padding:7px 9px;border:1px solid #fbbf24;border-radius:8px;background:rgba(251,191,36,.08)">
+                  <div style="font-size:12px;color:#fbbf24">
+                    🔔 کارِ دستی: <b>{{ ['renew' => 'تمدیدِ نزدِ تأمین‌کننده', 'suspend' => 'غیرفعال‌سازیِ نزدِ تأمین‌کننده', 'terminate' => 'ابطالِ نزدِ تأمین‌کننده'][$ma['kind']] ?? $ma['kind'] }}</b>
+                  </div>
+                  <div style="font-size:11px;color:var(--dim);margin-top:2px">{{ $ma['note'] ?? '' }}</div>
+                  <form method="post" action="/admin/services/{{ $s->id }}/ack-manual" style="display:inline">@csrf
+                    <button class="del" style="color:#34d399;margin-top:4px" type="submit">انجام شد</button>
+                  </form>
+                </div>
+              @endif
+
               @if($s->provision_status !== 'done' && $s->provision_status !== \App\Models\Service::PROVISION_RELEASING)
                 {{-- نیاز به ساخت — اگر سروری نخورده، همین‌جا سرور/پلن را تعیین کن و بساز --}}
                 <form method="post" action="/admin/services/{{ $s->id }}/provision" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px">@csrf
@@ -557,6 +586,25 @@
               <td><span class="ad-badge" style="background:{{ $sb2[1] }}22;color:{{ $sb2[1] }}">{{ $sb2[0] }}</span></td>
               <td class="ad-row-act" style="white-space:nowrap">
                 <a href="/admin/services/{{ $s->id }}/history" class="del" style="color:var(--muted)">تاریخچه</a>
+                {{-- 🔴 «در حالِ آزادسازی» تنها وضعیتی است که خودش بسته نمی‌شود.
+
+                     اگر مدیر ماشین را دستی پاک کرده باشد، حذفِ خودکار هرگز موفق
+                     نمی‌شود و `cloud:release-retry` هر ساعت پیامِ تکراری می‌فرستد.
+
+                     ⚠️ و جایش **همین جدول** است، نه فهرستِ زنده: سرویسی که در
+                     حالِ آزادسازی است طبقِ تعریف لغو/خاتمه‌یافته است، پس همیشه
+                     در `deadServices` می‌افتد. اولین نسخه را در جدولِ بالا
+                     گذاشتم و تست گرفتش — دکمه در جدولی بود که آن سرویس هرگز
+                     به آن نمی‌رسد، یعنی باز هم کدِ مرده.
+
+                     🔴 و متدِ کنترلرش از قبل روی سرور بود ولی هیچ روت و دکمه‌ای
+                     نداشت؛ داکبلاکش می‌گفت مشکل حل شده در حالی که نبود. --}}
+                @if($s->provision_status === \App\Models\Service::PROVISION_RELEASING)
+                  <form method="post" action="/admin/services/{{ $s->id }}/resolve-release" style="display:inline"
+                        onsubmit="event.preventDefault();var f=this;snConfirm('تأیید می‌کنید این سرور دیگر نزدِ زیرساخت وجود ندارد؟ صفِ تلاشِ دوبارهٔ حذف بسته می‌شود.').then(function(ok){if(ok){f.submit();}});">@csrf
+                    <button class="del" style="color:#34d399" type="submit">سرور دستی پاک شد — ببند</button>
+                  </form>
+                @endif
                 {{--
                   🔴 حذف فقط برای سرویسی که **هرگز ساخته نشده و پولی رویش
                   ننشسته**. `Service::isDeletable()` تصمیم می‌گیرد، نه این ویو —
