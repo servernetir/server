@@ -149,12 +149,10 @@ class ArvanClient implements CloudProvider
         |
         | آروان خطاهای اعتبارسنجی را در `errors` می‌گذارد — گاهی نگاشتِ
         | فیلد→پیام، گاهی فهرست. شکلِ قبلی فقط `message` و `errors.0` را
-        | می‌دید، پس روی پاسخِ نگاشتی چیزی پیدا نمی‌کرد و به عبارتِ خشکِ
-        | وضعیت («Bad Request») سقوط می‌کرد. مدیر آن را می‌دید و هیچ نمی‌فهمید
-        | چه چیزی را باید درست کند — دقیقاً همان چیزی که سرِ سرویس #۹۳ اتفاق
-        | افتاد و یک دورِ کاملِ عیب‌یابی خرج برداشت.
-        |
-        | حالا هر شکلی از `errors` به یک رشتهٔ خوانا تبدیل می‌شود.
+        | می‌دید و روی پاسخِ نگاشتی به عبارتِ خشکِ وضعیت سقوط می‌کرد. مدیر
+        | «Bad Request» می‌دید و هیچ نمی‌فهمید چه را درست کند — سرِ سرویسِ #۹۳
+        | یک دورِ کاملِ عیب‌یابی خرج برداشت تا شکلِ درستِ `security_groups`
+        | پیدا شود.
         */
         $msg = (string) ($body['message'] ?? '');
         $errors = $body['errors'] ?? null;
@@ -176,8 +174,8 @@ class ArvanClient implements CloudProvider
         }
 
         return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg,
-            // ⚠️ بدنهٔ خام برای وقتی که حتی این هم کافی نیست — لایهٔ بالاتر
-            //    آن را در provision_error می‌نشاند.
+            // بدنهٔ خام برای وقتی حتی این هم کافی نیست — لایهٔ بالاتر آن را
+            // در provision_error می‌نشاند.
             'raw' => mb_substr((string) json_encode($body, JSON_UNESCAPED_UNICODE), 0, 400)];
     }
 
@@ -661,13 +659,34 @@ class ArvanClient implements CloudProvider
      *
      * @return array<int,string>
      */
-    private function securityGroupNames(string $regionCode): array
+    private function securityGroupIds(string $regionCode): array
     {
+        /*
+        | ═══ 🔴 راهِ فرارِ مدیر — و چرا کشف به‌تنهایی کافی نیست ═══
+        |
+        | کشفِ خودکار روی دو مسیرِ **حدسی** تکیه دارد. اگر آروان هیچ‌کدام را
+        | نشناسد (همان تلهٔ `resolveRegions` که یک بار همین درایور را سوزاند:
+        | مسیرِ حدسی ۴۰۴ می‌داد و «زیرساخت خالی است» تعبیر می‌شد)، تحویل برای
+        | همیشه بسته می‌مانَد و مدیر **هیچ کاری از دستش برنمی‌آید** — پیام
+        | می‌گوید «در پنل یک firewall بساز»، او می‌سازد، و باز هم کار نمی‌کند.
+        |
+        | پس یک درِ دستی: شناسه یا نامِ گروه در تنظیمات. اگر پر باشد، هم بر
+        | انتخابِ خودکار مقدم است، و هم وقتی فهرست اصلاً خوانده نشود مستقیماً
+        | فرستاده می‌شود.
+        |
+        | ⚠️ انتخابِ مدیر داخلِ کلیدِ کش است. بی‌آن، کسی که پس از یک شکست
+        | مقدار را تنظیم می‌کند تا یک ساعت همان شکست را می‌بیند و نتیجه
+        | می‌گیرد تنظیمات کار نمی‌کند.
+        */
+        $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
+
         return \Illuminate\Support\Facades\Cache::remember(
-            'arvan.sgn.'.$regionCode,
+            'arvan.sg.'.$regionCode.'.'.md5($wanted),
             3600,
-            function () use ($regionCode) {
-                foreach (['/securities', '/security-groups'] as $path) {
+            function () use ($regionCode, $wanted) {
+                // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
+                // درخواستِ ۴۰۴ است، در برابرِ تحویلی که اصلاً انجام نمی‌شود.
+                foreach (['/securities', '/security-groups', '/securitygroups', '/firewalls'] as $path) {
                     $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
 
                     if (! $r['ok']) {
@@ -680,10 +699,33 @@ class ArvanClient implements CloudProvider
                         continue;
                     }
 
+                    // انتخابِ صریحِ مدیر بر پیش‌فرض مقدم است — با شناسه یا نام
+                    /*
+                    | 🔴 **نام** برمی‌گردد، نه شناسه.
+                    |
+                    | آروان پیلود را این‌طور رد کرد:
+                    |   expected=abrak.securityGroupName, got=string
+                    | یعنی عنصرِ `security_groups` باید ساختاری با کلیدِ `name`
+                    | باشد. با شناسه — چه رشته چه آبجکت — همان ۴۰۰ برمی‌گردد.
+                    | (این را فقط پس از غنی‌سازیِ پیامِ خطا فهمیدیم؛ «Bad
+                    | Request»ِ خالی هیچ نمی‌گفت.)
+                    */
+                    if ($wanted !== '') {
+                        foreach ($rows as $g) {
+                            $name = (string) ($g['name'] ?? '');
+
+                            if ($name !== '' && ((string) ($g['id'] ?? '') === $wanted
+                                || strcasecmp($name, $wanted) === 0)) {
+                                return [$name];
+                            }
+                        }
+                    }
+
                     foreach ($rows as $g) {
                         $name = (string) ($g['name'] ?? '');
 
-                        if ($name !== '' && (($g['default'] ?? false) || str_contains(strtolower($name), 'default'))) {
+                        if ($name !== '' && (($g['default'] ?? false)
+                            || str_contains(strtolower($name), 'default'))) {
                             return [$name];
                         }
                     }
@@ -695,7 +737,10 @@ class ArvanClient implements CloudProvider
                     }
                 }
 
-                return [];
+                // هیچ مسیری جواب نداد. اگر مدیر شناسه را دستی گذاشته، همان
+                // فرستاده می‌شود: غلط بودنش خطای روشنِ خودِ آروان را می‌آورد،
+                // که از بن‌بستِ خاموش بهتر است.
+                return $wanted !== '' ? [$wanted] : [];
             }
         );
     }
@@ -723,11 +768,14 @@ class ArvanClient implements CloudProvider
         | با پیامِ روشن می‌ایستیم — نه اینکه درخواستِ ناقص بفرستیم و پیامِ گنگِ
         | زنجیره را به مدیر نشان دهیم.
         */
-        $securityGroupNames = $this->securityGroupNames($region);
+        $securityGroups = $this->securityGroupIds($region);
 
-        if ($securityGroupNames === []) {
+        if ($securityGroups === []) {
             return ['ok' => false,
-                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید.'] + $fail;
+                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید. '
+                    .'اگر ساخته‌اید و باز هم این پیام آمد، شناسه‌اش را در '
+                    .'«تنظیمات ← زیرساخت ← گروهِ فایروال» بگذارید — یعنی فهرستِ گروه‌ها '
+                    .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
@@ -736,23 +784,16 @@ class ArvanClient implements CloudProvider
             'image_id'    => (string) $spec['image_ref'],
             'network_ids' => [$networkId],
             /*
-            | 🔴 شکلِ دقیق: آرایه‌ای از **آبجکتِ نام**، نه رشتهٔ شناسه.
-            |
-            | نسخهٔ اول شناسه‌ها را به‌صورت رشته می‌فرستاد و آروان با این پاسخ
-            | ردش کرد: «expected=abrak.securityGroupName, got=string». یعنی
-            | عنصرِ آرایه باید ساختار باشد و کلیدش `name` است — نه `id`.
-            | (این را فقط چون پیامِ خطا کامل رسید فهمیدیم؛ با «Bad Request»ِ
-            | خالی یک دورِ حدس‌زدن لازم بود.)
+            | ⚠️ آرایه‌ای از **آبجکتِ نام** — نه رشته. شکلِ رشته‌ای را آروان با
+            | «Unmarshal type error … abrak.securityGroupName» رد می‌کند.
             */
-            'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroupNames),
+            'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroups),
             'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
             'count'       => 1,
             'ha_enabled'  => false,
         ]);
 
         if (! $r['ok']) {
-            // جزئیاتِ خام هم می‌رود بالا — CloudProvisioner آن را به
-            // provision_error می‌چسباند تا مدیر علتِ واقعی را ببیند.
             return ['ok' => false, 'message' => $r['message'],
                 'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
         }
