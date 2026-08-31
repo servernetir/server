@@ -66,7 +66,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-d88bc1f}"
+MINE="${1:-3cc3d4a}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
