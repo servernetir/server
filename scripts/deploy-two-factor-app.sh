@@ -66,7 +66,17 @@ else
 fi
 
 MINE="${1:-a9598b5}"
-git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
+
+# ⚠️ اگر هنوز به develop مرج نشده، کامیتِ هدف در کلونِ develop نیست. شاخهٔ
+#    خودِ قابلیت را هم می‌آوریم تا اسکریپت پیش از مرج هم کار کند — هدف در هر
+#    حال یک **SHAی پین‌شده** است، نه نوکِ شاخه، پس رفتار عوض نمی‌شود.
+if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
+  echo "── $MINE در develop نیست؛ شاخهٔ feature/totp-two-factor هم آورده می‌شود"
+  git -C repo fetch --depth 400 origin feature/totp-two-factor >/dev/null 2>&1 || true
+fi
+
+git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 \
+  || { echo "FATAL: $MINE در مخزن نیست (نه در develop، نه در feature/totp-two-factor)"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
 echo
