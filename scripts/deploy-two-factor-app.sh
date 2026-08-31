@@ -95,7 +95,26 @@ PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
 [ -x "$PHPBIN" ] || PHPBIN=$(command -v php)
 [ -n "$PHPBIN" ] || { echo "FATAL: php پیدا نشد"; exit 1; }
 
-dist() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
+# ═══ 🔴 نرمال‌سازیِ CRLF — پیش از هر مقایسه ═══
+#
+# بعضی فایل‌های روی سرور CRLF‌اند (یادگارِ نشست‌های آپلودِ مرورگری) و گیت همه‌چیز
+# را LF نگه می‌دارد. بدونِ نرمال‌سازی، `cmp` هرگز برابر نمی‌شود و `diff` **هر
+# خط** را تغییرکرده می‌شمارد ⇒ «نزدیک‌ترین پایه» یک حدسِ بی‌ربط می‌شود و merge
+# روی کلِ فایل تداخل می‌گیرد. یعنی فایل بی‌دلیل دست‌نخورده می‌مانَد و قابلیت
+# نیمه‌منتشر می‌شود.
+#
+# پس مقایسه‌ها روی نسخهٔ نرمال‌شده انجام می‌شوند و نتیجه با LF نوشته می‌شود.
+norm() { tr -d '\r' < "$1" > "$2"; }
+
+same() {                # دو فایل، صرفِ‌نظر از پایانِ خط
+  norm "$1" "$WORK/n1.tmp"; norm "$2" "$WORK/n2.tmp"
+  cmp -s "$WORK/n1.tmp" "$WORK/n2.tmp"
+}
+
+dist() {                # فاصلهٔ خطی، صرفِ‌نظر از پایانِ خط
+  norm "$1" "$WORK/d1.tmp"; norm "$2" "$WORK/d2.tmp"
+  diff "$WORK/d1.tmp" "$WORK/d2.tmp" 2>/dev/null | grep -c '^[<>]'
+}
 
 # ── فایل‌های تازه: هیچ تداخلی ممکن نیست ─────────────────────────────────
 NEW_FILES="
@@ -131,7 +150,7 @@ for rel in $NEW_FILES; do
     || { echo "SKIP  (در $MINE نیست)  $rel"; continue; }
   backup_of "$rel"
   mkdir -p "$APP/$(dirname "$rel")"
-  if [ -f "$APP/$rel" ] && cmp -s "$APP/$rel" "$src"; then echo "OK    $rel"; continue; fi
+  if [ -f "$APP/$rel" ] && same "$APP/$rel" "$src"; then echo "OK    $rel"; continue; fi
   cp "$src" "$APP/$rel"
   if lint_or_restore "$rel"; then
     echo "NEW   $rel"; UPD=$((UPD+1))
@@ -154,12 +173,12 @@ for rel in $MERGE_FILES; do
   fi
 
   backup_of "$rel"
-  if cmp -s "$dest" "$mine_f"; then echo "OK    $rel"; continue; fi
+  if same "$dest" "$mine_f"; then echo "OK    $rel"; continue; fi
 
   best=""; bestd=999999999
   for sha in $(git -C repo log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
     git -C repo show "$sha:website/$rel" > "$WORK/cand.tmp" 2>/dev/null || continue
-    if cmp -s "$dest" "$WORK/cand.tmp"; then best="$sha"; bestd=0; break; fi
+    if same "$dest" "$WORK/cand.tmp"; then best="$sha"; bestd=0; break; fi
     d=$(dist "$dest" "$WORK/cand.tmp")
     if [ "$d" -lt "$bestd" ]; then bestd=$d; best="$sha"; fi
   done
@@ -179,8 +198,11 @@ for rel in $MERGE_FILES; do
   fi
 
   git -C repo show "$best:website/$rel" > "$base_f"
-  m="$WORK/merged.tmp"; cp "$dest" "$m"
-  if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
+  # ⚠️ merge روی نسخهٔ نرمال‌شده: اگر سرور CRLF باشد و پایه LF، merge-file هر
+  #    خط را «تغییرکرده» می‌بیند و کلِ فایل تداخل می‌گیرد. خروجی LF می‌نشیند.
+  m="$WORK/merged.tmp"; norm "$dest" "$m"
+  norm "$base_f" "$WORK/base_n.tmp"
+  if git merge-file -L server -L base -L new "$m" "$WORK/base_n.tmp" "$mine_f" >/dev/null 2>&1; then
     cp "$m" "$dest"
     lint_or_restore "$rel" && { echo "MG    $rel   (پایه $(git -C repo rev-parse --short "$best")، فاصلهٔ سرور $bestd خط — تغییرِ دیگران حفظ شد)"; UPD=$((UPD+1)); }
   else
