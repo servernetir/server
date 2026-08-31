@@ -2,7 +2,14 @@
 #
 # دیپلوی «تعمیرِ خزش و ایندکس» — یافته‌های Search Console، ۹ شهریور ۱۴۰۵.
 #
-# اجرا از ترمینالِ cPanel (اکانت servernetcloud):
+# اجرا از ترمینالِ cPanel (اکانت servernetcloud).
+#
+# ⚠️ تا وقتی این کار در develop مرج نشده، آدرسِ خام باید به همان کامیت اشاره
+#    کند نه به شاخه — نامِ شاخه اسلش دارد و در مسیرِ raw مبهم می‌شود.
+#   DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/PIN/scripts/deploy-gsc-crawl.sh)
+#         (PIN را با کامیتِ کاملِ همین کار عوض کن)
+#
+# بعد از مرج:
 #   DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-gsc-crawl.sh)
 #   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-gsc-crawl.sh) [<SHA>]
 #
