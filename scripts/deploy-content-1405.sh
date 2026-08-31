@@ -66,7 +66,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-0ec318f}"
+MINE="${1:-d88bc1f}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -286,6 +286,10 @@ g app/helpers.php "article_faq_ld"
 g app/helpers.php "sorulan sorular"
 # تعمیرِ لینکِ متنِ قدیمی — دستی اجرا می‌شود، زمان‌بندی نیست
 g app/Console/Commands/RelinkContent.php "content:relink"
+# دامنهٔ دومِ خودمان نباید nofollow بگیرد — مهاجرت .ir → .cloud
+g app/Services/InternalLinks.php "OWN_DOMAINS"
+# relink نباید ویژگی‌های لینکِ بیرونی را دست بزند
+g app/Console/Commands/RelinkContent.php "markExternal: false"
 g app/helpers.php "site_social"
 
 # schemaِ پرسش روی هر دو نوعِ صفحه
