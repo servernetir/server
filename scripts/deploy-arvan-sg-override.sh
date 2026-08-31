@@ -28,6 +28,11 @@ set -u
 
 APP="$HOME/servernet_app"
 WORK="$HOME/deploy-arvan-sg"
+
+# 🔴 کلونِ **مشترک** بینِ همهٔ دیپلوی‌ها. تا امروز هر اسکریپت کلونِ خودش را
+# می‌ساخت و پاک نمی‌کرد: ۲۶ دیپلوی، ۲۶ کپیِ ۱۱۰ مگیِ یک مخزن، و روزی که
+# دیسک پر شد کلِ سایت ۵۰۰ شد. جزئیات در CLAUDE.md §۷.
+REPO="$HOME/deploy-repo"
 STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
@@ -42,21 +47,21 @@ mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
 command -v git >/dev/null || { echo "FATAL: git روی سرور نیست"; exit 1; }
-if [ -d repo/.git ]; then
-  git -C repo fetch --depth 600 origin develop || { echo "FATAL: fetch"; exit 1; }
+if [ -d "$REPO/.git" ]; then
+  git -C "$REPO" fetch --depth 600 origin develop || { echo "FATAL: fetch"; exit 1; }
 else
-  git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
+  git clone --depth 600 --branch develop https://github.com/servernetir/server.git "$REPO" || exit 1
 fi
 
 MINE="${1:-b386f01}"
 
 # اگر هنوز به develop مرج نشده، همان کامیت از شاخهٔ خودش کشیده می‌شود.
-if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
-  git -C repo fetch --depth 600 origin fix/arvan-sg-override-and-proxmox-templates >/dev/null 2>&1 || true
+if ! git -C "$REPO" rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
+  git -C "$REPO" fetch --depth 600 origin fix/arvan-sg-override-and-proxmox-templates >/dev/null 2>&1 || true
 fi
-git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
+git -C "$REPO" rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 
-echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
+echo "── نسخهٔ هدف: $(git -C "$REPO" log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
 echo
 
@@ -83,7 +88,7 @@ apply_one() {
   rel="$1"; dest="$APP/$rel"
   mine_f="$WORK/a.mine"; srv_lf="$WORK/a.srv"; base_f="$WORK/a.base"; cand="$WORK/a.cand"
 
-  git -C repo show "$MINE:website/$rel" > "$mine_f" 2>/dev/null || { echo "SKIP  $rel"; return; }
+  git -C "$REPO" show "$MINE:website/$rel" > "$mine_f" 2>/dev/null || { echo "SKIP  $rel"; return; }
 
   if [ ! -f "$dest" ]; then
     echo "🔴 $rel روی سرور نیست — مسیر اشتباه است، دست نمی‌زنم"
@@ -96,8 +101,8 @@ apply_one() {
   if cmp -s "$srv_lf" "$mine_f"; then echo "OK    $rel"; return; fi
 
   best=""; bestd=999999999
-  for sha in $(git -C repo log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
-    git -C repo show "$sha:website/$rel" > "$cand" 2>/dev/null || continue
+  for sha in $(git -C "$REPO" log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
+    git -C "$REPO" show "$sha:website/$rel" > "$cand" 2>/dev/null || continue
     if cmp -s "$srv_lf" "$cand"; then best="$sha"; bestd=0; break; fi
     d=$(dist "$srv_lf" "$cand"); [ "$d" -lt "$bestd" ] && { bestd=$d; best="$sha"; }
   done
@@ -110,14 +115,14 @@ apply_one() {
   fi
 
   if [ "$bestd" -eq 0 ]; then
-    cp "$mine_f" "$dest"; echo "UP    $rel  (سرور = $(git -C repo rev-parse --short "$best"))"; UPD=$((UPD+1)); return
+    cp "$mine_f" "$dest"; echo "UP    $rel  (سرور = $(git -C "$REPO" rev-parse --short "$best"))"; UPD=$((UPD+1)); return
   fi
 
-  git -C repo show "$best:website/$rel" > "$base_f"
+  git -C "$REPO" show "$best:website/$rel" > "$base_f"
   m="$WORK/a.merged"; cp "$srv_lf" "$m"
   if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
     cp "$m" "$dest"
-    echo "MG    $rel  (پایه $(git -C repo rev-parse --short "$best")، فاصله $bestd خط — تغییرِ دیگران حفظ شد)"
+    echo "MG    $rel  (پایه $(git -C "$REPO" rev-parse --short "$best")، فاصله $bestd خط — تغییرِ دیگران حفظ شد)"
     UPD=$((UPD+1))
   else
     echo "CF    $rel  ← تداخلِ واقعی — دست نخورد"
