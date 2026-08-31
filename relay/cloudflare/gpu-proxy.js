@@ -120,10 +120,66 @@ export default {
       }
     }
 
-    url.hostname = m[1] + '.salad.cloud';
+    const brandedHost = url.hostname;
+    const originHost = m[1] + '.salad.cloud';
+    url.hostname = originHost;
     url.port = '';
 
-    return fetch(new Request(url, request));
+    /*
+     * 🔴 Origin/Referer را به میزبانِ زیرساخت بازنویسی کن.
+     *
+     * چرا حیاتی است: برنامه‌های وبِ پشتِ دروازه (Jupyter، ComfyUI، …) برای
+     * ضدِ CSRF هدرِ Origin را با میزبانِ خودشان می‌سنجند. مرورگرِ مشتری
+     * Origin: https://g-….servernet.cloud می‌فرستد، ولی بک‌اند خودش را
+     * araza-….salad.cloud می‌شناسد ⇒ ناسازگاری ⇒ Jupyter **۴۰۴** می‌دهد و
+     * ورود ناممکن می‌شود.
+     *
+     * 🔴 این دقیقاً همان «تحویل شد ولی نمی‌توانم استفاده کنم»یِ مشتری‌هاست:
+     * curl/SDK (که Origin نمی‌فرستد) کار می‌کند، مرورگر ۴۰۴/کلادفلر می‌دهد —
+     * برای همین از این ماشین هرگز دیده نمی‌شد. کوکی و Referer بی‌تقصیرند؛
+     * فقط Origin. Referer را هم برای هم‌خوانی بازنویسی می‌کنیم.
+     */
+    // درخواستِ تازه با میزبانِ زیرساخت، بعد هدرها را رویش بازنویسی می‌کنیم.
+    // ⚠️ الگوی دو-Request عمداً: هدرهای یک Request که از Request دیگر ساخته
+    //    شده تغییرناپذیرند؛ فقط از راهِ init دوم می‌شود بازنویسی‌شان کرد. و
+    //    body با همین الگو بی‌دستکاری منتقل می‌شود (نه spread که getterها را
+    //    از دست می‌دهد).
+    const upstream = new Request(url, request);
+    const fwd = new Headers(upstream.headers);
+    const rewriteHostIn = (name) => {
+      const v = fwd.get(name);
+      if (v && v.indexOf(brandedHost) !== -1) {
+        fwd.set(name, v.split(brandedHost).join(originHost));
+      }
+    };
+    rewriteHostIn('Origin');
+    rewriteHostIn('Referer');
+
+    /*
+     * 🔴 redirect: 'manual' — بدونِ آن، fetchِ Worker ریدایرکت‌ها را **خودش**
+     * دنبال می‌کند و دو خرابیِ هم‌زمان می‌سازد:
+     *   ۱) Set-Cookieِ پاسخِ 302 (مثلاً کوکیِ ورودِ موفقِ Jupyter) دور ریخته
+     *      می‌شود ⇒ مشتری هرگز واردِ برنامه نمی‌مانَد و به 404/لاگینِ دوباره
+     *      می‌خورد — عیناً همان تیکت‌های «تحویل شد ولی نمی‌توانم استفاده کنم».
+     *   ۲) پاسخِ مقصدِ ریدایرکت زیرِ URLِ اولیه رندر می‌شود و نوارِ آدرس دروغ
+     *      می‌گوید.
+     * پس 3xx عیناً به مرورگرِ مشتری پاس می‌شود.
+     */
+    const resp = await fetch(new Request(upstream, { headers: fwd }), { redirect: 'manual' });
+
+    /*
+     * اگر برنامه Locationِ مطلق با میزبانِ زیرساخت بدهد، به دامنهٔ برندشده
+     * برگردانده می‌شود — هم سفیدبرچسبی حفظ می‌شود، هم مشتریِ داخلِ مرورگر به
+     * میزبانی پرت نمی‌شود که برایش کوکیِ دروازه ندارد.
+     */
+    const loc = resp.headers.get('Location');
+    if (loc && loc.indexOf('.salad.cloud') !== -1) {
+      const out = new Response(resp.body, resp);
+      out.headers.set('Location', loc.replace(url.hostname, brandedHost));
+      return out;
+    }
+
+    return resp;
   },
 };
 

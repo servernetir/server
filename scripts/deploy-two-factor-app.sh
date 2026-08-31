@@ -28,7 +28,8 @@
 # ═══ گاردها ═══
 #
 # • اثباتِ مقصد پیش از هر نوشتن (درسِ «گارد روی سرورِ اشتباه سبز می‌شود»)
-# • `php -l` روی هر فایلِ PHPِ نوشته‌شده؛ خطای نحوی ⇒ همان فایل از بکاپ برمی‌گردد
+# • اعتبارسنجیِ نحوی روی هر فایلِ نوشته‌شده — و برای `.blade.php` با **کامپایلِ
+#   واقعیِ Blade**، چون `php -l` دایرکتیوها را نمی‌بیند؛ خطا ⇒ بازگردانی از بکاپ
 # • بعد از همه‌چیز، سه صفحهٔ زندهٔ کلیدی HTTP چک می‌شوند؛ اگر سایت ۵۰۰ شد،
 #   **کلِ بکاپ خودکار برمی‌گردد** و کش پاک می‌شود.
 #
@@ -91,10 +92,40 @@ backup_of() {                       # $1 = مسیر نسبی
   cp -p "$APP/$1" "$BK/$1"
 }
 
-# ── گاردِ نحوی: فایلِ PHPِ خراب بدتر از فایلِ قدیمی است ──────────────────
+# ── گاردِ نحوی: فایلِ خراب بدتر از فایلِ قدیمی است ───────────────────────
+#
+# 🔴 `php -l` روی `.blade.php` **بی‌اثر است**.
+#
+# دایرکتیوهای Blade (`@if`، `@endif`، …) بیرونِ تگِ `<?php` هستند، پس `php -l`
+# آن‌ها را HTMLِ خام می‌بیند و رد می‌کند. یک `@if` بدونِ `@endif` — که صفحه را
+# روی سایت ۵۰۰ می‌کند — «No syntax errors detected» می‌گیرد. محلی امتحانش کردم:
+# یک Blade عمداً خراب را سالم گزارش کرد.
+#
+# پس Blade باید **کامپایل** شود و خروجیِ کامپایل‌شده lint شود.
+cat > "$WORK/bladecheck.php" <<'PHPCHK'
+<?php
+require $argv[1].'/vendor/autoload.php';
+$app = require $argv[1].'/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$tmp = sys_get_temp_dir().'/bladechk_'.getmypid().'.php';
+file_put_contents($tmp, Illuminate\Support\Facades\Blade::compileString(file_get_contents($argv[2])));
+exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($tmp).' 2>&1', $o, $rc);
+unlink($tmp);
+exit($rc);
+PHPCHK
+
 lint_or_restore() {                 # $1 = مسیر نسبی
-  case "$1" in *.php) ;; *) return 0 ;; esac
-  "$PHPBIN" -l "$APP/$1" >/dev/null 2>&1 && return 0
+  case "$1" in
+    *.blade.php)
+      "$PHPBIN" "$WORK/bladecheck.php" "$APP" "$APP/$1" >/dev/null 2>&1 && return 0
+      ;;
+    *.php)
+      "$PHPBIN" -l "$APP/$1" >/dev/null 2>&1 && return 0
+      ;;
+    *)
+      return 0
+      ;;
+  esac
   echo "      🔴 خطای نحوی بعد از نوشتن — از بکاپ برگردانده شد: $1"
   if [ -f "$BK/$1" ]; then cp -p "$BK/$1" "$APP/$1"; else rm -f "$APP/$1"; fi
   LINT_FAIL="$LINT_FAIL $1"
