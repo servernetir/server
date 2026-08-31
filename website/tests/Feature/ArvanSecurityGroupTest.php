@@ -107,7 +107,7 @@ class ArvanSecurityGroupTest extends TestCase
     {
         $sent = null;
         $this->fakeArvan(
-            [['id' => 'sg-default', 'name' => 'arDefault', 'default' => true]],
+            [['id' => 'sg-default', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true]],
             function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
         );
 
@@ -124,7 +124,7 @@ class ArvanSecurityGroupTest extends TestCase
         $sent = null;
         $this->fakeArvan([
             ['id' => 'sg-other', 'name' => 'custom'],
-            ['id' => 'sg-def', 'name' => 'arDefault', 'default' => true],
+            ['id' => 'sg-def', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true],
         ], function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; });
 
         app(ArvanClient::class)->createServer($this->spec());
@@ -144,6 +144,41 @@ class ArvanSecurityGroupTest extends TestCase
         app(ArvanClient::class)->createServer($this->spec());
 
         $this->assertSame([['name' => 'my-rules']], $sent);
+    }
+
+    /**
+     * 🔴🔴 `real_name` است که آروان می‌شناسد، نه `name`.
+     *
+     * پاسخِ واقعیِ گروهِ پیش‌فرض: `{"name":"default","real_name":"arDefault"}`.
+     * با `name` آروان گروه را پیدا نمی‌کند و پیامِ عمومیِ «Instance not found»
+     * می‌دهد — که هیچ نمی‌گوید کدام منبع. این ادعا آن تلهٔ ظریف را قفل می‌کند.
+     */
+    public function test_it_sends_real_name_not_the_display_name(): void
+    {
+        $sent = null;
+        $this->fakeArvan(
+            [['id' => 'sg1', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true]],
+            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+        );
+
+        app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertSame([['name' => 'arDefault']], $sent,
+            'نامِ نمایشی فرستاده شد به‌جای real_name — آروان گروه را پیدا نمی‌کند');
+    }
+
+    /** بی‌`real_name`، همان `name` — درایورهای قدیمی‌تر آروان آن فیلد را ندارند. */
+    public function test_it_falls_back_to_name_when_real_name_is_absent(): void
+    {
+        $sent = null;
+        $this->fakeArvan(
+            [['id' => 'sg1', 'name' => 'my-group']],
+            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+        );
+
+        app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertSame([['name' => 'my-group']], $sent);
     }
 
     /**

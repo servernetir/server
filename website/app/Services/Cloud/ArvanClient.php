@@ -710,27 +710,44 @@ class ArvanClient implements CloudProvider
                     | (این را فقط پس از غنی‌سازیِ پیامِ خطا فهمیدیم؛ «Bad
                     | Request»ِ خالی هیچ نمی‌گفت.)
                     */
+                    /*
+                    | 🔴🔴 `real_name` است که آروان می‌شناسد، نه `name`.
+                    |
+                    | پاسخِ واقعیِ آروان برای گروهِ پیش‌فرض:
+                    |     {"name": "default", "real_name": "arDefault", ...}
+                    |
+                    | `name` برچسبِ نمایشیِ پنل است؛ چیزی که موقعِ ساختِ سرور
+                    | باید فرستاده شود `real_name` است. با `name` آروان گروه را
+                    | پیدا نمی‌کند و پیامِ عمومیِ **«Instance not found»** می‌دهد
+                    | — که هیچ نمی‌گوید کدام منبع پیدا نشده و یک دورِ کاملِ
+                    | عیب‌یابی خرج برد. این را فقط با دیدنِ بدنهٔ خامِ پاسخ
+                    | می‌شد فهمید.
+                    */
+                    $pick = static fn (array $g): string => (string) ($g['real_name'] ?? $g['name'] ?? '');
+
+                    // انتخابِ صریحِ مدیر: با شناسه، نامِ نمایشی، یا نامِ واقعی
                     if ($wanted !== '') {
                         foreach ($rows as $g) {
-                            $name = (string) ($g['name'] ?? '');
+                            $real = $pick($g);
 
-                            if ($name !== '' && ((string) ($g['id'] ?? '') === $wanted
-                                || strcasecmp($name, $wanted) === 0)) {
-                                return [$name];
+                            if ($real !== '' && ((string) ($g['id'] ?? '') === $wanted
+                                || strcasecmp((string) ($g['name'] ?? ''), $wanted) === 0
+                                || strcasecmp($real, $wanted) === 0)) {
+                                return [$real];
                             }
                         }
                     }
 
                     foreach ($rows as $g) {
-                        $name = (string) ($g['name'] ?? '');
+                        $real = $pick($g);
 
-                        if ($name !== '' && (($g['default'] ?? false)
-                            || str_contains(strtolower($name), 'default'))) {
-                            return [$name];
+                        if ($real !== '' && (($g['default'] ?? false)
+                            || str_contains(strtolower((string) ($g['name'] ?? '')), 'default'))) {
+                            return [$real];
                         }
                     }
 
-                    $first = (string) ($rows[0]['name'] ?? '');
+                    $first = $pick((array) ($rows[0] ?? []));
 
                     if ($first !== '') {
                         return [$first];
