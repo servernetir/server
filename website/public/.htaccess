@@ -29,6 +29,21 @@
     RewriteCond %{QUERY_STRING} (^|&)v=[0-9]{6,}(&|$)
     RewriteRule \.(css|js|mjs)$ - [E=SN_VERSIONED:1]
 
+    # کنسول robots.txtِ خودش را می‌گیرد.
+    #
+    # 🔴 `console.servernet.cloud` همین `public_html` را سرو می‌کند، پس همان
+    # robots.txtِ سایتِ اصلی را می‌داد — با «Allow: /». نتیجه در Crawl Stats
+    # (۹۰ روز): ۶۰۰ درخواستِ خزش، ۱۰٪ کلِ بودجه، صرفِ میزبانی که هر صفحه‌اش
+    # noindex است — در حالی که ۶۵۴ صفحهٔ بلاگ هرگز خزیده نشده بودند.
+    #
+    # ⚠️ بازنویسیِ **داخلی** است نه ریدایرکت: خزنده باید در همان آدرسِ
+    # `/robots.txt` پاسخ بگیرد. ۳۰۱ به فایلِ دیگر یعنی robots.txtِ آن میزبان
+    # «جابه‌جا شده» و رفتارِ خزنده‌ها با آن یکسان نیست.
+    #
+    # ⚠️ `[L]` لازم است تا قاعدهٔ فرانت‌کنترلر دوباره مسیر را نگیرد.
+    RewriteCond %{HTTP_HOST} ^console\. [NC]
+    RewriteRule ^robots\.txt$ robots-console.txt [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
