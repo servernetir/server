@@ -82,17 +82,33 @@ if ((int) $plan->vcpu > 2 || (int) $plan->disk_gb > 30) {
     exit(1);
 }
 
-$imageKey = (string) config('cloud.default_image', 'ubuntu-24.04');
-$imageRef = (string) (CloudImage::refFor('arvan', $imageKey, $plan->arch) ?? '');
+/*
+| کلیدِ ایمیجِ آروان در کاتالوگ `24-04` است نه `ubuntu-24.04`، پس پیش‌فرضِ
+| config این‌جا به جایی نمی‌رسد. imageKeysFor هم کار نمی‌کند چون فقط
+| پلنِ sellable را می‌بیند و آروان عمداً صفر است. پس مستقیم از خودِ
+| کاتالوگِ ایمیج، با همان سه شرطِ deliverable(): زیرساخت، دیسک، معماری.
+*/
+$img = CloudImage::query()->usable()
+    ->where('provider', 'arvan')
+    ->where('kind', 'os')
+    ->where('min_disk_gb', '<=', (int) $plan->disk_gb)
+    ->when(filled($plan->arch), fn ($q) => $q->where(
+        fn ($w) => $w->whereNull('arch')->orWhere('arch', (string) $plan->arch)
+    ))
+    ->orderBy('min_disk_gb')
+    ->first();
 
-if ($imageRef === '') { echo "🔴 ایمیجِ پیش‌فرض پیدا نشد\n"; exit(1); }
+if ($img === null) { echo "🔴 هیچ ایمیجِ قابلِ استفاده‌ای برای این پلن نیست\n"; exit(1); }
+
+$imageKey = (string) $img->key;
+$imageRef = (string) $img->provider_ref;
 
 // نامِ یکتا — تا findByName سرورِ دیگری را «به فرزندی» نگیرد
 $name = 'snet-deltest-'.date('mdHis');
 
 echo "═══ آزمونِ واقعیِ تحویل ═══\n";
 echo "  پلن #{$plan->id} {$plan->slug}  vcpu={$plan->vcpu} ram={$plan->ram_mb}MB disk={$plan->disk_gb}GB\n";
-echo "  منطقه=".REGION."  flavor={$plan->provider_ref}  image_key={$imageKey}\n";
+echo "  منطقه=".REGION."  flavor={$plan->provider_ref}  image_key={$imageKey} ({$img->label})\n";
 echo "  نام={$name}\n\n";
 
 $ref = null;
