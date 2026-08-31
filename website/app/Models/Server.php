@@ -179,6 +179,69 @@ class Server extends Model
         };
     }
 
+    // ──────────────────── چیزی که مشتری برای اتصالِ دامنه لازم دارد ────────────────────
+
+    /**
+     * نیم‌سرورهایی که مشتری باید روی دامنه‌اش بنشاند.
+     *
+     * ترتیبِ اولویت: ستونِ `nameservers` که مدیر در /admin/servers نوشته، وگرنه
+     * پیش‌فرضِ کشورِ سرور از `config/provisioning.php` (IR → ‎.ir، بقیه → ‎.cloud).
+     *
+     * 🔴 چرا پیش‌فرض لازم است و «ستون خالی ⇒ چیزی نشان نده» کافی نیست: تمامِ
+     * دلیلِ وجودِ این متد این است که مشتری بعدِ خرید نداند چه بزند و تیکت بزند.
+     * سروری که مدیر یادش رفته ستونش را پر کند، دقیقاً همان تیکت را دوباره
+     * می‌سازد — یعنی خرابی بی‌صدا به همان‌جایی برمی‌گردد که از آن آمده بود.
+     *
+     * @return list<string>
+     */
+    public function nameserverList(): array
+    {
+        $own = preg_split('/[\s,]+/', (string) $this->nameservers, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if ($own !== []) {
+            return array_values(array_map(fn ($n) => strtolower(trim((string) $n, '. ')), $own));
+        }
+
+        $map = (array) config('provisioning.nameservers', []);
+        $cc  = strtoupper((string) $this->country);
+
+        return array_values(array_map('strtolower', (array) ($map[$cc] ?? $map['default'] ?? [])));
+    }
+
+    /**
+     * IPِ عمومیِ سرور — همان چیزی که مشتری در رکوردِ A می‌گذارد.
+     *
+     * ⚠️ `gethostbyname()` یک کوئریِ DNSِ **مسدودکننده** است و این متد از داخلِ
+     * رندرِ صفحهٔ پنل صدا زده می‌شود. با DNSِ کندِ ایران یک کارتِ هاست می‌تواند
+     * ثانیه‌ها صفحه را نگه دارد، و صفحه‌ای با چند سرویس چند برابر. پس نتیجه —
+     * **از جمله شکست** — یک ساعت کش می‌شود.
+     *
+     * شکست با `'-'` کش می‌شود نه با `null`: `Cache::remember` مقدارِ null را
+     * «کش‌نشده» می‌بیند و هر بار دوباره کوئری می‌زند، یعنی دقیقاً همان کندیِ
+     * هر-رندری که می‌خواستیم نباشد، فقط روی بدترین حالت (DNSِ بی‌جواب).
+     */
+    public function publicIp(): ?string
+    {
+        if (filter_var((string) $this->server_ip, FILTER_VALIDATE_IP)) {
+            return (string) $this->server_ip;
+        }
+
+        if (blank($this->hostname)) {
+            return null;
+        }
+
+        $ip = \Illuminate\Support\Facades\Cache::remember(
+            'server_public_ip_'.$this->getKey(), 3600,
+            function (): string {
+                $r = @gethostbyname((string) $this->hostname);
+
+                return filter_var($r, FILTER_VALIDATE_IP) ? $r : '-';
+            }
+        );
+
+        return $ip === '-' ? null : $ip;
+    }
+
     // ─────────────────────────── مکان (ایران/آلمان) ───────────────────────────
 
     /** برچسبِ کشور به زبانِ جاری؛ اگر کشور ست نشده باشد خالی */

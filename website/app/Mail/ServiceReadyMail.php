@@ -44,6 +44,18 @@ class ServiceReadyMail extends Mailable
         string $locale,
         public bool $passwordInPanel = false,
         public bool $withSshGuide = false,
+        /**
+         * نیم‌سرورهایی که مشتری باید روی دامنه‌اش بگذارد، و IPِ سرور.
+         *
+         * 🔴 چرا در **ایمیل** و نه فقط در پنل: مشتری این ایمیل را باز می‌کند و
+         * همان لحظه سراغِ پنلِ رجیسترارش می‌رود. اگر جواب این‌جا نباشد، باید
+         * برگردد به پنلِ ما و بگردد — و در عمل به‌جایش تیکت می‌زند. این ایمیل
+         * تنها چیزی است که مشتری بعداً هم سراغش می‌آید.
+         *
+         * @var list<string> $nameservers
+         */
+        public array $nameservers = [],
+        public ?string $serverIp = null,
     ) {
         $this->locale($locale);
     }
@@ -65,6 +77,8 @@ class ServiceReadyMail extends Mailable
                 // را می‌گذارد. در سازنده زبانِ کرون (فارسی) خوانده می‌شد و مشتریِ
                 // انگلیسی به نسخهٔ فارسیِ مقاله می‌رفت.
                 'sshDocUrl'       => $this->withSshGuide ? self::sshDocUrl() : null,
+                'nameservers'     => $this->nameservers,
+                'serverIp'        => $this->serverIp,
             ]);
     }
 

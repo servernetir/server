@@ -108,7 +108,23 @@ class ServerController extends Controller
             'api_token'    => ['nullable', 'string', 'max:400'],
             'verify_tls'   => ['nullable', 'boolean'],
             'server_ip'    => ['nullable', 'string', 'max:45'],
-            'nameservers'  => ['nullable', 'string', 'max:190'],
+            /*
+            | نیم‌سرورهایی که به مشتریِ این سرور اعلام می‌شوند (کاما-جدا).
+            |
+            | ⚠️ اگر پر شود باید **حداقل دو تا** باشد: تقریباً همهٔ رجیستری‌ها
+            | کمتر از دو نیم‌سرور را رد می‌کنند، پس یک مقدارِ تک‌عضوی یعنی
+            | مشتری‌ای که عددِ ما را وارد می‌کند و رجیسترار قبولش نمی‌کند —
+            | و همان تیکتی که این ستون برای حذفش هست، دوباره ساخته می‌شود.
+            |
+            | خالی‌گذاشتن بی‌خطر است: `Server::nameserverList()` به پیش‌فرضِ
+            | کشور در config/provisioning.php می‌افتد.
+            */
+            'nameservers'  => ['nullable', 'string', 'max:190', function ($attr, $value, $fail) {
+                $n = preg_split('/[\s,]+/', (string) $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                if ($n !== [] && count($n) < 2) {
+                    $fail('حداقل دو نیم‌سرور لازم است؛ رجیسترارها کمتر از دو تا را رد می‌کنند. (یا خالی بگذارید تا پیش‌فرضِ کشور استفاده شود.)');
+                }
+            }],
             'status'       => ['required', 'in:active,maintenance,full'],
             'max_accounts' => ['nullable', 'integer', 'min:0'],
 

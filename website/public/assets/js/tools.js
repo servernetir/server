@@ -389,6 +389,16 @@
       } catch { err.textContent = T.generic; err.hidden = false; }
       finally { spin(whoisForm.querySelector('button'), false); }
     });
+
+    /* پنلِ مشتری با ?domain= لینک می‌دهد ("نیم‌سرورهایم را نشانم بده"). بدون این،
+       کاربر روی صفحه‌ای می‌رسید که فیلدش پر است ولی هیچ نتیجه‌ای ندارد و باید
+       دوباره دکمه بزند — یعنی همان یک کلیکی که قولش را داده بودیم دو کلیک بود.
+       `requestSubmit` و نه `submit()`: دومی هندلرِ submit را دور می‌زند. */
+    if (input && input.dataset.autorun && input.value.trim()) {
+      whoisForm.requestSubmit ? whoisForm.requestSubmit()
+                              : whoisForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+
     function renderWhois(d) {
       const p = d.parsed, reg = p.registered;
       const fields = [

@@ -50,6 +50,34 @@
   </td></tr>
 </table>
 
+{{-- ═══ اتصالِ دامنه ═══
+     پرتکرارترین تیکتِ بعد از تحویل: «نیم‌سرورم را چه بزنم؟». تا امروز جوابش نه
+     در این ایمیل بود نه در پنل. --}}
+@if(!empty($nameservers))
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="margin-top:14px; background:#eef6fb; border:1px solid #cfe4ef; border-radius:12px;">
+    <tr><td style="padding:16px 20px;">
+      <p style="margin:0 0 10px; color:#075a6e; font-size:13.5px; font-weight:700;">
+        🌐 {{ __('ui.email_service_dns_h') }}
+      </p>
+      <p style="margin:0 0 12px; color:#3b4658; font-size:13px; line-height:1.95;">
+        {{ __('ui.email_service_dns_p') }}
+      </p>
+      @foreach($nameservers as $i => $ns)
+        <p style="margin:0 0 6px; color:#5b6577; font-size:13px;">{{ __('ui.dns_ns_n', ['n' => fa_num($i + 1)]) }}:
+          <b style="color:#1a2233; direction:ltr; display:inline-block; font-family:'Courier New',monospace;">{{ $ns }}</b></p>
+      @endforeach
+      @if(!empty($serverIp))
+        <p style="margin:10px 0 0; color:#5b6577; font-size:13px;">{{ __('ui.dns_server_ip') }}:
+          <b style="color:#1a2233; direction:ltr; display:inline-block; font-family:'Courier New',monospace;">{{ $serverIp }}</b></p>
+      @endif
+      <p style="margin:12px 0 0; color:#6b7688; font-size:12px; line-height:1.9;">
+        {{ __('ui.email_service_dns_note') }}
+      </p>
+    </td></tr>
+  </table>
+@endif
+
 {{-- ═══ رمزِ root: در ایمیل نیست، یک بار در پنل ═══
      کارفرما: مشتری ایمیل را می‌بیند، رمزی پیدا نمی‌کند و فکر می‌کند چیزی جا
      افتاده. سکوت این‌جا گران‌تر از خودِ نبودِ رمز بود. --}}

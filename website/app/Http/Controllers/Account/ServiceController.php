@@ -508,4 +508,34 @@ class ServiceController extends Controller
 
         return response()->json($data);
     }
+
+    /**
+     * GET /account/services/{service}/dns — «نیم‌سرورهای دامنه‌ام درست است؟»
+     *
+     * مشتری بعد از خرید نیم‌سرور را عوض می‌کند و هیچ راهی ندارد بفهمد گرفت یا
+     * نه، پس تیکت می‌زند. این پاسخ همان چراغِ سبز/قرمزِ کارتِ هاست است.
+     *
+     * ⚠️ `expected` همیشه برمی‌گردد — حتی وقتی وضعیت `unknown` است. کارت باید
+     * بتواند «چه بزنم» را نشان دهد حتی وقتی «الان چه وضعی دارم» را نمی‌داند؛
+     * وگرنه دقیقاً در بدترین حالت (سرویسِ تازه، DNSِ منتشرنشده) صفحه خالی
+     * می‌مانَد و همان تیکت ساخته می‌شود.
+     */
+    public function dns(Request $request, Service $service): JsonResponse
+    {
+        $customer = Auth::guard('customer')->user();
+        abort_unless($service->customer_id === $customer->id, 404);
+
+        $server = $service->server;
+
+        $payload = $service->provision_status === 'done' && $server
+            ? app(\App\Services\Dns\HostingDnsStatus::class)->check($service)
+            : ['state' => 'unknown', 'expected' => $server?->nameserverList() ?? [], 'found' => [], 'ip' => null, 'domain' => $service->domain];
+
+        return response()->json($payload + [
+            'ok'      => true,
+            'healthy' => in_array($payload['state'], \App\Services\Dns\HostingDnsStatus::HEALTHY, true),
+            'ns'      => $server?->nameserverList() ?? [],
+            'serverIp' => $server?->publicIp(),
+        ]);
+    }
 }

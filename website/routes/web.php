@@ -406,6 +406,17 @@ $site = function (): void {
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
 
+        /*
+        | وضعیتِ DNSِ دامنهٔ سرویس — «نیم‌سرورهایم درست است؟»
+        |
+        | جدا از خودِ صفحه بارگذاری می‌شود چون یک پرس‌وجوی DNS است و نباید رندرِ
+        | پنل را نگه دارد. سقفِ نرخ سخت‌گیرانه‌تر از آمار است: این مسیر به
+        | resolverِ بیرونی می‌رسد و کشِ ده‌دقیقه‌ای per-domain است، پس چند سرویس
+        | روی یک دامنه هم بیش از یک کوئری تولید نمی‌کنند.
+        */
+        Route::get('/services/{service}/dns', [Account\ServiceController::class, 'dns'])
+            ->name('services.dns')->middleware('throttle:30,1');
+
         // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
         // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.
         // صفحاتِ عمومیِ سایت با ?location=…&plan=… به همین‌جا لینک می‌دهند، پس

@@ -88,6 +88,47 @@
       @if($s->domain)<div><span>{{ __('ui.svc_cred_domain') }}</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
     </div>
 
+    {{-- ═══ اتصالِ دامنه — نیم‌سرور، آی‌پی، و چراغِ وضعیت ═══
+
+         🔴 دلیلِ وجودش یک عدد است: پرتکرارترین تیکتِ این شرکت «نیم‌سرورم را چه
+         بزنم؟» بود. تا امروز این اطلاعات **هیچ‌جا** به مشتری نشان داده نمی‌شد —
+         نه در پنل، نه در ایمیلِ تحویل — پس تنها راهش تیکت بود.
+
+         ⚠️ چراغ async بارگذاری می‌شود (`data-dns`) دقیقاً مثلِ مترِ مصرف: یک
+         پرس‌وجوی DNS داخلِ رندر یعنی صفحه‌ای که با DNSِ کند ثانیه‌ها معطل
+         می‌مانَد، و کارتِ هر سرویس یک بار دیگر. خودِ نیم‌سرورها اما همیشه و
+         بی‌شرط چاپ می‌شوند — جوابِ «چه بزنم» نباید به موفقیتِ یک کوئری بند باشد.
+    --}}
+    @php $ns = $s->server?->nameserverList() ?? []; $srvIp = $s->server?->publicIp(); @endphp
+    @if($ns !== [])
+      <div class="svc-dns" @if($s->domain) data-dns="{{ lroute('account.services.dns', $s) }}" @endif>
+        <div class="svc-dns-h">
+          <span class="svc-dns-t">{{ __('ui.dns_connect_h') }}</span>
+          <span class="dns-pill is-load">{{ __('ui.dns_checking') }}</span>
+        </div>
+
+        <div class="svc-dns-rows">
+          @foreach($ns as $i => $n)
+            <div><span>{{ __('ui.dns_ns_n', ['n' => fa_num($i + 1)]) }}</span>
+              <b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $n }}</b></div>
+          @endforeach
+          @if($srvIp)
+            <div><span>{{ __('ui.dns_server_ip') }}</span>
+              <b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $srvIp }}</b></div>
+          @endif
+        </div>
+
+        <p class="svc-dns-msg">{{ __('ui.dns_hint') }}</p>
+
+        @if($s->domain)
+          <a class="svc-dns-check" href="{{ lroute('tools', 'whois') }}?domain={{ urlencode($s->domain) }}"
+             target="_blank" rel="noopener">
+            <svg class="icon"><use href="#i-search"/></svg><span>{{ __('ui.dns_verify_link') }}</span>
+          </a>
+        @endif
+      </div>
+    @endif
+
     {{-- ── دسترسیِ سریع ──
          پنج لینکِ عمیق فقط برای WHM معنا دارند؛ برای Plesk/DirectAdmin کدِ
          غیرقابلِ اجرا بودند. «وب‌میل» نشستِ جداگانه (`webmaild`) می‌گیرد و

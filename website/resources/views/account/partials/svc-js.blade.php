@@ -88,4 +88,57 @@ document.querySelectorAll('.copyable').forEach(function (el) {
       .catch(function () { box.innerHTML = '<div class="svc-usage-load">' + T.off + '</div>'; });
   });
 })();
+
+/*
+| چراغِ DNS — «نیم‌سرورهایم گرفت یا نه؟»
+|
+| ⚠️ شکستِ شبکه به قرمز ترجمه نمی‌شود. اگر این fetch بمیرد (اینترنتِ مشتری، سقفِ
+| نرخ، سرورِ شلوغ)، چراغ به حالتِ خنثی می‌رود نه «خراب». برچسبِ قرمزِ دروغ روی
+| سایتِ سالم، دقیقاً همان تیکتی را می‌سازد که این ویجت برای حذفش نوشته شده —
+| فقط این بار با اضطراب.
+*/
+(function () {
+  var L = {
+    ok:          @json(__('ui.dns_ok')),
+    ok_external: @json(__('ui.dns_ok_external')),
+    partial:     @json(__('ui.dns_partial')),
+    mismatch:    @json(__('ui.dns_mismatch')),
+    proxied:     @json(__('ui.dns_proxied')),
+    pending:     @json(__('ui.dns_pending')),
+    managed:     @json(__('ui.dns_managed')),
+    unknown:     @json(__('ui.dns_unknown')),
+  };
+  var M = {
+    ok:          @json(__('ui.dns_ok_p')),
+    ok_external: @json(__('ui.dns_ok_external_p')),
+    partial:     @json(__('ui.dns_partial_p')),
+    mismatch:    @json(__('ui.dns_mismatch_p')),
+    proxied:     @json(__('ui.dns_proxied_p')),
+    pending:     @json(__('ui.dns_pending_p')),
+    managed:     @json(__('ui.dns_managed_p')),
+    unknown:     @json(__('ui.dns_unknown_p')),
+  };
+  // سبزها از سرور می‌آیند (`healthy`)، این‌جا فقط رنگ انتخاب می‌شود
+  var TONE = { ok: 'is-ok', ok_external: 'is-ok', managed: 'is-ok',
+               partial: 'is-warn', pending: 'is-warn', proxied: 'is-warn',
+               mismatch: 'is-bad', unknown: 'is-idle' };
+
+  document.querySelectorAll('.svc-dns[data-dns]').forEach(function (box) {
+    var pill = box.querySelector('.dns-pill'), msg = box.querySelector('.svc-dns-msg');
+    if (!pill) return;
+
+    fetch(box.dataset.dns, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        var st = d.state || 'unknown';
+        pill.className = 'dns-pill ' + (TONE[st] || 'is-idle');
+        pill.textContent = (d.healthy ? '✓ ' : '') + (L[st] || L.unknown);
+        if (msg && M[st]) msg.textContent = M[st];
+      })
+      .catch(function () {
+        pill.className = 'dns-pill is-idle';
+        pill.textContent = L.unknown;
+      });
+  });
+})();
 </script>

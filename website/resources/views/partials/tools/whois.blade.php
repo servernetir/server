@@ -8,7 +8,8 @@
       <form class="tool-search reveal" id="whois-form" style="transition-delay:.24s"
             data-endpoint="{{ route($routePrefix.'api.whois') }}">
         <svg class="icon"><use href="#i-search"/></svg>
-        <input type="text" id="whois-input" placeholder="example.com" autocomplete="off" spellcheck="false" required dir="ltr">
+        <input type="text" id="whois-input" placeholder="example.com" autocomplete="off" spellcheck="false" required dir="ltr"
+               value="{{ $prefill ?? '' }}"@if(!empty($prefill)) data-autorun="1"@endif>
         <button class="btn btn-primary" type="submit"><span class="tsb-label">{{ __('ui.tl_whois_btn') }}</span><span class="dr-spin" hidden></span></button>
       </form>
       <div class="tool-error" id="whois-error" hidden></div>

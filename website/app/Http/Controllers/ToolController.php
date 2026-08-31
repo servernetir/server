@@ -23,6 +23,23 @@ class ToolController extends Controller
         abort_unless(in_array($slug, self::PAGES, true), 404);
 
         $prefill = null;
+
+        /*
+        | پنلِ مشتری با `?domain=` به این‌جا لینک می‌دهد تا مشتری با یک کلیک
+        | نیم‌سرورهای واقعیِ دامنه‌اش را ببیند.
+        |
+        | ⚠️ مقدار **اعتبارسنجی** می‌شود و نه فقط چاپ: این رشته مستقیم در
+        | `value=""`ِ یک input می‌نشیند و از کوئریِ عمومی می‌آید. الگوی سخت‌گیرانهٔ
+        | نامِ دامنه هر چیزِ دیگری را به null تبدیل می‌کند، پس صفحه با ورودیِ
+        | دست‌کاری‌شده هم فقط خالی بالا می‌آید.
+        */
+        if ($slug === 'whois') {
+            $d = strtolower(trim((string) $request->query('domain', ''), '. '));
+            $prefill = preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/', $d) === 1
+                ? $d
+                : null;
+        }
+
         if ($slug === 'ip') {
             $prefill = $request->header('CF-Connecting-IP')
                 ?? $request->header('X-Forwarded-For')

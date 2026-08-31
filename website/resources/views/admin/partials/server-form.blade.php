@@ -52,11 +52,17 @@
     <input type="password" name="api_token" dir="ltr" autocomplete="new-password" maxlength="400"
            placeholder="{{ $isEdit ? 'برای تغییر، توکن جدید بزنید' : 'توکن WHM (Manage API Tokens)' }}">
   </label>
+  {{-- ⚠️ این دو مقدار به **مشتری** نشان داده می‌شوند (کارتِ هاست + ایمیلِ تحویل)،
+       پس اشتباهشان مستقیم به سایتِ خوابیده و تیکت ترجمه می‌شود. --}}
   <label>IP سرور (اختیاری)
     <input type="text" name="server_ip" dir="ltr" value="{{ old('server_ip', $server->server_ip ?? '') }}" maxlength="45" placeholder="برای IP اختصاصی">
+    <small>به مشتری نمایش داده می‌شود (رکورد A). خالی بماند، از روی نام میزبان حل می‌شود.</small>
   </label>
   <label>نیم‌سرورها (اختیاری)
     <input type="text" name="nameservers" dir="ltr" value="{{ old('nameservers', $server->nameservers ?? '') }}" maxlength="190" placeholder="ns1.x,ns2.x">
+    <small>خالی = پیش‌فرضِ کشورِ سرور
+      (<span dir="ltr">{{ implode(' , ', (array) (config('provisioning.nameservers.'.strtoupper((string) old('country', $server->country ?? ''))) ?: config('provisioning.nameservers.default'))) }}</span>).
+      اگر پر کنید حداقل دو تا لازم است.</small>
   </label>
   <label>وضعیت
     <select name="status">

@@ -780,6 +780,12 @@ class ProvisioningService
                         $service->username,
                         (string) $service->password ?: null,
                         $customer->locale ?: 'fa',
+                        // پارامترهای نامدار نیستند چون سازنده موقعیتی است؛ این
+                        // دو `false` همان پیش‌فرض‌های مسیرِ هاست‌اند و عوض نشده‌اند.
+                        false,
+                        false,
+                        $service->server?->nameserverList() ?? [],
+                        $service->server?->publicIp(),
                     )
                 );
             }
