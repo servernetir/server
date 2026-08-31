@@ -151,6 +151,46 @@ class ArvanSecurityGroupTest extends TestCase
     }
 
     /**
+     * 🔴 خطای اعتبارسنجی باید **قابلِ اقدام** برسد، نه «Bad Request».
+     *
+     * آروان جزئیات را در `errors` می‌گذارد (نگاشتِ فیلد→پیام). شکلِ قبلی فقط
+     * `message` و `errors.0` را می‌دید، پس روی این شکل هیچ پیدا نمی‌کرد و
+     * مدیر فقط «Bad Request» می‌دید — یعنی یک دورِ کاملِ عیب‌یابیِ کور.
+     */
+    public function test_a_validation_error_reaches_the_admin_readable(): void
+    {
+        Cache::flush();
+        Http::swap(new Factory);
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) {
+            $url = $request->url();
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'n1', 'name' => 'public', 'enable_gateway' => true]]], 200);
+            }
+
+            if (str_contains($url, '/securities') || str_contains($url, '/security-groups')) {
+                return Http::response(['data' => [['id' => 'sg1', 'name' => 'arDefault', 'default' => true]]], 200);
+            }
+
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                return Http::response([
+                    'errors' => ['disk_size' => ['حجمِ دیسک برای این پلن مجاز نیست']],
+                ], 400);
+            }
+
+            return Http::response(['data' => []], 200);
+        }]);
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('disk_size', $r['message'],
+            'نامِ فیلدِ خطادار به مدیر نرسید — همان «Bad Request»ِ کور');
+        $this->assertStringNotContainsString('نامشخص', $r['message']);
+    }
+
+    /**
      * 🔴 خطای فایروال باید فروش را **متوقف** کند.
      *
      * تا امروز در فهرستِ خطاهای ساختاری نبود، پس پلن‌ها در فروش می‌ماندند و

@@ -144,9 +144,41 @@ class ArvanClient implements CloudProvider
             return ['ok' => true, 'status' => $res->status(), 'data' => $data, 'message' => (string) ($body['message'] ?? '')];
         }
 
-        $msg = (string) ($body['message'] ?? data_get($body, 'errors.0') ?? 'خطای نامشخص');
+        /*
+        | ═══ 🔴 پیامِ خطا باید **قابلِ اقدام** باشد، نه «Bad Request» ═══
+        |
+        | آروان خطاهای اعتبارسنجی را در `errors` می‌گذارد — گاهی نگاشتِ
+        | فیلد→پیام، گاهی فهرست. شکلِ قبلی فقط `message` و `errors.0` را
+        | می‌دید، پس روی پاسخِ نگاشتی چیزی پیدا نمی‌کرد و به عبارتِ خشکِ
+        | وضعیت («Bad Request») سقوط می‌کرد. مدیر آن را می‌دید و هیچ نمی‌فهمید
+        | چه چیزی را باید درست کند — دقیقاً همان چیزی که سرِ سرویس #۹۳ اتفاق
+        | افتاد و یک دورِ کاملِ عیب‌یابی خرج برداشت.
+        |
+        | حالا هر شکلی از `errors` به یک رشتهٔ خوانا تبدیل می‌شود.
+        */
+        $msg = (string) ($body['message'] ?? '');
+        $errors = $body['errors'] ?? null;
 
-        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg];
+        if (is_array($errors) && $errors !== []) {
+            $parts = [];
+
+            foreach ($errors as $field => $err) {
+                $text = is_array($err) ? implode('، ', array_map('strval', $err)) : (string) $err;
+                $parts[] = is_string($field) ? $field.': '.$text : $text;
+            }
+
+            $detail = implode(' · ', $parts);
+            $msg = $msg === '' ? $detail : $msg.' — '.$detail;
+        }
+
+        if (trim($msg) === '') {
+            $msg = 'خطای نامشخص (HTTP '.$res->status().')';
+        }
+
+        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg,
+            // ⚠️ بدنهٔ خام برای وقتی که حتی این هم کافی نیست — لایهٔ بالاتر
+            //    آن را در provision_error می‌نشاند.
+            'raw' => mb_substr((string) json_encode($body, JSON_UNESCAPED_UNICODE), 0, 400)];
     }
 
     public function testConnection(): array
@@ -711,7 +743,10 @@ class ArvanClient implements CloudProvider
         ]);
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']] + $fail;
+            // جزئیاتِ خام هم می‌رود بالا — CloudProvisioner آن را به
+            // provision_error می‌چسباند تا مدیر علتِ واقعی را ببیند.
+            return ['ok' => false, 'message' => $r['message'],
+                'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
         }
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد
