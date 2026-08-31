@@ -3108,13 +3108,13 @@ return [
     'cs_gpu_use_h' => 'Nasil kullanirim?',
     'cs_gpu_ollama_d' => 'LLM hazir. Bu adresi bir API gibi her yerden cagirin - kodunuz, sunucunuz veya bilgisayariniz:',
     'cs_gpu_comfy_d' => 'Goruntu uretme servisiniz bir API dir (web sayfasi yoktur - adresi tarayicida acmak 404 verir, bu normaldir). Asagidaki komutla goruntu uretin; yanit, goruntuyu base64 olarak dondurur. Tum ozellikler dokumantasyonda:',
-    'cs_gpu_jupyter_d' => 'Jupyter not defteriniz hazir - adresi acin ve asagidaki tokeni girin.',
+    'cs_gpu_jupyter_d' => 'Jupyter not defteriniz hazir - "Tarayicida ac" dugmesine tiklayin (baglanti guvenli gecidi otomatik gecer). Ardindan Jupyter\'in kendi giris sayfasinda "Uygulama giris tokeni"ni girin - bu sayfanin asagisinda yalnizca bir kez gosterilen token; API gecit tokeni degildir.',
     'cs_gpu_generic_d' => 'Uygulamaniz bu adreste kullanilabilir.',
     'cs_gpu_open' => 'Tarayicida ac',
     'cs_gpu_docs' => 'API dokumani (/docs)',
-    'cs_gpu_gate_token' => 'Erisim tokeni (her istekle gonderin - X-SN-Token basligi)',
-    'cs_gpu_token_label' => 'Erisim tokeni',
-    'cs_gpu_first_slow' => 'Ilk istek daha yavastir (model GPU bellegine yuklenir - 2 dakikaya kadar); ikinci istekten itibaren hizlanir. Yalnizca makinenin calistigi saatler faturalanir.',
+    'cs_gpu_gate_token' => 'API gecit tokeni - kendi kodunuzdan veya sunucunuzdan cagirmak icin (X-SN-Token basligi veya adreste ?sn_token=). Uygulamanin kendi giris sayfasi icin degildir.',
+    'cs_gpu_token_label' => 'Uygulama giris tokeni (Jupyter)',
+    'cs_gpu_first_slow' => 'Ilk istek daha yavastir (model GPU bellegine yuklenir - 2 dakikaya kadar); ikinci istekten itibaren hizlanir. Yalnizca makinenin calistigi saatler faturalanir. Kisa sureli bir hata sayfasi gorurseniz makineniz ag dugumleri arasinda otomatik tasiniyordur - birkac dakika sonra tekrar deneyin; kapali kalinan sure asla faturalanmaz.',
 
     // ── ورود دومرحله‌ای با اپلیکیشن احراز هویت (TOTP) ──
     'tfa_h' => 'Uygulama ile iki adımlı doğrulama',
