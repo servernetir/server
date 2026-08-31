@@ -55,6 +55,75 @@ class CloudSaladGpuTest extends TestCase
         Http::fake(['api.salad.com/*' => Http::response(['items' => $rows], 200)]);
     }
 
+    /**
+     * 🔴 پیشرفتِ ساخت باید **واقعی** باشد: زیرساخت در current_state.description
+     * متنِ «Pulling, N% complete» می‌دهد و همان عدد — نه هیچ حدسی — باید به
+     * صفحهٔ مشتری برسد. بی‌این، مشتری یک ساعت روی «در حالِ ساخت»ِ بی‌حرکت
+     * نگاه می‌کند و نتیجه می‌گیرد خرید خراب شده (تیکت‌های واقعیِ شهریور ۱۴۰۵).
+     */
+    public function test_server_status_surfaces_the_real_pull_percent(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['items' => []], 200),
+            'api.salad.com/*' => Http::response([
+                'current_state' => ['status' => 'pending', 'description' => 'Pulling, 24% complete'],
+            ], 200),
+        ]);
+
+        $r = app(CloudManager::class)->driver('salad')->serverStatus('sn-svc-9');
+
+        $this->assertTrue($r['ok']);
+        $this->assertSame('building', $r['status']);
+        $this->assertSame(['phase' => 'pulling', 'pull_pct' => 24], $r['build']);
+    }
+
+    /** بعد از اتمامِ pull، فاز از state خودِ نمونه می‌آید (تخصیص/دانلود/ساخت) */
+    public function test_server_status_surfaces_the_node_phase_after_the_pull(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response([
+                // pulling_progress = کسرِ واقعیِ دانلود روی گره (۰..۱)
+                'instances' => [['machine_id' => 'm-1', 'state' => 'downloading', 'pulling_progress' => 0.42]],
+            ], 200),
+            'api.salad.com/*' => Http::response([
+                'current_state' => ['status' => 'deploying', 'description' => ''],
+            ], 200),
+        ]);
+
+        $r = app(CloudManager::class)->driver('salad')->serverStatus('sn-svc-9');
+
+        $this->assertSame('building', $r['status']);
+        $this->assertSame(['phase' => 'downloading', 'pull_pct' => 42], $r['build']);
+    }
+
+    /**
+     * ماشینِ آماده (یا وضعیتِ ناشناخته) ⇒ `build` تهی — قاعدهٔ «عددِ
+     * من‌درآوردی ممنوع»: چیزی که زیرساخت نگفته، صفحه هم نشان نمی‌دهد.
+     */
+    public function test_a_running_machine_has_no_build_detail(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response([
+                'instances' => [['machine_id' => 'm-1', 'state' => 'running', 'ssh_ip' => '203.0.113.7']],
+            ], 200),
+            'api.salad.com/*' => Http::response([
+                'current_state' => ['status' => 'running', 'description' => ''],
+            ], 200),
+        ]);
+
+        $r = app(CloudManager::class)->driver('salad')->serverStatus('sn-svc-9');
+
+        $this->assertSame('running', $r['status']);
+        $this->assertSame('203.0.113.7', $r['ipv4']);
+        $this->assertNull($r['build']);
+    }
+
     public function test_the_driver_is_registered_and_resolves(): void
     {
         $d = app(CloudManager::class)->driver('salad');

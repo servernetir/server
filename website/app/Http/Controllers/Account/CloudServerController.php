@@ -280,7 +280,13 @@ class CloudServerController extends Controller
 
         return response()->json(
             $this->statePayload($instance->fresh(), (bool) $r['ok'])
-            + ['traffic' => $r['traffic_used_gb'] ?? null]
+            /*
+            | `build` فقط از درایورهایی می‌آید که ریزمرحلهٔ ساخت را می‌دانند
+            | (فعلاً خطِ GPU: فازِ pulling با درصدِ **واقعی**، بعد وضعیتِ گره).
+            | بقیهٔ درایورها کلید را ندارند ⇒ null ⇒ صفحه چیزی اضافه نشان
+            | نمی‌دهد — همان قاعدهٔ «عددِ من‌درآوردی ممنوع».
+            */
+            + ['traffic' => $r['traffic_used_gb'] ?? null, 'build' => $r['build'] ?? null]
         );
     }
 

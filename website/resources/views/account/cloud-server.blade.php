@@ -39,7 +39,8 @@
      خراب است؛ همان قاعدهٔ صفحهٔ /status این پروژه. */
   $steps = [
     ['k' => 'ordered',   't' => __('ui.cs_stage_ordered'),   'd' => __('ui.cs_stage_ordered_d')],
-    ['k' => 'building',  't' => __('ui.cs_stage_building'),  'd' => __('ui.cs_stage_building_d')],
+    // خطِ GPU ماشینِ مجازی و «نصبِ سیستم‌عامل» ندارد؛ توضیحِ VPS آن‌جا دروغ است
+    ['k' => 'building',  't' => __('ui.cs_stage_building'),  'd' => __($gpuLine ? 'ui.cs_stage_building_gpu_d' : 'ui.cs_stage_building_d')],
     ['k' => 'finishing', 't' => __('ui.cs_stage_finishing'), 'd' => __('ui.cs_stage_finishing_d')],
     ['k' => 'ready',     't' => __('ui.cs_stage_ready'),     'd' => __('ui.cs_stage_ready_d')],
   ];
@@ -75,6 +76,14 @@
     'chart_unavailable' => __('ui.cs_js_chart_unavailable'),
     'last_value'        => __('ui.cs_js_last_value'),
     'pct'               => __('ui.cs_js_pct'),
+    // ── ریزمرحله‌های ساختِ GPU (از دادهٔ زندهٔ زیرساخت، نه حدس) ──
+    'gpu_phase_pulling'     => __('ui.cs_gpu_phase_pulling'),
+    'gpu_phase_allocating'  => __('ui.cs_gpu_phase_allocating'),
+    'gpu_phase_downloading' => __('ui.cs_gpu_phase_downloading'),
+    'gpu_phase_downloading_pct' => __('ui.cs_gpu_phase_downloading_pct'),
+    'gpu_phase_creating'    => __('ui.cs_gpu_phase_creating'),
+    'gpu_phase_starting'    => __('ui.cs_gpu_phase_creating'),
+    'gpu_elapsed'           => __('ui.cs_gpu_elapsed'),
   ];
 @endphp
 <script>window.T = @json($T);</script>
@@ -167,6 +176,25 @@
           </li>
         @endforeach
       </ol>
+
+      @if($gpuLine)
+        {{-- ═══ پیشرفتِ زندهٔ ساختِ GPU ═══
+             نوار و برچسب را فقط JS پر می‌کند و فقط از دادهٔ واقعیِ وضعیت
+             (فیلدِ `build` پاسخِ status): درصدِ pulling عیناً از زیرساخت
+             می‌آید و فازهای گره از state خودِ نمونه. تا دادهٔ تازه نرسد،
+             چیزی جز زمانِ سپری‌شده نشان داده نمی‌شود — نه درصدِ حدسی. --}}
+        <div id="gpu-prog" data-started="{{ $inst?->created_at?->timestamp ?? '' }}"
+             style="margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px">
+          <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:8px">
+            <span id="gpu-prog-label" style="color:var(--muted)">{{ __('ui.cs_gpu_phase_waiting') }}</span>
+            <span id="gpu-prog-elapsed" dir="auto" style="color:var(--dim);white-space:nowrap"></span>
+          </div>
+          <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden" role="progressbar"
+               aria-label="{{ __('ui.cs_building_h') }}" aria-valuemin="0" aria-valuemax="100" id="gpu-prog-track">
+            <i id="gpu-prog-bar" style="display:block;height:100%;width:3%;border-radius:6px;background:linear-gradient(90deg,#22d3ee,#34d399);transition:width .8s ease"></i>
+          </div>
+        </div>
+      @endif
 
       <p class="cb-foot">{{ __('ui.cs_build_leave') }}</p>
 
@@ -807,6 +835,55 @@
     });
   }
 
+  /* ── پیشرفتِ زندهٔ ساختِ GPU ──
+     درصدِ فازِ pulling **واقعی** است (عیناً از زیرساخت)؛ جایگاهِ فازها روی
+     نوار فقط ترتیبِ واقعی‌شان است: pulling تا ۶۰، بعد گره ۶۵/۷۵/۹۰.
+     دادهٔ نبود ⇒ نوار دست نمی‌خورد — هیچ خزشِ ساختگی. */
+  var prog       = document.getElementById('gpu-prog');
+  var progBar    = document.getElementById('gpu-prog-bar');
+  var progLabel  = document.getElementById('gpu-prog-label');
+  var progTrack  = document.getElementById('gpu-prog-track');
+  var progTime   = document.getElementById('gpu-prog-elapsed');
+  var startedAt  = prog ? parseInt(prog.dataset.started || '0', 10) : 0;
+  var lastPct    = 3;
+
+  function paintElapsed(){
+    if (!progTime || !startedAt) { return; }
+    var m = Math.max(0, Math.floor(Date.now() / 1000 / 60 - startedAt / 60));
+    progTime.textContent = (T.gpu_elapsed || '').replace(':m', String(m));
+  }
+
+  function paintBuild(b){
+    if (!prog) { return; }
+    paintElapsed();
+
+    if (!b || !b.phase) { return; }
+
+    /* جایگاهِ فازها روی نوار = ترتیبِ واقعیِ تحویل:
+       pulling (رجیستری) ۰..۳۵ → تخصیصِ گره ۴۰ → دانلودِ گره ۴۰..۹۰ → راه‌اندازی ۹۵.
+       درصدِ داخلِ هر دو فازِ دانلود **واقعی** است (از خودِ زیرساخت). */
+    var pct = null;
+    var hasPct = typeof b.pull_pct === 'number';
+    if (b.phase === 'pulling')          { pct = Math.round((b.pull_pct || 0) * 0.35); }
+    else if (b.phase === 'allocating')  { pct = 40; }
+    else if (b.phase === 'downloading') { pct = hasPct ? 40 + Math.round(b.pull_pct * 0.5) : 55; }
+    else                                { pct = 95; }   // creating / starting
+
+    // نوار هرگز عقب نمی‌رود — پرشِ عقب‌گرد مشتری را می‌ترساند
+    if (pct !== null && pct > lastPct) { lastPct = pct; }
+
+    if (progBar)   { progBar.style.width = lastPct + '%'; }
+    if (progTrack) { progTrack.setAttribute('aria-valuenow', String(lastPct)); }
+
+    var key = 'gpu_phase_' + b.phase;
+    if (b.phase === 'downloading' && hasPct && T[key + '_pct']) { key += '_pct'; }
+
+    var label = T[key] || '';
+    if (label && progLabel) {
+      progLabel.textContent = label.replace(':pct', String(b.pull_pct || 0));
+    }
+  }
+
   // ── وضعیتِ زنده ──
   // در حالتِ «در حالِ ساخت» تندتر می‌پرسیم، چون مشتری منتظرِ همان است؛ بعد از
   // آماده شدن، آرام‌تر تا سهمیهٔ API زیرساخت بی‌دلیل خرج نشود.
@@ -830,6 +907,7 @@
         if (seen) { seen.textContent = T.last_check_now; }
 
         paintStage(d.stage_index);
+        paintBuild(d.build);
 
         /* تازه آماده شد → یک بار بازخوانی تا رمز (که فقط یک بار نشان داده
            می‌شود) و مشخصاتِ کامل بیاید.
@@ -852,6 +930,7 @@
   }
 
   setTimeout(poll, tick);
+  paintElapsed();
 
   // ── نمودارِ پردازنده ── SVG ساده، بی‌کتابخانه (CSP هر منبعِ خارجی را می‌بندد)
   var wrap = document.getElementById('cpu-wrap');
