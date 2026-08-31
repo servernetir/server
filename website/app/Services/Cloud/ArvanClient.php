@@ -762,6 +762,108 @@ class ArvanClient implements CloudProvider
         );
     }
 
+    /**
+     * ═══ 🔴 ایمیجِ آروان **per-region** است — کاتالوگِ ما نیست ═══
+     *
+     * `cloud_images` ستونِ منطقه ندارد و `CloudImage::refFor()` هم منطقه
+     * نمی‌گیرد: یک شناسه برای همهٔ مکان‌ها. برای هتزنر/آیزا درست است (ایمیجِ
+     * سراسری)، ولی آروان برای هر منطقه شناسهٔ جداگانه می‌دهد.
+     *
+     * نتیجهٔ واقعی (سرویسِ #۹۳، شهریور ۱۴۰۵): سفارشِ منطقهٔ `ir-thr-si1` با
+     * شناسهٔ ایمیجِ منطقهٔ دیگری فرستاده شد. آروان **پیامِ ایمیج نداد** —
+     * «Requested firewall was not found» گفت و ساعت‌ها ما را دنبالِ فایروال
+     * کشاند. درسِ ثابت‌شده: پیامِ خطای این API به منبعِ واقعیِ خطا اشاره
+     * نمی‌کند، پس هر ورودی باید **پیش از ارسال** خودمان اعتبارسنجی شود.
+     *
+     * ⚠️ چرا این‌جا و نه در کاتالوگ: افزودنِ ستونِ منطقه یک مهاجرت است و
+     * کاتالوگِ موجود را هم باید دوباره ساخت. این تطبیقِ لحظهٔ تحویل همان
+     * نتیجه را بی‌مهاجرت می‌دهد و **خودترمیم** است: هر بار از خودِ منطقه
+     * می‌پرسد، پس با تغییرِ شناسه‌ها هم کهنه نمی‌شود.
+     *
+     * @return string شناسهٔ معتبر در همین منطقه، یا همان ورودی اگر تطبیقی نبود
+     */
+    private function imageForRegion(string $regionCode, string $imageRef): string
+    {
+        $images = $this->regionImageIndex($regionCode);
+
+        if ($images === []) {
+            return $imageRef;                 // نمی‌دانیم؛ همان را بفرست
+        }
+
+        // شناسه در همین منطقه معتبر است؟ دست نزن.
+        if (isset($images['byId'][$imageRef])) {
+            return $imageRef;
+        }
+
+        /*
+        | معادلِ همین ایمیج در این منطقه: با **برچسب** پیدا می‌شود، چون همان
+        | «Ubuntu 24.04» در هر منطقه شناسهٔ دیگری دارد ولی برچسبش یکی است.
+        */
+        $label = (string) (\App\Models\CloudImage::query()
+            ->where('provider', 'arvan')
+            ->where('provider_ref', $imageRef)
+            ->value('label') ?? '');
+
+        if ($label !== '' && isset($images['byLabel'][mb_strtolower($label)])) {
+            return $images['byLabel'][mb_strtolower($label)];
+        }
+
+        return $imageRef;
+    }
+
+    /**
+     * فهرستِ ایمیج‌های یک منطقه، نمایه‌شده بر شناسه و برچسب.
+     *
+     * ⚠️ `type=distributions` اجباری است: بی‌آن، آروان فقط ایمیج‌های
+     * **شخصیِ** آپلودشده را می‌دهد (اغلب صفر) — که یک بار ما را به این
+     * نتیجهٔ غلط رساند که «این منطقه ایمیج ندارد».
+     *
+     * @return array{byId:array<string,bool>,byLabel:array<string,string>}
+     */
+    private function regionImageIndex(string $regionCode): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            'arvan.imgidx.'.$regionCode,
+            3600,
+            function () use ($regionCode) {
+                $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images',
+                    [], ['type' => 'distributions']);
+
+                if (! $r['ok']) {
+                    return [];
+                }
+
+                $byId = [];
+                $byLabel = [];
+
+                foreach ((array) $r['data'] as $group) {
+                    $children = is_array($group['images'] ?? null) ? $group['images'] : [$group];
+
+                    foreach ($children as $img) {
+                        if (! is_array($img)) {
+                            continue;
+                        }
+
+                        $id = (string) ($img['id'] ?? '');
+
+                        if ($id === '') {
+                            continue;
+                        }
+
+                        $byId[$id] = true;
+                        $label = mb_strtolower((string) ($img['name'] ?? ''));
+
+                        if ($label !== '' && ! isset($byLabel[$label])) {
+                            $byLabel[$label] = $id;
+                        }
+                    }
+                }
+
+                return $byId === [] ? [] : ['byId' => $byId, 'byLabel' => $byLabel];
+            }
+        );
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
@@ -798,7 +900,8 @@ class ArvanClient implements CloudProvider
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name'        => $spec['name'],
             'flavor_id'   => (string) $spec['plan_ref'],
-            'image_id'    => (string) $spec['image_ref'],
+            // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
+            'image_id'    => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
             /*
             | ⚠️ آرایه‌ای از **آبجکتِ نام** — نه رشته. شکلِ رشته‌ای را آروان با

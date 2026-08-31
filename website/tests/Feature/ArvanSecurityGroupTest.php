@@ -58,6 +58,14 @@ class ArvanSecurityGroupTest extends TestCase
                 ]]], 200);
             }
 
+            if (str_contains($url, '/images')) {
+                // ⚠️ ایمیج‌های این منطقه — شناسهٔ منطقهٔ دیگر این‌جا نیست
+                return Http::response(['data' => [[
+                    'name' => 'Ubuntu',
+                    'images' => [['id' => 'img-si1-2404', 'name' => '24.04']],
+                ]]], 200);
+            }
+
             if (str_contains($url, '/securities') || str_contains($url, '/security-groups')) {
                 return Http::response(['data' => $groups], 200);
             }
@@ -237,6 +245,53 @@ class ArvanSecurityGroupTest extends TestCase
         $this->assertStringContainsString('disk_size', $r['message'],
             'نامِ فیلدِ خطادار به مدیر نرسید — همان «Bad Request»ِ کور');
         $this->assertStringNotContainsString('نامشخص', $r['message']);
+    }
+
+    /**
+     * 🔴 ایمیجِ منطقهٔ دیگر باید به معادلِ همین منطقه ترجمه شود.
+     *
+     * حادثهٔ سرویسِ #۹۳: کاتالوگِ ما ایمیج را بی‌منطقه ذخیره می‌کند، پس برای
+     * سفارشِ `ir-thr-si1` شناسه‌ای از منطقهٔ دیگر رفت — و آروان به‌جای پیامِ
+     * ایمیج، «Requested firewall was not found» داد.
+     */
+    public function test_an_image_from_another_region_is_translated(): void
+    {
+        \App\Models\CloudImage::create([
+            'provider' => 'arvan', 'provider_ref' => 'img-OTHER-region', 'key' => '24-04',
+            'kind' => 'os', 'family' => 'ubuntu', 'version' => '24.04',
+            'label' => '24.04', 'arch' => 'x86', 'min_disk_gb' => 10, 'is_active' => true,
+        ]);
+
+        $sent = null;
+        $this->fakeArvan(
+            [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']],
+            function ($request) use (&$sent) { $sent = $request['image_id'] ?? null; },
+        );
+
+        $spec = $this->spec();
+        $spec['image_ref'] = 'img-OTHER-region';
+
+        app(ArvanClient::class)->createServer($spec);
+
+        $this->assertSame('img-si1-2404', $sent,
+            'شناسهٔ منطقهٔ دیگر ترجمه نشد — آروان پیامِ گمراه‌کننده می‌دهد');
+    }
+
+    /** ⚠️ شناسهٔ معتبرِ همین منطقه دست‌نخورده می‌مانَد. */
+    public function test_a_valid_image_is_left_alone(): void
+    {
+        $sent = null;
+        $this->fakeArvan(
+            [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']],
+            function ($request) use (&$sent) { $sent = $request['image_id'] ?? null; },
+        );
+
+        $spec = $this->spec();
+        $spec['image_ref'] = 'img-si1-2404';
+
+        app(ArvanClient::class)->createServer($spec);
+
+        $this->assertSame('img-si1-2404', $sent);
     }
 
     /**
