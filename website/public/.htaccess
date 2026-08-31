@@ -13,6 +13,22 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # پرچمِ «این درخواست مهرِ نسخهٔ واقعی دارد» — mod_headers پایین‌تر می‌خواندش.
+    #
+    # 🔴 پیش از این این کار با `SetEnvIf Query_String …` انجام می‌شد و **هرگز شلیک
+    # نمی‌کرد**: ویژگیِ `SetEnvIf` یا یکی از کلیدواژه‌های محدودِ آپاچی
+    # (Remote_Addr, Request_URI, Request_Method…) است یا نامِ یک **هدرِ درخواست**؛
+    # `Query_String` هیچ‌کدام نیست، پس آپاچی دنبالِ هدری به نامِ Query_String
+    # می‌گشت که وجود ندارد. نه خطایی، نه لاگی — فقط کشی که هرگز یک‌ساله نشد.
+    # روی سرور سنجیده شد: `site.css?v=1787915697` هم `max-age=604800` می‌گرفت.
+    #
+    # ⚠️ mod_rewrite قطعاً هست (کلِ مسیریابیِ لاراول به آن بند است)، پس
+    # جایِ این پرچم همین‌جاست و نه یک دستورِ تازهٔ اثبات‌نشده.
+    # جایگزینی ندارد (`-`) پس هیچ تغییرِ مسیری نمی‌دهد و قواعدِ بعدی همان
+    # طور که بودند اجرا می‌شوند.
+    RewriteCond %{QUERY_STRING} (^|&)v=[0-9]{6,}(&|$)
+    RewriteRule \.(css|js|mjs)$ - [E=SN_VERSIONED:1]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
@@ -45,10 +61,6 @@
 #
 # ⚠️ همه‌چیز داخلِ IfModule است: نبودِ ماژول نباید کلِ سایت را ۵۰۰ کند.
 <IfModule mod_headers.c>
-    <IfModule mod_setenvif.c>
-        SetEnvIf Query_String "(^|&)v=[0-9]{6,}(&|$)" SN_VERSIONED
-    </IfModule>
-
     <FilesMatch "\.(css|js|mjs)$">
         Header set Cache-Control "public, max-age=604800"
         Header set Cache-Control "public, max-age=31536000, immutable" env=SN_VERSIONED

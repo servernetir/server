@@ -1,5 +1,15 @@
 @extends('layouts.site')
 
+{{-- canonical/robots فهرست — منطقش در `BlogController::listingSeo()` است و
+     دلیلِ کاملش همان‌جا نوشته شده. خلاصه: صفحهٔ ۲ تا ۱۵ باید **خودشان** را
+     canonical کنند (وگرنه گوگل تکراری‌شان می‌گیرد و پست‌های داخلشان بدونِ
+     پشتیبانِ لینکِ داخلی می‌مانند)، و جست‌وجو/تگ `noindex,follow` می‌شوند. --}}
+@if($listingNoindex ?? false)
+@section('noindex', '1')
+@else
+@section('canonical', $canonical)
+@endif
+
 @php
     $cats = config('blog.categories');
     $covers = config('blog.covers');
@@ -85,12 +95,22 @@
         {{-- pagination --}}
         @if($paged['pages'] > 1)
         <nav class="blog-pager reveal" aria-label="pagination">
-          @php $qs = request()->except('page'); @endphp
-          @if($paged['page'] > 1)<a href="{{ lroute('blog.index') }}?{{ http_build_query(array_merge($qs, ['page'=>$paged['page']-1])) }}">‹ {{ __('ui.bl_prev') }}</a>@endif
+          @php
+            $qs = request()->except('page');
+            /* ⚠️ صفحهٔ ۱ **بی** `page=1` لینک می‌شود. `?page=1` همان محتوای
+               `/blog` را با آدرسِ دیگری می‌دهد — یعنی یک آدرسِ تکراریِ
+               اضافه که خزنده باید بخزد و بعد کنارش بگذارد، و در سایتی که
+               بودجهٔ خزشش کم است هزینهٔ بی‌دلیل. */
+            $pageUrl = function (int $n) use ($qs) {
+                $p = $n > 1 ? array_merge($qs, ['page' => $n]) : $qs;
+                return lroute('blog.index').($p === [] ? '' : '?'.http_build_query($p));
+            };
+          @endphp
+          @if($paged['page'] > 1)<a href="{{ $pageUrl($paged['page'] - 1) }}">‹ {{ __('ui.bl_prev') }}</a>@endif
           @for($n = 1; $n <= $paged['pages']; $n++)
-          <a href="{{ lroute('blog.index') }}?{{ http_build_query(array_merge($qs, ['page'=>$n])) }}" class="@if($n===$paged['page']) active @endif">{{ $isFa ? fa_num($n) : $n }}</a>
+          <a href="{{ $pageUrl($n) }}" class="@if($n===$paged['page']) active @endif">{{ $isFa ? fa_num($n) : $n }}</a>
           @endfor
-          @if($paged['page'] < $paged['pages'])<a href="{{ lroute('blog.index') }}?{{ http_build_query(array_merge($qs, ['page'=>$paged['page']+1])) }}">{{ __('ui.bl_next') }} ›</a>@endif
+          @if($paged['page'] < $paged['pages'])<a href="{{ $pageUrl($paged['page'] + 1) }}">{{ __('ui.bl_next') }} ›</a>@endif
         </nav>
         @endif
 

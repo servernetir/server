@@ -45,10 +45,18 @@
      تستِ `UrmiaIsPersianOnlyTest` هر دو سرِ این قرارداد را نگه می‌دارد. --}}
 <link rel="alternate" hreflang="fa" href="@yield('canonical', url()->current())">
 @else
-@foreach($localeUrls as $langCode => $langUrl)
+{{-- ⚠️ `$localeUrls` (از AppServiceProvider) فقط پارامترهای **روت** را
+     می‌شناسد و رشتهٔ پرس‌وجو را نمی‌بیند. صفحه‌ای که حالتش در query است
+     (`/blog?page=2`, `?cat=seo`) با آن، معادلِ انگلیسیِ خودش را `/en/blog`
+     یعنی صفحهٔ **اول** اعلام می‌کرد — ادعای غلط به گوگل. چنین صفحه‌ای
+     `$altUrls` را از کنترلر می‌فرستد. نامش عمداً با `$localeUrls` فرق
+     دارد: view composer با `$view->with()` روی دادهٔ کنترلر می‌نشیند، پس
+     هم‌نام‌کردنشان یعنی مقدارِ کنترلر بی‌صدا دور ریخته می‌شود. --}}
+@php $hrefLangUrls = (! empty($altUrls) && is_array($altUrls)) ? $altUrls : $localeUrls; @endphp
+@foreach($hrefLangUrls as $langCode => $langUrl)
 <link rel="alternate" hreflang="{{ $langCode }}" href="{{ $langUrl }}">
 @endforeach
-<link rel="alternate" hreflang="x-default" href="{{ $localeUrls['fa'] }}">
+<link rel="alternate" hreflang="x-default" href="{{ $hrefLangUrls['fa'] }}">
 @endif
 @endif
 <meta property="og:title" content="@yield('title', __('ui.meta_title'))">

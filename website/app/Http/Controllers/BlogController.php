@@ -39,11 +39,82 @@ class BlogController extends Controller
 
         $paged = $this->blog->paginate($posts, (int) $request->query('page', 1), config('blog.per_page', 9));
 
-        return view('pages.blog', [
+        return view('pages.blog', array_merge([
             'paged'   => $paged,
             'heading' => $heading,
             'q'       => $q,
-        ]);
+        ], $this->listingSeo($heading, (int) $paged['page'])));
+    }
+
+    /**
+     * سیاستِ canonical/robots/hreflang برای حالت‌های فهرستِ بلاگ.
+     *
+     * ═══ باگی که این را لازم کرد (Search Console، ۹ شهریور ۱۴۰۵) ═══
+     *
+     * لایوت canonical را از `url()->current()` می‌سازد و آن متد **رشتهٔ
+     * پرس‌وجو را دور می‌ریزد**. یعنی هر ۱۵ صفحهٔ فهرست خودشان را
+     * `/blog` اعلام می‌کردند:
+     *
+     *   /blog?page=2 … ?page=15  →  <link rel="canonical" href="/blog">
+     *
+     * گوگل صفحهٔ صفحه‌بندی‌شده‌ای که خودش را صفحهٔ اول می‌خوانَد، «تکراری»
+     * می‌گیرد: از ایندکس بیرون می‌گذارد و **خیلی کمتر می‌خزدش**. و پست‌های
+     * ۱۰ تا ۱۲۹ فقط از همان صفحه‌ها لینک دارند — یعنی تنها پشتیبانِ
+     * لینکِ داخلی‌شان بی‌صدا قطع شده بود. نتیجه در گزارشِ ایندکس:
+     * **۶۵۴ نشانی «Discovered – currently not indexed»** با
+     * «آخرین خزش: N/A» — گوگل می‌دانست وجود دارند و هرگز سراغشان نرفت.
+     *
+     * پس صفحهٔ N **خودش** را canonical می‌کند و ایندکس‌پذیر می‌مانَد
+     * (توصیهٔ امروزِ گوگل بعد از بازنشستگیِ rel=next/prev).
+     *
+     * ⚠️ عدد از `$paged['page']`ِ **مهارشده** می‌آید نه از ورودیِ کاربر:
+     * `paginate()` هر عددِ خارج از بازه را به آخرین صفحه می‌چسبانَد، پس
+     * `?page=999` همان محتوای صفحهٔ ۱۵ را می‌دهد. با عددِ خام، هر یک از
+     * بی‌نهایت آدرسِ `?page=…` خودش را canonical می‌کرد — یعنی فضای
+     * خزشِ بی‌پایان. با عددِ مهارشده همه به یک canonical می‌رسند.
+     *
+     * ⚠️ دسته (`?cat=`) هم canonicalِ خودش را می‌گیرد: فهرستِ واقعی با
+     * مجموعهٔ متفاوتی از پست‌هاست و صفحهٔ فرودِ ارزشمندی است. ولی جست‌وجو
+     * (`?q=`) و تگ (`?tag=`) `noindex,follow` می‌شوند — مجموعه‌شان بی‌کران
+     * است و canonicalِ دروغ («این همان /blog است») از هر دو بدتر: به گوگل
+     * یاد می‌دهد canonicalهای این سایت را جدی نگیرد.
+     *
+     * ⚠️ hreflang هم باید همان پارامترها را ببرد. `$localeUrls` فقط
+     * پارامترهای **روت** را می‌شناسد، پس بی‌این، صفحهٔ ۲ به گوگل می‌گفت
+     * معادلِ انگلیسی‌اش `/en/blog` (صفحهٔ ۱) است.
+     *
+     * @return array{canonical:string,altUrls:array<string,string>,listingNoindex:bool}
+     */
+    private function listingSeo(?array $heading, int $page): array
+    {
+        $type = $heading['type'] ?? null;
+
+        if ($type === 'search' || $type === 'tag') {
+            return ['canonical' => '', 'altUrls' => [], 'listingNoindex' => true];
+        }
+
+        $params = [];
+
+        if ($type === 'cat') {
+            $params['cat'] = $heading['value'];
+        }
+
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        $suffix = $params === [] ? '' : '?'.http_build_query($params);
+
+        $alt = [];
+        foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
+            $alt[$code] = route($prefix.'blog.index').$suffix;
+        }
+
+        return [
+            'canonical'      => lroute('blog.index').$suffix,
+            'altUrls'        => $alt,
+            'listingNoindex' => false,
+        ];
     }
 
     public function show(string $slug): View

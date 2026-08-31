@@ -13,5 +13,7 @@ Disallow: /tr/account/
 Disallow: /login
 Disallow: /en/login
 Disallow: /tr/login
+Disallow: /payment/
+Disallow: /sb/
 
 Sitemap: https://servernet.cloud/sitemap.xml
