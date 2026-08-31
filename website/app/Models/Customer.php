@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTwoFactor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
  */
 class Customer extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasTwoFactor, Notifiable;
 
     protected $fillable = [
         'code', 'email', 'phone', 'password', 'locale', 'timezone', 'status',

@@ -178,6 +178,8 @@
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
       @endif
       @endunless {{-- پایانِ بخش‌های غیرپشتیبانی (از «هاست» تا این‌جا) --}}
+      {{-- بیرونِ گاردِ isAdmin: امنیتِ حسابِ خودِ کاربر برای هر نقشی لازم است --}}
+      <a href="/admin/security" class="@yield('nav_security')"><svg class="icon"><use href="#i-lock"/></svg>امنیت حساب من</a>
       <a href="/" target="_blank"><svg class="icon"><use href="#i-globe"/></svg>مشاهده‌ی سایت</a>
     </nav>
     <form class="ad-logout" method="post" action="/admin/logout">@csrf<button type="submit"><svg class="icon"><use href="#i-x"/></svg>خروج</button></form>
