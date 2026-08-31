@@ -31,6 +31,29 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
 
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه، که خودِ همین اسکریپت‌ها قربانی‌اش شدند: اجرا با
+# کاربرِ اشتباه (مثلاً root به‌جای servernetcloud) یعنی $HOME عوض می‌شود،
+# فایل‌ها در مسیری ساخته می‌شوند که سایت آن‌جا نیست، و گاردِ اتحاد **سبز**
+# می‌شود چون همان فایل‌هایی را می‌سنجد که خودش تازه ساخته.
+#
+# پس مقصد باید *قبل* از نوشتن ثابت شود: نصبِ واقعی artisan و vendor دارد.
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  echo "   چاره:  su - servernetcloud   و بعد همین دستور را دوباره بزنید."
+  exit 1
+fi
+
+# فضای آزاد: دیپلوی روی دیسکِ پر، نیمه‌کاره می‌مانَد
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول پاک‌سازی کنید:"
+  echo "   rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
@@ -159,5 +182,5 @@ echo "🔎 قدمِ بعد:"
 echo
 echo "  تلاشِ دوباره روی سرویسِ #93 — این‌بار پیامِ خطا (اگر بود) دقیق است:"
 echo
-echo "  cd ~/servernet_app && /opt/cpanel/ea-php84/root/usr/bin/php artisan tinker --execute=\"\\$s=App\Models\Service::find(93); \\$s->update(['provision_status'=>'pending']); app(App\Services\Cloud\CloudProvisioner::class)->provision(\\$s->fresh()); print(\\$s->fresh()->provision_error.PHP_EOL);\""
+echo "  (دستورِ تلاشِ دوباره را از گفتگو کپی کنید)"
 echo
