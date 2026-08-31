@@ -92,6 +92,14 @@ class InternalLinks
         'billing'         => [['/docs', 'مستندات'], ['/solutions', 'راهکارها']],
     ];
 
+    /**
+     * دامنه‌هایی که مالِ خودِ سرورنت‌اند — لینک به آنها هرگز `nofollow` نمی‌گیرد.
+     *
+     * ⚠️ `servernet.ir` دامنهٔ مرده نیست: زیرساختِ زنده است و محتوایش در حالِ
+     * مهاجرت به `.cloud`. (CLAUDE.md §۱۰.۵)
+     */
+    private const OWN_DOMAINS = ['servernet.cloud', 'servernet.ir'];
+
     /** همیشه در دسترس، مستقل از دسته */
     private const ALWAYS = [
         ['/blog', 'بلاگ سرورنت'],
@@ -179,13 +187,13 @@ class InternalLinks
      * است نه سندِ کامل، و DOMDocument قطعهٔ فارسی را با افزودنِ
      * <html><body> و کدگذاریِ اشتباه برمی‌گرداند.
      */
-    public function sanitize(string $html): string
+    public function sanitize(string $html, bool $markExternal = true): string
     {
         $host = parse_url((string) config('app.url'), PHP_URL_HOST);
 
         $out = preg_replace_callback(
             '~<a\b([^>]*)>(.*?)</a>~is',
-            function (array $m) use ($host): string {
+            function (array $m) use ($host, $markExternal): string {
                 $attrs = $m[1];
                 $text  = $m[2];
 
@@ -204,10 +212,28 @@ class InternalLinks
                     return $text;                       // هرگز اجرا نشود
                 }
 
-                $isExternal = preg_match('~^https?://~i', $href)
-                    && parse_url($href, PHP_URL_HOST) !== $host;
+                /*
+                 * 🔴 «میزبانِ متفاوت» با «سایتِ دیگری» یکی نیست.
+                 *
+                 * پست‌های ایمپورت‌شده پر از لینک به `servernet.ir` اند — دامنهٔ
+                 * **خودمان**، که مهاجرتِ محتوایش به `.cloud` در جریان است.
+                 * زدنِ `nofollow` روی آنها یعنی دور ریختنِ همان اعتبارِ لینکی که
+                 * کلِ مهاجرت برای جمع‌کردنش انجام می‌شود.
+                 *
+                 * ⚠️ و مهم‌تر: هر آدرسِ مطلق به میزبانِ دیگر باید **همین‌جا**
+                 * تصمیمش گرفته شود. اگر بیفتد پایین، `internalPath()` برای
+                 * میزبانِ غیرخودی `null` می‌دهد و لینک **باز می‌شود** — یعنی
+                 * لینکِ سالم نابود می‌شد. دو تست همین را گرفتند.
+                 */
+                $isHttp = (bool) preg_match('~^https?://~i', $href);
+                $linkHost = $isHttp ? (string) parse_url($href, PHP_URL_HOST) : '';
 
-                if ($isExternal) {
+                if ($isHttp && strtolower($linkHost) !== strtolower((string) $host)) {
+                    // دامنهٔ دومِ خودمان، یا وقتی فراخوان نخواسته دست بخورد: دست‌نخورده
+                    if ($this->isOwnHost($linkHost, (string) $host) || ! $markExternal) {
+                        return $m[0];
+                    }
+
                     $clean = preg_replace('~\s(rel|target)\s*=\s*["\'][^"\']*["\']~i', '', $attrs);
 
                     return '<a'.$clean.' rel="nofollow noopener" target="_blank">'.$text.'</a>';
@@ -290,6 +316,30 @@ class InternalLinks
         }
 
         return $n;
+    }
+
+    /**
+     * میزبان مالِ خودمان است؟ (دامنهٔ اصلی، دامنهٔ دوم، و زیردامنه‌هایشان)
+     *
+     * `OWN_DOMAINS` عمداً سخت‌کد است و از config نمی‌آید: این فهرست یک
+     * واقعیتِ سازمانی است، نه تنظیمی که هر نصب عوضش کند — و اگر روزی خالی
+     * بماند، لینک‌های داخلیِ خودمان بی‌صدا `nofollow` می‌گیرند.
+     */
+    private function isOwnHost(string $candidate, string $appHost): bool
+    {
+        $candidate = strtolower(ltrim($candidate, '.'));
+
+        if ($candidate === '' || $candidate === strtolower($appHost)) {
+            return true;
+        }
+
+        foreach (self::OWN_DOMAINS as $own) {
+            if ($candidate === $own || str_ends_with($candidate, '.'.$own)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** آدرس → مسیرِ داخلی، یا null اگر داخلی نباشد */

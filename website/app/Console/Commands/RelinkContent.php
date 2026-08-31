@@ -79,7 +79,21 @@ class RelinkContent extends Command
                 continue;
             }
 
-            $after = $links->localize($links->sanitize($before), $row->locale);
+            /*
+             * 🔴 `markExternal: false` — این فرمان **فقط** دو کارِ وعده‌داده‌شده
+             * را می‌کند: بازکردنِ لینکِ مردهٔ داخلی، و محلی‌کردنِ لینکِ ترجمه.
+             *
+             * اجرای آزمایشیِ اول ۱۳۵ ترجمه را «عوض‌شدنی» نشان داد، در حالی که
+             * فقط ۳ لینکِ شکسته وجود داشت. بقیه از شاخهٔ لینکِ بیرونیِ
+             * `sanitize()` می‌آمدند که به هر لینکِ خارجی `nofollow` و
+             * `target="_blank"` می‌زند.
+             *
+             * آن رفتار برای مقالهٔ **تازه** درست است (مدل ممکن است به هر جایی
+             * ارجاع دهد)، ولی اعمالِ گذشته‌نگرش روی ۱۳۵ مقالهٔ منتشرشده یک
+             * تصمیمِ تحریریه است که کسی نگرفته بود — و بی‌سروصدا داخلِ فرمانی
+             * می‌آمد که اسمش «تعمیرِ لینکِ شکسته» است.
+             */
+            $after = $links->localize($links->sanitize($before, markExternal: false), $row->locale);
 
             if ($after === $before) {
                 continue;
@@ -90,11 +104,19 @@ class RelinkContent extends Command
             $unwrapped += max(0, $lost);
             $changed++;
 
-            $this->line(sprintf('  %-4s %-38s %s',
-                $row->locale,
-                mb_substr($row->slug, 0, 38),
-                $lost > 0 ? "{$lost} لینکِ شکسته باز شد" : 'لینک محلی شد'
-            ));
+            /*
+             * ⚠️ برچسب باید همان کاری را بگوید که واقعاً شد.
+             * نسخهٔ اول برای هر تغییری «لینک محلی شد» می‌نوشت — حتی روی
+             * ردیفِ `fa` که `localize()` اصلاً دستش نمی‌زند. گزارشی که کارِ
+             * خودش را اشتباه توصیف کند، از نبودنش بدتر است.
+             */
+            $what = match (true) {
+                $lost > 0            => "{$lost} لینکِ مرده باز شد",
+                $row->locale === 'fa' => 'تغییر (بررسی دستی لازم است)',
+                default              => 'لینکِ ترجمه هم‌زبان شد',
+            };
+
+            $this->line(sprintf('  %-4s %-38s %s', $row->locale, mb_substr($row->slug, 0, 38), $what));
 
             if (! $this->option('dry')) {
                 PostTranslation::whereKey($row->id)->update(['content' => $after]);

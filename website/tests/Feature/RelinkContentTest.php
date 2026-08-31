@@ -102,4 +102,51 @@ class RelinkContentTest extends TestCase
 
         $this->assertSame($once, $t->fresh()->content);
     }
+
+    /**
+     * 🔴 لینک به دامنهٔ دومِ خودمان نباید `nofollow` بگیرد.
+     *
+     * پست‌های ایمپورت‌شده پر از لینک به `servernet.ir` اند و مهاجرتِ محتوایش
+     * به `.cloud` در جریان است. nofollow روی آنها یعنی دور ریختنِ همان اعتبارِ
+     * لینکی که کلِ مهاجرت برای جمع‌کردنش انجام می‌شود.
+     *
+     * ⚠️ تستِ قبلی فقط `example.com` داشت، پس این حالت را هرگز نمی‌سنجید و
+     * فقط در `--dry`ِ روی دادهٔ واقعی دیده شد.
+     */
+    public function test_a_link_to_our_other_domain_is_not_marked_nofollow(): void
+    {
+        $links = app(\App\Services\InternalLinks::class);
+
+        $out = $links->sanitize('<p><a href="https://servernet.ir/vpn-guide">راهنما</a></p>');
+
+        $this->assertStringNotContainsString('nofollow', $out);
+        $this->assertStringContainsString('https://servernet.ir/vpn-guide', $out);
+    }
+
+    public function test_a_genuinely_external_link_still_gets_nofollow(): void
+    {
+        $links = app(\App\Services\InternalLinks::class);
+
+        $out = $links->sanitize('<p><a href="https://www.cisco.com/vpn">Cisco</a></p>');
+
+        $this->assertStringContainsString('rel="nofollow noopener"', $out);
+    }
+
+    /**
+     * 🔴 `content:relink` نباید ویژگی‌های لینکِ بیرونی را دست بزند.
+     *
+     * اجرای آزمایشیِ اول ۱۳۵ ترجمه را «عوض‌شدنی» نشان داد در حالی که فقط ۳
+     * لینکِ شکسته بود — بقیه فقط `nofollow` گرفتن بودند، یعنی یک تغییرِ
+     * تحریریهٔ گذشته‌نگر روی مقاله‌های منتشرشده که کسی نخواسته بود.
+     */
+    public function test_relink_leaves_external_link_attributes_alone(): void
+    {
+        $t = $this->seedTranslation('legacy-external', 'fa',
+            '<p>ببینید <a href="https://www.cisco.com/vpn">Cisco</a> را.</p>');
+        $before = $t->content;
+
+        $this->artisan('content:relink')->assertSuccessful();
+
+        $this->assertSame($before, $t->fresh()->content, 'لینکِ بیرونی نباید دست بخورد.');
+    }
 }
