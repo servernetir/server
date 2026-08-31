@@ -83,32 +83,61 @@ if ((int) $plan->vcpu > 2 || (int) $plan->disk_gb > 30) {
 }
 
 /*
-| کلیدِ ایمیجِ آروان در کاتالوگ `24-04` است نه `ubuntu-24.04`، پس پیش‌فرضِ
-| config این‌جا به جایی نمی‌رسد. imageKeysFor هم کار نمی‌کند چون فقط
-| پلنِ sellable را می‌بیند و آروان عمداً صفر است. پس مستقیم از خودِ
-| کاتالوگِ ایمیج، با همان سه شرطِ deliverable(): زیرساخت، دیسک، معماری.
+| ═══ 🔴 ایمیج را **پیش از ارسال** اعتبارسنجی می‌کنیم ═══
+|
+| اجرای اولِ همین اسکریپت درسِ خودش را ثابت کرد: کوئری‌ای که فقط
+| «usable + دیسک + معماری» را می‌سنجید، ایمیجی با کلید و برچسبِ «7»
+| برداشت. برچسبِ «7» با هیچ برچسبی در منطقه جور نمی‌شود ⇒ imageForRegion
+| در سکوت همان refِ منطقهٔ اشتباه را پس داد ⇒ همان ۴۰۴ِ عمومی.
+|
+| پس به نتیجهٔ refFor اعتماد نمی‌کنیم: هر نامزد را ترجمه می‌کنیم و
+| می‌سنجیم که شناسهٔ حاصل **واقعاً در همین منطقه هست** یا نه. اولینی
+| که قبول شد می‌رود. این همان کاری است که CloudProvisioner هم باید بکند.
 */
-$img = CloudImage::query()->usable()
+$mIdx = new \ReflectionMethod($client, 'regionImageIndex');
+$mIdx->setAccessible(true);
+$idx = (array) $mIdx->invoke($client, REGION);
+$byId = (array) ($idx['byId'] ?? []);
+
+$mImg = new \ReflectionMethod($client, 'imageForRegion');
+$mImg->setAccessible(true);
+
+$candidates = CloudImage::query()->usable()
     ->where('provider', 'arvan')
     ->where('kind', 'os')
     ->where('min_disk_gb', '<=', (int) $plan->disk_gb)
     ->when(filled($plan->arch), fn ($q) => $q->where(
         fn ($w) => $w->whereNull('arch')->orWhere('arch', (string) $plan->arch)
     ))
+    ->orderByRaw("CASE WHEN `key` LIKE '%24-04%' THEN 0 ELSE 1 END")
     ->orderBy('min_disk_gb')
-    ->first();
+    ->get();
 
-if ($img === null) { echo "🔴 هیچ ایمیجِ قابلِ استفاده‌ای برای این پلن نیست\n"; exit(1); }
+$img = null;
+$imageRef = '';
+
+foreach ($candidates as $c) {
+    $t = (string) $mImg->invoke($client, REGION, (string) $c->provider_ref);
+
+    if ($t !== '' && isset($byId[$t])) { $img = $c; $imageRef = (string) $c->provider_ref; break; }
+}
+
+if ($img === null) {
+    echo "🔴 هیچ‌کدام از ".$candidates->count()." ایمیجِ کاتالوگ در ".REGION." resolve نشد.\n";
+    echo '   نامزدها: '.$candidates->take(8)->map(fn ($c) => $c->key.'/'.$c->label)->implode('، ')."\n";
+    exit(1);
+}
 
 $imageKey = (string) $img->key;
-$imageRef = (string) $img->provider_ref;
+$translated = (string) $mImg->invoke($client, REGION, $imageRef);
 
 // نامِ یکتا — تا findByName سرورِ دیگری را «به فرزندی» نگیرد
 $name = 'snet-deltest-'.date('mdHis');
 
 echo "═══ آزمونِ واقعیِ تحویل ═══\n";
 echo "  پلن #{$plan->id} {$plan->slug}  vcpu={$plan->vcpu} ram={$plan->ram_mb}MB disk={$plan->disk_gb}GB\n";
-echo "  منطقه=".REGION."  flavor={$plan->provider_ref}  image_key={$imageKey} ({$img->label})\n";
+echo "  منطقه=".REGION."  flavor={$plan->provider_ref}  image_key={$imageKey} «{$img->label}»
+  image_id ارسالی={$translated}  ✅ در همین منطقه معتبر است\n";
 echo "  نام={$name}\n\n";
 
 $ref = null;
