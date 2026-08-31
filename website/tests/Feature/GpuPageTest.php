@@ -51,6 +51,47 @@ class GpuPageTest extends TestCase
         ], $over));
     }
 
+    /**
+     * 🔴 دو کلاسِ GPU با نامِ یکسان و مشخصات/قیمتِ نمایشیِ یکسان (نمونهٔ
+     * واقعیِ کاتالوگ: «RTX PRO 6000 Blackwell» در دو نسخهٔ زیرساختی) نباید دو
+     * کارتِ بایت‌به‌بایت تکراری بسازند — مشتری فقط گیج می‌شود.
+     */
+    public function test_identical_duplicate_cards_collapse_into_one(): void
+    {
+        $this->seedGpuPlan([
+            'public_name' => 'RTX PRO 6000 TESTCARD', 'gpu_model' => 'RTX PRO 6000 TESTCARD',
+            'provider_ref' => 'gc-pro-a', 'slug' => 'cv-8c-30g-100d-global-gpu-pro-a',
+        ]);
+        $this->seedGpuPlan([
+            'public_name' => 'RTX PRO 6000 TESTCARD', 'gpu_model' => 'RTX PRO 6000 TESTCARD',
+            'provider_ref' => 'gc-pro-b', 'slug' => 'cv-8c-30g-100d-global-gpu-pro-b',
+        ]);
+
+        $html = (string) $this->get('/gpu')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, 'RTX PRO 6000 TESTCARD'),
+            'کارتِ تکراریِ هم‌نام و هم‌مشخصات باید یکی شود.');
+    }
+
+    /** ولی اگر چیزی که مشتری می‌بیند فرق کند — حتی فقط قیمت — هر دو می‌مانند */
+    public function test_same_name_with_a_different_price_keeps_both_cards(): void
+    {
+        $this->seedGpuPlan([
+            'public_name' => 'RTX PRO 6000 TESTCARD', 'gpu_model' => 'RTX PRO 6000 TESTCARD',
+            'provider_ref' => 'gc-pro-a', 'slug' => 'cv-8c-30g-100d-global-gpu-pro-a',
+        ]);
+        $this->seedGpuPlan([
+            'public_name' => 'RTX PRO 6000 TESTCARD', 'gpu_model' => 'RTX PRO 6000 TESTCARD',
+            'provider_ref' => 'gc-pro-b', 'slug' => 'cv-8c-30g-100d-global-gpu-pro-b',
+            'price_irt' => 9_900_000,
+        ]);
+
+        $html = (string) $this->get('/gpu')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($html, 'RTX PRO 6000 TESTCARD'),
+            'قیمتِ متفاوت یعنی دو عرضهٔ واقعاً متفاوت — هیچ‌کدام نباید غیب شود.');
+    }
+
     public function test_the_page_answers_in_all_three_languages(): void
     {
         $this->seedGpuPlan();

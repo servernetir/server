@@ -358,6 +358,14 @@ $site = function (): void {
         Route::get('/login/code', [Auth\LoginController::class, 'code'])->name('login.code');
         Route::post('/login/verify', [Auth\LoginController::class, 'verify'])->name('login.verify')->middleware('throttle:otp');
         Route::post('/login/resend', [Auth\LoginController::class, 'resend'])->name('login.resend')->middleware('throttle:resend');
+
+        /*
+        | مرحلهٔ سومِ ورود — کدِ اپلیکیشنِ احرازِ هویت، فقط برای حسابی که خودش
+        | روشنش کرده. مثلِ مرحلهٔ دو بیرونِ `auth:customer` است چون کاربر در
+        | این لحظه هنوز وارد **نشده**؛ گذارش فقط با کلیدِ نشست است.
+        */
+        Route::get('/login/2fa', [Auth\LoginController::class, 'twoFactor'])->name('login.2fa');
+        Route::post('/login/2fa', [Auth\LoginController::class, 'twoFactorVerify'])->name('login.2fa.verify')->middleware('throttle:otp');
     });
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
@@ -561,6 +569,21 @@ $site = function (): void {
         Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
         Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
+
+        /*
+        | ورود دومرحله‌ای با اپلیکیشنِ احرازِ هویت (Google Authenticator).
+        |
+        | همه روی همان صفحهٔ `/account/security` می‌نشینند (بخشِ `#sec-2fa`)؛
+        | صفحهٔ جدایی ندارد چون «امنیتِ حساب» یک جا باید باشد.
+        |
+        | ⚠️ `throttle:otp` روی سه مسیری که کد می‌سنجند: بدونش، فرمِ
+        | غیرفعال‌سازی یک اوراکلِ حدسِ شش‌رقمیِ بی‌سقف است.
+        */
+        Route::post('/security/2fa/start', [Account\TwoFactorController::class, 'start'])->name('security.2fa.start')->middleware('throttle:forms');
+        Route::post('/security/2fa/confirm', [Account\TwoFactorController::class, 'confirm'])->name('security.2fa.confirm')->middleware('throttle:otp');
+        Route::post('/security/2fa/cancel', [Account\TwoFactorController::class, 'cancel'])->name('security.2fa.cancel')->middleware('throttle:forms');
+        Route::post('/security/2fa/recovery', [Account\TwoFactorController::class, 'recovery'])->name('security.2fa.recovery')->middleware('throttle:otp');
+        Route::post('/security/2fa/disable', [Account\TwoFactorController::class, 'disable'])->name('security.2fa.disable')->middleware('throttle:otp');
 
         // پنلِ نمایندگیِ دامنه — برای غیرِ نماینده هم باز است و حالتِ معرفی
         // نشان می‌دهد؛ ۴۰۴ یعنی لینکِ بازاریابی به دیوار می‌خورد.
@@ -1506,6 +1529,69 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
     |
     | عمداً هیچ پیامک واقعی فرستاده نمی‌شود؛ sending_type بی‌معنی است.
     */
+    /*
+    | 🔴 مسیرِ **فعال** سنجیده می‌شود، نه هر مسیری که در .env مانده.
+    |
+    | تا شهریور ۱۴۰۵ این‌جا همیشه رلهٔ قدیمیِ `servernet.ir` را می‌زد، چون
+    | `SMS_RELAY_URL` هنوز در .env بود. آن فایل مدت‌ها پیش بازنشسته شد و ۴۱۰
+    | می‌داد، پس `guard.ok` **همیشه false** بود.
+    |
+    | دو خرابی هم‌زمان، و دومی بدتر:
+    |
+    |   · آژیرِ همیشه‌روشن برای مسیری که هیچ‌کس استفاده نمی‌کند — و آژیری که
+    |     همیشه قرمز است، آژیرِ بعدی را هم می‌بلعد.
+    |   · مسیری که **واقعاً** پیامک را می‌برد (n8n) هیچ ناظری نداشت. یعنی
+    |     صفحهٔ سلامت دربارهٔ تنها چیزی که مهم بود ساکت بود.
+    */
+    $smsDriver = (string) config('services.sms.driver');
+
+    if ($smsDriver === 'n8n_relay') {
+        $n8nUrl    = (string) config('services.sms.n8n_relay.url');
+        $n8nSecret = (string) config('services.sms.n8n_relay.secret');
+
+        if ($n8nUrl === '' || $n8nSecret === '') {
+            $out['relay'] = ['active_path' => 'n8n_relay', 'configured' => false];
+        } else {
+            /*
+            | پاکتِ درست‌شکل با امضای عمداً خراب.
+            |
+            | 🔴 این پاکت **ذاتاً** نمی‌تواند پیامک بفرستد: امضا ۶۴ صفر است و
+            | ورک‌فلو پیش از هر ارسالی ردش می‌کند. پس سنجش هزینه و عارضه ندارد.
+            |
+            | ⚠️ و عمداً پاکتِ **امضاشده** فرستاده نمی‌شود. رلهٔ قدیمی این کار
+            | را می‌کرد چون آی‌پی‌پنل بدنهٔ بی‌معنا را رد می‌کرد؛ این‌جا هیچ
+            | تضمینی برای آن نداریم و یک ورک‌فلوی نیمه‌ویرایش‌شده می‌توانست
+            | واقعاً پیامک بفرستد. سنجشی که خودش عارضه داشته باشد، سنجش نیست.
+            |
+            | ⚠️ کدِ ۲۰۰ کافی نیست: ورک‌فلو برای ردشدن هم ۲۰۰ می‌دهد. نشانهٔ
+            | سلامتِ نگهبان، دیدنِ `bad_signature` در بدنه است — همان قاعده‌ای
+            | که `N8nRelaySender::deliver()` هم رعایت می‌کند.
+            */
+            $probe = ['active_path' => 'n8n_relay', 'url' => $n8nUrl];
+
+            try {
+                $b64 = rtrim(strtr(base64_encode(json_encode(['probe' => 'healthcheck'])), '+/', '-_'), '=');
+
+                $r = \Illuminate\Support\Facades\Http::asJson()->acceptJson()->timeout(15)
+                    ->post($n8nUrl, ['envelope' => 'SMS_RELAY_V1:'.$b64.'.'.str_repeat('0', 64)]);
+
+                $reason = (string) $r->json('reason', '');
+
+                $probe['guard'] = [
+                    'ok'     => $r->successful() && $reason === 'bad_signature',
+                    'http'   => $r->status(),
+                    'reason' => $reason !== '' ? $reason : null,
+                    'body'   => mb_substr(strip_tags($r->body()), 0, 120),
+                ];
+            } catch (\Throwable $e) {
+                $probe['guard'] = ['ok' => false, 'http' => 0,
+                                   'reason' => mb_substr($e->getMessage(), 0, 200)];
+            }
+
+            $out['relay'] = $probe;
+        }
+    } else {
+
     $relayUrl    = (string) config('services.sms.relay_url');
     $relaySecret = (string) config('services.sms.relay_secret');
 
@@ -1559,10 +1645,13 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
             $probe['signed'] = ['ok' => false, 'http' => 0, 'reason' => 'unreachable'];
         }
 
+        $probe['active_path'] = $smsDriver;
         $out['relay'] = $probe;
     } else {
-        $out['relay'] = ['configured' => false];
+        $out['relay'] = ['active_path' => $smsDriver, 'configured' => false];
     }
+
+    } // پایانِ شاخهٔ «درایورِ فعال n8n نیست»
 
         return $out;
     };
@@ -1666,11 +1755,52 @@ Route::middleware('throttle:tools')->get('/system/tables', function () {
         ? \Illuminate\Support\Facades\DB::table('migrations')->orderByDesc('id')->limit(8)->pluck('migration')
         : [];
 
+    /*
+    | 🔴 «مهاجرت خورد» با «کاتالوگ پر شد» یکی نیست.
+    |
+    | seederها داخلِ همان درخواستِ `/system/migrate` می‌دوند و هرکدام اول
+    | وجودِ جدول/ستون را چک می‌کنند. اگر آن چک رد شود، seeder **بی‌صدا** هیچ
+    | نمی‌کند: نه خطا، نه لاگ، و صفحهٔ مربوطه فقط خالی است.
+    |
+    | بعد از دیپلویِ شهریور ۱۴۰۵ هیچ راهی نبود که از بیرون بشود فهمید ۲۰
+    | اعلانِ مدیر ردیف گرفته‌اند یا نه — باید وارد پنل می‌شدی. این بلوک همان
+    | شکاف را می‌بندد: عددِ واقعی کنارِ عددِ انتظار.
+    */
+    $count = function (string $table, ?callable $q = null): ?int {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+                return null;
+            }
+
+            $b = \Illuminate\Support\Facades\DB::table($table);
+
+            return (int) ($q ? $q($b) : $b)->count();
+        } catch (\Throwable) {
+            return null;
+        }
+    };
+
+    $adminAlerts = \Illuminate\Support\Facades\Schema::hasTable('notification_templates')
+        && \Illuminate\Support\Facades\Schema::hasColumn('notification_templates', 'audience')
+            ? $count('notification_templates', fn ($b) => $b->where('audience', 'admin'))
+            : null;
+
     return response()->json([
         'driver'          => config('database.default'),
         'present_count'   => count($present),
         'missing'         => $missing,
         'last_migrations' => $lastMigrations,
+
+        // `have` نال یعنی جدول/ستون هنوز نیست؛ عددِ کمتر از `want` یعنی
+        // seeder دوید و کارش را تمام نکرد — دو خرابیِ متفاوت با یک ظاهر.
+        'seeded' => [
+            'admin_alerts' => [
+                'have' => $adminAlerts,
+                'want' => count(\App\Support\AdminAlerts::EVENTS),
+            ],
+            'notification_templates' => ['have' => $count('notification_templates')],
+            'menu_overrides'         => ['have' => $count('menu_overrides')],
+        ],
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
 
@@ -2450,6 +2580,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\CommentController as AdminComment;
 use App\Http\Controllers\Admin\DashboardController as AdminDash;
 use App\Http\Controllers\Admin\PostController as AdminPost;
+use App\Http\Controllers\Admin\SecurityController as AdminSecurity;
 use App\Http\Controllers\Admin\UserController as AdminUser;
 
 /*
@@ -2478,6 +2609,13 @@ Route::prefix('admin')->group(function () {
     Route::get('/login/otp', [AdminAuth::class, 'showOtp'])->name('admin.login.otp');
     Route::post('/login/otp', [AdminAuth::class, 'verifyOtp'])->middleware('throttle:otp');
     Route::post('/login/otp/resend', [AdminAuth::class, 'resendOtp'])->middleware('throttle:resend');
+
+    /*
+    | مرحلهٔ سه — کدِ اپلیکیشنِ احرازِ هویت. مثلِ دو تای قبل بیرونِ `auth:web`
+    | است: کاربر تا وقتی این کد را ندهد وارد نشده.
+    */
+    Route::get('/login/totp', [AdminAuth::class, 'showTotp'])->name('admin.login.totp');
+    Route::post('/login/totp', [AdminAuth::class, 'verifyTotp'])->middleware('throttle:otp');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
     // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست
@@ -2524,6 +2662,21 @@ Route::prefix('admin')->group(function () {
             Route::post('/comments/{comment}/approve', [AdminComment::class, 'approve']);
             Route::post('/comments/{comment}/delete', [AdminComment::class, 'destroy']);
             Route::post('/comments/{comment}/drop-reply', [AdminComment::class, 'dropReply']);
+
+            /*
+            | امنیتِ حسابِ **خودِ کاربر** — دومرحله‌ای با اپلیکیشن.
+            |
+            | ⚠️ عمداً در فهرستِ سفیدِ غیرِمدیر است. این صفحه به هیچ دادهٔ
+            | مدیریتی دست نمی‌زند و فقط حسابِ همان کاربر را سفت می‌کند؛ بستنش
+            | روی نویسنده و پشتیبان یعنی ضعیف‌ترین حساب‌های پنل تنها کسانی
+            | باشند که نمی‌توانند از خودشان محافظت کنند.
+            */
+            Route::get('/security', [AdminSecurity::class, 'index'])->name('admin.security');
+            Route::post('/security/2fa/start', [AdminSecurity::class, 'start'])->middleware('throttle:forms');
+            Route::post('/security/2fa/confirm', [AdminSecurity::class, 'confirm'])->middleware('throttle:otp');
+            Route::post('/security/2fa/cancel', [AdminSecurity::class, 'cancel'])->middleware('throttle:forms');
+            Route::post('/security/2fa/recovery', [AdminSecurity::class, 'recovery'])->middleware('throttle:otp');
+            Route::post('/security/2fa/disable', [AdminSecurity::class, 'disable'])->middleware('throttle:otp');
         });
 
         Route::get('/users', [AdminUser::class, 'index']);

@@ -25,6 +25,17 @@ class ExchangeRate
         'EUR' => 'eur',
     ];
 
+    /**
+     * مهلتِ دریافتِ صفحهٔ نرخ.
+     *
+     * 🔴 ۱۲ ثانیه کم بود. صفحهٔ دلارِ منبع ~۱.۳ مگابایت است (دو برابرِ یورو) و
+     * از سرورِ آلمان تا میزبانِ ایرانی همیشه در آن پنجره نمی‌رسید. نتیجه‌اش
+     * ساکت بود و شبیهِ هیچ خرابی‌ای نبود: یورو تازه می‌شد، دلار نه — و چون
+     * قیمتِ **رمزارز** روی دلار سوار است، درگاهِ رمزارز خاموش می‌مانْد در حالی
+     * که کاتالوگِ یورویی سالم بود. همان چیزی که کارفرما دید.
+     */
+    private const FETCH_TIMEOUT = 30;
+
     /** بازهٔ عاقلانه به تومان — بیرون از این یعنی استخراج اشتباه */
     private const MIN_TOMAN = 20_000;
     private const MAX_TOMAN = 5_000_000;
@@ -60,7 +71,21 @@ class ExchangeRate
         }
 
         if (! is_array($row)) {
-            return null;
+            /*
+            | کشِ سرد ⇒ آخرین نرخِ پایدار (اگر خیلی کهنه نشده).
+            |
+            | 🔴 بی‌این شاخه، یک قطعیِ چندساعتهٔ منبعِ نرخ کلِ پرداختِ رمزارز را
+            | خاموش می‌کرد — با استخرِ سالمِ آدرس و مشتریِ آمادهٔ پرداخت.
+            */
+            $last = $this->lastKnown($currency);
+
+            return $last === null ? null : [
+                'rate_toman' => $last['rate_toman'],
+                'currency' => strtoupper($currency),
+                'source' => 'last-known',
+                'at' => $last['at'],
+                'stale' => true,
+            ];
         }
 
         $rate = $row['rate_toman'] ?? null;
@@ -143,7 +168,7 @@ class ExchangeRate
             $html = Http::withHeaders([
                 'User-Agent'      => 'Mozilla/5.0 (compatible; ServerNetBot/1.0)',
                 'Accept-Language' => 'fa,en;q=0.8',
-            ])->timeout(12)->retry(2, 500)
+            ])->timeout(self::FETCH_TIMEOUT)->retry(2, 800)
               ->get("https://alanchand.com/currencies-price/{$slug}")
               ->body();
         } catch (\Throwable $e) {
@@ -165,8 +190,90 @@ class ExchangeRate
         ];
 
         Cache::put($this->key($currency), $row, now()->addHours(6));
+        $this->remember($currency, $row);
 
         return $row;
+    }
+
+    /**
+     * ═══ 🔴 پشتوانهٔ پایدارِ نرخ — چرا لازم شد ═══
+     *
+     * نرخ فقط در **کش** (۶ ساعت) زندگی می‌کرد و تنها منبعش اسکرپِ یک سایتِ
+     * ایرانی بود. یعنی یک نقطهٔ شکستِ تکی: تغییرِ ساختارِ آن صفحه، قطعیِ چند
+     * ساعته، یا پاک‌شدنِ کش ⇒  نال ⇒ **کلِ پرداختِ رمزارز خاموش**،
+     * با استخرِ سالمِ آدرس. کارفرما دقیقاً همین را دید: «۵ ولت آزاد است ولی
+     * برای مشتری غیرفعال».
+     *
+     * حالا هر نرخِ موفق در  هم می‌نشیند (که برخلافِ کش پاک نمی‌شود)
+     * و اگر کش سرد باشد از همان خوانده می‌شود.
+     *
+     * ⚠️ **با سقفِ سن.** نرخِ کهنه یعنی ارزان‌فروشی؛ پس بعد از این مدت واقعاً
+     * «نمی‌دانم» می‌شود و لایه‌های بالاتر قیمت نمی‌سازند. ۴۸ ساعت مرزِ معقولی
+     * است: نوسانِ دو روزهٔ دلار قابلِ تحمل است، ولی یک هفته نه.
+     */
+    private const FALLBACK_MAX_AGE_HOURS = 48;
+
+    private function rememberKey(string $currency): string
+    {
+        return 'fx_last_'.strtolower($currency);
+    }
+
+    /** آخرین نرخِ موفق را پایدار نگه دار — کش می‌رود، این می‌مانَد. */
+    private function remember(string $currency, array $row): void
+    {
+        try {
+            \App\Models\Setting::put($this->rememberKey($currency), json_encode([
+                'rate_toman' => (int) $row['rate_toman'],
+                'at' => now()->toIso8601String(),
+                'source' => (string) ($row['source'] ?? ''),
+            ], JSON_UNESCAPED_UNICODE));
+        } catch (\Throwable $e) {
+            // ذخیرهٔ پشتوانه هرگز نباید مسیرِ اصلی را بشکند
+            Log::warning('ExchangeRate remember failed', ['currency' => $currency, 'err' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * آخرین نرخِ پایدار، اگر هنوز آن‌قدر کهنه نشده که خطرناک باشد.
+     *
+     * @return array{rate_toman:int,at:string,stale:bool}|null
+     */
+    public function lastKnown(string $currency = 'USD'): ?array
+    {
+        try {
+            $raw = \App\Models\Setting::get($this->rememberKey($currency));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (blank($raw)) {
+            return null;
+        }
+
+        $row = json_decode((string) $raw, true);
+
+        if (! is_array($row) || ! is_numeric($row['rate_toman'] ?? null)) {
+            return null;
+        }
+
+        $rate = (int) $row['rate_toman'];
+
+        // همان بازهٔ اعتبارِ مسیرِ اصلی — پشتوانه نباید درِ پشتیِ عددِ بی‌معنی باشد
+        if ($rate < self::MIN_TOMAN || $rate > self::MAX_TOMAN) {
+            return null;
+        }
+
+        try {
+            $at = \Illuminate\Support\Carbon::parse((string) ($row['at'] ?? ''));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($at->lt(now()->subHours(self::FALLBACK_MAX_AGE_HOURS))) {
+            return null;          // آن‌قدر کهنه که فروختن با آن ضرر است
+        }
+
+        return ['rate_toman' => $rate, 'at' => $at->toIso8601String(), 'stale' => true];
     }
 
     /** استخراج قیمت از HTML — عمومی برای تست‌پذیری */

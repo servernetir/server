@@ -144,9 +144,39 @@ class ArvanClient implements CloudProvider
             return ['ok' => true, 'status' => $res->status(), 'data' => $data, 'message' => (string) ($body['message'] ?? '')];
         }
 
-        $msg = (string) ($body['message'] ?? data_get($body, 'errors.0') ?? 'خطای نامشخص');
+        /*
+        | ═══ 🔴 پیامِ خطا باید **قابلِ اقدام** باشد، نه «Bad Request» ═══
+        |
+        | آروان خطاهای اعتبارسنجی را در `errors` می‌گذارد — گاهی نگاشتِ
+        | فیلد→پیام، گاهی فهرست. شکلِ قبلی فقط `message` و `errors.0` را
+        | می‌دید و روی پاسخِ نگاشتی به عبارتِ خشکِ وضعیت سقوط می‌کرد. مدیر
+        | «Bad Request» می‌دید و هیچ نمی‌فهمید چه را درست کند — سرِ سرویسِ #۹۳
+        | یک دورِ کاملِ عیب‌یابی خرج برداشت تا شکلِ درستِ `security_groups`
+        | پیدا شود.
+        */
+        $msg = (string) ($body['message'] ?? '');
+        $errors = $body['errors'] ?? null;
 
-        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg];
+        if (is_array($errors) && $errors !== []) {
+            $parts = [];
+
+            foreach ($errors as $field => $err) {
+                $text = is_array($err) ? implode('، ', array_map('strval', $err)) : (string) $err;
+                $parts[] = is_string($field) ? $field.': '.$text : $text;
+            }
+
+            $detail = implode(' · ', $parts);
+            $msg = $msg === '' ? $detail : $msg.' — '.$detail;
+        }
+
+        if (trim($msg) === '') {
+            $msg = 'خطای نامشخص (HTTP '.$res->status().')';
+        }
+
+        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg,
+            // بدنهٔ خام برای وقتی حتی این هم کافی نیست — لایهٔ بالاتر آن را
+            // در provision_error می‌نشاند.
+            'raw' => mb_substr((string) json_encode($body, JSON_UNESCAPED_UNICODE), 0, 400)];
     }
 
     public function testConnection(): array
@@ -609,6 +639,231 @@ class ArvanClient implements CloudProvider
         );
     }
 
+    /**
+     * ═══ 🔴 گروهِ امنیتیِ اجباری — علتِ «تحویل نشد»های چند روزِ اخیر ═══
+     *
+     * آروان روی ساختِ سرور دستِ‌کم **یک** گروهِ امنیتی می‌خواهد و بی‌آن
+     * می‌گوید: «At least one firewall should be selected». پیلودِ ما هیچ‌وقت
+     * این فیلد را نمی‌فرستاد، پس هر سفارشِ آروان با همان یک جمله شکست
+     * می‌خورد — سرویسِ ۹۳ (۹ شهریور ۱۴۰۵) و چند تای پیش از آن.
+     *
+     * ⚠️ چرا قرنطینهٔ خودکار جلویش را نگرفت: فهرستِ خطاهای «ساختاری» در
+     * CloudProvisioner دنبالِ permission/quota/balance می‌گردد و این پیام
+     * هیچ‌کدام نیست. پس پلن‌ها در فروش ماندند و مشتریِ بعدی همان شکست را
+     * خرید. (فهرستِ «پلن‌های پرخطا» در مرکزِ تحویل‌ها دقیقاً برای همین حالت
+     * است.)
+     *
+     * ⚠️ شناسه **کشف** می‌شود، نه سخت‌نویس: نامِ گروهِ پیش‌فرض روی هر حساب
+     * فرق می‌کند و یک رشتهٔ ثابت روزی بی‌صدا نامعتبر می‌شود. اولویت با گروهی
+     * است که آروان `default` علامت زده؛ وگرنه اولین گروهِ موجود.
+     *
+     * @return array<int,string>
+     */
+    private function securityGroupIds(string $regionCode): array
+    {
+        /*
+        | ═══ 🔴 راهِ فرارِ مدیر — و چرا کشف به‌تنهایی کافی نیست ═══
+        |
+        | کشفِ خودکار روی دو مسیرِ **حدسی** تکیه دارد. اگر آروان هیچ‌کدام را
+        | نشناسد (همان تلهٔ `resolveRegions` که یک بار همین درایور را سوزاند:
+        | مسیرِ حدسی ۴۰۴ می‌داد و «زیرساخت خالی است» تعبیر می‌شد)، تحویل برای
+        | همیشه بسته می‌مانَد و مدیر **هیچ کاری از دستش برنمی‌آید** — پیام
+        | می‌گوید «در پنل یک firewall بساز»، او می‌سازد، و باز هم کار نمی‌کند.
+        |
+        | پس یک درِ دستی: شناسه یا نامِ گروه در تنظیمات. اگر پر باشد، هم بر
+        | انتخابِ خودکار مقدم است، و هم وقتی فهرست اصلاً خوانده نشود مستقیماً
+        | فرستاده می‌شود.
+        |
+        | ⚠️ انتخابِ مدیر داخلِ کلیدِ کش است. بی‌آن، کسی که پس از یک شکست
+        | مقدار را تنظیم می‌کند تا یک ساعت همان شکست را می‌بیند و نتیجه
+        | می‌گیرد تنظیمات کار نمی‌کند.
+        */
+        $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
+
+        return \Illuminate\Support\Facades\Cache::remember(
+            'arvan.sg.'.$regionCode.'.'.md5($wanted),
+            3600,
+            function () use ($regionCode, $wanted) {
+                // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
+                // درخواستِ ۴۰۴ است، در برابرِ تحویلی که اصلاً انجام نمی‌شود.
+                foreach (['/securities', '/security-groups', '/securitygroups', '/firewalls'] as $path) {
+                    $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
+
+                    if (! $r['ok']) {
+                        continue;
+                    }
+
+                    $rows = array_values(array_filter((array) $r['data'], 'is_array'));
+
+                    if ($rows === []) {
+                        continue;
+                    }
+
+                    // انتخابِ صریحِ مدیر بر پیش‌فرض مقدم است — با شناسه یا نام
+                    /*
+                    | 🔴 **نام** برمی‌گردد، نه شناسه.
+                    |
+                    | آروان پیلود را این‌طور رد کرد:
+                    |   expected=abrak.securityGroupName, got=string
+                    | یعنی عنصرِ `security_groups` باید ساختاری با کلیدِ `name`
+                    | باشد. با شناسه — چه رشته چه آبجکت — همان ۴۰۰ برمی‌گردد.
+                    | (این را فقط پس از غنی‌سازیِ پیامِ خطا فهمیدیم؛ «Bad
+                    | Request»ِ خالی هیچ نمی‌گفت.)
+                    */
+                    /*
+                    | 🔴🔴 `real_name` است که آروان می‌شناسد، نه `name`.
+                    |
+                    | پاسخِ واقعیِ آروان برای گروهِ پیش‌فرض:
+                    |     {"name": "default", "real_name": "arDefault", ...}
+                    |
+                    | `name` برچسبِ نمایشیِ پنل است؛ چیزی که موقعِ ساختِ سرور
+                    | باید فرستاده شود `real_name` است. با `name` آروان گروه را
+                    | پیدا نمی‌کند و پیامِ عمومیِ **«Instance not found»** می‌دهد
+                    | — که هیچ نمی‌گوید کدام منبع پیدا نشده و یک دورِ کاملِ
+                    | عیب‌یابی خرج برد. این را فقط با دیدنِ بدنهٔ خامِ پاسخ
+                    | می‌شد فهمید.
+                    */
+                    $pick = static fn (array $g): string => (string) ($g['real_name'] ?? $g['name'] ?? '');
+
+                    // انتخابِ صریحِ مدیر: با شناسه، نامِ نمایشی، یا نامِ واقعی
+                    if ($wanted !== '') {
+                        foreach ($rows as $g) {
+                            $real = $pick($g);
+
+                            if ($real !== '' && ((string) ($g['id'] ?? '') === $wanted
+                                || strcasecmp((string) ($g['name'] ?? ''), $wanted) === 0
+                                || strcasecmp($real, $wanted) === 0)) {
+                                return [$real];
+                            }
+                        }
+                    }
+
+                    foreach ($rows as $g) {
+                        $real = $pick($g);
+
+                        if ($real !== '' && (($g['default'] ?? false)
+                            || str_contains(strtolower((string) ($g['name'] ?? '')), 'default'))) {
+                            return [$real];
+                        }
+                    }
+
+                    $first = $pick((array) ($rows[0] ?? []));
+
+                    if ($first !== '') {
+                        return [$first];
+                    }
+                }
+
+                // هیچ مسیری جواب نداد. اگر مدیر شناسه را دستی گذاشته، همان
+                // فرستاده می‌شود: غلط بودنش خطای روشنِ خودِ آروان را می‌آورد،
+                // که از بن‌بستِ خاموش بهتر است.
+                return $wanted !== '' ? [$wanted] : [];
+            }
+        );
+    }
+
+    /**
+     * ═══ 🔴 ایمیجِ آروان **per-region** است — کاتالوگِ ما نیست ═══
+     *
+     * `cloud_images` ستونِ منطقه ندارد و `CloudImage::refFor()` هم منطقه
+     * نمی‌گیرد: یک شناسه برای همهٔ مکان‌ها. برای هتزنر/آیزا درست است (ایمیجِ
+     * سراسری)، ولی آروان برای هر منطقه شناسهٔ جداگانه می‌دهد.
+     *
+     * نتیجهٔ واقعی (سرویسِ #۹۳، شهریور ۱۴۰۵): سفارشِ منطقهٔ `ir-thr-si1` با
+     * شناسهٔ ایمیجِ منطقهٔ دیگری فرستاده شد. آروان **پیامِ ایمیج نداد** —
+     * «Requested firewall was not found» گفت و ساعت‌ها ما را دنبالِ فایروال
+     * کشاند. درسِ ثابت‌شده: پیامِ خطای این API به منبعِ واقعیِ خطا اشاره
+     * نمی‌کند، پس هر ورودی باید **پیش از ارسال** خودمان اعتبارسنجی شود.
+     *
+     * ⚠️ چرا این‌جا و نه در کاتالوگ: افزودنِ ستونِ منطقه یک مهاجرت است و
+     * کاتالوگِ موجود را هم باید دوباره ساخت. این تطبیقِ لحظهٔ تحویل همان
+     * نتیجه را بی‌مهاجرت می‌دهد و **خودترمیم** است: هر بار از خودِ منطقه
+     * می‌پرسد، پس با تغییرِ شناسه‌ها هم کهنه نمی‌شود.
+     *
+     * @return string شناسهٔ معتبر در همین منطقه، یا همان ورودی اگر تطبیقی نبود
+     */
+    private function imageForRegion(string $regionCode, string $imageRef): string
+    {
+        $images = $this->regionImageIndex($regionCode);
+
+        if ($images === []) {
+            return $imageRef;                 // نمی‌دانیم؛ همان را بفرست
+        }
+
+        // شناسه در همین منطقه معتبر است؟ دست نزن.
+        if (isset($images['byId'][$imageRef])) {
+            return $imageRef;
+        }
+
+        /*
+        | معادلِ همین ایمیج در این منطقه: با **برچسب** پیدا می‌شود، چون همان
+        | «Ubuntu 24.04» در هر منطقه شناسهٔ دیگری دارد ولی برچسبش یکی است.
+        */
+        $label = (string) (\App\Models\CloudImage::query()
+            ->where('provider', 'arvan')
+            ->where('provider_ref', $imageRef)
+            ->value('label') ?? '');
+
+        if ($label !== '' && isset($images['byLabel'][mb_strtolower($label)])) {
+            return $images['byLabel'][mb_strtolower($label)];
+        }
+
+        return $imageRef;
+    }
+
+    /**
+     * فهرستِ ایمیج‌های یک منطقه، نمایه‌شده بر شناسه و برچسب.
+     *
+     * ⚠️ `type=distributions` اجباری است: بی‌آن، آروان فقط ایمیج‌های
+     * **شخصیِ** آپلودشده را می‌دهد (اغلب صفر) — که یک بار ما را به این
+     * نتیجهٔ غلط رساند که «این منطقه ایمیج ندارد».
+     *
+     * @return array{byId:array<string,bool>,byLabel:array<string,string>}
+     */
+    private function regionImageIndex(string $regionCode): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            'arvan.imgidx.'.$regionCode,
+            3600,
+            function () use ($regionCode) {
+                $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images',
+                    [], ['type' => 'distributions']);
+
+                if (! $r['ok']) {
+                    return [];
+                }
+
+                $byId = [];
+                $byLabel = [];
+
+                foreach ((array) $r['data'] as $group) {
+                    $children = is_array($group['images'] ?? null) ? $group['images'] : [$group];
+
+                    foreach ($children as $img) {
+                        if (! is_array($img)) {
+                            continue;
+                        }
+
+                        $id = (string) ($img['id'] ?? '');
+
+                        if ($id === '') {
+                            continue;
+                        }
+
+                        $byId[$id] = true;
+                        $label = mb_strtolower((string) ($img['name'] ?? ''));
+
+                        if ($label !== '' && ! isset($byLabel[$label])) {
+                            $byLabel[$label] = $id;
+                        }
+                    }
+                }
+
+                return $byId === [] ? [] : ['byId' => $byId, 'byLabel' => $byLabel];
+            }
+        );
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
@@ -627,18 +882,40 @@ class ArvanClient implements CloudProvider
             return $this->serverToResult($existing, $region);
         }
 
+        /*
+        | 🔴 بی‌گروهِ امنیتی، آروان سفارش را رد می‌کند. اگر کشف نشد، **همین‌جا**
+        | با پیامِ روشن می‌ایستیم — نه اینکه درخواستِ ناقص بفرستیم و پیامِ گنگِ
+        | زنجیره را به مدیر نشان دهیم.
+        */
+        $securityGroups = $this->securityGroupIds($region);
+
+        if ($securityGroups === []) {
+            return ['ok' => false,
+                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید. '
+                    .'اگر ساخته‌اید و باز هم این پیام آمد، شناسه‌اش را در '
+                    .'«تنظیمات ← زیرساخت ← گروهِ فایروال» بگذارید — یعنی فهرستِ گروه‌ها '
+                    .'از این حساب خوانده نمی‌شود.'] + $fail;
+        }
+
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name'        => $spec['name'],
             'flavor_id'   => (string) $spec['plan_ref'],
-            'image_id'    => (string) $spec['image_ref'],
+            // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
+            'image_id'    => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
+            /*
+            | ⚠️ آرایه‌ای از **آبجکتِ نام** — نه رشته. شکلِ رشته‌ای را آروان با
+            | «Unmarshal type error … abrak.securityGroupName» رد می‌کند.
+            */
+            'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroups),
             'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
             'count'       => 1,
             'ha_enabled'  => false,
         ]);
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']] + $fail;
+            return ['ok' => false, 'message' => $r['message'],
+                'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
         }
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد

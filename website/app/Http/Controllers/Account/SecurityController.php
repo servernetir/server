@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CustomerApiToken;
 use App\Models\CustomerIpRule;
 use App\Services\Otp\OtpService;
+use App\Services\Security\QrCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,17 @@ class SecurityController extends Controller
             'currentIp'   => $request->ip(),
             'hasPassword' => ! empty($c->password),
             'pwReady'     => $request->session()->has('pw_change_ctx'),
+
+            /*
+            | دومرحله‌ای — QR فقط در حالتِ «راه‌اندازیِ تأییدنشده» ساخته می‌شود.
+            |
+            | ⚠️ ساختنش برای حسابِ **فعال** یعنی رازِ زندهٔ کاربر روی هر بازدید
+            | از این صفحه دوباره روی HTML بنشیند؛ چیزی که در کشِ مرورگر، در
+            | تاریخچه، و روی شانهٔ هر کسی که رد شود باقی می‌مانَد.
+            */
+            'tfaQr'       => $c->twoFactorPending() ? QrCode::svg($c->twoFactorUri()) : null,
+            'tfaSecret'   => $c->twoFactorPending() ? $c->two_factor_secret : null,
+            'tfaLeft'     => count($c->twoFactorRecoveryCodes()),
         ]);
     }
 

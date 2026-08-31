@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\CryptoPayment;
+use App\Services\Notify\AdminNotifier;
 use App\Services\Payment\TronWatcher;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,7 +30,9 @@ use Illuminate\Support\Facades\Schema;
  */
 class CryptoAudit extends Command
 {
-    protected $signature = 'crypto:audit {--days=90 : بازهٔ بررسی بر حسبِ روز}';
+    protected $signature = 'crypto:audit
+        {--days=90 : بازهٔ بررسی بر حسبِ روز}
+        {--notify : اگر پروندهٔ بازی بود به مدیر آژیر بده (برای کرون)}';
 
     protected $description = 'یافتنِ پرداخت‌های رمزارز که با واریزیِ قدیمی‌تر از خودشان تسویه شده‌اند';
 
@@ -85,22 +89,41 @@ class CryptoAudit extends Command
 
             $lagSeconds = (int) $cp->created_at->timestamp - (int) $dep['timestamp'];
 
-            if ($lagSeconds > 120) {
-                $bad[] = [$cp, $dep, $lagSeconds];
-                $this->error(sprintf('  🔴 #%d  فاکتور %s  مشتری %s — واریزی %s پیش از ساختِ پرداخت رخ داده',
-                    $cp->id,
-                    $cp->invoice?->number ?? '—',
-                    $cp->invoice?->customer?->code ?? '—',
-                    $this->human($lagSeconds),
-                ));
-                $this->line('       txid: '.$cp->txid);
+            if ($lagSeconds <= 120) {
+                continue;
             }
+
+            $line = sprintf('#%d  فاکتور %s  مشتری %s — واریزی %s پیش از ساختِ پرداخت رخ داده',
+                $cp->id,
+                $cp->invoice?->number ?? '—',
+                $cp->invoice?->customer?->code ?? '—',
+                $this->human($lagSeconds),
+            );
+
+            /*
+            | ⚠️ پروندهٔ **رسیدگی‌شده** دیگر قرمز نیست.
+            |
+            | نسخهٔ اول هر بار همان موردِ قدیمی را ۴۰ بار قرمز نشان می‌داد،
+            | حتی بعد از اینکه مدیر سرویس را بسته بود. هشداری که همیشه روشن
+            | است از روز دوم نادیده گرفته می‌شود — همان درسی که در
+            | `SystemHealth` و نشانِ منو ثبت شده. حالا فقط چیزی قرمز است که
+            | هنوز کارِ آدم می‌خواهد.
+            */
+            if ($this->settled($cp)) {
+                $this->line('  ✅ '.$line.'  — رسیدگی شده (فاکتور/سرویس بسته است)');
+
+                continue;
+            }
+
+            $bad[] = [$cp, $dep, $lagSeconds];
+            $this->error('  🔴 '.$line);
+            $this->line('       txid: '.$cp->txid);
         }
 
         $this->line('');
 
         if ($bad === []) {
-            $this->info('✅ هیچ پرداختی با واریزیِ قدیمی تسویه نشده است.');
+            $this->info('✅ هیچ پروندهٔ بازی نیست — هر واریزیِ قدیمی که پیدا شد، قبلاً رسیدگی شده.');
 
             return self::SUCCESS;
         }
@@ -109,7 +132,74 @@ class CryptoAudit extends Command
         $this->line('این‌ها فاکتورهایی‌اند که «پرداخت‌شده» شده‌اند ولی پولشان ممکن است هرگز نرسیده باشد.');
         $this->line('تصمیمِ برگرداندن یا بستنِ سرویس با شماست — این فرمان چیزی را عوض نمی‌کند.');
 
+        if ($this->option('notify')) {
+            $this->alertAdmin($bad);
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * آژیر به مدیر — فقط وقتی پروندهٔ **باز** هست.
+     *
+     * 🔴 چرا فقط باز: اگر هر بار همهٔ موارد را می‌فرستاد، از هفتهٔ دوم کسی
+     * بازش نمی‌کرد و یک موردِ واقعیِ تازه بینِ همان پیام‌های تکراری گم می‌شد.
+     * آژیری که همیشه زنگ می‌زند، آژیر نیست.
+     *
+     * ⚠️ شکستِ خودِ آژیر بی‌صدا نمی‌مانَد: چیزی که قرار است از یک ضرر خبر
+     * دهد، نباید خودش بی‌رد بمیرد — همان قاعدهٔ ثبت‌شدهٔ CloudHourlyAudit.
+     *
+     * @param  array<int,array{0:CryptoPayment,1:array,2:int}>  $bad
+     */
+    private function alertAdmin(array $bad): void
+    {
+        try {
+            $rows = ['شمار' => fa_num((string) count($bad)).' پرونده'];
+
+            foreach (array_slice($bad, 0, 4) as $i => [$cp, $dep, $lag]) {
+                $rows['#'.($i + 1)] = ($cp->invoice?->number ?? 'فاکتور؟')
+                    .' · '.($cp->invoice?->customer?->code ?? 'مشتری؟')
+                    .' · واریزی '.$this->human($lag).' پیش از سفارش';
+            }
+
+            if (count($bad) > 4) {
+                $rows['و'] = fa_num((string) (count($bad) - 4)).' موردِ دیگر (crypto:audit را بزن)';
+            }
+
+            app(AdminNotifier::class)->event(
+                'پرداختِ رمزارز با واریزیِ قدیمی تسویه شده',
+                $rows,
+                null,
+                '🚨',
+            );
+        } catch (\Throwable $e) {
+            ErrorTracker::noteOnce('billing',
+                'آژیرِ حسابرسیِ رمزارز فرستاده نشد ('.count($bad).' پرونده): '.$e->getMessage(), 3600);
+        }
+    }
+
+    /**
+     * آیا این پرونده تعیین‌تکلیف شده؟
+     *
+     * ⚠️ دو املا در کدِ پروژه زنده است: فاکتور `canceled` (یک l) و
+     * سرویس `cancelled` (دو l). سنجشِ فقط یکی، نیمی از پرونده‌های بسته را «باز»
+     * می‌خواند.
+     */
+    private function settled(CryptoPayment $cp): bool
+    {
+        $inv = $cp->invoice;
+
+        if ($inv === null) {
+            return true;                     // فاکتور دیگر نیست؛ کاری نمانده
+        }
+
+        if (in_array((string) $inv->status, ['canceled', 'cancelled', 'refunded'], true)) {
+            return true;
+        }
+
+        $service = $inv->service;
+
+        return $service !== null && $service->isDead();
     }
 
     private function human(int $s): string

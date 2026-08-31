@@ -37,6 +37,29 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
 
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه، که خودِ همین اسکریپت‌ها قربانی‌اش شدند: اجرا با
+# کاربرِ اشتباه (مثلاً root به‌جای servernetcloud) یعنی $HOME عوض می‌شود،
+# فایل‌ها در مسیری ساخته می‌شوند که سایت آن‌جا نیست، و گاردِ اتحاد **سبز**
+# می‌شود چون همان فایل‌هایی را می‌سنجد که خودش تازه ساخته.
+#
+# پس مقصد باید *قبل* از نوشتن ثابت شود: نصبِ واقعی artisan و vendor دارد.
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  echo "   چاره:  su - servernetcloud   و بعد همین دستور را دوباره بزنید."
+  exit 1
+fi
+
+# فضای آزاد: دیپلوی روی دیسکِ پر، نیمه‌کاره می‌مانَد
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول پاک‌سازی کنید:"
+  echo "   rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
@@ -79,7 +102,10 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-c3508a0}"
+# ⚠️ پین جلو رفت (۸ شهریور): پیشرفتِ زندهٔ تحویلِ GPU (درصدِ واقعیِ دانلود +
+#    ریزمرحله‌ها + متنِ صادقانهٔ «۱۵ تا ۶۰ دقیقه» + یکی‌شدنِ کارتِ تکراری).
+#    79a1fb0 فرزندِ مستقیمِ پینِ قبلی است؛ هیچ فایلی از فهرست کم/زیاد نشد.
+MINE="${1:-5eabe884}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -523,7 +549,10 @@ g app/Services/Cloud/CloudManager.php "hetzner-robot"
 g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g config/servernet.php "bare-metal"
 g config/catalog/dedicated.php "seo_t"
-g resources/views/partials/footer.blade.php "getLocale() === 'fa'"
+# ⚠️ گاردِ قبلی («getLocale() === 'fa'») به رشته‌ای بند بود که بازنویسیِ
+#    فوتر به MenuManager (c3d0bd0) برش داشت — و یک دیپلویِ کاملِ سالم را
+#    برگرداند. گارد باید واقعیتِ نسخهٔ پین‌شده را بسنجد، نه خاطرهٔ دیپلویِ قبل.
+g resources/views/partials/footer.blade.php "MenuManager"
 g app/Models/CloudPlan.php "setupIrt"
 g resources/views/account/cloud-store.blade.php "cvb-s-setup"
 g lang/fa/ui.php "cvb_setup_line"
@@ -611,6 +640,26 @@ for L in fa en tr; do
   g "lang/$L/ui.php" "gpu_warn_t"
   g "lang/$L/ui.php" "gpu_units_d"
 done
+
+# پیشرفتِ زندهٔ تحویلِ GPU (۸ شهریور) — درصدِ واقعی + ریزمرحله + متنِ صادقانه.
+# هر تکه بیفتد خرابی خاموش است: بی‌درایور JSON کلیدِ build ندارد، بی‌ویو
+# چیزی رندر نمی‌شود، بی‌کلیدِ زبان مشتری «ui.cs_gpu_…» می‌بیند.
+g app/Services/Cloud/SaladOperations.php "buildDetail"
+g app/Services/Cloud/SaladOperations.php "pulling_progress"
+g app/Http/Controllers/Account/CloudServerController.php "\$r['build']"
+g resources/views/account/cloud-server.blade.php "gpu-prog"
+g resources/views/account/cloud-server.blade.php "paintBuild"
+g resources/views/account/cloud-server.blade.php "cs_stage_building_gpu_d"
+g app/Http/Controllers/GpuController.php "\$seen"
+for L in fa en tr; do
+  g "lang/$L/ui.php" "cs_gpu_phase_pulling"
+  g "lang/$L/ui.php" "cs_gpu_phase_downloading_pct"
+  g "lang/$L/ui.php" "cs_stage_building_gpu_d"
+  g "lang/$L/ui.php" "cs_gpu_elapsed"
+done
+g lang/fa/ui.php "۱۵ تا ۶۰ دقیقه"
+g lang/en/ui.php "15-60 minutes"
+g lang/tr/ui.php "15-60 dakika"
 
 if [ "$union_ok" -eq 0 ]; then
   echo "🔴 اتحادِ فایل‌ها کامل نیست — کلِ بکاپ برمی‌گردد تا سایت ۵۰۰ نشود."

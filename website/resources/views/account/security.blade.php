@@ -53,6 +53,91 @@
   </div>
 </section>
 
+{{-- ══ ورود دومرحله‌ای با اپلیکیشن ══ --}}
+<section class="pnl-sec" id="sec-2fa">
+  <div class="pnl-sec-h">
+    <h2>{{ __('ui.tfa_h') }}</h2>
+    <span class="sec-badge {{ $customer->hasTwoFactor() ? 'allow' : 'deny' }}">
+      {{ $customer->hasTwoFactor() ? __('ui.tfa_state_on') : ($customer->twoFactorPending() ? __('ui.tfa_state_setup') : __('ui.tfa_state_off')) }}
+    </span>
+  </div>
+  <div class="pnl-sec-b">
+    <p class="sec-note">{{ __('ui.tfa_sub') }}</p>
+    <p class="sec-note">{{ __('ui.tfa_apps') }}</p>
+
+    {{-- کدهای بازیابی — فقط همین یک بار، درست بعد از ساخته‌شدن --}}
+    @if(session('tfa_recovery'))
+      <div class="sec-newtok">
+        <b>{{ __('ui.tfa_recovery_h') }} — {{ __('ui.tfa_recovery_save') }}</b>
+        <div class="tfa-codes">
+          @foreach(session('tfa_recovery') as $rc)<code dir="ltr" class="copyable">{{ $rc }}</code>@endforeach
+        </div>
+        <small class="sec-note" style="margin:0">{{ __('ui.tfa_recovery_note') }}</small>
+      </div>
+    @endif
+
+    @if($customer->twoFactorPending())
+      {{-- حالت ۲: راز ساخته شده، منتظر تأیید --}}
+      <div class="tfa-setup">
+        <div class="tfa-qr">{!! $tfaQr !!}</div>
+        <div class="tfa-setup-t">
+          <p class="sec-note">{{ __('ui.tfa_scan') }}</p>
+          <p class="sec-note" style="margin-top:10px">{{ __('ui.tfa_manual') }}</p>
+          <code dir="ltr" class="tfa-secret copyable">{{ \App\Services\Security\Totp::formatSecret($tfaSecret) }}</code>
+
+          <form method="POST" action="{{ lroute('account.security.2fa.confirm') }}" class="sec-form">
+            @csrf
+            <label>{{ __('ui.tfa_code') }}
+              <input type="text" name="code" dir="ltr" inputmode="numeric" maxlength="6"
+                     required autocomplete="one-time-code" autofocus
+                     style="text-align:center;letter-spacing:8px;font-weight:700">
+            </label>
+            <button class="pnl-btn primary" style="justify-content:center">{{ __('ui.tfa_confirm') }}</button>
+          </form>
+
+          <form method="POST" action="{{ lroute('account.security.2fa.cancel') }}" style="margin-top:10px">
+            @csrf<button type="submit" class="tfa-link">{{ __('ui.tfa_cancel') }}</button>
+          </form>
+        </div>
+      </div>
+
+    @elseif($customer->hasTwoFactor())
+      {{-- حالت ۳: روشن --}}
+      <p class="sec-note">{{ __('ui.tfa_on_since', ['date' => blog_date($customer->two_factor_confirmed_at)]) }}</p>
+
+      <div class="tfa-recovery">
+        <b>{{ __('ui.tfa_recovery_h') }}</b>
+        <p class="sec-note">{{ __('ui.tfa_recovery_left', ['count' => fa_num($tfaLeft)]) }} {{ __('ui.tfa_recovery_regen_note') }}</p>
+        <form method="POST" action="{{ lroute('account.security.2fa.recovery') }}" class="sec-form sec-inline">
+          @csrf
+          <label>{{ __('ui.tfa_code') }}
+            <input type="text" name="code" dir="ltr" maxlength="24" required autocomplete="one-time-code">
+          </label>
+          <button class="pnl-btn" style="justify-content:center">{{ __('ui.tfa_recovery_regen') }}</button>
+        </form>
+      </div>
+
+      <div class="tfa-off">
+        <p class="sec-note">{{ __('ui.tfa_disable_note') }}</p>
+        <form method="POST" action="{{ lroute('account.security.2fa.disable') }}" class="sec-form sec-inline"
+              data-confirm="{{ __('ui.tfa_disable') }}" data-confirm-danger>
+          @csrf
+          <label>{{ __('ui.tfa_code') }}
+            <input type="text" name="code" dir="ltr" maxlength="24" required autocomplete="one-time-code">
+          </label>
+          <button class="sec-revoke" type="submit">{{ __('ui.tfa_disable') }}</button>
+        </form>
+      </div>
+
+    @else
+      {{-- حالت ۱: خاموش --}}
+      <form method="POST" action="{{ lroute('account.security.2fa.start') }}" style="margin-top:14px">
+        @csrf<button class="pnl-btn primary" style="justify-content:center">{{ __('ui.tfa_enable') }}</button>
+      </form>
+    @endif
+  </div>
+</section>
+
 {{-- ══ محدودسازی IP ══ --}}
 <section class="pnl-sec" id="sec-ip">
   <div class="pnl-sec-h"><h2>{{ __('ui.sec_ip_h') }}</h2></div>
@@ -237,6 +322,16 @@
 .sec-doc{ margin-top:16px; border-top:1px solid var(--line); padding-top:12px }
 .sec-doc summary{ cursor:pointer; font-size:13px; color:var(--info) }
 .sec-doc pre{ direction:ltr; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:12px; overflow-x:auto; margin:10px 0; color:var(--text) }
+.tfa-setup{ display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; margin-top:14px }
+.tfa-setup-t{ flex:1; min-width:250px }
+.tfa-qr{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; line-height:0; flex:none }
+.tfa-qr svg{ width:170px; height:170px; display:block }
+.tfa-secret{ display:inline-block; direction:ltr; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:9px 12px; font-size:13px; letter-spacing:1px; cursor:copy; color:var(--text) }
+.tfa-codes{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px }
+.tfa-codes code{ direction:ltr; text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:9px 6px; font-size:13px; letter-spacing:1px; cursor:copy; color:var(--text) }
+.tfa-recovery, .tfa-off{ margin-top:16px; border-top:1px solid var(--line); padding-top:14px }
+.tfa-recovery b{ font-size:13px; color:var(--text) }
+.tfa-link{ background:none; border:0; color:var(--muted); font:inherit; font-size:12.5px; cursor:pointer; padding:0; text-decoration:underline }
 .copyable{ cursor:copy }
 </style>
 <script>
