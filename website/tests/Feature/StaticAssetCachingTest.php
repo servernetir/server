@@ -56,11 +56,57 @@ class StaticAssetCachingTest extends TestCase
     {
         $ht = $this->htaccess();
 
-        $this->assertMatchesRegularExpression('~SetEnvIf\s+Query_String\s+"[^"]*v=\[0-9\]~', $ht,
-            'شرطِ نسخه باید عددی باشد؛ هر «v=» یعنی هشِ fallback هم یک‌ساله می‌شود');
+        // پرچمی که هدرِ یک‌ساله به آن بند است — نامش از خودِ قاعده خوانده
+        // می‌شود، نه سخت‌کد، تا تغییرِ نام تست را بی‌صدا بی‌اثر نکند.
+        $this->assertSame(1,
+            preg_match('~Header set Cache-Control "[^"]*immutable"\s+env=(\w+)~', $ht, $m),
+            'هیچ هدرِ یک‌سالهٔ شرطی‌ای نیست — کشِ نسخه‌دار کلاً برداشته شده؟');
 
-        $this->assertStringNotContainsString('v=[^&]+" SN_VERSIONED', $ht,
+        $flag = $m[1];
+
+        $this->assertSame(1,
+            preg_match('~RewriteCond\s+%\{QUERY_STRING\}\s+(\S+)[\s\S]{0,200}?\[E='.$flag.':1\]~', $ht, $c),
+            "هیچ قاعده‌ای «{$flag}» را از روی رشتهٔ پرس‌وجو ست نمی‌کند");
+
+        $this->assertStringContainsString('[0-9]', $c[1],
+            'شرطِ نسخه باید عددی باشد؛ هر «v=» یعنی هشِ fallback هم یک‌ساله می‌شود');
+        $this->assertMatchesRegularExpression('~\{\d+,~', $c[1],
+            'کفِ طول لازم است — «v=[0-9]» به‌تنهایی «v=2»ِ دستی را هم یک‌ساله می‌کند');
+        $this->assertStringNotContainsString('[^&]', $c[1],
             'الگوی «هر مقداری» برگشته — هشِ ثابت دوباره immutable می‌شود');
+    }
+
+    /**
+     * 🔴 تلهٔ صفر — و گران‌ترینشان: قاعده‌ای که آپاچی اصلاً اجرا نمی‌کند.
+     *
+     * این پرچم سال‌ها با `SetEnvIf Query_String …` ست می‌شد و **هرگز شلیک
+     * نکرد**: ویژگیِ `SetEnvIf` یا یکی از کلیدواژه‌های محدودِ آپاچی است
+     * (`Remote_Addr`, `Request_URI`, `Request_Method`, …) یا نامِ یک **هدرِ
+     * درخواست**. `Query_String` هیچ‌کدام نیست، پس آپاچی دنبالِ هدری به آن نام
+     * می‌گشت که وجود ندارد. نه خطا، نه لاگ، نه ۵۰۰ — فقط کشی که هیچ‌وقت
+     * یک‌ساله نشد.
+     *
+     * ⚠️ و تستِ پیشین **دقیقاً همان دستورِ مرده را قفل کرده بود**. سه ادعای
+     * دیگرِ این فایل درست بودند و این یکی سبز می‌مانْد در حالی که رفتارِ
+     * واقعیِ سرور خلافش بود — یعنی نگهبانِ خودِ باگ شده بود. درسِ عمومی:
+     * وقتی تست فقط می‌تواند **متنِ پیکربندی** را بخواند نه رفتارش را، دستِ‌کم
+     * سازوکارهای اثبات‌شده‌مرده را صریح ممنوع کن.
+     *
+     * سنجهٔ زنده که این را لو داد (۹ شهریور ۱۴۰۵، روی خودِ سرور):
+     *   font/IRANSans-web.woff2   → max-age=31536000, immutable  ✓
+     *   css/site.css?v=1787915697 → max-age=604800               ✗
+     */
+    public function test_the_version_flag_uses_a_mechanism_apache_actually_supports(): void
+    {
+        // ⚠️ کامنت‌ها کنار گذاشته می‌شوند: توضیحِ همین باگ داخلِ `.htaccess`
+        //    نوشته شده و نسخهٔ اولِ این گارد خودِ آن توضیح را «دستورِ مرده»
+        //    گرفت — گاردی که با مستندشدنِ باگ قرمز شود، مستندسازی را جریمه
+        //    می‌کند.
+        $live = preg_replace('~^\s*#.*$~m', '', $this->htaccess());
+
+        $this->assertDoesNotMatchRegularExpression('~SetEnvIf\s+Query_String~', $live,
+            'SetEnvIf ویژگیِ Query_String ندارد — این خط بی‌صدا هیچ‌چیز ست نمی‌کند. '
+            .'شرط روی رشتهٔ پرس‌وجو را با RewriteCond + [E=…] بزن.');
     }
 
     /**
