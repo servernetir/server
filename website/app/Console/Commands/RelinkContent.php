@@ -99,8 +99,15 @@ class RelinkContent extends Command
                 continue;
             }
 
-            // شمارشِ لینک‌هایی که باز شده‌اند — عددی که واقعاً معنی دارد
-            $lost = substr_count($before, '<a ') - substr_count($after, '<a ');
+            /*
+             * ⚠️ شمارش با `substr_count('<a ')` غلط بود: تگی که با خطِ تازه یا
+             * بی‌فاصله نوشته شده (`<a
+href=…` یا `<a>`) شمرده نمی‌شد. نتیجه:
+             * لینکی واقعاً باز می‌شد ولی `$lost` صفر می‌مانْد و ردیف برچسبِ
+             * «بررسی دستی لازم است» می‌گرفت — گزارشی که بی‌جهت آدم را نگران
+             * می‌کند. `<a\b` هر سه شکل را می‌گیرد.
+             */
+            $lost = preg_match_all('~<a\b~i', $before) - preg_match_all('~<a\b~i', $after);
             $unwrapped += max(0, $lost);
             $changed++;
 

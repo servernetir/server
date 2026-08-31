@@ -149,4 +149,33 @@ class RelinkContentTest extends TestCase
 
         $this->assertSame($before, $t->fresh()->content, 'لینکِ بیرونی نباید دست بخورد.');
     }
+
+    /**
+     * ⚠️ شمارندهٔ اول `substr_count('<a ')` بود و تگی که با خطِ تازه نوشته شده
+     * را نمی‌دید. نتیجه: لینک واقعاً باز می‌شد ولی گزارش می‌گفت «بررسی دستی
+     * لازم است» — نگرانیِ بی‌جا دربارهٔ کاری که درست انجام شده. روی دادهٔ
+     * واقعیِ سرور همین یک ردیف را علامت زد.
+     */
+    public function test_a_newline_formatted_anchor_is_counted_as_unwrapped(): void
+    {
+        $this->seedTranslation('odd-markup', 'fa',
+            "<p>x <a\nhref=\"/product/laptop-asus\">محصول</a> y</p>");
+
+        $this->artisan('content:relink', ['--dry' => true])
+            ->expectsOutputToContain('لینکِ مرده باز شد')
+            ->doesntExpectOutputToContain('بررسی دستی')
+            ->assertSuccessful();
+    }
+
+    /** `<abbr>` نباید به‌جای لینک شمرده شود — `<a\b` لازم است، نه `<a`. */
+    public function test_the_counter_does_not_mistake_other_tags_for_anchors(): void
+    {
+        $t = $this->seedTranslation('abbr-post', 'fa',
+            '<p><abbr title="x">TTFB</abbr> و <a href="/webtools">ابزار</a></p>');
+        $before = $t->content;
+
+        $this->artisan('content:relink')->assertSuccessful();
+
+        $this->assertSame($before, $t->fresh()->content);
+    }
 }
