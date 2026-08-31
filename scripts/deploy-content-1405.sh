@@ -66,7 +66,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-611f5d1}"
+MINE="${1:-179cad5}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -281,6 +281,8 @@ g app/Services/AiContent.php "related_product"
 # ⚠️ تابعِ site_social که develop به helpers اضافه کرده — نباید قربانیِ
 #    افزودنِ article_faq_ld شود (هر دو ته همان فایل می‌نشینند).
 g app/helpers.php "article_faq_ld"
+# هر سه زبان باید اسکیمای FAQ بگیرند — نسخهٔ قبلی ترکی را بی‌صدا جا می‌انداخت
+g app/helpers.php "sorulan sorular"
 g app/helpers.php "site_social"
 
 # schemaِ پرسش روی هر دو نوعِ صفحه
