@@ -297,6 +297,11 @@ class CloudArvanTest extends TestCase
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
             }
+            // ⚠️ آروان بی‌گروهِ امنیتی سرور نمی‌سازد، پس این fake هم باید یکی
+            //    داشته باشد — وگرنه تست پیش از رسیدن به ادعای خودش می‌ایستد.
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-default', 'name' => 'default']]], 200);
+            }
             if (str_contains($url, '/servers') && $request->method() === 'POST') {
                 $body = $request->data();
 

@@ -176,4 +176,150 @@ class ArvanSecurityGroupTest extends TestCase
         $this->assertTrue((bool) $plan->fresh()->admin_disabled,
             'خطای فایروال فروش را نبست — مشتریِ بعدی همان شکست را می‌خرد');
     }
+
+    // ═══════════════ راهِ فرارِ مدیر ═══════════════
+
+    /*
+    | کشفِ خودکار روی مسیرهای **حدسی** تکیه دارد. اگر حساب هیچ‌کدام را نشناسد،
+    | تحویل برای همیشه بسته می‌مانَد و پیام می‌گوید «در پنل یک firewall بساز» —
+    | مدیر می‌سازد و باز هم کار نمی‌کند، چون مسئله ساختنِ گروه نبود، خواندنِ
+    | فهرست بود. همان تلهٔ `resolveRegions` که یک بار همین درایور را سوزاند.
+    */
+
+    /** انتخابِ صریحِ مدیر بر گروهِ default مقدم است */
+    public function test_the_admin_choice_wins_over_the_default_group(): void
+    {
+        Setting::put('arvan_security_group', 'panel-vpn');
+
+        $sent = null;
+        $this->fakeArvan([
+            ['id' => 'sg-default', 'name' => 'arDefault', 'default' => true],
+            ['id' => 'sg-vpn', 'name' => 'panel-vpn'],
+        ], function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; });
+
+        app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertSame(['sg-vpn'], $sent);
+    }
+
+    /** 🔴 و مهم‌تر: وقتی فهرست اصلاً خوانده نمی‌شود، شناسهٔ دستی باید کار کند */
+    public function test_a_pinned_id_works_when_no_listing_endpoint_answers(): void
+    {
+        Setting::put('arvan_security_group', 'sg-from-panel');
+
+        $sent = null;
+        Cache::flush();
+        Http::swap(new Factory);
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$sent) {
+            $url = $request->url();
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [[
+                    'id' => 'net-public', 'name' => 'public', 'enable_gateway' => true,
+                ]]], 200);
+            }
+            // هر مسیرِ فهرستِ گروه ۴۰۴ — حسابی که این endpointها را ندارد
+            if (str_contains($url, '/securities') || str_contains($url, '/security-groups')
+                || str_contains($url, '/securitygroups') || str_contains($url, '/firewalls')) {
+                return Http::response(['message' => 'Not Found'], 404);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $sent = $request['security_groups'] ?? null;
+
+                if (blank($sent)) {
+                    return Http::response(['message' => 'At least one firewall should be selected'], 422);
+                }
+
+                return Http::response(['data' => [
+                    'id' => 'srv-1', 'name' => 'x', 'status' => 'ACTIVE', 'password' => 'p',
+                ]], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        }]);
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertSame(['sg-from-panel'], $sent,
+            'بی‌این، مدیری که شناسه را از پنلِ زیرساخت کپی کرده باز هم تحویل نمی‌گیرد');
+        $this->assertTrue($r['ok'], (string) ($r['message'] ?? ''));
+    }
+
+    /**
+     * تنظیمی که رابطِ کاربری ندارد، در لحظهٔ خرابیِ تحویل عملاً وجود ندارد —
+     * مدیر وقتِ SSH زدن به سرور را ندارد. و خالی‌کردنش هم باید کار کند، وگرنه
+     * یک انتخابِ اشتباه برای همیشه می‌چسبد.
+     */
+    public function test_the_group_is_settable_and_clearable_from_the_panel(): void
+    {
+        $admin = \App\Models\User::create([
+            'name' => 'مدیر', 'email' => 'sg'.random_int(1, 99999).'@x.com',
+            'password' => bcrypt('x'), 'role' => 'admin',
+        ]);
+
+        $this->actingAs($admin)->post('/admin/settings', [
+            'tab' => 'infra', 'arvan_security_group' => '  sg-abc-123  ',
+        ])->assertRedirect();
+
+        $this->assertSame('sg-abc-123', Setting::get('arvan_security_group'), 'باید trim و ذخیره شود');
+
+        $this->actingAs($admin)->post('/admin/settings', [
+            'tab' => 'infra', 'arvan_security_group' => '',
+        ])->assertRedirect();
+
+        $this->assertNull(Setting::get('arvan_security_group'),
+            'خالی باید به کشفِ خودکار برگردد، نه اینکه نادیده گرفته شود');
+    }
+
+    /**
+     * ⚠️ انتخابِ مدیر باید **فوری** اثر کند.
+     *
+     * کشفِ گروه یک ساعت کش می‌شود. اگر کلیدِ کش انتخابِ مدیر را نداشته باشد،
+     * کسی که پس از یک شکست مقدار را تنظیم می‌کند تا یک ساعت همان شکست را
+     * می‌بیند و نتیجه می‌گیرد تنظیمات کار نمی‌کند.
+     */
+    public function test_changing_the_setting_is_not_masked_by_the_cache(): void
+    {
+        $groups = [
+            ['id' => 'sg-default', 'name' => 'arDefault', 'default' => true],
+            ['id' => 'sg-vpn', 'name' => 'panel-vpn'],
+        ];
+
+        $sent = null;
+        $this->fakeArvan($groups, function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; });
+        app(ArvanClient::class)->createServer($this->spec());
+        $this->assertSame(['sg-default'], $sent);
+
+        // مدیر تصمیمش را عوض می‌کند — بی‌آنکه کشی پاک شود
+        Setting::put('arvan_security_group', 'panel-vpn');
+
+        $sent2 = null;
+        Http::swap(new Factory);
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use ($groups, &$sent2) {
+            $url = $request->url();
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [[
+                    'id' => 'net-public', 'name' => 'public', 'enable_gateway' => true,
+                ]]], 200);
+            }
+            if (str_contains($url, '/securities') || str_contains($url, '/security-groups')) {
+                return Http::response(['data' => $groups], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $sent2 = $request['security_groups'] ?? null;
+
+                return Http::response(['data' => [
+                    'id' => 'srv-2', 'name' => 'x', 'status' => 'ACTIVE', 'password' => 'p',
+                ]], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        }]);
+
+        app(ArvanClient::class)->createServer(['name' => 'vps-test-2'] + $this->spec());
+
+        $this->assertSame(['sg-vpn'], $sent2, 'کشِ کهنه انتخابِ تازهٔ مدیر را پوشاند');
+    }
 }

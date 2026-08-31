@@ -631,11 +631,32 @@ class ArvanClient implements CloudProvider
      */
     private function securityGroupIds(string $regionCode): array
     {
+        /*
+        | ═══ 🔴 راهِ فرارِ مدیر — و چرا کشف به‌تنهایی کافی نیست ═══
+        |
+        | کشفِ خودکار روی دو مسیرِ **حدسی** تکیه دارد. اگر آروان هیچ‌کدام را
+        | نشناسد (همان تلهٔ `resolveRegions` که یک بار همین درایور را سوزاند:
+        | مسیرِ حدسی ۴۰۴ می‌داد و «زیرساخت خالی است» تعبیر می‌شد)، تحویل برای
+        | همیشه بسته می‌مانَد و مدیر **هیچ کاری از دستش برنمی‌آید** — پیام
+        | می‌گوید «در پنل یک firewall بساز»، او می‌سازد، و باز هم کار نمی‌کند.
+        |
+        | پس یک درِ دستی: شناسه یا نامِ گروه در تنظیمات. اگر پر باشد، هم بر
+        | انتخابِ خودکار مقدم است، و هم وقتی فهرست اصلاً خوانده نشود مستقیماً
+        | فرستاده می‌شود.
+        |
+        | ⚠️ انتخابِ مدیر داخلِ کلیدِ کش است. بی‌آن، کسی که پس از یک شکست
+        | مقدار را تنظیم می‌کند تا یک ساعت همان شکست را می‌بیند و نتیجه
+        | می‌گیرد تنظیمات کار نمی‌کند.
+        */
+        $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
+
         return \Illuminate\Support\Facades\Cache::remember(
-            'arvan.sg.'.$regionCode,
+            'arvan.sg.'.$regionCode.'.'.md5($wanted),
             3600,
-            function () use ($regionCode) {
-                foreach (['/securities', '/security-groups'] as $path) {
+            function () use ($regionCode, $wanted) {
+                // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
+                // درخواستِ ۴۰۴ است، در برابرِ تحویلی که اصلاً انجام نمی‌شود.
+                foreach (['/securities', '/security-groups', '/securitygroups', '/firewalls'] as $path) {
                     $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
 
                     if (! $r['ok']) {
@@ -646,6 +667,18 @@ class ArvanClient implements CloudProvider
 
                     if ($rows === []) {
                         continue;
+                    }
+
+                    // انتخابِ صریحِ مدیر بر پیش‌فرض مقدم است — با شناسه یا نام
+                    if ($wanted !== '') {
+                        foreach ($rows as $g) {
+                            $id = (string) ($g['id'] ?? '');
+
+                            if ($id !== '' && ($id === $wanted
+                                || strcasecmp((string) ($g['name'] ?? ''), $wanted) === 0)) {
+                                return [$id];
+                            }
+                        }
                     }
 
                     foreach ($rows as $g) {
@@ -664,7 +697,10 @@ class ArvanClient implements CloudProvider
                     }
                 }
 
-                return [];
+                // هیچ مسیری جواب نداد. اگر مدیر شناسه را دستی گذاشته، همان
+                // فرستاده می‌شود: غلط بودنش خطای روشنِ خودِ آروان را می‌آورد،
+                // که از بن‌بستِ خاموش بهتر است.
+                return $wanted !== '' ? [$wanted] : [];
             }
         );
     }
@@ -696,7 +732,10 @@ class ArvanClient implements CloudProvider
 
         if ($securityGroups === []) {
             return ['ok' => false,
-                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید.'] + $fail;
+                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید. '
+                    .'اگر ساخته‌اید و باز هم این پیام آمد، شناسه‌اش را در '
+                    .'«تنظیمات ← زیرساخت ← گروهِ فایروال» بگذارید — یعنی فهرستِ گروه‌ها '
+                    .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [

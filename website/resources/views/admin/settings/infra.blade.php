@@ -64,6 +64,15 @@
         @if($cloud['arvan'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">ذخیره‌شده</span>@endif
         <input type="password" name="arvan_api_token" dir="ltr" autocomplete="new-password" maxlength="400"
                placeholder="{{ $cloud['arvan'] ? '••••••••••  خالی = بدونِ تغییر' : 'کلید را با پیشوندِ Apikey بچسبانید' }}"></label>
+      {{-- 🔴 این زیرساخت بدونِ گروهِ فایروال سرور نمی‌سازد. درایور خودش گروهِ
+           default را پیدا می‌کند، پس این‌جا معمولاً خالی می‌مانَد. فقط دو حالت
+           لازمش دارند: گروهی غیر از default بخواهیم، یا حساب مسیرِ فهرستِ
+           گروه‌ها را نشناسد — که بی این فیلد یعنی تحویل برای همیشه بسته. --}}
+      <label class="set-f full">زیرساختِ ۳ — گروهِ فایروال
+        <span style="color:var(--dim)">(اختیاری؛ خالی = کشفِ خودکار)</span>
+        <input type="text" name="arvan_security_group" dir="ltr" maxlength="120"
+               value="{{ $cloud['arvan_sg'] ?? '' }}"
+               placeholder="نام یا شناسهٔ Security Group از پنلِ خودِ زیرساخت"></label>
     </div>
 
     {{-- زیرساختِ ۴ سه کلید دارد، نه یکی: OVH هر درخواست را جداگانه امضا می‌کند

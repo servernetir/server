@@ -161,6 +161,15 @@ class SettingsController extends Controller
             'aeza_forget'        => ['nullable', 'boolean'],
             'arvan_api_token'    => ['nullable', 'string', 'max:400'],
             'arvan_forget'       => ['nullable', 'boolean'],
+            /*
+            | گروهِ فایروال (security group) که سرورِ تازه با آن ساخته می‌شود.
+            |
+            | 🔴 خالی گذاشتنش حالتِ عادی است: درایور خودش گروهِ default را پیدا
+            | می‌کند. این فیلد راهِ فرارِ مدیر است وقتی کشفِ خودکار جواب نمی‌دهد —
+            | مسیرِ فهرستِ گروه‌ها حدسی است، و اگر حساب هیچ‌کدام را نشناسد تحویل
+            | برای همیشه بسته می‌مانَد و هیچ کاری از دستِ مدیر برنمی‌آید.
+            */
+            'arvan_security_group' => ['nullable', 'string', 'max:120'],
             'ovh_app_key'        => ['nullable', 'string', 'max:200'],
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
@@ -415,6 +424,8 @@ class SettingsController extends Controller
                 'hetzner'    => $ready && filled(Setting::getSecret('hetzner_api_token')),
                 'aeza'       => $ready && filled(Setting::getSecret('aeza_api_token')),
                 'arvan'      => $ready && filled(Setting::getSecret('arvan_api_token')),
+                // گروهِ فایروال سرّی نیست (فقط یک نام/شناسه)، پس خام خوانده می‌شود
+                'arvan_sg'   => $ready ? (string) Setting::get('arvan_security_group', '') : '',
                 // OVH سه‌کلیدی است؛ «تنظیم‌شده» یعنی هر سه هستند، وگرنه امضا
                 // ساخته نمی‌شود و هر تماس ۴۰۳ می‌گیرد.
                 'ovh' => $ready && filled(Setting::getSecret('ovh_app_key'))
@@ -703,6 +714,18 @@ class SettingsController extends Controller
             } elseif (filled($data[$p.'_api_token'] ?? null)) {
                 Setting::putSecret($p.'_api_token', trim((string) $data[$p.'_api_token']));
             }
+        }
+
+        /*
+        | گروهِ فایروالِ زیرساختِ ۳ — سرّی نیست، پس `put` نه `putSecret`.
+        |
+        | ⚠️ برخلافِ توکن‌ها، **خالی یعنی پاک کن** نه «بدونِ تغییر»: این فیلد
+        | متنِ باز است و مدیر مقدارِ فعلی را روی صفحه می‌بیند. اگر خالی‌کردنش
+        | کاری نمی‌کرد، راهی برای برگشت به کشفِ خودکار نمی‌مانْد و یک انتخابِ
+        | اشتباه برای همیشه می‌چسبید.
+        */
+        if (array_key_exists('arvan_security_group', $data)) {
+            Setting::put('arvan_security_group', trim((string) $data['arvan_security_group']) ?: null);
         }
 
         // OVH سه کلیدِ جدا دارد، پس از حلقهٔ بالا (که یک `_api_token` فرض

@@ -236,4 +236,50 @@ class CloudProxmoxTest extends TestCase
         $this->assertStringContainsString('ir-tehran', $planJson);
         $this->assertStringContainsString('10.10.10.60', $instJson);
     }
+
+    // ═══════════════ فهرستِ ماشین‌ها ═══════════════
+
+    /**
+     * 🔴 قالب (template) ماشین نیست و نباید در فهرستِ سرورها بیاید.
+     *
+     * `/nodes/{node}/qemu` قالب‌ها را هم برمی‌گرداند (`template: 1`). چون هیچ
+     * سرویسی به آنها وصل نیست، در تطبیقِ موجودی «بی‌صاحب» می‌افتادند — یعنی
+     * همان چیزهایی که عمداً ساخته‌ایم تا از رویشان کلون بگیریم، هر بار
+     * پیشنهاد می‌شدند که حذفشان کنیم.
+     *
+     * ⚠️ و خطرش فقط سروصدا نبود: کنشِ «حذف نزدِ زیرساخت» رویشان فعال می‌شد.
+     * حذفِ یک قالب یعنی از فردا هیچ سرورِ تازه‌ای ساخته نمی‌شود — کلون از چه
+     * بگیرد؟ — و علتش هیچ‌جا پیدا نیست.
+     */
+    public function test_templates_are_not_listed_as_servers(): void
+    {
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+
+            if (str_ends_with($path, '/qemu')) {
+                return Http::response(['data' => [
+                    ['vmid' => 9000, 'name' => 'ubuntu-2404-template', 'status' => 'stopped', 'template' => 1],
+                    ['vmid' => 9002, 'name' => 'debian-12-template',   'status' => 'stopped', 'template' => '1'],
+                    ['vmid' => 120,  'name' => 'sn-svc-42',            'status' => 'running', 'template' => 0],
+                    ['vmid' => 130,  'name' => 'nextcloud',            'status' => 'running'],
+                ]], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ProxmoxClient::class)->listServers();
+
+        $this->assertTrue($r['ok'], $r['message']);
+
+        $names = array_column($r['servers'], 'name');
+
+        $this->assertContains('sn-svc-42', $names);
+        // ماشینِ دستیِ خودمان باید بماند — «بی‌صاحب» بودنش تصمیمِ مدیر است نه ما
+        $this->assertContains('nextcloud', $names, 'ماشینِ واقعی نباید فیلتر شود');
+
+        $this->assertNotContains('ubuntu-2404-template', $names);
+        $this->assertNotContains('debian-12-template', $names,
+            'API بسته به نسخه template را عدد یا رشته می‌دهد؛ هر دو باید فیلتر شوند');
+    }
 }
