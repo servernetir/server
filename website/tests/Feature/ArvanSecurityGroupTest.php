@@ -67,9 +67,22 @@ class ArvanSecurityGroupTest extends TestCase
                     $onCreate($request);
                 }
 
+                $sg = $request['security_groups'] ?? null;
+
                 // 🔴 رفتارِ واقعیِ آروان: بی‌گروهِ امنیتی رد می‌کند
-                if (blank($request['security_groups'] ?? null)) {
+                if (blank($sg)) {
                     return Http::response(['message' => 'At least one firewall should be selected'], 422);
+                }
+
+                /*
+                | 🔴 و شکلش هم مهم است: عنصر باید آبجکتِ `name` باشد.
+                | رشتهٔ شناسه همان «Unmarshal type error»ی است که واقعاً گرفتیم.
+                */
+                if (! is_array($sg[0] ?? null) || blank($sg[0]['name'] ?? null)) {
+                    return Http::response(['message' => 'Bad Request',
+                        'code' => 400,
+                        'errors' => ['security_groups' => ['expected=abrak.securityGroupName, got=string']],
+                    ], 400);
                 }
 
                 return Http::response(['data' => [
@@ -100,7 +113,8 @@ class ArvanSecurityGroupTest extends TestCase
 
         $r = app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame(['sg-default'], $sent, 'گروهِ امنیتی فرستاده نشد — آروان سفارش را رد می‌کند');
+        $this->assertSame([['name' => 'arDefault']], $sent,
+            'گروهِ امنیتی به شکلِ درست (آبجکتِ name) فرستاده نشد — آروان سفارش را رد می‌کند');
         $this->assertTrue($r['ok'], 'ساخت ناموفق ماند: '.($r['message'] ?? ''));
     }
 
@@ -115,7 +129,7 @@ class ArvanSecurityGroupTest extends TestCase
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame(['sg-def'], $sent);
+        $this->assertSame([['name' => 'arDefault']], $sent);
     }
 
     /** بی‌گروهِ default، اولین گروهِ موجود — بهتر از شکست است. */
@@ -129,7 +143,7 @@ class ArvanSecurityGroupTest extends TestCase
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame(['sg-only'], $sent);
+        $this->assertSame([['name' => 'my-rules']], $sent);
     }
 
     /**

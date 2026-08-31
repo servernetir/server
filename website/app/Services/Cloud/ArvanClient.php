@@ -661,10 +661,10 @@ class ArvanClient implements CloudProvider
      *
      * @return array<int,string>
      */
-    private function securityGroupIds(string $regionCode): array
+    private function securityGroupNames(string $regionCode): array
     {
         return \Illuminate\Support\Facades\Cache::remember(
-            'arvan.sg.'.$regionCode,
+            'arvan.sgn.'.$regionCode,
             3600,
             function () use ($regionCode) {
                 foreach (['/securities', '/security-groups'] as $path) {
@@ -681,15 +681,14 @@ class ArvanClient implements CloudProvider
                     }
 
                     foreach ($rows as $g) {
-                        $id = (string) ($g['id'] ?? '');
-                        $name = strtolower((string) ($g['name'] ?? ''));
+                        $name = (string) ($g['name'] ?? '');
 
-                        if ($id !== '' && (($g['default'] ?? false) || str_contains($name, 'default'))) {
-                            return [$id];
+                        if ($name !== '' && (($g['default'] ?? false) || str_contains(strtolower($name), 'default'))) {
+                            return [$name];
                         }
                     }
 
-                    $first = (string) ($rows[0]['id'] ?? '');
+                    $first = (string) ($rows[0]['name'] ?? '');
 
                     if ($first !== '') {
                         return [$first];
@@ -724,9 +723,9 @@ class ArvanClient implements CloudProvider
         | با پیامِ روشن می‌ایستیم — نه اینکه درخواستِ ناقص بفرستیم و پیامِ گنگِ
         | زنجیره را به مدیر نشان دهیم.
         */
-        $securityGroups = $this->securityGroupIds($region);
+        $securityGroupNames = $this->securityGroupNames($region);
 
-        if ($securityGroups === []) {
+        if ($securityGroupNames === []) {
             return ['ok' => false,
                 'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید.'] + $fail;
         }
@@ -736,7 +735,16 @@ class ArvanClient implements CloudProvider
             'flavor_id'   => (string) $spec['plan_ref'],
             'image_id'    => (string) $spec['image_ref'],
             'network_ids' => [$networkId],
-            'security_groups' => $securityGroups,
+            /*
+            | 🔴 شکلِ دقیق: آرایه‌ای از **آبجکتِ نام**، نه رشتهٔ شناسه.
+            |
+            | نسخهٔ اول شناسه‌ها را به‌صورت رشته می‌فرستاد و آروان با این پاسخ
+            | ردش کرد: «expected=abrak.securityGroupName, got=string». یعنی
+            | عنصرِ آرایه باید ساختار باشد و کلیدش `name` است — نه `id`.
+            | (این را فقط چون پیامِ خطا کامل رسید فهمیدیم؛ با «Bad Request»ِ
+            | خالی یک دورِ حدس‌زدن لازم بود.)
+            */
+            'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroupNames),
             'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
             'count'       => 1,
             'ha_enabled'  => false,
