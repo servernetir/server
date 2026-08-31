@@ -549,7 +549,10 @@ g app/Services/Cloud/CloudManager.php "hetzner-robot"
 g resources/views/admin/settings/infra.blade.php "hetzner_robot_user"
 g config/servernet.php "bare-metal"
 g config/catalog/dedicated.php "seo_t"
-g resources/views/partials/footer.blade.php "getLocale() === 'fa'"
+# ⚠️ گاردِ قبلی («getLocale() === 'fa'») به رشته‌ای بند بود که بازنویسیِ
+#    فوتر به MenuManager (c3d0bd0) برش داشت — و یک دیپلویِ کاملِ سالم را
+#    برگرداند. گارد باید واقعیتِ نسخهٔ پین‌شده را بسنجد، نه خاطرهٔ دیپلویِ قبل.
+g resources/views/partials/footer.blade.php "MenuManager"
 g app/Models/CloudPlan.php "setupIrt"
 g resources/views/account/cloud-store.blade.php "cvb-s-setup"
 g lang/fa/ui.php "cvb_setup_line"
