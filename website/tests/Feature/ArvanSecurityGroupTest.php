@@ -106,7 +106,10 @@ class ArvanSecurityGroupTest extends TestCase
     {
         return [
             'name' => 'vps-test', 'plan_ref' => 'flavor-1', 'location_ref' => 'ir-thr-c2',
-            'image_ref' => 'img-1', 'disk_gb' => 25,
+            // ⚠️ باید ایمیجی باشد که واقعاً در فهرستِ همین منطقه هست. پیش‌تر
+            // «img-1» بود که هیچ‌جا وجود نداشت و هیچ آزمونی هم نمی‌شکست —
+            // چون هیچ‌کس ایمیج را نمی‌سنجید. همان نسنجیدن، خودِ باگ بود.
+            'image_ref' => 'img-si1-2404', 'disk_gb' => 25,
         ];
     }
 
@@ -292,6 +295,90 @@ class ArvanSecurityGroupTest extends TestCase
         app(ArvanClient::class)->createServer($spec);
 
         $this->assertSame('img-si1-2404', $sent);
+    }
+
+    /**
+     * 🔴🔴 ایمیجِ ترجمه‌نشدنی باید **پیش از ارسال** بایستد.
+     *
+     * ═══ چرا این ادعا از همهٔ ادعاهای بالا مهم‌تر است ═══
+     *
+     * `imageForRegion` وقتی برچسب جور نشود در سکوت همان ورودی را پس می‌دهد.
+     * تا امروز آن شناسهٔ بی‌ربط فرستاده می‌شد و آروان جواب می‌داد:
+     * «Requested firewall was not found».
+     *
+     * آزمایشِ کنترل‌شدهٔ ۳۱ اوت ۲۰۲۶ ثابت کرد آروان **برای flavorِ خراب،
+     * imageِ خراب، networkِ خراب و firewallِ خراب یک پیامِ یکسان** می‌دهد.
+     * یعنی از متنِ خطا هیچ‌وقت نمی‌شود فهمید کدام مرجع بد بوده — و مدیر
+     * ساعت‌ها دنبالِ فایروالی می‌گردد که هیچ عیبی ندارد. دقیقاً همین شد.
+     *
+     * پس تنها دفاع، سنجیدنِ ورودی پیش از ارسال است. این ادعا آن را قفل
+     * می‌کند: هم پیامِ درست، هم **نرفتنِ** درخواست.
+     */
+    public function test_an_image_that_cannot_be_resolved_stops_before_the_request(): void
+    {
+        $called = false;
+        $this->fakeArvan(
+            [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']],
+            function () use (&$called) { $called = true; },
+        );
+
+        $spec = $this->spec();
+        // نه در فهرستِ منطقه است، نه ردیفی در کاتالوگ دارد که با برچسب ترجمه شود
+        $spec['image_ref'] = 'img-from-nowhere';
+
+        $r = app(ArvanClient::class)->createServer($spec);
+
+        $this->assertFalse($r['ok'], 'با ایمیجِ ناموجود هم ساخت «موفق» شمرده شد');
+        $this->assertStringContainsString('سیستم‌عامل', $r['message'],
+            'پیام به مدیر نمی‌گوید عیب از سیستم‌عامل است — همان تلهٔ «firewall» تکرار می‌شود');
+        $this->assertStringContainsString('img-from-nowhere', (string) ($r['raw']['detail'] ?? ''),
+            'شناسهٔ مقصر در جزئیات نیست، پس عیب‌یابی باز هم کور است');
+        $this->assertFalse($called,
+            'درخواست فرستاده شد — آروان همان پیامِ گمراه‌کنندهٔ فایروال را برمی‌گرداند');
+    }
+
+    /**
+     * ⚠️ «نمی‌دانم» با «نیست» یکی نیست.
+     *
+     * اگر فهرستِ ایمیجِ منطقه اصلاً خوانده نشد (خطای شبکه، مسیرِ عوض‌شده)،
+     * گارد نباید تحویل را ببندد؛ آن‌وقت یک اشکالِ موقتِ خواندن، فروشِ سالم
+     * را زمین می‌زند. در آن حالت درخواست می‌رود و قضاوت با خودِ آروان است.
+     */
+    public function test_it_does_not_block_when_the_region_image_list_is_unavailable(): void
+    {
+        $called = false;
+
+        Cache::flush();
+        Http::swap(new Factory);
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$called) {
+            $url = $request->url();
+
+            if (str_contains($url, '/images')) {
+                return Http::response(['message' => 'boom'], 500);   // فهرست خوانده نشد
+            }
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'n1', 'name' => 'public', 'enable_gateway' => true]]], 200);
+            }
+
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']]], 200);
+            }
+
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $called = true;
+
+                return Http::response(['data' => ['id' => 'srv-1', 'name' => 'x', 'status' => 'ACTIVE']], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        }]);
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertTrue($called, 'خواندنِ ناموفقِ فهرست، تحویلِ سالم را بست');
+        $this->assertTrue($r['ok']);
     }
 
     /**

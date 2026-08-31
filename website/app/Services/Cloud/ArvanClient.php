@@ -812,6 +812,31 @@ class ArvanClient implements CloudProvider
     }
 
     /**
+     * آیا این شناسهٔ ایمیج واقعاً در این منطقه هست؟
+     *
+     * ═══ 🔴 چرا جدا از imageForRegion لازم است ═══
+     *
+     * `imageForRegion` وقتی برچسب جور نشود **در سکوت همان ورودی را پس
+     * می‌دهد** — یعنی شناسهٔ منطقهٔ دیگر. و چون آروان برای هر مرجعِ
+     * پیدانشده یک پیامِ ثابت می‌دهد («Requested firewall was not found»)،
+     * مدیر دنبالِ فایروال می‌گردد در حالی که عیب از ایمیج است.
+     *
+     * دقیقاً همین رخ داد: ردیفی با برچسبِ «7» انتخاب شد، با هیچ برچسبی در
+     * منطقه جور نشد، و شکستش به‌حسابِ فایروال نوشته شد. آزمایشِ کنترل‌شده
+     * ثابت کرد آن پیام برای flavor/image/network/firewallِ خراب **یکسان**
+     * است، پس هیچ‌وقت نمی‌شود از رویش فهمید کدام مرجع بد بوده.
+     *
+     * `true` وقتی برمی‌گردد که فهرستِ منطقه را نداشته باشیم — «نمی‌دانم» با
+     * «نیست» یکی نیست، و مسدودکردنِ تحویل بر پایهٔ ندانستن بدتر است.
+     */
+    private function imageExistsInRegion(string $regionCode, string $imageId): bool
+    {
+        $images = $this->regionImageIndex($regionCode);
+
+        return $images === [] || isset($images['byId'][$imageId]);
+    }
+
+    /**
      * فهرستِ ایمیج‌های یک منطقه، نمایه‌شده بر شناسه و برچسب.
      *
      * ⚠️ `type=distributions` اجباری است: بی‌آن، آروان فقط ایمیج‌های
@@ -897,11 +922,31 @@ class ArvanClient implements CloudProvider
                     .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
+        /*
+        | ═══ 🔴 ایمیج را **پیش از ارسال** اعتبارسنجی می‌کنیم ═══
+        |
+        | ایمیج per-region است و `imageForRegion` وقتی برچسب جور نشود در
+        | سکوت همان شناسهٔ منطقهٔ دیگر را پس می‌دهد. آروان آن را با پیامِ
+        | «Requested firewall was not found» رد می‌کند — و این پیام دروغ
+        | نمی‌گوید، فقط **بی‌ربط** است: آزمایشِ کنترل‌شده نشان داد آروان
+        | برای flavor، image، network و firewallِ خراب **یک پیامِ یکسان**
+        | می‌دهد. پس بی این بررسی، مدیر ساعت‌ها دنبالِ فایروالی می‌گردد که
+        | هیچ عیبی ندارد — دقیقاً همان چیزی که یک بار اتفاق افتاد.
+        */
+        $imageId = $this->imageForRegion($region, (string) $spec['image_ref']);
+
+        if (! $this->imageExistsInRegion($region, $imageId)) {
+            return ['ok' => false,
+                'message' => 'سیستم‌عاملِ انتخابی در این مکان موجود نیست. '
+                    .'کاتالوگِ ایمیج را همگام‌سازی کنید («تنظیمات ← زیرساخت ← همگام‌سازی») '
+                    .'یا سیستم‌عاملِ دیگری انتخاب کنید.',
+                'raw' => ['detail' => 'image '.$imageId.' not in region '.$region]] + $fail;
+        }
+
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name'        => $spec['name'],
             'flavor_id'   => (string) $spec['plan_ref'],
-            // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
-            'image_id'    => $this->imageForRegion($region, (string) $spec['image_ref']),
+            'image_id'    => $imageId,
             'network_ids' => [$networkId],
             /*
             | ⚠️ آرایه‌ای از **آبجکتِ نام** — نه رشته. شکلِ رشته‌ای را آروان با

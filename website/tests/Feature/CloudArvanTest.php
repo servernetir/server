@@ -297,6 +297,17 @@ class CloudArvanTest extends TestCase
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
             }
+            /*
+            | ⚠️ این fake از وقتی نوشته شد کهنه ماند: بعدها ساختِ سرور
+            | **گروهِ امنیتیِ اجباری** گرفت و این آزمون از آن به بعد قرمز بود —
+            | نه به‌خاطرِ باگ، بلکه چون جهانِ ساختگی‌اش دیگر شبیهِ آروان نبود.
+            | یک fixtureِ کهنه دقیقاً مثلِ یک باگ قرمز می‌شود و توجه را می‌دزدد.
+            */
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [[
+                    'id' => 'sg1', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true,
+                ]]], 200);
+            }
             if (str_contains($url, '/servers') && $request->method() === 'POST') {
                 $body = $request->data();
 
