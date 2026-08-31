@@ -102,7 +102,10 @@ fi
 #    پیدا نمی‌کند و به merge سه‌طرفه می‌افتد — و رفتارش روی تداخل «دست نزن»
 #    است، یعنی یکی از دو تغییر بی‌صدا و با خروجیِ سبز منتشر نمی‌شود.
 #    5157b59 جدِ این کامیت است، پس هیچ کارِ آن جلسه‌ای گم نمی‌شود.
-MINE="${1:-c3508a0}"
+# ⚠️ پین جلو رفت (۸ شهریور): پیشرفتِ زندهٔ تحویلِ GPU (درصدِ واقعیِ دانلود +
+#    ریزمرحله‌ها + متنِ صادقانهٔ «۱۵ تا ۶۰ دقیقه» + یکی‌شدنِ کارتِ تکراری).
+#    79a1fb0 فرزندِ مستقیمِ پینِ قبلی است؛ هیچ فایلی از فهرست کم/زیاد نشد.
+MINE="${1:-79a1fb0}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -634,6 +637,26 @@ for L in fa en tr; do
   g "lang/$L/ui.php" "gpu_warn_t"
   g "lang/$L/ui.php" "gpu_units_d"
 done
+
+# پیشرفتِ زندهٔ تحویلِ GPU (۸ شهریور) — درصدِ واقعی + ریزمرحله + متنِ صادقانه.
+# هر تکه بیفتد خرابی خاموش است: بی‌درایور JSON کلیدِ build ندارد، بی‌ویو
+# چیزی رندر نمی‌شود، بی‌کلیدِ زبان مشتری «ui.cs_gpu_…» می‌بیند.
+g app/Services/Cloud/SaladOperations.php "buildDetail"
+g app/Services/Cloud/SaladOperations.php "pulling_progress"
+g app/Http/Controllers/Account/CloudServerController.php "\$r['build']"
+g resources/views/account/cloud-server.blade.php "gpu-prog"
+g resources/views/account/cloud-server.blade.php "paintBuild"
+g resources/views/account/cloud-server.blade.php "cs_stage_building_gpu_d"
+g app/Http/Controllers/GpuController.php "\$seen"
+for L in fa en tr; do
+  g "lang/$L/ui.php" "cs_gpu_phase_pulling"
+  g "lang/$L/ui.php" "cs_gpu_phase_downloading_pct"
+  g "lang/$L/ui.php" "cs_stage_building_gpu_d"
+  g "lang/$L/ui.php" "cs_gpu_elapsed"
+done
+g lang/fa/ui.php "۱۵ تا ۶۰ دقیقه"
+g lang/en/ui.php "15-60 minutes"
+g lang/tr/ui.php "15-60 dakika"
 
 if [ "$union_ok" -eq 0 ]; then
   echo "🔴 اتحادِ فایل‌ها کامل نیست — کلِ بکاپ برمی‌گردد تا سایت ۵۰۰ نشود."
