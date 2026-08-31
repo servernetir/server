@@ -297,6 +297,20 @@ class CloudArvanTest extends TestCase
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
             }
+            /*
+            | ⚠️ گروهِ امنیتی از وقتی اجباری شد که آروان بی‌آن
+            | «At least one firewall should be selected» می‌داد. این فیکسچر
+            | آن روز به‌روز نشد و از همان لحظه قرمز ماند: `securityGroupIds()`
+            | فهرستِ خالیِ catch-all را می‌گرفت و `createServer()` همان اول
+            | برمی‌گشت — یعنی تست چیزی را می‌سنجید که هرگز به آن نمی‌رسید.
+            |
+            | 🔴 `real_name` عمداً با `name` فرق دارد: چیزی که در بدنهٔ سفارش
+            | می‌رود `real_name` است. فیکسچری که هر دو را یکی بگذارد، اشتباه
+            | گرفتنشان را دیگر نمی‌گیرد.
+            */
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'name' => 'default', 'real_name' => 'arDefault']]], 200);
+            }
             if (str_contains($url, '/servers') && $request->method() === 'POST') {
                 $body = $request->data();
 
@@ -329,6 +343,17 @@ class CloudArvanTest extends TestCase
         $this->assertSame('g2-2-4-20', $body['flavor_id']);
         $this->assertSame('img-ubuntu-2204', $body['image_id']);
         $this->assertSame(['net-1'], $body['network_ids']);
+
+        /*
+        | 🔴 و ادعایی که نبودش گذاشت این تست یک سال بی‌صدا کهنه شود.
+        |
+        | تا امروز هیچ‌جا نمی‌سنجید که گروهِ امنیتی واقعاً در بدنه می‌رود، پس
+        | وقتی `createServer()` به آن وابسته شد، تست فقط قرمز شد — بی‌آنکه
+        | بگوید کدام ادعا شکسته. حالا فیکسچر و قرارداد به هم قفل‌اند:
+        | `real_name` می‌رود نه `name`، و داخلِ آبجکت نه به‌صورتِ رشته
+        | (هر دو یک بار روی حسابِ واقعی خرج برداشتند).
+        */
+        $this->assertSame([['name' => 'arDefault']], $body['security_groups']);
     }
 
     /** نامِ تکراری → همان سرورِ موجود (idempotency)، نه سرورِ دوم */
