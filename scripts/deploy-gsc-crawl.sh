@@ -2,16 +2,15 @@
 #
 # دیپلوی «تعمیرِ خزش و ایندکس» — یافته‌های Search Console، ۹ شهریور ۱۴۰۵.
 #
-# اجرا از ترمینالِ cPanel (اکانت servernetcloud).
-#
-# ⚠️ تا وقتی این کار در develop مرج نشده، آدرسِ خام باید به همان کامیت اشاره
-#    کند نه به شاخه — نامِ شاخه اسلش دارد و در مسیرِ raw مبهم می‌شود.
-#   DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/PIN/scripts/deploy-gsc-crawl.sh)
-#         (PIN را با کامیتِ کاملِ همین کار عوض کن)
-#
-# بعد از مرج:
+# اجرا از ترمینالِ cPanel (اکانت servernetcloud):
 #   DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-gsc-crawl.sh)
 #   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-gsc-crawl.sh) [<SHA>]
+#
+# ✅ اجرا شد و نشست: ۹ شهریور ۱۴۰۵، ۲۱:۰۴ — هر ۵ فایل UP، صفر تداخل،
+#    جراحیِ .htaccess گرفت و کشِ یک‌ساله روی سرور تأیید شد.
+#
+# ⚠️ اسکریپت‌های دیپلوی در `scripts/`ِ **ریشهٔ مخزن**اند، نه `website/scripts/`.
+#    اولین نسخهٔ همین فایل اشتباهی آن‌جا نشست و آدرسِ raw ۴۰۴ داد.
 #
 # چه چیزی و چرا:
 #   ۱) لایوت canonical را از `url()->current()` می‌ساخت و آن متد رشتهٔ پرس‌وجو
