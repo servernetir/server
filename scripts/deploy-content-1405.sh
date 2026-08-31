@@ -66,7 +66,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-179cad5}"
+MINE="${1:-0ec318f}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -86,6 +86,7 @@ app/Console/Commands/GenerateContent.php
 app/Console/Commands/CheckContentLinks.php
 app/Console/Commands/TranslateMissing.php
 app/Console/Commands/PublishDue.php
+app/Console/Commands/RelinkContent.php
 resources/content/blog-1405.php
 resources/content/kb-1405.php
 resources/content/docs-1405.php
@@ -283,6 +284,8 @@ g app/Services/AiContent.php "related_product"
 g app/helpers.php "article_faq_ld"
 # هر سه زبان باید اسکیمای FAQ بگیرند — نسخهٔ قبلی ترکی را بی‌صدا جا می‌انداخت
 g app/helpers.php "sorulan sorular"
+# تعمیرِ لینکِ متنِ قدیمی — دستی اجرا می‌شود، زمان‌بندی نیست
+g app/Console/Commands/RelinkContent.php "content:relink"
 g app/helpers.php "site_social"
 
 # schemaِ پرسش روی هر دو نوعِ صفحه
