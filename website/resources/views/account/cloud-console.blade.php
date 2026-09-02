@@ -101,11 +101,11 @@
          دستورِ اشتباه روی سرورِ اشتباه اجرا می‌شود. --}}
     @php $vncLoc = $instance?->location(); @endphp
     <div class="vnc-meta">
-      @if($instance?->ipv4)
+      @if($instance?->address())
         <button type="button" class="vnc-chip" id="vnc-ip"
-                data-ip="{{ $instance->ipv4 }}" title="{{ __('ui.vnc_copy_ip') }}">
+                data-ip="{{ $instance->address() }}" title="{{ __('ui.vnc_copy_ip') }}">
           <svg class="icon"><use href="#i-globe"/></svg>
-          <span dir="ltr">{{ $instance->ipv4 }}</span>
+          <span dir="ltr">{{ $instance->address() }}</span>
         </button>
       @endif
       @if($vncLoc)

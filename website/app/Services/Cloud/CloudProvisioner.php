@@ -1168,6 +1168,21 @@ class CloudProvisioner
             'firewall',
             'security group',
             'security_group',
+            /*
+            | 🔴 «سقفِ حسابِ ما پر شده» هم ساختاری است.
+            |
+            | ۱۱ شهریور ۱۴۰۵، سرویس #۱۰۵: هتزنر `[resource_limit_exceeded]
+            | server limit reached` داد. فهرست `quota` را داشت ولی نه `limit`
+            | را، پس قرنطینه نگرفت و ۱۱۴ پلنِ فالکن‌اشتاین در فروش ماندند —
+            | یعنی مشتریِ بعدی هم دقیقاً همان شکست را می‌خرید. کارفرما مجبور شد
+            | دستی زیرساخت را خاموش کند.
+            |
+            | معیار همان است: آیا تلاشِ دوباره بی‌تغییرِ چیزی جواب می‌دهد؟
+            | سقفِ حساب تا بالا نرود، نه.
+            */
+            'limit reached',
+            'resource_limit',
+            'limit exceeded',
         ];
 
         $needle = mb_strtolower($message);

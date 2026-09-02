@@ -124,6 +124,92 @@ class CloudNattedAddressTest extends TestCase
         $this->assertSame('ssh root@ir1.servernet.cloud -p 20001', $inst->sshCommand());
     }
 
+    // ═══════════ قرنطینه و مالیات ═══════════
+
+    /**
+     * 🔴 «سقفِ حساب پر شده» باید فروش را ببندد.
+     *
+     * سرویس #۱۰۵: هتزنر `[resource_limit_exceeded] server limit reached` داد.
+     * فهرستِ واژه‌های ساختاری `quota` را داشت ولی نه `limit` را، پس قرنطینه
+     * نگرفت و ۱۱۴ پلن در فروش ماندند — مشتریِ بعدی همان شکست را می‌خرید.
+     */
+    public function test_a_provider_account_limit_closes_the_sale(): void
+    {
+        $r = new \ReflectionMethod(\App\Services\Cloud\CloudProvisioner::class, 'quarantineProvider');
+        $src = file_get_contents((new \ReflectionClass(\App\Services\Cloud\CloudProvisioner::class))->getFileName());
+
+        foreach (['limit reached', 'resource_limit', 'limit exceeded'] as $needle) {
+            $this->assertStringContainsString("'".$needle."'", $src,
+                'واژهٔ «'.$needle.'» در فهرستِ خطاهای ساختاری نیست؛ سقفِ حساب فروش را نمی‌بندد');
+        }
+
+        $this->assertTrue($r->isPrivate());
+    }
+
+    /**
+     * 🔴 «اتصالِ سرورِ موجود» باید مالیات را تفکیک کند.
+     *
+     * `tax_percent` صفرِ سخت‌کد بود، پس فاکتورِ تمدیدِ چنین سرویسی مبلغ را یکجا
+     * نشان می‌داد در حالی که فاکتورهای مسیرِ عادی ردیفِ ارزش افزوده دارند —
+     * همان مشتری دو فاکتورِ هم‌مبلغ با دو شکلِ متفاوت گرفت.
+     */
+    public function test_attached_services_carry_the_shop_tax_rate(): void
+    {
+        $src = file_get_contents((new \ReflectionClass(
+            \App\Http\Controllers\Admin\CloudAttachController::class))->getFileName());
+
+        $this->assertStringNotContainsString("'tax_percent'      => 0,", $src,
+            'مالیاتِ صفرِ سخت‌کد برگشته — فاکتورِ تمدید دوباره بی‌تفکیک می‌شود');
+        $this->assertStringContainsString('taxPercent()', $src);
+    }
+
+    // ═══════════ نگهبانِ ویوها ═══════════
+
+    /**
+     * 🔴 هیچ ویویِ رو به مشتری نباید `ipv4` را مستقیم چاپ کند.
+     *
+     * ═══ چرا این تست وجود دارد ═══
+     *
+     * بارِ اول فقط `cloud-server.blade.php` را رفع کردم و تمام‌شده فرض کردم.
+     * ولی همان آدرسِ خصوصی از دو ویویِ دیگر هم چاپ می‌شد — کارتِ داشبورد و
+     * صفحهٔ کنسول — و مشتری **دوباره** همان `10.10.10.64` را دید و دوباره
+     * تیکت زد. رفعِ نقطه‌ای برای باگی که چند نقطهٔ مصرف دارد کافی نیست.
+     *
+     * پس ادعا را از «این ویو درست است» به «هیچ ویویی این کار را نمی‌کند»
+     * تبدیل می‌کنیم — تنها شکلی که ویویِ **بعدی** را هم پوشش می‌دهد.
+     *
+     * ⚠️ `cloud-store.blade.php` مستثناست: `extra_ipv4` نامِ یک فیلدِ فرم است
+     * (تعدادِ IP اضافه)، نه آدرسِ سرور.
+     */
+    public function test_no_customer_facing_view_prints_the_raw_ip(): void
+    {
+        $dir = resource_path('views/account');
+        $bad = [];
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
+
+        foreach ($files as $file) {
+            if (! str_ends_with((string) $file, '.blade.php')) {
+                continue;
+            }
+
+            foreach (file((string) $file) as $n => $line) {
+                // فقط چاپِ مقدار؛ نامِ فیلدِ فرم و کامنت‌ها شمرده نمی‌شوند.
+                if (preg_match('/(->|\$)ipv4\b/', $line)
+                    && ! str_contains($line, 'extra_ipv4')
+                    && ! str_contains($line, '//')
+                    && ! str_contains($line, '*')) {
+                    $bad[] = basename((string) $file).':'.($n + 1).'  '.trim($line);
+                }
+            }
+        }
+
+        $this->assertSame([], $bad,
+            "🔴 ویویِ رو به مشتری آدرسِ خام را چاپ می‌کند؛ برای ماشینِ پشتِ NAT\n"
+            ."   این یعنی آدرسِ خصوصی. به‌جایش از \$inst->address() و\n"
+            ."   \$inst->sshCommand() استفاده کن:\n   ".implode("\n   ", $bad));
+    }
+
     // ═══════════ تنظیمات ═══════════
 
     /**
