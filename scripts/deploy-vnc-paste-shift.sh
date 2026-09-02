@@ -22,6 +22,11 @@
 #     پیش از Enter/Tab و در پایان رها می‌شود (رها نکردنش = Shiftِ گیرکرده در
 #     مهمان)، و گاردِ `pasting` جلوی دو حلقهٔ موازی را می‌گیرد.
 #
+#   • و چسباندن در تبِ **پنهان** می‌ایستد و با بازگشتِ کاربر ادامه می‌دهد.
+#     کروم در تبِ پنهان setTimeout را به ۱ث می‌کشد و پس از ۵ دقیقه به
+#     ۱ در دقیقه (شکافِ اندازه‌گیری‌شده در تستِ زنده: ۴۹٬۹۹۵ms). دسته‌ای‌کردن
+#     کافی نبود؛ مکث و ادامهٔ دقیق لازم بود.
+#
 # ✅ یک فایل. بدونِ مهاجرت، بدونِ کلیدِ زبان، بدونِ CSS.
 #
 # منطقِ merge و گاردِ Blade از scripts/deploy-hourly-term-guard.sh
@@ -63,7 +68,7 @@ else
     || { echo "FATAL: clone"; exit 1; }
 fi
 
-MINE="${1:-f4d82427}"
+MINE="${1:-db14f953}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -239,7 +244,10 @@ g "$V" "function finish()"
 # برش دارد.
 g "$V" "Array.from(text)"                     # نه split — حروفِ خارج از BMP
 g "$V" "0x01000000 + cp"                      # آفستِ یونیکدِ X11
-g "$V" "setTimeout(step, 12)"                 # صفِ ورودیِ محدودِ کنسول
+g "$V" "var CHUNK = 8, GAP = 96"             # آهنگِ دسته‌ای
+g "$V" "if (document.hidden) {"              # مکثِ تبِ پنهان — قلبِ تعمیرِ دوم
+g "$V" "'visibilitychange', function onVis" # — و راهِ برگشتِ آن؛ بدونِ این چسباندن معلق می‌ماند
+g "$V" "setTimeout(step, GAP)"               # — جفتِ همین؛ یکی بدونِ دیگری یعنی merge نصفه کرده
 g "$V" "rfb.sendKey(0xFF0D, 'Enter')"         # Enter با scancode
 g "$V" "#vnc-wrap:-webkit-full-screen"        # قاعدهٔ جدا، نه با کاما
 g "$V" "beforeunload"                         # بستنِ تمیزِ نشست

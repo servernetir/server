@@ -351,27 +351,61 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
       pasteText.value = '';
     }
 
+    /* آهنگِ ارسال: دسته‌های کوچک، با همان نرخِ میانگینِ قبل.
+     *
+     * ۸ کلید هر ۹۶ms یعنی همان ۸۳ کلید بر ثانیهٔ «یک کلید هر ۱۲ms»، پس
+     * فشاری که به صفِ ورودیِ مهمان می‌آید عوض نشده و دستهٔ ۸تایی حاشیهٔ
+     * امنی تا ظرفیتِ صفِ PS/2 دارد. دسته‌ای‌بودن فقط تعدادِ تایمرها را
+     * کم می‌کند؛ کارِ اصلی را مکثِ پایین انجام می‌دهد.
+     *
+     * تاریخچه: اول فکر کردم بزرگ‌کردنِ دسته (۳۲/۳۸۴ms) مسئلهٔ تبِ
+     * پنهان را حل می‌کند. نکرد: در تستِ زنده شکافِ ۵۰ ثانیه‌ای درآمد و
+     * ۴۸۷ کاراکتر می‌شد ربعِ ساعت. با تایمر نمی‌شود با این کلامپ جنگید.
+     */
+    var CHUNK = 8, GAP = 96;
+
     (function step(){
-      if (i >= chars.length) { return finish(); }
+      /* 🔴 تبِ پنهان را با تایمر نمی‌شود شکست — می‌ایستیم.
+       *
+       * کروم در تبِ پنهان setTimeout را به ۱ ثانیه می‌کشد و پس از ۵ دقیقه
+       * به ۱ در دقیقه (intensive throttling). در تستِ زنده روی سرورِ هتزنر
+       * شکافِ ۵۰ ثانیه‌ای دیدیم. یعنی هر چقدر هم دسته را بزرگ کنیم،
+       * یک کلیدِ SSH می‌تواند ربعِ ساعت طول بکشد و تمامِ این مدت نیمهٔ یک
+       * دستور روی پرامپتِ سرور معلق بماند.
+       *
+       * پس به‌جای چکه‌کردن، کار را نگه می‌داریم و دقیقاً وقتی کاربر
+       * برمی‌گردد ادامه می‌دهیم. `pasting` هم تا آن لحظه true می‌ماند،
+       * پس کلیکِ دوباره دو حلقهٔ درهم‌رفته نمی‌سازد.
+       */
+      if (document.hidden) {
+        shift(false);        // 🔴 Shift نباید در تمامِ مدتِ مکث پایین بماند
+        document.addEventListener('visibilitychange', function onVis(){
+          document.removeEventListener('visibilitychange', onVis);
+          step();            // خودِ step دوباره hidden را می‌سنجد
+        });
+        return;
+      }
+      var end = Math.min(i + CHUNK, chars.length);
 
-      var ch = chars[i++];
+      for (; i < end; i++) {
+        var ch = chars[i];
 
-      if (ch === '\n' || ch === '\r') {
-        shift(false);
-        rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
-      } else if (ch === '\t') {
-        shift(false);
-        rfb.sendKey(0xFF09, 'Tab');
-      } else {
-        shift(needsShift(ch));
-        var cp = ch.codePointAt(0);
-        // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
-        rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        if (ch === '\n' || ch === '\r') {
+          shift(false);
+          rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
+        } else if (ch === '\t') {
+          shift(false);
+          rfb.sendKey(0xFF09, 'Tab');
+        } else {
+          shift(needsShift(ch));
+          var cp = ch.codePointAt(0);
+          // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
+          rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        }
       }
 
-      // فاصلهٔ کوتاه: کنسولِ سرور صفِ ورودیِ محدودی دارد و ارسالِ یک‌جای
-      // چندصد کلید باعثِ افتادنِ کاراکتر می‌شود.
-      setTimeout(step, 12);
+      if (i >= chars.length) { return finish(); }
+      setTimeout(step, GAP);
     })();
   };
 
