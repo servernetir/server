@@ -59,6 +59,103 @@ class CloudInstance extends Model
         }
     }
 
+    // ─────────────── آدرسی که به مشتری نشان می‌دهیم ───────────────
+
+    /**
+     * 🔴 `ipv4` همیشه «آدرسی که مشتری می‌تواند استفاده کند» نیست.
+     *
+     * هتزنر/آیزا آدرسِ عمومی می‌دهند، ولی ماشینِ Proxmox پشتِ NAT است و
+     * `ipv4`ش خصوصی است (`10.10.10.x`). دسترسیِ عمومی‌اش از یک پورت‌فوروارد
+     * روی IP مشترک می‌آید که `PullController::portForwards` تخصیص می‌دهد و در
+     * `meta.public_port` می‌نشیند.
+     *
+     * ⚠️ تشخیص عمداً روی **خودِ آدرس** است نه روی نامِ زیرساخت: شرطِ واقعی
+     * «این IP از اینترنت قابلِ استفاده هست یا نه» است، و هر زیرساختِ بعدی که
+     * پشتِ NAT بیاید بی‌هیچ تغییری درست کار می‌کند.
+     */
+    public function hasPrivateIp(): bool
+    {
+        $ip = (string) $this->ipv4;
+
+        if ($ip === '') {
+            return false;
+        }
+
+        return filter_var($ip, FILTER_VALIDATE_IP,
+            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+    }
+
+    /** پورتِ عمومیِ تخصیص‌یافته (۰ یعنی هنوز ساخته نشده). */
+    public function publicPort(): int
+    {
+        return (int) (($this->meta ?? [])['public_port'] ?? 0);
+    }
+
+    /**
+     * میزبانِ عمومی: ترجیحاً نامِ دامنه (`public_host`)، وگرنه IP عمومی.
+     *
+     * ⚠️ نام فقط ظاهر را بهتر می‌کند؛ پورت همچنان لازم است. تنها چیزی که
+     * پورت را حذف می‌کند یک IPv4 اختصاصی برای همان ماشین است.
+     */
+    public static function publicHost(): string
+    {
+        return trim((string) (Setting::get('public_host')
+            ?: Setting::get('public_ip')
+            ?: config('servernet.exit.public_ip', '')));
+    }
+
+    /**
+     * 🔴 آدرسی که واقعاً به مشتری داده می‌شود — یا `null` اگر هنوز آدرسِ
+     * قابلِ‌استفاده‌ای وجود ندارد.
+     *
+     * ⚠️ `null` عمدی است و مهم‌ترین بخشِ این متد: ماشینِ پشتِ NAT که هنوز
+     * پورت‌فورواردش ساخته نشده **هیچ آدرسِ قابلِ استفاده‌ای ندارد**. پیش از
+     * این، پرتال و ایمیلِ تحویل همان `10.10.10.x` را چاپ می‌کردند و مشتری
+     * تیکت می‌زد «آی‌پی خصوصی است» — یعنی سیستم چیزی را وعده می‌داد که
+     * وجود نداشت. نشان‌ندادن، از نشان‌دادنِ آدرسِ غلط بهتر است.
+     *
+     * @return array{host:string, port:int}|null
+     */
+    public function endpoint(): ?array
+    {
+        if (! $this->hasPrivateIp()) {
+            return filled($this->ipv4) ? ['host' => (string) $this->ipv4, 'port' => 22] : null;
+        }
+
+        $host = self::publicHost();
+        $port = $this->publicPort();
+
+        return ($host !== '' && $port > 0) ? ['host' => $host, 'port' => $port] : null;
+    }
+
+    /** «۸۵٫۹٫۱۰۸٫۱۱۸:۲۰۰۰۱» یا صرفاً IP — برای نمایش و ایمیل. */
+    public function address(): ?string
+    {
+        $e = $this->endpoint();
+
+        if ($e === null) {
+            return null;
+        }
+
+        return $e['port'] === 22 ? $e['host'] : $e['host'].':'.$e['port'];
+    }
+
+    /** دستورِ آمادهٔ اتصال، با `-p` فقط وقتی پورت غیرِ استاندارد است. */
+    public function sshCommand(): ?string
+    {
+        $e = $this->endpoint();
+
+        if ($e === null) {
+            return null;
+        }
+
+        // ⚠️ رشته در PHP ساخته می‌شود نه در Blade: «root» چسبیده به آکولاد با
+        //    یک @ برای Blade دستورِ فرار است و به‌جای آدرس، خودِ عبارت چاپ می‌شود.
+        $cmd = 'ssh root'.'@'.$e['host'];
+
+        return $e['port'] === 22 ? $cmd : $cmd.' -p '.$e['port'];
+    }
+
     public function hasPassword(): bool
     {
         return filled($this->root_password_enc);

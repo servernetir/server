@@ -2351,6 +2351,7 @@ return [
     'cs_user' => 'User',
     'cs_location' => 'Location',
     'cs_ssh_label' => 'Connect via SSH',
+    'cs_address' => 'Connection address',
     'cs_pw_label' => 'root password — save it somewhere safe right now',
     'cs_pw_once' => 'This password <b>will not be shown again</b>. If you lose it, generate a new one below.',
     'cs_pw_reveal'      => 'Show root password',

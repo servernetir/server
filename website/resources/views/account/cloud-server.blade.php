@@ -99,7 +99,7 @@
     </nav>
     <h1>{{ $service->name }}</h1>
     <p>
-      @if($inst?->ipv4)<span dir="ltr">{{ $inst->ipv4 }}</span> · @endif
+      @if($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
       {{ $loc?->label() ?? '—' }} · {{ $osLbl }}
     </p>
   </div>
@@ -275,7 +275,12 @@
       @endif
     @else
     <div class="cs-grid">
-      <div class="cs-kv"><small>IPv4</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv4 }}">{{ $inst->ipv4 ?: '—' }}</b></div>
+      {{-- 🔴 آدرسِ **قابلِ استفاده**، نه هر چه در ستونِ ipv4 نشسته.
+           ماشینِ پشتِ NAT آدرسِ خصوصی دارد و دسترسیِ عمومی‌اش از پورت‌فوروارد
+           می‌آید؛ چاپِ `10.10.10.x` یعنی وعدهٔ چیزی که وجود ندارد — همان تیکتِ
+           «آی‌پی خصوصی است». تا وقتی فوروارد ساخته نشده «—» نشان می‌دهیم. --}}
+      @php $addr = $inst->address(); @endphp
+      <div class="cs-kv"><small>{{ $inst->hasPrivateIp() ? __('ui.cs_address') : 'IPv4' }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $addr }}">{{ $addr ?: '—' }}</b></div>
       @if($inst->ipv6)
         <div class="cs-kv"><small>IPv6</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv6 }}">{{ $inst->ipv6 }}</b></div>
       @endif
@@ -284,11 +289,12 @@
     </div>
     @endif
 
-    @if(! $gpuApp && $inst->ipv4)
-      {{-- ⚠️ رشته را در PHP می‌سازیم، نه در قالب. اگر «root» و «{{» با یک @
-           به هم بچسبند، Blade آن را **دستورِ فرار** می‌فهمد و به‌جای IP، خودِ
-           عبارتِ آکولادی را چاپ می‌کند — همان تلهٔ آشنای این پروژه. --}}
-      @php $sshCmd = 'ssh root'.'@'.$inst->ipv4; @endphp
+    @php $sshCmd = $inst->sshCommand(); @endphp
+    @if(! $gpuApp && $sshCmd)
+      {{-- ⚠️ رشته در **مدل** ساخته می‌شود نه در قالب: اگر «root» و آکولاد با یک
+           @ به هم بچسبند، Blade آن را دستورِ فرار می‌فهمد و به‌جای آدرس، خودِ
+           عبارتِ آکولادی را چاپ می‌کند — تلهٔ آشنای این پروژه. و `-p` فقط
+           وقتی می‌آید که پورت غیرِ استاندارد باشد. --}}
       <div class="cs-ssh">
         <small>{{ __('ui.cs_ssh_label') }}</small>
         <code dir="ltr" class="cs-copy" data-copy="{{ $sshCmd }}">{{ $sshCmd }}</code>

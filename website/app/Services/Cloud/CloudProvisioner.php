@@ -460,7 +460,9 @@ class CloudProvisioner
                 'provisioned_at'   => now(),
                 'provision_meta'   => [
                     'kind' => 'cloud',
-                    'ip'   => $instance->ipv4,
+                    // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
+                    // آدرسِ عمومی‌اش «IP:پورت» است.
+                    'ip'   => $instance->address() ?: $instance->ipv4,
                     'ipv6' => $instance->ipv6,
                     'plan' => $plan->public_name,
                     'location' => $plan->location_code,
@@ -551,6 +553,22 @@ class CloudProvisioner
             ->get();
 
         foreach ($rows as $instance) {
+            /*
+            | 🔴 داشتنِ `ipv4` هنوز یعنی «آدرسِ قابلِ استفاده داریم» نیست.
+            |
+            | ماشینِ پشتِ NAT آدرسِ خصوصی دارد و تا وقتی پورت‌فورواردش ساخته
+            | نشده هیچ راهی از اینترنت به آن نیست. اعلانِ «سرورت آماده شد» با
+            | آدرسِ `10.10.10.x` یعنی وعدهٔ چیزی که وجود ندارد — و چون
+            | `ready_notified_at` همان لحظه قفل می‌شود، اعلانِ **درست** هم
+            | دیگر هرگز نمی‌رود. یک تیکتِ واقعی از همین‌جا آمد.
+            |
+            | پس صبر می‌کنیم: کرونِ هر-دقیقه دوباره سراغش می‌آید و به‌محضِ
+            | ساخته‌شدنِ فوروارد، اعلان با آدرسِ درست می‌رود.
+            */
+            if ($instance->address() === null) {
+                continue;
+            }
+
             // ⚠️ هر ردیف در try خودش: یک ردیفِ خراب (مشتریِ حذف‌شده، ایمیلِ
             // بدشکل) نباید بقیه را زمین بزند — و مهم‌تر، نباید استثنا به
             // `schedule:run` برسد. یک استثنا آن دقیقه را کامل می‌کشد و با آن
@@ -1668,8 +1686,15 @@ class CloudProvisioner
             // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
             app(\App\Services\Notify\CustomerNotifier::class)->event(
                 $service->customer, 'service_ready',
-                ['service' => $service->name, 'ip' => (string) $instance->ipv4],
-                'سرورِ «'.$service->name.'» شما آماده شد. IP: '.$instance->ipv4
+                /*
+                | 🔴 آدرسی که به مشتری می‌گوییم باید همانی باشد که واقعاً
+                | کار می‌کند. `ipv4`ِ ماشینِ پشتِ NAT خصوصی است و مشتری با آن
+                | به جایی نمی‌رسد — تیکتِ «آی‌پی خصوصی است» دقیقاً از همین
+                | خط آمد. `address()` یا آدرسِ عمومیِ قابلِ‌استفاده می‌دهد یا
+                | `null`، و پایین‌تر جلوی فرستادنِ اعلانِ بی‌آدرس گرفته می‌شود.
+                */
+                ['service' => $service->name, 'ip' => (string) $instance->address()],
+                'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
             );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
