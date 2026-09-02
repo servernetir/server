@@ -85,6 +85,7 @@ app/Services/Cloud/ProxmoxClient.php
 app/Services/Cloud/CloudProvisioner.php
 app/Models/CloudInstance.php
 app/Http/Controllers/Admin/SettingsController.php
+app/Http/Controllers/Admin/CloudAttachController.php
 resources/views/admin/settings/infra.blade.php
 resources/views/account/cloud-server.blade.php
 resources/views/account/partials/card-server.blade.php
