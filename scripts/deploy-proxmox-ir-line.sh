@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-e6ad05ef}"
+MINE="${1:-2c312d37}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -87,6 +87,9 @@ app/Models/CloudInstance.php
 app/Http/Controllers/Admin/SettingsController.php
 resources/views/admin/settings/infra.blade.php
 resources/views/account/cloud-server.blade.php
+resources/views/account/partials/card-server.blade.php
+resources/views/account/cloud-console.blade.php
+config/servernet.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
@@ -295,6 +298,19 @@ g "$APP/resources/views/admin/settings/infra.blade.php" "name=\"public_host\""
 g "$APP/resources/views/admin/settings/infra.blade.php" "proxmox_exit_countries"
 g "$APP/resources/views/account/cloud-server.blade.php" "sshCommand()"
 g "$APP/resources/views/account/cloud-server.blade.php" "cs_address"
+
+# 🔴 داشبورد و کنسول — همان باگ، جای دیگر. رفعِ نقطه‌ای کافی نبود.
+g "$APP/resources/views/account/partials/card-server.blade.php" "sshCommand()"
+g "$APP/resources/views/account/partials/card-server.blade.php" "cs_address"
+g "$APP/resources/views/account/cloud-console.blade.php" "address()"
+
+# پشتوانهٔ config که چهار جای کد به آن تکیه می‌کردند و وجود نداشت
+g "$APP/config/servernet.php" "SERVERNET_EXIT_PUBLIC_IP"
+
+# قرنطینهٔ سقفِ حساب + تفکیکِ مالیات
+g "$APP/app/Services/Cloud/CloudProvisioner.php" "limit reached"
+g "$APP/app/Services/Cloud/CloudProvisioner.php" "resource_limit"
+g "$APP/app/Http/Controllers/Admin/CloudAttachController.php" "taxPercent()"
 
 for L in fa en tr; do
   g "$APP/lang/$L/ui.php" "cs_address"
