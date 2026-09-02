@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-a0351b93}"
+MINE="${1:-e6ad05ef}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -84,6 +84,8 @@ APP_FILES="
 app/Services/Cloud/ProxmoxClient.php
 app/Services/Cloud/CloudProvisioner.php
 app/Models/CloudInstance.php
+app/Http/Controllers/Admin/SettingsController.php
+resources/views/admin/settings/infra.blade.php
 resources/views/account/cloud-server.blade.php
 lang/fa/ui.php
 lang/en/ui.php
@@ -284,6 +286,13 @@ g "$APP/app/Services/Cloud/CloudProvisioner.php" "deliverOwedNotices"
 g "$APP/app/Models/CloudInstance.php" "hasPrivateIp"
 g "$APP/app/Models/CloudInstance.php" "sshCommand"
 g "$APP/app/Models/CloudInstance.php" "publicHost"
+
+# 🔴 بی‌این دو فیلد، تنظیمِ public_ip راهی برای پرشدن ندارد و آدرسِ مشتری
+#    «—» می‌مانَد — قابلیتی که نمی‌تواند کار کند.
+g "$APP/app/Http/Controllers/Admin/SettingsController.php" "'public_ip'"
+g "$APP/resources/views/admin/settings/infra.blade.php" "name=\"public_ip\""
+g "$APP/resources/views/admin/settings/infra.blade.php" "name=\"public_host\""
+g "$APP/resources/views/admin/settings/infra.blade.php" "proxmox_exit_countries"
 g "$APP/resources/views/account/cloud-server.blade.php" "sshCommand()"
 g "$APP/resources/views/account/cloud-server.blade.php" "cs_address"
 
