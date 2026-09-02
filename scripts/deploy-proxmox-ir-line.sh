@@ -268,7 +268,10 @@ g "$APP/app/Services/Cloud/ProxmoxClient.php" "vmIp(\$node, \$ref)"
 
 # 🔴 صفِ همگام‌سازی باید نمونهٔ بی‌IP را هم بردارد، وگرنه تعمیرِ بالا هرگز
 #    فرصتِ اجرا پیدا نمی‌کند.
-g "$APP/app/Services/Cloud/CloudProvisioner.php" "orWhereNull('"'"'ipv4'"'"')"
+# ⚠️ سینگل‌کوت داخلِ دابل‌کوت **خودش تحت‌اللفظی است**؛ اصطلاحِ فرارِ
+#    '"'"' این‌جا لازم نیست و آن را به دابل‌کوت تبدیل می‌کند — یک بار همین
+#    گارد را روی کدِ سالم قرمز کرد و دیپلوی را برگرداند.
+g "$APP/app/Services/Cloud/CloudProvisioner.php" "orWhereNull('ipv4')"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "syncInstances"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "deliverOwedNotices"
 
