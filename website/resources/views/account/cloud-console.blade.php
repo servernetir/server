@@ -304,28 +304,66 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
   };
   document.getElementById('vnc-paste-cancel').onclick = function(){ pasteBox.hidden = true; };
 
+  /* ───────────── چیدمانِ US: کدام کاراکتر Shift می‌خواهد ─────────────
+   * 🔴 چرا اصلاً لازم است: سرورِ VNC (QEMU) **خودش Shift را نمی‌زند**. در
+   * `key_event` حتی حروفِ A–Z را عمداً به کوچک تبدیل می‌کند و انتظار دارد
+   * کلاینت مثلِ یک صفحه‌کلیدِ واقعی، Shift_L را خودش نگه دارد. مرورگر این
+   * کار را در تایپِ دستی می‌کند (رویدادِ فیزیکیِ Shift جداگانه می‌رود)، ولی
+   * `sendKey` که ما در چسباندن صدا می‌زنیم هیچ مدیفایری نمی‌فرستد.
+   *
+   * نتیجهٔ نبودش: هر کاراکترِ شیفت‌دار به کلیدِ پایه‌اش می‌افتاد —
+   *   $→4 ، _→- ، :→; ، }→] ، G→g
+   * که دقیقاً همان چیزی است که مشتری گزارش کرد.
+   */
+  var SHIFTED = '~!@#$%^&*()_+{}|:"<>?';
+  var SHIFT_L = 0xFFE1;              // keysymِ X11 برای Shift چپ
+
+  function needsShift(ch){
+    return (ch >= 'A' && ch <= 'Z') || SHIFTED.indexOf(ch) !== -1;
+  }
+
+  // ⚠️ دو بار زدنِ «ارسال» نباید دو حلقهٔ موازی بسازد؛ وضعیتِ Shift مشترک است
+  // و در‌هم‌رفتنشان یعنی کاراکترهای تصادفیِ بزرگ/کوچک.
+  var pasting = false;
+
   document.getElementById('vnc-paste-send').onclick = function(){
-    if (!rfb) { return; }
+    if (!rfb || pasting) { return; }
     var text = pasteText.value;
     if (!text) { pasteBox.hidden = true; return; }
 
     var i = 0;
     var chars = Array.from(text);        // نه split('') — تا حروفِ خارج از BMP نشکنند
+    var shiftDown = false;
+    pasting = true;
+
+    // Shift را برای یک **رشتهٔ پیوسته** از کاراکترهای شیفت‌دار نگه می‌داریم،
+    // نه تک‌تک: هم پیام‌های کمتری روی سیم می‌رود، هم دقیقاً مثلِ تایپِ آدمی است.
+    function shift(on){
+      if (on === shiftDown) { return; }
+      rfb.sendKey(SHIFT_L, null, on);
+      shiftDown = on;
+    }
+
+    function finish(){
+      shift(false);                      // 🔴 رها نکردنش = Shift گیرکرده در مهمان
+      pasting = false;
+      pasteBox.hidden = true;
+      pasteText.value = '';
+    }
 
     (function step(){
-      if (i >= chars.length) {
-        pasteBox.hidden = true;
-        pasteText.value = '';
-        return;
-      }
+      if (i >= chars.length) { return finish(); }
 
       var ch = chars[i++];
 
       if (ch === '\n' || ch === '\r') {
+        shift(false);
         rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
       } else if (ch === '\t') {
+        shift(false);
         rfb.sendKey(0xFF09, 'Tab');
       } else {
+        shift(needsShift(ch));
         var cp = ch.codePointAt(0);
         // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
         rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
