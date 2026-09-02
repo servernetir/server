@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-2c312d37}"
+MINE="${1:-c16974e3}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
