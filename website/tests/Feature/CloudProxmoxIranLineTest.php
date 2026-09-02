@@ -246,6 +246,76 @@ class CloudProxmoxIranLineTest extends TestCase
         $this->assertNull($status['ipv4']);
     }
 
+    // ═══════════ صفِ همگام‌سازی ═══════════
+
+    /**
+     * 🔴 «بالا آمده ولی آدرس ندارد» باید دوباره پرسیده شود.
+     *
+     * صفِ `syncInstances()` فقط `building`/`unknown`/بی‌شناسه را برمی‌داشت. پس
+     * نمونه‌ای که همان اول `running` ثبت شده بود ولی IP نداشت هرگز دوباره
+     * پرسیده نمی‌شد — و هیچ مسیرِ دیگری هم IP را نمی‌نویسد. حالتی که سیستم
+     * خودش می‌سازد و خودش هرگز از آن بیرون نمی‌آید.
+     *
+     * دقیقاً همین با «اتصالِ سرورِ موجود»ِ Proxmox رخ داد: سرویسِ پول‌داده‌ای
+     * که نه آدرس داشت نه پورتِ عمومی، بی‌هیچ خطایی.
+     */
+    public function test_a_running_instance_without_an_ip_is_picked_up_again(): void
+    {
+        Http::fake([
+            '*/qemu/117/status/current' => Http::response(['data' => ['status' => 'running', 'qmpstatus' => 'running']]),
+            '*/qemu/117/config'         => Http::response(['data' => ['ipconfig0' => 'ip=10.10.10.64/24,gw=10.10.10.1']]),
+        ]);
+
+        $customer = \App\Models\Customer::create([
+            'code' => 'SN-'.random_int(100000, 999999),
+            'email' => 'ir'.random_int(1, 999999).'@example.com',
+            'password' => bcrypt('secret-pass-123'), 'status' => 'active',
+        ]);
+
+        $service = \App\Models\Service::create([
+            'customer_id' => $customer->id, 'name' => 'سرور ایران', 'currency_code' => 'IRT',
+            'price' => 550000, 'cycle' => 'monthly', 'status' => 'active',
+            'provision_status' => 'done',
+        ]);
+
+        $instance = \App\Models\CloudInstance::create([
+            'service_id' => $service->id, 'provider' => 'proxmox', 'provider_ref' => '117',
+            'location_code' => 'ir-tehran', 'hostname' => 'sn-svc-'.$service->id,
+            'ipv4' => null, 'status' => 'running',
+        ]);
+
+        app(\App\Services\Cloud\CloudProvisioner::class)->syncInstances();
+
+        $this->assertSame('10.10.10.64', $instance->fresh()->ipv4,
+            '🔴 نمونهٔ بی‌IP دوباره پرسیده نشد — سرویس برای همیشه بی‌آدرس می‌مانَد');
+    }
+
+    /** ماشینِ حذف‌شده نباید صف را پر کند، حتی اگر IP نداشته باشد. */
+    public function test_a_deleted_instance_is_not_re_queued(): void
+    {
+        Http::fake(fn () => Http::response(['data' => []], 500));
+
+        $customer = \App\Models\Customer::create([
+            'code' => 'SN-'.random_int(100000, 999999),
+            'email' => 'dl'.random_int(1, 999999).'@example.com',
+            'password' => bcrypt('secret-pass-123'), 'status' => 'active',
+        ]);
+
+        $service = \App\Models\Service::create([
+            'customer_id' => $customer->id, 'name' => 'حذف‌شده', 'currency_code' => 'IRT',
+            'price' => 1000, 'cycle' => 'monthly', 'status' => 'cancelled',
+        ]);
+
+        \App\Models\CloudInstance::create([
+            'service_id' => $service->id, 'provider' => 'proxmox', 'provider_ref' => '999',
+            'location_code' => 'ir-tehran', 'hostname' => 'x', 'ipv4' => null, 'status' => 'deleted',
+        ]);
+
+        $r = app(\App\Services\Cloud\CloudProvisioner::class)->syncInstances();
+
+        $this->assertSame(0, array_sum($r), 'ردیفِ حذف‌شده نباید برداشته شود');
+    }
+
     /** ایمیجِ اوبونتو برای این خط هم همان قالبِ cloud-init است. */
     public function test_the_iran_line_shares_the_ubuntu_template_image(): void
     {
