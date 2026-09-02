@@ -87,6 +87,13 @@
                   : 0);
         } catch (\Throwable) { $provStuck = 0; }
       @endphp
+      {{-- فهرستِ کلِ سرویس‌های فروخته‌شده — «تحویل‌ها»یِ پایین زیرمجموعهٔ همین
+           است (فقط تحویل‌نشده‌ها)، پس دقیقاً بالایِ آن می‌نشیند.
+           ⚠️ بی‌نشان است: عددِ کلِ سرویس‌ها هشدار نیست و هرگز صفر نمی‌شود
+           — همان درسِ «نشانِ دائمی از روزِ دوم نادیده گرفته می‌شود». --}}
+      @if($navAdmin)
+        <a href="/admin/services" class="@yield('nav_services')"><svg class="icon"><use href="#i-hdd"/></svg>سرویس‌ها</a>
+      @endif
       @unless($navSup)
         <a href="/admin/provisioning" class="@yield('nav_provisioning')"><svg class="icon"><use href="#i-box"/></svg>تحویل‌ها@if($provStuck)<span class="ad-pill">{{ fa_num($provStuck) }}</span>@endif</a>
       @endunless

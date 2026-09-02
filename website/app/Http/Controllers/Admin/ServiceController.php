@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\View\View;
 
 /**
  * فروش و مدیریت سرویس‌های مشتری — سمت کارکنان.
@@ -22,6 +23,201 @@ use Illuminate\Support\Facades\Schema;
  */
 class ServiceController extends Controller
 {
+    /** ردیف در هر صفحه — فهرستِ مروری است، نه خروجیِ حسابداری */
+    private const PER_PAGE = 30;
+
+    /**
+     * زبانه‌های فهرست.
+     *
+     * 🔴 تعریفِ هر زبانه **یک‌بار** این‌جاست و هم شمارنده و هم فیلتر از همین
+     * می‌خوانند. دو نسخهٔ جدا (یکی برای عدد، یکی برای فهرست) همان‌جایی است که
+     * «زبانه می‌گوید ۷ تا، جدول ۵ تا نشان می‌دهد» از آن درمی‌آید.
+     *
+     * ⚠️ «بسته» با `DEAD_STATUSES` تعریف می‌شود نه رشتهٔ دست‌نویس، تا اگر روزی
+     * وضعیتِ مرده‌ی تازه‌ای اضافه شود این‌جا خودبه‌خود درست بماند.
+     *
+     * @var array<string,string>
+     */
+    private const TABS = [
+        'all'       => 'همه',
+        'active'    => 'فعال',
+        'pending'   => 'منتظر پرداخت',
+        'delivery'  => 'در حالِ تحویل',
+        'suspended' => 'معلق',
+        'dead'      => 'بسته',
+    ];
+
+    /**
+     * فهرستِ کلِ سرویس‌های فروخته‌شده — مقصدِ لینکِ «همه»ی داشبورد.
+     *
+     * ═══ چرا این صفحه لازم شد ═══
+     *
+     * 🔴 لینکِ «همه»ی پنلِ «تازه‌ترین سرویس‌ها» از روزِ اول به `/admin/services`
+     * اشاره می‌کرد و چنین روتی هرگز وجود نداشت — فقط POSTهای
+     * `services/{service}/…`. یعنی روی صفحهٔ اصلیِ کارفرما یک لینکِ مرده بود که
+     * ۴۰۴ می‌داد و تنها با کلیک‌کردن پیدا می‌شد. `AdminDashboardLinksResolveTest`
+     * حالا هر href این صفحه را می‌سنجد تا دومی‌اش پیش نیاید.
+     *
+     * ⚠️ `/admin/provisioning` جایگزینش نبود: آن‌جا فقط سفارشِ **تحویل‌نشده**
+     * می‌آید. جایی برای دیدنِ سرویسِ فعالِ سالم — که بیشترِ فهرست است — وجود
+     * نداشت و مدیر باید مشتری‌به‌مشتری پرونده باز می‌کرد.
+     *
+     * 🔴 این صفحه فقط **می‌خوانَد**. همهٔ اقدام‌ها (تحویل، تمدید، تعلیق، خاتمه)
+     * در پروندهٔ مشتری‌اند و همان‌جا می‌مانند: دکمهٔ عملیات روی فهرستِ ۳۰تایی
+     * یعنی یک کلیکِ اشتباه روی ردیفِ همسایه، روی داده‌ای که پول است.
+     */
+    public function index(Request $request): View
+    {
+        /*
+        | 🔴 گاردِ صریح لازم است، حتی زیرِ گروهِ `admin`.
+        |
+        | داشبورد این لینک را با `isAdmin()` پنهان می‌کند و پنلِ «تازه‌ترین
+        | سرویس‌ها» هم همان شرط را دارد — ولی پنهان‌بودنِ لینک در دیدِ پشتیبان
+        | هیچ دری را نمی‌بندد. مبلغِ فروشِ همهٔ مشتریان در یک صفحه است.
+        */
+        abort_unless($request->user()->isAdmin(), 403);
+
+        // نگهبانِ hasTable مثلِ بقیهٔ پنل: نصبی که هنوز مهاجرت نخورده باید پیام
+        // ببیند، نه ۵۰۰.
+        if (! Schema::hasTable('services')) {
+            return view('admin.services', [
+                'services' => Service::query()->whereRaw('1 = 0')->paginate(self::PER_PAGE),
+                'notReady' => true,
+                'counts'   => array_fill_keys(array_keys(self::TABS), 0),
+                'tab'      => 'all',
+                'q'        => '',
+                'servers'  => collect(),
+                'filters'  => ['server' => '', 'cycle' => '', 'billing' => '', 'sort' => 'newest'],
+            ]);
+        }
+
+        $tab = array_key_exists((string) $request->query('tab'), self::TABS)
+            ? (string) $request->query('tab') : 'all';
+
+        /*
+        | ⚠️ همان نرمال‌سازیِ ارقامِ فهرستِ مشتریان: مدیر «۰۹۱۲…» یا کدِ
+        | «SN-۶۰۴۵۳۴» را با صفحه‌کلیدِ فارسی می‌زند و ستون‌ها لاتین‌اند. بی‌این،
+        | جستجو بی‌هیچ خطایی همیشه خالی برمی‌گشت — و «خراب» به نظر می‌رسید.
+        */
+        $q = CustomerController::normalizeDigits((string) $request->query('q', ''));
+
+        // مقدارِ نامعتبر بی‌اثر است، نه خطا
+        $fServer  = ctype_digit((string) $request->query('server', '')) ? (int) $request->query('server') : '';
+        $fCycle   = in_array($request->query('cycle'), Service::cycles(), true) ? (string) $request->query('cycle') : '';
+        $fBilling = in_array($request->query('billing'), ['hourly', 'cycle'], true) ? (string) $request->query('billing') : '';
+        $fSort    = in_array($request->query('sort'), ['newest', 'oldest', 'due', 'price'], true)
+            ? (string) $request->query('sort') : 'newest';
+
+        $query = Service::query()->with(['customer', 'server']);
+
+        $this->applyTab($query, $tab);
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                    ->orWhere('domain', 'like', "%{$q}%")
+                    ->orWhere('username', 'like', "%{$q}%")
+                    /*
+                    | ⚠️ `whereHas` و نه join: با join، سرویسی که مشتری‌اش حذف
+                    | شده بی‌صدا از فهرست می‌افتاد — دقیقاً ردیفی که مدیر بیشتر
+                    | از همه باید ببیند (سرویسِ یتیمی که هنوز روی سرور زنده است).
+                    */
+                    ->orWhereHas('customer', fn ($c) => $c
+                        ->where('code', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhere('phone', 'like', "%{$q}%"));
+            });
+        }
+
+        if ($fServer !== '') {
+            $query->where('server_id', $fServer);
+        }
+
+        if ($fCycle !== '') {
+            $query->where('cycle', $fCycle);
+        }
+
+        if ($fBilling !== '') {
+            /*
+            | ⚠️ «دوره‌ای» یعنی **ساعتی نیست**، نه `= 'cycle'`.
+            |
+            | ستون `default('cycle')` دارد پس امروز فقط دو مقدار می‌گیرد؛ ولی
+            | هر مقدارِ سومی که فردا اضافه شود (مثلاً «یک‌بار») با تساویِ ساده
+            | بی‌صدا از **هر دو** فیلتر بیرون می‌افتاد و مدیر ردیف‌هایی را
+            | نمی‌دید بی‌آنکه چیزی خطا بدهد.
+            |
+            | ⚠️ `whereNull` هم لازم است چون `!=` در SQL هرگز NULL را
+            | برنمی‌گرداند: اگر روزی پیش‌فرضِ ستون برداشته شود، بی‌این شرط همان
+            | ردیف‌ها ناپدید می‌شدند.
+            */
+            $fBilling === 'hourly'
+                ? $query->where('billing_mode', 'hourly')
+                : $query->where(fn ($w) => $w->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'));
+        }
+
+        match ($fSort) {
+            'oldest' => $query->orderBy('id'),
+            /*
+            | ⚠️ سرویسِ بی‌سررسید **آخر** می‌ایستد، نه اولِ فهرست: NULL در
+            | `orderBy` تلهٔ ثبت‌شدهٔ فهرستِ ناوگان است — بالای «نزدیک‌ترین
+            | سررسید» پر می‌شود از ردیف‌هایی که اصلاً سررسید ندارند.
+            */
+            'due'   => $query->orderByRaw('next_due_at is null')->orderBy('next_due_at'),
+            'price' => $query->orderByDesc('price'),
+            default => $query->orderByDesc('id'),
+        };
+
+        return view('admin.services', [
+            'services' => $query->paginate(self::PER_PAGE)->withQueryString(),
+            'notReady' => false,
+            'counts'   => $this->tabCounts(),
+            'tab'      => $tab,
+            'q'        => $q,
+            'servers'  => Schema::hasTable('servers')
+                ? \App\Models\Server::orderBy('name')->get(['id', 'name'])
+                : collect(),
+            'filters'  => ['server' => $fServer, 'cycle' => $fCycle, 'billing' => $fBilling, 'sort' => $fSort],
+        ]);
+    }
+
+    /**
+     * فیلترِ یک زبانه روی پرس‌وجو — یگانه تعریفِ «هر زبانه یعنی چه».
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function applyTab($query, string $tab)
+    {
+        return match ($tab) {
+            'active'    => $query->where('status', 'active'),
+            'pending'   => $query->where('status', 'pending'),
+            'delivery'  => $query->whereIn('status', ['awaiting_provision', 'provision_failed']),
+            'suspended' => $query->where('status', 'suspended'),
+            'dead'      => $query->whereIn('status', Service::DEAD_STATUSES),
+            default     => $query,
+        };
+    }
+
+    /**
+     * شمارشِ هر زبانه.
+     *
+     * ⚠️ شش `count()` جدا و نه یک `groupBy('status')`: زبانهٔ «در حالِ تحویل»
+     * دو وضعیت را یکی می‌کند و «بسته» از ثابتِ مدل می‌آید، پس نگاشتِ نتیجهٔ
+     * groupBy مجبور بود همان منطقِ `applyTab` را دوباره بنویسد — و آن نسخهٔ
+     * دوم همان‌جایی است که عددِ زبانه با تعدادِ ردیف‌های جدول واگرا می‌شود.
+     *
+     * @return array<string,int>
+     */
+    private function tabCounts(): array
+    {
+        $counts = [];
+
+        foreach (array_keys(self::TABS) as $tab) {
+            $counts[$tab] = (int) $this->applyTab(Service::query(), $tab)->count();
+        }
+
+        return $counts;
+    }
+
     /**
      * فروش سرویس به یک مشتری + ساخت پیش‌فاکتور، همه در یک تراکنش.
      */

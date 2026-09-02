@@ -92,12 +92,17 @@
 <div class="ad-latest" style="margin-top:16px">
 
   {{-- پرداخت‌ها: مبلغ + درگاه + مشتری. پشتیبان لازم ندارد و
-       `/admin/invoices` هم برایش ۴۰۳ است. --}}
+       `/admin/transactions` هم برایش ۴۰۳ است.
+
+       🔴 این لینک تا امروز `/admin/invoices` بود و چنین روتی **هرگز ثبت
+       نشده بود** — درست مثلِ `/admin/services`ِ پنلِ بغلی، یک ۴۰۴ روی صفحهٔ
+       اصلیِ کارفرما. مقصدِ درستِ «همهٔ پرداخت‌ها» همین صفحهٔ تراکنش‌هاست:
+       همان ردیف‌های `payments`، با فیلترِ درگاه و وضعیت. --}}
   @if(auth()->user()?->isAdmin())
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h">
       <h3>آخرین پرداخت‌ها</h3>
-      <a href="/admin/invoices" style="font-size:13px;color:var(--cyan)">همه</a>
+      <a href="/admin/transactions" style="font-size:13px;color:var(--cyan)">همه</a>
     </div>
     <div class="ad-lat-b">
       @forelse($latest['payments'] as $p)
@@ -118,7 +123,11 @@
   @endif
 
   {{-- سرویس‌ها: مبلغِ فروش دارد و لینکِ `/admin/services` هم برای پشتیبان
-       ۴۰۳ است. تیکت‌ها (پایین‌تر) عمداً برای همه می‌مانَد. --}}
+       ۴۰۳ است. تیکت‌ها (پایین‌تر) عمداً برای همه می‌مانَد.
+
+       ⚠️ خودِ `/admin/services` تازه ساخته شد؛ این لینک از روزِ اول به روتی
+       اشاره می‌کرد که وجود نداشت (فقط POSTهای `services/{service}/…` ثبت
+       بودند، پس لاراول MethodNotAllowed می‌داد و صفحهٔ ۴۰۴ رندر می‌شد). --}}
   @if(auth()->user()?->isAdmin())
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h">

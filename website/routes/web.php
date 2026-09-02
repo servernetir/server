@@ -2807,6 +2807,25 @@ Route::prefix('admin')->group(function () {
         Route::get('/provisioning', [\App\Http\Controllers\Admin\ProvisioningController::class, 'index'])
             ->middleware('admin')->name('admin.provisioning');
 
+        /*
+        | فهرستِ کلِ سرویس‌ها — مقصدِ لینکِ «همه»ی داشبورد.
+        |
+        | 🔴 این روت **نبود** و لینکِ داشبورد از روزِ اول ۴۰۴ می‌داد؛ فقط
+        | POSTهای `services/{service}/…` ثبت شده بودند، پس لاراول
+        | `MethodNotAllowed` می‌داد و صفحهٔ ۴۰۴ِ سایت رندر می‌شد. دنبالش
+        | `AdminDashboardLinksResolveTest` هر href داشبورد را می‌سنجد.
+        |
+        | ⚠️ **پیش از** `/services/{service}/…` می‌آید — همان درسِ
+        | `tickets/bulk` و `customers/search`: مسیرِ ثابتی که بعدِ پارامتری
+        | بنشیند بلعیده می‌شود.
+        |
+        | ⚠️ `admin` (گاردِ خودِ گروه) کافی است و پشتیبان این‌جا راه ندارد:
+        | مبلغِ فروشِ همهٔ مشتریان در یک صفحه است. کنترلر هم `isAdmin()` را
+        | صریح می‌سنجد.
+        */
+        Route::get('/services', [\App\Http\Controllers\Admin\ServiceController::class, 'index'])
+            ->name('admin.services');
+
         // فروش و مدیریت سرویس‌های مشتری
         Route::post('/customers/{customer}/services', [\App\Http\Controllers\Admin\ServiceController::class, 'store']);
         Route::post('/services/{service}/status', [\App\Http\Controllers\Admin\ServiceController::class, 'update']);
