@@ -252,6 +252,58 @@ class ProxmoxClient implements CloudProvider
             ];
         }
 
+        /*
+        | ═══ خطِ VPSِ ایران — روی سختِ‌افزارِ خودمان ═══
+        |
+        | 🔴 چرا لازم شد (۱۱ شهریور ۱۴۰۵): مشتری SN-978603 سرورِ ایرانِ
+        | ۱هسته/۱گیگ خرید و پولش را داد، ولی هیچ پلنِ ایرانی برای این زیرساخت
+        | وجود نداشت. و پلن **از هیچ صفحه‌ای دستی ساخته نمی‌شود** — تنها منبعِ
+        | ردیف‌های `cloud_plans` همین متد است. پس تحویل ناممکن بود، نه سخت.
+        |
+        | ⚠️ مکان عمداً همان `ir-tehran`ِ آروان است (همان `CloudNaming` می‌سازدش):
+        | یک اسلاگِ مشترک یعنی اگر روزی هر دو زیرساخت یک اندازه داشته باشند،
+        | مشتری یک کارت می‌بیند و تحویل از ارزان‌ترینِ **در دسترس** انجام
+        | می‌شود — همان سفیدبرچسبی که کلِ این لایه رویش بنا شده. امروز که
+        | آروان قرنطینه است، تهران خودکار روی سختِ‌افزارِ خودمان می‌افتد.
+        |
+        | ⚠️ اندازه‌ها از تنظیمات می‌آیند نه سخت‌کد، دقیقاً به همان دلیلِ
+        | `proxmox_exit_countries`: اضافه‌کردنِ اندازهٔ بعدی نباید دیپلوی بخواهد.
+        */
+        $irCity = $this->irCity();
+
+        if ($irCity !== '') {
+            $locCode = CloudNaming::locationCode('IR', $irCity, 'ir');
+
+            $locations[] = [
+                'code'              => $locCode,
+                'country'           => 'IR',
+                'city'              => $irCity,
+                'provider_location' => $node,
+                'latitude'          => null,
+                'longitude'         => null,
+            ];
+
+            foreach ($this->irPlans() as $spec) {
+                [$vcpu, $ramGb, $diskGb] = $spec;
+
+                $plans[] = [
+                    'provider_ref'      => 'ir-vps-'.$vcpu.'-'.$ramGb.'-'.$diskGb,
+                    'provider_location' => $node,
+                    'location_code'     => $locCode,
+                    'vcpu'              => $vcpu,
+                    'ram_mb'            => $ramGb * 1024,
+                    'disk_gb'           => $diskGb,
+                    'disk_type'         => 'ssd',
+                    'traffic_gb'        => 1000,
+                    'cpu_kind'          => 'shared',
+                    'arch'              => 'x86',
+                    'cost_eur_cents'    => self::irCostCents($vcpu, $ramGb, $diskGb),
+                    'in_stock'          => true,
+                    'name'              => 'Iran VPS '.$ramGb.'GB',
+                ];
+            }
+        }
+
         return [
             'ok' => true, 'message' => '',
             'locations' => $locations,
@@ -286,6 +338,83 @@ class ProxmoxClient implements CloudProvider
         )));
 
         return $list === [] ? ['de', 'nl', 'fi'] : $list;
+    }
+
+    /**
+     * شهرِ خطِ ایران (تنظیمِ `proxmox_ir_city`، پیش‌فرض `tehran`).
+     *
+     * رشتهٔ خالی یعنی «این خط را نساز» — راهِ خاموش‌کردنش بی‌دیپلوی.
+     */
+    private function irCity(): string
+    {
+        $raw = Setting::get('proxmox_ir_city');
+
+        return strtolower(trim((string) ($raw ?? 'tehran')));
+    }
+
+    /**
+     * اندازه‌های خطِ ایران از تنظیمِ `proxmox_ir_plans` — CSV با شکلِ
+     * `vcpu-ramGB-diskGB` (مثلاً `1-1-25,2-2-40,4-8-80`).
+     *
+     * ⚠️ ردیفِ بدشکل **بی‌صدا رد** می‌شود، نه اینکه کلِ کاتالوگ را بشکند:
+     * یک تایپو در تنظیمات نباید همگام‌سازیِ زیرساخت را از کار بیندازد. ولی
+     * اگر هیچ ردیفِ سالمی نماند، به پیش‌فرض برمی‌گردیم تا خط بی‌صدا غیب نشود.
+     *
+     * @return array<int, array{0:int,1:int,2:int}>
+     */
+    private function irPlans(): array
+    {
+        $raw = (string) (Setting::get('proxmox_ir_plans') ?: self::IR_PLANS_DEFAULT);
+        $out = [];
+
+        foreach (explode(',', $raw) as $row) {
+            $parts = array_map('trim', explode('-', trim($row)));
+
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            [$vcpu, $ram, $disk] = array_map('intval', $parts);
+
+            // کرانِ عقل: صفر یا منفی پلنِ بی‌معنا می‌سازد، و عددِ نجومی
+            // ردیفی که هیچ‌وقت تحویل نمی‌شود.
+            if ($vcpu < 1 || $vcpu > 64 || $ram < 1 || $ram > 512 || $disk < 5 || $disk > 4000) {
+                continue;
+            }
+
+            $out[$vcpu.'-'.$ram.'-'.$disk] = [$vcpu, $ram, $disk];
+        }
+
+        return array_values($out) ?: self::parseDefaultIrPlans();
+    }
+
+    /** پیش‌فرضِ خطِ ایران — تنها جایی که این اعداد نوشته شده‌اند. */
+    private const IR_PLANS_DEFAULT = '1-1-25,2-2-40,4-8-80';
+
+    /** @return array<int, array{0:int,1:int,2:int}> */
+    private static function parseDefaultIrPlans(): array
+    {
+        $out = [];
+
+        foreach (explode(',', self::IR_PLANS_DEFAULT) as $row) {
+            [$vcpu, $ram, $disk] = array_map('intval', explode('-', $row));
+            $out[] = [$vcpu, $ram, $disk];
+        }
+
+        return $out;
+    }
+
+    /**
+     * بهایِ تمام‌شدهٔ **اسمی** به سنتِ یورو — میزبانِ خودمان است، پس این عدد
+     * فاکتورِ کسی نیست؛ فقط پایه‌ای است که `CloudPricing` حاشیه رویش می‌گذارد.
+     *
+     * ⚠️ ضریب‌ها طوری چیده شده‌اند که «۲هسته/۲گیگ/۳۰گیگ» همان ۴۰۰ سنتِ
+     * Exit VPS در بیاید — وگرنه دو محصولِ هم‌اندازه روی یک سختِ‌افزار دو
+     * بهایِ متفاوت می‌گرفتند و گزارشِ سود بی‌معنا می‌شد.
+     */
+    private static function irCostCents(int $vcpu, int $ramGb, int $diskGb): int
+    {
+        return 110 + ($vcpu * 60) + ($ramGb * 40) + ($diskGb * 3);
     }
 
     // ───────────────────────── ساخت ─────────────────────────
