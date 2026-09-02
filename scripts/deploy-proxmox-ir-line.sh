@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-dd23a5b8}"
+MINE="${1:-c181c5fb}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -260,6 +260,10 @@ g "$APP/app/Services/Cloud/ProxmoxClient.php" "exitCountries"
 g "$APP/app/Services/Cloud/ProxmoxClient.php" "exit-vps-"
 g "$APP/app/Services/Cloud/ProxmoxClient.php" "cipassword"
 g "$APP/app/Services/Cloud/ProxmoxClient.php" "waitForTask"
+
+# 🔴 تعمیرِ IP: بی‌این، «اتصالِ سرورِ موجود» سرویسی می‌سازد که نه آدرس دارد
+#    نه پورتِ عمومی می‌گیرد — و هیچ خطایی هم ثبت نمی‌شود.
+g "$APP/app/Services/Cloud/ProxmoxClient.php" "vmIp(\$node, \$ref)"
 
 # 🔴 آزمونِ زندهٔ کاتالوگ — تنها چیزی که واقعاً ثابت می‌کند کار می‌کند.
 #    گاردهای بالا فقط می‌گویند «رشته در فایل هست»؛ این می‌گوید «پلن ساخته شد».
