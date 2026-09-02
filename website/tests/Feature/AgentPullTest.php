@@ -172,6 +172,18 @@ class AgentPullTest extends TestCase
         $cat = app(ProxmoxClient::class)->fetchCatalog();
 
         $this->assertTrue($cat['ok']);
+
+        /*
+         * ⚠️ فقط خطِ **اکسیت** شمرده می‌شود، نه کلِ کاتالوگ: از شهریور ۱۴۰۵
+         * همین متد خطِ VPSِ ایران را هم می‌سازد (CloudProxmoxIranLineTest).
+         * شمارشِ کل یعنی این تست با هر خطِ تازه قرمز می‌شود بی‌آنکه چیزی
+         * خراب شده باشد.
+         */
+        $cat['locations'] = array_values(array_filter($cat['locations'],
+            fn ($l) => str_starts_with((string) $l['code'], 'exit-')));
+        $cat['plans'] = array_values(array_filter($cat['plans'],
+            fn ($p) => str_starts_with((string) $p['location_code'], 'exit-')));
+
         $this->assertCount(2, $cat['locations']);
         $this->assertCount(2, $cat['plans']);
 

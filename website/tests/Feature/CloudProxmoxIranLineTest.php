@@ -36,7 +36,10 @@ class CloudProxmoxIranLineTest extends TestCase
         parent::setUp();
 
         Setting::putSecret('proxmox_token_secret', 'test-secret-uuid');
-        Http::fake();
+
+        // ⚠️ عمداً `Http::fake()`ِ کلی این‌جا نیست: استابِ `'*'` استابِ
+        //    دقیق‌ترِ داخلِ تست را می‌بلعد (قاعدهٔ ثبت‌شدهٔ پروژه). ساختِ
+        //    کاتالوگ هم اصلاً تماسِ شبکه‌ای ندارد — فقط تنظیمات را می‌خواند.
     }
 
     private function catalog(): array
@@ -197,6 +200,50 @@ class CloudProxmoxIranLineTest extends TestCase
         // شناسهٔ زیرساخت باید یکتا و قابلِ‌خواندن باشد؛ سینک رویش upsert می‌کند
         $refs = array_column($this->iranPlans($this->catalog()), 'provider_ref');
         $this->assertSame($refs, array_unique($refs));
+    }
+
+    // ═══════════ وضعیتِ سرور: IP ═══════════
+
+    /**
+     * 🔴 `serverStatus()` باید IP را برگرداند، وگرنه «اتصالِ سرورِ موجود»
+     * سرویسی می‌سازد که کار نمی‌کند.
+     *
+     * `status/current`ِ Proxmox آدرس ندارد و این متد `null` می‌داد. ولی
+     * `CloudAttachController` همان را در نمونه ذخیره می‌کند و **دو چیز**
+     * به آن وابسته‌اند:
+     *   • آدرسی که مشتری در پرتالش می‌بیند
+     *   • `PullController::portForwards` که نمونهٔ بی‌IP را رد می‌کند ⇒
+     *     هیچ پورتِ عمومی ساخته نمی‌شود ⇒ سرور از بیرون در دسترس نیست
+     *
+     * هیچ‌کدام خطا تولید نمی‌کردند؛ فقط سرویس کار نمی‌کرد.
+     */
+    public function test_server_status_reports_the_ip_from_the_vm_config(): void
+    {
+        Http::fake([
+            '*/qemu/117/status/current' => Http::response(['data' => ['status' => 'running', 'qmpstatus' => 'running']]),
+            '*/qemu/117/config'         => Http::response(['data' => ['ipconfig0' => 'ip=10.10.10.64/24,gw=10.10.10.1']]),
+        ]);
+
+        $status = app(ProxmoxClient::class)->serverStatus('117');
+
+        $this->assertTrue($status['ok']);
+        $this->assertSame('running', $status['status']);
+        $this->assertSame('10.10.10.64', $status['ipv4'],
+            '🔴 بی‌IP، اتصالِ دستی نه آدرس به مشتری می‌دهد نه پورتِ عمومی می‌گیرد');
+    }
+
+    /** ماشینی که هنوز cloud-init ندارد نباید کلِ بررسیِ وضعیت را بشکند. */
+    public function test_a_vm_without_cloud_init_ip_still_reports_its_status(): void
+    {
+        Http::fake([
+            '*/qemu/118/status/current' => Http::response(['data' => ['status' => 'stopped', 'qmpstatus' => 'stopped']]),
+            '*/qemu/118/config'         => Http::response(['data' => []]),
+        ]);
+
+        $status = app(ProxmoxClient::class)->serverStatus('118');
+
+        $this->assertTrue($status['ok']);
+        $this->assertNull($status['ipv4']);
     }
 
     /** ایمیجِ اوبونتو برای این خط هم همان قالبِ cloud-init است. */
