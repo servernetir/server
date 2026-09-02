@@ -238,6 +238,14 @@
         <label class="set-f">کشورهای خروج (Exit VPS) — جدا با کاما
           <input type="text" name="proxmox_exit_countries" dir="ltr" maxlength="200"
                  value="{{ $cloud['exit_countries'] }}" placeholder="de,nl,fi (پیش‌فرض)"></label>
+        {{-- 🔴 بی‌این دو، ماشینِ پشتِ NAT هیچ آدرسی برای دادن به مشتری ندارد:
+             پورت‌فوروارد ساخته می‌شود ولی کسی نمی‌داند روی کدام IP. --}}
+        <label class="set-f">IP عمومیِ میزبانِ ایران (برای پورت‌فوروارد)
+          <input type="text" name="public_ip" dir="ltr" maxlength="45"
+                 value="{{ $cloud['public_ip'] }}" placeholder="85.9.108.118"></label>
+        <label class="set-f">نامِ دامنه به‌جای IP (اختیاری — پورت را حذف نمی‌کند)
+          <input type="text" name="public_host" dir="ltr" maxlength="120"
+                 value="{{ $cloud['public_host'] }}" placeholder="ir1.servernet.cloud"></label>
       </div>
       @if($cloud['proxmox'])
         <label class="set-danger"><input type="checkbox" name="proxmox_forget" value="1"> توکن را فراموش کن</label>

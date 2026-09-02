@@ -124,6 +124,31 @@ class CloudNattedAddressTest extends TestCase
         $this->assertSame('ssh root@ir1.servernet.cloud -p 20001', $inst->sshCommand());
     }
 
+    // ═══════════ تنظیمات ═══════════
+
+    /**
+     * 🔴 `public_ip` باید از پنل قابلِ تنظیم باشد.
+     *
+     * تا امروز هیچ فرمی نداشت و پشتوانه‌اش `config('servernet.exit.public_ip')`
+     * بود که آن کلید در config/servernet.php **اصلاً وجود ندارد**. یعنی مقدار
+     * همیشه خالی می‌مانْد و راهی هم برای پرکردنش نبود — صفحهٔ اکسیت فقط شمارهٔ
+     * پورت را نشان می‌داد و پرتالِ مشتری هیچ آدرسی. قابلیتی که از روزِ اول
+     * نمی‌توانست کار کند.
+     */
+    public function test_the_public_ip_setting_is_saveable_from_the_panel(): void
+    {
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post('/admin/settings', [
+            'tab'         => 'infra',
+            'public_ip'   => '85.9.108.118',
+            'public_host' => 'ir1.servernet.cloud',
+        ])->assertRedirect();
+
+        $this->assertSame('85.9.108.118', Setting::get('public_ip'));
+        $this->assertSame('ir1.servernet.cloud', Setting::get('public_host'));
+    }
+
     // ═══════════ اعلانِ تحویل ═══════════
 
     /**
