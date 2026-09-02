@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-8479dd30}"
+MINE="${1:-a0351b93}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -83,6 +83,11 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 APP_FILES="
 app/Services/Cloud/ProxmoxClient.php
 app/Services/Cloud/CloudProvisioner.php
+app/Models/CloudInstance.php
+resources/views/account/cloud-server.blade.php
+lang/fa/ui.php
+lang/en/ui.php
+lang/tr/ui.php
 "
 
 # ⚠️ فقط زیرِ assets/. هرگز `public/index.php` یا `public/.htaccess` — نسخهٔ
@@ -274,6 +279,21 @@ g "$APP/app/Services/Cloud/ProxmoxClient.php" "vmIp(\$node, \$ref)"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "orWhereNull('ipv4')"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "syncInstances"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "deliverOwedNotices"
+
+# 🔴 آدرسِ رو به مشتری — تیکتِ «آی‌پی خصوصی است»
+g "$APP/app/Models/CloudInstance.php" "hasPrivateIp"
+g "$APP/app/Models/CloudInstance.php" "sshCommand"
+g "$APP/app/Models/CloudInstance.php" "publicHost"
+g "$APP/resources/views/account/cloud-server.blade.php" "sshCommand()"
+g "$APP/resources/views/account/cloud-server.blade.php" "cs_address"
+
+for L in fa en tr; do
+  g "$APP/lang/$L/ui.php" "cs_address"
+done
+
+# و آنچه نباید قربانی شود
+g "$APP/resources/views/account/cloud-server.blade.php" "cs_ssh_label"
+g "$APP/app/Models/CloudInstance.php" "password_seen"
 
 # 🔴 آزمونِ زندهٔ کاتالوگ — تنها چیزی که واقعاً ثابت می‌کند کار می‌کند.
 #    گاردهای بالا فقط می‌گویند «رشته در فایل هست»؛ این می‌گوید «پلن ساخته شد».
