@@ -351,27 +351,43 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
       pasteText.value = '';
     }
 
+    /* آهنگِ ارسال: دسته‌ای، نه تک‌کاراکتری.
+     *
+     * نرخِ میانگین دقیقاً همانِ قبل است — ۳۲ کلید هر ۳۸۴ms یعنی همان ۸۳
+     * کلید بر ثانیهٔ «یک کلید هر ۱۲ms» — پس فشاری که به صفِ ورودیِ مهمان
+     * می‌آید عوض نشده. خطرِ افتادنِ کاراکتر از «چندصد کلید یک‌جا» شروع
+     * می‌شود، نه از یک مشتِ ۳۲تایی.
+     *
+     * 🔴 آنچه عوض شد تعدادِ تایمرهاست: ۳۲ برابر کمتر. کروم در تبِ
+     * **پس‌زمینه** هر setTimeout را به ۱ ثانیه می‌کشد و پس از ۵ دقیقه به ۱ در
+     * دقیقه. با تایمرِ هر‌کاراکتر، کاربری که بعد از زدنِ «ارسال» تب عوض
+     * می‌کرد، چسباندنش وسطِ کار عملاً فریز می‌شد: در تستِ زنده، ۴۲ کاراکتر
+     * در بیش از یک دقیقه تمام نشد. حالا همان متن دو تیک است.
+     */
+    var CHUNK = 32, GAP = 384;
+
     (function step(){
-      if (i >= chars.length) { return finish(); }
+      var end = Math.min(i + CHUNK, chars.length);
 
-      var ch = chars[i++];
+      for (; i < end; i++) {
+        var ch = chars[i];
 
-      if (ch === '\n' || ch === '\r') {
-        shift(false);
-        rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
-      } else if (ch === '\t') {
-        shift(false);
-        rfb.sendKey(0xFF09, 'Tab');
-      } else {
-        shift(needsShift(ch));
-        var cp = ch.codePointAt(0);
-        // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
-        rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        if (ch === '\n' || ch === '\r') {
+          shift(false);
+          rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
+        } else if (ch === '\t') {
+          shift(false);
+          rfb.sendKey(0xFF09, 'Tab');
+        } else {
+          shift(needsShift(ch));
+          var cp = ch.codePointAt(0);
+          // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
+          rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        }
       }
 
-      // فاصلهٔ کوتاه: کنسولِ سرور صفِ ورودیِ محدودی دارد و ارسالِ یک‌جای
-      // چندصد کلید باعثِ افتادنِ کاراکتر می‌شود.
-      setTimeout(step, 12);
+      if (i >= chars.length) { return finish(); }
+      setTimeout(step, GAP);
     })();
   };
 
