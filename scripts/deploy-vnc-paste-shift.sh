@@ -22,6 +22,11 @@
 #     پیش از Enter/Tab و در پایان رها می‌شود (رها نکردنش = Shiftِ گیرکرده در
 #     مهمان)، و گاردِ `pasting` جلوی دو حلقهٔ موازی را می‌گیرد.
 #
+#   • و آهنگِ ارسال دسته‌ای شد: ۳۲ کلید هر ۳۸۴ms به‌جای ۱ کلید هر ۱۲ms.
+#     نرخِ میانگین همان است، ولی تعدادِ تایمرها ۳۲ برابر کمتر — چون کروم
+#     در تبِ پس‌زمینه setTimeout را به ۱ث (و پس از ۵ دقیقه ۱/دقیقه) می‌کشد
+#     و چسباندن وسطِ کار معلق می‌ماند. ۵۰۰ کاراکتر: ۵۰۰ تیک ← ۱۵ تیک.
+#
 # ✅ یک فایل. بدونِ مهاجرت، بدونِ کلیدِ زبان، بدونِ CSS.
 #
 # منطقِ merge و گاردِ Blade از scripts/deploy-hourly-term-guard.sh
@@ -63,7 +68,7 @@ else
     || { echo "FATAL: clone"; exit 1; }
 fi
 
-MINE="${1:-f4d82427}"
+MINE="${1:-6d8e56c2}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -239,7 +244,8 @@ g "$V" "function finish()"
 # برش دارد.
 g "$V" "Array.from(text)"                     # نه split — حروفِ خارج از BMP
 g "$V" "0x01000000 + cp"                      # آفستِ یونیکدِ X11
-g "$V" "setTimeout(step, 12)"                 # صفِ ورودیِ محدودِ کنسول
+g "$V" "var CHUNK = 32, GAP = 384"           # آهنگِ دسته‌ای
+g "$V" "setTimeout(step, GAP)"               # — جفتِ همین؛ یکی بدونِ دیگری یعنی merge نصفه کرده
 g "$V" "rfb.sendKey(0xFF0D, 'Enter')"         # Enter با scancode
 g "$V" "#vnc-wrap:-webkit-full-screen"        # قاعدهٔ جدا، نه با کاما
 g "$V" "beforeunload"                         # بستنِ تمیزِ نشست
