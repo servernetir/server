@@ -133,8 +133,13 @@ class CloudProvisioner
         // که تحویلش ممکن نیست.
         $wanted = $this->addons->sanitize($service->cloud_addons);
 
-        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager)
-            ?? CloudPlan::bestForSlug((string) $ordered->slug)
+        // ⚠️ قیدِ دوم: **ترمِ صورت‌حساب**. سرویسِ ساعتی فقط روی ردیفی می‌نشیند
+        //    که زیرساخت واقعاً ساعتی می‌فروشدش؛ وگرنه انتخابِ دیرهنگام می‌تواند
+        //    سرویسِ ساعتی را روی ارزان‌ترینِ ماهانه‌فروش بگذارد و سفارش رد شود.
+        $hourly = $service->isHourly();
+
+        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
+            ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly)
             ?? $ordered;
 
         /*
@@ -182,7 +187,7 @@ class CloudProvisioner
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
             // زیرساختِ دیگری برو که داردش. مشتری اوبونتو خواسته، نه یک برند.
-            $alt = $this->planWithImage((string) $ordered->slug, $imageKey);
+            $alt = $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
 
             if ($alt === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -238,6 +243,26 @@ class CloudProvisioner
         // فقط اشاره به کلیدِ موجود پذیرفته می‌شود نه متنِ کلید.
         $sshRefs = $this->sshKeyRefs($service, $plan);
 
+        /*
+        | 🔴 آخرین خط: ساعتی روی زیرساختی که ساعتی نمی‌فروشد سفارش داده نشود.
+        |
+        | ⚠️ عمداً **همین‌جا** است، نه بالاتر کنارِ انتخابِ اول. `$plan` تا این
+        | خط **سه** بار می‌تواند عوض شود: `bestPlanFor`، `bestForSlug` (که
+        | وقتی چیزی پیدا نکند به `$ordered` برمی‌گردد) و شاخهٔ «زیرساختی که
+        | ایمیج را دارد». گاردی که پیش از آخرین جابه‌جایی بنشیند، از پشت دور
+        | زده می‌شود — و اولین نسخهٔ همین گارد دقیقاً همان‌طور دور خورد؛ تستِ
+        | `..._moves_to_the_hourly_capable_row_...` گرفتش.
+        |
+        | ⚠️ `fail` نه `retryLater`: تکرار درستش نمی‌کند؛ یا کاتالوگ باید عوض
+        | شود یا سفارش ماهانه شود. تلاشِ بی‌پایان فقط صف را کثیف می‌کند.
+        */
+        if ($hourly && ! $plan->supportsHourly()) {
+            $this->fail($service, 'این پلن نزدِ زیرساخت صورت‌حسابِ ساعتی ندارد و ساعتی سفارش داده نمی‌شود؛ '
+                .'سفارش باید ماهانه باشد یا از مکان/زیرساختِ دیگری انتخاب شود.');
+
+            return false;
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'name'         => $this->serverName($service),
@@ -275,6 +300,10 @@ class CloudProvisioner
             $why = trim((string) $result['message'].($detail !== '' ? ' — '.$detail : ''));
 
             $instance->update(['status' => 'error', 'last_error' => mb_substr($why, 0, 500)]);
+
+            // 🔴 اگر ایرادْ **نداشتنِ تعرفهٔ ساعتی روی همین محصول** است، همان
+            //    ردیف را از فروشِ ساعتی بردار — نه کلِ زیرساخت را
+            $this->disableHourlyIfRefused($plan, $why);
 
             // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
             $this->quarantineProvider($plan, $why);
@@ -912,7 +941,7 @@ class CloudProvisioner
     }
 
     /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */
-    private function planWithImage(string $slug, string $imageKey): ?CloudPlan
+    private function planWithImage(string $slug, string $imageKey, bool $hourly = false): ?CloudPlan
     {
         $providers = CloudImage::query()->usable()->where('key', $imageKey)->pluck('provider')->unique();
 
@@ -926,6 +955,11 @@ class CloudProvisioner
         // برمی‌داریم که ایمیج **برای معماریِ خودش** واقعاً موجود باشد.
         return CloudPlan::query()
             ->sellable()
+            // ⚠️ سومین مسیرِ انتخابِ دیرهنگام است و باید همان قیدهای دو تای
+            //    دیگر را داشته باشد؛ وگرنه «سراغِ زیرساختی که ایمیج را دارد
+            //    برو» می‌تواند سرویسِ ساعتی را روی ردیفی بنشاند که ساعتی
+            //    نمی‌فروشد — و گاردِ بالادست را از پشت دور بزند.
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
             ->where('slug', $slug)
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
@@ -1028,6 +1062,47 @@ class CloudProvisioner
      * عمداً بسته بود.
      */
     public const QUARANTINE_PREFIX = 'خودکار بسته شد:';
+
+    /**
+     * 🔴 «این محصول ساعتی ندارد» — یک ردیف، نه یک زیرساخت.
+     *
+     * `quarantineProvider()` **همهٔ** پلن‌های آن زیرساخت را می‌بندد؛ برای این
+     * خطا فاجعه است: نداشتنِ تعرفهٔ ساعتیِ یک محصول نباید ۱۰۱ پلنِ ماهانهٔ سالم
+     * را از فروش بردارد. پس مسیرِ جدا.
+     *
+     * کاری که می‌کند عمداً «پرچمِ تازه» نیست: `cost_hour_eur_micro` را خالی
+     * می‌کند — یعنی همان چیزی را می‌نویسد که زیرساخت همین حالا دربارهٔ خودش
+     * گفت. `supportsHourly()` بلافاصله false می‌شود و عرضهٔ ساعتی محو می‌شود، و
+     * `cloud:sync` بعدی حقیقتِ روز را دوباره از API می‌نویسد — اگر تعرفهٔ ساعتی
+     * اضافه شد خودش برمی‌گردد. هیچ حالتِ دستیِ ماندگاری ساخته نمی‌شود.
+     *
+     * ⚠️ فقط برای زیرساختِ ترم‌دار معنا دارد؛ برای بقیه این ستون کفِ قیمت است
+     * نه مجوزِ فروش، و پاک‌کردنش بی‌دلیل قیمت را خراب می‌کند.
+     */
+    private function disableHourlyIfRefused(CloudPlan $plan, string $message): void
+    {
+        $needle = mb_strtolower($message);
+
+        $refused = str_contains($needle, "term 'hour'")
+            || str_contains($needle, 'term "hour"')
+            || (str_contains($needle, 'not support') && str_contains($needle, 'hourly'));
+
+        /*
+        | ⚠️ `isTermBased` شرطِ **اول** است و اختیاری نیست: روی زیرساختِ بی‌ترم
+        | این ستون کفِ بهاست نه مجوزِ فروش، و پاک‌کردنش کف را برمی‌دارد ⇒ فروشِ
+        | ساعتی زیرِ بها. همان خطِ قرمزی که sn-svc-76 با آن بسته شد.
+        */
+        if (! $refused || ! $plan->isTermBased() || ! $plan->supportsHourly()) {
+            return;
+        }
+
+        $plan->forceFill(['cost_hour_eur_micro' => null])->save();
+
+        \App\Support\ErrorTracker::note('provision',
+            'زیرساخت گفت این پلن تعرفهٔ ساعتی ندارد؛ از فروشِ ساعتی برداشته شد '
+            .'(پلنِ '.$plan->id.'). فروشِ ماهانه‌اش دست‌نخورده است.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider]);
+    }
 
     private function quarantineProvider(CloudPlan $plan, string $message): void
     {

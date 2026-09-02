@@ -2068,6 +2068,7 @@ return [
     'cvb_slip_todo' => 'Not chosen yet',
     'cvb_setup_line' => 'Setup fee (first payment only)',
     'cvb_e_metal_hourly' => 'Bare-metal servers are not sold hourly — please pick a monthly or longer cycle.',
+    'cvb_e_hourly_unsupported' => 'This plan is not sold hourly in this location — pick a monthly or longer cycle, or try another location.',
     'cvb_tax_incl' => 'Includes :pct% VAT',
     'cvb_eta' => 'Usually delivered in under two minutes after payment.',
     'cvb_pill_gpu' => 'Automatic delivery · usually 15-60 minutes',

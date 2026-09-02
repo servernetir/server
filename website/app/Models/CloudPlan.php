@@ -55,6 +55,80 @@ class CloudPlan extends Model
         return $this->belongsTo(CloudLocation::class, 'location_code', 'code');
     }
 
+    // ─────────────────── آیا این ردیف ساعتی خریدنی است؟ ───────────────────
+
+    /**
+     * زیرساخت‌هایی که سفارشِ ما «ترمِ صورت‌حساب» را همراه می‌برد — و می‌توانند
+     * آن ترم را برای یک محصولِ خاص **رد** کنند.
+     *
+     * ⚠️ بقیه این‌طور نیستند: هتزنر و پراکسموکس و آروان ذاتاً ساعتی
+     * می‌سنجند و سفارششان اصلاً فیلدِ ترم ندارد، پس چیزی برای ردکردن نیست.
+     */
+    private const TERM_BASED_PROVIDERS = ['aeza'];
+
+    /**
+     * 🔴 آیا این ردیف را می‌شود **ساعتی خرید** — نه اینکه ساعتی‌اش را چند
+     * بفروشیم.
+     *
+     * ═══ چرا این متد لازم شد (۱۱ شهریور ۱۴۰۵) ═══
+     *
+     * `hourlyIrt()` وقتی زیرساخت نرخِ ساعتی اعلام نکرده، بی‌صدا به
+     * «ماهانه ÷ ۷۲۰» برمی‌گردد. آن fallback برای **قیمت‌گذاری** درست است
+     * (کفِ نداشتنِ نرخ)، ولی به‌عنوانِ **مجوزِ فروش** خوانده می‌شد: پلنی که
+     * زیرساخت اصلاً ساعتی نمی‌فروشدش، با قیمتی حدسی ساعتی عرضه می‌شد.
+     *
+     * سرویس‌های #۹۶ و #۹۸ (۱۰ شهریور، سوئد—استکهلم، ۸۰۰ ت/ساعت = ۵۳۰٬۰۰۰÷۷۲۰)
+     * پولشان از کیفِ پول کم شد و تحویل با
+     * `400 Product 269 does not support term 'hour'` شکست. یک مشتری شش سفارشِ
+     * لغوشده پشتِ‌سرِهم گرفت.
+     *
+     * ⚠️ کامنتِ `CloudProvisioner` می‌گفت «زیرساختی که term را نپذیرد خودش
+     * month می‌گیرد، پس فرستادنش بی‌خطر است». برای این زیرساخت غلط بود:
+     * **رد می‌کند**، به ماهانه برنمی‌گرداند. فرضِ نانوشته را همیشه بسنج.
+     *
+     * برای زیرساختِ ترم‌دار، تنها گواهِ معتبر خودِ نرخِ ساعتیِ اعلام‌شدهٔ
+     * زیرساخت است (`individualPrices.hour` → `cost_hour_eur_micro`).
+     */
+    public function supportsHourly(): bool
+    {
+        if (! $this->isTermBased()) {
+            return true;
+        }
+
+        return (int) ($this->cost_hour_eur_micro ?? 0) > 0;
+    }
+
+    /**
+     * آیا سفارشِ این زیرساخت ترمِ صورت‌حساب همراه دارد؟
+     *
+     * 🔴 عمومی است چون یک تصمیمِ **دیگر** هم به آن وابسته است: پاک‌کردنِ
+     * `cost_hour_eur_micro` پس از ردِ زیرساخت. روی زیرساختِ بی‌ترم آن ستون
+     * «مجوزِ فروش» نیست، **کفِ بها**ست؛ پاک‌کردنش کف را برمی‌دارد و می‌تواند
+     * فروشِ زیرِ بها بسازد — خطِ قرمزِ کارفرما. پس آن مسیر باید بتواند
+     * صریح بپرسد، نه اینکه از `supportsHourly()` نتیجه بگیرد.
+     */
+    public function isTermBased(): bool
+    {
+        return in_array((string) $this->provider, self::TERM_BASED_PROVIDERS, true);
+    }
+
+    /**
+     * همان شرط، در SQL — برای مسیرهایی که ردیف‌ها را کوئری می‌کنند.
+     *
+     * ⚠️ عمداً هم‌زادِ `supportsHourly()` است و تستِ
+     * `hourly_capable_scope_matches_the_method` هر دو را روی یک مجموعه ردیف
+     * با هم می‌سنجد — وگرنه یکی عوض می‌شود و دیگری جا می‌مانَد.
+     */
+    public function scopeHourlyCapable(Builder $q): Builder
+    {
+        return $q->where(function (Builder $qq) {
+            $qq->whereNotIn('provider', self::TERM_BASED_PROVIDERS)
+                ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', self::TERM_BASED_PROVIDERS)
+                    ->whereNotNull('cost_hour_eur_micro')
+                    ->where('cost_hour_eur_micro', '>', 0));
+        });
+    }
+
     // ───────────────────────── انتخابِ عرضه ─────────────────────────
 
     /**
@@ -117,16 +191,23 @@ class CloudPlan extends Model
     /**
      * عرضه‌های عمومی: یک ردیف به ازای هر (مشخصات × مکان)، ارزان‌ترینِ موجود.
      *
+     * 🔴 `$hourly` فقط یک فیلترِ اضافه نیست — **ارزان‌ترین را هم عوض می‌کند**.
+     * اگر ارزان‌ترین ردیفِ یک اسلاگ ساعتی‌فروش نباشد، عرضهٔ ساعتی باید
+     * ارزان‌ترینِ *ساعتی‌فروش‌ها* باشد، وگرنه قیمتی که نشان داده‌ایم مالِ
+     * ردیفی است که تحویل روی آن انجام نمی‌شود (درسِ «اسلاگ باید هر تفاوتِ
+     * صورت‌حسابی را با خودش ببرد»).
+     *
      * چرا در PHP و نه SQL: `GROUP BY` با «ردیفِ کاملِ کم‌ترین قیمت» در MySQL و
      * SQLite رفتارِ یکسان ندارد (ONLY_FULL_GROUP_BY) و تعدادِ پلن‌ها چندصد است،
      * نه چندصدهزار. سادگی و درست‌بودن مهم‌تر از یک پرس‌وجوی زیرکانه است.
      *
      * @return \Illuminate\Support\Collection<string, CloudPlan>
      */
-    public static function offers(?string $locationCode = null)
+    public static function offers(?string $locationCode = null, bool $hourly = false)
     {
         return static::query()
             ->sellable()
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
             ->when($locationCode, fn ($q) => $q->where('location_code', $locationCode))
             ->orderBy('cost_eur_cents')
             ->get()
@@ -203,10 +284,16 @@ class CloudPlan extends Model
      *
      * اگر ارائه‌دهندهٔ ارزان‌تر موجودی نداشت، خودکار سراغِ بعدی می‌رود؛ مشتری
      * هیچ تفاوتی نمی‌بیند. این همان جایی است که «سفیدبرچسبی» ارزشِ عملی می‌دهد.
+     *
+     * ⚠️ `$hourly` باید از **سرویس** بیاید نه از حدس: انتخابِ دیرهنگام حق دارد
+     * زیرساخت را عوض کند، و اگر این قید همراهش نرود می‌تواند سرویسِ ساعتی را
+     * روی ردیفی بنشاند که ساعتی نمی‌فروشد — همان شکستی که قرار بود بسته شود.
      */
-    public static function bestForSlug(string $slug): ?self
+    public static function bestForSlug(string $slug, bool $hourly = false): ?self
     {
-        return static::query()->sellable()->where('slug', $slug)->orderBy('cost_eur_cents')->first();
+        return static::query()->sellable()
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
+            ->where('slug', $slug)->orderBy('cost_eur_cents')->first();
     }
 
     // ───────────────────────── نمایش ─────────────────────────

@@ -297,6 +297,38 @@ class CloudSilentDeliveryTest extends TestCase
         $this->assertCount(1, CloudDeliveryWatch::stalled());
     }
 
+    /**
+     * 🔴 «پول گرفته و تحویل نشده» نباید دربارهٔ سفارشی گفته شود که پول نداده.
+     *
+     * روی prod (۱۱ شهریور ۱۴۰۵) سرویسِ #۱۰۰ با پیش‌فاکتورِ بازِ ۱٬۸۰۴٬۰۰۰ تومان
+     * و «مجموع پرداخت‌شده: ۰» ساعت‌به‌ساعت در «خرابی‌های خاموش» ثبت می‌شد و چکِ
+     * `/admin/errors` را دائماً قرمز نگه می‌داشت.
+     *
+     * ⚠️ زیانش سروصدا نیست: اعلان فقط روی **تغییرِ وضعیت** می‌رود، پس ناظرِ
+     * همیشه‌قرمز برای تحویلِ شکست‌خوردهٔ بعدی ساکت می‌مانَد.
+     */
+    public function test_an_unpaid_order_is_not_reported_as_paid_but_undelivered(): void
+    {
+        $service = $this->stuckOnOrderRef();
+        Service::where('id', $service->id)->update(['status' => 'pending']);
+
+        $this->assertTrue(CloudDeliveryWatch::stalled()->isEmpty(),
+            'سفارشِ پرداخت‌نشده به‌عنوانِ «پول گرفته و تحویل نشده» گزارش شد');
+    }
+
+    /** ولی همان سرویس، به‌محضِ پرداخت، دوباره دیده می‌شود. */
+    public function test_the_same_order_is_watched_again_once_it_is_paid(): void
+    {
+        $service = $this->stuckOnOrderRef();
+
+        foreach (['awaiting_provision', 'active'] as $paid) {
+            Service::where('id', $service->id)->update(['status' => $paid]);
+
+            $this->assertCount(1, CloudDeliveryWatch::stalled(),
+                'وضعیتِ «'.$paid.'» پرداخت‌شده است و باید پایش شود');
+        }
+    }
+
     /** سفارشِ رهاشده/آزادشده (`none`) عمداً بیرون است — صفی نمی‌خواهدش */
     public function test_a_released_service_is_not_watched(): void
     {

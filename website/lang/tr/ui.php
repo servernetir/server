@@ -2068,6 +2068,7 @@ return [
     'cvb_slip_todo' => 'Henüz seçilmedi',
     'cvb_setup_line' => 'Kurulum ücreti (yalnızca ilk ödeme)',
     'cvb_e_metal_hourly' => 'Bare-metal sunucular saatlik satılmaz — aylık veya daha uzun bir dönem seçin.',
+    'cvb_e_hourly_unsupported' => 'Bu paket bu konumda saatlik satılmıyor — aylık ya da daha uzun bir dönem seçin veya başka bir konuma bakın.',
     'cvb_tax_incl' => ':pct% KDV dahildir',
     'cvb_eta' => 'Ödemeden sonra genellikle iki dakikadan kısa sürede teslim edilir.',
     'cvb_pill_gpu' => 'Otomatik teslim · genellikle 15-60 dakika',

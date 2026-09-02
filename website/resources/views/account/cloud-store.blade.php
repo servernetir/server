@@ -126,6 +126,14 @@
   | فرم برگشته، پارامترِ URL نباید تصمیمش را بازنویسی کند.
   */
   $hOn   = (session()->hasOldInput() ? old('billing_mode') : request()->query('billing_mode')) === 'hourly';
+  /*
+  | 🔴 و فقط اگر این اندازه در این مکان واقعاً ساعتی خریدنی باشد.
+  |
+  | `?billing_mode=hourly` از صفحهٔ فرود می‌آید و به اسلاگِ خاصی قول نداده؛
+  | بی‌این قید، صفحه برای پلنی که ساعتی ندارد در حالتِ ساعتی باز می‌شد و
+  | «۰ تومان در ساعت» را کنارِ دکمهٔ خرید می‌گذاشت.
+  */
+  $hOn   = $hOn && $hRate > 0;
 
   /*
   | مرحله‌ای که باید باز باشد — حالا پنج مرحله است و پیش‌فرضش **مرحلهٔ ۱**.
@@ -470,12 +478,15 @@
                    چک‌باکسِ ساده (نه رادیو) تا **بی‌جاوااسکریپت هم** کار کند:
                    تیک‌خورده یعنی billing_mode=hourly، تیک‌نخورده یعنی هیچ‌چیز
                    ارسال نمی‌شود و سرور همان چرخهٔ عادی را می‌گیرد. --}}
-              @if($hRate > 0)
-                <label class="cvb-seg cvb-seg-h @if($hOn) on @endif">
-                  <input type="checkbox" name="billing_mode" value="hourly" id="cvb-hourly" @checked($hOn)>
-                  <span>{{ __('ui.cvb_mode_hourly') }}</span>
-                </label>
-              @endif
+              {{-- ⚠️ همیشه رندر می‌شود و با `hidden` خاموش می‌شود، نه با `@if`:
+                   عوض‌کردنِ پلن در سمتِ کلاینت اتفاق می‌افتد و اگر عنصر اصلاً
+                   در DOM نباشد، رفتن به پلنی که ساعتی **دارد** گزینه را
+                   برنمی‌گرداند. (`.cvb-seg[hidden]` در panel.css صریح خاموش
+                   شده — `display:inline-flex`ِ نویسنده بر [hidden] می‌چربد.) --}}
+              <label class="cvb-seg cvb-seg-h @if($hOn) on @endif" @if($hRate <= 0) hidden @endif>
+                <input type="checkbox" name="billing_mode" value="hourly" id="cvb-hourly" @checked($hOn)>
+                <span>{{ __('ui.cvb_mode_hourly') }}</span>
+              </label>
             </div>
 
             {{-- فیلتر فقط وقتی چیزی برای فیلترکردن هست. با یک نوعِ پردازنده،
@@ -1095,6 +1106,22 @@
   var render = function(){
     var slug = val('plan'), cyc = val('cycle');
     var bucket = D.prices[slug] || {};
+    var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
+
+    /* ── کلیدِ ساعتی: برمتال، یا اسلاگی که زیرساخت ساعتی نمی‌فروشدش ──
+       rate === 0 یعنی هیچ ردیفِ ساعتی‌فروشی برای این اندازه در این مکان نیست.
+       نمایشِ کلید در آن حالت یعنی مشتری چیزی را انتخاب می‌کند که سرِ ثبتِ سفارش
+       رد می‌شود — همان تجربه‌ای که سرویس‌های ۹۶ و ۹۸ ساختند.
+
+       ⚠️ **بالای** render، پیش از خواندنِ `hourly`: تیک باید در همان نفسی که
+       پلن عوض می‌شود برداشته شود، وگرنه ستونِ مبلغ و برچسبِ بالای برگه یک
+       رندرِ کامل «تومان/ساعت» می‌مانند برای پلنی که ساعتی ندارد. */
+    var isMetal = !!((D.metal || {})[slug]);
+    var hOff = isMetal || !(h.rate > 0);
+    var hSeg = form.querySelector('.cvb-seg-h');
+    if (hSeg) { hSeg.hidden = hOff; }
+    if (hOff && hChk && hChk.checked) { hChk.checked = false; }
+
     var hourly = !!(hChk && hChk.checked);
 
     // مبلغِ ستونِ هر ردیف = همان دورهٔ انتخابی.
@@ -1159,14 +1186,7 @@
       set('cvb-s-ip', D.fa ? faN(String(ipN)) : String(ipN));
     }
 
-    // ── برمتال: کلیدِ ساعتی پنهان و خاموش ──
-    var isMetal = !!((D.metal || {})[slug]);
-    var hSeg = form.querySelector('.cvb-seg-h');
-    if (hSeg) { hSeg.hidden = isMetal; }
-    if (isMetal && hChk && hChk.checked) { hChk.checked = false; }
-
     // ── نرخِ ساعتی ──
-    var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
     set('cvb-h-rate', money(h.rate));
     set('cvb-h-min', money(h.min));
     var low = document.getElementById('cvb-h-low');
