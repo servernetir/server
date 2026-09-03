@@ -72,7 +72,7 @@ else
   git -C repo fetch --depth 400 origin feature/proxmox-iran-vps 2>/dev/null || true
 fi
 
-MINE="${1:-c16974e3}"
+MINE="${1:-014b315e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 [ "$DRY" = "0" ] || echo "── حالتِ آزمایشی (DRY=1): هیچ فایلی نوشته نمی‌شود"
@@ -82,6 +82,8 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    خطا خامِ کلید چاپ می‌شود. و blade جفتِ CSS است.
 APP_FILES="
 app/Services/Cloud/ProxmoxClient.php
+app/Services/Cloud/NpmClient.php
+app/Services/Dns/CloudflareDns.php
 app/Services/Cloud/CloudProvisioner.php
 app/Models/CloudInstance.php
 app/Http/Controllers/Admin/SettingsController.php
@@ -165,7 +167,13 @@ apply_one() {
   # 🔴 «NEW» روی این دیپلوی پرچمِ قرمز است: هر ۱۰ فایل باید از قبل روی سرور
   #    باشند. NEW یعنی یا مسیر غلط است یا با کاربرِ اشتباه واردیم.
   if [ ! -f "$dest" ]; then
-    echo "NEW   $drel   🔴 روی سرور نبود — مقصد را بررسی کن"
+    case "$drel" in
+      app/Services/Cloud/NpmClient.php)
+        # ⚠️ تنها فایلِ واقعاً تازهٔ این دیپلوی. برای بقیه NEW یعنی مقصدِ اشتباه.
+        echo "NEW   $drel   (فایلِ تازه — انتظار می‌رفت)" ;;
+      *)
+        echo "NEW   $drel   🔴 روی سرور نبود — مقصد را بررسی کن" ;;
+    esac
     [ "$DRY" = "0" ] && { mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"; CREATED="$CREATED $root|$drel"; }
     UPD=$((UPD+1)); [ "$root" = "$APP" ] && lint_or_restore "$drel"; return
   fi
@@ -312,6 +320,21 @@ g "$APP/config/servernet.php" "SERVERNET_EXIT_PUBLIC_IP"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "limit reached"
 g "$APP/app/Services/Cloud/CloudProvisioner.php" "resource_limit"
 g "$APP/app/Http/Controllers/Admin/CloudAttachController.php" "taxPercent()"
+
+# ── دروازهٔ وبِ خودکار (تیکتِ «پورت ۸۰») ──
+g "$APP/app/Services/Cloud/NpmClient.php" "ensureProxyHost"
+g "$APP/app/Services/Cloud/NpmClient.php" "removeProxyHost"
+g "$APP/app/Services/Cloud/NpmClient.php" "hostnameFor"
+g "$APP/app/Services/Dns/CloudflareDns.php" "removeSubdomain"
+g "$APP/app/Services/Cloud/CloudProvisioner.php" "ensureWebGateway"
+g "$APP/app/Services/Cloud/CloudProvisioner.php" "removeWebGateway"
+g "$APP/app/Models/CloudInstance.php" "webUrl"
+g "$APP/app/Http/Controllers/Admin/SettingsController.php" "npm_base_domain"
+g "$APP/resources/views/admin/settings/infra.blade.php" "npm_base_url"
+g "$APP/resources/views/account/cloud-server.blade.php" "cs_weburl"
+
+# ⚠️ و آنچه نباید قربانی شود: نیمهٔ ساختِ DNS از قبل بود
+g "$APP/app/Services/Dns/CloudflareDns.php" "pointSubdomain"
 
 for L in fa en tr; do
   g "$APP/lang/$L/ui.php" "cs_address"
