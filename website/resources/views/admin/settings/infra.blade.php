@@ -263,6 +263,21 @@
         <span dir="ltr">/agent/countryroutes</span> و <span dir="ltr">/agent/portforwards</span>
         حالتِ مطلوب را می‌خوانَد. همین توکن را در تنظیماتِ ایجنت هم بگذارید.
       </p>
+      <label class="set-f">آدرسِ Nginx Proxy Manager
+        <input type="text" name="npm_base_url" dir="ltr" maxlength="200"
+               value="{{ $cloud['npm_url'] }}" placeholder="http://10.10.10.7:81"></label>
+      <label class="set-f">دامنهٔ پایهٔ سرورها (زیر‌دامنه زیرِ این ساخته می‌شود)
+        <input type="text" name="npm_base_domain" dir="ltr" maxlength="120"
+               value="{{ $cloud['npm_domain'] }}" placeholder="servernet.cloud"></label>
+      <label class="set-f">ایمیلِ ورودِ NPM
+        <input type="text" name="npm_email" dir="ltr" autocomplete="off" maxlength="190"
+               placeholder="{{ $cloud['npm'] ? '••••••••  خالی = بدونِ تغییر' : 'admin@example.com' }}"></label>
+      <label class="set-f">رمزِ ورودِ NPM
+        <input type="password" name="npm_password" dir="ltr" autocomplete="new-password" maxlength="200"
+               placeholder="{{ $cloud['npm'] ? '••••••••  خالی = بدونِ تغییر' : 'رمزِ پنلِ NPM' }}"></label>
+      @if($cloud['npm'])
+        <label class="set-danger"><input type="checkbox" name="npm_forget" value="1"> اعتبارنامهٔ NPM را فراموش کن</label>
+      @endif
       <label class="set-f">Agent Token
         <input type="password" name="agent_pull_token" dir="ltr" autocomplete="new-password" maxlength="200"
                placeholder="{{ $cloud['agent'] ? '••••••••  خالی = بدونِ تغییر' : 'یک رشتهٔ تصادفیِ قوی' }}"></label>

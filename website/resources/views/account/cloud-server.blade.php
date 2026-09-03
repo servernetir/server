@@ -284,6 +284,11 @@
       @if($inst->ipv6)
         <div class="cs-kv"><small>IPv6</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv6 }}">{{ $inst->ipv6 }}</b></div>
       @endif
+      @if($inst->webUrl())
+        {{-- نشانیِ سایت با نشانیِ SSH یکی نیست؛ مشتری هر دو را لازم دارد و
+             یکی‌گرفتنشان همان سردرگمیِ تیکتِ «پورت ۸۰» بود. --}}
+        <div class="cs-kv"><small>{{ __('ui.cs_weburl') }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->webUrl() }}">{{ $inst->webUrl() }}</b></div>
+      @endif
       <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>

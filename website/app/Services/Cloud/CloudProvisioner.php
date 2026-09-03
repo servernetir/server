@@ -495,8 +495,159 @@ class CloudProvisioner
      * سکوت می‌کردیم، هیچ‌کس نمی‌فهمید سفارشی ثبت شده و در صف مانده است — همان
      * الگوی «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
      */
+    /**
+     * 🔴 دروازهٔ وب برای ماشینِ پشتِ NAT — وگرنه سرورِ فروخته‌شده نمی‌تواند سایت
+     * سرو کند.
+     *
+     * تیکتِ مشتری SN-978603: «به پورت ۸۰ وصل می‌شوم صفحهٔ Nginx Proxy Manager
+     * باز می‌شود». علتش این بود که IPv4 مشترک است و ۸۰/۴۴۳ به پروکسیِ مرکزی
+     * می‌روند؛ از هر ماشین فقط SSH فوروارد می‌شد. یعنی محصولی می‌فروختیم که
+     * کارِ اصلی‌اش را نمی‌توانست بکند.
+     *
+     * ⚠️ هیچ شکستی این‌جا تحویل را نمی‌شکند: سرور بدونِ نامِ عمومی هم قابلِ
+     * استفاده است (SSH کار می‌کند)، ولی سرویسی که به‌خاطرِ خطای پروکسی اصلاً
+     * تحویل نشود، پولِ گرفته‌شده و مشتریِ بی‌سرور است. پس فقط ثبت می‌کنیم.
+     *
+     * ⚠️ گواهی عمداً جدا و بی‌قید است: صدورش به انتشارِ DNS وابسته است و
+     * ممکن است چند دقیقه دیرتر جواب دهد.
+     */
+    private function ensureWebGateway(Service $service, CloudInstance $instance): void
+    {
+        if (! $instance->hasPrivateIp() || filled(($instance->meta ?? [])['public_domain'] ?? null)) {
+            return;
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured() || $npm->baseDomain() === '') {
+                return;                       // قابلیت خاموش است — نه خطا
+            }
+
+            $code = (string) ($service->customer?->code ?? '');
+
+            // ⚠️ سرورِ دومِ همان مشتری نباید نامِ اولی را بدزدد
+            $others = CloudInstance::whereHas('service', fn ($q) => $q->where('customer_id', $service->customer_id))
+                ->where('id', '!=', $instance->id)
+                ->whereNotNull('meta')
+                ->get(['meta'])
+                ->contains(fn ($r) => filled(($r->meta ?? [])['public_domain'] ?? null));
+
+            $host = $npm->hostnameFor($code, $service->id, ! $others);
+
+            if ($host === null) {
+                return;
+            }
+
+            /*
+            | 🔴 رکوردِ DNS **پیش از** پروکسی‌هاست.
+            |
+            | صدور گواهیِ Let's Encrypt چالشِ HTTP-01 می‌زند و آن چالش تا وقتی
+            | نام به IP ما اشاره نکند شکست می‌خورد. ترتیبِ برعکس یعنی گواهی
+            | همیشه بارِ اول رد شود.
+            |
+            | ⚠️ شکستِ DNS جلوی ساختِ پروکسی‌هاست را نمی‌گیرد: نام ممکن است با
+            | وایلدکارد یا رکوردِ دستی از قبل حل شود، و در آن حالت همه‌چیز کار
+            | می‌کند. فقط ثبت می‌شود.
+            */
+            $cf = app(\App\Services\Dns\CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->pointSubdomain($host, CloudInstance::publicHost());
+
+                if (! ($dns['ok'] ?? false)) {
+                    \App\Support\ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» ساخته نشد: '.($dns['reason'] ?? '—'),
+                        ['service' => $service->id]);
+                }
+            }
+
+            $r = $npm->ensureProxyHost($host, (string) $instance->ipv4, 80);
+
+            if (! ($r['ok'] ?? false)) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وب ساخته نشد: '.($r['message'] ?? '—'),
+                    ['service' => $service->id, 'host' => $host]);
+
+                return;
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            $meta['public_domain'] = $host;
+            $instance->update(['meta' => $meta]);
+
+            if (($r['id'] ?? 0) > 0) {
+                $npm->requestCertificate((int) $r['id'], $host);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+        }
+    }
+
+    /**
+     * برچیدنِ دروازهٔ وب هنگامِ آزادسازیِ سرور.
+     *
+     * ⚠️ شکستش مسیرِ آزادسازی را نمی‌شکند ولی **بی‌صدا هم نمی‌مانَد**: میزبانی
+     * که برچیده نشده به IPِ داخلیِ آزادشده اشاره می‌کند، و آن IP بعداً به
+     * مشتریِ دیگری می‌رسد. یعنی نامِ مشتریِ قبلی روی سرورِ مشتریِ تازه —
+     * نشتِ داده، نه آشغال.
+     */
+    private function removeWebGateway(CloudInstance $instance): void
+    {
+        $host = (($instance->meta ?? [])['public_domain'] ?? null);
+
+        if (blank($host)) {
+            return;
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured()) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: اتصالِ NPM تنظیم نیست. '
+                    .'تا برچیده نشود، این نام به IP داخلیِ آزادشده اشاره می‌کند.',
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            $r = $npm->removeProxyHost((string) $host);
+
+            if (! ($r['ok'] ?? false)) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: '.($r['message'] ?? '—'),
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            // و رکوردِ DNS — وگرنه نامِ مشتریِ رفته برای همیشه در زون می‌مانَد
+            $cf = app(\App\Services\Dns\CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->removeSubdomain((string) $host);
+
+                if (! ($dns['ok'] ?? false)) {
+                    \App\Support\ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» برداشته نشد: '.($dns['reason'] ?? '—'),
+                        ['instance' => $instance->id]);
+                }
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            unset($meta['public_domain']);
+            $instance->update(['meta' => $meta]);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['instance' => $instance->id]);
+        }
+    }
+
     private function notifyIfReady(Service $service, CloudInstance $instance): void
     {
+        $this->ensureWebGateway($service, $instance);
+
+
         if ($instance->readyForNotice()) {
             $this->notify($service, $instance);
 
@@ -1895,6 +2046,13 @@ class CloudProvisioner
         if ($driver === null) {
             return false;
         }
+
+        // 🔴 دروازهٔ وب **پیش از** حذفِ ماشین برچیده می‌شود.
+        //
+        // اگر بعد از حذف می‌آمد و حذفِ ماشین شکست می‌خورد، این خط اجرا نمی‌شد و
+        // پروکسی‌هاست تا ابد می‌مانْد. ترتیب عمدی است: چیزی که رو به اینترنت
+        // است زودتر بسته شود.
+        $this->removeWebGateway($instance);
 
         $r = $driver->deleteServer((string) $instance->provider_ref);
 

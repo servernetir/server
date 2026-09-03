@@ -204,6 +204,12 @@ class SettingsController extends Controller
             // اختیاری: نامِ دامنه به‌جای IP در آدرسی که به مشتری می‌دهیم.
             // پورت را حذف نمی‌کند؛ فقط ظاهر را بهتر می‌کند.
             'public_host'            => ['nullable', 'string', 'max:120'],
+            // دروازهٔ وبِ ماشین‌های پشتِ NAT (Nginx Proxy Manager)
+            'npm_base_url'           => ['nullable', 'string', 'max:200'],
+            'npm_base_domain'        => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9.-]*$/'],
+            'npm_email'              => ['nullable', 'string', 'max:190'],
+            'npm_password'           => ['nullable', 'string', 'max:200'],
+            'npm_forget'             => ['nullable', 'boolean'],
             'agent_pull_token'       => ['nullable', 'string', 'max:200'],
             'agent_forget'           => ['nullable', 'boolean'],
             /*
@@ -235,6 +241,7 @@ class SettingsController extends Controller
         'proxmox_api_url', 'proxmox_node', 'proxmox_token_id', 'proxmox_template_vmid',
         'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start',
         'proxmox_exit_countries', 'public_ip', 'public_host',
+        'npm_base_url', 'npm_base_domain',
     ];
 
     /**
@@ -455,6 +462,9 @@ class SettingsController extends Controller
                 'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
                 'public_ip'      => $ready ? Setting::get('public_ip') : null,
                 'public_host'    => $ready ? Setting::get('public_host') : null,
+                'npm'            => $ready && filled(Setting::getSecret('npm_password')),
+                'npm_url'        => $ready ? Setting::get('npm_base_url') : null,
+                'npm_domain'     => $ready ? Setting::get('npm_base_domain') : null,
                 'guard'          => $ready ? Setting::get('cloud_guard_daily_max') : null,
                 'promo'          => $ready && Setting::get('aeza_include_promo') === '1',
                 'unlimited'      => $ready && Setting::get('cloud_traffic_unlimited') === '1',
@@ -756,6 +766,18 @@ class SettingsController extends Controller
             Setting::putSecret('proxmox_token_secret', null);
         } elseif (filled($data['proxmox_token_secret'] ?? null)) {
             Setting::putSecret('proxmox_token_secret', trim((string) $data['proxmox_token_secret']));
+        }
+
+        // NPM: ایمیل و رمز هر دو سرّی‌اند — آدرس و دامنهٔ پایه ساده می‌مانند.
+        if ($request->boolean('npm_forget')) {
+            Setting::putSecret('npm_email', null);
+            Setting::putSecret('npm_password', null);
+        } else {
+            foreach (['npm_email', 'npm_password'] as $k) {
+                if (filled($data[$k] ?? null)) {
+                    Setting::putSecret($k, trim((string) $data[$k]));
+                }
+            }
         }
 
         if ($request->boolean('agent_forget')) {

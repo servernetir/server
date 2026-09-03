@@ -2352,6 +2352,7 @@ return [
     'cs_location' => 'Konum',
     'cs_ssh_label' => 'SSH ile bağlan',
     'cs_address' => 'Bağlantı adresi',
+    'cs_weburl' => 'Site adresi',
     'cs_pw_label' => 'root parolası — hemen güvenli bir yere kaydedin',
     'cs_pw_once' => 'Bu parola <b>bir daha gösterilmeyecek</b>. Kaybederseniz aşağıdan yeni bir parola oluşturun.',
     'cs_pw_reveal'      => 'root parolasını göster',

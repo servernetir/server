@@ -156,6 +156,20 @@ class CloudInstance extends Model
         return $e['port'] === 22 ? $cmd : $cmd.' -p '.$e['port'];
     }
 
+    /**
+     * نشانیِ وبِ سرور — فقط برای ماشینِ پشتِ NAT که دروازهٔ پروکسی گرفته.
+     *
+     * ⚠️ با `address()` یکی نیست: آن نشانیِ **SSH** است (IP:پورت) و این
+     * نشانیِ **سایت**. مشتری هر دو را لازم دارد و یکی‌گرفتنشان همان
+     * سردرگمی‌ای است که تیکتِ «پورت ۸۰» از آن آمد.
+     */
+    public function webUrl(): ?string
+    {
+        $host = (($this->meta ?? [])['public_domain'] ?? null);
+
+        return filled($host) ? 'https://'.$host : null;
+    }
+
     public function hasPassword(): bool
     {
         return filled($this->root_password_enc);
