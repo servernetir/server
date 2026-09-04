@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-cfe31b10}"
+MINE="${1:-7a78953e}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -214,6 +214,9 @@ need_file() { [ -f "$1" ] || { echo "🔴 نیست: ${1#$APP/}"; union_ok=0; }; 
 need_file "$APP/app/Services/Provisioning/HetznerStorageClient.php"
 need_file "$APP/app/Services/Provisioning/HetznerStorageProvisioner.php"
 need_file "$APP/app/Console/Commands/HetznerStorageCatalog.php"
+# ⚠️ گاردِ رشته‌ای فقط می‌گوید نامِ کلاس در فایل هست، نه اینکه **کلاسش** روی
+#    سرور وجود دارد. این فایل را نسخهٔ تازهٔ ProvisioningService صدا می‌زند.
+need_file "$APP/app/Services/Provisioning/BuilderSitePublisher.php"
 
 # `--` اجباری است: هر الگویی که با `-` شروع شود را grep گزینه می‌خواند.
 # و stderr خفه نمی‌شود — گاردی که بی‌صدا شکست بخورد از نبودنش بدتر است.
@@ -299,7 +302,7 @@ echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache"
 echo "   (validate_timestamps=0 — بی‌ریست، کدِ تازه اجرا نمی‌شود)"
 echo
 echo "═══ گامِ بعدی: کاتالوگ ═══"
-echo "  $PHPBIN artisan hetzner:storage-catalog"
+echo "  cd $APP && $PHPBIN artisan hetzner:storage-catalog"
 echo
 echo "  ⚠️ اگر گفت «سرورِ نوعِ hetzner_storage پیدا نشد» یعنی هنوز ردیفِ سرور"
 echo "     ساخته نشده. در /admin/servers یک سرور با نوعِ «فضای بکاپ — Hetzner"
