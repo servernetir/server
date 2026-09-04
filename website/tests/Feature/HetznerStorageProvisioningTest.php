@@ -109,6 +109,34 @@ class HetznerStorageProvisioningTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /* ─────────────── اقتصادِ نگاشت: حذف‌های عمدی ─────────────── */
+
+    /**
+     * 🔴 کوچک‌ترین باکسِ هتزنر ۱ ترابایت است (bx11, 3.20 €).
+     *
+     * BK-100 و BK-500 ارزان‌تر از بهای همان باکس فروخته می‌شوند، پس نگاشتشان
+     * یعنی ضرر روی **هر** مشتری و **هر** ماه — و چون تحویل موفق است، هیچ خطایی
+     * هیچ‌جا ثبت نمی‌شود. نبودشان در نگاشت یک تصمیم است، نه فراموشی.
+     *
+     * و پلن‌های دانلود اصلاً قابلِ تحویل نیستند: Storage Box دانلودِ عمومیِ
+     * HTTP ندارد (همه‌چیزش پشتِ احراز هویت است) در حالی که صفحهٔ محصول «لینک
+     * مستقیم دانلود» وعده می‌دهد — عیناً همان خرابیِ S3.
+     */
+    public function test_the_plans_that_cannot_be_delivered_profitably_stay_unmapped(): void
+    {
+        $map = (array) config("provisioning.hetzner_storage.plans");
+
+        foreach (["sn_backup_1", "sn_backup_2"] as $plan) {
+            $this->assertArrayNotHasKey($plan, $map,
+                "«{$plan}» زیرِ بهای کوچک‌ترین باکسِ هتزنر فروخته می‌شود — نگاشتش یعنی ضررِ ماهانه روی هر مشتری.");
+        }
+
+        foreach (array_keys($map) as $plan) {
+            $this->assertStringStartsNotWith("sn_download", $plan,
+                "Storage Box دانلودِ عمومیِ HTTP ندارد؛ نگاشتِ پلنِ دانلود همان وعدهٔ بی‌پشتوانهٔ S3 را تکرار می‌کند.");
+        }
+    }
+
     /* ───────────────────────── ساختِ درست ───────────────────────── */
 
     public function test_it_creates_a_box_with_the_deterministic_name_on_the_right_host(): void
