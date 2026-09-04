@@ -453,6 +453,76 @@ class CustomerController extends Controller
     }
 
     /**
+     * تنظیمِ دستیِ کیفِ پولِ مشتری — افزایش یا کاهش، با توضیحِ اجباری.
+     *
+     * 🔴 دفترِ اعتبار **افزودنی** است: موجودی جمعِ سطرهاست، نه یک ستونِ
+     * قابلِ‌ویرایش (`Customer::creditBalance()` یک SUM است). پس «صفر کردن»
+     * یعنی یک سطرِ منفی، نه پاک‌کردنِ سطرهای قبلی. تاریخچه دستکاری نمی‌شود —
+     * همان چیزی که یک ماه بعد باید بشود توضیحش داد.
+     *
+     * 🔴 توضیح **اجباری** است. یک جابه‌جاییِ پولِ بی‌دلیل، ماه‌ها بعد قابلِ
+     * بازسازی نیست: نه معلوم است بابتِ چه بوده، نه اینکه اصلاً درست بوده.
+     * تنها کسی که می‌داند، همان لحظه می‌داند.
+     *
+     * ⚠️ موجودی منفی نمی‌شود. هیچ‌جای این سیستم موجودیِ منفی را نمی‌فهمد
+     * (پرداختِ فاکتور از کیفِ پول، مترِ ساعتیِ سرورِ ابری، و APIِ مشتری همه
+     * فرض می‌کنند موجودی ≥ صفر است). اجازه‌دادنش یعنی بدهیِ خاموشی که هیچ
+     * صورت‌حسابی نشانش نمی‌دهد.
+     *
+     * ⚠️ فقط تومان. کلِ دفترِ اعتبار در این پروژه IRT است؛ ساختنِ سطرِ یورویی
+     * موجودی‌ای می‌سازد که هیچ مسیرِ خرجی برایش وجود ندارد.
+     */
+    public function credit(Request $request, Customer $customer): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'direction' => ['required', 'in:add,subtract'],
+            'amount'    => ['required', 'integer', 'min:1', 'max:100000000000'],
+            'note'      => ['required', 'string', 'max:200'],
+        ], [
+            'note.required' => 'توضیح اجباری است — بی‌آن، این تغییر بعداً قابلِ توضیح نیست.',
+            'amount.min'    => 'مبلغ باید بزرگ‌تر از صفر باشد.',
+        ], ['amount' => 'مبلغ', 'note' => 'توضیح']);
+
+        $delta = (int) $data['amount'] * ($data['direction'] === 'add' ? 1 : -1);
+        $balance = $customer->creditBalance('IRT');
+
+        if ($balance + $delta < 0) {
+            return back()->withErrors(
+                'موجودی منفی نمی‌شود. حداکثرِ قابلِ کسر: '.number_format($balance).' تومان.'
+            );
+        }
+
+        /*
+        | ⚠️ `balance_after` عکسِ لحظه‌ای است، نه منبعِ حقیقت. اگر دو مدیر
+        | هم‌زمان تنظیم کنند این عدد ممکن است گمراه باشد، ولی موجودیِ واقعی
+        | (SUM) درست می‌مانَد. برای همین هیچ‌جا از این ستون تصمیم گرفته نمی‌شود.
+        */
+        \App\Models\CreditEntry::create([
+            'customer_id'   => $customer->id,
+            'currency_code' => 'IRT',
+            'amount'        => $delta,
+            'balance_after' => $balance + $delta,
+            'reason'        => 'adjustment',
+            'note'          => $data['note'],
+        ]);
+
+        \App\Models\ActivityLog::record(
+            $customer->id,
+            'credit_adjust',
+            ($delta > 0 ? 'افزایشِ ' : 'کاهشِ ').number_format(abs($delta)).' تومان اعتبار توسط «'
+                .($request->user()->name ?: 'مدیر').'» — '.$data['note'],
+            $request,
+            'staff',
+        );
+
+        return back()->with('ok',
+            ($delta > 0 ? 'افزایشِ ' : 'کاهشِ ').number_format(abs($delta))
+            .' تومان ثبت شد. موجودیِ جدید: '.number_format($balance + $delta).' تومان.');
+    }
+
+    /**
      * فعال/غیرفعال کردنِ نمایندگیِ دامنه + تنظیم‌های اختصاصیِ آن مشتری.
      *
      * 🔴 چرا مدیر روشنش می‌کند و نه خودِ مشتری: نمایندگی یک **قرارداد** است.

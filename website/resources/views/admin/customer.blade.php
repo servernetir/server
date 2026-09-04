@@ -773,6 +773,42 @@
   @endif
 </div>
 
+{{-- ══ کیفِ پول: افزایش / کاهشِ دستی ══
+     🔴 دفتر افزودنی است — هر تغییر یک سطرِ تازه است، نه ویرایشِ سطرهای قبلی.
+     پس «صفر کردن» یعنی یک سطرِ منفی، و تاریخچه دست‌نخورده می‌مانَد. --}}
+<div class="ad-panel">
+  <div class="ad-panel-h">
+    <h3>کیفِ پول</h3>
+    <span style="color:var(--muted);font-size:12.5px">موجودیِ فعلی: <b style="color:#34d399">{{ $money($creditBalance) }}</b></span>
+  </div>
+  <form method="post" action="/admin/customers/{{ $c->id }}/credit" style="padding:16px;display:grid;gap:12px"
+        data-confirm="این تغییر در دفترِ اعتبار ثبت می‌شود و برگشت‌پذیر نیست (اصلاحش یک سطرِ تازه می‌خواهد). ادامه؟"
+        data-confirm-title="تغییرِ اعتبار">
+    @csrf
+    <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">نوع
+        <select name="direction" style="padding:9px 10px">
+          <option value="add">افزایش</option>
+          <option value="subtract">کاهش</option>
+        </select>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">مبلغ (تومان)
+        <input type="number" name="amount" min="1" step="1000" dir="ltr" required placeholder="مثلاً ۵۰۰۰۰۰" style="padding:9px 10px">
+      </label>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">توضیح (اجباری)
+      <input type="text" name="note" maxlength="200" required
+             placeholder="بابتِ چه؟ مثلاً: عودتِ وجه کارت‌به‌کارت شد — تیکت TK-…" style="padding:9px 10px">
+      <span style="color:var(--dim);font-size:11.5px">
+        یک ماه بعد، این تنها چیزی است که می‌گوید چرا این عدد عوض شد. بی‌آن، تغییر قابلِ توضیح نیست.
+      </span>
+    </label>
+    <div>
+      <button type="submit" class="ad-btn">ثبت در دفترِ اعتبار</button>
+    </div>
+  </form>
+</div>
+
 <div class="ad-grid2">
   {{-- ══ پرداخت‌ها ══ --}}
   <div class="ad-panel" style="margin:0">
