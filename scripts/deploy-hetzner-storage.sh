@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-201edafd}"
+MINE="${1:-04daf209}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -85,6 +85,7 @@ app/Http/Controllers/Admin/ServerController.php
 resources/views/admin/partials/server-form.blade.php
 app/Http/Controllers/Admin/CustomerController.php
 resources/views/admin/customer.blade.php
+resources/views/partials/ui-dialog.blade.php
 routes/web.php
 "
 
@@ -255,6 +256,10 @@ g app/Http/Controllers/Admin/ServerController.php "HetznerStorageClient"
 g routes/web.php "/customers/{customer}/credit"
 g app/Http/Controllers/Admin/CustomerController.php "public function credit"
 g resources/views/admin/customer.blade.php "/credit"
+# 🔴 هندلرِ دیالوگِ تأیید. نسخهٔ روی سرور از مخزن عقب مانده بود و فرمِ
+#    data-confirm را می‌گرفت ولی دیالوگ نمی‌ساخت: دکمه فوکوس می‌گرفت و هیچ
+#    اتفاقی نمی‌افتاد. اتصالِ خودکار باید فازِ capture داشته باشد.
+g resources/views/partials/ui-dialog.blade.php "form[data-confirm]"
 
 # میزبانِ درست — api.hetzner.com نه api.hetzner.cloud. اشتباهش ۴۰۴ِ JSON
 # می‌دهد که شبیهِ «توکنِ غلط» است نه «آدرسِ غلط».
