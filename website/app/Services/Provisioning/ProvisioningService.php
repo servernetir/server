@@ -24,10 +24,16 @@ class ProvisioningService
             return new ManualProvisioner();
         }
 
+        /*
+        | ⚠️ `default` این‌جا WhmProvisioner است، یعنی هر نوعِ تازه‌ای که به
+        | `Server::AUTO_TYPES` اضافه شود و **case نگیرد**، بی‌هیچ خطایی به WHM
+        | فرستاده می‌شود و تحویلش شکست می‌خورد. نوعِ تازه ⇒ یک سطر همین‌جا.
+        */
         return match ($server->type) {
-            'directadmin' => new DirectAdminProvisioner(),
-            'plesk'       => new PleskProvisioner(),
-            default       => new WhmProvisioner(),
+            'directadmin'     => new DirectAdminProvisioner(),
+            'plesk'           => new PleskProvisioner(),
+            'hetzner_storage' => new HetznerStorageProvisioner(),
+            default           => new WhmProvisioner(),
         };
     }
 
