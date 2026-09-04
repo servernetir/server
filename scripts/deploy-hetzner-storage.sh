@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-2f4fe2ca}"
+MINE="${1:-201edafd}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -83,6 +83,9 @@ app/Models/Server.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Admin/ServerController.php
 resources/views/admin/partials/server-form.blade.php
+app/Http/Controllers/Admin/CustomerController.php
+resources/views/admin/customer.blade.php
+routes/web.php
 "
 
 PUB_FILES=""
@@ -103,6 +106,15 @@ if [ -f "$APP/routes/console.php" ]; then
   CRON_BEFORE=$(grep -c 'Schedule::command' "$APP/routes/console.php" 2>/dev/null || echo 0)
 fi
 echo "── کرونِ فعلیِ سرور: $CRON_BEFORE فرمان (این دیپلوی نباید عوضش کند)"
+
+# 🔴 همان قاعدهٔ شمارشِ کرون، این‌بار برای routes/web.php: این فایل روی سرور
+#    drift می‌کند و merge می‌تواند بی‌صدا روت‌ها را کم کند. یک روت اضافه
+#    می‌کنیم، پس عدد باید **بیشتر** شود؛ کمتر شدن یعنی چیزی گم شده.
+ROUTES_BEFORE=0
+if [ -f "$APP/routes/web.php" ]; then
+  ROUTES_BEFORE=$(grep -c 'Route::' "$APP/routes/web.php" 2>/dev/null || echo 0)
+fi
+echo "── روت‌های فعلیِ سرور: $ROUTES_BEFORE"
 
 apply_one() {
   rel="$1"; dest="$2/$rel"
@@ -238,6 +250,12 @@ g config/provisioning.php "hetzner_storage"
 g resources/views/admin/partials/server-form.blade.php "hetzner_storage"
 g app/Http/Controllers/Admin/ServerController.php "HetznerStorageClient"
 
+# کیفِ پول — قابلیتِ تازه. روت، متد و فرم هر سه باید بنشینند وگرنه یا دکمه
+# نیست، یا هست و ۴۰۴ می‌دهد.
+g routes/web.php "/customers/{customer}/credit"
+g app/Http/Controllers/Admin/CustomerController.php "public function credit"
+g resources/views/admin/customer.blade.php "/credit"
+
 # میزبانِ درست — api.hetzner.com نه api.hetzner.cloud. اشتباهش ۴۰۴ِ JSON
 # می‌دهد که شبیهِ «توکنِ غلط» است نه «آدرسِ غلط».
 g app/Services/Provisioning/HetznerStorageClient.php "https://api.hetzner.com/v1"
@@ -255,6 +273,15 @@ g app/Http/Controllers/Admin/ServerController.php "monthly_cost"
 g resources/views/admin/partials/server-form.blade.php "costReady"
 
 # ═══ کرون نباید عوض شده باشد ═══
+ROUTES_AFTER=$(grep -c 'Route::' "$APP/routes/web.php" 2>/dev/null || echo 0)
+echo "═══ شمارشِ روت: پیش $ROUTES_BEFORE → پس $ROUTES_AFTER ═══"
+if [ "$ROUTES_AFTER" -lt "$ROUTES_BEFORE" ]; then
+  echo "🔴 تعدادِ روت **کم شد** — merge چیزی را پاک کرده."
+  union_ok=0
+else
+  echo "✅ هیچ روتی گم نشد"
+fi
+
 CRON_AFTER=$(grep -c 'Schedule::command' "$APP/routes/console.php" 2>/dev/null || echo 0)
 echo
 echo "═══ شمارشِ کرون: پیش $CRON_BEFORE → پس $CRON_AFTER ═══"
