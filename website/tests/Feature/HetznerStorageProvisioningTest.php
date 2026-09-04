@@ -67,6 +67,48 @@ class HetznerStorageProvisioningTest extends TestCase
         ], $over);
     }
 
+    /* ────────────── توکن: همان توکنِ سرورِ ابری کار می‌کند ────────────── */
+
+    /**
+     * اسپکِ رسمی می‌گوید توکن از «Console → Project → Security → API Tokens»
+     * ساخته می‌شود — همان جایی که `hetzner_api_token` از آن آمده. پس ردیفِ
+     * سرور لازم نیست نسخهٔ دومِ همان راز را نگه دارد.
+     */
+    public function test_it_falls_back_to_the_cloud_token_in_settings(): void
+    {
+        \App\Models\Setting::putSecret('hetzner_api_token', 'cloud-token');
+
+        $server = Server::create([
+            'name' => 'فضای بکاپ', 'type' => 'hetzner_storage',
+            'hostname' => 'api.hetzner.com', 'username' => '', 'api_token' => null,
+            'status' => 'active', 'verify_tls' => true,
+        ]);
+
+        Http::fake(['api.hetzner.com/*' => Http::response(['storage_box_types' => []], 200)]);
+
+        (new \App\Services\Provisioning\HetznerStorageClient($server))->types();
+
+        Http::assertSent(fn ($req) => $req->hasHeader('Authorization', 'Bearer cloud-token'));
+    }
+
+    public function test_without_any_token_it_says_so_instead_of_calling_and_getting_a_401(): void
+    {
+        $server = Server::create([
+            'name' => 'فضای بکاپ', 'type' => 'hetzner_storage',
+            'hostname' => 'api.hetzner.com', 'username' => '', 'api_token' => null,
+            'status' => 'active', 'verify_tls' => true,
+        ]);
+
+        Http::fake();
+
+        $r = (new \App\Services\Provisioning\HetznerStorageClient($server))->types();
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('ثبت نشده', $r['reason'],
+            '۴۰۱ِ هتزنر آدم را دنبالِ توکنِ باطل می‌فرستد، نه دنبالِ توکنِ نبود.');
+        Http::assertNothingSent();
+    }
+
     /* ───────────────────────── ساختِ درست ───────────────────────── */
 
     public function test_it_creates_a_box_with_the_deterministic_name_on_the_right_host(): void

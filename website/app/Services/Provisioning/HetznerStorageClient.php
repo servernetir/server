@@ -3,6 +3,7 @@
 namespace App\Services\Provisioning;
 
 use App\Models\Server;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -33,6 +34,44 @@ class HetznerStorageClient
     public function __construct(private Server $server) {}
 
     /**
+     * توکنِ API.
+     *
+     * ✅ **همان توکنِ سرورِ ابری کار می‌کند.** اسپکِ رسمی می‌گوید توکن را از
+     * «Hetzner Console → Project → Security → API Tokens» بسازید — دقیقاً همان
+     * جایی که توکنِ `hetzner_api_token` در `/admin/settings` از آن آمده. دو
+     * میزبانِ متفاوت (`api.hetzner.com` و `api.hetzner.cloud`)، ولی یک توکنِ
+     * **پروژه‌ای**.
+     *
+     * پس اگر ردیفِ سرور توکن نداشته باشد، از تنظیمات خوانده می‌شود. عمداً
+     * این‌طور است: نگه‌داشتنِ دو نسخه از یک رازِ واحد یعنی روزی یکی چرخانده
+     * می‌شود و دیگری کهنه می‌مانَد — و خطایش «توکن نامعتبر» است که آدم را
+     * دنبالِ هتزنر می‌فرستد، نه دنبالِ نسخهٔ دومِ فراموش‌شده.
+     *
+     * ⚠️ توکن باید **Read & Write** باشد. توکنِ فقط‌خواندنی کاتالوگ را می‌دهد
+     * ولی ساختِ باکس را رد می‌کند — یعنی فروش انجام می‌شود و تحویل نه.
+     */
+    private function token(): string
+    {
+        $own = (string) ($this->server->api_token ?? '');
+
+        if ($own !== '') {
+            return $own;
+        }
+
+        try {
+            return (string) (Setting::getSecret('hetzner_api_token') ?? '');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /** توکنی در دسترس هست؟ (ردیفِ سرور یا تنظیماتِ سرورِ ابری) */
+    public function isConfigured(): bool
+    {
+        return $this->token() !== '';
+    }
+
+    /**
      * یک تماس با API.
      *
      * خروجی همیشه آرایه است و هرگز استثنا پرتاب نمی‌شود — مثلِ بقیهٔ
@@ -47,6 +86,18 @@ class HetznerStorageClient
     {
         $url = self::BASE.$path;
 
+        /*
+        | بی‌توکن اصلاً تماس نمی‌گیریم: هتزنر ۴۰۱ می‌دهد و پیامش «unauthorized»
+        | است، که آدم را دنبالِ توکنِ باطل می‌فرستد نه دنبالِ توکنِ **نبود**.
+        */
+        if (! $this->isConfigured()) {
+            return [
+                'ok' => false, 'transport' => false, 'status' => 0,
+                'reason' => 'توکنِ API هتزنر ثبت نشده — نه روی این سرور، نه در تنظیمات.',
+                'data' => [],
+            ];
+        }
+
         try {
             $req = Http::acceptJson()
                 ->connectTimeout(10)
@@ -54,7 +105,7 @@ class HetznerStorageClient
                 // یک تلاش، صفر تکرار: ساختِ باکس پول خرج می‌کند و تلاشِ
                 // دوباره ممکن است باکسِ دوم بسازد. همان قاعدهٔ WhmClient.
                 ->retry(1, 500, throw: false)
-                ->withToken((string) $this->server->api_token);
+                ->withToken($this->token());
 
             $resp = match ($method) {
                 'get'    => $req->get($url, $query),
