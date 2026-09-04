@@ -109,6 +109,33 @@ class HetznerStorageProvisioningTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /**
+     * 🔴 رمزی که به مشتری می‌رود باید رمزِ **باکس** باشد، نه رمزی که
+     * `ensureCredentials()` پیش از درایور روی سرویس گذاشته.
+     *
+     * آن متد برای WHM لازم است (دامنه و رمز می‌خواهد) و بی‌قیدوشرط اجرا
+     * می‌شود. اگر مسیرِ پذیرش به آن رمز برگردد، مشتری رمزی می‌گیرد که روی
+     * باکس کار نمی‌کند — و هیچ خطایی هیچ‌جا ثبت نمی‌شود.
+     */
+    public function test_the_real_box_password_is_kept_in_meta_not_only_on_the_service(): void
+    {
+        $this->mapPlan();
+        $server = $this->server();
+        $service = $this->service($server, ["password" => "PASSWORD-THAT-IS-NOT-THE-BOX"]);
+
+        Http::fake([
+            "api.hetzner.com/v1/storage_boxes?*" => Http::response(["storage_boxes" => []], 200),
+            "api.hetzner.com/v1/storage_boxes"   => Http::response(["storage_box" => $this->box(["name" => "sn-svc-".$service->id])], 201),
+        ]);
+
+        $r = (new HetznerStorageProvisioner())->create($service);
+
+        $this->assertTrue($r->ok);
+        $this->assertNotSame("PASSWORD-THAT-IS-NOT-THE-BOX", $r->password);
+        $this->assertSame($r->password, $r->meta["password"] ?? null,
+            "رمزِ واقعیِ باکس باید در meta بنشیند تا پذیرشِ بعدی به رمزِ ساختگی برنگردد.");
+    }
+
     /* ─────────────── اقتصادِ نگاشت: حذف‌های عمدی ─────────────── */
 
     /**

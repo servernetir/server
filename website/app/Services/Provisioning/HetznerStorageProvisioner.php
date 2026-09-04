@@ -147,8 +147,18 @@ class HetznerStorageProvisioner implements Provisioner
         $host = (string) ($box['server'] ?? '');
         $user = (string) ($box['username'] ?? '');
 
+        /*
+        | 🔴 رمز همیشه در meta می‌نشیند، نه فقط روی ستونِ `password`.
+        |
+        | `ProvisioningService::ensureCredentials()` **پیش از** درایور یک رمزِ
+        | تصادفی روی سرویس می‌گذارد (WHM دامنه و رمز می‌خواهد). پس اگر مسیرِ
+        | پذیرشِ باکسِ موجود مجبور شود به `$service->password` برگردد، ممکن
+        | است همان رمزِ ساختگی را به مشتری بدهد — رمزی که روی باکس کار نمی‌کند،
+        | بی‌هیچ خطایی. با نوشتنِ رمز در meta، مرجعِ درست همیشه در دست است.
+        */
         return ProvisionResult::success($user, $password, $host !== '' ? 'https://'.$host : null, [
             'reused'         => $reused,
+            'password'       => $password,
             'hetzner_box_id' => $box['id'] ?? null,
             'host'           => $host,
             'location'       => $box['location']['name'] ?? null,
