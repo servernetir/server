@@ -53,8 +53,10 @@ class HetznerStorageCatalog extends Command
         }
 
         $rate = $pricing->eurToToman();
+        $feePct = $pricing->fxFeePctFor('hetzner');
 
-        $this->line('مکان: '.$location.' · حاشیهٔ سود: '.$pricing->marginPct().'٪ · نرخِ یورو: '
+        $this->line('مکان: '.$location.' · حاشیهٔ سود: '.$pricing->marginPct().'٪'
+            .' · سربارِ ارزیِ هتزنر: '.$feePct.'٪ · نرخِ یورو: '
             .($rate > 0 ? number_format($rate).' تومان' : '<نامعلوم>'));
 
         /*
@@ -72,24 +74,34 @@ class HetznerStorageCatalog extends Command
             $costCents = $this->monthlyCostCents($t, $location);
 
             if ($costCents === null) {
-                $rows[] = [$t['name'] ?? '?', $this->humanSize($t['size'] ?? 0), '—', 'قیمتی برای این مکان ندارد', '', ''];
+                $rows[] = [$t['name'] ?? '?', $this->humanSize($t['size'] ?? 0), '—', 'قیمتی برای این مکان ندارد', '', '', ''];
 
                 continue;
             }
 
-            $p = $pricing->priceFor($costCents);
+            /*
+            | 🔴 بهای واقعی = قیمتِ هتزنر + سربارِ رساندنِ پول به او.
+            |
+            | نسخهٔ اولِ همین فرمان این را جا انداخته بود و جدولی چاپ کرد که
+            | بهای تمام‌شده را ۱۰٪ کمتر نشان می‌داد — عددی که آدم بر اساسش
+            | قیمت می‌گذارد و ضرر را تا ماه‌ها نمی‌بیند. `HetznerClient` برای
+            | سرورِ مجازی از همان اول درست می‌زدش؛ این‌جا جا افتاده بود.
+            */
+            $landedCents = (int) ceil($pricing->costWithFee($costCents, 'hetzner'));
+            $p = $pricing->priceFor($landedCents);
 
             $rows[] = [
                 (string) ($t['name'] ?? '?'),
                 $this->humanSize($t['size'] ?? 0),
                 (string) ($t['subaccounts_limit'] ?? '—'),
                 number_format($costCents / 100, 2).' €',
+                number_format($landedCents / 100, 2).' €',
                 number_format($p['eur_cents'] / 100, 2).' €',
                 $p['irt'] > 0 ? number_format($p['irt']).' ت' : '—',
             ];
         }
 
-        $this->table(['نوع', 'اندازه', 'زیرحساب', 'بهای تمام‌شده', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
+        $this->table(['نوع', 'اندازه', 'زیرحساب', 'بهای هتزنر', '+سربار', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
 
         $this->newLine();
         $this->line('نگاشت را در config/provisioning.php → hetzner_storage.plans بگذارید، مثلاً:');
