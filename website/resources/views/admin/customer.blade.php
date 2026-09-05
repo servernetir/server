@@ -793,7 +793,12 @@
         </select>
       </label>
       <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">مبلغ (تومان)
-        <input type="number" name="amount" min="1" step="1000" dir="ltr" required placeholder="مثلاً ۵۰۰۰۰۰" style="padding:9px 10px">
+        {{-- 🔴 step عمداً ۱ است. با step="1000" و min="1" مقادیرِ معتبر ۱، ۱۰۰۱،
+             ۲۰۰۱ … می‌شوند (پایهٔ گام min است نه صفر) — یعنی هر مبلغِ گردی نامعتبر
+             است و مرورگر submit را **بی‌صدا** بلوکه می‌کند: نه خطا، نه دیالوگ، نه
+             ارسال. اگر تب هم بسته باشد حبابِ خطا دیده نمی‌شود و دکمه صرفاً هیچ
+             کاری نمی‌کند. فرمِ بازگشتِ وجه به‌همین‌دلیل کار می‌کرد: min="0" دارد. --}}
+        <input type="number" name="amount" min="1" step="1" dir="ltr" required placeholder="مثلاً ۵۰۰۰۰۰" style="padding:9px 10px">
       </label>
     </div>
     <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">توضیح (اجباری)
