@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-f2d98622}"
+MINE="${1:-f1da48fd}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -83,6 +83,7 @@ config/provisioning.php
 app/Models/Product.php
 app/Models/Server.php
 app/Services/Provisioning/ProvisioningService.php
+app/Http/Controllers/Admin/ServiceController.php
 app/Http/Controllers/Admin/ServerController.php
 resources/views/admin/partials/server-form.blade.php
 app/Http/Controllers/Admin/CustomerController.php
@@ -253,6 +254,8 @@ g app/Services/Provisioning/ProvisioningService.php "'hetzner_storage' => new He
 g app/Models/Server.php "'hetzner_storage'"
 # کفِ حاشیه در priceForCycle — بی‌این، دورهٔ سالانه دوباره زیرِ بهای تمام‌شده می‌رود
 g app/Models/Product.php "HetznerStorageCosts"
+# محافظِ تمدید — بی‌این، سرویسِ قدیمی با جهشِ ارز زیرِ بهای تمام‌شده تمدید می‌شود
+g app/Http/Controllers/Admin/ServiceController.php "holdRenewalAboveCost"
 g config/provisioning.php "hetzner_storage"
 g resources/views/admin/partials/server-form.blade.php "hetzner_storage"
 g app/Http/Controllers/Admin/ServerController.php "HetznerStorageClient"
