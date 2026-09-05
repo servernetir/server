@@ -3,7 +3,10 @@
 # دیپلوی «منطقهٔ حساب OVH» — شهریور ۱۴۰۵.
 #
 # اجرا از ترمینال cPanel (اکانت servernetcloud):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/scripts/deploy-ovh-region.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/feature/ovh-region/scripts/deploy-ovh-region.sh)
+#
+# ⚠️ نشانی روی **شاخهٔ خودِ قابلیت** است نه develop: مرجِ develop باید دستِ
+#    کارفرما انجام شود. بعد از مرج، همان مسیر روی develop هم کار می‌کند.
 #
 # چه چیزی دیپلوی می‌شود (۳ فایل، بدونِ مهاجرت، بدونِ تغییرِ روت):
 #   · OvhClient  — نشانیِ API از تنظیمِ `ovh_region` ساخته می‌شود (eu/ca/us)
