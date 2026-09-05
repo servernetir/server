@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-b816b2b1}"
+MINE="${1:-f2d98622}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -75,10 +75,12 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    رجیستریِ درایور، و آخر کنترلر و ویو. اگر اجرا وسطِ کار بمیرد، حالتِ
 #    میانی باید «قابلیت هنوز نیست» باشد، نه «قابلیت هست ولی کلاسش نیست».
 APP_FILES="
+app/Services/Provisioning/HetznerStorageCosts.php
 app/Services/Provisioning/HetznerStorageClient.php
 app/Services/Provisioning/HetznerStorageProvisioner.php
 app/Console/Commands/HetznerStorageCatalog.php
 config/provisioning.php
+app/Models/Product.php
 app/Models/Server.php
 app/Services/Provisioning/ProvisioningService.php
 app/Http/Controllers/Admin/ServerController.php
@@ -225,7 +227,8 @@ fi
 #    شکست می‌خورد و فقط در لاگِ کرون دیده می‌شود.
 need_file() { [ -f "$1" ] || { echo "🔴 نیست: ${1#$APP/}"; union_ok=0; }; }
 
-need_file "$APP/app/Services/Provisioning/HetznerStorageClient.php"
+need_file "$APP/app/Services/Provisioning/HetznerStorageCosts.php
+app/Services/Provisioning/HetznerStorageClient.php"
 need_file "$APP/app/Services/Provisioning/HetznerStorageProvisioner.php"
 need_file "$APP/app/Console/Commands/HetznerStorageCatalog.php"
 # ⚠️ گاردِ رشته‌ای فقط می‌گوید نامِ کلاس در فایل هست، نه اینکه **کلاسش** روی
@@ -247,7 +250,8 @@ g() {
 #    `default => new WhmProvisioner()` دارد. اگر merge شاخهٔ تازه را بخورد،
 #    سفارشِ Storage Box **بی‌هیچ خطایی** به WHM فرستاده می‌شود.
 g app/Services/Provisioning/ProvisioningService.php "'hetzner_storage' => new HetznerStorageProvisioner()"
-g app/Models/Server.php "'hetzner_storage'"
+g app/Models/Product.php
+app/Models/Server.php "'hetzner_storage'"
 g config/provisioning.php "hetzner_storage"
 g resources/views/admin/partials/server-form.blade.php "hetzner_storage"
 g app/Http/Controllers/Admin/ServerController.php "HetznerStorageClient"
@@ -275,9 +279,11 @@ fi
 
 # میزبانِ درست — api.hetzner.com نه api.hetzner.cloud. اشتباهش ۴۰۴ِ JSON
 # می‌دهد که شبیهِ «توکنِ غلط» است نه «آدرسِ غلط».
-g app/Services/Provisioning/HetznerStorageClient.php "https://api.hetzner.com/v1"
+g app/Services/Provisioning/HetznerStorageCosts.php
+app/Services/Provisioning/HetznerStorageClient.php "https://api.hetzner.com/v1"
 # پشتیبانِ توکن از تنظیماتِ سرورِ ابری
-g app/Services/Provisioning/HetznerStorageClient.php "hetzner_api_token"
+g app/Services/Provisioning/HetznerStorageCosts.php
+app/Services/Provisioning/HetznerStorageClient.php "hetzner_api_token"
 # محافظِ «دو بار نخر»
 g app/Services/Provisioning/HetznerStorageProvisioner.php "sn-svc-"
 
