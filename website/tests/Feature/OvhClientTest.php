@@ -211,6 +211,98 @@ class OvhClientTest extends TestCase
         $this->assertSame([], $r['plans']);
     }
 
+    // ═══════════ منطقه ═══════════
+
+    /**
+     * 🔴 `ovh-eu` / `ovh-ca` / `ovh-us` سه شرکتِ حقوقیِ جدا با پایگاهِ کاربریِ
+     * جدا هستند. کلیدی که روی یکی ساخته شده روی دیگری **وجود ندارد** و پاسخش
+     * همان ۴۰۳ِ بی‌توضیحِ امضاست. یعنی منطقهٔ اشتباه دقیقاً شبیهِ کلیدِ غلط
+     * دیده می‌شود، و بی‌این تست هیچ‌چیز نمی‌گوید کدامش بوده.
+     *
+     * @return array<string, array{0:string, 1:string}>
+     */
+    public static function regions(): array
+    {
+        return [
+            'اروپا'  => ['eu', 'https://eu.api.ovh.com/1.0/vps'],
+            'کانادا' => ['ca', 'https://ca.api.ovh.com/1.0/vps'],
+            'آمریکا' => ['us', 'https://api.us.ovhcloud.com/1.0/vps'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('regions')]
+    public function test_each_region_talks_to_its_own_endpoint(string $region, string $expected): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', $region);
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(fn ($pair) => $pair[0]->url() === $expected),
+            "درخواست باید به {$expected} می‌رفت."
+        );
+    }
+
+    /** پیش‌فرض باید همان رفتارِ قبلیِ کلاس بمانَد — نصبِ موجود نباید جابه‌جا شود */
+    public function test_an_unset_region_still_means_europe(): void
+    {
+        $this->configure();
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => $pair[0]->url() === 'https://eu.api.ovh.com/1.0/vps'
+            )
+        );
+    }
+
+    /** مقدارِ بی‌معنا نباید کلاینت را بترکاند؛ به پیش‌فرض برمی‌گردد */
+    public function test_a_nonsense_region_falls_back_instead_of_breaking(): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', 'atlantis');
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => $pair[0]->url() === 'https://eu.api.ovh.com/1.0/vps'
+            )
+        );
+    }
+
+    /**
+     * ⚠️ امضا شاملِ **کاملِ** آدرس است، پس اگر روزی میزبانِ امضا و میزبانِ ارسال
+     * از هم جدا شوند، هر درخواست ۴۰۳ می‌گیرد و پیام هیچ اشاره‌ای به منطقه ندارد.
+     */
+    public function test_the_signature_follows_the_region_it_actually_calls(): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', 'us');
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/1.0/vps')) {
+                return true;
+            }
+
+            $ts = $request->header('X-Ovh-Timestamp')[0] ?? '';
+
+            $expected = '$1$'.sha1(implode('+', [
+                self::AS, self::CK, 'GET', 'https://api.us.ovhcloud.com/1.0/vps', '', $ts,
+            ]));
+
+            return ($request->header('X-Ovh-Signature')[0] ?? '') === $expected;
+        });
+    }
+
     // ═══════════ سفیدبرچسبی ═══════════
 
     public function test_it_is_registered_and_never_leaks_its_name(): void

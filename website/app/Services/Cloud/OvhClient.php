@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * زیرساختِ ۵ — OVHcloud.
+ * زیرساختِ ۴ — OVHcloud.
  *
  * ═══ چرا این درایور با بقیه فرق دارد ═══
  *
@@ -31,13 +31,36 @@ use Illuminate\Support\Facades\Log;
 class OvhClient implements CloudProvider
 {
     /**
-     * ⚠️ نقطهٔ پایانی **اروپا**. حسابِ ساخته‌شده روی `ovh-eu` روی `ovh-ca`
-     * کار نمی‌کند — کلیدها منطقه‌ای‌اند و اشتباه گرفتنشان ۴۰۳ می‌دهد.
+     * ⚠️ نقطهٔ پایانی **منطقه‌ای** است، و این تزئینی نیست: `ovh-eu`، `ovh-ca` و
+     * `ovh-us` سه شرکتِ حقوقیِ جدا با پایگاهِ کاربریِ جدا هستند. حسابی که روی
+     * `manager.us.ovhcloud.com` ساخته شده روی `eu.api.ovh.com` اصلاً **وجود
+     * ندارد** — و پاسخ، همان ۴۰۳ِ بی‌توضیحِ همیشگی است که هیچ اشاره‌ای به
+     * منطقه نمی‌کند. پس عوضی‌گرفتنِ منطقه دقیقاً شبیهِ کلیدِ غلط دیده می‌شود.
      */
-    private const BASE = 'https://eu.api.ovh.com/1.0';
+    private const ENDPOINTS = [
+        'eu' => 'https://eu.api.ovh.com/1.0',
+        'ca' => 'https://ca.api.ovh.com/1.0',
+        'us' => 'https://api.us.ovhcloud.com/1.0',
+    ];
 
     /** اختلافِ ساعتِ ما با سرورِ OVH؛ یک‌بار محاسبه و کش می‌شود */
     private ?int $delta = null;
+
+    /**
+     * منطقهٔ حساب. پیش‌فرض `eu` است چون رفتارِ قبلیِ همین کلاس بود؛ نصب‌هایی که
+     * این تنظیم را ندارند نباید بی‌خبر جابه‌جا شوند.
+     */
+    private function region(): string
+    {
+        $r = strtolower(trim((string) Setting::get('ovh_region', 'eu')));
+
+        return isset(self::ENDPOINTS[$r]) ? $r : 'eu';
+    }
+
+    private function base(): string
+    {
+        return self::ENDPOINTS[$this->region()];
+    }
 
     public function slug(): string
     {
@@ -92,7 +115,7 @@ class OvhClient implements CloudProvider
         }
 
         try {
-            $r = Http::timeout(10)->get(self::BASE.'/auth/time');
+            $r = Http::timeout(10)->get($this->base().'/auth/time');
             $server = (int) trim((string) $r->body());
 
             return $this->delta = $r->successful() && $server > 0 ? $server - time() : 0;
@@ -129,11 +152,11 @@ class OvhClient implements CloudProvider
     private function req(string $method, string $path, array $payload = []): array
     {
         if (! $this->isConfigured()) {
-            return ['ok' => false, 'status' => 0, 'body' => null, 'message' => 'کلیدهای زیرساختِ ۵ تنظیم نشده است.'];
+            return ['ok' => false, 'status' => 0, 'body' => null, 'message' => 'کلیدهای زیرساختِ ۴ تنظیم نشده است.'];
         }
 
         $method = strtoupper($method);
-        $url = self::BASE.'/'.ltrim($path, '/');
+        $url = $this->base().'/'.ltrim($path, '/');
 
         // GET پارامترها را در کوئری می‌برد و بدنه ندارد؛ بقیه برعکس.
         $body = '';
@@ -181,8 +204,11 @@ class OvhClient implements CloudProvider
             : 'خطای نامشخص';
 
         // ۴۰۳ در OVH تقریباً همیشه یعنی امضا/دسترسی، نه «ممنوع» به معنای عادی.
+        // منطقه را هم می‌گوییم چون کلیدِ درستِ منطقهٔ اشتباه، عیناً همین ۴۰۳ را
+        // می‌دهد و بدونِ این جمله ساعت‌ها دنبالِ کلید می‌گردی.
         if ($res->status() === 403) {
-            $msg .= ' — کلید یا دسترسیِ آن درست نیست (یا ساعتِ سرور اختلاف دارد).';
+            $msg .= ' — کلید یا دسترسیِ آن درست نیست، یا ساعتِ سرور اختلاف دارد،'
+                .' یا کلید برای منطقهٔ دیگری ساخته شده (منطقهٔ فعلی: '.strtoupper($this->region()).').';
         }
 
         return ['ok' => false, 'status' => $res->status(), 'body' => $json, 'message' => $msg];
