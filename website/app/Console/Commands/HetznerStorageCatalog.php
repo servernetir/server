@@ -74,7 +74,7 @@ class HetznerStorageCatalog extends Command
             $costCents = $this->monthlyCostCents($t, $location);
 
             if ($costCents === null) {
-                $rows[] = [$t['name'] ?? '?', $this->humanSize($t['size'] ?? 0), '—', 'قیمتی برای این مکان ندارد', '', '', ''];
+                $rows[] = [$t['name'] ?? '?', $this->humanSize($t['size'] ?? 0), '—', '—', 'قیمتی برای این مکان ندارد', '', '', ''];
 
                 continue;
             }
@@ -94,6 +94,7 @@ class HetznerStorageCatalog extends Command
                 (string) ($t['name'] ?? '?'),
                 $this->humanSize($t['size'] ?? 0),
                 (string) ($t['subaccounts_limit'] ?? '—'),
+                $this->limit($t['snapshot_limit'] ?? null).' / '.$this->limit($t['automatic_snapshot_limit'] ?? null),
                 number_format($costCents / 100, 2).' €',
                 number_format($landedCents / 100, 2).' €',
                 number_format($p['eur_cents'] / 100, 2).' €',
@@ -101,7 +102,7 @@ class HetznerStorageCatalog extends Command
             ];
         }
 
-        $this->table(['نوع', 'اندازه', 'زیرحساب', 'بهای هتزنر', '+سربار', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
+        $this->table(['نوع', 'اندازه', 'زیرحساب', 'اسنپ‌شات دستی/خودکار', 'بهای هتزنر', '+سربار', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
 
         $this->newLine();
         $this->line('نگاشت را در config/provisioning.php → hetzner_storage.plans بگذارید، مثلاً:');
@@ -143,6 +144,12 @@ class HetznerStorageCatalog extends Command
         }
 
         return null;
+    }
+
+    /** سقفِ اسنپ‌شات — «نامحدود» وقتی API چیزی نگفته، نه صفر */
+    private function limit($v): string
+    {
+        return $v === null ? '∞' : (string) $v;
     }
 
     private function humanSize(int $bytes): string
