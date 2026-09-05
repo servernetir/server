@@ -149,7 +149,11 @@ class ZarinPalGateway implements PaymentGateway
             return VerifyResult::paid(
                 refId:    (string) data_get($json, 'data.ref_id') ?: null,
                 cardMask: (string) data_get($json, 'data.card_pan') ?: null,
-                fee:      (int) data_get($json, 'data.fee', 0),
+                // ⚠️ کارمزد هم **ریال** برمی‌گردد، چون مبلغ را ریالی فرستادیم.
+                // خام ذخیره‌کردنش یعنی عددِ ریالی در ستونی که واحدش تومان است
+                // ⇒ هزینهٔ درگاه ده برابر. تبدیل همین‌جاست، کنارِ همان ضرب در ۱۰،
+                // نه در دفترِ مالی — وگرنه واحد دو جا تفسیر می‌شود.
+                fee:      $this->toToman((int) data_get($json, 'data.fee', 0)),
                 feeType:  (string) data_get($json, 'data.fee_type') ?: null,
                 already:  $code === 101,
             );
@@ -174,6 +178,17 @@ class ZarinPalGateway implements PaymentGateway
     private function toRial(int $toman): int
     {
         return $toman * 10;
+    }
+
+    /**
+     * ریال → تومان، برای عددهایی که درگاه برمی‌گرداند (کارمزد).
+     *
+     * رو به بالا گرد می‌شود: کارمزدِ واقعی دستِ‌کم همین‌قدر بوده، و هزینهٔ
+     * کم‌برآوردشده سود را متورم می‌کند — همان چیزی که این تغییر برای رفعش آمد.
+     */
+    private function toToman(int $rial): int
+    {
+        return $rial > 0 ? intdiv($rial + 9, 10) : 0;
     }
 
     private function post(string $path, array $body): ?array
