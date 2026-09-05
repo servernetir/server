@@ -16,6 +16,14 @@
    | PHP خالص است و نتیجه‌اش ParseError و ۵۰۰ روی کلِ صفحهٔ مالی بود.
    */
   $catLabels = \App\Services\Finance\BusinessLedger::CATEGORY_LABELS;
+
+  // نامِ نوعِ ردیف. بالا تعریف می‌شود چون دو جا لازم است: جدولِ ردیف‌های اخیر
+  // و بخشِ ارزی. دو تعریفِ جدا یعنی روزی یکی‌شان عوض شود و صفحه دو نام بگوید.
+  $kindLabel = [
+      'capital' => 'سرمایه', 'revenue' => 'درآمد', 'tax_collected' => 'مالیات گرفته',
+      'expense' => 'هزینه', 'tax_paid' => 'مالیات داده', 'withdrawal' => 'برداشت',
+      'refund' => 'بازگشت وجه',
+  ];
 @endphp
 
 @if($errors->any())<div class="ad-note" style="border-color:#ff6b6b;color:#ff6b6b">{{ $errors->first() }}</div>@endif
@@ -98,6 +106,31 @@
               <span class="fin-num">{{ $t($amt) }}</span>
             </div>
           @endforeach
+        </div>
+      @endif
+
+      {{--
+        ردیف‌های ارزی — عمداً بیرونِ همهٔ عددهای بالا.
+
+        اعدادِ سود و زیان فقط تومان‌اند، چون تاریخچهٔ نرخِ ارز نداریم و تبدیل
+        حدس می‌شود. ولی تا امروز این ردیف‌ها هیچ‌جا دیده نمی‌شدند. این‌جا با
+        واحدِ خودشان می‌آیند تا نه با تومان جمع شوند، نه ناپدید.
+      --}}
+      @if(! empty($s['by_currency']))
+        <div class="fin-cat">
+          <div class="fin-cat-h">ردیف‌های ارزی — جدا از اعداد بالا</div>
+          @foreach($s['by_currency'] as $code => $kinds)
+            @foreach($kinds as $kind => $amt)
+              <div class="fin-cat-row">
+                <span>{{ $kindLabel[$kind] ?? $kind }}</span>
+                <span class="fin-cat-bar"></span>
+                <span class="fin-num">{{ fa_num(number_format($amt)) }} {{ $code }}</span>
+              </div>
+            @endforeach
+          @endforeach
+          <div class="fin-cat-row" style="opacity:.7">
+            <span style="font-size:12px">در سود، مالیات و نقدینگی بالا شمرده نشده‌اند — نرخِ تسعیر ثبت نمی‌شود.</span>
+          </div>
         </div>
       @endif
     </div>
@@ -251,7 +284,6 @@
     <table class="ad-table">
       <thead><tr><th>تاریخ</th><th>نوع</th><th>شرح</th><th>منبع</th><th class="fin-num">مبلغ</th><th></th></tr></thead>
       <tbody>
-        @php $kindLabel = ['capital'=>'سرمایه','revenue'=>'درآمد','tax_collected'=>'مالیات گرفته','expense'=>'هزینه','tax_paid'=>'مالیات داده','withdrawal'=>'برداشت','refund'=>'بازگشت وجه']; @endphp
         @foreach($recent as $e)
           <tr>
             <td dir="ltr">{{ sdate($e->occurred_at) }}</td>

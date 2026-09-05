@@ -318,4 +318,58 @@ class ZarinPalPaymentTest extends TestCase
             ->get('/account/invoices/'.$invoice->id)
             ->assertNotFound();   // ۴۰۴ و نه ۴۰۳ — وگرنه وجودش تأیید می‌شود
     }
+
+    /**
+     * کارمزد هم ریال برمی‌گردد — چون مبلغ را ریالی فرستادیم.
+     *
+     * ستونِ `payments.fee` واحدش تومان است. تا ممیزیِ شهریور ۱۴۰۵ عددِ ریالی
+     * خام در آن می‌نشست؛ چون هیچ‌کس نمی‌خواندش، ده‌برابر بودنش دیده نمی‌شد.
+     * حالا که هزینهٔ دفتر از همین ستون می‌آید، این تبدیل قفل می‌شود.
+     */
+    public function test_the_fee_returned_by_zarinpal_is_stored_in_toman(): void
+    {
+        Http::fake([
+            '*request.json' => Http::response($this->okRequest()),
+            '*verify.json'  => Http::response([
+                'data' => ['code' => 100, 'ref_id' => 55, 'fee' => 12_000, 'fee_type' => 'Merchant'],
+                'errors' => [],
+            ]),
+        ]);
+
+        $c = $this->customer();
+        $invoice = $this->invoice($c, 250_000);
+        $out = $this->service()->begin($invoice, 'zarinpal', Request::create('/'));
+
+        $this->service()->settle($out->payment, [
+            'Status' => 'OK', 'Authority' => $out->payment->external_ref,
+        ]);
+
+        // ۱۲٬۰۰۰ ریال = ۱٬۲۰۰ تومان، نه ۱۲٬۰۰۰
+        $this->assertSame(1_200, (int) $out->payment->fresh()->fee);
+        $this->assertSame('Merchant', $out->payment->fresh()->fee_type);
+    }
+
+    /** و همان کارمزد باید در دفتر مالی هزینه شده باشد، نه فقط ذخیره. */
+    public function test_the_gateway_fee_reaches_the_business_ledger(): void
+    {
+        Http::fake([
+            '*request.json' => Http::response($this->okRequest()),
+            '*verify.json'  => Http::response([
+                'data' => ['code' => 100, 'ref_id' => 56, 'fee' => 12_000, 'fee_type' => 'Merchant'],
+                'errors' => [],
+            ]),
+        ]);
+
+        $c = $this->customer();
+        $invoice = $this->invoice($c, 250_000);
+        $out = $this->service()->begin($invoice, 'zarinpal', Request::create('/'));
+
+        $this->service()->settle($out->payment, [
+            'Status' => 'OK', 'Authority' => $out->payment->external_ref,
+        ]);
+
+        $this->assertDatabaseHas('business_ledger', [
+            'kind' => 'expense', 'category' => 'payment_fee', 'amount' => 1_200,
+        ]);
+    }
 }
