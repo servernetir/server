@@ -55,7 +55,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-24adf898}"
+MINE="${1:-c68c8955}"
 
 if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
   echo "── $MINE در develop نیست؛ شاخهٔ fix/cloud-unsupported-location هم آورده می‌شود"
@@ -188,7 +188,11 @@ need_grep() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 «$2» در $1
 #    هست و ذخیره نمی‌شود، یا ذخیره می‌شود و کلاینت هنوز به اروپا می‌زند —
 #    هر دو حالت دقیقاً شبیهِ «کلیدِ غلط» دیده می‌شوند.
 need_grep app/Services/Cloud/HetznerClient.php      "server_types.supported"
-need_grep app/Services/Cloud/HetznerClient.php      'offered = '
+need_grep app/Services/Cloud/HetznerClient.php      'typeLocs'
+# ⚠️ نشانهٔ نسخهٔ **دوم**: نسخهٔ اول صرفِ حضور در locations را «عرضه» می‌خواند
+#    و روی پروداکشن هیچ ردیفی را فیلتر نکرد.
+need_grep app/Services/Cloud/HetznerClient.php      'unavailable_after'
+need_grep app/Services/Cloud/HetznerClient.php      "gone"
 need_grep app/Services/Cloud/CloudProvisioner.php   "disableCombinationIfUnsupported"
 need_grep app/Services/Cloud/CloudProvisioner.php   "unsupported location"
 
