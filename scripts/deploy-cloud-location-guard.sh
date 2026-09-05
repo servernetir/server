@@ -179,19 +179,22 @@ echo
 echo
 echo "═══ ۳) ضمانتِ اتحاد ═══"
 union_ok=1
+# 🔴 الگوی حاوی «$» را حتماً **تک‌کوتیشن** بنویس. داخلِ دابل‌کوتیشن
+#    باش آن را بسط می‌دهد و با `set -u` اسکریپت همان‌جا می‌میرد —
+#    بعد از نوشتنِ فایل‌ها و پیش از راستی‌آزمایی و بازگشتِ خودکار.
 need_grep() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 «$2» در $1 نیست"; union_ok=0; }; }
 
 # ⚠️ نشانه‌ها عمداً روی **هر سه** حلقه‌اند: یک فایلِ جامانده یعنی یا انتخابگر
 #    هست و ذخیره نمی‌شود، یا ذخیره می‌شود و کلاینت هنوز به اروپا می‌زند —
 #    هر دو حالت دقیقاً شبیهِ «کلیدِ غلط» دیده می‌شوند.
 need_grep app/Services/Cloud/HetznerClient.php      "server_types.supported"
-need_grep app/Services/Cloud/HetznerClient.php      "$offered"
+need_grep app/Services/Cloud/HetznerClient.php      'offered = '
 need_grep app/Services/Cloud/CloudProvisioner.php   "disableCombinationIfUnsupported"
 need_grep app/Services/Cloud/CloudProvisioner.php   "unsupported location"
 
 # ⚠️ گاردِ تازه باید **پیش از** قرنطینهٔ سراسری بیاید، وگرنه یک ترکیبِ
 #    نامعتبر دوباره کلِ خطِ زیرساخت را می‌بندد.
-need_grep app/Services/Cloud/CloudProvisioner.php   "quarantineProvider($plan, $why)"
+need_grep app/Services/Cloud/CloudProvisioner.php   'quarantineProvider($plan, $why)'
 
 [ "$union_ok" -eq 0 ] && echo "🔴 اتحاد ناقص — گزارشِ بالا را بفرست."
 
