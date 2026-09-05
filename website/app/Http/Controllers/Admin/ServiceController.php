@@ -207,8 +207,73 @@ class ServiceController extends Controller
     /**
      * @param  \Illuminate\Support\Carbon|null  $issuedAt  تاریخِ صدورِ دلخواه (فقط گذشته)
      */
+    /**
+     * 🔴 محافظِ تمدید — سرویسِ فروخته‌شده نباید با جهشِ ارز زیرِ بهای تمام‌شده
+     * تمدید شود.
+     *
+     * کفِ `Product::priceForCycle()` فقط لحظهٔ **فروش** را می‌پوشاند. بعد از آن
+     * عدد در `services.price` قفل می‌شود و `services:renew-due` تا ابد همان را
+     * صورت‌حساب می‌کند — در حالی که اجارهٔ باکس به یورو است و نرخ حرکت می‌کند.
+     * (در فاصلهٔ چند ساعتِ همین کار، یورو از ۲۵۷٬۴۰۰ به ۲۶۲٬۸۰۰ رفت.)
+     *
+     * پس هر بار که فاکتورِ تمدید صادر می‌شود، قیمت با کفِ **امروز** سنجیده
+     * می‌شود.
+     *
+     * ⚠️ فقط بالا می‌رود، هرگز پایین نمی‌آید — همان قاعدهٔ
+     * `ResellerOrderService::renewFloor()`: تخفیفِ اضافه تصمیمِ کارفراست، نه
+     * کارِ خودکارِ کد.
+     *
+     * ⚠️ فقط سرویسی که پلنش به فضای هتزنر نگاشت دارد. برای بقیه `floorToman()`
+     * صفر می‌دهد و این متد بی‌اثر است — «کفی نداریم» نه «رایگان».
+     *
+     * ⚠️ فقط تومان. کف تومانی است و اعمالش روی سرویسِ یورویی یعنی عددِ یورو با
+     * عددِ تومان مقایسه شود — خرابیِ صامتی که مبلغ را هزاران برابر می‌کند.
+     *
+     * @return array{old:int,new:int}|null  اگر بالا رفت
+     */
+    private function holdRenewalAboveCost(Service $service): ?array
+    {
+        if (($service->currency_code ?: 'IRT') !== 'IRT') {
+            return null;
+        }
+
+        $months = Service::monthsIn((string) $service->cycle);
+
+        if ($months <= 0) {
+            return null;   // «یک‌بار» دوره ندارد، پس تمدیدی هم ندارد
+        }
+
+        $floor = app(\App\Services\Provisioning\HetznerStorageCosts::class)
+            ->floorToman((string) $service->plan, $months);
+
+        $old = (int) $service->price;
+
+        if ($floor <= 0 || $old >= $floor) {
+            return null;
+        }
+
+        $service->forceFill(['price' => $floor])->save();
+
+        \App\Models\ActivityLog::forService($service, 'renew',
+            'قیمتِ تمدید از '.number_format($old).' به '.number_format($floor)
+            .' تومان بالا رفت — قیمتِ قبلی زیرِ بهای تمام‌شدهٔ امروز بود (کفِ حاشیه).',
+            'system');
+
+        /*
+        | فریاد لازم است: این یک تغییرِ قیمت برای مشتریِ موجود است و مدیر باید
+        | بداند کدام سرویس‌ها گران شدند — پیش از اینکه مشتری تماس بگیرد.
+        */
+        \App\Support\ErrorTracker::noteOnce('pricing',
+            'قیمتِ تمدیدِ سرویسِ #'.$service->id.' از '.number_format($old).' به '
+            .number_format($floor).' تومان بالا رفت (زیرِ بهای تمام‌شده بود).', 3600);
+
+        return ['old' => $old, 'new' => $floor];
+    }
+
     public function issueInvoice(Service $service, $issuedAt = null): Invoice
     {
+        $raised = $this->holdRenewalAboveCost($service);
+
         $subtotal = $service->price;
         $tax      = $service->taxAmount();
         $total    = $subtotal + $tax;
@@ -252,7 +317,15 @@ class ServiceController extends Controller
         InvoiceItem::create([
             'invoice_id'  => $invoice->id,
             'title'       => $service->name.' ('.$service->cycleLabel().')',
-            'description' => $service->description,
+            /*
+            | اگر کف قیمت را بالا برده، همان‌جا روی فاکتور توضیح داده می‌شود.
+            | فاکتورِ ناگهان‌گران‌شدهٔ بی‌توضیح، یک تیکتِ حتمی است — و بدتر،
+            | مشتری فکر می‌کند اشتباهی رخ داده.
+            */
+            'description' => trim((string) $service->description.($raised === null ? '' :
+                "
+".'بازنگریِ قیمت بر اساسِ نرخِ روزِ ارز: از '.number_format($raised['old'])
+                .' به '.number_format($raised['new']).' تومان.')),
             'quantity'    => 1,
             'unit_price'  => $subtotal,
             'line_total'  => $subtotal,
