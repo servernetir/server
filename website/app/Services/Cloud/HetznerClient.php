@@ -331,14 +331,6 @@ class HetznerClient implements CloudProvider
         | دست‌نخورده می‌مانَد، و مدیر خبردار می‌شود. همان قاعدهٔ ثبت‌شدهٔ پروژه —
         | «شکستِ خواندن هرگز «همه چیز مرتب است» نیست».
         */
-        if ($supported === []) {
-            return [
-                'ok' => false,
-                'message' => 'فهرستِ مکان‌های پشتیبانی‌شدهٔ این زیرساخت خالی برگشت؛ '
-                    .'کاتالوگ دست‌نخورده ماند تا ردیفِ سالم بی‌دلیل از فروش خارج نشود.',
-                'locations' => [], 'plans' => [], 'images' => [],
-            ];
-        }
 
         $ipv4Cents = $this->ipv4MonthlyCents();
 
@@ -362,19 +354,42 @@ class HetznerClient implements CloudProvider
             | فهرستِ **مکان‌های پشتیبانی‌شدهٔ همان نوع** است — یعنی دقیقاً همان
             | چیزی که `prices[]` نیست.
             |
-            | ⚠️ شکلِ دقیقِ ردیف‌هایش را روی حسابِ خودمان ندیده‌ایم، پس مثلِ
-            | `orderIdOf()` **دنبالِ نامِ کلید می‌گردیم نه مسیرِ ثابت**. نبودنش
-            | خطا نیست: یعنی نسخهٔ قدیمِ API، و نقشهٔ datacenter جایش را می‌گیرد.
+            | 🔴 **حضور در این آرایه یعنی «می‌شناسمش»، نه «می‌فروشمش».** شکلِ
+            | واقعیِ هر ردیف (از پاسخِ زندهٔ حسابِ خودمان، ۱۴ شهریور ۱۴۰۵):
+            |
+            |   {"id":1,"name":"fsn1","available":false,
+            |    "deprecation":{"unavailable_after":"2025-12-31T23:59:59Z"}}
+            |
+            | یعنی فهرست **همهٔ** مکان‌ها را می‌آورد و تفاوت را در پرچم‌ها
+            | می‌گذارد. نسخهٔ اولِ همین گارد صرفِ حضور را «عرضه می‌شود» خواند و
+            | نتیجه‌اش این بود که هیچ ردیفی فیلتر نشد (۱۱۴ پلن قبل و بعدِ سینک)
+            | — رفعی که با کدِ ۲۰۰ و بی‌هیچ خطایی هیچ کاری نمی‌کرد.
+            |
+            | سه حالت، و هرکدام پاسخِ متفاوتی دارد:
+            |   • نبودن در فهرست            ⇒ عرضه نمی‌شود        ⇒ ردیف نساز
+            |   • `unavailable_after` گذشته ⇒ برای همیشه رفته     ⇒ ردیف نساز
+            |   • `available:false`         ⇒ هست ولی الان نمی‌شود ⇒ in_stock=false
+            |
+            | ⚠️ تفکیکِ دو حالتِ آخر عمدی است: «ظرفیت ندارد» فردا برمی‌گردد، پس
+            | حذفِ ردیفش یعنی پلن از کاتالوگ می‌پرد و تاریخچه‌اش گم می‌شود.
             */
             $typeLocs = [];
             foreach ((array) ($t['locations'] ?? []) as $tl) {
                 $n = is_string($tl)
                     ? $tl
-                    : (string) (data_get($tl, 'location.name') ?? data_get($tl, 'name') ?? '');
+                    : (string) (data_get($tl, 'name') ?? data_get($tl, 'location.name') ?? '');
 
-                if ($n !== '') {
-                    $typeLocs[$n] = true;
+                if ($n === '') {
+                    continue;
                 }
+
+                $until = (string) data_get($tl, 'deprecation.unavailable_after', '');
+                $ts = $until !== '' ? strtotime($until) : false;
+
+                $typeLocs[$n] = [
+                    'gone'  => $ts !== false && $ts < time(),
+                    'stock' => (bool) data_get($tl, 'available', true),
+                ];
             }
 
             foreach ((array) ($t['prices'] ?? []) as $p) {
@@ -391,12 +406,22 @@ class HetznerClient implements CloudProvider
                 | فروخته می‌شد که هتزنر همان‌جا نمی‌سازدش، و تنها بازخوردش یک
                 | شکستِ تحویل پس از پرداختِ مشتری بود.
                 */
-                $offered = $typeLocs !== []
-                    ? isset($typeLocs[$locRef])
-                    : isset($supported[$locRef][$id]);
+                if ($typeLocs !== []) {
+                    $entry = $typeLocs[$locRef] ?? null;
 
-                if (! $offered) {
-                    continue;
+                    // نبود در فهرست، یا تاریخِ عرضه‌اش گذشته ⇒ اصلاً ردیف نگیرد
+                    if ($entry === null || $entry['gone']) {
+                        continue;
+                    }
+
+                    $inStock = $entry['stock'];
+                } else {
+                    // نسخهٔ قدیمِ API: نقشهٔ datacenter تنها منبع است
+                    if (! isset($supported[$locRef][$id])) {
+                        continue;
+                    }
+
+                    $inStock = (bool) ($availability[$locRef][$id] ?? false);
                 }
 
                 // net = بی‌مالیات. مالیاتِ آلمان به ما (شرکتِ خارج از اروپا)
@@ -434,9 +459,31 @@ class HetznerClient implements CloudProvider
                     'cost_hour_eur_micro' => ($h = (float) data_get($p, 'price_hourly.net', 0)) > 0
                         ? (int) round($fee($h * 1_000_000 + ($ipv4Cents / 720) * 10_000))
                         : null,
-                    'in_stock'          => (bool) ($availability[$locRef][$id] ?? false),
+                    'in_stock'          => $inStock,
                 ];
             }
+        }
+
+        /*
+        | 🔴 کاتالوگِ خالی هرگز «هیچ‌چیز برای فروش نداریم» خوانده نمی‌شود.
+        |
+        | هتزنر اعلام کرده فیلدهای `datacenter.server_types.*` از ۱ اکتبر ۲۰۲۶
+        | حذف می‌شوند. اگر روزی هم آن‌ها بروند و هم شکلِ `locations` عوض شود،
+        | این حلقه صفر ردیف می‌سازد — و `CloudCatalogSync` هر پلنی را که در
+        | فید نیامده `is_active=false` می‌کند، یعنی **کلِ خطِ این زیرساخت با
+        | کدِ ۲۰۰ و بی‌هیچ خطایی از فروشگاه غیب می‌شود**.
+        |
+        | شکستِ صریح درست است: `cloud:sync` با خطا برمی‌گردد و کاتالوگِ دیروز
+        | دست‌نخورده می‌مانَد. همان قاعدهٔ ثبت‌شدهٔ پروژه — خواندنِ ناموفق هرگز
+        | «همه‌چیز مرتب است» نیست.
+        */
+        if ($outPlans === []) {
+            return [
+                'ok' => false,
+                'message' => 'هیچ ترکیبِ قابلِ عرضه‌ای از این زیرساخت خوانده نشد؛ '
+                    .'کاتالوگ دست‌نخورده ماند تا ردیفِ سالم بی‌دلیل از فروش خارج نشود.',
+                'locations' => [], 'plans' => [], 'images' => [],
+            ];
         }
 
         return [

@@ -72,9 +72,24 @@ class CloudUnsupportedLocationTest extends TestCase
             ],
         ];
 
+        /*
+         * 🔴 شکلِ **واقعیِ** پاسخ، از حسابِ خودمان (۱۴ شهریور ۱۴۰۵):
+         *   {"id":1,"name":"fsn1","available":false,
+         *    "deprecation":{"unavailable_after":"2025-12-31T23:59:59Z"}}
+         *
+         * نسخهٔ اولِ این فیکسچر شکل را **حدس** زده بود
+         * (`{"location":{"name":…}}`) و همان حدس باعث شد تستِ سبز، رفعی را
+         * تأیید کند که روی پروداکشن هیچ ردیفی را فیلتر نکرد.
+         */
         if ($withTypeLocations) {
-            $type11['locations'] = [['location' => ['name' => 'fsn1']], ['location' => ['name' => 'hel1']]];
-            $type22['locations'] = [['location' => ['name' => 'fsn1']]];
+            $type11['locations'] = [
+                ['id' => 1, 'name' => 'fsn1', 'available' => true],
+                ['id' => 2, 'name' => 'hel1', 'available' => true],
+            ];
+            // hel1 اصلاً در فهرست نیست ⇒ عرضه نمی‌شود
+            $type22['locations'] = [
+                ['id' => 1, 'name' => 'fsn1', 'available' => true],
+            ];
         }
 
         Http::fake([
@@ -180,6 +195,82 @@ class CloudUnsupportedLocationTest extends TestCase
 
         $this->assertFalse($catalog['ok']);
         $this->assertSame([], $catalog['plans']);
+    }
+
+    /**
+     * فیکسچرِ کمینه با پرچم‌های دلخواه روی `locations[]` — برای دو حالتی که
+     * در پاسخِ **واقعیِ** حساب دیده شد.
+     */
+    private function fakeOneType(array $locationRow): array
+    {
+        Setting::putSecret('hetzner_api_token', 'test-token');
+        Http::swap(new \Illuminate\Http\Client\Factory);
+
+        Http::fake([
+            '*/v1/locations*' => Http::response(['locations' => [
+                ['id' => 1, 'name' => 'fsn1', 'country' => 'DE', 'city' => 'Falkenstein'],
+            ], 'meta' => ['pagination' => ['last_page' => 1]]]),
+
+            '*/v1/datacenters*' => Http::response(['datacenters' => [
+                ['id' => 1, 'location' => ['name' => 'fsn1'],
+                    'server_types' => ['available' => [11], 'supported' => [11]]],
+            ], 'meta' => ['pagination' => ['last_page' => 1]]]),
+
+            '*/v1/server_types*' => Http::response(['server_types' => [[
+                'id' => 11, 'name' => 'cx22', 'cores' => 2, 'memory' => 4, 'disk' => 40,
+                'cpu_type' => 'shared', 'architecture' => 'x86', 'storage_type' => 'local',
+                'deprecated' => false, 'included_traffic' => 21474836480,
+                'prices' => [['location' => 'fsn1', 'price_monthly' => ['net' => '3.29']]],
+                'locations' => [$locationRow],
+            ]], 'meta' => ['pagination' => ['last_page' => 1]]]),
+
+            '*' => Http::response(['meta' => ['pagination' => ['last_page' => 1]]]),
+        ]);
+
+        return $this->plansFrom(app(HetznerClient::class)->fetchCatalog());
+    }
+
+    /**
+     * 🔴 «ظرفیت ندارد» ردیف را حذف نمی‌کند — فقط از فروش برمی‌داردش.
+     *
+     * تفکیک عمدی است: این حالت فردا برمی‌گردد. حذفِ ردیف یعنی پلن از کاتالوگ
+     * می‌پرد و تاریخچه و سرویس‌های وصل به آن گم می‌شوند.
+     */
+    public function test_a_location_that_is_offered_but_full_stays_as_an_out_of_stock_row(): void
+    {
+        $plans = $this->fakeOneType(['id' => 1, 'name' => 'fsn1', 'available' => false]);
+
+        $this->assertArrayHasKey('cx22@fsn1', $plans);
+        $this->assertFalse((bool) $plans['cx22@fsn1']['in_stock']);
+    }
+
+    /**
+     * 🔴 مکانی که تاریخِ عرضه‌اش گذشته، **برای همیشه** رفته ⇒ ردیف نمی‌گیرد.
+     *
+     * این دقیقاً چیزی است که در پاسخِ زندهٔ حساب دیدیم و علتِ شکستِ مشتری بود:
+     *   {"name":"fsn1","available":false,
+     *    "deprecation":{"unavailable_after":"2025-12-31T23:59:59Z"}}
+     */
+    public function test_a_location_past_its_unavailable_after_date_never_becomes_a_row(): void
+    {
+        $plans = $this->fakeOneType([
+            'id' => 1, 'name' => 'fsn1', 'available' => false,
+            'deprecation' => ['unavailable_after' => '2025-12-31T23:59:59Z'],
+        ]);
+
+        $this->assertSame([], $plans, 'مکانِ منقضی‌شده نباید هیچ ردیفی بسازد.');
+    }
+
+    /** تاریخِ انقضای **آینده** هنوز فروختنی است — گارد نباید زودتر ببندد */
+    public function test_a_future_deprecation_date_is_still_offered(): void
+    {
+        $plans = $this->fakeOneType([
+            'id' => 1, 'name' => 'fsn1', 'available' => true,
+            'deprecation' => ['unavailable_after' => now()->addYear()->toIso8601String()],
+        ]);
+
+        $this->assertArrayHasKey('cx22@fsn1', $plans);
+        $this->assertTrue((bool) $plans['cx22@fsn1']['in_stock']);
     }
 
     // ═══════════ تحویل ═══════════
