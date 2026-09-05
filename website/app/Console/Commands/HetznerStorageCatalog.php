@@ -69,6 +69,7 @@ class HetznerStorageCatalog extends Command
         }
 
         $rows = [];
+        $costBook = [];
 
         foreach ($types as $t) {
             $costCents = $this->monthlyCostCents($t, $location);
@@ -87,6 +88,13 @@ class HetznerStorageCatalog extends Command
             | قیمت می‌گذارد و ضرر را تا ماه‌ها نمی‌بیند. `HetznerClient` برای
             | سرورِ مجازی از همان اول درست می‌زدش؛ این‌جا جا افتاده بود.
             */
+            /*
+            | بهای **خام** در کش می‌نشیند، نه بهای با سربار: درصدِ سربار در
+            | تنظیمات ویرایش‌پذیر است و اگر این‌جا پخته شود، تغییرش تا اجرای
+            | بعدیِ همین فرمان بی‌اثر می‌مانَد.
+            */
+            $costBook[(string) ($t['name'] ?? '?')] = $costCents;
+
             $landedCents = (int) ceil($pricing->costWithFee($costCents, 'hetzner'));
             $p = $pricing->priceFor($landedCents);
 
@@ -103,6 +111,14 @@ class HetznerStorageCatalog extends Command
         }
 
         $this->table(['نوع', 'اندازه', 'زیرحساب', 'اسنپ‌شات دستی/خودکار', 'بهای هتزنر', '+سربار', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
+
+        /*
+        | 🔴 بی‌این ذخیره، کفِ حاشیه در `Product::priceForCycle()` منبعی برای
+        | بهای تمام‌شده ندارد و بی‌صدا بی‌اثر می‌شود — یعنی همان ضررِ سالانه
+        | برمی‌گردد بی‌آنکه کسی متوجه شود.
+        */
+        \App\Services\Provisioning\HetznerStorageCosts::remember($costBook, $location);
+        $this->info('بهای '.count($costBook).' نوع در کش ذخیره شد — کفِ حاشیه از همین می‌خواند.');
 
         $this->newLine();
         $this->line('نگاشت را در config/provisioning.php → hetzner_storage.plans بگذارید، مثلاً:');
