@@ -67,7 +67,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-d16aa541}"
+MINE="${1:-778ba2a8}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -86,6 +86,7 @@ resources/views/admin/partials/server-form.blade.php
 app/Http/Controllers/Admin/CustomerController.php
 resources/views/admin/customer.blade.php
 resources/views/partials/ui-dialog.blade.php
+config/hosting.php
 routes/web.php
 "
 
@@ -260,6 +261,17 @@ g resources/views/admin/customer.blade.php "/credit"
 #    data-confirm را می‌گرفت ولی دیالوگ نمی‌ساخت: دکمه فوکوس می‌گرفت و هیچ
 #    اتفاقی نمی‌افتاد. اتصالِ خودکار باید فازِ capture داشته باشد.
 g resources/views/partials/ui-dialog.blade.php "form[data-confirm]"
+
+# 🔴 گاردِ **وارونه**: صفحهٔ هاست بکاپ نباید دوباره S3 وعده بدهد.
+#    Storage Box فقط FTP/SFTP/SCP/SMB/WebDAV/Borg دارد؛ ادعای S3 همان
+#    خرابی‌ای است که وجهِ یک مشتری را برگرداند.
+if grep -qF -- "S3" "$APP/config/hosting.php" 2>/dev/null; then
+  echo "🔴 config/hosting.php هنوز جایی S3 ادعا می‌کند:"
+  grep -nF -- "S3" "$APP/config/hosting.php" | head -5
+  union_ok=0
+else
+  echo "✅ هیچ ادعای S3 در کاتالوگ نمانده"
+fi
 
 # میزبانِ درست — api.hetzner.com نه api.hetzner.cloud. اشتباهش ۴۰۴ِ JSON
 # می‌دهد که شبیهِ «توکنِ غلط» است نه «آدرسِ غلط».
