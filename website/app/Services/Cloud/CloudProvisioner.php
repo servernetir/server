@@ -305,8 +305,18 @@ class CloudProvisioner
             //    ردیف را از فروشِ ساعتی بردار — نه کلِ زیرساخت را
             $this->disableHourlyIfRefused($plan, $why);
 
-            // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
-            $this->quarantineProvider($plan, $why);
+            /*
+            | 🔴 اگر ایراد **همین ترکیبِ نوع/مکان** است، فقط همین ردیف بسته شود.
+            |
+            | ترتیب مهم است: این پیش از `quarantineProvider` می‌آید و اگر بگیرد،
+            | آن اصلاً صدا زده نمی‌شود. وگرنه فردا کسی «unsupported location» را
+            | به فهرستِ ساختاری اضافه می‌کند و کلِ خطِ زیرساخت به‌خاطرِ یک مکانِ
+            | نامعتبر بسته می‌شود — همان اتفاقی که بارِ قبل ۲۲۱ پلن را بست.
+            */
+            if (! $this->disableCombinationIfUnsupported($plan, $why)) {
+                // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+                $this->quarantineProvider($plan, $why);
+            }
 
             $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$why, 0, 290));
 
@@ -1291,6 +1301,57 @@ class CloudProvisioner
             'زیرساخت گفت این پلن تعرفهٔ ساعتی ندارد؛ از فروشِ ساعتی برداشته شد '
             .'(پلنِ '.$plan->id.'). فروشِ ماهانه‌اش دست‌نخورده است.',
             ['plan' => $plan->id, 'provider' => (string) $plan->provider]);
+    }
+
+    /**
+     * ترکیبِ «نوعِ سرور × مکان» که زیرساخت اصلاً عرضه‌اش نمی‌کند.
+     *
+     * 🔴 رخدادِ ۱۴ شهریور ۱۴۰۵: یک مشتری در یک‌ساعت‌ونیم **۱۶ بار** در
+     * کشورهای مختلف سرور خرید و هر بار
+     * `[invalid_input] unsupported location for server type` گرفت. هیچ‌کدام از
+     * کلیدهای `quarantineProvider` این متن را نمی‌گرفت، پس ردیفِ مقصر در فروش
+     * می‌مانْد و **مشتریِ بعدی دقیقاً همان شکست را می‌خرید** — سومین تکرارِ همان
+     * الگو، بعد از `firewall` و `resource_limit`.
+     *
+     * ⚠️ چرا این‌جا و نه در فهرستِ `$structural`: آن متد
+     * `where('provider', …)->update(['admin_disabled' => true])` می‌زند، یعنی
+     * به‌خاطرِ **یک** ترکیبِ نامعتبر کلِ خطِ آن زیرساخت (بارِ قبل ۲۲۱ پلن)
+     * بسته می‌شد. عیبْ حسابِ زیرساخت نیست، همین یک ردیف است.
+     *
+     * ⚠️ و ردیف `is_active` نمی‌شود، `admin_disabled` می‌شود: `cloud:sync`
+     * دوروزه `is_active` را برمی‌گردانَد و بسته‌شدن بی‌صدا خنثی می‌شد. با
+     * پیشوندِ قرنطینه، `cloud:reopen` و دکمهٔ پنل هم می‌توانند بازش کنند.
+     */
+    private function disableCombinationIfUnsupported(CloudPlan $plan, string $message): bool
+    {
+        $needle = mb_strtolower($message);
+
+        $unsupported = str_contains($needle, 'unsupported location')
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not available'))
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not supported'));
+
+        if (! $unsupported) {
+            return false;
+        }
+
+        // ردیفی که مدیر خودش بسته دست نمی‌خورد — همان قاعدهٔ `cloud:reopen`.
+        if (! $plan->admin_disabled) {
+            $plan->forceFill([
+                'admin_disabled' => true,
+                'in_stock'       => false,
+                'admin_note'     => self::QUARANTINE_PREFIX
+                    .' این نوعِ سرور در این مکان عرضه نمی‌شود ('.mb_substr($message, 0, 120).')',
+            ])->save();
+        }
+
+        \App\Support\ErrorTracker::note('provision',
+            'ترکیبِ نوع/مکان را زیرساخت عرضه نمی‌کند؛ فقط همین ردیف از فروش برداشته شد '
+            .'(پلنِ '.$plan->id.' · '.(string) $plan->location_code.'). '
+            .'بقیهٔ مکان‌های همین زیرساخت دست‌نخورده‌اند.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider,
+                'location' => (string) $plan->location_code]);
+
+        return true;
     }
 
     private function quarantineProvider(CloudPlan $plan, string $message): void
