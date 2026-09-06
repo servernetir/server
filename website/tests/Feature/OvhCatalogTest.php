@@ -354,6 +354,88 @@ class OvhCatalogTest extends TestCase
         $this->assertSame(32768, $c['plans'][0]['ram_mb']);
     }
 
+    /**
+     * 🔴 بی‌سیستم‌عامل، پلن قابلِ خرید نیست.
+     *
+     * سینکِ اول «۸۲ پلن، ۰ ایمیج» داد — یعنی کاتالوگ ساخته شد ولی صفحهٔ خرید
+     * فهرستِ سیستم‌عاملِ خالی داشت. همان خرابیِ ثبت‌شدهٔ معماریِ هتزنر از درِ
+     * دیگر: ردیف هست، خرید ممکن نیست، و هیچ خطایی هم نیست.
+     */
+    public function test_operating_systems_come_from_the_catalogue(): void
+    {
+        $this->fake([$this->vpsPlan(['configurations' => [
+            ['name' => 'vps_datacenter', 'values' => ['US-EAST-LZ-NYC']],
+            ['name' => 'vps_os', 'values' => ['Ubuntu 24.04', 'Debian 12', 'Rocky Linux 9']],
+        ]])]);
+
+        $images = $this->client()->fetchCatalog()['images'];
+        $keys = array_column($images, 'key');
+
+        // 🔴 کلید باید با هتزنر یکی باشد، وگرنه مشتری دو «اوبونتو ۲۴٫۰۴» می‌بیند
+        $this->assertContains('ubuntu-24.04', $keys);
+        $this->assertContains('debian-12', $keys);
+        $this->assertContains('rocky-9', $keys, 'Rocky Linux باید به همان rocky برسد');
+
+        // و شناسهٔ سفارش عیناً همان رشتهٔ OVH است
+        $this->assertSame('Ubuntu 24.04', $images[0]['provider_ref']);
+    }
+
+    /** نرم‌افزارِ آماده از سیستم‌عامل جدا می‌شود */
+    public function test_a_preinstalled_app_is_marked_as_an_app(): void
+    {
+        $this->fake([$this->vpsPlan(['configurations' => [
+            ['name' => 'vps_datacenter', 'values' => ['US-EAST-LZ-NYC']],
+            ['name' => 'vps_os', 'values' => ['Debian 12 - Docker']],
+        ]])]);
+
+        $images = $this->client()->fetchCatalog()['images'];
+
+        $this->assertSame('app', $images[0]['kind']);
+        $this->assertSame('Debian 12 - Docker', $images[0]['provider_ref']);
+    }
+
+    /**
+     * ⚠️ نامِ نافهم **رد** می‌شود، نه اینکه با کلیدِ حدسی ذخیره شود.
+     *
+     * کلیدِ غلط سیستم‌عامل را از گروهِ درستش جدا می‌کند و در لحظهٔ تحویل به
+     * ایمیجی می‌رسد که آن زیرساخت ندارد.
+     */
+    public function test_an_unparseable_os_name_is_skipped(): void
+    {
+        $this->fake([$this->vpsPlan(['configurations' => [
+            ['name' => 'vps_datacenter', 'values' => ['US-EAST-LZ-NYC']],
+            ['name' => 'vps_os', 'values' => ['Ubuntu 24.04', 'SomethingBrandNew']],
+        ]])]);
+
+        $images = $this->client()->fetchCatalog()['images'];
+
+        $this->assertCount(1, $images);
+        $this->assertSame('ubuntu-24.04', $images[0]['key']);
+    }
+
+    /**
+     * 🔴 ردِ «بی‌نرخِ ماهانه» باید **شمرده** شود.
+     *
+     * نسخهٔ اول ساکت رد می‌کرد و همان سکوت باعث شد از ۲۴۲ ردیفِ کاتالوگ فقط
+     * ۸۲ ردیف ساخته شود بی‌آنکه گزارش بگوید بقیه کجا رفتند.
+     */
+    public function test_a_plan_with_no_monthly_price_is_counted_in_the_report(): void
+    {
+        $noPrice = $this->vpsPlan([
+            'planCode' => 'vps-only-committed',
+            'pricings' => [
+                ['phase' => 1, 'capacities' => ['renew'], 'commitment' => 12,
+                    'intervalUnit' => 'month', 'price' => 500000000],
+            ],
+        ]);
+
+        $this->fake([$this->vpsPlan(), $noPrice]);
+        $c = $this->client()->fetchCatalog();
+
+        $this->assertTrue($c['ok'], $c['message']);
+        $this->assertStringContainsString('بدونِ نرخِ ماهانهٔ بی‌تعهد', $c['message']);
+    }
+
     /** خریدِ خودکار همچنان خاموش است — این متد فقط قیمت می‌سازد */
     public function test_ordering_is_still_manual(): void
     {

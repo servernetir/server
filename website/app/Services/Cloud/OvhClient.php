@@ -539,6 +539,8 @@ class OvhClient implements CloudProvider
         $locations = [];
         $noSpecs = [];
         $unknownDc = [];
+        $osNames = [];
+        $noPrice = 0;
 
         foreach ((array) data_get($cat['body'], 'plans', []) as $plan) {
             $code = (string) ($plan['planCode'] ?? '');
@@ -552,6 +554,14 @@ class OvhClient implements CloudProvider
             $usd = $this->monthlyPrice($plan);
 
             if ($usd === null || $usd <= 0) {
+                /*
+                | ⚠️ این رد **شمرده** می‌شود. نسخهٔ اول فقط `continue` می‌کرد و
+                | همان سکوت باعث شد از ۲۴۲ ردیفِ کاتالوگ فقط ۸۲ ردیف ساخته شود
+                | بی‌آنکه گزارش بگوید بقیه کجا رفتند — دقیقاً همان الگویی که
+                | در این پروژه بارها گران تمام شده.
+                */
+                $noPrice++;
+
                 continue;   // پلنِ بی‌قیمتِ ماهانه (فقط تعهدی) — فروختنی نیست
             }
 
@@ -561,6 +571,10 @@ class OvhClient implements CloudProvider
                 $noSpecs[] = $code;
 
                 continue;
+            }
+
+            foreach ($this->configValues($plan, 'vps_os') as $os) {
+                $osNames[$os] = true;
             }
 
             foreach ($dcs as $dc) {
@@ -602,6 +616,10 @@ class OvhClient implements CloudProvider
 
         $notes = [];
 
+        if ($noPrice > 0) {
+            $notes[] = fa_num((string) $noPrice).' پلن بدونِ نرخِ ماهانهٔ بی‌تعهد رد شد';
+        }
+
         if ($noSpecs !== []) {
             $notes[] = fa_num((string) count($noSpecs)).' پلن بی‌مشخصاتِ سخت‌افزاری رد شد';
         }
@@ -621,7 +639,7 @@ class OvhClient implements CloudProvider
             'message' => $notes === [] ? '' : '⚠️ '.implode(' · ', $notes),
             'locations' => array_values($locations),
             'plans' => $outPlans,
-            'images' => [],
+            'images' => $this->imagesFrom(array_keys($osNames)),
         ];
     }
 
@@ -732,6 +750,109 @@ class OvhClient implements CloudProvider
         }
 
         return ['vcpu' => $vcpu, 'ram_mb' => $ramMb, 'disk_gb' => $diskGb];
+    }
+
+    /** مقادیرِ یک پیکربندیِ نام‌دار — `vps_os`، `vps_datacenter`، … */
+    private function configValues(array $plan, string $name): array
+    {
+        foreach ((array) ($plan['configurations'] ?? []) as $c) {
+            if ((string) ($c['name'] ?? '') === $name) {
+                return array_values(array_filter(
+                    array_map(fn ($v) => trim((string) $v), (array) ($c['values'] ?? []))
+                ));
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * خانوادهٔ سیستم‌عامل — نامِ نمایشیِ OVH به همان واژه‌ای که هتزنر می‌دهد.
+     *
+     * 🔴 این نگاشت تزئینی نیست: `CloudNaming::imageKey()` کلید را از
+     * «خانواده-نسخه» می‌سازد و **همان کلید** است که سیستم‌عاملِ دو زیرساخت را
+     * یکی می‌کند. اگر OVH بگوید `rocky-linux-9` و هتزنر `rocky-9`، مشتری در
+     * صفحهٔ خرید دو تا «راکی ۹» می‌بیند — بی‌هیچ خطایی.
+     */
+    private const OS_FAMILIES = [
+        'almalinux'     => 'alma',
+        'rocky linux'   => 'rocky',
+        'cloudlinux'    => 'cloudlinux',
+        'ubuntu'        => 'ubuntu',
+        'debian'        => 'debian',
+        'fedora'        => 'fedora',
+        'centos'        => 'centos',
+        'freebsd'       => 'freebsd',
+        'windows server' => 'windows',
+    ];
+
+    /** پسوندهایی که نرم‌افزارِ آماده‌اند، نه سیستم‌عامل */
+    private const OS_APPS = ['cpanel', 'plesk', 'docker', 'n8n'];
+
+    /**
+     * ایمیج‌ها از فهرستِ `vps_os` کاتالوگ.
+     *
+     * ⚠️ `provider_ref` **عیناً** همان رشتهٔ نمایشی است، چون سفارشِ OVH همان را
+     * می‌خواهد. هر «تمیزکاری»‌ای این‌جا یعنی سفارشی که رد می‌شود.
+     *
+     * ⚠️ نامِ نافهم **رد** می‌شود، نه اینکه با کلیدِ حدسی ذخیره شود: کلیدِ غلط
+     * سیستم‌عامل را از گروهِ درستش جدا می‌کند و در لحظهٔ تحویل به ایمیجی
+     * می‌رسد که آن زیرساخت ندارد.
+     *
+     * @param  array<int, string>  $names
+     */
+    private function imagesFrom(array $names): array
+    {
+        $out = [];
+
+        foreach ($names as $name) {
+            // «Debian 12 - Docker» ⇒ پایه + پسوند · «… (Desktop)» ⇒ توضیحِ اضافه
+            $parts = array_map('trim', explode(' - ', $name, 2));
+            $base = preg_replace('/\s*\([^)]*\)\s*/', ' ', $parts[0]) ?? $parts[0];
+            $suffix = strtolower(trim($parts[1] ?? ''));
+
+            $family = null;
+            $rest = '';
+
+            foreach (self::OS_FAMILIES as $needle => $slug) {
+                if (stripos($base, $needle) === 0) {
+                    $family = $slug;
+                    $rest = trim(substr($base, strlen($needle)));
+                    break;
+                }
+            }
+
+            // FreeBSD نسخه را با خط‌تیره می‌چسباند: «FreeBSD-14.3»
+            if ($family === null && stripos($base, 'freebsd') === 0) {
+                $family = 'freebsd';
+                $rest = trim(substr($base, 7), '- ');
+            }
+
+            if ($family === null) {
+                continue;   // نامِ ناشناخته — حدس نمی‌زنیم
+            }
+
+            if (! preg_match('/(\d[\d.]*)/', $rest, $m)) {
+                continue;   // بی‌نسخه، کلیدِ قابلِ اتکا ساخته نمی‌شود
+            }
+
+            $version = $m[1];
+            $isApp = in_array($suffix, self::OS_APPS, true);
+            $kind = $isApp ? 'app' : 'os';
+
+            $out[] = [
+                'provider_ref' => $name,
+                'key'          => CloudNaming::imageKey($kind, $family, $version, $name),
+                'kind'         => $kind,
+                'family'       => $isApp ? CloudNaming::appFamily($name) : $family,
+                'version'      => $version,
+                'label'        => $name,
+                'arch'         => 'x86',       // VPSهای OVH همه x86اند
+                'min_disk_gb'  => 0,
+            ];
+        }
+
+        return $out;
     }
 
     private function datacentersOf(array $plan): array
