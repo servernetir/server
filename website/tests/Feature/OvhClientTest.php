@@ -211,6 +211,67 @@ class OvhClientTest extends TestCase
         $this->assertSame([], $r['plans']);
     }
 
+    // ═══════════ عیب‌یابیِ کاتالوگ ═══════════
+
+    /**
+     * 🔴 probe باید کاتالوگِ فروش را هم نشان دهد — وگرنه نگاشت از روی **حدس**
+     * نوشته می‌شود.
+     *
+     * درسِ همین هفته: شکلِ `locations[]`ِ هتزنر حدس زده شد، تست با همان حدس
+     * نوشته شد، هر دو سبز شدند، و رفع روی پروداکشن هیچ ردیفی را فیلتر نکرد.
+     * ساختارِ ندیده = تستِ سبزِ بی‌اثر.
+     *
+     * ⚠️ زیرمجموعه از خودِ `/me` می‌آید نه از حدس: حسابِ US و FR کاتالوگِ
+     * متفاوت دارند و پارامترِ اشتباه می‌تواند قیمتِ کشورِ دیگری را برگردانَد —
+     * قیمتی که ما اصلاً نمی‌توانیم بخریم.
+     */
+    public function test_the_probe_asks_the_order_catalogue_with_the_account_subsidiary(): void
+    {
+        $this->configure();
+        $this->fake([
+            '*/1.0/order/catalog/public/vps*' => Http::response([
+                'plans' => [
+                    ['planCode' => 'vps-le-2-2-40', 'invoiceName' => 'VPS Starter'],
+                    ['planCode' => 'vps-le-4-8-80', 'invoiceName' => 'VPS Comfort'],
+                ],
+            ]),
+            '*/1.0/me' => Http::response(['nichandle' => 'us-x', 'ovhSubsidiary' => 'US']),
+            '*/1.0/vps' => Http::response([]),
+        ]);
+
+        $out = $this->client()->rawProbe();
+
+        $this->assertSame('US', $out['ovhSubsidiary']);
+        $this->assertSame(2, $out['/order/catalog/public/vps']['plan_count']);
+
+        // زیرمجموعه واقعاً در کوئری رفته باشد، نه فقط خوانده شده باشد
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => str_contains($pair[0]->url(), '/order/catalog')
+                    && str_contains($pair[0]->url(), 'ovhSubsidiary=US')
+            )
+        );
+    }
+
+    /** بی‌زیرمجموعه اصلاً کاتالوگ پرسیده نمی‌شود — پارامترِ حدسی ممنوع */
+    public function test_without_a_subsidiary_the_catalogue_is_not_queried(): void
+    {
+        $this->configure();
+        $this->fake([
+            '*/1.0/me' => Http::response(['nichandle' => 'x']),
+            '*/1.0/vps' => Http::response([]),
+        ]);
+
+        $out = $this->client()->rawProbe();
+
+        $this->assertArrayNotHasKey('/order/catalog/public/vps', $out);
+        $this->assertFalse(
+            collect(Http::recorded())->contains(
+                fn ($pair) => str_contains($pair[0]->url(), '/order/catalog')
+            )
+        );
+    }
+
     // ═══════════ منطقه ═══════════
 
     /**

@@ -434,7 +434,9 @@ class OvhClient implements CloudProvider
     {
         return [
             'ok' => false,
-            'message' => 'کاتالوگِ خودکارِ این زیرساخت هنوز فعال نیست؛ پلن‌هایش را دستی در پنل ثبت کنید.',
+            'message' => 'کاتالوگِ خودکارِ این زیرساخت هنوز نگاشت نشده. '
+                .'ساختارِ واقعیِ پاسخ در /admin/cloud/probe?provider=ovh دیده می‌شود؛ '
+                .'تا وقتی نگاشت از روی همان نوشته نشود، پلن‌ها دستی در پنل ثبت می‌شوند.',
             'locations' => [], 'plans' => [], 'images' => [],
         ];
     }
@@ -452,6 +454,36 @@ class OvhClient implements CloudProvider
         foreach (['/me', '/vps'] as $p) {
             $r = $this->req('GET', $p);
             $out[$p] = ['ok' => $r['ok'], 'status' => $r['status'], 'sample' => $r['body']];
+        }
+
+        /*
+        | کاتالوگِ فروش — تنها راهِ دیدنِ شکلِ واقعیِ پاسخ پیش از نگاشت‌کردنش.
+        |
+        | 🔴 درسِ همین هفته: من شکلِ `locations[]`ِ هتزنر را **حدس** زدم، تست را
+        | با همان حدس نوشتم، هر دو سبز شدند، و رفع روی پروداکشن **هیچ ردیفی را
+        | فیلتر نکرد**. حدس‌زدنِ ساختار، تستِ سبزِ بی‌اثر می‌سازد.
+        |
+        | ⚠️ زیرمجموعه (`ovhSubsidiary`) حدس زده نمی‌شود: از خودِ `/me` می‌آید.
+        | حسابِ US و FR کاتالوگِ متفاوت دارند و پارامترِ اشتباه یا خطا می‌دهد یا
+        | — بدتر — کاتالوگِ کشورِ دیگری را برمی‌گرداند با قیمت‌هایی که ما اصلاً
+        | نمی‌توانیم بخریم.
+        */
+        $sub = (string) data_get($out['/me']['sample'] ?? [], 'ovhSubsidiary', '');
+        $out['ovhSubsidiary'] = $sub !== '' ? $sub : '⚠️ خوانده نشد';
+
+        if ($sub !== '') {
+            $c = $this->req('GET', '/order/catalog/public/vps', ['ovhSubsidiary' => $sub]);
+
+            $plans = (array) data_get($c['body'], 'plans', []);
+
+            $out['/order/catalog/public/vps'] = [
+                'ok' => $c['ok'], 'status' => $c['status'],
+                'plan_count' => count($plans),
+                // فقط دو ردیفِ اول — پاسخِ کامل ده‌ها کیلوبایت است و صفحهٔ
+                // عیب‌یابی را غیرقابلِ خواندن می‌کند.
+                'sample' => array_slice($plans, 0, 2),
+                'message' => $c['ok'] ? '' : $c['message'],
+            ];
         }
 
         $names = (array) ($out['/vps']['sample'] ?? []);
