@@ -74,6 +74,10 @@
           @endforeach
           <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_subtotal') }}</td>
               <td class="num pnl-num">{{ invoice_money($invoice->subtotal, $invoice->currency_code) }}</td></tr>
+          @if($invoice->discount > 0)
+            <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_discount') }}@if($invoice->discount_note) <small>({{ $invoice->discount_note }})</small>@endif</td>
+                <td class="num pnl-num">− {{ invoice_money($invoice->discount, $invoice->currency_code) }}</td></tr>
+          @endif
           @if($invoice->tax > 0)
             <tr><td colspan="3" style="color:var(--muted)">{{ __('ui.inv_tax') }}</td>
                 <td class="num pnl-num">{{ invoice_money($invoice->tax, $invoice->currency_code) }}</td></tr>
