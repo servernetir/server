@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\CardRedactor;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +17,28 @@ class TicketMessage extends Model
     protected function casts(): array
     {
         return ['is_internal' => 'boolean'];
+    }
+
+    /**
+     * 🔴 شماره‌ی کاملِ کارت هرگز در متنِ تیکت نمی‌نشیند.
+     *
+     * ⚠️ عمداً یک mutator روی **مدل** است و نه یک تمیزکاری در
+     * `Ticket::addMessage()`. سه دلیلِ مستقل:
+     *
+     *  ۱ این تنها درِ نوشتن نیست — `LicenseOrderTicket` مستقیم
+     *    `TicketMessage::create()` می‌زند، و درِ بعدی هم روزی اضافه می‌شود.
+     *    محافظی که در یکی از چند مسیر بنشیند، همان روزی که مسیرِ تازه اضافه
+     *    شود بی‌صدا دور زده می‌شود.
+     *  ۲ `update` را هم می‌گیرد، نه فقط `create`.
+     *  ۳ چون در لحظهٔ **ست‌کردن** اجرا می‌شود، نسخهٔ درون‌حافظه هم ماسک‌خورده
+     *    است — پس ایمیل و پیامکِ اعلان که از همین شیء متن برمی‌دارند، شمارهٔ
+     *    کامل را به بیرون نمی‌برند. تمیزکاریِ سطحِ دیتابیس این را نمی‌داد.
+     */
+    protected function body(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => CardRedactor::mask($value),
+        );
     }
 
     public function ticket(): BelongsTo
