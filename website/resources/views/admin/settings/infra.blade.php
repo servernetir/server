@@ -73,13 +73,34 @@
         <b>زیرساختِ ۴ — OVHcloud</b>
         @if($cloud['ovh'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">هر سه کلید ذخیره‌شده</span>@endif
       </div>
+      @php
+        // نشانیِ ساختِ کلید **منطقه‌ای** است، مثلِ خودِ کلیدها. نشان‌دادنِ نشانیِ
+        // اروپا به حسابِ آمریکایی یعنی کاربر کلیدی می‌سازد که هرگز کار نمی‌کند
+        // و خطایش هم نمی‌گوید چرا.
+        $ovhTokenUrl = [
+            'eu' => 'eu.api.ovh.com/createToken/',
+            'ca' => 'ca.api.ovh.com/createToken/',
+            'us' => 'api.us.ovhcloud.com/createToken/',
+        ][$cloud['ovh_region'] ?? 'eu'];
+      @endphp
       <p>
-        این زیرساخت سه کلید می‌خواهد. هر سه را از <span dir="ltr">eu.api.ovh.com/createToken</span>
-        بسازید و دسترسی‌های <span dir="ltr">GET/POST /vps*</span> و <span dir="ltr">GET /me</span> را بدهید.
+        این زیرساخت سه کلید می‌خواهد. اول <b>منطقه</b> را درست انتخاب کنید، بعد هر سه کلید را از
+        <span dir="ltr">{{ $ovhTokenUrl }}</span>
+        بسازید و دسترسی‌های <span dir="ltr">GET /me</span> و <span dir="ltr">GET/POST/PUT /vps*</span> را بدهید.
+        <br>⚠️ در فرم OVH گزینهٔ <span dir="ltr">Validity</span> پیش‌فرض <span dir="ltr">1 day</span> است؛
+        اگر روی <span dir="ltr">Unlimited</span> نگذارید، اتصال فردا بی‌هیچ خبری قطع می‌شود.
         <br>⚠️ <b>خرید خودکار هنوز فعال نیست</b> — سفارش در OVH از سبد خرید چندمرحله‌ای می‌گذرد
         و تا وقتی روی حساب واقعی آزمایش نشده، سفارش‌ها به صف تحویل دستی می‌روند.
         مدیریت سرورهای موجود (روشن/خاموش/نصب دوباره) کامل کار می‌کند.
       </p>
+      <div class="set-grid">
+        <label class="set-f">منطقهٔ حساب
+          <select name="ovh_region" dir="ltr">
+            <option value="eu" @selected(($cloud['ovh_region'] ?? 'eu') === 'eu')>ovh-eu — ovh.com (اروپا)</option>
+            <option value="ca" @selected(($cloud['ovh_region'] ?? 'eu') === 'ca')>ovh-ca — ca.ovh.com (کانادا)</option>
+            <option value="us" @selected(($cloud['ovh_region'] ?? 'eu') === 'us')>ovh-us — us.ovhcloud.com (آمریکا)</option>
+          </select></label>
+      </div>
       <div class="set-grid three">
         <label class="set-f">Application Key
           <input type="password" name="ovh_app_key" dir="ltr" autocomplete="new-password" maxlength="200"

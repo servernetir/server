@@ -164,6 +164,7 @@ class SettingsController extends Controller
             'ovh_app_key'        => ['nullable', 'string', 'max:200'],
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
+            'ovh_region'         => ['nullable', 'string', 'in:eu,ca,us'],
             'ovh_forget'         => ['nullable', 'boolean'],
             'hetzner_robot_user'   => ['nullable', 'string', 'max:120'],
             'hetzner_robot_pass'   => ['nullable', 'string', 'max:200'],
@@ -441,6 +442,10 @@ class SettingsController extends Controller
                 'ovh' => $ready && filled(Setting::getSecret('ovh_app_key'))
                     && filled(Setting::getSecret('ovh_app_secret'))
                     && filled(Setting::getSecret('ovh_consumer_key')),
+                // منطقه سرّی نیست ولی به اندازهٔ کلید تعیین‌کننده است: کلیدِ
+                // درستِ منطقهٔ اشتباه همان ۴۰۳ را می‌دهد. پیش‌فرضِ نمایش با
+                // پیش‌فرضِ `OvhClient::region()` یکی است.
+                'ovh_region' => $ready ? (Setting::get('ovh_region', 'eu') ?: 'eu') : 'eu',
                 'proxmox'        => $ready && filled(Setting::getSecret('proxmox_token_secret')),
                 // Robot دو تکه است: کاربر و رمزِ webservice — هر دو لازم‌اند.
                 'hetzner_robot' => $ready && filled(Setting::getSecret('hetzner_robot_user'))
@@ -744,6 +749,12 @@ class SettingsController extends Controller
                     Setting::putSecret($k, trim((string) $data[$k]));
                 }
             }
+        }
+
+        // منطقه بیرونِ شاخهٔ «فراموش کن» است، مثلِ کانفیگِ Proxmox: پاک‌کردنِ
+        // کلیدها دلیلی نیست که یادمان برود حساب روی کدام نهاد است.
+        if (filled($data['ovh_region'] ?? null)) {
+            Setting::put('ovh_region', $data['ovh_region']);
         }
 
         // Hetzner Robot: کاربر و رمزِ webservice — دو کلید، مثل OVH با هم
