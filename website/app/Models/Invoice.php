@@ -11,7 +11,7 @@ class Invoice extends Model
 {
     protected $fillable = [
         'customer_id', 'service_id', 'domain_id', 'number', 'kind', 'currency_code',
-        'subtotal', 'tax', 'total', 'paid', 'status', 'note',
+        'subtotal', 'discount', 'discount_note', 'tax', 'total', 'paid', 'status', 'note',
         'issued_at', 'due_at', 'paid_at',
     ];
 
@@ -19,6 +19,7 @@ class Invoice extends Model
     {
         return [
             'subtotal'  => 'integer',
+            'discount'  => 'integer',
             'tax'       => 'integer',
             'total'     => 'integer',
             'paid'      => 'integer',
@@ -26,6 +27,44 @@ class Invoice extends Model
             'due_at'    => 'datetime',
             'paid_at'   => 'datetime',
         ];
+    }
+
+    /**
+     * جمع‌های فاکتور از روی ردیف‌هایش — **تنها نویسندهٔ این ریاضی**.
+     *
+     * ═══ چرا یک متد و نه محاسبه در هر صادرکننده ═══
+     *
+     * امروز شش جای مختلف فاکتور می‌سازند و هرکدام `subtotal + tax` را خودش
+     * جمع می‌زند. تا وقتی تخفیف نبود این تکرار بی‌خطر بود. با تخفیف، هر
+     * صادرکننده‌ای که یادش برود آن را کم کند فاکتوری می‌سازد که مبلغش با
+     * ردیف‌هایش نمی‌خواند — اختلافی که ماه‌ها بعد در مغایرت‌گیری پیدا می‌شود.
+     *
+     * ⚠️ تخفیف هرگز از جمعِ ردیف‌ها بیشتر نمی‌شود: فاکتورِ منفی معنا ندارد و
+     * `due()` هم با `max(0, …)` پنهانش می‌کند — یعنی خطا دیده نمی‌شود.
+     *
+     * ⚠️ مالیات این‌جا **بازمحاسبه نمی‌شود**؛ از `tax_amount`ِ ردیف‌ها جمع
+     * می‌شود. نرخِ لحظهٔ صدور روی ردیف منجمد است و بازمحاسبه‌اش یعنی فاکتور
+     * پارسال با نرخِ امسال خوانده شود — همان چیزی که مهاجرتِ فاکتورها صریحاً
+     * از آن پرهیز کرده. پس هرکس تخفیفِ ردیفی می‌گذارد، باید `tax_amount` را
+     * هم روی مبلغِ خالصِ همان ردیف حساب کند.
+     */
+    public function recalculateTotals(): void
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        $subtotal     = (int) $items->sum(fn ($i) => (int) $i->line_total);
+        $tax          = (int) $items->sum(fn ($i) => (int) $i->tax_amount);
+        $lineDiscount = (int) $items->sum(fn ($i) => (int) $i->discount);
+
+        // تخفیفِ ردیف‌ها بخشی از تخفیفِ فاکتور است، نه چیزی جدا کنارش
+        $discount = max(0, min($lineDiscount ?: (int) $this->discount, $subtotal));
+
+        $this->forceFill([
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'tax'      => $tax,
+            'total'    => $subtotal - $discount + $tax,
+        ]);
     }
 
     protected static function booted(): void

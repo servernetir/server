@@ -212,6 +212,11 @@ tbody tr:last-child td{ border-bottom:0 }
 
   <div class="totals">
     <div><span>{{ __('ui.invp_subtotal') }}</span><span class="num">{{ invoice_money($invoice->subtotal, $invoice->currency_code) }}</span></div>
+    {{-- تخفیف پیش از مالیات می‌نشیند، چون مأخذِ مالیات مبلغِ خالص است.
+         ترتیبِ نمایش باید همان ترتیبِ محاسبه باشد وگرنه خواننده جمع نمی‌زند. --}}
+    @if($invoice->discount > 0)
+      <div><span>{{ __('ui.invp_discount') }}@if($invoice->discount_note) <small>({{ $invoice->discount_note }})</small>@endif</span><span class="num">− {{ invoice_money($invoice->discount, $invoice->currency_code) }}</span></div>
+    @endif
     @if($invoice->tax > 0)
       <div><span>{{ __('ui.invp_vat') }}</span><span class="num">{{ invoice_money($invoice->tax, $invoice->currency_code) }}</span></div>
     @endif
