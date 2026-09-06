@@ -162,6 +162,18 @@ class AppServiceProvider extends ServiceProvider
                 config('services.bale.wallet'),
             ));
 
+            /*
+            | اسنپ‌پی — پرداخت اقساطی.
+            |
+            | ⚠️ ثبتِ بی‌قیدوشرط این‌جا امن است: `enabled()` هم کلیدِ config و
+            | هم کاملِ بودنِ اعتبارها را می‌سنجد، پس تا وقتی .env پر نشده درگاه
+            | در `availableFor()` نمی‌آید و اصلاً به مشتری نشان داده نمی‌شود.
+            */
+            $registry->register(new \App\Services\Payment\SnappPay\SnappPayGateway(
+                $this->app->make(\App\Services\Payment\SnappPay\SnappPayClient::class),
+                $this->app->make(\App\Services\Payment\SnappPay\SnappPayCart::class),
+            ));
+
             return $registry;
         });
     }
