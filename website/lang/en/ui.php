@@ -2461,6 +2461,7 @@ return [
     'invp_doc_proforma' => 'Proforma Invoice',
     'invp_seller' => 'Seller',
     'invp_buyer' => 'Buyer',
+    'invp_postal_code' => 'Postal code',
     'invp_issue_date' => 'Issue Date',
     'invp_paid_date' => 'Payment date:',
     'invp_col_desc' => 'Description',

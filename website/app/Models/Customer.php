@@ -83,6 +83,30 @@ class Customer extends Authenticatable
             ?? $this->profiles()->first();
     }
 
+    /**
+     * هویتی که روی **فاکتور** می‌نشیند.
+     *
+     * ═══ چرا حقوقی بر حقیقی مقدم است ═══
+     *
+     * کسی که اطلاعات شرکتش را وارد کرده، فاکتور را برای شرکتش می‌خواهد —
+     * فاکتوری به نامِ شخصِ خودش برای دفاترِ آن شرکت بی‌مصرف است و مالیاتِ
+     * ارزش افزوده‌اش هم قابلِ استفاده نیست. پس وجودِ یک پروفایلِ حقوقی
+     * خودش اعلامِ نیت است، حتی اگر پروفایلِ حقیقی `is_default` باشد.
+     *
+     * ترتیب: حقوقیِ پیش‌فرض ← حقوقیِ تأییدشده ← تازه‌ترین حقوقی.
+     *
+     * ⚠️ `null` یعنی «حقوقی ندارد»، نه «خطا» — فاکتور به همان روالِ حقیقیِ
+     * قبلی برمی‌گردد.
+     */
+    public function billingProfile(): ?CustomerProfile
+    {
+        $company = $this->profiles()->where('type', 'company');
+
+        return (clone $company)->where('is_default', true)->first()
+            ?? (clone $company)->where('status', 'verified')->latest('id')->first()
+            ?? $company->latest('id')->first();
+    }
+
     public function identities(): HasMany
     {
         return $this->hasMany(CustomerIdentity::class);
