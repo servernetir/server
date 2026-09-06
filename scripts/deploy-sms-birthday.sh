@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+#
+# دیپلوی «شش الگوی پیامک + هدیهٔ تولد + ایمیلِ تحویل + نمایشِ شمارهٔ کارت»
+# — شهریور ۱۴۰۵.
+#
+# چه چیزی دیپلوی می‌شود (۱۲ فایل، بدونِ مهاجرت):
+#
+#   پیامک
+#     · SignedRelaySender   — شش نامِ تازه در فهرستِ الگوها
+#     · NotifyEvent         — سه رویدادِ تازه + مخاطبِ bank_receipt
+#     · PaymentController   — متنِ مشتری برای رسیدِ واریز (قبلاً خالی بود)
+#     · NotificationTemplateSeeder — ردیف‌های /admin/templates
+#
+#   تولد
+#     · BirthdayGift.php + config/birthday.php   (هر دو تازه)
+#     · routes/console.php  — کرونِ روزانهٔ ۰۵:۰۰ UTC
+#
+#   تحویل و پنل
+#     · CloudProvisioner    — ایمیلِ «سرور آماده است» روی سرورِ خاموش هم می‌رود
+#     · CustomerController + routes/web.php + admin/customer.blade.php
+#                           — نمایشِ کنترل‌شدهٔ شمارهٔ کارت برای عودتِ وجه
+#     · CloudLocation       — نامِ فارسیِ پنج شهرِ تازهٔ زیرساختِ ۴
+#
+# ═══ 🔴 دو کارِ دستی که این اسکریپت انجام نمی‌دهد ═══
+#
+# ۱) **گرهٔ n8n.** کدهای الگو در `relay/n8n/verify-and-map-template.js` است و
+#    آن فایل روی این سرور اجرا نمی‌شود — در دیتابیسِ خودِ n8n زندگی می‌کند.
+#    تا وقتی محتوای تازهٔ آن فایل در گرهٔ Code پیست نشود، شش الگوی تازه با
+#    `pattern_code_not_configured` رد می‌شوند و **هیچ پیامکی نمی‌رود**.
+#    (نشانه‌اش در `/system/sms-status` → `sms:last_error` دیده می‌شود.)
+#
+# ۲) **روشن‌کردنِ برنامهٔ تولد.** عمداً خاموش است. تا وقتی
+#    `Setting: birthday_enabled` روی `1` نرود، کرون می‌دود و هیچ ریالی
+#    جابه‌جا نمی‌کند. مبالغِ پله‌ها در `config/birthday.php` است.
+#
+# منطق عیناً از scripts/deploy-cloud-location-guard.sh: merge سه‌طرفه با
+# پایهٔ خودکار به‌ازای هر فایل (UP/MG/CF) + بکاپ کامل + یکسان‌سازیِ پایانِ خط
+# پیش از هر مقایسه.  ⚠️ تلهٔ CRLF: بی‌normalize، پایه‌یاب روی سرور کور می‌شود.
+set -u
+
+APP="$HOME/servernet_app"
+WORK="$HOME/deploy-sms-birthday"
+STAMP=$(date +%Y%m%d-%H%M%S)
+BK="$WORK/backup-$STAMP"
+HIST=80
+
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  exit 1
+fi
+
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول:  rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
+# ═══ 🔴 شمارشِ کرونِ سرور، پیش از دست‌زدن به routes/console.php ═══
+# فایلِ کرونِ پروداکشن drift دارد و یک بار رونویسی‌اش بی‌صدا یک کرون را حذف
+# کرد. merge سه‌طرفه باید تغییرِ سرور را نگه دارد — ولی «باید» کافی نیست.
+CRON_BEFORE=$(grep -c "Schedule::command" "$APP/routes/console.php" 2>/dev/null || echo 0)
+echo "── کرونِ فعلیِ سرور: $CRON_BEFORE"
+
+# ═══ 🔴 شمارشِ روتِ سرور — routes/web.php پُرترافیک‌ترین فایلِ مشترک است ═══
+# دو دیپلویِ هم‌زمان روی این فایل قبلاً تداخل ساخته و یک قابلیت بی‌صدا منتشر
+# نشده. شمارشِ ساده جلوی «merge چیزی را خورد» را می‌گیرد.
+ROUTE_BEFORE=$(grep -c "Route::" "$APP/routes/web.php" 2>/dev/null || echo 0)
+echo "── روتِ فعلیِ سرور: $ROUTE_BEFORE"
+
+mkdir -p "$WORK" "$BK" "$WORK/conflicts"
+cd "$WORK"
+
+command -v git >/dev/null || { echo "FATAL: git روی سرور نیست"; exit 1; }
+
+if [ -d repo/.git ]; then
+  git -C repo fetch --depth 400 origin develop || { echo "FATAL: fetch"; exit 1; }
+else
+  git clone --depth 400 --branch develop https://github.com/servernetir/server.git repo \
+    || { echo "FATAL: clone"; exit 1; }
+fi
+
+# 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
+MINE="${1:-e3d4aab8}"
+
+if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
+  echo "── $MINE در develop نیست؛ شاخهٔ merge-to-develop هم آورده می‌شود"
+  git -C repo fetch --depth 400 origin merge-to-develop >/dev/null 2>&1 || true
+fi
+
+git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 \
+  || { echo "FATAL: $MINE در مخزن نیست (نه develop، نه merge-to-develop)"; exit 1; }
+echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
+echo "── بکاپ در: $BK"
+echo
+
+PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
+[ -x "$PHPBIN" ] || PHPBIN=$(command -v php)
+[ -n "$PHPBIN" ] || { echo "FATAL: php پیدا نشد"; exit 1; }
+
+CONFLICTS=""; UPD=0; LINT_FAIL=""
+
+backup_of() {
+  [ -f "$APP/$1" ] || return 0
+  mkdir -p "$BK/$(dirname "$1")"
+  cp -p "$APP/$1" "$BK/$1"
+}
+
+# 🔴 `php -l` روی `.blade.php` بی‌اثر است: یک `@if` بدونِ `@endif` — که صفحه
+#    را ۵۰۰ می‌کند — «No syntax errors» می‌گیرد. پس Blade باید کامپایل شود.
+cat > "$WORK/bladecheck.php" <<'PHPCHK'
+<?php
+require $argv[1].'/vendor/autoload.php';
+$app = require $argv[1].'/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$tmp = sys_get_temp_dir().'/bladechk_'.getmypid().'.php';
+file_put_contents($tmp, Illuminate\Support\Facades\Blade::compileString(file_get_contents($argv[2])));
+exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($tmp).' 2>&1', $o, $rc);
+unlink($tmp);
+exit($rc);
+PHPCHK
+
+lint_or_restore() {
+  case "$1" in
+    *.blade.php) "$PHPBIN" "$WORK/bladecheck.php" "$APP" "$APP/$1" >/dev/null 2>&1 && return 0 ;;
+    *.php)       "$PHPBIN" -l "$APP/$1" >/dev/null 2>&1 && return 0 ;;
+    *)           return 0 ;;
+  esac
+  echo "      🔴 خطای نحوی بعد از نوشتن — از بکاپ برگردانده شد: $1"
+  if [ -f "$BK/$1" ]; then cp -p "$BK/$1" "$APP/$1"; else rm -f "$APP/$1"; fi
+  LINT_FAIL="$LINT_FAIL $1"
+  return 1
+}
+
+# ═══ 🔴 نرمال‌سازیِ CRLF — پیش از هر مقایسه ═══
+norm() { tr -d '\r' < "$1" > "$2"; }
+same() { norm "$1" "$WORK/n1.tmp"; norm "$2" "$WORK/n2.tmp"; cmp -s "$WORK/n1.tmp" "$WORK/n2.tmp"; }
+dist() { norm "$1" "$WORK/d1.tmp"; norm "$2" "$WORK/d2.tmp"; diff "$WORK/d1.tmp" "$WORK/d2.tmp" 2>/dev/null | grep -c '^[<>]'; }
+
+# ⚠️ دو فایلِ اول روی سرور **وجود ندارند** و از شاخهٔ NEW می‌روند؛ بقیه از
+#    مسیرِ merge. حلقه خودش تشخیص می‌دهد، فهرست یکی است.
+MERGE_FILES="
+config/birthday.php
+app/Console/Commands/BirthdayGift.php
+app/Services/Sms/SignedRelaySender.php
+app/Services/Notify/NotifyEvent.php
+app/Http/Controllers/Account/PaymentController.php
+app/Http/Controllers/Admin/CustomerController.php
+app/Services/Cloud/CloudProvisioner.php
+app/Models/CloudLocation.php
+database/seeders/NotificationTemplateSeeder.php
+resources/views/admin/customer.blade.php
+routes/web.php
+routes/console.php
+"
+
+echo "═══ ۱) فایل‌ها (merge سه‌طرفه) ═══"
+for rel in $MERGE_FILES; do
+  dest="$APP/$rel"
+  mine_f="$WORK/mine.tmp"; base_f="$WORK/base.tmp"
+
+  git -C repo show "$MINE:website/$rel" > "$mine_f" 2>/dev/null \
+    || { echo "SKIP  (در $MINE نیست)  $rel"; continue; }
+
+  if [ ! -f "$dest" ]; then
+    backup_of "$rel"; mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"
+    lint_or_restore "$rel" && { echo "NEW   $rel"; UPD=$((UPD+1)); }
+    continue
+  fi
+
+  backup_of "$rel"
+  if same "$dest" "$mine_f"; then echo "OK    $rel"; continue; fi
+
+  best=""; bestd=999999999
+  for sha in $(git -C repo log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
+    git -C repo show "$sha:website/$rel" > "$WORK/cand.tmp" 2>/dev/null || continue
+    if same "$dest" "$WORK/cand.tmp"; then best="$sha"; bestd=0; break; fi
+    d=$(dist "$dest" "$WORK/cand.tmp")
+    if [ "$d" -lt "$bestd" ]; then bestd=$d; best="$sha"; fi
+  done
+
+  if [ -z "$best" ]; then
+    echo "CF    $rel   ← در تاریخچه نیست؛ نسخهٔ ناشناخته روی سرور — دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
+    cp "$dest" "$keep.server"; cp "$mine_f" "$keep.new"
+    continue
+  fi
+
+  if [ "$bestd" -eq 0 ]; then
+    cp "$mine_f" "$dest"
+    lint_or_restore "$rel" && { echo "UP    $rel   (سرور = $(git -C repo rev-parse --short "$best"))"; UPD=$((UPD+1)); }
+    continue
+  fi
+
+  git -C repo show "$best:website/$rel" > "$base_f"
+  m="$WORK/merged.tmp"; norm "$dest" "$m"; norm "$base_f" "$WORK/base_n.tmp"
+  if git merge-file -L server -L base -L new "$m" "$WORK/base_n.tmp" "$mine_f" >/dev/null 2>&1; then
+    cp "$m" "$dest"
+    lint_or_restore "$rel" && { echo "MG    $rel   (پایه $(git -C repo rev-parse --short "$best")، فاصلهٔ سرور $bestd خط — تغییرِ دیگران حفظ شد)"; UPD=$((UPD+1)); }
+  else
+    echo "CF    $rel   ← تداخل واقعی؛ دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    keep="$WORK/conflicts/$rel"; mkdir -p "$(dirname "$keep")"
+    cp "$dest" "$keep.server"; cp "$base_f" "$keep.base"; cp "$mine_f" "$keep.new"
+  fi
+done
+
+# ═══ ۲) کش‌ها + سیدرِ الگوها ══════════════════════════════════════════
+#
+# 🔴 سیدر لازم است، وگرنه سه رویدادِ تازه در `/admin/templates` ردیف ندارند
+#    و مدیر فکر می‌کند وجود ندارند. `firstOrCreate` است، پس متنِ ویرایش‌شدهٔ
+#    مدیر را برنمی‌گرداند.
+# ⚠️ بک‌اسلشِ **تکی** — دوتایی کلاس را پیدا نمی‌کند و بی‌صدا رد می‌شود.
+echo
+(cd "$APP" \
+  && "$PHPBIN" artisan config:clear \
+  && "$PHPBIN" artisan view:clear \
+  && "$PHPBIN" artisan db:seed --force --class='Database\Seeders\NotificationTemplateSeeder')
+
+# ═══ ۳) ضمانتِ اتحاد ═════════════════════════════════════════════════════
+echo
+echo "═══ ۳) ضمانتِ اتحاد ═══"
+
+union_ok=1
+
+CRON_AFTER=$(grep -c "Schedule::command" "$APP/routes/console.php" 2>/dev/null || echo 0)
+echo "── کرون پس از merge: $CRON_AFTER (پیش از آن: $CRON_BEFORE)"
+
+if [ "$CRON_AFTER" -lt "$CRON_BEFORE" ]; then
+  echo "🔴 تعدادِ کرون **کم شد** — merge چیزی را خورده. از بکاپ برگردانده می‌شود:"
+  cp -p "$BK/routes/console.php" "$APP/routes/console.php" 2>/dev/null \
+    && echo "   ↩️ routes/console.php برگشت." || echo "   ⚠️ بکاپ نبود!"
+  union_ok=0
+fi
+
+ROUTE_AFTER=$(grep -c "Route::" "$APP/routes/web.php" 2>/dev/null || echo 0)
+echo "── روت پس از merge: $ROUTE_AFTER (پیش از آن: $ROUTE_BEFORE)"
+
+if [ "$ROUTE_AFTER" -lt "$ROUTE_BEFORE" ]; then
+  echo "🔴 تعدادِ روت **کم شد** — merge چیزی را خورده. از بکاپ برگردانده می‌شود:"
+  cp -p "$BK/routes/web.php" "$APP/routes/web.php" 2>/dev/null \
+    && echo "   ↩️ routes/web.php برگشت." || echo "   ⚠️ بکاپ نبود!"
+  union_ok=0
+fi
+
+# 🔴 الگوی حاوی «$» را حتماً **تک‌کوتیشن** بنویس. داخلِ دابل‌کوتیشن باش آن را
+#    بسط می‌دهد و با `set -u` اسکریپت همان‌جا می‌میرد — بعد از نوشتنِ فایل‌ها و
+#    پیش از راستی‌آزمایی و بازگشتِ خودکار.
+need_grep() { grep -qF "$2" "$APP/$1" 2>/dev/null || { echo "🔴 «$2» در $1 نیست"; union_ok=0; }; }
+
+# ── پیامک: نامِ هر شش الگو باید در فهرست باشد ──
+# ⚠️ نبودِ حتی یکی یعنی همان رویداد به مسیرِ متنِ آزاد می‌افتد، درایورِ رله
+#    ردش می‌کند، و پیامک بی‌صدا نمی‌رود.
+need_grep app/Services/Sms/SignedRelaySender.php  "'invoice_expired'"
+need_grep app/Services/Sms/SignedRelaySender.php  "'bank_receipt'"
+need_grep app/Services/Sms/SignedRelaySender.php  "'service_hold'"
+need_grep app/Services/Sms/SignedRelaySender.php  "'hourly_low_credit'"
+need_grep app/Services/Sms/SignedRelaySender.php  "'hourly_credit_out'"
+need_grep app/Services/Sms/SignedRelaySender.php  "'birthday'"
+
+# ── کاتالوگِ رویدادها ──
+need_grep app/Services/Notify/NotifyEvent.php     "'hourly_low_credit' =>"
+need_grep app/Services/Notify/NotifyEvent.php     "'hourly_credit_out' =>"
+need_grep app/Services/Notify/NotifyEvent.php     "'birthday' =>"
+# ⚠️ مخاطبِ رسیدِ واریز باید BOTH باشد؛ با ADMIN الگوی ساخته‌شده هرگز شلیک
+#    نمی‌شود و هیچ خطایی هم تولید نمی‌کند.
+need_grep app/Services/Notify/NotifyEvent.php     "'title' => 'رسیدِ واریز، در انتظارِ تأیید', 'group' => 'billing',"
+
+# ── ردیف‌های /admin/templates (بعد از seed) ──
+need_grep database/seeders/NotificationTemplateSeeder.php "'key' => 'birthday'"
+need_grep database/seeders/NotificationTemplateSeeder.php "'key' => 'bank_receipt'"
+need_grep database/seeders/NotificationTemplateSeeder.php "'key' => 'hourly_low_credit'"
+
+# ── تولد ──
+need_grep config/birthday.php                     'expires_days'
+need_grep app/Console/Commands/BirthdayGift.php   'gift_birthday'
+need_grep app/Console/Commands/BirthdayGift.php   'sweepExpired'
+need_grep routes/console.php                      "birthday:gift"
+
+# ── ایمیلِ تحویل روی سرورِ خاموش ──
+# ⚠️ نشانه روی LIVE_STATUSES است نه READY_STATUSES: دومی همان باگ بود.
+need_grep app/Services/Cloud/CloudProvisioner.php 'CloudInstance::LIVE_STATUSES'
+
+# ── نمایشِ شمارهٔ کارت ──
+need_grep app/Http/Controllers/Admin/CustomerController.php 'revealCard'
+need_grep app/Http/Controllers/Admin/CustomerController.php 'card_revealed'
+need_grep routes/web.php                          'reveal-card'
+need_grep resources/views/admin/customer.blade.php 'reveal-card'
+
+# ── نامِ فارسیِ شهرهای تازه ──
+need_grep app/Models/CloudLocation.php            'آتلانتا'
+need_grep app/Models/CloudLocation.php            'وینت هیل'
+
+[ "$union_ok" -eq 0 ] && echo "🔴 اتحاد ناقص — گزارشِ بالا را بفرست."
+
+# ═══ ۴) راستی‌آزماییِ زنده + بازگردانیِ خودکار ═══════════════════════════
+echo
+echo "═══ ۴) راستی‌آزماییِ زنده ═══"
+BAD=0
+check() {
+  c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$1")
+  case " $2 " in *" $c "*) echo "  ✅ $c  $1" ;; *) echo "  🔴 $c  $1  (انتظار: $2)"; BAD=1 ;; esac
+}
+check "https://servernet.cloud/"                        "200"
+check "https://console.servernet.cloud/admin/login"     "200"
+check "https://console.servernet.cloud/admin/settings"  "302 301"
+check "https://console.servernet.cloud/account/login"   "200"
+
+if [ "$BAD" -eq 1 ]; then
+  echo
+  echo "🔴🔴 سایت سالم برنگشت — کلِ بکاپ برگردانده می‌شود …"
+  (cd "$BK" && find . -type f | while read -r f; do cp -p "$f" "$APP/${f#./}"; done)
+  (cd "$APP" && "$PHPBIN" artisan config:clear && "$PHPBIN" artisan view:clear)
+  echo "↩️ برگشت انجام شد. گزارشِ بالا را بفرست."
+  exit 1
+fi
+
+# ═══ ۵) پیش‌نمایشِ خشکِ تولد ═══════════════════════════════════════════
+# ⚠️ `--dry` هیچ عارضه‌ای ندارد و برنامه هم خاموش است، پس این فقط ثابت
+#    می‌کند فرمان بالا می‌آید و پرس‌وجویش روی دیتابیسِ واقعی نمی‌ترکد.
+echo
+echo "═══ ۵) پیش‌نمایشِ خشکِ هدیهٔ تولد ═══"
+(cd "$APP" && "$PHPBIN" artisan birthday:gift --dry) || echo "  ⚠️ فرمان خطا داد — گزارشش را بفرست."
+
+echo
+echo "═══ خلاصه ═══"
+echo "  به‌روزشده: $UPD فایل"
+[ -n "$CONFLICTS" ] && echo "  🔴 تداخل: $CONFLICTS   (نسخه‌ها در $WORK/conflicts)"
+[ -n "$LINT_FAIL" ] && echo "  🔴 خطای نحوی: $LINT_FAIL"
+echo "  بکاپ: $BK"
+echo
+echo "═══ دو کارِ دستیِ باقی‌مانده ═══"
+echo "  ۱) محتوای relay/n8n/verify-and-map-template.js را در گرهٔ Code ورک‌فلوی"
+echo "     n8n پیست کنید — بی‌آن، شش الگوی تازه با pattern_code_not_configured"
+echo "     رد می‌شوند و هیچ پیامکی نمی‌رود."
+echo "  ۲) برنامهٔ تولد عمداً خاموش است. برای روشن‌کردن، در تنظیمات"
+echo "     birthday_enabled = 1 بگذارید (مبالغ در config/birthday.php)."
