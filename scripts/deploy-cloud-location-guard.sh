@@ -42,6 +42,16 @@ if [ "${FREE_MB:-0}" -lt 500 ]; then
   exit 1
 fi
 
+# ═══ 🔴 شمارشِ کرونِ سرور، پیش از دست‌زدن به routes/console.php ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه: فایلِ کرونِ پروداکشن drift دارد و یک بار
+# رونویسی‌اش **بی‌صدا یک کرون را حذف کرد**. این اسکریپت merge سه‌طرفه
+# می‌کند و باید تغییرِ سرور را نگه دارد — ولی «باید» کافی نیست.
+#
+# پس عدد را قبل و بعد می‌شماریم و اگر کم شد، فریاد می‌زنیم.
+CRON_BEFORE=$(grep -c "Schedule::command" "$APP/routes/console.php" 2>/dev/null || echo 0)
+echo "── کرونِ فعلیِ سرور: $CRON_BEFORE"
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
@@ -116,6 +126,16 @@ dist() { norm "$1" "$WORK/d1.tmp"; norm "$2" "$WORK/d2.tmp"; diff "$WORK/d1.tmp"
 MERGE_FILES="
 app/Services/Cloud/HetznerClient.php
 app/Services/Cloud/CloudProvisioner.php
+app/Services/Cloud/HetznerRobotClient.php
+app/Services/Sms/SmsDispatcher.php
+app/Console/Commands/CloudHourlyAudit.php
+app/Console/Commands/CheckSiteLinks.php
+app/Console/Commands/CheckContentLinks.php
+resources/views/account/cloud-server.blade.php
+lang/fa/ui.php
+lang/en/ui.php
+lang/tr/ui.php
+routes/console.php
 "
 
 echo "═══ ۱) فایل‌ها (merge سه‌طرفه) ═══"
@@ -178,6 +198,16 @@ echo
 # ═══ ۳) ضمانتِ اتحاد ═════════════════════════════════════════════════════
 echo
 echo "═══ ۳) ضمانتِ اتحاد ═══"
+
+CRON_AFTER=$(grep -c "Schedule::command" "$APP/routes/console.php" 2>/dev/null || echo 0)
+echo "── کرون پس از merge: $CRON_AFTER (پیش از آن: $CRON_BEFORE)"
+
+if [ "$CRON_AFTER" -lt "$CRON_BEFORE" ]; then
+  echo "🔴 تعدادِ کرون **کم شد** — merge چیزی را خورده. از بکاپ برگردانده می‌شود:"
+  cp -p "$BK/routes/console.php" "$APP/routes/console.php" 2>/dev/null     && echo "   ↩️ routes/console.php برگشت." || echo "   ⚠️ بکاپ نبود!"
+  union_ok=0
+fi
+
 union_ok=1
 # 🔴 الگوی حاوی «$» را حتماً **تک‌کوتیشن** بنویس. داخلِ دابل‌کوتیشن
 #    باش آن را بسط می‌دهد و با `set -u` اسکریپت همان‌جا می‌میرد —
@@ -199,6 +229,15 @@ need_grep app/Services/Cloud/CloudProvisioner.php   "unsupported location"
 # ⚠️ گاردِ تازه باید **پیش از** قرنطینهٔ سراسری بیاید، وگرنه یک ترکیبِ
 #    نامعتبر دوباره کلِ خطِ زیرساخت را می‌بندد.
 need_grep app/Services/Cloud/CloudProvisioner.php   'quarantineProvider($plan, $why)'
+
+need_grep app/Services/Cloud/HetznerRobotClient.php 'ryzen 7 pro 1700x'
+need_grep app/Services/Sms/SmsDispatcher.php        'noteOnce'
+need_grep app/Console/Commands/CheckSiteLinks.php   'scheduled'
+need_grep routes/console.php                        'links:site --scheduled'
+need_grep resources/views/account/cloud-server.blade.php 'cs_off_still_billed'
+need_grep lang/fa/ui.php                            'cs_off_still_billed'
+need_grep lang/en/ui.php                            'cs_off_still_billed'
+need_grep lang/tr/ui.php                            'cs_off_still_billed'
 
 [ "$union_ok" -eq 0 ] && echo "🔴 اتحاد ناقص — گزارشِ بالا را بفرست."
 
