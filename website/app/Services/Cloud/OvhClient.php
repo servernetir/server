@@ -844,8 +844,22 @@ class OvhClient implements CloudProvider
                 'plan_count' => count($fPlans),
                 'top_keys' => is_array($f['body']) ? array_keys($f['body']) : [],
                 'first_plan_keys' => array_keys((array) ($fPlans[0] ?? [])),
-                'first_blob_keys' => array_keys((array) data_get($fPlans[0] ?? [], 'blobs', [])),
-                'first_technical' => data_get($fPlans[0] ?? [], 'blobs.technical'),
+                /*
+                | 🔴 مشخصات این‌جاست، اگر جایی باشد.
+                |
+                | دورِ قبل معلوم شد این پاسخ `blobs` **ندارد** و به‌جایش
+                | `details` دارد — و ۳۸ ردیف است نه ۲۴۲، یعنی ساختارش با
+                | کاتالوگِ public یکی نیست. تا خودِ `details` دیده نشود، هر
+                | نگاشتی حدس است.
+                */
+                'first_plan_code' => (string) data_get($fPlans[0] ?? [], 'planCode', ''),
+                'first_details' => data_get($fPlans[0] ?? [], 'details'),
+                // یک ردیفِ دیگر هم، چون ردیفِ اول ممکن است افزونه باشد
+                'second_plan_code' => (string) data_get($fPlans[1] ?? [], 'planCode', ''),
+                'second_details' => data_get($fPlans[1] ?? [], 'details'),
+                'all_plan_codes' => array_slice(
+                    array_map(fn ($p) => (string) ($p['planCode'] ?? ''), $fPlans), 0, 40
+                ),
             ];
         }
 
