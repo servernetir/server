@@ -246,7 +246,7 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>حساب‌های بانکی</h3></div>
   <table class="ad-table">
-    <thead><tr><th>بانک</th><th>شبا</th><th>صاحب حساب</th><th>وضعیت</th></tr></thead>
+    <thead><tr><th>بانک</th><th>شبا</th><th>صاحب حساب</th><th>وضعیت</th><th></th></tr></thead>
     <tbody>
       @foreach($c->bankAccounts as $b)
       <tr>
@@ -254,6 +254,16 @@
         <td dir="ltr" style="color:var(--muted)">{{ $b->iban ?: '—' }}</td>
         <td>{{ $b->owner_name ?: '—' }} @if($b->name_matched)<i style="color:#34d399">✓</i>@endif</td>
         <td><span class="ad-badge {{ $b->status === 'verified' ? 'pub' : 'draft' }}">{{ $b->status === 'verified' ? 'تأییدشده' : $b->status }}</span></td>
+        {{-- ⚠️ عودتِ وجه معمولاً با **شبا** انجام می‌شود که همین کنار هست؛ این
+             دکمه برای موردی است که واقعاً کارت‌به‌کارت لازم شود. نمایش
+             یک‌بارمصرف است و در لاگِ فعالیت ثبت می‌شود. --}}
+        <td>
+          <form method="post" action="{{ url('/admin/customers/'.$c->id.'/bank/'.$b->id.'/reveal-card') }}"
+                data-confirm="شمارهٔ کاملِ کارت نمایش داده شود؟ این کار در لاگِ فعالیت ثبت می‌شود.">
+            @csrf
+            <button class="ad-btn sm">نمایش شمارهٔ کارت</button>
+          </form>
+        </td>
       </tr>
       @endforeach
     </tbody>

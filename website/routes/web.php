@@ -2796,6 +2796,12 @@ Route::prefix('admin')->group(function () {
         });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
+        /*
+        | نمایشِ یک‌بارهٔ شمارهٔ کاملِ کارت — فقط `admin`، نه هر کاربرِ پنل.
+        | دیدنِ PAN در لاگِ فعالیت ثبت می‌شود و سقفِ نرخ دارد.
+        */
+        Route::post('/customers/{customer}/bank/{account}/reveal-card',
+            [\App\Http\Controllers\Admin\CustomerController::class, 'revealCard'])->middleware('admin');
         // تنظیمِ دستیِ کیفِ پول (افزایش/کاهش با توضیحِ اجباری) — دفتر افزودنی است
         Route::post('/customers/{customer}/credit', [\App\Http\Controllers\Admin\CustomerController::class, 'credit'])->middleware('admin');
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه

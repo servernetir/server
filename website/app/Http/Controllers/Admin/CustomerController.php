@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\BankTransferReceipt;
 use App\Models\CreditEntry;
+use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\Invoice;
@@ -17,6 +18,7 @@ use App\Services\Notify\CustomerNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -615,6 +617,56 @@ class CustomerController extends Controller
             __('ui.act_pw_staff', [], $customer->locale ?: 'fa'), $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
+    }
+
+    /**
+     * نمایشِ **یک‌بارهٔ** شمارهٔ کاملِ کارت — فقط برای بازگشتِ وجه.
+     *
+     * ═══ چرا اصلاً وجود دارد ═══
+     *
+     * PANِ کامل در `card_number_enc` هست (به درخواستِ صریحِ کارفرما) ولی
+     * هیچ‌جای رابط نشان داده نمی‌شد. نتیجه‌اش این بود که مدیر برای عودتِ وجه
+     * شماره را نداشت و مجبور شد از مشتری بخواهد دوباره بفرستد — یعنی دادهٔ
+     * حساس از کانالِ ناامن (چت/پیامک) رد شد، دقیقاً برعکسِ چیزی که رمزنگاری
+     * برای آن بود.
+     *
+     * ═══ چرا این‌شکلی و نه یک ستون در جدول ═══
+     *
+     * 🔴 شمارهٔ کارت روی صفحه‌ای که همیشه باز است، با هر اسکرین‌شات و هر
+     * رهگذری پخش می‌شود. پس:
+     *   • فقط با کلیکِ آگاهانه، و فقط همان یک بار در flash
+     *   • فقط مدیر (`admin`)، نه هر کاربرِ پنل
+     *   • در لاگِ فعالیت **ثبت** می‌شود — دیدنِ PAN باید ردِ حسابرسی داشته باشد
+     *   • سقفِ نرخ، تا یک نشستِ لورفته نتواند کلِ جدول را بیرون بکشد
+     *
+     * ⚠️ برای عودتِ وجه معمولاً **شبا** لازم است نه کارت؛ همان‌جا روی صفحه
+     * هست. این دکمه برای موردی است که واقعاً کارت‌به‌کارت لازم شود.
+     */
+    public function revealCard(Request $request, Customer $customer, BankAccount $account): RedirectResponse
+    {
+        if ((int) $account->customer_id !== (int) $customer->id) {
+            return back()->with('err', 'این حساب بانکی مالِ این مشتری نیست.');
+        }
+
+        $key = 'reveal-card:'.$request->user()?->id;
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return back()->with('err', 'تعدادِ نمایش زیاد شد؛ چند دقیقه بعد دوباره امتحان کنید.');
+        }
+
+        RateLimiter::hit($key, 600);
+
+        $pan = (string) ($account->card_number_enc ?? '');
+
+        if ($pan === '') {
+            return back()->with('err', 'شمارهٔ کامل برای این حساب ذخیره نشده — از شبا استفاده کنید.');
+        }
+
+        ActivityLog::record($customer->id, 'card_revealed',
+            'شمارهٔ کاملِ کارت (بانکِ '.($account->bank_name ?: '؟').' ••••'.$account->card_last4
+            .') برای بازگشتِ وجه نمایش داده شد.', $request, 'staff');
+
+        return back()->with('ok', 'شمارهٔ کارت: '.$pan.'  — این پیام یک‌بارمصرف است.');
     }
 
     /**
