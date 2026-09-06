@@ -760,13 +760,55 @@ class OvhClient implements CloudProvider
 
             $plans = (array) data_get($c['body'], 'plans', []);
 
+            /*
+            | ⚠️ نمونه از **یک پلنِ واقعی** برداشته می‌شود، نه از ردیفِ اول.
+            |
+            | بارِ اول دو ردیفِ اول را دادیم و ردیفِ اول یک افزونه بود — یعنی
+            | از ۲۴۲ سرورِ واقعی فقط یکی را دیدیم و همان یکی `blobs.technical`
+            | نداشت. نمونه‌ای که نمایندهٔ چیزی که می‌سازیم نباشد، همان‌قدر
+            | گمراه‌کننده است که ندیدن.
+            */
+            $real = [];
+
+            foreach ($plans as $p) {
+                if ($this->datacentersOf((array) $p) !== []) {
+                    $real[] = $p;
+                }
+
+                if (count($real) >= 2) {
+                    break;
+                }
+            }
+
             $out['/order/catalog/public/vps'] = [
                 'ok' => $c['ok'], 'status' => $c['status'],
                 'plan_count' => count($plans),
-                // فقط دو ردیفِ اول — پاسخِ کامل ده‌ها کیلوبایت است و صفحهٔ
-                // عیب‌یابی را غیرقابلِ خواندن می‌کند.
-                'sample' => array_slice($plans, 0, 2),
+                'with_datacenter' => count(array_filter($plans,
+                    fn ($p) => $this->datacentersOf((array) $p) !== [])),
+                // کلیدهای blobs مهم‌ترین چیزِ این صفحه است: مشخصاتِ سخت‌افزاری
+                // اگر جایی باشد، همان‌جاست.
+                'blob_keys' => array_keys((array) data_get($real[0] ?? [], 'blobs', [])),
+                'sample' => array_slice($real, 0, 1),
                 'message' => $c['ok'] ? '' : $c['message'],
+            ];
+
+            /*
+            | 🔴 همان پرسش از کاتالوگِ `formatted` — تنها جایی که ممکن است
+            | هسته/رم/دیسک بدهد. سینک گفت «۲۴۲ پلن بی‌مشخصات»، یعنی یا این
+            | مسیر جواب نمی‌دهد یا شکلش با نامزدهای ما نمی‌خواند. این بلوک
+            | دقیقاً می‌گوید کدام.
+            */
+            $f = $this->req('GET', '/order/catalog/formatted/vps', ['ovhSubsidiary' => $sub]);
+            $fPlans = (array) data_get($f['body'], 'plans', []);
+
+            $out['/order/catalog/formatted/vps'] = [
+                'ok' => $f['ok'], 'status' => $f['status'],
+                'message' => $f['ok'] ? '' : $f['message'],
+                'plan_count' => count($fPlans),
+                'top_keys' => is_array($f['body']) ? array_keys($f['body']) : [],
+                'first_plan_keys' => array_keys((array) ($fPlans[0] ?? [])),
+                'first_blob_keys' => array_keys((array) data_get($fPlans[0] ?? [], 'blobs', [])),
+                'first_technical' => data_get($fPlans[0] ?? [], 'blobs.technical'),
             ];
         }
 
