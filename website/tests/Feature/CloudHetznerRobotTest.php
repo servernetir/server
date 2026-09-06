@@ -199,6 +199,17 @@ class CloudHetznerRobotTest extends TestCase
         $this->assertSame(16, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 9 7950X3D'));
         $this->assertSame(48, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD EPYC™ 9454P'));
         $this->assertSame(8, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 7 PRO 8700GE'));
+
+        /*
+        | 🔴 نسخهٔ PRO کلیدِ خودش را می‌خواهد — تطبیق زیررشته‌ای است و
+        | «ryzen 7 pro 1700x» شاملِ «ryzen 7 1700x» نیست.
+        |
+        | ۱۵ شهریور ۱۴۰۵ همین یک واژه باعث شد `cloud:sync` یک سرورِ سالم را
+        | «CPUِ ناشناخته» رد کند و آن ردیف اصلاً فروختنی نشود — بی‌هیچ خطایی،
+        | فقط یک خطِ هشدار در انتهای خروجیِ سینک.
+        */
+        $this->assertSame(8, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen 7 PRO 1700X'));
+        $this->assertSame(8, \App\Services\Cloud\HetznerRobotClient::coresFor('AMD Ryzen™ 7 1700X'));
         // مدلِ بی‌جدول ولی با شمارشِ هسته در متن — از خودِ داده خوانده می‌شود (خطِ Dell/Granite Rapids)
         $this->assertSame(48, \App\Services\Cloud\HetznerRobotClient::coresFor('Intel®️ Xeon®️ Gold 6741P 48-Core "Granite Rapids"'));
         $this->assertSame(86, \App\Services\Cloud\HetznerRobotClient::coresFor('Intel®️ Xeon®️ Gold 6787P 86-Core "Granite Rapids"'));
