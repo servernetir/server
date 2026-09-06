@@ -585,11 +585,11 @@ Schedule::command('domains:reseller-tiers')
 | `links:content` متنِ پست‌ها را. یافته‌ها با noteOnce به /admin/errors می‌روند
 | — همان‌جایی که مدیر واقعاً نگاه می‌کند.
 */
-Schedule::command('links:site')
+Schedule::command('links:site --scheduled')
     ->cron('10 2 * * 5')
     ->withoutOverlapping(60);
 
-Schedule::command('links:content')
+Schedule::command('links:content --scheduled')
     ->cron('40 2 * * 5')
     ->withoutOverlapping(45);
 
