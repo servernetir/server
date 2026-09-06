@@ -448,11 +448,7 @@ class PaymentController extends Controller
      */
     public function callback(Request $request, string $gateway)
     {
-        $ref = (string) ($request->query('Authority') ?? $request->query('authority') ?? '');
-
-        $payment = $ref === ''
-            ? null
-            : Payment::where('gateway', $gateway)->where('external_ref', $ref)->first();
+        $payment = $this->findCallbackPayment($request, $gateway);
 
         if ($payment === null) {
             return view('account.payment-result', [
@@ -462,7 +458,14 @@ class PaymentController extends Controller
             ]);
         }
 
-        $outcome = $this->payments->settle($payment, $request->query());
+        /*
+        | ⚠️ `all()` و نه `query()`: اسنپ‌پی نتیجه را با **POST** برمی‌گرداند
+        | (`transactionId`، `state`، `amount` در بدنه). با `query()` آن فرم
+        | خالی می‌رسید و هر بازگشتی «انصراف» خوانده می‌شد.
+        |
+        | برای زرین‌پال تفاوتی ندارد؛ مسیرش GET است و بدنه‌ای وجود ندارد.
+        */
+        $outcome = $this->payments->settle($payment, $request->all());
 
         return view('account.payment-result', [
             'ok'       => $outcome->ok,
@@ -471,7 +474,44 @@ class PaymentController extends Controller
                 ? 'پرداخت شما با موفقیت انجام شد.'
                 : $outcome->error,
             'payment'  => $outcome->payment?->fresh('invoice'),
+            // اسنپ‌پی صریحاً خواسته شمارهٔ تراکنش پس از پرداختِ موفق به کاربر
+            // نشان داده شود — همان شماره‌ای که پشتیبانی با آن پیگیری می‌کند
+            'snapppay' => $gateway === 'snapppay'
+                ? \App\Models\SnappPayOrder::where('payment_id', $payment->id)->first()
+                : null,
         ]);
+    }
+
+    /**
+     * پرداختِ متناظر با این بازگشت.
+     *
+     * ═══ چرا هر درگاه لنگرِ خودش را دارد ═══
+     *
+     * زرین‌پال `Authority` را در کوئری برمی‌گرداند و آن همان `external_ref`
+     * است. اسنپ‌پی `paymentToken` را **برنمی‌گرداند**؛ فقط `transactionId`
+     * می‌فرستد — شناسه‌ای که خودمان ساخته‌ایم و روی `snapppay_orders` نشسته.
+     *
+     * ⚠️ این مقدار از درخواست می‌آید، پس داده است نه حکم: فقط برای **پیدا
+     * کردنِ** ردیف استفاده می‌شود. اینکه پول واقعاً آمده یا نه را همچنان
+     * تماسِ سرور-به-سرورِ verify تعیین می‌کند.
+     */
+    private function findCallbackPayment(Request $request, string $gateway): ?Payment
+    {
+        if ($gateway === 'snapppay') {
+            $tid = trim((string) $request->input('transactionId', ''));
+
+            if ($tid === '') {
+                return null;
+            }
+
+            return \App\Models\SnappPayOrder::where('transaction_id', $tid)->first()?->payment;
+        }
+
+        $ref = (string) ($request->query('Authority') ?? $request->query('authority') ?? '');
+
+        return $ref === ''
+            ? null
+            : Payment::where('gateway', $gateway)->where('external_ref', $ref)->first();
     }
 
     // ─────────────────────────── افزایش اعتبار ───────────────────────────

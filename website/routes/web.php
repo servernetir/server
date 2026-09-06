@@ -783,6 +783,22 @@ Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\Payment
     ->middleware('throttle:pay');
 
 /*
+| ⚠️ اسنپ‌پی نتیجه را با **POST** برمی‌گرداند، نه GET.
+|
+| مستندات: «نتیجهٔ تراکنش کاربر به صورت POST یک فرم با پارامترهای متناظر به
+| آن آدرس ارسال گردد.» پس همان کنترلر و همان مسیر، فقط فعلِ دیگر — و بدونِ
+| CSRF (در bootstrap/app.php مستثنا شده)، چون فرستنده یک سرور است نه مرورگرِ
+| دارای نشست.
+|
+| 🔴 دامنهٔ این آدرس باید همانی باشد که نزدِ اسنپ‌پی whitelist شده؛ درخواستی
+| با returnURL ناهم‌خوان اصلاً پذیرفته نمی‌شود.
+*/
+Route::post('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
+    ->name('payment.callback.post')
+    ->where('gateway', '[a-z]+')
+    ->middleware('throttle:pay');
+
+/*
 | پل پیامک — سرور ایران این دو را صدا می‌زند.
 |
 | بیرون از گروه‌های زبانی و بدون احراز هویت نشستی: تماس‌گیرنده یک سرور است
