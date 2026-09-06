@@ -59,7 +59,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-f9dfc7a5}"
+MINE="${1:-58bdb993}"
 
 if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
   echo "── $MINE در develop نیست؛ شاخهٔ feature/ovh-region هم آورده می‌شود"
