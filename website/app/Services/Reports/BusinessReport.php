@@ -171,15 +171,22 @@ class BusinessReport
     }
 
     /**
-     * 🔴 درآمدی که در هیچ صورتِ سود و زیانی نیست.
+     * درآمدِ ساعتی‌ای که **هنوز** به دفترِ مالی نرسیده.
      *
-     * سرورِ ابریِ ساعتی نه فاکتور می‌سازد نه ردیفِ `payments`: `CloudMeterHourly`
-     * مستقیم از اعتبارِ مشتری کم می‌کند. و `BusinessLedger::recordPayment()`
-     * برای ثبتِ درآمد به یک **پرداختِ متصل به فاکتور** نیاز دارد.
+     * ═══ چرا معنایش عوض شد (شهریور ۱۴۰۵) ═══
      *
-     * نتیجه: هر تومانی که از سرورِ ساعتی درمی‌آید، در `/admin/finance` و در
-     * هر گزارشِ سودی که از دفتر بخواند **دیده نمی‌شود**. این‌جا صریح نشان داده
-     * می‌شود، جدا، تا با درآمدِ دفتر جمع نشود و دوباره‌شماری نسازد.
+     * تا دیروز این متد **کلِ** درآمدِ ساعتی را می‌شمرد، چون هیچ‌کدامش در دفتر
+     * نبود: مترِ ساعتی مستقیم از `credit_ledger` کم می‌کرد و `recordPayment()`
+     * به پرداختِ متصل‌به‌فاکتور نیاز داشت. این‌جا جدا نشان داده می‌شد تا با
+     * درآمدِ دفتر جمع نشود.
+     *
+     * حالا `BusinessLedger::recordCreditSpend()` همان لحظهٔ کسر درآمد را ثبت
+     * می‌کند. اگر این متد کماکان کل را می‌شمرد، عددی نشان می‌داد که در سودِ
+     * دفتر هم آمده ⇒ همان دوباره‌شماری.
+     *
+     * 🔴 پس حالا فقط ردیف‌هایی می‌آیند که ردیفِ دفتریِ متناظر **ندارند** —
+     * یعنی کسرهای پیش از این تغییر. عدد خودبه‌خود به صفر میل می‌کند و بخش
+     * محو می‌شود، بی‌آنکه کسی چیزی را دستی خاموش کند.
      *
      * ⚠️ `cloud_hourly_convert` هم شمرده می‌شود (تبدیلِ ساعتی به ماهانه، یک
      * ماه یک‌جا) چون آن هم پولِ همین کسب‌وکار است، فقط با ریتمِ دیگر.
@@ -190,10 +197,34 @@ class BusinessReport
             return ['month' => 0, 'total' => 0, 'has_any' => false];
         }
 
-        $q = fn () => \Illuminate\Support\Facades\DB::table('credit_ledger')
-            ->where('currency_code', 'IRT')
-            ->where('amount', '<', 0)
-            ->whereIn('reason', ['cloud_hourly', 'cloud_hourly_convert']);
+        $ledgerReady = Schema::hasTable('business_ledger');
+
+        $q = function () use ($ledgerReady) {
+            $b = \Illuminate\Support\Facades\DB::table('credit_ledger')
+                ->where('currency_code', 'IRT')
+                ->where('amount', '<', 0)
+                ->whereIn('reason', \App\Services\Finance\BusinessLedger::CREDIT_SPEND_REASONS);
+
+            /*
+            | 🔴 ردیف‌هایی که دفتر قبلاً دیده‌شان این‌جا نباید دوباره بیایند،
+            | وگرنه خواننده عددی را می‌بیند که در سودِ دفتر هم آمده — دقیقاً
+            | همان دوباره‌شماری‌ای که این بخش برای پرهیز از آن ساخته شده بود.
+            |
+            | کلیدِ اتصال همان است که `recordCreditSpend` می‌نویسد: منبع =
+            | خودِ ردیفِ اعتبار.
+            */
+            if ($ledgerReady) {
+                $b->whereNotExists(function ($sub) {
+                    $sub->select(\Illuminate\Support\Facades\DB::raw(1))
+                        ->from('business_ledger')
+                        ->whereColumn('business_ledger.source_id', 'credit_ledger.id')
+                        ->where('business_ledger.source_type', \App\Models\CreditEntry::class)
+                        ->where('business_ledger.kind', 'revenue');
+                });
+            }
+
+            return $b;
+        };
 
         $month = (int) $q()->where('created_at', '>=', now()->startOfMonth())->sum('amount');
         $total = (int) $q()->where('created_at', '>=', now()->subMonthsNoOverflow($months))->sum('amount');
