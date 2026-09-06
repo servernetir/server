@@ -29,7 +29,9 @@ use Illuminate\Support\Facades\Schema;
  */
 class CheckContentLinks extends Command
 {
-    protected $signature = 'links:content {--limit=0 : سقفِ پست‌ها، ۰ یعنی همه}';
+    protected $signature = 'links:content
+        {--limit=0 : سقفِ پست‌ها، ۰ یعنی همه}
+        {--scheduled : اجرای کرونی — یافته گزارش می‌شود ولی کدِ خروجی موفق است}';
 
     protected $description = 'لینک‌های داخلیِ شکسته در متنِ مقاله‌ها و اسناد';
 
@@ -94,6 +96,25 @@ class CheckContentLinks extends Command
         $this->table(['زبان', 'اسلاگِ پست', 'لینکِ شکسته'], $broken);
         $this->newLine();
         $this->line('این‌ها در **متنِ** پست‌اند، نه در کد — از /admin/posts ویرایش می‌شوند.');
+
+        /*
+        | 🔴 «لینکِ شکسته پیدا کردم» شکستِ فرمان نیست.
+        |
+        | زمان‌بند هر کدِ غیرِصفر را استثنا گزارش می‌کند، پس این خزندهٔ هفتگی هر
+        | جمعه یک ردیفِ **۵۰۰** در `/admin/errors` می‌گذاشت — کنارِ خطاهای واقعی
+        | و به همان قرمزی، در حالی که یافته‌اش همان بالا با `noteOnce` رفته بود.
+        |
+        | در فهرستی که هر هفته یک قرمزِ بی‌معنا دارد، قرمزِ **واقعی** هم دیده
+        | نمی‌شود — همان درسِ ثبت‌شدهٔ پروژه.
+        |
+        | ⚠️ `--scheduled` فقط از `routes/console.php` می‌آید. اجرای دستی و CI
+        | رفتارِ قبلی را نگه می‌دارند، چون آن‌جا کدِ خروجی تنها سیگنال است.
+        | ⚠️ شکستِ **واقعی** (رندر نشدنِ نقشهٔ سایت) هنوز کدِ ۱ می‌دهد — تمایزی
+        | که کلِ نکته همین است.
+        */
+        if ($this->option('scheduled')) {
+            return self::SUCCESS;
+        }
 
         return self::FAILURE;
     }

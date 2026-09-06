@@ -399,6 +399,35 @@
     </span>
   </div>
   <div class="pnl-sec-b">
+    @php
+      /*
+      | 🔴 خاموش‌کردن صورت‌حساب را متوقف نمی‌کند — و هیچ‌جای پنل این را نمی‌گفت.
+      |
+      | رخداد (۱۵ شهریور ۱۴۰۵، مشتریِ SN-593484): سرورش را خاموش کرد، در پنلِ
+      | زیرساخت هم خاموش بود، و اعتبارش همچنان ساعتی کم می‌شد. حق داشت گیج
+      | شود: این صفحه «خاموش» می‌گفت و `/account/servers` «فعال» — یکی وضعیتِ
+      | **برقِ ماشین** است و دیگری وضعیتِ **اشتراک**، ولی مشتری آن دو کلمه را
+      | کنارِ هم متناقض می‌خوانَد.
+      |
+      | ⚠️ کسر **درست** بود، نه باگ: اجارهٔ ماشینِ رزروشده را ما همچنان به
+      | زیرساخت می‌دهیم و فقط **حذف** آن را قطع می‌کند
+      | (`CloudMeterHourly::billable()` — همان‌جا هم صریح نوشته شده).
+      |
+      | پس رفع، برداشتنِ کسر نیست؛ **گفتنِ حقیقت پیش از کلیک** است. هزینهٔ
+      | نگفتنش یک تیکت و یک اعتبارِ حسنِ نیت بود، و بدون این هشدار مشتریِ بعدی
+      | هم دقیقاً همان را می‌خرد.
+      |
+      | ⚠️ پلنِ `is_interruptible` (GPU روی ظرفیتِ توزیع‌شده) استثناست: آن‌جا
+      | ماشینِ خاموش واقعاً برای ما هزینه ندارد و متر هم نمی‌شمارد، پس این
+      | هشدار **نباید** نشان داده شود وگرنه دروغ می‌گوید.
+      */
+      $billsWhileOff = $service->isHourly() && ! (bool) $service->cloudPlan?->is_interruptible;
+    @endphp
+
+    @if($billsWhileOff && $inst->status !== 'running')
+      <p class="dm-note warn">{{ __('ui.cs_off_still_billed') }}</p>
+    @endif
+
     <div class="pnl-acts">
       @if($inst->status !== 'running')
         <form method="post" action="{{ route('account.cloud.power', $service) }}">
@@ -411,7 +440,7 @@
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
         <form method="post" action="{{ route('account.cloud.power', $service) }}"
-              data-confirm="{{ __('ui.cs_confirm_off') }}" data-confirm-danger>
+              data-confirm="{{ $billsWhileOff ? __('ui.cs_confirm_off_billed') : __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
         </form>
