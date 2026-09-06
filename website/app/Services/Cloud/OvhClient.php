@@ -438,6 +438,22 @@ class OvhClient implements CloudProvider
      * دیگری بالا می‌آید — و چون تحویل دستی است، تا شکایتِ خودش معلوم نمی‌شود.
      * کدِ ناشناخته **ردیف نمی‌گیرد** و گزارش می‌شود؛ همان قاعدهٔ `CPU_CORES`.
      */
+    /**
+     * مشخصاتِ سخت‌افزاری که API نمی‌دهد — پرکنندهٔ خلأ، نه منبعِ اول.
+     *
+     * ⚠️ عمداً خالی است. تا وقتی از منبعِ **واقعی** (کاتالوگِ `formatted` یا
+     * صفحهٔ محصولِ OVH) پر نشود، پلنِ بی‌مشخصات فروخته نمی‌شود — و این بهتر
+     * از پر کردنش با حدس است: «VPS-1» را می‌شود «۲ هسته» خواند و غلط بود،
+     * و خطایش تا شکایتِ مشتری معلوم نمی‌شود.
+     *
+     * کلید = planCodeِ دقیق · مقدار = [هسته، رمِ مگابایت، دیسکِ گیگابایت]
+     *
+     * @var array<string, array{0:int,1:int,2:int}>
+     */
+    private const MODEL_SPECS = [
+        // 'vps-2025-model1.LZ' => [2, 2048, 40],
+    ];
+
     private const DATACENTERS = [
         // Local Zoneهای آمریکا — همان‌هایی که در کاتالوگِ حسابِ ما آمدند
         'US-EAST-LZ-ATL' => ['US', 'Atlanta'],
@@ -691,13 +707,34 @@ class OvhClient implements CloudProvider
      */
     private function technicalSpecs(string $sub): array
     {
+        $out = [];
+
+        /*
+        | راهِ دوم، برای وقتی API مشخصات نمی‌دهد.
+        |
+        | پاسخِ `public` روی حسابِ ما `blobs.technical` **ندارد** (فقط
+        | `commercial` و `tags` — با چشم دیده شد). اگر `formatted` هم ندهد،
+        | تنها منبعِ باقی‌مانده صفحهٔ محصولِ خودِ OVH است و آن یک واقعیتِ
+        | **دستی** است، نه چیزی که بشود استنتاج کرد.
+        |
+        | ⚠️ همان الگوی `GEX_SPECS` و `CPU_CORES`: عددِ کارخانه که در API نیست،
+        | صریح نوشته می‌شود و کلیدِ نبود یعنی آن پلن **فروخته نمی‌شود** — نه
+        | اینکه با حدس پر شود. «VPS-1» را می‌شود «۲ هسته» خواند و غلط بود.
+        |
+        | ⚠️ و این جدول فقط **پرکنندهٔ خلأ** است: هر جا API عددی بدهد، همان
+        | برنده است. وگرنه جدولِ دستی روزی کهنه می‌شود و بی‌صدا دروغ می‌گوید.
+        |
+        | کلید = planCode (دقیق) · مقدار = [هسته، رمِ مگابایت، دیسکِ گیگابایت]
+        */
+        foreach (self::MODEL_SPECS as $code => [$vcpu, $ram, $disk]) {
+            $out[$code] = ['vcpu' => $vcpu, 'ram_mb' => $ram, 'disk_gb' => $disk];
+        }
+
         $r = $this->req('GET', '/order/catalog/formatted/vps', ['ovhSubsidiary' => $sub]);
 
         if (! $r['ok']) {
-            return [];
+            return $out;
         }
-
-        $out = [];
 
         foreach ((array) data_get($r['body'], 'plans', []) as $plan) {
             $code = (string) ($plan['planCode'] ?? '');
