@@ -59,7 +59,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-cfde0165}"
+MINE="${1:-b4be0fa1}"
 
 if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
   echo "── $MINE در develop نیست؛ شاخهٔ feature/ovh-region هم آورده می‌شود"
@@ -194,6 +194,8 @@ need_grep app/Services/Cloud/OvhClient.php                  "ENDPOINTS"
 # نشانهٔ نسخهٔ کاتالوگ‌دار — بی‌این، همگام‌سازی هنوز «خطا» می‌دهد
 need_grep app/Services/Cloud/OvhClient.php                  "vps_datacenter"
 need_grep app/Services/Cloud/OvhClient.php                  "DATACENTERS"
+need_grep app/Services/Cloud/OvhClient.php                  "baseCode"
+need_grep app/Services/Cloud/OvhClient.php                  "vCPU"
 need_grep app/Http/Controllers/Admin/SettingsController.php "in:eu,ca,us"
 need_grep app/Http/Controllers/Admin/SettingsController.php "ovh_region"
 need_grep resources/views/admin/settings/infra.blade.php    "ovh_region"
