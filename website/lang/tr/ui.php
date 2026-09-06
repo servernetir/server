@@ -2366,6 +2366,8 @@ return [
     'cs_power_on' => 'Aç',
     'cs_reboot' => 'Yeniden başlat',
     'cs_confirm_off' => 'Sunucu kapatılsın mı? Üzerindeki hizmetler yeniden açılana kadar erişilemez olur.',
+    'cs_off_still_billed' => 'Bu sunucu kapalı, ancak saatlik faturalandırma devam ediyor: makine sizin için ayrılmış kalır ve kirası ödenmeye devam eder. Ücreti tamamen durdurmak için sunucuyu silmeniz gerekir.',
+    'cs_confirm_off_billed' => 'Sunucu kapatılsın mı? Üzerindeki hizmetler erişilemez olur ve saatlik faturalandırma durmaz — makine ayrılmış kalır. Ücreti durdurmak için sunucuyu silmeniz gerekir.',
     'cs_power_off' => 'Kapat',
     'cs_console' => 'Web konsolu',
     'cs_confirm_pw' => 'Yeni parola oluşturulsun mu? Mevcut parola geçersiz olur.',

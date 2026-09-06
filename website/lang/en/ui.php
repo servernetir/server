@@ -2366,6 +2366,8 @@ return [
     'cs_power_on' => 'Power on',
     'cs_reboot' => 'Reboot',
     'cs_confirm_off' => 'Shut down the server? Services on it will be unavailable until it is powered back on.',
+    'cs_off_still_billed' => 'This server is powered off, but hourly billing continues: the machine stays reserved for you and its rent is still paid. To stop the charge entirely you must delete the server.',
+    'cs_confirm_off_billed' => 'Shut down the server? Services on it become unavailable, and hourly billing does not stop — the machine stays reserved. To stop the charge you must delete the server.',
     'cs_power_off' => 'Shut down',
     'cs_console' => 'Web console',
     'cs_confirm_pw' => 'Generate a new password? The current one will stop working.',
