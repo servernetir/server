@@ -98,12 +98,19 @@ class OvhCatalogTest extends TestCase
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
 
+        /*
+         * 🔴 شکلِ واقعیِ `formatted` — و **کلیدش با public فرق دارد**:
+         *   public    : vps-2025-model1.LZ
+         *   formatted : vps-2025-model1
+         * همین یک نقطه باعث شد هر ۲۴۲ ردیف «بی‌مشخصات» رد شوند.
+         *
+         * مشخصات هم متنِ انسانی است، نه فیلدِ عددی.
+         */
         $technical ??= [[
-            'planCode' => 'vps-2025-model1.LZ',
-            'blobs' => ['technical' => [
-                'cpu' => ['cores' => 2],
-                'memory' => ['size' => 2048],
-                'storage' => ['disks' => [['capacity' => 40]]],
+            'planCode' => 'vps-2025-model1',
+            'details' => ['product' => [
+                'description' => 'VPS 2 vCPU 2 GB RAM 40 GB disk',
+                'name' => 'vps-2025-model1',
             ]],
         ]];
 
@@ -269,6 +276,82 @@ class OvhCatalogTest extends TestCase
 
         $this->assertTrue($c['ok'], $c['message']);
         $this->assertSame(850, $c['plans'][0]['cost_eur_cents']);
+    }
+
+    /**
+     * 🔴 همان باگی که ۲۴۲ ردیف را رد کرد: کلیدِ اتصال باید **پایهٔ** planCode
+     * باشد.
+     *
+     * `public` واریانتِ منطقه‌ای را با پسوند می‌دهد (`.LZ`) و `formatted` فقط
+     * مدلِ پایه را. با تطبیقِ دقیق هیچ‌وقت پیدا نمی‌شد — و علامتش «۲۴۲ پلن
+     * بی‌مشخصات» بود، نه یک خطا.
+     */
+    public function test_a_regional_variant_matches_its_base_model_specs(): void
+    {
+        $this->fake([$this->vpsPlan()]);   // public: vps-2025-model1.LZ
+
+        $c = $this->client()->fetchCatalog();
+
+        $this->assertTrue($c['ok'], $c['message']);
+        $this->assertSame(2, $c['plans'][0]['vcpu']);
+        $this->assertSame(2048, $c['plans'][0]['ram_mb']);
+    }
+
+    /**
+     * مشخصات از **متنِ** توصیف خوانده می‌شود، نه از فیلدِ عددی.
+     *
+     * «VPS 4 vCPU 8 GB RAM 75 GB disk» ⇒ ۴ / ۸۱۹۲ / ۷۵
+     */
+    public function test_specs_are_parsed_from_the_product_description(): void
+    {
+        $this->fake([$this->vpsPlan()], technical: [[
+            'planCode' => 'vps-2025-model1',
+            'details' => ['product' => ['description' => 'VPS 4 vCPU 8 GB RAM 75 GB disk']],
+        ]]);
+
+        $c = $this->client()->fetchCatalog();
+
+        $this->assertSame(4, $c['plans'][0]['vcpu']);
+        $this->assertSame(8192, $c['plans'][0]['ram_mb']);
+        $this->assertSame(75, $c['plans'][0]['disk_gb']);
+    }
+
+    /**
+     * ⚠️ خانواده‌هایی که مشخصات را در نامشان دارند، پشتیبان دارند — ولی فقط
+     * وقتی توصیف نباشد. متنِ محصول حرفِ خودِ OVH است؛ الگوی نام استنتاج است.
+     */
+    public function test_the_plan_code_pattern_is_only_a_fallback(): void
+    {
+        $plan = $this->vpsPlan(['planCode' => 'vps-comfort-4-16-160']);
+
+        // توصیف عمداً نیست ⇒ باید از نام خوانده شود
+        $this->fake([$plan], technical: [[
+            'planCode' => 'vps-comfort-4-16-160',
+            'details' => ['product' => ['description' => '']],
+        ]]);
+
+        $c = $this->client()->fetchCatalog();
+
+        $this->assertTrue($c['ok'], $c['message']);
+        $this->assertSame(4, $c['plans'][0]['vcpu']);
+        $this->assertSame(16384, $c['plans'][0]['ram_mb']);
+        $this->assertSame(160, $c['plans'][0]['disk_gb']);
+    }
+
+    /** توصیف بر نام مقدم است — داده بر استنتاج */
+    public function test_the_description_wins_over_the_code_pattern(): void
+    {
+        $plan = $this->vpsPlan(['planCode' => 'vps-comfort-4-16-160']);
+
+        $this->fake([$plan], technical: [[
+            'planCode' => 'vps-comfort-4-16-160',
+            'details' => ['product' => ['description' => 'VPS 8 vCPU 32 GB RAM 640 GB disk']],
+        ]]);
+
+        $c = $this->client()->fetchCatalog();
+
+        $this->assertSame(8, $c['plans'][0]['vcpu']);
+        $this->assertSame(32768, $c['plans'][0]['ram_mb']);
     }
 
     /** خریدِ خودکار همچنان خاموش است — این متد فقط قیمت می‌سازد */

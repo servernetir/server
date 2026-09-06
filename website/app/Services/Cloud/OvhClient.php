@@ -555,7 +555,7 @@ class OvhClient implements CloudProvider
                 continue;   // پلنِ بی‌قیمتِ ماهانه (فقط تعهدی) — فروختنی نیست
             }
 
-            $spec = $specs[$code] ?? null;
+            $spec = $specs[$this->baseCode($code)] ?? $specs[$code] ?? null;
 
             if ($spec === null) {
                 $noSpecs[] = $code;
@@ -659,6 +659,81 @@ class OvhClient implements CloudProvider
     }
 
     /** مقادیرِ پیکربندیِ `vps_datacenter` — نبودشان یعنی این ردیف افزونه است */
+    /**
+     * پایهٔ planCode — «vps-2025-model1.LZ» و «vps-2025-model1» یک **مدل**اند.
+     *
+     * 🔴 این تفاوت علتِ شکستِ دورِ اول بود: کاتالوگِ `public` واریانتِ منطقه‌ای
+     * را با پسوند می‌دهد (`.LZ` برای Local Zone) و کاتالوگِ `formatted` فقط
+     * مدلِ پایه را. نگاشتِ کلیدِ دقیق هرگز تطبیق نمی‌خورد و هر ۲۴۲ ردیف
+     * «بی‌مشخصات» رد می‌شدند.
+     *
+     * ⚠️ قیمت عمداً از `public` می‌آید نه از `formatted`: همان مدل در Local
+     * Zone هشت‌ونیم دلار است و در VA/OR هفت‌وشصت. برداشتنِ قیمتِ پایه یعنی
+     * حدودِ ۱۱٪ زیرِ بها فروختنِ واریانتِ گران‌تر.
+     */
+    private function baseCode(string $planCode): string
+    {
+        $dot = strpos($planCode, '.');
+
+        return $dot === false ? $planCode : substr($planCode, 0, $dot);
+    }
+
+    /**
+     * مشخصات از متنِ توصیفِ محصول — «VPS 4 vCPU 8 GB RAM 75 GB disk».
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function parseSpecs(string $description): ?array
+    {
+        if ($description === '') {
+            return null;
+        }
+
+        if (! preg_match('/(\d+)\s*vCPU/i', $description, $c)
+            || ! preg_match('/(\d+)\s*GB\s*RAM/i', $description, $r)
+            || ! preg_match('/(\d+)\s*GB\s*disk/i', $description, $d)) {
+            return null;
+        }
+
+        return $this->validSpecs((int) $c[1], (int) $r[1] * 1024, (int) $d[1]);
+    }
+
+    /**
+     * پشتیبان: خانواده‌هایی که مشخصات را در نامشان دارند
+     * (`vps-comfort-4-16-160` ⇒ ۴ هسته، ۱۶ گیگ، ۱۶۰ گیگ).
+     *
+     * ⚠️ فقط وقتی توصیف نباشد. متنِ محصول حرفِ خودِ OVH است؛ الگوی نام یک
+     * **استنتاج** است و استنتاج هرگز نباید بر داده مقدم شود.
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function specsFromCode(string $planCode): ?array
+    {
+        if (! preg_match('/-(\d+)-(\d+)-(\d+)$/', $this->baseCode($planCode), $m)) {
+            return null;
+        }
+
+        return $this->validSpecs((int) $m[1], (int) $m[2] * 1024, (int) $m[3]);
+    }
+
+    /**
+     * بازهٔ معقول — عددِ بی‌معنا از نبودِ عدد بدتر است.
+     *
+     * ردیفِ «۰ هسته» فروختنی می‌شود و مشتری نمی‌داند چه خریده؛ ردیفِ نبود
+     * فقط فروخته نمی‌شود و در گزارشِ سینک شمرده می‌شود.
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function validSpecs(int $vcpu, int $ramMb, int $diskGb): ?array
+    {
+        if ($vcpu < 1 || $vcpu > 256 || $ramMb < 256 || $ramMb > 1048576
+            || $diskGb < 5 || $diskGb > 100000) {
+            return null;
+        }
+
+        return ['vcpu' => $vcpu, 'ram_mb' => $ramMb, 'disk_gb' => $diskGb];
+    }
+
     private function datacentersOf(array $plan): array
     {
         foreach ((array) ($plan['configurations'] ?? []) as $c) {
@@ -743,20 +818,22 @@ class OvhClient implements CloudProvider
                 continue;
             }
 
-            // ⚠️ چند مسیرِ نامزد، چون شکلِ دقیقِ این پاسخ را روی حسابِ خودمان
-            //    ندیده‌ایم — «دنبالِ نامِ کلید بگرد، نه مسیرِ ثابت».
-            $t = (array) (data_get($plan, 'blobs.technical') ?? []);
+            /*
+            | 🔴 مشخصات این‌جا **متنِ انسانی** است، نه فیلدِ عددی:
+            |     "VPS 4 vCPU 8 GB RAM 75 GB disk"
+            |
+            | این پاسخ اصلاً `blobs` ندارد — دورِ اول دنبالِ `blobs.technical`
+            | گشتیم و هیچ نبود. همان «هیچ» درست‌ترین نتیجه بود: ردیف رد شد
+            | به‌جای اینکه با صفر ذخیره شود.
+            */
+            $spec = $this->parseSpecs((string) data_get($plan, 'details.product.description', ''))
+                ?? $this->specsFromCode($code);
 
-            $vcpu = (int) (data_get($t, 'cpu.cores') ?? data_get($t, 'cpu.threads') ?? 0);
-            $ram = (int) (data_get($t, 'memory.size') ?? data_get($t, 'memory.ram') ?? 0);
-            $disk = (int) (data_get($t, 'storage.disks.0.capacity')
-                ?? data_get($t, 'storage.size') ?? 0);
-
-            if ($vcpu < 1 || $vcpu > 256 || $ram < 256 || $ram > 1_048_576 || $disk < 5 || $disk > 100_000) {
+            if ($spec === null) {
                 continue;
             }
 
-            $out[$code] = ['vcpu' => $vcpu, 'ram_mb' => $ram, 'disk_gb' => $disk];
+            $out[$code] = $spec;
         }
 
         return $out;
