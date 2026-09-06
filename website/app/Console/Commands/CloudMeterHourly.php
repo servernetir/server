@@ -283,7 +283,7 @@ class CloudMeterHourly extends Command
 
         $amount = -1 * $rate * $hours;
 
-        CreditEntry::create([
+        $entry = CreditEntry::create([
             'customer_id'   => $customer->id,
             'currency_code' => 'IRT',
             'amount'        => $amount,
@@ -293,6 +293,8 @@ class CloudMeterHourly extends Command
             'source_id'     => $service->id,
             'note'          => "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان',
         ]);
+
+        $this->postRevenue($entry);
 
         /*
         | لاگی که مشتری می‌بیند: به زبانِ خودش، با مبلغِ کسرشده و ماندهٔ اعتبار
@@ -336,6 +338,27 @@ class CloudMeterHourly extends Command
         try {
             \App\Support\ErrorTracker::noteOnce('billing', $text, 3600, ['service' => $service->id]);
         } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * ثبتِ درآمدِ همان کسر در دفترِ مالی.
+     *
+     * 🔴 تا ممیزیِ شهریور ۱۴۰۵ این خط نبود و کلِ درآمدِ خطِ ساعتی از
+     * /admin/finance غایب بود — در حالی که هزینهٔ همان سرورها ثبت می‌شد، پس
+     * دفتر این خط را **زیان‌ده** نشان می‌داد.
+     *
+     * ⚠️ خطای دفتر هرگز نباید مترسنجی را بشکند: کسرِ اعتبار قبلاً انجام شده
+     * و اگر این‌جا پرتاب کند، کرون می‌میرد و سرورِ بعدی اصلاً متر نمی‌شود.
+     * پس بلعیده و در ردیاب ثبت می‌شود — همان الگوی `settleConfirmed`.
+     */
+    private function postRevenue(CreditEntry $entry): void
+    {
+        try {
+            app(\App\Services\Finance\BusinessLedger::class)->recordCreditSpend($entry);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('finance', $e,
+                ['area' => 'hourly-revenue', 'credit_entry' => $entry->id]);
         }
     }
 
@@ -406,7 +429,7 @@ class CloudMeterHourly extends Command
 
         $balance = $customer->creditBalance('IRT');
 
-        CreditEntry::create([
+        $entry = CreditEntry::create([
             'customer_id'   => $customer->id,
             'currency_code' => 'IRT',
             'amount'        => -$monthly,
@@ -416,6 +439,8 @@ class CloudMeterHourly extends Command
             'source_id'     => $service->id,
             'note'          => 'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه',
         ]);
+
+        $this->postRevenue($entry);
 
         $service->update([
             'billing_mode' => 'cycle',

@@ -1449,6 +1449,28 @@ class CloudStoreController extends Controller
             return $service;
         });
 
+        /*
+        | درآمدِ ساعتِ اول در دفترِ مالی.
+        |
+        | 🔴 **بیرونِ** تراکنش، عمداً. کسرِ اعتبار و ساختِ سرویس باید حتماً
+        | با هم انجام شوند؛ ولی خطای دفتر نباید خریدِ انجام‌شدهٔ مشتری را
+        | برگرداند. ردیف را از روی سرویس پیدا می‌کنیم چون تراکنش فقط سرویس
+        | را برمی‌گرداند — و ثبت idempotent است، پس یافتنِ ردیفِ درست کافی است.
+        */
+        try {
+            $firstHour = CreditEntry::where('source_type', Service::class)
+                ->where('source_id', $service->id)
+                ->where('reason', 'cloud_hourly')
+                ->latest('id')->first();
+
+            if ($firstHour !== null) {
+                app(\App\Services\Finance\BusinessLedger::class)->recordCreditSpend($firstHour);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('finance', $e,
+                ['area' => 'hourly-first-revenue', 'service' => $service->id]);
+        }
+
         try {
             ActivityLog::forService($service, 'purchase',
                 __('ui.act_hourly_order', [
