@@ -40,6 +40,17 @@ const TEMPLATES = {
   // ⚠️ متغیرِ الگو در پنلِ اپراتور `%code%` است، پس هر دو سمتِ نگاشت `code`
   //    می‌شوند — و برخلافِ `otp` (که `%otp%` دارد) این‌جا نامشان یکی است.
   otp_service_delete: { code: 'tr4yx3mbo37rvmm', vars: { code: 'code' } },
+
+  // ── دورِ سوم (۱۵ شهریور ۱۴۰۵) ──
+  // 🔴 `hourly_*` مهم‌ترین‌های این دسته‌اند: تا امروز فوری‌ترین پیامِ مالیِ
+  //    سامانه («اعتبارت دارد تمام می‌شود، سرورت خاموش می‌شود») فقط ایمیل و
+  //    بله بود. مشتریِ ایرانی ایمیلش را ساعتی نمی‌خوانَد و سرور خاموش می‌شد.
+  invoice_expired:   { code: '6ro00wxjm8jlghy', vars: { number: 'number' } },
+  bank_receipt:      { code: '0448ls6yys6p01h', vars: { amount: 'amount', number: 'number' } },
+  service_hold:      { code: 'mgdwmorgm9l0jow', vars: { service: 'service' } },
+  hourly_low_credit: { code: 'dlwlgfsruwm55o0', vars: { service: 'service', hours: 'hours' } },
+  hourly_credit_out: { code: 'tobok3q71klvg8f', vars: { service: 'service', grace: 'grace' } },
+  birthday:          { code: 'ao8geujocoymbff', vars: { name: 'name', credit: 'credit', days: 'days' } },
 };
 
 /* ══════════════════════════════════════════════════════════════════════

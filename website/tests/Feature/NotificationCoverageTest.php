@@ -92,7 +92,16 @@ class NotificationCoverageTest extends TestCase
                 // `DomainRegistrar::announce()`) — مهم این است که کلیدِ ادبی
                 // در یک فراخوانِ **اعلان** ظاهر شود، نه اینکه حتماً `fire` باشد.
                 || preg_match('~->announce\(\s*[\'"]'.$q.'[\'"]~', $code)
-                || ($key === 'otp' && preg_match('~->sendOtp\(~', $code));
+                || ($key === 'otp' && preg_match('~->sendOtp\(~', $code))
+                /*
+                | ⚠️ `CloudMeterHourly` بسته‌بندیِ محلیِ خودش را دارد
+                | (`notifyCustomer()`), چون متر باید شکستِ اعلان را ببلعد —
+                | یک ایمیلِ نرفته نباید کسرِ ساعتی را بشکند. کلیدِ ادبی
+                | همان‌جا و در همان بافتِ اعلان می‌آید، پس این هم فراخوانِ
+                | معتبر است. تنها چیزی که این‌جا مهم است: نامِ کلید در یک
+                | فراخوانِ اعلان ظاهر شود، نه اینکه حتماً `fire` باشد.
+                */
+                || preg_match('~->notifyCustomer\([^,()]+,\s*[\'"]'.$q.'[\'"]~', $code);
 
             if (! $found) {
                 $dead[] = $key.' — «'.$e['title'].'»';

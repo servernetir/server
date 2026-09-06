@@ -120,7 +120,7 @@ final class NotifyEvent
         */
         'bank_receipt' => [
             'title' => 'رسیدِ واریز، در انتظارِ تأیید', 'group' => 'billing',
-            'audience' => self::ADMIN, 'vars' => ['number', 'amount'], 'wired' => true,
+            'audience' => self::BOTH, 'vars' => ['number', 'amount'], 'wired' => true,
         ],
 
         // ───────────────── چرخهٔ عمرِ سرویس ─────────────────
@@ -241,6 +241,46 @@ final class NotifyEvent
         'ticket_survey' => [
             'title' => 'نظرسنجی پس از بستن تیکت', 'group' => 'support',
             'audience' => self::CUSTOMER, 'vars' => ['number', 'link'], 'wired' => true,
+        ],
+
+        /*
+        | ───────────────── اعتبارِ سرویسِ ساعتی ─────────────────
+        |
+        | 🔴 اینها تا شهریور ۱۴۰۵ اصلاً در کاتالوگ نبودند: `CloudMeterHourly`
+        | مستقیم `CustomerNotifier::templated()` صدا می‌زد. یعنی فوری‌ترین
+        | پیامِ مالیِ کلِ سامانه — «اعتبارت دارد تمام می‌شود و سرورت خاموش
+        | می‌شود» — فقط ایمیل و بله بود، و مشتری‌ای که ایمیلش را ساعتی
+        | نمی‌خوانَد سرورش را خاموش‌شده تحویل می‌گرفت.
+        |
+        | ⚠️ `audience` عمداً فقط مشتری است. متر ساعتی می‌دود و ده‌ها سرویس
+        | دارد؛ اعلانِ مدیر این‌جا یعنی سیلی که کانالِ مدیر را بی‌مصرف می‌کند.
+        | آنچه مدیر لازم دارد در `SystemHealth` و `/admin/errors` است.
+        |
+        | ⚠️ `vars` دقیقاً همان چیزی است که `CloudMeterHourly::notifyCustomer`
+        | پاس می‌دهد (`service` را خودش اضافه می‌کند). یک نامِ اضافه یعنی
+        | `missing_param` و پیامکِ بی‌صدا نرفته.
+        */
+        'hourly_low_credit' => [
+            'title' => 'اعتبارِ سرویسِ ساعتی رو به اتمام', 'group' => 'billing',
+            'audience' => self::CUSTOMER, 'vars' => ['service', 'hours'], 'wired' => true,
+        ],
+        'hourly_credit_out' => [
+            'title' => 'اتمامِ اعتبار و خاموشیِ سرویسِ ساعتی', 'group' => 'billing',
+            'audience' => self::CUSTOMER, 'vars' => ['service', 'grace'], 'wired' => true,
+        ],
+
+        /*
+        | ───────────────── تولد ─────────────────
+        |
+        | تاریخِ تولد از استعلامِ ثبت‌احوال می‌آید نه از فرمِ کاربر، پس
+        | **تأییدشده** است و با تاریخِ جعلی نمی‌شود هدیه گرفت.
+        |
+        | ⚠️ `audience` فقط مشتری: این پیام هیچ تصمیمی برای مدیر ندارد و
+        | روزی چند بار به کانالش می‌رفت.
+        */
+        'birthday' => [
+            'title' => 'تبریکِ تولد و اعتبارِ هدیه', 'group' => 'other',
+            'audience' => self::CUSTOMER, 'vars' => ['name', 'credit', 'days'], 'wired' => true,
         ],
 
         // ───────────────── عمومی ─────────────────

@@ -84,6 +84,17 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
         'domain_expired',
         'bank_rejected',
 
+        // ── دورِ سوم (۱۵ شهریور ۱۴۰۵) ──
+        // ⚠️ کدهای این‌ها هم مثلِ بقیه در `relay/n8n/verify-and-map-template.js`
+        //    است. نامِ این‌جا فقط «اجازهٔ عبور» می‌دهد؛ اگر آن‌جا نباشد،
+        //    ورک‌فلو با `pattern_code_not_configured` رد می‌کند.
+        'invoice_expired',
+        'bank_receipt',
+        'service_hold',
+        'hourly_low_credit',
+        'hourly_credit_out',
+        'birthday',
+
         // ── کدهای یک‌بارمصرفِ اختصاصی (خانوادهٔ OTP) ──
         // ⚠️ اینها رویدادِ کاتالوگ (`NotifyEvent`) نیستند؛ `OtpService` صادرشان
         //    می‌کند. `OTP_TEMPLATES` پایین‌تر همین را صریح ثبت می‌کند.
