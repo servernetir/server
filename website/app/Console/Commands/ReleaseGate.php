@@ -2,8 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Product;
 use App\Support\ErrorTracker;
+use App\Support\HtmlSeoInspector;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
 /**
@@ -62,7 +65,7 @@ class ReleaseGate extends Command
     {
         config(['pagecache.enabled' => true]);
 
-        $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel = app(Kernel::class);
         $fails = [];
 
         $get = function (string $path) use ($kernel) {
@@ -176,9 +179,9 @@ class ReleaseGate extends Command
             }
 
             // RG-ALT-14: شمارشِ imgِ بدونِ صفتِ alt — آستانه‌های خودِ ممیزی
-            preg_match_all('~<img\b[^>]*>~i', $html, $im);
-            $pageTotal = count($im[0]);
-            $pageNoAlt = count(array_filter($im[0], fn ($tag) => stripos($tag, 'alt=') === false));
+            $imageCounts = HtmlSeoInspector::imageAltCounts($html);
+            $pageTotal = $imageCounts['total'];
+            $pageNoAlt = $imageCounts['without_alt'];
             $imgTotal += $pageTotal;
             $imgNoAlt += $pageNoAlt;
 
@@ -255,7 +258,7 @@ class ReleaseGate extends Command
         }
 
         // ── RG-SCHEMA-05: صفحاتِ پرچم‌دارِ سفارش ───────────────────────
-        foreach (\App\Models\Product::flagshipSlugs() as $sku) {
+        foreach (Product::flagshipSlugs() as $sku) {
             $r = $get('/order/'.$sku);
             $html = (string) $r->getContent();
 
