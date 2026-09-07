@@ -45,6 +45,21 @@ return [
         'notify_phone'  => env('SUPPORT_NOTIFY_PHONE', ''),
 
         /*
+        | مقصدهای اعلانِ داخلی — چند مدیر، به‌ترتیب و جداشده با ویرگول.
+        |
+        | هر شماره با chat_id هم‌اندیسِ خودش جفت می‌شود. اگر chat_id آن مدیر
+        | خالی باشد، از `bale_contacts` و شماره‌اش پیدا می‌شود؛ پس کافی است آن
+        | مدیر یک‌بار ربات را start و شماره‌اش را share کرده باشد.
+        |
+        | ⚠️ دو کلیدِ تکیِ قدیمی پایین همچنان fallback هستند تا انتشارِ این
+        | تغییر بدون دست‌زدن به .env، اعلانِ مدیر فعلی را قطع نکند.
+        */
+        'notify_phones' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('SUPPORT_NOTIFY_PHONES', '')),
+        ), static fn (string $value): bool => $value !== '')),
+
+        /*
         | chat_idِ بلهٔ مدیر — مقصدِ **مستقیمِ** اعلان‌های داخلی.
         |
         | 🔴 چرا جدا از `notify_phone` وجود دارد: اعلانِ مدیر عمداً از سفیر
@@ -56,6 +71,11 @@ return [
         | شماره‌اش را share کرده باشد. این مقدار آن وابستگی را حذف می‌کند.
         */
         'notify_chat_id' => env('SUPPORT_NOTIFY_CHAT_ID', ''),
+        // خانهٔ خالی حفظ می‌شود تا `chatِ مدیر اول,,chatِ مدیر سوم` هم‌اندیس بماند.
+        'notify_chat_ids' => array_map(
+            'trim',
+            explode(',', (string) env('SUPPORT_NOTIFY_CHAT_IDS', '')),
+        ),
     ],
 
     /*

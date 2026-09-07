@@ -82,9 +82,22 @@ class BaleNotifier
      */
     public function toAdminButtons(string $mobile, string $text, array $rows): bool
     {
-        try {
-            $chatId = trim((string) config('servernet.contact.notify_chat_id', ''));
+        return $this->toAdminButtonsAt(
+            $mobile,
+            trim((string) config('servernet.contact.notify_chat_id', '')),
+            $text,
+            $rows,
+        );
+    }
 
+    /**
+     * ارسالِ دکمه‌دار به یک مقصدِ مشخص از فهرست مدیران.
+     *
+     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     */
+    public function toAdminButtonsAt(string $mobile, string $chatId, string $text, array $rows): bool
+    {
+        try {
             if ($chatId === '' && $mobile !== '' && Schema::hasTable('bale_contacts')) {
                 $chatId = (string) (BaleContact::chatIdFor($mobile) ?? '');
             }
@@ -103,9 +116,17 @@ class BaleNotifier
 
     public function toAdmin(string $mobile, string $text): void
     {
-        try {
-            $chatId = trim((string) config('servernet.contact.notify_chat_id', ''));
+        $this->toAdminAt(
+            $mobile,
+            trim((string) config('servernet.contact.notify_chat_id', '')),
+            $text,
+        );
+    }
 
+    /** ارسالِ اعلانِ داخلی به یک مدیر، بدون افتادن روی مقصدِ سراسریِ مدیر اول. */
+    public function toAdminAt(string $mobile, string $chatId, string $text): void
+    {
+        try {
             if ($chatId === '' && $mobile !== '' && Schema::hasTable('bale_contacts')) {
                 $chatId = (string) (BaleContact::chatIdFor($mobile) ?? '');
             }
