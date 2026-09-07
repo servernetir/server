@@ -43,7 +43,7 @@ class BaleAdminController extends Controller
     {
         $gate->revoke();
 
-        return back()->with('ok', 'اتصالِ ربات قطع و کنسول خاموش شد.');
+        return back()->with('ok', 'اتصالِ همهٔ مدیران قطع و کنسول خاموش شد.');
     }
 
     public function toggle(Request $request, AdminBaleGate $gate): RedirectResponse

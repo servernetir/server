@@ -19,7 +19,7 @@
 <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 0 16px">
   @php $col = $baleUser ? '#34d399' : '#fbbf24'; @endphp
   <span class="ad-badge" style="background:{{ $col }}22;color:{{ $col }};font-size:12.5px;padding:7px 12px">
-    {{ $baleUser ? 'متصل به: '.$baleUser->name : 'هنوز متصل نشده' }}
+    {{ $baleUser ? 'متصل به: '.($baleBindings->pluck('user.name')->filter()->join('، ') ?: $baleUser->name) : 'هنوز متصل نشده' }}
   </span>
 
   @php $col2 = $baleEnabled ? '#34d399' : 'rgb(148,163,184)'; @endphp
@@ -58,7 +58,7 @@
   <br>
   <span style="color:var(--dim)">
     کد عمداً روی این صفحه نشان داده نمی‌شود؛ برای اتصال باید هم به پنل دسترسی داشته باشید
-    هم به ایمیل. چتی که کد را درست بزند، از آن لحظه تنها چتِ مجاز است.
+    هم به ایمیل. چتی که کد را درست بزند، به فهرست چت‌های مجاز مدیران اضافه می‌شود.
   </span>
 </p>
 
@@ -81,11 +81,11 @@
          با `BrandedDialogTest`. آن تست **سورس** را می‌پاید، پس حتی نامِ آن
          تابع در یک کامنت هم قرمزش می‌کند. --}}
     <form method="post" action="/admin/bale/revoke"
-          data-confirm="اتصالِ ربات قطع و کنسول خاموش شود؟ برای اتصالِ دوباره باید کدِ تازه بگیرید."
+          data-confirm="اتصالِ همهٔ مدیران قطع و کنسول خاموش شود؟ برای اتصالِ دوباره باید کدِ تازه بگیرید."
           data-confirm-title="قطعِ اتصالِ بله"
           data-confirm-ok="بله، قطع کن">@csrf
       <button class="btn" type="submit" style="color:#ff6b6b">
-        <svg class="icon"><use href="#i-x"/></svg>قطعِ اتصال
+        <svg class="icon"><use href="#i-x"/></svg>قطعِ همهٔ اتصال‌ها
       </button>
     </form>
   @endif

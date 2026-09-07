@@ -500,6 +500,11 @@ class SettingsController extends Controller
             'baleEnabled' => $gate->enabled(),
             'baleUser'    => $gate->boundUser(),
             'baleBind'    => $gate->binding(),
+            'baleBindings' => collect($gate->bindings())->map(function (array $binding): array {
+                $user = \App\Models\User::find((int) $binding['user_id']);
+
+                return ['binding' => $binding, 'user' => $user];
+            }),
             'balePending' => $gate->pendingHuman(),
             'baleWebhook' => app(\App\Http\Controllers\Admin\BaleAdminController::class)->webhookState(),
         ];

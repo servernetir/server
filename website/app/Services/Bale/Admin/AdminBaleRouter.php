@@ -199,6 +199,11 @@ class AdminBaleRouter
             // مالکیت). یعنی یک آپدیتِ جعلیِ `contact` می‌توانست شمارهٔ پشتیبانی
             // را به چتِ مهاجم ببندد. برای **تحویلِ** پیام مشکلی نیست؛ به‌عنوانِ
             // منبعِ **هویت** یک حفرهٔ ترفیعِ دسترسی است.
+            if ($this->gate->pairingPending()
+                && (str_starts_with($text, '/pair ') || str_starts_with($text, 'اتصال '))) {
+                return true;
+            }
+
             if ($this->gate->binding() === null) {
                 /*
                 | 🔴 پنجرهٔ اتصال عمداً به `enabled()` بند **نیست**.
@@ -411,7 +416,8 @@ class AdminBaleRouter
             $from = (string) ($m['from']['id'] ?? '');
 
             // اتصال، تنها کاری که چتِ نامتصل هم می‌تواند بزند
-            if ($this->gate->binding() === null) {
+            if ($this->gate->pairingPending()
+                && (str_starts_with($text, '/pair ') || str_starts_with($text, 'اتصال '))) {
                 $this->pair($text, $from);
 
                 return;

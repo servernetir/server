@@ -457,6 +457,34 @@ class BaleAdminBotSecurityTest extends TestCase
         $this->assertSame($admin->id, (int) $bind['user_id']);
     }
 
+    public function test_a_second_admin_can_pair_without_replacing_the_first_admin(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $first = $this->bind();
+        $second = $this->admin();
+        $this->actingAs($second, 'web')->post('/admin/bale/pair');
+
+        $code = null;
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\OtpMail::class, function ($mail) use (&$code, $second) {
+            $code = $mail->code;
+
+            return $mail->hasTo($second->email);
+        });
+
+        $this->say('/pair '.$code, '778899');
+
+        $gate = app(AdminBaleGate::class);
+        $this->assertCount(2, $gate->bindings());
+        $this->assertTrue($gate->isBoundChat(self::OWNER_CHAT));
+        $this->assertSame($first->id, $gate->boundUser()?->id);
+        $this->assertTrue($gate->isBoundChat('778899'));
+        $this->assertSame($second->id, $gate->boundUser()?->id);
+
+        $this->say('/start', '778899');
+        $this->assertStringContainsString('امروز', $this->textsSentTo('778899'));
+    }
+
     /**
      * 🔴 بن‌بستی که کارفرما زنده گزارش داد: «کد /pair را زدم، ربات می‌گوید
      * شماره‌ات را اشتراک بگذار.»

@@ -48,10 +48,13 @@ use Illuminate\Support\Facades\DB;
  */
 class AdminBaleGate
 {
+    /** چتی که در همین درخواست احراز شد؛ برای ثبت نام مدیرِ اجراکننده. */
+    private ?string $activeChatId = null;
+
     /** کلیدِ خاموش/روشن — عمداً ساده و **بدونِ** رمزنگاری تا همیشه خوانده شود */
     public const KEY_ENABLED = 'bale_admin_enabled';
 
-    /** اتصالِ فعلی: {chat_id, user_id, at} — رمزنگاری‌شده */
+    /** اتصال‌های مدیران: [{chat_id, user_id, at}, ...] — رمزنگاری‌شده */
     public const KEY_BIND = 'bale_admin_bind';
 
     /** اتصالِ در انتظار: {user_id, email, at} — رمزنگاری‌شده */
@@ -102,11 +105,31 @@ class AdminBaleGate
      */
     public function binding(): ?array
     {
+        $bindings = $this->bindings();
+
+        if ($this->activeChatId !== null) {
+            foreach ($bindings as $binding) {
+                if (hash_equals((string) $binding['chat_id'], $this->activeChatId)) {
+                    return $binding;
+                }
+            }
+        }
+
+        return $bindings[0] ?? null;
+    }
+
+    /**
+     * همهٔ اتصال‌های مجاز؛ شکلِ تک‌اتصالیِ قدیمی را هنگام خواندن ارتقا می‌دهد.
+     *
+     * @return array<int,array{chat_id:string,user_id:int,at:?string}>
+     */
+    public function bindings(): array
+    {
         try {
             $raw = Setting::get(self::KEY_BIND);
 
             if (blank($raw)) {
-                return null;                          // واقعاً هرگز متصل نشده
+                return [];                            // واقعاً هرگز متصل نشده
             }
 
             $dec = Setting::getSecret(self::KEY_BIND);
@@ -116,14 +139,21 @@ class AdminBaleGate
                 ErrorTracker::noteOnce('bale-admin',
                     'اتصالِ رباتِ بله رمزگشایی نشد (APP_KEY عوض شده؟) — کنسول بسته شد.', 3600);
 
-                return null;
+                return [];
             }
 
-            $bind = json_decode($dec, true);
+            $decoded = json_decode($dec, true);
+            if (! is_array($decoded)) {
+                return [];
+            }
 
-            return is_array($bind) && isset($bind['chat_id'], $bind['user_id']) ? $bind : null;
+            $rows = isset($decoded['chat_id'], $decoded['user_id']) ? [$decoded] : $decoded;
+
+            return array_values(array_filter($rows, static fn ($row): bool =>
+                is_array($row) && filled($row['chat_id'] ?? null) && isset($row['user_id'])
+            ));
         } catch (\Throwable) {
-            return null;
+            return [];
         }
     }
 
@@ -185,9 +215,15 @@ class AdminBaleGate
     /** آیا این `from.id` همان چتِ متصل است؟ */
     public function isBoundChat(string $chatId): bool
     {
-        $bind = $this->binding();
+        foreach ($this->bindings() as $bind) {
+            if ($chatId !== '' && hash_equals((string) $bind['chat_id'], $chatId)) {
+                $this->activeChatId = $chatId;
 
-        return $bind !== null && $chatId !== '' && hash_equals((string) $bind['chat_id'], $chatId);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ───────────────────────── اتصال (pairing) ─────────────────────────
@@ -273,14 +309,21 @@ class AdminBaleGate
             return ['ok' => false, 'message' => 'حسابِ مدیرِ این درخواست دیگر معتبر نیست.'];
         }
 
-        Setting::putSecret(self::KEY_BIND, json_encode([
+        $bindings = array_values(array_filter($this->bindings(), static fn (array $binding): bool =>
+            (int) $binding['user_id'] !== (int) $user->id
+            && ! hash_equals((string) $binding['chat_id'], $chatId)
+        ));
+        $bindings[] = [
             'chat_id' => $chatId,
             'user_id' => (int) $user->id,
             'at'      => now()->toIso8601String(),
-        ], JSON_UNESCAPED_UNICODE));
+        ];
+        Setting::putSecret(self::KEY_BIND, json_encode($bindings, JSON_UNESCAPED_UNICODE));
+        $this->activeChatId = $chatId;
 
         Setting::putSecret(self::KEY_PENDING, null);
-        Setting::putSecret(self::KEY_STATE, null);      // هیچ کارِ نیمه‌کاره‌ای از اتصالِ قبلی نمانَد
+        // وضعیتِ عملیاتی میان مدیران مشترک و یک‌تایی است؛ اتصالِ مدیر دوم نباید
+        // کارِ نیمه‌تمام مدیر اول را بی‌صدا پاک کند.
 
         /*
         | ⚠️ اتصالِ موفق، کنسول را هم روشن می‌کند.
@@ -462,6 +505,7 @@ class AdminBaleGate
                 'verb' => $verb,
                 'args' => $args,
                 'at'   => now()->getTimestamp(),
+                'actor_chat' => (string) ($this->binding()['chat_id'] ?? ''),
             ]]);
 
             return true;
@@ -536,6 +580,13 @@ class AdminBaleGate
                         ['verb' => (string) ($j['verb'] ?? '?')]);
 
                     return null;
+                }
+
+                // Worker درخواست HTTP ندارد؛ هویتِ مدیرِ صف‌کننده را از خودِ
+                // کارِ رمزنگاری‌شده برمی‌گردانیم تا audit به مدیر اول نیفتد.
+                $actorChat = (string) ($j['actor_chat'] ?? '');
+                if ($actorChat !== '' && $this->isBoundChat($actorChat)) {
+                    $this->activeChatId = $actorChat;
                 }
 
                 return $j;
