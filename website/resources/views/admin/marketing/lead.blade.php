@@ -18,6 +18,19 @@
     <a class="mk-btn" href="/admin/marketing">بازگشت به قیف</a>
   </div>
 
+  @if($lead->source === 'assistant')
+    <div class="ad-panel" style="margin:16px 0">
+      <div class="ad-panel-h"><h2>اطلاعات دستیار گفتگو</h2></div>
+      <div style="padding:16px 18px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <div><small>نام</small><br>{{ $lead->contact_name ?: '—' }}</div>
+        <div><small>موبایل</small><br><span dir="ltr">{{ $lead->phone ?: '—' }}</span></div>
+        <div><small>زبان</small><br>{{ $lead->locale ?: '—' }}</div>
+        <div><small>علاقه‌مندی</small><br>{{ $lead->interest ?: '—' }}</div>
+        @if($lead->page_url)<div style="grid-column:1/-1"><small>صفحهٔ مبدأ</small><br><a href="{{ $lead->page_url }}" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">{{ $lead->page_url }}</a></div>@endif
+      </div>
+    </div>
+  @endif
+
   <div class="mk-tiles">
     <div class="mk-tile">
       <div class="mk-tile-k"><svg class="icon"><use href="#i-flow"/></svg>مرحله</div>

@@ -69,6 +69,7 @@
   <div class="mk-tabs" style="margin-top:18px">
     <a href="/admin/marketing" class="{{ $tab === 'funnel' ? 'on' : '' }}">قیف<span class="n">{{ $stats['active'] }}</span></a>
     <a href="/admin/marketing?tab=queue" class="{{ $tab === 'queue' ? 'on' : '' }}">صفِ تأیید@if($stats['pending'])<span class="n">{{ $stats['pending'] }}</span>@endif</a>
+    <a href="/admin/marketing?source=assistant" class="{{ ($source ?? '') === 'assistant' ? 'on' : '' }}">سرنخ‌های دستیار گفتگو</a>
     <a href="/admin/marketing?tab=add" class="{{ $tab === 'add' ? 'on' : '' }}">افزودنِ سرنخ</a>
   </div>
 
@@ -78,10 +79,23 @@
     @include('admin.marketing._add')
   @else
 
+    @if(($source ?? '') === 'assistant')
+      <form method="get" action="/admin/marketing" class="mk-form" style="margin:16px 0;padding:14px 16px">
+        <input type="hidden" name="source" value="assistant">
+        <div><label>وضعیت</label><select name="stage"><option value="">همه</option>@foreach(\App\Models\CrmLead::STAGES as $key => $label)<option value="{{ $key }}" @selected($stage === $key)>{{ $label }}</option>@endforeach</select></div>
+        <div><label>از تاریخ</label><input type="date" name="from" value="{{ $from }}"></div>
+        <div><label>تا تاریخ</label><input type="date" name="to" value="{{ $to }}"></div>
+        <div style="align-self:end"><button class="mk-btn" type="submit">اعمال فیلتر</button></div>
+      </form>
+    @endif
+
     {{-- ══ قیف — هر مرحله یک ستون ══ --}}
     <div class="mk-funnel">
       @foreach(\App\Models\CrmLead::STAGES as $key => $label)
-        <a href="/admin/marketing{{ $stage === $key ? '' : '?stage='.$key }}"
+        @php
+          $stageQuery = array_filter(['stage' => $stage === $key ? null : $key, 'source' => $source ?: null, 'from' => $from ?: null, 'to' => $to ?: null]);
+        @endphp
+        <a href="/admin/marketing{{ $stageQuery ? '?'.http_build_query($stageQuery) : '' }}"
            class="{{ $stage === $key ? 'on' : '' }} {{ $key === 'replied' && ($counts[$key] ?? 0) ? 'is-hot' : '' }}">
           <div class="v">{{ $counts[$key] ?? 0 }}</div>
           <div class="k">{{ $label }}</div>

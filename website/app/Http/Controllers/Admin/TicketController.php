@@ -24,17 +24,32 @@ class TicketController extends Controller
 
     public function index(Request $request): View
     {
-        $filter   = $request->string('status', 'open')->toString();
+        $filter   = $request->string('status', 'all')->toString();
         $priority = $request->string('priority', '')->toString();
         $dept     = $request->string('department', '')->toString();
         $q        = trim($request->string('q', '')->toString());
+        $sort     = $request->string('sort', 'workflow')->toString();
 
         // CASE و نه field(): field مخصوص MariaDB است و تست محلی روی SQLite
         // را می‌شکند. ترتیب: باز، بعد پاسخ‌داده، بعد بسته؛ و داخل هر گروه
         // قدیمی‌ترینِ منتظر اول.
-        $query = Ticket::with('customer')
-            ->orderByRaw("case status when 'open' then 0 when 'answered' then 1 when 'held' then 2 else 3 end")
-            ->orderBy('last_reply_at');
+        $query = Ticket::with('customer')->select('tickets.*')->addSelect([
+            'last_customer_reply_at' => \App\Models\TicketMessage::selectRaw('MAX(created_at)')->whereColumn('ticket_id', 'tickets.id')->where('author_role', 'customer')->where('is_internal', false),
+            'last_staff_reply_at' => \App\Models\TicketMessage::selectRaw('MAX(created_at)')->whereColumn('ticket_id', 'tickets.id')->where('author_role', 'staff')->where('is_internal', false),
+        ]);
+
+        match (in_array($sort, ['workflow','activity_desc','activity_asc','created_desc','created_asc','customer_desc','staff_desc'], true) ? $sort : 'workflow') {
+            'activity_desc' => $query->orderByDesc('last_reply_at')->orderByDesc('id'),
+            'activity_asc' => $query->orderBy('last_reply_at')->orderBy('id'),
+            'created_desc' => $query->orderByDesc('created_at')->orderByDesc('id'),
+            'created_asc' => $query->orderBy('created_at')->orderBy('id'),
+            'customer_desc' => $query->orderByRaw('last_customer_reply_at IS NULL')->orderByDesc('last_customer_reply_at')->orderByDesc('id'),
+            'staff_desc' => $query->orderByRaw('last_staff_reply_at IS NULL')->orderByDesc('last_staff_reply_at')->orderByDesc('id'),
+            default => $query->orderByRaw("case status when 'open' then 0 when 'answered' then 1 when 'held' then 2 else 3 end")
+                ->orderByRaw("case when status = 'open' then last_reply_at end asc")
+                ->orderByRaw("case when status <> 'open' then last_reply_at end desc")
+                ->orderByDesc('id'),
+        };
 
         if (array_key_exists($filter, Ticket::STATUSES)) {
             $query->where('status', $filter);
@@ -76,6 +91,7 @@ class TicketController extends Controller
                 ->selectRaw('status, count(*) as c')->groupBy('status')
                 ->pluck('c', 'status')->all())
                 + array_fill_keys(array_keys(Ticket::STATUSES), 0),
+            'sort' => $sort,
         ]);
     }
 

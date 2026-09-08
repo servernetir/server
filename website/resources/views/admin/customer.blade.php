@@ -250,7 +250,10 @@
     <tbody>
       @foreach($c->bankAccounts as $b)
       <tr>
-        <td>{{ $b->bank_name ?: '—' }} <small style="color:var(--dim)" dir="ltr">{{ $b->card_bin }}••••</small></td>
+        <td>{{ $b->bank_name ?: '—' }} <small style="color:var(--dim)" dir="ltr">{{ $b->maskedCard() }}</small>
+          @if(auth()->user()->isAdmin() && filled($b->getRawOriginal('card_number_enc')))
+            <form method="post" action="/admin/customers/{{ $c->id }}/bank-accounts/{{ $b->id }}/reveal" target="_blank" style="display:inline">@csrf<button class="btn btn-glass" type="submit">نمایش کامل</button></form>
+          @endif</td>
         <td dir="ltr" style="color:var(--muted)">{{ $b->iban ?: '—' }}</td>
         <td>{{ $b->owner_name ?: '—' }} @if($b->name_matched)<i style="color:#34d399">✓</i>@endif</td>
         <td><span class="ad-badge {{ $b->status === 'verified' ? 'pub' : 'draft' }}">{{ $b->status === 'verified' ? 'تأییدشده' : $b->status }}</span></td>

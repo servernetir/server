@@ -18,8 +18,8 @@ class CrmLead extends Model
     protected $table = 'crm_leads';
 
     protected $fillable = [
-        'domain_hash', 'company', 'contact_name', 'country', 'city', 'vertical',
-        'website', 'email', 'phone', 'source',
+        'customer_id', 'session_key', 'domain_hash', 'company', 'contact_name', 'country', 'city', 'vertical',
+        'website', 'email', 'phone', 'source', 'page_url', 'locale', 'interest', 'assigned_user_id',
         'audit_score', 'audit', 'observation',
         'offer', 'value_eur', 'stage',
         'next_action_at', 'last_contacted_at', 'replied_at',

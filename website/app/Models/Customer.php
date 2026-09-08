@@ -24,7 +24,7 @@ class Customer extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery',
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'notes',
     ];
 
     protected function casts(): array

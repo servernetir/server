@@ -32,10 +32,16 @@ class MarketingController extends Controller
 
         $counts = CrmLead::selectRaw('stage, count(*) as c')->groupBy('stage')->pluck('c', 'stage')->all();
         $stage = (string) $request->query('stage', '');
+        $source = (string) $request->query('source', '');
+        $from = (string) $request->query('from', '');
+        $to = (string) $request->query('to', '');
         $tab = (string) $request->query('tab', 'funnel');
 
         $leads = CrmLead::query()
             ->when($stage !== '', fn ($q) => $q->where('stage', $stage))
+            ->when($source !== '', fn ($q) => $q->where('source', $source))
+            ->when(preg_match('/^\d{4}-\d{2}-\d{2}$/', $from), fn ($q) => $q->whereDate('created_at', '>=', $from))
+            ->when(preg_match('/^\d{4}-\d{2}-\d{2}$/', $to), fn ($q) => $q->whereDate('created_at', '<=', $to))
             ->orderByRaw("case when stage = 'replied' then 0 else 1 end")
             ->orderByDesc('id')
             ->limit(120)
@@ -52,6 +58,7 @@ class MarketingController extends Controller
             'counts'    => $counts,
             'leads'     => $leads,
             'stage'     => $stage,
+            'source'    => $source, 'from' => $from, 'to' => $to,
             'tab'       => in_array($tab, ['funnel', 'queue', 'add'], true) ? $tab : 'funnel',
             'pending'   => $pending,
             'sentToday' => $mailer->sentToday(),
@@ -242,6 +249,7 @@ class MarketingController extends Controller
             'reason' => ['nullable', 'string', 'max:190'],
         ]);
 
+        $before = $lead->stage;
         $lead->stage = $data['stage'];
         $lead->offer = $data['offer'] ?? $lead->offer;
         $lead->value_eur = $data['value'] ?? $lead->value_eur;
@@ -258,6 +266,7 @@ class MarketingController extends Controller
         }
 
         $lead->save();
+        \App\Models\ActivityLog::record(null, 'crm_lead_stage', 'سرنخ #'.$lead->id.': '.$before.' → '.$lead->stage, $request, 'staff');
 
         return back()->with('ok', 'مرحله به «'.$lead->stageLabel().'» تغییر کرد.');
     }

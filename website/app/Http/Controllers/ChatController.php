@@ -21,13 +21,22 @@ class ChatController extends Controller
         $validated = $request->validate([
             'message' => 'required|string|max:1000',
             'session' => 'nullable|string|max:64',
+            'page_url' => 'nullable|url|max:500',
         ]);
 
         $locale = in_array(app()->getLocale(), ['fa', 'en', 'tr']) ? app()->getLocale() : 'en';
 
         // ۱) دستیار هوشمند n8n
         if ($webhook = config('services.n8n.chat_webhook')) {
-            $reply = $this->askN8n($webhook, $validated['message'], $locale, $validated['session'] ?? null);
+            $result = $this->askN8n($webhook, $validated['message'], $locale, $validated['session'] ?? null);
+            $reply = is_array($result) ? ($result['reply'] ?? null) : null;
+            if (is_array($result['lead'] ?? null)) {
+                try {
+                    app(\App\Services\Crm\AssistantLeadCapture::class)->capture($result['lead'], (string)($validated['session'] ?? ''), $locale, $validated['page_url'] ?? null, auth('customer')->id());
+                } catch (\Throwable $e) {
+                    \App\Support\ErrorTracker::note('crm', $e, ['source' => 'assistant']);
+                }
+            }
             if (is_string($reply) && trim($reply) !== '') {
                 return response()->json(['reply' => $reply, 'actions' => []]);
             }
@@ -39,7 +48,7 @@ class ChatController extends Controller
         return response()->json(['reply' => $reply, 'actions' => $actions]);
     }
 
-    private function askN8n(string $url, string $message, string $locale, ?string $session): ?string
+    private function askN8n(string $url, string $message, string $locale, ?string $session): ?array
     {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -64,7 +73,7 @@ class ChatController extends Controller
 
         $json = json_decode($raw, true);
 
-        return is_array($json) ? ($json['reply'] ?? null) : null;
+        return is_array($json) ? $json : null;
     }
 
     private function reply(string $msg, string $loc): array

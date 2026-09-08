@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\User;
@@ -33,6 +32,8 @@ class CustomerInternalNoteTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['customer_id' => $customer->id, 'action' => 'internal_note_created', 'actor' => 'staff']);
 
         $this->actingAs($customer, 'customer')->get('/account')->assertDontSee('پیگیری حقوقی');
+        $serialized = $customer->fresh()->load('notes')->toArray();
+        $this->assertArrayNotHasKey('notes', $serialized, 'مدل مشتری نیز نباید یادداشت را در JSON تصادفی نشت دهد');
     }
 
     public function test_support_cannot_edit_another_authors_note_but_admin_can(): void
@@ -44,8 +45,35 @@ class CustomerInternalNoteTest extends TestCase
         $note = CustomerNote::create(['customer_id' => $customer->id, 'user_id' => $owner->id, 'body' => 'اصل']);
 
         $this->actingAs($other)->put("/admin/customers/{$customer->id}/notes/{$note->id}", ['body' => 'غیرمجاز'])->assertForbidden();
+        $this->actingAs($other)->delete("/admin/customers/{$customer->id}/notes/{$note->id}")->assertForbidden();
         $this->actingAs($admin)->put("/admin/customers/{$customer->id}/notes/{$note->id}", ['body' => 'مجاز'])->assertRedirect();
         $this->assertSame('مجاز', $note->fresh()->body);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'internal_note_updated', 'actor' => 'staff']);
+    }
+
+    public function test_guests_and_customers_cannot_create_edit_or_delete_notes(): void
+    {
+        $customer = $this->customer();
+        $author = $this->user('support');
+        $note = CustomerNote::create(['customer_id'=>$customer->id,'user_id'=>$author->id,'body'=>'خصوصی']);
+        $base = "/admin/customers/{$customer->id}/notes";
+
+        $this->post($base, ['body'=>'x'])->assertRedirect();
+        $this->actingAs($customer, 'customer')->post($base, ['body'=>'x'])->assertRedirect();
+        $this->actingAs($customer, 'customer')->put("$base/{$note->id}", ['body'=>'x'])->assertRedirect();
+        $this->actingAs($customer, 'customer')->delete("$base/{$note->id}")->assertRedirect();
+        $this->assertSame('خصوصی', $note->fresh()->body);
+    }
+
+    public function test_author_can_delete_and_delete_is_audited(): void
+    {
+        $customer = $this->customer();
+        $author = $this->user('support');
+        $note = CustomerNote::create(['customer_id'=>$customer->id,'user_id'=>$author->id,'body'=>'حذف']);
+
+        $this->actingAs($author)->delete("/admin/customers/{$customer->id}/notes/{$note->id}")->assertRedirect();
+        $this->assertDatabaseMissing('customer_notes', ['id'=>$note->id]);
+        $this->assertDatabaseHas('activity_logs', ['customer_id'=>$customer->id,'action'=>'internal_note_deleted','actor'=>'staff']);
     }
 
     public function test_note_cannot_be_moved_or_deleted_through_another_customer_url(): void
@@ -56,6 +84,7 @@ class CustomerInternalNoteTest extends TestCase
         $note = CustomerNote::create(['customer_id' => $first->id, 'user_id' => $admin->id, 'body' => 'محرمانه']);
 
         $this->actingAs($admin)->delete("/admin/customers/{$second->id}/notes/{$note->id}")->assertNotFound();
+        $this->actingAs($admin)->put("/admin/customers/{$second->id}/notes/{$note->id}", ['body' => 'نشت'])->assertNotFound();
         $this->assertDatabaseHas('customer_notes', ['id' => $note->id]);
     }
 }

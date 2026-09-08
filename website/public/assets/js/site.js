@@ -216,7 +216,7 @@
         const res = await fetch(chatBody.dataset.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
-          body: JSON.stringify({ message: msg, session: chatSession() }),
+          body: JSON.stringify({ message: msg, session: chatSession(), page_url: window.location.href }),
         });
         if (!res.ok) throw new Error(res.status);
         const data = await res.json();

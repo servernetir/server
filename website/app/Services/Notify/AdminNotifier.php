@@ -34,7 +34,7 @@ class AdminNotifier
      * ⚠️ دکمه اختیاری است و نبودش رفتارِ قبلی را عوض نمی‌کند: ده‌ها فراخوانِ
      * موجود بی‌تغییر کار می‌کنند.
      */
-    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null): void
+    public function event(string $title, array $rows = [], ?string $url = null, string $emoji = '🔔', array $buttons = [], ?string $key = null, bool $email = true): void
     {
         /*
         | 🔴 کلیدِ اختیاری = «این رویداد در تنظیمات قابلِ مدیریت است».
@@ -101,7 +101,9 @@ class AdminNotifier
         }
 
         $this->sendBale($text, $buttons);
-        $this->sendMail($title, $text);
+        if ($email) {
+            $this->sendMail($title, $text);
+        }
     }
 
     /**

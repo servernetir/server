@@ -258,6 +258,68 @@ class ArvanSecurityGroupTest extends TestCase
         $this->assertSame(2, $securityReads);
     }
 
+    public function test_a_timed_out_firewall_catalog_fails_closed_without_creating(): void
+    {
+        Http::swap(new Factory);
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/networks')) {
+                return Http::response(['data' => [['id' => 'net', 'enable_gateway' => true]]]);
+            }
+            if (str_contains($request->url(), '/servers') && $request->method() === 'POST') {
+                $this->fail('create must not run when the regional firewall catalog is unavailable');
+            }
+            if (str_contains($request->url(), '/securities') || str_contains($request->url(), '/security')) {
+                throw new \Illuminate\Http\Client\ConnectionException('catalog timeout');
+            }
+
+            return Http::response(['data' => []]);
+        });
+
+        $result = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertFalse($result['ok']);
+        $this->assertStringContainsString('firewall', $result['message']);
+    }
+
+    public function test_firewall_retry_adopts_a_server_created_before_the_error_response(): void
+    {
+        Http::swap(new Factory);
+        $securityReads = 0;
+        $creates = 0;
+        $serverReads = 0;
+        Http::fake(function ($request) use (&$securityReads, &$creates, &$serverReads) {
+            $url = $request->url();
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'net', 'enable_gateway' => true]]]);
+            }
+            if (str_contains($url, '/images')) {
+                return Http::response(['data' => [['images' => [['id' => 'img-1', 'name' => '24.04']]]]]);
+            }
+            if (str_contains($url, '/securities')) {
+                $securityReads++;
+                return Http::response(['data' => [['real_name' => $securityReads === 1 ? 'old' : 'new', 'default' => true]]]);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                $serverReads++;
+                return Http::response(['data' => $serverReads >= 2 ? [[
+                    'id' => 'already-created', 'name' => 'vps-test', 'status' => 'ACTIVE',
+                ]] : []]);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $creates++;
+                return Http::response(['message' => 'Requested firewall was not found'], 404);
+            }
+
+            return Http::response(['data' => []]);
+        });
+
+        $result = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('ir-thr-c2:already-created', $result['ref']);
+        $this->assertSame(1, $creates, 'reconciliation must adopt, not issue a second paid create');
+    }
+
     /**
      * 🔴 خطای اعتبارسنجی باید **قابلِ اقدام** برسد، نه «Bad Request».
      *
