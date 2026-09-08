@@ -681,7 +681,7 @@ class ArvanClient implements CloudProvider
         $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
 
         return \Illuminate\Support\Facades\Cache::remember(
-            'arvan.sg.'.$regionCode.'.'.md5($wanted),
+            $this->securityGroupCacheKey($regionCode, $wanted),
             3600,
             function () use ($regionCode, $wanted) {
                 // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
@@ -754,12 +754,22 @@ class ArvanClient implements CloudProvider
                     }
                 }
 
-                // هیچ مسیری جواب نداد. اگر مدیر شناسه را دستی گذاشته، همان
-                // فرستاده می‌شود: غلط بودنش خطای روشنِ خودِ آروان را می‌آورد،
-                // که از بن‌بستِ خاموش بهتر است.
-                return $wanted !== '' ? [$wanted] : [];
+                /*
+                | هیچ مسیر معتبری جواب نداد: مقدار دستی را کورکورانه نفرست.
+                |
+                | این fallback دقیقاً منشأ «Requested firewall was not found»
+                | بود: شناسهٔ حذف‌شده/منطقهٔ دیگر تا یک ساعت از cache یا Setting
+                | به **تمام** سفارش‌ها تزریق می‌شد. تنظیم دستی فقط selector است؛
+                | تا در فهرست همین region تأیید نشود credential محسوب نمی‌شود.
+                */
+                return [];
             }
         );
+    }
+
+    private function securityGroupCacheKey(string $regionCode, string $wanted): string
+    {
+        return 'arvan.sg.'.$regionCode.'.'.md5($wanted);
     }
 
     /**
@@ -897,7 +907,7 @@ class ArvanClient implements CloudProvider
                     .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
-        $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
+        $payload = [
             'name'        => $spec['name'],
             'flavor_id'   => (string) $spec['plan_ref'],
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
@@ -911,7 +921,32 @@ class ArvanClient implements CloudProvider
             'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
             'count'       => 1,
             'ha_enabled'  => false,
-        ]);
+        ];
+
+        $path = self::ECC.'/regions/'.rawurlencode($region).'/servers';
+        $r = $this->req('POST', $path, $payload);
+
+        /*
+        | firewall می‌تواند بعد از resolve و پیش از create حذف شود، یا cache
+        | یک نامِ قدیمی نگه داشته باشد. یک بار فهرست همان region را تازه کن و
+        | فقط اگر مقصد واقعاً عوض شد retry کن. پیش از retry با نام قطعی lookup
+        | می‌کنیم تا timeout پاسخِ موفق، ماشین دوم نسازد.
+        */
+        if (! $r['ok'] && str_contains(mb_strtolower((string) $r['message']), 'firewall')) {
+            $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
+            \Illuminate\Support\Facades\Cache::forget($this->securityGroupCacheKey($region, $wanted));
+            $freshGroups = $this->securityGroupIds($region);
+
+            if ($freshGroups !== [] && $freshGroups !== $securityGroups) {
+                $existing = $this->findByName($region, $spec['name']);
+                if ($existing !== null) {
+                    return $this->serverToResult($existing, $region);
+                }
+
+                $payload['security_groups'] = array_map(fn ($n) => ['name' => $n], $freshGroups);
+                $r = $this->req('POST', $path, $payload);
+            }
+        }
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message'],

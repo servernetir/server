@@ -200,6 +200,11 @@ class Customer extends Authenticatable
         return $this->hasMany(CreditEntry::class);
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class);
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);

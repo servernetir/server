@@ -853,6 +853,29 @@
 
 {{-- ─────────── تبِ پشتیبانی ─────────── --}}
 <div class="ct-pane" data-pane="support">
+  <div class="ad-panel" style="margin:0 0 16px">
+    <div class="ad-panel-h"><h3>یادداشت‌های داخلی</h3><span class="ad-badge">فقط کارکنان</span></div>
+    <form method="post" action="/admin/customers/{{ $c->id }}/notes" style="padding:16px">@csrf
+      <textarea name="body" required maxlength="5000" rows="3" class="ad-input" style="width:100%" placeholder="اطلاعاتی که فقط تیم سرورنت باید ببیند…"></textarea>
+      <button class="btn btn-primary" type="submit" style="margin-top:8px">ثبت یادداشت</button>
+    </form>
+    @forelse($notes as $note)
+      <div style="padding:14px 16px;border-top:1px solid var(--border)">
+        <form method="post" action="/admin/customers/{{ $c->id }}/notes/{{ $note->id }}">@csrf @method('put')
+          <textarea name="body" required maxlength="5000" rows="2" class="ad-input" style="width:100%">{{ $note->body }}</textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;color:var(--dim);font-size:12px">
+            <span>{{ $note->author?->name ?? 'کارمند حذف‌شده' }} · {{ sdate($note->created_at) }}@if(!$note->updated_at->equalTo($note->created_at)) · ویرایش {{ sdate($note->updated_at) }}@endif</span>
+            @if(auth()->user()->isAdmin() || auth()->id() === $note->user_id)<button class="btn btn-glass" type="submit">ذخیره ویرایش</button>@endif
+          </div>
+        </form>
+        @if(auth()->user()->isAdmin() || auth()->id() === $note->user_id)
+          <form method="post" action="/admin/customers/{{ $c->id }}/notes/{{ $note->id }}" data-confirm="این یادداشت داخلی حذف شود؟" style="margin-top:6px">@csrf @method('delete')<button class="btn btn-glass" type="submit" style="color:#ff6b6b">حذف</button></form>
+        @endif
+      </div>
+    @empty
+      <p style="padding:0 16px 16px;color:var(--dim)">هنوز یادداشتی ثبت نشده است.</p>
+    @endforelse
+  </div>
   {{-- ══ تیکت‌ها ══ --}}
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>تیکت‌ها</h3></div>

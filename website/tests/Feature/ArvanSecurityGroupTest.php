@@ -207,6 +207,57 @@ class ArvanSecurityGroupTest extends TestCase
         $this->assertFalse($called, 'درخواستِ ناقص فرستاده شد — سهمیهٔ API بی‌دلیل سوخت');
     }
 
+    public function test_an_unverified_manual_firewall_is_never_sent(): void
+    {
+        Setting::put('arvan_security_group', 'deleted-or-other-region');
+        $called = false;
+        $this->fakeArvan([], function () use (&$called) { $called = true; });
+
+        $result = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertFalse($result['ok']);
+        $this->assertFalse($called, 'شناسهٔ دستیِ تأییدنشده به create نشت کرد');
+    }
+
+    public function test_a_deleted_cached_firewall_is_resolved_and_retried_once(): void
+    {
+        Cache::flush();
+        Http::swap(new Factory);
+        $securityReads = 0;
+        $creates = [];
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$securityReads, &$creates) {
+            $url = $request->url();
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'net', 'name' => 'public', 'enable_gateway' => true]]]);
+            }
+            if (str_contains($url, '/images')) {
+                return Http::response(['data' => [['images' => [['id' => 'img-1', 'name' => '24.04']]]]]);
+            }
+            if (str_contains($url, '/securities')) {
+                $securityReads++;
+                return Http::response(['data' => [[
+                    'name' => 'default', 'real_name' => $securityReads === 1 ? 'deleted' : 'replacement', 'default' => true,
+                ]]]);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $creates[] = $request['security_groups'];
+                return count($creates) === 1
+                    ? Http::response(['message' => 'Requested firewall was not found'], 404)
+                    : Http::response(['data' => ['id' => 'srv-ok', 'name' => 'vps-test', 'status' => 'ACTIVE']]);
+            }
+
+            return Http::response(['data' => []]);
+        }]);
+
+        $result = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('ir-thr-c2:srv-ok', $result['ref']);
+        $this->assertSame([[['name' => 'deleted']], [['name' => 'replacement']]], $creates);
+        $this->assertSame(2, $securityReads);
+    }
+
     /**
      * 🔴 خطای اعتبارسنجی باید **قابلِ اقدام** برسد، نه «Bad Request».
      *
