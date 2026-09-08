@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Crm\AssistantLeadCapture;
+use App\Support\ErrorTracker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -32,9 +35,9 @@ class ChatController extends Controller
             $reply = is_array($result) ? ($result['reply'] ?? null) : null;
             if (is_array($result['lead'] ?? null)) {
                 try {
-                    app(\App\Services\Crm\AssistantLeadCapture::class)->capture($result['lead'], (string)($validated['session'] ?? ''), $locale, $validated['page_url'] ?? null, auth('customer')->id());
+                    app(AssistantLeadCapture::class)->capture($result['lead'], (string) ($validated['session'] ?? ''), $locale, $validated['page_url'] ?? null, auth('customer')->id());
                 } catch (\Throwable $e) {
-                    \App\Support\ErrorTracker::note('crm', $e, ['source' => 'assistant']);
+                    ErrorTracker::note('crm', $e, ['source' => 'assistant']);
                 }
             }
             if (is_string($reply) && trim($reply) !== '') {
@@ -50,28 +53,30 @@ class ChatController extends Controller
 
     private function askN8n(string $url, string $message, string $locale, ?string $session): ?array
     {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS     => json_encode([
-                'message' => $message,
-                'locale'  => $locale,
-                'session' => $session ?: 'anon-'.substr(md5($message.microtime()), 0, 12),
-            ], JSON_UNESCAPED_UNICODE),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 50,
-            CURLOPT_CONNECTTIMEOUT => 15, // اتصال اولیه از پشت VPN گاهی کند است
-        ]);
-        $raw = curl_exec($ch);
-
-        if ($raw === false) {
-            Log::warning('n8n chat webhook: '.curl_error($ch));
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(15)
+                ->timeout(50)
+                ->post($url, [
+                    'message' => $message,
+                    'locale' => $locale,
+                    'session' => $session ?: 'anon-'.substr(md5($message.microtime()), 0, 12),
+                ]);
+        } catch (\Throwable $e) {
+            // URL و payload عمداً لاگ نمی‌شوند: ممکن است webhook secret یا
+            // اطلاعات تماس Lead را حمل کنند.
+            Log::warning('n8n chat webhook unavailable', ['error' => class_basename($e)]);
 
             return null;
         }
 
-        $json = json_decode($raw, true);
+        if (! $response->successful()) {
+            Log::warning('n8n chat webhook failed', ['status' => $response->status()]);
+
+            return null;
+        }
+
+        $json = $response->json();
 
         return is_array($json) ? $json : null;
     }

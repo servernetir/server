@@ -2,7 +2,11 @@
 
 namespace App\Services\Cloud;
 
+use App\Models\CloudImage;
 use App\Models\Setting;
+use App\Services\ExchangeRate;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -72,7 +76,7 @@ class ArvanClient implements CloudProvider
         return [
             'console' => false,          // کنسولِ تحتِ وب در API عمومی نیست
             'rebuild' => true,
-            'resize'  => true,           // change-flavor
+            'resize' => true,           // change-flavor
             'snapshot' => true,
             'metrics' => false,
             'reset_password' => true,
@@ -125,11 +129,11 @@ class ArvanClient implements CloudProvider
             $url = self::BASE.$path;
 
             $res = match (strtoupper($method)) {
-                'GET'    => $http->get($url, $query),
-                'POST'   => $http->post($url, $payload),
-                'PATCH'  => $http->patch($url, $payload),
+                'GET' => $http->get($url, $query),
+                'POST' => $http->post($url, $payload),
+                'PATCH' => $http->patch($url, $payload),
                 'DELETE' => $http->delete($url, $payload),
-                default  => throw new \InvalidArgumentException($method),
+                default => throw new \InvalidArgumentException($method),
             };
         } catch (\Throwable $e) {
             Log::warning('arvan.transport', ['path' => $path, 'err' => $e->getMessage()]);
@@ -323,12 +327,12 @@ class ArvanClient implements CloudProvider
             $locCode = CloudNaming::locationCode($country, $city, $code);
 
             $locations[$locCode] = [
-                'code'              => $locCode,
-                'country'           => $country,
-                'city'              => $city ?: null,
+                'code' => $locCode,
+                'country' => $country,
+                'city' => $city ?: null,
                 'provider_location' => $code,     // کدِ منطقهٔ آروان برای ساخت
-                'latitude'          => null,
-                'longitude'         => null,
+                'latitude' => null,
+                'longitude' => null,
             ];
 
             // پلن‌ها (sizes) این منطقه
@@ -361,8 +365,8 @@ class ArvanClient implements CloudProvider
         return [
             'ok' => true, 'message' => '',
             'locations' => array_values($locations),
-            'plans'     => $plans,
-            'images'    => $images,
+            'plans' => $plans,
+            'images' => $images,
         ];
     }
 
@@ -400,15 +404,15 @@ class ArvanClient implements CloudProvider
      * (سیمین=تهران، فروغ=اصفهان، شهریار=ارومیه، بامداد=شیراز، قیصر=اهواز)
      */
     private const CITY_MAP = [
-        'simin'    => 'Tehran',
-        'forough'  => 'Isfahan',
-        'foroogh'  => 'Isfahan',
+        'simin' => 'Tehran',
+        'forough' => 'Isfahan',
+        'foroogh' => 'Isfahan',
         'shahriar' => 'Urmia',
-        'bamdad'   => 'Shiraz',
-        'gheysar'  => 'Ahvaz',
-        'ghaisar'  => 'Ahvaz',
-        'qeysar'   => 'Ahvaz',
-        'gheisar'  => 'Ahvaz',
+        'bamdad' => 'Shiraz',
+        'gheysar' => 'Ahvaz',
+        'ghaisar' => 'Ahvaz',
+        'qeysar' => 'Ahvaz',
+        'gheisar' => 'Ahvaz',
     ];
 
     private function cityOf(array $region): string
@@ -512,19 +516,19 @@ class ArvanClient implements CloudProvider
         $cpuKind = str_contains($share, 'dedicat') ? 'dedicated' : 'shared';
 
         return [
-            'provider_ref'      => $ref,
+            'provider_ref' => $ref,
             'provider_location' => $regionCode,
-            'location_code'     => $locCode,
-            'name'              => (string) ($size['name'] ?? $ref),
-            'vcpu'              => $vcpu,
-            'ram_mb'            => $ram,
-            'disk_gb'           => $disk,
-            'disk_type'         => 'ssd',
-            'traffic_gb'        => 0,                // آروان مصرفِ منصفانه دارد
-            'cpu_kind'          => $cpuKind,
-            'arch'              => 'x86',
-            'cost_eur_cents'    => $costEurCents,
-            'in_stock'          => true,
+            'location_code' => $locCode,
+            'name' => (string) ($size['name'] ?? $ref),
+            'vcpu' => $vcpu,
+            'ram_mb' => $ram,
+            'disk_gb' => $disk,
+            'disk_type' => 'ssd',
+            'traffic_gb' => 0,                // آروان مصرفِ منصفانه دارد
+            'cpu_kind' => $cpuKind,
+            'arch' => 'x86',
+            'cost_eur_cents' => $costEurCents,
+            'in_stock' => true,
         ];
     }
 
@@ -559,13 +563,13 @@ class ArvanClient implements CloudProvider
 
                 $out[] = [
                     'provider_ref' => $ref,
-                    'key'          => CloudNaming::imageKey('os', $fam, $ver, $label),
-                    'kind'         => 'os',
-                    'family'       => $fam,
-                    'version'      => $ver,
-                    'label'        => $label,
-                    'arch'         => 'x86',
-                    'min_disk_gb'  => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
+                    'key' => CloudNaming::imageKey('os', $fam, $ver, $label),
+                    'kind' => 'os',
+                    'family' => $fam,
+                    'version' => $ver,
+                    'label' => $label,
+                    'arch' => 'x86',
+                    'min_disk_gb' => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
                 ];
             }
         }
@@ -595,7 +599,7 @@ class ArvanClient implements CloudProvider
         }
 
         try {
-            return (int) (app(\App\Services\ExchangeRate::class)->toToman('EUR') ?: 0);
+            return (int) (app(ExchangeRate::class)->toToman('EUR') ?: 0);
         } catch (\Throwable) {
             return 0;
         }
@@ -611,7 +615,7 @@ class ArvanClient implements CloudProvider
      */
     private function publicNetworkId(string $regionCode): ?string
     {
-        return \Illuminate\Support\Facades\Cache::remember(
+        return Cache::remember(
             'arvan.net.'.$regionCode,
             3600,
             function () use ($regionCode) {
@@ -678,9 +682,9 @@ class ArvanClient implements CloudProvider
         | مقدار را تنظیم می‌کند تا یک ساعت همان شکست را می‌بیند و نتیجه
         | می‌گیرد تنظیمات کار نمی‌کند.
         */
-        $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
+        $wanted = trim((string) Setting::get('arvan_security_group', ''));
 
-        return \Illuminate\Support\Facades\Cache::remember(
+        return Cache::remember(
             $this->securityGroupCacheKey($regionCode, $wanted),
             3600,
             function () use ($regionCode, $wanted) {
@@ -809,7 +813,7 @@ class ArvanClient implements CloudProvider
         | معادلِ همین ایمیج در این منطقه: با **برچسب** پیدا می‌شود، چون همان
         | «Ubuntu 24.04» در هر منطقه شناسهٔ دیگری دارد ولی برچسبش یکی است.
         */
-        $label = (string) (\App\Models\CloudImage::query()
+        $label = (string) (CloudImage::query()
             ->where('provider', 'arvan')
             ->where('provider_ref', $imageRef)
             ->value('label') ?? '');
@@ -832,7 +836,7 @@ class ArvanClient implements CloudProvider
      */
     private function regionImageIndex(string $regionCode): array
     {
-        return \Illuminate\Support\Facades\Cache::remember(
+        return Cache::remember(
             'arvan.imgidx.'.$regionCode,
             3600,
             function () use ($regionCode) {
@@ -874,6 +878,65 @@ class ArvanClient implements CloudProvider
         );
     }
 
+    /**
+     * Read-only preflight for one exact create mapping. It deliberately uses
+     * only GET requests and never returns the API token or raw response bodies.
+     *
+     * @return array<string,mixed>
+     */
+    public function preflight(string $regionCode, string $flavorRef, string $imageRef): array
+    {
+        $wanted = trim((string) Setting::get('arvan_security_group', ''));
+
+        // Diagnostics must describe provider state now, not a one-hour-old cache.
+        Cache::forget('arvan.net.'.$regionCode);
+        Cache::forget('arvan.imgidx.'.$regionCode);
+        Cache::forget($this->securityGroupCacheKey($regionCode, $wanted));
+
+        $regionsResult = $this->resolveRegions();
+        $regions = $regionsResult['ok'] ? $this->creatableRegions((array) $regionsResult['data']) : [];
+        $regionCodes = array_values(array_filter(array_map(
+            static fn ($region): string => is_array($region) ? (string) ($region['code'] ?? '') : '',
+            $regions,
+        )));
+        $regionFound = in_array($regionCode, $regionCodes, true);
+
+        $sizes = $regionFound ? $this->regionSizes($regionCode) : [];
+        $flavorFound = collect($sizes)->contains(
+            static fn ($size): bool => is_array($size) && (string) ($size['id'] ?? '') === $flavorRef,
+        );
+        $images = $regionFound ? $this->regionImageIndex($regionCode) : [];
+        $resolvedImage = $regionFound ? $this->imageForRegion($regionCode, $imageRef) : '';
+        $imageFound = $resolvedImage !== '' && isset($images['byId'][$resolvedImage]);
+        $groups = $regionFound ? $this->securityGroupIds($regionCode) : [];
+        $network = $regionFound ? $this->publicNetworkId($regionCode) : null;
+
+        $checks = [
+            'regions' => $regionsResult['ok'] && $regions !== [],
+            'selected_region' => $regionFound,
+            'network' => filled($network),
+            'flavor' => $flavorFound,
+            'image' => $imageFound,
+            'firewall' => $groups !== [],
+        ];
+
+        return [
+            'ok' => ! in_array(false, $checks, true),
+            'checks' => $checks,
+            'regions_count' => count($regions),
+            'selected_region' => $regionCode,
+            'network_id' => $network,
+            'flavor_ref' => $flavorRef,
+            'flavors_count' => count($sizes),
+            'image_requested' => $imageRef,
+            'image_resolved' => $resolvedImage,
+            'images_count' => count($images['byId'] ?? []),
+            'firewall_selector' => $wanted === '' ? '(auto)' : $wanted,
+            'firewall_resolved' => $groups,
+            'regions_endpoint' => $regionsResult['endpoint'],
+        ];
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
@@ -908,19 +971,19 @@ class ArvanClient implements CloudProvider
         }
 
         $payload = [
-            'name'        => $spec['name'],
-            'flavor_id'   => (string) $spec['plan_ref'],
+            'name' => $spec['name'],
+            'flavor_id' => (string) $spec['plan_ref'],
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
-            'image_id'    => $this->imageForRegion($region, (string) $spec['image_ref']),
+            'image_id' => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
             /*
             | ⚠️ آرایه‌ای از **آبجکتِ نام** — نه رشته. شکلِ رشته‌ای را آروان با
             | «Unmarshal type error … abrak.securityGroupName» رد می‌کند.
             */
             'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroups),
-            'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
-            'count'       => 1,
-            'ha_enabled'  => false,
+            'disk_size' => (int) ($spec['disk_gb'] ?? 25),
+            'count' => 1,
+            'ha_enabled' => false,
         ];
 
         $path = self::ECC.'/regions/'.rawurlencode($region).'/servers';
@@ -933,8 +996,8 @@ class ArvanClient implements CloudProvider
         | می‌کنیم تا timeout پاسخِ موفق، ماشین دوم نسازد.
         */
         if (! $r['ok'] && str_contains(mb_strtolower((string) $r['message']), 'firewall')) {
-            $wanted = trim((string) \App\Models\Setting::get('arvan_security_group', ''));
-            \Illuminate\Support\Facades\Cache::forget($this->securityGroupCacheKey($region, $wanted));
+            $wanted = trim((string) Setting::get('arvan_security_group', ''));
+            Cache::forget($this->securityGroupCacheKey($region, $wanted));
             $freshGroups = $this->securityGroupIds($region);
 
             if ($freshGroups !== [] && $freshGroups !== $securityGroups) {
@@ -990,7 +1053,7 @@ class ArvanClient implements CloudProvider
             // ⚠️ ref را `region:id` می‌کنیم چون آروان **region-محور** است و هر
             // عملیاتِ بعدی (روشن/خاموش/حذف) به کدِ منطقه نیاز دارد، ولی قرارداد
             // فقط یک `$ref` می‌دهد. `split()` بعداً بازش می‌کند.
-            'ref'  => $id !== '' ? $region.':'.$id : null,
+            'ref' => $id !== '' ? $region.':'.$id : null,
             'ipv4' => $this->firstIp($server),
             'ipv6' => null,
             'root_password' => null,
@@ -1004,7 +1067,7 @@ class ArvanClient implements CloudProvider
         foreach (['addresses', 'ips', 'ip', 'public_ip'] as $path) {
             $v = data_get($server, $path);
 
-            foreach ((is_array($v) ? \Illuminate\Support\Arr::flatten($v) : [$v]) as $ip) {
+            foreach ((is_array($v) ? Arr::flatten($v) : [$v]) as $ip) {
                 if (is_string($ip) && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
                     return $ip;
                 }
@@ -1073,20 +1136,20 @@ class ArvanClient implements CloudProvider
                 $servers[] = [
                     // همان رمزگذاریِ `region:id` که بقیهٔ متدها انتظار دارند —
                     // وگرنه شناسه‌ای تحویل می‌دادیم که هیچ عملیاتی رویش کار نمی‌کند.
-                    'ref'      => $code.':'.$id,
-                    'name'     => (string) ($s['name'] ?? $id),
-                    'status'   => $this->mapStatus((string) ($s['status'] ?? '')),
-                    'ipv4'     => $this->firstIp($s),
-                    'ipv6'     => null,
-                    'plan'     => data_get($s, 'flavor.name') ?? data_get($s, 'flavor_id'),
+                    'ref' => $code.':'.$id,
+                    'name' => (string) ($s['name'] ?? $id),
+                    'status' => $this->mapStatus((string) ($s['status'] ?? '')),
+                    'ipv4' => $this->firstIp($s),
+                    'ipv6' => null,
+                    'plan' => data_get($s, 'flavor.name') ?? data_get($s, 'flavor_id'),
                     'location' => (string) ($region['name'] ?? $code),
-                    'created'  => $s['created_at'] ?? $s['created'] ?? null,
+                    'created' => $s['created_at'] ?? $s['created'] ?? null,
                 ];
             }
         }
 
         return [
-            'ok'      => true,
+            'ok' => true,
             'message' => $failed === [] ? '' : 'فهرستِ این مناطق خوانده نشد: '.implode('، ', $failed),
             'servers' => $servers,
         ];
@@ -1095,11 +1158,11 @@ class ArvanClient implements CloudProvider
     private function mapStatus(string $s): string
     {
         return match (strtolower($s)) {
-            'active', 'running'                       => 'running',
+            'active', 'running' => 'running',
             'shutoff', 'stopped', 'paused', 'suspended' => 'off',
             'build', 'building', 'rebuild', 'creating', 'installing' => 'building',
-            'deleted', 'deleting'                     => 'deleted',
-            default                                   => 'unknown',
+            'deleted', 'deleting' => 'deleted',
+            default => 'unknown',
         };
     }
 
@@ -1133,9 +1196,9 @@ class ArvanClient implements CloudProvider
 
         return [
             'ok' => true, 'message' => '',
-            'status'          => $this->mapStatus((string) ($s['status'] ?? '')),
-            'ipv4'            => $this->firstIp($s),
-            'ipv6'            => null,
+            'status' => $this->mapStatus((string) ($s['status'] ?? '')),
+            'ipv4' => $this->firstIp($s),
+            'ipv6' => null,
             'traffic_used_gb' => null,
         ];
     }
@@ -1145,10 +1208,10 @@ class ArvanClient implements CloudProvider
         [$region, $id] = $this->split($ref);
 
         $path = match ($action) {
-            'on'       => 'power-on',
+            'on' => 'power-on',
             'off', 'shutdown' => 'power-off',
             'reboot', 'reset' => 'reboot',
-            default    => null,
+            default => null,
         };
 
         if ($path === null || $region === '') {
