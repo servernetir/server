@@ -577,7 +577,7 @@ class CloudServerController extends Controller
 
         $this->log($service, __('ui.act_cloud_console'));
 
-        return redirect()->route('account.cloud.console.view', [$service, 't' => $ticket]);
+        return redirect()->to(lroute('account.cloud.console.view', [$service, 't' => $ticket]));
     }
 
     /** صفحهٔ کنسول — روی دامنهٔ خودمان، با noVNC خودمیزبان (CSP اجازهٔ CDN نمی‌دهد) */
@@ -588,7 +588,7 @@ class CloudServerController extends Controller
         $ticket = (string) $request->query('t', '');
 
         if ($ticket === '' || ! \Illuminate\Support\Facades\Cache::has($this->ticketKey($service, $ticket))) {
-            return redirect()->route('account.cloud.show', $service)
+            return redirect()->to(lroute('account.cloud.show', $service))
                 ->withErrors(__('ui.cx_console_expired'));
         }
 

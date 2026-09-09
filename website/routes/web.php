@@ -2793,11 +2793,15 @@ Route::prefix('admin')->group(function () {
                 ->name('admin.customers.search');
             Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])
                 ->name('admin.customer');
+            Route::post('/customers/{customer}/notes', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'store']);
+            Route::put('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'update']);
+            Route::delete('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'destroy']);
         });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
         // تنظیمِ دستیِ کیفِ پول (افزایش/کاهش با توضیحِ اجباری) — دفتر افزودنی است
         Route::post('/customers/{customer}/credit', [\App\Http\Controllers\Admin\CustomerController::class, 'credit'])->middleware('admin');
+        Route::post('/customers/{customer}/bank-accounts/{bankAccount}/reveal', \App\Http\Controllers\Admin\BankCardRevealController::class)->middleware(['admin', 'throttle:10,1']);
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه
         Route::post('/customers/{customer}/reseller', [\App\Http\Controllers\Admin\CustomerController::class, 'reseller']);
         Route::post('/customers/{customer}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroy']);

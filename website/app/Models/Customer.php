@@ -24,7 +24,7 @@ class Customer extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery',
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'notes',
     ];
 
     protected function casts(): array
@@ -198,6 +198,11 @@ class Customer extends Authenticatable
     public function creditEntries(): HasMany
     {
         return $this->hasMany(CreditEntry::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class);
     }
 
     public function tickets(): HasMany
