@@ -111,7 +111,7 @@
     'applicationCategory' => 'DeveloperApplication',
     'operatingSystem' => 'Any', 'inLanguage' => app()->getLocale(),
     'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'IRR'],
-    'publisher' => ['@type' => 'Organization', 'name' => 'ServerNet', 'url' => config('app.url')],
+    'publisher' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
 {{-- پرسش‌های متداول — گوگل این را به شکل آکاردئون در نتایج نشان می‌دهد --}}

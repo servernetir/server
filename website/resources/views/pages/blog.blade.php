@@ -96,7 +96,14 @@
         @if($paged['pages'] > 1)
         <nav class="blog-pager reveal" aria-label="pagination">
           @php
-            $qs = request()->except('page');
+            /* فقط پارامترِ معناییِ همان نمای فعال؛ UTM/sort/filterهای ناشناخته
+               نباید از یک ورودی بیرونی به تمام لینک‌های pagination تکثیر شوند. */
+            $qs = match ($heading['type'] ?? null) {
+                'cat' => ['cat' => $heading['value']],
+                'tag' => ['tag' => $heading['value']],
+                'search' => ['q' => $heading['value']],
+                default => [],
+            };
             /* ⚠️ صفحهٔ ۱ **بی** `page=1` لینک می‌شود. `?page=1` همان محتوای
                `/blog` را با آدرسِ دیگری می‌دهد — یعنی یک آدرسِ تکراریِ
                اضافه که خزنده باید بخزد و بعد کنارش بگذارد، و در سایتی که
