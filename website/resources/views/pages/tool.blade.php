@@ -99,7 +99,7 @@
         'inLanguage'          => $loc,
         'browserRequirements' => 'Requires JavaScript',
         'offers'              => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'IRR'],
-        'publisher'           => ['@type' => 'Organization', 'name' => 'ServerNet', 'url' => config('app.url')],
+        'publisher'           => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
     ];
     $ldCrumbs = [
         '@'.'context'       => 'https://schema.org',

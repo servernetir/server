@@ -2,8 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Product;
 use App\Support\ErrorTracker;
+use App\Support\HtmlSeoInspector;
+use App\Support\RobotsPolicy;
+use App\Support\SitemapUrlPolicy;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
 /**
@@ -62,8 +67,19 @@ class ReleaseGate extends Command
     {
         config(['pagecache.enabled' => true]);
 
-        $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel = app(Kernel::class);
         $fails = [];
+
+        try {
+            $expectedRobots = RobotsPolicy::render((array) config('seo.crawler_policy', []));
+        } catch (\InvalidArgumentException $exception) {
+            $expectedRobots = null;
+            $fails[] = 'RG-ROBOTS-20   config نامعتبر: '.$exception->getMessage();
+        }
+
+        if ($expectedRobots !== null && (string) @file_get_contents(public_path('robots.txt')) !== $expectedRobots) {
+            $fails[] = 'RG-ROBOTS-20   robots.txt با config/seo.php همگام نیست — php artisan seo:robots';
+        }
 
         $get = function (string $path) use ($kernel) {
             // بی‌کوکی، بی‌کوئری — همان «بازدیدکنندهٔ ناشناس»ِ ممیزی
@@ -86,11 +102,27 @@ class ReleaseGate extends Command
         $inSitemap = [];
 
         foreach ($m[1] as $loc) {
-            $p = CheckContentLinks::internalPath(html_entity_decode($loc, ENT_XML1));
+            $decoded = html_entity_decode($loc, ENT_XML1);
+            $host = parse_url($decoded, PHP_URL_HOST);
 
-            if ($p !== null) {
-                $inSitemap[$p] = true;
+            if ($host !== parse_url(config('app.url'), PHP_URL_HOST)) {
+                $fails[] = "RG-SITEMAP-03  {$decoded} ← میزبانِ بیرونی";
+
+                continue;
             }
+
+            $p = parse_url($decoded, PHP_URL_PATH) ?: '/';
+            $query = parse_url($decoded, PHP_URL_QUERY);
+
+            if (! SitemapUrlPolicy::allowsQuery($p, is_string($query) ? $query : null)) {
+                $fails[] = "RG-SITEMAP-21  {$decoded} ← query خارج از allowlist نقشهٔ سایت";
+            }
+
+            if (is_string($query) && $query !== '') {
+                $p .= '?'.$query;
+            }
+
+            $inSitemap[$p] = true;
         }
 
         $pages = array_keys($inSitemap);
@@ -158,6 +190,39 @@ class ReleaseGate extends Command
                 continue;
             }
 
+            // URLهای sitemap باید indexable و self-canonical باشند. این‌جا
+            // query را نگه می‌داریم؛ حذفش categoryهای واقعی بلاگ را از گیت
+            // پنهان می‌کرد و فقط `/blog` را می‌سنجید.
+            preg_match('~<link\s+rel="canonical"\s+href="([^"]+)"~i', $html, $canonicalMatch);
+            $canonical = html_entity_decode($canonicalMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $expectedCanonical = rtrim((string) config('app.url'), '/').($path === '/' ? '' : $path);
+
+            if (str_contains($html, '<meta name="robots" content="noindex')) {
+                $fails[] = "RG-INDEX-16    {$path} ← URLِ sitemap دارای noindex است";
+            }
+
+            if ($canonical === '' || ! filter_var($canonical, FILTER_VALIDATE_URL)) {
+                $fails[] = "RG-CANON-17    {$path} ← canonical مطلق و معتبر ندارد";
+            } elseif ($canonical !== $expectedCanonical) {
+                $fails[] = "RG-CANON-17    {$path} ← canonical به {$canonical} اشاره می‌کند";
+            }
+
+            $locale = preg_match('~^/(en|tr)(?:/|$)~', $path, $localeMatch) === 1 ? $localeMatch[1] : 'fa';
+            preg_match('~<link\s+rel="alternate"\s+hreflang="'.preg_quote($locale, '~').'"\s+href="([^"]+)"~i', $html, $selfAlternateMatch);
+            $selfAlternate = html_entity_decode($selfAlternateMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if ($selfAlternate !== $canonical) {
+                $fails[] = "RG-HREFLANG-18 {$path} ← hreflangِ self با canonical یکی نیست";
+            }
+
+            preg_match_all('~<script\s+type="application/ld\+json"[^>]*>(.*?)</script>~is', $html, $jsonLdScripts);
+            foreach ($jsonLdScripts[1] as $index => $jsonLd) {
+                json_decode($jsonLd, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $fails[] = "RG-SCHEMA-19   {$path} ← JSON-LD شمارهٔ ".($index + 1).' نامعتبر است';
+                }
+            }
+
             /*
             | RG-META-UNIQ-13: عنوانِ تکراری در همان زبان = مسدودکننده. «۴۶
             | صفحه با عنوانِ تکراری یعنی گوگل نمی‌تواند تشخیص دهد کدام صفحه
@@ -176,9 +241,9 @@ class ReleaseGate extends Command
             }
 
             // RG-ALT-14: شمارشِ imgِ بدونِ صفتِ alt — آستانه‌های خودِ ممیزی
-            preg_match_all('~<img\b[^>]*>~i', $html, $im);
-            $pageTotal = count($im[0]);
-            $pageNoAlt = count(array_filter($im[0], fn ($tag) => stripos($tag, 'alt=') === false));
+            $imageCounts = HtmlSeoInspector::imageAltCounts($html);
+            $pageTotal = $imageCounts['total'];
+            $pageNoAlt = $imageCounts['without_alt'];
             $imgTotal += $pageTotal;
             $imgNoAlt += $pageNoAlt;
 
@@ -255,7 +320,7 @@ class ReleaseGate extends Command
         }
 
         // ── RG-SCHEMA-05: صفحاتِ پرچم‌دارِ سفارش ───────────────────────
-        foreach (\App\Models\Product::flagshipSlugs() as $sku) {
+        foreach (Product::flagshipSlugs() as $sku) {
             $r = $get('/order/'.$sku);
             $html = (string) $r->getContent();
 

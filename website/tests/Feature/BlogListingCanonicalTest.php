@@ -37,21 +37,21 @@ class BlogListingCanonicalTest extends TestCase
 
         for ($i = 1; $i <= self::SEEDED; $i++) {
             $post = Post::create([
-                'slug'         => 'canon-guard-'.$i,
-                'type'         => 'blog',
-                'category'     => $i === 1 ? 'seo' : 'hosting',
-                'status'       => 'published',
+                'slug' => 'canon-guard-'.$i,
+                'type' => 'blog',
+                'category' => $i === 1 ? 'seo' : 'hosting',
+                'status' => 'published',
                 'published_at' => now()->subDays(self::SEEDED - $i + 1),
             ]);
 
             foreach (['fa', 'en', 'tr'] as $locale) {
                 PostTranslation::create([
                     'post_id' => $post->id,
-                    'locale'  => $locale,
-                    'title'   => 'نگهبانِ canonical '.$i.' ('.$locale.')',
+                    'locale' => $locale,
+                    'title' => 'نگهبانِ canonical '.$i.' ('.$locale.')',
                     'excerpt' => 'خلاصهٔ کوتاه.',
                     'content' => '<p>متنِ نمونه.</p>',
-                    'tags'    => ['canon-tag'],
+                    'tags' => ['canon-tag'],
                 ]);
             }
         }
@@ -61,7 +61,18 @@ class BlogListingCanonicalTest extends TestCase
     {
         $html = $this->get($url)->assertOk()->getContent();
 
-        return preg_match('~<link rel="canonical" href="([^"]+)"~', $html, $m) ? $m[1] : null;
+        return preg_match('~<link rel="canonical" href="([^"]+)"~', $html, $m)
+            ? html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')
+            : null;
+    }
+
+    private function openGraphUrlOf(string $url): ?string
+    {
+        $html = $this->get($url)->assertOk()->getContent();
+
+        return preg_match('~<meta property="og:url" content="([^"]+)">~', $html, $m)
+            ? html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')
+            : null;
     }
 
     public function test_the_first_page_canonicalises_to_the_bare_listing(): void
@@ -73,6 +84,7 @@ class BlogListingCanonicalTest extends TestCase
     public function test_a_paginated_page_canonicalises_to_itself(): void
     {
         $this->assertSame(url('/blog').'?page=2', $this->canonicalOf('/blog?page=2'));
+        $this->assertSame($this->canonicalOf('/blog?page=2'), $this->openGraphUrlOf('/blog?page=2'));
     }
 
     public function test_a_paginated_page_is_still_indexable(): void
@@ -95,6 +107,34 @@ class BlogListingCanonicalTest extends TestCase
     public function test_a_category_listing_canonicalises_to_itself(): void
     {
         $this->assertSame(url('/blog').'?cat=seo', $this->canonicalOf('/blog?cat=seo'));
+        $this->assertSame($this->canonicalOf('/blog?cat=seo'), $this->openGraphUrlOf('/blog?cat=seo'));
+    }
+
+    public function test_category_pagination_preserves_only_the_intentional_parameters(): void
+    {
+        $url = '/blog?cat=hosting&page=2&utm_source=review';
+        $expected = url('/blog').'?cat=hosting&page=2';
+
+        $this->assertSame($expected, $this->canonicalOf($url));
+        $this->assertSame($expected, $this->openGraphUrlOf($url));
+
+        $html = $this->get($url)->assertOk()->getContent();
+        foreach (['fa' => '/blog', 'en' => '/en/blog', 'tr' => '/tr/blog'] as $locale => $path) {
+            $this->assertStringContainsString(
+                '<link rel="alternate" hreflang="'.$locale.'" href="'.url($path).'?cat=hosting&amp;page=2">',
+                $html
+            );
+        }
+        $this->assertStringNotContainsString('utm_source', $html);
+    }
+
+    public function test_url_encoded_search_is_noindex_and_has_no_canonical_or_hreflang(): void
+    {
+        $html = $this->get('/blog?q=%D8%B3%D8%B1%D9%88%D8%B1')->assertOk()->getContent();
+
+        $this->assertStringContainsString('<meta name="robots" content="noindex,follow">', $html);
+        $this->assertStringNotContainsString('rel="canonical"', $html);
+        $this->assertStringNotContainsString('hreflang=', $html);
     }
 
     /** دستهٔ ناشناخته کلِ فهرست را رندر می‌کند، پس canonicalش هم باید همان باشد. */

@@ -23,6 +23,22 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', __('ui.meta_title'))</title>
 <meta name="description" content="@yield('description', __('ui.meta_desc'))">
+@php
+    /*
+    | یک URL مرجع برای همهٔ سیگنال‌های identity صفحه.
+    |
+    | قبلاً canonical می‌توانست از کنترلر `?cat=` یا `?page=` بگیرد ولی
+    | `og:url` همیشه `url()->current()` بود و query را حذف می‌کرد؛ یک صفحه با
+    | دو نام متناقض به crawler و شبکهٔ اجتماعی معرفی می‌شد. بخش‌های Bladeِ
+    | فرزند در این لحظه ثبت شده‌اند، پس مقدار canonical امن و قابل‌استفاده است.
+    */
+    $canonicalSection = html_entity_decode(
+        trim($__env->yieldContent('canonical')),
+        ENT_QUOTES | ENT_HTML5,
+        'UTF-8'
+    );
+    $canonicalUrl = $canonicalSection ?: url()->current();
+@endphp
 {{--
   🔴 صفحهٔ خطا نباید خودش را canonical کند و نباید hreflang بدهد.
   قبلاً صفحهٔ ۴۰۴ آدرسِ خرابِ خودش را canonical اعلام می‌کرد و به دو زبانِ
@@ -33,7 +49,7 @@
 @hasSection('noindex')
 <meta name="robots" content="noindex,follow">
 @else
-<link rel="canonical" href="@yield('canonical', url()->current())">
+<link rel="canonical" href="{{ $canonicalUrl }}">
 @hasSection('faOnly')
 {{-- صفحهٔ فقط‌فارسی: نسخهٔ en/tr ندارد. اگر foreachِ پایین اجرا می‌شد،
      hreflangِ en/tr به «خانهٔ» آن زبان اشاره می‌کرد (fallbackِ سوییچر) —
@@ -43,7 +59,7 @@
      برگردند، `@section('faOnly')` هم باید از آن ویوها برداشته شود، وگرنه
      صفحهٔ زنده alternate نمی‌دهد و ترجمه‌هایش برای گوگل نامرئی می‌مانند.
      تستِ `UrmiaIsPersianOnlyTest` هر دو سرِ این قرارداد را نگه می‌دارد. --}}
-<link rel="alternate" hreflang="fa" href="@yield('canonical', url()->current())">
+<link rel="alternate" hreflang="fa" href="{{ $canonicalUrl }}">
 @else
 {{-- ⚠️ `$localeUrls` (از AppServiceProvider) فقط پارامترهای **روت** را
      می‌شناسد و رشتهٔ پرس‌وجو را نمی‌بیند. صفحه‌ای که حالتش در query است
@@ -62,7 +78,7 @@
 <meta property="og:title" content="@yield('title', __('ui.meta_title'))">
 <meta property="og:description" content="@yield('description', __('ui.meta_desc'))">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ url()->current() }}">
+<meta property="og:url" content="{{ $canonicalUrl }}">
 <meta property="og:site_name" content="{{ __('ui.brand') }}">
 <meta property="og:locale" content="{{ ['fa' => 'fa_IR', 'en' => 'en_US', 'tr' => 'tr_TR'][app()->getLocale()] ?? 'en_US' }}">
 <meta property="og:image" content="{{ asset('assets/img/og.png') }}">
@@ -95,8 +111,10 @@
 $org = [
     '@'.'context' => 'https://schema.org',
     '@type' => 'Organization',
+    '@'.'id' => rtrim((string) config('app.url'), '/').'/#organization',
     'name' => 'ServerNet',
     'url' => config('app.url'),
+    'logo' => url('/favicon.svg'),
     'foundingDate' => (string) config('company.founded', '2009'),
     // ⚠️ `social_profiles()` نه `$social`: `sameAs` باید **همهٔ** حساب‌های
     //    رسمی را بدهد تا گوگل بفهمد سه اینستاگرامِ ما یک شرکت‌اند، نه سه
@@ -108,7 +126,7 @@ $org = [
         'telephone' => $contact['phone'],
         'email' => $contact['email'],
         'contactType' => 'customer support',
-        'availableLanguage' => ['fa', 'en'],
+        'availableLanguage' => ['fa', 'en', 'tr'],
     ],
 ];
 
@@ -148,6 +166,18 @@ if ($ids) {
 }
 @endphp
 <script type="application/ld+json">{!! json_encode($org, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@php
+    $website = [
+        '@'.'context' => 'https://schema.org',
+        '@type' => 'WebSite',
+        '@'.'id' => rtrim((string) config('app.url'), '/').'/#website',
+        'url' => config('app.url'),
+        'name' => 'ServerNet',
+        'publisher' => ['@'.'id' => $org['@id']],
+        'inLanguage' => array_keys(\App\Providers\AppServiceProvider::LOCALES),
+    ];
+@endphp
+<script type="application/ld+json">{!! json_encode($website, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 </head>
 {{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
      محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)

@@ -108,8 +108,8 @@
     'headline' => $doc['title'], 'description' => $doc['excerpt'] ?: null,
     'dateModified' => $doc['date'], 'inLanguage' => app()->getLocale(),
     'articleSection' => $sec ? lc($sec)['t'] : null,
-    'author' => ['@type' => 'Organization', 'name' => 'ServerNet'],
-    'publisher' => ['@type' => 'Organization', 'name' => 'ServerNet', 'url' => config('app.url')],
+    'author' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
+    'publisher' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
     'mainEntityOfPage' => $url,
 ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
