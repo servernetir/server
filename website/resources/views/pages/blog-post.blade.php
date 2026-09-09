@@ -253,14 +253,23 @@
 @endif
 
 {{-- ============ Article schema ============ --}}
+@php
+    $orgId = rtrim((string) config('app.url'), '/').'/#organization';
+    $authorName = trim((string) ($post['author'] ?? ''));
+    $author = $authorName !== '' && $authorName !== __('ui.bl_reply_by')
+        ? ['@type' => 'Person', 'name' => $authorName]
+        : ['@id' => $orgId];
+@endphp
 <script type="application/ld+json">{!! json_encode(array_filter([
     '@'.'context' => 'https://schema.org', '@type' => 'BlogPosting',
     'headline' => $post['title'], 'description' => $post['excerpt'] ?? '',
     'image' => $img ? url($img) : null,
-    'datePublished' => $post['date'] ?? null, 'inLanguage' => app()->getLocale(),
+    'datePublished' => $post['date'] ?? null,
+    'dateModified' => $post['updated'] ?? ($post['date'] ?? null),
+    'inLanguage' => app()->getLocale(),
     'wordCount' => word_count_fa($post['content'] ?? '') ?: null,
-    'author' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
-    'publisher' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
+    'author' => $author,
+    'publisher' => ['@id' => $orgId],
     'mainEntityOfPage' => $url,
 ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 

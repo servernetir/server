@@ -72,6 +72,9 @@ class BlogRepository
             'slug'     => $p->slug,
             'title'    => $t?->title ?? $p->slug,
             'date'     => optional($p->published_at ?? $p->created_at)->toDateString(),
+            // نگه‌داشتن تاریخ ویرایش واقعی برای schema و پاسخ‌های AI؛
+            // datePublished به‌تنهایی تازگی محتوای به‌روزشده را نشان نمی‌دهد.
+            'updated'  => optional($p->updated_at ?? $p->published_at ?? $p->created_at)->toDateString(),
             'category' => $p->category,
             'tags'     => $t?->tags ?? [],
             'excerpt'  => $t?->excerpt ?? '',
