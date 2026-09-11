@@ -10,6 +10,8 @@ use App\Models\Service;
 use App\Models\TunnelAgent;
 use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\CloudOperations;
+use App\Services\Cloud\InterruptibleBillingClock;
 use App\Support\ExitCountries;
 use App\Support\TunnelProfile;
 use App\Support\WireGuardKey;
@@ -17,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
@@ -42,7 +45,8 @@ class CloudServerController extends Controller
 {
     public function __construct(
         private CloudManager $manager,
-        private \App\Services\Cloud\CloudOperations $ops,
+        private CloudOperations $ops,
+        private InterruptibleBillingClock $billingClock,
     ) {}
 
     private function ownedService(Service $service): Service
@@ -141,13 +145,13 @@ class CloudServerController extends Controller
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
         return view('account.cloud-server', AccountController::shell('servers') + [
-            'service'  => $service,
+            'service' => $service,
             'instance' => $instance,
-            'caps'      => $caps,
-            'password'  => $password,
+            'caps' => $caps,
+            'password' => $password,
             'canReveal' => $canReveal,
-            'osList'   => $instance ? CloudImage::catalog('os', $instance->provider) : collect(),
-            'appList'  => $instance ? CloudImage::catalog('app', $instance->provider) : collect(),
+            'osList' => $instance ? CloudImage::catalog('os', $instance->provider) : collect(),
+            'appList' => $instance ? CloudImage::catalog('app', $instance->provider) : collect(),
             // فازِ A
             'exitCapable' => $exitCapable,
             'exitOptions' => $exitCapable ? ExitCountries::options('fa') : [],
@@ -217,7 +221,7 @@ class CloudServerController extends Controller
         $disable = ExitCountries::isNone($cc);
 
         $meta = $instance->meta ?? [];
-        $meta['exit_country']    = $disable ? ExitCountries::NONE : $cc;
+        $meta['exit_country'] = $disable ? ExitCountries::NONE : $cc;
         $meta['exit_country_at'] = now()->toIso8601String();
         $meta['exit_country_by'] = 'customer';
         $instance->meta = $meta;
@@ -263,17 +267,16 @@ class CloudServerController extends Controller
         // کوکیِ نشست) می‌تواند سهمیه را بسوزاند و از آن لحظه **تحویلِ سرورِ
         // همهٔ مشتریانِ دیگر** شکست بخورد. ۲۰ ثانیه برای نشانگرِ روشن/خاموش
         // کافی است و بار را ~۹۰٪ کم می‌کند.
-        $r = \Illuminate\Support\Facades\Cache::remember(
+        $r = Cache::remember(
             'cloud-st:'.$instance->id,
             now()->addSeconds(20),
             fn () => $driver->serverStatus((string) $instance->provider_ref)
         );
 
         if ($r['ok']) {
-            $instance->update([
-                'status'    => $r['status'],
-                'ipv4'      => $r['ipv4'] ?: $instance->ipv4,
-                'ipv6'      => $r['ipv6'] ?: $instance->ipv6,
+            $this->billingClock->record($service, $instance, (string) $r['status'], [
+                'ipv4' => $r['ipv4'] ?: $instance->ipv4,
+                'ipv6' => $r['ipv6'] ?: $instance->ipv6,
                 'synced_at' => now(),
             ]);
         }
@@ -302,20 +305,20 @@ class CloudServerController extends Controller
     private function statePayload(CloudInstance $instance, bool $ok): array
     {
         return [
-            'ok'          => $ok,
-            'status'      => $instance->status,
+            'ok' => $ok,
+            'status' => $instance->status,
             /*
             | برچسبِ نشانگر هم از همان تعریف می‌آید. تا پیش از تحویل، **مرحله**
             | را می‌گوید نه رشتهٔ خامِ زیرساخت — وگرنه مشتری روی سرورِ در حالِ
             | ساخت کلمهٔ «نامشخص» می‌دید، که هم بی‌معنی است هم نگران‌کننده.
             */
-            'label'       => $instance->isDelivered()
+            'label' => $instance->isDelivered()
                 ? $instance->statusLabel()
                 : __('ui.cs_stage_'.$instance->stage()),
-            'color'       => $instance->statusColor(),
-            'ipv4'        => $instance->ipv4,
-            'ready'       => $instance->isDelivered(),
-            'stage'       => $instance->stage(),
+            'color' => $instance->statusColor(),
+            'ipv4' => $instance->ipv4,
+            'ready' => $instance->isDelivered(),
+            'stage' => $instance->stage(),
             'stage_index' => $instance->stageIndex(),
         ];
     }
@@ -336,7 +339,7 @@ class CloudServerController extends Controller
 
         // نمودار گران‌ترین تماسِ این حوزه است (بازهٔ زمانی + گامِ نمونه‌برداری)
         // و دادهٔ ۲۴ ساعت با دو دقیقه تأخیر هیچ تفاوتی برای کاربر ندارد.
-        $r = \Illuminate\Support\Facades\Cache::remember(
+        $r = Cache::remember(
             'cloud-mx:'.$instance->id.':'.$window,
             now()->addMinutes(2),
             fn () => $driver?->metrics((string) $instance->provider_ref, $window)
@@ -406,10 +409,10 @@ class CloudServerController extends Controller
         return $this->run($service, function ($driver, $ref) use ($action) {
             return $driver->power($ref, $action);
         }, match ($action) {
-            'on'     => 'سرور روشن شد.',
-            'off'    => 'فرمانِ خاموش‌شدن فرستاده شد.',
-            default  => 'سرور در حالِ راه‌اندازیِ دوباره است.',
-        }, 'power:'.$action);
+            'on' => 'سرور روشن شد.',
+            'off' => 'فرمانِ خاموش‌شدن فرستاده شد.',
+            default => 'سرور در حالِ راه‌اندازیِ دوباره است.',
+        }, 'power:'.$action, $action);
     }
 
     /**
@@ -428,7 +431,7 @@ class CloudServerController extends Controller
         }
 
         $data = $request->validate([
-            'image'   => ['required', 'string', 'max:64'],
+            'image' => ['required', 'string', 'max:64'],
             'confirm' => ['required', 'string'],
         ]);
 
@@ -569,7 +572,7 @@ class CloudServerController extends Controller
         // دیگری قابلِ استفاده نباشد.
         $ticket = bin2hex(random_bytes(16));
 
-        \Illuminate\Support\Facades\Cache::put(
+        Cache::put(
             $this->ticketKey($service, $ticket),
             ['url' => $r['url'], 'password' => $r['password'] ?? null],
             now()->addSeconds(90)
@@ -587,15 +590,15 @@ class CloudServerController extends Controller
 
         $ticket = (string) $request->query('t', '');
 
-        if ($ticket === '' || ! \Illuminate\Support\Facades\Cache::has($this->ticketKey($service, $ticket))) {
+        if ($ticket === '' || ! Cache::has($this->ticketKey($service, $ticket))) {
             return redirect()->to(lroute('account.cloud.show', $service))
                 ->withErrors(__('ui.cx_console_expired'));
         }
 
         return view('account.cloud-console', AccountController::shell('servers') + [
-            'service'  => $service,
+            'service' => $service,
             'instance' => $this->instanceOf($service),
-            'ticket'   => $ticket,
+            'ticket' => $ticket,
         ]);
     }
 
@@ -609,7 +612,7 @@ class CloudServerController extends Controller
     {
         $this->ownedService($service);
 
-        $data = \Illuminate\Support\Facades\Cache::pull(
+        $data = Cache::pull(
             $this->ticketKey($service, (string) $request->query('t', ''))
         );
 
@@ -618,8 +621,8 @@ class CloudServerController extends Controller
         }
 
         return response()->json([
-            'ok'       => true,
-            'url'      => $data['url'],
+            'ok' => true,
+            'url' => $data['url'],
             'password' => $data['password'],
         ])->header('Cache-Control', 'no-store');
     }
@@ -631,8 +634,13 @@ class CloudServerController extends Controller
 
     // ───────────────────────── کمکی ─────────────────────────
 
-    private function run(Service $service, callable $fn, string $okMessage, string $logAction): RedirectResponse
-    {
+    private function run(
+        Service $service,
+        callable $fn,
+        string $okMessage,
+        string $logAction,
+        ?string $powerAction = null,
+    ): RedirectResponse {
         $instance = $this->instanceOf($service);
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
@@ -648,7 +656,20 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
 
-        $instance->update(['last_error' => null, 'synced_at' => now()]);
+        if ($powerAction !== null && $this->billingClock->applies($service)) {
+            // start فقط پذیرشِ فرمان است، نه اثباتِ Running. building باعث می‌شود
+            // سینک/وضعیت، لحظهٔ شروع واقعی را ببیند و متر از زمان تخصیص پول نگیرد.
+            $status = $powerAction === 'off' ? 'off' : 'building';
+            $this->billingClock->record(
+                $service,
+                $instance,
+                $status,
+                ['last_error' => null, 'synced_at' => now()],
+                forceNewRun: true,
+            );
+        } else {
+            $instance->update(['last_error' => null, 'synced_at' => now()]);
+        }
         $this->log($service, $logAction);
 
         return back()->with('ok', $okMessage);
