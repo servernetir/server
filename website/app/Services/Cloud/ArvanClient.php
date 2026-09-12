@@ -685,9 +685,9 @@ class ArvanClient implements CloudProvider
         $wanted = trim((string) Setting::get('arvan_security_group', ''));
 
         return Cache::remember(
-            // v2: مقدارِ کش از نام/real_name به ID تغییر کرد؛ کشِ قدیمی نباید
-            // بعد از استقرار تا یک ساعت سفارش‌های تازه را هم خراب کند.
-            'arvan.sg-id.v2.'.$regionCode.'.'.md5($wanted),
+            // v3: علاوه بر تغییر نام→ID، fallback نامعتبرِ تنظیم دستی نیز حذف
+            // شد؛ کشِ v2 مخصوصاً برای منطقهٔ از‌دسترس‌خارج نباید باقی بماند.
+            'arvan.sg-id.v3.'.$regionCode.'.'.md5($wanted),
             3600,
             function () use ($regionCode, $wanted) {
                 // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
@@ -750,10 +750,18 @@ class ArvanClient implements CloudProvider
                     }
                 }
 
-                // هیچ مسیری جواب نداد. اگر مدیر شناسه را دستی گذاشته، همان
-                // فرستاده می‌شود: غلط بودنش خطای روشنِ خودِ آروان را می‌آورد،
-                // که از بن‌بستِ خاموش بهتر است.
-                return $wanted !== '' ? [$wanted] : [];
+                /*
+                | هیچ مسیری جواب نداد. فقط UUID صریحِ مدیر قابل اعتماد است.
+                |
+                | مقدار رایج تنظیم، یک نام مثل `servernet` است و فقط وقتی
+                | فهرست منطقه خوانده شود می‌توان آن را به ID ترجمه کرد. فرستادن
+                | همان نام در زمان خرابی endpoint دوباره دقیقاً خطای
+                | «Requested firewall was not found» می‌سازد. fail-closed یعنی
+                | آن منطقه فروخته نشود، نه اینکه مشتری ابزار تشخیص ما شود.
+                */
+                return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $wanted)
+                    ? [$wanted]
+                    : [];
             }
         );
     }

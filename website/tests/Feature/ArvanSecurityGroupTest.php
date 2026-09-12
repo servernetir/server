@@ -232,6 +232,78 @@ class ArvanSecurityGroupTest extends TestCase
         $this->assertFalse($called, 'نامِ گروه بدون ID به endpoint ساخت رسید');
     }
 
+    /** نامِ دستی بدون امکان resolve شدن نباید به API ساخت نشت کند. */
+    public function test_an_unresolved_manual_name_fails_closed(): void
+    {
+        Setting::put('arvan_security_group', 'servernet');
+        $called = false;
+        Cache::flush();
+        Http::swap(new Factory);
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$called) {
+            $url = $request->url();
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'net-public', 'enable_gateway' => true]]], 200);
+            }
+
+            if (str_contains($url, '/images')) {
+                return Http::response(['data' => [['name' => 'Ubuntu', 'images' => [
+                    ['id' => 'img-si1-2404', 'name' => '24.04'],
+                ]]]], 200);
+            }
+
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $called = true;
+            }
+
+            return Http::response(['message' => 'region endpoint unavailable'], 404);
+        }]);
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('firewall', $r['message']);
+        $this->assertFalse($called, 'نامِ resolve‌نشده به درخواست واقعی ساخت رسید');
+    }
+
+    /** UUID دستی در زمان خرابی endpoint، راه فرار کنترل‌شدهٔ مدیر است. */
+    public function test_an_explicit_manual_uuid_can_be_used_when_discovery_is_unavailable(): void
+    {
+        $uuid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        Setting::put('arvan_security_group', $uuid);
+        $sent = null;
+        Cache::flush();
+        Http::swap(new Factory);
+
+        Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$sent) {
+            $url = $request->url();
+
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['id' => 'net-public', 'enable_gateway' => true]]], 200);
+            }
+
+            if (str_contains($url, '/images')) {
+                return Http::response(['data' => [['name' => 'Ubuntu', 'images' => [
+                    ['id' => 'img-si1-2404', 'name' => '24.04'],
+                ]]]], 200);
+            }
+
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $sent = $request['security_groups'] ?? null;
+
+                return Http::response(['data' => ['id' => 'srv-1', 'status' => 'ACTIVE']], 200);
+            }
+
+            return Http::response(['message' => 'region endpoint unavailable'], 404);
+        }]);
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertTrue($r['ok']);
+        $this->assertSame([['name' => $uuid]], $sent);
+    }
+
     /**
      * ⚠️ هیچ گروهی نبود ⇒ پیامِ روشنِ خودمان، نه ارسالِ درخواستِ ناقص.
      *
