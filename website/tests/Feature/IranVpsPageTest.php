@@ -97,6 +97,31 @@ class IranVpsPageTest extends TestCase
         $this->assertStringNotContainsString(__('ui.hp_stock_out'), $html);
     }
 
+    /** ایران باید حتی پلنی را که از نظر قیمت/منابع مغلوب است نشان دهد. */
+    public function test_the_iran_page_does_not_prune_a_sellable_dominated_plan(): void
+    {
+        $this->tehran();
+
+        $this->plan(2, 'ir-tehran', [
+            'public_name' => 'GOOD',
+            'slug' => 'good-ir-tehran',
+            'price_irt' => 1_370_000,
+        ]);
+        $this->plan(1, 'ir-tehran', [
+            'public_name' => 'BAD-BUT-SELLABLE',
+            'slug' => 'bad-ir-tehran',
+            'ram_mb' => 2 * 1024,
+            'price_irt' => 2_740_000,
+        ]);
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($html, 'data-city='));
+        $this->assertStringContainsString('GOOD', $html);
+        $this->assertStringContainsString('BAD-BUT-SELLABLE', $html,
+            'قاعدهٔ حذف پلن مغلوب هنوز یک پلن قابل‌فروش ایران را پنهان می‌کند');
+    }
+
     // ───────── ۲) حالتِ بی‌موجودی: صفحه باید حرف بزند، نه ساکت بماند ─────────
 
     /**
