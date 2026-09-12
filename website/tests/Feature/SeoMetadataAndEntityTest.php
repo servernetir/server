@@ -2,13 +2,42 @@
 
 namespace Tests\Feature;
 
+use App\Models\Post;
+use App\Models\PostTranslation;
 use App\Providers\AppServiceProvider;
+use App\Services\BlogRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SeoMetadataAndEntityTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_blog_freshness_uses_the_rendered_translations_update_date(): void
+    {
+        $post = Post::create([
+            'slug' => 'translated-freshness',
+            'type' => 'blog',
+            'category' => 'seo',
+            'status' => 'published',
+            'published_at' => '2026-08-01 00:00:00',
+        ]);
+        $post->forceFill(['updated_at' => '2026-08-02 00:00:00'])->saveQuietly();
+
+        $translation = PostTranslation::create([
+            'post_id' => $post->id,
+            'locale' => 'en',
+            'title' => 'Fresh translation',
+            'excerpt' => 'Fresh translation excerpt',
+            'content' => '<p>Fresh translation body.</p>',
+        ]);
+        $translation->forceFill(['updated_at' => '2026-09-10 00:00:00'])->saveQuietly();
+
+        app()->setLocale('en');
+        $rendered = app(BlogRepository::class)->find($post->slug);
+
+        $this->assertSame('2026-09-10', $rendered['updated'] ?? null);
+    }
 
     public function test_open_graph_url_uses_the_same_absolute_identity_as_canonical(): void
     {
