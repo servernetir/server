@@ -3,7 +3,7 @@
 # دیپلوی «شش الگوی پیامک + هدیهٔ تولد + ایمیلِ تحویل + نمایشِ شمارهٔ کارت»
 # — شهریور ۱۴۰۵.
 #
-# چه چیزی دیپلوی می‌شود (۱۲ فایل، بدونِ مهاجرت):
+# چه چیزی دیپلوی می‌شود (۱۵ فایل، بدونِ مهاجرت):
 #
 #   پیامک
 #     · SignedRelaySender   — شش نامِ تازه در فهرستِ الگوها
@@ -151,6 +151,9 @@ app/Services/Cloud/CloudProvisioner.php
 app/Models/CloudLocation.php
 database/seeders/NotificationTemplateSeeder.php
 resources/views/admin/customer.blade.php
+lang/fa/ui.php
+lang/en/ui.php
+lang/tr/ui.php
 routes/web.php
 routes/console.php
 "
@@ -288,6 +291,15 @@ need_grep app/Http/Controllers/Admin/CustomerController.php 'revealCard'
 need_grep app/Http/Controllers/Admin/CustomerController.php 'card_revealed'
 need_grep routes/web.php                          'reveal-card'
 need_grep resources/views/admin/customer.blade.php 'reveal-card'
+
+# ── متنِ ایمیلِ en/tr برای دو رویدادِ تازهٔ مشتری‌خبرکن ──
+# ⚠️ بی‌اینها مشتریِ انگلیسی/ترکی ایمیلِ «حسابتان به‌روزرسانی دارد»ِ عمومی
+#    می‌گیرد — پیامی که هیچ‌چیز نمی‌گوید و هیچ خطایی هم تولید نمی‌کند.
+need_grep lang/fa/ui.php                          'ntf_birthday_b'
+need_grep lang/en/ui.php                          'ntf_birthday_b'
+need_grep lang/tr/ui.php                          'ntf_birthday_b'
+need_grep lang/en/ui.php                          'ntf_bank_receipt_b'
+need_grep lang/tr/ui.php                          'ntf_bank_receipt_b'
 
 # ── نامِ فارسیِ شهرهای تازه ──
 need_grep app/Models/CloudLocation.php            'آتلانتا'
