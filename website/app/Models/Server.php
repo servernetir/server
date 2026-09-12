@@ -176,7 +176,7 @@ class Server extends Model
             'plesk' => 'Plesk',
             'directadmin' => 'DirectAdmin',
             'hetzner_storage' => 'فضای بکاپ (Hetzner Storage Box)',
-            'rclone_storage' => 'فضای بکاپ مدیریت‌شده (rclone Gateway)',
+            'rclone_storage' => 'ServerNet Backup Gateway',
             'vps' => 'VPS',
             'dedicated' => 'سرور اختصاصی',
             default => 'عمومی',
