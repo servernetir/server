@@ -82,7 +82,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-e3d4aab8}"
+MINE="${1:-a16ea5d2}"
 
 if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
   echo "── $MINE در develop نیست؛ شاخهٔ merge-to-develop هم آورده می‌شود"
