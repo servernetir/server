@@ -1,4 +1,4 @@
-# ServerNet managed backup gateway
+# ServerNet Backup Gateway
 
 این پوشه لایهٔ سفیدبرچسب بین پنل ServerNet و backend ذخیره‌سازی است. مشتری فقط
 SFTP سرورنت را می‌بیند؛ OAuth، نام حساب Google و پیکربندی rclone روی Gateway
