@@ -223,7 +223,10 @@
 
     @foreach(['std' => 'ui.pt_g_std', 'ded' => 'ui.pt_g_ded'] as $key => $titleKey)
       @if(! empty($groups[$key]))
-      <section class="pt-group reveal" data-group="{{ $key }}">
+      {{-- جدول خرید نباید به IntersectionObserver وابسته باشد. با صدها ردیف،
+           ارتفاع عنصر آن‌قدر زیاد می‌شود که threshold دوازده‌درصدیِ reveal
+           هرگز رد نمی‌شود و کل جدول با opacity:0 نامرئی می‌ماند. --}}
+      <section class="pt-group" data-group="{{ $key }}">
         <header class="pt-group-head">
           <h3>{{ __($titleKey) }}</h3>
           <p>{{ __($key === 'std' ? 'ui.pt_g_std_d' : 'ui.pt_g_ded_d') }}</p>

@@ -122,6 +122,19 @@ class IranVpsPageTest extends TestCase
             'قاعدهٔ حذف پلن مغلوب هنوز یک پلن قابل‌فروش ایران را پنهان می‌کند');
     }
 
+    /** جدول بلند ایران نباید منتظر عبور از آستانهٔ انیمیشن اسکرولی بماند. */
+    public function test_the_plan_table_is_visible_without_the_reveal_observer(): void
+    {
+        $this->tehran();
+        $this->plan(2);
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="pt-group"', $html);
+        $this->assertStringNotContainsString('class="pt-group reveal"', $html,
+            'جدول خرید هنوز ممکن است با opacity صفر برای همیشه نامرئی بماند');
+    }
+
     // ───────── ۲) حالتِ بی‌موجودی: صفحه باید حرف بزند، نه ساکت بماند ─────────
 
     /**
