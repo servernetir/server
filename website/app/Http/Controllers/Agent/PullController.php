@@ -10,6 +10,7 @@ use App\Services\Cloud\PublicPortAllocator;
 use App\Support\GuestPolicySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent).
@@ -83,21 +84,16 @@ class PullController extends Controller
     }
 
     /**
-     * «حالتِ مطلوبِ» آپ‌استریم‌ها برای میزبانِ ایران — رله‌ها و اکسیت‌های کشوری.
+     * آپ‌استریم‌های اکسیت — رله‌های SSH (آپ‌لینک) و نودهای VLESS/exitِ کشوری که
+     * مدیر از پنل اضافه کرده. میزبانِ ایران این را می‌کشد تا استخرِ رله و اکسیت‌های
+     * اختصاصی‌اش را با «حالتِ مطلوب» هماهنگ کند (معادلِ `servernet-relay-set` و
+     * `servernet-exit-set` ولی داده‌محور).
      *
-     * 🔴 این تنها مسیری است که مقدارِ **خامِ** اعتبارنامه را بیرون می‌دهد، چون
-     * میزبان برای dial واقعاً لازمش دارد. پس: فقط GET، فقط با توکن، و
-     * `Cache-Control: no-store` تا هیچ واسطه‌ای کشش نکند.
-     *
-     * شکل:
-     *   { "relays": [ {...} ], "exits": { "de": [ {...} ] } }
-     *
-     * `id` در هر ردیف همان چیزی است که `countryroutes` با `via: "u<id>"` به آن
-     * اشاره می‌کند — پس هاست می‌تواند یک ماشین را به یک آپ‌استریمِ **مشخص**
-     * سنجاق کند، نه فقط به «کشور».
-     *
-     * ⚠️ `exits` عمداً آبجکت است نه آرایه: بی‌کشورِ خروج، `json_encode` یک
-     * آرایهٔ خالیِ `[]` می‌داد و پارسرِ سمتِ هاست که dict انتظار دارد می‌ترکید.
+     * 🔴 این پاسخ **مقدارِ خامِ اعتبارنامه** (کلیدِ SSH، لینکِ vless، رمز) را دارد،
+     * چون هاست بی‌آن نمی‌تواند dial کند. برای همین: فقط با توکنِ معتبر، فقط
+     * آپ‌استریم‌های `enabled`، و با هدرِ `Cache-Control: no-store` تا هیچ واسطی
+     * کشش نکند. شکل:
+     *   { "relays": [ {..,secret} ], "exits": { "de": [ {..,cc,secret} ], … } }
      */
     public function exitUpstreams(Request $request): JsonResponse
     {
@@ -105,34 +101,40 @@ class PullController extends Controller
 
         Setting::put('agent_seen_exitupstreams', now()->toIso8601String());
 
+        // روی سروری که هنوز مهاجرت نخورده، پاسخِ خالیِ سالم بده (نه ۵۰۰).
+        if (! Schema::hasTable('exit_upstreams')) {
+            return response()->json(['relays' => [], 'exits' => (object) []])
+                ->header('Cache-Control', 'no-store');
+        }
+
         $rows = ExitUpstream::query()
-            ->enabled()
+            ->where('enabled', true)
             ->orderBy('priority')
             ->orderBy('id')
             ->get();
 
         $relays = [];
-        $exits = [];
+        $exits  = [];
 
         foreach ($rows as $u) {
-            if ($u->isRelay()) {
+            if ($u->isExit()) {
+                $cc = $u->cc();
+
+                if ($cc === null) {
+                    continue;                   // اکسیتِ بی‌کشور بی‌معنی است؛ رد
+                }
+
+                $exits[$cc][] = $u->toAgentArray();
+            } else {
                 $relays[] = $u->toAgentArray();
-
-                continue;
             }
-
-            $cc = $u->cc();
-
-            if ($cc === null || $cc === '') {
-                continue;               // اکسیتِ بی‌کشور معنی ندارد؛ رد شود
-            }
-
-            $exits[$cc][] = $u->toAgentArray();
         }
 
-        return response()
-            ->json(['relays' => $relays, 'exits' => (object) $exits])
-            ->header('Cache-Control', 'no-store');
+        return response()->json([
+            'relays' => $relays,
+            // آرایه‌ی تهی را به‌صورتِ آبجکتِ JSON بده تا سمتِ هاست همیشه map باشد
+            'exits'  => empty($exits) ? (object) [] : $exits,
+        ])->header('Cache-Control', 'no-store');
     }
 
     /**

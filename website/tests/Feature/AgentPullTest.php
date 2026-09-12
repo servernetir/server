@@ -332,4 +332,35 @@ class AgentPullTest extends TestCase
         );
     }
 
+
+    // ═══════════════════ سرورِ مهاجرت‌نخورده ═══════════════════
+
+    /**
+     * `exitupstreams` روی نصبی که جدولِ `exit_upstreams` را ندارد باید پاسخِ
+     * **خالیِ سالم** بدهد، نه ۵۰۰.
+     *
+     * 🔴 چرا این گارد ارزش دارد: این تعمیر روی خودِ سرور دستی نوشته شده بود و
+     * به گیت نرفته بود — یعنی هر دیپلویی که فایل را از مخزن می‌نشاند، بی‌صدا
+     * برش می‌داشت. حالا در کد است و تست نگهش می‌دارد.
+     *
+     * ⚠️ شکلِ پاسخ هم سنجیده می‌شود، نه فقط کدِ ۲۰۰: `exits` باید **آبجکت**
+     * باشد نه آرایه. `json_encode` برای آرایهٔ تهی `[]` می‌دهد و پارسرِ سمتِ
+     * هاست که dict انتظار دارد همان‌جا می‌ترکد.
+     */
+    public function test_exitupstreams_survives_a_server_without_the_table(): void
+    {
+        \Illuminate\Support\Facades\Schema::drop('exit_upstreams');
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Schema::hasTable('exit_upstreams'),
+            'پیش‌شرطِ تست: جدول نباید باشد'
+        );
+
+        $res = $this->getJson('/agent/exitupstreams', ['X-Agent-Token' => $this->token])->assertOk();
+
+        $this->assertSame([], $res->json('relays'));
+
+        // آبجکتِ تهی در JSON `{}` است؛ آرایهٔ تهی `[]`. این تمایز مهم است.
+        $this->assertStringContainsString('"exits":{}', $res->getContent());
+    }
+
 }
