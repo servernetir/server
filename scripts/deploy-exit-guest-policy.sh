@@ -33,6 +33,10 @@ warn(){ printf '  \033[33m!\033[0m %s\n' "$*"; }
 bad(){  printf '  \033[31m✗\033[0m %s\n' "$*"; }
 die(){  bad "$*"; exit 1; }
 
+# 🔴 بنویس، **دوباره بخوان**، و اگر نخواند شکست بده. گزارشگری که نتیجهٔ
+# نوشتن را نمی‌سنجد، روی فایلِ نانوشتنی «موفق» چاپ می‌کند.
+put(){ cp "$1" "$2" || return 1; cmp -s "$1" "$2" || return 1; return 0; }
+
 FILES=(
   app/Http/Controllers/Admin/CloudAttachController.php
   app/Http/Controllers/Admin/ExitInfraController.php
@@ -54,6 +58,11 @@ echo "═══ ۱) اثباتِ مقصد ═══"
 [[ -d "$APP/vendor" ]]  || die "$APP/vendor نیست — این نصبِ واقعی نیست."
 [[ -f "$APP/app/Http/Controllers/Admin/ExitInfraController.php" ]] \
   || die "ExitInfraController روی سرور نیست — صفحهٔ «زیرساختِ اکسیت» هرگز دیپلوی نشده."
+
+# 🔴 نوشتنی‌بودن را همین‌جا بسنج، نه وقتی نصفِ کار انجام شده. اجرا با
+# کاربرِ اشتباه دقیقاً همین‌جا گیر می‌افتد.
+[[ -w "$APP/routes/web.php" ]] || die "routes/web.php نوشتنی نیست — دیپلوی نیمه‌کاره می‌شد."
+[[ -w "$APP/app/Http/Controllers/Agent" ]] || die "پوشهٔ Agent نوشتنی نیست."
 
 FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
 [[ "${FREE_MB:-0}" -ge 500 ]] || die "فضای آزاد کم است (${FREE_MB}MB). اول: rm -rf ~/deploy-*/repo"
@@ -90,6 +99,7 @@ for rel in "${FILES[@]}"; do
   if [[ ! -f "$live" ]]; then
     mkdir -p "$(dirname "$live")"
     git show "$SHA:$f" > "$live" || die "نوشتن نشد: $rel"
+    cmp -s <(git show "$SHA:$f") "$live" || die "نوشته شد ولی بازخوانی نخواند: $rel"
     ok "$name — تازه، نصب شد"; APPLIED+=("$name"); continue
   fi
 
@@ -120,7 +130,8 @@ for rel in "${FILES[@]}"; do
     bad "$name — نتیجهٔ merge از نظرِ نحوی خراب است. دست‌نخورده ماند."
     HELD+=("$name (php -l)"); continue
   fi
-  cp "$WORK/.try" "$live"; ok "$name — merge شد (پایه ${BASE:0:7})"; APPLIED+=("$name")
+  put "$WORK/.try" "$live" || { bad "$name — نوشتن نشد"; HELD+=("$name (نوشتن نشد)"); continue; }
+  ok "$name — merge شد (پایه ${BASE:0:7})"; APPLIED+=("$name")
 done
 
 echo
@@ -161,7 +172,16 @@ if ($s === $orig) { echo "  هیچ درجی لازم نبود.\n"; exit(0); }
 $tmp = tempnam(sys_get_temp_dir(), "rt"); file_put_contents($tmp, $s);
 exec(escapeshellarg(PHP_BINARY)." -l ".escapeshellarg($tmp)." 2>&1", $o, $rc); unlink($tmp);
 if ($rc !== 0) { fwrite(STDERR, "  x نتیجه از نظرِ نحوی خراب است — نوشته نشد\n".implode("\n",$o)."\n"); exit(1); }
-file_put_contents($f, $s); echo "  \u{2713} $add بلوک درج شد\n";
+// 🔴 نتیجهٔ نوشتن را بسنج و بعد **بازخوانی** کن.
+$w = file_put_contents($f, $s);
+if ($w === false) { fwrite(STDERR, "  x نوشتن در routes/web.php ناموفق بود\n"); exit(1); }
+clearstatcache(true, $f);
+$back = file_get_contents($f);
+foreach (["admin", "agent"] as $n) {
+    $m = file_get_contents("$d/marker-$n.txt");
+    if (! str_contains($back, $m)) { fwrite(STDERR, "  x بعد از نوشتن، نشانهٔ $n در فایل نیست\n"); exit(1); }
+}
+echo "  \u{2713} $add بلوک درج و بازخوانی شد\n";
 ' "$RF" "$BLK" || die "درجِ روت‌ها ناموفق — routes/web.php دست‌نخورده ماند (بکاپ: $BK/routes-web.php.bak)"
 
 echo
@@ -173,11 +193,23 @@ done
 
 echo
 echo "═══ ۶) راستی‌آزمایی ═══"
-RL="$("$PHP" artisan route:list 2>/dev/null)"
-echo "$RL" | grep -q 'agent/guestpolicy'            && ok "روتِ guestpolicy عامل" || bad "روتِ guestpolicy دیده نشد"
-echo "$RL" | grep -q 'guestpolicy/ack'              && ok "روتِ تأییدِ اعمال"      || bad "روتِ ack دیده نشد"
-echo "$RL" | grep -q 'admin.exit-infra.lan'         && ok "روتِ شبکهٔ داخلیِ پنل"  || bad "روتِ lan دیده نشد"
-echo "$RL" | grep -q 'admin.exit-infra.sync-ports'  && ok "روتِ تخصیصِ پورت"       || bad "روتِ sync-ports دیده نشد"
+# 🔴 دو تغییر، هر دو از یک اشتباهِ واقعی آمده‌اند:
+#
+# (الف) `--json` به‌جای جدولِ route:list — آن جدول به عرضِ ترمینال وابسته است
+#       و می‌تواند وسطِ نام را با «…» ببُرد.
+#
+# (ب) **here-string، نه پایپ.** با `set -o pipefail`، الگوی `… | grep -q …`
+#     روی ورودیِ بزرگ دروغ می‌گوید: grep با اولین تطبیق زود می‌بندد، نویسندهٔ
+#     سمتِ چپ SIGPIPE می‌گیرد (کدِ ۱۴۱)، و pipefail کلِ پایپ را ناموفق
+#     می‌شمارد. نسخهٔ اولِ همین اسکریپت این را داشت و روی پروداکشن هر چهار
+#     روتِ **سالم** را «دیده نشد» گزارش کرد — دیپلوی درست بود، گزارشگر دروغ
+#     می‌گفت. بدترین نوع خرابی، چون آدم را به عقب برمی‌گرداند.
+RJ="$("$PHP" artisan route:list --json 2>/dev/null | tr ',' '\n' | tr -d '\\')"
+chk(){ if grep -qF "$1" <<< "$RJ"; then ok "$2"; else bad "$2 — دیده نشد"; fi; }
+chk 'agent/guestpolicy"'          "روتِ guestpolicy عامل"
+chk 'agent/guestpolicy/ack"'      "روتِ تأییدِ اعمال"
+chk 'admin.exit-infra.lan'        "روتِ شبکهٔ داخلیِ پنل"
+chk 'admin.exit-infra.sync-ports' "روتِ تخصیصِ پورت"
 
 echo
 echo "═══ خلاصه ═══"
