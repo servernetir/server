@@ -56,6 +56,16 @@ class RobotsPolicyTest extends TestCase
         $this->assertSame($before, file_get_contents(public_path('robots.txt')));
     }
 
+    public function test_one_malformed_private_path_rejects_the_entire_policy(): void
+    {
+        $policy = (array) config('seo.crawler_policy');
+        $policy['private_paths'] = ['/account', 'admin'];
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        RobotsPolicy::render($policy);
+    }
+
     private function group(string $robots, string $agent): string
     {
         preg_match('~User-agent: '.preg_quote($agent, '~')."\n.*?(?=\n\n|\z)~s", $robots, $match);

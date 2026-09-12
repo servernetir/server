@@ -7,13 +7,22 @@ final class RobotsPolicy
     /** @param array<string, mixed> $policy */
     public static function render(array $policy): string
     {
-        $privatePaths = array_values(array_unique(array_filter(
-            (array) ($policy['private_paths'] ?? []),
-            fn ($path): bool => is_string($path) && str_starts_with($path, '/')
-        )));
-        if ($privatePaths === []) {
+        $configuredPaths = (array) ($policy['private_paths'] ?? []);
+        if ($configuredPaths === []) {
             throw new \InvalidArgumentException('Robots policy requires private paths.');
         }
+
+        foreach ($configuredPaths as $path) {
+            if (! is_string($path)
+                || $path === ''
+                || ! str_starts_with($path, '/')
+                || str_starts_with($path, '//')
+                || parse_url($path, PHP_URL_PATH) !== $path) {
+                throw new \InvalidArgumentException('Robots private paths must be absolute paths.');
+            }
+        }
+
+        $privatePaths = array_values(array_unique($configuredPaths));
 
         $groups = [];
         foreach (['search_discovery', 'model_training'] as $kind) {

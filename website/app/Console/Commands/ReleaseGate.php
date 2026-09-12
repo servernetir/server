@@ -103,10 +103,9 @@ class ReleaseGate extends Command
 
         foreach ($m[1] as $loc) {
             $decoded = html_entity_decode($loc, ENT_XML1);
-            $host = parse_url($decoded, PHP_URL_HOST);
 
-            if ($host !== parse_url(config('app.url'), PHP_URL_HOST)) {
-                $fails[] = "RG-SITEMAP-03  {$decoded} ← میزبانِ بیرونی";
+            if (! SitemapUrlPolicy::hasCanonicalOrigin($decoded, (string) config('app.url'))) {
+                $fails[] = "RG-SITEMAP-03  {$decoded} ← مبدأ canonical/HTTPS نادرست";
 
                 continue;
             }

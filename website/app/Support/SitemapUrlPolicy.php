@@ -4,6 +4,29 @@ namespace App\Support;
 
 final class SitemapUrlPolicy
 {
+    public static function hasCanonicalOrigin(string $url, string $canonicalBase): bool
+    {
+        if (filter_var($url, FILTER_VALIDATE_URL) === false
+            || filter_var($canonicalBase, FILTER_VALIDATE_URL) === false) {
+            return false;
+        }
+
+        $urlScheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        $canonicalScheme = strtolower((string) parse_url($canonicalBase, PHP_URL_SCHEME));
+        if ($urlScheme !== 'https' || $canonicalScheme !== 'https') {
+            return false;
+        }
+
+        $urlHost = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $canonicalHost = strtolower((string) parse_url($canonicalBase, PHP_URL_HOST));
+        $urlPort = parse_url($url, PHP_URL_PORT) ?: 443;
+        $canonicalPort = parse_url($canonicalBase, PHP_URL_PORT) ?: 443;
+
+        return $urlHost !== ''
+            && hash_equals($canonicalHost, $urlHost)
+            && $urlPort === $canonicalPort;
+    }
+
     /**
      * The sitemap has one intentional query landing-page shape: blog category.
      * Pagination is crawlable through links but deliberately absent from XML;
