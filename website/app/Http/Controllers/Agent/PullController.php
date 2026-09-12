@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Agent;
 
 use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
+use App\Models\ExitUpstream;
 use App\Models\Setting;
 use App\Services\Cloud\PublicPortAllocator;
 use App\Support\GuestPolicySnapshot;

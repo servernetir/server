@@ -255,4 +255,81 @@ class AgentPullTest extends TestCase
         // انتخابِ یک کشور دقیقاً یک عرضه می‌دهد
         $this->assertCount(1, CloudPlan::offers('exit-de'));
     }
+
+    // ═══════════════════ هر روتِ agent واقعاً اجرا می‌شود ═══════════════════
+
+    /**
+     * 🔴 چرا این تست لازم شد: `exitUpstreams()` از `ExitUpstream::query()`
+     * استفاده می‌کرد و فایل **`use App\Models\ExitUpstream;` نداشت**. PHP
+     * کلاس را در فضای‌نامِ خودِ کنترلر می‌جست (`…\Agent\ExitUpstream`)، پیدا
+     * نمی‌کرد، و آن مسیر در پروداکشن ۵۰۰ می‌داد.
+     *
+     * هیچ‌کدام از تست‌های قبلی نگرفتندش، چون هیچ‌کدام آن مسیر را **صدا
+     * نمی‌زدند**؛ `php -l` هم چنین چیزی را نمی‌بیند (نحو سالم است، خطا در
+     * زمانِ اجراست). پس قاعده: **برای هر روتِ ثبت‌شده باید یک فراخوانِ واقعی
+     * باشد** — وگرنه importِ جاافتاده تا روزِ دیپلوی پنهان می‌مانَد.
+     *
+     * ⚠️ ادعا «۵۰۰ نده» است، نه «محتوای درست بدهد» — محتوا تست‌های خودش را
+     * دارد. این تست عمداً ارزان و فراگیر است تا هر روتِ تازه‌ای هم بپوشاند.
+     */
+    public function test_every_agent_route_actually_runs(): void
+    {
+        $this->mkInstance();
+
+        $checked = 0;
+        $passedAuth = 0;
+
+        foreach (\Illuminate\Support\Facades\Route::getRoutes() as $route) {
+            $uri = $route->uri();
+
+            if (! str_starts_with($uri, 'agent/')) {
+                continue;
+            }
+            // مسیرهای پارامتردار ورودیِ ساختگی می‌خواهند؛ خارج از دامنهٔ این گارد.
+            if (str_contains($uri, '{')) {
+                continue;
+            }
+
+            foreach ($route->methods() as $verb) {
+                if (in_array($verb, ['HEAD', 'OPTIONS'], true)) {
+                    continue;
+                }
+
+                // 🔴 `withHeaders()->call()` هدر را **نمی‌فرستد** — هدرهای
+                // پیش‌فرض فقط در get/post/json اعمال می‌شوند، نه در call().
+                // نسخهٔ اولِ همین گارد همین اشتباه را داشت: هر هشت روت ۴۰۳
+                // می‌گرفتند، کنترلر اصلاً اجرا نمی‌شد، و تست سبز بود در حالی
+                // که هیچ‌چیز را نسنجیده بود.
+                $res = $this->call($verb, '/'.$uri, [], [], [], $this->transformHeadersToServerVars([
+                    'X-Agent-Token' => $this->token,
+                ]));
+
+                $this->assertLessThan(
+                    500,
+                    $res->status(),
+                    "روتِ {$verb} /{$uri} با کدِ {$res->status()} ترکید — "
+                    .'احتمالاً importِ جاافتاده یا کلاسِ ناموجود.'
+                );
+
+                if ($res->status() !== 403) {
+                    $passedAuth++;
+                }
+
+                $checked++;
+            }
+        }
+
+        // 🔴 بی‌این، حلقهٔ خالی هم سبز می‌شد و گارد بی‌صدا می‌مُرد.
+        $this->assertGreaterThanOrEqual(5, $checked, 'روت‌های agent پیدا نشدند — گارد چیزی نسنجید.');
+
+        // 🔴 و این مهم‌تر است: ۴۰۳ هرگز به کنترلر نمی‌رسد، پس گاردی که همه‌جا
+        // ۴۰۳ بگیرد «سبز» است و **هیچ کدی را اجرا نکرده**. این ادعا می‌گوید
+        // دست‌کم پنج روت واقعاً از احراز رد شدند و بدنه‌شان دویده.
+        $this->assertGreaterThanOrEqual(
+            5,
+            $passedAuth,
+            'هیچ روتی از احراز رد نشد — گارد کنترلرها را اصلاً اجرا نکرده است.'
+        );
+    }
+
 }
