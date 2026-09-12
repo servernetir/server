@@ -1,0 +1,8 @@
+
+        // اجازه/منعِ دسترسی به شبکهٔ داخلی — فقط «حالتِ مطلوب»؛ عاملِ میزبان اعمال می‌کند.
+        Route::post('/exit-infra/{instance}/lan', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setLan'])
+            ->name('admin.exit-infra.lan')->middleware('admin');
+        // تخصیصِ پورتِ عمومی به ماشین‌های بی‌پورت — جایگزینِ کارِ بی‌صدایی که
+        // تا دیروز داخلِ GETِ عامل انجام می‌شد.
+        Route::post('/exit-infra/sync-ports', [\App\Http\Controllers\Admin\ExitInfraController::class, 'syncPorts'])
+            ->name('admin.exit-infra.sync-ports')->middleware('admin');
