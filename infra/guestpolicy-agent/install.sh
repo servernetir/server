@@ -23,15 +23,46 @@ if ! command -v jq >/dev/null; then
   apt-get update -qq && apt-get install -y -qq jq
 fi
 
+# ── گاردِ توکنِ بدشکل ────────────────────────────────────────────────────────
+#
+# 🔴 رخدادِ واقعی: توکن با
+#   grep -oP '(?<=X-PF-Token: )\S+'
+# برداشته شده بود، و چون هدر در اسکریپت داخلِ گیومه است
+# (`-H "X-PF-Token: abc123"`), آن `\S+` **گیومهٔ پایانی را هم بلعید**.
+# نتیجه یک توکنِ ۱۵ نویسه‌ای با `"` در انتها بود.
+#
+# پس اگر توکن گیومه یا فاصله دارد، تقریباً قطعاً اشتباهِ استخراج است — نه
+# توکنِ واقعی. صریح رد می‌کنیم تا کسی ساعت‌ها دنبالِ «چرا ۴۰۳ می‌گیرم» نگردد.
+if [[ "$AGENT_TOKEN" =~ [\"\'\ ] ]]; then
+  echo "🔴 توکن گیومه یا فاصله دارد: [${AGENT_TOKEN}]" >&2
+  echo "   تقریباً قطعاً هنگامِ استخراج، گیومهٔ پایانیِ هدر هم برداشته شده." >&2
+  echo "   این را امتحان کن (تا اولین گیومه/فاصله می‌گیرد):" >&2
+  echo "   TOKEN=\$(grep -rhoP 'X-(PF|Agent)-Token:\\s*\\K[^\"'\''[:space:]]+' \\" >&2
+  echo "     /usr/local/sbin/ /etc/systemd/system/ /etc/servernet/ 2>/dev/null | head -1)" >&2
+  exit 2
+fi
+
 # ── پیکربندی (۰۶۰۰ — توکن داخلش است) ───────────────────────────────────────
 install -d -m 0755 /etc/servernet
 umask 077
-cat > /etc/servernet/guestpolicy.env <<EOF
-PANEL_URL=${PANEL_URL}
-AGENT_TOKEN=${AGENT_TOKEN}
-EOF
+
+# 🔴 مقدارها **تک‌گیومه‌ای و فرارداده‌شده** نوشته می‌شوند. این فایل با `.`
+# سورس می‌شود، پس مقدارِ بی‌گیومه‌ای که یک `"` یا فاصله یا `#` داشته باشد،
+# کلِ فایل را می‌شکند — و پیامش (`unexpected EOF`) هیچ ربطی به توکن ندارد و
+# آدم را گمراه می‌کند. دقیقاً یک بار همین رخ داد.
+q(){ printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+{
+  printf 'PANEL_URL=%s\n'   "$(q "$PANEL_URL")"
+  printf 'AGENT_TOKEN=%s\n' "$(q "$AGENT_TOKEN")"
+} > /etc/servernet/guestpolicy.env
+
 chmod 600 /etc/servernet/guestpolicy.env
 umask 022
+
+# و بلافاصله بسنج که واقعاً سورس می‌شود — نوشتنی که خوانده نشود بی‌فایده است.
+( set -e; . /etc/servernet/guestpolicy.env; [[ -n "${AGENT_TOKEN:-}" ]] ) \
+  || { echo "🔴 فایلِ پیکربندی نوشته شد ولی سورس نمی‌شود." >&2; exit 1; }
 
 # ── اسکریپت و واحدها ───────────────────────────────────────────────────────
 install -m 0755 "$HERE/servernet-guestpolicy-agent.sh" /usr/local/sbin/servernet-guestpolicy-agent
