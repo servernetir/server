@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Cloud\CloudPricing;
+use App\Services\ExchangeRate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -30,16 +32,16 @@ class Server extends Model
     protected function casts(): array
     {
         return [
-            'api_token'       => 'encrypted',   // هرگز خام ذخیره نمی‌شود
-            'verify_tls'      => 'boolean',
-            'port'            => 'integer',
-            'max_accounts'    => 'integer',
+            'api_token' => 'encrypted',   // هرگز خام ذخیره نمی‌شود
+            'verify_tls' => 'boolean',
+            'port' => 'integer',
+            'max_accounts' => 'integer',
             'active_accounts' => 'integer',
-            'billing_day'     => 'integer',
+            'billing_day' => 'integer',
             // ⚠️ کست به integer مقدارِ null را null نگه می‌دارد؛ همان تمایزِ
             //    «نمی‌دانم» از «رایگان» که مهاجرت رویش تأکید دارد.
-            'monthly_cost'    => 'integer',
-            'meta'            => 'array',
+            'monthly_cost' => 'integer',
+            'meta' => 'array',
         ];
     }
 
@@ -52,9 +54,9 @@ class Server extends Model
      * تا آن لحظه سفارشِ Plesk در صفِ دستیِ مدیر می‌نشیند: کندتر، ولی هرگز
      * «تحویل شد»ِ دروغین نمی‌دهد.
      */
-    public const AUTO_TYPES = ['whm', 'directadmin', 'hetzner_storage'];
+    public const AUTO_TYPES = ['whm', 'directadmin', 'hetzner_storage', 'rclone_storage'];
 
-    public const TYPES = ['whm', 'plesk', 'directadmin', 'hetzner_storage', 'vps', 'dedicated', 'generic'];
+    public const TYPES = ['whm', 'plesk', 'directadmin', 'hetzner_storage', 'rclone_storage', 'vps', 'dedicated', 'generic'];
 
     /** پورتِ پیش‌فرضِ هر نوع کنترل‌پنل */
     public const DEFAULT_PORTS = [
@@ -79,7 +81,7 @@ class Server extends Model
             return null;
         }
 
-        $amount   = (int) $this->monthly_cost;
+        $amount = (int) $this->monthly_cost;
         $currency = strtoupper((string) $this->cost_currency ?: 'EUR');
 
         // تومان exponent صفر دارد: خودِ عدد، بی‌تقسیم بر ۱۰۰
@@ -107,8 +109,8 @@ class Server extends Model
         if ($rate === null) {
             try {
                 $rate = $currency === 'EUR'
-                    ? (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman()
-                    : (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?: 0);
+                    ? (int) app(CloudPricing::class)->eurToToman()
+                    : (int) (app(ExchangeRate::class)->toToman($currency) ?: 0);
             } catch (\Throwable) {
                 $rate = 0;
             }
@@ -160,23 +162,24 @@ class Server extends Model
     public function statusBadge(): array
     {
         return match ($this->status) {
-            'active'      => ['فعال', '#34d399'],
+            'active' => ['فعال', '#34d399'],
             'maintenance' => ['تعمیر', '#fbbf24'],
-            'full'        => ['پر', '#ff6b6b'],
-            default       => [$this->status, '#96a3ba'],
+            'full' => ['پر', '#ff6b6b'],
+            default => [$this->status, '#96a3ba'],
         };
     }
 
     public function typeLabel(): string
     {
         return match ($this->type) {
-            'whm'         => 'WHM / cPanel',
-            'plesk'       => 'Plesk',
+            'whm' => 'WHM / cPanel',
+            'plesk' => 'Plesk',
             'directadmin' => 'DirectAdmin',
             'hetzner_storage' => 'فضای بکاپ (Hetzner Storage Box)',
-            'vps'         => 'VPS',
-            'dedicated'   => 'سرور اختصاصی',
-            default       => 'عمومی',
+            'rclone_storage' => 'فضای بکاپ مدیریت‌شده (rclone Gateway)',
+            'vps' => 'VPS',
+            'dedicated' => 'سرور اختصاصی',
+            default => 'عمومی',
         };
     }
 

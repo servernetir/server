@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Services\Provisioning\HetznerStorageCosts;
+use App\Services\Provisioning\RcloneStorageCosts;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -20,29 +23,29 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'price'           => 'integer',
-            'price_eur'       => 'integer',   // سنت — یورو exponent=2
-            'setup_fee'       => 'integer',
-            'tax_percent'     => 'integer',
-            'specs'           => 'array',
-            'locations'       => 'array',
+            'price' => 'integer',
+            'price_eur' => 'integer',   // سنت — یورو exponent=2
+            'setup_fee' => 'integer',
+            'tax_percent' => 'integer',
+            'specs' => 'array',
+            'locations' => 'array',
             'requires_domain' => 'boolean',
-            'is_active'       => 'boolean',
-            'sort'            => 'integer',
+            'is_active' => 'boolean',
+            'sort' => 'integer',
         ];
     }
 
     public const CATEGORIES = [
-        'shared'      => 'هاست اشتراکی',
-        'reseller'    => 'نمایندگی',
-        'vps'         => 'سرور مجازی (VPS)',
-        'dedicated'   => 'سرور اختصاصی',
-        'plesk'       => 'Plesk',
+        'shared' => 'هاست اشتراکی',
+        'reseller' => 'نمایندگی',
+        'vps' => 'سرور مجازی (VPS)',
+        'dedicated' => 'سرور اختصاصی',
+        'plesk' => 'Plesk',
         'directadmin' => 'DirectAdmin',
         // لایسنس نرم‌افزار: نه سرور می‌خواهد نه دامنه — شناسه‌اش IP مشتری است
         // و تحویلش از صفِ دستیِ ادمین می‌گذرد (فعال‌سازی نزدِ تأمین‌کننده).
-        'license'     => 'لایسنس نرم‌افزار',
-        'other'       => 'سایر',
+        'license' => 'لایسنس نرم‌افزار',
+        'other' => 'سایر',
     ];
 
     /** آیا این پکیج لایسنس نرم‌افزار است؟ (مسیرِ سفارش و تحویلش جداست) */
@@ -179,8 +182,13 @@ class Product extends Model
         | «رایگان» — و در آن حالت این خط بی‌اثر است، نه بستنِ فروش. الگوی
         | `ResellerPricing::floored`.
         */
-        return max($price, app(\App\Services\Provisioning\HetznerStorageCosts::class)
-            ->floorToman((string) $this->plan, $months));
+        return max(
+            $price,
+            app(HetznerStorageCosts::class)
+                ->floorToman((string) $this->plan, $months),
+            app(RcloneStorageCosts::class)
+                ->floorForProduct($this, $months),
+        );
     }
 
     /**
@@ -352,7 +360,7 @@ class Product extends Model
         }
 
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+            if (Schema::hasTable('products')) {
                 $active = static::where('is_active', true)->whereIn('slug', $out)->pluck('slug')->all();
                 $out = array_values(array_intersect($out, $active));
             }
@@ -385,7 +393,7 @@ class Product extends Model
         }
 
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+            if (Schema::hasTable('products')) {
                 // صفحهٔ /order فقط برای ردیفِ فعالِ DB رندر می‌شود، پس با DB
                 // در دسترس، خودِ DB منبعِ حقیقت است (شاملِ محصولی که مدیر
                 // مستقیم ساخته و در config نیست). ترتیبِ اسلاگ قطعی است.
