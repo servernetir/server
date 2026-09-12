@@ -108,58 +108,78 @@ class AgentPullTest extends TestCase
 
     // ═══════════════════ portforwards ═══════════════════
 
-    public function test_portforwards_allocates_persists_and_is_stable(): void
+    /**
+     * 🔴 این تست جای دو تستِ قبلی را گرفت که **رفتارِ باگ‌دار را قفل کرده
+     * بودند**: هر دو فرض می‌کردند یک GET از عامل باید پورت تخصیص دهد و در
+     * `meta` ذخیره کند. یعنی سوئیت، نوشتن در یک مسیرِ خواندنی را «قرارداد»
+     * می‌دانست و هر تلاشی برای رفعش را قرمز می‌کرد.
+     *
+     * قراردادِ تازه: GET هیچ‌چیز نمی‌نویسد.
+     */
+    public function test_portforwards_never_writes_during_a_get(): void
+    {
+        $inst = $this->mkInstance(['ipv4' => '10.10.10.71']);
+
+        $payload = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
+            ->assertOk()->json();
+
+        $this->assertSame([], $payload, 'ماشینِ بی‌پورت نباید در خروجی باشد');
+        $this->assertSame(0, $inst->fresh()->publicPort(), 'GET نباید پورت بسازد');
+        $this->assertNull($inst->fresh()->meta['public_port'] ?? null);
+    }
+
+    public function test_portforwards_returns_allocated_ports_and_is_stable(): void
     {
         Setting::put('public_ip', '203.0.113.9');
 
         $linux = $this->mkInstance(['image_key' => 'ubuntu-24.04', 'ipv4' => '10.10.10.71']);
         $win   = $this->mkInstance(['image_key' => 'windows-2022', 'ipv4' => '10.10.10.72']);
 
-        $first = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
-            ->assertOk()->json();
+        $alloc = app(\App\Services\Cloud\PublicPortAllocator::class);
+        $p1 = $alloc->allocate($linux);
+        $p2 = $alloc->allocate($win);
 
-        $this->assertCount(2, $first);
+        $byIp = collect(
+            $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
+        )->keyBy('ip');
 
-        $byIp = collect($first)->keyBy('ip');
+        $this->assertCount(2, $byIp);
 
         // پورتِ مقصد: لینوکس SSH، ویندوز RDP
         $this->assertSame(22, $byIp['10.10.10.71']['dest_port']);
         $this->assertSame(3389, $byIp['10.10.10.72']['dest_port']);
         $this->assertSame('203.0.113.9', $byIp['10.10.10.71']['public_ip']);
 
-        $p1 = $byIp['10.10.10.71']['public_port'];
-        $p2 = $byIp['10.10.10.72']['public_port'];
-
-        // پورتِ عمومی در محدوده و یکتا
-        $this->assertGreaterThanOrEqual(20000, min($p1, $p2));
-        $this->assertLessThanOrEqual(20999, max($p1, $p2));
+        $this->assertSame($p1, $byIp['10.10.10.71']['public_port']);
+        $this->assertSame($p2, $byIp['10.10.10.72']['public_port']);
         $this->assertNotSame($p1, $p2);
 
-        // در meta ذخیره شده
-        $this->assertSame($p1, $linux->fresh()->meta['public_port']);
-        $this->assertSame($p2, $win->fresh()->meta['public_port']);
-
-        // بارِ دوم دقیقاً همان پورت‌ها را می‌دهد (idempotent)
-        $second = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
-            ->assertOk()->json();
-        $byIp2 = collect($second)->keyBy('ip');
+        // بارِ دوم دقیقاً همان پورت‌ها
+        $byIp2 = collect(
+            $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
+        )->keyBy('ip');
 
         $this->assertSame($p1, $byIp2['10.10.10.71']['public_port']);
         $this->assertSame($p2, $byIp2['10.10.10.72']['public_port']);
     }
 
-    public function test_portforwards_picks_the_lowest_free_port(): void
+    /**
+     * ⚠️ ماشینِ خاموش پورتش را نگه می‌دارد و از خروجی نمی‌افتد. فیلترِ قبلی فقط
+     * `building|running` بود، یعنی یک ری‌استارتِ مهمان می‌توانست قاعدهٔ ورودی‌اش
+     * را بردارد و بعد پورتِ دیگری بگیرد — آدرسِ اتصالِ مشتری بی‌خبر عوض می‌شد.
+     */
+    public function test_a_stopped_guest_keeps_its_port_in_the_payload(): void
     {
-        // نمونه‌ای که از قبل پایین‌ترین پورت را گرفته
-        $taken = $this->mkInstance(['ipv4' => '10.10.10.81', 'meta' => ['public_port' => 20000]]);
-        $fresh = $this->mkInstance(['ipv4' => '10.10.10.82']);
+        $inst = $this->mkInstance(['ipv4' => '10.10.10.73', 'status' => 'off']);
+        $port = app(\App\Services\Cloud\PublicPortAllocator::class)->allocate($inst);
+
+        $this->assertNotNull($port);
 
         $byIp = collect(
             $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
         )->keyBy('ip');
 
-        $this->assertSame(20000, $byIp['10.10.10.81']['public_port']);
-        $this->assertSame(20001, $byIp['10.10.10.82']['public_port'], 'باید پایین‌ترین پورتِ آزاد را بدهد');
+        $this->assertSame($port, $byIp['10.10.10.73']['public_port'] ?? null);
     }
 
     // ═══════════════════ کاتالوگِ per-country ═══════════════════

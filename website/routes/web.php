@@ -2936,6 +2936,13 @@ Route::prefix('admin')->group(function () {
             ->name('admin.exit-infra.port')->middleware('admin');
         Route::post('/exit-infra/{instance}/detach', [\App\Http\Controllers\Admin\ExitInfraController::class, 'detach'])
             ->name('admin.exit-infra.detach')->middleware('admin');
+        // اجازه/منعِ دسترسی به شبکهٔ داخلی — فقط «حالتِ مطلوب»؛ عاملِ میزبان اعمال می‌کند.
+        Route::post('/exit-infra/{instance}/lan', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setLan'])
+            ->name('admin.exit-infra.lan')->middleware('admin');
+        // تخصیصِ پورتِ عمومی به ماشین‌های بی‌پورت — جایگزینِ کارِ بی‌صدایی که
+        // تا دیروز داخلِ GETِ عامل انجام می‌شد.
+        Route::post('/exit-infra/sync-ports', [\App\Http\Controllers\Admin\ExitInfraController::class, 'syncPorts'])
+            ->name('admin.exit-infra.sync-ports')->middleware('admin');
 
         // آپ‌استریم‌های اکسیت — رله‌های SSH و نودهای VLESS که موتورِ اکسیت از
         // راهشان از کشور خارج می‌شود. پنل «حالتِ مطلوب» را می‌نویسد و میزبانِ
@@ -3297,4 +3304,15 @@ Route::prefix('agent/tunnel')
 Route::prefix('agent')->group(function () {
     Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
     Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+
+    // آپ‌استریم‌های ثبت‌شده در پنل (رله‌ها + اکسیت‌های کشوریِ خودمان).
+    // 🔴 تنها مسیری که اعتبارنامهٔ خام می‌دهد — چون میزبان برای dial لازمش دارد.
+    // پاسخ `no-store` است و مثلِ بقیه پشتِ همان توکنِ ایجنت.
+    Route::get('exitupstreams', [\App\Http\Controllers\Agent\PullController::class, 'exitUpstreams']);
+
+    // سیاستِ شبکهٔ داخلیِ هر مهمان: `[{ip, lan}]`.
+    // 🔴 مسیرِ جدا و نه کلیدِ تازه روی countryroutes — آن مسیر فقط ماشین‌های
+    // دارای کشورِ خروج را دارد و بازکردنش، عاملِ موجود را با ردیف‌های `cc`ِ تهی
+    // روبه‌رو می‌کرد.
+    Route::get('guestpolicy', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicy']);
 });

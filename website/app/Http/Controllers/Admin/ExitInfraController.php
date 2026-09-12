@@ -7,6 +7,7 @@ use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\Setting;
 use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\PublicPortAllocator;
 use App\Support\ExitCountries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,6 +111,9 @@ class ExitInfraController extends Controller
                 'flag'          => $country['flag'] ?? ($iso === '' ? '🇮🇷' : '🏳️'),
                 'ipv4'          => (string) $inst->ipv4,
                 'kind'          => ($inst->meta['kind'] ?? 'qemu') === 'lxc' ? 'lxc' : 'qemu',
+                // دسترسی به شبکهٔ داخلی — پیش‌فرض باز، و «صریح» یعنی مدیر تنظیمش کرده
+                'lan'           => $inst->lanAccess(),
+                'lan_explicit'  => $inst->lanAccessIsExplicit(),
                 'port'          => $port,
                 'public_host'   => $public,
                 'status_label'  => $inst->statusLabel('fa'),
@@ -158,7 +162,14 @@ class ExitInfraController extends Controller
             'agents'         => [
                 'countryroutes' => $this->agentPulse('agent_seen_countryroutes'),
                 'portforwards'  => $this->agentPulse('agent_seen_portforwards'),
+                // 🔴 تا وقتی عاملی این مسیر را نخوانده باشد، سوییچِ شبکهٔ داخلی
+                // در ویو **غیرفعال** نشان داده می‌شود. دکمه‌ای که چیزی را اعمال
+                // نکند، از نبودش بدتر است.
+                'guestpolicy'   => $this->agentPulse('agent_seen_guestpolicy'),
             ],
+            // ماشین‌هایی که سزاوارِ پورت‌اند ولی ندارند — سکوتی که تا دیروز
+            // بی‌صدا داخلِ GETِ عامل درست می‌شد و حالا باید دیده شود.
+            'missingPorts'   => $hasTable ? app(PublicPortAllocator::class)->missing()->count() : 0,
             'config'         => [
                 'exit_countries' => Setting::get('proxmox_exit_countries') ?: 'de,nl,fi',
                 'agent_token'    => filled(Setting::getSecret('agent_pull_token')),
@@ -351,8 +362,20 @@ class ExitInfraController extends Controller
             'meta'          => $meta ?: null,
         ]);
 
+        /*
+         * 🔴 پورت همین‌جا و زیرِ قفل تخصیص می‌یابد، نه در GETِ عامل.
+         * تا دیروز `PullController::portForwards()` این کار را وسطِ یک درخواستِ
+         * خواندنی می‌کرد؛ یعنی «فقط ببین» عملاً وضعیت را عوض می‌کرد و دو
+         * پیمایشِ هم‌زمان می‌توانستند دو پورت بگیرند.
+         */
+        $port = app(PublicPortAllocator::class)->allocate($inst);
+
+        $note = $port !== null
+            ? ' پورتِ عمومی: '.$port
+            : ' ⚠️ محدودهٔ پورت پر است — پورتی تخصیص نیافت.';
+
         return redirect()->route('admin.exit-infra')
-            ->with('ok', 'ماشینِ «'.$inst->hostname.'» به سیستمِ اکسیت افزوده شد.');
+            ->with('ok', 'ماشینِ «'.$inst->hostname.'» به سیستمِ اکسیت افزوده شد.'.$note);
     }
 
     /**
@@ -387,6 +410,66 @@ class ExitInfraController extends Controller
         $instance->save();
 
         return back()->with('ok', 'پورتِ عمومیِ ماشین روی '.$port.' تنظیم شد. ایجنتِ ایران در پیمایشِ بعدی اعمال می‌کند.');
+    }
+
+    /**
+     * اجازه/منعِ دسترسیِ یک مهمان به شبکهٔ داخلی (10.10.10.0/24).
+     *
+     * فقط «حالتِ مطلوب» را می‌نویسد؛ اعمالِ واقعی با عاملِ میزبان است که
+     * `/agent/guestpolicy` را می‌کشد — همان الگوی سوییچِ کشور.
+     *
+     * 🔴 گاردِ خطِ‌قرمز این‌جا هم هست: ماشینِ زیرساختیِ خودمان نباید با یک کلیک
+     * از شبکهٔ داخلی بیفتد. اگر روزی روی VMِ NPM یا Pritunl زده شود، نتیجه‌اش
+     * قطعِ سرویسِ همهٔ مشتری‌هاست، نه یک مشتری.
+     */
+    public function setLan(Request $request, CloudInstance $instance): RedirectResponse
+    {
+        if ($instance->provider !== 'proxmox') {
+            return back()->with('err', 'فقط ماشین‌های میزبانِ ایران (Proxmox) سیاستِ شبکهٔ داخلی دارند.');
+        }
+
+        if ($this->isProtectedVmid((string) $instance->provider_ref)) {
+            return back()->with('err', 'این ماشین خطِ‌قرمز است؛ دسترسیِ شبکهٔ داخلی‌اش از پنل تغییر نمی‌کند.');
+        }
+
+        $data = $request->validate(['lan' => ['required', 'in:0,1']]);
+        $allow = $data['lan'] === '1';
+
+        $meta = $instance->meta ?? [];
+        $meta['lan_access'] = $allow;
+        $meta['lan_access_at'] = now()->toIso8601String();
+        $meta['lan_access_by'] = 'admin';
+        $instance->meta = $meta;
+        $instance->save();
+
+        $where = $instance->ipv4 ?: ('#'.$instance->id);
+        $label = $allow ? 'باز' : 'بسته';
+
+        return back()->with('ok', "دسترسیِ «{$where}» به شبکهٔ داخلی {$label} شد. عاملِ میزبان در پیمایشِ بعدی اعمال می‌کند.");
+    }
+
+    /**
+     * تخصیصِ پورتِ عمومی به ماشین‌هایی که هنوز ندارند.
+     *
+     * ⚠️ این دکمه جایگزینِ کاری است که تا دیروز **بی‌صدا** داخلِ GETِ عامل
+     * انجام می‌شد. حالا یک عملِ صریحِ مدیر است، زیرِ قفل، و نتیجه‌اش گزارش
+     * می‌شود.
+     */
+    public function syncPorts(PublicPortAllocator $ports): RedirectResponse
+    {
+        $res = $ports->syncMissing();
+
+        if ($res['allocated'] === 0 && $res['exhausted'] === 0) {
+            return back()->with('ok', 'همهٔ ماشین‌ها از قبل پورت داشتند؛ چیزی تغییر نکرد.');
+        }
+
+        $msg = 'برای '.$res['allocated'].' ماشین پورتِ عمومی تخصیص یافت.';
+
+        if ($res['exhausted'] > 0) {
+            $msg .= ' ⚠️ '.$res['exhausted'].' ماشین بی‌پورت ماند — محدودهٔ پورت پر است.';
+        }
+
+        return back()->with('ok', $msg);
     }
 
     /**

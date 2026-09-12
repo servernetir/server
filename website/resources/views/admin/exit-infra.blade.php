@@ -26,7 +26,7 @@
   </p>
 
   <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 14px">
-    @foreach([['ایجنتِ مسیرِ کشوری', $agents['countryroutes']], ['ایجنتِ port-forward', $agents['portforwards']]] as [$label, $a])
+    @foreach([['ایجنتِ مسیرِ کشوری', $agents['countryroutes']], ['ایجنتِ port-forward', $agents['portforwards']], ['ایجنتِ شبکهٔ داخلی', $agents['guestpolicy']]] as [$label, $a])
       @php $col = $a['stale'] ? '#ff6b6b' : '#34d399'; @endphp
       <span class="ad-badge" style="background:{{ $col }}22;color:{{ $col }};font-size:12.5px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px">
         <svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $a['stale'] ? 'x' : 'check' }}"/></svg>
@@ -39,6 +39,23 @@
       </span>
     @endforeach
   </div>
+
+  {{-- 🔴 شکافِ پورت: تا دیروز این کار بی‌صدا داخلِ GETِ عامل انجام می‌شد.
+       حالا تخصیص یک عملِ صریح است، پس نبودش هم باید صریح دیده شود. --}}
+  @if(($missingPorts ?? 0) > 0)
+    <div style="margin:0 18px 14px;padding:11px 14px;border-radius:10px;background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.30);display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <span style="color:#fbbf24;font-size:13px;line-height:1.9">
+        {{ fa_num($missingPorts) }} ماشین هنوز پورتِ عمومی ندارد، پس در خروجیِ عامل نیست و از بیرون در دسترس نیست.
+      </span>
+      <form method="post" action="{{ route('admin.exit-infra.sync-ports') }}" style="margin-inline-start:auto">
+        @csrf
+        <button type="submit" class="ad-badge"
+                style="background:rgba(251,191,36,.20);color:#fbbf24;border:0;cursor:pointer;font-size:12.5px;padding:7px 13px">
+          تخصیصِ پورت به این ماشین‌ها
+        </button>
+      </form>
+    </div>
+  @endif
 
   {{-- توکن‌ها، فهرستِ کشورها و آی‌پیِ عمومی --}}
   <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 18px">
@@ -84,7 +101,7 @@
       <table class="ad-table">
         <thead><tr>
           <th>کشورِ خروج</th><th>آی‌پیِ داخلی</th><th>دسترسیِ عمومی</th><th>پورت</th>
-          <th>وضعیت</th><th>مشتری</th><th>سوییچِ کشور</th><th></th>
+          <th>وضعیت</th><th>مشتری</th><th>شبکهٔ داخلی</th><th>سوییچِ کشور</th><th></th>
         </tr></thead>
         <tbody>
           @foreach($rows as $r)
@@ -117,6 +134,33 @@
                   <div dir="ltr" style="font-size:11.5px;color:var(--dim)">{{ $r['customer_code'] }}</div>
                 @else
                   <span style="color:var(--dim)">— بی‌مشتری</span>
+                @endif
+              </td>
+              {{-- دسترسی به شبکهٔ داخلی --}}
+              <td style="white-space:nowrap">
+                @php $lanLive = ($agents['guestpolicy']['seen'] ?? null) !== null; @endphp
+                @if($r['protected'])
+                  <span style="font-size:12px;color:var(--dim)">🔴 خطِ‌قرمز</span>
+                @elseif(! $lanLive)
+                  {{-- 🔴 عاملی این سیاست را نمی‌خوانَد؛ سوییچِ فعال یعنی وعدهٔ دروغ --}}
+                  <span class="ad-badge" title="عاملِ میزبان هنوز /agent/guestpolicy را نخوانده است"
+                        style="background:rgba(148,163,184,.14);color:var(--dim);font-size:11.5px">اعمال‌نشدنی</span>
+                @else
+                  <form method="post" action="{{ route('admin.exit-infra.lan', $r['id']) }}" style="display:inline">
+                    @csrf
+                    <input type="hidden" name="lan" value="{{ $r['lan'] ? 0 : 1 }}">
+                    <button type="submit" class="ad-badge"
+                            data-confirm="دسترسیِ «{{ $r['ipv4'] ?: $r['id'] }}» به شبکهٔ داخلی {{ $r['lan'] ? 'بسته' : 'باز' }} شود؟"
+                            data-confirm-ok="{{ $r['lan'] ? 'ببند' : 'باز کن' }}"
+                            style="border:0;cursor:pointer;font-size:11.5px;padding:5px 9px;{{ $r['lan']
+                                ? 'background:rgba(52,211,153,.16);color:#34d399'
+                                : 'background:rgba(255,107,107,.16);color:#ff6b6b' }}">
+                      {{ $r['lan'] ? 'باز' : 'بسته' }}
+                    </button>
+                  </form>
+                  @unless($r['lan_explicit'])
+                    <div style="font-size:10.5px;color:var(--dim);margin-top:3px">پیش‌فرض</div>
+                  @endunless
                 @endif
               </td>
               <td>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Agent;
 use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
 use App\Models\Setting;
+use App\Services\Cloud\PublicPortAllocator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -80,62 +81,86 @@ class PullController extends Controller
     }
 
     /**
-     * port-forwardهای ورودی برای هر سرورِ Proxmoxِ زنده.
+     * «حالتِ مطلوبِ» آپ‌استریم‌ها برای میزبانِ ایران — رله‌ها و اکسیت‌های کشوری.
      *
-     * هر سرور یک پورتِ عمومیِ **پایدار** می‌گیرد: اگر در `meta['public_port']`
-     * باشد همان می‌مانَد، وگرنه پایین‌ترین پورتِ آزادِ محدوده تخصیص و در `meta`
-     * ذخیره می‌شود — پس پیمایشِ بعدی همان پورت را می‌بیند. `dest_port` بر اساسِ
-     * سیستم‌عامل است (ویندوز ۳۳۸۹، بقیه ۲۲).
+     * 🔴 این تنها مسیری است که مقدارِ **خامِ** اعتبارنامه را بیرون می‌دهد، چون
+     * میزبان برای dial واقعاً لازمش دارد. پس: فقط GET، فقط با توکن، و
+     * `Cache-Control: no-store` تا هیچ واسطه‌ای کشش نکند.
      *
-     * تخصیص برای یک پیمایشگرِ کرونی «به‌قدرِ کافی» ایمن است: پورتهای مصرف‌شده را
-     * یک‌جا می‌خوانیم و پایین‌ترین آزاد را برمی‌داریم.
+     * شکل:
+     *   { "relays": [ {...} ], "exits": { "de": [ {...} ] } }
+     *
+     * `id` در هر ردیف همان چیزی است که `countryroutes` با `via: "u<id>"` به آن
+     * اشاره می‌کند — پس هاست می‌تواند یک ماشین را به یک آپ‌استریمِ **مشخص**
+     * سنجاق کند، نه فقط به «کشور».
+     *
+     * ⚠️ `exits` عمداً آبجکت است نه آرایه: بی‌کشورِ خروج، `json_encode` یک
+     * آرایهٔ خالیِ `[]` می‌داد و پارسرِ سمتِ هاست که dict انتظار دارد می‌ترکید.
      */
-    public function portForwards(Request $request): JsonResponse
+    public function exitUpstreams(Request $request): JsonResponse
+    {
+        $this->authorizeAgent($request);
+
+        Setting::put('agent_seen_exitupstreams', now()->toIso8601String());
+
+        $rows = ExitUpstream::query()
+            ->enabled()
+            ->orderBy('priority')
+            ->orderBy('id')
+            ->get();
+
+        $relays = [];
+        $exits = [];
+
+        foreach ($rows as $u) {
+            if ($u->isRelay()) {
+                $relays[] = $u->toAgentArray();
+
+                continue;
+            }
+
+            $cc = $u->cc();
+
+            if ($cc === null || $cc === '') {
+                continue;               // اکسیتِ بی‌کشور معنی ندارد؛ رد شود
+            }
+
+            $exits[$cc][] = $u->toAgentArray();
+        }
+
+        return response()
+            ->json(['relays' => $relays, 'exits' => (object) $exits])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * port-forwardهای ورودی — **فقط خواندنی**.
+     *
+     * 🔴 پیش از این، همین متد پورت را همین‌جا تخصیص می‌داد و
+     * `$inst->save()` می‌زد: یک GET از عامل، دیتابیس را عوض می‌کرد. حالا
+     * تخصیص کارِ `PublicPortAllocator` است و فقط از مسیرهای نوشتنی صدا زده
+     * می‌شود (ثبت، اتصال به مشتری، فرمان یا دکمهٔ مدیر).
+     *
+     * ⚠️ پیامدِ عمدی: ماشینی که هنوز پورت نگرفته در این خروجی **نیست**. برای
+     * اینکه این سکوت دیده شود، `missing()` در صفحهٔ «زیرساختِ اکسیت» و در
+     * فرمانِ `exit:ports-sync` گزارش می‌شود. سکوتِ دیده‌نشده بدترین حالت است.
+     */
+    public function portForwards(Request $request, PublicPortAllocator $ports): JsonResponse
     {
         $this->authorizeAgent($request);
 
         // ضربانِ ایجنت (مسیرِ port-forward) — دوقلوی countryRoutes برای پایشِ زنده‌بودن.
         Setting::put('agent_seen_portforwards', now()->toIso8601String());
 
-        $portMin = (int) config('servernet.exit.sale_port_min', 20000);
-        $portMax = (int) config('servernet.exit.sale_port_max', 20999);
-        $publicIp = (string) (Setting::get('public_ip') ?: config('servernet.exit.public_ip', ''));
-
-        // پورتهای مصرف‌شده روی **هر** نمونه (نه فقط زنده‌ها) تا تکراری ندهیم
-        $used = [];
-
-        foreach (CloudInstance::query()->whereNotNull('meta')->get(['meta']) as $row) {
-            $p = (int) ($row->meta['public_port'] ?? 0);
-
-            if ($p > 0) {
-                $used[$p] = true;
-            }
-        }
-
-        $instances = CloudInstance::query()
-            ->where('provider', 'proxmox')
-            ->whereIn('status', ['building', 'running'])
-            ->whereNotNull('ipv4')
-            ->where('ipv4', '!=', '')
-            ->get();
-
+        $publicIp = $ports->publicIp();
         $out = [];
 
-        foreach ($instances as $inst) {
-            $port = (int) ($inst->meta['public_port'] ?? 0);
+        foreach ($ports->eligible() as $inst) {
+            $port = $inst->publicPort();
 
             if ($port <= 0) {
-                $port = $this->lowestFreePort($used, $portMin, $portMax);
-
-                if ($port === null) {
-                    continue;               // محدوده پر است؛ پیمایشگر را نمی‌شکنیم
-                }
-
-                $inst->meta = array_merge($inst->meta ?? [], ['public_port' => $port]);
-                $inst->save();
+                continue;                   // تخصیص‌نیافته — این‌جا ساخته نمی‌شود
             }
-
-            $used[$port] = true;
 
             $out[] = [
                 'ip'          => (string) $inst->ipv4,
@@ -149,19 +174,36 @@ class PullController extends Controller
     }
 
     /**
-     * پایین‌ترین پورتِ آزادِ محدوده، یا null اگر همه پر باشند.
+     * سیاستِ شبکهٔ داخلی برای هر مهمان — «این ماشین اجازهٔ دیدنِ 10.10.10.0/24
+     * را دارد یا نه».
      *
-     * @param  array<int,bool>  $used
+     * 🔴 چرا مسیرِ جداست و به `countryroutes` اضافه نشد: آن مسیر فقط ماشین‌هایی
+     * را دارد که کشورِ خروج دارند. اگر برای این سیاست بازترش می‌کردیم، عاملِ
+     * موجود ردیف‌هایی با `cc` تهی می‌دید که هرگز انتظارشان را نداشت — یعنی
+     * همان «تغییرِ شکل» که پروژه یک‌بار با `via` عمداً از آن پرهیز کرد.
+     *
+     * شکل: `[ {"ip": "...", "lan": true|false} ]`
+     *
+     * ⚠️ این فقط «حالتِ مطلوب» است. تا وقتی عاملی این مسیر را نخوانده باشد،
+     * پنل هم سوییچ را **غیرفعال** نشان می‌دهد — دکمه‌ای که چیزی را اعمال نکند
+     * از نبودنش بدتر است.
      */
-    private function lowestFreePort(array $used, int $min, int $max): ?int
+    public function guestPolicy(Request $request, PublicPortAllocator $ports): JsonResponse
     {
-        for ($p = $min; $p <= $max; $p++) {
-            if (! isset($used[$p])) {
-                return $p;
-            }
+        $this->authorizeAgent($request);
+
+        Setting::put('agent_seen_guestpolicy', now()->toIso8601String());
+
+        $out = [];
+
+        foreach ($ports->eligible() as $inst) {
+            $out[] = [
+                'ip'  => (string) $inst->ipv4,
+                'lan' => $inst->lanAccess(),
+            ];
         }
 
-        return null;
+        return response()->json($out)->header('Cache-Control', 'no-store');
     }
 
     /**
