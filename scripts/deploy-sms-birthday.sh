@@ -3,7 +3,7 @@
 # دیپلوی «شش الگوی پیامک + هدیهٔ تولد + ایمیلِ تحویل + نمایشِ شمارهٔ کارت»
 # — شهریور ۱۴۰۵.
 #
-# چه چیزی دیپلوی می‌شود (۱۵ فایل، بدونِ مهاجرت):
+# چه چیزی دیپلوی می‌شود (۱۶ فایل، بدونِ مهاجرت):
 #
 #   پیامک
 #     · SignedRelaySender   — شش نامِ تازه در فهرستِ الگوها
@@ -20,6 +20,10 @@
 #     · CustomerController + routes/web.php + admin/customer.blade.php
 #                           — نمایشِ کنترل‌شدهٔ شمارهٔ کارت برای عودتِ وجه
 #     · CloudLocation       — نامِ فارسیِ پنج شهرِ تازهٔ زیرساختِ ۴
+#     · cloud-server.blade  — تنها فایلی که در merge با develop تداخل داشت؛
+#                             هم `lroute()` develop را دارد هم متنِ دوشاخهٔ
+#                             تأییدِ خاموشی. اگر نرود، یکی از دو طرف روی
+#                             سرور جا می‌مانَد.
 #
 # ═══ 🔴 دو کارِ دستی که این اسکریپت انجام نمی‌دهد ═══
 #
@@ -82,7 +86,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-a16ea5d2}"
+MINE="${1:-99967655}"
 
 if ! git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1; then
   echo "── $MINE در develop نیست؛ شاخهٔ merge-to-develop هم آورده می‌شود"
@@ -151,6 +155,7 @@ app/Services/Cloud/CloudProvisioner.php
 app/Models/CloudLocation.php
 database/seeders/NotificationTemplateSeeder.php
 resources/views/admin/customer.blade.php
+resources/views/account/cloud-server.blade.php
 lang/fa/ui.php
 lang/en/ui.php
 lang/tr/ui.php
@@ -300,6 +305,10 @@ need_grep lang/en/ui.php                          'ntf_birthday_b'
 need_grep lang/tr/ui.php                          'ntf_birthday_b'
 need_grep lang/en/ui.php                          'ntf_bank_receipt_b'
 need_grep lang/tr/ui.php                          'ntf_bank_receipt_b'
+
+# ── فایلِ تداخل: هر دو طرف باید روی سرور باشند ──
+need_grep resources/views/account/cloud-server.blade.php 'billsWhileOff'
+need_grep resources/views/account/cloud-server.blade.php "lroute('account.cloud.power'"
 
 # ── نامِ فارسیِ شهرهای تازه ──
 need_grep app/Models/CloudLocation.php            'آتلانتا'
