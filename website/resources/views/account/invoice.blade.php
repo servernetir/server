@@ -145,6 +145,25 @@
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
         @endif
+        {{--
+          اسنپ‌پی — پرداخت اقساطی.
+
+          🔴 عنوان و توضیح **از خودِ اسنپ‌پی** می‌آید، نه از فایل زبان. گایدلاین
+          صریح است: «title و description همیشه داینامیک از سمتِ اسنپ‌پی بوده و
+          به هیچ عنوان نباید به صورت ثابت نمایش پیدا کند.» خطِ اول تایتل، خطِ
+          دوم دیسکریپشن.
+
+          🔴 و اگر eligible=false بود، این کارت اصلاً رندر نمی‌شود — نه
+          غیرفعال و نه با پیامِ «در دسترس نیست». همان‌طور که خواسته‌اند.
+        --}}
+        @if($snapppay['show'])
+          <label class="pm-card" data-m="snapppay">
+            <input type="radio" name="pm" value="snapppay" hidden>
+            <span class="pm-badge sp"><img src="{{ asset('assets/img/snapppay.svg') }}" alt="Snapp! Pay" width="28" height="28"></span>
+            <span class="pm-tt"><b>{{ $snapppay['title'] }}</b><small>{{ $snapppay['description'] }}</small></span>
+            <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
+          </label>
+        @endif
         <label class="pm-card" data-m="bank">
           <input type="radio" name="pm" value="bank" hidden>
           <span class="pm-badge bk"><svg class="icon"><use href="#i-db"/></svg></span>
@@ -244,6 +263,16 @@
           @csrf<input type="hidden" name="gateway" value="zarinpal">
           <div class="pm-pane-h"><b>{{ __('ui.inv_zp_pane_title') }}</b></div>
           <p class="pm-note">{{ __('ui.inv_zp_note') }}</p>
+          <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
+        </form>
+      @endif
+
+      @if($snapppay['show'])
+        {{-- توضیحِ پنل هم همان متنِ اسنپ‌پی است، نه نوشتهٔ ما. --}}
+        <form class="pm-pane" id="pane-snapppay" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
+          @csrf<input type="hidden" name="gateway" value="snapppay">
+          <div class="pm-pane-h"><b>{{ $snapppay['title'] }}</b></div>
+          <p class="pm-note">{{ $snapppay['description'] }}</p>
           <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
         </form>
       @endif
@@ -501,6 +530,10 @@
 .pm-badge.zp{ background:linear-gradient(135deg,#f4b740,#e08a1e); }
 .pm-badge.bl{ background:linear-gradient(135deg,#22c55e,#15a34a); }
 .pm-badge.bk{ background:linear-gradient(135deg,#38bdf8,#2563eb); }
+/* اسنپ‌پی لوگوی خودش را دارد و گایدلاین رنگش را تعیین می‌کند — پس پس‌زمینهٔ
+   گرادیانی مثل بقیه نمی‌گیرد، وگرنه لوگو روی رنگِ ما می‌نشیند. */
+.pm-badge.sp{ background:#fff; border:1px solid var(--bd,#e5e7eb); }
+.pm-badge.sp img{ width:28px; height:28px; display:block; }
 .pm-badge.cr{ background:linear-gradient(135deg,#94a3b8,#64748b); }
 .pm-badge.cy{ background:linear-gradient(135deg,#26a17b,#1a7f5e); }   /* تتر */
 .pm-tt{ display:flex; flex-direction:column; gap:2px; min-width:0; }

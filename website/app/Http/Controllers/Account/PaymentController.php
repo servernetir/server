@@ -188,6 +188,15 @@ class PaymentController extends Controller
                 ? $this->balance((int) Auth::guard('customer')->id())
                 : 0,
             'gateways'     => $this->gatewaysFor($invoice->currency_code),
+            /*
+            | اسنپ‌پی — نمایش یا عدمِ نمایش، و متنی که روی دکمه می‌نشیند.
+            |
+            | 🔴 عنوان و توضیح **ساختهٔ ما نیست**؛ اسنپ‌پی صریحاً خواسته عیناً
+            | همان چیزی نشان داده شود که سرویسِ eligible برمی‌گرداند. هر متنِ
+            | ثابتِ محلی تخلف از گایدلاین است و در بازبینی رد می‌شود.
+            */
+            'snapppay'     => app(\App\Services\Payment\SnappPay\SnappPayAvailability::class)
+                ->forInvoice($invoice, Auth::guard('customer')->user()),
             'bank'         => $this->bankDetails(),
             // آخرین رسیدِ در انتظارِ همین فاکتور — تا کاربر بداند ثبت شده
             'pendingBank'  => Schema::hasTable('bank_transfer_receipts')
@@ -418,7 +427,29 @@ class PaymentController extends Controller
 
         $request->validate(['gateway' => ['required', 'string', 'max:24']]);
 
-        $outcome = $this->payments->begin($invoice, $request->string('gateway')->toString(), $request);
+        $gateway = $request->string('gateway')->toString();
+
+        /*
+        | 🔴 گاردِ اسنپ‌پی این‌جا هم لازم است، نه فقط در ویو.
+        |
+        | پنهان‌کردنِ کارت در Blade کسی را متوقف نمی‌کند که فرم را دستی POST
+        | کند. و اسنپ‌پی صریحاً خواسته وقتی `eligible=false` است این روشِ
+        | پرداخت در دسترس نباشد — «در دسترس نبودن» یعنی سرور هم قبولش نکند،
+        | نه اینکه فقط دیده نشود.
+        |
+        | همان تابعی صدا زده می‌شود که ویو با آن تصمیم گرفته، پس هیچ‌وقت این
+        | دو از هم جدا نمی‌شوند.
+        */
+        if ($gateway === 'snapppay') {
+            $offer = app(\App\Services\Payment\SnappPay\SnappPayAvailability::class)
+                ->forInvoice($invoice, Auth::guard('customer')->user());
+
+            if (! $offer['show']) {
+                return back()->withErrors(['gateway' => 'پرداخت اقساطی برای این فاکتور در دسترس نیست.']);
+            }
+        }
+
+        $outcome = $this->payments->begin($invoice, $gateway, $request);
 
         return $this->afterBegin($outcome, $invoice);
     }
