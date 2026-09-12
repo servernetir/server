@@ -201,13 +201,15 @@ class BirthdayGiftTest extends TestCase
     {
         $big = $this->customer($this->gregorianOf(1370, 5, 15));
 
+        // 🔴 اول ساعت را ببر، بعد فاکتور را نسبت به **همان** ساعت بساز.
+        $this->travelToJalali(1405, 5, 15);
+
         \DB::table('invoices')->insert([
             'customer_id' => $big->id, 'number' => 'INV-1', 'status' => 'paid',
             'currency_code' => 'IRT', 'subtotal' => 6_000_000, 'total' => 6_000_000,
             'created_at' => now()->subDays(10), 'updated_at' => now(),
         ]);
 
-        $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift')->assertSuccessful();
 
         $this->assertSame(300_000, $this->gifts($big),
@@ -218,13 +220,26 @@ class BirthdayGiftTest extends TestCase
     {
         $c = $this->customer($this->gregorianOf(1370, 5, 15));
 
+        /*
+        | 🔴 ترتیب این‌جا کلِ تست است، نه سلیقه.
+        |
+        | نسخهٔ اول فاکتور را با ساعتِ **واقعی** می‌ساخت و بعد ساعت را به
+        | ۱۵ مرداد ۱۴۰۵ می‌برد. یعنی فاصلهٔ «۴۰۰ روز» به تاریخِ اجرای تست
+        | بند بود: چند روز سبز مانْد و بعد بی‌آنکه کدی عوض شود قرمز شد،
+        | چون آن فاصله از لبهٔ ۳۶۵ روز رد شد.
+        |
+        | تستی که به ساعتِ دیوار بند باشد، روزی قرمز می‌شود که هیچ‌کس دنبالِ
+        | علتش در تقویم نمی‌گردد — و بدتر، ممکن بود همان روز یک باگِ واقعی
+        | را هم پنهان کند.
+        */
+        $this->travelToJalali(1405, 5, 15);
+
         \DB::table('invoices')->insert([
             'customer_id' => $c->id, 'number' => 'INV-2', 'status' => 'paid',
             'currency_code' => 'IRT', 'subtotal' => 6_000_000, 'total' => 6_000_000,
             'created_at' => now()->subDays(400), 'updated_at' => now(),
         ]);
 
-        $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift')->assertSuccessful();
 
         $this->assertSame(100_000, $this->gifts($c),

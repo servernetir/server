@@ -873,7 +873,11 @@
       <button class="btn btn-primary" type="submit" style="margin-top:8px">ثبت یادداشت</button>
     </form>
     @forelse($notes as $note)
-      <div style="padding:14px 16px;border-top:1px solid var(--border)">
+      {{-- ⚠️ `--border` در این پروژه تعریف نشده؛ توکنِ مرز `--line` است.
+           متغیرِ ناموجود بی‌fallback یعنی کلِ اعلانِ CSS دور انداخته
+           می‌شود — خطی که باید باشد اصلاً کشیده نمی‌شود، با کدِ ۲۰۰ و
+           بی‌هیچ خطایی. `CssVariablesDefinedTest` همین را می‌گیرد. --}}
+      <div style="padding:14px 16px;border-top:1px solid var(--line)">
         <form method="post" action="/admin/customers/{{ $c->id }}/notes/{{ $note->id }}">@csrf @method('put')
           <textarea name="body" required maxlength="5000" rows="2" class="ad-input" style="width:100%">{{ $note->body }}</textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;color:var(--dim);font-size:12px">
