@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
 use App\Services\Cloud\CloudCatalogSync;
 use App\Services\Cloud\CloudManager;
-use App\Models\CloudPlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -304,9 +304,8 @@ class CloudArvanTest extends TestCase
             | فهرستِ خالیِ catch-all را می‌گرفت و `createServer()` همان اول
             | برمی‌گشت — یعنی تست چیزی را می‌سنجید که هرگز به آن نمی‌رسید.
             |
-            | 🔴 `real_name` عمداً با `name` فرق دارد: چیزی که در بدنهٔ سفارش
-            | می‌رود `real_name` است. فیکسچری که هر دو را یکی بگذارد، اشتباه
-            | گرفتنشان را دیگر نمی‌گیرد.
+            | 🔴 `id`، `name` و `real_name` عمداً فرق دارند: API خام ID را
+            | داخل کلیدِ `name` می‌خواهد. فیکسچرِ یکسان این اشتباه را نمی‌گیرد.
             */
             if (str_contains($url, '/securities')) {
                 return Http::response(['data' => [['id' => 'sg-1', 'name' => 'default', 'real_name' => 'arDefault']]], 200);
@@ -350,10 +349,10 @@ class CloudArvanTest extends TestCase
         | تا امروز هیچ‌جا نمی‌سنجید که گروهِ امنیتی واقعاً در بدنه می‌رود، پس
         | وقتی `createServer()` به آن وابسته شد، تست فقط قرمز شد — بی‌آنکه
         | بگوید کدام ادعا شکسته. حالا فیکسچر و قرارداد به هم قفل‌اند:
-        | `real_name` می‌رود نه `name`، و داخلِ آبجکت نه به‌صورتِ رشته
-        | (هر دو یک بار روی حسابِ واقعی خرج برداشتند).
+        | ID می‌رود نه `name`/`real_name`، و داخلِ آبجکت نه به‌صورتِ رشته.
+        | هر دو خطا یک بار روی حسابِ واقعی خرج برداشتند.
         */
-        $this->assertSame([['name' => 'arDefault']], $body['security_groups']);
+        $this->assertSame([['name' => 'sg-1']], $body['security_groups']);
     }
 
     /** نامِ تکراری → همان سرورِ موجود (idempotency)، نه سرورِ دوم */

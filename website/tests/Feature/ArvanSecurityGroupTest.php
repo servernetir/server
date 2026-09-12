@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudImage;
 use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
@@ -93,6 +94,20 @@ class ArvanSecurityGroupTest extends TestCase
                     ], 400);
                 }
 
+                // قراردادِ واقعیِ API: کلید `name` است، اما مقدار باید ID یکی
+                // از گروه‌های همین منطقه باشد؛ نام و real_name پیدا نمی‌شوند.
+                $knownIds = array_values(array_filter(array_map(
+                    static fn (array $group): string => (string) ($group['id'] ?? ''),
+                    $groups,
+                )));
+
+                if (! in_array((string) $sg[0]['name'], $knownIds, true)) {
+                    return Http::response([
+                        'message' => 'Requested firewall was not found',
+                        'errors' => [],
+                    ], 400);
+                }
+
                 return Http::response(['data' => [
                     'id' => 'srv-1', 'name' => 'x', 'status' => 'ACTIVE', 'password' => 'p',
                 ]], 200);
@@ -116,13 +131,15 @@ class ArvanSecurityGroupTest extends TestCase
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg-default', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true]],
-            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['security_groups'] ?? null;
+            },
         );
 
         $r = app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame([['name' => 'arDefault']], $sent,
-            'گروهِ امنیتی به شکلِ درست (آبجکتِ name) فرستاده نشد — آروان سفارش را رد می‌کند');
+        $this->assertSame([['name' => 'sg-default']], $sent,
+            'شناسهٔ گروهِ امنیتی داخل آبجکتِ name فرستاده نشد — آروان سفارش را رد می‌کند');
         $this->assertTrue($r['ok'], 'ساخت ناموفق ماند: '.($r['message'] ?? ''));
     }
 
@@ -133,11 +150,13 @@ class ArvanSecurityGroupTest extends TestCase
         $this->fakeArvan([
             ['id' => 'sg-other', 'name' => 'custom'],
             ['id' => 'sg-def', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true],
-        ], function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; });
+        ], function ($request) use (&$sent) {
+            $sent = $request['security_groups'] ?? null;
+        });
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame([['name' => 'arDefault']], $sent);
+        $this->assertSame([['name' => 'sg-def']], $sent);
     }
 
     /** بی‌گروهِ default، اولین گروهِ موجود — بهتر از شکست است. */
@@ -146,47 +165,71 @@ class ArvanSecurityGroupTest extends TestCase
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg-only', 'name' => 'my-rules']],
-            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['security_groups'] ?? null;
+            },
         );
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame([['name' => 'my-rules']], $sent);
+        $this->assertSame([['name' => 'sg-only']], $sent);
     }
 
     /**
-     * 🔴🔴 `real_name` است که آروان می‌شناسد، نه `name`.
+     * 🔴🔴 API خام، ID را داخلِ کلیدِ `name` می‌خواهد.
      *
      * پاسخِ واقعیِ گروهِ پیش‌فرض: `{"name":"default","real_name":"arDefault"}`.
-     * با `name` آروان گروه را پیدا نمی‌کند و پیامِ عمومیِ «Instance not found»
-     * می‌دهد — که هیچ نمی‌گوید کدام منبع. این ادعا آن تلهٔ ظریف را قفل می‌کند.
+     * provider رسمی آروان ابتدا `arDefault` را resolve می‌کند و ID را در بدنه
+     * می‌فرستد. نام/real_name باعث «Requested firewall was not found» می‌شود.
      */
-    public function test_it_sends_real_name_not_the_display_name(): void
+    public function test_it_sends_the_provider_id_not_either_name(): void
     {
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg1', 'name' => 'default', 'real_name' => 'arDefault', 'default' => true]],
-            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['security_groups'] ?? null;
+            },
         );
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame([['name' => 'arDefault']], $sent,
-            'نامِ نمایشی فرستاده شد به‌جای real_name — آروان گروه را پیدا نمی‌کند');
+        $this->assertSame([['name' => 'sg1']], $sent,
+            'نام یا real_name به‌جای شناسه فرستاده شد — آروان گروه را پیدا نمی‌کند');
     }
 
-    /** بی‌`real_name`، همان `name` — درایورهای قدیمی‌تر آروان آن فیلد را ندارند. */
-    public function test_it_falls_back_to_name_when_real_name_is_absent(): void
+    /** نبودِ real_name اهمیتی ندارد؛ قرارداد به ID متکی است. */
+    public function test_it_uses_the_id_when_real_name_is_absent(): void
     {
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg1', 'name' => 'my-group']],
-            function ($request) use (&$sent) { $sent = $request['security_groups'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['security_groups'] ?? null;
+            },
         );
 
         app(ArvanClient::class)->createServer($this->spec());
 
-        $this->assertSame([['name' => 'my-group']], $sent);
+        $this->assertSame([['name' => 'sg1']], $sent);
+    }
+
+    /** ردیفِ بی‌شناسه نباید با نامِ ظاهراً معتبر وارد سفارش شود. */
+    public function test_a_group_without_an_id_does_not_reach_the_create_endpoint(): void
+    {
+        $called = false;
+        $this->fakeArvan(
+            [['name' => 'default', 'real_name' => 'arDefault', 'default' => true]],
+            function () use (&$called) {
+                $called = true;
+            },
+        );
+
+        $r = app(ArvanClient::class)->createServer($this->spec());
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('firewall', $r['message']);
+        $this->assertFalse($called, 'نامِ گروه بدون ID به endpoint ساخت رسید');
     }
 
     /**
@@ -198,7 +241,9 @@ class ArvanSecurityGroupTest extends TestCase
     public function test_no_group_at_all_fails_with_an_actionable_message(): void
     {
         $called = false;
-        $this->fakeArvan([], function () use (&$called) { $called = true; });
+        $this->fakeArvan([], function () use (&$called) {
+            $called = true;
+        });
 
         $r = app(ArvanClient::class)->createServer($this->spec());
 
@@ -256,7 +301,7 @@ class ArvanSecurityGroupTest extends TestCase
      */
     public function test_an_image_from_another_region_is_translated(): void
     {
-        \App\Models\CloudImage::create([
+        CloudImage::create([
             'provider' => 'arvan', 'provider_ref' => 'img-OTHER-region', 'key' => '24-04',
             'kind' => 'os', 'family' => 'ubuntu', 'version' => '24.04',
             'label' => '24.04', 'arch' => 'x86', 'min_disk_gb' => 10, 'is_active' => true,
@@ -265,7 +310,9 @@ class ArvanSecurityGroupTest extends TestCase
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']],
-            function ($request) use (&$sent) { $sent = $request['image_id'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['image_id'] ?? null;
+            },
         );
 
         $spec = $this->spec();
@@ -283,7 +330,9 @@ class ArvanSecurityGroupTest extends TestCase
         $sent = null;
         $this->fakeArvan(
             [['id' => 'sg1', 'name' => 'servernet', 'real_name' => 'servernet']],
-            function ($request) use (&$sent) { $sent = $request['image_id'] ?? null; },
+            function ($request) use (&$sent) {
+                $sent = $request['image_id'] ?? null;
+            },
         );
 
         $spec = $this->spec();
