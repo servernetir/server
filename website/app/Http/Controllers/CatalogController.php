@@ -624,10 +624,9 @@ class CatalogController extends Controller
                 'ok'      => true,
                 'reason'  => null,
                 'irt'     => (int) $p->price_irt,
-                'price_f' => site_price([
-                    'irt' => (int) $p->price_irt,
-                    'eur' => round(((int) $p->price_eur_cents) / 100, 2),
-                ]),
+                // price_irt قیمت نهایی CloudPlan است؛ site_price() ضریب عمومی
+                // محصولات ثابت را دوباره اعمال می‌کند و با تسویه مغایر می‌شود.
+                'price_f' => cloud_price((int) $p->price_irt),
                 'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $p->slug),
             ]];
 

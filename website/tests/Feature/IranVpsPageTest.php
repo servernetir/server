@@ -135,6 +135,26 @@ class IranVpsPageTest extends TestCase
             'جدول خرید هنوز ممکن است با opacity صفر برای همیشه نامرئی بماند');
     }
 
+    /** ضریب عمومی سایت نباید قیمت نهایی CloudPlan را برای بار دوم افزایش دهد. */
+    public function test_the_marketing_page_price_exactly_matches_the_cloud_plan_price(): void
+    {
+        $this->tehran();
+        $this->plan(2, 'ir-tehran', ['price_irt' => 880_000]);
+
+        // اگر ویو اشتباهاً site_price() بزند، ۸۸۰ هزار به ۹۳۰ هزار می‌رسد.
+        Setting::put('pricing_baseline_rate', '100000');
+        Setting::put('pricing_rate_override', '105700');
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertStringContainsString(fa_num(number_format(880_000)).' تومان', $html);
+        $this->assertStringNotContainsString(fa_num(number_format(930_000)).' تومان', $html,
+            'ضریب عمومی قیمت‌گذاری برای بار دوم روی قیمت نهایی پلن ابری اعمال شده است');
+        $this->assertStringContainsString('data-price="880000"', $html);
+        $this->assertStringContainsString('"price":"8800000"', $html,
+            'دادهٔ ساختاریافته نیز باید همان ۸۸۰ هزار تومان را به ریال منتشر کند');
+    }
+
     // ───────── ۲) حالتِ بی‌موجودی: صفحه باید حرف بزند، نه ساکت بماند ─────────
 
     /**
