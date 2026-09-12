@@ -424,6 +424,9 @@ class CustomerController extends Controller
             | 🔴 `answered = false` صریح، نه `!answered`.
             | تماسِ در جریان (`null`) از‌دست‌رفته نیست و نباید بجِ قرمز بگیرد.
             */
+            'notes' => Schema::hasTable('customer_notes')
+                ? \App\Models\CustomerNote::where('customer_id', $customer->id)->with('author')->latest('id')->get()
+                : collect(),
             'callsMissed' => Schema::hasTable('phone_calls')
                 ? PhoneCall::where('customer_id', $customer->id)
                     ->where('answered', false)->count()

@@ -67,10 +67,31 @@ class PaymentController extends Controller
 
         $invoice->load('items', 'payments', 'customer.identityVerification');
 
+        /*
+        | 🔴 خریدارِ حقوقی، نه شخصِ پشتِ حساب.
+        |
+        | تا امروز این‌جا همیشه `displayName()` می‌نشست — نامِ شخصِ حقیقیِ
+        | صاحبِ حساب. مشتری‌ای که اطلاعاتِ شرکتش را وارد کرده بود، هم روی
+        | پیش‌فاکتور و هم روی فاکتورِ فروش نامِ خودش را می‌دید؛ سندی که برای
+        | دفاترِ آن شرکت بی‌مصرف است و ارزش افزوده‌اش هم قابلِ استفاده نیست.
+        |
+        | ⚠️ هویت **زنده** خوانده می‌شود، نه منجمد روی فاکتور: جدولِ
+        | `invoices` ستونی برای پروفایل ندارد. پس اگر مشتری بعداً نامِ شرکتش
+        | را عوض کند، فاکتورهای قدیمی هم عوض می‌شوند. منجمدکردنش یک ستونِ
+        | `billing_profile_id` می‌خواهد — کارِ جدا.
+        */
+        $buyerProfile = $invoice->customer?->billingProfile();
+
         return view('account.invoice-print', [
             'invoice'   => $invoice,
             'paid'      => $invoice->payments->firstWhere('status', 'paid'),
             'contact'   => site_contact(),
+            // نامِ شرکت اگر پروفایلِ حقوقی هست، وگرنه همان نامِ شخصیِ قبلی
+            'buyerName'     => $buyerProfile?->displayName()
+                ?: ($invoice->customer?->displayName() ?? '—'),
+            'buyerIdentity' => $buyerProfile?->invoiceIdentity() ?? [],
+            'buyerAddress'  => $buyerProfile?->invoiceAddress(),
+            'buyerPhone'    => $buyerProfile?->mobile ?: $invoice->customer?->phone,
             /*
             | 🔴 نامِ ثبتی از **هویتِ حقوقیِ شرکت** می‌آید، نه از `bank_holder`.
             |

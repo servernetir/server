@@ -97,6 +97,64 @@ class IranVpsPageTest extends TestCase
         $this->assertStringNotContainsString(__('ui.hp_stock_out'), $html);
     }
 
+    /** ایران باید حتی پلنی را که از نظر قیمت/منابع مغلوب است نشان دهد. */
+    public function test_the_iran_page_does_not_prune_a_sellable_dominated_plan(): void
+    {
+        $this->tehran();
+
+        $this->plan(2, 'ir-tehran', [
+            'public_name' => 'GOOD',
+            'slug' => 'good-ir-tehran',
+            'price_irt' => 1_370_000,
+        ]);
+        $this->plan(1, 'ir-tehran', [
+            'public_name' => 'BAD-BUT-SELLABLE',
+            'slug' => 'bad-ir-tehran',
+            'ram_mb' => 2 * 1024,
+            'price_irt' => 2_740_000,
+        ]);
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($html, 'data-city='));
+        $this->assertStringContainsString('GOOD', $html);
+        $this->assertStringContainsString('BAD-BUT-SELLABLE', $html,
+            'قاعدهٔ حذف پلن مغلوب هنوز یک پلن قابل‌فروش ایران را پنهان می‌کند');
+    }
+
+    /** جدول بلند ایران نباید منتظر عبور از آستانهٔ انیمیشن اسکرولی بماند. */
+    public function test_the_plan_table_is_visible_without_the_reveal_observer(): void
+    {
+        $this->tehran();
+        $this->plan(2);
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="pt-group"', $html);
+        $this->assertStringNotContainsString('class="pt-group reveal"', $html,
+            'جدول خرید هنوز ممکن است با opacity صفر برای همیشه نامرئی بماند');
+    }
+
+    /** ضریب عمومی سایت نباید قیمت نهایی CloudPlan را برای بار دوم افزایش دهد. */
+    public function test_the_marketing_page_price_exactly_matches_the_cloud_plan_price(): void
+    {
+        $this->tehran();
+        $this->plan(2, 'ir-tehran', ['price_irt' => 880_000]);
+
+        // اگر ویو اشتباهاً site_price() بزند، ۸۸۰ هزار به ۹۳۰ هزار می‌رسد.
+        Setting::put('pricing_baseline_rate', '100000');
+        Setting::put('pricing_rate_override', '105700');
+
+        $html = $this->get('/vps/iran')->assertOk()->getContent();
+
+        $this->assertStringContainsString(fa_num(number_format(880_000)).' تومان', $html);
+        $this->assertStringNotContainsString(fa_num(number_format(930_000)).' تومان', $html,
+            'ضریب عمومی قیمت‌گذاری برای بار دوم روی قیمت نهایی پلن ابری اعمال شده است');
+        $this->assertStringContainsString('data-price="880000"', $html);
+        $this->assertStringContainsString('"price":"8800000"', $html,
+            'دادهٔ ساختاریافته نیز باید همان ۸۸۰ هزار تومان را به ریال منتشر کند');
+    }
+
     // ───────── ۲) حالتِ بی‌موجودی: صفحه باید حرف بزند، نه ساکت بماند ─────────
 
     /**

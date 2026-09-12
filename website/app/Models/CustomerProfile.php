@@ -176,4 +176,73 @@ class CustomerProfile extends Model
             ? (string) $this->company_name
             : trim($this->first_name.' '.$this->last_name);
     }
+
+    /**
+     * شناسه‌های ثبتیِ خریدار برای فاکتور — همان شکلِ `company_identity()`ِ
+     * فروشنده، تا ویو با هر دو طرف یکسان رفتار کند.
+     *
+     * ⚠️ فقط فیلدهای **پرشده** برمی‌گردند. ردیفِ «شماره ثبت: —» روی فاکتور
+     * بدتر از نبودنش است: شبیهِ سندِ ناقص می‌شود، نه سندِ مختصر.
+     *
+     * 🔴 شناسهٔ ملیِ شرکت رمزنگاری‌شده است. اگر رمزگشایی شکست بخورد (کلیدِ
+     * اپ عوض شده، ردیفِ مهاجرت‌نشده) نباید کلِ فاکتور ۵۰۰ شود — مشتری فقط
+     * می‌خواهد فاکتورش را چاپ کند. پس آن یک ردیف می‌افتد و بقیه می‌آیند.
+     *
+     * @return array<int,array{label:string,value:string}>
+     */
+    public function invoiceIdentity(): array
+    {
+        if (! $this->isCompany()) {
+            return [];
+        }
+
+        try {
+            $nationalId = (string) $this->getSecure('company_national_id');
+        } catch (\Throwable) {
+            $nationalId = '';
+        }
+
+        $rows = [
+            'ui.trust_national' => $nationalId,
+            'ui.trust_reg_no'   => (string) $this->registration_number,
+            'ui.trust_economic' => (string) $this->economic_code,
+        ];
+
+        $out = [];
+
+        foreach ($rows as $label => $value) {
+            if (trim($value) !== '') {
+                $out[] = ['label' => $label, 'value' => trim($value)];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * نشانیِ خریدار در یک رشته — یا `null` اگر نشانیِ واقعی نداریم.
+     *
+     * ⚠️ استان و شهرِ بی‌خیابان «نشانی» نیست و کدپستی هم به‌تنهایی نه. همان
+     * قاعدهٔ `company_address()`: چیزی که به‌دردِ خواننده نمی‌خورد چاپ نمی‌شود.
+     */
+    public function invoiceAddress(): ?string
+    {
+        $street = trim((string) $this->address);
+
+        if ($street === '') {
+            return null;
+        }
+
+        $line = implode('، ', array_filter([
+            trim((string) $this->province),
+            trim((string) $this->city),
+            $street,
+        ], fn ($p) => $p !== ''));
+
+        $postal = trim((string) $this->postal_code);
+
+        return $postal !== ''
+            ? $line.' — '.__('ui.invp_postal_code').' '.$postal
+            : $line;
+    }
 }

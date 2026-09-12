@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Agent;
 
 use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
+use App\Models\ExitUpstream;
 use App\Models\Setting;
+use App\Services\Cloud\PublicPortAllocator;
+use App\Support\GuestPolicySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent).
@@ -80,62 +84,87 @@ class PullController extends Controller
     }
 
     /**
-     * port-forwardهای ورودی برای هر سرورِ Proxmoxِ زنده.
+     * آپ‌استریم‌های اکسیت — رله‌های SSH (آپ‌لینک) و نودهای VLESS/exitِ کشوری که
+     * مدیر از پنل اضافه کرده. میزبانِ ایران این را می‌کشد تا استخرِ رله و اکسیت‌های
+     * اختصاصی‌اش را با «حالتِ مطلوب» هماهنگ کند (معادلِ `servernet-relay-set` و
+     * `servernet-exit-set` ولی داده‌محور).
      *
-     * هر سرور یک پورتِ عمومیِ **پایدار** می‌گیرد: اگر در `meta['public_port']`
-     * باشد همان می‌مانَد، وگرنه پایین‌ترین پورتِ آزادِ محدوده تخصیص و در `meta`
-     * ذخیره می‌شود — پس پیمایشِ بعدی همان پورت را می‌بیند. `dest_port` بر اساسِ
-     * سیستم‌عامل است (ویندوز ۳۳۸۹، بقیه ۲۲).
-     *
-     * تخصیص برای یک پیمایشگرِ کرونی «به‌قدرِ کافی» ایمن است: پورتهای مصرف‌شده را
-     * یک‌جا می‌خوانیم و پایین‌ترین آزاد را برمی‌داریم.
+     * 🔴 این پاسخ **مقدارِ خامِ اعتبارنامه** (کلیدِ SSH، لینکِ vless، رمز) را دارد،
+     * چون هاست بی‌آن نمی‌تواند dial کند. برای همین: فقط با توکنِ معتبر، فقط
+     * آپ‌استریم‌های `enabled`، و با هدرِ `Cache-Control: no-store` تا هیچ واسطی
+     * کشش نکند. شکل:
+     *   { "relays": [ {..,secret} ], "exits": { "de": [ {..,cc,secret} ], … } }
      */
-    public function portForwards(Request $request): JsonResponse
+    public function exitUpstreams(Request $request): JsonResponse
+    {
+        $this->authorizeAgent($request);
+
+        Setting::put('agent_seen_exitupstreams', now()->toIso8601String());
+
+        // روی سروری که هنوز مهاجرت نخورده، پاسخِ خالیِ سالم بده (نه ۵۰۰).
+        if (! Schema::hasTable('exit_upstreams')) {
+            return response()->json(['relays' => [], 'exits' => (object) []])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        $rows = ExitUpstream::query()
+            ->where('enabled', true)
+            ->orderBy('priority')
+            ->orderBy('id')
+            ->get();
+
+        $relays = [];
+        $exits  = [];
+
+        foreach ($rows as $u) {
+            if ($u->isExit()) {
+                $cc = $u->cc();
+
+                if ($cc === null) {
+                    continue;                   // اکسیتِ بی‌کشور بی‌معنی است؛ رد
+                }
+
+                $exits[$cc][] = $u->toAgentArray();
+            } else {
+                $relays[] = $u->toAgentArray();
+            }
+        }
+
+        return response()->json([
+            'relays' => $relays,
+            // آرایه‌ی تهی را به‌صورتِ آبجکتِ JSON بده تا سمتِ هاست همیشه map باشد
+            'exits'  => empty($exits) ? (object) [] : $exits,
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * port-forwardهای ورودی — **فقط خواندنی**.
+     *
+     * 🔴 پیش از این، همین متد پورت را همین‌جا تخصیص می‌داد و
+     * `$inst->save()` می‌زد: یک GET از عامل، دیتابیس را عوض می‌کرد. حالا
+     * تخصیص کارِ `PublicPortAllocator` است و فقط از مسیرهای نوشتنی صدا زده
+     * می‌شود (ثبت، اتصال به مشتری، فرمان یا دکمهٔ مدیر).
+     *
+     * ⚠️ پیامدِ عمدی: ماشینی که هنوز پورت نگرفته در این خروجی **نیست**. برای
+     * اینکه این سکوت دیده شود، `missing()` در صفحهٔ «زیرساختِ اکسیت» و در
+     * فرمانِ `exit:ports-sync` گزارش می‌شود. سکوتِ دیده‌نشده بدترین حالت است.
+     */
+    public function portForwards(Request $request, PublicPortAllocator $ports): JsonResponse
     {
         $this->authorizeAgent($request);
 
         // ضربانِ ایجنت (مسیرِ port-forward) — دوقلوی countryRoutes برای پایشِ زنده‌بودن.
         Setting::put('agent_seen_portforwards', now()->toIso8601String());
 
-        $portMin = (int) config('servernet.exit.sale_port_min', 20000);
-        $portMax = (int) config('servernet.exit.sale_port_max', 20999);
-        $publicIp = (string) (Setting::get('public_ip') ?: config('servernet.exit.public_ip', ''));
-
-        // پورتهای مصرف‌شده روی **هر** نمونه (نه فقط زنده‌ها) تا تکراری ندهیم
-        $used = [];
-
-        foreach (CloudInstance::query()->whereNotNull('meta')->get(['meta']) as $row) {
-            $p = (int) ($row->meta['public_port'] ?? 0);
-
-            if ($p > 0) {
-                $used[$p] = true;
-            }
-        }
-
-        $instances = CloudInstance::query()
-            ->where('provider', 'proxmox')
-            ->whereIn('status', ['building', 'running'])
-            ->whereNotNull('ipv4')
-            ->where('ipv4', '!=', '')
-            ->get();
-
+        $publicIp = $ports->publicIp();
         $out = [];
 
-        foreach ($instances as $inst) {
-            $port = (int) ($inst->meta['public_port'] ?? 0);
+        foreach ($ports->eligible() as $inst) {
+            $port = $inst->publicPort();
 
             if ($port <= 0) {
-                $port = $this->lowestFreePort($used, $portMin, $portMax);
-
-                if ($port === null) {
-                    continue;               // محدوده پر است؛ پیمایشگر را نمی‌شکنیم
-                }
-
-                $inst->meta = array_merge($inst->meta ?? [], ['public_port' => $port]);
-                $inst->save();
+                continue;                   // تخصیص‌نیافته — این‌جا ساخته نمی‌شود
             }
-
-            $used[$port] = true;
 
             $out[] = [
                 'ip'          => (string) $inst->ipv4,
@@ -149,19 +178,59 @@ class PullController extends Controller
     }
 
     /**
-     * پایین‌ترین پورتِ آزادِ محدوده، یا null اگر همه پر باشند.
+     * سیاستِ شبکهٔ داخلی برای هر مهمان — «این ماشین اجازهٔ دیدنِ شبکهٔ داخلی
+     * را دارد یا نه» — به‌همراهِ **نسخه**.
      *
-     * @param  array<int,bool>  $used
+     * 🔴 چرا مسیرِ جداست و به `countryroutes` اضافه نشد: آن مسیر فقط ماشین‌هایی
+     * را دارد که کشورِ خروج دارند. اگر برای این سیاست بازترش می‌کردیم، عاملِ
+     * موجود ردیف‌هایی با `cc` تهی می‌دید که هرگز انتظارشان را نداشت — همان
+     * «تغییرِ شکل» که پروژه یک‌بار با `via` عمداً از آن پرهیز کرد.
+     *
+     * 🔴 و چرا پاسخ `schema` دارد: صفحهٔ خطای Cloudflare و صفحهٔ نگه‌داری با
+     * کدِ ۲۰۰ می‌آیند. بی‌یک نشانهٔ صریح، عامل آن HTML را «پاسخِ معتبرِ خالی»
+     * می‌خواند و همهٔ قواعد را پاک می‌کند.
      */
-    private function lowestFreePort(array $used, int $min, int $max): ?int
+    public function guestPolicy(Request $request, GuestPolicySnapshot $snap): JsonResponse
     {
-        for ($p = $min; $p <= $max; $p++) {
-            if (! isset($used[$p])) {
-                return $p;
-            }
+        $this->authorizeAgent($request);
+
+        Setting::put('agent_seen_guestpolicy', now()->toIso8601String());
+
+        return response()->json($snap->payload())->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * تأییدِ اعمال — عامل بعد از اجرا می‌گوید «نسخهٔ X را اعمال کردم».
+     *
+     * 🔴 چرا لازم است: ضربان فقط می‌گوید عامل زنده است، نه اینکه کارش را کرده.
+     * تا امروز هیچ‌جای این سامانه این دو را از هم جدا نمی‌کرد — و پنل «فرستاده
+     * شد» را به مدیر مثلِ «اعمال شد» نشان می‌داد.
+     *
+     * ⚠️ نسخهٔ ناشناخته پذیرفته می‌شود ولی ثبت هم می‌شود: اگر عامل نسخه‌ای عقب
+     * تأیید کند، صفحه «در انتظار» می‌مانَد — که درست است، نه خطا.
+     */
+    public function guestPolicyAck(Request $request): JsonResponse
+    {
+        $this->authorizeAgent($request);
+
+        $data = $request->validate([
+            'revision' => ['required', 'string', 'max:64'],
+            'ok'       => ['required', 'boolean'],
+            'error'    => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Setting::put(GuestPolicySnapshot::ACK_AT, now()->toIso8601String());
+
+        if ($data['ok']) {
+            Setting::put(GuestPolicySnapshot::ACK_REVISION, $data['revision']);
+            Setting::put(GuestPolicySnapshot::ACK_ERROR, '');
+        } else {
+            // ⚠️ نسخهٔ تأییدشده را روی شکست **جلو نمی‌بریم**؛ وگرنه یک اعمالِ
+            // ناموفق در پنل «اعمال شد» دیده می‌شود.
+            Setting::put(GuestPolicySnapshot::ACK_ERROR, (string) ($data['error'] ?: 'اعمال ناموفق بود'));
         }
 
-        return null;
+        return response()->json(['ok' => true]);
     }
 
     /**

@@ -169,7 +169,19 @@ class CloudAttachController extends Controller
         // ماشین دکمهٔ «حذف» دارند.
         $taken = CloudInstance::where('provider', $plan->provider)->where('provider_ref', $ref)->first();
 
-        if ($taken !== null) {
+        /*
+         * 🔴 «یتیم» با «مالِ کسِ دیگر» یکی نیست.
+         *
+         * از وقتی صفحهٔ «زیرساختِ اکسیت» ماشین‌ها را وارد می‌کند، رکوردهایی با
+         * `service_id = null` وجود دارند. شرطِ قبلی هر رکوردِ موجودی را رد
+         * می‌کرد و پیامش `'…سرویسِ شمارهٔ '.null` بود — یعنی مدیر «این سرور از
+         * قبل به سرویسِ شمارهٔ ‌ وصل است» با جای خالی می‌دید و تخصیصِ همان
+         * ماشینی که خودش وارد کرده بود ممکن نبود.
+         *
+         * یتیم حالا **بازاستفاده** می‌شود، نه رد: همان رکورد به سرویسِ تازه
+         * وصل می‌شود تا پورت، کشورِ خروج و سیاستِ شبکه‌اش دست‌نخورده بمانند.
+         */
+        if ($taken !== null && $taken->service_id !== null) {
             return back()->withInput()->withErrors(
                 'این سرور از قبل به سرویسِ شمارهٔ '.$taken->service_id.' وصل است.'
             );
@@ -207,7 +219,22 @@ class CloudAttachController extends Controller
                 'created_by'       => $request->user()?->id,
             ]);
 
-            CloudInstance::create([
+            /*
+             * رکوردِ یتیم را دوباره زیرِ قفل می‌خوانیم: بینِ گاردِ بالا و این‌جا
+             * ممکن است مدیرِ دیگری همان ماشین را تخصیص داده باشد. اگر در این
+             * فاصله صاحب پیدا کرده، تراکنش می‌شکند و سرویسِ نیم‌ساخته نمی‌مانَد.
+             */
+            $orphan = CloudInstance::query()
+                ->where('provider', $plan->provider)
+                ->where('provider_ref', $ref)
+                ->lockForUpdate()
+                ->first();
+
+            if ($orphan !== null && $orphan->service_id !== null) {
+                throw new \RuntimeException('این سرور همین حالا به سرویسِ دیگری وصل شد.');
+            }
+
+            $attrs = [
                 'service_id'    => $service->id,
                 'provider'      => $plan->provider,
                 'provider_ref'  => $ref,
@@ -221,7 +248,21 @@ class CloudAttachController extends Controller
                 // «رمزِ تازه» خودش یکی می‌سازد.
                 'password_seen' => true,
                 'synced_at'     => now(),
-            ]);
+            ];
+
+            if ($orphan !== null) {
+                // ⚠️ `meta` عمداً دست‌نخورده می‌مانَد: پورتِ عمومی، کشورِ خروج و
+                // سیاستِ شبکهٔ داخلی همان چیزی است که از قبل تنظیم شده و
+                // بازنویسی‌اش یعنی قطعِ اتصالِ فعلیِ همان ماشین.
+                // آی‌پیِ زندهٔ نال هم رونویسی نمی‌کند — مقدارِ ثبت‌شده بهتر از هیچ است.
+                if (blank($attrs['ipv4'])) {
+                    unset($attrs['ipv4']);
+                }
+
+                $orphan->fill($attrs)->save();
+            } else {
+                CloudInstance::create($attrs);
+            }
 
             return $service;
         });

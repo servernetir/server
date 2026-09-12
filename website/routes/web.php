@@ -2793,6 +2793,9 @@ Route::prefix('admin')->group(function () {
                 ->name('admin.customers.search');
             Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])
                 ->name('admin.customer');
+            Route::post('/customers/{customer}/notes', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'store']);
+            Route::put('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'update']);
+            Route::delete('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'destroy']);
         });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
@@ -2804,6 +2807,7 @@ Route::prefix('admin')->group(function () {
             [\App\Http\Controllers\Admin\CustomerController::class, 'revealCard'])->middleware('admin');
         // تنظیمِ دستیِ کیفِ پول (افزایش/کاهش با توضیحِ اجباری) — دفتر افزودنی است
         Route::post('/customers/{customer}/credit', [\App\Http\Controllers\Admin\CustomerController::class, 'credit'])->middleware('admin');
+        Route::post('/customers/{customer}/bank-accounts/{bankAccount}/reveal', \App\Http\Controllers\Admin\BankCardRevealController::class)->middleware(['admin', 'throttle:10,1']);
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه
         Route::post('/customers/{customer}/reseller', [\App\Http\Controllers\Admin\CustomerController::class, 'reseller']);
         Route::post('/customers/{customer}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
@@ -2938,6 +2942,13 @@ Route::prefix('admin')->group(function () {
             ->name('admin.exit-infra.port')->middleware('admin');
         Route::post('/exit-infra/{instance}/detach', [\App\Http\Controllers\Admin\ExitInfraController::class, 'detach'])
             ->name('admin.exit-infra.detach')->middleware('admin');
+        // اجازه/منعِ دسترسی به شبکهٔ داخلی — فقط «حالتِ مطلوب»؛ عاملِ میزبان اعمال می‌کند.
+        Route::post('/exit-infra/{instance}/lan', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setLan'])
+            ->name('admin.exit-infra.lan')->middleware('admin');
+        // تخصیصِ پورتِ عمومی به ماشین‌های بی‌پورت — جایگزینِ کارِ بی‌صدایی که
+        // تا دیروز داخلِ GETِ عامل انجام می‌شد.
+        Route::post('/exit-infra/sync-ports', [\App\Http\Controllers\Admin\ExitInfraController::class, 'syncPorts'])
+            ->name('admin.exit-infra.sync-ports')->middleware('admin');
 
         // آپ‌استریم‌های اکسیت — رله‌های SSH و نودهای VLESS که موتورِ اکسیت از
         // راهشان از کشور خارج می‌شود. پنل «حالتِ مطلوب» را می‌نویسد و میزبانِ
@@ -3299,4 +3310,17 @@ Route::prefix('agent/tunnel')
 Route::prefix('agent')->group(function () {
     Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
     Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+
+    // آپ‌استریم‌های ثبت‌شده در پنل (رله‌ها + اکسیت‌های کشوریِ خودمان).
+    // 🔴 تنها مسیری که اعتبارنامهٔ خام می‌دهد — چون میزبان برای dial لازمش دارد.
+    // پاسخ `no-store` است و مثلِ بقیه پشتِ همان توکنِ ایجنت.
+    Route::get('exitupstreams', [\App\Http\Controllers\Agent\PullController::class, 'exitUpstreams']);
+
+    // سیاستِ شبکهٔ داخلیِ هر مهمان: `[{ip, lan}]`.
+    // 🔴 مسیرِ جدا و نه کلیدِ تازه روی countryroutes — آن مسیر فقط ماشین‌های
+    // دارای کشورِ خروج را دارد و بازکردنش، عاملِ موجود را با ردیف‌های `cc`ِ تهی
+    // روبه‌رو می‌کرد.
+    Route::get('guestpolicy', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicy']);
+    // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
+    Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });

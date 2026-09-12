@@ -2467,6 +2467,7 @@ return [
     'invp_doc_proforma' => 'Proforma Fatura',
     'invp_seller' => 'Satıcı',
     'invp_buyer' => 'Alıcı',
+    'invp_postal_code' => 'Posta kodu',
     'invp_issue_date' => 'Düzenleme Tarihi',
     'invp_paid_date' => 'Ödeme tarihi:',
     'invp_col_desc' => 'Açıklama',

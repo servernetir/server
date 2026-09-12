@@ -160,7 +160,7 @@
       <p class="cb-lead">{!! __($gpuLine ? 'ui.cs_building_gpu_p' : 'ui.cs_building_p') !!}</p>
 
       <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
-          data-status-url="{{ route('account.cloud.status', $service) }}">
+          data-status-url="{{ lroute('account.cloud.status', $service) }}">
         @foreach($steps as $i => $st)
           @php
             /* حالتِ اولیه در سمتِ سرور ساخته می‌شود، نه با جاوااسکریپت: اگر JS
@@ -430,16 +430,22 @@
 
     <div class="pnl-acts">
       @if($inst->status !== 'running')
-        <form method="post" action="{{ route('account.cloud.power', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="on">
           <button class="pnl-btn"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_on') }}</button>
         </form>
       @else
-        <form method="post" action="{{ route('account.cloud.power', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="reboot">
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
-        <form method="post" action="{{ route('account.cloud.power', $service) }}"
+        {{-- ⚠️ حلِ تداخلِ merge: هر دو تغییر لازم‌اند و هیچ‌کدام جایگزینِ
+             دیگری نیست. `lroute()` از develop می‌آید (پنل داخلِ closureِ
+             `$site` است، پس `route()` پیشوندِ زبان را می‌انداخت و مشتریِ
+             en/tr را به نسخهٔ فارسی پرت می‌کرد)، و متنِ دوشاخهٔ تأیید از
+             این شاخه (خاموشیِ سرورِ ساعتی هزینه دارد و باید صریح گفته
+             شود — مگر روی پلنِ interruptible که واقعاً رایگان است). --}}
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}"
               data-confirm="{{ $billsWhileOff ? __('ui.cs_confirm_off_billed') : __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
@@ -447,13 +453,13 @@
       @endif
 
       @if($caps['console'] ?? false)
-        <form method="post" action="{{ route('account.cloud.console', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}">
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
         </form>
       @endif
 
       @if($caps['reset_password'] ?? false)
-        <form method="post" action="{{ route('account.cloud.password', $service) }}"
+        <form method="post" action="{{ lroute('account.cloud.password', $service) }}"
               data-confirm="{{ __('ui.cs_confirm_pw') }}">
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.cs_new_pw') }}</button>
         </form>
@@ -474,7 +480,7 @@
     <p style="margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cxp_egress_note') }}
     </p>
-    <form method="post" action="{{ route('account.cloud.exit-country', $service) }}"
+    <form method="post" action="{{ lroute('account.cloud.exit-country', $service) }}"
           style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       @csrf
       <select name="country" dir="ltr"
@@ -542,7 +548,7 @@
         {{-- ⚠️ گفت‌وگوی تأییدِ بومیِ مرورگر در این پروژه ممنوع است و تستِ محافظ
              دارد: قابلِ استایل نیست و روی موبایل رفتارِ متفاوتی دارد. قرارداد
              `data-confirm` است. --}}
-        <form method="post" action="{{ route('account.cloud.tunnel.agent', $service) }}"
+        <form method="post" action="{{ lroute('account.cloud.tunnel.agent', $service) }}"
               @if($tunnelAgent ?? null) data-confirm="{{ __('ui.cxp_ag_reissue_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.cxp_ag_reissue_title') }}" data-confirm-ok="{{ __('ui.cxp_ag_reissue_ok') }}" @endif>
           @csrf
           <button class="pnl-btn" type="submit">{{ ($tunnelAgent ?? null) ? __('ui.cxp_ag_reissue_title') : __('ui.cxp_ag_btn_new') }}</button>
@@ -615,7 +621,7 @@
     @endif
 
     @if($tunnelNextIp)
-      <form method="post" action="{{ route('account.cloud.tunnel.issue', $service) }}"
+      <form method="post" action="{{ lroute('account.cloud.tunnel.issue', $service) }}"
             style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
         @csrf
         <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim)">
@@ -672,7 +678,7 @@
                   @endif
                 </td>
                 <td style="text-align:left;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">
-                  <form method="post" action="{{ route('account.cloud.tunnel.remove', $service) }}"
+                  <form method="post" action="{{ lroute('account.cloud.tunnel.remove', $service) }}"
                         data-confirm="{{ __('ui.cxp_del_confirm') }}" data-confirm-danger
                         data-confirm-title="{{ __('ui.cxp_del_title') }}" data-confirm-ok="{{ __('ui.cxp_delete') }}" style="margin:0">
                     @csrf
@@ -739,7 +745,7 @@
     <details class="cs-rb">
       <summary>{{ __('ui.cs_rebuild_summary') }}</summary>
 
-      <form method="post" action="{{ route('account.cloud.rebuild', $service) }}" class="cs-rb-f">
+      <form method="post" action="{{ lroute('account.cloud.rebuild', $service) }}" class="cs-rb-f">
         @csrf
 
         <label>{{ __('ui.cs_os') }}
@@ -856,7 +862,7 @@
   var pill = document.getElementById('st-pill');
   if (!pill) { return; }
 
-  var statusUrl = {{ Illuminate\Support\Js::from(route('account.cloud.status', $service)) }};
+  var statusUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.status', $service)) }};
   var building  = {{ $ready ? 'false' : 'true' }};
   var steps     = document.getElementById('cb-steps');
 
@@ -976,7 +982,7 @@
   var wrap = document.getElementById('cpu-wrap');
   if (!wrap) { return; }
 
-  fetch({{ Illuminate\Support\Js::from(route('account.cloud.metrics', $service)) }} + '?window=24h',
+  fetch({{ Illuminate\Support\Js::from(lroute('account.cloud.metrics', $service)) }} + '?window=24h',
         { headers: { 'Accept': 'application/json' } })
     .then(function(r){ return r.json(); })
     .then(function(d){

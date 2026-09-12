@@ -69,18 +69,21 @@ class BlogRepository
     {
         $t = $p->tr();
         $out = [
-            'slug'     => $p->slug,
-            'title'    => $t?->title ?? $p->slug,
-            'date'     => optional($p->published_at ?? $p->created_at)->toDateString(),
+            'slug' => $p->slug,
+            'title' => $t?->title ?? $p->slug,
+            'date' => optional($p->published_at ?? $p->created_at)->toDateString(),
+            // نگه‌داشتن تاریخ ویرایش واقعی برای schema و پاسخ‌های AI؛
+            // datePublished به‌تنهایی تازگی محتوای به‌روزشده را نشان نمی‌دهد.
+            'updated' => optional($t?->updated_at ?? $p->updated_at ?? $p->published_at ?? $p->created_at)->toDateString(),
             'category' => $p->category,
-            'tags'     => $t?->tags ?? [],
-            'excerpt'  => $t?->excerpt ?? '',
-            'cover'    => $p->cover,
-            'image'    => $p->image,
-            'icon'     => $p->icon,
-            'reading'  => $p->reading ?: 5,
+            'tags' => $t?->tags ?? [],
+            'excerpt' => $t?->excerpt ?? '',
+            'cover' => $p->cover,
+            'image' => $p->image,
+            'icon' => $p->icon,
+            'reading' => $p->reading ?: 5,
             // نام پیش‌فرض باید ترجمه‌شده باشد، وگرنه «تیم سرورنت» در نسخه‌ی en/tr هم ظاهر می‌شود
-            'author'   => optional($p->author)->name ?? __('ui.bl_reply_by'),
+            'author' => optional($p->author)->name ?? __('ui.bl_reply_by'),
             /*
             | fallback است یا ترجمهٔ واقعی؟ — site:gate کامل (۳ شهریور، RG-SITEMAP-04):
             | ۳۲ نسخهٔ en/tr پستِ ترجمه‌نشده ۲۰۰ و ایندکس‌پذیر بودند ولی (به‌درستی)

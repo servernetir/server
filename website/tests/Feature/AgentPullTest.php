@@ -108,58 +108,78 @@ class AgentPullTest extends TestCase
 
     // ═══════════════════ portforwards ═══════════════════
 
-    public function test_portforwards_allocates_persists_and_is_stable(): void
+    /**
+     * 🔴 این تست جای دو تستِ قبلی را گرفت که **رفتارِ باگ‌دار را قفل کرده
+     * بودند**: هر دو فرض می‌کردند یک GET از عامل باید پورت تخصیص دهد و در
+     * `meta` ذخیره کند. یعنی سوئیت، نوشتن در یک مسیرِ خواندنی را «قرارداد»
+     * می‌دانست و هر تلاشی برای رفعش را قرمز می‌کرد.
+     *
+     * قراردادِ تازه: GET هیچ‌چیز نمی‌نویسد.
+     */
+    public function test_portforwards_never_writes_during_a_get(): void
+    {
+        $inst = $this->mkInstance(['ipv4' => '10.10.10.71']);
+
+        $payload = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
+            ->assertOk()->json();
+
+        $this->assertSame([], $payload, 'ماشینِ بی‌پورت نباید در خروجی باشد');
+        $this->assertSame(0, $inst->fresh()->publicPort(), 'GET نباید پورت بسازد');
+        $this->assertNull($inst->fresh()->meta['public_port'] ?? null);
+    }
+
+    public function test_portforwards_returns_allocated_ports_and_is_stable(): void
     {
         Setting::put('public_ip', '203.0.113.9');
 
         $linux = $this->mkInstance(['image_key' => 'ubuntu-24.04', 'ipv4' => '10.10.10.71']);
         $win   = $this->mkInstance(['image_key' => 'windows-2022', 'ipv4' => '10.10.10.72']);
 
-        $first = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
-            ->assertOk()->json();
+        $alloc = app(\App\Services\Cloud\PublicPortAllocator::class);
+        $p1 = $alloc->allocate($linux);
+        $p2 = $alloc->allocate($win);
 
-        $this->assertCount(2, $first);
+        $byIp = collect(
+            $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
+        )->keyBy('ip');
 
-        $byIp = collect($first)->keyBy('ip');
+        $this->assertCount(2, $byIp);
 
         // پورتِ مقصد: لینوکس SSH، ویندوز RDP
         $this->assertSame(22, $byIp['10.10.10.71']['dest_port']);
         $this->assertSame(3389, $byIp['10.10.10.72']['dest_port']);
         $this->assertSame('203.0.113.9', $byIp['10.10.10.71']['public_ip']);
 
-        $p1 = $byIp['10.10.10.71']['public_port'];
-        $p2 = $byIp['10.10.10.72']['public_port'];
-
-        // پورتِ عمومی در محدوده و یکتا
-        $this->assertGreaterThanOrEqual(20000, min($p1, $p2));
-        $this->assertLessThanOrEqual(20999, max($p1, $p2));
+        $this->assertSame($p1, $byIp['10.10.10.71']['public_port']);
+        $this->assertSame($p2, $byIp['10.10.10.72']['public_port']);
         $this->assertNotSame($p1, $p2);
 
-        // در meta ذخیره شده
-        $this->assertSame($p1, $linux->fresh()->meta['public_port']);
-        $this->assertSame($p2, $win->fresh()->meta['public_port']);
-
-        // بارِ دوم دقیقاً همان پورت‌ها را می‌دهد (idempotent)
-        $second = $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])
-            ->assertOk()->json();
-        $byIp2 = collect($second)->keyBy('ip');
+        // بارِ دوم دقیقاً همان پورت‌ها
+        $byIp2 = collect(
+            $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
+        )->keyBy('ip');
 
         $this->assertSame($p1, $byIp2['10.10.10.71']['public_port']);
         $this->assertSame($p2, $byIp2['10.10.10.72']['public_port']);
     }
 
-    public function test_portforwards_picks_the_lowest_free_port(): void
+    /**
+     * ⚠️ ماشینِ خاموش پورتش را نگه می‌دارد و از خروجی نمی‌افتد. فیلترِ قبلی فقط
+     * `building|running` بود، یعنی یک ری‌استارتِ مهمان می‌توانست قاعدهٔ ورودی‌اش
+     * را بردارد و بعد پورتِ دیگری بگیرد — آدرسِ اتصالِ مشتری بی‌خبر عوض می‌شد.
+     */
+    public function test_a_stopped_guest_keeps_its_port_in_the_payload(): void
     {
-        // نمونه‌ای که از قبل پایین‌ترین پورت را گرفته
-        $taken = $this->mkInstance(['ipv4' => '10.10.10.81', 'meta' => ['public_port' => 20000]]);
-        $fresh = $this->mkInstance(['ipv4' => '10.10.10.82']);
+        $inst = $this->mkInstance(['ipv4' => '10.10.10.73', 'status' => 'off']);
+        $port = app(\App\Services\Cloud\PublicPortAllocator::class)->allocate($inst);
+
+        $this->assertNotNull($port);
 
         $byIp = collect(
             $this->getJson('/agent/portforwards', ['X-Agent-Token' => $this->token])->assertOk()->json()
         )->keyBy('ip');
 
-        $this->assertSame(20000, $byIp['10.10.10.81']['public_port']);
-        $this->assertSame(20001, $byIp['10.10.10.82']['public_port'], 'باید پایین‌ترین پورتِ آزاد را بدهد');
+        $this->assertSame($port, $byIp['10.10.10.73']['public_port'] ?? null);
     }
 
     // ═══════════════════ کاتالوگِ per-country ═══════════════════
@@ -235,4 +255,165 @@ class AgentPullTest extends TestCase
         // انتخابِ یک کشور دقیقاً یک عرضه می‌دهد
         $this->assertCount(1, CloudPlan::offers('exit-de'));
     }
+
+    // ═══════════════════ هر روتِ agent واقعاً اجرا می‌شود ═══════════════════
+
+    /**
+     * 🔴 چرا این تست لازم شد: `exitUpstreams()` از `ExitUpstream::query()`
+     * استفاده می‌کرد و فایل **`use App\Models\ExitUpstream;` نداشت**. PHP
+     * کلاس را در فضای‌نامِ خودِ کنترلر می‌جست (`…\Agent\ExitUpstream`)، پیدا
+     * نمی‌کرد، و آن مسیر در پروداکشن ۵۰۰ می‌داد.
+     *
+     * هیچ‌کدام از تست‌های قبلی نگرفتندش، چون هیچ‌کدام آن مسیر را **صدا
+     * نمی‌زدند**؛ `php -l` هم چنین چیزی را نمی‌بیند (نحو سالم است، خطا در
+     * زمانِ اجراست). پس قاعده: **برای هر روتِ ثبت‌شده باید یک فراخوانِ واقعی
+     * باشد** — وگرنه importِ جاافتاده تا روزِ دیپلوی پنهان می‌مانَد.
+     *
+     * ⚠️ ادعا «۵۰۰ نده» است، نه «محتوای درست بدهد» — محتوا تست‌های خودش را
+     * دارد. این تست عمداً ارزان و فراگیر است تا هر روتِ تازه‌ای هم بپوشاند.
+     */
+    public function test_every_agent_route_actually_runs(): void
+    {
+        $this->mkInstance();
+
+        $checked = 0;
+        $passedAuth = 0;
+
+        foreach (\Illuminate\Support\Facades\Route::getRoutes() as $route) {
+            $uri = $route->uri();
+
+            if (! str_starts_with($uri, 'agent/')) {
+                continue;
+            }
+            // مسیرهای پارامتردار ورودیِ ساختگی می‌خواهند؛ خارج از دامنهٔ این گارد.
+            if (str_contains($uri, '{')) {
+                continue;
+            }
+
+            foreach ($route->methods() as $verb) {
+                if (in_array($verb, ['HEAD', 'OPTIONS'], true)) {
+                    continue;
+                }
+
+                // 🔴 `withHeaders()->call()` هدر را **نمی‌فرستد** — هدرهای
+                // پیش‌فرض فقط در get/post/json اعمال می‌شوند، نه در call().
+                // نسخهٔ اولِ همین گارد همین اشتباه را داشت: هر هشت روت ۴۰۳
+                // می‌گرفتند، کنترلر اصلاً اجرا نمی‌شد، و تست سبز بود در حالی
+                // که هیچ‌چیز را نسنجیده بود.
+                $res = $this->call($verb, '/'.$uri, [], [], [], $this->transformHeadersToServerVars([
+                    'X-Agent-Token' => $this->token,
+                ]));
+
+                $this->assertLessThan(
+                    500,
+                    $res->status(),
+                    "روتِ {$verb} /{$uri} با کدِ {$res->status()} ترکید — "
+                    .'احتمالاً importِ جاافتاده یا کلاسِ ناموجود.'
+                );
+
+                if ($res->status() !== 403) {
+                    $passedAuth++;
+                }
+
+                $checked++;
+            }
+        }
+
+        // 🔴 بی‌این، حلقهٔ خالی هم سبز می‌شد و گارد بی‌صدا می‌مُرد.
+        $this->assertGreaterThanOrEqual(5, $checked, 'روت‌های agent پیدا نشدند — گارد چیزی نسنجید.');
+
+        // 🔴 و این مهم‌تر است: ۴۰۳ هرگز به کنترلر نمی‌رسد، پس گاردی که همه‌جا
+        // ۴۰۳ بگیرد «سبز» است و **هیچ کدی را اجرا نکرده**. این ادعا می‌گوید
+        // دست‌کم پنج روت واقعاً از احراز رد شدند و بدنه‌شان دویده.
+        $this->assertGreaterThanOrEqual(
+            5,
+            $passedAuth,
+            'هیچ روتی از احراز رد نشد — گارد کنترلرها را اصلاً اجرا نکرده است.'
+        );
+    }
+
+
+    // ═══════════════════ سرورِ مهاجرت‌نخورده ═══════════════════
+
+    /**
+     * `exitupstreams` روی نصبی که جدولِ `exit_upstreams` را ندارد باید پاسخِ
+     * **خالیِ سالم** بدهد، نه ۵۰۰.
+     *
+     * 🔴 چرا این گارد ارزش دارد: این تعمیر روی خودِ سرور دستی نوشته شده بود و
+     * به گیت نرفته بود — یعنی هر دیپلویی که فایل را از مخزن می‌نشاند، بی‌صدا
+     * برش می‌داشت. حالا در کد است و تست نگهش می‌دارد.
+     *
+     * ⚠️ شکلِ پاسخ هم سنجیده می‌شود، نه فقط کدِ ۲۰۰: `exits` باید **آبجکت**
+     * باشد نه آرایه. `json_encode` برای آرایهٔ تهی `[]` می‌دهد و پارسرِ سمتِ
+     * هاست که dict انتظار دارد همان‌جا می‌ترکد.
+     */
+    public function test_exitupstreams_survives_a_server_without_the_table(): void
+    {
+        \Illuminate\Support\Facades\Schema::drop('exit_upstreams');
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Schema::hasTable('exit_upstreams'),
+            'پیش‌شرطِ تست: جدول نباید باشد'
+        );
+
+        $res = $this->getJson('/agent/exitupstreams', ['X-Agent-Token' => $this->token])->assertOk();
+
+        $this->assertSame([], $res->json('relays'));
+
+        // آبجکتِ تهی در JSON `{}` است؛ آرایهٔ تهی `[]`. این تمایز مهم است.
+        $this->assertStringContainsString('"exits":{}', $res->getContent());
+    }
+
+
+    // ═══════════════════ CSRF روی مسیرِ تأیید ═══════════════════
+
+    /**
+     * `POST /agent/guestpolicy/ack` باید از بررسیِ CSRF مستثنا باشد.
+     *
+     * 🔴 رخداد (۲۱ شهریور ۱۴۰۵، روی پروداکشن): این مسیر **۴۱۹** می‌داد.
+     * روت‌های `agent/*` در `routes/web.php` اند، پس میدل‌ورِ `web` و با آن
+     * `PreventRequestForgery` رویشان می‌دود. عاملِ هاست یک اسکریپتِ curl است:
+     * نه نشست دارد نه توکنِ CSRF.
+     *
+     * پیامدش دقیقاً همان چیزی را می‌شکست که این کار برای ساختنش نوشته شد:
+     * عامل قواعد را درست اعمال می‌کرد، تأییدش رد می‌شد، و پنل تا ابد
+     * «در انتظار» نشان می‌داد — یعنی تمایزِ «ضربان» و «اعمال شد» از درِ
+     * پشتی خراب می‌شد، بی‌هیچ خطایی.
+     *
+     * ⚠️ **این ادعا روی پیکربندی است، نه روی رفتار — و باید هم باشد.**
+     * `PreventRequestForgery::runningUnitTests()` در تست کلِ بررسی را دور
+     * می‌زند، پس یک POSTِ بی‌توکن در تست **همیشه** سبز است و هرگز این باگ
+     * را نمی‌گیرد. همان تلهٔ ثبت‌شدهٔ پروژه: تستی که پیکربندی را خودش ست
+     * می‌کند (یا لایه‌ای که می‌سنجد در تست غیرفعال است) هیچ‌چیز نمی‌سنجد.
+     *
+     * پس فهرستِ واقعیِ استثناها را از خودِ میدل‌ورِ **بوت‌شده** می‌پرسیم —
+     * یعنی `bootstrap/app.php` واقعاً دویده است.
+     */
+    public function test_the_ack_route_is_exempt_from_csrf(): void
+    {
+        $middleware = $this->app->make(
+            \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class
+        );
+
+        $paths = $middleware->getExcludedPaths();
+
+        $this->assertNotEmpty($paths, 'فهرستِ استثنای CSRF خالی است — bootstrap/app.php نخوانده شد؟');
+
+        $request = \Illuminate\Http\Request::create('/agent/guestpolicy/ack', 'POST');
+
+        $matched = null;
+
+        foreach ($paths as $pattern) {
+            if ($request->is($pattern) || $request->fullUrlIs($pattern)) {
+                $matched = $pattern;
+                break;
+            }
+        }
+
+        $this->assertNotNull(
+            $matched,
+            'POST /agent/guestpolicy/ack از CSRF مستثنا نیست ⇒ عامل ۴۱۹ می‌گیرد و '
+            .'تأیید هرگز ثبت نمی‌شود (پنل تا ابد «در انتظار»).'
+        );
+    }
+
 }

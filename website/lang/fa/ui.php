@@ -2475,6 +2475,7 @@ return [
     'invp_doc_proforma' => 'پیش‌فاکتور',
     'invp_seller' => 'فروشنده',
     'invp_buyer' => 'خریدار',
+    'invp_postal_code' => 'کدپستی',
     'invp_issue_date' => 'تاریخ صدور',
     'invp_paid_date' => 'تاریخ پرداخت:',
     'invp_col_desc' => 'شرح',

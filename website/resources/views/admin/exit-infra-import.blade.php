@@ -38,7 +38,17 @@
   @elseif(! $scan['ok'])
     <p style="padding:12px 18px 18px;color:#ff6b6b;font-size:13px">اسکن ناموفق بود: {{ $scan['message'] ?: 'خطای ناشناخته' }}</p>
   @elseif(empty($scan['servers']))
-    <p style="padding:12px 18px 18px;color:var(--dim);font-size:13px">هیچ ماشینی روی نود پیدا نشد.</p>
+    <div style="padding:12px 18px 18px;color:var(--dim);font-size:13px;line-height:1.9">
+      <p style="margin:0 0 8px;color:#fbbf24">اسکن موفق بود ولی <b>هیچ ماشین و هیچ کانتینری</b> برنگشت.</p>
+      <p style="margin:0">این تقریباً همیشه یعنی توکن اجازهٔ دیدنشان را ندارد، نه اینکه ماشینی نباشد.
+      Proxmox برای توکنِ بی‌دسترسی <b>فهرستِ خالی با کدِ موفق</b> برمی‌گرداند، نه خطای دسترسی.
+      دو چیز را بررسی کن:</p>
+      <ul style="margin:8px 0 0;padding-inline-start:20px">
+        <li>توکن روی مسیرِ <code dir="ltr">/</code> نقشِ <code dir="ltr">PVEAuditor</code> داشته باشد
+            (یا دست‌کم روی همان pool و VMها).</li>
+        <li>اگر توکن <b>Privilege Separation</b> دارد، ACL باید روی خودِ توکن باشد نه فقط روی کاربرش.</li>
+      </ul>
+    </div>
   @else
     {{-- فرم‌ها بیرونِ جدول (form داخلِ <tr> نامعتبر است)؛ کنترل‌های داخلِ ردیف با
          صفتِ form= به این‌ها وصل می‌شوند. --}}
@@ -50,18 +60,38 @@
           <input type="hidden" name="hostname" value="{{ $s['name'] }}">
           <input type="hidden" name="ipv4" value="{{ $s['ipv4'] }}">
           <input type="hidden" name="status" value="{{ $s['status'] }}">
+          <input type="hidden" name="kind" value="{{ $s['kind'] }}">
+          <input type="hidden" name="node" value="{{ $s['node'] }}">
         </form>
       @endif
     @endforeach
 
+    <p style="padding:0 18px 6px;color:var(--muted);font-size:12.5px">
+      {{ fa_num($scan['vms']) }} ماشینِ مجازی و {{ fa_num($scan['cts']) }} کانتینر
+      @if(count($scan['nodes']) > 0)
+        روی {{ fa_num(count($scan['nodes'])) }} نود (<span dir="ltr">{{ implode('، ', $scan['nodes']) }}</span>)
+      @endif
+      پیدا شد. قالب‌ها عمداً نشان داده نمی‌شوند.
+    </p>
+
     <div style="padding:0 4px 10px;overflow-x:auto">
       <table class="ad-table">
-        <thead><tr><th>نام</th><th>vmid</th><th>وضعیت</th><th>آی‌پیِ داخلی</th><th>سیستم‌عامل</th><th></th></tr></thead>
+        <thead><tr><th>نام</th><th>vmid</th><th>نوع</th><th>وضعیت</th><th>آی‌پیِ داخلی</th><th>سیستم‌عامل</th><th></th></tr></thead>
         <tbody>
           @foreach($scan['servers'] as $s)
             <tr>
               <td style="font-size:12.5px">{{ $s['name'] }}</td>
               <td dir="ltr" style="font-size:12.5px;color:var(--muted)">{{ $s['ref'] }}</td>
+              <td style="font-size:11.5px">
+                @if($s['kind'] === 'lxc')
+                  <span class="ad-badge" style="background:rgba(167,139,250,.16);color:#a78bfa;font-size:11.5px">کانتینر</span>
+                @else
+                  <span class="ad-badge" style="background:rgba(34,211,238,.14);color:var(--muted);font-size:11.5px">ماشین مجازی</span>
+                @endif
+                @if($s['node'] !== '')
+                  <span dir="ltr" style="color:var(--dim);font-size:11px;margin-inline-start:5px">{{ $s['node'] }}</span>
+                @endif
+              </td>
               <td style="font-size:12px;color:var(--muted)">{{ $s['status'] }}</td>
               <td dir="ltr" style="font-size:12px;color:var(--muted)">{{ $s['ipv4'] !== '' ? $s['ipv4'] : '—' }}</td>
               @if($s['protected'])

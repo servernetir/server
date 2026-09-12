@@ -14,7 +14,7 @@
 
   // لینکِ «صفحهٔ سرور» برای متنِ نکته‌ها؛ در @php ساخته می‌شود تا route داخلِ
   // رشتهٔ زبان نرود و {!! !!} امن بماند.
-  $serverPageLink = '<a href="'.e(route('account.cloud.show', $service)).'" style="color:var(--info)">'.e(__('ui.vnc_link_server_page')).'</a>';
+  $serverPageLink = '<a href="'.e(lroute('account.cloud.show', $service)).'" style="color:var(--info)">'.e(__('ui.vnc_link_server_page')).'</a>';
 
   // متونِ داینامیکِ JS (پیام‌های وضعیت/خطای اتصال) — از همین‌جا سرور-رندر و به
   // window.T داده می‌شوند تا هیچ متنِ فارسیِ سخت‌کد در جاوااسکریپت نماند.
@@ -90,7 +90,7 @@
       {{-- ⚠️ `lroute` و نه `route` — وگرنه مشتریِ /en و /tr به پنلِ فارسی می‌رود --}}
       <a href="{{ lroute('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
       <a href="{{ lroute('account.servers') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
-      <a href="{{ route('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
+      <a href="{{ lroute('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
       <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>
     <h1>{{ __('ui.vnc_h1') }}</h1>
@@ -118,7 +118,7 @@
   </div>
 
   <div class="vnc-head-actions">
-    <a class="pnl-btn" href="{{ route('account.cloud.show', $service) }}">
+    <a class="pnl-btn" href="{{ lroute('account.cloud.show', $service) }}">
       <svg class="icon dir"><use href="#i-arrow"/></svg>{{ __('ui.vnc_back') }}
     </a>
     <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">{{ __('ui.vnc_state_connecting') }}</span>
@@ -199,8 +199,8 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
 (function(){
   'use strict';
 
-  var ticketUrl = {{ Illuminate\Support\Js::from(route('account.cloud.console.ticket', [$service, 't' => $ticket])) }};
-  var reopenUrl = {{ Illuminate\Support\Js::from(route('account.cloud.show', $service)) }};
+  var ticketUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.console.ticket', [$service, 't' => $ticket])) }};
+  var reopenUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.show', $service)) }};
 
   var pill   = document.getElementById('vnc-state');
   var msg    = document.getElementById('vnc-msg');

@@ -37,6 +37,22 @@ class ProxmoxClient implements CloudProvider
 
     private const DEFAULT_TOKEN_ID = 'svc-controller@pve!provisioner';
 
+    /** نوعِ منبع در Proxmox — ماشینِ مجازی و کانتینر دو مسیرِ APIِ متفاوت دارند. */
+    public const KIND_QEMU = 'qemu';
+
+    public const KIND_LXC = 'lxc';
+
+    /**
+     * کشِ `/cluster/resources` برای طولِ عمرِ همین شیء.
+     *
+     * ⚠️ بدونِ این، هر عملیات (وضعیت، روشن/خاموش، حذف) یک تماسِ اضافه می‌زند.
+     * `false` یعنی تماس شکست خورد و نباید دوباره تلاش شود؛ `null` یعنی هنوز
+     * پرسیده نشده.
+     *
+     * @var array<int, array{ref:string,name:string,status:string,node:string,kind:string}>|false|null
+     */
+    private array|false|null $clusterCache = null;
+
     public function slug(): string
     {
         return 'proxmox';
@@ -590,21 +606,33 @@ class ProxmoxClient implements CloudProvider
     }
 
     /** IPِ یک VM از `ipconfig0`ِ کانفیگش (فرمت: `ip=10.10.10.60/24,gw=…`) */
-    private function vmIp(string $node, string $vmid): ?string
+    private function vmIp(string $node, string $vmid, string $kind = self::KIND_QEMU): ?string
     {
         if ($vmid === '') {
             return null;
         }
 
-        $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($vmid).'/config');
+        $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/'.$kind.'/'.rawurlencode($vmid).'/config');
 
         if (! $r['ok']) {
             return null;
         }
 
-        $ipc = (string) data_get($r['body'], 'data.ipconfig0', '');
+        /*
+         * ⚠️ QEMU آدرس را در `ipconfig0` (cloud-init) می‌گذارد و LXC در `net0`.
+         * هر دو با `ip=<addr>` نوشته می‌شوند، پس فقط کلید فرق می‌کند نه الگو.
+         * هر دو را می‌خوانیم چون یک ماشینِ QEMUِ بی‌cloud-init هم ممکن است
+         * چیزی جز ipconfig0 داشته باشد و برعکس.
+         */
+        foreach (['ipconfig0', 'net0'] as $key) {
+            $val = (string) data_get($r['body'], 'data.'.$key, '');
 
-        return preg_match('/ip=([0-9]{1,3}(?:\.[0-9]{1,3}){3})/', $ipc, $m) === 1 ? $m[1] : null;
+            if ($val !== '' && preg_match('/ip=([0-9]{1,3}(?:\.[0-9]{1,3}){3})/', $val, $m) === 1) {
+                return $m[1];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -680,9 +708,9 @@ class ProxmoxClient implements CloudProvider
     public function serverStatus(string $ref): array
     {
         $none = ['ipv4' => null, 'ipv6' => null, 'traffic_used_gb' => null];
-        $node = $this->node();
+        ['node' => $node, 'kind' => $kind] = $this->locate($ref);
 
-        $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($ref).'/status/current');
+        $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/'.$kind.'/'.rawurlencode($ref).'/status/current');
 
         if (! $r['ok']) {
             // ماشینِ ناموجود = «حذف‌شده» (برای تطبیقِ موجودی). Proxmox گاهی
@@ -728,12 +756,144 @@ class ProxmoxClient implements CloudProvider
         ];
     }
 
+    /**
+     * منابعِ ماشینِ کلاستر (QEMU + LXC، همهٔ نودها)، یک‌بار در هر شیء.
+     *
+     * `null` یعنی تماس ممکن نشد (توکن اجازه ندارد یا نسخهٔ قدیمی) — صداکننده
+     * باید به مسیرِ تک‌نودِ قدیمی برگردد، نه اینکه «هیچ ماشینی نیست» بگوید.
+     *
+     * @return array<int, array{ref:string,name:string,status:string,node:string,kind:string}>|null
+     */
+    private function clusterVms(): ?array
+    {
+        if ($this->clusterCache !== null) {
+            return $this->clusterCache === false ? null : $this->clusterCache;
+        }
+
+        $r = $this->req('GET', '/cluster/resources', ['type' => 'vm']);
+
+        if (! $r['ok']) {
+            $this->clusterCache = false;
+
+            return null;
+        }
+
+        $rows = (array) ($r['body']['data'] ?? []);
+        $out = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $kind = strtolower((string) ($row['type'] ?? ''));
+
+            if (! in_array($kind, [self::KIND_QEMU, self::KIND_LXC], true)) {
+                continue;
+            }
+
+            // 🔴 قالب ماشین نیست. قالبِ ۹۰۰۲ اگر وارد سیستمِ اکسیت شود، هم ردیفِ
+            // بی‌معنی می‌سازد و هم خطرِ اعمالِ روتینگ روی چیزی که اصلاً نمی‌دود.
+            if ((int) ($row['template'] ?? 0) === 1) {
+                continue;
+            }
+
+            $vmid = (string) ($row['vmid'] ?? '');
+
+            if ($vmid === '') {
+                continue;
+            }
+
+            $out[] = [
+                'ref'    => $vmid,
+                'name'   => (string) ($row['name'] ?? $vmid),
+                'status' => $this->mapStatus((string) ($row['status'] ?? '')),
+                'node'   => (string) ($row['node'] ?? $this->node()),
+                'kind'   => $kind,
+            ];
+        }
+
+        usort($out, fn ($a, $b) => (int) $a['ref'] <=> (int) $b['ref']);
+
+        $this->clusterCache = $out;
+
+        return $out;
+    }
+
+    /**
+     * نود و نوعِ یک ماشین از روی vmid.
+     *
+     * 🔴 چرا لازم است: `power()`، `deleteServer()` و `serverStatus()` مسیرِ
+     * `/qemu/` را ثابت می‌نوشتند. روی یک کانتینرِ LXC آن مسیر ۵۰۰ می‌دهد و روی
+     * ماشینی که روی نودِ دیگری است ۴۰۴ — و ۴۰۴ در `deleteServer` به‌عنوانِ
+     * «از قبل حذف شده» تفسیر می‌شود، یعنی یک حذفِ **دروغینِ موفق**.
+     *
+     * وقتی `/cluster/resources` در دسترس نباشد، همان رفتارِ امروز
+     * (نودِ تنظیم‌شده + QEMU) برمی‌گردد.
+     *
+     * @return array{node:string,kind:string}
+     */
+    private function locate(string $ref): array
+    {
+        foreach ($this->clusterVms() ?? [] as $vm) {
+            if ($vm['ref'] === $ref) {
+                return ['node' => $vm['node'], 'kind' => $vm['kind']];
+            }
+        }
+
+        return ['node' => $this->node(), 'kind' => self::KIND_QEMU];
+    }
+
+    /**
+     * فهرستِ ماشین‌ها — **هم QEMU هم LXC، و هم همهٔ نودها**.
+     *
+     * 🔴 چرا این عوض شد: `/nodes/<node>/qemu` فقط ماشین‌های مجازیِ **یک** نود را
+     * برمی‌گرداند. کانتینرهای LXC هرگز در آن نمی‌آیند — و نه با خطا، بلکه با یک
+     * فهرستِ کوتاه‌ترِ بی‌صدا، که از «نود خالی است» قابلِ‌تشخیص نیست. همین باعث
+     * شده بود اسکنِ صفحهٔ اکسیت کانتینرها را اصلاً نشان ندهد.
+     *
+     * `/cluster/resources?type=vm` هر دو نوع را از همهٔ نودها می‌دهد و ACL را هم
+     * رعایت می‌کند. اگر توکن اجازهٔ خواندنش را نداشته باشد، به مسیرِ قدیمی
+     * (تک‌نود، فقط QEMU) برمی‌گردیم تا هیچ‌چیز از آنچه امروز کار می‌کند نیفتد.
+     *
+     * ⚠️ قالب‌ها (`template=1`) عمداً بیرون گذاشته می‌شوند؛ قالبِ ۹۰۰۲ ماشین
+     * نیست و واردکردنش به سیستمِ اکسیت بی‌معنی است.
+     */
     public function listServers(): array
     {
         if (! $this->isConfigured()) {
             return ['ok' => false, 'message' => 'اتصالِ این زیرساخت تنظیم نشده.', 'servers' => []];
         }
 
+        $cluster = $this->clusterVms();
+
+        if ($cluster === null) {
+            return $this->listServersLegacy();
+        }
+
+        $servers = [];
+
+        foreach ($cluster as $vm) {
+            $servers[] = [
+                'ref'      => $vm['ref'],
+                'name'     => $vm['name'],
+                'status'   => $vm['status'],
+                'kind'     => $vm['kind'],
+                'node'     => $vm['node'],
+                'ipv4'     => $this->vmIp($vm['node'], $vm['ref'], $vm['kind']),
+                'ipv6'     => null,
+                'plan'     => null,
+                'location' => $vm['node'],
+                'created'  => null,
+            ];
+        }
+
+        return ['ok' => true, 'message' => '', 'servers' => $servers];
+    }
+
+    /** مسیرِ قدیمی: تک‌نود، فقط QEMU. فقط وقتی `/cluster/resources` در دسترس نیست. */
+    private function listServersLegacy(): array
+    {
         $node = $this->node();
         $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/qemu');
 
@@ -754,10 +914,31 @@ class ProxmoxClient implements CloudProvider
                 continue;
             }
 
+            /*
+            | 🔴 قالب (template) ماشین نیست، **قالبِ ساختِ ماشین** است.
+            |
+            | `/nodes/{node}/qemu` قالب‌ها را هم برمی‌گرداند، با `template: 1`.
+            | تا امروز عیناً مثلِ سرور گزارش می‌شدند، و چون هیچ سرویسی به آنها
+            | وصل نیست، در تطبیقِ موجودی «بی‌صاحب» می‌افتادند — یعنی همان
+            | چیزهایی که عمداً ساخته‌ایم تا از رویشان کلون بگیریم، هر بار
+            | به‌عنوانِ نشتیِ پول پیشنهاد می‌شدند که حذفشان کنیم.
+            |
+            | ⚠️ خطرش فقط سروصدا نبود: کنشِ «حذف نزدِ زیرساخت» روی همان ردیف
+            | فعال می‌شد. حذفِ یک قالب یعنی از فردا هیچ سرورِ تازه‌ای ساخته
+            | نمی‌شود (کلون از چه بگیرد؟)، و علتش هیچ‌جا پیدا نیست.
+            |
+            | مقایسه با رشته: API بسته به نسخه `1` یا `"1"` می‌دهد.
+            */
+            if ((string) ($vm['template'] ?? '0') === '1') {
+                continue;
+            }
+
             $servers[] = [
                 'ref'      => $vmid,
                 'name'     => (string) ($vm['name'] ?? $vmid),
                 'status'   => $this->mapStatus((string) ($vm['status'] ?? '')),
+                'kind'     => self::KIND_QEMU,
+                'node'     => $node,
                 'ipv4'     => $this->vmIp($node, $vmid),
                 'ipv6'     => null,
                 'plan'     => null,
@@ -798,7 +979,9 @@ class ProxmoxClient implements CloudProvider
             return ['ok' => false, 'message' => 'عملیاتِ ناشناخته.'];
         }
 
-        $r = $this->req('POST', '/nodes/'.rawurlencode($this->node()).'/qemu/'.rawurlencode($ref).'/status/'.$path);
+        ['node' => $node, 'kind' => $kind] = $this->locate($ref);
+
+        $r = $this->req('POST', '/nodes/'.rawurlencode($node).'/'.$kind.'/'.rawurlencode($ref).'/status/'.$path);
 
         return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
     }
@@ -806,10 +989,15 @@ class ProxmoxClient implements CloudProvider
     public function deleteServer(string $ref): array
     {
         try {
-            $r = $this->req('DELETE', '/nodes/'.rawurlencode($this->node()).'/qemu/'.rawurlencode($ref), [
-                'purge'                      => 1,
-                'destroy-unreferenced-disks' => 1,
-            ]);
+            ['node' => $node, 'kind' => $kind] = $this->locate($ref);
+
+            // ⚠️ `destroy-unreferenced-disks` فقط پارامترِ QEMU است؛ فرستادنش به
+            // مسیرِ LXC خطای «پارامترِ ناشناخته» می‌دهد و حذف اصلاً انجام نمی‌شود.
+            $params = $kind === self::KIND_LXC
+                ? ['purge' => 1]
+                : ['purge' => 1, 'destroy-unreferenced-disks' => 1];
+
+            $r = $this->req('DELETE', '/nodes/'.rawurlencode($node).'/'.$kind.'/'.rawurlencode($ref), $params);
 
             // ۴۰۴ (یا پیامِ «does not exist») یعنی از قبل نیست — برای خاتمه «موفق»
             $lower = mb_strtolower($r['message']);
