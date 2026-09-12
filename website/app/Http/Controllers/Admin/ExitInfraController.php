@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\PublicPortAllocator;
 use App\Support\ExitCountries;
+use App\Support\GuestPolicySnapshot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -170,6 +171,11 @@ class ExitInfraController extends Controller
             // ماشین‌هایی که سزاوارِ پورت‌اند ولی ندارند — سکوتی که تا دیروز
             // بی‌صدا داخلِ GETِ عامل درست می‌شد و حالا باید دیده شود.
             'missingPorts'   => $hasTable ? app(PublicPortAllocator::class)->missing()->count() : 0,
+            // 🔴 «اعمال شد» جدا از «ضربان». ضربان می‌گوید عامل زنده است؛ این
+            // می‌گوید همان نسخهٔ مطلوب واقعاً روی هاست نشسته.
+            'lanPolicy'      => $hasTable
+                ? app(GuestPolicySnapshot::class)->status()
+                : ['state' => 'never', 'revision' => '', 'acked' => null, 'at' => null, 'error' => null],
             'config'         => [
                 'exit_countries' => Setting::get('proxmox_exit_countries') ?: 'de,nl,fi',
                 'agent_token'    => filled(Setting::getSecret('agent_pull_token')),

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CloudInstance;
 use App\Models\Setting;
 use App\Services\Cloud\PublicPortAllocator;
+use App\Support\GuestPolicySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -174,36 +175,59 @@ class PullController extends Controller
     }
 
     /**
-     * سیاستِ شبکهٔ داخلی برای هر مهمان — «این ماشین اجازهٔ دیدنِ 10.10.10.0/24
-     * را دارد یا نه».
+     * سیاستِ شبکهٔ داخلی برای هر مهمان — «این ماشین اجازهٔ دیدنِ شبکهٔ داخلی
+     * را دارد یا نه» — به‌همراهِ **نسخه**.
      *
      * 🔴 چرا مسیرِ جداست و به `countryroutes` اضافه نشد: آن مسیر فقط ماشین‌هایی
      * را دارد که کشورِ خروج دارند. اگر برای این سیاست بازترش می‌کردیم، عاملِ
-     * موجود ردیف‌هایی با `cc` تهی می‌دید که هرگز انتظارشان را نداشت — یعنی
-     * همان «تغییرِ شکل» که پروژه یک‌بار با `via` عمداً از آن پرهیز کرد.
+     * موجود ردیف‌هایی با `cc` تهی می‌دید که هرگز انتظارشان را نداشت — همان
+     * «تغییرِ شکل» که پروژه یک‌بار با `via` عمداً از آن پرهیز کرد.
      *
-     * شکل: `[ {"ip": "...", "lan": true|false} ]`
-     *
-     * ⚠️ این فقط «حالتِ مطلوب» است. تا وقتی عاملی این مسیر را نخوانده باشد،
-     * پنل هم سوییچ را **غیرفعال** نشان می‌دهد — دکمه‌ای که چیزی را اعمال نکند
-     * از نبودنش بدتر است.
+     * 🔴 و چرا پاسخ `schema` دارد: صفحهٔ خطای Cloudflare و صفحهٔ نگه‌داری با
+     * کدِ ۲۰۰ می‌آیند. بی‌یک نشانهٔ صریح، عامل آن HTML را «پاسخِ معتبرِ خالی»
+     * می‌خواند و همهٔ قواعد را پاک می‌کند.
      */
-    public function guestPolicy(Request $request, PublicPortAllocator $ports): JsonResponse
+    public function guestPolicy(Request $request, GuestPolicySnapshot $snap): JsonResponse
     {
         $this->authorizeAgent($request);
 
         Setting::put('agent_seen_guestpolicy', now()->toIso8601String());
 
-        $out = [];
+        return response()->json($snap->payload())->header('Cache-Control', 'no-store');
+    }
 
-        foreach ($ports->eligible() as $inst) {
-            $out[] = [
-                'ip'  => (string) $inst->ipv4,
-                'lan' => $inst->lanAccess(),
-            ];
+    /**
+     * تأییدِ اعمال — عامل بعد از اجرا می‌گوید «نسخهٔ X را اعمال کردم».
+     *
+     * 🔴 چرا لازم است: ضربان فقط می‌گوید عامل زنده است، نه اینکه کارش را کرده.
+     * تا امروز هیچ‌جای این سامانه این دو را از هم جدا نمی‌کرد — و پنل «فرستاده
+     * شد» را به مدیر مثلِ «اعمال شد» نشان می‌داد.
+     *
+     * ⚠️ نسخهٔ ناشناخته پذیرفته می‌شود ولی ثبت هم می‌شود: اگر عامل نسخه‌ای عقب
+     * تأیید کند، صفحه «در انتظار» می‌مانَد — که درست است، نه خطا.
+     */
+    public function guestPolicyAck(Request $request): JsonResponse
+    {
+        $this->authorizeAgent($request);
+
+        $data = $request->validate([
+            'revision' => ['required', 'string', 'max:64'],
+            'ok'       => ['required', 'boolean'],
+            'error'    => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Setting::put(GuestPolicySnapshot::ACK_AT, now()->toIso8601String());
+
+        if ($data['ok']) {
+            Setting::put(GuestPolicySnapshot::ACK_REVISION, $data['revision']);
+            Setting::put(GuestPolicySnapshot::ACK_ERROR, '');
+        } else {
+            // ⚠️ نسخهٔ تأییدشده را روی شکست **جلو نمی‌بریم**؛ وگرنه یک اعمالِ
+            // ناموفق در پنل «اعمال شد» دیده می‌شود.
+            Setting::put(GuestPolicySnapshot::ACK_ERROR, (string) ($data['error'] ?: 'اعمال ناموفق بود'));
         }
 
-        return response()->json($out)->header('Cache-Control', 'no-store');
+        return response()->json(['ok' => true]);
     }
 
     /**

@@ -40,6 +40,29 @@
     @endforeach
   </div>
 
+  {{-- 🔴 «اعمال شد» جدا از «زنده است». ضربانِ بالا فقط می‌گوید عامل می‌دود. --}}
+  @php
+    $lp = $lanPolicy ?? ['state' => 'never'];
+    [$lpCol, $lpText] = match ($lp['state']) {
+      'applied' => ['#34d399', 'سیاستِ شبکهٔ داخلی: اعمال شد ✓'],
+      'pending' => ['#fbbf24', 'سیاستِ شبکهٔ داخلی: در انتظارِ اعمال'],
+      'failed'  => ['#ff6b6b', 'سیاستِ شبکهٔ داخلی: اعمال ناموفق'],
+      default   => ['var(--dim)', 'سیاستِ شبکهٔ داخلی: هنوز هیچ عاملی تأیید نکرده'],
+    };
+  @endphp
+  <div style="padding:0 18px 14px">
+    <span class="ad-badge" dir="auto"
+          style="background:{{ $lpCol }}22;color:{{ $lpCol }};font-size:12.5px;padding:7px 12px">
+      {{ $lpText }}
+      @if(($lp['revision'] ?? '') !== '')
+        <span dir="ltr" style="opacity:.75;margin-inline-start:6px">rev {{ $lp['revision'] }}</span>
+      @endif
+    </span>
+    @if(filled($lp['error'] ?? null))
+      <div style="margin-top:7px;color:#ff6b6b;font-size:12px">{{ $lp['error'] }}</div>
+    @endif
+  </div>
+
   {{-- 🔴 شکافِ پورت: تا دیروز این کار بی‌صدا داخلِ GETِ عامل انجام می‌شد.
        حالا تخصیص یک عملِ صریح است، پس نبودش هم باید صریح دیده شود. --}}
   @if(($missingPorts ?? 0) > 0)

@@ -3315,4 +3315,6 @@ Route::prefix('agent')->group(function () {
     // دارای کشورِ خروج را دارد و بازکردنش، عاملِ موجود را با ردیف‌های `cc`ِ تهی
     // روبه‌رو می‌کرد.
     Route::get('guestpolicy', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicy']);
+    // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
+    Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });

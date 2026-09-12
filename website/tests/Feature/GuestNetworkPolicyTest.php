@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudProvider;
 use App\Services\Cloud\PublicPortAllocator;
+use App\Support\GuestPolicySnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -144,7 +145,7 @@ class GuestNetworkPolicyTest extends TestCase
         $this->mkInstance(['ipv4' => '10.10.10.71']);
 
         $rows = collect(
-            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json()
+            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json('policies')
         )->keyBy('ip');
 
         $this->assertTrue($rows['10.10.10.71']['lan']);
@@ -155,7 +156,7 @@ class GuestNetworkPolicyTest extends TestCase
         $this->mkInstance(['ipv4' => '10.10.10.72', 'meta' => ['lan_access' => false]]);
 
         $rows = collect(
-            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json()
+            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json('policies')
         )->keyBy('ip');
 
         $this->assertFalse($rows['10.10.10.72']['lan']);
@@ -166,7 +167,7 @@ class GuestNetworkPolicyTest extends TestCase
         $this->mkInstance(['ipv4' => '10.10.10.73', 'status' => 'off', 'meta' => ['lan_access' => false]]);
 
         $rows = collect(
-            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json()
+            $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk()->json('policies')
         )->keyBy('ip');
 
         $this->assertArrayHasKey('10.10.10.73', $rows->all(), 'سیاستِ ماشینِ خاموش نباید ناپدید شود');
@@ -179,6 +180,107 @@ class GuestNetworkPolicyTest extends TestCase
         $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])->assertOk();
 
         $this->assertNotNull(Setting::get('agent_seen_guestpolicy'));
+    }
+
+    /**
+     * 🔴 پاسخ باید نشانهٔ صریحِ خودش را داشته باشد.
+     *
+     * صفحهٔ خطای Cloudflare و صفحهٔ نگه‌داری با کدِ ۲۰۰ می‌آیند. بی‌این کلید،
+     * عاملِ هاست آن HTML را «پاسخِ معتبرِ خالی» می‌خواند و **همهٔ قواعد را پاک
+     * می‌کند** — همان درسی که ایجنتِ روترِ مشتری با `SNET|1|` گرفت.
+     */
+    public function test_the_payload_carries_a_schema_marker(): void
+    {
+        $this->mkInstance();
+
+        $this->getJson('/agent/guestpolicy', ['X-Agent-Token' => $this->token])
+            ->assertOk()
+            ->assertJsonPath('schema', 'servernet.guestpolicy.v1');
+    }
+
+    /**
+     * ⚠️ نسخه باید به **محتوا** بند باشد نه به ترتیبِ ردیف‌های دیتابیس؛ وگرنه
+     * هر پیمایش «در انتظار» می‌شد و تأیید هیچ معنایی نداشت.
+     */
+    public function test_the_revision_is_stable_across_row_order(): void
+    {
+        $a = $this->mkInstance(['ipv4' => '10.10.10.81']);
+        $b = $this->mkInstance(['ipv4' => '10.10.10.80']);
+
+        $first = app(GuestPolicySnapshot::class)->revision();
+
+        // ترتیبِ درج را برعکس می‌کنیم (با به‌روزرسانیِ ستونِ مرتب‌سازیِ طبیعی)
+        $a->touch();
+
+        $this->assertSame($first, app(GuestPolicySnapshot::class)->revision());
+    }
+
+    public function test_the_revision_changes_when_a_policy_changes(): void
+    {
+        $inst = $this->mkInstance();
+        $before = app(GuestPolicySnapshot::class)->revision();
+
+        $inst->meta = ['lan_access' => false];
+        $inst->save();
+
+        $this->assertNotSame($before, app(GuestPolicySnapshot::class)->revision());
+    }
+
+    // ═══════════════════ تأییدِ اعمال ═══════════════════
+
+    public function test_ack_requires_the_agent_token(): void
+    {
+        $this->postJson('/agent/guestpolicy/ack', ['revision' => 'x', 'ok' => true])->assertStatus(403);
+    }
+
+    /**
+     * 🔴 «ضربان» با «اعمال شد» یکی نیست. تا پیش از این، پنل فقط می‌دانست عامل
+     * زنده است و همان را به مدیر مثلِ «انجام شد» نشان می‌داد.
+     */
+    public function test_a_successful_ack_marks_the_policy_applied(): void
+    {
+        $this->mkInstance();
+        $rev = app(GuestPolicySnapshot::class)->revision();
+
+        $this->assertSame('never', app(GuestPolicySnapshot::class)->status()['state']);
+
+        $this->postJson('/agent/guestpolicy/ack', ['revision' => $rev, 'ok' => true],
+            ['X-Agent-Token' => $this->token])->assertOk();
+
+        $this->assertSame('applied', app(GuestPolicySnapshot::class)->status()['state']);
+    }
+
+    public function test_a_changed_policy_goes_back_to_pending(): void
+    {
+        $inst = $this->mkInstance();
+        $rev = app(GuestPolicySnapshot::class)->revision();
+
+        $this->postJson('/agent/guestpolicy/ack', ['revision' => $rev, 'ok' => true],
+            ['X-Agent-Token' => $this->token])->assertOk();
+
+        $inst->meta = ['lan_access' => false];
+        $inst->save();
+
+        $this->assertSame('pending', app(GuestPolicySnapshot::class)->status()['state']);
+    }
+
+    /**
+     * ⚠️ اعمالِ ناموفق نباید نسخهٔ تأییدشده را جلو ببرد، وگرنه یک شکست در پنل
+     * «اعمال شد» دیده می‌شود — بدترین حالتِ ممکن برای یک سوییچِ امنیتی.
+     */
+    public function test_a_failed_ack_never_marks_it_applied(): void
+    {
+        $this->mkInstance();
+        $rev = app(GuestPolicySnapshot::class)->revision();
+
+        $this->postJson('/agent/guestpolicy/ack',
+            ['revision' => $rev, 'ok' => false, 'error' => 'iptables نشد'],
+            ['X-Agent-Token' => $this->token])->assertOk();
+
+        $status = app(GuestPolicySnapshot::class)->status();
+
+        $this->assertSame('failed', $status['state']);
+        $this->assertSame('iptables نشد', $status['error']);
     }
 
     // ═══════════════════ سوییچِ پنل ═══════════════════
