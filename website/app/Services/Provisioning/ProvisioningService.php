@@ -2,9 +2,18 @@
 
 namespace App\Services\Provisioning;
 
+use App\Mail\ServiceReadyMail;
+use App\Models\ActivityLog;
+use App\Models\CloudInstance;
 use App\Models\Server;
 use App\Models\Service;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Cloud\CloudProvisioner;
+use App\Services\Dns\CloudflareDns;
+use App\Services\Notify\Notifier;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * هماهنگ‌کنندهٔ فراهم‌سازی — بینِ سرویس و درایور.
@@ -21,7 +30,7 @@ class ProvisioningService
     public function driverFor(Server $server): Provisioner
     {
         if (! $server->isAutoProvisioned()) {
-            return new ManualProvisioner();
+            return new ManualProvisioner;
         }
 
         /*
@@ -30,10 +39,11 @@ class ProvisioningService
         | فرستاده می‌شود و تحویلش شکست می‌خورد. نوعِ تازه ⇒ یک سطر همین‌جا.
         */
         return match ($server->type) {
-            'directadmin'     => new DirectAdminProvisioner(),
-            'plesk'           => new PleskProvisioner(),
-            'hetzner_storage' => new HetznerStorageProvisioner(),
-            default           => new WhmProvisioner(),
+            'directadmin' => new DirectAdminProvisioner,
+            'plesk' => new PleskProvisioner,
+            'hetzner_storage' => new HetznerStorageProvisioner,
+            'rclone_storage' => new RcloneStorageProvisioner,
+            default => new WhmProvisioner,
         };
     }
 
@@ -46,8 +56,8 @@ class ProvisioningService
     {
         // سرورِ ابری مسیرِ خودش را دارد: پیش از خرید وجود ندارد، پس نه
         // `server_id` دارد و نه ظرفیتی که بشود از قبل سنجید.
-        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            return app(\App\Services\Cloud\CloudProvisioner::class)->provision($service);
+        if (CloudProvisioner::handles($service)) {
+            return app(CloudProvisioner::class)->provision($service);
         }
 
         if ($service->server_id === null || $service->provision_status === 'done') {
@@ -86,8 +96,8 @@ class ProvisioningService
         if (! $server->canAcceptNew()) {
             $service->forceFill([
                 'provision_status' => 'pending',
-                'status'           => 'awaiting_provision',
-                'provision_error'  => 'سرورِ «'.$server->name.'» فعلاً ظرفیت/دسترسِ پذیرشِ حسابِ تازه ندارد ('.$server->status.').',
+                'status' => 'awaiting_provision',
+                'provision_error' => 'سرورِ «'.$server->name.'» فعلاً ظرفیت/دسترسِ پذیرشِ حسابِ تازه ندارد ('.$server->status.').',
             ])->save();
 
             return false;
@@ -100,7 +110,7 @@ class ProvisioningService
         try {
             $result = $this->driverFor($server)->create($service);
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, [
+            ErrorTracker::note('provision', $e, [
                 'service' => $service->id, 'server' => $server->id,
             ]);
             $this->markFailed($service, 'خطای غیرمنتظره: '.mb_substr($e->getMessage(), 0, 160));
@@ -111,8 +121,8 @@ class ProvisioningService
         if ($result->manual) {
             $service->forceFill([
                 'provision_status' => 'manual',
-                'status'           => 'awaiting_provision',
-                'provision_error'  => $result->error,
+                'status' => 'awaiting_provision',
+                'provision_error' => $result->error,
             ])->save();
 
             return false;
@@ -145,12 +155,12 @@ class ProvisioningService
             );
 
             $service->forceFill([
-                'username'         => $result->username ?: $service->username,
-                'password'         => $result->password ?: $service->password,
-                'panel_url'        => $result->panelUrl ?: $service->panel_url,
+                'username' => $result->username ?: $service->username,
+                'password' => $result->password ?: $service->password,
+                'panel_url' => $result->panelUrl ?: $service->panel_url,
                 'provision_status' => 'done',
-                'provision_error'  => null,
-                'provisioned_at'   => now(),
+                'provision_error' => null,
+                'provisioned_at' => now(),
                 /*
                 | 🔴 مهرِ `counted` هم‌زمان با خودِ شمارش نوشته می‌شود.
                 |
@@ -166,9 +176,9 @@ class ProvisioningService
                 | می‌رفت و سرور بی‌هیچ خطایی از صفحهٔ خرید غیب می‌شد. پس **هر دو
                 | طرف** به همین یک مهر نگاه می‌کنند.
                 */
-                'provision_meta'   => array_merge($builderKeys, $result->meta, ['counted' => true]),
-                'status'           => 'active',
-                'activated_at'     => $service->activated_at ?? now(),
+                'provision_meta' => array_merge($builderKeys, $result->meta, ['counted' => true]),
+                'status' => 'active',
+                'activated_at' => $service->activated_at ?? now(),
             ])->save();
 
             // شمارندهٔ ظرفیتِ سرور (اتمی) — یک حسابِ واقعی روی سرور، چه تازه
@@ -195,7 +205,7 @@ class ProvisioningService
         try {
             app(BuilderSitePublisher::class)->publish($service->refresh(), $server);
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::noteOnce('provision',
+            ErrorTracker::noteOnce('provision',
                 'سایت‌ساز: خطای غیرمنتظره در انتشارِ سایتِ سرویسِ #'.$service->id.' — '.mb_substr($e->getMessage(), 0, 160));
         }
 
@@ -218,7 +228,7 @@ class ProvisioningService
             return;                                   // دامنهٔ خودِ مشتری
         }
 
-        $dns = app(\App\Services\Dns\CloudflareDns::class);
+        $dns = app(CloudflareDns::class);
 
         if (! $dns->isConfigured()) {
             $this->noteDns($service, 'توکنِ Cloudflare تنظیم نشده؛ رکوردِ DNS دستی لازم است.');
@@ -270,7 +280,7 @@ class ProvisioningService
 
         if (! ($res['ok'] ?? false)) {
             // فقط ردِ ماشین‌خوان؛ اجرای شبانهٔ WHM خودش جبران می‌کند.
-            \App\Support\ErrorTracker::noteOnce('provision',
+            ErrorTracker::noteOnce('provision',
                 'AutoSSL: صف‌گذاریِ فوری برای سرویسِ #'.$service->id.' نشد — '.($res['reason'] ?? '—'));
         }
     }
@@ -283,7 +293,7 @@ class ProvisioningService
         $service->forceFill(['provision_meta' => $meta])->save();
 
         try {
-            \App\Models\ActivityLog::record($service->customer_id, 'service',
+            ActivityLog::record($service->customer_id, 'service',
                 'DNS زیردامنه — '.$message, null, 'system');
         } catch (\Throwable) {
         }
@@ -293,8 +303,8 @@ class ProvisioningService
     {
         // سرورِ ابری: «تعلیق» = خاموش کردن. داده می‌ماند، هزینه‌اش هم برای ما
         // می‌ماند — ولی حذفِ خودکارِ دادهٔ مشتریِ بدهکار را عمداً نمی‌کنیم.
-        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->suspend($service);
+        if (CloudProvisioner::handles($service)) {
+            $ok = app(CloudProvisioner::class)->suspend($service);
             $service->update(['status' => 'suspended']);
 
             return $ok
@@ -325,8 +335,8 @@ class ProvisioningService
 
     public function unsuspend(Service $service): ProvisionResult
     {
-        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            $ok = app(\App\Services\Cloud\CloudProvisioner::class)->unsuspend($service);
+        if (CloudProvisioner::handles($service)) {
+            $ok = app(CloudProvisioner::class)->unsuspend($service);
             $service->update($this->resumeColumns($service));
 
             return $ok
@@ -379,8 +389,8 @@ class ProvisioningService
     {
         // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
         // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
-        if (\App\Services\Cloud\CloudProvisioner::handles($service)) {
-            if (! app(\App\Services\Cloud\CloudProvisioner::class)->terminate($service)) {
+        if (CloudProvisioner::handles($service)) {
+            if (! app(CloudProvisioner::class)->terminate($service)) {
                 return ProvisionResult::fail('حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
             }
 
@@ -493,7 +503,7 @@ class ProvisioningService
         try {
             $r = $this->releaseServer($service);
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'release', 'service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['area' => 'release', 'service' => $service->id]);
             $r = ProvisionResult::fail(mb_substr($e->getMessage(), 0, 200));
         }
 
@@ -507,7 +517,7 @@ class ProvisioningService
 
         $service->forceFill(['provision_status' => Service::PROVISION_RELEASING])->save();
 
-        app(\App\Services\Cloud\CloudProvisioner::class)
+        app(CloudProvisioner::class)
             ->recordReleaseFailure($service, (string) ($r->error ?: 'دلیلِ نامعلوم'));
 
         return $r;
@@ -552,7 +562,7 @@ class ProvisioningService
         ])->save();
 
         try {
-            $instance = \App\Models\CloudInstance::where('service_id', $service->id)->first();
+            $instance = CloudInstance::where('service_id', $service->id)->first();
 
             if ($instance !== null) {
                 $imeta = (array) ($instance->meta ?? []);
@@ -562,11 +572,11 @@ class ProvisioningService
                 $instance->update(['status' => 'deleted', 'last_error' => null, 'meta' => $imeta]);
             }
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'release-manual', 'service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['area' => 'release-manual', 'service' => $service->id]);
         }
 
         try {
-            \App\Models\ActivityLog::forService($service, 'terminate',
+            ActivityLog::forService($service, 'terminate',
                 'آزادسازیِ سرور دستی اعلام شد — تلاشِ خودکار متوقف شد', $by);
         } catch (\Throwable $e) {
             /*
@@ -577,7 +587,7 @@ class ProvisioningService
             | کِی گفت تمام شد. لاگی که بی‌صدا نیفتد، همان لحظه‌ای که لازمش داریم
             | نیست و ما هم نمی‌دانیم که نیست.
             */
-            \App\Support\ErrorTracker::note('provision', $e, [
+            ErrorTracker::note('provision', $e, [
                 'area' => 'release-manual-log', 'service' => $service->id, 'by' => $by,
             ]);
         }
@@ -610,7 +620,7 @@ class ProvisioningService
             |    ردِ مکتوب داشته باشد — «چه کسی، چه چیزی، کی».
             */
             try {
-                app(\App\Services\Notify\Notifier::class)->fire(
+                app(Notifier::class)->fire(
                     'terminated',
                     $service->customer,
                     ['service' => $service->name],
@@ -621,7 +631,7 @@ class ProvisioningService
                     '🗑',
                 );
             } catch (\Throwable $e) {
-                \App\Support\ErrorTracker::note('notify', $e, ['event' => 'terminated', 'service' => $service->id]);
+                ErrorTracker::note('notify', $e, ['event' => 'terminated', 'service' => $service->id]);
             }
         }
 
@@ -634,8 +644,8 @@ class ProvisioningService
     {
         $service->forceFill([
             'provision_status' => 'failed',
-            'provision_error'  => mb_substr($error, 0, 290),
-            'status'           => 'provision_failed',
+            'provision_error' => mb_substr($error, 0, 290),
+            'status' => 'provision_failed',
         ])->save();
 
         /*
@@ -650,7 +660,7 @@ class ProvisioningService
         $this->notifyStaff('تحویلِ سرویس #'.$service->id.' («'.$service->name.'») ناموفق بود: '.$error);
 
         try {
-            app(\App\Services\Notify\Notifier::class)->fire(
+            app(Notifier::class)->fire(
                 'service_failed',
                 $service->customer,
                 /*
@@ -674,22 +684,22 @@ class ProvisioningService
                 .'اگر ترجیح می‌دهید منتظر نمانید، می‌توانید از پنل سفارش را لغو کنید و مبلغ کامل به '
                 .'اعتبارتان برمی‌گردد: '.console_lroute('account.services'),
                 [
-                    'سرویس'  => '#'.$service->id.' — '.$service->name,
-                    'پلن'    => (string) $service->plan,
-                    'سرور'   => (string) ($service->server?->name ?? '—'),
-                    'خطا'    => mb_substr($error, 0, 160),
+                    'سرویس' => '#'.$service->id.' — '.$service->name,
+                    'پلن' => (string) $service->plan,
+                    'سرور' => (string) ($service->server?->name ?? '—'),
+                    'خطا' => mb_substr($error, 0, 160),
                 ],
                 null,
                 '⚠️',
                 [
-                    [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
+                    [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
                     $service->customer
-                        ? [['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer->id]]
+                        ? [['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer->id]]
                         : [],
                 ],
             );
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('notify', $e, ['event' => 'service_failed', 'service' => $service->id]);
+            ErrorTracker::note('notify', $e, ['event' => 'service_failed', 'service' => $service->id]);
         }
     }
 
@@ -762,7 +772,7 @@ class ProvisioningService
             |
             | ⚠️ متغیرها لازم‌اند وگرنه الگوی /admin/templates بی‌اثر می‌مانَد.
             */
-            app(\App\Services\Notify\Notifier::class)->fire(
+            app(Notifier::class)->fire(
                 'service_ready', $service->customer,
                 ['service' => $service->name, 'ip' => (string) ($service->server?->hostname ?? '—')],
                 $text,
@@ -771,15 +781,15 @@ class ProvisioningService
             );
         } catch (\Throwable $e) {
             // اعلان نباید تحویل را بشکند — ولی بی‌صدا هم نباید بمیرد
-            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'provision-ready']);
+            ErrorTracker::note('notify', $e, ['area' => 'provision-ready']);
         }
 
         // ایمیلِ اطلاعاتِ سرویس (نام‌کاربری/رمز/آدرسِ ورود) — best-effort
         try {
             $customer = $service->customer;
             if ($customer && filled($customer->email)) {
-                \Illuminate\Support\Facades\Mail::mailer('smtp')->to($customer->email)->send(
-                    new \App\Mail\ServiceReadyMail(
+                Mail::mailer('smtp')->to($customer->email)->send(
+                    new ServiceReadyMail(
                         $service->name,
                         $service->domain,
                         $service->panel_url,
@@ -793,11 +803,11 @@ class ProvisioningService
             // ایمیل نباید تحویل را بشکند
         }
 
-        \App\Models\ActivityLog::record($service->customer_id, 'service', $text, null, 'system');
+        ActivityLog::record($service->customer_id, 'service', $text, null, 'system');
     }
 
     private function notifyStaff(string $text): void
     {
-        \App\Models\ActivityLog::record(null, 'service', $text, null, 'system');
+        ActivityLog::record(null, 'service', $text, null, 'system');
     }
 }

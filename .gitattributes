@@ -1,2 +1,4 @@
 graphify-out/graph.json merge=graphify
 *.sh text eol=lf
+infra/rclone-storage-gateway/*.py text eol=lf
+infra/rclone-storage-gateway/*.service text eol=lf

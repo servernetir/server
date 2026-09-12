@@ -2,3 +2,5 @@
 **/.DS_Store
 .claude/
 __MACOSX/
+__pycache__/
+*.py[cod]

@@ -3,14 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\Server;
 use App\Models\Service;
+use App\Services\Billing\UndeliveredRefund;
+use App\Services\Cloud\CloudProvisioner;
+use App\Services\Provisioning\HetznerStorageCosts;
+use App\Services\Provisioning\ProvisioningService;
+use App\Services\Provisioning\RcloneStorageCosts;
+use App\Support\ErrorTracker;
+use App\Support\Jalali;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 /**
  * فروش و مدیریت سرویس‌های مشتری — سمت کارکنان.
@@ -28,17 +41,17 @@ class ServiceController extends Controller
     public function store(Request $request, Customer $customer): RedirectResponse
     {
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'price'       => ['required', 'integer', 'min:0', 'max:100000000000'],
+            'price' => ['required', 'integer', 'min:0', 'max:100000000000'],
             'tax_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'cycle'       => ['required', \Illuminate\Validation\Rule::in(\App\Models\Service::cycles())],
+            'cycle' => ['required', Rule::in(Service::cycles())],
             // تحویلِ خودکار (اختیاری): اگر سروری انتخاب شود، پس از پرداخت خودکار
             // روی آن ساخته می‌شود. نام‌کاربری/رمز اگر خالی باشند خودکار ساخته می‌شوند.
-            'server_id'   => ['nullable', 'integer', 'exists:servers,id'],
-            'plan'        => ['nullable', 'string', 'max:80'],
-            'username'    => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9]{0,15}$/'],
-            'domain'      => ['nullable', 'string', 'max:190'],
+            'server_id' => ['nullable', 'integer', 'exists:servers,id'],
+            'plan' => ['nullable', 'string', 'max:80'],
+            'username' => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9]{0,15}$/'],
+            'domain' => ['nullable', 'string', 'max:190'],
 
             /*
             | تاریخِ صدور به **شمسی** وارد می‌شود و **میلادی** ذخیره می‌شود.
@@ -47,9 +60,9 @@ class ServiceController extends Controller
             | تصمیم‌گیری دربارهٔ جداکننده، رقمِ فارسی/لاتین، و صفرِ ابتدایی —
             | سه جای اضافه برای اشتباه، روی فیلدی که سندِ حسابداری می‌سازد.
             */
-            'issued_jy'   => ['nullable', 'integer', 'min:1300', 'max:1500'],
-            'issued_jm'   => ['nullable', 'integer', 'min:1', 'max:12'],
-            'issued_jd'   => ['nullable', 'integer', 'min:1', 'max:31'],
+            'issued_jy' => ['nullable', 'integer', 'min:1300', 'max:1500'],
+            'issued_jm' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'issued_jd' => ['nullable', 'integer', 'min:1', 'max:31'],
 
             // تخفیفِ درصدی روی مبلغِ سرویس
             'discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -80,13 +93,13 @@ class ServiceController extends Controller
         if (filled($data['issued_jy'] ?? null) && filled($data['issued_jm'] ?? null) && filled($data['issued_jd'] ?? null)) {
             [$jy, $jm, $jd] = [(int) $data['issued_jy'], (int) $data['issued_jm'], (int) $data['issued_jd']];
 
-            if ($jd > \App\Support\Jalali::daysInMonth($jy, $jm)) {
+            if ($jd > Jalali::daysInMonth($jy, $jm)) {
                 return back()->withInput()->withErrors([
                     'issued_jd' => 'این روز در ماهِ انتخاب‌شده وجود ندارد.',
                 ]);
             }
 
-            $issuedAt = \App\Support\Jalali::startOfDay(
+            $issuedAt = Jalali::startOfDay(
                 $jy, $jm, $jd, config('calendar.display_timezone', 'Asia/Tehran')
             );
 
@@ -119,8 +132,8 @@ class ServiceController extends Controller
         | روی فاکتور جلوگیری می‌کند.
         */
         $discountPct = (float) ($data['discount_pct'] ?? 0);
-        $listPrice   = (int) $data['price'];
-        $price       = $discountPct > 0
+        $listPrice = (int) $data['price'];
+        $price = $discountPct > 0
             ? (int) floor($listPrice * (100 - $discountPct) / 100)
             : $listPrice;
 
@@ -131,19 +144,19 @@ class ServiceController extends Controller
 
         $service = DB::transaction(function () use ($customer, $data, $taxPct, $request, $price, $note, $issuedAt) {
             $service = Service::create([
-                'customer_id'   => $customer->id,
-                'name'          => $data['name'],
-                'description'   => trim(($data['description'] ?? '')."\n".($note ?? '')) ?: null,
+                'customer_id' => $customer->id,
+                'name' => $data['name'],
+                'description' => trim(($data['description'] ?? '')."\n".($note ?? '')) ?: null,
                 'currency_code' => 'IRT',
-                'price'         => $price,
-                'tax_percent'   => $taxPct,
-                'cycle'         => $data['cycle'],
-                'status'        => 'pending',
-                'created_by'    => $request->user()?->id,
-                'server_id'     => $data['server_id'] ?? null,
-                'plan'          => $data['plan'] ?? null,
-                'username'      => $data['username'] ?? null,
-                'domain'        => $data['domain'] ?? null,
+                'price' => $price,
+                'tax_percent' => $taxPct,
+                'cycle' => $data['cycle'],
+                'status' => 'pending',
+                'created_by' => $request->user()?->id,
+                'server_id' => $data['server_id'] ?? null,
+                'plan' => $data['plan'] ?? null,
+                'username' => $data['username'] ?? null,
+                'domain' => $data['domain'] ?? null,
             ]);
 
             $this->issueInvoice($service, $issuedAt);
@@ -151,7 +164,7 @@ class ServiceController extends Controller
             return $service;
         });
 
-        \App\Models\ActivityLog::forService($service, 'purchase',
+        ActivityLog::forService($service, 'purchase',
             'سرویس «'.$service->name.'» توسط مدیر ('.($request->user()?->name ?: 'مدیر').') فروخته و پیش‌فاکتور صادر شد',
             'staff', $request);
 
@@ -190,7 +203,7 @@ class ServiceController extends Controller
 
         // ⚠️ ردیفِ سرویس رفته، پس لاگ به **مشتری** می‌چسبد نه به سرویس؛
         //    وگرنه تنها سندِ این حذف به یک شناسهٔ ناموجود اشاره می‌کرد.
-        \App\Models\ActivityLog::record($customerId, 'service_delete',
+        ActivityLog::record($customerId, 'service_delete',
             'سرویسِ «'.$name.'» توسط مدیر ('.($request->user()?->name ?: 'مدیر').') حذف شد',
             $request, 'staff');
 
@@ -205,7 +218,7 @@ class ServiceController extends Controller
      * استفاده کند — یک جای واحد برای «فاکتور یک سرویس چه شکلی است».
      */
     /**
-     * @param  \Illuminate\Support\Carbon|null  $issuedAt  تاریخِ صدورِ دلخواه (فقط گذشته)
+     * @param  Carbon|null  $issuedAt  تاریخِ صدورِ دلخواه (فقط گذشته)
      */
     /**
      * 🔴 محافظِ تمدید — سرویسِ فروخته‌شده نباید با جهشِ ارز زیرِ بهای تمام‌شده
@@ -229,7 +242,7 @@ class ServiceController extends Controller
      * ⚠️ فقط تومان. کف تومانی است و اعمالش روی سرویسِ یورویی یعنی عددِ یورو با
      * عددِ تومان مقایسه شود — خرابیِ صامتی که مبلغ را هزاران برابر می‌کند.
      *
-     * @return array{old:int,new:int}|null  اگر بالا رفت
+     * @return array{old:int,new:int}|null اگر بالا رفت
      */
     private function holdRenewalAboveCost(Service $service): ?array
     {
@@ -243,8 +256,12 @@ class ServiceController extends Controller
             return null;   // «یک‌بار» دوره ندارد، پس تمدیدی هم ندارد
         }
 
-        $floor = app(\App\Services\Provisioning\HetznerStorageCosts::class)
-            ->floorToman((string) $service->plan, $months);
+        $floor = max(
+            app(HetznerStorageCosts::class)
+                ->floorToman((string) $service->plan, $months),
+            app(RcloneStorageCosts::class)
+                ->floorForService($service, $months),
+        );
 
         $old = (int) $service->price;
 
@@ -254,7 +271,7 @@ class ServiceController extends Controller
 
         $service->forceFill(['price' => $floor])->save();
 
-        \App\Models\ActivityLog::forService($service, 'renew',
+        ActivityLog::forService($service, 'renew',
             'قیمتِ تمدید از '.number_format($old).' به '.number_format($floor)
             .' تومان بالا رفت — قیمتِ قبلی زیرِ بهای تمام‌شدهٔ امروز بود (کفِ حاشیه).',
             'system');
@@ -263,7 +280,7 @@ class ServiceController extends Controller
         | فریاد لازم است: این یک تغییرِ قیمت برای مشتریِ موجود است و مدیر باید
         | بداند کدام سرویس‌ها گران شدند — پیش از اینکه مشتری تماس بگیرد.
         */
-        \App\Support\ErrorTracker::noteOnce('pricing',
+        ErrorTracker::noteOnce('pricing',
             'قیمتِ تمدیدِ سرویسِ #'.$service->id.' از '.number_format($old).' به '
             .number_format($floor).' تومان بالا رفت (زیرِ بهای تمام‌شده بود).', 3600);
 
@@ -275,8 +292,8 @@ class ServiceController extends Controller
         $raised = $this->holdRenewalAboveCost($service);
 
         $subtotal = $service->price;
-        $tax      = $service->taxAmount();
-        $total    = $subtotal + $tax;
+        $tax = $service->taxAmount();
+        $total = $subtotal + $tax;
 
         /*
         |----------------------------------------------------------------------
@@ -301,36 +318,36 @@ class ServiceController extends Controller
         $issued = $issuedAt !== null && $issuedAt->lt(now()) ? $issuedAt : now();
 
         $invoice = Invoice::create([
-            'customer_id'   => $service->customer_id,
-            'service_id'    => $service->id,
-            'kind'          => 'service',
+            'customer_id' => $service->customer_id,
+            'service_id' => $service->id,
+            'kind' => 'service',
             'currency_code' => $service->currency_code,
-            'subtotal'      => $subtotal,
-            'tax'           => $tax,
-            'total'         => $total,
-            'paid'          => 0,
-            'status'        => 'unpaid',
-            'issued_at'     => $issued,
-            'note'          => $service->name,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'total' => $total,
+            'paid' => 0,
+            'status' => 'unpaid',
+            'issued_at' => $issued,
+            'note' => $service->name,
         ]);
 
         InvoiceItem::create([
-            'invoice_id'  => $invoice->id,
-            'title'       => $service->name.' ('.$service->cycleLabel().')',
+            'invoice_id' => $invoice->id,
+            'title' => $service->name.' ('.$service->cycleLabel().')',
             /*
             | اگر کف قیمت را بالا برده، همان‌جا روی فاکتور توضیح داده می‌شود.
             | فاکتورِ ناگهان‌گران‌شدهٔ بی‌توضیح، یک تیکتِ حتمی است — و بدتر،
             | مشتری فکر می‌کند اشتباهی رخ داده.
             */
             'description' => trim((string) $service->description.($raised === null ? '' :
-                "
-".'بازنگریِ قیمت بر اساسِ نرخِ روزِ ارز: از '.number_format($raised['old'])
+                '
+'.'بازنگریِ قیمت بر اساسِ نرخِ روزِ ارز: از '.number_format($raised['old'])
                 .' به '.number_format($raised['new']).' تومان.')),
-            'quantity'    => 1,
-            'unit_price'  => $subtotal,
-            'line_total'  => $subtotal,
+            'quantity' => 1,
+            'unit_price' => $subtotal,
+            'line_total' => $subtotal,
             'tax_rate_bp' => $service->tax_percent * 100,   // درصد → basis-points
-            'tax_amount'  => $tax,
+            'tax_amount' => $tax,
         ]);
 
         return $invoice;
@@ -351,7 +368,7 @@ class ServiceController extends Controller
         */
         $refund = 0;
         if ($data['status'] === 'cancelled') {
-            $refund = app(\App\Services\Billing\UndeliveredRefund::class)
+            $refund = app(UndeliveredRefund::class)
                 ->maybeRefund($service, 'staff');
         }
 
@@ -364,8 +381,10 @@ class ServiceController extends Controller
         }
         $service->save();
 
-        \App\Models\ActivityLog::forService($service,
-            match ($data['status']) { 'suspended' => 'suspend', 'cancelled' => 'terminate', default => 'reactivate' },
+        ActivityLog::forService($service,
+            match ($data['status']) {
+                'suspended' => 'suspend', 'cancelled' => 'terminate', default => 'reactivate'
+            },
             'وضعیت سرویس به «'.$data['status'].'» تغییر کرد — توسط '.($request->user()?->name ?: 'مدیر'),
             'staff', $request);
 
@@ -428,7 +447,7 @@ class ServiceController extends Controller
 
         $data = $request->validate([
             'amount' => ['required', 'integer', 'min:0', 'max:'.max(0, $paidTotal)],
-            'note'   => ['nullable', 'string', 'max:200'],
+            'note' => ['nullable', 'string', 'max:200'],
         ], [
             'amount.max' => 'سقفِ بازگشت، جمعِ پرداختیِ همین سرویس است: '.number_format($paidTotal).' تومان.',
         ], ['amount' => 'مبلغ']);
@@ -441,7 +460,7 @@ class ServiceController extends Controller
         }
 
         $alreadyRefunded = Schema::hasTable('credit_ledger')
-            && \App\Models\CreditEntry::where('source_type', Service::class)
+            && CreditEntry::where('source_type', Service::class)
                 ->where('source_id', $service->id)
                 ->where('reason', 'refund')->exists();
 
@@ -452,26 +471,26 @@ class ServiceController extends Controller
         $wasDead = $service->isDead();
 
         if (! $wasDead) {
-            $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
+            $r = app(ProvisioningService::class)->terminate($service);
         }
 
         if ($amount > 0) {
             $balance = $customer->creditBalance('IRT');
 
-            \App\Models\CreditEntry::create([
-                'customer_id'   => $customer->id,
+            CreditEntry::create([
+                'customer_id' => $customer->id,
                 'currency_code' => 'IRT',
-                'amount'        => $amount,
+                'amount' => $amount,
                 'balance_after' => $balance + $amount,
-                'reason'        => 'refund',
-                'source_type'   => Service::class,
-                'source_id'     => $service->id,
-                'note'          => 'بازگشتِ وجه — لغوِ «'.mb_substr((string) $service->name, 0, 60).'» توسط مدیر'
+                'reason' => 'refund',
+                'source_type' => Service::class,
+                'source_id' => $service->id,
+                'note' => 'بازگشتِ وجه — لغوِ «'.mb_substr((string) $service->name, 0, 60).'» توسط مدیر'
                     .(filled($data['note'] ?? null) ? ' — '.$data['note'] : ''),
             ]);
         }
 
-        \App\Models\ActivityLog::forService($service, 'terminate',
+        ActivityLog::forService($service, 'terminate',
             'لغو از پنل توسط «'.($request->user()->name ?: 'مدیر').'»'
             .($amount > 0 ? ' + بازگشتِ '.number_format($amount).' تومان به کیف پول' : ' (بدونِ بازگشتِ وجه)'),
             'staff', $request);
@@ -499,9 +518,9 @@ class ServiceController extends Controller
             return back()->with('err', 'سرویسِ لغوشده سررسید نمی‌گیرد.');
         }
 
-        $service->forceFill(['next_due_at' => \Illuminate\Support\Carbon::parse($data['next_due_at'])])->save();
+        $service->forceFill(['next_due_at' => Carbon::parse($data['next_due_at'])])->save();
 
-        \App\Models\ActivityLog::forService($service, 'renew',
+        ActivityLog::forService($service, 'renew',
             'سررسیدِ سرویس روی '.sdate($service->next_due_at).' تنظیم شد — توسط '
             .($request->user()?->name ?: 'مدیر'), 'staff');
 
@@ -517,7 +536,7 @@ class ServiceController extends Controller
 
         $this->issueInvoice($service);
 
-        \App\Models\ActivityLog::forService($service, 'renew',
+        ActivityLog::forService($service, 'renew',
             'فاکتور تمدید توسط مدیر ('.(request()->user()?->name ?: 'مدیر').') صادر شد', 'staff');
 
         return back()->with('ok', 'فاکتور تمدید صادر شد؛ پس از پرداخت، سررسید سرویس یک دوره جلو می‌رود.');
@@ -532,15 +551,15 @@ class ServiceController extends Controller
         // که بدونِ سرور خریداری شده)
         $data = $request->validate([
             'server_id' => ['nullable', 'integer', 'exists:servers,id'],
-            'plan'      => ['nullable', 'string', 'max:80'],
-            'domain'    => ['nullable', 'string', 'max:190'],
+            'plan' => ['nullable', 'string', 'max:80'],
+            'domain' => ['nullable', 'string', 'max:190'],
         ]);
         // ⚠️ سرورِ ابری هرگز `server_id` ندارد (پیش از خرید وجود ندارد). بی‌این
         // استثنا، تحویلِ شکست‌خوردهٔ ابری **هیچ راهِ بازیابی** نداشت: کرون فقط
         // `pending` را برمی‌دارد و `failed` را نمی‌بیند، و دکمهٔ «تلاش دوباره»ی
         // ادمین هم با پیامِ «اول یک سرورِ تحویل انتخاب کنید» بیرون می‌زد. یعنی
         // مشتری پول داده، سرور ندارد، و تنها راه ویرایشِ دستیِ دیتابیس بود.
-        $isCloud = \App\Services\Cloud\CloudProvisioner::handles($service);
+        $isCloud = CloudProvisioner::handles($service);
 
         /*
         | 🔴 روی سرویسِ ابری هیچ‌کدام از این سه ستون **نوشته نمی‌شود**.
@@ -554,8 +573,8 @@ class ServiceController extends Controller
         */
         $assign = $isCloud ? [] : array_filter([
             'server_id' => $data['server_id'] ?? null,
-            'plan'      => $data['plan'] ?? null,
-            'domain'    => $data['domain'] ?? null,
+            'plan' => $data['plan'] ?? null,
+            'domain' => $data['domain'] ?? null,
         ], fn ($v) => filled($v));
 
         if ($assign) {
@@ -575,10 +594,10 @@ class ServiceController extends Controller
             $service->update(['provision_status' => 'pending']);
         }
 
-        $ok = app(\App\Services\Provisioning\ProvisioningService::class)->provision($service->fresh());
+        $ok = app(ProvisioningService::class)->provision($service->fresh());
 
         if ($ok) {
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 'تحویلِ دستیِ روی سرور توسط مدیر ('.($request->user()?->name ?: 'مدیر').')', 'staff', $request);
         }
 
@@ -624,7 +643,7 @@ class ServiceController extends Controller
 
         $service->clearManualAction();
 
-        \App\Models\ActivityLog::forService($service, 'provision',
+        ActivityLog::forService($service, 'provision',
             'مدیر ('.((string) ($request->user()?->name ?: 'مدیر')).') کارِ دستیِ «'
             .$a['kind'].'» را انجام‌شده اعلام کرد.', 'staff', $request);
 
@@ -635,7 +654,7 @@ class ServiceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        if (! \App\Services\Cloud\CloudProvisioner::handles($service)) {
+        if (! CloudProvisioner::handles($service)) {
             return back()->withErrors('رهاسازیِ محافظ فقط برای سرورِ ابری معنا دارد.');
         }
 
@@ -648,22 +667,22 @@ class ServiceController extends Controller
 
         // ردِ حسابرسی **پیش** از هر تلاشی نوشته می‌شود: اگر تحویل وسطِ کار
         // بمیرد، باز هم می‌دانیم چه کسی و کِی اجازه داد.
-        \App\Models\ActivityLog::forService($service, 'provision',
+        ActivityLog::forService($service, 'provision',
             'مدیر ('.$by.') رهاسازیِ دستیِ محافظِ سوءاستفاده را ثبت کرد. نشانهٔ ثبت‌شدهٔ محافظ: '.$flagged,
             'staff', $request);
 
-        \App\Support\ErrorTracker::note('fraud-guard',
+        ErrorTracker::note('fraud-guard',
             'درخواستِ رهاسازیِ دستی توسط مدیر ('.$by.') برای سرویس #'.$service->id.' — نشانه: '.$flagged,
             ['service' => $service->id, 'by' => $by]);
 
-        \App\Services\Cloud\CloudProvisioner::requestOverride($service, $by);
+        CloudProvisioner::requestOverride($service, $by);
 
         // 🔴 رهاسازیِ علت به‌تنهایی کافی **نیست**: `provision:run` هرگز `manual`
         //    را برنمی‌دارد، پس ردیف بی‌هیچ قاعده‌ای پارک می‌مانْد. صریح به صف
         //    برمی‌گردد و همین حالا هم یک بار اجرا می‌شود.
         $service->update(['provision_status' => 'pending']);
 
-        $ok = app(\App\Services\Provisioning\ProvisioningService::class)->provision($service->fresh());
+        $ok = app(ProvisioningService::class)->provision($service->fresh());
 
         if ($ok) {
             return back()->with('ok', 'محافظ برای همین سفارش کنار گذاشته شد و سرور تحویل شد.');
@@ -680,10 +699,10 @@ class ServiceController extends Controller
 
     public function suspend(Request $request, Service $service): RedirectResponse
     {
-        $r = app(\App\Services\Provisioning\ProvisioningService::class)->suspend($service);
+        $r = app(ProvisioningService::class)->suspend($service);
 
         if ($r->ok || $r->manual) {
-            \App\Models\ActivityLog::forService($service, 'suspend',
+            ActivityLog::forService($service, 'suspend',
                 'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') معلق شد', 'staff', $request);
         }
 
@@ -694,10 +713,10 @@ class ServiceController extends Controller
 
     public function unsuspend(Request $request, Service $service): RedirectResponse
     {
-        $r = app(\App\Services\Provisioning\ProvisioningService::class)->unsuspend($service);
+        $r = app(ProvisioningService::class)->unsuspend($service);
 
         if ($r->ok || $r->manual) {
-            \App\Models\ActivityLog::forService($service, 'reactivate',
+            ActivityLog::forService($service, 'reactivate',
                 'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') از تعلیق درآمد', 'staff', $request);
         }
 
@@ -710,11 +729,11 @@ class ServiceController extends Controller
      * تاریخچهٔ مالکیتِ یک سرویس — خواستهٔ کارفرما: «باید بدانم این سرور در فلان
      * زمان دستِ کی بود». همهٔ رویدادهای service-محور به‌ترتیبِ زمان.
      */
-    public function history(Service $service): \Illuminate\View\View
+    public function history(Service $service): View
     {
         $service->load('customer');
 
-        $logs = \App\Models\ActivityLog::ofService($service->id)->limit(300)->get();
+        $logs = ActivityLog::ofService($service->id)->limit(300)->get();
 
         return view('admin.service-history', compact('service', 'logs'));
     }
@@ -723,9 +742,9 @@ class ServiceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $r = app(\App\Services\Provisioning\ProvisioningService::class)->terminate($service);
+        $r = app(ProvisioningService::class)->terminate($service);
 
-        \App\Models\ActivityLog::forService($service, 'terminate',
+        ActivityLog::forService($service, 'terminate',
             'سرویس توسط مدیر ('.($request->user()?->name ?: 'مدیر').') لغو شد'
             .(($r->ok || $r->manual) ? ' و از سرور حذف شد' : ' — حذفِ سرور نزدِ زیرساخت انجام نشد و در صفِ تلاشِ دوباره است'),
             'staff', $request);
@@ -773,12 +792,12 @@ class ServiceController extends Controller
                 'این سرویس در حالتِ «در حالِ آزادسازی» نیست؛ چیزی برای بستن وجود ندارد.');
         }
 
-        $meta    = (array) ($service->provision_meta ?? []);
+        $meta = (array) ($service->provision_meta ?? []);
         $counted = ($meta['released_from_done'] ?? false)
             && ($meta['counted'] ?? ! ($meta['reused'] ?? false));
 
         if ($counted && $service->server_id) {
-            \App\Models\Server::whereKey($service->server_id)
+            Server::whereKey($service->server_id)
                 ->where('active_accounts', '>', 0)
                 ->decrement('active_accounts');
         }
@@ -787,7 +806,7 @@ class ServiceController extends Controller
 
         $by = (string) ($request->user()?->name ?: 'مدیر');
 
-        \App\Models\ActivityLog::forService($service, 'terminate',
+        ActivityLog::forService($service, 'terminate',
             'مدیر ('.$by.') تأیید کرد سرور نزدِ زیرساخت دیگر وجود ندارد و صفِ تلاشِ '
             .'دوبارهٔ حذف (cloud:release-retry) را دستی بست.', 'staff', $request);
 

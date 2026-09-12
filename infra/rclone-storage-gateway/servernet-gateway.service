@@ -1,0 +1,19 @@
+[Unit]
+Description=ServerNet managed backup control API
+After=network-online.target
+
+[Service]
+Type=simple
+User=servernet-gateway
+Group=servernet-gateway
+WorkingDirectory=/opt/servernet-gateway
+EnvironmentFile=/etc/servernet-gateway.env
+ExecStart=/usr/bin/python3 /opt/servernet-gateway/gateway.py
+Restart=always
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/servernet-gateway
+
+[Install]
+WantedBy=multi-user.target

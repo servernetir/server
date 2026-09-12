@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server;
+use App\Services\Provisioning\HetznerStorageClient;
+use App\Services\Provisioning\RcloneStorageClient;
 use App\Services\Provisioning\WhmClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -23,7 +26,7 @@ class ServerController extends Controller
         $ready = Schema::hasTable('servers');
 
         return view('admin.servers', [
-            'servers'  => $ready ? Server::withCount('services')->orderBy('name')->get() : collect(),
+            'servers' => $ready ? Server::withCount('services')->orderBy('name')->get() : collect(),
             'notReady' => ! $ready,
         ]);
     }
@@ -32,7 +35,7 @@ class ServerController extends Controller
     {
         $data = $this->validated($request);
 
-        $server = new Server();
+        $server = new Server;
         $server->fill($data);
         /*
         | ⚠️ `?? null` و نه `$data['api_token']`: `validate()` کلیدی را که
@@ -90,7 +93,14 @@ class ServerController extends Controller
         | نیست و خطایی می‌داد که آدم را دنبالِ توکن می‌فرستاد، نه دنبالِ نوع.
         */
         if ($server->type === 'hetzner_storage') {
-            $r = (new \App\Services\Provisioning\HetznerStorageClient($server))->testConnection();
+            $r = (new HetznerStorageClient($server))->testConnection();
+
+            return $r['ok'] ? back()->with('ok', 'اتصال موفق ✓ — '.$r['message'])
+                : back()->withErrors('اتصال ناموفق: '.$r['message']);
+        }
+
+        if ($server->type === 'rclone_storage') {
+            $r = (new RcloneStorageClient($server))->testConnection();
 
             return $r['ok'] ? back()->with('ok', 'اتصال موفق ✓ — '.$r['message'])
                 : back()->withErrors('اتصال ناموفق: '.$r['message']);
@@ -110,19 +120,19 @@ class ServerController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'name'         => ['required', 'string', 'max:80'],
-            'type'         => ['required', 'in:'.implode(',', Server::TYPES)],
+            'name' => ['required', 'string', 'max:80'],
+            'type' => ['required', 'in:'.implode(',', Server::TYPES)],
             // کشور از config/billing.php می‌آید؛ خالی مجاز است (در خرید نمایش نمی‌شود)
-            'country'      => ['nullable', \Illuminate\Validation\Rule::in(array_keys((array) config('billing.locations', [])))],
-            'city'         => ['nullable', 'string', 'max:60'],
-            'hostname'     => ['nullable', 'string', 'max:190'],
-            'port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
-            'username'     => ['nullable', 'string', 'max:60'],
-            'api_token'    => ['nullable', 'string', 'max:400'],
-            'verify_tls'   => ['nullable', 'boolean'],
-            'server_ip'    => ['nullable', 'string', 'max:45'],
-            'nameservers'  => ['nullable', 'string', 'max:190'],
-            'status'       => ['required', 'in:active,maintenance,full'],
+            'country' => ['nullable', Rule::in(array_keys((array) config('billing.locations', [])))],
+            'city' => ['nullable', 'string', 'max:60'],
+            'hostname' => ['nullable', 'string', 'max:190'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'username' => ['nullable', 'string', 'max:60'],
+            'api_token' => ['nullable', 'string', 'max:400'],
+            'verify_tls' => ['nullable', 'boolean'],
+            'server_ip' => ['nullable', 'string', 'max:45'],
+            'nameservers' => ['nullable', 'string', 'max:190'],
+            'status' => ['required', 'in:active,maintenance,full'],
             'max_accounts' => ['nullable', 'integer', 'min:0'],
 
             /*
@@ -131,12 +141,12 @@ class ServerController extends Controller
             |
             | ⚠️ سقفِ `billing_day` روی ۲۸ است تا هر ماهی آن روز را داشته باشد.
             */
-            'monthly_cost'  => ['nullable', 'integer', 'min:0', 'max:100000000000'],
+            'monthly_cost' => ['nullable', 'integer', 'min:0', 'max:100000000000'],
             'cost_currency' => ['nullable', 'in:EUR,IRT,USD'],
-            'billing_day'   => ['nullable', 'integer', 'min:1', 'max:28'],
-            'vendor'        => ['nullable', 'string', 'max:60'],
+            'billing_day' => ['nullable', 'integer', 'min:1', 'max:28'],
+            'vendor' => ['nullable', 'string', 'max:60'],
 
-            'note'         => ['nullable', 'string', 'max:1000'],
+            'note' => ['nullable', 'string', 'max:1000'],
         ], [], [
             'monthly_cost' => 'اجارهٔ ماهانه', 'cost_currency' => 'ارزِ اجاره',
             'billing_day' => 'روزِ صورت‌حساب', 'vendor' => 'تأمین‌کننده',
@@ -166,17 +176,17 @@ class ServerController extends Controller
         }
 
         return $data + array_filter([
-            'monthly_cost'  => $costReady
+            'monthly_cost' => $costReady
                 ? (filled($request->input('monthly_cost')) ? (int) $request->input('monthly_cost') : null)
                 : false,
             'cost_currency' => $costReady ? ($request->input('cost_currency') ?: 'EUR') : false,
-            'billing_day'   => $costReady
+            'billing_day' => $costReady
                 ? (filled($request->input('billing_day')) ? (int) $request->input('billing_day') : null)
                 : false,
-            'vendor'        => $costReady ? $request->input('vendor') : false,
+            'vendor' => $costReady ? $request->input('vendor') : false,
         ], fn ($v) => $v !== false) + [
             'verify_tls' => $request->boolean('verify_tls'),
-            'username'   => $request->input('username') ?: 'root',
+            'username' => $request->input('username') ?: 'root',
         ];
     }
 }

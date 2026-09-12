@@ -3,15 +3,27 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\Server;
 use App\Models\Service;
+use App\Providers\AppServiceProvider;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Billing\ProductInvoiceIssuer;
+use App\Services\Customer\IranSalesGate;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\Notifier;
+use App\Services\Provisioning\RcloneStorageCosts;
+use App\Services\SafeUrl;
+use App\Support\ErrorTracker;
 use App\Support\Funnel;
 use App\Support\OrderHandoff;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -58,6 +70,12 @@ class StoreController extends Controller
                 ->with('err', __('ui.stf_pkg_gone'));
         }
 
+        if ($why = app(RcloneStorageCosts::class)->configurationError($product)) {
+            ErrorTracker::noteOnce('pricing', 'فروش «'.$product->name.'» بسته شد: '.$why, 3600);
+
+            return redirect(lroute('account.services'))->with('err', 'این پلن موقتاً آمادهٔ سفارش نیست.');
+        }
+
         /*
         | تحویلِ امضاشده از /order/{sku} (ممیزی ۶ — SN-ORDER-001): دوره‌ای که کاربر
         | روی سایت انتخاب کرده همین‌جا از پیش انتخاب می‌شود. امضای نامعتبر/منقضی
@@ -72,17 +90,17 @@ class StoreController extends Controller
         } elseif (request()->query('sig') !== null) {
             // دلیل برای تفکیکِ «لینکِ کهنه» از «دستکاری» (شورا/امنیت) — بدونِ خودِ امضا
             Funnel::log('handoff_invalid', [
-                'sku'           => $product->slug,
-                'reason'        => (string) $reason,
-                'sid'           => OrderHandoff::clean(request()->query('sid'), OrderHandoff::SID_RE),
-                'ref'           => OrderHandoff::clean(request()->query('ref'), OrderHandoff::REF_RE),
+                'sku' => $product->slug,
+                'reason' => (string) $reason,
+                'sid' => OrderHandoff::clean(request()->query('sid'), OrderHandoff::SID_RE),
+                'ref' => OrderHandoff::clean(request()->query('ref'), OrderHandoff::REF_RE),
                 'default_cycle' => (string) config('billing.default_cycle', 'monthly'),
-                'lang'          => app()->getLocale(),
+                'lang' => app()->getLocale(),
             ]);
         }
 
         return view('account.checkout', AccountController::shell('') + [
-            'product'   => $product,
+            'product' => $product,
             // دورهٔ منتقل‌شده از سایت — null یعنی پیش‌فرضِ config
             'handoffCycle' => $handoff['cycle'] ?? null,
             // لایسنس نه سرور می‌خواهد نه مکان — فهرستِ خالی یعنی ویو بخشِ
@@ -92,9 +110,9 @@ class StoreController extends Controller
             // سختِ سفارش پایین‌تر است — نمایش قابلِ دورزدن است، سفارش نه)
             'countries' => $product->isLicense() ? [] : array_values(array_filter(
                 $product->availableCountries(),
-                fn ($c) => ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
+                fn ($c) => ! IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
             )),
-            'cycles'    => array_keys((array) config('billing.cycles', [])),
+            'cycles' => array_keys((array) config('billing.cycles', [])),
             'isLicense' => $product->isLicense(),
         ]);
     }
@@ -104,6 +122,12 @@ class StoreController extends Controller
     {
         if (! $product->is_active) {
             return back()->withErrors(__('ui.stf_pkg_na'));
+        }
+
+        if ($why = app(RcloneStorageCosts::class)->configurationError($product)) {
+            ErrorTracker::noteOnce('pricing', 'سفارش «'.$product->name.'» پیش از دریافت پول بسته شد: '.$why, 3600);
+
+            return back()->withErrors('این پلن موقتاً آمادهٔ سفارش نیست.');
         }
 
         if ($product->isLicense()) {
@@ -116,15 +140,15 @@ class StoreController extends Controller
         $cycles = array_keys((array) config('billing.cycles', []));
 
         $data = $request->validate([
-            'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
-            'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],
+            'country' => [$countries === [] ? 'nullable' : 'required', Rule::in($countries)],
+            'cycle' => ['required', Rule::in($cycles)],
             'domain_mode' => ['required', 'in:have,buy,subdomain'],
-            'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
-            'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
+            'domain' => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
+            'domain_buy' => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
             // ممنوعه. بدونِ این، مشتری می‌توانست console/mail/pay را بگیرد و
             // زیردامنهٔ حساسِ ما به هاستِ او می‌نشست (راهِ فیشینگ).
-            'subdomain'   => [
+            'subdomain' => [
                 'nullable', 'string', 'min:3', 'max:40',
                 'regex:/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i',
                 function ($attr, $value, $fail) {
@@ -159,13 +183,13 @@ class StoreController extends Controller
 
         // 🔴 دروازهٔ فروشِ ایران — محصولِ مستقر در ایران فقط به مشتریِ
         // احرازشده (تصمیمِ کارفرما، ۶ شهریور ۱۴۰۵؛ تنظیمات → عمومی)
-        if (\App\Services\Customer\IranSalesGate::blocks($customer, $country)) {
-            return back()->withInput()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
+        if (IranSalesGate::blocks($customer, $country)) {
+            return back()->withInput()->withErrors(['country' => IranSalesGate::message()]);
         }
         $cycle = $data['cycle'];
 
         // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
-        $server = $country ? \App\Models\Server::pickForCountry($country) : null;
+        $server = $country ? Server::pickForCountry($country) : null;
         if ($country && $server === null) {
             return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
         }
@@ -175,46 +199,46 @@ class StoreController extends Controller
         $cyclePrice = $product->priceForCycle($cycle, $country);
         $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
 
-        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
+        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $cycle, $cyclePrice, $locNote) {
             $service = Service::create([
-                'customer_id'   => $customer->id,
-                'name'          => $product->name,
-                'description'   => trim(implode("\n", array_filter([$product->description, $locNote, $note]))),
+                'customer_id' => $customer->id,
+                'name' => $product->name,
+                'description' => trim(implode("\n", array_filter([$product->description, $locNote, $note]))),
                 'currency_code' => $product->currency_code,
-                'price'         => $cyclePrice,
-                'tax_percent'   => $product->tax_percent,
-                'cycle'         => $cycle,
-                'status'        => 'pending',
-                'server_id'     => $server?->id ?? $product->server_id,
-                'plan'          => $product->plan,
+                'price' => $cyclePrice,
+                'tax_percent' => $product->tax_percent,
+                'cycle' => $cycle,
+                'status' => 'pending',
+                'server_id' => $server?->id ?? $product->server_id,
+                'plan' => $product->plan,
                 // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
                 // حدس زده نمی‌شود — دلیلش روی `Product::isReseller()`.
-                'is_reseller'   => $product->isReseller(),
-                'domain'        => $domain,
+                'is_reseller' => $product->isReseller(),
+                'domain' => $domain,
             ]);
 
             return $this->issueOrderInvoice($service, $product);
         });
 
-        \App\Models\ActivityLog::record($customer->id, 'purchase',
+        ActivityLog::record($customer->id, 'purchase',
             __('ui.act_order_pkg', [
-                'name'   => $product->name,
+                'name' => $product->name,
                 'domain' => $domain,
-                'tail'   => Service::labelFor($cycle).($country ? ' · '.$country : ''),
+                'tail' => Service::labelFor($cycle).($country ? ' · '.$country : ''),
             ]),
             $request, 'customer', $invoice->service_id);
 
         // اعلانِ سفارشِ تازه به مدیر (هنوز پرداخت نشده — پرداختش اعلانِ جدا دارد)
-        app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ جدید (در انتظارِ پرداخت)', [
+        app(AdminNotifier::class)->event('سفارشِ جدید (در انتظارِ پرداخت)', [
             'مشتری' => $customer->displayName().' ('.$customer->code.')',
-            'پکیج'  => $product->name,
+            'پکیج' => $product->name,
             'دامنه' => $domain,
-            'دوره'  => Service::labelFor($cycle),
-            'مکان'  => $country,
-            'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
+            'دوره' => Service::labelFor($cycle),
+            'مکان' => $country,
+            'مبلغ' => fa_num(number_format((int) $invoice->total)).' تومان',
         ], null, '🛒', [[
-            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
-            ['text' => '🧾 فاکتور', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
+            ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ['text' => '🧾 فاکتور', 'data' => AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
         ]]);
 
         /*
@@ -242,7 +266,7 @@ class StoreController extends Controller
         $cycles = array_keys((array) config('billing.cycles', []));
 
         $data = $request->validate([
-            'cycle'      => ['required', \Illuminate\Validation\Rule::in($cycles)],
+            'cycle' => ['required', Rule::in($cycles)],
             'license_ip' => [
                 /*
                 | ⚠️ `ipv4` عمدی است و **نباید** به `ip` باز شود.
@@ -257,7 +281,7 @@ class StoreController extends Controller
                 'required', 'ipv4',
                 function ($attr, $value, $fail) {
                     // لایسنس روی IP خصوصی/رزرو فعال‌شدنی نیست؛ همان قاعده‌ی SafeUrl
-                    if (! \App\Services\SafeUrl::isPublicIp((string) $value)) {
+                    if (! SafeUrl::isPublicIp((string) $value)) {
                         $fail('آی‌پی باید عمومی باشد؛ آدرس‌های داخلی و رزروشده پذیرفته نمی‌شوند.');
                     }
                 },
@@ -273,38 +297,38 @@ class StoreController extends Controller
 
         $invoice = DB::transaction(function () use ($customer, $product, $ip, $cycle, $cyclePrice) {
             $service = Service::create([
-                'customer_id'   => $customer->id,
-                'name'          => $product->name,
-                'description'   => trim(implode("\n", array_filter([
+                'customer_id' => $customer->id,
+                'name' => $product->name,
+                'description' => trim(implode("\n", array_filter([
                     $product->description,
                     '🔑 فعال‌سازی لایسنس روی IP: '.$ip,
                 ]))),
                 'currency_code' => $product->currency_code,
-                'price'         => $cyclePrice,
-                'tax_percent'   => $product->tax_percent,
-                'cycle'         => $cycle,
-                'status'        => 'pending',
-                'server_id'     => null,
-                'plan'          => $product->plan,
-                'domain'        => $ip,
+                'price' => $cyclePrice,
+                'tax_percent' => $product->tax_percent,
+                'cycle' => $cycle,
+                'status' => 'pending',
+                'server_id' => null,
+                'plan' => $product->plan,
+                'domain' => $ip,
             ]);
 
             return $this->issueOrderInvoice($service, $product);
         });
 
-        \App\Models\ActivityLog::record($customer->id, 'purchase',
+        ActivityLog::record($customer->id, 'purchase',
             __('ui.act_order_lic', ['name' => $product->name, 'ip' => $ip, 'cycle' => Service::labelFor($cycle)]),
             $request, 'customer', $invoice->service_id);
 
-        app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ لایسنس (در انتظارِ پرداخت)', [
-            'مشتری'  => $customer->displayName().' ('.$customer->code.')',
+        app(AdminNotifier::class)->event('سفارشِ لایسنس (در انتظارِ پرداخت)', [
+            'مشتری' => $customer->displayName().' ('.$customer->code.')',
             'لایسنس' => $product->name,
-            'IP'     => $ip,
-            'دوره'   => Service::labelFor($cycle),
-            'مبلغ'   => fa_num(number_format((int) $invoice->total)).' تومان',
+            'IP' => $ip,
+            'دوره' => Service::labelFor($cycle),
+            'مبلغ' => fa_num(number_format((int) $invoice->total)).' تومان',
         ], null, '🔑', [[
-            ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
-            ['text' => '🧾 فاکتور', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
+            ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+            ['text' => '🧾 فاکتور', 'data' => AdminBaleRouter::CB_PREFIX.'i:'.$invoice->id],
         ]]);
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
@@ -340,7 +364,7 @@ class StoreController extends Controller
      */
     private function issueOrderInvoice(Service $service, Product $product): Invoice
     {
-        $invoice = app(\App\Services\Billing\ProductInvoiceIssuer::class)->issue($service, $product);
+        $invoice = app(ProductInvoiceIssuer::class)->issue($service, $product);
 
         /*
         | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ
@@ -351,7 +375,7 @@ class StoreController extends Controller
         | اولین فراخوانش است.
         */
         try {
-            $notifier = app(\App\Services\Notify\Notifier::class);
+            $notifier = app(Notifier::class);
             $link = console_lroute('account.invoice', $invoice);
             $amount = fa_num(number_format((int) $invoice->total)).' تومان';
 
@@ -367,7 +391,7 @@ class StoreController extends Controller
                 [], url('/admin/customers/'.$service->customer_id), '🧾');
         } catch (\Throwable $e) {
             // اعلان هرگز نباید سفارشِ ثبت‌شده را بشکند
-            \App\Support\ErrorTracker::note('notify', $e, ['invoice' => $invoice->id]);
+            ErrorTracker::note('notify', $e, ['invoice' => $invoice->id]);
         }
 
         return $invoice;
@@ -375,6 +399,6 @@ class StoreController extends Controller
 
     private function rp(): string
     {
-        return \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
+        return AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
     }
 }

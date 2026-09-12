@@ -114,9 +114,29 @@ return [
         */
         'access' => [
             'reachable_externally' => true,
-            'ssh_enabled'          => true,   // rsync/SFTP/Borg از همین می‌آید
-            'webdav_enabled'       => true,
-            'samba_enabled'        => false,  // فقط داخلِ شبکه معنی دارد
+            'ssh_enabled' => true,   // rsync/SFTP/Borg از همین می‌آید
+            'webdav_enabled' => true,
+            'samba_enabled' => false,  // فقط داخلِ شبکه معنی دارد
+        ],
+    ],
+
+    /*
+    | Gateway چندمستاجری rclone. مشتری فقط SFTP سرورنت را می‌بیند؛ OAuth و
+    | نامِ backend هرگز از Gateway خارج نمی‌شود. ۵ و ۱۰ ترابایت عمداً نگاشت
+    | ندارند: یک حساب ۵ ترابایتی بدون فضای رزرو نباید کامل فروخته شود و ۱۰T
+    | روی یک حساب قابل تحویل نیست. پس فاز اول فقط پلن‌های کوچک را می‌پذیرد.
+    */
+    'rclone_storage' => [
+        'pool' => env('RCLONE_STORAGE_POOL', 'google'),
+        // مجموع ظرفیتِ قراردادیِ دو backend. فروش فقط روی ۸۰٪ آن قیمت‌گذاری می‌شود.
+        'capacity_bytes' => (int) env('RCLONE_STORAGE_CAPACITY_BYTES', 0),
+        'reserve_pct' => (float) env('RCLONE_STORAGE_RESERVE_PCT', 20),
+        'min_margin_pct' => (float) env('RCLONE_STORAGE_MIN_MARGIN_PCT', 20),
+        'termination_retention_days' => (int) env('RCLONE_STORAGE_RETENTION_DAYS', 30),
+        'plans' => [
+            'sn_backup_1' => 100 * 1024 ** 3,
+            'sn_backup_2' => 500 * 1024 ** 3,
+            'sn_backup_3' => 1024 * 1024 ** 3,
         ],
     ],
 

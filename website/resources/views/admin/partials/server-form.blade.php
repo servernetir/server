@@ -3,7 +3,7 @@
   $isEdit = $server !== null;
   /* ⚠️ این فهرست دستی است و باید با Server::TYPES بخواند. نوعی که این‌جا نیاید
      در فرم قابلِ انتخاب نیست — هرچند اعتبارسنجیِ کنترلر قبولش کند. */
-  $types = ['whm'=>'WHM / cPanel (خودکار)','directadmin'=>'DirectAdmin (خودکار)','hetzner_storage'=>'فضای بکاپ — Hetzner Storage Box (خودکار)','plesk'=>'Plesk (دستی)','vps'=>'VPS (دستی)','dedicated'=>'سرور اختصاصی (دستی)','generic'=>'عمومی (دستی)'];
+  $types = ['whm'=>'WHM / cPanel (خودکار)','directadmin'=>'DirectAdmin (خودکار)','hetzner_storage'=>'فضای بکاپ — Hetzner Storage Box (خودکار)','rclone_storage'=>'فضای بکاپ — rclone Gateway (خودکار)','plesk'=>'Plesk (دستی)','vps'=>'VPS (دستی)','dedicated'=>'سرور اختصاصی (دستی)','generic'=>'عمومی (دستی)'];
   /*
   | ⚠️ فیلدهای هزینه فقط وقتی نشان داده می‌شوند که ستونشان واقعاً باشد.
   |
