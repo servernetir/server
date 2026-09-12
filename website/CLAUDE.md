@@ -606,6 +606,33 @@ DNS، DNSSEC، انتشار، reverse، SSL، **اسکن پورت**، پینگ.
 - `public/index.php` مخزن با نسخهٔ سرور فرق دارد (مسیرهای نسبی متفاوت‌اند چون
   اپ بیرون webroot است). ویرایشش اینجا به سرور نمی‌خورد.
 
+### وضعیت استقرار SEO/AEO — ۱۲ سپتامبر ۲۰۲۶
+
+- منبع حقیقت، شاخهٔ `develop` است. بستهٔ اصلی SEO/AEO در PRهای `#11` و `#12`
+  و اصلاحات پس از بازبینی در PR `#13` ادغام شد؛ commit مستقرشدهٔ PR آخر
+  `e44d6e36c009eaaa2fc683d4378f00cf3029d764` است.
+- چهار فایل اصلاح تکمیلی (`ReleaseGate.php`، `BlogRepository.php`،
+  `RobotsPolicy.php` و `SitemapUrlPolicy.php`) با تطبیق hash قبل و بعد، روی
+  `/home/servernetcloud/servernet_app` مستقر شدند. پیش از جایگزینی، نسخهٔ زنده
+  با commitهای شناخته‌شدهٔ Git تطبیق داشت؛ تغییر ناشناخته‌ای از توسعه‌دهندهٔ
+  دیگر بازنویسی نشد. پشتیبان در
+  `/home/servernetcloud/deploy-seo-followup/backup-20260912-112645` است.
+- این استقرار migration یا تغییر دیتابیس نداشت. OPcache و cacheهای Laravel از
+  `/system/opcache` با موفقیت پاک شدند. کپی داخلی
+  `servernet_app/public/robots.txt` نیز با فایل فعال webroot همگام شد؛ سپس
+  `seo:robots --check` و `site:gate --limit=40` هر دو با کد صفر تمام شدند.
+- روی Cloudflare، `www.servernet.cloud` و هر دو host دامنهٔ قدیمی
+  `servernet.ir`/`www.servernet.ir` اکنون با **یک 301** به
+  `https://servernet.cloud` می‌روند و path/query را نگه می‌دارند. این redirectها
+  را با Worker عمومی `*.servernet.cloud/*` جایگزین یا حذف نکنید.
+- راستی‌آزمایی زنده: `robots.txt` و `llms.txt` پاسخ ۲۰۰ دارند؛ sitemap شامل
+  ۱۸۴۵ URL معتبر و بدون host/scheme اشتباه یا تکرار است؛ canonical در fa/en/tr
+  درست است و پارامترهای campaign را حذف می‌کند؛ BlogPosting و `dateModified`
+  در صفحات مقاله حاضرند.
+- PRهای قدیمی و جایگزین‌شدهٔ `#8` و `#10` بسته شدند. کار تازه را همیشه از
+  آخرین `origin/develop` شروع کنید؛ گزارش کامل در
+  `docs/seo-aeo-audit-2026-09.md` است.
+
 ---
 
 ## ۸. تست — درس گران‌قیمت

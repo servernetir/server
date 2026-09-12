@@ -22,6 +22,26 @@ Page indexing، Sitemaps و Core Web Vitals نیز export شوند. پس از د
 * queryهای هم‌معنا که بیش از یک URL impression می‌گیرند با سهم هیچ URL بالاتر
   از ۷۰٪، کاندید cannibalization هستند؛ تصمیم نهایی با intent و conversion است.
 
+## وضعیت اجرا و پروداکشن — ۱۲ سپتامبر ۲۰۲۶
+
+محدودیت شبکهٔ ثبت‌شده در بخش بالا مربوط به اجرای اولیهٔ ۷ سپتامبر است. در
+بازبینی ۱۲ سپتامبر دسترسی مستقیم و مرورگر احراز‌شده فراهم شد و موارد قابل
+اثبات دوباره روی سایت اصلی بررسی شدند.
+
+| مورد | وضعیت نهایی |
+|---|---|
+| GitHub | بستهٔ اصلی در PRهای `#11` و `#12` و اصلاحات تکمیلی در PR `#13` ادغام شد. `develop` پس از ادغام روی `e44d6e36c009eaaa2fc683d4378f00cf3029d764` بود. PRهای تکراری `#8` و `#10` بسته شدند. |
+| اصلاحات تکمیلی | policy نامعتبر robots اکنون fail-closed است؛ release gate الزام HTTPS و origin کامل sitemap را می‌سنجد؛ تاریخ به‌روزرسانی مقاله از ترجمهٔ رندرشده می‌آید. ۱۳ تست هدفمند با ۲۶۶ assertion موفق بود. |
+| استقرار | چهار فایل تغییرکرده با کنترل hash و جایگزینی atomic در `/home/servernetcloud/servernet_app` مستقر شدند. تغییر ناشناخته‌ای روی فایل‌های زنده وجود نداشت و چیزی از کار همکاران بازنویسی نشد. migration لازم نبود. |
+| بازیابی | نسخهٔ پیش از استقرار، از جمله کپی قدیمی robots، در `/home/servernetcloud/deploy-seo-followup/backup-20260912-112645` نگهداری می‌شود. |
+| cache | نتیجهٔ `/system/opcache`: ریست OPcache موفق؛ config، route، view و application cache نیز پاک شدند. |
+| redirect | Cloudflare برای `www.servernet.cloud` و `servernet.ir`/`www.servernet.ir` یک 301 مستقیم به host اصلی دارد و path/query را حفظ می‌کند. |
+| بررسی زنده | `robots.txt` و `llms.txt` برابر ۲۰۰؛ sitemap دارای ۱۸۴۵ URL، بدون scheme/host نادرست و بدون تکرار؛ ۲۱ URL دسته‌بندی `?cat=` عمدی؛ canonical سه زبان و حذف UTM درست؛ schema مقاله و `dateModified` حاضر است. |
+| گیت پس از استقرار | کپی داخلی robots با webroot همگام شد؛ `seo:robots --check` و `site:gate --limit=40` هر دو با کد صفر موفق شدند. |
+
+موارد داده‌محور backlog ــ GSC، لاگ CDN/WAF و CWV میدانی ــ همچنان بازند؛
+این گزارش نباید بدون export یا اندازه‌گیری واقعی آن‌ها را «انجام‌شده» اعلام کند.
+
 ## یافته‌های تطبیقی
 
 | حوزه | وضعیت و Evidence | نتیجه / اقدام |
