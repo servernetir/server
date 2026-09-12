@@ -363,4 +363,57 @@ class AgentPullTest extends TestCase
         $this->assertStringContainsString('"exits":{}', $res->getContent());
     }
 
+
+    // ═══════════════════ CSRF روی مسیرِ تأیید ═══════════════════
+
+    /**
+     * `POST /agent/guestpolicy/ack` باید از بررسیِ CSRF مستثنا باشد.
+     *
+     * 🔴 رخداد (۲۱ شهریور ۱۴۰۵، روی پروداکشن): این مسیر **۴۱۹** می‌داد.
+     * روت‌های `agent/*` در `routes/web.php` اند، پس میدل‌ورِ `web` و با آن
+     * `PreventRequestForgery` رویشان می‌دود. عاملِ هاست یک اسکریپتِ curl است:
+     * نه نشست دارد نه توکنِ CSRF.
+     *
+     * پیامدش دقیقاً همان چیزی را می‌شکست که این کار برای ساختنش نوشته شد:
+     * عامل قواعد را درست اعمال می‌کرد، تأییدش رد می‌شد، و پنل تا ابد
+     * «در انتظار» نشان می‌داد — یعنی تمایزِ «ضربان» و «اعمال شد» از درِ
+     * پشتی خراب می‌شد، بی‌هیچ خطایی.
+     *
+     * ⚠️ **این ادعا روی پیکربندی است، نه روی رفتار — و باید هم باشد.**
+     * `PreventRequestForgery::runningUnitTests()` در تست کلِ بررسی را دور
+     * می‌زند، پس یک POSTِ بی‌توکن در تست **همیشه** سبز است و هرگز این باگ
+     * را نمی‌گیرد. همان تلهٔ ثبت‌شدهٔ پروژه: تستی که پیکربندی را خودش ست
+     * می‌کند (یا لایه‌ای که می‌سنجد در تست غیرفعال است) هیچ‌چیز نمی‌سنجد.
+     *
+     * پس فهرستِ واقعیِ استثناها را از خودِ میدل‌ورِ **بوت‌شده** می‌پرسیم —
+     * یعنی `bootstrap/app.php` واقعاً دویده است.
+     */
+    public function test_the_ack_route_is_exempt_from_csrf(): void
+    {
+        $middleware = $this->app->make(
+            \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class
+        );
+
+        $paths = $middleware->getExcludedPaths();
+
+        $this->assertNotEmpty($paths, 'فهرستِ استثنای CSRF خالی است — bootstrap/app.php نخوانده شد؟');
+
+        $request = \Illuminate\Http\Request::create('/agent/guestpolicy/ack', 'POST');
+
+        $matched = null;
+
+        foreach ($paths as $pattern) {
+            if ($request->is($pattern) || $request->fullUrlIs($pattern)) {
+                $matched = $pattern;
+                break;
+            }
+        }
+
+        $this->assertNotNull(
+            $matched,
+            'POST /agent/guestpolicy/ack از CSRF مستثنا نیست ⇒ عامل ۴۱۹ می‌گیرد و '
+            .'تأیید هرگز ثبت نمی‌شود (پنل تا ابد «در انتظار»).'
+        );
+    }
+
 }
