@@ -33,7 +33,7 @@ else
   git clone --depth 800 "$REPO_URL" repo || fail "git clone failed"
 fi
 git -C repo fetch --depth 800 origin \
-  codex/rclone-managed-backup:refs/remotes/origin/codex/rclone-managed-backup \
+  +codex/rclone-managed-backup:refs/remotes/origin/codex/rclone-managed-backup \
   || fail "backup feature branch fetch failed"
 
 MINE="${1:-origin/codex/rclone-managed-backup}"
