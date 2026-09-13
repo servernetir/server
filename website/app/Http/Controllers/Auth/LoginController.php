@@ -229,6 +229,7 @@ class LoginController extends Controller
 
         Auth::guard('customer')->login($customer, true);
         $request->session()->regenerate();
+        \App\Services\Analytics\DataLayerService::flashLogin($customer);
 
         \App\Models\ActivityLog::record($customer->id, 'login',
             __('ui.act_login', ['channel' => __($channel === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile')])

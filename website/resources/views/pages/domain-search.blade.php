@@ -660,6 +660,9 @@ html[data-theme="light"] .dsx-th{background:rgba(0,0,0,.02)}
   async function run() {
     var term = q.value.trim();
     if (!term) { q.focus(); return; }
+    if (window.ServerNetAnalytics) {
+      window.ServerNetAnalytics.domainSearch(term);
+    }
 
     var mine = ++token;
     busy(true);

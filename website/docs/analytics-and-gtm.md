@@ -1,124 +1,78 @@
-# مستندات رویدادهای تحلیلی و گوگل تگ منیجر (GTM & GA4 DataLayer)
+# مستندات جامع کاتالوگ رویدادهای تحلیلی و تجارت الکترونیک سرورنت (GA4 & GTM)
 
-این سند راهنمای جامع ساختار کدهای رهگیری تحلیلی، دیتالایر (DataLayer) استاندارد تجارت الکترونیک گوگل آنالیتیکس ۴ (GA4 E-commerce) و نحوه گسترش آن برای رویدادهای آینده در پلتفرم سرورنت است.
-
----
-
-## ۱. معماری و ساختار فایل‌ها
-
-کدهای ردیابی در پروژه به ۴ بخش تفکیک شده‌اند:
-
-1. **کانفیگ سرور (`config/services.php`):**
-   - کلید `services.gtm.id` حاوی کانتینر آیدی GTM است و مقدار پیش‌فرض آن `GTM-MRSC7BF7` می‌باشد.
-   - برای تغییر در محیط‌های مختلف می‌توان مقدار `GTM_CONTAINER_ID` را در فایل `.env` مقداردهی کرد.
-
-2. **اسکریپت‌های کلاینت (Views & Partials):**
-   - `resources/views/partials/gtm-head.blade.php`: لود ایمن اسکریپت GTM در تگ `<head>` به همراه تزریق آبجکت `window.dataLayer` پیش از لود کانتینر، و بررسی سشن فلش‌شده لاراول (`session('dataLayerPurchase')`).
-   - `resources/views/partials/gtm-body.blade.php`: تگ استاندارد `<noscript>` برای مرورگرهای فاقد جاوااسکریپت بلافاصله بعد از تگ `<body>`.
-   - لایوت عمومی سایت در `resources/views/layouts/site.blade.php` هر دو پارشیال فوق را در جایگاه استاندارد خود فراخوانی می‌کند.
-
-3. **سرویس دیتالایر بک‌اند (`app/Services/Analytics/DataLayerService.php`):**
-   - متد استاتیک `DataLayerService::flashPurchase($payment)` وظیفه استانداردسازی اطلاعات خرید و ذخیره موقت در Flash Session (`dataLayerPurchase`) را برعهده دارد.
-   - متد کمکی `buildPurchasePayload($payment)` ساختار استاندارد رویداد خرید GA4 را بر اساس اطلاعات پرداخت، فاکتور و آیتم‌های سبد خرید تولید می‌کند.
-
-4. **تست‌های واحد و اعتبارسنجی:**
-   - `tests/Feature/GtmAndAnalyticsTest.php` وجود و صحت تزریق GTM و ایونت‌های خرید را در لایوت و کنترلر اعتبارسنجی می‌کند.
+این راهنما معماری، کاتالوگ رویدادها، پارامترهای دیتالایر و استراتژی تحلیل داده‌های تجاری (Business Intelligence & Growth) سرورنت را شرح می‌دهد.
 
 ---
 
-## ۲. مشخصات رویداد خرید (`purchase`)
+## ۱. جدول کاتالوگ جامع رویدادها (۲۲ رویداد کلیدی)
 
-فرمت دیتالایر ارسال شده مطابق با مستندات رسمی Google Analytics 4 Ecommerce است:
+| # | نام رویداد (Event Name) | دسته | نقطه تحریک (Trigger Point) | هدف و شاخص تجاری (KPI) |
+|---|---|---|---|---|
+| ۱ | `purchase` | فروش | پس از تایید فاکتور درگاه آنلاین / تسویه با کیف پول | سنجش درآمد ناخالص، تیکت میانگین سفارش (AOV)، موفقیت کمپین‌ها |
+| ۲ | `begin_checkout` | قیف خرید | کلیک روی دکمه سفارش/پرداخت در خلاصه سفارش یا سرورساز | نرخ عبور از سبد به پرداخت (Checkout Abandonment Rate) |
+| ۳ | `view_item` | قیف خرید | بارگذاری صفحه مشخصات پلن (`/order/{slug}`) | نرخ علاقه به هر پلن سرور یا هاستینگ |
+| ۴ | `view_item_list` | مرور کاتالوگ | مشاهده دسته‌بندی‌های کاتالوگ ابری و هاستینگ | ارزیابی جذابیت صفحه کاتالوگ |
+| ۵ | `select_item` | مرور کاتالوگ | کلیک روی یک پلن سرور از جدول قیمت‌ها | محبوبیت پلن‌های اقتصادی در برابر پرچمدار |
+| ۶ | `configure_product` | سرورساز ابری | تغییر و انتخاب مشخصات (RAM, CPU, دیتاسنتر، سیستم‌عامل) | تحلیل پرطرفدارترین کانفیگ‌ها و موقعیت‌های جغرافیایی |
+| ۷ | `sign_up` | کاربر | ثبت‌نام نهایی و تایید OTP موفق | نرخ جذب کاربر جدید (CAC) و اثربخشی کانال‌های ورودی |
+| ۸ | `login` | کاربر | ورود موفق به حساب کاربری | نرخ بازگشت مشتریان (Retention Rate) |
+| ۹ | `domain_search` | دامنه | جستجوی نام دامنه در `/domains` | کشف کلمات کلیدی، پسوندهای پرطرفدار (.ir, .com) |
+| ۱۰ | `domain_available` | دامنه | نمایش دامنه آزاد پس از استعلام | نرخ تبدیل جستجو به سفارش دامنه |
+| ۱۱ | `domain_transfer` | دامنه | ارسال درخواست انتقال دامنه از رجیسترار دیگر | جذب مشتریان از سایر شرکت‌های هاستینگ |
+| ۱۲ | `use_tool` | ابزارهای وب | استفاده از هر یک از ابزارهای شبکه/کدنویسی/سئو | نرخ تبدیل کاربران رایگان سئو به مشتریان هاستینگ |
+| ۱۳ | `copy_ip` | ابزارهای وب | کلیک روی دکمه‌های کپی آی‌پی یا داده‌های سرور | سنجش تعامل و کاربردی بودن ابزارها |
+| ۱۴ | `generate_lead` | سرنخ | ارسال فرم مشاوره، درخواست سفارش سازمانی، فرصت شغلی | لیدهای B2B با ارزش افزوده بالا |
+| ۱۵ | `submit_ticket` | پشتیبانی | ایجاد تیکت پشتیبانی جدید توسط کاربر | ارزیابی سلامت سرویس‌ها و کاهش ریزش مشتری (Churn) |
+| ۱۶ | `cloud_console_open` | محصول | اتصال به کنسول وب‌سوکت VNC سرور ابری | شاخص فعال‌سازی و مصرف واقعی زیرساخت |
+| ۱۷ | `hourly_toggle` | محصول | سوئیچ بین حالت پرداخت ماهانه و ساعتی | سنجش تقاضای پرداخت اعتباری و منعطف |
+| ۱۸ | `coupon_apply` | مالی | اعمال کد تخفیف در صورت‌حساب | ارزیابی کمپین‌های تخفیفی و مارکتینگ |
+| ۱۹ | `wallet_topup_click` | مالی | کلیک روی دکمه افزایش اعتبار کیف پول | آمادگی کاربر برای پرداخت‌های بعدی |
+| ۲۰ | `speed_test_run` | ابزارهای وب | اجرای تست پینگ و سرعت دانلود سرورها | ارزیابی شفافیت سرعت دیتاسنترها در ذهن کاربر |
+| ۲۱ | `os_filter_click` | کاتالوگ | فیلتر کردن بر اساس سیستم عامل (اوبونتو، ویندوز، دبیان) | ترجیحات تکنولوژی مشتریان |
+| ۲۲ | `outbound_click` | سایت | کلیک روی کانال‌های ارتباطی (بله، تلگرام، گیت‌هاب) | ترافیک ارجاعی و کانال‌های پشتیبانی بیرونی |
+
+---
+
+## ۲. استفاده از هلپر کلاینت `window.ServerNetAnalytics`
+
+یک هلپر سراسری و فوق‌العاده سبک در تگ `<head>` تمامی صفحات قرار داده شده است که در هر فایل ویو یا کامپوننت فرانت‌اند به سادگی قابل استفاده است:
 
 ```javascript
-window.dataLayer.push({
-    event: 'purchase',
-    ecommerce: {
-        transaction_id: 'PAY-1403-XXXXX', // یا شناسه پرداخت / تراکنش
-        value: 1250000,                  // مبلغ پرداختی فاکتور (تومان/ریال)
-        currency: 'IRT',                 // واحد پولی سیستم
-        tax: 0,
-        shipping: 0,
-        items: [
-            {
-                item_id: 'SRV-102',
-                item_name: 'سرور مجازی آلمان - پلن پرسرعت NVMe',
-                price: 1250000,
-                quantity: 1,
-                item_category: 'vps'
-            }
-        ]
-    }
+// ثبت مشاهده محصول
+ServerNetAnalytics.viewItem({
+    item_id: 'vps-germany-pro',
+    item_name: 'سرور مجازی آلمان حرفه‌ای',
+    price: 490000,
+    item_category: 'cloud_vps'
 });
+
+// ثبت آغاز پرداخت
+ServerNetAnalytics.beginCheckout(item, 'annual');
+
+// ثبت تغییرات کانفیگ سخت‌افزاری سرور
+ServerNetAnalytics.configureProduct({
+    cpu: 4,
+    ram: 8,
+    datacenter: 'hetzner-fsn1',
+    os: 'ubuntu-24.04',
+    family: 'cpx'
+});
+
+// ثبت جستجوی دامنه
+ServerNetAnalytics.domainSearch('mybrand.ir', true);
+
+// ثبت استفاده از ابزارهای شبکه
+ServerNetAnalytics.useTool('DNS Lookup', 'network');
 ```
 
 ---
 
-## ۳. هوک‌های فعال در چرخه خرید (Touchpoints)
+## ۳. هوک‌های سمت سرور (Laravel Flash DataLayer)
 
-رویداد خرید در دو نقطه حساس از `app/Http/Controllers/Account/PaymentController.php` هوک شده است:
-1. **پس از پرداخت موفق از طریق درگاه بانکی:** در اکشن بازگشت از درگاه (`settle`) پس از تایید موفق فاکتور:
-   ```php
-   if ($outcome->ok && ! $outcome->alreadySettled && $outcome->payment !== null) {
-       DataLayerService::flashPurchase($outcome->payment);
-   }
-   ```
-2. **پس از پرداخت از اعتبار کیف پول (Credit Pay):** پس از کسر موجودی و تسویه فاکتور:
-   ```php
-   $latestPayment = $invoice->payments()->latest('id')->first();
-   if ($latestPayment !== null) {
-       DataLayerService::flashPurchase($latestPayment);
-   }
-   ```
+در متدهای کنترلرها، با استفاده از متدهای استاتیک `DataLayerService`:
+- `DataLayerService::flashPurchase($payment)`: رویداد استاندارد خرید GA4.
+- `DataLayerService::flashSignUp($customer)`: رویداد ثبت‌نام موفق.
+- `DataLayerService::flashLogin($customer)`: رویداد ورود موفق.
+- `DataLayerService::flashEvent($eventName, $params)`: سایر رویدادها.
 
-> ⚠️ **نکته مهم برای توسعه‌دهندگان:**  
-> هنگام ریفکتور، تغییر نام متدهای کنترلر پرداخت، یا افزودن روش‌های پرداخت جدید (مثل کیف پول رمزارز، کارت به کارت یا درگاه‌های ارزی جدید)، حتماً فراخوانی `DataLayerService::flashPurchase($payment)` را پس از تسویه موفق اعمال کنید تا گزارش‌های مالی مارکتینگ بدون قطعی باقی بمانند.
-
----
-
-## ۴. راهنمای افزودن رویدادهای آینده (Future Events)
-
-برای افزودن رویدادهای جدید GA4 در توسعه‌های بعدی، الگوی معماری زیر را دنبال کنید:
-
-### ۴.۱. افزودن رویداد در سمت بک‌اند (فلش به سشن بعدی)
-در صورتی که رویدادی پس از یک عملیات ریدایرکت رخ می‌دهد (مانند ثبت‌نام موفق `sign_up` یا ورود `login`):
-1. متدی جدید به `DataLayerService.php` اضافه کنید:
-   ```php
-   public static function flashSignUp(User $user): void
-   {
-       session()->flash('dataLayerSignUp', [
-           'event' => 'sign_up',
-           'method' => 'mobile_otp',
-           'user_id' => (string) $user->id,
-       ]);
-   }
-   ```
-2. در `resources/views/partials/gtm-head.blade.php` اسکریپت رندر آن را اضافه کنید:
-   ```blade
-   @if(session()->has('dataLayerSignUp'))
-   <script>
-       window.dataLayer = window.dataLayer || [];
-       window.dataLayer.push({!! json_encode(session('dataLayerSignUp'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!});
-   </script>
-   @endif
-   ```
-
-### ۴.۲. افزودن رویداد در سمت کلاینت (جاوااسکریپت و تعاملی)
-برای ایونت‌هایی که نیازی به ریدایرکت ندارند (مانند کلیک روی افزودن به سبد خرید `add_to_cart`، کپی آی‌پی سرور، یا ارسال تیکت):
-- مستقیماً در اسکریپت دکمه یا کامپوننت فرانت‌اند رویداد را روی `dataLayer` پوش کنید:
-  ```javascript
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-      event: 'add_to_cart',
-      ecommerce: {
-          currency: 'IRT',
-          value: planPrice,
-          items: [{
-              item_id: planId,
-              item_name: planTitle,
-              price: planPrice,
-              quantity: 1
-          }]
-      }
-  });
-  ```
+این رویدادها در سشن فلش ذخیره شده و در رندر صفحه بعدی (پس از ریدایرکت) مستقیماً و قبل از سایر اسکریپت‌ها به `window.dataLayer` تزریق می‌شوند.

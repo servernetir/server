@@ -1642,6 +1642,24 @@
   if (form) {
     form.addEventListener('submit', function(){
       if (pick.value === '__new') { pick.value = ''; }
+      if (window.ServerNetAnalytics) {
+        try {
+          var reg = val('region') || '';
+          var fam = val('family') || '';
+          var flv = val('flavor') || 'cloud_vps';
+          var osV = val('image') || val('os') || '';
+          window.ServerNetAnalytics.configureProduct({
+            datacenter: reg,
+            family: fam,
+            os: osV
+          });
+          window.ServerNetAnalytics.beginCheckout({
+            item_id: flv,
+            item_name: 'سرور ابری ' + (reg ? '(' + reg + ')' : ''),
+            item_category: 'cloud_vps'
+          }, val('cycle') || 'monthly');
+        } catch(e) {}
+      }
     });
   }
 })();
