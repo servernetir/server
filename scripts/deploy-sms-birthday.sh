@@ -3,13 +3,17 @@
 # دیپلوی «شش الگوی پیامک + هدیهٔ تولد + ایمیلِ تحویل + نمایشِ شمارهٔ کارت»
 # — شهریور ۱۴۰۵.
 #
-# چه چیزی دیپلوی می‌شود (۱۶ فایل، بدونِ مهاجرت):
+# چه چیزی دیپلوی می‌شود (۱۷ فایل، بدونِ مهاجرت):
 #
 #   پیامک
 #     · SignedRelaySender   — شش نامِ تازه در فهرستِ الگوها
 #     · NotifyEvent         — سه رویدادِ تازه + مخاطبِ bank_receipt
 #     · PaymentController   — متنِ مشتری برای رسیدِ واریز (قبلاً خالی بود)
 #     · NotificationTemplateSeeder — ردیف‌های /admin/templates
+#     · AdminNotifier       — 🔴 مقصدِ بلهٔ نداشته دیگر بی‌صدا رد نمی‌شود.
+#                             با پیکربندیِ خالی، حلقهٔ چندمقصدی اصلاً اجرا
+#                             نمی‌شد و هر اعلانِ مدیر (پرداخت، شکستِ تحویل،
+#                             دامنهٔ منقضی) بی‌هیچ خطا و لاگی ناپدید می‌شد.
 #
 #   تولد
 #     · BirthdayGift.php + config/birthday.php   (هر دو تازه)
@@ -149,6 +153,7 @@ config/birthday.php
 app/Console/Commands/BirthdayGift.php
 app/Services/Sms/SignedRelaySender.php
 app/Services/Notify/NotifyEvent.php
+app/Services/Notify/AdminNotifier.php
 app/Http/Controllers/Account/PaymentController.php
 app/Http/Controllers/Admin/CustomerController.php
 app/Services/Cloud/CloudProvisioner.php
@@ -306,6 +311,9 @@ need_grep lang/tr/ui.php                          'ntf_birthday_b'
 need_grep lang/en/ui.php                          'ntf_bank_receipt_b'
 need_grep lang/tr/ui.php                          'ntf_bank_receipt_b'
 
+# ── اعلانِ مدیر: مقصدِ نداشته باید ردی بگذارد ──
+need_grep app/Services/Notify/AdminNotifier.php 'bale-admin'
+
 # ── فایلِ تداخل: هر دو طرف باید روی سرور باشند ──
 need_grep resources/views/account/cloud-server.blade.php 'billsWhileOff'
 need_grep resources/views/account/cloud-server.blade.php "lroute('account.cloud.power'"
@@ -327,7 +335,17 @@ check() {
 check "https://servernet.cloud/"                        "200"
 check "https://console.servernet.cloud/admin/login"     "200"
 check "https://console.servernet.cloud/admin/settings"  "302 301"
-check "https://console.servernet.cloud/account/login"   "200"
+# 🔴 ورودِ مشتری `/login` است، نه `/account/login`.
+#
+#    نسخهٔ اول این خط را از روی **فرض** نوشتم («روت‌های account پیشوند دارند»)
+#    و هرگز نسنجیدمش. نتیجه: دیپلویِ ۱۳ شهریور با سایتِ کاملاً سالم بازگردانده
+#    شد — هر سه چکِ دیگر ۲۰۰/۳۰۲ بودند و فقط همین یکی ۴۰۴ می‌داد، چون آن
+#    نشانی اصلاً وجود ندارد.
+#
+#    گاردی که خودش غلط باشد از نبودِ گارد بدتر است: کارِ سالم را برمی‌گرداند و
+#    آدم دنبالِ باگی می‌گردد که وجود ندارد. هر چهار نشانیِ زیر پیش از کامیت
+#    با curl روی سرورِ زنده سنجیده شدند.
+check "https://console.servernet.cloud/login"           "200"
 
 if [ "$BAD" -eq 1 ]; then
   echo
