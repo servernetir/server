@@ -54,7 +54,7 @@ class SecurityHeaders
         if ($isHtml) {
             $csp = implode('; ', [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline'",
+                "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com data:",
                 // blob: لازم است چون ابزارهای تصویرِ /webtools فایل کاربر را با
@@ -71,8 +71,8 @@ class SecurityHeaders
                 // عمداً `wss:` کلی است و نامِ میزبانِ زیرساخت در هدر نمی‌آید؛
                 // وگرنه هدرِ پاسخِ همان صفحه، تأمین‌کننده را لو می‌داد. دامنه هم
                 // فقط روی همین مسیر باز می‌شود، نه سراسرِ سایت.
-                $this->isCloudConsole($request) ? "connect-src 'self' wss:" : "connect-src 'self'",
-                "frame-src 'self' https://www.openstreetmap.org",
+                $this->isCloudConsole($request) ? "connect-src 'self' wss: https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" : "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+                "frame-src 'self' https://www.openstreetmap.org https://www.googletagmanager.com",
                 "frame-ancestors 'self'",
                 "object-src 'none'",
                 "base-uri 'self'",
