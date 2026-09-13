@@ -259,6 +259,14 @@ class Product extends Model
      */
     public function availableCountries(): array
     {
+        if ($this->server?->type === 'rclone_storage') {
+            $country = strtoupper((string) $this->server->country);
+            $available = $country !== '' && $this->server->canAcceptNew() ? [$country] : [];
+            $allowed = array_map('strtoupper', array_filter((array) ($this->locations ?? [])));
+
+            return $allowed === [] ? $available : array_values(array_intersect($available, $allowed));
+        }
+
         $available = Server::availableCountries();
         $allowed = array_filter((array) ($this->locations ?? []));
 

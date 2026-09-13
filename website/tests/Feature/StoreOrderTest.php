@@ -232,4 +232,40 @@ class StoreOrderTest extends TestCase
         $deOnly = $this->product(['slug' => 'de-only', 'locations' => ['DE']]);
         $this->assertSame(['DE'], $deOnly->availableCountries());
     }
+
+    /** محصول Gateway باید بدون دامنه و دقیقاً روی همان Gateway سفارش شود، نه WHM هم‌کشور. */
+    public function test_rclone_product_uses_its_gateway_and_does_not_require_a_domain(): void
+    {
+        config([
+            'provisioning.rclone_storage.capacity_bytes' => 10 * 1024 ** 4,
+            'provisioning.rclone_storage.reserve_pct' => 20,
+        ]);
+
+        $gateway = Server::create([
+            'name' => 'SN-BACKUP-GW-01', 'type' => 'rclone_storage',
+            'country' => 'DE', 'status' => 'active',
+            'hostname' => 'gateway-backup.example.test', 'api_token' => 'test-secret',
+            'monthly_cost' => 100000, 'cost_currency' => 'IRT',
+        ]);
+        $whm = $this->whm('WHM-DE', 'DE');
+        $product = $this->product([
+            'name' => 'ServerNet Backup 100 GB', 'category' => 'other',
+            'server_id' => $gateway->id, 'plan' => 'sn_backup_1',
+            'requires_domain' => false,
+        ]);
+        $customer = $this->customer();
+
+        $this->assertSame(['DE'], $product->availableCountries());
+
+        $this->actingAs($customer, 'customer')
+            ->post("/account/order/{$product->slug}", [
+                'country' => 'DE', 'cycle' => 'monthly',
+            ])->assertRedirect();
+
+        $service = Service::where('customer_id', $customer->id)->firstOrFail();
+        $this->assertSame($gateway->id, $service->server_id);
+        $this->assertNotSame($whm->id, $service->server_id);
+        $this->assertNull($service->domain);
+        $this->assertSame('sn_backup_1', $service->plan);
+    }
 }

@@ -118,6 +118,10 @@ class ProductController extends Controller
             return back()->with('ok', 'پکیج «'.$data['name'].'» اضافه شد. (لایسنس — packageِ WHM لازم ندارد)');
         }
 
+        if ($product->server && $product->server->type !== 'whm') {
+            return back()->with('ok', 'پکیج «'.$data['name'].'» اضافه شد. تحویل از «'.$product->server->name.'» انجام می‌شود و packageِ WHM لازم ندارد.');
+        }
+
         // پکیجِ تازه بی‌درنگ روی WHM ساخته می‌شود. نگرانیِ درست کارفرما: پکیجی که
         // در سایت هست ولی در WHM نیست، در لحظهٔ سفارشِ مشتری با خطا می‌خورد.
         [, $whm] = $this->createWhmPackage($product);
@@ -138,7 +142,7 @@ class ProductController extends Controller
         \App\Services\CatalogPricing::forget();
 
         $note = '';
-        if ($specsChanged && ! $product->isLicense()) {
+        if ($specsChanged && ! $product->isLicense() && (! $product->server || $product->server->type === 'whm')) {
             // editpkg روی همهٔ سرورهای WHM — وگرنه سایت و سرور از هم می‌پاشند:
             // مشتری «۱۰ گیگ» می‌خرد و روی سرور همان ۵ گیگِ قبلی را می‌گیرد.
             // (لایسنس packageِ WHM ندارد؛ مشخصاتش فقط نمایشی است.)
@@ -248,6 +252,10 @@ class ProductController extends Controller
         */
         if ($product->requires_server_ip) {
             return [true, 'پکیجِ لایسنس روی سرور تحویل نمی‌شود؛ package در WHM لازم ندارد.'];
+        }
+
+        if ($product->server && $product->server->type !== 'whm') {
+            return [true, 'این پکیج از «'.$product->server->name.'» تحویل می‌شود؛ package در WHM لازم ندارد.'];
         }
 
         $servers = $this->whmServers();

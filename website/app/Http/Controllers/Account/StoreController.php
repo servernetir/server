@@ -114,6 +114,7 @@ class StoreController extends Controller
             )),
             'cycles' => array_keys((array) config('billing.cycles', [])),
             'isLicense' => $product->isLicense(),
+            'requiresDomain' => (bool) $product->requires_domain,
         ]);
     }
 
@@ -142,7 +143,7 @@ class StoreController extends Controller
         $data = $request->validate([
             'country' => [$countries === [] ? 'nullable' : 'required', Rule::in($countries)],
             'cycle' => ['required', Rule::in($cycles)],
-            'domain_mode' => ['required', 'in:have,buy,subdomain'],
+            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],
             'domain' => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy' => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
@@ -173,8 +174,10 @@ class StoreController extends Controller
         ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
-        [$domain, $note] = $this->resolveDomain($data);
-        if ($domain === null) {
+        [$domain, $note] = $product->requires_domain
+            ? $this->resolveDomain($data)
+            : [null, ''];
+        if ($product->requires_domain && $domain === null) {
             return back()->withInput()->withErrors(['domain' => __('ui.stf_domain_full')]);
         }
 
@@ -189,7 +192,11 @@ class StoreController extends Controller
         $cycle = $data['cycle'];
 
         // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
-        $server = $country ? Server::pickForCountry($country) : null;
+        $isRclone = $product->server?->type === 'rclone_storage';
+        $server = $isRclone ? $product->server : ($country ? Server::pickForCountry($country) : null);
+        if ($isRclone && (! $server->canAcceptNew() || strtoupper((string) $server->country) !== strtoupper((string) $country))) {
+            return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
+        }
         if ($country && $server === null) {
             return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
         }

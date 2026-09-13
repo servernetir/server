@@ -133,7 +133,7 @@
           </label>
           <p class="co-note">{{ __('ui.chk_ip_note') }}</p>
         </div>
-        @else
+        @elseif($requiresDomain ?? true)
         {{-- ۳) دامنه --}}
         <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
