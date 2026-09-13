@@ -7,7 +7,8 @@ limit_req_zone $binary_remote_addr zone=servernet_gateway_api:10m rate=5r/s;
 limit_conn_zone $binary_remote_addr zone=servernet_gateway_conn:10m;
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name dav-backup.example.com;
 
     ssl_certificate /etc/letsencrypt/live/dav-backup.example.com/fullchain.pem;
@@ -29,7 +30,8 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name s3-backup.example.com;
 
     ssl_certificate /etc/letsencrypt/live/s3-backup.example.com/fullchain.pem;
@@ -53,7 +55,8 @@ server {
 # Management API: TLS + request HMAC + nonce/replay protection. Port 9080
 # remains loopback-only; the public endpoint is rate-limited, not IP-allowlisted.
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name gateway-backup.example.com;
 
     ssl_certificate /etc/letsencrypt/live/gateway-backup.example.com/fullchain.pem;
