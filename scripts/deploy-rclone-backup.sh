@@ -43,6 +43,7 @@ MINE="$(git -C repo rev-parse "$MINE^{commit}")"
 
 FILES="
 app/Http/Controllers/Account/StoreController.php
+app/Http/Controllers/Admin/ProductController.php
 app/Http/Controllers/Admin/ServerController.php
 app/Http/Controllers/Admin/ServiceController.php
 app/Models/Product.php
@@ -56,6 +57,7 @@ lang/en/ui.php
 lang/fa/ui.php
 lang/tr/ui.php
 resources/views/account/partials/card-hosting.blade.php
+resources/views/account/checkout.blade.php
 resources/views/admin/partials/server-form.blade.php
 "
 
