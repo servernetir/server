@@ -6,7 +6,8 @@ SFTP، WebDAV و S3-compatible سرورنت را می‌بیند؛ OAuth، نا�
 
 ## مرزهای ایمنی
 
-- API مدیریت باید روی شبکهٔ خصوصی یا پشت TLS و محدودیت IP باشد؛ پورت 9080 عمومی نشود.
+- API مدیریت باید پشت TLS و rate limit باشد؛ پورت 9080 عمومی نشود. وابستگی به
+  allowlist ثابت IP وجود ندارد تا جابه‌جایی پنل یا Gateway ارتباط را قطع نکند.
 - هر درخواست API با HMAC، زمان پنج‌دقیقه‌ای و nonce یک‌بارمصرف محافظت می‌شود.
 - credential مشتری از seed مستقل و نسخهٔ قابل‌چرخش با HMAC مشتق می‌شود؛ مقدار
   خام آن در دیتابیس Gateway نیست و پنل آن را در ستون رمزنگاری‌شده نگه می‌دارد.
@@ -29,7 +30,9 @@ SFTP، WebDAV و S3-compatible سرورنت را می‌بیند؛ OAuth، نا�
    `/etc/servernet-gateway.env` قرار دهید. secret همین env در فیلد API Token سرور
    `rclone_storage` پنل ثبت می‌شود.
 5. سرویس‌های API، SFTP، WebDAV و S3 را نصب کنید. WebDAV/S3 فقط روی localhost
-   می‌نشینند و از Nginx/TLS منتشر می‌شوند؛ API علاوه بر HMAC باید allowlist پنل داشته باشد.
+   می‌نشینند و از Nginx/TLS منتشر می‌شوند؛ API نیز loopback-only می‌ماند و از
+   Nginx با TLS و rate limit منتشر می‌شود. احراز درخواست‌های آن با HMAC، timestamp
+   و nonce یک‌بارمصرف انجام می‌شود و به IP ثابت پنل وابسته نیست.
 6. `servernet-reconcile.timer` را فعال کنید تا مصرف هر ۲۰ دقیقه سنجیده شود.
 7. ابتدا یک tenant آزمایشی بسازید، آپلود/دانلود متقاطع هر سه پروتکل، تعلیق،
    چرخش credential، بازیابی و پرشدن سهمیه را بسنجید.
