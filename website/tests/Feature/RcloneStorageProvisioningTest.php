@@ -48,6 +48,9 @@ class RcloneStorageProvisioningTest extends TestCase
         return array_merge([
             'id' => 'sn-svc-'.$service->id, 'username' => 'sn'.$service->id,
             'endpoint' => 'backup.example.test', 'port' => 2022,
+            'webdav_url' => 'https://dav-backup.example.test/',
+            's3_endpoint' => 'https://s3-backup.example.test/',
+            's3_access_key' => 'SNTESTACCESSKEY', 's3_bucket' => 'backup',
             'quota_bytes' => 100 * 1024 ** 3, 'used_bytes' => 0,
             'pool' => 'google', 'status' => 'active',
         ], $over);
@@ -71,12 +74,19 @@ class RcloneStorageProvisioningTest extends TestCase
                 return Http::response(['error' => 'not_found'], 404);
             }
 
-            return Http::response(['tenant' => $this->tenant($service)], 201);
+            return Http::response([
+                'tenant' => $this->tenant($service),
+                'credentials' => ['password' => 'derived-secret-for-all-three-protocols'],
+            ], 201);
         });
 
         $result = (new RcloneStorageProvisioner)->create($service);
         $this->assertTrue($result->ok, (string) $result->error);
         $this->assertSame('sftp://backup.example.test:2022', $result->panelUrl);
+        $this->assertSame('https://dav-backup.example.test/', $result->meta['webdav_url']);
+        $this->assertSame('https://s3-backup.example.test/', $result->meta['s3_endpoint']);
+        $this->assertSame('SNTESTACCESSKEY', $result->meta['s3_access_key']);
+        $this->assertArrayNotHasKey('gateway_password', $result->meta);
 
         Http::assertSent(function ($request) use ($service, $server) {
             $path = parse_url($request->url(), PHP_URL_PATH);
@@ -93,6 +103,7 @@ class RcloneStorageProvisioningTest extends TestCase
             return hash_equals($expected, $signature)
                 && ($data['quota_bytes'] ?? null) === 100 * 1024 ** 3
                 && ($data['username'] ?? null) === 'sn'.$service->id
+                && ! array_key_exists('password', $data)
                 && ! str_contains($body, 'oauth') && ! str_contains($body, 'refresh_token');
         });
     }
@@ -100,13 +111,19 @@ class RcloneStorageProvisioningTest extends TestCase
     public function test_an_existing_tenant_is_not_created_again_and_unknown_password_is_rotated(): void
     {
         $server = $this->server();
-        $service = $this->service($server, ['password' => 'wrong-generated-panel-password']);
+        $service = $this->service($server, ['password' => null]);
         Http::fake(function ($request) use ($service) {
             if ($request->method() === 'GET') {
-                return Http::response(['tenant' => $this->tenant($service)], 200);
+                return Http::response([
+                    'tenant' => $this->tenant($service),
+                    'credentials' => ['password' => 'recovered-derived-secret'],
+                ], 200);
             }
             if (str_ends_with($request->url(), '/credentials')) {
-                return Http::response(['tenant' => $this->tenant($service)], 200);
+                return Http::response([
+                    'tenant' => $this->tenant($service),
+                    'credentials' => ['password' => 'recovered-derived-secret'],
+                ], 200);
             }
 
             return Http::response(['error' => 'unexpected'], 500);
@@ -114,8 +131,8 @@ class RcloneStorageProvisioningTest extends TestCase
 
         $result = (new RcloneStorageProvisioner)->create($service);
         $this->assertTrue($result->ok, (string) $result->error);
-        $this->assertNotSame('wrong-generated-panel-password', $result->password);
-        $this->assertSame($result->password, $result->meta['gateway_password']);
+        $this->assertSame('recovered-derived-secret', $result->password);
+        $this->assertArrayNotHasKey('gateway_password', $result->meta);
         Http::assertSent(fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/credentials'));
         Http::assertNotSent(fn ($request) => $request->method() === 'PUT');
     }
@@ -141,6 +158,12 @@ class RcloneStorageProvisioningTest extends TestCase
                 return $gets === 1
                     ? Http::response(['error' => 'not_found'], 404)
                     : Http::response(['tenant' => $this->tenant($service)], 200);
+            }
+            if ($request->method() === 'POST' && str_ends_with($request->url(), '/credentials')) {
+                return Http::response([
+                    'tenant' => $this->tenant($service),
+                    'credentials' => ['password' => 'recovered-after-timeout'],
+                ], 200);
             }
             $puts++;
             throw new ConnectionException('write completed but response lost');
@@ -179,7 +202,10 @@ class RcloneStorageProvisioningTest extends TestCase
         Http::fake(function ($request) use ($service) {
             return $request->method() === 'GET'
                 ? Http::response(['error' => 'not_found'], 404)
-                : Http::response(['tenant' => $this->tenant($service, ['endpoint' => ''])], 201);
+                : Http::response([
+                    'tenant' => $this->tenant($service, ['endpoint' => '']),
+                    'credentials' => ['password' => 'derived-secret'],
+                ], 201);
         });
         $this->assertFalse((new RcloneStorageProvisioner)->create($service)->ok);
     }

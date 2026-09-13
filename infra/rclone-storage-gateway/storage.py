@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import base64
 import os
 import sqlite3
 import time
@@ -29,12 +30,12 @@ def initialize():
             CREATE TABLE IF NOT EXISTS tenants (
                 id TEXT PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
-                password_salt BLOB NOT NULL,
-                password_hash BLOB NOT NULL,
                 quota_bytes INTEGER NOT NULL CHECK (quota_bytes > 0),
                 used_bytes INTEGER NOT NULL DEFAULT 0 CHECK (used_bytes >= 0),
                 pool TEXT NOT NULL,
                 customer_ref TEXT NOT NULL,
+                s3_access_key TEXT UNIQUE,
+                credential_version INTEGER NOT NULL DEFAULT 1,
                 status TEXT NOT NULL DEFAULT 'active'
                     CHECK (status IN ('active', 'suspended', 'retired')),
                 retire_after INTEGER,
@@ -46,21 +47,46 @@ def initialize():
                 seen_at INTEGER NOT NULL
             );
         """)
-
-
-def password_record(password):
-    if not isinstance(password, str) or len(password) < 20:
-        raise ValueError("password_too_short")
-    salt = os.urandom(16)
-    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
-    return salt, digest
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tenants)")}
+        if "s3_access_key" not in columns:
+            conn.execute("ALTER TABLE tenants ADD COLUMN s3_access_key TEXT")
+        if "credential_version" not in columns:
+            conn.execute("ALTER TABLE tenants ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 1")
+        for row in conn.execute("SELECT id FROM tenants WHERE s3_access_key IS NULL"):
+            conn.execute("UPDATE tenants SET s3_access_key = ? WHERE id = ?", (make_s3_access_key(row[0]), row[0]))
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS tenants_s3_access_key_unique ON tenants(s3_access_key)")
 
 
 def password_matches(row, password):
-    if not isinstance(password, str):
+    if not isinstance(password, str) or len(password) > 256:
         return False
-    candidate = hashlib.scrypt(password.encode(), salt=row["password_salt"], n=2**14, r=8, p=1, dklen=32)
-    return hmac.compare_digest(candidate, row["password_hash"])
+    return hmac.compare_digest(access_secret(row), password)
+
+
+def make_s3_access_key(tenant_id):
+    # شناسه عمومی و پایدار است؛ هیچ secretای از tenant id مشتق نمی‌شود.
+    digest = hashlib.sha256(str(tenant_id).encode()).hexdigest().upper()
+    return "SN" + digest[:24]
+
+
+def access_secret(row):
+    seed = os.environ.get("SN_ACCESS_SECRET_SEED", "")
+    if len(seed) < 32:
+        raise RuntimeError("SN_ACCESS_SECRET_SEED must contain at least 32 characters")
+    version = int(row["credential_version"])
+    material = f"{row['id']}:{version}".encode()
+    digest = hmac.new(seed.encode(), material, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode().rstrip("=")
+
+
+def credential_bundle(row):
+    secret = access_secret(row)
+    return {
+        "username": row["username"],
+        "password": secret,
+        "s3_access_key": row["s3_access_key"],
+        "s3_secret_access_key": secret,
+    }
 
 
 def public_tenant(row):
@@ -70,6 +96,10 @@ def public_tenant(row):
         "retire_after": row["retire_after"],
         "endpoint": os.environ.get("SN_SFTP_PUBLIC_HOST", ""),
         "port": int(os.environ.get("SN_SFTP_PUBLIC_PORT", "2022")),
+        "webdav_url": os.environ.get("SN_WEBDAV_PUBLIC_URL", ""),
+        "s3_endpoint": os.environ.get("SN_S3_PUBLIC_ENDPOINT", ""),
+        "s3_access_key": row["s3_access_key"],
+        "s3_bucket": os.environ.get("SN_S3_BUCKET", "backup"),
     }
 
 

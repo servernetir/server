@@ -93,11 +93,9 @@ class RcloneStorageClient
     }
 
     /** بازیابیِ قطعیِ دسترسی وقتی ساختِ قبلی کامل شده ولی رمز در پنل نمانده است. */
-    public function rotatePassword(string $tenantId, string $password): array
+    public function rotateCredentials(string $tenantId): array
     {
-        return $this->call('POST', '/v1/tenants/'.rawurlencode($tenantId).'/credentials', [
-            'password' => $password,
-        ]);
+        return $this->call('POST', '/v1/tenants/'.rawurlencode($tenantId).'/credentials');
     }
 
     /** حذف فوری نیست؛ Gateway tenant را تا پایان مهلت بازیابی قرنطینه می‌کند. */

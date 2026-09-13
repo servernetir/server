@@ -1,5 +1,5 @@
 [Unit]
-Description=ServerNet managed backup SFTP gateway
+Description=ServerNet managed backup S3-compatible beta gateway
 After=network-online.target servernet-gateway.service
 
 [Service]
@@ -8,7 +8,7 @@ User=servernet-gateway
 Group=servernet-gateway
 WorkingDirectory=/opt/servernet-gateway
 EnvironmentFile=/etc/servernet-gateway.env
-ExecStart=/usr/bin/rclone serve sftp --addr :2022 --auth-proxy /opt/servernet-gateway/auth_proxy.py --vfs-cache-mode off --dir-cache-time 1m
+ExecStart=/usr/bin/rclone serve s3 --addr 127.0.0.1:9082 --auth-proxy /opt/servernet-gateway/auth_proxy.py --vfs-cache-mode off --dir-cache-time 1m --force-path-style
 Restart=always
 RestartSec=3
 MemoryMax=512M

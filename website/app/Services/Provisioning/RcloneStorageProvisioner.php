@@ -41,23 +41,21 @@ class RcloneStorageProvisioner implements Provisioner
         }
 
         if (is_array($existing)) {
-            $knownPassword = (string) ($service->provision_meta['gateway_password'] ?? '');
+            $knownPassword = (string) ($service->password ?? '');
 
             if ($knownPassword === '') {
-                $knownPassword = $this->makePassword();
-                $rotated = $client->rotatePassword($tenantId, $knownPassword);
+                $rotated = $client->rotateCredentials($tenantId);
                 if (! $rotated['ok']) {
                     return ProvisionResult::fail('فضای قبلی پیدا شد اما بازیابیِ رمز آن ناموفق بود: '.$rotated['reason']);
                 }
+                $knownPassword = (string) ($rotated['data']['credentials']['password'] ?? '');
             }
 
             return $this->adopt($service, $existing, true, $knownPassword);
         }
 
-        $password = $this->makePassword();
         $result = $client->createTenant($tenantId, [
             'username' => 'sn'.$service->id,
-            'password' => $password,
             'quota_bytes' => $quota,
             'pool' => (string) config('provisioning.rclone_storage.pool', 'google'),
             'customer_ref' => (string) $service->customer_id,
@@ -67,7 +65,11 @@ class RcloneStorageProvisioner implements Provisioner
             if ($result['transport']) {
                 $after = $client->tenantState($tenantId);
                 if (is_array($after)) {
-                    return $this->adopt($service, $after, true, $password);
+                    $rotated = $client->rotateCredentials($tenantId);
+                    $password = (string) ($rotated['data']['credentials']['password'] ?? '');
+                    if ($rotated['ok'] && $password !== '') {
+                        return $this->adopt($service, $after, true, $password);
+                    }
                 }
             }
 
@@ -75,6 +77,7 @@ class RcloneStorageProvisioner implements Provisioner
         }
 
         $tenant = $result['data']['tenant'] ?? null;
+        $password = (string) ($result['data']['credentials']['password'] ?? '');
         if (! is_array($tenant) || blank($tenant['username'] ?? null) || blank($tenant['endpoint'] ?? null)) {
             return ProvisionResult::fail('Gateway پاسخ موفق داد اما اطلاعات اتصال کامل نبود.');
         }
@@ -123,7 +126,7 @@ class RcloneStorageProvisioner implements Provisioner
 
     private function adopt(Service $service, array $tenant, bool $reused, ?string $password = null): ProvisionResult
     {
-        $password ??= (string) ($service->provision_meta['gateway_password'] ?? '');
+        $password ??= (string) ($service->password ?? '');
         $endpoint = (string) ($tenant['endpoint'] ?? '');
         $username = (string) ($tenant['username'] ?? '');
 
@@ -132,17 +135,23 @@ class RcloneStorageProvisioner implements Provisioner
         }
 
         $port = (int) ($tenant['port'] ?? 2022);
+        $webdavUrl = (string) ($tenant['webdav_url'] ?? '');
+        $s3Endpoint = (string) ($tenant['s3_endpoint'] ?? '');
+        $s3AccessKey = (string) ($tenant['s3_access_key'] ?? '');
 
         return ProvisionResult::success($username, $password, 'sftp://'.$endpoint.':'.$port, [
             'driver' => $this->slug(),
             'rclone_tenant_id' => (string) ($tenant['id'] ?? self::tenantId($service)),
-            'gateway_password' => $password,
             'quota_bytes' => (int) ($tenant['quota_bytes'] ?? $this->quotaForPlan((string) $service->plan)),
             'used_bytes' => (int) ($tenant['used_bytes'] ?? 0),
             'pool' => (string) ($tenant['pool'] ?? config('provisioning.rclone_storage.pool', 'google')),
-            'protocol' => 'sftp',
+            'protocols' => ['sftp', 'webdav', 's3-beta'],
             'host' => $endpoint,
             'port' => $port,
+            'webdav_url' => $webdavUrl,
+            's3_endpoint' => $s3Endpoint,
+            's3_access_key' => $s3AccessKey,
+            's3_bucket' => (string) ($tenant['s3_bucket'] ?? 'backup'),
             'reused' => $reused,
         ]);
     }
@@ -154,14 +163,4 @@ class RcloneStorageProvisioner implements Provisioner
         return is_numeric($quota) && (int) $quota > 0 ? (int) $quota : null;
     }
 
-    private function makePassword(int $len = 28): string
-    {
-        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_';
-        $out = '';
-        for ($i = 0; $i < $len; $i++) {
-            $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
-        }
-
-        return $out;
-    }
 }

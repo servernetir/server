@@ -23,6 +23,9 @@ class GatewayTest(unittest.TestCase):
             "SN_RESERVE_BYTES": str(512 * 1024**2),
             "SN_SFTP_PUBLIC_HOST": "backup.example.test",
             "SN_SFTP_PUBLIC_PORT": "2022",
+            "SN_WEBDAV_PUBLIC_URL": "https://dav.example.test/",
+            "SN_S3_PUBLIC_ENDPOINT": "https://s3.example.test/",
+            "SN_ACCESS_SECRET_SEED": "a-separate-test-seed-that-is-longer-than-thirty-two-characters",
         })
         storage.initialize()
         self.httpd = gateway.ThreadingHTTPServer(("127.0.0.1", 0), gateway.Api)
@@ -55,7 +58,7 @@ class GatewayTest(unittest.TestCase):
 
     def tenant_spec(self, quota=1024**3):
         return {
-            "username": "sn12", "password": "Correct-Horse-Battery-Staple-42",
+            "username": "sn12",
             "quota_bytes": quota, "pool": "google", "customer_ref": "44",
         }
 
@@ -79,6 +82,7 @@ class GatewayTest(unittest.TestCase):
         status, reused = self.request("PUT", "/v1/tenants/sn-svc-12", self.tenant_spec())
         self.assertEqual(200, status)
         self.assertTrue(reused["reused"])
+        self.assertEqual(created["credentials"], reused["credentials"])
         changed = self.tenant_spec(256 * 1024**2)
         status, mismatch = self.request("PUT", "/v1/tenants/sn-svc-12", changed)
         self.assertEqual(409, status)
@@ -96,17 +100,26 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(200, status)
         self.assertEqual("retired", found["tenant"]["status"])
 
-    def test_password_rotation_replaces_the_old_hash(self):
-        self.request("PUT", "/v1/tenants/sn-svc-12", self.tenant_spec())
-        with storage.connection() as conn:
-            before = bytes(conn.execute("SELECT password_hash FROM tenants WHERE id='sn-svc-12'").fetchone()[0])
-        status, _ = self.request("POST", "/v1/tenants/sn-svc-12/credentials", {
-            "password": "A-New-Password-Longer-Than-20-Chars"
-        })
+    def test_credential_rotation_invalidates_the_old_secret(self):
+        _, created = self.request("PUT", "/v1/tenants/sn-svc-12", self.tenant_spec())
+        before = created["credentials"]["password"]
+        status, rotated = self.request("POST", "/v1/tenants/sn-svc-12/credentials")
         self.assertEqual(200, status)
         with storage.connection() as conn:
-            after = bytes(conn.execute("SELECT password_hash FROM tenants WHERE id='sn-svc-12'").fetchone()[0])
+            row = conn.execute("SELECT * FROM tenants WHERE id='sn-svc-12'").fetchone()
+            after = rotated["credentials"]["password"]
+            self.assertFalse(storage.password_matches(row, before))
+            self.assertTrue(storage.password_matches(row, after))
         self.assertNotEqual(before, after)
+
+    def test_it_returns_three_protocol_endpoints_without_exposing_google(self):
+        _, created = self.request("PUT", "/v1/tenants/sn-svc-12", self.tenant_spec())
+        tenant = created["tenant"]
+        self.assertEqual("https://dav.example.test/", tenant["webdav_url"])
+        self.assertEqual("https://s3.example.test/", tenant["s3_endpoint"])
+        self.assertEqual("backup", tenant["s3_bucket"])
+        self.assertTrue(tenant["s3_access_key"].startswith("SN"))
+        self.assertNotIn("google", json.dumps(created["credentials"]).lower())
 
 
 if __name__ == "__main__":

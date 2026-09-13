@@ -67,6 +67,8 @@ class Api(BaseHTTPRequestHandler):
                 return self.json_response(200, {
                     "ok": True, "free_bytes": storage.remaining_capacity(conn),
                     "sftp_host": os.environ.get("SN_SFTP_PUBLIC_HOST", ""),
+                    "webdav_url": os.environ.get("SN_WEBDAV_PUBLIC_URL", ""),
+                    "s3_endpoint": os.environ.get("SN_S3_PUBLIC_ENDPOINT", ""),
                 })
 
         match = TENANT_PATH.fullmatch(self.path)
@@ -88,28 +90,42 @@ class Api(BaseHTTPRequestHandler):
                     actual = (row["username"], row["quota_bytes"], row["pool"], row["customer_ref"])
                     if expected != actual:
                         return self.json_response(409, {"error": "tenant_spec_mismatch"})
-                    return self.json_response(200, {"tenant": storage.public_tenant(row), "reused": True})
+                    return self.json_response(200, {
+                        "tenant": storage.public_tenant(row),
+                        "credentials": storage.credential_bundle(row),
+                        "reused": True,
+                    })
                 try:
                     username = str(payload["username"])
-                    password = payload["password"]
                     quota = int(payload["quota_bytes"])
                     pool = str(payload["pool"])
                     customer_ref = str(payload["customer_ref"])
                     if not re.fullmatch(r"sn[0-9]+", username) or quota <= 0 or not re.fullmatch(r"[a-z0-9_-]+", pool):
                         raise ValueError("invalid_tenant")
-                    salt, digest = storage.password_record(password)
                     conn.execute("BEGIN IMMEDIATE")
                     if quota > storage.remaining_capacity(conn):
                         conn.rollback()
                         return self.json_response(409, {"error": "insufficient_capacity"})
                     now = int(time.time())
-                    conn.execute("INSERT INTO tenants VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'active', NULL, ?, ?)",
-                                 (tenant_id, username, salt, digest, quota, pool, customer_ref, now, now))
+                    # password در Gateway ذخیره نمی‌شود. یک secret قطعی و
+                    # قابل‌چرخش از seed مخصوص Gateway ساخته می‌شود و فقط در پاسخ
+                    # HMACشدهٔ پنل برمی‌گردد.
+                    conn.execute("""
+                        INSERT INTO tenants
+                        (id, username, quota_bytes, used_bytes,
+                         pool, customer_ref, s3_access_key, credential_version, status,
+                         retire_after, created_at, updated_at)
+                        VALUES (?, ?, ?, 0, ?, ?, ?, 1, 'active', NULL, ?, ?)
+                    """, (tenant_id, username, quota, pool, customer_ref,
+                          storage.make_s3_access_key(tenant_id), now, now))
                     row = conn.execute("SELECT * FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
                     # پاسخ موفق فقط پس از durable شدن رکورد؛ وگرنه retry پنل 404
                     # می‌بیند و تلاش دوم می‌تواند tenant دیگری بسازد.
                     conn.commit()
-                    return self.json_response(201, {"tenant": storage.public_tenant(row)})
+                    return self.json_response(201, {
+                        "tenant": storage.public_tenant(row),
+                        "credentials": storage.credential_bundle(row),
+                    })
                 except (KeyError, TypeError, ValueError, sqlite3.IntegrityError):
                     return self.json_response(422, {"error": "invalid_tenant"})
 
@@ -125,11 +141,10 @@ class Api(BaseHTTPRequestHandler):
             elif self.command == "POST" and action == "credentials":
                 if row["status"] == "retired":
                     return self.json_response(409, {"error": "tenant_retired"})
-                try:
-                    salt, digest = storage.password_record(payload["password"])
-                except (KeyError, TypeError, ValueError):
-                    return self.json_response(422, {"error": "invalid_password"})
-                conn.execute("UPDATE tenants SET password_salt = ?, password_hash = ?, updated_at = ? WHERE id = ?", (salt, digest, now, tenant_id))
+                conn.execute("""
+                    UPDATE tenants
+                    SET credential_version = credential_version + 1, updated_at = ? WHERE id = ?
+                """, (now, tenant_id))
             elif self.command == "DELETE" and action is None:
                 days = min(90, max(1, int(payload.get("retention_days", 30))))
                 conn.execute("UPDATE tenants SET status = 'retired', retire_after = ?, updated_at = ? WHERE id = ?", (now + days * 86400, now, tenant_id))
@@ -137,7 +152,10 @@ class Api(BaseHTTPRequestHandler):
                 return self.json_response(405, {"error": "method_not_allowed"})
             row = conn.execute("SELECT * FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
             conn.commit()
-            return self.json_response(200, {"tenant": storage.public_tenant(row)})
+            response = {"tenant": storage.public_tenant(row)}
+            if action == "credentials":
+                response["credentials"] = storage.credential_bundle(row)
+            return self.json_response(200, response)
 
     do_GET = dispatch
     do_PUT = dispatch

@@ -11,6 +11,8 @@
   $delivered = $s->provision_status === 'done';
   $suspended = $s->status === 'suspended';
   $panelUrl  = $s->panel_url;
+  $isRclone  = $type === 'rclone_storage';
+  $rcloneMeta = $isRclone ? (array) ($s->provision_meta ?? []) : [];
 
   /*
    | 🔴 دکمهٔ ورود فقط وقتی که واقعاً کار می‌کند.
@@ -20,7 +22,7 @@
    | با تمامِ کدرشدگی نشان می‌داد و مشتریِ معلق روی آن کلیک می‌کرد و به یک خطای
    | WHM می‌رسید — دکمه‌ای که تضمین‌شده شکست می‌خورد، بدتر از نبودِ دکمه است.
    */
-  $canLogin = $delivered && ! $suspended && filled($s->username);
+  $canLogin = $delivered && ! $suspended && filled($s->username) && ! $isRclone;
   $isWhm    = $type === 'whm';
 @endphp
 
@@ -77,7 +79,7 @@
          مشترک آن را در هر بار بارگذاریِ صفحه چاپ می‌کرد و قاعدهٔ «فقط یک بار»
          (`CloudInstance::password_seen`) بی‌صدا دور زده می‌شد. --}}
     <div class="svc-cred">
-      <div><span>{{ __('ui.svc_cred_panel_url') }}</span>
+      <div><span>{{ $isRclone ? __('ui.svc_backup_sftp') : __('ui.svc_cred_panel_url') }}</span>
         @if($panelUrl)<a href="{{ $panelUrl }}" target="_blank" rel="noopener" dir="ltr">{{ $panelUrl }}</a>
         @elseif($s->server?->hostname)<b dir="ltr">{{ $s->server->hostname }}</b>
         @else<b>—</b>@endif</div>
@@ -86,6 +88,15 @@
         <b dir="ltr" class="svc-pw"><span class="pw-mask">••••••••••</span><span class="pw-val" hidden>{{ $s->password }}</span>
           <button type="button" class="pw-eye" data-show="{{ __('ui.svc_show') }}" data-hide="{{ __('ui.svc_hide') }}">{{ __('ui.svc_show') }}</button></b></div>@endif
       @if($s->domain)<div><span>{{ __('ui.svc_cred_domain') }}</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
+      @if($isRclone && filled($rcloneMeta['webdav_url'] ?? null))
+        <div><span>{{ __('ui.svc_backup_webdav') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $rcloneMeta['webdav_url'] }}</b></div>
+      @endif
+      @if($isRclone && filled($rcloneMeta['s3_endpoint'] ?? null))
+        <div><span>{{ __('ui.svc_backup_s3_endpoint') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $rcloneMeta['s3_endpoint'] }}</b></div>
+        <div><span>{{ __('ui.svc_backup_s3_access') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $rcloneMeta['s3_access_key'] ?? '—' }}</b></div>
+        <div><span>{{ __('ui.svc_backup_s3_bucket') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $rcloneMeta['s3_bucket'] ?? 'backup' }}</b></div>
+        <p class="svc-note warn">{{ __('ui.svc_backup_s3_beta') }}</p>
+      @endif
     </div>
 
     {{-- ── دسترسیِ سریع ──
