@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\Setting;
 use App\Services\Payment\GatewayRegistry;
 use App\Services\Payment\PaymentService;
+use App\Services\Analytics\DataLayerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -473,6 +474,10 @@ class PaymentController extends Controller
 
         $outcome = $this->payments->settle($payment, $request->query());
 
+        if ($outcome->ok && ! $outcome->alreadySettled && $outcome->payment !== null) {
+            DataLayerService::flashPurchase($outcome->payment);
+        }
+
         return view('account.payment-result', [
             'ok'       => $outcome->ok,
             'canceled' => $outcome->canceled,
@@ -676,6 +681,11 @@ class PaymentController extends Controller
 
         if (! $outcome['ok']) {
             return back()->withErrors($outcome['msg']);
+        }
+
+        $latestPayment = $invoice->payments()->latest('id')->first();
+        if ($latestPayment !== null) {
+            DataLayerService::flashPurchase($latestPayment);
         }
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
