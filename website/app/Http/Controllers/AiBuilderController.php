@@ -29,9 +29,18 @@ class AiBuilderController extends Controller
 
     public function chat(Request $request): JsonResponse
     {
-        // تولید یک صفحه‌ی کامل می‌تواند تا ~۲ دقیقه طول بکشد؛ نگذاریم PHP
-        // با محدودیت پیش‌فرض ۳۰ ثانیه request را وسط کار بکشد.
-        @set_time_limit(150);
+        /*
+        | تولید یک صفحه‌ی کامل می‌تواند تا ~۲ دقیقه طول بکشد؛ نگذاریم PHP با
+        | محدودیت پیش‌فرض ۳۰ ثانیه request را وسط کار بکشد.
+        |
+        | ⚠️ فقط روی وب. روی ویندوز `set_time_limit()` زمانِ **دیواریِ کلِ
+        | پروسه** را محدود می‌کند، نه زمانِ همین درخواست را — همان چیزی که
+        | `AiContent::call()` و `WebProbe::psi()` قبلاً مستندش کرده‌اند و
+        | این‌جا از قلم افتاده بود.
+        */
+        if (! app()->runningInConsole()) {
+            @set_time_limit(150);
+        }
 
         $data = $request->validate([
             'session' => 'required|string|max:64',
@@ -58,7 +67,10 @@ class AiBuilderController extends Controller
      */
     public function stream(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        @set_time_limit(200);
+        // ⚠️ فقط روی وب — دلیلش در `chat()` بالا.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(200);
+        }
 
         $data = $request->validate([
             'session' => 'required|string|max:64',

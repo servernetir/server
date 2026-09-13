@@ -4,11 +4,18 @@ namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
 use App\Models\CloudInstance;
+use App\Models\CloudPlan;
 use App\Models\CreditEntry;
+use App\Models\Customer;
 use App\Models\Service;
 use App\Services\Cloud\CloudDeliveryWatch;
+use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\CloudPricing;
 use App\Services\Cloud\CloudProvisioner;
+use App\Services\Cloud\InterruptibleBillingClock;
+use App\Services\Notify\CustomerNotifier;
 use App\Services\Provisioning\ProvisioningService;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -60,8 +67,11 @@ class CloudMeterHourly extends Command
      */
     private const SUSPEND_GRACE_HOURS = 24;
 
-    public function handle(CloudProvisioner $prov): int
-    {
+    public function handle(
+        CloudProvisioner $prov,
+        CloudManager $manager,
+        InterruptibleBillingClock $billingClock,
+    ): int {
         // روی سرورِ ازقبل‌مهاجرت‌نکرده بی‌صدا رد شو (نه خطا)
         if (! Schema::hasTable('services') || ! Schema::hasColumn('services', 'billing_mode')) {
             return self::SUCCESS;
@@ -79,14 +89,14 @@ class CloudMeterHourly extends Command
             ->where('hourly_rate_irt', '>', 0)
             ->where(fn ($q) => $q->whereNull('last_metered_at')
                 ->orWhere('last_metered_at', '<=', now()->subHour()))
-            ->with(['customer', 'cloudInstance'])
+            ->with(['customer', 'cloudInstance', 'cloudPlan'])
             ->get();
 
         foreach ($due as $service) {
-            match ($this->meterOne($service, $prov)) {
+            match ($this->meterOne($service, $prov, $manager, $billingClock)) {
                 'charged' => $charged++,
                 'stopped' => $stopped++,
-                default   => $skipped++,
+                default => $skipped++,
             };
         }
 
@@ -153,7 +163,7 @@ class CloudMeterHourly extends Command
     private function alarmIfUnderwater(Service $service, int $rate): void
     {
         try {
-            $bought = $service->cloud_plan_id ? \App\Models\CloudPlan::find($service->cloud_plan_id) : null;
+            $bought = $service->cloud_plan_id ? CloudPlan::find($service->cloud_plan_id) : null;
 
             if ($bought === null) {
                 return;
@@ -161,7 +171,7 @@ class CloudMeterHourly extends Command
 
             $provider = $service->cloudInstance?->provider;
             $row = ($provider !== null && $provider !== $bought->provider)
-                ? (\App\Models\CloudPlan::where('slug', $bought->slug)->where('provider', $provider)->orderByDesc('id')->first() ?? $bought)
+                ? (CloudPlan::where('slug', $bought->slug)->where('provider', $provider)->orderByDesc('id')->first() ?? $bought)
                 : $bought;
 
             // بهایِ ساعتیِ واقعیِ زیرساخت مقدم بر «ماهانه ÷ ۷۲۰» (درسِ sn-svc-76)
@@ -172,7 +182,7 @@ class CloudMeterHourly extends Command
                 return;                               // بها نداریم ⇒ ادعا هم نداریم
             }
 
-            $this->eurTomanMemo ??= (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+            $this->eurTomanMemo ??= (int) app(CloudPricing::class)->eurToToman();
 
             if ($this->eurTomanMemo <= 0) {
                 return;
@@ -183,7 +193,7 @@ class CloudMeterHourly extends Command
                 : (int) ceil(($costCents / 100) * $this->eurTomanMemo / 720);
 
             if ($rate < $floorIrt) {
-                \App\Support\ErrorTracker::noteOnce('cloud',
+                ErrorTracker::noteOnce('cloud',
                     "سرورِ ساعتیِ #{$service->id} زیرِ بهایِ تمام‌شده شارژ می‌شود: قفل‌شده "
                     .number_format($rate).' تومان/ساعت، کفِ بها '.number_format($floorIrt)
                     ." تومان/ساعت ({$row->provider}/{$row->slug}). اصلاح: php artisan cloud:hourly-reprice --service={$service->id} --apply",
@@ -199,13 +209,63 @@ class CloudMeterHourly extends Command
      *
      * @return 'charged'|'stopped'|'skipped'
      */
-    private function meterOne(Service $service, CloudProvisioner $prov): string
-    {
+    private function meterOne(
+        Service $service,
+        CloudProvisioner $prov,
+        CloudManager $manager,
+        InterruptibleBillingClock $billingClock,
+    ): string {
         $rate = (int) $service->hourly_rate_irt;
         $customer = $service->customer;
 
         if ($rate <= 0 || $customer === null) {
             return 'skipped';
+        }
+
+        /*
+        | برای GPU قطع‌شدنی، مقدارِ محلی ممکن است چند روز کهنه باشد. پیش از پول
+        | گرفتن وضعیتِ واقعی را می‌پرسیم. شکستِ API هم fail-closed است: لنگر تا
+        | اکنون جلو می‌آید تا بازهٔ نامطمئن بعداً یک‌جا از مشتری کسر نشود.
+        */
+        if ($billingClock->applies($service)) {
+            $instance = $service->cloudInstance;
+            $driver = $instance ? $manager->forInstance($instance) : null;
+
+            if ($instance === null || $driver === null || blank($instance->provider_ref)) {
+                $billingClock->pauseUnverified($service);
+                $this->noteUnverifiedStatus($service, 'نمونه یا شناسهٔ زیرساخت در دسترس نیست');
+
+                return 'skipped';
+            }
+
+            try {
+                $live = $driver->serverStatus((string) $instance->provider_ref);
+            } catch (\Throwable $e) {
+                $billingClock->pauseUnverified($service);
+                $this->noteUnverifiedStatus($service, mb_substr($e->getMessage(), 0, 160));
+
+                return 'skipped';
+            }
+
+            if (! ($live['ok'] ?? false) || ! in_array($live['status'] ?? null, ['running', 'off', 'building', 'error', 'deleted'], true)) {
+                $billingClock->pauseUnverified($service);
+                $this->noteUnverifiedStatus($service);
+
+                return 'skipped';
+            }
+
+            $clockRestarted = $billingClock->record($service, $instance, (string) $live['status'], [
+                'ipv4' => $live['ipv4'] ?: $instance->ipv4,
+                'ipv6' => $live['ipv6'] ?: $instance->ipv6,
+                'hostname' => filled($live['hostname'] ?? null) ? $live['hostname'] : $instance->hostname,
+                'synced_at' => now(),
+                'last_error' => null,
+            ]);
+
+            // record() روی خاموشی و شروعِ تازه لنگر را «اکنون» می‌گذارد.
+            if ($live['status'] !== 'running' || $clockRestarted) {
+                return 'skipped';
+            }
         }
 
         // 🔴 تحویل‌نشده = بی‌هزینه. هیچ کسری، هیچ نوشتنی، لنگر دست‌نخورده.
@@ -284,14 +344,14 @@ class CloudMeterHourly extends Command
         $amount = -1 * $rate * $hours;
 
         CreditEntry::create([
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'currency_code' => 'IRT',
-            'amount'        => $amount,
+            'amount' => $amount,
             'balance_after' => $balance + $amount,
-            'reason'        => 'cloud_hourly',
-            'source_type'   => Service::class,
-            'source_id'     => $service->id,
-            'note'          => "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان',
+            'reason' => 'cloud_hourly',
+            'source_type' => Service::class,
+            'source_id' => $service->id,
+            'note' => "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان',
         ]);
 
         /*
@@ -302,9 +362,9 @@ class CloudMeterHourly extends Command
         $this->asCustomer($customer, fn () => ActivityLog::forService(
             $service, 'renew',
             __('ui.act_hourly_charge', [
-                'hours'  => fa_num($hours),
+                'hours' => fa_num($hours),
                 'amount' => invoice_money(abs($amount)),
-                'left'   => invoice_money(max(0, $balance + $amount)),
+                'left' => invoice_money(max(0, $balance + $amount)),
             ]), 'system'));
 
         $this->warnIfCreditLow($service, $customer, $rate, $balance + $amount);
@@ -317,6 +377,18 @@ class CloudMeterHourly extends Command
         }
 
         return 'charged';
+    }
+
+    private function noteUnverifiedStatus(Service $service, ?string $detail = null): void
+    {
+        try {
+            $suffix = filled($detail) ? ': '.$detail : '.';
+            ErrorTracker::noteOnce('billing',
+                "وضعیتِ زندهٔ GPU سرویس #{$service->id} تأیید نشد؛ کسر متوقف شد{$suffix}",
+                3600, ['service' => $service->id]);
+        } catch (\Throwable) {
+            // خرابیِ کانالِ هشدار هرگز محافظِ پول را از کار نمی‌اندازد.
+        }
     }
 
     /** ثبتِ ساعت‌هایی که در این اجرا کسر نشد — سقفِ جبران یا کمبودِ اعتبار. */
@@ -334,7 +406,7 @@ class CloudMeterHourly extends Command
         }
 
         try {
-            \App\Support\ErrorTracker::noteOnce('billing', $text, 3600, ['service' => $service->id]);
+            ErrorTracker::noteOnce('billing', $text, 3600, ['service' => $service->id]);
         } catch (\Throwable) {
         }
     }
@@ -407,21 +479,21 @@ class CloudMeterHourly extends Command
         $balance = $customer->creditBalance('IRT');
 
         CreditEntry::create([
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'currency_code' => 'IRT',
-            'amount'        => -$monthly,
+            'amount' => -$monthly,
             'balance_after' => $balance - $monthly,
-            'reason'        => 'cloud_hourly_convert',
-            'source_type'   => Service::class,
-            'source_id'     => $service->id,
-            'note'          => 'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه',
+            'reason' => 'cloud_hourly_convert',
+            'source_type' => Service::class,
+            'source_id' => $service->id,
+            'note' => 'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه',
         ]);
 
         $service->update([
             'billing_mode' => 'cycle',
-            'cycle'        => 'monthly',
-            'next_due_at'  => now()->addMonth(),
-            'status'       => 'active',
+            'cycle' => 'monthly',
+            'next_due_at' => now()->addMonth(),
+            'status' => 'active',
         ]);
 
         $this->asCustomer($customer, fn () => ActivityLog::forService(
@@ -482,6 +554,7 @@ class CloudMeterHourly extends Command
             }
         }
     }
+
     /**
      * آستانهٔ هشدارِ «اعتبار رو به اتمام است» — بر حسبِ ساعتِ باقی‌مانده.
      *
@@ -541,7 +614,7 @@ class CloudMeterHourly extends Command
             }
 
             app()->setLocale($customer->locale ?: 'fa');
-            app(\App\Services\Notify\CustomerNotifier::class)
+            app(CustomerNotifier::class)
                 ->templated($customer, $key, ['service' => $service->name] + $vars, $text);
         } catch (\Throwable) {
             // اعلان تزئینِ متر است، نه شرطِ آن
@@ -556,7 +629,7 @@ class CloudMeterHourly extends Command
      * می‌خوانَد (گزارشِ کارفرما، ۶ شهریور: «کسر ساعتی ۱ ساعت» فارسی روی حسابِ
      * انگلیسی)، پس زبانِ نوشتنشان زبانِ اوست، نه زبانِ کرون.
      */
-    private function asCustomer(?\App\Models\Customer $customer, \Closure $fn): mixed
+    private function asCustomer(?Customer $customer, \Closure $fn): mixed
     {
         $prev = app()->getLocale();
         app()->setLocale($customer?->locale ?: 'fa');
@@ -567,5 +640,4 @@ class CloudMeterHourly extends Command
             app()->setLocale($prev);
         }
     }
-
 }

@@ -1,0 +1,268 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CloudInstance;
+use App\Models\Customer;
+use App\Models\Service;
+use App\Models\Setting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+/**
+ * 🔴 آدرسی که به مشتری می‌دهیم باید همانی باشد که کار می‌کند.
+ *
+ * ═══ تیکتِ واقعی (۱۱ شهریور ۱۴۰۵، مشتری SN-978603) ═══
+ *
+ *   «سلام، پیام اومد سرور تحویل داده شد ولی آیپی یک آیپی خصوصی هست»
+ *
+ * ماشین روی Proxmox ساخته شده بود و `ipv4`ش `10.10.10.64` — آدرسِ شبکهٔ
+ * داخلی. دسترسیِ عمومی‌اش از یک پورت‌فوروارد روی IP مشترک می‌آمد
+ * (`85.9.108.118:20001`) که `PullController::portForwards` تخصیص می‌دهد و در
+ * `meta.public_port` می‌نشیند — ولی **هیچ‌جای رو به مشتری از آن خبر نداشت**:
+ * پرتال `ssh root@10.10.10.64` چاپ می‌کرد و ایمیلِ تحویل همان IP خصوصی را.
+ *
+ * ⚠️ بدترین تکه: `ready_notified_at` همان لحظه قفل می‌شود. پس اعلانِ **غلط**
+ * می‌رفت و اعلانِ **درست** دیگر هرگز نمی‌رفت.
+ *
+ * تشخیص عمداً روی خودِ آدرس است نه نامِ زیرساخت — شرطِ واقعی «این IP از
+ * اینترنت قابلِ استفاده هست یا نه» است.
+ */
+class CloudNattedAddressTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Setting::put('public_ip', '85.9.108.118');
+    }
+
+    private function inst(array $over = []): CloudInstance
+    {
+        $customer = Customer::create([
+            'code' => 'SN-'.random_int(100000, 999999),
+            'email' => 'na'.random_int(1, 999999).'@example.com',
+            'password' => bcrypt('secret-pass-123'), 'status' => 'active',
+        ]);
+
+        $service = Service::create([
+            'customer_id' => $customer->id, 'name' => 'سرور', 'currency_code' => 'IRT',
+            'price' => 550000, 'cycle' => 'monthly', 'status' => 'active',
+            'provision_status' => 'done',
+        ]);
+
+        return CloudInstance::create(array_merge([
+            'service_id' => $service->id, 'provider' => 'proxmox', 'provider_ref' => '117',
+            'location_code' => 'ir-tehran', 'hostname' => 'sn-svc-'.$service->id,
+            'ipv4' => '10.10.10.64', 'status' => 'running',
+            'meta' => ['public_port' => 20001],
+        ], $over));
+    }
+
+    // ═══════════ تشخیصِ آدرسِ خصوصی ═══════════
+
+    public function test_a_private_ip_is_recognised_as_unusable(): void
+    {
+        $this->assertTrue($this->inst(['ipv4' => '10.10.10.64'])->hasPrivateIp());
+        $this->assertTrue($this->inst(['ipv4' => '192.168.1.5'])->hasPrivateIp());
+        $this->assertTrue($this->inst(['ipv4' => '172.16.0.9'])->hasPrivateIp());
+    }
+
+    public function test_a_public_ip_is_left_alone(): void
+    {
+        $inst = $this->inst(['ipv4' => '91.107.179.170', 'provider' => 'hetzner']);
+
+        $this->assertFalse($inst->hasPrivateIp());
+        $this->assertSame('91.107.179.170', $inst->address());
+        $this->assertSame('ssh root@91.107.179.170', $inst->sshCommand(),
+            'سرورِ IPعمومی نباید بی‌جهت `-p` بگیرد');
+    }
+
+    // ═══════════ آدرسِ رو به مشتری ═══════════
+
+    /** ماشینِ پشتِ NAT آدرسِ عمومی + پورتِ فورواردشده می‌گیرد. */
+    public function test_a_natted_instance_shows_the_forwarded_endpoint(): void
+    {
+        $inst = $this->inst();
+
+        $this->assertSame('85.9.108.118:20001', $inst->address());
+        $this->assertSame('ssh root@85.9.108.118 -p 20001', $inst->sshCommand());
+    }
+
+    /**
+     * 🔴 و اگر فوروارد هنوز نیست، **هیچ آدرسی** نمی‌دهیم.
+     *
+     * چاپِ `10.10.10.64` وعدهٔ چیزی است که وجود ندارد؛ همان تیکت.
+     */
+    public function test_without_a_forward_there_is_no_address_at_all(): void
+    {
+        $inst = $this->inst(['meta' => []]);
+
+        $this->assertNull($inst->address(), 'آدرسِ خصوصی نباید به مشتری نشان داده شود');
+        $this->assertNull($inst->sshCommand());
+    }
+
+    /** IP عمومیِ تنظیم‌نشده هم یعنی آدرسی نداریم — نه اینکه پورتِ تنها را بدهیم. */
+    public function test_without_a_public_ip_there_is_no_address_either(): void
+    {
+        Setting::put('public_ip', '');
+
+        $this->assertNull($this->inst()->address());
+    }
+
+    /** نامِ دامنه اگر تنظیم شده باشد، جای IP را می‌گیرد — ولی پورت سرِ جایش. */
+    public function test_a_public_host_name_replaces_the_ip_but_not_the_port(): void
+    {
+        Setting::put('public_host', 'ir1.servernet.cloud');
+
+        $inst = $this->inst();
+
+        $this->assertSame('ir1.servernet.cloud:20001', $inst->address());
+        $this->assertSame('ssh root@ir1.servernet.cloud -p 20001', $inst->sshCommand());
+    }
+
+    // ═══════════ قرنطینه و مالیات ═══════════
+
+    /**
+     * 🔴 «سقفِ حساب پر شده» باید فروش را ببندد.
+     *
+     * سرویس #۱۰۵: هتزنر `[resource_limit_exceeded] server limit reached` داد.
+     * فهرستِ واژه‌های ساختاری `quota` را داشت ولی نه `limit` را، پس قرنطینه
+     * نگرفت و ۱۱۴ پلن در فروش ماندند — مشتریِ بعدی همان شکست را می‌خرید.
+     */
+    public function test_a_provider_account_limit_closes_the_sale(): void
+    {
+        $r = new \ReflectionMethod(\App\Services\Cloud\CloudProvisioner::class, 'quarantineProvider');
+        $src = file_get_contents((new \ReflectionClass(\App\Services\Cloud\CloudProvisioner::class))->getFileName());
+
+        foreach (['limit reached', 'resource_limit', 'limit exceeded'] as $needle) {
+            $this->assertStringContainsString("'".$needle."'", $src,
+                'واژهٔ «'.$needle.'» در فهرستِ خطاهای ساختاری نیست؛ سقفِ حساب فروش را نمی‌بندد');
+        }
+
+        $this->assertTrue($r->isPrivate());
+    }
+
+    /**
+     * 🔴 «اتصالِ سرورِ موجود» باید مالیات را تفکیک کند.
+     *
+     * `tax_percent` صفرِ سخت‌کد بود، پس فاکتورِ تمدیدِ چنین سرویسی مبلغ را یکجا
+     * نشان می‌داد در حالی که فاکتورهای مسیرِ عادی ردیفِ ارزش افزوده دارند —
+     * همان مشتری دو فاکتورِ هم‌مبلغ با دو شکلِ متفاوت گرفت.
+     */
+    public function test_attached_services_carry_the_shop_tax_rate(): void
+    {
+        $src = file_get_contents((new \ReflectionClass(
+            \App\Http\Controllers\Admin\CloudAttachController::class))->getFileName());
+
+        $this->assertStringNotContainsString("'tax_percent'      => 0,", $src,
+            'مالیاتِ صفرِ سخت‌کد برگشته — فاکتورِ تمدید دوباره بی‌تفکیک می‌شود');
+        $this->assertStringContainsString('taxPercent()', $src);
+    }
+
+    // ═══════════ نگهبانِ ویوها ═══════════
+
+    /**
+     * 🔴 هیچ ویویِ رو به مشتری نباید `ipv4` را مستقیم چاپ کند.
+     *
+     * ═══ چرا این تست وجود دارد ═══
+     *
+     * بارِ اول فقط `cloud-server.blade.php` را رفع کردم و تمام‌شده فرض کردم.
+     * ولی همان آدرسِ خصوصی از دو ویویِ دیگر هم چاپ می‌شد — کارتِ داشبورد و
+     * صفحهٔ کنسول — و مشتری **دوباره** همان `10.10.10.64` را دید و دوباره
+     * تیکت زد. رفعِ نقطه‌ای برای باگی که چند نقطهٔ مصرف دارد کافی نیست.
+     *
+     * پس ادعا را از «این ویو درست است» به «هیچ ویویی این کار را نمی‌کند»
+     * تبدیل می‌کنیم — تنها شکلی که ویویِ **بعدی** را هم پوشش می‌دهد.
+     *
+     * ⚠️ `cloud-store.blade.php` مستثناست: `extra_ipv4` نامِ یک فیلدِ فرم است
+     * (تعدادِ IP اضافه)، نه آدرسِ سرور.
+     */
+    public function test_no_customer_facing_view_prints_the_raw_ip(): void
+    {
+        $dir = resource_path('views/account');
+        $bad = [];
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
+
+        foreach ($files as $file) {
+            if (! str_ends_with((string) $file, '.blade.php')) {
+                continue;
+            }
+
+            foreach (file((string) $file) as $n => $line) {
+                // فقط چاپِ مقدار؛ نامِ فیلدِ فرم و کامنت‌ها شمرده نمی‌شوند.
+                if (preg_match('/(->|\$)ipv4\b/', $line)
+                    && ! str_contains($line, 'extra_ipv4')
+                    && ! str_contains($line, '//')
+                    && ! str_contains($line, '*')) {
+                    $bad[] = basename((string) $file).':'.($n + 1).'  '.trim($line);
+                }
+            }
+        }
+
+        $this->assertSame([], $bad,
+            "🔴 ویویِ رو به مشتری آدرسِ خام را چاپ می‌کند؛ برای ماشینِ پشتِ NAT\n"
+            ."   این یعنی آدرسِ خصوصی. به‌جایش از \$inst->address() و\n"
+            ."   \$inst->sshCommand() استفاده کن:\n   ".implode("\n   ", $bad));
+    }
+
+    // ═══════════ تنظیمات ═══════════
+
+    /**
+     * 🔴 `public_ip` باید از پنل قابلِ تنظیم باشد.
+     *
+     * تا امروز هیچ فرمی نداشت و پشتوانه‌اش `config('servernet.exit.public_ip')`
+     * بود که آن کلید در config/servernet.php **اصلاً وجود ندارد**. یعنی مقدار
+     * همیشه خالی می‌مانْد و راهی هم برای پرکردنش نبود — صفحهٔ اکسیت فقط شمارهٔ
+     * پورت را نشان می‌داد و پرتالِ مشتری هیچ آدرسی. قابلیتی که از روزِ اول
+     * نمی‌توانست کار کند.
+     */
+    public function test_the_public_ip_setting_is_saveable_from_the_panel(): void
+    {
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post('/admin/settings', [
+            'tab'         => 'infra',
+            'public_ip'   => '85.9.108.118',
+            'public_host' => 'ir1.servernet.cloud',
+        ])->assertRedirect();
+
+        $this->assertSame('85.9.108.118', Setting::get('public_ip'));
+        $this->assertSame('ir1.servernet.cloud', Setting::get('public_host'));
+    }
+
+    // ═══════════ اعلانِ تحویل ═══════════
+
+    /**
+     * 🔴 اعلانِ «سرورت آماده شد» بدونِ آدرسِ قابلِ استفاده نباید برود.
+     *
+     * `ready_notified_at` همان لحظه قفل می‌شود، پس اعلانِ غلط اعلانِ درست را
+     * برای همیشه می‌کشد. باید صبر کند تا فوروارد ساخته شود.
+     */
+    public function test_the_ready_notice_waits_until_there_is_a_usable_address(): void
+    {
+        Http::fake();
+        $inst = $this->inst(['meta' => []]);          // بی‌فوروارد
+
+        app(\App\Services\Cloud\CloudProvisioner::class)->deliverOwedNotices();
+
+        $this->assertNull($inst->fresh()->ready_notified_at,
+            '🔴 اعلان با آدرسِ خصوصی رفت و حالا اعلانِ درست هرگز نمی‌رود');
+    }
+
+    /** و به‌محضِ ساخته‌شدنِ فوروارد، همان ردیف اعلانش را می‌گیرد. */
+    public function test_the_notice_goes_out_once_the_forward_exists(): void
+    {
+        Http::fake();
+        $inst = $this->inst();                        // با فوروارد
+
+        app(\App\Services\Cloud\CloudProvisioner::class)->deliverOwedNotices();
+
+        $this->assertNotNull($inst->fresh()->ready_notified_at,
+            'تحویلِ سالم هم بسته شد — گارد بیش از اندازه سفت است');
+    }
+}

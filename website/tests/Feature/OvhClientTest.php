@@ -211,6 +211,159 @@ class OvhClientTest extends TestCase
         $this->assertSame([], $r['plans']);
     }
 
+    // ═══════════ عیب‌یابیِ کاتالوگ ═══════════
+
+    /**
+     * 🔴 probe باید کاتالوگِ فروش را هم نشان دهد — وگرنه نگاشت از روی **حدس**
+     * نوشته می‌شود.
+     *
+     * درسِ همین هفته: شکلِ `locations[]`ِ هتزنر حدس زده شد، تست با همان حدس
+     * نوشته شد، هر دو سبز شدند، و رفع روی پروداکشن هیچ ردیفی را فیلتر نکرد.
+     * ساختارِ ندیده = تستِ سبزِ بی‌اثر.
+     *
+     * ⚠️ زیرمجموعه از خودِ `/me` می‌آید نه از حدس: حسابِ US و FR کاتالوگِ
+     * متفاوت دارند و پارامترِ اشتباه می‌تواند قیمتِ کشورِ دیگری را برگردانَد —
+     * قیمتی که ما اصلاً نمی‌توانیم بخریم.
+     */
+    public function test_the_probe_asks_the_order_catalogue_with_the_account_subsidiary(): void
+    {
+        $this->configure();
+        $this->fake([
+            '*/1.0/order/catalog/public/vps*' => Http::response([
+                'plans' => [
+                    ['planCode' => 'vps-le-2-2-40', 'invoiceName' => 'VPS Starter'],
+                    ['planCode' => 'vps-le-4-8-80', 'invoiceName' => 'VPS Comfort'],
+                ],
+            ]),
+            '*/1.0/me' => Http::response(['nichandle' => 'us-x', 'ovhSubsidiary' => 'US']),
+            '*/1.0/vps' => Http::response([]),
+        ]);
+
+        $out = $this->client()->rawProbe();
+
+        $this->assertSame('US', $out['ovhSubsidiary']);
+        $this->assertSame(2, $out['/order/catalog/public/vps']['plan_count']);
+
+        // زیرمجموعه واقعاً در کوئری رفته باشد، نه فقط خوانده شده باشد
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => str_contains($pair[0]->url(), '/order/catalog')
+                    && str_contains($pair[0]->url(), 'ovhSubsidiary=US')
+            )
+        );
+    }
+
+    /** بی‌زیرمجموعه اصلاً کاتالوگ پرسیده نمی‌شود — پارامترِ حدسی ممنوع */
+    public function test_without_a_subsidiary_the_catalogue_is_not_queried(): void
+    {
+        $this->configure();
+        $this->fake([
+            '*/1.0/me' => Http::response(['nichandle' => 'x']),
+            '*/1.0/vps' => Http::response([]),
+        ]);
+
+        $out = $this->client()->rawProbe();
+
+        $this->assertArrayNotHasKey('/order/catalog/public/vps', $out);
+        $this->assertFalse(
+            collect(Http::recorded())->contains(
+                fn ($pair) => str_contains($pair[0]->url(), '/order/catalog')
+            )
+        );
+    }
+
+    // ═══════════ منطقه ═══════════
+
+    /**
+     * 🔴 `ovh-eu` / `ovh-ca` / `ovh-us` سه شرکتِ حقوقیِ جدا با پایگاهِ کاربریِ
+     * جدا هستند. کلیدی که روی یکی ساخته شده روی دیگری **وجود ندارد** و پاسخش
+     * همان ۴۰۳ِ بی‌توضیحِ امضاست. یعنی منطقهٔ اشتباه دقیقاً شبیهِ کلیدِ غلط
+     * دیده می‌شود، و بی‌این تست هیچ‌چیز نمی‌گوید کدامش بوده.
+     *
+     * @return array<string, array{0:string, 1:string}>
+     */
+    public static function regions(): array
+    {
+        return [
+            'اروپا'  => ['eu', 'https://eu.api.ovh.com/1.0/vps'],
+            'کانادا' => ['ca', 'https://ca.api.ovh.com/1.0/vps'],
+            'آمریکا' => ['us', 'https://api.us.ovhcloud.com/1.0/vps'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('regions')]
+    public function test_each_region_talks_to_its_own_endpoint(string $region, string $expected): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', $region);
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(fn ($pair) => $pair[0]->url() === $expected),
+            "درخواست باید به {$expected} می‌رفت."
+        );
+    }
+
+    /** پیش‌فرض باید همان رفتارِ قبلیِ کلاس بمانَد — نصبِ موجود نباید جابه‌جا شود */
+    public function test_an_unset_region_still_means_europe(): void
+    {
+        $this->configure();
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => $pair[0]->url() === 'https://eu.api.ovh.com/1.0/vps'
+            )
+        );
+    }
+
+    /** مقدارِ بی‌معنا نباید کلاینت را بترکاند؛ به پیش‌فرض برمی‌گردد */
+    public function test_a_nonsense_region_falls_back_instead_of_breaking(): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', 'atlantis');
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        $this->assertTrue(
+            collect(Http::recorded())->contains(
+                fn ($pair) => $pair[0]->url() === 'https://eu.api.ovh.com/1.0/vps'
+            )
+        );
+    }
+
+    /**
+     * ⚠️ امضا شاملِ **کاملِ** آدرس است، پس اگر روزی میزبانِ امضا و میزبانِ ارسال
+     * از هم جدا شوند، هر درخواست ۴۰۳ می‌گیرد و پیام هیچ اشاره‌ای به منطقه ندارد.
+     */
+    public function test_the_signature_follows_the_region_it_actually_calls(): void
+    {
+        $this->configure();
+        Setting::put('ovh_region', 'us');
+        $this->fake(['*/1.0/vps' => Http::response([])]);
+
+        $this->client()->listServers();
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/1.0/vps')) {
+                return true;
+            }
+
+            $ts = $request->header('X-Ovh-Timestamp')[0] ?? '';
+
+            $expected = '$1$'.sha1(implode('+', [
+                self::AS, self::CK, 'GET', 'https://api.us.ovhcloud.com/1.0/vps', '', $ts,
+            ]));
+
+            return ($request->header('X-Ovh-Signature')[0] ?? '') === $expected;
+        });
+    }
+
     // ═══════════ سفیدبرچسبی ═══════════
 
     public function test_it_is_registered_and_never_leaks_its_name(): void

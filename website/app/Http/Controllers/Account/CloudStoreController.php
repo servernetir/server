@@ -922,9 +922,26 @@ class CloudStoreController extends Controller
                 'trafficGb' => (int) $offer->traffic_gb,
             ];
 
+            /*
+            | 🔴 نرخِ ساعتی از ردیفی می‌آید که زیرساخت واقعاً **ساعتی
+            | می‌فروشدش** — نه از کارتِ ارزان‌ترین.
+            |
+            | قبلاً `$offer->hourlyIrt()` بود؛ `$offer` ارزان‌ترین ردیفِ اسلاگ
+            | است و ممکن است اصلاً ساعتی نداشته باشد. آن‌وقت صفحه نرخی نشان
+            | می‌داد («ماهانه÷۷۲۰») که هیچ ردیفی پشتش نبود و سفارش سرِ تحویل
+            | رد می‌شد. `rate = 0` یعنی «این اندازه در این مکان ساعتی ندارد» و
+            | UI کلیدِ ساعتی را همان‌جا پنهان می‌کند.
+            |
+            | ⚠️ محدود به همین مکان: `$rows` روی چند مکان پخش است و ردیفِ
+            | ساعتیِ شهرِ دیگر مجوزِ فروشِ این شهر نیست — دقیقاً همان ناهم‌خوانی‌ای
+            | که `store()` بعداً ردش می‌کرد.
+            */
+            $hourlyRow = $rows->first(fn (CloudPlan $p) => (string) $p->location_code === (string) $code
+                && $p->supportsHourly());
+
             $hourlyMap[(string) $slug] = [
-                'rate' => $offer->hourlyIrt(),
-                'min' => $offer->hourlyStartMinIrt(),
+                'rate' => $hourlyRow?->hourlyIrt() ?? 0,
+                'min' => $hourlyRow?->hourlyStartMinIrt() ?? 0,
             ];
 
             // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
@@ -1098,9 +1115,25 @@ class CloudStoreController extends Controller
         // ── پلن باید در همین مکان قابلِ فروش باشد ──
         // `offers()` خودش sellable و ارزان‌ترین را می‌دهد؛ پس پلنِ غیرفعال،
         // ناموجود، قیمت‌صفر یا مربوط به مکانِ دیگر این‌جا پیدا نمی‌شود.
-        $offer = CloudPlan::offers($data['location'])->get($data['plan']);
+        $wantsHourly = ($data['billing_mode'] ?? 'cycle') === 'hourly';
+
+        /*
+        | 🔴 عرضهٔ ساعتی از **مجموعهٔ ساعتی‌فروش‌ها** انتخاب می‌شود، نه از کلِ
+        | فروختنی‌ها.
+        |
+        | بی‌این، `offers()` ارزان‌ترین ردیفِ اسلاگ را می‌داد — که ممکن است
+        | زیرساخت اصلاً ساعتی نفروشدش. آن‌وقت نرخِ نمایش‌داده‌شده مالِ ردیفی
+        | بود که سفارش رویش رد می‌شد، و پولِ کیفِ پول قبلِ کشفِ آن کم شده بود.
+        */
+        $offer = CloudPlan::offers($data['location'], $wantsHourly)->get($data['plan']);
 
         if ($offer === null) {
+            // تفکیکِ صادقانه: «این پلن نیست» با «این پلن ساعتی نیست» یکی نیست —
+            // دومی راهِ حل دارد (همین پلن، ماهانه) و باید همان را بگوید.
+            if ($wantsHourly && CloudPlan::offers($data['location'])->get($data['plan']) !== null) {
+                return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_unsupported')]);
+            }
+
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_plan')]);
         }
 
@@ -1129,7 +1162,7 @@ class CloudStoreController extends Controller
         // اگر افزودنیِ پولی خواسته، باید زیرساختی باشد که بتواند تحویلش دهد —
         // وگرنه پول گرفته‌ایم و وعده‌ای داده‌ایم که انجام نمی‌شود.
         if (! $addonSvc->isEmpty($addons)
-            && $addonSvc->bestPlanFor((string) $offer->slug, $addons, app(\App\Services\Cloud\CloudManager::class)) === null) {
+            && $addonSvc->bestPlanFor((string) $offer->slug, $addons, app(\App\Services\Cloud\CloudManager::class), $wantsHourly) === null) {
             return back()->withInput()->withErrors([
                 'extra_ipv4' => __('ui.cvb_e_ip'),
             ]);
@@ -1183,11 +1216,11 @@ class CloudStoreController extends Controller
         // ── مسیرِ ساعتی: پیش‌پرداخت از کیفِ پول، بی‌فاکتور ──
         // 🔴 برمتال ساعتی فروخته نمی‌شود: سرورِ فیزیکی را **ماهانه** می‌خریم و
         // «ترمِ خرید = ترمِ فروش» خطِ قرمزِ ضرر است (درسِ sn-svc-76).
-        if (($data['billing_mode'] ?? 'cycle') === 'hourly' && $offer->isMetal()) {
+        if ($wantsHourly && $offer->isMetal()) {
             return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_metal_hourly')]);
         }
 
-        if (($data['billing_mode'] ?? 'cycle') === 'hourly') {
+        if ($wantsHourly) {
             return $this->orderHourly($request, $customer, $offer, $data, $addons, $sshKey, $label, $locText, $description);
         }
 

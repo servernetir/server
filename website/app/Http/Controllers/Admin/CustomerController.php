@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\BankTransferReceipt;
 use App\Models\CreditEntry;
+use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\Invoice;
@@ -17,6 +18,7 @@ use App\Services\Notify\CustomerNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -422,6 +424,9 @@ class CustomerController extends Controller
             | 🔴 `answered = false` صریح، نه `!answered`.
             | تماسِ در جریان (`null`) از‌دست‌رفته نیست و نباید بجِ قرمز بگیرد.
             */
+            'notes' => Schema::hasTable('customer_notes')
+                ? \App\Models\CustomerNote::where('customer_id', $customer->id)->with('author')->latest('id')->get()
+                : collect(),
             'callsMissed' => Schema::hasTable('phone_calls')
                 ? PhoneCall::where('customer_id', $customer->id)
                     ->where('answered', false)->count()
@@ -450,6 +455,76 @@ class CustomerController extends Controller
         ];
 
         return back()->with('ok', 'وضعیت مشتری به «'.$labels[$data['status']].'» تغییر کرد.');
+    }
+
+    /**
+     * تنظیمِ دستیِ کیفِ پولِ مشتری — افزایش یا کاهش، با توضیحِ اجباری.
+     *
+     * 🔴 دفترِ اعتبار **افزودنی** است: موجودی جمعِ سطرهاست، نه یک ستونِ
+     * قابلِ‌ویرایش (`Customer::creditBalance()` یک SUM است). پس «صفر کردن»
+     * یعنی یک سطرِ منفی، نه پاک‌کردنِ سطرهای قبلی. تاریخچه دستکاری نمی‌شود —
+     * همان چیزی که یک ماه بعد باید بشود توضیحش داد.
+     *
+     * 🔴 توضیح **اجباری** است. یک جابه‌جاییِ پولِ بی‌دلیل، ماه‌ها بعد قابلِ
+     * بازسازی نیست: نه معلوم است بابتِ چه بوده، نه اینکه اصلاً درست بوده.
+     * تنها کسی که می‌داند، همان لحظه می‌داند.
+     *
+     * ⚠️ موجودی منفی نمی‌شود. هیچ‌جای این سیستم موجودیِ منفی را نمی‌فهمد
+     * (پرداختِ فاکتور از کیفِ پول، مترِ ساعتیِ سرورِ ابری، و APIِ مشتری همه
+     * فرض می‌کنند موجودی ≥ صفر است). اجازه‌دادنش یعنی بدهیِ خاموشی که هیچ
+     * صورت‌حسابی نشانش نمی‌دهد.
+     *
+     * ⚠️ فقط تومان. کلِ دفترِ اعتبار در این پروژه IRT است؛ ساختنِ سطرِ یورویی
+     * موجودی‌ای می‌سازد که هیچ مسیرِ خرجی برایش وجود ندارد.
+     */
+    public function credit(Request $request, Customer $customer): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'direction' => ['required', 'in:add,subtract'],
+            'amount'    => ['required', 'integer', 'min:1', 'max:100000000000'],
+            'note'      => ['required', 'string', 'max:200'],
+        ], [
+            'note.required' => 'توضیح اجباری است — بی‌آن، این تغییر بعداً قابلِ توضیح نیست.',
+            'amount.min'    => 'مبلغ باید بزرگ‌تر از صفر باشد.',
+        ], ['amount' => 'مبلغ', 'note' => 'توضیح']);
+
+        $delta = (int) $data['amount'] * ($data['direction'] === 'add' ? 1 : -1);
+        $balance = $customer->creditBalance('IRT');
+
+        if ($balance + $delta < 0) {
+            return back()->withErrors(
+                'موجودی منفی نمی‌شود. حداکثرِ قابلِ کسر: '.number_format($balance).' تومان.'
+            );
+        }
+
+        /*
+        | ⚠️ `balance_after` عکسِ لحظه‌ای است، نه منبعِ حقیقت. اگر دو مدیر
+        | هم‌زمان تنظیم کنند این عدد ممکن است گمراه باشد، ولی موجودیِ واقعی
+        | (SUM) درست می‌مانَد. برای همین هیچ‌جا از این ستون تصمیم گرفته نمی‌شود.
+        */
+        \App\Models\CreditEntry::create([
+            'customer_id'   => $customer->id,
+            'currency_code' => 'IRT',
+            'amount'        => $delta,
+            'balance_after' => $balance + $delta,
+            'reason'        => 'adjustment',
+            'note'          => $data['note'],
+        ]);
+
+        \App\Models\ActivityLog::record(
+            $customer->id,
+            'credit_adjust',
+            ($delta > 0 ? 'افزایشِ ' : 'کاهشِ ').number_format(abs($delta)).' تومان اعتبار توسط «'
+                .($request->user()->name ?: 'مدیر').'» — '.$data['note'],
+            $request,
+            'staff',
+        );
+
+        return back()->with('ok',
+            ($delta > 0 ? 'افزایشِ ' : 'کاهشِ ').number_format(abs($delta))
+            .' تومان ثبت شد. موجودیِ جدید: '.number_format($balance + $delta).' تومان.');
     }
 
     /**
@@ -545,6 +620,56 @@ class CustomerController extends Controller
             __('ui.act_pw_staff', [], $customer->locale ?: 'fa'), $request, 'staff');
 
         return back()->with('ok', 'رمز عبور مشتری تغییر کرد و به او اطلاع داده شد.');
+    }
+
+    /**
+     * نمایشِ **یک‌بارهٔ** شمارهٔ کاملِ کارت — فقط برای بازگشتِ وجه.
+     *
+     * ═══ چرا اصلاً وجود دارد ═══
+     *
+     * PANِ کامل در `card_number_enc` هست (به درخواستِ صریحِ کارفرما) ولی
+     * هیچ‌جای رابط نشان داده نمی‌شد. نتیجه‌اش این بود که مدیر برای عودتِ وجه
+     * شماره را نداشت و مجبور شد از مشتری بخواهد دوباره بفرستد — یعنی دادهٔ
+     * حساس از کانالِ ناامن (چت/پیامک) رد شد، دقیقاً برعکسِ چیزی که رمزنگاری
+     * برای آن بود.
+     *
+     * ═══ چرا این‌شکلی و نه یک ستون در جدول ═══
+     *
+     * 🔴 شمارهٔ کارت روی صفحه‌ای که همیشه باز است، با هر اسکرین‌شات و هر
+     * رهگذری پخش می‌شود. پس:
+     *   • فقط با کلیکِ آگاهانه، و فقط همان یک بار در flash
+     *   • فقط مدیر (`admin`)، نه هر کاربرِ پنل
+     *   • در لاگِ فعالیت **ثبت** می‌شود — دیدنِ PAN باید ردِ حسابرسی داشته باشد
+     *   • سقفِ نرخ، تا یک نشستِ لورفته نتواند کلِ جدول را بیرون بکشد
+     *
+     * ⚠️ برای عودتِ وجه معمولاً **شبا** لازم است نه کارت؛ همان‌جا روی صفحه
+     * هست. این دکمه برای موردی است که واقعاً کارت‌به‌کارت لازم شود.
+     */
+    public function revealCard(Request $request, Customer $customer, BankAccount $account): RedirectResponse
+    {
+        if ((int) $account->customer_id !== (int) $customer->id) {
+            return back()->with('err', 'این حساب بانکی مالِ این مشتری نیست.');
+        }
+
+        $key = 'reveal-card:'.$request->user()?->id;
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return back()->with('err', 'تعدادِ نمایش زیاد شد؛ چند دقیقه بعد دوباره امتحان کنید.');
+        }
+
+        RateLimiter::hit($key, 600);
+
+        $pan = (string) ($account->card_number_enc ?? '');
+
+        if ($pan === '') {
+            return back()->with('err', 'شمارهٔ کامل برای این حساب ذخیره نشده — از شبا استفاده کنید.');
+        }
+
+        ActivityLog::record($customer->id, 'card_revealed',
+            'شمارهٔ کاملِ کارت (بانکِ '.($account->bank_name ?: '؟').' ••••'.$account->card_last4
+            .') برای بازگشتِ وجه نمایش داده شد.', $request, 'staff');
+
+        return back()->with('ok', 'شمارهٔ کارت: '.$pan.'  — این پیام یک‌بارمصرف است.');
     }
 
     /**

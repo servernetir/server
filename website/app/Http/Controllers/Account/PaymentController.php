@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\Setting;
 use App\Services\Payment\GatewayRegistry;
 use App\Services\Payment\PaymentService;
+use App\Services\Analytics\DataLayerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -67,10 +68,31 @@ class PaymentController extends Controller
 
         $invoice->load('items', 'payments', 'customer.identityVerification');
 
+        /*
+        | 🔴 خریدارِ حقوقی، نه شخصِ پشتِ حساب.
+        |
+        | تا امروز این‌جا همیشه `displayName()` می‌نشست — نامِ شخصِ حقیقیِ
+        | صاحبِ حساب. مشتری‌ای که اطلاعاتِ شرکتش را وارد کرده بود، هم روی
+        | پیش‌فاکتور و هم روی فاکتورِ فروش نامِ خودش را می‌دید؛ سندی که برای
+        | دفاترِ آن شرکت بی‌مصرف است و ارزش افزوده‌اش هم قابلِ استفاده نیست.
+        |
+        | ⚠️ هویت **زنده** خوانده می‌شود، نه منجمد روی فاکتور: جدولِ
+        | `invoices` ستونی برای پروفایل ندارد. پس اگر مشتری بعداً نامِ شرکتش
+        | را عوض کند، فاکتورهای قدیمی هم عوض می‌شوند. منجمدکردنش یک ستونِ
+        | `billing_profile_id` می‌خواهد — کارِ جدا.
+        */
+        $buyerProfile = $invoice->customer?->billingProfile();
+
         return view('account.invoice-print', [
             'invoice'   => $invoice,
             'paid'      => $invoice->payments->firstWhere('status', 'paid'),
             'contact'   => site_contact(),
+            // نامِ شرکت اگر پروفایلِ حقوقی هست، وگرنه همان نامِ شخصیِ قبلی
+            'buyerName'     => $buyerProfile?->displayName()
+                ?: ($invoice->customer?->displayName() ?? '—'),
+            'buyerIdentity' => $buyerProfile?->invoiceIdentity() ?? [],
+            'buyerAddress'  => $buyerProfile?->invoiceAddress(),
+            'buyerPhone'    => $buyerProfile?->mobile ?: $invoice->customer?->phone,
             /*
             | 🔴 نامِ ثبتی از **هویتِ حقوقیِ شرکت** می‌آید، نه از `bank_holder`.
             |
@@ -357,7 +379,16 @@ class PaymentController extends Controller
                     'number' => (string) $invoice->number,
                     'amount' => invoice_money($invoice->due(), $invoice->currency_code ?: 'IRT'),
                 ],
-                '',                               // مخاطب فقط مدیر است
+                /*
+                | تا شهریور ۱۴۰۵ این‌جا رشتهٔ خالی بود، چون `bank_receipt` در
+                | کاتالوگ `audience = ADMIN` داشت و متن اصلاً مصرف نمی‌شد.
+                | حالا که کارفرما الگوی پیامکِ خطاب‌به‌مشتری برایش ساخته و
+                | مخاطب `BOTH` شده، متنِ خالی یعنی پیامِ بلهٔ **بی‌متن** —
+                | پس این‌جا هم باید متنِ واقعی باشد. (پیامک از الگو می‌رود؛
+                | این متن پشتیبانِ بله و ایمیل است.)
+                */
+                'رسیدِ واریزِ شما برای پیش‌فاکتورِ '.fa_num((string) $invoice->number)
+                    .' ثبت شد و در انتظارِ بررسی است. نتیجه را همین‌جا اطلاع می‌دهیم.',
                 [
                     'شناسهٔ پرداخت' => (string) $data['reference'],
                     'به حساب'      => $account?->label,
@@ -442,6 +473,10 @@ class PaymentController extends Controller
         }
 
         $outcome = $this->payments->settle($payment, $request->query());
+
+        if ($outcome->ok && ! $outcome->alreadySettled && $outcome->payment !== null) {
+            DataLayerService::flashPurchase($outcome->payment);
+        }
 
         return view('account.payment-result', [
             'ok'       => $outcome->ok,
@@ -646,6 +681,11 @@ class PaymentController extends Controller
 
         if (! $outcome['ok']) {
             return back()->withErrors($outcome['msg']);
+        }
+
+        $latestPayment = $invoice->payments()->latest('id')->first();
+        if ($latestPayment !== null) {
+            DataLayerService::flashPurchase($latestPayment);
         }
 
         return redirect()->route($this->rp().'account.invoice', $invoice)

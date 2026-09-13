@@ -286,4 +286,133 @@ class InvoiceCarriesLegalIdentityTest extends TestCase
         $this->assertSame(0, $this->sealCount($this->print($customer, $invoice)),
             'مهر روی پیش‌فاکتورِ پرداخت‌نشده چاپ شد');
     }
+
+    // ═══════ خریدارِ حقوقی — شهریور ۱۴۰۵ ═══════
+
+    /** پروفایلِ حقوقیِ کامل برای یک مشتری. */
+    private function companyProfile(Customer $c, array $over = []): \App\Models\CustomerProfile
+    {
+        // ⚠️ `$over` **اول**: در PHP عملگرِ + روی آرایه سمتِ چپ را برنده
+        // می‌کند، پس با ترتیبِ برعکس هیچ override‌ای اثر نمی‌کرد و تستِ
+        // «فیلدِ خالی چاپ نمی‌شود» روی دادهٔ پرشده سبز می‌شد.
+        $p = \App\Models\CustomerProfile::create($over + [
+            'customer_id'         => $c->id,
+            'type'                => 'company',
+            'status'              => 'verified',
+            'mobile'              => '09121110000',
+            'email'               => 'billing@sherkat.example',
+            'country'             => 'IR',
+            'province'            => 'تهران',
+            'city'                => 'تهران',
+            'address'             => 'خیابان ولیعصر، پلاک ۱۲',
+            'postal_code'         => '1234567890',
+            'company_name'        => 'شرکت نمونهٔ پارس',
+            'registration_number' => '987654',
+            'economic_code'       => '411100002222',
+        ]);
+
+        $p->setSecure('company_national_id', '14001234567');
+        $p->save();
+
+        return $p;
+    }
+
+    private function individualProfile(Customer $c, array $over = []): \App\Models\CustomerProfile
+    {
+        return \App\Models\CustomerProfile::create($over + [
+            'customer_id' => $c->id,
+            'type'        => 'individual',
+            'status'      => 'verified',
+            'mobile'      => '09120000000',
+            'email'       => 'me@example.com',
+            'country'     => 'IR',
+            'address'     => 'خانهٔ شخصی',
+            'first_name'  => 'احسان',
+            'last_name'   => 'ابراهیمی',
+        ]);
+    }
+
+    /**
+     * 🔴 هستهٔ خواستهٔ کارفرما: مشتری‌ای که اطلاعات حقوقی داده، باید روی
+     * پیش‌فاکتور و فاکتور **شرکتش** را ببیند نه نامِ شخصیِ خودش.
+     */
+    public function test_a_company_customer_sees_the_company_on_the_invoice(): void
+    {
+        $customer = $this->customer();
+        $this->individualProfile($customer, ['is_default' => true]);
+        $this->companyProfile($customer);
+
+        $html = $this->print($customer, $this->invoice($customer));
+
+        $this->assertStringContainsString('شرکت نمونهٔ پارس', $html);
+        $this->assertStringContainsString(fa_num('14001234567'), $html, 'شناسهٔ ملی شرکت');
+        $this->assertStringContainsString(fa_num('987654'), $html, 'شمارهٔ ثبت');
+        $this->assertStringContainsString(fa_num('411100002222'), $html, 'کد اقتصادیِ خریدار');
+        $this->assertStringContainsString('خیابان ولیعصر', $html, 'نشانیِ شرکت');
+        $this->assertStringContainsString(fa_num('1234567890'), $html, 'کدپستی');
+
+        // و نامِ شخصِ حقیقی دیگر به‌عنوان خریدار نمی‌نشیند
+        $this->assertStringNotContainsString('احسان ابراهیمی', $html);
+    }
+
+    /**
+     * ⚠️ حقوقی بر حقیقی مقدم است حتی وقتی حقیقی `is_default` باشد — چون
+     * وارد کردنِ اطلاعاتِ شرکت خودش اعلامِ نیت است. تستِ بالا این را با
+     * is_default روی حقیقی می‌سنجد؛ این‌جا حالتِ برعکسِ ترتیبِ ساخت.
+     */
+    public function test_the_company_wins_regardless_of_which_profile_is_default(): void
+    {
+        $customer = $this->customer();
+        $this->companyProfile($customer);
+        $this->individualProfile($customer, ['is_default' => true]);
+
+        $this->assertSame('company', $customer->billingProfile()?->type);
+    }
+
+    /** مشتریِ بی‌پروفایلِ حقوقی باید دقیقاً همان رفتارِ قبلی را ببیند. */
+    public function test_a_personal_customer_still_sees_their_own_name(): void
+    {
+        $customer = $this->customer();
+        $this->individualProfile($customer, ['is_default' => true]);
+
+        $html = $this->print($customer, $this->invoice($customer));
+
+        $this->assertNull($customer->billingProfile());
+        $this->assertStringContainsString('احسان ابراهیمی', $html);
+    }
+
+    /**
+     * ⚠️ همان قاعدهٔ سمتِ فروشنده: فیلدِ خالی **اصلاً** چاپ نمی‌شود.
+     * «شماره ثبت: —» روی سندِ مالی از نبودنش بدتر است.
+     */
+    public function test_empty_company_fields_print_no_empty_rows(): void
+    {
+        $customer = $this->customer();
+        $this->companyProfile($customer, [
+            'registration_number' => null,
+            'economic_code'       => null,
+            'postal_code'         => null,
+        ]);
+
+        $html = $this->print($customer, $this->invoice($customer));
+
+        $this->assertStringContainsString('شرکت نمونهٔ پارس', $html);
+        $this->assertStringNotContainsString(__('ui.trust_reg_no').':', $html);
+        $this->assertStringNotContainsString(__('ui.trust_economic').':', $html);
+        $this->assertStringNotContainsString(__('ui.invp_postal_code'), $html);
+    }
+
+    /** پیش‌فاکتور (پرداخت‌نشده) و فاکتورِ فروش (پرداخت‌شده) یک ویو دارند. */
+    public function test_the_proforma_carries_the_company_too(): void
+    {
+        [$customer, $invoice] = $this->paidInvoice();
+        $this->companyProfile($customer);
+
+        $unpaid = $this->invoice($customer, 'unpaid');
+
+        $this->assertStringContainsString('شرکت نمونهٔ پارس', $this->print($customer, $unpaid),
+            'پیش‌فاکتور');
+        $this->assertStringContainsString('شرکت نمونهٔ پارس', $this->print($customer, $invoice),
+            'فاکتور فروش');
+    }
 }

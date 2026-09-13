@@ -29,7 +29,12 @@
   /* 🔴 `root@{{ ... }}` در Blade دستورِ **فرار** است و بی‌هیچ خطایی بدونِ IP
      چاپ می‌شود. رشته این‌جا ساخته می‌شود. تستی هم هست که مقدارِ واقعی را
      می‌سنجد، نه صرفاً کدِ ۲۰۰. */
-  $sshCmd = $ready ? 'ssh root'.'@'.$ci->ipv4 : null;
+  /* ⚠️ و آدرس از `address()` می‌آید نه از ستونِ خام: ماشینِ پشتِ NAT آدرسِ
+     خصوصی دارد و آنچه به کار می‌آید «IP عمومی : پورتِ فورواردشده» است.
+     همان تیکتِ «آی‌پی خصوصی است» — یک بار در صفحهٔ مدیریتِ سرور رفع شد ولی
+     این کارت جا ماند و مشتری دوباره همان را در داشبورد دید. */
+  $sshCmd = $ready ? $ci->sshCommand() : null;
+  $addr   = $ci?->address();
 
   $stageIdx = $ci?->stageIndex() ?? 0;
   $steps = [
@@ -91,7 +96,7 @@
   @elseif($cloud)
     {{-- ── نشانیِ شبکه — هرکدام جعبهٔ اسکرولِ خودش، پس صفحه هرگز افقی نمی‌رود --}}
     <div class="svc-net">
-      <div class="svc-net-r"><small>IPv4</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $ci->ipv4 }}</code></div>
+      <div class="svc-net-r"><small>{{ $ci->hasPrivateIp() ? __('ui.cs_address') : 'IPv4' }}</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $addr ?: '—' }}</code></div>
       @if($ci->ipv6)
         <div class="svc-net-r"><small>IPv6</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $ci->ipv6 }}</code></div>
       @endif

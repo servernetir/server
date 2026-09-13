@@ -155,6 +155,57 @@ class BaleAdminChannelTest extends TestCase
         $this->assertNoSafir('chat_idِ صریح بود ولی باز سراغِ سفیر رفت');
     }
 
+    public function test_an_admin_event_is_sent_to_every_configured_admin(): void
+    {
+        config()->set('servernet.contact.notify_phones', ['09121110000', '09912220000']);
+        config()->set('servernet.contact.notify_chat_ids', ['700001', '700002']);
+
+        app(AdminNotifier::class)->event('پرداختِ موفق', ['مبلغ' => '۱۲۰٬۰۰۰']);
+
+        foreach (['700001', '700002'] as $chatId) {
+            Http::assertSent(fn ($request) => str_contains($request->url(), '/sendMessage')
+                && (string) ($request->data()['chat_id'] ?? '') === $chatId);
+        }
+
+        $this->assertNoSafir('اعلانِ چند مدیر نباید از سفیرِ پولی برود');
+    }
+
+    public function test_a_second_admin_can_resolve_chat_id_from_their_shared_phone(): void
+    {
+        config()->set('servernet.contact.notify_phones', ['09121110000', '09912220000']);
+        config()->set('servernet.contact.notify_chat_ids', ['700001']);
+
+        BaleContact::create([
+            'mobile' => '09912220000',
+            'chat_id' => '700002',
+            'linked_at' => now(),
+        ]);
+
+        app(AdminNotifier::class)->event('تیکت تازه');
+
+        Http::assertSent(fn ($request) => (string) ($request->data()['chat_id'] ?? '') === '700001');
+        Http::assertSent(fn ($request) => (string) ($request->data()['chat_id'] ?? '') === '700002');
+    }
+
+    public function test_adding_phone_list_keeps_the_legacy_chat_for_the_first_admin(): void
+    {
+        config()->set('servernet.contact.notify_phone', self::ADMIN_PHONE);
+        config()->set('servernet.contact.notify_chat_id', self::ADMIN_CHAT);
+        config()->set('servernet.contact.notify_phones', [self::ADMIN_PHONE, '09912220000']);
+        config()->set('servernet.contact.notify_chat_ids', []);
+
+        BaleContact::create([
+            'mobile' => '09912220000',
+            'chat_id' => '700002',
+            'linked_at' => now(),
+        ]);
+
+        app(AdminNotifier::class)->event('هشدارِ سلامت');
+
+        Http::assertSent(fn ($request) => (string) ($request->data()['chat_id'] ?? '') === self::ADMIN_CHAT);
+        Http::assertSent(fn ($request) => (string) ($request->data()['chat_id'] ?? '') === '700002');
+    }
+
     /** مقصدِ نداشته باید **ثبت** شود، نه اینکه بی‌صدا رد شود */
     public function test_a_missing_admin_destination_is_recorded_not_swallowed(): void
     {

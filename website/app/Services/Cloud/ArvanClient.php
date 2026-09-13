@@ -2,7 +2,11 @@
 
 namespace App\Services\Cloud;
 
+use App\Models\CloudImage;
 use App\Models\Setting;
+use App\Services\ExchangeRate;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -72,7 +76,7 @@ class ArvanClient implements CloudProvider
         return [
             'console' => false,          // کنسولِ تحتِ وب در API عمومی نیست
             'rebuild' => true,
-            'resize'  => true,           // change-flavor
+            'resize' => true,           // change-flavor
             'snapshot' => true,
             'metrics' => false,
             'reset_password' => true,
@@ -125,11 +129,11 @@ class ArvanClient implements CloudProvider
             $url = self::BASE.$path;
 
             $res = match (strtoupper($method)) {
-                'GET'    => $http->get($url, $query),
-                'POST'   => $http->post($url, $payload),
-                'PATCH'  => $http->patch($url, $payload),
+                'GET' => $http->get($url, $query),
+                'POST' => $http->post($url, $payload),
+                'PATCH' => $http->patch($url, $payload),
                 'DELETE' => $http->delete($url, $payload),
-                default  => throw new \InvalidArgumentException($method),
+                default => throw new \InvalidArgumentException($method),
             };
         } catch (\Throwable $e) {
             Log::warning('arvan.transport', ['path' => $path, 'err' => $e->getMessage()]);
@@ -144,9 +148,39 @@ class ArvanClient implements CloudProvider
             return ['ok' => true, 'status' => $res->status(), 'data' => $data, 'message' => (string) ($body['message'] ?? '')];
         }
 
-        $msg = (string) ($body['message'] ?? data_get($body, 'errors.0') ?? 'خطای نامشخص');
+        /*
+        | ═══ 🔴 پیامِ خطا باید **قابلِ اقدام** باشد، نه «Bad Request» ═══
+        |
+        | آروان خطاهای اعتبارسنجی را در `errors` می‌گذارد — گاهی نگاشتِ
+        | فیلد→پیام، گاهی فهرست. شکلِ قبلی فقط `message` و `errors.0` را
+        | می‌دید و روی پاسخِ نگاشتی به عبارتِ خشکِ وضعیت سقوط می‌کرد. مدیر
+        | «Bad Request» می‌دید و هیچ نمی‌فهمید چه را درست کند — سرِ سرویسِ #۹۳
+        | یک دورِ کاملِ عیب‌یابی خرج برداشت تا شکلِ درستِ `security_groups`
+        | پیدا شود.
+        */
+        $msg = (string) ($body['message'] ?? '');
+        $errors = $body['errors'] ?? null;
 
-        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg];
+        if (is_array($errors) && $errors !== []) {
+            $parts = [];
+
+            foreach ($errors as $field => $err) {
+                $text = is_array($err) ? implode('، ', array_map('strval', $err)) : (string) $err;
+                $parts[] = is_string($field) ? $field.': '.$text : $text;
+            }
+
+            $detail = implode(' · ', $parts);
+            $msg = $msg === '' ? $detail : $msg.' — '.$detail;
+        }
+
+        if (trim($msg) === '') {
+            $msg = 'خطای نامشخص (HTTP '.$res->status().')';
+        }
+
+        return ['ok' => false, 'status' => $res->status(), 'data' => $data, 'message' => $msg,
+            // بدنهٔ خام برای وقتی حتی این هم کافی نیست — لایهٔ بالاتر آن را
+            // در provision_error می‌نشاند.
+            'raw' => mb_substr((string) json_encode($body, JSON_UNESCAPED_UNICODE), 0, 400)];
     }
 
     public function testConnection(): array
@@ -293,12 +327,12 @@ class ArvanClient implements CloudProvider
             $locCode = CloudNaming::locationCode($country, $city, $code);
 
             $locations[$locCode] = [
-                'code'              => $locCode,
-                'country'           => $country,
-                'city'              => $city ?: null,
+                'code' => $locCode,
+                'country' => $country,
+                'city' => $city ?: null,
                 'provider_location' => $code,     // کدِ منطقهٔ آروان برای ساخت
-                'latitude'          => null,
-                'longitude'         => null,
+                'latitude' => null,
+                'longitude' => null,
             ];
 
             // پلن‌ها (sizes) این منطقه
@@ -331,8 +365,8 @@ class ArvanClient implements CloudProvider
         return [
             'ok' => true, 'message' => '',
             'locations' => array_values($locations),
-            'plans'     => $plans,
-            'images'    => $images,
+            'plans' => $plans,
+            'images' => $images,
         ];
     }
 
@@ -370,15 +404,15 @@ class ArvanClient implements CloudProvider
      * (سیمین=تهران، فروغ=اصفهان، شهریار=ارومیه، بامداد=شیراز، قیصر=اهواز)
      */
     private const CITY_MAP = [
-        'simin'    => 'Tehran',
-        'forough'  => 'Isfahan',
-        'foroogh'  => 'Isfahan',
+        'simin' => 'Tehran',
+        'forough' => 'Isfahan',
+        'foroogh' => 'Isfahan',
         'shahriar' => 'Urmia',
-        'bamdad'   => 'Shiraz',
-        'gheysar'  => 'Ahvaz',
-        'ghaisar'  => 'Ahvaz',
-        'qeysar'   => 'Ahvaz',
-        'gheisar'  => 'Ahvaz',
+        'bamdad' => 'Shiraz',
+        'gheysar' => 'Ahvaz',
+        'ghaisar' => 'Ahvaz',
+        'qeysar' => 'Ahvaz',
+        'gheisar' => 'Ahvaz',
     ];
 
     private function cityOf(array $region): string
@@ -482,19 +516,19 @@ class ArvanClient implements CloudProvider
         $cpuKind = str_contains($share, 'dedicat') ? 'dedicated' : 'shared';
 
         return [
-            'provider_ref'      => $ref,
+            'provider_ref' => $ref,
             'provider_location' => $regionCode,
-            'location_code'     => $locCode,
-            'name'              => (string) ($size['name'] ?? $ref),
-            'vcpu'              => $vcpu,
-            'ram_mb'            => $ram,
-            'disk_gb'           => $disk,
-            'disk_type'         => 'ssd',
-            'traffic_gb'        => 0,                // آروان مصرفِ منصفانه دارد
-            'cpu_kind'          => $cpuKind,
-            'arch'              => 'x86',
-            'cost_eur_cents'    => $costEurCents,
-            'in_stock'          => true,
+            'location_code' => $locCode,
+            'name' => (string) ($size['name'] ?? $ref),
+            'vcpu' => $vcpu,
+            'ram_mb' => $ram,
+            'disk_gb' => $disk,
+            'disk_type' => 'ssd',
+            'traffic_gb' => 0,                // آروان مصرفِ منصفانه دارد
+            'cpu_kind' => $cpuKind,
+            'arch' => 'x86',
+            'cost_eur_cents' => $costEurCents,
+            'in_stock' => true,
         ];
     }
 
@@ -529,13 +563,13 @@ class ArvanClient implements CloudProvider
 
                 $out[] = [
                     'provider_ref' => $ref,
-                    'key'          => CloudNaming::imageKey('os', $fam, $ver, $label),
-                    'kind'         => 'os',
-                    'family'       => $fam,
-                    'version'      => $ver,
-                    'label'        => $label,
-                    'arch'         => 'x86',
-                    'min_disk_gb'  => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
+                    'key' => CloudNaming::imageKey('os', $fam, $ver, $label),
+                    'kind' => 'os',
+                    'family' => $fam,
+                    'version' => $ver,
+                    'label' => $label,
+                    'arch' => 'x86',
+                    'min_disk_gb' => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
                 ];
             }
         }
@@ -565,7 +599,7 @@ class ArvanClient implements CloudProvider
         }
 
         try {
-            return (int) (app(\App\Services\ExchangeRate::class)->toToman('EUR') ?: 0);
+            return (int) (app(ExchangeRate::class)->toToman('EUR') ?: 0);
         } catch (\Throwable) {
             return 0;
         }
@@ -581,7 +615,7 @@ class ArvanClient implements CloudProvider
      */
     private function publicNetworkId(string $regionCode): ?string
     {
-        return \Illuminate\Support\Facades\Cache::remember(
+        return Cache::remember(
             'arvan.net.'.$regionCode,
             3600,
             function () use ($regionCode) {
@@ -609,6 +643,231 @@ class ArvanClient implements CloudProvider
         );
     }
 
+    /**
+     * ═══ 🔴 گروهِ امنیتیِ اجباری — علتِ «تحویل نشد»های چند روزِ اخیر ═══
+     *
+     * آروان روی ساختِ سرور دستِ‌کم **یک** گروهِ امنیتی می‌خواهد و بی‌آن
+     * می‌گوید: «At least one firewall should be selected». پیلودِ ما هیچ‌وقت
+     * این فیلد را نمی‌فرستاد، پس هر سفارشِ آروان با همان یک جمله شکست
+     * می‌خورد — سرویسِ ۹۳ (۹ شهریور ۱۴۰۵) و چند تای پیش از آن.
+     *
+     * ⚠️ چرا قرنطینهٔ خودکار جلویش را نگرفت: فهرستِ خطاهای «ساختاری» در
+     * CloudProvisioner دنبالِ permission/quota/balance می‌گردد و این پیام
+     * هیچ‌کدام نیست. پس پلن‌ها در فروش ماندند و مشتریِ بعدی همان شکست را
+     * خرید. (فهرستِ «پلن‌های پرخطا» در مرکزِ تحویل‌ها دقیقاً برای همین حالت
+     * است.)
+     *
+     * ⚠️ شناسه **کشف** می‌شود، نه سخت‌نویس: نامِ گروهِ پیش‌فرض روی هر حساب
+     * فرق می‌کند و یک رشتهٔ ثابت روزی بی‌صدا نامعتبر می‌شود. اولویت با گروهی
+     * است که آروان `default` علامت زده؛ وگرنه اولین گروهِ موجود.
+     *
+     * @return array<int,string>
+     */
+    private function securityGroupIds(string $regionCode): array
+    {
+        /*
+        | ═══ 🔴 راهِ فرارِ مدیر — و چرا کشف به‌تنهایی کافی نیست ═══
+        |
+        | کشفِ خودکار روی دو مسیرِ **حدسی** تکیه دارد. اگر آروان هیچ‌کدام را
+        | نشناسد (همان تلهٔ `resolveRegions` که یک بار همین درایور را سوزاند:
+        | مسیرِ حدسی ۴۰۴ می‌داد و «زیرساخت خالی است» تعبیر می‌شد)، تحویل برای
+        | همیشه بسته می‌مانَد و مدیر **هیچ کاری از دستش برنمی‌آید** — پیام
+        | می‌گوید «در پنل یک firewall بساز»، او می‌سازد، و باز هم کار نمی‌کند.
+        |
+        | پس یک درِ دستی: شناسه یا نامِ گروه در تنظیمات. وقتی فهرست خوانده
+        | شود، نام به شناسهٔ همان منطقه ترجمه می‌شود؛ اگر فهرست اصلاً خوانده
+        | نشود، مقدارِ دستی باید خودِ شناسه باشد و مستقیماً فرستاده می‌شود.
+        |
+        | ⚠️ انتخابِ مدیر داخلِ کلیدِ کش است. بی‌آن، کسی که پس از یک شکست
+        | مقدار را تنظیم می‌کند تا یک ساعت همان شکست را می‌بیند و نتیجه
+        | می‌گیرد تنظیمات کار نمی‌کند.
+        */
+        $wanted = trim((string) Setting::get('arvan_security_group', ''));
+
+        return Cache::remember(
+            // v3: علاوه بر تغییر نام→ID، fallback نامعتبرِ تنظیم دستی نیز حذف
+            // شد؛ کشِ v2 مخصوصاً برای منطقهٔ از‌دسترس‌خارج نباید باقی بماند.
+            'arvan.sg-id.v3.'.$regionCode.'.'.md5($wanted),
+            3600,
+            function () use ($regionCode, $wanted) {
+                // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
+                // درخواستِ ۴۰۴ است، در برابرِ تحویلی که اصلاً انجام نمی‌شود.
+                foreach (['/securities', '/security-groups', '/securitygroups', '/firewalls'] as $path) {
+                    $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
+
+                    if (! $r['ok']) {
+                        continue;
+                    }
+
+                    $rows = array_values(array_filter((array) $r['data'], 'is_array'));
+
+                    if ($rows === []) {
+                        continue;
+                    }
+
+                    /*
+                    | 🔴 قراردادِ خامِ API با قراردادِ Terraform فرقِ ظریفی دارد:
+                    |
+                    | در تنظیماتِ Terraform نامی مثل `arDefault` نوشته می‌شود،
+                    | اما provider رسمی ابتدا آن را resolve می‌کند و در درخواستِ
+                    | ساخت این شکل را می‌فرستد:
+                    |     {"security_groups":[{"name":"<security-group-id>"}]}
+                    |
+                    | بنابراین کلید واقعاً `name` است، ولی **مقدار باید ID** باشد؛
+                    | نه `name` نمایشی و نه `real_name`. فرستادنِ `arDefault`
+                    | علتِ مستقیمِ «Requested firewall was not found» بود.
+                    */
+                    $pickId = static fn (array $g): string => trim((string) ($g['id'] ?? ''));
+
+                    // انتخابِ صریحِ مدیر: با شناسه، نامِ نمایشی، یا نامِ واقعی
+                    if ($wanted !== '') {
+                        foreach ($rows as $g) {
+                            $id = $pickId($g);
+
+                            if ($id !== '' && ($id === $wanted
+                                || strcasecmp((string) ($g['name'] ?? ''), $wanted) === 0
+                                || strcasecmp((string) ($g['real_name'] ?? ''), $wanted) === 0)) {
+                                return [$id];
+                            }
+                        }
+                    }
+
+                    foreach ($rows as $g) {
+                        $id = $pickId($g);
+
+                        if ($id !== '' && (($g['default'] ?? false)
+                            || str_contains(strtolower((string) ($g['name'] ?? '')), 'default'))) {
+                            return [$id];
+                        }
+                    }
+
+                    foreach ($rows as $g) {
+                        $id = $pickId($g);
+
+                        if ($id !== '') {
+                            return [$id];
+                        }
+                    }
+                }
+
+                /*
+                | هیچ مسیری جواب نداد. فقط UUID صریحِ مدیر قابل اعتماد است.
+                |
+                | مقدار رایج تنظیم، یک نام مثل `servernet` است و فقط وقتی
+                | فهرست منطقه خوانده شود می‌توان آن را به ID ترجمه کرد. فرستادن
+                | همان نام در زمان خرابی endpoint دوباره دقیقاً خطای
+                | «Requested firewall was not found» می‌سازد. fail-closed یعنی
+                | آن منطقه فروخته نشود، نه اینکه مشتری ابزار تشخیص ما شود.
+                */
+                return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $wanted)
+                    ? [$wanted]
+                    : [];
+            }
+        );
+    }
+
+    /**
+     * ═══ 🔴 ایمیجِ آروان **per-region** است — کاتالوگِ ما نیست ═══
+     *
+     * `cloud_images` ستونِ منطقه ندارد و `CloudImage::refFor()` هم منطقه
+     * نمی‌گیرد: یک شناسه برای همهٔ مکان‌ها. برای هتزنر/آیزا درست است (ایمیجِ
+     * سراسری)، ولی آروان برای هر منطقه شناسهٔ جداگانه می‌دهد.
+     *
+     * نتیجهٔ واقعی (سرویسِ #۹۳، شهریور ۱۴۰۵): سفارشِ منطقهٔ `ir-thr-si1` با
+     * شناسهٔ ایمیجِ منطقهٔ دیگری فرستاده شد. آروان **پیامِ ایمیج نداد** —
+     * «Requested firewall was not found» گفت و ساعت‌ها ما را دنبالِ فایروال
+     * کشاند. درسِ ثابت‌شده: پیامِ خطای این API به منبعِ واقعیِ خطا اشاره
+     * نمی‌کند، پس هر ورودی باید **پیش از ارسال** خودمان اعتبارسنجی شود.
+     *
+     * ⚠️ چرا این‌جا و نه در کاتالوگ: افزودنِ ستونِ منطقه یک مهاجرت است و
+     * کاتالوگِ موجود را هم باید دوباره ساخت. این تطبیقِ لحظهٔ تحویل همان
+     * نتیجه را بی‌مهاجرت می‌دهد و **خودترمیم** است: هر بار از خودِ منطقه
+     * می‌پرسد، پس با تغییرِ شناسه‌ها هم کهنه نمی‌شود.
+     *
+     * @return string شناسهٔ معتبر در همین منطقه، یا همان ورودی اگر تطبیقی نبود
+     */
+    private function imageForRegion(string $regionCode, string $imageRef): string
+    {
+        $images = $this->regionImageIndex($regionCode);
+
+        if ($images === []) {
+            return $imageRef;                 // نمی‌دانیم؛ همان را بفرست
+        }
+
+        // شناسه در همین منطقه معتبر است؟ دست نزن.
+        if (isset($images['byId'][$imageRef])) {
+            return $imageRef;
+        }
+
+        /*
+        | معادلِ همین ایمیج در این منطقه: با **برچسب** پیدا می‌شود، چون همان
+        | «Ubuntu 24.04» در هر منطقه شناسهٔ دیگری دارد ولی برچسبش یکی است.
+        */
+        $label = (string) (CloudImage::query()
+            ->where('provider', 'arvan')
+            ->where('provider_ref', $imageRef)
+            ->value('label') ?? '');
+
+        if ($label !== '' && isset($images['byLabel'][mb_strtolower($label)])) {
+            return $images['byLabel'][mb_strtolower($label)];
+        }
+
+        return $imageRef;
+    }
+
+    /**
+     * فهرستِ ایمیج‌های یک منطقه، نمایه‌شده بر شناسه و برچسب.
+     *
+     * ⚠️ `type=distributions` اجباری است: بی‌آن، آروان فقط ایمیج‌های
+     * **شخصیِ** آپلودشده را می‌دهد (اغلب صفر) — که یک بار ما را به این
+     * نتیجهٔ غلط رساند که «این منطقه ایمیج ندارد».
+     *
+     * @return array{byId:array<string,bool>,byLabel:array<string,string>}
+     */
+    private function regionImageIndex(string $regionCode): array
+    {
+        return Cache::remember(
+            'arvan.imgidx.'.$regionCode,
+            3600,
+            function () use ($regionCode) {
+                $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images',
+                    [], ['type' => 'distributions']);
+
+                if (! $r['ok']) {
+                    return [];
+                }
+
+                $byId = [];
+                $byLabel = [];
+
+                foreach ((array) $r['data'] as $group) {
+                    $children = is_array($group['images'] ?? null) ? $group['images'] : [$group];
+
+                    foreach ($children as $img) {
+                        if (! is_array($img)) {
+                            continue;
+                        }
+
+                        $id = (string) ($img['id'] ?? '');
+
+                        if ($id === '') {
+                            continue;
+                        }
+
+                        $byId[$id] = true;
+                        $label = mb_strtolower((string) ($img['name'] ?? ''));
+
+                        if ($label !== '' && ! isset($byLabel[$label])) {
+                            $byLabel[$label] = $id;
+                        }
+                    }
+                }
+
+                return $byId === [] ? [] : ['byId' => $byId, 'byLabel' => $byLabel];
+            }
+        );
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
@@ -627,18 +886,41 @@ class ArvanClient implements CloudProvider
             return $this->serverToResult($existing, $region);
         }
 
+        /*
+        | 🔴 بی‌گروهِ امنیتی، آروان سفارش را رد می‌کند. اگر کشف نشد، **همین‌جا**
+        | با پیامِ روشن می‌ایستیم — نه اینکه درخواستِ ناقص بفرستیم و پیامِ گنگِ
+        | زنجیره را به مدیر نشان دهیم.
+        */
+        $securityGroups = $this->securityGroupIds($region);
+
+        if ($securityGroups === []) {
+            return ['ok' => false,
+                'message' => 'گروهِ امنیتیِ آروان پیدا نشد؛ در پنلِ آروان دستِ‌کم یک firewall بسازید. '
+                    .'اگر ساخته‌اید و باز هم این پیام آمد، شناسه‌اش را در '
+                    .'«تنظیمات ← زیرساخت ← گروهِ فایروال» بگذارید — یعنی فهرستِ گروه‌ها '
+                    .'از این حساب خوانده نمی‌شود.'] + $fail;
+        }
+
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
-            'name'        => $spec['name'],
-            'flavor_id'   => (string) $spec['plan_ref'],
-            'image_id'    => (string) $spec['image_ref'],
+            'name' => $spec['name'],
+            'flavor_id' => (string) $spec['plan_ref'],
+            // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
+            'image_id' => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
-            'disk_size'   => (int) ($spec['disk_gb'] ?? 25),
-            'count'       => 1,
-            'ha_enabled'  => false,
+            /*
+            | ⚠️ آرایه‌ای از آبجکت‌هاست، نه رشته. نامِ فیلد طبق قرارداد آروان
+            | `name` است، ولی مقدارِ آن شناسهٔ گروه است (همان کاری که provider
+            | رسمی آروان پس از resolve کردن نام انجام می‌دهد).
+            */
+            'security_groups' => array_map(fn ($n) => ['name' => $n], $securityGroups),
+            'disk_size' => (int) ($spec['disk_gb'] ?? 25),
+            'count' => 1,
+            'ha_enabled' => false,
         ]);
 
         if (! $r['ok']) {
-            return ['ok' => false, 'message' => $r['message']] + $fail;
+            return ['ok' => false, 'message' => $r['message'],
+                'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
         }
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد
@@ -678,7 +960,7 @@ class ArvanClient implements CloudProvider
             // ⚠️ ref را `region:id` می‌کنیم چون آروان **region-محور** است و هر
             // عملیاتِ بعدی (روشن/خاموش/حذف) به کدِ منطقه نیاز دارد، ولی قرارداد
             // فقط یک `$ref` می‌دهد. `split()` بعداً بازش می‌کند.
-            'ref'  => $id !== '' ? $region.':'.$id : null,
+            'ref' => $id !== '' ? $region.':'.$id : null,
             'ipv4' => $this->firstIp($server),
             'ipv6' => null,
             'root_password' => null,
@@ -692,7 +974,7 @@ class ArvanClient implements CloudProvider
         foreach (['addresses', 'ips', 'ip', 'public_ip'] as $path) {
             $v = data_get($server, $path);
 
-            foreach ((is_array($v) ? \Illuminate\Support\Arr::flatten($v) : [$v]) as $ip) {
+            foreach ((is_array($v) ? Arr::flatten($v) : [$v]) as $ip) {
                 if (is_string($ip) && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
                     return $ip;
                 }
@@ -761,20 +1043,20 @@ class ArvanClient implements CloudProvider
                 $servers[] = [
                     // همان رمزگذاریِ `region:id` که بقیهٔ متدها انتظار دارند —
                     // وگرنه شناسه‌ای تحویل می‌دادیم که هیچ عملیاتی رویش کار نمی‌کند.
-                    'ref'      => $code.':'.$id,
-                    'name'     => (string) ($s['name'] ?? $id),
-                    'status'   => $this->mapStatus((string) ($s['status'] ?? '')),
-                    'ipv4'     => $this->firstIp($s),
-                    'ipv6'     => null,
-                    'plan'     => data_get($s, 'flavor.name') ?? data_get($s, 'flavor_id'),
+                    'ref' => $code.':'.$id,
+                    'name' => (string) ($s['name'] ?? $id),
+                    'status' => $this->mapStatus((string) ($s['status'] ?? '')),
+                    'ipv4' => $this->firstIp($s),
+                    'ipv6' => null,
+                    'plan' => data_get($s, 'flavor.name') ?? data_get($s, 'flavor_id'),
                     'location' => (string) ($region['name'] ?? $code),
-                    'created'  => $s['created_at'] ?? $s['created'] ?? null,
+                    'created' => $s['created_at'] ?? $s['created'] ?? null,
                 ];
             }
         }
 
         return [
-            'ok'      => true,
+            'ok' => true,
             'message' => $failed === [] ? '' : 'فهرستِ این مناطق خوانده نشد: '.implode('، ', $failed),
             'servers' => $servers,
         ];
@@ -783,11 +1065,11 @@ class ArvanClient implements CloudProvider
     private function mapStatus(string $s): string
     {
         return match (strtolower($s)) {
-            'active', 'running'                       => 'running',
+            'active', 'running' => 'running',
             'shutoff', 'stopped', 'paused', 'suspended' => 'off',
             'build', 'building', 'rebuild', 'creating', 'installing' => 'building',
-            'deleted', 'deleting'                     => 'deleted',
-            default                                   => 'unknown',
+            'deleted', 'deleting' => 'deleted',
+            default => 'unknown',
         };
     }
 
@@ -821,9 +1103,9 @@ class ArvanClient implements CloudProvider
 
         return [
             'ok' => true, 'message' => '',
-            'status'          => $this->mapStatus((string) ($s['status'] ?? '')),
-            'ipv4'            => $this->firstIp($s),
-            'ipv6'            => null,
+            'status' => $this->mapStatus((string) ($s['status'] ?? '')),
+            'ipv4' => $this->firstIp($s),
+            'ipv6' => null,
             'traffic_used_gb' => null,
         ];
     }
@@ -833,10 +1115,10 @@ class ArvanClient implements CloudProvider
         [$region, $id] = $this->split($ref);
 
         $path = match ($action) {
-            'on'       => 'power-on',
+            'on' => 'power-on',
             'off', 'shutdown' => 'power-off',
             'reboot', 'reset' => 'reboot',
-            default    => null,
+            default => null,
         };
 
         if ($path === null || $region === '') {

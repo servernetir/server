@@ -563,9 +563,26 @@ trait SaladOperations
 
         $inst = $this->req('GET', $this->proj('/'.rawurlencode($ref).'/instances'));
         $ip = null;
+        $nodeState = null;
+        $nodePct = null;
 
         if ($inst['ok']) {
             foreach ($this->items($inst['body']) as $i) {
+                // وضعیتِ ریزِ گره — تنها منبعِ «الان دقیقاً کجاییم» در حینِ ساخت
+                if ($nodeState === null && filled($i['state'] ?? null)) {
+                    $nodeState = strtolower((string) $i['state']);
+
+                    /*
+                    | درصدِ واقعیِ دانلود روی خودِ گره (کسری از ۰ تا ۱). این
+                    | کندترین فازِ تحویل است — گره‌ها اینترنتِ خانگی دارند —
+                    | پس همین عدد است که مشتری را از «خراب شده؟» نجات می‌دهد.
+                    | نبودش عیب نیست؛ برچسب بی‌درصد نشان داده می‌شود.
+                    */
+                    if (is_numeric($i['pulling_progress'] ?? null)) {
+                        $nodePct = max(0, min(100, (int) round(((float) $i['pulling_progress']) * 100)));
+                    }
+                }
+
                 if (filled($i['ssh_ip'] ?? null)) {
                     $ip = (string) $i['ssh_ip'];
 
@@ -581,6 +598,21 @@ trait SaladOperations
             'ipv4'    => $ip,
             'ipv6'    => null,
             /*
+            | جزئیاتِ زندهٔ ساخت — برای نوارِ پیشرفتِ صفحهٔ مشتری.
+            |
+            | 🔴 درصدِ این‌جا **واقعی** است، نه ساختگی: زیرساخت در
+            | current_state.description متنِ «Pulling, N% complete» می‌دهد
+            | (کشیدنِ ایمیج به رجیستریِ خودش — کندترین بخشِ تحویلِ GPU).
+            | بعد از آن، state خودِ نمونه (allocating/downloading/creating)
+            | می‌گوید گره در چه مرحله‌ای است. قاعدهٔ «عددِ من‌درآوردی ممنوع»
+            | سرِ جایش است — هر چه این‌جا نیست، صفحه هم نشان نمی‌دهد.
+            */
+            'build'   => $this->buildDetail(
+                (string) data_get($r['body'], 'current_state.description', ''),
+                $nodeState,
+                $nodePct,
+            ),
+            /*
             | نشانیِ دروازه — این همان چیزی است که مشتری واقعاً با آن کار
             | می‌کند (نه IP). سینکِ وضعیت آن را در hostname نمونه می‌نشاند.
             */
@@ -588,6 +620,32 @@ trait SaladOperations
             'traffic_used_gb' => null,
             'raw'     => is_array($r['body']) ? $r['body'] : [],
         ];
+    }
+
+    /**
+     * فازِ ساخت از دادهٔ خامِ زیرساخت — یا null اگر چیزی برای گفتن نیست.
+     *
+     * @return array{phase: string, pull_pct: int|null}|null
+     */
+    private function buildDetail(string $description, ?string $nodeState, ?int $nodePct = null): ?array
+    {
+        /*
+        | «Pulling, 24% complete» — درصدِ واقعیِ آماده‌سازیِ ایمیج در زیرساخت.
+        | ⚠️ تا وقتی این متن هست، هنوز هیچ گره‌ای تخصیص نگرفته؛ فازِ گره‌ها
+        | بعد از تمام‌شدنِ همین شروع می‌شود.
+        */
+        if (preg_match('/pulling\D*(\d{1,3})\s*%/i', $description, $m)) {
+            return ['phase' => 'pulling', 'pull_pct' => min(100, (int) $m[1])];
+        }
+
+        // فازهای شناخته‌شدهٔ گره — ناشناخته عمداً پاس داده نمی‌شود (برچسبِ
+        // ترجمه‌نشده روی صفحهٔ مشتری از نبودِ ریزمرحله بدتر است). درصدِ
+        // pulling_progress فقط در فازِ downloading معنی دارد.
+        if (in_array($nodeState, ['allocating', 'downloading', 'creating', 'starting'], true)) {
+            return ['phase' => $nodeState, 'pull_pct' => $nodeState === 'downloading' ? $nodePct : null];
+        }
+
+        return null;
     }
 
     /** وضعیتِ آنها → واژگانِ ما */

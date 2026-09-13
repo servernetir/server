@@ -90,6 +90,11 @@ class BusinessLedger
             return;
         }
 
+        // ⚠️ کارمزد **قبل** از شاخهٔ topup ثبت می‌شود: شارژِ کیفِ پول درآمد
+        // نیست، ولی درگاه کارمزدش را گرفته و آن پول واقعاً از ما رفته. اگر
+        // این خط پایین‌تر می‌بود، کارمزدِ همهٔ شارژها بی‌صدا گم می‌شد.
+        $this->recordGatewayFee($payment);
+
         // افزایش اعتبار درآمد نیست — بدهی است تا وقتی مشتری خرجش کند. درآمد
         // موقع مصرف اعتبار روی فاکتور خدمت شناسایی می‌شود، نه اینجا.
         if ($invoice->kind === 'topup') {
@@ -115,6 +120,52 @@ class BusinessLedger
             $this->post('tax_collected', $taxPortion, occurredAt: $payment->paid_at, source: $payment,
                 note: 'مالیات فاکتور '.$invoice->number, currency: $invoice->currency_code);
         }
+    }
+
+    /**
+     * کارمزدِ درگاه، به‌عنوان هزینهٔ واقعی.
+     *
+     * ═══ حفره‌ای که ممیزیِ شهریور ۱۴۰۵ پیدا کرد ═══
+     *
+     * 🔴 `payments.fee` و `fee_type` از پاسخِ verify پر می‌شدند و **هیچ‌جای
+     * برنامه خوانده نمی‌شدند**. دستهٔ `payment_fee` تعریف شده بود و هیچ
+     * نویسنده‌ای نداشت. نتیجه: سودِ گزارش‌شده به اندازهٔ کلِ کارمزدِ سالانه
+     * بیش‌برآورد بود — و چون کارمزد هزینهٔ قابلِ قبول است، مالیاتِ بیشتری هم
+     * بابتش داده می‌شد. دادهٔ درست از قبل موجود بود، فقط کسی جمعش نمی‌کرد.
+     *
+     * ⚠️ **فقط وقتی کارمزد را ما داده باشیم.** زرین‌پال `fee_type` را
+     * `Merchant` یا `Payer` برمی‌گرداند؛ اگر `Payer` باشد کارمزد را مشتری
+     * روی مبلغ پرداخته و هزینهٔ ما نیست. حالتِ نامعلوم هم ثبت نمی‌شود —
+     * همان قاعدهٔ `recordApiCost`: حدس وارد دفتر نمی‌شود. ولی بی‌صدا هم رد
+     * نمی‌شود، تا «هزینهٔ گمشده» دیده شود.
+     *
+     * نوعِ ردیف (`expense`) با `revenue` و `tax_collected` فرق دارد، پس روی
+     * همان پرداخت می‌نشیند بی‌آنکه کلیدِ یکتای (منبع، نوع) را بشکند.
+     */
+    private function recordGatewayFee(Payment $payment): void
+    {
+        $fee = (int) $payment->fee;
+
+        if ($fee <= 0) {
+            return;
+        }
+
+        $bearer = mb_strtolower(trim((string) $payment->fee_type));
+
+        if ($bearer !== 'merchant') {
+            if ($bearer !== 'payer') {
+                \App\Support\ErrorTracker::noteOnce('finance',
+                    'کارمزد درگاه ثبت نشد — معلوم نیست پرداخت‌کننده‌اش کیست', 3600,
+                    ['payment' => $payment->id, 'fee_type' => $payment->fee_type ?: '(خالی)']);
+            }
+
+            return;
+        }
+
+        $this->post('expense', $fee, category: 'payment_fee',
+            occurredAt: $payment->paid_at, source: $payment,
+            note: 'کارمزد درگاه '.$payment->gateway.' — پرداخت '.$payment->id,
+            currency: $payment->currency_code);
     }
 
     /**
@@ -391,12 +442,27 @@ class BusinessLedger
         ?int $userId = null,
         string $currency = 'IRT',
     ): ?BusinessEntry {
+        /*
+        | ⚠️ تاریخ باید به وقتِ **تهران** بیفتد، نه UTC.
+        |
+        | `config/app.timezone` عمداً UTC است و `now()` هم UTC می‌دهد. با
+        | `toDateString()` خام، هر رویدادِ بینِ ۰۰:۰۰ تا ۰۳:۳۰ به وقتِ تهران
+        | یک روز **عقب** ثبت می‌شد. برای یک روزِ معمولی بی‌اثر است؛ برای
+        | تراکنشِ شبِ ۲۹ اسفند یعنی درآمد در سالِ مالیِ اشتباه نشسته — و قطعِ
+        | زمانی دقیقاً همان چیزی است که در رسیدگی سؤال می‌شود.
+        |
+        | `copy()` لازم است: `setTimezone` نمونه را جابه‌جا می‌کند و بدونِ آن،
+        | `$payment->paid_at` صداکننده هم عوض می‌شد.
+        */
+        $when = ($occurredAt ?? now())->copy()
+            ->setTimezone(config('calendar.display_timezone', 'Asia/Tehran'));
+
         $values = [
             'currency_code' => $currency,
             'direction'     => self::DIRECTION[$kind],
             'category'      => $category,
             'amount'        => $amount,
-            'occurred_at'   => ($occurredAt ?? now())->toDateString(),
+            'occurred_at'   => $when->toDateString(),
             'note'          => $note,
             'created_by'    => $userId,
         ];
@@ -429,14 +495,20 @@ class BusinessLedger
             return $this->empty();
         }
 
-        $q = BusinessEntry::query()->where('currency_code', 'IRT');
+        // بازهٔ زمانی یک بار تعریف می‌شود و روی هر دو پرس‌وجو (پایه و ارزی)
+        // می‌نشیند — وگرنه روزی یکی‌شان فیلتر می‌گیرد و دیگری نه.
+        $window = function ($query) use ($from, $to) {
+            if ($from) {
+                $query->whereDate('occurred_at', '>=', $from->toDateString());
+            }
+            if ($to) {
+                $query->whereDate('occurred_at', '<=', $to->toDateString());
+            }
 
-        if ($from) {
-            $q->whereDate('occurred_at', '>=', $from->toDateString());
-        }
-        if ($to) {
-            $q->whereDate('occurred_at', '<=', $to->toDateString());
-        }
+            return $query;
+        };
+
+        $q = $window(BusinessEntry::query()->where('currency_code', 'IRT'));
 
         // جمع به تفکیک نوع — یک پرس‌وجو
         $byKind = (clone $q)->selectRaw('kind, sum(amount) as s, count(*) as n')
@@ -465,6 +537,26 @@ class BusinessLedger
             ->groupBy('category')->pluck('s', 'category')
             ->map(fn ($v) => (int) $v)->toArray();
 
+        /*
+        | ارزهای غیرِ پایه — تا دیگر بی‌صدا نیفتند.
+        |
+        | 🔴 همهٔ عددهای بالا عمداً فقط تومان‌اند، و این درست است: جدولِ
+        | `exchange_rates` هیچ نویسنده‌ای ندارد، پس تاریخچهٔ نرخ وجود ندارد و
+        | هر تبدیلی حدس است. حدس در گزارشِ مالی از نبودِ عدد بدتر است.
+        |
+        | ولی «فقط تومان» تا امروز یعنی ردیفِ یورویی در **هیچ‌کجای** داشبورد
+        | دیده نمی‌شد — نه در درآمد، نه در مالیات، نه در نقدینگی. جمعش با
+        | تومان غلط است، ولی ندیدنش هم غلط است. پس جدا شمرده و جدا نشان داده
+        | می‌شود: عدد واقعی، با واحدِ خودش، بی‌هیچ تبدیلِ ساختگی.
+        */
+        $byCurrency = [];
+
+        foreach ($window(BusinessEntry::query()->where('currency_code', '!=', 'IRT'))
+            ->selectRaw('currency_code, kind, sum(amount) as s')
+            ->groupBy('currency_code', 'kind')->get() as $row) {
+            $byCurrency[$row->currency_code][$row->kind] = (int) $row->s;
+        }
+
         return [
             'capital'        => $capital,
             'withdrawal'     => $withdrawal,
@@ -482,6 +574,7 @@ class BusinessLedger
             'refund'         => $refund,
             'cash'           => $cash,
             'by_category'    => $byCategory,
+            'by_currency'    => $byCurrency,
         ];
     }
 
@@ -544,7 +637,7 @@ class BusinessLedger
             'revenue' => 0, 'revenue_count' => 0, 'expense' => 0, 'expense_count' => 0,
             'net_profit' => 0, 'margin' => 0.0, 'roi' => 0.0,
             'tax_collected' => 0, 'tax_paid' => 0, 'tax_liability' => 0,
-            'refund' => 0, 'cash' => 0, 'by_category' => [],
+            'refund' => 0, 'cash' => 0, 'by_category' => [], 'by_currency' => [],
         ];
     }
 }

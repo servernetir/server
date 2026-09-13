@@ -173,9 +173,19 @@ tbody tr:last-child td{ border-bottom:0 }
     </div>
     <div class="party">
       <h3>{{ __('ui.invp_buyer') }}</h3>
-      <b>{{ $invoice->customer?->displayName() ?? '—' }}</b>
+      {{-- 🔴 اگر مشتری پروفایلِ حقوقی دارد، نامِ **شرکت** می‌نشیند نه نامِ
+           شخصِ صاحبِ حساب — با شناسهٔ ملی، شمارهٔ ثبت و کد اقتصادی، همان
+           چیزهایی که فاکتور را برای دفاترِ آن شرکت قابلِ استفاده می‌کنند.
+
+           ⚠️ حلقه عیناً مثلِ سمتِ فروشنده است و فقط فیلدهای پرشده را
+           می‌گیرد، پس هیچ‌وقت «شماره ثبت: —» چاپ نمی‌شود. --}}
+      <b>{{ $buyerName }}</b>
+      @foreach($buyerIdentity as $row)
+        <div>{{ __($row['label']) }}: <b>{{ fa_num($row['value']) }}</b></div>
+      @endforeach
+      @if($buyerAddress)<div>{{ fa_num($buyerAddress) }}</div>@endif
       <div class="ltr">{{ $invoice->customer?->code }}</div>
-      @if($invoice->customer?->phone)<div class="ltr">{{ $invoice->customer->phone }}</div>@endif
+      @if($buyerPhone)<div class="ltr">{{ $buyerPhone }}</div>@endif
     </div>
     <div class="party">
       <h3>{{ __('ui.invp_issue_date') }}</h3>

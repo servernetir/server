@@ -264,11 +264,18 @@ class AppServiceProvider extends ServiceProvider
 
             $locale = app()->getLocale();
             $routeName = Route::currentRouteName() ?? 'home';
-            $cacheKey = $locale.'|'.$routeName.'|'.md5(serialize(request()->route()?->parameters() ?? []));
+            $currentRoute = request()->route();
+            $rawParams = $currentRoute?->parameters() ?? [];
+            // Route::view پارامترهای داخلی `view` و `status` را هم در bag
+            // نگه می‌دارد، با اینکه placeholder URL نیستند. فرستادنشان به
+            // route() آن‌ها را به query تبدیل می‌کرد و hreflang را خراب می‌کرد.
+            $params = $currentRoute
+                ? array_intersect_key($rawParams, array_flip($currentRoute->parameterNames()))
+                : [];
+            $cacheKey = $locale.'|'.$routeName.'|'.md5(serialize($params));
 
             if (! isset($cache[$cacheKey])) {
                 $baseRoute = preg_replace('/^(en|tr)\./', '', $routeName);
-                $params = request()->route()?->parameters() ?? [];
 
                 // برخی روت‌ها (مثل پنل ادمین) نسخه‌ی زبانی ندارند؛ در آن صورت به خانه fallback می‌شود
                 $localeUrls = [];

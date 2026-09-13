@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+#
+# 🔴 رفعِ فوری: سفارش‌های آروان تحویل نمی‌شدند.
+#
+# آروان روی ساختِ سرور دستِ‌کم یک گروهِ امنیتی می‌خواهد و پیلودِ ما هرگز
+# نمی‌فرستاد ⇒ «At least one firewall should be selected» ⇒ هر سفارش شکست.
+#
+# سه چیز با هم:
+#   ۱) نرخِ ارز پشتوانهٔ پایدار می‌گیرد ⇒ کشِ سرد دیگر درگاه را خاموش نمی‌کند
+#   ۲) هر پرداخت مبلغِ یکتا می‌گیرد ⇒ دو فاکتورِ هم‌مبلغ جابه‌جا نمی‌شوند
+#   ۳) واریزیِ با مبلغِ بیگانه به بازبینیِ دستی می‌رود، نه تسویه
+#
+# اجرا از ترمینالِ cPanel:
+#   bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/<SHA>/scripts/deploy-crypto-hardening.sh) [<SHA>]
+#
+# ═══ چه چیزی را می‌بندد ═══
+#
+# آدرس‌های ترون از استخر بازاستفاده می‌شوند و `TronWatcher` ۵۰ تراکنشِ آخرِ
+# آدرس را **بی‌فیلترِ زمانی** برمی‌گرداند. هر واریزیِ قدیمیِ آن آدرس که در
+# جدولِ ما ثبت نشده بود، روی اولین پرداختِ بازِ بعدی می‌نشست و فاکتورش را
+# «پرداخت‌شده» می‌کرد: سرویس فعال، پول نیامده.
+#
+# بعد از این دیپلوی، `php artisan crypto:audit` را بزنید تا پرونده‌های
+# گذشته پیدا شوند (فقط می‌خواند؛ چیزی را عوض نمی‌کند).
+#
+set -u
+
+APP="$HOME/servernet_app"
+WORK="$HOME/deploy-crypto-hardening"
+STAMP=$(date +%Y%m%d-%H%M%S)
+BK="$WORK/backup-$STAMP"
+HIST=80
+
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه، که خودِ همین اسکریپت‌ها قربانی‌اش شدند: اجرا با
+# کاربرِ اشتباه (مثلاً root به‌جای servernetcloud) یعنی $HOME عوض می‌شود،
+# فایل‌ها در مسیری ساخته می‌شوند که سایت آن‌جا نیست، و گاردِ اتحاد **سبز**
+# می‌شود چون همان فایل‌هایی را می‌سنجد که خودش تازه ساخته.
+#
+# پس مقصد باید *قبل* از نوشتن ثابت شود: نصبِ واقعی artisan و vendor دارد.
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  echo "   چاره:  su - servernetcloud   و بعد همین دستور را دوباره بزنید."
+  exit 1
+fi
+
+# فضای آزاد: دیپلوی روی دیسکِ پر، نیمه‌کاره می‌مانَد
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول پاک‌سازی کنید:"
+  echo "   rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
+mkdir -p "$WORK" "$BK" "$WORK/conflicts"
+cd "$WORK"
+
+command -v git >/dev/null || { echo "FATAL: git روی سرور نیست"; exit 1; }
+if [ -d repo/.git ]; then
+  git -C repo fetch --depth 600 origin develop || { echo "FATAL: fetch"; exit 1; }
+else
+  git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
+fi
+
+MINE="${1:-8e1a2f4}"
+git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
+echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
+echo "── بکاپ در: $BK"
+echo
+
+APP_FILES="
+app/Services/Cloud/ArvanClient.php
+"
+
+to_lf() { tr -d '\r' < "$1" > "$2"; }
+dist()  { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]'; }
+
+CONFLICTS=""; UPD=0
+
+apply_one() {
+  rel="$1"; dest="$APP/$rel"
+  mine_f="$WORK/a.mine"; srv_lf="$WORK/a.srv"; base_f="$WORK/a.base"; cand="$WORK/a.cand"
+
+  git -C repo show "$MINE:website/$rel" > "$mine_f" 2>/dev/null || { echo "SKIP  $rel"; return; }
+
+  if [ ! -f "$dest" ]; then
+    mkdir -p "$(dirname "$dest")"; cp "$mine_f" "$dest"; echo "NEW   $rel"; UPD=$((UPD+1)); return
+  fi
+
+  mkdir -p "$BK/$(dirname "$rel")"; cp -p "$dest" "$BK/$rel"
+  to_lf "$dest" "$srv_lf"
+
+  if cmp -s "$srv_lf" "$mine_f"; then echo "OK    $rel"; return; fi
+
+  best=""; bestd=999999999
+  for sha in $(git -C repo log --format=%H -n "$HIST" "$MINE" -- "website/$rel"); do
+    git -C repo show "$sha:website/$rel" > "$cand" 2>/dev/null || continue
+    if cmp -s "$srv_lf" "$cand"; then best="$sha"; bestd=0; break; fi
+    d=$(dist "$srv_lf" "$cand"); [ "$d" -lt "$bestd" ] && { bestd=$d; best="$sha"; }
+  done
+
+  if [ -z "$best" ]; then
+    echo "CF    $rel  ← نسخهٔ ناشناخته روی سرور — دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    keep="$WORK/conflicts/$(basename "$rel")"
+    cp "$dest" "$keep.server"; cp "$mine_f" "$keep.new"; return
+  fi
+
+  if [ "$bestd" -eq 0 ]; then
+    cp "$mine_f" "$dest"; echo "UP    $rel  (سرور = $(git -C repo rev-parse --short "$best"))"; UPD=$((UPD+1)); return
+  fi
+
+  git -C repo show "$best:website/$rel" > "$base_f"
+  m="$WORK/a.merged"; cp "$srv_lf" "$m"
+  if git merge-file -L server -L base -L new "$m" "$base_f" "$mine_f" >/dev/null 2>&1; then
+    cp "$m" "$dest"
+    echo "MG    $rel  (پایه $(git -C repo rev-parse --short "$best")، فاصله $bestd خط — تغییرِ دیگران حفظ شد)"
+    UPD=$((UPD+1))
+  else
+    echo "CF    $rel  ← تداخلِ واقعی — دست نخورد"
+    CONFLICTS="$CONFLICTS $rel"
+    keep="$WORK/conflicts/$(basename "$rel")"
+    cp "$dest" "$keep.server"; cp "$base_f" "$keep.base"; cp "$mine_f" "$keep.new"
+  fi
+}
+
+echo "═══ اپ ($APP) ═══"
+for f in $APP_FILES; do apply_one "$f"; done
+
+# ── ضمانتِ اتحاد ──────────────────────────────────────────────────────
+echo
+ok=1
+grep -qF "قابلِ اقدام" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 غنی‌سازیِ پیامِ خطا ننشست"; ok=0; }
+grep -qF "arvan_security_group" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 راهِ فرارِ دستیِ همکار پرید"; ok=0; }
+grep -qF "function securityGroupIds" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 کشفِ گروهِ امنیتی ننشست"; ok=0; }
+grep -qF "'security_groups' => array_map" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 شکلِ درستِ security_groups ننشست"; ok=0; }
+grep -qF "function createServer" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 createServer از فایل پرید"; ok=0; }
+grep -qF "function fetchCatalog" "$APP/app/Services/Cloud/ArvanClient.php" || { echo "🔴 کاتالوگ از فایل پرید"; ok=0; }
+# ارکانِ موجودِ همین فایل نباید در merge پریده باشند
+
+if [ "$ok" -eq 0 ]; then
+  echo "🔴 اتحاد ناقص — فایل از بکاپ برمی‌گردد."
+  for f in $APP_FILES; do [ -f "$BK/$f" ] && cp "$BK/$f" "$APP/$f" && echo "   $f برگشت"; done
+  exit 1
+fi
+echo "✅ همهٔ اجزا با هم‌اند"
+
+PHPBIN=/opt/cpanel/ea-php84/root/usr/bin/php
+[ -x "$PHPBIN" ] || PHPBIN=$(command -v php)
+if [ -n "$PHPBIN" ]; then
+  syn=1
+  for f in $APP_FILES; do
+    "$PHPBIN" -l "$APP/$f" >/dev/null || { echo "🔴 خطای syntax در $f"; syn=0; }
+  done
+
+  if [ "$syn" -eq 0 ]; then
+    for f in $APP_FILES; do [ -f "$BK/$f" ] && cp "$BK/$f" "$APP/$f"; done
+    echo "🔴 برگشت از بکاپ به‌خاطرِ خطای syntax"; exit 1
+  fi
+
+  echo "بدونِ خطای syntax"
+  cd "$APP" && "$PHPBIN" artisan config:clear >/dev/null && "$PHPBIN" artisan view:clear >/dev/null && echo "کش‌ها پاک شد"
+fi
+
+echo
+echo "══════════ تمام ══════════"
+echo "بکاپ: $BK   · به‌روزشده: $UPD"
+[ -n "$CONFLICTS" ] && echo "🔴 تداخل‌دار:$CONFLICTS" || echo "✅ تداخلی نبود"
+echo
+echo "🔎 قدمِ بعد:"
+echo
+echo "  تلاشِ دوباره روی سرویسِ #93 — این‌بار پیامِ خطا (اگر بود) دقیق است:"
+echo
+echo "  (دستورِ تلاشِ دوباره را از گفتگو کپی کنید)"
+echo

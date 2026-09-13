@@ -39,7 +39,8 @@
      خراب است؛ همان قاعدهٔ صفحهٔ /status این پروژه. */
   $steps = [
     ['k' => 'ordered',   't' => __('ui.cs_stage_ordered'),   'd' => __('ui.cs_stage_ordered_d')],
-    ['k' => 'building',  't' => __('ui.cs_stage_building'),  'd' => __('ui.cs_stage_building_d')],
+    // خطِ GPU ماشینِ مجازی و «نصبِ سیستم‌عامل» ندارد؛ توضیحِ VPS آن‌جا دروغ است
+    ['k' => 'building',  't' => __('ui.cs_stage_building'),  'd' => __($gpuLine ? 'ui.cs_stage_building_gpu_d' : 'ui.cs_stage_building_d')],
     ['k' => 'finishing', 't' => __('ui.cs_stage_finishing'), 'd' => __('ui.cs_stage_finishing_d')],
     ['k' => 'ready',     't' => __('ui.cs_stage_ready'),     'd' => __('ui.cs_stage_ready_d')],
   ];
@@ -75,6 +76,14 @@
     'chart_unavailable' => __('ui.cs_js_chart_unavailable'),
     'last_value'        => __('ui.cs_js_last_value'),
     'pct'               => __('ui.cs_js_pct'),
+    // ── ریزمرحله‌های ساختِ GPU (از دادهٔ زندهٔ زیرساخت، نه حدس) ──
+    'gpu_phase_pulling'     => __('ui.cs_gpu_phase_pulling'),
+    'gpu_phase_allocating'  => __('ui.cs_gpu_phase_allocating'),
+    'gpu_phase_downloading' => __('ui.cs_gpu_phase_downloading'),
+    'gpu_phase_downloading_pct' => __('ui.cs_gpu_phase_downloading_pct'),
+    'gpu_phase_creating'    => __('ui.cs_gpu_phase_creating'),
+    'gpu_phase_starting'    => __('ui.cs_gpu_phase_creating'),
+    'gpu_elapsed'           => __('ui.cs_gpu_elapsed'),
   ];
 @endphp
 <script>window.T = @json($T);</script>
@@ -90,7 +99,7 @@
     </nav>
     <h1>{{ $service->name }}</h1>
     <p>
-      @if($inst?->ipv4)<span dir="ltr">{{ $inst->ipv4 }}</span> · @endif
+      @if($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
       {{ $loc?->label() ?? '—' }} · {{ $osLbl }}
     </p>
   </div>
@@ -151,7 +160,7 @@
       <p class="cb-lead">{!! __($gpuLine ? 'ui.cs_building_gpu_p' : 'ui.cs_building_p') !!}</p>
 
       <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
-          data-status-url="{{ route('account.cloud.status', $service) }}">
+          data-status-url="{{ lroute('account.cloud.status', $service) }}">
         @foreach($steps as $i => $st)
           @php
             /* حالتِ اولیه در سمتِ سرور ساخته می‌شود، نه با جاوااسکریپت: اگر JS
@@ -167,6 +176,25 @@
           </li>
         @endforeach
       </ol>
+
+      @if($gpuLine)
+        {{-- ═══ پیشرفتِ زندهٔ ساختِ GPU ═══
+             نوار و برچسب را فقط JS پر می‌کند و فقط از دادهٔ واقعیِ وضعیت
+             (فیلدِ `build` پاسخِ status): درصدِ pulling عیناً از زیرساخت
+             می‌آید و فازهای گره از state خودِ نمونه. تا دادهٔ تازه نرسد،
+             چیزی جز زمانِ سپری‌شده نشان داده نمی‌شود — نه درصدِ حدسی. --}}
+        <div id="gpu-prog" data-started="{{ $inst?->created_at?->timestamp ?? '' }}"
+             style="margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px">
+          <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:8px">
+            <span id="gpu-prog-label" style="color:var(--muted)">{{ __('ui.cs_gpu_phase_waiting') }}</span>
+            <span id="gpu-prog-elapsed" dir="auto" style="color:var(--dim);white-space:nowrap"></span>
+          </div>
+          <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden" role="progressbar"
+               aria-label="{{ __('ui.cs_building_h') }}" aria-valuemin="0" aria-valuemax="100" id="gpu-prog-track">
+            <i id="gpu-prog-bar" style="display:block;height:100%;width:3%;border-radius:6px;background:linear-gradient(90deg,#22d3ee,#34d399);transition:width .8s ease"></i>
+          </div>
+        </div>
+      @endif
 
       <p class="cb-foot">{{ __('ui.cs_build_leave') }}</p>
 
@@ -247,20 +275,31 @@
       @endif
     @else
     <div class="cs-grid">
-      <div class="cs-kv"><small>IPv4</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv4 }}">{{ $inst->ipv4 ?: '—' }}</b></div>
+      {{-- 🔴 آدرسِ **قابلِ استفاده**، نه هر چه در ستونِ ipv4 نشسته.
+           ماشینِ پشتِ NAT آدرسِ خصوصی دارد و دسترسیِ عمومی‌اش از پورت‌فوروارد
+           می‌آید؛ چاپِ `10.10.10.x` یعنی وعدهٔ چیزی که وجود ندارد — همان تیکتِ
+           «آی‌پی خصوصی است». تا وقتی فوروارد ساخته نشده «—» نشان می‌دهیم. --}}
+      @php $addr = $inst->address(); @endphp
+      <div class="cs-kv"><small>{{ $inst->hasPrivateIp() ? __('ui.cs_address') : 'IPv4' }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $addr }}">{{ $addr ?: '—' }}</b></div>
       @if($inst->ipv6)
         <div class="cs-kv"><small>IPv6</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->ipv6 }}">{{ $inst->ipv6 }}</b></div>
+      @endif
+      @if($inst->webUrl())
+        {{-- نشانیِ سایت با نشانیِ SSH یکی نیست؛ مشتری هر دو را لازم دارد و
+             یکی‌گرفتنشان همان سردرگمیِ تیکتِ «پورت ۸۰» بود. --}}
+        <div class="cs-kv"><small>{{ __('ui.cs_weburl') }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->webUrl() }}">{{ $inst->webUrl() }}</b></div>
       @endif
       <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
     @endif
 
-    @if(! $gpuApp && $inst->ipv4)
-      {{-- ⚠️ رشته را در PHP می‌سازیم، نه در قالب. اگر «root» و «{{» با یک @
-           به هم بچسبند، Blade آن را **دستورِ فرار** می‌فهمد و به‌جای IP، خودِ
-           عبارتِ آکولادی را چاپ می‌کند — همان تلهٔ آشنای این پروژه. --}}
-      @php $sshCmd = 'ssh root'.'@'.$inst->ipv4; @endphp
+    @php $sshCmd = $inst->sshCommand(); @endphp
+    @if(! $gpuApp && $sshCmd)
+      {{-- ⚠️ رشته در **مدل** ساخته می‌شود نه در قالب: اگر «root» و آکولاد با یک
+           @ به هم بچسبند، Blade آن را دستورِ فرار می‌فهمد و به‌جای آدرس، خودِ
+           عبارتِ آکولادی را چاپ می‌کند — تلهٔ آشنای این پروژه. و `-p` فقط
+           وقتی می‌آید که پورت غیرِ استاندارد باشد. --}}
       <div class="cs-ssh">
         <small>{{ __('ui.cs_ssh_label') }}</small>
         <code dir="ltr" class="cs-copy" data-copy="{{ $sshCmd }}">{{ $sshCmd }}</code>
@@ -360,32 +399,67 @@
     </span>
   </div>
   <div class="pnl-sec-b">
+    @php
+      /*
+      | 🔴 خاموش‌کردن صورت‌حساب را متوقف نمی‌کند — و هیچ‌جای پنل این را نمی‌گفت.
+      |
+      | رخداد (۱۵ شهریور ۱۴۰۵، مشتریِ SN-593484): سرورش را خاموش کرد، در پنلِ
+      | زیرساخت هم خاموش بود، و اعتبارش همچنان ساعتی کم می‌شد. حق داشت گیج
+      | شود: این صفحه «خاموش» می‌گفت و `/account/servers` «فعال» — یکی وضعیتِ
+      | **برقِ ماشین** است و دیگری وضعیتِ **اشتراک**، ولی مشتری آن دو کلمه را
+      | کنارِ هم متناقض می‌خوانَد.
+      |
+      | ⚠️ کسر **درست** بود، نه باگ: اجارهٔ ماشینِ رزروشده را ما همچنان به
+      | زیرساخت می‌دهیم و فقط **حذف** آن را قطع می‌کند
+      | (`CloudMeterHourly::billable()` — همان‌جا هم صریح نوشته شده).
+      |
+      | پس رفع، برداشتنِ کسر نیست؛ **گفتنِ حقیقت پیش از کلیک** است. هزینهٔ
+      | نگفتنش یک تیکت و یک اعتبارِ حسنِ نیت بود، و بدون این هشدار مشتریِ بعدی
+      | هم دقیقاً همان را می‌خرد.
+      |
+      | ⚠️ پلنِ `is_interruptible` (GPU روی ظرفیتِ توزیع‌شده) استثناست: آن‌جا
+      | ماشینِ خاموش واقعاً برای ما هزینه ندارد و متر هم نمی‌شمارد، پس این
+      | هشدار **نباید** نشان داده شود وگرنه دروغ می‌گوید.
+      */
+      $billsWhileOff = $service->isHourly() && ! (bool) $service->cloudPlan?->is_interruptible;
+    @endphp
+
+    @if($billsWhileOff && $inst->status !== 'running')
+      <p class="dm-note warn">{{ __('ui.cs_off_still_billed') }}</p>
+    @endif
+
     <div class="pnl-acts">
       @if($inst->status !== 'running')
-        <form method="post" action="{{ route('account.cloud.power', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="on">
           <button class="pnl-btn"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_on') }}</button>
         </form>
       @else
-        <form method="post" action="{{ route('account.cloud.power', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="reboot">
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
-        <form method="post" action="{{ route('account.cloud.power', $service) }}"
-              data-confirm="{{ __('ui.cs_confirm_off') }}" data-confirm-danger>
+        {{-- ⚠️ حلِ تداخلِ merge: هر دو تغییر لازم‌اند و هیچ‌کدام جایگزینِ
+             دیگری نیست. `lroute()` از develop می‌آید (پنل داخلِ closureِ
+             `$site` است، پس `route()` پیشوندِ زبان را می‌انداخت و مشتریِ
+             en/tr را به نسخهٔ فارسی پرت می‌کرد)، و متنِ دوشاخهٔ تأیید از
+             این شاخه (خاموشیِ سرورِ ساعتی هزینه دارد و باید صریح گفته
+             شود — مگر روی پلنِ interruptible که واقعاً رایگان است). --}}
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}"
+              data-confirm="{{ $billsWhileOff ? __('ui.cs_confirm_off_billed') : __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
         </form>
       @endif
 
       @if($caps['console'] ?? false)
-        <form method="post" action="{{ route('account.cloud.console', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}">
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
         </form>
       @endif
 
       @if($caps['reset_password'] ?? false)
-        <form method="post" action="{{ route('account.cloud.password', $service) }}"
+        <form method="post" action="{{ lroute('account.cloud.password', $service) }}"
               data-confirm="{{ __('ui.cs_confirm_pw') }}">
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.cs_new_pw') }}</button>
         </form>
@@ -406,7 +480,7 @@
     <p style="margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cxp_egress_note') }}
     </p>
-    <form method="post" action="{{ route('account.cloud.exit-country', $service) }}"
+    <form method="post" action="{{ lroute('account.cloud.exit-country', $service) }}"
           style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       @csrf
       <select name="country" dir="ltr"
@@ -474,7 +548,7 @@
         {{-- ⚠️ گفت‌وگوی تأییدِ بومیِ مرورگر در این پروژه ممنوع است و تستِ محافظ
              دارد: قابلِ استایل نیست و روی موبایل رفتارِ متفاوتی دارد. قرارداد
              `data-confirm` است. --}}
-        <form method="post" action="{{ route('account.cloud.tunnel.agent', $service) }}"
+        <form method="post" action="{{ lroute('account.cloud.tunnel.agent', $service) }}"
               @if($tunnelAgent ?? null) data-confirm="{{ __('ui.cxp_ag_reissue_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.cxp_ag_reissue_title') }}" data-confirm-ok="{{ __('ui.cxp_ag_reissue_ok') }}" @endif>
           @csrf
           <button class="pnl-btn" type="submit">{{ ($tunnelAgent ?? null) ? __('ui.cxp_ag_reissue_title') : __('ui.cxp_ag_btn_new') }}</button>
@@ -547,7 +621,7 @@
     @endif
 
     @if($tunnelNextIp)
-      <form method="post" action="{{ route('account.cloud.tunnel.issue', $service) }}"
+      <form method="post" action="{{ lroute('account.cloud.tunnel.issue', $service) }}"
             style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
         @csrf
         <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim)">
@@ -604,7 +678,7 @@
                   @endif
                 </td>
                 <td style="text-align:left;padding:9px 6px;border-bottom:1px solid rgba(148,163,184,.12)">
-                  <form method="post" action="{{ route('account.cloud.tunnel.remove', $service) }}"
+                  <form method="post" action="{{ lroute('account.cloud.tunnel.remove', $service) }}"
                         data-confirm="{{ __('ui.cxp_del_confirm') }}" data-confirm-danger
                         data-confirm-title="{{ __('ui.cxp_del_title') }}" data-confirm-ok="{{ __('ui.cxp_delete') }}" style="margin:0">
                     @csrf
@@ -671,7 +745,7 @@
     <details class="cs-rb">
       <summary>{{ __('ui.cs_rebuild_summary') }}</summary>
 
-      <form method="post" action="{{ route('account.cloud.rebuild', $service) }}" class="cs-rb-f">
+      <form method="post" action="{{ lroute('account.cloud.rebuild', $service) }}" class="cs-rb-f">
         @csrf
 
         <label>{{ __('ui.cs_os') }}
@@ -788,7 +862,7 @@
   var pill = document.getElementById('st-pill');
   if (!pill) { return; }
 
-  var statusUrl = {{ Illuminate\Support\Js::from(route('account.cloud.status', $service)) }};
+  var statusUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.status', $service)) }};
   var building  = {{ $ready ? 'false' : 'true' }};
   var steps     = document.getElementById('cb-steps');
 
@@ -805,6 +879,55 @@
       li.classList.remove('is-done', 'is-now', 'is-todo');
       li.classList.add(i < idx ? 'is-done' : (i === idx ? 'is-now' : 'is-todo'));
     });
+  }
+
+  /* ── پیشرفتِ زندهٔ ساختِ GPU ──
+     درصدِ فازِ pulling **واقعی** است (عیناً از زیرساخت)؛ جایگاهِ فازها روی
+     نوار فقط ترتیبِ واقعی‌شان است: pulling تا ۶۰، بعد گره ۶۵/۷۵/۹۰.
+     دادهٔ نبود ⇒ نوار دست نمی‌خورد — هیچ خزشِ ساختگی. */
+  var prog       = document.getElementById('gpu-prog');
+  var progBar    = document.getElementById('gpu-prog-bar');
+  var progLabel  = document.getElementById('gpu-prog-label');
+  var progTrack  = document.getElementById('gpu-prog-track');
+  var progTime   = document.getElementById('gpu-prog-elapsed');
+  var startedAt  = prog ? parseInt(prog.dataset.started || '0', 10) : 0;
+  var lastPct    = 3;
+
+  function paintElapsed(){
+    if (!progTime || !startedAt) { return; }
+    var m = Math.max(0, Math.floor(Date.now() / 1000 / 60 - startedAt / 60));
+    progTime.textContent = (T.gpu_elapsed || '').replace(':m', String(m));
+  }
+
+  function paintBuild(b){
+    if (!prog) { return; }
+    paintElapsed();
+
+    if (!b || !b.phase) { return; }
+
+    /* جایگاهِ فازها روی نوار = ترتیبِ واقعیِ تحویل:
+       pulling (رجیستری) ۰..۳۵ → تخصیصِ گره ۴۰ → دانلودِ گره ۴۰..۹۰ → راه‌اندازی ۹۵.
+       درصدِ داخلِ هر دو فازِ دانلود **واقعی** است (از خودِ زیرساخت). */
+    var pct = null;
+    var hasPct = typeof b.pull_pct === 'number';
+    if (b.phase === 'pulling')          { pct = Math.round((b.pull_pct || 0) * 0.35); }
+    else if (b.phase === 'allocating')  { pct = 40; }
+    else if (b.phase === 'downloading') { pct = hasPct ? 40 + Math.round(b.pull_pct * 0.5) : 55; }
+    else                                { pct = 95; }   // creating / starting
+
+    // نوار هرگز عقب نمی‌رود — پرشِ عقب‌گرد مشتری را می‌ترساند
+    if (pct !== null && pct > lastPct) { lastPct = pct; }
+
+    if (progBar)   { progBar.style.width = lastPct + '%'; }
+    if (progTrack) { progTrack.setAttribute('aria-valuenow', String(lastPct)); }
+
+    var key = 'gpu_phase_' + b.phase;
+    if (b.phase === 'downloading' && hasPct && T[key + '_pct']) { key += '_pct'; }
+
+    var label = T[key] || '';
+    if (label && progLabel) {
+      progLabel.textContent = label.replace(':pct', String(b.pull_pct || 0));
+    }
   }
 
   // ── وضعیتِ زنده ──
@@ -830,6 +953,7 @@
         if (seen) { seen.textContent = T.last_check_now; }
 
         paintStage(d.stage_index);
+        paintBuild(d.build);
 
         /* تازه آماده شد → یک بار بازخوانی تا رمز (که فقط یک بار نشان داده
            می‌شود) و مشخصاتِ کامل بیاید.
@@ -852,12 +976,13 @@
   }
 
   setTimeout(poll, tick);
+  paintElapsed();
 
   // ── نمودارِ پردازنده ── SVG ساده، بی‌کتابخانه (CSP هر منبعِ خارجی را می‌بندد)
   var wrap = document.getElementById('cpu-wrap');
   if (!wrap) { return; }
 
-  fetch({{ Illuminate\Support\Js::from(route('account.cloud.metrics', $service)) }} + '?window=24h',
+  fetch({{ Illuminate\Support\Js::from(lroute('account.cloud.metrics', $service)) }} + '?window=24h',
         { headers: { 'Accept': 'application/json' } })
     .then(function(r){ return r.json(); })
     .then(function(d){

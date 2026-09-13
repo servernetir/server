@@ -199,4 +199,137 @@ class BusinessLedgerTest extends TestCase
 
         $this->assertDatabaseHas('business_ledger', ['id' => $auto->id]);
     }
+
+    // ═══════ کارمزد درگاه — ممیزی شهریور ۱۴۰۵ ═══════
+
+    public function test_gateway_fee_paid_by_us_becomes_an_expense(): void
+    {
+        $payment = $this->paidInvoice(subtotal: 1_000_000, tax: 0);
+        $payment->forceFill(['fee' => 12_000, 'fee_type' => 'Merchant'])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        $s = $this->ledger()->summary();
+        $this->assertSame(12_000, $s['expense']);
+        $this->assertSame(12_000, $s['by_category']['payment_fee'] ?? 0);
+        // و سود دقیقاً به همان اندازه کمتر می‌شود — همان تورمی که ممیزی پیدا کرد
+        $this->assertSame(988_000, $s['net_profit']);
+    }
+
+    public function test_gateway_fee_paid_by_the_customer_is_not_our_expense(): void
+    {
+        $payment = $this->paidInvoice(subtotal: 1_000_000, tax: 0);
+        $payment->forceFill(['fee' => 12_000, 'fee_type' => 'Payer'])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        $this->assertSame(0, $this->ledger()->summary()['expense']);
+    }
+
+    public function test_an_unknown_fee_bearer_is_never_guessed(): void
+    {
+        $payment = $this->paidInvoice(subtotal: 1_000_000, tax: 0);
+        $payment->forceFill(['fee' => 12_000, 'fee_type' => null])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        // حدس وارد دفتر نمی‌شود — همان قاعدهٔ recordApiCost
+        $this->assertSame(0, $this->ledger()->summary()['expense']);
+    }
+
+    public function test_fee_on_a_wallet_topup_is_still_our_expense(): void
+    {
+        // شارژ کیف پول درآمد نیست، ولی درگاه کارمزدش را گرفته و پول رفته.
+        $payment = $this->paidInvoice(subtotal: 500_000, tax: 0, kind: 'topup');
+        $payment->forceFill(['fee' => 5_000, 'fee_type' => 'Merchant'])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        $s = $this->ledger()->summary();
+        $this->assertSame(0, $s['revenue'], 'شارژ اعتبار نباید درآمد بسازد');
+        $this->assertSame(5_000, $s['expense'], 'ولی کارمزدش هزینهٔ واقعی است');
+    }
+
+    public function test_recording_a_payment_twice_does_not_double_the_fee(): void
+    {
+        $payment = $this->paidInvoice(subtotal: 1_000_000, tax: 0);
+        $payment->forceFill(['fee' => 12_000, 'fee_type' => 'Merchant'])->save();
+
+        $this->ledger()->recordPayment($payment);
+        $this->ledger()->recordPayment($payment);
+
+        $this->assertSame(12_000, $this->ledger()->summary()['expense']);
+    }
+
+    // ═══════ قطع زمانی ═══════
+
+    public function test_an_event_after_midnight_utc_lands_on_the_tehran_day(): void
+    {
+        // ۲۲:۳۰ به وقت UTC = ۰۲:۰۰ روزِ بعد به وقت تهران.
+        // با toDateString خام، این ردیف یک روز عقب می‌نشست — و برای تراکنشِ
+        // شبِ آخرِ سال یعنی درآمد در سالِ مالیِ اشتباه.
+        $payment = $this->paidInvoice(subtotal: 300_000, tax: 0);
+        $payment->forceFill(['paid_at' => \Illuminate\Support\Carbon::parse('2026-03-20 22:30:00', 'UTC')])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        $this->assertSame('2026-03-21',
+            BusinessEntry::where('kind', 'revenue')->value('occurred_at')->toDateString());
+    }
+
+    public function test_reading_the_ledger_does_not_move_the_payments_own_timestamp(): void
+    {
+        $payment = $this->paidInvoice(subtotal: 300_000, tax: 0);
+        $at = \Illuminate\Support\Carbon::parse('2026-03-20 22:30:00', 'UTC');
+        $payment->forceFill(['paid_at' => $at])->save();
+
+        $this->ledger()->recordPayment($payment);
+
+        // setTimezone نمونه را جابه‌جا می‌کند؛ بدونِ copy() صداکننده هم عوض می‌شد
+        $this->assertSame('UTC', $payment->paid_at->timezone->getName());
+    }
+
+    // ═══════ ارزهای غیرِ پایه ═══════
+
+    public function test_foreign_currency_rows_are_shown_separately_not_summed(): void
+    {
+        $eur = $this->paidInvoice(subtotal: 1_000, tax: 0);
+        $eur->invoice->forceFill(['currency_code' => 'EUR'])->save();
+        $eur->forceFill(['currency_code' => 'EUR'])->save();
+        $eur->refresh();
+
+        $this->ledger()->recordPayment($eur);
+
+        $s = $this->ledger()->summary();
+        // با تومان جمع نمی‌شود — نرخِ تسعیر نداریم و حدس ممنوع است
+        $this->assertSame(0, $s['revenue']);
+        // ولی ناپدید هم نمی‌شود
+        $this->assertSame(1_000, $s['by_currency']['EUR']['revenue'] ?? 0);
+    }
+
+    /**
+     * صفحه با ردیفِ ارزی هم باید باز شود.
+     *
+     * تست‌های موجود /admin/finance را فقط با دفترِ تومانی می‌زدند، پس بلوکِ
+     * تازه هرگز اجرا نمی‌شد. صفحهٔ مالی یک بار با ParseError کلِ ۵۰۰ شده —
+     * بلوکی که هیچ تستی از آن رد نشود، دقیقاً همان‌جور می‌شکند.
+     */
+    public function test_the_finance_page_renders_with_a_foreign_currency_row(): void
+    {
+        $staff = User::create([
+            'name' => 'مدیر', 'email' => 'fx'.random_int(1, 999).'@x.com',
+            'password' => bcrypt('secret1234'), 'role' => 'admin',
+        ]);
+
+        $eur = $this->paidInvoice(subtotal: 2_500, tax: 0);
+        $eur->invoice->forceFill(['currency_code' => 'EUR'])->save();
+        $eur->forceFill(['currency_code' => 'EUR'])->save();
+        $this->ledger()->recordPayment($eur->refresh());
+
+        $html = $this->actingAs($staff, 'web')->get('/admin/finance')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('EUR', $html);
+        $this->assertStringContainsString('ردیف‌های ارزی', $html);
+    }
 }

@@ -30,6 +30,29 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
 
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه، که خودِ همین اسکریپت‌ها قربانی‌اش شدند: اجرا با
+# کاربرِ اشتباه (مثلاً root به‌جای servernetcloud) یعنی $HOME عوض می‌شود،
+# فایل‌ها در مسیری ساخته می‌شوند که سایت آن‌جا نیست، و گاردِ اتحاد **سبز**
+# می‌شود چون همان فایل‌هایی را می‌سنجد که خودش تازه ساخته.
+#
+# پس مقصد باید *قبل* از نوشتن ثابت شود: نصبِ واقعی artisan و vendor دارد.
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  echo "   چاره:  su - servernetcloud   و بعد همین دستور را دوباره بزنید."
+  exit 1
+fi
+
+# فضای آزاد: دیپلوی روی دیسکِ پر، نیمه‌کاره می‌مانَد
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول پاک‌سازی کنید:"
+  echo "   rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
@@ -43,7 +66,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-611f5d1}"
+MINE="${1:-3cc3d4a}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -63,6 +86,7 @@ app/Console/Commands/GenerateContent.php
 app/Console/Commands/CheckContentLinks.php
 app/Console/Commands/TranslateMissing.php
 app/Console/Commands/PublishDue.php
+app/Console/Commands/RelinkContent.php
 resources/content/blog-1405.php
 resources/content/kb-1405.php
 resources/content/docs-1405.php
@@ -258,6 +282,14 @@ g app/Services/AiContent.php "related_product"
 # ⚠️ تابعِ site_social که develop به helpers اضافه کرده — نباید قربانیِ
 #    افزودنِ article_faq_ld شود (هر دو ته همان فایل می‌نشینند).
 g app/helpers.php "article_faq_ld"
+# هر سه زبان باید اسکیمای FAQ بگیرند — نسخهٔ قبلی ترکی را بی‌صدا جا می‌انداخت
+g app/helpers.php "sorulan sorular"
+# تعمیرِ لینکِ متنِ قدیمی — دستی اجرا می‌شود، زمان‌بندی نیست
+g app/Console/Commands/RelinkContent.php "content:relink"
+# دامنهٔ دومِ خودمان نباید nofollow بگیرد — مهاجرت .ir → .cloud
+g app/Services/InternalLinks.php "OWN_DOMAINS"
+# relink نباید ویژگی‌های لینکِ بیرونی را دست بزند
+g app/Console/Commands/RelinkContent.php "markExternal: false"
 g app/helpers.php "site_social"
 
 # schemaِ پرسش روی هر دو نوعِ صفحه

@@ -8,7 +8,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * `/vps/iran` — یک ردیف به ازای هر **مشخصات**، و شهر یک انتخاب داخلِ همان ردیف.
+ * صفحه‌های کشور — ایران همهٔ پلن‌های شهری را مستقل نشان می‌دهد؛ کشورهای دیگر
+ * همچنان مشخصات یکسان را به ارزان‌ترین شهر فرو می‌کاهند.
  *
  * ═══ چه چیزی خراب بود ═══
  *
@@ -26,10 +27,9 @@ use Tests\TestCase;
  *
  * ═══ ادعای این فایل ═══
  *
- * 🔴 **هیچ‌چیز نامرئی نشد.** هر (مشخصات × شهر) که پیش از این خریدنی بود، هنوز
- * خریدنی است — با لینکِ تسویهٔ **خودش** (`?location=` و `?plan=`، جفتِ هماهنگ).
- * تعدادِ ردیف کم شد؛ تعدادِ چیزهای قابلِ خرید نه. آخرین تستِ این فایل دقیقاً
- * همین را می‌سنجد: قبل و بعد، روی همان داده.
+ * 🔴 برای ایران **هیچ‌چیز نامرئی نمی‌شود**: هر (مشخصات × شهر) که خریدنی است یک
+ * ردیف و لینک تسویهٔ هماهنگِ خودش دارد. استثنا فقط IR است تا رفتار صفحات خارجی
+ * و جلوگیری از جدول‌های تکراریِ آن‌ها دست‌نخورده بماند.
  */
 class CountryPlanCityPickerTest extends TestCase
 {
@@ -116,12 +116,12 @@ class CountryPlanCityPickerTest extends TestCase
         return implode(' ¶ ', array_map('trim', $m[1]));
     }
 
-    // ═══════════════ ۱) تکرار تمام شد ═══════════════
+    // ═══════════════ ۱) استثنای ایران: تمام پلن‌های شهری دیده شوند ═══════════════
 
     /**
-     * 🔴 قلبِ گزارش: ۳ شهر × ۴ مشخصات = ۱۲ ردیف پیش از این، ۴ ردیف بعد از این.
+     * 🔴 قلبِ گزارش: ۳ شهر × ۴ مشخصات باید ۱۲ ردیف مستقل بدهد.
      */
-    public function test_the_page_renders_one_row_per_spec_not_one_per_city(): void
+    public function test_the_iran_page_renders_every_sellable_city_plan(): void
     {
         $this->cities();
 
@@ -133,8 +133,8 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertSame(4, $this->rows($html),
-            'صفحه هنوز یک ردیف به ازای هر (مشخصات × شهر) می‌سازد — همان جدولِ ۹۱۶۳ پیکسلی');
+        $this->assertSame(12, $this->rows($html),
+            'صفحهٔ ایران یکی از ترکیب‌های قابل‌فروشِ (مشخصات × شهر) را پنهان کرده است');
 
         // و چهار مشخصات هم واقعاً روی صفحه‌اند، نه اینکه هشت‌تا حذف شده باشد
         foreach ([1, 2, 3, 4] as $n) {
@@ -143,20 +143,8 @@ class CountryPlanCityPickerTest extends TestCase
         }
     }
 
-    /**
-     * 🔴🔴 صفحهٔ بازاریابی فقط **ارزان‌ترین شهر** را تبلیغ می‌کند — ولی موجودی
-     * از بین نمی‌رود.
-     *
-     * ⚠️ نسخهٔ قبلیِ همین تست عکسِ این را قفل کرده بود («هر ۱۲ عرضه از صفحه
-     * خریدنی باشد»)، چون یک «مرتب‌سازیِ» قدیمی‌تر ده‌ها پلن را بی‌خطا و بی‌لاگ
-     * پنهان کرده بود. آن درس هنوز درست است و **حذف نشده**، فقط جایش عوض شده:
-     * حالا ادعا این است که مسیرِ **سفارش** هنوز هر ۱۲ تا را می‌بیند، حتی وقتی
-     * صفحه ۴ تا لینک می‌دهد. اگر روزی کسی `scopeSellable` را تنگ کند، همین
-     * تست قرمز می‌شود — همان محافظت، از جای درست‌تر.
-     *
-     * تصمیمِ کارفرما (مرداد ۱۴۰۵): «اون شهری که ارزان تره فقط بیوفته».
-     */
-    public function test_the_page_advertises_only_the_cheapest_city_but_nothing_becomes_unsellable(): void
+    /** هر عرضهٔ ایرانی باید هم در سفارش و هم روی صفحه لینک مستقل داشته باشد. */
+    public function test_the_iran_page_advertises_every_sellable_city_with_its_own_checkout_link(): void
     {
         $this->cities();
 
@@ -179,21 +167,16 @@ class CountryPlanCityPickerTest extends TestCase
             'مسیرِ سفارش دیگر همهٔ شهرها را نمی‌بیند — این یعنی موجودی واقعاً گم شد، '
             .'نه اینکه فقط تبلیغ نشود');
 
-        // ── نیمهٔ دوم: صفحه فقط ارزان‌ترین را لینک می‌کند ────────────────────
+        // ── نیمهٔ دوم: صفحه نیز همهٔ عرضه‌ها را لینک می‌کند ──────────────────
         $html = $this->html();
 
-        $this->assertSame(4, $this->rows($html), 'چهار مشخصات = چهار ردیف');
+        $this->assertSame(12, $this->rows($html), 'چهار مشخصات × سه شهر = دوازده ردیف');
 
-        // قیمتِ همهٔ شهرها در فیکسچر برابر است ⇒ ترتیبِ `sort` تصمیم می‌گیرد ⇒ تهران
-        foreach ([1, 2, 3, 4] as $n) {
-            $slug = 'cv-'.$n.'c-'.$n.'g-'.(20 * $n).'d-';
-
-            $this->assertStringContainsString('location=ir-tehran&amp;plan='.$slug.'ir-tehran', $html);
-        }
-
-        foreach (['ir-shiraz', 'ir-isfahan'] as $loc) {
-            $this->assertStringNotContainsString('location='.$loc, $html,
-                "شهرِ {$loc} هنوز روی صفحه لینک دارد — قاعده «فقط ارزان‌ترین» است");
+        foreach (array_keys(self::CITIES) as $loc) {
+            foreach ([1, 2, 3, 4] as $n) {
+                $slug = 'cv-'.$n.'c-'.$n.'g-'.(20 * $n).'d-'.$loc;
+                $this->assertStringContainsString('location='.$loc.'&amp;plan='.$slug, $html);
+            }
         }
     }
 
@@ -214,7 +197,7 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertSame(1, $this->rows($html));
+        $this->assertSame(3, $this->rows($html));
 
         $cell = $this->locCells($html);
         $shown = [];
@@ -225,8 +208,8 @@ class CountryPlanCityPickerTest extends TestCase
             }
         }
 
-        $this->assertSame(['تهران'], $shown,
-            'بیش از یک شهر روی ردیف است: '.implode('، ', $shown));
+        $this->assertSame(array_values(self::CITIES), $shown,
+            'همهٔ شهرهای قابل‌فروش ایران روی ردیف مستقل دیده نمی‌شوند: '.implode('، ', $shown));
 
         // و انتخابگرِ چندشهری اصلاً رندر نمی‌شود
         $this->assertStringNotContainsString('pt-cities', $html);
@@ -283,7 +266,7 @@ class CountryPlanCityPickerTest extends TestCase
      * مجموعهٔ چندشهری می‌دوید و چون مکان بُعدِ مقایسه نیست، شهرِ گران‌تر با
      * مشخصاتِ یکسان **پاک** می‌شد.
      */
-    public function test_a_spec_priced_differently_per_city_shows_only_the_cheaper_city(): void
+    public function test_a_spec_priced_differently_per_iran_city_shows_every_city(): void
     {
         $this->cities();
 
@@ -293,10 +276,17 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertSame(1, $this->rows($html), 'یک مشخصات = یک ردیف');
+        $this->assertSame(3, $this->rows($html), 'یک مشخصات × سه شهر = سه ردیف');
 
-        $this->assertStringContainsString('data-city="تهران"', $html);
-        $this->assertStringContainsString('data-price="1700000"', $html);
+        foreach ([
+            'تهران' => 1_700_000,
+            'شیراز' => 2_400_000,
+            'اصفهان' => 3_100_000,
+        ] as $city => $price) {
+            $this->assertStringContainsString('data-city="'.$city.'"', $html);
+            $this->assertStringContainsString('data-price="'.$price.'"', $html);
+            $this->assertStringContainsString(fa_num(number_format($price)), $html);
+        }
 
         /*
         | 🔴 «شروع از» باید **برود**، نه اینکه فراموش شود.
@@ -309,13 +299,9 @@ class CountryPlanCityPickerTest extends TestCase
         $this->assertStringNotContainsString('pt-from', $html,
             'نشانهٔ «شروع از» مانده در حالی که ردیف فقط یک قیمت دارد');
 
-        // قیمتِ شهرهای گران‌تر اصلاً روی صفحه نیست
-        foreach ([2_400_000, 3_100_000] as $irt) {
-            $this->assertStringNotContainsString(fa_num(number_format($irt)), $html,
-                'قیمتِ شهرِ گران‌تر هنوز روی صفحه است');
+        foreach (array_keys(self::CITIES) as $loc) {
+            $this->assertStringContainsString('location='.$loc.'&amp;plan=cv-2c-2g-40d-'.$loc, $html);
         }
-
-        $this->assertStringContainsString('location=ir-tehran&amp;plan=cv-2c-2g-40d-ir-tehran', $html);
     }
 
     // ═══════════════ ۳) شهرِ ناموجود: دیده شود، نه حذف ═══════════════
@@ -452,7 +438,7 @@ class CountryPlanCityPickerTest extends TestCase
 
         $this->assertStringContainsString('data-group="std"', $html);
         $this->assertStringContainsString('data-group="ded"', $html);
-        $this->assertSame(2, $this->rows($html), 'دو مشخصات × دو شهر باید دو ردیف بدهد');
+        $this->assertSame(4, $this->rows($html), 'دو مشخصات × دو شهر ایران باید چهار ردیف بدهد');
     }
 
     // ═══════════════ ۵) سفیدبرچسبی و چیدمان ═══════════════
@@ -475,8 +461,8 @@ class CountryPlanCityPickerTest extends TestCase
         }
     }
 
-    /** چیدمانِ پیش‌فرض هنوز ارزان به گران است (ارزان‌ترین شهرِ هر گروه) */
-    public function test_grouped_rows_are_still_ordered_cheapest_first(): void
+    /** چیدمانِ همهٔ ردیف‌های مستقل ایران هنوز ارزان به گران است. */
+    public function test_iran_rows_are_still_ordered_cheapest_first(): void
     {
         $this->cities();
 
@@ -493,22 +479,10 @@ class CountryPlanCityPickerTest extends TestCase
         sort($sorted);
 
         $this->assertSame($sorted, $prices, 'جدول باید از ارزان به گران باشد');
-        $this->assertCount(4, $prices);
+        $this->assertCount(12, $prices);
     }
 
-    /**
-     * ⚠️ فیلترِ شهر باید با آنچه ردیف **نشان می‌دهد** بخوانَد، نه با آنچه
-     * می‌توانست نشان دهد.
-     *
-     * نسخهٔ قبلی عکسِ این را قفل می‌کرد (`data-cities="|تهران|شیراز|اصفهان|"`)
-     * چون ردیف واقعاً سه شهر می‌فروخت و فیلترِ «شیراز» بی‌آن، ردیفِ درست را
-     * پنهان می‌کرد. حالا که ردیف فقط تهران را تبلیغ می‌کند، فهرستِ سه‌تایی
-     * برعکس دروغ می‌شد: فیلترِ «شیراز» ردیفی را نشان می‌داد که هیچ لینکِ
-     * شیرازی ندارد.
-     *
-     * 🔴 قاعدهٔ ماندگار پشتِ هر دو نسخه یکی است و همان است که باید بمانَد:
-     * **فهرستِ فیلتر و محتوای ردیف باید از یک منبع بیایند.**
-     */
+    /** فهرست فیلتر و ردیف‌های مستقل ایران باید دقیقاً شهرهای یکسانی داشته باشند. */
     public function test_the_filter_list_matches_exactly_the_city_the_row_shows(): void
     {
         $this->cities();
@@ -519,13 +493,9 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertStringContainsString('data-cities="|تهران|"', $html);
-
-        $this->assertStringContainsString('data-f="city" data-v="تهران"', $html);
-
-        foreach (['شیراز', 'اصفهان'] as $city) {
-            $this->assertStringNotContainsString('data-f="city" data-v="'.$city.'"', $html,
-                "«{$city}» گزینهٔ فیلتر است ولی هیچ ردیفی نشانش نمی‌دهد — فیلترِ بی‌نتیجه");
+        foreach (self::CITIES as $city) {
+            $this->assertStringContainsString('data-cities="|'.$city.'|"', $html);
+            $this->assertStringContainsString('data-f="city" data-v="'.$city.'"', $html);
         }
     }
 
@@ -594,7 +564,7 @@ class CountryPlanCityPickerTest extends TestCase
 
         $html = $this->html();
 
-        $this->assertSame(1, substr_count($html, 'data-city='));
-        $this->assertSame(1, substr_count($html, 'data-price='));
+        $this->assertSame(3, substr_count($html, 'data-city='));
+        $this->assertSame(3, substr_count($html, 'data-price='));
     }
 }

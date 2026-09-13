@@ -28,6 +28,29 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BK="$WORK/backup-$STAMP"
 HIST=80
 
+# ═══ 🔴 اثباتِ مقصد — پیش از هر نوشتنی ═══
+#
+# درسِ ثبت‌شدهٔ این پروژه، که خودِ همین اسکریپت‌ها قربانی‌اش شدند: اجرا با
+# کاربرِ اشتباه (مثلاً root به‌جای servernetcloud) یعنی $HOME عوض می‌شود،
+# فایل‌ها در مسیری ساخته می‌شوند که سایت آن‌جا نیست، و گاردِ اتحاد **سبز**
+# می‌شود چون همان فایل‌هایی را می‌سنجد که خودش تازه ساخته.
+#
+# پس مقصد باید *قبل* از نوشتن ثابت شود: نصبِ واقعی artisan و vendor دارد.
+if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
+  echo "🔴 «$APP» نصبِ لاراول نیست (artisan یا vendor نیست)."
+  echo "   احتمالاً با کاربرِ اشتباه واردید. کاربرِ درست: servernetcloud"
+  echo "   چاره:  su - servernetcloud   و بعد همین دستور را دوباره بزنید."
+  exit 1
+fi
+
+# فضای آزاد: دیپلوی روی دیسکِ پر، نیمه‌کاره می‌مانَد
+FREE_MB=$(df -Pm "$HOME" | awk 'NR==2{print $4}')
+if [ "${FREE_MB:-0}" -lt 500 ]; then
+  echo "🔴 فضای آزاد کم است (${FREE_MB}MB). اول پاک‌سازی کنید:"
+  echo "   rm -rf ~/deploy-*/repo"
+  exit 1
+fi
+
 mkdir -p "$WORK" "$BK" "$WORK/conflicts"
 cd "$WORK"
 
@@ -38,7 +61,7 @@ else
   git clone --depth 600 --branch develop https://github.com/servernetir/server.git repo || exit 1
 fi
 
-MINE="${1:-8a8e20d}"
+MINE="${1:-1c4f130}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 echo "── بکاپ در: $BK"
@@ -117,6 +140,7 @@ grep -qF "function settle" "$REC" || { echo "🔴 تسویه از فایل پر�
 grep -qF "freeOrphanedWallets" "$REC" || { echo "🔴 آزادسازیِ ولتِ یتیم پرید"; ok=0; }
 grep -qF "expireStale" "$REC" || { echo "🔴 انقضا پرید"; ok=0; }
 grep -qF "class CryptoAudit" "$APP/app/Console/Commands/CryptoAudit.php" || { echo "🔴 فرمانِ حسابرسی نیست"; ok=0; }
+grep -qF "FETCH_TIMEOUT" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 مهلتِ دریافت ننشست"; ok=0; }
 grep -qF "FALLBACK_MAX_AGE_HOURS" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 پشتوانهٔ نرخ ننشست"; ok=0; }
 grep -qF "function lastKnown" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 خواندنِ نرخِ پایدار نیست"; ok=0; }
 grep -qF "function refresh" "$APP/app/Services/ExchangeRate.php" || { echo "🔴 refresh از فایل پرید"; ok=0; }

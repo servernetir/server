@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTwoFactor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
  */
 class Customer extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasTwoFactor, Notifiable;
 
     protected $fillable = [
         'code', 'email', 'phone', 'password', 'locale', 'timezone', 'status',
@@ -23,7 +24,7 @@ class Customer extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery',
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'notes',
     ];
 
     protected function casts(): array
@@ -80,6 +81,30 @@ class Customer extends Authenticatable
     {
         return $this->profiles()->where('is_default', true)->first()
             ?? $this->profiles()->first();
+    }
+
+    /**
+     * هویتی که روی **فاکتور** می‌نشیند.
+     *
+     * ═══ چرا حقوقی بر حقیقی مقدم است ═══
+     *
+     * کسی که اطلاعات شرکتش را وارد کرده، فاکتور را برای شرکتش می‌خواهد —
+     * فاکتوری به نامِ شخصِ خودش برای دفاترِ آن شرکت بی‌مصرف است و مالیاتِ
+     * ارزش افزوده‌اش هم قابلِ استفاده نیست. پس وجودِ یک پروفایلِ حقوقی
+     * خودش اعلامِ نیت است، حتی اگر پروفایلِ حقیقی `is_default` باشد.
+     *
+     * ترتیب: حقوقیِ پیش‌فرض ← حقوقیِ تأییدشده ← تازه‌ترین حقوقی.
+     *
+     * ⚠️ `null` یعنی «حقوقی ندارد»، نه «خطا» — فاکتور به همان روالِ حقیقیِ
+     * قبلی برمی‌گردد.
+     */
+    public function billingProfile(): ?CustomerProfile
+    {
+        $company = $this->profiles()->where('type', 'company');
+
+        return (clone $company)->where('is_default', true)->first()
+            ?? (clone $company)->where('status', 'verified')->latest('id')->first()
+            ?? $company->latest('id')->first();
     }
 
     public function identities(): HasMany
@@ -173,6 +198,11 @@ class Customer extends Authenticatable
     public function creditEntries(): HasMany
     {
         return $this->hasMany(CreditEntry::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class);
     }
 
     public function tickets(): HasMany

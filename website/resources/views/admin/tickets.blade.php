@@ -7,7 +7,7 @@
   // لینکِ تب‌ها فیلترهای جستجو/اولویت/بخش را نگه می‌دارد تا با عوض‌کردنِ وضعیت
   // جستجو دور نریزد.
   $tab = fn ($st) => '/admin/tickets?'.http_build_query(array_filter(
-      ['status' => $st, 'q' => $q, 'priority' => $priority, 'department' => $dept],
+      ['status' => $st, 'q' => $q, 'priority' => $priority, 'department' => $dept, 'sort' => $sort],
       fn ($v) => $v !== ''
   ));
   $inp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px';
@@ -38,6 +38,15 @@
       <option value="technical" @selected($dept === 'technical')>فنی</option>
       <option value="billing"   @selected($dept === 'billing')>مالی</option>
       <option value="sales"     @selected($dept === 'sales')>فروش</option>
+    </select>
+    <select name="sort" style="{{ $inp }}">
+      <option value="workflow" @selected($sort==='workflow')>صف کاری پیشنهادی</option>
+      <option value="activity_desc" @selected($sort==='activity_desc')>جدیدترین فعالیت</option>
+      <option value="activity_asc" @selected($sort==='activity_asc')>قدیمی‌ترین فعالیت</option>
+      <option value="created_desc" @selected($sort==='created_desc')>جدیدترین تیکت</option>
+      <option value="created_asc" @selected($sort==='created_asc')>قدیمی‌ترین تیکت</option>
+      <option value="customer_desc" @selected($sort==='customer_desc')>آخرین پاسخ مشتری</option>
+      <option value="staff_desc" @selected($sort==='staff_desc')>آخرین پاسخ مدیر</option>
     </select>
     <button type="submit" style="{{ $inp }};cursor:pointer;color:var(--cyan);border-color:var(--cyan)">جستجو</button>
     @if($q !== '' || $priority !== '' || $dept !== '')

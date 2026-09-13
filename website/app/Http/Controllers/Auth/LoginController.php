@@ -149,9 +149,78 @@ class LoginController extends Controller
                 ->withErrors(['identifier' => __('ui.auth_ip_blocked')]);
         }
 
-        // ورود موفق
         $request->session()->forget('login_otp');
 
+        /*
+        | دروازهٔ سوم — اپلیکیشنِ احرازِ هویت، فقط اگر خودِ کاربر روشنش کرده باشد.
+        |
+        | 🔴 این‌جا **هنوز وارد نشده‌ایم** و این عمدی است. اگر اول
+        | `Auth::login()` می‌زدیم و بعد کد می‌خواستیم، هر میان‌افزارِ دیگری که
+        | فقط `auth:customer` را می‌سنجد کاربرِ نیمه‌احرازشده را وارد می‌دید —
+        | و کافی بود مهاجم به‌جای پرکردنِ فرمِ کد، مستقیم `/account/...` را باز
+        | کند. مثلِ مرحلهٔ دو، نشانگرِ گذار در نشست است و نشست ورود نیست.
+        */
+        if ($customer->hasTwoFactor()) {
+            $request->session()->put('login_2fa', [
+                'customer_id' => $customer->id,
+                'channel'     => $ctx['channel'],
+            ]);
+
+            return redirect()->route($this->rp().'login.2fa');
+        }
+
+        return $this->completeLogin($request, $customer, $ctx['channel']);
+    }
+
+    /** مرحلهٔ ۳ (نمایش): کدِ اپلیکیشنِ احرازِ هویت */
+    public function twoFactor(Request $request): View|RedirectResponse
+    {
+        if (! is_array($request->session()->get('login_2fa'))) {
+            return redirect()->route($this->rp().'login');
+        }
+
+        return view('auth.login-2fa');
+    }
+
+    /** مرحلهٔ ۳ (ثبت): کدِ اپلیکیشن یا کدِ بازیابی → ورود واقعی */
+    public function twoFactorVerify(Request $request): RedirectResponse
+    {
+        // ۲۴ نویسه و نه ۱۲: کدِ بازیابی (`xxxxx-xxxxx`) هم از همین فرم می‌آید
+        $data = $request->validate(['code' => ['required', 'string', 'max:24']]);
+
+        $ctx = $request->session()->get('login_2fa');
+
+        if (! is_array($ctx)) {
+            return redirect()->route($this->rp().'login')
+                ->withErrors(['identifier' => __('ui.auth_session_expired')]);
+        }
+
+        $customer = Customer::find($ctx['customer_id']);
+
+        // وضعیتِ حساب بینِ مرحلهٔ دو و سه ممکن است عوض شده باشد
+        if ($customer === null || ! $customer->isActive()) {
+            $request->session()->forget('login_2fa');
+
+            return redirect()->route($this->rp().'login')
+                ->withErrors(['identifier' => __('ui.auth_account_blocked')]);
+        }
+
+        if (! $customer->verifyTwoFactorCode($data['code'], $reason)) {
+            \App\Models\ActivityLog::record($customer->id, 'login',
+                __('ui.act_login_app_bad').' ('.($reason ?? 'invalid').')', $request, 'customer');
+
+            return redirect()->route($this->rp().'login.2fa')
+                ->withErrors(['code' => $reason === 'replay' ? __('ui.tfa_code_used') : __('ui.tfa_code_wrong')]);
+        }
+
+        $request->session()->forget('login_2fa');
+
+        return $this->completeLogin($request, $customer, $ctx['channel'] ?? 'sms', true);
+    }
+
+    /** برقراریِ نشست — نقطهٔ واحدِ «از این‌جا به بعد کاربر واقعاً وارد است» */
+    private function completeLogin(Request $request, Customer $customer, string $channel, bool $twoFactor = false): RedirectResponse
+    {
         $customer->forceFill([
             'last_login_at'      => now(),
             'last_login_ip'      => $request->ip(),
@@ -162,7 +231,8 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         \App\Models\ActivityLog::record($customer->id, 'login',
-            __('ui.act_login', ['channel' => __($ctx['channel'] === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile')]),
+            __('ui.act_login', ['channel' => __($channel === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile')])
+                .($twoFactor ? __('ui.act_login_app') : ''),
             $request, 'customer');
 
         return redirect()->intended(route($this->rp().'account.home'));
@@ -214,6 +284,7 @@ class LoginController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
+        $request->session()->forget(['login_otp', 'login_2fa']);
         Auth::guard('customer')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

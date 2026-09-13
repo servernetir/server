@@ -136,9 +136,77 @@ class AuthController extends Controller
             return redirect('/admin/login')->withErrors(['email' => 'حساب مدیر پیدا نشد.']);
         }
 
-        Auth::login($user, (bool) ($ctx['remember'] ?? false));
-        $request->session()->regenerate();
+        /*
+        | مرحلهٔ ۳ — اپلیکیشنِ احرازِ هویت، فقط اگر خودِ کاربر روشنش کرده باشد.
+        |
+        | 🔴 هنوز `Auth::login` نمی‌زنیم. اگر می‌زدیم و بعد کد می‌خواستیم، کاربرِ
+        | نیمه‌احرازشده برای میان‌افزارِ `auth:web` وارد حساب می‌شد و کافی بود
+        | مهاجم به‌جای پرکردنِ فرمِ کد، مستقیم `/admin` را باز کند.
+        |
+        | ⚠️ کلیدِ نشست همان `admin_2fa` نیست: کلیدِ جدا یعنی یک درخواستِ
+        | جامانده از مرحلهٔ دو نمی‌تواند مرحلهٔ سه را رد کند.
+        */
+        if ($user->hasTwoFactor()) {
+            $request->session()->forget('admin_2fa');
+            $request->session()->put('admin_totp', [
+                'user_id'  => $user->id,
+                'remember' => (bool) ($ctx['remember'] ?? false),
+            ]);
+
+            return redirect()->route('admin.login.totp');
+        }
+
         $request->session()->forget('admin_2fa');
+
+        return $this->completeLogin($request, $user, (bool) ($ctx['remember'] ?? false));
+    }
+
+    /** مرحلهٔ ۳ (نمایش): فرمِ کدِ اپلیکیشن */
+    public function showTotp(Request $request): View|RedirectResponse
+    {
+        if (! is_array($request->session()->get('admin_totp'))) {
+            return redirect('/admin/login');
+        }
+
+        return view('admin.login-totp');
+    }
+
+    /** مرحلهٔ ۳ (ثبت): کدِ اپلیکیشن یا کدِ بازیابی → ورود واقعی */
+    public function verifyTotp(Request $request): RedirectResponse
+    {
+        // ۲۴ نویسه و نه ۱۲: کدِ بازیابی (`xxxxx-xxxxx`) هم از همین فرم می‌آید
+        $data = $request->validate(['code' => ['required', 'string', 'max:24']]);
+
+        $ctx = $request->session()->get('admin_totp');
+
+        if (! is_array($ctx)) {
+            return redirect('/admin/login')->withErrors(['email' => 'نشست منقضی شد. دوباره وارد شوید.']);
+        }
+
+        $user = User::find($ctx['user_id']);
+
+        if (! $user || ! $user->hasTwoFactor()) {
+            $request->session()->forget('admin_totp');
+
+            return redirect('/admin/login')->withErrors(['email' => 'حساب مدیر پیدا نشد.']);
+        }
+
+        if (! $user->verifyTwoFactorCode($data['code'], $reason)) {
+            return back()->withErrors(['code' => $reason === 'replay'
+                ? 'این کد قبلاً استفاده شده است. تا کد بعدی اپلیکیشن صبر کنید.'
+                : 'کد درست نیست. اگر گوشی‌تان در دسترس نیست، یکی از کدهای بازیابی را وارد کنید.']);
+        }
+
+        $request->session()->forget('admin_totp');
+
+        return $this->completeLogin($request, $user, (bool) ($ctx['remember'] ?? false));
+    }
+
+    /** برقراریِ نشستِ کارکنان — نقطهٔ واحدِ «از این‌جا به بعد واقعاً وارد است» */
+    private function completeLogin(Request $request, User $user, bool $remember): RedirectResponse
+    {
+        Auth::login($user, $remember);
+        $request->session()->regenerate();
 
         return redirect()->intended('/admin');
     }
@@ -167,6 +235,7 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
+        $request->session()->forget(['admin_2fa', 'admin_totp']);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

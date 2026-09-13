@@ -76,6 +76,48 @@ class CloudflareDns
         return $res;
     }
 
+    /**
+     * 🔴 برداشتنِ رکوردِ A — نیمهٔ دومِ `pointSubdomain()`.
+     *
+     * ⚠️ بی‌این، هر سرویسِ خاتمه‌یافته یک رکوردِ زندهٔ DNS جا می‌گذارد که به
+     * IP عمومیِ مشترک اشاره می‌کند. آن نام بعداً روی پروکسی به میزبانِ دیگری
+     * می‌خورد یا در فهرستِ زون انباشته می‌شود — و بدتر، نامِ مشتریِ رفته برای
+     * همیشه در DNS عمومی می‌مانَد.
+     *
+     * ⚠️ نبودنِ رکورد **موفقیت** است نه خطا: کرونِ آزادسازی ممکن است دوباره
+     * بدود و هشدارِ دروغ، هشدارهای واقعی را زیرِ خود دفن می‌کند.
+     *
+     * @return array{ok:bool, reason:?string}
+     */
+    public function removeSubdomain(string $fqdn): array
+    {
+        $token = Setting::getSecret('cloudflare_token');
+
+        if (blank($token)) {
+            return ['ok' => false, 'reason' => 'توکنِ Cloudflare در تنظیمات وارد نشده است.'];
+        }
+
+        $zoneId = $this->zoneId($token);
+
+        if ($zoneId === null) {
+            return ['ok' => false, 'reason' => 'Zone در Cloudflare پیدا نشد.'];
+        }
+
+        $id = $this->findRecord($token, $zoneId, $fqdn);
+
+        if ($id === null) {
+            return ['ok' => true, 'reason' => null];      // از قبل نبود
+        }
+
+        $res = $this->request($token, 'delete', "/zones/{$zoneId}/dns_records/{$id}");
+
+        if (! $res['ok']) {
+            Log::warning('cloudflare dns delete failed', ['fqdn' => $fqdn, 'reason' => $res['reason']]);
+        }
+
+        return ['ok' => $res['ok'], 'reason' => $res['reason']];
+    }
+
     /** Zone ID از تنظیمات، وگرنه با نامِ دامنه پیدا و ذخیره می‌شود */
     private function zoneId(string $token): ?string
     {

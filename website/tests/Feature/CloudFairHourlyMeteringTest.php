@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\ActivityLog;
 use App\Models\CloudInstance;
+use App\Models\CloudLocation;
+use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Services\Cloud\CloudDeliveryWatch;
 use App\Services\Provisioning\ProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,10 +39,33 @@ class CloudFairHourlyMeteringTest extends TestCase
 
     private const RATE = 5000;
 
+    private string $saladStatus = 'unknown';
+
+    private int $saladHttpStatus = 200;
+
     protected function setUp(): void
     {
         parent::setUp();
-        Http::fake();                 // هیچ تماسِ بیرونی، در هیچ مسیری
+        Http::fake(function ($request) {
+            if (! str_contains($request->url(), 'api.salad.com/')) {
+                return Http::response([], 200);
+            }
+
+            if ($this->saladHttpStatus !== 200) {
+                return Http::response(['message' => 'unavailable'], $this->saladHttpStatus);
+            }
+
+            if (str_ends_with($request->url(), '/instances')) {
+                return Http::response(['items' => []], 200);
+            }
+
+            return Http::response([
+                'current_state' => [
+                    'status' => $this->saladStatus === 'off' ? 'stopped' : $this->saladStatus,
+                    'description' => '',
+                ],
+            ], 200);
+        });                            // هیچ تماسِ بیرونی، در هیچ مسیری
     }
 
     protected function tearDown(): void
@@ -102,6 +128,16 @@ class CloudFairHourlyMeteringTest extends TestCase
     {
         return (int) abs((int) CreditEntry::where('customer_id', $c->id)
             ->where('amount', '<', 0)->sum('amount'));
+    }
+
+    private function fakeInterruptibleStatus(string $status = 'running', int $httpStatus = 200): void
+    {
+        Setting::putSecret('salad_api_key', 'test-key');
+        Setting::put('salad_org', 'servernet');
+        Setting::put('salad_project', 'prod');
+
+        $this->saladStatus = $status;
+        $this->saladHttpStatus = $httpStatus;
     }
 
     // ═══════════════ ۱) واحد = یک ساعتِ کامل ═══════════════
@@ -337,12 +373,12 @@ class CloudFairHourlyMeteringTest extends TestCase
     }
     // ═══════════════ پلنِ قطع‌شدنی: فقط ساعتِ روشن ═══════════════
 
-    private function interruptiblePlan(): \App\Models\CloudPlan
+    private function interruptiblePlan(): CloudPlan
     {
-        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'],
+        CloudLocation::firstOrCreate(['code' => 'global-gpu'],
             ['country' => 'XX', 'is_active' => true, 'sort' => 1]);
 
-        return \App\Models\CloudPlan::create([
+        return CloudPlan::create([
             'provider' => 'salad', 'provider_ref' => 'gc-x', 'provider_location' => 'global',
             'location_code' => 'global-gpu', 'public_name' => 'RTX 4090',
             'slug' => 'cv-8c-30g-50d-global-gpu-rtx-4090', 'vcpu' => 8, 'ram_mb' => 30720,
@@ -360,6 +396,7 @@ class CloudFairHourlyMeteringTest extends TestCase
      */
     public function test_an_interruptible_plan_is_not_billed_while_off(): void
     {
+        $this->fakeInterruptibleStatus('off');
         $c = $this->customer(100_000);
         $s = $this->service($c, [
             'cloud_plan_id' => $this->interruptiblePlan()->id,
@@ -371,11 +408,14 @@ class CloudFairHourlyMeteringTest extends TestCase
 
         $this->assertSame(100_000, $c->creditBalance('IRT'),
             'ماشینِ خاموشِ پلنِ قطع‌شدنی متر شد — نقضِ «فقط ساعتِ روشن».');
+        $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'),
+            'خاموشی نباید backlog زمانی برای روشن‌شدن بعدی بسازد.');
     }
 
     /** و همان پلن وقتی روشن است عادی متر می‌شود */
     public function test_an_interruptible_plan_is_billed_while_running(): void
     {
+        $this->fakeInterruptibleStatus('running');
         $c = $this->customer(100_000);
         $s = $this->service($c, [
             'cloud_plan_id' => $this->interruptiblePlan()->id,
@@ -385,7 +425,70 @@ class CloudFairHourlyMeteringTest extends TestCase
 
         $this->artisan('cloud:meter')->assertOk();
 
+        $this->assertSame('running', $s->cloudInstance()->first()->status);
+        $this->assertSame(now()->format('Y-m-d H:i'), $s->fresh()->last_metered_at->format('Y-m-d H:i'));
         $this->assertSame(95_000, $c->creditBalance('IRT'));
+    }
+
+    /** رگرسیونِ رخداد #118: ۱۲۳ ساعت خاموشی نباید پس از روشن‌شدن مصرف شود. */
+    public function test_an_interruptible_restart_discards_the_entire_offline_backlog(): void
+    {
+        $this->fakeInterruptibleStatus('running');
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subHours(123),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'off']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(100_000, $c->creditBalance('IRT'), 'خاموشی ۱۲۳ساعته به مصرف تبدیل شد.');
+        $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
+
+        Carbon::setTestNow(now()->addHour());
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(95_000, $c->creditBalance('IRT'), 'فقط یک ساعت پس از شروع تازه باید کسر شود.');
+    }
+
+    public function test_an_unverified_interruptible_status_is_never_charged_or_carried_forward(): void
+    {
+        $this->fakeInterruptibleStatus('running', 503);
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subHours(123),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'running']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame(100_000, $c->creditBalance('IRT'));
+        $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'),
+            'بازهٔ تأییدنشده نباید پس از بازیابی API مطالبه شود.');
+    }
+
+    public function test_customer_power_on_resets_the_clock_before_the_next_meter_run(): void
+    {
+        Carbon::setTestNow(now()->startOfSecond());
+        $this->fakeInterruptibleStatus('running');
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subHours(123),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'off']);
+
+        $this->actingAs($c, 'customer')
+            ->post(route('account.cloud.power', $s), ['action' => 'on'])
+            ->assertRedirect();
+
+        $this->assertSame('building', $s->cloudInstance()->first()->status);
+        $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
+
+        $this->artisan('cloud:meter')->assertOk();
+        $this->assertSame(100_000, $c->creditBalance('IRT'));
     }
 
     /**
@@ -442,9 +545,9 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertNotNull(data_get($s->fresh()->provision_meta, 'low_credit_warned_at'));
 
         // شارژِ بزرگ
-        \App\Models\CreditEntry::create([
+        CreditEntry::create([
             'customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => 100 * self::RATE,
-            'balance_after' => 0, 'reason' => 'topup', 'source_type' => \App\Models\Customer::class,
+            'balance_after' => 0, 'reason' => 'topup', 'source_type' => Customer::class,
             'source_id' => $c->id, 'note' => 'test',
         ]);
 
@@ -454,5 +557,4 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertNull(data_get($s->fresh()->provision_meta, 'low_credit_warned_at'),
             'مهرِ هشدار بعد از شارژ پاک نشد — افتِ بعدی بی‌خبر می‌مانَد.');
     }
-
 }

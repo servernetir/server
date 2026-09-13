@@ -597,12 +597,41 @@ class ContentPipelineTest extends TestCase
         $this->assertSame('', article_faq_ld($html));
     }
 
-    public function test_english_faq_heading_is_recognised_too(): void
+    /**
+     * 🔴 عنوانِ بخشِ پرسش را **مدل** می‌نویسد، پس یک رشتهٔ ثابت نیست.
+     *
+     * روی مقالهٔ واقعی، مترجم ترکی «Sık Sorulan Sorular» نوشت در حالی که
+     * الگو فقط «sıkça sorulan sorular» داشت — یعنی **هیچ مقالهٔ ترکی‌ای
+     * اسکیمای FAQ نگرفت**. نه خطایی، نه لاگی؛ فقط نبودِ یک تگ در صفحه‌ای که
+     * ۲۰۰ می‌دهد. فارسی و انگلیسی سالم بودند، پس بررسیِ یک‌زبانه هم آن را
+     * پیدا نمی‌کرد.
+     *
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('faqHeadings')]
+    public function test_every_natural_faq_heading_is_recognised(string $heading): void
     {
-        $html = '<h2>Frequently asked questions</h2>'
+        $html = "<h2>{$heading}</h2>"
             .'<h3>Why is TTFB high?</h3><p>Usually a slow query or a missing cache layer somewhere.</p>';
 
-        $this->assertStringContainsString('FAQPage', article_faq_ld($html));
+        $this->assertStringContainsString(
+            'FAQPage',
+            article_faq_ld($html),
+            "عنوانِ «{$heading}» شناخته نشد — آن زبان اسکیمای پرسش نمی‌گیرد."
+        );
+    }
+
+    public static function faqHeadings(): array
+    {
+        return [
+            'fa پرتکرار'  => ['پرسش‌های پرتکرار'],
+            'fa متداول'   => ['پرسش‌های متداول'],
+            'fa سوالات'   => ['سوالات متداول'],
+            'en standard' => ['Frequently Asked Questions'],
+            'en common'   => ['Common Questions'],
+            'tr sık'      => ['Sık Sorulan Sorular'],
+            'tr sıkça'    => ['Sıkça Sorulan Sorular'],
+            'tr SSS'      => ['SSS'],
+        ];
     }
 
     /* ═══════════════════ ضمانتِ سه‌زبانگی ═══════════════════ */

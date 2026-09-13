@@ -19,11 +19,45 @@ use Tests\TestCase;
  * خاموشی. اعلانِ پرتکرارِ کم‌ارزش دقیقاً همان چیزی است که باعث می‌شود اعلانِ
  * **مهم** هم دیده نشود — همان «آژیرِ همیشه‌روشن» که این پروژه بارها خورده.
  */
+/*
+ * ⚠️ این تست‌ها تا شهریور ۱۴۰۵ `toAdmin()`/`toAdminButtons()` را mock می‌کردند.
+ * کامیتِ «دیپلوی بله: پشتیبانی از squash merge» اعلانِ مدیر را چندمقصدی کرد و
+ * `AdminNotifier::sendBale()` به `toAdminAt()`/`toAdminButtonsAt()` رفت — ولی
+ * تست‌ها همراهش نرفتند.
+ *
+ * 🔴 نتیجه‌اش بدترین شکلِ قرمز بود: mockِ متدی که دیگر صدا زده نمی‌شود «فراخوانی
+ * نشد» نمی‌گوید، فقط متنِ خالی تحویل می‌دهد — پس پیام «رشتهٔ '' شاملِ «پرداختِ
+ * موفق» نیست» بود و آدم را دنبالِ متنِ اعلان می‌فرستاد، نه دنبالِ نامِ متد.
+ *
+ * فقط نامِ متدِ mock و امضای کلوژر (یک آرگومانِ chatId) عوض شد؛ هیچ ادعایی
+ * سست نشد.
+ */
 class AdminAlertsAreManageableTest extends TestCase
 {
     use RefreshDatabase;
 
     /** ⚠️ نامش `seed` نیست: آن متدِ خودِ `TestCase` است و بازتعریفش fatal می‌دهد. */
+    /*
+    | ⚠️ مقصدِ بله در `setUp` است، نه در `seedAlerts()`.
+    |
+    | این پیکربندیِ **محیط** است نه دادهٔ seed، و یکی از تست‌های همین فایل
+    | عمداً بی‌seed می‌دود («رویدادِ seed‌نشده هم باید بیاید»). اگر کنارِ seeder
+    | بنشیند، دقیقاً همان تست بی‌مقصد می‌مانَد.
+    |
+    | چرا اصلاً لازم شد: نسخهٔ تک‌مقصدیِ قبلی حتی با شمارهٔ خالی هم
+    | `toAdmin('', $text)` را صدا می‌زد. نسخهٔ چندمقصدی با مقصدِ خالی زودهنگام
+    | برمی‌گردد، پس بی‌این خط این تست‌ها به‌جای «آیا متنِ هشدار درست ساخته
+    | می‌شود» عملاً «آیا مقصد پیکربندی شده» را می‌سنجیدند — با پیامِ
+    | گمراه‌کنندهٔ «رشتهٔ خالی شاملِ … نیست».
+    */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('servernet.contact.notify_phone', '09120000000');
+        config()->set('servernet.contact.notify_chat_id', '100001');
+    }
+
     private function seedAlerts(): void
     {
         (new AdminNotificationTemplateSeeder)->run();
@@ -51,8 +85,8 @@ class AdminAlertsAreManageableTest extends TestCase
             ->update(['is_active' => false]);
 
         $bale = \Mockery::mock(\App\Services\Bale\BaleNotifier::class);
-        $bale->shouldNotReceive('toAdmin');
-        $bale->shouldNotReceive('toAdminButtons');
+        $bale->shouldNotReceive('toAdminAt');
+        $bale->shouldNotReceive('toAdminButtonsAt');
         $this->app->instance(\App\Services\Bale\BaleNotifier::class, $bale);
 
         $this->notifier()->event('پرداختِ موفق', ['مشتری' => 'الف']);
@@ -67,8 +101,8 @@ class AdminAlertsAreManageableTest extends TestCase
 
         $seen = null;
         $bale = \Mockery::mock(\App\Services\Bale\BaleNotifier::class);
-        $bale->shouldReceive('toAdminButtons')->andReturn(false);
-        $bale->shouldReceive('toAdmin')->andReturnUsing(function ($p, $t) use (&$seen) {
+        $bale->shouldReceive('toAdminButtonsAt')->andReturn(false);
+        $bale->shouldReceive('toAdminAt')->andReturnUsing(function ($p, $c, $t) use (&$seen) {
             $seen = $t;
 
             return true;
@@ -92,8 +126,8 @@ class AdminAlertsAreManageableTest extends TestCase
         // عمداً بی‌seed
         $seen = null;
         $bale = \Mockery::mock(\App\Services\Bale\BaleNotifier::class);
-        $bale->shouldReceive('toAdminButtons')->andReturn(false);
-        $bale->shouldReceive('toAdmin')->andReturnUsing(function ($p, $t) use (&$seen) {
+        $bale->shouldReceive('toAdminButtonsAt')->andReturn(false);
+        $bale->shouldReceive('toAdminAt')->andReturnUsing(function ($p, $c, $t) use (&$seen) {
             $seen = $t;
 
             return true;
@@ -117,8 +151,8 @@ class AdminAlertsAreManageableTest extends TestCase
 
         $seen = null;
         $bale = \Mockery::mock(\App\Services\Bale\BaleNotifier::class);
-        $bale->shouldReceive('toAdminButtons')->andReturn(false);
-        $bale->shouldReceive('toAdmin')->andReturnUsing(function ($p, $t) use (&$seen) {
+        $bale->shouldReceive('toAdminButtonsAt')->andReturn(false);
+        $bale->shouldReceive('toAdminAt')->andReturnUsing(function ($p, $c, $t) use (&$seen) {
             $seen = $t;
 
             return true;
@@ -144,8 +178,8 @@ class AdminAlertsAreManageableTest extends TestCase
 
         $seen = null;
         $bale = \Mockery::mock(\App\Services\Bale\BaleNotifier::class);
-        $bale->shouldReceive('toAdminButtons')->andReturn(false);
-        $bale->shouldReceive('toAdmin')->andReturnUsing(function ($p, $t) use (&$seen) {
+        $bale->shouldReceive('toAdminButtonsAt')->andReturn(false);
+        $bale->shouldReceive('toAdminAt')->andReturnUsing(function ($p, $c, $t) use (&$seen) {
             $seen = $t;
 
             return true;

@@ -83,6 +83,19 @@ class ServerController extends Controller
             return back()->with('ok', 'این نوع سرور تحویلِ دستی دارد و آزمونِ API ندارد.');
         }
 
+        /*
+        | ⚠️ این‌جا هم مثلِ `ProvisioningService::driverFor()` نوعِ سرور باید
+        | شاخه بخورد. پیش از این بی‌قیدوشرط `WhmClient` صدا زده می‌شد، یعنی
+        | آزمونِ اتصالِ یک سرورِ غیرِ WHM یک تماسِ WHM به میزبانی می‌زد که WHM
+        | نیست و خطایی می‌داد که آدم را دنبالِ توکن می‌فرستاد، نه دنبالِ نوع.
+        */
+        if ($server->type === 'hetzner_storage') {
+            $r = (new \App\Services\Provisioning\HetznerStorageClient($server))->testConnection();
+
+            return $r['ok'] ? back()->with('ok', 'اتصال موفق ✓ — '.$r['message'])
+                : back()->withErrors('اتصال ناموفق: '.$r['message']);
+        }
+
         $res = (new WhmClient($server))->call('version');
 
         if ($res['ok']) {

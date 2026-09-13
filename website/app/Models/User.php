@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\HasTwoFactor;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -11,11 +12,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'name_latin', 'email', 'password', 'role', 'phone_extension'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasTwoFactor, Notifiable;
 
     /**
      * نقش‌های کارمندی و برچسبشان.
@@ -128,6 +129,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+
+            // دومرحله‌ای — رمزنگاری در سطحِ مدل، دقیقاً مثلِ Customer: مقدارِ
+            // خام هرگز وارد دیتابیس نمی‌شود، پس دسترسیِ خواندنی به دیتابیس
+            // (بکاپِ لورفته، phpMyAdmin) رازِ کسی را لو نمی‌دهد.
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 }

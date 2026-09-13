@@ -73,6 +73,16 @@ class HetznerRobotClient implements CloudProvider
         // AMD Ryzen / EPYC / Threadripper
         'ryzen 5 3600' => 6, 'ryzen 7 1700x' => 8, 'ryzen 7 3700x' => 8, 'ryzen 7 7700' => 8,
         'ryzen 7 pro 8700ge' => 8, 'ryzen 5 pro 8600ge' => 6,
+        /*
+        | ⚠️ نسخهٔ **PRO** کلیدِ خودش را می‌خواهد. تطبیق زیررشته‌ای است، و
+        | «amd ryzen 7 pro 1700x» شاملِ «ryzen 7 1700x» **نیست** — واژهٔ `pro`
+        | وسط می‌افتد. نتیجه‌اش این بود که `cloud:sync` یک سرورِ کاملاً سالم را
+        | «CPUِ ناشناخته» رد کرد و آن ردیف اصلاً فروختنی نشد.
+        |
+        | یعنی هر مدلی که هتزنر با پسوندِ PRO بیاورد، تا وقتی این‌جا اضافه
+        | نشود بی‌صدا از کاتالوگ می‌افتد. (Ryzen 7 PRO 1700X = ۸ هسته/۱۶ رشته.)
+        */
+        'ryzen 7 pro 1700x' => 8,
         // Intel Core Ultra (Arrow Lake) — خطِ EX63
         'core ultra 7 265' => 20,
         'ryzen 9 3900' => 12, 'ryzen 9 5950x' => 16, 'ryzen 9 7950x3d' => 16, 'ryzen 9 9950x' => 16,

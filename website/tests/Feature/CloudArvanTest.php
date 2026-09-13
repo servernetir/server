@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
 use App\Services\Cloud\CloudCatalogSync;
 use App\Services\Cloud\CloudManager;
-use App\Models\CloudPlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -297,6 +297,19 @@ class CloudArvanTest extends TestCase
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
             }
+            /*
+            | ⚠️ گروهِ امنیتی از وقتی اجباری شد که آروان بی‌آن
+            | «At least one firewall should be selected» می‌داد. این فیکسچر
+            | آن روز به‌روز نشد و از همان لحظه قرمز ماند: `securityGroupIds()`
+            | فهرستِ خالیِ catch-all را می‌گرفت و `createServer()` همان اول
+            | برمی‌گشت — یعنی تست چیزی را می‌سنجید که هرگز به آن نمی‌رسید.
+            |
+            | 🔴 `id`، `name` و `real_name` عمداً فرق دارند: API خام ID را
+            | داخل کلیدِ `name` می‌خواهد. فیکسچرِ یکسان این اشتباه را نمی‌گیرد.
+            */
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'name' => 'default', 'real_name' => 'arDefault']]], 200);
+            }
             if (str_contains($url, '/servers') && $request->method() === 'POST') {
                 $body = $request->data();
 
@@ -329,6 +342,17 @@ class CloudArvanTest extends TestCase
         $this->assertSame('g2-2-4-20', $body['flavor_id']);
         $this->assertSame('img-ubuntu-2204', $body['image_id']);
         $this->assertSame(['net-1'], $body['network_ids']);
+
+        /*
+        | 🔴 و ادعایی که نبودش گذاشت این تست یک سال بی‌صدا کهنه شود.
+        |
+        | تا امروز هیچ‌جا نمی‌سنجید که گروهِ امنیتی واقعاً در بدنه می‌رود، پس
+        | وقتی `createServer()` به آن وابسته شد، تست فقط قرمز شد — بی‌آنکه
+        | بگوید کدام ادعا شکسته. حالا فیکسچر و قرارداد به هم قفل‌اند:
+        | ID می‌رود نه `name`/`real_name`، و داخلِ آبجکت نه به‌صورتِ رشته.
+        | هر دو خطا یک بار روی حسابِ واقعی خرج برداشتند.
+        */
+        $this->assertSame([['name' => 'sg-1']], $body['security_groups']);
     }
 
     /** نامِ تکراری → همان سرورِ موجود (idempotency)، نه سرورِ دوم */

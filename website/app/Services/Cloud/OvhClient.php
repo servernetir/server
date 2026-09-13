@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * زیرساختِ ۵ — OVHcloud.
+ * زیرساختِ ۴ — OVHcloud.
  *
  * ═══ چرا این درایور با بقیه فرق دارد ═══
  *
@@ -31,13 +31,36 @@ use Illuminate\Support\Facades\Log;
 class OvhClient implements CloudProvider
 {
     /**
-     * ⚠️ نقطهٔ پایانی **اروپا**. حسابِ ساخته‌شده روی `ovh-eu` روی `ovh-ca`
-     * کار نمی‌کند — کلیدها منطقه‌ای‌اند و اشتباه گرفتنشان ۴۰۳ می‌دهد.
+     * ⚠️ نقطهٔ پایانی **منطقه‌ای** است، و این تزئینی نیست: `ovh-eu`، `ovh-ca` و
+     * `ovh-us` سه شرکتِ حقوقیِ جدا با پایگاهِ کاربریِ جدا هستند. حسابی که روی
+     * `manager.us.ovhcloud.com` ساخته شده روی `eu.api.ovh.com` اصلاً **وجود
+     * ندارد** — و پاسخ، همان ۴۰۳ِ بی‌توضیحِ همیشگی است که هیچ اشاره‌ای به
+     * منطقه نمی‌کند. پس عوضی‌گرفتنِ منطقه دقیقاً شبیهِ کلیدِ غلط دیده می‌شود.
      */
-    private const BASE = 'https://eu.api.ovh.com/1.0';
+    private const ENDPOINTS = [
+        'eu' => 'https://eu.api.ovh.com/1.0',
+        'ca' => 'https://ca.api.ovh.com/1.0',
+        'us' => 'https://api.us.ovhcloud.com/1.0',
+    ];
 
     /** اختلافِ ساعتِ ما با سرورِ OVH؛ یک‌بار محاسبه و کش می‌شود */
     private ?int $delta = null;
+
+    /**
+     * منطقهٔ حساب. پیش‌فرض `eu` است چون رفتارِ قبلیِ همین کلاس بود؛ نصب‌هایی که
+     * این تنظیم را ندارند نباید بی‌خبر جابه‌جا شوند.
+     */
+    private function region(): string
+    {
+        $r = strtolower(trim((string) Setting::get('ovh_region', 'eu')));
+
+        return isset(self::ENDPOINTS[$r]) ? $r : 'eu';
+    }
+
+    private function base(): string
+    {
+        return self::ENDPOINTS[$this->region()];
+    }
 
     public function slug(): string
     {
@@ -92,7 +115,7 @@ class OvhClient implements CloudProvider
         }
 
         try {
-            $r = Http::timeout(10)->get(self::BASE.'/auth/time');
+            $r = Http::timeout(10)->get($this->base().'/auth/time');
             $server = (int) trim((string) $r->body());
 
             return $this->delta = $r->successful() && $server > 0 ? $server - time() : 0;
@@ -129,11 +152,11 @@ class OvhClient implements CloudProvider
     private function req(string $method, string $path, array $payload = []): array
     {
         if (! $this->isConfigured()) {
-            return ['ok' => false, 'status' => 0, 'body' => null, 'message' => 'کلیدهای زیرساختِ ۵ تنظیم نشده است.'];
+            return ['ok' => false, 'status' => 0, 'body' => null, 'message' => 'کلیدهای زیرساختِ ۴ تنظیم نشده است.'];
         }
 
         $method = strtoupper($method);
-        $url = self::BASE.'/'.ltrim($path, '/');
+        $url = $this->base().'/'.ltrim($path, '/');
 
         // GET پارامترها را در کوئری می‌برد و بدنه ندارد؛ بقیه برعکس.
         $body = '';
@@ -181,8 +204,11 @@ class OvhClient implements CloudProvider
             : 'خطای نامشخص';
 
         // ۴۰۳ در OVH تقریباً همیشه یعنی امضا/دسترسی، نه «ممنوع» به معنای عادی.
+        // منطقه را هم می‌گوییم چون کلیدِ درستِ منطقهٔ اشتباه، عیناً همین ۴۰۳ را
+        // می‌دهد و بدونِ این جمله ساعت‌ها دنبالِ کلید می‌گردی.
         if ($res->status() === 403) {
-            $msg .= ' — کلید یا دسترسیِ آن درست نیست (یا ساعتِ سرور اختلاف دارد).';
+            $msg .= ' — کلید یا دسترسیِ آن درست نیست، یا ساعتِ سرور اختلاف دارد،'
+                .' یا کلید برای منطقهٔ دیگری ساخته شده (منطقهٔ فعلی: '.strtoupper($this->region()).').';
         }
 
         return ['ok' => false, 'status' => $res->status(), 'body' => $json, 'message' => $msg];
@@ -404,13 +430,534 @@ class OvhClient implements CloudProvider
      * ساختنِ کاتالوگِ فروش از روی آن، قیمتی روی سایت می‌گذارد که نمی‌شود
      * خرید — همان چیزی که CLAUDE.md می‌گوید از نبودِ قیمت بدتر است.
      */
+    /**
+     * دیتاسنترهای OVH → کشور و شهر.
+     *
+     * ⚠️ صریح و دستی، **نه** استنتاج از روی کد. `US-EAST-LZ-ATL` را می‌شود
+     * «آتلانتا» خواند، ولی حدسِ غلط یعنی مشتری «نیویورک» می‌خرد و سرورش جای
+     * دیگری بالا می‌آید — و چون تحویل دستی است، تا شکایتِ خودش معلوم نمی‌شود.
+     * کدِ ناشناخته **ردیف نمی‌گیرد** و گزارش می‌شود؛ همان قاعدهٔ `CPU_CORES`.
+     */
+    /**
+     * مشخصاتِ سخت‌افزاری که API نمی‌دهد — پرکنندهٔ خلأ، نه منبعِ اول.
+     *
+     * ⚠️ عمداً خالی است. تا وقتی از منبعِ **واقعی** (کاتالوگِ `formatted` یا
+     * صفحهٔ محصولِ OVH) پر نشود، پلنِ بی‌مشخصات فروخته نمی‌شود — و این بهتر
+     * از پر کردنش با حدس است: «VPS-1» را می‌شود «۲ هسته» خواند و غلط بود،
+     * و خطایش تا شکایتِ مشتری معلوم نمی‌شود.
+     *
+     * کلید = planCodeِ دقیق · مقدار = [هسته، رمِ مگابایت، دیسکِ گیگابایت]
+     *
+     * @var array<string, array{0:int,1:int,2:int}>
+     */
+    private const MODEL_SPECS = [
+        // 'vps-2025-model1.LZ' => [2, 2048, 40],
+    ];
+
+    private const DATACENTERS = [
+        // Local Zoneهای آمریکا — همان‌هایی که در کاتالوگِ حسابِ ما آمدند
+        'US-EAST-LZ-ATL' => ['US', 'Atlanta'],
+        'US-EAST-LZ-DAL' => ['US', 'Dallas'],
+        'US-EAST-LZ-MIA' => ['US', 'Miami'],
+        'US-EAST-LZ-NYC' => ['US', 'New York'],
+        'US-WEST-LZ-DEN' => ['US', 'Denver'],
+        'US-WEST-LZ-LAX' => ['US', 'Los Angeles'],
+        'US-WEST-LZ-PAO' => ['US', 'Palo Alto'],
+        'US-WEST-LZ-SEA' => ['US', 'Seattle'],
+        // دیتاسنترهای اصلیِ نهادِ US
+        'US-EAST-VA'     => ['US', 'Vint Hill'],
+        'US-WEST-OR'     => ['US', 'Hillsboro'],
+        // اگر روزی حسابِ اروپایی/کانادایی اضافه شد
+        'GRA' => ['FR', 'Gravelines'], 'SBG' => ['FR', 'Strasbourg'], 'RBX' => ['FR', 'Roubaix'],
+        'BHS' => ['CA', 'Beauharnois'], 'WAW' => ['PL', 'Warsaw'],
+        'DE'  => ['DE', 'Frankfurt'],   'UK'  => ['GB', 'London'],
+        'SGP' => ['SG', 'Singapore'],   'SYD' => ['AU', 'Sydney'],
+    ];
+
+    /**
+     * کاتالوگِ فروش — از `/order/catalog/public/vps`.
+     *
+     * ═══ چه چیزی از پاسخِ **واقعیِ** حساب آمده، نه از حدس ═══
+     *
+     * ۱) **پلنِ واقعی از افزونه با `vps_datacenter` جدا می‌شود.** پاسخ ۲۴۳ ردیف
+     *    دارد که بیشترشان افزونه‌اند (`option-cpanel-*`، `option-snapshot-*`،
+     *    `option-storage-*`). فیلترِ نام‌محور شکننده است؛ ولی فقط یک VPSِ واقعی
+     *    پیکربندیِ «کدام دیتاسنتر» دارد.
+     *
+     * ۲) **قیمت در واحدِ ۱۰⁻⁸ است.** `price: 850000000` ⇒ ۸٫۵۰، و خودِ پاسخ با
+     *    `formattedPrice: "$8.50 USD"` تأییدش می‌کند. مقسومٌ‌علیه از همان‌جا
+     *    راستی‌آزمایی شد، نه از حافظه.
+     *
+     * ۳) 🔴 **ارز دلار است، نه یورو.** `/me` می‌گوید `currency.code: USD` و
+     *    کلِ زنجیرهٔ قیمت‌گذاریِ این پروژه یورویی است. اگر سنتِ دلار را در
+     *    `cost_eur_cents` بنشانیم، بهایِ تمام‌شده حدودِ ۸٪ کمتر از واقع ثبت
+     *    می‌شود و حاشیهٔ کوچکِ مدیر بی‌صدا منفی می‌شود — همان الگوی «سربارِ
+     *    ارزیِ جاافتاده» که یک بار بکاپ را زیرِ بها فروخت.
+     *
+     * ⚠️ **ردیفِ بی‌مشخصات ذخیره نمی‌شود.** پاسخِ `public` هسته/رم/دیسک ندارد
+     * (فقط `blobs.commercial`)، پس مشخصات از `formatted` خوانده می‌شود و اگر
+     * نیامد یا از بازهٔ معقول بیرون بود، آن ردیف **رد** می‌شود و شمرده. ذخیره
+     * با صفر یعنی فروشِ پلنی که مشتری نمی‌داند چه می‌خرد.
+     *
+     * ⚠️ خریدِ خودکار همچنان خاموش است (`createServer()` = `manual`): این متد
+     * فقط **قیمت** می‌سازد، نه مسیرِ خرید.
+     */
     public function fetchCatalog(): array
     {
+        $empty = ['locations' => [], 'plans' => [], 'images' => []];
+
+        $me = $this->req('GET', '/me');
+
+        if (! $me['ok']) {
+            return ['ok' => false, 'message' => 'حساب خوانده نشد: '.$me['message']] + $empty;
+        }
+
+        $sub = (string) data_get($me['body'], 'ovhSubsidiary', '');
+        $currency = strtoupper((string) data_get($me['body'], 'currency.code', ''));
+
+        if ($sub === '' || $currency === '') {
+            return ['ok' => false, 'message' => 'زیرمجموعه یا ارزِ حساب خوانده نشد؛ '
+                .'بی‌آن‌ها کاتالوگ یا اشتباه است یا قیمتش قابلِ تبدیل نیست.'] + $empty;
+        }
+
+        $rate = $this->toEurFactor($currency);
+
+        if ($rate === null) {
+            return ['ok' => false, 'message' => 'نرخِ تبدیلِ '.$currency.' به یورو در دسترس نیست؛ '
+                .'کاتالوگ ساخته نشد تا بهایِ تمام‌شده اشتباه ثبت نشود.'] + $empty;
+        }
+
+        $cat = $this->req('GET', '/order/catalog/public/vps', ['ovhSubsidiary' => $sub]);
+
+        if (! $cat['ok']) {
+            return ['ok' => false, 'message' => 'کاتالوگ خوانده نشد: '.$cat['message']] + $empty;
+        }
+
+        $specs = $this->technicalSpecs($sub);
+
+        $outPlans = [];
+        $locations = [];
+        $noSpecs = [];
+        $unknownDc = [];
+        $osNames = [];
+        $noPrice = 0;
+
+        foreach ((array) data_get($cat['body'], 'plans', []) as $plan) {
+            $code = (string) ($plan['planCode'] ?? '');
+            $dcs = $this->datacentersOf($plan);
+
+            // بی‌«کدام دیتاسنتر» یعنی افزونه است، نه سرور
+            if ($code === '' || $dcs === []) {
+                continue;
+            }
+
+            $usd = $this->monthlyPrice($plan);
+
+            if ($usd === null || $usd <= 0) {
+                /*
+                | ⚠️ این رد **شمرده** می‌شود. نسخهٔ اول فقط `continue` می‌کرد و
+                | همان سکوت باعث شد از ۲۴۲ ردیفِ کاتالوگ فقط ۸۲ ردیف ساخته شود
+                | بی‌آنکه گزارش بگوید بقیه کجا رفتند — دقیقاً همان الگویی که
+                | در این پروژه بارها گران تمام شده.
+                */
+                $noPrice++;
+
+                continue;   // پلنِ بی‌قیمتِ ماهانه (فقط تعهدی) — فروختنی نیست
+            }
+
+            $spec = $specs[$this->baseCode($code)] ?? $specs[$code] ?? null;
+
+            if ($spec === null) {
+                $noSpecs[] = $code;
+
+                continue;
+            }
+
+            foreach ($this->configValues($plan, 'vps_os') as $os) {
+                $osNames[$os] = true;
+            }
+
+            foreach ($dcs as $dc) {
+                $meta = self::DATACENTERS[strtoupper($dc)] ?? null;
+
+                if ($meta === null) {
+                    $unknownDc[strtoupper($dc)] = true;
+
+                    continue;
+                }
+
+                [$country, $city] = $meta;
+                $locCode = CloudNaming::locationCode($country, $city, $dc);
+
+                $locations[$locCode] = [
+                    'code' => $locCode, 'country' => $country, 'city' => $city,
+                    'provider_location' => $dc, 'latitude' => null, 'longitude' => null,
+                ];
+
+                $outPlans[] = [
+                    'provider_ref'      => $code,
+                    'provider_location' => $dc,
+                    'location_code'     => $locCode,
+                    'name'              => (string) ($plan['invoiceName'] ?? $code),
+                    'vcpu'              => $spec['vcpu'],
+                    'ram_mb'            => $spec['ram_mb'],
+                    'disk_gb'           => $spec['disk_gb'],
+                    'disk_type'         => 'nvme',
+                    'traffic_gb'        => 0,        // ترافیکِ VPSِ OVH سنجیده نمی‌شود
+                    'cpu_kind'          => 'shared',
+                    'arch'              => 'x86',
+                    'cost_eur_cents'    => (int) ceil(
+                        app(CloudPricing::class)->costWithFee($usd * $rate, 'ovh') * 100
+                    ),
+                    'in_stock'          => true,     // کاتالوگ موجودی نمی‌دهد؛ تحویل دستی است
+                ];
+            }
+        }
+
+        $notes = [];
+
+        if ($noPrice > 0) {
+            $notes[] = fa_num((string) $noPrice).' پلن بدونِ نرخِ ماهانهٔ بی‌تعهد رد شد';
+        }
+
+        if ($noSpecs !== []) {
+            $notes[] = fa_num((string) count($noSpecs)).' پلن بی‌مشخصاتِ سخت‌افزاری رد شد';
+        }
+
+        if ($unknownDc !== []) {
+            $notes[] = 'دیتاسنترِ ناشناخته: '.implode('، ', array_slice(array_keys($unknownDc), 0, 6))
+                .' — به DATACENTERS اضافه شود';
+        }
+
+        if ($outPlans === []) {
+            return ['ok' => false, 'message' => 'هیچ پلنِ کاملی ساخته نشد'
+                .($notes !== [] ? ' ('.implode(' · ', $notes).')' : '').'.'] + $empty;
+        }
+
         return [
-            'ok' => false,
-            'message' => 'کاتالوگِ خودکارِ این زیرساخت هنوز فعال نیست؛ پلن‌هایش را دستی در پنل ثبت کنید.',
-            'locations' => [], 'plans' => [], 'images' => [],
+            'ok' => true,
+            'message' => $notes === [] ? '' : '⚠️ '.implode(' · ', $notes),
+            'locations' => array_values($locations),
+            'plans' => $outPlans,
+            'images' => $this->imagesFrom(array_keys($osNames)),
         ];
+    }
+
+    /**
+     * ضریبِ تبدیلِ ارزِ حساب به یورو — از نرخِ تومانِ هر دو.
+     *
+     * ⚠️ overrideِ دستیِ مدیر مقدم است (همان الگوی `SaladOperations`): اگر
+     * نرخِ صرافیِ خودکار با نرخی که واقعاً پول را با آن می‌فرستیم نخوانَد،
+     * پنل باید حرفِ مدیر را بزند نه حرفِ فید را. بی‌این، بهایِ تمام‌شده و
+     * صفحهٔ مالی دو عددِ متفاوت می‌گویند.
+     *
+     * ⚠️ و نبودِ نرخ `null` می‌دهد نه ۱: ضریبِ ۱ یعنی دلار را یورو حساب کنیم
+     * و بهایِ تمام‌شده ~۸٪ کمتر ثبت شود — دقیقاً همان‌جور خطای خاموشی که
+     * ماه‌ها بعد در صورت‌حساب پیدا می‌شود.
+     */
+    private function toEurFactor(string $currency): ?float
+    {
+        if ($currency === 'EUR') {
+            return 1.0;
+        }
+
+        $eur = (int) app(CloudPricing::class)->eurToToman();
+
+        $own = (int) Setting::get('pricing_'.strtolower($currency).'_rate_override', '0');
+
+        if ($own <= 0) {
+            try {
+                $own = (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?? 0);
+            } catch (\Throwable) {
+                $own = 0;
+            }
+        }
+
+        return $eur > 0 && $own > 0 ? $own / $eur : null;
+    }
+
+    /** مقادیرِ پیکربندیِ `vps_datacenter` — نبودشان یعنی این ردیف افزونه است */
+    /**
+     * پایهٔ planCode — «vps-2025-model1.LZ» و «vps-2025-model1» یک **مدل**اند.
+     *
+     * 🔴 این تفاوت علتِ شکستِ دورِ اول بود: کاتالوگِ `public` واریانتِ منطقه‌ای
+     * را با پسوند می‌دهد (`.LZ` برای Local Zone) و کاتالوگِ `formatted` فقط
+     * مدلِ پایه را. نگاشتِ کلیدِ دقیق هرگز تطبیق نمی‌خورد و هر ۲۴۲ ردیف
+     * «بی‌مشخصات» رد می‌شدند.
+     *
+     * ⚠️ قیمت عمداً از `public` می‌آید نه از `formatted`: همان مدل در Local
+     * Zone هشت‌ونیم دلار است و در VA/OR هفت‌وشصت. برداشتنِ قیمتِ پایه یعنی
+     * حدودِ ۱۱٪ زیرِ بها فروختنِ واریانتِ گران‌تر.
+     */
+    private function baseCode(string $planCode): string
+    {
+        $dot = strpos($planCode, '.');
+
+        return $dot === false ? $planCode : substr($planCode, 0, $dot);
+    }
+
+    /**
+     * مشخصات از متنِ توصیفِ محصول — «VPS 4 vCPU 8 GB RAM 75 GB disk».
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function parseSpecs(string $description): ?array
+    {
+        if ($description === '') {
+            return null;
+        }
+
+        if (! preg_match('/(\d+)\s*vCPU/i', $description, $c)
+            || ! preg_match('/(\d+)\s*GB\s*RAM/i', $description, $r)
+            || ! preg_match('/(\d+)\s*GB\s*disk/i', $description, $d)) {
+            return null;
+        }
+
+        return $this->validSpecs((int) $c[1], (int) $r[1] * 1024, (int) $d[1]);
+    }
+
+    /**
+     * پشتیبان: خانواده‌هایی که مشخصات را در نامشان دارند
+     * (`vps-comfort-4-16-160` ⇒ ۴ هسته، ۱۶ گیگ، ۱۶۰ گیگ).
+     *
+     * ⚠️ فقط وقتی توصیف نباشد. متنِ محصول حرفِ خودِ OVH است؛ الگوی نام یک
+     * **استنتاج** است و استنتاج هرگز نباید بر داده مقدم شود.
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function specsFromCode(string $planCode): ?array
+    {
+        if (! preg_match('/-(\d+)-(\d+)-(\d+)$/', $this->baseCode($planCode), $m)) {
+            return null;
+        }
+
+        return $this->validSpecs((int) $m[1], (int) $m[2] * 1024, (int) $m[3]);
+    }
+
+    /**
+     * بازهٔ معقول — عددِ بی‌معنا از نبودِ عدد بدتر است.
+     *
+     * ردیفِ «۰ هسته» فروختنی می‌شود و مشتری نمی‌داند چه خریده؛ ردیفِ نبود
+     * فقط فروخته نمی‌شود و در گزارشِ سینک شمرده می‌شود.
+     *
+     * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
+     */
+    private function validSpecs(int $vcpu, int $ramMb, int $diskGb): ?array
+    {
+        if ($vcpu < 1 || $vcpu > 256 || $ramMb < 256 || $ramMb > 1048576
+            || $diskGb < 5 || $diskGb > 100000) {
+            return null;
+        }
+
+        return ['vcpu' => $vcpu, 'ram_mb' => $ramMb, 'disk_gb' => $diskGb];
+    }
+
+    /** مقادیرِ یک پیکربندیِ نام‌دار — `vps_os`، `vps_datacenter`، … */
+    private function configValues(array $plan, string $name): array
+    {
+        foreach ((array) ($plan['configurations'] ?? []) as $c) {
+            if ((string) ($c['name'] ?? '') === $name) {
+                return array_values(array_filter(
+                    array_map(fn ($v) => trim((string) $v), (array) ($c['values'] ?? []))
+                ));
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * خانوادهٔ سیستم‌عامل — نامِ نمایشیِ OVH به همان واژه‌ای که هتزنر می‌دهد.
+     *
+     * 🔴 این نگاشت تزئینی نیست: `CloudNaming::imageKey()` کلید را از
+     * «خانواده-نسخه» می‌سازد و **همان کلید** است که سیستم‌عاملِ دو زیرساخت را
+     * یکی می‌کند. اگر OVH بگوید `rocky-linux-9` و هتزنر `rocky-9`، مشتری در
+     * صفحهٔ خرید دو تا «راکی ۹» می‌بیند — بی‌هیچ خطایی.
+     */
+    private const OS_FAMILIES = [
+        'almalinux'     => 'alma',
+        'rocky linux'   => 'rocky',
+        'cloudlinux'    => 'cloudlinux',
+        'ubuntu'        => 'ubuntu',
+        'debian'        => 'debian',
+        'fedora'        => 'fedora',
+        'centos'        => 'centos',
+        'freebsd'       => 'freebsd',
+        'windows server' => 'windows',
+    ];
+
+    /** پسوندهایی که نرم‌افزارِ آماده‌اند، نه سیستم‌عامل */
+    private const OS_APPS = ['cpanel', 'plesk', 'docker', 'n8n'];
+
+    /**
+     * ایمیج‌ها از فهرستِ `vps_os` کاتالوگ.
+     *
+     * ⚠️ `provider_ref` **عیناً** همان رشتهٔ نمایشی است، چون سفارشِ OVH همان را
+     * می‌خواهد. هر «تمیزکاری»‌ای این‌جا یعنی سفارشی که رد می‌شود.
+     *
+     * ⚠️ نامِ نافهم **رد** می‌شود، نه اینکه با کلیدِ حدسی ذخیره شود: کلیدِ غلط
+     * سیستم‌عامل را از گروهِ درستش جدا می‌کند و در لحظهٔ تحویل به ایمیجی
+     * می‌رسد که آن زیرساخت ندارد.
+     *
+     * @param  array<int, string>  $names
+     */
+    private function imagesFrom(array $names): array
+    {
+        $out = [];
+
+        foreach ($names as $name) {
+            // «Debian 12 - Docker» ⇒ پایه + پسوند · «… (Desktop)» ⇒ توضیحِ اضافه
+            $parts = array_map('trim', explode(' - ', $name, 2));
+            $base = preg_replace('/\s*\([^)]*\)\s*/', ' ', $parts[0]) ?? $parts[0];
+            $suffix = strtolower(trim($parts[1] ?? ''));
+
+            $family = null;
+            $rest = '';
+
+            foreach (self::OS_FAMILIES as $needle => $slug) {
+                if (stripos($base, $needle) === 0) {
+                    $family = $slug;
+                    $rest = trim(substr($base, strlen($needle)));
+                    break;
+                }
+            }
+
+            // FreeBSD نسخه را با خط‌تیره می‌چسباند: «FreeBSD-14.3»
+            if ($family === null && stripos($base, 'freebsd') === 0) {
+                $family = 'freebsd';
+                $rest = trim(substr($base, 7), '- ');
+            }
+
+            if ($family === null) {
+                continue;   // نامِ ناشناخته — حدس نمی‌زنیم
+            }
+
+            if (! preg_match('/(\d[\d.]*)/', $rest, $m)) {
+                continue;   // بی‌نسخه، کلیدِ قابلِ اتکا ساخته نمی‌شود
+            }
+
+            $version = $m[1];
+            $isApp = in_array($suffix, self::OS_APPS, true);
+            $kind = $isApp ? 'app' : 'os';
+
+            $out[] = [
+                'provider_ref' => $name,
+                'key'          => CloudNaming::imageKey($kind, $family, $version, $name),
+                'kind'         => $kind,
+                'family'       => $isApp ? CloudNaming::appFamily($name) : $family,
+                'version'      => $version,
+                'label'        => $name,
+                'arch'         => 'x86',       // VPSهای OVH همه x86اند
+                'min_disk_gb'  => 0,
+            ];
+        }
+
+        return $out;
+    }
+
+    private function datacentersOf(array $plan): array
+    {
+        foreach ((array) ($plan['configurations'] ?? []) as $c) {
+            if ((string) ($c['name'] ?? '') === 'vps_datacenter') {
+                return array_values(array_filter((array) ($c['values'] ?? [])));
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * قیمتِ ماهانهٔ بی‌تعهد.
+     *
+     * ⚠️ `commitment === 0` شرطِ لازم است: همان پلن نرخِ ۶ و ۱۲ ماههٔ ارزان‌تر
+     * هم دارد و برداشتنِ آن‌ها یعنی بهایی ثبت کنیم که فقط با پیش‌پرداختِ
+     * یک‌ساله واقعی است — و ما ماهانه می‌خریم.
+     */
+    private function monthlyPrice(array $plan): ?float
+    {
+        foreach ((array) ($plan['pricings'] ?? []) as $p) {
+            $caps = (array) ($p['capacities'] ?? []);
+
+            if (in_array('renew', $caps, true)
+                && (string) ($p['intervalUnit'] ?? '') === 'month'
+                && (int) ($p['commitment'] ?? 0) === 0) {
+                // واحدِ ۱۰⁻⁸ — با formattedPrice همان پاسخ راستی‌آزمایی شد
+                return ((int) ($p['price'] ?? 0)) / 100_000_000;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * مشخصاتِ سخت‌افزاری به تفکیکِ planCode.
+     *
+     * پاسخِ `public` این‌ها را ندارد (فقط `blobs.commercial`), پس از کاتالوگِ
+     * `formatted` خوانده می‌شود. اگر آن هم نداد، آرایهٔ خالی برمی‌گردد و
+     * `fetchCatalog` همهٔ ردیف‌ها را رد و **گزارش** می‌کند.
+     *
+     * ⚠️ هر عدد بازهٔ معقول دارد. ذخیرهٔ مقدارِ بی‌معنا از رد کردن بدتر است:
+     * ردیفِ «۰ هسته» فروختنی می‌شود و مشتری نمی‌داند چه خریده.
+     *
+     * @return array<string, array{vcpu:int,ram_mb:int,disk_gb:int}>
+     */
+    private function technicalSpecs(string $sub): array
+    {
+        $out = [];
+
+        /*
+        | راهِ دوم، برای وقتی API مشخصات نمی‌دهد.
+        |
+        | پاسخِ `public` روی حسابِ ما `blobs.technical` **ندارد** (فقط
+        | `commercial` و `tags` — با چشم دیده شد). اگر `formatted` هم ندهد،
+        | تنها منبعِ باقی‌مانده صفحهٔ محصولِ خودِ OVH است و آن یک واقعیتِ
+        | **دستی** است، نه چیزی که بشود استنتاج کرد.
+        |
+        | ⚠️ همان الگوی `GEX_SPECS` و `CPU_CORES`: عددِ کارخانه که در API نیست،
+        | صریح نوشته می‌شود و کلیدِ نبود یعنی آن پلن **فروخته نمی‌شود** — نه
+        | اینکه با حدس پر شود. «VPS-1» را می‌شود «۲ هسته» خواند و غلط بود.
+        |
+        | ⚠️ و این جدول فقط **پرکنندهٔ خلأ** است: هر جا API عددی بدهد، همان
+        | برنده است. وگرنه جدولِ دستی روزی کهنه می‌شود و بی‌صدا دروغ می‌گوید.
+        |
+        | کلید = planCode (دقیق) · مقدار = [هسته، رمِ مگابایت، دیسکِ گیگابایت]
+        */
+        foreach (self::MODEL_SPECS as $code => [$vcpu, $ram, $disk]) {
+            $out[$code] = ['vcpu' => $vcpu, 'ram_mb' => $ram, 'disk_gb' => $disk];
+        }
+
+        $r = $this->req('GET', '/order/catalog/formatted/vps', ['ovhSubsidiary' => $sub]);
+
+        if (! $r['ok']) {
+            return $out;
+        }
+
+        foreach ((array) data_get($r['body'], 'plans', []) as $plan) {
+            $code = (string) ($plan['planCode'] ?? '');
+
+            if ($code === '') {
+                continue;
+            }
+
+            /*
+            | 🔴 مشخصات این‌جا **متنِ انسانی** است، نه فیلدِ عددی:
+            |     "VPS 4 vCPU 8 GB RAM 75 GB disk"
+            |
+            | این پاسخ اصلاً `blobs` ندارد — دورِ اول دنبالِ `blobs.technical`
+            | گشتیم و هیچ نبود. همان «هیچ» درست‌ترین نتیجه بود: ردیف رد شد
+            | به‌جای اینکه با صفر ذخیره شود.
+            */
+            $spec = $this->parseSpecs((string) data_get($plan, 'details.product.description', ''))
+                ?? $this->specsFromCode($code);
+
+            if ($spec === null) {
+                continue;
+            }
+
+            $out[$code] = $spec;
+        }
+
+        return $out;
     }
 
     /**
@@ -426,6 +973,92 @@ class OvhClient implements CloudProvider
         foreach (['/me', '/vps'] as $p) {
             $r = $this->req('GET', $p);
             $out[$p] = ['ok' => $r['ok'], 'status' => $r['status'], 'sample' => $r['body']];
+        }
+
+        /*
+        | کاتالوگِ فروش — تنها راهِ دیدنِ شکلِ واقعیِ پاسخ پیش از نگاشت‌کردنش.
+        |
+        | 🔴 درسِ همین هفته: من شکلِ `locations[]`ِ هتزنر را **حدس** زدم، تست را
+        | با همان حدس نوشتم، هر دو سبز شدند، و رفع روی پروداکشن **هیچ ردیفی را
+        | فیلتر نکرد**. حدس‌زدنِ ساختار، تستِ سبزِ بی‌اثر می‌سازد.
+        |
+        | ⚠️ زیرمجموعه (`ovhSubsidiary`) حدس زده نمی‌شود: از خودِ `/me` می‌آید.
+        | حسابِ US و FR کاتالوگِ متفاوت دارند و پارامترِ اشتباه یا خطا می‌دهد یا
+        | — بدتر — کاتالوگِ کشورِ دیگری را برمی‌گرداند با قیمت‌هایی که ما اصلاً
+        | نمی‌توانیم بخریم.
+        */
+        $sub = (string) data_get($out['/me']['sample'] ?? [], 'ovhSubsidiary', '');
+        $out['ovhSubsidiary'] = $sub !== '' ? $sub : '⚠️ خوانده نشد';
+
+        if ($sub !== '') {
+            $c = $this->req('GET', '/order/catalog/public/vps', ['ovhSubsidiary' => $sub]);
+
+            $plans = (array) data_get($c['body'], 'plans', []);
+
+            /*
+            | ⚠️ نمونه از **یک پلنِ واقعی** برداشته می‌شود، نه از ردیفِ اول.
+            |
+            | بارِ اول دو ردیفِ اول را دادیم و ردیفِ اول یک افزونه بود — یعنی
+            | از ۲۴۲ سرورِ واقعی فقط یکی را دیدیم و همان یکی `blobs.technical`
+            | نداشت. نمونه‌ای که نمایندهٔ چیزی که می‌سازیم نباشد، همان‌قدر
+            | گمراه‌کننده است که ندیدن.
+            */
+            $real = [];
+
+            foreach ($plans as $p) {
+                if ($this->datacentersOf((array) $p) !== []) {
+                    $real[] = $p;
+                }
+
+                if (count($real) >= 2) {
+                    break;
+                }
+            }
+
+            $out['/order/catalog/public/vps'] = [
+                'ok' => $c['ok'], 'status' => $c['status'],
+                'plan_count' => count($plans),
+                'with_datacenter' => count(array_filter($plans,
+                    fn ($p) => $this->datacentersOf((array) $p) !== [])),
+                // کلیدهای blobs مهم‌ترین چیزِ این صفحه است: مشخصاتِ سخت‌افزاری
+                // اگر جایی باشد، همان‌جاست.
+                'blob_keys' => array_keys((array) data_get($real[0] ?? [], 'blobs', [])),
+                'sample' => array_slice($real, 0, 1),
+                'message' => $c['ok'] ? '' : $c['message'],
+            ];
+
+            /*
+            | 🔴 همان پرسش از کاتالوگِ `formatted` — تنها جایی که ممکن است
+            | هسته/رم/دیسک بدهد. سینک گفت «۲۴۲ پلن بی‌مشخصات»، یعنی یا این
+            | مسیر جواب نمی‌دهد یا شکلش با نامزدهای ما نمی‌خواند. این بلوک
+            | دقیقاً می‌گوید کدام.
+            */
+            $f = $this->req('GET', '/order/catalog/formatted/vps', ['ovhSubsidiary' => $sub]);
+            $fPlans = (array) data_get($f['body'], 'plans', []);
+
+            $out['/order/catalog/formatted/vps'] = [
+                'ok' => $f['ok'], 'status' => $f['status'],
+                'message' => $f['ok'] ? '' : $f['message'],
+                'plan_count' => count($fPlans),
+                'top_keys' => is_array($f['body']) ? array_keys($f['body']) : [],
+                'first_plan_keys' => array_keys((array) ($fPlans[0] ?? [])),
+                /*
+                | 🔴 مشخصات این‌جاست، اگر جایی باشد.
+                |
+                | دورِ قبل معلوم شد این پاسخ `blobs` **ندارد** و به‌جایش
+                | `details` دارد — و ۳۸ ردیف است نه ۲۴۲، یعنی ساختارش با
+                | کاتالوگِ public یکی نیست. تا خودِ `details` دیده نشود، هر
+                | نگاشتی حدس است.
+                */
+                'first_plan_code' => (string) data_get($fPlans[0] ?? [], 'planCode', ''),
+                'first_details' => data_get($fPlans[0] ?? [], 'details'),
+                // یک ردیفِ دیگر هم، چون ردیفِ اول ممکن است افزونه باشد
+                'second_plan_code' => (string) data_get($fPlans[1] ?? [], 'planCode', ''),
+                'second_details' => data_get($fPlans[1] ?? [], 'details'),
+                'all_plan_codes' => array_slice(
+                    array_map(fn ($p) => (string) ($p['planCode'] ?? ''), $fPlans), 0, 40
+                ),
+            ];
         }
 
         $names = (array) ($out['/vps']['sample'] ?? []);

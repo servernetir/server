@@ -42,13 +42,28 @@ class CloudProxmoxTest extends TestCase
 
     public function test_catalog_returns_one_exit_vps_plan_per_country(): void
     {
-        // پیش‌فرضِ فهرستِ کشورها: de,nl,fi ⇒ سه مکان و سه پلنِ هم‌مشخصات.
+        // پیش‌فرضِ فهرستِ کشورها: de,nl,fi ⇒ سه مکانِ اکسیت و سه پلنِ هم‌مشخصات.
         $cat = app(ProxmoxClient::class)->fetchCatalog();
 
         $this->assertTrue($cat['ok'], (string) ($cat['message'] ?? ''));
 
-        $this->assertCount(3, $cat['locations']);
-        $this->assertCount(3, $cat['plans']);
+        /*
+         * ⚠️ عمداً «تعدادِ کلِ» مکان/پلن شمرده نمی‌شود بلکه فقط خطِ **اکسیت**:
+         * از شهریور ۱۴۰۵ این کاتالوگ خطِ VPSِ ایران را هم می‌سازد
+         * (CloudProxmoxIranLineTest). شمارشِ کل یعنی این تست با هر خطِ تازه
+         * قرمز می‌شود بی‌آنکه چیزی خراب شده باشد — و بدتر، آدم را وسوسه
+         * می‌کند عدد را بالا ببرد به‌جای اینکه ادعا را دقیق کند.
+         */
+        $exitLoc = array_values(array_filter($cat['locations'],
+            fn ($l) => str_starts_with((string) $l['code'], 'exit-')));
+        $exitPlans = array_values(array_filter($cat['plans'],
+            fn ($p) => str_starts_with((string) $p['location_code'], 'exit-')));
+
+        $this->assertCount(3, $exitLoc);
+        $this->assertCount(3, $exitPlans);
+
+        $cat['locations'] = $exitLoc;
+        $cat['plans'] = $exitPlans;
 
         // اولین کشورِ پیش‌فرض = آلمان → مکانِ exit-de
         $this->assertSame('exit-de', $cat['locations'][0]['code']);

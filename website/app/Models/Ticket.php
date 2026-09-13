@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\CardRedactor;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -53,6 +55,25 @@ class Ticket extends Model
             'last_reply_at' => 'datetime',
             'closed_at'     => 'datetime',
         ];
+    }
+
+    /**
+     * 🔴 موضوعِ تیکت را هم **مشتری** می‌نویسد — پس همان محافظِ
+     * [[TicketMessage::body]] این‌جا هم لازم است.
+     *
+     * ⚠️ این را جا انداختن یک نیمه‌کاریِ خاموش می‌ساخت: پاک‌سازیِ
+     * یک‌بارهٔ ردیف‌های کهنه موضوع را تمیز می‌کرد و فردا تیکتِ بعدی دوباره
+     * پُرش می‌کرد، بی‌آنکه چیزی خطا بدهد.
+     *
+     * ⚠️ و بهایش فقط دیتابیس نیست: `TicketDraftWriter` **موضوع و متنِ**
+     * تیکت را برای ساختِ پیش‌نویس به ارائه‌دهندهٔ هوشِ مصنوعیِ بیرون از کشور
+     * می‌فرستد. آن‌جا هرچه رفت، برنمی‌گردد.
+     */
+    protected function subject(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => CardRedactor::mask($value),
+        );
     }
 
     protected static function booted(): void

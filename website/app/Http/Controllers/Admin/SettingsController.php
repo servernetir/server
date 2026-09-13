@@ -164,6 +164,7 @@ class SettingsController extends Controller
             'ovh_app_key'        => ['nullable', 'string', 'max:200'],
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
+            'ovh_region'         => ['nullable', 'string', 'in:eu,ca,us'],
             'ovh_forget'         => ['nullable', 'boolean'],
             'hetzner_robot_user'   => ['nullable', 'string', 'max:120'],
             'hetzner_robot_pass'   => ['nullable', 'string', 'max:200'],
@@ -190,6 +191,26 @@ class SettingsController extends Controller
             'proxmox_gateway'        => ['nullable', 'string', 'max:45'],
             'proxmox_ip_start'       => ['nullable', 'string', 'max:45'],
             'proxmox_exit_countries' => ['nullable', 'string', 'max:200'],
+            /*
+            | 🔴 آدرسِ عمومیِ میزبانِ ایران — تا امروز **هیچ فرمی نداشت**.
+            |
+            | `PullController` و `ExitInfraController` و `CloudInstance::address()`
+            | هر سه از `Setting::get('public_ip')` می‌خوانند، و پشتوانه‌اش
+            | `config('servernet.exit.public_ip')` است که آن کلید در
+            | config/servernet.php **اصلاً وجود ندارد**. یعنی مقدار همیشه خالی
+            | بود و راهی هم برای پرکردنش نبود: صفحهٔ اکسیت فقط شمارهٔ پورت را
+            | نشان می‌داد و پرتالِ مشتری هیچ آدرسی.
+            */
+            'public_ip'              => ['nullable', 'string', 'max:45'],
+            // اختیاری: نامِ دامنه به‌جای IP در آدرسی که به مشتری می‌دهیم.
+            // پورت را حذف نمی‌کند؛ فقط ظاهر را بهتر می‌کند.
+            'public_host'            => ['nullable', 'string', 'max:120'],
+            // دروازهٔ وبِ ماشین‌های پشتِ NAT (Nginx Proxy Manager)
+            'npm_base_url'           => ['nullable', 'string', 'max:200'],
+            'npm_base_domain'        => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9.-]*$/'],
+            'npm_email'              => ['nullable', 'string', 'max:190'],
+            'npm_password'           => ['nullable', 'string', 'max:200'],
+            'npm_forget'             => ['nullable', 'boolean'],
             'agent_pull_token'       => ['nullable', 'string', 'max:200'],
             'agent_forget'           => ['nullable', 'boolean'],
             /*
@@ -220,7 +241,8 @@ class SettingsController extends Controller
     private const PROXMOX_PLAIN = [
         'proxmox_api_url', 'proxmox_node', 'proxmox_token_id', 'proxmox_template_vmid',
         'proxmox_storage', 'proxmox_bridge', 'proxmox_gateway', 'proxmox_ip_start',
-        'proxmox_exit_countries',
+        'proxmox_exit_countries', 'public_ip', 'public_host',
+        'npm_base_url', 'npm_base_domain',
     ];
 
     /**
@@ -420,6 +442,10 @@ class SettingsController extends Controller
                 'ovh' => $ready && filled(Setting::getSecret('ovh_app_key'))
                     && filled(Setting::getSecret('ovh_app_secret'))
                     && filled(Setting::getSecret('ovh_consumer_key')),
+                // منطقه سرّی نیست ولی به اندازهٔ کلید تعیین‌کننده است: کلیدِ
+                // درستِ منطقهٔ اشتباه همان ۴۰۳ را می‌دهد. پیش‌فرضِ نمایش با
+                // پیش‌فرضِ `OvhClient::region()` یکی است.
+                'ovh_region' => $ready ? (Setting::get('ovh_region', 'eu') ?: 'eu') : 'eu',
                 'proxmox'        => $ready && filled(Setting::getSecret('proxmox_token_secret')),
                 // Robot دو تکه است: کاربر و رمزِ webservice — هر دو لازم‌اند.
                 'hetzner_robot' => $ready && filled(Setting::getSecret('hetzner_robot_user'))
@@ -439,6 +465,11 @@ class SettingsController extends Controller
                 ],
                 'agent'          => $ready && filled(Setting::getSecret('agent_pull_token')),
                 'exit_countries' => $ready ? Setting::get('proxmox_exit_countries') : null,
+                'public_ip'      => $ready ? Setting::get('public_ip') : null,
+                'public_host'    => $ready ? Setting::get('public_host') : null,
+                'npm'            => $ready && filled(Setting::getSecret('npm_password')),
+                'npm_url'        => $ready ? Setting::get('npm_base_url') : null,
+                'npm_domain'     => $ready ? Setting::get('npm_base_domain') : null,
                 'guard'          => $ready ? Setting::get('cloud_guard_daily_max') : null,
                 'promo'          => $ready && Setting::get('aeza_include_promo') === '1',
                 'unlimited'      => $ready && Setting::get('cloud_traffic_unlimited') === '1',
@@ -720,6 +751,12 @@ class SettingsController extends Controller
             }
         }
 
+        // منطقه بیرونِ شاخهٔ «فراموش کن» است، مثلِ کانفیگِ Proxmox: پاک‌کردنِ
+        // کلیدها دلیلی نیست که یادمان برود حساب روی کدام نهاد است.
+        if (filled($data['ovh_region'] ?? null)) {
+            Setting::put('ovh_region', $data['ovh_region']);
+        }
+
         // Hetzner Robot: کاربر و رمزِ webservice — دو کلید، مثل OVH با هم
         // پاک می‌شوند (یکی از دو یعنی 401ِ همیشگی).
         if ($request->boolean('hetzner_robot_forget')) {
@@ -740,6 +777,18 @@ class SettingsController extends Controller
             Setting::putSecret('proxmox_token_secret', null);
         } elseif (filled($data['proxmox_token_secret'] ?? null)) {
             Setting::putSecret('proxmox_token_secret', trim((string) $data['proxmox_token_secret']));
+        }
+
+        // NPM: ایمیل و رمز هر دو سرّی‌اند — آدرس و دامنهٔ پایه ساده می‌مانند.
+        if ($request->boolean('npm_forget')) {
+            Setting::putSecret('npm_email', null);
+            Setting::putSecret('npm_password', null);
+        } else {
+            foreach (['npm_email', 'npm_password'] as $k) {
+                if (filled($data[$k] ?? null)) {
+                    Setting::putSecret($k, trim((string) $data[$k]));
+                }
+            }
         }
 
         if ($request->boolean('agent_forget')) {

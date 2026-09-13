@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Mail;
  * ═══ قواعد ═══
  * • هرگز جریانِ اصلی را نمی‌شکند: هر کانال در try/catch جداست. اگر بله یا SMTP
  *   قطع باشد، خریدِ مشتری یا کرونِ تمدید نباید خطا بدهد.
- * • شمارهٔ بلهٔ مدیر از config('servernet.contact.notify_phone') و ایمیل از
- *   config('servernet.contact.email') می‌آید.
+ * • مقصدهای بله از `notify_phones`/`notify_chat_ids` می‌آیند؛ کلیدهای تکیِ
+ *   قدیمی fallback هستند. ایمیل از config('servernet.contact.email') می‌آید.
  * • متن‌ها کوتاه و تلگرافی‌اند؛ مدیر روی موبایل می‌خواندشان.
  */
 class AdminNotifier
@@ -152,27 +152,42 @@ class AdminNotifier
     private function sendBale(string $text, array $buttons = []): void
     {
         try {
-            $phone = trim((string) config('servernet.contact.notify_phone', ''));
+            $destinations = $this->baleDestinations();
 
             /*
-            | ⚠️ اگر ارسالِ دکمه‌دار نشد، به متنِ ساده برمی‌گردیم.
+            | 🔴 مقصدِ نداشته باید **ثبت** شود، نه اینکه بی‌صدا رد شود.
             |
-            | 🔴 و نه `return`: پیامی که دکمه‌اش نرسیده باز هم باید برسد. نسخهٔ
-            | بی‌این شاخه یعنی یک شکستِ کوچکِ کیبورد، کلِ اعلانِ «مشتری جواب
-            | داد» را می‌بلعید — همان سکوتی که این پروژه بارها خورده.
+            | نسخهٔ تک‌مقصدیِ قبلی همیشه `toAdmin('', $text)` را صدا می‌زد، پس
+            | شکست دستِ‌کم از درایور بیرون می‌زد. نسخهٔ چندمقصدی وقتی هیچ
+            | مقصدی پیکربندی نشده باشد یک آرایهٔ **خالی** می‌دهد و حلقه اصلاً
+            | اجرا نمی‌شود — یعنی از آن لحظه هر اعلانِ مدیر (پرداختِ موفق،
+            | شکستِ تحویل، دامنهٔ منقضی) بی‌هیچ خطا و لاگی ناپدید می‌شود.
+            |
+            | دقیقاً همان الگویی که این پروژه بارها خورده: سکوت از
+            | «همه‌چیز آرام است» قابلِ تشخیص نیست. `noteOnce` است نه `note`،
+            | چون این یک نبودِ پیکربندیِ **پایدار** است نه یک شکستِ گذرا و
+            | بی‌گلوگاه پنجرهٔ ۴۰۰ خطیِ ردیاب را می‌بلعد.
             */
-            if ($buttons !== [] && $this->bale->toAdminButtons($phone, $text, $buttons)) {
+            if ($destinations === []) {
+                \App\Support\ErrorTracker::noteOnce('notify',
+                    'هیچ مقصدِ بله‌ای برای مدیر پیکربندی نشده (notify_phones/notify_chat_ids '
+                    .'و کلیدهای تکیِ قدیمی همه خالی‌اند) — اعلان‌های مدیر از این کانال نمی‌روند.',
+                    3600, ['to' => 'admin', 'channel' => 'bale-admin']);
+
                 return;
             }
 
-            /*
-            | 🔴 `toAdmin()` نه `notify()` — سفیر فقط برای مشتریان.
-            |
-            | مدیر مشتری نیست و هر پیامِ سفیر هزینهٔ جداگانه دارد. این متد از
-            | APIِ رباتِ خودمان می‌رود (همان مسیرِ رایگانِ پیش از سفیر). عوض‌کردنش
-            | به `notify()` یعنی برگرداندنِ همان هزینهٔ الکی.
-            */
-            $this->bale->toAdmin($phone, $text);
+            foreach ($destinations as [$phone, $chatId]) {
+                /*
+                | ⚠️ اگر ارسالِ دکمه‌دار نشد، فقط برای **همین مدیر** به متنِ
+                | ساده برمی‌گردیم؛ شکستِ مقصد اول نباید مقصد دوم را حذف کند.
+                */
+                if ($buttons !== [] && $this->bale->toAdminButtonsAt($phone, $chatId, $text, $buttons)) {
+                    continue;
+                }
+
+                $this->bale->toAdminAt($phone, $chatId, $text);
+            }
         } catch (\Throwable $e) {
             /*
             | 🔴 در ردیابِ خطا هم ثبت می‌شود، نه فقط `laravel.log`.
@@ -189,6 +204,60 @@ class AdminNotifier
             Log::warning('اعلانِ بلهٔ مدیر نرفت', ['error' => mb_substr($e->getMessage(), 0, 160)]);
             \App\Support\ErrorTracker::note('notify', $e, ['to' => 'admin', 'channel' => 'bale']);
         }
+    }
+
+    /**
+     * @return array<int,array{0:string,1:string}>
+     */
+    private function baleDestinations(): array
+    {
+        $phones = config('servernet.contact.notify_phones', []);
+        $chats  = config('servernet.contact.notify_chat_ids', []);
+
+        $phones = is_array($phones) ? array_values($phones) : [];
+        $chats  = is_array($chats) ? array_values($chats) : [];
+
+        // `explode('', ...)` در config یک خانهٔ خالی می‌سازد؛ آن «فهرست» نیست.
+        if (! collect($chats)->contains(fn ($chat): bool => trim((string) $chat) !== '')) {
+            $chats = [];
+        }
+
+        $legacyPhone = trim((string) config('servernet.contact.notify_phone', ''));
+        $legacyChat  = trim((string) config('servernet.contact.notify_chat_id', ''));
+
+        // سازگاری کامل با .env فعلی: فهرستِ خالی همان مقصدِ تکیِ قدیمی است.
+        if ($phones === [] && $chats === []) {
+            $phones = [$legacyPhone];
+            $chats  = [$legacyChat];
+        } elseif ($phones !== [] && $chats === [] && $legacyChat !== '') {
+            // هنگام rollout فقط فهرست شماره‌ها اضافه می‌شود؛ chat قدیمی گم نشود.
+            $chats = [$legacyChat];
+        } elseif ($phones === [] && $chats !== [] && $legacyPhone !== '') {
+            $phones = [$legacyPhone];
+        }
+
+        $destinations = [];
+        $seen = [];
+        $count = max(count($phones), count($chats));
+
+        for ($i = 0; $i < $count; $i++) {
+            $phone = trim((string) ($phones[$i] ?? ''));
+            $chat  = trim((string) ($chats[$i] ?? ''));
+
+            if ($phone === '' && $chat === '') {
+                continue;
+            }
+
+            $key = $chat !== '' ? 'chat:'.$chat : 'phone:'.$phone;
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $destinations[] = [$phone, $chat];
+        }
+
+        return $destinations;
     }
 
     private function sendMail(string $subject, string $text): void

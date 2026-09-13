@@ -73,13 +73,34 @@
         <b>زیرساختِ ۴ — OVHcloud</b>
         @if($cloud['ovh'])<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">هر سه کلید ذخیره‌شده</span>@endif
       </div>
+      @php
+        // نشانیِ ساختِ کلید **منطقه‌ای** است، مثلِ خودِ کلیدها. نشان‌دادنِ نشانیِ
+        // اروپا به حسابِ آمریکایی یعنی کاربر کلیدی می‌سازد که هرگز کار نمی‌کند
+        // و خطایش هم نمی‌گوید چرا.
+        $ovhTokenUrl = [
+            'eu' => 'eu.api.ovh.com/createToken/',
+            'ca' => 'ca.api.ovh.com/createToken/',
+            'us' => 'api.us.ovhcloud.com/createToken/',
+        ][$cloud['ovh_region'] ?? 'eu'];
+      @endphp
       <p>
-        این زیرساخت سه کلید می‌خواهد. هر سه را از <span dir="ltr">eu.api.ovh.com/createToken</span>
-        بسازید و دسترسی‌های <span dir="ltr">GET/POST /vps*</span> و <span dir="ltr">GET /me</span> را بدهید.
+        این زیرساخت سه کلید می‌خواهد. اول <b>منطقه</b> را درست انتخاب کنید، بعد هر سه کلید را از
+        <span dir="ltr">{{ $ovhTokenUrl }}</span>
+        بسازید و دسترسی‌های <span dir="ltr">GET /me</span> و <span dir="ltr">GET/POST/PUT /vps*</span> را بدهید.
+        <br>⚠️ در فرم OVH گزینهٔ <span dir="ltr">Validity</span> پیش‌فرض <span dir="ltr">1 day</span> است؛
+        اگر روی <span dir="ltr">Unlimited</span> نگذارید، اتصال فردا بی‌هیچ خبری قطع می‌شود.
         <br>⚠️ <b>خرید خودکار هنوز فعال نیست</b> — سفارش در OVH از سبد خرید چندمرحله‌ای می‌گذرد
         و تا وقتی روی حساب واقعی آزمایش نشده، سفارش‌ها به صف تحویل دستی می‌روند.
         مدیریت سرورهای موجود (روشن/خاموش/نصب دوباره) کامل کار می‌کند.
       </p>
+      <div class="set-grid">
+        <label class="set-f">منطقهٔ حساب
+          <select name="ovh_region" dir="ltr">
+            <option value="eu" @selected(($cloud['ovh_region'] ?? 'eu') === 'eu')>ovh-eu — ovh.com (اروپا)</option>
+            <option value="ca" @selected(($cloud['ovh_region'] ?? 'eu') === 'ca')>ovh-ca — ca.ovh.com (کانادا)</option>
+            <option value="us" @selected(($cloud['ovh_region'] ?? 'eu') === 'us')>ovh-us — us.ovhcloud.com (آمریکا)</option>
+          </select></label>
+      </div>
       <div class="set-grid three">
         <label class="set-f">Application Key
           <input type="password" name="ovh_app_key" dir="ltr" autocomplete="new-password" maxlength="200"
@@ -238,6 +259,14 @@
         <label class="set-f">کشورهای خروج (Exit VPS) — جدا با کاما
           <input type="text" name="proxmox_exit_countries" dir="ltr" maxlength="200"
                  value="{{ $cloud['exit_countries'] }}" placeholder="de,nl,fi (پیش‌فرض)"></label>
+        {{-- 🔴 بی‌این دو، ماشینِ پشتِ NAT هیچ آدرسی برای دادن به مشتری ندارد:
+             پورت‌فوروارد ساخته می‌شود ولی کسی نمی‌داند روی کدام IP. --}}
+        <label class="set-f">IP عمومیِ میزبانِ ایران (برای پورت‌فوروارد)
+          <input type="text" name="public_ip" dir="ltr" maxlength="45"
+                 value="{{ $cloud['public_ip'] }}" placeholder="85.9.108.118"></label>
+        <label class="set-f">نامِ دامنه به‌جای IP (اختیاری — پورت را حذف نمی‌کند)
+          <input type="text" name="public_host" dir="ltr" maxlength="120"
+                 value="{{ $cloud['public_host'] }}" placeholder="ir1.servernet.cloud"></label>
       </div>
       @if($cloud['proxmox'])
         <label class="set-danger"><input type="checkbox" name="proxmox_forget" value="1"> توکن را فراموش کن</label>
@@ -255,6 +284,21 @@
         <span dir="ltr">/agent/countryroutes</span> و <span dir="ltr">/agent/portforwards</span>
         حالتِ مطلوب را می‌خوانَد. همین توکن را در تنظیماتِ ایجنت هم بگذارید.
       </p>
+      <label class="set-f">آدرسِ Nginx Proxy Manager
+        <input type="text" name="npm_base_url" dir="ltr" maxlength="200"
+               value="{{ $cloud['npm_url'] }}" placeholder="http://10.10.10.7:81"></label>
+      <label class="set-f">دامنهٔ پایهٔ سرورها (زیر‌دامنه زیرِ این ساخته می‌شود)
+        <input type="text" name="npm_base_domain" dir="ltr" maxlength="120"
+               value="{{ $cloud['npm_domain'] }}" placeholder="servernet.cloud"></label>
+      <label class="set-f">ایمیلِ ورودِ NPM
+        <input type="text" name="npm_email" dir="ltr" autocomplete="off" maxlength="190"
+               placeholder="{{ $cloud['npm'] ? '••••••••  خالی = بدونِ تغییر' : 'admin@example.com' }}"></label>
+      <label class="set-f">رمزِ ورودِ NPM
+        <input type="password" name="npm_password" dir="ltr" autocomplete="new-password" maxlength="200"
+               placeholder="{{ $cloud['npm'] ? '••••••••  خالی = بدونِ تغییر' : 'رمزِ پنلِ NPM' }}"></label>
+      @if($cloud['npm'])
+        <label class="set-danger"><input type="checkbox" name="npm_forget" value="1"> اعتبارنامهٔ NPM را فراموش کن</label>
+      @endif
       <label class="set-f">Agent Token
         <input type="password" name="agent_pull_token" dir="ltr" autocomplete="new-password" maxlength="200"
                placeholder="{{ $cloud['agent'] ? '••••••••  خالی = بدونِ تغییر' : 'یک رشتهٔ تصادفیِ قوی' }}"></label>

@@ -89,13 +89,48 @@ class BrandedDialogTest extends TestCase
         }
     }
 
-    /** صفحهٔ کنترلِ سرور باید دیالوگِ برنددار داشته باشد، نه هیچ‌چیز */
+    /**
+     * صفحهٔ کنترلِ سرور باید دیالوگِ برنددار داشته باشد، نه هیچ‌چیز.
+     *
+     * ⚠️ این تست قبلاً رشتهٔ **لفظیِ** `data-confirm="{{ __('ui.cs_confirm_off') }}"`
+     * را می‌سنجید. روزی که متنِ تأیید بسته به «آیا خاموشی هزینه دارد یا نه»
+     * دوشاخه شد، گارد قرمز شد در حالی که رفتارِ واقعی — «همیشه می‌پرسد» — سالم
+     * بود. تستی که یک تصمیمِ طراحی را از روی *املای* کد می‌شناسد، اولین
+     * بازنویسیِ بی‌خطر را هم می‌شکند و آدم را وسوسه می‌کند خودِ گارد را بردارد.
+     *
+     * حالا همان ادعا سنجیده می‌شود: فرمِ `value="off"` هم `data-confirm` دارد،
+     * هم `data-confirm-danger`، و هر کلیدی که در آن attribute می‌آید در **هر
+     * سه** زبان متنِ ناتهی دارد — چون `__()`ِ کلیدِ نبود خودِ کلید را چاپ
+     * می‌کند و دیالوگ عملاً بی‌متن بالا می‌آید.
+     */
     public function test_server_power_off_still_asks_for_confirmation(): void
     {
         $src = $this->blades()['account/cloud-server.blade.php'];
 
-        $this->assertStringContainsString('data-confirm="{{ __(\'ui.cs_confirm_off\') }}"', $src,
+        $forms = array_values(array_filter(
+            explode('<form', $src),
+            fn (string $chunk) => str_contains($chunk, 'value="off"'),
+        ));
+
+        $this->assertCount(1, $forms, 'فرمِ خاموش‌کردنِ سرور پیدا نشد');
+
+        $this->assertMatchesRegularExpression('~data-confirm="[^"]+"~', $forms[0],
             'خاموش‌کردنِ سرور نباید بی‌پرسش انجام شود');
-        $this->assertStringContainsString('data-confirm-danger', $src);
+        $this->assertStringContainsString('data-confirm-danger', $forms[0]);
+
+        preg_match('~data-confirm="([^"]+)"~', $forms[0], $m);
+        preg_match_all('~ui\.([a-z0-9_]+)~', $m[1], $keys);
+
+        $this->assertNotEmpty($keys[1], 'متنِ تأیید باید از `__()` بیاید، نه رشتهٔ سخت‌کد');
+
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $ui = require base_path("lang/{$locale}/ui.php");
+
+            foreach ($keys[1] as $key) {
+                $this->assertArrayHasKey($key, $ui, "ui.{$key} در زبانِ {$locale} نیست");
+                $this->assertNotSame('', trim((string) $ui[$key]),
+                    "ui.{$key} در زبانِ {$locale} خالی است ⇒ دیالوگِ بی‌متن");
+            }
+        }
     }
 }

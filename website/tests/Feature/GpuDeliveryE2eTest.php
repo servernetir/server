@@ -117,4 +117,48 @@ class GpuDeliveryE2eTest extends CloudProvisionTest
         $this->assertSame('demo.salad.cloud', $instance->hostname,
             'نشانیِ دروازه در hostname ننشست — مشتری چیزی برای وصل‌شدن ندارد.');
     }
+
+    /**
+     * 🔴 مسیرِ وضعیتِ پنل باید پیشرفتِ **واقعیِ** ساخت را رد کند: درصدِ
+     * «Pulling, N%» عیناً از زیرساخت به JSON صفحه برسد. بی‌این، مشتریِ GPU
+     * تا یک ساعت روی مرحلهٔ بی‌حرکتِ «در حالِ ساخت» می‌مانَد و فکر می‌کند
+     * خرید خراب شده — همان تیکت‌های واقعی.
+     */
+    public function test_the_status_endpoint_streams_the_real_build_progress(): void
+    {
+        [$plan, $service] = $this->seedGpu();
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+
+            if (str_contains($url, '/containers') && $request->method() === 'POST') {
+                return Http::response(['name' => $request->data()['name'] ?? 'sn-svc-x',
+                    'current_state' => ['status' => 'pending']], 201);
+            }
+
+            if (str_contains($url, '/instances')) {
+                // هنوز هیچ گره‌ای تخصیص نگرفته — وسطِ فازِ pulling
+                return Http::response(['instances' => []], 200);
+            }
+
+            if (str_contains($url, '/containers/')) {
+                return Http::response([
+                    'current_state' => ['status' => 'pending', 'description' => 'Pulling, 37% complete'],
+                ], 200);
+            }
+
+            return Http::response(['items' => []], 200);
+        });
+
+        $this->assertTrue(app(CloudProvisioner::class)->provision($service));
+
+        $this->actingAs($service->customer, 'customer')
+            ->getJson(route('account.cloud.status', $service))
+            ->assertOk()
+            ->assertJson([
+                'ready' => false,
+                'stage' => 'building',
+                'build' => ['phase' => 'pulling', 'pull_pct' => 37],
+            ]);
+    }
 }

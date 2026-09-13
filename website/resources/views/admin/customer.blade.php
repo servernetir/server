@@ -246,14 +246,27 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>حساب‌های بانکی</h3></div>
   <table class="ad-table">
-    <thead><tr><th>بانک</th><th>شبا</th><th>صاحب حساب</th><th>وضعیت</th></tr></thead>
+    <thead><tr><th>بانک</th><th>شبا</th><th>صاحب حساب</th><th>وضعیت</th><th></th></tr></thead>
     <tbody>
       @foreach($c->bankAccounts as $b)
       <tr>
-        <td>{{ $b->bank_name ?: '—' }} <small style="color:var(--dim)" dir="ltr">{{ $b->card_bin }}••••</small></td>
+        <td>{{ $b->bank_name ?: '—' }} <small style="color:var(--dim)" dir="ltr">{{ $b->maskedCard() }}</small>
+          @if(auth()->user()->isAdmin() && filled($b->getRawOriginal('card_number_enc')))
+            <form method="post" action="/admin/customers/{{ $c->id }}/bank-accounts/{{ $b->id }}/reveal" target="_blank" style="display:inline">@csrf<button class="btn btn-glass" type="submit">نمایش کامل</button></form>
+          @endif</td>
         <td dir="ltr" style="color:var(--muted)">{{ $b->iban ?: '—' }}</td>
         <td>{{ $b->owner_name ?: '—' }} @if($b->name_matched)<i style="color:#34d399">✓</i>@endif</td>
         <td><span class="ad-badge {{ $b->status === 'verified' ? 'pub' : 'draft' }}">{{ $b->status === 'verified' ? 'تأییدشده' : $b->status }}</span></td>
+        {{-- ⚠️ عودتِ وجه معمولاً با **شبا** انجام می‌شود که همین کنار هست؛ این
+             دکمه برای موردی است که واقعاً کارت‌به‌کارت لازم شود. نمایش
+             یک‌بارمصرف است و در لاگِ فعالیت ثبت می‌شود. --}}
+        <td>
+          <form method="post" action="{{ url('/admin/customers/'.$c->id.'/bank/'.$b->id.'/reveal-card') }}"
+                data-confirm="شمارهٔ کاملِ کارت نمایش داده شود؟ این کار در لاگِ فعالیت ثبت می‌شود.">
+            @csrf
+            <button class="ad-btn sm">نمایش شمارهٔ کارت</button>
+          </form>
+        </td>
       </tr>
       @endforeach
     </tbody>
@@ -773,6 +786,47 @@
   @endif
 </div>
 
+{{-- ══ کیفِ پول: افزایش / کاهشِ دستی ══
+     🔴 دفتر افزودنی است — هر تغییر یک سطرِ تازه است، نه ویرایشِ سطرهای قبلی.
+     پس «صفر کردن» یعنی یک سطرِ منفی، و تاریخچه دست‌نخورده می‌مانَد. --}}
+<div class="ad-panel">
+  <div class="ad-panel-h">
+    <h3>کیفِ پول</h3>
+    <span style="color:var(--muted);font-size:12.5px">موجودیِ فعلی: <b style="color:#34d399">{{ $money($creditBalance) }}</b></span>
+  </div>
+  <form method="post" action="/admin/customers/{{ $c->id }}/credit" style="padding:16px;display:grid;gap:12px"
+        data-confirm="این تغییر در دفترِ اعتبار ثبت می‌شود و برگشت‌پذیر نیست (اصلاحش یک سطرِ تازه می‌خواهد). ادامه؟"
+        data-confirm-title="تغییرِ اعتبار">
+    @csrf
+    <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">نوع
+        <select name="direction" style="padding:9px 10px">
+          <option value="add">افزایش</option>
+          <option value="subtract">کاهش</option>
+        </select>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">مبلغ (تومان)
+        {{-- 🔴 step عمداً ۱ است. با step="1000" و min="1" مقادیرِ معتبر ۱، ۱۰۰۱،
+             ۲۰۰۱ … می‌شوند (پایهٔ گام min است نه صفر) — یعنی هر مبلغِ گردی نامعتبر
+             است و مرورگر submit را **بی‌صدا** بلوکه می‌کند: نه خطا، نه دیالوگ، نه
+             ارسال. اگر تب هم بسته باشد حبابِ خطا دیده نمی‌شود و دکمه صرفاً هیچ
+             کاری نمی‌کند. فرمِ بازگشتِ وجه به‌همین‌دلیل کار می‌کرد: min="0" دارد. --}}
+        <input type="number" name="amount" min="1" step="1" dir="ltr" required placeholder="مثلاً ۵۰۰۰۰۰" style="padding:9px 10px">
+      </label>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)">توضیح (اجباری)
+      <input type="text" name="note" maxlength="200" required
+             placeholder="بابتِ چه؟ مثلاً: عودتِ وجه کارت‌به‌کارت شد — تیکت TK-…" style="padding:9px 10px">
+      <span style="color:var(--dim);font-size:11.5px">
+        یک ماه بعد، این تنها چیزی است که می‌گوید چرا این عدد عوض شد. بی‌آن، تغییر قابلِ توضیح نیست.
+      </span>
+    </label>
+    <div>
+      <button type="submit" class="ad-btn">ثبت در دفترِ اعتبار</button>
+    </div>
+  </form>
+</div>
+
 <div class="ad-grid2">
   {{-- ══ پرداخت‌ها ══ --}}
   <div class="ad-panel" style="margin:0">
@@ -812,6 +866,33 @@
 
 {{-- ─────────── تبِ پشتیبانی ─────────── --}}
 <div class="ct-pane" data-pane="support">
+  <div class="ad-panel" style="margin:0 0 16px">
+    <div class="ad-panel-h"><h3>یادداشت‌های داخلی</h3><span class="ad-badge">فقط کارکنان</span></div>
+    <form method="post" action="/admin/customers/{{ $c->id }}/notes" style="padding:16px">@csrf
+      <textarea name="body" required maxlength="5000" rows="3" class="ad-input" style="width:100%" placeholder="اطلاعاتی که فقط تیم سرورنت باید ببیند…"></textarea>
+      <button class="btn btn-primary" type="submit" style="margin-top:8px">ثبت یادداشت</button>
+    </form>
+    @forelse($notes as $note)
+      {{-- ⚠️ `--border` در این پروژه تعریف نشده؛ توکنِ مرز `--line` است.
+           متغیرِ ناموجود بی‌fallback یعنی کلِ اعلانِ CSS دور انداخته
+           می‌شود — خطی که باید باشد اصلاً کشیده نمی‌شود، با کدِ ۲۰۰ و
+           بی‌هیچ خطایی. `CssVariablesDefinedTest` همین را می‌گیرد. --}}
+      <div style="padding:14px 16px;border-top:1px solid var(--line)">
+        <form method="post" action="/admin/customers/{{ $c->id }}/notes/{{ $note->id }}">@csrf @method('put')
+          <textarea name="body" required maxlength="5000" rows="2" class="ad-input" style="width:100%">{{ $note->body }}</textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;color:var(--dim);font-size:12px">
+            <span>{{ $note->author?->name ?? 'کارمند حذف‌شده' }} · {{ sdate($note->created_at) }}@if(!$note->updated_at->equalTo($note->created_at)) · ویرایش {{ sdate($note->updated_at) }}@endif</span>
+            @if(auth()->user()->isAdmin() || auth()->id() === $note->user_id)<button class="btn btn-glass" type="submit">ذخیره ویرایش</button>@endif
+          </div>
+        </form>
+        @if(auth()->user()->isAdmin() || auth()->id() === $note->user_id)
+          <form method="post" action="/admin/customers/{{ $c->id }}/notes/{{ $note->id }}" data-confirm="این یادداشت داخلی حذف شود؟" style="margin-top:6px">@csrf @method('delete')<button class="btn btn-glass" type="submit" style="color:#ff6b6b">حذف</button></form>
+        @endif
+      </div>
+    @empty
+      <p style="padding:0 16px 16px;color:var(--dim)">هنوز یادداشتی ثبت نشده است.</p>
+    @endforelse
+  </div>
   {{-- ══ تیکت‌ها ══ --}}
   <div class="ad-panel" style="margin:0">
     <div class="ad-panel-h"><h3>تیکت‌ها</h3></div>

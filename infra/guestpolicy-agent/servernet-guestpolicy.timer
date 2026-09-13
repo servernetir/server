@@ -1,0 +1,12 @@
+[Unit]
+Description=ServerNet — پیمایش سیاست شبکه داخلی
+
+[Timer]
+# پس از بوت زود بیدار شود تا قواعد بازسازی شوند (زنجیره در رم است، نه روی دیسک)
+OnBootSec=45s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=servernet-guestpolicy.service
+
+[Install]
+WantedBy=timers.target

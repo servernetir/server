@@ -358,6 +358,14 @@ $site = function (): void {
         Route::get('/login/code', [Auth\LoginController::class, 'code'])->name('login.code');
         Route::post('/login/verify', [Auth\LoginController::class, 'verify'])->name('login.verify')->middleware('throttle:otp');
         Route::post('/login/resend', [Auth\LoginController::class, 'resend'])->name('login.resend')->middleware('throttle:resend');
+
+        /*
+        | مرحلهٔ سومِ ورود — کدِ اپلیکیشنِ احرازِ هویت، فقط برای حسابی که خودش
+        | روشنش کرده. مثلِ مرحلهٔ دو بیرونِ `auth:customer` است چون کاربر در
+        | این لحظه هنوز وارد **نشده**؛ گذارش فقط با کلیدِ نشست است.
+        */
+        Route::get('/login/2fa', [Auth\LoginController::class, 'twoFactor'])->name('login.2fa');
+        Route::post('/login/2fa', [Auth\LoginController::class, 'twoFactorVerify'])->name('login.2fa.verify')->middleware('throttle:otp');
     });
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
@@ -561,6 +569,21 @@ $site = function (): void {
         Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
         Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
+
+        /*
+        | ورود دومرحله‌ای با اپلیکیشنِ احرازِ هویت (Google Authenticator).
+        |
+        | همه روی همان صفحهٔ `/account/security` می‌نشینند (بخشِ `#sec-2fa`)؛
+        | صفحهٔ جدایی ندارد چون «امنیتِ حساب» یک جا باید باشد.
+        |
+        | ⚠️ `throttle:otp` روی سه مسیری که کد می‌سنجند: بدونش، فرمِ
+        | غیرفعال‌سازی یک اوراکلِ حدسِ شش‌رقمیِ بی‌سقف است.
+        */
+        Route::post('/security/2fa/start', [Account\TwoFactorController::class, 'start'])->name('security.2fa.start')->middleware('throttle:forms');
+        Route::post('/security/2fa/confirm', [Account\TwoFactorController::class, 'confirm'])->name('security.2fa.confirm')->middleware('throttle:otp');
+        Route::post('/security/2fa/cancel', [Account\TwoFactorController::class, 'cancel'])->name('security.2fa.cancel')->middleware('throttle:forms');
+        Route::post('/security/2fa/recovery', [Account\TwoFactorController::class, 'recovery'])->name('security.2fa.recovery')->middleware('throttle:otp');
+        Route::post('/security/2fa/disable', [Account\TwoFactorController::class, 'disable'])->name('security.2fa.disable')->middleware('throttle:otp');
 
         // پنلِ نمایندگیِ دامنه — برای غیرِ نماینده هم باز است و حالتِ معرفی
         // نشان می‌دهد؛ ۴۰۴ یعنی لینکِ بازاریابی به دیوار می‌خورد.
@@ -2557,6 +2580,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\CommentController as AdminComment;
 use App\Http\Controllers\Admin\DashboardController as AdminDash;
 use App\Http\Controllers\Admin\PostController as AdminPost;
+use App\Http\Controllers\Admin\SecurityController as AdminSecurity;
 use App\Http\Controllers\Admin\UserController as AdminUser;
 
 /*
@@ -2585,6 +2609,13 @@ Route::prefix('admin')->group(function () {
     Route::get('/login/otp', [AdminAuth::class, 'showOtp'])->name('admin.login.otp');
     Route::post('/login/otp', [AdminAuth::class, 'verifyOtp'])->middleware('throttle:otp');
     Route::post('/login/otp/resend', [AdminAuth::class, 'resendOtp'])->middleware('throttle:resend');
+
+    /*
+    | مرحلهٔ سه — کدِ اپلیکیشنِ احرازِ هویت. مثلِ دو تای قبل بیرونِ `auth:web`
+    | است: کاربر تا وقتی این کد را ندهد وارد نشده.
+    */
+    Route::get('/login/totp', [AdminAuth::class, 'showTotp'])->name('admin.login.totp');
+    Route::post('/login/totp', [AdminAuth::class, 'verifyTotp'])->middleware('throttle:otp');
     Route::post('/logout', [AdminAuth::class, 'logout']);
 
     // «auth:web» صریح و نه «auth» — گارد پیش‌فرض ممکن است در طول یک درخواست
@@ -2631,6 +2662,21 @@ Route::prefix('admin')->group(function () {
             Route::post('/comments/{comment}/approve', [AdminComment::class, 'approve']);
             Route::post('/comments/{comment}/delete', [AdminComment::class, 'destroy']);
             Route::post('/comments/{comment}/drop-reply', [AdminComment::class, 'dropReply']);
+
+            /*
+            | امنیتِ حسابِ **خودِ کاربر** — دومرحله‌ای با اپلیکیشن.
+            |
+            | ⚠️ عمداً در فهرستِ سفیدِ غیرِمدیر است. این صفحه به هیچ دادهٔ
+            | مدیریتی دست نمی‌زند و فقط حسابِ همان کاربر را سفت می‌کند؛ بستنش
+            | روی نویسنده و پشتیبان یعنی ضعیف‌ترین حساب‌های پنل تنها کسانی
+            | باشند که نمی‌توانند از خودشان محافظت کنند.
+            */
+            Route::get('/security', [AdminSecurity::class, 'index'])->name('admin.security');
+            Route::post('/security/2fa/start', [AdminSecurity::class, 'start'])->middleware('throttle:forms');
+            Route::post('/security/2fa/confirm', [AdminSecurity::class, 'confirm'])->middleware('throttle:otp');
+            Route::post('/security/2fa/cancel', [AdminSecurity::class, 'cancel'])->middleware('throttle:forms');
+            Route::post('/security/2fa/recovery', [AdminSecurity::class, 'recovery'])->middleware('throttle:otp');
+            Route::post('/security/2fa/disable', [AdminSecurity::class, 'disable'])->middleware('throttle:otp');
         });
 
         Route::get('/users', [AdminUser::class, 'index']);
@@ -2747,9 +2793,21 @@ Route::prefix('admin')->group(function () {
                 ->name('admin.customers.search');
             Route::get('/customers/{customer}', [\App\Http\Controllers\Admin\CustomerController::class, 'show'])
                 ->name('admin.customer');
+            Route::post('/customers/{customer}/notes', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'store']);
+            Route::put('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'update']);
+            Route::delete('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'destroy']);
         });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
+        /*
+        | نمایشِ یک‌بارهٔ شمارهٔ کاملِ کارت — فقط `admin`، نه هر کاربرِ پنل.
+        | دیدنِ PAN در لاگِ فعالیت ثبت می‌شود و سقفِ نرخ دارد.
+        */
+        Route::post('/customers/{customer}/bank/{account}/reveal-card',
+            [\App\Http\Controllers\Admin\CustomerController::class, 'revealCard'])->middleware('admin');
+        // تنظیمِ دستیِ کیفِ پول (افزایش/کاهش با توضیحِ اجباری) — دفتر افزودنی است
+        Route::post('/customers/{customer}/credit', [\App\Http\Controllers\Admin\CustomerController::class, 'credit'])->middleware('admin');
+        Route::post('/customers/{customer}/bank-accounts/{bankAccount}/reveal', \App\Http\Controllers\Admin\BankCardRevealController::class)->middleware(['admin', 'throttle:10,1']);
         // نمایندگیِ دامنه — فعال‌سازی، سطحِ دستی، تخفیفِ توافقی، سقفِ روزانه
         Route::post('/customers/{customer}/reseller', [\App\Http\Controllers\Admin\CustomerController::class, 'reseller']);
         Route::post('/customers/{customer}/delete', [\App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
@@ -2905,6 +2963,13 @@ Route::prefix('admin')->group(function () {
             ->name('admin.exit-infra.port')->middleware('admin');
         Route::post('/exit-infra/{instance}/detach', [\App\Http\Controllers\Admin\ExitInfraController::class, 'detach'])
             ->name('admin.exit-infra.detach')->middleware('admin');
+        // اجازه/منعِ دسترسی به شبکهٔ داخلی — فقط «حالتِ مطلوب»؛ عاملِ میزبان اعمال می‌کند.
+        Route::post('/exit-infra/{instance}/lan', [\App\Http\Controllers\Admin\ExitInfraController::class, 'setLan'])
+            ->name('admin.exit-infra.lan')->middleware('admin');
+        // تخصیصِ پورتِ عمومی به ماشین‌های بی‌پورت — جایگزینِ کارِ بی‌صدایی که
+        // تا دیروز داخلِ GETِ عامل انجام می‌شد.
+        Route::post('/exit-infra/sync-ports', [\App\Http\Controllers\Admin\ExitInfraController::class, 'syncPorts'])
+            ->name('admin.exit-infra.sync-ports')->middleware('admin');
 
         // آپ‌استریم‌های اکسیت — رله‌های SSH و نودهای VLESS که موتورِ اکسیت از
         // راهشان از کشور خارج می‌شود. پنل «حالتِ مطلوب» را می‌نویسد و میزبانِ
@@ -3266,4 +3331,17 @@ Route::prefix('agent/tunnel')
 Route::prefix('agent')->group(function () {
     Route::get('countryroutes', [\App\Http\Controllers\Agent\PullController::class, 'countryRoutes']);
     Route::get('portforwards',  [\App\Http\Controllers\Agent\PullController::class, 'portForwards']);
+
+    // آپ‌استریم‌های ثبت‌شده در پنل (رله‌ها + اکسیت‌های کشوریِ خودمان).
+    // 🔴 تنها مسیری که اعتبارنامهٔ خام می‌دهد — چون میزبان برای dial لازمش دارد.
+    // پاسخ `no-store` است و مثلِ بقیه پشتِ همان توکنِ ایجنت.
+    Route::get('exitupstreams', [\App\Http\Controllers\Agent\PullController::class, 'exitUpstreams']);
+
+    // سیاستِ شبکهٔ داخلیِ هر مهمان: `[{ip, lan}]`.
+    // 🔴 مسیرِ جدا و نه کلیدِ تازه روی countryroutes — آن مسیر فقط ماشین‌های
+    // دارای کشورِ خروج را دارد و بازکردنش، عاملِ موجود را با ردیف‌های `cc`ِ تهی
+    // روبه‌رو می‌کرد.
+    Route::get('guestpolicy', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicy']);
+    // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
+    Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });

@@ -14,7 +14,7 @@
 
   // لینکِ «صفحهٔ سرور» برای متنِ نکته‌ها؛ در @php ساخته می‌شود تا route داخلِ
   // رشتهٔ زبان نرود و {!! !!} امن بماند.
-  $serverPageLink = '<a href="'.e(route('account.cloud.show', $service)).'" style="color:var(--info)">'.e(__('ui.vnc_link_server_page')).'</a>';
+  $serverPageLink = '<a href="'.e(lroute('account.cloud.show', $service)).'" style="color:var(--info)">'.e(__('ui.vnc_link_server_page')).'</a>';
 
   // متونِ داینامیکِ JS (پیام‌های وضعیت/خطای اتصال) — از همین‌جا سرور-رندر و به
   // window.T داده می‌شوند تا هیچ متنِ فارسیِ سخت‌کد در جاوااسکریپت نماند.
@@ -90,7 +90,7 @@
       {{-- ⚠️ `lroute` و نه `route` — وگرنه مشتریِ /en و /tr به پنلِ فارسی می‌رود --}}
       <a href="{{ lroute('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
       <a href="{{ lroute('account.servers') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
-      <a href="{{ route('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
+      <a href="{{ lroute('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
       <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>
     <h1>{{ __('ui.vnc_h1') }}</h1>
@@ -101,11 +101,11 @@
          دستورِ اشتباه روی سرورِ اشتباه اجرا می‌شود. --}}
     @php $vncLoc = $instance?->location(); @endphp
     <div class="vnc-meta">
-      @if($instance?->ipv4)
+      @if($instance?->address())
         <button type="button" class="vnc-chip" id="vnc-ip"
-                data-ip="{{ $instance->ipv4 }}" title="{{ __('ui.vnc_copy_ip') }}">
+                data-ip="{{ $instance->address() }}" title="{{ __('ui.vnc_copy_ip') }}">
           <svg class="icon"><use href="#i-globe"/></svg>
-          <span dir="ltr">{{ $instance->ipv4 }}</span>
+          <span dir="ltr">{{ $instance->address() }}</span>
         </button>
       @endif
       @if($vncLoc)
@@ -118,7 +118,7 @@
   </div>
 
   <div class="vnc-head-actions">
-    <a class="pnl-btn" href="{{ route('account.cloud.show', $service) }}">
+    <a class="pnl-btn" href="{{ lroute('account.cloud.show', $service) }}">
       <svg class="icon dir"><use href="#i-arrow"/></svg>{{ __('ui.vnc_back') }}
     </a>
     <span class="pnl-pill" id="vnc-state" style="font-size:12.5px;padding:7px 15px">{{ __('ui.vnc_state_connecting') }}</span>
@@ -199,8 +199,8 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
 (function(){
   'use strict';
 
-  var ticketUrl = {{ Illuminate\Support\Js::from(route('account.cloud.console.ticket', [$service, 't' => $ticket])) }};
-  var reopenUrl = {{ Illuminate\Support\Js::from(route('account.cloud.show', $service)) }};
+  var ticketUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.console.ticket', [$service, 't' => $ticket])) }};
+  var reopenUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.show', $service)) }};
 
   var pill   = document.getElementById('vnc-state');
   var msg    = document.getElementById('vnc-msg');
@@ -304,36 +304,108 @@ import RFB from '{{ asset('assets/js/novnc/core/rfb.js') }}';
   };
   document.getElementById('vnc-paste-cancel').onclick = function(){ pasteBox.hidden = true; };
 
+  /* ───────────── چیدمانِ US: کدام کاراکتر Shift می‌خواهد ─────────────
+   * 🔴 چرا اصلاً لازم است: سرورِ VNC (QEMU) **خودش Shift را نمی‌زند**. در
+   * `key_event` حتی حروفِ A–Z را عمداً به کوچک تبدیل می‌کند و انتظار دارد
+   * کلاینت مثلِ یک صفحه‌کلیدِ واقعی، Shift_L را خودش نگه دارد. مرورگر این
+   * کار را در تایپِ دستی می‌کند (رویدادِ فیزیکیِ Shift جداگانه می‌رود)، ولی
+   * `sendKey` که ما در چسباندن صدا می‌زنیم هیچ مدیفایری نمی‌فرستد.
+   *
+   * نتیجهٔ نبودش: هر کاراکترِ شیفت‌دار به کلیدِ پایه‌اش می‌افتاد —
+   *   $→4 ، _→- ، :→; ، }→] ، G→g
+   * که دقیقاً همان چیزی است که مشتری گزارش کرد.
+   */
+  var SHIFTED = '~!@#$%^&*()_+{}|:"<>?';
+  var SHIFT_L = 0xFFE1;              // keysymِ X11 برای Shift چپ
+
+  function needsShift(ch){
+    return (ch >= 'A' && ch <= 'Z') || SHIFTED.indexOf(ch) !== -1;
+  }
+
+  // ⚠️ دو بار زدنِ «ارسال» نباید دو حلقهٔ موازی بسازد؛ وضعیتِ Shift مشترک است
+  // و در‌هم‌رفتنشان یعنی کاراکترهای تصادفیِ بزرگ/کوچک.
+  var pasting = false;
+
   document.getElementById('vnc-paste-send').onclick = function(){
-    if (!rfb) { return; }
+    if (!rfb || pasting) { return; }
     var text = pasteText.value;
     if (!text) { pasteBox.hidden = true; return; }
 
     var i = 0;
     var chars = Array.from(text);        // نه split('') — تا حروفِ خارج از BMP نشکنند
+    var shiftDown = false;
+    pasting = true;
+
+    // Shift را برای یک **رشتهٔ پیوسته** از کاراکترهای شیفت‌دار نگه می‌داریم،
+    // نه تک‌تک: هم پیام‌های کمتری روی سیم می‌رود، هم دقیقاً مثلِ تایپِ آدمی است.
+    function shift(on){
+      if (on === shiftDown) { return; }
+      rfb.sendKey(SHIFT_L, null, on);
+      shiftDown = on;
+    }
+
+    function finish(){
+      shift(false);                      // 🔴 رها نکردنش = Shift گیرکرده در مهمان
+      pasting = false;
+      pasteBox.hidden = true;
+      pasteText.value = '';
+    }
+
+    /* آهنگِ ارسال: دسته‌های کوچک، با همان نرخِ میانگینِ قبل.
+     *
+     * ۸ کلید هر ۹۶ms یعنی همان ۸۳ کلید بر ثانیهٔ «یک کلید هر ۱۲ms»، پس
+     * فشاری که به صفِ ورودیِ مهمان می‌آید عوض نشده و دستهٔ ۸تایی حاشیهٔ
+     * امنی تا ظرفیتِ صفِ PS/2 دارد. دسته‌ای‌بودن فقط تعدادِ تایمرها را
+     * کم می‌کند؛ کارِ اصلی را مکثِ پایین انجام می‌دهد.
+     *
+     * تاریخچه: اول فکر کردم بزرگ‌کردنِ دسته (۳۲/۳۸۴ms) مسئلهٔ تبِ
+     * پنهان را حل می‌کند. نکرد: در تستِ زنده شکافِ ۵۰ ثانیه‌ای درآمد و
+     * ۴۸۷ کاراکتر می‌شد ربعِ ساعت. با تایمر نمی‌شود با این کلامپ جنگید.
+     */
+    var CHUNK = 8, GAP = 96;
 
     (function step(){
-      if (i >= chars.length) {
-        pasteBox.hidden = true;
-        pasteText.value = '';
+      /* 🔴 تبِ پنهان را با تایمر نمی‌شود شکست — می‌ایستیم.
+       *
+       * کروم در تبِ پنهان setTimeout را به ۱ ثانیه می‌کشد و پس از ۵ دقیقه
+       * به ۱ در دقیقه (intensive throttling). در تستِ زنده روی سرورِ هتزنر
+       * شکافِ ۵۰ ثانیه‌ای دیدیم. یعنی هر چقدر هم دسته را بزرگ کنیم،
+       * یک کلیدِ SSH می‌تواند ربعِ ساعت طول بکشد و تمامِ این مدت نیمهٔ یک
+       * دستور روی پرامپتِ سرور معلق بماند.
+       *
+       * پس به‌جای چکه‌کردن، کار را نگه می‌داریم و دقیقاً وقتی کاربر
+       * برمی‌گردد ادامه می‌دهیم. `pasting` هم تا آن لحظه true می‌ماند،
+       * پس کلیکِ دوباره دو حلقهٔ درهم‌رفته نمی‌سازد.
+       */
+      if (document.hidden) {
+        shift(false);        // 🔴 Shift نباید در تمامِ مدتِ مکث پایین بماند
+        document.addEventListener('visibilitychange', function onVis(){
+          document.removeEventListener('visibilitychange', onVis);
+          step();            // خودِ step دوباره hidden را می‌سنجد
+        });
         return;
       }
+      var end = Math.min(i + CHUNK, chars.length);
 
-      var ch = chars[i++];
+      for (; i < end; i++) {
+        var ch = chars[i];
 
-      if (ch === '\n' || ch === '\r') {
-        rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
-      } else if (ch === '\t') {
-        rfb.sendKey(0xFF09, 'Tab');
-      } else {
-        var cp = ch.codePointAt(0);
-        // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
-        rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        if (ch === '\n' || ch === '\r') {
+          shift(false);
+          rfb.sendKey(0xFF0D, 'Enter');    // keysymِ X11 برای Return
+        } else if (ch === '\t') {
+          shift(false);
+          rfb.sendKey(0xFF09, 'Tab');
+        } else {
+          shift(needsShift(ch));
+          var cp = ch.codePointAt(0);
+          // Latin-1 مستقیم؛ بقیه با آفستِ یونیکدِ X11
+          rfb.sendKey(cp < 0x100 ? cp : 0x01000000 + cp, null);
+        }
       }
 
-      // فاصلهٔ کوتاه: کنسولِ سرور صفِ ورودیِ محدودی دارد و ارسالِ یک‌جای
-      // چندصد کلید باعثِ افتادنِ کاراکتر می‌شود.
-      setTimeout(step, 12);
+      if (i >= chars.length) { return finish(); }
+      setTimeout(step, GAP);
     })();
   };
 

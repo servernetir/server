@@ -702,6 +702,11 @@ button.cvb-line:focus-visible{outline:2px solid var(--info);outline-offset:2px;b
    دورهٔ ترکیب‌شدنی نیست — نوارِ ترکیبِ هزینه با نسبت‌های **کهنه** روی صفحه
    می‌مانْد. همان تلهٔ ثبت‌شدهٔ `.ad-bulk` و اسکلتِ تقویم در admin.css. */
 .cvb-plan[hidden],.cvb-img[hidden],.cvb-line[hidden],.cvb-bar[hidden]{display:none}
+/* 🔴 و همین تله برای کلیدِ «ساعتی». `.cvb-seg{display:inline-flex}` بالاتر یک
+   قاعدهٔ نویسنده است، پس `hSeg.hidden = …` در جاوااسکریپت **هیچ کاری نمی‌کرد**:
+   کلیدِ ساعتی روی سرورِ برمتال — و روی پلنی که زیرساخت ساعتی نمی‌فروشدش — سرِ
+   جایش می‌مانْد و کلیک‌شدنی بود. */
+.cvb-seg[hidden]{display:none}
 
 /* ظرفِ اندازه‌گیری. خودِ .cvb-plans نمی‌تواند ظرفِ خودش باشد، پس یک پوستهٔ
    بی‌استایل رویش می‌نشیند. */

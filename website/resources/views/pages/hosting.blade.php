@@ -14,6 +14,9 @@
     $category = $category ?? 'hosting';
     $yearlyOnly = ($product['billing'] ?? null) === 'yearly';
     $priceUnit = $yearlyOnly ? (isset($product['unit']) ? lc($product['unit']) : __('ui.domain_year')) : __('ui.mo');
+    // قیمت CloudPlan هنگام sync نهایی شده است؛ ضریب عمومیِ هاست نباید دوباره
+    // روی آن اعمال شود. وجود planHrefs مرز صریحِ کاتالوگ زنده است.
+    $isLiveCloudCatalog = ! empty($planHrefs) && in_array($category, ['vps', 'dedicated'], true);
 @endphp
 
 {{-- ============ دادهٔ ساختاریافته ============
@@ -59,7 +62,9 @@
       | نشانه‌گذاریِ غلط بهتر است.
       */
       $sdPrice = $sdIsFa
-          ? schema_price_irr(price_toman((int) $sdP['irt']))
+          ? schema_price_irr($isLiveCloudCatalog
+              ? (int) $sdP['irt']
+              : price_toman((int) $sdP['irt']))
           : (isset($sdP['eur']) && (float) $sdP['eur'] > 0 ? $sdP['eur'] : null);
 
       if ($sdPrice === null) {
@@ -155,7 +160,7 @@
       // سرورِ مجازی/اختصاصی با پلنِ زنده = **جدولِ کامل**، نه کارت.
       // کارت برای شش پلن خوب است؛ آلمان ده‌ها پلن دارد و کارت‌کردنشان یعنی یا
       // دیوارِ کارت یا — کاری که قبلاً می‌کردیم — پنهان‌کردنِ بقیه.
-      $asTable = ! empty($planHrefs) && in_array($category, ['vps', 'dedicated'], true);
+      $asTable = $isLiveCloudCatalog;
     @endphp
 
     {{-- در نمای جدولی فقط قیمتِ ماهانه ستون دارد، پس کلیدِ ماهانه/سالانه
@@ -223,7 +228,10 @@
 
     @foreach(['std' => 'ui.pt_g_std', 'ded' => 'ui.pt_g_ded'] as $key => $titleKey)
       @if(! empty($groups[$key]))
-      <section class="pt-group reveal" data-group="{{ $key }}">
+      {{-- جدول خرید نباید به IntersectionObserver وابسته باشد. با صدها ردیف،
+           ارتفاع عنصر آن‌قدر زیاد می‌شود که threshold دوازده‌درصدیِ reveal
+           هرگز رد نمی‌شود و کل جدول با opacity:0 نامرئی می‌ماند. --}}
+      <section class="pt-group" data-group="{{ $key }}">
         <header class="pt-group-head">
           <h3>{{ __($titleKey) }}</h3>
           <p>{{ __($key === 'std' ? 'ui.pt_g_std_d' : 'ui.pt_g_ded_d') }}</p>
@@ -355,7 +363,7 @@
                 </td>
                 <td class="pt-price">
                   @if(! empty($r['from']))<span class="pt-from">{{ __('ui.from') }}</span>@endif
-                  <b class="pt-price-v">{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span>
+                  <b class="pt-price-v">{{ cloud_price((int) ($p['irt'] ?? 0)) }}</b><span>{{ __('ui.mo') }}</span>
                 </td>
                 <td class="pt-buy">
                   <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>

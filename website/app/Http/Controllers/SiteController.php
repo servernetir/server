@@ -412,6 +412,39 @@ class SiteController extends Controller
             }
         }
         $add('blog.index');
+
+        /*
+        | فهرستِ هر **دستهٔ** بلاگ (`/blog?cat=seo`).
+        |
+        | تا شهریور ۱۴۰۵ این‌ها canonicalِ خودشان را نداشتند (لایوت از
+        | `url()->current()` می‌سازد و آن رشتهٔ پرس‌وجو را دور می‌ریزد) پس
+        | همه خودشان را `/blog` اعلام می‌کردند و Search Console زیرِ
+        | «Alternate page with proper canonical tag» می‌گذاشتشان. حالا
+        | `BlogController::listingSeo()` هرکدام را خودcanonical می‌کند و
+        | صفحهٔ فرودِ واقعیِ یک موضوع‌اند («هاست»، «سئو»، «امنیت») — پس در
+        | نقشهٔ سایت هم جا دارند.
+        |
+        | ⚠️ صفحه‌های **صفحه‌بندی** (`?page=2`) عمداً این‌جا نیستند: نقشهٔ
+        | سایت جای مقصدهای محتوایی است، و خودِ آن صفحه‌ها از فهرست لینک
+        | دارند. اعلامشان فقط بودجهٔ خزش را بین ۱۵ آدرسِ واسطه پخش می‌کرد.
+        |
+        | ⚠️ دستهٔ خالی اعلام نمی‌شود — صفحهٔ بی‌نتیجه در نقشهٔ سایت یعنی
+        | دعوتِ خزنده به محتوای هیچ (همان قاعدهٔ مکان‌های ابری بالاتر).
+        */
+        try {
+            $blogRepo = app(\App\Services\BlogRepository::class);
+            foreach (array_keys((array) config('blog.categories', [])) as $catSlug) {
+                if ($blogRepo->byCategory((string) $catSlug) === []) {
+                    continue;
+                }
+                foreach ($locales as $prefix) {
+                    $urls[] = ['loc' => route($prefix.'blog.index').'?cat='.rawurlencode((string) $catSlug), 'lastmod' => null];
+                }
+            }
+        } catch (\Throwable) {
+            // جدولِ مهاجرت‌نشده — مثل خودِ بلاگ، نقشه ۵۰۰ نمی‌شود
+        }
+
         /*
         | پست‌ها به‌ازای هر زبان فقط اگر ترجمهٔ همان زبان موجود باشد. بی‌این،
         | نقشهٔ سایت /en/blog/x را تبلیغ می‌کرد در حالی که find() آن را با

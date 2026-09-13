@@ -1,0 +1,10 @@
+[Unit]
+Description=ServerNet — اعمال سیاست دسترسی مهمان‌ها به شبکه داخلی
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/servernet-guestpolicy-agent
+# ⚠️ شکست نباید واحد را برای همیشه بخواباند؛ تایمر دوباره صدایش می‌زند.
+SuccessExitStatus=0 1

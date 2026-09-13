@@ -52,9 +52,9 @@ class Server extends Model
      * تا آن لحظه سفارشِ Plesk در صفِ دستیِ مدیر می‌نشیند: کندتر، ولی هرگز
      * «تحویل شد»ِ دروغین نمی‌دهد.
      */
-    public const AUTO_TYPES = ['whm', 'directadmin'];
+    public const AUTO_TYPES = ['whm', 'directadmin', 'hetzner_storage'];
 
-    public const TYPES = ['whm', 'plesk', 'directadmin', 'vps', 'dedicated', 'generic'];
+    public const TYPES = ['whm', 'plesk', 'directadmin', 'hetzner_storage', 'vps', 'dedicated', 'generic'];
 
     /** پورتِ پیش‌فرضِ هر نوع کنترل‌پنل */
     public const DEFAULT_PORTS = [
@@ -173,6 +173,7 @@ class Server extends Model
             'whm'         => 'WHM / cPanel',
             'plesk'       => 'Plesk',
             'directadmin' => 'DirectAdmin',
+            'hetzner_storage' => 'فضای بکاپ (Hetzner Storage Box)',
             'vps'         => 'VPS',
             'dedicated'   => 'سرور اختصاصی',
             default       => 'عمومی',

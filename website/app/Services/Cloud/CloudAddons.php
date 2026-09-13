@@ -152,9 +152,14 @@ class CloudAddons
      * همان الگوی «پلنی که سیستم‌عاملِ انتخابی را دارد» — انتخابِ دیرهنگام تا
      * مشتری هیچ تفاوتی نبیند.
      */
-    public function bestPlanFor(string $slug, array $addons, CloudManager $manager): ?CloudPlan
+    public function bestPlanFor(string $slug, array $addons, CloudManager $manager, bool $hourly = false): ?CloudPlan
     {
-        $rows = CloudPlan::query()->sellable()->where('slug', $slug)->orderBy('cost_eur_cents')->get();
+        // ⚠️ `$hourly` این‌جا هم لازم است، نه فقط در `bestForSlug`: این متد
+        //    مسیرِ **اول** انتخابِ دیرهنگام است و اگر قید را نداند، سرویسِ
+        //    ساعتی را روی ردیفی می‌نشاند که زیرساخت ساعتی نمی‌فروشدش.
+        $rows = CloudPlan::query()->sellable()
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
+            ->where('slug', $slug)->orderBy('cost_eur_cents')->get();
 
         foreach ($rows as $plan) {
             if ($this->planSupports($plan, $addons, $manager)) {

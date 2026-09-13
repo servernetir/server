@@ -7,7 +7,9 @@ use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\Setting;
 use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\PublicPortAllocator;
 use App\Support\ExitCountries;
+use App\Support\GuestPolicySnapshot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -109,6 +111,10 @@ class ExitInfraController extends Controller
                 'country_name'  => $country['fa'] ?? ($iso !== '' ? $iso : 'ایران (بدونِ اکسیت)'),
                 'flag'          => $country['flag'] ?? ($iso === '' ? '🇮🇷' : '🏳️'),
                 'ipv4'          => (string) $inst->ipv4,
+                'kind'          => ($inst->meta['kind'] ?? 'qemu') === 'lxc' ? 'lxc' : 'qemu',
+                // دسترسی به شبکهٔ داخلی — پیش‌فرض باز، و «صریح» یعنی مدیر تنظیمش کرده
+                'lan'           => $inst->lanAccess(),
+                'lan_explicit'  => $inst->lanAccessIsExplicit(),
                 'port'          => $port,
                 'public_host'   => $public,
                 'status_label'  => $inst->statusLabel('fa'),
@@ -157,7 +163,19 @@ class ExitInfraController extends Controller
             'agents'         => [
                 'countryroutes' => $this->agentPulse('agent_seen_countryroutes'),
                 'portforwards'  => $this->agentPulse('agent_seen_portforwards'),
+                // 🔴 تا وقتی عاملی این مسیر را نخوانده باشد، سوییچِ شبکهٔ داخلی
+                // در ویو **غیرفعال** نشان داده می‌شود. دکمه‌ای که چیزی را اعمال
+                // نکند، از نبودش بدتر است.
+                'guestpolicy'   => $this->agentPulse('agent_seen_guestpolicy'),
             ],
+            // ماشین‌هایی که سزاوارِ پورت‌اند ولی ندارند — سکوتی که تا دیروز
+            // بی‌صدا داخلِ GETِ عامل درست می‌شد و حالا باید دیده شود.
+            'missingPorts'   => $hasTable ? app(PublicPortAllocator::class)->missing()->count() : 0,
+            // 🔴 «اعمال شد» جدا از «ضربان». ضربان می‌گوید عامل زنده است؛ این
+            // می‌گوید همان نسخهٔ مطلوب واقعاً روی هاست نشسته.
+            'lanPolicy'      => $hasTable
+                ? app(GuestPolicySnapshot::class)->status()
+                : ['state' => 'never', 'revision' => '', 'acked' => null, 'at' => null, 'error' => null],
             'config'         => [
                 'exit_countries' => Setting::get('proxmox_exit_countries') ?: 'de,nl,fi',
                 'agent_token'    => filled(Setting::getSecret('agent_pull_token')),
@@ -236,12 +254,26 @@ class ExitInfraController extends Controller
                     'name'       => (string) ($s['name'] ?? $ref),
                     'status'     => (string) ($s['status'] ?? ''),
                     'ipv4'       => (string) ($s['ipv4'] ?? ''),
+                    // نوع و نودِ واقعی — کانتینر و ماشینِ مجازی دو مسیرِ APIِ
+                    // متفاوت دارند و بی‌این تمایز، عملیاتِ بعدی روی ردیفِ
+                    // اشتباه می‌رود.
+                    'kind'       => (string) ($s['kind'] ?? 'qemu'),
+                    'node'       => (string) ($s['node'] ?? ''),
                     'registered' => $registered->has($ref),
                     'protected'  => $this->isProtectedVmid($ref),
                 ];
             })->values()->all();
 
-            $scan = ['ok' => (bool) ($res['ok'] ?? false), 'message' => (string) ($res['message'] ?? ''), 'servers' => $servers];
+            $scan = [
+                'ok'      => (bool) ($res['ok'] ?? false),
+                'message' => (string) ($res['message'] ?? ''),
+                'servers' => $servers,
+                // شمارشِ تفکیکی: «۰ کانتینر» با «۰ ماشین» یک معنی ندارد و
+                // بی‌این عدد، فهرستِ خالی از خرابیِ دسترسی قابلِ‌تشخیص نیست.
+                'vms'     => count(array_filter($servers, fn ($s) => $s['kind'] !== 'lxc')),
+                'cts'     => count(array_filter($servers, fn ($s) => $s['kind'] === 'lxc')),
+                'nodes'   => array_values(array_unique(array_filter(array_column($servers, 'node')))),
+            ];
         }
 
         return view('admin.exit-infra-import', [
@@ -277,6 +309,9 @@ class ExitInfraController extends Controller
             'country'  => ['nullable', 'string', 'size:2'],
             'port'     => ['nullable', 'integer', 'min:1', 'max:65535'],
             'status'   => ['nullable', 'string', 'max:16'],
+            // از اسکن می‌آیند؛ در ثبتِ دستی خالی‌اند و پیش‌فرض می‌گیرند.
+            'kind'     => ['nullable', 'string', 'in:qemu,lxc'],
+            'node'     => ['nullable', 'string', 'max:64'],
         ]);
 
         $ref = trim((string) ($data['ref'] ?? ''));
@@ -306,6 +341,18 @@ class ExitInfraController extends Controller
             $meta['public_port'] = (int) $data['port'];
         }
 
+        /*
+         * نوع و نود ذخیره می‌شوند تا در پنل دیده شوند و ردیفِ کانتینر با ردیفِ
+         * ماشینِ مجازی اشتباه نشود. خودِ درایور برای عملیات به این‌ها تکیه
+         * **نمی‌کند** — هر بار از `/cluster/resources` می‌پرسد — چون ماشین
+         * می‌تواند بینِ نودها مهاجرت کند و مقدارِ ذخیره‌شده کهنه شود.
+         */
+        $meta['kind'] = in_array($data['kind'] ?? '', ['qemu', 'lxc'], true) ? $data['kind'] : 'qemu';
+
+        if (filled($data['node'] ?? null)) {
+            $meta['node'] = (string) $data['node'];
+        }
+
         $status = in_array($data['status'] ?? '', ['running', 'off', 'building'], true)
             ? $data['status'] : 'running';
 
@@ -321,8 +368,20 @@ class ExitInfraController extends Controller
             'meta'          => $meta ?: null,
         ]);
 
+        /*
+         * 🔴 پورت همین‌جا و زیرِ قفل تخصیص می‌یابد، نه در GETِ عامل.
+         * تا دیروز `PullController::portForwards()` این کار را وسطِ یک درخواستِ
+         * خواندنی می‌کرد؛ یعنی «فقط ببین» عملاً وضعیت را عوض می‌کرد و دو
+         * پیمایشِ هم‌زمان می‌توانستند دو پورت بگیرند.
+         */
+        $port = app(PublicPortAllocator::class)->allocate($inst);
+
+        $note = $port !== null
+            ? ' پورتِ عمومی: '.$port
+            : ' ⚠️ محدودهٔ پورت پر است — پورتی تخصیص نیافت.';
+
         return redirect()->route('admin.exit-infra')
-            ->with('ok', 'ماشینِ «'.$inst->hostname.'» به سیستمِ اکسیت افزوده شد.');
+            ->with('ok', 'ماشینِ «'.$inst->hostname.'» به سیستمِ اکسیت افزوده شد.'.$note);
     }
 
     /**
@@ -357,6 +416,66 @@ class ExitInfraController extends Controller
         $instance->save();
 
         return back()->with('ok', 'پورتِ عمومیِ ماشین روی '.$port.' تنظیم شد. ایجنتِ ایران در پیمایشِ بعدی اعمال می‌کند.');
+    }
+
+    /**
+     * اجازه/منعِ دسترسیِ یک مهمان به شبکهٔ داخلی (10.10.10.0/24).
+     *
+     * فقط «حالتِ مطلوب» را می‌نویسد؛ اعمالِ واقعی با عاملِ میزبان است که
+     * `/agent/guestpolicy` را می‌کشد — همان الگوی سوییچِ کشور.
+     *
+     * 🔴 گاردِ خطِ‌قرمز این‌جا هم هست: ماشینِ زیرساختیِ خودمان نباید با یک کلیک
+     * از شبکهٔ داخلی بیفتد. اگر روزی روی VMِ NPM یا Pritunl زده شود، نتیجه‌اش
+     * قطعِ سرویسِ همهٔ مشتری‌هاست، نه یک مشتری.
+     */
+    public function setLan(Request $request, CloudInstance $instance): RedirectResponse
+    {
+        if ($instance->provider !== 'proxmox') {
+            return back()->with('err', 'فقط ماشین‌های میزبانِ ایران (Proxmox) سیاستِ شبکهٔ داخلی دارند.');
+        }
+
+        if ($this->isProtectedVmid((string) $instance->provider_ref)) {
+            return back()->with('err', 'این ماشین خطِ‌قرمز است؛ دسترسیِ شبکهٔ داخلی‌اش از پنل تغییر نمی‌کند.');
+        }
+
+        $data = $request->validate(['lan' => ['required', 'in:0,1']]);
+        $allow = $data['lan'] === '1';
+
+        $meta = $instance->meta ?? [];
+        $meta['lan_access'] = $allow;
+        $meta['lan_access_at'] = now()->toIso8601String();
+        $meta['lan_access_by'] = 'admin';
+        $instance->meta = $meta;
+        $instance->save();
+
+        $where = $instance->ipv4 ?: ('#'.$instance->id);
+        $label = $allow ? 'باز' : 'بسته';
+
+        return back()->with('ok', "دسترسیِ «{$where}» به شبکهٔ داخلی {$label} شد. عاملِ میزبان در پیمایشِ بعدی اعمال می‌کند.");
+    }
+
+    /**
+     * تخصیصِ پورتِ عمومی به ماشین‌هایی که هنوز ندارند.
+     *
+     * ⚠️ این دکمه جایگزینِ کاری است که تا دیروز **بی‌صدا** داخلِ GETِ عامل
+     * انجام می‌شد. حالا یک عملِ صریحِ مدیر است، زیرِ قفل، و نتیجه‌اش گزارش
+     * می‌شود.
+     */
+    public function syncPorts(PublicPortAllocator $ports): RedirectResponse
+    {
+        $res = $ports->syncMissing();
+
+        if ($res['allocated'] === 0 && $res['exhausted'] === 0) {
+            return back()->with('ok', 'همهٔ ماشین‌ها از قبل پورت داشتند؛ چیزی تغییر نکرد.');
+        }
+
+        $msg = 'برای '.$res['allocated'].' ماشین پورتِ عمومی تخصیص یافت.';
+
+        if ($res['exhausted'] > 0) {
+            $msg .= ' ⚠️ '.$res['exhausted'].' ماشین بی‌پورت ماند — محدودهٔ پورت پر است.';
+        }
+
+        return back()->with('ok', $msg);
     }
 
     /**

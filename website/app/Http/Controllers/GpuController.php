@@ -102,6 +102,28 @@ class GpuController extends Controller
         // ارزان‌ترین کارت اول — همان ترتیبی که مشتری انتظار دارد
         usort($cards, fn ($a, $b) => $a['hourly_raw'] <=> $b['hourly_raw']);
 
+        /*
+        | دو کلاسِ GPU با نامِ یکسان و مشخصات و قیمتِ نمایشیِ یکسان (نمونهٔ
+        | واقعیِ کاتالوگ: «RTX PRO 6000 Blackwell» در دو نسخهٔ زیرساختی) دو
+        | کارتِ بایت‌به‌بایت تکراری روی صفحهٔ فروش می‌ساختند — برای مشتری فقط
+        | گیج‌کننده است. کلیدِ یکتاسازی دقیقاً چیزهایی است که مشتری می‌بیند؛
+        | اگر هر کدام فرق کند (حتی قیمت)، هر دو کارت می‌مانند — همان قاعدهٔ
+        | ثبت‌شدهٔ «دو ردیف فقط وقتی یکی می‌شوند که در دیدِ مشتری یکی باشند».
+        | چون فهرست از قبل ارزان‌مرتب است، نمایندهٔ باقی‌مانده ارزان‌ترین است.
+        */
+        $seen = [];
+        $cards = array_values(array_filter($cards, function (array $c) use (&$seen): bool {
+            $key = $c['gpu'].'|'.$c['gpu_count'].'|'.$c['vcpu'].'|'.$c['ram_gb'].'|'.$c['disk_gb'].'|'.$c['hourly_raw'];
+
+            if (isset($seen[$key])) {
+                return false;
+            }
+
+            $seen[$key] = true;
+
+            return true;
+        }));
+
         return view('pages.gpu', [
             'isFa'      => $isFa,
             'cards'     => $cards,

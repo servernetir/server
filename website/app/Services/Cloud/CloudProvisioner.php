@@ -133,8 +133,13 @@ class CloudProvisioner
         // که تحویلش ممکن نیست.
         $wanted = $this->addons->sanitize($service->cloud_addons);
 
-        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager)
-            ?? CloudPlan::bestForSlug((string) $ordered->slug)
+        // ⚠️ قیدِ دوم: **ترمِ صورت‌حساب**. سرویسِ ساعتی فقط روی ردیفی می‌نشیند
+        //    که زیرساخت واقعاً ساعتی می‌فروشدش؛ وگرنه انتخابِ دیرهنگام می‌تواند
+        //    سرویسِ ساعتی را روی ارزان‌ترینِ ماهانه‌فروش بگذارد و سفارش رد شود.
+        $hourly = $service->isHourly();
+
+        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
+            ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly)
             ?? $ordered;
 
         /*
@@ -182,7 +187,7 @@ class CloudProvisioner
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
             // زیرساختِ دیگری برو که داردش. مشتری اوبونتو خواسته، نه یک برند.
-            $alt = $this->planWithImage((string) $ordered->slug, $imageKey);
+            $alt = $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
 
             if ($alt === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -238,6 +243,26 @@ class CloudProvisioner
         // فقط اشاره به کلیدِ موجود پذیرفته می‌شود نه متنِ کلید.
         $sshRefs = $this->sshKeyRefs($service, $plan);
 
+        /*
+        | 🔴 آخرین خط: ساعتی روی زیرساختی که ساعتی نمی‌فروشد سفارش داده نشود.
+        |
+        | ⚠️ عمداً **همین‌جا** است، نه بالاتر کنارِ انتخابِ اول. `$plan` تا این
+        | خط **سه** بار می‌تواند عوض شود: `bestPlanFor`، `bestForSlug` (که
+        | وقتی چیزی پیدا نکند به `$ordered` برمی‌گردد) و شاخهٔ «زیرساختی که
+        | ایمیج را دارد». گاردی که پیش از آخرین جابه‌جایی بنشیند، از پشت دور
+        | زده می‌شود — و اولین نسخهٔ همین گارد دقیقاً همان‌طور دور خورد؛ تستِ
+        | `..._moves_to_the_hourly_capable_row_...` گرفتش.
+        |
+        | ⚠️ `fail` نه `retryLater`: تکرار درستش نمی‌کند؛ یا کاتالوگ باید عوض
+        | شود یا سفارش ماهانه شود. تلاشِ بی‌پایان فقط صف را کثیف می‌کند.
+        */
+        if ($hourly && ! $plan->supportsHourly()) {
+            $this->fail($service, 'این پلن نزدِ زیرساخت صورت‌حسابِ ساعتی ندارد و ساعتی سفارش داده نمی‌شود؛ '
+                .'سفارش باید ماهانه باشد یا از مکان/زیرساختِ دیگری انتخاب شود.');
+
+            return false;
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'name'         => $this->serverName($service),
@@ -276,8 +301,22 @@ class CloudProvisioner
 
             $instance->update(['status' => 'error', 'last_error' => mb_substr($why, 0, 500)]);
 
-            // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
-            $this->quarantineProvider($plan, $why);
+            // 🔴 اگر ایرادْ **نداشتنِ تعرفهٔ ساعتی روی همین محصول** است، همان
+            //    ردیف را از فروشِ ساعتی بردار — نه کلِ زیرساخت را
+            $this->disableHourlyIfRefused($plan, $why);
+
+            /*
+            | 🔴 اگر ایراد **همین ترکیبِ نوع/مکان** است، فقط همین ردیف بسته شود.
+            |
+            | ترتیب مهم است: این پیش از `quarantineProvider` می‌آید و اگر بگیرد،
+            | آن اصلاً صدا زده نمی‌شود. وگرنه فردا کسی «unsupported location» را
+            | به فهرستِ ساختاری اضافه می‌کند و کلِ خطِ زیرساخت به‌خاطرِ یک مکانِ
+            | نامعتبر بسته می‌شود — همان اتفاقی که بارِ قبل ۲۲۱ پلن را بست.
+            */
+            if (! $this->disableCombinationIfUnsupported($plan, $why)) {
+                // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+                $this->quarantineProvider($plan, $why);
+            }
 
             $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$why, 0, 290));
 
@@ -431,7 +470,9 @@ class CloudProvisioner
                 'provisioned_at'   => now(),
                 'provision_meta'   => [
                     'kind' => 'cloud',
-                    'ip'   => $instance->ipv4,
+                    // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
+                    // آدرسِ عمومی‌اش «IP:پورت» است.
+                    'ip'   => $instance->address() ?: $instance->ipv4,
                     'ipv6' => $instance->ipv6,
                     'plan' => $plan->public_name,
                     'location' => $plan->location_code,
@@ -464,8 +505,159 @@ class CloudProvisioner
      * سکوت می‌کردیم، هیچ‌کس نمی‌فهمید سفارشی ثبت شده و در صف مانده است — همان
      * الگوی «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
      */
+    /**
+     * 🔴 دروازهٔ وب برای ماشینِ پشتِ NAT — وگرنه سرورِ فروخته‌شده نمی‌تواند سایت
+     * سرو کند.
+     *
+     * تیکتِ مشتری SN-978603: «به پورت ۸۰ وصل می‌شوم صفحهٔ Nginx Proxy Manager
+     * باز می‌شود». علتش این بود که IPv4 مشترک است و ۸۰/۴۴۳ به پروکسیِ مرکزی
+     * می‌روند؛ از هر ماشین فقط SSH فوروارد می‌شد. یعنی محصولی می‌فروختیم که
+     * کارِ اصلی‌اش را نمی‌توانست بکند.
+     *
+     * ⚠️ هیچ شکستی این‌جا تحویل را نمی‌شکند: سرور بدونِ نامِ عمومی هم قابلِ
+     * استفاده است (SSH کار می‌کند)، ولی سرویسی که به‌خاطرِ خطای پروکسی اصلاً
+     * تحویل نشود، پولِ گرفته‌شده و مشتریِ بی‌سرور است. پس فقط ثبت می‌کنیم.
+     *
+     * ⚠️ گواهی عمداً جدا و بی‌قید است: صدورش به انتشارِ DNS وابسته است و
+     * ممکن است چند دقیقه دیرتر جواب دهد.
+     */
+    private function ensureWebGateway(Service $service, CloudInstance $instance): void
+    {
+        if (! $instance->hasPrivateIp() || filled(($instance->meta ?? [])['public_domain'] ?? null)) {
+            return;
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured() || $npm->baseDomain() === '') {
+                return;                       // قابلیت خاموش است — نه خطا
+            }
+
+            $code = (string) ($service->customer?->code ?? '');
+
+            // ⚠️ سرورِ دومِ همان مشتری نباید نامِ اولی را بدزدد
+            $others = CloudInstance::whereHas('service', fn ($q) => $q->where('customer_id', $service->customer_id))
+                ->where('id', '!=', $instance->id)
+                ->whereNotNull('meta')
+                ->get(['meta'])
+                ->contains(fn ($r) => filled(($r->meta ?? [])['public_domain'] ?? null));
+
+            $host = $npm->hostnameFor($code, $service->id, ! $others);
+
+            if ($host === null) {
+                return;
+            }
+
+            /*
+            | 🔴 رکوردِ DNS **پیش از** پروکسی‌هاست.
+            |
+            | صدور گواهیِ Let's Encrypt چالشِ HTTP-01 می‌زند و آن چالش تا وقتی
+            | نام به IP ما اشاره نکند شکست می‌خورد. ترتیبِ برعکس یعنی گواهی
+            | همیشه بارِ اول رد شود.
+            |
+            | ⚠️ شکستِ DNS جلوی ساختِ پروکسی‌هاست را نمی‌گیرد: نام ممکن است با
+            | وایلدکارد یا رکوردِ دستی از قبل حل شود، و در آن حالت همه‌چیز کار
+            | می‌کند. فقط ثبت می‌شود.
+            */
+            $cf = app(\App\Services\Dns\CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->pointSubdomain($host, CloudInstance::publicHost());
+
+                if (! ($dns['ok'] ?? false)) {
+                    \App\Support\ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» ساخته نشد: '.($dns['reason'] ?? '—'),
+                        ['service' => $service->id]);
+                }
+            }
+
+            $r = $npm->ensureProxyHost($host, (string) $instance->ipv4, 80);
+
+            if (! ($r['ok'] ?? false)) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وب ساخته نشد: '.($r['message'] ?? '—'),
+                    ['service' => $service->id, 'host' => $host]);
+
+                return;
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            $meta['public_domain'] = $host;
+            $instance->update(['meta' => $meta]);
+
+            if (($r['id'] ?? 0) > 0) {
+                $npm->requestCertificate((int) $r['id'], $host);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+        }
+    }
+
+    /**
+     * برچیدنِ دروازهٔ وب هنگامِ آزادسازیِ سرور.
+     *
+     * ⚠️ شکستش مسیرِ آزادسازی را نمی‌شکند ولی **بی‌صدا هم نمی‌مانَد**: میزبانی
+     * که برچیده نشده به IPِ داخلیِ آزادشده اشاره می‌کند، و آن IP بعداً به
+     * مشتریِ دیگری می‌رسد. یعنی نامِ مشتریِ قبلی روی سرورِ مشتریِ تازه —
+     * نشتِ داده، نه آشغال.
+     */
+    private function removeWebGateway(CloudInstance $instance): void
+    {
+        $host = (($instance->meta ?? [])['public_domain'] ?? null);
+
+        if (blank($host)) {
+            return;
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured()) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: اتصالِ NPM تنظیم نیست. '
+                    .'تا برچیده نشود، این نام به IP داخلیِ آزادشده اشاره می‌کند.',
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            $r = $npm->removeProxyHost((string) $host);
+
+            if (! ($r['ok'] ?? false)) {
+                \App\Support\ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: '.($r['message'] ?? '—'),
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            // و رکوردِ DNS — وگرنه نامِ مشتریِ رفته برای همیشه در زون می‌مانَد
+            $cf = app(\App\Services\Dns\CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->removeSubdomain((string) $host);
+
+                if (! ($dns['ok'] ?? false)) {
+                    \App\Support\ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» برداشته نشد: '.($dns['reason'] ?? '—'),
+                        ['instance' => $instance->id]);
+                }
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            unset($meta['public_domain']);
+            $instance->update(['meta' => $meta]);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('provision', $e, ['instance' => $instance->id]);
+        }
+    }
+
     private function notifyIfReady(Service $service, CloudInstance $instance): void
     {
+        $this->ensureWebGateway($service, $instance);
+
+
         if ($instance->readyForNotice()) {
             $this->notify($service, $instance);
 
@@ -513,15 +705,51 @@ class CloudProvisioner
     {
         $sent = 0;
 
+        /*
+        | 🔴 `LIVE_STATUSES` و نه `READY_STATUSES` — و این تفاوت یک باگِ واقعی
+        | را می‌بندد.
+        |
+        | `READY_STATUSES` فقط `running` است. یعنی مشتری‌ای که سرورش را **پیش
+        | از رسیدنِ ایمیل خاموش کند**، اعلانِ «سرورت آماده شد» را هرگز نمی‌گیرد
+        | — نه آن دقیقه، نه هیچ‌وقت. `ready_notified_at` نال می‌مانَد، کرون هر
+        | دقیقه ردش می‌کند، و مشتری صاحبِ سروری است که رمزِ rootش را ندارد.
+        |
+        | روی پروداکشن دقیقاً همین رخ داد (سرویس‌های #۱۱۸ و #۱۲۰): ردیف‌ها
+        | ساعت‌به‌ساعت در `CloudDeliveryWatch` قرمز بودند و هیچ‌کس نمی‌فهمید چرا،
+        | چون «سرور آماده است» درست بود و فقط ایمیلش نرفته بود.
+        |
+        | ⚠️ محتوای این ایمیل (آدرس و رمز) هیچ ربطی به **روشن‌بودن** ماشین
+        | ندارد؛ فقط به **وجود داشتنش** ربط دارد. `LIVE_STATUSES` دقیقاً همان
+        | مفهوم است و از قبل برای صورت‌حساب هم همین را می‌گوید.
+        |
+        | ⚠️ `building` همچنان بیرون می‌مانَد: آن‌جا IP هنوز واقعی نیست و
+        | `address()` پایین‌تر هم جداگانه رد می‌کند.
+        */
         $rows = CloudInstance::query()
             ->whereNull('ready_notified_at')
-            ->whereIn('status', CloudInstance::READY_STATUSES)
+            ->whereIn('status', CloudInstance::LIVE_STATUSES)
             ->whereNotNull('ipv4')
             ->orderBy('id')
             ->limit($limit)
             ->get();
 
         foreach ($rows as $instance) {
+            /*
+            | 🔴 داشتنِ `ipv4` هنوز یعنی «آدرسِ قابلِ استفاده داریم» نیست.
+            |
+            | ماشینِ پشتِ NAT آدرسِ خصوصی دارد و تا وقتی پورت‌فورواردش ساخته
+            | نشده هیچ راهی از اینترنت به آن نیست. اعلانِ «سرورت آماده شد» با
+            | آدرسِ `10.10.10.x` یعنی وعدهٔ چیزی که وجود ندارد — و چون
+            | `ready_notified_at` همان لحظه قفل می‌شود، اعلانِ **درست** هم
+            | دیگر هرگز نمی‌رود. یک تیکتِ واقعی از همین‌جا آمد.
+            |
+            | پس صبر می‌کنیم: کرونِ هر-دقیقه دوباره سراغش می‌آید و به‌محضِ
+            | ساخته‌شدنِ فوروارد، اعلان با آدرسِ درست می‌رود.
+            */
+            if ($instance->address() === null) {
+                continue;
+            }
+
             // ⚠️ هر ردیف در try خودش: یک ردیفِ خراب (مشتریِ حذف‌شده، ایمیلِ
             // بدشکل) نباید بقیه را زمین بزند — و مهم‌تر، نباید استثنا به
             // `schedule:run` برسد. یک استثنا آن دقیقه را کامل می‌کشد و با آن
@@ -582,7 +810,27 @@ class CloudProvisioner
                     // سروری که شناسه‌اش را از پاسخ بیرون نکشیده بودیم برای
                     // همیشه گم می‌شد — با سرویسی که «تحویل‌شده» ثبت شده بود.
                     ->orWhereNull('provider_ref')
-                    ->orWhere('provider_ref', '');
+                    ->orWhere('provider_ref', '')
+                    /*
+                    | 🔴 «بالا آمده ولی آدرس ندارد» هم یک حالتِ گیرکرده است.
+                    |
+                    | صف فقط `building`/`unknown`/بی‌شناسه را برمی‌داشت، پس
+                    | نمونه‌ای که همان اول `running` ثبت شده بود ولی IP نداشت
+                    | هرگز دوباره پرسیده نمی‌شد — و هیچ مسیرِ دیگری هم IP را
+                    | نمی‌نویسد. یعنی حالتی که سیستم خودش می‌سازد و خودش
+                    | هرگز از آن بیرون نمی‌آید.
+                    |
+                    | دقیقاً همین رخ داد: «اتصالِ سرورِ موجود»ِ Proxmox نمونه را
+                    | با IPِ خالی می‌ساخت ⇒ نه آدرس در پرتالِ مشتری، نه
+                    | پورت‌فورواردِ عمومی (که نمونهٔ بی‌IP را رد می‌کند) — بی‌هیچ
+                    | خطایی. سرویسِ پول‌داده‌ای که هرگز کار نمی‌کرد.
+                    |
+                    | ⚠️ `whereNotIn('status', ['deleted'])`ِ پایین جلوی
+                    | برداشتنِ ماشینِ حذف‌شده را می‌گیرد، پس این شرط صف را با
+                    | ردیف‌های مرده پر نمی‌کند.
+                    */
+                    ->orWhereNull('ipv4')
+                    ->orWhere('ipv4', '');
             })
             ->whereNotIn('status', ['deleted'])
             ->orderBy('updated_at')
@@ -912,7 +1160,7 @@ class CloudProvisioner
     }
 
     /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */
-    private function planWithImage(string $slug, string $imageKey): ?CloudPlan
+    private function planWithImage(string $slug, string $imageKey, bool $hourly = false): ?CloudPlan
     {
         $providers = CloudImage::query()->usable()->where('key', $imageKey)->pluck('provider')->unique();
 
@@ -926,6 +1174,11 @@ class CloudProvisioner
         // برمی‌داریم که ایمیج **برای معماریِ خودش** واقعاً موجود باشد.
         return CloudPlan::query()
             ->sellable()
+            // ⚠️ سومین مسیرِ انتخابِ دیرهنگام است و باید همان قیدهای دو تای
+            //    دیگر را داشته باشد؛ وگرنه «سراغِ زیرساختی که ایمیج را دارد
+            //    برو» می‌تواند سرویسِ ساعتی را روی ردیفی بنشاند که ساعتی
+            //    نمی‌فروشد — و گاردِ بالادست را از پشت دور بزند.
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
             ->where('slug', $slug)
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
@@ -1029,6 +1282,98 @@ class CloudProvisioner
      */
     public const QUARANTINE_PREFIX = 'خودکار بسته شد:';
 
+    /**
+     * 🔴 «این محصول ساعتی ندارد» — یک ردیف، نه یک زیرساخت.
+     *
+     * `quarantineProvider()` **همهٔ** پلن‌های آن زیرساخت را می‌بندد؛ برای این
+     * خطا فاجعه است: نداشتنِ تعرفهٔ ساعتیِ یک محصول نباید ۱۰۱ پلنِ ماهانهٔ سالم
+     * را از فروش بردارد. پس مسیرِ جدا.
+     *
+     * کاری که می‌کند عمداً «پرچمِ تازه» نیست: `cost_hour_eur_micro` را خالی
+     * می‌کند — یعنی همان چیزی را می‌نویسد که زیرساخت همین حالا دربارهٔ خودش
+     * گفت. `supportsHourly()` بلافاصله false می‌شود و عرضهٔ ساعتی محو می‌شود، و
+     * `cloud:sync` بعدی حقیقتِ روز را دوباره از API می‌نویسد — اگر تعرفهٔ ساعتی
+     * اضافه شد خودش برمی‌گردد. هیچ حالتِ دستیِ ماندگاری ساخته نمی‌شود.
+     *
+     * ⚠️ فقط برای زیرساختِ ترم‌دار معنا دارد؛ برای بقیه این ستون کفِ قیمت است
+     * نه مجوزِ فروش، و پاک‌کردنش بی‌دلیل قیمت را خراب می‌کند.
+     */
+    private function disableHourlyIfRefused(CloudPlan $plan, string $message): void
+    {
+        $needle = mb_strtolower($message);
+
+        $refused = str_contains($needle, "term 'hour'")
+            || str_contains($needle, 'term "hour"')
+            || (str_contains($needle, 'not support') && str_contains($needle, 'hourly'));
+
+        /*
+        | ⚠️ `isTermBased` شرطِ **اول** است و اختیاری نیست: روی زیرساختِ بی‌ترم
+        | این ستون کفِ بهاست نه مجوزِ فروش، و پاک‌کردنش کف را برمی‌دارد ⇒ فروشِ
+        | ساعتی زیرِ بها. همان خطِ قرمزی که sn-svc-76 با آن بسته شد.
+        */
+        if (! $refused || ! $plan->isTermBased() || ! $plan->supportsHourly()) {
+            return;
+        }
+
+        $plan->forceFill(['cost_hour_eur_micro' => null])->save();
+
+        \App\Support\ErrorTracker::note('provision',
+            'زیرساخت گفت این پلن تعرفهٔ ساعتی ندارد؛ از فروشِ ساعتی برداشته شد '
+            .'(پلنِ '.$plan->id.'). فروشِ ماهانه‌اش دست‌نخورده است.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider]);
+    }
+
+    /**
+     * ترکیبِ «نوعِ سرور × مکان» که زیرساخت اصلاً عرضه‌اش نمی‌کند.
+     *
+     * 🔴 رخدادِ ۱۴ شهریور ۱۴۰۵: یک مشتری در یک‌ساعت‌ونیم **۱۶ بار** در
+     * کشورهای مختلف سرور خرید و هر بار
+     * `[invalid_input] unsupported location for server type` گرفت. هیچ‌کدام از
+     * کلیدهای `quarantineProvider` این متن را نمی‌گرفت، پس ردیفِ مقصر در فروش
+     * می‌مانْد و **مشتریِ بعدی دقیقاً همان شکست را می‌خرید** — سومین تکرارِ همان
+     * الگو، بعد از `firewall` و `resource_limit`.
+     *
+     * ⚠️ چرا این‌جا و نه در فهرستِ `$structural`: آن متد
+     * `where('provider', …)->update(['admin_disabled' => true])` می‌زند، یعنی
+     * به‌خاطرِ **یک** ترکیبِ نامعتبر کلِ خطِ آن زیرساخت (بارِ قبل ۲۲۱ پلن)
+     * بسته می‌شد. عیبْ حسابِ زیرساخت نیست، همین یک ردیف است.
+     *
+     * ⚠️ و ردیف `is_active` نمی‌شود، `admin_disabled` می‌شود: `cloud:sync`
+     * دوروزه `is_active` را برمی‌گردانَد و بسته‌شدن بی‌صدا خنثی می‌شد. با
+     * پیشوندِ قرنطینه، `cloud:reopen` و دکمهٔ پنل هم می‌توانند بازش کنند.
+     */
+    private function disableCombinationIfUnsupported(CloudPlan $plan, string $message): bool
+    {
+        $needle = mb_strtolower($message);
+
+        $unsupported = str_contains($needle, 'unsupported location')
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not available'))
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not supported'));
+
+        if (! $unsupported) {
+            return false;
+        }
+
+        // ردیفی که مدیر خودش بسته دست نمی‌خورد — همان قاعدهٔ `cloud:reopen`.
+        if (! $plan->admin_disabled) {
+            $plan->forceFill([
+                'admin_disabled' => true,
+                'in_stock'       => false,
+                'admin_note'     => self::QUARANTINE_PREFIX
+                    .' این نوعِ سرور در این مکان عرضه نمی‌شود ('.mb_substr($message, 0, 120).')',
+            ])->save();
+        }
+
+        \App\Support\ErrorTracker::note('provision',
+            'ترکیبِ نوع/مکان را زیرساخت عرضه نمی‌کند؛ فقط همین ردیف از فروش برداشته شد '
+            .'(پلنِ '.$plan->id.' · '.(string) $plan->location_code.'). '
+            .'بقیهٔ مکان‌های همین زیرساخت دست‌نخورده‌اند.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider,
+                'location' => (string) $plan->location_code]);
+
+        return true;
+    }
+
     private function quarantineProvider(CloudPlan $plan, string $message): void
     {
         $structural = [
@@ -1041,6 +1386,35 @@ class CloudProvisioner
             'balance',
             'payment',
             'quota',
+            /*
+            | 🔴 «پیکربندیِ ناقصِ سفارش» هم ساختاری است، نه گذرا.
+            |
+            | آروان بی‌گروهِ امنیتی می‌گوید «At least one firewall should be
+            | selected». تا امروز این پیام در هیچ‌کدام از کلیدهای بالا نمی‌افتاد،
+            | پس قرنطینه نمی‌گرفت و پلن‌ها در فروش می‌ماندند — و **هر مشتریِ
+            | بعدی همان شکست را می‌خرید**. چند روز همین‌طور تکرار شد.
+            |
+            | معیارِ ساختاری‌بودن «چه کسی مقصر است» نیست؛ این است که آیا
+            | تلاشِ دوباره بی‌تغییرِ چیزی جواب می‌دهد یا نه. این یکی نمی‌دهد.
+            */
+            'firewall',
+            'security group',
+            'security_group',
+            /*
+            | 🔴 «سقفِ حسابِ ما پر شده» هم ساختاری است.
+            |
+            | ۱۱ شهریور ۱۴۰۵، سرویس #۱۰۵: هتزنر `[resource_limit_exceeded]
+            | server limit reached` داد. فهرست `quota` را داشت ولی نه `limit`
+            | را، پس قرنطینه نگرفت و ۱۱۴ پلنِ فالکن‌اشتاین در فروش ماندند —
+            | یعنی مشتریِ بعدی هم دقیقاً همان شکست را می‌خرید. کارفرما مجبور شد
+            | دستی زیرساخت را خاموش کند.
+            |
+            | معیار همان است: آیا تلاشِ دوباره بی‌تغییرِ چیزی جواب می‌دهد؟
+            | سقفِ حساب تا بالا نرود، نه.
+            */
+            'limit reached',
+            'resource_limit',
+            'limit exceeded',
         ];
 
         $needle = mb_strtolower($message);
@@ -1559,8 +1933,15 @@ class CloudProvisioner
             // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
             app(\App\Services\Notify\CustomerNotifier::class)->event(
                 $service->customer, 'service_ready',
-                ['service' => $service->name, 'ip' => (string) $instance->ipv4],
-                'سرورِ «'.$service->name.'» شما آماده شد. IP: '.$instance->ipv4
+                /*
+                | 🔴 آدرسی که به مشتری می‌گوییم باید همانی باشد که واقعاً
+                | کار می‌کند. `ipv4`ِ ماشینِ پشتِ NAT خصوصی است و مشتری با آن
+                | به جایی نمی‌رسد — تیکتِ «آی‌پی خصوصی است» دقیقاً از همین
+                | خط آمد. `address()` یا آدرسِ عمومیِ قابلِ‌استفاده می‌دهد یا
+                | `null`، و پایین‌تر جلوی فرستادنِ اعلانِ بی‌آدرس گرفته می‌شود.
+                */
+                ['service' => $service->name, 'ip' => (string) $instance->address()],
+                'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
             );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
@@ -1746,6 +2127,13 @@ class CloudProvisioner
         if ($driver === null) {
             return false;
         }
+
+        // 🔴 دروازهٔ وب **پیش از** حذفِ ماشین برچیده می‌شود.
+        //
+        // اگر بعد از حذف می‌آمد و حذفِ ماشین شکست می‌خورد، این خط اجرا نمی‌شد و
+        // پروکسی‌هاست تا ابد می‌مانْد. ترتیب عمدی است: چیزی که رو به اینترنت
+        // است زودتر بسته شود.
+        $this->removeWebGateway($instance);
 
         $r = $driver->deleteServer((string) $instance->provider_ref);
 
