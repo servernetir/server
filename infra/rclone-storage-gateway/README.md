@@ -37,6 +37,15 @@ SFTP، WebDAV و S3-compatible سرورنت را می‌بیند؛ OAuth، نا�
 7. ابتدا یک tenant آزمایشی بسازید، آپلود/دانلود متقاطع هر سه پروتکل، تعلیق،
    چرخش credential، بازیابی و پرشدن سهمیه را بسنجید.
 
+سه دامنهٔ انتقال داده باید DNS-only باشند. پروکسی استاندارد Cloudflare پورت
+SFTP را عبور نمی‌دهد و اندازهٔ درخواست HTTP را محدود می‌کند؛ WebDAV و single PUT
+بزرگ S3 در حالت proxied قابل اتکا نیستند. API نیز در استقرار فعلی DNS-only است و
+حفاظت آن بر TLS، HMAC، nonce یک‌بارمصرف و rate limit مبدأ استوار است.
+
+فایل‌های Python باید با LF منتقل شوند. مخزن این موضوع را در `.gitattributes`
+اجبار می‌کند؛ پس از انتقال نیز `python3 -m py_compile /opt/servernet-gateway/*.py`
+و یک ورود آزمایشی واقعی اجرا شود تا shebang ناسالم پیش از فروش کشف شود.
+
 `auth_proxy.py` از پروتکل رسمی `rclone serve sftp --auth-proxy` استفاده می‌کند و
 پیکربندی remote را در لحظه از `rclone rc --loopback config/get` می‌گیرد. هیچ secret
 واقعی نباید به Git یا مستندات اضافه شود.
