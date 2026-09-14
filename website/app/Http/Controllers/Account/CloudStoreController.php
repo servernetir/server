@@ -1382,7 +1382,12 @@ class CloudStoreController extends Controller
         $minStart = $offer->hourlyStartMinIrt()
             + $existingBurn * CloudPlan::HOURLY_START_MIN_HOURS;
 
-        $balance = $customer->creditBalance('IRT');
+        /*
+        | 🔴 از M3-correct گیتِ ساعتی روی «در دسترس» است (منهایِ رزروهایِ
+        | زندهٔ AI) — پولِ رزروشده متعلق به درخواستِ صاحبش است و خریدِ
+        | ساعتی نبایدش بخورد. کسرِ واقعی هم داخلِ تراکنش از Wallet می‌گذرد.
+        */
+        $balance = app(\App\Services\Finance\Wallet::class)->availableOf($customer->id);
 
         if ($balance < $minStart) {
             return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
@@ -1398,7 +1403,13 @@ class CloudStoreController extends Controller
         // قیمتِ ماهانه را به‌عنوان مرجعِ «تبدیل به ماهانه» ذخیره می‌کنیم
         $monthly = self::priceForCycle($offer, 'monthly');
 
-        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $balance) {
+        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut) {
+            /*
+            | 🔴 قفلِ مشتری **اول** — ترتیبِ سراسریِ قفل (مشتری ← سرویس ←
+            | دفتر)؛ سپس Wallet دوبارهٔ گاردِ «در دسترس» را داخلِ قفل می‌گیرد.
+            */
+            \App\Models\Customer::whereKey($customer->id)->lockForUpdate()->first();
+
             $service = Service::create([
                 'customer_id'      => $customer->id,
                 'name'             => mb_substr(__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
@@ -1434,20 +1445,31 @@ class CloudStoreController extends Controller
             | می‌شد، پس **تنها چیزی بود که مشتری روی سرورِ هرگز-تحویل‌نشده
             | پس نمی‌گرفت**. سرویس عمداً اول ساخته می‌شود تا شناسه‌اش موجود باشد؛
             | هر دو در یک تراکنش‌اند، پس نیمه‌کاره نمی‌مانَد.
+            |
+            | 🔴 M3-correct: کسر از Wallet (گاردِ رزروآگاهِ «در دسترس»)؛
+            | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، کلِ
+            | تراکنش لغو و null برمی‌گردد.
             */
-            CreditEntry::create([
-                'customer_id'   => $customer->id,
-                'currency_code' => 'IRT',
-                'amount'        => -$hourly,
-                'balance_after' => $balance - $hourly,
-                'reason'        => 'cloud_hourly',
-                'source_type'   => Service::class,
-                'source_id'     => $service->id,
-                'note'          => 'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name,
-            ]);
+            try {
+                app(\App\Services\Finance\Wallet::class)->debit(
+                    $customer->id, 'IRT', $hourly,
+                    'cloud_hourly', $service,
+                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name
+                );
+            } catch (\App\Services\Finance\WalletException) {
+                return null;
+            }
 
             return $service;
         });
+
+        if ($service === null) {
+            return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
+                'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
+                'min'   => cloud_price($minStart),
+                'bal'   => cloud_price(app(\App\Services\Finance\Wallet::class)->availableOf($customer->id)),
+            ])]);
+        }
 
         try {
             ActivityLog::forService($service, 'purchase',

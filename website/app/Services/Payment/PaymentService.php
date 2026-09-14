@@ -2,7 +2,6 @@
 
 namespace App\Services\Payment;
 
-use App\Models\CreditEntry;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -637,23 +636,18 @@ class PaymentService
         return $outcome;
     }
 
-    /** یک سطر دفتر اعتبار با موجودیِ پس از آن */
+    /**
+     * یک سطر دفتر اعتبار — از M3 به بعد نمایهٔ `Wallet` است.
+     *
+     * 🔴 تنها مسیرِ نوشتنِ دفتر همان `Wallet::credit` شد؛ این متُد فقط
+     *    لایهٔ نازکِ سازگاری است تا تماس‌هایِ موجود همین‌جا معنی‌شان
+     *    عوض نشود. رفتار یکسان است: همان سطر، همان فیلدها؛ تازه‌اش
+     *    این است که قفلِ ردیفِ مشتری هم داخلِ همان تراکنش گرفته می‌شود.
+     */
     private function credit(int $customerId, string $currency, int $amount, string $reason, $source, string $note): void
     {
-        $balance = (int) CreditEntry::where('customer_id', $customerId)
-            ->where('currency_code', $currency)
-            ->sum('amount');
-
-        CreditEntry::create([
-            'customer_id'   => $customerId,
-            'currency_code' => $currency,
-            'amount'        => $amount,
-            'balance_after' => $balance + $amount,
-            'reason'        => $reason,
-            'source_type'   => $source::class,
-            'source_id'     => $source->id,
-            'note'          => $note,
-        ]);
+        app(\App\Services\Finance\Wallet::class)
+            ->credit($customerId, $currency, $amount, $reason, $source, $note);
     }
 }
 

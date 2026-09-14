@@ -637,23 +637,22 @@ class PaymentController extends Controller
                     return ['ok' => false, 'msg' => 'این فاکتور در وضعیتِ قابلِ پرداخت نیست.'];
                 }
 
-                $balance = $this->balance($customerId);
+                /*
+                | 🔴 از M3-correct این کسر از `Wallet` می‌گذرد: گاردِ حقیقت
+                | داخلِ همان قفلِ مشتری، روی «در دسترس» (منهایِ رزروهایِ
+                | زندهٔ AI) است. چکِ پیام‌خوش پایین فقط UX است — تصمیمِ
+                | پولی را Wallet می‌گیرد.
+                */
+                $wallet = app(\App\Services\Finance\Wallet::class);
+                $available = $wallet->availableOf($customerId);
 
-                if ($balance < $due) {
-                    return ['ok' => false, 'msg' => 'اعتبارِ حساب کافی نیست (موجودی: '
-                        .number_format($balance).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
+                if ($available < $due) {
+                    return ['ok' => false, 'msg' => 'اعتبارِ در دسترس کافی نیست (در دسترس: '
+                        .number_format($available).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
                 }
 
-                CreditEntry::create([
-                    'customer_id'   => $customerId,
-                    'currency_code' => 'IRT',
-                    'amount'        => -$due,
-                    'balance_after' => $balance - $due,
-                    'reason'        => 'invoice_payment',
-                    'source_type'   => Invoice::class,
-                    'source_id'     => $fresh->id,
-                    'note'          => 'پرداختِ فاکتور '.$fresh->number.' از اعتبار',
-                ]);
+                $wallet->debit($customerId, 'IRT', $due, 'invoice_payment', $fresh,
+                    'پرداختِ فاکتور '.$fresh->number.' از اعتبار');
 
                 /*
                 | ⚠️ `firstOrCreate` روی `external_ref` — دو کلیکِ هم‌زمان (یا

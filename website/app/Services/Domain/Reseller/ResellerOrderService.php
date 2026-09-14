@@ -45,6 +45,7 @@ class ResellerOrderService
         private DomainRegistrar $registrar,
         private ResellerPricing $pricing,
         private ResellerProgram $program,
+        private \App\Services\Finance\Wallet $wallet,
     ) {}
 
     /** نتیجهٔ استاندارد — هر سه حالت ماشین‌خوان‌اند */
@@ -359,15 +360,21 @@ class ResellerOrderService
                     return;
                 }
 
-                $balance = $fresh->creditBalance('IRT');
+                /*
+                | 🔴 از M3-correct گارد روی «در دسترس» است (منهایِ رزروهایِ
+                | زندهٔ AI)، نه روی جمعِ خام — پولِ رزروشده متعلق به
+                | درخواستِ صاحبش است. کسرِ نهایی هم از `Wallet` می‌گذرد؛
+                | همین چکِ صریح فقط برایِ پیامِ ۴۰۲ِ ماشین‌خوان است.
+                */
+                $available = $this->wallet->availableOf($fresh->id);
 
-                if ($balance < $total) {
+                if ($available < $total) {
                     $result = [
                         'ok'      => false,
                         'error'   => 'insufficient_credit',
                         'message' => 'اعتبارِ حساب کافی نیست.',
                         'status'  => 402,
-                        'data'    => ['required' => $total, 'balance' => $balance, 'currency' => 'IRT'],
+                        'data'    => ['required' => $total, 'balance' => $available, 'currency' => 'IRT'],
                     ];
 
                     return;
@@ -424,17 +431,10 @@ class ResellerOrderService
                 | ساعتی: مسیرِ برگشتِ وجه (`domains:resolve-stuck`) ردیف‌های
                 | برگشتی را با `source_type`/`source_id` جمع می‌زند، و کلیدِ
                 | اشتباه یعنی پولی که هرگز برنمی‌گردد.
+                | کسر از `Wallet` — گاردِ در دسترس (رزرو-آگاه) داخلِ همان
+                | قفلِ مشتریِ همین تراکنش.
                 */
-                CreditEntry::create([
-                    'customer_id'   => $fresh->id,
-                    'currency_code' => 'IRT',
-                    'amount'        => -$total,
-                    'balance_after' => $balance - $total,
-                    'reason'        => 'domain_'.$kind.'_api',
-                    'source_type'   => Domain::class,
-                    'source_id'     => $domain->id,
-                    'note'          => $title,
-                ]);
+                $this->wallet->debit($fresh->id, 'IRT', $total, 'domain_'.$kind.'_api', $domain, $title);
 
                 /*
                 | 🔴 درآمدِ این فروش باید به دفترِ کسب‌وکار برسد. این مسیر

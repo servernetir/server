@@ -18,6 +18,7 @@ use App\Services\Provisioning\ProvisioningService;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -318,41 +319,77 @@ class CloudMeterHourly extends Command
             return 'skipped';                        // هنوز یک ساعتِ کامل نشده
         }
 
-        $balance = $customer->creditBalance('IRT');
-        $affordable = intdiv(max(0, $balance), $rate);
+        /*
+        | 🔴 از M3-correct، متر از «در دسترس» حساب می‌کند (منهایِ رزروهایِ
+        | زندهٔ AI) و کسر از `Wallet` می‌گذرد. کلِ «قفلِ مشتری → claim →
+        | کسر» داخلِ یک تراکنش است تا ردِ Wallet کلِ claim را هم با خودش
+        | برگرداند — لنگر بدونِ پول جلو نمی‌رود. ترتیبِ قفل: مشتری اول
+        | (همانندِ payCredit)، بعدِ claim خودِ سرویس — یکه و بدونِ چرخه.
+        */
+        $wallet = app(\App\Services\Finance\Wallet::class);
 
-        if ($affordable < 1) {
+        /*
+        | کد نتیجه: ۰ = اعتبار نیست (stopped) · -۱ = claim را دیگری برد
+        *  (skipped) · >۰ = ساعت‌های کسرشده (charged).
+        */
+        $charged = null;
+        $creditBound = false;
+
+        try {
+            DB::transaction(function () use ($wallet, $customer, $service, $rate, $elapsed, $prev, &$charged, &$creditBound): void {
+                \App\Models\Customer::whereKey($customer->id)->lockForUpdate()->first();
+
+                $available = $wallet->availableOf($customer->id);
+                $affordable = intdiv(max(0, $available), $rate);
+
+                if ($affordable < 1) {
+                    $charged = 0;                     // بیرونِ تراکنش creditOut می‌زنیم
+
+                    return;
+                }
+
+                $hours = min($elapsed, $affordable, self::CATCHUP_CAP);
+                $creditBound = $hours === $affordable;
+                $newMetered = $prev->copy()->addHours($hours);
+
+                // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند.
+                // ⚠️ شرط روی مقدارِ **ذخیره‌شدهٔ قدیم** است، نه روی `$prev`ِ جلوبرده‌شده.
+                $q = Service::where('id', $service->id);
+                $service->last_metered_at === null
+                    ? $q->whereNull('last_metered_at')
+                    : $q->where('last_metered_at', $service->last_metered_at);
+
+                if ($q->update(['last_metered_at' => $newMetered]) === 0) {
+                    $charged = -1;                    // اجرای دیگری زودتر کسر کرد
+
+                    return;
+                }
+
+                $wallet->debit($customer->id, 'IRT', $rate * $hours, 'cloud_hourly', $service,
+                    "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان');
+
+                $charged = $hours;
+            });
+        } catch (\App\Services\Finance\WalletException) {
+            // گاردِ در دسترس ردش کرد — مثلِ «اعتبار نیست» رفتار می‌کنیم:
+            // claim هم برگشته (همان تراکنش)، لنگر دست‌نخورده.
+            $charged = 0;
+        }
+
+        if ($charged === 0) {
             $this->creditOut($service, $prov);      // اعتبار برای یک ساعت هم نیست
 
             return 'stopped';
         }
 
-        $hours = min($elapsed, $affordable, self::CATCHUP_CAP);
-        $newMetered = $prev->copy()->addHours($hours);
-
-        // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند.
-        // ⚠️ شرط روی مقدارِ **ذخیره‌شدهٔ قدیم** است، نه روی `$prev`ِ جلوبرده‌شده.
-        $q = Service::where('id', $service->id);
-        $service->last_metered_at === null
-            ? $q->whereNull('last_metered_at')
-            : $q->where('last_metered_at', $service->last_metered_at);
-
-        if ($q->update(['last_metered_at' => $newMetered]) === 0) {
-            return 'skipped';                        // اجرای دیگری زودتر کسر کرد
+        if ($charged === -1) {
+            return 'skipped';
         }
 
+        $hours = $charged;
         $amount = -1 * $rate * $hours;
 
-        CreditEntry::create([
-            'customer_id' => $customer->id,
-            'currency_code' => 'IRT',
-            'amount' => $amount,
-            'balance_after' => $balance + $amount,
-            'reason' => 'cloud_hourly',
-            'source_type' => Service::class,
-            'source_id' => $service->id,
-            'note' => "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان',
-        ]);
+        $balance = $customer->creditBalance('IRT');   // فقط برای پیام — حقیقت در Wallet بود
 
         /*
         | لاگی که مشتری می‌بیند: به زبانِ خودش، با مبلغِ کسرشده و ماندهٔ اعتبار
@@ -373,7 +410,7 @@ class CloudMeterHourly extends Command
         // ساعته پیش از این بی‌صدا بود، و «چرا درآمدِ این ماه کم است» هیچ پاسخی
         // در هیچ لاگی نداشت.
         if ($elapsed > $hours) {
-            $this->noteUnderCharge($service, $elapsed, $hours, $hours === $affordable);
+            $this->noteUnderCharge($service, $elapsed, $hours, $creditBound);
         }
 
         return 'charged';
@@ -472,22 +509,19 @@ class CloudMeterHourly extends Command
         $monthly = (int) $service->price;               // قیمتِ ماهانهٔ قفل‌شده در خرید
         $customer = $service->customer;
 
-        if ($monthly <= 0 || $customer === null || $customer->creditBalance('IRT') < $monthly) {
+        // 🔴 گارد روی «در دسترس» (رزرو-آگاه) و کسر از Wallet — داخلِ قفلِ مشتری
+        $wallet = app(\App\Services\Finance\Wallet::class);
+
+        if ($monthly <= 0 || $customer === null || $wallet->availableOf($customer->id) < $monthly) {
             return false;
         }
 
-        $balance = $customer->creditBalance('IRT');
-
-        CreditEntry::create([
-            'customer_id' => $customer->id,
-            'currency_code' => 'IRT',
-            'amount' => -$monthly,
-            'balance_after' => $balance - $monthly,
-            'reason' => 'cloud_hourly_convert',
-            'source_type' => Service::class,
-            'source_id' => $service->id,
-            'note' => 'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه',
-        ]);
+        try {
+            $wallet->debit($customer->id, 'IRT', $monthly, 'cloud_hourly_convert', $service,
+                'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه');
+        } catch (\App\Services\Finance\WalletException) {
+            return false;   // بینِ چک و کسر، در دسترس عوض شد — این دوره رد می‌شود
+        }
 
         $service->update([
             'billing_mode' => 'cycle',
