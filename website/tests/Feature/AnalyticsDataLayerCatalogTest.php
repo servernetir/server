@@ -33,7 +33,10 @@ class AnalyticsDataLayerCatalogTest extends TestCase
         $response->assertSee('begin_checkout', false);
         $response->assertSee('configure_product', false);
         $response->assertSee("gtag('consent','default'", false);
-        $response->assertSee('analytics-consent', false);
+        $response->assertSee("analytics_storage:'granted'", false);
+        $response->assertSee("s.id='snet-gtm'", false);
+        $response->assertDontSee('analytics-consent', false);
+        $response->assertDontSee('snet_analytics_consent', false);
         $response->assertSee('trackFunnel', false);
         $response->assertDontSee("auth('customer')->id()", false);
     }

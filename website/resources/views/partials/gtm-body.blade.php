@@ -2,8 +2,7 @@
 @php
     $gtmId = config('services.gtm.id', 'GTM-MRSC7BF7');
     $analyticsEnabled = (bool) config('services.gtm.enabled')
-        && preg_match('/^GTM-[A-Z0-9]+$/', (string) $gtmId)
-        && request()->cookie('snet_analytics_consent') === 'granted';
+        && preg_match('/^GTM-[A-Z0-9]+$/', (string) $gtmId);
 @endphp
 @if($analyticsEnabled)
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtmId }}"
