@@ -242,10 +242,26 @@ html[data-theme="light"] .os-total{background:#fff}
   });
 
   beacon('order_summary_view', {});
+  if (window.ServerNetAnalytics) {
+    window.ServerNetAnalytics.viewItem({
+      item_id: '{{ $product->slug }}',
+      item_name: '{{ addslashes($product->displayName()) }}',
+      price: {{ (float) ($product->priceForCycle('monthly') ?: 0) }},
+      item_category: '{{ $product->category ?? "hosting" }}'
+    });
+  }
   var t0 = Date.now();
   cta.addEventListener('click', function () {
     var r = document.querySelector('#os-form input[name="cycle"]:checked');
     beacon('checkout_click', { cycle_at_click: r ? r.value : '', time_on_page: Math.round((Date.now() - t0) / 1000) });
+    if (window.ServerNetAnalytics) {
+      window.ServerNetAnalytics.beginCheckout({
+        item_id: '{{ $product->slug }}',
+        item_name: '{{ addslashes($product->displayName()) }}',
+        price: r ? parseFloat(r.dataset.total ? r.dataset.total.replace(/[^0-9]/g, '') : 0) : 0,
+        item_category: '{{ $product->category ?? "hosting" }}'
+      }, r ? r.value : 'monthly');
+    }
   });
 })();
 </script>

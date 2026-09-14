@@ -133,6 +133,9 @@
 
       <div class="ad-nav-sep">سرور</div>
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
+      {{-- «ناوگان» جدا از «زیرساختِ ابری» است و باید بماند: آن‌جا کاتالوگ و
+           توکن تنظیم می‌شود، این‌جا ماشین‌های واقعی و پولی که بابتشان می‌رود. --}}
+      <a href="/admin/fleet" class="@yield('nav_fleet')"><svg class="icon"><use href="#i-server"/></svg>ناوگان زیرساخت</a>
       <a href="/admin/server-shop" class="@yield('nav_server_shop')"><svg class="icon"><use href="#i-server"/></svg>سرورِ فیزیکی</a>
       <a href="/admin/parts" class="@yield('nav_parts')"><svg class="icon"><use href="#i-cpu"/></svg>قطعاتِ سرور</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>

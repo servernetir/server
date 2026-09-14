@@ -149,7 +149,13 @@
 
 <script>
 /* کمکی مشترک همه‌ی ابزارها: کپی در کلیپ‌بورد با بازخورد */
+if (window.ServerNetAnalytics) {
+  window.ServerNetAnalytics.useTool('{{ addslashes($t['t']) }}', '{{ addslashes($c['t']) }}');
+}
 window.wtCopy = function (btn, text) {
+  if (window.ServerNetAnalytics) {
+    window.ServerNetAnalytics.copyInfo('webtool_result', text ? text.substring(0, 50) : '');
+  }
   navigator.clipboard.writeText(text).then(() => {
     const old = btn.textContent;
     btn.textContent = btn.dataset.done || '✓';

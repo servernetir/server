@@ -519,6 +519,7 @@ class RegisterController extends Controller
         $request->session()->forget('reg');
         Auth::guard('customer')->login($customer, remember: true);
         $request->session()->regenerate();
+        \App\Services\Analytics\DataLayerService::flashSignUp($customer);
 
         /*
         | 🔴 ثبت‌نام هم باید به همان‌جایی برگردد که کاربر می‌خواست برود.
