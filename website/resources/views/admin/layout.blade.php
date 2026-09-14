@@ -140,6 +140,14 @@
       <a href="/admin/parts" class="@yield('nav_parts')"><svg class="icon"><use href="#i-cpu"/></svg>قطعاتِ سرور</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
 
+      @if(auth()->user()->isAdmin())
+      {{-- هوش مصنوعی — دروازه. زیرساختِ مالیِ آینده روی همین رجیستری می‌نشیند
+           (M1). صفحه‌های تکنیکی‌اند: ارائه‌دهنده · مدل · قیمت. --}}
+      <div class="ad-nav-sep">هوش مصنوعی</div>
+      <a href="/admin/ai" class="@yield('nav_ai_providers')"><svg class="icon"><use href="#i-cpu"/></svg>دروازهٔ AI</a>
+      <a href="/admin/ai/models" class="@yield('nav_ai_models')"><svg class="icon"><use href="#i-box"/></svg>مدل‌های AI</a>
+      <a href="/admin/ai/pricing" class="@yield('nav_ai_pricing')"><svg class="icon"><use href="#i-coins"/></svg>قیمت‌پردازِ AI</a>
+      @endif
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
 

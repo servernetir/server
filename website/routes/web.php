@@ -2689,6 +2689,33 @@ Route::prefix('admin')->group(function () {
         Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
         Route::post('/users/{user}/names', [AdminUser::class, 'names']);
 
+        /*
+        | ═══ زیرساختِ AI — دروازه (M1) ═══
+        |
+        | فقط رجیستری و قیمت: ارائه‌دهنده‌ها · مدل‌ها · قیمت. تمام روت‌های
+        | نوشتنی پشتِ `middleware('admin')` صریح‌اند — پشتیبان/نویسنده فقط
+        | باید بتواند *ببیند* که چه مدل و چه قیمتی وجود دارد، نه اینکه
+        | دروازهٔ آیندهٔ مالی را بگرداند.
+        */
+        Route::get('/ai', [\App\Http\Controllers\Admin\AiGatewayController::class, 'providers'])
+            ->name('admin.ai.providers');
+        Route::get('/ai/providers/edit', [\App\Http\Controllers\Admin\AiGatewayController::class, 'editProvider'])
+            ->name('admin.ai.providers.edit');
+        Route::post('/ai/providers/{provider}', [\App\Http\Controllers\Admin\AiGatewayController::class, 'updateProvider'])
+            ->name('admin.ai.providers.update')->middleware('admin');
+        Route::get('/ai/models', [\App\Http\Controllers\Admin\AiGatewayController::class, 'models'])
+            ->name('admin.ai.models');
+        Route::get('/ai/models/{model}/edit', [\App\Http\Controllers\Admin\AiGatewayController::class, 'editModel'])
+            ->name('admin.ai.models.edit');
+        Route::post('/ai/models/{model}', [\App\Http\Controllers\Admin\AiGatewayController::class, 'updateModel'])
+            ->name('admin.ai.models.update')->middleware('admin');
+        Route::post('/ai/models/{model}/status', [\App\Http\Controllers\Admin\AiGatewayController::class, 'toggleModel'])
+            ->name('admin.ai.models.status')->middleware('admin');
+        Route::get('/ai/pricing', [\App\Http\Controllers\Admin\AiGatewayController::class, 'pricing'])
+            ->name('admin.ai.pricing');
+        Route::post('/ai/pricing/supersede', [\App\Http\Controllers\Admin\AiGatewayController::class, 'supersedePrice'])
+            ->name('admin.ai.pricing.supersede')->middleware('admin');
+
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
         Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
