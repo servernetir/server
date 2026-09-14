@@ -597,6 +597,9 @@ $site = function (): void {
         // پرداخت از اعتبارِ داخلی — همان مسیرِ تسویهٔ رسمی (settleConfirmed)
         Route::post('/invoices/{invoice}/pay-credit', [Account\PaymentController::class, 'payCredit'])
             ->name('invoice.paycredit')->middleware('throttle:pay');
+        // کوپنِ هدیه — روی همان ریلِ تسویه می‌نشیند؛ قیمت و مالیات دست‌نخورده
+        Route::post('/invoices/{invoice}/coupon', [Account\PaymentController::class, 'applyCoupon'])
+            ->name('invoice.coupon')->middleware('throttle:pay');
         Route::post('/invoices/{invoice}/bank-transfer', [Account\PaymentController::class, 'bankTransfer'])
             ->name('invoice.bank')->middleware('throttle:forms');
         Route::post('/invoices/{invoice}/cancel', [Account\PaymentController::class, 'cancel'])

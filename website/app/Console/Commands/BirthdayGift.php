@@ -2,29 +2,28 @@
 
 namespace App\Console\Commands;
 
-use App\Models\CreditEntry;
 use App\Models\Customer;
+use App\Models\GiftCoupon;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Support\ErrorTracker;
 use App\Support\Jalali;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
- * هدیهٔ تولد — اعتبارِ مدت‌دار به کیفِ پولِ مشتری.
+ * هدیهٔ تولد — کوپنِ قفل‌شده به مشتری، با پنجرهٔ ساعتی.
  *
- * ═══ چرا اعتبار و نه کدِ تخفیف ═══
+ * ═══ 🔴 چرا کوپن و نه اعتبارِ کیفِ پول ═══
  *
- * سه دلیل، به ترتیبِ اهمیت:
+ * نسخهٔ اول اعتبار به کیفِ پول می‌ریخت و پس از انقضا پس می‌گرفت. آن طرح یک
+ * نقصِ واقعی داشت که کارفرما گرفتش: بازپس‌گیری فرقِ «هدیه را خرج کرد» با
+ * «پولِ خودش را خرج کرد» را نمی‌فهمید، پس مشتری‌ای که موجودی داشت و
+ * به‌خاطرِ پیامِ ما خرید می‌کرد، فردا از پولِ **خودش** کم می‌شد. دلیلِ کامل
+ * در مهاجرتِ `create_gift_coupons_table`.
  *
- *   ۱. کدِ تخفیف در کانال‌های تلگرامی پخش می‌شود؛ اعتبار به حسابِ همان شخص
- *      می‌چسبد و اصلاً قابلِ بازنشر نیست.
- *   ۲. اعتبار روی **همه‌چیز** کار می‌کند — سرورِ ساعتی، تمدیدِ دامنه، هاست.
- *      مشتریِ قدیمیِ ما اغلب فقط تمدید دارد و کوپنِ «خریدِ جدید» به دردش
- *      نمی‌خورد.
- *   ۳. هیچ مدلِ کوپنی در این پروژه وجود ندارد و ساختنش یعنی یک مسیرِ پولیِ
- *      تازه با تمامِ تله‌هایش.
+ * کوپن چیزی به کیفِ پول اضافه نمی‌کند، پس چیزی هم برای پس‌گرفتن نیست؛
+ * منقضی‌شدنش یعنی فقط استفاده نشد. و همین، کلِ منطقِ سوییپ را حذف کرد.
  *
  * ═══ 🔴 چرا تاریخِ «شمسی» مبناست ═══
  *
@@ -33,8 +32,7 @@ use Illuminate\Support\Facades\DB;
  * «یک روز دیرتر» از نفرستادنش بدتر است.
  *
  * ⚠️ و روزِ شمسی با ساعتِ «تهران» تعیین می‌شود نه UTC. `config/app.timezone`
- * عمداً UTC است، پس کرونی که ۲۱:۳۰ UTC بدود در تهران بامدادِ فرداست — یعنی
- * بی‌این تبدیل، تبریک‌ها یک روز جابه‌جا می‌رفتند.
+ * عمداً UTC است، پس کرونی که ۲۱:۳۰ UTC بدود در تهران بامدادِ فرداست.
  *
  * ═══ 🔴 ۳۰ اسفند ═══
  *
@@ -47,93 +45,101 @@ class BirthdayGift extends Command
     protected $signature = 'birthday:gift
                             {--dry : فقط نشان بده، چیزی ننویس}';
 
-    protected $description = 'اعتبارِ هدیهٔ تولد + بازپس‌گیریِ هدیه‌های منقضی';
-
-    /** دلیلِ ردیفِ هدیه در دفترِ اعتبار — ستون ۳۲ کاراکتر است */
-    public const REASON_GIFT = 'gift_birthday';
-
-    /** دلیلِ ردیفِ بازپس‌گیری */
-    public const REASON_EXPIRE = 'gift_expired';
+    protected $description = 'صدورِ کوپنِ هدیهٔ تولد (قفل به مشتری، مدت‌دار)';
 
     public function handle(): int
     {
         $dry = (bool) $this->option('dry');
 
-        /*
-        | سوییپ «همیشه» می‌دود، حتی وقتی برنامه خاموش است.
-        |
-        | اگر پشتِ همان کلید بنشیند، خاموش‌کردنِ برنامه یعنی هدیه‌هایی که
-        | قبلاً رفته‌اند تا ابد روی حساب می‌مانند — در حالی که به مشتری پیامک
-        | داده‌ایم «تا N روز اعتبار دارد». خاموش‌کردن باید جلوی هدیهٔ «تازه»
-        | را بگیرد، نه جلوی وعده‌ای که از قبل داده‌ایم.
-        */
-        $swept = $this->sweepExpired($dry);
-
         if (! $this->enabled()) {
-            $this->info('برنامهٔ هدیهٔ تولد خاموش است (config/birthday.enabled یا Setting: birthday_enabled).');
-            $this->line("هدیه‌های منقضی‌شدهٔ بازپس‌گرفته: {$swept}");
+            $this->info('برنامهٔ هدیهٔ تولد خاموش است (Setting: birthday_enabled یا config/birthday.enabled).');
 
             return self::SUCCESS;
         }
 
-        $gifted = $this->giftToday($dry);
+        $issued = $this->issueToday($dry);
 
-        $this->info("هدیهٔ امروز: {$gifted} · بازپس‌گیری: {$swept}".($dry ? ' (خشک)' : ''));
+        $this->info("کوپنِ صادرشدهٔ امروز: {$issued}".($dry ? ' (خشک)' : ''));
 
         return self::SUCCESS;
     }
 
-    /** برنامه فقط با تصمیمِ صریح روشن می‌شود — نه با پیش‌فرض */
-    private function enabled(): bool
-    {
-        $setting = \App\Models\Setting::get('birthday_enabled');
+    // ───────────────────────── تنظیمات ─────────────────────────
 
-        if ($setting !== null && $setting !== '') {
-            return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
+    /**
+     * تنظیماتِ پنل بر فایلِ config می‌چربد.
+     *
+     * ⚠️ رشتهٔ خالی «صفر» نیست، «ست‌نشده» است. یکی‌گرفتنشان یعنی یک فیلدِ
+     * خالی در فرمِ تنظیمات، مبلغِ هدیه را بی‌صدا صفر می‌کرد و برنامه بی‌آنکه
+     * خطایی بدهد هیچ کوپنی صادر نمی‌کرد.
+     */
+    private function setting(string $key, int|bool $fallback): int|bool
+    {
+        $raw = Setting::get($key);
+
+        if ($raw === null || trim((string) $raw) === '') {
+            return $fallback;
         }
 
-        return (bool) config('birthday.enabled', false);
+        return is_bool($fallback)
+            ? filter_var($raw, FILTER_VALIDATE_BOOLEAN)
+            : (int) $raw;
     }
 
-    // ───────────────────────── هدیه ─────────────────────────
+    private function enabled(): bool
+    {
+        return (bool) $this->setting('birthday_enabled', (bool) config('birthday.enabled', false));
+    }
 
-    private function giftToday(bool $dry): int
+    // ───────────────────────── صدور ─────────────────────────
+
+    private function issueToday(bool $dry): int
     {
         $tz = (string) config('calendar.display_timezone', 'Asia/Tehran');
         [$jy, $jm, $jd] = Jalali::ofMoment(now(), $tz);
 
-        $cap = (int) config('birthday.daily_cap', 50);
+        $amount = (int) $this->setting('birthday_amount_irt', (int) config('birthday.amount_irt', 0));
+        $hours  = (int) $this->setting('birthday_valid_hours', (int) config('birthday.valid_hours', 24));
+        $floor  = (int) $this->setting('birthday_min_invoice', (int) config('birthday.min_invoice_irt', 0));
+        $cap    = (int) config('birthday.daily_cap', 50);
+
+        if ($amount <= 0 || $hours <= 0) {
+            /*
+            | مبلغِ صفر یعنی پیکربندی ناقص است، نه «هدیهٔ صفر تومانی». پیامکِ
+            | «۰ تومان هدیه گرفتید» از نفرستادن بدتر است.
+            */
+            ErrorTracker::noteOnce('notify',
+                'هدیهٔ تولد روشن است ولی مبلغ یا مدتش معتبر نیست '
+                ."(مبلغ={$amount}، ساعت={$hours}) — هیچ کوپنی صادر نشد.",
+                3600, ['area' => 'birthday']);
+
+            return 0;
+        }
+
         $done = 0;
 
         foreach ($this->birthdaysOn($jy, $jm, $jd) as $customer) {
             if ($done >= $cap) {
                 /*
-                | 🔴 رد شدن از سقف = توقفِ «پرصدا»، نه ادامهٔ خاموش.
-                |
-                | تنها راه‌هایی که این عدد پر می‌شود ایمپورتِ انبوهِ داده یا
-                | خرابیِ پرس‌وجوست. هر دو یعنی داریم پولِ واقعی توزیع می‌کنیم
+                | 🔴 رد شدن از سقف = توقفِ «پرصدا»، نه ادامهٔ خاموش. تنها
+                | راه‌هایی که این عدد پر می‌شود ایمپورتِ انبوهِ داده یا خرابیِ
+                | پرس‌وجوست، و هر دو یعنی داریم پولِ واقعی توزیع می‌کنیم
                 | بی‌آنکه بدانیم چرا.
                 */
                 ErrorTracker::note('notify',
                     "هدیهٔ تولد به سقفِ روزانه ({$cap}) خورد و متوقف شد — "
-                    .'یعنی امروز غیرعادی زیاد تولد پیدا شد. پیش از بالابردنِ سقف، فهرست را ببین.');
+                    .'امروز غیرعادی زیاد تولد پیدا شد. پیش از بالابردنِ سقف، فهرست را ببین.');
                 break;
             }
 
-            if ($this->alreadyGifted($customer, $jy)) {
-                continue;
-            }
-
-            $amount = $this->giftFor($customer);
-
-            if ($amount <= 0) {
+            if ($this->alreadyIssued($customer, $jy)) {
                 continue;
             }
 
             $this->line("  {$customer->code} — ".number_format($amount).' تومان');
 
             if (! $dry) {
-                $this->award($customer, $amount, $jy);
+                $this->issue($customer, $amount, $hours, $floor);
             }
 
             $done++;
@@ -146,9 +152,9 @@ class BirthdayGift extends Command
      * مشتری‌هایی که امروز تولدشان است.
      *
      * ⚠️ ماه/روزِ شمسی با ماه/روزِ میلادیِ ستون یکی نیست، پس فیلترِ SQL ممکن
-     * نیست و تبدیل باید در PHP انجام شود. برای اینکه این کار جدولِ کاملِ
-     * مشتری‌ها را نخوانَد، فقط ردیف‌هایی برداشته می‌شوند که تاریخِ تولد دارند
-     * و حسابشان فعال است.
+     * نیست و تبدیل باید در PHP انجام شود. برای اینکه جدولِ کاملِ مشتری‌ها
+     * خوانده نشود، فقط ردیف‌هایی برداشته می‌شوند که تاریخِ تولد دارند و
+     * حسابشان فعال است.
      *
      * @return Collection<int,Customer>
      */
@@ -190,64 +196,36 @@ class BirthdayGift extends Command
     }
 
     /**
-     * آیا امسال هدیه‌اش را گرفته؟
+     * آیا امسال کوپنش صادر شده؟
      *
-     * ⚠️ مبنا خودِ دفترِ اعتبار است، نه یک ستونِ تازه: ردیفِ مالی هرگز پاک
-     * نمی‌شود، پس این بررسی نمی‌تواند با ریستِ یک ستون بی‌اعتبار شود. سالِ
-     * شمسی داخلِ کروشه در `note` می‌نشیند تا پرس‌وجو ساده و خوانا بمانَد.
+     * ⚠️ کوپنِ **مصرف‌شده یا منقضی هم** حساب می‌شود. شرطِ «فقط کوپنِ زنده» یعنی
+     * مشتری‌ای که کوپنش را همان روز خرج کرده، اجرای بعدیِ کرون در همان روز
+     * کوپنِ دومی می‌گرفت.
      */
-    private function alreadyGifted(Customer $customer, int $jy): bool
+    private function alreadyIssued(Customer $customer, int $jy): bool
     {
-        return CreditEntry::query()
+        return GiftCoupon::query()
             ->where('customer_id', $customer->id)
-            ->where('reason', self::REASON_GIFT)
-            ->where('note', 'like', "%[{$jy}]%")
+            ->where('reason', 'birthday')
+            ->where('created_at', '>=', now()->subDays(300))
             ->exists();
     }
 
-    /**
-     * مبلغِ هدیه بر اساسِ خریدِ ۱۲ ماهِ گذشته.
-     *
-     * 🔴 معیار «مبلغ» است نه «تعدادِ فاکتور» — همان استدلالِ برنامهٔ نمایندگی:
-     * با معیارِ تعدادی، مشتریِ ماهانه از مشتریِ سالانه بالاتر می‌نشیند در حالی
-     * که پولِ کمتری داده.
-     */
-    private function giftFor(Customer $customer): int
+    private function issue(Customer $customer, int $amount, int $hours, int $floor): void
     {
-        $paid = (int) DB::table('invoices')
-            ->where('customer_id', $customer->id)
-            ->where('status', 'paid')
-            ->where('currency_code', 'IRT')
-            ->where('created_at', '>=', now()->subDays(365))
-            ->sum('total');
-
-        $tiers = (array) config('birthday.tiers', []);
-
-        usort($tiers, fn ($a, $b) => ($a['min_paid_irt'] ?? 0) <=> ($b['min_paid_irt'] ?? 0));
-
-        $gift = 0;
-
-        foreach ($tiers as $tier) {
-            if ($paid >= (int) ($tier['min_paid_irt'] ?? 0)) {
-                $gift = (int) ($tier['gift_irt'] ?? 0);
-            }
-        }
-
-        return $gift;
-    }
-
-    private function award(Customer $customer, int $amount, int $jy): void
-    {
-        $days = (int) config('birthday.expires_days', 30);
-        $balance = $customer->creditBalance('IRT');
-
-        $gift = CreditEntry::create([
+        $coupon = GiftCoupon::create([
             'customer_id'   => $customer->id,
+            'code'          => GiftCoupon::freshCode(),
             'currency_code' => 'IRT',
             'amount'        => $amount,
-            'balance_after' => $balance + $amount,
-            'reason'        => self::REASON_GIFT,
-            'note'          => "هدیهٔ تولد [{$jy}] — تا {$days} روز معتبر",
+            /*
+            | ⚠️ کفِ فاکتور روی **خودِ کوپن** ذخیره می‌شود، نه فقط در تنظیمات:
+            | تغییرِ بعدیِ تنظیمات نباید شرطِ کوپنی را عوض کند که مشتری از
+            | قبل در دست دارد.
+            */
+            'min_invoice'   => $floor,
+            'reason'        => 'birthday',
+            'expires_at'    => now()->addHours($hours),
         ]);
 
         try {
@@ -257,18 +235,19 @@ class BirthdayGift extends Command
                 [
                     'name'   => $this->firstName($customer),
                     'credit' => number_format($amount),
-                    'days'   => (string) $days,
+                    'code'   => $coupon->code,
+                    'hours'  => (string) $hours,
                 ],
-                'تولدتان مبارک! '.number_format($amount).' تومان اعتبارِ هدیه به کیفِ پولِ شما '
-                ."اضافه شد و تا {$days} روز اعتبار دارد.",
+                'تولدتان مبارک! کدِ هدیهٔ '.number_format($amount).' تومانیِ شما: '.$coupon->code
+                ."\nاین کد تا {$hours} ساعت اعتبار دارد و روی فاکتورِ خودتان قابلِ استفاده است.",
             );
         } catch (\Throwable $e) {
             /*
-            | اعلانِ ناموفق هدیه را پس نمی‌گیرد: پول در دفتر نشسته و مشتری در
-            | پنل می‌بیندش. ولی بی‌صدا هم نمی‌مانَد — هدیه‌ای که کسی از آن خبردار
-            | نشود هزینه‌ای است بی‌هیچ اثری.
+            | اعلانِ ناموفق کوپن را باطل نمی‌کند: کد در پنلِ مشتری دیده
+            | می‌شود. ولی بی‌صدا هم نمی‌مانَد — کوپنی که کسی از آن خبردار نشود
+            | تا ۲۴ ساعت بعد بی‌مصرف منقضی می‌شود.
             */
-            ErrorTracker::note('notify', $e, ['event' => 'birthday', 'credit' => $gift->id]);
+            ErrorTracker::note('notify', $e, ['event' => 'birthday', 'coupon' => $coupon->id]);
         }
     }
 
@@ -282,79 +261,5 @@ class BirthdayGift extends Command
         }
 
         return (string) ($customer->defaultProfile()?->first_name ?: 'دوستِ');
-    }
-
-    // ───────────────────────── انقضا ─────────────────────────
-
-    /**
-     * بازپس‌گیریِ هدیه‌های منقضی.
-     *
-     * 🔴 چرا ستونِ `expires_at` به دفتر اضافه «نشد»: `creditBalance()` یک
-     * `SUM`ِ سادهٔ کلِ دفتر است و همه‌جا — مترِ ساعتی، تسویه، فروشگاه — از آن
-     * می‌پرسند. افزودنِ شرطِ انقضا به آن پرس‌وجو یعنی دست‌بردن در حساس‌ترین
-     * محاسبهٔ پولیِ سامانه برای یک قابلیتِ جانبی. این‌جا به‌جایش یک ردیفِ منفیِ
-     * صریح نوشته می‌شود: دفتر همچنان جمعِ ساده می‌مانَد، اثرش در گزارش‌های
-     * مالی دیده می‌شود، و برگرداندنش فقط حذفِ یک ردیف است.
-     *
-     * ⚠️ بازپس‌گیری `min(هدیه، موجودی)` است. اگر مشتری خرجش کرده باشد چیزی پس
-     * گرفته نمی‌شود و موجودی هرگز منفی نمی‌شود — یعنی این کار در بدترین حالت
-     * فقط همان چیزی را می‌گیرد که خودمان داده بودیم.
-     */
-    private function sweepExpired(bool $dry): int
-    {
-        $days = (int) config('birthday.expires_days', 30);
-        $cut = now()->subDays($days);
-
-        $expired = CreditEntry::query()
-            ->where('reason', self::REASON_GIFT)
-            ->where('created_at', '<=', $cut)
-            ->whereNotExists(function ($q) {
-                $q->select(DB::raw(1))
-                    ->from('credit_ledger as e')
-                    ->whereColumn('e.source_id', 'credit_ledger.id')
-                    ->where('e.source_type', CreditEntry::class)
-                    ->where('e.reason', self::REASON_EXPIRE);
-            })
-            ->with('customer')
-            ->get();
-
-        $done = 0;
-
-        foreach ($expired as $gift) {
-            $customer = $gift->customer;
-
-            if ($customer === null) {
-                continue;
-            }
-
-            $balance = $customer->creditBalance('IRT');
-            $take = min((int) $gift->amount, max(0, $balance));
-
-            $this->line("  انقضا: هدیهٔ #{$gift->id} — بازپس‌گیری ".number_format($take).' تومان');
-
-            if (! $dry) {
-                /*
-                | ⚠️ حتی وقتی چیزی برای گرفتن نیست، ردیفِ «صفر» نوشته می‌شود.
-                | آن ردیف مُهرِ «رسیدگی شد» است؛ بی‌آن، همین هدیه هر روز دوباره
-                | بررسی می‌شود و پرس‌وجوی سوییپ سال‌به‌سال سنگین‌تر می‌شود.
-                */
-                CreditEntry::create([
-                    'customer_id'   => $customer->id,
-                    'currency_code' => 'IRT',
-                    'amount'        => -$take,
-                    'balance_after' => $balance - $take,
-                    'reason'        => self::REASON_EXPIRE,
-                    'source_type'   => CreditEntry::class,
-                    'source_id'     => $gift->id,
-                    'note'          => $take > 0
-                        ? "انقضای هدیهٔ تولد (#{$gift->id}) پس از {$days} روز"
-                        : "هدیهٔ تولد (#{$gift->id}) پیش از انقضا خرج شده بود",
-                ]);
-            }
-
-            $done++;
-        }
-
-        return $done;
     }
 }

@@ -280,7 +280,7 @@ final class NotifyEvent
         */
         'birthday' => [
             'title' => 'تبریکِ تولد و اعتبارِ هدیه', 'group' => 'other',
-            'audience' => self::CUSTOMER, 'vars' => ['name', 'credit', 'days'], 'wired' => true,
+            'audience' => self::CUSTOMER, 'vars' => ['name', 'credit', 'code', 'hours'], 'wired' => true,
         ],
 
         // ───────────────── عمومی ─────────────────

@@ -50,7 +50,12 @@ const TEMPLATES = {
   service_hold:      { code: 'mgdwmorgm9l0jow', vars: { service: 'service' } },
   hourly_low_credit: { code: 'dlwlgfsruwm55o0', vars: { service: 'service', hours: 'hours' } },
   hourly_credit_out: { code: 'tobok3q71klvg8f', vars: { service: 'service', grace: 'grace' } },
-  birthday:          { code: 'ao8geujocoymbff', vars: { name: 'name', credit: 'credit', days: 'days' } },
+  // ⚠️ متنِ الگوی تأییدشده می‌گفت «به کیف پول شما اضافه شد» و متغیرِ `days`
+  //    داشت. طرح به **کوپن** تغییر کرد، پس هم متن و هم متغیرها باید در پنلِ
+  //    اپراتور به‌روز شوند: name / credit / code / hours. تا آن موقع این
+  //    ردیف با `missing_param` رد می‌شود — که بهتر از فرستادنِ پیامی است که
+  //    دربارهٔ مکانیزم دروغ می‌گوید.
+  birthday:          { code: 'ao8geujocoymbff', vars: { name: 'name', credit: 'credit', code: 'code', hours: 'hours' } },
 };
 
 /* ══════════════════════════════════════════════════════════════════════
