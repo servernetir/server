@@ -1,4 +1,12 @@
 .DS_Store
 **/.DS_Store
-.claude/
+# .claude — Supervisor sources are tracked; only runtime/private artifacts ignored
+.claude/logs/
+.claude/**/*.log
+.claude/**/debug-*
+.claude/**/.env*
+.claude/**/*.key
+.claude/**/*.pem
+.claude/**/*.secret.*
+.claude/mcp-config*.json
 __MACOSX/
