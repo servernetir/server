@@ -3,7 +3,7 @@
 # دیپلوی «شش الگوی پیامک + هدیهٔ تولد + ایمیلِ تحویل + نمایشِ شمارهٔ کارت»
 # — شهریور ۱۴۰۵.
 #
-# چه چیزی دیپلوی می‌شود (۱۷ فایل، بدونِ مهاجرت):
+# چه چیزی دیپلوی می‌شود (۲۲ فایل + یک مهاجرتِ هدفمند):
 #
 #   پیامک
 #     · SignedRelaySender   — شش نامِ تازه در فهرستِ الگوها
@@ -151,6 +151,11 @@ dist() { norm "$1" "$WORK/d1.tmp"; norm "$2" "$WORK/d2.tmp"; diff "$WORK/d1.tmp"
 MERGE_FILES="
 config/birthday.php
 app/Console/Commands/BirthdayGift.php
+app/Models/GiftCoupon.php
+database/migrations/2026_10_10_000100_create_gift_coupons_table.php
+app/Http/Controllers/Admin/SettingsController.php
+resources/views/admin/settings/accounts.blade.php
+resources/views/account/invoice.blade.php
 app/Services/Sms/SignedRelaySender.php
 app/Services/Notify/NotifyEvent.php
 app/Services/Notify/AdminNotifier.php
@@ -232,6 +237,18 @@ echo
   && "$PHPBIN" artisan view:clear \
   && "$PHPBIN" artisan db:seed --force --class='Database\Seeders\NotificationTemplateSeeder')
 
+# ═══ ۲٫۵) مهاجرتِ جدولِ کوپن — فقط همین یک فایل ═══
+#
+# 🔴 `--path` عمداً به یک فایل محدود است، نه `migrate --force` کلی. پروداکشن
+#    زیرمجموعهٔ develop است و مهاجرت‌های دیگری در مخزن هست که عمداً روی سرور
+#    اجرا نشده‌اند؛ `migrate` کلی همه را یک‌جا می‌زد.
+# ⚠️ بی‌این جدول، صفحهٔ فاکتور با گاردِ `Schema::hasTable` سالم می‌مانَد ولی
+#    `birthday:gift` در اولین اجرای روشن خطا می‌دهد.
+(cd "$APP" && "$PHPBIN" artisan migrate --force \
+  --path=database/migrations/2026_10_10_000100_create_gift_coupons_table.php) \
+  || echo "  🔴 مهاجرتِ gift_coupons اجرا نشد — گزارشش را بفرست."
+(cd "$APP" && "$PHPBIN" artisan tinker --execute="echo Illuminate\Support\Facades\Schema::hasTable('gift_coupons') ? 'gift_coupons: OK' : 'gift_coupons: MISSING';")
+
 # ═══ ۳) ضمانتِ اتحاد ═════════════════════════════════════════════════════
 echo
 echo "═══ ۳) ضمانتِ اتحاد ═══"
@@ -287,9 +304,8 @@ need_grep database/seeders/NotificationTemplateSeeder.php "'key' => 'bank_receip
 need_grep database/seeders/NotificationTemplateSeeder.php "'key' => 'hourly_low_credit'"
 
 # ── تولد ──
-need_grep config/birthday.php                     'expires_days'
-need_grep app/Console/Commands/BirthdayGift.php   'gift_birthday'
-need_grep app/Console/Commands/BirthdayGift.php   'sweepExpired'
+need_grep config/birthday.php                     'valid_hours'
+need_grep app/Console/Commands/BirthdayGift.php   'GiftCoupon::create'
 need_grep routes/console.php                      "birthday:gift"
 
 # ── ایمیلِ تحویل روی سرورِ خاموش ──
@@ -317,6 +333,20 @@ need_grep app/Services/Notify/AdminNotifier.php 'bale-admin'
 # ── فایلِ تداخل: هر دو طرف باید روی سرور باشند ──
 need_grep resources/views/account/cloud-server.blade.php 'billsWhileOff'
 need_grep resources/views/account/cloud-server.blade.php "lroute('account.cloud.power'"
+
+# ── کوپنِ هدیه ──
+need_grep app/Models/GiftCoupon.php                          'function claim'
+need_grep app/Http/Controllers/Account/PaymentController.php 'function applyCoupon'
+# 🔴 گاردِ topup باید در کنترلر باشد نه فقط در ویو
+need_grep app/Http/Controllers/Account/PaymentController.php "'topup') {"
+need_grep routes/web.php                                     'invoice.coupon'
+need_grep resources/views/account/invoice.blade.php          'account.invoice.coupon'
+need_grep app/Http/Controllers/Admin/SettingsController.php  'birthday_min_invoice'
+need_grep resources/views/admin/settings/accounts.blade.php  'birthday_amount_irt'
+need_grep config/birthday.php                                'min_invoice_irt'
+need_grep lang/fa/ui.php                                     'iv_cp_btn'
+need_grep lang/en/ui.php                                     'iv_cp_btn'
+need_grep lang/tr/ui.php                                     'iv_cp_btn'
 
 # ── نامِ فارسیِ شهرهای تازه ──
 need_grep app/Models/CloudLocation.php            'آتلانتا'
