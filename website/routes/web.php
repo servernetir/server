@@ -571,6 +571,14 @@ $site = function (): void {
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
 
         /*
+        | زیرساختِ AI — بخشِ M2: پروژه‌های AI همان بخشِ `#sec-ai` صفحهٔ
+        | امنیت می‌شوند؛ فقط همین دو روتِ نوشتنی. هیچ /v1 و هیچ عمومیِ AI
+        | این‌جا نیست.
+        */
+        Route::post('/security/ai-project', [Account\SecurityController::class, 'aiProjectStore'])->name('security.ai-project')->middleware('throttle:forms');
+        Route::post('/security/ai-project/{project}/update', [Account\SecurityController::class, 'aiProjectUpdate'])->name('security.ai-project.update')->middleware('throttle:forms');
+
+        /*
         | ورود دومرحله‌ای با اپلیکیشنِ احرازِ هویت (Google Authenticator).
         |
         | همه روی همان صفحهٔ `/account/security` می‌نشینند (بخشِ `#sec-2fa`)؛

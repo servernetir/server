@@ -122,6 +122,12 @@ class Customer extends Authenticatable
         return $this->hasMany(CustomerApiToken::class);
     }
 
+    /** پروژه‌های AIِ این حساب — ظرفِ admission (M2)، نه پول */
+    public function aiProjects(): HasMany
+    {
+        return $this->hasMany(AiProject::class);
+    }
+
     /**
      * آیا قوانینِ IP این ورود/درخواست را مسدود می‌کنند؟
      *

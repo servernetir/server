@@ -40,9 +40,44 @@ class CustomerApiToken extends Model
      */
     public const MAX_ACTIVE = 20;
 
+    /**
+     * 🔴 پیشوندِ دامنهٔ AI — یک مرزِ قراردادی، نه یک سیستمِ موازی.
+     *
+     * هر abilityای با این پیشوند، از مسیرِ متفاوتی می‌گذرد (نگاهِ زیر به
+     * `can()`): توکنِ «*» هرگز AI نمی‌خرد — دسترسیِ AI فقط با تیکِ صریح و
+     * **پروژهٔ bound** می‌آید. دلیلش مبهم نیست: توکن‌های قدیمی با «*» زنده‌اند
+     * و مهاجرتِ M2 حق ندارد ناگهان به‌شان دَرِ AI باز کند.
+     */
+    public const AI_PREFIX = 'ai:';
+
+    /**
+     * نردبانِ دامنه‌های AI — با خانوادهٔ یونیت‌های مصرفِ M1 هم‌خانواده است و
+     * آیندهٔ `/v1` روی همین فهرست ساخته می‌شود، بی‌مهاجرتِ churn:
+     *
+     *   ai:models:read  فهرستِ مدل‌های قابلِ فُروش (رجیستریِ M1)
+     *   ai:chat         تکمیلِ چت
+     *   ai:messages     گفت‌وگوی چندنوبته
+     *   ai:responses    پاسخ‌های stateدار
+     *   ai:embeddings   وکتوری‌سازی
+     *   ai:images       تولِد تصویر
+     *   ai:audio        صدا (تبدیلِ نوشتار و برعکس)
+     *
+     * 🔴 هیچ «همهٔ AI» در فهرست نیست: هر ability پول خرج می‌کند (به‌جز
+     *    خواندنِ مدل‌ها) و باید در رابطِ صدور **انتخاب** شود، نه پیش‌فرض.
+     */
+    public const AI_ABILITIES = [
+        'ai:models:read' => 'خواندنِ فهرستِ مدل‌های قابلِ خریدِ دروازهٔ AI',
+        'ai:chat'        => 'تکمیلِ چت — پول خرج می‌کند (سرِ هر توکن)',
+        'ai:messages'    => 'گفت‌وگوی چندنوبته — پول خرج می‌کند',
+        'ai:responses'   => 'پاسخ‌های stateدار — پول خرج می‌کند',
+        'ai:embeddings'  => 'وکتوری‌سازی — پول خرج می‌کند',
+        'ai:images'      => 'تولِد تصویر — پول خرج می‌کند',
+        'ai:audio'       => 'صدا (تبدیلِ نوشتار و برعکس) — پول خرج می‌کند',
+    ];
+
     protected $fillable = [
         'customer_id', 'name', 'token_hash', 'abilities', 'allowed_cidrs',
-        'expires_at', 'revoked_at', 'daily_spend_cap_irt',
+        'expires_at', 'revoked_at', 'daily_spend_cap_irt', 'ai_project_id',
         'last_used_at', 'last_used_ip',
     ];
 
@@ -121,6 +156,18 @@ class CustomerApiToken extends Model
 
     public function can(string $ability): bool
     {
+        /*
+        | 🔴 مرزِ AI — پیش از همهٔ منطقِ وایلدکارد. دامنهٔ «ai:*» از «*»
+        | نمی‌آید و از سلسله‌مراتبِ domains هم نمی‌آید: توکنی که روزی «*»
+        | گرفته بود، با مهاجرتِ M2 ناگهان دَرِ AI را باز نبیند. AI فقط با
+        | **تیکِ صریحِ همان ability** و **پروژهٔ bound** می‌آید.
+        */
+        if (str_starts_with($ability, self::AI_PREFIX)) {
+            $a = (array) ($this->abilities ?? []);
+
+            return in_array($ability, $a, true) && $this->ai_project_id !== null;
+        }
+
         $a = (array) ($this->abilities ?? []);
 
         if (in_array('*', $a, true) || in_array($ability, $a, true)) {
@@ -139,6 +186,30 @@ class CustomerApiToken extends Model
         }
 
         return false;
+    }
+
+    /** آیا این توکن قلمرو AI دارد (تیکِ صریحِ هر ability ساخته‌شده از نردبان)؟ */
+    public function isAiKey(): bool
+    {
+        $a = (array) ($this->abilities ?? []);
+
+        foreach ($a as $ab) {
+            if (is_string($ab) && str_starts_with($ab, self::AI_PREFIX)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * پروژهٔ boundِ توکنِ AI — نال در «غیرِ AI» و در «AIِ بی‌پروژه»؛ هر دو
+     * ردِ admission. رابطهٔ واقعی (نه find در هر سطر) تا صفحهٔ امنیت با
+     * `with('aiProject')` بسته شود و N+1 نماند.
+     */
+    public function aiProject(): BelongsTo
+    {
+        return $this->belongsTo(AiProject::class, 'ai_project_id');
     }
 
     /** توکن‌هایی که هنوز زنده‌اند */
@@ -185,6 +256,10 @@ class CustomerApiToken extends Model
      * صدور توکنِ تازه. خروجی: [مدل، متنِ خام]. متنِ خام فقط همین‌جا در دسترس
      * است و دیگر بازیابی نمی‌شود.
      *
+     * `$aiProjectId` **افزودنی** است: نال = توکنِ عادیِ همیشه‌بوده؛ پر = کلیدِ
+     * AI گره‌خورده با پروژه. صدورِ AI بدونِ پروژه از پیش ممنوع می‌شود (در
+     * کنترلر تهی چک می‌شود و در `isAiKey()` هم بی‌پروژه بی‌اثر است).
+     *
      * @param  array<int,string>  $abilities
      * @param  array<int,string>  $cidrs
      * @return array{0:self,1:string}
@@ -195,6 +270,7 @@ class CustomerApiToken extends Model
         array $abilities = ['read'],
         array $cidrs = [],
         ?\DateTimeInterface $expiresAt = null,
+        ?int $aiProjectId = null,
     ): array {
         $plain = 'sn_'.bin2hex(random_bytes(24));   // پیشوندِ برند + ۴۸ رقمِ hex
 
@@ -205,6 +281,7 @@ class CustomerApiToken extends Model
             'abilities'     => array_values(array_unique($abilities)),
             'allowed_cidrs' => array_values(array_filter($cidrs)),
             'expires_at'    => $expiresAt,
+            'ai_project_id' => $aiProjectId,
         ]);
 
         return [$token, $plain];
