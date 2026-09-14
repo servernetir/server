@@ -185,6 +185,7 @@ if ($ids) {
      دست‌نخورده بمانند. قاعده‌هایش انتهای site.css است. --}}
 <body @class(['imp-on' => $impBar])>
 @include('partials.gtm-body')
+@include('partials.analytics-consent')
 
 <a class="skip-link" href="#main">{{ __('ui.skip') }}</a>
 <div id="progress"></div>

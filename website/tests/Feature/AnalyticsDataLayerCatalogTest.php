@@ -15,14 +15,12 @@ class AnalyticsDataLayerCatalogTest extends TestCase
         $this->assertEquals([
             'event'   => 'sign_up',
             'method'  => 'mobile_otp',
-            'user_id' => '9999',
         ], session(DataLayerService::SESSION_AUTH_KEY));
 
         DataLayerService::flashLogin($mockCustomer, 'mobile_otp');
         $this->assertEquals([
             'event'   => 'login',
             'method'  => 'mobile_otp',
-            'user_id' => '9999',
         ], session(DataLayerService::SESSION_AUTH_KEY));
     }
 
@@ -30,9 +28,27 @@ class AnalyticsDataLayerCatalogTest extends TestCase
     {
         $response = $this->get('/');
         $response->assertOk();
-        $response->assertSee('window.ServerNetAnalytics', false);
+        $response->assertSee('ServerNetAnalytics=w.ServerNetAnalytics', false);
         $response->assertSee('view_item_list', false);
         $response->assertSee('begin_checkout', false);
         $response->assertSee('configure_product', false);
+        $response->assertSee("gtag('consent','default'", false);
+        $response->assertSee('analytics-consent', false);
+        $response->assertSee('trackFunnel', false);
+        $response->assertDontSee("auth('customer')->id()", false);
+    }
+
+    public function test_disabled_analytics_does_not_render_or_open_google_csp_hosts(): void
+    {
+        config()->set('services.gtm.enabled', false);
+        config()->set('services.gtm.id', 'GTM-TEST123');
+
+        $response = $this->get('/')->assertOk();
+        $response->assertDontSee('googletagmanager.com', false);
+        $response->assertDontSee('analytics-consent', false);
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringNotContainsString('googletagmanager.com', $csp);
+        $this->assertStringNotContainsString('google-analytics.com', $csp);
     }
 }

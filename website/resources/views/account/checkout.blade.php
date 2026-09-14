@@ -330,6 +330,44 @@
   });
 
   render();
+
+  // Privacy-safe GA4 funnel: product choices only; never domain, IP or customer data.
+  var analyticsItem={
+    item_id:@json($product->slug),
+    item_name:@json($product->displayName()),
+    item_category:@json((string) $product->category),
+    quantity:1
+  };
+  var analyticsParams=function(stage){
+    var selection=pick();
+    var country=document.querySelector('input[name="country"]:checked');
+    var domainMode=document.querySelector('input[name="domain_mode"]:checked');
+    var eventItem=Object.assign({},analyticsItem,{
+      item_variant:selection.cycle||'',
+      location_id:country?country.value:''
+    });
+    return {
+      funnel_stage:stage,
+      billing_cycle:selection.cycle||'',
+      server_location:country?country.value:'',
+      domain_mode:domainMode?domainMode.value:'',
+      ecommerce:{items:[eventItem]}
+    };
+  };
+  if(window.ServerNetAnalytics){
+    window.ServerNetAnalytics.track('checkout_progress',analyticsParams('service_configuration'));
+  }
+  document.querySelectorAll('#co-form input[type="radio"]').forEach(function(radio){
+    radio.addEventListener('change',function(){
+      if(window.ServerNetAnalytics){window.ServerNetAnalytics.track('configure_product',analyticsParams('configuration_changed'));}
+    });
+  });
+  var orderForm=document.getElementById('co-form');
+  if(orderForm){
+    orderForm.addEventListener('submit',function(){
+      if(window.ServerNetAnalytics){window.ServerNetAnalytics.track('add_to_cart',analyticsParams('configuration_complete'));}
+    });
+  }
 })();
 </script>
 @endsection

@@ -1,130 +1,99 @@
-{{-- گوگل تگ منیجر و لایه داده‌های تحلیلی (DataLayer) سرورنت --}}
 @php
-    $gtmId = config('services.gtm.id', 'GTM-MRSC7BF7');
+    $analyticsEnabled = (bool) config('services.gtm.enabled')
+        && preg_match('/^GTM-[A-Z0-9]+$/', (string) config('services.gtm.id'));
+    $gtmId = (string) config('services.gtm.id');
 @endphp
 
-@if(!empty($gtmId))
+@if($analyticsEnabled)
 <script>
-window.dataLayer = window.dataLayer || [];
+(function(w,d,id){
+  w.dataLayer=w.dataLayer||[];
+  w.gtag=w.gtag||function(){w.dataLayer.push(arguments);};
+  var cookie=(d.cookie.match(/(?:^|;\s*)snet_analytics_consent=(granted|denied)(?:;|$)/)||[])[1]||'';
+  var granted=cookie==='granted', pending=[];
 
-{{-- ۱. رویداد خرید فلش‌شده --}}
-@if(session()->has(\App\Services\Analytics\DataLayerService::SESSION_PURCHASE_KEY))
-window.dataLayer.push({!! json_encode(session(\App\Services\Analytics\DataLayerService::SESSION_PURCHASE_KEY), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!});
-@endif
+  w.gtag('consent','default',{
+    analytics_storage:granted?'granted':'denied',
+    ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500
+  });
 
-{{-- ۲. رویدادهای احراز هویت (ثبت‌نام و ورود) --}}
-@if(session()->has(\App\Services\Analytics\DataLayerService::SESSION_AUTH_KEY))
-window.dataLayer.push({!! json_encode(session(\App\Services\Analytics\DataLayerService::SESSION_AUTH_KEY), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!});
-@endif
+  function pushEvent(name,params){
+    var payload=Object.assign({event:name},params||{});
+    if(payload.ecommerce){w.dataLayer.push({ecommerce:null});}
+    w.dataLayer.push(payload);
+  }
 
-{{-- ۳. سایر رویدادهای فلش‌شده عمومی --}}
-@if(session()->has(\App\Services\Analytics\DataLayerService::SESSION_GENERIC_KEY))
-window.dataLayer.push({!! json_encode(session(\App\Services\Analytics\DataLayerService::SESSION_GENERIC_KEY), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!});
-@endif
-
-{{-- ۴. مشخصات کاربر وارد شده (User Properties) --}}
-@auth('customer')
-window.dataLayer.push({
-    'user_id': '{{ (string) auth('customer')->id() }}',
-    'customer_status': 'authenticated'
-});
-@endauth
-
-{{-- ۵. هلپر جامع کلاینت برای کاتالوگ رویدادهای سرورنت --}}
-window.ServerNetAnalytics = {
-    push: function(eventData) {
-        try {
-            window.dataLayer = window.dataLayer || [];
-            window.dataLayer.push(eventData);
-        } catch (e) {
-            console.warn('[Analytics] error pushing dataLayer', e);
-        }
-    },
-    // مشاهده لیست محصولات و پلن‌ها (view_item_list)
-    viewItemList: function(listName, items) {
-        this.push({
-            event: 'view_item_list',
-            ecommerce: {
-                item_list_name: listName,
-                items: items || []
-            }
-        });
-    },
-    // مشاهده یک محصول / پلن خاص (view_item)
-    viewItem: function(item, currency) {
-        this.push({
-            event: 'view_item',
-            ecommerce: {
-                currency: currency || 'IRT',
-                value: item.price || 0,
-                items: [item]
-            }
-        });
-    },
-    // شروع فرآیند تسویه حساب (begin_checkout)
-    beginCheckout: function(item, cycle, currency) {
-        this.push({
-            event: 'begin_checkout',
-            ecommerce: {
-                currency: currency || 'IRT',
-                value: item.price || 0,
-                billing_cycle: cycle || 'monthly',
-                items: [item]
-            }
-        });
-    },
-    // کانفیگوراتور و سفارشی‌سازی سرور (configure_product)
-    configureProduct: function(specs) {
-        this.push({
-            event: 'configure_product',
-            cpu_cores: specs.cpu || null,
-            ram_gb: specs.ram || null,
-            datacenter: specs.datacenter || null,
-            product_family: specs.family || null,
-            selected_os: specs.os || null,
-            price_toman: specs.price || null
-        });
-    },
-    // جستجوی نام دامنه (domain_search)
-    domainSearch: function(domain, isAvailable) {
-        this.push({
-            event: 'domain_search',
-            search_term: domain,
-            domain_available: typeof isAvailable === 'boolean' ? isAvailable : null
-        });
-    },
-    // استفاده از ابزارهای شبکه و سئو (use_tool)
-    useTool: function(toolName, action) {
-        this.push({
-            event: 'use_tool',
-            tool_name: toolName,
-            tool_action: action || 'run'
-        });
-    },
-    // کپی آی‌پی یا اطلاعات مهم سرور (copy_ip)
-    copyInfo: function(infoType, value) {
-        this.push({
-            event: 'copy_ip',
-            info_type: infoType || 'ip_address',
-            copied_value: value || ''
-        });
-    },
-    // ثبت سرنخ و فرم لید (generate_lead)
-    generateLead: function(formName, intent) {
-        this.push({
-            event: 'generate_lead',
-            form_name: formName,
-            lead_intent: intent || 'inquiry'
-        });
+  var analytics=w.ServerNetAnalytics=w.ServerNetAnalytics||{};
+  analytics.track=function(name,params){
+    name=String(name||'');
+    if(!/^[a-z][a-z0-9_]{1,39}$/.test(name))return;
+    if(granted){pushEvent(name,params);return;}
+    if(cookie!=='denied'&&pending.length<40){pending.push([name,params||{}]);}
+  };
+  analytics.push=function(eventData){
+    if(!eventData||typeof eventData!=='object')return;
+    var data=Object.assign({},eventData),name=data.event;delete data.event;this.track(name,data);
+  };
+  analytics.trackFunnel=function(internal,attrs){
+    attrs=attrs||{};
+    var map={product_page_view:'view_item',order_summary_view:'view_cart',cycle_selected:'configure_product',checkout_click:'begin_checkout'};
+    var name=map[internal];if(!name)return;
+    var cycle=String(attrs.cycle_at_click||attrs.cycle||'').slice(0,16);
+    this.track(name,{
+      funnel_stage:String(internal).slice(0,40),traffic_bucket:String(attrs.ref||'').slice(0,32),billing_cycle:cycle,
+      ecommerce:{items:[{item_id:String(attrs.sku||'servernet-service').slice(0,64),item_name:String(attrs.sku||'ServerNet service').slice(0,100),item_category:String(attrs.product_line||'service').slice(0,40),item_variant:cycle,quantity:1}]}
+    });
+  };
+  analytics.viewItemList=function(listName,items){this.track('view_item_list',{ecommerce:{item_list_name:String(listName||'catalog').slice(0,100),items:items||[]}});};
+  analytics.commerce=function(item,currency){
+    var result=Object.assign({},item||{}),code=String(currency||'IRT').toUpperCase();
+    if(code==='IRT'){
+      code='IRR';
+      if(result.price!==undefined){result.price=Number(result.price||0)*10;}
     }
-};
-</script>
+    return {item:result,currency:code,value:Number(result.price||0)};
+  };
+  analytics.viewItem=function(item,currency){var c=this.commerce(item,currency);this.track('view_item',{ecommerce:{currency:c.currency,value:c.value,items:[c.item]}});};
+  analytics.beginCheckout=function(item,cycle,currency){var c=this.commerce(item,currency);this.track('begin_checkout',{billing_cycle:cycle||'monthly',ecommerce:{currency:c.currency,value:c.value,items:[c.item]}});};
+  analytics.configureProduct=function(specs){
+    specs=specs||{};this.track('configure_product',{cpu_cores:specs.cpu||null,ram_gb:specs.ram||null,datacenter:String(specs.datacenter||'').slice(0,32),product_family:String(specs.family||'').slice(0,32),selected_os:String(specs.os||'').slice(0,32),price_irr:specs.price?Number(specs.price)*10:null});
+  };
+  analytics.domainSearch=function(domain,isAvailable){
+    var value=String(domain||'').trim().toLowerCase(),parts=value.split('.');
+    this.track('domain_search',{domain_tld:parts.length>1?parts.pop().slice(0,16):'',domain_length:value.length,domain_available:typeof isAvailable==='boolean'?isAvailable:null});
+  };
+  analytics.useTool=function(toolName,action){this.track('use_tool',{tool_name:String(toolName||'').slice(0,60),tool_action:String(action||'run').slice(0,32)});};
+  analytics.copyInfo=function(infoType){this.track('copy_ip',{info_type:String(infoType||'ip_address').slice(0,32)});};
+  analytics.generateLead=function(formName,intent){this.track('generate_lead',{form_name:String(formName||'').slice(0,60),lead_intent:String(intent||'inquiry').slice(0,32)});};
+  analytics.grant=function(){granted=true;cookie='granted';while(pending.length){var item=pending.shift();pushEvent(item[0],item[1]);}};
+  analytics.deny=function(){granted=false;cookie='denied';pending.length=0;};
 
-<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','{{ $gtmId }}');</script>
-<!-- End Google Tag Manager -->
+  w.ServerNetAnalyticsConsent=w.ServerNetAnalyticsConsent||{
+    load:function(){
+      if(d.getElementById('snet-gtm'))return;
+      var s=d.createElement('script');s.id='snet-gtm';s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);d.head.appendChild(s);
+    },
+    set:function(value){
+      var allow=value==='granted';
+      d.cookie='snet_analytics_consent='+(allow?'granted':'denied')+'; Path=/; Max-Age=31536000; SameSite=Lax; Secure';
+      w.gtag('consent','update',{analytics_storage:allow?'granted':'denied'});
+      if(allow){analytics.grant();this.load();}else{analytics.deny();}
+      w.dispatchEvent(new CustomEvent('servernet:analytics-consent',{detail:{granted:allow}}));
+    },
+    open:function(){w.dispatchEvent(new CustomEvent('servernet:analytics-open'));}
+  };
+
+  @auth('customer')
+  w.dataLayer.push({customer_status:'authenticated'});
+  @endauth
+
+  @foreach([\App\Services\Analytics\DataLayerService::SESSION_PURCHASE_KEY, \App\Services\Analytics\DataLayerService::SESSION_AUTH_KEY, \App\Services\Analytics\DataLayerService::SESSION_GENERIC_KEY] as $analyticsSessionKey)
+  @if(session()->has($analyticsSessionKey))
+  analytics.push({!! json_encode(session($analyticsSessionKey), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!});
+  @endif
+  @endforeach
+
+  if(granted){analytics.grant();w.ServerNetAnalyticsConsent.load();}
+})(window,document,@json($gtmId));
+</script>
 @endif

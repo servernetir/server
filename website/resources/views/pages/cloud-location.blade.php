@@ -321,6 +321,7 @@
     var ref = /\/blog\//.test(document.referrer) ? 'blog' : (document.referrer ? (document.referrer.indexOf(location.host) > -1 ? 'site' : 'external') : 'direct');
     var b = new Blob([JSON.stringify({ event: 'product_page_view', sku: c.sku, product_line: c.line, ref: ref, _token: m ? m.content : '' })], { type: 'application/json' });
     if (navigator.sendBeacon) { navigator.sendBeacon(c.u, b); }
+    if (window.ServerNetAnalytics) { window.ServerNetAnalytics.trackFunnel('product_page_view', {sku:c.sku,product_line:c.line,ref:ref}); }
   } catch (e) {}
 })();
 </script>

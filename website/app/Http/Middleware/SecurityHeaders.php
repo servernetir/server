@@ -52,9 +52,19 @@ class SecurityHeaders
         }
 
         if ($isHtml) {
+            $analytics = (bool) config('services.gtm.enabled')
+                && preg_match('/^GTM-[A-Z0-9]+$/', (string) config('services.gtm.id'));
+            $scriptSrc = "script-src 'self' 'unsafe-inline'".($analytics ? ' https://www.googletagmanager.com' : '');
+            $connectSrc = $this->isCloudConsole($request) ? "connect-src 'self' wss:" : "connect-src 'self'";
+            $frameSrc = "frame-src 'self' https://www.openstreetmap.org";
+            if ($analytics) {
+                $connectSrc .= ' https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com';
+                $frameSrc .= ' https://www.googletagmanager.com';
+            }
+
             $csp = implode('; ', [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+                $scriptSrc,
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com data:",
                 // blob: لازم است چون ابزارهای تصویرِ /webtools فایل کاربر را با
@@ -71,8 +81,8 @@ class SecurityHeaders
                 // عمداً `wss:` کلی است و نامِ میزبانِ زیرساخت در هدر نمی‌آید؛
                 // وگرنه هدرِ پاسخِ همان صفحه، تأمین‌کننده را لو می‌داد. دامنه هم
                 // فقط روی همین مسیر باز می‌شود، نه سراسرِ سایت.
-                $this->isCloudConsole($request) ? "connect-src 'self' wss: https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" : "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
-                "frame-src 'self' https://www.openstreetmap.org https://www.googletagmanager.com",
+                $connectSrc,
+                $frameSrc,
                 "frame-ancestors 'self'",
                 "object-src 'none'",
                 "base-uri 'self'",
