@@ -18,6 +18,16 @@ if [ ! -f "$APP/artisan" ] || [ ! -d "$APP/vendor" ]; then
   exit 1
 fi
 
+if [ -x /opt/cpanel/ea-php84/root/usr/bin/php ]; then
+  PHP_BIN=/opt/cpanel/ea-php84/root/usr/bin/php
+else
+  PHP_BIN="$(command -v php 2>/dev/null || true)"
+fi
+if [ -z "$PHP_BIN" ] || ! "$PHP_BIN" -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'; then
+  echo "FATAL: PHP 8.4 یا جدیدتر برای این نسخه در دسترس نیست؛ هیچ فایلی نوشته نشد."
+  exit 1
+fi
+
 FREE_MB="$(df -Pm "$HOME" | awk 'NR==2{print $4}')"
 if [ "${FREE_MB:-0}" -lt 500 ]; then
   echo "FATAL: فضای آزاد کمتر از 500MB است."
@@ -114,7 +124,6 @@ for rel in $APP_FILES; do
   cp "$STAGE/$rel" "$dest"
 done
 
-PHP_BIN="$(command -v php)"
 for rel in app/Http/Middleware/SecurityHeaders.php app/Services/Analytics/DataLayerService.php config/services.php; do
   "$PHP_BIN" -l "$APP/$rel" >/dev/null || { echo "FATAL lint: $rel"; exit 3; }
 done
