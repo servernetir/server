@@ -573,6 +573,42 @@
 </script>
 @endif
 
+@if($invoice->isPayable())
+@php $analyticsInvoice = \App\Services\Analytics\DataLayerService::invoicePayload($invoice); @endphp
+<script>
+(function(){
+  if(!window.ServerNetAnalytics)return;
+  var invoiceEvent=@json($analyticsInvoice),eventName=invoiceEvent.event;
+  delete invoiceEvent.event;
+  window.ServerNetAnalytics.track(eventName,invoiceEvent);
+
+  document.querySelectorAll('.pm-card input').forEach(function(input){
+    input.addEventListener('change',function(){
+      var type=String(this.value||'').slice(0,24);
+      window.ServerNetAnalytics.track('add_payment_info',Object.assign({},invoiceEvent,{
+        payment_type:type,funnel_stage:'payment_method_selected',
+        ecommerce:Object.assign({},invoiceEvent.ecommerce,{payment_type:type})
+      }));
+    });
+  });
+
+  document.querySelectorAll('form').forEach(function(form){
+    var action=form.getAttribute('action')||'';
+    if(!/(\/pay(?:-credit)?|\/bank-transfer|\/crypto)$/.test(action))return;
+    form.addEventListener('submit',function(){
+      var gateway=form.querySelector('[name="gateway"]');
+      var type=gateway?gateway.value:(action.indexOf('pay-credit')!==-1?'credit':(action.indexOf('bank-transfer')!==-1?'bank_transfer':'crypto'));
+      type=String(type).slice(0,24);
+      window.ServerNetAnalytics.track('payment_attempt',Object.assign({},invoiceEvent,{
+        payment_type:type,funnel_stage:'payment_attempt',
+        ecommerce:Object.assign({},invoiceEvent.ecommerce,{payment_type:type})
+      }));
+    });
+  });
+})();
+</script>
+@endif
+
 @if($invoice->payments->isNotEmpty())
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>{{ __('ui.inv_attempts') }}</h2></div>

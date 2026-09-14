@@ -547,6 +547,7 @@ return [
     | مقدار پیش‌فرض GTM-MRSC7BF7 است و از متغیر GTM_CONTAINER_ID در .env خوانده می‌شود.
     */
     'gtm' => [
+        'enabled' => env('ANALYTICS_ENABLED', true),
         'id' => env('GTM_CONTAINER_ID', 'GTM-MRSC7BF7'),
     ],
 ];

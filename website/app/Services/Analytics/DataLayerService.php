@@ -2,7 +2,7 @@
 
 namespace App\Services\Analytics;
 
-use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
 
@@ -23,50 +23,68 @@ class DataLayerService
     public static function flashPurchase(Payment $payment): void
     {
         try {
-            $invoice = $payment->relationLoaded('invoice') ? $payment->invoice : $payment->invoice()->first();
-            $items = [];
-
-            if ($invoice) {
-                $invoiceItems = $invoice->relationLoaded('items') ? $invoice->items : $invoice->items()->get();
-                foreach ($invoiceItems as $item) {
-                    $items[] = [
-                        'item_id'   => (string) ($item->id ?? $item->service_id ?? $item->title),
-                        'item_name' => (string) $item->title,
-                        'price'     => (float) ($item->unit_price ?? $item->line_total),
-                        'quantity'  => (int) ($item->quantity ?? 1),
-                        'item_category' => (string) ($item->type ?? 'hosting_cloud'),
-                    ];
-                }
-            }
-
-            if (empty($items)) {
-                $items[] = [
-                    'item_id'       => (string) ($payment->invoice_id ?? $payment->id),
-                    'item_name'     => 'خدمات میزبانی و سرور ابری سرورنت',
-                    'price'         => (float) $payment->amount,
-                    'quantity'      => 1,
-                    'item_category' => 'cloud_service',
-                ];
-            }
-
-            $payload = [
-                'event'     => 'purchase',
-                'ecommerce' => [
-                    'transaction_id' => (string) ($payment->ref_id ?: ('PAY-'.$payment->id)),
-                    'value'          => (float) $payment->amount,
-                    'currency'       => (string) ($payment->currency_code ?: 'IRT'),
-                    'tax'            => (float) ($invoice?->tax ?? 0),
-                    'items'          => $items,
-                ],
-            ];
-
-            session()->flash(self::SESSION_PURCHASE_KEY, $payload);
+            session()->flash(self::SESSION_PURCHASE_KEY, self::purchasePayload($payment));
         } catch (\Throwable $e) {
-            Log::warning('خطا در آماده‌سازی دیتالایر خرید GA4', [
+            // Analytics must never break settlement. Customer, gateway and
+            // card data deliberately stay out of this diagnostic record.
+            Log::warning('analytics.purchase_payload_failed', [
                 'payment_id' => $payment->id,
-                'error'      => $e->getMessage(),
+                'invoice_id' => $payment->invoice_id,
+                'exception'  => $e::class,
             ]);
         }
+    }
+
+    /** @return array{event:string,ecommerce:array<string,mixed>} */
+    public static function purchasePayload(Payment $payment): array
+    {
+        $invoice = $payment->relationLoaded('invoice')
+            ? $payment->invoice
+            : $payment->invoice()->with('items')->first();
+
+        [$currency, $multiplier] = self::normaliseCurrency(
+            (string) ($payment->currency_code ?: $invoice?->currency_code ?: 'IRR')
+        );
+        $items = $invoice ? self::invoiceItems($invoice, $multiplier) : [];
+
+        if ($items === []) {
+            $items[] = [
+                'item_id'       => 'invoice:'.(string) ($payment->invoice_id ?: 'unknown'),
+                'item_name'     => 'ServerNet service',
+                'item_category' => (string) ($invoice?->kind ?: 'service'),
+                'price'         => (int) $payment->amount * $multiplier,
+                'quantity'      => 1,
+            ];
+        }
+
+        return [
+            'event' => 'purchase',
+            'ecommerce' => [
+                // Internal payment ID is stable and idempotent; a gateway
+                // reference may be recycled or reveal provider details.
+                'transaction_id' => 'payment:'.(string) $payment->id,
+                'value'          => (int) $payment->amount * $multiplier,
+                'currency'       => $currency,
+                'tax'            => (int) ($invoice?->tax ?? 0) * $multiplier,
+                'items'          => $items,
+            ],
+        ];
+    }
+
+    /** Build a PII-free invoice-stage event using the purchase contract. */
+    public static function invoicePayload(Invoice $invoice, string $event = 'view_cart'): array
+    {
+        [$currency, $multiplier] = self::normaliseCurrency((string) ($invoice->currency_code ?: 'IRR'));
+
+        return [
+            'event' => preg_match('/^[a-z][a-z0-9_]{1,39}$/', $event) ? $event : 'view_cart',
+            'funnel_stage' => 'invoice',
+            'ecommerce' => [
+                'currency' => $currency,
+                'value' => (int) $invoice->total * $multiplier,
+                'items' => self::invoiceItems($invoice, $multiplier),
+            ],
+        ];
     }
 
     /**
@@ -78,7 +96,6 @@ class DataLayerService
             session()->flash(self::SESSION_AUTH_KEY, [
                 'event'   => 'sign_up',
                 'method'  => $method,
-                'user_id' => (string) ($customer->id ?? ''),
             ]);
         } catch (\Throwable) {
             // ایمن در برابر خطا
@@ -94,7 +111,6 @@ class DataLayerService
             session()->flash(self::SESSION_AUTH_KEY, [
                 'event'   => 'login',
                 'method'  => $method,
-                'user_id' => (string) ($customer->id ?? ''),
             ]);
         } catch (\Throwable) {
             // ایمن در برابر خطا
@@ -113,5 +129,44 @@ class DataLayerService
         } catch (\Throwable) {
             // ایمن در برابر خطا
         }
+    }
+
+    /** @return array{0:string,1:int} */
+    private static function normaliseCurrency(string $currency): array
+    {
+        $currency = strtoupper($currency);
+
+        return $currency === 'IRT' ? ['IRR', 10] : [$currency ?: 'IRR', 1];
+    }
+
+    /** @return array<int,array<string,int|string>> */
+    private static function invoiceItems(Invoice $invoice, int $multiplier): array
+    {
+        $items = [];
+        $invoiceItems = $invoice->relationLoaded('items') ? $invoice->items : $invoice->items()->get();
+
+        foreach ($invoiceItems as $item) {
+            $quantity = max(1, (int) ($item->quantity ?: 1));
+            $unitPrice = (int) ($item->unit_price ?: intdiv((int) $item->line_total, $quantity));
+            $items[] = array_filter([
+                'item_id'       => 'invoice_item:'.(string) $item->id,
+                'item_name'     => mb_substr((string) $item->title, 0, 100),
+                'item_category' => (string) ($invoice->kind ?: 'service'),
+                'price'         => $unitPrice * $multiplier,
+                'quantity'      => $quantity,
+            ], static fn ($value) => $value !== '');
+        }
+
+        if ($items === []) {
+            $items[] = [
+                'item_id'       => 'invoice:'.(string) $invoice->id,
+                'item_name'     => 'ServerNet service',
+                'item_category' => (string) ($invoice->kind ?: 'service'),
+                'price'         => (int) $invoice->total * $multiplier,
+                'quantity'      => 1,
+            ];
+        }
+
+        return $items;
     }
 }
