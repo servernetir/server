@@ -204,7 +204,7 @@ class AiReservations
     {
         return $this->transition($reservation, function (AiReservation $r): AiReservation {
             if ($r->status === AiReservation::STATUS_RELEASED) {
-                return $r;   // idempotent — دوباره آزاد نمی‌کند
+                return $r;   // Idempotent release of an already released reservation.
             }
 
             if ($r->status === AiReservation::STATUS_SETTLED) {

@@ -267,6 +267,24 @@ class AiReservationStress extends Command
             $checks['E_F_duplicates_idempotent'] = $effective <= 1;           // فقط یک گذارِ مؤثر
             $checks['G_race_converges_one_terminal_state'] = $res !== null && in_array($res->status, ['settled', 'released'], true);
             $checks['I_ledger_matches_outcome'] = $ledgerSum === $credit - ($res !== null && $res->status === 'settled' ? $amount : 0);
+
+            /*
+            | H — exactness of the active reservation sum: the EXPECTED side
+            | is computed independently from the ai_reservations rows
+            | (pending + unexpired), NOT through reservedOf()/heldOf, so
+            | this is a real cross-check of Wallet::reservedOf against the
+            | reservation table itself.
+            */
+            $expectedHeld = (int) \App\Models\AiReservation::query()
+                ->where('customer_id', $customer->id)
+                ->where('currency_code', 'IRT')
+                ->where('status', \App\Models\AiReservation::STATUS_PENDING)
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })
+                ->sum('amount_irt');
+
+            $checks['H_active_reservation_sum_is_exact'] = $held === $expectedHeld;
         }
 
         $pass = ! in_array(false, $checks, true);
