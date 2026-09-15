@@ -9,4 +9,7 @@
 .claude/**/*.pem
 .claude/**/*.secret.*
 .claude/mcp-config*.json
+# autonomous supervisor runtime state (only .gitkeep is tracked)
+.claude/supervisor/state/*
+!.claude/supervisor/state/.gitkeep
 __MACOSX/

@@ -89,6 +89,101 @@ Assert-True 'API failure -> ASK,FALLBACK'      ($r.Decision -eq 'ASK' -and $r.So
 Assert-True 'malformed/unreachable -> not ALLOW' ($r.Decision -ne 'ALLOW') ($r | ConvertTo-Json -Compress)
 
 Write-Output ""
+Write-Output "=== DeepSeek parser & retry (mocked transport, no live API) ==="
+
+# Deterministic seam: the real Invoke-DeepSeekHttp (dot-sourced above) is
+# replaced by a mock that returns queued results or queued exceptions and
+# counts every call. Never touches the network.
+$script:MockCalls = 0
+$script:MockResponses = New-Object System.Collections.Generic.List[object]
+
+function Mock-Invoke-DeepSeekHttp {
+    param([string]$Body, [string]$Key)
+    $script:MockCalls++
+    $next = $script:MockResponses[0]
+    $script:MockResponses.RemoveAt(0)
+    if ($next -is [System.Exception]) { throw $next }
+    return $next
+}
+
+function New-MockResult {
+    param([string]$Content, [string]$Finish = 'stop')
+    $payload = @{ choices = @( @{ message = @{ content = $Content }; finish_reason = $Finish } ) }
+    return ConvertFrom-Json -InputObject ($payload | ConvertTo-Json -Depth 5)
+}
+
+function New-Exception {
+    param([string]$Message)
+    return New-Object System.Exception -ArgumentList $Message
+}
+
+function Assert-DeepSeek {
+    param([string]$Name, [string]$ExpectedDecision, [string]$ExpectedSource,
+          [int]$ExpectedCalls, $First, $Second,
+          [string]$ReasonContains = '', [string]$ReasonNotContains = '')
+    $script:MockCalls = 0
+    $script:MockResponses.Clear()
+    $script:MockResponses.Add($First)
+    if ($null -ne $Second) { $script:MockResponses.Add($Second) }
+    $env:DEEPSEEK_API_KEY = 'test-only-dummy-key'
+    $r = Invoke-DeepSeekClassify -Command 'git commit -m test'
+    $ok = ($r.Decision -eq $ExpectedDecision) -and ($r.Source -eq $ExpectedSource) -and ($script:MockCalls -eq $ExpectedCalls)
+    if ($ReasonContains) { $ok = $ok -and ($r.Reason -match $ReasonContains) }
+    if ($ReasonNotContains) { $ok = $ok -and ($r.Reason -notmatch $ReasonNotContains) }
+    Assert-True $Name $ok ("calls={0} got: {1}" -f $script:MockCalls, ($r | ConvertTo-Json -Compress))
+    return $r
+}
+
+# Re-point the seam at the mock (dot-source defined the real transport).
+function Invoke-DeepSeekHttp {
+    param([string]$Body, [string]$Key)
+    return Mock-Invoke-DeepSeekHttp -Body $Body -Key $Key
+}
+$goodAsk = New-MockResult '{"decision":"ASK","reason":"needs human review"}'
+$goodDeny = New-MockResult '{"decision":"DENY","reason":"destructive command"}'
+$goodAllow = New-MockResult '{"decision":"ALLOW","reason":"harmless read"}'
+$truncated = New-MockResult '{"decision":"ASK","reason":"git commit is a'
+
+Assert-DeepSeek 'parser: direct valid ASK JSON'    'ASK'  'DEEPSEEK' 1 $goodAsk
+Assert-DeepSeek 'parser: direct valid DENY JSON'   'DENY' 'DEEPSEEK' 1 $goodDeny
+Assert-DeepSeek 'parser: advisory ALLOW downgraded' 'ASK' 'DEEPSEEK' 1 $goodAllow 'advisory-ALLOW downgraded'
+$fence = ([string][char]96) * 3
+Assert-DeepSeek 'parser: fenced json block'        'DENY' 'DEEPSEEK' 1 (New-MockResult ($fence + 'json' + "`n" + '{"decision":"DENY","reason":"fenced dangerous"}' + "`n" + $fence))
+Assert-DeepSeek 'parser: prose around one object'  'ASK'  'DEEPSEEK' 1 (New-MockResult 'Sure. {"decision":"ASK","reason":"wrapped in prose"} Done.')
+Assert-DeepSeek 'parser: multiple objects AMBIGUOUS' 'ASK' 'FALLBACK' 1 (New-MockResult '{"decision":"ASK"} {"decision":"DENY"}') 'PARSE-AMBIGUOUS'
+Assert-DeepSeek 'parser: truncated -> one retry ok' 'ASK' 'DEEPSEEK' 2 $truncated $goodAsk
+Assert-DeepSeek 'parser: truncated twice -> no 3rd try' 'ASK' 'FALLBACK' 2 $truncated $truncated 'PARSE-TRUNCATED'
+Assert-DeepSeek 'parser: finish_reason=length -> retry' 'ASK' 'DEEPSEEK' 2 (New-MockResult 'the rest of the response was cut off' 'length') $goodAsk
+Assert-DeepSeek 'parser: malformed -> no retry'     'ASK' 'FALLBACK' 1 (New-MockResult 'I said {this is not json}') 'PARSE-MALFORMED'
+Assert-DeepSeek 'parser: invalid enum -> ASK'       'ASK' 'FALLBACK' 1 (New-MockResult '{"decision":"ALLOWED","reason":"x"}') 'PARSE-INVALID-SCHEMA'
+Assert-DeepSeek 'parser: missing decision -> ASK'   'ASK' 'FALLBACK' 1 (New-MockResult '{"reason":"x"}') 'PARSE-INVALID-SCHEMA'
+Assert-DeepSeek 'parser: missing reason -> generic' 'DENY' 'DEEPSEEK' 1 (New-MockResult '{"decision":"DENY"}') 'no reason provided by advisory classifier'
+Assert-DeepSeek 'parser: empty reason -> generic'   'ASK'  'DEEPSEEK' 1 (New-MockResult '{"decision":"ASK","reason":""}') 'no reason provided by advisory classifier'
+Assert-DeepSeek 'api: transient error -> one retry ok' 'ASK' 'DEEPSEEK' 2 (New-Exception 'Unable to connect to the remote server') $goodAsk
+Assert-DeepSeek 'api: 4xx error -> no retry'        'ASK' 'FALLBACK' 1 (New-Exception 'The remote server returned (400) Bad Request')
+Assert-DeepSeek 'api: transient twice -> ASK'       'ASK' 'FALLBACK' 2 (New-Exception 'The operation has timed out') (New-Exception 'The operation has timed out')
+Assert-DeepSeek 'secrets: error message redacted'   'ASK' 'FALLBACK' 1 (New-Exception "Authorization failed for token 'sk-live-abcdef123456'") -ReasonNotContains 'sk-live'
+
+$env:DEEPSEEK_API_KEY = ''
+$script:MockCalls = 0
+$script:MockResponses.Clear()
+$r = Invoke-DeepSeekClassify -Command 'git commit -m test'
+Assert-True 'parser: missing API key -> ASK, no call' ($r.Decision -eq 'ASK' -and $r.Source -eq 'FALLBACK' -and $script:MockCalls -eq 0) ($r | ConvertTo-Json -Compress)
+
+Write-Output ""
+Write-Output "=== Local hard DENY short-circuits DeepSeek ==="
+$tmpLog2 = Join-Path ([System.IO.Path]::GetTempPath()) ("sup-test-{0:N}.log" -f [guid]::NewGuid())
+$script:LogFile = $tmpLog2
+$env:DEEPSEEK_API_KEY = 'test-only-dummy-key'
+$script:MockCalls = 0
+$script:MockResponses.Clear()
+$script:MockResponses.Add($goodAllow)
+$out = Invoke-Supervisor -StdinJson '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git reset --hard HEAD"}}'
+$j = $out | ConvertFrom-Json
+Assert-True 'hard DENY: never invokes DeepSeek' ($script:MockCalls -eq 0 -and $j.hookSpecificOutput.permissionDecision -eq 'deny' -and $j.hookSpecificOutput.permissionDecisionReason -like 'LOCAL:*') $out
+Remove-Item -Force $tmpLog2 -Confirm:$false
+
+Write-Output ""
 Write-Output "=== Advisory limitation ==="
 Assert-True 'deepseek never downgrades decision pipeline' `
     ((Get-SupervisorDecision -Command 'git clean -fd').Source -eq 'LOCAL')

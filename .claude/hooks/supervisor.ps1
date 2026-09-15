@@ -15,6 +15,7 @@ $script:LogFile    = Join-Path $script:LogDir 'supervisor.log'
 $script:DeepSeekUrl = 'https://api.deepseek.com/chat/completions'
 $script:DeepSeekModel = 'deepseek-v4-pro'
 $script:DeepSeekTimeoutSec = 8
+$script:DeepSeekMaxTokens = 300
 
 # ------------------------------------------------------------------ rules
 
@@ -152,10 +153,122 @@ function Write-SupervisorLog {
     }
 }
 
+# ------------------------------------------------- response sanitisation
+
+function Convert-SanitizeSecrets {
+    # Scrubs secret-looking values from any text before it is logged,
+    # emitted, or embedded in a fallback reason. Mirrors the redaction
+    # rules used by Write-SupervisorLog.
+    param([string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $t = [regex]::Replace($Text, '(?i)(key|token|secret|password|authorization|bearer)\s*[=:]?\s*["'']?[a-z0-9_\-.]{10,}', '$1=<redacted>')
+    $t = [regex]::Replace($t, '(?i)\bsk-[a-z0-9_\-.]{6,}', '<redacted>')
+    return $t
+}
+
+function Test-TransientHttpError {
+    # True for clearly transient transport/API failures only (timeouts,
+    # connection errors, HTTP 5xx). Never true for structured 4xx responses.
+    param([string]$Message)
+    return ($Message -match '(?i)(timed out|unable to connect|the remote name|connection refused|response status code 5\d\d|\(5\d\d\) )')
+}
+
+# ------------------------------------------------------------------ parsers
+
+function Get-JsonCandidates {
+    # Scans text for top-level balanced `{ ... }` candidates, remaining
+    # escape- and string-aware inside JSON. Returns the complete candidates
+    # plus a flag telling whether the text ends mid-object or mid-string
+    # (the truncation signal from the content itself).
+    param([string]$Text)
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $depth = 0; $inString = $false; $escaped = $false; $start = -1
+    $chars = $Text.ToCharArray()
+    for ($i = 0; $i -lt $chars.Length; $i++) {
+        $ch = $chars[$i]
+        if ($inString) {
+            if ($escaped) { $escaped = $false }
+            elseif ($ch -eq '\') { $escaped = $true }
+            elseif ($ch -eq '"') { $inString = $false }
+            continue
+        }
+        if ($ch -eq '"') { $inString = $true; continue }
+        if ($ch -eq '{') {
+            if ($depth -eq 0) { $start = $i }
+            $depth++
+        } elseif ($ch -eq '}') {
+            if ($depth -gt 0) {
+                $depth--
+                if ($depth -eq 0 -and $start -ge 0) {
+                    $candidates.Add($Text.Substring($start, $i - $start + 1))
+                    $start = -1
+                }
+            }
+        }
+    }
+    return @{ Candidates = $candidates; Unbalanced = ($depth -gt 0 -or $inString -or ($start -ge 0)) }
+}
+
+function ConvertFrom-DeepSeekContent {
+    # Parses one model message into the canonical decision schema.
+    # Status is exactly one of:
+    #   OK | PARSE-TRUNCATED | PARSE-MALFORMED | PARSE-AMBIGUOUS | PARSE-INVALID-SCHEMA
+    # On OK, Decision is the validated enum value and Reason is always
+    # non-empty (generic substitute for missing/blank reasons).
+    param([string]$Content, [string]$FinishReason = '')
+
+    if ([string]::IsNullOrWhiteSpace($Content)) {
+        return @{ Status = 'PARSE-TRUNCATED' }   # output cut before any JSON
+    }
+
+    $scan = Get-JsonCandidates -Text $Content
+    $parsedList = @()
+    foreach ($cand in $scan.Candidates) {
+        $obj = $null
+        try { $obj = $cand | ConvertFrom-Json } catch { $obj = $null }
+        if ($obj) { $parsedList += $obj }
+    }
+
+    if ($parsedList.Count -gt 1) { return @{ Status = 'PARSE-AMBIGUOUS' } }
+    if ($parsedList.Count -eq 1) {
+        $obj = $parsedList[0]
+        # StrictMode-safe property access: never throw on a missing field.
+        $dProp = $obj.PSObject.Properties['decision']
+        if (-not $dProp) { return @{ Status = 'PARSE-INVALID-SCHEMA' } }
+        $decision = ([string]$dProp.Value).ToUpperInvariant()
+        if (($decision -ne 'ALLOW') -and ($decision -ne 'DENY') -and ($decision -ne 'ASK')) {
+            return @{ Status = 'PARSE-INVALID-SCHEMA' }
+        }
+        $reason = 'no reason provided by advisory classifier'
+        $rProp = $obj.PSObject.Properties['reason']
+        if ($rProp -and -not [string]::IsNullOrWhiteSpace([string]$rProp.Value)) {
+            $reason = [string]$rProp.Value
+        }
+        if ($reason.Length -gt 150) { $reason = $reason.Substring(0, 150) }
+        return @{ Status = 'OK'; Decision = $decision; Reason = $reason }
+    }
+
+    # Nothing parsed from the content — classify the failure.
+    if ($scan.Unbalanced) { return @{ Status = 'PARSE-TRUNCATED' } }
+    if ($scan.Candidates.Count -gt 0) { return @{ Status = 'PARSE-MALFORMED' } }
+    if ($FinishReason -eq 'length') { return @{ Status = 'PARSE-TRUNCATED' } }
+    return @{ Status = 'PARSE-MALFORMED' }
+}
+
+function Invoke-DeepSeekHttp {
+    # Real HTTP transport for the advisory call. Kept as a seam so tests can
+    # override this exact function after dot-sourcing (deterministic mocks,
+    # no live API in automated suites). Never logs or returns credentials.
+    param([string]$Body, [string]$Key)
+    return Invoke-RestMethod -Uri $script:DeepSeekUrl -Method Post -TimeoutSec $script:DeepSeekTimeoutSec `
+        -ContentType 'application/json' -Headers @{ Authorization = "Bearer $Key" } -Body $Body
+}
+
 function Invoke-DeepSeekClassify {
     # Advisory-only classification. Returns the parsed decision or a
     # fallback-ASK object on any failure. Never returns ALLOW for commands
-    # already hard-denied (DENY is decided before this runs).
+    # already hard-denied (DENY is decided before this runs), and no
+    # parser/API failure can ever be converted into ALLOW.
     param([string]$Command)
 
     $key = $env:DEEPSEEK_API_KEY
@@ -172,38 +285,68 @@ Classify the given command strictly as one of ALLOW / DENY / ASK:
 Respond ONLY with strict JSON: {"decision":"ALLOW|DENY|ASK","reason":"short reason"}
 '@
 
-    try {
-        $body = @{
-            model = $script:DeepSeekModel
-            messages = @(
-                @{ role = 'system'; content = $sysPrompt },
-                @{ role = 'user'; content = "cwd-independent command: $Command" }
-            )
-            response_format = @{ type = 'json_object' }
-            temperature = 0
-            max_tokens = 100
-        } | ConvertTo-Json -Depth 5
+    $maxAttempts = 2   # exactly ONE retry, and only for transient/truncated
+    $lastFail = ''
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            $bodyHashTable = @{
+                model = $script:DeepSeekModel
+                messages = @(
+                    @{ role = 'system'; content = $sysPrompt },
+                    @{ role = 'user'; content = "cwd-independent command: $Command" }
+                )
+                response_format = @{ type = 'json_object' }
+                temperature = 0
+                max_tokens = $script:DeepSeekMaxTokens
+            }
+            $body = ConvertTo-Json -InputObject $bodyHashTable -Depth 5 -Compress
 
-        $result = Invoke-RestMethod -Uri $script:DeepSeekUrl -Method Post -TimeoutSec $script:DeepSeekTimeoutSec `
-            -ContentType 'application/json' -Headers @{ Authorization = "Bearer $key" } -Body $body
+            $result = Invoke-DeepSeekHttp -Body $body -Key $key
 
-        $content = $result.choices[0].message.content
-        $parsed = $content | ConvertFrom-Json
-        $decision = ([string]$parsed.decision).ToUpperInvariant()
-        if (($decision -ne 'ALLOW') -and ($decision -ne 'DENY') -and ($decision -ne 'ASK')) {
-            return @{ Decision = 'ASK'; Reason = 'FALLBACK: malformed DeepSeek decision'; Source = 'FALLBACK' }
+            $content = $null
+            $finish = ''
+            try {
+                $choice = $result.choices[0]
+                $content = [string]$choice.message.content
+                $fr = $choice.PSObject.Properties['finish_reason']
+                if ($fr) { $finish = [string]$fr.Value }   # StrictMode-safe
+            } catch {
+                return @{ Decision = 'ASK'; Reason = 'FALLBACK: DeepSeek response rejected (response shell unreadable)'; Source = 'FALLBACK' }
+            }
+
+            $parsed = ConvertFrom-DeepSeekContent -Content $content -FinishReason $finish
+
+            if ($parsed.Status -eq 'OK') {
+                $decision = $parsed.Decision
+                $reason = Convert-SanitizeSecrets -Text $parsed.Reason
+                # Advisory only: DeepSeek cannot upgrade an ASK into ALLOW for
+                # anything that is not demonstrably read-only.
+                if ($decision -eq 'ALLOW') {
+                    return @{ Decision = 'ASK'; Reason = "advisory-ALLOW downgraded to ASK: $reason"; Source = 'DEEPSEEK' }
+                }
+                return @{ Decision = $decision; Reason = "DEEPSEEK: $reason"; Source = 'DEEPSEEK' }
+            }
+
+            if (($parsed.Status -eq 'PARSE-TRUNCATED') -or ($finish -eq 'length')) {
+                $lastFail = "DeepSeek truncated response (PARSE-TRUNCATED, finish_reason=$finish)"
+                if ($attempt -lt $maxAttempts) { continue }   # one retry only
+                break
+            }
+            # MALFORMED / AMBIGUOUS / INVALID-SCHEMA: deterministic failures — no retry.
+            $lastFail = ("DeepSeek response rejected ({0})" -f $parsed.Status)
+            break
+        } catch {
+            $snippet = Convert-SanitizeSecrets -Text ($_.Exception.Message)
+            if ($snippet.Length -gt 120) { $snippet = $snippet.Substring(0, 120) }
+            if (($attempt -lt $maxAttempts) -and (Test-TransientHttpError -Message $_.Exception.Message)) {
+                $lastFail = "DeepSeek transient API failure ($snippet)"
+                continue   # one retry for clearly transient transport errors
+            }
+            $lastFail = ("DeepSeek API failed ({0})" -f $snippet)
+            break
         }
-        $reason = [string]$parsed.reason
-        if ($reason.Length -gt 150) { $reason = $reason.Substring(0, 150) }
-        # Advisory only: DeepSeek cannot upgrade an ASK into ALLOW for
-        # anything that is not demonstrably read-only.
-        if ($decision -eq 'ALLOW') { $decision = 'ASK'; $reason = "advisory-ALLOW downgraded to ASK: $reason" }
-        elseif ($decision -eq 'DENY') { $reason = "DEEPSEEK: $reason" }
-        else { $reason = "DEEPSEEK: $reason" }
-        return @{ Decision = $decision; Reason = $reason; Source = 'DEEPSEEK' }
-    } catch {
-        return @{ Decision = 'ASK'; Reason = "FALLBACK: DeepSeek API failed ($($_.Exception.Message.Substring(0, [Math]::Min(80, $_.Exception.Message.Length))))"; Source = 'FALLBACK' }
     }
+    return @{ Decision = 'ASK'; Reason = "FALLBACK: $lastFail"; Source = 'FALLBACK' }
 }
 
 # PS 5.1 has no ConvertFrom-Json -AsHashtable; several helpers below use

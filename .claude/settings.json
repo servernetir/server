@@ -1,12 +1,38 @@
 {
+  "env": {
+    "DEEPSEEK_API_KEY": ""
+  },
+  "permissions": {
+    "blockReadsOutsideWorkingDirectories": false
+  },
   "hooks": {
-    "PreToolUse": [
+    "PreToolUse": [],
+    "UserPromptSubmit": [
       {
-        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/supervisor.ps1\""
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/project-supervisor.ps1\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/project-supervisor.ps1\""
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/task-completed.ps1\""
           }
         ]
       }

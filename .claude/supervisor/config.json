@@ -1,0 +1,38 @@
+{
+  "deepseek": {
+    "url": "https://api.deepseek.com/chat/completions",
+    "model": "deepseek-v4-pro",
+    "review_max_tokens": 500,
+    "routing_max_tokens": 250,
+    "timeout_sec": 8
+  },
+  "max_review_iterations": 5,
+  "max_taskcompleted_blocks": 3,
+  "activation_phrases": [
+    "ادامه پروژه رو پیش ببر",
+    "continue project autonomously",
+    "supervisor mode",
+    "continue milestone"
+  ],
+  "critical_keywords": [
+    "wallet", "balance", "credit", "debit", "billing", "pricing", "charge",
+    "reservation", "reserve", "settlement", "settle", "reconciliation",
+    "concurrency", "race", "locking", "lock", "idempotency", "idempotent",
+    "payment", "financial", "money", "currency",
+    "security", "authentication", "authorization", "auth", "token",
+    "secret", "encryption", "cryptography", "failover", "production"
+  ],
+  "secondary_sensitive_keywords": [
+    "invoice", "refund", "user data", "credentials", "password",    "permissions", "schema", "deploy", "queue worker", "daemon"
+  ],
+  "routine_keywords": [
+    "ui", "css", "button", "label", "layout", "view", "form",
+    "documentation", "docs", "readme", "text", "wording", "tooltip",
+    "crud", "localization", "translation", "lang", "refactor",
+    "rename", "comment", "test", "lint", "static analysis", "style"
+  ],
+  "model_routing": {
+    "FLASH": { "agent": "routine-implementer", "model_alias": "sonnet", "effective_target": "zai-org/GLM-5.3-Flash" },
+    "FULL":  { "agent": "critical-implementer", "model_alias": "opus",  "effective_target": "zai-org/GLM-5.3" }
+  }
+}
