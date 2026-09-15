@@ -136,6 +136,12 @@ class SettingsController extends Controller
             'bank_card'    => ['nullable', 'string', 'max:20'],
             'bank_note'    => ['nullable', 'string', 'max:300'],
             'crypto_cooldown_hours' => ['nullable', 'integer', 'min:0', 'max:48'],
+            // هدیهٔ تولد — سقف‌ها عمدی‌اند: عددِ اشتباهِ یک صفرِ اضافه
+            // یعنی توزیعِ میلیون‌ها تومان بی‌آنکه کسی متوجه شود.
+            'birthday_enabled'     => ['nullable', 'boolean'],
+            'birthday_amount_irt'  => ['nullable', 'integer', 'min:0', 'max:50000000'],
+            'birthday_valid_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'birthday_min_invoice' => ['nullable', 'integer', 'min:0', 'max:500000000'],
         ],
         'pricing' => [
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
@@ -702,6 +708,23 @@ class SettingsController extends Controller
         // دورهٔ خنک‌شدنِ آدرسِ رمزارز — خالی = پیش‌فرضِ کد (۶ ساعت)
         Setting::put('crypto_cooldown_hours',
             filled($data['crypto_cooldown_hours'] ?? null) ? (string) (int) $data['crypto_cooldown_hours'] : null);
+
+        /*
+        | هدیهٔ تولد.
+        |
+        | ⚠️ `filled()` نه `isset()`: رشتهٔ خالی یعنی «پیش‌فرضِ config»، نه
+        | «صفر». اگر خالی را صفر بنویسیم، یک فیلدِ پاک‌شده در فرم مبلغِ هدیه
+        | را بی‌صدا صفر می‌کند و برنامه بی‌هیچ خطایی هیچ کوپنی صادر نمی‌کند.
+        |
+        | 🔴 چک‌باکسِ خاموش باید صریح `0` بنویسد، نه `null`. با `null` مقدار
+        | به پیش‌فرضِ config برمی‌گردد — یعنی اگر روزی کسی `BIRTHDAY_GIFT` را
+        | در env روشن کند، «خاموش کردم» در پنل بی‌اثر می‌شود.
+        */
+        Setting::put('birthday_enabled', $data['birthday_enabled'] ?? false ? '1' : '0');
+
+        foreach (['birthday_amount_irt', 'birthday_valid_hours', 'birthday_min_invoice'] as $k) {
+            Setting::put($k, filled($data[$k] ?? null) ? (string) (int) $data[$k] : null);
+        }
     }
 
     private function savePricing(array $data): void

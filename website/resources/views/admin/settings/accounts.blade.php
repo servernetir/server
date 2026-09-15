@@ -53,6 +53,46 @@
     </div>
   </div>
 
+  <div class="ad-panel" style="margin-top:18px">
+    <div class="ad-panel-h"><h2>هدیهٔ تولد مشتریان</h2></div>
+    <p class="set-lead">
+      روز تولد هر مشتری (از تاریخ ثبت‌احوال، نه فرم) یک <b>کد هدیه</b> برایش صادر
+      و پیامک می‌شود. کد فقط روی حساب خودش کار می‌کند، یک‌بارمصرف است و بعد از
+      مهلت منقضی می‌شود.
+      <br>
+      🔴 اعتبار به کیف پول اضافه <b>نمی‌شود</b> — عمداً. اگر اضافه می‌شد و بعد
+      پس گرفته می‌شد، مشتری‌ای که موجودی داشت و به‌خاطر پیام ما خرید می‌کرد،
+      فردا از پول خودش کم می‌شد.
+    </p>
+    <div class="set-grid three" style="padding:0 18px 18px">
+      <label class="set-f">وضعیت
+        <select name="birthday_enabled" dir="rtl">
+          <option value="0" @selected(! filter_var(\App\Models\Setting::get('birthday_enabled'), FILTER_VALIDATE_BOOLEAN))>خاموش</option>
+          <option value="1" @selected(filter_var(\App\Models\Setting::get('birthday_enabled'), FILTER_VALIDATE_BOOLEAN))>روشن</option>
+        </select>
+        <small>تا روشن نشود هیچ کدی صادر نمی‌شود.</small></label>
+
+      <label class="set-f">مبلغ هدیه (تومان)
+        <input type="number" name="birthday_amount_irt" dir="ltr" min="0" max="50000000" step="10000"
+               value="{{ \App\Models\Setting::get('birthday_amount_irt') }}"
+               placeholder="خالی = {{ number_format((int) config('birthday.amount_irt')) }} (پیش‌فرض)">
+        <small>مبلغ روی خودِ کد ذخیره می‌شود؛ تغییرش کدهای صادرشده را عوض نمی‌کند.</small></label>
+
+      <label class="set-f">مهلت استفاده (ساعت)
+        <input type="number" name="birthday_valid_hours" dir="ltr" min="1" max="720" step="1"
+               value="{{ \App\Models\Setting::get('birthday_valid_hours') }}"
+               placeholder="خالی = {{ fa_num((string) config('birthday.valid_hours')) }} ساعت (پیش‌فرض)">
+        <small>از لحظهٔ صدور شمرده می‌شود، نه از نیمه‌شب.</small></label>
+
+      <label class="set-f">حداقل مبلغ فاکتور (تومان)
+        <input type="number" name="birthday_min_invoice" dir="ltr" min="0" max="500000000" step="100000"
+               value="{{ \App\Models\Setting::get('birthday_min_invoice') }}"
+               placeholder="خالی = {{ number_format((int) config('birthday.min_invoice_irt')) }} (پیش‌فرض)">
+        <small>🔴 محافظ «هرگز زیر بها»: کد ۵۰۰ هزاری روی فاکتور ۶۰۰ هزاری یعنی
+          فروش زیر قیمت خرید. صفر = بدون حداقل.</small></label>
+    </div>
+  </div>
+
   @include('admin.settings._save')
 </form>
 

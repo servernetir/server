@@ -2,18 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Console\Commands\BirthdayGift;
-use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\CustomerProfile;
+use App\Models\GiftCoupon;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Support\Jalali;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * هدیهٔ تولد.
+ * هدیهٔ تولد — صدورِ کوپن.
  *
  * هر تست یک **ادعا** را می‌سنجد، نه اینکه فرمان بدونِ استثنا تمام شود. این
  * تنها مسیرِ سامانه است که بدونِ هیچ رویدادِ تجاری پول توزیع می‌کند، پس
@@ -29,13 +29,11 @@ class BirthdayGiftTest extends TestCase
 
         config([
             'birthday.enabled' => true,
-            'birthday.expires_days' => 30,
+            'birthday.amount_irt' => 500_000,
+            'birthday.valid_hours' => 24,
+            'birthday.min_invoice_irt' => 1_500_000,
             'birthday.require_active_service' => true,
             'birthday.daily_cap' => 50,
-            'birthday.tiers' => [
-                ['min_paid_irt' => 0, 'gift_irt' => 100_000],
-                ['min_paid_irt' => 5_000_000, 'gift_irt' => 300_000],
-            ],
         ]);
     }
 
@@ -75,7 +73,14 @@ class BirthdayGiftTest extends TestCase
         return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
     }
 
-    /** «امروز» را روی یک روزِ شمسیِ مشخص، به وقتِ تهران، بنشان */
+    /**
+     * «امروز» را روی یک روزِ شمسیِ مشخص، به وقتِ تهران، بنشان.
+     *
+     * 🔴 هر فیکسچرِ زمان‌داری باید **بعد** از این ساخته شود. نسخهٔ اول
+     * فاکتورها را با ساعتِ واقعی می‌ساخت و بعد ساعت را می‌برد، پس فاصله‌ها به
+     * تاریخِ اجرای تست بند بودند: شش روز سبز ماند و بعد بی‌آنکه کدی عوض شود
+     * قرمز شد.
+     */
     private function travelToJalali(int $jy, int $jm, int $jd): void
     {
         Carbon::setTestNow(
@@ -83,23 +88,36 @@ class BirthdayGiftTest extends TestCase
         );
     }
 
-    private function gifts(Customer $c): int
+    private function invoice(Customer $c): int
     {
-        return CreditEntry::where('customer_id', $c->id)
-            ->where('reason', BirthdayGift::REASON_GIFT)->sum('amount');
+        return (int) \DB::table('invoices')->insertGetId([
+            'customer_id' => $c->id, 'number' => 'INV-'.random_int(100000, 999999),
+            'status' => 'unpaid', 'currency_code' => 'IRT',
+            'subtotal' => 2_000_000, 'total' => 2_000_000,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
-    // ───────────────────────── هدیه ─────────────────────────
+    private function coupons(Customer $c): int
+    {
+        return GiftCoupon::where('customer_id', $c->id)->count();
+    }
 
-    public function test_the_gift_lands_on_the_jalali_birthday(): void
+    // ───────────────────────── صدور ─────────────────────────
+
+    public function test_the_coupon_is_issued_on_the_jalali_birthday(): void
     {
         $c = $this->customer($this->gregorianOf(1370, 5, 15));
 
         $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift')->assertSuccessful();
 
-        $this->assertSame(100_000, $this->gifts($c),
-            'تولدِ ۱۵ مرداد باید در ۱۵ مردادِ امسال هدیه بگیرد');
+        $coupon = GiftCoupon::where('customer_id', $c->id)->first();
+
+        $this->assertNotNull($coupon, 'تولدِ ۱۵ مرداد باید در ۱۵ مردادِ امسال کوپن بگیرد');
+        $this->assertSame(500_000, $coupon->amount);
+        $this->assertSame(1_500_000, $coupon->min_invoice);
+        $this->assertTrue($coupon->isLive());
     }
 
     public function test_nothing_happens_on_any_other_day(): void
@@ -109,7 +127,7 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali(1405, 5, 16);
         $this->artisan('birthday:gift')->assertSuccessful();
 
-        $this->assertSame(0, $this->gifts($c));
+        $this->assertSame(0, $this->coupons($c));
     }
 
     /**
@@ -132,10 +150,60 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift')->assertSuccessful();
 
-        $this->assertSame(0, $this->gifts($c));
+        $this->assertSame(0, $this->coupons($c));
     }
 
-    public function test_the_same_year_never_pays_twice(): void
+    /** تنظیماتِ پنل بر فایلِ config می‌چربد — کارفرما باید بتواند خودش عوض کند */
+    public function test_the_panel_settings_win_over_the_config_file(): void
+    {
+        $c = $this->customer($this->gregorianOf(1370, 5, 15));
+
+        Setting::put('birthday_amount_irt', '750000');
+        Setting::put('birthday_valid_hours', '48');
+        Setting::put('birthday_min_invoice', '3000000');
+
+        $this->travelToJalali(1405, 5, 15);
+        $this->artisan('birthday:gift')->assertSuccessful();
+
+        $coupon = GiftCoupon::where('customer_id', $c->id)->firstOrFail();
+
+        $this->assertSame(750_000, $coupon->amount);
+        $this->assertSame(3_000_000, $coupon->min_invoice);
+        $this->assertSame(48, (int) round(now()->diffInHours($coupon->expires_at, false)));
+    }
+
+    /**
+     * ⚠️ رشتهٔ خالی «صفر» نیست، «ست‌نشده» است.
+     *
+     * یکی‌گرفتنشان یعنی یک فیلدِ پاک‌شده در فرمِ تنظیمات مبلغِ هدیه را بی‌صدا
+     * صفر می‌کرد و برنامه بی‌هیچ خطایی هیچ کوپنی صادر نمی‌کرد.
+     */
+    public function test_an_empty_setting_falls_back_to_config_not_zero(): void
+    {
+        $c = $this->customer($this->gregorianOf(1370, 5, 15));
+
+        Setting::put('birthday_amount_irt', '');
+
+        $this->travelToJalali(1405, 5, 15);
+        $this->artisan('birthday:gift')->assertSuccessful();
+
+        $this->assertSame(500_000, GiftCoupon::where('customer_id', $c->id)->firstOrFail()->amount);
+    }
+
+    /** مبلغِ صفر یعنی پیکربندی ناقص — پیامکِ «۰ تومان هدیه» از نفرستادن بدتر است */
+    public function test_a_zero_amount_issues_nothing(): void
+    {
+        $c = $this->customer($this->gregorianOf(1370, 5, 15));
+
+        Setting::put('birthday_amount_irt', '0');
+
+        $this->travelToJalali(1405, 5, 15);
+        $this->artisan('birthday:gift')->assertSuccessful();
+
+        $this->assertSame(0, $this->coupons($c));
+    }
+
+    public function test_the_same_year_never_issues_twice(): void
     {
         $c = $this->customer($this->gregorianOf(1370, 5, 15));
 
@@ -144,11 +212,30 @@ class BirthdayGiftTest extends TestCase
         $this->artisan('birthday:gift');
         $this->artisan('birthday:gift');
 
-        $this->assertSame(100_000, $this->gifts($c),
-            'اجرای دوباره در همان روز نباید هدیهٔ دوم بدهد');
+        $this->assertSame(1, $this->coupons($c), 'اجرای دوباره در همان روز نباید کوپنِ دوم بدهد');
     }
 
-    public function test_the_next_year_pays_again(): void
+    /**
+     * ⚠️ کوپنِ **مصرف‌شده** هم باید جلوی صدورِ دوباره را بگیرد.
+     *
+     * با شرطِ «فقط کوپنِ زنده»، مشتری‌ای که کوپنش را همان صبح خرج کرده،
+     * اجرای بعدیِ کرون در همان روز کوپنِ تازه‌ای می‌گرفت.
+     */
+    public function test_a_spent_coupon_still_blocks_a_second_one(): void
+    {
+        $c = $this->customer($this->gregorianOf(1370, 5, 15));
+
+        $this->travelToJalali(1405, 5, 15);
+        $this->artisan('birthday:gift');
+
+        GiftCoupon::where('customer_id', $c->id)->update(['used_at' => now()]);
+
+        $this->artisan('birthday:gift')->assertSuccessful();
+
+        $this->assertSame(1, $this->coupons($c));
+    }
+
+    public function test_the_next_year_issues_again(): void
     {
         $c = $this->customer($this->gregorianOf(1370, 5, 15));
 
@@ -158,8 +245,7 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali(1406, 5, 15);
         $this->artisan('birthday:gift');
 
-        $this->assertSame(200_000, $this->gifts($c),
-            'سالِ بعد هدیهٔ تازه باید برود — وگرنه برنامه یک‌بارمصرف است');
+        $this->assertSame(2, $this->coupons($c), 'سالِ بعد کوپنِ تازه باید برود — وگرنه برنامه یک‌بارمصرف است');
     }
 
     /**
@@ -181,10 +267,8 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali($plain, 12, 29);
         $this->artisan('birthday:gift')->assertSuccessful();
 
-        $this->assertSame(100_000, $this->gifts($c));
+        $this->assertSame(1, $this->coupons($c));
     }
-
-    // ───────────────────────── چه کسی نمی‌گیرد ─────────────────────────
 
     public function test_a_dormant_account_gets_nothing(): void
     {
@@ -193,162 +277,9 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift')->assertSuccessful();
 
-        $this->assertSame(0, $this->gifts($c),
-            'حسابِ بی‌سرویسِ فعال نباید هدیه بگیرد — پولی که هرگز خرج نمی‌شود فقط بدهیِ دفتری می‌سازد');
+        $this->assertSame(0, $this->coupons($c),
+            'حسابِ بی‌سرویسِ فعال نباید کوپن بگیرد — کدی که هرگز استفاده نمی‌شود فقط هزینهٔ پیامک است');
     }
-
-    public function test_the_tier_follows_the_money_not_the_invoice_count(): void
-    {
-        $big = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        // 🔴 اول ساعت را ببر، بعد فاکتور را نسبت به **همان** ساعت بساز.
-        $this->travelToJalali(1405, 5, 15);
-
-        \DB::table('invoices')->insert([
-            'customer_id' => $big->id, 'number' => 'INV-1', 'status' => 'paid',
-            'currency_code' => 'IRT', 'subtotal' => 6_000_000, 'total' => 6_000_000,
-            'created_at' => now()->subDays(10), 'updated_at' => now(),
-        ]);
-
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(300_000, $this->gifts($big),
-            'خریدِ ۶ میلیونی باید پلهٔ دوم را بگیرد');
-    }
-
-    public function test_a_purchase_older_than_a_year_does_not_count(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        /*
-        | 🔴 ترتیب این‌جا کلِ تست است، نه سلیقه.
-        |
-        | نسخهٔ اول فاکتور را با ساعتِ **واقعی** می‌ساخت و بعد ساعت را به
-        | ۱۵ مرداد ۱۴۰۵ می‌برد. یعنی فاصلهٔ «۴۰۰ روز» به تاریخِ اجرای تست
-        | بند بود: چند روز سبز مانْد و بعد بی‌آنکه کدی عوض شود قرمز شد،
-        | چون آن فاصله از لبهٔ ۳۶۵ روز رد شد.
-        |
-        | تستی که به ساعتِ دیوار بند باشد، روزی قرمز می‌شود که هیچ‌کس دنبالِ
-        | علتش در تقویم نمی‌گردد — و بدتر، ممکن بود همان روز یک باگِ واقعی
-        | را هم پنهان کند.
-        */
-        $this->travelToJalali(1405, 5, 15);
-
-        \DB::table('invoices')->insert([
-            'customer_id' => $c->id, 'number' => 'INV-2', 'status' => 'paid',
-            'currency_code' => 'IRT', 'subtotal' => 6_000_000, 'total' => 6_000_000,
-            'created_at' => now()->subDays(400), 'updated_at' => now(),
-        ]);
-
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(100_000, $this->gifts($c),
-            'خریدِ کهنه نباید پله بدهد — معیار «۱۲ ماهِ گذشته» است');
-    }
-
-    // ───────────────────────── انقضا ─────────────────────────
-
-    public function test_an_unspent_gift_is_taken_back_after_the_promised_days(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        $this->travelToJalali(1405, 5, 15);
-        $this->artisan('birthday:gift');
-        $this->assertSame(100_000, $c->creditBalance('IRT'));
-
-        Carbon::setTestNow(now()->addDays(31));
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(0, $c->fresh()->creditBalance('IRT'),
-            'پیامک وعدهٔ «۳۰ روز» داده؛ اگر اعتبار بمانَد آن جمله دروغ بوده');
-    }
-
-    public function test_a_spent_gift_is_never_clawed_back(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        $this->travelToJalali(1405, 5, 15);
-        $this->artisan('birthday:gift');
-
-        // مشتری همه‌اش را خرج کرد
-        CreditEntry::create([
-            'customer_id' => $c->id, 'currency_code' => 'IRT',
-            'amount' => -100_000, 'balance_after' => 0,
-            'reason' => 'invoice', 'note' => 'خرج شد',
-        ]);
-
-        Carbon::setTestNow(now()->addDays(31));
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(0, $c->fresh()->creditBalance('IRT'),
-            'موجودی نباید منفی شود — بازپس‌گیری min(هدیه، موجودی) است');
-    }
-
-    /**
-     * 🔴 پولی که مشتری خودش گذاشته دست‌نخورده می‌مانَد.
-     *
-     * اگر بازپس‌گیری کورکورانه مبلغِ کاملِ هدیه را بردارد، مشتری‌ای که هدیه را
-     * خرج کرده و بعد شارژ کرده، از **پولِ خودش** ضرر می‌کند — یعنی برنامه‌ای
-     * که برای خوش‌حالی ساخته شده، به یک شکایتِ مالی تبدیل می‌شود.
-     */
-    public function test_the_sweep_never_eats_more_than_it_gave(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        $this->travelToJalali(1405, 5, 15);
-        $this->artisan('birthday:gift');
-
-        CreditEntry::create([
-            'customer_id' => $c->id, 'currency_code' => 'IRT',
-            'amount' => 500_000, 'balance_after' => 600_000,
-            'reason' => 'topup', 'note' => 'شارژِ خودِ مشتری',
-        ]);
-
-        Carbon::setTestNow(now()->addDays(31));
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(500_000, $c->fresh()->creditBalance('IRT'),
-            'فقط همان ۱۰۰ هزارِ هدیه باید برگردد، نه یک ریال بیشتر');
-    }
-
-    public function test_the_sweep_stamps_so_it_never_runs_twice(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        $this->travelToJalali(1405, 5, 15);
-        $this->artisan('birthday:gift');
-
-        Carbon::setTestNow(now()->addDays(31));
-        $this->artisan('birthday:gift');
-        $this->artisan('birthday:gift');
-        $this->artisan('birthday:gift');
-
-        $this->assertSame(1, CreditEntry::where('customer_id', $c->id)
-            ->where('reason', BirthdayGift::REASON_EXPIRE)->count(),
-            'هر هدیه فقط یک بار منقضی می‌شود؛ وگرنه موجودی تا بی‌نهایت منفی می‌رفت');
-    }
-
-    /**
-     * ⚠️ سوییپ پشتِ کلیدِ روشن/خاموش نیست.
-     *
-     * وعدهٔ «تا N روز» را قبلاً به مشتری داده‌ایم؛ خاموش‌کردنِ برنامه باید جلوی
-     * هدیهٔ تازه را بگیرد، نه جلوی وعده‌ای که از قبل داده‌ایم.
-     */
-    public function test_turning_the_programme_off_still_honours_the_expiry(): void
-    {
-        $c = $this->customer($this->gregorianOf(1370, 5, 15));
-
-        $this->travelToJalali(1405, 5, 15);
-        $this->artisan('birthday:gift');
-
-        config(['birthday.enabled' => false]);
-        Carbon::setTestNow(now()->addDays(31));
-        $this->artisan('birthday:gift')->assertSuccessful();
-
-        $this->assertSame(0, $c->fresh()->creditBalance('IRT'));
-    }
-
-    // ───────────────────────── خشک ─────────────────────────
 
     public function test_dry_run_writes_nothing(): void
     {
@@ -357,6 +288,74 @@ class BirthdayGiftTest extends TestCase
         $this->travelToJalali(1405, 5, 15);
         $this->artisan('birthday:gift', ['--dry' => true])->assertSuccessful();
 
-        $this->assertSame(0, CreditEntry::where('customer_id', $c->id)->count());
+        $this->assertSame(0, $this->coupons($c));
+    }
+
+    // ───────────────────────── خودِ کوپن ─────────────────────────
+
+    /**
+     * 🔴 کد نباید حرفِ مبهم داشته باشد.
+     *
+     * `0/O` و `1/I/L` در پیامک و پشتِ تلفن قابلِ تفکیک نیستند؛ مشتری کدِ درست
+     * را وارد می‌کند و «نامعتبر» می‌گیرد — و آن‌وقت گمان می‌کند هدیه دروغ بوده.
+     */
+    public function test_the_code_avoids_ambiguous_characters(): void
+    {
+        for ($i = 0; $i < 40; $i++) {
+            $body = substr(GiftCoupon::freshCode(), 3);
+
+            $this->assertSame(0, preg_match('/[OIL01]/', $body),
+                "کدِ «{$body}» حرفِ مبهم دارد");
+        }
+    }
+
+    /** ارقامِ فارسی و فاصله و حروفِ کوچک همه باید پذیرفته شوند */
+    public function test_the_code_input_is_normalised(): void
+    {
+        $this->assertSame('HB-AB23CD45', GiftCoupon::normalize(' hb-ab۲۳cd٤5 '));
+    }
+
+    /**
+     * 🔴 قفلِ اتمی: دو مصرفِ هم‌زمان، فقط یکی باید بگیرد.
+     *
+     * با گاردِ کوئری‌محور (`if ($coupon->used_at === null)`) هر دو سبز می‌شدند
+     * و یک کوپن دو فاکتور را می‌بست — دو برابرِ هدیه ضرر، بی‌هیچ خطایی.
+     */
+    public function test_only_one_claim_can_win(): void
+    {
+        $c = $this->customer();
+
+        $coupon = GiftCoupon::create([
+            'customer_id' => $c->id, 'code' => GiftCoupon::freshCode(),
+            'currency_code' => 'IRT', 'amount' => 500_000, 'min_invoice' => 0,
+            'reason' => 'birthday', 'expires_at' => now()->addHours(24),
+        ]);
+
+        // ⚠️ فاکتورِ واقعی لازم است: `used_invoice_id` کلیدِ خارجی دارد و
+        //    شناسهٔ ساختگی همان‌جا رد می‌شود — که خودش یعنی محافظ کار می‌کند.
+        $a = $this->invoice($c);
+        $b = $this->invoice($c);
+
+        $first  = $coupon->claim($a);
+        $second = (clone $coupon)->claim($b);
+
+        $this->assertTrue($first, 'اولین claim باید بگیرد');
+        $this->assertFalse($second, 'دومین claim نباید بگیرد');
+        $this->assertSame($a, (int) $coupon->fresh()->used_invoice_id);
+    }
+
+    /** کوپنِ منقضی حتی با claim مستقیم هم گرفته نمی‌شود */
+    public function test_an_expired_coupon_cannot_be_claimed(): void
+    {
+        $c = $this->customer();
+
+        $coupon = GiftCoupon::create([
+            'customer_id' => $c->id, 'code' => GiftCoupon::freshCode(),
+            'currency_code' => 'IRT', 'amount' => 500_000, 'min_invoice' => 0,
+            'reason' => 'birthday', 'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->assertFalse($coupon->claim($this->invoice($c)));
+        $this->assertNull($coupon->fresh()->used_at);
     }
 }

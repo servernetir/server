@@ -188,6 +188,18 @@ class PaymentController extends Controller
             'creditBalance' => $invoice->currency_code === 'IRT'
                 ? $this->balance((int) Auth::guard('customer')->id())
                 : 0,
+            /*
+            | کوپنِ هدیهٔ زندهٔ همین مشتری — فقط برای نمایشِ فرم.
+            |
+            | ⚠️ `Schema::hasTable` لازم است: تا وقتی مهاجرت روی سرور اجرا
+            | نشده، این صفحه نباید ۵۰۰ بدهد. صفحهٔ فاکتور مسیرِ پول است و
+            | خرابی‌اش یعنی مشتری نمی‌تواند پرداخت کند.
+            */
+            'giftCoupon'   => Schema::hasTable('gift_coupons')
+                ? \App\Models\GiftCoupon::where('customer_id', (int) Auth::guard('customer')->id())
+                    ->whereNull('used_at')->where('expires_at', '>', now())
+                    ->latest('id')->first()
+                : null,
             'gateways'     => $this->gatewaysFor($invoice->currency_code),
             'bank'         => $this->bankDetails(),
             // آخرین رسیدِ در انتظارِ همین فاکتور — تا کاربر بداند ثبت شده
@@ -625,23 +637,22 @@ class PaymentController extends Controller
                     return ['ok' => false, 'msg' => 'این فاکتور در وضعیتِ قابلِ پرداخت نیست.'];
                 }
 
-                $balance = $this->balance($customerId);
+                /*
+                | 🔴 از M3-correct این کسر از `Wallet` می‌گذرد: گاردِ حقیقت
+                | داخلِ همان قفلِ مشتری، روی «در دسترس» (منهایِ رزروهایِ
+                | زندهٔ AI) است. چکِ پیام‌خوش پایین فقط UX است — تصمیمِ
+                | پولی را Wallet می‌گیرد.
+                */
+                $wallet = app(\App\Services\Finance\Wallet::class);
+                $available = $wallet->availableOf($customerId);
 
-                if ($balance < $due) {
-                    return ['ok' => false, 'msg' => 'اعتبارِ حساب کافی نیست (موجودی: '
-                        .number_format($balance).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
+                if ($available < $due) {
+                    return ['ok' => false, 'msg' => 'اعتبارِ در دسترس کافی نیست (در دسترس: '
+                        .number_format($available).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
                 }
 
-                CreditEntry::create([
-                    'customer_id'   => $customerId,
-                    'currency_code' => 'IRT',
-                    'amount'        => -$due,
-                    'balance_after' => $balance - $due,
-                    'reason'        => 'invoice_payment',
-                    'source_type'   => Invoice::class,
-                    'source_id'     => $fresh->id,
-                    'note'          => 'پرداختِ فاکتور '.$fresh->number.' از اعتبار',
-                ]);
+                $wallet->debit($customerId, 'IRT', $due, 'invoice_payment', $fresh,
+                    'پرداختِ فاکتور '.$fresh->number.' از اعتبار');
 
                 /*
                 | ⚠️ `firstOrCreate` روی `external_ref` — دو کلیکِ هم‌زمان (یا
@@ -690,6 +701,143 @@ class PaymentController extends Controller
 
         return redirect()->route($this->rp().'account.invoice', $invoice)
             ->with('ok', __('ui.iv_credit_paid'));
+    }
+
+    /**
+     * اعمالِ کوپنِ هدیه روی فاکتور.
+     *
+     * 🔴 کوپن روی ریلِ **پرداخت** می‌نشیند، نه روی قیمت.
+     *
+     * اگر به‌جایش `subtotal` را کم می‌کردیم، پایهٔ ارزش‌افزوده هم کم می‌شد —
+     * یعنی دست‌بردن در عددی که اظهارنامه‌اش جای دیگری می‌رود. این‌جا
+     * `subtotal`/`tax`/`total` دست‌نخورده می‌مانند و فقط `paid` بالا می‌رود،
+     * دقیقاً مثلِ پرداخت از اعتبار.
+     *
+     * ⚠️ مبلغِ کوپن اگر از ماندهٔ فاکتور بیشتر باشد **بریده** می‌شود و باقیش
+     * از بین می‌رود؛ کوپن یک‌بارمصرف است. برای همین کفِ فاکتور وجود دارد.
+     */
+    public function applyCoupon(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice);
+
+        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        $code = \App\Models\GiftCoupon::normalize($data['code']);
+
+        if ($invoice->currency_code !== 'IRT') {
+            return back()->withErrors(__('ui.iv_cp_irt_only'));
+        }
+
+        /*
+        | 🔴 فاکتورِ شارژِ کیفِ پول هرگز کوپن نمی‌گیرد — و این گارد باید در
+        | **کنترلر** باشد، نه فقط در ویو.
+        |
+        | نسخهٔ اول فقط فرم را روی topup پنهان می‌کرد. یک POSTِ مستقیم (یا
+        | فرمی که از تبِ دیگر مانده) کوپن را روی فاکتورِ شارژ می‌نشاند، و
+        | پرداختِ آن فاکتور **اعتبارِ نقدِ بی‌انقضا** به کیفِ پول می‌ریزد —
+        | یعنی دقیقاً همان چیزی که کوپن برای جلوگیری‌اش ساخته شد، به‌علاوهٔ
+        | اینکه پنجرهٔ ۲۴ ساعته کلاً بی‌معنا می‌شد. پنهان‌کردنِ دکمه محافظ
+        | نیست؛ تستِ `test_a_topup_invoice_cannot_use_a_coupon` همین را گرفت.
+        */
+        if ($invoice->kind === 'topup') {
+            return back()->withErrors(__('ui.iv_cp_state'));
+        }
+
+        if (! in_array($invoice->status, ['unpaid', 'partial'], true) || $invoice->due() <= 0) {
+            return back()->withErrors(__('ui.iv_cp_state'));
+        }
+
+        $customerId = (int) Auth::guard('customer')->id();
+
+        try {
+            $outcome = DB::transaction(function () use ($invoice, $customerId, $code) {
+                /** @var Invoice $fresh */
+                $fresh = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+                $due = $fresh->due();
+
+                if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_state')];
+                }
+
+                /*
+                | 🔴 `customer_id` در خودِ پرس‌وجوست، نه یک `if` بعدی.
+                |
+                | کدِ کسِ دیگری باید **پیدا نشود**، نه اینکه پیدا شود و بعد رد
+                | شود: پیامِ «این کد مالِ شما نیست» تأیید می‌کند که کد معتبر
+                | است، و آن‌وقت حدس‌زدنِ کدها ارزش پیدا می‌کند.
+                */
+                $coupon = \App\Models\GiftCoupon::query()
+                    ->where('customer_id', $customerId)
+                    ->where('code', $code)
+                    ->first();
+
+                if ($coupon === null) {
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_unknown')];
+                }
+
+                if ($coupon->isUsed()) {
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_used')];
+                }
+
+                if ($coupon->isExpired()) {
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_expired')];
+                }
+
+                /*
+                | 🔴 کفِ فاکتور — خطِ قرمزِ «هرگز زیر بها نفروش».
+                |
+                | مقدار از **خودِ کوپن** خوانده می‌شود نه از تنظیمات: مشتری
+                | شرطی را می‌بیند که موقعِ صدور اعلام شده، نه شرطی که دیروز
+                | عوض شده.
+                */
+                if ($coupon->min_invoice > 0 && $fresh->total < $coupon->min_invoice) {
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_min', [
+                        'amount' => invoice_money($coupon->min_invoice, 'IRT'),
+                    ])];
+                }
+
+                if (! $coupon->claim($fresh->id)) {
+                    // مصرفِ هم‌زمان از یک تبِ دیگر
+                    return ['ok' => false, 'msg' => __('ui.iv_cp_used')];
+                }
+
+                $amount = min((int) $coupon->amount, $due);
+
+                $payment = Payment::firstOrCreate(
+                    ['external_ref' => 'gift-'.$coupon->code],
+                    [
+                        'invoice_id'    => $fresh->id,
+                        'customer_id'   => $customerId,
+                        'gateway'       => 'gift',
+                        'currency_code' => 'IRT',
+                        'amount'        => $amount,
+                        'status'        => 'redirected',
+                    ],
+                );
+
+                $settle = $this->payments->settleConfirmed($payment, 'gift-'.$coupon->code);
+
+                /*
+                | 🔴 استثنا **داخلِ** تراکنش، تا تسویهٔ ناموفق مصرفِ کوپن را هم
+                | برگرداند — وگرنه کوپن سوخته و فاکتور پرداخت‌نشده می‌مانْد.
+                */
+                if (! $settle->ok) {
+                    throw new \RuntimeException('gift settle failed for invoice '.$fresh->id);
+                }
+
+                return ['ok' => true, 'msg' => ''];
+            });
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('payment', $e, ['area' => 'gift-coupon', 'invoice' => $invoice->id]);
+
+            return back()->withErrors(__('ui.iv_cp_failed'));
+        }
+
+        if (! $outcome['ok']) {
+            return back()->withErrors($outcome['msg']);
+        }
+
+        return redirect()->route($this->rp().'account.invoice', $invoice)
+            ->with('ok', __('ui.iv_cp_applied'));
     }
 
     // ───────────────────────────── کمکی‌ها ─────────────────────────────

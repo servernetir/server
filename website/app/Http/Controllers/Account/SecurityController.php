@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiProject;
 use App\Models\CustomerApiToken;
 use App\Models\CustomerIpRule;
 use App\Services\Otp\OtpService;
@@ -40,7 +41,9 @@ class SecurityController extends Controller
             'ipMode'      => $c->ip_restriction_mode ?? 'off',
             // ⚠️ توکنِ باطل‌شده نمایش داده نمی‌شود ولی **حذف هم نمی‌شود**: ردیفش
             //    برای حسابرسیِ حادثه لازم است (`reseller_api_logs.token_id`).
-            'apiTokens'   => $c->apiTokens()->usable()->orderByDesc('id')->get(),
+            'apiTokens'   => $c->apiTokens()->usable()->with('aiProject')->orderByDesc('id')->get(),
+            // سرِ کوچکِ M2 — پروژه‌های AIِ همین حساب، مرتبِ تازه‌ترین
+            'aiProjects'  => $c->aiProjects()->orderByDesc('id')->get(),
             'currentIp'   => $request->ip(),
             'hasPassword' => ! empty($c->password),
             'pwReady'     => $request->session()->has('pw_change_ctx'),
@@ -165,9 +168,12 @@ class SecurityController extends Controller
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:80'],
             'abilities'   => ['nullable', 'array'],
-            'abilities.*' => ['string', Rule::in(array_keys(CustomerApiToken::ABILITIES))],
+            'abilities.*' => ['string', Rule::in([...array_keys(CustomerApiToken::ABILITIES), ...array_keys(CustomerApiToken::AI_ABILITIES)])],
             'cidrs'       => ['nullable', 'string', 'max:500'],
             'expires_days'=> ['nullable', 'integer', 'min:1', 'max:1825'],
+
+            /* ── مالِ M2 — کلیدِ AI: پروژهٔ bound + نردبانِ ai:* ── */
+            'ai_project_id'=> ['nullable', 'integer', 'min:1'],
         ], [], ['name' => 'نام توکن']);
 
         // سقف از مدل می‌آید چون مستنداتِ /developers هم همان را چاپ می‌کند
@@ -180,6 +186,44 @@ class SecurityController extends Controller
         // ⚠️ پیش‌فرضِ `read` می‌مانَد: فرمی که تیک نخورده نباید ناخواسته توکنِ
         //    نوشتنی بسازد. دسترسیِ خطرناک باید **انتخاب** شود، نه پیش‌فرض باشد.
         $abilities = array_values(array_unique($data['abilities'] ?? [])) ?: ['read'];
+
+        /*
+        | 🔴 کلیدِ AI — دو قاعده، در هر دو جهت:
+        |   ۱) تیکِ هر abilityی از نردبانِ `AI_ABILITIES` بدونِ پروژه **رد**
+        |      می‌شود — کلیدِ AIِ بی‌پروژه ساکت صادر نمی‌شود؛ بی‌ظرفِ
+        |      admission یعنی دَرِ بازِ بی‌سقف، و مشتری هم کلیدِ مرده
+        |      نمی‌گیرد که تا ابد شبیهِ کارکردن باشد.
+        |   ۲) بدونِ هیچ تیکِ AI، پروژهٔ فرستاده‌شده **نادیده** می‌شود:
+        |      توکنِ عادی هرگز ناخواسته کلیدِ AI نمی‌شود.
+        |   در هر دو مسیر، پروژه باید **مالِ همین حساب** و **فعال** باشد —
+        |   پروژهٔ مشتریِ دیگر پیدا نمی‌شود و درخواست رد می‌شود.
+        */
+        $aiProjectId = (int) ($data['ai_project_id'] ?? 0);
+
+        $aiAbilities = array_values(array_intersect($abilities, array_keys(CustomerApiToken::AI_ABILITIES)));
+
+        $aiProject = null;
+
+        if ($aiAbilities !== []) {
+            if ($aiProjectId <= 0) {
+                return back()->withErrors([
+                    'ai_project_id' => __('ui.sec_ai_project_need'),
+                ])->withFragment('sec-api');
+            }
+
+            $aiProject = AiProject::query()
+                ->where('customer_id', $c->id)
+                ->where('status', AiProject::STATUS_ACTIVE)
+                ->find($aiProjectId);
+
+            if ($aiProject === null) {
+                return back()->withErrors([
+                    'ai_project_id' => __('ui.sec_ai_project_need'),
+                ])->withFragment('sec-api');
+            }
+        } else {
+            $aiProjectId = 0;
+        }
 
         /*
         | CIDRهای مجاز — نامعتبرها بی‌صدا دور ریخته نمی‌شوند، خطا می‌گیرند.
@@ -215,6 +259,7 @@ class SecurityController extends Controller
             $abilities,
             $cidrs,
             $days > 0 ? now()->addDays($days) : null,
+            $aiProject?->id,
         );
 
         // متنِ خامِ توکن فقط همین یک‌بار نشان داده می‌شود
@@ -238,7 +283,122 @@ class SecurityController extends Controller
         return back()->with('ok', __('ui.scf_token_revoked'))->withFragment('sec-api');
     }
 
+    // ───────────────────────── پروژهٔ AI (M2) ─────────────────────────
+
+    /** حداکثرِ پروژهٔ AIِ هم‌زمان برای هر حساب — سقفِ مِد را این‌جا نگه می‌داریم
+     *  تا روی رابطِ صدور و در تست‌ها یکی باشد. */
+    public const MAX_AI_PROJECTS = 10;
+
+    public function aiProjectStore(Request $request): RedirectResponse
+    {
+        $c = $this->customer();
+
+        $data = $request->validate([
+            'name'           => ['required', 'string', 'max:120'],
+            'slug'           => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9][a-z0-9._-]{0,119}$/'],
+            'monthly_budget' => ['nullable', 'integer', 'min:1', 'max:9000000000000'],
+            'budget_period'  => ['nullable', 'in:'.AiProject::PERIOD_NONE.','.AiProject::PERIOD_MONTHLY],
+            'budget_reset_day' => ['nullable', 'integer', 'min:1', 'max:28'],
+        ], [], ['name' => 'نام پروژه']);
+
+        /*
+        | سقفِ ۱۰ پروژه — چکِ سادهِ count. مسابقهٔ نظریِ دو POSTِ همزمان
+        | پذیرفته‌شده و کم‌خسارت است (ردیفِ ۱۱اُم؛ هزینه‌اش فقط ظرفِ
+        | admission است، نه پول) — عمداً قفل/تراکنش اضافه نمی‌شود.
+        */
+        if ($c->aiProjects()->count() >= self::MAX_AI_PROJECTS) {
+            return back()->withErrors(['name' => __('ui.sec_ai_cap', ['n' => fa_num(self::MAX_AI_PROJECTS)])])
+                ->withFragment('sec-ai');
+        }
+
+        $slug = $data['slug'] ?? $this->slugify($data['name']);
+
+        if ($slug === null || $slug === '') {
+            return back()->withErrors(['name' => __('ui.sec_ai_slug_bad')])->withFragment('sec-ai');
+        }
+
+        if ($c->aiProjects()->where('slug', $slug)->exists()) {
+            return back()->withErrors(['slug' => __('ui.sec_ai_slug_taken')])->withFragment('sec-ai');
+        }
+
+        /*
+        | بودجه: صفر هرگز بازمَندی نمی‌شود — «نال» یعنی بی‌سقف. دورهٔ ماهانه
+        | بی‌بودجه بی‌خود نمی‌سازیم: دوره فقط با بودجه معنا دارد.
+        */
+        $period = $data['budget_period'] ?? AiProject::PERIOD_NONE;
+        if ($period === AiProject::PERIOD_MONTHLY && ! isset($data['monthly_budget'])) {
+            return back()->withErrors(['monthly_budget' => __('ui.sec_ai_budget_need')])
+                ->withFragment('sec-ai');
+        }
+
+        $project = $c->aiProjects()->create([
+            'name' => $data['name'],
+            'slug' => $slug,
+            'status' => AiProject::STATUS_ACTIVE,
+            'monthly_budget_irt' => $period === AiProject::PERIOD_MONTHLY ? $data['monthly_budget'] : null,
+            'budget_period' => $period,
+            'budget_reset_day' => $period === AiProject::PERIOD_MONTHLY ? ($data['budget_reset_day'] ?? 1) : null,
+        ]);
+        $project->refreshBudgetWindow();
+
+        \App\Models\ActivityLog::record($c->id, 'ai_project_created',
+            __('ui.act_ai_project_created', ['name' => $data['name']]), $request, 'customer');
+
+        return back()->with('ok', __('ui.sec_ai_created'))->withFragment('sec-ai');
+    }
+
+    public function aiProjectUpdate(Request $request, AiProject $project): RedirectResponse
+    {
+        $c = $this->customer();
+        abort_unless($project->customer_id === $c->id, 404);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:'.AiProject::STATUS_ACTIVE.','.AiProject::STATUS_DISABLED.','.AiProject::STATUS_ARCHIVED],
+            'monthly_budget' => ['nullable', 'integer', 'min:1', 'max:9000000000000'],
+            'budget_reset_day' => ['nullable', 'integer', 'min:1', 'max:28'],
+        ]);
+
+        if ($project->status === AiProject::STATUS_ARCHIVED) {
+            return back()->withErrors(['status' => __('ui.sec_ai_archived_final')])->withFragment('sec-ai');
+        }
+
+        if ($data['status'] === AiProject::STATUS_ARCHIVED) {
+            $project->archive(); // کلیدهایِ bound نرم ابطال می‌شوند — هیچ کلیدِ AI فعالی نمی‌مانَد
+
+            \App\Models\ActivityLog::record($c->id, 'ai_project_archived',
+                __('ui.act_ai_project_archived', ['name' => $project->name]), $request, 'customer');
+
+            return back()->with('ok', __('ui.sec_ai_archived'))->withFragment('sec-ai');
+        }
+
+        $project->forceFill(['status' => $data['status']])->save();
+
+        if (array_key_exists('monthly_budget', $data)) {
+            $project->forceFill([
+                'monthly_budget_irt' => $data['monthly_budget'] ?? null,
+                'budget_period' => ($data['monthly_budget'] ?? null) > 0
+                    ? AiProject::PERIOD_MONTHLY : AiProject::PERIOD_NONE,
+                'budget_reset_day' => $data['budget_reset_day'] ?? null,
+            ])->save();
+            $project->refreshBudgetWindow();
+        }
+
+        \App\Models\ActivityLog::record($c->id, 'ai_project_update',
+            __('ui.act_ai_project_updated', ['name' => $project->name, 'status' => $data['status']]),
+            $request, 'customer');
+
+        return back()->with('ok', __('ui.sec_ai_saved'))->withFragment('sec-ai');
+    }
+
     // ───────────────────────── کمکی ─────────────────────────
+
+    /** اسلگ از نام — لاتین/رقم/خط؛ فارس دریافت شد null (کاربر اسلگِ صریح می‌دهد) */
+    private function slugify(string $raw): ?string
+    {
+        $slug = strtolower(trim(preg_replace('/[^a-z0-9._-]+/', '-', transliterator_transliterate('Any-Latin; Latin-ASCII', $raw) ?? $raw), '-'));
+
+        return $slug !== '' && ctype_print($slug) ? substr($slug, 0, 120) : null;
+    }
 
     /** نرمال‌سازیِ IP/CIDR — تکِ IP به /32 یا /128؛ خروجی معتبر یا null */
     private function normalizeCidr(string $cidr): ?string

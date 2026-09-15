@@ -491,27 +491,44 @@ class CustomerController extends Controller
         ], ['amount' => 'مبلغ', 'note' => 'توضیح']);
 
         $delta = (int) $data['amount'] * ($data['direction'] === 'add' ? 1 : -1);
+        $wallet = app(\App\Services\Finance\Wallet::class);
         $balance = $customer->creditBalance('IRT');
 
-        if ($balance + $delta < 0) {
-            return back()->withErrors(
-                'موجودی منفی نمی‌شود. حداکثرِ قابلِ کسر: '.number_format($balance).' تومان.'
-            );
+        if ($delta < 0) {
+            /*
+            | 🔴 M3-correct: کسرِ دستیِ مدیر هم رزروآگاه است — پولِ رزروشدهٔ
+            | زندهٔ AI متعلق به درخواستِ صاحبش است و تنظیمِ دستی نبایدش بخورد.
+            | گاردِ نهایی (داخلِ قفل) را Wallet می‌گیرد؛ این فقط پیامِ
+            | کاربرپسند است.
+            */
+            $available = $wallet->availableOf($customer->id);
+
+            if ($available + $delta < 0) {
+                return back()->withErrors(
+                    'موجودی منفی نمی‌شود'.($available < $balance
+                        ? ' (بخشی از موجودی نزد رزروِ زنده قفل است؛ در دسترس: '.number_format($available).' تومان)'
+                        : '').'. حداکثرِ قابلِ کسر: '.number_format($available).' تومان.'
+                );
+            }
         }
 
         /*
         | ⚠️ `balance_after` عکسِ لحظه‌ای است، نه منبعِ حقیقت. اگر دو مدیر
         | هم‌زمان تنظیم کنند این عدد ممکن است گمراه باشد، ولی موجودیِ واقعی
         | (SUM) درست می‌مانَد. برای همین هیچ‌جا از این ستون تصمیم گرفته نمی‌شود.
+        | 🔴 M3-correct: نوشتن از Wallet می‌گذرد (قفلِ مشتری + گاردِ رزروآگاه).
         */
-        \App\Models\CreditEntry::create([
-            'customer_id'   => $customer->id,
-            'currency_code' => 'IRT',
-            'amount'        => $delta,
-            'balance_after' => $balance + $delta,
-            'reason'        => 'adjustment',
-            'note'          => $data['note'],
-        ]);
+        try {
+            if ($delta > 0) {
+                $wallet->credit($customer->id, 'IRT', $delta, 'adjustment', null, $data['note']);
+            } else {
+                $wallet->debit($customer->id, 'IRT', -$delta, 'adjustment', null, $data['note']);
+            }
+        } catch (\App\Services\Finance\WalletException) {
+            return back()->withErrors(
+                'موجودی منفی نمی‌شود (موجودی هم‌زمان تغییر کرد یا نزد رزروِ زنده قفل است).'
+            );
+        }
 
         \App\Models\ActivityLog::record(
             $customer->id,

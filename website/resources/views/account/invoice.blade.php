@@ -121,6 +121,23 @@
       </form>
     @endif
 
+    {{-- کوپنِ هدیه — فقط وقتی مشتری کوپنِ زنده‌ای دارد.
+         ⚠️ اگر همیشه نشان داده شود، فیلدی روی صفحه می‌مانَد که ۹۹٪ کاربران
+         چیزی برایش ندارند و هر بار می‌پرسند «کد از کجا بیاورم؟». --}}
+    @if(($giftCoupon ?? null) && $invoice->due() > 0 && $invoice->kind !== 'topup' && $invoice->currency_code === 'IRT')
+      <form method="POST" action="{{ lroute('account.invoice.coupon', $invoice) }}"
+            style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2,rgba(0,0,0,.04));border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+        @csrf
+        <span style="font-size:13.5px;line-height:2">
+          {{ __('ui.iv_cp_lead', ['amount' => invoice_money($giftCoupon->amount, 'IRT'), 'hours' => fa_num((string) $giftCoupon->hoursLeft())]) }}
+        </span>
+        <input name="code" dir="ltr" required maxlength="32"
+               value="{{ $giftCoupon->code }}"
+               style="font-family:monospace;letter-spacing:1px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text)">
+        <button class="pnl-btn" type="submit">{{ __('ui.iv_cp_btn') }}</button>
+      </form>
+    @endif
+
     {{-- گام ۱: انتخاب روش (کارتی) --}}
     <p class="pm-lead">{{ __('ui.inv_choose_method') }}</p>
     <div class="pm-grid">
