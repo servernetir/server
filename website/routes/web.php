@@ -571,6 +571,14 @@ $site = function (): void {
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
 
         /*
+        | زیرساختِ AI — بخشِ M2: پروژه‌های AI همان بخشِ `#sec-ai` صفحهٔ
+        | امنیت می‌شوند؛ فقط همین دو روتِ نوشتنی. هیچ /v1 و هیچ عمومیِ AI
+        | این‌جا نیست.
+        */
+        Route::post('/security/ai-project', [Account\SecurityController::class, 'aiProjectStore'])->name('security.ai-project')->middleware('throttle:forms');
+        Route::post('/security/ai-project/{project}/update', [Account\SecurityController::class, 'aiProjectUpdate'])->name('security.ai-project.update')->middleware('throttle:forms');
+
+        /*
         | ورود دومرحله‌ای با اپلیکیشنِ احرازِ هویت (Google Authenticator).
         |
         | همه روی همان صفحهٔ `/account/security` می‌نشینند (بخشِ `#sec-2fa`)؛
@@ -2689,6 +2697,33 @@ Route::prefix('admin')->group(function () {
         Route::post('/users/{user}/extension', [AdminUser::class, 'extension']);
         Route::post('/users/{user}/names', [AdminUser::class, 'names']);
 
+        /*
+        | ═══ زیرساختِ AI — دروازه (M1) ═══
+        |
+        | فقط رجیستری و قیمت: ارائه‌دهنده‌ها · مدل‌ها · قیمت. تمام روت‌های
+        | نوشتنی پشتِ `middleware('admin')` صریح‌اند — پشتیبان/نویسنده فقط
+        | باید بتواند *ببیند* که چه مدل و چه قیمتی وجود دارد، نه اینکه
+        | دروازهٔ آیندهٔ مالی را بگرداند.
+        */
+        Route::get('/ai', [\App\Http\Controllers\Admin\AiGatewayController::class, 'providers'])
+            ->name('admin.ai.providers');
+        Route::get('/ai/providers/edit', [\App\Http\Controllers\Admin\AiGatewayController::class, 'editProvider'])
+            ->name('admin.ai.providers.edit');
+        Route::post('/ai/providers/{provider}', [\App\Http\Controllers\Admin\AiGatewayController::class, 'updateProvider'])
+            ->name('admin.ai.providers.update')->middleware('admin');
+        Route::get('/ai/models', [\App\Http\Controllers\Admin\AiGatewayController::class, 'models'])
+            ->name('admin.ai.models');
+        Route::get('/ai/models/{model}/edit', [\App\Http\Controllers\Admin\AiGatewayController::class, 'editModel'])
+            ->name('admin.ai.models.edit');
+        Route::post('/ai/models/{model}', [\App\Http\Controllers\Admin\AiGatewayController::class, 'updateModel'])
+            ->name('admin.ai.models.update')->middleware('admin');
+        Route::post('/ai/models/{model}/status', [\App\Http\Controllers\Admin\AiGatewayController::class, 'toggleModel'])
+            ->name('admin.ai.models.status')->middleware('admin');
+        Route::get('/ai/pricing', [\App\Http\Controllers\Admin\AiGatewayController::class, 'pricing'])
+            ->name('admin.ai.pricing');
+        Route::post('/ai/pricing/supersede', [\App\Http\Controllers\Admin\AiGatewayController::class, 'supersedePrice'])
+            ->name('admin.ai.pricing.supersede')->middleware('admin');
+
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
         Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
@@ -3298,6 +3333,38 @@ Route::prefix('api/v1')
                 Route::post('/tunnel/{service}/agent', [\App\Http\Controllers\Api\TunnelApiController::class, 'agentEnroll'])
                     ->middleware('throttle:5,1');
             });
+    });
+
+/*
+|----------------------------------------------------------------------
+| دروازهٔ AIِ عمومی — سازگارِ OpenAI (M4-b)
+|----------------------------------------------------------------------
+|
+| `POST /v1/chat/completions` — همان مسیری که SDKهای OpenAI پیش‌فرض
+| می‌زنند، تا مشتری فقط base_url و کلید را عوض کند. احراز با همان
+| توکنِ Bearerِ `CustomerApiToken` است ولی درایورِ مسیر،
+| `Ai\V1ChatController` است: گیتِ admission مالِ `AiAdmission` است نه
+| میدل‌ورِ `api/v1` (شرحِ کامل در هدرِ خودِ کنترلر).
+|
+| ⚠️ همان برداشتِ نشست/CSRF که `api/v1` دارد: تماس‌گیرنده یک برنامه
+|    است نه مرورگر — بی‌نشست و بی‌کوکی. CSRF هم بی‌اثر می‌شود چون خودِ
+|    میدل‌ورش برداشته می‌شود، نه اینکه استثنا شود.
+|
+| سقفِ نرخ: سطلِ همگانیِ `ai` (۱۲/دقیقه بر IP) — همان سقفِ چتِ سایت.
+|    سقفِ per-token در M5 جدا می‌شود؛ تا آن‌جا این سقف جلوی حلقهٔ
+|    بی‌کلیدِ پول‌خور را می‌گیرد و رزرو/TTL خودش سقفِ دوم است.
+*/
+Route::prefix('v1')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
+    ->group(function () {
+        Route::post('/chat/completions', [\App\Http\Controllers\Ai\V1ChatController::class, 'chat'])
+            ->name('ai.v1.chat.completions')
+            ->middleware('throttle:ai');
     });
 
 /*

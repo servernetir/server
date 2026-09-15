@@ -193,6 +193,70 @@
   </div>
 </section>
 
+{{-- ══ پروژه‌های AI (M2) ══ --}}
+<section class="pnl-sec" id="sec-ai">
+  <div class="pnl-sec-h"><h2>{{ __('ui.sec_ai_h') }}</h2></div>
+  <div class="pnl-sec-b">
+    <p class="sec-note">{{ __('ui.sec_ai_note') }}</p>
+
+    @if($aiProjects->isNotEmpty())
+      <div class="sec-tokens">
+        @foreach($aiProjects as $pj)
+          <div class="sec-token">
+            <div class="sec-token-t">
+              <b>{{ $pj->name }} <small class="sec-ai-slug" dir="ltr">{{ $pj->slug }}</small></b>
+              <small>
+                @if($pj->status === 'active')<span class="sec-chip ok">{{ __('ui.sec_ai_st_active') }}</span>
+                @elseif($pj->status === 'disabled')<span class="sec-chip warn">{{ __('ui.sec_ai_st_disabled') }}</span>
+                @else<span class="sec-chip">{{ __('ui.sec_ai_st_archived') }}</span>@endif
+                @if($pj->budget_period === 'monthly')
+                  <span class="sec-chip">{{ __('ui.sec_ai_budget_chip', ['budget' => fa_num(number_format((int) $pj->monthly_budget_irt))]) }}{{ $pj->budget_reset_day ? ' · '.__('ui.sec_ai_reset_chip', ['day' => fa_num($pj->budget_reset_day)]) : '' }}</span>
+                @else
+                  <span class="sec-chip">{{ __('ui.sec_ai_budget_none') }}</span>
+                @endif
+                <span class="sec-chip">{{ __('ui.sec_ai_keys_chip', ['n' => fa_num($pj->tokens()->usable()->count())]) }}</span>
+              </small>
+            </div>
+            @if($pj->status !== 'archived')
+              <form method="POST" action="{{ lroute('account.security.ai-project.update', $pj) }}" style="display:flex;gap:8px;margin-inline-start:auto">
+                @csrf
+                @if($pj->status === 'active')
+                  <button type="submit" name="status" value="disabled" class="sec-link-btn">{{ __('ui.sec_ai_disable') }}</button>
+                @else
+                  <button type="submit" name="status" value="active" class="sec-link-btn">{{ __('ui.sec_ai_enable') }}</button>
+                @endif
+                <button type="submit" name="status" value="archived" class="sec-revoke">{{ __('ui.sec_ai_archive') }}</button>
+              </form>
+            @endif
+          </div>
+        @endforeach
+      </div>
+    @else
+      <p class="sec-note" style="margin-top:12px">{{ __('ui.sec_ai_none') }}</p>
+    @endif
+
+    <form method="POST" action="{{ lroute('account.security.ai-project') }}" class="sec-form">
+      @csrf
+      <label>{{ __('ui.sec_ai_name') }}
+        <input type="text" name="name" maxlength="120" required placeholder="{{ __('ui.sec_ai_name_ph') }}">
+      </label>
+      <label>{{ __('ui.sec_ai_slug') }}
+        <input type="text" name="slug" dir="ltr" maxlength="120" placeholder="production-team">
+        <small class="sec-note">{{ __('ui.sec_ai_slug_h') }}</small>
+      </label>
+      <label>{{ __('ui.sec_ai_budget') }}
+        <input type="number" name="monthly_budget" min="1" class="ltr-num">
+        <small class="sec-note">{{ __('ui.sec_ai_budget_h') }}</small>
+      </label>
+      <label>{{ __('ui.sec_ai_reset_day') }}
+        <input type="number" name="budget_reset_day" min="1" max="28">
+        <small class="sec-note">{{ __('ui.sec_ai_reset_day_h') }}</small>
+      </label>
+      <button class="pnl-btn" style="justify-content:center">{{ __('ui.sec_ai_create') }}</button>
+    </form>
+  </div>
+</section>
+
 {{-- ══ دسترسی API ══ --}}
 <section class="pnl-sec" id="sec-api">
   <div class="pnl-sec-h"><h2>{{ __('ui.sec_api_h') }}</h2></div>
@@ -221,8 +285,11 @@
               @endphp
               <small class="sec-token-meta">
                 @foreach($tAb as $ab)
-                  <span class="sec-chip @if(str_contains($ab, 'write')) danger @endif" dir="ltr">{{ $ab }}</span>
+                  <span class="sec-chip @if(str_contains($ab, 'write') || (str_starts_with($ab, 'ai:') && $ab !== 'ai:models:read')) danger @endif" dir="ltr">{{ $ab }}</span>
                 @endforeach
+                @if($t->ai_project_id !== null)
+                  <span class="sec-chip" dir="ltr">◈ {{ $t->aiProject?->slug ?? '—' }}</span>
+                @endif
                 @if($tCidr)
                   <span class="sec-chip ok">IP: {{ implode(' ', array_slice($tCidr, 0, 3)) }}{{ count($tCidr) > 3 ? ' …' : '' }}</span>
                 @else
@@ -263,6 +330,33 @@
           </label>
         @endforeach
       </div>
+
+      {{--
+        🔴 کلیدِ AI (M2): abilityهای `ai:*` تنها تیک‌آمیزند و هیچ‌کدام
+        پیش‌فرض انتخاب نیستند؛ گره‌خوردن با پروژه آزادِ انتخابِ کاربر است —
+        بدونِ هیچ انتخابِ AI، فرم هیچ تغییری در رفتارِ قدیمی توکن نمی‌دهد.
+      --}}
+      @if($aiProjects->contains('status', 'active'))
+        <div class="sec-abilities">
+          <span class="sec-lbl">{{ __('ui.sec_ai_scopes') }}</span>
+          @foreach(\App\Models\CustomerApiToken::AI_ABILITIES as $key => $desc)
+            <label class="sec-chk">
+              <input type="checkbox" name="abilities[]" value="{{ $key }}">
+              <span><code dir="ltr">{{ $key }}</code> — {{ $desc }}</span>
+            </label>
+          @endforeach
+        </div>
+
+        <label>{{ __('ui.sec_ai_project') }}
+          <select name="ai_project_id">
+            <option value="">{{ __('ui.sec_ai_project_none') }}</option>
+            @foreach($aiProjects->where('status', 'active') as $pj)
+              <option value="{{ $pj->id }}" dir="ltr">{{ $pj->name }} ({{ $pj->slug }})</option>
+            @endforeach
+          </select>
+          <small class="sec-note">{{ __('ui.sec_ai_project_h') }}</small>
+        </label>
+      @endif
 
       <label>{{ __('ui.sec_api_cidrs') }}
         <input type="text" name="cidrs" dir="ltr" placeholder="185.10.20.30, 2001:db8::/64" maxlength="500">
@@ -319,6 +413,9 @@
 .sec-token-t b{ font-size:13px; color:var(--text) }
 .sec-token-t small{ font-size:11px; color:var(--dim) }
 .sec-revoke{ background:var(--danger-bg); border:1px solid var(--danger-line); color:var(--danger); border-radius:9px; padding:8px 13px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; flex:none }
+.sec-link-btn{ background:none; border:0; color:var(--muted); font:inherit; font-size:12.5px; cursor:pointer; text-decoration:underline; padding:0 }
+.sec-ai-slug{ color:var(--dim); font-weight:400; margin-inline-start:6px }
+.ltr-num{ direction:ltr }
 .sec-doc{ margin-top:16px; border-top:1px solid var(--line); padding-top:12px }
 .sec-doc summary{ cursor:pointer; font-size:13px; color:var(--info) }
 .sec-doc pre{ direction:ltr; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:12px; overflow-x:auto; margin:10px 0; color:var(--text) }
