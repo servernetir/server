@@ -133,9 +133,33 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        /*
+        | پاسخِ JSON برای مسیرهایِ API — `api/*` میراث و `v1/*` دروازهٔ AI
+        | (M4-c): 429ِ `throttle:ai` و هر استثنایِ فریم‌ورک دیگر باید JSON
+        | استاندارد بدهد، نه HTML، چون مشتریِ /v1 یک برنامه است.        */
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*') || $request->is('v1/*'),
         );
+
+        /*
+        | 🔴 حفاظِ M4-c: 429ِ میدل‌ورِ `throttle:ai` در مسیرِ `/v1` همان
+        |    شکلِ `{code, message}` دروازه را می‌گیرد — مشسرِ سازگارِ OpenAI
+        |    وقتی 429 می‌بیند باید بداند چه کدی، چه کدی و چه مدت صبر.
+        */
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, Request $request) {
+            if (! $request->is('v1/*')) {
+                return null;
+            }
+
+            $headers = $e->getHeaders();
+            $retry = $headers['Retry-After'] ?? 60;
+
+            return response()->json([
+                'code'    => 'rate_limited',
+                'message' => 'شمارِ درخواست‌ها از حدِ مجاز گذشت؛ کمی بعد دوباره تلاش کنید.',
+                'retry_after' => $retry,
+            ], 429, ['Retry-After' => (string) $retry]);
+        });
 
         // هر ۵۰۰ در ردیاب خطا ثبت می‌شود — فایل‌محور، تا حتی وقتی علتِ خطا
         // خودِ دیتابیس است هم گرفته شود. جزئیات (کلاس، پیام، فایل:خط، اولین

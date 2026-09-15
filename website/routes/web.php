@@ -3336,6 +3336,38 @@ Route::prefix('api/v1')
     });
 
 /*
+|----------------------------------------------------------------------
+| دروازهٔ AIِ عمومی — سازگارِ OpenAI (M4-b)
+|----------------------------------------------------------------------
+|
+| `POST /v1/chat/completions` — همان مسیری که SDKهای OpenAI پیش‌فرض
+| می‌زنند، تا مشتری فقط base_url و کلید را عوض کند. احراز با همان
+| توکنِ Bearerِ `CustomerApiToken` است ولی درایورِ مسیر،
+| `Ai\V1ChatController` است: گیتِ admission مالِ `AiAdmission` است نه
+| میدل‌ورِ `api/v1` (شرحِ کامل در هدرِ خودِ کنترلر).
+|
+| ⚠️ همان برداشتِ نشست/CSRF که `api/v1` دارد: تماس‌گیرنده یک برنامه
+|    است نه مرورگر — بی‌نشست و بی‌کوکی. CSRF هم بی‌اثر می‌شود چون خودِ
+|    میدل‌ورش برداشته می‌شود، نه اینکه استثنا شود.
+|
+| سقفِ نرخ: سطلِ همگانیِ `ai` (۱۲/دقیقه بر IP) — همان سقفِ چتِ سایت.
+|    سقفِ per-token در M5 جدا می‌شود؛ تا آن‌جا این سقف جلوی حلقهٔ
+|    بی‌کلیدِ پول‌خور را می‌گیرد و رزرو/TTL خودش سقفِ دوم است.
+*/
+Route::prefix('v1')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ])
+    ->group(function () {
+        Route::post('/chat/completions', [\App\Http\Controllers\Ai\V1ChatController::class, 'chat'])
+            ->name('ai.v1.chat.completions')
+            ->middleware('throttle:ai');
+    });
+
+/*
  * مسیرهای «کششیِ» موتورِ هاستِ ایران (pull-agent) — بیرونِ closureِ سه‌زبانهٔ
  * سایت. احراز با هدرِ `X-Agent-Token` داخلِ کنترلر (Setting::getSecret). فقط
  * GET و فقط‌خواندنی؛ ایجنت هر چند دقیقه این‌ها را می‌خوانَد تا حالتِ مطلوب
