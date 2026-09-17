@@ -119,9 +119,18 @@
   <div class="svc-facts">
     @if($s->isHourly())
       <div class="svc-fact"><small>{{ __('ui.cvb_hourly_t') }}</small><b>{{ cloud_hourly_price((int) $s->hourly_rate_irt) }}{{ __('ui.cvb_hourly_per') }}</b></div>
-      <div class="svc-fact {{ $hours !== null && $hours < 24 ? 'is-warn' : '' }}">
-        <small>{{ __('ui.svc_hours_left') }}</small><b>~{{ fa_num($hours) }} {{ __('ui.srv_credit_hours') }}</b>
-      </div>
+      {{-- 🔴 سرورِ خاموش‌شده به‌خاطرِ اعتبار: مهلتِ حذف مهم‌ترین عددِ کارت است،
+           نه «ساعتِ باقی» که صفر است. مشتری باید بداند تا کِی وقت دارد. --}}
+      @if($s->status === 'suspended' && $s->suspended_at !== null)
+        <div class="svc-fact is-warn">
+          <small>{{ __('ui.hb_susp_h') }}</small>
+          <b>{{ sdate(\App\Services\Cloud\HourlyHold::deletesAt($s), true) }}</b>
+        </div>
+      @else
+        <div class="svc-fact {{ $hours !== null && $hours < 24 ? 'is-warn' : '' }}">
+          <small>{{ __('ui.svc_hours_left') }}</small><b>~{{ fa_num($hours) }} {{ __('ui.srv_credit_hours') }}</b>
+        </div>
+      @endif
     @else
       <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ sdate($s->next_due_at) }}</b></div>
       <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ invoice_money($s->total(), $s->currency_code) }} <em>{{ $s->cycleLabel() }}</em></b></div>

@@ -86,6 +86,7 @@ class GpuController extends Controller
                     'disk_gb'     => (int) $plan->disk_gb,
                     'hourly_raw'  => $hourly,
                     'hourly'      => cloud_price($hourly),
+                    'hourly_eur'  => $plan->hourlyEurCents() > 0 ? $plan->hourlyEurCents() / 100 : null,
                     'interruptible' => (bool) $plan->is_interruptible,
                 ];
 
@@ -125,6 +126,8 @@ class GpuController extends Controller
         }));
 
         return view('pages.gpu', [
+            'guide'     => $this->guide($cards),
+            'costs'     => $this->costExamples($cards),
             'isFa'      => $isFa,
             'cards'     => $cards,
             'maxUnits'  => self::MAX_UNITS,
@@ -140,5 +143,109 @@ class GpuController extends Controller
             'minHours'  => CloudPlan::HOURLY_START_MIN_HOURS,
             'priority'  => app(SaladClient::class)->isConfigured(),
         ]);
+    }
+
+    /**
+     * راهنمای «کدام کارت برای کارِ من» — ردیف‌ها ثابت‌اند (کاربرد به حافظهٔ
+     * کارت بسته است، نه به کاتالوگ)، ولی **نمونه کارت‌ها و «از …» از کاتالوگِ
+     * زنده** می‌آیند؛ ردیفی که امروز هیچ کارتی ندارد نشان داده نمی‌شود تا
+     * صفحه چیزی را توصیه نکند که نمی‌فروشد.
+     *
+     * @param  array<int, array<string, mixed>>  $cards  ارزان‌مرتب
+     * @return array<int, array<string, mixed>>
+     */
+    private function guide(array $cards): array
+    {
+        $tiers = [
+            ['min' => 4,  'max' => 8,   'label' => '4–8 GB',   'fit' => 'ui.gpu_guide_r1'],
+            ['min' => 10, 'max' => 12,  'label' => '10–12 GB', 'fit' => 'ui.gpu_guide_r2'],
+            ['min' => 16, 'max' => 16,  'label' => '16 GB',    'fit' => 'ui.gpu_guide_r3'],
+            ['min' => 20, 'max' => 24,  'label' => '20–24 GB', 'fit' => 'ui.gpu_guide_r4'],
+            ['min' => 32, 'max' => 32,  'label' => '32 GB',    'fit' => 'ui.gpu_guide_r5'],
+            ['min' => 48, 'max' => 192, 'label' => '48–96 GB', 'fit' => 'ui.gpu_guide_r6'],
+        ];
+
+        $out = [];
+
+        foreach ($tiers as $t) {
+            $names = [];
+            $from = null;
+
+            foreach ($cards as $c) {
+                $vram = self::vramGb((string) $c['gpu']);
+
+                if ($vram === null || $vram < $t['min'] || $vram > $t['max']) {
+                    continue;
+                }
+
+                $from ??= $c['hourly'];
+                $name = trim((string) preg_replace('~\s*\(\s*\d+\s*GB\s*\)~i', '', (string) $c['gpu']));
+
+                if (count($names) < 3 && ! in_array($name, $names, true)) {
+                    $names[] = $name;
+                }
+            }
+
+            if ($names !== []) {
+                $out[] = ['vram' => $t['label'], 'fit' => __($t['fit']), 'cards' => $names, 'from' => $from];
+            }
+        }
+
+        return $out;
+    }
+
+    /** حافظهٔ کارت از نامِ کاتالوگ («RTX 3090 (24 GB)»)؛ کارتِ بی‌عدد از جدولِ شناخته‌ها */
+    public static function vramGb(string $gpu): ?int
+    {
+        if (preg_match('~\((\d+)\s*GB\)~i', $gpu, $m)) {
+            return (int) $m[1];
+        }
+
+        return match (true) {
+            stripos($gpu, 'PRO 6000') !== false => 96,
+            stripos($gpu, 'H100') !== false, stripos($gpu, 'A100') !== false => 80,
+            stripos($gpu, 'L40') !== false, stripos($gpu, 'A6000') !== false => 48,
+            default => null,
+        };
+    }
+
+    /**
+     * «هزینهٔ واقعی»: سه کارتِ پرجست‌وجو اگر در کاتالوگ باشند، وگرنه
+     * ارزان‌ترین/میانه/گران‌ترین. عددها ضربِ سادهٔ نرخِ زنده‌اند.
+     *
+     * @param  array<int, array<string, mixed>>  $cards
+     * @return array<int, array<string, mixed>>
+     */
+    private function costExamples(array $cards): array
+    {
+        if ($cards === []) {
+            return [];
+        }
+
+        $picked = [];
+
+        foreach (['RTX 3090 (24 GB)', 'RTX 4090 (24 GB)', 'RTX 5090 (32 GB)'] as $want) {
+            foreach ($cards as $c) {
+                if (strcasecmp((string) $c['gpu'], $want) === 0 && (int) $c['gpu_count'] === 1) {
+                    $picked[] = $c;
+                    break;
+                }
+            }
+        }
+
+        if (count($picked) < 3) {
+            $n = count($cards);
+            $picked = array_values(array_unique([$cards[0], $cards[intdiv($n, 2)], $cards[$n - 1]], SORT_REGULAR));
+        }
+
+        return array_map(fn (array $c) => [
+            'gpu'  => $c['gpu'],
+            'slug' => $c['slug'],
+            'h1'   => cloud_price((int) $c['hourly_raw']),
+            'h8'   => cloud_price((int) $c['hourly_raw'] * 8),
+            'h24'  => cloud_price((int) $c['hourly_raw'] * 24),
+            'raw'  => (int) $c['hourly_raw'],
+            'eur'  => $c['hourly_eur'],
+        ], $picked);
     }
 }

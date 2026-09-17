@@ -27,6 +27,8 @@ class Service extends Model
         'reminder_stage', 'suspended_at', 'grace_alert_at',
         // فروشِ ساعتیِ سرورِ ابری (پیش‌پرداخت از کیفِ پول)
         'billing_mode', 'hourly_rate_irt', 'hourly_rate_eur', 'last_metered_at', 'on_credit_out',
+        // نگهداریِ ۲۴ساعتهٔ از پیش ذخیره‌شده (`HourlyHold`)
+        'hold_rate_irt', 'hold_reserve_irt',
     ];
 
     /**
@@ -180,7 +182,8 @@ class Service extends Model
             return 0;
         }
 
-        return intdiv(max(0, $this->customer->creditBalance('IRT')), $rate);
+        // «در دسترس» — ذخیرهٔ نگهداری و رزروِ AI قابلِ خرجِ ساعتی نیستند
+        return intdiv(max(0, app(\App\Services\Finance\Wallet::class)->availableOf($this->customer->id)), $rate);
     }
 
     /**

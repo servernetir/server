@@ -40,6 +40,13 @@
       ['q' => __('ui.hv_faq6_q'), 'a' => __('ui.hv_faq6_a')],
       ['q' => __('ui.hv_faq7_q'), 'a' => __('ui.hv_faq7_a')],
       ['q' => __('ui.hv_faq8_q'), 'a' => __('ui.hv_faq8_a')],
+      // پایانِ اعتبار — پرتکرارترین تماسِ پشتیبانی (شهریور ۱۴۰۵)
+      ['q' => __('ui.hv_faq9_q'), 'a' => __('ui.hv_faq9_a')],
+      ['q' => __('ui.hv_faq10_q'), 'a' => __('ui.hv_faq10_a', $hvRep)],
+      ['q' => __('ui.hv_faq11_q'), 'a' => __('ui.hv_faq11_a', $hvRep)],
+      ['q' => __('ui.hv_faq12_q'), 'a' => __('ui.hv_faq12_a')],
+      ['q' => __('ui.hv_faq13_q'), 'a' => __('ui.hv_faq13_a')],
+      ['q' => __('ui.hv_faq14_q'), 'a' => __('ui.hv_faq14_a')],
   ];
 
   $hvSteps = [
@@ -161,6 +168,7 @@
         @if($hvN > 0)
           <span class="hv-pill">{{ $irCities ? __('ui.hv_pill_iran').' · ' : '' }}{{ __('ui.hv_pill_countries', ['n' => $hvNLabel]) }}</span>
         @endif
+        <a class="hv-pill hv-pill-a" href="#credit-runs-out">{{ __('ui.cl_t') }}</a>
       </div>
 
       <div class="hero-ctas reveal" style="transition-delay:.28s">
@@ -189,6 +197,9 @@
     </ol>
   </div>
 </section>
+
+{{-- ═══════════ پایانِ اعتبار — پیش از نرخ‌ها، چون تصمیمِ خرید همین‌جاست ═══════════ --}}
+@include('partials.credit-lifecycle', ['clMode' => 'vps'])
 
 {{-- ═══════════ نرخ‌ها به تفکیک کشور ═══════════ --}}
 <section class="section hv-sec" id="rates">
@@ -364,6 +375,8 @@
   border-radius:30px; padding:6px 14px; background:var(--surface) }
 .hv-pill-p{ border-color:rgba(34,211,238,.3); color:var(--text) }
 .hv-pill-p b{ color:var(--cyan); font-weight:700 }
+.hv-pill-a{ text-decoration:underline; text-underline-offset:3px }
+.hv-pill-a:hover{ border-color:var(--cyan); color:var(--cyan) }
 .hv-head .hero-ctas{ margin-top:22px }
 
 .hv-sec-h{ margin-bottom:22px; max-width:860px }

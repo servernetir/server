@@ -41,6 +41,59 @@
       'perHour' => __('ui.gpu_per_hour'),
   ];
 
+  /*
+  | پرسش‌های متداول — همان آرایه هم بخشِ صفحه را می‌سازد هم FAQPage را؛ دو
+  | منبع یعنی روزی پاسخِ صفحه و پاسخِ نتیجهٔ گوگل با هم نخوانند.
+  */
+  $gpuMax = $isFa ? fa_num((string) $maxUnits) : (string) $maxUnits;
+  $gpuFaq = [];
+  foreach (range(1, 12) as $gpuQ) {
+      $gpuFaq[] = [
+          'q' => __('ui.gpu_faq'.$gpuQ.'_q'),
+          'a' => __('ui.gpu_faq'.$gpuQ.'_a', ['hours' => $gpuHours, 'max' => $gpuMax]),
+      ];
+  }
+  $gpuFaqLd = [];
+  foreach ($gpuFaq as $gpuRow) {
+      $gpuFaqLd[] = ['@'.'type' => 'Question', 'name' => $gpuRow['q'], 'acceptedAnswer' => ['@'.'type' => 'Answer', 'text' => $gpuRow['a']]];
+  }
+
+  /*
+  | Product + Offerِ ساعتی (unitCode HUR) برای کارت‌های «هزینهٔ واقعی» —
+  | همان قاعدهٔ صفحهٔ سرورِ ساعتی: IRR برای fa (تومان × ۱۰)، EUR برای بقیه، و
+  | بدونِ قیمتِ ارزی اصلاً Offer ساخته نمی‌شود.
+  */
+  $gpuCur = $isFa ? 'IRR' : 'EUR';
+  $gpuOffers = [];
+  foreach ($costs as $gpuC) {
+      $gpuP = $isFa ? (int) schema_price_irr($gpuC['raw']) : $gpuC['eur'];
+      if ($gpuP === null || $gpuP <= 0) {
+          continue;
+      }
+      $gpuOffers[] = schema_offer_extras($gpuCur) + [
+          '@'.'type' => 'Offer',
+          'name' => $gpuC['gpu'],
+          'price' => $gpuP,
+          'priceCurrency' => $gpuCur,
+          'priceSpecification' => [
+              '@'.'type' => 'UnitPriceSpecification',
+              'price' => $gpuP, 'priceCurrency' => $gpuCur,
+              'unitCode' => 'HUR', 'unitText' => $isFa ? 'ساعت' : 'hour',
+          ],
+          'priceValidUntil' => now()->addDays(30)->toDateString(),
+          'availability' => 'https://schema.org/InStock',
+          'url' => url()->current(),
+      ];
+  }
+  $gpuProduct = [
+      'name' => __('ui.gpu_h1'),
+      'description' => $gpuMetaD,
+      'url' => url()->current(),
+      'image' => [asset('assets/img/og.png')],
+      'brand' => ['@'.'type' => 'Brand', 'name' => __('ui.brand')],
+      'offers' => $gpuOffers,
+  ];
+
   $gpuCrumbs = [[
       '@'.'type' => 'BreadcrumbList',
       'itemListElement' => [
@@ -55,6 +108,10 @@
 
 @section('content')
 <script type="application/ld+json">{!! schema_ld($gpuCrumbs[0], 'BreadcrumbList') !!}</script>
+<script type="application/ld+json">{!! schema_ld(['mainEntity' => $gpuFaqLd], 'FAQPage') !!}</script>
+@if($gpuOffers)
+<script type="application/ld+json">{!! schema_ld($gpuProduct, 'Product') !!}</script>
+@endif
 
 <style>
   .gpu-wrap{max-width:1120px;margin:0 auto;padding:0 20px}
@@ -153,6 +210,29 @@
   .gpu-note b{display:block;font-size:14.5px;margin:0 0 7px}
   .gpu-note p{margin:0;color:var(--muted);font-size:13.5px;line-height:2}
   .gpu-note .icon{width:19px;height:19px;color:var(--cyan);margin:0 0 9px}
+
+  /* راهنمای کارت و هزینهٔ واقعی — جدولِ افقی‌اسکرول تا صفحه هرگز افقی نرود */
+  .gpu-sec{margin:48px 0 0}
+  .gpu-sec h2{font-size:20px;margin:0 0 8px}
+  .gpu-sec > p{color:var(--muted);font-size:13.5px;line-height:2;margin:0 0 16px;max-width:820px}
+  .gpu-tw{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .gpu-t{width:100%;border-collapse:collapse;font-size:13.2px;min-width:560px}
+  .gpu-t th,.gpu-t td{padding:12px 14px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.9}
+  .gpu-t thead th{font-size:12px;color:var(--dim);font-weight:600;background:var(--surface-2)}
+  .gpu-t tbody tr:last-child td{border-bottom:0}
+  .gpu-t td b{color:var(--cyan);font-weight:700;white-space:nowrap}
+  .gpu-t small{display:block;color:var(--dim);font-size:11.5px}
+  .gpu-amd{color:var(--dim);font-size:12.5px;line-height:1.9;margin:10px 0 0}
+
+  .gpu-faq{display:flex;flex-direction:column;gap:10px;max-width:880px}
+  .gpu-faq details{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 18px}
+  .gpu-faq summary{font-size:14px;font-weight:600;list-style:none;cursor:pointer}
+  .gpu-faq summary::-webkit-details-marker{display:none}
+  .gpu-faq details[open] summary{color:var(--cyan)}
+  .gpu-faq details div{margin-top:10px;color:var(--muted);font-size:13.2px;line-height:2}
+  .gpu-cross{display:flex;flex-wrap:wrap;gap:9px}
+  .gpu-cross a{font-size:12.8px;color:var(--muted);border:1px solid var(--line);border-radius:30px;padding:7px 15px}
+  .gpu-cross a:hover{border-color:var(--cyan);color:var(--cyan)}
 </style>
 
 <section class="section">
@@ -269,6 +349,59 @@
       </div>
     </div>
 
+    @if($guide)
+      <div class="gpu-sec" id="which-gpu">
+        <h2>{{ __('ui.gpu_guide_t') }}</h2>
+        <p>{{ __('ui.gpu_guide_d') }}</p>
+        <div class="gpu-tw">
+          <table class="gpu-t">
+            <thead><tr>
+              <th>{{ __('ui.gpu_guide_h_vram') }}</th>
+              <th>{{ __('ui.gpu_guide_h_fit') }}</th>
+              <th>{{ __('ui.gpu_guide_h_cards') }}</th>
+            </tr></thead>
+            <tbody>
+              @foreach($guide as $g)
+                <tr>
+                  <td dir="ltr" style="white-space:nowrap">{{ $g['vram'] }}</td>
+                  <td>{{ $g['fit'] }}</td>
+                  <td><span dir="ltr">{{ implode(' · ', $g['cards']) }}</span><small>{{ __('ui.from') }} {{ $g['from'] }} {{ __('ui.gpu_per_hour') }}</small></td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        <p class="gpu-amd">{{ __('ui.gpu_guide_amd') }}</p>
+      </div>
+    @endif
+
+    @if($costs)
+      <div class="gpu-sec" id="gpu-cost">
+        <h2>{{ __('ui.gpu_cost_t') }}</h2>
+        <p>{{ __('ui.gpu_cost_d') }}</p>
+        <div class="gpu-tw">
+          <table class="gpu-t">
+            <thead><tr>
+              <th>{{ __('ui.gpu_cost_h_card') }}</th>
+              <th>{{ __('ui.gpu_cost_h_1') }}</th>
+              <th>{{ __('ui.gpu_cost_h_8') }}</th>
+              <th>{{ __('ui.gpu_cost_h_24') }}</th>
+            </tr></thead>
+            <tbody>
+              @foreach($costs as $cx)
+                <tr>
+                  <td dir="ltr">{{ $cx['gpu'] }}</td>
+                  <td><b>{{ $cx['h1'] }}</b></td>
+                  <td>{{ $cx['h8'] }}</td>
+                  <td>{{ $cx['h24'] }}</td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      </div>
+    @endif
+
     <div class="gpu-notes">
       <div class="gpu-note">
         <svg class="icon"><use href="#i-coins"/></svg>
@@ -289,6 +422,35 @@
       @endforeach
     </div>
 
+  </div>
+</section>
+
+{{-- 🔴 پایانِ اعتبار — پرتکرارترین تماسِ پشتیبانی؛ هیچ رقیبی صریح نمی‌گوید --}}
+@include('partials.credit-lifecycle', ['clMode' => 'gpu'])
+
+<section class="section" id="faq">
+  <div class="gpu-wrap">
+    <div class="gpu-sec" style="margin-top:0">
+      <h2>{{ __('ui.gpu_faq_t') }}</h2>
+      <div class="gpu-faq">
+        @foreach($gpuFaq as $i => $row)
+          <details @if($i === 0) open @endif>
+            <summary>{{ $row['q'] }}</summary>
+            <div>{{ $row['a'] }}</div>
+          </details>
+        @endforeach
+      </div>
+    </div>
+
+    <div class="gpu-sec">
+      <h2 style="font-size:15px">{{ __('ui.gpu_cross_t') }}</h2>
+      <div class="gpu-cross">
+        <a href="{{ lroute('vps.hourly') }}">{{ __('ui.gpu_cross_hourly') }}</a>
+        <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'ai-infrastructure']) }}">{{ __('ui.gpu_cross_ai_infra') }}</a>
+        <a href="{{ lroute('catalog', ['category' => 'solutions', 'slug' => 'ai-agents']) }}">{{ __('ui.gpu_cross_agents') }}</a>
+        <a href="{{ lroute('cloud.index') }}">{{ __('ui.gpu_cross_cloud') }}</a>
+      </div>
+    </div>
   </div>
 </section>
 

@@ -69,7 +69,7 @@ class GpuPageTest extends TestCase
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
 
-        $this->assertSame(1, substr_count($html, 'RTX PRO 6000 TESTCARD'),
+        $this->assertSame(1, substr_count($html, '<label class="gpu-card'),
             'کارتِ تکراریِ هم‌نام و هم‌مشخصات باید یکی شود.');
     }
 
@@ -88,7 +88,7 @@ class GpuPageTest extends TestCase
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
 
-        $this->assertSame(2, substr_count($html, 'RTX PRO 6000 TESTCARD'),
+        $this->assertSame(2, substr_count($html, '<label class="gpu-card'),
             'قیمتِ متفاوت یعنی دو عرضهٔ واقعاً متفاوت — هیچ‌کدام نباید غیب شود.');
     }
 

@@ -71,6 +71,15 @@ class CloudServerController extends Controller
      */
     private function denyIfNotWritable(Service $service): ?RedirectResponse
     {
+        /*
+        | 🔴 سرورِ ساعتی‌ای که متر به‌خاطرِ اتمامِ اعتبار خاموش کرده «فاکتورِ
+        | بازمانده» ندارد؛ پیامِ عمومی مشتری را به صفحهٔ فاکتورها می‌فرستاد و
+        | تیکت می‌ساخت. راهِ واقعی شارژِ کیف پول است.
+        */
+        if ($service->isHourly() && $service->status === 'suspended' && $service->suspended_at !== null) {
+            return back()->withErrors(__('ui.cs_suspended_hourly'));
+        }
+
         if (in_array($service->status, ['suspended', 'cancelled', 'expired', 'terminated', 'pending'], true)) {
             return back()->withErrors(
                 'این سرور در حالِ حاضر تعلیق است. برای استفاده، فاکتورِ بازمانده را پرداخت کنید.'
@@ -386,6 +395,63 @@ class CloudServerController extends Controller
         $instance->update(['password_seen' => true]);
 
         return back()->with('revealed_root_password', $password);
+    }
+
+    /**
+     * رفتارِ پایانِ اعتبار (خاموش/ماهانه/حذف) — پس از خرید هم.
+     *
+     * 🔴 تغییر به «خاموش» یا «ماهانه» ذخیرهٔ نگهداری (`HourlyHold`) می‌خواهد؛
+     * اگر «در دسترس» پس از ذخیره منفی شود، کلِ تغییر برمی‌گردد — وگرنه
+     * نگهداری‌ای وعده داده می‌شد که پولش در کیف نیست.
+     */
+    public function setCreditPolicy(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        $policy = (string) $request->input('on_credit_out');
+
+        if (! $service->isHourly() || ! in_array($policy, ['suspend', 'convert', 'terminate'], true)) {
+            return back()->withErrors(__('ui.hb_policy_bad'));
+        }
+
+        if ($service->status === 'suspended') {
+            return back()->withErrors(__('ui.hb_policy_locked'));
+        }
+
+        if (! in_array($service->status, ['active', 'awaiting_provision'], true)) {
+            return back()->withErrors(__('ui.hb_policy_bad'));
+        }
+
+        $wallet = app(\App\Services\Finance\Wallet::class);
+        $before = (int) $service->hold_reserve_irt;
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($service, $policy, $wallet, $before): void {
+                \App\Models\Customer::whereKey($service->customer_id)->lockForUpdate()->first();
+
+                $service->forceFill(['on_credit_out' => $policy])->save();
+                app(\App\Services\Cloud\HourlyHold::class)->syncRunning($service);
+
+                if ((int) $service->hold_reserve_irt > $before && $wallet->availableOf($service->customer_id) < 0) {
+                    throw new \App\Services\Finance\WalletException('insufficient_funds', 'hold');
+                }
+            });
+        } catch (\App\Services\Finance\WalletException) {
+            $service->refresh();
+
+            return back()->withErrors(__('ui.hb_policy_credit', [
+                'need' => cloud_price(\App\Services\Cloud\HourlyHold::fullReserve((int) $service->hold_rate_irt, $policy)),
+            ]));
+        }
+
+        try {
+            ActivityLog::forService($service, 'service', 'on_credit_out → '.$policy, 'customer', $request);
+        } catch (\Throwable $e) {
+            // لاگِ فعالیت تزئینِ تغییر است نه شرطِ آن؛ ولی بی‌صدا هم نمی‌مانَد
+            \App\Support\ErrorTracker::noteOnce('cloud', $e, 3600, ['service' => $service->id]);
+        }
+
+        return back()->with('ok', __('ui.hb_policy_saved'));
     }
 
     public function power(Request $request, Service $service): RedirectResponse

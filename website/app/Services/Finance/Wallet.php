@@ -66,7 +66,15 @@ class Wallet
             $q->where('id', '!=', $excludingReservationId);
         }
 
-        return (int) $q->sum('amount_irt');
+        /*
+        | 🔴 ذخیرهٔ نگهداریِ ۲۴ساعتهٔ سرورهای ساعتی (`HourlyHold`) هم نگه‌دارنده
+        | است: پولی که برای نگهداریِ ماشینِ خاموش کنار گذاشته شده، نه فاکتور
+        | می‌خوردش، نه دامنه، نه AI. کسرِ خودِ نگهداری پیش از برداشت همان‌قدر
+        | از ذخیره کم می‌کند، پس دوبار شمرده نمی‌شود.
+        */
+        $hold = $currency === 'IRT' ? \App\Services\Cloud\HourlyHold::heldOf($customerId) : 0;
+
+        return (int) $q->sum('amount_irt') + $hold;
     }
 
     /** در دسترس = دفتر − نگه‌دارنده‌ها */

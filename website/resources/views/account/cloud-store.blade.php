@@ -118,6 +118,8 @@
 
   $hRate = (int) ($hourlyMap[$curSlug]['rate'] ?? 0);
   $hMin  = (int) ($hourlyMap[$curSlug]['min'] ?? 0);
+  $hHold = (int) ($hourlyMap[$curSlug]['hold'] ?? 0);
+  $hGrace = fa_num((string) \App\Services\Cloud\HourlyHold::GRACE_HOURS);
   /*
   | تیکِ ساعتی از دو جا می‌آید: بازگشتِ فرم (`old`) یا **لینکِ ورودی**
   | (`?billing_mode=hourly`) — صفحهٔ فرودِ /vps/hourly با همین پارامتر به
@@ -821,14 +823,28 @@
             <label class="cvb-field">
               <span>{{ __('ui.cvb_hourly_end') }}</span>
               <select name="on_credit_out">
-                <option value="suspend" @selected(old('on_credit_out', 'suspend') === 'suspend')>{{ __('ui.cvb_hourly_end_suspend') }}</option>
-                <option value="convert" @selected(old('on_credit_out') === 'convert')>{{ __('ui.cvb_hourly_end_convert') }}</option>
+                <option value="suspend" @selected(old('on_credit_out', 'suspend') === 'suspend')>{{ __('ui.cvb_hourly_end_suspend', ['grace' => $hGrace]) }}</option>
+                <option value="convert" @selected(old('on_credit_out') === 'convert')>{{ __('ui.cvb_hourly_end_convert', ['grace' => $hGrace]) }}</option>
                 <option value="terminate" @selected(old('on_credit_out') === 'terminate')>{{ __('ui.cvb_hourly_end_terminate') }}</option>
               </select>
             </label>
+            {{-- 🔴 چرخهٔ کاملِ پایانِ اعتبار پیش از خرید، نه پس از اولین تیکت:
+                 بیشترِ تماس‌های پشتیبانیِ ساعتی دقیقاً همین پرسش بود. --}}
             <p class="cvb-note">
               <svg class="icon"><use href="#i-info"/></svg>
               <span>{{ __('ui.cvb_hourly_note') }}</span>
+            </p>
+            <p class="cvb-note" id="cvb-h-hold-row" @if($hHold <= 0) hidden @endif>
+              <svg class="icon"><use href="#i-shield"/></svg>
+              <span>{{ __('ui.cvb_hourly_hold_pre', ['grace' => $hGrace]) }}<b id="cvb-h-hold">{{ cloud_price($hHold) }}</b>{{ __('ui.cvb_hourly_hold_suf') }}</span>
+            </p>
+            <p class="cvb-note" id="cvb-h-hold-free" @if($hHold > 0) hidden @endif>
+              <svg class="icon"><use href="#i-shield"/></svg>
+              <span>{{ __('ui.cvb_hourly_hold_free', ['grace' => $hGrace]) }}</span>
+            </p>
+            <p class="cvb-note">
+              <svg class="icon"><use href="#i-clock"/></svg>
+              <span>{{ __('ui.cvb_hourly_lifecycle', ['grace' => $hGrace]) }}</span>
             </p>
           </div>
         @endif
@@ -1189,6 +1205,11 @@
     // ── نرخِ ساعتی ──
     set('cvb-h-rate', money(h.rate));
     set('cvb-h-min', money(h.min));
+    set('cvb-h-hold', money(h.hold || 0));
+    var holdRow = document.getElementById('cvb-h-hold-row');
+    var holdFree = document.getElementById('cvb-h-hold-free');
+    if (holdRow) holdRow.hidden = !(h.hold > 0);
+    if (holdFree) holdFree.hidden = (h.hold > 0);
     var low = document.getElementById('cvb-h-low');
     if (low) low.hidden = (D.credit >= h.min);
 

@@ -939,9 +939,15 @@ class CloudStoreController extends Controller
             $hourlyRow = $rows->first(fn (CloudPlan $p) => (string) $p->location_code === (string) $code
                 && $p->supportsHourly());
 
+            $hRateRow = $hourlyRow?->hourlyIrt() ?? 0;
+            // ذخیرهٔ نگهداریِ ۲۴ساعته (`HourlyHold`) — همان عددی که گیتِ خرید می‌سنجد
+            $hHoldRow = $hourlyRow ? \App\Services\Cloud\HourlyHold::fullReserve(
+                app(\App\Services\Cloud\HourlyHold::class)->rateForPlan($hourlyRow, $hRateRow), 'suspend') : 0;
+
             $hourlyMap[(string) $slug] = [
-                'rate' => $hourlyRow?->hourlyIrt() ?? 0,
-                'min' => $hourlyRow?->hourlyStartMinIrt() ?? 0,
+                'rate' => $hRateRow,
+                'min' => max($hourlyRow?->hourlyStartMinIrt() ?? 0, $hRateRow > 0 ? $hRateRow + $hHoldRow : 0),
+                'hold' => $hHoldRow,
             ];
 
             // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
@@ -1031,7 +1037,9 @@ class CloudStoreController extends Controller
             // نرخِ ساعتیِ هر پلن + حداقلِ اعتبارِ شروع (۲۴ ساعت) و موجودیِ فعلیِ
             // مشتری، تا صفحه بتواند پیش از ثبتِ سفارش بگوید اعتبار کافی است یا نه.
             'hourlyMap' => $hourlyMap,
-            'creditIrt' => (int) (Auth::guard('customer')->user()?->creditBalance('IRT') ?? 0),
+            // «در دسترس» — همان عددی که گیتِ خرید می‌سنجد (منهایِ ذخیره‌ها)
+            'creditIrt' => ($storeCustomer = Auth::guard('customer')->user()) !== null
+                ? max(0, app(\App\Services\Finance\Wallet::class)->availableOf($storeCustomer->id)) : 0,
 
             // ── افزودنی‌ها ──
             // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
@@ -1389,6 +1397,19 @@ class CloudStoreController extends Controller
         */
         $balance = app(\App\Services\Finance\Wallet::class)->availableOf($customer->id);
 
+        $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
+            ? (string) ($data['on_credit_out'] ?? 'suspend') : 'suspend';
+
+        /*
+        | 🔴 ذخیرهٔ نگهداریِ ۲۴ساعته (`HourlyHold`) از همان لحظهٔ خرید کنار
+        | می‌رود؛ پس اعتبار باید دست‌کم «ساعتِ اول + ذخیره» را بپوشاند. با
+        | حاشیهٔ سودِ عادی کفِ ۲۴ساعته همیشه بزرگ‌تر است؛ این `max` فقط روزی
+        | کار می‌کند که بها تقریباً با نرخِ فروش برابر شود.
+        */
+        $holdRate = app(\App\Services\Cloud\HourlyHold::class)->rateForPlan($offer, $hourly);
+        $holdReserve = \App\Services\Cloud\HourlyHold::fullReserve($holdRate, $onCreditOut);
+        $minStart = max($minStart, $hourly + $holdReserve);
+
         if ($balance < $minStart) {
             return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
                 'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
@@ -1397,13 +1418,10 @@ class CloudStoreController extends Controller
             ])]);
         }
 
-        $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
-            ? (string) ($data['on_credit_out'] ?? 'suspend') : 'suspend';
-
         // قیمتِ ماهانه را به‌عنوان مرجعِ «تبدیل به ماهانه» ذخیره می‌کنیم
         $monthly = self::priceForCycle($offer, 'monthly');
 
-        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut) {
+        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $holdRate, $holdReserve) {
             /*
             | 🔴 قفلِ مشتری **اول** — ترتیبِ سراسریِ قفل (مشتری ← سرویس ←
             | دفتر)؛ سپس Wallet دوبارهٔ گاردِ «در دسترس» را داخلِ قفل می‌گیرد.
@@ -1432,7 +1450,9 @@ class CloudStoreController extends Controller
                 'cloud_ssh_key_id' => $sshKey?->id,
                 'cloud_addons'     => [],
                 'plan'             => (string) $offer->public_name,
-            ]);
+            ] + (\App\Services\Cloud\HourlyHold::enabled()
+                ? ['hold_rate_irt' => $holdRate, 'hold_reserve_irt' => $holdReserve]
+                : []));
 
             /*
             | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).

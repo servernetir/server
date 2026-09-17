@@ -442,6 +442,9 @@ $site = function (): void {
         // سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A) — فقط برای سرورهای دارای اکسیت
         Route::post('/cloud/{service}/exit-country', [Account\CloudServerController::class, 'setExitCountry'])
             ->name('cloud.exit-country')->middleware('throttle:12,1');
+        // رفتارِ پایانِ اعتبارِ سرورِ ساعتی — پس از خرید هم قابلِ تغییر (شهریور ۱۴۰۵)
+        Route::post('/cloud/{service}/credit-policy', [Account\CloudServerController::class, 'setCreditPolicy'])
+            ->name('cloud.credit-policy')->middleware('throttle:12,1');
 
         // اکانت‌های «WireGuard روی TCP» — فقط برای سرورهایی که پروفایلِ تونل دارند.
         Route::post('/cloud/{service}/tunnel', [Account\CloudServerController::class, 'issueTunnelAccount'])

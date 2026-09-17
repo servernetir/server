@@ -137,7 +137,9 @@ final class PanelSections
             return 0;
         }
 
-        return max(0, $customer->creditBalance('IRT'));
+        // «در دسترس»، نه جمعِ خام: ذخیرهٔ نگهداری و رزروِ AI خرجِ ساعتی نمی‌شوند،
+        // پس «~N ساعت» باید همان ساعتی باشد که سرور واقعاً می‌ماند.
+        return max(0, app(\App\Services\Finance\Wallet::class)->availableOf($customer->id));
     }
 
     /** «~N ساعت اعتبار» بدونِ پرس‌وجوی تازه به ازای هر ردیف */
