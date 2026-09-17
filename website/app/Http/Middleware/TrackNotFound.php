@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Support\ErrorTracker;
+use App\Support\LegacyUrlResolver;
 use Closure;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,9 +22,28 @@ class TrackNotFound
     {
         $response = $next($request);
 
+        if ($response->getStatusCode() !== 404) {
+            return $response;
+        }
+
+        /*
+        | آدرسِ قدیمیِ شناخته‌شده؟ پیش از ثبت در ردیاب — آدرسی که حالا مقصد
+        | دارد دیگر «لینکِ خراب» نیست و نباید سیگنالِ لاگ را پر کند.
+        | (نقشه و قاعده‌ها: `config/legacy_urls.php`.)
+        */
+        $legacy = LegacyUrlResolver::resolve($request);
+
+        if ($legacy !== null) {
+            [$status, $to] = $legacy;
+
+            return $status === 410
+                ? response('', 410, ['X-Robots-Tag' => 'noindex'])
+                : new RedirectResponse(url($to), 301);
+        }
+
         // ۴۰۴های واقعی (لینکِ خرابِ خودمان) ثبت می‌شوند؛ کاوشِ ربات‌ها/اسکنرها
         // (xmlrpc، wp-login، .env، .git و…) نه — تا لاگ سیگنال بماند نه نویز.
-        if ($response->getStatusCode() === 404 && ! $this->isProbe($request)) {
+        if (! $this->isProbe($request)) {
             ErrorTracker::notFound($request);
         }
 

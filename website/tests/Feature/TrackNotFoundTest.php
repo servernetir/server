@@ -59,11 +59,17 @@ class TrackNotFoundTest extends TestCase
         $this->assertSame([], $this->urls());
     }
 
-    /** بازماندهٔ نقشهٔ سایتِ وردپرسیِ دامنهٔ قدیمی — ربات است، نه لینکِ ما */
+    /**
+     * بازماندهٔ نقشهٔ سایتِ وردپرسیِ دامنهٔ قدیمی — ربات است، نه لینکِ ما.
+     *
+     * از `LegacyUrlResolver` به بعد دیگر ۴۰۴ نیست: به نقشهٔ واقعیِ سایت ۳۰۱ می‌شود
+     * تا کنسولِ گوگل که هنوز نقشهٔ قدیمی را می‌خوانَد به نقشهٔ تازه برسد. آنچه این
+     * تست قفل می‌کند همان قبلی است: **در ردیاب ثبت نمی‌شود**.
+     */
     public function test_wordpress_sitemaps_are_filtered(): void
     {
-        $this->get('/wp-sitemap-users-1.xml')->assertNotFound();
-        $this->get('/wp-sitemap-posts-liquid-header-1.xml')->assertNotFound();
+        $this->get('/wp-sitemap-users-1.xml')->assertRedirect(url('/sitemap.xml'));
+        $this->get('/wp-sitemap-posts-liquid-header-1.xml')->assertRedirect(url('/sitemap.xml'));
 
         $this->assertSame([], $this->urls());
     }
