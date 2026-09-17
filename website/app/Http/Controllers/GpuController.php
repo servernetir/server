@@ -86,6 +86,15 @@ class GpuController extends Controller
                     'disk_gb'     => (int) $plan->disk_gb,
                     'hourly_raw'  => $hourly,
                     'hourly'      => cloud_price($hourly),
+                    /*
+                    | عددِ خامِ دادهٔ ساختاریافته — عیناً همان قاعدهٔ
+                    | HourlyVpsController: ریال برای fa (IRR = ریال، نه تومان)،
+                    | یورو برای en/tr. نبودِ قیمتِ ارزی ⇒ null ⇒ ویو Offer
+                    | نمی‌سازد؛ نشانه‌گذاریِ نبود از قیمتِ غلط بهتر است.
+                    */
+                    'ld_price'    => app()->getLocale() === 'fa'
+                        ? (int) schema_price_irr($hourly)
+                        : ($plan->hourlyEurCents() > 0 ? $plan->hourlyEurCents() / 100 : null),
                     'interruptible' => (bool) $plan->is_interruptible,
                 ];
 

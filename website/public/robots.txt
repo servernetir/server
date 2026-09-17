@@ -23,6 +23,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: PerplexityBot
 Allow: /
@@ -49,6 +57,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: Googlebot
 Allow: /
@@ -75,6 +91,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: Bingbot
 Allow: /
@@ -101,6 +125,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: GPTBot
 Allow: /
@@ -127,6 +159,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: Google-Extended
 Allow: /
@@ -153,6 +193,14 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 User-agent: *
 Allow: /
@@ -179,5 +227,13 @@ Disallow: /bale/webhook/
 Disallow: /cloud-phone/webhook/
 Disallow: /healthz
 Disallow: /up
+Disallow: /*?attachment_id=
+Disallow: /parts/*?
+Disallow: /en/parts/*?
+Disallow: /tr/parts/*?
+Disallow: /*?tag=
+Disallow: /*&tag=
+Disallow: /*?q=
+Disallow: /*&q=
 
 Sitemap: https://servernet.cloud/sitemap.xml

@@ -301,13 +301,27 @@ return [
 
         'python' => [
             'icon' => 'code', 'group' => 'use',
+            /*
+            | seo_t/seo_d — Search Console، ۱۶ سپتامبر ۲۰۲۶: این صفحه ۱٬۶۷۹ نمایش
+            | در ۹۰ روز گرفت (بیشترین نمایشِ هر صفحهٔ محصول) با میانگینِ رتبهٔ
+            | ۵۸٫۷ و CTR ۰٫۴٪. پرس‌وجوهای اصلی: «هاست python» ۲۰۹، «هاست پایتون»
+            | ۲۰۴، «خرید هاست پایتون» ۱۷۸، «python hosting fiyatları» ۱۳۷،
+            | «python hosting satın al» ۱۳۴. عنوانِ قبلی فقط «هاست پایتون» بود.
+            | ⚠️ هیچ ادعای تازه‌ای نیست — همه از hero_d/chips/tag همین پلن‌اند.
+            */
             'fa' => ['t' => 'هاست پایتون', 'tag' => 'Django · Flask · FastAPI',
+                'seo_t' => 'خرید هاست پایتون با SSH — Django، Flask و FastAPI',
+                'seo_d' => 'خرید هاست پایتون (Python) برای Django، Flask و FastAPI: دسترسی کامل SSH، دیپلوی از Git، Python 3.11/3.12 با venv و نصب آزاد پکیج با pip — بدون دردسر مدیریت سرور.',
                 'hero_t' => 'هاست پایتون', 'hero_g' => 'برای توسعه‌دهنده‌ها.',
                 'hero_d' => 'محیط آماده Django، Flask و FastAPI با دسترسی کامل SSH، دیپلوی از Git و نصب آزاد پکیج‌ها با pip — بدون دردسر مدیریت سرور.'],
             'en' => ['t' => 'Python Hosting', 'tag' => 'Django · Flask · FastAPI',
+                'seo_t' => 'Python Hosting with SSH — Django, Flask & FastAPI',
+                'seo_d' => 'Buy Python hosting for Django, Flask and FastAPI: full SSH access, Git deploys, Python 3.11/3.12 with venv and free pip installs — minus the server-management pain.',
                 'hero_t' => 'Python Hosting', 'hero_g' => 'made for developers.',
                 'hero_d' => 'A ready environment for Django, Flask and FastAPI with full SSH access, Git deploys and free pip installs — minus the server-management pain.'],
             'tr' => ['t' => 'Python Hosting', 'tag' => 'Django · Flask · FastAPI',
+                'seo_t' => 'Python Hosting Satın Al — Django, Flask, FastAPI ve SSH',
+                'seo_d' => 'Django, Flask ve FastAPI için Python hosting satın alın: tam SSH erişimi, Git ile dağıtım, venv ile Python 3.11/3.12 ve pip ile özgür paket kurulumu — sunucu yönetimi derdi olmadan.',
                 'hero_t' => 'Geliştiriciler için', 'hero_g' => 'Python Hosting.',
                 'hero_d' => 'Django, Flask ve FastAPI için hazır ortam; tam SSH erişimi, Git ile dağıtım ve pip ile özgür paket kurulumu — sunucu yönetimi derdi olmadan.'],
             'chips' => ['Python 3.11 / 3.12', 'Django / Flask / FastAPI', 'SSH + pip + venv', 'Git Deploy', 'MySQL / MariaDB'],

@@ -50,11 +50,15 @@ use Illuminate\View\View;
  */
 class OrderSummaryController extends Controller
 {
-    public function show(string $slug): View
+    public function show(string $slug): View|\Illuminate\Http\RedirectResponse
     {
         abort_unless(Schema::hasTable('products'), 404);
 
-        $product = Product::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        $product = Product::where('slug', $slug)->where('is_active', true)->first();
+
+        if ($product === null) {
+            return $this->retiredPlan($slug) ?? abort(404);
+        }
 
         $setup = $product->setup_fee > 0 ? $product->effectiveSetup() : 0;
         $setupTax = (int) round($setup * $product->effectiveTaxPercent() / 100);
@@ -176,6 +180,38 @@ class OrderSummaryController extends Controller
     private function sellsInCurrentLocale(): bool
     {
         return app()->getLocale() === 'fa';
+    }
+
+    /**
+     * پلنِ بازنشسته ← ۳۰۱ به صفحهٔ همان خانوادهٔ محصول.
+     *
+     * Search Console، ۱۶ سپتامبر ۲۰۲۶: ۳۶ «Not found (404)» که بخشی‌شان
+     * `/en/order/download-2`، `/en/order/backup-2`، `/en/order/download-4`
+     * بودند — پلن‌هایی که از فروش برداشته شدند ولی نشانی‌شان از نقشهٔ سایتِ
+     * قبلی، لینکِ بیرونی و تاریخچهٔ خزش هنوز زنده است. ۴۰۴ هم اعتبارِ آن
+     * نشانی را دور می‌ریزد و هم بازدیدکننده را بی‌راه رها می‌کند؛ صفحهٔ
+     * خانواده (`/hosting/backup`) پلن‌های **امروزِ** همان نیاز را دارد.
+     *
+     * ⚠️ فقط وقتی خانواده واقعاً صفحه دارد (`config/hosting.products`). اسلاگی
+     * که به هیچ خانواده‌ای نمی‌خورد (لایسنس، ساختگی، اسکنِ ربات) همچنان ۴۰۴
+     * است — ۳۰۱ِ همه‌چیز به یک صفحه را گوگل «soft 404» می‌خوانَد و بدتر است.
+     *
+     * ⚠️ اسلاگ پیش از رسیدن به این‌جا با regexِ روت (`[a-z0-9-]+`) محدود شده،
+     * و مقصد از `lroute()` ساخته می‌شود نه از ورودی — open redirect ممکن نیست.
+     */
+    private function retiredPlan(string $slug): ?RedirectResponse
+    {
+        if (preg_match('~^([a-z][a-z-]*?)-\d+$~', $slug, $m) !== 1) {
+            return null;
+        }
+
+        $family = $m[1];
+
+        if (! array_key_exists($family, (array) config('hosting.products', []))) {
+            return null;
+        }
+
+        return redirect()->to(lroute('hosting', $family), 301);
     }
 
     /**

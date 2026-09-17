@@ -69,6 +69,10 @@ class GpuPageTest extends TestCase
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
 
+        // ⚠️ فقط HTMLِ دیدنی: JSON-LDِ Product هم نامِ کارت را در Offer تکرار
+        //    می‌کند و شمارشِ خام آن را «کارتِ دوم» می‌خواند.
+        $html = (string) preg_replace('~<script\b.*?</script>~s', '', $html);
+
         $this->assertSame(1, substr_count($html, 'RTX PRO 6000 TESTCARD'),
             'کارتِ تکراریِ هم‌نام و هم‌مشخصات باید یکی شود.');
     }
@@ -87,6 +91,8 @@ class GpuPageTest extends TestCase
         ]);
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
+
+        $html = (string) preg_replace('~<script\b.*?</script>~s', '', $html);
 
         $this->assertSame(2, substr_count($html, 'RTX PRO 6000 TESTCARD'),
             'قیمتِ متفاوت یعنی دو عرضهٔ واقعاً متفاوت — هیچ‌کدام نباید غیب شود.');
@@ -249,5 +255,74 @@ class GpuPageTest extends TestCase
 
         $this->assertStringContainsString(cloud_price($plan->hourlyIrt()), $html,
             'نرخِ ساعتیِ صفحه با نرخِ مدل نمی‌خوانَد.');
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function ldBlocks(string $html): array
+    {
+        preg_match_all('~<script type="application/ld\+json">(.*?)</script>~s', $html, $m);
+
+        return array_values(array_filter(array_map(fn ($j) => json_decode($j, true), $m[1])));
+    }
+
+    /**
+     * Product با Offerِ **ساعتی** — قیمتش همان عددِ مدل.
+     *
+     * GSC (۱۶ سپتامبر ۲۰۲۶): /gpu هفتمین صفحهٔ پرکلیک بود و «اجاره gpu» در رتبهٔ
+     * ۷–۹، ولی برخلافِ /vps/hourly هیچ Productی نداشت و در «Product snippets»
+     * نبود. قیمتِ schema اگر از عددِ دیگری بیاید، همان قیمتِ دروغی است که
+     * Merchant listings بعد از چند روز پرچم می‌زند.
+     */
+    public function test_the_page_emits_an_hourly_product_offer_from_the_model_price(): void
+    {
+        $plan = $this->seedGpuPlan();
+        Setting::put('pricing_rate_override', '100000');
+
+        $fa = collect($this->ldBlocks((string) $this->get('/gpu')->assertOk()->getContent()))
+            ->firstWhere('@type', 'Product');
+
+        $this->assertNotNull($fa, 'Product در /gpu نیست');
+        $offer = $fa['offers'][0];
+        $this->assertSame('IRR', $offer['priceCurrency']);
+        $this->assertSame((int) schema_price_irr($plan->hourlyIrt()), $offer['price'], 'ریال = تومان × ۱۰ از مدل');
+        $this->assertSame('HUR', $offer['priceSpecification']['unitCode'], 'باید ساعتی خوانده شود نه ماهانه');
+
+        $en = collect($this->ldBlocks((string) $this->get('/en/gpu')->assertOk()->getContent()))
+            ->firstWhere('@type', 'Product');
+        $this->assertSame('EUR', $en['offers'][0]['priceCurrency']);
+        $this->assertSame($plan->hourlyEurCents() / 100, $en['offers'][0]['price']);
+    }
+
+    /** بی‌کارتِ فروختنی، Productِ بی‌قیمت ساخته نمی‌شود — نشانه‌گذاریِ نبود از غلط بهتر است. */
+    public function test_no_product_schema_without_a_sellable_card(): void
+    {
+        $types = array_column($this->ldBlocks((string) $this->get('/gpu')->assertOk()->getContent()), '@type');
+
+        $this->assertNotContains('Product', $types);
+    }
+
+    /**
+     * FAQPage فقط از پرسش‌هایی که **روی صفحه دیده می‌شوند**.
+     *
+     * رهنمودِ گوگل: محتوای FAQ در schema باید برای کاربر قابلِ مشاهده باشد.
+     * پس هر پاسخِ schema باید عیناً در HTMLِ رندرشده هم باشد.
+     */
+    public function test_faq_schema_only_repeats_visible_questions(): void
+    {
+        $this->seedGpuPlan();
+
+        foreach (['/gpu', '/en/gpu', '/tr/gpu'] as $url) {
+            $html = (string) $this->get($url)->assertOk()->getContent();
+            $faq = collect($this->ldBlocks($html))->firstWhere('@type', 'FAQPage');
+
+            $this->assertNotNull($faq, $url.': FAQPage نیست');
+            $this->assertGreaterThanOrEqual(2, count($faq['mainEntity']));
+
+            $visible = html_entity_decode(strip_tags((string) preg_replace('~<script\b.*?</script>~s', '', $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            foreach ($faq['mainEntity'] as $q) {
+                $this->assertStringContainsString($q['name'], $visible, $url.': پرسشِ نامرئی در schema');
+                $this->assertStringContainsString($q['acceptedAnswer']['text'], $visible, $url.': پاسخِ نامرئی در schema');
+            }
+        }
     }
 }

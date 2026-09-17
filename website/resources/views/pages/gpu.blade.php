@@ -50,11 +50,76 @@
   ]];
 @endphp
 
+@php
+  /*
+  | Product + Offer (ساعتی) و FAQPage.
+  |
+  | Search Console، ۱۶ سپتامبر ۲۰۲۶: /gpu هفتمین صفحهٔ سایت از نظرِ کلیک است و
+  | پرس‌وجوهای «اجاره gpu»، «سرور gpu ساعتی»، «اجاره کارت گرافیک» همه در رتبهٔ
+  | ۷ تا ۹ نشسته‌اند — ولی برخلافِ /vps/hourly هیچ دادهٔ ساختاریافتهٔ تجاری
+  | نداشت. «Product snippets» سایت ۶۹ مورد معتبر دارد؛ این صفحه در آن نبود.
+  |
+  | ⚠️ قیمت فقط از کارت‌های واقعیِ کنترلر (همان `offers()` که سبد می‌فروشد) و
+  |    UnitPriceSpecification با HUR تا «ساعتی» خوانده شود نه ماهانه.
+  | ⚠️ FAQ **هیچ متنِ تازه‌ای نمی‌سازد**: سه پرسش همان سه تیترِ سؤالیِ
+  |    قابل‌مشاهدهٔ صفحه‌اند. FAQِ نامرئی در schema خلافِ رهنمودِ گوگل است.
+  |    پرسشِ «چرا این قیمت؟» فقط وقتی می‌آید که بخشش واقعاً رندر شود.
+  */
+  $gpuCur = $isFa ? 'IRR' : 'EUR';
+  $gpuOffers = [];
+  foreach (array_slice($cards, 0, 20) as $gpuC) {
+      $gpuRaw = $gpuC['ld_price'] ?? null;
+      if ($gpuRaw === null || $gpuRaw <= 0) {
+          continue;
+      }
+      $gpuOffers[] = schema_offer_extras($gpuCur) + [
+          '@'.'type' => 'Offer',
+          'name' => $gpuC['gpu'].($gpuC['gpu_count'] > 1 ? ' ×'.$gpuC['gpu_count'] : ''),
+          'priceCurrency' => $gpuCur,
+          'price' => $gpuRaw,
+          'priceSpecification' => [
+              '@'.'type' => 'UnitPriceSpecification',
+              'price' => $gpuRaw,
+              'priceCurrency' => $gpuCur,
+              'unitCode' => 'HUR',
+              'unitText' => $isFa ? 'ساعت' : 'hour',
+          ],
+          'priceValidUntil' => now()->addDays(30)->toDateString(),
+          'availability' => 'https://schema.org/InStock',
+          'url' => lroute('gpu'),
+      ];
+  }
+  $gpuProduct = [
+      'name' => __('ui.gpu_h1'),
+      'description' => $gpuMetaD,
+      'url' => lroute('gpu'),
+      'image' => [asset('assets/img/og.png')],
+      'brand' => ['@'.'type' => 'Brand', 'name' => __('ui.brand')],
+      'offers' => $gpuOffers,
+  ];
+
+  $gpuFaq = [
+      [__('ui.gpu_hourly_t'), __('ui.gpu_hourly_d', ['hours' => $gpuHours])],
+      [__('ui.gpu_ssh_t'), __('ui.gpu_ssh_d')],
+  ];
+  if ($interruptible) {
+      array_unshift($gpuFaq, [__('ui.gpu_warn_t'), __('ui.gpu_warn_d')]);
+  }
+  $gpuFaqLd = [];
+  foreach ($gpuFaq as [$gpuQ, $gpuA]) {
+      $gpuFaqLd[] = ['@'.'type' => 'Question', 'name' => $gpuQ, 'acceptedAnswer' => ['@'.'type' => 'Answer', 'text' => $gpuA]];
+  }
+@endphp
+
 @section('title', __('ui.gpu_meta_t'))
 @section('description', $gpuMetaD)
 
 @section('content')
 <script type="application/ld+json">{!! schema_ld($gpuCrumbs[0], 'BreadcrumbList') !!}</script>
+@if($gpuOffers)
+<script type="application/ld+json">{!! schema_ld($gpuProduct, 'Product') !!}</script>
+@endif
+<script type="application/ld+json">{!! schema_ld(['mainEntity' => $gpuFaqLd], 'FAQPage') !!}</script>
 
 <style>
   .gpu-wrap{max-width:1120px;margin:0 auto;padding:0 20px}
