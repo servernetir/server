@@ -159,6 +159,7 @@ class SiteController extends Controller
             '/contact'       => 'Contact and support',
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
+            '/vps/compare-locations' => 'Which country for an international VPS: live price/plan comparison of every foreign location and a use-case recommender',
             '/gpu'           => 'Hourly GPU servers for AI inference, rendering and training (interruptible, SSH access)',
             '/servers'       => 'Refurbished physical servers for sale',
             /*
@@ -382,6 +383,8 @@ class SiteController extends Controller
         $add('cloud.index');
         // صفحهٔ فرودِ «سرور مجازی ساعتی» — روتِ صریح، خارج از کاتالوگِ config
         $add('vps.hourly');
+        // مقایسه و انتخابِ کشورِ سرورِ خارج (پیشنهاددهندهٔ تعاملی)
+        $add('vps.compare');
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
         $add('gpu');
 

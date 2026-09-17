@@ -58,6 +58,9 @@ $site = function (): void {
     | می‌قاپد و ۴۰۴ می‌دهد (چون 'hourly' در config/catalog/vps.php نیست).
     */
     Route::get('/vps/hourly', [\App\Http\Controllers\HourlyVpsController::class, 'show'])->name('vps.hourly');
+    // «کدام کشور برای سرور خارج؟» — نیتِ تصمیم (نه خرید، که مالِ /vps/international
+    // است). مثلِ /vps/hourly باید پیش از روتِ فراگیرِ کاتالوگ ثبت شود.
+    Route::get('/vps/compare-locations', [\App\Http\Controllers\ForeignVpsFinderController::class, 'show'])->name('vps.compare');
 
     /*
     | سرورِ گرافیکی — /gpu (خطِ محصولِ مستقل، نه زیرِ /vps).

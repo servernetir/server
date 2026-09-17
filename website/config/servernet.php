@@ -388,6 +388,8 @@ return [
                     ['route' => ['cloud.index', []], 'fa' => 'سرور مجازی اشتراکی', 'en' => 'Shared-CPU VPS', 'tr' => 'Paylaşımlı CPU VPS'],
                     ['slug' => 'iran',              'fa' => 'سرور مجازی ایران', 'en' => 'Iran VPS', 'tr' => 'İran VPS'],
                     ['slug' => 'international',     'fa' => 'سرور مجازی خارج', 'en' => 'International VPS', 'tr' => 'Yurt Dışı VPS'],
+                    ['route' => ['vps.compare', []], 'new' => true,
+                        'fa' => 'کدام کشور برای سرور خارج؟', 'en' => 'Compare VPS locations', 'tr' => 'VPS lokasyon karşılaştırma'],
                     // صفحهٔ فرودِ فروشِ ساعتی — محصولِ زنده‌ای که تا مرداد ۱۴۰۵ هیچ
                     // لینکی در منو نداشت (و هیچ صفحه‌ای). لینکِ منو یعنی هر صفحهٔ
                     // سایت یک لینکِ داخلی با متنِ لنگرِ دقیقِ کلیدواژه به آن می‌دهد.
