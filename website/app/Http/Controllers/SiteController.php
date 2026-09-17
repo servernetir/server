@@ -384,7 +384,11 @@ class SiteController extends Controller
         // صفحهٔ فرودِ «سرور مجازی ساعتی» — روتِ صریح، خارج از کاتالوگِ config
         $add('vps.hourly');
         // مقایسه و انتخابِ کشورِ سرورِ خارج (پیشنهاددهندهٔ تعاملی)
-        $add('vps.compare');
+        // ⚠️ پشتِ Route::has: تا ریستِ opcache روتِ کهنه اجرا می‌شود و route()ِ نامِ
+        // ناموجود کلِ نقشهٔ سایت را ۵۰۰ می‌کرد (دیپلویِ ۱۷ سپتامبر برگشت خورد).
+        if (\Illuminate\Support\Facades\Route::has('vps.compare')) {
+            $add('vps.compare');
+        }
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
         $add('gpu');
 
