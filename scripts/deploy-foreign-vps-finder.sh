@@ -53,7 +53,7 @@ else
   git -C repo fetch --depth 400 origin "$BRANCH" || { echo "FATAL: fetch $BRANCH"; exit 1; }
 fi
 
-MINE="${1:-368c203c}"
+MINE="${1:-4820803b}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 \
   || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
