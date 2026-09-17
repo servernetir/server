@@ -363,12 +363,7 @@ class OrderSummaryController extends Controller
         ];
 
         if ($product->isRefundable()) {
-            $data['hasMerchantReturnPolicy'] = [
-                '@type'                => 'MerchantReturnPolicy',
-                'applicableCountry'    => 'IR',
-                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
-                'merchantReturnDays'   => 14,
-            ];
+            $data['hasMerchantReturnPolicy'] = schema_return_policy();
         }
 
         return $data;

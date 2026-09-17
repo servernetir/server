@@ -741,6 +741,30 @@ if (! function_exists('schema_ld')) {
     }
 }
 
+if (! function_exists('schema_return_policy')) {
+    /**
+     * سیاستِ بازگشتِ وجهِ ۱۴ روزه — یک منبع برای همهٔ Offerها و صفحهٔ سفارش.
+     *
+     * Search Console (۱۶ سپتامبر ۲۰۲۶، ۶۹ آیتم) بدونِ `returnMethod` هشدار
+     * می‌داد. schema.org برای سرویسِ دیجیتال مقدارِ «آنلاین» ندارد (فقط
+     * ByMail / InStore / AtKiosk)؛ ByMail نزدیک‌ترین است چون درخواست از راهِ
+     * دور ثبت می‌شود و حضوری نیست. `refundType` = بازگشتِ کاملِ وجه، همان
+     * وعدهٔ terms.
+     */
+    function schema_return_policy(): array
+    {
+        return [
+            '@type' => 'MerchantReturnPolicy',
+            'applicableCountry' => 'IR',
+            'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+            'merchantReturnDays' => 14,
+            'returnMethod' => 'https://schema.org/ReturnByMail',
+            'returnFees' => 'https://schema.org/FreeReturn',
+            'refundType' => 'https://schema.org/FullRefund',
+        ];
+    }
+}
+
 if (! function_exists('schema_offer_extras')) {
     /**
      * فیلدهای مشترکی که Search Console در گزارشِ «Merchant listings» برای هر
@@ -757,13 +781,7 @@ if (! function_exists('schema_offer_extras')) {
             // اولِ ماه، نه now(): اسکیما نباید هر روز عوض شود (pagecache و
             // خزشِ مجدد بی‌دلیل).
             'validFrom' => now()->startOfMonth()->toDateString(),
-            'hasMerchantReturnPolicy' => [
-                '@type' => 'MerchantReturnPolicy',
-                'applicableCountry' => 'IR',
-                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
-                'merchantReturnDays' => 14,
-                'returnFees' => 'https://schema.org/FreeReturn',
-            ],
+            'hasMerchantReturnPolicy' => schema_return_policy(),
             'shippingDetails' => [
                 '@type' => 'OfferShippingDetails',
                 'shippingRate' => ['@type' => 'MonetaryAmount', 'value' => 0, 'currency' => $currency],
