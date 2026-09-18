@@ -94,9 +94,14 @@ lang/en/ui.php
 lang/tr/ui.php
 "
 
-# ── داراییِ عمومی — فقط داخلِ assets (قاعدهٔ ثبت‌شده: هرگز فایلِ ریشهٔ public) ──
+# ── داراییِ عمومی — «مسیرِ مخزن:مسیرِ وب‌روت» ──
+#
+# 🔴 در مخزن `website/public/assets/...` است ولی روی سرور `public_html/assets/...`؛
+# نخستین DRY با «assets/css/panel.css در نسخهٔ هدف نیست» شکست خورد چون هر دو را
+# یکی گرفته بودم. جفتِ صریح این را برای همیشه می‌بندد.
+# ⚠️ فقط داخلِ assets (قاعدهٔ ثبت‌شده: هرگز فایلِ ریشهٔ public).
 WEB_FILES="
-assets/css/panel.css
+public/assets/css/panel.css:assets/css/panel.css
 "
 
 normalize() { tr -d '\r' < "$1" | sed -e '$a\' > "$2"; }
@@ -104,9 +109,9 @@ distance() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]' || true; }
 CONFLICTS=""
 UPD=0
 
-# apply_one <rel> <destRoot> <stageKey> — ادغامِ سه‌طرفه، فقط در stage
+# apply_one <srcRel[:destRel]> <destRoot> <stageKey> — ادغامِ سه‌طرفه، فقط در stage
 apply_one() {
-  rel="$1"; dest="$2/$rel"; key="$3"; src="website/$rel"
+  srcRel="${1%%:*}"; rel="${1##*:}"; dest="$2/$rel"; key="$3"; src="website/$srcRel"
   mine="$WORK/mine.tmp"; dest_n="$WORK/dest.tmp"; base="$WORK/base.tmp"
   git -C "$WORK/repo" show "$MINE:$src" > "$WORK/mine.raw" 2>/dev/null || {
     echo "FATAL: $rel در نسخهٔ هدف نیست"; CONFLICTS="$CONFLICTS $rel"; return;
@@ -160,7 +165,7 @@ apply_lang() {
   fi
 
   if [ "$dry" = "1" ]; then
-    "$PHP_BIN" "$WORK/repo/scripts/lang-apply-keys.php" \
+    "$PHP_BIN" "$LANG_TOOL" \
       "$WORK/lang-base.php" "$WORK/lang-mine.php" "$APP/$rel" --dry \
       || CONFLICTS="$CONFLICTS $rel"
     return
@@ -170,7 +175,7 @@ apply_lang() {
   mkdir -p "$BK/app/$(dirname "$rel")"
   cp -p "$APP/$rel" "$BK/app/$rel"
 
-  if ! "$PHP_BIN" "$WORK/repo/scripts/lang-apply-keys.php" \
+  if ! "$PHP_BIN" "$LANG_TOOL" \
       "$WORK/lang-base.php" "$WORK/lang-mine.php" "$APP/$rel"; then
     echo "FATAL: اعمالِ کلیدهای $rel شکست خورد — پشتیبان: $BK/app/$rel"
     exit 3
@@ -180,6 +185,15 @@ apply_lang() {
     echo "FATAL lint: $rel — بازگردانی از پشتیبان"; cp -p "$BK/app/$rel" "$APP/$rel"; exit 3;
   }
 }
+
+# 🔴 از کلونِ قبلی، درختِ کاری کهنه می‌مانَد (fetch فایلِ تازه را checkout نمی‌کند)
+# و نخستین DRY با «Could not open input file: .../scripts/lang-apply-keys.php»
+# شکست خورد. پس ابزار را از خودِ کامیتِ هدف بیرون می‌کشیم.
+LANG_TOOL="$WORK/lang-apply-keys.php"
+git -C "$WORK/repo" show "$MINE:scripts/lang-apply-keys.php" > "$LANG_TOOL" 2>/dev/null || {
+  echo "FATAL: scripts/lang-apply-keys.php در نسخهٔ هدف نیست"; exit 2;
+}
+"$PHP_BIN" -l "$LANG_TOOL" >/dev/null || { echo "FATAL: ابزارِ ترجمه سالم نیست"; exit 2; }
 
 LANG_BASE="${LANG_BASE:-$(git -C "$WORK/repo" merge-base "$MINE" origin/develop 2>/dev/null || true)}"
 

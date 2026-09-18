@@ -58,6 +58,19 @@ class Wallet
      */
     public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null): int
     {
+        /*
+        | 🔴 روی نصبی که جدولِ رزروِ AI را ندارد بی‌صدا رد شو — نه ۵۰۰.
+        |
+        | سرورِ زنده مهاجرت‌های AI را ندارد (خطای کلیدِ خارجیِ MariaDB) و این
+        | متُد سرِ **هر نوشتنِ پولی** صدا زده می‌شود: فاکتور، دامنه، کسرِ ساعتی.
+        | بی‌این گارد، نخستین انتشارِ کیفِ پول روی آن سرور کلِ مسیرِ پول را
+        | می‌خواباند. همان قاعدهٔ `CloudMeterHourly` که روی نصبِ مهاجرت‌نکرده
+        | بی‌صدا برمی‌گردد.
+        */
+        if (! self::aiReservationsTable()) {
+            return $currency === 'IRT' ? \App\Services\Cloud\HourlyHold::heldOf($customerId) : 0;
+        }
+
         $q = AiReservation::where('customer_id', $customerId)
             ->where('currency_code', $currency)
             ->holding();
@@ -75,6 +88,20 @@ class Wallet
         $hold = $currency === 'IRT' ? \App\Services\Cloud\HourlyHold::heldOf($customerId) : 0;
 
         return (int) $q->sum('amount_irt') + $hold;
+    }
+
+    /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */
+    private static ?bool $aiTable = null;
+
+    private static function aiReservationsTable(): bool
+    {
+        return self::$aiTable ??= \Illuminate\Support\Facades\Schema::hasTable('ai_reservations');
+    }
+
+    /** برای تست پس از مهاجرت در همان پروسه */
+    public static function flushSchemaCache(): void
+    {
+        self::$aiTable = null;
     }
 
     /** در دسترس = دفتر − نگه‌دارنده‌ها */
