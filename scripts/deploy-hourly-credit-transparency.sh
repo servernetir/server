@@ -3,10 +3,10 @@
 # با کاربرِ servernetcloud.
 #
 #   ۱) DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/feature/hourly-credit-transparency/scripts/deploy-hourly-credit-transparency.sh) <SHA>
-#   ۲) فقط اگر همه OK/MG/NEW بودند، همان فرمان بدونِ DRY=1
+#   ۲) فقط اگر همه OK/MG/NEW/DRY بودند، همان فرمان بدونِ DRY=1
 #
 # شاملِ یک مهاجرتِ هدفمند (`services.hold_rate_irt/hold_reserve_irt`).
-# 🔴 مهاجرت با `--path` فقط همین فایل را اجرا می‌کند: مهاجرت‌های معلقِ AI روی
+# 🔴 مهاجرت با `--path` فقط همین یک فایل را اجرا می‌کند: مهاجرت‌های معلقِ AI روی
 #    MariaDB با خطای کلیدِ خارجی می‌شکنند و `migrate`ِ کامل هرگز به این‌جا
 #    نمی‌رسید. کد بدونِ این ستون‌ها هم سالم است (`HourlyHold::enabled()`).
 set -u
@@ -54,11 +54,13 @@ if [ -d "$WORK/repo/.git" ]; then
 else
   git clone --depth 500 --branch "$BRANCH" https://github.com/servernetir/server.git "$WORK/repo" || exit 1
 fi
+# develop هم لازم است: پایهٔ کلیدهای ترجمه = نقطهٔ انشعاب
+git -C "$WORK/repo" fetch --depth 500 origin develop:refs/remotes/origin/develop 2>/dev/null || true
 git -C "$WORK/repo" rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || {
   echo "FATAL: کامیت $MINE در مخزن نیست."; exit 1;
 }
 
-# ── فایل‌های برنامه (داخلِ servernet_app) — کلاس و مهاجرت اول، مصرف‌کننده بعد ──
+# ── فایل‌های برنامه — کلاس و مهاجرت اول، مصرف‌کننده‌ها بعد ──
 APP_FILES="
 app/Services/Cloud/HourlyHold.php
 $MIGRATION
@@ -70,9 +72,6 @@ app/Http/Controllers/GpuController.php
 app/Http/Controllers/Account/CloudStoreController.php
 app/Http/Controllers/Account/CloudServerController.php
 routes/web.php
-lang/fa/ui.php
-lang/en/ui.php
-lang/tr/ui.php
 resources/views/partials/credit-lifecycle.blade.php
 resources/views/account/partials/hourly-billing.blade.php
 resources/views/account/partials/card-server.blade.php
@@ -80,6 +79,19 @@ resources/views/account/cloud-server.blade.php
 resources/views/account/cloud-store.blade.php
 resources/views/pages/vps-hourly.blade.php
 resources/views/pages/gpu.blade.php
+"
+
+# ── ترجمه‌ها: **کلید به کلید**، نه ادغامِ کلِ فایل ──
+#
+# 🔴 چرا جدا: در نخستین DRY، `lang/tr/ui.php` تداخل کرد در حالی که fa و en تمیز
+# ادغام شدند. سرور روی این فایل‌ها دریفت دارد و دو انتشارِ موازی که در یک ناحیه
+# کلید افزوده باشند ادغامِ متنی را می‌شکنند. فایلِ ترجمه نقشهٔ کلید→مقدار است و
+# جای کلید در فایل معنایی ندارد، پس فقط کلیدهای عوض‌شدهٔ همین نسخه می‌نشینند و
+# دریفتِ سرور دست‌نخورده می‌مانَد. منطق: `scripts/lang-apply-keys.php`.
+LANG_FILES="
+lang/fa/ui.php
+lang/en/ui.php
+lang/tr/ui.php
 "
 
 # ── داراییِ عمومی — فقط داخلِ assets (قاعدهٔ ثبت‌شده: هرگز فایلِ ریشهٔ public) ──
@@ -92,7 +104,7 @@ distance() { diff "$1" "$2" 2>/dev/null | grep -c '^[<>]' || true; }
 CONFLICTS=""
 UPD=0
 
-# apply_one <rel> <destRoot> <stageKey>
+# apply_one <rel> <destRoot> <stageKey> — ادغامِ سه‌طرفه، فقط در stage
 apply_one() {
   rel="$1"; dest="$2/$rel"; key="$3"; src="website/$rel"
   mine="$WORK/mine.tmp"; dest_n="$WORK/dest.tmp"; base="$WORK/base.tmp"
@@ -134,12 +146,57 @@ apply_one() {
   UPD=$((UPD+1))
 }
 
+# apply_lang <rel> <dry 0|1> — کلیدهای عوض‌شده روی فایلِ زندهٔ ترجمه
+apply_lang() {
+  rel="$1"; dry="$2"
+  git -C "$WORK/repo" show "$LANG_BASE:website/$rel" > "$WORK/lang-base.php" 2>/dev/null || {
+    echo "FATAL: نسخهٔ پایهٔ $rel نیست"; CONFLICTS="$CONFLICTS $rel"; return;
+  }
+  git -C "$WORK/repo" show "$MINE:website/$rel" > "$WORK/lang-mine.php" 2>/dev/null || {
+    echo "FATAL: نسخهٔ هدفِ $rel نیست"; CONFLICTS="$CONFLICTS $rel"; return;
+  }
+  if [ ! -f "$APP/$rel" ]; then
+    echo "FATAL: $rel روی سرور نیست"; CONFLICTS="$CONFLICTS $rel"; return
+  fi
+
+  if [ "$dry" = "1" ]; then
+    "$PHP_BIN" "$WORK/repo/scripts/lang-apply-keys.php" \
+      "$WORK/lang-base.php" "$WORK/lang-mine.php" "$APP/$rel" --dry \
+      || CONFLICTS="$CONFLICTS $rel"
+    return
+  fi
+
+  # پشتیبان پیش از نوشتن
+  mkdir -p "$BK/app/$(dirname "$rel")"
+  cp -p "$APP/$rel" "$BK/app/$rel"
+
+  if ! "$PHP_BIN" "$WORK/repo/scripts/lang-apply-keys.php" \
+      "$WORK/lang-base.php" "$WORK/lang-mine.php" "$APP/$rel"; then
+    echo "FATAL: اعمالِ کلیدهای $rel شکست خورد — پشتیبان: $BK/app/$rel"
+    exit 3
+  fi
+
+  "$PHP_BIN" -l "$APP/$rel" >/dev/null || {
+    echo "FATAL lint: $rel — بازگردانی از پشتیبان"; cp -p "$BK/app/$rel" "$APP/$rel"; exit 3;
+  }
+}
+
+LANG_BASE="${LANG_BASE:-$(git -C "$WORK/repo" merge-base "$MINE" origin/develop 2>/dev/null || true)}"
+
+if [ -z "${LANG_BASE:-}" ]; then
+  echo "FATAL: نقطهٔ انشعاب از develop پیدا نشد؛ LANG_BASE=<sha> را دستی بدهید."
+  exit 2
+fi
+echo "LANG base: $(git -C "$WORK/repo" rev-parse --short "$LANG_BASE")"
+
+# ═══ پیش‌پرواز: هیچ‌چیز روی فایلِ زنده نوشته نمی‌شود ═══
 for rel in $APP_FILES; do apply_one "$rel" "$APP" app; done
 for rel in $WEB_FILES; do apply_one "$rel" "$WEB" web; done
+for rel in $LANG_FILES; do apply_lang "$rel" 1; done
 
 if [ -n "$CONFLICTS" ]; then
-  echo "FATAL: تداخل:$CONFLICTS"
-  echo "جزئیات: $WORK/conflicts"
+  echo "FATAL: تداخل/خطا:$CONFLICTS"
+  echo "جزئیات تداخل (اگر فایلی هست): $WORK/conflicts"
   exit 2
 fi
 
@@ -154,8 +211,12 @@ for rel in $APP_FILES; do
   ;; esac
 done
 
-if [ "$DRY" = "1" ]; then echo "DRY OK — $UPD فایل نیازمندِ تغییر است؛ هیچ فایلی نوشته نشد."; exit 0; fi
+if [ "$DRY" = "1" ]; then
+  echo "DRY OK — $UPD فایل نیازمندِ تغییر است (+ ترجمه‌ها بالا)؛ هیچ فایلی نوشته نشد."
+  exit 0
+fi
 
+# ═══ اعمال ═══
 for rel in $APP_FILES; do
   [ -f "$STAGE/app/$rel" ] || continue
   dest="$APP/$rel"
@@ -170,6 +231,8 @@ for rel in $WEB_FILES; do
   if [ -f "$dest" ]; then cp -p "$dest" "$BK/web/$rel"; else echo "web/$rel" >> "$BK/.new-files"; fi
   cp "$STAGE/web/$rel" "$dest"
 done
+# ترجمه‌ها پس از کد: کلیدِ تازه بی‌ویو بی‌اثر است، ولی ویوِ تازه بی‌کلید خام چاپ می‌کند
+for rel in $LANG_FILES; do apply_lang "$rel" 0; done
 
 for rel in $APP_FILES; do
   case "$rel" in *.php) "$PHP_BIN" -l "$APP/$rel" >/dev/null || { echo "FATAL lint: $rel"; exit 3; } ;; esac
@@ -177,7 +240,9 @@ done
 
 # مقدار را از خودِ مقصد بسنج، نه از چاپِ موفقیت (درسِ «unverified success print»)
 grep -q 'HourlyHold::heldOf' "$APP/app/Services/Finance/Wallet.php" || { echo "FATAL: Wallet ذخیرهٔ نگهداری را نمی‌شمارد"; exit 3; }
-grep -q 'hb_susp_h' "$APP/lang/fa/ui.php" || { echo "FATAL: رشته‌های تازه در lang نیستند"; exit 3; }
+for l in fa en tr; do
+  grep -q 'hb_susp_h' "$APP/lang/$l/ui.php" || { echo "FATAL: رشته‌های تازه در lang/$l نیستند"; exit 3; }
+done
 grep -q 'hb-alert' "$WEB/assets/css/panel.css" || { echo "FATAL: استایلِ پنل روی وب‌روت نرفت"; exit 3; }
 
 cd "$APP" || exit 1
