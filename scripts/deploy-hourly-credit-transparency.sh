@@ -211,7 +211,7 @@ echo "LANG base: $(git -C "$WORK/repo" rev-parse --short "$LANG_BASE")"
 
 # ═══ پیش‌پرواز: هیچ‌چیز روی فایلِ زنده نوشته نمی‌شود ═══
 for rel in $APP_FILES; do apply_one "$rel" "$APP" app; done
-for rel in $WEB_FILES; do apply_one "$rel" "$WEB" web; done
+for pair in $WEB_FILES; do apply_one "$pair" "$WEB" web; done
 for rel in $LANG_FILES; do apply_lang "$rel" 1; done
 
 if [ -n "$CONFLICTS" ]; then
@@ -244,7 +244,11 @@ for rel in $APP_FILES; do
   if [ -f "$dest" ]; then cp -p "$dest" "$BK/app/$rel"; else echo "app/$rel" >> "$BK/.new-files"; fi
   cp "$STAGE/app/$rel" "$dest"
 done
-for rel in $WEB_FILES; do
+# 🔴 جفتِ «مخزن:وب‌روت» را این‌جا هم باید شکست.
+# نخستین اجرای واقعی همین‌جا ماند: `$rel` کلِ رشتهٔ جفت بود، فایلِ stage پیدا
+# نشد، حلقه بی‌صدا رد شد و panel.css هرگز کپی نشد — و گاردِ پایانی گرفتش.
+for pair in $WEB_FILES; do
+  rel="${pair##*:}"
   [ -f "$STAGE/web/$rel" ] || continue
   dest="$WEB/$rel"
   mkdir -p "$BK/web/$(dirname "$rel")" "$(dirname "$dest")"
