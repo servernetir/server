@@ -126,8 +126,14 @@ apply_one() {
   normalize "$dest" "$dest_n"
   if cmp -s "$dest_n" "$mine"; then echo "OK   $rel"; return; fi
 
+  # 🔴 `--full-history` واجب است، نه تزئین.
+  #
+  # `git log -- <file>` به‌طورِ پیش‌فرض تاریخ را **ساده** می‌کند: روی یک مرج که
+  # نتیجه‌اش با والدِ اول یکی است، کلِ والدِ دوم را می‌بُرد. نسخهٔ زندهٔ سرور از
+  # همان والدِ دوم می‌آمد (شاخهٔ سئوِ منتشرشده)، پس نامزدها پیدایش نمی‌کردند و
+  # `gpu.blade.php` تداخل می‌کرد — حتی بعد از آن‌که آن کامیت را مرج کردم.
   best=""; bestd=999999999
-  for sha in $(git -C "$WORK/repo" log --format=%H -n "$HIST" "$MINE" -- "$src"); do
+  for sha in $(git -C "$WORK/repo" log --full-history --format=%H -n "$HIST" "$MINE" -- "$src"); do
     git -C "$WORK/repo" show "$sha:$src" > "$WORK/candidate.raw" 2>/dev/null || continue
     normalize "$WORK/candidate.raw" "$WORK/candidate.tmp"
     if cmp -s "$dest_n" "$WORK/candidate.tmp"; then best="$sha"; bestd=0; break; fi
