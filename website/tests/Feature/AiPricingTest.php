@@ -9,6 +9,7 @@ use App\Services\Ai\AiModelRegistry;
 use App\Services\Ai\PriceBook;
 use App\Support\MicroMath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,12 @@ use Tests\TestCase;
 class AiPricingTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
     private PriceBook $book;
 
@@ -74,8 +81,13 @@ class AiPricingTest extends TestCase
 
         $rate = $this->book->resolve($m, AiModelUnitPrice::UNIT_OUTPUT);
 
-        // 245000 × 1234567 = 302_578_915_000 → /1e6 = 302_578.915 → **۳۰۲٬۵۷۹** (یک گردِ به بالا، نه دوباره)
-        $this->assertSame(302_579, $rate->chargeMicros(1_234_567));
+        // 245000 × 1234567 = 302_468_915_000 → /1e6 = 302_468.915 → **۳۰۲٬۴۶۹** (یک گردِ به بالا، نه دوباره)
+        //
+        // ⚠️ عددِ قبلیِ همین تست (۳۰۲٬۵۷۹) اشتباهِ حسابِ خودِ تست بود، نه باگِ کد:
+        // ضرب را ۳۰۲٬۵۷۸٬۹۱۵٬۰۰۰ نوشته بود. تستِ قرمزی که «باگ» به‌نظر می‌رسد و
+        // نیست، همان‌قدر گران است که باگِ ندیده.
+        $this->assertSame(302_469, $rate->chargeMicros(1_234_567));
+        $this->assertSame(302_469, MicroMath::scaledCeil(245_000, 1_234_567, 1_000_000));
     }
 
     public function test_charge_exactly_on_boundary_is_exact_no_inflation(): void
@@ -127,7 +139,18 @@ class AiPricingTest extends TestCase
     {
         [$p, $m] = $this->providerAndModel();
 
+        /*
+        | ⚠️ دو نسخه باید در دو **لحظهٔ** جدا ساخته شوند.
+        |
+        | نسخهٔ قبلیِ این تست هر دو را در یک ثانیه می‌ساخت؛ آن‌وقت
+        | `effective_from`ها برابر بودند و «نرخِ لحظهٔ T» تعریفِ یکتا نداشت —
+        | قاعدهٔ نیم‌بازهٔ خودِ کد (نسخهٔ بسته‌شده در همان لحظه دیگر مالِ آن لحظه
+        | نیست) درست است و نسخهٔ تازه برنده می‌شد. این قرمزی ایرادِ تست بود.
+        */
+        Carbon::setTestNow('2026-09-01 10:00:00');
         $v1 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 245_000);            // پیش‌فرضِ USD
+
+        Carbon::setTestNow('2026-09-02 10:00:00');
         $v2 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 220_000,
             null, null, 'EUR');                                                              // آگاهانه یورو
 
@@ -267,9 +290,12 @@ class AiPricingTest extends TestCase
     {
         [$p, $m] = $this->providerAndModel();
 
+        Carbon::setTestNow('2026-09-01 10:00:00');
         $v1 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 245_000);
         $charged_at = $v1->effective_from->copy();
-        $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 999_000); // قیمتِ دوبرابر، فردا
+
+        Carbon::setTestNow('2026-09-02 10:00:00');   // فردا — وگرنه «لحظهٔ T» یکتا نیست
+        $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 999_000); // قیمتِ دوبرابر
 
         // بازتولیدِ مالی: «در لحظهٔ T چه نرخی پول؟» — حتی بعد از جابه‌جایی قیمت.
         $historical = $this->book->resolveAt($m, AiModelUnitPrice::UNIT_OUTPUT, $charged_at);
