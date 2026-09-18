@@ -46,6 +46,17 @@ return [
             '/bale/webhook/', '/cloud-phone/webhook/',
             '/healthz', '/up',
         ],
+        /*
+        | الگوهای queryِ بی‌ارزش که خزنده هر روز دوباره می‌رفت (GSC، ۱۶ سپتامبر).
+        | همه canonical یا noindex دارند؛ این‌ها فقط **بودجه** آزاد می‌کنند.
+        | ⚠️ `?page=` و `?cat=` عمداً نیستند — صفحهٔ ایندکس‌شدنی‌اند.
+        */
+        'crawl_traps' => [
+            '/*?attachment_id=',                          // پیوستِ وردپرسِ قدیمی → canonical خانه
+            '/parts/*?', '/en/parts/*?', '/tr/parts/*?',  // فیلترِ gen/sort/max/condition/q؛ همهٔ قطعات در صفحهٔ بی‌فیلتر هستند
+            '/*?tag=', '/*&tag=',                         // تگِ بلاگ: noindex و بی‌کران
+            '/*?q=', '/*&q=',                             // نتیجهٔ جست‌وجو
+        ],
         'sitemap' => 'https://servernet.cloud/sitemap.xml',
     ],
 
