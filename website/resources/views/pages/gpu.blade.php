@@ -41,59 +41,6 @@
       'perHour' => __('ui.gpu_per_hour'),
   ];
 
-  /*
-  | پرسش‌های متداول — همان آرایه هم بخشِ صفحه را می‌سازد هم FAQPage را؛ دو
-  | منبع یعنی روزی پاسخِ صفحه و پاسخِ نتیجهٔ گوگل با هم نخوانند.
-  */
-  $gpuMax = $isFa ? fa_num((string) $maxUnits) : (string) $maxUnits;
-  $gpuFaq = [];
-  foreach (range(1, 12) as $gpuQ) {
-      $gpuFaq[] = [
-          'q' => __('ui.gpu_faq'.$gpuQ.'_q'),
-          'a' => __('ui.gpu_faq'.$gpuQ.'_a', ['hours' => $gpuHours, 'max' => $gpuMax]),
-      ];
-  }
-  $gpuFaqLd = [];
-  foreach ($gpuFaq as $gpuRow) {
-      $gpuFaqLd[] = ['@'.'type' => 'Question', 'name' => $gpuRow['q'], 'acceptedAnswer' => ['@'.'type' => 'Answer', 'text' => $gpuRow['a']]];
-  }
-
-  /*
-  | Product + Offerِ ساعتی (unitCode HUR) برای کارت‌های «هزینهٔ واقعی» —
-  | همان قاعدهٔ صفحهٔ سرورِ ساعتی: IRR برای fa (تومان × ۱۰)، EUR برای بقیه، و
-  | بدونِ قیمتِ ارزی اصلاً Offer ساخته نمی‌شود.
-  */
-  $gpuCur = $isFa ? 'IRR' : 'EUR';
-  $gpuOffers = [];
-  foreach ($costs as $gpuC) {
-      $gpuP = $isFa ? (int) schema_price_irr($gpuC['raw']) : $gpuC['eur'];
-      if ($gpuP === null || $gpuP <= 0) {
-          continue;
-      }
-      $gpuOffers[] = schema_offer_extras($gpuCur) + [
-          '@'.'type' => 'Offer',
-          'name' => $gpuC['gpu'],
-          'price' => $gpuP,
-          'priceCurrency' => $gpuCur,
-          'priceSpecification' => [
-              '@'.'type' => 'UnitPriceSpecification',
-              'price' => $gpuP, 'priceCurrency' => $gpuCur,
-              'unitCode' => 'HUR', 'unitText' => $isFa ? 'ساعت' : 'hour',
-          ],
-          'priceValidUntil' => now()->addDays(30)->toDateString(),
-          'availability' => 'https://schema.org/InStock',
-          'url' => url()->current(),
-      ];
-  }
-  $gpuProduct = [
-      'name' => __('ui.gpu_h1'),
-      'description' => $gpuMetaD,
-      'url' => url()->current(),
-      'image' => [asset('assets/img/og.png')],
-      'brand' => ['@'.'type' => 'Brand', 'name' => __('ui.brand')],
-      'offers' => $gpuOffers,
-  ];
-
   $gpuCrumbs = [[
       '@'.'type' => 'BreadcrumbList',
       'itemListElement' => [
@@ -103,15 +50,94 @@
   ]];
 @endphp
 
+@php
+  /*
+  | Product + Offer (ساعتی) و FAQPage.
+  |
+  | Search Console، ۱۶ سپتامبر ۲۰۲۶: /gpu هفتمین صفحهٔ سایت از نظرِ کلیک است و
+  | پرس‌وجوهای «اجاره gpu»، «سرور gpu ساعتی»، «اجاره کارت گرافیک» همه در رتبهٔ
+  | ۷ تا ۹ نشسته‌اند — ولی برخلافِ /vps/hourly هیچ دادهٔ ساختاریافتهٔ تجاری
+  | نداشت. «Product snippets» سایت ۶۹ مورد معتبر دارد؛ این صفحه در آن نبود.
+  |
+  | ⚠️ قیمت فقط از کارت‌های واقعیِ کنترلر (همان `offers()` که سبد می‌فروشد) و
+  |    UnitPriceSpecification با HUR تا «ساعتی» خوانده شود نه ماهانه.
+  | ⚠️ FAQ **هیچ متنِ تازه‌ای نمی‌سازد**: سه پرسش همان سه تیترِ سؤالیِ
+  |    قابل‌مشاهدهٔ صفحه‌اند. FAQِ نامرئی در schema خلافِ رهنمودِ گوگل است.
+  |    پرسشِ «چرا این قیمت؟» فقط وقتی می‌آید که بخشش واقعاً رندر شود.
+  */
+  $gpuCur = $isFa ? 'IRR' : 'EUR';
+  $gpuOffers = [];
+  foreach (array_slice($cards, 0, 20) as $gpuC) {
+      $gpuRaw = $gpuC['ld_price'] ?? null;
+      if ($gpuRaw === null || $gpuRaw <= 0) {
+          continue;
+      }
+      $gpuOffers[] = schema_offer_extras($gpuCur) + [
+          '@'.'type' => 'Offer',
+          'name' => $gpuC['gpu'].($gpuC['gpu_count'] > 1 ? ' ×'.$gpuC['gpu_count'] : ''),
+          'priceCurrency' => $gpuCur,
+          'price' => $gpuRaw,
+          'priceSpecification' => [
+              '@'.'type' => 'UnitPriceSpecification',
+              'price' => $gpuRaw,
+              'priceCurrency' => $gpuCur,
+              'unitCode' => 'HUR',
+              'unitText' => $isFa ? 'ساعت' : 'hour',
+          ],
+          'priceValidUntil' => now()->addDays(30)->toDateString(),
+          'availability' => 'https://schema.org/InStock',
+          'url' => lroute('gpu'),
+      ];
+  }
+  $gpuProduct = [
+      'name' => __('ui.gpu_h1'),
+      'description' => $gpuMetaD,
+      'url' => lroute('gpu'),
+      'image' => [asset('assets/img/og.png')],
+      'brand' => ['@'.'type' => 'Brand', 'name' => __('ui.brand')],
+      'offers' => $gpuOffers,
+  ];
+
+  $gpuFaq = [
+      [__('ui.gpu_hourly_t'), __('ui.gpu_hourly_d', ['hours' => $gpuHours])],
+      [__('ui.gpu_ssh_t'), __('ui.gpu_ssh_d')],
+  ];
+  if ($interruptible) {
+      array_unshift($gpuFaq, [__('ui.gpu_warn_t'), __('ui.gpu_warn_d')]);
+  }
+
+  /*
+  | پرسش‌های متداولِ خطِ GPU — ۱۲ پرسش، همه **رندرشده** در بخشِ #faq پایینِ
+  | همین صفحه. قاعدهٔ بالا دست‌نخورده می‌مانَد: چیزی که در schema است روی صفحه
+  | هم دیده می‌شود، وگرنه خلافِ رهنمودِ گوگل است.
+  |
+  | 🔴 چرا اضافه شد (شهریور ۱۴۰۵): بیشترین تماسِ پشتیبانیِ ساعتی «وقتی اعتبار
+  | تمام شود چه می‌شود؟» بود و هیچ رقیبِ ایرانی هم پاسخش را نمی‌نویسد.
+  */
+  $gpuMax = $isFa ? fa_num((string) $maxUnits) : (string) $maxUnits;
+  $gpuFaqPage = [];
+  foreach (range(1, 12) as $gpuQn) {
+      $gpuFaqPage[] = [
+          __('ui.gpu_faq'.$gpuQn.'_q'),
+          __('ui.gpu_faq'.$gpuQn.'_a', ['hours' => $gpuHours, 'max' => $gpuMax]),
+      ];
+  }
+  $gpuFaq = array_merge($gpuFaq, $gpuFaqPage);
+  $gpuFaqLd = [];
+  foreach ($gpuFaq as [$gpuQ, $gpuA]) {
+      $gpuFaqLd[] = ['@'.'type' => 'Question', 'name' => $gpuQ, 'acceptedAnswer' => ['@'.'type' => 'Answer', 'text' => $gpuA]];
+  }
+@endphp
+
 @section('title', __('ui.gpu_meta_t'))
 @section('description', $gpuMetaD)
 
 @section('content')
 <script type="application/ld+json">{!! schema_ld($gpuCrumbs[0], 'BreadcrumbList') !!}</script>
-<script type="application/ld+json">{!! schema_ld(['mainEntity' => $gpuFaqLd], 'FAQPage') !!}</script>
 @if($gpuOffers)
 <script type="application/ld+json">{!! schema_ld($gpuProduct, 'Product') !!}</script>
 @endif
+<script type="application/ld+json">{!! schema_ld(['mainEntity' => $gpuFaqLd], 'FAQPage') !!}</script>
 
 <style>
   .gpu-wrap{max-width:1120px;margin:0 auto;padding:0 20px}
@@ -433,10 +459,10 @@
     <div class="gpu-sec" style="margin-top:0">
       <h2>{{ __('ui.gpu_faq_t') }}</h2>
       <div class="gpu-faq">
-        @foreach($gpuFaq as $i => $row)
+        @foreach($gpuFaqPage as $i => $row)
           <details @if($i === 0) open @endif>
-            <summary>{{ $row['q'] }}</summary>
-            <div>{{ $row['a'] }}</div>
+            <summary>{{ $row[0] }}</summary>
+            <div>{{ $row[1] }}</div>
           </details>
         @endforeach
       </div>

@@ -86,7 +86,15 @@ class GpuController extends Controller
                     'disk_gb'     => (int) $plan->disk_gb,
                     'hourly_raw'  => $hourly,
                     'hourly'      => cloud_price($hourly),
-                    'hourly_eur'  => $plan->hourlyEurCents() > 0 ? $plan->hourlyEurCents() / 100 : null,
+                    /*
+                    | عددِ خامِ دادهٔ ساختاریافته — عیناً همان قاعدهٔ
+                    | HourlyVpsController: ریال برای fa (IRR = ریال، نه تومان)،
+                    | یورو برای en/tr. نبودِ قیمتِ ارزی ⇒ null ⇒ ویو Offer
+                    | نمی‌سازد؛ نشانه‌گذاریِ نبود از قیمتِ غلط بهتر است.
+                    */
+                    'ld_price'    => app()->getLocale() === 'fa'
+                        ? (int) schema_price_irr($hourly)
+                        : ($plan->hourlyEurCents() > 0 ? $plan->hourlyEurCents() / 100 : null),
                     'interruptible' => (bool) $plan->is_interruptible,
                 ];
 
@@ -146,10 +154,10 @@ class GpuController extends Controller
     }
 
     /**
-     * راهنمای «کدام کارت برای کارِ من» — ردیف‌ها ثابت‌اند (کاربرد به حافظهٔ
-     * کارت بسته است، نه به کاتالوگ)، ولی **نمونه کارت‌ها و «از …» از کاتالوگِ
-     * زنده** می‌آیند؛ ردیفی که امروز هیچ کارتی ندارد نشان داده نمی‌شود تا
-     * صفحه چیزی را توصیه نکند که نمی‌فروشد.
+     * راهنمای «کدام کارت برای کارِ من» — ردیف‌ها ثابت‌اند (کاربرد به حافظهٔ کارت
+     * بسته است، نه به کاتالوگ)، ولی **نمونه کارت‌ها و «از …» از کاتالوگِ زنده**
+     * می‌آیند؛ ردیفی که امروز هیچ کارتی ندارد نشان داده نمی‌شود تا صفحه چیزی را
+     * توصیه نکند که نمی‌فروشد.
      *
      * @param  array<int, array<string, mixed>>  $cards  ارزان‌مرتب
      * @return array<int, array<string, mixed>>
@@ -157,12 +165,12 @@ class GpuController extends Controller
     private function guide(array $cards): array
     {
         $tiers = [
-            ['min' => 4,  'max' => 8,   'label' => '4–8 GB',   'fit' => 'ui.gpu_guide_r1'],
-            ['min' => 10, 'max' => 12,  'label' => '10–12 GB', 'fit' => 'ui.gpu_guide_r2'],
+            ['min' => 4,  'max' => 8,   'label' => '4-8 GB',   'fit' => 'ui.gpu_guide_r1'],
+            ['min' => 10, 'max' => 12,  'label' => '10-12 GB', 'fit' => 'ui.gpu_guide_r2'],
             ['min' => 16, 'max' => 16,  'label' => '16 GB',    'fit' => 'ui.gpu_guide_r3'],
-            ['min' => 20, 'max' => 24,  'label' => '20–24 GB', 'fit' => 'ui.gpu_guide_r4'],
+            ['min' => 20, 'max' => 24,  'label' => '20-24 GB', 'fit' => 'ui.gpu_guide_r4'],
             ['min' => 32, 'max' => 32,  'label' => '32 GB',    'fit' => 'ui.gpu_guide_r5'],
-            ['min' => 48, 'max' => 192, 'label' => '48–96 GB', 'fit' => 'ui.gpu_guide_r6'],
+            ['min' => 48, 'max' => 192, 'label' => '48-96 GB', 'fit' => 'ui.gpu_guide_r6'],
         ];
 
         $out = [];
@@ -211,7 +219,8 @@ class GpuController extends Controller
 
     /**
      * «هزینهٔ واقعی»: سه کارتِ پرجست‌وجو اگر در کاتالوگ باشند، وگرنه
-     * ارزان‌ترین/میانه/گران‌ترین. عددها ضربِ سادهٔ نرخِ زنده‌اند.
+     * ارزان‌ترین/میانه/گران‌ترین. عددها ضربِ سادهٔ نرخِ زنده‌اند — بدونِ حداقلِ
+     * ساعتِ کارکرد، که تفاوتِ ما با رقباست.
      *
      * @param  array<int, array<string, mixed>>  $cards
      * @return array<int, array<string, mixed>>
@@ -239,13 +248,10 @@ class GpuController extends Controller
         }
 
         return array_map(fn (array $c) => [
-            'gpu'  => $c['gpu'],
-            'slug' => $c['slug'],
-            'h1'   => cloud_price((int) $c['hourly_raw']),
-            'h8'   => cloud_price((int) $c['hourly_raw'] * 8),
-            'h24'  => cloud_price((int) $c['hourly_raw'] * 24),
-            'raw'  => (int) $c['hourly_raw'],
-            'eur'  => $c['hourly_eur'],
+            'gpu' => $c['gpu'],
+            'h1'  => cloud_price((int) $c['hourly_raw']),
+            'h8'  => cloud_price((int) $c['hourly_raw'] * 8),
+            'h24' => cloud_price((int) $c['hourly_raw'] * 24),
         ], $picked);
     }
 }
