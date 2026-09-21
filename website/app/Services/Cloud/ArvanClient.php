@@ -873,6 +873,13 @@ class ArvanClient implements CloudProvider
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
 
         $region = (string) $spec['location_ref'];
+        $flavorId = $this->flavorForRegion($region, (string) $spec['plan_ref'], $spec);
+
+        if ($flavorId === null) {
+            return ['ok' => false,
+                'message' => 'پلنِ سفارش‌شده دیگر در این منطقه عرضه نمی‌شود و جایگزینِ کاملاً هم‌مشخصات پیدا نشد؛ کاتالوگ باید همگام شود.'] + $fail;
+        }
+
         $networkId = $this->publicNetworkId($region);
 
         if ($networkId === null) {
@@ -903,7 +910,7 @@ class ArvanClient implements CloudProvider
 
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name' => $spec['name'],
-            'flavor_id' => (string) $spec['plan_ref'],
+            'flavor_id' => $flavorId,
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
             'image_id' => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
@@ -931,6 +938,65 @@ class ArvanClient implements CloudProvider
         $out['root_password'] = $server['password'] ?? null;
 
         return $out;
+    }
+
+    /**
+     * شناسهٔ flavor آروان per-region و ناپایدار است. ممکن است مشتری با ردیفی
+     * سفارش بدهد که تا زمان پرداخت، آروان همان مشخصات را با ID تازه منتشر کرده
+     * باشد. پیش از هر خرید، ID را با sizes زنده می‌سنجیم و فقط جایگزینی را
+     * می‌پذیریم که هسته، رم، دیسک و نوع CPU آن دقیقاً برابر باشد.
+     *
+     * اگر مشخصات همراه درخواست نباشد (فراخوان‌های قدیمی/ابزارهای داخلی)، رفتار
+     * سازگار قبلی حفظ می‌شود؛ مسیر تولید همیشه مشخصات را می‌فرستد.
+     *
+     * @param  array<string,mixed>  $spec
+     */
+    private function flavorForRegion(string $region, string $requested, array $spec): ?string
+    {
+        $vcpu = (int) ($spec['vcpu'] ?? 0);
+        $ram = (int) ($spec['ram_mb'] ?? 0);
+        $disk = (int) ($spec['disk_gb'] ?? 0);
+
+        if ($vcpu < 1 || $ram < 1 || $disk < 1) {
+            return $requested !== '' ? $requested : null;
+        }
+
+        $sizes = array_values(array_filter($this->regionSizes($region), 'is_array'));
+
+        foreach ($sizes as $size) {
+            if ((string) ($size['id'] ?? '') === $requested) {
+                return $requested;
+            }
+        }
+
+        $wantedKind = ($spec['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
+        $matches = [];
+
+        foreach ($sizes as $size) {
+            $id = (string) ($size['id'] ?? '');
+            $memoryBytes = (int) ($size['memory_in_bytes'] ?? 0);
+            $memoryMb = $memoryBytes > 0
+                ? (int) round($memoryBytes / 1048576)
+                : (int) ($size['memory'] ?? 0) * 1024;
+            $diskBytes = (int) ($size['disk_in_bytes'] ?? 0);
+            $diskGb = $diskBytes > 0
+                ? (int) round($diskBytes / 1073741824)
+                : (int) ($size['disk'] ?? 0);
+            $kind = str_contains(strtolower((string) ($size['cpu_share'] ?? '')), 'dedicat')
+                ? 'dedicated' : 'shared';
+
+            if ($id !== ''
+                && (int) ($size['cpu_count'] ?? 0) === $vcpu
+                && $memoryMb === $ram
+                && $diskGb === $disk
+                && $kind === $wantedKind) {
+                $matches[] = $id;
+            }
+        }
+
+        // چند flavor هم‌شکل می‌تواند قیمت/نسل متفاوت داشته باشد. حدس‌زدن میان
+        // آن‌ها ریسک خرید محصول دیگری را دارد؛ در ابهام fail-closed می‌کنیم.
+        return count($matches) === 1 ? $matches[0] : null;
     }
 
     private function findByName(string $region, string $name): ?array

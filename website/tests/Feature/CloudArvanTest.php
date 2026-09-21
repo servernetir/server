@@ -355,6 +355,76 @@ class CloudArvanTest extends TestCase
         $this->assertSame([['name' => 'sg-1']], $body['security_groups']);
     }
 
+    public function test_stale_regional_flavor_is_replaced_only_by_an_exact_live_match(): void
+    {
+        $body = null;
+        Http::fake(function ($request) use (&$body) {
+            $url = $request->url();
+
+            if (str_contains($url, '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'fresh-id', 'cpu_count' => 2, 'memory' => 4,
+                    'disk' => 20, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
+            }
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'default' => true]]], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $body = $request->data();
+
+                return Http::response(['data' => ['id' => 'srv-1', 'status' => 'building']], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-228', 'plan_ref' => 'stale-id',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 20,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertTrue($r['ok'], $r['message']);
+        $this->assertSame('fresh-id', $body['flavor_id']);
+    }
+
+    public function test_stale_regional_flavor_fails_closed_when_no_exact_match_exists(): void
+    {
+        $posts = 0;
+        Http::fake(function ($request) use (&$posts) {
+            if (str_contains($request->url(), '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'almost-but-larger', 'cpu_count' => 4, 'memory' => 4,
+                    'disk' => 20, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if ($request->method() === 'POST') {
+                $posts++;
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-228', 'plan_ref' => 'stale-id',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 20,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertFalse($r['ok']);
+        $this->assertSame(0, $posts, 'نباید با flavor حدسی خرید انجام شود');
+        $this->assertStringContainsString('هم‌مشخصات', $r['message']);
+    }
+
     /** نامِ تکراری → همان سرورِ موجود (idempotency)، نه سرورِ دوم */
     public function test_duplicate_name_returns_existing_server(): void
     {

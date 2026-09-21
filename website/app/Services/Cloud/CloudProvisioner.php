@@ -269,6 +269,12 @@ class CloudProvisioner
             'plan_ref'     => (string) $plan->provider_ref,
             'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
             'image_ref'    => $imageRef,
+            // آروان flavorهای منطقه‌ای را گاهی با شناسهٔ تازه منتشر می‌کند.
+            // مشخصات را هم می‌فرستیم تا درایور بتواند پیش از خرید، شناسهٔ
+            // ذخیره‌شده را با فهرست زنده تطبیق دهد؛ تطبیق باید دقیق باشد.
+            'vcpu'         => (int) $plan->vcpu,
+            'ram_mb'       => (int) $plan->ram_mb,
+            'cpu_kind'     => (string) $plan->cpu_kind,
             'ssh_keys'     => $sshRefs,
             // بعضی زیرساخت‌ها (آروان) اندازهٔ دیسک را جدا می‌خواهند
             'disk_gb'      => (int) $plan->disk_gb,
