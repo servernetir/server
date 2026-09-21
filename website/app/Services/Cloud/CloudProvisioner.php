@@ -1353,6 +1353,10 @@ class CloudProvisioner
         $needle = mb_strtolower($message);
 
         $unsupported = str_contains($needle, 'unsupported location')
+            // آروان گاهی flavor موجود در GET /sizes را هنگام POST ساخت
+            // نمی‌پذیرد. این خرابی متعلق به همین ردیف است، نه کل حساب؛ همان
+            // ردیف را ببند تا مشتری بعدی قربانی تکرار خطای provider نشود.
+            || str_contains($needle, 'requested plan not found')
             || (str_contains($needle, 'server type') && str_contains($needle, 'not available'))
             || (str_contains($needle, 'server type') && str_contains($needle, 'not supported'));
 
