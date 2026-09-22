@@ -125,7 +125,7 @@ class CloudStoreTest extends TestCase
         $this->loc('fi-helsinki', 'FI', 'Helsinki');
 
         $this->plan();
-        $plan = $this->plan([
+        $this->plan([
             'provider_ref' => 'cx32', 'public_name' => 'CV-4-8',
             'slug' => 'cv-4c-8g-80d-de-frankfurt',
             'vcpu' => 4, 'ram_mb' => 8192, 'disk_gb' => 80,
@@ -226,7 +226,7 @@ class CloudStoreTest extends TestCase
     public function test_image_requiring_more_ram_than_the_plan_cannot_be_ordered(): void
     {
         $this->loc('de-frankfurt', 'DE', 'Frankfurt');
-        $this->plan([
+        $plan = $this->plan([
             'provider_ref' => 'tiny-1', 'public_name' => 'CV-1-1',
             'slug' => 'cv-1c-1g-25d-de-frankfurt',
             'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 25,
