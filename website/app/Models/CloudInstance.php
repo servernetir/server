@@ -175,6 +175,38 @@ class CloudInstance extends Model
         return filled($this->root_password_enc);
     }
 
+    /** آیا ایمیجِ نصب‌شده ویندوز است؟ کلیدهایی مثل «2025» به‌تنهایی کافی نیستند. */
+    public function isWindows(): bool
+    {
+        if (blank($this->image_key)) {
+            return false;
+        }
+
+        return CloudImage::query()
+            ->where('provider', (string) $this->provider)
+            ->where('key', (string) $this->image_key)
+            ->where('family', 'windows')
+            ->exists();
+    }
+
+    /** فرمان آمادهٔ Remote Desktop برای سرورهای ویندوزی. */
+    public function rdpCommand(): ?string
+    {
+        if (! $this->isWindows()) {
+            return null;
+        }
+
+        $e = $this->endpoint();
+
+        if ($e === null) {
+            return null;
+        }
+
+        $target = $e['port'] === 22 ? $e['host'] : $e['host'].':'.$e['port'];
+
+        return 'mstsc /v:'.$target;
+    }
+
     // ───────────────────────── آمادگیِ واقعی ─────────────────────────
 
     /*

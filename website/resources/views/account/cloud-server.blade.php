@@ -219,6 +219,7 @@
       $gpuHost = $gpuApp ? $inst->accessHost() : null;
       $gpuTok  = $gpuApp ? $inst->accessToken() : null;
       $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
+      $windows = ! $gpuApp && $inst->isWindows();
     @endphp
 
     @if($gpuApp)
@@ -289,20 +290,20 @@
              یکی‌گرفتنشان همان سردرگمیِ تیکتِ «پورت ۸۰» بود. --}}
         <div class="cs-kv"><small>{{ __('ui.cs_weburl') }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->webUrl() }}">{{ $inst->webUrl() }}</b></div>
       @endif
-      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
+      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">{{ $windows ? 'Administrator' : 'root' }}</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
     @endif
 
-    @php $sshCmd = $inst->sshCommand(); @endphp
-    @if(! $gpuApp && $sshCmd)
+    @php $connectCmd = $windows ? $inst->rdpCommand() : $inst->sshCommand(); @endphp
+    @if(! $gpuApp && $connectCmd)
       {{-- ⚠️ رشته در **مدل** ساخته می‌شود نه در قالب: اگر «root» و آکولاد با یک
            @ به هم بچسبند، Blade آن را دستورِ فرار می‌فهمد و به‌جای آدرس، خودِ
            عبارتِ آکولادی را چاپ می‌کند — تلهٔ آشنای این پروژه. و `-p` فقط
            وقتی می‌آید که پورت غیرِ استاندارد باشد. --}}
       <div class="cs-ssh">
-        <small>{{ __('ui.cs_ssh_label') }}</small>
-        <code dir="ltr" class="cs-copy" data-copy="{{ $sshCmd }}">{{ $sshCmd }}</code>
+        <small>{{ __($windows ? 'ui.cs_rdp_label' : 'ui.cs_ssh_label') }}</small>
+        <code dir="ltr" class="cs-copy" data-copy="{{ $connectCmd }}">{{ $connectCmd }}</code>
       </div>
     @endif
 
@@ -321,7 +322,7 @@
       --}}
       <div class="cs-pw">
         <div style="min-width:0">
-          <small>{{ __($inst->image_key === 'gpu-jupyter' ? 'ui.cs_gpu_token_label' : 'ui.cs_pw_label') }}</small>
+          <small>{{ __($inst->image_key === 'gpu-jupyter' ? 'ui.cs_gpu_token_label' : ($windows ? 'ui.cs_windows_pw_label' : 'ui.cs_pw_label')) }}</small>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <code dir="ltr" class="cs-pw-val is-masked" data-pw="{{ $password }}">••••••••••••</code>
 
@@ -356,7 +357,11 @@
       --}}
       @unless($gpuApp)
       <p style="margin:10px 0 0;font-size:12.5px;line-height:1.9">
-        <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
+        @if($windows)
+          {{ __('ui.cs_rdp_guide') }}
+        @else
+          <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
+        @endif
       </p>
       @endunless
     @elseif($canReveal ?? false)
@@ -465,6 +470,10 @@
         </form>
       @endif
     </div>
+
+    @if($windows && ! ($caps['console'] ?? false))
+      <p class="dm-note" style="margin-top:12px">{{ __('ui.cs_console_unavailable_rdp') }}</p>
+    @endif
 
     <p style="margin-top:14px;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cs_ctrl_note') }}

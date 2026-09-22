@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CloudInstance;
+use App\Models\CloudImage;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Customer;
@@ -120,6 +121,36 @@ class CloudServiceRowTest extends TestCase
             'بی‌این لینک، صفحهٔ مدیریت برای مشتری وجود ندارد');
         $this->assertStringContainsString('مدیریت سرور', $html);
         $this->assertStringNotContainsString('ui.svc_manage_server', $html, 'کلیدِ خام نباید چاپ شود');
+    }
+
+    public function test_windows_server_shows_rdp_administrator_and_no_fake_ssh(): void
+    {
+        $c = $this->customer();
+        $plan = $this->plan();
+        $plan->update(['provider' => 'arvan', 'provider_ref' => 'g2-2-4-40']);
+
+        CloudImage::create([
+            'provider' => 'arvan', 'provider_ref' => 'win-2025', 'key' => '2025',
+            'kind' => 'os', 'family' => 'windows', 'version' => '2025',
+            'label' => 'Windows Server 2025', 'arch' => 'x86', 'is_active' => true,
+        ]);
+
+        $s = $this->cloudService($c, ['cloud_plan_id' => $plan->id]);
+        CloudInstance::create([
+            'service_id' => $s->id, 'provider' => 'arvan', 'provider_ref' => 'ir-thr:srv-1',
+            'location_code' => 'de-falkenstein', 'image_key' => '2025',
+            'hostname' => 'sn-svc-'.$s->id, 'ipv4' => '203.0.113.46',
+            'status' => 'running', 'password_seen' => false,
+        ]);
+
+        $html = $this->actingAs($c, 'customer')
+            ->get(route('account.cloud.show', $s, false))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Administrator', $html);
+        $this->assertStringContainsString('mstsc /v:203.0.113.46', $html);
+        $this->assertStringContainsString('Remote Desktop', $html);
+        $this->assertStringNotContainsString('ssh root@203.0.113.46', $html);
+        $this->assertStringContainsString('کنسولِ تحت وب ارائه نمی‌کند', $html);
     }
 
     /** سرورِ تحویل‌نشده هم باید راهی به صفحهٔ مدیریت داشته باشد */
