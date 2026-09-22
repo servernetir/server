@@ -53,8 +53,9 @@ class CloudArvanTest extends TestCase
                 ['id' => 'img-ubuntu-2204', 'name' => 'Ubuntu 22.04', 'distribution_name' => 'ubuntu', 'disk' => 10, 'ram' => 2048],
             ],
         ]];
+        $imagesByRegion = $over['images_by_region'] ?? [];
 
-        Http::fake(function ($request) use ($regions, $sizes, $images) {
+        Http::fake(function ($request) use ($regions, $sizes, $images, $imagesByRegion) {
             $url = $request->url();
 
             // فهرستِ مناطق: چند مسیرِ کاندید ممکن است امتحان شود؛ به کاندیدِ
@@ -67,6 +68,12 @@ class CloudArvanTest extends TestCase
                 return Http::response(['data' => $sizes], 200);
             }
             if (str_contains($url, '/images')) {
+                foreach ($imagesByRegion as $region => $regionalImages) {
+                    if (str_contains($url, '/regions/'.$region.'/')) {
+                        return Http::response(['data' => $regionalImages], 200);
+                    }
+                }
+
                 return Http::response(['data' => $images], 200);
             }
             if (str_contains($url, '/networks')) {
@@ -184,6 +191,34 @@ class CloudArvanTest extends TestCase
         $this->assertSame('ubuntu-22.04', $img['key']);
         $this->assertSame('img-ubuntu-2204', $img['provider_ref']);
         $this->assertSame(2048, $img['min_ram_mb']);
+    }
+
+    public function test_sync_uses_the_strictest_ram_requirement_across_regions(): void
+    {
+        $this->fakeArvan(['regions' => [
+            ['code' => 'ir-thr-c2', 'country' => 'IR', 'dc' => 'Tehran', 'create' => true, 'visible' => true],
+            ['code' => 'ir-tbz-sh1', 'country' => 'IR', 'dc' => 'Tabriz', 'create' => true, 'visible' => true],
+        ], 'images_by_region' => [
+            'ir-thr-c2' => [[
+                'name' => 'Windows', 'images' => [[
+                    'id' => 'win-2025-thr', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 0,
+                ]],
+            ],
+            'ir-tbz-sh1' => [[
+                'name' => 'Windows', 'images' => [[
+                    'id' => 'win-2025-tbz', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 2048,
+                ]],
+            ],
+        ]]);
+
+        app(CloudCatalogSync::class)->sync('arvan');
+
+        $this->assertNotEmpty(\App\Models\CloudImage::where('provider', 'arvan')->where('key', '2025')->get());
+        $this->assertSame(
+            [2048],
+            \App\Models\CloudImage::where('provider', 'arvan')->where('key', '2025')
+                ->pluck('min_ram_mb')->unique()->values()->all()
+        );
     }
 
     /** پلنی که فقط قیمتِ ساعتی دارد (ابرکِ اقتصادی) باید از ساعتی ماهانه بسازد و بیاید */

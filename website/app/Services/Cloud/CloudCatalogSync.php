@@ -169,6 +169,7 @@ class CloudCatalogSync
     private function syncImages(string $provider, array $rows): int
     {
         $seen = [];
+        $requirements = [];
         $n = 0;
 
         foreach ($rows as $r) {
@@ -195,7 +196,25 @@ class CloudCatalogSync
             );
 
             $seen[] = $ref;
+            $requirements[$key] = [
+                'disk' => max((int) ($requirements[$key]['disk'] ?? 0), (int) ($r['min_disk_gb'] ?? 0)),
+                'ram'  => max((int) ($requirements[$key]['ram'] ?? 0), (int) ($r['min_ram_mb'] ?? 0)),
+            ];
             $n++;
+        }
+
+        /*
+        | بعضی منطقه‌های آروان برای یک ایمیج همان فیلدهای نیازمندی را صفر یا
+        | خالی می‌دهند و منطقه‌ای دیگر مقدار واقعی را برمی‌گرداند. چون جدول
+        | cloud_images ستون منطقه ندارد، یک ردیف صفر می‌توانست گارد فروش را
+        | دور بزند. محافظه‌کارانه بیشترین نیازِ همان کلید/ارائه‌دهنده روی همهٔ
+        | ردیف‌های منطقه‌ای اعمال می‌شود.
+        */
+        foreach ($requirements as $key => $need) {
+            CloudImage::where('provider', $provider)->where('key', $key)->update([
+                'min_disk_gb' => (int) $need['disk'],
+                'min_ram_mb'  => (int) $need['ram'],
+            ]);
         }
 
         // ایمیجِ برداشته‌شده: غیرفعال، نه حذف (ممکن است سرورِ فعالی رویش باشد)
