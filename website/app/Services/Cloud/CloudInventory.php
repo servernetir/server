@@ -59,6 +59,7 @@ class CloudInventory
         $errors = [];
         $checked = [];
         $seenRefs = [];
+        $claimedInstances = [];
 
         foreach ($this->targets($providers) as $slug) {
             $driver = $this->manager->driver($slug);
@@ -82,7 +83,16 @@ class CloudInventory
                 $errors[$slug] = (string) $res['message'];
             }
 
-            foreach ((array) ($res['servers'] ?? []) as $srv) {
+            $servers = (array) ($res['servers'] ?? []);
+            $liveRefs = [];
+
+            foreach ($servers as $live) {
+                if (filled($live['ref'] ?? null)) {
+                    $liveRefs[$slug.'|'.(string) $live['ref']] = true;
+                }
+            }
+
+            foreach ($servers as $srv) {
                 $ref = (string) ($srv['ref'] ?? '');
 
                 if ($ref === '') {
@@ -103,6 +113,18 @@ class CloudInventory
                 if ($ci === null) {
                     $ci = $byHost[$slug.'|'.strtolower((string) ($srv['name'] ?? ''))] ?? null;
 
+                    // اگر شناسهٔ واقعیِ همین نمونه در فهرست حاضر است، این
+                    // ماشینِ هم‌نام نسخهٔ دیگری است. تطبیقِ نام نباید دو ابرک
+                    // `sn-svc-N` را به یک مشتری بچسباند یا با ترتیبِ پاسخ API
+                    // نسخهٔ اشتباه را برنده کند.
+                    if ($ci !== null && isset($liveRefs[$slug.'|'.$ci->provider_ref])) {
+                        $ci = null;
+                    }
+
+                    if ($ci !== null && isset($claimedInstances[$ci->id])) {
+                        $ci = null;
+                    }
+
                     if ($ci !== null) {
                         $seenRefs[$slug.'|'.$ci->provider_ref] = true;
                     }
@@ -118,6 +140,8 @@ class CloudInventory
 
                     continue;
                 }
+
+                $claimedInstances[$ci->id] = true;
 
                 $attached[] = $row + [
                     'service_id'    => $ci->service_id,
