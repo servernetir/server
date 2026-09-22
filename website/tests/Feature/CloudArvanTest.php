@@ -203,12 +203,12 @@ class CloudArvanTest extends TestCase
                 'name' => 'Windows', 'images' => [[
                     'id' => 'win-2025-thr', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 0,
                 ]],
-            ],
+            ]],
             'ir-tbz-sh1' => [[
                 'name' => 'Windows', 'images' => [[
                     'id' => 'win-2025-tbz', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 2048,
                 ]],
-            ],
+            ]],
         ]]);
 
         app(CloudCatalogSync::class)->sync('arvan');
