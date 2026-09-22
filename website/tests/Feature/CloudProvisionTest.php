@@ -13,6 +13,7 @@ use App\Services\Provisioning\ProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -284,6 +285,39 @@ class CloudProvisionTest extends TestCase
         $inst = CloudInstance::where('service_id', $service->id)->first();
         $this->assertSame('error', $inst->status);
         $this->assertStringContainsString('resource_unavailable', (string) $inst->last_error);
+    }
+
+    public function test_transient_provider_failure_stays_pending_for_automatic_retry(): void
+    {
+        $plan = $this->plan();
+        $this->image();
+        $service = $this->service($plan);
+
+        $driver = Mockery::mock(\App\Services\Cloud\CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->andReturnTrue();
+        $driver->shouldReceive('capabilities')->andReturn([]);
+        $driver->shouldReceive('createServer')->once()->andReturn([
+            'ok' => false,
+            'message' => 'ارتباط با زیرساخت برقرار نشد.',
+            'transient' => true,
+            'raw' => ['status' => 0],
+        ]);
+
+        $manager = Mockery::mock(\App\Services\Cloud\CloudManager::class);
+        $manager->shouldReceive('forPlan')->andReturn($driver);
+
+        $provisioner = new CloudProvisioner(
+            $manager,
+            app(\App\Services\Cloud\CloudAddons::class),
+        );
+
+        $this->assertFalse($provisioner->provision($service));
+
+        $fresh = $service->fresh();
+        $this->assertSame('pending', $fresh->provision_status);
+        $this->assertSame('awaiting_provision', $fresh->status);
+        $this->assertStringContainsString('تلاش خودکار', (string) $fresh->provision_error);
+        $this->assertSame('error', CloudInstance::where('service_id', $service->id)->value('status'));
     }
 
     /** پلنِ حذف‌شده نباید استثنا بدهد */

@@ -927,7 +927,17 @@ class ArvanClient implements CloudProvider
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message'],
-                'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
+                // status=0 یعنی اصلاً پاسخ HTTP نگرفتیم؛ 429/5xx نیز خرابیِ
+                // گذرای مسیر/زیرساخت‌اند. این علامت به هماهنگ‌کننده می‌گوید
+                // سفارشِ پرداخت‌شده را در صف نگه دارد، نه اینکه failed کند و
+                // برای همیشه منتظرِ کلیکِ مدیر بماند.
+                'transient' => (int) ($r['status'] ?? 0) === 0
+                    || (int) ($r['status'] ?? 0) === 429
+                    || (int) ($r['status'] ?? 0) >= 500,
+                'raw' => [
+                    'status' => (int) ($r['status'] ?? 0),
+                    'detail' => (string) ($r['raw'] ?? ''),
+                ]] + $fail;
         }
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد

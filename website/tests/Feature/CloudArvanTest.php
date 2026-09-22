@@ -460,6 +460,47 @@ class CloudArvanTest extends TestCase
         $this->assertSame('ir-thr-c2:srv-existing', $r['ref']);
     }
 
+    public function test_create_transport_failure_is_explicitly_retryable(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+
+            if (str_contains($url, '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'g2-2-4-25', 'cpu_count' => 2, 'memory' => 4,
+                    'disk' => 25, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
+            }
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'default' => true]]], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                throw new \Illuminate\Http\Client\ConnectionException('timed out');
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-239', 'plan_ref' => 'g2-2-4-25',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 25,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertFalse($r['ok']);
+        $this->assertTrue($r['transient']);
+        $this->assertSame(0, $r['raw']['status']);
+    }
+
     public function test_power_off_uses_region_path(): void
     {
         Setting::putSecret('arvan_api_token', 'Apikey k');
