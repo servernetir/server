@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'support_ticket_api' => [
+        'token' => env('SUPPORT_TICKET_API_TOKEN'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

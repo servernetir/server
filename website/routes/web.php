@@ -2604,6 +2604,10 @@ use App\Http\Controllers\Admin\UserController as AdminUser;
 Route::post('/admin/impersonate/stop', [\App\Http\Controllers\Admin\ImpersonateController::class, 'stop'])
     ->name('admin.impersonate.stop');
 
+// اتوماسیون پشتیبانی: بی‌نشست، با Bearer token مستقل و محدودیت نرخ.
+Route::post('/api/admin/tickets', [\App\Http\Controllers\Api\AdminTicketController::class, 'store'])
+    ->middleware(['support.ticket.api', 'throttle:60,1']);
+
 Route::prefix('admin')->group(function () {
     Route::get('/setup', [AdminAuth::class, 'showSetup']);
     Route::post('/setup', [AdminAuth::class, 'setup']);
@@ -2761,6 +2765,7 @@ Route::prefix('admin')->group(function () {
         | دکمه بی‌صدا از کار می‌افتد.
         */
         Route::withoutMiddleware('admin')->middleware('staff')->group(function () {
+            Route::post('/tickets/create', [\App\Http\Controllers\Admin\TicketController::class, 'store']);
             Route::post('/tickets/bulk', [\App\Http\Controllers\Admin\TicketController::class, 'bulk']);
             Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('admin.ticket');
             Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply']);

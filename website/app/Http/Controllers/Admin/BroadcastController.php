@@ -31,6 +31,10 @@ class BroadcastController extends Controller
     public function index(Request $request): View
     {
         $ready = Schema::hasTable('broadcasts') && Schema::hasTable('customers');
+        $pickedIds = (array) $request->session()->getOldInput('customer_ids', []);
+        if ($pickedIds === [] && $request->integer('customer') > 0) {
+            $pickedIds = [$request->integer('customer')];
+        }
 
         return view('admin.broadcasts', [
             'history'  => $ready
@@ -44,6 +48,9 @@ class BroadcastController extends Controller
             ],
             // پیش‌انتخاب یک مشتری خاص وقتی از پروندهٔ او آمده‌ایم
             'preselect' => $request->integer('customer') ?: null,
+            'selectedCustomers' => $ready
+                ? Customer::whereIn('id', array_map('intval', $pickedIds))->get()
+                : collect(),
             'notReady'  => ! $ready,
         ]);
     }
@@ -51,14 +58,19 @@ class BroadcastController extends Controller
     public function send(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'audience'    => ['required', 'in:all,active,verified,one'],
+            'audience'    => ['required', 'in:all,active,verified,one,selected'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'customer_ids'   => ['nullable', 'array', 'max:'.self::MAX_RECIPIENTS],
+            'customer_ids.*' => ['integer', 'distinct', 'exists:customers,id'],
             'title'       => ['nullable', 'string', 'max:120'],
             'body'        => ['required', 'string', 'max:1000'],
         ]);
 
         if ($data['audience'] === 'one' && empty($data['customer_id'])) {
             return back()->withErrors('برای ارسال به یک مشتری، مشتری را انتخاب کنید.')->withInput();
+        }
+        if ($data['audience'] === 'selected' && empty($data['customer_ids'])) {
+            return back()->withErrors('حداقل یک مشتری را انتخاب کنید.')->withInput();
         }
 
         // عنوان اختیاری است: با nullable، اگر فرستاده نشود کلیدش اصلاً در $data
@@ -68,7 +80,8 @@ class BroadcastController extends Controller
         // متن نهایی — عنوان (اگر باشد) روی خط اول
         $text = trim(($title !== '' ? $title."\n" : '').$data['body']);
 
-        $targets = $this->targets($data['audience'], $data['customer_id'] ?? null);
+        $selectedIds = array_values(array_unique(array_map('intval', (array) ($data['customer_ids'] ?? []))));
+        $targets = $this->targets($data['audience'], $data['customer_id'] ?? null, $selectedIds);
         $count   = $targets->count();
 
         if ($count === 0) {
@@ -106,7 +119,9 @@ class BroadcastController extends Controller
 
         Broadcast::create([
             'audience'    => $data['audience'],
-            'customer_id' => $data['audience'] === 'one' ? $data['customer_id'] : null,
+            'customer_id' => $data['audience'] === 'one'
+                ? $data['customer_id']
+                : ($data['audience'] === 'selected' && count($selectedIds) === 1 ? $selectedIds[0] : null),
             'title'       => $title !== '' ? $title : null,
             'body'        => $data['body'],
             'recipients'  => $sent,
@@ -143,7 +158,7 @@ class BroadcastController extends Controller
      *
      * @return \Illuminate\Support\Collection<int,Customer>
      */
-    private function targets(string $audience, ?int $customerId)
+    private function targets(string $audience, ?int $customerId, array $customerIds = [])
     {
         // گیرنده = هرکس که دستِ‌کم یک راهِ تماس دارد: موبایل (برای پیامک/بله) یا
         // ایمیل (برای ایمیل). قبلاً فقط موبایل‌دارها هدف بودند؛ حالا که ایمیل هم
@@ -158,6 +173,7 @@ class BroadcastController extends Controller
 
         return match ($audience) {
             'one'      => Customer::where('id', $customerId)->get(),
+            'selected' => Customer::whereIn('id', $customerIds)->orderBy('id')->get(),
             'active'   => $q->where('status', 'active')->get(),
             'verified' => $q->whereHas('profiles', fn ($p) => $p->where('status', 'verified'))->get(),
             default    => $q->get(),

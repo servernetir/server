@@ -13,6 +13,32 @@
   $inp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px';
 @endphp
 
+@if($errors->any())<div class="ad-note err">{{ $errors->first() }}</div>@endif
+
+<details class="ad-panel tk-create" {{ $errors->any() || request('customer') ? 'open' : '' }}>
+  <summary class="ad-panel-h" style="cursor:pointer"><h2>+ ایجاد تیکت از طرف پشتیبانی</h2><span style="color:var(--dim);font-size:12px">تکی یا گروهی</span></summary>
+  <form method="post" action="/admin/tickets/create" style="padding:16px;display:grid;gap:14px"
+        data-confirm="برای مشتریان انتخاب‌شده تیکت ساخته و اعلان ارسال شود؟"
+        data-confirm-title="ایجاد تیکت پشتیبانی" data-confirm-ok="بله، ایجاد کن">
+    @csrf
+    <div>
+      <label class="tk-label">مشتریان</label>
+      @include('admin.partials.customer-picker', ['id'=>'ticket-customers','selected'=>$selectedCustomers,'max'=>200])
+      <small style="color:var(--dim)">برای هر مشتری یک تیکت مستقل و قابل پاسخ ساخته می‌شود؛ سایر مشتریان گفتگو را نمی‌بینند.</small>
+    </div>
+    <div class="tk-create-grid">
+      <label><span class="tk-label">موضوع</span><input name="subject" required maxlength="200" value="{{ old('subject') }}" class="ad-input"></label>
+      <label><span class="tk-label">بخش</span><select name="department" class="ad-input"><option value="technical">فنی</option><option value="billing" @selected(old('department')==='billing')>مالی</option><option value="sales" @selected(old('department')==='sales')>فروش</option></select></label>
+      <label><span class="tk-label">اولویت</span><select name="priority" class="ad-input"><option value="normal">عادی</option><option value="low" @selected(old('priority')==='low')>کم</option><option value="high" @selected(old('priority')==='high')>زیاد</option><option value="urgent" @selected(old('priority')==='urgent')>فوری</option></select></label>
+    </div>
+    <label><span class="tk-label">پیام آغاز گفتگو</span><textarea name="body" required maxlength="5000" rows="5" class="ad-input" style="width:100%;resize:vertical;line-height:1.9">{{ old('body') }}</textarea></label>
+    <div style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <details class="tk-api"><summary>API اتوماسیون</summary><div><code>POST /api/admin/tickets</code> · Bearer Token · ورودی: <code>customer_ids</code> یا <code>customer_codes</code>، subject، department، priority و body. <b style="color:{{ $ticketApiEnabled ? '#34d399' : '#fbbf24' }}">{{ $ticketApiEnabled ? 'فعال' : 'نیازمند SUPPORT_TICKET_API_TOKEN' }}</b></div></details>
+      <button type="submit" class="btn btn-primary"><svg class="icon"><use href="#i-send"/></svg>ایجاد و اطلاع‌رسانی</button>
+    </div>
+  </form>
+</details>
+
 <div class="ad-toolbar" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
   {{-- تب‌ها از `Ticket::STATUSES` ساخته می‌شوند تا وضعیتِ تازه (مثل
        «نگه‌داشته‌شده») هیچ‌وقت از این‌جا جا نماند. --}}
@@ -130,6 +156,9 @@
   padding:12px 16px; border-top:1px solid var(--line); background:var(--surface2) }
 .tk-bulkbar b{ font-size:12.5px; color:var(--text) }
 .tk-pick, #tk-all{ accent-color:#22d3ee; width:15px; height:15px; cursor:pointer }
+.tk-create>summary{display:flex;justify-content:space-between;align-items:center;list-style:none}.tk-create>summary::-webkit-details-marker{display:none}
+.tk-label{display:block;color:var(--muted);font-size:12.5px;margin-bottom:6px}.tk-create-grid{display:grid;grid-template-columns:minmax(260px,1fr) 150px 150px;gap:10px}.tk-create .ad-input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font:inherit}.tk-api{font-size:11.5px;color:var(--dim);max-width:650px}.tk-api summary{cursor:pointer;color:var(--cyan);margin-bottom:5px}.tk-api code{direction:ltr;display:inline-block;color:var(--text)}
+@media(max-width:760px){.tk-create-grid{grid-template-columns:1fr}}
 </style>
 
 <script>

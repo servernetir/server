@@ -32,6 +32,7 @@ class Broadcast extends Model
             'verified' => 'مشتریان احرازشده',
             'active'   => 'مشتریان فعال',
             'one'      => 'یک مشتری',
+            'selected' => 'انتخاب دستی',
             default    => $this->audience,
         };
     }

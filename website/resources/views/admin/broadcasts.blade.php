@@ -21,18 +21,17 @@
     <div style="margin-bottom:14px">
       <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">مخاطب</label>
       <div class="bc-aud">
-        <label><input type="radio" name="audience" value="all" {{ $preselect ? '' : 'checked' }}><span>همهٔ مشتریان</span><i>{{ fa_num($counts['all']) }}</i></label>
-        <label><input type="radio" name="audience" value="active"><span>مشتریان فعال</span><i>{{ fa_num($counts['active']) }}</i></label>
-        <label><input type="radio" name="audience" value="verified"><span>احرازشده‌ها</span><i>{{ fa_num($counts['verified']) }}</i></label>
-        <label><input type="radio" name="audience" value="one" {{ $preselect ? 'checked' : '' }}><span>یک مشتری خاص</span><i>ID</i></label>
+        <label><input type="radio" name="audience" value="all" {{ !$preselect && old('audience', 'all') === 'all' ? 'checked' : '' }}><span>همهٔ مشتریان</span><i>{{ fa_num($counts['all']) }}</i></label>
+        <label><input type="radio" name="audience" value="active" @checked(old('audience') === 'active')><span>مشتریان فعال</span><i>{{ fa_num($counts['active']) }}</i></label>
+        <label><input type="radio" name="audience" value="verified" @checked(old('audience') === 'verified')><span>احرازشده‌ها</span><i>{{ fa_num($counts['verified']) }}</i></label>
+        <label><input type="radio" name="audience" value="selected" {{ $preselect || old('audience') === 'selected' ? 'checked' : '' }}><span>انتخاب مشتریان</span><i>تکی یا چندتایی</i></label>
       </div>
     </div>
 
-    <div id="bc-one" style="margin-bottom:14px;{{ $preselect ? '' : 'display:none' }}">
-      <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">شناسهٔ مشتری (id عددی)</label>
-      <input type="number" name="customer_id" value="{{ $preselect }}" dir="ltr"
-             style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit;width:200px;text-align:left">
-      <small style="color:var(--dim);display:block;margin-top:5px">از پروندهٔ هر مشتری دکمهٔ «ارسال اعلان» این را خودکار پر می‌کند.</small>
+    <div id="bc-one" style="margin-bottom:14px;{{ $preselect || old('audience') === 'selected' ? '' : 'display:none' }}">
+      <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">مشتریان موردنظر</label>
+      @include('admin.partials.customer-picker', ['id'=>'broadcast-customers','selected'=>$selectedCustomers,'max'=>5000])
+      <small style="color:var(--dim);display:block;margin-top:5px">با نام، کد مشتری، ایمیل یا موبایل جستجو کنید؛ انتخاب چند مشتری امکان‌پذیر است.</small>
     </div>
 
     <div style="margin-bottom:14px">
@@ -91,7 +90,7 @@
 <script>
 document.querySelectorAll('input[name=audience]').forEach(function(r){
   r.addEventListener('change', function(){
-    document.getElementById('bc-one').style.display = (this.value === 'one') ? '' : 'none';
+    document.getElementById('bc-one').style.display = (this.value === 'selected') ? '' : 'none';
   });
 });
 </script>
