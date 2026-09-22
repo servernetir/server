@@ -211,7 +211,14 @@ class CloudCatalogSync
         | ردیف‌های منطقه‌ای اعمال می‌شود.
         */
         foreach ($requirements as $key => $need) {
-            CloudImage::where('provider', $provider)->where('key', $key)->update([
+            /*
+            | PHP کلیدهای رشته‌ایِ تماماً عددی (مثل Windows "2025" یا Debian
+            | "13") را در آرایه به int تبدیل می‌کند. اگر همان int به MariaDB
+            | bind شود، ستون varchar را عددی مقایسه می‌کند و روی کلیدهایی مثل
+            | "26-04" با Truncated incorrect DECIMAL value می‌ترکد. cast صریح
+            | هم مقایسه را رشته‌ای نگه می‌دارد هم sync را برای کل کاتالوگ پایدار.
+            */
+            CloudImage::where('provider', $provider)->where('key', (string) $key)->update([
                 'min_disk_gb' => (int) $need['disk'],
                 'min_ram_mb'  => (int) $need['ram'],
             ]);
