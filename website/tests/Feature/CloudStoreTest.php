@@ -125,7 +125,7 @@ class CloudStoreTest extends TestCase
         $this->loc('fi-helsinki', 'FI', 'Helsinki');
 
         $this->plan();
-        $this->plan([
+        $plan = $this->plan([
             'provider_ref' => 'cx32', 'public_name' => 'CV-4-8',
             'slug' => 'cv-4c-8g-80d-de-frankfurt',
             'vcpu' => 4, 'ram_mb' => 8192, 'disk_gb' => 80,
@@ -238,14 +238,11 @@ class CloudStoreTest extends TestCase
             'min_disk_gb' => 0, 'min_ram_mb' => 2048,
         ]);
 
+        $allowed = CloudStoreController::imageKeysFor($plan);
+        $this->assertContains('ubuntu-24.04', $allowed);
+        $this->assertNotContains('windows-2025', $allowed);
+
         $customer = $this->customer();
-        $html = $this->actingAs($customer, 'customer')
-            ->get($this->u())
-            ->assertOk()->getContent();
-
-        $this->assertStringContainsString('Ubuntu 24.04', $html);
-        $this->assertStringNotContainsString('Windows Server 2025', $html);
-
         $this->order($customer, [
             'plan' => 'cv-1c-1g-25d-de-frankfurt',
             'image' => 'windows-2025',
