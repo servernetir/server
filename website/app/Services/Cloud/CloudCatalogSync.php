@@ -189,6 +189,7 @@ class CloudCatalogSync
                     'label'       => (string) ($r['label'] ?? $key),
                     'arch'        => (string) ($r['arch'] ?? 'x86'),
                     'min_disk_gb' => (int) ($r['min_disk_gb'] ?? 0),
+                    'min_ram_mb'  => (int) ($r['min_ram_mb'] ?? 0),
                     'is_active'   => true,
                 ]
             );

@@ -597,6 +597,10 @@ class CloudStoreController extends Controller
                 continue;                                 // روی این دیسک جا نمی‌شود
             }
 
+            if ((int) $row->min_ram_mb > (int) $offer->ram_mb) {
+                continue;                                 // RAM این سیستم‌عامل بیشتر است
+            }
+
             // معماری: ایمیجِ x86 روی پلنِ arm بالا نمی‌آید و برعکس
             if (filled($row->arch) && filled($offer->arch) && (string) $row->arch !== (string) $offer->arch) {
                 continue;

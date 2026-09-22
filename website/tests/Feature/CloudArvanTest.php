@@ -50,7 +50,7 @@ class CloudArvanTest extends TestCase
         $images = $over['images'] ?? [[
             'name' => 'Ubuntu',
             'images' => [
-                ['id' => 'img-ubuntu-2204', 'name' => 'Ubuntu 22.04', 'distribution_name' => 'ubuntu', 'disk' => 10],
+                ['id' => 'img-ubuntu-2204', 'name' => 'Ubuntu 22.04', 'distribution_name' => 'ubuntu', 'disk' => 10, 'ram' => 2048],
             ],
         ]];
 
@@ -183,6 +183,7 @@ class CloudArvanTest extends TestCase
         // کلیدِ یکسان‌شده، نه شناسهٔ آروان
         $this->assertSame('ubuntu-22.04', $img['key']);
         $this->assertSame('img-ubuntu-2204', $img['provider_ref']);
+        $this->assertSame(2048, $img['min_ram_mb']);
     }
 
     /** پلنی که فقط قیمتِ ساعتی دارد (ابرکِ اقتصادی) باید از ساعتی ماهانه بسازد و بیاید */

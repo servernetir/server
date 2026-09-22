@@ -353,6 +353,28 @@ class CloudProvisionTest extends TestCase
         $this->assertSame('failed', $service->fresh()->provision_status);
     }
 
+    /** ایمیجِ بزرگ‌تر از RAM پلن نباید حتی یک درخواست خرید به زیرساخت بفرستد. */
+    public function test_image_ram_requirement_is_checked_before_provider_purchase(): void
+    {
+        $plan = $this->plan('hetzner', ['ram_mb' => 1024]);
+        $image = $this->image();
+        $image->update(['min_ram_mb' => 2048]);
+        $service = $this->service($plan);
+
+        $created = 0;
+        Http::fake(function ($request) use (&$created) {
+            if (str_ends_with($request->url(), '/servers') && $request->method() === 'POST') {
+                $created++;
+            }
+
+            return Http::response([], 200);
+        });
+
+        $this->assertFalse(app(ProvisioningService::class)->provision($service));
+        $this->assertSame(0, $created);
+        $this->assertSame('failed', $service->fresh()->provision_status);
+    }
+
     // ═══════════════════ انتخابِ دیرهنگامِ زیرساخت ═══════════════════
 
     /**

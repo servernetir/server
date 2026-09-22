@@ -570,6 +570,10 @@ class ArvanClient implements CloudProvider
                     'label' => $label,
                     'arch' => 'x86',
                     'min_disk_gb' => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
+                    // آروان حداقل RAM هر ایمیج را بر حسب MB می‌دهد. نادیده‌گرفتن
+                    // این فیلد باعث شد Windows 2025 روی پلن 1GB فروخته شود و
+                    // تازه پس از پرداخت با خطای OS requirements رد شود.
+                    'min_ram_mb' => (int) ($img['ram'] ?? $img['min_ram'] ?? 0),
                 ];
             }
         }

@@ -182,7 +182,7 @@ class CloudProvisioner
 
         // ── سیستم‌عاملِ انتخابیِ مشتری → شناسهٔ بومیِ همین زیرساخت ──
         $imageKey = (string) ($service->cloud_image_key ?: config('cloud.default_image', 'ubuntu-24.04'));
-        $imageRef = CloudImage::refFor($plan->provider, $imageKey, $plan->arch);
+        $imageRef = CloudImage::compatibleRefFor($plan, $imageKey);
 
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
@@ -197,7 +197,7 @@ class CloudProvisioner
 
             $plan = $alt;
             $driver = $this->manager->forPlan($plan);
-            $imageRef = CloudImage::refFor($plan->provider, $imageKey, $plan->arch);
+            $imageRef = CloudImage::compatibleRefFor($plan, $imageKey);
 
             if ($driver === null || $imageRef === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -1207,7 +1207,7 @@ class CloudProvisioner
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
             ->get()
-            ->first(fn (CloudPlan $p) => CloudImage::refFor($p->provider, $imageKey, $p->arch) !== null);
+            ->first(fn (CloudPlan $p) => CloudImage::compatibleRefFor($p, $imageKey) !== null);
     }
 
     /**

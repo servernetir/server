@@ -114,7 +114,7 @@ class CloudStoreTest extends TestCase
         return CloudImage::create(array_merge([
             'provider' => 'hetzner', 'provider_ref' => 'ubuntu-24.04', 'key' => 'ubuntu-24.04',
             'kind' => 'os', 'family' => 'ubuntu', 'version' => '24.04', 'label' => 'Ubuntu 24.04',
-            'arch' => 'x86', 'min_disk_gb' => 5, 'is_active' => true,
+            'arch' => 'x86', 'min_disk_gb' => 5, 'min_ram_mb' => 0, 'is_active' => true,
         ], $over));
     }
 
@@ -220,6 +220,38 @@ class CloudStoreTest extends TestCase
 
         $this->assertStringNotContainsString('Windows Server 2022', $html);
         $this->assertStringNotContainsString('windows-2022', $html);
+    }
+
+    /** سیستم‌عاملِ سنگین روی پلن کم‌رم نه نمایش داده شود و نه با POST قابل دورزدن باشد. */
+    public function test_image_requiring_more_ram_than_the_plan_cannot_be_ordered(): void
+    {
+        $this->loc('de-frankfurt', 'DE', 'Frankfurt');
+        $this->plan([
+            'provider_ref' => 'tiny-1', 'public_name' => 'CV-1-1',
+            'slug' => 'cv-1c-1g-25d-de-frankfurt',
+            'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 25,
+        ]);
+        $this->image();
+        $this->image([
+            'provider_ref' => 'windows-2025', 'key' => 'windows-2025',
+            'family' => 'windows', 'version' => '2025', 'label' => 'Windows Server 2025',
+            'min_disk_gb' => 0, 'min_ram_mb' => 2048,
+        ]);
+
+        $customer = $this->customer();
+        $html = $this->actingAs($customer, 'customer')
+            ->get($this->u().'?location=de-frankfurt')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Ubuntu 24.04', $html);
+        $this->assertStringNotContainsString('Windows Server 2025', $html);
+
+        $this->order($customer, [
+            'plan' => 'cv-1c-1g-25d-de-frankfurt',
+            'image' => 'windows-2025',
+        ])->assertSessionHasErrors('image');
+
+        $this->assertDatabaseCount('services', 0);
     }
 
     /** مهم‌ترین قاعده: نامِ زیرساخت نباید به مشتری برسد */
