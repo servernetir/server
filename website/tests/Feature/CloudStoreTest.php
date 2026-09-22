@@ -240,7 +240,7 @@ class CloudStoreTest extends TestCase
 
         $customer = $this->customer();
         $html = $this->actingAs($customer, 'customer')
-            ->get($this->u().'?location=de-frankfurt')
+            ->get($this->u())
             ->assertOk()->getContent();
 
         $this->assertStringContainsString('Ubuntu 24.04', $html);
