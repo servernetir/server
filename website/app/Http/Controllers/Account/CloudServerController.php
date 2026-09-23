@@ -108,6 +108,14 @@ class CloudServerController extends Controller
         $instance = $this->instanceOf($service);
         $caps = $instance ? $this->manager->capabilitiesFor($instance) : [];
 
+        // آروان برای ایمیج‌های ویندوز API تغییر رمز ندارد (پاسخ زندهٔ API:
+        // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
+        // برای لینوکس درست است، اما نمایشِ همان دکمه روی ویندوز مشتری را به
+        // عملی می‌فرستاد که همیشه شکست می‌خورد.
+        if ($instance?->provider === 'arvan' && $instance->isWindows()) {
+            $caps['reset_password'] = false;
+        }
+
         // رمز فقط **یک بار** نشان داده می‌شود. دلیل: صفحهٔ همیشه‌بازِ پنل روی یک
         // لپ‌تاپِ مشترک، رمزِ root را به هر رهگذری می‌دهد. بعد از اولین دیدن،
         // مشتری باید «رمزِ تازه بساز» بزند.
@@ -502,6 +510,10 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
+            return back()->withErrors(__('ui.cx_op_na'));
+        }
+
+        if ($instance->provider === 'arvan' && $instance->isWindows()) {
             return back()->withErrors(__('ui.cx_op_na'));
         }
 

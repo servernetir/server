@@ -220,6 +220,30 @@ class CloudServerPageLayoutTest extends TestCase
         $this->assertStringNotContainsString('{{', $html, 'هیچ آکولادِ کامپایل‌نشده نباید بماند');
     }
 
+    /** ویندوزِ آروانِ بدون رمز نباید دکمهٔ تغییر رمزِ همیشه‌شکست‌خور نشان دهد. */
+    public function test_arvan_windows_without_password_reports_incomplete_access(): void
+    {
+        CloudImage::create([
+            'provider' => 'arvan', 'provider_ref' => 'windows-test-image',
+            'key' => 'windows-2025', 'family' => 'windows', 'kind' => 'os',
+            'label' => 'Windows 2025', 'arch' => 'x86', 'is_active' => true,
+        ]);
+        $s = $this->service();
+        $inst = $this->delivered($s);
+        $inst->update([
+            'provider' => 'arvan',
+            'provider_ref' => 'ir-test:windows-1',
+            'image_key' => 'windows-2025',
+        ]);
+
+        $html = $this->render($s);
+
+        $this->assertStringContainsString('Administrator', $html);
+        $this->assertStringContainsString('mstsc /v:'.$inst->ipv4, $html);
+        $this->assertStringContainsString(__('ui.cs_windows_pw_unavailable'), $html);
+        $this->assertStringNotContainsString(__('ui.cs_new_pw'), $html);
+    }
+
     /**
      * تگ‌های `div` و `section` داخلِ `.pnl-main` باید تراز باشند — در **هر دو**
      * حالت. یک تگِ بازِ جامانده هیچ خطایی تولید نمی‌کند و صفحه ۲۰۰ می‌ماند.

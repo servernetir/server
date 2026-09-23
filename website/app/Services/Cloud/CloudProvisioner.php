@@ -2000,7 +2000,7 @@ class CloudProvisioner
                         $service->name,
                         $instance->ipv4 ?: $service->domain,
                         $service->panel_url ?: url('/account/cloud/'.$service->id),
-                        'root',
+                        $instance->isWindows() ? 'Administrator' : 'root',
                         /*
                         | 🔴 رمزِ root عمداً در ایمیل **نیست**.
                         |
@@ -2015,8 +2015,8 @@ class CloudProvisioner
                         */
                         null,
                         $customer->locale ?: 'fa',
-                        passwordInPanel: true,
-                        withSshGuide: true,
+                        passwordInPanel: ! $instance->isWindows() || $instance->hasPassword(),
+                        withSshGuide: ! $instance->isWindows(),
                     )
                 );
             }

@@ -74,7 +74,7 @@ class ArvanClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            'console' => false,          // کنسولِ تحتِ وب در API عمومی نیست
+            'console' => true,           // GET /regions/{region}/servers/{id}/vnc
             'rebuild' => true,
             'resize' => true,           // change-flavor
             'snapshot' => true,
@@ -1241,7 +1241,45 @@ class ArvanClient implements CloudProvider
 
     public function console(string $ref): array
     {
-        return ['ok' => false, 'message' => 'کنسولِ تحتِ وب برای این سرور در دسترس نیست.', 'url' => null, 'password' => null];
+        [$region, $id] = $this->split($ref);
+
+        if ($region === '' || $id === '') {
+            return ['ok' => false, 'message' => 'شناسهٔ کنسول معتبر نیست.', 'url' => null, 'password' => null];
+        }
+
+        // API رسمی IaaS یک نشانیِ کوتاه‌عمرِ noVNC می‌دهد. خود URL مانند رمز
+        // دسترسی است و فقط از مسیر بلیت یک‌بارمصرف CloudServerController عبور
+        // می‌کند؛ هیچ‌وقت در لاگ یا HTML اولیه ثبت نمی‌شود.
+        $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/vnc');
+        $url = $r['ok'] ? (string) data_get($r['data'], 'url', '') : '';
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        // پاسخ API نباید بتواند مشتری را به یک میزبان دلخواه بفرستد. کنسول
+        // فعلی آروان روی arvaniaas.ir است؛ زیردامنه‌های رسمی arvancloud.ir نیز
+        // برای مهاجرت احتمالی مجازند، ولی تطبیق حتماً روی مرز دامنه است.
+        $allowed = $host === 'console.arvaniaas.ir'
+            && ! isset($parts['user']) && ! isset($parts['pass'])
+            && ! isset($parts['port'])
+            && ($parts['path'] ?? '') === '/'.$region.'/vnc_lite.html';
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        $token = $query['token'] ?? null;
+
+        if (! $r['ok'] || ! str_starts_with($url, 'https://') || ! $allowed || ! is_string($token) || $token === '') {
+            return [
+                'ok' => false,
+                'message' => $r['ok'] ? 'نشانیِ امنِ کنسول دریافت نشد.' : $r['message'],
+                'url' => null,
+                'password' => null,
+            ];
+        }
+
+        // مسیر از کلاینت noVNC زندهٔ ارائه‌دهنده استخراج شده است. token در
+        // query همان نشست کوتاه‌عمر است؛ هیچ cookie مدیریتی ارسال نمی‌شود.
+        $socketUrl = 'wss://'.$host.$parts['path'].'/websockify?'
+            .http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
+
+        return ['ok' => true, 'message' => '', 'url' => $socketUrl, 'password' => null];
     }
 
     public function metrics(string $ref, string $window = '24h'): array

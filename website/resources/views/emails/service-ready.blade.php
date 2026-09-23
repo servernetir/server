@@ -80,6 +80,14 @@
      لینک فقط وقتی چاپ می‌شود که مقاله واقعاً منتشر شده باشد
      (`ServiceReadyMail::sshDocUrl()` خودش می‌پرسد). لینکِ ۴۰۴ در ایمیلِ تحویل،
      از نبودِ لینک بدتر است. --}}
+@if($username === 'Administrator')
+  <p style="margin:18px 0 0; font-size:13px; color:#3b4658; line-height:1.95;">
+    {{ __('ui.cs_rdp_guide') }}
+    @if(! ($passwordInPanel ?? false))
+      {{ __('ui.cs_windows_pw_unavailable') }}
+    @endif
+  </p>
+@endif
 @if(!empty($sshDocUrl))
   <p style="margin:18px 0 0; font-size:13px; color:#3b4658; line-height:1.95;">
     {{ __('ui.email_service_ssh_p') }}

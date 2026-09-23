@@ -391,6 +391,10 @@
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_pw_missing') }}
       </p>
+    @elseif($windows && ! $inst->hasPassword())
+      <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
+        {{ __('ui.cs_windows_pw_unavailable') }}
+      </p>
     @endif
   </div>
 </section>

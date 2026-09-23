@@ -570,6 +570,36 @@ class CloudArvanTest extends TestCase
         $this->assertInstanceOf(ArvanClient::class, app(CloudManager::class)->driver('arvan'));
     }
 
+    public function test_arvan_console_returns_only_an_official_https_novnc_url(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fake([
+            'napi.arvancloud.ir/*' => Http::response([
+                'data' => ['url' => 'https://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html?token=short-lived'],
+            ]),
+        ]);
+
+        $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
+
+        $this->assertTrue($r['ok']);
+        $this->assertSame('wss://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html/websockify?token=short-lived', $r['url']);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/ecc/v1/regions/ir-thr-c2/servers/srv-9/vnc'));
+    }
+
+    public function test_arvan_console_rejects_an_untrusted_redirect_url(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fake(['napi.arvancloud.ir/*' => Http::response([
+            'data' => ['url' => 'https://arvaniaas.ir.attacker.example/steal'],
+        ])]);
+
+        $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertNull($r['url']);
+    }
+
     public function test_full_sync_creates_iranian_plans(): void
     {
         $this->fakeArvan();
