@@ -167,6 +167,9 @@
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
       <a href="/admin/reports" class="@yield('nav_reports')"><svg class="icon"><use href="#i-gauge"/></svg>گزارشِ کسب‌وکار</a>
       <a href="/admin/transactions" class="@yield('nav_transactions')"><svg class="icon"><use href="#i-list"/></svg>تراکنش‌ها و اعتبار</a>
+      {{-- اسنپ‌پی خواسته شمارهٔ تراکنش در پنل ادمین قابل جست‌وجو باشد؛
+           لینکِ منو یعنی ادمین بدونِ دانستنِ آدرس هم پیدایش کند. --}}
+      <a href="/admin/snapppay" class="@yield('nav_snapppay')"><svg class="icon"><use href="#i-coins"/></svg>سفارش‌های اسنپ‌پی</a>
       @php $pendingBank = \Illuminate\Support\Facades\Schema::hasTable('bank_transfer_receipts')
               ? \App\Models\BankTransferReceipt::where('status', 'pending')->count() : 0; @endphp
       <a href="/admin/bank-transfers" class="@yield('nav_bank')"><svg class="icon"><use href="#i-db"/></svg>واریز به حساب@if($pendingBank)<span class="ad-pill">{{ $pendingBank }}</span>@endif</a>

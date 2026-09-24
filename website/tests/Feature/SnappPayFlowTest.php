@@ -191,6 +191,17 @@ class SnappPayFlowTest extends TestCase
         // هر دو تماس واقعاً رفتند — settle فراموش‌شدنی نیست
         Http::assertSent(fn ($r) => str_contains($r->url(), 'payment/v1/verify'));
         Http::assertSent(fn ($r) => str_contains($r->url(), 'payment/v1/settle'));
+
+        /*
+        | 🔴 ردِ حسابرسی باید **واقعاً** نوشته شده باشد.
+        |
+        | `note()` عمداً پرتاب نمی‌کند. وقتی کلیدِ خارجیِ رابطه غلط بود، هر
+        | رویداد بی‌صدا شکست می‌خورد و همین تست سبز می‌ماند. شمارش همان چیزی
+        | است که آن خرابیِ خاموش را بیرون می‌کشد.
+        */
+        $kinds = $order->events()->pluck('kind')->all();
+        $this->assertContains('verify', $kinds, 'رویدادِ verify ثبت نشده');
+        $this->assertContains('settle', $kinds, 'رویدادِ settle ثبت نشده');
     }
 
     /**

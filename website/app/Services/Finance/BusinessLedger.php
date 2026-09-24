@@ -399,6 +399,28 @@ class BusinessLedger
      *
      * idempotent روی (فاکتور، refund) — کرونِ ساعتی دو بار ثبت نمی‌کند.
      */
+    /**
+     * بازگشتِ وجه با منبعِ دلخواه — برای بازگشت‌هایی که روی یک فاکتور **تکرار** می‌شوند.
+     *
+     * 🔴 `recordInvoiceRefund` روی (فاکتور، refund) یکتاست. برای بازگشتِ
+     * یک‌باره درست است، ولی اسنپ‌پی صریحاً خواسته یک سفارش بتواند **چند بار**
+     * کاهش بخورد و بعد هم لغو شود. با منبعِ فاکتور، دومین بازگشت با اولی
+     * برخورد می‌کرد و `firstOrCreate` بی‌صدا چیزی نمی‌نوشت — پولی که واقعاً
+     * برگشته، در دفتر همچنان درآمد می‌ماند.
+     *
+     * منبع باید خودِ رویداد باشد (مثلاً ردیفِ snapppay_order_events): هر عملِ
+     * ادمین یک ردیفِ مستقل است، پس هر بازگشت ردیفِ دفتریِ خودش را می‌گیرد.
+     */
+    public function recordRefundFor(\Illuminate\Database\Eloquent\Model $source, int $amount, string $currency, string $note): void
+    {
+        if (! $this->ready() || $amount <= 0) {
+            return;
+        }
+
+        $this->post('refund', $amount, occurredAt: now(), source: $source,
+            note: $note, currency: $currency);
+    }
+
     public function recordInvoiceRefund(Invoice $invoice, int $amount, ?string $note = null): void
     {
         if (! $this->ready() || $amount <= 0) {
