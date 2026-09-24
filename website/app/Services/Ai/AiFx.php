@@ -37,14 +37,31 @@ use Illuminate\Support\Carbon;
  * می‌کند، نه ده برابر. افزایش بی‌درنگ است — گران‌فروشیِ موقت برگشت‌پذیر است،
  * ارزان‌فروشی نه.
  *
- * نشانِ بالاترین نرخ در `Setting ai_fx_hw_{cur}` است، نه کش: پاک‌شدنِ کش نباید
- * ضامن را هم پاک کند. وقتی نشان ۲۴ ساعت کهنه شد، به نرخِ **مؤثرِ** همان لحظه
- * (که خودش حداکثر ۳٪ زیرِ نشانِ قبلی است) بازنشانی می‌شود — پس افتِ واقعیِ
- * بازار هم روزی ۳٪ دنبال می‌شود، نه یک‌باره. اگر نشان به‌خطا بالا رفته باشد
- * (اسکرپِ اشتباهِ رو به بالا)، `ai:price-preview --reset-fx-hw=USD` پاکش می‌کند.
+ * ═══ پنجرهٔ واقعیِ ۲۴ ساعته، نه یک نشانِ تکی ═══
  *
- * نوشتنِ نشان فقط در بالارفتن یا یک بار در روز است؛ هر نوشتنِ Setting کشِ
- * تنظیمات را خالی می‌کند و نباید در هر درخواست رخ دهد.
+ * نسخهٔ اول یک نشانِ تکی `{rate, at}` داشت که ۲۴ ساعت پس از **نوشته‌شدن** منقضی
+ * می‌شد. بازبینیِ پیش از انتشار نشان داد این در دو قدمِ پشتِ‌سرِهم ۵٫۹٪ افت را در
+ * چند دقیقه راه می‌دهد: بازارِ صاف نشان را بازنویسی نمی‌کند، پس نزدیکِ ۲۴ ساعتگی
+ * یک اسکرپِ خراب اول ۳٪ می‌بَرد و انقضا بلافاصله ۳٪ دیگر. «تازه‌کردنِ نشان وقتی
+ * نرخ به آن می‌رسد» هم کافی نبود: نرخِ ۹۹٬۹۹۹ زیرِ نشانِ ۱۰۰٬۰۰۰ هرگز تازه‌اش
+ * نمی‌کند و همان دو قدم برمی‌گردد.
+ *
+ * حالا `Setting ai_fx_hw_{cur}` بیشینهٔ نرخِ **مؤثرِ** هر ساعتِ UTC را نگه می‌دارد
+ * و کف = ⌈۰٫۹۷ × بیشینهٔ سطل‌هایی که در ۲۴ ساعتِ اخیر شروع شده‌اند⌉. هر نرخِ مؤثری
+ * که در ۲۴ ساعتِ گذشته فروخته شده در سطلِ ساعتِ خودش هست، پس R در **هر** بازهٔ
+ * ۲۴ ساعته حداکثر ۳٪ می‌افتد — اثبات‌پذیر، نه تقریبی. سطل‌بندیِ ساعتی فقط
+ * محافظه‌کارتر است (تا ۲۵ ساعت عقب را می‌بیند).
+ *
+ * سامانهٔ بیکار (هیچ سطلی در ۲۴ ساعت) آخرین سطل را مرجع می‌گیرد: مکثِ طولانی نباید
+ * افتِ بزرگ را یک‌جا بپذیرد. بهایش گران‌فروشیِ چندروزه پس از افتِ واقعیِ بازار است،
+ * که برگشت‌پذیر است؛ اگر ضامن به‌خطا بالا مانده: `ai:price-preview --reset-fx-hw=USD`.
+ *
+ * ردیفِ **خراب** (دست‌کاری‌شده یا نیمه‌نوشته) فروش را می‌بندد و خبر می‌دهد. نسخهٔ
+ * اول ردیفِ خراب را «نبودن» می‌خواند و در همان تماس با نرخِ پایین بازنویسی‌اش
+ * می‌کرد — محافظت برای همیشه و بی‌صدا از دست می‌رفت.
+ *
+ * نوشتن: یک بار در هر ساعت (سطلِ تازه) و هر بار که نرخ در همان ساعت بالا برود.
+ * هر نوشتنِ Setting کشِ تنظیمات را خالی می‌کند، پس نباید در هر درخواست رخ دهد.
  */
 final class AiFx
 {
@@ -97,24 +114,34 @@ final class AiFx
         usort($candidates, fn ($a, $b) => $b['rate'] <=> $a['rate'] ?: ($a['source'] === 'override' ? -1 : 1));
         $best = $candidates[0];
 
-        $hw = $this->highWater($currency);
+        $buckets = $this->buckets($currency);
+
+        if ($buckets === null) {
+            ErrorTracker::noteOnce('pricing',
+                "ضامنِ افتِ نرخِ {$currency} (Setting {$this->hwKey($currency)}) خراب است؛ فروشِ AI بسته شد. "
+                ."پس از بررسی: php artisan ai:price-preview --reset-fx-hw={$currency}", 3600);
+
+            return null;
+        }
+
+        $reference = self::reference($buckets);
         $rate = $best['rate'];
         $source = $best['source'];
-        $floor = $hw === null ? 0 : self::ceilBp($hw['rate'], 10_000 - (int) config('ai.fx_max_daily_drop_bp', 300));
+        $floor = $reference === null ? 0 : self::ceilBp($reference, 10_000 - (int) config('ai.fx_max_daily_drop_bp', 300));
 
         if ($rate < $floor) {
             $rate = $floor;
             $source = 'ratchet';
         }
 
-        $this->advanceHighWater($currency, $hw, $rate);
+        $this->record($currency, $buckets, $rate);
 
         return new AiFxQuote(
             currency: $currency,
             rate: $rate,
             source: $source,
             at: $best['at'],
-            highWater: $hw['rate'] ?? null,
+            highWater: $reference,
         );
     }
 
@@ -139,21 +166,19 @@ final class AiFx
         Setting::put($this->hwKey($currency), null);
     }
 
-    /** @return array{rate:int,at:string}|null */
-    public function highWater(string $currency): ?array
+    /**
+     * مرجعِ ضامن برای نمایش: بیشینهٔ ۲۴ ساعتِ اخیر (یا آخرین سطل اگر بیکار بوده).
+     * `malformed` یعنی ردیف خراب است و فروش بسته.
+     *
+     * @return array{rate:?int, hours:int, malformed:bool}
+     */
+    public function highWater(string $currency): array
     {
-        $raw = Setting::get($this->hwKey($currency));
-        $row = is_string($raw) ? json_decode($raw, true) : null;
+        $b = $this->buckets(strtoupper($currency));
 
-        if (! is_array($row) || ! is_int($row['rate'] ?? null) || ! is_string($row['at'] ?? null)) {
-            return null;
-        }
-
-        if ($row['rate'] < self::MIN_RATE || $row['rate'] > self::MAX_RATE) {
-            return null;
-        }
-
-        return $row;
+        return $b === null
+            ? ['rate' => null, 'hours' => 0, 'malformed' => true]
+            : ['rate' => self::reference($b), 'hours' => count($b), 'malformed' => false];
     }
 
     /* ─────────────────────────────────────────────────────────── */
@@ -220,22 +245,78 @@ final class AiFx
         return ['rate' => $rate, 'source' => 'scraped', 'at' => $at->toIso8601String(), 'raw' => $rate];
     }
 
-    /** @param array{rate:int,at:string}|null $hw */
-    private function advanceHighWater(string $currency, ?array $hw, int $rate): void
+    /**
+     * سطل‌های ساعتی: کلید `YmdH` به UTC، مقدار بیشینهٔ نرخِ مؤثرِ آن ساعت.
+     * [] = هنوز هیچ؛ null = ردیف هست ولی خراب است (⇒ بستنِ فروش).
+     *
+     * @return array<string,int>|null
+     */
+    private function buckets(string $currency): ?array
     {
-        $expired = $hw === null || Carbon::parse($hw['at'])->lt(now()->subHours(24));
+        $raw = Setting::get($this->hwKey($currency));
 
-        if (! $expired && $rate <= $hw['rate']) {
-            return;
+        if ($raw === null || trim($raw) === '') {
+            return [];
         }
 
+        $row = json_decode($raw, true);
+        if (! is_array($row) || ($row['v'] ?? null) !== 2 || ! is_array($row['h'] ?? null)) {
+            return null;
+        }
+
+        // سقف = بالاترین نرخِ مؤثرِ ممکن (۵ میلیون + سربارِ کهنگی)؛ سقفِ خامِ ۵ میلیون
+        // نرخِ کهنهٔ سربارخورده را رد می‌کرد و ضامن را خاموش
+        $max = self::ceilBp(self::MAX_RATE, 10_000 + (int) config('ai.fx_stale_buffer_bp', 200));
+        $out = [];
+        foreach ($row['h'] as $hour => $rate) {
+            if (preg_match('/^\d{10}$/', (string) $hour) !== 1 || ! is_int($rate) || $rate < self::MIN_RATE || $rate > $max) {
+                return null;
+            }
+            $out[(string) $hour] = $rate;
+        }
+
+        return $out;
+    }
+
+    /** بیشینهٔ سطل‌هایی که در ۲۴ ساعتِ اخیر شروع شده‌اند؛ اگر هیچ، آخرین سطل */
+    private static function reference(array $buckets): ?int
+    {
+        if ($buckets === []) {
+            return null;
+        }
+
+        $since = now()->utc()->subHours(24)->format('YmdH');
+        $window = array_filter($buckets, fn ($hour) => (string) $hour >= $since, ARRAY_FILTER_USE_KEY);
+
+        if ($window !== []) {
+            return max($window);
+        }
+
+        ksort($buckets, SORT_STRING);
+
+        return end($buckets);
+    }
+
+    /** @param array<string,int> $buckets */
+    private function record(string $currency, array $buckets, int $rate): void
+    {
+        $hour = now()->utc()->format('YmdH');
+
+        if (($buckets[$hour] ?? 0) >= $rate) {
+            return;                        // همین ساعت با همین نرخ یا بالاتر ثبت شده
+        }
+
+        $buckets[$hour] = $rate;
+
+        // فقط ۲۶ ساعتِ اخیر لازم است؛ سطلِ همین ساعت همیشه می‌مانَد
+        $keep = now()->utc()->subHours(26)->format('YmdH');
+        $buckets = array_filter($buckets, fn ($h) => (string) $h >= $keep, ARRAY_FILTER_USE_KEY);
+        ksort($buckets, SORT_STRING);
+
         try {
-            Setting::put($this->hwKey($currency), json_encode([
-                'rate' => $rate,
-                'at' => now()->toIso8601String(),
-            ]));
+            Setting::put($this->hwKey($currency), json_encode(['v' => 2, 'h' => $buckets]));
         } catch (\Throwable) {
-            // نشان‌نوشتن نباید قیمت‌دادن را بشکند؛ نشانِ قبلی سرِ جایش می‌ماند
+            // نوشتنِ ضامن نباید قیمت‌دادن را بشکند؛ سطل‌های قبلی سرِ جایشان می‌مانند
         }
     }
 

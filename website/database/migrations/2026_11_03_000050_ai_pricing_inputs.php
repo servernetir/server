@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -22,22 +23,34 @@ use Illuminate\Support\Facades\Schema;
  * هر گام جداگانه نگهبان دارد و بدونِ بازگشتِ زودهنگامِ سراسری (DDL در MariaDB
  * تراکنشی نیست؛ اجرای نیمه‌کاره باید با اجرای دوباره کامل شود). هیچ داده‌ای
  * نوشته نمی‌شود — هر دو ستون NULL شروع می‌شوند، پس فروش بسته می‌ماند.
+ *
+ * 🔴 نگهبان‌ها بیرون از حالتِ pretend ارزیابی می‌شوند. در `migrate --pretend`
+ * هر SELECT آرایهٔ خالی برمی‌گرداند، پس `hasTable` false می‌شد و خروجی فقط دو
+ * پرس‌وجوی «جدول هست؟» بود — مالک یک مهاجرتِ ظاهراً بی‌اثر را بازبینی می‌کرد.
+ * پرس‌وجوی information_schema فقط‌خواندنی است؛ اجرای واقعی‌اش در pretend بی‌خطر است.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('ai_providers') && ! Schema::hasColumn('ai_providers', 'fx_fee_bp')) {
+        if ($this->needs('ai_providers', 'fx_fee_bp')) {
             Schema::table('ai_providers', function (Blueprint $t) {
                 $t->unsignedSmallInteger('fx_fee_bp')->nullable()->after('billing_currency_code');
             });
         }
 
-        if (Schema::hasTable('ai_models') && ! Schema::hasColumn('ai_models', 'margin_bp')) {
+        if ($this->needs('ai_models', 'margin_bp')) {
             Schema::table('ai_models', function (Blueprint $t) {
                 $t->unsignedInteger('margin_bp')->nullable()->after('max_output_tokens');
             });
         }
+    }
+
+    private function needs(string $table, string $column): bool
+    {
+        return (bool) DB::connection()->withoutPretending(
+            fn () => Schema::hasTable($table) && ! Schema::hasColumn($table, $column)
+        );
     }
 
     /** بازگشت عمداً کاری نمی‌کند: ستونِ پولی را با rollback پاک نمی‌کنیم. */

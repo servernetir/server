@@ -60,7 +60,22 @@ final class AiVat
     public function iranRateBp(): int
     {
         try {
-            $row = TaxRate::resolve('IR', null, 'ai');
+            /*
+            | ردیفِ اختصاصیِ AI **صریح** و اول. `TaxRate::resolve()` فقط بر کشور و
+            | سپس اولویت مرتب می‌کند، نه بر نوعِ محصول؛ ردیفِ عمومیِ ایرانِ سیدر
+            | اولویتِ ۱۰ دارد و ردیفِ AI با اولویتِ پیش‌فرضِ صفر (یا هم‌اولویت،
+            | که ترتیبش در MariaDB تعریف‌نشده است) نادیده می‌ماند — یعنی اگر نرخِ
+            | AI بالاتر باشد، کم‌گرفتنِ بی‌صدای مالیات. `resolve` را سراسری عوض
+            | نمی‌کنیم چون فاکتورِ ابری (`CloudStoreController`) هم به آن تکیه دارد.
+            */
+            $row = TaxRate::query()
+                ->where('is_active', true)
+                ->where('country', 'IR')
+                ->where('product_kind', 'ai')
+                ->whereNull('customer_type')
+                ->orderByDesc('priority')->orderByDesc('id')
+                ->first()
+                ?? TaxRate::resolve('IR');
 
             if ($row !== null && strtoupper((string) $row->country) === 'IR') {
                 return max(0, min(10_000, (int) $row->rate_bp));

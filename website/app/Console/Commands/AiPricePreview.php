@@ -12,9 +12,12 @@ use Illuminate\Console\Command;
 /**
  * پیش‌نمایشِ قیمتِ فروشِ AI — راستی‌آزماییِ پس از انتشارِ M5.1a روی سرور.
  *
- * فقط می‌خوانَد (نرخ از کش، بی‌اسکرپِ زنده) و چیزی جز نشانِ بالاترین نرخ
- * نمی‌نویسد. کدِ خروج همیشه ۰ است مگر `--strict`: «هیچ مدلی فروختنی نیست» تا
- * پیش از جوابِ مالک وضعیتِ درست است، نه خطا.
+ * بی‌تماسِ شبکه (نرخ از کش، بی‌اسکرپِ زنده). ⚠️ «فقط‌خواندنی» نیست: مثلِ هر
+ * قیمت‌گذاریِ واقعی سطلِ ساعتیِ ضامنِ افتِ نرخ (`ai_fx_hw_usd/eur`) را ثبت می‌کند
+ * — عمداً، چون قیمتی که این فرمان نشان می‌دهد باید همانی باشد که شارژ می‌شود.
+ *
+ * کدِ خروج همیشه ۰ است مگر `--strict`: «هیچ مدلی فروختنی نیست» تا پیش از جوابِ
+ * مالک وضعیتِ درست است، نه خطا.
  *
  *   php artisan ai:price-preview
  *   php artisan ai:price-preview --model=llama-3.3-70b
@@ -40,10 +43,16 @@ class AiPricePreview extends Command
             }
             $before = $fx->highWater($cur);
             $fx->resetHighWater($cur);
-            $this->warn("نشانِ بالاترین نرخِ {$cur} پاک شد (قبلی: ".($before['rate'] ?? '—').').');
+            $this->warn("ضامنِ افتِ نرخِ {$cur} پاک شد (مرجعِ قبلی: "
+                .($before['malformed'] ? 'خراب' : ($before['rate'] ?? '—')).').');
         }
 
         foreach (['USD', 'EUR'] as $c) {
+            if ($fx->highWater($c)['malformed']) {
+                $this->error("FX {$c}: ضامنِ افتِ نرخ خراب است — فروش بسته. --reset-fx-hw={$c}");
+
+                continue;
+            }
             $q = $fx->quote($c);
             $this->line(sprintf('FX %s: %s', $c, $q
                 ? "{$q->rate} Toman · {$q->source}".($q->at ? " · at {$q->at}" : '').($q->highWater ? " · hw {$q->highWater}" : '')

@@ -51,7 +51,8 @@
             @elseif($m->status === 'deprecated')<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">ازکارافتاده</span>
             @else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">خاموش</span>@endif
           </td>
-          <td>{{ fa_num($m->active_models) }}</td>
+          {{-- شمارشِ کنترلر `active_prices` است؛ `active_models` نبود و null به fa_num ⇒ ۵۰۰ --}}
+          <td>{{ fa_num($m->active_prices ?? 0) }}</td>
           <td>
             <span style="display:inline-flex;gap:4px;flex-wrap:wrap">
               @php $caps = $m->capabilities ?? []; @endphp

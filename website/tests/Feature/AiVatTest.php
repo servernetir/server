@@ -61,11 +61,25 @@ class AiVatTest extends TestCase
         $this->assertSame(1000, $this->vat()->resolve($this->customer('en', ''))['bp']);
     }
 
-    public function test_tax_rates_ai_row_overrides_the_default(): void
+    /**
+     * ردیفِ AI باید بر ردیفِ عمومیِ ایرانِ سیدر (اولویتِ ۱۰) پیروز شود — با اولویتِ
+     * پیش‌فرضِ صفر و با اولویتِ برابر. نسخهٔ اول فقط بی‌سیدر سبز بود چون
+     * `TaxRate::resolve` بر نوعِ محصول مرتب نمی‌کند.
+     */
+    public function test_tax_rates_ai_row_overrides_the_seeded_generic_iran_row(): void
     {
-        TaxRate::create(['name' => 'VAT AI', 'country' => 'IR', 'product_kind' => 'ai', 'rate_bp' => 900, 'priority' => 10]);
+        $this->seed(\Database\Seeders\BillingFoundationSeeder::class);
+        $this->assertSame(1000, $this->vat()->iranRateBp(), 'پیش‌فرضِ سیدر: ایران ۱۰٪');
 
-        $this->assertSame(900, $this->vat()->resolve($this->customer('fa'))['bp']);
+        $ai = TaxRate::create(['name' => 'VAT AI', 'country' => 'IR', 'product_kind' => 'ai', 'rate_bp' => 1200, 'priority' => 0]);
+        $this->assertSame(1200, $this->vat()->resolve($this->customer('fa'))['bp']);
+
+        $ai->update(['priority' => 10]);
+        $this->assertSame(1200, $this->vat()->resolve($this->customer('fa'))['bp']);
+
+        // ردیفِ مخصوصِ نوعِ مشتری (مثلاً شرکت ۰٪) هرگز جای نرخِ عمومیِ AI نمی‌نشیند
+        TaxRate::create(['name' => 'Co', 'country' => 'IR', 'customer_type' => 'company', 'product_kind' => 'ai', 'rate_bp' => 0, 'priority' => 99]);
+        $this->assertSame(1200, $this->vat()->iranRateBp());
     }
 
     public function test_global_zero_row_never_exempts_a_customer_without_country(): void

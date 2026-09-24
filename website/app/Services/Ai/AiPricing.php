@@ -320,7 +320,8 @@ final class AiPricing
         );
         $tax = self::tax($sell, $vatBp);
 
-        return ['sell' => $sell, 'tax' => $tax, 'total' => $sell + $tax];
+        // جمع هم از BigInteger: `+` ِ PHP در سرریز بی‌صدا float می‌شود، نه خطا
+        return ['sell' => $sell, 'tax' => $tax, 'total' => self::toInt(BigInteger::of($sell)->plus($tax))];
     }
 
     /** T = ⌈ S · t / 10⁴ ⌉ */

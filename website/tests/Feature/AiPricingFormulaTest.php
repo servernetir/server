@@ -188,6 +188,20 @@ class AiPricingFormulaTest extends TestCase
         }
     }
 
+    public function test_hold_total_overflow_is_request_too_large_not_a_float(): void
+    {
+        $q = $this->pricing()->quote($this->model(['input' => PriceBook::MAX_SELL_RATE_MICROS, 'output' => 1]));
+
+        // P_in = 135,000,000 ⇒ فروشِ رزرو = 8,999,100,000,000,000,000 (هنوز int64)
+        // ولی فروش + مالیات = 9.9e18 > PHP_INT_MAX — فقط جمع سرریز می‌کند
+        try {
+            $this->pricing()->hold($q, maxInput: 60_600_000_000_000_000, maxOutput: 0, vatBp: 1000);
+            $this->fail('جمعِ رزرو باید خطای کنترل‌شده بدهد، نه float.');
+        } catch (AiPricingException $e) {
+            $this->assertSame(AiPricingException::TOO_LARGE, $e->errorCode);
+        }
+    }
+
     public function test_eur_provider_uses_the_eur_rate(): void
     {
         $this->provider->update(['billing_currency_code' => 'EUR']);

@@ -53,6 +53,15 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
 4. **Admin pages are Persian-only (hardcoded)**, so M5.1a adds no lang keys.
 5. **Driver select and model create** were left for M5.1b: letting the admin switch the
    seeded driver to `OpenAI-Compatible` would open the old µUSD-as-Toman path (D16).
-6. **Ratchet on an expired high-water mark**: the old mark still sets the floor once, then
-   resets to the effective rate — a real drop is followed at ≤3 % per day, never at once.
-   An upward mis-scrape is cleared with `ai:price-preview --reset-fx-hw=USD`.
+6. **FX drop ratchet = real 24 h window.** `Setting ai_fx_hw_{cur}` holds the max effective
+   rate per UTC hour; floor = ⌈0.97 × max of hours started in the last 24 h⌉, so R falls at
+   most 3 % inside *any* 24 h span (a single `{rate, at}` mark let it fall 5.9 % in minutes —
+   caught in pre-deploy review). With no traffic for 24 h the latest bucket is the reference,
+   so a long pause cannot swallow a big drop. A malformed row **closes sales** (with an alert)
+   instead of silently disabling the guard. Clear with `ai:price-preview --reset-fx-hw=USD`.
+7. **The M1 admin AI deploy was partial on prod**: routes and `AiGatewayController` are live,
+   but the five `admin/ai/*` views were never uploaded (the pages 500). M5.1a ships all five.
+   `models.blade.php` read a count that does not exist (`active_models`) and 500'd with any
+   model row — fixed. Prod runs `validate_timestamps=0`: nothing is live until OPcache is reset.
+8. **VAT row lookup**: an `IR` + `product_kind=ai` row is looked up explicitly before the
+   generic IR row, because `TaxRate::resolve` does not rank by product kind.

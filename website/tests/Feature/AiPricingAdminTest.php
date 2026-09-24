@@ -146,6 +146,33 @@ class AiPricingAdminTest extends TestCase
             ->assertSessionHasErrors('currency');
     }
 
+    /**
+     * `models.blade.php` شمارشِ `active_models` را می‌خواند که کنترلر هرگز نمی‌سازد
+     * (نامش `active_prices` است)؛ null به `fa_num` ⇒ ۵۰۰ به‌محضِ نخستین ردیفِ مدل.
+     * تستِ قدیمی صفحه را با صفر مدل باز می‌کرد و این را نمی‌دید.
+     */
+    public function test_models_page_renders_with_a_priced_model(): void
+    {
+        $m = $this->model();
+        (new PriceBook)->supersede($m, 'input', 230_000, currencyCode: 'USD');
+
+        $this->actingAs($this->admin)->get('/admin/ai/models')
+            ->assertOk()
+            ->assertSee('acme/model-a');
+    }
+
+    public function test_every_admin_ai_page_renders_with_real_rows(): void
+    {
+        $m = $this->model();
+        (new PriceBook)->supersede($m, 'input', 230_000, currencyCode: 'USD');
+
+        foreach (['/admin/ai', '/admin/ai/models', '/admin/ai/pricing?model='.$m->id,
+                  '/admin/ai/providers/edit?provider='.$this->provider->id, '/admin/ai/models/'.$m->id.'/edit'] as $url) {
+            $this->actingAs($this->admin)->get($url)->assertOk();
+        }
+        Http::assertNothingSent();
+    }
+
     /* ═══ پیش‌نمایش ═══ */
 
     public function test_preview_explains_why_a_model_is_not_sellable(): void
