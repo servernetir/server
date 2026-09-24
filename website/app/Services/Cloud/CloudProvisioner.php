@@ -1993,8 +1993,15 @@ class CloudProvisioner
                             null,
                             null,
                             $customer->locale ?: 'fa',
-                            passwordInPanel: true,
+                            /*
+                            | 🔴 `passwordInPanel: false`. این خط اصلاً رمزی
+                            | ندارد — نه در ایمیل، نه در پنل. تا امروز
+                            | `true` بود و ایمیل وعدهٔ «رمز یک بار در پنل»
+                            | می‌داد؛ مشتری می‌گشت، نمی‌یافت، تیکت می‌زد.
+                            */
+                            passwordInPanel: false,
                             withSshGuide: false,
+                            gatewayAccess: true,
                         )
                         : new \App\Mail\ServiceReadyMail(
                         $service->name,

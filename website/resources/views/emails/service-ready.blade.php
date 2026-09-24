@@ -53,7 +53,32 @@
 {{-- ═══ رمزِ root: در ایمیل نیست، یک بار در پنل ═══
      کارفرما: مشتری ایمیل را می‌بیند، رمزی پیدا نمی‌کند و فکر می‌کند چیزی جا
      افتاده. سکوت این‌جا گران‌تر از خودِ نبودِ رمز بود. --}}
-@if($passwordInPanel ?? false)
+{{-- سرویسِ دروازه‌ای (GPU): رمزی در کار نیست. وعدهٔ «رمز در پنل»
+     برای این خط، مشتری را دنبالِ چیزی می‌فرستاد که وجود ندارد. --}}
+@if($gatewayAccess ?? false)
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="margin-top:14px; background:#eef7fb; border:1px solid #bfe0ec; border-radius:12px;">
+    <tr><td style="padding:16px 20px;">
+      <p style="margin:0 0 6px; color:#0b5f74; font-size:13.5px; font-weight:700;">
+        🔗 {{ __('ui.email_service_gate_h') }}
+      </p>
+      <p style="margin:0; color:#31596a; font-size:13px; line-height:1.95;">
+        {{ __('ui.email_service_gate') }}
+      </p>
+      @if($panelUrl)
+        <p style="margin:14px 0 0;">
+          <a href="{{ $panelUrl }}"
+             style="display:inline-block; background:#0891b2; color:#ffffff; text-decoration:none;
+                    font-size:13.5px; font-weight:700; border-radius:10px; padding:11px 20px;">
+            {{ __('ui.email_service_gate_btn') }}
+          </a>
+        </p>
+      @endif
+    </td></tr>
+  </table>
+@endif
+
+@if(($passwordInPanel ?? false) && ! ($gatewayAccess ?? false))
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
          style="margin-top:14px; background:#fff8e6; border:1px solid #f3dfae; border-radius:12px;">
     <tr><td style="padding:16px 20px;">
@@ -96,6 +121,6 @@
 @endif
 
 <p style="margin:18px 0 0; font-size:13px; color:#8a93a6;">
-  {{ ($passwordInPanel ?? false) ? __('ui.email_service_note_cloud') : __('ui.email_service_note') }}
+  {{ (($passwordInPanel ?? false) || ($gatewayAccess ?? false)) ? __('ui.email_service_note_cloud') : __('ui.email_service_note') }}
 </p>
 @endsection

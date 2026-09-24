@@ -175,11 +175,21 @@ trait SaladOperations
      *    می‌شوند — همان کاری که entrypointِ دستورِ رسمی می‌کند.
      */
     public const APPS = [
+        /*
+        | 🔴 تنها ردیفی که `ref` سفت‌شده ندارد — تگِ تازه‌ترین نسخه در
+        | `SaladOllamaImage` را می‌خواند (چرایش در docblockِ همان کلاس).
+        | مقدارِ این‌جا فقط مخزن است و `apps()` تگ را رویش می‌نشاند.
+        |
+        | ⚠️ `OLLAMA_MODEL_NAME` برداشته شد: آن مالِ recipeِ لاما۳٫۱ بود و
+        | مدل را در بوت پیش‌بار می‌کرد. روی ایمیجِ عمومی، پیش‌بارِ چندگیگابایتی
+        | یعنی مشتری برای مدلی که نخواسته منتظر بماند و ساعتِ GPU بسوزاند.
+        | `OLLAMA_HOST` می‌ماند و حیاتی است (دروازه IPv6 است).
+        */
         'gpu-ollama' => [
-            'ref'       => 'saladtechnologies/ollama-llama3.1-recipe:1.0.0',
-            'label'     => 'Ollama — Llama 3.1 (OpenAI API)',
+            'ref'       => SaladOllamaImage::REPO,
+            'label'     => 'Ollama (OpenAI API)',
             'port'      => 11434,
-            'env'       => ['OLLAMA_MODEL_NAME' => 'llama3.1', 'OLLAMA_HOST' => '::'],
+            'env'       => ['OLLAMA_HOST' => '::'],
             'token_env' => null,
         ],
         'gpu-comfyui' => [
@@ -198,11 +208,39 @@ trait SaladOperations
         ],
     ];
 
-    /** ردیفِ برنامه از روی ایمیجِ انتخابی؛ null یعنی ایمیجِ دلخواه/ناشناخته */
+    /**
+     * فهرستِ برنامه‌ها با رفرنسِ **امروز** — تگِ Ollama زنده حل می‌شود.
+     *
+     * ⚠️ هر جا قبلاً `self::APPS` خوانده می‌شد باید این را بخواند؛ خودِ
+     * ثابت برای `gpu-ollama` فقط **نامِ مخزن** را دارد، نه یک ایمیجِ
+     * قابلِ سفارش. فرستادنِ مخزنِ بی‌تگ به زیرساخت یعنی `:latest`ی
+     * که در آن مخزن **وجود ندارد**.
+     *
+     * @return array<string,array{ref:string,label:string,port:int,env:array<string,string>,token_env:?string}>
+     */
+    public function apps(): array
+    {
+        $apps = self::APPS;
+        $apps['gpu-ollama']['ref'] = app(SaladOllamaImage::class)->ref();
+
+        return $apps;
+    }
+
+    /**
+     * ردیفِ برنامه از روی ایمیجِ انتخابی؛ null یعنی ایمیجِ دلخواه/ناشناخته.
+     *
+     * 🔴 تطبیق روی **مخزن** است نه رشتهٔ کامل. ردیفِ `cloud_images`ِ
+     * مشتری با تگِ روزِ خرید ذخیره می‌شود؛ با اولین ارتقای نسخه،
+     * مقایسهٔ دقیق دیگر نمی‌خواند و این متد نال می‌داد — یعنی نه
+     * `OLLAMA_HOST` تزریق می‌شد و نه پورتِ ۱۱۴۳۴ باز می‌شد. کانتینر بالا
+     * می‌آمد، صورت‌حساب می‌خورد، و هیچ درخواستی جواب نمی‌گرفت.
+     */
     private function appFor(string $imageRef): ?array
     {
-        foreach (self::APPS as $key => $app) {
-            if ($app['ref'] === $imageRef) {
+        $repo = SaladOllamaImage::repoOf($imageRef);
+
+        foreach ($this->apps() as $key => $app) {
+            if (SaladOllamaImage::repoOf($app['ref']) === $repo) {
                 return $app + ['key' => $key];
             }
         }
@@ -245,6 +283,17 @@ trait SaladOperations
             'longitude'         => null,
         ]];
 
+        /*
+        | تازه‌ترین نسخهٔ Ollama همین‌جا حل می‌شود — تنها نقطهٔ شبکه‌ایِ
+        | این تصمیم، و عمداً در همگام‌سازی نه در مسیرِ ساختِ سرور.
+        |
+        | ⚠️ شکستِ خواندن کاتالوگ را نمی‌خواباند: `refresh()` همان تگِ
+        | قبلی را برمی‌گرداند و خودش فریاد می‌زند.
+        */
+        $apps = $this->apps();
+        app(SaladOllamaImage::class)->refresh();
+        $apps['gpu-ollama']['ref'] = app(SaladOllamaImage::class)->ref();
+
         $priority = $this->priority();
         $plans = [];
         $skipped = 0;
@@ -282,8 +331,8 @@ trait SaladOperations
                     'label'        => $a['label'],
                     'arch'         => 'x86',
                 ],
-                array_keys(self::APPS),
-                array_values(self::APPS),
+                array_keys($apps),
+                array_values($apps),
             ),
         ];
     }

@@ -44,6 +44,14 @@ class ServiceReadyMail extends Mailable
         string $locale,
         public bool $passwordInPanel = false,
         public bool $withSshGuide = false,
+        /*
+        | 🔴 خطِ GPU رمزِ ورود **ندارد** — نه در ایمیل، نه در پنل.
+        | دسترسی نشانیِ HTTPS و یک توکن است. تا امروز این مسیر هم
+        | `passwordInPanel` می‌گرفت، پس ایمیل می‌گفت «رمز یک بار در پنل
+        | نشان داده می‌شود» و مشتری دنبالِ چیزی می‌گشت که وجود ندارد
+        | — تیکتِ TK-260923-2867 دقیقاً همین بود.
+        */
+        public bool $gatewayAccess = false,
     ) {
         $this->locale($locale);
     }
@@ -59,6 +67,7 @@ class ServiceReadyMail extends Mailable
                 'username'        => $this->username,
                 'password'        => $this->password,
                 'passwordInPanel' => $this->passwordInPanel,
+                'gatewayAccess'   => $this->gatewayAccess,
                 'sshGuide'        => $this->withSshGuide,
                 // ⚠️ این‌جا ساخته می‌شود و نه در سازنده: `build()` داخلِ
                 // `withLocale()` اجرا می‌شود، پس `lroute()` پیشوندِ زبانِ **مشتری**
