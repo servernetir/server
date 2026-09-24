@@ -2226,6 +2226,7 @@ return [
     'pres_status_canceled' => 'پرداخت لغو شد',
     'pres_status_failed' => 'پرداخت ناموفق بود',
     'pres_ref' => 'شمارهٔ پیگیری',
+    'pres_ref_snapppay' => 'شناسهٔ تراکنش اسنپ‌پی',
     'pres_amount' => 'مبلغ',
     'pres_invoice' => 'فاکتور',
     'pres_card' => 'کارت',

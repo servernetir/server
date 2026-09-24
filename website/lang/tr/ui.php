@@ -2218,6 +2218,7 @@ return [
     'pres_status_canceled' => 'Ödeme iptal edildi',
     'pres_status_failed' => 'Ödeme başarısız oldu',
     'pres_ref' => 'Takip numarası',
+    'pres_ref_snapppay' => 'Snapp! Pay işlem numarası',
     'pres_amount' => 'Tutar',
     'pres_invoice' => 'Fatura',
     'pres_card' => 'Kart',

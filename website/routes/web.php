@@ -2761,6 +2761,24 @@ Route::prefix('admin')->group(function () {
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
         /*
+        | ═══ سفارش‌های اسنپ‌پی ═══
+        |
+        | 🔴 خواستهٔ صریحِ اسنپ‌پی و بخشی از بازبینیِ فنی‌شان: شمارهٔ تراکنش
+        | باید در پنلِ ادمین **نمایش داده و جست‌وجو** شود، و ادمین بتواند از
+        | همان‌جا سفارش را تغییر دهد.
+        |
+        | ⚠️ `update` و `cancel` برگشت‌ناپذیرند، پس فقط POST — و هر دو در
+        | کنترلر یک تأییدیهٔ متنیِ صریح هم می‌خواهند، نه صرفاً یک دکمه.
+        */
+        Route::middleware('admin')->group(function () {
+            Route::get('/snapppay', [\App\Http\Controllers\Admin\SnappPayController::class, 'index'])->name('admin.snapppay');
+            Route::get('/snapppay/{order}', [\App\Http\Controllers\Admin\SnappPayController::class, 'show'])->name('admin.snapppay.show');
+            Route::post('/snapppay/{order}/status', [\App\Http\Controllers\Admin\SnappPayController::class, 'status']);
+            Route::post('/snapppay/{order}/update', [\App\Http\Controllers\Admin\SnappPayController::class, 'update']);
+            Route::post('/snapppay/{order}/cancel', [\App\Http\Controllers\Admin\SnappPayController::class, 'cancel']);
+        });
+
+        /*
         | ═══ تیکت پشتیبانی — مدیر **یا** پشتیبان ═══
         |
         | 🔴 `withoutMiddleware('admin')` لازم است، نه اضافه: کلِ این گروه پشتِ

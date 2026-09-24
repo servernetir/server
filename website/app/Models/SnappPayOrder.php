@@ -55,9 +55,18 @@ class SnappPayOrder extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /**
+     * 🔴 کلیدِ خارجی صریح است — همان تلهٔ نامِ جدول، این بار روی ستون.
+     *
+     * لاراول از نامِ مدل `snapp_pay_order_id` می‌سازد ولی ستون
+     * `snapppay_order_id` است. چون `note()` عمداً هیچ استثنایی پرتاب نمی‌کند،
+     * این اشتباه **هیچ خطایی نمی‌داد**: هر رویدادِ حسابرسی بی‌صدا نوشته
+     * نمی‌شد و تست‌های چرخهٔ پرداخت سبز می‌ماندند. فقط صفحهٔ ادمین، که
+     * رویدادها را *می‌خوانَد*، با ۵۰۰ لو داد.
+     */
     public function events(): HasMany
     {
-        return $this->hasMany(SnappPayOrderEvent::class);
+        return $this->hasMany(SnappPayOrderEvent::class, 'snapppay_order_id');
     }
 
     /** توکنِ پرداخت — تنها منبعش ردیفِ Payment است. */
@@ -83,10 +92,10 @@ class SnappPayOrder extends Model
      * ⚠️ هرگز پرتاب نمی‌کند: ردِ حسابرسی نباید مسیرِ پول را بشکند. نبودِ یک
      * ردیفِ لاگ بد است؛ شکستنِ تسویه به‌خاطرش بدتر.
      */
-    public function note(string $kind, bool $ok, ?string $message = null, ?array $payload = null, ?int $userId = null): void
+    public function note(string $kind, bool $ok, ?string $message = null, ?array $payload = null, ?int $userId = null): ?SnappPayOrderEvent
     {
         try {
-            $this->events()->create([
+            return $this->events()->create([
                 'kind'       => $kind,
                 'ok'         => $ok,
                 'message'    => $message === null ? null : mb_substr($message, 0, 255),
@@ -96,6 +105,8 @@ class SnappPayOrder extends Model
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('payment', $e,
                 ['area' => 'snapppay-event', 'order' => $this->id, 'kind' => $kind]);
+
+            return null;
         }
     }
 }

@@ -2218,6 +2218,7 @@ return [
     'pres_status_canceled' => 'Payment canceled',
     'pres_status_failed' => 'Payment failed',
     'pres_ref' => 'Tracking number',
+    'pres_ref_snapppay' => 'Snapp! Pay transaction ID',
     'pres_amount' => 'Amount',
     'pres_invoice' => 'Invoice',
     'pres_card' => 'Card',
