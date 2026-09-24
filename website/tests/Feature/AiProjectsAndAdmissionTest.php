@@ -20,6 +20,12 @@ class AiProjectsAndAdmissionTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     private function customer(array $over = []): Customer
     {
         return Customer::create(array_merge([
@@ -407,6 +413,10 @@ class AiProjectsAndAdmissionTest extends TestCase
 
     public function test_budget_window_boundaries(): void
     {
+        // ⚠️ بازهٔ بودجه از now() ساخته می‌شود، پس بی‌ساعتِ ثابت این تست فقط
+        //    بینِ ۱۵ نوامبر و ۱۴ دسامبر سبز بود — قرمزیِ تقویمی، نه باگ.
+        Carbon::setTestNow('2026-11-20 10:00:00');
+
         $c = $this->customer();
         $p = $this->project($c, [
             'monthly_budget_irt' => 100000,

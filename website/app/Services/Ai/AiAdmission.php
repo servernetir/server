@@ -57,6 +57,19 @@ final class AiAdmission
             return AiAuthContext::denied('ip_not_allowed', 'این کلید فقط از IPهای مجازِ خودش کار می‌کند.');
         }
 
+        /*
+        | 🔴 کلیدِ AI که پروژه‌اش حذف شده: علت را درست بگو.
+        |
+        | `ai_project_id` با `nullOnDelete` نال می‌شود (مهاجرتِ 001100)، و
+        | `can()` بی‌پروژه false می‌دهد — پس پاسخ «دامنهٔ ai:chat را ندارد»
+        | می‌شد، در حالی که کلید دقیقاً همان دامنه را دارد و مشکل جای دیگری
+        | است. دسترسی در هر دو حالت رد می‌شود؛ چیزی که فرق می‌کند این است که
+        | مشتری بداند باید پروژه بسازد، نه اینکه دنبالِ دامنهٔ کلید بگردد.
+        */
+        if ($token->isAiKey() && $token->ai_project_id === null) {
+            return AiAuthContext::denied('project_missing', 'این کلید به هیچ پروژهٔ AI وصل نیست.');
+        }
+
         if (! $token->can($ability)) {
             return AiAuthContext::denied($token->isAiKey() ? 'insufficient_scope' : 'not_ai_key',
                 'کلید دامنهٔ «'.$ability.'» ندارد');

@@ -325,7 +325,17 @@ class SecurityController extends Controller
         | بودجه: صفر هرگز بازمَندی نمی‌شود — «نال» یعنی بی‌سقف. دورهٔ ماهانه
         | بی‌بودجه بی‌خود نمی‌سازیم: دوره فقط با بودجه معنا دارد.
         */
-        $period = $data['budget_period'] ?? AiProject::PERIOD_NONE;
+        /*
+        | 🔴 «بودجه دادم ولی ذخیره نشد».
+        |
+        | فرمِ واقعی فیلدِ `budget_period` را نمی‌فرستد، پس پیش‌فرض `none`
+        | می‌شد و بودجهٔ تایپ‌شده بی‌صدا دور ریخته می‌شد — مشتری سقف گذاشته
+        | بود و هیچ سقفی وجود نداشت. مبلغِ مثبت **خودش** یعنی دورهٔ ماهانه.
+        */
+        $period = $data['budget_period'] ?? (($data['monthly_budget'] ?? 0) > 0
+            ? AiProject::PERIOD_MONTHLY
+            : AiProject::PERIOD_NONE);
+
         if ($period === AiProject::PERIOD_MONTHLY && ! isset($data['monthly_budget'])) {
             return back()->withErrors(['monthly_budget' => __('ui.sec_ai_budget_need')])
                 ->withFragment('sec-ai');
