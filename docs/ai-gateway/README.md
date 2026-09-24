@@ -63,5 +63,10 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
    but the five `admin/ai/*` views were never uploaded (the pages 500). M5.1a ships all five.
    `models.blade.php` read a count that does not exist (`active_models`) and 500'd with any
    model row — fixed. Prod runs `validate_timestamps=0`: nothing is live until OPcache is reset.
+   `app/Support/MicroMath.php` is **also absent on prod and deliberately not shipped**: its only
+   caller is `AiPriceRate::chargeMicros` on the legacy `/v1` path (B1, µUSD debited as Toman),
+   so that path dies with "class not found" before any reservation. M5.1a never calls it (the
+   deploy script checks). M5.1b removes `chargeMicros` from the money path (D5); only then may
+   the legacy file set be completed.
 8. **VAT row lookup**: an `IR` + `product_kind=ai` row is looked up explicitly before the
    generic IR row, because `TaxRate::resolve` does not rank by product kind.

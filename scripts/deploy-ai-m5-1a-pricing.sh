@@ -118,7 +118,6 @@ resources/views/admin/settings/pricing.blade.php
 DEPENDS="
 app/Models/AiModelUnitPrice.php
 app/Services/Ai/AiModelRegistry.php
-app/Support/MicroMath.php
 app/Services/ExchangeRate.php
 app/Support/ErrorTracker.php
 app/Models/TaxRate.php
@@ -142,6 +141,26 @@ done
 if [ -n "$MISSING" ]; then
   echo "FATAL: وابستگی روی سرور نیست:$MISSING — هیچ فایلی نوشته نشد."
   exit 2
+fi
+
+# ── MicroMath: عمداً فرستاده نمی‌شود ──
+#
+# 🔴 DRY ِ دوم (eac2bb94) نشان داد `app/Support/MicroMath.php` روی سرور نیست. تنها
+# مصرف‌کننده‌اش `AiPriceRate::chargeMicros` است و تنها صدازننده‌اش مسیرِ قدیمیِ /v1
+# (`AiCaller.php:151`) — همان مسیرِ باگِ B1 که میکرودلار را تومان کسر می‌کند. نبودنش
+# یعنی آن مسیر اگر روزی به قیمت برسد پیش از رزرو با «class not found» می‌میرد:
+# قفلی که نباید با این انتشار باز شود. M5.1a هیچ‌جا MicroMath را صدا نمی‌زند؛ این
+# گارد همین را برای فایل‌های فرستاده‌شده ثابت می‌کند.
+if [ -f "$APP/app/Support/MicroMath.php" ]; then
+  echo "info MicroMath روی سرور هست"
+else
+  echo "info MicroMath روی سرور نیست — مسیرِ قدیمیِ /v1 پیش از رزرو می‌میرد (عمداً دست نمی‌خورد)"
+  for rel in $APP_FILES; do
+    [ "$rel" = "app/Services/Ai/PriceBook.php" ] && continue
+    if git -C "$WORK/repo" show "$MINE:website/$rel" 2>/dev/null | grep -q 'MicroMath'; then
+      echo "FATAL: $rel به MicroMath نیاز دارد ولی MicroMath روی سرور نیست"; exit 2
+    fi
+  done
 fi
 
 normalize() { tr -d '\r' < "$1" | sed -e '$a\' > "$2"; }
