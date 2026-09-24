@@ -145,8 +145,15 @@ class SettingsController extends Controller
         ],
         'pricing' => [
             'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
-            'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
-            'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            /*
+            | 🔴 نرخِ دستی: صفر (= خاموش) یا ۲۰٬۰۰۰ تا ۵٬۰۰۰٬۰۰۰ تومان — همان بازهٔ
+            | اسکرپر. قبلاً تا ۱۰۰ میلیون پذیرفته می‌شد؛ یک صفرِ اضافه یا کم در این
+            | فیلد کلِ کاتالوگ (و از M5 شارژِ هر تماسِ AI) را ده برابر جابه‌جا
+            | می‌کرد بی‌آنکه هیچ هشداری بدهد (B19). regex چون FIELDS ثابت است و
+            | قاعدهٔ closure نمی‌پذیرد.
+            */
+            'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:5000000', 'regex:/^(0|[2-9]\d{4}|[1-9]\d{5}|[1-4]\d{6}|5000000)$/'],
+            'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:5000000', 'regex:/^(0|[2-9]\d{4}|[1-9]\d{5}|[1-4]\d{6}|5000000)$/'],
             'pricing_fx_fee_pct'        => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_hetzner' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_aeza'    => ['nullable', 'numeric', 'min:0', 'max:25'],
@@ -156,6 +163,15 @@ class SettingsController extends Controller
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
+            /*
+            | دروازهٔ AI (M5). حاشیه **کفِ صفر ندارد و پیش‌فرض هم ندارد**: خالی یعنی
+            | فروش بسته (`pricing_incomplete`)، نه فروش به بها. بیش از دو رقمِ
+            | اعشار رد می‌شود چون به bp تبدیل می‌شود و گرد کردنش یعنی عددی جز
+            | آنچه مالک تایپ کرد.
+            */
+            'ai_margin_pct'          => ['nullable', 'numeric', 'gt:0', 'max:500', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
+            'ai_sales_open'          => ['nullable', 'boolean'],
+            'ai_canary_customer_ids' => ['nullable', 'string', 'max:500', 'regex:/^[0-9,\s]*$/'],
         ],
         'infra' => [
             'cloudflare_token'   => ['nullable', 'string', 'max:200'],
@@ -428,6 +444,9 @@ class SettingsController extends Controller
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
                 'cloud_ipv4_eur_cents'  => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
+                'ai_margin_pct'          => $ready ? Setting::get('ai_margin_pct') : null,
+                'ai_sales_open'          => $ready ? Setting::get('ai_sales_open') : null,
+                'ai_canary_customer_ids' => $ready ? Setting::get('ai_canary_customer_ids') : null,
             ],
             'liveRate'    => app(\App\Services\ExchangeRate::class)->toToman('EUR'),
             'priceFactor' => $ready ? price_factor() : 1.0,
@@ -733,6 +752,15 @@ class SettingsController extends Controller
             // خالی = «خاموش / پیش‌فرضِ کد»، نه صفر
             Setting::put($k, filled($data[$k] ?? null) ? (string) $data[$k] : null);
         }
+
+        // دروازهٔ فروشِ AI فقط «1» یا هیچ — `AiPricing::saleGates` دقیقاً «1» را
+        // می‌خواند تا «true»/«on» ِ یک فرمِ دیگر بی‌صدا فروش را باز نکند.
+        Setting::put('ai_sales_open', ! empty($data['ai_sales_open']) ? '1' : null);
+
+        // فهرستِ مشتریانِ آزمایشی: فقط شناسه‌های صحیح، یکتا، با کاما
+        $ids = collect(preg_split('/[\s,]+/', (string) ($data['ai_canary_customer_ids'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->unique()->values();
+        Setting::put('ai_canary_customer_ids', $ids->isEmpty() ? null : $ids->implode(','));
     }
 
     private function saveInfra(Request $request, array $data): void

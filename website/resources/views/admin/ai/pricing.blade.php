@@ -32,6 +32,8 @@
   @if($model === null)
     <p style="padding:16px;color:var(--dim)">مدلی ثبت نشده است.</p>
   @else
+    @include('admin.ai._price-preview', ['preview' => $preview, 'model' => $model])
+
     <div style="padding:12px 18px">
       <h3 style="color:var(--muted);font-size:13px;margin-bottom:6px">ساختِ نسخهٔ تازه برای
         <span dir="ltr">{{ $model->slug }}</span>

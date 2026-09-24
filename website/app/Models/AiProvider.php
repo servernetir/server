@@ -24,7 +24,7 @@ class AiProvider extends Model
     protected $fillable = [
         'slug', 'name', 'driver', 'enabled', 'commercial_enabled',
         'resale_allowed', 'agreement_status', 'priority',
-        'live_calls_enabled', 'billing_currency_code', 'notes',
+        'live_calls_enabled', 'billing_currency_code', 'notes', 'fx_fee_bp',
     ];
 
     protected function casts(): array
@@ -35,6 +35,7 @@ class AiProvider extends Model
             'resale_allowed'     => 'boolean',
             'live_calls_enabled' => 'boolean',
             'billing_currency_code' => 'string',
+            'fx_fee_bp'          => 'integer',
         ];
     }
 

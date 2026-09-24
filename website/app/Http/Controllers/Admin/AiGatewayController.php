@@ -7,9 +7,14 @@ use App\Models\AiModel;
 use App\Models\AiProvider;
 use App\Models\AiModelUnitPrice;
 use App\Models\User;
+use App\Services\Ai\AiFx;
 use App\Services\Ai\AiModelRegistry;
+use App\Services\Ai\AiPricing;
+use App\Services\Ai\AiPricingException;
+use App\Services\Ai\AiVat;
 use App\Services\Ai\PriceBook;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 /**
@@ -59,6 +64,8 @@ class AiGatewayController extends Controller
             'live_calls_enabled' => 'nullable|boolean',
             'notes'              => 'nullable|string|max:2000',
             'name'               => 'nullable|string|max:80',
+            // سربارِ ارز به درصد با حداکثر دو رقمِ اعشار؛ به bp ذخیره می‌شود
+            'fx_fee_pct'         => ['nullable', 'numeric', 'min:0', 'max:25', 'regex:/^\d{1,2}(\.\d{1,2})?$/'],
         ]);
 
         // boolean ها: تیک‌برداشته = صفر، نه «بی‌تغییر»
@@ -68,12 +75,23 @@ class AiGatewayController extends Controller
         $provider->fill(collect($data)->only([
             'agreement_status', 'priority', 'notes', 'name',
         ])->filter()->all());
+
+        /*
+        | سربارِ ارز: فیلدِ **خالی** یعنی NULL = «فروختنی نیست»، نه صفر. صفر یک
+        | ادعای صریح است («رساندنِ دلار برایم هیچ هزینه‌ای ندارد») و باید تایپ شود.
+        | نبودِ فیلد در درخواست (فرمِ قدیمی) یعنی «دست نزن».
+        | نگهبانِ ستون: کد پیش از مهاجرتِ 000050 روی سرور می‌نشیند.
+        */
+        if ($request->has('fx_fee_pct') && Schema::hasColumn('ai_providers', 'fx_fee_bp')) {
+            $provider->fx_fee_bp = AiPricing::percentToBp($data['fx_fee_pct'] ?? null);
+        }
         $provider->save();
 
         \App\Models\ActivityLog::record(
             null, 'ai_provider_update',
             'ارائه‌دهندهٔ AI «'.$provider->slug.'» تنظیم شد (enabled='.var_export((bool) $provider->enabled, true)
-            .', commercial='.var_export((bool) $provider->commercial_enabled, true).')',
+            .', commercial='.var_export((bool) $provider->commercial_enabled, true)
+            .', fx_fee_bp='.var_export($provider->getAttribute('fx_fee_bp'), true).')',
             $request, 'staff',
         );
 
@@ -87,6 +105,7 @@ class AiGatewayController extends Controller
 
         return view('admin.ai.provider-edit', [
             'provider' => $provider,
+            'hasFeeColumn' => Schema::hasColumn('ai_providers', 'fx_fee_bp'),
         ]);
     }
 
@@ -119,6 +138,8 @@ class AiGatewayController extends Controller
             'model' => $model,
             'statuses'  => AiModel::STATUSES,
             'categories'=> AiModel::CATEGORIES,
+            'hasMarginColumn' => Schema::hasColumn('ai_models', 'margin_bp'),
+            'globalMarginBp' => AiPricing::globalMarginBp(),
         ]);
     }
 
@@ -135,10 +156,16 @@ class AiGatewayController extends Controller
             'provider_priority'      => 'nullable|integer|between:0,65535',
             'context_tokens'         => 'nullable|integer|between:0,4294967295',
             'max_output_tokens'      => 'nullable|integer|between:0,4294967295',
+            // حاشیهٔ اختصاصی؛ خالی = حاشیهٔ سراسری. صفر پذیرفته نیست (فروش به بها)
+            'margin_pct'             => ['nullable', 'numeric', 'gt:0', 'max:500', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
         ]);
 
         $model->claude_code_compatible = $request->boolean('claude_code_compatible');
-        $model->fill(collect($data)->except('claude_code_compatible')->all());
+        $model->fill(collect($data)->except(['claude_code_compatible', 'margin_pct'])->all());
+
+        if ($request->has('margin_pct') && Schema::hasColumn('ai_models', 'margin_bp')) {
+            $model->margin_bp = AiPricing::percentToBp($data['margin_pct'] ?? null);
+        }
         $model->save();
 
         \App\Models\ActivityLog::record(
@@ -175,7 +202,52 @@ class AiGatewayController extends Controller
             'models'  => AiModel::query()->orderBy('category')->orderBy('id')->get(['id', 'slug', 'name', 'category']),
             'history' => $history,
             'selectedUnit' => $request->string('unit', '')->toString(),
+            'preview' => $model ? $this->preview($model) : null,
         ]);
+    }
+
+    /**
+     * پیش‌نمایشِ قیمتِ فروش — همان `AiPricing` که شارژ را می‌سازد، پس عددِ
+     * این صفحه دقیقاً عددی است که از کیفِ پولِ مشتری کم خواهد شد.
+     *
+     * هیچ تماسِ شبکه‌ای ندارد (نرخ فقط از کش) و هیچ چیزی جز نشانِ بالاترین نرخ
+     * نمی‌نویسد. خطا این‌جا صفحه را نمی‌خوابانَد؛ دلیلِ «فروختنی نیست» را نشان می‌دهد.
+     */
+    private function preview(AiModel $model): array
+    {
+        $pricing = app(AiPricing::class);
+        $out = [
+            'gates' => $pricing->saleGates($model),
+            'error' => null,
+            'reasons' => [],
+            'quote' => null,
+            'sample' => null,
+            'eurRate' => app(AiFx::class)->displayRate('EUR'),
+            'vatBp' => app(AiVat::class)->iranRateBp(),
+        ];
+
+        try {
+            $q = $pricing->quote($model);
+        } catch (AiPricingException $e) {
+            return ['error' => $e->errorCode, 'reasons' => $e->reasons] + $out;
+        }
+
+        // نمونهٔ ثابت تا مدیر دو مدل را با یک ترازو مقایسه کند
+        $in = 10_000;
+        $cached = 0;
+        $completion = 1_000;
+        $maxOutput = (int) ($model->max_output_tokens ?: config('ai.default_max_output', 4096));
+
+        $out['quote'] = $q;
+        $out['sample'] = [
+            'prompt' => $in, 'cached' => $cached, 'completion' => $completion,
+            'charge' => $pricing->charge($q, $in, $cached, $completion, $out['vatBp']),
+            'charge_foreign' => $pricing->charge($q, $in, $cached, $completion, 0),
+            'hold_output' => $maxOutput,
+            'hold' => $pricing->hold($q, $in, $maxOutput, $out['vatBp']),
+        ];
+
+        return $out;
     }
 
     public function supersedePrice(Request $request)
@@ -184,7 +256,9 @@ class AiGatewayController extends Controller
             'model'    => 'required|integer|exists:ai_models,id',
             'unit'     => 'required|in:'.implode(',', AiModelUnitPrice::UNITS),
             'micros'   => 'required|integer|min:1|max:100000000000', // سقفِ منطقی: ۱۰۰٬۰۰۰ واحدِ ارز (۱۰۰٬۰۰۰٬۰۰۰٬۰۰۰ میکرو)
-            'currency' => 'nullable|regex:/^[A-Za-z]{3}$/',
+            // فقط USD/EUR: نرخِ ریال را `toToman` با ضریبِ ۱۰ می‌خواند (B17) و هر ارزِ
+            // دیگری نرخِ کش‌شده ندارد — سطرش هرگز فروختنی نمی‌شد و فقط گیج می‌کرد.
+            'currency' => 'nullable|in:USD,EUR,usd,eur',
             'note'     => 'nullable|string|max:255',
         ]);
 

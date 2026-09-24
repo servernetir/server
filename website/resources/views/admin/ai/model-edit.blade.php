@@ -55,6 +55,15 @@
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">سقفِ خروجی
         <input type="number" name="max_output_tokens" min="0" value="{{ old('max_output_tokens', $model->max_output_tokens) }}" class="ad-input" style="padding:8px">
       </label>
+      @if($hasMarginColumn)
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">حاشیهٔ اختصاصی (٪)
+        <input type="text" inputmode="decimal" name="margin_pct" dir="ltr" maxlength="6"
+               value="{{ old('margin_pct', \App\Services\Ai\AiPricing::bpToPercent($model->margin_bp)) }}"
+               placeholder="{{ $globalMarginBp !== null ? 'خالی = سراسری ('.\App\Services\Ai\AiPricing::bpToPercent($globalMarginBp).'٪)' : 'خالی = سراسری (تنظیم نشده)' }}"
+               class="ad-input" style="padding:8px">
+        @error('margin_pct')<small style="color:#f87171">{{ $message }}</small>@enderror
+      </label>
+      @endif
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">اولویتِ ارائه‌دهنده
         <input type="number" name="provider_priority" min="0" max="65535" value="{{ old('provider_priority', $model->provider_priority) }}" class="ad-input" style="padding:8px">
       </label>

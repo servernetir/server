@@ -38,6 +38,20 @@
       </select>
     </label>
 
+    @if($hasFeeColumn)
+    {{-- خالی = NULL = «این ارائه‌دهنده فروختنی نیست». صفر یک ادعای صریح است. --}}
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
+      سربارِ ارز (٪) — هزینهٔ واقعیِ رساندنِ یک {{ $provider->billing_currency_code }} به این ارائه‌دهنده
+      <input type="text" inputmode="decimal" name="fx_fee_pct" dir="ltr" maxlength="5"
+             value="{{ old('fx_fee_pct', \App\Services\Ai\AiPricing::bpToPercent($provider->fx_fee_bp)) }}"
+             placeholder="خالی = فروختنی نیست" class="ad-input" style="padding:8px">
+      <small style="color:var(--dim)">کارمزدِ کارت/رمزارز + اسپردِ صرافی + مالیاتِ خارجیِ روی فاکتور. ۰ تا ۲۵، تا دو رقمِ اعشار. حاشیهٔ سود روی بهایِ به‌علاوهٔ همین سربار می‌نشیند.</small>
+      @error('fx_fee_pct')<small style="color:#f87171">{{ $message }}</small>@enderror
+    </label>
+    @else
+      <p style="color:#fbbf24;font-size:12.5px">ستونِ سربارِ ارز هنوز ساخته نشده (مهاجرتِ 2026_11_03_000050). تا آن زمان هیچ مدلی از این ارائه‌دهنده فروختنی نیست.</p>
+    @endif
+
     <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
       اولویت (کوچک‌تر جلوتر)
       <input type="number" name="priority" min="0" max="65535" value="{{ old('priority', $provider->priority) }}" class="ad-input" style="padding:8px">

@@ -29,3 +29,30 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
    exchange spread). NULL means the provider is not sellable.
 3. Legal: does the provider's contract allow reselling, and is the account-closure
    risk accepted? `agreement_status` and `resale_allowed` stay off until then.
+
+## Progress
+
+- **M5.0** — `ai_calls` repair (001400), admission reason, project budget persisted.
+- **M5.1a** — `AiFx` (cache-only FX, max(override, scrape ≤24 h), stale buffer,
+  3 %/day drop ratchet), `AiPricing` (§3 formula, integer-only, every step rounds up),
+  `AiVat` (VAT unless a non-IR country is declared), `PriceBook::sellRates` (D13),
+  admin: `ai_margin_pct` / `ai_sales_open` / `ai_canary_customer_ids`, override bounds
+  20k–5M, provider `fx_fee_bp`, model `margin_bp`, price preview on `/admin/ai/pricing`,
+  `php artisan ai:price-preview`. `/v1` untouched. Deploy: `scripts/deploy-ai-m5-1a-pricing.sh`.
+
+### Deviations from `m5-spec.md` taken in M5.1a (read before M5.1b)
+
+1. **One small migration in M5.1a**: `2026_11_03_000050_ai_pricing_inputs.php` adds only
+   `ai_providers.fx_fee_bp` and `ai_models.margin_bp` — the preview needs them. M5.1b's
+   `000100` must keep its `hasColumn` guards on those two columns.
+2. **Migration name clash to avoid in M5.1b**: `feature/hourly-credit-transparency` already
+   ships `2026_11_03_000100_add_hourly_hold_to_services.php`. Give the AI money core a
+   different timestamp (e.g. `2026_11_03_000110_ai_money_core.php`).
+3. **`customers.country_code` does not exist.** `AiVat` reads it if present; today every
+   customer pays VAT (`fa_locale` / `no_country`). Adding the column is an owner decision (§9 Q1).
+4. **Admin pages are Persian-only (hardcoded)**, so M5.1a adds no lang keys.
+5. **Driver select and model create** were left for M5.1b: letting the admin switch the
+   seeded driver to `OpenAI-Compatible` would open the old µUSD-as-Toman path (D16).
+6. **Ratchet on an expired high-water mark**: the old mark still sets the floor once, then
+   resets to the effective rate — a real drop is followed at ≤3 % per day, never at once.
+   An upward mis-scrape is cleared with `ai:price-preview --reset-fx-hw=USD`.

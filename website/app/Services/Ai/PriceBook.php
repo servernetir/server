@@ -121,6 +121,86 @@ final class PriceBook
         });
     }
 
+    /** سقفِ نرخِ فروختنی: ۱۰⁹ میکرو = ۱۰۰۰ واحدِ ارز به ازای ۱M توکن */
+    public const MAX_SELL_RATE_MICROS = 1_000_000_000;
+
+    /**
+     * ═══ سطرهای بهایی که می‌شود رویشان **فروخت** (D13) ═══
+     *
+     * سخت‌گیرتر از `resolve()` و عمداً جدا از آن (مسیرِ فعلیِ /v1 هنوز
+     * `resolve()` را می‌خواند و M5.1a نباید آن را تکان دهد):
+     *
+     *  • فقط سطرِ **سطحِ مدل** — بی‌پشتوانهٔ ارائه‌دهنده/سراسری. نرخِ عمومی
+     *    برای مدلی که کسی قیمتش را ندیده یعنی فروشِ کورکورانه؛ مدلِ گران با
+     *    نرخِ پیش‌فرضِ ارزان زیرِ بها فروخته می‌شد (B15).
+     *  • یکا `1m_tokens`، وگرنه تقسیم بر ۱۰⁶ غلط است (B11).
+     *  • ارز USD یا EUR **و برابر با ارزِ صورت‌حسابِ ارائه‌دهنده** — نرخِ ریال
+     *    را `toToman` با ضریبِ ۱۰ می‌خواند (B17) و جمعِ دو ارز بی‌معناست (B10).
+     *  • نرخِ کش‌شده ≤ نرخِ ورودی؛ بیشتر از آن یعنی ورودِ اشتباه، نه تخفیف.
+     *  • سقفِ ۱۰⁹ میکرو تا ضربِ توکن × نرخ × نرخِ ارز هرگز سرریز نکند.
+     *
+     * @return array{input:AiModelUnitPrice, cached:?AiModelUnitPrice, output:AiModelUnitPrice}
+     *
+     * @throws AiPricingException pricing_incomplete با فهرستِ دلیل‌ها
+     */
+    public function sellRates(AiModel $model): array
+    {
+        $currency = strtoupper((string) ($model->provider?->billing_currency_code ?? ''));
+        $reasons = [];
+
+        if (! in_array($currency, ['USD', 'EUR'], true)) {
+            $reasons[] = 'currency_unsupported';
+        }
+
+        $rows = [];
+        foreach ([
+            'input' => AiModelUnitPrice::UNIT_INPUT,
+            'cached' => AiModelUnitPrice::UNIT_CACHED_INPUT,
+            'output' => AiModelUnitPrice::UNIT_OUTPUT,
+        ] as $key => $unit) {
+            $row = AiModelUnitPrice::query()
+                ->where('ai_model_id', $model->id)
+                ->whereNull('customer_id')
+                ->where('unit', $unit)
+                ->where('active', true)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row === null) {
+                if ($key !== 'cached') {
+                    $reasons[] = 'no_'.$key.'_price';
+                }
+                $rows[$key] = null;
+
+                continue;
+            }
+
+            if ($row->billing_unit !== AiModelUnitPrice::BASIS_1M_TOKENS) {
+                $reasons[] = 'price_basis';
+            }
+            if (strtoupper((string) $row->currency_code) !== $currency) {
+                $reasons[] = 'currency_mismatch';
+            }
+            $rate = (int) $row->price_micro_units;
+            if ($rate < 1 || $rate > self::MAX_SELL_RATE_MICROS) {
+                $reasons[] = 'rate_out_of_range';
+            }
+
+            $rows[$key] = $row;
+        }
+
+        if ($rows['cached'] !== null && $rows['input'] !== null
+            && (int) $rows['cached']->price_micro_units > (int) $rows['input']->price_micro_units) {
+            $reasons[] = 'cached_above_input';
+        }
+
+        if ($reasons !== []) {
+            throw new AiPricingException(AiPricingException::PRICING_INCOMPLETE, array_values(array_unique($reasons)));
+        }
+
+        return $rows;
+    }
+
     /** یکای صورت‌حساب از نوع مصرف — اعلامِ صریح، بدونِ حدس. */
     private function billingUnitFor(string $unit): string
     {

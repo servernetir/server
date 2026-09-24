@@ -31,11 +31,12 @@
                value="{{ $pricing['pricing_baseline_rate'] }}" placeholder="خالی = خاموش">
         <small>لنگر. تا پر نشود هیچ قیمتی خودکار جابه‌جا نمی‌شود.</small></label>
       <label class="set-f">نرخِ دستی (به‌جای نرخِ زنده)
-        <input type="number" name="pricing_rate_override" dir="ltr" min="0"
-               value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
+        <input type="number" name="pricing_rate_override" dir="ltr" min="0" max="5000000"
+               value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده">
+        <small>۲۰٬۰۰۰ تا ۵٬۰۰۰٬۰۰۰ تومان، یا خالی.</small></label>
       <label class="set-f">نرخِ دستیِ دلار (تومان)
         <span style="color:var(--dim);font-size:11.5px">زیرساختِ GPU به دلار می‌فروشد؛ بی‌نرخ، پلن‌هایش صفر و نافروختنی می‌شوند.</span>
-        <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0"
+        <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0" max="5000000"
                value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
       <label class="set-f">کارمزد انتقال ارز — پیش‌فرض (٪)
         <span style="color:var(--dim);font-size:11.5px">روی بهای زیرساخت (ماهانه و ساعتی) پیش از حاشیه می‌نشیند — کارمزد حواله/اسپرد و VAT. این عدد <b>پشتیبانِ</b> زیرساخت‌هایی است که پایین عددِ اختصاصی ندارند.</span>
@@ -86,6 +87,36 @@
         <input type="number" name="cloud_ipv4_eur_cents" dir="ltr" step="1" min="-1" max="10000"
                value="{{ $pricing['cloud_ipv4_eur_cents'] }}" placeholder="خالی = خودکار از زیرساخت">
         <small>🔴 از ۲۰۲۴ در قیمتِ پایهٔ زیرساخت نیست. اگر به بهای تمام‌شده اضافه نشود، ماهی حدود ۰٫۶ یورو روی هر سرور ضرر است.</small></label>
+    </div>
+  </div>
+
+  {{-- دروازهٔ AI (M5) — سه کلید، و عمداً هیچ پیش‌فرضی: حاشیهٔ خالی یعنی فروش بسته،
+       نه فروش به بها. سربارِ ارزِ هر ارائه‌دهنده جای دیگری است (ستونِ خودش در
+       /admin/ai) چون این فرم کلیدِ ناشناخته را بی‌صدا دور می‌ریزد. --}}
+  <div class="ad-panel">
+    <div class="ad-panel-h"><h2>هوش مصنوعی — حاشیه و درِ فروش</h2>
+      @if(Route::has('admin.ai.pricing'))<a href="{{ route('admin.ai.pricing') }}" class="btn btn-glass" style="font-size:13px">پیش‌نمایشِ قیمت</a>@endif
+    </div>
+    <p class="set-lead">
+      قیمتِ هر مدل = بهای ارائه‌دهنده × نرخِ روزِ ارز × (۱ + سربارِ ارزِ ارائه‌دهنده) × (۱ + حاشیه)،
+      همه رو به بالا گرد. <b>تا حاشیه خالی است هیچ مدلی فروخته نمی‌شود.</b>
+      مالیات بر ارزش افزوده جدا و روی همین قیمت اضافه می‌شود.
+    </p>
+    <div class="set-grid three" style="padding:0 18px 18px">
+      <label class="set-f">حاشیهٔ سودِ AI (٪)
+        <input type="text" inputmode="decimal" name="ai_margin_pct" dir="ltr" maxlength="6"
+               value="{{ $pricing['ai_margin_pct'] }}" placeholder="خالی = فروش بسته">
+        <small>بزرگ‌تر از صفر، حداکثر ۵۰۰، تا دو رقمِ اعشار (مثلاً 25 یا 12.5). هر مدل می‌تواند حاشیهٔ خودش را داشته باشد.</small></label>
+      <label class="set-f">مشتریانِ آزمایشی (شناسه، با کاما)
+        <input type="text" name="ai_canary_customer_ids" dir="ltr" maxlength="500"
+               value="{{ $pricing['ai_canary_customer_ids'] }}" placeholder="مثلاً 1,42">
+        <small>پیش از بازشدنِ فروش، فقط همین حساب‌ها می‌توانند تماس بزنند.</small></label>
+      <label class="set-f" style="justify-content:flex-start">درِ فروشِ عمومی
+        <span style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:6px">
+          <input type="checkbox" name="ai_sales_open" value="1" @checked(($pricing['ai_sales_open'] ?? null) === '1')>
+          باز برای همهٔ مشتریان
+        </span>
+        <small>⚠️ این کلید از مرحلهٔ بعدی (M5.1b) در مسیرِ /v1 خوانده می‌شود؛ تا آن زمان اثری ندارد.</small></label>
     </div>
   </div>
 

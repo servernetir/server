@@ -44,7 +44,7 @@ class AiModel extends Model
         'ai_provider_id', 'slug', 'upstream_model', 'name', 'vendor',
         'description', 'category', 'status', 'replacement_model_id',
         'context_tokens', 'max_output_tokens', 'capabilities',
-        'provider_priority', 'docs_url', 'claude_code_compatible',
+        'provider_priority', 'docs_url', 'claude_code_compatible', 'margin_bp',
     ];
 
     protected function casts(): array
@@ -52,6 +52,7 @@ class AiModel extends Model
         return [
             'capabilities'           => 'array',
             'claude_code_compatible' => 'boolean',
+            'margin_bp'              => 'integer',
         ];
     }
 
