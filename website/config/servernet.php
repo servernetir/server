@@ -436,6 +436,8 @@ return [
                 ]],
                 ['fa' => 'بر اساس کاربرد', 'en' => 'By use case', 'tr' => 'Kullanım amacına göre', 'items' => [
                     ['slug' => 'trading', 'fa' => 'سرور مجازی ترید', 'en' => 'Trading VPS', 'tr' => 'Trade VPS'],
+                    ['slug' => 'discord', 'new' => true,
+                        'fa' => 'سرور ربات دیسکورد', 'en' => 'Discord Bot VPS', 'tr' => 'Discord Bot VPS'],
                     ['slug' => 'gpu',     'fa' => 'سرور مجازی گرافیکی', 'en' => 'GPU VPS', 'tr' => 'GPU VPS'],
                     ['slug' => 'cloud',   'fa' => 'سرور مجازی ابری', 'en' => 'Cloud VPS', 'tr' => 'Bulut VPS'],
                 ]],

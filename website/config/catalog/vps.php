@@ -499,6 +499,77 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | سرور مجازی ربات دیسکورد — صفحهٔ کاربردی (نه مکانی)
+    |--------------------------------------------------------------------------
+    | چرا ساخته شد (دادهٔ GSC، سه ماه منتهی به ۲۲ سپتامبر ۲۰۲۶):
+    | `/blog/iranian-discord-servers` با ۱۱۱۴ نمایش و ۶۵ کلیک در **رتبهٔ ۶.۵**
+    | قوی‌ترین صفحهٔ غیربرندِ ماست، ولی هیچ مسیری به محصول نداشت. اعتبارِ
+    | موضوعی هست؛ صفحهٔ تراکنشی‌اش نبود.
+    |
+    | ⚠️ هیچ پلنِ ثابتی این‌جا نیست و عمدی است: `livePlansFor` فقط برای اسلاگِ
+    |    کشوری کار می‌کند، پس عددِ دستی این‌جا یعنی قیمتی که با کاتالوگ جلو
+    |    نمی‌آید — همان «قیمتِ دروغ» که قاعدهٔ پروژه است. ویو حالتِ بی‌پلن را
+    |    خودش با بلاکِ مشاوره رندر می‌کند و کاربر از همان‌جا به /cloud و
+    |    /vps/compare-locations می‌رود که قیمتشان زنده است.
+    |
+    | ⚠️ مرزِ /aup: این صفحه دربارهٔ **میزبانیِ ربات** است (Node/Python، ۲۴ ساعته)
+    |    نه دربارهٔ دسترسی یا عبور. هیچ ادعای VPN/پروکسی این‌جا نوشته نمی‌شود.
+    */
+    'discord' => [
+        'icon' => 'headset', 'group' => 'use',
+        'fa' => ['t' => 'سرور مجازی ربات دیسکورد',
+            'seo_t' => 'هاست ربات دیسکورد | سرور مجازی ۲۴ ساعته با Node و Python',
+            'seo_d' => 'اجرای ربات دیسکورد روی سرور مجازی اختصاصی با دسترسی root، Node.js و پایتون، آپتایم ۲۴ ساعته و اجرای دائمی با systemd یا pm2. مناسب موزیک‌بات و ربات‌های مدیریت انجمن.',
+            'tag' => 'Node.js · Python · ۲۴/۷',
+            'hero_t' => 'ربات دیسکوردتان', 'hero_g' => 'هیچ‌وقت آفلاین نشود.',
+            'hero_d' => 'لپ‌تاپ که خاموش شود ربات هم می‌رود. روی یک سرور مجازی با دسترسی کامل root، ربات شما با systemd یا pm2 دائم بالا می‌ماند — Node.js، پایتون یا هر زبان دیگری، با منابع تضمین‌شده.'],
+        'en' => ['t' => 'Discord Bot VPS',
+            'seo_t' => 'Discord Bot Hosting | 24/7 VPS with Node.js & Python',
+            'seo_d' => 'Run your Discord bot on a dedicated VPS with full root access, Node.js and Python, 24/7 uptime and process supervision via systemd or pm2 — for music bots and community bots alike.',
+            'tag' => 'Node.js · Python · 24/7',
+            'hero_t' => 'Your Discord bot', 'hero_g' => 'never goes offline.',
+            'hero_d' => 'When your laptop sleeps, your bot dies with it. On a VPS with full root access your bot stays up under systemd or pm2 — Node.js, Python or anything else, on guaranteed resources.'],
+        'tr' => ['t' => 'Discord Bot VPS',
+            'seo_t' => 'Discord Bot Hosting | Node.js ve Python ile 7/24 VPS',
+            'seo_d' => 'Discord botunuzu tam root erişimli bir VPS üzerinde çalıştırın: Node.js ve Python, 7/24 çalışma süresi ve systemd veya pm2 ile süreç yönetimi — müzik botları ve topluluk botları için.',
+            'tag' => 'Node.js · Python · 7/24',
+            'hero_t' => 'Discord botunuz', 'hero_g' => 'asla çevrimdışı olmasın.',
+            'hero_d' => 'Dizüstü bilgisayarınız kapanınca botunuz da kapanır. Tam root erişimli bir VPS\'te botunuz systemd veya pm2 ile sürekli ayakta kalır — Node.js, Python veya başka bir dil, garantili kaynaklarla.'],
+        'chips' => ['Node.js / Python', 'systemd / pm2', 'Root Access', '24/7 Uptime', 'NVMe'],
+        'signature' => ['type' => 'term',
+            'fa' => ['t' => 'از صفر تا ربات آنلاین', 'd' => 'کلون از گیت، نصب وابستگی‌ها، یک سرویس systemd — و ربات بعد از هر ری‌استارت خودش بالا می‌آید'],
+            'en' => ['t' => 'From zero to a live bot', 'd' => 'Clone from Git, install dependencies, one systemd unit — and the bot comes back by itself after every reboot'],
+            'tr' => ['t' => 'Sıfırdan çalışan bota', 'd' => 'Git\'ten klonlayın, bağımlılıkları kurun, tek bir systemd servisi — bot her yeniden başlatmadan sonra kendi kendine açılır'],
+            // ⚠️ همان دستورهای واقعی؛ خروجیِ ساختگی ننویس — کسی از روی همین کپی می‌کند.
+            'lines' => [
+                ['c', '# Discord bot, from clone to always-on'],
+                ['p', '$ ssh root@your-server'],
+                ['w', '$ git clone https://github.com/you/your-bot.git /opt/bot'],
+                ['w', '$ cd /opt/bot && npm ci --omit=dev'],
+                ['c', '# keep it alive across crashes and reboots'],
+                ['w', '$ systemctl enable --now discord-bot'],
+                ['o', '● discord-bot.service — active (running)'],
+                ['c', '# logs, any time'],
+                ['w', '$ journalctl -u discord-bot -f'],
+            ],
+        ],
+        'features' => ['root', 'instant', 'scale', 'uptime', 'backup', 'support'],
+        'faqs' => ['activation',
+            ['fa' => ['q' => 'چه منابعی برای ربات دیسکورد لازم است؟', 'a' => 'ربات‌های متنی و مدیریتی با ۱ هسته و ۱ گیگ رم راحت کار می‌کنند. موزیک‌بات چون صدا را ترنسکد می‌کند به CPU و پهنای باند بیشتری نیاز دارد؛ برای چند سرور هم‌زمان از ۲ هسته و ۲ گیگ رم شروع کنید و با رشد انجمن ارتقا بدهید.'],
+             'en' => ['q' => 'What resources does a Discord bot need?', 'a' => 'Text and moderation bots run comfortably on 1 vCPU and 1 GB RAM. A music bot transcodes audio, so it needs more CPU and bandwidth — start at 2 vCPU / 2 GB for several guilds and scale as the community grows.'],
+             'tr' => ['q' => 'Discord botu için hangi kaynaklar gerekir?', 'a' => 'Metin ve moderasyon botları 1 vCPU ve 1 GB RAM ile rahat çalışır. Müzik botu ses kodladığı için daha fazla CPU ve bant genişliği ister; birden fazla sunucu için 2 vCPU / 2 GB ile başlayın.']],
+            ['fa' => ['q' => 'کدام لوکیشن را انتخاب کنم؟', 'a' => 'ربات باید پیوسته با سرورهای دیسکورد حرف بزند، پس لوکیشن اروپایی (آلمان یا هلند) انتخاب متعادلی است. اگر بیشتر اعضای انجمن در آمریکا هستند، لوکیشن آمریکا تأخیر صدا را کمتر می‌کند. مقایسهٔ کشورها با قیمت زنده در صفحهٔ «کدام کشور برای سرور خارج» است.'],
+             'en' => ['q' => 'Which location should I pick?', 'a' => 'The bot talks to Discord\'s servers continuously, so a European location (Germany or the Netherlands) is a balanced choice. If most of your community is in the Americas, a US location lowers voice latency. Our location comparison page shows live prices for each country.'],
+             'tr' => ['q' => 'Hangi lokasyonu seçmeliyim?', 'a' => 'Bot sürekli Discord sunucularıyla konuşur; bu yüzden Avrupa (Almanya veya Hollanda) dengeli bir seçimdir. Topluluğunuz ağırlıklı Amerika\'daysa ABD lokasyonu ses gecikmesini azaltır. Lokasyon karşılaştırma sayfamızda canlı fiyatlar var.']],
+            ['fa' => ['q' => 'ربات را چطور همیشه بالا نگه دارم؟', 'a' => 'یک سرویس systemd بسازید (یا در Node از pm2 استفاده کنید) تا بعد از کرش و بعد از ری‌استارت سرور خودکار اجرا شود. لاگ‌ها با journalctl دیده می‌شوند و برای نسخهٔ بعدی فقط pull و restart لازم است.'],
+             'en' => ['q' => 'How do I keep the bot always running?', 'a' => 'Create a systemd unit (or use pm2 on Node) so the process restarts after a crash and after a server reboot. Logs are available through journalctl, and shipping a new version is just pull and restart.'],
+             'tr' => ['q' => 'Botu nasıl sürekli açık tutarım?', 'a' => 'Bir systemd servisi oluşturun (veya Node\'da pm2 kullanın); böylece çökme ve sunucu yeniden başlatmasından sonra otomatik çalışır. Loglar journalctl ile görülür.']],
+            'os', 'upgrade', 'refund',
+        ],
+    ],
+
     'gpu' => [
         'icon' => 'monitor', 'group' => 'use',
         'fa' => ['t' => 'سرور مجازی گرافیکی',

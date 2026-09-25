@@ -193,7 +193,9 @@ TXT;
         $rel = null;
 
         try {
-            $rel = blog_related_product($brief['category'] ?? null);
+            // اسلاگ هم پاس داده می‌شود تا نگاشتِ پستیِ `blog.post_products`
+            // برای مقالهٔ تازه هم کار کند، نه فقط برای صفحهٔ پستِ منتشرشده.
+            $rel = blog_related_product($brief['category'] ?? null, $brief['slug'] ?? null);
         } catch (\Throwable) {
             // بی‌لینک بهتر از مقالهٔ تولیدنشده؛ روتر/فرهنگ ممکن است در CLI آماده نباشد
         }

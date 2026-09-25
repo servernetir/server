@@ -221,7 +221,9 @@ t "https://servernet.cloud/dedicated/france" 'خرید سرور اختصاصی �
 
 echo
 echo "═══ ۶) کشِ صفحه (تشخیص — ربطی به این دیپلوی ندارد) ═══"
-XC=$(curl -sI --max-time 25 "https://servernet.cloud/" | grep -i '^x-cache' | tr -d '\r')
+# 🔴 با GET بسنج، نه -I: میدل‌ور فقط GET را کش می‌کند، پس HEAD همیشه BYPASS
+#    می‌دهد — یک بار همین باعث شد «کشِ صفحهٔ سایت خاموش است» گزارش شود.
+XC=$(curl -s -D - -o /dev/null --max-time 25 "https://servernet.cloud/" | grep -i '^x-cache' | tr -d '\r')
 echo "  $XC"
 case "$XC" in
   *BYPASS*)

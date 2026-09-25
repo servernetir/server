@@ -36,6 +36,20 @@ return [
     | kind: hosting (config/hosting.php) · catalog (config/catalog/*) ·
     |       solution (config/solutions.php)
     */
+    /*
+    | نگاشتِ **پستی** — بر نگاشتِ دسته‌ای اولویت دارد.
+    |
+    | 🔴 چرا لازم شد: نگاشتِ دسته‌ای برای پستِ معمولی کافی است، ولی پستی که
+    | خودش رتبهٔ خوبی گرفته لیاقتِ مقصدِ دقیق دارد. دادهٔ GSC (سه ماه):
+    | `iranian-discord-servers` رتبهٔ ۶.۵ با ۱۱۱۴ نمایش — و چون دسته‌اش عمومی
+    | است، «سرویسِ مرتبط»ش صفحه‌ای بی‌ربط می‌شد و آن اعتبار هدر می‌رفت.
+    |
+    | کلید = اسلاگِ پست (بی‌پیشوندِ زبان). شکلِ مقدار همان `category_products`.
+    */
+    'post_products' => [
+        'iranian-discord-servers' => ['kind' => 'catalog', 'category' => 'vps', 'slug' => 'discord'],
+    ],
+
     'category_products' => [
         'hosting'  => ['kind' => 'hosting',  'slug' => 'linux'],
         'cloud'    => ['kind' => 'catalog',  'category' => 'cloud', 'slug' => 'iaas'],

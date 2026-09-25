@@ -23,7 +23,7 @@
     $reading = $isFa ? fa_num($post['reading']) : $post['reading'];
     /* پلِ بلاگ→محصول (ممیزی ۳): سرویسِ فروختنیِ متناظر با دستهٔ همین پست.
        null یعنی نگاشت/محصول نیست و بلاک اصلاً رندر نمی‌شود — لینکِ مرده ممنوع. */
-    $relProduct = blog_related_product($post['category'] ?? null);
+    $relProduct = blog_related_product($post['category'] ?? null, $post['slug'] ?? null);
 @endphp
 
 @section('title', $post['title'].' — '.__('ui.brand'))

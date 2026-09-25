@@ -535,11 +535,22 @@ if (! function_exists('blog_related_product')) {
      *
      * @return array{href:string,title:string,desc:string}|null
      */
-    function blog_related_product(?string $blogCategory): ?array
+    function blog_related_product(?string $blogCategory, ?string $postSlug = null): ?array
     {
-        $map = $blogCategory !== null && $blogCategory !== ''
-            ? (array) config('blog.category_products.'.$blogCategory)
+        /*
+        | نگاشتِ پستی مقدم است (ممیزی سئو، ۳ مهر ۱۴۰۵): پستی که خودش رتبه
+        | گرفته باید به محصولِ **دقیقاً مرتبط** لینک بدهد، نه به محصولِ پیش‌فرضِ
+        | دسته‌اش. آرگومان اختیاری است تا هیچ فراخوانِ قدیمی نشکند.
+        */
+        $map = $postSlug !== null && $postSlug !== ''
+            ? (array) config('blog.post_products.'.$postSlug)
             : [];
+
+        if ($map === []) {
+            $map = $blogCategory !== null && $blogCategory !== ''
+                ? (array) config('blog.category_products.'.$blogCategory)
+                : [];
+        }
 
         /*
         | زنجیرهٔ fallback (ممیزی ۴): دستهٔ بی‌نگاشت/ناشناخته ⇒ hubِ خطِ
