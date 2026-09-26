@@ -1563,7 +1563,7 @@ return [
         'accent' => 'cyan',
 
         'fa' => [
-            'meta_t' => 'طراح BPMN و پلتفرم مدیریت فرایند سازمانی (BPMS) سرورنت',
+            'meta_t' => 'طراح آنلاین و رایگان BPMN 2.0 + پلتفرم BPMS فارسی',
             'meta_d' => 'طراح آنلاین و رایگان BPMN 2.0 به‌علاوهٔ پلتفرم اجرای فرایند: فرم‌ساز، کارتابل وظایف، اتوماسیون گردش کار، تقویم شمسی و استقرار داخل سازمان. نرم‌افزار BPMS ایرانی با پشتیبانی فارسی.',
             'badge'  => 'طراح رایگان + پلتفرم سازمانی',
             'h1a'    => 'از رسمِ فرایند',
@@ -1679,7 +1679,7 @@ return [
         ],
 
         'en' => [
-            'meta_t' => 'ServerNet BPMN Designer & Enterprise BPMS Platform',
+            'meta_t' => 'Free Online BPMN 2.0 Designer + Enterprise BPMS',
             'meta_d' => 'A free online BPMN 2.0 designer plus a full process execution platform: form builder, task inbox, workflow automation, Jalali calendar and on-premise deployment.',
             'badge'  => 'Free designer + enterprise platform',
             'h1a'    => 'From drawing a process',
@@ -1795,7 +1795,7 @@ return [
         ],
 
         'tr' => [
-            'meta_t' => 'ServerNet BPMN Tasarımcısı ve Kurumsal BPMS Platformu',
+            'meta_t' => 'Ücretsiz Çevrimiçi BPMN 2.0 Tasarımcısı + BPMS',
             'meta_d' => 'Ücretsiz çevrimiçi BPMN 2.0 tasarımcısı ve tam bir süreç yürütme platformu: form oluşturucu, görev kutusu, iş akışı otomasyonu ve kurum içi kurulum.',
             'badge'  => 'Ücretsiz tasarımcı + kurumsal platform',
             'h1a'    => 'Süreci çizmekten',
