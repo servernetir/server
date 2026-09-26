@@ -115,8 +115,16 @@
   | تمام شود چه می‌شود؟» بود و هیچ رقیبِ ایرانی هم پاسخش را نمی‌نویسد.
   */
   $gpuMax = $isFa ? fa_num((string) $maxUnits) : (string) $maxUnits;
+  /*
+  | 🔴 ۱۳ تا ۱۸ (مهر ۱۴۰۵): «کدام ابزار آماده است، چند برنامه روی یک کارت،
+  | Workflow سفارشی» — دو تیکتِ یک روز (TK-260926-7607، TK-260926-5019) و
+  | مشتری‌ای که برای ComfyUI با نودِ سفارشی خرید و وجهش برگشت
+  | (TK-260924-8595). پاسخ‌ها باید با تحویلِ واقعی بخوانند:
+  | `SaladOperations::APPS` و `SaladClient::capabilities()`. کنارِ پرسشِ SSH
+  | (۵) می‌نشینند، چون همان لحظهٔ تصمیم است.
+  */
   $gpuFaqPage = [];
-  foreach (range(1, 12) as $gpuQn) {
+  foreach ([1, 2, 3, 4, 5, 13, 14, 15, 16, 17, 18, 6, 7, 8, 9, 10, 11, 12] as $gpuQn) {
       $gpuFaqPage[] = [
           __('ui.gpu_faq'.$gpuQn.'_q'),
           __('ui.gpu_faq'.$gpuQn.'_a', ['hours' => $gpuHours, 'max' => $gpuMax]),
@@ -369,7 +377,7 @@
       <h2>{{ __('ui.gpu_apps_t') }}</h2>
       <p>{{ __('ui.gpu_apps_d') }}</p>
       <div class="gpu-apps-grid">
-        <div class="gpu-app"><b>Ollama <small>Llama 3.1</small></b><p>{{ __('ui.gpu_app_llm_d') }}</p></div>
+        <div class="gpu-app"><b>Ollama <small>LLM</small></b><p>{{ __('ui.gpu_app_llm_d') }}</p></div>
         <div class="gpu-app"><b>ComfyUI <small>Stable Diffusion</small></b><p>{{ __('ui.gpu_app_img_d') }}</p></div>
         <div class="gpu-app"><b>Jupyter <small>PyTorch</small></b><p>{{ __('ui.gpu_app_nb_d') }}</p></div>
       </div>

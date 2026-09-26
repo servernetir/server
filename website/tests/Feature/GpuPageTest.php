@@ -337,4 +337,57 @@ class GpuPageTest extends TestCase
             }
         }
     }
+
+    /**
+     * 🔴 هیچ کلیدِ خامِ `ui.*` — نه فقط `ui.gpu_*`.
+     *
+     * ═══ رخداد (۴ مهر ۱۴۰۵) ═══
+     * ویوِ /gpu با جدولِ راهنما، هزینه، ۱۲ پرسش و بخشِ پایانِ اعتبار به
+     * سرورِ زنده رفت و کلیدهایش نرفت: ۸۸ کلیدِ خام روی صفحه و در FAQPage
+     * («ui.gpu_faq1_q»). تستِ قبلی فقط `ui.gpu_` را می‌گشت و کلیدهای
+     * `ui.cl_*`ِ پارشالِ پایانِ اعتبار از زیرش رد می‌شد.
+     */
+    public function test_no_raw_translation_key_of_any_prefix_leaks(): void
+    {
+        $this->seedGpuPlan();
+
+        foreach (['/gpu', '/en/gpu', '/tr/gpu'] as $url) {
+            $html = (string) $this->get($url)->assertOk()->getContent();
+
+            $this->assertDoesNotMatchRegularExpression('~(?<![\w/.-])ui\.[a-z][a-z0-9]*_[a-z0-9_]+~', $html,
+                "کلیدِ خامِ ترجمه در {$url}.");
+        }
+    }
+
+    /**
+     * 🔴 مشتری باید پیش از خرید بداند کدام ابزار آماده است و چه چیزی نیست.
+     *
+     * ═══ رخداد (۲ و ۴ مهر ۱۴۰۵) ═══
+     * TK-260924-8595: برای ComfyUI با نودهای سفارشی خرید و وجه برگشت.
+     * TK-260926-5019: «کدام آماده است؟ چند برنامه روی یک GPU؟ Workflow
+     * سفارشی؟» — هیچ‌کدام روی صفحه جواب نداشت، و کارتِ ComfyUI «رابط وب»
+     * وعده می‌داد درحالی‌که ایمیجِ تحویلی فقط API است (ریشه‌اش 404).
+     */
+    public function test_the_page_answers_what_runs_and_never_promises_a_comfyui_web_ui(): void
+    {
+        $this->seedGpuPlan();
+
+        foreach (['fa' => '/gpu', 'en' => '/en/gpu', 'tr' => '/tr/gpu'] as $lang => $url) {
+            app()->setLocale($lang);
+            $html = (string) $this->get($url)->assertOk()->getContent();
+            $faq  = collect($this->ldBlocks($html))->firstWhere('@type', 'FAQPage');
+            $asked = array_column($faq['mainEntity'], 'name');
+
+            foreach (range(13, 18) as $n) {
+                $this->assertContains(__('ui.gpu_faq'.$n.'_q'), $asked, "{$url}: پرسشِ {$n} در FAQ نیست.");
+            }
+        }
+
+        app()->setLocale('fa');
+        $this->assertStringNotContainsString('رابط وب و API', __('ui.gpu_app_img_d'),
+            'کارتِ ComfyUI دوباره رابطِ وب وعده می‌دهد؛ ایمیجِ تحویلی فقط API است.');
+        $this->assertStringNotContainsString('web UI and API', __('ui.gpu_app_img_d', [], 'en'));
+        $this->assertStringContainsString('Jupyter', __('ui.gpu_faq17_a'),
+            'پاسخِ Workflow سفارشی باید بگوید تنها راهش Jupyter است.');
+    }
 }
