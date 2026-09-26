@@ -138,6 +138,39 @@ class AiModelCreateTest extends TestCase
         $this->assertSame('EUR', AiModelUnitPrice::whereHas('model', fn ($q) => $q->where('slug', 'llama-b'))->value('currency_code'));
     }
 
+    /**
+     * مسیرِ قدیمیِ /v1 تا M5.1b سدهای فروش را نمی‌خوانَد (بازبینیِ پیش از انتشار با یک
+     * تستِ واقعی نشانش داد)؛ پس فرم مدل را خاموش پیشنهاد می‌کند.
+     */
+    public function test_form_defaults_new_models_to_disabled(): void
+    {
+        $html = $this->actingAs($this->admin)->get('/admin/ai/models/create')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<option value="disabled"\s+selected/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<option value="active"\s+selected/', $html);
+    }
+
+    /**
+     * دوبار-کلیک: هر دو درخواست از اعتبارسنجی رد می‌شوند و بازنده به قیدِ یکتا می‌خورد.
+     * باید پیامِ روشن بگیرد، نه ۵۰۰ و نه ردیفِ نیمه‌کاره.
+     */
+    public function test_unique_race_after_validation_is_a_clear_error_not_a_500(): void
+    {
+        AiModel::creating(function (AiModel $m) {
+            \Illuminate\Support\Facades\DB::table('ai_models')->insert([
+                'ai_provider_id' => $m->ai_provider_id, 'slug' => $m->slug, 'upstream_model' => 'racer',
+                'name' => 'racer', 'category' => 'chat', 'status' => 'disabled',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+
+        $this->store(['price_input' => '0.23', 'price_output' => '0.40'])
+            ->assertRedirect()
+            ->assertSessionHasErrors('slug');
+
+        $this->assertSame(0, AiModelUnitPrice::count(), 'تراکنش باید سطرهای بها را هم برگردانده باشد');
+    }
+
     public function test_models_list_links_to_create(): void
     {
         $this->actingAs($this->admin)->get('/admin/ai/models')

@@ -138,9 +138,15 @@ class AiGatewayController extends Controller
      * فرمِ ساختِ مدل.
      *
      * تا این‌جا هیچ راهی جز تست برای ساختِ ردیفِ `ai_models` نبود (code-map §4.8)،
-     * پس روی سرور پیش‌نمایشِ قیمت همیشه خالی می‌ماند. مدلِ تازه فروختنی **نیست**:
-     * بی‌سطرِ قیمت، بی‌سربارِ ارز، بی‌حاشیه و با پرچم‌های بستهٔ ارائه‌دهنده هر سد
-     * در `AiPricing::saleGates` بسته می‌ماند. درایور عمداً این‌جا نیست (D16).
+     * پس روی سرور پیش‌نمایشِ قیمت همیشه خالی می‌ماند.
+     *
+     * ⚠️ `AiPricing::saleGates` فقط پیش‌نمایش را می‌بندد؛ مسیرِ **قدیمیِ** /v1
+     * (`AiCaller`) تا M5.1b آن را نمی‌خواند و فقط status=active + ارائه‌دهندهٔ زنده +
+     * درایورِ OpenAI-Compatible + سطرِ قیمت را می‌سنجد — و با باگِ B1 میکرو را تومان
+     * کسر می‌کند. بازبینیِ پیش از انتشار همین را با یک تستِ واقعی نشان داد. پس مدلِ
+     * تازه به‌طورِ پیش‌فرض **خاموش** ساخته می‌شود. روی سرور امروز دو قفلِ دیگر هم
+     * هست (درایورِ `DeepInfra` که از پنل عوض نمی‌شود، و نبودِ `MicroMath`) ولی قفلِ
+     * سوم ارزان است. درایور عمداً این‌جا نیست (D16).
      */
     public function createModel(): View
     {
@@ -200,8 +206,32 @@ class AiGatewayController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        // مدل و سطرهای بها با هم: مدلِ نیمه‌ساخته با یک سطرِ بها کمتر، پیش‌نمایشِ گمراه‌کننده است
-        $model = DB::transaction(function () use ($data, $micros, $user) {
+        // دوبار-کلیک یا دو مدیرِ هم‌زمان هر دو از اعتبارسنجی رد می‌شوند؛ بازنده به‌جای ۵۰۰
+        // پیامِ روشن می‌گیرد (تراکنش همه‌چیز را برگردانده، پس ردیفِ نیمه‌کاره‌ای نمانده).
+        try {
+            $model = $this->createWithPrices($data, $micros, $user);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            return back()->withInput()->withErrors(['slug' => 'همین مدل همین حالا ساخته شد (اسلاگ یا شناسهٔ ارائه‌دهنده تکراری است).']);
+        }
+
+        \App\Models\ActivityLog::record(
+            null, 'ai_model_create',
+            'مدلِ AI «'.$model->slug.'» ساخته شد (ارائه‌دهنده '.$model->provider?->slug
+            .'، '.count($micros).' سطرِ بها، وضعیت '.$model->status.')',
+            $request, 'staff',
+        );
+
+        return redirect('/admin/ai/pricing?model='.$model->id)->with('ok', 'مدل ساخته شد. پیش‌نمایشِ قیمتش پایین است.');
+    }
+
+    /**
+     * مدل و سطرهای بها با هم: مدلِ نیمه‌ساخته با یک سطرِ بها کمتر، پیش‌نمایشِ گمراه‌کننده است.
+     *
+     * @param  array<string,int>  $micros
+     */
+    private function createWithPrices(array $data, array $micros, User $user): AiModel
+    {
+        return DB::transaction(function () use ($data, $micros, $user) {
             $model = AiModel::create(collect($data)->only([
                 'ai_provider_id', 'slug', 'upstream_model', 'name', 'vendor', 'category', 'status',
                 'context_tokens', 'max_output_tokens',
@@ -219,15 +249,6 @@ class AiGatewayController extends Controller
 
             return $model;
         });
-
-        \App\Models\ActivityLog::record(
-            null, 'ai_model_create',
-            'مدلِ AI «'.$model->slug.'» ساخته شد (ارائه‌دهنده '.$model->provider?->slug
-            .'، '.count($micros).' سطرِ بها)',
-            $request, 'staff',
-        );
-
-        return redirect('/admin/ai/pricing?model='.$model->id)->with('ok', 'مدل ساخته شد. پیش‌نمایشِ قیمتش پایین است.');
     }
 
     /**

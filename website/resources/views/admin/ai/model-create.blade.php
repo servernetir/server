@@ -43,9 +43,10 @@
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">وضعیت
         <select name="status" class="ad-input" style="padding:8px">
           @foreach(['active' => 'فعال', 'disabled' => 'خاموش', 'deprecated' => 'ازکارافتاده'] as $val => $label)
-            <option value="{{ $val }}" @selected(old('status', 'active') === $val)>{{ $label }}</option>
+            <option value="{{ $val }}" @selected(old('status', 'disabled') === $val)>{{ $label }}</option>
           @endforeach
         </select>
+        <small style="color:var(--dim)">پیش‌فرض خاموش؛ تا موتورِ پولیِ تازه (M5.1b) روشن نکنید.</small>
       </label>
     </div>
 
@@ -95,7 +96,7 @@
     </fieldset>
 
     <div>
-      <button class="btn btn-primary">ساختِ مدل و دیدنِ قیمت</button>
+      <button class="btn btn-primary" onclick="this.disabled=true;this.form.submit()">ساختِ مدل و دیدنِ قیمت</button>
     </div>
   </form>
   @endif

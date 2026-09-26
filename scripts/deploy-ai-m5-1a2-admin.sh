@@ -68,7 +68,7 @@ git -C "$WORK/repo" rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || {
 
 # ابزارِ بلوک از خودِ کامیتِ هدف (درختِ کاریِ کلونِ قبلی کهنه می‌مانَد)
 BLOCK_TOOL="$WORK/apply-marked-block.php"
-git -C "$WORK/repo" show "$MINE:scripts/apply-marked-block.php" > "$BLOCK_TOOL" 2>/dev/null || {
+git -C "$WORK/repo" cat-file blob "$MINE:scripts/apply-marked-block.php" > "$BLOCK_TOOL" 2>/dev/null || {
   echo "FATAL: scripts/apply-marked-block.php در نسخهٔ هدف نیست"; exit 2;
 }
 "$PHP_BIN" -l "$BLOCK_TOOL" >/dev/null || { echo "FATAL: ابزارِ بلوک سالم نیست"; exit 2; }
@@ -125,7 +125,7 @@ UPD=0
 apply_one() {
   rel="$1"; dest="$APP/$rel"; src="website/$rel"
   mine="$WORK/mine.tmp"; dest_n="$WORK/dest.tmp"; base="$WORK/base.tmp"
-  git -C "$WORK/repo" show "$MINE:$src" > "$WORK/mine.raw" 2>/dev/null || {
+  git -C "$WORK/repo" cat-file blob "$MINE:$src" > "$WORK/mine.raw" 2>/dev/null || {
     echo "FATAL: $rel در نسخهٔ هدف نیست"; CONFLICTS="$CONFLICTS $rel"; return;
   }
   normalize "$WORK/mine.raw" "$mine"
@@ -143,7 +143,7 @@ apply_one() {
 
   best=""; bestd=999999999
   for sha in $(git -C "$WORK/repo" log --full-history --format=%H -n "$HIST" "$MINE" -- "$src"); do
-    git -C "$WORK/repo" show "$sha:$src" > "$WORK/candidate.raw" 2>/dev/null || continue
+    git -C "$WORK/repo" cat-file blob "$sha:$src" > "$WORK/candidate.raw" 2>/dev/null || continue
     normalize "$WORK/candidate.raw" "$WORK/candidate.tmp"
     if cmp -s "$dest_n" "$WORK/candidate.tmp"; then best="$sha"; bestd=0; break; fi
     d="$(distance "$dest_n" "$WORK/candidate.tmp")"
@@ -153,7 +153,7 @@ apply_one() {
   if [ -z "$best" ]; then
     echo "CF   $rel — پایهٔ تاریخی پیدا نشد"; CONFLICTS="$CONFLICTS $rel"; return
   fi
-  git -C "$WORK/repo" show "$best:$src" > "$WORK/base.raw" 2>/dev/null || true
+  git -C "$WORK/repo" cat-file blob "$best:$src" > "$WORK/base.raw" 2>/dev/null || true
   normalize "$WORK/base.raw" "$base"
   merged="$WORK/merged.tmp"
   if ! git merge-file -p "$dest_n" "$base" "$mine" > "$merged"; then
@@ -172,7 +172,7 @@ BLOCK_FILES=""
 apply_block() {
   rel="$1"; marker="$2"; anchor="$3"; pos="$4"; absent="$5"
   srcfile="$WORK/block-src-$marker"
-  git -C "$WORK/repo" show "$MINE:website/$rel" > "$srcfile" 2>/dev/null || {
+  git -C "$WORK/repo" cat-file blob "$MINE:website/$rel" > "$srcfile" 2>/dev/null || {
     echo "FATAL: $rel در نسخهٔ هدف نیست"; CONFLICTS="$CONFLICTS $rel"; return;
   }
   mkdir -p "$STAGE/$(dirname "$rel")"
@@ -254,8 +254,11 @@ cd "$APP" || exit 1
 "$PHP_BIN" artisan config:clear || exit 4
 "$PHP_BIN" artisan route:clear || exit 4
 "$PHP_BIN" artisan view:clear || exit 4
+# فقط هشدار: فایل‌ها نوشته شده‌اند و route:list برای هر روتِ سرور کنترلر را بازتاب می‌کند؛
+# خطای یک روتِ بی‌ربط نباید این‌جا «FATAL» ِ گمراه‌کننده بدهد. نگهبانِ اصلی grep ِ بالاست.
 "$PHP_BIN" artisan route:list --name=admin.ai.models 2>/dev/null | grep -q 'admin.ai.models.create' \
-  || { echo "FATAL: artisan روتِ admin.ai.models.create را نمی‌بیند"; exit 4; }
+  || echo "WARN: artisan route:list روتِ admin.ai.models.create را نشان نداد — پس از ریستِ opcache با مرورگر بسنجید"
+
 
 echo
 echo "FILES OK — backup: $BK"

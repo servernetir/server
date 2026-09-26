@@ -119,6 +119,80 @@ class ApplyMarkedBlockTest extends TestCase
         $this->assertSame("one\r\n// [m:start]\r\nB\r\n// [m:end]\r\nANCHOR\r\ntwo\r\n", file_get_contents($dst));
     }
 
+    /**
+     * بیرون از بلوک بایت‌به‌بایت: پایان‌های خطِ درهم، BOM و نبودِ newline ِ پایانی
+     * همان می‌مانند. نسخهٔ اول کلِ فایل را با یک پایانِ خط بازنویسی می‌کرد.
+     */
+    public function test_bytes_outside_the_block_are_untouched(): void
+    {
+        $src = $this->file('src', "// [m:start]
+B1
+B2
+// [m:end]
+");
+        $bom = "ï»¿";
+        $before = $bom."head
+mixed
+ANCHOR
+tail-without-newline";
+        $dst = $this->file('dst', $before);
+
+        [$code, $out] = $this->apply($src, $dst, 'm', 'ANCHOR', '--before');
+        $this->assertSame(0, $code, $out);
+        $this->assertSame(
+            $bom."head
+mixed
+// [m:start]
+B1
+B2
+// [m:end]
+ANCHOR
+tail-without-newline",
+            file_get_contents($dst),
+        );
+
+        // حذفِ بلوک باید دقیقاً فایلِ اول را پس بدهد
+        $this->assertSame($before, str_replace("// [m:start]
+B1
+B2
+// [m:end]
+", '', file_get_contents($dst)));
+    }
+
+    public function test_insert_after_a_last_line_without_newline(): void
+    {
+        $src = $this->file('src', "// [m:start]
+B
+// [m:end]
+");
+        $dst = $this->file('dst', "one
+ANCHOR");
+
+        [$code] = $this->apply($src, $dst, 'm', 'ANCHOR', '--after');
+        $this->assertSame(0, $code);
+        $this->assertSame("one
+ANCHOR
+// [m:start]
+B
+// [m:end]
+", file_get_contents($dst));
+    }
+
+    public function test_broken_absent_regex_is_fatal_not_a_silent_pass(): void
+    {
+        $src = $this->file('src', "// [m:start]
+B
+// [m:end]
+");
+        $dst = $this->file('dst', "ANCHOR
+");
+
+        [$code, $out] = $this->apply($src, $dst, 'm', 'ANCHOR', '--absent=nav_ai_providers');
+        $this->assertSame(2, $code, $out);
+        $this->assertSame("ANCHOR
+", file_get_contents($dst));
+    }
+
     public function test_refusals_never_write(): void
     {
         $src = $this->file('src', "// [m:start]\nB\n// [m:end]\n");
