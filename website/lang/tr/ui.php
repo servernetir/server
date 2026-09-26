@@ -2005,6 +2005,7 @@ return [
     'cvb_app_na' => 'Otomatik kurulum için kayıtlı hazır uygulama yok.',
     'cvb_app_empty' => 'Bu plan için hazır uygulama yok.',
     'cvb_os_note' => 'Teslimden sonra işletim sistemini panelden yeniden kurabilirsiniz — yeniden kurulum tüm diski siler.',
+    'cvb_gpu_access_note' => 'Bu hizmette SSH ve root parolasi yoktur ve isletim sistemi degistirilemez. Sectiginiz uygulama makinede sizin icin calisir; erisim, teslimden sonra panelinizde gosterilen ozel bir HTTPS adresi ve token ile saglanir.',
     'cvb_s4' => 'Ödeme dönemi',
     'cvb_per_before' => '',
     'cvb_per_after' => ' /ay',

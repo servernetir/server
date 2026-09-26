@@ -2005,6 +2005,7 @@ return [
     'cvb_app_na' => 'No ready app is registered for automatic install.',
     'cvb_app_empty' => 'No ready app is available for this plan.',
     'cvb_os_note' => 'After delivery you can reinstall the OS from your panel — a reinstall wipes the whole disk.',
+    'cvb_gpu_access_note' => 'This service has no SSH and no root password, and its operating system cannot be changed. The app you pick runs on the machine for you, and you reach it through a dedicated HTTPS address and a token shown in your panel after delivery.',
     'cvb_s4' => 'Billing cycle',
     'cvb_per_before' => '',
     'cvb_per_after' => ' /mo',

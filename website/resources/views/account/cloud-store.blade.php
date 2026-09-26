@@ -696,9 +696,14 @@
             <p class="cvb-empty" data-empty="app" hidden>{{ __('ui.cvb_app_empty') }}</p>
           </div>
 
+          {{-- 🔴 این جمله تا مهرِ ۱۴۰۵ بی‌قیدوشرط چاپ می‌شد، از جمله روی
+               خطِ GPU که نه SSH دارد نه نصبِ دوباره (`SaladClient::capabilities()` ←
+               `rebuild:false`). مشتری عیناً همین جمله را در تیکت TK-260924-8595 نقل
+               کرد و حق هم داشت: سروری خریده بود تا نرم‌افزارِ خودش را نصب کند.
+               وعدهٔ صفحهٔ خرید یک تعهدِ فروش است، نه متنِ تزئینی. --}}
           <p class="cvb-note">
             <svg class="icon"><use href="#i-key"/></svg>
-            {{ __('ui.cvb_os_note') }}
+            {{ __($isGpuStore ? 'ui.cvb_gpu_access_note' : 'ui.cvb_os_note') }}
           </p>
         </div></div>
       </div>
