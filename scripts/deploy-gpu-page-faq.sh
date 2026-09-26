@@ -163,7 +163,14 @@ git -C "$WORK/repo" show "$MINE:scripts/lang-apply-keys.php" > "$LANG_TOOL" 2>/d
 "$PHP_BIN" -l "$LANG_TOOL" >/dev/null || { echo "FATAL: ابزارِ ترجمه سالم نیست"; exit 2; }
 
 # پایه = نقطهٔ انشعاب از develop ⇒ «عوض‌شده» = همهٔ کلیدهای hourly-credit + این انتشار
-LANG_BASE="${LANG_BASE:-$(git -C "$WORK/repo" merge-base "$MINE" origin/develop 2>/dev/null || true)}"
+#
+# 🔴 پین‌شده، نه `merge-base` در لحظه. تمرین روی HOMEِ ساختگی: با developِ کهنهٔ
+#    کلون، پایه cdf31dfb شد و ترکی ۷۴ کلیدِ بی‌ربط (wt_*، lk_*) را «جایگزین»
+#    می‌کرد — یعنی برگرداندنِ مقدارِ تازه‌ترِ سرور. پایهٔ درست ba710796 است
+#    (merge-base با origin/develop در ۴ مهر)؛ هیچ کلیدی از ۱۳۸/۱۳۸/۲۱۸ را
+#    develop یا شاخه‌های اخیر بعد از آن عوض نکرده‌اند (بررسی‌شده).
+LANG_BASE="${LANG_BASE:-ba710796}"
+git -C "$WORK/repo" rev-parse --verify "$LANG_BASE^{commit}" >/dev/null 2>&1 || LANG_BASE=""
 if [ -z "${LANG_BASE:-}" ]; then
   echo "FATAL: نقطهٔ انشعاب از develop پیدا نشد؛ LANG_BASE=<sha> را دستی بدهید."
   exit 2
