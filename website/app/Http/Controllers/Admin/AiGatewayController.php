@@ -13,8 +13,12 @@ use App\Services\Ai\AiPricing;
 use App\Services\Ai\AiPricingException;
 use App\Services\Ai\AiVat;
 use App\Services\Ai\PriceBook;
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\MathException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -128,6 +132,117 @@ class AiGatewayController extends Controller
             'category' => $category,
             'status'   => $status,
         ]);
+    }
+
+    /**
+     * فرمِ ساختِ مدل.
+     *
+     * تا این‌جا هیچ راهی جز تست برای ساختِ ردیفِ `ai_models` نبود (code-map §4.8)،
+     * پس روی سرور پیش‌نمایشِ قیمت همیشه خالی می‌ماند. مدلِ تازه فروختنی **نیست**:
+     * بی‌سطرِ قیمت، بی‌سربارِ ارز، بی‌حاشیه و با پرچم‌های بستهٔ ارائه‌دهنده هر سد
+     * در `AiPricing::saleGates` بسته می‌ماند. درایور عمداً این‌جا نیست (D16).
+     */
+    public function createModel(): View
+    {
+        return view('admin.ai.model-create', [
+            'providers' => AiProvider::query()->orderBy('priority')->orderBy('id')->get(),
+            'statuses'  => AiModel::STATUSES,
+            'categories'=> AiModel::CATEGORIES,
+            'hasMarginColumn' => Schema::hasColumn('ai_models', 'margin_bp'),
+            'globalMarginBp' => AiPricing::globalMarginBp(),
+        ]);
+    }
+
+    public function storeModel(Request $request)
+    {
+        $providerId = (int) $request->integer('ai_provider_id');
+
+        $data = $request->validate([
+            'ai_provider_id'    => 'required|integer|exists:ai_providers,id',
+            // اسلاگ شناسهٔ عمومی است (مشتری در `model` می‌فرستد): حروفِ کوچک، بی‌فاصله
+            'slug'              => ['required', 'string', 'max:80', 'regex:/^[a-z0-9][a-z0-9._\/:-]*$/', 'unique:ai_models,slug'],
+            'upstream_model'    => ['required', 'string', 'max:120',
+                Rule::unique('ai_models', 'upstream_model')->where('ai_provider_id', $providerId)],
+            'name'              => 'required|string|max:120',
+            'vendor'            => 'nullable|string|max:60',
+            'category'          => 'required|in:'.implode(',', AiModel::CATEGORIES),
+            'status'            => 'required|in:'.implode(',', AiModel::STATUSES),
+            'context_tokens'    => 'nullable|integer|between:0,4294967295',
+            'max_output_tokens' => 'nullable|integer|between:0,4294967295',
+            'margin_pct'        => ['nullable', 'numeric', 'gt:0', 'max:500', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
+            // بهای ارائه‌دهنده به ازای ۱M توکن، به ارزِ ارائه‌دهنده (مثلاً 0.23) — تا ۶ رقمِ اعشار
+            'price_input'       => ['nullable', 'string', 'max:16', 'regex:/^\d{1,4}(\.\d{1,6})?$/'],
+            'price_cached'      => ['nullable', 'string', 'max:16', 'regex:/^\d{1,4}(\.\d{1,6})?$/'],
+            'price_output'      => ['nullable', 'string', 'max:16', 'regex:/^\d{1,4}(\.\d{1,6})?$/'],
+        ]);
+
+        $micros = [];
+        foreach (['price_input' => AiModelUnitPrice::UNIT_INPUT, 'price_cached' => AiModelUnitPrice::UNIT_CACHED_INPUT,
+                  'price_output' => AiModelUnitPrice::UNIT_OUTPUT] as $field => $unit) {
+            if (! filled($data[$field] ?? null)) {
+                continue;
+            }
+            $m = self::dollarsToMicros((string) $data[$field]);
+            if ($m === null || $m < 1 || $m > PriceBook::MAX_SELL_RATE_MICROS) {
+                return back()->withInput()->withErrors([$field => 'بها باید بزرگ‌تر از صفر و حداکثر ۱۰۰۰ واحدِ ارز به ازای ۱M توکن باشد.']);
+            }
+            $micros[$unit] = $m;
+        }
+        // همان قاعدهٔ `sellRates`: کش‌شده گران‌تر از ورودی یعنی ورودِ اشتباه، نه تخفیف
+        if (isset($micros[AiModelUnitPrice::UNIT_CACHED_INPUT], $micros[AiModelUnitPrice::UNIT_INPUT])
+            && $micros[AiModelUnitPrice::UNIT_CACHED_INPUT] > $micros[AiModelUnitPrice::UNIT_INPUT]) {
+            return back()->withInput()->withErrors(['price_cached' => 'بهای ورودیِ کش‌شده نمی‌تواند از بهای ورودی بیشتر باشد.']);
+        }
+        if (isset($micros[AiModelUnitPrice::UNIT_CACHED_INPUT]) && ! isset($micros[AiModelUnitPrice::UNIT_INPUT])) {
+            return back()->withInput()->withErrors(['price_cached' => 'بهای کش‌شده بی بهای ورودی معنا ندارد.']);
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+
+        // مدل و سطرهای بها با هم: مدلِ نیمه‌ساخته با یک سطرِ بها کمتر، پیش‌نمایشِ گمراه‌کننده است
+        $model = DB::transaction(function () use ($data, $micros, $user) {
+            $model = AiModel::create(collect($data)->only([
+                'ai_provider_id', 'slug', 'upstream_model', 'name', 'vendor', 'category', 'status',
+                'context_tokens', 'max_output_tokens',
+            ])->all());
+
+            if (Schema::hasColumn('ai_models', 'margin_bp')) {
+                $model->margin_bp = AiPricing::percentToBp($data['margin_pct'] ?? null);
+                $model->save();
+            }
+
+            $model->load('provider');
+            foreach ($micros as $unit => $m) {
+                $this->priceBook->supersede($model, $unit, $m, $user->id, 'ثبت هنگامِ ساختِ مدل');
+            }
+
+            return $model;
+        });
+
+        \App\Models\ActivityLog::record(
+            null, 'ai_model_create',
+            'مدلِ AI «'.$model->slug.'» ساخته شد (ارائه‌دهنده '.$model->provider?->slug
+            .'، '.count($micros).' سطرِ بها)',
+            $request, 'staff',
+        );
+
+        return redirect('/admin/ai/pricing?model='.$model->id)->with('ok', 'مدل ساخته شد. پیش‌نمایشِ قیمتش پایین است.');
+    }
+
+    /**
+     * «0.23» دلار ⇒ 230000 میکرو — از رشته و بی float؛ بیش از ۶ رقمِ اعشار ⇒ null
+     * (رد، نه گرد: عددی که ذخیره می‌شود باید همانی باشد که مدیر تایپ کرد).
+     */
+    private static function dollarsToMicros(string $value): ?int
+    {
+        try {
+            $d = BigDecimal::of(trim($value));
+
+            return $d->isNegative() || $d->getScale() > 6 ? null : $d->multipliedBy(1_000_000)->toBigInteger()->toInt();
+        } catch (MathException) {
+            return null;
+        }
     }
 
     public function editModel(AiModel $model): View

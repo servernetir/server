@@ -6,7 +6,13 @@
 <div class="ad-panel">
   <div class="ad-panel-h">
     <h2>مدل‌های AI</h2>
-    <a href="/admin/ai/pricing" class="btn btn-glass" style="font-size:13px">قیمت‌ها</a>
+    <span style="display:flex;gap:8px">
+      {{-- Route::has: نامِ روتِ تازه تا ریستِ opcache ناشناخته است و بی‌این نگهبان کلِ صفحه ۵۰۰ می‌داد --}}
+      @if(Route::has('admin.ai.models.create') && auth()->user()->isAdmin())
+        <a href="{{ route('admin.ai.models.create') }}" class="btn btn-primary" style="font-size:13px">افزودنِ مدل</a>
+      @endif
+      <a href="/admin/ai/pricing" class="btn btn-glass" style="font-size:13px">قیمت‌ها</a>
+    </span>
   </div>
 
   @if(session('ok'))
@@ -30,7 +36,11 @@
   </form>
 
   @if($models->isEmpty())
-    <p style="padding:16px;color:var(--dim)">مدلی ثبت نشده (یا فیلتر هیچ ردیفی برگردانده نمی‌کند).</p>
+    <p style="padding:16px;color:var(--dim)">مدلی ثبت نشده (یا فیلتر هیچ ردیفی برگردانده نمی‌کند).
+      @if(Route::has('admin.ai.models.create') && auth()->user()->isAdmin())
+        <a href="{{ route('admin.ai.models.create') }}" style="color:#22d3ee">نخستین مدل را بسازید</a>.
+      @endif
+    </p>
   @else
     <table class="ad-table">
       <thead><tr>

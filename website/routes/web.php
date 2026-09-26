@@ -2719,6 +2719,14 @@ Route::prefix('admin')->group(function () {
             ->name('admin.ai.models.update')->middleware('admin');
         Route::post('/ai/models/{model}/status', [\App\Http\Controllers\Admin\AiGatewayController::class, 'toggleModel'])
             ->name('admin.ai.models.status')->middleware('admin');
+        // [ai-admin-routes-create:start] ─ بلوکِ نشان‌دار؛ روی سرور با scripts/apply-marked-block.php
+        // درج می‌شود نه با ادغامِ کلِ routes (سرور زیرمجموعهٔ develop است). ساختِ مدل فقط
+        // برای مدیر: مدل بی‌سطرِ قیمت و بی‌پرچم‌های فروش فروختنی نیست، ولی جای خطا نیست.
+        Route::get('/ai/models/create', [\App\Http\Controllers\Admin\AiGatewayController::class, 'createModel'])
+            ->name('admin.ai.models.create')->middleware('admin');
+        Route::post('/ai/models', [\App\Http\Controllers\Admin\AiGatewayController::class, 'storeModel'])
+            ->name('admin.ai.models.store')->middleware('admin');
+        // [ai-admin-routes-create:end]
         Route::get('/ai/pricing', [\App\Http\Controllers\Admin\AiGatewayController::class, 'pricing'])
             ->name('admin.ai.pricing');
         Route::post('/ai/pricing/supersede', [\App\Http\Controllers\Admin\AiGatewayController::class, 'supersedePrice'])

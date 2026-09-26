@@ -93,7 +93,7 @@
   {{-- دروازهٔ AI (M5) — سه کلید، و عمداً هیچ پیش‌فرضی: حاشیهٔ خالی یعنی فروش بسته،
        نه فروش به بها. سربارِ ارزِ هر ارائه‌دهنده جای دیگری است (ستونِ خودش در
        /admin/ai) چون این فرم کلیدِ ناشناخته را بی‌صدا دور می‌ریزد. --}}
-  <div class="ad-panel">
+  <div class="ad-panel" id="ai-sales">
     <div class="ad-panel-h"><h2>هوش مصنوعی — حاشیه و درِ فروش</h2>
       @if(Route::has('admin.ai.pricing'))<a href="{{ route('admin.ai.pricing') }}" class="btn btn-glass" style="font-size:13px">پیش‌نمایشِ قیمت</a>@endif
     </div>
