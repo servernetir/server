@@ -48,6 +48,24 @@ return [
     */
     'post_products' => [
         'iranian-discord-servers' => ['kind' => 'catalog', 'category' => 'vps', 'slug' => 'discord'],
+
+        /*
+        | خوشهٔ هاست پایتون (بلاگ ۱۴۰۵، خوشهٔ ۳۳): هر ده مقاله به **همان**
+        | صفحه‌ای لینک می‌دهند که موضوعشان است. بی‌این، دستهٔ `tutorial` همه را
+        | به هاست وردپرس می‌فرستاد و خوشه‌ای که برای بالاکشیدنِ /hosting/python
+        | نوشته شده، اعتبارش را جای دیگری می‌ریخت.
+        */
+        'deploy-django-cpanel-passenger'   => ['kind' => 'hosting', 'slug' => 'python'],
+        'python-app-not-starting-passenger' => ['kind' => 'hosting', 'slug' => 'python'],
+        'fastapi-on-wsgi-with-a2wsgi'      => ['kind' => 'hosting', 'slug' => 'python'],
+        'flask-deploy-shared-hosting'      => ['kind' => 'hosting', 'slug' => 'python'],
+        'python-venv-pip-shared-hosting'   => ['kind' => 'hosting', 'slug' => 'python'],
+        'django-static-files-cpanel'       => ['kind' => 'hosting', 'slug' => 'python'],
+        'django-mysql-instead-of-postgres' => ['kind' => 'hosting', 'slug' => 'python'],
+        'python-scheduled-tasks-cpanel'    => ['kind' => 'hosting', 'slug' => 'python'],
+        'django-secrets-env-shared-hosting' => ['kind' => 'hosting', 'slug' => 'python'],
+        // ⚠️ این یکی عمداً به سرور مجازی می‌رود، نه هاست: موضوعش «کِی مهاجرت کنیم» است
+        'python-hosting-vs-vps-when-to-move' => ['kind' => 'catalog', 'category' => 'vps', 'slug' => 'linux'],
     ],
 
     'category_products' => [
