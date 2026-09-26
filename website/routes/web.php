@@ -2721,7 +2721,8 @@ Route::prefix('admin')->group(function () {
             ->name('admin.ai.models.status')->middleware('admin');
         // [ai-admin-routes-create:start] ─ بلوکِ نشان‌دار؛ روی سرور با scripts/apply-marked-block.php
         // درج می‌شود نه با ادغامِ کلِ routes (سرور زیرمجموعهٔ develop است). ساختِ مدل فقط
-        // برای مدیر: مدل بی‌سطرِ قیمت و بی‌پرچم‌های فروش فروختنی نیست، ولی جای خطا نیست.
+        // برای مدیر؛ مدلِ تازه خاموش ساخته می‌شود چون مسیرِ قدیمیِ /v1 تا M5.1b سدهای فروش
+        // را نمی‌خوانَد (نگاه کنید به AiGatewayController::createModel).
         Route::get('/ai/models/create', [\App\Http\Controllers\Admin\AiGatewayController::class, 'createModel'])
             ->name('admin.ai.models.create')->middleware('admin');
         Route::post('/ai/models', [\App\Http\Controllers\Admin\AiGatewayController::class, 'storeModel'])
