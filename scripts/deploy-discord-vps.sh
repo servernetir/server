@@ -186,6 +186,9 @@ need_grep config/catalog/vps.php   'خرید سرور مجازی روسیه'
 need_grep config/catalog/vps.php   'خرید سرور مجازی خارج'
 need_grep config/servernet.php     "['vps.compare', []]"
 need_grep config/blog.php          "'category_products' =>"
+need_grep app/helpers.php          'function schema_return_policy'
+need_grep app/helpers.php          'https://schema.org/ReturnByMail'
+need_grep app/helpers.php          'function schema_offer_extras'
 
 [ "$union_ok" -eq 0 ] && echo "🔴 اتحاد ناقص — گزارشِ بالا را بفرست."
 
