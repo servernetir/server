@@ -3141,7 +3141,8 @@ return [
     'cs_gpu_generic_d' => 'Uygulamaniz bu adreste kullanilabilir.',
     'cs_gpu_open' => 'Tarayicida ac',
     'cs_gpu_docs' => 'API dokumani (/docs)',
-    'cs_gpu_gate_token' => 'API gecit tokeni - kendi kodunuzdan veya sunucunuzdan cagirmak icin (X-SN-Token basligi veya adreste ?sn_token=). Uygulamanin kendi giris sayfasi icin degildir.',
+    'cs_gpu_gate_token' => 'Erisim tokeni. Kendi kodunuzdan veya sunucunuzdan X-SN-Token basliginda gonderin. Tarayicida adresi yalnizca ilk seferde ?sn_token=TOKENINIZ ile acin; sonrasinda gerekmez. Bu, uygulamanin kendi giris sayfasi icin degildir.',
+    'svc_gpu_card_note' => 'Bu hizmette SSH ve root parolasi yoktur. Yukaridaki adresi erisim tokeninizle acin; token ve kopyalanmaya hazir ornek Sunucuyu yonet sayfasindadir.',
     'cs_gpu_token_label' => 'Uygulama giris tokeni (Jupyter)',
     'cs_gpu_first_slow' => 'Ilk istek daha yavastir (model GPU bellegine yuklenir - 2 dakikaya kadar); ikinci istekten itibaren hizlanir. Yalnizca makinenin calistigi saatler faturalanir. Kisa sureli bir hata sayfasi gorurseniz makineniz ag dugumleri arasinda otomatik tasiniyordur - birkac dakika sonra tekrar deneyin; kapali kalinan sure asla faturalanmaz.',
 

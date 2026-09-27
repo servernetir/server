@@ -99,7 +99,11 @@
     </nav>
     <h1>{{ $service->name }}</h1>
     <p>
-      @if($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
+      {{-- برای GPU نشانیِ دروازه، نه `ssh_ip`ِ زیرساخت (بدنهٔ صفحه از قبل
+           پشتِ $gpuApp بود ولی همین سربرگ جا مانده بود). --}}
+      @if($inst?->isGpuApp())
+        @if($inst->accessHost())<span dir="ltr">{{ $inst->accessHost() }}</span> · @endif
+      @elseif($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
       {{ $loc?->label() ?? '—' }} · {{ $osLbl }}
     </p>
   </div>

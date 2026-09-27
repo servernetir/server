@@ -33,8 +33,13 @@
      خصوصی دارد و آنچه به کار می‌آید «IP عمومی : پورتِ فورواردشده» است.
      همان تیکتِ «آی‌پی خصوصی است» — یک بار در صفحهٔ مدیریتِ سرور رفع شد ولی
      این کارت جا ماند و مشتری دوباره همان را در داشبورد دید. */
-  $sshCmd = $ready ? $ci->sshCommand() : null;
-  $addr   = $ci?->address();
+  /* 🔴 برنامهٔ GPU نه SSH دارد نه root نه IPِ قابلِ‌استفاده؛ ستونِ ipv4ِ آن
+     `ssh_ip`ِ زیرساخت است. این کارت تا مهرِ ۱۴۰۵ «ssh root@…» را برای GPU هم
+     چاپ می‌کرد و سه مشتری پشتِ‌سرِهم دنبالِ رمزی گشتند که وجود ندارد. */
+  $gpuApp = (bool) $ci?->isGpuApp();
+  $gpuUrl = $gpuApp ? $ci->gatewayUrl() : null;
+  $sshCmd = ($ready && ! $gpuApp) ? $ci->sshCommand() : null;
+  $addr   = $gpuApp ? null : $ci?->address();
 
   $stageIdx = $ci?->stageIndex() ?? 0;
   $steps = [
@@ -93,6 +98,14 @@
         </li>
       @endforeach
     </ol>
+  @elseif($cloud && $gpuApp)
+    {{-- ── برنامهٔ GPU: تنها راهِ ورود نشانیِ دروازه + توکن است ──
+         توکن عمداً روی کارت نیست: داشبورد روی لپ‌تاپِ مشترک باز می‌ماند و
+         توکن یعنی مصرفِ ساعتِ GPUِ همین مشتری. در صفحهٔ مدیریت است. --}}
+    <div class="svc-net">
+      <div class="svc-net-r"><small>{{ __('ui.cs_gpu_endpoint') }}</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $gpuUrl ?: '—' }}</code></div>
+    </div>
+    <p class="svc-note">{{ __('ui.svc_gpu_card_note') }}</p>
   @elseif($cloud)
     {{-- ── نشانیِ شبکه — هرکدام جعبهٔ اسکرولِ خودش، پس صفحه هرگز افقی نمی‌رود --}}
     <div class="svc-net">

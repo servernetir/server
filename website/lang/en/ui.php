@@ -3141,7 +3141,8 @@ return [
     'cs_gpu_generic_d' => 'Your app is available at this address.',
     'cs_gpu_open' => 'Open in browser',
     'cs_gpu_docs' => 'API docs (/docs)',
-    'cs_gpu_gate_token' => 'API gateway token - for calling from your own code or server (X-SN-Token header, or ?sn_token= in the URL). Not for logging into the app\'s own page.',
+    'cs_gpu_gate_token' => 'Access token. From your own code or server, send it in the X-SN-Token header. In a browser, open the address with ?sn_token=YOUR_TOKEN only the first time; after that it is not needed. This is not the login for the app\'s own page.',
+    'svc_gpu_card_note' => 'This service has no SSH and no root password. Open the address above with your access token; the token and a ready-to-copy example are on the Manage server page.',
     'cs_gpu_token_label' => 'App login token (Jupyter)',
     'cs_gpu_first_slow' => 'The first request is slower (model loads into GPU memory - up to 2 minutes); it speeds up from the second one. Only the hours your machine runs are billed. If you briefly see a temporary error page, your machine is being moved automatically between network nodes - try again in a few minutes; downtime is never billed.',
 

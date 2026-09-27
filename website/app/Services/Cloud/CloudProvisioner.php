@@ -485,9 +485,16 @@ class CloudProvisioner
         DB::transaction(function () use ($service, $instance, $plan, $password) {
             $service->forceFill([
                 'cloud_plan_id'    => $plan->id,      // زیرساختِ واقعیِ تحویل
-                'username'         => 'root',
+                /*
+                | 🔴 برنامهٔ GPU کاربرِ root ندارد و ipv4‌اش `ssh_ip`ِ زیرساخت است.
+                | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
+                | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
+                */
+                'username'         => $instance->isGpuApp() ? null : 'root',
                 'password'         => $password ?: $service->password,
-                'domain'           => $service->domain ?: ($instance->ipv4 ?: null),
+                'domain'           => $service->domain ?: ($instance->isGpuApp()
+                    ? ($instance->accessHost() ?: null)
+                    : ($instance->ipv4 ?: null)),
                 'panel_url'        => url('/account/cloud/'.$service->id),
                 'provision_status' => 'done',
                 'provision_error'  => null,
@@ -496,7 +503,9 @@ class CloudProvisioner
                     'kind' => 'cloud',
                     // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
                     // آدرسِ عمومی‌اش «IP:پورت» است.
-                    'ip'   => $instance->address() ?: $instance->ipv4,
+                    'ip'   => $instance->isGpuApp()
+                        ? $instance->accessHost()
+                        : ($instance->address() ?: $instance->ipv4),
                     'ipv6' => $instance->ipv6,
                     'plan' => $plan->public_name,
                     'location' => $plan->location_code,
@@ -1968,8 +1977,18 @@ class CloudProvisioner
                 | خط آمد. `address()` یا آدرسِ عمومیِ قابلِ‌استفاده می‌دهد یا
                 | `null`، و پایین‌تر جلوی فرستادنِ اعلانِ بی‌آدرس گرفته می‌شود.
                 */
-                ['service' => $service->name, 'ip' => (string) $instance->address()],
-                'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
+                /*
+                | 🔴 برای GPU «آدرس» یعنی نشانیِ دروازه، نه `ssh_ip`. نامِ متغیر
+                | عمداً همان `ip` ماند: الگوهای ذخیره‌شدهٔ مدیر در /admin/templates با
+                | `{ip}` نوشته شده‌اند و تغییرِ نام بی‌صدا از کارشان می‌انداخت.
+                */
+                ['service' => $service->name, 'ip' => $instance->isGpuApp()
+                    ? (string) $instance->accessHost()
+                    : (string) $instance->address()],
+                $instance->isGpuApp()
+                    ? 'سرویسِ «'.$service->name.'» شما آماده شد. نشانی: '.$instance->gatewayUrl()
+                        .' — توکنِ دسترسی در صفحهٔ مدیریتِ سرویس در پنل است.'
+                    : 'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
             );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند

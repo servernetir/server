@@ -175,6 +175,39 @@ class CloudInstance extends Model
         return filled($this->root_password_enc);
     }
 
+    /**
+     * آیا این نمونه یک «برنامهٔ آمادهٔ GPU» است (Ollama / ComfyUI / Jupyter)؟
+     *
+     * 🔴 این خط **SSH ندارد، root ندارد، رمز ندارد**. تنها راهِ ورود نشانیِ
+     * HTTPSِ دروازه است به‌علاوهٔ توکن (`gatewayUrl()` + `accessToken()`).
+     *
+     * ⚠️ ولی ستونِ `ipv4` پُر است: زیرساخت یک `ssh_ip` برمی‌گرداند که مالِ
+     * خودِ اوست و مشتری با آن به هیچ‌جا نمی‌رسد. پس هر سطحی که `address()` یا
+     * `sshCommand()` را به مشتری نشان می‌دهد باید اول همین را بپرسد — وگرنه
+     * «ssh root@…» روی داشبورد می‌نشیند و مشتری سراغِ رمزی می‌رود که وجود
+     * ندارد. سه تیکت در سه روز دقیقاً همین بود.
+     *
+     * ⚠️ `address()` عمداً برای GPU null **نمی‌شود**: `notifyReady` از آن به‌عنوانِ
+     * دروازهٔ «آماده شد» استفاده می‌کند و null کردنش یعنی مشتریِ GPU هرگز اعلانِ
+     * تحویل نگیرد.
+     */
+    public function isGpuApp(): bool
+    {
+        return str_starts_with((string) ($this->image_key ?? ''), 'gpu-');
+    }
+
+    /** نشانیِ کاملِ دروازه برای برنامهٔ GPU — همان چیزی که مشتری باید باز کند. */
+    public function gatewayUrl(): ?string
+    {
+        if (! $this->isGpuApp()) {
+            return null;
+        }
+
+        $host = $this->accessHost();
+
+        return $host ? 'https://'.$host : null;
+    }
+
     /** آیا ایمیجِ نصب‌شده ویندوز است؟ کلیدهایی مثل «2025» به‌تنهایی کافی نیستند. */
     public function isWindows(): bool
     {
