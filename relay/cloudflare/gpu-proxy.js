@@ -79,6 +79,99 @@ function readCookie(request, name) {
   return m ? m[1] : null;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+ * 🔴 مرزِ کوکی — کوکی‌های پنل هرگز به کانتینرِ مشتری نمی‌رسند (مهر ۱۴۰۵)
+ * ════════════════════════════════════════════════════════════════════════
+ *
+ * نشستِ پنل روی **کلِ** `.servernet.cloud` است
+ * (AppServiceProvider::shareSessionAcrossSubdomains)، پس مرورگر آن را به
+ * g-{label}.servernet.cloud هم می‌فرستد. ورودِ مشتری همیشه remember=true است
+ * (LoginController، RegisterController) و CookieServiceProvider دامنهٔ کوکیِ
+ * «مرا به خاطر بسپار» را هم از همان تنظیم می‌گیرد — یعنی کوکیِ ماندگار هم.
+ *
+ * و این Worker تا امروز همهٔ هدرها را دست‌نخورده به بالادست می‌داد. کانتینرِ
+ * پشتِ g-… مالِ **مشتری** است؛ مشتریِ Jupyter در آن کد اجرا می‌کند. زنجیره:
+ *
+ *   مشتری لینکِ g-…/?sn_token=… را در تیکت می‌گذارد
+ *     → مدیرِ واردشده کلیک می‌کند
+ *     → snet_session و remember_*ِ مدیر به کانتینرِ مشتری می‌رسد
+ *     → کنترلِ کاملِ پنلِ مدیریت.
+ *
+ * دو طرف لازم است:
+ *   ۱ درخواست: کوکی‌های پنل از هدرِ Cookie برداشته می‌شوند.
+ *   ۲ پاسخ: هر Set-Cookie که از g-{label} بیرون بزند دور ریخته می‌شود؛
+ *     وگرنه برنامهٔ مشتری می‌تواند روی .servernet.cloud کوکی بکارد
+ *     (session fixation: قربانی بی‌صدا واردِ حسابِ مهاجم می‌شود).
+ *
+ * ⚠️ کلِ هدرِ Cookie را **نباید** حذف کرد: ورودِ خودِ Jupyter به کوکی‌های
+ *    خودش (`_xsrf`، `username-…`) نیاز دارد. فهرستِ سیاه است نه سفید.
+ * ⚠️ قاعده: هر کوکیِ تازه‌ای که پنل با دامنهٔ .servernet.cloud بسازد، باید
+ *    این‌جا اضافه شود. تست: relay/cloudflare/gpu-proxy.test.mjs
+ */
+const PANEL_COOKIE_NAMES = ['snet_session', 'XSRF-TOKEN', 'sn_token'];
+const PANEL_COOKIE_PREFIXES = ['remember_'];
+
+function isPanelCookie(name) {
+  const n = String(name || '').trim();
+  return PANEL_COOKIE_NAMES.indexOf(n) !== -1
+    || PANEL_COOKIE_PREFIXES.some((p) => n.indexOf(p) === 0);
+}
+
+/** کوکی‌های پنل را از هدرهای رو به بالادست حذف می‌کند (درجا) */
+function stripPanelCookies(headers) {
+  const raw = headers.get('Cookie');
+  if (!raw) { return; }
+
+  const kept = raw.split(';')
+    .map((part) => part.trim())
+    .filter((part) => part !== '' && !isPanelCookie(part.split('=')[0]));
+
+  if (kept.length) {
+    headers.set('Cookie', kept.join('; '));
+  } else {
+    headers.delete('Cookie');
+  }
+}
+
+/* ⚠️ Set-Cookieِ چندتایی را با get() نخوان: آن‌ها را با «,» می‌چسبانَد و
+ *    تاریخِ Expires خودش «,» دارد — تفکیکِ درست ناممکن می‌شود. */
+function setCookiesOf(headers) {
+  if (typeof headers.getSetCookie === 'function') { return headers.getSetCookie(); }
+  if (typeof headers.getAll === 'function') { return headers.getAll('Set-Cookie'); }
+  const one = headers.get('Set-Cookie');
+  return one ? [one] : [];
+}
+
+/** آیا این Set-Cookie از میزبانِ خودِ مشتری بیرون می‌زند؟ */
+function escapesTenant(setCookie, brandedHost) {
+  const parts = String(setCookie).split(';');
+  if (isPanelCookie(parts[0].split('=')[0])) { return true; }
+
+  const domainAttr = parts.slice(1)
+    .map((a) => a.trim())
+    .find((a) => a.toLowerCase().indexOf('domain=') === 0);
+
+  if (!domainAttr) { return false; }              // host-only ⇒ فقط همین g-{label}
+
+  const d = domainAttr.slice(7).trim().replace(/^\./, '').toLowerCase();
+  return d !== String(brandedHost).toLowerCase();
+}
+
+/** Set-Cookieهای بیرون‌زننده را از پاسخ حذف می‌کند */
+function confineResponseCookies(resp, brandedHost) {
+  // ⚠️ دست‌دادنِ WebSocket (101) هرگز بازپیچیده نشود — webSocketِ پاسخ گم می‌شود.
+  if (resp.status === 101) { return resp; }
+
+  const all = setCookiesOf(resp.headers);
+  if (!all.some((c) => escapesTenant(c, brandedHost))) { return resp; }
+
+  const out = new Response(resp.body, resp);
+  out.headers.delete('Set-Cookie');
+  all.filter((c) => !escapesTenant(c, brandedHost))
+    .forEach((c) => out.headers.append('Set-Cookie', c));
+  return out;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -155,6 +248,10 @@ export default {
     rewriteHostIn('Origin');
     rewriteHostIn('Referer');
 
+    // 🔴 مرزِ کوکی — بالای فایل را بخوان. پس از بررسیِ دروازه است، چون
+    //    readCookie هنوز sn_token را از request (نه از fwd) می‌خوانَد.
+    stripPanelCookies(fwd);
+
     /*
      * 🔴 redirect: 'manual' — بدونِ آن، fetchِ Worker ریدایرکت‌ها را **خودش**
      * دنبال می‌کند و دو خرابیِ هم‌زمان می‌سازد:
@@ -165,7 +262,10 @@ export default {
      *      می‌گوید.
      * پس 3xx عیناً به مرورگرِ مشتری پاس می‌شود.
      */
-    const resp = await fetch(new Request(upstream, { headers: fwd }), { redirect: 'manual' });
+    const resp = confineResponseCookies(
+      await fetch(new Request(upstream, { headers: fwd }), { redirect: 'manual' }),
+      brandedHost
+    );
 
     /*
      * اگر برنامه Locationِ مطلق با میزبانِ زیرساخت بدهد، به دامنهٔ برندشده
