@@ -93,10 +93,12 @@ final class AiAdmission
             return AiAuthContext::denied('project_inactive', 'پروژهٔ مالکِ این کلید غیرفعال است.');
         }
 
-        if (! $project->budgetWindowCovers($at)) {
-            return AiAuthContext::denied('budget_window_stale',
-                'بازهٔ بودجهٔ پروژهٔ مسیرِ درخواست تازه‌سازی نشده است.');
-        }
+        /*
+        | 🔴 سدِ «پنجرهٔ بودجهٔ کهنه» برداشته شد (D12). پنجرهٔ ذخیره‌شده فقط هنگامِ
+        | ویرایشِ پروژه تازه می‌شد، پس سرِ هر ماه همهٔ کلیدها قفل می‌شدند تا کسی پروژه را
+        | ذخیره کند. حالا بودجه داخلِ قفلِ رزرو با `budgetWindowFor(now)` — محاسبه در
+        | لحظهٔ خواندن — اعمال می‌شود (`AiCaller::budgetRefusal`)، بی هیچ کرونی.
+        */
 
         /*
         | شمارشِ مصرف — همان الگوی اتمیکِ میدل‌ورِ `CustomerApiToken`: یک

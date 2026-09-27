@@ -119,46 +119,31 @@ final class V1ChatController extends Controller
         }
 
         // ── الزامِ `model` — همان قراردادِ OpenAI، پیش از هر تماسِ پول‌خور ──
-        $payload = (array) $request->input();
-        $modelSlug = trim((string) ($payload['model'] ?? ''));
-
-        if ($modelSlug === '') {
+        $payload = (array) $request->json()->all();
+        if (trim((string) ($payload['model'] ?? '')) === '') {
             return $this->fail('invalid_payload', 'فیلدِ «model» الزامی است.', 422);
         }
 
-        unset($payload['model']); // اسلاگِ عمومی هرگز به بالادست نمی‌رود؛ درایور نامِ واقعی را می‌نویسد
-
         /*
-        | کلیدِ هم‌ارزی — سربرگِ `Idempotency-Key`، اختیاری. در AiCaller
-        | همان کلیدِ رزرو است: تکرار = همان ردیف، بدونِ تماسِ دوم و
-        | بدونِ خرجِ دوباره (کدِ `duplicate_request`).
+        | کلیدِ هم‌ارزی — سربرگِ `Idempotency-Key`، اختیاری. `AiCaller` قالبش را می‌سنجد
+        | (۸۰ نویسه) و آن را به **هشِ بدنه** گره می‌زند: همان کلید + همان بدنه ⇒ بازپخشِ
+        | بی‌شارژ؛ همان کلید + بدنهٔ دیگر ⇒ ۴۲۲.
         */
         $idempotencyKey = trim((string) ($request->header('Idempotency-Key') ?? ''));
 
-        $outcome = app(AiCaller::class)->handle(
-            $auth,
-            $modelSlug,
-            $payload,
-            $idempotencyKey !== '' ? $idempotencyKey : null,
-        );
-
-        if ($outcome->ok) {
-            /*
-            | بدنهٔ ارائه‌دهنده **بی‌تفسیر** برمی‌گردد — قراردادِ سازگارِ
-            | OpenAI یعنی مشتری همان JSONای را ببیند که خودش می‌دید.
-            | no-store عمدی: پاسخِ چت هرگز نباید در کشِ واسطه بنشیند.
-            */
-            return response()->json($outcome->response, 200, [
-                'Cache-Control' => 'no-store',
-            ]);
-        }
+        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null);
 
         /*
-        | مسیرِ قرمز — کدِ پایدارِ outcome مالکِ وضعیت است؛ هیچ استثنایی
-        | با ۵۰۰ِ بی‌کدی بلعیده نمی‌شود. کدِ ناشناخته (پدیدهٔ آینده) هم
-        | هرگز بی‌کد نمی‌ماند: ۵۰۰ + خودِ کد.
+        | بدنهٔ ارائه‌دهنده در M5.1b بی‌تفسیر برمی‌گردد (بازنویسیِ نام و شناسه مالِ M5.2
+        | است). وضعیت و سربرگ‌ها (`X-Request-Id`، `X-ServerNet-Charge-Irt`، و روی خطای
+        | پولی `x-should-retry: false`) عیناً از `AiCaller` می‌آیند.
         */
-        return $this->fail($outcome->code, $outcome->message, self::statusFor($outcome->code));
+        if ($outcome->ok) {
+            return response()->json($outcome->response, 200, $outcome->headers + ['Cache-Control' => 'no-store']);
+        }
+
+        return response()->json(['code' => $outcome->code, 'message' => $outcome->message],
+            $outcome->status, $outcome->headers);
     }
 
     /**
@@ -177,7 +162,7 @@ final class V1ChatController extends Controller
             // دامنه و پروژه — کلیدِ سالم ولی بی‌اجازه
             'not_ai_scope', 'not_ai_key', 'insufficient_scope', 'ip_not_allowed',
             'account_inactive', 'project_missing', 'project_inactive',
-            'budget_window_stale' => 403,
+            'budget_window_stale' => 403,   // دیگر صادر نمی‌شود (D12)؛ برای کلاینتِ قدیمی نگه داشته شد
 
             // مدل — شناخته‌نشده
             'model_not_found' => 404,

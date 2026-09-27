@@ -52,6 +52,56 @@
       <p style="color:#fbbf24;font-size:12.5px">ستونِ سربارِ ارز هنوز ساخته نشده (مهاجرتِ 2026_11_03_000050). تا آن زمان هیچ مدلی از این ارائه‌دهنده فروختنی نیست.</p>
     @endif
 
+    {{-- اتصال: کلید فقط‌نوشتنی است و هرگز به فرم برنمی‌گردد (Setting::putSecret) --}}
+    <fieldset style="border:1px solid var(--line, rgba(148,163,184,.2));border-radius:10px;padding:10px 14px;display:grid;gap:10px">
+      <legend style="font-size:12.5px;color:var(--muted);padding:0 6px">اتصال به ارائه‌دهنده</legend>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
+        کلیدِ API
+        <input type="password" name="api_key" autocomplete="new-password" dir="ltr" maxlength="400"
+               placeholder="{{ $hasKey ? 'ثبت شده — برای عوض کردن، کلیدِ تازه را وارد کنید' : 'ثبت نشده' }}" class="ad-input" style="padding:8px">
+        <small style="color:var(--dim)">رمزنگاری‌شده ذخیره می‌شود و دیگر نمایش داده نمی‌شود. خالی = بی‌تغییر.</small>
+      </label>
+      @if($hasKey)
+        <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:#f87171">
+          <input type="checkbox" name="forget_key" value="1"> حذفِ کلیدِ ثبت‌شده
+        </label>
+      @endif
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
+        آدرسِ پایهٔ API (سازگار با OpenAI)
+        <input type="url" name="base_url" dir="ltr" maxlength="255" value="{{ old('base_url', $baseUrl) }}"
+               placeholder="https://api.deepinfra.com/v1/openai" class="ad-input" style="padding:8px">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
+        درایور
+        <select name="driver" class="ad-input" style="padding:8px" dir="ltr">
+          @foreach(\App\Models\AiProvider::DRIVERS as $d)
+            <option value="{{ $d }}" @selected($provider->driver === $d)>{{ $d }}</option>
+          @endforeach
+          @unless(in_array($provider->driver, \App\Models\AiProvider::DRIVERS, true))
+            <option value="" selected>{{ $provider->driver }} (ناشناخته — تماس‌ها رد می‌شوند)</option>
+          @endunless
+        </select>
+      </label>
+    </fieldset>
+
+    @if($hasM5Columns)
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
+      سقفِ روزانهٔ هزینه نزدِ ارائه‌دهنده ({{ $provider->billing_currency_code }})
+      <input type="text" inputmode="decimal" name="daily_cost_cap_usd" dir="ltr" maxlength="12"
+             value="{{ old('daily_cost_cap_usd', $provider->daily_cost_cap_micro ? rtrim(rtrim(sprintf('%d.%06d', intdiv($provider->daily_cost_cap_micro, 1000000), $provider->daily_cost_cap_micro % 1000000), '0'), '.') : '') }}"
+             placeholder="خالی = بی‌سقف" class="ad-input" style="padding:8px">
+      <small style="color:var(--dim)">اگر بهای مصرفِ امروز به این عدد برسد، تماس‌های تازه تا فردا رد می‌شوند — ترمزِ خطای قیمت یا سوءاستفاده.</small>
+    </label>
+      @if($provider->paused_at)
+        <div style="padding:10px 12px;border-radius:10px;background:rgba(248,113,113,.08);color:#f87171;font-size:13px">
+          متوقف از {{ $provider->paused_at->diffForHumans() }}: {{ $provider->paused_reason }}
+          <label style="display:flex;gap:6px;align-items:center;margin-top:6px;color:var(--text)">
+            <input type="checkbox" name="unpause" value="1"> برداشتنِ توقف (پس از درست کردنِ کلید/اعتبار)
+          </label>
+        </div>
+      @endif
+    @endif
+
     <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
       اولویت (کوچک‌تر جلوتر)
       <input type="number" name="priority" min="0" max="65535" value="{{ old('priority', $provider->priority) }}" class="ad-input" style="padding:8px">

@@ -55,6 +55,14 @@
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">سقفِ خروجی
         <input type="number" name="max_output_tokens" min="0" value="{{ old('max_output_tokens', $model->max_output_tokens) }}" class="ad-input" style="padding:8px">
       </label>
+      @if($model->getAttribute('suspended_at') !== null || \Illuminate\Support\Facades\Schema::hasColumn('ai_models', 'suspended_at'))
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">تعلیق
+        <span style="display:flex;gap:6px;align-items:center;font-size:13px;margin-top:6px">
+          <input type="checkbox" name="suspended" value="1" @checked($model->getAttribute('suspended_at') !== null)> معلق
+        </span>
+        @if($model->getAttribute('suspended_reason'))<small style="color:#f87171">{{ $model->suspended_reason }}</small>@endif
+      </label>
+      @endif
       @if($hasMarginColumn)
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">حاشیهٔ اختصاصی (٪)
         <input type="text" inputmode="decimal" name="margin_pct" dir="ltr" maxlength="6"

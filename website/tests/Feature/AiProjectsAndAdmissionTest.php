@@ -446,7 +446,11 @@ class AiProjectsAndAdmissionTest extends TestCase
         $this->assertTrue($p2->budgetWindowCovers(now()));
     }
 
-    public function test_stale_budget_window_denies_admission(): void
+    /**
+     * پنجرهٔ ذخیره‌شدهٔ کهنه دیگر پروژه را قفل نمی‌کند (D12): پنجره هنگامِ رزرو از روی
+     * `budgetWindowFor(now)` حساب می‌شود. نسخهٔ قبل سرِ هر ماه همهٔ کلیدها را می‌بست.
+     */
+    public function test_stale_stored_budget_window_no_longer_locks_the_project_out(): void
     {
         $c = $this->customer();
         $p = $this->project($c, [
@@ -463,10 +467,7 @@ class AiProjectsAndAdmissionTest extends TestCase
             'budget_window_until' => now()->subMonths(1)->startOfMonth(),
         ])->save();
 
-        $this->assertSame('budget_window_stale', AiAdmission::authorize($t, 'ai:chat')->code);
-
-        $p->refreshBudgetWindow();
-        $this->assertTrue(AiAdmission::authorize($t->fresh(), 'ai:chat')->ok);
+        $this->assertTrue(AiAdmission::authorize($t, 'ai:chat')->ok);
     }
 
     // ── Z: قطعِ کلید ──

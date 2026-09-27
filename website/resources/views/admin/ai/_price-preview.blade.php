@@ -30,6 +30,10 @@
     'resale_not_allowed' => 'اجازهٔ فروشِ دوباره ثبت نشده',
     'agreement_unsigned' => 'توافق با ارائه‌دهنده امضاشده نیست',
     'sales_closed' => 'درِ فروشِ عمومی بسته است (فقط مشتریانِ آزمایشی)',
+    'model_suspended' => 'مدل معلق است (خودکار یا دستی)',
+    'provider_paused' => 'ارائه‌دهنده متوقف است (مثلاً پس از خطای ۴۰۲ ِ اعتبار)',
+    'driver_unsupported' => 'درایورِ ارائه‌دهنده شناخته نیست — در ویرایشِ ارائه‌دهنده OpenAI-Compatible را انتخاب کنید',
+    'provider_key_missing' => 'کلیدِ API ِ ارائه‌دهنده ثبت نشده'
   ];
   $fxSource = ['scraped' => 'نرخِ بازار', 'override' => 'نرخِ دستی', 'ratchet' => 'ضامنِ افت (۳٪ در روز)', 'scraped+stale' => 'نرخِ بازارِ کهنه + ۲٪'];
   $toman = fn (int $n) => fa_num(number_format($n)).' تومان';

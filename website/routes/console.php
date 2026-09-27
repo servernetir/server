@@ -8,6 +8,15 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// [ai-schedule:start] ─ بلوکِ نشان‌دار؛ روی سرور با scripts/apply-marked-block.php درج می‌شود
+// (console.php ِ سرور بارها بازنویسی شده و ادغامِ کلِ فایل زمان‌بندی‌های دیگر را می‌انداخت).
+// آشتی‌دهندهٔ پولِ AI (m5-spec §4.D): ردیف‌های گیرکرده آزاد/تسویه می‌شوند. هر دو بی‌تماسِ
+// شبکه به‌جز جست‌وجوی مصرف؛ جاروبِ درون‌خطیِ رزرو یعنی مردنِ این‌ها پولِ کسی را قفل نمی‌کند.
+Schedule::command('ai:reconcile')->everyMinute()->withoutOverlapping(10);
+Schedule::command('ai:recover-usage')->everyFiveMinutes()->withoutOverlapping(10);
+Schedule::command('ai:recover-usage --late')->dailyAt('01:20')->withoutOverlapping(30);
+// [ai-schedule:end]
+
 /*
 |--------------------------------------------------------------------------
 | زمان‌بندی محتوا

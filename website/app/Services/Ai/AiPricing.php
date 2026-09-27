@@ -142,6 +142,9 @@ final class AiPricing
         if ($model->category !== AiModel::CATEGORY_CHAT) {
             $gates[] = 'model_not_chat';
         }
+        if ($model->getAttribute('suspended_at') !== null) {
+            $gates[] = 'model_suspended';
+        }
         if ($p === null) {
             return [...$gates, 'provider_missing'];
         }
@@ -157,6 +160,15 @@ final class AiPricing
         }
         if (! $p->isAgreedTo()) {
             $gates[] = 'agreement_unsigned';
+        }
+        if ($p->getAttribute('paused_at') !== null) {
+            $gates[] = 'provider_paused';
+        }
+        if (AiCaller::driverFor($p) === null) {
+            $gates[] = 'driver_unsupported';
+        }
+        if ($p->apiKey() === null) {
+            $gates[] = 'provider_key_missing';
         }
         if (Setting::get('ai_sales_open') !== '1') {
             $gates[] = 'sales_closed';

@@ -70,6 +70,14 @@ class AiGatewayController extends Controller
             'name'               => 'nullable|string|max:80',
             // سربارِ ارز به درصد با حداکثر دو رقمِ اعشار؛ به bp ذخیره می‌شود
             'fx_fee_pct'         => ['nullable', 'numeric', 'min:0', 'max:25', 'regex:/^\d{1,2}(\.\d{1,2})?$/'],
+            // کلیدِ API: فقط‌نوشتنی؛ خالی = «دست نزن»، برای پاک‌کردن تیکِ forget_key
+            'api_key'            => 'nullable|string|max:400',
+            'forget_key'         => 'nullable|boolean',
+            'base_url'           => 'nullable|url:https|max:255',
+            'driver'             => 'nullable|in:'.implode(',', AiProvider::DRIVERS),
+            // سقفِ روزانهٔ هزینه به دلار (مثلاً 20) — خالی = بی‌سقف
+            'daily_cost_cap_usd' => ['nullable', 'string', 'max:12', 'regex:/^\d{1,6}(\.\d{1,2})?$/'],
+            'unpause'            => 'nullable|boolean',
         ]);
 
         // boolean ها: تیک‌برداشته = صفر، نه «بی‌تغییر»
@@ -89,7 +97,37 @@ class AiGatewayController extends Controller
         if ($request->has('fx_fee_pct') && Schema::hasColumn('ai_providers', 'fx_fee_bp')) {
             $provider->fx_fee_bp = AiPricing::percentToBp($data['fx_fee_pct'] ?? null);
         }
+
+        // درایور فقط از فهرستِ شناخته‌شده (D16) — رشتهٔ آزاد یعنی `driver_unsupported` ِ بی‌صدا
+        if (filled($data['driver'] ?? null)) {
+            $provider->driver = $data['driver'];
+        }
+
+        if (Schema::hasColumn('ai_providers', 'daily_cost_cap_micro')) {
+            if ($request->has('daily_cost_cap_usd')) {
+                $provider->daily_cost_cap_micro = filled($data['daily_cost_cap_usd'] ?? null)
+                    ? self::dollarsToMicros((string) $data['daily_cost_cap_usd']) : null;
+            }
+            // مکثِ خودکار (۴۰۱/۴۰۲/۴۰۳ ِ بالادست) فقط با دستِ مدیر برداشته می‌شود
+            if ($request->boolean('unpause')) {
+                $provider->paused_at = null;
+                $provider->paused_reason = null;
+            }
+        }
         $provider->save();
+
+        /*
+        | رمزها در `Setting::putSecret` (رمزنگاری‌شده)، هرگز در ستونِ جدول و هرگز در فرمِ
+        | برگشتی — همان قراردادِ کلیدِ Cloudflare/Hetzner.
+        */
+        if ($request->boolean('forget_key')) {
+            \App\Models\Setting::putSecret('ai_provider_'.$provider->slug.'_key', null);
+        } elseif (filled($data['api_key'] ?? null)) {
+            \App\Models\Setting::putSecret('ai_provider_'.$provider->slug.'_key', trim((string) $data['api_key']));
+        }
+        if (filled($data['base_url'] ?? null)) {
+            \App\Models\Setting::put('ai_provider_'.$provider->slug.'_base_url', rtrim((string) $data['base_url'], '/'));
+        }
 
         \App\Models\ActivityLog::record(
             null, 'ai_provider_update',
@@ -110,6 +148,9 @@ class AiGatewayController extends Controller
         return view('admin.ai.provider-edit', [
             'provider' => $provider,
             'hasFeeColumn' => Schema::hasColumn('ai_providers', 'fx_fee_bp'),
+            'hasM5Columns' => Schema::hasColumn('ai_providers', 'paused_at'),
+            'hasKey' => $provider !== null && \App\Models\Setting::getSecret('ai_provider_'.$provider->slug.'_key') !== null,
+            'baseUrl' => $provider !== null ? \App\Models\Setting::get('ai_provider_'.$provider->slug.'_base_url') : null,
         ]);
     }
 
@@ -294,7 +335,24 @@ class AiGatewayController extends Controller
             'max_output_tokens'      => 'nullable|integer|between:0,4294967295',
             // حاشیهٔ اختصاصی؛ خالی = حاشیهٔ سراسری. صفر پذیرفته نیست (فروش به بها)
             'margin_pct'             => ['nullable', 'numeric', 'gt:0', 'max:500', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
+            'suspended'              => 'nullable|boolean',
         ]);
+
+        /*
+        | تعلیق: خودکار (فروشِ بیرون از سقف/زیرِ بها) یا دستی. برداشتنِ تعلیقِ خودکار عمداً
+        | دستیِ مدیر است — پیش از آن سطرِ قیمت و سقفِ رزرو باید بررسی شود.
+        */
+        if ($request->has('suspended') || $request->has('name')) {
+            if (Schema::hasColumn('ai_models', 'suspended_at')) {
+                if ($request->boolean('suspended') && $model->suspended_at === null) {
+                    $model->suspended_at = now();
+                    $model->suspended_reason = 'دستیِ مدیر';
+                } elseif (! $request->boolean('suspended')) {
+                    $model->suspended_at = null;
+                    $model->suspended_reason = null;
+                }
+            }
+        }
 
         $model->claude_code_compatible = $request->boolean('claude_code_compatible');
         $model->fill(collect($data)->except(['claude_code_compatible', 'margin_pct'])->all());
