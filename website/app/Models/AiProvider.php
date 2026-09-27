@@ -25,7 +25,11 @@ class AiProvider extends Model
         'slug', 'name', 'driver', 'enabled', 'commercial_enabled',
         'resale_allowed', 'agreement_status', 'priority',
         'live_calls_enabled', 'billing_currency_code', 'notes', 'fx_fee_bp',
+        'daily_cost_cap_micro', 'paused_at', 'paused_reason', 'usage_lookup_url',
     ];
+
+    /** درایورهایی که `AiCaller` می‌شناسد — فرمِ مدیر فقط از همین فهرست انتخاب می‌کند (D16) */
+    public const DRIVERS = ['OpenAI-Compatible'];
 
     protected function casts(): array
     {
@@ -36,6 +40,8 @@ class AiProvider extends Model
             'live_calls_enabled' => 'boolean',
             'billing_currency_code' => 'string',
             'fx_fee_bp'          => 'integer',
+            'daily_cost_cap_micro' => 'integer',
+            'paused_at'          => 'datetime',
         ];
     }
 
@@ -64,6 +70,12 @@ class AiProvider extends Model
     public function isAgreedTo(): bool
     {
         return $this->agreement_status === self::STATUS_SIGNED;
+    }
+
+    /** مکثِ خودکار (۴۰۱/۴۰۲/۴۰۳ ِ بالادست) یا دستیِ مدیر — تا برداشته نشود هیچ تماسی نمی‌رود */
+    public function isPaused(): bool
+    {
+        return $this->getAttribute('paused_at') !== null;
     }
 
     /** کلیدِ API از یادیدِ رمزِ سرورنت — هرگز دیتابیسِ این جدول */

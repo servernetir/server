@@ -45,6 +45,7 @@ class AiModel extends Model
         'description', 'category', 'status', 'replacement_model_id',
         'context_tokens', 'max_output_tokens', 'capabilities',
         'provider_priority', 'docs_url', 'claude_code_compatible', 'margin_bp',
+        'suspended_at', 'suspended_reason',
     ];
 
     protected function casts(): array
@@ -53,6 +54,7 @@ class AiModel extends Model
             'capabilities'           => 'array',
             'claude_code_compatible' => 'boolean',
             'margin_bp'              => 'integer',
+            'suspended_at'           => 'datetime',
         ];
     }
 

@@ -22,5 +22,5 @@ interface AiProviderDriver
      *
      * @throws AiProviderCallException هر شکستِ پیکربندی/شبکه/HTTP
      */
-    public function chat(AiModel $model, array $payload): DriverCallResult;
+    public function chat(AiModel $model, array $payload, int $timeout = 60): DriverCallResult;
 }
