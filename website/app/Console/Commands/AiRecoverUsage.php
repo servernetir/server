@@ -32,6 +32,11 @@ class AiRecoverUsage extends Command
 
     public function handle(AiSettlement $settlement): int
     {
+        // کد پیش از مهاجرتِ 000110 روی سرور می‌نشیند و زمان‌بند هر دقیقه صدایش می‌زند
+        if (! \Illuminate\Support\Facades\Schema::hasTable('ai_usage')) {
+            return self::SUCCESS;
+        }
+
         return $this->option('late') ? $this->late($settlement) : $this->pending($settlement);
     }
 

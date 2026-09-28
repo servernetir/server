@@ -30,6 +30,11 @@ class AiReconcile extends Command
 
     public function handle(AiSettlement $settlement, AiReservations $legacy): int
     {
+        // کد پیش از مهاجرتِ 000110 روی سرور می‌نشیند و زمان‌بند هر دقیقه صدایش می‌زند
+        if (! \Illuminate\Support\Facades\Schema::hasTable('ai_usage')) {
+            return self::SUCCESS;
+        }
+
         $released = $unknown = $finalized = $failed = 0;
 
         AiUsage::where('status', AiUsage::STATUS_RESERVED)->where('decide_by', '<', now())

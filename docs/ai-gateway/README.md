@@ -40,6 +40,29 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
   20k–5M, provider `fx_fee_bp`, model `margin_bp`, price preview on `/admin/ai/pricing`,
   `php artisan ai:price-preview`. `/v1` untouched. Deploy: `scripts/deploy-ai-m5-1a-pricing.sh`.
 
+- **M5.1b** (built, not yet deployed) — Toman holds (`pricing_version=1`, no expiry, 24 h
+  backstop in `scopeHolding`), `ai_usage` with every price input frozen, real-usage
+  settlement with overage-as-second-debit and model auto-suspend, failure policy by
+  "was it sent?" (`sent` from cURL stats / errno), unknown ⇒ 3 probes ⇒ cap ⇒ 7-day auto
+  refund, inline sweep, per-customer/global in-flight caps, project budget + token daily
+  cap computed on read, provider daily cost cap, sales gate + canary, admin API key
+  (write-only) / base URL / driver / pause / suspend, `ai:reconcile`, `ai:recover-usage`,
+  `ai:explain`. DeepInfra driver fixed by migration 000120. `stream:true` is 400 until M5.3.
+  Response envelope and white-labelling are still M4-shaped (M5.2).
+
+### Deviations from `m5-spec.md` taken in M5.1b
+
+1. Money-core migration is **`000110`**, not 000100 (clash with the hourly branch).
+2. Alerts go through `ErrorTracker::noteOnce('ai', …)` (visible on `/admin/errors`), not
+   `AdminNotifier` — a new notifier title would also need an `AdminAlerts` map entry.
+3. The admission gate `budget_window_stale` is removed (D12); the budget is enforced inside
+   the reserve lock from `budgetWindowFor(now)`.
+4. `ai_calls` no longer stores the request body (D14, partial); encryption and the
+   replay store rework are M5.2.
+5. `AiCallerTest` (M4-specific) was replaced by `V1ChatTest`, `AiSettlementTest`,
+   `AiFailurePolicyTest`, `AiUnknownRecoveryTest`, `AiReconcilerTest`, `AiGatesAndLimitsTest`
+   on a shared fixture (`tests/Feature/Concerns/AiGatewayFixture.php`).
+
 ### Deviations from `m5-spec.md` taken in M5.1a (read before M5.1b)
 
 1. **One small migration in M5.1a**: `2026_11_03_000050_ai_pricing_inputs.php` adds only
