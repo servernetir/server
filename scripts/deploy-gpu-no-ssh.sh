@@ -59,7 +59,7 @@ else
 fi
 
 # 🔴 پین به کامیتِ مشخص — نوکِ متحرکِ develop را دیپلوی نکن.
-MINE="${1:-885c1433}"
+MINE="${1:-ea623067}"
 git -C repo rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: $MINE در مخزن نیست"; exit 1; }
 echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 
@@ -68,6 +68,7 @@ echo "── نسخهٔ هدف: $(git -C repo log -1 --format='%h %s' "$MINE")"
 #    فایل‌های زبان آخر: کلیدِ جامانده فقط متنِ خام چاپ می‌کند، نه ۵۰۰.
 APP_FILES="
 app/Models/CloudInstance.php
+app/Services/Cloud/SaladOperations.php
 app/Services/Cloud/CloudProvisioner.php
 resources/views/account/partials/card-server.blade.php
 resources/views/account/cloud-server.blade.php
@@ -224,6 +225,21 @@ g() {
 g app/Models/CloudInstance.php "public function isGpuApp()"
 g app/Models/CloudInstance.php "public function gatewayUrl()"
 
+# ── کارتِ AMD (برنامه‌های آماده فقط CUDAاند) ──
+g app/Services/Cloud/SaladOperations.php "public static function isAmdGpuClass"
+g app/Services/Cloud/SaladOperations.php "self::isAmdGpuClass("
+# 🔴 گاردِ بایتی: نسخهٔ اول \b را به‌صورتِ کاراکترِ backspace نوشته بود و تشخیص
+#    همیشه false می‌داد — بی‌هیچ خطایی. این خط دقیقاً «بک‌اسلش + b» را می‌سنجد.
+g app/Services/Cloud/SaladOperations.php '/\b(AMD|Radeon)\b/i'
+if LC_ALL=C grep -qP '[\x08]' "$APP/app/Services/Cloud/SaladOperations.php" 2>/dev/null; then
+  echo "🔴 SaladOperations.php کاراکترِ backspace دارد — regexِ AMD خراب است."
+  union_ok=0
+fi
+# کارِ دیگران در همین فایل
+g app/Services/Cloud/SaladOperations.php "SaladOllamaImage::repoOf"
+g app/Services/Cloud/SaladOperations.php "gpu-comfyui"
+g app/Services/Cloud/SaladOperations.php "'is_interruptible'  => true"
+
 # ── سطح‌ها ──
 # 🔴 مهم‌ترین گارد: کارتِ داشبورد. اگر merge این شرط را بخورد، «ssh root@…» بی‌صدا
 #    برمی‌گردد و موجِ تیکتِ «رمزِ SSH کجاست» هم.
@@ -316,7 +332,10 @@ else
   echo "✅ هیچ تداخلی نبود"
 fi
 echo
-echo "کارِ باقی‌مانده: ریستِ opcache از /system/opcache"
+echo "کارِ باقی‌مانده — دو گام:"
+echo "  ۱) ریستِ opcache از /system/opcache"
+echo "  ۲) /admin/cloud → «همگام‌سازیِ کاتالوگ» تا پلن‌های AMD همین حالا از فروشگاه بیرون بروند"
+echo "     (وگرنه تا کرونِ بعدیِ cloud:sync — هر دو روز — در فروش می‌مانند)"
 echo "   (validate_timestamps=0 — بی‌ریست، کدِ تازه اجرا نمی‌شود)"
 echo
 echo "═══ چه چیزی این دیپلوی درست نمی‌کند ═══"
