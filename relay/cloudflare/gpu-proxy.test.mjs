@@ -12,6 +12,9 @@ import assert from 'node:assert/strict';
 const SECRET = 'test-gate-secret';
 const LABEL = 'amber-owl-0123456789abcdef';
 const HOST = `g-${LABEL}.servernet.cloud`;
+const RELAY_KEY = 'test-relay-key';
+/* همان دو bindingی که Worker زنده دارد — بی GPU_RELAY_SECRET، Worker عمداً 503 می‌دهد */
+const ENV = { GATE_SECRET: SECRET, GPU_RELAY_SECRET: RELAY_KEY };
 
 const { default: worker } = await import(process.env.WORKER_PATH || './gpu-proxy.js');
 
@@ -31,7 +34,7 @@ async function run({ cookie, upstream } = {}) {
   try {
     const headers = { 'X-SN-Token': token };
     if (cookie) headers.Cookie = cookie;
-    const resp = await worker.fetch(new Request(`https://${HOST}/api/tags`, { headers }), { GATE_SECRET: SECRET });
+    const resp = await worker.fetch(new Request(`https://${HOST}/api/tags`, { headers }), ENV);
     return { resp, seen, token };
   } finally {
     globalThis.fetch = realFetch;
@@ -60,7 +63,7 @@ test('the gate cookie itself is not forwarded, yet still authenticates', async (
   try {
     const resp = await worker.fetch(
       new Request(`https://${HOST}/`, { headers: { Cookie: `sn_token=${token}; _xsrf=j` } }),
-      { GATE_SECRET: SECRET },
+      ENV,
     );
     assert.equal(resp.status, 200, 'cookie-only auth must still pass the gate');
     assert.ok(!(seen.headers.get('Cookie') || '').includes(token), 'sn_token forwarded upstream');
@@ -108,11 +111,63 @@ test('a WebSocket handshake (101) is never re-wrapped', async () => {
   assert.equal(resp, handshake, 're-wrapping a 101 loses its webSocket');
 });
 
+/* ── مسیرِ relay (۳۰ شهریور ۱۴۰۵) — تا مهر ۱۴۰۵ فقط در داشبوردِ Cloudflare بود ── */
+
+test('traffic goes through the relay, with the real target only in the signed header', async () => {
+  const { seen } = await run();
+  const u = new URL(seen.url);
+  assert.equal(u.hostname, 'gpu-relay.servernet.cloud', 'must never call the infrastructure host directly (its WAF blocks Iran)');
+  assert.equal(u.pathname, '/api/tags');
+  assert.equal(seen.headers.get('X-ServerNet-Upstream'), `${LABEL}.salad.cloud`);
+  assert.equal(seen.headers.get('X-ServerNet-Relay-Key'), RELAY_KEY);
+});
+
+test('the gate token and client identity headers are not forwarded upstream', async () => {
+  const token = await tokenFor(LABEL);
+  let seen = null;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (req) => { seen = req; return new Response('ok'); };
+  try {
+    await worker.fetch(new Request(`https://${HOST}/`, {
+      headers: { 'X-SN-Token': token, 'CF-Connecting-IP': '5.160.0.1', 'CF-IPCountry': 'IR', 'X-Forwarded-For': '5.160.0.1' },
+    }), ENV);
+    for (const h of ['X-SN-Token', 'CF-Connecting-IP', 'CF-IPCountry', 'X-Forwarded-For']) {
+      assert.equal(seen.headers.get(h), null, `${h} forwarded upstream`);
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('a missing relay secret fails closed (503) and never calls out', async () => {
+  const token = await tokenFor(LABEL);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('must not call out without the relay secret'); };
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    const resp = await worker.fetch(new Request(`https://${HOST}/`, { headers: { 'X-SN-Token': token } }), { GATE_SECRET: SECRET });
+    assert.equal(resp.status, 503);
+    assert.ok(!(await resp.text()).toLowerCase().includes('salad'), 'the error names the infrastructure');
+  } finally {
+    globalThis.fetch = realFetch;
+    console.error = realError;
+  }
+});
+
+test('an absolute redirect to the infrastructure host comes back branded', async () => {
+  const { resp } = await run({
+    upstream: () => new Response(null, { status: 302, headers: { Location: `https://${LABEL}.salad.cloud/lab?x=1` } }),
+  });
+  assert.equal(resp.status, 302);
+  assert.equal(resp.headers.get('Location'), `https://${HOST}/lab?x=1`);
+});
+
 test('the gate still refuses a request with no token', async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error('must not reach the container'); };
   try {
-    const resp = await worker.fetch(new Request(`https://${HOST}/`, { headers: { Cookie: 'snet_session=S' } }), { GATE_SECRET: SECRET });
+    const resp = await worker.fetch(new Request(`https://${HOST}/`, { headers: { Cookie: 'snet_session=S' } }), ENV);
     assert.equal(resp.status, 401);
   } finally {
     globalThis.fetch = realFetch;

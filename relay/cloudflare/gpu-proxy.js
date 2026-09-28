@@ -53,9 +53,23 @@
  * SSE و WebSocket از Worker رد می‌شوند؛ TLS مالِ Cloudflare است (پوششِ
  * Universal SSL برای *.servernet.cloud — تک‌سطحی، برای همین g-{label} است
  * نه {label}.g).
+ *
+ * ── خروجی Salad از relay آلمان (۳۰ شهریور ۱۴۰۵) ───────────────────────
+ * WAF زون salad.cloud درخواستِ مستقیمِ Worker را با سیگنال داخلی
+ * cf.worker.upstream_zone تشخیص و برای کاربران ایران 403 می‌کرد. این سیگنال
+ * header معمولی نیست و از کد Worker حذف نمی‌شود. بنابراین Worker بعد از
+ * احراز، درخواست را به hostname ثابتِ DNS-only زیر می‌فرستد؛ relay مقصد
+ * واقعی *.salad.cloud را از X-ServerNet-Upstream می‌گیرد و با egress آلمان
+ * برقرار می‌کند. برای مهاجرت relay فقط A record همین hostname تغییر می‌کند:
+ *
+ *   gpu-relay.servernet.cloud  (DNS-only)
+ *
+ * binding محرمانهٔ GPU_RELAY_SECRET باید در Worker و فایل root-only relay
+ * یکسان باشد. مقدار آن هرگز در سورس یا مستندات ثبت نمی‌شود.
  */
 
 const enc = new TextEncoder();
+const GPU_RELAY_URL = 'https://gpu-relay.servernet.cloud';
 
 async function hmacHex(secret, msg) {
   const key = await crypto.subtle.importKey(
@@ -215,7 +229,16 @@ export default {
 
     const brandedHost = url.hostname;
     const originHost = m[1] + '.salad.cloud';
-    url.hostname = originHost;
+    if (!env || !env.GPU_RELAY_SECRET) {
+      console.error(JSON.stringify({
+        message: 'GPU relay secret is missing',
+        host: brandedHost,
+        path: url.pathname,
+      }));
+      return new Response('GPU gateway is temporarily unavailable', { status: 503 });
+    }
+
+    url.hostname = new URL(GPU_RELAY_URL).hostname;
     url.port = '';
 
     /*
@@ -239,6 +262,30 @@ export default {
     //    از دست می‌دهد).
     const upstream = new Request(url, request);
     const fwd = new Headers(upstream.headers);
+
+    /*
+     * هدرهای دروازه و هویتِ کلاینت فقط برای hop ورودی‌اند. فرستادنشان به
+     * دامنهٔ Salad دو ایراد دارد: رازِ دسترسیِ ServerNet را بی‌دلیل افشا
+     * می‌کند و WAF آن دامنه درخواست را با کشور/IP مشتری (از جمله ایران)
+     * ارزیابی می‌کند، در حالی که اتصال واقعی از Worker برقرار شده است.
+     * Cloudflare برای subrequest میان دو zone هدرهای لازمِ خودش را دوباره
+     * می‌سازد؛ پس این مقادیرِ ورودی نباید به upstream کپی شوند.
+     */
+    [
+      'X-SN-Token',
+      'CF-Connecting-IP',
+      'CF-IPCountry',
+      'X-Real-IP',
+      'X-Forwarded-For',
+      'True-Client-IP',
+      'Forwarded',
+    ].forEach((name) => fwd.delete(name));
+
+    // فقط relay دارای این راز می‌تواند مقصد Salad را بپذیرد. مقصد نیز از
+    // label معتبرِ hostname ورودی ساخته شده و هرگز از ورودی آزاد کاربر نیست.
+    fwd.set('X-ServerNet-Upstream', originHost);
+    fwd.set('X-ServerNet-Relay-Key', env.GPU_RELAY_SECRET);
+
     const rewriteHostIn = (name) => {
       const v = fwd.get(name);
       if (v && v.indexOf(brandedHost) !== -1) {
@@ -275,7 +322,7 @@ export default {
     const loc = resp.headers.get('Location');
     if (loc && loc.indexOf('.salad.cloud') !== -1) {
       const out = new Response(resp.body, resp);
-      out.headers.set('Location', loc.replace(url.hostname, brandedHost));
+      out.headers.set('Location', loc.replace(originHost, brandedHost));
       return out;
     }
 
