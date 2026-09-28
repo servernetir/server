@@ -148,12 +148,14 @@ routes/console.php|Display an inspiring quote
 
 echo "── موجودیِ پیش‌نیازها روی سرور ──"
 MISSING=""
-for pair in $DEPENDS; do
+# خط‌به‌خط، نه `for`: نشانه‌ها فاصله دارند («function expirePending») و `for` آن‌ها را می‌شکست
+while IFS= read -r pair; do
+  [ -z "$pair" ] && continue
   rel="${pair%%|*}"; needle="${pair#*|}"
   if [ ! -f "$APP/$rel" ]; then echo "MISS $rel"; MISSING="$MISSING $rel"
-  elif ! grep -q -- "$needle" "$APP/$rel"; then echo "OLD  $rel (بی «$needle»)"; MISSING="$MISSING $rel"
+  elif ! grep -qF -- "$needle" "$APP/$rel"; then echo "OLD  $rel (بی «$needle»)"; MISSING="$MISSING $rel"
   else echo "have $rel"; fi
-done
+done <<< "$DEPENDS"
 if [ -n "$MISSING" ]; then
   echo "FATAL: پیش‌نیاز روی سرور نیست یا کهنه است:$MISSING — هیچ فایلی نوشته نشد."
   exit 2
