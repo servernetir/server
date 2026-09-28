@@ -35,10 +35,16 @@ class AnalyticsDataLayerCatalogTest extends TestCase
         $response->assertSee("gtag('consent','default'", false);
         $response->assertSee("analytics_storage:'granted'", false);
         $response->assertSee("s.id='snet-gtm'", false);
+        $response->assertSee("'gtm.start':new Date().getTime(),event:'gtm.js'", false);
         $response->assertDontSee('analytics-consent', false);
         $response->assertDontSee('snet_analytics_consent', false);
         $response->assertSee('trackFunnel', false);
         $response->assertDontSee("auth('customer')->id()", false);
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString('connect-src', $csp);
+        $this->assertStringContainsString('https://www.googletagmanager.com', $csp);
+        $this->assertStringContainsString('https://www.google-analytics.com', $csp);
     }
 
     public function test_disabled_analytics_does_not_render_or_open_google_csp_hosts(): void
