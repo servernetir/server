@@ -110,6 +110,40 @@ trait AiGatewayFixture
         ], $status)]);
     }
 
+    /** حالتِ جعلِ بالادست: ok | timeout — با `fakeUpstream()` یک بار ثبت و بعد فقط این عوض می‌شود */
+    protected string $upstreamMode = 'ok';
+
+    /** پاسخِ نشانیِ جست‌وجوی مصرف (`usage_lookup_url`)؛ null ⇒ ۴۰۴ */
+    protected ?array $lookupUsage = null;
+
+    /**
+     * یک جعلِ واحد برای همهٔ تماس‌های بالادست. `Http::fake` ِ لاراول «اولین ثبت‌شده»
+     * را برنده می‌کند، پس دو بار صدا زدنش یعنی جعلِ دوم هرگز دیده نمی‌شود.
+     */
+    protected function fakeUpstream(): void
+    {
+        Http::fake(function (\Illuminate\Http\Client\Request $r) {
+            if (str_contains($r->url(), '/usage/')) {
+                return $this->lookupUsage === null ? Http::response([], 404) : Http::response(['usage' => $this->lookupUsage]);
+            }
+            if ($this->upstreamMode === 'timeout') {
+                throw new \GuzzleHttp\Exception\ConnectException(
+                    'cURL error 28: Operation timed out after 60000 milliseconds with 0 bytes received', $r->toPsrRequest());
+            }
+
+            return Http::response([
+                'id' => 'chatcmpl-up-1', 'object' => 'chat.completion',
+                'choices' => [['index' => 0, 'message' => ['role' => 'assistant', 'content' => 'سلام!'], 'finish_reason' => 'stop']],
+                'usage' => ['prompt_tokens' => 12_000, 'completion_tokens' => 900, 'prompt_tokens_details' => ['cached_tokens' => 8_000]],
+            ]);
+        });
+    }
+
+    protected function workedUsage(): array
+    {
+        return ['prompt_tokens' => 12_000, 'completion_tokens' => 900, 'prompt_tokens_details' => ['cached_tokens' => 8_000]];
+    }
+
     protected function chatBody(array $over = []): array
     {
         return $over + [
