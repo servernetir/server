@@ -73,6 +73,7 @@
   @endforeach
 
   if(!d.getElementById('snet-gtm')){
+    w.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});
     var s=d.createElement('script');s.id='snet-gtm';s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);d.head.appendChild(s);
   }
 })(window,document,@json($gtmId));

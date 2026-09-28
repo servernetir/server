@@ -58,7 +58,7 @@ class SecurityHeaders
             $connectSrc = $this->isCloudConsole($request) ? "connect-src 'self' wss:" : "connect-src 'self'";
             $frameSrc = "frame-src 'self' https://www.openstreetmap.org";
             if ($analytics) {
-                $connectSrc .= ' https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com';
+                $connectSrc .= ' https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com';
                 $frameSrc .= ' https://www.googletagmanager.com';
             }
 
