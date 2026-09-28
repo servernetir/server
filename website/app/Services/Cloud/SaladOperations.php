@@ -297,8 +297,34 @@ trait SaladOperations
         $priority = $this->priority();
         $plans = [];
         $skipped = 0;
+        $amd = 0;
 
         foreach ($rows as $g) {
+            /*
+            | 🔴 کارتِ AMD تا وقتی برنامهٔ سازگار نداریم فروخته نمی‌شود.
+            |
+            | هر سه برنامهٔ آماده (Ollama، ComfyUI، Jupyter) بیلدِ **CUDA**اند و
+            | مستنداتِ خودِ زیرساخت صریح است: «ایمیجِ CUDA نمی‌تواند از GPUِ AMD
+            | استفاده کند»؛ AMD ایمیجِ ROCm می‌خواهد. نتیجه روی کارتِ AMD:
+            |   Ollama     بالا می‌آید ولی روی CPU — مشتری پولِ GPU می‌دهد
+            |   ComfyUI    در لحظهٔ شروع کرش می‌کند (torch.cuda در import)
+            |   Jupyter    سالم به‌نظر می‌رسد ولی GPU ندارد — گمراه‌کننده‌ترین
+            | و هیچ خطایی سمتِ ما ثبت نمی‌شد: تحویل «موفق» بود.
+            |
+            | ⚠️ کنار گذاشتن این‌جا، نه بستنِ دستیِ پنج ردیف: کلاسِ AMDِ تازه‌ای که
+            |    زیرساخت فردا اضافه کند هم خودبه‌خود بیرون می‌ماند. و چون
+            |    syncPlans ردیفِ دیده‌نشده را غیرفعال می‌کند، پلن‌های موجود هم با
+            |    همین سینک از فروشگاه بیرون می‌روند — سرویس‌های در حالِ کار دست
+            |    نمی‌خورند.
+            |
+            | اسپکِ کلاسِ GPU فیلدِ vendor ندارد؛ تنها نشانه نام است («AMD RX …»).
+            */
+            if (self::isAmdGpuClass((string) ($g['name'] ?? ''))) {
+                $amd++;
+
+                continue;
+            }
+
             $plan = $this->planFromGpuClass($g, $priority);
 
             if ($plan === null) {
@@ -318,7 +344,10 @@ trait SaladOperations
             'ok'      => true,
             // ⚠️ ردیفِ کنارگذاشته‌شده **شمرده و اعلام** می‌شود. سکوت این‌جا یعنی
             // کارتی که قیمتش را نفهمیدیم بی‌صدا از فروشگاه غایب بماند.
-            'message' => $skipped > 0 ? fa_num((string) $skipped).' کلاسِ GPU به‌خاطرِ دادهٔ ناقص کنار گذاشته شد.' : '',
+            'message' => trim(
+                ($skipped > 0 ? fa_num((string) $skipped).' کلاسِ GPU به‌خاطرِ دادهٔ ناقص کنار گذاشته شد. ' : '')
+                .($amd > 0 ? fa_num((string) $amd).' کلاسِ AMD کنار گذاشته شد (برنامه‌های آماده فقط CUDA هستند).' : '')
+            ),
             'locations' => $locations,
             'plans'     => $plans,
             'images'    => array_map(
@@ -342,6 +371,17 @@ trait SaladOperations
      *
      * ⚠️ مشخصاتِ ناقص **رد** می‌شود نه ذخیره با صفر — قاعدهٔ ثبت‌شدهٔ همین حوزه.
      */
+    /**
+     * آیا این کلاسِ GPU کارتِ AMD است؟ اسپک vendor ندارد؛ نام تنها نشانه است.
+     *
+     * ⚠️ روی واژهٔ کامل می‌سنجد: «AMD»/«Radeon» به‌عنوانِ کلمه، نه زیررشته —
+     *    تا نامی که تصادفاً «amd» در دلِ خود دارد بی‌صدا کنار نرود.
+     */
+    public static function isAmdGpuClass(string $name): bool
+    {
+        return preg_match('/\b(AMD|Radeon)\b/i', $name) === 1;
+    }
+
     private function planFromGpuClass(array $g, string $priority): ?array
     {
         $name = trim((string) ($g['name'] ?? ''));

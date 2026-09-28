@@ -754,4 +754,88 @@ class CloudSaladGpuTest extends TestCase
         $this->assertStringContainsString('1073741824', $r['message']);
     }
 
+    /**
+     * 🔴 کارتِ AMD با برنامه‌های CUDA فروخته نمی‌شود.
+     *
+     * هر سه برنامهٔ آماده بیلدِ CUDAاند و مستنداتِ زیرساخت صریح است که ایمیجِ
+     * CUDA روی GPUِ AMD کار نمی‌کند: Ollama روی CPU می‌رود، ComfyUI کرش می‌کند،
+     * Jupyter بی‌GPU سالم به‌نظر می‌رسد — و تحویل «موفق» ثبت می‌شد.
+     *
+     * ⚠️ ادعا روی **ردیف‌های نوشته‌شده در دیتابیس** است، نه روی تابعِ تشخیص.
+     *    نسخهٔ اولِ همین اصلاح `\b` را به‌صورتِ کاراکترِ backspace نوشته بود؛
+     *    تشخیص همیشه false می‌داد و اصلاح بی‌صدا هیچ کاری نمی‌کرد.
+     */
+    public function test_amd_cards_are_never_put_on_sale(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+            $this->gpuClass(['id' => 'gc-amd-9060', 'name' => 'AMD RX 9060 XT (16GB)']),
+        ]);
+
+        app(\App\Services\Cloud\CloudCatalogSync::class)->sync('salad');
+
+        $models = \App\Models\CloudPlan::where('provider', 'salad')->where('is_active', true)->pluck('gpu_model')->all();
+
+        $this->assertSame(['RTX 4090'], $models,
+            'پلنِ AMD به فروشگاه رفت؛ برنامه‌های آماده فقط CUDAاند و روی آن کار نمی‌کنند.');
+    }
+
+    /** پلنِ AMDِ ازقبل‌فروشی با همان سینکِ بعدی از فروشگاه بیرون می‌رود */
+    public function test_an_amd_plan_already_on_sale_is_withdrawn_by_the_next_sync(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+
+        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'], ['country' => 'XX', 'is_active' => true]);
+        $amd = \App\Models\CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'gc-amd-xtx', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'public_name' => 'AMD RX 7900 XTX',
+            'slug' => 'cv-8c-30g-150d-global-gpu-amd-rx-7900-xtx-24gb', 'vcpu' => 8, 'ram_mb' => 30720,
+            'disk_gb' => 150, 'disk_type' => 'ssd', 'traffic_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'cost_eur_cents' => 400, 'price_eur_cents' => 600, 'price_irt' => 600_000,
+            'is_active' => true, 'in_stock' => true,
+            'gpu_model' => 'AMD RX 7900 XTX (24GB)', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+        ]);
+
+        app(\App\Services\Cloud\CloudCatalogSync::class)->sync('salad');
+
+        $this->assertFalse((bool) $amd->fresh()->is_active,
+            'پلنِ AMDِ فعال بعد از سینک هنوز فروخته می‌شود.');
+    }
+
+    /** کنار گذاشتن بی‌صدا نیست: مدیر در پیامِ سینک می‌بیند چرا */
+    public function test_the_sync_message_says_why_amd_cards_were_left_out(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+        ]);
+
+        $msg = (string) app(CloudManager::class)->driver('salad')->fetchCatalog()['message'];
+
+        $this->assertStringContainsString('AMD', $msg);
+        $this->assertStringNotContainsString('دادهٔ ناقص', $msg,
+            'کارتِ AMD به‌خاطرِ دادهٔ ناقص کنار نرفته؛ پیام باید علتِ واقعی را بگوید.');
+    }
+
+    public function test_only_amd_and_radeon_names_count_as_amd(): void
+    {
+        foreach (['AMD RX 7900 XTX (24GB)', 'AMD RX 9060 XT (16GB)', 'Radeon Pro W7900', 'amd rx 7800 xt'] as $n) {
+            $this->assertTrue(\App\Services\Cloud\SaladClient::isAmdGpuClass($n), $n);
+        }
+        foreach (['RTX 4090', 'RTX 3090 (24 GB)', 'H100', 'GTX 1050 Ti (4 GB)', 'Stable Diffusion Compatible', 'RTX 5090 Ramdisk'] as $n) {
+            $this->assertFalse(\App\Services\Cloud\SaladClient::isAmdGpuClass($n), $n);
+        }
+    }
 }
