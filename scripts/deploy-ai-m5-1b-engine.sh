@@ -300,8 +300,10 @@ grep -q 'function settleFromUsage' "$APP/app/Services/Ai/AiSettlement.php" || { 
 grep -q 'hold_backstop_h' "$APP/app/Models/AiReservation.php" || { echo "FATAL: پشتوانهٔ ۲۴ ساعته در AiReservation نیست"; exit 3; }
 grep -q "handle(\$auth, \$payload" "$APP/app/Http/Controllers/Ai/V1ChatController.php" || { echo "FATAL: کنترلرِ /v1 به AiCaller ِ تازه وصل نیست"; exit 3; }
 grep -q "ai:reconcile" "$APP/routes/console.php" || { echo "FATAL: زمان‌بندیِ آشتی‌دهنده نیست"; exit 3; }
+# +۳ فقط وقتی همین اجرا بلوک را گذاشت؛ اجرای دوباره (بلوک از قبل هست) باید ۰ باشد
 SCHED_AFTER="$(grep -c 'Schedule::command' "$APP/routes/console.php" || true)"
-[ "$SCHED_AFTER" -eq $((SCHED_BEFORE + 3)) ] || { echo "FATAL: Schedule::command $SCHED_BEFORE → $SCHED_AFTER"; exit 3; }
+case " $BLOCK_FILES " in *" routes/console.php "*) SCHED_DELTA=3 ;; *) SCHED_DELTA=0 ;; esac
+[ "$SCHED_AFTER" -eq $((SCHED_BEFORE + SCHED_DELTA)) ] || { echo "FATAL: Schedule::command $SCHED_BEFORE → $SCHED_AFTER (انتظار +$SCHED_DELTA)"; exit 3; }
 
 cd "$APP" || exit 1
 "$PHP_BIN" artisan config:clear || exit 4
