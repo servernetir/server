@@ -181,6 +181,22 @@ class GpuNoSshSurfaceTest extends TestCase
         $this->assertStringContainsString('g-'.self::LABEL.'.servernet.cloud', $html);
     }
 
+    /**
+     * مثالِ آمادهٔ پنل باید همان مدلی را صدا بزند که سرور در بوت پیش‌بار کرده؛
+     * وگرنه اولین فرمانی که مشتری کپی می‌کند «model not found» می‌گیرد.
+     */
+    public function test_the_ready_made_example_calls_the_preloaded_model(): void
+    {
+        $c = $this->customer();
+        $s = $this->gpuService($c);
+
+        $html = (string) $this->actingAs($c, 'customer')
+            ->get(route('account.cloud.show', $s, false))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            e('"model":"'.\App\Services\Cloud\SaladClient::OLLAMA_PRELOAD_MODEL.'"'), $html);
+    }
+
     /** 🔴 پیامک/بلهٔ «آماده شد» */
     public function test_the_ready_notice_sends_the_gateway_not_the_ip(): void
     {

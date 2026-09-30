@@ -619,6 +619,28 @@ class CloudSaladGpuTest extends TestCase
             'container.environment_variables.OLLAMA_HOST') === '::');
     }
 
+    /**
+     * 🔴 entrypointِ ایمیج بی‌`OLLAMA_MODEL_NAME` با exit 1 بیرون می‌زند و کانتینر
+     * هرگز آماده نمی‌شود (رخدادِ مهر ۱۴۰۵ — سرورِ آزمایشی ۸۸ ساعت «در حالِ ساخت»).
+     * ادعا روی **بدنه‌ای است که واقعاً به زیرساخت می‌رود**، نه روی ثابت.
+     */
+    public function test_ollama_gets_the_model_its_entrypoint_requires(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => app(SaladClient::class)->apps()['gpu-ollama']['ref'],
+        ]);
+
+        Http::assertSent(fn ($req) => data_get($req->data(),
+            'container.environment_variables.OLLAMA_MODEL_NAME') === SaladClient::OLLAMA_PRELOAD_MODEL);
+        $this->assertNotSame('', trim(SaladClient::OLLAMA_PRELOAD_MODEL));
+    }
+
     /** کاتالوگ برنامه‌های آماده را به‌عنوانِ ایمیجِ kind=app برمی‌گرداند */
     public function test_the_catalogue_ships_the_app_images(): void
     {

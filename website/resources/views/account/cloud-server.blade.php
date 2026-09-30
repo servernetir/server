@@ -244,8 +244,9 @@
           @if($inst->image_key === 'gpu-ollama')
             @php
               // بدنه با json_encode ساخته می‌شود، نه رشتهٔ دست‌نویس — کوتیشن‌های
-              // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد.
-              $gpuBody = json_encode(['model' => 'llama3.1', 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
+              // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد. مدل همان پیش‌بارِ بوت
+              // است تا مثال روی سرورِ تازه بی‌pull جواب بدهد.
+              $gpuBody = json_encode(['model' => \App\Services\Cloud\SaladClient::OLLAMA_PRELOAD_MODEL, 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
               $gpuHdr  = $gpuTok ? " -H 'X-SN-Token: ".$gpuTok."'" : '';
               $gpuCmd = 'curl '.$gpuUrl.'/api/chat'.$gpuHdr." -d '".$gpuBody."'";
             @endphp
