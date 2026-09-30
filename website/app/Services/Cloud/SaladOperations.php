@@ -652,6 +652,54 @@ trait SaladOperations
     }
 
     /**
+     * 🔴 تعمیرِ سرورِ Ollamaای که بی‌`OLLAMA_MODEL_NAME` ساخته شد (مهر ۱۴۰۵).
+     *
+     * آن سرورها در حلقهٔ ری‌استارت‌اند و دیپلویِ کدِ درست نجاتشان نمی‌دهد، چون
+     * env فقط لحظهٔ ساخت فرستاده می‌شود. این متد همان گروه را درجا PATCH می‌کند —
+     * نه حذف و ساختِ دوباره (که نامِ دروازه و توکنِ مشتری را عوض می‌کرد).
+     *
+     * ⚠️ PATCHِ این زیرساخت `environment_variables` را **جایگزین** می‌کند، ادغام
+     *    نمی‌کند. فرستادنِ تنها همان یک کلید `OLLAMA_HOST` را پاک می‌کرد و سرور
+     *    این‌بار بالا می‌آمد ولی پشتِ دروازهٔ IPv6 بی‌صدا جواب نمی‌داد. پس کلِ نقشه
+     *    فرستاده می‌شود: پیش‌فرض‌های برنامه، روی آن env فعلیِ گروه، روی آن مدل.
+     * ⚠️ فقط ایمیجِ Ollama و فقط اگر مدل خالی باشد؛ هیچ‌چیز خریده نمی‌شود.
+     *
+     * @return array{ok:bool,changed:bool,message:string}
+     */
+    public function ensureOllamaModelEnv(string $ref, bool $dryRun = false): array
+    {
+        $r = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
+
+        if (! $r['ok']) {
+            return ['ok' => false, 'changed' => false, 'message' => $r['message']];
+        }
+
+        $app = $this->appFor((string) data_get($r['body'], 'container.image', ''));
+
+        if (($app['key'] ?? null) !== 'gpu-ollama') {
+            return ['ok' => true, 'changed' => false, 'message' => 'ایمیجِ Ollama نیست.'];
+        }
+
+        $current = (array) data_get($r['body'], 'container.environment_variables', []);
+
+        if (filled($current['OLLAMA_MODEL_NAME'] ?? null)) {
+            return ['ok' => true, 'changed' => false, 'message' => 'مدل از قبل تنظیم است.'];
+        }
+
+        if ($dryRun) {
+            return ['ok' => true, 'changed' => false, 'message' => 'نیازمندِ تعمیر (اجرای آزمایشی).'];
+        }
+
+        $env = array_merge($app['env'], $current, ['OLLAMA_MODEL_NAME' => self::OLLAMA_PRELOAD_MODEL]);
+
+        $p = $this->req('PATCH', $this->proj('/'.rawurlencode($ref)), [
+            'container' => ['environment_variables' => $env],
+        ]);
+
+        return ['ok' => $p['ok'], 'changed' => $p['ok'], 'message' => $p['message']];
+    }
+
+    /**
      * وضعیتِ زنده + IP و پورتِ SSH از **نمونه**، نه از گروه.
      *
      * ⚠️ گروه فقط وضعیتِ کلی دارد؛ نشانیِ واقعی روی نمونه است و تا وقتی گره

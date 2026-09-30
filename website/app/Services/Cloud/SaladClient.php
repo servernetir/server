@@ -203,7 +203,12 @@ class SaladClient implements CloudProvider
 
             $opts = [];
 
-            if ($payload !== []) {
+            if (strtoupper($method) === 'PATCH') {
+                // PATCH فقط `application/merge-patch+json` می‌پذیرد (اسپکِ
+                // UpdateContainerGroup). بدنه دستی کد می‌شود تا Guzzle نوعِ
+                // application/json را رویش ننشانَد.
+                $http = $http->withBody(json_encode($payload, JSON_UNESCAPED_UNICODE), 'application/merge-patch+json');
+            } elseif ($payload !== []) {
                 $opts['json'] = $payload;
             }
 
