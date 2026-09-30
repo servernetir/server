@@ -15,6 +15,9 @@ use App\Models\Product;
 use App\Models\Service;
 use App\Models\TaxRate;
 use App\Services\Cloud\CloudAddons;
+use App\Services\Cloud\HourlyStartCredit;
+use App\Services\Finance\Wallet;
+use App\Services\Finance\WalletException;
 use App\Services\Notify\AdminNotifier;
 use App\Support\Funnel;
 use Illuminate\Http\RedirectResponse;
@@ -854,11 +857,14 @@ class CloudStoreController extends Controller
         $imageMap = [];     // slug => ['os' => [key,…], 'app' => [key,…]]
         $priceMap = [];     // slug => cycle => ['cycle','per','first','save']
         $planCards = [];    // دادهٔ نمایشیِ امن (بی‌هیچ ستونِ زیرساخت)
-        $hourlyMap = [];    // slug => ['rate','min']
+        $hourlyMap = [];    // slug => ['rate','min','existing']
         $addonMap = [];     // slug => bool  (آیا IP اضافه روی این اسلاگ شدنی است)
 
         $cycles = self::cycles();
         $taxPct = self::taxPercent();
+        $customerId = (int) Auth::guard('customer')->id();
+        $existingHourlyMinimum = app(HourlyStartCredit::class)->existingRate($customerId)
+            * CloudPlan::HOURLY_START_MIN_HOURS;
 
         foreach ($offers as $slug => $offer) {
             $rows = $sellableRows->get((string) $slug, collect());
@@ -945,7 +951,8 @@ class CloudStoreController extends Controller
 
             $hourlyMap[(string) $slug] = [
                 'rate' => $hourlyRow?->hourlyIrt() ?? 0,
-                'min' => $hourlyRow?->hourlyStartMinIrt() ?? 0,
+                'min' => $hourlyRow ? $hourlyRow->hourlyStartMinIrt() + $existingHourlyMinimum : 0,
+                'existing' => $existingHourlyMinimum,
             ];
 
             // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
@@ -1035,7 +1042,7 @@ class CloudStoreController extends Controller
             // نرخِ ساعتیِ هر پلن + حداقلِ اعتبارِ شروع (۲۴ ساعت) و موجودیِ فعلیِ
             // مشتری، تا صفحه بتواند پیش از ثبتِ سفارش بگوید اعتبار کافی است یا نه.
             'hourlyMap' => $hourlyMap,
-            'creditIrt' => (int) (Auth::guard('customer')->user()?->creditBalance('IRT') ?? 0),
+            'creditIrt' => app(Wallet::class)->availableOf($customerId),
 
             // ── افزودنی‌ها ──
             // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
@@ -1329,7 +1336,7 @@ class CloudStoreController extends Controller
      * سفارشِ **ساعتی** — پیش‌پرداخت از کیفِ پول، بی‌فاکتور.
      *
      * قاعده (تأییدِ کارفرما): حداقلِ **`CloudPlan::HOURLY_START_MIN_HOURS` ساعت**
-     * اعتبار برای شروع (امروز ۱۲)، ولی **بدونِ حداقلِ مصرف** — ساعتِ اول همین‌جا
+     * اعتبار برای شروع (امروز ۲۴)، ولی **بدونِ حداقلِ مصرف** — ساعتِ اول همین‌جا
      * کسر می‌شود؛ بقیه را کرونِ `cloud:meter` هر ساعت کم می‌کند و مشتری هر وقت
      * خواست لغو می‌کند (اعتبارِ مانده می‌مانَد).
      *
@@ -1352,126 +1359,92 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['extra_ipv4' => __('ui.cvb_e_hourly_ip')]);
         }
 
-        /*
-        |----------------------------------------------------------------------
-        | 🔴 کفِ اعتبار روی **مجموعِ مصرف** است، نه فقط سرورِ تازه
-        |----------------------------------------------------------------------
-        |
-        | کارفرما پرسید: «مشتری دو یا سه سرورِ ساعتی بگیرد، محاسبه چطور است؟
-        | ما وسط ضرر نکنیم.» و سؤال درست بود.
-        |
-        | گیتِ قبلی فقط `hourlyStartMinIrt()`ِ **همین** پلن را می‌سنجید. یعنی
-        | مشتری با یک شارژِ بزرگ می‌توانست چند سرور بگیرد که هرکدام جداگانه
-        | «۲۴ ساعت اعتبار» داشتند ولی **با هم** خیلی زودتر تمام می‌شدند:
-        |
-        |     ۳ سرورِ ۱۰٬۰۰۰ تومانی، اعتبار ۲۴۰٬۰۰۰
-        |     تکی  : ۲۴ ساعت ✓ (هر سه از گیت رد می‌شوند)
-        |     باهم : ۳۰٬۰۰۰ در ساعت ⇒ ۸ ساعت
-        |
-        | و بعد از تمام‌شدنِ اعتبار، `SUSPEND_GRACE_HOURS` (۲۴ ساعت) روی
-        | **هر سه** می‌دود: یعنی ۷۲ ساعتِ زیرساخت که پولش را ما می‌دهیم.
-        | مترِ ساعتی هرگز اعتبار را منفی نمی‌کند، پس آن ساعت‌ها هیچ‌وقت وصول
-        | نمی‌شوند — خالص ضرر.
-        |
-        | ⚠️ نرخِ سرورهای موجود از `services.hourly_rate_irt` می‌آید، همان
-        | ستونی که خودِ متر هر ساعت از رویش کسر می‌کند. پرس‌وجوی موازی یعنی
-        | روزی دو تعریف از «مصرفِ ساعتی» داشته باشیم.
-        */
-        $existingBurn = (int) Service::query()
-            ->where('customer_id', $customer->id)
-            ->where('billing_mode', 'hourly')
-            ->whereNotIn('status', Service::DEAD_STATUSES)
-            ->sum('hourly_rate_irt');
-
-        $minStart = $offer->hourlyStartMinIrt()
-            + $existingBurn * CloudPlan::HOURLY_START_MIN_HOURS;
-
-        /*
-        | 🔴 از M3-correct گیتِ ساعتی روی «در دسترس» است (منهایِ رزروهایِ
-        | زندهٔ AI) — پولِ رزروشده متعلق به درخواستِ صاحبش است و خریدِ
-        | ساعتی نبایدش بخورد. کسرِ واقعی هم داخلِ تراکنش از Wallet می‌گذرد.
-        */
-        $balance = app(\App\Services\Finance\Wallet::class)->availableOf($customer->id);
-
-        if ($balance < $minStart) {
-            return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
-                'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
-                'min'   => cloud_price($minStart),
-                'bal'   => cloud_price($balance),
-            ])]);
-        }
-
         $onCreditOut = in_array($data['on_credit_out'] ?? 'suspend', ['suspend', 'convert', 'terminate'], true)
             ? (string) ($data['on_credit_out'] ?? 'suspend') : 'suspend';
 
         // قیمتِ ماهانه را به‌عنوان مرجعِ «تبدیل به ماهانه» ذخیره می‌کنیم
         $monthly = self::priceForCycle($offer, 'monthly');
 
-        $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut) {
-            /*
-            | 🔴 قفلِ مشتری **اول** — ترتیبِ سراسریِ قفل (مشتری ← سرویس ←
-            | دفتر)؛ سپس Wallet دوبارهٔ گاردِ «در دسترس» را داخلِ قفل می‌گیرد.
-            */
-            \App\Models\Customer::whereKey($customer->id)->lockForUpdate()->first();
+        $credit = app(HourlyStartCredit::class);
+        $wallet = app(Wallet::class);
+        $minStart = 0;
+        $balance = 0;
 
-            $service = Service::create([
-                'customer_id'      => $customer->id,
-                'name'             => mb_substr(__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
-                'description'      => $description,
-                'currency_code'    => 'IRT',
-                'price'            => $monthly,        // مرجعِ تبدیل به ماهانه
-                'tax_percent'      => 0,
-                'cycle'            => 'monthly',
-                'billing_mode'     => 'hourly',
-                'hourly_rate_irt'  => $hourly,
-                'hourly_rate_eur'  => $hourlyEur,
-                'on_credit_out'    => $onCreditOut,
-                'last_metered_at'  => now(),           // ساعتِ اول همین حالا پرداخت شد
-                // پرداخت‌شده از اعتبار → مستقیم به صفِ تحویل (مثلِ سرویسِ پرداخت‌شده)
-                'status'           => 'awaiting_provision',
-                'provision_status' => 'pending',
-                'activated_at'     => now(),
-                'cloud_plan_id'    => $offer->id,
-                'cloud_image_key'  => (string) $data['image'],
-                'cloud_ssh_key_id' => $sshKey?->id,
-                'cloud_addons'     => [],
-                'plan'             => (string) $offer->public_name,
-            ]);
+        try {
+            $service = DB::transaction(function () use ($customer, $offer, $data, $sshKey, $label, $description, $hourly, $hourlyEur, $monthly, $onCreditOut, $credit, $wallet, &$minStart, &$balance) {
+                /*
+                | 🔴 قفلِ مشتری **اول** — ترتیبِ سراسریِ قفل (مشتری ← سرویس ←
+                | دفتر). حداقلِ ۲۴ ساعت و اعتبارِ در دسترس را زیر همان قفل دوباره
+                | می‌خوانیم تا دو سفارشِ هم‌زمان از یک موجودی عبور نکنند.
+                */
+                Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
+                $minStart = $credit->minimum($customer->id, $hourly);
+                $balance = $wallet->availableOf($customer->id);
+                if ($balance < $minStart) {
+                    return null;
+                }
 
-            /*
-            | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).
-            |
-            | 🔴 **کلیدِ منبع باید `Service` باشد، نه `Customer`.** مسیرِ لغوِ
-            | سفارشِ تحویل‌نشده (`Account\ServiceController::cancel()`) مبلغِ
-            | بازگشتی را با
-            | `CreditEntry::where('source_type', Service::class)->where('source_id', $id)`
-            | جمع می‌زند؛ تا مرداد ۱۴۰۵ همین ردیف با کلیدِ `Customer` نوشته
-            | می‌شد، پس **تنها چیزی بود که مشتری روی سرورِ هرگز-تحویل‌نشده
-            | پس نمی‌گرفت**. سرویس عمداً اول ساخته می‌شود تا شناسه‌اش موجود باشد؛
-            | هر دو در یک تراکنش‌اند، پس نیمه‌کاره نمی‌مانَد.
-            |
-            | 🔴 M3-correct: کسر از Wallet (گاردِ رزروآگاهِ «در دسترس»)؛
-            | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، کلِ
-            | تراکنش لغو و null برمی‌گردد.
-            */
-            try {
-                app(\App\Services\Finance\Wallet::class)->debit(
+                $service = Service::create([
+                    'customer_id'      => $customer->id,
+                    'name'             => mb_substr(__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
+                    'description'      => $description,
+                    'currency_code'    => 'IRT',
+                    'price'            => $monthly,        // مرجعِ تبدیل به ماهانه
+                    'tax_percent'      => 0,
+                    'cycle'            => 'monthly',
+                    'billing_mode'     => 'hourly',
+                    'hourly_rate_irt'  => $hourly,
+                    'hourly_rate_eur'  => $hourlyEur,
+                    'on_credit_out'    => $onCreditOut,
+                    'last_metered_at'  => now(),           // ساعتِ اول همین حالا پرداخت شد
+                    // پرداخت‌شده از اعتبار → مستقیم به صفِ تحویل (مثلِ سرویسِ پرداخت‌شده)
+                    'status'           => 'awaiting_provision',
+                    'provision_status' => 'pending',
+                    'activated_at'     => now(),
+                    'cloud_plan_id'    => $offer->id,
+                    'cloud_image_key'  => (string) $data['image'],
+                    'cloud_ssh_key_id' => $sshKey?->id,
+                    'cloud_addons'     => [],
+                    'plan'             => (string) $offer->public_name,
+                ]);
+
+                /*
+                | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).
+                |
+                | 🔴 **کلیدِ منبع باید `Service` باشد، نه `Customer`.** مسیرِ لغوِ
+                | سفارشِ تحویل‌نشده (`Account\ServiceController::cancel()`) مبلغِ
+                | بازگشتی را با
+                | `CreditEntry::where('source_type', Service::class)->where('source_id', $id)`
+                | جمع می‌زند؛ تا مرداد ۱۴۰۵ همین ردیف با کلیدِ `Customer` نوشته
+                | می‌شد، پس **تنها چیزی بود که مشتری روی سرورِ هرگز-تحویل‌نشده
+                | پس نمی‌گرفت**. سرویس عمداً اول ساخته می‌شود تا شناسه‌اش موجود باشد؛
+                | هر دو در یک تراکنش‌اند، پس نیمه‌کاره نمی‌مانَد.
+                |
+                | 🔴 M3-correct: کسر از Wallet (گاردِ رزروآگاهِ «در دسترس»)؛
+                | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، استثنای
+                | Wallet کلِ تراکنش و ساخت سرویس را برمی‌گرداند.
+                */
+                $wallet->debit(
                     $customer->id, 'IRT', $hourly,
                     'cloud_hourly', $service,
                     'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name
                 );
-            } catch (\App\Services\Finance\WalletException) {
-                return null;
-            }
 
-            return $service;
-        });
+                return $service;
+            });
+        } catch (WalletException) {
+            $service = null;
+            $minStart = $credit->minimum($customer->id, $hourly);
+            $balance = $wallet->availableOf($customer->id);
+        }
 
         if ($service === null) {
-            return back()->withInput()->withErrors(['billing_mode' => __('ui.cvb_e_hourly_credit', [
+            $message = $minStart > $offer->hourlyStartMinIrt()
+                ? 'ui.cvb_e_hourly_credit_combined' : 'ui.cvb_e_hourly_credit';
+            return back()->withInput()->withErrors(['billing_mode' => __($message, [
                 'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
                 'min'   => cloud_price($minStart),
-                'bal'   => cloud_price(app(\App\Services\Finance\Wallet::class)->availableOf($customer->id)),
+                'bal'   => cloud_price($balance),
             ])]);
         }
 
