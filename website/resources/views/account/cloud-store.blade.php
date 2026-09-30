@@ -118,6 +118,7 @@
 
   $hRate = (int) ($hourlyMap[$curSlug]['rate'] ?? 0);
   $hMin  = (int) ($hourlyMap[$curSlug]['min'] ?? 0);
+  $hExisting = (int) ($hourlyMap[$curSlug]['existing'] ?? 0);
   /*
   | تیکِ ساعتی از دو جا می‌آید: بازگشتِ فرم (`old`) یا **لینکِ ورودی**
   | (`?billing_mode=hourly`) — صفحهٔ فرودِ /vps/hourly با همین پارامتر به
@@ -819,7 +820,10 @@
               <span>
                 <b>{{ __('ui.cvb_hourly_t') }}</b> — <span id="cvb-h-rate">{{ cloud_price($hRate) }}</span>{{ __('ui.cvb_hourly_per') }}<br>
                 {{ __('ui.cvb_hourly_min_pre') }}<b id="cvb-h-min">{{ cloud_price($hMin) }}</b>{{ __('ui.cvb_hourly_min_suf') }}
-                — {{ __('ui.cvb_hourly_credit') }}<b>{{ cloud_price($creditIrt) }}</b>
+                — {{ __('ui.cvb_hourly_credit') }}<b>{{ cloud_price($creditIrt) }}</b><br>
+                <span id="cvb-h-existing-note" @if($hExisting === 0) hidden @endif>
+                  {{ __('ui.cvb_hourly_existing_pre') }}<b id="cvb-h-existing">{{ cloud_price($hExisting) }}</b>{{ __('ui.cvb_hourly_existing_suf') }}
+                </span>
               </span>
             </p>
             <p class="cvb-warn" id="cvb-h-low" @if($creditIrt >= $hMin) hidden @endif>{{ __('ui.cvb_hourly_low') }}</p>
@@ -1194,6 +1198,9 @@
     // ── نرخِ ساعتی ──
     set('cvb-h-rate', money(h.rate));
     set('cvb-h-min', money(h.min));
+    set('cvb-h-existing', money(h.existing || 0));
+    var existingNote = document.getElementById('cvb-h-existing-note');
+    if (existingNote) existingNote.hidden = !(h.existing > 0);
     var low = document.getElementById('cvb-h-low');
     if (low) low.hidden = (D.credit >= h.min);
 

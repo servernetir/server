@@ -473,7 +473,7 @@ class CloudFairHourlyMeteringTest extends TestCase
     {
         Carbon::setTestNow(now()->startOfSecond());
         $this->fakeInterruptibleStatus('running');
-        $c = $this->customer(100_000);
+        $c = $this->customer(120_000);
         $s = $this->service($c, [
             'cloud_plan_id' => $this->interruptiblePlan()->id,
             'last_metered_at' => now()->subHours(123),
@@ -488,7 +488,22 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
 
         $this->artisan('cloud:meter')->assertOk();
-        $this->assertSame(100_000, $c->creditBalance('IRT'));
+        $this->assertSame(120_000, $c->creditBalance('IRT'));
+    }
+
+    public function test_failed_power_on_releases_the_credit_claim(): void
+    {
+        $this->fakeInterruptibleStatus('off', 503);
+        $c = $this->customer(120_000);
+        $s = $this->service($c, ['cloud_plan_id' => $this->interruptiblePlan()->id]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'off']);
+
+        $this->actingAs($c, 'customer')
+            ->post(route('account.cloud.power', $s), ['action' => 'on'])
+            ->assertSessionHasErrors();
+
+        $this->assertSame('off', $s->cloudInstance()->firstOrFail()->status);
+        $this->assertSame(120_000, $c->creditBalance('IRT'));
     }
 
     /**

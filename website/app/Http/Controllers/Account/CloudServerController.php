@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CloudImage;
 use App\Models\CloudInstance;
+use App\Models\CloudPlan;
+use App\Models\Customer;
 use App\Models\Service;
 use App\Models\TunnelAgent;
 use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudOperations;
+use App\Services\Cloud\HourlyStartCredit;
 use App\Services\Cloud\InterruptibleBillingClock;
+use App\Services\Finance\Wallet;
 use App\Support\ExitCountries;
 use App\Support\TunnelProfile;
 use App\Support\WireGuardKey;
@@ -20,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
@@ -414,13 +419,53 @@ class CloudServerController extends Controller
             return $limited;
         }
 
+        // خریدِ سرورِ دوم وقتی GPU قبلی خاموش است مجاز می‌ماند؛ هنگام روشن‌کردن
+        // دوباره باید اعتبارِ ۲۴ ساعتِ مجموعِ سرورهای در حال مصرف موجود باشد.
+        $claimedInstanceId = null;
+        if ($action === 'on' && $service->billing_mode === 'hourly'
+            && (bool) $service->cloudPlan?->is_interruptible) {
+            // The customer lock is shared with hourly checkout. Claiming an off
+            // instance as building makes a concurrent checkout/start count it.
+            $start = DB::transaction(function () use ($service): array {
+                Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
+                $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->first();
+                if ($instance?->status === 'building') {
+                    return ['pending' => true];
+                }
+                if ($instance?->status !== 'off') {
+                    return [];
+                }
+                $minimum = app(HourlyStartCredit::class)->minimum(
+                    (int) $service->customer_id, (int) $service->hourly_rate_irt, (int) $service->id
+                );
+                $available = app(Wallet::class)->availableOf((int) $service->customer_id);
+                if ($available < $minimum) {
+                    return ['minimum' => $minimum, 'available' => $available];
+                }
+                $instance->update(['status' => 'building']);
+
+                return ['claimed' => $instance->id];
+            });
+            if ($start['pending'] ?? false) {
+                return back()->withErrors(__('ui.cx_not_ready'));
+            }
+            if (isset($start['minimum'])) {
+                return back()->withErrors(__('ui.cx_e_hourly_credit', [
+                    'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
+                    'min' => cloud_price($start['minimum']),
+                    'bal' => cloud_price($start['available']),
+                ]));
+            }
+            $claimedInstanceId = $start['claimed'] ?? null;
+        }
+
         return $this->run($service, function ($driver, $ref) use ($action) {
             return $driver->power($ref, $action);
         }, match ($action) {
             'on' => 'سرور روشن شد.',
             'off' => 'فرمانِ خاموش‌شدن فرستاده شد.',
             default => 'سرور در حالِ راه‌اندازیِ دوباره است.',
-        }, 'power:'.$action, $action);
+        }, 'power:'.$action, $action, $claimedInstanceId);
     }
 
     /**
@@ -652,18 +697,26 @@ class CloudServerController extends Controller
         string $okMessage,
         string $logAction,
         ?string $powerAction = null,
+        ?int $claimedInstanceId = null,
     ): RedirectResponse {
         $instance = $this->instanceOf($service);
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
+            $this->releasePowerOnClaim($claimedInstanceId);
             return back()->withErrors(__('ui.cx_not_ready'));
         }
 
-        $r = $fn($driver, (string) $instance->provider_ref);
+        try {
+            $r = $fn($driver, (string) $instance->provider_ref);
+        } catch (\Throwable $e) {
+            $this->releasePowerOnClaim($claimedInstanceId);
+            throw $e;
+        }
 
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
+            $this->releasePowerOnClaim($claimedInstanceId);
 
             return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
@@ -685,6 +738,13 @@ class CloudServerController extends Controller
         $this->log($service, $logAction);
 
         return back()->with('ok', $okMessage);
+    }
+
+    private function releasePowerOnClaim(?int $instanceId): void
+    {
+        if ($instanceId !== null) {
+            CloudInstance::whereKey($instanceId)->where('status', 'building')->update(['status' => 'off']);
+        }
     }
 
     // ────────────────── اکانت‌های تونلِ TCP ──────────────────
