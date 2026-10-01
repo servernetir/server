@@ -99,7 +99,11 @@ return new class extends Migration
                 $t->date('day')->nullable();                          // تاریخِ تهرانِ settled_at — سطلِ جمع‌بندی
                 $t->unsignedInteger('latency_ms')->nullable();
                 $t->unsignedInteger('ttft_ms')->nullable();
-                $t->timestamp('decide_by');
+                // 🔴 dateTime، نه timestamp: در MariaDB ِ پیش از ۱۰٫۱۰ ستونِ `timestamp NOT NULL`
+                // ِ بی‌پیش‌فرض، پیش‌فرضِ ضمنیِ '0000-00-00' می‌گیرد و در حالتِ strict با
+                // «Invalid default value» می‌شکند — و اگر اولین timestamp ِ جدول بود، با هر
+                // UPDATE خودش را به «اکنون» می‌بُرد و مهلتِ تصمیم هرگز نمی‌گذشت.
+                $t->dateTime('decide_by');
                 $t->timestamp('sent_at')->nullable();
                 $t->timestamp('settled_at')->nullable();
                 $t->timestamps();
