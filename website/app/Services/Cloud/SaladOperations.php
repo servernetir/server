@@ -211,7 +211,8 @@ trait SaladOperations
             'token_env' => null,
         ],
         'gpu-comfyui' => [
-            'ref'       => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+            // CUDA 12.8 includes the kernels needed by RTX 50-series (Blackwell).
+            'ref'       => 'saladtechnologies/comfyui:comfy0.3.61-api1.9.2-torch2.8.0-cuda12.8-dreamshaper8',
             'label'     => 'ComfyUI — Stable Diffusion',
             'port'      => 3000,
             'env'       => ['PORT' => '3000', 'HOST' => '::'],
@@ -559,6 +560,15 @@ trait SaladOperations
 
         if ($plan === null) {
             return $fail('پلنِ خواسته‌شده در کاتالوگ نیست.');
+        }
+
+        // Reject explicitly selected legacy ComfyUI builds before allocating a
+        // paid Blackwell GPU. Their warmup fails with "no kernel image".
+        if (str_starts_with($image, 'saladtechnologies/comfyui:')
+            && preg_match('/\bRTX\s*50\d{2}\b/i', (string) $plan->gpu_model)
+            && preg_match('/-cuda(\d+\.\d+)(?:-|$)/', $image, $cuda)
+            && version_compare($cuda[1], '12.8', '<')) {
+            return $fail('این نسخهٔ ComfyUI با کارت RTX سری ۵۰ سازگار نیست؛ ایمیج CUDA 12.8 یا جدیدتر انتخاب کنید.');
         }
 
         $env = $app !== null ? $app['env'] : [];
