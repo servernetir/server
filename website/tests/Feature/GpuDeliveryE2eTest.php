@@ -8,6 +8,7 @@ use App\Models\CloudLocation;
 use App\Models\Setting;
 use App\Services\Cloud\CloudProvisioner;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * تحویلِ انتها-به-انتهای GPU — همان مسیری که «شکست در تحویل» گزارش شد.
@@ -18,6 +19,70 @@ use Illuminate\Support\Facades\Http;
  */
 class GpuDeliveryE2eTest extends CloudProvisionTest
 {
+    public static function gpuApps(): array
+    {
+        return [['gpu-comfyui', 3000], ['gpu-ollama', 11434], ['gpu-jupyter', 8888]];
+    }
+
+    public function test_customer_status_poll_saves_the_gateway_before_claiming_delivery(): void
+    {
+        [$plan, $service] = $this->seedGpu();
+        Http::fake(function ($request) {
+            if ($request->method() === 'POST') {
+                return Http::response(['name' => 'sn-gpu-poll'], 201);
+            }
+            if (str_ends_with($request->url(), '/instances')) {
+                return Http::response(['instances' => [['state' => 'running', 'started' => true, 'ready' => true]]]);
+            }
+            return Http::response(['current_state' => ['status' => 'running'], 'networking' => ['dns' => 'poll.salad.cloud']]);
+        });
+        $this->assertTrue(app(CloudProvisioner::class)->provision($service));
+        $service->cloudInstance->update(['hostname' => 'sn-gpu-poll', 'ipv4' => null]);
+        $this->actingAs($service->customer, 'customer')->getJson(route('account.cloud.status', $service))
+            ->assertOk()->assertJson(['ready' => true, 'stage' => 'ready']);
+        $this->assertSame('poll.salad.cloud', $service->fresh()->cloudInstance->hostname);
+    }
+
+    #[DataProvider('gpuApps')]
+    public function test_every_gpu_app_waits_for_readiness_and_delivers_without_an_ssh_ip(string $key, int $port): void
+    {
+        [$plan, $service] = $this->seedGpu();
+        $ref = app(\App\Services\Cloud\SaladClient::class)->apps()[$key]['ref'];
+        CloudImage::firstOrCreate(['provider' => 'salad', 'key' => $key], [
+            'provider_ref' => $ref, 'kind' => 'app', 'family' => $key,
+            'label' => $key, 'arch' => 'x86', 'is_active' => true,
+        ]);
+        $service->update(['cloud_image_key' => $key]);
+        $ready = false;
+        $sent = null;
+        Http::fake(function ($request) use (&$ready, &$sent) {
+            if ($request->method() === 'POST' && str_ends_with($request->url(), '/containers')) {
+                $sent = $request->data();
+                return Http::response(['name' => $sent['name']], 201);
+            }
+            if (str_ends_with($request->url(), '/instances')) {
+                return Http::response(['instances' => [['state' => 'running', 'started' => true, 'ready' => $ready]]]);
+            }
+            return Http::response(['current_state' => ['status' => 'running'], 'networking' => ['dns' => 'gpu-test.salad.cloud']]);
+        });
+        $this->assertTrue(app(CloudProvisioner::class)->provision($service));
+        $instance = $service->fresh()->cloudInstance;
+        $this->assertSame($port, data_get($sent, 'networking.port'));
+        $this->assertNotEmpty($sent['readiness_probe'] ?? null);
+        app(CloudProvisioner::class)->syncInstances();
+        $instance->refresh();
+        $this->assertFalse($instance->isDelivered());
+        $this->assertNull($instance->ready_notified_at);
+        $ready = true;
+        app(CloudProvisioner::class)->syncInstances();
+        $instance->refresh();
+        $this->assertNull($instance->ipv4);
+        $this->assertSame('gpu-test.salad.cloud', $instance->hostname);
+        $this->assertTrue($instance->readyForNotice());
+        $this->assertTrue($instance->isDelivered());
+        $this->assertSame('gpu-test.salad.cloud', $service->fresh()->domain);
+    }
+
     private function seedGpu(): array
     {
         Setting::putSecret('salad_api_key', 'k-test');

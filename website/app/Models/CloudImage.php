@@ -152,6 +152,8 @@ class CloudImage extends Model
                 || (string) $row->arch === (string) $plan->arch;
 
             return $archOk
+                && ((string) $plan->provider !== 'salad'
+                    || \App\Services\Cloud\SaladClient::imageSupportsGpu((string) $row->provider_ref, (string) $plan->gpu_model))
                 && (int) $row->min_disk_gb <= (int) $plan->disk_gb
                 && (int) $row->min_ram_mb <= (int) $plan->ram_mb;
         });

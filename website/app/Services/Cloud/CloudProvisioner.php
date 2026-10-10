@@ -986,11 +986,12 @@ class CloudProvisioner
 
                     if ($service) {
                         $meta = (array) ($service->provision_meta ?? []);
-                        $meta['ip'] = $instance->ipv4;
+                        $address = $instance->isGpuApp() ? $instance->accessHost() : $instance->ipv4;
+                        $meta['ip'] = $address;
                         $meta['ipv6'] = $instance->ipv6;
 
                         $service->forceFill([
-                            'domain' => $service->domain ?: $instance->ipv4,
+                            'domain' => $service->domain ?: $address,
                             'provision_meta' => $meta,
                         ])->save();
                     }

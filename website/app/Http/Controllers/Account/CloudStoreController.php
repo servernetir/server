@@ -609,6 +609,11 @@ class CloudStoreController extends Controller
                 continue;
             }
 
+            if ((string) $row->provider === 'salad'
+                && ! \App\Services\Cloud\SaladClient::imageSupportsGpu((string) $row->provider_ref, (string) $offer->gpu_model)) {
+                continue;
+            }
+
             return true;
         }
 

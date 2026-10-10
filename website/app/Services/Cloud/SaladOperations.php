@@ -14,6 +14,46 @@ use App\Services\ExchangeRate;
  */
 trait SaladOperations
 {
+    /** Known binary compatibility limits, checked before checkout and allocation. */
+    public static function imageSupportsGpu(string $image, string $gpu): bool
+    {
+        // This aggregate class does not guarantee a CUDA architecture.
+        if (strcasecmp(trim($gpu), 'Stable Diffusion Compatible') === 0
+            && (str_starts_with($image, 'saladtechnologies/comfyui:')
+                || str_starts_with($image, 'quay.io/jupyter/pytorch-notebook:'))) {
+            return false;
+        }
+
+        $legacyGpu = (bool) preg_match('/\bGTX\s*(?:9\d{2}|10\d{2})\b|\b(?:Tesla|Quadro)\s*P\d+/i', $gpu);
+        if ($legacyGpu && in_array($image, [
+            'quay.io/jupyter/pytorch-notebook:cuda12-latest',
+            'quay.io/jupyter/pytorch-notebook:cuda12-2026-10-05',
+        ], true)) {
+            return false;
+        }
+
+        if (! str_starts_with($image, 'saladtechnologies/comfyui:')) {
+            return true;
+        }
+
+        if (preg_match('/-cuda(\d+\.\d+)(?:-|$)/', $image, $cuda)) {
+            if (preg_match('/\bRTX\s*50\d{2}\b|\bBlackwell\b/i', $gpu)
+                && version_compare($cuda[1], '12.8', '<')) {
+                return false;
+            }
+
+            // PyTorch 2.8 CUDA 12.8/12.9 binaries dropped Maxwell and Pascal.
+            if (preg_match('/-torch(\d+\.\d+(?:\.\d+)?)-/', $image, $torch)
+                && version_compare($torch[1], '2.8', '>=')
+                && version_compare($cuda[1], '12.8', '>=')
+                && $legacyGpu) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * تومانِ هر دلار — با راهِ فرارِ دستی، مثلِ یورو.
      *
@@ -227,7 +267,7 @@ trait SaladOperations
             'token_env' => null,
         ],
         'gpu-jupyter' => [
-            'ref'       => 'quay.io/jupyter/pytorch-notebook:cuda12-latest',
+            'ref'       => 'quay.io/jupyter/pytorch-notebook:cuda12-2026-10-05',
             'label'     => 'Jupyter — PyTorch Notebook',
             'port'      => 8888,
             'env'       => ['NOTEBOOK_ARGS' => '--ip=*'],
@@ -570,13 +610,9 @@ trait SaladOperations
             return $fail('پلنِ خواسته‌شده در کاتالوگ نیست.');
         }
 
-        // Reject explicitly selected legacy ComfyUI builds before allocating a
-        // paid Blackwell GPU. Their warmup fails with "no kernel image".
-        if (str_starts_with($image, 'saladtechnologies/comfyui:')
-            && preg_match('/\bRTX\s*50\d{2}\b/i', (string) $plan->gpu_model)
-            && preg_match('/-cuda(\d+\.\d+)(?:-|$)/', $image, $cuda)
-            && version_compare($cuda[1], '12.8', '<')) {
-            return $fail('این نسخهٔ ComfyUI با کارت RTX سری ۵۰ سازگار نیست؛ ایمیج CUDA 12.8 یا جدیدتر انتخاب کنید.');
+        // Reject known incompatible image/GPU pairs before paid allocation.
+        if (! self::imageSupportsGpu($image, (string) $plan->gpu_model)) {
+            return $fail('این نسخهٔ برنامه با کارت GPU انتخاب‌شده سازگار نیست؛ ترکیب سازگار انتخاب کنید.');
         }
 
         $env = $app !== null ? $app['env'] : [];
@@ -660,6 +696,24 @@ trait SaladOperations
                 'http' => ['path' => '/health', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
                 'initial_delay_seconds' => 5, 'period_seconds' => 5, 'timeout_seconds' => 10,
                 'success_threshold' => 1, 'failure_threshold' => 20,
+            ];
+        }
+
+        // The official Ollama entrypoint exposes HTTP before the model download
+        // finishes. Its marker is written only after the selected model runs.
+        if (($app['key'] ?? null) === 'gpu-ollama') {
+            $body['readiness_probe'] = [
+                'exec' => ['command' => ['test', '-f', '/tmp/ollama_model_ready']],
+                'initial_delay_seconds' => 0, 'period_seconds' => 5, 'timeout_seconds' => 2,
+                'success_threshold' => 1, 'failure_threshold' => 3,
+            ];
+        }
+
+        if (($app['key'] ?? null) === 'gpu-jupyter') {
+            $body['readiness_probe'] = [
+                'http' => ['path' => '/login', 'port' => 8888, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 0, 'period_seconds' => 5, 'timeout_seconds' => 2,
+                'success_threshold' => 1, 'failure_threshold' => 3,
             ];
         }
 
