@@ -2092,9 +2092,9 @@ return [
     'cvb_e_hourly_unsupported' => 'This plan is not sold hourly in this location — pick a monthly or longer cycle, or try another location.',
     'cvb_tax_incl' => 'Includes :pct% VAT',
     'cvb_eta' => 'Usually delivered in under two minutes after payment.',
-    'cvb_pill_gpu' => 'Automatic delivery · usually 15-60 minutes',
-    'cvb_eta_gpu' => 'Provisioning starts automatically after payment; preparing and downloading the app onto the GPU node usually takes 15-60 minutes, and that time is free - the hourly meter only counts once the machine is running.',
-    'cs_building_gpu_p' => 'Your selected app is being prepared and downloaded onto a GPU node; depending on app size and node speed this usually takes <b>15-60 minutes</b>, and you can watch the progress live right here. No need to keep this page open - the address and token will appear here the moment it is ready, and we will email them too. Preparation time is free; the hourly meter only counts once the machine is running.',
+    'cvb_pill_gpu' => 'Automatic delivery · allow about one hour',
+    'cvb_eta_gpu' => 'Provisioning starts after payment. Allow about one hour; GPU availability, app size and download speed can change the time. A confirmed build failure or no first delivery within two hours automatically cancels the order and returns deducted funds to your account credit. Preparation time does not count toward metered usage.',
+    'cs_building_gpu_p' => 'Your app is being prepared. Allow <b>about one hour</b> and follow live progress here; you do not need to keep this page open. A confirmed build failure or no first delivery within <b>two hours of payment</b> automatically cancels the order and returns deducted funds to your account credit. Preparation time does not count toward metered usage.',
     // Live GPU build sub-phases - real infrastructure data, never a guess
     'cs_stage_building_gpu_d' => 'The app image is prepared and downloaded onto the GPU node.',
     'cs_gpu_phase_waiting' => 'Fetching build status…',
@@ -3129,7 +3129,8 @@ return [
     'gpu_how2_t' => 'Pay by the hour',
     'gpu_how2_d' => 'Top up credit; only the hours your machine runs are deducted.',
     'gpu_how3_t' => 'Get your dedicated endpoint',
-    'gpu_how3_d' => 'Your HTTPS address and private token land in your panel; preparing the first machine usually takes 15-60 minutes (the app downloads onto the node - you can watch the progress live in your panel) and that time is free - metering starts only when the machine is running.',
+    'gpu_how3_d' => 'Your HTTPS address and private token appear in your panel when ready. Allow about one hour and follow live progress in your panel. A confirmed build failure or no first delivery within two hours automatically cancels the order and returns deducted funds to your account credit. Preparation time does not count toward metered usage.',
+    'gpu_faq1_a' => 'A dedicated GPU with a ready application, paid hourly from your account credit. Allow about one hour for first delivery. A confirmed build failure or no first delivery within two hours of payment automatically cancels the order and returns deducted funds to your account credit.',
     'gpu_apps_t' => 'Ready-made apps',
     'gpu_apps_d' => 'Pick one at checkout; it arrives configured and ready.',
     'gpu_app_llm_d' => 'LLM with an OpenAI-compatible API - call it from your own code.',
@@ -3138,7 +3139,7 @@ return [
 
     // GPU service access in the customer panel
     'cs_gpu_endpoint' => 'Your service address',
-    'cs_gpu_endpoint_wait' => 'Preparing your address - it will appear here in a few minutes.',
+    'cs_gpu_endpoint_wait' => 'Your address appears when the app is ready; allow about one hour for delivery.',
     'cs_gpu_use_h' => 'How do I use it?',
     'cs_gpu_ollama_d' => 'Your LLM is ready. Call this address like an API from anywhere - your code, server or laptop:',
     'cs_gpu_comfy_d' => 'Your image-generation service is an API (it has no web page - opening the bare address in a browser returns a 404, which is normal). Generate an image with the command below; the response contains the image as base64. Full capabilities are in the docs:',
@@ -3230,4 +3231,7 @@ return [
     'act_ai_project_created' => 'AI project “:name” created.',
     'act_ai_project_archived' => 'AI project “:name” archived.',
     'act_ai_project_updated' => 'AI project “:name” moved to “:status”.',
+    'cs_closed_h' => 'This order is closed',
+    'cs_closed_p' => 'This order was cancelled or terminated and is no longer being prepared.',
+    'cs_closed_refund_p' => 'Initial delivery did not complete. The order was automatically cancelled and the deducted amount was returned to your account credit.',
 ];

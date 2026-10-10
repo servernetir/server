@@ -2092,9 +2092,9 @@ return [
     'cvb_e_hourly_unsupported' => 'Bu paket bu konumda saatlik satılmıyor — aylık ya da daha uzun bir dönem seçin veya başka bir konuma bakın.',
     'cvb_tax_incl' => ':pct% KDV dahildir',
     'cvb_eta' => 'Ödemeden sonra genellikle iki dakikadan kısa sürede teslim edilir.',
-    'cvb_pill_gpu' => 'Otomatik teslim · genellikle 15-60 dakika',
-    'cvb_eta_gpu' => 'Odemeden sonra kurulum otomatik baslar; uygulamanin hazirlanmasi ve GPU dugumune indirilmesi genellikle 15-60 dakika surer ve bu sure ucretsizdir - saatlik sayac yalnizca makine calisirken isler.',
-    'cs_building_gpu_p' => 'Sectiginiz uygulama hazirlaniyor ve bir GPU dugumune indiriliyor; uygulama boyutuna ve dugum hizina gore genellikle <b>15-60 dakika</b> surer ve ilerlemeyi burada canli izleyebilirsiniz. Sayfayi acik tutmaniza gerek yok - hazir olur olmaz adres ve token burada gorunur, ayrica e-posta da gonderilir. Hazirlik suresi ucretsizdir; saatlik sayac yalnizca makine calisirken isler.',
+    'cvb_pill_gpu' => 'Otomatik teslim · yaklaşık bir saat',
+    'cvb_eta_gpu' => 'Ödemeden sonra kurulum başlar. Yaklaşık bir saat ayırın; GPU uygunluğu, uygulama boyutu ve indirme hızı süreyi değiştirebilir. Kesinleşmiş kurulum hatasında veya ilk teslim iki saat içinde yapılmazsa sipariş otomatik iptal edilir ve kesilen tutar hesap bakiyenize iade edilir. Hazırlık süresi kullanım sayacına eklenmez.',
+    'cs_building_gpu_p' => 'Uygulamanız hazırlanıyor. <b>Yaklaşık bir saat</b> ayırın ve ilerlemeyi burada izleyin; sayfayı açık tutmanız gerekmez. Kesinleşmiş kurulum hatasında veya ilk teslim <b>ödemeden sonraki iki saat</b> içinde yapılmazsa sipariş otomatik iptal edilir ve kesilen tutar hesap bakiyenize iade edilir. Hazırlık süresi kullanım sayacına eklenmez.',
     // GPU kurulumunun canli alt-asamalari - gercek altyapi verisi, tahmin degil
     'cs_stage_building_gpu_d' => 'Uygulama imaji hazirlanir ve GPU dugumune indirilir.',
     'cs_gpu_phase_waiting' => 'Kurulum durumu aliniyor…',
@@ -3129,7 +3129,8 @@ return [
     'gpu_how2_t' => 'Saatlik odeyin',
     'gpu_how2_d' => 'Kredi yukleyin; yalnizca makinenin calistigi saatler dusulur.',
     'gpu_how3_t' => 'Ozel adresinizi alin',
-    'gpu_how3_d' => 'HTTPS adresiniz ve ozel tokeniniz panelinize gelir; ilk makinenin hazirlanmasi genellikle 15-60 dakika surer (uygulama dugume indirilir - ilerlemeyi panelde canli izleyebilirsiniz) ve bu sure ucretsizdir - sayac yalnizca makine calisirken isler.',
+    'gpu_how3_d' => 'Hazır olduğunda HTTPS adresiniz ve özel tokeniniz panelinizde görünür. Yaklaşık bir saat ayırın ve ilerlemeyi panelinizden izleyin. Kesinleşmiş kurulum hatasında veya ilk teslim iki saat içinde yapılmazsa sipariş otomatik iptal edilir ve kesilen tutar hesap bakiyenize iade edilir. Hazırlık süresi kullanım sayacına eklenmez.',
+    'gpu_faq1_a' => 'Hesap bakiyenizden saatlik ödenen, hazır uygulamalı özel bir GPU kartıdır. İlk teslim için yaklaşık bir saat ayırın. Kesinleşmiş kurulum hatasında veya ilk teslim ödemeden sonraki iki saat içinde yapılmazsa sipariş otomatik iptal edilir ve kesilen tutar hesap bakiyenize iade edilir.',
     'gpu_apps_t' => 'Hazir uygulamalar',
     'gpu_apps_d' => 'Satin alirken birini secersiniz; yapilandirilmis olarak teslim edilir.',
     'gpu_app_llm_d' => 'OpenAI uyumlu API ile LLM - kendi kodunuzdan cagirin.',
@@ -3138,7 +3139,7 @@ return [
 
     // Musteri panelinde GPU hizmet erisimi
     'cs_gpu_endpoint' => 'Hizmet adresiniz',
-    'cs_gpu_endpoint_wait' => 'Adresiniz hazirlaniyor - birkac dakika icinde burada gorunecek.',
+    'cs_gpu_endpoint_wait' => 'Adresiniz uygulama hazır olduğunda görünür; teslim için yaklaşık bir saat ayırın.',
     'cs_gpu_use_h' => 'Nasil kullanirim?',
     'cs_gpu_ollama_d' => 'LLM hazir. Bu adresi bir API gibi her yerden cagirin - kodunuz, sunucunuz veya bilgisayariniz:',
     'cs_gpu_comfy_d' => 'Goruntu uretme servisiniz bir API dir (web sayfasi yoktur - adresi tarayicida acmak 404 verir, bu normaldir). Asagidaki komutla goruntu uretin; yanit, goruntuyu base64 olarak dondurur. Tum ozellikler dokumantasyonda:',
@@ -3230,4 +3231,7 @@ return [
     'act_ai_project_created' => '“:name” yapay zekâ projesi oluşturuldu.',
     'act_ai_project_archived' => '“:name” yapay zekâ projesi arşivlendi.',
     'act_ai_project_updated' => '“:name” yapay zekâ projesi “:status” durumuna taşındı.',
+    'cs_closed_h' => 'Bu sipariş kapatıldı',
+    'cs_closed_p' => 'Bu sipariş iptal edildi veya sonlandırıldı; artık hazırlanıyor değil.',
+    'cs_closed_refund_p' => 'İlk teslimat tamamlanmadı. Sipariş otomatik olarak iptal edildi ve kesilen tutar hesap bakiyenize geri aktarıldı.',
 ];

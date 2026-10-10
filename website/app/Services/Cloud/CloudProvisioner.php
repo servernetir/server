@@ -64,12 +64,16 @@ class CloudProvisioner
      */
     public function provision(Service $service): bool
     {
+        if (in_array($service->fresh()?->status, Service::DEAD_STATUSES, true)) {
+            return false;
+        }
         if ($service->provision_status === 'done') {
             return true;
         }
 
         // ── لایهٔ ۱: قفلِ اتمی ──
         $claimed = Service::whereKey($service->id)
+            ->whereNotIn('status', Service::DEAD_STATUSES)
             ->where(function ($q) {
                 $q->whereIn('provision_status', ['pending', 'failed', 'manual'])
                     ->orWhereNull('provision_status')
@@ -519,6 +523,12 @@ class CloudProvisioner
     private function finalize(Service $service, CloudInstance $instance, CloudPlan $plan, ?string $password): void
     {
         DB::transaction(function () use ($service, $instance, $plan, $password) {
+            $current = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            if (in_array($current->status, Service::DEAD_STATUSES, true)) {
+                $service->refresh();
+                return;
+            }
+            $service->setRawAttributes($current->getAttributes(), true);
             $service->forceFill([
                 'cloud_plan_id' => $plan->id,      // زیرساختِ واقعیِ تحویل
                 /*
@@ -537,6 +547,7 @@ class CloudProvisioner
                 'provision_error' => null,
                 'provisioned_at' => now(),
                 'provision_meta' => [
+                    ...($service->provision_meta ?? []),
                     'kind' => 'cloud',
                     // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
                     // آدرسِ عمومی‌اش «IP:پورت» است.
@@ -725,6 +736,9 @@ class CloudProvisioner
 
     private function notifyIfReady(Service $service, CloudInstance $instance): void
     {
+        if (in_array($service->fresh()?->status, Service::DEAD_STATUSES, true)) {
+            return;
+        }
         $this->ensureWebGateway($service, $instance);
 
         if ($instance->readyForNotice()) {
@@ -1588,6 +1602,10 @@ class CloudProvisioner
      */
     private function refundIfPrepaid(Service $service): void
     {
+        // GPU recovery refunds actual debits together with cancellation after a live check.
+        if (str_starts_with((string) $service->cloud_image_key, 'gpu-')) {
+            return;
+        }
         if ($service->billing_mode !== 'hourly' || (int) $service->hourly_rate_irt <= 0) {
             return;
         }
@@ -1621,11 +1639,15 @@ class CloudProvisioner
 
     private function fail(Service $service, string $reason): void
     {
-        $service->forceFill([
+        $updated = Service::whereKey($service->id)->whereNotIn('status', Service::DEAD_STATUSES)->update([
             'provision_status' => 'failed',
             'provision_error' => mb_substr($reason, 0, 290),
             'status' => 'awaiting_provision',
-        ])->save();
+        ]);
+        if (! $updated) {
+            return;
+        }
+        $service->refresh();
 
         try {
             // ⚠️ `forService` و نه `record(null,…)`: با نال، ردیف به سرویس

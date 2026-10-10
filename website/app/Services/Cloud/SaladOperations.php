@@ -796,6 +796,31 @@ trait SaladOperations
      * ⚠️ گروه فقط وضعیتِ کلی دارد؛ نشانیِ واقعی روی نمونه است و تا وقتی گره
      * تخصیص نخورده اصلاً وجود ندارد.
      */
+    /** Only explicit readiness delivers; only stopped plus zero instances confirms cost stopped. */
+    public function gpuDeliveryState(string $ref): array
+    {
+        $group = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
+        if (! $group['ok']) {
+            return ['ok' => $group['status'] === 404, 'exists' => $group['status'] !== 404,
+                'ready' => false, 'stopped' => $group['status'] === 404, 'state' => 'unknown'];
+        }
+        $state = strtolower((string) data_get($group['body'], 'current_state.status', ''));
+        $hostname = (string) data_get($group['body'], 'networking.dns', '');
+        $nodes = $this->req('GET', $this->proj('/'.rawurlencode($ref).'/instances'));
+        $nodes['ok'] = $nodes['ok'] && is_array(data_get($nodes['body'], 'instances'));
+        $ready = false;
+        if ($nodes['ok']) {
+            foreach ($this->items($nodes['body']) as $node) {
+                $ready = $ready || (strtolower((string) ($node['state'] ?? '')) === 'running'
+                    && ($node['started'] ?? false) === true && ($node['ready'] ?? false) === true);
+            }
+        }
+        return ['ok' => $nodes['ok'] || $state === 'failed', 'exists' => true, 'state' => $state,
+            'hostname' => $hostname ?: null,
+            'ready' => $state === 'running' && $ready && $hostname !== '',
+            'stopped' => $state === 'stopped' && $nodes['ok'] && count($this->items($nodes['body'])) === 0];
+    }
+
     public function serverStatus(string $ref): array
     {
         $r = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
