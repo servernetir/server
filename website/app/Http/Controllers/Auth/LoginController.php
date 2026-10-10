@@ -43,14 +43,14 @@ class LoginController extends Controller
         $data = $request->validate([
             'method'     => ['required', 'in:mobile,email'],
             'identifier' => ['required', 'string', 'max:190'],
-        ], [], ['identifier' => 'شناسه']);
+        ], [], ['identifier' => __('activity.login_identifier')]);
 
         $channel = $data['method'] === 'email' ? 'email' : 'sms';
         $destination = $this->otp->normalize($channel, $data['identifier']);
 
         if ($destination === '' || ($channel === 'email' && ! filter_var($destination, FILTER_VALIDATE_EMAIL))) {
             return back()->withInput()->withErrors([
-                'identifier' => $channel === 'email' ? 'ایمیل معتبر نیست.' : 'شمارهٔ موبایل معتبر نیست (مثل ۰۹۱۲۳۴۵۶۷۸۹).',
+                'identifier' => __($channel === 'email' ? 'activity.login_email_invalid' : 'activity.login_phone_invalid'),
             ]);
         }
 

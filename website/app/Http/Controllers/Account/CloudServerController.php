@@ -78,7 +78,7 @@ class CloudServerController extends Controller
     {
         if (in_array($service->status, ['suspended', 'cancelled', 'expired', 'terminated', 'pending'], true)) {
             return back()->withErrors(
-                'این سرور در حالِ حاضر تعلیق است. برای استفاده، فاکتورِ بازمانده را پرداخت کنید.'
+                __('panel.cloud_suspended')
             );
         }
 
@@ -96,7 +96,7 @@ class CloudServerController extends Controller
      */
     private function safeMessage(string $raw, ?CloudInstance $instance): string
     {
-        return $this->ops->scrub($raw, $instance);
+        return \App\Support\PanelText::text($this->ops->scrub($raw, $instance));
     }
 
     private function instanceOf(Service $service): ?CloudInstance
@@ -240,7 +240,7 @@ class CloudServerController extends Controller
         $instance->meta = $meta;
         $instance->save();
 
-        $label = $disable ? 'ایران (بدونِ اکسیت)' : mb_strtoupper($cc);
+        $label = $disable ? __('panel.exit_local') : mb_strtoupper($cc);
 
         $this->log($service, __('ui.act_cloud_exit', ['label' => $label]));
 
@@ -462,9 +462,9 @@ class CloudServerController extends Controller
         return $this->run($service, function ($driver, $ref) use ($action) {
             return $driver->power($ref, $action);
         }, match ($action) {
-            'on' => 'سرور روشن شد.',
-            'off' => 'فرمانِ خاموش‌شدن فرستاده شد.',
-            default => 'سرور در حالِ راه‌اندازیِ دوباره است.',
+            'on' => __('activity.power_on'),
+            'off' => __('activity.power_off'),
+            default => __('activity.power_reboot'),
         }, 'power:'.$action, $action, $claimedInstanceId);
     }
 
@@ -621,7 +621,7 @@ class CloudServerController extends Controller
 
         if (! ($r['ok'] ?? false) || blank($r['url'] ?? null)) {
             return back()->withErrors($this->safeMessage(
-                (string) ($r['message'] ?: 'کنسول برای این سرور در دسترس نیست.'), $instance
+                (string) ($r['message'] ?: __('panel.cloud_console_unavailable')), $instance
             ));
         }
 
@@ -674,7 +674,7 @@ class CloudServerController extends Controller
         );
 
         if (! is_array($data) || blank($data['url'] ?? null)) {
-            return response()->json(['ok' => false, 'message' => 'نشستِ کنسول منقضی شده است.'], 410);
+            return response()->json(['ok' => false, 'message' => __('panel.cloud_console_expired')], 410);
         }
 
         return response()->json([
@@ -783,7 +783,7 @@ class CloudServerController extends Controller
 
         if (count($tunnel->peers()) >= TunnelProfile::MAX_PEERS) {
             return back()->withErrors(
-                'به سقفِ '.fa_num(TunnelProfile::MAX_PEERS).' اکانت رسیده‌اید. یکی را حذف کنید و دوباره تلاش کنید.'
+                __('panel.tunnel_cap', ['n' => fa_num(TunnelProfile::MAX_PEERS)])
             );
         }
 

@@ -1274,8 +1274,10 @@ class CloudStoreController extends Controller
 
         try {
             ActivityLog::forService($service, 'purchase',
-                'سفارشِ سرورِ مجازی «'.$label.'» — '.$offer->public_name.' · '.$locText
-                .' · '.Service::labelFor($cycle).' توسط مشتری ثبت شد', 'customer', $request);
+                __('activity.vps_order', [
+                    'label' => $label, 'plan' => $offer->public_name,
+                    'loc' => $locText, 'cycle' => Service::labelFor($cycle),
+                ]), 'customer', $request);
         } catch (\Throwable $e) {
             // ⚠️ لاگ نباید سفارش را بشکند — ولی **بی‌صدا هم نباید بمیرد**.
             //    همین catchِ خالی بود که باگِ بالا را پنهان نگه داشت.

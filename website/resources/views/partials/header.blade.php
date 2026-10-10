@@ -28,11 +28,11 @@
        dir="rtl" روی خودِ نوار: متنش فارسی است و در صفحاتِ en/tr هم باید درست
        بنشیند. --}}
   @if($impBar ?? false)
-  <div class="imp-bar" dir="rtl">
+  <div class="imp-bar" dir="{{ app()->getLocale() === 'fa' ? 'rtl' : 'ltr' }}">
     <div class="container imp-in">
       <span class="imp-tx">
         <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
-        <span class="imp-lb">نمایِ مشتری —</span>
+        <span class="imp-lb">{{ __('activity.customer_view') }}</span>
         <b class="imp-nm">{{ $impCust->displayName() }}</b>
         <span class="imp-code" dir="ltr">{{ $impCust->code }}</span>
       </span>
@@ -43,8 +43,8 @@
       <form method="post" action="{{ \App\Http\Middleware\ConsoleHost::panelUrl('/admin/impersonate/stop') }}" class="imp-f">@csrf
         <button type="submit" class="imp-out">
           <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
-          <span class="imp-out-lg">بازگشت به پنل مدیریت</span>
-          <span class="imp-out-sm">بازگشت</span>
+          <span class="imp-out-lg">{{ __('activity.return_admin') }}</span>
+          <span class="imp-out-sm">{{ __('activity.return_short') }}</span>
         </button>
       </form>
     </div>

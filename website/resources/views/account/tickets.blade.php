@@ -17,7 +17,7 @@
 
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 

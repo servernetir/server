@@ -12,8 +12,8 @@
 
 @include('account.partials.lens', ['secCounts' => $secCounts, 'secLens' => 'domains'])
 
-@if(session('ok'))<div class="dm-note ok">{{ session('ok') }}</div>@endif
-@if($errors->any())<div class="dm-note danger">{{ $errors->first() }}</div>@endif
+@if(session('ok'))<div class="dm-note ok">{{ \App\Support\PanelText::text(session('ok')) }}</div>@endif
+@if($errors->any())<div class="dm-note danger">{{ \App\Support\PanelText::text($errors->first()) }}</div>@endif
 
 {{-- ثبتِ دامنهٔ تازه — همین‌جا، نه در صفحهٔ دیگر.
      استعلام سمتِ سرور گرفته می‌شود تا قیمتی که مشتری روی دکمه می‌بیند همانی

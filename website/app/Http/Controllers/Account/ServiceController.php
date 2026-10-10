@@ -99,7 +99,7 @@ class ServiceController extends Controller
             'code'        => ['required', 'string', 'max:12'],
             'reason'      => ['nullable', 'string', Rule::in(Service::terminateReasonCodes())],
             'reason_note' => ['nullable', 'string', 'max:500'],
-        ], [], ['code' => 'کد', 'reason' => 'دلیل حذف', 'reason_note' => 'توضیح']);
+        ], [], ['code' => __('panel.field_code'), 'reason' => __('panel.field_reason'), 'reason_note' => __('panel.field_note')]);
 
         $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'service_terminate', $data['code']);
 
@@ -346,8 +346,8 @@ class ServiceController extends Controller
         }
 
         return back()->with('ok', $refund > 0
-            ? 'سفارش لغو شد و '.fa_num(number_format($refund)).' تومان به کیفِ پولِ شما بازگشت.'
-            : 'سفارش لغو شد.');
+            ? __('panel.cancel_refund', ['amount' => invoice_money($refund)])
+            : __('panel.cancel_order'));
     }
 
     public function index(): View

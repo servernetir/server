@@ -24,7 +24,7 @@
         @include('panel.avatar', ['user' => $pnlUser])
         <b>{{ $pnlUser['name'] ?? '' }}</b>
       </div>
-      <button class="pnl-menu-btn" id="pnl-menu" aria-label="منو">
+      <button class="pnl-menu-btn" id="pnl-menu" aria-label="{{ __('ui.menu') }}">
         <svg class="icon"><use href="#i-list"/></svg>
       </button>
     </div>

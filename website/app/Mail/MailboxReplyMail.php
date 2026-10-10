@@ -41,6 +41,8 @@ class MailboxReplyMail extends Mailable
 
     public function build(): self
     {
+        $mailLocale = $this->locale ?: (\App\Models\Customer::whereIn('email', array_column($this->to, 'address'))->value('locale') ?: 'fa');
+        $bodyText = str_replace('در پاسخ به (بخشی از نامهٔ شما):', trans('panel.quoted', [], $mailLocale), $this->bodyText);
         $mail = $this->subject($this->subjectLine);
 
         /*
@@ -55,10 +57,11 @@ class MailboxReplyMail extends Mailable
                 'subjectLine' => $this->subjectLine,
                 'signature'   => $this->signature,
                 'quoted'      => $this->quoted,
+                'mailLocale'  => $mailLocale,
             ]);
         }
 
-        $mail->text('emails.mailbox-reply', ['bodyText' => $this->bodyText]);
+        $mail->text('emails.mailbox-reply', ['bodyText' => $bodyText]);
 
         /*
         | 🔴 پیوست از **حافظه** می‌رود، نه از مسیرِ فایل. فایلِ آپلودشده در
