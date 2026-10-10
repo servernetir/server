@@ -31,8 +31,8 @@ class AiPricingInputsMigrationTest extends TestCase
         $m = $this->migration();
         $sql = collect(DB::connection()->pretend(fn () => $m->up()))->pluck('query')->implode("\n");
 
-        $this->assertMatchesRegularExpression('/alter table .*ai_providers.* add column .*fx_fee_bp/i', $sql);
-        $this->assertMatchesRegularExpression('/alter table .*ai_models.* add column .*margin_bp/i', $sql);
+        $this->assertMatchesRegularExpression('/alter table .*ai_providers.* add (?:column )?.*fx_fee_bp/i', $sql);
+        $this->assertMatchesRegularExpression('/alter table .*ai_models.* add (?:column )?.*margin_bp/i', $sql);
         $this->assertFalse(Schema::hasColumn('ai_providers', 'fx_fee_bp'), 'pretend نباید چیزی بسازد');
 
         $m->up();

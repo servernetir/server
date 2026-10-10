@@ -518,7 +518,7 @@ class SiteController extends Controller
         $add('ai.home');
         $add('ai.models');
         $add('ai.docs');
-        foreach (\App\Models\AiModel::where('category', 'chat')->where('status', 'active')->pluck('slug') as $aiSlug) {
+        foreach (\App\Models\AiModel::whereIn('category', ['chat', 'embedding', 'rerank'])->where('status', 'active')->whereNull('suspended_at')->pluck('slug') as $aiSlug) {
             $add('ai.model', $aiSlug);
         }
 

@@ -11,7 +11,7 @@
 </div></section>
 <section class="pnl-sec"><div class="pnl-sec-h"><h2>{{ __('ai.history') }}</h2></div><div class="pnl-sec-b" style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>@foreach(['date','detail','status','amount','request'] as $label)<th style="padding:12px;text-align:start">{{ __('ai.'.$label) }}</th>
 @endforeach
-</tr></thead><tbody>@forelse($history as $usage)<tr><td style="padding:12px;white-space:nowrap">{{ $usage->created_at->format('Y-m-d H:i') }}</td><td dir="ltr">{{ $usage->model_slug }}<br><small>{{ number_format($usage->prompt_tokens ?? 0) }} / {{ number_format($usage->completion_tokens ?? 0) }}</small></td><td>{{ __('ai.state_'.$usage->status) }}</td><td>{{ number_format((int)$usage->charged_irt-(int)$usage->refunded_irt) }}</td><td dir="ltr"><code>{{ $usage->public_id }}</code></td></tr>
+</tr></thead><tbody>@forelse($history as $usage)<tr><td style="padding:12px;white-space:nowrap">{{ $usage->created_at->format('Y-m-d H:i') }}</td><td dir="ltr">{{ $usage->model_slug }}<br><small>{{ $usage->prompt_tokens === null ? '—' : number_format($usage->prompt_tokens) }} / {{ $usage->completion_tokens === null ? '—' : number_format($usage->completion_tokens) }}</small></td><td>{{ __('ai.state_'.$usage->status) }}</td><td>{{ number_format((int)$usage->charged_irt-(int)$usage->refunded_irt) }}</td><td dir="ltr"><code>{{ $usage->public_id }}</code></td></tr>
 @empty
 <tr><td colspan="5" style="padding:24px">{{ __('ai.no_usage') }}</td></tr>
 @endforelse

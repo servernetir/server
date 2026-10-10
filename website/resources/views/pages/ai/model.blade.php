@@ -1,11 +1,11 @@
 @extends('layouts.site')
 @section('title',__('ai.model_title',['name'=>$model->name]))
 @section('description',__('ai.model_desc',['name'=>$model->name]))
-@if($model->category!=='chat' || $model->status==='deprecated')@section('noindex','1')
+@if(!in_array($model->category,['chat','embedding','rerank'],true) || $model->status==='deprecated')@section('noindex','1')
 @endif
 
 @include('pages.ai.style')
-@section('content')<main class="ai-wrap">@include('pages.ai.nav')<div class="ai-label" dir="ltr">{{ $model->vendor }} · {{ __('ai.'.$model->category) }}</div><h1>{{ $model->name }} API</h1><p class="ai-lead">{{ __('ai.model_intro',['name'=>$model->name,'vendor'=>$model->vendor,'type'=>__('ai.'.$model->category)]) }}</p><span class="ai-pill {{ $state['ready']?'ready':'' }}">{{ __('ai.'.($model->status==='deprecated'?'deprecated':($state['ready']?'ready':'pending'))) }}</span><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a></div><section class="ai-grid"><div class="ai-card"><h2>{{ __('ai.price') }}</h2>@if($state['quote'])<div class="ai-price"><div>{{ __('ai.input') }}<strong>{{ number_format($state['quote']->pIn) }}</strong></div><div>{{ __('ai.output') }}<strong>{{ number_format($state['quote']->pOut) }}</strong></div></div>
+@section('content')<main class="ai-wrap">@include('pages.ai.nav')<div class="ai-label" dir="ltr">{{ $model->vendor }} · {{ __('ai.'.$model->category) }}</div><h1>{{ $model->name }} API</h1><p class="ai-lead">{{ __('ai.model_intro',['name'=>$model->name,'vendor'=>$model->vendor,'type'=>__('ai.'.$model->category)]) }}</p><span class="ai-pill {{ $state['ready']?'ready':'' }}">{{ __('ai.'.($model->status==='deprecated'?'deprecated':($state['ready']?'ready':'pending'))) }}</span><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a></div><section class="ai-grid"><div class="ai-card"><h2>{{ __('ai.price') }}</h2>@if($state['quote'])<div class="ai-price"><div>{{ __('ai.input') }}<strong>{{ number_format($state['quote']->pIn) }}</strong></div>@if($model->category==='chat')<div>{{ __('ai.output') }}<strong>{{ number_format($state['quote']->pOut) }}</strong></div>@endif</div>
 @else
 <p>{{ __('ai.prices_pending') }}</p>
 @endif

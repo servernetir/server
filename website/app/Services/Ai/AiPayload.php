@@ -71,6 +71,17 @@ final class AiPayload
         foreach ($messages as $i => $m) {
             $this->checkMessage($m, $i);
         }
+        if (isset($client['tools'])) {
+            if (! is_array($client['tools']) || ! array_is_list($client['tools'])) {
+                throw new AiRequestException('invalid_request', 'tools must be a list.', 400);
+            }
+            foreach ($client['tools'] as $tool) {
+                if (! is_array($tool) || ($tool['type'] ?? null) !== 'function'
+                    || array_diff(array_keys($tool), ['type', 'function']) !== []) {
+                    throw new AiRequestException('unsupported_parameter', 'Only function tools without paid cache options are supported.', 400);
+                }
+            }
+        }
 
         $cap = max(1, (int) ($model->max_output_tokens ?: config('ai.default_max_output', 4096)));
         $asked = [];
@@ -95,8 +106,32 @@ final class AiPayload
             }
         }
 
+        // These upstream models exceeded max_tokens with their default reasoning.
+        // Keep the verified non-reasoning contract until a bounded reasoning API exists.
+        if ($model->provider?->slug === 'deepinfra' && in_array($model->upstream_model,
+            ['Qwen/Qwen3.8-Flash', 'Qwen/Qwen3.8-Max', 'zai-org/GLM-5.3',
+                'Qwen/Qwen3.7-Max', 'ByteDance/Seed-2.0-mini', 'ByteDance/Seed-1.8', 'ByteDance/Seed-2.0-code'], true)) {
+            $forward['reasoning_effort'] = 'none';
+        }
+        if ($model->provider?->slug === 'deepseek') {
+            $forward['thinking'] = ['type' => 'disabled'];
+        }
+        if ($model->provider?->slug === 'gapgpt' && $model->upstream_model === 'grok-4') {
+            $forward['reasoning_effort'] = 'none';
+        }
+
         $bytes = strlen((string) json_encode($forward, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $input = $bytes + 16 * count($messages) + 256;
+        if ($model->provider?->slug === 'deepinfra' && $model->upstream_model === 'nvidia/Nemotron-Content-Safety-3.5') {
+            $input += 1024; // Verified 469 prompt tokens for a short request: internal safety template.
+        }
+        $tierLimit = $model->capabilities['pricing_context_limit'] ?? null;
+        if (is_int($tierLimit) && $input + $output > $tierLimit) {
+            throw new AiRequestException('request_too_large', 'Input and output exceed this model pricing tier limit.', 413);
+        }
+        if (in_array($model->provider?->slug, ['gapgpt', 'deepseek'], true) && $input + $output > $model->context_tokens) {
+            throw new AiRequestException('request_too_large', 'Input and output exceed the verified context limit.', 413);
+        }
 
         return new AiPreparedRequest(
             forward: $forward,
@@ -119,6 +154,61 @@ final class AiPayload
         return hash('sha256', (string) json_encode(self::canonical($body), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
+    /** Text-only input operations: no generation, media, callbacks or arbitrary options. */
+    public function prepareInputOnly(array $client, AiModel $model, string $operation): AiPreparedRequest
+    {
+        if (($client['stream'] ?? false) !== false) {
+            throw new AiRequestException('unsupported_parameter', 'Streaming is unavailable for this operation.', 400);
+        }
+        $forward = [];
+        if ($operation === 'embedding') {
+            $input = $client['input'] ?? null;
+            $texts = is_string($input) ? [$input] : $input;
+            $this->checkTexts($texts, 128);
+            if (($client['encoding_format'] ?? 'float') !== 'float') {
+                throw new AiRequestException('unsupported_parameter', 'encoding_format must be float.', 400);
+            }
+            $forward = ['input' => $input, 'encoding_format' => 'float'];
+            // Includes model instruction/template overhead for every item, not only once per batch.
+            $bound = array_sum(array_map('strlen', $texts)) + 1024 * count($texts);
+        } elseif ($operation === 'rerank') {
+            $queries = $client['queries'] ?? null;
+            $documents = $client['documents'] ?? null;
+            $this->checkTexts($queries, 128);
+            $this->checkTexts($documents, 128);
+            if (count($queries) !== count($documents)) {
+                throw new AiRequestException('invalid_request', 'queries and documents must have the same length.', 400);
+            }
+            $instruction = $client['instruction'] ?? 'Given a web search query, retrieve relevant passages that answer the query';
+            if (! is_string($instruction) || strlen($instruction) > 2048) {
+                throw new AiRequestException('invalid_request', 'instruction must be text of at most 2048 bytes.', 400);
+            }
+            $forward = ['queries' => $queries, 'documents' => $documents, 'instruction' => $instruction];
+            $bound = array_sum(array_map('strlen', $queries)) + array_sum(array_map('strlen', $documents))
+                + (strlen($instruction) + 1024) * count($documents);
+        } else {
+            throw new AiRequestException('unsupported_parameter', 'Unsupported input operation.', 400);
+        }
+        if ($bound > 1_000_000) {
+            throw new AiRequestException('request_too_large', 'Input exceeds the batch limit.', 413);
+        }
+        $dropped = array_values(array_diff(array_keys($client), ['model', 'stream', ...array_keys($forward)]));
+        return new AiPreparedRequest($forward, $bound, 0, 0, false, $dropped,
+            self::hash(['operation' => $operation, 'body' => $client]), operation: $operation);
+    }
+
+    private function checkTexts(mixed $texts, int $limit): void
+    {
+        if (! is_array($texts) || ! array_is_list($texts) || $texts === [] || count($texts) > $limit) {
+            throw new AiRequestException('invalid_request', 'A nonempty text list of at most '.$limit.' items is required.', 400);
+        }
+        foreach ($texts as $text) {
+            if (! is_string($text) || $text === '' || strlen($text) > 65536) {
+                throw new AiRequestException('invalid_request', 'Each item must be nonempty text of at most 65536 bytes.', 400);
+            }
+        }
+    }
+
     private static function canonical(mixed $v): mixed
     {
         if (! is_array($v)) {
@@ -136,6 +226,9 @@ final class AiPayload
         if (! is_array($m) || ! in_array($m['role'] ?? null, self::ROLES, true)) {
             throw new AiRequestException('invalid_request', "پیامِ {$i} نقشِ معتبر ندارد.", 400);
         }
+        if (array_diff(array_keys($m), ['role', 'content', 'name', 'tool_calls', 'tool_call_id', 'function_call']) !== []) {
+            throw new AiRequestException('unsupported_parameter', 'Unsupported message options.', 400);
+        }
 
         $content = $m['content'] ?? null;
         if ($content === null || is_string($content)) {
@@ -146,7 +239,8 @@ final class AiPayload
         }
         foreach ($content as $part) {
             // تصویر/صدا/فایل هزینهٔ جدا دارند و در سقفِ بایتی نمی‌گنجند ⇒ رد، نه حدس
-            if (! is_array($part) || ($part['type'] ?? null) !== 'text' || ! is_string($part['text'] ?? null)) {
+            if (! is_array($part) || ($part['type'] ?? null) !== 'text' || ! is_string($part['text'] ?? null)
+                || array_diff(array_keys($part), ['type', 'text']) !== []) {
                 throw new AiRequestException('unsupported_parameter', 'فقط محتوای متنی پشتیبانی می‌شود.', 400);
             }
         }

@@ -1,5 +1,9 @@
 <?php
 return [
+    'scope_embedding' => 'Text embeddings billed by input tokens',
+    'scope_rerank' => 'Text reranking billed by input tokens',
+    'input_operations' => 'Embeddings and reranking',
+    'input_operations_desc' => 'Enable ai:embedding or ai:rerank on your key. Plain text and batches of up to 128 texts are supported. Only input tokens are billed.',
     'title' => 'AI API with Toman billing | ServerNet',
     'desc' => 'AI models, dedicated API keys, project budgets and per-request usage reports. Compare models and connect with an OpenAI-compatible SDK.',
     'eyebrow' => 'ServerNet AI Gateway',

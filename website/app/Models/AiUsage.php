@@ -103,7 +103,7 @@ class AiUsage extends Model
             rOut: (int) $this->output_rate_micro,
             inputPriceId: (int) $this->input_price_id,
             cachedPriceId: $this->cached_price_id === null ? null : (int) $this->cached_price_id,
-            outputPriceId: (int) $this->output_price_id,
+            outputPriceId: $this->output_price_id === null ? null : (int) $this->output_price_id,
             pIn: (int) $this->p_input_irt_m,
             pCached: (int) $this->p_cached_irt_m,
             pOut: (int) $this->p_output_irt_m,

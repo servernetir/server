@@ -20,8 +20,25 @@ final class AiUsageParser
     /**
      * @return array{prompt:int,completion:int,cached:int,reasoning:?int,estimated_cost:?string}|null
      */
-    public static function parse(array $body, string $raw = ''): ?array
+    public static function parse(array $body, string $raw = '', string $operation = 'chat'): ?array
     {
+        if (in_array($operation, ['embedding', 'rerank'], true)) {
+            if (isset($body['error']) || ($operation === 'embedding' && (! is_array($body['data'] ?? null) || $body['data'] === []))
+                || ($operation === 'rerank' && ((isset($body['inference_status']['status']) && $body['inference_status']['status'] !== 'succeeded')
+                    || ! is_array($body['scores'] ?? null) || $body['scores'] === []))) {
+                return null;
+            }
+            $prompt = $operation === 'embedding' ? ($body['usage']['prompt_tokens'] ?? null) : ($body['input_tokens'] ?? null);
+            if (! self::count($prompt)) {
+                return null;
+            }
+            $cost = $operation === 'rerank'
+                ? (preg_match('/"inference_status"\s*:\s*\{[^{}]*"cost"\s*:\s*"?([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)"?/', $raw, $match) === 1 ? $match[1] : null)
+                : self::estimatedCost($raw, $body['usage'] ?? []);
+            if ($operation === 'rerank' && ($cost === null || ! array_is_list($body['scores'])
+                || array_filter($body['scores'], fn ($score) => ! is_numeric($score) || ! is_finite((float) $score)) !== [])) return null;
+            return ['prompt' => $prompt, 'completion' => 0, 'cached' => 0, 'reasoning' => null, 'estimated_cost' => $cost];
+        }
         $u = $body['usage'] ?? null;
 
         if (! is_array($u) || ! self::count($u['prompt_tokens'] ?? null) || ! self::count($u['completion_tokens'] ?? null)) {
@@ -29,7 +46,7 @@ final class AiUsageParser
         }
 
         $prompt = $u['prompt_tokens'];
-        $cached = $u['prompt_tokens_details']['cached_tokens'] ?? 0;
+        $cached = $u['prompt_tokens_details']['cached_tokens'] ?? $u['prompt_cache_hit_tokens'] ?? 0;
         $reasoning = $u['completion_tokens_details']['reasoning_tokens'] ?? null;
 
         return [

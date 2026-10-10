@@ -109,8 +109,10 @@ final class AiSettlement
             return $fresh->fresh();
         }
 
-        $calc = $this->pricing->charge($u->quote(), $usage['prompt'], $usage['cached'], $usage['completion'],
-            (int) $u->vat_bp, $usage['estimated_cost']);
+        $costOnly = ($usage['cost_only'] ?? false) === true;
+        $calc = $costOnly ? $this->pricing->chargeCost($u->quote(), $usage['estimated_cost'], (int) $u->vat_bp)
+            : $this->pricing->charge($u->quote(), $usage['prompt'], $usage['cached'], $usage['completion'],
+                (int) $u->vat_bp, $usage['estimated_cost']);
 
         [$review, $reason] = $this->review($calc, (int) $u->hold_irt);
 
@@ -119,10 +121,10 @@ final class AiSettlement
             ->update([
                 'status' => AiUsage::STATUS_SETTLE_PENDING,
                 'prompt_tokens' => $usage['prompt'],
-                'cached_tokens' => $calc['c'],
+                'cached_tokens' => $costOnly ? null : $calc['c'],
                 'completion_tokens' => $usage['completion'],
                 'reasoning_tokens' => $usage['reasoning'],
-                'usage_source' => $u->status === AiUsage::STATUS_UNKNOWN_PENDING ? 'recovered' : 'provider',
+                'usage_source' => $costOnly ? 'cost_lookup' : ($u->status === AiUsage::STATUS_UNKNOWN_PENDING ? 'recovered' : 'provider'),
                 'cost_micro' => $calc['cost_micro'],
                 'provider_cost_micro' => $calc['estimated_micro'],
                 'cost_irt' => $calc['cost_irt'],
@@ -247,11 +249,13 @@ final class AiSettlement
             return 0;
         }
 
-        $calc = $this->pricing->charge($u->quote(), $usage['prompt'], $usage['cached'], $usage['completion'],
-            (int) $u->vat_bp, $usage['estimated_cost'] ?? null);
+        $costOnly = ($usage['cost_only'] ?? false) === true;
+        $calc = $costOnly ? $this->pricing->chargeCost($u->quote(), $usage['estimated_cost'], (int) $u->vat_bp)
+            : $this->pricing->charge($u->quote(), $usage['prompt'], $usage['cached'], $usage['completion'],
+                (int) $u->vat_bp, $usage['estimated_cost'] ?? null);
         $diff = (int) $u->charged_irt - (int) $u->refunded_irt - $calc['charged'];
 
-        return DB::transaction(function () use ($u, $usage, $calc, $diff, $source): int {
+        return DB::transaction(function () use ($u, $usage, $calc, $diff, $source, $costOnly): int {
             Customer::whereKey($u->customer_id)->lockForUpdate()->first();
             $row = AiUsage::whereKey($u->id)->lockForUpdate()->first();
             if ($row->usage_source !== 'cap') {
@@ -264,10 +268,10 @@ final class AiSettlement
             }
 
             $row->forceFill([
-                'usage_source' => $source === 'provider' ? 'provider' : 'recovered',
-                'prompt_tokens' => $usage['prompt'], 'cached_tokens' => $calc['c'],
+                'usage_source' => $costOnly ? 'cost_lookup' : ($source === 'provider' ? 'provider' : 'recovered'),
+                'prompt_tokens' => $usage['prompt'], 'cached_tokens' => $costOnly ? null : $calc['c'],
                 'completion_tokens' => $usage['completion'], 'reasoning_tokens' => $usage['reasoning'] ?? null,
-                'cost_micro' => $calc['cost_micro'], 'cost_irt' => $calc['cost_irt'],
+                'cost_micro' => $calc['cost_micro'], 'provider_cost_micro' => $calc['estimated_micro'], 'cost_irt' => $calc['cost_irt'],
                 'sell_irt' => $calc['sell'], 'tax_irt' => $calc['tax'],
                 'refunded_irt' => (int) $row->refunded_irt + max(0, $diff),
                 'review_reason' => $diff > 0 ? 'recovered_refund' : 'unknown',

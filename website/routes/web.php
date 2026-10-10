@@ -3388,6 +3388,8 @@ Route::prefix('v1')
     ->group(function () {
         Route::post('/chat/completions', [\App\Http\Controllers\Ai\V1ChatController::class, 'chat'])
             ->name('ai.v1.chat.completions');
+        Route::post('/embeddings', [\App\Http\Controllers\Ai\V1ChatController::class, 'embeddings'])->name('ai.v1.embeddings');
+        Route::post('/rerank', [\App\Http\Controllers\Ai\V1ChatController::class, 'rerank'])->name('ai.v1.rerank');
         Route::get('/models', [\App\Http\Controllers\Ai\V1ModelsController::class, 'index'])->name('ai.v1.models');
     });
 

@@ -28,7 +28,7 @@ final class AiPriceQuote
         public readonly int $rOut,
         public readonly int $inputPriceId,
         public readonly ?int $cachedPriceId,
-        public readonly int $outputPriceId,
+        public readonly ?int $outputPriceId,
         public readonly int $pIn,
         public readonly int $pCached,
         public readonly int $pOut,

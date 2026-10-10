@@ -13,11 +13,11 @@ client = OpenAI(
     base_url="https://servernet.cloud/v1",
     max_retries=0,
 )
-models = client.models.list()
-if not models.data:
+models = [m for m in client.models.list().data if getattr(m, "category", "chat") == "chat"]
+if not models:
     raise RuntimeError("No models available")
 answer = client.chat.completions.create(
-    model=models.data[0].id,
+    model=models[0].id,
     messages=[{"role": "user", "content": "Hello"}],
     max_tokens=128,
     extra_headers={"Idempotency-Key": "my-request-001"},
@@ -26,5 +26,11 @@ print(answer.choices[0].message.content)</pre></section><h2>{{ __('ai.curl') }}<
   -H "Authorization: Bearer $SERVERNET_API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: my-request-002" \
-  -d '{"model":"{{ $exampleModel }}","messages":[{"role":"user","content":"Hello"}],"max_tokens":128}'</pre><p class="ai-muted">{{ __('ai.streaming') }}</p><div class="ai-note">{{ __('ai.retries') }}</div><h2>{{ __('ai.errors') }}</h2><p class="ai-muted">{{ __('ai.errors_text') }}</p><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }}</a></div></main>
+  -d '{"model":"{{ $exampleModel }}","messages":[{"role":"user","content":"Hello"}],"max_tokens":128}'</pre><p class="ai-muted">{{ __('ai.streaming') }}</p><div class="ai-note">{{ __('ai.retries') }}</div><section class="ai-section"><h2>{{ __('ai.input_operations') }}</h2><p>{{ __('ai.input_operations_desc') }}</p><pre class="ai-code"># Choose a model with category="embedding" from /v1/models
+vector = client.embeddings.create(model="EMBEDDING_MODEL_ID", input=["Hello", "World"], encoding_format="float")
+print(vector.usage.prompt_tokens)</pre><pre class="ai-code">curl https://servernet.cloud/v1/rerank \
+  -H "Authorization: Bearer $SERVERNET_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: rerank-001" \
+  -d '{"model":"RERANK_MODEL_ID","queries":["capital?"],"documents":["Tehran"]}'</pre></section><h2>{{ __('ai.errors') }}</h2><p class="ai-muted">{{ __('ai.errors_text') }}</p><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }}</a></div></main>
 @endsection

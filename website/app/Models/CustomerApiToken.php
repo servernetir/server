@@ -68,6 +68,8 @@ class CustomerApiToken extends Model
     public const AI_ABILITIES = [
         'ai:models:read' => 'خواندنِ فهرستِ مدل‌های قابلِ خریدِ دروازهٔ AI',
         'ai:chat'        => 'تکمیلِ چت — پول خرج می‌کند (سرِ هر توکن)',
+        'ai:embedding'   => 'بردار متنی — هزینه بر اساس توکن ورودی',
+        'ai:rerank'      => 'بازرتبه‌بندی متن — هزینه بر اساس توکن ورودی',
         'ai:messages'    => 'گفت‌وگوی چندنوبته — پول خرج می‌کند',
         'ai:responses'   => 'پاسخ‌های stateدار — پول خرج می‌کند',
         'ai:embeddings'  => 'وکتوری‌سازی — پول خرج می‌کند',

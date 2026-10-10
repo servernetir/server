@@ -100,12 +100,24 @@ class AiRecoverUsage extends Command
         }
 
         try {
+            if ($u->provider->slug === 'deepinfra' && $template === 'https://api.deepinfra.com/v1/request-costs') {
+                $res = Http::withToken((string) $u->provider->apiKey())->timeout(15)->acceptJson()
+                    ->post($template, ['requestIds' => [(string) $u->upstream_request_id]]);
+                if (! $res->successful()) return null;
+                $requests = $res->json('requests');
+                if (! is_array($requests) || ! array_is_list($requests) || count($requests) !== 1) return null;
+                $item = $requests[0];
+                if (($item['requestId'] ?? null) !== $u->upstream_request_id || ! is_int($item['costNanoUsd'] ?? null)
+                    || $item['costNanoUsd'] < 0) return null;
+                return ['cost_only' => true, 'prompt' => null, 'cached' => null, 'completion' => null, 'reasoning' => null,
+                    'estimated_cost' => (string) \Brick\Math\BigDecimal::ofUnscaledValue($item['costNanoUsd'], 9)];
+            }
             $res = Http::withToken((string) $u->provider->apiKey())->timeout(15)->acceptJson()
                 ->get(str_replace('{id}', rawurlencode((string) $u->upstream_request_id), (string) $template));
         } catch (\Throwable) {
             return null;
         }
 
-        return $res->successful() && is_array($res->json()) ? AiUsageParser::parse($res->json(), $res->body()) : null;
+        return $res->successful() && is_array($res->json()) ? AiUsageParser::parse($res->json(), $res->body(), $u->operation ?? 'chat') : null;
     }
 }

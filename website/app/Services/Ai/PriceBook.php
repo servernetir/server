@@ -167,7 +167,7 @@ final class PriceBook
                 ->first();
 
             if ($row === null) {
-                if ($key !== 'cached') {
+                if ($key !== 'cached' && ! ($key === 'output' && in_array($model->category, ['embedding', 'rerank'], true))) {
                     $reasons[] = 'no_'.$key.'_price';
                 }
                 $rows[$key] = null;

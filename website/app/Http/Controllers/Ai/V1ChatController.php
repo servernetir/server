@@ -86,6 +86,21 @@ final class V1ChatController extends Controller
 
     public function chat(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
     {
+        return $this->execute($request, 'chat');
+    }
+
+    public function embeddings(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'embedding');
+    }
+
+    public function rerank(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'rerank');
+    }
+
+    private function execute(Request $request, string $operation): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
         // ── گیتِ توکن: هدرِ Bearer — ناشناخته یا غایب، هر دو یک کدِ پایدار ──
         $bearer = (string) ($request->bearerToken() ?? '');
 
@@ -116,7 +131,7 @@ final class V1ChatController extends Controller
         | admission — تنها قاضیِ «آیا این کلید اجازه دارد؟». کد و پیامِ رد
         | بی‌واسطه بالا می‌رود؛ این‌جا هیچ پیامی بازنویسی یا ترجمه نمی‌شود.
         */
-        $auth = AiAdmission::authorize($token, 'ai:chat', $request->ip());
+        $auth = AiAdmission::authorize($token, 'ai:'.$operation, $request->ip());
 
         if (! $auth->ok) {
             return $this->fail(
@@ -139,7 +154,7 @@ final class V1ChatController extends Controller
         */
         $idempotencyKey = trim((string) ($request->header('Idempotency-Key') ?? ''));
 
-        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null);
+        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null, $operation);
 
         /*
         | بدنهٔ ارائه‌دهنده در M5.1b بی‌تفسیر برمی‌گردد (بازنویسیِ نام و شناسه مالِ M5.2

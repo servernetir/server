@@ -60,7 +60,7 @@ final class AiCaller
     /**
      * @param  array  $client  بدنهٔ خامِ مشتری، **همراهِ** `model`
      */
-    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null): AiCallOutcome
+    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null, string $operation = 'chat'): AiCallOutcome
     {
         if (! $auth->ok) {
             return AiCallOutcome::fail($auth->code, $auth->message !== '' ? $auth->message : 'دسترسی پذیرفته نشد.', 403);
@@ -81,7 +81,7 @@ final class AiCaller
         $slug = is_string($client['model'] ?? null) ? trim($client['model']) : '';
         $model = $slug === '' ? null : $this->registry->model($slug);
 
-        if ($model === null || $model->category !== AiModel::CATEGORY_CHAT) {
+        if (! in_array($operation, ['chat', 'embedding', 'rerank'], true) || $model === null || $model->category !== $operation) {
             return AiCallOutcome::fail('model_not_found', 'چنین مدلِ چتی شناخته نشد.', 404);
         }
         if ($model->status !== AiModel::STATUS_ACTIVE) {
@@ -98,7 +98,7 @@ final class AiCaller
             return $gate;
         }
 
-        if ($auth->token === null || ! $auth->token->can('ai:chat')) {
+        if ($auth->token === null || ! $auth->token->can('ai:'.$operation)) {
             return AiCallOutcome::fail('insufficient_scope', 'کلیدِ این تماس سطحِ «ai:chat» ندارد.', 403);
         }
 
@@ -109,7 +109,8 @@ final class AiCaller
 
         // ── A2–A3: بدنه ──
         try {
-            $prepared = $this->payload->prepare($client, $model);
+            $prepared = $operation === 'chat' ? $this->payload->prepare($client, $model)
+                : $this->payload->prepareInputOnly($client, $model, $operation);
         } catch (AiRequestException $e) {
             return AiCallOutcome::fail($e->errorCode, $e->getMessage(), $e->status);
         }
@@ -187,7 +188,7 @@ final class AiCaller
         if ($cap > 0) {
             $spent = (int) AiUsage::where('ai_provider_id', $p->id)
                 ->where('sent_at', '>=', now()->utc()->startOfDay())
-                ->sum('cost_micro');
+                ->sum(DB::raw('CASE WHEN provider_cost_micro > cost_micro THEN provider_cost_micro ELSE cost_micro END'));
             if ($spent >= $cap) {
                 return AiCallOutcome::fail('provider_daily_cap', 'سقفِ روزانهٔ هزینهٔ این ارائه‌دهنده پر شده است.', 503);
             }
@@ -328,6 +329,7 @@ final class AiCaller
                     'idempotency_key' => $key,
                     'request_sha256' => $prepared->sha256,
                     'stream' => $prepared->stream,
+                    'operation' => $prepared->operation,
                     'status' => AiUsage::STATUS_RESERVED,
                     'max_input_tokens' => $prepared->maxInput,
                     'max_output_tokens' => $prepared->maxOutput,
@@ -451,6 +453,10 @@ final class AiCaller
                 $headers + ['x-should-retry' => 'false'], $usage);
         }
 
+        if ($result->requestId !== null) {
+            AiUsage::whereKey($usage->id)->whereIn('status', [AiUsage::STATUS_SENDING, AiUsage::STATUS_STREAMING])
+                ->update(['upstream_request_id' => mb_substr($result->requestId, 0, 120)]);
+        }
         if ($prepared->stream && $result->stream !== null) {
             AiUsage::whereKey($usage->id)->where('status', AiUsage::STATUS_SENDING)
                 ->update(['status' => AiUsage::STATUS_STREAMING, 'updated_at' => now()]);
@@ -465,7 +471,11 @@ final class AiCaller
                 $requestId = $result->requestId;
                 try {
                     foreach (AiSseReader::events($result->stream, $tHttp) as [$chunk, $raw]) {
-                        $requestId ??= is_string($chunk['id'] ?? null) ? $chunk['id'] : null;
+                        if ($requestId === null && is_string($chunk['id'] ?? null)) {
+                            $requestId = $chunk['id'];
+                            AiUsage::whereKey($usage->id)->where('status', AiUsage::STATUS_STREAMING)
+                                ->update(['upstream_request_id' => mb_substr($requestId, 0, 120)]);
+                        }
                         if (($candidate = AiUsageParser::parse($chunk, $raw)) !== null) {
                             if ($parsed !== null) {
                                 throw new \RuntimeException('Duplicate final usage event.');
@@ -512,7 +522,7 @@ final class AiCaller
         }
 
         $latency = (int) intdiv(hrtime(true) - $started, 1_000_000);
-        $parsed = AiUsageParser::parse($result->body, $result->raw);
+        $parsed = AiUsageParser::parse($result->body, $result->raw, $prepared->operation);
 
         if ($parsed === null) {
             // ۲xx بی مصرفِ قابلِ خواندن ⇒ نامعلوم، نه صفر
@@ -640,9 +650,9 @@ final class AiCaller
 
     private static function publicBody(array $body, AiUsage $usage): array
     {
-        $body['id'] = 'chatcmpl-'.$usage->public_id;
+        $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;
         $body['model'] = $usage->model_slug;
-        unset($body['usage']['estimated_cost'], $body['estimated_cost']);
+        unset($body['usage']['estimated_cost'], $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);
         return $body;
     }
 

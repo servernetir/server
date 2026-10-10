@@ -74,6 +74,14 @@ class OpenAiCompatibleDriver implements AiProviderDriver
             'model' => $model->upstream_model,
         ]);
 
+        // These GapGPT routes ignore max_tokens and otherwise forward a zero
+        // max_completion_tokens. Verified against both real upstream models.
+        if ($this->provider->slug === 'gapgpt' && in_array($model->upstream_model,
+            ['gpt-4-0613', 'gpt-4-turbo-2024-04-09'], true)) {
+            $body['max_completion_tokens'] = $payload['max_tokens'];
+            unset($body['max_tokens']);
+        }
+
         $uploaded = null;
 
         try {
@@ -84,7 +92,13 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                 ->withOptions(['stream' => ($payload['stream'] ?? false) === true, 'read_timeout' => 30, 'on_stats' => function (TransferStats $s) use (&$uploaded) {
                     $uploaded = (int) ($s->getHandlerStats()['size_upload'] ?? 0);
                 }])
-                ->post($baseUrl.'/chat/completions', $body);
+                ->post(match ($model->category) {
+                    'embedding' => $baseUrl.'/embeddings',
+                    'rerank' => $this->provider->slug === 'deepinfra'
+                        ? 'https://api.deepinfra.com/v1/inference/'.implode('/', array_map('rawurlencode', explode('/', $model->upstream_model)))
+                        : throw new AiProviderCallException('provider_unconfigured', 'Native reranking is unavailable.', sent: false),
+                    default => $baseUrl.'/chat/completions',
+                }, $model->category === 'rerank' ? $payload : $body);
         } catch (ConnectionException $e) {
             $sent = $uploaded !== null ? $uploaded > 0 : self::sentFromMessage($e->getMessage());
 
@@ -115,7 +129,8 @@ class OpenAiCompatibleDriver implements AiProviderDriver
         }
 
         return new DriverCallResult($response->status(), $json, $response->body(),
-            $requestId ?: (is_string($json['id'] ?? null) ? $json['id'] : null));
+            $requestId ?: (is_string($json['request_id'] ?? null) ? $json['request_id']
+                : (is_string($json['id'] ?? null) ? $json['id'] : null)));
     }
 
     /**

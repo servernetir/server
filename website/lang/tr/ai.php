@@ -1,5 +1,9 @@
 <?php
 return [
+    'scope_embedding' => 'Girdi tokenlarına göre ücretlenen metin embedding',
+    'scope_rerank' => 'Girdi tokenlarına göre ücretlenen metin yeniden sıralama',
+    'input_operations' => 'Embedding ve yeniden sıralama',
+    'input_operations_desc' => 'Anahtarınızda ai:embedding veya ai:rerank iznini açın. Düz metin ve en fazla 128 metinlik gruplar desteklenir. Yalnızca girdi tokenları ücretlenir.',
     'title' => 'Toman ödemeli AI API | ServerNet',
     'desc' => 'AI modelleri, özel API anahtarları, proje bütçeleri ve istek bazında kullanım raporları. Modelleri karşılaştırın ve OpenAI uyumlu SDK ile bağlanın.',
     'eyebrow' => 'ServerNet AI Gateway',

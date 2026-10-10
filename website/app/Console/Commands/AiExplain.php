@@ -58,7 +58,9 @@ class AiExplain extends Command
                 $problems[] = 'سقف: charged ≠ hold';
             }
         } else {
-            $c = $pricing->charge($u->quote(), (int) $u->prompt_tokens, (int) $u->cached_tokens,
+            $c = $u->usage_source === 'cost_lookup'
+                ? $pricing->chargeCost($u->quote(), (string) BigDecimal::ofUnscaledValue((int) $u->provider_cost_micro, 6), (int) $u->vat_bp)
+                : $pricing->charge($u->quote(), (int) $u->prompt_tokens, (int) $u->cached_tokens,
                 (int) $u->completion_tokens, (int) $u->vat_bp,
                 $u->provider_cost_micro !== null ? (string) BigDecimal::ofUnscaledValue((int) $u->provider_cost_micro, 6) : null);
             foreach (['sell' => 'sell_irt', 'tax' => 'tax_irt', 'cost_irt' => 'cost_irt'] as $calc => $col) {
@@ -66,7 +68,7 @@ class AiExplain extends Command
                     $problems[] = "{$col}: ثبت‌شده {$u->{$col}}، بازسنجی {$c[$calc]}";
                 }
             }
-            if ((int) $u->charged_irt !== (int) $u->sell_irt + (int) $u->tax_irt) {
+            if ((int) $u->charged_irt - (int) $u->refunded_irt !== (int) $u->sell_irt + (int) $u->tax_irt) {
                 $problems[] = 'charged ≠ sell + tax';
             }
         }

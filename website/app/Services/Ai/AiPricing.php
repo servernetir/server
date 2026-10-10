@@ -100,7 +100,8 @@ final class AiPricing
 
         $fee = (int) $fee;
         $rIn = (int) $rows['input']->price_micro_units;
-        $rOut = (int) $rows['output']->price_micro_units;
+        // Input-only operations have no billable output tokens.
+        $rOut = (int) ($rows['output']?->price_micro_units ?? 0);
         // نرخِ کش‌شدهٔ ثبت‌نشده ⇒ به قیمتِ کاملِ ورودی؛ هرگز تخفیفِ فرضی
         $rCached = $rows['cached'] !== null ? (int) $rows['cached']->price_micro_units : $rIn;
 
@@ -117,7 +118,7 @@ final class AiPricing
             rOut: $rOut,
             inputPriceId: (int) $rows['input']->id,
             cachedPriceId: $rows['cached']?->id,
-            outputPriceId: (int) $rows['output']->id,
+            outputPriceId: $rows['output']?->id,
             pIn: self::perMillion($rIn, $fx->rate, $fee, $margin),
             pCached: self::perMillion($rCached, $fx->rate, $fee, $margin),
             pOut: self::perMillion($rOut, $fx->rate, $fee, $margin),
@@ -142,7 +143,7 @@ final class AiPricing
         if ($model->status !== AiModel::STATUS_ACTIVE) {
             $gates[] = 'model_inactive';
         }
-        if ($model->category !== AiModel::CATEGORY_CHAT) {
+        if (! in_array($model->category, ['chat', 'embedding', 'rerank'], true)) {
             $gates[] = 'model_not_chat';
         }
         if ($model->getAttribute('suspended_at') !== null) {
@@ -315,6 +316,18 @@ final class AiPricing
             'charged' => self::toInt(BigInteger::of($sell)->plus($tax)),
             'cost_drift' => $drift,
         ];
+    }
+
+    /** Exact provider cost with unavailable token counts; no fabricated zero-token usage. */
+    public function chargeCost(AiPriceQuote $q, string $cost, int $vatBp): array
+    {
+        if (self::estimatedMicros($cost) === null) {
+            throw new AiPricingException(AiPricingException::PRICING_INCOMPLETE, ['invalid_provider_cost']);
+        }
+        $calc = $this->charge($q, 0, 0, 0, $vatBp, $cost);
+        $calc['cost_micro'] = $calc['estimated_micro'];
+        $calc['cost_drift'] = false; // Without token counts there is no comparable token-price estimate.
+        return $calc;
     }
 
     /**
