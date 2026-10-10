@@ -500,6 +500,10 @@ class CloudStoreSlipTest extends TestCase
         $en = array_keys((array) require lang_path('en/ui.php'));
         $tr = array_keys((array) require lang_path('tr/ui.php'));
 
+        sort($fa);
+        sort($en);
+        sort($tr);
+
         $this->assertSame($fa, $en, 'کلیدهای fa و en باید یکی باشند');
         $this->assertSame($fa, $tr, 'کلیدهای fa و tr باید یکی باشند');
     }

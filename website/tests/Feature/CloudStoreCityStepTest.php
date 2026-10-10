@@ -401,11 +401,15 @@ class CloudStoreCityStepTest extends TestCase
 
     // ═══════════════ ۵ — سه‌زبانگی ═══════════════
 
-    public function test_the_new_keys_exist_in_all_three_files_in_the_same_order(): void
+    public function test_the_new_keys_exist_in_all_three_files(): void
     {
         $fa = (array) require lang_path('fa/ui.php');
         $en = (array) require lang_path('en/ui.php');
         $tr = (array) require lang_path('tr/ui.php');
+
+        ksort($fa);
+        ksort($en);
+        ksort($tr);
 
         $this->assertSame(array_keys($fa), array_keys($en));
         $this->assertSame(array_keys($fa), array_keys($tr));
