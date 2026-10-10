@@ -72,6 +72,49 @@ class GpuDeliveryRecoveryTest extends TestCase
         });
     }
 
+    #[DataProvider('apps')]
+    public function test_cancelled_gpu_order_shows_refund_and_exits_building_without_provider_calls(string $app): void
+    {
+        $service = $this->order($app);
+        $service->update(['status' => 'cancelled', 'provision_status' => 'none',
+            'provision_meta' => ['gpu_delivery_recovery' => ['refunds' => ['IRT' => 14000]]]]);
+        Http::fake();
+        $this->actingAs($service->customer, 'customer')
+            ->getJson(route('account.cloud.status', $service))
+            ->assertOk()->assertJson(['ready' => false, 'closed' => true, 'status' => 'cancelled']);
+        $this->get(route('account.cloud.show', $service))->assertOk()
+            ->assertSee('data-gpu-closed', false)->assertDontSee('id="cb-steps"', false);
+        Http::assertNothingSent();
+    }
+
+    public function test_terminated_gpu_never_shows_ready_even_if_stale_instance_is_running(): void
+    {
+        $service = $this->order();
+        $service->cloudInstance->update(['status' => 'running']);
+        $service->update(['status' => 'terminated']);
+        Http::fake();
+        $this->actingAs($service->customer, 'customer')
+            ->getJson(route('account.cloud.status', $service))
+            ->assertOk()->assertJson(['ready' => false, 'closed' => true]);
+        $this->get(route('account.cloud.show', $service))->assertOk()
+            ->assertSee('data-gpu-closed', false)->assertDontSee('id="cb-steps"', false);
+        Http::assertNothingSent();
+    }
+
+    public function test_cancelled_gpu_without_an_instance_shows_closed_instead_of_ordered(): void
+    {
+        $service = $this->order();
+        $service->cloudInstance->delete();
+        $service->update(['status' => 'cancelled']);
+        Http::fake();
+        $this->actingAs($service->customer, 'customer')
+            ->getJson(route('account.cloud.status', $service))
+            ->assertOk()->assertJson(['closed' => true, 'stage' => 'closed']);
+        $this->get(route('account.cloud.show', $service))->assertOk()
+            ->assertSee('data-gpu-closed', false)->assertDontSee('id="cb-steps"', false);
+        Http::assertNothingSent();
+    }
+
     public static function apps(): array
     {
         return [['gpu-comfyui'], ['gpu-ollama'], ['gpu-jupyter']];

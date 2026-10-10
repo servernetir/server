@@ -33,6 +33,8 @@
      VPS این‌جا دروغ است (واقعیت ۵ تا ۳۰ دقیقه). image_key در لحظهٔ ساخت روی
      نمونه هست؛ اگر هنوز نمونه نداریم از خودِ سرویس می‌خوانیم. */
   $gpuLine = str_starts_with((string) ($inst->image_key ?? $service->cloud_image_key ?? ''), 'gpu-');
+  $closed = $gpuLine && in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
+  $ready = $ready && ! $closed;
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
@@ -111,7 +113,7 @@
         style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')) }}
+    {{ $closed ? __('ui.cs_closed_h') : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing'))) }}
   </span>
 </div>
 
@@ -135,7 +137,15 @@
      ⚠️ همان الگوی پنلِ پرداختِ رمزارز (`cy-box` در account/invoice.blade.php):
      صفحه **خودش تصمیم نمی‌گیرد** آماده شده یا نه — فقط وضعیتی را که سرور
      می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
-@if(! $ready && $service->provision_status === 'manual')
+@if($closed)
+  <section class="pnl-sec" data-gpu-closed>
+    <div class="pnl-sec-h"><h2>{{ __('ui.cs_closed_h') }}</h2></div>
+    <div class="pnl-sec-b">
+      <p class="cb-lead">{{ __(data_get($service->provision_meta, 'gpu_delivery_recovery') ? 'ui.cs_closed_refund_p' : 'ui.cs_closed_p') }}</p>
+      <a class="pnl-btn" href="{{ lroute('account.services') }}">{{ __('ui.svc_page_title') }}</a>
+    </div>
+  </section>
+@elseif(! $ready && $service->provision_status === 'manual')
   {{-- ═══ 🔴 نگه‌داشته‌شده برای بازبینی ═══
 
        چهار جملهٔ بلوکِ «در حالِ ساخت» برای این حالت **وعدهٔ دروغ** بودند:
@@ -879,6 +889,7 @@
 
   var pill = document.getElementById('st-pill');
   if (!pill) { return; }
+  if ({{ $closed ? 'true' : 'false' }}) { return; }
 
   var statusUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.status', $service)) }};
   var building  = {{ $ready ? 'false' : 'true' }};
@@ -963,6 +974,10 @@
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (!d) { return; }
+        if (d.closed === true) {
+          window.location.reload();
+          return;
+        }
 
         if (d.label) { pill.textContent = d.label; }
         if (d.color) { pill.style.color = d.color; }

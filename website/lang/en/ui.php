@@ -3230,4 +3230,7 @@ return [
     'act_ai_project_created' => 'AI project “:name” created.',
     'act_ai_project_archived' => 'AI project “:name” archived.',
     'act_ai_project_updated' => 'AI project “:name” moved to “:status”.',
+    'cs_closed_h' => 'This order is closed',
+    'cs_closed_p' => 'This order was cancelled or terminated and is no longer being prepared.',
+    'cs_closed_refund_p' => 'Initial delivery did not complete. The order was automatically cancelled and the deducted amount was returned to your account credit.',
 ];
