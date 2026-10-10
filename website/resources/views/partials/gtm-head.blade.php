@@ -72,15 +72,14 @@
   @endif
   @endforeach
 
-  // Keep events queued while marketing pages render and run analytics in a worker.
+  // Initialize immediately, including before load; fast CTA navigation must not
+  // wait for idle or an interaction to start downloading the analytics container.
   if(!d.getElementById('snet-gtm')){
     w.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});
     var loaded=false;
     function loadGtm(){
       if(loaded||d.getElementById('snet-gtm'))return;
       loaded=true;
-      w.removeEventListener('pointerdown',loadGtm);
-      w.removeEventListener('keydown',loadGtm);
       var workerPath=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
       var useWorker=(workerPath==='/gpu'||workerPath==='/vps/hourly')
         &&w.matchMedia('(max-width:1020px)').matches&&w.isSecureContext
@@ -108,18 +107,7 @@
         d.head.appendChild(boot);
       }else d.head.appendChild(s);
     }
-    var path=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
-    var marketing=path==='/'||path==='/gpu'||/^\/(hosting|vps)(\/|$)/.test(path);
-    if(marketing&&w.matchMedia('(max-width:1020px)').matches){
-      w.addEventListener('pointerdown',loadGtm,{once:true,passive:true});
-      w.addEventListener('keydown',loadGtm,{once:true});
-      function scheduleGtm(){
-        if(w.requestIdleCallback)w.requestIdleCallback(loadGtm,{timeout:2000});
-        else w.setTimeout(loadGtm,0);
-      }
-      if(d.readyState==='complete')scheduleGtm();
-      else w.addEventListener('load',scheduleGtm,{once:true});
-    }else loadGtm();
+    loadGtm();
   }
 })(window,document,@json($gtmId));
 </script>
