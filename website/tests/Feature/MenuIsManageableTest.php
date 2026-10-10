@@ -193,6 +193,25 @@ class MenuIsManageableTest extends TestCase
         $this->get('/tr')->assertOk();
     }
 
+    public function test_footer_uses_requested_locale_for_links_and_restores_application_locale(): void
+    {
+        app()->setLocale('en');
+        MenuOverride::create([
+            'menu' => 'footer', 'path' => 'footer:custom:contact', 'visible' => true,
+            'label_fa' => 'تماس', 'label_en' => 'Contact', 'label_tr' => 'İletişim',
+            'custom' => ['column' => 'company', 'route' => 'about'],
+        ]);
+
+        foreach (['fa' => '/about', 'en' => '/en/about', 'tr' => '/tr/about'] as $locale => $path) {
+            $columns = $this->menu()->footer($locale);
+            $links = collect($columns)->flatMap(fn ($column) => collect($column['items'])->pluck('href'));
+            $this->assertContains(url($path), $links->all());
+            $this->assertSame(2, $links->filter(fn ($href) => $href === url($path))->count(),
+                'Both configured and custom routes must use the requested locale.');
+            $this->assertSame('en', app()->getLocale());
+        }
+    }
+
     // ═══════════════ ۳) خودِ مدیریت ═══════════════
 
     public function test_the_admin_can_rename_a_link_in_all_three_languages(): void

@@ -2,11 +2,24 @@
 
 namespace App\Services\Payment;
 
+use App\Models\ActivityLog;
+use App\Models\CreditEntry;
+use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Service;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Finance\BusinessLedger;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\CustomerNotifier;
+use App\Services\Notify\Notifier;
+use App\Services\Provisioning\ManualLifecycleNotice;
+use App\Services\Ticket\LicenseOrderTicket;
+use App\Support\ErrorTracker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * شروع و تسویهٔ پرداخت.
@@ -63,8 +76,7 @@ class PaymentService
         $amount = $invoice->due();
 
         if ($amount < $gateway->minimum()) {
-            return new StartOutcome(false, error:
-                'کمترین مبلغ قابل پرداخت '.number_format($gateway->minimum()).' تومان است.');
+            return new StartOutcome(false, error: 'کمترین مبلغ قابل پرداخت '.number_format($gateway->minimum()).' تومان است.');
         }
 
         // تلاش‌های باز قبلی را ببند
@@ -73,23 +85,23 @@ class PaymentService
             ->update(['status' => 'canceled', 'updated_at' => now()]);
 
         $payment = Payment::create([
-            'invoice_id'    => $invoice->id,
-            'customer_id'   => $invoice->customer_id,
-            'gateway'       => $gateway->key(),
+            'invoice_id' => $invoice->id,
+            'customer_id' => $invoice->customer_id,
+            'gateway' => $gateway->key(),
             'currency_code' => $invoice->currency_code,
-            'amount'        => $amount,
-            'status'        => 'pending',
-            'expires_at'    => now()->addMinutes(self::WINDOW_MINUTES),
-            'ip'            => $request->ip(),
-            'user_agent'    => substr((string) $request->userAgent(), 0, 255),
+            'amount' => $amount,
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(self::WINDOW_MINUTES),
+            'ip' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
         ]);
 
         $result = $gateway->start($payment, route('payment.callback', ['gateway' => $gateway->key()]));
 
         if (! $result->ok) {
             $payment->forceFill([
-                'status'        => 'failed',
-                'error_code'    => $result->errorCode,
+                'status' => 'failed',
+                'error_code' => $result->errorCode,
                 'error_message' => $result->error,
             ])->save();
 
@@ -97,7 +109,7 @@ class PaymentService
         }
 
         $payment->forceFill([
-            'status'       => 'redirected',
+            'status' => 'redirected',
             'external_ref' => $result->externalRef,
         ])->save();
 
@@ -118,8 +130,7 @@ class PaymentService
         }
 
         if (! $payment->isVerifiable()) {
-            return new SettleOutcome(false, $payment, error:
-                'مهلت این پرداخت تمام شده است. اگر مبلغ از حساب شما کم شده، با پشتیبانی تماس بگیرید.');
+            return new SettleOutcome(false, $payment, error: 'مهلت این پرداخت تمام شده است. اگر مبلغ از حساب شما کم شده، با پشتیبانی تماس بگیرید.');
         }
 
         $gateway = $this->gateways->get($payment->gateway);
@@ -132,8 +143,8 @@ class PaymentService
 
         if (! $result->paid) {
             $payment->forceFill([
-                'status'        => $result->canceled ? 'canceled' : 'failed',
-                'error_code'    => $result->errorCode,
+                'status' => $result->canceled ? 'canceled' : 'failed',
+                'error_code' => $result->errorCode,
                 'error_message' => $result->error,
             ])->save();
 
@@ -161,7 +172,7 @@ class PaymentService
 
         if ($outcome->ok && $outcome->payment !== null) {
             try {
-                app(\App\Services\Finance\BusinessLedger::class)->recordPayment($outcome->payment);
+                app(BusinessLedger::class)->recordPayment($outcome->payment);
             } catch (\Throwable $e) {
                 Log::warning('ثبت درآمد بله در دفتر مالی انجام نشد', [
                     'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
@@ -190,12 +201,12 @@ class PaymentService
             }
 
             $fresh->forceFill([
-                'status'    => 'paid',
-                'ref_id'    => $result->refId,
+                'status' => 'paid',
+                'ref_id' => $result->refId,
                 'card_mask' => $result->cardMask,
-                'fee'       => $result->fee,
-                'fee_type'  => $result->feeType,
-                'paid_at'   => now(),
+                'fee' => $result->fee,
+                'fee_type' => $result->feeType,
+                'paid_at' => now(),
             ])->save();
 
             /** @var Invoice $invoice */
@@ -222,22 +233,22 @@ class PaymentService
                     'پرداختِ فاکتورِ منقضی‌شدهٔ '.$invoice->number.' — به اعتبارِ شما افزوده شد',
                 );
 
-                \App\Support\ErrorTracker::noteOnce('billing',
+                ErrorTracker::noteOnce('billing',
                     'پرداخت روی فاکتورِ لغوشده نشست و به اعتبار رفت.', 900,
                     ['invoice' => $invoice->number]);
 
                 return new SettleOutcome(true, $fresh);
             }
 
-            $due       = $invoice->due();
+            $due = $invoice->due();
             $toInvoice = min($fresh->amount, $due);
-            $surplus   = $fresh->amount - $toInvoice;
+            $surplus = $fresh->amount - $toInvoice;
 
             if ($toInvoice > 0) {
                 $invoice->paid += $toInvoice;
 
                 if ($invoice->due() === 0) {
-                    $invoice->status  = 'paid';
+                    $invoice->status = 'paid';
                     $invoice->paid_at = now();
                 }
 
@@ -254,7 +265,7 @@ class PaymentService
             // تراکنش، چون مشتری پول داده و سرویس باید حتماً فعال شود — نه
             // best-effort. تمدید سررسید را یک دوره جلو می‌برد.
             if ($invoice->status === 'paid' && $invoice->service_id !== null) {
-                $service = \App\Models\Service::whereKey($invoice->service_id)->lockForUpdate()->first();
+                $service = Service::whereKey($invoice->service_id)->lockForUpdate()->first();
 
                 // ⚠️ کلِ فعال‌سازی در try است: مشتری پول داده و پرداخت **باید** ثبت
                 // شود. اگر این بخش خطا بدهد (مثلاً پس از یک دپلوی، بایت‌کدِ کهنهٔ
@@ -262,121 +273,126 @@ class PaymentService
                 // ۵۰۰ به مشتری، فاکتور پرداخت‌نشده، سرویس ساخته‌نشده — بدترین حالت.
                 // حالا خطا بلعیده و لاگ می‌شود و سرویس دستِ‌کم در صفِ تحویل می‌نشیند.
                 try {
-                if ($service !== null && ! $service->isDead()) {
-                    // سرویسی که روی سروری تحویل می‌شود و هنوز ساخته نشده →
-                    // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
-                    // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
-                    // مالی (بدونِ سرور) مثلِ قبل مستقیم فعال می‌شود.
-                    // نیازِ تحویل: سرور دارد (تحویلِ خودکار)، **پلنِ ابری دارد**
-                    // (تحویلِ خودکار با API)، یا دامنه دارد (هاست که هنوز سرور
-                    // نخورده → تحویلِ دستیِ ادمین). سرویسِ صرفاً مالی (بدونِ
-                    // هیچ‌کدام، مثلِ پشتیبانی) مستقیم فعال می‌شود.
-                    //
-                    // 🔴 این‌جا سه بار به یک تله خوردیم و هر بار **بی‌صدا**:
-                    // کد فرض می‌کرد «مقصدِ تحویل = server_id». سرورِ ابری پیش از
-                    // خرید وجود ندارد، پس نه server_id دارد نه دامنه — و همین
-                    // شرط، سرویس را مستقیم `active` می‌کرد با provision_status
-                    // نال. کرونِ تحویل هم فقط `pending` را برمی‌دارد. نتیجه:
-                    // مشتری پول می‌داد، هیچ خطایی در هیچ لاگی نبود، و سرور
-                    // **هرگز** ساخته نمی‌شد.
-                    //
-                    // هر مسیرِ تحویلِ تازه‌ای که اضافه شد، باید **هر سه جا** به‌روز
-                    // شود: همین شرط، UPDATEِ خامِ داخلِ catch پایین، و پرس‌وجوی
-                    // کرون در RunProvisioning.
-                    $autoDelivered = $service->server_id !== null || $service->isCloud();
+                    if ($service !== null && ! $service->isDead()) {
+                        // سرویسی که روی سروری تحویل می‌شود و هنوز ساخته نشده →
+                        // «در انتظار تحویل»؛ کرونِ provision:run آن را می‌سازد و بعد
+                        // فعال می‌کند. تمدیدِ سرویسِ ازقبل‌تحویل‌شده یا سرویسِ صرفاً
+                        // مالی (بدونِ سرور) مثلِ قبل مستقیم فعال می‌شود.
+                        // نیازِ تحویل: سرور دارد (تحویلِ خودکار)، **پلنِ ابری دارد**
+                        // (تحویلِ خودکار با API)، یا دامنه دارد (هاست که هنوز سرور
+                        // نخورده → تحویلِ دستیِ ادمین). سرویسِ صرفاً مالی (بدونِ
+                        // هیچ‌کدام، مثلِ پشتیبانی) مستقیم فعال می‌شود.
+                        //
+                        // 🔴 این‌جا سه بار به یک تله خوردیم و هر بار **بی‌صدا**:
+                        // کد فرض می‌کرد «مقصدِ تحویل = server_id». سرورِ ابری پیش از
+                        // خرید وجود ندارد، پس نه server_id دارد نه دامنه — و همین
+                        // شرط، سرویس را مستقیم `active` می‌کرد با provision_status
+                        // نال. کرونِ تحویل هم فقط `pending` را برمی‌دارد. نتیجه:
+                        // مشتری پول می‌داد، هیچ خطایی در هیچ لاگی نبود، و سرور
+                        // **هرگز** ساخته نمی‌شد.
+                        //
+                        // هر مسیرِ تحویلِ تازه‌ای که اضافه شد، باید **هر سه جا** به‌روز
+                        // شود: همین شرط، UPDATEِ خامِ داخلِ catch پایین، و پرس‌وجوی
+                        // کرون در RunProvisioning.
+                        $autoDelivered = $service->server_id !== null || $service->isCloud();
 
-                    /*
-                    | 🔴 چهارمین بار به همان تله: **لایسنس**.
-                    |
-                    | سرویسِ لایسنس نه `server_id` دارد، نه پلنِ ابری، نه دامنه —
-                    | چون روی IP فعال می‌شود. با شرطِ قبلی مستقیم `active`
-                    | می‌شد: نه صفی، نه کاری برای اپراتور، نه هیچ ردی. مشتری
-                    | پول می‌داد، پنلِ خودش می‌گفت «فعال»، و **هیچ‌کس نمی‌فهمید
-                    | که باید لایسنسی ثبت شود**. دقیقاً همان خرابیِ سرورِ ابری،
-                    | از درِ چهارم.
-                    |
-                    | `server_ip` نشانهٔ درست است: فقط پکیجی آن را دارد که
-                    | `requires_server_ip` داشته و مشتری در فرمِ سفارش پرش کرده.
-                    */
-                    $needsDelivery = $service->provision_status !== 'done'
-                        && ($autoDelivered || filled($service->domain) || filled($service->server_ip));
-                    if ($needsDelivery) {
-                        $service->status = 'awaiting_provision';
-                        $service->provision_status = $autoDelivered ? 'pending' : 'manual';
-                    } else {
-                        $service->status = 'active';
-                    }
-                    // پیش از ثبتِ activated_at می‌سنجیم: اگر از قبل فعال بوده،
-                    // این پرداخت «تمدید» است؛ وگرنه «فعال‌سازیِ اولِ» خرید.
-                    $wasActivated = $service->activated_at !== null;
-                    $service->activated_at ??= now();
-                    if ($service->isRecurring()) {
-                        // سررسیدِ بعدی از «پایانِ دورهٔ خریداری‌شده» جلو می‌رود، نه از
-                        // لحظهٔ پرداخت. فاکتورِ تمدید چند روز پیش از سررسید صادر
-                        // می‌شود؛ اگر از now() حساب می‌کردیم هر دوره چند روز کوتاه‌تر
-                        // می‌شد و مشتری در سال بیش از ۱۲ ماه پول می‌داد (روی دورهٔ
-                        // شش‌ماهه/سالانه این خطا ۶ و ۱۲ برابر می‌شد).
-                        $anchor = $service->next_due_at ?? $service->activated_at ?? now();
-                        $next = $service->nextDueFrom($anchor);
+                        /*
+                        | 🔴 چهارمین بار به همان تله: **لایسنس**.
+                        |
+                        | سرویسِ لایسنس نه `server_id` دارد، نه پلنِ ابری، نه دامنه —
+                        | چون روی IP فعال می‌شود. با شرطِ قبلی مستقیم `active`
+                        | می‌شد: نه صفی، نه کاری برای اپراتور، نه هیچ ردی. مشتری
+                        | پول می‌داد، پنلِ خودش می‌گفت «فعال»، و **هیچ‌کس نمی‌فهمید
+                        | که باید لایسنسی ثبت شود**. دقیقاً همان خرابیِ سرورِ ابری،
+                        | از درِ چهارم.
+                        |
+                        | `server_ip` نشانهٔ درست است: فقط پکیجی آن را دارد که
+                        | `requires_server_ip` داشته و مشتری در فرمِ سفارش پرش کرده.
+                        */
+                        $needsDelivery = $service->provision_status !== 'done'
+                            && ($autoDelivered || filled($service->domain) || filled($service->server_ip));
+                        if ($service->status === 'suspended') {
+                            // Settlement extends the period; only verified restoration activates it.
+                        } elseif ($needsDelivery) {
+                            $service->status = 'awaiting_provision';
+                            $service->provision_status = $autoDelivered ? 'pending' : 'manual';
+                        } else {
+                            $service->status = 'active';
+                        }
+                        // پیش از ثبتِ activated_at می‌سنجیم: اگر از قبل فعال بوده،
+                        // این پرداخت «تمدید» است؛ وگرنه «فعال‌سازیِ اولِ» خرید.
+                        $wasActivated = $service->activated_at !== null;
+                        $service->activated_at ??= now();
+                        if ($service->isRecurring()) {
+                            // سررسیدِ بعدی از «پایانِ دورهٔ خریداری‌شده» جلو می‌رود، نه از
+                            // لحظهٔ پرداخت. فاکتورِ تمدید چند روز پیش از سررسید صادر
+                            // می‌شود؛ اگر از now() حساب می‌کردیم هر دوره چند روز کوتاه‌تر
+                            // می‌شد و مشتری در سال بیش از ۱۲ ماه پول می‌داد (روی دورهٔ
+                            // شش‌ماهه/سالانه این خطا ۶ و ۱۲ برابر می‌شد).
+                            $anchor = $service->next_due_at ?? $service->activated_at ?? now();
+                            $next = $service->nextDueFrom($anchor);
 
-                        // اگر سرویس مدتی معلق/عقب‌افتاده بوده، تا آینده جلو می‌آید
-                        // (حلقه کران‌دار است چون هر گام حداقل یک ماه جلو می‌رود)
-                        $guard = 0;
-                        while ($next !== null && $next->isPast() && $guard++ < 120) {
-                            $next = $service->nextDueFrom($next);
+                            // اگر سرویس مدتی معلق/عقب‌افتاده بوده، تا آینده جلو می‌آید
+                            // (حلقه کران‌دار است چون هر گام حداقل یک ماه جلو می‌رود)
+                            $guard = 0;
+                            $confirmedSuspension = $service->suspended_at !== null
+                                && ! empty($service->provision_meta['billing_suspend']['confirmed_at'])
+                                && $next !== null && $service->suspended_at->lte($next);
+                            while ($confirmedSuspension && $next !== null && $next->isPast() && $guard++ < 120) {
+                                $next = $service->nextDueFrom($next);
+                            }
+
+                            $service->next_due_at = $next;
+
+                            // شمارندهٔ یادآوری برای دورهٔ تازه صفر می‌شود، وگرنه
+                            // «۱ روز مانده»ِ دورهٔ قبل جلوی یادآوریِ دورهٔ بعد را
+                            // می‌گرفت. تعلیقِ خودکار هم با پرداخت برداشته می‌شود
+                            // (رفعِ تعلیق روی سرور را کرونِ services:lifecycle می‌زند).
+                            if (Schema::hasColumn('services', 'reminder_stage')) {
+                                $service->reminder_stage = null;
+                            }
+                        }
+                        $service->save();
+
+                        // لاگِ سرویس‌محور: خرید (فعال‌سازیِ اول) یا تمدید. actor از
+                        // زمینه: اگر مشتری در نشست باشد 'customer'، وگرنه (تمدیدِ
+                        // خودکار از اعتبار/کرون) 'system'.
+                        try {
+                            ActivityLog::forService($service,
+                                $wasActivated ? 'renew' : 'purchase',
+                                $wasActivated
+                                    ? 'سرویس با پرداختِ فاکتور تمدید شد'.($service->next_due_at ? ' (سررسیدِ بعدی: '.$service->next_due_at->format('Y-m-d').')' : '')
+                                    : 'سرویس با پرداختِ فاکتور فعال شد',
+                                auth('customer')->check() ? 'customer' : 'system');
+                        } catch (\Throwable) {
+                            // لاگ نباید تسویه را بشکند
                         }
 
-                        $service->next_due_at = $next;
-
-                        // شمارندهٔ یادآوری برای دورهٔ تازه صفر می‌شود، وگرنه
-                        // «۱ روز مانده»ِ دورهٔ قبل جلوی یادآوریِ دورهٔ بعد را
-                        // می‌گرفت. تعلیقِ خودکار هم با پرداخت برداشته می‌شود
-                        // (رفعِ تعلیق روی سرور را کرونِ services:lifecycle می‌زند).
-                        if (\Illuminate\Support\Facades\Schema::hasColumn('services', 'reminder_stage')) {
-                            $service->reminder_stage = null;
+                        /*
+                        | 🔴 تمدیدِ سرویسی که تحویلش **دستی** است، خودش یک کارِ
+                        | انسانیِ تازه می‌سازد.
+                        |
+                        | تا امروز این‌جا فقط سررسید جلو می‌رفت و تنها ردش اعلانِ
+                        | عمومیِ «پرداختِ موفق» بود که از تمدیدِ هاست فرقی ندارد.
+                        | یعنی لایسنسِ بالادست تمدید نمی‌شد و پنلِ مشتریِ
+                        | **پول‌داده** در دورهٔ تازه قفل می‌شد.
+                        |
+                        | ⚠️ فقط روی تمدید (`$wasActivated`)، نه خریدِ اول: آن یکی
+                        | از قبل `provision_status='manual'` می‌گیرد و در صفِ
+                        | تحویل دیده می‌شود. دو نشانه برای یک کار، صف را شلوغ
+                        | می‌کند و ردیفِ واقعی را گم.
+                        */
+                        if ($wasActivated) {
+                            app(ManualLifecycleNotice::class)
+                                ->flag($service, 'renew');
                         }
                     }
-                    $service->save();
-
-                    // لاگِ سرویس‌محور: خرید (فعال‌سازیِ اول) یا تمدید. actor از
-                    // زمینه: اگر مشتری در نشست باشد 'customer'، وگرنه (تمدیدِ
-                    // خودکار از اعتبار/کرون) 'system'.
-                    try {
-                        \App\Models\ActivityLog::forService($service,
-                            $wasActivated ? 'renew' : 'purchase',
-                            $wasActivated
-                                ? 'سرویس با پرداختِ فاکتور تمدید شد'.($service->next_due_at ? ' (سررسیدِ بعدی: '.$service->next_due_at->format('Y-m-d').')' : '')
-                                : 'سرویس با پرداختِ فاکتور فعال شد',
-                            auth('customer')->check() ? 'customer' : 'system');
-                    } catch (\Throwable) {
-                        // لاگ نباید تسویه را بشکند
-                    }
-
-                    /*
-                    | 🔴 تمدیدِ سرویسی که تحویلش **دستی** است، خودش یک کارِ
-                    | انسانیِ تازه می‌سازد.
-                    |
-                    | تا امروز این‌جا فقط سررسید جلو می‌رفت و تنها ردش اعلانِ
-                    | عمومیِ «پرداختِ موفق» بود که از تمدیدِ هاست فرقی ندارد.
-                    | یعنی لایسنسِ بالادست تمدید نمی‌شد و پنلِ مشتریِ
-                    | **پول‌داده** در دورهٔ تازه قفل می‌شد.
-                    |
-                    | ⚠️ فقط روی تمدید (`$wasActivated`)، نه خریدِ اول: آن یکی
-                    | از قبل `provision_status='manual'` می‌گیرد و در صفِ
-                    | تحویل دیده می‌شود. دو نشانه برای یک کار، صف را شلوغ
-                    | می‌کند و ردیفِ واقعی را گم.
-                    */
-                    if ($wasActivated) {
-                        app(\App\Services\Provisioning\ManualLifecycleNotice::class)
-                            ->flag($service, 'renew');
-                    }
-                }
                 } catch (\Throwable $e) {
                     // پرداخت سرِجایش می‌ماند؛ فقط فعال‌سازی مشکل داشت.
                     Log::error('فعال‌سازیِ سرویس پس از پرداخت خطا داد', [
                         'invoice' => $invoice->id,
                         'service' => $invoice->service_id,
-                        'error'   => $e::class.': '.mb_substr($e->getMessage(), 0, 300),
+                        'error' => $e::class.': '.mb_substr($e->getMessage(), 0, 300),
                     ]);
 
                     // ⚠️ `laravel.log` روی cPanel عملاً خواندنی نیست (نه SSH
@@ -384,7 +400,7 @@ class PaymentService
                     // ردیابِ خطا هم می‌دهد تا در /admin/errors دیده شود —
                     // وگرنه «پول گرفته شد، سرویس فعال نشد» جایی ثبت می‌شد که
                     // هیچ‌کس نمی‌بیند.
-                    \App\Support\ErrorTracker::note('payment', $e, [
+                    ErrorTracker::note('payment', $e, [
                         'invoice' => $invoice->id,
                         'service' => $invoice->service_id,
                     ]);
@@ -396,9 +412,9 @@ class PaymentService
                             // NULL != 'done' در SQL نتیجه‌اش NULL است، نه true —
                             // بدونِ whereNull ردیفِ تازه (با provision_status نال)
                             // هرگز به‌روزرسانی نمی‌شد.
-                            $base = fn () => \Illuminate\Support\Facades\DB::table('services')
+                            $base = fn () => DB::table('services')
                                 ->where('id', $invoice->service_id)
-                                ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+                                ->whereNotIn('status', Service::DEAD_STATUSES)
                                 ->where(fn ($q) => $q->whereNull('provision_status')
                                     ->orWhere('provision_status', '!=', 'done'));
 
@@ -409,7 +425,7 @@ class PaymentService
                             // پرس‌وجوی خام خطا می‌دهد و **هیچ** ردیفی به‌روز
                             // نمی‌شود — یعنی همان خرابیِ بی‌صدا از راهِ دیگر. پس
                             // اول وجودِ ستون را می‌سنجیم.
-                            $hasCloud = \Illuminate\Support\Facades\Schema::hasColumn('services', 'cloud_plan_id');
+                            $hasCloud = Schema::hasColumn('services', 'cloud_plan_id');
 
                             $base()->where(function ($q) use ($hasCloud) {
                                 $q->whereNotNull('server_id');
@@ -453,7 +469,7 @@ class PaymentService
             | یک قابلیتِ تازه، مسیرِ پولِ موجود را می‌خواباند.
             */
             try {
-                $hasDomainCol = \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'domain_id');
+                $hasDomainCol = Schema::hasColumn('invoices', 'domain_id');
 
                 if ($hasDomainCol && $invoice->status === 'paid' && $invoice->domain_id !== null) {
                     /*
@@ -472,14 +488,14 @@ class PaymentService
                     | باشد (`running`) یا در صفِ دستی (`manual`)، یک پرداختِ دوم
                     | روی همان فاکتور نباید قفل را باز کند.
                     */
-                    \Illuminate\Support\Facades\DB::table('domains')
+                    DB::table('domains')
                         ->where('id', $invoice->domain_id)
                         ->where('status', 'active')
                         ->where('provision_status', 'done')
                         ->update([
                             'provision_status' => 'pending',
-                            'provision_tries'  => 0,
-                            'updated_at'       => now(),
+                            'provision_tries' => 0,
+                            'updated_at' => now(),
                         ]);
 
                     /*
@@ -491,19 +507,19 @@ class PaymentService
                     | (`pending`) و تمدید (`active`). همان قیدِ `done`: پرداختِ
                     | دوم وسطِ بازیابیِ در جریان قفل را باز نمی‌کند.
                     */
-                    \Illuminate\Support\Facades\DB::table('domains')
+                    DB::table('domains')
                         ->where('id', $invoice->domain_id)
                         ->where('status', 'expired')
                         ->where('provision_status', 'done')
                         ->update([
                             'provision_status' => 'pending',
-                            'provision_tries'  => 0,
-                            'updated_at'       => now(),
+                            'provision_tries' => 0,
+                            'updated_at' => now(),
                         ]);
 
-                    \Illuminate\Support\Facades\DB::table('domains')
+                    DB::table('domains')
                         ->where('id', $invoice->domain_id)
-                        ->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES)
+                        ->whereNotIn('status', Domain::DEAD_STATUSES)
                         /*
                         | 🔴 فقط از `none` به `pending`. عمداً `!= 'done'` نیست.
                         |
@@ -518,14 +534,14 @@ class PaymentService
                         ->where('provision_status', 'none')
                         ->update([
                             'provision_status' => 'pending',
-                            'updated_at'       => now(),
+                            'updated_at' => now(),
                         ]);
                 }
             } catch (\Throwable $e) {
                 // پرداخت سرِجایش می‌ماند؛ فقط صف‌گذاری مشکل داشت.
-                \App\Support\ErrorTracker::note('payment', $e, [
+                ErrorTracker::note('payment', $e, [
                     'invoice' => $invoice->id,
-                    'domain'  => $invoice->domain_id ?? null,
+                    'domain' => $invoice->domain_id ?? null,
                 ]);
             }
 
@@ -549,7 +565,7 @@ class PaymentService
         // نگهبان ready() یعنی اگر جدول هنوز ساخته نشده، پرداخت نمی‌شکند.
         if ($outcome->ok && $outcome->payment !== null) {
             try {
-                app(\App\Services\Finance\BusinessLedger::class)->recordPayment($outcome->payment);
+                app(BusinessLedger::class)->recordPayment($outcome->payment);
             } catch (\Throwable $e) {
                 Log::warning('ثبت درآمد در دفتر مالی انجام نشد', [
                     'payment' => $outcome->payment->id, 'error' => $e->getMessage(),
@@ -568,14 +584,14 @@ class PaymentService
             | تسویه‌ای که انجام شده را خراب کند.
             */
             if (($svcForTicket = $outcome->payment->invoice?->service) !== null) {
-                \App\Services\Ticket\LicenseOrderTicket::openFor($svcForTicket);
+                LicenseOrderTicket::openFor($svcForTicket);
             }
 
             // اعلان تأیید پرداخت — پیامک و بله. فقط تسویهٔ واقعی، نه تکرار
             // (رفرش صفحه یا رویداد دوبارهٔ بله) — alreadySettled این را می‌گیرد.
             if (! $outcome->alreadySettled && ($customer = $outcome->payment->customer) !== null) {
                 try {
-                    app(\App\Services\Notify\CustomerNotifier::class)->event(
+                    app(CustomerNotifier::class)->event(
                         $customer,
                         'paid',
                         ['amount' => number_format($outcome->payment->amount)],
@@ -592,7 +608,7 @@ class PaymentService
                     $svc = $outcome->payment->invoice?->service;
 
                     if ($svc !== null && $svc->status === 'active' && $svc->next_due_at !== null) {
-                        app(\App\Services\Notify\Notifier::class)->fire(
+                        app(Notifier::class)->fire(
                             'renewed',
                             $customer,
                             ['service' => $svc->name, 'until' => sdate($svc->next_due_at)],
@@ -609,10 +625,10 @@ class PaymentService
 
                 try {
                     app()->setLocale($customer->locale ?: 'fa');
-                    \App\Models\ActivityLog::record($customer->id, 'payment',
+                    ActivityLog::record($customer->id, 'payment',
                         __('ui.act_payment', [
                             'amount' => invoice_money($outcome->payment->amount, $outcome->payment->currency_code ?? 'IRT'),
-                            'gw'     => $outcome->payment->gateway ?? '',
+                            'gw' => $outcome->payment->gateway ?? '',
                         ]), null, 'customer');
                 } finally {
                     app()->setLocale($prevLoc);
@@ -623,15 +639,15 @@ class PaymentService
                 try {
                     $inv = $outcome->payment->invoice;
 
-                    app(\App\Services\Notify\AdminNotifier::class)->event('پرداختِ موفق', [
-                        'مشتری'  => $customer->displayName().' ('.$customer->code.')',
-                        'مبلغ'   => fa_num(number_format((int) $outcome->payment->amount)).' تومان',
-                        'درگاه'  => $outcome->payment->gateway,
+                    app(AdminNotifier::class)->event('پرداختِ موفق', [
+                        'مشتری' => $customer->displayName().' ('.$customer->code.')',
+                        'مبلغ' => fa_num(number_format((int) $outcome->payment->amount)).' تومان',
+                        'درگاه' => $outcome->payment->gateway,
                         'فاکتور' => $inv?->number,
-                        'بابت'   => $inv?->service?->name ?? ($inv?->kind === 'topup' ? 'افزایش اعتبار' : null),
+                        'بابت' => $inv?->service?->name ?? ($inv?->kind === 'topup' ? 'افزایش اعتبار' : null),
                         'پیگیری' => $outcome->payment->ref_id,
                     ], null, '💰', [[
-                        ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
+                        ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$customer->id],
                     ]]);
                 } catch (\Throwable) {
                 }
@@ -641,18 +657,23 @@ class PaymentService
         return $outcome;
     }
 
-    /**
-     * یک سطر دفتر اعتبار — از M3 به بعد نمایهٔ `Wallet` است.
-     *
-     * 🔴 تنها مسیرِ نوشتنِ دفتر همان `Wallet::credit` شد؛ این متُد فقط
-     *    لایهٔ نازکِ سازگاری است تا تماس‌هایِ موجود همین‌جا معنی‌شان
-     *    عوض نشود. رفتار یکسان است: همان سطر، همان فیلدها؛ تازه‌اش
-     *    این است که قفلِ ردیفِ مشتری هم داخلِ همان تراکنش گرفته می‌شود.
-     */
+    /** یک سطر دفتر اعتبار با موجودیِ پس از آن */
     private function credit(int $customerId, string $currency, int $amount, string $reason, $source, string $note): void
     {
-        app(\App\Services\Finance\Wallet::class)
-            ->credit($customerId, $currency, $amount, $reason, $source, $note);
+        $balance = (int) CreditEntry::where('customer_id', $customerId)
+            ->where('currency_code', $currency)
+            ->sum('amount');
+
+        CreditEntry::create([
+            'customer_id' => $customerId,
+            'currency_code' => $currency,
+            'amount' => $amount,
+            'balance_after' => $balance + $amount,
+            'reason' => $reason,
+            'source_type' => $source::class,
+            'source_id' => $source->id,
+            'note' => $note,
+        ]);
     }
 }
 

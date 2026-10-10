@@ -1902,6 +1902,14 @@ class AdminBaleRouter
             return;
         }
 
+        if ($r->manual) {
+            $this->sendButtons(
+                '⏳ درخواست '.($suspend ? 'تعلیق' : 'رفع تعلیق').' «'.$s->name.'» در صف انجام دستی ثبت شد. پس از انجام روی سرور، در پنل تأیید کنید.',
+                [$this->nav('s:'.$s->id)],
+            );
+            return;
+        }
+
         ActivityLog::forService($s, $suspend ? 'suspend' : 'reactivate',
             'از رباتِ بله توسط مدیر «'.($this->gate->boundUser()?->name ?? 'مدیر').'»', 'staff');
 

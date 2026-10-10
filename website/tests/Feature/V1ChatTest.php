@@ -23,8 +23,8 @@ use Tests\TestCase;
  * وضعیت، چاپِ بی‌واسطهٔ کد/پیام، و اینکه هیچ تماسِ بالادستیِ دومی برای
  * کلیدِ هم‌ارزیِ تکراری نرود.
  *
- * 🔴 مرزِ مستند: پاسخِ درخواستِ تکراری `duplicate_request` با ۴۰۹ است —
- *    بازپخشِ بدنهٔ ضبط‌شدهٔ ai_calls کارِ M4-c است و این‌جا قفل نمی‌شود.
+ * Completed calls replay their saved M4-c response; an in-flight reservation
+ * with no saved response returns duplicate_request (409). Neither charges twice.
  */
 class V1ChatTest extends TestCase
 {
@@ -81,7 +81,7 @@ class V1ChatTest extends TestCase
 
     private function catalog(): void
     {
-        $provider = AiProvider::create([
+        $provider = AiProvider::updateOrCreate(['slug' => 'deepinfra'], [
             'slug' => 'deepinfra', 'name' => 'DeepInfra', 'driver' => 'OpenAI-Compatible',
             'enabled' => true, 'live_calls_enabled' => true, 'priority' => 1,
             'agreement_status' => AiProvider::STATUS_SIGNED, 'billing_currency_code' => 'USD',
@@ -280,7 +280,7 @@ class V1ChatTest extends TestCase
 
     // ═══════════════ هم‌ارزی ═══════════════
 
-    public function test_duplicate_idempotency_key_calls_upstream_once_and_409(): void
+    public function test_duplicate_idempotency_key_calls_upstream_once_and_replays(): void
     {
         [$customer, $plain, $token] = $this->greenKey();
         $this->catalog();
@@ -298,15 +298,32 @@ class V1ChatTest extends TestCase
         $first->assertStatus(200);
         $this->assertSame('سلام!', $first->json('choices.0.message.content'));
 
-        /*
-        | 🔴 مرزِ M4-b: دومی تماسِ بالادستی **ندارد** و `duplicate_request`
-        | با ۴۰۹ رد می‌شود. بازپخشِ بدنهٔ ضبط‌شدهٔ ai_calls کارِ M4-c است؛
-        | تا آن گام قرارداد همین است و همین تستش را قفل می‌کند.
-        */
-        $dup->assertStatus(409);
-        $this->assertSame('duplicate_request', $dup->json('code'));
+        $dup->assertStatus(200);
+        $this->assertSame($first->json(), $dup->json());
+        $this->assertSame(1, \App\Models\AiReservation::where('customer_id', $customer->id)->count());
+        $this->assertSame(1, \App\Models\CreditEntry::where('customer_id', $customer->id)
+            ->where('reason', 'ai_reservation')->count());
 
         // 🔴 تماسِ دومی به بالادست نرفت
         Http::assertSentCount(1);
+    }
+
+    public function test_in_flight_idempotency_key_returns_409_without_calling_or_charging(): void
+    {
+        [$customer, $plain] = $this->greenKey();
+        $this->catalog();
+        Http::fake();
+        app(\App\Services\Ai\AiReservations::class)->reserve(
+            $customer->id, 100, 'pending-key', now()->addMinute(), 'ai', 'llama-3-8b');
+        $before = app(Wallet::class)->balanceOf($customer->id);
+
+        $this->postChat([
+            'model' => 'llama-3-8b', 'messages' => [['role' => 'user', 'content' => 'Hello']],
+        ], ['Authorization' => 'Bearer '.$plain, 'Idempotency-Key' => 'pending-key'])
+            ->assertStatus(409)->assertJsonPath('code', 'duplicate_request');
+
+        Http::assertNothingSent();
+        $this->assertSame($before, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1, \App\Models\AiReservation::where('customer_id', $customer->id)->count());
     }
 }

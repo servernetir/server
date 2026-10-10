@@ -247,6 +247,9 @@ class HourlyCreditControlTest extends TestCase
     /** اتمامِ اعتبار: تعلیق با لاگِ هم‌زبان، و پس از مهلت حذف — ضررِ ما بسته است */
     public function test_credit_out_suspends_then_grace_expiry_deletes(): void
     {
+        $this->mock(\App\Services\Cloud\CloudProvisioner::class, function ($mock) {
+            $mock->shouldReceive('suspend', 'terminate')->once()->andReturnTrue();
+        });
         $this->catalog();
 
         $en = $this->customer('en');

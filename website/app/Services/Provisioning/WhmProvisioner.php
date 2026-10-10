@@ -3,6 +3,7 @@
 namespace App\Services\Provisioning;
 
 use App\Models\Service;
+use App\Support\ErrorTracker;
 
 /**
  * درایورِ WHM/cPanel — ساختِ خودکارِ حسابِ هاست روی سرورِ WHM.
@@ -63,14 +64,14 @@ class WhmProvisioner implements Provisioner
         | «این نام از قبل هست» می‌دهد و شاخهٔ پایین همان را می‌گیرد.
         */
         $res = $client->createAccount(array_filter([
-            'username'     => $user,
-            'domain'       => $domain,
-            'plan'         => $service->plan ?: 'default',
-            'password'     => (string) $service->password,
+            'username' => $user,
+            'domain' => $domain,
+            'plan' => $service->plan ?: 'default',
+            'password' => (string) $service->password,
             'contactemail' => (string) ($service->customer->email ?? ''),
             // `reseller=1` فقط بیتِ نمایندگی را می‌گذارد؛ ACL و سقف دو تماسِ
             // جدا هستند و در applyResellerSetup() می‌آیند.
-            'reseller'     => $reseller ? 1 : null,
+            'reseller' => $reseller ? 1 : null,
         ], fn ($v) => $v !== null));
 
         if (! $res['ok']) {
@@ -93,7 +94,7 @@ class WhmProvisioner implements Provisioner
 
             if ($after === true) {
                 $meta = [
-                    'reused'               => true,
+                    'reused' => true,
                     'verified_after_error' => mb_substr((string) $res['reason'], 0, 160),
                 ];
                 // حساب ساخته شده ولی تایم‌اوت نگذاشت گام‌های نمایندگی اجرا
@@ -206,7 +207,7 @@ class WhmProvisioner implements Provisioner
      */
     private function shout(Service $service, string $step, string $user, string $reason): void
     {
-        \App\Support\ErrorTracker::noteOnce('provision',
+        ErrorTracker::noteOnce('provision',
             'گامِ نمایندگی «'.$step.'» برای سرویس #'.$service->id.' (کاربر '.$user.') انجام نشد: '
             .mb_substr($reason, 0, 200));
     }
@@ -236,8 +237,18 @@ class WhmProvisioner implements Provisioner
         }
 
         $client = new WhmClient($server);
+        if (in_array($action, ['suspend', 'unsuspend'], true)) {
+            $summary = $client->accountSummary($user);
+            $account = $summary['data']['acct'][0] ?? null;
+            if (($summary['ok'] ?? false) && is_array($account)
+                && strcasecmp((string) ($account['user'] ?? ''), $user) === 0
+                && array_key_exists('suspended', $account)
+                && filter_var($account['suspended'], FILTER_VALIDATE_BOOLEAN) === ($action === 'suspend')) {
+                return ProvisionResult::success($user, null, null, ['already_in_requested_state' => true]);
+            }
+        }
         $res = match ($action) {
-            'suspend'   => $client->suspend($user, 'suspended via ServerNet panel'),
+            'suspend' => $client->suspend($user, 'suspended via ServerNet panel'),
             'unsuspend' => $client->unsuspend($user),
             'terminate' => $client->terminate($user),
         };

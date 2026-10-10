@@ -205,6 +205,18 @@ class MenuManager
      */
     public function footer(string $locale): array
     {
+        $previous = app()->getLocale();
+        app()->setLocale($locale);
+
+        try {
+            return $this->buildFooter($locale);
+        } finally {
+            app()->setLocale($previous);
+        }
+    }
+
+    private function buildFooter(string $locale): array
+    {
         $cols = (array) config('servernet.footer_menu', []);
         $ov = $this->overrides();
         $out = [];

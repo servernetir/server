@@ -2,12 +2,21 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\TemplateMail;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Service;
+use App\Services\Billing\BillingLifecycleActions;
+use App\Services\Billing\BillingRunMonitor;
+use App\Services\Billing\ComplimentaryServices;
+use App\Services\Billing\RenewalTerms;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
+use App\Services\Notify\Notifier;
 use App\Services\Provisioning\ProvisioningService;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +24,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * چرخهٔ کاملِ تمدیدِ سرویس — یادآوری، تعلیقِ خودکار، مهلتِ ۳۰ روزه.
  *
- * روزی یک‌بار اجرا می‌شود و برای **هر** سرویسِ دوره‌ای (هاست، دامنه، سرورِ
+ * هر پنج دقیقه اجرا می‌شود و برای **هر** سرویسِ دوره‌ای (هاست، دامنه، سرورِ
  * اختصاصی، هر چیزی که فاکتورِ دوره‌ای دارد) این مسیر را می‌رود:
  *
  *   ۷ روز مانده  → یادآوری + مطمئن‌شدن از وجودِ فاکتورِ تمدید
@@ -59,26 +68,25 @@ class RunServiceLifecycle extends Command
         $dry = (bool) $this->option('dry');
         $graceDays = max(1, (int) $this->option('grace'));
 
-        $cycles = array_keys((array) config('billing.cycles', []));
-        $today = now()->startOfDay();
+        $today = now(RenewalTerms::timezone())->startOfDay();
 
         $services = Service::query()
-            ->whereIn('cycle', $cycles)
+            ->customerRecurring(true)
             ->whereIn('status', ['active', 'suspended'])
-            ->whereNotNull('next_due_at')
             ->with('customer')
             ->get();
 
-        $stats = ['reminded' => 0, 'suspended' => 0, 'restored' => 0, 'grace' => 0];
+        $stats = ['reminded' => 0, 'suspended' => 0, 'restored' => 0, 'grace' => 0, 'errors' => 0, 'pending' => 0];
 
         foreach ($services as $service) {
             try {
                 $this->handleOne($service, $today, $graceDays, $dry, $stats, $customers, $admin, $provisioner);
             } catch (\Throwable $e) {
+                $stats['errors']++;
                 // یک سرویسِ خراب نباید کلِ کرون را بخواباند
                 Log::error('چرخهٔ تمدیدِ سرویس خطا داد', [
                     'service' => $service->id,
-                    'error'   => $e::class.': '.mb_substr($e->getMessage(), 0, 200),
+                    'error' => $e::class.': '.mb_substr($e->getMessage(), 0, 200),
                 ]);
             }
         }
@@ -89,12 +97,16 @@ class RunServiceLifecycle extends Command
             $dry ? '  (آزمایشی — چیزی عوض نشد)' : ''
         ));
 
-        return self::SUCCESS;
+        if (! $dry) {
+            BillingRunMonitor::record('services:lifecycle', $stats['errors'], $stats);
+        }
+
+        return $stats['errors'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 
     private function handleOne(
         Service $service,
-        \Illuminate\Support\Carbon $today,
+        Carbon $today,
         int $graceDays,
         bool $dry,
         array &$stats,
@@ -102,17 +114,46 @@ class RunServiceLifecycle extends Command
         AdminNotifier $admin,
         ProvisioningService $provisioner,
     ): void {
-        $due = $service->next_due_at->copy()->startOfDay();
-        $daysLeft = $today->diffInDays($due, false);   // منفی = گذشته
+        $complimentary = app(ComplimentaryServices::class);
+        if ($complimentary->applies($service)) {
+            if (! $dry) {
+                $complimentary->renew($service);
+            }
+
+            return;
+        }
+
+        if ($service->isInternalInfrastructure()) {
+            return;
+        }
+        if ($service->next_due_at === null) {
+            $stats['errors']++;
+            if (! $dry) {
+                ErrorTracker::noteOnce('billing', 'سرویس دوره‌ای #'.$service->id.' سررسید ندارد؛ بررسی سابقه و ترمیم لازم است.', 86400, ['service' => $service->id]);
+            }
+
+            return;
+        }
+        $due = Carbon::parse($service->next_due_at->toDateString(), RenewalTerms::timezone());
+        $daysLeft = (int) $today->diffInDays($due, false);
         $unpaid = $this->openInvoice($service);
 
         // ── ۱) پرداخت شد و سرویس معلق بود → برگردانش ────────────────────────
+        if ($service->status === 'suspended' && ! empty($service->provision_meta['staff_suspend'])) {
+            return; // An operator must explicitly lift an abuse/security suspension.
+        }
+
         if ($unpaid === null && $service->suspended_at !== null && $daysLeft >= 0) {
             if (! $dry) {
-                $provisioner->unsuspend($service);
+                $outcome = BillingLifecycleActions::run($service, 'unsuspend', $provisioner);
+                if ($outcome !== 'confirmed') {
+                    $stats[$outcome === 'failed' ? 'errors' : 'pending']++;
+
+                    return;
+                }
                 $service->forceFill([
-                    'status'         => 'active',
-                    'suspended_at'   => null,
+                    'status' => 'active',
+                    'suspended_at' => null,
                     'grace_alert_at' => null,
                     'reminder_stage' => null,
                 ])->save();
@@ -121,7 +162,7 @@ class RunServiceLifecycle extends Command
                     ['service' => $service->name],
                     'سرویسِ «'.$service->name.'» شما تمدید شد و دوباره فعال است. ممنون از پرداختتان.');
 
-                \App\Models\ActivityLog::forService($service, 'reactivate',
+                ActivityLog::forService($service, 'reactivate',
                     __('ui.act_auto_unsuspend', [], $service->customer?->locale ?: 'fa'), 'system');
             }
             $stats['restored']++;
@@ -131,6 +172,9 @@ class RunServiceLifecycle extends Command
 
         // ── ۲) سررسید نگذشته → یادآوریِ ۷/۳/۱ روز ───────────────────────────
         if ($daysLeft >= 0) {
+            if ($daysLeft <= 7 && $unpaid === null && ! $dry) {
+                $unpaid = RenewalTerms::ensureInvoice($service);
+            }
             $stage = $this->stageFor($daysLeft);
 
             if ($stage === null) {
@@ -146,7 +190,7 @@ class RunServiceLifecycle extends Command
             if (! $dry) {
                 // ۷ روز مانده: مطمئن شو فاکتورِ تمدید هست (اگر نبود، بساز)
                 if ($stage === 7 && $unpaid === null) {
-                    app(\App\Http\Controllers\Admin\ServiceController::class)->issueInvoice($service);
+                    RenewalTerms::ensureInvoice($service);
                     $unpaid = $this->openInvoice($service);
                 }
 
@@ -163,9 +207,15 @@ class RunServiceLifecycle extends Command
         // ── ۳) سررسید گذشته ────────────────────────────────────────────────
         $daysOverdue = abs($daysLeft);
 
-        // پرداخت‌شده ولی سررسید عقب مانده؟ کارِ ما نیست (پرداخت سررسید را جلو می‌برد)
+        // A missed invoice job must not leave an overdue service running indefinitely.
         if ($unpaid === null) {
-            return;
+            if ($dry) {
+                return;
+            }
+            $unpaid = RenewalTerms::ensureInvoice($service);
+            if ($unpaid === null) {
+                return;
+            }
         }
 
         /*
@@ -179,16 +229,16 @@ class RunServiceLifecycle extends Command
         |    «اعلانِ سررسید رفته» است — بی‌این، هر اجرای روزانه یک پیام
         |    می‌فرستاد و مشتری روزی یکی می‌گرفت تا روزِ تعلیق.
         */
-        if ($daysOverdue === 1 && (int) $service->reminder_stage !== 0) {
+        if ($daysOverdue === 1 && ($service->reminder_stage === null || (int) $service->reminder_stage !== 0)) {
             if (! $dry) {
-                app(\App\Services\Notify\Notifier::class)->fire(
+                app(Notifier::class)->fire(
                     'payment_due',
                     $service->customer,
                     [
                         'number' => (string) $unpaid->number,
                         'amount' => fa_num(number_format((int) $unpaid->total)).' تومان',
-                        'days'   => fa_num($daysOverdue),
-                        'link'   => console_lroute('account.invoices'),
+                        'days' => fa_num($daysOverdue),
+                        'link' => console_lroute('account.invoices'),
                     ],
                     '⏳ سررسیدِ سرویسِ «'.$service->name.'» گذشت و فاکتورش هنوز پرداخت نشده. '
                     .'برای جلوگیری از قطعِ سرویس، همین حالا پرداخت کنید: '.console_lroute('account.invoices'),
@@ -203,13 +253,20 @@ class RunServiceLifecycle extends Command
         }
 
         // ۳-الف) هنوز معلق نشده → تعلیقِ خودکار
-        if ($service->suspended_at === null) {
+        if ($service->status !== 'suspended' || $service->suspended_at === null
+            || empty($service->provision_meta['billing_suspend']['confirmed_at'])) {
             if (! $dry) {
-                $provisioner->suspend($service);
+                $previouslyConfirmed = ! empty($service->provision_meta['billing_suspend']['confirmed_at']);
+                $outcome = BillingLifecycleActions::run($service, 'suspend', $provisioner);
+                if ($outcome !== 'confirmed') {
+                    $stats[$outcome === 'failed' ? 'errors' : 'pending']++;
+
+                    return;
+                }
 
                 $service->forceFill([
-                    'status'       => 'suspended',
-                    'suspended_at' => now(),
+                    'status' => 'suspended',
+                    'suspended_at' => $previouslyConfirmed ? ($service->suspended_at ?? now()) : now(),
                 ])->save();
 
                 $customers->templated($service->customer, 'suspended',
@@ -219,7 +276,7 @@ class RunServiceLifecycle extends Command
 
                 $this->alertAdmin($admin, $service, 'سرویس به‌خاطرِ عدمِ تمدید غیرفعال شد', '⛔');
 
-                \App\Models\ActivityLog::forService($service, 'suspend',
+                ActivityLog::forService($service, 'suspend',
                     __('ui.act_auto_suspend', ['days' => $daysOverdue], $service->customer?->locale ?: 'fa'), 'system');
             }
             $stats['suspended']++;
@@ -241,7 +298,7 @@ class RunServiceLifecycle extends Command
                 | آستانهٔ ازدست‌دادنِ همیشگیِ سایتش بود. آخرین فرصتِ او همین
                 | پیام است.
                 */
-                app(\App\Services\Notify\Notifier::class)->fire(
+                app(Notifier::class)->fire(
                     'data_deletion_due',
                     $service->customer,
                     ['service' => $service->name, 'days' => fa_num($graceDays)],
@@ -263,10 +320,7 @@ class RunServiceLifecycle extends Command
     /** فاکتورِ بازِ همین سرویس (پرداخت‌نشده) */
     private function openInvoice(Service $service): ?Invoice
     {
-        return Invoice::where('service_id', $service->id)
-            ->whereIn('status', ['unpaid', 'draft', 'partial'])
-            ->latest('id')
-            ->first();
+        return RenewalTerms::openInvoice($service);
     }
 
     /** کدام مرحلهٔ یادآوری به این تعدادِ روزِ باقی‌مانده می‌خورد؟ */
@@ -297,9 +351,9 @@ class RunServiceLifecycle extends Command
         // `Mail::raw` می‌رفت: بی‌لوگو، بی‌RTL، شبیهِ اسپم.
         $mailed = $customers->templated($service->customer, 'expiring', [
             'service' => $service->name,
-            'days'    => fa_num($stage),
-            'amount'  => $amount ?? '—',
-            'link'    => console_lroute('account.invoices'),
+            'days' => fa_num($stage),
+            'amount' => $amount ?? '—',
+            'link' => console_lroute('account.invoices'),
         ], $text);
 
         // اگر الگویی برای ایمیل نبود (یا ارسالش نشد)، همان یادآوریِ سادهٔ قبلی
@@ -317,13 +371,13 @@ class RunServiceLifecycle extends Command
                     : trans('ui.ntf_expiring_s', ['service' => $service->name, 'days' => (string) $stage], $locale);
                 $body = $locale === 'fa' ? $text : trans('ui.ntf_expiring_b', [
                     'service' => $service->name,
-                    'days'    => (string) $stage,
-                    'amount'  => $invoice ? number_format((int) $invoice->total).' IRT' : '—',
-                    'link'    => console_lroute('account.invoices'),
+                    'days' => (string) $stage,
+                    'amount' => $invoice ? number_format((int) $invoice->total).' IRT' : '—',
+                    'link' => console_lroute('account.invoices'),
                 ], $locale);
 
                 Mail::mailer('smtp')->to($service->customer->email)
-                    ->send(new \App\Mail\TemplateMail($subject, nl2br(e($body)), $locale));
+                    ->send(new TemplateMail($subject, nl2br(e($body)), $locale));
             }
         } catch (\Throwable) {
         }
@@ -335,13 +389,13 @@ class RunServiceLifecycle extends Command
         $c = $service->customer;
 
         $admin->event($title, [
-            'مشتری'  => trim(($c?->displayName() ?? '—').' ('.($c?->code ?? '—').')'),
-            'سرویس'  => $service->name,
-            'دامنه'  => $service->domain,
-            'دوره'   => $service->cycleLabel(),
-            'مبلغ'   => fa_num(number_format((int) $service->total())).' تومان',
+            'مشتری' => trim(($c?->displayName() ?? '—').' ('.($c?->code ?? '—').')'),
+            'سرویس' => $service->name,
+            'دامنه' => $service->domain,
+            'دوره' => $service->cycleLabel(),
+            'مبلغ' => fa_num(number_format((int) $service->total())).' تومان',
             'سررسید' => sdate($service->next_due_at),
-            'تلفن'   => $c?->phone,
+            'تلفن' => $c?->phone,
         ], $c ? url('/admin/customers/'.$c->id) : null, $emoji);
     }
 }

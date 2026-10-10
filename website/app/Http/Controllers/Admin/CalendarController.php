@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CalendarEvent;
 use App\Models\CalendarLayerPreference;
 use App\Models\GoogleCalendarToken;
+use App\Services\Billing\OutstandingPayments;
 use App\Services\Calendar\CalendarItem;
 use App\Services\Calendar\CalendarService;
 use App\Services\Calendar\Google\GoogleCalendarClient;
@@ -16,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -38,7 +38,7 @@ class CalendarController extends Controller
     public function __construct(private readonly CalendarService $calendar) {}
 
     /* ==================================================================== */
-    /*  صفحه                                                                */
+    /*  صفحه */
     /* ==================================================================== */
 
     public function index(Request $request): View
@@ -74,11 +74,11 @@ class CalendarController extends Controller
          */
         $googleToken = GoogleCalendarToken::forUser($userId);
         $google = [
-            'configured'  => GoogleCalendarClient::configured(),
-            'connected'   => $googleToken !== null,
-            'email'       => $googleToken?->google_email,
-            'last_error'  => $googleToken?->last_error,
-            'synced_at'   => $googleToken?->synced_at?->diffForHumans(),
+            'configured' => GoogleCalendarClient::configured(),
+            'connected' => $googleToken !== null,
+            'email' => $googleToken?->google_email,
+            'last_error' => $googleToken?->last_error,
+            'synced_at' => $googleToken?->synced_at?->diffForHumans(),
         ];
 
         /*
@@ -93,16 +93,17 @@ class CalendarController extends Controller
         }
 
         return view('admin.calendar', [
-            'layers'   => $layers,
+            'layers' => $layers,
             'statuses' => (array) config('calendar.statuses', []),
-            'prefs'    => $prefs,
-            'jy'       => $jy,
-            'jm'       => $jm,
+            'prefs' => $prefs,
+            'jy' => $jy,
+            'jm' => $jm,
             'weekdays' => Jalali::WEEKDAY_NAMES,
             'upcoming' => $upcoming,
+            'outstanding' => app(OutstandingPayments::class)->summary(),
             'upcomingDays' => (int) config('calendar.upcoming_days', 7),
-            'dueSoonDays'  => (int) config('calendar.due_soon_days', 3),
-            'google'       => $google,
+            'dueSoonDays' => (int) config('calendar.due_soon_days', 3),
+            'google' => $google,
 
             /*
              * تنها دریچهٔ داده به جاوااسکریپت. یک شیء، نه ده متغیرِ پراکنده در
@@ -110,37 +111,37 @@ class CalendarController extends Controller
              * سرور ناهم‌خوان شود.
              */
             'boot' => [
-                'year'      => $jy,
-                'month'     => $jm,
-                'today'     => Jalali::format($today[0], $today[1], $today[2]),
-                'grid'      => $this->grid($jy, $jm) + [
-                    'year'       => $jy,
-                    'month'      => $jm,
+                'year' => $jy,
+                'month' => $jm,
+                'today' => Jalali::format($today[0], $today[1], $today[2]),
+                'grid' => $this->grid($jy, $jm) + [
+                    'year' => $jy,
+                    'month' => $jm,
                     'month_name' => Jalali::monthName($jm),
                 ],
-                'events'    => $events->map(fn (CalendarItem $i) => $i->toArray())->all(),
-                'layers'    => array_map(static fn (array $l) => [
+                'events' => $events->map(fn (CalendarItem $i) => $i->toArray())->all(),
+                'layers' => array_map(static fn (array $l) => [
                     'label' => $l['label'] ?? '',
-                    'tone'  => $l['tone'] ?? 'task',
-                    'icon'  => $l['icon'] ?? 'i-check',
+                    'tone' => $l['tone'] ?? 'task',
+                    'icon' => $l['icon'] ?? 'i-check',
                 ], $layers),
-                'prefs'        => $prefs,
-                'statuses'     => (array) config('calendar.statuses', []),
-                'repeats'      => (array) config('calendar.repeats', []),
+                'prefs' => $prefs,
+                'statuses' => (array) config('calendar.statuses', []),
+                'repeats' => (array) config('calendar.repeats', []),
                 'googleConnected' => $google['connected'],
                 // نامِ ماه‌ها از **یک** جا: انتخابگرِ ماه در مرورگر نباید
                 // فهرستِ دومی داشته باشد که روزی با سرور فرق کند
-                'monthNames'   => Jalali::MONTH_NAMES,
-                'failures'     => $failures,
-                'truncated'    => $truncated,
+                'monthNames' => Jalali::MONTH_NAMES,
+                'failures' => $failures,
+                'truncated' => $truncated,
                 'upcomingDays' => (int) config('calendar.upcoming_days', 7),
-                'dueSoonDays'  => (int) config('calendar.due_soon_days', 3),
+                'dueSoonDays' => (int) config('calendar.due_soon_days', 3),
             ],
         ]);
     }
 
     /* ==================================================================== */
-    /*  API                                                                 */
+    /*  API */
     /* ==================================================================== */
 
     /**
@@ -158,11 +159,11 @@ class CalendarController extends Controller
     public function events(Request $request): JsonResponse
     {
         $data = $this->check($request, [
-            'from'     => ['required_without_all:y,m', 'nullable', 'string', 'max:10'],
-            'to'       => ['required_without_all:y,m', 'nullable', 'string', 'max:10'],
-            'y'        => ['nullable', 'integer', 'min:1300', 'max:1500'],
-            'm'        => ['nullable', 'integer', 'min:1', 'max:12'],
-            'layers'   => ['nullable', 'array'],
+            'from' => ['required_without_all:y,m', 'nullable', 'string', 'max:10'],
+            'to' => ['required_without_all:y,m', 'nullable', 'string', 'max:10'],
+            'y' => ['nullable', 'integer', 'min:1300', 'max:1500'],
+            'm' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'layers' => ['nullable', 'array'],
             /*
              * ⚠️ رشتهٔ خالی هم مجاز است و **معنی دارد**: در رشتهٔ کوئری راهی
              * برای فرستادنِ «آرایهٔ خالی» نیست، پس مرورگر `layers[]=` می‌فرستد
@@ -220,15 +221,15 @@ class CalendarController extends Controller
         $events = $this->calendar->events($from, $to, $layers);
 
         $payload = [
-            'ok'        => true,
-            'from'      => Jalali::format($fromJ[0], $fromJ[1], $fromJ[2]),
-            'to'        => Jalali::format($toJ[0], $toJ[1], $toJ[2]),
-            'grid'      => $grid,
-            'today'     => Jalali::format(...$this->todayJalali()),
-            'events'    => $events->map(fn (CalendarItem $i) => $i->toArray())->all(),
+            'ok' => true,
+            'from' => Jalali::format($fromJ[0], $fromJ[1], $fromJ[2]),
+            'to' => Jalali::format($toJ[0], $toJ[1], $toJ[2]),
+            'grid' => $grid,
+            'today' => Jalali::format(...$this->todayJalali()),
+            'events' => $events->map(fn (CalendarItem $i) => $i->toArray())->all(),
             // خرابیِ یک لایه **گزارش** می‌شود؛ لایهٔ خالیِ خراب نباید شبیهِ
             // لایهٔ خالیِ سالم باشد.
-            'failures'  => $this->calendar->failures(),
+            'failures' => $this->calendar->failures(),
             'truncated' => $this->calendar->truncatedLayers(),
         ];
 
@@ -249,17 +250,17 @@ class CalendarController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->check($request, [
-            'type'        => ['required', 'string', Rule::in(CalendarEvent::types())],
-            'title'       => ['required', 'string', 'max:200'],
+            'type' => ['required', 'string', Rule::in(CalendarEvent::types())],
+            'title' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'event_date'  => ['required', 'string', 'max:10'],
-            'status'      => ['nullable', 'string', Rule::in(CalendarEvent::statuses())],
-            'repeat'      => ['nullable', 'string', Rule::in(CalendarEvent::repeats())],
+            'event_date' => ['required', 'string', 'max:10'],
+            'status' => ['nullable', 'string', Rule::in(CalendarEvent::statuses())],
+            'repeat' => ['nullable', 'string', Rule::in(CalendarEvent::repeats())],
             'repeat_until' => ['nullable', 'string', 'max:10'],
             // مبلغ در واحدِ فرعی (تومان) — عددِ صحیح، مثلِ بقیهٔ پولِ پروژه
-            'amount'      => ['nullable', 'integer', 'min:0', 'max:99999999999999'],
+            'amount' => ['nullable', 'integer', 'min:0', 'max:99999999999999'],
             // کجا ثبت شود: دفترِ داخلی یا تقویمِ گوگلِ خودِ کاربر
-            'target'      => ['nullable', 'string', Rule::in(['local', 'google'])],
+            'target' => ['nullable', 'string', Rule::in(['local', 'google'])],
         ], [
             'type' => 'نوع', 'title' => 'عنوان', 'description' => 'توضیح',
             'event_date' => 'تاریخ', 'repeat' => 'تکرار',
@@ -308,17 +309,17 @@ class CalendarController extends Controller
         }
 
         $event = CalendarEvent::create([
-            'type'         => $data['type'],
-            'title'        => $data['title'],
-            'description'  => $data['description'] ?? null,
-            'event_date'   => $this->gregorian($jalali),
-            'repeat'       => $data['repeat'] ?? 'none',
+            'type' => $data['type'],
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'event_date' => $this->gregorian($jalali),
+            'repeat' => $data['repeat'] ?? 'none',
             'repeat_until' => $until,
-            'amount'       => $data['amount'] ?? null,
+            'amount' => $data['amount'] ?? null,
             'currency_code' => ($data['amount'] ?? null) !== null ? 'IRT' : null,
-            'status'       => $data['status'] ?? 'pending',
-            'user_id'      => $request->user()?->id,
-            'meta'         => ['created_by_name' => $request->user()?->name],
+            'status' => $data['status'] ?? 'pending',
+            'user_id' => $request->user()?->id,
+            'meta' => ['created_by_name' => $request->user()?->name],
         ]);
 
         return response()->json(['ok' => true, 'event' => $this->itemOf($event)->toArray()], 201);
@@ -334,12 +335,12 @@ class CalendarController extends Controller
     public function update(Request $request, CalendarEvent $event): JsonResponse
     {
         $data = $this->check($request, [
-            'status'      => ['nullable', 'string', Rule::in(CalendarEvent::statuses())],
-            'title'       => ['nullable', 'string', 'max:200'],
+            'status' => ['nullable', 'string', Rule::in(CalendarEvent::statuses())],
+            'title' => ['nullable', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'event_date'  => ['nullable', 'string', 'max:10'],
+            'event_date' => ['nullable', 'string', 'max:10'],
             // تاریخِ **میلادیِ** یک تکرارِ مشخص از یک سری (`2026-08-27`)
-            'occurrence'  => ['nullable', 'string', 'date_format:Y-m-d'],
+            'occurrence' => ['nullable', 'string', 'date_format:Y-m-d'],
         ], ['status' => 'وضعیت', 'title' => 'عنوان', 'event_date' => 'تاریخ']);
 
         if ($data instanceof JsonResponse) {
@@ -365,15 +366,15 @@ class CalendarController extends Controller
             $event->markOccurrence($occurrence, $status);
 
             return response()->json([
-                'ok'    => true,
+                'ok' => true,
                 'event' => $this->itemOf($event->refresh(), $occurrence)->toArray(),
             ]);
         }
 
         $changes = array_filter(
             [
-                'status'      => $data['status'] ?? null,
-                'title'       => $data['title'] ?? null,
+                'status' => $data['status'] ?? null,
+                'title' => $data['title'] ?? null,
                 'description' => $data['description'] ?? null,
             ],
             fn ($v) => $v !== null,
@@ -418,7 +419,7 @@ class CalendarController extends Controller
     public function preferences(Request $request): JsonResponse
     {
         $data = $this->check($request, [
-            'layers'   => ['required', 'array'],
+            'layers' => ['required', 'array'],
             'layers.*' => ['boolean'],
         ], ['layers' => 'لایه‌ها']);
 
@@ -471,7 +472,7 @@ class CalendarController extends Controller
     }
 
     /* ==================================================================== */
-    /*  اتصال به گوگل‌کلندر                                                  */
+    /*  اتصال به گوگل‌کلندر */
     /* ==================================================================== */
 
     /**
@@ -503,7 +504,7 @@ class CalendarController extends Controller
 
         if (! $res['ok']) {
             return response()->json([
-                'ok'    => false,
+                'ok' => false,
                 'error' => 'google_insert_failed',
                 'messages' => [$res['error'] ?? 'گوگل رویداد را نپذیرفت.'],
             ], 422);
@@ -513,7 +514,7 @@ class CalendarController extends Controller
         $this->forgetGoogleCache((int) $request->user()->id);
 
         return response()->json([
-            'ok'    => true,
+            'ok' => true,
             'event' => (new CalendarItem(
                 type: 'google',
                 source: 'google',
@@ -582,20 +583,20 @@ class CalendarController extends Controller
              */
             return redirect('/admin/calendar')->with('err', match ($res['error'] ?? '') {
                 'no_refresh_token' => 'گوگل توکنِ ماندگار نداد. در حسابِ گوگل، دسترسیِ این اپ را حذف کنید و دوباره وصل شوید.',
-                'network'          => 'ارتباط با گوگل برقرار نشد.',
-                default            => 'اتصال ناموفق: '.($res['error'] ?? 'نامشخص'),
+                'network' => 'ارتباط با گوگل برقرار نشد.',
+                default => 'اتصال ناموفق: '.($res['error'] ?? 'نامشخص'),
             });
         }
 
         GoogleCalendarToken::updateOrCreate(
             ['user_id' => $request->user()->id],
             [
-                'google_email'  => $res['email'] ?? null,
-                'calendar_id'   => 'primary',
-                'access_token'  => $res['access_token'],
+                'google_email' => $res['email'] ?? null,
+                'calendar_id' => 'primary',
+                'access_token' => $res['access_token'],
                 'refresh_token' => $res['refresh_token'],
-                'expires_at'    => $res['expires_at'],
-                'last_error'    => null,
+                'expires_at' => $res['expires_at'],
+                'last_error' => null,
             ],
         );
 
@@ -674,7 +675,7 @@ class CalendarController extends Controller
     }
 
     /* ==================================================================== */
-    /*  کمکی‌ها                                                              */
+    /*  کمکی‌ها */
     /* ==================================================================== */
 
     /**
@@ -705,8 +706,8 @@ class CalendarController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'ok'       => false,
-                'error'    => 'validation',
+                'ok' => false,
+                'error' => 'validation',
                 'messages' => $validator->errors()->all(),
             ], 422);
         }
@@ -827,11 +828,11 @@ class CalendarController extends Controller
             at: Carbon::parse($day, $this->timezone()),
             status: $event->statusOn($day),
             meta: [
-                'event_id'   => $event->id,
-                'repeat'     => $event->repeat,
+                'event_id' => $event->id,
+                'repeat' => $event->repeat,
                 'occurrence' => $event->isRecurring() ? $day : null,
-                'amount'     => $event->amount,
-                'currency'   => $event->currency_code,
+                'amount' => $event->amount,
+                'currency' => $event->currency_code,
             ] + (array) ($event->meta ?? []),
             url: null,
             editable: true,

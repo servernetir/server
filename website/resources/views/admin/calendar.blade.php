@@ -123,6 +123,20 @@
 
   {{-- ══ ستونِ رویدادهای پیش‌رو ══ --}}
   <aside class="cal-side">
+    <section class="ad-panel" style="padding:14px" aria-label="فاکتورهای نیازمند پیگیری">
+      <h3>فاکتورهای نیازمند پیگیری · {{ fa_num($outstanding['count']) }}</h3>
+      <p>معوق‌ها و فاکتورهای بدون تاریخ، مستقل از ماه انتخاب‌شده.</p>
+      @foreach($outstanding['rows'] as $invoice)
+        <p>
+          <a href="{{ url('/admin/customers/'.$invoice->customer_id) }}">{{ $invoice->number }}</a>
+          — {{ invoice_money($invoice->total - $invoice->paid, $invoice->currency_code) }}
+          <small>{{ $invoice->kind === 'topup' ? 'درخواست شارژ' : 'فاکتور سرویس' }} · {{ $invoice->due_at ? 'معوق از '.sdate($invoice->due_at) : 'بدون سررسید؛ نیازمند تعیین تاریخ' }}</small>
+        </p>
+      @endforeach
+      @if($outstanding['count'] > $outstanding['rows']->count())
+        <p>صد مورد نخست نمایش داده شده است؛ تعداد کل در عنوان آمده است.</p>
+      @endif
+    </section>
     <div class="ad-panel">
       <div class="ad-panel-h">
         <h3>{{ $upcomingDays }} روزِ آینده</h3>

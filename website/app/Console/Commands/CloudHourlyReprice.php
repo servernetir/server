@@ -6,7 +6,10 @@ use App\Models\ActivityLog;
 use App\Models\CloudInstance;
 use App\Models\CloudPlan;
 use App\Models\Service;
+use App\Services\Billing\ComplimentaryServices;
+use App\Services\Cloud\CloudPricing;
 use App\Services\Notify\CustomerNotifier;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 
 /**
@@ -48,6 +51,9 @@ class CloudHourlyReprice extends Command
         $changed = 0;
 
         foreach ($q->orderBy('id')->get() as $s) {
+            if (app(ComplimentaryServices::class)->applies($s)) {
+                continue;
+            }
             $row = $this->currentRowFor($s);
 
             if ($row === null) {
@@ -68,7 +74,7 @@ class CloudHourlyReprice extends Command
             }
 
             // یورو از تومان (منبعِ واقعیِ کسر) — سنتِ گردشده تغییرِ واقعی را پنهان می‌کرد
-            $rate = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+            $rate = (int) app(CloudPricing::class)->eurToToman();
             $this->line(sprintf('#%d: %s → %s تومان/ساعت (€%s → €%s)  [%s/%s]',
                 $s->id, number_format($oldIrt), number_format($newIrt),
                 number_format($rate > 0 ? $oldIrt / $rate : $oldEur / 100, 4),
@@ -95,10 +101,10 @@ class CloudHourlyReprice extends Command
                 if ($s->customer !== null) {
                     app(CustomerNotifier::class)->templated($s->customer, 'hourly_reprice', [
                         'service' => (string) $s->name,
-                        'rate'    => $this->money($newIrt, $newEur, $loc),
+                        'rate' => $this->money($newIrt, $newEur, $loc),
                     ], __('ui.ntf_hourly_reprice_b', [
                         'service' => (string) $s->name,
-                        'rate'    => $this->money($newIrt, $newEur, $loc),
+                        'rate' => $this->money($newIrt, $newEur, $loc),
                     ], $loc));
                 }
             } catch (\Throwable $e) {
@@ -108,7 +114,7 @@ class CloudHourlyReprice extends Command
                 | یعنی همان تغییرِ قیمتی که آگاهانه و باخبر انجام دادیم، از دیدِ او
                 | یک کسرِ بی‌توضیح می‌شود.
                 */
-                \App\Support\ErrorTracker::noteOnce('billing',
+                ErrorTracker::noteOnce('billing',
                     'خبرِ تغییرِ نرخِ ساعتی به مشتریِ سرویسِ #'.$s->id.' نرفت: '.$e->getMessage(), 3600);
             }
         }
@@ -148,7 +154,7 @@ class CloudHourlyReprice extends Command
             return fa_num(number_format($irt)).' تومان در ساعت';
         }
 
-        $rate = (int) app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+        $rate = (int) app(CloudPricing::class)->eurToToman();
 
         return $rate > 0
             ? '€'.number_format($irt / $rate, 4).'/h'
