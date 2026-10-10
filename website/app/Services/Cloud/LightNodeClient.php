@@ -35,6 +35,13 @@ class LightNodeClient implements CloudProvider
             $http = Http::withHeaders(['x-open-token' => Setting::getSecret('lightnode_api_token')])
                 ->acceptJson()->asJson()->connectTimeout(10)->timeout(30)
                 ->withOptions(['allow_redirects' => false]);
+            // Regional catalog/inventory reads can fail intermittently. Retrying
+            // these reads cannot place an order or repeat a lifecycle mutation.
+            if ($method === 'GET') {
+                $http->retry(3, 500, fn (\Throwable $e) => $e instanceof \Illuminate\Http\Client\ConnectionException
+                    || ($e instanceof \Illuminate\Http\Client\RequestException
+                        && ($e->response->serverError() || $e->response->status() === 429)), throw: false);
+            }
             $response = $method === 'GET'
                 ? $http->get(self::BASE.$path, $data)
                 : $http->post(self::BASE.$path, $data);

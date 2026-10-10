@@ -2,6 +2,18 @@
 
 Date: 2026-10-10. Branch: `codex/lightnode-integration`. Status: both approved fixed-bandwidth Manila Linux/Windows acceptance tests completed and temporary guests released; broader regional package-series verification remains incomplete. Public automatic pricing is implemented. Production deployment and public sales remain disabled pending the user's separate publication approval. See the current acceptance section below; older preparation and traffic-test notes are historical.
 
+## Latest pricing and transport verification — 2026-10-10
+
+After the live guests were released, the latest regression passed **408 tests / 2701 assertions** with no failures or errors. This includes the shared store, hourly billing, catalog, provisioning, GPU and administration checks, plus bounded read retries and the LightNode period-cost floor. Previous overlapping batch counts are historical and must not be summed.
+
+The supplier's [financial billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) documents a **672-hour cap per calendar month** for unchanged resources/configuration. Its [instance billing description](https://doc.lightnode.com/Instance/Billingdescription.html) describes fixed bandwidth charged by configuration and usage duration. The public calculator displays a 672-hour monthly estimate; that is not a guaranteed cost cap for an arbitrary rolling ServerNet customer month, which can span two supplier calendar months. Period pricing therefore conservatively reserves **744 hours per customer month**, using the exact hourly component quote, and disables generic period discounts for LightNode. The supplier calculator's own monthly amount is retained separately as `calculator_month_usd`; this reserve is an application safety calculation, not a new supplier monthly quote. Hourly customer pricing uses the explicit hourly supplier cost directly, retaining the existing **5%** profit, **21%** funding fee and normal FX/rounding without deriving an extra markup from the 744-hour period price. No production settings were changed.
+
+A fresh real SDK catalog read through the existing Windows proxy succeeded after cleanup: **40 regions, 1126 images, two proven Manila plans, zero enabled sale offers**. Fixed-bandwidth exact hourly USD rates remained **0.017418** and **0.058306**; the 31-day reserve is USD **12.958992** and **43.379664**, respectively. The private FX/fee snapshot produced hourly supplier costs of **18817 / 62989 EUR micro-units** and period reserves of **1400 / 4687 EUR cents**. These are snapshot evidence, not frozen sale prices.
+
+Local WSL direct connections to the public website timed out while the existing Windows proxy worked. Only the private test process reused the existing proxy; no system proxy, route, firewall or persisted network setting changed. Transient GET/catalog reads and anonymous public quote reads now retry at most three attempts, with a fresh anonymous certificate on public retries. OpenAPI lifecycle POSTs never retry automatically; authorization failures are not retried.
+
+Both temporary guests remain released, and no additional purchase was made. Verification of the other regions requires separate paid-test authorization beyond the completed two-guest USD 0.20 permission, or an explicit decision to scope the initial catalog to the two proven Manila plans. A read-only regional candidate assessment found 39 further pairs (maximum 78 guests); it is not binding or stock evidence and does not authorize purchase. All production sales gates remain false.
+
 ## Current fixed-bandwidth acceptance — 2026-10-10
 
 The user explicitly approved fixed bandwidth only, two temporary Manila guests, USD 0.20 combined maximum and release within two hours. Both guests were created through actual `Service` → `CloudProvisioner` → LightNode OpenAPI in an isolated encrypted SQLite database with synthetic customer, fake mail and no real payment. This was a fresh acceptance of the public calculator revision, not a repetition of the historical traffic tests.
@@ -90,7 +102,7 @@ The public calculator's certificate is generated anonymously from time, random n
 
 Stateless server-side requests and the actual Laravel pricing service both succeeded. Read-only checks on 2026-10-10 between approximately 12:11 and 12:32 UTC returned these values; the two fixed-bandwidth quotes were rechecked at 12:32 UTC:
 
-| Exact Manila package | Contract and resources | Exact quoted USD/hour | Exact quoted USD/month |
+| Exact Manila package | Contract and resources | Exact quoted USD/hour | Calculator 672-hour monthly estimate (USD) |
 | --- | --- | ---: | ---: |
 | `intel-c1m2-bgp-b2-s50-d0` | s2 candidate; Linux; 1 CPU / 2 GB; boot 50 GB; 2 Mbps | 0.017418 | 11.704896 |
 | `intel-c2m4-bgp-b5-s50-d100` | s2 candidate; Windows; 2 CPU / 4 GB; boot 50 GB + data 100 GB; 5 Mbps | 0.058306 | 39.181632 |

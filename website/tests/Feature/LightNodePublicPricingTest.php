@@ -36,7 +36,7 @@ class LightNodePublicPricingTest extends TestCase
             $this->quoteComponent('OWN_EIP', ['actualFlow' => 2]), $this->quoteComponent('OWN_DISK', ['diskSize' => .0208])];
     }
 
-    private function fake(bool $soldOut = false, string $series = 's2'): void
+    private function fake(bool $soldOut = false, string $series = 's2', bool $transientQuote = false): void
     {
         Cache::flush(); Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
         // This is a published-code-shaped synthetic anonymous certificate recipe.
@@ -51,8 +51,12 @@ class LightNodePublicPricingTest extends TestCase
             [$this->node('defaultBandwidth', 100, [$this->node('cpu', 2, [$this->node('actualFlow', 2000)])])])])];
         $data = [$this->node('diskType', 'Data', [$this->node('diskCategory', 'local_ssd',
             [$this->node('diskSize', ['min' => 10, 'max' => 500])])])];
-        Http::fake(function ($r) use ($source, $compute, $network, $data, $soldOut) {
+        Http::fake(function ($r) use ($source, $compute, $network, $data, $soldOut, $transientQuote) {
+            static $quoteAttempt = 0;
             $path = parse_url($r->url(), PHP_URL_PATH);
+            if ($path === '/api/site/sku/getBatchPrice.do' && $transientQuote && $quoteAttempt++ === 0) {
+                return Http::response([], 503);
+            }
             $rows = match ($path) {
                 '/product' => null,
                 '/_next/static/chunks/pages/_app-abcd.js' => null,
@@ -87,6 +91,16 @@ class LightNodePublicPricingTest extends TestCase
         }
     }
 
+    public function test_transient_public_quote_uses_a_fresh_anonymous_certificate_on_retry(): void
+    {
+        $this->fake(false, 's2', true);
+        $this->assertTrue(app(LightNodePublicPricing::class)->quote($this->package(), 's2')['ok']);
+        $attempts = Http::recorded(fn ($r) => str_contains($r->url(), '/getBatchPrice.do'))->values();
+        $this->assertCount(2, $attempts);
+        $this->assertNotSame($attempts[0][0]->header('Authorization'), $attempts[1][0]->header('Authorization'));
+        Http::assertNotSent(fn ($r) => $r->hasHeader('x-open-token') || $r->hasHeader('Cookie'));
+    }
+
     public function test_public_quote_matches_real_component_precision_without_account_authentication(): void
     {
         $this->fake();
@@ -109,7 +123,8 @@ class LightNodePublicPricingTest extends TestCase
             $this->quoteComponent('OWN_EIP', ['bandwidth' => .00744])];
         $quote = app(LightNodePublicPricing::class)->normalize($rows, 'PayByBandwidth', false);
         $this->assertSame('0.017418000000', $quote['hour_usd']);
-        $this->assertSame('11.704896000000', $quote['month_usd']);
+        $this->assertSame('12.958992000000', $quote['month_usd']);
+        $this->assertSame('11.704896000000', $quote['calculator_month_usd']);
     }
 
     public function test_unavailable_region_never_requests_a_price(): void

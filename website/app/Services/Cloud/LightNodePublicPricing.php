@@ -10,11 +10,22 @@ class LightNodePublicPricing
 {
     private const ORIGIN = 'https://www.lightnode.com';
     public const SERIES = ['s2', 'g2', 's3', 'g2a'];
+    // A rolling customer month can span two supplier calendar billing months;
+    // its total is not guaranteed to receive the supplier's 672-hour cap.
+    public const CALENDAR_MONTH_RESERVE_HOURS = 31 * 24;
 
     private function http()
     {
         return Http::acceptJson()->asJson()->connectTimeout(10)->timeout(30)
-            ->withOptions(['allow_redirects' => false]);
+            ->withOptions(['allow_redirects' => false])
+            ->retry(3, 500, fn (\Throwable $e) => $this->transientRead($e), throw: false);
+    }
+
+    private function transientRead(\Throwable $e): bool
+    {
+        return $e instanceof \Illuminate\Http\Client\ConnectionException
+            || ($e instanceof \Illuminate\Http\Client\RequestException
+                && ($e->response->serverError() || $e->response->status() === 429));
     }
 
     private function certificate(): array
@@ -55,7 +66,14 @@ class LightNodePublicPricing
     {
         $certificate = $this->certificate();
         $input += ['domainId' => $certificate['domain_id']];
-        $http = $this->http()->withHeaders(['Authorization' => $certificate['header']]);
+        $http = $this->http()->withHeaders(['Authorization' => $certificate['header']])
+            ->retry(3, 500, function (\Throwable $e, $pending): bool {
+                if (! $this->transientRead($e)) { return false; }
+                // Only anonymous configuration/quote reads use this transport.
+                // A retry receives a fresh timestamp/nonce, never a saved cookie.
+                $pending->withHeaders(['Authorization' => $this->certificate()['header']]);
+                return true;
+            }, throw: false);
         $response = $post ? $http->post(self::ORIGIN.$path, $input + ['timestamp' => (int) round(microtime(true) * 1000)])
             : $http->get(self::ORIGIN.$path, $input);
         if (! $response->successful() || $response->json('success') !== true
@@ -184,7 +202,12 @@ class LightNodePublicPricing
         if (count($seen) !== count($expected) || $hour <= 0 || ! is_finite($hour) || ! is_finite($month)) {
             throw new \RuntimeException('Missing calculator amount');
         }
+        $calculatorMonth = $month;
+        if ($mode === 'PayByBandwidth') {
+            $month = $hour * self::CALENDAR_MONTH_RESERVE_HOURS;
+        }
         return ['ok' => true, 'source' => 'public_calculator', 'currency' => 'USD',
-            'hour_usd' => number_format($hour, 12, '.', ''), 'month_usd' => number_format($month, 12, '.', '')];
+            'hour_usd' => number_format($hour, 12, '.', ''), 'month_usd' => number_format($month, 12, '.', ''),
+            'calculator_month_usd' => number_format($calculatorMonth, 12, '.', '')];
     }
 }

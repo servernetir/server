@@ -108,6 +108,17 @@ class LightNodeClientTest extends TestCase
         Http::assertSent(fn ($r) => $r->header('x-open-token') === ['test-token'] && ! $r->hasHeader('Authorization'));
     }
 
+    public function test_transient_read_recovers_without_retrying_rejected_authentication(): void
+    {
+        $this->fake(['*/region/list*' => Http::sequence()->pushFailedConnection()->push(['regions' => []])]);
+        $this->assertTrue($this->client()->testConnection()['ok']);
+        Http::assertSentCount(2);
+        Http::assertNotSent(fn ($r) => $r->method() !== 'GET' || $r->header('x-open-token') !== ['test-token']);
+        $this->fake(['*/region/list*' => Http::sequence()->push([], 401)->push(['regions' => []])]);
+        $this->assertFalse($this->client()->testConnection()['ok']);
+        Http::assertSentCount(1);
+    }
+
     public function test_generated_password_uses_the_common_live_reinstall_format(): void
     {
         $this->fake(); $this->manifest();

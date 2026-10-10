@@ -484,7 +484,9 @@ class CloudPlan extends Model
     {
         $monthly = (int) $this->price_irt;
 
-        $base = $monthly > 0 ? (int) (ceil(ceil($monthly / 720) / 100) * 100) : 0;
+        // LightNode's period cost reserves a 31-day month. Its actual hourly
+        // quote must not inherit an extra markup from dividing that by 720.
+        $base = $this->provider !== 'lightnode' && $monthly > 0 ? (int) (ceil(ceil($monthly / 720) / 100) * 100) : 0;
 
         // کفِ بهایِ ساعتیِ واقعی — بدونِ نرخِ یورو، کف قابلِ‌تبدیل نیست و base می‌مانَد
         $floorMicro = $this->hourlyCostFloorEurMicro();
@@ -507,7 +509,7 @@ class CloudPlan extends Model
     {
         $monthly = (int) $this->price_eur_cents;
 
-        $base = $monthly > 0 ? (int) ceil($monthly / 720) : 0;
+        $base = $this->provider !== 'lightnode' && $monthly > 0 ? (int) ceil($monthly / 720) : 0;
 
         // ceil عمدی: خطِ قرمزِ کارفرما «هرگز زیرِ بها» است؛ گردِ پایین می‌تواند
         // روی بهایِ یک‌سنتی حاشیه را صفر کند.
