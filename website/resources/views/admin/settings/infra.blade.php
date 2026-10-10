@@ -193,6 +193,11 @@
                value="{{ $cloud['sl']['branded'] ?? '' }}" placeholder="servernet.cloud">
         <small style="color:var(--dim)">نشانیِ مشتری g-xxxx.{دامنه} می‌شود — نیازمندِ Workerِ Cloudflare (راهنما در relay/cloudflare)</small>
       </label>
+      <label class="set-f full" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="hidden" name="salad_jupyter_sales_paused" value="0">
+        <input type="checkbox" name="salad_jupyter_sales_paused" value="1" @checked($cloud['sl']['jupyter_sales_paused'] ?? false)>
+        <span>توقف موقت فروش جدید Jupyter تا تأیید اتصال اجرای کد؛ سرویس‌های موجود تغییر نمی‌کنند.</span>
+      </label>
       <label class="set-f">رازِ دروازهٔ برندشده (Gateway secret)
         <input type="password" name="salad_gateway_secret" dir="ltr" autocomplete="new-password" maxlength="200"
                placeholder="باید با GATE_SECRET در Worker یکی باشد — خالی = بدونِ تغییر">

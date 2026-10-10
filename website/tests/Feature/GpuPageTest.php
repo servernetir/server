@@ -18,6 +18,16 @@ class GpuPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_jupyter_pause_is_explained_in_each_public_locale(): void
+    {
+        $this->seedGpuPlan();
+        Setting::put('salad_jupyter_sales_paused', '1');
+        foreach (['fa' => '/gpu', 'en' => '/en/gpu', 'tr' => '/tr/gpu'] as $locale => $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+            $this->assertStringContainsString(trans('ui.gpu_jupyter_sales_paused', [], $locale), $html);
+        }
+    }
+
     private function seedGpuPlan(array $over = []): CloudPlan
     {
         CloudLocation::firstOrCreate(

@@ -937,6 +937,9 @@
 
         @if($isGpuStore)
           <p class="cvb-note" data-gpu-sale-policy>{{ __('ui.cvb_gpu_sale_policy') }}</p>
+          @if(\App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1')
+          <p class="cvb-note" data-gpu-jupyter-sales-paused>{{ __('ui.gpu_jupyter_sales_paused') }}</p>
+          @endif
         @endif
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
           <svg class="icon"><use href="#i-rocket"/></svg>
