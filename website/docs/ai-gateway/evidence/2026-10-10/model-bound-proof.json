@@ -1,0 +1,720 @@
+{
+    "at": "2026-10-10T10:39:11+00:00",
+    "purpose": "Protect observed financial bounds; no customer billing",
+    "checks": [
+        {
+            "slug": "di-anthropicclaude-fable-5-86c0c8bf10",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-haiku-4-5-b4c0015106",
+            "observed_input": 10,
+            "reserved_input": 324,
+            "observed_output": 5,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-opus-4-7-792c5a494a",
+            "observed_input": 17,
+            "reserved_input": 324,
+            "observed_output": 6,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-opus-4-8-cccbc1ce30",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 4,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-opus-5-568e0eb3a9",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-opus-5-5-cfe0652e9d",
+            "observed_input": 14,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-4-6-fec21a94f3",
+            "observed_input": 10,
+            "reserved_input": 324,
+            "observed_output": 5,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-5-2cd37409a4",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 4,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-5-5-d123610543",
+            "observed_input": 14,
+            "reserved_input": 324,
+            "observed_output": 5,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-r1-0528-0b98eff8ec",
+            "observed_input": 6,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v3-0452ac47f3",
+            "observed_input": 6,
+            "reserved_input": 324,
+            "observed_output": 15,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v31-fc635a9dc2",
+            "observed_input": 9,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v32-fda3b74e36",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-51630916db",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+            "observed_input": 86,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-pro-e491c52826",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v41-flash-216fa1827d",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-25-flash-cd62f9d5ea",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-25-pro-962e7b87ec",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 0,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-31-flash-lite-97279ba6f4",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-31-pro-63b33932f2",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-35-flash-8d99798a7e",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemini-37-flash-16a8dce2a6",
+            "observed_input": 3,
+            "reserved_input": 324,
+            "observed_output": 1,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-3-12b-it-4abc260aaf",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-3-27b-it-ff873c19a0",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 4,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-4-26b-a4b-it-f516950937",
+            "observed_input": 16,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-9c37d7121c",
+            "observed_input": 16,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-turbo-d767c29f4b",
+            "observed_input": 16,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-ultra-8139ede36e",
+            "observed_input": 16,
+            "reserved_input": 324,
+            "observed_output": 1,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-zai-orgglm-46-43a70df72c",
+            "observed_input": 8,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-zai-orgglm-47-091308d579",
+            "observed_input": 8,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-zai-orgglm-52-f0f3c5d55c",
+            "observed_input": 15,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-zai-orgglm-53-flash-bc20d93473",
+            "observed_input": 15,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-298e8d39a1",
+            "observed_input": 57,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-turbo-03de81b1a6",
+            "observed_input": 57,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-ultra-80f2ba6053",
+            "observed_input": 70,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-openaigpt-oss-20b-a741d960ae",
+            "observed_input": 57,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-30b-f3730f12e4",
+            "observed_input": 18,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-3b-af0e45b984",
+            "observed_input": 18,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-8b-d90c16215e",
+            "observed_input": 18,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-nousresearchhermes-3-llama-31-405b-b0aaeaf676",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-nousresearchhermes-3-llama-31-70b-8206482cfa",
+            "observed_input": 12,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-tencenthy4-preview-ed5625f629",
+            "observed_input": 24,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-thinkingmachinesinkling-98c4c10547",
+            "observed_input": 17,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-thinkingmachinesinkling-small-98f7df365d",
+            "observed_input": 17,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-moonshotaikimi-k26-b1564785bb",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-moonshotaikimi-k3-628799ffe6",
+            "observed_input": 91,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-sao10kl3-8b-lunaris-v1-turbo-71bf9665c2",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 1,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-sao10kl31-70b-euryale-v22-1711f58d59",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-inclusionailing-30-flash-a8215e327e",
+            "observed_input": 23,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-inclusionailing-30-flash-vl-e61f769115",
+            "observed_input": 23,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-llamallama-4-scout-17b-16e-instruct-0c3b11af53",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-llamallama-guard-4-12b-f588bf1320",
+            "observed_input": 207,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-llamameta-llama-31-70b-instruct-turbo-0109d18002",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-llamameta-llama-31-8b-instruct-turbo-8ab0fdcd4d",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-xiaomimimomimo-v26-flash-9582fe3fee",
+            "observed_input": 10,
+            "reserved_input": 324,
+            "observed_output": 13,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-xiaomimimomimo-v26-pro-14810b5543",
+            "observed_input": 10,
+            "reserved_input": 324,
+            "observed_output": 6,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-minimaxaiminimax-m3-3fe8916ce3",
+            "observed_input": 179,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-mistralaimistral-nemo-instruct-2407-fe44bc9a33",
+            "observed_input": 7,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-mistralaimistral-small-24b-instruct-2501-29c43dac0a",
+            "observed_input": 166,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-mistralaimistral-small-32-24b-instruct-2506-12c8cdfa9f",
+            "observed_input": 6,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-meta-modelsmuse-glimmer-30b-53fe9dac5b",
+            "observed_input": 59,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-gryphemythomax-l2-13b-9af29f443b",
+            "observed_input": 21,
+            "reserved_input": 324,
+            "observed_output": 4,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-nvidianemotron-content-safety-35-3611bc2461",
+            "observed_input": 469,
+            "reserved_input": 324,
+            "observed_output": 5,
+            "reserved_output": 16,
+            "over_bound": true
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-3-ultra-550b-a55b-d2435ae316",
+            "observed_input": 26,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-35-lightning-95f304f824",
+            "observed_input": 19,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-microsoftphi-4-7aceaf6cdc",
+            "observed_input": 10,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen25-72b-instruct-1a67e1afa7",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-14b-376a28f247",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-30b-a3b-2aa9d92df2",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-32b-45363f1dab",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-coder-480b-a35b-instruct-turbo-e2d000044f",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-next-80b-a3b-instruct-bcba91f437",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 2,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-vl-235b-a22b-instruct-933018af1f",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen3-vl-30b-a3b-instruct-ed879cf821",
+            "observed_input": 11,
+            "reserved_input": 324,
+            "observed_output": 3,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen35-27b-6c71977d97",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen35-35b-a3b-a6105c9fef",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen35-397b-a17b-4865dd731c",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen35-9b-4c87a62360",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen36-27b-e892d23254",
+            "observed_input": 13,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen38-24t-a95b-27eec05942",
+            "observed_input": 55,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen38-27b-cd680c8d5b",
+            "observed_input": 55,
+            "reserved_input": 324,
+            "observed_output": 16,
+            "reserved_output": 16,
+            "over_bound": false
+        },
+        {
+            "slug": "di-qwenqwen38-flash-9b80e5fa82",
+            "observed_input": 64,
+            "reserved_input": 324,
+            "observed_output": 74,
+            "reserved_output": 16,
+            "over_bound": true
+        },
+        {
+            "slug": "di-qwenqwen38-max-8f1d280312",
+            "observed_input": 64,
+            "reserved_input": 324,
+            "observed_output": 21,
+            "reserved_output": 16,
+            "over_bound": true
+        }
+    ],
+    "suspended_slugs": [
+        "di-nvidianemotron-content-safety-35-3611bc2461",
+        "di-qwenqwen38-flash-9b80e5fa82",
+        "di-qwenqwen38-max-8f1d280312"
+    ],
+    "ready_when_authorized": 89,
+    "unexpected_gates": [],
+    "wrong_margin": [],
+    "production_usage_count": 0,
+    "open_usage_count": 0
+}

@@ -6,7 +6,7 @@ The money engine, real SSE billing, encrypted 24-hour replay, DeepInfra catalogu
 customer usage page and FA/EN/TR storefront are deployed. Owner settings are 5%
 cost markup and zero extra funding cost. The supplier credential was connected
 and tested without putting it in Git. All 92 active text models have complete
-quotes at that markup; customer resale remains blocked by the actual unsigned
+quotes at that markup. A real probe attempted all 92: 90 returned valid responses; two remained busy or timed out. Three successful models exceeded financial bounds and are suspended, leaving 89 technically eligible (87 with successful access evidence). Customer resale remains blocked by the actual unsigned
 provider agreement. The catalogue also retains 129 models awaiting execution or
 pricing support and 165 deprecated models, with explicit public status.
 
@@ -43,11 +43,11 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
 - Streaming (SSE) is a **launch blocker** — nothing is sold before it works with
   exact billing.
 
-## Still blocking the sale (nothing is sold until these are answered)
+## Historical launch prerequisites — current resolution above
 
-1. `ai_margin_pct` — the margin the owner types in. Unset means sales stay closed.
-2. `fx_fee_bp` — the real cost of putting $1 into the provider (card/crypto fee,
-   exchange spread). NULL means the provider is not sellable.
+1. `ai_margin_pct` — owner confirmed 5%; configured and verified on all quotes.
+2. `fx_fee_bp` — owner confirmed zero extra funding cost; configured as 0.
+   New provider taxes or fees must be included before relying on this figure.
 3. Legal: does the provider's contract allow reselling, and is the account-closure
    risk accepted? `agreement_status` and `resale_allowed` stay off until then.
 

@@ -1,0 +1,66 @@
+{
+    "at": "2026-10-10T10:34:37+00:00",
+    "purpose": "internal model-access probe; no customer billing",
+    "max_budget_micro_usd": 10000,
+    "max_tokens": 16,
+    "models": [
+        {
+            "slug": "di-googlegemma-3-4b-it-28910bff89",
+            "upstream_model": "google\/gemma-3-4b-it",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 15,
+                "completion_tokens": 3,
+                "estimated_cost": 9.000000000000002e-7,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 1,
+            "error_code": null
+        },
+        {
+            "slug": "di-zai-orgglm-53-ab35037a12",
+            "upstream_model": "zai-org\/GLM-5.3",
+            "exception": "Illuminate\\Http\\Client\\ConnectionException",
+            "http": null,
+            "uncertain_cost": true
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-3-super-120b-a12b-53ec3257b4",
+            "upstream_model": "nvidia\/NVIDIA-Nemotron-3-Super-120B-A12B",
+            "http": 429,
+            "usage": null,
+            "finish_reason": null,
+            "response_present": false,
+            "cost_micro_usd": null,
+            "error_code": "engine_overloaded"
+        },
+        {
+            "slug": "di-qwenqwen36-35b-a3b-1bd979b4cf",
+            "upstream_model": "Qwen\/Qwen3.6-35B-A3B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 1.65e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 17,
+            "error_code": null
+        }
+    ],
+    "cost_micro_usd": 18,
+    "stopped_for_budget": false,
+    "reserve_unknown_micro_usd": 1000,
+    "finished_at": "2026-10-10T10:36:59+00:00",
+    "successful": 2,
+    "attempted": 4
+}

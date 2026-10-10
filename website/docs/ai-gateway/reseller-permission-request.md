@@ -11,6 +11,8 @@ Please confirm in writing whether this service is permitted under section 11(a)(
 
 To calculate our selling prices correctly, please confirm whether our account's prepaid credits or inference charges include additional taxes, payment processing fees, minimum commitments, or other charges beyond the published model prices. Please clarify how final usage/estimated_cost and streamed completions should be reconciled to your billing records.
 
+During a bounded launch probe, Qwen/Qwen3.8-Flash and Qwen/Qwen3.8-Max reported completion usage above max_tokens=16, and nvidia/Nemotron-Content-Safety-3.5 reported 469 prompt tokens for a tiny prompt. Please confirm the supported hard output cap (including reasoning tokens), fixed template overhead, and reliable token counting for these models before we enable their paid usage.
+
 Website: https://servernet.cloud/ai
 We will record the actual authorization before opening customer resale through this provider.
 
