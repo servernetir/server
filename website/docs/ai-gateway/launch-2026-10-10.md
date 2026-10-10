@@ -124,3 +124,6 @@ live-post-probe-proof.json: هر ۱۲ URL نمونه در سه زبان HTTP200�
 بازگشت: روش اصلی محافظت‌شده اکنون manifest۶۰فایلی را می‌خواند و پیش از بازگرداندن موتور، پذیرش و تماس زنده را می‌بندد. schema افزایشی، کلید رمز‌شده، قیمت‌ها، دو usage آزمایشی و دفتر مالی حذف نشوند. بازگرداندن فقط وضعیت توافق بهnone، ابتدا با ai_sales_open=0 و تطبیق owner_assumed/یادداشت snapshot انجام شود؛ تعلیق‌های مالی یا دسترسی فقط پس از اثبات سلامت همان مدل برداشته شوند. DNS، route، NAT/firewall، VM/CT مشتری، system cron و منابع state عامل‌ها تغییری نکردند؛ کد/تنظیم DB و Scheduler موجود پایدارند.
 
 شواهد تازه: owner-assumption-proof.json، public-smoke-proof.json، live-launched-proof.json، release-manifest.json و owner-assumed-ai-sqlite.txt / owner-assumed-ai-mariadb.txt. تصاویر عمومی پس از انتشار در پوشهٔ خروجی محلی محفوظ‌اند؛ هیچ اطلاعات حساب یا نشست در اسناد ثبت نشده است.
+
+پس از checkpoint، آخرین develop تا89a59d0c (اصلاحات GPU) در شاخهٔ codex/ai-gateway-launch بدون تعارض ادغام شد؛ این تغییرات نامرتبط از بستهٔ AI روی سرور منتشر نشدند. مجموعهٔ SQLite با سورس تازه دوباره۲۴۴ تست/80990 بررسی موفق و هفت تست شرطی MariaDB skipped داشت؛ همان هفت تست فشار قبلاً با موتور مالی فعلی موفق‌اند. شاهد تازه latest-merged-ai-sqlite.txt است. کد و شواهد راه‌اندازی درPR29 به‌روز شدند؛ PR همچنان draft، ادغام درdevelop انجام نشده است.
+
