@@ -34,10 +34,14 @@ use Tests\TestCase;
 class DomainTldGateTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake($this->supplierPriceStubs());
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'test@example.com');
         config()->set('services.openprovider.password', 'secret');
@@ -48,6 +52,7 @@ class DomainTldGateTest extends TestCase
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/customers*'  => Http::response(['code' => 0, 'data' => ['handle' => 'AB123-NL']]),
             '*/domains*'    => Http::response(['code' => $code, 'desc' => $desc], $code === 0 ? 200 : 500),
@@ -77,11 +82,14 @@ class DomainTldGateTest extends TestCase
     {
         [$sld, $tld] = Domain::splitFqdn($fqdn);
 
-        return Domain::create([
+        $domain = Domain::create([
             'customer_id' => $c->id, 'domain' => $fqdn, 'sld' => $sld, 'tld' => $tld,
             'registrar' => 'openprovider', 'status' => 'pending', 'provision_status' => 'pending',
             'period_years' => 1, 'price_toman' => 2500000,
         ]);
+        $this->paidDomainInvoice($domain);
+
+        return $domain;
     }
 
     // ═══════════════ ۱) بسته می‌شود ═══════════════
@@ -199,6 +207,7 @@ class DomainTldGateTest extends TestCase
         // ثبتِ موفق: هم `findDomain` و هم `POST /domains` کدِ ۰ می‌دهند
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/customers*'  => Http::response(['code' => 0, 'data' => ['handle' => 'AB123-NL']]),
             '*/domains*'    => Http::response(['code' => 0, 'data' => [

@@ -5,6 +5,10 @@ namespace App\Console\Commands;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Models\Invoice;
 use App\Models\Service;
+use App\Services\Billing\BillingRunMonitor;
+use App\Services\Billing\ComplimentaryServices;
+use App\Services\Billing\RenewalTerms;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -29,35 +33,52 @@ class GenerateServiceRenewals extends Command
             return self::SUCCESS;
         }
 
-        $threshold = now()->addDays((int) $this->option('days'))->toDateString();
+        $threshold = now(RenewalTerms::timezone())->addDays((int) $this->option('days'))->toDateString();
 
         // دوره‌ها از config می‌آید: با فهرستِ دستی، افزودنِ «شش‌ماهه» یعنی
         // سرویسِ شش‌ماهه هرگز فاکتورِ تمدید نمی‌گرفت و بی‌صدا رایگان می‌شد.
         $due = Service::query()
-            ->where('status', 'active')
-            ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))
+            ->whereIn('status', ['active', 'suspended'])
+            ->customerRecurring(true)
             ->whereNotNull('next_due_at')
             ->whereDate('next_due_at', '<=', $threshold)
             ->get();
 
         $made = 0;
+        $errors = 0;
 
         foreach ($due as $service) {
-            // فاکتور بازِ همین سرویس؟ پس تمدید قبلاً صادر شده
-            $hasOpen = Invoice::where('service_id', $service->id)
-                ->whereIn('status', ['unpaid', 'draft', 'partial'])
-                ->exists();
+            try {
+                $complimentary = app(ComplimentaryServices::class);
+                if ($complimentary->applies($service)) {
+                    $complimentary->renew($service, (int) $this->option('days'));
 
-            if ($hasOpen) {
-                continue;
+                    continue;
+                }
+                if ($service->isInternalInfrastructure()) {
+                    continue;
+                }
+                // فاکتور بازِ همین سرویس؟ پس تمدید قبلاً صادر شده
+                $hasOpen = Invoice::where('service_id', $service->id)
+                    ->outstanding()
+                    ->exists();
+
+                if ($hasOpen) {
+                    continue;
+                }
+
+                RenewalTerms::ensureInvoice($service);
+                $made++;
+            } catch (\Throwable $e) {
+                $errors++;
+                ErrorTracker::noteOnce('billing', 'صدور تمدید سرویس #'.$service->id.' ناموفق بود؛ سایر سرویس‌ها ادامه یافتند.', 900, ['service' => $service->id, 'exception' => $e::class]);
             }
-
-            $services->issueInvoice($service);
-            $made++;
         }
 
         $this->info("فاکتور تمدید صادرشده: {$made}");
 
-        return self::SUCCESS;
+        BillingRunMonitor::record('services:renew-due', $errors, ['invoiced' => $made]);
+
+        return $errors > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

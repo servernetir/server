@@ -24,6 +24,7 @@ class DomainPricingRateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'u');
         config()->set('services.openprovider.password', 'p');

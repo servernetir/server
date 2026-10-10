@@ -112,8 +112,8 @@
 
         <textarea name="reason_note" rows="2" maxlength="500" class="svc-input svc-ta"
                   placeholder="{{ __('ui.svc_del_reason_note') }}"></textarea>
-        @error('reason')<p class="svc-note warn">{{ $message }}</p>@enderror
-        @error('reason_note')<p class="svc-note warn">{{ $message }}</p>@enderror
+        @error('reason')<p class="svc-note warn">{{ \App\Support\PanelText::text($message) }}</p>@enderror
+        @error('reason_note')<p class="svc-note warn">{{ \App\Support\PanelText::text($message) }}</p>@enderror
       </div>
 
       <div class="svc-otp-go">
@@ -121,7 +121,7 @@
                maxlength="12" required dir="ltr" placeholder="------" class="svc-code">
         <button class="pnl-btn danger">{{ __('ui.svc_terminate_final') }}</button>
       </div>
-      @error('code')<p class="svc-note warn">{{ $message }}</p>@enderror
+      @error('code')<p class="svc-note warn">{{ \App\Support\PanelText::text($message) }}</p>@enderror
     </form>
   </div>
 @endif

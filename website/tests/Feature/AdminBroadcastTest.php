@@ -124,4 +124,29 @@ class AdminBroadcastTest extends TestCase
         $this->assertSame($target->id, $b->customer_id);
         $this->assertSame(1, $b->recipients);
     }
+
+    public function test_selected_audience_targets_multiple_specific_customers(): void
+    {
+        $a = $this->customer();
+        $b = $this->customer();
+        $this->customer();
+
+        $this->actingAs($this->staff(), 'web')->post('/admin/broadcasts', [
+            'audience' => 'selected', 'customer_ids' => [$a->id, $b->id], 'body' => 'پیام انتخابی',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $broadcast = Broadcast::latest('id')->first();
+        $this->assertSame('selected', $broadcast->audience);
+        $this->assertSame(2, $broadcast->recipients);
+        $this->assertNull($broadcast->customer_id);
+    }
+
+    public function test_broadcast_page_has_searchable_multi_customer_picker(): void
+    {
+        $html = $this->actingAs($this->staff(), 'web')->get('/admin/broadcasts')->assertOk()->getContent();
+
+        $this->assertStringContainsString('name="customer_ids[]"', $html);
+        $this->assertStringContainsString('/admin/customers/search?q=', $html);
+        $this->assertStringContainsString('تکی یا چندتایی', $html);
+    }
 }

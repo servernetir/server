@@ -415,7 +415,7 @@ class AiProjectsAndAdmissionTest extends TestCase
     {
         // ⚠️ بازهٔ بودجه از now() ساخته می‌شود، پس بی‌ساعتِ ثابت این تست فقط
         //    بینِ ۱۵ نوامبر و ۱۴ دسامبر سبز بود — قرمزیِ تقویمی، نه باگ.
-        Carbon::setTestNow('2026-11-20 10:00:00');
+        $this->travelTo(Carbon::parse('2026-11-20 10:00'));
 
         $c = $this->customer();
         $p = $this->project($c, [

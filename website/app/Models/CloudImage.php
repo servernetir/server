@@ -17,7 +17,7 @@ class CloudImage extends Model
 {
     protected $fillable = [
         'provider', 'provider_ref', 'key', 'kind', 'family', 'version',
-        'label', 'arch', 'min_disk_gb', 'is_active', 'sort',
+        'label', 'arch', 'min_disk_gb', 'min_ram_mb', 'is_active', 'sort',
     ];
 
     protected $hidden = ['provider', 'provider_ref'];
@@ -133,6 +133,28 @@ class CloudImage extends Model
         // نمی‌کند). ردیفِ معماریِ دیگر هرگز برنمی‌گردد.
         $match = $rows->firstWhere('arch', $arch)
             ?? $rows->first(fn ($r) => ! filled($r->arch));
+
+        return $match !== null ? (string) $match->provider_ref : null;
+    }
+
+    /** شناسهٔ ایمیج فقط وقتی که واقعاً روی منابع این پلن قابل نصب باشد. */
+    public static function compatibleRefFor(CloudPlan $plan, string $key): ?string
+    {
+        $rows = static::query()
+            ->usable()
+            ->where('provider', (string) $plan->provider)
+            ->where('key', $key)
+            ->get();
+
+        $match = $rows->first(function (CloudImage $row) use ($plan) {
+            $archOk = ! filled($row->arch)
+                || ! filled($plan->arch)
+                || (string) $row->arch === (string) $plan->arch;
+
+            return $archOk
+                && (int) $row->min_disk_gb <= (int) $plan->disk_gb
+                && (int) $row->min_ram_mb <= (int) $plan->ram_mb;
+        });
 
         return $match !== null ? (string) $match->provider_ref : null;
     }

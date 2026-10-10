@@ -43,7 +43,7 @@ interface CloudProvider
      *   message: string,
      *   locations: array<int, array{code:string,country:string,city:?string,provider_location:string,latitude:?float,longitude:?float}>,
      *   plans: array<int, array{provider_ref:string,provider_location:string,location_code:string,vcpu:int,ram_mb:int,disk_gb:int,disk_type:string,traffic_gb:int,cpu_kind:string,arch:string,cost_eur_cents:int,in_stock:bool,name:string}>,
-     *   images: array<int, array{provider_ref:string,key:string,kind:string,family:?string,version:?string,label:string,arch:string,min_disk_gb:int}>
+     *   images: array<int, array{provider_ref:string,key:string,kind:string,family:?string,version:?string,label:string,arch:string,min_disk_gb:int,min_ram_mb?:int}>
      * }
      */
     public function fetchCatalog(): array;

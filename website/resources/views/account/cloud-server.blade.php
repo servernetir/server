@@ -97,10 +97,14 @@
       <a href="{{ lroute('account.servers') }}">{{ __('ui.cs_crumb_services') }}</a><span>/</span>
       <span>{{ __('ui.cs_crumb_cloud') }}</span>
     </nav>
-    <h1>{{ $service->name }}</h1>
+    <h1>{{ \App\Support\PanelText::text($service->name) }}</h1>
     <p>
-      @if($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
-      {{ $loc?->label() ?? '—' }} · {{ $osLbl }}
+      {{-- برای GPU نشانیِ دروازه، نه `ssh_ip`ِ زیرساخت (بدنهٔ صفحه از قبل
+           پشتِ $gpuApp بود ولی همین سربرگ جا مانده بود). --}}
+      @if($inst?->isGpuApp())
+        @if($inst->accessHost())<span dir="ltr">{{ $inst->accessHost() }}</span> · @endif
+      @elseif($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
+      {{ $loc?->label() ?? '—' }} · {{ \App\Support\PanelText::text($osLbl) }}
     </p>
   </div>
   <span class="pnl-pill {{ $inst?->status === 'running' ? 'ok' : '' }}" id="st-pill"
@@ -115,12 +119,12 @@
      نمی‌سازیم چون کلاسِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود. --}}
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
-    <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">{{ $errors->first() }}</div>
+    <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text($errors->first()) }}</div>
   </div>
 @endif
 
@@ -219,6 +223,7 @@
       $gpuHost = $gpuApp ? $inst->accessHost() : null;
       $gpuTok  = $gpuApp ? $inst->accessToken() : null;
       $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
+      $windows = ! $gpuApp && $inst->isWindows();
     @endphp
 
     @if($gpuApp)
@@ -239,8 +244,9 @@
           @if($inst->image_key === 'gpu-ollama')
             @php
               // بدنه با json_encode ساخته می‌شود، نه رشتهٔ دست‌نویس — کوتیشن‌های
-              // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد.
-              $gpuBody = json_encode(['model' => 'llama3.1', 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
+              // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد. مدل همان پیش‌بارِ بوت
+              // است تا مثال روی سرورِ تازه بی‌pull جواب بدهد.
+              $gpuBody = json_encode(['model' => \App\Services\Cloud\SaladClient::OLLAMA_PRELOAD_MODEL, 'messages' => [['role' => 'user', 'content' => __('panel.sample_hello')]]], JSON_UNESCAPED_UNICODE);
               $gpuHdr  = $gpuTok ? " -H 'X-SN-Token: ".$gpuTok."'" : '';
               $gpuCmd = 'curl '.$gpuUrl.'/api/chat'.$gpuHdr." -d '".$gpuBody."'";
             @endphp
@@ -289,20 +295,20 @@
              یکی‌گرفتنشان همان سردرگمیِ تیکتِ «پورت ۸۰» بود. --}}
         <div class="cs-kv"><small>{{ __('ui.cs_weburl') }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->webUrl() }}">{{ $inst->webUrl() }}</b></div>
       @endif
-      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">root</b></div>
+      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">{{ $windows ? 'Administrator' : 'root' }}</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
     @endif
 
-    @php $sshCmd = $inst->sshCommand(); @endphp
-    @if(! $gpuApp && $sshCmd)
+    @php $connectCmd = $windows ? $inst->rdpCommand() : $inst->sshCommand(); @endphp
+    @if(! $gpuApp && $connectCmd)
       {{-- ⚠️ رشته در **مدل** ساخته می‌شود نه در قالب: اگر «root» و آکولاد با یک
            @ به هم بچسبند، Blade آن را دستورِ فرار می‌فهمد و به‌جای آدرس، خودِ
            عبارتِ آکولادی را چاپ می‌کند — تلهٔ آشنای این پروژه. و `-p` فقط
            وقتی می‌آید که پورت غیرِ استاندارد باشد. --}}
       <div class="cs-ssh">
-        <small>{{ __('ui.cs_ssh_label') }}</small>
-        <code dir="ltr" class="cs-copy" data-copy="{{ $sshCmd }}">{{ $sshCmd }}</code>
+        <small>{{ __($windows ? 'ui.cs_rdp_label' : 'ui.cs_ssh_label') }}</small>
+        <code dir="ltr" class="cs-copy" data-copy="{{ $connectCmd }}">{{ $connectCmd }}</code>
       </div>
     @endif
 
@@ -321,7 +327,7 @@
       --}}
       <div class="cs-pw">
         <div style="min-width:0">
-          <small>{{ __($inst->image_key === 'gpu-jupyter' ? 'ui.cs_gpu_token_label' : 'ui.cs_pw_label') }}</small>
+          <small>{{ __($inst->image_key === 'gpu-jupyter' ? 'ui.cs_gpu_token_label' : ($windows ? 'ui.cs_windows_pw_label' : 'ui.cs_pw_label')) }}</small>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <code dir="ltr" class="cs-pw-val is-masked" data-pw="{{ $password }}">••••••••••••</code>
 
@@ -356,7 +362,11 @@
       --}}
       @unless($gpuApp)
       <p style="margin:10px 0 0;font-size:12.5px;line-height:1.9">
-        <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
+        @if($windows)
+          {{ __('ui.cs_rdp_guide') }}
+        @else
+          <a href="{{ lroute('docs', 'connecting-to-linux-server-ssh') }}" style="color:#22d3ee">{{ __('ui.cs_ssh_guide') }}</a>
+        @endif
       </p>
       @endunless
     @elseif($canReveal ?? false)
@@ -385,6 +395,10 @@
            ایمیلِ تحویل هم عمداً رمز ندارد، پس این تنها راهنمای اوست. --}}
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_pw_missing') }}
+      </p>
+    @elseif($windows && ! $inst->hasPassword())
+      <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
+        {{ __('ui.cs_windows_pw_unavailable') }}
       </p>
     @endif
   </div>
@@ -465,6 +479,10 @@
         </form>
       @endif
     </div>
+
+    @if($windows && ! ($caps['console'] ?? false))
+      <p class="dm-note" style="margin-top:12px">{{ __('ui.cs_console_unavailable_rdp') }}</p>
+    @endif
 
     <p style="margin-top:14px;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cs_ctrl_note') }}
@@ -753,7 +771,7 @@
             <optgroup label="{{ __('ui.cs_os') }}">
               @foreach($osList as $os)
                 <option value="{{ $os->key }}" @selected($os->key === $inst->image_key)>
-                  {{ $os->icon() }} {{ $os->label }}
+                  {{ $os->icon() }} {{ \App\Support\PanelText::text($os->label) }}
                 </option>
               @endforeach
             </optgroup>
@@ -761,7 +779,7 @@
               <optgroup label="{{ __('ui.cs_os_app_group') }}">
                 @foreach($appList as $app)
                   <option value="{{ $app->key }}" @selected($app->key === $inst->image_key)>
-                    {{ $app->icon() }} {{ $app->label }}
+                    {{ $app->icon() }} {{ \App\Support\PanelText::text($app->label) }}
                   </option>
                 @endforeach
               </optgroup>
@@ -1030,7 +1048,7 @@
       if (!el || !navigator.clipboard) { return; }
       var old = btn.textContent;
       navigator.clipboard.writeText(el.textContent).then(function () {
-        btn.textContent = 'کپی شد';
+        btn.textContent = @json(__('ui.cs_js_copied'));
         setTimeout(function () { btn.textContent = old; }, 1500);
       });
     });

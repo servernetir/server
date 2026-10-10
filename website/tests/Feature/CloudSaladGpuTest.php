@@ -110,7 +110,8 @@ class CloudSaladGpuTest extends TestCase
 
         Http::fake([
             'api.salad.com/*/instances' => Http::response([
-                'instances' => [['machine_id' => 'm-1', 'state' => 'running', 'ssh_ip' => '203.0.113.7']],
+                'instances' => [['machine_id' => 'm-1', 'state' => 'running', 'started' => true,
+                    'ready' => true, 'ssh_ip' => '203.0.113.7']],
             ], 200),
             'api.salad.com/*' => Http::response([
                 'current_state' => ['status' => 'running', 'description' => ''],
@@ -130,6 +131,117 @@ class CloudSaladGpuTest extends TestCase
 
         $this->assertInstanceOf(SaladClient::class, $d);
         $this->assertSame('salad', $d->slug());
+    }
+
+    public function test_a_running_group_waits_for_a_ready_started_instance(): void
+    {
+        $this->configure();
+        foreach ([[], ['state' => 'running', 'ready' => false, 'started' => true],
+            ['state' => 'running', 'ready' => true, 'started' => false],
+            ['state' => 'starting', 'ready' => true, 'started' => true]] as $node) {
+            Http::fake([
+                'api.salad.com/*/instances' => Http::response(['instances' => $node ? [$node] : []]),
+                'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+            ]);
+            $this->assertSame('building', app(SaladClient::class)->serverStatus('sn-svc-9')['status']);
+        }
+    }
+
+    public function test_readiness_is_checked_beyond_the_first_instance_with_an_ip(): void
+    {
+        $this->configure();
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['instances' => [
+                ['state' => 'starting', 'ready' => false, 'started' => false, 'ssh_ip' => '203.0.113.7'],
+                ['state' => 'running', 'ready' => true, 'started' => true, 'ssh_ip' => '203.0.113.8'],
+            ]]),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+        ]);
+        $r = app(SaladClient::class)->serverStatus('sn-svc-9');
+        $this->assertSame('running', $r['status']);
+        $this->assertSame('203.0.113.8', $r['ipv4']);
+        $this->assertNull($r['build']);
+    }
+
+    public function test_failed_instance_lookup_does_not_deliver_a_running_group(): void
+    {
+        $this->configure();
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['message' => 'Unavailable'], 503),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+        ]);
+        $r = app(SaladClient::class)->serverStatus('sn-svc-9');
+        $this->assertFalse($r['ok']);
+        $this->assertSame('unknown', $r['status']);
+    }
+
+    public function test_comfyui_gateway_waits_for_the_application_warmup(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-comfyui']['ref'],
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'networking.port') === 3000
+            && data_get($req->data(), 'container.environment_variables.HOST') === '::'
+            && data_get($req->data(), 'container.environment_variables.PORT') === '3000'
+            && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
+            && data_get($req->data(), 'readiness_probe.http.port') === 3000
+            && data_get($req->data(), 'startup_probe.http.path') === '/health'
+            && data_get($req->data(), 'startup_probe.failure_threshold') === 20
+            && data_get($req->data(), 'startup_probe.period_seconds') === 5);
+    }
+
+    public function test_legacy_comfyui_is_rejected_on_blackwell_before_allocating_a_gpu(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        \App\Models\CloudPlan::where('provider_ref', 'gc-4090')->update(['gpu_model' => 'RTX 5060 Ti (16 GB)']);
+        Http::fake();
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+        ]);
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('CUDA 12.8', $r['message']);
+        Http::assertNothingSent();
+    }
+
+    public function test_default_comfyui_uses_blackwell_compatible_cuda_without_overriding_the_choice(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        \App\Models\CloudPlan::where('provider_ref', 'gc-4090')->update(['gpu_model' => 'RTX 5060 Ti (16 GB)']);
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $image = SaladClient::APPS['gpu-comfyui']['ref'];
+        $this->assertStringContainsString('-cuda12.8-', $image);
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $image,
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
+            && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
+            && data_get($req->data(), 'container.command.0') === '/bin/sh'
+            && ! str_contains(data_get($req->data(), 'container.command.2', ''), "\n")
+            && str_contains(data_get($req->data(), 'container.command.2', ''), '/workflows/sd1.5'));
+    }
+
+    public function test_legacy_comfyui_on_an_older_gpu_keeps_its_original_entrypoint(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $image = 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8';
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $image,
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
+            && ! array_key_exists('command', $req->data()['container'])
+            && data_get($req->data(), 'networking.port') === 3000);
     }
 
     /**
@@ -619,6 +731,28 @@ class CloudSaladGpuTest extends TestCase
             'container.environment_variables.OLLAMA_HOST') === '::');
     }
 
+    /**
+     * 🔴 entrypointِ ایمیج بی‌`OLLAMA_MODEL_NAME` با exit 1 بیرون می‌زند و کانتینر
+     * هرگز آماده نمی‌شود (رخدادِ مهر ۱۴۰۵ — سرورِ آزمایشی ۸۸ ساعت «در حالِ ساخت»).
+     * ادعا روی **بدنه‌ای است که واقعاً به زیرساخت می‌رود**، نه روی ثابت.
+     */
+    public function test_ollama_gets_the_model_its_entrypoint_requires(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        app(CloudManager::class)->driver('salad')->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => app(SaladClient::class)->apps()['gpu-ollama']['ref'],
+        ]);
+
+        Http::assertSent(fn ($req) => data_get($req->data(),
+            'container.environment_variables.OLLAMA_MODEL_NAME') === SaladClient::OLLAMA_PRELOAD_MODEL);
+        $this->assertNotSame('', trim(SaladClient::OLLAMA_PRELOAD_MODEL));
+    }
+
     /** کاتالوگ برنامه‌های آماده را به‌عنوانِ ایمیجِ kind=app برمی‌گرداند */
     public function test_the_catalogue_ships_the_app_images(): void
     {
@@ -754,4 +888,88 @@ class CloudSaladGpuTest extends TestCase
         $this->assertStringContainsString('1073741824', $r['message']);
     }
 
+    /**
+     * 🔴 کارتِ AMD با برنامه‌های CUDA فروخته نمی‌شود.
+     *
+     * هر سه برنامهٔ آماده بیلدِ CUDAاند و مستنداتِ زیرساخت صریح است که ایمیجِ
+     * CUDA روی GPUِ AMD کار نمی‌کند: Ollama روی CPU می‌رود، ComfyUI کرش می‌کند،
+     * Jupyter بی‌GPU سالم به‌نظر می‌رسد — و تحویل «موفق» ثبت می‌شد.
+     *
+     * ⚠️ ادعا روی **ردیف‌های نوشته‌شده در دیتابیس** است، نه روی تابعِ تشخیص.
+     *    نسخهٔ اولِ همین اصلاح `\b` را به‌صورتِ کاراکترِ backspace نوشته بود؛
+     *    تشخیص همیشه false می‌داد و اصلاح بی‌صدا هیچ کاری نمی‌کرد.
+     */
+    public function test_amd_cards_are_never_put_on_sale(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+            $this->gpuClass(['id' => 'gc-amd-9060', 'name' => 'AMD RX 9060 XT (16GB)']),
+        ]);
+
+        app(\App\Services\Cloud\CloudCatalogSync::class)->sync('salad');
+
+        $models = \App\Models\CloudPlan::where('provider', 'salad')->where('is_active', true)->pluck('gpu_model')->all();
+
+        $this->assertSame(['RTX 4090'], $models,
+            'پلنِ AMD به فروشگاه رفت؛ برنامه‌های آماده فقط CUDAاند و روی آن کار نمی‌کنند.');
+    }
+
+    /** پلنِ AMDِ ازقبل‌فروشی با همان سینکِ بعدی از فروشگاه بیرون می‌رود */
+    public function test_an_amd_plan_already_on_sale_is_withdrawn_by_the_next_sync(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+
+        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'], ['country' => 'XX', 'is_active' => true]);
+        $amd = \App\Models\CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'gc-amd-xtx', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'public_name' => 'AMD RX 7900 XTX',
+            'slug' => 'cv-8c-30g-150d-global-gpu-amd-rx-7900-xtx-24gb', 'vcpu' => 8, 'ram_mb' => 30720,
+            'disk_gb' => 150, 'disk_type' => 'ssd', 'traffic_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'cost_eur_cents' => 400, 'price_eur_cents' => 600, 'price_irt' => 600_000,
+            'is_active' => true, 'in_stock' => true,
+            'gpu_model' => 'AMD RX 7900 XTX (24GB)', 'gpu_count' => 1, 'is_interruptible' => true,
+        ]);
+
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+        ]);
+
+        app(\App\Services\Cloud\CloudCatalogSync::class)->sync('salad');
+
+        $this->assertFalse((bool) $amd->fresh()->is_active,
+            'پلنِ AMDِ فعال بعد از سینک هنوز فروخته می‌شود.');
+    }
+
+    /** کنار گذاشتن بی‌صدا نیست: مدیر در پیامِ سینک می‌بیند چرا */
+    public function test_the_sync_message_says_why_amd_cards_were_left_out(): void
+    {
+        $this->configure();
+        Setting::put('salad_priority', 'high');
+        $this->fakeClasses([
+            $this->gpuClass(),
+            $this->gpuClass(['id' => 'gc-amd-xtx', 'name' => 'AMD RX 7900 XTX (24GB)']),
+        ]);
+
+        $msg = (string) app(CloudManager::class)->driver('salad')->fetchCatalog()['message'];
+
+        $this->assertStringContainsString('AMD', $msg);
+        $this->assertStringNotContainsString('دادهٔ ناقص', $msg,
+            'کارتِ AMD به‌خاطرِ دادهٔ ناقص کنار نرفته؛ پیام باید علتِ واقعی را بگوید.');
+    }
+
+    public function test_only_amd_and_radeon_names_count_as_amd(): void
+    {
+        foreach (['AMD RX 7900 XTX (24GB)', 'AMD RX 9060 XT (16GB)', 'Radeon Pro W7900', 'amd rx 7800 xt'] as $n) {
+            $this->assertTrue(\App\Services\Cloud\SaladClient::isAmdGpuClass($n), $n);
+        }
+        foreach (['RTX 4090', 'RTX 3090 (24 GB)', 'H100', 'GTX 1050 Ti (4 GB)', 'Stable Diffusion Compatible', 'RTX 5090 Ramdisk'] as $n) {
+            $this->assertFalse(\App\Services\Cloud\SaladClient::isAmdGpuClass($n), $n);
+        }
+    }
 }

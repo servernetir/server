@@ -13,6 +13,7 @@ use App\Services\Provisioning\ProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -286,6 +287,39 @@ class CloudProvisionTest extends TestCase
         $this->assertStringContainsString('resource_unavailable', (string) $inst->last_error);
     }
 
+    public function test_transient_provider_failure_stays_pending_for_automatic_retry(): void
+    {
+        $plan = $this->plan();
+        $this->image();
+        $service = $this->service($plan);
+
+        $driver = Mockery::mock(\App\Services\Cloud\CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->andReturnTrue();
+        $driver->shouldReceive('capabilities')->andReturn([]);
+        $driver->shouldReceive('createServer')->once()->andReturn([
+            'ok' => false,
+            'message' => 'ارتباط با زیرساخت برقرار نشد.',
+            'transient' => true,
+            'raw' => ['status' => 0],
+        ]);
+
+        $manager = Mockery::mock(\App\Services\Cloud\CloudManager::class);
+        $manager->shouldReceive('forPlan')->andReturn($driver);
+
+        $provisioner = new CloudProvisioner(
+            $manager,
+            app(\App\Services\Cloud\CloudAddons::class),
+        );
+
+        $this->assertFalse($provisioner->provision($service));
+
+        $fresh = $service->fresh();
+        $this->assertSame('pending', $fresh->provision_status);
+        $this->assertSame('awaiting_provision', $fresh->status);
+        $this->assertStringContainsString('تلاش خودکار', (string) $fresh->provision_error);
+        $this->assertSame('error', CloudInstance::where('service_id', $service->id)->value('status'));
+    }
+
     /** پلنِ حذف‌شده نباید استثنا بدهد */
     public function test_deleted_plan_fails_cleanly(): void
     {
@@ -316,6 +350,28 @@ class CloudProvisionTest extends TestCase
 
         $this->assertFalse(app(ProvisioningService::class)->provision($service));
         $this->assertSame(0, $created, 'بی‌سیستم‌عامل نباید سرور ساخته شود');
+        $this->assertSame('failed', $service->fresh()->provision_status);
+    }
+
+    /** ایمیجِ بزرگ‌تر از RAM پلن نباید حتی یک درخواست خرید به زیرساخت بفرستد. */
+    public function test_image_ram_requirement_is_checked_before_provider_purchase(): void
+    {
+        $plan = $this->plan('hetzner', ['ram_mb' => 1024]);
+        $image = $this->image();
+        $image->update(['min_ram_mb' => 2048]);
+        $service = $this->service($plan);
+
+        $created = 0;
+        Http::fake(function ($request) use (&$created) {
+            if (str_ends_with($request->url(), '/servers') && $request->method() === 'POST') {
+                $created++;
+            }
+
+            return Http::response([], 200);
+        });
+
+        $this->assertFalse(app(ProvisioningService::class)->provision($service));
+        $this->assertSame(0, $created);
         $this->assertSame('failed', $service->fresh()->provision_status);
     }
 
@@ -436,10 +492,13 @@ class CloudProvisionTest extends TestCase
                 $off = true;
             }
 
+            if ($request->method() === 'GET') {
+                return Http::response(['server' => ['status' => $off ? 'off' : 'running']]);
+            }
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 
-        app(ProvisioningService::class)->suspend($service);
+        $this->assertTrue(app(ProvisioningService::class)->suspend($service)->ok);
 
         $this->assertTrue($off, 'باید خاموش شود');
         $this->assertFalse($deleted, 'تعلیق هرگز نباید سرور را حذف کند');
@@ -458,10 +517,13 @@ class CloudProvisionTest extends TestCase
                 $on = true;
             }
 
+            if ($request->method() === 'GET') {
+                return Http::response(['server' => ['status' => $on ? 'running' : 'off']]);
+            }
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 
-        app(ProvisioningService::class)->unsuspend($service);
+        $this->assertTrue(app(ProvisioningService::class)->unsuspend($service)->ok);
 
         $this->assertTrue($on);
         $this->assertSame('active', $service->fresh()->status);

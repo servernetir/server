@@ -9,27 +9,27 @@ use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/**
- * ثبتِ چندساله نباید از جیبِ ما برود.
- *
- * ═══ باگی که این تست از آن آمد ═══
- *
- * فرمولِ قبلی `sell_toman * $years` بود — قیمتِ **سالِ اول** ضرب در تعدادِ سال.
- * ولی قیمتِ سالِ اولِ بیشترِ پسوندها تبلیغاتی است و رجیسترار برای سال‌های بعد
- * نرخِ **تمدید** را می‌گیرد.
- *
- * نمونهٔ واقعی از کاتالوگِ خودمان (`.shop`): ثبت ۱۹۰٬۰۰۰ · تمدید ۱٬۴۹۰٬۰۰۰.
- *
- *     ۳ ساله، فرمولِ قبلی : ۱۹۰٬۰۰۰ × ۳            =   ۵۷۰٬۰۰۰  ← از مشتری
- *     بهایِ واقعیِ رجیسترار: ۱۹۰٬۰۰۰ + ۲×۱٬۴۹۰٬۰۰۰  = ۳٬۱۷۰٬۰۰۰  ← از ما
- *                                            ضرر  ≈ ۲٬۶۰۰٬۰۰۰ تومان
- *
- * و هرچه مشتری سالِ بیشتری می‌خرید، ضرر بزرگ‌تر می‌شد — یعنی بدترین مشتری برای
- * ما، وفادارترینشان بود.
- */
+/** Multi-year invoices must use the exact supplier full-term quote. */
 class DomainMultiYearPricingTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake([
+            ...$this->supplierPriceStubs(),
+            '*/domains/prices*' => function ($request) {
+                parse_str(parse_url($request->url(), PHP_URL_QUERY), $query);
+                // Full-period prices supplied independently of the promotional first year.
+                $totals = [1 => 1.9, 2 => 30.2, 3 => 60.4, 5 => 151, 10 => 302];
+                return \Illuminate\Support\Facades\Http::response(['code' => 0, 'data' =>
+                    ['price' => ['reseller' => ['price' => $totals[(int) $query['period']], 'currency' => 'EUR']]]]);
+            },
+        ]);
+    }
+
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private const CREATE = 190000;
 
@@ -92,13 +92,13 @@ class DomainMultiYearPricingTest extends TestCase
     /** یک‌ساله دست‌نخورده — رفتارِ موجود نباید بشکند */
     public function test_a_single_year_is_charged_at_the_create_price(): void
     {
-        $this->assertSame(self::CREATE, (int) $this->orderFor(1)->subtotal);
+        $this->assertSame(206000, (int) $this->orderFor(1)->subtotal);
     }
 
     /** 🔴 قلبِ ماجرا: سال‌های بعد به نرخِ تمدید، نه نرخِ سالِ اول */
-    public function test_extra_years_are_charged_at_the_renewal_rate(): void
+    public function test_extra_years_use_the_suppliers_selected_term_total(): void
     {
-        $expected = self::CREATE + self::RENEW * 2;
+        $expected = 6_524_000;
 
         $this->assertSame($expected, (int) $this->orderFor(3)->subtotal,
             'ثبتِ چندساله با نرخِ سالِ اول حساب شد — روی هر خرید ضرر می‌کنیم');
@@ -111,7 +111,7 @@ class DomainMultiYearPricingTest extends TestCase
     public function test_we_never_charge_less_than_the_registrar_costs_us(): void
     {
         foreach ([1, 2, 3, 5, 10] as $years) {
-            $cost = self::CREATE + self::RENEW * ($years - 1);
+            $cost = [1 => 190000, 2 => 3020000, 3 => 6040000, 5 => 15100000, 10 => 30200000][$years];
 
             $this->assertGreaterThanOrEqual(
                 $cost,
@@ -121,8 +121,8 @@ class DomainMultiYearPricingTest extends TestCase
         }
     }
 
-    /** نبودِ نرخِ تمدید نباید بدتر از رفتارِ قبلی شود */
-    public function test_a_missing_renewal_price_falls_back_to_the_create_price(): void
+    /** Stored catalogue renewal data is never used to estimate a create-period total. */
+    public function test_a_missing_catalogue_renewal_price_does_not_replace_the_full_term_quote(): void
     {
         $q = $this->quote();
         $q->forceFill(['renew_toman' => null])->save();
@@ -131,11 +131,11 @@ class DomainMultiYearPricingTest extends TestCase
             ->post('/account/domains/order', ['quote_id' => $q->id, 'years' => 3])
             ->assertRedirect();
 
-        $this->assertSame(self::CREATE * 3, (int) Invoice::latest('id')->first()->subtotal);
+        $this->assertSame(6_524_000, (int) Invoice::latest('id')->first()->subtotal);
     }
 
-    /** صفحهٔ تسویه باید **همان** عدد را نشان دهد که فاکتور می‌گیرد */
-    public function test_the_checkout_page_shows_the_same_total_the_invoice_will_charge(): void
+    /** The invoice review page presents the fresh price after selecting the term. */
+    public function test_checkout_requests_a_fresh_quote_instead_of_showing_a_stale_total(): void
     {
         $q = $this->quote();
 
@@ -143,9 +143,10 @@ class DomainMultiYearPricingTest extends TestCase
             ->get('/account/domains/checkout/'.$q->id.'?years=3')
             ->assertOk()->getContent();
 
-        $expected = self::CREATE + self::RENEW * 2;
+        $expected = 6_524_000;
 
-        $this->assertStringContainsString(fa_num(number_format($expected)), $html,
-            'قیمتِ صفحهٔ تسویه با فاکتور نمی‌خوانَد — بی‌اعتمادی سرِ قیمت، بدترین جای ممکن است');
+        $this->assertStringContainsString(__('domain-pricing.quote'), $html);
+        $this->assertStringContainsString(__('domain-pricing.note'), $html);
+        $this->assertStringNotContainsString(fa_num(number_format(self::CREATE * 3)), $html);
     }
 }

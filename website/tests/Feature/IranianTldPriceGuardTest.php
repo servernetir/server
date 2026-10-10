@@ -39,6 +39,8 @@ class IranianTldPriceGuardTest extends TestCase
             'services.openprovider.username' => 'u',
             'services.openprovider.password' => 'p',
             'services.openprovider.base_url' => 'https://api.example.test/v1beta',
+            'domain_pricing.supplier_vat_pct' => 0,
+            'domain_pricing.supplier_fee_pct' => 0,
         ]);
         \App\Models\Setting::put('pricing_rate_override', '100000');
     }

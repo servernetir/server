@@ -12,8 +12,8 @@ pricing support and 165 deprecated models, with explicit public status.
 
 Read [the deployment record](../../AI-GATEWAY-LAUNCH-2026-10-10.md) and
 [sanitized verification evidence](../../website/docs/ai-gateway/evidence/2026-10-10/)
-before the historical progress notes below. The 246 distinct AI tests passed
-across SQLite and MariaDB; real normal/streaming responses, exact test-wallet
+before the historical progress notes below. The release passed 246 distinct AI tests; after merging the latest develop,
+248 distinct AI tests passed across SQLite and MariaDB; real normal/streaming responses, exact test-wallet
 debits, no-charge replay and revoked credentials were verified. The customer
 database was not used for those financial fixtures. Supplier permission and
 non-text/complex pricing support remain outstanding.

@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\GoogleCalendarToken;
+use App\Models\NotificationTemplate;
+use App\Models\ServiceCost;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -33,9 +38,10 @@ class AdminSettingsFormNestingTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function page(string $tab = 'general'): string
+    private function page(string $tab = 'general', ?User $admin = null): string
     {
-        $admin = User::create([
+        Http::preventStrayRequests();
+        $admin ??= User::create([
             'name' => 'مدیر', 'email' => 'st'.random_int(1000, 9999).'@example.test',
             'password' => bcrypt('secret-for-test'), 'role' => 'admin',
         ]);
@@ -97,42 +103,97 @@ class AdminSettingsFormNestingTest extends TestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('tabs')]
     public function test_the_save_button_belongs_to_the_settings_form(string $tab): void
     {
-        // تب‌هایی که فیلدِ `Setting` ندارند فرمِ تنظیمات هم ندارند و درست است:
-        // هزینه‌ها و پیام‌ها به مسیرِ خودشان POST می‌کنند، راهنما فقط متن است.
-        if (\App\Http\Controllers\Admin\SettingsController::fieldsFor($tab) === []) {
-            $this->markTestSkipped('تبِ '.$tab.' فرمِ تنظیمات ندارد');
+        $cost = null;
+        if ($tab === 'costs') {
+            $cost = ServiceCost::create([
+                'key' => 'form-test', 'label' => 'Test cost', 'amount' => 100,
+                'currency_code' => 'IRT', 'is_system' => false,
+            ]);
+        }
+        if ($tab === 'messages') {
+            NotificationTemplate::create([
+                'key' => 'form-test-admin', 'title' => 'Test notification',
+                'group' => 'billing', 'audience' => 'admin', 'is_active' => true,
+            ]);
         }
 
         $html = $this->page($tab);
+        $xpath = $this->document($html);
 
-        // فرمِ تنظیمات را جدا کن و مطمئن شو دکمهٔ ذخیره داخلش است
-        $ok = preg_match(
-            '~<form[^>]*action="/admin/settings"[^>]*>(.*?)</form>~is',
-            $html, $m
-        );
+        // Each tab owns different actions; the guide deliberately has no form.
+        if ($tab === 'guide') {
+            $this->assertSame(0, $xpath->query('//main//form')->length);
+            $this->assertSame(0, $xpath->query('//main//button[@type="submit"]')->length);
+            $this->assertStringContainsString('هر تنظیم کجا می‌نشیند', $html);
 
-        $this->assertSame(1, $ok, 'فرمِ تنظیماتِ تبِ '.$tab.' پیدا نشد');
-        $this->assertStringContainsString('type="submit"', $m[1],
-            'دکمهٔ ذخیرهٔ تبِ '.$tab.' بیرونِ فرم افتاده — کلیک روی آن هیچ کاری نمی‌کند');
+            return;
+        }
+
+        $buttons = $xpath->query('//main//button[@type="submit"]');
+        $this->assertGreaterThan(0, $buttons->length, 'No submit button for '.$tab);
+        $actions = [];
+        foreach ($buttons as $button) {
+            $owner = $button->hasAttribute('form')
+                ? $xpath->query('//form[@id="'.$button->getAttribute('form').'"]')
+                : $xpath->query('ancestor::form[1]', $button);
+            $this->assertSame(1, $owner->length, 'Submit button has no unique form owner: '.$tab);
+            $form = $owner->item(0);
+            $this->assertSame('post', strtolower($form->getAttribute('method')));
+            $this->assertSame(1, $xpath->query('.//input[@name="_token"]', $form)->length);
+            $actions[] = $form->getAttribute('action');
+        }
+
+        $expected = match ($tab) {
+            'costs' => ['/admin/costs', '/admin/costs/add', '/admin/costs/'.$cost->id.'/delete'],
+            'menus' => ['/admin/menus/add', '/admin/menus/save', '/admin/menus/hide'],
+            'bale' => ['/admin/bale/pair'],
+            'messages' => [],
+            default => ['/admin/settings'],
+        };
+        foreach ($expected as $action) {
+            $this->assertContains($action, $actions, 'Missing usable form: '.$action);
+        }
+        if ($tab === 'messages') {
+            foreach ($actions as $action) {
+                $this->assertMatchesRegularExpression('~^/admin/templates/\d+/toggle$~', $action);
+            }
+        }
     }
 
     /** دکمهٔ قطعِ اتصال باید با `form=` به فرمِ بیرونیِ خودش وصل باشد */
     public function test_the_disconnect_button_targets_its_own_outer_form(): void
     {
-        $html = $this->page();
+        $admin = User::factory()->create(['role' => 'admin']);
+        Setting::put('google_client_id', 'forms.apps.googleusercontent.com');
+        Setting::putSecret('google_client_secret', 'test-only');
+        GoogleCalendarToken::create([
+            'user_id' => $admin->id, 'google_email' => 'calendar@example.test',
+            'calendar_id' => 'primary', 'access_token' => 'test-only-access',
+            'refresh_token' => 'test-only-refresh', 'expires_at' => now()->addHour(),
+        ]);
+        $html = $this->page('general', $admin);
+        $xpath = $this->document($html);
 
-        /*
-         * ⚠️ شرط روی **دکمه** است نه روی فرم: فرمِ خالی همیشه رندر می‌شود (بی‌ضرر
-         * و بیرونِ فرمِ اصلی)، ولی دکمه فقط وقتی می‌آید که تقویمِ گوگل واقعاً وصل
-         * باشد. نسخهٔ اولِ همین تست وجودِ `gcal-disconnect` را می‌سنجید و روی
-         * نصبِ بی‌گوگل قرمز می‌شد — یعنی تستی که وضعیتِ فیکسچر را با باگ اشتباه
-         * می‌گرفت.
-         */
-        if (! str_contains($html, 'قطع اتصال')) {
-            $this->markTestSkipped('تقویمِ گوگل روی این نصب وصل نیست، پس دکمه رندر نمی‌شود');
+        $this->assertSame(1, $xpath->query('//button[@type="submit" and @form="gcal-disconnect"]')->length);
+        $this->assertSame(1, $xpath->query('//form[@id="gcal-disconnect" and @method="post" and @action="/admin/calendar/google/disconnect"]')->length);
+        $this->assertSame(0, $xpath->query('//form[@id="gcal-disconnect"]/ancestor::form')->length);
+        $this->assertSame(1, preg_match('~<form[^>]*action="/admin/settings"[^>]*>(.*?)</form>~is', $html, $matches));
+        $this->assertStringNotContainsString('<form', $matches[1]);
+        $this->assertStringContainsString('type="submit"', $matches[1]);
+        Http::assertNothingSent();
+    }
+
+    private function document(string $html): \DOMXPath
+    {
+        $dom = new \DOMDocument;
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
         }
 
-        $this->assertStringContainsString('id="gcal-disconnect"', $html);
-        $this->assertStringContainsString('form="gcal-disconnect"', $html);
+        return new \DOMXPath($dom);
     }
 }

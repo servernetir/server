@@ -157,8 +157,8 @@ class AiReservationStress extends Command
         $ttl = (int) $this->option('ttl');
         $totalAttempts = $workers * $perWorker;
 
-        if ($amount <= 0 || $credit <= 0 || $workers < 2) {
-            $this->error('--amount/--credit مثبت و --workers ≥ ۲ لازم است.');
+        if ($amount <= 0 || $credit <= 0 || $workers < 2 || $perWorker < 1) {
+            $this->error('--amount/--credit مثبت، --workers ≥ ۲ و --per-worker ≥ ۱ لازم است.');
 
             return self::FAILURE;
         }
@@ -198,9 +198,13 @@ class AiReservationStress extends Command
         $procs = $pipes = [];
         foreach (range(1, $workers) as $i) {
             $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-            $cmdLine = implode(' ', array_map(fn ($p) => '"'.$p.'"', $cmd));
+            $workerCmd = $cmd;
+            if ($mode === 'mixed') {
+                // Guarantee both competing actions, including with only two workers.
+                $workerCmd[3] = '--mode='.($i % 2 === 0 ? 'settle' : 'release');
+            }
 
-            $procs[$i] = proc_open($cmdLine, $descriptors, $pipes[$i]);
+            $procs[$i] = proc_open($workerCmd, $descriptors, $pipes[$i]);
         }
 
         $results = [];
@@ -211,9 +215,11 @@ class AiReservationStress extends Command
             fclose($pipes[$i][2]);
 
             $code = proc_close($proc);
-            $json = json_decode(trim((string) $stdout) ?: '{}', true);
+            $json = json_decode(trim((string) $stdout), true);
 
-            $results[] = is_array($json) ? $json : ['fatal' => 'bad-json', 'exit' => $code];
+            $result = is_array($json) ? $json : ['fatal' => 'bad-json'];
+            $result['exit'] = $code;
+            $results[] = $result;
         }
 
         // ── سنجشِ ناوردایی‌ها روی وضعیتِ نهاییِ دیتابیس ──
@@ -222,7 +228,17 @@ class AiReservationStress extends Command
         $ledgerSum = $wallet->balanceOf($customer->id);
         $held = $reservations->heldOf($customer->id);
 
-        $checks = [];
+        // Zero completed work must never count as proof of financial safety.
+        $checks = [
+            'all_workers_completed' => count($results) === $workers && count(array_filter($results,
+                fn ($r) => $r['exit'] === 0 && ! isset($r['fatal']) && isset($r['codes'])
+                    && count($r['codes']) === $perWorker)) === $workers,
+        ];
+
+        if (in_array($mode, ['reserve', 'wallet'], true)) {
+            $checks['no_unexpected_worker_errors'] = array_sum(array_column($results, 'other_fail')) === 0;
+            $checks['expected_successful_attempts'] = $okCount === min($totalAttempts, intdiv($credit, $amount));
+        }
 
         if ($mode === 'wallet') {
             /*

@@ -248,6 +248,25 @@ class CloudInventoryTest extends TestCase
         $this->assertEmpty($this->report()['ghosts']);
     }
 
+    /** دو ماشینِ هم‌نام هرگز نباید هر دو به یک سرویس/مشتری تخصیص بخورند. */
+    public function test_duplicate_hostname_cannot_claim_the_same_service_twice(): void
+    {
+        $ci = $this->makeInstance('arvan', 'ir-thr-fr1:real-ref');
+        $this->withDrivers(['arvan' => $this->driver('arvan', [
+            // عمداً نسخهٔ اشتباه اول است؛ ترتیبِ API نباید نتیجه را عوض کند.
+            $this->srv(['ref' => 'ir-thr-fr1:duplicate-ref', 'name' => $ci->hostname]),
+            $this->srv(['ref' => 'ir-thr-fr1:real-ref', 'name' => $ci->hostname]),
+        ])]);
+
+        $report = $this->report();
+
+        $this->assertCount(1, $report['attached']);
+        $this->assertSame('ir-thr-fr1:real-ref', $report['attached'][0]['ref']);
+        $this->assertCount(1, $report['orphans']);
+        $this->assertSame('ir-thr-fr1:duplicate-ref', $report['orphans'][0]['ref']);
+        $this->assertEmpty($report['ghosts']);
+    }
+
     /** 🔴 سرویسِ بسته‌شده شبح نیست — نبودِ سرورش دقیقاً همان انتظارِ ماست */
     public function test_a_terminated_service_is_not_a_ghost(): void
     {

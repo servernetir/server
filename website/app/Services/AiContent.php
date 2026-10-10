@@ -293,6 +293,11 @@ TXT;
             @set_time_limit($timeout + 20);
         }
         $p = $this->provider($this->purpose);
+        if (trim($p['key']) === '' || trim($p['base']) === '' || trim($p['model']) === '') {
+            Log::warning('AiContent provider is not configured', ['purpose' => $this->purpose, 'provider' => $p['name']]);
+
+            return null;
+        }
         $url = rtrim($p['base'], '/').'/chat/completions';
         $ch = curl_init($url);
 

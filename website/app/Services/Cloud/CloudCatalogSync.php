@@ -169,6 +169,7 @@ class CloudCatalogSync
     private function syncImages(string $provider, array $rows): int
     {
         $seen = [];
+        $requirements = [];
         $n = 0;
 
         foreach ($rows as $r) {
@@ -189,12 +190,38 @@ class CloudCatalogSync
                     'label'       => (string) ($r['label'] ?? $key),
                     'arch'        => (string) ($r['arch'] ?? 'x86'),
                     'min_disk_gb' => (int) ($r['min_disk_gb'] ?? 0),
+                    'min_ram_mb'  => (int) ($r['min_ram_mb'] ?? 0),
                     'is_active'   => true,
                 ]
             );
 
             $seen[] = $ref;
+            $requirements[$key] = [
+                'disk' => max((int) ($requirements[$key]['disk'] ?? 0), (int) ($r['min_disk_gb'] ?? 0)),
+                'ram'  => max((int) ($requirements[$key]['ram'] ?? 0), (int) ($r['min_ram_mb'] ?? 0)),
+            ];
             $n++;
+        }
+
+        /*
+        | بعضی منطقه‌های آروان برای یک ایمیج همان فیلدهای نیازمندی را صفر یا
+        | خالی می‌دهند و منطقه‌ای دیگر مقدار واقعی را برمی‌گرداند. چون جدول
+        | cloud_images ستون منطقه ندارد، یک ردیف صفر می‌توانست گارد فروش را
+        | دور بزند. محافظه‌کارانه بیشترین نیازِ همان کلید/ارائه‌دهنده روی همهٔ
+        | ردیف‌های منطقه‌ای اعمال می‌شود.
+        */
+        foreach ($requirements as $key => $need) {
+            /*
+            | PHP کلیدهای رشته‌ایِ تماماً عددی (مثل Windows "2025" یا Debian
+            | "13") را در آرایه به int تبدیل می‌کند. اگر همان int به MariaDB
+            | bind شود، ستون varchar را عددی مقایسه می‌کند و روی کلیدهایی مثل
+            | "26-04" با Truncated incorrect DECIMAL value می‌ترکد. cast صریح
+            | هم مقایسه را رشته‌ای نگه می‌دارد هم sync را برای کل کاتالوگ پایدار.
+            */
+            CloudImage::where('provider', $provider)->where('key', (string) $key)->update([
+                'min_disk_gb' => (int) $need['disk'],
+                'min_ram_mb'  => (int) $need['ram'],
+            ]);
         }
 
         // ایمیجِ برداشته‌شده: غیرفعال، نه حذف (ممکن است سرورِ فعالی رویش باشد)

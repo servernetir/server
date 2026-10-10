@@ -35,6 +35,11 @@ class CustomerNotifier
      */
     public function event(Customer $customer, string $event, array $smsParams, string $text): void
     {
+        if (in_array($customer->locale, ['en', 'tr'], true)) {
+            $this->localizedEmail($customer, $event, $smsParams, $customer->locale);
+            return;
+        }
+
         $mobile = (string) $customer->phone;
 
         if ($mobile === '') {
@@ -137,7 +142,7 @@ class CustomerNotifier
             return false;
         }
 
-        $repl = $this->intlVars($vars) + [
+        $repl = array_map(fn ($value) => \App\Support\PanelText::text((string) $value, $locale), $this->intlVars($vars)) + [
             'url' => 'https://console.servernet.cloud'
                 .route(($locale === 'en' ? 'en.' : 'tr.').'account.home', [], false),
         ];
@@ -145,7 +150,10 @@ class CustomerNotifier
         $subject = trans('ui.ntf_'.$key.'_s', $repl, $locale);
         $body = trans('ui.ntf_'.$key.'_b', $repl, $locale);
 
-        if ($subject === 'ui.ntf_'.$key.'_s' || $body === 'ui.ntf_'.$key.'_b') {
+        if (! trans()->hasForLocale('ui.ntf_'.$key.'_s', $locale)
+            || ! trans()->hasForLocale('ui.ntf_'.$key.'_b', $locale)
+            || preg_match('/[\x{0600}-\x{06FF}]/u', $subject.' '.$body) === 1
+            || preg_match('/(?<![a-z0-9_]):[a-z_]+/i', $subject.' '.$body) === 1) {
             $subject = trans('ui.ntf_generic_s', $repl, $locale);
             $body = trans('ui.ntf_generic_b', $repl, $locale);
         }
@@ -244,6 +252,10 @@ class CustomerNotifier
     /** پیام آزاد بدون الگو، هر دو کانال */
     public function message(Customer $customer, string $text): void
     {
+        // The KYC caller sends its own localized email. Foreign accounts do not use Iranian SMS/Bale.
+        if (in_array($customer->locale, ['en', 'tr'], true)) {
+            return;
+        }
         $this->event($customer, '__none__', [], $text);
     }
 }

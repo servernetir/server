@@ -29,7 +29,7 @@ class PaymentDueProvider implements CalendarEventProvider
      *
      * @var list<string>
      */
-    private const OPEN_STATUSES = ['unpaid', 'draft', 'overdue'];
+    private const OPEN_STATUSES = Invoice::OPEN_STATUSES;
 
     public function getEvents(Carbon $from, Carbon $to): Collection
     {
@@ -38,9 +38,9 @@ class PaymentDueProvider implements CalendarEventProvider
         }
 
         return Invoice::query()
-            ->whereIn('status', self::OPEN_STATUSES)
+            ->outstanding()
             ->whereNotNull('due_at')
-            ->whereBetween('due_at', [$from, $to])
+            ->whereBetween('due_at', [$from->copy()->utc(), $to->copy()->utc()])
             ->orderBy('due_at')
             ->limit($this->rowCap())
             ->get()
@@ -53,13 +53,13 @@ class PaymentDueProvider implements CalendarEventProvider
                 at: $invoice->due_at,
                 status: 'pending',
                 meta: [
-                    'invoice_id'  => $invoice->id,
+                    'invoice_id' => $invoice->id,
                     'customer_id' => $invoice->customer_id,
-                    'number'      => $invoice->number,
-                    'total'       => (int) $invoice->total,
-                    'paid'        => (int) $invoice->paid,
-                    'currency'    => $invoice->currency_code,
-                    'state'       => $invoice->status,
+                    'number' => $invoice->number,
+                    'total' => (int) $invoice->total,
+                    'paid' => (int) $invoice->paid,
+                    'currency' => $invoice->currency_code,
+                    'state' => $invoice->status,
                 ],
                 // پروندهٔ مشتری، جایی که فاکتور و دکمه‌هایش هست
                 url: $invoice->customer_id ? '/admin/customers/'.$invoice->customer_id : null,

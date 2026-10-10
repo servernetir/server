@@ -87,7 +87,7 @@
           @foreach($report['ghosts'] as $g)
             <tr>
               <td><b>{{ $g['service_name'] ?: '—' }}</b>
-                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($g['service_id']) }}</div></td>
+                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($g['service_id'] ?? '—') }}</div></td>
               <td dir="ltr" style="font-size:12px">{{ $g['customer_code'] ?: '—' }}</td>
               <td dir="ltr" style="font-size:12px;color:var(--muted)">{{ $g['ref'] }}</td>
               <td dir="ltr" style="font-size:12px">{{ $g['ipv4'] ?: '—' }}</td>
@@ -123,7 +123,7 @@
           @foreach($mismatched as $m)
             <tr>
               <td><b>{{ $m['service_name'] ?: '—' }}</b>
-                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($m['service_id']) }}</div></td>
+                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($m['service_id'] ?? '—') }}</div></td>
               <td dir="ltr" style="font-size:12px">{{ $m['customer_code'] ?: '—' }}</td>
               <td dir="ltr" style="font-size:12px">{{ $m['ipv4'] ?: '—' }}</td>
               <td style="font-size:12px">{{ $m['provider_label'] }}</td>
@@ -166,7 +166,7 @@
           @foreach($deadStill as $d)
             <tr>
               <td><b>{{ $d['service_name'] ?: '—' }}</b>
-                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($d['service_id']) }} · {{ $d['service_status'] }}</div></td>
+                <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($d['service_id'] ?? '—') }} · {{ $d['service_status'] ?? '—' }}</div></td>
               <td dir="ltr" style="font-size:12px">{{ $d['customer_code'] ?: '—' }}</td>
               <td dir="ltr" style="font-size:12px">{{ $d['name'] ?: '—' }}</td>
               <td dir="ltr" style="font-size:12px">{{ $d['ipv4'] ?: '—' }}</td>
@@ -194,7 +194,7 @@
             @foreach($healthy as $h)
               <tr>
                 <td><b>{{ $h['service_name'] ?: '—' }}</b>
-                  <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($h['service_id']) }}</div></td>
+                  <div style="font-size:11.5px;color:var(--dim)">#{{ fa_num($h['service_id'] ?? '—') }}</div></td>
                 <td dir="ltr" style="font-size:12px">{{ $h['customer_code'] ?: '—' }}</td>
                 <td dir="ltr" style="font-size:12px">{{ $h['name'] ?: '—' }}</td>
                 <td dir="ltr" style="font-size:12px">{{ $h['ipv4'] ?: '—' }}</td>

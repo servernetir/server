@@ -569,7 +569,7 @@ class CloudCatalogTest extends TestCase
 
         // مدیر باید نامِ واقعی را ببیند تا زیرساخت را وصل کند
         $this->assertStringContainsString('Hetzner', $html, 'مدیر باید بداند زیرساختِ ۱ کدام است');
-        $this->assertStringContainsString('زیرساختِ ۱', $html, 'شمارهٔ آشنا هم کنارش بماند');
+        $this->assertStringContainsString('href="/admin/settings"', $html, 'تنظیماتِ اتصالِ زیرساخت باید در دسترس باشد');
     }
 
     public function test_admin_settings_page_renders_with_cloud_section(): void

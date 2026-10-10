@@ -50,12 +50,32 @@
  * ۵) Worker → Settings → Variables → GATE_SECRET = همان رازی که در پنل
  *    (تنظیمات → زیرساخت → «رازِ دروازهٔ برندشده») ذخیره شده.
  *
+ * 🔴 **این فایل منبعِ کدِ زنده است.** Worker از داشبورد دیپلوی می‌شود نه از
+ *    گیت، و یک‌بار (بخشِ relay پایین) ده روز فقط در داشبورد بود و نسخهٔ مخزن
+ *    عقب مانده بود — اصلاحِ بعدی نزدیک بود روی کدِ کهنه نوشته شود. هر ویرایش
+ *    در داشبورد ⇒ همین‌جا هم، و پیش از دیپلوی:
+ *      node --test relay/cloudflare/gpu-proxy.test.mjs
+ *
  * SSE و WebSocket از Worker رد می‌شوند؛ TLS مالِ Cloudflare است (پوششِ
  * Universal SSL برای *.servernet.cloud — تک‌سطحی، برای همین g-{label} است
  * نه {label}.g).
+ *
+ * ── خروجی Salad از relay آلمان (۳۰ شهریور ۱۴۰۵) ───────────────────────
+ * WAF زون salad.cloud درخواستِ مستقیمِ Worker را با سیگنال داخلی
+ * cf.worker.upstream_zone تشخیص و برای کاربران ایران 403 می‌کرد. این سیگنال
+ * header معمولی نیست و از کد Worker حذف نمی‌شود. بنابراین Worker بعد از
+ * احراز، درخواست را به hostname ثابتِ DNS-only زیر می‌فرستد؛ relay مقصد
+ * واقعی *.salad.cloud را از X-ServerNet-Upstream می‌گیرد و با egress آلمان
+ * برقرار می‌کند. برای مهاجرت relay فقط A record همین hostname تغییر می‌کند:
+ *
+ *   gpu-relay.servernet.cloud  (DNS-only)
+ *
+ * binding محرمانهٔ GPU_RELAY_SECRET باید در Worker و فایل root-only relay
+ * یکسان باشد. مقدار آن هرگز در سورس یا مستندات ثبت نمی‌شود.
  */
 
 const enc = new TextEncoder();
+const GPU_RELAY_URL = 'https://gpu-relay.servernet.cloud';
 
 async function hmacHex(secret, msg) {
   const key = await crypto.subtle.importKey(
@@ -77,6 +97,99 @@ function readCookie(request, name) {
   const raw = request.headers.get('Cookie') || '';
   const m = raw.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
   return m ? m[1] : null;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 🔴 مرزِ کوکی — کوکی‌های پنل هرگز به کانتینرِ مشتری نمی‌رسند (مهر ۱۴۰۵)
+ * ════════════════════════════════════════════════════════════════════════
+ *
+ * نشستِ پنل روی **کلِ** `.servernet.cloud` است
+ * (AppServiceProvider::shareSessionAcrossSubdomains)، پس مرورگر آن را به
+ * g-{label}.servernet.cloud هم می‌فرستد. ورودِ مشتری همیشه remember=true است
+ * (LoginController، RegisterController) و CookieServiceProvider دامنهٔ کوکیِ
+ * «مرا به خاطر بسپار» را هم از همان تنظیم می‌گیرد — یعنی کوکیِ ماندگار هم.
+ *
+ * و این Worker تا امروز همهٔ هدرها را دست‌نخورده به بالادست می‌داد. کانتینرِ
+ * پشتِ g-… مالِ **مشتری** است؛ مشتریِ Jupyter در آن کد اجرا می‌کند. زنجیره:
+ *
+ *   مشتری لینکِ g-…/?sn_token=… را در تیکت می‌گذارد
+ *     → مدیرِ واردشده کلیک می‌کند
+ *     → snet_session و remember_*ِ مدیر به کانتینرِ مشتری می‌رسد
+ *     → کنترلِ کاملِ پنلِ مدیریت.
+ *
+ * دو طرف لازم است:
+ *   ۱ درخواست: کوکی‌های پنل از هدرِ Cookie برداشته می‌شوند.
+ *   ۲ پاسخ: هر Set-Cookie که از g-{label} بیرون بزند دور ریخته می‌شود؛
+ *     وگرنه برنامهٔ مشتری می‌تواند روی .servernet.cloud کوکی بکارد
+ *     (session fixation: قربانی بی‌صدا واردِ حسابِ مهاجم می‌شود).
+ *
+ * ⚠️ کلِ هدرِ Cookie را **نباید** حذف کرد: ورودِ خودِ Jupyter به کوکی‌های
+ *    خودش (`_xsrf`، `username-…`) نیاز دارد. فهرستِ سیاه است نه سفید.
+ * ⚠️ قاعده: هر کوکیِ تازه‌ای که پنل با دامنهٔ .servernet.cloud بسازد، باید
+ *    این‌جا اضافه شود. تست: relay/cloudflare/gpu-proxy.test.mjs
+ */
+const PANEL_COOKIE_NAMES = ['snet_session', 'XSRF-TOKEN', 'sn_token'];
+const PANEL_COOKIE_PREFIXES = ['remember_'];
+
+function isPanelCookie(name) {
+  const n = String(name || '').trim();
+  return PANEL_COOKIE_NAMES.indexOf(n) !== -1
+    || PANEL_COOKIE_PREFIXES.some((p) => n.indexOf(p) === 0);
+}
+
+/** کوکی‌های پنل را از هدرهای رو به بالادست حذف می‌کند (درجا) */
+function stripPanelCookies(headers) {
+  const raw = headers.get('Cookie');
+  if (!raw) { return; }
+
+  const kept = raw.split(';')
+    .map((part) => part.trim())
+    .filter((part) => part !== '' && !isPanelCookie(part.split('=')[0]));
+
+  if (kept.length) {
+    headers.set('Cookie', kept.join('; '));
+  } else {
+    headers.delete('Cookie');
+  }
+}
+
+/* ⚠️ Set-Cookieِ چندتایی را با get() نخوان: آن‌ها را با «,» می‌چسبانَد و
+ *    تاریخِ Expires خودش «,» دارد — تفکیکِ درست ناممکن می‌شود. */
+function setCookiesOf(headers) {
+  if (typeof headers.getSetCookie === 'function') { return headers.getSetCookie(); }
+  if (typeof headers.getAll === 'function') { return headers.getAll('Set-Cookie'); }
+  const one = headers.get('Set-Cookie');
+  return one ? [one] : [];
+}
+
+/** آیا این Set-Cookie از میزبانِ خودِ مشتری بیرون می‌زند؟ */
+function escapesTenant(setCookie, brandedHost) {
+  const parts = String(setCookie).split(';');
+  if (isPanelCookie(parts[0].split('=')[0])) { return true; }
+
+  const domainAttr = parts.slice(1)
+    .map((a) => a.trim())
+    .find((a) => a.toLowerCase().indexOf('domain=') === 0);
+
+  if (!domainAttr) { return false; }              // host-only ⇒ فقط همین g-{label}
+
+  const d = domainAttr.slice(7).trim().replace(/^\./, '').toLowerCase();
+  return d !== String(brandedHost).toLowerCase();
+}
+
+/** Set-Cookieهای بیرون‌زننده را از پاسخ حذف می‌کند */
+function confineResponseCookies(resp, brandedHost) {
+  // ⚠️ دست‌دادنِ WebSocket (101) هرگز بازپیچیده نشود — webSocketِ پاسخ گم می‌شود.
+  if (resp.status === 101) { return resp; }
+
+  const all = setCookiesOf(resp.headers);
+  if (!all.some((c) => escapesTenant(c, brandedHost))) { return resp; }
+
+  const out = new Response(resp.body, resp);
+  out.headers.delete('Set-Cookie');
+  all.filter((c) => !escapesTenant(c, brandedHost))
+    .forEach((c) => out.headers.append('Set-Cookie', c));
+  return out;
 }
 
 export default {
@@ -122,7 +235,16 @@ export default {
 
     const brandedHost = url.hostname;
     const originHost = m[1] + '.salad.cloud';
-    url.hostname = originHost;
+    if (!env || !env.GPU_RELAY_SECRET) {
+      console.error(JSON.stringify({
+        message: 'GPU relay secret is missing',
+        host: brandedHost,
+        path: url.pathname,
+      }));
+      return new Response('GPU gateway is temporarily unavailable', { status: 503 });
+    }
+
+    url.hostname = new URL(GPU_RELAY_URL).hostname;
     url.port = '';
 
     /*
@@ -146,6 +268,30 @@ export default {
     //    از دست می‌دهد).
     const upstream = new Request(url, request);
     const fwd = new Headers(upstream.headers);
+
+    /*
+     * هدرهای دروازه و هویتِ کلاینت فقط برای hop ورودی‌اند. فرستادنشان به
+     * دامنهٔ Salad دو ایراد دارد: رازِ دسترسیِ ServerNet را بی‌دلیل افشا
+     * می‌کند و WAF آن دامنه درخواست را با کشور/IP مشتری (از جمله ایران)
+     * ارزیابی می‌کند، در حالی که اتصال واقعی از Worker برقرار شده است.
+     * Cloudflare برای subrequest میان دو zone هدرهای لازمِ خودش را دوباره
+     * می‌سازد؛ پس این مقادیرِ ورودی نباید به upstream کپی شوند.
+     */
+    [
+      'X-SN-Token',
+      'CF-Connecting-IP',
+      'CF-IPCountry',
+      'X-Real-IP',
+      'X-Forwarded-For',
+      'True-Client-IP',
+      'Forwarded',
+    ].forEach((name) => fwd.delete(name));
+
+    // فقط relay دارای این راز می‌تواند مقصد Salad را بپذیرد. مقصد نیز از
+    // label معتبرِ hostname ورودی ساخته شده و هرگز از ورودی آزاد کاربر نیست.
+    fwd.set('X-ServerNet-Upstream', originHost);
+    fwd.set('X-ServerNet-Relay-Key', env.GPU_RELAY_SECRET);
+
     const rewriteHostIn = (name) => {
       const v = fwd.get(name);
       if (v && v.indexOf(brandedHost) !== -1) {
@@ -154,6 +300,10 @@ export default {
     };
     rewriteHostIn('Origin');
     rewriteHostIn('Referer');
+
+    // 🔴 مرزِ کوکی — بالای فایل را بخوان. پس از بررسیِ دروازه است، چون
+    //    readCookie هنوز sn_token را از request (نه از fwd) می‌خوانَد.
+    stripPanelCookies(fwd);
 
     /*
      * 🔴 redirect: 'manual' — بدونِ آن، fetchِ Worker ریدایرکت‌ها را **خودش**
@@ -165,7 +315,10 @@ export default {
      *      می‌گوید.
      * پس 3xx عیناً به مرورگرِ مشتری پاس می‌شود.
      */
-    const resp = await fetch(new Request(upstream, { headers: fwd }), { redirect: 'manual' });
+    const resp = confineResponseCookies(
+      await fetch(new Request(upstream, { headers: fwd }), { redirect: 'manual' }),
+      brandedHost
+    );
 
     /*
      * اگر برنامه Locationِ مطلق با میزبانِ زیرساخت بدهد، به دامنهٔ برندشده
@@ -175,7 +328,7 @@ export default {
     const loc = resp.headers.get('Location');
     if (loc && loc.indexOf('.salad.cloud') !== -1) {
       const out = new Response(resp.body, resp);
-      out.headers.set('Location', loc.replace(url.hostname, brandedHost));
+      out.headers.set('Location', loc.replace(originHost, brandedHost));
       return out;
     }
 

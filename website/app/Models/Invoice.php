@@ -9,6 +9,14 @@ use Illuminate\Database\UniqueConstraintViolationException;
 
 class Invoice extends Model
 {
+    public const OPEN_STATUSES = ['unpaid', 'draft', 'partial', 'overdue'];
+
+    public function scopeOutstanding($query)
+    {
+        return $query->whereIn('status', self::OPEN_STATUSES)
+            ->where(fn ($balance) => $balance->whereColumn('paid', '<', 'total')->orWhere('total', 0));
+    }
+
     protected $fillable = [
         'customer_id', 'service_id', 'domain_id', 'number', 'kind', 'currency_code',
         'subtotal', 'tax', 'total', 'paid', 'status', 'note',
@@ -18,13 +26,13 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-            'subtotal'  => 'integer',
-            'tax'       => 'integer',
-            'total'     => 'integer',
-            'paid'      => 'integer',
+            'subtotal' => 'integer',
+            'tax' => 'integer',
+            'total' => 'integer',
+            'paid' => 'integer',
             'issued_at' => 'datetime',
-            'due_at'    => 'datetime',
-            'paid_at'   => 'datetime',
+            'due_at' => 'datetime',
+            'paid_at' => 'datetime',
         ];
     }
 

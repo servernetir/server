@@ -16,7 +16,7 @@
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">
-      @foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+      @foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach
     </div>
   </div>
 @endif

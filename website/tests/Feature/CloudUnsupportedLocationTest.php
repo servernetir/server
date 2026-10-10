@@ -334,6 +334,19 @@ class CloudUnsupportedLocationTest extends TestCase
         );
     }
 
+    /** آروان با این پیام فقط همان flavor منطقه را رد کرده، نه کل حساب را. */
+    public function test_requested_plan_not_found_quarantines_only_that_plan(): void
+    {
+        $bad = $this->makePlan('ir-tehran');
+        $good = $this->makePlan('ir-shiraz');
+
+        $this->assertTrue($this->callGuard($bad, 'Requested plan not found'));
+        $this->assertTrue((bool) $bad->fresh()->admin_disabled);
+        $this->assertFalse((bool) $bad->fresh()->in_stock);
+        $this->assertFalse((bool) $good->fresh()->admin_disabled);
+        $this->assertTrue((bool) $good->fresh()->in_stock);
+    }
+
     /** خطای بی‌ربط نباید چیزی ببندد — وگرنه یک قطعیِ گذرا کاتالوگ را می‌خورد */
     public function test_an_unrelated_error_closes_nothing(): void
     {

@@ -5,6 +5,7 @@
 @section('sub', __('ui.auth_login_sub'))
 
 @section('form')
+@include('auth.google-button')
 <form method="POST" action="{{ lroute('login.start') }}" class="auth-f" id="lf">
   @csrf
   <input type="hidden" name="method" id="lmethod" value="{{ old('method', 'mobile') }}">

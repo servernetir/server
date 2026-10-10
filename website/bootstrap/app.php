@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // مدیر **یا** پشتیبان — امورِ پشتیبانی (تیکت، مشتری، تماس).
             // تا پیش از این، آن مسیرها هیچ گاردِ نقشی نداشتند.
             'staff'  => \App\Http\Middleware\EnsureStaff::class,
+            // API سرور-به‌سرورِ آغاز تیکت توسط اتوماسیون پشتیبانی.
+            'support.ticket.api' => \App\Http\Middleware\SupportTicketApiToken::class,
         ]);
         // کنسول قبل از هر چیز — تا ریدایرکت میزبان زودتر از رندر انجام شود
         $middleware->prepend(\App\Http\Middleware\ConsoleHost::class);
@@ -81,6 +83,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // APIِ مشتری با توکنِ Bearer احراز می‌شود، نه نشست/CSRF (فعلاً GET،
             // ولی برای روت‌های نوشتنیِ آینده از الان مستثنا می‌کنیم)
             'api/v1/*',
+            // نشست و CSRF ندارد؛ Authorization: Bearer جایگزین آن است.
+            'api/admin/tickets',
             // محافظش DEPLOY_TOKEN است، نه نشست؛ فرم بی‌نشست هم باید کار کند
             'system/migrate',
             // همان منطق — POSTِ توکن‌دارِ migrate/blogseed باید با curl هم اجرا شود

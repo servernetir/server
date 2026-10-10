@@ -174,19 +174,56 @@ trait SaladOperations
      *    برای همین `OLLAMA_HOST='::'` و `NOTEBOOK_ARGS='--ip=*'` این‌جا تزریق
      *    می‌شوند — همان کاری که entrypointِ دستورِ رسمی می‌کند.
      */
+    /**
+     * 🔴 مدلی که Ollama در بوت پیش‌بار می‌کند — و **بی‌آن کانتینر اصلاً بالا نمی‌آید**.
+     *
+     * `entrypoint.sh`ِ ایمیجِ `saladtechnologies/ollama` (همهٔ تگ‌ها، از ۰٫۹٫۱ تا
+     * ۰٫۲۴٫۰) اولِ کار این را دارد:
+     *
+     *     if [ -z "$OLLAMA_MODEL_NAME" ]; then … exit 1
+     *
+     * رخداد (مهر ۱۴۰۵): این متغیر به گمانِ «پیش‌بارِ اضافه» برداشته شد و از همان
+     * دیپلوی **هر** سرورِ Ollamaی تازه در حلقهٔ «بالا آمدن → exit 1 → بالا آمدن»
+     * افتاد و هرگز آماده نشد. بی‌هیچ خطایی سمتِ ما: سفارش پذیرفته، صفحه «در حالِ
+     * ساخت»، و سرورِ آزمایشی ۸۸ ساعت همان‌جا ماند.
+     *
+     * همین نام در مثالِ آمادهٔ پنل (`/api/chat`) هم می‌آید؛ یک منبع، تا مثالی که
+     * به مشتری می‌دهیم همیشه روی سرورِ تازه جواب بدهد. پیش‌بار هزینه‌ای برای
+     * مشتری ندارد: ساعت‌شمار از لحظهٔ تحویل شروع می‌شود، نه از بوت.
+     * تست: CloudSaladGpuTest::test_ollama_gets_the_model_its_entrypoint_requires
+     */
+    public const OLLAMA_PRELOAD_MODEL = 'llama3.1';
+
+    // The CUDA 12.8 Dreamshaper image mounts workflows at /workflow/txt2img.
+    // Copy them into sd1.5 as well to retain the endpoint already given to customers.
+    private const COMFYUI_LEGACY_ROUTES_COMMAND = 'set -eu; mkdir -p /workflows/sd1.5; '
+        .'for file in /workflows/txt2img.* /workflows/img2img.*; do '
+        .'if [ -f "$file" ]; then cp "$file" /workflows/sd1.5/; fi; done; '
+        .'test -f /workflows/sd1.5/txt2img.js || test -f /workflows/sd1.5/txt2img.ts; '
+        .'exec ./comfyui-api';
+
     public const APPS = [
+        /*
+        | 🔴 تنها ردیفی که `ref` سفت‌شده ندارد — تگِ تازه‌ترین نسخه در
+        | `SaladOllamaImage` را می‌خواند (چرایش در docblockِ همان کلاس).
+        | مقدارِ این‌جا فقط مخزن است و `apps()` تگ را رویش می‌نشاند.
+        |
+        | 🔴 `OLLAMA_MODEL_NAME` **اجباری** است — بالای همین ثابت را بخوان.
+        | `OLLAMA_HOST` هم حیاتی است (دروازه IPv6 است).
+        */
         'gpu-ollama' => [
-            'ref'       => 'saladtechnologies/ollama-llama3.1-recipe:1.0.0',
-            'label'     => 'Ollama — Llama 3.1 (OpenAI API)',
+            'ref'       => SaladOllamaImage::REPO,
+            'label'     => 'Ollama (OpenAI API)',
             'port'      => 11434,
-            'env'       => ['OLLAMA_MODEL_NAME' => 'llama3.1', 'OLLAMA_HOST' => '::'],
+            'env'       => ['OLLAMA_MODEL_NAME' => self::OLLAMA_PRELOAD_MODEL, 'OLLAMA_HOST' => '::'],
             'token_env' => null,
         ],
         'gpu-comfyui' => [
-            'ref'       => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+            // CUDA 12.8 includes the kernels needed by RTX 50-series (Blackwell).
+            'ref'       => 'saladtechnologies/comfyui:comfy0.3.61-api1.9.2-torch2.8.0-cuda12.8-dreamshaper8',
             'label'     => 'ComfyUI — Stable Diffusion',
             'port'      => 3000,
-            'env'       => [],
+            'env'       => ['PORT' => '3000', 'HOST' => '::'],
             'token_env' => null,
         ],
         'gpu-jupyter' => [
@@ -198,11 +235,39 @@ trait SaladOperations
         ],
     ];
 
-    /** ردیفِ برنامه از روی ایمیجِ انتخابی؛ null یعنی ایمیجِ دلخواه/ناشناخته */
+    /**
+     * فهرستِ برنامه‌ها با رفرنسِ **امروز** — تگِ Ollama زنده حل می‌شود.
+     *
+     * ⚠️ هر جا قبلاً `self::APPS` خوانده می‌شد باید این را بخواند؛ خودِ
+     * ثابت برای `gpu-ollama` فقط **نامِ مخزن** را دارد، نه یک ایمیجِ
+     * قابلِ سفارش. فرستادنِ مخزنِ بی‌تگ به زیرساخت یعنی `:latest`ی
+     * که در آن مخزن **وجود ندارد**.
+     *
+     * @return array<string,array{ref:string,label:string,port:int,env:array<string,string>,token_env:?string}>
+     */
+    public function apps(): array
+    {
+        $apps = self::APPS;
+        $apps['gpu-ollama']['ref'] = app(SaladOllamaImage::class)->ref();
+
+        return $apps;
+    }
+
+    /**
+     * ردیفِ برنامه از روی ایمیجِ انتخابی؛ null یعنی ایمیجِ دلخواه/ناشناخته.
+     *
+     * 🔴 تطبیق روی **مخزن** است نه رشتهٔ کامل. ردیفِ `cloud_images`ِ
+     * مشتری با تگِ روزِ خرید ذخیره می‌شود؛ با اولین ارتقای نسخه،
+     * مقایسهٔ دقیق دیگر نمی‌خواند و این متد نال می‌داد — یعنی نه
+     * `OLLAMA_HOST` تزریق می‌شد و نه پورتِ ۱۱۴۳۴ باز می‌شد. کانتینر بالا
+     * می‌آمد، صورت‌حساب می‌خورد، و هیچ درخواستی جواب نمی‌گرفت.
+     */
     private function appFor(string $imageRef): ?array
     {
-        foreach (self::APPS as $key => $app) {
-            if ($app['ref'] === $imageRef) {
+        $repo = SaladOllamaImage::repoOf($imageRef);
+
+        foreach ($this->apps() as $key => $app) {
+            if (SaladOllamaImage::repoOf($app['ref']) === $repo) {
                 return $app + ['key' => $key];
             }
         }
@@ -245,11 +310,48 @@ trait SaladOperations
             'longitude'         => null,
         ]];
 
+        /*
+        | تازه‌ترین نسخهٔ Ollama همین‌جا حل می‌شود — تنها نقطهٔ شبکه‌ایِ
+        | این تصمیم، و عمداً در همگام‌سازی نه در مسیرِ ساختِ سرور.
+        |
+        | ⚠️ شکستِ خواندن کاتالوگ را نمی‌خواباند: `refresh()` همان تگِ
+        | قبلی را برمی‌گرداند و خودش فریاد می‌زند.
+        */
+        $apps = $this->apps();
+        app(SaladOllamaImage::class)->refresh();
+        $apps['gpu-ollama']['ref'] = app(SaladOllamaImage::class)->ref();
+
         $priority = $this->priority();
         $plans = [];
         $skipped = 0;
+        $amd = 0;
 
         foreach ($rows as $g) {
+            /*
+            | 🔴 کارتِ AMD تا وقتی برنامهٔ سازگار نداریم فروخته نمی‌شود.
+            |
+            | هر سه برنامهٔ آماده (Ollama، ComfyUI، Jupyter) بیلدِ **CUDA**اند و
+            | مستنداتِ خودِ زیرساخت صریح است: «ایمیجِ CUDA نمی‌تواند از GPUِ AMD
+            | استفاده کند»؛ AMD ایمیجِ ROCm می‌خواهد. نتیجه روی کارتِ AMD:
+            |   Ollama     بالا می‌آید ولی روی CPU — مشتری پولِ GPU می‌دهد
+            |   ComfyUI    در لحظهٔ شروع کرش می‌کند (torch.cuda در import)
+            |   Jupyter    سالم به‌نظر می‌رسد ولی GPU ندارد — گمراه‌کننده‌ترین
+            | و هیچ خطایی سمتِ ما ثبت نمی‌شد: تحویل «موفق» بود.
+            |
+            | ⚠️ کنار گذاشتن این‌جا، نه بستنِ دستیِ پنج ردیف: کلاسِ AMDِ تازه‌ای که
+            |    زیرساخت فردا اضافه کند هم خودبه‌خود بیرون می‌ماند. و چون
+            |    syncPlans ردیفِ دیده‌نشده را غیرفعال می‌کند، پلن‌های موجود هم با
+            |    همین سینک از فروشگاه بیرون می‌روند — سرویس‌های در حالِ کار دست
+            |    نمی‌خورند.
+            |
+            | اسپکِ کلاسِ GPU فیلدِ vendor ندارد؛ تنها نشانه نام است («AMD RX …»).
+            */
+            if (self::isAmdGpuClass((string) ($g['name'] ?? ''))) {
+                $amd++;
+
+                continue;
+            }
+
             $plan = $this->planFromGpuClass($g, $priority);
 
             if ($plan === null) {
@@ -269,7 +371,10 @@ trait SaladOperations
             'ok'      => true,
             // ⚠️ ردیفِ کنارگذاشته‌شده **شمرده و اعلام** می‌شود. سکوت این‌جا یعنی
             // کارتی که قیمتش را نفهمیدیم بی‌صدا از فروشگاه غایب بماند.
-            'message' => $skipped > 0 ? fa_num((string) $skipped).' کلاسِ GPU به‌خاطرِ دادهٔ ناقص کنار گذاشته شد.' : '',
+            'message' => trim(
+                ($skipped > 0 ? fa_num((string) $skipped).' کلاسِ GPU به‌خاطرِ دادهٔ ناقص کنار گذاشته شد. ' : '')
+                .($amd > 0 ? fa_num((string) $amd).' کلاسِ AMD کنار گذاشته شد (برنامه‌های آماده فقط CUDA هستند).' : '')
+            ),
             'locations' => $locations,
             'plans'     => $plans,
             'images'    => array_map(
@@ -282,8 +387,8 @@ trait SaladOperations
                     'label'        => $a['label'],
                     'arch'         => 'x86',
                 ],
-                array_keys(self::APPS),
-                array_values(self::APPS),
+                array_keys($apps),
+                array_values($apps),
             ),
         ];
     }
@@ -293,6 +398,17 @@ trait SaladOperations
      *
      * ⚠️ مشخصاتِ ناقص **رد** می‌شود نه ذخیره با صفر — قاعدهٔ ثبت‌شدهٔ همین حوزه.
      */
+    /**
+     * آیا این کلاسِ GPU کارتِ AMD است؟ اسپک vendor ندارد؛ نام تنها نشانه است.
+     *
+     * ⚠️ روی واژهٔ کامل می‌سنجد: «AMD»/«Radeon» به‌عنوانِ کلمه، نه زیررشته —
+     *    تا نامی که تصادفاً «amd» در دلِ خود دارد بی‌صدا کنار نرود.
+     */
+    public static function isAmdGpuClass(string $name): bool
+    {
+        return preg_match('/\b(AMD|Radeon)\b/i', $name) === 1;
+    }
+
     private function planFromGpuClass(array $g, string $priority): ?array
     {
         $name = trim((string) ($g['name'] ?? ''));
@@ -454,6 +570,15 @@ trait SaladOperations
             return $fail('پلنِ خواسته‌شده در کاتالوگ نیست.');
         }
 
+        // Reject explicitly selected legacy ComfyUI builds before allocating a
+        // paid Blackwell GPU. Their warmup fails with "no kernel image".
+        if (str_starts_with($image, 'saladtechnologies/comfyui:')
+            && preg_match('/\bRTX\s*50\d{2}\b/i', (string) $plan->gpu_model)
+            && preg_match('/-cuda(\d+\.\d+)(?:-|$)/', $image, $cuda)
+            && version_compare($cuda[1], '12.8', '<')) {
+            return $fail('این نسخهٔ ComfyUI با کارت RTX سری ۵۰ سازگار نیست؛ ایمیج CUDA 12.8 یا جدیدتر انتخاب کنید.');
+        }
+
         $env = $app !== null ? $app['env'] : [];
         $keys = array_values(array_filter((array) ($spec['ssh_keys'] ?? [])));
 
@@ -501,6 +626,10 @@ trait SaladOperations
             ],
         ];
 
+        if ($image === self::APPS['gpu-comfyui']['ref']) {
+            $body['container']['command'] = ['/bin/sh', '-c', self::COMFYUI_LEGACY_ROUTES_COMMAND];
+        }
+
         /*
         | 🔴 بدونِ این بلوک هیچ نشانی‌ای ساخته نمی‌شود: کانتینر بالا می‌آید،
         |    GPU مصرف می‌کند، و مشتری هیچ راهی به آن ندارد — با تحویلِ «موفق».
@@ -517,6 +646,21 @@ trait SaladOperations
 
         if ($env !== []) {
             $body['container']['environment_variables'] = $env;
+        }
+
+        // Use HTTP probes for ComfyUI; the current create API caps failures at 20.
+        // A running process can still be loading the checkpoint and warming up.
+        if (($app['key'] ?? null) === 'gpu-comfyui') {
+            $body['readiness_probe'] = [
+                'http' => ['path' => '/ready', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 0, 'period_seconds' => 2, 'timeout_seconds' => 2,
+                'success_threshold' => 1, 'failure_threshold' => 3,
+            ];
+            $body['startup_probe'] = [
+                'http' => ['path' => '/health', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 5, 'period_seconds' => 5, 'timeout_seconds' => 10,
+                'success_threshold' => 1, 'failure_threshold' => 20,
+            ];
         }
 
         $r = $this->req('POST', $this->proj(), $body);
@@ -545,6 +689,54 @@ trait SaladOperations
     }
 
     /**
+     * 🔴 تعمیرِ سرورِ Ollamaای که بی‌`OLLAMA_MODEL_NAME` ساخته شد (مهر ۱۴۰۵).
+     *
+     * آن سرورها در حلقهٔ ری‌استارت‌اند و دیپلویِ کدِ درست نجاتشان نمی‌دهد، چون
+     * env فقط لحظهٔ ساخت فرستاده می‌شود. این متد همان گروه را درجا PATCH می‌کند —
+     * نه حذف و ساختِ دوباره (که نامِ دروازه و توکنِ مشتری را عوض می‌کرد).
+     *
+     * ⚠️ PATCHِ این زیرساخت `environment_variables` را **جایگزین** می‌کند، ادغام
+     *    نمی‌کند. فرستادنِ تنها همان یک کلید `OLLAMA_HOST` را پاک می‌کرد و سرور
+     *    این‌بار بالا می‌آمد ولی پشتِ دروازهٔ IPv6 بی‌صدا جواب نمی‌داد. پس کلِ نقشه
+     *    فرستاده می‌شود: پیش‌فرض‌های برنامه، روی آن env فعلیِ گروه، روی آن مدل.
+     * ⚠️ فقط ایمیجِ Ollama و فقط اگر مدل خالی باشد؛ هیچ‌چیز خریده نمی‌شود.
+     *
+     * @return array{ok:bool,changed:bool,message:string}
+     */
+    public function ensureOllamaModelEnv(string $ref, bool $dryRun = false): array
+    {
+        $r = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
+
+        if (! $r['ok']) {
+            return ['ok' => false, 'changed' => false, 'message' => $r['message']];
+        }
+
+        $app = $this->appFor((string) data_get($r['body'], 'container.image', ''));
+
+        if (($app['key'] ?? null) !== 'gpu-ollama') {
+            return ['ok' => true, 'changed' => false, 'message' => 'ایمیجِ Ollama نیست.'];
+        }
+
+        $current = (array) data_get($r['body'], 'container.environment_variables', []);
+
+        if (filled($current['OLLAMA_MODEL_NAME'] ?? null)) {
+            return ['ok' => true, 'changed' => false, 'message' => 'مدل از قبل تنظیم است.'];
+        }
+
+        if ($dryRun) {
+            return ['ok' => true, 'changed' => false, 'message' => 'نیازمندِ تعمیر (اجرای آزمایشی).'];
+        }
+
+        $env = array_merge($app['env'], $current, ['OLLAMA_MODEL_NAME' => self::OLLAMA_PRELOAD_MODEL]);
+
+        $p = $this->req('PATCH', $this->proj('/'.rawurlencode($ref)), [
+            'container' => ['environment_variables' => $env],
+        ]);
+
+        return ['ok' => $p['ok'], 'changed' => $p['ok'], 'message' => $p['message']];
+    }
+
+    /**
      * وضعیتِ زنده + IP و پورتِ SSH از **نمونه**، نه از گروه.
      *
      * ⚠️ گروه فقط وضعیتِ کلی دارد؛ نشانیِ واقعی روی نمونه است و تا وقتی گره
@@ -565,6 +757,12 @@ trait SaladOperations
         $ip = null;
         $nodeState = null;
         $nodePct = null;
+        $ready = false;
+
+        if ($status === 'running' && ! $inst['ok']) {
+            return ['ok' => false, 'message' => $inst['message'], 'status' => 'unknown',
+                'ipv4' => null, 'ipv6' => null, 'traffic_used_gb' => null];
+        }
 
         if ($inst['ok']) {
             foreach ($this->items($inst['body']) as $i) {
@@ -583,12 +781,25 @@ trait SaladOperations
                     }
                 }
 
-                if (filled($i['ssh_ip'] ?? null)) {
-                    $ip = (string) $i['ssh_ip'];
+                $nodeReady = strtolower((string) ($i['state'] ?? '')) === 'running'
+                    && ($i['started'] ?? false) === true && ($i['ready'] ?? false) === true;
 
-                    break;
+                if (filled($i['ssh_ip'] ?? null) && ($ip === null || $nodeReady)) {
+                    $ip = (string) $i['ssh_ip'];
                 }
+
+                $ready = $ready || $nodeReady;
             }
+        }
+
+        // Group "running" only means deployment finished, not that traffic is safe.
+        if ($status === 'running' && ! $ready) {
+            $status = 'building';
+            if ($nodeState === 'running') {
+                $nodeState = 'starting';
+            }
+        } elseif ($status === 'running') {
+            $nodeState = 'running';
         }
 
         return [

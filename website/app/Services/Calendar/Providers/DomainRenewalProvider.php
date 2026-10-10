@@ -31,7 +31,7 @@ class DomainRenewalProvider implements CalendarEventProvider
         return Domain::query()
             ->alive()
             ->whereNotNull('expires_at')
-            ->whereBetween('expires_at', [$from, $to])
+            ->whereBetween('expires_at', [$from->copy()->utc(), $to->copy()->utc()])
             ->orderBy('expires_at')
             ->limit($this->rowCap())
             ->get()
@@ -44,9 +44,9 @@ class DomainRenewalProvider implements CalendarEventProvider
                 at: $domain->expires_at,
                 status: 'pending',
                 meta: [
-                    'domain_id'   => $domain->id,
+                    'domain_id' => $domain->id,
                     'customer_id' => $domain->customer_id,
-                    'auto_renew'  => (bool) $domain->auto_renew,
+                    'auto_renew' => (bool) $domain->auto_renew,
                     // مبلغِ **فروش** است نه بهایِ تمام‌شده — `cost_amount` در
                     // `$hidden` مدل است و نباید از هیچ راهی به JSON برسد.
                     'renew_toman' => (int) ($domain->renew_toman ?? 0),

@@ -1,5 +1,5 @@
 @extends('panel.layout')
-@section('title', __('ui.chk_title', ['name' => $product->name]))
+@section('title', __('ui.chk_title', ['name' => $product->displayName()]))
 
 @section('panel')
 
@@ -16,7 +16,7 @@
 </div>
 
 @if($errors->any())
-  <div class="pnl-sec" style="border-color:var(--danger-line)"><div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div></div>
+  <div class="pnl-sec" style="border-color:var(--danger-line)"><div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">@foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach</div></div>
 @endif
 
 @php
@@ -48,13 +48,13 @@
 <div class="co-wrap">
   {{-- خلاصهٔ پکیج --}}
   <section class="pnl-sec co-summary">
-    <div class="pnl-sec-h"><h2>{{ $product->name }}</h2></div>
+    <div class="pnl-sec-h"><h2>{{ $product->displayName() }}</h2></div>
     <div class="pnl-sec-b">
-      @if($product->description)<p class="co-desc">{{ $product->description }}</p>@endif
+      @if($product->description)<p class="co-desc">{{ \App\Support\PanelText::text($product->description) }}</p>@endif
       @if(!empty($product->specs))
         <ul class="co-specs">
           @foreach($product->specs as $spec)
-            <li><svg class="icon"><use href="#i-check"/></svg><span>{{ $spec['label'] }}@if(!empty($spec['value'])): <b>{{ $spec['value'] }}</b>@endif</span></li>
+            <li><svg class="icon"><use href="#i-check"/></svg><span>{{ \App\Support\PanelText::text($spec['label']) }}@if(!empty($spec['value'])): <b>{{ \App\Support\PanelText::text($spec['value']) }}</b>@endif</span></li>
           @endforeach
         </ul>
       @endif
@@ -69,7 +69,7 @@
       @if($setupFee > 0)
         <div class="co-price-row"><span>{{ __('ui.chk_setup_fee') }}</span><b class="pnl-num">{{ cloud_price($setupFee) }}</b></div>
       @endif
-      <div class="co-price-row"><span>{{ __('ui.chk_vat') }}</span><b class="pnl-num">{{ fa_num($product->tax_percent) }}٪</b></div>
+      <div class="co-price-row"><span>{{ __('ui.chk_vat') }}</span><b class="pnl-num">{{ fa_num($product->tax_percent) }}{{ __('ui.cs_js_pct') }}</b></div>
       <div class="co-price-row co-total"><span>{{ __('ui.chk_pay_now') }}</span><b class="pnl-num" id="sum-first">{{ cloud_price($initial['first']) }}</b></div>
       <p class="co-note" id="sum-renew">{!! __('ui.chk_renew_note', ['cycle' => '<span>'.e(\App\Models\Service::labelFor($defCycle)).'</span>']) !!}</p>
     </div>
@@ -97,8 +97,8 @@
                      آرایه همان کدِ دوحرفیِ کشور است — پس همان جدولِ پرچمِ خودمیزبان. --}}
                 <span class="co-flag">@include('partials.flag', ['flagSrc' => \App\Models\CloudLocation::flagSvgFor($cc), 'flagEmoji' => $loc['flag'] ?? '🌐', 'flagSize' => 24])</span>
                 <span class="co-tt">
-                  <b>{{ $loc['label']['fa'] ?? $cc }}@if(!empty($loc['city']['fa'])) — {{ $loc['city']['fa'] }}@endif</b>
-                  <small>{{ $loc['note']['fa'] ?? '' }}</small>
+                  <b>{{ \App\Support\PanelText::text(lc($loc['label'] ?? []) ?: $cc) }}@if(filled(lc($loc['city'] ?? []))) — {{ \App\Support\PanelText::text(lc($loc['city'] ?? [])) }}@endif</b>
+                  <small>{{ \App\Support\PanelText::text(lc($loc['note'] ?? [])) }}</small>
                 </span>
               </label>
             @endforeach
@@ -116,7 +116,7 @@
               <span class="co-cyc-p" data-p>{{ cloud_price($row['cycle'] ?? 0) }}</span>
               <span class="co-cyc-m" data-m>{{ __('ui.chk_per_month') }} {{ cloud_price($row['per'] ?? 0) }}</span>
               @if(($row['save'] ?? 0) > 0)
-                <span class="co-cyc-save">{{ fa_num($row['save']) }}٪ {{ __('ui.chk_cheaper') }}</span>
+                <span class="co-cyc-save">{{ fa_num($row['save']) }}{{ __('ui.cs_js_pct') }} {{ __('ui.chk_cheaper') }}</span>
               @endif
             </label>
           @endforeach

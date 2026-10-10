@@ -26,10 +26,13 @@ use Tests\TestCase;
 class DomainRegisterTruthTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'test@example.com');
         config()->set('services.openprovider.password', 'secret');
@@ -39,7 +42,7 @@ class DomainRegisterTruthTest extends TestCase
     private function fake(array $stubs): void
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
-        Http::fake(array_merge(['*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']])], $stubs));
+        Http::fake(array_merge($this->supplierPriceStubs(), ['*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']])], $stubs));
     }
 
     private function ok(array $data = [])
@@ -157,6 +160,7 @@ class DomainRegisterTruthTest extends TestCase
     public function test_a_missing_expiry_stays_null_instead_of_being_invented(): void
     {
         $d = $this->domain();
+        $this->paidDomainInvoice($d);
 
         $this->fake([
             '*/customers*'    => $this->ok(['handle' => 'AB123-NL']),

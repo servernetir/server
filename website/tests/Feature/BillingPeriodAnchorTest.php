@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Service;
 use App\Services\Payment\PaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,7 +49,7 @@ class BillingPeriodAnchorTest extends TestCase
             'currency_code' => 'IRT', 'subtotal' => 250000, 'tax' => 0, 'total' => 250000,
             'paid' => 0, 'status' => 'unpaid', 'issued_at' => now(),
         ]);
-        $payment = \App\Models\Payment::create([
+        $payment = Payment::create([
             'invoice_id' => $invoice->id, 'customer_id' => $customer->id, 'gateway' => 'bale',
             'currency_code' => 'IRT', 'amount' => 250000, 'status' => 'redirected', 'external_ref' => 'X',
         ]);
@@ -83,12 +84,12 @@ class BillingPeriodAnchorTest extends TestCase
     }
 
     /** سرویسِ خیلی عقب‌افتاده باید به آینده برسد، نه در گذشته بماند */
-    public function test_long_overdue_service_catches_up_to_the_future(): void
+    public function test_one_payment_extends_a_continuously_active_service_by_one_period(): void
     {
         Carbon::setTestNow('2026-06-01 10:00:00');
         $service = $this->paidService('monthly', Carbon::parse('2026-01-10'));
 
-        $this->assertTrue($service->next_due_at->isFuture(), 'سررسید باید در آینده باشد');
+        $this->assertSame('2026-02-10', $service->next_due_at->toDateString());
         // روزِ دوره (۱۰) حفظ می‌شود
         $this->assertSame(10, $service->next_due_at->day);
         Carbon::setTestNow();

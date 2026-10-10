@@ -12,14 +12,14 @@
 
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">
-      @foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+      @foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach
     </div>
   </div>
 @endif
@@ -32,7 +32,7 @@
   <div class="pnl-sec-h">
     <span class="bank-head">
       @include('panel.bank-mark', ['bank' => $a->bank()])
-      <h2>{{ $a->bankLabel() }}</h2>
+      <h2>{{ \App\Support\PanelText::bank($a->bankLabel()) }}</h2>
     </span>
     <span style="display:flex;gap:6px;align-items:center">
       @if($a->is_default)<span class="pnl-pill info" style="font-size:10px">{{ __('ui.pnl_default') }}</span>@endif

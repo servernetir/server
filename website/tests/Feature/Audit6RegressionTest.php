@@ -140,7 +140,6 @@ class Audit6RegressionTest extends TestCase
         $this->assertSame(4, substr_count($html, 'type="radio" name="cycle"'));
         $this->assertMatchesRegularExpression('~data-href="[^"]*/go/pay\?[^"]*sku=wp-test-1[^"]*cycle=yearly~', $html);
         $this->assertStringNotContainsString('sig=', $html, 'امضا در /go/pay ساخته می‌شود، نه در صفحهٔ کش‌شده');
-        $this->assertStringNotContainsString('price=', $html);
         /*
         | ⚠️ ادعا روی **لینک‌های رندرشده** است، نه روی کلِ سند.
         |
@@ -157,6 +156,8 @@ class Audit6RegressionTest extends TestCase
         $this->assertNotEmpty($hrefs[1], 'هیچ لینکی در صفحه نیست — پیش‌فرضِ این ادعا عوض شده');
 
         foreach ($hrefs[1] as $href) {
+            parse_str(parse_url(html_entity_decode($href), PHP_URL_QUERY) ?? '', $query);
+            $this->assertArrayNotHasKey('price', $query, 'قیمت نباید از لینکِ مشتری پذیرفته شود');
             $this->assertStringNotContainsString('sid=', $href,
                 'sid را مرورگر می‌سازد — این لینک با صفحه کش می‌شود: '.$href);
         }

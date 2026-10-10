@@ -233,4 +233,44 @@ class GpuStoreSeparationTest extends TestCase
         $this->assertMatchesRegularExpression(
             '~name="image" value="gpu-ollama"[^>]*checked~', $html);
     }
+
+    /**
+     * 🔴 صفحهٔ خرید نباید چیزی را وعده دهد که این خط ندارد.
+     *
+     * ═══ رخداد (۲ مهر ۱۴۰۵، تیکت TK-260924-8595) ═══
+     * مشتری RTX 3090 خرید تا ComfyUI را با نودهای سفارشی خودش بالا بیاورد و
+     * عیناً همین جمله را نقل کرد: «پس از تحویل می‌توانید از پنل، سیستم‌عامل را
+     * عوض کنید». روی این خط نه SSH هست نه نصبِ دوباره
+     * (`SaladClient::capabilities()` ← `rebuild:false`). حق با او بود و وجهش برگشت.
+     *
+     * ⚠️ سومین نمونهٔ یک الگو: چیپِ S3 روی هاست بکاپ، وعدهٔ رمزِ root در
+     * ایمیلِ تحویل، و این. مشخصاتِ صفحهٔ محصول یک تعهدِ فروش است.
+     */
+    public function test_the_gpu_store_never_promises_an_os_reinstall(): void
+    {
+        $this->bothLines();
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(__('ui.cvb_os_note'), $html,
+            'فروشگاهِ GPU دوباره وعدهٔ تغییرِ سیستم‌عامل می‌دهد — همان جمله‌ای که وجهِ یک مشتری را برگرداند.');
+        $this->assertStringContainsString(__('ui.cvb_gpu_access_note'), $html,
+            'به‌جای آن باید صریح بگوید دسترسی از راهِ نشانی و توکن است.');
+    }
+
+    /**
+     * ⚠️ نیمهٔ دیگر: سرورِ مجازی واقعاً نصبِ دوباره دارد؛ فیکسی که آن را
+     * هم خاموش کند، یک قابلیتِ واقعی را از مشتری پنهان می‌کند.
+     */
+    public function test_the_vps_store_keeps_the_os_reinstall_note(): void
+    {
+        $this->bothLines();
+
+        $html = (string) $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+
+        $this->assertStringContainsString(__('ui.cvb_os_note'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_gpu_access_note'), $html);
+    }
 }

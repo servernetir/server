@@ -50,11 +50,12 @@ class CloudArvanTest extends TestCase
         $images = $over['images'] ?? [[
             'name' => 'Ubuntu',
             'images' => [
-                ['id' => 'img-ubuntu-2204', 'name' => 'Ubuntu 22.04', 'distribution_name' => 'ubuntu', 'disk' => 10],
+                ['id' => 'img-ubuntu-2204', 'name' => 'Ubuntu 22.04', 'distribution_name' => 'ubuntu', 'disk' => 10, 'ram' => 2048],
             ],
         ]];
+        $imagesByRegion = $over['images_by_region'] ?? [];
 
-        Http::fake(function ($request) use ($regions, $sizes, $images) {
+        Http::fake(function ($request) use ($regions, $sizes, $images, $imagesByRegion) {
             $url = $request->url();
 
             // فهرستِ مناطق: چند مسیرِ کاندید ممکن است امتحان شود؛ به کاندیدِ
@@ -67,6 +68,12 @@ class CloudArvanTest extends TestCase
                 return Http::response(['data' => $sizes], 200);
             }
             if (str_contains($url, '/images')) {
+                foreach ($imagesByRegion as $region => $regionalImages) {
+                    if (str_contains($url, '/regions/'.$region.'/')) {
+                        return Http::response(['data' => $regionalImages], 200);
+                    }
+                }
+
                 return Http::response(['data' => $images], 200);
             }
             if (str_contains($url, '/networks')) {
@@ -183,6 +190,35 @@ class CloudArvanTest extends TestCase
         // کلیدِ یکسان‌شده، نه شناسهٔ آروان
         $this->assertSame('ubuntu-22.04', $img['key']);
         $this->assertSame('img-ubuntu-2204', $img['provider_ref']);
+        $this->assertSame(2048, $img['min_ram_mb']);
+    }
+
+    public function test_sync_uses_the_strictest_ram_requirement_across_regions(): void
+    {
+        $this->fakeArvan(['regions' => [
+            ['code' => 'ir-thr-c2', 'country' => 'IR', 'dc' => 'Tehran', 'create' => true, 'visible' => true],
+            ['code' => 'ir-tbz-sh1', 'country' => 'IR', 'dc' => 'Tabriz', 'create' => true, 'visible' => true],
+        ], 'images_by_region' => [
+            'ir-thr-c2' => [[
+                'name' => 'Windows', 'images' => [[
+                    'id' => 'win-2025-thr', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 0,
+                ]],
+            ]],
+            'ir-tbz-sh1' => [[
+                'name' => 'Windows', 'images' => [[
+                    'id' => 'win-2025-tbz', 'name' => '2025', 'distribution_name' => 'windows', 'ram' => 2048,
+                ]],
+            ]],
+        ]]);
+
+        app(CloudCatalogSync::class)->sync('arvan');
+
+        $this->assertNotEmpty(\App\Models\CloudImage::where('provider', 'arvan')->where('key', '2025')->get());
+        $this->assertSame(
+            [2048],
+            \App\Models\CloudImage::where('provider', 'arvan')->where('key', '2025')
+                ->pluck('min_ram_mb')->unique()->values()->all()
+        );
     }
 
     /** پلنی که فقط قیمتِ ساعتی دارد (ابرکِ اقتصادی) باید از ساعتی ماهانه بسازد و بیاید */
@@ -355,6 +391,76 @@ class CloudArvanTest extends TestCase
         $this->assertSame([['name' => 'sg-1']], $body['security_groups']);
     }
 
+    public function test_stale_regional_flavor_is_replaced_only_by_an_exact_live_match(): void
+    {
+        $body = null;
+        Http::fake(function ($request) use (&$body) {
+            $url = $request->url();
+
+            if (str_contains($url, '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'fresh-id', 'cpu_count' => 2, 'memory' => 4,
+                    'disk' => 20, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
+            }
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'default' => true]]], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                $body = $request->data();
+
+                return Http::response(['data' => ['id' => 'srv-1', 'status' => 'building']], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-228', 'plan_ref' => 'stale-id',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 20,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertTrue($r['ok'], $r['message']);
+        $this->assertSame('fresh-id', $body['flavor_id']);
+    }
+
+    public function test_stale_regional_flavor_fails_closed_when_no_exact_match_exists(): void
+    {
+        $posts = 0;
+        Http::fake(function ($request) use (&$posts) {
+            if (str_contains($request->url(), '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'almost-but-larger', 'cpu_count' => 4, 'memory' => 4,
+                    'disk' => 20, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if ($request->method() === 'POST') {
+                $posts++;
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-228', 'plan_ref' => 'stale-id',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 20,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertFalse($r['ok']);
+        $this->assertSame(0, $posts, 'نباید با flavor حدسی خرید انجام شود');
+        $this->assertStringContainsString('هم‌مشخصات', $r['message']);
+    }
+
     /** نامِ تکراری → همان سرورِ موجود (idempotency)، نه سرورِ دوم */
     public function test_duplicate_name_returns_existing_server(): void
     {
@@ -390,6 +496,47 @@ class CloudArvanTest extends TestCase
         $this->assertSame('ir-thr-c2:srv-existing', $r['ref']);
     }
 
+    public function test_create_transport_failure_is_explicitly_retryable(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+
+            if (str_contains($url, '/sizes')) {
+                return Http::response(['data' => [[
+                    'id' => 'g2-2-4-25', 'cpu_count' => 2, 'memory' => 4,
+                    'disk' => 25, 'cpu_share' => 'general',
+                ]]], 200);
+            }
+            if (str_contains($url, '/networks')) {
+                return Http::response(['data' => [['network_id' => 'net-1', 'enable_gateway' => true]]], 200);
+            }
+            if (str_contains($url, '/securities')) {
+                return Http::response(['data' => [['id' => 'sg-1', 'default' => true]]], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($url, '/servers') && $request->method() === 'POST') {
+                throw new \Illuminate\Http\Client\ConnectionException('timed out');
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $r = app(ArvanClient::class)->createServer([
+            'name' => 'sn-svc-239', 'plan_ref' => 'g2-2-4-25',
+            'location_ref' => 'ir-thr-c2', 'image_ref' => 'img-1',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 25,
+            'cpu_kind' => 'shared', 'ssh_keys' => [],
+        ]);
+
+        $this->assertFalse($r['ok']);
+        $this->assertTrue($r['transient']);
+        $this->assertSame(0, $r['raw']['status']);
+    }
+
     public function test_power_off_uses_region_path(): void
     {
         Setting::putSecret('arvan_api_token', 'Apikey k');
@@ -421,6 +568,36 @@ class CloudArvanTest extends TestCase
     {
         $this->assertArrayHasKey('arvan', CloudManager::DRIVERS);
         $this->assertInstanceOf(ArvanClient::class, app(CloudManager::class)->driver('arvan'));
+    }
+
+    public function test_arvan_console_returns_only_an_official_https_novnc_url(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fake([
+            'napi.arvancloud.ir/*' => Http::response([
+                'data' => ['url' => 'https://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html?token=short-lived'],
+            ]),
+        ]);
+
+        $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
+
+        $this->assertTrue($r['ok']);
+        $this->assertSame('wss://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html/websockify?token=short-lived', $r['url']);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/ecc/v1/regions/ir-thr-c2/servers/srv-9/vnc'));
+    }
+
+    public function test_arvan_console_rejects_an_untrusted_redirect_url(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fake(['napi.arvancloud.ir/*' => Http::response([
+            'data' => ['url' => 'https://arvaniaas.ir.attacker.example/steal'],
+        ])]);
+
+        $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertNull($r['url']);
     }
 
     public function test_full_sync_creates_iranian_plans(): void

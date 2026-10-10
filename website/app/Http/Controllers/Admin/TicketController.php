@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
+use App\Models\Customer;
 use App\Models\User;
 use App\Services\Ticket\AttachmentService;
+use App\Services\Ticket\StaffTicketCreator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -76,6 +78,11 @@ class TicketController extends Controller
             });
         }
 
+        $pickedIds = (array) $request->session()->getOldInput('customer_ids', []);
+        if ($pickedIds === [] && $request->integer('customer') > 0) {
+            $pickedIds = [$request->integer('customer')];
+        }
+
         return view('admin.tickets', [
             'tickets'  => $query->paginate(20)->withQueryString(),
             'filter'   => $filter,
@@ -92,7 +99,56 @@ class TicketController extends Controller
                 ->pluck('c', 'status')->all())
                 + array_fill_keys(array_keys(Ticket::STATUSES), 0),
             'sort' => $sort,
+            'selectedCustomers' => Customer::whereIn('id', array_map('intval', $pickedIds))->get(),
+            'ticketApiEnabled' => filled(config('services.support_ticket_api.token')),
         ]);
+    }
+
+    /** آغاز یک تیکت از طرف تیم برای یک یا چند مشتری انتخاب‌شده. */
+    public function store(Request $request, StaffTicketCreator $creator): RedirectResponse
+    {
+        $data = $request->validate([
+            'customer_ids'   => ['required', 'array', 'min:1', 'max:200'],
+            'customer_ids.*' => ['required', 'integer', 'distinct', 'exists:customers,id'],
+            'subject'        => ['required', 'string', 'max:200'],
+            'department'     => ['required', 'in:technical,billing,sales'],
+            'priority'       => ['required', 'in:low,normal,high,urgent'],
+            'body'           => ['required', 'string', 'max:'.self::MAX_BODY],
+        ], [], ['customer_ids' => 'مشتریان', 'subject' => 'موضوع', 'body' => 'پیام']);
+
+        $ids = array_values(array_unique(array_map('intval', $data['customer_ids'])));
+        $customers = Customer::whereIn('id', $ids)->orderBy('id')->get();
+
+        // exists روی تک‌تک اعضا اجرا شده؛ این بررسی در برابر حذف هم‌زمان مشتری
+        // بین validate و create است و از ارسال نصفه جلوگیری می‌کند.
+        if ($customers->count() !== count($ids)) {
+            return back()->withErrors('یک یا چند مشتری دیگر موجود نیستند؛ هیچ تیکتی ساخته نشد.')->withInput();
+        }
+
+        $tickets = $creator->create(
+            $customers,
+            $data['subject'],
+            $data['department'],
+            $data['priority'],
+            $data['body'],
+            $request->user(),
+        );
+
+        \App\Models\ActivityLog::record(
+            null,
+            'ticket',
+            'آغاز تیکت توسط پشتیبانی برای '.$tickets->count().' مشتری: '.$data['subject'],
+            $request,
+            'staff'
+        );
+
+        if ($tickets->count() === 1) {
+            return redirect('/admin/tickets/'.$tickets->first()->id)
+                ->with('ok', 'تیکت برای مشتری ساخته و اعلان آن ارسال شد.');
+        }
+
+        return redirect('/admin/tickets?status=answered')
+            ->with('ok', fa_num((string) $tickets->count()).' تیکت برای مشتریان ساخته و اعلان‌ها ارسال شد.');
     }
 
     public function show(Request $request, Ticket $ticket): View

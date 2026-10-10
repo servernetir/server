@@ -74,7 +74,7 @@ class ArvanClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            'console' => false,          // کنسولِ تحتِ وب در API عمومی نیست
+            'console' => true,           // GET /regions/{region}/servers/{id}/vnc
             'rebuild' => true,
             'resize' => true,           // change-flavor
             'snapshot' => true,
@@ -570,6 +570,10 @@ class ArvanClient implements CloudProvider
                     'label' => $label,
                     'arch' => 'x86',
                     'min_disk_gb' => (int) ($img['disk'] ?? $img['min_disk'] ?? 0),
+                    // آروان حداقل RAM هر ایمیج را بر حسب MB می‌دهد. نادیده‌گرفتن
+                    // این فیلد باعث شد Windows 2025 روی پلن 1GB فروخته شود و
+                    // تازه پس از پرداخت با خطای OS requirements رد شود.
+                    'min_ram_mb' => (int) ($img['ram'] ?? $img['min_ram'] ?? 0),
                 ];
             }
         }
@@ -873,6 +877,13 @@ class ArvanClient implements CloudProvider
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
 
         $region = (string) $spec['location_ref'];
+        $flavorId = $this->flavorForRegion($region, (string) $spec['plan_ref'], $spec);
+
+        if ($flavorId === null) {
+            return ['ok' => false,
+                'message' => 'پلنِ سفارش‌شده دیگر در این منطقه عرضه نمی‌شود و جایگزینِ کاملاً هم‌مشخصات پیدا نشد؛ کاتالوگ باید همگام شود.'] + $fail;
+        }
+
         $networkId = $this->publicNetworkId($region);
 
         if ($networkId === null) {
@@ -903,7 +914,7 @@ class ArvanClient implements CloudProvider
 
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
             'name' => $spec['name'],
-            'flavor_id' => (string) $spec['plan_ref'],
+            'flavor_id' => $flavorId,
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
             'image_id' => $this->imageForRegion($region, (string) $spec['image_ref']),
             'network_ids' => [$networkId],
@@ -920,7 +931,17 @@ class ArvanClient implements CloudProvider
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message'],
-                'raw' => ['detail' => (string) ($r['raw'] ?? '')]] + $fail;
+                // status=0 یعنی اصلاً پاسخ HTTP نگرفتیم؛ 429/5xx نیز خرابیِ
+                // گذرای مسیر/زیرساخت‌اند. این علامت به هماهنگ‌کننده می‌گوید
+                // سفارشِ پرداخت‌شده را در صف نگه دارد، نه اینکه failed کند و
+                // برای همیشه منتظرِ کلیکِ مدیر بماند.
+                'transient' => (int) ($r['status'] ?? 0) === 0
+                    || (int) ($r['status'] ?? 0) === 429
+                    || (int) ($r['status'] ?? 0) >= 500,
+                'raw' => [
+                    'status' => (int) ($r['status'] ?? 0),
+                    'detail' => (string) ($r['raw'] ?? ''),
+                ]] + $fail;
         }
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد
@@ -931,6 +952,65 @@ class ArvanClient implements CloudProvider
         $out['root_password'] = $server['password'] ?? null;
 
         return $out;
+    }
+
+    /**
+     * شناسهٔ flavor آروان per-region و ناپایدار است. ممکن است مشتری با ردیفی
+     * سفارش بدهد که تا زمان پرداخت، آروان همان مشخصات را با ID تازه منتشر کرده
+     * باشد. پیش از هر خرید، ID را با sizes زنده می‌سنجیم و فقط جایگزینی را
+     * می‌پذیریم که هسته، رم، دیسک و نوع CPU آن دقیقاً برابر باشد.
+     *
+     * اگر مشخصات همراه درخواست نباشد (فراخوان‌های قدیمی/ابزارهای داخلی)، رفتار
+     * سازگار قبلی حفظ می‌شود؛ مسیر تولید همیشه مشخصات را می‌فرستد.
+     *
+     * @param  array<string,mixed>  $spec
+     */
+    private function flavorForRegion(string $region, string $requested, array $spec): ?string
+    {
+        $vcpu = (int) ($spec['vcpu'] ?? 0);
+        $ram = (int) ($spec['ram_mb'] ?? 0);
+        $disk = (int) ($spec['disk_gb'] ?? 0);
+
+        if ($vcpu < 1 || $ram < 1 || $disk < 1) {
+            return $requested !== '' ? $requested : null;
+        }
+
+        $sizes = array_values(array_filter($this->regionSizes($region), 'is_array'));
+
+        foreach ($sizes as $size) {
+            if ((string) ($size['id'] ?? '') === $requested) {
+                return $requested;
+            }
+        }
+
+        $wantedKind = ($spec['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
+        $matches = [];
+
+        foreach ($sizes as $size) {
+            $id = (string) ($size['id'] ?? '');
+            $memoryBytes = (int) ($size['memory_in_bytes'] ?? 0);
+            $memoryMb = $memoryBytes > 0
+                ? (int) round($memoryBytes / 1048576)
+                : (int) ($size['memory'] ?? 0) * 1024;
+            $diskBytes = (int) ($size['disk_in_bytes'] ?? 0);
+            $diskGb = $diskBytes > 0
+                ? (int) round($diskBytes / 1073741824)
+                : (int) ($size['disk'] ?? 0);
+            $kind = str_contains(strtolower((string) ($size['cpu_share'] ?? '')), 'dedicat')
+                ? 'dedicated' : 'shared';
+
+            if ($id !== ''
+                && (int) ($size['cpu_count'] ?? 0) === $vcpu
+                && $memoryMb === $ram
+                && $diskGb === $disk
+                && $kind === $wantedKind) {
+                $matches[] = $id;
+            }
+        }
+
+        // چند flavor هم‌شکل می‌تواند قیمت/نسل متفاوت داشته باشد. حدس‌زدن میان
+        // آن‌ها ریسک خرید محصول دیگری را دارد؛ در ابهام fail-closed می‌کنیم.
+        return count($matches) === 1 ? $matches[0] : null;
     }
 
     private function findByName(string $region, string $name): ?array
@@ -1161,7 +1241,45 @@ class ArvanClient implements CloudProvider
 
     public function console(string $ref): array
     {
-        return ['ok' => false, 'message' => 'کنسولِ تحتِ وب برای این سرور در دسترس نیست.', 'url' => null, 'password' => null];
+        [$region, $id] = $this->split($ref);
+
+        if ($region === '' || $id === '') {
+            return ['ok' => false, 'message' => 'شناسهٔ کنسول معتبر نیست.', 'url' => null, 'password' => null];
+        }
+
+        // API رسمی IaaS یک نشانیِ کوتاه‌عمرِ noVNC می‌دهد. خود URL مانند رمز
+        // دسترسی است و فقط از مسیر بلیت یک‌بارمصرف CloudServerController عبور
+        // می‌کند؛ هیچ‌وقت در لاگ یا HTML اولیه ثبت نمی‌شود.
+        $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/vnc');
+        $url = $r['ok'] ? (string) data_get($r['data'], 'url', '') : '';
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        // پاسخ API نباید بتواند مشتری را به یک میزبان دلخواه بفرستد. کنسول
+        // فعلی آروان روی arvaniaas.ir است؛ زیردامنه‌های رسمی arvancloud.ir نیز
+        // برای مهاجرت احتمالی مجازند، ولی تطبیق حتماً روی مرز دامنه است.
+        $allowed = $host === 'console.arvaniaas.ir'
+            && ! isset($parts['user']) && ! isset($parts['pass'])
+            && ! isset($parts['port'])
+            && ($parts['path'] ?? '') === '/'.$region.'/vnc_lite.html';
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        $token = $query['token'] ?? null;
+
+        if (! $r['ok'] || ! str_starts_with($url, 'https://') || ! $allowed || ! is_string($token) || $token === '') {
+            return [
+                'ok' => false,
+                'message' => $r['ok'] ? 'نشانیِ امنِ کنسول دریافت نشد.' : $r['message'],
+                'url' => null,
+                'password' => null,
+            ];
+        }
+
+        // مسیر از کلاینت noVNC زندهٔ ارائه‌دهنده استخراج شده است. token در
+        // query همان نشست کوتاه‌عمر است؛ هیچ cookie مدیریتی ارسال نمی‌شود.
+        $socketUrl = 'wss://'.$host.$parts['path'].'/websockify?'
+            .http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
+
+        return ['ok' => true, 'message' => '', 'url' => $socketUrl, 'password' => null];
     }
 
     public function metrics(string $ref, string $window = '24h'): array

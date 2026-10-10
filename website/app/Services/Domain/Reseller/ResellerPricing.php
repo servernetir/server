@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\DomainQuote;
 use App\Services\Domain\DomainSearch;
+use App\Services\Domain\LiveDomainPricing;
 
 /**
  * قیمتِ نماینده از روی یک استعلامِ خرده‌فروشی.
@@ -44,10 +45,15 @@ class ResellerPricing
     public function forQuote(DomainQuote $quote, ?Customer $customer, string $kind = 'register'): array
     {
         $retail = (int) ($kind === 'renew'
-            ? ($quote->renew_toman ?: $quote->sell_toman)
+            ? $quote->renew_toman
             : $quote->sell_toman);
 
-        return $this->price($retail, $quote, $customer, (string) $quote->domain);
+        $costQuote = clone $quote;
+        if ($kind === 'renew') {
+            $costQuote->cost_amount = $quote->cost_renew_amount ?: 0;
+        }
+
+        return $this->price($retail, $costQuote, $customer, (string) $quote->domain);
     }
 
     /**
@@ -58,13 +64,13 @@ class ResellerPricing
     public function price(int $retail, ?DomainQuote $quote, ?Customer $customer, string $fqdn = ''): array
     {
         $out = [
-            'retail'       => $retail,
-            'price'        => $retail,
+            'retail' => $retail,
+            'price' => $retail,
             'discount_pct' => 0.0,
-            'applied_pct'  => 0.0,
-            'floor'        => 0,
-            'floored'      => false,
-            'reason'       => null,
+            'applied_pct' => 0.0,
+            'floor' => 0,
+            'floored' => false,
+            'reason' => null,
         ];
 
         if (! $this->program->isReseller($customer) || $retail <= 0) {
@@ -156,16 +162,8 @@ class ResellerPricing
             return 0;
         }
 
-        $rate = $this->search->rateFor($currency);
-
-        if ($rate === null || $rate <= 0) {
-            return 0;
-        }
-
-        $costToman = ($minor / 100) * $rate;
-        $minMargin = max(0.0, (float) config('domain_reseller.min_margin_pct', 8));
-
-        return (int) ceil($costToman * (1 + $minMargin / 100));
+        return app(LiveDomainPricing::class)
+            ->fromAmount($minor / 100, $currency, (string) $quote->tld)['floor_toman'];
     }
 
     /**

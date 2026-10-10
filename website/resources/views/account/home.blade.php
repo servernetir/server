@@ -16,7 +16,7 @@
 
 <div class="pnl-head">
   <div>
-    <h1 class="dash-h">{{ __('ui.pnl_dash_hi') }}@if($identity?->first_name)، {{ $identity->first_name }}@endif</h1>
+    <h1 class="dash-h">{{ __('ui.pnl_dash_hi') }}@if($identity?->first_name){{ app()->getLocale() === 'fa' ? '، ' : ', ' }}{{ $identity->first_name }}@endif</h1>
     <p>
       <span dir="ltr">{{ $customer->code }}</span>
       {{-- «تأییدشده» برای خارجی از پروفایلِ KYC می‌آید نه استعلامِ ایرانی؛ و
@@ -38,7 +38,7 @@
 
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 
@@ -165,7 +165,7 @@
         <div class="sess-t">
           <span>{{ __('ui.ahome_your_ip') }}</span>
           <b dir="ltr">{{ $currentIp }}</b>
-          @if($cgeo)<span>@include('partials.flag', ['flagSrc' => \App\Models\CloudLocation::flagSvgFor($cgeo['cc'] ?? null), 'flagEmoji' => $cgeo['flag'], 'flagSize' => 18]) {{ $cgeo['country'] }}{{ $cgeo['region'] ? '، '.$cgeo['region'] : '' }}</span>@endif
+          @if($cgeo)<span>@include('partials.flag', ['flagSrc' => \App\Models\CloudLocation::flagSvgFor($cgeo['cc'] ?? null), 'flagEmoji' => $cgeo['flag'], 'flagSize' => 18]) {{ \App\Support\CustomerMessage::fragment($cgeo['country']) }}{{ $cgeo['region'] ? (app()->getLocale() === 'fa' ? '، ' : ', ').$cgeo['region'] : '' }}</span>@endif
         </div>
       </div>
       <div class="sess-tile">
@@ -193,7 +193,7 @@
         <li>
           <span class="act-ic"><svg class="icon"><use href="#{{ $a->icon() }}"/></svg></span>
           <span class="act-body">
-            <b>{{ $a->description }}</b>
+            <b>{{ $a->customerDescription() }}</b>
             <small dir="ltr">{{ stime($a->created_at) }}@if($a->ip) · {{ $a->ip }}@endif</small>
             @php $dev = $a->device(); $geo = $a->geoLabel(); @endphp
             @if($dev['label'] !== '—' || $geo)

@@ -25,7 +25,7 @@
         @elseif($canceled ?? false) {{ __('ui.pres_status_canceled') }}
         @else {{ __('ui.pres_status_failed') }} @endif
       </h1>
-      <p>{{ $message }}</p>
+      <p>{{ \App\Support\PanelText::text($message) }}</p>
     </div>
 
     <div class="auth-shell" style="grid-template-columns:1fr">

@@ -4,10 +4,13 @@ namespace App\Services\Domain;
 
 use App\Models\Currency;
 use App\Models\DomainQuote;
+use App\Models\Setting;
+use App\Services\Cloud\CloudPricing;
 use App\Services\ExchangeRate;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 /**
  * جستجوی دامنه: استعلام زنده از رسیلری، تبدیل قیمت به تومان، اعمال سود.
@@ -74,10 +77,15 @@ class DomainSearch
     | `free` و هرگز به `taken`.
     */
     public const STATE_FREE = 'free';
+
     public const STATE_PREMIUM = 'premium';
+
     public const STATE_TAKEN = 'taken';
+
     public const STATE_UNCHECKED = 'unchecked';
+
     public const STATE_UNSUPPORTED = 'unsupported';
+
     public const STATE_NO_PRICE = 'no_price';
 
     /** همهٔ وضعیت‌های ممکن — تست‌ها و رابط‌ها از همین می‌خوانند. */
@@ -202,8 +210,8 @@ class DomainSearch
     /**
      * جستجوی یک دامنه در چند پسوند.
      *
-     * @param  string    $query   ورودی کاربر: «example» یا «example.com»
-     * @param  string[]  $tlds    پسوندهای پیشنهادی وقتی کاربر پسوند نداده
+     * @param  string  $query  ورودی کاربر: «example» یا «example.com»
+     * @param  string[]  $tlds  پسوندهای پیشنهادی وقتی کاربر پسوند نداده
      * @return array<int,array>
      */
     /**
@@ -299,9 +307,9 @@ class DomainSearch
             $this->lookupReason = 'registrar_disabled';
 
             ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.self::DISABLED_CODE.')', 900, [
-                'reason'  => 'registrar_disabled',
-                'code'    => self::DISABLED_CODE,
-                'desc'    => 'registrar disabled',
+                'reason' => 'registrar_disabled',
+                'code' => self::DISABLED_CODE,
+                'desc' => 'registrar disabled',
                 'domains' => count($extensions),
             ]);
 
@@ -348,8 +356,8 @@ class DomainSearch
                 $code = (int) ($lookup['code'] ?? -1);
 
                 Log::warning('domain check failed', [
-                    'code'    => $code,
-                    'desc'    => (string) ($lookup['message'] ?? ''),
+                    'code' => $code,
+                    'desc' => (string) ($lookup['message'] ?? ''),
                     'domains' => count($payload),
                 ]);
 
@@ -369,9 +377,9 @@ class DomainSearch
                 | می‌شست و بقیهٔ خطاها را بیرون می‌انداخت (همان خرابیِ سیلِ ۴۰۴).
                 */
                 ErrorTracker::noteOnce('domain', 'domain lookup failed (code '.$code.')', 900, [
-                    'reason'  => $reason,
-                    'code'    => $code,
-                    'desc'    => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
+                    'reason' => $reason,
+                    'code' => $code,
+                    'desc' => mb_substr((string) ($lookup['message'] ?? ''), 0, 200),
                     'domains' => count($payload),
                 ]);
 
@@ -415,7 +423,7 @@ class DomainSearch
             */
             if ($answered < count($chunk)) {
                 Log::warning('domain check answered fewer domains than asked', [
-                    'asked'    => count($chunk),
+                    'asked' => count($chunk),
                     'answered' => $answered,
                 ]);
 
@@ -423,7 +431,7 @@ class DomainSearch
                 // چون هر جستجوی حاویِ پسوندی که رسیلری نمی‌شناسد این را می‌سازد،
                 // گلوگاهش بلندتر است تا صفحه را پر نکند.
                 ErrorTracker::noteOnce('domain', 'domain lookup answered fewer domains than asked', 3600, [
-                    'asked'    => count($chunk),
+                    'asked' => count($chunk),
                     'answered' => $answered,
                 ]);
             }
@@ -485,17 +493,17 @@ class DomainSearch
     private function unknownRow(string $fqdn, string $ext, string $reason): array
     {
         return [
-            'domain'         => $fqdn,
-            'tld'            => $ext,
-            'status'         => 'unknown',
-            'available'      => false,
-            'is_premium'     => false,
-            'orderable'      => false,
-            'price_toman'    => null,
-            'renew_toman'    => null,
+            'domain' => $fqdn,
+            'tld' => $ext,
+            'status' => 'unknown',
+            'available' => false,
+            'is_premium' => false,
+            'orderable' => false,
+            'price_toman' => null,
+            'renew_toman' => null,
             'transfer_toman' => null,
-            'reason'         => $reason,
-            'quote_id'       => null,
+            'reason' => $reason,
+            'quote_id' => null,
         ];
     }
 
@@ -510,17 +518,17 @@ class DomainSearch
     private function shape(string $fqdn, string $name, string $ext, ?array $raw): array
     {
         $base = [
-            'domain'      => $fqdn,
-            'tld'         => $ext,
-            'status'      => 'unknown',
-            'available'   => false,
-            'is_premium'  => false,
-            'orderable'   => false,
-            'price_toman'    => null,
-            'renew_toman'    => null,
+            'domain' => $fqdn,
+            'tld' => $ext,
+            'status' => 'unknown',
+            'available' => false,
+            'is_premium' => false,
+            'orderable' => false,
+            'price_toman' => null,
+            'renew_toman' => null,
             'transfer_toman' => null,
-            'reason'         => null,
-            'quote_id'    => null,
+            'reason' => null,
+            'quote_id' => null,
         ];
 
         /*
@@ -617,37 +625,35 @@ class DomainSearch
         // `premium` می‌نشیند نه در `price.reseller`. اگر آن را نخوانیم، برای
         // دامنهٔ پرمیوم قیمت پایه نشان می‌دهیم — همان فاجعه‌ای که این طراحی
         // برای جلوگیری از آن ساخته شد.
-        $cost  = $this->premiumPrice($raw)
+        $cost = $this->premiumPrice($raw)
               ?? $this->extractPrice($raw, 'reseller')
               ?? $this->extractPrice($raw, 'product');
-        $renew = $this->extractPrice($raw, 'reseller', 'renewal') ?? $cost;
+        $renew = $this->extractPrice($raw, 'reseller', 'renewal');
 
-        // انتقال هم در همان لحظه استعلام می‌شود. اگر رسیلری قیمتِ انتقال ندهد،
-        // قیمتِ ثبت جایگزین می‌شود — تقریباً همیشه برابرند و «نمی‌دانم» روی
-        // صفحهٔ فروش بدترین گزینه است.
-        $transfer = $this->extractPrice($raw, 'reseller', 'transfer') ?? $cost;
+        // قیمتِ غایب ناشناخته است؛ قیمت ثبت جای تمدید یا انتقال نمی‌نشیند.
+        $transfer = $this->extractPrice($raw, 'reseller', 'transfer');
 
         if ($cost === null) {
             // آزاد است ولی قیمت نداریم → قیمت نمی‌سازیم
             return array_merge($base, [
-                'status'    => $isPremium ? 'premium' : 'available',
+                'status' => $isPremium ? 'premium' : 'available',
                 'available' => true,
-                'is_premium'=> $isPremium,
-                'reason'    => 'no_price',
+                'is_premium' => $isPremium,
+                'reason' => 'no_price',
             ]);
         }
 
-        $sell  = $this->toSellingToman($cost['amount'], $cost['currency'], $ext);
-        $sellR = $this->toSellingToman($renew['amount'], $renew['currency'], $ext);
-        $sellT = $this->toSellingToman($transfer['amount'], $transfer['currency'], $ext);
+        $sell = $this->toSellingToman($cost['amount'], $cost['currency'], $ext);
+        $sellR = $renew ? $this->toSellingToman($renew['amount'], $renew['currency'], $ext) : null;
+        $sellT = $transfer ? $this->toSellingToman($transfer['amount'], $transfer['currency'], $ext) : null;
 
         if ($sell === null) {
             // نرخ ارز در دسترس نیست → قیمتی که نمی‌توانیم پایش بایستیم نشان نمی‌دهیم
             return array_merge($base, [
-                'status'    => $isPremium ? 'premium' : 'available',
+                'status' => $isPremium ? 'premium' : 'available',
                 'available' => true,
-                'is_premium'=> $isPremium,
-                'reason'    => 'fx_unavailable',
+                'is_premium' => $isPremium,
+                'reason' => 'fx_unavailable',
             ]);
         }
 
@@ -662,35 +668,35 @@ class DomainSearch
         | نباید جستجو را بشکند — مهاجرت‌های پروداکشن دستی اجرا می‌شوند.
         */
         static $hasRenewCost = null;
-        $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domain_quotes', 'cost_renew_amount');
+        $hasRenewCost ??= Schema::hasColumn('domain_quotes', 'cost_renew_amount');
 
         $quote = DomainQuote::create([
-            'domain'         => $fqdn,
-            'tld'            => $ext,
-            'registrar'      => 'openprovider',
-            'is_premium'     => $isPremium,
-            'cost_amount'    => (int) round($cost['amount'] * 100), // واحد فرعی ارز مبدأ
-            'cost_currency'  => $cost['currency'],
-            'sell_toman'     => $sell,
-            'renew_toman'    => $sellR,
-            'honour_until'   => now()->addMinutes(self::QUOTE_TTL_MINUTES),
-            'raw'            => $raw,
+            'domain' => $fqdn,
+            'tld' => $ext,
+            'registrar' => 'openprovider',
+            'is_premium' => $isPremium,
+            'cost_amount' => (int) round($cost['amount'] * 100), // واحد فرعی ارز مبدأ
+            'cost_currency' => $cost['currency'],
+            'sell_toman' => $sell,
+            'renew_toman' => $sellR,
+            'honour_until' => now()->addMinutes(self::QUOTE_TTL_MINUTES),
+            'raw' => $raw,
         ] + ($hasRenewCost && $renew !== null && $renew['currency'] === $cost['currency']
             ? ['cost_renew_amount' => (int) round($renew['amount'] * 100)]
             : []));
 
         return [
-            'domain'      => $fqdn,
-            'tld'         => $ext,
-            'status'      => $isPremium ? 'premium' : 'available',
-            'available'   => true,
-            'is_premium'  => $isPremium,
-            'orderable'   => true,
-            'price_toman'    => $sell,
-            'renew_toman'    => $sellR,
+            'domain' => $fqdn,
+            'tld' => $ext,
+            'status' => $isPremium ? 'premium' : 'available',
+            'available' => true,
+            'is_premium' => $isPremium,
+            'orderable' => true,
+            'price_toman' => $sell,
+            'renew_toman' => $sellR,
             'transfer_toman' => $sellT,
-            'reason'      => null,
-            'quote_id'    => $quote->id,
+            'reason' => null,
+            'quote_id' => $quote->id,
         ];
     }
 
@@ -709,7 +715,7 @@ class DomainSearch
         }
 
         return [
-            'amount'   => (float) $amount,
+            'amount' => (float) $amount,
             'currency' => strtoupper((string) (data_get($raw, 'premium.currency') ?: 'USD')),
         ];
     }
@@ -743,13 +749,15 @@ class DomainSearch
             $paths[] = ["{$kind}_price.$who.price", "{$kind}_price.$who.currency"];
         }
 
-        $paths[] = ["price.$who.price", "price.$who.currency"];
+        if ($kind === 'create') {
+            $paths[] = ["price.$who.price", "price.$who.currency"];
+        }
 
         foreach ($paths as [$pKey, $cKey]) {
             $amount = data_get($raw, $pKey);
             if (is_numeric($amount)) {
                 return [
-                    'amount'   => (float) $amount,
+                    'amount' => (float) $amount,
                     'currency' => strtoupper((string) (data_get($raw, $cKey) ?: 'EUR')),
                 ];
             }
@@ -764,20 +772,11 @@ class DomainSearch
      */
     private function toSellingToman(float $amount, string $currency, string $tld): ?int
     {
-        $rate = $this->rateFor($currency);
-        if ($rate === null || $rate <= 0) {
+        try {
+            return app(LiveDomainPricing::class)->fromAmount($amount, $currency, $tld)['sell_toman'];
+        } catch (ValidationException) {
             return null;
         }
-
-        $costToman = $amount * $rate;
-
-        $marginPct = $this->marginFor($tld);
-        $withMargin = $costToman * (1 + $marginPct / 100);
-
-        $irt = Currency::find('IRT');
-        $step = $irt?->rounding_step ?: 1000;
-
-        return (int) (ceil($withMargin / $step) * $step);
     }
 
     /**
@@ -803,7 +802,7 @@ class DomainSearch
         $currency = strtoupper($currency);
 
         if ($currency === 'EUR') {
-            $rate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+            $rate = app(CloudPricing::class)->eurToToman();
 
             // صفر یعنی «نمی‌دانیم» — نه اینکه دامنه رایگان است
             return $rate > 0 ? $rate : null;
@@ -824,9 +823,9 @@ class DomainSearch
      * تصمیم نگرفته‌ای، به بهای تمام‌شده بفروش» — که برای دامنه، که محصولِ
      * جذبِ مشتری است، انتخابِ بهتری از حدسِ ۲۵٪ است.
      */
-    private function marginFor(string $tld): float
+    public function marginFor(string $tld): float
     {
-        $override = \App\Models\Setting::get('domain_margin_pct');
+        $override = Setting::get('domain_margin_pct');
 
         if ($override !== null && $override !== '') {
             return max(0, (float) $override);

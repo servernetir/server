@@ -18,6 +18,15 @@
 
 return [
 
+    // Internal infrastructure is never collected, suspended or released by billing.
+    // Keep this guard in code as well as the deployment record: it must work before migrations.
+    'internal_service_ids' => [20],
+    'timezone' => 'Asia/Tehran',
+    'lifecycle_retry_minutes' => 15,
+
+    // Explicit owner authorization, 2026-10-10; match both stable identifiers.
+    'complimentary_services' => ['customer_id' => 1, 'customer_code' => 'SN-457136'],
+
     /*
     |--------------------------------------------------------------------------
     | انقضای پیش‌فاکتورِ سفارشِ مشتری
@@ -45,7 +54,6 @@ return [
 
     'order_expiry_bank_grace_days' => 14,
 
-
     /*
     | دوره‌های خرید. months برای محاسبهٔ مبلغ و سررسیدِ بعدی استفاده می‌شود و
     | discount_pct تخفیفِ پیش‌پرداختِ بلندمدت است (هرچه بلندتر، ارزان‌تر).
@@ -53,27 +61,27 @@ return [
     */
     'cycles' => [
         'monthly' => [
-            'months'       => 1,
+            'months' => 1,
             'discount_pct' => 0,
-            'label'        => ['fa' => 'ماهانه', 'en' => 'Monthly', 'tr' => 'Aylık'],
+            'label' => ['fa' => 'ماهانه', 'en' => 'Monthly', 'tr' => 'Aylık'],
         ],
         'quarterly' => [
-            'months'       => 3,
+            'months' => 3,
             'discount_pct' => 5,
-            'label'        => ['fa' => 'سه‌ماهه', 'en' => 'Quarterly', 'tr' => 'Üç aylık'],
+            'label' => ['fa' => 'سه‌ماهه', 'en' => 'Quarterly', 'tr' => 'Üç aylık'],
         ],
         'semiannual' => [
-            'months'       => 6,
+            'months' => 6,
             'discount_pct' => 10,
-            'label'        => ['fa' => 'شش‌ماهه', 'en' => 'Semi-annual', 'tr' => 'Altı aylık'],
+            'label' => ['fa' => 'شش‌ماهه', 'en' => 'Semi-annual', 'tr' => 'Altı aylık'],
         ],
         // ⚠️ صفحات بازاریابیِ سایت (home/hosting) همین درصد را به‌عنوان «تخفیفِ
         // سالانه» تبلیغ می‌کنند و از همین کلید می‌خوانند. اگر این‌جا عوض شود،
         // آن‌جا هم عوض می‌شود — وگرنه وعده و صورت‌حساب یکی نمی‌ماند.
         'yearly' => [
-            'months'       => 12,
+            'months' => 12,
             'discount_pct' => 20,
-            'label'        => ['fa' => 'سالانه', 'en' => 'Yearly', 'tr' => 'Yıllık'],
+            'label' => ['fa' => 'سالانه', 'en' => 'Yearly', 'tr' => 'Yıllık'],
         ],
     ],
 
@@ -96,10 +104,10 @@ return [
     'locations' => [
         'IR' => [
             'multiplier' => 1.0,
-            'label'      => ['fa' => 'ایران', 'en' => 'Iran', 'tr' => 'İran'],
-            'city'       => ['fa' => 'تهران', 'en' => 'Tehran', 'tr' => 'Tahran'],
-            'flag'       => '🇮🇷',
-            'note'       => [
+            'label' => ['fa' => 'ایران', 'en' => 'Iran', 'tr' => 'İran'],
+            'city' => ['fa' => 'تهران', 'en' => 'Tehran', 'tr' => 'Tahran'],
+            'flag' => '🇮🇷',
+            'note' => [
                 'fa' => 'کم‌ترین پینگ برای کاربرانِ داخل ایران و پرداختِ ریالی.',
                 'en' => 'Lowest latency for visitors inside Iran.',
                 'tr' => 'İran içindeki ziyaretçiler için en düşük gecikme.',
@@ -107,10 +115,10 @@ return [
         ],
         'DE' => [
             'multiplier' => 1.0,
-            'label'      => ['fa' => 'آلمان', 'en' => 'Germany', 'tr' => 'Almanya'],
-            'city'       => ['fa' => 'فرانکفورت', 'en' => 'Frankfurt', 'tr' => 'Frankfurt'],
-            'flag'       => '🇩🇪',
-            'note'       => [
+            'label' => ['fa' => 'آلمان', 'en' => 'Germany', 'tr' => 'Almanya'],
+            'city' => ['fa' => 'فرانکفورت', 'en' => 'Frankfurt', 'tr' => 'Frankfurt'],
+            'flag' => '🇩🇪',
+            'note' => [
                 // ممیزی ۷ (خطِ قرمزِ مارکتینگ): انگیزهٔ مجاز فقط فنی/تجاری است —
                 // «بدون محدودیتِ تحریم» به وعدهٔ دورزدن پهلو می‌زد؛ همان واقعیت،
                 // با زبانِ فنی: دسترسی به سرویس‌هایی که روی IP ایران بسته‌اند.
