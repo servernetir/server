@@ -2,11 +2,20 @@
 
 namespace App\Services\Domain;
 
+use App\Models\CreditEntry;
+use App\Models\Customer;
 use App\Models\Domain;
+use App\Models\Invoice;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Dns\DomainZoneProvisioner;
+use App\Services\Finance\BusinessLedger;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\Notifier;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * انتقالِ دامنه از رجیسترارِ دیگر به ما.
@@ -176,12 +185,14 @@ class DomainTransfer
 
         try {
             return $this->doSubmit($domain, $authCode);
+        } catch (ValidationException $e) {
+            return $this->failSubmit($domain, $e->getMessage(), manual: true);
         } catch (\Throwable $e) {
             // ⚠️ پیامِ استثنا ممکن است بدنهٔ درخواست را داشته باشد و بدنه
             //    کدِ انتقال دارد. فقط کلاس و خطِ خطا ثبت می‌شود.
             Log::error('domain transfer crashed', [
                 'domain' => $domain->domain,
-                'type'   => $e::class,
+                'type' => $e::class,
             ]);
 
             return $this->failSubmit($domain, 'خطای غیرمنتظره در ثبتِ درخواستِ انتقال.');
@@ -235,6 +246,7 @@ class DomainTransfer
         */
         $ns = (array) ($domain->name_servers ?? []);
 
+        app(LiveDomainPricing::class)->assertDelivery($domain, 'transfer');
         $res = $this->op->transferDomain(
             name: $domain->sld,
             extension: $domain->tld,
@@ -257,14 +269,14 @@ class DomainTransfer
         }
 
         $domain->forceFill([
-            'op_id'                 => $res['id'] ?: $domain->op_id,
-            'owner_handle'          => $handle['handle'],
-            'transfer_status'       => 'submitted',
+            'op_id' => $res['id'] ?: $domain->op_id,
+            'owner_handle' => $handle['handle'],
+            'transfer_status' => 'submitted',
             'transfer_submitted_at' => now(),
-            'transfer_checked_at'   => null,
-            'provision_status'      => 'done',
-            'provision_error'       => null,
-            'status'                => Domain::STATUS_TRANSFERRING,
+            'transfer_checked_at' => null,
+            'provision_status' => 'done',
+            'provision_error' => null,
+            'status' => Domain::STATUS_TRANSFERRING,
         ])->save();
 
         $this->tell($domain, 'domain_transfer_submitted',
@@ -302,7 +314,7 @@ class DomainTransfer
         }
 
         $remote = (array) ($found['data'] ?? []);
-        $state  = strtolower(trim((string) (data_get($remote, 'status') ?: '')));
+        $state = strtolower(trim((string) (data_get($remote, 'status') ?: '')));
 
         if (($found['found'] ?? false) && in_array($state, self::REMOTE_ACTIVE, true)) {
             $this->accept($domain, $remote, (string) $domain->owner_handle);
@@ -330,7 +342,7 @@ class DomainTransfer
             // وضعیتی که نمی‌شناسیم — نه موفق بخوانش نه ناموفق، فقط خبر بده
             ErrorTracker::noteOnce('domain', 'وضعیتِ ناشناختهٔ انتقال: '.$domain->domain, 3600, [
                 'domain' => $domain->domain,
-                'state'  => mb_substr($state, 0, 40),
+                'state' => mb_substr($state, 0, 40),
             ]);
         }
 
@@ -361,25 +373,25 @@ class DomainTransfer
         $created = $this->parseDate(data_get($remote, 'creation_date') ?: data_get($remote, 'creation_date_time'));
 
         $domain->forceFill([
-            'status'           => 'active',
-            'transfer_status'  => 'completed',
+            'status' => 'active',
+            'transfer_status' => 'completed',
             'provision_status' => 'done',
-            'provision_error'  => null,
-            'op_id'            => data_get($remote, 'id') ?: $domain->op_id,
-            'owner_handle'     => $handle ?: $domain->owner_handle,
-            'registered_at'    => $domain->registered_at ?: $created,
-            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at,
+            'provision_error' => null,
+            'op_id' => data_get($remote, 'id') ?: $domain->op_id,
+            'owner_handle' => $handle ?: $domain->owner_handle,
+            'registered_at' => $domain->registered_at ?: $created,
+            'expires_at' => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
         $this->tell($domain, 'domain_transfer_completed',
             'انتقالِ دامنهٔ «'.$domain->domain.'» با موفقیت انجام شد و از این پس در پنلِ شما مدیریت می‌شود.');
 
         // بهای انتقال نزدِ رجیسترار (اگر ثبت شده باشد) — هزینهٔ واقعی در دفتر.
-        app(\App\Services\Finance\BusinessLedger::class)
+        app(BusinessLedger::class)
             ->recordDomainWholesale($domain, 'transfer', 1);
 
         // اگر روی نیم‌سرورهای ما نشسته، همان لحظه zone — وگرنه resolve نمی‌شود.
-        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
+        app(DomainZoneProvisioner::class)->ensure($domain);
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
@@ -393,10 +405,10 @@ class DomainTransfer
     public function reject(Domain $domain, string $why): void
     {
         $domain->forceFill([
-            'transfer_status'  => 'rejected',
-            'status'           => 'cancelled',
+            'transfer_status' => 'rejected',
+            'status' => 'cancelled',
             'provision_status' => 'none',
-            'provision_error'  => mb_substr($why, 0, 500),
+            'provision_error' => mb_substr($why, 0, 500),
         ])->save();
 
         $refunded = $this->refund($domain, $why);
@@ -406,7 +418,7 @@ class DomainTransfer
             .($refunded ? ' مبلغِ پرداختی به اعتبارِ حسابِ شما بازگردانده شد.' : ''));
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 'انتقالِ دامنه انجام نشد',
                 ['دامنه' => $domain->domain,
                     'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
@@ -414,7 +426,7 @@ class DomainTransfer
                     'بازگشتِ وجه' => $refunded ? 'انجام شد' : 'انجام نشد'],
                 null,
                 '🌐',
-                [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
+                [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
             );
         } catch (\Throwable $e) {
             Log::warning('اعلانِ ردِ انتقال نرفت', ['err' => $e->getMessage()]);
@@ -434,7 +446,7 @@ class DomainTransfer
      */
     private function refund(Domain $domain, string $why): bool
     {
-        $invoice = \App\Models\Invoice::where('domain_id', $domain->id)
+        $invoice = Invoice::where('domain_id', $domain->id)
             ->where('kind', 'domain')
             ->where('paid', '>', 0)
             ->orderByDesc('id')
@@ -454,14 +466,14 @@ class DomainTransfer
             | هم‌زمان دو `balance_after`ِ یکسان ننویسند.
             */
             DB::transaction(function () use ($domain, $invoice, $amount, $why) {
-                \App\Models\Customer::whereKey($domain->customer_id)->lockForUpdate()->first();
+                Customer::whereKey($domain->customer_id)->lockForUpdate()->first();
 
                 /*
                 | ⚠️ محافظِ «دو بار برنگردان» — `reject()` عمومی است و حالا
                 | `domains:resolve-stuck` هم صدایش می‌زند؛ بی‌این، هر مسیرِ
                 | دوم یک اعتبارِ تازه می‌ساخت.
                 */
-                $already = \App\Models\CreditEntry::where('customer_id', $domain->customer_id)
+                $already = CreditEntry::where('customer_id', $domain->customer_id)
                     ->where('reason', 'domain_transfer_refund')
                     ->where('source_type', Domain::class)
                     ->where('source_id', $domain->id)
@@ -471,18 +483,18 @@ class DomainTransfer
                     return;
                 }
 
-                $balance = (int) \App\Models\CreditEntry::where('customer_id', $domain->customer_id)
+                $balance = (int) CreditEntry::where('customer_id', $domain->customer_id)
                     ->where('currency_code', 'IRT')->sum('amount');
 
-                \App\Models\CreditEntry::create([
-                    'customer_id'   => $domain->customer_id,
+                CreditEntry::create([
+                    'customer_id' => $domain->customer_id,
                     'currency_code' => 'IRT',
-                    'amount'        => $amount,
+                    'amount' => $amount,
                     'balance_after' => $balance + $amount,
-                    'reason'        => 'domain_transfer_refund',
-                    'source_type'   => Domain::class,
-                    'source_id'     => $domain->id,
-                    'note'          => 'بازگشتِ وجهِ انتقالِ ناموفقِ '.$domain->domain.' — '.mb_substr($why, 0, 120),
+                    'reason' => 'domain_transfer_refund',
+                    'source_type' => Domain::class,
+                    'source_id' => $domain->id,
+                    'note' => 'بازگشتِ وجهِ انتقالِ ناموفقِ '.$domain->domain.' — '.mb_substr($why, 0, 120),
                 ]);
 
                 // ⚠️ فاکتور حذف نمی‌شود: سابقهٔ مالی و مالیاتی باید بماند.
@@ -490,7 +502,7 @@ class DomainTransfer
 
                 // دفترِ کسب‌وکار هم باید این برگشت را ببیند (idempotent)
                 if ($invoice !== null) {
-                    app(\App\Services\Finance\BusinessLedger::class)->recordInvoiceRefund(
+                    app(BusinessLedger::class)->recordInvoiceRefund(
                         $invoice, $amount, 'بازگشتِ وجه — انتقالِ '.$domain->domain);
                 }
             });
@@ -515,10 +527,10 @@ class DomainTransfer
     private function failSubmit(Domain $domain, string $message, bool $manual = false): array
     {
         $domain->forceFill([
-            'transfer_status'  => $manual ? 'failed' : 'pending',
+            'transfer_status' => $manual ? 'failed' : 'pending',
             'provision_status' => $manual ? 'manual' : 'pending',
-            'provision_tries'  => (int) $domain->provision_tries + 1,
-            'provision_error'  => mb_substr($message, 0, 500),
+            'provision_tries' => (int) $domain->provision_tries + 1,
+            'provision_error' => mb_substr($message, 0, 500),
         ])->save();
 
         if ($manual) {
@@ -538,7 +550,7 @@ class DomainTransfer
     private function tell(Domain $domain, string $event, string $text): void
     {
         try {
-            app(\App\Services\Notify\Notifier::class)->fire(
+            app(Notifier::class)->fire(
                 $event,
                 $domain->customer,
                 ['domain' => $domain->domain, 'until' => sdate($domain->fresh()?->expires_at) ?: '—'],

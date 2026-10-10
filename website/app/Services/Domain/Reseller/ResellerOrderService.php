@@ -2,7 +2,7 @@
 
 namespace App\Services\Domain\Reseller;
 
-use App\Models\CreditEntry;
+use App\Http\Controllers\Account\CloudStoreController;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\DomainQuote;
@@ -10,11 +10,17 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\ResellerApiLog;
 use App\Services\Domain\DomainRegistrar;
+use App\Services\Domain\DomainRenewalInvoicer;
 use App\Services\Domain\DomainSearch;
+use App\Services\Domain\LiveDomainPricing;
 use App\Services\Domain\TldGate;
+use App\Services\Finance\BusinessLedger;
+use App\Services\Finance\Wallet;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 /**
  * سفارشِ دامنه از راهِ APIِ نمایندگی — تنها جایی که پولِ نماینده خرج می‌شود.
@@ -45,7 +51,7 @@ class ResellerOrderService
         private DomainRegistrar $registrar,
         private ResellerPricing $pricing,
         private ResellerProgram $program,
-        private \App\Services\Finance\Wallet $wallet,
+        private Wallet $wallet,
     ) {}
 
     /** نتیجهٔ استاندارد — هر سه حالت ماشین‌خوان‌اند */
@@ -129,14 +135,19 @@ class ResellerOrderService
         | موازی. `sell_toman * $years` روی `.shop` (ثبت ۱۹۰ هزار، تمدید ۱٫۴۹
         | میلیون) یک ثبتِ سه‌ساله را با ~۲٫۶ میلیون تومان ضرر می‌فروخت.
         */
-        $first = $this->pricing->forQuote($q, $customer, 'register');
-        $renew = $this->pricing->forQuote($q, $customer, 'renew');
-
-        $unit = $first['price'] + ($renew['price'] * max(0, $years - 1));
-
-        if ($unit <= 0) {
-            return $this->fail('no_price', 'برای این دامنه قیمتِ قابلِ اتکایی نداریم.');
+        $livePricing = app(LiveDomainPricing::class);
+        try {
+            $liveQuote = $livePricing->quote($sld, $tld, 'create', $years);
+        } catch (ValidationException) {
+            return $this->fail('no_price', __('domain-pricing.unavailable'), 503);
         }
+        $first = $this->pricing->price($liveQuote['sell_toman'], null, $customer, $fqdn);
+        $first['price'] = max($first['price'], $liveQuote['floor_toman']);
+        $first['floor'] = $liveQuote['floor_toman'];
+        $first['applied_pct'] = round((1 - $first['price'] / $first['retail']) * 100, 2);
+        $first['floored'] = $first['price'] > (int) floor($first['retail'] * (1 - $first['discount_pct'] / 100));
+        $renew = ['price' => 0];
+        $unit = $first['price'];
 
         return $this->charge(
             customer: $customer,
@@ -144,47 +155,48 @@ class ResellerOrderService
             amount: $unit,
             title: 'ثبتِ دامنهٔ '.$fqdn,
             description: $years.' سال',
-            build: function () use ($customer, $q, $fqdn, $sld, $tld, $years, $nameServers, $first, $renew, $existing) {
+            build: function () use ($customer, $q, $fqdn, $sld, $tld, $years, $nameServers, $first, $renew, $existing, $liveQuote, $livePricing) {
                 $ns = $this->normalizeNs($nameServers);
 
                 $domain = $existing ?? new Domain;
 
                 static $hasRenewCost = null;
-                $hasRenewCost ??= \Illuminate\Support\Facades\Schema::hasColumn('domains', 'cost_renew_amount');
+                $hasRenewCost ??= Schema::hasColumn('domains', 'cost_renew_amount');
 
                 $domain->forceFill([
-                    'customer_id'      => $customer->id,
-                    'domain'           => $fqdn,
-                    'sld'              => $sld,
-                    'tld'              => $tld,
-                    'registrar'        => 'openprovider',
-                    'status'           => 'pending',
+                    'customer_id' => $customer->id,
+                    'domain' => $fqdn,
+                    'sld' => $sld,
+                    'tld' => $tld,
+                    'registrar' => 'openprovider',
+                    'status' => 'pending',
                     /*
                     | 🔴 بازمصرفِ ردیفِ مرده باید کامل باشد — اگر ردیفِ قبلی
                     | انتقالِ ردشده بود و `order_type` ریست نمی‌شد، خریدِ تازه
                     | در هیچ صفی نمی‌افتاد: پرداخت‌شده و نامرئی (ممیزی ۱۴۰۵).
                     */
-                    'order_type'       => 'register',
-                    'transfer_status'  => null,
-                    'provision_tries'  => 0,
-                    'provision_error'  => null,
+                    'order_type' => 'register',
+                    'transfer_status' => null,
+                    'provision_tries' => 0,
+                    'provision_error' => null,
                     // پرداخت همین حالا از اعتبار انجام شد ⇒ مستقیم به صفِ ثبت.
                     // (مسیرِ وب `none` می‌گذارد چون آن‌جا فاکتور هنوز پرداخت نشده.)
                     'provision_status' => 'pending',
-                    'period_years'     => $years,
-                    'price_toman'      => $first['price'],
-                    'renew_toman'      => $renew['price'],
-                    'cost_amount'      => (int) $q->cost_amount,
-                    'cost_currency'    => (string) $q->cost_currency,
-                    'quote_id'         => $q->id,
-                    'name_servers'     => $ns,
+                    'period_years' => $years,
+                    'price_toman' => $first['price'],
+                    'renew_toman' => $renew['price'],
+                    'cost_amount' => (int) $q->cost_amount,
+                    'cost_currency' => (string) $q->cost_currency,
+                    'quote_id' => $q->id,
+                    'name_servers' => $ns,
                 ] + ($hasRenewCost ? ['cost_renew_amount' => $q->cost_renew_amount] : []))->save();
 
+                $livePricing->remember($domain, $liveQuote);
                 $domain->putMeta([
-                    'source'         => 'reseller_api',
+                    'source' => 'reseller_api',
                     'reseller_level' => $customer->reseller_level,
-                    'retail_toman'   => $first['retail'],
-                    'floored'        => $first['floored'],
+                    'retail_toman' => $first['retail'],
+                    'floored' => $first['floored'],
                 ]);
 
                 return $domain;
@@ -218,64 +230,23 @@ class ResellerOrderService
         | دیگر پول می‌گیرد. یعنی تنها محافظِ تمدیدِ دوباره همین شرط و
         | `Idempotency-Key` است، نه هیچ رفتارِ طبیعیِ رجیستری.
         */
-        if (in_array($domain->provision_status, ['pending', 'running'], true)) {
+        if (in_array($domain->provision_status, ['pending', 'running', 'manual'], true)) {
             return $this->fail('renewal_in_progress',
                 'یک تمدید برای این دامنه در جریان است.', 409);
         }
 
-        // قیمتِ تمدیدِ ذخیره‌شده مبناست، نه استعلامِ زنده — همان قاعدهٔ
-        // `domains:lifecycle`: استعلامِ زنده روی هر تمدید یعنی صدها تماس با
-        // حسابی که قبلاً به‌خاطرِ تماسِ زیاد علامت خورده.
-        $retailPerYear = (int) ($domain->renew_toman ?: $domain->price_toman);
-
-        if ($retailPerYear <= 0) {
-            return $this->fail('no_price', 'قیمتِ تمدیدِ این دامنه ثبت نشده است.');
+        $livePricing = app(LiveDomainPricing::class);
+        try {
+            $liveQuote = $livePricing->quote($domain->sld, $domain->tld, 'renew', $years);
+        } catch (ValidationException) {
+            return $this->fail('no_price', __('domain-pricing.unavailable'), 503);
         }
-
-        /*
-        | ⚠️ `renew_toman` از قبل قیمتِ **نماینده** است (هنگام ثبت با تخفیف
-        | ذخیره شده). پس دوباره تخفیف نمی‌خورد، وگرنه تخفیف روی تخفیف اعمال
-        | می‌شد و هر تمدید ارزان‌تر از قبلی می‌شد تا زیرِ قیمتِ خرید برسد.
-        */
-        $storedPerYear = $retailPerYear;
-
-        /*
-        |----------------------------------------------------------------------
-        | 🔴 محافظِ جهشِ ارز — گران‌ترین ضررِ خاموشِ این سامانه
-        |----------------------------------------------------------------------
-        |
-        | `renew_toman` **در لحظهٔ ثبت** ذخیره شده، یعنی با نرخِ ارزِ آن روز.
-        | تمدید یک سال بعد اتفاق می‌افتد و ما همان عدد را می‌گیریم — ولی به
-        | رجیسترار نرخِ **امروز** می‌دهیم. در بازاری که نرخ در یک سال ده‌ها
-        | درصد جابه‌جا می‌شود، این یعنی روی هر تمدید ضرر، روی **همهٔ** دامنه‌ها،
-        | بی‌هیچ خطایی و بی‌هیچ ردی. و چون تمدید سالانه تکرار می‌شود، ضرر
-        | انباشته است نه یک‌باره.
-        |
-        | ⚠️ چرا استعلامِ زنده راه‌حل نیست: `domains:lifecycle` روزانه روی همهٔ
-        | دامنه‌ها می‌دود و استعلامِ زنده یعنی صدها تماس با حسابی که یک بار
-        | به‌خاطرِ تماسِ زیاد علامت خورده. برای همین قیمت ذخیره می‌شود.
-        |
-        | راهِ درست هیچ تماسی لازم ندارد: بهایِ تمام‌شده در `cost_amount` و
-        | `cost_currency` **همان‌جا روی ردیفِ دامنه** است. کافی است با نرخِ
-        | امروز به تومان تبدیل شود و کفِ حاشیه رویش بنشیند. صفر تماسِ اضافه،
-        | و ضررِ ساختاری بسته می‌شود.
-        |
-        | ⚠️ قیمت فقط **بالا** می‌رود، هرگز پایین نمی‌آید: اگر نرخ ارزان شده
-        | باشد، تخفیفِ اضافه دادن تصمیمِ مالیِ کارفراست نه کارِ خودکارِ کد.
-        */
-        $floorPerYear = $this->renewFloor($domain);
-
-        if ($floorPerYear > $retailPerYear) {
-            $retailPerYear = $floorPerYear;
-
-            ErrorTracker::noteOnce('domain', 'reseller renewal repriced to the cost floor', 3600, [
-                'domain' => $domain->domain,
-                'stored' => $storedPerYear,
-                'floor'  => $floorPerYear,
-            ]);
-        }
-
-        $amount = $retailPerYear * $years;
+        $renewPricing = $this->pricing->price($liveQuote['sell_toman'], null, $customer, $domain->domain);
+        $renewPricing['price'] = max($renewPricing['price'], $liveQuote['floor_toman']);
+        $renewPricing['floor'] = $liveQuote['floor_toman'];
+        $renewPricing['applied_pct'] = round((1 - $renewPricing['price'] / $renewPricing['retail']) * 100, 2);
+        $renewPricing['floored'] = $renewPricing['price'] > (int) floor($renewPricing['retail'] * (1 - $renewPricing['discount_pct'] / 100));
+        $amount = $renewPricing['price'];
 
         return $this->charge(
             customer: $customer,
@@ -283,38 +254,21 @@ class ResellerOrderService
             amount: $amount,
             title: 'تمدیدِ دامنهٔ '.$domain->domain,
             description: $years.' سال',
-            build: function () use ($domain, $years) {
+            build: function () use ($domain, $years, $livePricing, $liveQuote) {
+                $domain = Domain::whereKey($domain->id)->lockForUpdate()->firstOrFail();
+                if (! $domain->isActive() || in_array($domain->provision_status, ['pending', 'running', 'manual'], true)
+                    || app(DomainRenewalInvoicer::class)->open($domain)) {
+                    throw new \RuntimeException('renewal_in_progress');
+                }
                 $domain->putMeta(['renew_years' => $years]);
+                $livePricing->remember($domain, $liveQuote);
                 $domain->forceFill(['provision_status' => 'pending'])->save();
 
                 return $domain;
             },
-            pricing: ['retail' => $amount, 'price' => $amount, 'floored' => false, 'discount_pct' => 0.0],
+            pricing: $renewPricing,
             kind: 'renew',
         );
-    }
-
-    /**
-     * کفِ قیمتِ تمدید به **نرخِ امروز** — بی‌هیچ تماسِ شبکه‌ای.
-     *
-     * بهایِ تمام‌شده روی خودِ ردیفِ دامنه ذخیره است (`cost_amount` در واحدِ
-     * فرعیِ ارزِ مبدأ، `cost_currency`). فقط تبدیلِ ارز لازم است، که از همان
-     * منبعِ یگانهٔ نرخِ سایت می‌آید.
-     *
-     * ⚠️ اگر نرخ در دسترس نباشد **صفر** برمی‌گردد، یعنی محافظ خاموش می‌شود و
-     * قیمتِ ذخیره‌شده می‌مانَد. این عمدی است: بستنِ تمدید به‌خاطرِ نبودِ نرخ
-     * یعنی دامنهٔ مشتری منقضی شود — ضررِ قطعی در برابرِ ضررِ محتمل. ولی همان
-     * حالت در ردیاب ثبت می‌شود، چون اگر نرخ **مدتی** نباشد، تمدیدها بی‌محافظ
-     * رد می‌شوند و کسی نمی‌فهمد.
-     */
-    private function renewFloor(Domain $domain): int
-    {
-        /*
-        | 🔴 منطق به `DomainCostFloor` رفت تا خرده‌فروشی و نمایندگی **یک** کف
-        | داشته باشند — و هر دو از بهای واقعیِ تمدید (`cost_renew_amount`)
-        | حساب کنند، نه بهای تبلیغاتیِ سالِ اول.
-        */
-        return app(\App\Services\Domain\DomainCostFloor::class)->renewPerYear($domain);
     }
 
     // ═══════════════════════ پول ═══════════════════════
@@ -336,7 +290,7 @@ class ResellerOrderService
         array $pricing,
         string $kind = 'register',
     ): array {
-        $taxPct = (float) \App\Http\Controllers\Account\CloudStoreController::taxPercent();
+        $taxPct = (float) CloudStoreController::taxPercent();
         $tax = (int) round($amount * $taxPct / 100);
         $total = $amount + $tax;
 
@@ -344,7 +298,7 @@ class ResellerOrderService
 
         try {
             DB::transaction(function () use (
-                $customer, $fqdn, $amount, $tax, $total, $title, $description,
+                $customer, $amount, $tax, $total, $title, $description,
                 $build, $taxPct, $kind, $pricing, &$result
             ) {
                 /*
@@ -370,11 +324,11 @@ class ResellerOrderService
 
                 if ($available < $total) {
                     $result = [
-                        'ok'      => false,
-                        'error'   => 'insufficient_credit',
+                        'ok' => false,
+                        'error' => 'insufficient_credit',
                         'message' => 'اعتبارِ حساب کافی نیست.',
-                        'status'  => 402,
-                        'data'    => ['required' => $total, 'balance' => $available, 'currency' => 'IRT'],
+                        'status' => 402,
+                        'data' => ['required' => $total, 'balance' => $available, 'currency' => 'IRT'],
                     ];
 
                     return;
@@ -385,11 +339,11 @@ class ResellerOrderService
 
                 if ($cap > 0 && (ResellerApiLog::spentToday($fresh->id) + $total) > $cap) {
                     $result = [
-                        'ok'      => false,
-                        'error'   => 'daily_cap_reached',
+                        'ok' => false,
+                        'error' => 'daily_cap_reached',
                         'message' => 'سقفِ خرجِ روزانهٔ API پر شده است. فردا یا از پنل ادامه دهید.',
-                        'status'  => 429,
-                        'data'    => ['cap' => $cap, 'spent' => ResellerApiLog::spentToday($fresh->id)],
+                        'status' => 429,
+                        'data' => ['cap' => $cap, 'spent' => ResellerApiLog::spentToday($fresh->id)],
                     ];
 
                     return;
@@ -399,31 +353,31 @@ class ResellerOrderService
                 $domain = $build();
 
                 $invoice = Invoice::create([
-                    'customer_id'   => $fresh->id,
-                    'domain_id'     => $domain->id,
-                    'kind'          => 'domain',
+                    'customer_id' => $fresh->id,
+                    'domain_id' => $domain->id,
+                    'kind' => 'domain',
                     'currency_code' => 'IRT',
-                    'subtotal'      => $amount,
-                    'tax'           => $tax,
-                    'total'         => $total,
-                    'paid'          => $total,
+                    'subtotal' => $amount,
+                    'tax' => $tax,
+                    'total' => $total,
+                    'paid' => $total,
                     // پرداخت‌شده از همان لحظه: پول واقعاً از اعتبار رفت. فاکتورِ
                     // «پرداخت‌نشده» این‌جا یعنی `services:lifecycle` روزی آن را
                     // معوق ببیند و سرویسِ سالم را تعلیق کند.
-                    'status'        => 'paid',
-                    'issued_at'     => now(),
-                    'note'          => $title.' — API نمایندگی',
+                    'status' => 'paid',
+                    'issued_at' => now(),
+                    'note' => $title.' — API نمایندگی',
                 ]);
 
                 InvoiceItem::create([
-                    'invoice_id'  => $invoice->id,
-                    'title'       => $title,
+                    'invoice_id' => $invoice->id,
+                    'title' => $title,
                     'description' => $description,
-                    'quantity'    => 1,
-                    'unit_price'  => $amount,
-                    'line_total'  => $amount,
+                    'quantity' => 1,
+                    'unit_price' => $amount,
+                    'line_total' => $amount,
                     'tax_rate_bp' => (int) ($taxPct * 100),
-                    'tax_amount'  => $tax,
+                    'tax_amount' => $tax,
                 ]);
 
                 /*
@@ -434,6 +388,11 @@ class ResellerOrderService
                 | کسر از `Wallet` — گاردِ در دسترس (رزرو-آگاه) داخلِ همان
                 | قفلِ مشتریِ همین تراکنش.
                 */
+                if ($kind === 'renew') {
+                    $domain->putMeta(['renew_invoice_id' => $invoice->id]);
+                } else {
+                    $domain->forceFill(['invoice_id' => $invoice->id])->save();
+                }
                 $this->wallet->debit($fresh->id, 'IRT', $total, 'domain_'.$kind.'_api', $domain, $title);
 
                 /*
@@ -443,14 +402,14 @@ class ResellerOrderService
                 | /admin/finance غایب بود (ممیزیِ شهریور ۱۴۰۵).
                 */
                 try {
-                    app(\App\Services\Finance\BusinessLedger::class)->recordCreditSale($invoice);
+                    app(BusinessLedger::class)->recordCreditSale($invoice);
                 } catch (\Throwable $e) {
                     ErrorTracker::note('finance', $e, ['area' => 'reseller-ledger', 'invoice' => $invoice->id]);
                 }
 
                 $result = [
-                    'ok'      => true,
-                    'domain'  => $domain,
+                    'ok' => true,
+                    'domain' => $domain,
                     'invoice' => $invoice,
                     'charged' => $total,
                     'pricing' => $pricing,
@@ -567,11 +526,11 @@ class ResellerOrderService
         // ⚠️ «نمی‌دانم» هرگز «آزاد» خوانده نمی‌شود: فروشِ دامنهٔ گرفته‌شده یعنی
         // پولِ گرفته‌شده و ثبتِ شکست‌خورده.
         $mapped = match ($state) {
-            DomainSearch::STATE_TAKEN       => ['taken', 'این دامنه ثبت شده است.', 409],
-            DomainSearch::STATE_UNCHECKED   => ['lookup_failed', 'استعلامِ این دامنه ممکن نشد.', 503],
+            DomainSearch::STATE_TAKEN => ['taken', 'این دامنه ثبت شده است.', 409],
+            DomainSearch::STATE_UNCHECKED => ['lookup_failed', 'استعلامِ این دامنه ممکن نشد.', 503],
             DomainSearch::STATE_UNSUPPORTED => ['tld_not_sold', 'این پسوند فروخته نمی‌شود.', 422],
-            DomainSearch::STATE_NO_PRICE    => ['no_price', 'قیمتِ قابلِ اتکایی برای این دامنه نداریم.', 422],
-            default                         => null,
+            DomainSearch::STATE_NO_PRICE => ['no_price', 'قیمتِ قابلِ اتکایی برای این دامنه نداریم.', 422],
+            default => null,
         };
 
         if ($mapped !== null) {

@@ -141,9 +141,11 @@ class DomainController extends Controller
         | (`DomainRenewalInvoicer::effectivePerYear`، کشِ ۶ساعته). بی‌این،
         | مشتری عددی می‌دید و فاکتورِ بزرگ‌تری می‌گرفت.
         */
-        $renewUnit = $domain->isActive()
-            ? app(\App\Services\Domain\DomainRenewalInvoicer::class)->effectivePerYear($domain)
-            : 0;
+        $renewUnit = 0;
+        if ($domain->isActive()) {
+            try { $renewUnit = app(\App\Services\Domain\DomainRenewalInvoicer::class)->effectivePerYear($domain); }
+            catch (\Illuminate\Validation\ValidationException) { /* Show a retryable quote form. */ }
+        }
 
         return view('account.domain-show', AccountController::shell('domains') + [
             'domain'         => $domain,
@@ -268,7 +270,7 @@ class DomainController extends Controller
      * نداشت** — دکمه‌ای وجود نداشت و کامنتِ کرون می‌گفت «چندساله را مشتری
      * دستی می‌خرد»، ولی آن مسیرِ دستی هرگز ساخته نشده بود.
      *
-     * هیچ تماسی با رجیسترار این‌جا نیست؛ فقط فاکتور ساخته می‌شود. تمدیدِ
+     * قیمت از رجیسترار استعلام می‌شود و فقط فاکتور ساخته می‌شود. تمدیدِ
      * واقعی پس از پرداخت و با کرونِ `domains:renew` است — همان قاعدهٔ
      * «ثبت هرگز از وب صدا زده نمی‌شود».
      */
@@ -296,17 +298,12 @@ class DomainController extends Controller
             'years' => ['required', 'integer', 'min:1', 'max:5'],
         ], [], ['years' => 'مدتِ تمدید'])['years'];
 
-        // قیمتِ مؤثر (ذخیره + استعلامِ تازه + کف) — صفر یعنی هیچ منبعی قیمت ندارد
-        if ($invoicer->effectivePerYear($domain) <= 0) {
-            return back()->withErrors(__('ui.dm_renew_noprice'));
-        }
-
         // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
         // دو فاکتور بسازد — فاکتورِ باز همیشه بازمصرف می‌شود.
         $invoice = DB::transaction(function () use ($domain, $years, $invoicer) {
             Domain::whereKey($domain->id)->lockForUpdate()->first();
 
-            return $invoicer->open($domain) ?? $invoicer->issue($domain, $years);
+            return $invoicer->issue($domain, $years);
         });
 
         // ⚠️ lroute و نه route: کاربرِ /en/ و /tr/ نباید وسطِ پرداخت به صفحهٔ
@@ -323,11 +320,8 @@ class DomainController extends Controller
      * بود — دقیقاً در پنجره‌ای که رجیستری هنوز بازیابی را می‌پذیرد و هر روز
      * تأخیر شانسِ نجات را کم می‌کند.
      *
-     * قیمت = قیمتِ مؤثرِ تمدید + کارمزدِ بازیابی (`domain_restore_fee_toman`
-     * در تنظیمات — کارمزدِ redemption نزدِ رجیستری چند برابرِ تمدید است و
-     * per-TLD از API نمی‌آید، پس عددش تصمیمِ کارفرماست). تا وقتی آن تنظیم
-     * خالی است، این مسیر عمداً بسته می‌مانَد و به پشتیبانی ارجاع می‌دهد —
-     * فروختنِ نجات زیرِ قیمتِ تمام‌شده بدتر از نفروختنش است.
+     * قیمتِ بازیابی و ذخیرهٔ تمدیدِ احتمالی از استعلامِ آنلاینِ همین دامنه می‌آید.
+     * نبودِ قیمتِ معتبر صدورِ فاکتور را متوقف می‌کند.
      *
      * مثلِ renew: این‌جا فقط فاکتور؛ تماسِ رجیسترار پس از پرداخت با کرون
      * (`restorePaid`)، و شکستِ قطعی = رفاندِ خودکار.
@@ -352,26 +346,12 @@ class DomainController extends Controller
             return back()->withErrors(__('ui.dm_restore_pending'));
         }
 
-        $fee = (int) \App\Models\Setting::get('domain_restore_fee_toman');
-
-        if ($fee <= 0) {
-            return back()->withErrors(__('ui.dm_restore_off'));
-        }
-
-        $renewPerYear = $invoicer->effectivePerYear($domain);
-
-        if ($renewPerYear <= 0) {
-            return back()->withErrors(__('ui.dm_restore_noprice'));
-        }
-
-        $invoice = DB::transaction(function () use ($domain, $invoicer, $renewPerYear, $fee) {
+        $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
+        $liveQuote = $pricing->quote($domain->sld, $domain->tld, 'restore');
+        $invoice = DB::transaction(function () use ($domain, $invoicer, $liveQuote, $pricing) {
             Domain::whereKey($domain->id)->lockForUpdate()->first();
-
-            if ($open = $invoicer->open($domain)) {
-                return $open;
-            }
-
-            $subtotal = $renewPerYear + $fee;
+            if ($open = $invoicer->open($domain)) { return $open; }
+            $subtotal = $liveQuote['sell_toman'];
             $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
             $tax = (int) round($subtotal * $taxPct / 100);
 
@@ -402,6 +382,7 @@ class DomainController extends Controller
 
             // نشانِ فاکتور برای رفاندِ هدفمند + یک‌سالِ تمدیدِ همراهِ بازیابی
             $domain->putMeta(['restore_invoice_id' => $invoice->id, 'renew_years' => 1]);
+            $pricing->remember($domain, $liveQuote);
 
             return $invoice;
         });
@@ -633,9 +614,10 @@ class DomainController extends Controller
             $ns = Domain::defaultNameServers();
         }
 
+        $liveQuote = app(\App\Services\Domain\LiveDomainPricing::class)->quote($sld, $tld, 'create', $years);
         $invoice = null;
 
-        DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns) {
+        DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns, $liveQuote) {
             $domain = $existing;
 
             static $hasRenewCost = null;
@@ -643,7 +625,7 @@ class DomainController extends Controller
 
             $money = [
                 'price_toman'   => (int) $quote->sell_toman,
-                'renew_toman'   => (int) ($quote->renew_toman ?: $quote->sell_toman),
+                'renew_toman'   => (int) $quote->renew_toman,
                 'cost_amount'   => (int) $quote->cost_amount,
                 'cost_currency' => (string) $quote->cost_currency,
             ] + ($hasRenewCost ? ['cost_renew_amount' => $quote->cost_renew_amount] : []);
@@ -685,35 +667,9 @@ class DomainController extends Controller
                 ] + $money)->save();
             }
 
-            /*
-            |------------------------------------------------------------------
-            | 🔴 سالِ اول قیمتِ خودش را دارد، سال‌های بعد قیمتِ تمدید
-            |------------------------------------------------------------------
-            |
-            | فرمولِ قبلی `sell_toman * $years` بود — یعنی قیمتِ **سالِ اول** در
-            | تعدادِ سال. و قیمتِ سالِ اولِ بیشترِ پسوندها تبلیغاتی است، در حالی
-            | که رجیسترار برای سال‌های بعد نرخِ تمدید را می‌گیرد. پس روی هر
-            | ثبتِ چندساله ما ضرر می‌کردیم، و هرچه مشتری سالِ بیشتری می‌خرید
-            | ضرر بزرگ‌تر می‌شد.
-            |
-            | نمونهٔ واقعی از همین کاتالوگ (`.shop`): ثبت ۱۹۰٬۰۰۰ و تمدید
-            | ۱٬۴۹۰٬۰۰۰ تومان. یک ثبتِ ۳ ساله:
-            |
-            |     فرمولِ قبلی : ۱۹۰٬۰۰۰ × ۳            =   ۵۷۰٬۰۰۰   ← از مشتری
-            |     بهایِ واقعی: ۱۹۰٬۰۰۰ + ۲×۱٬۴۹۰٬۰۰۰   = ۳٬۱۷۰٬۰۰۰   ← به رجیسترار
-            |                                    ضرر  ≈ ۲٬۶۰۰٬۰۰۰ تومان
-            |
-            | ⚠️ `renew_toman` در همان استعلام ذخیره شده و **هم‌لحظه** با
-            | `sell_toman` گرفته شده، پس نرخِ ارزِ هر دو یکی است. استعلامِ
-            | جداگانه برای تمدید یعنی دو نرخِ متفاوت روی یک فاکتور.
-            |
-            | ⚠️ اگر `renew_toman` خالی باشد به `sell_toman` برمی‌گردد — یعنی
-            | بدترین حالت همان رفتارِ قبلی است، نه چیزی بدتر.
-            */
-            $firstYear = (int) $quote->sell_toman;
-            $renewYear = (int) ($quote->renew_toman ?: $quote->sell_toman);
-
-            $unit = $firstYear + ($renewYear * max(0, $years - 1));
+            // The provider quotes the full selected registration term for this exact name.
+            $unit = $liveQuote['sell_toman'];
+            app(\App\Services\Domain\LiveDomainPricing::class)->remember($domain, $liveQuote);
             // ⚠️ همان منبعِ مالیاتِ بقیهٔ فروشگاه — نه محاسبهٔ موازی. دو نرخِ
             // مالیاتِ متفاوت روی یک فاکتور یعنی اختلافِ دفترِ حسابداری.
             $taxPct = CloudStoreController::taxPercent();
@@ -732,6 +688,7 @@ class DomainController extends Controller
                 'issued_at'     => now(),
                 'note'          => 'ثبتِ دامنهٔ '.$quote->domain,
             ]);
+            $domain->forceFill(['invoice_id' => $invoice->id])->save();
 
             InvoiceItem::create([
                 'invoice_id'  => $invoice->id,
@@ -797,21 +754,16 @@ class DomainController extends Controller
         | دامنهٔ در حالِ انتقال طبق تعریف آزاد نیست. پس این‌جا هیچ quoteای وجود
         | ندارد که بشود به آن تکیه کرد.
         */
-        $book = app(\App\Services\Domain\TldPriceBook::class)->fullForTlds([$tld]);
-        $price = (int) data_get($book, $tld.'.transfer', 0);
-        $renew = (int) data_get($book, $tld.'.renew', $price);
-
-        if ($price <= 0) {
-            return back()->withErrors(
-                'برای انتقالِ پسوندِ «.'.$tld.'» قیمتِ قابلِ اتکایی نداریم. با پشتیبانی تماس بگیرید.'
-            );
-        }
+        $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
+        $liveQuote = $pricing->quote($sld, $tld, 'transfer');
+        $price = $liveQuote['sell_toman'];
+        $renew = 0; // Future renewals always receive their own quote.
 
         $customerId = $this->customerId();
         $fqdn = $sld.'.'.$tld;
         $invoice = null;
 
-        DB::transaction(function () use ($customerId, $fqdn, $sld, $tld, $price, $renew, &$invoice) {
+        DB::transaction(function () use ($customerId, $fqdn, $sld, $tld, $price, $renew, &$invoice, $pricing, $liveQuote) {
             $domain = Domain::create([
                 'customer_id'      => $customerId,
                 'domain'           => $fqdn,
@@ -827,6 +779,7 @@ class DomainController extends Controller
                 'price_toman'      => $price,
                 'renew_toman'      => $renew,
             ]);
+            $pricing->remember($domain, $liveQuote);
 
             $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
             $tax = (int) round($price * $taxPct / 100);
@@ -844,6 +797,7 @@ class DomainController extends Controller
                 'issued_at'     => now(),
                 'note'          => 'انتقالِ دامنهٔ '.$fqdn,
             ]);
+            $domain->forceFill(['invoice_id' => $invoice->id])->save();
 
             InvoiceItem::create([
                 'invoice_id'  => $invoice->id,

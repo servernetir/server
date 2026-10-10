@@ -55,6 +55,11 @@ class PaymentService
             return new StartOutcome(false, error: 'ارز این فاکتور با این درگاه نمی‌خواند.');
         }
 
+        try {
+            app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return new StartOutcome(false, error: collect($e->errors())->flatten()->first());
+        }
         $amount = $invoice->due();
 
         if ($amount < $gateway->minimum()) {

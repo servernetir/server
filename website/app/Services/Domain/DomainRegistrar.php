@@ -5,9 +5,17 @@ namespace App\Services\Domain;
 use App\Models\CustomerProfile;
 use App\Models\Domain;
 use App\Models\RegistryHandle;
+use App\Models\Setting;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Dns\DomainZoneProvisioner;
+use App\Services\Finance\BusinessLedger;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\Notifier;
 use App\Support\ErrorTracker;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * ثبتِ واقعیِ دامنه نزدِ رجیسترار.
@@ -125,7 +133,7 @@ class DomainRegistrar
      */
     private function companyHandle(array $reg): array
     {
-        $cached = trim((string) (\App\Models\Setting::get('openprovider_company_handle') ?? ''));
+        $cached = trim((string) (Setting::get('openprovider_company_handle') ?? ''));
 
         if ($cached !== '') {
             return ['ok' => true, 'handle' => $cached, 'message' => ''];
@@ -141,15 +149,15 @@ class DomainRegistrar
         $payload = [
             'name' => [
                 'first_name' => trim((string) $reg['first_name']),
-                'last_name'  => trim((string) $reg['last_name']),
+                'last_name' => trim((string) $reg['last_name']),
             ],
             'address' => [
-                'street'  => trim((string) $reg['address']),
-                'city'    => trim((string) $reg['city']),
-                'state'   => trim((string) ($reg['province'] ?? '')),
+                'street' => trim((string) $reg['address']),
+                'city' => trim((string) $reg['city']),
+                'state' => trim((string) ($reg['province'] ?? '')),
                 'zipcode' => trim((string) ($reg['postal_code'] ?? '')),
                 'country' => strtoupper((string) ($reg['country'] ?: 'IR')),
-                'number'  => '1',
+                'number' => '1',
             ],
             'phone' => $phone,
             'email' => trim((string) $reg['email']),
@@ -168,7 +176,7 @@ class DomainRegistrar
 
         // ⚠️ ذخیره لازم است: بی‌آن، هر ثبت یک مخاطبِ تازه نزدِ رجیسترار می‌سازد
         //    و حسابِ ما پر از مخاطبِ تکراری می‌شود.
-        \App\Models\Setting::put('openprovider_company_handle', $res['handle']);
+        Setting::put('openprovider_company_handle', $res['handle']);
 
         return ['ok' => true, 'handle' => $res['handle'], 'message' => ''];
     }
@@ -211,11 +219,11 @@ class DomainRegistrar
 
         RegistryHandle::create([
             'customer_profile_id' => $profile->id,
-            'registry'            => 'openprovider',
-            'handle'              => $res['handle'],
-            'role'                => 'registrant',
-            'status'              => 'active',
-            'sent_data'           => $payload,
+            'registry' => 'openprovider',
+            'handle' => $res['handle'],
+            'role' => 'registrant',
+            'status' => 'active',
+            'sent_data' => $payload,
         ]);
 
         return ['ok' => true, 'handle' => $res['handle'], 'message' => ''];
@@ -265,11 +273,11 @@ class DomainRegistrar
     public function profileToCustomer(CustomerProfile $profile): ?array
     {
         $first = trim((string) $profile->first_name);
-        $last  = trim((string) $profile->last_name);
+        $last = trim((string) $profile->last_name);
         $email = trim((string) $profile->email);
-        $addr  = trim((string) $profile->address);
-        $city  = trim((string) $profile->city);
-        $zip   = trim((string) $profile->postal_code);
+        $addr = trim((string) $profile->address);
+        $city = trim((string) $profile->city);
+        $zip = trim((string) $profile->postal_code);
 
         $phone = $this->splitPhone((string) $profile->mobile, (string) $profile->country);
 
@@ -280,18 +288,18 @@ class DomainRegistrar
         $data = [
             'name' => [
                 'first_name' => $first,
-                'last_name'  => $last,
-                'full_name'  => trim($first.' '.$last),
+                'last_name' => $last,
+                'full_name' => trim($first.' '.$last),
             ],
             'address' => [
                 // ⚠️ اوپن‌پروایدر خیابان و پلاک را جدا می‌خواهد، ولی نشانیِ
                 // ایرانی یک رشتهٔ آزاد است. کلِ نشانی در `street` می‌رود و
                 // `number` یک مقدارِ حداقلی می‌گیرد — تجزیهٔ حدسیِ نشانیِ فارسی
                 // بدتر از این است: پلاکِ اشتباه یعنی WHOIS غلط.
-                'street'  => mb_substr($addr, 0, 250),
-                'number'  => '-',
-                'city'    => $city,
-                'state'   => (string) ($profile->province ?? ''),
+                'street' => mb_substr($addr, 0, 250),
+                'number' => '-',
+                'city' => $city,
+                'state' => (string) ($profile->province ?? ''),
                 'zipcode' => $zip !== '' ? $zip : '0000000000',
                 'country' => strtoupper((string) ($profile->country ?: 'IR')),
             ],
@@ -360,8 +368,8 @@ class DomainRegistrar
 
             if (strlen($national) >= 6) {
                 return [
-                    'country_code'      => '+'.$cc,
-                    'area_code'         => substr($national, 0, 3),
+                    'country_code' => '+'.$cc,
+                    'area_code' => substr($national, 0, 3),
                     'subscriber_number' => substr($national, 3),
                 ];
             }
@@ -385,8 +393,8 @@ class DomainRegistrar
         }
 
         return [
-            'country_code'      => $cc,
-            'area_code'         => substr($national, 0, 3),
+            'country_code' => $cc,
+            'area_code' => substr($national, 0, 3),
             'subscriber_number' => substr($national, 3),
         ];
     }
@@ -488,6 +496,8 @@ class DomainRegistrar
 
         try {
             return $this->doRegister($domain);
+        } catch (ValidationException $e) {
+            return $this->fail($domain, $e->getMessage(), manual: true);
         } catch (\Throwable $e) {
             Log::error('domain register crashed', ['domain' => $domain->domain, 'err' => $e->getMessage()]);
 
@@ -544,6 +554,8 @@ class DomainRegistrar
         if ($found['ok'] && ($found['found'] ?? false)) {
             return $this->succeed($domain, $found['data'], $handle['handle']);
         }
+
+        app(LiveDomainPricing::class)->assertDelivery($domain, 'create', max(1, (int) $domain->period_years));
 
         // ── ۲) ثبت ──
         $res = $this->op->registerDomain(
@@ -665,13 +677,13 @@ class DomainRegistrar
         | را از رجیسترار ترمیم می‌کند (سقف‌دار، در همان فرمان).
         */
         $domain->forceFill([
-            'status'           => 'active',
+            'status' => 'active',
             'provision_status' => 'done',
-            'provision_error'  => null,
-            'op_id'            => data_get($remote, 'id') ?: $domain->op_id,
-            'owner_handle'     => $handle,
-            'registered_at'    => $domain->registered_at ?: now(),
-            'expires_at'       => $this->parseDate($expires) ?: $domain->expires_at,
+            'provision_error' => null,
+            'op_id' => data_get($remote, 'id') ?: $domain->op_id,
+            'owner_handle' => $handle,
+            'registered_at' => $domain->registered_at ?: now(),
+            'expires_at' => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
         $until = $domain->fresh()?->expires_at;
@@ -681,7 +693,7 @@ class DomainRegistrar
             .($until ? ' و تا '.sdate($until).' اعتبار دارد.' : '.'));
 
         // بهای واقعیِ رجیسترار همین لحظه از حسابِ ما رفت — دفتر باید بداند.
-        app(\App\Services\Finance\BusinessLedger::class)
+        app(BusinessLedger::class)
             ->recordDomainWholesale($domain, 'register', max(1, (int) $domain->period_years));
 
         /*
@@ -690,7 +702,7 @@ class DomainRegistrar
         | ensure هرگز throw نمی‌کند و شکستش ثبتِ موفق را خراب نمی‌کند —
         | فقط مدیر را با نامِ دامنه صدا می‌زند.
         */
-        app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain);
+        app(DomainZoneProvisioner::class)->ensure($domain);
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
     }
@@ -706,12 +718,12 @@ class DomainRegistrar
     private function announce(string $event, Domain $domain, string $text): void
     {
         try {
-            app(\App\Services\Notify\Notifier::class)->fire(
+            app(Notifier::class)->fire(
                 $event,
                 $domain->customer,
                 [
                     'domain' => $domain->domain,
-                    'until'  => sdate($domain->fresh()?->expires_at) ?: '—',
+                    'until' => sdate($domain->fresh()?->expires_at) ?: '—',
                 ],
                 $text,
                 [],
@@ -719,7 +731,7 @@ class DomainRegistrar
                 '🌐',
             );
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('notify', $e, ['event' => $event, 'domain' => $domain->domain]);
+            ErrorTracker::note('notify', $e, ['event' => $event, 'domain' => $domain->domain]);
         }
     }
 
@@ -748,8 +760,8 @@ class DomainRegistrar
             // ⚠️ `manual` یعنی کرون دیگر برنمی‌داردش و منتظرِ آدم می‌ماند.
             // `pending` یعنی دوباره تلاش می‌شود.
             'provision_status' => $manual ? 'manual' : 'pending',
-            'provision_tries'  => $tries ?? ((int) $domain->provision_tries + 1),
-            'provision_error'  => mb_substr($message, 0, 500),
+            'provision_tries' => $tries ?? ((int) $domain->provision_tries + 1),
+            'provision_error' => mb_substr($message, 0, 500),
         ])->save();
 
         /*
@@ -779,17 +791,17 @@ class DomainRegistrar
                 ErrorTracker::noteOnce('domain', 'دامنهٔ پرداخت‌شده به صفِ دستی رفت: '.$domain->domain, 900, [
                     'domain' => $domain->domain,
                     'reason' => mb_substr($message, 0, 160),
-                    'tries'  => (int) $domain->provision_tries,
+                    'tries' => (int) $domain->provision_tries,
                 ]);
 
-                app(\App\Services\Notify\AdminNotifier::class)->event(
+                app(AdminNotifier::class)->event(
                     'ثبتِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
                     '🌐',
-                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 // هشدار هرگز نباید مسیرِ ثبت را بشکند — ولی خودش هم گم نشود
@@ -800,14 +812,14 @@ class DomainRegistrar
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
     }
 
-    private function parseDate(mixed $v): ?\Illuminate\Support\Carbon
+    private function parseDate(mixed $v): ?Carbon
     {
         if (blank($v)) {
             return null;
         }
 
         try {
-            return \Illuminate\Support\Carbon::parse((string) $v);
+            return Carbon::parse((string) $v);
         } catch (\Throwable) {
             return null;
         }
@@ -822,6 +834,7 @@ class DomainRegistrar
             return ['ok' => false, 'message' => 'این دامنه شناسهٔ رجیسترار ندارد.'];
         }
 
+        app(LiveDomainPricing::class)->assertDelivery($domain, 'renew', $years);
         $res = $this->op->renewDomain((int) $domain->op_id, $years);
 
         if (! $res['ok']) {
@@ -829,7 +842,7 @@ class DomainRegistrar
             // گران‌تر است: دامنهٔ **زندهٔ** مشتری منقضی می‌شود. پس پیام باید
             // همان‌قدر قابلِ اقدام باشد، نه متنِ خامِ انگلیسی.
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => self::isUnsignedContract((int) $res['code'])
                     ? $this->contractMessage($domain, $res['message'])
                     : ($res['message'] ?: 'تمدید ناموفق بود.'),
@@ -842,7 +855,7 @@ class DomainRegistrar
         $expires = $this->parseDate(data_get($detail, 'data.expiration_date'));
 
         $domain->forceFill([
-            'status'     => 'active',
+            'status' => 'active',
             'expires_at' => $expires ?: ($domain->expires_at?->copy()->addYears($years) ?? now()->addYears($years)),
         ])->save();
 
@@ -889,6 +902,8 @@ class DomainRegistrar
 
         try {
             $res = $this->renew($domain, $domain->renewYears());
+        } catch (ValidationException $e) {
+            return $this->failRenewal($domain, $e->getMessage(), manual: true);
         } catch (\Throwable $e) {
             Log::error('domain renew crashed', ['domain' => $domain->domain, 'err' => $e->getMessage()]);
 
@@ -913,7 +928,7 @@ class DomainRegistrar
             .sdate($domain->fresh()?->expires_at).' اعتبار دارد.');
 
         // بهای تمدید نزدِ رجیسترار — هزینهٔ واقعی، همان لحظهٔ وقوع در دفتر.
-        app(\App\Services\Finance\BusinessLedger::class)
+        app(BusinessLedger::class)
             ->recordDomainWholesale($domain, 'renew', $domain->renewYears());
 
         return ['ok' => true, 'manual' => false, 'message' => ''];
@@ -938,13 +953,13 @@ class DomainRegistrar
 
         $domain->forceFill([
             'provision_status' => $manual ? 'manual' : 'pending',
-            'provision_tries'  => $tries,
-            'provision_error'  => mb_substr('تمدید: '.$message, 0, 300),
+            'provision_tries' => $tries,
+            'provision_error' => mb_substr('تمدید: '.$message, 0, 300),
         ])->save();
 
-        \App\Support\ErrorTracker::note('provision', 'تمدیدِ دامنه ناموفق: '.$message, [
+        ErrorTracker::note('provision', 'تمدیدِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
-            'tries'  => $tries,
+            'tries' => $tries,
         ]);
 
         /*
@@ -955,14 +970,14 @@ class DomainRegistrar
         */
         if ($manual) {
             try {
-                app(\App\Services\Notify\AdminNotifier::class)->event(
+                app(AdminNotifier::class)->event(
                     'تمدیدِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
                     '⏳',
-                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 Log::warning('اعلانِ شکستِ تمدید نرفت', ['err' => $e->getMessage()]);
@@ -1022,20 +1037,44 @@ class DomainRegistrar
         }
 
         try {
+            $restoreInvoice = (int) data_get($domain->meta, 'restore_invoice_id');
+            if ($restoreInvoice > 0 && (int) data_get($domain->meta, 'restore_supplier_accepted_invoice_id') === $restoreInvoice) {
+                return $this->failRestore($domain, 'بازیابی قبلاً نزد رجیسترار پذیرفته شده؛ نتیجه باید بررسی شود.', manual: true);
+            }
+            app(LiveDomainPricing::class)->assertDelivery($domain, 'restore');
             $res = $this->op->restoreDomain((int) $domain->op_id);
 
             if (! $res['ok']) {
                 return $this->failRestore($domain, $res['message'] ?: 'بازیابی نزدِ رجیسترار رد شد.');
             }
 
-            $expires = $this->parseDate(data_get($this->op->getDomain((int) $domain->op_id), 'data.expiration_date'));
+            $domain->putMeta(['restore_supplier_accepted_invoice_id'=>$restoreInvoice,
+                'restore_supplier_accepted_at'=>now()->toIso8601String()]);
+
+            $state = $this->op->getDomain((int) $domain->op_id);
+            $expires = $this->parseDate(data_get($state, 'data.expiration_date'));
+            if (! ($state['ok'] ?? false) || $expires === null) {
+                return $this->failRestore($domain, 'وضعیت بازیابی باید بررسی شود.', manual: true);
+            }
 
             // بعضی رجیستری‌ها restore را بدونِ سالِ تازه برمی‌گردانند —
             // مشتری برای یک سالِ زنده پول داده، پس تکمیلش کن.
-            if ($expires === null || $expires->isPast()) {
-                $this->op->renewDomain((int) $domain->op_id, $domain->renewYears());
+            if ($expires->isPast()) {
+                $pricing = app(LiveDomainPricing::class);
+                $renewQuote = $pricing->quote($domain->sld, $domain->tld, 'renew', $domain->renewYears());
+                $budget = (int) data_get($domain->meta, 'live_price.wholesale_toman');
+                $restoreSpent = (int) data_get($domain->meta, 'live_price.restore_wholesale_toman', $budget);
+                if ($restoreSpent + $renewQuote['wholesale_toman'] > $budget) {
+                    return $this->failRestore($domain, __('domain-pricing.changed'), manual: true);
+                }
+                $renewResult = $this->op->renewDomain((int) $domain->op_id, $domain->renewYears());
+                if (! $renewResult['ok']) {
+                    return $this->failRestore($domain, $renewResult['message'], manual: true);
+                }
                 $expires = $this->parseDate(data_get($this->op->getDomain((int) $domain->op_id), 'data.expiration_date')) ?: $expires;
             }
+        } catch (ValidationException $e) {
+            return $this->failRestore($domain, $e->getMessage(), manual: true);
         } catch (\Throwable $e) {
             Log::error('domain restore crashed', ['domain' => $domain->domain, 'err' => $e->getMessage()]);
 
@@ -1045,10 +1084,10 @@ class DomainRegistrar
         $domain->putMeta(['exp_stage' => null, 'restore_invoice_id' => null, 'restored_at' => now()->toDateTimeString()]);
 
         $domain->forceFill([
-            'status'           => 'active',
+            'status' => 'active',
             'provision_status' => 'done',
-            'provision_error'  => null,
-            'expires_at'       => $expires ?: $domain->expires_at,
+            'provision_error' => null,
+            'expires_at' => $expires ?: $domain->expires_at,
         ])->save();
 
         $this->announce('domain_renewed', $domain,
@@ -1069,25 +1108,25 @@ class DomainRegistrar
 
         $domain->forceFill([
             'provision_status' => $manual ? 'manual' : 'pending',
-            'provision_tries'  => $tries,
-            'provision_error'  => mb_substr('بازیابی: '.$message, 0, 300),
+            'provision_tries' => $tries,
+            'provision_error' => mb_substr('بازیابی: '.$message, 0, 300),
         ])->save();
 
-        \App\Support\ErrorTracker::note('provision', 'بازیابیِ دامنه ناموفق: '.$message, [
+        ErrorTracker::note('provision', 'بازیابیِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
-            'tries'  => $tries,
+            'tries' => $tries,
         ]);
 
         if ($manual) {
             try {
-                app(\App\Services\Notify\AdminNotifier::class)->event(
+                app(AdminNotifier::class)->event(
                     'بازیابیِ دامنهٔ منقضی انجام نشد',
                     ['دامنه' => $domain->domain,
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
                     '🚨',
-                    [[['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
+                    [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]],
                 );
             } catch (\Throwable $e) {
                 Log::warning('اعلانِ شکستِ بازیابی نرفت', ['err' => $e->getMessage()]);
