@@ -1220,6 +1220,7 @@ return [
     'cx_bad_op' => 'Invalid operation.',
     'cx_type_delete' => 'To reinstall you must type DELETE - all server data will be erased.',
     'cx_not_ready' => 'The server is not ready yet.',
+    'cx_async_accepted' => 'Your request was accepted. Status and login details will update automatically when it completes.',
     'cx_os_na' => 'That operating system is not available for this server.',
     'cx_op_na' => 'That action is not available for this server.',
     'cx_reinstall_fail' => 'Reinstall failed: :msg',

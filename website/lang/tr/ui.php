@@ -1220,6 +1220,7 @@ return [
     'cx_bad_op' => 'Gecersiz islem.',
     'cx_type_delete' => 'Yeniden kurulum icin DELETE yazmalisiniz - tum sunucu verileri silinir.',
     'cx_not_ready' => 'Sunucu henuz hazir degil.',
+    'cx_async_accepted' => 'İsteğiniz alındı. İşlem tamamlandığında durum ve giriş bilgileri otomatik güncellenir.',
     'cx_os_na' => 'Bu isletim sistemi bu sunucu icin kullanilamiyor.',
     'cx_op_na' => 'Bu islem bu sunucu icin kullanilamiyor.',
     'cx_reinstall_fail' => 'Yeniden kurulum basarisiz: :msg',

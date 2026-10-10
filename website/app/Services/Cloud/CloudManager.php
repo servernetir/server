@@ -26,6 +26,7 @@ class CloudManager
         // دو API با دو اعتبارنامهٔ متفاوت‌اند و ادغامشان یعنی توکنِ یکی روی
         // دیگری امتحان شود و هر دو بی‌صدا بمیرند.
         'hetzner-robot' => HetznerRobotClient::class,
+        'lightnode' => LightNodeClient::class,
     ];
 
     /**
@@ -48,6 +49,7 @@ class CloudManager
         'proxmox' => 'Proxmox (Tehran)',
         'salad'   => 'SaladCloud (GPU)',
         'hetzner-robot' => 'Hetzner Robot (Dedicated)',
+        'lightnode' => 'LightNode',
     ];
 
     /** @var array<string, CloudProvider> */

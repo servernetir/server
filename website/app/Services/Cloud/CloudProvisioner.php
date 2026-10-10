@@ -490,7 +490,8 @@ class CloudProvisioner
                 | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
-                'username'         => $instance->isGpuApp() ? null : 'root',
+                'username'         => $instance->isGpuApp() ? null
+                    : ($instance->provider === 'lightnode' && $instance->isWindows() ? 'Administrator' : 'root'),
                 'password'         => $password ?: $service->password,
                 'domain'           => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
@@ -2402,7 +2403,8 @@ class CloudProvisioner
         $r = $fn($driver, (string) $instance->provider_ref);
 
         if ($r['ok'] ?? false) {
-            $instance->update(['status' => $expectStatus, 'last_error' => null, 'synced_at' => now()]);
+            $instance->update(['status' => ($r['pending'] ?? false) ? 'building' : $expectStatus,
+                'last_error' => null, 'synced_at' => now()]);
 
             return true;
         }

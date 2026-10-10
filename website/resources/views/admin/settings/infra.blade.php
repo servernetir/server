@@ -9,6 +9,23 @@
   @csrf
   <input type="hidden" name="tab" value="infra">
 
+  <div class="ad-panel">
+    <div class="ad-panel-h"><h2>LightNode</h2>
+      @if($cloud['lightnode'])<span class="ad-badge">کلید ذخیره‌شده</span>@endif
+    </div>
+    <p class="set-lead">اتصال و همگام‌سازی برای بررسی فعال می‌شود. فروش تا تأیید قیمت هر منطقه، تحویل لینوکس و ویندوز و حذف واقعی سرور بسته می‌ماند. خاموشی، هزینهٔ این زیرساخت را متوقف نمی‌کند.</p>
+    <div class="set-grid" style="padding:0 18px 18px">
+      <label class="set-f">کلید API
+        <input type="password" name="lightnode_api_token" dir="ltr" autocomplete="new-password" maxlength="1000"
+          placeholder="{{ $cloud['lightnode'] ? 'ذخیره‌شده؛ خالی = بدون تغییر' : 'کلید API تأییدشدهٔ حساب' }}"></label>
+      @if($cloud['lightnode'])<label class="set-danger"><input type="checkbox" name="lightnode_forget" value="1">حذف کلید ذخیره‌شده</label>@endif
+      <label class="set-f full">کاتالوگ بررسی‌شدهٔ مناطق و نرخ‌ها
+        <textarea name="lightnode_manifest" dir="ltr" rows="8">{{ $cloud['lightnode_manifest'] }}</textarea>
+        <span class="set-lead">ساختار در راهنمای اتصال LightNode ثبت شده است. نرخ بدون تأیید یا قدیمی وارد فروش نمی‌شود. کلید API و رمز سرور را در این بخش وارد نکنید.</span>
+      </label>
+    </div>
+  </div>
+
   {{-- ═══ CDN و DNS ═══ --}}
   <div class="ad-panel">
     <div class="ad-panel-h">

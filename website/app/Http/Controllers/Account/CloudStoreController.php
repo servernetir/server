@@ -596,7 +596,18 @@ class CloudStoreController extends Controller
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
             }
 
-            if ((int) $row->min_disk_gb > (int) $offer->disk_gb) {
+            if ($row->provider === 'lightnode') {
+                if ($row->family === 'windows' && ((int) $offer->vcpu < 2 || (int) $offer->ram_mb < 4096)) {
+                    continue;
+                }
+                $region = explode('|', (string) $row->provider_ref)[0];
+                if (! CloudPlan::query()->sellable()->where('slug', $offer->slug)
+                    ->where('provider', 'lightnode')->where('provider_location', 'like', $region.'|%')->exists()) {
+                    continue;
+                }
+            }
+
+            if ((int) $row->min_disk_gb > (int) ($offer->boot_disk_gb ?? $offer->disk_gb)) {
                 continue;                                 // روی این دیسک جا نمی‌شود
             }
 
