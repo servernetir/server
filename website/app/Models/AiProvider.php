@@ -20,6 +20,8 @@ class AiProvider extends Model
     public const STATUS_NONE = 'none';
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_SIGNED = 'signed';
+    // Explicit owner instruction to proceed on an assumption; not evidence of a signed contract.
+    public const STATUS_OWNER_ASSUMED = 'owner_assumed';
 
     protected $fillable = [
         'slug', 'name', 'driver', 'enabled', 'commercial_enabled',
@@ -69,7 +71,7 @@ class AiProvider extends Model
 
     public function isAgreedTo(): bool
     {
-        return $this->agreement_status === self::STATUS_SIGNED;
+        return in_array($this->agreement_status, [self::STATUS_SIGNED, self::STATUS_OWNER_ASSUMED], true);
     }
 
     /** مکثِ خودکار (۴۰۱/۴۰۲/۴۰۳ ِ بالادست) یا دستیِ مدیر — تا برداشته نشود هیچ تماسی نمی‌رود */

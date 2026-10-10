@@ -231,6 +231,41 @@ class AiGatesAndLimitsTest extends TestCase
         $this->assertNull($this->provider->fresh()->paused_at);
     }
 
+    public function test_owner_assumption_allows_sales_without_claiming_signed_evidence(): void
+    {
+        $this->provider->update(['agreement_status' => AiProvider::STATUS_OWNER_ASSUMED]);
+        [, $plain] = $this->greenKey();
+        $this->fakeUsage(10, 5, null);
+        $this->v1($plain, $this->chatBody())->assertOk();
+        $this->assertSame('owner_assumed', $this->provider->fresh()->agreement_status);
+        $this->assertSame(AiUsage::STATUS_SETTLED, AiUsage::sole()->status);
+        Http::assertSentCount(1);
+    }
+
+    public function test_owner_assumption_does_not_override_provider_pause(): void
+    {
+        $this->provider->update(['agreement_status' => AiProvider::STATUS_OWNER_ASSUMED,
+            'paused_at' => now(), 'paused_reason' => 'test pause']);
+        [, $plain] = $this->greenKey();
+        Http::fake();
+        $this->v1($plain, $this->chatBody())->assertStatus(503)->assertJsonPath('code', 'provider_paused');
+        Http::assertNothingSent();
+        $this->assertSame(0, AiUsage::count());
+    }
+
+    public function test_admin_records_owner_assumption_with_an_explicit_label(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $url = '/admin/ai/providers/'.$this->provider->id;
+        $this->actingAs($admin)->post($url, ['agreement_status' => 'owner_assumed',
+            'enabled' => '1', 'live_calls_enabled' => '1', 'commercial_enabled' => '1', 'resale_allowed' => '1'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('owner_assumed', $this->provider->fresh()->agreement_status);
+        $this->get('/admin/ai')->assertOk()->assertSee('فرض مالک؛ بدون مدرک قرارداد');
+        $this->post($url, ['agreement_status' => 'unknown'])->assertSessionHasErrors('agreement_status');
+        $this->assertSame('owner_assumed', $this->provider->fresh()->agreement_status);
+    }
+
     /* ─────────────────────────────────────────────────────────── */
 
     private function sellableCatalogReset(): void

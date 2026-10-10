@@ -45,6 +45,7 @@
           <td>
             @if($p->agreement_status === 'signed')<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">امضا</span>
             @elseif($p->agreement_status === 'requested')<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">درخواست‌شده</span>
+            @elseif($p->agreement_status === 'owner_assumed')<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24">فرض مالک؛ بدون مدرک قرارداد</span>
             @else<span style="color:var(--dim)">—</span>@endif
           </td>
           <td>

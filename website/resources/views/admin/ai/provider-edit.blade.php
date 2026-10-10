@@ -32,7 +32,7 @@
     <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
       وضعیتِ توافق
       <select name="agreement_status" class="ad-input" style="padding:8px">
-        @foreach(['none' => 'بدون توافق', 'requested' => 'درخواست‌شده', 'signed' => 'امضاشده'] as $val => $label)
+        @foreach(['none' => 'بدون توافق', 'requested' => 'درخواست‌شده', 'signed' => 'امضاشده', 'owner_assumed' => 'فرض توافق به دستور مالک — بدون مدرک قرارداد'] as $val => $label)
           <option value="{{ $val }}" @selected(old('agreement_status', $provider->agreement_status) === $val)>{{ $label }}</option>
         @endforeach
       </select>

@@ -63,7 +63,7 @@ class AiGatewayController extends Controller
             'enabled'            => 'nullable|boolean',
             'commercial_enabled' => 'nullable|boolean',
             'resale_allowed'     => 'nullable|boolean',
-            'agreement_status'   => 'nullable|in:'.AiProvider::STATUS_NONE.','.AiProvider::STATUS_REQUESTED.','.AiProvider::STATUS_SIGNED,
+            'agreement_status'   => 'nullable|in:'.AiProvider::STATUS_NONE.','.AiProvider::STATUS_REQUESTED.','.AiProvider::STATUS_SIGNED.','.AiProvider::STATUS_OWNER_ASSUMED,
             'priority'           => 'nullable|integer|between:0,65535',
             'live_calls_enabled' => 'nullable|boolean',
             'notes'              => 'nullable|string|max:2000',

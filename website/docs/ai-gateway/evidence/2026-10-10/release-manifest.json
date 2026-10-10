@@ -27,7 +27,7 @@
   {
     "path": "app/Models/AiProvider.php",
     "before": "5039e46a815702f6dc06184f4dd883decac5b8f3c7be385ffefe64622a192596",
-    "after": "f9ceee1c459334913938d536e7e2ad6ef34b69d6352d89dfdc2e12f4ed70ed5a"
+    "after": "1a4a1ad5c399f1705bbe49d977dde1814e457f93de8a7ba8fb96f90e52a7cc76"
   },
   {
     "path": "app/Models/AiReservation.php",
@@ -102,7 +102,7 @@
   {
     "path": "app/Http/Controllers/Admin/AiGatewayController.php",
     "before": "93addc2869cb68cc0b82f0897670f8c741f2661e4db15cbcdafb8d0f802e4381",
-    "after": "ce5dd0c697be9d768a2c7e6ea0fb06f7357931a09ae1ab74c8b75843115df68b"
+    "after": "4b643257e80db5efe2f18f04e1e587a7bd9476e73363d07161f816aa5fc10dd8"
   },
   {
     "path": "app/Http/Controllers/Ai/V1ChatController.php",
@@ -252,7 +252,7 @@
   {
     "path": "resources/views/admin/ai/provider-edit.blade.php",
     "before": "553a51938c49bf3cfc4b1a5608418055a6214c807d7f4fe7e469d5b8c9ed6089",
-    "after": "c656793aa89097a59901b22301529ecf28ab73d2f863d7e1efa3cd6fc6d65f24"
+    "after": "f448bb6c62619c66f28dd82a703471785aff2e7492aa1e7a8bf5452f5c8a3956"
   },
   {
     "path": "resources/views/admin/ai/_price-preview.blade.php",
@@ -293,5 +293,10 @@
     "path": "resources/views/pages/ai/style.blade.php",
     "before": null,
     "after": "7558763d2a782e92340977c7f3da875647e9c5dc3b12547bac97ae7bf7732b76"
+  },
+  {
+    "path": "resources/views/admin/ai/providers.blade.php",
+    "before": "4c16d58ba5978eb610288141467e1ee215072dedb26b08863ebfd02e1cbcd1d4",
+    "after": "4f8914ad702ad1c7bb0afa020f78b606d4ba61d7b4073920343257103b0c97c8"
   }
 ]

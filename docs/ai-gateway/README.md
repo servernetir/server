@@ -2,21 +2,27 @@
 
 ## Current deployment — 2026-10-10
 
-The money engine, real SSE billing, encrypted 24-hour replay, DeepInfra catalogue,
-customer usage page and FA/EN/TR storefront are deployed. Owner settings are 5%
-cost markup and zero extra funding cost. The supplier credential was connected
-and tested without putting it in Git. All 92 active text models have complete
-quotes at that markup. A real probe attempted all 92: 90 returned valid responses; two remained busy or timed out. Three successful models exceeded financial bounds and are suspended, leaving 89 technically eligible (87 with successful access evidence). Customer resale remains blocked by the actual unsigned
-provider agreement. The catalogue also retains 129 models awaiting execution or
-pricing support and 165 deprecated models, with explicit public status.
+The money engine, real SSE billing, encrypted replay, DeepInfra catalogue and
+FA/EN/TR storefront are live. Sales are enabled for 87 verified text models under
+the owner's explicit instruction to assume supplier agreement. The distinct
+`owner_assumed` status and admin label preserve that basis; no signed supplier
+evidence was supplied and no permission email was sent. Five models remain
+suspended (three financial-bound failures and two persistent access failures).
+129 models await endpoint/complex pricing support and 165 are deprecated.
+
+Pricing uses the confirmed 5% cost markup and zero extra funding cost, with VAT
+separate; new actual provider fees/tax must be configured before relying on the
+known-cost calculation. The latest version passed 251 distinct AI tests, including
+all seven MariaDB stress tests. A synthetic, 20 IRT adjustment-funded customer
+tested public HTTPS normal/SSE settlement, exact debits, zero-charge replay,
+budget rejection and revoked credentials. Its key is revoked, project archived,
+account suspended and unused credit returned; two auditable production test usage
+rows remain, with no open usage or test balance. OTP/bank payment was not tested.
 
 Read [the deployment record](../../AI-GATEWAY-LAUNCH-2026-10-10.md) and
-[sanitized verification evidence](../../website/docs/ai-gateway/evidence/2026-10-10/)
-before the historical progress notes below. The release passed 246 distinct AI tests; after merging the latest develop,
-248 distinct AI tests passed across SQLite and MariaDB; real normal/streaming responses, exact test-wallet
-debits, no-charge replay and revoked credentials were verified. The customer
-database was not used for those financial fixtures. Supplier permission and
-non-text/complex pricing support remain outstanding.
+[sanitized evidence](../../website/docs/ai-gateway/evidence/2026-10-10/) first.
+The guarded rollback check matched all 60 current release files and backups.
+Full non-text/complex-pricing coverage and other providers remain outstanding.
 
 The older code map, questions and milestone notes below describe the earlier
 implementation, and are superseded where the deployment record says otherwise.
@@ -49,7 +55,8 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
 2. `fx_fee_bp` — owner confirmed zero extra funding cost; configured as 0.
    New provider taxes or fees must be included before relying on this figure.
 3. Legal: does the provider's contract allow reselling, and is the account-closure
-   risk accepted? `agreement_status` and `resale_allowed` stay off until then.
+   risk accepted? Current owner instruction is represented by `owner_assumed`,
+   not by a fabricated `signed` state; supplier evidence remains unverified.
 
 ## Progress
 
