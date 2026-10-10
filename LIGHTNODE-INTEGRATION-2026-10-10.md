@@ -49,6 +49,12 @@ The test console quoted Manila CPU Shared, 1 vCPU / 2 GB, 50 GB boot, no data di
 
 The [Terms of Service](https://www.lightnode.com/termsService), section 3.4, addresses resale and end users; the account holder remains responsible for their end users' compliance. Free-bandwidth promotions have separate resale restrictions in section 4.6. Such promotions are not treated as a free commercial traffic allowance.
 
+## Provider clarification request
+
+On 2026-10-10, the user explicitly approved sending the prepared support request. It was submitted once through the account's LightNode ticket form and the resulting ticket detail confirmed **Processing**, with the complete message and public draft PR link retained. No substantive provider reply was present. The request covers official prices/stock by region/package, CPU-series mapping, a supported way to enable `limitFlow=TRUE`, billing precision and recovery of lost tasks. The form limits messages to 250 characters, so the approved concise request links to PR #27 for the full release blockers. No key, password, attachment or private resource identifier was transmitted.
+
+The private ticket receipt and screenshot are retained outside the Git repository. Submission does not resolve any pricing, capacity, billing or traffic-policy release requirement; sales remain disabled. No production machine, route, NAT/firewall, persistence setting or reconciliation-agent state changed. Existing activation and rollback requirements still apply.
+
 ## Real acceptance tests
 
 Tests used only a private local Laravel database, synthetic `example.test` customer records, array mail/cache drivers and two explicitly named disposable LightNode instances. No production customer or website configuration was altered.
