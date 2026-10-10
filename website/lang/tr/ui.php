@@ -3230,4 +3230,7 @@ return [
     'act_ai_project_created' => '“:name” yapay zekâ projesi oluşturuldu.',
     'act_ai_project_archived' => '“:name” yapay zekâ projesi arşivlendi.',
     'act_ai_project_updated' => '“:name” yapay zekâ projesi “:status” durumuna taşındı.',
+    'cs_closed_h' => 'Bu sipariş kapatıldı',
+    'cs_closed_p' => 'Bu sipariş iptal edildi veya sonlandırıldı; artık hazırlanıyor değil.',
+    'cs_closed_refund_p' => 'İlk teslimat tamamlanmadı. Sipariş otomatik olarak iptal edildi ve kesilen tutar hesap bakiyenize geri aktarıldı.',
 ];

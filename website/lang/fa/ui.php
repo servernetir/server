@@ -3250,4 +3250,7 @@ return [
     'act_ai_project_created' => 'پروژهٔ AI «:name» ساخته شد.',
     'act_ai_project_archived' => 'پروژهٔ AI «:name» آرشیو شد.',
     'act_ai_project_updated' => 'پروژهٔ AI «:name» به وضعیت «:status» رفت.',
+    'cs_closed_h' => 'این سفارش بسته شده است',
+    'cs_closed_p' => 'این سفارش لغو یا خاتمه یافته و دیگر در حال آماده‌سازی نیست.',
+    'cs_closed_refund_p' => 'تحویل اولیه انجام نشد و سفارش خودکار لغو شد. مبلغ کسرشده به اعتبار حساب شما برگشته است.',
 ];
