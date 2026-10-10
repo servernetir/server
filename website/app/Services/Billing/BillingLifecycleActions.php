@@ -13,7 +13,7 @@ class BillingLifecycleActions
     public static function run(Service $service, string $action, ProvisioningService $provisioner): string
     {
         $service->refresh();
-        if ($service->isInternalInfrastructure()) {
+        if ($service->isInternalInfrastructure() || ! empty($service->provision_meta['staff_suspend'])) {
             return 'deferred';
         }
         if ($action === 'suspend' && (RenewalTerms::serviceDeadline($service)?->isFuture()
@@ -29,7 +29,8 @@ class BillingLifecycleActions
         if (! empty($state['retry_at']) && Carbon::parse($state['retry_at'])->isFuture()) {
             return 'deferred';
         }
-        if (($service->pendingManualAction()['kind'] ?? null) === $action) {
+        // Renewal must finish before restoration can replace its work item.
+        if ($service->pendingManualAction() !== null) {
             return 'pending';
         }
 
@@ -46,6 +47,9 @@ class BillingLifecycleActions
 
         $service->refresh();
         $meta = (array) $service->provision_meta;
+        if ($manual && ($meta['manual_action']['kind'] ?? null) === $action) {
+            $meta['manual_action']['origin'] = 'billing';
+        }
         $meta[$key] = [
             'attempted_at' => now()->toIso8601String(),
             'confirmed_at' => $confirmed ? now()->toIso8601String() : null,

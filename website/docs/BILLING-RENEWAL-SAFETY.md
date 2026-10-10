@@ -5,20 +5,23 @@
 - A recurring service's date-only `next_due_at` covers the entire due day in `billing.timezone` (Asia/Tehran). Renewal invoice `due_at` is that day's end converted to UTC. Initial order invoices retain the configured payment window.
 - Domain renewal invoices use the registered domain's expiry timestamp. They remain payable during the existing registrar grace period and are excluded from stale-order cancellation while the domain is active.
 - Renewal generation runs every 15 minutes. Lifecycle enforcement runs every 5 minutes, including restoration after settlement. Both use the same service row lock when checking/creating an outstanding invoice.
-- Draft, unpaid, partial and overdue invoices with a remaining balance prevent duplicate renewal invoices. Overdue services are still checked when an invoice-generation run was missed.
+- Draft, unpaid, partial and overdue invoices with a remaining balance, or an open zero-total invoice, prevent duplicate renewal invoices. Closing a zero-total invoice remains an explicit settlement step. Overdue services are still checked when an invoice-generation run was missed.
 - A payment advances one billing period for a continuously active service. Skipping a non-delivered interval requires a recorded, confirmed suspension before the next period. Payment does not claim that a suspended resource is running; restoration must succeed separately.
 
 ## Suspension and restoration
 
 - Failed provider operations do not become confirmed service status changes. Monthly lifecycle failures retry after 15 minutes. Cloud power requests are confirmed by querying the actual provider state; an accepted asynchronous request alone is insufficient.
 - Hourly credit exhaustion stops billing immediately. The retention countdown starts after shutdown confirmation; failures retry and remain visible. A funded customer's server is not deleted merely because restoration failed, and the first resumed hour is charged only after power-on confirmation.
+- The hourly meter runs every five minutes, while elapsed-hour claims retain the one-hour billing unit. This reconciles asynchronous provider operations without waiting another hour or charging the same hour twice. The stale-run alert threshold is 20 minutes.
 - Existing hourly hold reserves, hold costs, interruption accounting and the customer's existing credit-exhaustion policy are preserved.
 - Manual providers create a persistent work item. The administrator must perform the supplier action and acknowledge completion. Pending work remains visible even after local cancellation. Acknowledgement cannot revive a closed service.
+- A pending supplier renewal must be acknowledged before billing queues restoration. Financial-only support renewals have no supplier work item. A staff-initiated manual suspension records `staff_suspend`; billing cannot lift it, including after a later due date. Explicit staff restoration clears it. Billing-origin work is marked separately.
 - Monthly expiry does not automatically delete customer resources. The existing 30-day retention notice remains an administrator decision.
 
 ## Internal infrastructure and owner exemption
 
 - `billing.internal_service_ids = [20]` excludes service 20 from customer collection, hourly metering, suspension and release. Guards exist both in the jobs and in provisioning entry points.
+- Cancellation with refund is also blocked for internal infrastructure before any wallet credit or cancellation change.
 - The separately deployed owner-account complimentary renewal policy is preserved. Its matching account can advance the renewal date without creating debt or debiting credit, including the internal service.
 
 ## Visibility and repair
@@ -33,3 +36,5 @@
 Use a fresh production source snapshot. Production may include hotfixes absent from the Git branch. Reconcile before testing and enforce pre-deployment hashes for every replaced file. Back up the exact files and the invoice dates affected by repair. Install new helper classes before their callers and rebuild configuration and view caches. Do not run a broad deletion command as a smoke test.
 
 Rollback restores the backed-up files and caches. Restore repaired invoice dates only if their current deadline still matches the repair result and the invoice remains unpaid; retain financial and activity history. No migration or payment-ledger rewrite is required by this repair.
+
+The repository also includes the existing production hourly-hold migration and the rclone client, provisioner, type registration, form option and pricing configuration. Fresh checkouts need these dependencies; the October 10 follow-up did not rerun that migration or change existing hold reserves on production. Do not drop hold columns during rollback.

@@ -398,11 +398,12 @@ Schedule::command('cloud:sync-instances')
     ->everyMinute()
     ->withoutOverlapping(10);
 
-// متر کردنِ سرورهای ابریِ **ساعتی** — هر ساعت از کیفِ پولِ مشتری کم می‌کند.
+// واحد کسر همچنان یک ساعت است؛ رسیدگی هر پنج دقیقه تأیید قطع/وصلِ
+// غیرهم‌زمان و اتمام اعتبار را تا ساعت بعد معطل نمی‌گذارد.
 // idempotent است (claimِ اتمی روی last_metered_at)، پس اجرای دوباره در یک ساعت
 // دوبار کسر نمی‌کند. withoutOverlapping هم لایهٔ دوم.
 Schedule::command('cloud:meter')
-    ->hourly()
+    ->everyFiveMinutes()
     ->withoutOverlapping(45);
 
 // 🔴 صفِ «مشتری بسته، زیرساخت تأیید نکرده».

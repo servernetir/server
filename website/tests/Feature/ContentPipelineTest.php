@@ -252,7 +252,8 @@ class ContentPipelineTest extends TestCase
 
         for ($i = 0; $i < 21; $i++) {
             if (Jalali::weekdayIndex($day) >= 5) {
-                $this->assertSame(2, $calendar->quotaFor($day), 'آخرِ هفته باید سبک بماند.');
+                // Calibration may raise the plan quota to finish the queued work by year end.
+                $this->assertSame(2, $calendar->baseQuotaFor($day), 'سهمیهٔ پایهٔ آخرِ هفته باید سبک بماند.');
             }
             $day = $day->addDay();
         }

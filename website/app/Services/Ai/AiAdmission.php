@@ -57,6 +57,12 @@ final class AiAdmission
             return AiAuthContext::denied('ip_not_allowed', 'این کلید فقط از IPهای مجازِ خودش کار می‌کند.');
         }
 
+        // A deleted project clears the foreign key; report that cause before can()
+        // also rejects the now-unbound AI key. This still denies all access.
+        if ($token->isAiKey() && $token->ai_project_id === null) {
+            return AiAuthContext::denied('project_missing', 'کلید AI به پروژه‌ای سالم گره نخورده است.');
+        }
+
         if (! $token->can($ability)) {
             return AiAuthContext::denied($token->isAiKey() ? 'insufficient_scope' : 'not_ai_key',
                 'کلید دامنهٔ «'.$ability.'» ندارد');

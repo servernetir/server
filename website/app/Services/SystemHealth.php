@@ -925,7 +925,7 @@ class SystemHealth
     private function billingJobs(): array
     {
         $problems = [];
-        foreach (['services:renew-due' => 45, 'services:lifecycle' => 20, 'cloud:meter' => 90] as $job => $minutes) {
+        foreach (['services:renew-due' => 45, 'services:lifecycle' => 20, 'cloud:meter' => 20] as $job => $minutes) {
             $run = BillingRunMonitor::read($job);
             if (empty($run['finished_at']) || Carbon::parse($run['finished_at'])->lt(now()->subMinutes($minutes))
                 || ($run['errors'] ?? 0) > 0 || ($run['counts']['pending'] ?? 0) > 0) {

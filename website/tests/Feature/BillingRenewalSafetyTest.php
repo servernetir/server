@@ -336,8 +336,31 @@ class BillingRenewalSafetyTest extends TestCase
         $events = collect(app(Schedule::class)->events());
         $lifecycle = $events->first(fn ($e) => str_contains((string) $e->command, 'services:lifecycle'));
         $renewals = $events->first(fn ($e) => str_contains((string) $e->command, 'services:renew-due'));
+        $meter = $events->first(fn ($e) => str_contains((string) $e->command, 'cloud:meter'));
         $this->assertSame('*/5 * * * *', $lifecycle->expression);
         $this->assertSame('*/15 * * * *', $renewals->expression);
+        $this->assertSame('*/5 * * * *', $meter->expression);
+    }
+
+    public function test_delayed_hourly_resume_is_reconciled_at_next_tick_without_repeat_charge(): void
+    {
+        $service = $this->hourly(['status' => 'suspended', 'suspended_at' => now()->subHour(),
+            'provision_meta' => ['hourly_suspend' => ['confirmed_at' => now()->subHour()->toIso8601String()]]]);
+        $this->topup($service, 10000);
+        $prov = \Mockery::mock(CloudProvisioner::class);
+        $prov->shouldReceive('unsuspend')->twice()->andReturn(false, true);
+        $prov->shouldNotReceive('terminate', 'suspend');
+        $this->app->instance(CloudProvisioner::class, $prov);
+        $this->artisan('cloud:meter')->assertFailed();
+        $this->assertSame(10000, $service->customer->creditBalance('IRT'));
+        $this->travel(5)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame(9000, $service->customer->creditBalance('IRT'));
+        $this->travel(5)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame(9000, $service->customer->creditBalance('IRT'));
+        $this->assertSame(1, CreditEntry::where('reason', 'cloud_hourly')->count());
     }
 
     public function test_domain_renewal_deadline_is_the_expiry_not_two_days_after_issue(): void
@@ -376,7 +399,7 @@ class BillingRenewalSafetyTest extends TestCase
     {
         $service = $this->service();
         $admin = User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'x', 'role' => 'admin']);
-        app(ProvisioningService::class)->suspend($service);
+        $this->artisan('services:lifecycle')->assertSuccessful();
         $this->actingAs($admin)->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
         $this->assertSame('suspended', $service->fresh()->status);
         $this->assertNotEmpty($service->fresh()->provision_meta['billing_suspend']['confirmed_at']);
@@ -406,10 +429,7 @@ class BillingRenewalSafetyTest extends TestCase
 
     public function test_existing_hourly_hold_reserve_is_charged_once_without_spending_other_credit(): void
     {
-        Schema::table('services', function ($table) {
-            $table->bigInteger('hold_rate_irt')->default(0);
-            $table->bigInteger('hold_reserve_irt')->default(0);
-        });
+        $this->assertTrue(Schema::hasColumns('services', ['hold_rate_irt', 'hold_reserve_irt']));
         HourlyHold::flush();
         $service = $this->hourly(['status' => 'suspended', 'suspended_at' => now()->subHours(2),
             'last_metered_at' => now()->subHours(2), 'hold_rate_irt' => 100, 'hold_reserve_irt' => 2400,
@@ -429,6 +449,140 @@ class BillingRenewalSafetyTest extends TestCase
         $this->assertSame(2800, $service->customer->creditBalance('IRT'));
         $this->assertSame(2200, (int) $service->fresh()->hold_reserve_irt);
         $this->assertSame('suspended', $service->fresh()->status);
+    }
+
+    public function test_zero_total_open_invoice_blocks_repeated_renewal_generation(): void
+    {
+        $service = $this->service(['price' => 0, 'next_due_at' => '2026-10-11']);
+        $first = RenewalTerms::ensureInvoice($service);
+        $this->assertSame(0, $first->total);
+        foreach (range(1, 3) as $run) {
+            $this->artisan('services:renew-due')->assertSuccessful();
+            $this->artisan('services:lifecycle')->assertSuccessful();
+        }
+        $this->assertSame($first->id, RenewalTerms::openInvoice($service)->id);
+        $this->assertSame(1, $service->invoices()->count());
+        $first->update(['status' => 'paid']);
+        $this->assertNull(RenewalTerms::openInvoice($service));
+    }
+
+    public function test_paid_manual_renewal_is_completed_before_restoration_is_queued(): void
+    {
+        $service = $this->service(['domain' => 'licence.example.test', 'status' => 'suspended',
+            'suspended_at' => now()->subDay(),
+            'provision_meta' => ['billing_suspend' => ['confirmed_at' => now()->subDay()->toIso8601String()]]]);
+        $invoice = $this->invoice($service);
+        $payment = Payment::create(['invoice_id' => $invoice->id, 'customer_id' => $service->customer_id,
+            'gateway' => 'bale', 'currency_code' => 'IRT', 'amount' => 100000, 'status' => 'redirected']);
+        app(PaymentService::class)->settleConfirmed($payment, 'manual-renewal-paid');
+        $this->assertSame('renew', $service->fresh()->pendingManualAction()['kind']);
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('renew', $service->fresh()->pendingManualAction()['kind']);
+        $this->assertSame('suspended', $service->fresh()->status);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('unsuspend', $service->fresh()->pendingManualAction()['kind']);
+        $this->actingAs($admin)->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->assertSame('active', $service->fresh()->status);
+    }
+
+    public function test_staff_manual_suspension_is_not_automatically_restored_by_billing(): void
+    {
+        $service = $this->service(['next_due_at' => '2026-11-10']);
+        app(ProvisioningService::class)->suspend($service);
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertEmpty($service->fresh()->provision_meta['billing_suspend'] ?? null);
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertNull($service->fresh()->pendingManualAction());
+        Http::assertNothingSent();
+    }
+
+    public function test_staff_suspension_survives_a_later_unpaid_due_date(): void
+    {
+        $service = $this->service(['next_due_at' => '2026-10-11']);
+        app(ProvisioningService::class)->suspend($service);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->travel(3)->days();
+        $this->artisan('services:renew-due')->assertSuccessful();
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertNotEmpty($service->fresh()->provision_meta['staff_suspend']);
+        $this->assertEmpty($service->fresh()->provision_meta['billing_suspend'] ?? null);
+        app(ProvisioningService::class)->unsuspend($service->fresh());
+        $this->actingAs($admin)->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertEmpty($service->fresh()->provision_meta['staff_suspend'] ?? null);
+    }
+
+    public function test_internal_service_cannot_be_refunded_through_cancellation(): void
+    {
+        $service = $this->service(['id' => 20]);
+        $this->invoice($service, ['status' => 'paid', 'paid' => 100000]);
+        $this->provisioner()->shouldNotReceive('terminate');
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->post('/admin/services/20/cancel-refund', ['amount' => 100000])->assertSessionHasErrors();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame(0, CreditEntry::where('reason', 'refund')->count());
+        $this->assertNull($service->fresh()->cancelled_at);
+        Http::assertNothingSent();
+    }
+
+    public function test_status_selector_records_success_and_queued_manual_action_with_staff_identity(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'name' => 'Billing Operator']);
+        foreach ([ProvisionResult::success(null, null, null), ProvisionResult::manual('Waiting for supplier')] as $result) {
+            $service = $this->service();
+            $this->provisioner()->shouldReceive('suspend')->once()->andReturn($result);
+            $this->actingAs($admin)->post('/admin/services/'.$service->id.'/status', ['status' => 'suspended'])
+                ->assertRedirect();
+            $log = \App\Models\ActivityLog::where('service_id', $service->id)->where('action', 'suspend')->firstOrFail();
+            $this->assertSame('staff', $log->actor);
+            $this->assertStringContainsString('Billing Operator', $log->description);
+        }
+    }
+
+    public function test_financial_only_renewal_does_not_create_supplier_work(): void
+    {
+        $service = $this->service(['domain' => null, 'server_id' => null, 'server_ip' => null]);
+        $invoice = $this->invoice($service);
+        $payment = Payment::create(['invoice_id' => $invoice->id, 'customer_id' => $service->customer_id,
+            'gateway' => 'bale', 'currency_code' => 'IRT', 'amount' => 100000, 'status' => 'redirected']);
+        app(PaymentService::class)->settleConfirmed($payment, 'support-renewal-paid');
+        $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertNull($service->fresh()->pendingManualAction());
+        $this->assertSame('2026-11-09', $service->fresh()->next_due_at->toDateString());
+    }
+
+    public function test_real_hourly_hold_migration_preserves_existing_reserves(): void
+    {
+        $this->assertTrue(HourlyHold::enabled());
+        $service = $this->hourly(['hold_rate_irt' => 100, 'hold_reserve_irt' => 2400]);
+        $migration = require database_path('migrations/2026_11_03_000100_add_hourly_hold_to_services.php');
+        $migration->up();
+        $this->assertSame(2400, (int) $service->fresh()->hold_reserve_irt);
+        $this->assertSame(100, (int) $service->fresh()->hold_rate_irt);
+        $this->assertSame(2400, HourlyHold::heldOf($service->customer_id));
+    }
+
+    public function test_rclone_driver_registration_and_pricing_configuration_are_complete(): void
+    {
+        $server = Server::create(['name' => 'Backup Gateway', 'type' => 'rclone_storage',
+            'hostname' => 'backup.example.test', 'api_token' => 'test', 'monthly_cost' => 1000000, 'cost_currency' => 'IRT']);
+        $this->assertTrue($server->isAutoProvisioned());
+        $this->assertContains('rclone_storage', Server::TYPES);
+        $this->assertInstanceOf(\App\Services\Provisioning\RcloneStorageProvisioner::class,
+            app(ProvisioningService::class)->driverFor($server));
+        $this->assertTrue(class_exists(\App\Services\Provisioning\RcloneStorageClient::class));
+        config(['provisioning.rclone_storage.capacity_bytes' => 125 * 1024 ** 3]);
+        $service = $this->service(['server_id' => $server->id, 'plan' => 'sn_backup_1']);
+        $this->assertSame(1200000, app(\App\Services\Provisioning\RcloneStorageCosts::class)->floorForService($service, 1));
+        Http::assertNothingSent();
     }
 
     public function test_already_suspended_whm_account_is_reconciled_without_repeating_the_action(): void

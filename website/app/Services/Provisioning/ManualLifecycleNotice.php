@@ -80,6 +80,12 @@ class ManualLifecycleNotice
             return;
         }
 
+        // Financial-only support contracts have no supplier delivery to renew.
+        if ($kind === 'renew' && $service->server_id === null
+            && blank($service->domain) && blank($service->server_ip)) {
+            return;
+        }
+
         if (($service->pendingManualAction()['kind'] ?? null) === $kind) {
             return;
         }

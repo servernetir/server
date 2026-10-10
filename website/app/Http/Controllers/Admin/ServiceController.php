@@ -381,6 +381,12 @@ class ServiceController extends Controller
             $method = $data['status'] === 'active' ? 'unsuspend' : 'suspend';
             $result = app(ProvisioningService::class)->{$method}($service);
 
+            if ($result->ok || $result->manual) {
+                ActivityLog::forService($service, $method === 'unsuspend' ? 'reactivate' : 'suspend',
+                    ($result->manual ? 'درخواستِ دستیِ ' : 'تأییدِ ').$method
+                        .' — توسط '.($request->user()?->name ?: 'مدیر'), 'staff', $request);
+            }
+
             return back()->with($result->ok ? 'ok' : 'error', $result->ok
                 ? 'تغییر وضعیت سرویس تأیید شد.' : ($result->error ?: 'عملیات نیاز به پیگیری دارد.'));
         }
@@ -465,6 +471,10 @@ class ServiceController extends Controller
     public function cancelRefund(Request $request, Service $service): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        if ($service->isInternalInfrastructure()) {
+            return back()->withErrors('سرویس زیرساخت داخلی است؛ لغو و بازگشت وجه آن از این مسیر مجاز نیست.');
+        }
 
         $paidTotal = (int) $service->invoices()->where('status', 'paid')->sum('paid');
 
@@ -666,11 +676,16 @@ class ServiceController extends Controller
 
         if ($a['kind'] === 'suspend' && ! $service->isInternalInfrastructure() && ! $service->isDead()) {
             $meta = (array) $service->provision_meta;
-            $meta['billing_suspend'] = ['confirmed_at' => now()->toIso8601String(), 'manual' => true];
+            if (($a['origin'] ?? 'staff') === 'billing') {
+                $meta['billing_suspend'] = ['confirmed_at' => now()->toIso8601String(), 'manual' => true];
+            } else {
+                unset($meta['billing_suspend'], $meta['billing_resume']);
+                $meta['staff_suspend'] = ['confirmed_at' => now()->toIso8601String()];
+            }
             $service->forceFill(['status' => 'suspended', 'suspended_at' => now(), 'provision_meta' => $meta])->save();
         } elseif ($a['kind'] === 'unsuspend' && ! $service->isDead()) {
             $meta = (array) $service->provision_meta;
-            unset($meta['billing_suspend'], $meta['billing_resume']);
+            unset($meta['billing_suspend'], $meta['billing_resume'], $meta['staff_suspend']);
             $service->forceFill(['status' => 'active', 'suspended_at' => null, 'grace_alert_at' => null, 'provision_meta' => $meta])->save();
         }
         $service->clearManualAction();

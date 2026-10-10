@@ -139,6 +139,10 @@ class RunServiceLifecycle extends Command
         $unpaid = $this->openInvoice($service);
 
         // ── ۱) پرداخت شد و سرویس معلق بود → برگردانش ────────────────────────
+        if ($service->status === 'suspended' && ! empty($service->provision_meta['staff_suspend'])) {
+            return; // An operator must explicitly lift an abuse/security suspension.
+        }
+
         if ($unpaid === null && $service->suspended_at !== null && $daysLeft >= 0) {
             if (! $dry) {
                 $outcome = BillingLifecycleActions::run($service, 'unsuspend', $provisioner);

@@ -380,7 +380,7 @@ class ProvisioningService
     private function resumeColumns(Service $service): array
     {
         $meta = (array) $service->provision_meta;
-        unset($meta['billing_suspend'], $meta['billing_resume'], $meta['manual_action']);
+        unset($meta['billing_suspend'], $meta['billing_resume'], $meta['manual_action'], $meta['staff_suspend']);
 
         return $service->billing_mode === 'hourly'
             ? ['status' => 'active', 'suspended_at' => null, 'grace_alert_at' => null, 'provision_meta' => $meta, 'last_metered_at' => now()]

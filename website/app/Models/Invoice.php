@@ -13,7 +13,8 @@ class Invoice extends Model
 
     public function scopeOutstanding($query)
     {
-        return $query->whereIn('status', self::OPEN_STATUSES)->whereColumn('paid', '<', 'total');
+        return $query->whereIn('status', self::OPEN_STATUSES)
+            ->where(fn ($balance) => $balance->whereColumn('paid', '<', 'total')->orWhere('total', 0));
     }
 
     protected $fillable = [
