@@ -58,10 +58,11 @@ class ServiceReadyMail extends Mailable
 
     public function build(): self
     {
-        return $this->subject(__('ui.email_service_subject', ['name' => $this->serviceName]))
+        $name = $this->serviceName = \App\Support\PanelText::text($this->serviceName);
+        return $this->subject(__('ui.email_service_subject', ['name' => $name]))
             ->view('emails.service-ready')
             ->with([
-                'serviceName'     => $this->serviceName,
+                'serviceName'     => $name,
                 'domain'          => $this->domain,
                 'panelUrl'        => $this->panelUrl,
                 'username'        => $this->username,

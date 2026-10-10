@@ -70,8 +70,8 @@ class Product extends Model
      * دارد. رشتهٔ RTL داخلِ عنوانِ LTR علاوه بر بدخوانی، بازچینشِ bidi
      * می‌سازد و `— €2.31/mo` جابه‌جا رندر می‌شود.
      *
-     * ⚠️ بازگشت به فارسی عمدی است: محصولی که هنوز ترجمه ندارد باید نامِ
-     * فارسی نشان دهد، نه رشتهٔ خالی. عنوانِ خالی از عنوانِ بدخوان بدتر است.
+     * مشتری EN/TR بدون ترجمه، عنوان محلی دسته و شناسهٔ محصول را می‌بیند؛
+     * نام اصلی برای مدیریت و سوابق حفظ می‌شود.
      *
      * ⚠️ **این متد باید تنها درِ ورودی باشد.** هر جا `$product->name` مستقیم
      * روی صفحهٔ عمومی چاپ شود، همان یک‌جا دوباره نشت می‌کند و هیچ تستی جز
@@ -87,9 +87,11 @@ class Product extends Model
             default => null,
         };
 
-        return $col !== null && filled($this->{$col})
-            ? (string) $this->{$col}
-            : (string) $this->name;
+        if ($col === null) { return (string) $this->name; }
+        $name = filled($this->{$col}) ? (string) $this->{$col} : (string) $this->name;
+        return preg_match('/[\x{0600}-\x{06FF}]/u', $name)
+            ? trans('panel.category_'.(array_key_exists($this->category, self::CATEGORIES) ? $this->category : 'other'), [], $locale).' #'.$this->id
+            : $name;
     }
 
     public function isReseller(): bool

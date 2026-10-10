@@ -194,6 +194,14 @@ trait SaladOperations
      */
     public const OLLAMA_PRELOAD_MODEL = 'llama3.1';
 
+    // The CUDA 12.8 Dreamshaper image mounts workflows at /workflow/txt2img.
+    // Copy them into sd1.5 as well to retain the endpoint already given to customers.
+    private const COMFYUI_LEGACY_ROUTES_COMMAND = 'set -eu; mkdir -p /workflows/sd1.5; '
+        .'for file in /workflows/txt2img.* /workflows/img2img.*; do '
+        .'if [ -f "$file" ]; then cp "$file" /workflows/sd1.5/; fi; done; '
+        .'test -f /workflows/sd1.5/txt2img.js || test -f /workflows/sd1.5/txt2img.ts; '
+        .'exec ./comfyui-api';
+
     public const APPS = [
         /*
         | 🔴 تنها ردیفی که `ref` سفت‌شده ندارد — تگِ تازه‌ترین نسخه در
@@ -211,10 +219,11 @@ trait SaladOperations
             'token_env' => null,
         ],
         'gpu-comfyui' => [
-            'ref'       => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+            // CUDA 12.8 includes the kernels needed by RTX 50-series (Blackwell).
+            'ref'       => 'saladtechnologies/comfyui:comfy0.3.61-api1.9.2-torch2.8.0-cuda12.8-dreamshaper8',
             'label'     => 'ComfyUI — Stable Diffusion',
             'port'      => 3000,
-            'env'       => [],
+            'env'       => ['PORT' => '3000', 'HOST' => '::'],
             'token_env' => null,
         ],
         'gpu-jupyter' => [
@@ -561,6 +570,15 @@ trait SaladOperations
             return $fail('پلنِ خواسته‌شده در کاتالوگ نیست.');
         }
 
+        // Reject explicitly selected legacy ComfyUI builds before allocating a
+        // paid Blackwell GPU. Their warmup fails with "no kernel image".
+        if (str_starts_with($image, 'saladtechnologies/comfyui:')
+            && preg_match('/\bRTX\s*50\d{2}\b/i', (string) $plan->gpu_model)
+            && preg_match('/-cuda(\d+\.\d+)(?:-|$)/', $image, $cuda)
+            && version_compare($cuda[1], '12.8', '<')) {
+            return $fail('این نسخهٔ ComfyUI با کارت RTX سری ۵۰ سازگار نیست؛ ایمیج CUDA 12.8 یا جدیدتر انتخاب کنید.');
+        }
+
         $env = $app !== null ? $app['env'] : [];
         $keys = array_values(array_filter((array) ($spec['ssh_keys'] ?? [])));
 
@@ -608,6 +626,10 @@ trait SaladOperations
             ],
         ];
 
+        if ($image === self::APPS['gpu-comfyui']['ref']) {
+            $body['container']['command'] = ['/bin/sh', '-c', self::COMFYUI_LEGACY_ROUTES_COMMAND];
+        }
+
         /*
         | 🔴 بدونِ این بلوک هیچ نشانی‌ای ساخته نمی‌شود: کانتینر بالا می‌آید،
         |    GPU مصرف می‌کند، و مشتری هیچ راهی به آن ندارد — با تحویلِ «موفق».
@@ -624,6 +646,21 @@ trait SaladOperations
 
         if ($env !== []) {
             $body['container']['environment_variables'] = $env;
+        }
+
+        // Use HTTP probes for ComfyUI; the current create API caps failures at 20.
+        // A running process can still be loading the checkpoint and warming up.
+        if (($app['key'] ?? null) === 'gpu-comfyui') {
+            $body['readiness_probe'] = [
+                'http' => ['path' => '/ready', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 0, 'period_seconds' => 2, 'timeout_seconds' => 2,
+                'success_threshold' => 1, 'failure_threshold' => 3,
+            ];
+            $body['startup_probe'] = [
+                'http' => ['path' => '/health', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 5, 'period_seconds' => 5, 'timeout_seconds' => 10,
+                'success_threshold' => 1, 'failure_threshold' => 20,
+            ];
         }
 
         $r = $this->req('POST', $this->proj(), $body);
@@ -720,6 +757,12 @@ trait SaladOperations
         $ip = null;
         $nodeState = null;
         $nodePct = null;
+        $ready = false;
+
+        if ($status === 'running' && ! $inst['ok']) {
+            return ['ok' => false, 'message' => $inst['message'], 'status' => 'unknown',
+                'ipv4' => null, 'ipv6' => null, 'traffic_used_gb' => null];
+        }
 
         if ($inst['ok']) {
             foreach ($this->items($inst['body']) as $i) {
@@ -738,12 +781,25 @@ trait SaladOperations
                     }
                 }
 
-                if (filled($i['ssh_ip'] ?? null)) {
-                    $ip = (string) $i['ssh_ip'];
+                $nodeReady = strtolower((string) ($i['state'] ?? '')) === 'running'
+                    && ($i['started'] ?? false) === true && ($i['ready'] ?? false) === true;
 
-                    break;
+                if (filled($i['ssh_ip'] ?? null) && ($ip === null || $nodeReady)) {
+                    $ip = (string) $i['ssh_ip'];
                 }
+
+                $ready = $ready || $nodeReady;
             }
+        }
+
+        // Group "running" only means deployment finished, not that traffic is safe.
+        if ($status === 'running' && ! $ready) {
+            $status = 'building';
+            if ($nodeState === 'running') {
+                $nodeState = 'starting';
+            }
+        } elseif ($status === 'running') {
+            $nodeState = 'running';
         }
 
         return [

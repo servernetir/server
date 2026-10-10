@@ -174,8 +174,8 @@ class AccountController extends Controller
                 | عنوانِ بی‌آیتم در منو بگذارد.
                 */
                 ...($customer?->is_reseller ? [[
-                    'label' => 'نمایندگی', 'items' => [
-                        ['key' => 'reseller', 'icon' => 'globe', 'label' => 'نمایندگی دامنه', 'url' => lroute('account.reseller')],
+                    'label' => __('activity.reseller_heading'), 'items' => [
+                        ['key' => 'reseller', 'icon' => 'globe', 'label' => __('activity.reseller_domains'), 'url' => lroute('account.reseller')],
                     ],
                 ]] : []),
                 ['label' => __('ui.nav_finance'), 'items' => [

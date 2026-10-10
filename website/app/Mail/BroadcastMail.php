@@ -31,8 +31,9 @@ class BroadcastMail extends Mailable
             ? $this->title
             : __('ui.email_announce_subject');
 
+        [$subject, $html] = \App\Support\PanelText::email($subject, nl2br(e($this->body)));
         return $this->subject($subject)
-            ->view('emails.broadcast')
-            ->with(['title' => $this->title, 'body' => $this->body]);
+            ->view('emails.template')
+            ->with(['subject' => $subject, 'html' => $html]);
     }
 }

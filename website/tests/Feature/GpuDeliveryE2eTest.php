@@ -77,7 +77,7 @@ class GpuDeliveryE2eTest extends CloudProvisionTest
             if (str_contains($url, '/instances')) {
                 return Http::response(['instances' => [[
                     'machine_id' => 'm-1', 'state' => 'running',
-                    'ssh_ip' => '203.0.113.77', 'started' => true,
+                    'ssh_ip' => '203.0.113.77', 'started' => true, 'ready' => true,
                 ]]], 200);
             }
 

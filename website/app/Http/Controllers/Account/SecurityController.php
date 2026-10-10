@@ -96,7 +96,7 @@ class SecurityController extends Controller
         $data = $request->validate([
             'code'     => ['required', 'string', 'max:12'],
             'password' => ['required', 'string', 'min:8', 'max:200', 'confirmed'],
-        ], [], ['password' => 'رمز عبور جدید', 'code' => 'کد']);
+        ], [], ['password' => __('panel.field_password'), 'code' => __('panel.field_code')]);
 
         $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'password_change', $data['code']);
         if (! $check->ok) {
@@ -120,7 +120,7 @@ class SecurityController extends Controller
             'cidr'   => ['required', 'string', 'max:50'],
             'action' => ['required', 'in:allow,deny'],
             'label'  => ['nullable', 'string', 'max:64'],
-        ], [], ['cidr' => 'IP یا رنج']);
+        ], [], ['cidr' => __('panel.field_cidr')]);
 
         $cidr = $this->normalizeCidr($data['cidr']);
         if ($cidr === null) {
@@ -174,12 +174,12 @@ class SecurityController extends Controller
 
             /* ── مالِ M2 — کلیدِ AI: پروژهٔ bound + نردبانِ ai:* ── */
             'ai_project_id'=> ['nullable', 'integer', 'min:1'],
-        ], [], ['name' => 'نام توکن']);
+        ], [], ['name' => __('panel.field_token')]);
 
         // سقف از مدل می‌آید چون مستنداتِ /developers هم همان را چاپ می‌کند
         if ($c->apiTokens()->usable()->count() >= CustomerApiToken::MAX_ACTIVE) {
             return back()->withErrors([
-                'name' => 'حداکثر '.fa_num(CustomerApiToken::MAX_ACTIVE).' توکنِ فعال.',
+                'name' => __('panel.token_cap', ['n' => fa_num(CustomerApiToken::MAX_ACTIVE)]),
             ])->withFragment('sec-api');
         }
 

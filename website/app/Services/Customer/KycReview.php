@@ -115,7 +115,9 @@ class KycReview
         }
 
         $locale = in_array($customer->locale, ['en', 'tr'], true) ? $customer->locale : 'fa';
-        $repl = $vars + ['url' => 'https://console.servernet.cloud'];
+        $repl = ($locale === 'fa' ? $vars : array_map(
+            fn ($value) => \App\Support\CustomerMessage::fragment((string) $value, $locale), $vars
+        )) + ['url' => 'https://console.servernet.cloud'.($locale === 'fa' ? '' : '/'.$locale).'/account/profile'];
         $subject = trans('ui.ntf_'.$key.'_s', $repl, $locale);
         $text = trans('ui.ntf_'.$key.'_b', $repl, $locale);
 

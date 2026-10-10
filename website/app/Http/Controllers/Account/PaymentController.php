@@ -329,7 +329,7 @@ class PaymentController extends Controller
             'note'      => ['nullable', 'string', 'max:500'],
             'payment_account_id' => ['nullable', 'integer'],
             'sent_amount' => ['nullable', 'numeric', 'min:0'],
-        ], [], ['reference' => 'شناسهٔ پرداخت']);
+        ], [], ['reference' => __('panel.field_reference')]);
 
         /*
         | مقصد یا حسابِ ریالیِ تنظیمات است یا یکی از حساب‌های ارزی/رمزارزی.
@@ -402,7 +402,7 @@ class PaymentController extends Controller
                 'رسیدِ واریزِ شما برای پیش‌فاکتورِ '.fa_num((string) $invoice->number)
                     .' ثبت شد و در انتظارِ بررسی است. نتیجه را همین‌جا اطلاع می‌دهیم.',
                 [
-                    'شناسهٔ پرداخت' => (string) $data['reference'],
+                    __('panel.field_reference') => (string) $data['reference'],
                     'به حساب'      => $account?->label,
                 ],
                 url('/admin/bank-transfers'),
@@ -460,7 +460,7 @@ class PaymentController extends Controller
         }
 
         // بله: فاکتور به چت کاربر رفت؛ تسویه با وب‌هوک انجام می‌شود
-        $message = $outcome->instructions['message'] ?? 'فاکتور فرستاده شد؛ برای تکمیل، پرداخت را انجام دهید.';
+        $message = $outcome->instructions['message'] ?? __('panel.payment_sent');
 
         return redirect()->route($this->rp().'account.invoice', $invoice)->with('ok', $message);
     }
@@ -479,7 +479,7 @@ class PaymentController extends Controller
         if ($payment === null) {
             return view('account.payment-result', [
                 'ok'      => false,
-                'message' => 'این پرداخت شناسایی نشد. اگر مبلغی از حساب شما کم شده، شمارهٔ پیگیری بانک را برای پشتیبانی بفرستید.',
+                'message' => __('panel.payment_unknown'),
                 'payment' => null,
             ]);
         }
@@ -494,7 +494,7 @@ class PaymentController extends Controller
             'ok'       => $outcome->ok,
             'canceled' => $outcome->canceled,
             'message'  => $outcome->ok
-                ? 'پرداخت شما با موفقیت انجام شد.'
+                ? __('panel.payment_success')
                 : $outcome->error,
             'payment'  => $outcome->payment?->fresh('invoice'),
         ]);
@@ -634,7 +634,7 @@ class PaymentController extends Controller
                 $due = $fresh->due();
 
                 if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
-                    return ['ok' => false, 'msg' => 'این فاکتور در وضعیتِ قابلِ پرداخت نیست.'];
+                    return ['ok' => false, 'msg' => __('panel.invoice_not_payable')];
                 }
 
                 /*
@@ -647,8 +647,7 @@ class PaymentController extends Controller
                 $available = $wallet->availableOf($customerId);
 
                 if ($available < $due) {
-                    return ['ok' => false, 'msg' => 'اعتبارِ در دسترس کافی نیست (در دسترس: '
-                        .number_format($available).' تومان، مبلغِ فاکتور: '.number_format($due).' تومان).'];
+                    return ['ok' => false, 'msg' => __('panel.insufficient_credit', ['available' => invoice_money($available), 'due' => invoice_money($due)])];
                 }
 
                 $wallet->debit($customerId, 'IRT', $due, 'invoice_payment', $fresh,

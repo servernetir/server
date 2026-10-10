@@ -67,7 +67,7 @@ class TwoFactorController extends Controller
             return $this->back(__('ui.tfa_code_wrong'), true);
         }
 
-        ActivityLog::record($c->id, 'security', 'ورود دومرحله‌ای (اپلیکیشن) فعال شد', $request, 'customer');
+        ActivityLog::record($c->id, 'security', __('activity.two_factor_enabled'), $request, 'customer');
 
         return $this->back(__('ui.tfa_enabled_ok'))->with('tfa_recovery', $codes);
     }
@@ -111,7 +111,7 @@ class TwoFactorController extends Controller
 
         $codes = $c->regenerateRecoveryCodes();
 
-        ActivityLog::record($c->id, 'security', 'کدهای بازیابی دومرحله‌ای بازسازی شد', $request, 'customer');
+        ActivityLog::record($c->id, 'security', __('activity.two_factor_recovery'), $request, 'customer');
 
         return $this->back(__('ui.tfa_recovery_new'))->with('tfa_recovery', $codes);
     }
@@ -137,7 +137,7 @@ class TwoFactorController extends Controller
 
         $c->disableTwoFactor();
 
-        ActivityLog::record($c->id, 'security', 'ورود دومرحله‌ای (اپلیکیشن) خاموش شد', $request, 'customer');
+        ActivityLog::record($c->id, 'security', __('activity.two_factor_disabled'), $request, 'customer');
 
         return $this->back(__('ui.tfa_disabled_ok'));
     }

@@ -97,14 +97,14 @@
       <a href="{{ lroute('account.servers') }}">{{ __('ui.cs_crumb_services') }}</a><span>/</span>
       <span>{{ __('ui.cs_crumb_cloud') }}</span>
     </nav>
-    <h1>{{ $service->name }}</h1>
+    <h1>{{ \App\Support\PanelText::text($service->name) }}</h1>
     <p>
       {{-- برای GPU نشانیِ دروازه، نه `ssh_ip`ِ زیرساخت (بدنهٔ صفحه از قبل
            پشتِ $gpuApp بود ولی همین سربرگ جا مانده بود). --}}
       @if($inst?->isGpuApp())
         @if($inst->accessHost())<span dir="ltr">{{ $inst->accessHost() }}</span> · @endif
       @elseif($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
-      {{ $loc?->label() ?? '—' }} · {{ $osLbl }}
+      {{ $loc?->label() ?? '—' }} · {{ \App\Support\PanelText::text($osLbl) }}
     </p>
   </div>
   <span class="pnl-pill {{ $inst?->status === 'running' ? 'ok' : '' }}" id="st-pill"
@@ -119,12 +119,12 @@
      نمی‌سازیم چون کلاسِ نبود، بی‌هیچ خطایی بی‌استایل رندر می‌شود. --}}
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
-    <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">{{ $errors->first() }}</div>
+    <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text($errors->first()) }}</div>
   </div>
 @endif
 
@@ -246,7 +246,7 @@
               // بدنه با json_encode ساخته می‌شود، نه رشتهٔ دست‌نویس — کوتیشن‌های
               // تو در تو یک بار همین‌جا صفحه را ۵۰۰ کرد. مدل همان پیش‌بارِ بوت
               // است تا مثال روی سرورِ تازه بی‌pull جواب بدهد.
-              $gpuBody = json_encode(['model' => \App\Services\Cloud\SaladClient::OLLAMA_PRELOAD_MODEL, 'messages' => [['role' => 'user', 'content' => 'سلام']]], JSON_UNESCAPED_UNICODE);
+              $gpuBody = json_encode(['model' => \App\Services\Cloud\SaladClient::OLLAMA_PRELOAD_MODEL, 'messages' => [['role' => 'user', 'content' => __('panel.sample_hello')]]], JSON_UNESCAPED_UNICODE);
               $gpuHdr  = $gpuTok ? " -H 'X-SN-Token: ".$gpuTok."'" : '';
               $gpuCmd = 'curl '.$gpuUrl.'/api/chat'.$gpuHdr." -d '".$gpuBody."'";
             @endphp
@@ -771,7 +771,7 @@
             <optgroup label="{{ __('ui.cs_os') }}">
               @foreach($osList as $os)
                 <option value="{{ $os->key }}" @selected($os->key === $inst->image_key)>
-                  {{ $os->icon() }} {{ $os->label }}
+                  {{ $os->icon() }} {{ \App\Support\PanelText::text($os->label) }}
                 </option>
               @endforeach
             </optgroup>
@@ -779,7 +779,7 @@
               <optgroup label="{{ __('ui.cs_os_app_group') }}">
                 @foreach($appList as $app)
                   <option value="{{ $app->key }}" @selected($app->key === $inst->image_key)>
-                    {{ $app->icon() }} {{ $app->label }}
+                    {{ $app->icon() }} {{ \App\Support\PanelText::text($app->label) }}
                   </option>
                 @endforeach
               </optgroup>
@@ -1048,7 +1048,7 @@
       if (!el || !navigator.clipboard) { return; }
       var old = btn.textContent;
       navigator.clipboard.writeText(el.textContent).then(function () {
-        btn.textContent = 'کپی شد';
+        btn.textContent = @json(__('ui.cs_js_copied'));
         setTimeout(function () { btn.textContent = old; }, 1500);
       });
     });
