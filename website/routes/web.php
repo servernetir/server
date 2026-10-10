@@ -340,6 +340,9 @@ $site = function (): void {
     | سقف واقعی داخل OtpService و RegisterController است و این فقط لایهٔ اول.
     */
     Route::middleware('guest:customer')->group(function () {
+        Route::get('/login/google', [Auth\GoogleController::class, 'start'])->name('google.start')->middleware('throttle:signin');
+        Route::get('/register/google-phone', [Auth\GoogleController::class, 'phone'])->name('google.phone')->middleware('throttle:signin');
+        Route::get('/login/google/callback', [Auth\GoogleController::class, 'callback'])->name('google.callback')->middleware('throttle:signin');
         Route::get('/register', [Auth\RegisterController::class, 'showStart'])->name('register');
         Route::post('/register', [Auth\RegisterController::class, 'start'])->name('register.start')->middleware('throttle:reg');
 

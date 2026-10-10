@@ -71,6 +71,10 @@ class RegisterController extends Controller
     public function start(Request $request): RedirectResponse
     {
         $iranian = $this->isIranianFlow();
+        $google = $this->googleRegistration($request);
+        if ($google !== null) {
+            $request->merge(['email' => $google['email']]);
+        }
 
         /*
         | موبایل حالا برای **هر دو** جریان اجباری است (خواستِ کارفرما، ۵
@@ -155,6 +159,16 @@ class RegisterController extends Controller
             }
         }
 
+        if ($google !== null && ! $iranian) {
+            $request->session()->put('reg', [
+                'email' => $email, 'phone' => $phone, 'type' => $data['type'],
+                'iranian' => false, 'channel' => 'email', 'verified' => false,
+                'email_ok' => true, 'google_subject' => $google['sub'],
+                'first_name' => trim($data['first_name']), 'last_name' => trim($data['last_name']),
+            ]);
+            return $this->afterForeignEmail($request, $request->session()->get('reg'));
+        }
+
         $issue = $this->otp->issue($channel, $destination, 'register', $request->ip());
 
         if (! $issue->ok) {
@@ -176,6 +190,8 @@ class RegisterController extends Controller
             'iranian'  => $iranian,
             'channel'  => $channel,
             'verified' => false,
+            'email_ok' => $google !== null,
+            'google_subject' => $google['sub'] ?? null,
             'first_name' => trim((string) ($data['first_name'] ?? '')),
             'last_name'  => trim((string) ($data['last_name'] ?? '')),
         ]);
@@ -246,6 +262,19 @@ class RegisterController extends Controller
         }
 
         if ($reg['channel'] === 'email') {
+            return $this->afterForeignEmail($request, $reg);
+        }
+
+        // مرحلهٔ پیامکیِ خارجی قبول شد — هر دو مقصد تأییدشده
+        $reg['phone_ok'] = true;
+        $reg['verified'] = true;
+        $request->session()->put('reg', $reg);
+
+        return redirect()->route($this->rp().'register.finish');
+    }
+
+    private function afterForeignEmail(Request $request, array $reg): RedirectResponse
+    {
             $reg['email_ok'] = true;
 
             /*
@@ -315,14 +344,6 @@ class RegisterController extends Controller
             $request->session()->put('reg', $reg);
 
             return redirect()->route($this->rp().'register.finish');
-        }
-
-        // مرحلهٔ پیامکیِ خارجی قبول شد — هر دو مقصد تأییدشده
-        $reg['phone_ok'] = true;
-        $reg['verified'] = true;
-        $request->session()->put('reg', $reg);
-
-        return redirect()->route($this->rp().'register.finish');
     }
 
     public function resend(Request $request): RedirectResponse
@@ -373,6 +394,11 @@ class RegisterController extends Controller
     {
         if (($reg = $this->reg($request, needVerified: true)) === null) {
             return redirect()->route($this->rp().'register');
+        }
+
+        // Foreign registration never submits an Iranian identity inquiry, even via a direct POST.
+        if (! $reg['iranian']) {
+            return redirect()->route($this->rp().'register.finish');
         }
 
         $data = $request->validate([
@@ -467,11 +493,18 @@ class RegisterController extends Controller
             'password' => ['required', 'string', 'min:10', 'max:200', 'confirmed'],
             'terms'    => ['accepted'],
         ], [
-            'terms.accepted'  => 'پذیرش شرایط استفاده و حریم خصوصی الزامی است.',
-            'password.min'    => 'رمز عبور باید دست‌کم ۱۰ نویسه باشد.',
-            'password.confirmed' => 'تکرار رمز عبور یکسان نیست.',
-        ], ['password' => 'رمز عبور']);
+            'terms.accepted'  => __('google.terms_required'),
+            'password.min'    => __('ui.auth_pw_short'),
+            'password.confirmed' => __('ui.auth_pw_mismatch'),
+        ], ['password' => __('ui.auth_password')]);
 
+        if (! empty($reg['google_subject'])) {
+            $google = $this->googleRegistration($request);
+            if ($google === null || $google['sub'] !== $reg['google_subject'] || $google['email'] !== $reg['email']) {
+                $request->session()->forget(['reg', 'google_registration']);
+                return redirect()->route($this->rp().'register')->withErrors(['email' => __('google.failed')]);
+            }
+        }
         $customer = $this->pendingCustomer($reg);
 
         $customer->forceFill([
@@ -479,7 +512,8 @@ class RegisterController extends Controller
             'status'             => 'active',
             'phone_verified_at'  => ($reg['iranian'] || ! empty($reg['phone_ok']))
                 ? now() : $customer->phone_verified_at,
-            'email_verified_at'  => $reg['iranian'] ? $customer->email_verified_at : now(),
+            'email_verified_at'  => ($reg['iranian'] && empty($reg['email_ok'])) ? $customer->email_verified_at : now(),
+            'google_subject' => $reg['google_subject'] ?? $customer->google_subject,
         ])->save();
 
         $this->ensureProfile($customer, $reg);
@@ -516,7 +550,7 @@ class RegisterController extends Controller
             \App\Support\ErrorTracker::note('notify', $e, ['event' => 'welcome']);
         }
 
-        $request->session()->forget('reg');
+        $request->session()->forget(['reg', 'google_registration']);
         Auth::guard('customer')->login($customer, remember: true);
         $request->session()->regenerate();
         \App\Services\Analytics\DataLayerService::flashSignUp($customer);
@@ -594,6 +628,9 @@ class RegisterController extends Controller
             $found = Customer::find($reg['customer_id']);
 
             if ($found !== null) {
+                if ($found->status !== 'pending' || $found->email !== $reg['email'] || $found->phone !== $reg['phone']) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['email' => __('ui.auth_email_taken')]);
+                }
                 return $found;
             }
         }
@@ -606,6 +643,13 @@ class RegisterController extends Controller
 
         if ($customer === null) {
             $customer = new Customer();
+        }
+
+        if ($customer->exists && $customer->status !== 'pending') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['email' => __('ui.auth_email_taken')]);
+        }
+        if ($customer->exists && $customer->email !== $reg['email']) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['phone' => __('ui.auth_phone_taken')]);
         }
 
         $customer->forceFill([
@@ -628,9 +672,10 @@ class RegisterController extends Controller
         // کاربرِ حقوقی حتی با احراز هویتِ شخصیِ نماینده هم «تأییدشده» نمی‌شود؛
         // شرکت باید مدارک (معرفی‌نامه + اساسنامه) را در بخش احراز هویت آپلود کند
         // تا تیمِ پشتیبانی تأیید کند. احراز شخصی فقط هویتِ نماینده را تأیید می‌کند.
-        CustomerProfile::updateOrCreate(
-            ['customer_id' => $customer->id, 'is_default' => true],
-            array_filter([
+        // These identity fields come from the verified provider, never form input.
+        // Keep them protected from mass assignment while persisting the KYC result.
+        $profile = CustomerProfile::firstOrNew(['customer_id' => $customer->id, 'is_default' => true]);
+        $profile->forceFill(array_filter([
                 'type'             => $reg['type'] ?? 'individual',
                 'status'           => (! $isCompany && $identity?->status === 'verified') ? 'verified' : 'draft',
                 'verified_at'      => $isCompany ? null : $identity?->verified_at,
@@ -642,8 +687,7 @@ class RegisterController extends Controller
                 'birth_date'       => $identity?->birth_date,
                 'national_id_enc'  => $identity?->national_id_enc,
                 'national_id_hash' => $identity?->national_id_hash,
-            ], fn ($v) => $v !== null),
-        );
+            ], fn ($v) => $v !== null))->save();
     }
 
     /**
@@ -679,6 +723,17 @@ class RegisterController extends Controller
     private function takenByActive(string $column, string $value): bool
     {
         return Customer::where($column, $value)->where('status', 'active')->exists();
+    }
+
+    private function googleRegistration(Request $request): ?array
+    {
+        $google = $request->session()->get('google_registration');
+        if (! is_array($google) || ($google['expires'] ?? 0) < time()
+            || ($google['locale'] ?? null) !== app()->getLocale()) {
+            $request->session()->forget('google_registration');
+            return null;
+        }
+        return $google;
     }
 
     private function isIranianFlow(): bool
