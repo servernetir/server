@@ -110,7 +110,8 @@ class CloudSaladGpuTest extends TestCase
 
         Http::fake([
             'api.salad.com/*/instances' => Http::response([
-                'instances' => [['machine_id' => 'm-1', 'state' => 'running', 'ssh_ip' => '203.0.113.7']],
+                'instances' => [['machine_id' => 'm-1', 'state' => 'running', 'started' => true,
+                    'ready' => true, 'ssh_ip' => '203.0.113.7']],
             ], 200),
             'api.salad.com/*' => Http::response([
                 'current_state' => ['status' => 'running', 'description' => ''],
@@ -130,6 +131,67 @@ class CloudSaladGpuTest extends TestCase
 
         $this->assertInstanceOf(SaladClient::class, $d);
         $this->assertSame('salad', $d->slug());
+    }
+
+    public function test_a_running_group_waits_for_a_ready_started_instance(): void
+    {
+        $this->configure();
+        foreach ([[], ['state' => 'running', 'ready' => false, 'started' => true],
+            ['state' => 'running', 'ready' => true, 'started' => false],
+            ['state' => 'starting', 'ready' => true, 'started' => true]] as $node) {
+            Http::fake([
+                'api.salad.com/*/instances' => Http::response(['instances' => $node ? [$node] : []]),
+                'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+            ]);
+            $this->assertSame('building', app(SaladClient::class)->serverStatus('sn-svc-9')['status']);
+        }
+    }
+
+    public function test_readiness_is_checked_beyond_the_first_instance_with_an_ip(): void
+    {
+        $this->configure();
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['instances' => [
+                ['state' => 'starting', 'ready' => false, 'started' => false, 'ssh_ip' => '203.0.113.7'],
+                ['state' => 'running', 'ready' => true, 'started' => true, 'ssh_ip' => '203.0.113.8'],
+            ]]),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+        ]);
+        $r = app(SaladClient::class)->serverStatus('sn-svc-9');
+        $this->assertSame('running', $r['status']);
+        $this->assertSame('203.0.113.8', $r['ipv4']);
+        $this->assertNull($r['build']);
+    }
+
+    public function test_failed_instance_lookup_does_not_deliver_a_running_group(): void
+    {
+        $this->configure();
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['message' => 'Unavailable'], 503),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+        ]);
+        $r = app(SaladClient::class)->serverStatus('sn-svc-9');
+        $this->assertFalse($r['ok']);
+        $this->assertSame('unknown', $r['status']);
+    }
+
+    public function test_comfyui_gateway_waits_for_the_application_warmup(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => SaladClient::APPS['gpu-comfyui']['ref'],
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'networking.port') === 3000
+            && data_get($req->data(), 'container.environment_variables.HOST') === '::'
+            && data_get($req->data(), 'container.environment_variables.PORT') === '3000'
+            && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
+            && data_get($req->data(), 'readiness_probe.http.port') === 3000
+            && data_get($req->data(), 'startup_probe.http.path') === '/health'
+            && data_get($req->data(), 'startup_probe.failure_threshold') === 100);
     }
 
     /**

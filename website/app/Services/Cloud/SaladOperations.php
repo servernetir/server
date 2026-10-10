@@ -214,7 +214,7 @@ trait SaladOperations
             'ref'       => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
             'label'     => 'ComfyUI — Stable Diffusion',
             'port'      => 3000,
-            'env'       => [],
+            'env'       => ['PORT' => '3000', 'HOST' => '::'],
             'token_env' => null,
         ],
         'gpu-jupyter' => [
@@ -626,6 +626,21 @@ trait SaladOperations
             $body['container']['environment_variables'] = $env;
         }
 
+        // Match the probes shipped with Salad's Dreamshaper ComfyUI recipe.
+        // A running process can still be loading the checkpoint and warming up.
+        if (($app['key'] ?? null) === 'gpu-comfyui') {
+            $body['readiness_probe'] = [
+                'http' => ['path' => '/ready', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 0, 'period_seconds' => 2, 'timeout_seconds' => 2,
+                'success_threshold' => 1, 'failure_threshold' => 3,
+            ];
+            $body['startup_probe'] = [
+                'http' => ['path' => '/health', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
+                'initial_delay_seconds' => 5, 'period_seconds' => 1, 'timeout_seconds' => 10,
+                'success_threshold' => 1, 'failure_threshold' => 100,
+            ];
+        }
+
         $r = $this->req('POST', $this->proj(), $body);
 
         if (! $r['ok']) {
@@ -720,6 +735,12 @@ trait SaladOperations
         $ip = null;
         $nodeState = null;
         $nodePct = null;
+        $ready = false;
+
+        if ($status === 'running' && ! $inst['ok']) {
+            return ['ok' => false, 'message' => $inst['message'], 'status' => 'unknown',
+                'ipv4' => null, 'ipv6' => null, 'traffic_used_gb' => null];
+        }
 
         if ($inst['ok']) {
             foreach ($this->items($inst['body']) as $i) {
@@ -738,12 +759,25 @@ trait SaladOperations
                     }
                 }
 
-                if (filled($i['ssh_ip'] ?? null)) {
-                    $ip = (string) $i['ssh_ip'];
+                $nodeReady = strtolower((string) ($i['state'] ?? '')) === 'running'
+                    && ($i['started'] ?? false) === true && ($i['ready'] ?? false) === true;
 
-                    break;
+                if (filled($i['ssh_ip'] ?? null) && ($ip === null || $nodeReady)) {
+                    $ip = (string) $i['ssh_ip'];
                 }
+
+                $ready = $ready || $nodeReady;
             }
+        }
+
+        // Group "running" only means deployment finished, not that traffic is safe.
+        if ($status === 'running' && ! $ready) {
+            $status = 'building';
+            if ($nodeState === 'running') {
+                $nodeState = 'starting';
+            }
+        } elseif ($status === 'running') {
+            $nodeState = 'running';
         }
 
         return [
