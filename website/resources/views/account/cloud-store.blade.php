@@ -254,6 +254,7 @@
 
 <form method="POST" action="{{ lroute('account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
   @csrf
+  <input type="hidden" name="quoted_hourly_irt" id="cvb-quoted-hourly" value="{{ $hRate }}">
   <input type="hidden" name="location" value="{{ $locCode }}">
 
   {{-- ═══ تیرکِ مسیر — هم شمارهٔ مرحله، هم راهِ برگشت ═══
@@ -934,6 +935,9 @@
         <div class="cvb-tax" id="cvb-s-setup" @if($initSetup < 1) hidden @endif>{{ __('ui.cvb_setup_line') }}: <span class="pnl-num" id="cvb-s-setup-n">{{ cloud_price($initSetup) }}</span></div>
         <p class="cvb-warn" id="cvb-s-noprice" @if($hasPrice) hidden @endif>{{ __('ui.cvb_no_price') }}</p>
 
+        @if($isGpuStore)
+          <p class="cvb-note" data-gpu-sale-policy>{{ __('ui.cvb_gpu_sale_policy') }}</p>
+        @endif
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
           <svg class="icon"><use href="#i-rocket"/></svg>
           {{ __('ui.cvb_pay') }}
@@ -1197,6 +1201,7 @@
 
     // ── نرخِ ساعتی ──
     set('cvb-h-rate', money(h.rate));
+    document.getElementById('cvb-quoted-hourly').value = h.rate || 0;
     set('cvb-h-min', money(h.min));
     set('cvb-h-existing', money(h.existing || 0));
     var existingNote = document.getElementById('cvb-h-existing-note');

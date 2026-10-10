@@ -146,7 +146,7 @@ trait SaladOperations
      *
      * 🔴 زنجیرهٔ کامل، و هر حلقه‌اش یک‌بار جای دیگری در این پروژه اشتباه شده:
      *
-     *   دلار/ساعت (GPU + vCPU + رم)
+     *   دلار/ساعت GPU (شامل vCPU و رم طبق قرارداد Salad)
      *     × ۷۳۰ ساعت            → دلار/ماه
      *     × تومانِ هر دلار       → تومان/ماه      ← نرخِ **دلار**، نه یورو
      *     ÷ تومانِ هر یورو × ۱۰۰ → سنتِ یورو/ماه
@@ -486,9 +486,8 @@ trait SaladOperations
             ? min(250, (int) floor($rawStorage / self::GIB))
             : self::DEFAULT_DISK_GB;
 
-        $totalUsdHour = $gpuUsd
-            + ($vcpu * $this->vcpuUsdHour())
-            + (($ramMb / 1024) * $this->ramGbUsdHour());
+        // Salad GPU rates include vCPU and RAM; adding them again overstates cost.
+        $totalUsdHour = $gpuUsd;
 
         $gpuCount = max(1, (int) ($g['gpu_count'] ?? 1));
 
@@ -519,6 +518,43 @@ trait SaladOperations
             // 🔴 همیشه true: حتی بالاترین اولویت هم قطع می‌شود.
             'is_interruptible'  => true,
         ];
+    }
+
+    /** Fresh purchase check, before any customer debit or invoice is created. */
+    public function purchaseQuote(string $gpuClass): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'reason' => 'unavailable'];
+        }
+
+        try {
+            $rows = \Illuminate\Support\Facades\Cache::remember(
+                'salad-purchase-classes-'.sha1($this->org()), 60,
+                function (): array {
+                    $r = $this->req('GET', '/organizations/'.rawurlencode($this->org()).'/gpu-classes');
+                    $rows = $this->items($r['body'] ?? []);
+                    if (! ($r['ok'] ?? false) || $rows === []) {
+                        throw new \RuntimeException('GPU purchase prices unavailable');
+                    }
+                    return $rows;
+                },
+            );
+            $gpu = collect($rows)->firstWhere('id', $gpuClass);
+            if (! $gpu || (bool) ($gpu['is_high_demand'] ?? false)) {
+                return ['ok' => false, 'reason' => 'capacity'];
+            }
+            $rate = $this->priceFor($gpu, $this->priority());
+            $usdToman = $this->usdToman();
+            if ($rate === null || $usdToman <= 0) {
+                return ['ok' => false, 'reason' => 'unavailable'];
+            }
+            $cost = $rate * $usdToman * (1 + $this->fxFeePct() / 100);
+            $markup = app(CloudPricing::class)->marginPct('salad');
+            return ['ok' => true, 'cost_hourly_irt' => (int) ceil($cost),
+                'minimum_hourly_irt' => (int) ceil($cost * (1 + $markup / 100))];
+        } catch (\Throwable) {
+            return ['ok' => false, 'reason' => 'unavailable'];
+        }
     }
 
     /** قیمتِ دلاری/ساعتِ GPU برای اولویتِ خواسته‌شده */

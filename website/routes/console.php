@@ -445,6 +445,12 @@ Schedule::command('cloud:sync --prices')
     ->dailyAt('05:40')
     ->withoutOverlapping(45);
 
+// GPU tariffs are in USD. Refresh their currency conversion and availability
+// separately; the general catalog's two-day cadence is too slow for new sales.
+Schedule::command('cloud:sync --provider=salad')
+    ->hourlyAt(15)
+    ->withoutOverlapping(15);
+
 // ممیزیِ مالیِ سرورهای ساعتی — درسِ sn-svc-76: نرخِ قفل‌شدهٔ زیرِ بهای
 // تمام‌شده تا امروز هیچ‌جا دیده نمی‌شد و کارفرما اتفاقی در پنلِ زیرساخت دید.
 // ۰۶:۰۵ عمداً بعد از cloud:sync --prices (۰۵:۴۰) است تا با بها و نرخِ همان

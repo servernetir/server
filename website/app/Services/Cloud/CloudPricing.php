@@ -33,8 +33,14 @@ class CloudPricing
      * ضدِ ضرر جای دیگری است: `fxFeePct()` سربارِ واقعیِ رساندنِ پول را واردِ
      * بها می‌کند تا حاشیهٔ کوچک روی بهایِ «واقعی» بنشیند، نه بهایِ خوش‌بینانه.
      */
-    public function marginPct(): float
+    public function marginPct(?string $provider = null): float
     {
+        if ($provider === 'salad') {
+            $gpu = Setting::get('cloud_margin_pct_salad');
+            if ($gpu !== null && $gpu !== '') {
+                return max(0, min(500, (float) $gpu));
+            }
+        }
         $v = Setting::get('cloud_margin_pct');
 
         return $v === null || $v === '' ? (float) self::DEFAULT_MARGIN_PCT : max(0, (float) $v);
@@ -84,13 +90,13 @@ class CloudPricing
     }
 
     /** قیمتِ فروشِ یورویی به سنت — گردشده رو به بالا به ۱۰ سنت */
-    public function sellEurCents(int $costEurCents): int
+    public function sellEurCents(int $costEurCents, ?string $provider = null): int
     {
         if ($costEurCents <= 0) {
             return 0;
         }
 
-        $withMargin = $costEurCents * (1 + $this->marginPct() / 100);
+        $withMargin = $costEurCents * (1 + $this->marginPct($provider) / 100);
 
         return (int) (ceil($withMargin / 10) * 10);
     }
@@ -136,9 +142,9 @@ class CloudPricing
      *
      * @return array{eur_cents:int,irt:int}
      */
-    public function priceFor(int $costEurCents): array
+    public function priceFor(int $costEurCents, ?string $provider = null): array
     {
-        $eur = $this->sellEurCents($costEurCents);
+        $eur = $this->sellEurCents($costEurCents, $provider);
 
         return ['eur_cents' => $eur, 'irt' => $this->toman($eur)];
     }
