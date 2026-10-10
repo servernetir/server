@@ -290,6 +290,7 @@ class CloudServerController extends Controller
             $this->billingClock->record($service, $instance, (string) $r['status'], [
                 'ipv4' => $r['ipv4'] ?: $instance->ipv4,
                 'ipv6' => $r['ipv6'] ?: $instance->ipv6,
+                'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                 'synced_at' => now(),
             ]);
         }
