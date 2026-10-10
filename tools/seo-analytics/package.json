@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@qwik.dev/partytown": "0.15.0"
+  }
+}

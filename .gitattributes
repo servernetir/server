@@ -1,2 +1,3 @@
 graphify-out/graph.json merge=graphify
 *.sh text eol=lf
+scripts/seo-analytics-health-wrapper.js text eol=lf

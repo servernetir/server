@@ -72,9 +72,54 @@
   @endif
   @endforeach
 
+  // Keep events queued while marketing pages render and run analytics in a worker.
   if(!d.getElementById('snet-gtm')){
     w.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});
-    var s=d.createElement('script');s.id='snet-gtm';s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);d.head.appendChild(s);
+    var loaded=false;
+    function loadGtm(){
+      if(loaded||d.getElementById('snet-gtm'))return;
+      loaded=true;
+      w.removeEventListener('pointerdown',loadGtm);
+      w.removeEventListener('keydown',loadGtm);
+      var workerPath=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
+      var useWorker=(workerPath==='/gpu'||workerPath==='/vps/hourly')
+        &&w.matchMedia('(max-width:1020px)').matches&&w.isSecureContext
+        &&typeof w.Worker==='function'&&'serviceWorker'in w.navigator;
+      var s=d.createElement('script');s.id='snet-gtm';s.async=true;
+      s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);
+      if(useWorker){
+        var queue=w.dataLayer;
+        w.__snetRestoreAnalyticsQueue=function(){
+          w.dataLayer=queue;
+          w.dataLayer.push=Array.prototype.push;
+        };
+        w.partytown={lib:'/assets/js/snet-analytics-worker-0.15.0-snet3/',
+          forward:[['dataLayer.push',{preserveBehavior:true}]],fallbackTimeout:4000};
+        s.type='text/partytown';
+        d.head.appendChild(s);
+        var boot=d.createElement('script');boot.id='snet-analytics-worker';boot.async=true;
+        boot.src='/assets/js/snet-analytics-worker-0.15.0-snet3/partytown.js';
+        boot.onerror=function(){
+          w.__snetRestoreAnalyticsQueue();
+          s.remove();
+          var normal=d.createElement('script');normal.id='snet-gtm';normal.async=true;
+          normal.src=s.src;d.head.appendChild(normal);
+        };
+        d.head.appendChild(boot);
+      }else d.head.appendChild(s);
+    }
+    var path=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
+    var marketing=path==='/'||path==='/gpu'||/^\/(hosting|vps)(\/|$)/.test(path);
+    if(marketing&&w.matchMedia('(max-width:1020px)').matches){
+      w.addEventListener('pointerdown',loadGtm,{once:true,passive:true});
+      w.addEventListener('keydown',loadGtm,{once:true});
+      function scheduleGtm(){
+        if(w.requestIdleCallback)w.requestIdleCallback(loadGtm,{timeout:2000});
+        else w.setTimeout(loadGtm,0);
+      }
+      if(d.readyState==='complete')scheduleGtm();
+      else w.addEventListener('load',scheduleGtm,{once:true});
+    }else loadGtm();
   }
 })(window,document,@json($gtmId));
 </script>
