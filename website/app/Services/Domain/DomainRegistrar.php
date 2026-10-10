@@ -1071,7 +1071,13 @@ class DomainRegistrar
                 if (! $renewResult['ok']) {
                     return $this->failRestore($domain, $renewResult['message'], manual: true);
                 }
-                $expires = $this->parseDate(data_get($this->op->getDomain((int) $domain->op_id), 'data.expiration_date')) ?: $expires;
+                $renewedState = $this->op->getDomain((int) $domain->op_id);
+                $expires = $this->parseDate(data_get($renewedState, 'data.expiration_date'));
+                $remoteStatus = strtolower(trim((string) data_get($renewedState, 'data.status')));
+                if (! ($renewedState['ok'] ?? false) || $expires === null || ! $expires->isFuture()
+                    || ($remoteStatus !== '' && ! in_array($remoteStatus, self::REMOTE_ACTIVE, true))) {
+                    return $this->failRestore($domain, 'وضعیت پس از تمدیدِ بازیابی باید بررسی شود.', manual: true);
+                }
             }
         } catch (ValidationException $e) {
             return $this->failRestore($domain, $e->getMessage(), manual: true);

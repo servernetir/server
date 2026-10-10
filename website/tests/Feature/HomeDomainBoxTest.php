@@ -17,6 +17,12 @@ use Tests\TestCase;
  */
 class HomeDomainBoxTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
     use RefreshDatabase;
 
     /**
@@ -242,8 +248,8 @@ class HomeDomainBoxTest extends TestCase
         // ⚠️ جداکنندهٔ هزارگان همان کامای اسکی است: `cloud_price` از
         //    `number_format` استفاده می‌کند و `fa_num` فقط **رقم‌ها** را
         //    فارسی می‌کند، نه نشانه‌ها.
-        $this->assertStringContainsString('۵۰۰,۰۰۰', $net['price'],
-            'قیمتِ پیشنهاد از پاسخِ زنده (۹۹ یورو) آمده، نه از دفترچهٔ کش‌شده (۵ یورو)');
+        $this->assertStringContainsString('۵۴۰,۰۰۰', $net['price'],
+            'قیمتِ پیشنهاد از پاسخِ زنده (۹۹ یورو) آمده، نه از دفترچهٔ کش‌شده (۵ یورو با حداقل حاشیهٔ ۸٪)');
     }
 
     /** ⚠️ رجیسترارِ خواب در لحظهٔ تازه‌سازیِ کش نباید جعبهٔ صفحهٔ اول را بشکند */

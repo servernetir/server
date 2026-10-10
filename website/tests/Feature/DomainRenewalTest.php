@@ -20,7 +20,16 @@ use Tests\TestCase;
  */
 class DomainRenewalTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake($this->supplierPriceStubs());
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private function customer(): Customer
     {
@@ -76,7 +85,7 @@ class DomainRenewalTest extends TestCase
         $this->assertNotNull($inv, 'فاکتورِ تمدید صادر نشد');
         $this->assertSame('domain', $inv->kind);
         $this->assertStringContainsString('تمدید', (string) $inv->note);
-        $this->assertSame(2_500_000, (int) $inv->subtotal, 'مبلغ باید renew_toman باشد نه قیمتِ ثبت');
+        $this->assertSame(1_080_000, (int) $inv->subtotal, 'مبلغ باید از استعلام آنلاین تمدید بیاید');
     }
 
     /** دورتر از پنجره → هنوز نه. فاکتورِ زودهنگام یعنی مشتری ماه‌ها زودتر پول بدهد */

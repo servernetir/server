@@ -349,8 +349,36 @@ class DomainController extends Controller
         $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
         $liveQuote = $pricing->quote($domain->sld, $domain->tld, 'restore');
         $invoice = DB::transaction(function () use ($domain, $invoicer, $liveQuote, $pricing) {
-            Domain::whereKey($domain->id)->lockForUpdate()->first();
-            if ($open = $invoicer->open($domain)) { return $open; }
+            $domain = Domain::whereKey($domain->id)->lockForUpdate()->firstOrFail();
+            if ($domain->status !== 'expired' || in_array($domain->provision_status, ['pending', 'running', 'manual'], true)) {
+                $pricing->unavailable();
+            }
+            $restoreInvoice = null;
+            $openInvoices = Invoice::where('domain_id', $domain->id)
+                ->whereIn('status', ['unpaid', 'draft', 'partial'])->lockForUpdate()->get();
+            // Preflight every old invoice before changing anything: money in flight stays intact.
+            foreach ($openInvoices as $open) {
+                if ((int) data_get($domain->meta, 'restore_invoice_id') === $open->id) {
+                    $restoreInvoice = $open;
+                    continue;
+                }
+                if ($open->paid > 0 || $pricing->hasPaymentInFlight($open) || $open->service_id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+                }
+            }
+            foreach ($openInvoices as $open) {
+                if ($restoreInvoice && $open->id === $restoreInvoice->id) {
+                    continue;
+                }
+                if (! app(\App\Services\Billing\InvoiceCanceller::class)->cancel($open, 'تبدیل درخواست تمدید به بازیابی', false)) {
+                    $pricing->unavailable();
+                }
+            }
+            if ($restoreInvoice) {
+                $pricing->reviewInvoice($restoreInvoice);
+                return $restoreInvoice;
+            }
+            $domain->putMeta(['renew_invoice_id' => null]);
             $subtotal = $liveQuote['sell_toman'];
             $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
             $tax = (int) round($subtotal * $taxPct / 100);

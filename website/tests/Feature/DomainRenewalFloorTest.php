@@ -28,13 +28,17 @@ use Tests\TestCase;
 class DomainRenewalFloorTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         // هیچ تماسِ زنده‌ای — نه رجیسترار، نه اسکرپِ نرخ
-        Http::fake(['*' => Http::response([], 500)]);
+        Http::fake([
+            ...$this->supplierPriceStubs(create: 1.9, renew: 14.9),'*' => Http::response([], 500)]);
     }
 
     private function customer(): Customer
@@ -98,8 +102,8 @@ class DomainRenewalFloorTest extends TestCase
             'کف از بهای تبلیغاتیِ سالِ اول حساب شد — محافظِ بی‌اثر (.shop)');
     }
 
-    /** ردیفِ قدیمی بدونِ بهای تمدید، به cost_amount برمی‌گردد — محافظِ ناقص بهتر از هیچ */
-    public function test_an_old_row_without_renewal_cost_falls_back_to_the_create_cost(): void
+    /** Stored promotional or missing costs never replace the current renewal quote. */
+    public function test_an_old_row_without_renewal_cost_uses_the_live_renewal_quote(): void
     {
         $this->rate();
         $d = $this->domain(['cost_renew_amount' => null, 'cost_amount' => 1490]);
@@ -109,38 +113,38 @@ class DomainRenewalFloorTest extends TestCase
         $this->assertSame(self::FLOOR, (int) $inv->subtotal);
     }
 
-    public function test_a_domain_with_no_cost_data_keeps_the_stored_price(): void
+    public function test_a_domain_with_no_cost_data_uses_the_live_renewal_quote(): void
     {
         $this->rate();
         $d = $this->domain(['cost_amount' => 0, 'cost_renew_amount' => null]);
 
         $inv = app(DomainRenewalInvoicer::class)->issue($d, 1);
 
-        $this->assertSame(200_000, (int) $inv->subtotal,
-            'بی‌داده باید محافظ خاموش بماند، نه اینکه تمدید بسته شود');
+        $this->assertSame(self::FLOOR, (int) $inv->subtotal);
     }
 
-    public function test_no_fx_rate_keeps_the_stored_price_instead_of_blocking(): void
+    public function test_a_missing_exchange_rate_blocks_the_invoice(): void
     {
-        // نرخی ست نشده و اسکرپ هم فیک‌شده و می‌شکند ⇒ نرخ نداریم
+        \App\Models\Setting::put('pricing_rate_override', '0');
+        config(['services.exchange.enabled' => false]);
         $d = $this->domain();
-
-        $inv = app(DomainRenewalInvoicer::class)->issue($d, 1);
-
-        $this->assertSame(200_000, (int) $inv->subtotal,
-            'بستنِ تمدید به‌خاطرِ نبودِ نرخ یعنی دامنهٔ مشتری منقضی شود');
+        try {
+            app(DomainRenewalInvoicer::class)->issue($d, 1);
+            $this->fail('Renewal issued without a verified exchange rate');
+        } catch (\Illuminate\Validation\ValidationException) {
+            $this->assertDatabaseCount('invoices', 0);
+        }
     }
 
-    /** کف هرگز قیمت را **پایین** نمی‌آورد */
-    public function test_the_floor_never_lowers_a_healthy_price(): void
+    /** New invoice pricing follows the current supplier quote and configured margin. */
+    public function test_a_new_invoice_uses_the_current_quote_instead_of_a_historical_retail_price(): void
     {
         $this->rate();
         $d = $this->domain(['renew_toman' => 5_000_000]);
 
         $inv = app(DomainRenewalInvoicer::class)->issue($d, 1);
 
-        $this->assertSame(5_000_000, (int) $inv->subtotal,
-            'ارزان‌کردن تصمیمِ مالیِ کارفرماست، نه کارِ خودکارِ کد');
+        $this->assertSame(self::FLOOR, (int) $inv->subtotal);
     }
 
     // ═══════════════ بازمصرفِ کاملِ ردیفِ مرده ═══════════════

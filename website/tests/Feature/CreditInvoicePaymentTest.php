@@ -28,6 +28,7 @@ use Tests\TestCase;
 class CreditInvoicePaymentTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private const BALANCE = 5_000_000;
 
@@ -36,8 +37,11 @@ class CreditInvoicePaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
-        Http::fake(['*' => Http::response([], 500)]);
+        Http::fake([
+            ...$this->supplierPriceStubs(),'*' => Http::response([], 500)]);
     }
 
     private function customer(int $credit = self::BALANCE): Customer
@@ -75,6 +79,8 @@ class CreditInvoicePaymentTest extends TestCase
             'currency_code' => 'IRT', 'subtotal' => 2_500_000, 'tax' => 250_000,
             'total' => self::DUE, 'paid' => 0, 'status' => 'unpaid', 'issued_at' => now(),
         ]);
+
+        $d->putMeta(['renew_invoice_id' => $inv->id, 'renew_years' => 1]);
 
         return [$d, $inv];
     }

@@ -6,8 +6,10 @@ use App\Http\Controllers\Account\CloudStoreController;
 use App\Models\Currency;
 use App\Models\Domain;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /** Operation-specific supplier quotes; no catalogue or registration-price fallback. */
@@ -121,6 +123,53 @@ class LiveDomainPricing
         $this->unavailable();
     }
 
+    /** A mixed invoice must identify the domain line; hosting revenue cannot cover its floor. */
+    private function domainItem(Domain $domain, Invoice $invoice): ?InvoiceItem
+    {
+        $items = $invoice->items()->get();
+        $matches = $items->filter(fn ($item) => in_array($item->title, [
+            'ثبتِ دامنهٔ '.$domain->domain, 'تمدیدِ دامنهٔ '.$domain->domain,
+            'انتقالِ دامنهٔ '.$domain->domain, 'بازیابیِ دامنهٔ '.$domain->domain,
+        ], true));
+        if ($matches->count() === 1 && $matches->first()->quantity === 1) {
+            return $matches->first();
+        }
+        // Older domain-only invoices can lack item rows, but mixed/ambiguous invoices fail closed.
+        if (! $invoice->service_id && $invoice->kind === 'domain' && $items->count() <= 1) {
+            if ($items->isEmpty()) {
+                return null;
+            }
+            if ($items->first()->quantity === 1) {
+                return $items->first();
+            }
+        }
+        $this->unavailable();
+    }
+
+    private function domainNetAmount(Domain $domain, Invoice $invoice): int
+    {
+        $item = $this->domainItem($domain, $invoice);
+        $header = min((int) $invoice->subtotal, (int) $invoice->total - max(0, (int) $invoice->tax));
+
+        return $item ? min($header, (int) $item->line_total, (int) $item->unit_price) : $header;
+    }
+
+    /** Pending receipts and supplier payment attempts freeze the agreed invoice amount. */
+    public function hasPaymentInFlight(Invoice $invoice): bool
+    {
+        if ($invoice->payments()->whereIn('status', ['pending', 'redirected', 'paid'])->exists()) {
+            return true;
+        }
+        if (Schema::hasTable('bank_transfer_receipts') && DB::table('bank_transfer_receipts')
+            ->where('invoice_id', $invoice->id)->whereIn('status', ['pending', 'approved'])->exists()) {
+            return true;
+        }
+        return Schema::hasTable('crypto_payments') && DB::table('crypto_payments')
+            ->where('invoice_id', $invoice->id)->where(fn ($q) => $q
+                ->whereIn('status', ['pending', 'seen', 'confirmed', 'manual', 'unmatched'])
+                ->orWhere('received_atomic', '>', 0))->exists();
+    }
+
     /** Refresh an unpaid quote before displaying it for the customer's review. */
     public function reviewInvoice(Invoice $invoice): void
     {
@@ -139,21 +188,26 @@ class LiveDomainPricing
             }
             [$operation, $years] = $this->invoiceOperation($domain, $fresh);
             $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-            if (min((int) $fresh->subtotal, (int) $fresh->total - max(0, (int) $fresh->tax)) >= $quote['floor_toman']) {
+            if ($this->domainNetAmount($domain, $fresh) >= $quote['floor_toman']) {
                 return;
             }
-            if ($fresh->paid > 0) {
+            if ($fresh->paid > 0 || $this->hasPaymentInFlight($fresh)) {
                 throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
             }
             $subtotal = $quote['sell_toman'];
             $pct = CloudStoreController::taxPercent();
             $tax = (int) round($subtotal * $pct / 100);
+            $item = $this->domainItem($domain, $fresh);
+            if ($item) {
+                $item->update(['unit_price' => $subtotal, 'line_total' => $subtotal,
+                    'tax_rate_bp' => (int) ($pct * 100), 'tax_amount' => $tax]);
+                $subtotal = (int) $fresh->items()->sum('line_total');
+                $tax = (int) $fresh->items()->sum('tax_amount');
+            }
             $fresh->update(['subtotal' => $subtotal, 'tax' => $tax, 'total' => $subtotal + $tax]);
-            $fresh->items()->update(['unit_price' => $subtotal, 'line_total' => $subtotal,
-                'tax_rate_bp' => (int) ($pct * 100), 'tax_amount' => $tax]);
             $this->remember($domain, $quote);
             if ($operation === 'renew') {
-                $domain->update(['renew_toman' => (int) ceil($subtotal / $years)]);
+                $domain->update(['renew_toman' => (int) ceil($quote['sell_toman'] / $years)]);
             }
         });
         $invoice->refresh();
@@ -171,7 +225,7 @@ class LiveDomainPricing
         }
         [$operation, $years] = $this->invoiceOperation($domain, $invoice);
         $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-        if (min((int) $invoice->subtotal, (int) $invoice->total - max(0, (int) $invoice->tax)) < $quote['floor_toman']) {
+        if ($this->domainNetAmount($domain, $invoice) < $quote['floor_toman']) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
     }
@@ -195,7 +249,7 @@ class LiveDomainPricing
             $this->unavailable();
         }
         $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-        if (min((int) $invoice->subtotal, (int) $invoice->total - max(0, (int) $invoice->tax)) < $quote['floor_toman']) {
+        if ($this->domainNetAmount($domain, $invoice) < $quote['floor_toman']) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
         $this->remember($domain, $quote);

@@ -37,7 +37,7 @@ class DomainRenewalInvoicer
                 $this->pricing->unavailable();
             }
             if ($open = $this->open($domain)) {
-                if ((int) data_get($domain->meta, 'renew_invoice_id') !== $open->id || $open->paid > 0) {
+                if ((int) data_get($domain->meta, 'renew_invoice_id') !== $open->id || $open->paid > 0 || $this->pricing->hasPaymentInFlight($open)) {
                     $this->pricing->assertInvoice($open);
 
                     return $open;

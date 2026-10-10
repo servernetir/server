@@ -21,7 +21,16 @@ use Tests\TestCase;
  */
 class DomainPurchaseTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake($this->supplierPriceStubs());
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private function customer(bool $withProfile = true): Customer
     {
@@ -76,7 +85,7 @@ class DomainPurchaseTest extends TestCase
         $inv = Invoice::first();
         $this->assertSame('unpaid', $inv->status);
         $this->assertSame((int) $d->id, (int) $inv->domain_id);
-        $this->assertSame(2500000, (int) $inv->subtotal);
+        $this->assertSame(1080000, (int) $inv->subtotal);
     }
 
     /**
@@ -95,14 +104,14 @@ class DomainPurchaseTest extends TestCase
     }
 
     /** 🔴 قیمت از استعلام می‌آید، نه از ورودیِ کاربر */
-    public function test_the_price_comes_from_the_stored_quote_not_the_request(): void
+    public function test_the_price_comes_from_the_supplier_quote_not_the_request_or_stored_price(): void
     {
         $c = $this->customer();
         $q = $this->quote(['sell_toman' => 2500000]);
 
         $this->order($c, $q, ['sell_toman' => 1000, 'total' => 1000, 'price' => 1000]);
 
-        $this->assertSame(2500000, (int) Invoice::first()->subtotal);
+        $this->assertSame(1080000, (int) Invoice::first()->subtotal);
     }
 
     /** 🔴 استعلامِ منقضی: قیمتِ دیروز با نرخِ ارزِ دیروز */
