@@ -160,6 +160,7 @@ class SettingsController extends Controller
             'pricing_fx_fee_pct_salad'   => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'cloud_margin_pct_salad' => ['nullable', 'numeric', 'min:0', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
@@ -200,6 +201,7 @@ class SettingsController extends Controller
             // فقط دامنهٔ پایه (مثلِ servernet.cloud) — نه اسکیم، نه اسلش
             'salad_branded_domain' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9.-]*$/'],
             'salad_priority'     => ['nullable', 'string', 'in:high,medium,low,batch'],
+            'salad_jupyter_sales_paused' => ['nullable', 'boolean'],
             'salad_vcpu_usd_hour'   => ['nullable', 'numeric', 'min:0', 'max:10'],
             'salad_ram_gb_usd_hour' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'proxmox_token_secret'   => ['nullable', 'string', 'max:200'],
@@ -278,6 +280,7 @@ class SettingsController extends Controller
     private const SALAD_PLAIN = [
         'salad_org', 'salad_project', 'salad_image', 'salad_priority', 'salad_branded_domain',
         'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour',
+        'salad_jupyter_sales_paused',
     ];
 
     /** فیلدهای اعتبارسنجیِ یک تب — برای تست هم استفاده می‌شود. */
@@ -442,6 +445,7 @@ class SettingsController extends Controller
                 'pricing_fx_fee_pct_salad'   => $ready ? Setting::get('pricing_fx_fee_pct_salad') : null,
                 'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
+                'cloud_margin_pct_salad' => $ready ? Setting::get('cloud_margin_pct_salad') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
                 'cloud_ipv4_eur_cents'  => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
                 'ai_margin_pct'          => $ready ? Setting::get('ai_margin_pct') : null,
@@ -484,6 +488,7 @@ class SettingsController extends Controller
                     'project'  => $ready ? Setting::get('salad_project') : null,
                     'image'    => $ready ? Setting::get('salad_image') : null,
                     'priority' => $ready ? Setting::get('salad_priority') : null,
+                    'jupyter_sales_paused' => $ready && Setting::get('salad_jupyter_sales_paused', '0') === '1',
                     'branded'  => $ready ? Setting::get('salad_branded_domain') : null,
                     'vcpu'     => $ready ? Setting::get('salad_vcpu_usd_hour') : null,
                     'ram'      => $ready ? Setting::get('salad_ram_gb_usd_hour') : null,

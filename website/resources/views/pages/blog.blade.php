@@ -22,8 +22,17 @@
     }
 @endphp
 
-@section('title', ($heading ? $htitle.' — ' : '').__('ui.bl_title').' — '.__('ui.brand'))
-@section('description', __('ui.bl_meta_d'))
+@php
+    $listingTitle = ($heading ? $htitle.' — ' : '').__('ui.bl_title');
+    $listingDescription = __('ui.bl_meta_d');
+    if ((int) $paged['page'] > 1) {
+        $pageLabel = lc(['fa' => 'صفحهٔ ', 'en' => 'Page ', 'tr' => 'Sayfa ']) . ($isFa ? fa_num($paged['page']) : $paged['page']);
+        $listingTitle .= ' — '.$pageLabel;
+        $listingDescription = $pageLabel.' — '.$listingDescription;
+    }
+@endphp
+@section('title', $listingTitle.' — '.__('ui.brand'))
+@section('description', $listingDescription)
 
 @section('content')
 
@@ -91,6 +100,10 @@
           </article>
           @endforeach
         </div>
+
+        @if(!$heading && (int) $paged['page'] === 1)
+          @include('partials.seo-blog-guides')
+        @endif
 
         {{-- pagination --}}
         @if($paged['pages'] > 1)

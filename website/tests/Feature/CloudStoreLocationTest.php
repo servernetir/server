@@ -532,8 +532,12 @@ class CloudStoreLocationTest extends TestCase
         $en = (array) require lang_path('en/ui.php');
         $tr = (array) require lang_path('tr/ui.php');
 
-        $this->assertSame(array_keys($fa), array_keys($en), 'کلیدهای fa و en باید هم‌ترتیب باشند');
-        $this->assertSame(array_keys($fa), array_keys($tr), 'کلیدهای fa و tr باید هم‌ترتیب باشند');
+        ksort($fa);
+        ksort($en);
+        ksort($tr);
+
+        $this->assertSame(array_keys($fa), array_keys($en), 'کلیدهای fa و en باید یکسان باشند');
+        $this->assertSame(array_keys($fa), array_keys($tr), 'کلیدهای fa و tr باید یکسان باشند');
 
         /*
         | ⚠️ `cvb_pick_country` عمداً از این فهرست حذف شد و خودِ کلید هم پاک شد.

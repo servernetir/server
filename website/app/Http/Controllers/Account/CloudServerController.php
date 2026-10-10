@@ -256,6 +256,14 @@ class CloudServerController extends Controller
     public function status(Service $service): JsonResponse
     {
         $this->ownedService($service);
+        if (str_starts_with((string) $service->cloud_image_key, 'gpu-')
+            && in_array($service->status, Service::DEAD_STATUSES, true)) {
+            return response()->json([
+                'ok' => true, 'status' => $service->status, 'ready' => false,
+                'closed' => true, 'stage' => 'closed', 'stage_index' => null,
+                'label' => __('ui.cs_closed_h'), 'color' => 'var(--dim)',
+            ]);
+        }
         $instance = $this->instanceOf($service);
 
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید

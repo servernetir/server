@@ -146,7 +146,7 @@ trait SaladOperations
      *
      * 🔴 زنجیرهٔ کامل، و هر حلقه‌اش یک‌بار جای دیگری در این پروژه اشتباه شده:
      *
-     *   دلار/ساعت (GPU + vCPU + رم)
+     *   دلار/ساعت GPU (شامل vCPU و رم طبق قرارداد Salad)
      *     × ۷۳۰ ساعت            → دلار/ماه
      *     × تومانِ هر دلار       → تومان/ماه      ← نرخِ **دلار**، نه یورو
      *     ÷ تومانِ هر یورو × ۱۰۰ → سنتِ یورو/ماه
@@ -486,9 +486,8 @@ trait SaladOperations
             ? min(250, (int) floor($rawStorage / self::GIB))
             : self::DEFAULT_DISK_GB;
 
-        $totalUsdHour = $gpuUsd
-            + ($vcpu * $this->vcpuUsdHour())
-            + (($ramMb / 1024) * $this->ramGbUsdHour());
+        // Salad GPU rates include vCPU and RAM; adding them again overstates cost.
+        $totalUsdHour = $gpuUsd;
 
         $gpuCount = max(1, (int) ($g['gpu_count'] ?? 1));
 
@@ -519,6 +518,43 @@ trait SaladOperations
             // 🔴 همیشه true: حتی بالاترین اولویت هم قطع می‌شود.
             'is_interruptible'  => true,
         ];
+    }
+
+    /** Fresh purchase check, before any customer debit or invoice is created. */
+    public function purchaseQuote(string $gpuClass): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'reason' => 'unavailable'];
+        }
+
+        try {
+            $rows = \Illuminate\Support\Facades\Cache::remember(
+                'salad-purchase-classes-'.sha1($this->org()), 60,
+                function (): array {
+                    $r = $this->req('GET', '/organizations/'.rawurlencode($this->org()).'/gpu-classes');
+                    $rows = $this->items($r['body'] ?? []);
+                    if (! ($r['ok'] ?? false) || $rows === []) {
+                        throw new \RuntimeException('GPU purchase prices unavailable');
+                    }
+                    return $rows;
+                },
+            );
+            $gpu = collect($rows)->firstWhere('id', $gpuClass);
+            if (! $gpu || (bool) ($gpu['is_high_demand'] ?? false)) {
+                return ['ok' => false, 'reason' => 'capacity'];
+            }
+            $rate = $this->priceFor($gpu, $this->priority());
+            $usdToman = $this->usdToman();
+            if ($rate === null || $usdToman <= 0) {
+                return ['ok' => false, 'reason' => 'unavailable'];
+            }
+            $cost = $rate * $usdToman * (1 + $this->fxFeePct() / 100);
+            $markup = app(CloudPricing::class)->marginPct('salad');
+            return ['ok' => true, 'cost_hourly_irt' => (int) ceil($cost),
+                'minimum_hourly_irt' => (int) ceil($cost * (1 + $markup / 100))];
+        } catch (\Throwable) {
+            return ['ok' => false, 'reason' => 'unavailable'];
+        }
     }
 
     /** قیمتِ دلاری/ساعتِ GPU برای اولویتِ خواسته‌شده */
@@ -796,6 +832,31 @@ trait SaladOperations
      * ⚠️ گروه فقط وضعیتِ کلی دارد؛ نشانیِ واقعی روی نمونه است و تا وقتی گره
      * تخصیص نخورده اصلاً وجود ندارد.
      */
+    /** Only explicit readiness delivers; only stopped plus zero instances confirms cost stopped. */
+    public function gpuDeliveryState(string $ref): array
+    {
+        $group = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
+        if (! $group['ok']) {
+            return ['ok' => $group['status'] === 404, 'exists' => $group['status'] !== 404,
+                'ready' => false, 'stopped' => $group['status'] === 404, 'state' => 'unknown'];
+        }
+        $state = strtolower((string) data_get($group['body'], 'current_state.status', ''));
+        $hostname = (string) data_get($group['body'], 'networking.dns', '');
+        $nodes = $this->req('GET', $this->proj('/'.rawurlencode($ref).'/instances'));
+        $nodes['ok'] = $nodes['ok'] && is_array(data_get($nodes['body'], 'instances'));
+        $ready = false;
+        if ($nodes['ok']) {
+            foreach ($this->items($nodes['body']) as $node) {
+                $ready = $ready || (strtolower((string) ($node['state'] ?? '')) === 'running'
+                    && ($node['started'] ?? false) === true && ($node['ready'] ?? false) === true);
+            }
+        }
+        return ['ok' => $nodes['ok'] || $state === 'failed', 'exists' => true, 'state' => $state,
+            'hostname' => $hostname ?: null,
+            'ready' => $state === 'running' && $ready && $hostname !== '',
+            'stopped' => $state === 'stopped' && $nodes['ok'] && count($this->items($nodes['body'])) === 0];
+    }
+
     public function serverStatus(string $ref): array
     {
         $r = $this->req('GET', $this->proj('/'.rawurlencode($ref)));

@@ -156,7 +156,7 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertStringContainsString('زیرساختِ ۶', $html, 'بلوکِ زیرساختِ GPU در صفحه نیست');
 
         foreach (['salad_api_key', 'salad_org', 'salad_project', 'salad_image',
-            'salad_priority', 'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour'] as $f) {
+            'salad_priority', 'salad_jupyter_sales_paused', 'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour'] as $f) {
             $this->assertStringContainsString('name="'.$f.'"', $html, "فیلدِ «{$f}» رندر نشد");
         }
 
@@ -181,12 +181,14 @@ class AdminSettingsTabsTest extends TestCase
             'salad_project'         => 'prod',
             'salad_image'           => 'ghcr.io/servernet/gpu-ssh:1',
             'salad_priority'        => 'high',
+            'salad_jupyter_sales_paused' => '1',
             'salad_vcpu_usd_hour'   => '0.004',
             'salad_ram_gb_usd_hour' => '0.001',
         ])->assertRedirect();
 
         $this->assertSame('salad-live-key-9', Setting::getSecret('salad_api_key'));
         $this->assertSame('servernet', Setting::get('salad_org'));
+        $this->assertSame('1', Setting::get('salad_jupyter_sales_paused'));
         $this->assertSame('ghcr.io/servernet/gpu-ssh:1', Setting::get('salad_image'));
 
         $this->assertNotSame('salad-live-key-9', Setting::get('salad_api_key'),
