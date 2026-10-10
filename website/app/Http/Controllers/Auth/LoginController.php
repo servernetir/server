@@ -218,6 +218,20 @@ class LoginController extends Controller
         return $this->completeLogin($request, $customer, $ctx['channel'] ?? 'sms', true);
     }
 
+    public function googleLogin(Request $request, Customer $customer): RedirectResponse
+    {
+        if (! $customer->isActive() || $customer->ipBlocks($request->ip())) {
+            return redirect()->route($this->rp().'login')->withErrors(['identifier' => __('google.failed')]);
+        }
+        $request->session()->forget(['login_otp', 'login_2fa', 'reg', 'google_registration']);
+        $request->session()->regenerate();
+        if ($customer->hasTwoFactor()) {
+            $request->session()->put('login_2fa', ['customer_id' => $customer->id, 'channel' => 'google']);
+            return redirect()->route($this->rp().'login.2fa');
+        }
+        return $this->completeLogin($request, $customer, 'google');
+    }
+
     /** برقراریِ نشست — نقطهٔ واحدِ «از این‌جا به بعد کاربر واقعاً وارد است» */
     private function completeLogin(Request $request, Customer $customer, string $channel, bool $twoFactor = false): RedirectResponse
     {
@@ -227,12 +241,15 @@ class LoginController extends Controller
             'failed_login_count' => 0,
         ])->save();
 
+        if (! $customer->isActive() || $customer->ipBlocks($request->ip())) {
+            return redirect()->route($this->rp().'login')->withErrors(['identifier' => __('google.failed')]);
+        }
         Auth::guard('customer')->login($customer, true);
         $request->session()->regenerate();
         \App\Services\Analytics\DataLayerService::flashLogin($customer);
 
         \App\Models\ActivityLog::record($customer->id, 'login',
-            __('ui.act_login', ['channel' => __($channel === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile')])
+            __('ui.act_login', ['channel' => __($channel === 'google' ? 'google.channel' : ($channel === 'email' ? 'ui.act_ch_email' : 'ui.act_ch_mobile'))])
                 .($twoFactor ? __('ui.act_login_app') : ''),
             $request, 'customer');
 

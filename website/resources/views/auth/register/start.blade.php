@@ -5,6 +5,7 @@
 @section('sub', __('ui.auth_reg_sub'))
 
 @section('form')
+@include('auth.google-button', ['phoneImport' => !$iranian && config('google-auth.phone_enabled')])
 @if(session('reg_notice'))
   <div style="margin-bottom:14px;padding:11px 14px;border-radius:11px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.28);color:#22a5bd;font-size:13px;line-height:1.9">{{ session('reg_notice') }}</div>
 @endif
@@ -48,22 +49,26 @@
   <div class="auth-field">
     <label for="phone">{{ __('ui.auth_mobile') }}</label>
     <input type="tel" id="phone" name="phone" dir="ltr" inputmode="tel"
-           autocomplete="tel" placeholder="+90 5xx xxx xx xx" value="{{ old('phone') }}"
+           autocomplete="tel" placeholder="+90 5xx xxx xx xx" value="{{ old('phone', session('google_registration.phone')) }}"
            required aria-describedby="hint-phone">
     <small id="hint-phone">{{ __('ui.auth_mobile_intl_hint') }}</small>
+    @if(session('google_registration') && config('google-auth.phone_enabled'))
+      <a href="{{ lroute('google.phone') }}" style="display:block;margin-top:8px">{{ __('google.phone_import') }}</a>
+      <small>{{ __('google.phone_note') }}</small>
+    @endif
   </div>
   @endif
 
   <div class="auth-field" data-check="email">
     <label for="email">{{ __('ui.auth_email') }}</label>
     <input type="email" id="email" name="email" dir="ltr"
-           autocomplete="email" placeholder="you@example.com" value="{{ old('email') }}"
+           autocomplete="email" placeholder="you@example.com" value="{{ session('google_registration.email', old('email')) }}" {{ session('google_registration') ? 'readonly' : '' }}
            required aria-describedby="hint-email">
     <span class="msg">{{ __('ui.auth_email_bad') }}</span>
     <small id="hint-email">{{ __('ui.auth_email_hint') }}</small>
   </div>
 
-  <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ __('ui.auth_send_code') }}</span></button>
+  <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ session('google_registration') && !$iranian ? __('google.continue_registration') : __('ui.auth_send_code') }}</span></button>
 </form>
 @endsection
 
