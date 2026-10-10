@@ -29,9 +29,9 @@ No documented public API was found for VNC/console URLs, metrics, resize, snapsh
 
 ## Regions and catalog
 
-The live API returned 39 regions on 2026-10-10. Explicit country/city mappings are in `website/config/lightnode.php`, and can be supplemented by the reviewed account manifest. Provider IDs are opaque: `bg-dhaka-1` is Bangladesh, whereas `bg-sofia-1` is Bulgaria. Taiwan and Hong Kong have their own customer location entries. Multiple zones remain distinct provider plan references.
+The initial live API returned 39 regions on 2026-10-10. A later complete recheck returned 40 regions/zones, adding `mm-yangon-1` (Yangon, Myanmar), which is now explicitly mapped. Explicit country/city mappings are in `website/config/lightnode.php`, and can be supplemented by the reviewed account manifest. Provider IDs are opaque: `bg-dhaka-1` is Bangladesh, whereas `bg-sofia-1` is Bulgaria. Taiwan and Hong Kong have their own customer location entries. Multiple zones remain distinct provider plan references. A region/package listing is not a price or stock guarantee.
 
-The console advertised 46 locations, with seven marked Sold Out: Muscat, Johannesburg, Lima, Karachi II, Yangon, Jeddah and Almaty. No live API mapping or purchasable plan is invented for those locations. Baghdad also has a current provider internet shutdown notice spanning September 26–October 12; stock acceptance must consider that notice.
+The initial console advertised 46 locations, with seven marked Sold Out: Muscat, Johannesburg, Lima, Karachi II, Yangon, Jeddah and Almaty. Yangon subsequently appeared in the live API; no purchasable plan is invented from this change without pricing/delivery acceptance. No live API mapping is invented for the other unavailable locations. Baghdad also has a current provider internet shutdown notice spanning September 26–October 12; stock acceptance must consider that notice.
 
 Image UUIDs are region-specific. Windows requires at least **2 vCPU / 4 GB RAM**, as confirmed by the official create form; this is enforced in the catalog, customer image selection, purchase and reinstall paths. System disk requirements apply to the boot disk, not the sum of boot and data disks. Additional data storage is displayed separately; formatting/mounting an additional volume was not tested.
 
@@ -43,7 +43,11 @@ The live package API omits bandwidth for traffic packages and traffic quota for 
 
 The [official billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) rounds usage up to whole hours, continues charging stopped machines, and stops instance charges upon release. It describes a 672-hour monthly cap for unchanged configuration and prorates monthly traffic for hourly usage. Excess traffic can incur a per-GB charge; capped traffic is throttled. PayByBandwidth and PayByTraffic are different contracts. The [instance composition guide](https://doc.lightnode.com/Instance/composition.html) gives all instance components the same lifecycle; boot and data disk capacities are separate, but releasing the instance releases its components.
 
-**The public package API has no prices or stock counts.** A reviewed account-specific manifest must provide both hourly and monthly USD prices, exact package specification, traffic-policy verification and a timestamp no older than seven days. No monthly/720 hourly estimate is used. Converted costs use the valid USD and EUR rates, the existing provider-specific funding fee and the site's existing profit margin/rounding rules. Global FX and profit settings are preserved.
+**Current user policy: official API prices only.** The user instructed us to stop depending on the support ticket and use explicit API costs plus the site's existing profit percentage. The ticket heartbeat was paused and no further message was sent. Console/manual quotes and ticket replies are not production price sources.
+
+The complete API recheck at `2026-10-10T11:37:39Z` returned 40 regions/zones and 902 raw rows / 880 unique packages. Every response contained only `packages`; the complete set of package fields was `bandwidth`, `cpu`, `dataDiskSize`, `freeFlow`, `memory`, `packageCode`, `publicIpChargeMode`, `regionCode`, `systemDiskSize`, `zoneCode`. There was no monetary amount, currency, hourly/monthly rate or stock field. The current [official package schema](https://apidoc.lightnode.com/en/441237897e0.md) also contains no price fields or quote endpoint. Private raw responses and the audit summary are retained outside Git.
+
+Production catalog and new purchases therefore reject saved manual prices, even with the global sales switch enabled. The driver reports that official API pricing is unavailable; it does not invent a field, treat missing prices as zero, or estimate hourly costs from monthly prices. Existing management/release operations remain available. Synthetic reviewed-rate fixtures are allowed only when the application environment is `testing` **and** `lightnode.allow_fixture_rates` is explicitly true; the default is false and there is no environment switch. This supports isolated lifecycle acceptance tests, not production sales or proof of a price feed. Converted fixture costs exercise the existing provider funding fee, FX, profit and rounding rules; global profit settings are unchanged.
 
 The test console quoted Manila CPU Shared, 1 vCPU / 2 GB, 50 GB boot, no data disk, 1000 GB traffic at $0.012/hour and approximately $7.71/month. The valid Windows test package was 2 vCPU / 4 GB, 50 GB boot plus 100 GB data and 2000 GB traffic, quoted at $0.043/hour and approximately $28.68/month. These are **observed rounded console quotes**, not a verified invoice or a complete price feed. Account billing precision, overage rates, traffic enforcement and the complete region/package price matrix remain release requirements. A read-only detail request for the account's pre-existing instance returned `limitFlow=FALSE`; it was not modified. The documented API exposes this field for reading but no setter was found. The new traffic-cap delivery guard passes automated tests but cannot yet be accepted live against a provider-capped API-created instance. Provider clarification/configuration is required before traffic plans can launch. The console temporarily stopped calculating during review, then recovered. Forty exact-spec quote candidates were collected across all 39 regions and kept in a private local price workbook; no candidate was approved for public sale. Quito duplicate rows were reconciled, Kuwait was priced as a distinct 2 Mbps bandwidth package, and larger exact API packages were selected where the console's selected 1 vCPU / 4 GB configuration had no API equivalent. The complete 858-package price matrix is still unavailable.
 
@@ -51,9 +55,13 @@ The [Terms of Service](https://www.lightnode.com/termsService), section 3.4, add
 
 ## Provider clarification request
 
+This is a historical submission record. The user's later API-only instruction supersedes the ticket follow-up workflow: the automation is paused, responses are not being used for prices, and no further support messages are being sent.
+
 On 2026-10-10, the user explicitly approved sending the prepared support request. It was submitted once through the account's LightNode ticket form and the resulting ticket detail confirmed **Processing**, with the complete message and public draft PR link retained. No substantive provider reply was present. The request covers official prices/stock by region/package, CPU-series mapping, a supported way to enable `limitFlow=TRUE`, billing precision and recovery of lost tasks. The form limits messages to 250 characters, so the approved concise request links to PR #27 for the full release blockers. No key, password, attachment or private resource identifier was transmitted.
 
 The private ticket receipt and screenshot are retained outside the Git repository. Submission does not resolve any pricing, capacity, billing or traffic-policy release requirement; sales remain disabled. No production machine, route, NAT/firewall, persistence setting or reconciliation-agent state changed. Existing activation and rollback requirements still apply.
+
+The API-only revision passed **54 focused tests / 502 assertions**, including production rejection of saved manual quotes, rejection even when fixture flags and sales are enabled, and the existing fixture-based pricing, settings and lifecycle coverage. No new real instance was purchased. Historical live acceptance remains lifecycle evidence only, not acceptance of an API price feed or provider-enforced traffic restriction.
 
 ## Real acceptance tests
 
@@ -79,12 +87,12 @@ Merge reconciliation preserves upstream GPU image compatibility and observed-sta
 ## Activation and rollback
 
 1. Review this PR and outstanding pricing/traffic limitations before any deployment. Keep `LIGHTNODE_SALES_ENABLED=false` while importing the key and running catalog checks.
-2. Run the additive database migration before catalog sync. Store the API token through the existing encrypted admin infrastructure settings. Install reviewed rates through the LightNode manifest field; never put credentials in that JSON.
-3. Reconcile every ambiguous operation and confirm the live region/package price matrix, exact invoice rates, funding charges and a policy that prevents unpaid traffic overage. Review per-package capacity and delivery coverage. A Manila test is not proof of delivery in every region.
-4. Only approved packages may get `delivery_verified=true`; enable the global sales gate and sync after the user's final approval. Existing administrative disabled-provider and plan switches still apply.
+2. Run the additive database migration before catalog sync. Store the API token through the existing encrypted admin infrastructure settings. The manifest may supplement region mappings; its manual package prices cannot authorize production sales. Never put credentials in that JSON.
+3. A documented official price feed with exact region/package, currency and billing units must exist and be integrated before sales can open. Reconcile ambiguous operations and verify actual supplier prices, funding charges, traffic enforcement, capacity and delivery coverage. The current API has no monetary fields. A Manila test is not proof of delivery in every region.
+4. Complete acceptance against real API pricing and verified traffic enforcement, then obtain the user's final publication approval before enabling sales. The current production price guard cannot be bypassed by the global sales switch or fixture flags. Existing administrative disabled-provider and plan switches still apply.
 5. Roll back sales immediately by disabling the global gate and provider switch. Preserve the encrypted journal and application key while outstanding provider machines exist. Reverting code or dropping a table does **not** release paid provider instances. Reconcile/release them before any migration rollback.
 
-Example reviewed manifest shape (illustrative amounts and package name; **not a live catalog**):
+Historical synthetic fixture shape (illustrative amounts and package name; **not a production price source or live catalog**):
 
 ```json
 {
@@ -102,4 +110,4 @@ Example reviewed manifest shape (illustrative amounts and package name; **not a 
 }
 ```
 
-Use the exact live `packageSpec()` output, including nulls for omitted fields, and a current verification timestamp. Static verified region mappings remain available when the settings manifest only supplies package rates. A stale or missing rate removes that plan from sale on sync and rejects new provider purchases.
+For isolated tests only, use exact `packageSpec()` output, including nulls for omitted fields, and a current verification timestamp. Fixture rates are ignored in production regardless of their timestamp or verification flags. Static region mappings remain available to the driver. No production activation is possible from this historical manifest shape.

@@ -26,7 +26,9 @@ class LightNodeClientTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['app.key' => '12345678901234567890123456789012']);
+        // Existing lifecycle cases use explicit synthetic rates, never a live
+        // production quote. API-only default behavior is covered separately.
+        config(['app.key' => '12345678901234567890123456789012', 'lightnode.allow_fixture_rates' => true]);
     }
 
     private function client(): LightNodeClient { return app(LightNodeClient::class); }
@@ -103,6 +105,28 @@ class LightNodeClientTest extends TestCase
         $this->fake();
         $this->assertTrue($this->client()->testConnection()['ok']);
         Http::assertSent(fn ($r) => $r->header('x-open-token') === ['test-token'] && ! $r->hasHeader('Authorization'));
+    }
+
+    public function test_api_only_default_does_not_sell_saved_manual_quotes(): void
+    {
+        $this->fake(); $this->manifest();
+        config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => false]);
+        $catalog = $this->client()->fetchCatalog();
+        $this->assertFalse($catalog['ok']);
+        $this->assertSame([], $catalog['plans']);
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        $this->assertSame(0, CloudProviderOperation::count());
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    }
+
+    public function test_fixture_prices_cannot_enable_production_sales(): void
+    {
+        $this->fake(); $this->manifest();
+        config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => true]);
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->assertFalse($this->client()->fetchCatalog()['ok']);
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
     }
 
     public function test_catalog_uses_reviewed_actual_hourly_rate_and_keeps_sale_closed(): void

@@ -19,9 +19,9 @@
         <input type="password" name="lightnode_api_token" dir="ltr" autocomplete="new-password" maxlength="1000"
           placeholder="{{ $cloud['lightnode'] ? 'ذخیره‌شده؛ خالی = بدون تغییر' : 'کلید API تأییدشدهٔ حساب' }}"></label>
       @if($cloud['lightnode'])<label class="set-danger"><input type="checkbox" name="lightnode_forget" value="1">حذف کلید ذخیره‌شده</label>@endif
-      <label class="set-f full">کاتالوگ بررسی‌شدهٔ مناطق و نرخ‌ها
+      <label class="set-f full">نگاشت مناطق LightNode
         <textarea name="lightnode_manifest" dir="ltr" rows="8">{{ $cloud['lightnode_manifest'] }}</textarea>
-        <span class="set-lead">ساختار در راهنمای اتصال LightNode ثبت شده است. نرخ بدون تأیید یا قدیمی وارد فروش نمی‌شود. کلید API و رمز سرور را در این بخش وارد نکنید.</span>
+        <span class="set-lead">مبنای فروش فقط قیمت API رسمی و درصد سود سایت است. API فعلی قیمت نمی‌دهد؛ نرخ دستی این بخش برای فروش پذیرفته نمی‌شود. کلید API و رمز سرور را در این بخش وارد نکنید.</span>
       </label>
     </div>
   </div>

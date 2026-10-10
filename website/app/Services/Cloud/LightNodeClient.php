@@ -121,6 +121,11 @@ class LightNodeClient implements CloudProvider
 
     public function fetchCatalog(): array
     {
+        if (! $this->fixtureRatesEnabled()) {
+            return ['ok' => false,
+                'message' => 'API رسمی LightNode قیمت پلن‌ها را ارائه نمی‌کند؛ قیمت دستی مبنای فروش نیست و عرضه بسته می‌ماند.',
+                'locations' => [], 'plans' => [], 'images' => []];
+        }
         try {
             return $this->catalog();
         } catch (\Throwable) {
@@ -130,6 +135,7 @@ class LightNodeClient implements CloudProvider
 
     private function reviewedRate(string $ref, array $package): ?array
     {
+        if (! $this->fixtureRatesEnabled()) { return null; }
         $rate = $this->manifest()['packages'][$ref] ?? [];
         $at = $rate['verified_at'] ?? null;
         if (! is_numeric($at) || $at > time() || $at < time() - 7 * 86400
@@ -141,6 +147,11 @@ class LightNodeClient implements CloudProvider
             return null;
         }
         return $rate;
+    }
+
+    private function fixtureRatesEnabled(): bool
+    {
+        return app()->environment('testing') && config('lightnode.allow_fixture_rates') === true;
     }
 
     private function catalog(): array

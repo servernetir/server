@@ -3,6 +3,10 @@
 return [
     // Keep closed until delivery, pricing, traffic and release are reviewed.
     'sales_enabled' => env('LIGHTNODE_SALES_ENABLED', false),
+    // Production pricing must come from a supported official API price feed.
+    // The current package API has no monetary fields. Saved rates are fixtures
+    // for isolated acceptance tests only; no environment switch enables them.
+    'allow_fixture_rates' => false,
     // Public OpenAPI has no prices or stock. Regions verified on 2026-10-10;
     // IDs are opaque: bg-dhaka-1 is Bangladesh, not Bulgaria.
     'manifest' => [
@@ -16,6 +20,7 @@ return [
             'gb-london-1' => ['country' => 'GB', 'city' => 'London', 'location_code' => 'gb-london'],
             'ger-frankfurt-1' => ['country' => 'DE', 'city' => 'Frankfurt', 'location_code' => 'de-frankfurt'],
             'id-jakarta-1' => ['country' => 'ID', 'city' => 'Jakarta', 'location_code' => 'id-jakarta'],
+            'mm-yangon-1' => ['country' => 'MM', 'city' => 'Yangon', 'location_code' => 'mm-yangon'],
             'bg-sofia-1' => ['country' => 'BG', 'city' => 'Sofia', 'location_code' => 'bg-sofia'],
             'us-siliconvalley-2' => ['country' => 'US', 'city' => 'Silicon Valley II', 'location_code' => 'us-silicon-valley-ii'],
             'us-siliconvalley-1' => ['country' => 'US', 'city' => 'Silicon Valley', 'location_code' => 'us-silicon-valley'],
