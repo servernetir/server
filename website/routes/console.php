@@ -207,6 +207,10 @@ Schedule::command('system:health')
 // ⚠️ قفل روی ۱۵ دقیقه است نه ۱۰: بودجهٔ `createacct` در کرون تا ۱۸۰ ثانیه
 // می‌رود و همان عدد در `ProvisioningService` هم مرزِ «قفلِ کهنه» است. قفلی
 // کوتاه‌تر از بدترین‌حالتِ اجرا یعنی نمونهٔ دوم وسطِ کارِ نمونهٔ اول شروع شود.
+Schedule::command('cloud:recover-gpu-delivery')
+    ->everyMinute()
+    ->withoutOverlapping(15);
+
 Schedule::command('provision:run')
     ->everyMinute()
     ->withoutOverlapping(15);
