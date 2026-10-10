@@ -194,6 +194,18 @@ trait SaladOperations
      */
     public const OLLAMA_PRELOAD_MODEL = 'llama3.1';
 
+    // The CUDA 12.8 Dreamshaper image mounts workflows at /workflow/txt2img.
+    // Copy them into sd1.5 as well to retain the endpoint already given to customers.
+    private const COMFYUI_LEGACY_ROUTES_COMMAND = <<<'SH'
+set -eu
+mkdir -p /workflows/sd1.5
+for file in /workflows/txt2img.* /workflows/img2img.*; do
+    if [ -f "$file" ]; then cp "$file" /workflows/sd1.5/; fi
+done
+test -f /workflows/sd1.5/txt2img.js || test -f /workflows/sd1.5/txt2img.ts
+exec ./comfyui-api
+SH;
+
     public const APPS = [
         /*
         | 🔴 تنها ردیفی که `ref` سفت‌شده ندارد — تگِ تازه‌ترین نسخه در
@@ -617,6 +629,10 @@ trait SaladOperations
                 ],
             ],
         ];
+
+        if ($image === self::APPS['gpu-comfyui']['ref']) {
+            $body['container']['command'] = ['/bin/sh', '-c', self::COMFYUI_LEGACY_ROUTES_COMMAND];
+        }
 
         /*
         | 🔴 بدونِ این بلوک هیچ نشانی‌ای ساخته نمی‌شود: کانتینر بالا می‌آید،

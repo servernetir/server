@@ -222,7 +222,24 @@ class CloudSaladGpuTest extends TestCase
         ]);
         $this->assertTrue($r['ok']);
         Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
-            && data_get($req->data(), 'readiness_probe.http.path') === '/ready');
+            && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
+            && data_get($req->data(), 'container.command.0') === '/bin/sh'
+            && str_contains(data_get($req->data(), 'container.command.2', ''), '/workflows/sd1.5'));
+    }
+
+    public function test_legacy_comfyui_on_an_older_gpu_keeps_its_original_entrypoint(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $image = 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8';
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $image,
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
+            && ! array_key_exists('command', $req->data()['container'])
+            && data_get($req->data(), 'networking.port') === 3000);
     }
 
     /**
