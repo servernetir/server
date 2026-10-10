@@ -515,6 +515,13 @@ class SiteController extends Controller
             $add('order.summary', $sku);
         }
 
+        $add('ai.home');
+        $add('ai.models');
+        $add('ai.docs');
+        foreach (\App\Models\AiModel::where('category', 'chat')->where('status', 'active')->pluck('slug') as $aiSlug) {
+            $add('ai.model', $aiSlug);
+        }
+
         $add('official');
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"

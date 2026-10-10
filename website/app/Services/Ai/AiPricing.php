@@ -135,6 +135,9 @@ final class AiPricing
         $model->loadMissing('provider');
         $p = $model->provider;
         $gates = [];
+        if (! DeepInfraCatalog::isFresh($model)) {
+            $gates[] = 'catalogue_unavailable';
+        }
 
         if ($model->status !== AiModel::STATUS_ACTIVE) {
             $gates[] = 'model_inactive';
@@ -167,8 +170,11 @@ final class AiPricing
         if (AiCaller::driverFor($p) === null) {
             $gates[] = 'driver_unsupported';
         }
-        if ($p->apiKey() === null) {
+        if (blank($p->apiKey())) {
             $gates[] = 'provider_key_missing';
+        }
+        if (blank(Setting::get('ai_provider_'.$p->slug.'_base_url'))) {
+            $gates[] = 'provider_base_missing';
         }
         if (Setting::get('ai_sales_open') !== '1') {
             $gates[] = 'sales_closed';

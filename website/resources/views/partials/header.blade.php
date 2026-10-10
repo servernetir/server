@@ -89,7 +89,8 @@
         <div class="nav-item" data-menu="knowledge">
           <button class="nav-link" aria-expanded="false">{{ __('ui.nav_knowledge') }}<svg class="icon chev"><use href="#i-chev"/></svg></button>
         </div>
-        <a class="nav-link" href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>
+        <a class="nav-link" href="{{ lroute('ai.home') }}">AI Gateway</a>
+                <a class="nav-link" href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>
       </nav>
 
       <div class="header-actions">
@@ -390,6 +391,7 @@
         @foreach($knowledgeMenu as $k)<a href="{{ isset($k['route']) ? lroute($k['route']) : lroute('knowledge').(isset($k['anchor']) ? '#'.$k['anchor'] : '') }}"><b><svg class="icon" style="width:14px;height:14px"><use href="#i-{{ $k['icon'] }}"/></svg>{{ lc($k)['t'] }}</b><small>{{ lc($k)['d'] }}</small></a>@endforeach
       </div></div>
     </div>
+    <a class="drawer-link" href="{{ lroute('ai.home') }}"><span class="dc-icon sm"><svg class="icon"><use href="#i-flow"/></svg></span>AI Gateway</a>
     <a class="drawer-link" href="{{ lroute('contact') }}"><span class="dc-icon sm"><svg class="icon"><use href="#i-message"/></svg></span>{{ __('ui.nav_contact') }}</a>
   </div>
   <div class="drawer-foot">

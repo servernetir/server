@@ -13,5 +13,6 @@ final class DriverCallResult
         public readonly array $body,
         public readonly string $raw = '',
         public readonly ?string $requestId = null,
+        public readonly ?\Psr\Http\Message\StreamInterface $stream = null,
     ) {}
 }

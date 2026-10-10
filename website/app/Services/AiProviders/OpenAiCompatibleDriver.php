@@ -81,7 +81,7 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                 ->connectTimeout((int) config('ai.http_connect_s', 10))
                 ->timeout($timeout)
                 ->acceptJson()
-                ->withOptions(['on_stats' => function (TransferStats $s) use (&$uploaded) {
+                ->withOptions(['stream' => ($payload['stream'] ?? false) === true, 'read_timeout' => 30, 'on_stats' => function (TransferStats $s) use (&$uploaded) {
                     $uploaded = (int) ($s->getHandlerStats()['size_upload'] ?? 0);
                 }])
                 ->post($baseUrl.'/chat/completions', $body);
@@ -101,6 +101,10 @@ class OpenAiCompatibleDriver implements AiProviderDriver
             throw new AiProviderCallException('upstream_http',
                 'ارائه‌دهنده با خطای HTTP '.$response->status().' پاسخ داد.',
                 sent: true, status: $response->status(), detail: self::errorDetail($response->json()));
+        }
+
+        if (($payload['stream'] ?? false) === true) {
+            return new DriverCallResult($response->status(), [], '', $requestId, $response->toPsrResponse()->getBody());
         }
 
         $json = $response->json();

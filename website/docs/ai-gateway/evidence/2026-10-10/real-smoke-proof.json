@@ -1,0 +1,52 @@
+{
+    "at": "2026-10-10T09:29:34+00:00",
+    "database": "in-memory SQLite",
+    "production_customer_changes": false,
+    "models_http": 200,
+    "models_count": 92,
+    "model": "meta-llama\/Meta-Llama-3.1-8B-Instruct-Turbo",
+    "calls": [
+        {
+            "stream": false,
+            "first_http": 200,
+            "replay_http": 200,
+            "replay_header": "true",
+            "identical_response": true,
+            "completed": true,
+            "safe_response": true,
+            "status": "settled",
+            "prompt_tokens": 14,
+            "completion_tokens": 2,
+            "cost_micro": 1,
+            "cost_irt": 1,
+            "sell_irt": 1,
+            "tax_irt": 1,
+            "charged_irt": 2,
+            "wallet_delta": 2,
+            "replay_delta": 0,
+            "error_code": null
+        },
+        {
+            "stream": true,
+            "first_http": 200,
+            "replay_http": 200,
+            "replay_header": "true",
+            "identical_response": true,
+            "completed": true,
+            "safe_response": true,
+            "status": "settled",
+            "prompt_tokens": 14,
+            "completion_tokens": 2,
+            "cost_micro": 1,
+            "cost_irt": 1,
+            "sell_irt": 1,
+            "tax_irt": 1,
+            "charged_irt": 2,
+            "wallet_delta": 2,
+            "replay_delta": 0,
+            "error_code": null
+        }
+    ],
+    "revoked_key_http": 401,
+    "usage_rows": 2
+}

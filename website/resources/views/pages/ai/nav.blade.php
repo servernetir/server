@@ -1,0 +1,1 @@
+<nav class="ai-nav" aria-label="AI Gateway"><a href="{{ lroute('ai.home') }}">AI Gateway</a><a href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }}</a><a href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a><a href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a></nav>

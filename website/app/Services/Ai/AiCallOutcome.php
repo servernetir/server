@@ -24,6 +24,7 @@ final class AiCallOutcome
         public readonly int $status = 200,
         public readonly array $headers = [],
         public readonly ?AiUsage $usage = null,
+        public readonly ?\Closure $stream = null,
     ) {}
 
     public static function fail(string $code, string $message, int $status, array $headers = [], ?AiUsage $usage = null): self

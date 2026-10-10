@@ -119,12 +119,12 @@ class V1ChatTest extends TestCase
         $this->v1($plain, $this->chatBody(['model' => 'nope']))->assertStatus(404)->assertJsonPath('code', 'model_not_found');
     }
 
-    public function test_stream_n_and_non_text_parts_are_400_with_no_hold(): void
+    public function test_invalid_stream_n_and_non_text_parts_are_400_with_no_hold(): void
     {
         [, $plain] = $this->greenKey();
         Http::fake();
 
-        $this->v1($plain, $this->chatBody(['stream' => true]))->assertStatus(400)->assertJsonPath('code', 'stream_unsupported');
+        $this->v1($plain, $this->chatBody(['stream' => 'true']))->assertStatus(400)->assertJsonPath('code', 'invalid_request');
         $this->v1($plain, $this->chatBody(['n' => 2]))->assertStatus(400)->assertJsonPath('code', 'unsupported_parameter');
         $this->v1($plain, $this->chatBody(['messages' => [['role' => 'user', 'content' => [
             ['type' => 'image_url', 'image_url' => ['url' => 'https://x/y.png']],

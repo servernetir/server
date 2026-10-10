@@ -51,9 +51,8 @@ final class AiPayload
      */
     public function prepare(array $client, AiModel $model): AiPreparedRequest
     {
-        if (isset($client['stream']) && $client['stream'] === true) {
-            throw new AiRequestException('stream_unsupported',
-                'استریم هنوز فعال نیست؛ stream را false بفرستید.', 400);
+        if (isset($client['stream']) && ! is_bool($client['stream'])) {
+            throw new AiRequestException('invalid_request', 'stream must be boolean.', 400);
         }
 
         foreach (self::REFUSED as $k) {
@@ -107,6 +106,7 @@ final class AiPayload
             clientOmittedMaxTokens: $omitted,
             dropped: $dropped,
             sha256: self::hash($client),
+            stream: ($client['stream'] ?? false) === true,
         );
     }
 

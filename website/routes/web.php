@@ -23,6 +23,12 @@ use Illuminate\Support\Facades\Route;
 
 $site = function (): void {
     Route::get('/', [SiteController::class, 'home'])->name('home');
+    // [ai-storefront:start]
+    Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
+    Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
+    Route::get('/ai/docs', [\App\Http\Controllers\AiStorefrontController::class, 'docs'])->name('ai.docs');
+    Route::get('/ai/models/{slug}', [\App\Http\Controllers\AiStorefrontController::class, 'model'])->name('ai.model');
+    // [ai-storefront:end]
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
 
     /*
@@ -561,6 +567,7 @@ $site = function (): void {
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
 
         // امنیت حساب — رمز (با OTP)، قوانین IP، توکن‌های API
+        Route::get('/ai', [\App\Http\Controllers\Account\AiController::class, 'index'])->name('ai');
         Route::get('/security', [Account\SecurityController::class, 'index'])->name('security');
         Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:resend');
         Route::post('/security/password', [Account\SecurityController::class, 'passwordVerify'])->name('security.pw')->middleware('throttle:otp');
@@ -3372,8 +3379,8 @@ Route::prefix('v1')
     ])
     ->group(function () {
         Route::post('/chat/completions', [\App\Http\Controllers\Ai\V1ChatController::class, 'chat'])
-            ->name('ai.v1.chat.completions')
-            ->middleware('throttle:ai');
+            ->name('ai.v1.chat.completions');
+        Route::get('/models', [\App\Http\Controllers\Ai\V1ModelsController::class, 'index'])->name('ai.v1.models');
     });
 
 /*

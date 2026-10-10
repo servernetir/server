@@ -1,5 +1,26 @@
 # AI gateway (M5) — where the plan lives
 
+## Current deployment — 2026-10-10
+
+The money engine, real SSE billing, encrypted 24-hour replay, DeepInfra catalogue,
+customer usage page and FA/EN/TR storefront are deployed. Owner settings are 5%
+cost markup and zero extra funding cost. The supplier credential was connected
+and tested without putting it in Git. All 92 active text models have complete
+quotes at that markup; customer resale remains blocked by the actual unsigned
+provider agreement. The catalogue also retains 129 models awaiting execution or
+pricing support and 165 deprecated models, with explicit public status.
+
+Read [the deployment record](../../AI-GATEWAY-LAUNCH-2026-10-10.md) and
+[sanitized verification evidence](../../website/docs/ai-gateway/evidence/2026-10-10/)
+before the historical progress notes below. The 246 distinct AI tests passed
+across SQLite and MariaDB; real normal/streaming responses, exact test-wallet
+debits, no-charge replay and revoked credentials were verified. The customer
+database was not used for those financial fixtures. Supplier permission and
+non-text/complex pricing support remain outstanding.
+
+The older code map, questions and milestone notes below describe the earlier
+implementation, and are superseded where the deployment record says otherwise.
+
 `code-map.md` — verified map of the gateway as it is today: the money path step by
 step with file:line, every confirmed bug, the failing tests and their root causes,
 what is missing for a sellable product, and the open design questions D1–D16.

@@ -34,6 +34,7 @@ class AiModel extends Model
     public const CATEGORIES = [
         self::CATEGORY_CHAT, self::CATEGORY_EMBEDDING, self::CATEGORY_IMAGE,
         self::CATEGORY_AUDIO, self::CATEGORY_RERANK,
+        'video', 'music', 'classification',
     ];
 
     public const STATUSES = [

@@ -88,6 +88,9 @@ final class AiAdmission
         if ($project === null) {
             return AiAuthContext::denied('project_missing', 'کلید AI به پروژه‌ای سالم گره نخورده است.');
         }
+        if ((int) $project->customer_id !== (int) $customer->id) {
+            return AiAuthContext::denied('project_missing', 'API key project does not belong to this account.');
+        }
 
         if ($project->status !== AiProject::STATUS_ACTIVE) {
             return AiAuthContext::denied('project_inactive', 'پروژهٔ مالکِ این کلید غیرفعال است.');

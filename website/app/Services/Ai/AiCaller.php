@@ -90,6 +90,9 @@ final class AiCaller
         if ($model->suspended_at !== null) {
             return AiCallOutcome::fail('model_suspended', 'این مدل موقتاً معلق است.', 503);
         }
+        if (! DeepInfraCatalog::isFresh($model)) {
+            return AiCallOutcome::fail('catalogue_unavailable', 'Model catalogue or pricing needs a refresh.', 503);
+        }
 
         if (($gate = $this->providerGate($model->provider)) !== null) {
             return $gate;
@@ -324,7 +327,7 @@ final class AiCaller
                     'upstream_model' => $model->upstream_model,
                     'idempotency_key' => $key,
                     'request_sha256' => $prepared->sha256,
-                    'stream' => false,
+                    'stream' => $prepared->stream,
                     'status' => AiUsage::STATUS_RESERVED,
                     'max_input_tokens' => $prepared->maxInput,
                     'max_output_tokens' => $prepared->maxOutput,
@@ -448,6 +451,66 @@ final class AiCaller
                 $headers + ['x-should-retry' => 'false'], $usage);
         }
 
+        if ($prepared->stream && $result->stream !== null) {
+            AiUsage::whereKey($usage->id)->where('status', AiUsage::STATUS_SENDING)
+                ->update(['status' => AiUsage::STATUS_STREAMING, 'updated_at' => now()]);
+            return new AiCallOutcome(true, 'ok', headers: $headers + [
+                'Cache-Control' => 'no-store', 'X-Accel-Buffering' => 'no', 'x-should-retry' => 'false',
+            ], usage: $usage, stream: function () use ($result, $usage, $model, $key, $tHttp, $started) {
+                $usageEvent = null;
+                $parsed = null;
+                $replay = [];
+                $bytes = 0;
+                $replayable = true;
+                $requestId = $result->requestId;
+                try {
+                    foreach (AiSseReader::events($result->stream, $tHttp) as [$chunk, $raw]) {
+                        $requestId ??= is_string($chunk['id'] ?? null) ? $chunk['id'] : null;
+                        if (($candidate = AiUsageParser::parse($chunk, $raw)) !== null) {
+                            if ($parsed !== null) {
+                                throw new \RuntimeException('Duplicate final usage event.');
+                            }
+                            $parsed = $candidate;
+                            $usageEvent = self::publicBody($chunk, $usage);
+                            continue; // Emit final usage only after the money decision.
+                        }
+                        $public = self::publicBody($chunk, $usage);
+                        self::emit($public);
+                        if ($key !== null && $replayable) {
+                            $bytes += strlen($raw);
+                            if ($bytes <= 4194304) {
+                                $replay[] = $public;
+                            } else {
+                                $replay = [];
+                                $replayable = false;
+                            }
+                        }
+                    }
+                    if ($parsed === null || $usageEvent === null) {
+                        throw new \RuntimeException('Final usage event missing.');
+                    }
+                    $settled = $this->settlement->settleFromUsage($usage, $parsed, $requestId,
+                        (int) intdiv(hrtime(true) - $started, 1000000));
+                    $usageEvent['servernet_charge_irt'] = in_array($settled->status, AiUsage::CHARGED, true)
+                        ? (int) $settled->charged_irt - (int) $settled->refunded_irt : null;
+                    if ($key !== null && $replayable) {
+                        $replay[] = $usageEvent;
+                        $this->remember($usage, $key, ['_servernet_stream' => $replay], 200);
+                    }
+                    self::emit($usageEvent);
+                    echo "data: [DONE]\n\n";
+                    self::flushStream();
+                } catch (\Throwable $e) {
+                    $this->settlement->markUnknown($usage, 'stream_incomplete', 200);
+                    ErrorTracker::noteOnce('ai', 'Incomplete AI stream '.$usage->public_id.' ('.get_class($e).')', 900);
+                    self::emit(['error' => ['message' => 'Stream interrupted; usage is being reconciled. Do not automatically retry.',
+                        'type' => 'server_error', 'code' => 'stream_incomplete'], 'request_id' => $usage->public_id]);
+                    echo "data: [DONE]\n\n";
+                    self::flushStream();
+                }
+            });
+        }
+
         $latency = (int) intdiv(hrtime(true) - $started, 1_000_000);
         $parsed = AiUsageParser::parse($result->body, $result->raw);
 
@@ -471,10 +534,10 @@ final class AiCaller
         }
 
         if ($key !== null) {
-            $this->remember($usage, $key, $result->body, $result->status);
+            $this->remember($usage, $key, self::publicBody($result->body, $usage), $result->status);
         }
 
-        return new AiCallOutcome(true, 'ok', '', $result->body, 200,
+        return new AiCallOutcome(true, 'ok', '', self::publicBody($result->body, $usage), 200,
             $headers + ['Cache-Control' => 'no-store'], $settled);
     }
 
@@ -524,14 +587,26 @@ final class AiCaller
         $call = AiCall::where('customer_id', $prev->customer_id)->where('idempotency_key', $key)
             ->where('ok', true)->where('created_at', '>=', now()->subHours((int) config('ai.replay_ttl_h', 24)))->first();
 
-        if ($call === null || ! is_array($call->response_body)) {
+        $body = $call?->response_encrypted;
+        if (! is_array($body)) {
             return AiCallOutcome::fail('idempotency_key_expired', 'پاسخِ ذخیره‌شدهٔ این کلید دیگر در دسترس نیست.', 409,
                 ['X-Request-Id' => $prev->public_id]);
         }
 
-        return new AiCallOutcome(true, 'ok', '', $call->response_body, 200, [
+        $headers = [
             'X-Request-Id' => $prev->public_id, 'Idempotent-Replayed' => 'true', 'Cache-Control' => 'no-store',
-        ], $prev);
+        ];
+        if ($prev->stream && isset($body['_servernet_stream'])) {
+            return new AiCallOutcome(true, 'ok', headers: $headers + ['X-Accel-Buffering' => 'no'], usage: $prev,
+                stream: function () use ($body) {
+                    foreach ($body['_servernet_stream'] as $chunk) {
+                        self::emit($chunk);
+                    }
+                    echo "data: [DONE]\n\n";
+                    self::flushStream();
+                });
+        }
+        return new AiCallOutcome(true, 'ok', '', $body, 200, $headers, $prev);
     }
 
     /** پاسخِ موفقِ کلیددار برای بازپخش — **بی متنِ درخواست** (D14) */
@@ -545,7 +620,8 @@ final class AiCaller
                 'idempotency_key' => $key,
                 'ok' => true,
                 'request_body' => null,
-                'response_body' => $body,
+                'response_body' => null,
+                'response_encrypted' => $body,
                 'upstream_status' => $status,
             ]);
         } catch (\Throwable) {
@@ -560,5 +636,30 @@ final class AiCaller
             + (int) ceil($output / 20) * (int) config('ai.http_timeout_per_20_out', 1);
 
         return max((int) config('ai.http_timeout_min_s', 60), min((int) config('ai.http_timeout_max_s', 240), $t));
+    }
+
+    private static function publicBody(array $body, AiUsage $usage): array
+    {
+        $body['id'] = 'chatcmpl-'.$usage->public_id;
+        $body['model'] = $usage->model_slug;
+        unset($body['usage']['estimated_cost'], $body['estimated_cost']);
+        return $body;
+    }
+
+    private static function emit(array $body): void
+    {
+        echo 'data: '.json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n\n";
+        self::flushStream();
+    }
+
+    private static function flushStream(): void
+    {
+        // Test output capture must remain intact. Production streams continue to settle on disconnect.
+        if (! app()->runningInConsole()) {
+            if (ob_get_level() > 0) {
+                @ob_flush();
+            }
+            flush();
+        }
     }
 }
