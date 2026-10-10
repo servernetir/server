@@ -171,7 +171,9 @@ class CloudPlan extends Model
         $raw = (string) (Setting::get('cloud_disabled_providers') ?? '');
 
         $off = array_filter(array_map('trim', explode(',', $raw)));
-        if (config('lightnode.sales_enabled') !== true) {
+        $lightnodePriceSource = config('lightnode.public_pricing_enabled') === true
+            || (app()->environment('testing') && config('lightnode.allow_fixture_rates') === true);
+        if (config('lightnode.sales_enabled') !== true || ! $lightnodePriceSource) {
             $off[] = 'lightnode';
         }
         return array_values(array_unique($off));

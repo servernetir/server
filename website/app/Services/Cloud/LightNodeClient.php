@@ -5,6 +5,7 @@ namespace App\Services\Cloud;
 use App\Models\CloudLocation;
 use App\Models\CloudImage;
 use App\Models\CloudInstance;
+use App\Models\CloudPlan;
 use App\Models\CloudProviderOperation;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-/** Official OpenAPI only. Console APIs and other providers' schemas are not used. */
+/** Official OpenAPI lifecycle; anonymous public calculator for supplier quotes. */
 class LightNodeClient implements CloudProvider
 {
     private const BASE = 'https://openapi.lightnode.com';
@@ -116,14 +117,15 @@ class LightNodeClient implements CloudProvider
         $defaults = (array) config('lightnode.manifest', []);
         $reviewed = filled($value) ? (array) json_decode($value, true) : [];
         return ['regions' => array_replace($defaults['regions'] ?? [], $reviewed['regions'] ?? []),
-            'packages' => $reviewed['packages'] ?? $defaults['packages'] ?? []];
+            'packages' => $reviewed['packages'] ?? $defaults['packages'] ?? [],
+            'bindings' => $reviewed['bindings'] ?? $defaults['bindings'] ?? []];
     }
 
     public function fetchCatalog(): array
     {
-        if (! $this->fixtureRatesEnabled()) {
+        if (! $this->fixtureRatesEnabled() && config('lightnode.public_pricing_enabled') !== true) {
             return ['ok' => false,
-                'message' => 'API رسمی LightNode قیمت پلن‌ها را ارائه نمی‌کند؛ قیمت دستی مبنای فروش نیست و عرضه بسته می‌ماند.',
+                'message' => 'دریافت خودکار قیمت LightNode هنوز فعال نشده است؛ قیمت دستی مبنای فروش نیست.',
                 'locations' => [], 'plans' => [], 'images' => []];
         }
         try {
@@ -135,6 +137,31 @@ class LightNodeClient implements CloudProvider
 
     private function reviewedRate(string $ref, array $package): ?array
     {
+        if (config('lightnode.public_pricing_enabled') === true) {
+            $binding = $this->manifest()['bindings'][$ref] ?? [];
+            // Package codes contain no authoritative CPU-series field. Do not
+            // infer shared/dedicated from a name, or carry manual prices over.
+            if (! in_array($binding['series'] ?? null, ['s2', 'g2'], true)
+                || ($binding['spec'] ?? null) != $this->packageSpec($package)
+                || ! is_numeric($binding['verified_at'] ?? null)
+                || $binding['verified_at'] > time() || $binding['verified_at'] < time() - 30 * 86400
+                // No supported API setter for limitFlow has been verified.
+                || ($package['publicIpChargeMode'] ?? '') !== 'PayByBandwidth') { return null; }
+            $quote = app(LightNodePublicPricing::class)->quote($package, $binding['series']);
+            if (($quote['ok'] ?? false) !== true || ($quote['source'] ?? '') !== 'public_calculator'
+                || ($quote['currency'] ?? '') !== 'USD') { return null; }
+            // One plan has one supplier price. Windows must have the same exact
+            // quote before its images can be offered against that plan.
+            if ((int) $package['cpu'] >= 2 && (int) $package['memory'] >= 4) {
+                $windows = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'windows');
+                if (($windows['ok'] ?? false) !== true || ($windows['source'] ?? '') !== 'public_calculator'
+                    || ($windows['currency'] ?? '') !== 'USD'
+                    || ($windows['hour_usd'] ?? null) !== $quote['hour_usd']
+                    || ($windows['month_usd'] ?? null) !== $quote['month_usd']) { return null; }
+            }
+            return $quote + ['delivery_verified' => ($binding['delivery_verified'] ?? false) === true,
+                'spec' => $this->packageSpec($package)];
+        }
         if (! $this->fixtureRatesEnabled()) { return null; }
         $rate = $this->manifest()['packages'][$ref] ?? [];
         $at = $rate['verified_at'] ?? null;
@@ -147,6 +174,34 @@ class LightNodeClient implements CloudProvider
             return null;
         }
         return $rate;
+    }
+
+    private function supplierCost(array $rate): ?array
+    {
+        $usd = (int) app(ExchangeRate::class)->toToman('USD');
+        $pricing = app(CloudPricing::class); $eur = $pricing->eurToToman();
+        if ($usd <= 0 || $eur <= 0) { return null; }
+        return ['cost_eur_cents' => (int) ceil($pricing->costWithFee((float) $rate['month_usd'] * $usd / $eur, $this->slug()) * 100),
+            'cost_hour_eur_micro' => (int) ceil($pricing->costWithFee((float) $rate['hour_usd'] * $usd / $eur, $this->slug()) * 1000000)];
+    }
+
+    private function purchasePriceMatches(string $ref, array $rate, array $package): bool
+    {
+        if (($rate['source'] ?? '') !== 'public_calculator') { return $this->fixtureRatesEnabled(); }
+        $plan = CloudPlan::where('provider', $this->slug())->where('provider_ref', $ref)->first();
+        $cost = $this->supplierCost($rate);
+        // A fresh quote may be cheaper, but a price/FX/fee increase needs a new
+        // catalog/order review before any irreversible supplier purchase.
+        return $plan && $cost && (int) $plan->cost_eur_cents > 0 && (int) $plan->cost_hour_eur_micro > 0
+            && $cost['cost_eur_cents'] <= (int) $plan->cost_eur_cents
+            && $cost['cost_hour_eur_micro'] <= (int) $plan->cost_hour_eur_micro
+            && (int) $plan->vcpu === (int) $package['cpu']
+            && (int) $plan->ram_mb === (int) $package['memory'] * 1024
+            && $plan->cpu_kind === ($rate['series'] === 'g2' ? 'dedicated' : 'shared')
+            && (int) $plan->boot_disk_gb === (int) $package['systemDiskSize']
+            && (int) $plan->data_disk_gb === (int) ($package['dataDiskSize'] ?? 0)
+            && ($plan->network_terms['charge_mode'] ?? '') === $package['publicIpChargeMode']
+            && (int) ($plan->network_terms['bandwidth_mbps'] ?? 0) === (int) $package['bandwidth'];
     }
 
     private function fixtureRatesEnabled(): bool
@@ -222,7 +277,7 @@ class LightNodeClient implements CloudProvider
                         // A separate data disk is NOT the boot volume.
                         'disk_gb' => (int) $p['systemDiskSize'] + (int) ($p['dataDiskSize'] ?? 0), 'disk_type' => 'ssd',
                         'boot_disk_gb' => (int) $p['systemDiskSize'], 'data_disk_gb' => (int) ($p['dataDiskSize'] ?? 0),
-                        'traffic_gb' => (int) ($p['freeFlow'] ?? 0), 'cpu_kind' => 'shared', 'arch' => 'x86',
+                        'traffic_gb' => (int) ($p['freeFlow'] ?? 0), 'cpu_kind' => ($rate['series'] ?? '') === 'g2' ? 'dedicated' : 'shared', 'arch' => 'x86',
                         'network_terms' => ['bandwidth_mbps' => isset($p['bandwidth']) ? (int) $p['bandwidth'] : null,
                             'monthly_allowance_gb' => isset($p['freeFlow']) ? (int) $p['freeFlow'] : null,
                             'hourly_prorated' => $p['publicIpChargeMode'] === 'PayByTraffic',
@@ -351,6 +406,8 @@ class LightNodeClient implements CloudProvider
     {
         $expected = $op->payload['_expected_spec'];
         $config = $op->payload['packageConfig'];
+        if (isset($op->payload['_expected_series'])
+            && ($row['instanceSeries'] ?? null) !== $op->payload['_expected_series']) { return false; }
         if (($row['regionCode'] ?? '') !== $config['regionCode'] || ($row['zoneCode'] ?? '') !== $config['zoneCode']) { return false; }
         foreach (['cpu', 'memory', 'systemDiskSize', 'dataDiskSize'] as $field) {
             if ((int) ($row[$field] ?? 0) !== (int) ($expected[$field] ?? 0)) { return false; }
@@ -444,7 +501,8 @@ class LightNodeClient implements CloudProvider
                         || (isset($spec['disk_gb']) && (int) $spec['disk_gb'] !== (int) $package['systemDiskSize'] + (int) ($package['dataDiskSize'] ?? 0))) {
                         return ['ok' => false, 'message' => 'پلن جاری با سفارش تطبیق ندارد.'] + $fail;
                     }
-                    if ($this->reviewedRate(implode('|', $plan), $package) === null) {
+                    $rate = $this->reviewedRate(implode('|', $plan), $package);
+                    if ($rate === null || ! $this->purchasePriceMatches(implode('|', $plan), $rate, $package)) {
                         return ['ok' => false, 'message' => 'بهای جاری و سیاست ترافیک این پلن تأیید نشده است.'] + $fail;
                     }
                     $images = $this->rows('/image/list', 'images', ['regionCode' => $plan[0], 'imageType' => 'System'], true);
@@ -472,7 +530,9 @@ class LightNodeClient implements CloudProvider
                     }
                     // Journal BEFORE buying. Even a lost response remains blocked from repeat purchase.
                     $op = CloudProviderOperation::create(['operation_key' => $key, 'provider' => $this->slug(), 'action' => 'create',
-                        'payload' => $payload + ['_expected_spec' => $this->packageSpec($package)]]);
+                        'payload' => $payload + ['_expected_spec' => $this->packageSpec($package)]
+                            + (($rate['source'] ?? '') === 'public_calculator' ? ['_expected_series' => $rate['series'],
+                                '_supplier_quote' => array_intersect_key($rate, array_flip(['source', 'currency', 'hour_usd', 'month_usd', 'verified_at']))] : [])]);
                     $r = $this->request('POST', '/instance/create', $payload);
                     $task = $r['data']['asyncTaskInfo'] ?? [];
                     if (! $r['ok'] || empty($task['asyncTaskUUID']) || empty($task['ecsResourceUUID'])) {

@@ -13,6 +13,7 @@ use App\Services\Cloud\CloudCatalogSync;
 use App\Services\Cloud\CloudProvisioner;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\LightNodeClient;
+use App\Services\Cloud\LightNodePublicPricing;
 use App\Services\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -124,9 +125,120 @@ class LightNodeClientTest extends TestCase
         $this->fake(); $this->manifest();
         config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => true]);
         $this->app->detectEnvironment(fn () => 'production');
+        $this->assertContains('lightnode', CloudPlan::disabledProviders());
         $this->assertFalse($this->client()->fetchCatalog()['ok']);
         $this->assertFalse($this->client()->createServer($this->spec())['ok']);
         Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    }
+
+    private function publicPricing(array $overrides = [], ?callable $quote = null): array
+    {
+        $package = $this->package(); $package['publicIpChargeMode'] = 'PayByBandwidth';
+        $package['bandwidth'] = 5; unset($package['freeFlow']);
+        $receipt = ['ecsResourceUUID' => 'ecs-sample', 'ecsStatus' => 'STARTED', 'ecsPendingStatus' => 'NONE',
+            'publicIpAddress' => '203.0.113.10', 'regionCode' => 'ph-test', 'zoneCode' => 'ph-test-a',
+            'cpu' => 2, 'memory' => 4, 'systemDiskSize' => 50, 'dataDiskSize' => 0,
+            'imageResourceUUID' => 'img-sample', 'internetChargeType' => 'PAY_BY_BANDWIDTH', 'bandwidth' => 5, 'instanceSeries' => 's2'];
+        $this->fake($overrides + ['*/package/list*' => Http::response(['packages' => [$package]]),
+            '*/instance/detail*' => Http::response(['instance' => $receipt])]);
+        $this->manifest();
+        $manifest = json_decode(Setting::get('lightnode_manifest'), true);
+        $manifest['bindings'] = ['ph-test|ph-test-a|sample-package' => ['series' => 's2', 'verified_at' => time(),
+            'delivery_verified' => true, 'spec' => $this->client()->packageSpec($package)]];
+        Setting::put('lightnode_manifest', json_encode($manifest));
+        config(['lightnode.public_pricing_enabled' => true, 'lightnode.allow_fixture_rates' => false]);
+        $this->mock(LightNodePublicPricing::class, function ($mock) use ($quote) {
+            $mock->shouldReceive('quote')->andReturnUsing($quote ?? fn ($p, $series, $os = 'linux') =>
+                ['ok' => true, 'source' => 'public_calculator', 'currency' => 'USD', 'series' => $series,
+                    'hour_usd' => '0.037506000000', 'month_usd' => '25.204032000000', 'verified_at' => time()]);
+        });
+        return $package;
+    }
+
+    public function test_public_prices_use_existing_margin_and_hourly_fee_in_production(): void
+    {
+        $this->publicPricing(); $this->app->detectEnvironment(fn () => 'production');
+        Setting::put('cloud_margin_pct', '17'); Setting::put('pricing_fx_fee_pct_lightnode', '3');
+        $this->assertTrue(app(CloudCatalogSync::class)->sync('lightnode')['ok']);
+        $plan = CloudPlan::where('provider', 'lightnode')->firstOrFail();
+        $cost = (int) ceil(.037506 * .9 * 1.03 * 1000000);
+        $this->assertSame($cost, $plan->cost_hour_eur_micro);
+        $this->assertSame((int) ceil($cost * 1.17), $plan->hourlyCostFloorEurMicro());
+        $this->assertFalse($plan->in_stock);
+        $this->assertStringContainsString('5 Mbps', $plan->trafficLabel('en'));
+        // Saved manual quote was .022; the live quote is authoritative.
+        $this->assertNotSame(19800, $cost);
+    }
+
+    public function test_public_prices_require_explicit_current_exact_series_binding(): void
+    {
+        $this->publicPricing();
+        $original = json_decode(Setting::get('lightnode_manifest'), true);
+        foreach ([[], ['series' => 'guess'], ['spec' => ['cpu' => 8]], ['verified_at' => time() - 31 * 86400]] as $change) {
+            $manifest = $original;
+            if ($change === []) { $manifest['bindings'] = []; }
+            else { $manifest['bindings']['ph-test|ph-test-a|sample-package'] = $change + $manifest['bindings']['ph-test|ph-test-a|sample-package']; }
+            Setting::put('lightnode_manifest', json_encode($manifest));
+            $this->assertSame([], $this->client()->fetchCatalog()['plans']);
+            $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        }
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/instance/create'));
+    }
+
+    public function test_different_windows_price_or_unavailable_public_quote_cannot_buy(): void
+    {
+        foreach (['price', 'unavailable'] as $failure) {
+            $this->publicPricing([], fn ($p, $series, $os = 'linux') => $failure === 'unavailable'
+                ? ['ok' => false] : ['ok' => true, 'source' => 'public_calculator', 'currency' => 'USD', 'series' => $series,
+                    'hour_usd' => $os === 'windows' ? '.040' : '.037', 'month_usd' => '25', 'verified_at' => time()]);
+            $this->assertSame([], $this->client()->fetchCatalog()['plans']);
+            $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        }
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/instance/create'));
+    }
+
+    public function test_fresh_quote_increase_or_changed_network_contract_never_buys(): void
+    {
+        $this->publicPricing();
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']); // No priced local plan.
+        app(CloudCatalogSync::class)->sync('lightnode');
+        $plan = CloudPlan::where('provider', 'lightnode')->firstOrFail();
+        $original = $plan->cost_hour_eur_micro;
+        $plan->update(['cost_hour_eur_micro' => $original - 1]);
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        $plan->update(['cost_hour_eur_micro' => $original, 'network_terms' => ['charge_mode' => 'PayByTraffic', 'bandwidth_mbps' => 5]]);
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        $this->assertSame(0, CloudProviderOperation::count());
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/instance/create'));
+    }
+
+    public function test_disabling_public_price_source_hides_existing_production_plans(): void
+    {
+        $this->publicPricing(); config(['lightnode.sales_enabled' => true]);
+        app(CloudCatalogSync::class)->sync('lightnode');
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->assertNotContains('lightnode', CloudPlan::disabledProviders());
+        config(['lightnode.public_pricing_enabled' => false]);
+        $this->assertContains('lightnode', CloudPlan::disabledProviders());
+        $this->assertSame(0, CloudPlan::sellable()->where('provider', 'lightnode')->count());
+        $this->assertFalse($this->client()->createServer($this->spec())['ok']);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/instance/create'));
+    }
+
+    public function test_public_price_purchase_stores_quote_and_requires_receipt_series(): void
+    {
+        $this->publicPricing(); app(CloudCatalogSync::class)->sync('lightnode');
+        $this->assertTrue($this->client()->createServer($this->spec())['ok']);
+        $op = CloudProviderOperation::firstOrFail();
+        $this->assertSame('s2', $op->payload['_expected_series']);
+        $this->assertSame('public_calculator', $op->payload['_supplier_quote']['source']);
+        $this->assertSame('running', $this->client()->serverStatus('ecs-sample')['status']);
+        Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
+        Http::fake(['*/instance/detail*' => Http::response(['instance' => ['ecsStatus' => 'STARTED',
+            'ecsPendingStatus' => 'NONE', 'regionCode' => 'ph-test', 'zoneCode' => 'ph-test-a', 'cpu' => 2, 'memory' => 4,
+            'systemDiskSize' => 50, 'dataDiskSize' => 0, 'internetChargeType' => 'PAY_BY_BANDWIDTH', 'bandwidth' => 5,
+            'imageResourceUUID' => 'img-sample', 'instanceSeries' => 'g2']])]);
+        $this->assertFalse($this->client()->serverStatus('ecs-sample')['ok']);
     }
 
     public function test_catalog_uses_reviewed_actual_hourly_rate_and_keeps_sale_closed(): void
@@ -385,7 +497,7 @@ class LightNodeClientTest extends TestCase
         Http::assertNotSent(fn ($r) => $r->method() === 'POST');
     }
 
-    private function assertDeliveryPath(string $family): void
+    private function assertDeliveryPath(string $family, bool $public = false): void
     {
         Mail::fake();
         config(['lightnode.sales_enabled' => true]);
@@ -393,8 +505,12 @@ class LightNodeClientTest extends TestCase
         if ($family === 'windows') {
             $image['osDistroVersion'] = 'Windows'; $image['osVersionDetail'] = 'Windows Server 2022';
         }
-        $this->fake(['*/image/list*' => Http::response(['images' => [$image]])]);
-        $this->manifest();
+        if ($public) {
+            $this->publicPricing(['*/image/list*' => Http::response(['images' => [$image]])]);
+        } else {
+            $this->fake(['*/image/list*' => Http::response(['images' => [$image]])]);
+            $this->manifest();
+        }
         app(CloudCatalogSync::class)->sync('lightnode');
         $plan = CloudPlan::where('provider', 'lightnode')->firstOrFail();
         $customer = Customer::create(['name' => 'Acceptance fixture', 'email' => 'fixture@example.test',
@@ -429,6 +545,16 @@ class LightNodeClientTest extends TestCase
     public function test_windows_provisioning_delivery_path_uses_administrator_and_rdp_image(): void
     {
         $this->assertDeliveryPath('windows');
+    }
+
+    public function test_public_price_linux_delivers_through_real_provisioner_path(): void
+    {
+        $this->assertDeliveryPath('ubuntu', true);
+    }
+
+    public function test_public_price_windows_delivers_through_real_provisioner_path(): void
+    {
+        $this->assertDeliveryPath('windows', true);
     }
 
     public function test_async_password_is_saved_atomically_only_after_success(): void

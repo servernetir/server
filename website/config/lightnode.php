@@ -3,9 +3,11 @@
 return [
     // Keep closed until delivery, pricing, traffic and release are reviewed.
     'sales_enabled' => env('LIGHTNODE_SALES_ENABLED', false),
-    // Production pricing must come from a supported official API price feed.
-    // The current package API has no monetary fields. Saved rates are fixtures
-    // for isolated acceptance tests only; no environment switch enables them.
+    // Anonymous official public calculator. Keep gated until real acceptance;
+    // source/schema changes fail closed and never fall back to saved prices.
+    'public_pricing_enabled' => env('LIGHTNODE_PUBLIC_PRICING_ENABLED', false),
+    // The current OpenAPI has no monetary fields. Saved rates are fixtures
+    // for isolated tests only; no environment switch enables them in production.
     'allow_fixture_rates' => false,
     // Public OpenAPI has no prices or stock. Regions verified on 2026-10-10;
     // IDs are opaque: bg-dhaka-1 is Bangladesh, not Bulgaria.
@@ -53,5 +55,8 @@ return [
             'sau-riyadh-3' => ['country' => 'SA', 'city' => 'Riyadh II', 'location_code' => 'sa-riyadh-ii'],
         ],
         'packages' => [],
+        // Exact packageSpec + independently verified instanceSeries metadata.
+        // These are not prices. No unverified CPU series is inferred globally.
+        'bindings' => [],
     ],
 ];
