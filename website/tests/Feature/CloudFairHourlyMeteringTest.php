@@ -43,6 +43,8 @@ class CloudFairHourlyMeteringTest extends TestCase
 
     private int $saladHttpStatus = 200;
 
+    private bool $saladReady = true;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -56,7 +58,9 @@ class CloudFairHourlyMeteringTest extends TestCase
             }
 
             if (str_ends_with($request->url(), '/instances')) {
-                return Http::response(['items' => []], 200);
+                return Http::response(['items' => $this->saladStatus === 'running' ? [[
+                    'state' => 'running', 'started' => true, 'ready' => $this->saladReady,
+                ]] : []], 200);
             }
 
             return Http::response([
@@ -433,6 +437,24 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame('running', $s->cloudInstance()->first()->status);
         $this->assertSame(now()->format('Y-m-d H:i'), $s->fresh()->last_metered_at->format('Y-m-d H:i'));
         $this->assertSame(95_000, $c->creditBalance('IRT'));
+    }
+
+    public function test_a_running_interruptible_group_is_not_billed_before_its_node_is_ready(): void
+    {
+        $this->fakeInterruptibleStatus('running');
+        $this->saladReady = false;
+        $c = $this->customer(100_000);
+        $s = $this->service($c, [
+            'cloud_plan_id' => $this->interruptiblePlan()->id,
+            'last_metered_at' => now()->subHours(3),
+        ]);
+        $this->machine($s, ['provider' => 'salad', 'status' => 'running']);
+
+        $this->artisan('cloud:meter')->assertOk();
+
+        $this->assertSame('building', $s->cloudInstance()->first()->status);
+        $this->assertSame(100_000, $c->creditBalance('IRT'));
+        $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
     }
 
     /** رگرسیونِ رخداد #118: ۱۲۳ ساعت خاموشی نباید پس از روشن‌شدن مصرف شود. */
