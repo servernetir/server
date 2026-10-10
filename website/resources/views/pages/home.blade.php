@@ -97,6 +97,8 @@
 </div>
 @endif
 
+@include('partials.seo-hourly-choice')
+
 {{-- ============ PRODUCTS ============ --}}
 <section class="section" id="products">
   <div class="container">
