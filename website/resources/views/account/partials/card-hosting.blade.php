@@ -29,7 +29,7 @@
   <header class="svc-card-h">
     <span class="pnl-svc-ic"><svg class="icon"><use href="#i-hdd"/></svg></span>
     <span class="svc-card-t">
-      <b>{{ $s->name }}</b>
+      <b>{{ \App\Support\PanelText::text($s->name) }}</b>
       @if($s->domain)<small dir="ltr">{{ $s->domain }}</small>@endif
     </span>
     @include('account.partials.status-pill', ['s' => $s])

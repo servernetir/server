@@ -1,6 +1,6 @@
 # LightNode integration — acceptance and release record
 
-Date: 2026-10-10. Branch: `codex/lightnode-integration`, based on `origin/develop` at `1615b347` (the initial review used `394da6eb`; two unrelated GPU readiness commits were subsequently fast-forwarded). Status: review implementation; production deployment and public sales remain disabled.
+Date: 2026-10-10. Branch: `codex/lightnode-integration`, synchronized with `origin/develop` at `89a59d0c` (earlier validation used `394da6eb` and `1615b347`). Status: review implementation; production deployment and public sales remain disabled.
 
 ## Verified provider contract
 
@@ -72,7 +72,9 @@ Tests used only a private local Laravel database, synthetic `example.test` custo
 
 A final complete account inventory returned exactly one instance and zero acceptance-test names: both test instances were absent and the existing account-owned Manila Windows instance was preserved. No production VM, route, NAT, country-routing state, port-forward source, host firewall, DNS record or relay configuration changed.
 
-Automated checks cover regional images, exact specification/rate matching, pagination/partial inventory, omitted live fields, network contract persistence, sale gates, duplicate/lost-response protection, conflicting lifecycle actions, task failure, Linux/Windows provisioning and atomic credential reconciliation. The final focused driver, customer page, password reveal, pricing, settings and lifecycle regression batch passed **97 tests / 591 assertions**. PHP syntax checks and whitespace checks passed. Final results are recorded in the PR. The wider cloud suite also has two unchanged locale/number-format failures reproduced on a clean export of `394da6eb`: the admin provider label and the hourly-page numeric assertion. They are not introduced by this integration.
+Automated checks cover regional images, exact specification/rate matching, pagination/partial inventory, omitted live fields, network contract persistence, sale gates, duplicate/lost-response protection, conflicting lifecycle actions, task failure, Linux/Windows provisioning and atomic credential reconciliation. Initial focused validation passed **97 tests / 591 assertions**. After synchronizing with `89a59d0c`, the driver, catalog, customer pages/password, pricing, settings, billing safety, release retry and GPU delivery regression batch passed **239 tests / 1265 assertions**. Two additional LightNode power-confirmation cases passed **2 tests / 20 assertions**, totaling **241 distinct tests / 1285 assertions**. The two locale/number-format failures previously reproduced on `394da6eb` now pass with the upstream test setup. This is focused integration coverage, not a new run of the entire repository suite.
+
+Merge reconciliation preserves upstream GPU image compatibility and observed-state billing safeguards, together with LightNode's regional images, boot-disk requirements and Windows Administrator username. An accepted pending power command remains `building` and returns unconfirmed to billing; later retries observe task completion without another power POST. Both stop and start are covered through the actual adapter and provisioner with fake HTTP, without touching provider resources. The latest ticket check still showed only the automatic receipt and **Processing**; no follow-up message was warranted yet. Sales, credentials and production state were not changed.
 
 ## Activation and rollback
 

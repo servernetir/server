@@ -143,6 +143,11 @@ class ActivityLog extends Model
         return ua_parse($this->user_agent);
     }
 
+    public function customerDescription(?string $locale = null): string
+    {
+        return \App\Support\CustomerMessage::activity((string) $this->description, (string) $this->action, $locale);
+    }
+
     /** رشتهٔ مکان: پرچم + کشور (و استان)، یا '' اگر نداریم */
     public function geoLabel(): string
     {
@@ -151,7 +156,7 @@ class ActivityLog extends Model
         }
 
         $place = $this->geo_region
-            ? $this->geo_country.'، '.$this->geo_region
+            ? $this->geo_country.(app()->getLocale() === 'fa' ? '، ' : ', ').$this->geo_region
             : $this->geo_country;
 
         $flag = $this->geo_cc ? \App\Services\GeoIp::flag($this->geo_cc).' ' : '';

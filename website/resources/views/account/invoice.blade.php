@@ -43,7 +43,7 @@
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">
-      @foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+      @foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach
     </div>
   </div>
 @endif
@@ -66,7 +66,7 @@
         <tbody>
           @foreach($invoice->items as $item)
             <tr>
-              <td>{{ $item->title }}</td>
+              <td>{{ \App\Support\PanelText::text($item->title) }}</td>
               <td class="num pnl-num">{{ fa_num($item->quantity) }}</td>
               <td class="num pnl-num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
               <td class="num pnl-num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>
@@ -95,7 +95,7 @@
 @if($invoice->isPayable())
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 
@@ -294,7 +294,7 @@
             @if($bank['card'])<div><span>{{ __('ui.inv_bank_card') }}</span><b dir="ltr" class="copyable">{{ $bank['card'] }}</b></div>@endif
             @if($bank['sheba'])<div><span>{{ __('ui.inv_bank_sheba') }}</span><b dir="ltr" class="copyable">IR{{ ltrim($bank['sheba'],'IRir') }}</b></div>@endif
             @if($bank['account'])<div><span>{{ __('ui.inv_bank_account') }}</span><b dir="ltr" class="copyable">{{ $bank['account'] }}</b></div>@endif
-            @if($bank['note'])<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ $bank['note'] }}</b></div>@endif
+            @if($bank['note'])<div><span>{{ __('ui.inv_bank_note') }}</span><b>{{ \App\Support\PanelText::text($bank['note']) }}</b></div>@endif
           </div>
           <p class="pm-note">
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}

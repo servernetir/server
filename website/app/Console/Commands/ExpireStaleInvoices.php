@@ -110,6 +110,14 @@ class ExpireStaleInvoices extends Command
     /** دلیلِ نگه‌داشتن، یا null اگر لغو مجاز است */
     private function mustKeep(Invoice $invoice): ?string
     {
+        // A registered domain's renewal remains payable through the registrar's grace period.
+        if ($invoice->domain_id !== null && Schema::hasTable('domains')) {
+            $domain = Domain::find($invoice->domain_id);
+            if ($domain !== null && $domain->status === 'active') {
+                return 'فاکتور تمدید دامنه ثبت‌شده';
+            }
+        }
+
         // ۱) فاکتورِ تمدیدِ سرویسی که هنوز زنده است
         if ($invoice->service_id !== null && Schema::hasTable('services')) {
             $service = Service::find($invoice->service_id);
@@ -160,8 +168,8 @@ class ExpireStaleInvoices extends Command
                 ->where('status', 'unpaid')
                 ->where('paid', 0)
                 ->update([
-                    'status'     => 'canceled',
-                    'note'       => trim((string) $invoice->note.' — به‌دلیلِ پرداخت‌نشدن در مهلتِ مقرر خودکار لغو شد'),
+                    'status' => 'canceled',
+                    'note' => trim((string) $invoice->note.' — به‌دلیلِ پرداخت‌نشدن در مهلتِ مقرر خودکار لغو شد'),
                     'updated_at' => now(),
                 ]);
 
@@ -189,7 +197,7 @@ class ExpireStaleInvoices extends Command
                     */
                     ->where('provision_status', 'none')
                     ->update([
-                        'status'     => 'cancelled',
+                        'status' => 'cancelled',
                         'updated_at' => now(),
                     ]);
             }

@@ -40,7 +40,7 @@
 </table>
 
 @if($note)
-  <p style="margin:18px 0 0; color:#3b4658; line-height:1.9; white-space:pre-line;">{{ $note }}</p>
+  <p style="margin:18px 0 0; color:#3b4658; line-height:1.9; white-space:pre-line;">{{ \App\Support\PanelText::text($note) }}</p>
 @endif
 
 {{-- دکمهٔ گزارشِ زنده — کارِ اصلیِ این ایمیل --}}

@@ -43,6 +43,8 @@ use Tests\TestCase;
  */
 class AiReservationMariaDbStressTest extends TestCase
 {
+    private string $stressOutput = '';
+
     public function test_gate_requires_mariadb_and_opt_in(): void
     {
         $driver = (string) config('database.connections.'.config('database.default').'.driver');
@@ -67,12 +69,12 @@ class AiReservationMariaDbStressTest extends TestCase
         $this->resetStressDatabase();
 
         // ۱۰۰ رزروِ هم‌زمانِ ۱۰۰۰تومانی روی کیفِ ۱۰٬۰۰۰تومانی
-        $exit = Artisan::call('ai:reservation-stress', [
+        $exit = $this->stress([
             '--mode' => 'reserve', '--workers' => 20, '--per-worker' => 5,
             '--amount' => 1000, '--credit' => 10000,
         ]);
 
-        $this->assertSame(0, $exit, Artisan::output());
+        $this->assertSame(0, $exit, $this->stressOutput);
     }
 
     public function test_concurrent_settle_is_idempotent(): void
@@ -83,9 +85,9 @@ class AiReservationMariaDbStressTest extends TestCase
 
         $this->resetStressDatabase();
 
-        $this->assertSame(0, Artisan::call('ai:reservation-stress', [
+        $this->assertSame(0, $this->stress([
             '--mode' => 'settle', '--workers' => 15, '--amount' => 1000, '--credit' => 1000,
-        ]), Artisan::output());
+        ]), $this->stressOutput);
     }
 
     public function test_concurrent_release_is_idempotent(): void
@@ -96,9 +98,9 @@ class AiReservationMariaDbStressTest extends TestCase
 
         $this->resetStressDatabase();
 
-        $this->assertSame(0, Artisan::call('ai:reservation-stress', [
+        $this->assertSame(0, $this->stress([
             '--mode' => 'release', '--workers' => 15, '--amount' => 1000, '--credit' => 1000,
-        ]), Artisan::output());
+        ]), $this->stressOutput);
     }
 
     public function test_settle_vs_release_race_converges(): void
@@ -109,9 +111,9 @@ class AiReservationMariaDbStressTest extends TestCase
 
         $this->resetStressDatabase();
 
-        $this->assertSame(0, Artisan::call('ai:reservation-stress', [
+        $this->assertSame(0, $this->stress([
             '--mode' => 'mixed', '--workers' => 15, '--amount' => 1000, '--credit' => 1000,
-        ]), Artisan::output());
+        ]), $this->stressOutput);
     }
 
     /**
@@ -128,10 +130,42 @@ class AiReservationMariaDbStressTest extends TestCase
         $this->resetStressDatabase();
 
         // ۱۰۰ تلاشِ قاطیِ رزرو/برداشتِ ۱۰۰۰تومانی روی کیفِ ۱۰٬۰۰۰تومانی
-        $this->assertSame(0, Artisan::call('ai:reservation-stress', [
+        $this->assertSame(0, $this->stress([
             '--mode' => 'wallet', '--workers' => 20, '--per-worker' => 5,
             '--amount' => 1000, '--credit' => 10000,
-        ]), Artisan::output());
+        ]), $this->stressOutput);
+    }
+
+    public function test_failed_worker_processes_cannot_report_success(): void
+    {
+        if (! $this->stressEnabled()) {
+            $this->markTestSkipped('gated — نیازمندِ MariaDB');
+        }
+        $this->resetStressDatabase();
+
+        // The parent keeps its established connection; only child processes fail.
+        $username = getenv('DB_USERNAME');
+        putenv('DB_USERNAME=missing_stress_worker');
+        try {
+            $this->assertSame(1, $this->stress([
+                '--mode' => 'reserve', '--workers' => 2, '--per-worker' => 1,
+                '--amount' => 1000, '--credit' => 1000,
+            ]), $this->stressOutput);
+            $this->assertMatchesRegularExpression('/all_workers_completed\s*\|\s*❌/u', $this->stressOutput);
+        } finally {
+            putenv($username === false ? 'DB_USERNAME' : 'DB_USERNAME='.$username);
+        }
+    }
+
+    private function stress(array $options): int
+    {
+        $exit = Artisan::call('ai:reservation-stress', $options);
+        $this->stressOutput = Artisan::output();
+        if ($directory = getenv('STRESS_REPORT_DIR')) {
+            file_put_contents($directory.'/'.$this->name().'.txt', $this->stressOutput);
+        }
+
+        return $exit;
     }
 
     private function stressEnabled(): bool
@@ -168,6 +202,6 @@ class AiReservationMariaDbStressTest extends TestCase
         $this->assertTrue((bool) getenv('AI_RESERVATION_STRESS'),
             'migrate:fresh فقط با پرچمِ رضایتِ AI_RESERVATION_STRESS اجرا می‌شود.');
 
-        Artisan::call('migrate:fresh', ['--force' => true]);
+        $this->assertSame(0, Artisan::call('migrate:fresh', ['--force' => true]), Artisan::output());
     }
 }

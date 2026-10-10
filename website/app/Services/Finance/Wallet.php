@@ -5,7 +5,9 @@ namespace App\Services\Finance;
 use App\Models\AiReservation;
 use App\Models\CreditEntry;
 use App\Models\Customer;
+use App\Services\Cloud\HourlyHold;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * کیفِ پول — تنها مسیرِ نوشتنِ دفترِ اعتبار، آگاه از رزروها (M3).
@@ -58,6 +60,19 @@ class Wallet
      */
     public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null): int
     {
+        /*
+        | 🔴 روی نصبی که جدولِ رزروِ AI را ندارد بی‌صدا رد شو — نه ۵۰۰.
+        |
+        | سرورِ زنده مهاجرت‌های AI را ندارد (خطای کلیدِ خارجیِ MariaDB) و این
+        | متُد سرِ **هر نوشتنِ پولی** صدا زده می‌شود: فاکتور، دامنه، کسرِ ساعتی.
+        | بی‌این گارد، نخستین انتشارِ کیفِ پول روی آن سرور کلِ مسیرِ پول را
+        | می‌خواباند. همان قاعدهٔ `CloudMeterHourly` که روی نصبِ مهاجرت‌نکرده
+        | بی‌صدا برمی‌گردد.
+        */
+        if (! self::aiReservationsTable()) {
+            return $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
+        }
+
         $q = AiReservation::where('customer_id', $customerId)
             ->where('currency_code', $currency)
             ->holding();
@@ -66,7 +81,29 @@ class Wallet
             $q->where('id', '!=', $excludingReservationId);
         }
 
-        return (int) $q->sum('amount_irt');
+        /*
+        | 🔴 ذخیرهٔ نگهداریِ ۲۴ساعتهٔ سرورهای ساعتی (`HourlyHold`) هم نگه‌دارنده
+        | است: پولی که برای نگهداریِ ماشینِ خاموش کنار گذاشته شده، نه فاکتور
+        | می‌خوردش، نه دامنه، نه AI. کسرِ خودِ نگهداری پیش از برداشت همان‌قدر
+        | از ذخیره کم می‌کند، پس دوبار شمرده نمی‌شود.
+        */
+        $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
+
+        return (int) $q->sum('amount_irt') + $hold;
+    }
+
+    /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */
+    private static ?bool $aiTable = null;
+
+    private static function aiReservationsTable(): bool
+    {
+        return self::$aiTable ??= Schema::hasTable('ai_reservations');
+    }
+
+    /** برای تست پس از مهاجرت در همان پروسه */
+    public static function flushSchemaCache(): void
+    {
+        self::$aiTable = null;
     }
 
     /** در دسترس = دفتر − نگه‌دارنده‌ها */
@@ -154,14 +191,14 @@ class Wallet
             }
 
             return CreditEntry::create([
-                'customer_id'   => $customerId,
-                'currency_code'  => $currency,
-                'amount'         => $signed,
-                'balance_after'  => $balance + $signed,   // مشاوره‌ای — حقیقت جمع است
-                'reason'         => $reason,
-                'source_type'    => $source === null ? null : $source::class,
-                'source_id'      => $source?->id ?? null,
-                'note'           => $note,
+                'customer_id' => $customerId,
+                'currency_code' => $currency,
+                'amount' => $signed,
+                'balance_after' => $balance + $signed,   // مشاوره‌ای — حقیقت جمع است
+                'reason' => $reason,
+                'source_type' => $source === null ? null : $source::class,
+                'source_id' => $source?->id ?? null,
+                'note' => $note,
             ]);
         };
 

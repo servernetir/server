@@ -145,9 +145,11 @@ class BuilderCheckoutController extends Controller
         $cyclePrice = $product->priceForCycle('monthly');
         $taxPct = CloudStoreController::taxPercent();
 
+        $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
+        $liveQuote = $pricing->quote($sld, $tld, 'create');
         $invoice = null;
 
-        DB::transaction(function () use ($customer, $product, $quote, $existing, $server, $cyclePrice, $taxPct, $sld, $tld, $ref, &$invoice) {
+        DB::transaction(function () use ($customer, $product, $quote, $existing, $server, $cyclePrice, $taxPct, $sld, $tld, $ref, $pricing, $liveQuote, &$invoice) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
@@ -181,10 +183,10 @@ class BuilderCheckoutController extends Controller
                     // PaymentService بعد از تسویه پرچم را pending می‌کند.
                     'provision_status' => 'none',
                     'period_years'     => 1,
-                    'price_toman'      => (int) $quote->sell_toman,
-                    'renew_toman'      => (int) ($quote->renew_toman ?: $quote->sell_toman),
-                    'cost_amount'      => (int) $quote->cost_amount,
-                    'cost_currency'    => (string) $quote->cost_currency,
+                    'price_toman'      => (int) $liveQuote['sell_toman'],
+                    'renew_toman'      => (int) $quote->renew_toman,
+                    'cost_amount'      => (int) $liveQuote['cost_amount'],
+                    'cost_currency'    => (string) $liveQuote['currency'],
                     'quote_id'         => $quote->id,
                     'name_servers'     => $ns,
                 ]);
@@ -192,16 +194,18 @@ class BuilderCheckoutController extends Controller
                 $domain->forceFill([
                     'customer_id' => $customer->id, 'status' => 'pending',
                     'provision_status' => 'none', 'period_years' => 1,
-                    'price_toman' => (int) $quote->sell_toman, 'quote_id' => $quote->id,
+                    'price_toman' => (int) $liveQuote['sell_toman'], 'quote_id' => $quote->id,
                     'name_servers' => $ns,
                 ])->save();
             }
+
+            $pricing->remember($domain, $liveQuote);
 
             // فاکتورِ هاست از همان تعریفِ یگانهٔ فروشگاه/تلفن — بعد ردیفِ دامنه
             // به همان فاکتور اضافه و جمع‌ها بازمحاسبه می‌شود.
             $invoice = app(\App\Services\Billing\ProductInvoiceIssuer::class)->issue($service, $product);
 
-            $domainPrice = (int) $quote->sell_toman;
+            $domainPrice = (int) $liveQuote['sell_toman'];
             $domainTax = (int) round($domainPrice * $taxPct / 100);
 
             InvoiceItem::create([
@@ -265,17 +269,17 @@ class BuilderCheckoutController extends Controller
         [$sld, $tld] = Domain::splitFqdn($fqdn);
 
         if ($sld === '' || $tld === '') {
-            return [null, 'دامنه را کامل وارد کنید (مثلاً mysite.com).'];
+            return [null, __('panel.builder_domain_full')];
         }
 
         if (! DomainSearch::sells($tld)) {
-            return [null, 'پسوندِ «.'.$tld.'» از سایت‌ساز قابلِ ثبت نیست؛ پسوندِ بین‌المللی مثل .com انتخاب کنید.'];
+            return [null, __('panel.builder_tld', ['tld' => $tld])];
         }
 
         try {
             $rows = $search->search($sld, [$tld]);
         } catch (\Throwable) {
-            return [null, 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'];
+            return [null, __('panel.builder_lookup')];
         }
 
         foreach ($rows as $row) {
@@ -285,18 +289,18 @@ class BuilderCheckoutController extends Controller
 
             if (! ($row['available'] ?? false)) {
                 return [null, ($row['state'] ?? '') === DomainSearch::STATE_UNCHECKED
-                    ? 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'
-                    : 'این دامنه قبلاً ثبت شده است؛ نامِ دیگری انتخاب کنید.'];
+                    ? __('panel.builder_lookup')
+                    : __('panel.builder_taken')];
             }
 
             if (blank($row['quote_id'] ?? null)) {
-                return [null, 'برای این دامنه قیمتِ قابلِ اتکایی نداریم؛ با پشتیبانی تماس بگیرید.'];
+                return [null, __('panel.builder_price')];
             }
 
             return [$row, null];
         }
 
-        return [null, 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'];
+        return [null, __('panel.builder_lookup')];
     }
 
     private function rp(): string

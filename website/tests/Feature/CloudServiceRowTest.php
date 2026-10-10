@@ -150,7 +150,8 @@ class CloudServiceRowTest extends TestCase
         $this->assertStringContainsString('mstsc /v:203.0.113.46', $html);
         $this->assertStringContainsString('Remote Desktop', $html);
         $this->assertStringNotContainsString('ssh root@203.0.113.46', $html);
-        $this->assertStringContainsString('کنسولِ تحت وب ارائه نمی‌کند', $html);
+        $this->assertStringContainsString(route('account.cloud.console', $s, false), $html);
+        $this->assertStringNotContainsString('کنسولِ تحت وب ارائه نمی‌کند', $html);
     }
 
     /** سرورِ تحویل‌نشده هم باید راهی به صفحهٔ مدیریت داشته باشد */

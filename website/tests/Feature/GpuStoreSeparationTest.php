@@ -32,6 +32,46 @@ class GpuStoreSeparationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_incompatible_comfyui_is_unavailable_before_payment_and_provisioning(): void
+    {
+        $this->bothLines();
+        $plan = CloudPlan::where('provider', 'salad')->firstOrFail();
+        $plan->update(['gpu_model' => 'GTX 1060 (6 GB)']);
+        CloudImage::create([
+            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-comfyui']['ref'],
+            'key' => 'gpu-comfyui', 'kind' => 'app', 'family' => 'gpu-comfyui',
+            'label' => 'ComfyUI', 'arch' => 'x86', 'is_active' => true,
+        ]);
+        CloudImage::create([
+            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-jupyter']['ref'],
+            'key' => 'gpu-jupyter', 'kind' => 'app', 'family' => 'gpu-jupyter',
+            'label' => 'Jupyter', 'arch' => 'x86', 'is_active' => true,
+        ]);
+
+        $this->assertNotContains('gpu-comfyui', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertNull(CloudImage::compatibleRefFor($plan, 'gpu-comfyui'));
+        $this->assertNotContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertNull(CloudImage::compatibleRefFor($plan, 'gpu-jupyter'));
+        $this->assertContains('gpu-ollama', CloudStoreController::imageKeysFor($plan, 'app'));
+        $customer = $this->customer();
+        foreach (['gpu-comfyui', 'gpu-jupyter'] as $image) {
+            $this->actingAs($customer, 'customer')->post('/account/cloud-store', [
+                'location' => 'global-gpu', 'plan' => $plan->slug,
+                'image' => $image, 'cycle' => 'monthly',
+            ])->assertRedirect()->assertSessionHasErrors('image');
+        }
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        Http::assertNothingSent();
+        $plan->update(['gpu_model' => 'Stable Diffusion Compatible']);
+        $this->assertNotContains('gpu-comfyui', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertNotContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+        $plan->update(['gpu_model' => 'RTX 5060 Ti (16 GB)']);
+        $this->assertContains('gpu-comfyui', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertNotNull(CloudImage::compatibleRefFor($plan, 'gpu-comfyui'));
+        $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

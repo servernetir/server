@@ -45,6 +45,7 @@ class CloudHourlyTermSupportTest extends TestCase
     {
         parent::setUp();
 
+        \App\Models\Setting::put('pricing_rate_override', '100000');
         Http::fake();
     }
 
@@ -361,7 +362,7 @@ class CloudHourlyTermSupportTest extends TestCase
 
         $ok = app(CloudProvisioner::class)->provision($service);
 
-        $this->assertTrue($ok, 'تحویلِ سالم هم بسته شد — گارد بیش از اندازه سفت است');
+        $this->assertTrue($ok, 'تحویلِ سالم هم بسته شد: '.$service->fresh()->provision_error);
         $this->assertSame(1, $spy->created);
         $this->assertSame('hour', $spy->lastSpec['term'] ?? null);
         $this->assertSame($hourly->id, (int) $service->fresh()->cloud_plan_id);
@@ -442,7 +443,7 @@ class CloudHourlyTermSupportTest extends TestCase
 
         app(CloudProvisioner::class)->provision($service);
 
-        $this->assertSame(1, $spy->created, 'این‌بار باید واقعاً فرستاده شود — کاتالوگ می‌گفت ساعتی دارد');
+        $this->assertSame(1, $spy->created, 'کاتالوگ ساعتی دارد: '.$service->fresh()->provision_error);
 
         $this->assertNull($plan->fresh()->cost_hour_eur_micro,
             'ردیف از فروشِ ساعتی برداشته نشد — مشتریِ بعدی همان شکست را می‌خرد');

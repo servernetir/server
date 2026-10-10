@@ -17,7 +17,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('invoices', function (Blueprint $table) {
-            $table->foreignId('domain_id')->nullable()->after('service_id')
+            // service_id is added by a later migration on a fresh installation.
+            $table->foreignId('domain_id')->nullable()
                 ->constrained('domains')->nullOnDelete();
         });
     }

@@ -2,12 +2,26 @@
 
 namespace App\Services\Cloud;
 
+use App\Mail\ServiceReadyMail;
+use App\Models\ActivityLog;
 use App\Models\CloudImage;
 use App\Models\CloudInstance;
+use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CloudSshKey;
+use App\Models\CreditEntry;
 use App\Models\Service;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Dns\CloudflareDns;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\CustomerNotifier;
+use App\Services\Notify\Notifier;
+use App\Support\ErrorTracker;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * تحویلِ خودکارِ سرورِ ابری — از «پرداخت شد» به «سرورِ روشن».
@@ -79,7 +93,7 @@ class CloudProvisioner
             // «تحویل شکست نمی‌خورد، فقط اتفاق نمی‌افتد» — بدترین نوعِ خرابی
             // در این پروژه. باید در /admin/errors دیده شود، نه فقط در
             // laravel.logِ غیرقابلِ‌خواندن روی cPanel.
-            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['service' => $service->id]);
             $this->fail($service, 'خطای غیرمنتظره: '.mb_substr($e->getMessage(), 0, 160));
 
             return false;
@@ -209,12 +223,12 @@ class CloudProvisioner
         // ── لایهٔ ۳: ردیفِ نمونه پیش از تماس ──
         $instance = CloudInstance::firstOrNew(['service_id' => $service->id]);
         $instance->fill([
-            'provider'      => $plan->provider,
+            'provider' => $plan->provider,
             'location_code' => $plan->location_code,
-            'image_key'     => $imageKey,
-            'hostname'      => $this->serverName($service),
-            'status'        => 'building',
-            'specs'         => [
+            'image_key' => $imageKey,
+            'hostname' => $this->serverName($service),
+            'status' => 'building',
+            'specs' => [
                 'vcpu' => $plan->vcpu, 'ram_mb' => $plan->ram_mb,
                 'disk_gb' => $plan->disk_gb, 'disk_type' => $plan->disk_type,
                 'traffic_gb' => $plan->traffic_gb, 'cpu_kind' => $plan->cpu_kind,
@@ -263,22 +277,44 @@ class CloudProvisioner
             return false;
         }
 
+        // The last provider selected at delivery may cost more than the
+        // customer's locked hourly rate. Never buy that machine at a loss.
+        if ($hourly) {
+            $eurToman = (int) app(CloudPricing::class)->eurToToman();
+            $costMicro = $plan->hourlyCostEurMicro();
+            if ($eurToman <= 0 || $costMicro <= 0
+                || (int) $service->hourly_rate_irt < (int) ceil($costMicro * $eurToman / 1_000_000)) {
+                $existingRef = $this->findByDeterministicName($service, $instance);
+                if (is_string($existingRef)) {
+                    $instance->update(['provider_ref' => $existingRef]);
+
+                    return $this->adoptExisting($service, $instance->fresh(), $plan, $driver);
+                }
+
+                $instance->update(['status' => 'error', 'last_error' => 'تحویل برای جلوگیری از خریدِ زیرِ بها متوقف شد.']);
+                $this->needsReview($service,
+                    'بهایِ ساعتیِ زیرساختِ منتخب از نرخِ قفل‌شدهٔ مشتری بیشتر است یا نرخِ ارز/بها در دسترس نیست؛ پیش از خرید، قیمت و مسیر تحویل بررسی شود.');
+
+                return false;
+            }
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
-            'name'         => $this->serverName($service),
-            'plan_ref'     => (string) $plan->provider_ref,
+            'name' => $this->serverName($service),
+            'plan_ref' => (string) $plan->provider_ref,
             'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
-            'image_ref'    => $imageRef,
+            'image_ref' => $imageRef,
             // آروان flavorهای منطقه‌ای را گاهی با شناسهٔ تازه منتشر می‌کند.
             // مشخصات را هم می‌فرستیم تا درایور بتواند پیش از خرید، شناسهٔ
             // ذخیره‌شده را با فهرست زنده تطبیق دهد؛ تطبیق باید دقیق باشد.
-            'vcpu'         => (int) $plan->vcpu,
-            'ram_mb'       => (int) $plan->ram_mb,
-            'cpu_kind'     => (string) $plan->cpu_kind,
-            'ssh_keys'     => $sshRefs,
+            'vcpu' => (int) $plan->vcpu,
+            'ram_mb' => (int) $plan->ram_mb,
+            'cpu_kind' => (string) $plan->cpu_kind,
+            'ssh_keys' => $sshRefs,
             // بعضی زیرساخت‌ها (آروان) اندازهٔ دیسک را جدا می‌خواهند
-            'disk_gb'      => (int) $plan->disk_gb,
-            'labels'       => ['snet-service' => (string) $service->id],
+            'disk_gb' => (int) $plan->disk_gb,
+            'labels' => ['snet-service' => (string) $service->id],
 
             /*
             | 🔴 چرخهٔ خریدِ ما از زیرساخت باید همان چرخهٔ فروش به مشتری باشد.
@@ -288,7 +324,7 @@ class CloudProvisioner
             | `month` می‌گیرد (درایور هر مقدارِ ناشناخته را به `month` می‌برد)،
             | پس فرستادنش برای همه بی‌خطر است.
             */
-            'term'         => $service->isHourly() ? 'hour' : 'month',
+            'term' => $service->isHourly() ? 'hour' : 'month',
         ]);
 
         if (! ($result['ok'] ?? false)) {
@@ -365,11 +401,11 @@ class CloudProvisioner
 
         $instance->fill([
             'provider_ref' => $result['ref'] ?? null,
-            'ipv4'         => $result['ipv4'] ?? null,
-            'ipv6'         => $result['ipv6'] ?? null,
-            'status'       => $result['status'] ?? 'building',
-            'last_error'   => null,
-            'synced_at'    => now(),
+            'ipv4' => $result['ipv4'] ?? null,
+            'ipv6' => $result['ipv6'] ?? null,
+            'status' => $result['status'] ?? 'building',
+            'last_error' => null,
+            'synced_at' => now(),
         ]);
 
         if (filled($password)) {
@@ -401,7 +437,7 @@ class CloudProvisioner
             return [];
         }
 
-        $key = \App\Models\CloudSshKey::find($service->cloud_ssh_key_id);
+        $key = CloudSshKey::find($service->cloud_ssh_key_id);
 
         if ($key === null || (int) $key->customer_id !== (int) $service->customer_id) {
             return [];                       // کلیدِ حذف‌شده یا مالِ کسِ دیگر
@@ -458,13 +494,13 @@ class CloudProvisioner
         }
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 'IP اضافه کامل تحویل نشد',
                 [
-                    'سرویس'       => $service->name.' (#'.$service->id.')',
+                    'سرویس' => $service->name.' (#'.$service->id.')',
                     'خریداری‌شده' => (string) $count,
-                    'تحویل‌شده'   => (string) count($ips),
-                    'علت'         => mb_substr((string) ($r['message'] ?? '—'), 0, 160),
+                    'تحویل‌شده' => (string) count($ips),
+                    'علت' => mb_substr((string) ($r['message'] ?? '—'), 0, 160),
                 ],
                 url('/admin/services'),
                 '⚠️'
@@ -484,35 +520,35 @@ class CloudProvisioner
     {
         DB::transaction(function () use ($service, $instance, $plan, $password) {
             $service->forceFill([
-                'cloud_plan_id'    => $plan->id,      // زیرساختِ واقعیِ تحویل
+                'cloud_plan_id' => $plan->id,      // زیرساختِ واقعیِ تحویل
                 /*
                 | 🔴 برنامهٔ GPU کاربرِ root ندارد و ipv4‌اش `ssh_ip`ِ زیرساخت است.
                 | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
-                'username'         => $instance->isGpuApp() ? null
+                'username' => $instance->isGpuApp() ? null
                     : ($instance->provider === 'lightnode' && $instance->isWindows() ? 'Administrator' : 'root'),
-                'password'         => $password ?: $service->password,
-                'domain'           => $service->domain ?: ($instance->isGpuApp()
+                'password' => $password ?: $service->password,
+                'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
                     : ($instance->ipv4 ?: null)),
-                'panel_url'        => url('/account/cloud/'.$service->id),
+                'panel_url' => url('/account/cloud/'.$service->id),
                 'provision_status' => 'done',
-                'provision_error'  => null,
-                'provisioned_at'   => now(),
-                'provision_meta'   => [
+                'provision_error' => null,
+                'provisioned_at' => now(),
+                'provision_meta' => [
                     'kind' => 'cloud',
                     // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
                     // آدرسِ عمومی‌اش «IP:پورت» است.
-                    'ip'   => $instance->isGpuApp()
+                    'ip' => $instance->isGpuApp()
                         ? $instance->accessHost()
                         : ($instance->address() ?: $instance->ipv4),
                     'ipv6' => $instance->ipv6,
                     'plan' => $plan->public_name,
                     'location' => $plan->location_code,
                 ],
-                'status'           => 'active',
-                'activated_at'     => $service->activated_at ?? now(),
+                'status' => 'active',
+                'activated_at' => $service->activated_at ?? now(),
             ])->save();
         });
 
@@ -594,13 +630,13 @@ class CloudProvisioner
             | وایلدکارد یا رکوردِ دستی از قبل حل شود، و در آن حالت همه‌چیز کار
             | می‌کند. فقط ثبت می‌شود.
             */
-            $cf = app(\App\Services\Dns\CloudflareDns::class);
+            $cf = app(CloudflareDns::class);
 
             if ($cf->isConfigured()) {
                 $dns = $cf->pointSubdomain($host, CloudInstance::publicHost());
 
                 if (! ($dns['ok'] ?? false)) {
-                    \App\Support\ErrorTracker::note('provision',
+                    ErrorTracker::note('provision',
                         'رکوردِ DNS «'.$host.'» ساخته نشد: '.($dns['reason'] ?? '—'),
                         ['service' => $service->id]);
                 }
@@ -609,7 +645,7 @@ class CloudProvisioner
             $r = $npm->ensureProxyHost($host, (string) $instance->ipv4, 80);
 
             if (! ($r['ok'] ?? false)) {
-                \App\Support\ErrorTracker::note('provision',
+                ErrorTracker::note('provision',
                     'دروازهٔ وب ساخته نشد: '.($r['message'] ?? '—'),
                     ['service' => $service->id, 'host' => $host]);
 
@@ -624,7 +660,7 @@ class CloudProvisioner
                 $npm->requestCertificate((int) $r['id'], $host);
             }
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['service' => $service->id]);
         }
     }
 
@@ -648,7 +684,7 @@ class CloudProvisioner
             $npm = app(NpmClient::class);
 
             if (! $npm->isConfigured()) {
-                \App\Support\ErrorTracker::note('provision',
+                ErrorTracker::note('provision',
                     'دروازهٔ وبِ «'.$host.'» برچیده نشد: اتصالِ NPM تنظیم نیست. '
                     .'تا برچیده نشود، این نام به IP داخلیِ آزادشده اشاره می‌کند.',
                     ['instance' => $instance->id]);
@@ -659,7 +695,7 @@ class CloudProvisioner
             $r = $npm->removeProxyHost((string) $host);
 
             if (! ($r['ok'] ?? false)) {
-                \App\Support\ErrorTracker::note('provision',
+                ErrorTracker::note('provision',
                     'دروازهٔ وبِ «'.$host.'» برچیده نشد: '.($r['message'] ?? '—'),
                     ['instance' => $instance->id]);
 
@@ -667,13 +703,13 @@ class CloudProvisioner
             }
 
             // و رکوردِ DNS — وگرنه نامِ مشتریِ رفته برای همیشه در زون می‌مانَد
-            $cf = app(\App\Services\Dns\CloudflareDns::class);
+            $cf = app(CloudflareDns::class);
 
             if ($cf->isConfigured()) {
                 $dns = $cf->removeSubdomain((string) $host);
 
                 if (! ($dns['ok'] ?? false)) {
-                    \App\Support\ErrorTracker::note('provision',
+                    ErrorTracker::note('provision',
                         'رکوردِ DNS «'.$host.'» برداشته نشد: '.($dns['reason'] ?? '—'),
                         ['instance' => $instance->id]);
                 }
@@ -683,14 +719,13 @@ class CloudProvisioner
             unset($meta['public_domain']);
             $instance->update(['meta' => $meta]);
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['instance' => $instance->id]);
+            ErrorTracker::note('provision', $e, ['instance' => $instance->id]);
         }
     }
 
     private function notifyIfReady(Service $service, CloudInstance $instance): void
     {
         $this->ensureWebGateway($service, $instance);
-
 
         if ($instance->readyForNotice()) {
             $this->notify($service, $instance);
@@ -699,25 +734,25 @@ class CloudProvisioner
         }
 
         try {
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 __('ui.act_prov_ordered', [], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 'سفارشِ سرورِ ابری ثبت شد — در حالِ آماده‌سازی',
                 [
                     'سرویس' => $service->name.' (#'.$service->id.')',
                     'مشتری' => $service->customer?->name ?? '—',
-                    'مکان'  => $instance->location_code ?: '—',
+                    'مکان' => $instance->location_code ?: '—',
                     'وضعیت' => $instance->statusLabel('fa'),
                 ],
                 null,
                 '⏳',
                 [[
-                    ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
-                    ['text' => '🧾 سرویس', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+                    ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🧾 سرویس', 'data' => AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
                 ]]
             );
         } catch (\Throwable) {
@@ -936,12 +971,12 @@ class CloudProvisioner
                 $wasBuilding = $instance->status === 'building';
 
                 $instance->update([
-                    'status'    => $r['status'],
-                    'ipv4'      => $r['ipv4'] ?: $instance->ipv4,
-                    'ipv6'      => $r['ipv6'] ?: $instance->ipv6,
+                    'status' => $r['status'],
+                    'ipv4' => $r['ipv4'] ?: $instance->ipv4,
+                    'ipv6' => $r['ipv6'] ?: $instance->ipv6,
                     // زیرساختِ دروازه‌ای (GPU) نشانیِ HTTPS را همین‌جا می‌دهد —
                     // برای مشتری همین «آدرسِ سرور» است، نه IP.
-                    'hostname'  => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
+                    'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                     'synced_at' => now(),
                 ]);
                 $out['refreshed']++;
@@ -952,11 +987,12 @@ class CloudProvisioner
 
                     if ($service) {
                         $meta = (array) ($service->provision_meta ?? []);
-                        $meta['ip'] = $instance->ipv4;
+                        $address = $instance->isGpuApp() ? $instance->accessHost() : $instance->ipv4;
+                        $meta['ip'] = $address;
                         $meta['ipv6'] = $instance->ipv6;
 
                         $service->forceFill([
-                            'domain'         => $service->domain ?: $instance->ipv4,
+                            'domain' => $service->domain ?: $address,
                             'provision_meta' => $meta,
                         ])->save();
                     }
@@ -1050,7 +1086,7 @@ class CloudProvisioner
                 $detail[] = $n.'× '.$why;
             }
 
-            \App\Support\ErrorTracker::note(
+            ErrorTracker::note(
                 'provision',
                 $stalled->count().' سرویسِ ابریِ پرداخت‌شده تحویل نشده — '.implode(' · ', $detail),
                 ['services' => implode(',', $stalled->pluck('id')->take(10)->all())]
@@ -1071,9 +1107,9 @@ class CloudProvisioner
             foreach ($stalled->take(4) as $service) {
                 $why = CloudDeliveryWatch::reasonFor($service) ?? '—';
                 $customer = $service->customer;
-                $plan = $service->cloud_plan_id ? \App\Models\CloudPlan::find($service->cloud_plan_id) : null;
+                $plan = $service->cloud_plan_id ? CloudPlan::find($service->cloud_plan_id) : null;
                 $loc = $plan?->location_code
-                    ? \App\Models\CloudLocation::where('code', $plan->location_code)->first()?->label('fa')
+                    ? CloudLocation::where('code', $plan->location_code)->first()?->label('fa')
                     : null;
                 $since = $service->cloudInstance?->created_at ?? $service->created_at;
 
@@ -1087,8 +1123,8 @@ class CloudProvisioner
                     .' — '.$why;
 
                 $buttons[] = [
-                    ['text' => '👤 مشتری #'.$service->id, 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
-                    ['text' => '🔁 تحویلِ دوباره #'.$service->id, 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id],
+                    ['text' => '👤 مشتری #'.$service->id, 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🔁 تحویلِ دوباره #'.$service->id, 'data' => AdminBaleRouter::CB_PREFIX.'spa:'.$service->id],
                 ];
             }
 
@@ -1098,7 +1134,7 @@ class CloudProvisioner
 
             // ثبت و پیام با **یک** گلوگاه می‌روند: هر دو یک خبرند و جداکردنشان
             // فقط دو حالتِ ناهماهنگ می‌ساخت (ردی که هست و پیامی که نیست).
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 // ⚠️ عبارتِ «گیر کرده» عمداً در عنوان مانده: تستِ
                 // `CloudDeliveryReadinessTest` همین را می‌جوید و آن گارد باید
                 // زنده بماند.
@@ -1106,7 +1142,8 @@ class CloudProvisioner
                 $rows,
                 null,
                 '🔴',
-                $buttons
+                $buttons,
+                key: 'admin.cloud_stuck',
             );
         } catch (\Throwable $e) {
             // ⚠️ هیچ‌چیزِ این متد نباید به `schedule:run` برسد: یک استثنا کلِ آن
@@ -1125,7 +1162,7 @@ class CloudProvisioner
      */
     private function shoutAllowed(string $key, int $seconds, string $signature = ''): bool
     {
-        return \App\Support\ErrorTracker::throttlePassed($key, $seconds, $signature);
+        return ErrorTracker::throttlePassed($key, $seconds, $signature);
     }
 
     /**
@@ -1178,12 +1215,12 @@ class CloudProvisioner
         }
 
         $instance->fill([
-            'ipv4'       => $info['ipv4'] ?: $instance->ipv4,
-            'ipv6'       => $info['ipv6'] ?: $instance->ipv6,
-            'hostname'   => filled($info['hostname'] ?? null) ? $info['hostname'] : $instance->hostname,
-            'status'     => $info['status'],
+            'ipv4' => $info['ipv4'] ?: $instance->ipv4,
+            'ipv6' => $info['ipv6'] ?: $instance->ipv6,
+            'hostname' => filled($info['hostname'] ?? null) ? $info['hostname'] : $instance->hostname,
+            'status' => $info['status'],
             'last_error' => null,
-            'synced_at'  => now(),
+            'synced_at' => now(),
         ])->save();
 
         $this->finalize($service, $instance, $plan, $password);
@@ -1217,6 +1254,7 @@ class CloudProvisioner
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
             ->get()
+            ->when($hourly, fn ($rows) => $rows->sortBy(fn (CloudPlan $p) => $p->hourlyCostEurMicro() ?: PHP_INT_MAX))
             ->first(fn (CloudPlan $p) => CloudImage::compatibleRefFor($p, $imageKey) !== null);
     }
 
@@ -1268,6 +1306,11 @@ class CloudProvisioner
 
                 return $ref !== '' ? $ref : false;
             }
+        }
+
+        // A partial list cannot prove this machine is absent.
+        if (filled($list['message'] ?? null)) {
+            return false;
         }
 
         return null;
@@ -1351,7 +1394,7 @@ class CloudProvisioner
 
         $plan->forceFill(['cost_hour_eur_micro' => null])->save();
 
-        \App\Support\ErrorTracker::note('provision',
+        ErrorTracker::note('provision',
             'زیرساخت گفت این پلن تعرفهٔ ساعتی ندارد؛ از فروشِ ساعتی برداشته شد '
             .'(پلنِ '.$plan->id.'). فروشِ ماهانه‌اش دست‌نخورده است.',
             ['plan' => $plan->id, 'provider' => (string) $plan->provider]);
@@ -1396,13 +1439,13 @@ class CloudProvisioner
         if (! $plan->admin_disabled) {
             $plan->forceFill([
                 'admin_disabled' => true,
-                'in_stock'       => false,
-                'admin_note'     => self::QUARANTINE_PREFIX
+                'in_stock' => false,
+                'admin_note' => self::QUARANTINE_PREFIX
                     .' این نوعِ سرور در این مکان عرضه نمی‌شود ('.mb_substr($message, 0, 120).')',
             ])->save();
         }
 
-        \App\Support\ErrorTracker::note('provision',
+        ErrorTracker::note('provision',
             'ترکیبِ نوع/مکان را زیرساخت عرضه نمی‌کند؛ فقط همین ردیف از فروش برداشته شد '
             .'(پلنِ '.$plan->id.' · '.(string) $plan->location_code.'). '
             .'بقیهٔ مکان‌های همین زیرساخت دست‌نخورده‌اند.',
@@ -1488,10 +1531,10 @@ class CloudProvisioner
         if ($hit === null && str_contains($needle, 'proxy internal server error')) {
             $key = 'cloud:gateway500:'.$plan->provider;
 
-            if (! \Illuminate\Support\Facades\Cache::get($key)) {
-                \Illuminate\Support\Facades\Cache::put($key, 1, now()->addMinutes(30));
+            if (! Cache::get($key)) {
+                Cache::put($key, 1, now()->addMinutes(30));
 
-                \App\Support\ErrorTracker::note('cloud',
+                ErrorTracker::note('cloud',
                     'زیرساخت سرِ سفارش «Proxy internal server error» داد. اگر در نیم‌ساعت تکرار شود، '
                     .'فروشِ پلن‌هایش خودکار بسته می‌شود.', ['provider' => $plan->provider]);
 
@@ -1516,16 +1559,16 @@ class CloudProvisioner
             return;
         }
 
-        \App\Support\ErrorTracker::note('cloud',
+        ErrorTracker::note('cloud',
             'فروشِ '.$closed.' پلنِ یک زیرساخت خودکار بسته شد — '.$note);
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+            app(AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
                 'تعداد پلن' => (string) $closed,
-                'علت'       => mb_substr($message, 0, 200),
+                'علت' => mb_substr($message, 0, 200),
                 // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —
                 // که یک‌بار واقعاً پیش آمد و عملاً یعنی راهی نبود.
-                'اقدام'     => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
+                'اقدام' => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
                     .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
                     .'(یا ردیف‌به‌ردیف از /admin/cloud).',
             ], url('/admin/cloud'), '🛑');
@@ -1549,7 +1592,7 @@ class CloudProvisioner
             return;
         }
 
-        $already = \App\Models\CreditEntry::where('customer_id', $service->customer_id)
+        $already = CreditEntry::where('customer_id', $service->customer_id)
             ->where('reason', 'cloud_hourly_refund')
             ->where('note', 'like', '%#'.$service->id.'%')
             ->exists();
@@ -1561,18 +1604,18 @@ class CloudProvisioner
         try {
             $amount = (int) $service->hourly_rate_irt;
 
-            \App\Models\CreditEntry::create([
-                'customer_id'   => $service->customer_id,
+            CreditEntry::create([
+                'customer_id' => $service->customer_id,
                 'currency_code' => 'IRT',
-                'amount'        => $amount,
+                'amount' => $amount,
                 'balance_after' => $service->customer->creditBalance('IRT') + $amount,
-                'reason'        => 'cloud_hourly_refund',
-                'source_type'   => Service::class,
-                'source_id'     => $service->id,
-                'note'          => 'بازگشتِ ساعتِ اول — تحویل انجام نشد (سرویس #'.$service->id.')',
+                'reason' => 'cloud_hourly_refund',
+                'source_type' => Service::class,
+                'source_id' => $service->id,
+                'note' => 'بازگشتِ ساعتِ اول — تحویل انجام نشد (سرویس #'.$service->id.')',
             ]);
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('cloud', $e, ['area' => 'hourly-refund', 'service' => $service->id]);
+            ErrorTracker::note('cloud', $e, ['area' => 'hourly-refund', 'service' => $service->id]);
         }
     }
 
@@ -1580,15 +1623,15 @@ class CloudProvisioner
     {
         $service->forceFill([
             'provision_status' => 'failed',
-            'provision_error'  => mb_substr($reason, 0, 290),
-            'status'           => 'awaiting_provision',
+            'provision_error' => mb_substr($reason, 0, 290),
+            'status' => 'awaiting_provision',
         ])->save();
 
         try {
             // ⚠️ `forService` و نه `record(null,…)`: با نال، ردیف به سرویس
             //    نمی‌چسبد و در `/admin/services/{id}/history` **دیده نمی‌شود**.
             //    یعنی تنها جایی که مدیر دنبالِ علت می‌گردد، خالی می‌مانَد.
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 __('ui.act_prov_failed', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
@@ -1611,31 +1654,31 @@ class CloudProvisioner
         // خورد هم مشتری پولش را پس گرفته باشد
         $this->refundIfPrepaid($service);
 
-        \App\Support\ErrorTracker::note('provision',
+        ErrorTracker::note('provision',
             'تحویلِ سرورِ ابری ناموفق: '.$reason, ['service' => $service->id]);
 
         try {
             if ($service->customer !== null) {
-                app(\App\Services\Notify\Notifier::class)->fire(
+                app(Notifier::class)->fire(
                     'service_failed', $service->customer,
                     ['service' => (string) $service->name],
                     'تحویلِ «'.$service->name.'» انجام نشد. تیمِ پشتیبانی در حالِ بررسی است؛ مبلغی از دست نمی‌رود.',
                     [
                         'سرویس' => '#'.$service->id.' — '.$service->name,
-                        'پلن'   => (string) $service->plan,
-                        'علت'   => $reason,
+                        'پلن' => (string) $service->plan,
+                        'علت' => $reason,
                     ],
                     null, '⚠️',
                     // «مشکل را رفع کردم، همان‌جا دوباره تحویل بده» — تأییدِ
                     // نهایی در spa/sp است تا کلیکِ اتفاقی سرورِ واقعی نخرد
                     [
-                        [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
-                        [['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id]],
+                        [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
+                        [['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id]],
                     ],
                 );
             }
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-failed']);
+            ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-failed']);
         }
     }
 
@@ -1650,8 +1693,8 @@ class CloudProvisioner
     {
         $service->forceFill([
             'provision_status' => 'manual',
-            'status'           => 'awaiting_provision',
-            'provision_error'  => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
+            'status' => 'awaiting_provision',
+            'provision_error' => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
         ])->save();
 
         /*
@@ -1663,12 +1706,12 @@ class CloudProvisioner
         | کارفرما گفت «فقط چون خودم بازش کردم فهمیدم».
         */
         try {
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 __('ui.act_prov_manual', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
-        \App\Support\ErrorTracker::note('fraud-guard',
+        ErrorTracker::note('fraud-guard',
             'سفارشِ سرور به بازبینیِ دستی رفت: '.$reason, ['service' => $service->id]);
 
         /*
@@ -1695,7 +1738,7 @@ class CloudProvisioner
         }
 
         try {
-            app(\App\Services\Notify\Notifier::class)->fire(
+            app(Notifier::class)->fire(
                 'service_hold',
                 $service->customer,
                 ['service' => (string) $service->name],
@@ -1706,7 +1749,7 @@ class CloudProvisioner
                 '🛑',
             );
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-hold']);
+            ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-hold']);
         }
     }
 
@@ -1746,7 +1789,7 @@ class CloudProvisioner
                 return true;
             });
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'hold-notice-claim', 'service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['area' => 'hold-notice-claim', 'service' => $service->id]);
 
             return false;   // مطمئن‌تر: پیامِ نرفته از پیامِ تکراری بهتر است
         }
@@ -1792,8 +1835,8 @@ class CloudProvisioner
 
         $meta['fraud_override'] = [
             'pending' => true,
-            'by'      => $by,
-            'at'      => now()->toIso8601String(),
+            'by' => $by,
+            'at' => now()->toIso8601String(),
             'flagged' => mb_substr((string) $service->provision_error, 0, 200),
         ];
 
@@ -1803,7 +1846,7 @@ class CloudProvisioner
     /** آیا روی این سرویس رهاسازیِ مصرف‌نشده هست؟ (فقط برای نمایش) */
     public static function overrideRequested(Service $service): bool
     {
-        return (($service->provision_meta['fraud_override']['pending'] ?? false) === true);
+        return ($service->provision_meta['fraud_override']['pending'] ?? false) === true;
     }
 
     /**
@@ -1844,7 +1887,7 @@ class CloudProvisioner
                 return $mark;
             });
         } catch (\Throwable $e) {
-            \App\Support\ErrorTracker::note('provision', $e, ['area' => 'override-consume', 'service' => $service->id]);
+            ErrorTracker::note('provision', $e, ['area' => 'override-consume', 'service' => $service->id]);
 
             return false;
         }
@@ -1856,18 +1899,19 @@ class CloudProvisioner
         $who = (string) ($mark['by'] ?? '—');
 
         try {
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 'محافظِ سوءاستفاده با تأییدِ صریحِ مدیر ('.$who.') کنار گذاشته شد — نشانهٔ محافظ: '.$reason,
                 'staff');
         } catch (\Throwable) {
         }
 
-        \App\Support\ErrorTracker::note('fraud-guard',
+        ErrorTracker::note('fraud-guard',
             'رهاسازیِ دستیِ سفارش توسط مدیر ('.$who.') — نشانهٔ محافظ: '.$reason,
             ['service' => $service->id, 'by' => $who]);
 
         return true;
     }
+
     /**
      * خرابیِ گذرا: `pending` بمان تا کرونِ بعدی دوباره تلاش کند.
      *
@@ -1887,47 +1931,47 @@ class CloudProvisioner
     {
         $service->forceFill([
             'provision_status' => 'pending',
-            'provision_error'  => mb_substr($reason, 0, 290),
-            'status'           => 'awaiting_provision',
+            'provision_error' => mb_substr($reason, 0, 290),
+            'status' => 'awaiting_provision',
         ])->save();
 
         $key = 'provision:stuck:'.$service->id;
 
         // اولین تلاشِ ناموفق زمان را ثبت می‌کند؛ اگر بعد از این آستانه هنوز
         // گیر باشد، یعنی «گذرا» نبوده و باید دیده شود.
-        $since = \Illuminate\Support\Facades\Cache::get($key);
+        $since = Cache::get($key);
 
         if ($since === null) {
-            \Illuminate\Support\Facades\Cache::put($key, now()->toIso8601String(), now()->addDay());
+            Cache::put($key, now()->toIso8601String(), now()->addDay());
 
             return;
         }
 
-        if (\Illuminate\Support\Carbon::parse($since)->gt(now()->subMinutes(10))) {
+        if (Carbon::parse($since)->gt(now()->subMinutes(10))) {
             return;   // هنوز در پنجرهٔ «شاید واقعاً گذرا باشد»
         }
 
         // ⚠️ فقط یک بار در ساعت، وگرنه ردیاب پر می‌شود
         $shout = 'provision:stuck-shout:'.$service->id;
 
-        if (\Illuminate\Support\Facades\Cache::has($shout)) {
+        if (Cache::has($shout)) {
             return;
         }
 
-        \Illuminate\Support\Facades\Cache::put($shout, 1, now()->addHour());
+        Cache::put($shout, 1, now()->addHour());
 
-        \App\Support\ErrorTracker::note('provision',
+        ErrorTracker::note('provision',
             'سرویس #'.$service->id.' بیش از ۱۰ دقیقه در صفِ تحویل گیر کرده: '.$reason,
             ['service' => $service->id]);
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event('سرویس در صفِ تحویل گیر کرده', [
+            app(AdminNotifier::class)->event('سرویس در صفِ تحویل گیر کرده', [
                 'سرویس' => '#'.$service->id.' — '.$service->name,
                 'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
-                'علت'   => mb_substr($reason, 0, 200),
+                'علت' => mb_substr($reason, 0, 200),
             ], null, '⏳', [[
-                ['text' => '👤 پروفایلِ مشتری', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
-                ['text' => '🧾 سرویس', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+                ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                ['text' => '🧾 سرویس', 'data' => AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
             ]]);
         } catch (\Throwable) {
         }
@@ -1969,7 +2013,7 @@ class CloudProvisioner
             // است: `NotificationTemplate::body()` اگر بعد از جایگزینی هنوز
             // `{service}` ببیند عمداً متنِ کد را می‌فرستد. یعنی مدیر متن را
             // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
-            app(\App\Services\Notify\CustomerNotifier::class)->event(
+            app(CustomerNotifier::class)->event(
                 $service->customer, 'service_ready',
                 /*
                 | 🔴 آدرسی که به مشتری می‌گوییم باید همانی باشد که واقعاً
@@ -1999,14 +2043,14 @@ class CloudProvisioner
             $customer = $service->customer;
 
             if ($customer && filled($customer->email)) {
-                \Illuminate\Support\Facades\Mail::mailer('smtp')->to($customer->email)->send(
+                Mail::mailer('smtp')->to($customer->email)->send(
                     /*
                     | خطِ GPU (برنامهٔ آماده روی دروازه): «root» و IP دروغ است —
                     | نه SSH دارد نه کاربرِ سیستمی. نشانیِ برندشدهٔ دروازه
                     | می‌رود و راهنمای SSH خاموش می‌شود.
                     */
                     ($gpuApp = str_starts_with((string) $instance->image_key, 'gpu-'))
-                        ? new \App\Mail\ServiceReadyMail(
+                        ? new ServiceReadyMail(
                             $service->name,
                             $instance->accessHost() ?: ($instance->ipv4 ?: $service->domain),
                             $service->panel_url ?: url('/account/cloud/'.$service->id),
@@ -2023,47 +2067,47 @@ class CloudProvisioner
                             withSshGuide: false,
                             gatewayAccess: true,
                         )
-                        : new \App\Mail\ServiceReadyMail(
-                        $service->name,
-                        $instance->ipv4 ?: $service->domain,
-                        $service->panel_url ?: url('/account/cloud/'.$service->id),
-                        $instance->isWindows() ? 'Administrator' : 'root',
-                        /*
-                        | 🔴 رمزِ root عمداً در ایمیل **نیست**.
-                        |
-                        | قاعدهٔ این حوزه از قبل این بود که رمز فقط یک بار در پنل
-                        | دیده شود (`password_seen`)، ولی ایمیل نسخهٔ دومی از همان
-                        | رمز را برای همیشه در اینباکس می‌گذاشت — یعنی همان قاعده
-                        | از درِ پشتی شکسته می‌شد.
-                        |
-                        | ⚠️ ولی سکوت هم جواب نبود: کارفرما گزارش داد مشتری فکر
-                        | می‌کند «چیزی جا افتاده». پس `passwordInPanel` صریح
-                        | می‌گوید رمز کجاست و چرا یک بار است.
-                        */
-                        null,
-                        $customer->locale ?: 'fa',
-                        passwordInPanel: ! $instance->isWindows() || $instance->hasPassword(),
-                        withSshGuide: ! $instance->isWindows(),
-                    )
+                        : new ServiceReadyMail(
+                            $service->name,
+                            $instance->ipv4 ?: $service->domain,
+                            $service->panel_url ?: url('/account/cloud/'.$service->id),
+                            $instance->isWindows() ? 'Administrator' : 'root',
+                            /*
+                            | 🔴 رمزِ root عمداً در ایمیل **نیست**.
+                            |
+                            | قاعدهٔ این حوزه از قبل این بود که رمز فقط یک بار در پنل
+                            | دیده شود (`password_seen`)، ولی ایمیل نسخهٔ دومی از همان
+                            | رمز را برای همیشه در اینباکس می‌گذاشت — یعنی همان قاعده
+                            | از درِ پشتی شکسته می‌شد.
+                            |
+                            | ⚠️ ولی سکوت هم جواب نبود: کارفرما گزارش داد مشتری فکر
+                            | می‌کند «چیزی جا افتاده». پس `passwordInPanel` صریح
+                            | می‌گوید رمز کجاست و چرا یک بار است.
+                            */
+                            null,
+                            $customer->locale ?: 'fa',
+                            passwordInPanel: ! $instance->isWindows() || $instance->hasPassword(),
+                            withSshGuide: ! $instance->isWindows(),
+                        )
                 );
             }
         } catch (\Throwable) {
         }
 
         try {
-            \App\Models\ActivityLog::forService($service, 'provision',
+            ActivityLog::forService($service, 'provision',
                 __('ui.act_prov_mail', ['ip' => $instance->ipv4], $service->customer?->locale ?: 'fa'), 'system');
         } catch (\Throwable) {
         }
 
         try {
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 'سرورِ ابری تحویل شد',
                 [
                     'سرویس' => $service->name,
                     'مشتری' => $service->customer?->name ?? '—',
-                    'IP'    => $instance->ipv4 ?: '—',
-                    'مکان'  => $instance->location_code ?: '—',
+                    'IP' => $instance->ipv4 ?: '—',
+                    'مکان' => $instance->location_code ?: '—',
                 ],
                 url('/admin/services'),
                 '🖥️'
@@ -2086,6 +2130,10 @@ class CloudProvisioner
      */
     public function suspend(Service $service): bool
     {
+        if ($service->isInternalInfrastructure()) {
+            return false;
+        }
+
         return $this->act($service, fn ($d, $ref) => $d->power($ref, 'off'), 'off');
     }
 
@@ -2095,8 +2143,11 @@ class CloudProvisioner
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
-    public function terminate(Service $service): bool
+    public function terminate(Service $service, bool $reportFailure = true): bool
     {
+        if ($service->isInternalInfrastructure()) {
+            return false;
+        }
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
         /*
@@ -2152,13 +2203,16 @@ class CloudProvisioner
             $found = $this->findByDeterministicName($service, $instance);
 
             if ($found === false) {
-                $this->shoutAboutLingeringMachine(
-                    'حذفِ سرور ممکن نشد: شناسهٔ ماشین نزدِ زیرساخت در دست نیست',
-                    $service, $instance,
-                    'ردیفِ نمونه ساخته شده ولی شناسه‌ای ثبت نشده و پرسیدن از زیرساخت هم '
+                $why = 'ردیفِ نمونه ساخته شده ولی شناسه‌ای ثبت نشده و پرسیدن از زیرساخت هم '
                     .'ممکن نشد. نامِ قطعیِ «'.$this->serverName($service).'» را در پنلِ '
-                    .'زیرساخت جستجو کنید.'
-                );
+                    .'زیرساخت جستجو کنید.';
+                $instance->update(['last_error' => $why]);
+                if ($reportFailure) {
+                    $this->shoutAboutLingeringMachine(
+                        'حذفِ سرور ممکن نشد: شناسهٔ ماشین نزدِ زیرساخت در دست نیست',
+                        $service, $instance, $why
+                    );
+                }
 
                 return false;
             }
@@ -2166,7 +2220,7 @@ class CloudProvisioner
             if ($found === null) {
                 // زیرساخت چنین ماشینی نمی‌شناسد ⇒ هرگز ساخته نشد
                 $instance->update([
-                    'status'     => 'deleted',
+                    'status' => 'deleted',
                     'last_error' => null,
                 ]);
 
@@ -2180,6 +2234,8 @@ class CloudProvisioner
         $driver = $this->manager->forInstance($instance);
 
         if ($driver === null) {
+            $instance->update(['last_error' => 'درایورِ زیرساخت برای آزادسازی در دسترس نیست.']);
+
             return false;
         }
 
@@ -2210,10 +2266,12 @@ class CloudProvisioner
         | می‌رود — بی‌مشتری، بی‌درآمد، بی‌هیچ هشداری. تا رسیدنِ صورت‌حساب هیچ‌کس
         | نمی‌فهمد، و صورت‌حساب هم فقط جمعِ کل را می‌گوید.
         */
-        $this->shoutAboutLingeringMachine(
-            'حذفِ سرور نزدِ زیرساخت انجام نشد',
-            $service, $instance, (string) $r['message']
-        );
+        if ($reportFailure) {
+            $this->shoutAboutLingeringMachine(
+                'حذفِ سرور نزدِ زیرساخت انجام نشد',
+                $service, $instance, (string) $r['message']
+            );
+        }
 
         return false;
     }
@@ -2317,13 +2375,13 @@ class CloudProvisioner
                 return;
             }
 
-            \App\Support\ErrorTracker::note('provision',
+            ErrorTracker::note('provision',
                 $what.' — ماشین احتمالاً هنوز زنده است و اجاره‌اش از حسابِ ما می‌رود. علت: '
                 .mb_substr($why, 0, 200),
                 ['service' => $service->id, 'instance' => $instance?->id, 'attempt' => $attempt]
             );
 
-            app(\App\Services\Notify\AdminNotifier::class)->event(
+            app(AdminNotifier::class)->event(
                 '🔴 '.$what,
                 array_filter($this->lingeringFields($service, $instance, $why, $attempt)),
                 url('/admin/cloud/inventory'),
@@ -2400,13 +2458,31 @@ class CloudProvisioner
             return false;
         }
 
+        // A retry may find the previous asynchronous request already completed.
+        $actual = $driver->serverStatus((string) $instance->provider_ref);
+        if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
+            $instance->update(['status' => $expectStatus, 'last_error' => null, 'synced_at' => now()]);
+
+            return true;
+        }
+
         $r = $fn($driver, (string) $instance->provider_ref);
 
         if ($r['ok'] ?? false) {
-            $instance->update(['status' => ($r['pending'] ?? false) ? 'building' : $expectStatus,
-                'last_error' => null, 'synced_at' => now()]);
+            $actual = $driver->serverStatus((string) $instance->provider_ref);
+            if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
+                $instance->update(['status' => $expectStatus, 'last_error' => null, 'synced_at' => now()]);
 
-            return true;
+                return true;
+            }
+            $waiting = ['last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.'];
+            if ($r['pending'] ?? false) {
+                $waiting['status'] = 'building';
+                $waiting['synced_at'] = now();
+            }
+            $instance->update($waiting);
+
+            return false;
         }
 
         $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);

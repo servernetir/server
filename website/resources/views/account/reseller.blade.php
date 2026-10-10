@@ -52,7 +52,7 @@
       <div class="rs-stats">
         <div class="rs-stat">
           <span>{{ __('ui.rsl_cur_discount') }}</span>
-          <b>{{ fa_num((string) $progress['discount_pct']) }}٪</b>
+          <b>{{ fa_num((string) $progress['discount_pct']) }}{{ __('ui.cs_js_pct') }}</b>
           @if($progress['bonus_pct'] > 0)
             <small>{{ __('ui.rsl_bonus_incl', ['p' => fa_num((string) $progress['bonus_pct'])]) }}</small>
           @endif
@@ -110,7 +110,7 @@
         @foreach($levels as $l)
           <div class="rs-level @if(($progress['level']['key'] ?? '') === $l['key']) is-current @endif">
             <b>{{ lc($l['name'] ?? []) ?: $l['key'] }}</b>
-            <span class="rs-off">{{ fa_num((string) ($l['discount_pct'] ?? 0)) }}٪</span>
+            <span class="rs-off">{{ fa_num((string) ($l['discount_pct'] ?? 0)) }}{{ __('ui.cs_js_pct') }}</span>
             <small>{{ __('ui.rsl_ladder_req', ['spend' => invoice_money((int) ($l['min_spend_irt'] ?? 0), 'IRT'), 'n' => fa_num((string) ($l['min_active_domains'] ?? 0))]) }}</small>
           </div>
         @endforeach

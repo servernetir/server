@@ -152,7 +152,7 @@ tbody tr:last-child td{ border-bottom:0 }
   <div class="meta">
     <div class="party">
       <h3>{{ __('ui.invp_seller') }}</h3>
-      <b>{{ $legalName ?: __('ui.invp_brand') }}</b>
+      <b>{{ \App\Support\PanelText::text($legalName ?: __('ui.invp_brand')) }}</b>
       {{-- 🔴 شناسه‌های ثبتی روی فاکتورِ رسمی لازم‌اند، ولی فقط آن‌هایی که
            **واقعاً** پر شده‌اند. `company_identity()` خالی‌ها را برنمی‌گرداند،
            پس این حلقه هیچ‌وقت «شماره ثبت: —» چاپ نمی‌کند.
@@ -165,7 +165,7 @@ tbody tr:last-child td{ border-bottom:0 }
         @continue(in_array($row['label'], ['ui.trust_legal_name', 'ui.trust_economic'], true))
         <div>{{ __($row['label']) }}: <b>{{ fa_num($row['value']) }}</b></div>
       @endforeach
-      @if($sellerAddress)<div>{{ fa_num($sellerAddress) }}</div>@endif
+      @if($sellerAddress)<div>{{ \App\Support\PanelText::text(fa_num($sellerAddress)) }}</div>@endif
       <div class="ltr">{{ $contact['phone'] ?? '' }}</div>
       {{-- 🔴 نشانیِ **حسابداری**، نه پشتیبانیِ فنی: کسی که دربارهٔ فاکتور
            می‌نویسد نباید در صفِ تیکتِ فنی بیفتد. --}}
@@ -201,7 +201,7 @@ tbody tr:last-child td{ border-bottom:0 }
     <tbody>
       @foreach($invoice->items as $item)
         <tr>
-          <td>{{ $item->title }}@if($item->description)<div class="desc">{{ $item->description }}</div>@endif</td>
+          <td>{{ \App\Support\PanelText::text($item->title) }}@if($item->description)<div class="desc">{{ \App\Support\PanelText::text($item->description) }}</div>@endif</td>
           <td class="num">{{ fa_num($item->quantity) }}</td>
           <td class="num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
           <td class="num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>

@@ -743,6 +743,12 @@ class BaleAdminBotTest extends TestCase
     /** مهرِ تازه: کار انجام می‌شود و دکمهٔ برگشت همان‌جاست */
     public function test_a_fresh_suspend_works_and_offers_an_undo(): void
     {
+        $this->mock(\App\Services\Provisioning\ProvisioningService::class, function ($mock) {
+            $mock->shouldReceive('suspend')->once()->andReturnUsing(function ($service) {
+                $service->update(['status' => 'suspended']);
+                return \App\Services\Provisioning\ProvisionResult::success(null, null, null);
+            });
+        });
         $this->bind();
         $s = $this->service();
 
@@ -854,6 +860,12 @@ class BaleAdminBotTest extends TestCase
      */
     public function test_a_write_button_is_removed_after_it_is_used(): void
     {
+        $this->mock(\App\Services\Provisioning\ProvisioningService::class, function ($mock) {
+            $mock->shouldReceive('suspend')->once()->andReturnUsing(function ($service) {
+                $service->update(['status' => 'suspended']);
+                return \App\Services\Provisioning\ProvisionResult::success(null, null, null);
+            });
+        });
         $this->bind();
         $s = $this->service();
 
@@ -1083,4 +1095,15 @@ class BaleAdminBotTest extends TestCase
 
         $this->assertNotNull(app(AdminBaleGate::class)->pendingJob());
     }
+    public function test_manual_suspension_does_not_claim_success_or_offer_an_undo(): void
+    {
+        $this->bind();
+        $s = $this->service();
+        $this->click('v1:su:'.$s->id.':'.$this->stamp('su', $s->id));
+        $this->assertSame('active', $s->fresh()->status);
+        $this->assertSame('suspend', $s->fresh()->pendingManualAction()['kind']);
+        $undo = array_filter($this->buttonsSent(), fn ($d) => str_starts_with($d, 'v1:sr:'.$s->id));
+        $this->assertEmpty($undo);
+    }
+
 }

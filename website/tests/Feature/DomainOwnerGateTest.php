@@ -32,7 +32,16 @@ use Tests\TestCase;
  */
 class DomainOwnerGateTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake($this->supplierPriceStubs());
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private function customer(): Customer
     {
@@ -273,7 +282,8 @@ class DomainOwnerGateTest extends TestCase
      */
     public function test_parking_a_paid_domain_leaves_a_trace_in_the_error_tracker(): void
     {
-        Http::fake(['*' => Http::response([], 500)]);
+        Http::fake([
+            ...$this->supplierPriceStubs(),'*' => Http::response([], 500)]);
         \App\Support\ErrorTracker::clear();
 
         $c = $this->customer();

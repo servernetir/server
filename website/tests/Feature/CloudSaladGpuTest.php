@@ -191,7 +191,57 @@ class CloudSaladGpuTest extends TestCase
             && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
             && data_get($req->data(), 'readiness_probe.http.port') === 3000
             && data_get($req->data(), 'startup_probe.http.path') === '/health'
-            && data_get($req->data(), 'startup_probe.failure_threshold') === 100);
+            && data_get($req->data(), 'startup_probe.failure_threshold') === 20
+            && data_get($req->data(), 'startup_probe.period_seconds') === 5);
+    }
+
+    public function test_legacy_comfyui_is_rejected_on_blackwell_before_allocating_a_gpu(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        \App\Models\CloudPlan::where('provider_ref', 'gc-4090')->update(['gpu_model' => 'RTX 5060 Ti (16 GB)']);
+        Http::fake();
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
+        ]);
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('سازگار نیست', $r['message']);
+        Http::assertNothingSent();
+    }
+
+    public function test_default_comfyui_uses_blackwell_compatible_cuda_without_overriding_the_choice(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        \App\Models\CloudPlan::where('provider_ref', 'gc-4090')->update(['gpu_model' => 'RTX 5060 Ti (16 GB)']);
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $image = SaladClient::APPS['gpu-comfyui']['ref'];
+        $this->assertStringContainsString('-cuda12.8-', $image);
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $image,
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
+            && data_get($req->data(), 'readiness_probe.http.path') === '/ready'
+            && data_get($req->data(), 'container.command.0') === '/bin/sh'
+            && ! str_contains(data_get($req->data(), 'container.command.2', ''), "\n")
+            && str_contains(data_get($req->data(), 'container.command.2', ''), '/workflows/sd1.5'));
+    }
+
+    public function test_legacy_comfyui_on_an_older_gpu_keeps_its_original_entrypoint(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'])]);
+        $image = 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8';
+        $r = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $image,
+        ]);
+        $this->assertTrue($r['ok']);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === $image
+            && ! array_key_exists('command', $req->data()['container'])
+            && data_get($req->data(), 'networking.port') === 3000);
     }
 
     /**

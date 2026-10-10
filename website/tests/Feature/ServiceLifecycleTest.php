@@ -5,10 +5,13 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Service;
+use App\Services\Notify\CustomerNotifier;
+use App\Services\Provisioning\ProvisioningService;
+use App\Services\Provisioning\ProvisionResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 /**
@@ -26,6 +29,10 @@ class ServiceLifecycleTest extends TestCase
         parent::setUp();
         Http::fake();
         Mail::fake();
+        $provisioner = \Mockery::mock(ProvisioningService::class);
+        $provisioner->shouldReceive('suspend', 'unsuspend')->andReturn(
+            ProvisionResult::success(null, null, null));
+        $this->app->instance(ProvisioningService::class, $provisioner);
         config()->set('servernet.contact.notify_phone', '09120000000');
     }
 
@@ -68,10 +75,10 @@ class ServiceLifecycleTest extends TestCase
      * فرستاده می‌شوند و آن شمارنده فقط کلاس‌های Mailable را می‌شمارد، نه پیامِ
      * خام. پس «آیا یادآوری رفت؟» را از خودِ نوتیفایر می‌پرسیم.
      */
-    private function spyNotifier(): \Mockery\MockInterface
+    private function spyNotifier(): MockInterface
     {
-        $spy = \Mockery::spy(\App\Services\Notify\CustomerNotifier::class);
-        $this->app->instance(\App\Services\Notify\CustomerNotifier::class, $spy);
+        $spy = \Mockery::spy(CustomerNotifier::class);
+        $this->app->instance(CustomerNotifier::class, $spy);
 
         return $spy;
     }
@@ -129,15 +136,16 @@ class ServiceLifecycleTest extends TestCase
         $this->assertNotNull($s->suspended_at);
     }
 
-    /** سررسید گذشته ولی فاکتور پرداخت شده → دست نزن */
-    public function test_overdue_but_paid_service_is_left_alone(): void
+    /** سررسید گذشته و صدور فاکتور جا افتاده → ساخت فاکتور و تعلیق */
+    public function test_overdue_service_with_missing_invoice_is_billed_and_suspended(): void
     {
         $s = $this->service(-2, false);
 
-        $this->artisan('services:lifecycle');
+        $this->artisan('services:lifecycle')->assertSuccessful();
 
-        $this->assertSame('active', $s->fresh()->status);
-        $this->assertNull($s->fresh()->suspended_at);
+        $this->assertSame('suspended', $s->fresh()->status);
+        $this->assertNotNull($s->fresh()->suspended_at);
+        $this->assertSame(1, $s->invoices()->outstanding()->count());
     }
 
     /** پرداخت پس از تعلیق → برگشت به فعال */
@@ -161,6 +169,7 @@ class ServiceLifecycleTest extends TestCase
         $s = $this->service(-31, true, [
             'status' => 'suspended',
             'suspended_at' => now()->subDays(31),
+            'provision_meta' => ['billing_suspend' => ['confirmed_at' => now()->subDays(31)->toIso8601String()]],
         ]);
 
         $this->artisan('services:lifecycle');

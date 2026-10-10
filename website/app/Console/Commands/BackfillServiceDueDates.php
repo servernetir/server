@@ -59,11 +59,11 @@ class BackfillServiceDueDates extends Command
         $q = Service::query()
             ->whereNull('next_due_at')
             // فقط سرویسِ زنده. سرویسِ لغوشده سررسید نمی‌خواهد.
-            ->whereNotIn('status', Service::DEAD_STATUSES)
-            ->whereIn('cycle', array_keys((array) config('billing.cycles', [])));
+            ->whereIn('status', ['active', 'suspended'])
+            ->customerRecurring();
 
         if ($id = $this->option('id')) {
-            $q = Service::query()->whereKey($id);
+            $q->whereKey($id);
         }
 
         $rows = $q->orderBy('id')->get();

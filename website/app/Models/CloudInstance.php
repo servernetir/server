@@ -277,7 +277,8 @@ class CloudInstance extends Model
      */
     public function readyForNotice(): bool
     {
-        return in_array($this->status, self::READY_STATUSES, true) && filled($this->ipv4);
+        return in_array($this->status, self::READY_STATUSES, true)
+            && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
     }
 
     /**
@@ -351,7 +352,8 @@ class CloudInstance extends Model
 
     public function isDelivered(): bool
     {
-        return in_array($this->status, self::LIVE_STATUSES, true) && filled($this->ipv4);
+        return in_array($this->status, self::LIVE_STATUSES, true)
+            && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
     }
 
     /** آیا ایمیلِ تحویل هنوز بدهیِ ما است؟ */

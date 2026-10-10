@@ -62,7 +62,7 @@
   <header class="svc-card-h">
     <span class="pnl-svc-ic"><svg class="icon"><use href="#i-{{ $cloud ? 'cloud' : 'server' }}"/></svg></span>
     <span class="svc-card-t">
-      <b>{{ $s->name }}</b>
+      <b>{{ \App\Support\PanelText::text($s->name) }}</b>
       {{-- 🔴 نشانی از accessHost — hostnameِ خام نامِ زیرساخت را لو می‌داد
            (گزارشِ کارفرما: «…salad.cloud» در فهرستِ سرویس‌های مشتری) --}}
       @php $cardHost = $ci?->accessHost() ?? $ci?->hostname; @endphp

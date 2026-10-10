@@ -3115,7 +3115,7 @@ return [
     'gpu_use1_t' => 'Model cikarimi',
     'gpu_use1_d' => 'Donanim satin almadan dil ve goruntu modellerini calistirin.',
     'gpu_use2_t' => 'Render ve video',
-    'gpu_use2_d' => 'Sahne render, video isleme ve goruntu uretimi - dogasi geregi toplu isler.',
+    'gpu_use2_d' => 'ComfyUI ile goruntu uretin; Jupyter icinde kendi araclariniz ve modellerinizle video isleyin. Hazir video uretim modeli dahil degildir.',
     'gpu_use3_t' => 'Egitim ve deneyler',
     'gpu_use3_d' => 'Ara kayitlarla egitin ki olasi bir kesinti tum calismayi sifirlamasin.',
 
@@ -3133,7 +3133,7 @@ return [
     'gpu_apps_t' => 'Hazir uygulamalar',
     'gpu_apps_d' => 'Satin alirken birini secersiniz; yapilandirilmis olarak teslim edilir.',
     'gpu_app_llm_d' => 'OpenAI uyumlu API ile LLM - kendi kodunuzdan cagirin.',
-    'gpu_app_img_d' => 'Stable Diffusion ile goruntu uretimi - web arayuzu ve API.',
+    'gpu_app_img_d' => 'Stable Diffusion ile goruntu uretimi - web belgeleri bulunan hazir API.',
     'gpu_app_nb_d' => 'GPU uzerinde Python not defteri - deney ve model gelistirme icin.',
 
     // Musteri panelinde GPU hizmet erisimi

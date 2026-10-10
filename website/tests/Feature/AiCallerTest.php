@@ -45,7 +45,7 @@ class AiCallerTest extends TestCase
 
     private function provider(array $over = []): AiProvider
     {
-        return AiProvider::create(array_merge([
+        return AiProvider::updateOrCreate(['slug' => $over['slug'] ?? 'deepinfra'], array_merge([
             'slug' => 'deepinfra', 'name' => 'DeepInfra', 'driver' => 'OpenAI-Compatible',
             'enabled' => true, 'live_calls_enabled' => true, 'priority' => 1,
             'agreement_status' => AiProvider::STATUS_SIGNED, 'billing_currency_code' => 'USD',
@@ -254,12 +254,15 @@ class AiCallerTest extends TestCase
         $dup = $caller->handle($auth, 'llama-3-8b', $this->chatPayload(), 'same-key');
 
         $this->assertTrue($first->ok);
-        $this->assertFalse($dup->ok);
-        $this->assertSame('duplicate_request', $dup->code);
+        $this->assertTrue($dup->ok);
+        $this->assertSame('ok', $dup->code);
+        $this->assertSame($first->response, $dup->response, 'M4-c replays the saved response without another charge.');
 
         // همانِ ردیفِ رزروِ اول — نه رزروِ دوم
         $this->assertSame($first->reservation->id, $dup->reservation->id);
         $this->assertSame(1, AiReservation::count(), 'یک کلید = یک رزرو');
+        $this->assertSame(1, \App\Models\CreditEntry::where('customer_id', $auth->customer->id)
+            ->where('reason', 'ai_reservation')->count());
 
         // 🔴 تماسِ دومی به بالادست نرفت
         Http::assertSentCount(1);

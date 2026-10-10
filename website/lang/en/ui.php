@@ -3115,7 +3115,7 @@ return [
     'gpu_use1_t' => 'Model inference',
     'gpu_use1_d' => 'Serve language and image models without buying hardware.',
     'gpu_use2_t' => 'Rendering and video',
-    'gpu_use2_d' => 'Scene rendering, video processing and image generation - naturally batch work.',
+    'gpu_use2_d' => 'Generate images with ComfyUI; process video in Jupyter using your own tools and models. A ready-made video generation model is not included.',
     'gpu_use3_t' => 'Training and experiments',
     'gpu_use3_d' => 'Train with checkpoints so an interruption does not cost you the whole run.',
 
@@ -3133,7 +3133,7 @@ return [
     'gpu_apps_t' => 'Ready-made apps',
     'gpu_apps_d' => 'Pick one at checkout; it arrives configured and ready.',
     'gpu_app_llm_d' => 'LLM with an OpenAI-compatible API - call it from your own code.',
-    'gpu_app_img_d' => 'Image generation with Stable Diffusion - web UI and API.',
+    'gpu_app_img_d' => 'Image generation with Stable Diffusion - ready API with web documentation.',
     'gpu_app_nb_d' => 'Python notebook on a GPU - for experiments and model work.',
 
     // GPU service access in the customer panel

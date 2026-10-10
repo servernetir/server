@@ -102,15 +102,14 @@ class ProductNameIsLocalizedTest extends TestCase
     }
 
     /**
-     * ⚠️ محصولِ بی‌ترجمه باید نامِ فارسی نشان دهد، نه رشتهٔ خالی.
-     * عنوانِ خالی از عنوانِ بدخوان بدتر است.
+     * محصولِ بی‌ترجمه در EN/TR عنوان محلی دسته و شناسه دارد؛ نام فارسی حفظ می‌شود.
      */
     public function test_a_product_without_a_translation_falls_back_instead_of_going_blank(): void
     {
         $p = $this->product(['name_en' => null, 'name_tr' => null]);
 
-        $this->assertSame('هاست بکاپ — BK-100', $p->displayName('en'));
-        $this->assertSame('هاست بکاپ — BK-100', $p->displayName('tr'));
+        $this->assertSame('Shared hosting #'.$p->id, $p->displayName('en'));
+        $this->assertSame('Paylaşımlı hosting #'.$p->id, $p->displayName('tr'));
         $this->assertSame('هاست بکاپ — BK-100', $p->displayName('fa'));
     }
 

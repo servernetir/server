@@ -21,10 +21,13 @@ use Tests\TestCase;
 class DomainRegistrarTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         // بدونِ اعتبارنامه، کلاینت `enabled()` نیست و هر تست به «پیکربندی نشده»
         // می‌خورد — یعنی هیچ‌کدام از ادعاهای واقعی سنجیده نمی‌شد.
@@ -37,7 +40,7 @@ class DomainRegistrarTest extends TestCase
     private function fake(array $stubs): void
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
-        Http::fake(array_merge(['*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']])], $stubs));
+        Http::fake(array_merge($this->supplierPriceStubs(), ['*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']])], $stubs));
     }
 
     private function ok(array $data = [])
@@ -74,11 +77,14 @@ class DomainRegistrarTest extends TestCase
 
     private function domain(Customer $c, array $over = []): Domain
     {
-        return Domain::create(array_merge([
+        $domain = Domain::create(array_merge([
             'customer_id' => $c->id, 'domain' => 'example.com', 'sld' => 'example', 'tld' => 'com',
             'registrar' => 'openprovider', 'status' => 'pending', 'provision_status' => 'pending',
             'period_years' => 1, 'price_toman' => 2500000,
         ], $over));
+        $this->paidDomainInvoice($domain);
+
+        return $domain;
     }
 
     private function registrar(): DomainRegistrar
@@ -319,6 +325,7 @@ class DomainRegistrarTest extends TestCase
             '*/domains/555*'       => $this->ok(['id' => 555, 'expiration_date' => '2028-03-01 00:00:00']),
         ]);
 
+        $this->paidDomainInvoice($d, 'renew');
         $this->assertTrue($this->registrar()->renew($d)['ok']);
         $this->assertSame('2028-03-01', $d->fresh()->expires_at->toDateString());
     }

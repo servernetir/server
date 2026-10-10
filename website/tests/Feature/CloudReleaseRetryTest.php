@@ -383,7 +383,7 @@ class CloudReleaseRetryTest extends TestCase
         $src = file_get_contents(app_path('Services/Payment/PaymentService.php'));
 
         $this->assertStringContainsString(
-            "->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)", $src,
+            "->whereNotIn('status', Service::DEAD_STATUSES)", $src,
             'شاخهٔ خامِ SQL باید همچنان وضعیتِ مرده را کنار بگذارد'
         );
 

@@ -74,8 +74,8 @@ class AiPricingTest extends TestCase
 
         $rate = $this->book->resolve($m, AiModelUnitPrice::UNIT_OUTPUT);
 
-        // 245000 × 1234567 = 302_578_915_000 → /1e6 = 302_578.915 → **۳۰۲٬۵۷۹** (یک گردِ به بالا، نه دوباره)
-        $this->assertSame(302_579, $rate->chargeMicros(1_234_567));
+        // 245000 × 1234567 = 302_468_915_000 → /1e6 = 302_468.915 → 302_469 (one ceiling).
+        $this->assertSame(302_469, $rate->chargeMicros(1_234_567));
     }
 
     public function test_charge_exactly_on_boundary_is_exact_no_inflation(): void
@@ -125,9 +125,11 @@ class AiPricingTest extends TestCase
      *  حفظ می‌کند تا بازتولیدِ تاریخی نرخِ واقعیِ روزش را داشته باشد */
     public function test_currency_is_preserved_per_historic_row(): void
     {
+        $this->freezeSecond();
         [$p, $m] = $this->providerAndModel();
 
         $v1 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 245_000);            // پیش‌فرضِ USD
+        $this->travel(1)->days();
         $v2 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 220_000,
             null, null, 'EUR');                                                              // آگاهانه یورو
 
@@ -265,11 +267,13 @@ class AiPricingTest extends TestCase
 
     public function test_old_price_reproduces_historical_result_after_price_change(): void
     {
+        $this->freezeSecond();
         [$p, $m] = $this->providerAndModel();
 
         $v1 = $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 245_000);
         $charged_at = $v1->effective_from->copy();
-        $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 999_000); // قیمتِ دوبرابر، فردا
+        $this->travel(1)->days();
+        $this->book->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, 999_000); // نرخِ تازه، فردا
 
         // بازتولیدِ مالی: «در لحظهٔ T چه نرخی پول؟» — حتی بعد از جابه‌جایی قیمت.
         $historical = $this->book->resolveAt($m, AiModelUnitPrice::UNIT_OUTPUT, $charged_at);

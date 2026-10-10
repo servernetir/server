@@ -492,10 +492,13 @@ class CloudProvisionTest extends TestCase
                 $off = true;
             }
 
+            if ($request->method() === 'GET') {
+                return Http::response(['server' => ['status' => $off ? 'off' : 'running']]);
+            }
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 
-        app(ProvisioningService::class)->suspend($service);
+        $this->assertTrue(app(ProvisioningService::class)->suspend($service)->ok);
 
         $this->assertTrue($off, 'باید خاموش شود');
         $this->assertFalse($deleted, 'تعلیق هرگز نباید سرور را حذف کند');
@@ -514,10 +517,13 @@ class CloudProvisionTest extends TestCase
                 $on = true;
             }
 
+            if ($request->method() === 'GET') {
+                return Http::response(['server' => ['status' => $on ? 'running' : 'off']]);
+            }
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 
-        app(ProvisioningService::class)->unsuspend($service);
+        $this->assertTrue(app(ProvisioningService::class)->unsuspend($service)->ok);
 
         $this->assertTrue($on);
         $this->assertSame('active', $service->fresh()->status);

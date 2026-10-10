@@ -62,6 +62,7 @@ class AiProjectsAndAdmissionTest extends TestCase
 
         $this->actingAs($c, 'customer')->post('/account/security/ai-project', [
             'name' => 'team', 'monthly_budget' => 500000, 'budget_reset_day' => 15,
+            'budget_period' => AiProject::PERIOD_MONTHLY,
         ])->assertRedirect();
 
         $p = $c->aiProjects()->first();
@@ -341,9 +342,10 @@ class AiProjectsAndAdmissionTest extends TestCase
         $tm = $this->aiToken($c, $pm);
         $pm->delete();
 
-        $code = AiAdmission::authorize($tm->fresh(), 'ai:chat')->code;
-        $this->assertFalse($code === 'authorized', 'حذفِ پروژه نباید admission را باز بگذارد');
-        $this->assertContains($code, ['project_missing', 'not_ai_key']);
+        $result = AiAdmission::authorize($tm->fresh(), 'ai:chat');
+        $this->assertFalse($result->ok, 'حذفِ پروژه نباید admission را باز بگذارد');
+        $this->assertSame('project_missing', $result->code);
+        $this->assertSame(0, $tm->fresh()->use_count);
     }
 
     public function test_admission_denies_inactive_account(): void
@@ -407,6 +409,7 @@ class AiProjectsAndAdmissionTest extends TestCase
 
     public function test_budget_window_boundaries(): void
     {
+        $this->travelTo(Carbon::parse('2026-11-20 10:00'));
         $c = $this->customer();
         $p = $this->project($c, [
             'monthly_budget_irt' => 100000,

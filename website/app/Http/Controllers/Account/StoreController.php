@@ -131,7 +131,7 @@ class StoreController extends Controller
                     $label = strtolower(trim((string) $value));
 
                     if (in_array($label, array_map('strtolower', (array) config('servernet.subdomain_reserved', [])), true)) {
-                        $fail('این زیردامنه رزرو شده است؛ نام دیگری انتخاب کنید.');
+                        $fail(__('panel.subdomain_reserved'));
 
                         return;
                     }
@@ -139,13 +139,13 @@ class StoreController extends Controller
                     // دو مشتری نباید یک زیردامنه بگیرند
                     $fqdn = $label.'.'.config('servernet.subdomain_zone', 'servernet.cloud');
                     if (Service::where('domain', $fqdn)->whereNotIn('status', Service::DEAD_STATUSES)->exists()) {
-                        $fail('این زیردامنه قبلاً گرفته شده است؛ نام دیگری انتخاب کنید.');
+                        $fail(__('panel.subdomain_taken'));
                     }
                 },
             ],
         ], [], [
-            'country' => 'محلِ سرور', 'cycle' => 'دورهٔ پرداخت',
-            'domain' => 'دامنه', 'domain_buy' => 'دامنه', 'subdomain' => 'زیردامنه',
+            'country' => __('panel.field_country'), 'cycle' => __('panel.field_cycle'),
+            'domain' => __('panel.field_domain'), 'domain_buy' => __('panel.field_domain'), 'subdomain' => __('panel.field_subdomain'),
         ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
@@ -208,7 +208,7 @@ class StoreController extends Controller
         app(\App\Services\Notify\AdminNotifier::class)->event('سفارشِ جدید (در انتظارِ پرداخت)', [
             'مشتری' => $customer->displayName().' ('.$customer->code.')',
             'پکیج'  => $product->name,
-            'دامنه' => $domain,
+            __('panel.field_domain') => $domain,
             'دوره'  => Service::labelFor($cycle),
             'مکان'  => $country,
             'مبلغ'  => fa_num(number_format((int) $invoice->total)).' تومان',
@@ -258,11 +258,11 @@ class StoreController extends Controller
                 function ($attr, $value, $fail) {
                     // لایسنس روی IP خصوصی/رزرو فعال‌شدنی نیست؛ همان قاعده‌ی SafeUrl
                     if (! \App\Services\SafeUrl::isPublicIp((string) $value)) {
-                        $fail('آی‌پی باید عمومی باشد؛ آدرس‌های داخلی و رزروشده پذیرفته نمی‌شوند.');
+                        $fail(__('panel.public_ip'));
                     }
                 },
             ],
-        ], [], ['cycle' => 'دورهٔ پرداخت', 'license_ip' => 'آی‌پی سرور']);
+        ], [], ['cycle' => __('panel.field_cycle'), 'license_ip' => __('panel.field_ip')]);
 
         $customer = Auth::guard('customer')->user();
         $ip = trim($data['license_ip']);

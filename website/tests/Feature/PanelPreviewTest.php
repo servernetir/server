@@ -7,6 +7,7 @@ use App\Models\CrmMessage;
 use App\Models\MailboxMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,8 @@ class PanelPreviewTest extends TestCase
         if (env('PANEL_PREVIEW') !== '1') {
             $this->markTestSkipped('ابزارِ پیش‌نمایش — با PANEL_PREVIEW=1 اجرا می‌شود');
         }
+
+        Http::preventStrayRequests();
 
         config(['mailboxes.accounts' => [
             ['key' => 'ceo', 'label' => 'مدیرعامل', 'user' => 'ceo@servernet.cloud', 'pass' => 'x'],
@@ -58,9 +61,16 @@ class PanelPreviewTest extends TestCase
             $rendered[$title] = $this->body($html);
         }
 
-        file_put_contents(storage_path('app/panel-preview.html'), $this->wrap($rendered));
-
-        $this->assertTrue(true);
+        $path = storage_path('app/panel-preview.html');
+        $preview = $this->wrap($rendered);
+        $this->assertSame(strlen($preview), file_put_contents($path, $preview));
+        $this->assertFileExists($path);
+        foreach (array_keys($pages) as $index => $title) {
+            $this->assertStringContainsString('id="p'.$index.'"', $preview);
+            $this->assertStringContainsString($title, $preview);
+            $this->assertNotEmpty($rendered[$title]);
+        }
+        Http::assertNothingSent();
     }
 
     private function seedCrm(): CrmLead

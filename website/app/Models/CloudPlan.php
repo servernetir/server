@@ -469,6 +469,14 @@ class CloudPlan extends Model
         return (int) ceil($cost * (1 + $margin / 100));
     }
 
+    /** Actual supplier cost per hour; monthly-only tariffs use the 720-hour fallback. */
+    public function hourlyCostEurMicro(): int
+    {
+        $hourly = (int) ($this->cost_hour_eur_micro ?? 0);
+
+        return $hourly > 0 ? $hourly : (int) ceil(max(0, (int) $this->cost_eur_cents) * 10_000 / 720);
+    }
+
     /** نرخِ ساعتی به تومان (گردِ رو به بالا به نزدیک‌ترین ۱۰۰ تومان برای ظاهرِ تمیز). */
     public function hourlyIrt(): int
     {

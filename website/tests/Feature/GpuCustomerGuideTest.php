@@ -200,6 +200,8 @@ class GpuCustomerGuideTest extends CloudProvisionTest
         $html = (string) $this->actingAs($service->customer, 'customer')
             ->get(route('account.cloud.show', $service))->assertOk()->getContent();
 
-        $this->assertStringContainsString(__('ui.cs_gpu_endpoint_wait'), $html);
+        $this->assertFalse($service->fresh()->cloudInstance->isDelivered());
+        $this->assertStringContainsString(__('ui.cs_stage_finishing'), $html);
+        $this->assertFalse($service->fresh()->cloudInstance->readyForNotice());
     }
 }
