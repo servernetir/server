@@ -28,8 +28,8 @@
   @endif
 </div>
 
-@if(session('ok'))<div class="dm-note ok">{{ session('ok') }}</div>@endif
-@if($errors->any())<div class="dm-note danger">{{ $errors->first() }}</div>@endif
+@if(session('ok'))<div class="dm-note ok">{{ \App\Support\PanelText::text(session('ok')) }}</div>@endif
+@if($errors->any())<div class="dm-note danger">{{ \App\Support\PanelText::text($errors->first()) }}</div>@endif
 
 {{-- 🔴 کدِ انتقال فقط **یک بار** و فقط از session نشان داده می‌شود: ذخیره‌اش
      نمی‌کنیم چون کلیدِ مالکیت است و هرکس داشته باشد دامنه را می‌برد. --}}

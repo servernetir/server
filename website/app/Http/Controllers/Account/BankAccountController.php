@@ -42,7 +42,7 @@ class BankAccountController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
-        $request->validate(['card' => ['required', 'string', 'max:32']], [], ['card' => 'شمارهٔ کارت']);
+        $request->validate(['card' => ['required', 'string', 'max:32']], [], ['card' => __('panel.field_card')]);
 
         $card = $this->digits($request->string('card')->toString());
 
@@ -63,7 +63,7 @@ class BankAccountController extends Controller
 
         if (RateLimiter::tooManyAttempts($key, self::MAX_PER_DAY)) {
             return back()->withErrors([
-                'card' => 'تعداد تلاش امروز تمام شد. فردا دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.',
+                'card' => __('panel.bank_limit'),
             ]);
         }
 
@@ -75,7 +75,7 @@ class BankAccountController extends Controller
         if (! $outcome->ok) {
             return back()->withErrors([
                 'card' => $outcome->serviceDown
-                    ? 'سرویس استعلام بانکی موقتاً در دسترس نیست. کمی بعد تلاش کنید.'
+                    ? __('panel.bank_down')
                     : $outcome->error,
             ]);
         }

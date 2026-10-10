@@ -34,7 +34,7 @@
   </div>
 </div>
 
-@if($errors->any())<div class="dm-note danger">{{ $errors->first() }}</div>@endif
+@if($errors->any())<div class="dm-note danger">{{ \App\Support\PanelText::text($errors->first()) }}</div>@endif
 
 <form method="POST" action="{{ lroute('account.domains.order') }}" class="pnl-card" style="padding:22px">
   @csrf

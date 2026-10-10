@@ -38,7 +38,7 @@
 {{-- پیام‌ها با .dm-note می‌آیند نه .pnl-sec — کامنتِ خودِ panel.css می‌گوید
      .pnl-sec قابِ اشتباهی برای پیام است و متن را بی‌رنگ رها می‌کند. --}}
 @if(session('ok'))
-  <div class="dm-note ok">{{ session('ok') }}</div>
+  <div class="dm-note ok">{{ \App\Support\PanelText::text(session('ok')) }}</div>
 @endif
 
 @php
@@ -49,7 +49,7 @@
 
 @if(count($loose) > 0)
   <div class="dm-note danger">
-    @foreach($loose as $k)@foreach($errors->get($k) as $e)<div>{{ $e }}</div>@endforeach @endforeach
+    @foreach($loose as $k)@foreach($errors->get($k) as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach @endforeach
   </div>
 @endif
 
@@ -77,7 +77,7 @@
     fa_num($p['vcpu']).' vCPU · '.fa_num($p['ram']).' · '.fa_num($p['disk']).' · '.fa_num($p['traffic'])])->all();
   // برچسبِ ایمیج **بدون** ایموجی: انتخابگر یک SVGِ خط‌تیز نشان می‌داد و خلاصه
   // همان انتخاب را با 🟠 تأیید می‌کرد — یک شیء، دو زبانِ دیداری.
-  $jsImgLbl = $osCatalog->concat($appCatalog)->mapWithKeys(fn ($i) => [$i->key => $i->label])->all();
+  $jsImgLbl = $osCatalog->concat($appCatalog)->mapWithKeys(fn ($i) => [$i->key => \App\Support\PanelText::text($i->label)])->all();
   $jsImgLogo = $osCatalog->concat($appCatalog)->mapWithKeys(fn ($i) => [$i->key => $i->logo()])->all();
 
   // انتخاب‌های اولیه: با old() تا بازگشت خطا انتخاب کاربر را دور نریزد
@@ -310,7 +310,7 @@
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-1">
         <div class="cvb-step-i"><div class="pnl-sec-b">
-          @error('location')<div class="dm-note danger">{{ $message }}</div>@enderror
+          @error('location')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
 
           <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[1] ?? 1), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s1') }}</h3>
@@ -459,9 +459,9 @@
           <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[3] ?? 3), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s2') }}</h3>
 
-          @error('plan')<div class="dm-note danger">{{ $message }}</div>@enderror
-          @error('cycle')<div class="dm-note danger">{{ $message }}</div>@enderror
-          @error('billing_mode')<div class="dm-note danger">{{ $message }}</div>@enderror
+          @error('plan')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
+          @error('cycle')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
+          @error('billing_mode')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
           @if($planMoved)<div class="dm-note warn">{{ __('ui.cvb_plan_moved') }}</div>@endif
 
           <div class="cvb-billrow">
@@ -635,7 +635,7 @@
         <div class="cvb-step-i"><div class="pnl-sec-b">
           <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[4] ?? 4), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s3') }}</h3>
-          @error('image')<div class="dm-note danger">{{ $message }}</div>@enderror
+          @error('image')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
 
           {{-- تنها افشاگرِ صفحه که هیچ ARIAای نداشت. tab/tablist بومی است و
                وضعیتِ انتخاب را به صفحه‌خوان می‌گوید.
@@ -664,7 +664,7 @@
                            data-key="{{ $img->key }}" @if(! in_array($img->key, $okOs, true)) hidden @endif>
                       <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
                       <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
-                      <b>{{ $img->label }}</b>
+                      <b>{{ \App\Support\PanelText::text($img->label) }}</b>
                     </label>
                   @endforeach
                 </div>
@@ -686,7 +686,7 @@
                            data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
                       <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
                       <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
-                      <b>{{ $img->label }}</b>
+                      <b>{{ \App\Support\PanelText::text($img->label) }}</b>
                     </label>
                   @endforeach
                 </div>
@@ -720,7 +720,7 @@
         <div class="cvb-step-i"><div class="pnl-sec-b">
           <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[5] ?? 5), 't' => fa_num($stepTotal)]) }}</p>
           <h3 class="cvb-q">{{ __('ui.cvb_s6') }}</h3>
-          @error('label')<div class="dm-note danger">{{ $message }}</div>@enderror
+          @error('label')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
           <label class="cvb-field">
             <span>{{ __('ui.cvb_label') }}</span>
             <input type="text" name="label" id="cvb-label" dir="ltr" value="{{ $curLabel }}"
@@ -747,8 +747,8 @@
       <div class="cvb-adv-b">
 
         @unless($gpuMode ?? false)
-        @error('ssh_key_id')<div class="dm-note danger">{{ $message }}</div>@enderror
-        @error('ssh_key_new')<div class="dm-note danger">{{ $message }}</div>@enderror
+        @error('ssh_key_id')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
+        @error('ssh_key_new')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
 
         {{-- ورود با کلید SSH — در خطِ GPU رندر نمی‌شود: این محصول SSH ندارد
              (دسترسی با نشانی و توکن است) و فرمی که کلیدِ SSH بخواهد، دربارهٔ
@@ -793,7 +793,7 @@
 
         @if(! ($gpuMode ?? false) && collect($addonMap)->contains(true))
         <div id="cvb-ip-box" @if(! $addonOk) hidden @endif>
-          @error('extra_ipv4')<div class="dm-note danger">{{ $message }}</div>@enderror
+          @error('extra_ipv4')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
           <label class="cvb-field">
             <span>{{ __('ui.cvb_ip_pre') }}{{ cloud_price($extraIpPrice) }}{{ __('ui.cvb_ip_suf') }}</span>
             <select name="extra_ipv4" id="cvb-extra-ip" @disabled(! $addonOk)>
@@ -1667,7 +1667,7 @@
           });
           window.ServerNetAnalytics.beginCheckout({
             item_id: flv,
-            item_name: 'سرور ابری ' + (reg ? '(' + reg + ')' : ''),
+            item_name: @json(__('ui.svc_name_vps', ['label' => ''])) + (reg ? '(' + reg + ')' : ''),
             item_category: 'cloud_vps'
           }, val('cycle') || 'monthly');
         } catch(e) {}

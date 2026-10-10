@@ -16,8 +16,8 @@
     <span class="pnl-svc-ic"><svg class="icon"><use href="#i-wrench"/></svg></span>
 
     <span class="svc-row-t">
-      <b>{{ $s->name }}</b>
-      @if($s->description)<small>{{ \Illuminate\Support\Str::limit($s->description, 90) }}</small>@endif
+      <b>{{ \App\Support\PanelText::text($s->name) }}</b>
+      @if($s->description)<small>{{ \Illuminate\Support\Str::limit(\App\Support\PanelText::text($s->description), 90) }}</small>@endif
     </span>
 
     <span class="svc-row-m">

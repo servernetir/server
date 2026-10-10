@@ -41,8 +41,9 @@ class TemplateMail extends Mailable
 
     public function build(): self
     {
-        return $this->subject($this->title)
+        [$subject, $html] = \App\Support\PanelText::email($this->title, $this->bodyHtml);
+        return $this->subject($subject)
             ->view('emails.template')
-            ->with(['subject' => $this->title, 'html' => $this->bodyHtml]);
+            ->with(['subject' => $subject, 'html' => $html]);
     }
 }
