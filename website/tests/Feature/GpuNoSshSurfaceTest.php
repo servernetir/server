@@ -131,6 +131,21 @@ class GpuNoSshSurfaceTest extends TestCase
         );
     }
 
+    public function test_gpu_delivery_uses_the_gateway_and_keeps_a_stopped_server_delivered(): void
+    {
+        $instance = new CloudInstance(['image_key' => 'gpu-comfyui', 'status' => 'running', 'hostname' => 'demo.salad.cloud']);
+        $this->assertTrue($instance->readyForNotice());
+        $this->assertTrue($instance->isDelivered());
+        $instance->hostname = 'sn-svc-123';
+        $this->assertFalse($instance->isDelivered());
+        $instance->hostname = 'demo.salad.cloud';
+        $instance->status = 'off';
+        $this->assertTrue($instance->isDelivered());
+        $this->assertFalse($instance->readyForNotice());
+        $vps = new CloudInstance(['image_key' => 'ubuntu-24.04', 'status' => 'running', 'hostname' => 'demo.example.com']);
+        $this->assertFalse($vps->isDelivered());
+    }
+
     /** 🔴 ریشهٔ تیکت‌ها: کارتِ داشبورد */
     public function test_the_dashboard_card_shows_the_gateway_not_ssh(): void
     {

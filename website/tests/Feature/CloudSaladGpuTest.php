@@ -206,7 +206,7 @@ class CloudSaladGpuTest extends TestCase
             'image_ref' => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
         ]);
         $this->assertFalse($r['ok']);
-        $this->assertStringContainsString('CUDA 12.8', $r['message']);
+        $this->assertStringContainsString('سازگار نیست', $r['message']);
         Http::assertNothingSent();
     }
 
