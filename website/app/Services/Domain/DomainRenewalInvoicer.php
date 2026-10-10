@@ -2,9 +2,12 @@
 
 namespace App\Services\Domain;
 
+use App\Http\Controllers\Account\CloudStoreController;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Services\Billing\RenewalTerms;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -79,11 +82,11 @@ class DomainRenewalInvoicer
         $per = max($stored, $fresh, $floor);
 
         if ($per > $stored && $stored > 0) {
-            \App\Support\ErrorTracker::noteOnce('domain', 'renewal repriced above the stored figure', 3600, [
+            ErrorTracker::noteOnce('domain', 'renewal repriced above the stored figure', 3600, [
                 'domain' => $domain->domain,
                 'stored' => $stored,
-                'fresh'  => $fresh,
-                'floor'  => $floor,
+                'fresh' => $fresh,
+                'floor' => $floor,
             ]);
         }
 
@@ -104,33 +107,34 @@ class DomainRenewalInvoicer
 
         $unit = $perYear * $years;
 
-        $taxPct = \App\Http\Controllers\Account\CloudStoreController::taxPercent();
+        $taxPct = CloudStoreController::taxPercent();
         $tax = (int) round($unit * $taxPct / 100);
 
         return DB::transaction(function () use ($domain, $years, $unit, $tax, $taxPct) {
             $invoice = Invoice::create([
-                'customer_id'   => $domain->customer_id,
-                'domain_id'     => $domain->id,
-                'kind'          => 'domain',
+                'customer_id' => $domain->customer_id,
+                'domain_id' => $domain->id,
+                'kind' => 'domain',
                 'currency_code' => 'IRT',
-                'subtotal'      => $unit,
-                'tax'           => $tax,
-                'total'         => $unit + $tax,
-                'paid'          => 0,
-                'status'        => 'unpaid',
-                'issued_at'     => now(),
-                'note'          => 'تمدیدِ دامنهٔ '.$domain->domain,
+                'subtotal' => $unit,
+                'tax' => $tax,
+                'total' => $unit + $tax,
+                'paid' => 0,
+                'status' => 'unpaid',
+                'issued_at' => now(),
+                'due_at' => RenewalTerms::domainDeadline($domain),
+                'note' => 'تمدیدِ دامنهٔ '.$domain->domain,
             ]);
 
             InvoiceItem::create([
-                'invoice_id'  => $invoice->id,
-                'title'       => 'تمدیدِ دامنهٔ '.$domain->domain,
+                'invoice_id' => $invoice->id,
+                'title' => 'تمدیدِ دامنهٔ '.$domain->domain,
                 'description' => $years.' سال',
-                'quantity'    => 1,
-                'unit_price'  => $unit,
-                'line_total'  => $unit,
+                'quantity' => 1,
+                'unit_price' => $unit,
+                'line_total' => $unit,
                 'tax_rate_bp' => (int) ($taxPct * 100),
-                'tax_amount'  => $tax,
+                'tax_amount' => $tax,
             ]);
 
             // 🔴 چند سال پرداخت شده را همین‌جا ثبت کن. بعد از پرداخت، کرونِ

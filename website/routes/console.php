@@ -1,7 +1,9 @@
 <?php
 
+use App\Services\SystemHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -122,17 +124,16 @@ Schedule::command('content:translate-missing --limit=6')
     ->dailyAt('12:30')
     ->withoutOverlapping(30);
 
-// صدور فاکتور تمدید برای سرویس‌های دوره‌ای سررسیدشده — روزی یک‌بار
+// صدور تمدید هر ۱۵ دقیقه؛ هر دو فرمان صدور فاکتور را با قفل مشترک انجام می‌دهند.
 Schedule::command('services:renew-due')
-    ->dailyAt('07:00')
+    ->everyFifteenMinutes()
     ->withoutOverlapping(45);
 
 // چرخهٔ تمدید: یادآوریِ ۷/۳/۱ روز، تعلیقِ خودکارِ فاکتورِ پرداخت‌نشده و اعلانِ
-// پایانِ مهلتِ ۳۰ روزه به مدیر. بعد از صدورِ فاکتورها اجرا می‌شود تا یادآوریِ
-// «۷ روز مانده» مبلغِ همان فاکتورِ تازه را داشته باشد.
-// ⚠️ ساعت به وقت UTC است (config/app.php ثابت روی UTC) → ۰۷:۳۰ UTC ≈ ۱۱:۰۰ تهران.
+// پایانِ مهلتِ ۳۰ روزه به مدیر. این فرمان هم فاکتورِ جاافتاده را ایجاد می‌کند.
+// سررسیدِ تاریخ‌محور تا پایان همان روز به وقت تهران معتبر است.
 Schedule::command('services:lifecycle')
-    ->dailyAt('07:30')
+    ->everyFiveMinutes()
     ->withoutOverlapping(45);
 
 /*
@@ -182,8 +183,8 @@ Schedule::command('servers:post-rent')
 | ⚠️ `withoutOverlapping` عمداً برداشته شد: یک `file_put_contents` میکروثانیه‌ای
 | هرگز هم‌پوشانی نمی‌کند، و آن قفل خودش یک وابستگیِ دیگر بود.
 */
-Schedule::call(fn () => \Illuminate\Support\Facades\File::put(
-    storage_path('app/'.\App\Services\SystemHealth::HEARTBEAT),
+Schedule::call(fn () => File::put(
+    storage_path('app/'.SystemHealth::HEARTBEAT),
     now()->toDateTimeString(),
 ))
     ->everyMinute()

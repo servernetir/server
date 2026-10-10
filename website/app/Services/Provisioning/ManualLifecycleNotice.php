@@ -52,8 +52,13 @@ class ManualLifecycleNotice
         ],
         'suspend' => [
             'تعلیقِ سرویسِ دستی — کارِ شما لازم است',
-            'سرویس در پنلِ ما معلق شد. لایسنس/سرویس را نزدِ تأمین‌کننده هم غیرفعال کنید، وگرنه هزینه‌اش پای ماست.',
+            'تعلیق در انتظار اقدام شماست. لایسنس/سرویس را نزد تأمین‌کننده غیرفعال و سپس انجام کار را تأیید کنید.',
             '⏸',
+        ],
+        'unsuspend' => [
+            'فعال‌سازی مجدد سرویس دستی',
+            'سرویس را نزد تأمین‌کننده فعال و سپس انجام کار را تأیید کنید.',
+            '▶️',
         ],
         'terminate' => [
             'خاتمهٔ سرویسِ دستی — کارِ شما لازم است',
@@ -75,6 +80,10 @@ class ManualLifecycleNotice
             return;
         }
 
+        if (($service->pendingManualAction()['kind'] ?? null) === $kind) {
+            return;
+        }
+
         [$title, $note, $emoji] = self::KINDS[$kind];
 
         // ── ۱) نشانهٔ ماندگار ──
@@ -89,15 +98,15 @@ class ManualLifecycleNotice
         //    فقط مقصد نرسیده — همان مرزی که برای بقیهٔ آژیرها گذاشته شد.
         try {
             app(AdminNotifier::class)->event($title, [
-                'مشتری'  => $service->customer
+                'مشتری' => $service->customer
                     ? $service->customer->displayName().' ('.$service->customer->code.')'
                     : 'مشتری؟',
-                'سرویس'  => (string) $service->name,
-                'روی'    => (string) ($service->domain ?: '—'),
+                'سرویس' => (string) $service->name,
+                'روی' => (string) ($service->domain ?: '—'),
                 'کارِ لازم' => $note,
             ], null, $emoji, [[
                 ['text' => '👤 مشتری #'.$service->id,
-                 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
             ]],
                 // ⚠️ کلیدِ صریح چون $title از $kind ساخته می‌شود؛ بی‌آن، مدیر
                 //    این اعلان را در تنظیمات نمی‌بیند و نمی‌تواند خاموشش کند.

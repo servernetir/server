@@ -2,16 +2,30 @@
 
 namespace App\Models;
 
+use App\Services\Finance\Wallet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * یک سرویس فروخته‌شده به مشتری (اشتراک یا خرید یک‌بار).
  */
 class Service extends Model
 {
+    public function isInternalInfrastructure(): bool
+    {
+        return in_array((int) $this->getKey(), array_map('intval', (array) config('billing.internal_service_ids', [])), true);
+    }
+
+    public function scopeCustomerRecurring($query, bool $includeInternal = false)
+    {
+        return $query->when(! $includeInternal, fn ($q) => $q->whereNotIn('id', (array) config('billing.internal_service_ids', [])))
+            ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))
+            ->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'));
+    }
+
     protected $fillable = [
         'customer_id', 'name', 'description', 'currency_code', 'price',
         'tax_percent', 'cycle', 'status', 'next_due_at', 'activated_at',
@@ -27,6 +41,8 @@ class Service extends Model
         'reminder_stage', 'suspended_at', 'grace_alert_at',
         // فروشِ ساعتیِ سرورِ ابری (پیش‌پرداخت از کیفِ پول)
         'billing_mode', 'hourly_rate_irt', 'hourly_rate_eur', 'last_metered_at', 'on_credit_out',
+        // نگهداریِ ۲۴ساعتهٔ از پیش ذخیره‌شده (`HourlyHold`)
+        'hold_rate_irt', 'hold_reserve_irt',
     ];
 
     /**
@@ -65,7 +81,7 @@ class Service extends Model
     public static function columnExists(string $column): bool
     {
         return self::$columnCache[$column]
-            ??= \Illuminate\Support\Facades\Schema::hasColumn('services', $column);
+            ??= Schema::hasColumn('services', $column);
     }
 
     /**
@@ -84,18 +100,18 @@ class Service extends Model
     protected function casts(): array
     {
         return [
-            'price'          => 'integer',
-            'tax_percent'    => 'integer',
-            'is_reseller'    => 'boolean',
-            'next_due_at'    => 'date',
-            'activated_at'   => 'datetime',
-            'cancelled_at'   => 'datetime',
-            'password'       => 'encrypted',   // رمزِ کنترل‌پنل — هرگز خام
+            'price' => 'integer',
+            'tax_percent' => 'integer',
+            'is_reseller' => 'boolean',
+            'next_due_at' => 'date',
+            'activated_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'password' => 'encrypted',   // رمزِ کنترل‌پنل — هرگز خام
             'provisioned_at' => 'datetime',
             'provision_meta' => 'array',
-            'cloud_addons'   => 'array',
+            'cloud_addons' => 'array',
             'reminder_stage' => 'integer',
-            'suspended_at'   => 'datetime',
+            'suspended_at' => 'datetime',
             'grace_alert_at' => 'datetime',
             'hourly_rate_irt' => 'integer',
             'hourly_rate_eur' => 'integer',
@@ -127,15 +143,15 @@ class Service extends Model
      * @var array<string,string>
      */
     public const TERMINATE_REASONS = [
-        'no_longer_needed'  => 'دیگر به سرور نیاز ندارم',
-        'too_expensive'     => 'هزینه سرویس مناسب نبود',
-        'technical_issue'   => 'مشکل فنی یا عملکردی داشتم',
-        'support'           => 'از پشتیبانی رضایت نداشتم',
+        'no_longer_needed' => 'دیگر به سرور نیاز ندارم',
+        'too_expensive' => 'هزینه سرویس مناسب نبود',
+        'technical_issue' => 'مشکل فنی یا عملکردی داشتم',
+        'support' => 'از پشتیبانی رضایت نداشتم',
         'switched_provider' => 'به سرویس دیگری منتقل شدم',
-        'project_stopped'   => 'پروژه متوقف شده',
-        'was_a_test'        => 'این سرور تستی بود',
-        'security_privacy'  => 'نگرانی امنیتی/حریم خصوصی داشتم',
-        'other'             => 'سایر',
+        'project_stopped' => 'پروژه متوقف شده',
+        'was_a_test' => 'این سرور تستی بود',
+        'security_privacy' => 'نگرانی امنیتی/حریم خصوصی داشتم',
+        'other' => 'سایر',
     ];
 
     /** @return list<string> کدهای مجاز، به ترتیبِ نمایش */
@@ -180,7 +196,8 @@ class Service extends Model
             return 0;
         }
 
-        return intdiv(max(0, $this->customer->creditBalance('IRT')), $rate);
+        // «در دسترس» — ذخیرهٔ نگهداری و رزروِ AI قابلِ خرجِ ساعتی نیستند
+        return intdiv(max(0, app(Wallet::class)->availableOf($this->customer->id)), $rate);
     }
 
     /**
@@ -274,7 +291,7 @@ class Service extends Model
      */
     public function isManuallyDelivered(): bool
     {
-        return $this->server_id === null && ! $this->isCloud();
+        return ! $this->isCloud() && ($this->server_id === null || ! $this->server?->isAutoProvisioned());
     }
 
     /**
@@ -331,8 +348,7 @@ class Service extends Model
     /** سرویس‌هایی که کارِ انسانیِ معلق دارند — پرس‌وجوی مشترکِ ناظر و پنل. */
     public function scopeAwaitingManualAction($q)
     {
-        return $q->whereNotIn('status', self::DEAD_STATUSES)
-            ->where('provision_meta', 'like', '%"manual_action"%');
+        return $q->where('provision_meta', 'like', '%"manual_action"%');
     }
 
     /**
@@ -410,8 +426,8 @@ class Service extends Model
     {
         return match ($type) {
             'whm', 'plesk', 'directadmin' => 'hosting',
-            'vps', 'dedicated'            => 'server',
-            default                       => 'other',
+            'vps', 'dedicated' => 'server',
+            default => 'other',
         };
     }
 
@@ -440,14 +456,14 @@ class Service extends Model
     public function provisionBadge(): array
     {
         return match ($this->provision_status) {
-            'done'    => ['تحویل شد', '#34d399'],
+            'done' => ['تحویل شد', '#34d399'],
             'running' => ['در حال ساخت', '#22d3ee'],
             'pending' => ['در صف تحویل', '#fbbf24'],
-            'manual'  => ['در انتظار تحویل دستی', '#fbbf24'],
-            'failed'  => ['خطا در تحویل', '#ff6b6b'],
+            'manual' => ['در انتظار تحویل دستی', '#fbbf24'],
+            'failed' => ['خطا در تحویل', '#ff6b6b'],
             // بسته شده، ولی زیرساخت هنوز حذف را تأیید نکرده — هزینه‌اش پای ماست
             self::PROVISION_RELEASING => ['در حال آزادسازی', '#f59e0b'],
-            default   => ['—', '#96a3ba'],
+            default => ['—', '#96a3ba'],
         };
     }
 
@@ -501,8 +517,8 @@ class Service extends Model
          * مهاجرت‌نخورده ممکن است اصلاً وجود نداشته باشد، و یک رابطهٔ نبود،
          * این صفحه را ۵۰۰ می‌کرد. `hasTable` جلویش را می‌گیرد.
          */
-        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_instances')
-            && \App\Models\CloudInstance::where('service_id', $this->id)->exists()) {
+        if (Schema::hasTable('cloud_instances')
+            && CloudInstance::where('service_id', $this->id)->exists()) {
             return false;
         }
 
@@ -612,15 +628,15 @@ class Service extends Model
     public function statusBadge(): array
     {
         return match ($this->status) {
-            'active'             => ['فعال', '#34d399'],
-            'pending'            => ['منتظر پرداخت', '#fbbf24'],
+            'active' => ['فعال', '#34d399'],
+            'pending' => ['منتظر پرداخت', '#fbbf24'],
             'awaiting_provision' => ['در حال آماده‌سازی', '#22d3ee'],
-            'provision_failed'   => ['خطا در تحویل', '#ff6b6b'],
-            'suspended'          => ['معلق', '#ff6b6b'],
-            'cancelled'          => ['لغو شده', '#5f6c82'],
-            'terminated'         => ['حذف شده', '#5f6c82'],
-            'expired'            => ['منقضی', '#96a3ba'],
-            default              => [$this->status, '#96a3ba'],
+            'provision_failed' => ['خطا در تحویل', '#ff6b6b'],
+            'suspended' => ['معلق', '#ff6b6b'],
+            'cancelled' => ['لغو شده', '#5f6c82'],
+            'terminated' => ['حذف شده', '#5f6c82'],
+            'expired' => ['منقضی', '#96a3ba'],
+            default => [$this->status, '#96a3ba'],
         };
     }
 }

@@ -7,6 +7,7 @@ use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Services\Cloud\CloudProvisioner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -160,8 +161,13 @@ class CloudHourlyBillingTest extends TestCase
         $c = $this->customerWithCredit(50_000);
         $s = $this->hourlyService($c, 5000, ['status' => 'suspended', 'suspended_at' => now()->subHour()]);
 
-        $this->artisan('cloud:meter');
+        $prov = \Mockery::mock(CloudProvisioner::class);
+        $prov->shouldReceive('suspend')->once()->andReturnTrue();
+        $prov->shouldReceive('unsuspend')->once()->andReturnTrue();
+        $this->app->instance(CloudProvisioner::class, $prov);
+        $this->artisan('cloud:meter')->assertSuccessful();
 
+        $this->assertSame(45000, $c->creditBalance('IRT'));
         $this->assertSame('active', $s->fresh()->status);
     }
 

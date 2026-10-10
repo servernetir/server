@@ -54,6 +54,9 @@ class SystemHealthTest extends TestCase
     private function greenTheChecksThisFileIsNotAbout(): void
     {
         \App\Models\Setting::put('domain_margin_pct', '25');
+        foreach (['services:renew-due', 'services:lifecycle', 'cloud:meter'] as $job) {
+            \App\Services\Billing\BillingRunMonitor::record($job, 0);
+        }
     }
 
     private function beat(?\Carbon\Carbon $at = null): void

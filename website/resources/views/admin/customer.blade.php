@@ -13,6 +13,10 @@
 <div style="margin-bottom:14px"><a href="/admin/customers" style="color:var(--muted);font-size:13px">→ بازگشت به مشتریان</a></div>
 
 
+@if(app(\App\Services\Billing\ComplimentaryServices::class)->customerExempt($c))
+  <div class="ad-badge" style="margin-bottom:14px;color:#34d399">حساب مالک · تمدید خودکار رایگان دائمی · معاف از تعلیق و حذف خودکار بابت بدهی یا کمبود اعتبار</div>
+@endif
+
 {{-- ══ سربرگ پرونده ══ --}}
 <div class="cust-head">
   <div>
@@ -427,7 +431,7 @@
             @endif
             @unless($s->domain || $svcIp)<span style="color:var(--dim)">—</span>@endunless
           </td>
-          <td>{{ $s->cycleLabel() }}</td>
+          <td>{{ $s->cycleLabel() }}@if($s->isInternalInfrastructure())<small> · زیرساخت داخلی؛ معاف از قطع بابت بدهی</small>@endif</td>
           {{-- ساعتی: نرخِ واقعیِ کسر، نه معادلِ ماهانه که هرگز فاکتور نمی‌شود --}}
           <td>@if($s->isHourly()){{ number_format((int) $s->hourly_rate_irt) }} ت/ساعت@else{{ $money($s->total()) }}@endif</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>

@@ -228,7 +228,7 @@ class ManualLifecycleNoticeTest extends TestCase
 
         app(ProvisioningService::class)->suspend($s);
 
-        $this->assertSame('suspended', $s->fresh()->status);
+        $this->assertSame('active', $s->fresh()->status); // Pending supplier action is not confirmed suspension.
         $this->assertSame('suspend', $s->fresh()->pendingManualAction()['kind'] ?? null,
             'تعلیق شد ولی کسی نمی‌داند لایسنس نزدِ تأمین‌کننده باید غیرفعال شود — هزینه‌اش پای ماست');
     }

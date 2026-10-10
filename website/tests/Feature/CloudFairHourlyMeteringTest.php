@@ -339,12 +339,17 @@ class CloudFairHourlyMeteringTest extends TestCase
     public function test_an_admin_suspend_unsuspend_cycle_does_not_back_charge(): void
     {
         $c = $this->customer(100_000);
-        $s = $this->service($c, ['last_metered_at' => now()->subHours(10)]);
+        $plan = $this->interruptiblePlan();
+        $plan->update(['provider' => 'aeza', 'is_interruptible' => false]);
+        $s = $this->service($c, ['cloud_plan_id' => $plan->id, 'last_metered_at' => now()->subHours(10)]);
         $this->machine($s);
 
+        $this->mock(\App\Services\Cloud\CloudProvisioner::class, function ($mock) {
+            $mock->shouldReceive('suspend', 'unsuspend')->once()->andReturnTrue();
+        });
         $prov = app(ProvisioningService::class);
-        $prov->suspend($s);
-        $prov->unsuspend($s->fresh());
+        $this->assertTrue($prov->suspend($s)->ok);
+        $this->assertTrue($prov->unsuspend($s->fresh())->ok);
 
         // یک ساعت پس از روشن‌شدن
         Carbon::setTestNow(now()->addHour());

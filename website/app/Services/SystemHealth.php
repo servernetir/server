@@ -2,7 +2,20 @@
 
 namespace App\Services;
 
+use App\Models\CloudPlan;
+use App\Models\Domain;
+use App\Models\Post;
+use App\Models\Service;
+use App\Models\Setting;
+use App\Services\Billing\BillingRunMonitor;
+use App\Services\Cloud\CloudDeliveryWatch;
+use App\Services\Cloud\CloudManager;
+use App\Services\Domain\OpenProviderClient;
+use App\Services\Mail\MailboxSync;
 use App\Support\ErrorTracker;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -52,23 +65,38 @@ class SystemHealth
      */
     public function checks(): array
     {
-        return [
-            $this->cron(),
-            $this->database(),
-            $this->stuckDomains(),
-            $this->expiringDomains(),
-            $this->domainMargin(),
-            $this->registrarBalance(),
-            $this->stuckServices(),
-            $this->manualLifecycle(),
-            $this->unbilledServices(),
-            $this->undeliveredCloud(),
-            $this->cloudRelease(),
-            $this->unsellableCatalogue(),
-            $this->mailboxes(),
-            $this->contentQueue(),
-            $this->recentErrors(),
+        $probes = [
+            ['cron', 'زمان‌بند', 'cron'],
+            ['db', 'دیتابیس', 'database'],
+            ['domains', 'صفِ دامنه', 'stuckDomains'],
+            ['domains_expiry', 'انقضای دامنه', 'expiringDomains'],
+            ['domain_margin', 'حاشیهٔ سودِ دامنه', 'domainMargin'],
+            ['domain_balance', 'موجودیِ رجیسترار', 'registrarBalance'],
+            ['services', 'صفِ تحویل', 'stuckServices'],
+            ['manual_lifecycle', 'کارِ دستیِ چرخهٔ عمر', 'manualLifecycle'],
+            ['unbilled', 'سررسیدِ سرویس‌ها', 'unbilledServices'],
+            ['billing_jobs', 'اجرای تمدید و تعلیق', 'billingJobs'],
+            ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
+            ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
+            ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
+            ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
+            ['content', 'صف محتوا', 'contentQueue'],
+            ['errors', 'خطاها', 'recentErrors'],
         ];
+
+        $checks = [];
+        foreach ($probes as [$key, $title, $method]) {
+            try {
+                $checks[] = $this->{$method}();
+            } catch (\Throwable $e) {
+                // خرابیِ یک وابستگی نباید خودِ ردیاب یا بقیهٔ بررسی‌ها را متوقف کند.
+                // ناتوانی در بررسی هم سالم نیست؛ با همان کلید، صریحاً قرمز می‌ماند.
+                $checks[] = $this->row($key, false, 'fail', $title,
+                    'بررسی انجام نشد: '.mb_substr($e->getMessage(), 0, 120));
+            }
+        }
+
+        return $checks;
     }
 
     /**
@@ -135,8 +163,8 @@ class SystemHealth
 
         if ($recent > 0) {
             return $this->row('db', false, 'warn', 'دیتابیس',
-                'الان وصل است، ولی در ۲۴ ساعت گذشته '.fa_num($recent).' بار قطع شده. '
-                .'هر قطعی یعنی یک دقیقهٔ کرونِ ازدست‌رفته.');
+                'الان وصل است، ولی در ۲۴ ساعت گذشته '.fa_num($recent).' خطای پایگاه داده ثبت شده. '
+                .'جزئیات در ردیاب آمده؛ خطای پرس‌وجو لزوماً به معنی قطعی اتصال نیست.');
         }
 
         return $this->row('db', true, 'ok', 'دیتابیس', 'وصل و پاسخ‌گو.');
@@ -159,8 +187,8 @@ class SystemHealth
             return $this->row('domains', true, 'ok', 'صفِ دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
         }
 
-        $manual = \App\Models\Domain::where('provision_status', 'manual')->count();
-        $old = \App\Models\Domain::query()->awaitingRegistration()
+        $manual = Domain::where('provision_status', 'manual')->count();
+        $old = Domain::query()->awaitingRegistration()
             ->where('updated_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
 
@@ -172,7 +200,7 @@ class SystemHealth
             | خودش دنبالِ ردیف بگردد. این‌جا نامِ خودِ دامنه از هر شناسه‌ای
             | گویاتر است، پس همان چاپ می‌شود.
             */
-            $names = \App\Models\Domain::query()
+            $names = Domain::query()
                 ->where(fn ($q) => $q
                     ->where('provision_status', 'manual')
                     ->orWhere(fn ($e) => $e->awaitingRegistration()
@@ -217,7 +245,7 @@ class SystemHealth
             return $this->row('domains_expiry', true, 'ok', 'انقضای دامنه', 'جدولِ دامنه هنوز ساخته نشده.');
         }
 
-        $soon = \App\Models\Domain::query()->expiringWithin(7)->count();
+        $soon = Domain::query()->expiringWithin(7)->count();
 
         if ($soon > 0) {
             return $this->row('domains_expiry', false, 'warn', 'انقضای دامنه',
@@ -238,7 +266,7 @@ class SystemHealth
      */
     private function domainMargin(): array
     {
-        $setting = trim((string) (\App\Models\Setting::get('domain_margin_pct') ?? ''));
+        $setting = trim((string) (Setting::get('domain_margin_pct') ?? ''));
         $pct = $setting !== ''
             ? (float) $setting
             : (float) config('services.openprovider.margin.default', 0);
@@ -272,20 +300,20 @@ class SystemHealth
      */
     private function registrarBalance(): array
     {
-        $op = app(\App\Services\Domain\OpenProviderClient::class);
+        $op = app(OpenProviderClient::class);
 
         if (! $op->enabled()) {
             return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار', 'اتصالِ رجیسترار پیکربندی نشده است.');
         }
 
-        $snap = \Illuminate\Support\Facades\Cache::remember(
+        $snap = Cache::remember(
             'openprovider.balance.snapshot',
             now()->addHours(6),
             fn () => $op->balance(),
         );
 
         if (! ($snap['known'] ?? false)) {
-            \App\Support\ErrorTracker::noteOnce('domain',
+            ErrorTracker::noteOnce('domain',
                 'موجودیِ حسابِ OpenProvider از API خوانده نشد — پایشِ موجودی فعلاً کور است.', 21600);
 
             return $this->row('domain_balance', true, 'ok', 'موجودیِ رجیسترار',
@@ -343,15 +371,18 @@ class SystemHealth
         | با نگاه‌کردن به خودِ صفحهٔ زنده پیدا شد، نه با تست: تستِ اولیه فقط
         | `level` را می‌سنجید.
         */
-        $rows = \App\Models\Service::query()
+        $rows = Service::query()
             ->whereNull('next_due_at')
+            // فقط سرویسِ دوره‌ایِ فعال، همان مجموعهٔ services:renew-due.
+            // سفارشِ پرداخت‌نشده و خریدِ یک‌باره سررسید تمدید نمی‌خواهند.
+
             /*
             | ساعتی **عمداً** سررسید ندارد — صورت‌حسابش مترِ اعتباری است.
             | بی‌این شرط، هر سرویسِ GPU/ساعتی این‌جا قرمز می‌شد و مدیر را به
             | «تنظیمِ سررسید» دعوت می‌کرد = فاکتورِ تمدیدِ دوبله روی مترِ ساعتی.
             */
-            ->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'))
-            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+            ->customerRecurring()
+            ->whereIn('status', ['active', 'suspended'])
             ->with('customer')
             ->limit(20)
             ->get(['id', 'name', 'customer_id']);
@@ -402,25 +433,31 @@ class SystemHealth
             return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر', 'ستونش هنوز ساخته نشده.');
         }
 
-        $rows = \App\Models\Service::awaitingManualAction()->limit(40)->get();
+        $rows = Service::awaitingManualAction()->limit(40)->get();
 
         if ($rows->isEmpty()) {
             return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر',
                 'هیچ تمدید، تعلیق یا ابطالِ دستی معلق نیست.');
         }
 
-        $by = ['renew' => 0, 'suspend' => 0, 'terminate' => 0];
+        $by = ['renew' => 0, 'suspend' => 0, 'unsuspend' => 0, 'terminate' => 0];
         $names = [];
 
         foreach ($rows as $r) {
             $k = (string) ($r->pendingManualAction()['kind'] ?? '');
-            if (isset($by[$k])) { $by[$k]++; }
-            if (count($names) < 6) { $names[] = '#'.$r->id.' '.$k; }
+            if (isset($by[$k])) {
+                $by[$k]++;
+            }
+            if (count($names) < 6) {
+                $names[] = '#'.$r->id.' '.$k;
+            }
         }
 
         $parts = [];
-        foreach (['renew' => 'تمدید', 'suspend' => 'تعلیق', 'terminate' => 'ابطال'] as $k => $label) {
-            if ($by[$k] > 0) { $parts[] = $label.': '.fa_num((string) $by[$k]); }
+        foreach (['renew' => 'تمدید', 'suspend' => 'تعلیق', 'unsuspend' => 'فعال‌سازی', 'terminate' => 'ابطال'] as $k => $label) {
+            if ($by[$k] > 0) {
+                $parts[] = $label.': '.fa_num((string) $by[$k]);
+            }
         }
 
         /*
@@ -460,7 +497,7 @@ class SystemHealth
         | هیچ اعلانی تولید نمی‌کند — سفارشِ پرداخت‌شده‌ای که تحویل نمی‌شود، در
         | سکوت می‌مانَد.
         */
-        $manual = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+        $manual = Service::whereNotIn('status', Service::DEAD_STATUSES)
             ->where('provision_status', 'manual')->count();
 
         /*
@@ -478,7 +515,7 @@ class SystemHealth
         |    امضای نگهبان شاملِ کلیدِ چکِ خراب است، پس یک قرمزِ دائمی یعنی
         |    خرابیِ **واقعیِ بعدی** هیچ اعلانی تولید نمی‌کند.
         */
-        $old = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+        $old = Service::whereNotIn('status', Service::DEAD_STATUSES)
             ->whereIn('provision_status', ['pending', 'running'])
             ->where('created_at', '<', now()->subMinutes(self::STUCK_MINUTES))
             ->count();
@@ -498,7 +535,7 @@ class SystemHealth
         // ⚠️ سرویسِ مرده کنار می‌رود، به همان دلیلِ بالا: لغوِ وجه‌برگشته یک
         //    ردیفِ `failed` باقی می‌گذارد و بی‌این شرط، این چک برای همیشه قرمز
         //    می‌مانْد و امضای نگهبان دیگر هرگز عوض نمی‌شد.
-        $failed = \App\Models\Service::whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+        $failed = Service::whereNotIn('status', Service::DEAD_STATUSES)
             ->where('provision_status', 'failed')->count();
 
         if ($manual > 0 || $old > 0 || $failed > 0) {
@@ -537,10 +574,10 @@ class SystemHealth
      * ⚠️ سقفِ ۵ عمدی است: فهرستِ بلند در یک پیامِ بله/ایمیل خوانده نمی‌شود.
      * بقیه با «و N مورد دیگر» می‌آیند تا معلوم باشد چیزی پنهان نشده.
      */
-    private function stuckServiceRows(): \Illuminate\Support\Collection
+    private function stuckServiceRows(): Collection
     {
-        return \App\Models\Service::query()
-            ->whereNotIn('status', \App\Models\Service::DEAD_STATUSES)
+        return Service::query()
+            ->whereNotIn('status', Service::DEAD_STATUSES)
             ->where(fn ($q) => $q
                 ->where('provision_status', 'manual')
                 ->orWhere('provision_status', 'failed')
@@ -561,7 +598,7 @@ class SystemHealth
     }
 
     /** «#۱۲ آقای فلانی (SN-104829) — دستی» × چند تا، برای متنِ هشدار. */
-    private function who(\Illuminate\Support\Collection $rows): string
+    private function who(Collection $rows): string
     {
         if ($rows->isEmpty()) {
             return '';
@@ -593,10 +630,10 @@ class SystemHealth
      * ⚠️ مشتریِ حذف‌شده لینک نمی‌گیرد (ردیفِ یتیم) — لینکِ ۴۰۴ از نبودِ لینک
      * بدتر است. اسمش در متن هست، پس چیزی پنهان نمی‌شود.
      *
-     * @param  \Illuminate\Support\Collection<int,\App\Models\Service>  $rows
+     * @param  Collection<int,Service>  $rows
      * @return array<int,array{label:string,url:string}>
      */
-    private function serviceLinks(\Illuminate\Support\Collection $rows): array
+    private function serviceLinks(Collection $rows): array
     {
         return $rows->take(self::NAME_LIMIT)
             ->filter(fn ($s) => $s->customer !== null)
@@ -630,7 +667,7 @@ class SystemHealth
     private function undeliveredCloud(): array
     {
         try {
-            $stalled = \App\Services\Cloud\CloudDeliveryWatch::stalled();
+            $stalled = CloudDeliveryWatch::stalled();
         } catch (\Throwable $e) {
             // ⚠️ «نتوانستم بپرسم» با «چیزی نیست» یکی نیست. سبز برگرداندن این‌جا
             //    یعنی همان سکوتی که این چک برای شکستنش ساخته شد.
@@ -645,7 +682,7 @@ class SystemHealth
 
         $reasons = [];
         foreach ($stalled as $s) {
-            $why = \App\Services\Cloud\CloudDeliveryWatch::reasonFor($s) ?? '—';
+            $why = CloudDeliveryWatch::reasonFor($s) ?? '—';
             $reasons[$why] = ($reasons[$why] ?? 0) + 1;
         }
 
@@ -702,7 +739,7 @@ class SystemHealth
 
             $bad = [];
 
-            foreach (\App\Models\CloudPlan::query()
+            foreach (CloudPlan::query()
                 ->where('is_active', true)
                 ->where('admin_disabled', false)
                 ->selectRaw('provider, count(*) as n, sum(case when price_irt > 0 then 1 else 0 end) as priced')
@@ -722,7 +759,7 @@ class SystemHealth
                 'هر زیرساختِ فعالی دستِ‌کم یک پلنِ قیمت‌دار دارد.');
         }
 
-        $manager = app(\App\Services\Cloud\CloudManager::class);
+        $manager = app(CloudManager::class);
 
         // ⚠️ نامِ زیرساخت در **متن** است، وگرنه امضای وضعیت ثابت می‌مانَد و
         //    خرابیِ زیرساختِ دوم هیچ اعلانی نمی‌سازد. همان قاعدهٔ این فایل.
@@ -741,7 +778,7 @@ class SystemHealth
                 return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور', 'روی این نصب فعال نیست.');
             }
 
-            $rows = \App\Models\Service::query()->awaitingRelease()
+            $rows = Service::query()->awaitingRelease()
                 ->orderBy('id')->limit(50)->get(['id', 'name', 'customer_id']);
         } catch (\Throwable $e) {
             // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
@@ -788,7 +825,7 @@ class SystemHealth
             return $this->row('mailboxes', true, 'ok', 'صندوق‌های ایمیل', 'روی این نصب فعال نیست.');
         }
 
-        $state = \App\Services\Mail\MailboxSync::state();
+        $state = MailboxSync::state();
         $labels = collect($accounts)->pluck('label', 'key')->all();
 
         $bad = [];
@@ -841,7 +878,7 @@ class SystemHealth
 
     // ───────────────────────── کمکی ─────────────────────────
 
-    public function heartbeatAt(): ?\Illuminate\Support\Carbon
+    public function heartbeatAt(): ?Carbon
     {
         try {
             $path = storage_path('app/'.self::HEARTBEAT);
@@ -850,7 +887,7 @@ class SystemHealth
                 return null;
             }
 
-            return \Illuminate\Support\Carbon::parse(trim(File::get($path)));
+            return Carbon::parse(trim(File::get($path)));
         } catch (\Throwable) {
             return null;
         }
@@ -867,7 +904,7 @@ class SystemHealth
                 if (! $match($e)) {
                     continue;
                 }
-                if (! empty($e['at']) && \Illuminate\Support\Carbon::parse($e['at'])->lt($since)) {
+                if (! empty($e['at']) && Carbon::parse($e['at'])->lt($since)) {
                     continue;
                 }
                 $n++;
@@ -885,6 +922,23 @@ class SystemHealth
      *                                                            کامل است، چون همان متن به بله و ایمیل هم می‌رود که لینکِ
      *                                                            پنل در آن‌ها به کار نمی‌آید.
      */
+    private function billingJobs(): array
+    {
+        $problems = [];
+        foreach (['services:renew-due' => 45, 'services:lifecycle' => 20, 'cloud:meter' => 90] as $job => $minutes) {
+            $run = BillingRunMonitor::read($job);
+            if (empty($run['finished_at']) || Carbon::parse($run['finished_at'])->lt(now()->subMinutes($minutes))
+                || ($run['errors'] ?? 0) > 0 || ($run['counts']['pending'] ?? 0) > 0) {
+                $problems[] = $job;
+            }
+        }
+
+        return $this->row('billing_jobs', $problems === [], $problems === [] ? 'ok' : 'warn',
+            'اجرای تمدید و تعلیق', $problems === [] ? 'اجرای اخیر کارهای مالی بدون خطا ثبت شده است.'
+                : 'اجرای موفق یا تأیید عملیات باقی مانده است: '.implode('، ', $problems),
+            [['label' => 'پیگیری فاکتورها', 'url' => '/admin/calendar']]);
+    }
+
     private function row(string $key, bool $ok, string $level, string $title, string $detail, array $links = []): array
     {
         return compact('key', 'ok', 'level', 'title', 'detail', 'links');
@@ -914,12 +968,12 @@ class SystemHealth
     private function contentQueue(): array
     {
         try {
-            $scheduled = \App\Models\Post::query()
+            $scheduled = Post::query()
                 ->where('status', 'draft')
                 ->where('published_at', '>', now())
                 ->count();
 
-            $published = \App\Models\Post::where('status', 'published')->count();
+            $published = Post::where('status', 'published')->count();
         } catch (\Throwable $e) {
             // جدول هنوز مهاجرت نشده — این چک نباید کلِ صفحهٔ سلامت را بخواباند
             return $this->row('content', true, 'ok', 'صف محتوا', 'جدول محتوا هنوز ساخته نشده.');
@@ -953,10 +1007,10 @@ class SystemHealth
                 .'به `resources/content/` موضوع اضافه کن.', $links);
         }
 
-        $next = \App\Models\Post::where('status', 'draft')
+        $next = Post::where('status', 'draft')
             ->where('published_at', '>', now())->min('published_at');
 
         return $this->row('content', true, 'ok', 'صف محتوا',
-            "{$scheduled} مطلب زمان‌بندی‌شده · بعدی: ".\Illuminate\Support\Carbon::parse($next)->format('Y-m-d H:i'));
+            "{$scheduled} مطلب زمان‌بندی‌شده · بعدی: ".Carbon::parse($next)->format('Y-m-d H:i'));
     }
 }
