@@ -26,15 +26,6 @@ class IranianTldPriceGuardTest extends TestCase
         Http::swap(new Factory);
         Http::fake([
             '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
-            '*/resellers*' => Http::response(['code' => 0, 'data' => ['vatperc' => 0]], 200),
-            '*/domains/prices*' => function ($request) {
-                parse_str(parse_url($request->url(), PHP_URL_QUERY), $query);
-
-                return Http::response(['code' => 0, 'data' => ['price' => ['reseller' => [
-                    'price' => ($query['domain_extension'] ?? '') === 'ir' ? 65.0 : 10.0,
-                    'currency' => 'EUR',
-                ]]]], 200);
-            },
             '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [
                 ['domain' => 'sn7price9check4base.ir', 'status' => 'free',
                     'price' => ['reseller' => ['price' => 65.0, 'currency' => 'EUR']]],
@@ -48,6 +39,8 @@ class IranianTldPriceGuardTest extends TestCase
             'services.openprovider.username' => 'u',
             'services.openprovider.password' => 'p',
             'services.openprovider.base_url' => 'https://api.example.test/v1beta',
+            'domain_pricing.supplier_vat_pct' => 0,
+            'domain_pricing.supplier_fee_pct' => 0,
         ]);
         \App\Models\Setting::put('pricing_rate_override', '100000');
     }
