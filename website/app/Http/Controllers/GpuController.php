@@ -139,6 +139,8 @@ class GpuController extends Controller
             // کفِ اعتبارِ شروع از همان ثابتی که فروشگاه می‌خوانَد
             'minHours'  => CloudPlan::HOURLY_START_MIN_HOURS,
             'priority'  => app(SaladClient::class)->isConfigured(),
+            'jupyterSalesPaused' => Schema::hasTable('settings')
+                && \App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1',
         ]);
     }
 }

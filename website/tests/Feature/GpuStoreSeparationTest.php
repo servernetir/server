@@ -32,6 +32,39 @@ class GpuStoreSeparationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_jupyter_sales_pause_blocks_new_checkout_without_changing_runtime_compatibility(): void
+    {
+        $this->bothLines();
+        $plan = CloudPlan::where('provider', 'salad')->firstOrFail();
+        CloudImage::create([
+            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-jupyter']['ref'],
+            'key' => 'gpu-jupyter', 'kind' => 'app', 'family' => 'gpu-jupyter',
+            'label' => 'Jupyter', 'arch' => 'x86', 'is_active' => true,
+        ]);
+        \App\Models\Setting::put('salad_jupyter_sales_paused', '1');
+        $customer = $this->customer();
+        \App\Models\CreditEntry::create([
+            'customer_id' => $customer->id, 'currency_code' => 'IRT', 'amount' => 500000,
+            'balance_after' => 500000, 'reason' => 'topup', 'source_type' => \App\Models\Customer::class,
+            'source_id' => $customer->id, 'note' => 'isolated Jupyter sales pause fixture',
+        ]);
+        $this->assertNotContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertContains('gpu-ollama', CloudStoreController::imageKeysFor($plan, 'app'));
+        $this->assertNotNull(CloudImage::compatibleRefFor($plan, 'gpu-jupyter'));
+        $this->actingAs($customer, 'customer')->post('/account/cloud-store', [
+            'location' => 'global-gpu', 'plan' => $plan->slug,
+            'image' => 'gpu-jupyter', 'cycle' => 'monthly', 'billing_mode' => 'hourly',
+        ])->assertRedirect()->assertSessionHasErrors('image');
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertSame(500000, $customer->fresh()->creditBalance('IRT'));
+        Http::assertNothingSent();
+        $html = $this->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+        $this->assertStringContainsString(__('ui.gpu_jupyter_sales_paused'), $html);
+        \App\Models\Setting::put('salad_jupyter_sales_paused', '0');
+        $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+    }
+
     public function test_incompatible_comfyui_is_unavailable_before_payment_and_provisioning(): void
     {
         $this->bothLines();
