@@ -169,7 +169,7 @@ class DomainController extends Controller
             'ns'   => ['required', 'array', 'min:2', 'max:5'],
             'ns.*' => ['nullable', 'string', 'max:253', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
         ], [], [
-            'ns' => 'نام‌سرورها',
+            'ns' => __('panel.field_ns'),
         ]);
 
         $ns = array_values(array_filter(array_map('trim', $data['ns'])));
@@ -256,8 +256,8 @@ class DomainController extends Controller
         // رجیسترار خودش تمدید کند، برای دامنه‌ای که مشتری پولش را نداده هم ما
         // پول می‌دهیم و راهی برای پس‌گرفتنش نیست.
         return back()->with('ok', $on
-            ? 'تمدیدِ خودکار روشن شد. پیش از سررسید فاکتور صادر می‌شود.'
-            : 'تمدیدِ خودکار خاموش شد.');
+            ? __('panel.domain_autorenew_on')
+            : __('panel.domain_autorenew_off'));
     }
 
     /**
@@ -296,7 +296,7 @@ class DomainController extends Controller
 
         $years = (int) $request->validate([
             'years' => ['required', 'integer', 'min:1', 'max:5'],
-        ], [], ['years' => 'مدتِ تمدید'])['years'];
+        ], [], ['years' => __('panel.field_years')])['years'];
 
         // قفل + بازبینی زیرِ قفل: دو کلیکِ هم‌زمان (یا دوبار زدنِ دکمه) نباید
         // دو فاکتور بسازد — فاکتورِ باز همیشه بازمصرف می‌شود.
@@ -551,14 +551,13 @@ class DomainController extends Controller
         */
         if (! \App\Services\Domain\DomainSearch::sells($gateTld)) {
             return back()->withErrors(
-                'پسوندِ «.'.$gateTld.'» فعلاً از این مسیر فروخته نمی‌شود. پولی از شما کسر نشد.'
+                __('panel.domain_tld_off', ['tld' => $gateTld])
             );
         }
 
         if (\App\Services\Domain\TldGate::isBlocked($gateTld)) {
             return back()->withErrors(
-                'ثبتِ پسوندِ «.'.$gateTld.'» موقتاً از سمتِ ما مقدور نیست و در حالِ پیگیری است. '
-                .'پولی از شما کسر نشد. لطفاً پسوندِ دیگری انتخاب کنید یا کمی بعد دوباره تلاش کنید.'
+                __('panel.domain_tld_pending', ['tld' => $gateTld])
             );
         }
 
@@ -759,7 +758,7 @@ class DomainController extends Controller
     {
         $data = $request->validate([
             'domain' => ['required', 'string', 'max:253'],
-        ], [], ['domain' => 'نامِ دامنه']);
+        ], [], ['domain' => __('panel.field_domain')]);
 
         [$sld, $tld] = Domain::splitFqdn(strtolower(trim($data['domain'])));
 
@@ -878,7 +877,7 @@ class DomainController extends Controller
 
         $data = $request->validate([
             'auth_code' => ['required', 'string', 'min:4', 'max:190'],
-        ], [], ['auth_code' => 'کدِ انتقال']);
+        ], [], ['auth_code' => __('panel.field_auth_code')]);
 
         $res = $transfers->submit($domain, $data['auth_code']);
 
@@ -890,7 +889,7 @@ class DomainController extends Controller
         }
 
         return back()->with('ok',
-            'درخواستِ انتقال ثبت شد. تأییدِ رجیسترارِ فعلی معمولاً تا ۵ روزِ کاری طول می‌کشد.');
+            __('panel.domain_transfer_wait'));
     }
 
     // ═══════════════════════ کمکی ═══════════════════════
@@ -913,6 +912,6 @@ class DomainController extends Controller
     {
         \Illuminate\Support\Facades\Log::info('domain op failed', ['msg' => $raw]);
 
-        return 'انجام نشد. اگر تکرار شد با پشتیبانی تماس بگیرید.';
+        return __('panel.operation_failed');
     }
 }

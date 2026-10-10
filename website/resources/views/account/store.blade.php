@@ -1,5 +1,5 @@
 @extends('panel.layout')
-@section('title', 'خرید سرویس — سرورنت')
+@section('title', __('ui.sto_h').' — '.__('ui.inv_brand'))
 
 @section('panel')
 
@@ -11,10 +11,10 @@
 </div>
 
 @if(session('ok'))
-  <div class="pnl-sec" style="border-color:var(--ok-line)"><div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ session('ok') }}</div></div>
+  <div class="pnl-sec" style="border-color:var(--ok-line)"><div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text(session('ok')) }}</div></div>
 @endif
 @if($errors->any())
-  <div class="pnl-sec" style="border-color:var(--danger-line)"><div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div></div>
+  <div class="pnl-sec" style="border-color:var(--danger-line)"><div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">@foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach</div></div>
 @endif
 
 @if($byCategory->isEmpty())
@@ -24,21 +24,21 @@
 @else
   @foreach($byCategory as $cat => $items)
     <section class="pnl-sec">
-      <div class="pnl-sec-h"><h2>{{ \App\Models\Product::CATEGORIES[$cat] ?? $cat }}</h2></div>
+      <div class="pnl-sec-h"><h2>{{ __('panel.category_'.$cat) }}</h2></div>
       <div class="pnl-sec-b">
         <div class="store-grid">
           @foreach($items as $p)
             <form method="POST" action="{{ lroute('account.order', $p) }}" class="store-card" id="pkg-{{ $p->slug }}">
               @csrf
               <div class="store-card-h">
-                <b>{{ $p->name }}</b>
-                @if($p->description)<small>{{ \Illuminate\Support\Str::limit($p->description, 90) }}</small>@endif
+                <b>{{ $p->displayName() }}</b>
+                @if($p->description)<small>{{ \Illuminate\Support\Str::limit(\App\Support\PanelText::text($p->description), 90) }}</small>@endif
               </div>
 
               @if(!empty($p->specs))
                 <ul class="store-specs">
                   @foreach($p->specs as $spec)
-                    <li><svg class="icon"><use href="#i-check"/></svg><span>{{ $spec['label'] }}@if(!empty($spec['value'])): <b>{{ $spec['value'] }}</b>@endif</span></li>
+                    <li><svg class="icon"><use href="#i-check"/></svg><span>{{ \App\Support\PanelText::text($spec['label']) }}@if(!empty($spec['value'])): <b>{{ \App\Support\PanelText::text($spec['value']) }}</b>@endif</span></li>
                   @endforeach
                 </ul>
               @endif

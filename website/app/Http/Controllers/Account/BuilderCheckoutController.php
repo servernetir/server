@@ -269,17 +269,17 @@ class BuilderCheckoutController extends Controller
         [$sld, $tld] = Domain::splitFqdn($fqdn);
 
         if ($sld === '' || $tld === '') {
-            return [null, 'دامنه را کامل وارد کنید (مثلاً mysite.com).'];
+            return [null, __('panel.builder_domain_full')];
         }
 
         if (! DomainSearch::sells($tld)) {
-            return [null, 'پسوندِ «.'.$tld.'» از سایت‌ساز قابلِ ثبت نیست؛ پسوندِ بین‌المللی مثل .com انتخاب کنید.'];
+            return [null, __('panel.builder_tld', ['tld' => $tld])];
         }
 
         try {
             $rows = $search->search($sld, [$tld]);
         } catch (\Throwable) {
-            return [null, 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'];
+            return [null, __('panel.builder_lookup')];
         }
 
         foreach ($rows as $row) {
@@ -289,18 +289,18 @@ class BuilderCheckoutController extends Controller
 
             if (! ($row['available'] ?? false)) {
                 return [null, ($row['state'] ?? '') === DomainSearch::STATE_UNCHECKED
-                    ? 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'
-                    : 'این دامنه قبلاً ثبت شده است؛ نامِ دیگری انتخاب کنید.'];
+                    ? __('panel.builder_lookup')
+                    : __('panel.builder_taken')];
             }
 
             if (blank($row['quote_id'] ?? null)) {
-                return [null, 'برای این دامنه قیمتِ قابلِ اتکایی نداریم؛ با پشتیبانی تماس بگیرید.'];
+                return [null, __('panel.builder_price')];
             }
 
             return [$row, null];
         }
 
-        return [null, 'استعلامِ دامنه در این لحظه ممکن نیست؛ کمی بعد دوباره تلاش کنید.'];
+        return [null, __('panel.builder_lookup')];
     }
 
     private function rp(): string

@@ -117,10 +117,10 @@
   <div class="pnl-sec-b">
 
     @if(session('ok'))
-      <p class="vf-msg ok">{{ session('ok') }}</p>
+      <p class="vf-msg ok">{{ \App\Support\PanelText::text(session('ok')) }}</p>
     @endif
     @if($errors->any())
-      <div class="vf-msg bad">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
+      <div class="vf-msg bad">@foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach</div>
     @endif
 
     @if($st === 'verified')
@@ -128,7 +128,7 @@
     @elseif($st === 'pending')
       <p class="vf-note">⏳ {{ __('ui.prof_vf_pending') }}</p>
     @elseif($st === 'rejected')
-      <p class="vf-note bad">❌ {{ __('ui.prof_vf_rejected') }}@if($profile->reject_reason ?? null): {{ $profile->reject_reason }}@endif. {{ __('ui.prof_vf_resubmit') }}</p>
+      <p class="vf-note bad">❌ {{ __('ui.prof_vf_rejected') }}@if($profile->reject_reason ?? null): {{ \App\Support\CustomerMessage::fragment($profile->reject_reason) }}@endif. {{ __('ui.prof_vf_resubmit') }}</p>
     @else
       <p class="vf-note">{!! __('ui.prof_vf_intro') !!}</p>
     @endif

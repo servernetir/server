@@ -12,13 +12,13 @@
 
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
-    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ session('ok') }}</div>
+    <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">
-      @foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach
+      @foreach($errors->all() as $e)<div>{{ \App\Support\PanelText::text($e) }}</div>@endforeach
     </div>
   </div>
 @endif
@@ -326,7 +326,7 @@
         @foreach(\App\Models\CustomerApiToken::ABILITIES as $key => $desc)
           <label class="sec-chk">
             <input type="checkbox" name="abilities[]" value="{{ $key }}" @checked($key === 'read')>
-            <span><code dir="ltr">{{ $key }}</code> — {{ $desc }}</span>
+            <span><code dir="ltr">{{ $key }}</code> — {{ __('panel.ability_'.str_replace(':', '_', $key)) }}</span>
           </label>
         @endforeach
       </div>

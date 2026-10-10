@@ -114,8 +114,8 @@ class VerificationController extends Controller
         ], $fileRule);
 
         $data = $request->validate($rules, [], [
-            'company_name' => 'نام شرکت', 'rep_first_name' => 'نامِ نماینده', 'rep_last_name' => 'نام‌خانوادگیِ نماینده',
-            'doc_letter' => 'معرفی‌نامهٔ نماینده', 'doc_articles' => 'اساسنامه',
+            'company_name' => __('panel.field_company'), 'rep_first_name' => __('panel.field_first'), 'rep_last_name' => __('panel.field_last'),
+            'doc_letter' => __('panel.field_letter'), 'doc_articles' => __('panel.field_articles'),
             'first_name' => __('ui.prof_first_name'), 'last_name' => __('ui.prof_last_name'),
             'country' => __('ui.prof_country'), 'birth_date' => __('ui.prof_birth_date'),
             'address' => __('ui.prof_address'), 'city' => __('ui.prof_city'),

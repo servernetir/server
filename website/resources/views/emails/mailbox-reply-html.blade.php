@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="{{ $mailLocale }}" dir="{{ $mailLocale === 'fa' ? 'rtl' : 'ltr' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,7 +36,7 @@
         نقلِ نامهٔ اصلی. عمداً کم‌رنگ و با خطِ کناری، تا جوابِ تازه اول دیده
         شود نه بعد از یک دیوارِ متنِ تکراری.
       --}}
-      <div style="margin-top:24px;color:#777;font-size:12.5px">در پاسخ به (بخشی از نامهٔ شما):</div>
+      <div style="margin-top:24px;color:#777;font-size:12.5px">{{ trans('panel.quoted', [], $mailLocale) }}</div>
       <blockquote style="margin:8px 0 0;padding:2px 12px;border-inline-start:3px solid #dddddd;color:#666;font-size:13px;line-height:1.8">
         {!! nl2br(e($quoted)) !!}
       </blockquote>

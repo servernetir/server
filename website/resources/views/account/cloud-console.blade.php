@@ -90,7 +90,7 @@
       {{-- ⚠️ `lroute` و نه `route` — وگرنه مشتریِ /en و /tr به پنلِ فارسی می‌رود --}}
       <a href="{{ lroute('account.home') }}">{{ __('ui.vnc_crumb_panel') }}</a><span>/</span>
       <a href="{{ lroute('account.servers') }}">{{ __('ui.vnc_crumb_services') }}</a><span>/</span>
-      <a href="{{ lroute('account.cloud.show', $service) }}">{{ $service->name }}</a><span>/</span>
+      <a href="{{ lroute('account.cloud.show', $service) }}">{{ \App\Support\PanelText::text($service->name) }}</a><span>/</span>
       <span>{{ __('ui.vnc_crumb_console') }}</span>
     </nav>
     <h1>{{ __('ui.vnc_h1') }}</h1>
