@@ -32,6 +32,29 @@ class CloudInstance extends Model
         'ready_notified_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $instance) {
+            if (! $instance->isGpuApp()) {
+                return;
+            }
+            $meta = $instance->meta ?? [];
+            $previous = $instance->exists ? self::whereKey($instance->id)->value('meta') : null;
+            if (is_string($previous)) {
+                $previous = json_decode($previous, true) ?: [];
+            }
+            // Preserve delivery history even when an older poll overwrites other metadata.
+            $first = data_get($previous, 'gpu_first_ready_at') ?? ($meta['gpu_first_ready_at'] ?? null)
+                ?? $instance->ready_notified_at?->toIso8601String();
+            if ($first || $instance->readyForNotice()) {
+                $meta['gpu_first_ready_at'] = $first ?: now()->toIso8601String();
+                $instance->meta = $meta;
+                Service::whereKey($instance->service_id)->whereNull('provision_meta->gpu_first_ready_at')
+                    ->update(['provision_meta->gpu_first_ready_at' => $meta['gpu_first_ready_at']]);
+            }
+        });
+    }
+
     public function service()
     {
         return $this->belongsTo(Service::class);

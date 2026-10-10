@@ -101,7 +101,9 @@ class CloudDeliveryWatch
             ->get();
 
         return $rows
-            ->filter(fn (Service $s) => self::waitingSince($s)?->lt($cutoff) === true)
+            ->filter(fn (Service $s) => self::waitingSince($s)?->lt(
+                now()->subMinutes($minutes === self::STALLED_MINUTES && str_starts_with((string) $s->cloud_image_key, 'gpu-')
+                    ? GpuDeliveryRecovery::EXPECTED_MINUTES : $minutes)) === true)
             ->filter(fn (Service $s) => self::reasonFor($s) !== null)
             ->values();
     }
@@ -187,7 +189,16 @@ class CloudDeliveryWatch
             return 'سفارش نزدِ زیرساخت ثبت شد ولی هرگز به سرورِ واقعی تبدیل نشد.';
         }
 
-        if (blank($instance->ipv4)) {
+        if ($instance->isGpuApp() && ($instance->ready_notified_at || data_get($instance->meta, 'gpu_first_ready_at'))
+            && ! $instance->readyForNotice()) {
+            return null; // Migration after successful delivery is not a first-delivery failure.
+        }
+
+        if ($instance->isGpuApp() && ! $instance->readyForNotice()) {
+            return 'برنامهٔ GPU هنوز برای تحویل اولیه آماده نیست.';
+        }
+
+        if ($instance->isGpuApp() ? blank($instance->accessHost()) : blank($instance->ipv4)) {
             return 'سرور ساخته شد ولی هنوز IP ندارد.';
         }
 
