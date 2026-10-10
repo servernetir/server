@@ -57,6 +57,19 @@ return [
         'packages' => [],
         // Exact packageSpec + independently verified instanceSeries/cpu_kind.
         // These are not prices. No unverified CPU series is inferred globally.
-        'bindings' => [],
+        // Real receipt, customer delivery and lifecycle acceptance on 2026-10-10.
+        // Only these exact Manila packages are verified; both sale gates stay off.
+        'bindings' => [
+            'ph-manila-1|ph-manila-1-a|intel-c1m2-bgp-b2-s50-d0' => [
+                'series' => 's2', 'cpu_kind' => 'shared', 'verified_at' => 1791641733, 'delivery_verified' => true,
+                'spec' => ['cpu' => 1, 'memory' => 2, 'systemDiskSize' => 50, 'dataDiskSize' => 0,
+                    'freeFlow' => null, 'bandwidth' => 2, 'publicIpChargeMode' => 'PayByBandwidth'],
+            ],
+            'ph-manila-1|ph-manila-1-a|intel-c2m4-bgp-b5-s50-d100' => [
+                'series' => 's2', 'cpu_kind' => 'shared', 'verified_at' => 1791641733, 'delivery_verified' => true,
+                'spec' => ['cpu' => 2, 'memory' => 4, 'systemDiskSize' => 50, 'dataDiskSize' => 100,
+                    'freeFlow' => null, 'bandwidth' => 5, 'publicIpChargeMode' => 'PayByBandwidth'],
+            ],
+        ],
     ],
 ];
