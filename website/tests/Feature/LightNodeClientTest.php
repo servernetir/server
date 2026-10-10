@@ -108,6 +108,15 @@ class LightNodeClientTest extends TestCase
         Http::assertSent(fn ($r) => $r->header('x-open-token') === ['test-token'] && ! $r->hasHeader('Authorization'));
     }
 
+    public function test_generated_password_uses_the_common_live_reinstall_format(): void
+    {
+        $this->fake(); $this->manifest();
+        $this->assertTrue($this->client()->createServer($this->spec())['ok']);
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/instance/create')
+            && preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*@)[A-Za-z0-9@]{20}$/', $r['packageConfig']['password'])
+            && ! preg_match('/(.)\1\1/', $r['packageConfig']['password']));
+    }
+
     public function test_api_only_default_does_not_sell_saved_manual_quotes(): void
     {
         $this->fake(); $this->manifest();
@@ -138,7 +147,7 @@ class LightNodeClientTest extends TestCase
         $receipt = ['ecsResourceUUID' => 'ecs-sample', 'ecsStatus' => 'STARTED', 'ecsPendingStatus' => 'NONE',
             'publicIpAddress' => '203.0.113.10', 'regionCode' => 'ph-test', 'zoneCode' => 'ph-test-a',
             'cpu' => 2, 'memory' => 4, 'systemDiskSize' => 50, 'dataDiskSize' => 0,
-            'imageResourceUUID' => 'img-sample', 'internetChargeType' => 'PAY_BY_BANDWIDTH', 'bandwidth' => 5, 'instanceSeries' => 's2'];
+            'imageResourceUUID' => 'img-sample', 'internetChargeType' => 'PAY_BY_BAND_WIDTH', 'bandwidth' => 5, 'instanceSeries' => 's2'];
         $this->fake($overrides + ['*/package/list*' => Http::response(['packages' => [$package]]),
             '*/instance/detail*' => Http::response(['instance' => $receipt])]);
         $this->manifest();
@@ -234,11 +243,34 @@ class LightNodeClientTest extends TestCase
         $this->assertSame('public_calculator', $op->payload['_supplier_quote']['source']);
         $this->assertSame('running', $this->client()->serverStatus('ecs-sample')['status']);
         Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
-        Http::fake(['*/instance/detail*' => Http::response(['instance' => ['ecsStatus' => 'STARTED',
+        Http::fake(['*/instance/detail*' => Http::response(['instance' => ['ecsResourceUUID' => 'ecs-sample', 'ecsStatus' => 'STARTED',
             'ecsPendingStatus' => 'NONE', 'regionCode' => 'ph-test', 'zoneCode' => 'ph-test-a', 'cpu' => 2, 'memory' => 4,
-            'systemDiskSize' => 50, 'dataDiskSize' => 0, 'internetChargeType' => 'PAY_BY_BANDWIDTH', 'bandwidth' => 5,
+            'systemDiskSize' => 50, 'dataDiskSize' => 0, 'internetChargeType' => 'PAY_BY_BAND_WIDTH', 'bandwidth' => 5,
             'imageResourceUUID' => 'img-sample', 'instanceSeries' => 'g2']])]);
         $this->assertFalse($this->client()->serverStatus('ecs-sample')['ok']);
+    }
+
+    public function test_live_bandwidth_receipt_spelling_is_accepted_but_wrong_contract_is_not_delivered(): void
+    {
+        $this->publicPricing(); app(CloudCatalogSync::class)->sync('lightnode');
+        $this->assertTrue($this->client()->createServer($this->spec())['ok']);
+        $this->assertSame('running', $this->client()->serverStatus('ecs-sample')['status']);
+        // Sanitized shape of the real fixed-bandwidth acceptance receipt.
+        $receipt = ['ecsResourceUUID' => 'ecs-sample', 'ecsStatus' => 'STARTED', 'ecsPendingStatus' => 'NONE',
+            'publicIpAddress' => '203.0.113.10', 'regionCode' => 'ph-test', 'zoneCode' => 'ph-test-a',
+            'cpu' => 2, 'memory' => 4, 'systemDiskSize' => 50, 'dataDiskSize' => 0,
+            'imageResourceUUID' => 'img-sample', 'instanceSeries' => 's2',
+            'internetChargeType' => 'PAY_BY_BAND_WIDTH', 'bandwidth' => 5, 'limitFlow' => 'FALSE'];
+        foreach ([['internetChargeType' => 'PAY_BY_TRAFFIC'], ['internetChargeType' => 'PAY_BY_BANDWIDTH'],
+            ['bandwidth' => 2], ['dataDiskSize' => 100], ['instanceSeries' => 'g2']] as $change) {
+            Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
+            Http::fake(['*/instance/detail*' => Http::response(['instance' => array_replace($receipt, $change)])]);
+            $result = $this->client()->serverStatus('ecs-sample');
+            $this->assertFalse($result['ok']); $this->assertNull($result['ipv4']);
+        }
+        Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
+        Http::fake(['*/instance/detail*' => Http::response(['instance' => $receipt])]);
+        $this->assertSame('running', $this->client()->serverStatus('ecs-sample')['status']);
     }
 
     public function test_catalog_uses_reviewed_actual_hourly_rate_and_keeps_sale_closed(): void
@@ -395,7 +427,7 @@ class LightNodeClientTest extends TestCase
         $this->assertTrue($this->client()->createServer($spec)['ok']);
         Http::assertSent(fn ($r) => $r->method() === 'POST'
             && $r['packageConfig']['imageResourceUUID'] === 'win-regional'
-            && strlen($r['packageConfig']['password']) === 24 && ! isset($r['term']));
+            && strlen($r['packageConfig']['password']) === 20 && ! isset($r['term']));
     }
 
     public function test_complete_inventory_reads_every_page_even_if_row_count_means_page_count(): void

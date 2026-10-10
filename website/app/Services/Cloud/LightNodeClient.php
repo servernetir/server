@@ -417,14 +417,27 @@ class LightNodeClient implements CloudProvider
             if (($row['internetChargeType'] ?? '') !== 'PAY_BY_TRAFFIC'
                 || (int) ($row['freeFlow'] ?? 0) !== (int) $expected['freeFlow']
                 || ! in_array($row['limitFlow'] ?? null, [true, 'TRUE'], true)) { return false; }
-        } elseif (($row['internetChargeType'] ?? '') !== 'PAY_BY_BANDWIDTH'
+        } elseif (($row['internetChargeType'] ?? '') !== 'PAY_BY_BAND_WIDTH'
             || (int) ($row['bandwidth'] ?? 0) !== (int) ($expected['bandwidth'] ?? 0)) { return false; }
         $delivered = CloudInstance::where('provider', $this->slug())->where('provider_ref', $op->resource_ref)
             ->whereNotNull('ready_notified_at')->exists();
         return $delivered || ($row['imageResourceUUID'] ?? '') === $config['imageResourceUUID'];
     }
 
-    private function password(): string { return 'Sn9!'.bin2hex(random_bytes(10)); }
+    private function password(): string
+    {
+        // Use the common Linux/Windows reinstall format. The live Linux API
+        // rejected the previous 24-character format during acceptance.
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        do {
+            $password = '';
+            for ($i = 0; $i < 19; $i++) { $password .= $alphabet[random_int(0, strlen($alphabet) - 1)]; }
+            $at = random_int(0, 19);
+            $password = substr($password, 0, $at).'@'.substr($password, $at);
+        } while (! preg_match('/[A-Z]/', $password) || ! preg_match('/[a-z]/', $password)
+            || ! preg_match('/[0-9]/', $password) || preg_match('/(.)\1\1/', $password));
+        return $password;
+    }
 
     /** Poll without repeating a mutation; apply credentials only after SUCCESS. */
     private function reconcileLifecycle(string $ref): ?array
