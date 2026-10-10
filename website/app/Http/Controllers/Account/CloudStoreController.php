@@ -116,10 +116,17 @@ class CloudStoreController extends Controller
             return 0;
         }
 
-        $discount = (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
+        $discount = $plan->provider === 'salad' ? 0
+            : (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
+
+        if ($plan->provider === 'salad' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
+            $minimumHour = (int) (ceil($floor / 1_000_000
+                * app(\App\Services\Cloud\CloudPricing::class)->eurToToman() / 100) * 100);
+            $raw = max($raw, $minimumHour * \App\Services\Cloud\SaladClient::HOURS_PER_MONTH * $months);
+        }
 
         // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
         // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
@@ -904,7 +911,7 @@ class CloudStoreController extends Controller
                     'per' => self::monthlyEquivalent($offer, $cy),
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
-                    'save' => (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
+                    'save' => $offer->provider === 'salad' ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
                 ];
             }
 
