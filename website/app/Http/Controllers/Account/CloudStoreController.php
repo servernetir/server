@@ -1105,6 +1105,7 @@ class CloudStoreController extends Controller
             // فروشِ ساعتی (پیش‌پرداخت از کیفِ پول)
             'billing_mode' => ['nullable', 'string', Rule::in(['cycle', 'hourly'])],
             'on_credit_out' => ['nullable', 'string', Rule::in(['suspend', 'convert', 'terminate'])],
+            'quoted_hourly_irt' => ['nullable', 'integer', 'min:0'],
         ], [], [
             'location' => __('ui.cvb_a_location'), 'plan' => __('ui.cvb_a_plan'),
             'image' => __('ui.cvb_a_image'), 'cycle' => __('ui.cvb_a_cycle'),
@@ -1196,6 +1197,21 @@ class CloudStoreController extends Controller
 
         if ($price <= 0) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_price')]);
+        }
+
+        if ($offer->provider === 'salad') {
+            $quote = app(\App\Services\Cloud\SaladClient::class)->purchaseQuote((string) $offer->provider_ref);
+            if (! ($quote['ok'] ?? false)) {
+                $key = ($quote['reason'] ?? '') === 'capacity' ? 'cvb_gpu_capacity_changed' : 'cvb_gpu_price_unverified';
+                return back()->withInput()->withErrors(['plan' => __('ui.'.$key)]);
+            }
+            $effectiveRate = $wantsHourly ? $offer->hourlyIrt()
+                : $price / max(1, Service::monthsIn($cycle)) / \App\Services\Cloud\SaladClient::HOURS_PER_MONTH;
+            if ($effectiveRate < $quote['minimum_hourly_irt']
+                || ($wantsHourly && isset($data['quoted_hourly_irt'])
+                    && (int) $data['quoted_hourly_irt'] !== $offer->hourlyIrt())) {
+                return back()->withInput()->withErrors(['plan' => __('ui.cvb_gpu_price_changed')]);
+            }
         }
 
         $taxPct = self::taxPercent();

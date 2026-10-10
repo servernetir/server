@@ -24,6 +24,37 @@ class GpuDeliveryE2eTest extends CloudProvisionTest
         return [['gpu-comfyui', 3000], ['gpu-ollama', 11434], ['gpu-jupyter', 8888]];
     }
 
+    public static function rejectedPurchaseCases(): array
+    {
+        return [['price'], ['capacity'], ['unavailable'], ['changed-form']];
+    }
+
+    #[DataProvider('rejectedPurchaseCases')]
+    public function test_purchase_failure_keeps_the_wallet_and_creates_no_order(string $reason): void
+    {
+        [$plan, $fixture] = $this->seedGpu();
+        $customer = $fixture->customer;
+        $fixture->delete();
+        $credit = max(100000, $plan->hourlyStartMinIrt() * 2);
+        \App\Models\CreditEntry::create([
+            'customer_id' => $customer->id, 'currency_code' => 'IRT', 'amount' => $credit,
+            'balance_after' => $credit, 'reason' => 'topup', 'source_type' => \App\Models\Customer::class,
+            'source_id' => $customer->id, 'note' => 'isolated quote fixture',
+        ]);
+        Http::fake(['api.salad.com/*' => Http::response(['items' => [[
+            'id' => $plan->provider_ref, 'is_high_demand' => $reason === 'capacity',
+            'prices' => [['priority' => 'high', 'price' => $reason === 'price' ? '99' : '0.001']],
+        ]]], $reason === 'unavailable' ? 503 : 200)]);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.store.place'), [
+            'location' => 'global-gpu', 'plan' => $plan->slug, 'image' => 'gpu-ollama',
+            'cycle' => 'monthly', 'billing_mode' => 'hourly',
+            'quoted_hourly_irt' => $reason === 'changed-form' ? $plan->hourlyIrt() - 100 : $plan->hourlyIrt(),
+        ])->assertRedirect()->assertSessionHasErrors('plan');
+        $this->assertSame($credit, $customer->creditBalance('IRT'));
+        $this->assertSame(0, \App\Models\Service::where('customer_id', $customer->id)->count());
+        $this->assertSame(0, \App\Models\CreditEntry::where('customer_id', $customer->id)->where('amount', '<', 0)->count());
+    }
+
     #[DataProvider('gpuApps')]
     public function test_paid_checkout_runs_the_queue_and_delivers_each_gpu_application(string $key, int $port): void
     {
@@ -44,6 +75,13 @@ class GpuDeliveryE2eTest extends CloudProvisionTest
         $creates = 0;
         $sent = null;
         Http::fake(function ($request) use (&$ready, &$creates, &$sent) {
+            if (str_ends_with($request->url(), '/gpu-classes')) {
+                return Http::response(['items' => [[
+                    'id' => 'a1b2c3d4-0000-0000-0000-000000000001',
+                    'is_high_demand' => false,
+                    'prices' => [['priority' => 'high', 'price' => '0.001']],
+                ]]]);
+            }
             if ($request->method() === 'POST' && str_ends_with($request->url(), '/containers')) {
                 $creates++;
                 $sent = $request->data();

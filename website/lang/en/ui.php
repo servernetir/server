@@ -3233,4 +3233,8 @@ return [
     'cs_closed_h' => 'This order is closed',
     'cs_closed_p' => 'This order was cancelled or terminated and is no longer being prepared.',
     'cs_closed_refund_p' => 'Initial delivery did not complete. The order was automatically cancelled and the deducted amount was returned to your account credit.',
+    'cvb_gpu_price_unverified' => 'We cannot verify this GPU’s price and capacity right now. No payment was taken; please try again shortly.',
+    'cvb_gpu_capacity_changed' => 'This GPU’s capacity has changed and it cannot currently be ordered. No payment was taken; please select another card.',
+    'cvb_gpu_price_changed' => 'This GPU’s price has changed. No payment was taken; refresh the page and review the new price before paying.',
+    'cvb_gpu_sale_policy' => 'Allow about one hour for preparation. A definitive creation failure or no initial delivery within two hours of payment triggers cancellation and a full refund of deducted funds to your account credit. Price and capacity are checked before payment. A video-generation model is not preinstalled; save important data and outputs outside the service’s temporary disk.',
 ];

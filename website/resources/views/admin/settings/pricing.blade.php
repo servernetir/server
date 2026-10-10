@@ -77,6 +77,11 @@
                placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)">
         <small>روی بهایِ یوروییِ زیرساخت اعمال و بعد با نرخِ روز به تومان می‌آید.</small></label>
 
+      <label class="set-f">افزایش قیمت GPU نسبت به هزینه (٪)
+        <input type="number" name="cloud_margin_pct_salad" dir="ltr" step="1" min="0" max="500"
+               value="{{ $pricing['cloud_margin_pct_salad'] ?? '' }}" placeholder="خالی = درصد سرور ابری">
+        <small>فقط GPU؛ هزینه شامل نرخ کارت، CPU و RAM همراه آن، نرخ ارز و کارمزد انتقال است. این درصد افزایش بر هزینه است، نه سود خالص. نرخ سرویس‌های موجود خودکار تغییر نمی‌کند.</small></label>
+
       <label class="set-f">دامنه (٪)
         <input type="number" name="domain_margin_pct" dir="ltr" step="1" min="0" max="500"
                value="{{ $pricing['domain_margin_pct'] }}" placeholder="۰ (پیش‌فرض)">
