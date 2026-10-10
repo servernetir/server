@@ -196,15 +196,11 @@ trait SaladOperations
 
     // The CUDA 12.8 Dreamshaper image mounts workflows at /workflow/txt2img.
     // Copy them into sd1.5 as well to retain the endpoint already given to customers.
-    private const COMFYUI_LEGACY_ROUTES_COMMAND = <<<'SH'
-set -eu
-mkdir -p /workflows/sd1.5
-for file in /workflows/txt2img.* /workflows/img2img.*; do
-    if [ -f "$file" ]; then cp "$file" /workflows/sd1.5/; fi
-done
-test -f /workflows/sd1.5/txt2img.js || test -f /workflows/sd1.5/txt2img.ts
-exec ./comfyui-api
-SH;
+    private const COMFYUI_LEGACY_ROUTES_COMMAND = 'set -eu; mkdir -p /workflows/sd1.5; '
+        .'for file in /workflows/txt2img.* /workflows/img2img.*; do '
+        .'if [ -f "$file" ]; then cp "$file" /workflows/sd1.5/; fi; done; '
+        .'test -f /workflows/sd1.5/txt2img.js || test -f /workflows/sd1.5/txt2img.ts; '
+        .'exec ./comfyui-api';
 
     public const APPS = [
         /*
@@ -652,7 +648,7 @@ SH;
             $body['container']['environment_variables'] = $env;
         }
 
-        // Match the probes shipped with Salad's Dreamshaper ComfyUI recipe.
+        // Use HTTP probes for ComfyUI; the current create API caps failures at 20.
         // A running process can still be loading the checkpoint and warming up.
         if (($app['key'] ?? null) === 'gpu-comfyui') {
             $body['readiness_probe'] = [
@@ -662,8 +658,8 @@ SH;
             ];
             $body['startup_probe'] = [
                 'http' => ['path' => '/health', 'port' => 3000, 'scheme' => 'http', 'headers' => []],
-                'initial_delay_seconds' => 5, 'period_seconds' => 1, 'timeout_seconds' => 10,
-                'success_threshold' => 1, 'failure_threshold' => 100,
+                'initial_delay_seconds' => 5, 'period_seconds' => 5, 'timeout_seconds' => 10,
+                'success_threshold' => 1, 'failure_threshold' => 20,
             ];
         }
 
