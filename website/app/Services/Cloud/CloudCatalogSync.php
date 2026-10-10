@@ -255,7 +255,7 @@ class CloudCatalogSync
             $disk = max(1, (int) ($r['disk_gb'] ?? 10));
             $cpuKind = ($r['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
 
-            $price = $this->pricing->priceFor($cost);
+            $price = $this->pricing->priceFor($cost, $provider);
 
             // ── ردگیریِ تغییرِ بها ──
             // ⚠️ چرا لازم است: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
@@ -543,7 +543,7 @@ class CloudCatalogSync
 
         CloudPlan::query()->where('cost_eur_cents', '>', 0)->chunkById(200, function ($plans) use (&$n) {
             foreach ($plans as $plan) {
-                $price = $this->pricing->priceFor((int) $plan->cost_eur_cents);
+                $price = $this->pricing->priceFor((int) $plan->cost_eur_cents, $plan->provider);
 
                 if ($price['eur_cents'] !== (int) $plan->price_eur_cents || $price['irt'] !== (int) $plan->price_irt) {
                     $plan->update([

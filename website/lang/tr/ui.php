@@ -3234,4 +3234,9 @@ return [
     'cs_closed_h' => 'Bu sipariş kapatıldı',
     'cs_closed_p' => 'Bu sipariş iptal edildi veya sonlandırıldı; artık hazırlanıyor değil.',
     'cs_closed_refund_p' => 'İlk teslimat tamamlanmadı. Sipariş otomatik olarak iptal edildi ve kesilen tutar hesap bakiyenize geri aktarıldı.',
+    'cvb_gpu_price_unverified' => 'Bu GPU’nun fiyatını ve kapasitesini şu anda doğrulayamıyoruz. Ücret alınmadı; lütfen kısa süre sonra tekrar deneyin.',
+    'cvb_gpu_capacity_changed' => 'Bu GPU’nun kapasitesi değişti ve şu anda sipariş edilemiyor. Ücret alınmadı; başka bir kart seçin.',
+    'cvb_gpu_price_changed' => 'Bu GPU’nun fiyatı değişti. Ücret alınmadı; sayfayı yenileyip ödeme öncesi yeni fiyatı inceleyin.',
+    'cvb_gpu_sale_policy' => 'Hazırlık için yaklaşık bir saat ayırın. Kesin oluşturma hatası veya ödemeden sonraki iki saat içinde ilk teslimatın yapılamaması, iptal ve kesilen tutarın hesap kredisine tam iadesini başlatır. Fiyat ve kapasite ödeme öncesi kontrol edilir. Video üretim modeli hazır kurulu değildir; önemli verileri ve çıktıları hizmetin geçici diski dışında saklayın.',
+    'gpu_jupyter_sales_paused' => 'Kod çalıştırma bağlantısı doğrulanana kadar yeni Jupyter siparişleri geçici olarak durdurulmuştur. Mevcut hizmetleriniz değişmez.',
 ];

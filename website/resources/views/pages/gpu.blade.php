@@ -265,7 +265,7 @@
       <div class="gpu-apps-grid">
         <div class="gpu-app"><b>Ollama <small>Llama 3.1</small></b><p>{{ __('ui.gpu_app_llm_d') }}</p></div>
         <div class="gpu-app"><b>ComfyUI <small>Stable Diffusion</small></b><p>{{ __('ui.gpu_app_img_d') }}</p></div>
-        <div class="gpu-app"><b>Jupyter <small>PyTorch</small></b><p>{{ __('ui.gpu_app_nb_d') }}</p></div>
+        <div class="gpu-app"><b>Jupyter <small>PyTorch</small></b><p>{{ ($jupyterSalesPaused ?? false) ? __('ui.gpu_jupyter_sales_paused') : __('ui.gpu_app_nb_d') }}</p></div>
       </div>
     </div>
 

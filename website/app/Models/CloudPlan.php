@@ -466,7 +466,7 @@ class CloudPlan extends Model
             return 0;
         }
 
-        $margin = app(\App\Services\Cloud\CloudPricing::class)->marginPct();
+        $margin = app(\App\Services\Cloud\CloudPricing::class)->marginPct($this->provider);
 
         return (int) ceil($cost * (1 + $margin / 100));
     }
