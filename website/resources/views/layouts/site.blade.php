@@ -92,9 +92,35 @@
 <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ asset('assets/img/og.png') }}">
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-web.woff2') }}" as="font" type="font/woff2" crossorigin>
+@php
+    // A title-only font preserves the original glyphs and metrics.
+    // Source-font or title changes safely fall back until the subset is rebuilt.
+    $heroFont = 'assets/font/woff2/IRANSans-hero-20261010.woff2';
+    $heroFontPath = public_asset_path($heroFont);
+    $heroFontSource = public_asset_path('assets/font/woff2/IRANSans-Bold-web.woff2');
+    $heroTextHashes = ['fa' => 'daf1f2e8e29bff2ae16d5b6aab750bb24c5059602feca82250c44496ccb75210', 'en' => '6024c94f0dca06eda3c93bd40aeaec2a12adbd5e84243dab1e4ff4f2ee13acf8', 'tr' => 'abaad352927b32e8829dcb52f4dbadb8279336682e9f1615f3f1c3a8512b7cb9'];
+    $useHeroFont = request()->routeIs('home', 'en.home', 'tr.home')
+        && $heroFontPath && $heroFontSource
+        && @filemtime($heroFontPath) >= @filemtime($heroFontSource)
+        && hash('sha256', __('ui.hero_h1a')."\n".__('ui.hero_h1b')) === ($heroTextHashes[app()->getLocale()] ?? '');
+@endphp
+@if($useHeroFont)
+<link rel="preload" href="{{ asset_ver($heroFont) }}" as="font" type="font/woff2" crossorigin fetchpriority="high">
+<style id="hero-font">@font-face{font-family:IRANSansHero;src:url('{{ asset_ver($heroFont) }}') format('woff2');font-weight:700;font-style:normal;font-display:swap}body .hero h1{font-family:IRANSansHero,var(--font-disp)}</style>
+@else
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-Bold-web.woff2') }}" as="font" type="font/woff2" crossorigin>
+@endif
 <script>(function(){try{var m=document.cookie.match(/(?:^|;\s*)snet-theme=(light|dark)/);var t=m?m[1]:localStorage.getItem('snet-theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
-<link rel="stylesheet" href="{{ asset_ver('assets/css/site.css') }}">
+@php
+    // Prefer the generated CSS only while it is at least as new as its source.
+    // A later source-only deployment automatically falls back to readable CSS.
+    $siteCssSource = public_asset_path('assets/css/site.css');
+    $siteCssMin = public_asset_path('assets/css/site.min.css');
+    $siteCss = $siteCssSource && $siteCssMin
+        && @filemtime($siteCssMin) >= @filemtime($siteCssSource)
+        ? 'assets/css/site.min.css' : 'assets/css/site.css';
+@endphp
+<link rel="stylesheet" href="{{ asset_ver($siteCss) }}">
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')
 @php
