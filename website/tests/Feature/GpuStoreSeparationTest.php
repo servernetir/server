@@ -32,6 +32,17 @@ class GpuStoreSeparationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_gpu_cycle_prices_do_not_advertise_vps_discounts(): void
+    {
+        $this->bothLines();
+        $html = $this->actingAs($this->customer(), 'customer')
+            ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+        $discountBadge = '~<em>[^<]*'.preg_quote(__('ui.cvb_save_suf'), '~').'</em>~';
+        $this->assertDoesNotMatchRegularExpression($discountBadge, $html);
+        $vps = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression($discountBadge, $vps);
+    }
+
     public function test_jupyter_sales_pause_blocks_new_checkout_without_changing_runtime_compatibility(): void
     {
         $this->bothLines();
