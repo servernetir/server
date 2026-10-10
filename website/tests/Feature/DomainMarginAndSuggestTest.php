@@ -23,6 +23,7 @@ class DomainMarginAndSuggestTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'u');
         config()->set('services.openprovider.password', 'p');
@@ -57,13 +58,13 @@ class DomainMarginAndSuggestTest extends TestCase
 
     // ═══════════════ حاشیهٔ سود ═══════════════
 
-    /** 🔴 پیش‌فرض باید **صفر** باشد — نه ۲۵٪ نامرئی */
-    public function test_the_default_margin_is_zero(): void
+    /** The configured margin is still subject to the explicit minimum cost floor. */
+    public function test_the_default_margin_respects_the_minimum_cost_floor(): void
     {
         $this->fake(10.0);
 
-        // ۱۰ یورو × ۲۰۰٬۰۰۰ = ۲٬۰۰۰٬۰۰۰ و هیچ اضافه‌ای
-        $this->assertSame(2000000, $this->first()['price_toman']);
+        // 10 EUR × 200000 × 1.08 minimum margin = 2160000.
+        $this->assertSame(2160000, $this->first()['price_toman']);
     }
 
     /** مدیر باید بتواند از تنظیمات عوضش کند */
@@ -85,14 +86,14 @@ class DomainMarginAndSuggestTest extends TestCase
         $this->assertSame(2200000, $this->first()['price_toman']);
     }
 
-    /** صفرِ صریح باید صفر بماند، نه اینکه به پیش‌فرض برگردد */
-    public function test_an_explicit_zero_stays_zero(): void
+    /** An explicit zero cannot turn off the minimum margin. */
+    public function test_an_explicit_zero_cannot_disable_the_minimum_cost_floor(): void
     {
         config()->set('services.openprovider.margin', ['default' => 40]);
         Setting::put('domain_margin_pct', '0');
         $this->fake(10.0);
 
-        $this->assertSame(2000000, $this->first()['price_toman']);
+        $this->assertSame(2160000, $this->first()['price_toman']);
     }
 
     // ═══════════════ ثبت، تمدید، انتقال ═══════════════
@@ -110,14 +111,15 @@ class DomainMarginAndSuggestTest extends TestCase
         $this->assertSame(2420000, $r['transfer_toman']);   // ۱۱ × ۲۰۰k × ۱٫۱
     }
 
-    /** اگر رسیلری قیمتِ انتقال ندهد، قیمتِ ثبت جایگزین می‌شود */
-    public function test_a_missing_transfer_price_falls_back_to_the_register_price(): void
+    /** Missing operation prices stay unavailable. */
+    public function test_a_missing_transfer_price_is_not_replaced_by_the_register_price(): void
     {
         $this->fake(10.0);
 
         $r = $this->first();
 
-        $this->assertSame($r['price_toman'], $r['transfer_toman']);
+        $this->assertNull($r['transfer_toman']);
+        $this->assertNull($r['renew_toman']);
     }
 
     // ═══════════════ پیشنهادِ پسوند ═══════════════

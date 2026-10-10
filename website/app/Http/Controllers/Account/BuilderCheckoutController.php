@@ -145,9 +145,11 @@ class BuilderCheckoutController extends Controller
         $cyclePrice = $product->priceForCycle('monthly');
         $taxPct = CloudStoreController::taxPercent();
 
+        $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
+        $liveQuote = $pricing->quote($sld, $tld, 'create');
         $invoice = null;
 
-        DB::transaction(function () use ($customer, $product, $quote, $existing, $server, $cyclePrice, $taxPct, $sld, $tld, $ref, &$invoice) {
+        DB::transaction(function () use ($customer, $product, $quote, $existing, $server, $cyclePrice, $taxPct, $sld, $tld, $ref, $pricing, $liveQuote, &$invoice) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
@@ -181,10 +183,10 @@ class BuilderCheckoutController extends Controller
                     // PaymentService بعد از تسویه پرچم را pending می‌کند.
                     'provision_status' => 'none',
                     'period_years'     => 1,
-                    'price_toman'      => (int) $quote->sell_toman,
-                    'renew_toman'      => (int) ($quote->renew_toman ?: $quote->sell_toman),
-                    'cost_amount'      => (int) $quote->cost_amount,
-                    'cost_currency'    => (string) $quote->cost_currency,
+                    'price_toman'      => (int) $liveQuote['sell_toman'],
+                    'renew_toman'      => (int) $quote->renew_toman,
+                    'cost_amount'      => (int) $liveQuote['cost_amount'],
+                    'cost_currency'    => (string) $liveQuote['currency'],
                     'quote_id'         => $quote->id,
                     'name_servers'     => $ns,
                 ]);
@@ -192,16 +194,18 @@ class BuilderCheckoutController extends Controller
                 $domain->forceFill([
                     'customer_id' => $customer->id, 'status' => 'pending',
                     'provision_status' => 'none', 'period_years' => 1,
-                    'price_toman' => (int) $quote->sell_toman, 'quote_id' => $quote->id,
+                    'price_toman' => (int) $liveQuote['sell_toman'], 'quote_id' => $quote->id,
                     'name_servers' => $ns,
                 ])->save();
             }
+
+            $pricing->remember($domain, $liveQuote);
 
             // فاکتورِ هاست از همان تعریفِ یگانهٔ فروشگاه/تلفن — بعد ردیفِ دامنه
             // به همان فاکتور اضافه و جمع‌ها بازمحاسبه می‌شود.
             $invoice = app(\App\Services\Billing\ProductInvoiceIssuer::class)->issue($service, $product);
 
-            $domainPrice = (int) $quote->sell_toman;
+            $domainPrice = (int) $liveQuote['sell_toman'];
             $domainTax = (int) round($domainPrice * $taxPct / 100);
 
             InvoiceItem::create([

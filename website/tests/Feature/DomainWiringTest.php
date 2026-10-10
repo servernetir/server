@@ -20,6 +20,12 @@ use Tests\TestCase;
  */
 class DomainWiringTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
     use RefreshDatabase;
 
     private function customer(): Customer

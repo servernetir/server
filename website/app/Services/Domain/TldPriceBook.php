@@ -4,6 +4,8 @@ namespace App\Services\Domain;
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * قیمتِ **نمونهٔ زندهٔ** هر پسوند — برای صفحاتِ بازاریابی.
@@ -56,7 +58,7 @@ class TldPriceBook
      * قیمتِ پایهٔ چند پسوند.
      *
      * @param  array<int,string>  $tlds
-     * @return array<string,int>  پسوند → تومان (فقط آن‌هایی که قیمت دارند)
+     * @return array<string,int> پسوند → تومان (فقط آن‌هایی که قیمت دارند)
      */
     public function forTlds(array $tlds): array
     {
@@ -123,7 +125,10 @@ class TldPriceBook
      */
     private function cacheKey(array $tlds): string
     {
-        return 'tld.prices.'.md5(implode('|', [
+        return 'tld.prices.v2.'.md5(implode('|', [
+            (string) Setting::get('domain_supplier_vat_pct', (string) config('domain_pricing.supplier_vat_pct')),
+            (string) Setting::get('domain_supplier_fee_pct', (string) config('domain_pricing.supplier_fee_pct')),
+            (string) config('domain_reseller.min_margin_pct', 8),
             (string) Setting::get('domain_margin_pct'),
             (string) Setting::get('pricing_rate_override'),
             implode(',', $tlds),
@@ -178,7 +183,10 @@ class TldPriceBook
         }
 
         $stamp = md5(implode('|', [
-            'full',
+            'full-v2',
+            (string) Setting::get('domain_supplier_vat_pct', (string) config('domain_pricing.supplier_vat_pct')),
+            (string) Setting::get('domain_supplier_fee_pct', (string) config('domain_pricing.supplier_fee_pct')),
+            (string) config('domain_reseller.min_margin_pct', 8),
             (string) Setting::get('domain_margin_pct'),
             (string) Setting::get('pricing_rate_override'),
             implode(',', $tlds),
@@ -189,7 +197,7 @@ class TldPriceBook
     }
 
     /**
-     * @return array<string,mixed>  در حالتِ عادی tld→int، در حالتِ full ساختارِ سه‌تایی
+     * @return array<string,mixed> در حالتِ عادی tld→int، در حالتِ full ساختارِ سه‌تایی
      */
     private function quote(array $tlds, bool $full = false): array
     {
@@ -210,24 +218,25 @@ class TldPriceBook
 
                         $register = (int) $r['price_toman'];
 
-                        /*
-                        | ⚠️ بازگشت به قیمتِ ثبت فقط وقتی رجیسترار عددی نداده.
-                        | این‌جا «نمی‌دانیم» است نه «برابر است» — ولی نمایشِ
-                        | هیچ قیمتی روی صفحهٔ فروش بدترین گزینه است، و همان
-                        | انتخابی است که `DomainSearch::shape()` هم می‌کند.
-                        | پس رفتار در هر دو یکی می‌مانَد.
-                        */
+                        // Catalogue samples are cached; actual orders always quote the real name.
+                        $pricing = app(LiveDomainPricing::class);
+                        try {
+                            $renew = $pricing->quote(self::PROBE, $r['tld'], 'renew')['sell_toman'];
+                            $transfer = $pricing->quote(self::PROBE, $r['tld'], 'transfer')['sell_toman'];
+                        } catch (ValidationException) {
+                            continue;
+                        }
                         $out[$r['tld']] = [
                             'register' => $register,
-                            'renew'    => (int) ($r['renew_toman'] ?: $register),
-                            'transfer' => (int) ($r['transfer_toman'] ?: $register),
+                            'renew' => $renew,
+                            'transfer' => $transfer,
                         ];
                     }
                 }
             } catch (\Throwable $e) {
                 // صفحهٔ بازاریابی نباید به‌خاطر رجیسترار بخوابد؛ عددِ نبود
                 // یعنی همان دکمهٔ «بررسی و ثبت» نشان داده می‌شود.
-                \Illuminate\Support\Facades\Log::info('tld price probe failed', ['err' => $e->getMessage()]);
+                Log::info('tld price probe failed', ['err' => $e->getMessage()]);
             }
         }
 

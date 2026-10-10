@@ -33,10 +33,13 @@ use Tests\TestCase;
 class ResellerDomainApiTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'test@example.com');
         config()->set('services.openprovider.password', 'secret');
@@ -60,6 +63,7 @@ class ResellerDomainApiTest extends TestCase
         Http::preventStrayRequests();
 
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/customers*'  => Http::response(['code' => 0, 'data' => ['handle' => 'AB123-NL']]),
 
@@ -599,6 +603,7 @@ class ResellerDomainApiTest extends TestCase
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::preventStrayRequests();
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [[
                 // رجیسترار صریح می‌گوید آزاد است و قیمت هم می‌دهد

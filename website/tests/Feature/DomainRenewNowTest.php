@@ -27,9 +27,18 @@ use Tests\TestCase;
  */
 class DomainRenewNowTest extends TestCase
 {
-    use RefreshDatabase;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configureSupplierPrices();
+        \Illuminate\Support\Facades\Http::fake($this->supplierPriceStubs());
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
 
-    private const RENEW = 2_500_000;
+    use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
+
+    private const RENEW = 1_080_000;
 
     private function customer(): Customer
     {
@@ -75,7 +84,7 @@ class DomainRenewNowTest extends TestCase
         $this->assertSame('domain', $inv->kind);
         $this->assertSame($d->id, (int) $inv->domain_id);
         $this->assertSame(self::RENEW * 3, (int) $inv->subtotal,
-            'مبلغِ تمدیدِ چندساله باید renew_toman × سال باشد');
+            'مبلغِ تمدید باید از نرخ آنلاینِ عملیات و تعداد سال بیاید');
 
         // 🔴 بعد از پرداخت، کرونِ تمدید از همین متا می‌فهمد چند سال بخرد
         $this->assertSame(3, $d->fresh()->renewYears());
@@ -160,25 +169,12 @@ class DomainRenewNowTest extends TestCase
         $this->assertSame(0, Invoice::where('domain_id', $d->id)->count());
     }
 
-    /**
-     * دامنه‌ای که هیچ قیمتِ تمدیدی ندارد فاکتورِ صفرتومانی نمی‌گیرد.
-     *
-     * ⚠️ «بی‌قیمت» این‌جا **صفر** است، نه `null`. ستونِ `domains.renew_toman`
-     * غیرِ nullable با پیش‌فرضِ صفر تعریف شده و گاردِ کنترلر هم
-     * `effectivePerYear($domain) <= 0` را می‌سنجد. فیکسچرِ قبلی `null`
-     * می‌گذاشت و روی `NOT NULL constraint` می‌ترکید — یعنی حالتی می‌ساخت که
-     * دیتابیسِ واقعی هرگز نمی‌تواند داشته باشد، و ادعا اصلاً اجرا نمی‌شد.
-     *
-     * درس: فیکسچری که اسکیما ردش می‌کند، تست را قرمز می‌کند بی‌آنکه چیزی را
-     * سنجیده باشد — همان‌قدر بی‌فایده که سبزِ کاذب، فقط پرسروصداتر.
-     */
-    public function test_a_domain_with_no_stored_price_is_refused(): void
+    /** A live renewal quote can price an old row without historical pricing. */
+    public function test_a_missing_stored_price_is_replaced_by_the_live_renewal_quote(): void
     {
         $d = $this->domain(['renew_toman' => 0, 'price_toman' => 0]);
-
-        $this->renew($d)->assertSessionHasErrors();
-
-        $this->assertSame(0, Invoice::where('domain_id', $d->id)->count());
+        $this->renew($d)->assertSessionHasNoErrors();
+        $this->assertSame(self::RENEW, Invoice::where('domain_id', $d->id)->firstOrFail()->subtotal);
     }
 
     // ═══════════════ هم‌نواییِ با کرون ═══════════════

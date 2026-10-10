@@ -40,6 +40,7 @@ use Tests\TestCase;
 class BillingRenewalSafetyTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
@@ -365,10 +366,13 @@ class BillingRenewalSafetyTest extends TestCase
 
     public function test_domain_renewal_deadline_is_the_expiry_not_two_days_after_issue(): void
     {
+        Http::swap(new Factory);
+        $this->configureSupplierPrices();
+        Http::fake($this->supplierPriceStubs());
         $service = $this->service();
         $domain = Domain::create([
             'customer_id' => $service->customer_id, 'domain' => 'renew.example', 'sld' => 'renew',
-            'tld' => 'com', 'status' => 'active', 'period_years' => 1,
+            'tld' => 'com', 'status' => 'active', 'provision_status' => 'done', 'period_years' => 1,
             'price_toman' => 100000, 'renew_toman' => 100000, 'expires_at' => now()->addDays(21),
         ]);
         $invoice = app(DomainRenewalInvoicer::class)->issue($domain);
