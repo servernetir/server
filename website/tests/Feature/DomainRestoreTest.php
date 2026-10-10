@@ -25,20 +25,24 @@ use Tests\TestCase;
  * می‌پذیرد و هر روز تأخیر شانس را کم می‌کند.
  *
  * قاعده‌های قفل‌شده: صفِ بازیابی روی `expired` سوار است (بی‌اشتراک با ثبت
- * و تمدید)؛ بدونِ کارمزدِ پیکربندی‌شده مسیر بسته می‌مانَد (نجاتِ زیرِ قیمت
+ * و تمدید)؛ بدونِ استعلامِ معتبر مسیر بسته می‌مانَد (نجاتِ زیرِ قیمت
  * ممنوع)؛ شکستِ قطعی = رفاندِ خودکارِ فاکتورِ نشان‌شده.
  */
 class DomainRestoreTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     private const FEE = 500_000;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
-        Http::fake(['*' => Http::response([], 500)]);
+        Http::fake([
+            ...$this->supplierPriceStubs(),'*' => Http::response([], 500)]);
         Setting::put('domain_restore_fee_toman', (string) self::FEE);
     }
 
@@ -89,23 +93,21 @@ class DomainRestoreTest extends TestCase
 
         $inv = Invoice::where('domain_id', $d->id)->firstOrFail();
 
-        $this->assertSame(2_000_000 + self::FEE, (int) $inv->subtotal,
-            'قیمتِ نجات = تمدیدِ مؤثر + کارمزدِ بازیابی');
+        $this->assertSame(3_240_000, (int) $inv->subtotal,
+            'قیمت آنلاین بازیابی و ذخیره تمدید با حاشیه سود');
         $this->assertSame($inv->id, (int) ($d->fresh()->meta['restore_invoice_id'] ?? 0),
             'فاکتور نشان نشد — رفاندِ هدفمند کور می‌شود');
     }
 
-    /** بدونِ کارمزدِ پیکربندی‌شده، مسیر عمداً بسته است — نجاتِ زیرِ قیمت ممنوع */
-    public function test_without_a_configured_fee_the_path_stays_closed(): void
+    /** A missing supplier restore quote blocks invoice issuance. */
+    public function test_without_a_verified_supplier_quote_the_path_stays_closed(): void
     {
-        Setting::put('domain_restore_fee_toman', null);
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake(['*' => Http::response([], 503)]);
         $d = $this->expired();
-
         $this->actingAs($d->customer, 'customer')
-            ->post('/account/domains/'.$d->id.'/restore')
-            ->assertSessionHasErrors();
-
-        $this->assertSame(0, Invoice::where('domain_id', $d->id)->count());
+            ->post('/account/domains/'.$d->id.'/restore')->assertSessionHasErrors();
+        $this->assertDatabaseCount('invoices', 0);
     }
 
     public function test_an_active_domain_cannot_use_the_restore_path(): void
@@ -148,6 +150,7 @@ class DomainRestoreTest extends TestCase
 
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*'   => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/restore*'      => $restoreOk
                 ? Http::response(['code' => 0, 'data' => []])
@@ -164,7 +167,7 @@ class DomainRestoreTest extends TestCase
         $this->fakeRegistrar(restoreOk: true);
 
         $d = $this->expired(['provision_status' => 'pending']);
-        $d->putMeta(['restore_invoice_id' => 123]);
+        $this->paidDomainInvoice($d, 'restore', 5_000_000);
 
         $res = app(DomainRegistrar::class)->restorePaid($d);
 
@@ -181,6 +184,7 @@ class DomainRestoreTest extends TestCase
         $this->fakeRegistrar(restoreOk: false);
 
         $d = $this->expired(['provision_status' => 'pending', 'provision_tries' => 2]);
+        $this->paidDomainInvoice($d, 'restore', 5_000_000);
 
         $res = app(DomainRegistrar::class)->restorePaid($d);
 

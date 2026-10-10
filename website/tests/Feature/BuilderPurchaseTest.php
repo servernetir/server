@@ -28,6 +28,7 @@ use Tests\TestCase;
 class BuilderPurchaseTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
@@ -86,6 +87,8 @@ class BuilderPurchaseTest extends TestCase
 
     public function test_checkout_creates_service_domain_and_one_invoice_with_both_ids(): void
     {
+        $this->configureSupplierPrices();
+        Http::fake($this->supplierPriceStubs());
         $this->whmServer();
         $product = $this->seedProducts();
         $quote = $this->freshQuote();
@@ -113,12 +116,12 @@ class BuilderPurchaseTest extends TestCase
 
         // دامنه تا پرداخت نشده نباید واردِ صفِ ثبت شود
         $this->assertSame('none', $domain->provision_status);
-        $this->assertSame((int) $quote->sell_toman, (int) $domain->price_toman);
+        $this->assertSame(1080000, (int) $domain->price_toman);
 
         // قیمت هرگز از مرورگر نیامده: هاست از پکیج، دامنه از استعلامِ سرور
         $hostPrice = $product->priceForCycle('monthly');
         $this->assertSame($hostPrice, (int) $service->price);
-        $expectedSubtotal = $hostPrice + (int) $quote->sell_toman;
+        $expectedSubtotal = $hostPrice + 1080000;
         $this->assertSame($expectedSubtotal, (int) $invoice->subtotal);
         $this->assertGreaterThan($expectedSubtotal, (int) $invoice->total); // مالیات رویش
 

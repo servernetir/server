@@ -284,6 +284,12 @@ class ResolveStuckDomains extends Command
         // تمدید و بازیابی هر دو از همین در می‌آیند؛ نشانِ فاکتور فرق دارد
         $invoiceId = (int) ($domain->meta['renew_invoice_id'] ?? $domain->meta['restore_invoice_id'] ?? 0);
 
+        if ($invoiceId > 0 && (int) data_get($domain->meta, 'restore_supplier_accepted_invoice_id') === $invoiceId) {
+            ErrorTracker::noteOnce('domain', 'بازیابی نزد رجیسترار پذیرفته شده؛ برگشت خودکار وجه متوقف است.', 21600,
+                ['domain'=>$domain->domain, 'invoice'=>$invoiceId]);
+            return;
+        }
+
         $invoice = $invoiceId > 0
             ? Invoice::where('id', $invoiceId)
                 ->where('domain_id', $domain->id)

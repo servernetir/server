@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * یک دامنهٔ فروخته‌شده.
@@ -37,19 +38,19 @@ class Domain extends Model
     ];
 
     protected $casts = [
-        'name_servers'   => 'array',
-        'meta'           => 'array',
-        'auto_renew'     => 'boolean',
-        'is_locked'      => 'boolean',
-        'whois_privacy'  => 'boolean',
-        'registered_at'  => 'datetime',
-        'expires_at'     => 'datetime',
+        'name_servers' => 'array',
+        'meta' => 'array',
+        'auto_renew' => 'boolean',
+        'is_locked' => 'boolean',
+        'whois_privacy' => 'boolean',
+        'registered_at' => 'datetime',
+        'expires_at' => 'datetime',
         'transfer_submitted_at' => 'datetime',
-        'transfer_checked_at'   => 'datetime',
-        'price_toman'    => 'integer',
-        'renew_toman'    => 'integer',
-        'cost_amount'    => 'integer',
-        'period_years'   => 'integer',
+        'transfer_checked_at' => 'datetime',
+        'price_toman' => 'integer',
+        'renew_toman' => 'integer',
+        'cost_amount' => 'integer',
+        'period_years' => 'integer',
     ];
 
     /**
@@ -57,6 +58,16 @@ class Domain extends Model
      * همان قاعدهٔ `CloudPlan::$hidden`. حاشیهٔ سودِ ما دادهٔ داخلی است.
      */
     protected $hidden = ['cost_amount', 'cost_renew_amount', 'cost_currency', 'owner_handle', 'op_id'];
+
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+        if (is_array($attributes['meta'] ?? null)) {
+            unset($attributes['meta']['live_price']);
+        }
+
+        return $attributes;
+    }
 
     public function customer(): BelongsTo
     {
@@ -265,11 +276,11 @@ class Domain extends Model
      */
     public function hasPaidInvoice(): bool
     {
-        if (! \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'domain_id')) {
+        if (! Schema::hasColumn('invoices', 'domain_id')) {
             return true;      // نصبِ مهاجرت‌نخورده: سنجش ممکن نیست، راه را نبند
         }
 
-        return \App\Models\Invoice::where('domain_id', $this->id)->where('status', 'paid')->exists();
+        return Invoice::where('domain_id', $this->id)->where('status', 'paid')->exists();
     }
 
     /** یک کلید را در `meta` بنویس بی‌آنکه بقیه را پاک کنی */

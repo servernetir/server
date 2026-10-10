@@ -166,6 +166,13 @@ class PaymentController extends Controller
     {
         $this->authorizeInvoice($invoice);
 
+        try {
+            app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            view()->share('errors', (new \Illuminate\Support\ViewErrorBag)
+                ->put('default', new \Illuminate\Support\MessageBag($e->errors())));
+        }
+
         /*
         | 🔴 پرداختِ بازِ رمزارز **اول** خوانده می‌شود، چون فهرستِ گزینه‌ها به
         |    آن وابسته است.
@@ -858,5 +865,8 @@ class PaymentController extends Controller
     private function authorizeInvoice(Invoice $invoice): void
     {
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
+        if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
+            app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
+        }
     }
 }

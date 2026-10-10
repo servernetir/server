@@ -34,10 +34,13 @@ use Tests\TestCase;
 class DomainContractNotSignedTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 
         config()->set('services.openprovider.username', 'test@example.com');
         config()->set('services.openprovider.password', 'secret');
@@ -49,6 +52,7 @@ class DomainContractNotSignedTest extends TestCase
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
+            ...$this->supplierPriceStubs(),
             '*/auth/login*' => Http::response(['code' => 0, 'data' => ['token' => 't']]),
             '*/customers*'  => Http::response(['code' => 0, 'data' => ['handle' => 'AB123-NL']]),
             // اوپن‌پروایدر روی خطا هم HTTP 500 می‌دهد؛ خطای واقعی در `code` است
@@ -72,11 +76,14 @@ class DomainContractNotSignedTest extends TestCase
             'first_name' => 'احسان', 'last_name' => 'ابراهیمی',
         ]);
 
-        return Domain::create(array_merge([
+        $domain = Domain::create(array_merge([
             'customer_id' => $c->id, 'domain' => 'zhina.shop', 'sld' => 'zhina', 'tld' => 'shop',
             'registrar' => 'openprovider', 'status' => 'pending', 'provision_status' => 'pending',
             'period_years' => 1, 'price_toman' => 2500000,
         ], $over));
+        $this->paidDomainInvoice($domain);
+
+        return $domain;
     }
 
     // ═══════════════ ۱) بی‌درنگ به صفِ آدم ═══════════════

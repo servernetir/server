@@ -84,14 +84,13 @@
   <section class="pnl-sec">
     <div class="pnl-sec-h"><h2>{{ __('ui.dpg_restore_h') }}</h2></div>
     <div class="pnl-sec-b">
-      @php $dmRestoreFee = (int) \App\Models\Setting::get('domain_restore_fee_toman'); @endphp
       @if($domain->provision_status === 'pending' || $domain->provision_status === 'running')
         <p style="margin:0">{{ __('ui.dpg_restore_paid') }}</p>
       @elseif($domain->provision_status === 'manual')
         <p style="margin:0">{{ __('ui.dpg_restore_manual') }}</p>
-      @elseif($dmRestoreFee > 0 && $domain->op_id)
+      @elseif($domain->op_id)
         <p style="margin-top:0">
-          {{ __('ui.dpg_restore_offer', ['fee' => cloud_price($dmRestoreFee)]) }}
+          {{ __('domain-pricing.note') }}
           <b>{{ __('ui.dpg_restore_urgent') }}</b>
         </p>
         <form method="post" action="{{ lroute('account.domain.restore', $domain) }}">
@@ -129,7 +128,7 @@
           <tr><th>{{ __('ui.dpg_period') }}</th><td>{{ fa_num($domain->period_years) }} {{ __('ui.lbl_year') }}</td></tr>
           {{-- قیمتِ مؤثرِ روز (ذخیره + استعلامِ تازه + کفِ ارزی) — همان عددی
                که فاکتورِ تمدید می‌گیرد، نه عددِ فریزشدهٔ روزِ خرید. --}}
-          <tr><th>{{ __('ui.dpg_renew_cost') }}</th><td>{{ cloud_price(($renewUnit ?? 0) > 0 ? $renewUnit : $domain->renew_toman) }} / {{ __('ui.lbl_year') }}</td></tr>
+          <tr><th>{{ __('ui.dpg_renew_cost') }}</th><td>{{ ($renewUnit ?? 0) > 0 ? cloud_price($renewUnit) : __('domain-pricing.quote') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -144,22 +143,20 @@
 <section class="pnl-sec">
   <div class="pnl-sec-h"><h2>{{ __('ui.dpg_renew_h') }}</h2></div>
   <div class="pnl-sec-b">
-    {{-- قیمتِ مؤثرِ تمدید از کنترلر می‌آید (renew_toman یا کفِ ارزی، هرکدام بالاتر)
-         تا عددِ روی فرم همانی باشد که فاکتور می‌گیرد. --}}
-    @php $dmRenewUnit = (int) ($renewUnit ?? ($domain->renew_toman ?: $domain->price_toman)); @endphp
-    @if($dmRenewUnit > 0)
+    @php $dmRenewUnit = (int) ($renewUnit ?? 0); @endphp
+    @if($domain->op_id)
       <p style="font-size:13px;color:var(--dim);line-height:2;margin-top:0">
-        {{ __('ui.dpg_renew_note') }}
+        {{ __('domain-pricing.note') }}
       </p>
       <form method="post" action="{{ lroute('account.domain.renew', $domain) }}"
             style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         @csrf
         <select name="years" class="pnl-input" style="max-width:260px">
           @foreach(range(1, 5) as $y)
-            <option value="{{ $y }}">{{ fa_num($y) }} {{ __('ui.lbl_year') }} — {{ cloud_price($dmRenewUnit * $y) }}</option>
+            <option value="{{ $y }}">{{ fa_num($y) }} {{ __('ui.lbl_year') }}</option>
           @endforeach
         </select>
-        <button class="pnl-btn" type="submit">{{ __('ui.dpg_renew_btn') }}</button>
+        <button class="pnl-btn" type="submit">{{ __('domain-pricing.quote') }}</button>
       </form>
       <p style="font-size:12px;color:var(--dim);margin-bottom:0;line-height:2">
         {{ __('ui.dpg_tax_note') }}

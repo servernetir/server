@@ -273,6 +273,19 @@ class OpenProviderClient
         return $this->result($res, ['results' => (array) data_get($res, 'data.results', [])]);
     }
 
+    /** Authoritative price for this domain and operation; never cached. */
+    public function domainPrice(string $name, string $extension, string $operation, int $period = 1): array
+    {
+        $res = $this->call('GET', '/domains/prices', [
+            'domain.name' => $name,
+            'domain.extension' => ltrim($extension, '.'),
+            'operation' => $operation,
+            'period' => $period,
+        ]);
+
+        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+    }
+
     /** تمدید. `period` سال است. */
     public function renewDomain(int $id, int $period = 1): array
     {

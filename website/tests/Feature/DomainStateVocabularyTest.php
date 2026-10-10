@@ -45,10 +45,13 @@ use Tests\TestCase;
 class DomainStateVocabularyTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SupplierDomainPrices;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->configureSupplierPrices();
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
         $this->seed(BillingFoundationSeeder::class);
 
         config([
@@ -69,6 +72,7 @@ class DomainStateVocabularyTest extends TestCase
     {
         Http::swap(new Factory);
         Http::fake([
+            ...$this->supplierPriceStubs(currency: 'USD'),
             '*/auth/login*'    => Http::response(['code' => 0, 'data' => ['token' => 'tok'], 'desc' => ''], 200),
             '*/domains/check*' => $checkResponse,
         ]);
@@ -447,8 +451,8 @@ class DomainStateVocabularyTest extends TestCase
 
         $quote = \App\Models\DomainQuote::find($quoteId);
 
-        $this->assertSame((int) $quote->sell_toman, (int) $invoice->subtotal,
-            '🔴 مبلغِ فاکتور باید از استعلامِ ذخیره‌شده بیاید، نه از فرم');
+        $this->assertSame(1_080_000, (int) $invoice->subtotal,
+            'مبلغ فاکتور باید از استعلام آنلاین خرید بیاید');
         $this->assertSame((int) $invoice->subtotal + (int) $invoice->tax, (int) $invoice->total);
 
         // و دامنه باید در انتظارِ **پرداخت** بماند، نه در صفِ ثبت
