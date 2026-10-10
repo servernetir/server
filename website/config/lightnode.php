@@ -55,7 +55,7 @@ return [
             'sau-riyadh-3' => ['country' => 'SA', 'city' => 'Riyadh II', 'location_code' => 'sa-riyadh-ii'],
         ],
         'packages' => [],
-        // Exact packageSpec + independently verified instanceSeries metadata.
+        // Exact packageSpec + independently verified instanceSeries/cpu_kind.
         // These are not prices. No unverified CPU series is inferred globally.
         'bindings' => [],
     ],

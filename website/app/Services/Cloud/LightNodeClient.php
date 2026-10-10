@@ -141,7 +141,8 @@ class LightNodeClient implements CloudProvider
             $binding = $this->manifest()['bindings'][$ref] ?? [];
             // Package codes contain no authoritative CPU-series field. Do not
             // infer shared/dedicated from a name, or carry manual prices over.
-            if (! in_array($binding['series'] ?? null, ['s2', 'g2'], true)
+            if (! in_array($binding['series'] ?? null, LightNodePublicPricing::SERIES, true)
+                || ! in_array($binding['cpu_kind'] ?? null, ['shared', 'dedicated'], true)
                 || ($binding['spec'] ?? null) != $this->packageSpec($package)
                 || ! is_numeric($binding['verified_at'] ?? null)
                 || $binding['verified_at'] > time() || $binding['verified_at'] < time() - 30 * 86400
@@ -159,7 +160,7 @@ class LightNodeClient implements CloudProvider
                     || ($windows['hour_usd'] ?? null) !== $quote['hour_usd']
                     || ($windows['month_usd'] ?? null) !== $quote['month_usd']) { return null; }
             }
-            return $quote + ['delivery_verified' => ($binding['delivery_verified'] ?? false) === true,
+            return $quote + ['cpu_kind' => $binding['cpu_kind'], 'delivery_verified' => ($binding['delivery_verified'] ?? false) === true,
                 'spec' => $this->packageSpec($package)];
         }
         if (! $this->fixtureRatesEnabled()) { return null; }
@@ -197,7 +198,7 @@ class LightNodeClient implements CloudProvider
             && $cost['cost_hour_eur_micro'] <= (int) $plan->cost_hour_eur_micro
             && (int) $plan->vcpu === (int) $package['cpu']
             && (int) $plan->ram_mb === (int) $package['memory'] * 1024
-            && $plan->cpu_kind === ($rate['series'] === 'g2' ? 'dedicated' : 'shared')
+            && $plan->cpu_kind === $rate['cpu_kind']
             && (int) $plan->boot_disk_gb === (int) $package['systemDiskSize']
             && (int) $plan->data_disk_gb === (int) ($package['dataDiskSize'] ?? 0)
             && ($plan->network_terms['charge_mode'] ?? '') === $package['publicIpChargeMode']
@@ -277,7 +278,7 @@ class LightNodeClient implements CloudProvider
                         // A separate data disk is NOT the boot volume.
                         'disk_gb' => (int) $p['systemDiskSize'] + (int) ($p['dataDiskSize'] ?? 0), 'disk_type' => 'ssd',
                         'boot_disk_gb' => (int) $p['systemDiskSize'], 'data_disk_gb' => (int) ($p['dataDiskSize'] ?? 0),
-                        'traffic_gb' => (int) ($p['freeFlow'] ?? 0), 'cpu_kind' => ($rate['series'] ?? '') === 'g2' ? 'dedicated' : 'shared', 'arch' => 'x86',
+                        'traffic_gb' => (int) ($p['freeFlow'] ?? 0), 'cpu_kind' => $rate['cpu_kind'] ?? 'shared', 'arch' => 'x86',
                         'network_terms' => ['bandwidth_mbps' => isset($p['bandwidth']) ? (int) $p['bandwidth'] : null,
                             'monthly_allowance_gb' => isset($p['freeFlow']) ? (int) $p['freeFlow'] : null,
                             'hourly_prorated' => $p['publicIpChargeMode'] === 'PayByTraffic',

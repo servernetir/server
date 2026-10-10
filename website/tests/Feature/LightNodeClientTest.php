@@ -143,7 +143,7 @@ class LightNodeClientTest extends TestCase
             '*/instance/detail*' => Http::response(['instance' => $receipt])]);
         $this->manifest();
         $manifest = json_decode(Setting::get('lightnode_manifest'), true);
-        $manifest['bindings'] = ['ph-test|ph-test-a|sample-package' => ['series' => 's2', 'verified_at' => time(),
+        $manifest['bindings'] = ['ph-test|ph-test-a|sample-package' => ['series' => 's2', 'cpu_kind' => 'shared', 'verified_at' => time(),
             'delivery_verified' => true, 'spec' => $this->client()->packageSpec($package)]];
         Setting::put('lightnode_manifest', json_encode($manifest));
         config(['lightnode.public_pricing_enabled' => true, 'lightnode.allow_fixture_rates' => false]);
@@ -174,7 +174,7 @@ class LightNodeClientTest extends TestCase
     {
         $this->publicPricing();
         $original = json_decode(Setting::get('lightnode_manifest'), true);
-        foreach ([[], ['series' => 'guess'], ['spec' => ['cpu' => 8]], ['verified_at' => time() - 31 * 86400]] as $change) {
+        foreach ([[], ['series' => 'guess'], ['cpu_kind' => null], ['cpu_kind' => 'guess'], ['spec' => ['cpu' => 8]], ['verified_at' => time() - 31 * 86400]] as $change) {
             $manifest = $original;
             if ($change === []) { $manifest['bindings'] = []; }
             else { $manifest['bindings']['ph-test|ph-test-a|sample-package'] = $change + $manifest['bindings']['ph-test|ph-test-a|sample-package']; }

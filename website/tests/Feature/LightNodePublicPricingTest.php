@@ -36,14 +36,14 @@ class LightNodePublicPricingTest extends TestCase
             $this->quoteComponent('OWN_EIP', ['actualFlow' => 2]), $this->quoteComponent('OWN_DISK', ['diskSize' => .0208])];
     }
 
-    private function fake(bool $soldOut = false): void
+    private function fake(bool $soldOut = false, string $series = 's2'): void
     {
         Cache::flush(); Http::swap(new \Illuminate\Http\Client\Factory); Http::preventStrayRequests();
         // This is a published-code-shaped synthetic anonymous certificate recipe.
         // No real application marker, key or browser credential is a fixture.
         $source = 'function r(){let e=parseInt(new Date().getTime(),10),t=function(e,t){let a,n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split(""),o=[];t=t||n.length,1;for(a=0;a<e;a++)o[a]=n[0|Math.random()*t];return o.join("")}(12,32);return"Basic "+o()(e+":"+t+":fixture-public")}}';
         $range = [$this->node('diskSize', ['min' => 50, 'max' => 250, 'step' => 50])];
-        $compute = [$this->node('netType', 'privateNet', [$this->node('instanceType', 's2',
+        $compute = [$this->node('netType', 'privateNet', [$this->node('instanceType', $series,
             [$this->node('instanceSpec', 'ecs.u2.m4', [], ['prop' => ['cpu' => 2, 'memory' => 4]])])]),
             $this->node('diskType', 'System', [$this->node('diskCategory', 'local_ssd',
                 [$this->node('image', 'linux', $range), $this->node('image', 'windows', $range)])])];
@@ -72,6 +72,19 @@ class LightNodePublicPricingTest extends TestCase
                 default => Http::response(['success' => true, 'httpStatus' => 202, 'data' => $rows], 202),
             };
         });
+    }
+
+    public function test_amd_series_must_exist_in_exact_public_region_configuration(): void
+    {
+        foreach (['s3', 'g2a'] as $series) {
+            $this->fake(false, $series);
+            $quote = app(LightNodePublicPricing::class)->quote($this->package(), $series);
+            $this->assertTrue($quote['ok']);
+            $this->assertSame($series, $quote['series']);
+            $this->assertFalse(app(LightNodePublicPricing::class)->quote($this->package(), 's2')['ok']);
+            Http::assertSent(fn ($r) => str_contains($r->url(), '/getBatchPrice.do')
+                && $r['resources'][0]['data']['instanceType'] === $series);
+        }
     }
 
     public function test_public_quote_matches_real_component_precision_without_account_authentication(): void

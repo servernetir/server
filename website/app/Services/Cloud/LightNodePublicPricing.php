@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 class LightNodePublicPricing
 {
     private const ORIGIN = 'https://www.lightnode.com';
+    public const SERIES = ['s2', 'g2', 's3', 'g2a'];
 
     private function http()
     {
@@ -89,7 +90,7 @@ class LightNodePublicPricing
     public function quote(array $package, string $series, string $os = 'linux'): array
     {
         try {
-            if (! in_array($series, ['s2', 'g2'], true) || ! in_array($os, ['linux', 'windows'], true)
+            if (! in_array($series, self::SERIES, true) || ! in_array($os, ['linux', 'windows'], true)
                 || ($os === 'windows' && (($package['cpu'] ?? 0) < 2 || ($package['memory'] ?? 0) < 4))) {
                 throw new \RuntimeException('Unsupported calculator series or OS');
             }

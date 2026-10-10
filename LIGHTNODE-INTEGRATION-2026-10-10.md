@@ -1,6 +1,6 @@
 # LightNode integration — acceptance and release record
 
-Date: 2026-10-10. Branch: `codex/lightnode-integration`, synchronized with `origin/develop` at `ba0a6e48` via merge `ac3c49f8` (earlier validation used `89a59d0c`, `394da6eb` and `1615b347`). Status: review implementation; production deployment and public sales remain disabled. Public automatic pricing is implemented; new real acceptance is pending explicit test-cost approval.
+Date: 2026-10-10. Branch: `codex/lightnode-integration`, synchronized with `origin/develop` at `82931ff6` via merge `c4fb1a12` (earlier validation used `ba0a6e48`, `89a59d0c`, `394da6eb` and `1615b347`). Status: review implementation; production deployment and public sales remain disabled. Public automatic pricing is implemented; new real acceptance is pending explicit test-cost approval.
 
 ## Verified provider contract
 
@@ -70,7 +70,9 @@ These are actual quote component values, not invoices or an approved catalog. Th
 
 The application converts these exact USD quotes through existing USD/EUR exchange rates, `CloudPricing::costWithFee` and `cloud_margin_pct`. It does not impose a new profit percentage or guess funding fees. A fresh quote is required before each new purchase. Increased supplier cost, FX or fee compared with the saved local plan holds the purchase before sending an order. An encrypted purchase journal retains the safe supplier quote and expected CPU series; the actual instance receipt must match `instanceSeries` as well as the existing resource/network/image checks before customer delivery.
 
-The package API lacks CPU series. Production pricing therefore requires a current explicit `bindings` entry with exact `packageSpec`, `series` (`s2`/`g2`), `verified_at`, and `delivery_verified`; it does not guess series from `intel` or extend one Manila receipt to other packages/regions. No production binding is enabled by default. Prices for Linux and eligible Windows configurations must agree exactly because the site currently has one price per plan. Different Windows price rejects the plan rather than silently using Linux cost.
+The package API lacks CPU series. Production pricing therefore requires a current explicit `bindings` entry with exact `packageSpec`, `series` (`s2`/`g2`/`s3`/`g2a`), independently verified `cpu_kind` (`shared`/`dedicated`), `verified_at`, and `delivery_verified`; it does not guess series or sharing from `intel`/`amd`, or extend one Manila receipt to other packages/regions. No production binding is enabled by default. Prices for Linux and eligible Windows configurations must agree exactly because the site currently has one price per plan. Different Windows price rejects the plan rather than silently using Linux cost.
+
+The public Kathmandu configuration exposes AMD series `s3` and `g2a`, whereas the inspected Manila configuration exposes `s2` and `g2`. A stateless Laravel quote for Kathmandu `amd-c16m32-bgp-b10-s50-d300` succeeded for `s3`: USD 0.273263/hour and 183.632736/month. The same package under `g2a` was rejected by exact configuration matching. This is quote evidence only, not a purchased instance or a CPU-series binding. The source explicitly supports the four observed series, requires the actual series/configuration match, and requires CPU sharing metadata separately rather than inferring it from a series name.
 
 Current automatic sales candidates are limited to fixed-bandwidth contracts. Traffic quotes are inspectable but traffic plans remain excluded: the official API exposes `limitFlow` without a verified setter, and a private read of the preserved existing server showed `FALSE`. The fixed-bandwidth model and its explicitly displayed 2/5 Mbps speeds require the user's pending business approval. Source availability is checked against the exact public region/zone and configuration; it is not a guarantee of every OS's future capacity. All 40 API locations are mapped, but unverified CPU bindings and sold-out options produce no sale offer.
 
@@ -93,6 +95,8 @@ The private ticket receipt and screenshot are retained outside the Git repositor
 The API-only revision passed **54 focused tests / 502 assertions**, including production rejection of saved manual quotes, rejection even when fixture flags and sales are enabled, and the existing fixture-based pricing, settings and lifecycle coverage. No new real instance was purchased. Historical live acceptance remains lifecycle evidence only, not acceptance of an API price feed or provider-enforced traffic restriction.
 
 ## Historical real acceptance tests — earlier traffic revision
+
+After merging current develop `82931ff6`, the related integration/GPU recovery batch passed **397 tests / 2587 assertions**. The subsequent AMD-series and explicit CPU-sharing revision passed **149 affected tests / 610 assertions**. These are overlapping application tests. Latest upstream GPU cancellation/refund and closed-delivery safeguards were preserved; tests of Linux/Windows actual provisioner paths still use fake supplier HTTP, not new paid instances.
 
 Tests used only a private local Laravel database, synthetic `example.test` customer records, array mail/cache drivers and two explicitly named disposable LightNode instances. No production customer or website configuration was altered.
 
