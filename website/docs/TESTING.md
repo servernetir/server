@@ -26,6 +26,49 @@ test database settings. Remove cached configuration only in the isolated checkou
 Existing explicit MariaDB stress-test opt-in remains available for a separate test
 database. The ordinary SQLite suite does not prove MariaDB concurrency behavior.
 
+## Previously skipped coverage
+
+Enable the five-page panel preview while running the ordinary SQLite suite:
+
+```sh
+PANEL_PREVIEW=1 php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit sqlite.xml
+```
+
+Settings form cases now always run: each tab's actual submit destination is checked,
+the guide is checked as a read-only page, and a synthetic connected Google Calendar
+account exercises the external disconnect form. These cases need no real account.
+The preview and form tests reject unexpected Laravel HTTP requests.
+
+Run the MariaDB cases in a **separate process** using Docker and Python 3, from
+the repository root in an isolated Linux checkout with Composer dependencies:
+
+```sh
+docker build -t servernet-tests:php84 website/tests/docker
+python3 website/tests/docker/run-mariadb.py \
+  --checkout "$PWD" --output "$PWD/test-results/mariadb"
+```
+
+The runner refuses `.env`/environment variants and cached application configuration
+(`.env.example` is allowed). It mounts source read-only, uses temporary writable
+storage/cache, starts MariaDB 11.8 with an empty in-memory data directory, and creates
+the dedicated `servernet_stress` database. The `db` hostname exists only on a private
+Docker network with no published ports or external egress. Random test credentials
+are discarded with the containers and network in the cleanup step. No live database,
+provider credentials, or customer services are involved. Docker image construction
+requires package-download access; test execution does not.
+
+The original six cases cover the environment gate, 100 reservation attempts, repeated
+settlement, repeated release, competing settlement/release, and 100 mixed wallet
+debits/reservations. A seventh case deliberately breaks child-process database login
+to prove that failed workers cannot produce a successful stress result. Each case
+rebuilds only the disposable schema. Reports include JUnit plus the per-case financial
+checks; combine their case identities with SQLite results instead of counting the
+MariaDB gates as untested work. See `SKIPPED-13-VERIFICATION-2026-10-10.md` in the
+repository root for the verified run and fixes.
+
+The full suite and destructive MariaDB schema resets must never share one database
+or PHP test process. This is why the two environments are run separately.
+
 When adding tests:
 
 - Reuse providers seeded by migrations with `updateOrCreate`; preserve database
