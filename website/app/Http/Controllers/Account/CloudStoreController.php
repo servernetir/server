@@ -116,10 +116,24 @@ class CloudStoreController extends Controller
             return 0;
         }
 
-        $discount = (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
+        $discount = in_array($plan->provider, ['salad', 'lightnode'], true) ? 0
+            : (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
+
+        if ($plan->provider === 'salad' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
+            $minimumHour = (int) (ceil($floor / 1_000_000
+                * app(\App\Services\Cloud\CloudPricing::class)->eurToToman() / 100) * 100);
+            $raw = max($raw, $minimumHour * \App\Services\Cloud\SaladClient::HOURS_PER_MONTH * $months);
+        }
+        if ($plan->provider === 'lightnode' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
+            // A customer billing cycle can span supplier calendar months, so
+            // the 672-hour calendar cap is not a safe rolling-period cost.
+            $raw = max($raw, $floor / 1_000_000
+                * app(\App\Services\Cloud\CloudPricing::class)->eurToToman()
+                * \App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS * $months);
+        }
 
         // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
         // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
@@ -592,11 +606,27 @@ class CloudStoreController extends Controller
     private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows): bool
     {
         foreach ($rows as $row) {
+            if ((string) $row->provider === 'salad' && (string) $row->key === 'gpu-jupyter'
+                && \App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1') {
+                continue;
+            }
+
             if (! in_array((string) $row->provider, $slugProviders, true)) {
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
             }
 
-            if ((int) $row->min_disk_gb > (int) $offer->disk_gb) {
+            if ($row->provider === 'lightnode') {
+                if ($row->family === 'windows' && ((int) $offer->vcpu < 2 || (int) $offer->ram_mb < 4096)) {
+                    continue;
+                }
+                $region = explode('|', (string) $row->provider_ref)[0];
+                if (! CloudPlan::query()->sellable()->where('slug', $offer->slug)
+                    ->where('provider', 'lightnode')->where('provider_location', 'like', $region.'|%')->exists()) {
+                    continue;
+                }
+            }
+
+            if ((int) $row->min_disk_gb > (int) ($offer->boot_disk_gb ?? $offer->disk_gb)) {
                 continue;                                 // روی این دیسک جا نمی‌شود
             }
 
@@ -606,6 +636,11 @@ class CloudStoreController extends Controller
 
             // معماری: ایمیجِ x86 روی پلنِ arm بالا نمی‌آید و برعکس
             if (filled($row->arch) && filled($offer->arch) && (string) $row->arch !== (string) $offer->arch) {
+                continue;
+            }
+
+            if ((string) $row->provider === 'salad'
+                && ! \App\Services\Cloud\SaladClient::imageSupportsGpu((string) $row->provider_ref, (string) $offer->gpu_model)) {
                 continue;
             }
 
@@ -894,7 +929,7 @@ class CloudStoreController extends Controller
                     'per' => self::monthlyEquivalent($offer, $cy),
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
-                    'save' => (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
+                    'save' => in_array($offer->provider, ['salad', 'lightnode'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
                 ];
             }
 
@@ -1100,6 +1135,7 @@ class CloudStoreController extends Controller
             // فروشِ ساعتی (پیش‌پرداخت از کیفِ پول)
             'billing_mode' => ['nullable', 'string', Rule::in(['cycle', 'hourly'])],
             'on_credit_out' => ['nullable', 'string', Rule::in(['suspend', 'convert', 'terminate'])],
+            'quoted_hourly_irt' => ['nullable', 'integer', 'min:0'],
         ], [], [
             'location' => __('ui.cvb_a_location'), 'plan' => __('ui.cvb_a_plan'),
             'image' => __('ui.cvb_a_image'), 'cycle' => __('ui.cvb_a_cycle'),
@@ -1191,6 +1227,21 @@ class CloudStoreController extends Controller
 
         if ($price <= 0) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_price')]);
+        }
+
+        if ($offer->provider === 'salad') {
+            $quote = app(\App\Services\Cloud\SaladClient::class)->purchaseQuote((string) $offer->provider_ref);
+            if (! ($quote['ok'] ?? false)) {
+                $key = ($quote['reason'] ?? '') === 'capacity' ? 'cvb_gpu_capacity_changed' : 'cvb_gpu_price_unverified';
+                return back()->withInput()->withErrors(['plan' => __('ui.'.$key)]);
+            }
+            $effectiveRate = $wantsHourly ? $offer->hourlyIrt()
+                : $price / max(1, Service::monthsIn($cycle)) / \App\Services\Cloud\SaladClient::HOURS_PER_MONTH;
+            if ($effectiveRate < $quote['minimum_hourly_irt']
+                || ($wantsHourly && isset($data['quoted_hourly_irt'])
+                    && (int) $data['quoted_hourly_irt'] !== $offer->hourlyIrt())) {
+                return back()->withInput()->withErrors(['plan' => __('ui.cvb_gpu_price_changed')]);
+            }
         }
 
         $taxPct = self::taxPercent();

@@ -3,19 +3,31 @@
   'use strict';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Skip decorative animation on small screens to keep initial rendering responsive.
+  const skipDecorations = reduceMotion || window.matchMedia('(max-width: 1020px)').matches;
   const isRTL = document.documentElement.dir === 'rtl';
   const faDigits = (s) => isRTL ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(s);
 
   /* ---- HEADER / SCROLL FX ---- */
   const header = document.getElementById('header');
   const progress = document.getElementById('progress');
-  window.addEventListener('scroll', () => {
-    if (header) header.classList.toggle('scrolled', window.scrollY > 24);
-    if (progress) {
-      const h = document.documentElement;
-      progress.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
-    }
-  }, { passive: true });
+  let scrollFrame = 0;
+  function paintScroll() {
+    scrollFrame = 0;
+    // Read geometry before changing the header, at most once per frame.
+    const h = document.documentElement;
+    const top = window.scrollY;
+    const range = progress ? h.scrollHeight - h.clientHeight : 0;
+    const percent = range > 0 ? Math.max(0, Math.min(100, top / range * 100)) : 0;
+    if (header) header.classList.toggle('scrolled', top > 24);
+    if (progress) progress.style.width = percent + '%';
+  }
+  function queueScroll() {
+    if (!scrollFrame) scrollFrame = requestAnimationFrame(paintScroll);
+  }
+  window.addEventListener('scroll', queueScroll, { passive: true });
+  window.addEventListener('resize', queueScroll, { passive: true });
+  queueScroll();
 
   /* ---- MOBILE NAV ---- */
   const burger = document.getElementById('hamburger');
@@ -37,7 +49,7 @@
     if (el.dataset.done) return;
     el.dataset.done = 1;
     const to = parseFloat(el.dataset.to), dec = parseInt(el.dataset.dec || 0), suf = el.dataset.suffix || '';
-    if (reduceMotion) { el.textContent = faDigits(to.toFixed(dec)) + suf; return; }
+    if (skipDecorations) { el.textContent = faDigits(to.toFixed(dec)) + suf; return; }
     const dur = 1600, t0 = performance.now();
     const step = (t) => {
       const p = Math.min((t - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3);
@@ -71,7 +83,7 @@
   (function runTerminal() {
     const body = document.getElementById('term-body');
     if (!body) return;
-    if (reduceMotion) { body.innerHTML = TERM_LINES.map((l) => `<div class="ln">${l.h}</div>`).join(''); return; }
+    if (skipDecorations) { body.innerHTML = TERM_LINES.map((l) => `<div class="ln">${l.h}</div>`).join(''); return; }
     let i = 0;
     function next() {
       if (i >= TERM_LINES.length) {
@@ -100,7 +112,7 @@
   /* ---- PARTICLE NETWORK (hero) ---- */
   (function initNet() {
     const cv = document.getElementById('net');
-    if (!cv || reduceMotion) return;
+    if (!cv || skipDecorations) return;
     const ctx = cv.getContext('2d'); let W, H, pts = [];
     function size() {
       const r = cv.parentElement.getBoundingClientRect();
@@ -337,12 +349,14 @@
   /* ---- TLD CHIPS: نمایش چرخشی ---- */
   const strip = document.getElementById('tld-strip');
   if (strip) {
+    const skipDecorations = window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.matchMedia('(max-width:1020px)').matches;
     const chips = Array.from(strip.querySelectorAll('.tld-chip'));
-    const VISIBLE = Math.min(6, chips.length);
+    const VISIBLE = skipDecorations ? chips.length : Math.min(6, chips.length);
     chips.forEach((c, i) => { if (i >= VISIBLE) c.classList.add('hidden-chip'); });
-    if (chips.length > VISIBLE && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (chips.length > VISIBLE && !skipDecorations) {
       let nextIdx = VISIBLE;
       setInterval(() => {
+        if (document.hidden) return;
         const visible = chips.filter((c) => !c.classList.contains('hidden-chip'));
         const out = visible[Math.floor(Math.random() * visible.length)];
         const inChip = chips[nextIdx % chips.length];

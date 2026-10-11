@@ -206,7 +206,7 @@ class CloudSaladGpuTest extends TestCase
             'image_ref' => 'saladtechnologies/comfyui:comfy0.3.40-api1.9.0-torch2.7.1-cuda12.6-dreamshaper8',
         ]);
         $this->assertFalse($r['ok']);
-        $this->assertStringContainsString('CUDA 12.8', $r['message']);
+        $this->assertStringContainsString('سازگار نیست', $r['message']);
         Http::assertNothingSent();
     }
 
@@ -259,30 +259,25 @@ class CloudSaladGpuTest extends TestCase
         $this->assertTrue(app(CloudManager::class)->driver('salad')->isConfigured());
     }
 
-    /**
-     * 🔴 گران‌ترین تلهٔ این زیرساخت: بهایِ تمام‌شده **سه تکه** است و API فقط
-     * تکهٔ GPU را می‌دهد.
-     *
-     * بی‌افزودنِ vCPU و رم، روی پیکربندیِ بزرگ زیرِ قیمتِ خرید می‌فروشیم — روی
-     * **هر ساعت**، بی‌هیچ خطایی.
-     */
-    public function test_the_cost_includes_cpu_and_ram_not_just_the_gpu(): void
+    /** GPU tariffs already bundle CPU and RAM; legacy settings must not duplicate them. */
+    public function test_gpu_tariff_already_includes_cpu_and_ram(): void
     {
         $this->configure();
         Setting::put('salad_priority', 'high');
         $this->fakeClasses([$this->gpuClass()]);
 
+        Setting::put('salad_vcpu_usd_hour', '1');
+        Setting::put('salad_ram_gb_usd_hour', '1');
+
         $plans = app(CloudManager::class)->driver('salad')->fetchCatalog()['plans'];
 
         $this->assertCount(1, $plans);
 
-        // نرخِ پیش‌فرض: ۸ هسته × ۰٫۰۰۴ + ۳۰ گیگ × ۰٫۰۰۱ = ۰٫۰۶۲ دلار/ساعت
-        // پس بهایِ ساعتی باید از ۰٫۵ (تنها GPU) **بیشتر** باشد.
+        // Official GPU tariffs include vCPU and RAM; do not add them twice.
         $gpuOnly = $this->eurCentsFor(0.500);
         $withAll = $plans[0]['cost_eur_cents'];
 
-        $this->assertGreaterThan($gpuOnly, $withAll,
-            'بهایِ تمام‌شده فقط قیمتِ GPU را گرفته — vCPU و رم جا افتاده‌اند.');
+        $this->assertSame($gpuOnly, $withAll);
     }
 
     /**
@@ -328,7 +323,7 @@ class CloudSaladGpuTest extends TestCase
         $plan = app(CloudManager::class)->driver('salad')->fetchCatalog()['plans'][0];
 
         // بی‌کارمزد، عدد باید دقیقاً همان زنجیرهٔ خام باشد
-        $raw = 0.500 + (8 * SaladClient::DEFAULT_VCPU_USD_HOUR) + (30 * SaladClient::DEFAULT_RAM_GB_USD_HOUR);
+        $raw = 0.500;
 
         $this->assertSame($this->eurCentsFor($raw), $plan['cost_eur_cents']);
     }

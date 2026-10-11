@@ -147,6 +147,10 @@ class CloudServerController extends Controller
         */
         $password = session('revealed_root_password');
         $canReveal = $instance && ! $instance->password_seen && $instance->hasPassword();
+        if ($instance?->provider === 'lightnode'
+            && (! $instance->ready_notified_at || ! in_array($instance->status, ['running', 'off'], true))) {
+            $password = null; $canReveal = false;
+        }
 
         // فازِ A: سوییچِ کشورِ خروج — فقط برای سرورهای میزبانِ ایران (Proxmox) که
         // تحویل شده‌اند. نامِ زیرساخت هیچ‌جا بیرون نمی‌رود (قاعدهٔ سفیدبرچسبی).
@@ -256,6 +260,14 @@ class CloudServerController extends Controller
     public function status(Service $service): JsonResponse
     {
         $this->ownedService($service);
+        if (str_starts_with((string) $service->cloud_image_key, 'gpu-')
+            && in_array($service->status, Service::DEAD_STATUSES, true)) {
+            return response()->json([
+                'ok' => true, 'status' => $service->status, 'ready' => false,
+                'closed' => true, 'stage' => 'closed', 'stage_index' => null,
+                'label' => __('ui.cs_closed_h'), 'color' => 'var(--dim)',
+            ]);
+        }
         $instance = $this->instanceOf($service);
 
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
@@ -290,6 +302,7 @@ class CloudServerController extends Controller
             $this->billingClock->record($service, $instance, (string) $r['status'], [
                 'ipv4' => $r['ipv4'] ?: $instance->ipv4,
                 'ipv6' => $r['ipv6'] ?: $instance->ipv6,
+                'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                 'synced_at' => now(),
             ]);
         }
@@ -389,6 +402,10 @@ class CloudServerController extends Controller
 
         if ($instance === null || ! $instance->hasPassword()) {
             return back()->withErrors(__('ui.cx_no_pass'));
+        }
+        if ($instance->provider === 'lightnode'
+            && (! $instance->ready_notified_at || ! in_array($instance->status, ['running', 'off'], true))) {
+            return back()->withErrors(__('ui.cx_not_ready'));
         }
 
         if ($instance->password_seen) {
@@ -501,7 +518,9 @@ class CloudServerController extends Controller
         // ایمیج باید واقعاً روی همین زیرساخت **و همین معماری** باشد؛ ورودیِ
         // دلخواهِ کاربر را مستقیم به API نمی‌فرستیم. معماری از پلنِ همین سرویس
         // می‌آید — نصبِ دوبارهٔ یک سرورِ arm با ایمیجِ x86 رد می‌شود.
-        $ref = CloudImage::refFor($instance->provider, $data['image'], $service->cloudPlan?->arch);
+        $ref = $instance->provider === 'lightnode' && $service->cloudPlan
+            ? CloudImage::compatibleRefFor($service->cloudPlan, $data['image'])
+            : CloudImage::refFor($instance->provider, $data['image'], $service->cloudPlan?->arch);
 
         if ($ref === null) {
             return back()->withErrors(__('ui.cx_os_na'));
@@ -523,6 +542,12 @@ class CloudServerController extends Controller
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
 
             return back()->withErrors(__('ui.cx_reinstall_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
+        }
+
+        if ($r['pending'] ?? false) {
+            $instance->update(['status' => 'building', 'last_error' => null]);
+            $this->log($service, __('ui.act_cloud_reinstall', ['image' => $data['image']]));
+            return back()->with('ok', __('ui.cx_async_accepted'));
         }
 
         $instance->fill(['status' => 'building', 'image_key' => $data['image'], 'last_error' => null]);
@@ -563,6 +588,12 @@ class CloudServerController extends Controller
         }
 
         $r = $driver->resetPassword((string) $instance->provider_ref);
+
+        if (($r['ok'] ?? false) && ($r['pending'] ?? false)) {
+            $instance->update(['status' => 'building', 'last_error' => null]);
+            $this->log($service, __('ui.act_cloud_rootpw'));
+            return back()->with('ok', __('ui.cx_async_accepted'));
+        }
 
         if (! ($r['ok'] ?? false) || blank($r['root_password'] ?? null)) {
             return back()->withErrors(__('ui.cx_newpass_fail', ['msg' => $this->safeMessage((string) ($r['message'] ?: '—'), $instance)]));
@@ -719,6 +750,12 @@ class CloudServerController extends Controller
             $this->releasePowerOnClaim($claimedInstanceId);
 
             return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
+        }
+
+        if ($r['pending'] ?? false) {
+            $instance->update(['status' => 'building', 'last_error' => null, 'synced_at' => now()]);
+            $this->log($service, $logAction);
+            return back()->with('ok', __('ui.cx_async_accepted'));
         }
 
         if ($powerAction !== null && $this->billingClock->applies($service)) {

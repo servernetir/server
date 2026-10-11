@@ -207,6 +207,10 @@ Schedule::command('system:health')
 // ⚠️ قفل روی ۱۵ دقیقه است نه ۱۰: بودجهٔ `createacct` در کرون تا ۱۸۰ ثانیه
 // می‌رود و همان عدد در `ProvisioningService` هم مرزِ «قفلِ کهنه» است. قفلی
 // کوتاه‌تر از بدترین‌حالتِ اجرا یعنی نمونهٔ دوم وسطِ کارِ نمونهٔ اول شروع شود.
+Schedule::command('cloud:recover-gpu-delivery')
+    ->everyMinute()
+    ->withoutOverlapping(15);
+
 Schedule::command('provision:run')
     ->everyMinute()
     ->withoutOverlapping(15);
@@ -440,6 +444,12 @@ Schedule::command('cloud:sync')
 Schedule::command('cloud:sync --prices')
     ->dailyAt('05:40')
     ->withoutOverlapping(45);
+
+// GPU tariffs are in USD. Refresh their currency conversion and availability
+// separately; the general catalog's two-day cadence is too slow for new sales.
+Schedule::command('cloud:sync --provider=salad')
+    ->hourlyAt(15)
+    ->withoutOverlapping(15);
 
 // ممیزیِ مالیِ سرورهای ساعتی — درسِ sn-svc-76: نرخِ قفل‌شدهٔ زیرِ بهای
 // تمام‌شده تا امروز هیچ‌جا دیده نمی‌شد و کارفرما اتفاقی در پنلِ زیرساخت دید.

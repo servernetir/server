@@ -72,9 +72,42 @@
   @endif
   @endforeach
 
+  // Initialize immediately, including before load; fast CTA navigation must not
+  // wait for idle or an interaction to start downloading the analytics container.
   if(!d.getElementById('snet-gtm')){
     w.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});
-    var s=d.createElement('script');s.id='snet-gtm';s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);d.head.appendChild(s);
+    var loaded=false;
+    function loadGtm(){
+      if(loaded||d.getElementById('snet-gtm'))return;
+      loaded=true;
+      var workerPath=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
+      var useWorker=(workerPath==='/gpu'||workerPath==='/vps/hourly')
+        &&w.matchMedia('(max-width:1020px)').matches&&w.isSecureContext
+        &&typeof w.Worker==='function'&&'serviceWorker'in w.navigator;
+      var s=d.createElement('script');s.id='snet-gtm';s.async=true;
+      s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);
+      if(useWorker){
+        var queue=w.dataLayer;
+        w.__snetRestoreAnalyticsQueue=function(){
+          w.dataLayer=queue;
+          w.dataLayer.push=Array.prototype.push;
+        };
+        w.partytown={lib:'/assets/js/snet-analytics-worker-0.15.0-snet3/',
+          forward:[['dataLayer.push',{preserveBehavior:true}]],fallbackTimeout:4000};
+        s.type='text/partytown';
+        d.head.appendChild(s);
+        var boot=d.createElement('script');boot.id='snet-analytics-worker';boot.async=true;
+        boot.src='/assets/js/snet-analytics-worker-0.15.0-snet3/partytown.js';
+        boot.onerror=function(){
+          w.__snetRestoreAnalyticsQueue();
+          s.remove();
+          var normal=d.createElement('script');normal.id='snet-gtm';normal.async=true;
+          normal.src=s.src;d.head.appendChild(normal);
+        };
+        d.head.appendChild(boot);
+      }else d.head.appendChild(s);
+    }
+    loadGtm();
   }
 })(window,document,@json($gtmId));
 </script>

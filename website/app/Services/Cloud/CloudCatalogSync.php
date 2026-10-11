@@ -255,7 +255,7 @@ class CloudCatalogSync
             $disk = max(1, (int) ($r['disk_gb'] ?? 10));
             $cpuKind = ($r['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
 
-            $price = $this->pricing->priceFor($cost);
+            $price = $this->pricing->priceFor($cost, $provider);
 
             // ── ردگیریِ تغییرِ بها ──
             // ⚠️ چرا لازم است: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
@@ -282,6 +282,12 @@ class CloudCatalogSync
             // برمتال (سرورِ فیزیکی) — باید به نام و اسلاگ برسد وگرنه با VPSِ
             // هسته‌اختصاصیِ هم‌مشخصات یک گروه می‌شود (توضیح در CloudNaming).
             $metal = (bool) ($r['metal'] ?? false);
+            $networkTerms = $provider === 'lightnode' ? ($r['network_terms'] ?? null) : null;
+            $planSlug = CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal);
+            if ($provider === 'lightnode') {
+                // Different network contracts cannot be interchangeable offers.
+                $planSlug .= '-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
+            }
 
             CloudPlan::updateOrCreate(
                 ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
@@ -301,7 +307,7 @@ class CloudCatalogSync
                     | نمی‌شود. همان تلهٔ ثبت‌شده: تستی که خودش تابع را مستقیم
                     | صدا می‌زند، سیم‌کشی را نمی‌سنجد.
                     */
-                    'slug'              => CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal),
+                    'slug'              => $planSlug,
                     'vcpu'              => $vcpu,
                     'ram_mb'            => $ram,
                     'disk_gb'           => $disk,
@@ -328,6 +334,10 @@ class CloudCatalogSync
                     // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
                     // عمداً بسته، دو روز بعد خودش باز می‌شد.
                 ] + $costTrack
+                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'network_terms')
+                    ? ['network_terms' => $networkTerms,
+                        'boot_disk_gb' => $provider === 'lightnode' ? ($r['boot_disk_gb'] ?? null) : null,
+                        'data_disk_gb' => $provider === 'lightnode' ? ($r['data_disk_gb'] ?? null) : null] : [])
                 // بهایِ ساعتیِ واقعیِ زیرساخت (درسِ sn-svc-76) — فقط اگر ستونش
                 // ساخته شده باشد، تا syncِ پیش از مهاجرت نشکند.
                 + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'cost_hour_eur_micro')
@@ -347,7 +357,7 @@ class CloudCatalogSync
 
         // پلنی که این بار نیامد = برداشته شده. غیرفعال می‌شود تا از فروشگاه
         // بیرون برود، ولی ردیفش می‌ماند چون سرویسِ فعالِ مشتری به آن اشاره دارد.
-        if ($seen !== []) {
+        if ($seen !== [] || $provider === 'lightnode') {
             CloudPlan::where('provider', $provider)
                 ->get(['id', 'provider_ref', 'location_code', 'is_active'])
                 ->each(function (CloudPlan $p) use ($seen) {
@@ -533,7 +543,7 @@ class CloudCatalogSync
 
         CloudPlan::query()->where('cost_eur_cents', '>', 0)->chunkById(200, function ($plans) use (&$n) {
             foreach ($plans as $plan) {
-                $price = $this->pricing->priceFor((int) $plan->cost_eur_cents);
+                $price = $this->pricing->priceFor((int) $plan->cost_eur_cents, $plan->provider);
 
                 if ($price['eur_cents'] !== (int) $plan->price_eur_cents || $price['irt'] !== (int) $plan->price_irt) {
                     $plan->update([

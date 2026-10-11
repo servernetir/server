@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-10",
+  "tool": "Lighthouse 12.8.2",
+  "method": "local Chrome; mobile; simulated throttling; PSI unavailable (403)",
+  "runs": [
+    {
+      "page": "hourly",
+      "run": 1,
+      "time": "2026-10-10T11:42:07.490Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.98,
+      "TBT": 79,
+      "LCP": 1774.7350000000001,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "hourly",
+      "run": 2,
+      "time": "2026-10-10T11:44:37.246Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.99,
+      "TBT": 0,
+      "LCP": 1651.8610000000003,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "hourly",
+      "run": 3,
+      "time": "2026-10-10T11:44:54.860Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.79,
+      "TBT": 6,
+      "LCP": 3741.858,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "hourly",
+      "run": 4,
+      "time": "2026-10-10T11:45:12.992Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.99,
+      "TBT": 0,
+      "LCP": 1651.498,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "hourly",
+      "run": 5,
+      "time": "2026-10-10T11:45:32.192Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.73,
+      "TBT": 0,
+      "LCP": 4333.092000000001,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "gpu",
+      "run": 1,
+      "time": "2026-10-10T11:40:01.895Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.99,
+      "TBT": 0,
+      "LCP": 1652.6840000000002,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "gpu",
+      "run": 2,
+      "time": "2026-10-10T11:43:26.761Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.8,
+      "TBT": 0,
+      "LCP": 3744.9120000000003,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "gpu",
+      "run": 3,
+      "time": "2026-10-10T11:43:44.375Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.75,
+      "TBT": 9.5,
+      "LCP": 4298.280000000001,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "gpu",
+      "run": 4,
+      "time": "2026-10-10T11:44:02.146Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.99,
+      "TBT": 0,
+      "LCP": 1652.1374999999998,
+      "CLS": 0,
+      "error": null
+    },
+    {
+      "page": "gpu",
+      "run": 5,
+      "time": "2026-10-10T11:44:19.897Z",
+      "mobile": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "score": 0.99,
+      "TBT": 5,
+      "LCP": 1501.152,
+      "CLS": 0,
+      "error": null
+    }
+  ],
+  "analytics": "worker fixture: tag scripts 200; page_view/scroll transport completed; GA4 receipt unverified",
+  "purchase": "GPU selection/totals/plan/units and both CTAs to customer login verified; payment/order not executed",
+  "temporary_fixture": "moved to private storage; public 404 verified"
+}

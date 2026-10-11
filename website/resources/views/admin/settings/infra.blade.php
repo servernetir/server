@@ -9,6 +9,24 @@
   @csrf
   <input type="hidden" name="tab" value="infra">
 
+  <div class="ad-panel">
+    <div class="ad-panel-h"><h2>LightNode</h2>
+      @if($cloud['lightnode'])<span class="ad-badge">کلید ذخیره‌شده</span>@endif
+      <span class="ad-badge">{{ config('lightnode.sales_enabled') && config('lightnode.public_pricing_enabled') ? 'فروش فعال' : 'فروش غیرفعال' }}</span>
+    </div>
+    <p class="set-lead">فروش با پهنای‌باند ثابت، قیمت تازهٔ LightNode و سود فعلی سایت انجام می‌شود. استفاده از مدل مشترک مناطق با تأیید مالک، جدا از آزمون واقعی هر پلن ثبت می‌شود؛ تحویل پس از تطبیق پاسخ واقعی زیرساخت است. خاموشی، هزینه را متوقف نمی‌کند.</p>
+    <div class="set-grid" style="padding:0 18px 18px">
+      <label class="set-f">کلید API
+        <input type="password" name="lightnode_api_token" dir="ltr" autocomplete="new-password" maxlength="1000"
+          placeholder="{{ $cloud['lightnode'] ? 'ذخیره‌شده؛ خالی = بدون تغییر' : 'کلید API تأییدشدهٔ حساب' }}"></label>
+      @if($cloud['lightnode'])<label class="set-danger"><input type="checkbox" name="lightnode_forget" value="1">حذف کلید ذخیره‌شده</label>@endif
+      <label class="set-f full">نگاشت مناطق و مشخصات تأییدشدهٔ LightNode
+        <textarea name="lightnode_manifest" dir="ltr" rows="8">{{ $cloud['lightnode_manifest'] }}</textarea>
+        <span class="set-lead">قیمت از محاسبه‌گر عمومی LightNode دریافت و سود فعلی سایت اعمال می‌شود. این بخش فقط برای نگاشت مناطق و سری پردازندهٔ پلن‌های تأییدشده است؛ نرخ دستی مبنای فروش نیست. کلید API و رمز سرور را اینجا وارد نکنید.</span>
+      </label>
+    </div>
+  </div>
+
   {{-- ═══ CDN و DNS ═══ --}}
   <div class="ad-panel">
     <div class="ad-panel-h">
@@ -193,21 +211,24 @@
                value="{{ $cloud['sl']['branded'] ?? '' }}" placeholder="servernet.cloud">
         <small style="color:var(--dim)">نشانیِ مشتری g-xxxx.{دامنه} می‌شود — نیازمندِ Workerِ Cloudflare (راهنما در relay/cloudflare)</small>
       </label>
+      <label class="set-f full" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="hidden" name="salad_jupyter_sales_paused" value="0">
+        <input type="checkbox" name="salad_jupyter_sales_paused" value="1" @checked($cloud['sl']['jupyter_sales_paused'] ?? false)>
+        <span>توقف موقت فروش جدید Jupyter تا تأیید اتصال اجرای کد؛ سرویس‌های موجود تغییر نمی‌کنند.</span>
+      </label>
       <label class="set-f">رازِ دروازهٔ برندشده (Gateway secret)
         <input type="password" name="salad_gateway_secret" dir="ltr" autocomplete="new-password" maxlength="200"
                placeholder="باید با GATE_SECRET در Worker یکی باشد — خالی = بدونِ تغییر">
         <small style="color:var(--dim)">توکنِ دسترسیِ هر ماشین از این راز ساخته می‌شود؛ بی‌آن، دروازه باز است</small>
       </label>
 
-        {{-- 🔴 این دو نرخ در API آنها **نیستند** و فقط در مستنداتِ متنی‌اند.
-             بهایِ تمام‌شده = قیمتِ GPU + vCPU×نرخ + گیگ‌رم×نرخ؛ اگر تکهٔ GPU را
-             تنها بگیریم، روی پیکربندیِ بزرگ زیرِ قیمتِ خرید می‌فروشیم. --}}
-        <label class="set-f">نرخِ هر vCPU در ساعت (دلار)
-          <input type="text" name="salad_vcpu_usd_hour" dir="ltr" inputmode="decimal" maxlength="12"
-                 value="{{ $cloud['sl']['vcpu'] }}" placeholder="0.004"></label>
-        <label class="set-f">نرخِ هر گیگ رم در ساعت (دلار)
-          <input type="text" name="salad_ram_gb_usd_hour" dir="ltr" inputmode="decimal" maxlength="12"
-                 value="{{ $cloud['sl']['ram'] }}" placeholder="0.001"></label>
+        <label class="set-f">نرخ قدیمی CPU — در محاسبه GPU استفاده نمی‌شود
+          <input type="text" name="salad_vcpu_usd_hour" dir="ltr" disabled
+                 value="{{ $cloud['sl']['vcpu'] }}"></label>
+        <label class="set-f">نرخ قدیمی RAM — در محاسبه GPU استفاده نمی‌شود
+          <input type="text" name="salad_ram_gb_usd_hour" dir="ltr" disabled
+                 value="{{ $cloud['sl']['ram'] }}">
+          <small>طبق تعرفهٔ Salad، CPU و RAM در قیمت کارت GPU لحاظ شده‌اند.</small></label>
 
         <label class="set-f full" style="flex-direction:row;align-items:center;gap:8px">
           <input type="checkbox" name="salad_forget" value="1">

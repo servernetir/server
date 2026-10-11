@@ -56,6 +56,10 @@
         <input type="number" name="pricing_fx_fee_pct_salad" dir="ltr" min="0" max="25" step="0.1"
                value="{{ $pricing['pricing_fx_fee_pct_salad'] }}" placeholder="خالی = پیش‌فرض">
         <small>پرداختِ دلاری؛ کارمزد کارت/حواله‌ات به آن‌ها.</small></label>
+      <label class="set-f">سربارِ LightNode (٪)
+        <input type="number" name="pricing_fx_fee_pct_lightnode" dir="ltr" min="0" max="25" step="0.1"
+               value="{{ $pricing['pricing_fx_fee_pct_lightnode'] }}" placeholder="خالی = پیش‌فرض">
+        <small>کارمزد پرداخت دلاری و مالیاتِ تأییدشدهٔ حساب؛ نرخ ساعتی از پنل بررسی می‌شود.</small></label>
       <label class="set-f">حاشیهٔ سودِ عمومی (٪)
         <input type="number" name="price_margin_pct" dir="ltr" step="0.1"
                value="{{ $pricing['price_margin_pct'] }}" placeholder="۰">
@@ -76,6 +80,11 @@
                value="{{ $pricing['cloud_margin_pct'] }}"
                placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)">
         <small>روی بهایِ یوروییِ زیرساخت اعمال و بعد با نرخِ روز به تومان می‌آید.</small></label>
+
+      <label class="set-f">افزایش قیمت GPU نسبت به هزینه (٪)
+        <input type="number" name="cloud_margin_pct_salad" dir="ltr" step="1" min="0" max="500"
+               value="{{ $pricing['cloud_margin_pct_salad'] ?? '' }}" placeholder="خالی = درصد سرور ابری">
+        <small>فقط GPU؛ هزینه شامل نرخ کارت، CPU و RAM همراه آن، نرخ ارز و کارمزد انتقال است. این درصد افزایش بر هزینه است، نه سود خالص. نرخ سرویس‌های موجود خودکار تغییر نمی‌کند.</small></label>
 
       <label class="set-f">دامنه (٪)
         <input type="number" name="domain_margin_pct" dir="ltr" step="1" min="0" max="500"

@@ -269,6 +269,8 @@
 </section>
 @endif
 
+@include('partials.seo-hourly-estimate')
+
 {{-- ═══════════ ساعتی یا ماهانه ═══════════ --}}
 <section class="section hv-sec" id="hourly-vs-monthly">
   <div class="container">
@@ -348,6 +350,7 @@
 {{-- راهنماهای بلاگ (پل محصول→بلاگ) --}}
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
 
+@push('head')
 <style>
 /* صفحهٔ سرور ساعتی — استایلِ درجا با پیشوندِ hv- */
 .hv-top{ padding-bottom:30px }
@@ -440,4 +443,5 @@
   .hv-sec{ padding:32px 0 }
 }
 </style>
+@endpush
 @endsection

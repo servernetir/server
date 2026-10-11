@@ -226,15 +226,15 @@ class PaymentService
             | می‌تواند با قیمتِ روز دوباره سفارش دهد و از همان اعتبار بپردازد،
             | و فاکتورِ لغوشده لغو می‌مانَد.
             */
-            if ($invoice->status === 'canceled' && $fresh->amount > 0) {
+            if (in_array($invoice->status, ['canceled', 'refunded'], true) && $fresh->amount > 0) {
                 $this->credit(
                     $invoice->customer_id, $invoice->currency_code, $fresh->amount,
                     'adjustment', $invoice,
-                    'پرداختِ فاکتورِ منقضی‌شدهٔ '.$invoice->number.' — به اعتبارِ شما افزوده شد',
+                    'پرداختِ فاکتورِ بسته‌شدهٔ '.$invoice->number.' — به اعتبارِ شما افزوده شد',
                 );
 
                 ErrorTracker::noteOnce('billing',
-                    'پرداخت روی فاکتورِ لغوشده نشست و به اعتبار رفت.', 900,
+                    'پرداخت روی فاکتورِ لغوشده یا برگشت‌خورده نشست و به اعتبار رفت.', 900,
                     ['invoice' => $invoice->number]);
 
                 return new SettleOutcome(true, $fresh);
