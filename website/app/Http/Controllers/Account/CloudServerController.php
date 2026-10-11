@@ -580,6 +580,17 @@ class CloudServerController extends Controller
             ));
         }
 
+        // The official Arvan page initializes its own short-lived console
+        // cookie. Ownership, service-state and rate-limit checks above still
+        // apply; the validated URL is never logged or embedded in the page.
+        if ($instance->provider === 'arvan' && ($r['transport'] ?? null) === 'external') {
+            $this->log($service, __('ui.act_cloud_console'));
+
+            return redirect()->away($r['url'])
+                ->header('Cache-Control', 'no-store')
+                ->header('Referrer-Policy', 'no-referrer');
+        }
+
         // بلیت: تصادفی، کوتاه‌عمر، و گره‌خورده به همین سرویس تا با بلیتِ سرویسِ
         // دیگری قابلِ استفاده نباشد.
         $ticket = bin2hex(random_bytes(16));

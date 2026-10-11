@@ -37,7 +37,7 @@ class CloudPlan extends Model
         'provider', 'provider_ref', 'provider_location',
         // بهایِ تمام‌شده و تاریخِ تغییرش دادهٔ داخلیِ ما است؛ مشتری نباید
         // بتواند حاشیهٔ سودمان را حساب کند.
-        'cost_eur_cents', 'previous_cost_eur_cents', 'cost_changed_at',
+        'cost_eur_cents', 'cost_hour_eur_micro', 'previous_cost_eur_cents', 'cost_changed_at',
         // بهایِ راه‌اندازی هم بهاست — از هر JSON بیرون می‌مانَد
         'setup_eur_cents',
     ];
@@ -91,6 +91,14 @@ class CloudPlan extends Model
      */
     public function supportsHourly(): bool
     {
+        // The live Arvan form warns that a VM may be undeletable for 48 hours,
+        // so a short customer session can leave us paying after their meter
+        // stops. Keep hourly sales fail-closed until that risk is accepted.
+        if ($this->provider === 'arvan') {
+            return Setting::get('arvan_hourly_sales_enabled') === '1'
+                && (int) ($this->cost_hour_eur_micro ?? 0) > 0;
+        }
+
         if (! $this->isTermBased()) {
             return true;
         }
@@ -121,8 +129,15 @@ class CloudPlan extends Model
      */
     public function scopeHourlyCapable(Builder $q): Builder
     {
-        return $q->where(function (Builder $qq) {
-            $qq->whereNotIn('provider', self::TERM_BASED_PROVIDERS)
+        $arvanEnabled = Setting::get('arvan_hourly_sales_enabled') === '1';
+
+        return $q->where(function (Builder $qq) use ($arvanEnabled) {
+            $qq->whereNotIn('provider', [...self::TERM_BASED_PROVIDERS, 'arvan'])
+                ->when($arvanEnabled, fn (Builder $q2) => $q2->orWhere(
+                    fn (Builder $q3) => $q3->where('provider', 'arvan')
+                        ->whereNotNull('cost_hour_eur_micro')
+                        ->where('cost_hour_eur_micro', '>', 0)
+                ))
                 ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', self::TERM_BASED_PROVIDERS)
                     ->whereNotNull('cost_hour_eur_micro')
                     ->where('cost_hour_eur_micro', '>', 0));
@@ -212,7 +227,9 @@ class CloudPlan extends Model
             ->orderBy('cost_eur_cents')
             ->get()
             ->groupBy('slug')
-            ->map(fn ($rows) => $rows->first())      // ارزان‌ترین، چون مرتب‌شده آمد
+            ->map(fn ($rows) => $hourly
+                ? $rows->sortBy(fn (self $row) => $row->hourlyCostEurMicro() ?: PHP_INT_MAX)->first()
+                : $rows->first())
             ->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']])
             ->values()
             ->keyBy('slug');
@@ -291,9 +308,13 @@ class CloudPlan extends Model
      */
     public static function bestForSlug(string $slug, bool $hourly = false): ?self
     {
-        return static::query()->sellable()
+        $rows = static::query()->sellable()
             ->when($hourly, fn ($q) => $q->hourlyCapable())
-            ->where('slug', $slug)->orderBy('cost_eur_cents')->first();
+            ->where('slug', $slug)->orderBy('cost_eur_cents')->get();
+
+        return $hourly
+            ? $rows->sortBy(fn (self $row) => $row->hourlyCostEurMicro() ?: PHP_INT_MAX)->first()
+            : $rows->first();
     }
 
     // ───────────────────────── نمایش ─────────────────────────
@@ -433,6 +454,51 @@ class CloudPlan extends Model
         $margin = app(\App\Services\Cloud\CloudPricing::class)->marginPct();
 
         return (int) ceil($cost * (1 + $margin / 100));
+    }
+
+    /** Supplier cost per hour; monthly-only tariffs use a 720-hour fallback. */
+    public function hourlyCostEurMicro(): int
+    {
+        $hourly = (int) ($this->cost_hour_eur_micro ?? 0);
+
+        return $hourly > 0
+            ? $hourly
+            : (int) ceil(max(0, (int) $this->cost_eur_cents) * 10_000 / 720);
+    }
+
+    /**
+     * Last synchronized supplier hourly cost in toman.
+     *
+     * The catalog stores the same FX snapshot in both price columns, so their
+     * ratio remains usable when the live FX source is temporarily unavailable.
+     */
+    public function hourlyCostIrt(): int
+    {
+        $saleEurCents = (int) ($this->price_eur_cents ?? 0);
+        $saleIrt = (int) ($this->price_irt ?? 0);
+        $costMicro = $this->hourlyCostEurMicro();
+
+        if ($saleEurCents <= 0 || $saleIrt <= 0 || $costMicro <= 0) {
+            return 0;
+        }
+
+        $cachedEurToman = ($saleIrt * 100) / $saleEurCents;
+
+        return (int) ceil($costMicro * $cachedEurToman / 1_000_000);
+    }
+
+    /** Last synchronized monthly supplier cost in toman. */
+    public function monthlyCostIrt(): int
+    {
+        $saleEurCents = (int) ($this->price_eur_cents ?? 0);
+        $saleIrt = (int) ($this->price_irt ?? 0);
+        $costEurCents = (int) ($this->cost_eur_cents ?? 0);
+
+        if ($saleEurCents <= 0 || $saleIrt <= 0 || $costEurCents <= 0) {
+            return 0;
+        }
+
+        return (int) ceil($saleIrt * $costEurCents / $saleEurCents);
     }
 
     /** نرخِ ساعتی به تومان (گردِ رو به بالا به نزدیک‌ترین ۱۰۰ تومان برای ظاهرِ تمیز). */

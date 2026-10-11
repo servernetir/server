@@ -63,6 +63,7 @@ class BusinessReport
             'outgoing' => [
                 'domains' => $this->domainRegistryCost($until),
                 'servers' => $this->serverRent($days),
+                'cloud'   => $this->cloudRent($days),
             ],
         ];
     }
@@ -81,11 +82,11 @@ class BusinessReport
     private function serviceRenewals(\Illuminate\Support\Carbon $until): array
     {
         if (! Schema::hasTable('services')) {
-            return ['count' => 0, 'amount' => 0, 'rows' => []];
+            return ['count' => 0, 'amount' => 0, 'unpriced' => 0, 'rows' => []];
         }
 
-        $rows = Service::query()
-            ->with('customer')
+        $due = Service::query()
+            ->with(['customer', 'cloudPlan'])
             ->where('status', 'active')
             ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))
             ->whereNotNull('next_due_at')
@@ -95,9 +96,52 @@ class BusinessReport
             ->get()
             ->filter(fn (Service $s) => ! $this->hasOpenInvoice($s));
 
+        $unpriced = 0;
+        $rows = $due->map(function (Service $service) use (&$unpriced): ?Service {
+            $price = (int) $service->price;
+
+            // Renewal invoices reprice cloud services from the current plan.
+            // The forecast must use that same source or it can show a profit
+            // that disappears as soon as the real invoice is issued.
+            if (filled($service->cloud_plan_id)) {
+                $plan = $service->cloudPlan;
+
+                if ($plan === null) {
+                    $unpriced++;
+
+                    return null;
+                }
+
+                $current = \App\Http\Controllers\Account\CloudStoreController::priceForCycle(
+                    $plan,
+                    (string) $service->cycle,
+                    (array) ($service->cloud_addons ?? [])
+                );
+
+                if ($current <= 0) {
+                    $unpriced++;
+
+                    return null;
+                }
+
+                // Renewal policy never silently lowers an existing contract,
+                // but raises it when the current cost-aware catalogue floor is
+                // higher. This mirrors ServiceController::issueInvoice().
+                $price = max($price, $current);
+            }
+
+            $service->setAttribute('forecast_price', $price);
+            $service->setAttribute('forecast_total',
+                $price + (int) round($price * (int) $service->tax_percent / 100)
+            );
+
+            return $service;
+        })->filter()->values();
+
         return [
             'count'  => $rows->count(),
-            'amount' => (int) $rows->sum(fn (Service $s) => (int) $s->price + $s->taxAmount()),
+            'amount' => (int) $rows->sum(fn (Service $s) => (int) $s->forecast_total),
+            'unpriced' => $unpriced,
             'rows'   => $rows->take(12)->values(),
         ];
     }
@@ -269,6 +313,9 @@ class BusinessReport
     /** @var array<int,array<string,mixed>> نتیجهٔ اجاره، یک بار در هر درخواست */
     private array $rentMemo = [];
 
+    /** @var array<int,array<string,mixed>> */
+    private array $cloudRentMemo = [];
+
     /** @var array<string,int> نرخِ هر ارز، یک بار در هر درخواست */
     private array $rateMemo = [];
 
@@ -375,6 +422,67 @@ class BusinessReport
             'free'          => $free,
             'unconvertible' => $unconvertible,
             'rows'          => $rows,
+        ];
+    }
+
+    /**
+     * Supplier cost of every cloud VM that still exists.
+     *
+     * This is driven by instances rather than service status: a suspended or
+     * failed local service can still be billing at the provider until deletion
+     * is confirmed. The delivered plan id is updated after provider fallback,
+     * so the cost belongs to the row actually purchased.
+     */
+    private function cloudRent(int $days): array
+    {
+        if (isset($this->cloudRentMemo[$days])) {
+            return $this->cloudRentMemo[$days];
+        }
+
+        $empty = ['ready' => false, 'toman' => 0, 'monthly' => 0,
+            'priced' => 0, 'missing' => 0, 'rows' => []];
+
+        if (! Schema::hasTable('cloud_instances') || ! Schema::hasTable('cloud_plans')) {
+            return $this->cloudRentMemo[$days] = $empty;
+        }
+
+        $total = $monthly = $priced = $missing = 0;
+        $rows = [];
+        $instances = \App\Models\CloudInstance::query()
+            ->with('service.cloudPlan')
+            ->whereNotIn('status', ['deleted'])
+            ->whereNotNull('provider_ref')
+            ->get();
+
+        foreach ($instances as $instance) {
+            $plan = $instance->service?->cloudPlan;
+            $cost = $plan?->monthlyCostIrt() ?? 0;
+
+            if ($cost <= 0) {
+                $missing++;
+
+                continue;
+            }
+
+            $priced++;
+            $monthly += $cost;
+            $windowCost = (int) ceil($cost * max(1, $days) / 30);
+            $total += $windowCost;
+            $rows[] = [
+                'service_id' => $instance->service_id,
+                'hostname' => (string) $instance->hostname,
+                'monthly' => $cost,
+                'window' => $windowCost,
+            ];
+        }
+
+        return $this->cloudRentMemo[$days] = [
+            'ready' => true,
+            'toman' => $total,
+            'monthly' => $monthly,
+            'priced' => $priced,
+            'missing' => $missing,
+            'rows' => $rows,
         ];
     }
 
@@ -642,13 +750,22 @@ class BusinessReport
             ];
         }
 
+        $cloudRent = $this->cloudRent(30);
+        if (! ($cloudRent['ready'] ?? false)) {
+            $spots[] = [
+                'title' => 'هزینهٔ VPSهای ابری در دسترس نیست',
+                'why' => 'جدول‌های کاتالوگ یا نمونه‌های ابری هنوز روی این نصب آماده نیستند؛ '
+                    .'تا اجرای مهاجرت، سودِ گزارش‌شده هزینهٔ زیرساخت ابری را ندارد.',
+            ];
+        } elseif (($cloudRent['missing'] ?? 0) > 0) {
+            $spots[] = [
+                'title' => 'بهای '.fa_num((string) $cloudRent['missing']).' VPS ابری در جمع نیست',
+                'why' => 'نمونه نزد زیرساخت وجود دارد، اما پلن تحویل‌شده یا نرخ همگام‌شدهٔ معتبر ندارد؛ '
+                    .'کاتالوگ و اتصال سرویس به پلن واقعی باید بررسی شود.',
+            ];
+        }
+
         return array_merge($spots, [
-            [
-                'title' => 'هزینهٔ ماهانهٔ هر سرورِ ابری',
-                'why'   => 'بهایِ تمام‌شده روی «پلن» است، ولی سرورِ ساخته‌شده ستونی به پلنش '
-                    .'ندارد و قیمتِ پلن هم در هر همگام‌سازی بازنویسی می‌شود. پس بهایِ روزِ '
-                    .'فروش دیگر بازیابی‌شدنی نیست و حدس‌زدنش همان‌قدر بد است که ننوشتنش.',
-            ],
             [
                 'title' => 'بهایِ تمدیدِ دامنه (عددِ بالا کفِ هزینه است)',
                 'why'   => 'فقط قیمتِ **ثبتِ اولیه** ذخیره می‌شود و از آن روز ثابت می‌مانَد. '

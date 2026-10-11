@@ -171,7 +171,10 @@ class CloudHourlyStorefrontTest extends TestCase
     public function test_hourly_goes_through_when_the_slug_has_an_hourly_capable_row(): void
     {
         $this->plan('aeza', ['cost_eur_cents' => 201]);
-        $this->plan('hetzner', ['cost_eur_cents' => 380]);
+        $this->plan('hetzner', [
+            'cost_eur_cents' => 380,
+            'cost_hour_eur_micro' => 3000, // زیر نرخ فروش؛ فروش سالم باید باز بماند
+        ]);
         $this->image('aeza');
         $this->image('hetzner');
         $customer = $this->customer(5_000_000);

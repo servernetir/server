@@ -93,6 +93,19 @@ class CloudAddonsTest extends CloudProvisionTest
         $this->assertLessThan(150000 * 12, $yearly, 'دورهٔ سالانه باید تخفیف بخورد');
     }
 
+    public function test_addon_discount_never_crosses_supplier_cost(): void
+    {
+        Setting::put('cloud_extra_ip_eur_cents', '100');
+        Setting::put('cloud_margin_pct', '50');
+        Setting::put('pricing_rate_override', '100000');
+        config()->set('billing.cycles.yearly.discount_pct', 90);
+
+        $total = $this->addons()->forCycle(['extra_ipv4' => 1], 'yearly');
+
+        $this->assertSame(1_200_000, $total);
+        $this->assertSame($total, $this->addons()->lines(['extra_ipv4' => 1], 'yearly')[0]['total']);
+    }
+
     public function test_zero_addons_cost_nothing(): void
     {
         $this->assertTrue($this->addons()->isEmpty(['extra_ipv4' => 0]));

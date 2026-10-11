@@ -237,6 +237,10 @@ class ServiceController extends Controller
             return null;
         }
 
+        if ($service->isHourly()) {
+            return null; // metered services do not receive recurring invoices
+        }
+
         $months = Service::monthsIn((string) $service->cycle);
 
         if ($months <= 0) {
@@ -245,6 +249,26 @@ class ServiceController extends Controller
 
         $floor = app(\App\Services\Provisioning\HetznerStorageCosts::class)
             ->floorToman((string) $service->plan, $months);
+
+        if (filled($service->cloud_plan_id)) {
+            $plan = $service->cloudPlan()->first();
+
+            if ($plan === null) {
+                throw new \UnexpectedValueException('پلن ابری سرویس برای قیمت‌گذاری تمدید پیدا نشد.');
+            }
+
+            $cloudFloor = \App\Http\Controllers\Account\CloudStoreController::priceForCycle(
+                $plan,
+                (string) $service->cycle,
+                (array) ($service->cloud_addons ?? [])
+            );
+
+            if ($cloudFloor <= 0) {
+                throw new \UnexpectedValueException('نرخ ارز یا بهای روز پلن ابری برای تمدید در دسترس نیست.');
+            }
+
+            $floor = max($floor, $cloudFloor);
+        }
 
         $old = (int) $service->price;
 
@@ -515,7 +539,16 @@ class ServiceController extends Controller
             return back()->withErrors('این سرویس دوره‌ای نیست و تمدید ندارد.');
         }
 
-        $this->issueInvoice($service);
+        try {
+            $this->issueInvoice($service);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('pricing', $e->getMessage(), [
+                'service_id' => $service->id,
+                'diagnostic' => 'service-renewal-price-unavailable',
+            ]);
+
+            return back()->withErrors('فاکتور تمدید صادر نشد؛ بهای روز زیرساخت ابتدا باید همگام و بررسی شود.');
+        }
 
         \App\Models\ActivityLog::forService($service, 'renew',
             'فاکتور تمدید توسط مدیر ('.(request()->user()?->name ?: 'مدیر').') صادر شد', 'staff');

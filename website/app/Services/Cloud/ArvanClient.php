@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Services\ExchangeRate;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -74,15 +75,21 @@ class ArvanClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            'console' => true,           // GET /regions/{region}/servers/{id}/vnc
+            // The returned console URL is browser/session-bound according to
+            // provider support. Do not advertise it until a customer session
+            // has passed acceptance without an Arvan management login.
+            'console' => false,
             'rebuild' => true,
             'resize' => true,           // change-flavor
-            'snapshot' => true,
+            // CloudOperations requires create/list/restore/deleteSnapshot;
+            // this driver does not implement that operation family yet.
+            'snapshot' => false,
             'metrics' => false,
             'reset_password' => true,
             'ipv6' => false,
             'rescue' => false,
-            'ssh_key' => true,
+            // Keys are regional at Arvan and uploadSshKey is not implemented.
+            'ssh_key' => false,
             'extra_ip' => false,         // floating IP جدا API دارد؛ فعلاً نه
         ];
     }
@@ -454,9 +461,8 @@ class ArvanClient implements CloudProvider
     /**
      * یک size آروان → ساختارِ پلنِ ما.
      *
-     * قیمت: `price_per_month` تومان است. حاشیهٔ سود را CloudPricing می‌گذارد،
-     * پس این‌جا فقط بهایِ تمام‌شده را به سنتِ یورویِ معادل تبدیل می‌کنیم تا با
-     * بقیهٔ زیرساخت‌ها یکدست بماند.
+     * قیمت‌های API ریال‌اند. قیمت ماهانه و نرخ ساعتی واقعی جدا نگه داشته
+     * می‌شوند؛ ماهانه÷۷۲۰ جایگزین امنی برای تعرفهٔ ساعتی ارائه‌دهنده نیست.
      */
     private function mapSize(array $size, string $regionCode, string $locCode, float $eurToman): ?array
     {
@@ -506,6 +512,9 @@ class ArvanClient implements CloudProvider
 
         // بهایِ تمام‌شده به سنتِ یورو: تومان ÷ (تومانِ هر یورو) × ۱۰۰
         $costEurCents = (int) round(($priceToman / $eurToman) * 100);
+        $costHourEurMicro = $rialHour > 0
+            ? (int) ceil((($rialHour / 10) / $eurToman) * 1_000_000)
+            : null;
 
         if ($costEurCents <= 0) {
             return null;
@@ -528,6 +537,7 @@ class ArvanClient implements CloudProvider
             'cpu_kind' => $cpuKind,
             'arch' => 'x86',
             'cost_eur_cents' => $costEurCents,
+            'cost_hour_eur_micro' => $costHourEurMicro,
             'in_stock' => true,
         ];
     }
@@ -891,7 +901,11 @@ class ArvanClient implements CloudProvider
         }
 
         // idempotency: نامِ قطعی. اگر از قبل ساخته شده، همان را برگردان.
-        $existing = $this->findByName($region, $spec['name']);
+        try {
+            $existing = $this->findByName($region, $spec['name']);
+        } catch (\UnexpectedValueException $e) {
+            return ['ok' => false, 'transient' => true, 'message' => $e->getMessage()] + $fail;
+        }
 
         if ($existing !== null) {
             return $this->serverToResult($existing, $region);
@@ -912,7 +926,7 @@ class ArvanClient implements CloudProvider
                     .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
-        $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
+        $payload = [
             'name' => $spec['name'],
             'flavor_id' => $flavorId,
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
@@ -927,9 +941,37 @@ class ArvanClient implements CloudProvider
             'disk_size' => (int) ($spec['disk_gb'] ?? 25),
             'count' => 1,
             'ha_enabled' => false,
+        ];
+
+        // Arvan accepts duplicate names, so the deterministic hostname alone
+        // is not an idempotency key. Persist the purchase intent before POST.
+        // It is never cleared on timeouts, 5xx, malformed replies or crashes:
+        // later runs may reconcile the first request but must not buy again.
+        $operationKey = hash('sha256', $region.'\0'.(string) $spec['name']);
+        $claimed = DB::table('arvan_create_attempts')->insertOrIgnore([
+            'operation_key' => $operationKey,
+            'region' => $region,
+            'hostname' => (string) $spec['name'],
+            'created_at' => now(),
         ]);
 
+        if ($claimed !== 1) {
+            return ['ok' => false, 'transient' => true,
+                'message' => 'درخواست ساخت قبلاً ثبت شده؛ فقط تطبیق ادامه دارد. تا تعیین تکلیف درخواست قبلی سرور دیگری ساخته نمی‌شود.'] + $fail;
+        }
+
+        $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', $payload);
+
         if (! $r['ok']) {
+            // A definitive client rejection means no purchase was accepted and
+            // the corrected request may be tried again. Ambiguous outcomes
+            // keep the claim because the provider may still have created it.
+            $status = (int) ($r['status'] ?? 0);
+            if ($status >= 400 && $status < 500
+                && ! in_array($status, [408, 409, 425, 429], true)) {
+                DB::table('arvan_create_attempts')->where('operation_key', $operationKey)->delete();
+            }
+
             return ['ok' => false, 'message' => $r['message'],
                 // status=0 یعنی اصلاً پاسخ HTTP نگرفتیم؛ 429/5xx نیز خرابیِ
                 // گذرای مسیر/زیرساخت‌اند. این علامت به هماهنگ‌کننده می‌گوید
@@ -946,6 +988,11 @@ class ArvanClient implements CloudProvider
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد
         $server = is_array($r['data'][0] ?? null) ? $r['data'][0] : (array) $r['data'];
+
+        if (empty($server['id'])) {
+            return ['ok' => false, 'transient' => true,
+                'message' => 'پاسخ ساخت فاقد شناسه است؛ فقط تطبیق درخواست قبلی ادامه دارد.'] + $fail;
+        }
 
         $out = $this->serverToResult($server, $region);
         // رمزِ root فقط لحظهٔ ساخت برمی‌گردد
@@ -1018,16 +1065,29 @@ class ArvanClient implements CloudProvider
         $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
 
         if (! $r['ok']) {
-            return null;
+            throw new \UnexpectedValueException('فهرست سرورها خوانده نشد؛ برای جلوگیری از خرید تکراری ساخت متوقف شد.');
         }
 
-        foreach ((array) $r['data'] as $s) {
+        if (! is_array($r['data']) || ! array_is_list($r['data'])) {
+            throw new \UnexpectedValueException('ساختار فهرست سرورها معتبر نیست؛ ساخت متوقف شد.');
+        }
+
+        $matches = [];
+        foreach ($r['data'] as $s) {
+            if (! is_array($s) || empty($s['id']) || ! isset($s['name'])) {
+                throw new \UnexpectedValueException('فهرست سرورها ناقص است؛ ساخت متوقف شد.');
+            }
+
             if (is_array($s) && (string) ($s['name'] ?? '') === $name) {
-                return $s;
+                $matches[] = $s;
             }
         }
 
-        return null;
+        if (count($matches) > 1) {
+            throw new \UnexpectedValueException('چند سرور هم‌نام پیدا شد؛ برای تعیین مالکیت و جلوگیری از هزینهٔ اضافه، ساخت متوقف شد.');
+        }
+
+        return $matches[0] ?? null;
     }
 
     /** @return array{ok:bool,message:string,ref:?string,ipv4:?string,ipv6:?string,root_password:?string,status:string} */
@@ -1247,17 +1307,14 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'message' => 'شناسهٔ کنسول معتبر نیست.', 'url' => null, 'password' => null];
         }
 
-        // API رسمی IaaS یک نشانیِ کوتاه‌عمرِ noVNC می‌دهد. خود URL مانند رمز
-        // دسترسی است و فقط از مسیر بلیت یک‌بارمصرف CloudServerController عبور
-        // می‌کند؛ هیچ‌وقت در لاگ یا HTML اولیه ثبت نمی‌شود.
+        // API رسمی IaaS یک نشانی کوتاه‌عمر noVNC می‌دهد. URL مانند رمز است؛
+        // فقط پس از بررسی مالکیت در redirect خصوصی استفاده می‌شود.
         $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/vnc');
         $url = $r['ok'] ? (string) data_get($r['data'], 'url', '') : '';
         $parts = parse_url($url);
         $host = strtolower((string) ($parts['host'] ?? ''));
 
-        // پاسخ API نباید بتواند مشتری را به یک میزبان دلخواه بفرستد. کنسول
-        // فعلی آروان روی arvaniaas.ir است؛ زیردامنه‌های رسمی arvancloud.ir نیز
-        // برای مهاجرت احتمالی مجازند، ولی تطبیق حتماً روی مرز دامنه است.
+        // پاسخ API نباید بتواند مشتری را به میزبان یا مسیر دلخواه بفرستد.
         $allowed = $host === 'console.arvaniaas.ir'
             && ! isset($parts['user']) && ! isset($parts['pass'])
             && ! isset($parts['port'])
@@ -1274,12 +1331,12 @@ class ArvanClient implements CloudProvider
             ];
         }
 
-        // مسیر از کلاینت noVNC زندهٔ ارائه‌دهنده استخراج شده است. token در
-        // query همان نشست کوتاه‌عمر است؛ هیچ cookie مدیریتی ارسال نمی‌شود.
-        $socketUrl = 'wss://'.$host.$parts['path'].'/websockify?'
+        // صفحهٔ رسمی cookie کوتاه‌عمر خودش را می‌سازد. اتصال مستقیم WebSocket
+        // این مرحله را رد می‌کند و در آزمون واقعی با 1006 قطع شده بود.
+        $consoleUrl = 'https://'.$host.$parts['path'].'?'
             .http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
 
-        return ['ok' => true, 'message' => '', 'url' => $socketUrl, 'password' => null];
+        return ['ok' => true, 'message' => '', 'url' => $consoleUrl, 'password' => null, 'transport' => 'external'];
     }
 
     public function metrics(string $ref, string $window = '24h'): array
@@ -1302,12 +1359,34 @@ class ArvanClient implements CloudProvider
     {
         [$region, $id] = $this->split($ref);
 
-        $r = $this->req('DELETE', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id));
+        if ($region === '' || $id === '') {
+            return ['ok' => false, 'message' => 'شناسهٔ سرور برای حذف معتبر نیست.'];
+        }
+
+        $path = self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id);
+        $r = $this->req('DELETE', $path);
 
         if (! $r['ok'] && $r['status'] === 404) {
             return ['ok' => true, 'message' => 'سرور از قبل حذف شده بود.'];
         }
 
-        return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
+        if (! $r['ok']) {
+            return ['ok' => false, 'message' => $r['message']];
+        }
+
+        // A successful DELETE can only mean "accepted". Do not mark the local
+        // service deleted until the exact resource is gone; the cleanup worker
+        // can safely retry while Arvan is still completing the operation.
+        $check = $this->req('GET', $path);
+
+        if (! $check['ok'] && $check['status'] === 404) {
+            return ['ok' => true, 'message' => ''];
+        }
+
+        if ($check['ok']) {
+            return ['ok' => false, 'message' => 'حذف در زیرساخت پذیرفته شده ولی هنوز نهایی نشده است.'];
+        }
+
+        return ['ok' => false, 'message' => 'پس از درخواست حذف، نبودن سرور قابل تأیید نبود: '.$check['message']];
     }
 }

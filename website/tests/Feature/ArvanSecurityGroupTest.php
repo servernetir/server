@@ -243,6 +243,10 @@ class ArvanSecurityGroupTest extends TestCase
         Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$called) {
             $url = $request->url();
 
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
+
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['id' => 'net-public', 'enable_gateway' => true]]], 200);
             }
@@ -278,6 +282,10 @@ class ArvanSecurityGroupTest extends TestCase
 
         Http::fake(['napi.arvancloud.ir/*' => function ($request) use (&$sent) {
             $url = $request->url();
+
+            if (str_contains($url, '/servers') && $request->method() === 'GET') {
+                return Http::response(['data' => []], 200);
+            }
 
             if (str_contains($url, '/networks')) {
                 return Http::response(['data' => [['id' => 'net-public', 'enable_gateway' => true]]], 200);

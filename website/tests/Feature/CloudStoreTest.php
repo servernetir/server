@@ -251,6 +251,47 @@ class CloudStoreTest extends TestCase
         $this->assertDatabaseCount('services', 0);
     }
 
+    public function test_arvan_windows_is_hidden_until_an_exact_tested_image_is_allowlisted(): void
+    {
+        $this->loc('ir-tehran', 'IR', 'Tehran');
+        $plan = $this->plan([
+            'provider' => 'arvan', 'provider_ref' => 'eco-1', 'provider_location' => 'ir-thr-x1',
+            'location_code' => 'ir-tehran', 'slug' => 'cv-1c-2g-30d-ir-tehran',
+            'vcpu' => 1, 'ram_mb' => 2048, 'disk_gb' => 30,
+        ]);
+        $this->image([
+            'provider' => 'arvan', 'provider_ref' => 'ubuntu-arvan',
+            'key' => 'ubuntu-24.04',
+        ]);
+        $this->image([
+            'provider' => 'arvan', 'provider_ref' => 'windows-stock-2025',
+            'key' => 'windows-2025', 'family' => 'windows', 'version' => '2025',
+            'label' => 'Windows Server 2025', 'min_disk_gb' => 30, 'min_ram_mb' => 2048,
+        ]);
+
+        $this->assertContains('ubuntu-24.04', CloudStoreController::imageKeysFor($plan));
+        $this->assertNotContains('windows-2025', CloudStoreController::imageKeysFor($plan));
+        $this->assertNull(CloudImage::compatibleRefFor($plan, 'windows-2025'));
+
+        Setting::put('arvan_windows_ready_image_refs', 'windows-stock-2025');
+
+        $this->assertContains('windows-2025', CloudStoreController::imageKeysFor($plan));
+        $this->assertSame('windows-stock-2025', CloudImage::compatibleRefFor($plan, 'windows-2025'));
+    }
+
+    public function test_long_cycle_discount_never_crosses_supplier_cost(): void
+    {
+        $plan = $this->plan([
+            'cost_eur_cents' => 1000,
+            'price_eur_cents' => 1000,
+            'price_irt' => 1_000_000,
+        ]);
+
+        // Yearly config discounts 20%; a zero-margin plan must still recover
+        // all twelve months of supplier cost.
+        $this->assertSame(12_000_000, CloudStoreController::priceForCycle($plan, 'yearly'));
+    }
+
     /** مهم‌ترین قاعده: نامِ زیرساخت نباید به مشتری برسد */
     public function test_no_provider_name_leaks_into_the_page(): void
     {

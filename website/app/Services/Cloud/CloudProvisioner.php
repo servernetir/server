@@ -263,6 +263,27 @@ class CloudProvisioner
             return false;
         }
 
+        // Provider fallback happens after checkout. Guard the actual row that
+        // will be purchased, not only the card the customer originally saw.
+        if ($hourly) {
+            $supplierHourlyIrt = $plan->hourlyCostIrt();
+            if ($supplierHourlyIrt <= 0
+                || (int) $service->hourly_rate_irt < $supplierHourlyIrt) {
+                $existingRef = $this->findByDeterministicName($service, $instance);
+                if (is_string($existingRef)) {
+                    $instance->update(['provider_ref' => $existingRef]);
+
+                    return $this->adoptExisting($service, $instance->fresh(), $plan, $driver);
+                }
+
+                $instance->update(['status' => 'error', 'last_error' => 'تحویل برای جلوگیری از خرید زیر بها متوقف شد.']);
+                $this->needsReview($service,
+                    'بهای ساعتی زیرساخت منتخب از نرخ قفل‌شدهٔ مشتری بیشتر است یا نرخ ارز/بها در دسترس نیست؛ پیش از خرید بررسی شود.');
+
+                return false;
+            }
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'name'         => $this->serverName($service),
@@ -358,6 +379,7 @@ class CloudProvisioner
         $keyOnly = $sshRefs !== [];
 
         if (! $keyOnly && blank($password) && filled($result['ref'] ?? null)
+            && ! ($plan->provider === 'arvan' && $instance->isWindows())
             && ! str_starts_with((string) $result['ref'], 'order:')) {
             $pw = $driver->resetPassword((string) $result['ref']);
             $password = $pw['root_password'] ?? null;
@@ -1158,7 +1180,8 @@ class CloudProvisioner
         // به داخلش ندارد.
         $password = null;
 
-        if (! $instance->hasPassword()) {
+        if (! $instance->hasPassword()
+            && ! ($instance->provider === 'arvan' && $instance->isWindows())) {
             $pw = $driver->resetPassword($ref);
             $password = $pw['root_password'] ?? null;
 
@@ -1207,6 +1230,7 @@ class CloudProvisioner
             ->whereIn('provider', $providers)
             ->orderBy('cost_eur_cents')
             ->get()
+            ->when($hourly, fn ($rows) => $rows->sortBy(fn (CloudPlan $p) => $p->hourlyCostEurMicro() ?: PHP_INT_MAX))
             ->first(fn (CloudPlan $p) => CloudImage::compatibleRefFor($p, $imageKey) !== null);
     }
 
@@ -1258,6 +1282,12 @@ class CloudProvisioner
 
                 return $ref !== '' ? $ref : false;
             }
+        }
+
+        // Some drivers can return ok=true together with a partial-inventory
+        // warning. Absence from that list is not proof of absence.
+        if (filled($list['message'] ?? null)) {
+            return false;
         }
 
         return null;

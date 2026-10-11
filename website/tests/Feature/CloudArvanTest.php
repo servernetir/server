@@ -236,6 +236,33 @@ class CloudArvanTest extends TestCase
         $this->assertSame(20, $cat['plans'][0]['cost_eur_cents']);
     }
 
+    public function test_real_hourly_cost_is_kept_separate_from_monthly_floor(): void
+    {
+        $this->fakeArvan(['sizes' => [[
+            'id' => 'abrak-hourly-premium', 'name' => 'H1', 'cpu_count' => 1,
+            'memory' => 1, 'disk' => 25,
+            'price_per_month' => 7_200_000.0,
+            'price_per_hour' => '20000',
+            'cpu_share' => 'general',
+        ]]]);
+
+        $cat = app(ArvanClient::class)->fetchCatalog();
+
+        $this->assertSame(2223, $cat['plans'][0]['cost_hour_eur_micro']);
+        $this->assertSame(80, $cat['plans'][0]['cost_eur_cents']);
+    }
+
+    public function test_only_currently_deliverable_customer_capabilities_are_advertised(): void
+    {
+        $caps = app(ArvanClient::class)->capabilities();
+
+        $this->assertFalse($caps['console']);
+        $this->assertFalse($caps['snapshot']);
+        $this->assertFalse($caps['ssh_key']);
+        $this->assertTrue($caps['rebuild']);
+        $this->assertTrue($caps['resize']);
+    }
+
     /** مشخصاتِ ناقص رد شود، نه ذخیره با صفر */
     public function test_incomplete_size_is_skipped(): void
     {
@@ -562,6 +589,28 @@ class CloudArvanTest extends TestCase
         $this->assertTrue(app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9')['ok']);
     }
 
+    public function test_delete_is_not_final_until_the_exact_server_is_gone(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fakeSequence()
+            ->push([], 202)
+            ->push(['data' => ['id' => 'srv-9', 'status' => 'deleting']], 200);
+
+        $result = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($result['ok']);
+        Http::assertSentCount(2);
+    }
+
+    public function test_delete_is_final_after_a_follow_up_404(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey k');
+        Http::fakeSequence()->push([], 202)->push([], 404);
+
+        $this->assertTrue(app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9')['ok']);
+        Http::assertSentCount(2);
+    }
+
     // ═══════════════ ادغام با سیستمِ کاتالوگ ═══════════════
 
     public function test_arvan_is_a_registered_driver(): void
@@ -582,7 +631,8 @@ class CloudArvanTest extends TestCase
         $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
 
         $this->assertTrue($r['ok']);
-        $this->assertSame('wss://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html/websockify?token=short-lived', $r['url']);
+        $this->assertSame('https://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html?token=short-lived', $r['url']);
+        $this->assertSame('external', $r['transport']);
         Http::assertSent(fn ($request) => $request->method() === 'GET'
             && str_ends_with($request->url(), '/ecc/v1/regions/ir-thr-c2/servers/srv-9/vnc'));
     }

@@ -118,11 +118,21 @@ class CloudStoreController extends Controller
 
         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
 
+        // A configurable long-cycle discount must never cross supplier cost.
+        // Derive the IRT cost from the already-synchronised EUR cost/sell pair;
+        // checkout must not phone home for a fresh FX rate or reject a valid
+        // cached catalogue merely because the rate source is temporarily down.
+        $costFloor = $plan->monthlyCostIrt() * $months;
+
+        if ($costFloor <= 0) {
+            return 0; // unknown cost/rate is not a sellable price
+        }
+
         // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
         // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
         $extra = $addons === [] ? 0 : app(CloudAddons::class)->forCycle($addons, $cycle);
 
-        return Product::roundUpToman($raw) + $extra;
+        return Product::roundUpToman(max($raw, $costFloor)) + $extra;
     }
 
     /** معادلِ ماهانهٔ یک دوره — برای برچسبِ «ماهی X تومان» */
@@ -591,6 +601,10 @@ class CloudStoreController extends Controller
         foreach ($rows as $row) {
             if (! in_array((string) $row->provider, $slugProviders, true)) {
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
+            }
+
+            if (! CloudImage::providerAccessIsAutomated((string) $row->provider, $row)) {
+                continue;                                 // credential خودکار ندارد
             }
 
             if ((int) $row->min_disk_gb > (int) $offer->disk_gb) {
@@ -1344,6 +1358,13 @@ class CloudStoreController extends Controller
         $hourlyEur = $offer->hourlyEurCents();
 
         if ($hourly <= 0) {
+            return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
+        }
+
+        // Checkout must cover the supplier row actually shown. Delivery repeats
+        // the check after late provider selection, immediately before purchase.
+        $supplierHourlyIrt = $offer->hourlyCostIrt();
+        if ($supplierHourlyIrt <= 0 || $hourly < $supplierHourlyIrt) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
         }
 

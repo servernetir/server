@@ -8,6 +8,7 @@ use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudProvider;
 use App\Services\Cloud\CloudProvisioner;
@@ -240,15 +241,33 @@ class CloudHourlyTermSupportTest extends TestCase
             'slug' => 'cv-1c-4g-10d-se-b'])->supportsHourly());
     }
 
-    /** زیرساختِ بی‌ترم (هتزنر/پراکسموکس/آروان) همیشه ساعتی‌فروش است. */
+    /** زیرساختِ بی‌ترم فقط وقتی ساعتی‌فروش است که هزینه‌اش قابل اثبات باشد. */
     public function test_providers_without_a_billing_term_stay_hourly_capable(): void
     {
-        foreach (['hetzner', 'proxmox', 'arvan'] as $i => $p) {
+        foreach (['hetzner', 'proxmox'] as $i => $p) {
             $this->assertTrue(
                 $this->plan($p, ['slug' => 'cv-x-'.$i, 'cost_hour_eur_micro' => null])->supportsHourly(),
                 $p.' سفارشش اصلاً فیلدِ ترم ندارد؛ نباید از فروشِ ساعتی حذف شود'
             );
         }
+
+        $arvan = $this->plan('arvan', ['slug' => 'cv-x-arvan', 'cost_hour_eur_micro' => 3000]);
+        $this->assertFalse($arvan->supportsHourly(),
+            'فروش ساعتی آروان پیش از آزمون مالی واقعی نباید خودکار باز شود');
+        $this->assertFalse(CloudPlan::query()->whereKey($arvan)->hourlyCapable()->exists());
+
+        Setting::put('arvan_hourly_sales_enabled', '1');
+        $this->assertTrue($arvan->fresh()->supportsHourly(),
+            'پس از تأیید صریح آزمون مالی، عرضهٔ ساعتی آروان باید قابل فعال‌سازی باشد');
+        $this->assertTrue(CloudPlan::query()->whereKey($arvan)->hourlyCapable()->exists());
+        $arvanWithoutRate = $this->plan('arvan', [
+            'slug' => 'cv-x-arvan-no-rate', 'cost_hour_eur_micro' => null,
+        ]);
+        $this->assertFalse(
+            $arvanWithoutRate->supportsHourly(),
+            'فعال‌سازی کلی نباید پلن آروانِ فاقد نرخ واقعی ساعتی را قابل فروش کند'
+        );
+        $this->assertFalse(CloudPlan::query()->whereKey($arvanWithoutRate)->hourlyCapable()->exists());
     }
 
     /**
@@ -308,7 +327,10 @@ class CloudHourlyTermSupportTest extends TestCase
     public function test_best_for_slug_skips_the_row_that_refuses_the_hourly_term(): void
     {
         $noHourly = $this->plan('aeza', ['cost_eur_cents' => 201]);
-        $hourly = $this->plan('hetzner', ['cost_eur_cents' => 380]);
+        $hourly = $this->plan('hetzner', [
+            'cost_eur_cents' => 380,
+            'cost_hour_eur_micro' => 3000, // حدود ۶۱۲ تومان؛ زیر نرخ فروش ۸۰۰
+        ]);
 
         $this->assertTrue(CloudPlan::bestForSlug((string) $noHourly->slug)->is($noHourly));
         $this->assertTrue(CloudPlan::bestForSlug((string) $noHourly->slug, true)->is($hourly));
@@ -351,7 +373,10 @@ class CloudHourlyTermSupportTest extends TestCase
     public function test_hourly_service_moves_to_the_hourly_capable_row_and_is_delivered(): void
     {
         $noHourly = $this->plan('aeza', ['cost_eur_cents' => 201]);
-        $hourly = $this->plan('hetzner', ['cost_eur_cents' => 380]);
+        $hourly = $this->plan('hetzner', [
+            'cost_eur_cents' => 380,
+            'cost_hour_eur_micro' => 3000, // حدود ۶۱۲ تومان؛ زیر نرخ فروش ۸۰۰
+        ]);
 
         $this->image('hetzner');                       // هر دو زیرساخت اوبونتو دارند
         $service = $this->hourlyOrder($noHourly);      // سفارش روی ردیفِ ارزانِ بی‌ساعتی
@@ -432,7 +457,7 @@ class CloudHourlyTermSupportTest extends TestCase
     {
         // ردیف تعرفهٔ ساعتی **دارد** (پس گاردِ بالادست جلویش را نمی‌گیرد) ولی
         // زیرساخت سرِ سفارش ردش می‌کند — یعنی دادهٔ کاتالوگِ ما کهنه بوده.
-        $plan = $this->plan('aeza', ['cost_hour_eur_micro' => 5000]);
+        $plan = $this->plan('aeza', ['cost_hour_eur_micro' => 3000]);
         $other = $this->plan('aeza', ['slug' => 'cv-2c-8g-20d-se', 'provider_ref' => '270']);
 
         $service = $this->hourlyOrder($plan);

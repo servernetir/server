@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Finance\BusinessLedger;
 use App\Services\Reports\BusinessReport;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 /**
  * `/admin/reports` — یک صفحه که به سؤالِ «کسب‌وکارم در چه حالی است» جواب دهد.
@@ -20,7 +20,7 @@ use Illuminate\View\View;
  */
 class ReportController extends Controller
 {
-    public function index(Request $request, BusinessReport $report, BusinessLedger $ledger): View
+    public function index(Request $request, BusinessReport $report, BusinessLedger $ledger): Response
     {
         $days = (int) $request->integer('days', 30);
 
@@ -28,7 +28,7 @@ class ReportController extends Controller
             $days = 30;
         }
 
-        return view('admin.reports', [
+        $data = [
             'days'        => $days,
             'windows'     => BusinessReport::WINDOWS,
             'forecast'    => $report->forecast($days),
@@ -40,6 +40,19 @@ class ReportController extends Controller
             'ledgerReady' => $ledger->ready(),
             'month'       => $ledger->summary(now()->startOfMonth(), now()),
             'trend'       => $ledger->monthlyTrend(6),
-        ]);
+        ];
+
+        // The administration surface is Persian-only. Render it in Persian,
+        // then restore the request locale so this controller cannot poison the
+        // next request/test in a long-running worker.
+        $previousLocale = app()->getLocale();
+        try {
+            app()->setLocale('fa');
+            $html = view('admin.reports', $data)->render();
+        } finally {
+            app()->setLocale($previousLocale);
+        }
+
+        return response($html);
     }
 }

@@ -147,6 +147,10 @@ class CloudImage extends Model
             ->get();
 
         $match = $rows->first(function (CloudImage $row) use ($plan) {
+            if (! self::providerAccessIsAutomated((string) $plan->provider, $row)) {
+                return false;
+            }
+
             $archOk = ! filled($row->arch)
                 || ! filled($plan->arch)
                 || (string) $row->arch === (string) $plan->arch;
@@ -157,5 +161,23 @@ class CloudImage extends Model
         });
 
         return $match !== null ? (string) $match->provider_ref : null;
+    }
+
+    /** Whether the provider/image pair can deliver an initial credential. */
+    public static function providerAccessIsAutomated(string $provider, CloudImage $image): bool
+    {
+        if ($provider !== 'arvan' || strtolower((string) $image->family) !== 'windows') {
+            return true;
+        }
+
+        // Stock Arvan Windows images require an interactive first login and do
+        // not return Administrator credentials through CreateServer. Only an
+        // exact custom image that passed Cloudbase-init + RDP may be sold.
+        $allowed = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) (Setting::get('arvan_windows_ready_image_refs') ?? ''))
+        )));
+
+        return in_array((string) $image->provider_ref, $allowed, true);
     }
 }

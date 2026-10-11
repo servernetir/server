@@ -100,9 +100,11 @@ class CloudAddons
         $discount = (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
+        $count = max(0, (int) ($addons['extra_ipv4'] ?? 0));
         $raw = $this->monthlyToman($addons) * $months * (100 - $discount) / 100;
+        $costFloor = $this->pricing->toman($this->extraIpCostCents()) * $count * $months;
 
-        return $raw > 0 ? Product::roundUpToman($raw) : 0;
+        return max($raw, $costFloor) > 0 ? Product::roundUpToman(max($raw, $costFloor)) : 0;
     }
 
     /**
@@ -119,14 +121,14 @@ class CloudAddons
         }
 
         $months = max(1, Service::monthsIn($cycle));
-        $discount = max(0, min(90, (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0)));
         $unit = $this->extraIpMonthlyToman();
+        $total = $this->forCycle($addons, $cycle);
 
         return [[
             'label'   => 'IP اضافه (IPv4)',
             'qty'     => $count,
             'monthly' => $unit,
-            'total'   => Product::roundUpToman($unit * $count * $months * (100 - $discount) / 100),
+            'total'   => $total,
         ]];
     }
 

@@ -12,6 +12,7 @@
   // «در راه» نیست، «عقب‌افتاده» است و رفتارِ متفاوتی می‌خواهد.
   $expectedIn = (int) $in['renewals']['amount'] + (int) $in['domains']['amount'];
   $rent = $out['servers'];
+  $cloudRent = $out['cloud'];
   /*
   | 🔴 «جا مانده» = بی‌قیمت **به‌علاوهٔ** تبدیل‌نشده.
   |
@@ -20,7 +21,10 @@
   | که کلِ اجارهٔ ارزی از قلم افتاده بود.
   */
   $rentMissing = (int) ($rent['unpriced'] ?? 0) + (int) ($rent['unconvertible'] ?? 0);
-  $expectedOut = (int) $out['domains']['toman'] + (int) ($rent['toman'] ?? 0);
+  $costMissing = $rentMissing + (int) ($cloudRent['missing'] ?? 0);
+  $expectedOut = (int) $out['domains']['toman']
+    + (int) ($rent['toman'] ?? 0)
+    + (int) ($cloudRent['toman'] ?? 0);
 
   $maxTrend = max(1, collect($trend)->flatMap(fn ($m) => [$m['revenue'], $m['expense']])->max() ?: 1);
   $maxCust  = max(1, collect($customers['trend'])->max('count') ?: 1);
@@ -49,9 +53,9 @@
     <span class="fin-kpi-l">هزینهٔ در راه</span>
     <b class="fin-kpi-v" style="color:#fbbf24">{{ $t($expectedOut) }}</b>
     <small>
-      اجارهٔ سرور + تمدیدِ دامنه
-      @if($rentMissing > 0)
-        · <span style="color:#ff6b6b">{{ fa_num($rentMissing) }} سرور در این جمع نیست</span>
+      اجارهٔ سرور و VPS ابری + تمدیدِ دامنه
+      @if($costMissing > 0)
+        · <span style="color:#ff6b6b">{{ fa_num($costMissing) }} منبع در این جمع نیست</span>
       @endif
     </small>
   </div>
@@ -80,6 +84,23 @@
           <td>تمدیدِ سرویس‌ها</td>
           <td class="fin-num" style="color:#34d399">+ {{ $t($in['renewals']['amount']) }}</td>
           <td class="fin-src">{{ fa_num($in['renewals']['count']) }} سرویس</td>
+        </tr>
+        @if(($in['renewals']['unpriced'] ?? 0) > 0)
+          <tr>
+            <td>تمدید ابریِ بدون قیمت معتبر</td>
+            <td class="fin-num" style="color:#fbbf24">نامشخص</td>
+            <td class="fin-src">{{ fa_num($in['renewals']['unpriced']) }} سرویس — در جمع نیامده</td>
+          </tr>
+        @endif
+        <tr>
+          <td>
+            اجارهٔ VPSهای ابری
+            @if(($cloudRent['missing'] ?? 0) > 0)
+              <br><small style="color:#ff6b6b">{{ fa_num($cloudRent['missing']) }} نمونه بدون بهای معتبر</small>
+            @endif
+          </td>
+          <td class="fin-num" style="color:#ff6b6b">− {{ $t($cloudRent['toman'] ?? 0) }}</td>
+          <td class="fin-src">ماهی {{ $t($cloudRent['monthly'] ?? 0) }}</td>
         </tr>
         <tr>
           <td>تمدیدِ دامنه‌ها (صورت‌حسابِ مشتری)</td>
@@ -122,10 +143,10 @@
             {{ $t($expectedIn - $expectedOut) }}
           </td>
           <td class="fin-src">
-            @if($rentMissing > 0)
-              ناقص — {{ fa_num($rentMissing) }} سرور جا مانده
+            @if($costMissing > 0)
+              ناقص — {{ fa_num($costMissing) }} منبع جا مانده
             @else
-              اجاره + دامنه
+              اجارهٔ سرور و VPS + دامنه
             @endif
           </td>
         </tr>
@@ -146,7 +167,7 @@
                       <a href="/admin/customers/{{ $s->customer_id }}">{{ $s->customer->displayName() }}</a>
                     @else — @endif
                   </td>
-                  <td class="fin-num">{{ $t((int) $s->price + $s->taxAmount()) }}</td>
+                  <td class="fin-num">{{ $t((int) $s->forecast_total) }}</td>
                 </tr>
               @endforeach
             </tbody>

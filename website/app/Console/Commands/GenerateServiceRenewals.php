@@ -41,6 +41,7 @@ class GenerateServiceRenewals extends Command
             ->get();
 
         $made = 0;
+        $failed = 0;
 
         foreach ($due as $service) {
             // فاکتور بازِ همین سرویس؟ پس تمدید قبلاً صادر شده
@@ -52,12 +53,23 @@ class GenerateServiceRenewals extends Command
                 continue;
             }
 
-            $services->issueInvoice($service);
-            $made++;
+            try {
+                $services->issueInvoice($service);
+                $made++;
+            } catch (\Throwable $e) {
+                $failed++;
+                \App\Support\ErrorTracker::note('pricing', $e->getMessage(), [
+                    'service_id' => $service->id,
+                    'diagnostic' => 'scheduled-renewal-price-unavailable',
+                ]);
+            }
         }
 
         $this->info("فاکتور تمدید صادرشده: {$made}");
+        if ($failed > 0) {
+            $this->error("تمدید متوقف‌شده به‌دلیل نبود بهای معتبر: {$failed}");
+        }
 
-        return self::SUCCESS;
+        return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
