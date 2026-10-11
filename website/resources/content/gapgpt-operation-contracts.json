@@ -567,12 +567,59 @@
     "prior_reason": "model_unavailable"
   },
   "typesafe/jev-1.13": {
-    "supported": false,
+    "supported": true,
     "schema_date": "2026-10-11",
-    "reasons": [
-      "supplier_priced_usage_contract_missing"
-    ],
-    "prior_reason": "endpoint_or_metering_pending"
+    "task": "text-classification",
+    "protocol": "gap-systemone",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "0.042",
+      "output_usd_per_million": "0"
+    },
+    "tariff_hash": "872bd5762c72c0a45862b9d25fe18e32c2b220179a2321e099910242ad30b3de",
+    "ceiling_cents": "0.2688",
+    "ceiling_basis": "published_whole_model_64000_input_tokens_output_free",
+    "input_ceiling_tokens": 64000,
+    "output_ceiling_tokens": 0,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": [
+            "string",
+            "object",
+            "array"
+          ],
+          "example": "The customer requests a refund for a duplicate payment.",
+          "maxBytes": 4096
+        },
+        "questions": {
+          "type": "object",
+          "example": {
+            "refund": {
+              "type": "noul",
+              "instructions": "Is a refund requested?"
+            }
+          },
+          "minProperties": 1,
+          "maxProperties": 4
+        }
+      },
+      "required": [
+        "state",
+        "questions"
+      ]
+    },
+    "defaults": {},
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://docs.typesafe.ai/models",
+      "https://docs.typesafe.ai/api"
+    ]
   },
   "qwen3-235b-a22b-instruct-2507": {
     "supported": false,

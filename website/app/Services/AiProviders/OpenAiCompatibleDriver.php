@@ -155,6 +155,7 @@ class OpenAiCompatibleDriver implements AiProviderDriver
         return match (\App\Services\Ai\AiNative::definition($model)['protocol']??null) {
             'gap-images','gap-token-images' => $baseUrl.'/images/generations',
             'gap-legacy-completions' => $baseUrl.'/completions',
+            'gap-systemone' => $baseUrl.'/systemone',
             'gap-gemini-tts' => $baseUrl.'/models/'.rawurlencode($model->upstream_model).':generateContent',
             default => throw new AiProviderCallException('provider_unconfigured','Native provider protocol is unavailable.',sent:false),
         };

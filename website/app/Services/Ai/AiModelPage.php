@@ -35,7 +35,7 @@ final class AiModelPage
         if ($readyNative && in_array($model->category, ['video', 'music'], true)) {
             $workflow .= ' '.$words['native_workflow_async'];
         }
-        if ($readyNative && ! $legacyCompletion) {
+        if ($readyNative && ! $legacyCompletion && ($nativeContract['protocol'] ?? null) !== 'gap-systemone') {
             $workflow .= ' '.$words['native_file_download_ready'];
         }
         $limit = $replace($readyNative ? $words['native_limit_ready'] : $type['limit']);
@@ -74,6 +74,7 @@ final class AiModelPage
                 if (in_array($name, $blocked, true)) continue;
                 if ($deepinfra) $rule = $this->nativeDisplayRule($rule, $schema);
                 $field = ['name' => $name, 'required' => in_array($name, $schema['required'] ?? [], true)] + $rule;
+                if (is_array($field['type'] ?? null)) $field['type'] = implode(' | ', $field['type']);
                 if (array_key_exists($name, $nativeContract['defaults'])) {
                     $field['default'] = $nativeContract['defaults'][$name];
                 }

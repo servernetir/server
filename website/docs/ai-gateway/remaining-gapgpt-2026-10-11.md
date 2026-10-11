@@ -78,6 +78,45 @@ The root's actual `remaining-activation-proof.json` and `final-state-v2-proof.js
 
 The final read-only catalogue check returned200, then401 after key revocation. All eight historical synthetic identities were verified closed or intentionally never created; wallets and open usage were zero, and existing financial audit history was unchanged. The fresh verification account was also closed without funding or inference. The cumulative supplier reservation/commitment stayed **USD4.639 of the USD5 ceiling**; final verification added no supplier inference or payment. Installed release/H1/H2/H3/H4 file hashes passed the same final proof.
 
+## Fresh continuation audit of22 text/discovery blockers
+
+The root's subsequent `remaining36-read-v1-proof.json` obtained an authenticated GapGPT discovery HTTP200 with145 exact identifiers. Provider enabled/commercial/live flags, the encrypted key's presence and the fixed HTTPS `api.gapgpt.app/v1` base were correct. The same seven identifiers listed above remain absent even though the fresh public145-row price feed contains them. Discovery's seven additional names do not establish aliases for those missing entries; no replacement identifier is substituted. This diagnostic made no inference, payment or database mutation and preserved the cumulativeUSD4.639 guard.
+
+The nine exact GLM routes remain `glm-3-turbo`, `glm-4-0520`, `glm-4-air`, `glm-4-airx`, `glm-4-alltools`, `glm-4-long`, `glm-4-plus`, `glm-4v`, `glm-4v-plus`. They are discoverable with complete prices, but their prior inference401 receipts remain backend-access failures, distinct from the working account discovery key. Current official Gap examples already match the driver's Bearer authorization and `/v1/chat/completions`; no alternate auth header or model-info/account GET for that API key was documented. Website `quota/tokens` uses its own authenticated account session and is not treated as an API-key inspection endpoint.
+
+The other six exact routes retain independent causes: `qwen3-235b-a22b` previously503; `qwen3-235b-a22b-instruct-2507` previously404; `gpt-5.3-codex-spark` previously429; `grok-4` both an excessive1232-token hidden prompt and a later504; Babbage429 and Davinci502 as recorded above. A free discovery result does not erase those failed inference receipts. The fresh representative results below update only GLM Air and the Qwen base model; the other exact routes retain their historical evidence and inactive gates.
+
+The generic Gap price-dialog text example suggests chat for all text rows, including Babbage/Davinci. It is synthesized from `model_type`, rather than an exact legacy-backend contract. Official OpenAI documentation explicitly specifies prompt-based legacy Completions for those base models. Its current Babbage page labels16384 as maximum **output**, which must not be repurposed as a published input/template bound. Likewise, no current Gap documentation establishes a maximum hidden prefix for its literal `grok-4`; changing the existing allowance to match one observed prompt would remain an inference. No shared driver, caller, credential, billing or model-state change was made by this continuation audit. The reviewed public source snapshots and22 exact target records are retained in private `gap-text-doc-audit-v1.json`.
+
+### Actual representative text checkpoint
+
+The root's `final36-chat-v1-proof.json` finished at2026-10-11T11:10:16Z, SHA256 `c1c502e5879934f7e9617464c5f010a897fa800e7765bf792721623e0e673b46`. Two customer API samples were sent using the unchanged documented chat endpoint; **neither delivered text or passed**.
+
+| Exact model | Frozen input/output allowances | Actual result and gate |
+|---|---|---|
+|438 `glm-4-air`|352 /64 tokens; prepared tariff bound57µUSD|Supplier401 became customer503 `model_suspended`. Its hold was released and its original disabled state restored; the new model-specific suspension was preserved.|
+|486 `qwen3-235b-a22b`|352 /512 tokens; prepared tariff bound303µUSD|Supplier503 became customer502 `upstream_error`. Its hold was released; it remains disabled without a suspension.|
+
+Both usage rows are `released`, with zero customer debit, zero uncollected charge and no reported supplier token/cost receipt. The missing receipt is not replaced with the reservation or a zero-valued provider invoice. Cleanup verified the revoked key returns401, the customer is suspended, the project archived, wallet/hold/open usage all zero and both audit rows retained. At completion of this chat checkpoint the conservative cumulative supplier commitment was **USD4.649 of the same USD5 ceiling**, including the two5000µUSD sample allocations; this is a spending guard, not a claim that an error response incurred that exact provider charge. The later Jev checkpoint below updates the cumulative guard toUSD4.659. No GLM/Qwen family activation or additional paid retry follows these failed samples. All22 text/discovery blockers remain closed at this checkpoint.
+
+### Full local regression checkpoint
+
+The frozen implementation, including the separately prepared Jev decision operation, passed the full isolated AI suite: **SQLite355 tests/93079 assertions**, with seven deliberate MariaDB-only stress skips; **isolated MariaDB355 tests/93123 assertions**, with zero skips. Both suites had zero failures/errors. The35 configured test classes preserve the prior `V1ChatTest` integration cases and include six new decision-operation cases. This full checkpoint supersedes the earlier focused test counts for current integration validation while retaining those historical logs.
+
+The tests verify the exact `/systemone` route, positive and negative recovery against the frozen requested answer schema, output-token price zero restricted to the exact Jev contract, measured tariff settlement, zero extra debit on replay and valid public examples in all three languages. All1527 pinned source/fixture files were unchanged before and after execution; the actual deployed route/ErrorTracker overlays and a real private FFmpeg decoder were included. SQLite had no network, and MariaDB used a new internal network with no published ports, temporary credentials and an isolated temporary database. Its containers/network were removed after success. No supplier inference, production database change or payment was performed by these local tests.
+
+The immutable local proof is `final36-full-test-proof.json`, SHA256 `f431d21a2b98fb734faaf55a6863c39ce7e2f67e269b97bbe6033a7dde83d608`; source manifest SHA256 `4cd03ba841049ab2bea2e3a6a51d63c78d805c7141540b8f06f573c9d32dbb24`. These tests validate gateway and ledger behavior; they do not establish supplier backend entitlement or count Jev as live-ready before its own representative result.
+
+### Actual Jev execution, activation and final catalogue
+
+The root's subsequent `final36-jev-v1-proof.json` passed at2026-10-11T14:47:56+03:30, SHA256 `a75e4622f314b3ccd9d9019e8b41a3d2436402e9a51e533f412a1b63838eec5b`. Exact model450 `typesafe/jev-1.13` used the documented `/v1/systemone` operation and returned a valid requested `noul` answer at probability0.99. Actual usage was293 input/20 output tokens. Its frozen0.042USD-per-million input and free-output tariff settled13µUSD (`native_tariff`, provider invoice costNULL):4IRT cost,5IRT sale,1IRT VAT and6IRT total charge, with no uncollected charge or review flag. Cached replay returned the same body and created no additional debit, usage or ledger entry. The synthetic key was revoked, customer suspended, project archived and wallet/hold/open usage were zero.
+
+After this single10000µUSD sample allocation, the unchanged cumulative ceiling is **USD4.659 committed of USD5**. The root's actual `activate-final36-jev-v2-proof.json` then passed at2026-10-11T15:13:15+03:30, SHA256 `41d63b340a2005f3f66ee23896b8e03929e0d9e70f18b396ef00991813279251`: exact model450 is active and ready, its financial audit unchanged and no additional inference or payment made by activation.
+
+The subsequent `final36-state-v2-proof.json` passed at2026-10-11T15:13:44+03:30, SHA256 `910feeda7f34dff5962a91185540566462b38c330f733a7ea3f888ad44da67c7`. The complete authenticated catalogue now has **333 ready models**:115 GapGPT (103 chat,5 embedding,7 native),216 DeepInfra and2 direct DeepSeek. Of the exact original56 remaining models, **21 are now ready and35 remain closed**:12 of17 DeepInfra and9 of39 GapGPT are ready. The thirty still-closed GapGPT entries are the22 text/discovery routes and eight media/operation entries; the five remaining DeepInfra entries are outside this GapGPT note. This final checkpoint supersedes the prior eight-ready GapGPT count without changing its historical evidence.
+
+The unfunded read-only customer catalogue check returned200 with the expected model list; its revoked key then returned401. Eleven prior synthetic identities were verified closed or intentionally never created, their wallets/open usage zero and historical financial audit unchanged. The new read-only account was closed with zero wallet, usage and ledger entries. Final verification made no supplier inference or payment and preserved theUSD4.659 commitment. All22 text/discovery models remain closed, and the failed chat receipt SHA above remains their actual fresh checkpoint; no additional paid retry or family activation is implied.
+
 ## Primary references
 
 - GapGPT price and model documentation UI: <https://gapgpt.app/platform-v2/pricing>
@@ -85,6 +124,8 @@ The final read-only catalogue check returned200, then401 after key revocation. A
 - OpenAI Images endpoint and real usage schema: <https://developers.openai.com/api/reference/resources/images/methods/generate>
 - OpenAI image output-token table/calculator: <https://developers.openai.com/api/docs/guides/image-generation>
 - OpenAI legacy completions body/usage: <https://developers.openai.com/api/reference/resources/completions/methods/create>
+- OpenAI Babbage002 legacy model and maximum output: <https://developers.openai.com/api/docs/models/babbage-002>
+- OpenAI Davinci002 legacy model: <https://developers.openai.com/api/docs/models/davinci-002>
 - GPT Image1 model/deprecation information: <https://developers.openai.com/api/docs/models/gpt-image-1>
 - GPT Image1 Mini model: <https://developers.openai.com/api/docs/models/gpt-image-1-mini>
 - GPT Image2 model: <https://developers.openai.com/api/docs/models/gpt-image-2>

@@ -73,7 +73,7 @@ final class AdditionalProviderCatalog
                 'voice_to_text', 'text_to_voice' => 'audio', default => 'classification',
             };
             // Legacy prompt completions use the native operation endpoint rather than chat messages.
-            if (in_array($name, ['babbage-002','davinci-002','text-moderation-latest'], true)) $category = 'classification';
+            if (in_array($name, ['babbage-002','davinci-002','text-moderation-latest','typesafe/jev-1.13'], true)) $category = 'classification';
             $rates = [];
             if (($row['pricing_type'] ?? null) === 'token' && in_array($category, ['chat', 'embedding'], true)
                 && ! in_array($name, ['babbage-002', 'davinci-002', 'text-moderation-latest'], true)) {

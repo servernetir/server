@@ -355,7 +355,7 @@ final class AiCaller
                     'stream' => $prepared->stream,
                     'operation' => $prepared->operation,
                     'native_snapshot' => $prepared->native === null ? null : ['max_cost_micro'=>$prepared->native['max_cost_micro'],
-                        'contract'=>array_intersect_key($prepared->native['contract'],array_flip(['pricing','tariff_hash','protocol','ceiling_cents','ceiling_basis','call_units','schema_date','task']))],
+                        'contract'=>array_intersect_key($prepared->native['contract'],array_flip(['pricing','tariff_hash','protocol','ceiling_cents','ceiling_basis','call_units','schema_date','task','response_schema']))],
                     'status' => AiUsage::STATUS_RESERVED,
                     'max_input_tokens' => $prepared->maxInput,
                     'max_output_tokens' => $prepared->maxOutput,

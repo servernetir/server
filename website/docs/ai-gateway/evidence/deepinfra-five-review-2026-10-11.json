@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-11T10:43:30.802551+00:00",
+  "scope": "public documentation and source admission review; no production activation",
+  "read_only": {
+    "supplier_inference_requests": 0,
+    "credentials_used": false,
+    "budget_mutations": 0
+  },
+  "models": [
+    {
+      "model": "openai/clip-vit-base-patch32",
+      "actual_model_id": 274,
+      "actual_status": "disabled",
+      "actual_ready": false,
+      "public_metadata_source": "https://api.deepinfra.com/models/openai/clip-vit-base-patch32",
+      "public_metadata_sha256": "c61dd4d1d53c2801175e4827de5a6f54f793cdc66952425c92e3ff016e7114ed",
+      "tariff_hash": "3fc89400a309f2804194b9ada436b50d24539ea8f7df6413a3247c305d3d9adb",
+      "pricing": {
+        "type": "time",
+        "cents_per_sec": 0.05
+      },
+      "source_contract_supported": false,
+      "current_pending_reasons": [
+        "unbounded_or_missing_tariff"
+      ],
+      "reviewed_input_fields": [
+        "candidate_labels",
+        "image",
+        "webhook"
+      ],
+      "blocker": "no_documented_per_request_billable_runtime_ceiling"
+    },
+    {
+      "model": "openai/clip-vit-large-patch14-336",
+      "actual_model_id": 163,
+      "actual_status": "disabled",
+      "actual_ready": false,
+      "public_metadata_source": "https://api.deepinfra.com/models/openai/clip-vit-large-patch14-336",
+      "public_metadata_sha256": "c8f582dbd9ac151953834ca73b59ceb434f70b24b8910a7f732bf1a02b1078e9",
+      "tariff_hash": "3fc89400a309f2804194b9ada436b50d24539ea8f7df6413a3247c305d3d9adb",
+      "pricing": {
+        "type": "time",
+        "cents_per_sec": 0.05
+      },
+      "source_contract_supported": false,
+      "current_pending_reasons": [
+        "unbounded_or_missing_tariff"
+      ],
+      "reviewed_input_fields": [
+        "candidate_labels",
+        "image",
+        "webhook"
+      ],
+      "blocker": "no_documented_per_request_billable_runtime_ceiling"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts",
+      "actual_model_id": 229,
+      "actual_status": "disabled",
+      "actual_ready": false,
+      "public_metadata_source": "https://api.deepinfra.com/models/XiaomiMiMo/MiMo-V2.5-tts",
+      "public_metadata_sha256": "bd46349de17feba8de83cf784395e93bb6a15ac9db0d6a6302fa751e8474412d",
+      "tariff_hash": "d4606a0a885770ecc323f99991b94fbd98748aa6a6e8fa620d94d3b92325edc3",
+      "pricing": {
+        "type": "input_character_length",
+        "cents_per_input_chars": 0.0
+      },
+      "source_contract_supported": false,
+      "current_pending_reasons": [
+        "published_free_tariff_requires_free_service_policy"
+      ],
+      "reviewed_input_fields": [
+        "fail_fast",
+        "instruct",
+        "output_format",
+        "service_tier",
+        "stream",
+        "text",
+        "voice",
+        "webhook"
+      ],
+      "blocker": "zero_wholesale_rate_has_zero_percentage_markup_profit"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "actual_model_id": 321,
+      "actual_status": "disabled",
+      "actual_ready": false,
+      "public_metadata_source": "https://api.deepinfra.com/models/XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "public_metadata_sha256": "f37f230dca7168486eb2a1c32626cdc6ea09d8de3253e9f8765126d4fb099a81",
+      "tariff_hash": "d4606a0a885770ecc323f99991b94fbd98748aa6a6e8fa620d94d3b92325edc3",
+      "pricing": {
+        "type": "input_character_length",
+        "cents_per_input_chars": 0.0
+      },
+      "source_contract_supported": false,
+      "current_pending_reasons": [
+        "published_free_tariff_requires_free_service_policy"
+      ],
+      "reviewed_input_fields": [
+        "fail_fast",
+        "output_format",
+        "service_tier",
+        "stream",
+        "text",
+        "voice",
+        "webhook"
+      ],
+      "blocker": "zero_wholesale_rate_has_zero_percentage_markup_profit"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+      "actual_model_id": 369,
+      "actual_status": "disabled",
+      "actual_ready": false,
+      "public_metadata_source": "https://api.deepinfra.com/models/XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+      "public_metadata_sha256": "17b4c75eca278c5d7ec9a095dfed27156a164967e5b2be40a580a1c77c55fc92",
+      "tariff_hash": "d4606a0a885770ecc323f99991b94fbd98748aa6a6e8fa620d94d3b92325edc3",
+      "pricing": {
+        "type": "input_character_length",
+        "cents_per_input_chars": 0.0
+      },
+      "source_contract_supported": false,
+      "current_pending_reasons": [
+        "published_free_tariff_requires_free_service_policy"
+      ],
+      "reviewed_input_fields": [
+        "fail_fast",
+        "instruct",
+        "output_format",
+        "service_tier",
+        "stream",
+        "text",
+        "voice",
+        "webhook"
+      ],
+      "blocker": "zero_wholesale_rate_has_zero_percentage_markup_profit",
+      "voice_ownership_isolation_required": true
+    }
+  ],
+  "openapi": {
+    "public_source": "https://api.deepinfra.com/openapi.json",
+    "sha256": "cb22ac422aa5ebb2f878023ddbfa882e3c59cde570711017987e22762eba52bc",
+    "reviewed_inference_parameter_names": [
+      "model_name",
+      "version",
+      "xi-api-key",
+      "x-api-key"
+    ],
+    "reviewed_scoped_jwt_property_names": [
+      "api_key_name",
+      "models",
+      "expires_delta",
+      "expires_at",
+      "spending_limit"
+    ],
+    "spending_semantics": "aggregate token spend limit; running-inference interruption not documented in reviewed sources"
+  },
+  "billing_review": {
+    "requested_markup_basis_points": 500,
+    "mimo_wholesale_usd": "0",
+    "mimo_5_percent_marked_up_usd": "0",
+    "positive_supplier_price_invented": false,
+    "free_product_or_separate_service_fee_policy_introduced": false,
+    "voiceclone_requires_customer_owned_voice_management": true,
+    "clip_http_timeout_is_not_provider_billing_cap": true
+  },
+  "actual_account_read_only_checkpoint": {
+    "proof_sha256": "0ff5d1f841741860cf19b4d631685f41f710723f345f04034ea0a255b6a86a7a",
+    "observed_at": "2026-10-11T10:47:34+00:00",
+    "finished_at": "2026-10-11T10:47:41+00:00",
+    "flags": {
+      "enabled": true,
+      "commercial_enabled": true,
+      "live_calls_enabled": true,
+      "key_present": true
+    },
+    "authenticated_model_discovery_http": 200,
+    "authenticated_model_discovery_body_sha256": "140046f6e46d320730843a29b64d5566a1f8d56c76b21dbf3d74dfb02ec72c1e",
+    "account_config_http": 200,
+    "account_config_body_sha256": "1837e4517ac9ed790e2bffb4fd20b6f9c37b0967b6f9701e2201ae92593610e9",
+    "account_spend_limit_present": true,
+    "budget": {
+      "limit_micro": 5000000,
+      "committed_micro": 4639000
+    },
+    "budget_unchanged": true,
+    "models_unchanged": true
+  },
+  "account_or_live_state_inferred_from_public_docs": false,
+  "activation_count_added_by_review": 0
+}

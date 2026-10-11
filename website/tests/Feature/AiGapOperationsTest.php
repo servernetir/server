@@ -40,7 +40,7 @@ class AiGapOperationsTest extends TestCase
     {
         $contracts=json_decode(file_get_contents(resource_path('content/gapgpt-operation-contracts.json')),true);
         $contract=$contracts[$name];
-        $category=str_contains($name,'tts') ? 'audio' : (in_array($name,['babbage-002','davinci-002'],true) ? 'classification' : 'image');
+        $category=str_contains($name,'tts') ? 'audio' : (in_array($name,['babbage-002','davinci-002','typesafe/jev-1.13'],true) ? 'classification' : 'image');
         $this->model->update(['upstream_model'=>$name,'category'=>$category,'capabilities'=>[
             'native_tariff_hash'=>AiNative::fingerprint($contract['pricing']), 'catalogue_source'=>'gapgpt','catalogue_at'=>now()->toIso8601String(),'execution_ready'=>true]]);
         $this->model->refresh()->setRelation('provider',$this->provider);
@@ -58,15 +58,16 @@ class AiGapOperationsTest extends TestCase
             .$chunk('IDAT',gzcompress(str_repeat("\0",($width+1)*$height))).$chunk('IEND',''));
     }
 
-    public function test_seven_known_tariffs_prepare_and_changed_feed_closes_the_operation(): void
+    public function test_known_tariffs_prepare_and_changed_feed_closes_the_operation(): void
     {
         $contracts=json_decode(file_get_contents(resource_path('content/gapgpt-operation-contracts.json')),true);
         $supported=array_filter($contracts,fn($c)=>$c['supported']);
-        $this->assertCount(7,$supported);
+        $this->assertCount(8,$supported);
         foreach($supported as $name=>$contract){
             $this->operationModel($name);
             $this->assertNotNull(AiNative::candidate('gapgpt',$name,$contract['pricing']));
             $client=str_contains($name,'tts') ? ['input'=>'Hello.'] : ['prompt'=>'A blue square.'];
+            if ($name==='typesafe/jev-1.13') $client=['state'=>'Refund requested.','questions'=>['refund'=>['type'=>'noul','instructions'=>'Is a refund requested?']]];
             $prepared=app(AiNative::class)->prepare($client,$this->model);
             $this->assertGreaterThan(0,$prepared->native['max_cost_micro']);
             $price=AiNative::unitPrice(app(AiPricing::class)->quote($this->model));
@@ -75,7 +76,7 @@ class AiGapOperationsTest extends TestCase
             $changed=$contract['pricing'];$changed['output_usd_per_million']='99';
             $this->assertNull(AiNative::candidate('gapgpt',$name,$changed));
         }
-        foreach(['tts-1','gpt-4o-mini-tts','whisper-1','gapgpt/whisper-1','text-moderation-latest','typesafe/jev-1.13'] as $name){
+        foreach(['tts-1','gpt-4o-mini-tts','whisper-1','gapgpt/whisper-1','text-moderation-latest'] as $name){
             $this->assertNull(AiGapOperations::catalogPricing($name,['pricing_type'=>'token'],'{"input_token_price":15,"output_token_price":15}'));
         }
     }
