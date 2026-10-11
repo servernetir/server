@@ -18,6 +18,7 @@ class CountryLandingSeoTest extends TestCase
             $seo = app(CountryLandingSeo::class)->content('DE');
             $this->assertStringContainsString(e($seo['title']), $html);
             $this->assertStringContainsString(e($seo['network_title']), $html);
+            $this->assertStringContainsString('id="country-selection-styles"', explode('</head>', $html)[0]);
             $this->assertStringContainsString(e($seo['faq'][0]['q']), $html);
             $this->assertLessThan(strpos($html, 'id="country-selection"'), strpos($html, 'id="pricing"'));
             preg_match_all('~<script type="application/ld\\+json">(.*?)</script>~s', $html, $scripts);

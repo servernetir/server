@@ -3,8 +3,7 @@
 
   نقشِ سئویی: صفحهٔ فرودِ «سرور مجازی <کشور> — <شهر>». متنش باید **یکتا** باشد،
   وگرنه ده صفحه با قالبِ یکسان می‌سازیم که مصداقِ محتوای نازک است. یکتایی از سه
-  جا می‌آید: جملهٔ ویژهٔ کشور، عددِ تأخیرِ تقریبی، و فهرستِ «مناسبِ چه کاری» بر
-  پایهٔ قاره — همه در CloudCatalogController.
+  جا می‌آید: شرایط واقعی پلن، کاربرد محلی و راه آزمون شبکهٔ کاربران.
 
   ⚠️ هیچ نام یا شناسهٔ زیرساخت این‌جا نیست. مکان کدِ خودِ ماست (de-frankfurt) و
      پلن نامِ خودِ ما (CV-2-4).
@@ -12,7 +11,7 @@
 @extends('layouts.site')
 
 @php
-  $countrySeo = app(\App\Services\Cloud\CountryLandingSeo::class)->content((string) $loc->country, $cityLabel);
+  $countrySeo = app(\App\Services\Cloud\CountryLandingSeo::class)->content((string) $loc->country, $cityLabel, $locLabel);
   $faq = $countrySeo['faq'];
   $ld['faq'] = $countrySeo['faq_ld'];
   $metaT = $countrySeo['title'];

@@ -8,14 +8,16 @@ use Illuminate\Support\Facades\Lang;
 /** Editorial presentation only: never computes a price, stock or network promise. */
 class CountryLandingSeo
 {
-    public function content(string $iso, string $city = ''): array
+    public function content(string $iso, string $city = '', ?string $locationLabel = null): array
     {
         $locale = app()->getLocale();
         $copy = Lang::get('country-seo');
         $iso = strtoupper($iso);
         $country = CloudLocation::COUNTRIES[$iso][$locale]
             ?? CloudLocation::COUNTRIES[$iso]['en'] ?? $iso;
-        $place = $country.($city !== '' && $city !== $country ? ' — '.$city : '');
+        $place = $locationLabel !== null && trim($locationLabel) !== ''
+            ? $locationLabel
+            : $country.($city !== '' && $city !== $country ? ' — '.$city : '');
         $replace = fn (string $s): string => strtr($s, [':country' => $country, ':place' => $place]);
         $faqs = array_map(fn (array $row): array => array_map($replace, $row), $copy['faq']);
 

@@ -35,6 +35,16 @@ class CloudPublicPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_manual_location_label_is_preserved_in_country_seo_copy(): void
+    {
+        $this->seedCatalog();
+        CloudLocation::where('code', 'ae-dubai')->update(['label_en' => 'Emirates Test Location']);
+        $html = $this->get('/en/cloud/ae-dubai')->assertOk()->getContent();
+        $this->assertStringContainsString('<h1>Emirates Test Location VPS hosting</h1>', $html);
+        $this->assertStringContainsString('Emirates Test Location VPS Hosting | Current Plans', $html);
+        $this->assertStringContainsString('id="country-selection-styles"', explode('</head>', $html)[0]);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

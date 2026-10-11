@@ -42,16 +42,22 @@ def clear_pages():
     run([PHP, str(purge)])
 
 def main():
+    global HERE
     args = argparse.ArgumentParser()
     args.add_argument('--apply', action='store_true')
     args.add_argument('--rollback', action='store_true')
+    args.add_argument('--packet-dir', type=Path, default=HERE,
+                      help='Directory containing manifest.json, files/ and private backup/')
     a = args.parse_args()
+    HERE = a.packet_dir.resolve()
     manifest = json.loads((HERE / 'manifest.json').read_text())
     marker = HERE / 'APPLIED.json'
     if a.rollback:
         assert marker.exists(), 'No completed deployment to roll back'
         for item in manifest:
             assert digest(target(item['path'])) == item['after'], 'Concurrent change: '+item['path']
+            if item['before'] is not None:
+                assert digest(HERE / 'backup' / item['path']) == item['before'], 'Backup mismatch: '+item['path']
         for item in reversed(manifest):
             dst = target(item['path'])
             if item['before'] is None:
