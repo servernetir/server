@@ -19,6 +19,7 @@ class CountryLandingSeoTest extends TestCase
             $this->assertStringContainsString(e($seo['title']), $html);
             $this->assertStringContainsString(e($seo['network_title']), $html);
             $this->assertStringContainsString(e($seo['faq'][0]['q']), $html);
+            $this->assertLessThan(strpos($html, 'id="country-selection"'), strpos($html, 'id="pricing"'));
             preg_match_all('~<script type="application/ld\\+json">(.*?)</script>~s', $html, $scripts);
             $faq = null;
             foreach ($scripts[1] as $json) {

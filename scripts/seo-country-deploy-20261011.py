@@ -18,7 +18,7 @@ def digest(path):
 def target(rel):
     p = Path(rel)
     assert not p.is_absolute() and '..' not in p.parts
-    assert rel in ['app/Services/Cloud/CountryLandingSeo.php', 'lang/fa/country-seo.php', 'lang/en/country-seo.php', 'lang/tr/country-seo.php', 'resources/views/partials/country-selection-guide.blade.php', 'resources/views/pages/cloud-location.blade.php', 'resources/views/pages/hosting.blade.php']
+    assert rel in ['resources/views/partials/gtm-head.blade.php', 'app/Services/Cloud/CountryLandingSeo.php', 'lang/fa/country-seo.php', 'lang/en/country-seo.php', 'lang/tr/country-seo.php', 'resources/views/partials/country-selection-guide.blade.php', 'resources/views/pages/cloud-location.blade.php', 'resources/views/pages/hosting.blade.php']
     return WEB / Path(*p.parts[1:]) if p.parts[0] == 'public' else APP / p
 
 def run(args):

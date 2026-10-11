@@ -164,10 +164,6 @@
 @endif
 
 {{-- ============ PLANS ============ --}}
-@if($countrySeo)
-@include('partials.country-selection-guide', ['countrySeo' => $countrySeo])
-@endif
-
 <section class="section" id="pricing" style="padding-top:30px">
   <div class="container">
     <div class="section-head reveal">
@@ -516,6 +512,10 @@
     @endif
   </div>
 </section>
+
+@if($countrySeo)
+@include('partials.country-selection-guide', ['countrySeo' => $countrySeo])
+@endif
 
 {{-- ============ FEATURES ============ --}}
 <section class="section" style="padding-top:40px">
