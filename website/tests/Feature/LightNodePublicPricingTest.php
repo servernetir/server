@@ -54,8 +54,16 @@ class LightNodePublicPricingTest extends TestCase
         Http::fake(function ($r) use ($source, $compute, $network, $data, $soldOut, $transientQuote) {
             static $quoteAttempt = 0;
             $path = parse_url($r->url(), PHP_URL_PATH);
-            if ($path === '/api/site/sku/getBatchPrice.do' && $transientQuote && $quoteAttempt++ === 0) {
-                return Http::response([], 503);
+            if ($path === '/api/site/sku/getBatchPrice.do' && $transientQuote) {
+                // The vendor rejects stacked Basic headers, even when a fake
+                // transport would otherwise accept them after a retry.
+                if (count($r->header('Authorization')) !== 1) {
+                    return Http::response([], 400);
+                }
+                $status = [429, 503][$quoteAttempt++] ?? null;
+                if ($status !== null) {
+                    return Http::response([], $status);
+                }
             }
             $rows = match ($path) {
                 '/product' => null,
@@ -96,8 +104,12 @@ class LightNodePublicPricingTest extends TestCase
         $this->fake(false, 's2', true);
         $this->assertTrue(app(LightNodePublicPricing::class)->quote($this->package(), 's2')['ok']);
         $attempts = Http::recorded(fn ($r) => str_contains($r->url(), '/getBatchPrice.do'))->values();
-        $this->assertCount(2, $attempts);
-        $this->assertNotSame($attempts[0][0]->header('Authorization'), $attempts[1][0]->header('Authorization'));
+        $this->assertCount(3, $attempts);
+        $headers = $attempts->map(fn ($pair) => $pair[0]->header('Authorization'));
+        foreach ($headers as $header) {
+            $this->assertCount(1, $header);
+        }
+        $this->assertSame(3, $headers->map(fn ($header) => $header[0])->unique()->count());
         Http::assertNotSent(fn ($r) => $r->hasHeader('x-open-token') || $r->hasHeader('Cookie'));
     }
 

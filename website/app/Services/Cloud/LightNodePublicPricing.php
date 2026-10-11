@@ -72,7 +72,8 @@ class LightNodePublicPricing
                 if (! $this->transientRead($e)) { return false; }
                 // Only anonymous configuration/quote reads use this transport.
                 // A retry receives a fresh timestamp/nonce, never a saved cookie.
-                $pending->withHeaders(['Authorization' => $this->certificate()['header']]);
+                // Replace the anonymous certificate; appending creates invalid duplicate headers.
+                $pending->replaceHeaders(['Authorization' => $this->certificate()['header']]);
                 return true;
             }, throw: false);
         $response = $post ? $http->post(self::ORIGIN.$path, $input + ['timestamp' => (int) round(microtime(true) * 1000)])
