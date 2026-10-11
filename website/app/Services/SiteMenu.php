@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CloudLocation;
+use App\Services\Cloud\CloudCountry;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -92,6 +93,15 @@ class SiteMenu
         // دیگر (کاربرد/سیستم‌عامل) دست‌نخورده می‌مانند.
         $this->fillVpsLocations($mega['vps']);
 
+        // Stable roles survive translated/relabelled admin menu overlays.
+        $roles = ['Virtual servers' => 'cloud', 'Dedicated & bare-metal' => 'dedicated',
+            'Physical servers' => 'hardware', 'Server parts' => 'parts',
+            'By use case' => 'use', 'Locations' => 'countries'];
+        foreach ($mega['vps']['groups'] as &$group) {
+            $group['server_role'] = $roles[$group['en'] ?? ''] ?? 'other';
+        }
+        unset($group);
+
         // «سرور اختصاصی» دیگر «اتمام ظرفیت» نمی‌خورد — عمداً کاملاً دست‌نخورده
         // می‌مانَد (خواستهٔ کارفرما: در منو چیزی به‌عنوانِ اتمام ظرفیت ننویسیم).
 
@@ -135,9 +145,9 @@ class SiteMenu
                 $this->extraLiveCountryItems($this->allSectionSlugItems($section)),
                 [[
                     'route' => ['cloud.index', []],
-                    'fa'    => 'همهٔ سرورهای مجازی',
-                    'en'    => 'All virtual servers',
-                    'tr'    => 'Tüm sanal sunucular',
+                    'fa' => 'همهٔ سرورهای مجازی',
+                    'en' => 'All virtual servers',
+                    'tr' => 'Tüm sanal sunucular',
                 ]]
             );
 
@@ -169,6 +179,7 @@ class SiteMenu
 
         return $out;
     }
+
     /**
      * کشورهایی که واقعاً پلنِ قابلِ فروش دارند ولی در فهرستِ config نیستند —
      * به شکلِ آیتمِ سادهٔ منو.
@@ -209,7 +220,7 @@ class SiteMenu
                 }
             }
 
-            $served = \App\Services\Cloud\CloudCountry::served();
+            $served = CloudCountry::served();
 
             if ($served === []) {
                 return [];
@@ -239,11 +250,11 @@ class SiteMenu
                 }
 
                 $items[] = [
-                    'iso'   => $iso,               // نشانهٔ «زنده» — تست‌ها با آن می‌شمارند
+                    'iso' => $iso,               // نشانهٔ «زنده» — تست‌ها با آن می‌شمارند
                     'route' => $this->countryRoute($iso),
-                    'fa'    => 'سرور مجازی '.($name['fa'] ?? $iso),
-                    'en'    => ($name['en'] ?? $iso).' VPS',
-                    'tr'    => ($name['tr'] ?? $iso).' VPS',
+                    'fa' => 'سرور مجازی '.($name['fa'] ?? $iso),
+                    'en' => ($name['en'] ?? $iso).' VPS',
+                    'tr' => ($name['tr'] ?? $iso).' VPS',
                 ];
             }
 
@@ -261,7 +272,7 @@ class SiteMenu
      */
     private function countryRoute(string $iso): array
     {
-        $slug = \App\Services\Cloud\CloudCountry::marketingSlug($iso);
+        $slug = CloudCountry::marketingSlug($iso);
 
         if ($slug !== null) {
             return ['catalog', ['category' => 'vps', 'slug' => $slug]];
@@ -291,6 +302,6 @@ class SiteMenu
         // 🔴 منو از CloudCountry::served() تغذیه می‌شود؛ اگر کشِ آن پاک نشود،
         // کشورِ تازه تا ۱۰ دقیقه در منو دیده نمی‌شود و مدیر فکر می‌کند سینک کار
         // نکرده — همان drift که این کلاس برای بستنش هست.
-        \App\Services\Cloud\CloudCountry::forget();
+        CloudCountry::forget();
     }
 }

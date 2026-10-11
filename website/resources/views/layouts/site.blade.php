@@ -121,6 +121,7 @@
         ? 'assets/css/site.min.css' : 'assets/css/site.css';
 @endphp
 <link rel="stylesheet" href="{{ asset_ver($siteCss) }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/server-menu.css') }}">
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')
 @php
@@ -228,5 +229,6 @@ if ($ids) {
 @include('partials.chat')
 
 <script src="{{ asset_ver('assets/js/site.js') }}" defer></script>
+<script src="{{ asset_ver('assets/js/server-menu.js') }}" defer></script>
 </body>
 </html>
