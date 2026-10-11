@@ -1,6 +1,14 @@
 # LightNode integration — acceptance and release record
 
-Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 389 valid fixed-bandwidth plans in 40 regions. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 400 valid fixed-bandwidth supplier offers in 40 regions after recovery of the four held offers. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+
+## Four held offers recovered — 2026-10-11, published
+
+The four exact supplier offers in Moscow, Doha, Santiago and Manila were still offered with fresh valid Linux/Windows quotes. The anonymous calculator retry appended Authorization values after429/5xx; it now replaces the previous value. The stronger regression failed before the fix and passed afterward. Four rows were activated at10:02:54UTC with fee0%/profit5%, while396otherLightNode rows,3303other-provider rows and existing service hourly rates remained identical.226tests/1726assertions,16billing-cycle checks and12production builder renders (four plans×FA/EN/TR, withUbuntu/Windows) passed at10:06:41UTC; all four public price/resource views had no overflow at390px. The regional configurations/image catalogs were verified; no numeric supplier capacity counter is exposed and no new paid guest was created. Full evidence and scoped rollback: [LIGHTNODE-OFFER-RECOVERY-2026-10-11.md](LIGHTNODE-OFFER-RECOVERY-2026-10-11.md). The earlier exclusion below is historical.
+
+## Zero provider overhead — 2026-10-11, published
+
+The owner explicitly authorized LightNode overhead0% with profit5%. The live provider setting is now `pricing_fx_fee_pct_lightnode=0`; global funding overhead21% and all3303 competing-provider financial rows were preserved. At09:26:04UTC, 396 valid fixed-bandwidth plans across40regions/37countries were imported at a single fresh FX snapshot. Four unverified old supplier offers are excluded from new purchase; their records and existing customer rates remain intact. 226tests/1723assertions,396plan readbacks,1584cycle checks and six production builder renders passed. Independent fresh Linux/Windows sample prices and Windows parity passed; Manila starts at4900IRT/hour. No paid guest was created. Details, comparison digest, source availability limits, evidence and guarded rollback: [LIGHTNODE-ZERO-OVERHEAD-2026-10-11.md](LIGHTNODE-ZERO-OVERHEAD-2026-10-11.md). The previous21% observations below are historical.
 
 ## Mobile purchase and price audit — 2026-10-11
 

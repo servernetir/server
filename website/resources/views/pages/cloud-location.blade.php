@@ -83,11 +83,11 @@
 .cvl-plan dt{ font-size:12.2px; color:var(--dim) }
 .cvl-plan dd{ font-size:13px; font-weight:600 }
 .cvl-plan footer{ display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding-top:12px; border-top:1px solid var(--line) }
-.cvl-price{ font-size:11.8px; color:var(--dim) }
+  margin:0; padding:12px 0 0; border-top:1px solid var(--line); background:transparent; flex-wrap:wrap }
+.cvl-price{ font-size:11.8px; color:var(--dim); min-width:0; flex:1 1 140px }
 .cvl-price b{ display:block; font-size:16px; font-weight:700; color:var(--text) }
 .cvl-buy{ font-size:12.5px; font-weight:700; color:#fff; background:var(--grad);
-  border-radius:10px; padding:8px 16px; white-space:nowrap }
+  border-radius:10px; padding:8px 16px; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; min-height:44px; flex-shrink:0 }
 .cvl-buy:hover{ box-shadow:0 6px 20px rgba(34,211,238,.32) }
 
 .cvl-empty{ border:1px dashed var(--line-2); border-radius:20px; background:var(--surface);
@@ -118,6 +118,14 @@
 @media(max-width:640px){
   .cvl-top{ padding-top:96px }
   .cvl-sec{ padding:32px 0 }
+  .cvl-plans{ grid-template-columns:minmax(0,1fr); gap:12px; align-items:start }
+  .cvl-plan{ padding:16px; min-width:0 }
+  .cvl-plan header{ flex-wrap:wrap; padding-bottom:10px }
+  .cvl-plan dl{ flex:none; margin:12px 0 }
+  .cvl-plan dt{ flex-shrink:0 }
+  .cvl-plan dd{ min-width:0; overflow-wrap:anywhere; text-align:end }
+  .cvl-plan footer{ gap:8px }
+  .cvl-price b{ overflow-wrap:anywhere }
 }
 </style>
 @endpush
