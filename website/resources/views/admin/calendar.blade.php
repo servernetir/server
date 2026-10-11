@@ -84,7 +84,11 @@
         <svg class="icon"><use href="#i-calendar"/></svg>
         <span class="msg"><b>تقویم گوگل:</b> {{ $google['last_error'] }}</span>
         <span class="sep"></span>
-        <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
+        @if($google['needs_credential_repair'])
+          <a class="btn btn-ghost" href="/admin/settings?tab=general">اصلاح تنظیمات گوگل</a>
+        @else
+          <a class="btn btn-ghost" href="/admin/calendar/google/connect">اتصال دوباره</a>
+        @endif
       </div>
     @endif
 

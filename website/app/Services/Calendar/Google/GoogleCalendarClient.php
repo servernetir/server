@@ -50,6 +50,23 @@ class GoogleCalendarClient
         return filled(self::clientId()) && filled(self::clientSecret());
     }
 
+    public static function needsCredentialRepair(?string $error): bool
+    {
+        return str_contains((string) $error, 'deleted_client')
+            || str_contains((string) $error, 'invalid_client');
+    }
+
+    public static function connectionError(string $error): string
+    {
+        return match ($error) {
+            'deleted_client' => 'اتصال برنامه در گوگل حذف شده است؛ ابتدا کلاینت را در Google Cloud بازیابی یا تنظیمات گوگل را اصلاح کنید. (deleted_client)',
+            'invalid_client' => 'اعتبارنامهٔ برنامه در گوگل معتبر نیست؛ ابتدا تنظیمات گوگل را اصلاح کنید. (invalid_client)',
+            'invalid_grant' => 'دسترسی باطل شده — دوباره وصل کنید',
+            'no_access_token' => 'پاسخ گوگل توکن دسترسی معتبر نداشت؛ دوباره تلاش کنید.',
+            default => 'تازه‌سازی توکن ناموفق: '.$error,
+        };
+    }
+
     /**
      * نشانیِ صفحهٔ رضایتِ گوگل.
      *
@@ -101,6 +118,10 @@ class GoogleCalendarClient
          * اگر این را «موفق» می‌شمردیم، کاربر یک اتصالِ سبز می‌دید که فردا بی‌صدا
          * از کار می‌افتاد — بدترین حالتِ ممکن.
          */
+        if (! is_string($body['access_token'] ?? null) || blank($body['access_token'])) {
+            return ['ok' => false, 'error' => 'no_access_token'];
+        }
+
         if (blank($body['refresh_token'] ?? null)) {
             return ['ok' => false, 'error' => 'no_refresh_token'];
         }
@@ -139,14 +160,18 @@ class GoogleCalendarClient
              * دسترس نیست» فرق دارد و پیامش هم باید فرق کند، وگرنه کاربر منتظرِ
              * رفعِ خودبه‌خودی می‌مانَد که هرگز نمی‌آید.
              */
-            $token->noteError(($res['error'] ?? '') === 'invalid_grant'
-                ? 'دسترسی باطل شده — دوباره وصل کنید'
-                : 'تازه‌سازی توکن ناموفق: '.($res['error'] ?? 'نامشخص'));
+            $token->noteError(self::connectionError($res['error'] ?? 'نامشخص'));
 
             return false;
         }
 
         $body = $res['body'];
+
+        if (! is_string($body['access_token'] ?? null) || blank($body['access_token'])) {
+            $token->noteError(self::connectionError('no_access_token'));
+
+            return false;
+        }
 
         $token->forceFill([
             'access_token' => (string) ($body['access_token'] ?? ''),
