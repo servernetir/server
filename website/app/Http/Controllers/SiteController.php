@@ -518,8 +518,11 @@ class SiteController extends Controller
         $add('ai.home');
         $add('ai.models');
         $add('ai.docs');
-        foreach (\App\Models\AiModel::whereIn('category', ['chat', 'embedding', 'rerank'])->where('status', 'active')->whereNull('suspended_at')->pluck('slug') as $aiSlug) {
-            $add('ai.model', $aiSlug);
+        foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
+            // Informational pages can be indexed while a route is preparing. Retired models cannot.
+            if (\App\Services\Ai\AiModelPage::indexable($aiModel)) {
+                $add('ai.model', $aiModel->slug);
+            }
         }
 
         $add('official');

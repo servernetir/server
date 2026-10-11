@@ -24,6 +24,16 @@ use App\Models\AiModel;
  */
 final class AiPayload
 {
+    public static function requiresNonReasoning(AiModel $model): bool
+    {
+        return $model->provider?->slug === 'deepseek'
+            || ($model->provider?->slug === 'gapgpt' && $model->upstream_model === 'grok-4')
+            || ($model->provider?->slug === 'deepinfra' && in_array($model->upstream_model, [
+                'Qwen/Qwen3.8-Flash', 'Qwen/Qwen3.8-Max', 'zai-org/GLM-5.3', 'Qwen/Qwen3.7-Max',
+                'ByteDance/Seed-2.0-mini', 'ByteDance/Seed-1.8', 'ByteDance/Seed-2.0-code',
+            ], true));
+    }
+
     /** کلیدهایی که عیناً به بالادست می‌روند */
     public const ALLOWED = [
         'messages', 'temperature', 'top_p', 'top_k', 'min_p', 'stop',
@@ -108,16 +118,11 @@ final class AiPayload
 
         // These upstream models exceeded max_tokens with their default reasoning.
         // Keep the verified non-reasoning contract until a bounded reasoning API exists.
-        if ($model->provider?->slug === 'deepinfra' && in_array($model->upstream_model,
-            ['Qwen/Qwen3.8-Flash', 'Qwen/Qwen3.8-Max', 'zai-org/GLM-5.3',
-                'Qwen/Qwen3.7-Max', 'ByteDance/Seed-2.0-mini', 'ByteDance/Seed-1.8', 'ByteDance/Seed-2.0-code'], true)) {
+        if (self::requiresNonReasoning($model) && $model->provider?->slug !== 'deepseek') {
             $forward['reasoning_effort'] = 'none';
         }
         if ($model->provider?->slug === 'deepseek') {
             $forward['thinking'] = ['type' => 'disabled'];
-        }
-        if ($model->provider?->slug === 'gapgpt' && $model->upstream_model === 'grok-4') {
-            $forward['reasoning_effort'] = 'none';
         }
 
         $bytes = strlen((string) json_encode($forward, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));

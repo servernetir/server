@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AiModel;
 use App\Services\Ai\AiAvailability;
+use App\Services\Ai\AiModelPage;
 use Illuminate\Http\Request;
 
 class AiStorefrontController extends Controller
@@ -27,14 +28,24 @@ class AiStorefrontController extends Controller
             $query->where('category', $category);
         }
         $page = $query->paginate(24)->withQueryString();
+        $canonicalParams = $page->currentPage() > 1 ? ['page' => $page->currentPage()] : [];
+        $altUrls = [];
+        foreach (\App\Providers\AppServiceProvider::LOCALES as $locale => $prefix) {
+            $altUrls[$locale] = route($prefix.'ai.models', $canonicalParams);
+        }
         return view('pages.ai.models', ['models' => $this->cards($page->getCollection()), 'page' => $page,
-            'search' => $search, 'category' => $category]);
+            'search' => $search, 'category' => $category, 'altUrls' => $altUrls,
+            'canonical' => lroute('ai.models', $canonicalParams)]);
     }
 
     public function model(string $slug)
     {
         $model = AiModel::with('provider')->where('slug', $slug)->firstOrFail();
-        return view('pages.ai.model', ['model' => $model, 'state' => app(AiAvailability::class)->inspect($model)]);
+        $state = app(AiAvailability::class)->inspect($model);
+        $related = AiModel::with('provider')->where('category', $model->category)->whereKeyNot($model->id)
+            ->where('status', 'active')->whereNull('suspended_at')->orderBy('name')->limit(6)->get();
+        return view('pages.ai.model', ['model' => $model, 'state' => $state,
+            'seo' => app(AiModelPage::class)->build($model, $state), 'related' => $this->cards($related)]);
     }
 
     public function docs()

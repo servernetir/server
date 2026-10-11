@@ -1,0 +1,3528 @@
+{
+  "ACE-Step/acestep-v15-xl-sft": {
+    "task": "text-to-music",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 30,
+        "maximum": 500
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": true,
+        "default": "mp3",
+        "enum": [
+          "mp3",
+          "flac",
+          "wav"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2000
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 1,
+        "maximum": 20,
+        "default": 7
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "text2music",
+        "enum": [
+          "text2music",
+          "cover",
+          "cover-nofsq",
+          "repaint"
+        ]
+      }
+    ]
+  },
+  "Audio8/Audio8-TTS-Preview-0.6b": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 5000
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "max_new_tokens",
+        "type": "integer",
+        "required": false,
+        "minimum": 32,
+        "maximum": 2048,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-1-dev": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4,
+        "default": 1
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 50,
+        "default": 25
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 20,
+        "default": 7.5
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-1-schnell": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4,
+        "default": 1
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 50,
+        "default": 1
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-1.1-pro": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-2-dev": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 100,
+        "default": 50
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 20,
+        "default": 2.5
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-2-klein-4b": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "jpeg",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-2-klein-9b": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "jpeg",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-2-max": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "jpeg",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    ]
+  },
+  "black-forest-labs/FLUX-2-pro": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "jpeg",
+        "enum": [
+          "jpeg",
+          "png"
+        ]
+      }
+    ]
+  },
+  "bosonai/HiggsAudioV2.5": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "input",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 1500
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "belinda",
+        "enum": [
+          "en_woman",
+          "mabel",
+          "chadwick",
+          "broom_salesman",
+          "zh_man_sichuan",
+          "en_man",
+          "belinda",
+          "vex"
+        ]
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "pcm"
+      }
+    ]
+  },
+  "Bria/blur_background": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Bria/Bria-3.2-vector": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 512
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "1:1"
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/Bria-3.2": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 512
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "1:1"
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/enhance": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "default": "1MP",
+        "enum": [
+          "1MP",
+          "2MP",
+          "4MP"
+        ]
+      }
+    ]
+  },
+  "Bria/erase": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Bria/erase_foreground": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Bria/expand": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 1000
+      }
+    ]
+  },
+  "Bria/fibo-1.5": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 1500
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "default": "1MP",
+        "enum": [
+          "1MP",
+          "4MP"
+        ]
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "1:1",
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Bria/fibo": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 1500
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "speed",
+        "type": "string",
+        "required": false,
+        "default": "standard",
+        "enum": [
+          "standard",
+          "fast",
+          "hq"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/fibo_edit-1.5": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "guidance_scale",
+        "type": "integer",
+        "required": false,
+        "minimum": 3,
+        "maximum": 5
+      }
+    ]
+  },
+  "Bria/fibo_edit": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "guidance_scale",
+        "type": "integer",
+        "required": false,
+        "minimum": 3,
+        "maximum": 5
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/gen_fill": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 512
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/remove_background": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Bria/replace_background": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 1000
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Bria/video_eraser": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": []
+  },
+  "Bria/video_foreground_mask": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": []
+  },
+  "Bria/video_increase_resolution": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": []
+  },
+  "Bria/video_mask_by_key_points": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": []
+  },
+  "Bria/video_mask_by_prompt": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Bria/video_remove_background": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": []
+  },
+  "ByteDance/Seedance-1.5-Pro": {
+    "task": "text-to-video",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
+          "21:9",
+          "adaptive"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": -1
+      }
+    ]
+  },
+  "ByteDance/Seedance-2.0": {
+    "task": "text-to-video",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
+          "21:9",
+          "adaptive"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": -1
+      }
+    ]
+  },
+  "ByteDance/Seedream-4.5": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": -1
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 1,
+        "maximum": 10
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "ByteDance/Seedream-4": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": -1
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 1,
+        "maximum": 10
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "ByteDance/Seedream-5.0-Pro": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "png",
+          "jpeg"
+        ]
+      }
+    ]
+  },
+  "canopylabs/orpheus-3b-0.1-ft": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "input",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 300
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "tara",
+        "enum": [
+          "tara",
+          "leah",
+          "jess",
+          "leo",
+          "dan",
+          "mia",
+          "zac"
+        ]
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "max_tokens",
+        "type": "integer",
+        "required": false,
+        "maximum": 4096,
+        "default": 2000
+      }
+    ]
+  },
+  "ClarityAI/creative": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "ClarityAI/crystal": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "jpg",
+        "enum": [
+          "jpg",
+          "png"
+        ]
+      }
+    ]
+  },
+  "ClarityAI/flux": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "FastVideo/FastWan-QAD-FP8-1.3B": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": true,
+        "default": "480p",
+        "enum": [
+          "480p"
+        ]
+      }
+    ]
+  },
+  "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers": {
+    "task": "text-to-video",
+    "pricing_type": "frame_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": true,
+        "default": "720p",
+        "enum": [
+          "720p",
+          "480p"
+        ]
+      }
+    ]
+  },
+  "google/gemini-3-pro-image": {
+    "task": "text-to-image",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "google/nano-banana-2-lite": {
+    "task": "text-to-image",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "google/nano-banana-2": {
+    "task": "text-to-image",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "google/nano-banana-pro": {
+    "task": "text-to-image",
+    "pricing_type": "input_tokens",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "google/veo-3.1-fast": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "16:9",
+          "9:16"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 4294967295
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720p",
+          "1080p"
+        ]
+      }
+    ]
+  },
+  "google/veo-3.1": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "16:9",
+          "9:16"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 4294967295
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720p",
+          "1080p"
+        ]
+      }
+    ]
+  },
+  "hexgrad/Kokoro-82M": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 10000
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "preset_voice",
+        "type": "array",
+        "required": false,
+        "default": [
+          "af_bella"
+        ]
+      },
+      {
+        "name": "speed",
+        "type": "number",
+        "required": false,
+        "minimum": 0.25,
+        "maximum": 4
+      },
+      {
+        "name": "sample_rate",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "inclusionAI/Ming-Image-0.1-Design-Layer": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 50,
+        "default": 12
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 20,
+        "default": 2
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      }
+    ]
+  },
+  "inclusionAI/Ming-Image-0.1-Design": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "1:1",
+        "enum": [
+          "1:1",
+          "16:9",
+          "4:3",
+          "2:3"
+        ]
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 50,
+        "default": 12
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 20,
+        "default": 1
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      }
+    ]
+  },
+  "inworld-ai/realtime-tts-1.5-max": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "Ashley",
+        "enum": [
+          "Abby",
+          "Alain",
+          "Alex",
+          "Amina",
+          "Anjali",
+          "Arjun",
+          "Ashley",
+          "Asuka",
+          "Avery",
+          "Bianca",
+          "Blake",
+          "Brandon",
+          "Brian",
+          "Callum",
+          "Carter",
+          "Cedric",
+          "Celeste",
+          "Chloe",
+          "Claire",
+          "Clive",
+          "Conrad",
+          "Craig",
+          "Damon",
+          "Darlene"
+        ]
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "mp3",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "sample_rate",
+        "type": "integer",
+        "required": false,
+        "default": 24000
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "inworld-ai/realtime-tts-1.5-mini": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "Ashley",
+        "enum": [
+          "Abby",
+          "Alain",
+          "Alex",
+          "Amina",
+          "Anjali",
+          "Arjun",
+          "Ashley",
+          "Asuka",
+          "Avery",
+          "Bianca",
+          "Blake",
+          "Brandon",
+          "Brian",
+          "Callum",
+          "Carter",
+          "Cedric",
+          "Celeste",
+          "Chloe",
+          "Claire",
+          "Clive",
+          "Conrad",
+          "Craig",
+          "Damon",
+          "Darlene"
+        ]
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "mp3",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "sample_rate",
+        "type": "integer",
+        "required": false,
+        "default": 24000
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "inworld-ai/realtime-tts-2": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "Ashley",
+        "enum": [
+          "Abby",
+          "Alain",
+          "Alex",
+          "Amina",
+          "Anjali",
+          "Arjun",
+          "Ashley",
+          "Asuka",
+          "Avery",
+          "Bianca",
+          "Blake",
+          "Brandon",
+          "Brian",
+          "Callum",
+          "Carter",
+          "Cedric",
+          "Celeste",
+          "Chloe",
+          "Claire",
+          "Clive",
+          "Conrad",
+          "Craig",
+          "Damon",
+          "Darlene"
+        ]
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "mp3",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "sample_rate",
+        "type": "integer",
+        "required": false,
+        "default": 24000
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "mistralai/Voxtral-Mini-3B-2507": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "mistralai/Voxtral-Small-24B-2507": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "nvidia/Nemotron-3-Diarization": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "nvidia/Nemotron-3.5-ASR-Streaming-Multilingual-0.6b": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "openai/clip-vit-base-patch32": {
+    "task": "zero-shot-image-classification",
+    "pricing_type": "time",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "openai/clip-vit-large-patch14-336": {
+    "task": "zero-shot-image-classification",
+    "pricing_type": "time",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "openai/whisper-large-v3-turbo": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "openai/whisper-large-v3": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "Pixverse/Pixverse-6-I2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 5000
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 2048
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 15,
+        "default": 5
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  "Pixverse/Pixverse-6-T2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 5000
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 2048
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 15,
+        "default": 5
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "16:9",
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
+          "2:3",
+          "3:2",
+          "21:9"
+        ]
+      }
+    ]
+  },
+  "Pixverse/Pixverse-T2V-HD": {
+    "task": "text-to-video",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "16:9",
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "default": 5,
+        "enum": [
+          5,
+          8
+        ]
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2048
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 2048
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Pixverse/Pixverse-T2V": {
+    "task": "text-to-video",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "16:9",
+        "enum": [
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "default": 5,
+        "enum": [
+          5,
+          8
+        ]
+      },
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2048
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 2048
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "PrunaAI/p-image-Edit": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "16:9",
+        "enum": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3",
+          "custom"
+        ]
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "PrunaAI/p-image": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "default": "16:9",
+        "enum": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3",
+          "custom"
+        ]
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 256,
+        "maximum": 1440
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "PrunaAI/p-video-avatar": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "image",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "audio",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "Zephyr (Female)",
+          "Puck (Male)",
+          "Charon (Male)",
+          "Kore (Female)",
+          "Fenrir (Male)",
+          "Leda (Female)",
+          "Orus (Male)",
+          "Aoede (Female)",
+          "Callirrhoe (Female)",
+          "Autonoe (Female)",
+          "Enceladus (Male)",
+          "Iapetus (Male)",
+          "Umbriel (Male)",
+          "Algenib (Male)",
+          "Despina (Female)",
+          "Erinome (Female)",
+          "Laomedeia (Female)",
+          "Achernar (Female)",
+          "Algieba (Male)",
+          "Schedar (Male)",
+          "Gacrux (Female)",
+          "Pulcherrima (Female)",
+          "Achird (Male)",
+          "Zubenelgenubi (Male)"
+        ]
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720p",
+          "1080p"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "PrunaAI/p-video": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "image",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "audio",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 10
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720p",
+          "1080p"
+        ]
+      },
+      {
+        "name": "fps",
+        "type": "integer",
+        "required": false,
+        "enum": [
+          24,
+          48
+        ]
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3",
+          "1:1"
+        ]
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      }
+    ]
+  },
+  "Qwen/Qwen-Image-Edit-Max": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2100
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Qwen/Qwen-Image-Max": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2100
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Qwen/Qwen3-ASR-0.6B": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "Qwen/Qwen3-ASR-1.7B": {
+    "task": "automatic-speech-recognition",
+    "pricing_type": "input_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "audio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "task",
+        "type": "string",
+        "required": false,
+        "default": "transcribe",
+        "enum": [
+          "transcribe",
+          "translate"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "af",
+          "am",
+          "ar",
+          "as",
+          "az",
+          "ba",
+          "be",
+          "bg",
+          "bn",
+          "bo",
+          "br",
+          "bs",
+          "ca",
+          "cs",
+          "cy",
+          "da",
+          "de",
+          "el",
+          "en",
+          "es",
+          "et",
+          "eu",
+          "fa",
+          "fi"
+        ]
+      }
+    ]
+  },
+  "Qwen/Qwen3-TTS-VoiceDesign": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "input",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 4000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "default": "Auto",
+        "enum": [
+          "Auto",
+          "Chinese",
+          "English",
+          "Japanese",
+          "Korean",
+          "German",
+          "French",
+          "Russian",
+          "Portuguese",
+          "Spanish",
+          "Italian"
+        ]
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      }
+    ]
+  },
+  "Qwen/Qwen3-TTS": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "input",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 4000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "Vivian",
+        "enum": [
+          "Vivian",
+          "Serena",
+          "Uncle_Fu",
+          "Dylan",
+          "Eric",
+          "Ryan",
+          "Aiden",
+          "Ono_Anna",
+          "Sohee"
+        ]
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "required": false,
+        "default": "Auto",
+        "enum": [
+          "Auto",
+          "Chinese",
+          "English",
+          "Japanese",
+          "Korean",
+          "German",
+          "French",
+          "Russian",
+          "Portuguese",
+          "Spanish",
+          "Italian"
+        ]
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      }
+    ]
+  },
+  "ResembleAI/chatterbox-multilingual": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 5000
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "voice_id",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "language_id",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "ResembleAI/chatterbox-turbo": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 5000
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "voice_id",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "language_id",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "sesame/csm-1b": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 200
+      },
+      {
+        "name": "response_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      },
+      {
+        "name": "preset_voice",
+        "type": "string",
+        "required": false,
+        "default": "none",
+        "enum": [
+          "conversational_a",
+          "conversational_b",
+          "read_speech_a",
+          "read_speech_b",
+          "read_speech_c",
+          "read_speech_d",
+          "none"
+        ]
+      },
+      {
+        "name": "max_audio_length_ms",
+        "type": "integer",
+        "required": false,
+        "default": 10000
+      }
+    ]
+  },
+  "stabilityai/sdxl-turbo": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4,
+        "default": 1
+      },
+      {
+        "name": "num_inference_steps",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 10,
+        "default": 5
+      },
+      {
+        "name": "width",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "height",
+        "type": "integer",
+        "required": false,
+        "minimum": 128,
+        "maximum": 1920,
+        "default": 1024
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0
+      },
+      {
+        "name": "guidance_scale",
+        "type": "number",
+        "required": false,
+        "minimum": 0,
+        "maximum": 20,
+        "default": 1
+      }
+    ]
+  },
+  "Wan-AI/Wan2.2-T2V-A14B": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": true,
+        "default": "720p",
+        "enum": [
+          "720p"
+        ]
+      }
+    ]
+  },
+  "Wan-AI/Wan2.6-I2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 1500
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720P",
+          "1080P"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 2,
+        "maximum": 15
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.6-Image-Edit": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2100
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.6-T2I": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2100
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.6-T2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 1500
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 2,
+        "maximum": 15
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.7-I2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 5000
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720P",
+          "1080P"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 2,
+        "maximum": 15
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.7-Image-Edit": {
+    "task": "text-to-image",
+    "pricing_type": "image_units",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 2100
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "num_images",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "maximum": 4
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan2.7-R2V": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": true,
+        "maxLength": 5000
+      },
+      {
+        "name": "negative_prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 500
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "720P",
+          "1080P"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false,
+        "minimum": 2,
+        "maximum": 15
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "Wan-AI/Wan3.0-Video": {
+    "task": "text-to-video",
+    "pricing_type": "output_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "prompt",
+        "type": "string",
+        "required": false,
+        "maxLength": 20000
+      },
+      {
+        "name": "resolution",
+        "type": "string",
+        "required": false,
+        "enum": [
+          "480P",
+          "720P",
+          "1080P"
+        ]
+      },
+      {
+        "name": "duration",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "audio",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "minimum": 0,
+        "maximum": 2147483647
+      }
+    ]
+  },
+  "XiaomiMiMo/MiMo-V2.5-tts-voiceclone": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      }
+    ]
+  },
+  "XiaomiMiMo/MiMo-V2.5-tts-voicedesign": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": true,
+        "minLength": 1
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      }
+    ]
+  },
+  "XiaomiMiMo/MiMo-V2.5-tts": {
+    "task": "text-to-speech",
+    "pricing_type": "input_character_length",
+    "schema_date": "2026-10-10",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      {
+        "name": "voice",
+        "type": "string",
+        "required": false,
+        "default": "mimo_default",
+        "enum": [
+          "mimo_default",
+          "冰糖",
+          "茉莉",
+          "苏打",
+          "白桦",
+          "Mia",
+          "Chloe",
+          "Milo",
+          "Dean"
+        ]
+      },
+      {
+        "name": "output_format",
+        "type": "string",
+        "required": false,
+        "default": "wav",
+        "enum": [
+          "mp3",
+          "opus",
+          "flac",
+          "wav",
+          "pcm"
+        ]
+      }
+    ]
+  }
+}
