@@ -165,4 +165,19 @@ class DashboardActiveCountTest extends TestCase
         $this->assertSame(1210.0, $pricing->costWithFee(1000, 'hetzner'));
         $this->assertSame(1030.0, $pricing->costWithFee(1000, 'aeza'));
     }
+
+    public function test_explicit_zero_provider_fee_does_not_inherit_a_taxed_provider_fallback(): void
+    {
+        $pricing = app(CloudPricing::class);
+        Setting::put('pricing_fx_fee_pct', '21');
+        Setting::put('pricing_fx_fee_pct_lightnode', '0');
+        $this->assertSame(0.0, $pricing->fxFeePctFor('lightnode'));
+        $this->assertSame(1000.0, $pricing->costWithFee(1000, 'lightnode'));
+        $this->assertSame(21.0, $pricing->fxFeePctFor('hetzner'));
+
+        Setting::put('pricing_fx_fee_pct_lightnode', '');
+        $this->assertSame(21.0, $pricing->fxFeePctFor('lightnode'));
+        Setting::put('pricing_fx_fee_pct_lightnode', '2');
+        $this->assertSame(1020.0, $pricing->costWithFee(1000, 'lightnode'));
+    }
 }

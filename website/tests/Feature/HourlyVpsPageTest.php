@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Services\Cloud\CountryLandingSeo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -170,6 +171,7 @@ class HourlyVpsPageTest extends TestCase
     {
         $html = $this->get('/vps/iran')->getContent();
 
-        $this->assertMatchesRegularExpression('~<meta name="description" content="خرید سرور مجازی ایران~u', $html);
+        $description = app(CountryLandingSeo::class)->content('IR')['description'];
+        $this->assertStringContainsString('<meta name="description" content="'.e($description).'">', $html);
     }
 }

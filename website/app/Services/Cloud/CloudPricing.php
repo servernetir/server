@@ -73,10 +73,10 @@ class CloudPricing
     public function fxFeePctFor(?string $provider): float
     {
         if (filled($provider)) {
-            $v = (float) Setting::get('pricing_fx_fee_pct_'.strtolower(trim($provider)), '');
+            $v = Setting::get('pricing_fx_fee_pct_'.strtolower(trim($provider)));
 
-            if ($v > 0) {
-                return min(25.0, $v);
+            if ($v !== null && trim((string) $v) !== '' && is_numeric($v)) {
+                return max(0.0, min(25.0, (float) $v));
             }
         }
 
