@@ -168,7 +168,21 @@ class HourlyUnderwaterGuardTest extends TestCase
     /** کرونِ ممیزی ثبت شده باشد — فرمانِ ثبت‌نشده اجرا نمی‌شود */
     public function test_the_audit_is_scheduled(): void
     {
-        $this->assertStringContainsString("cloud:hourly-audit",
+        $this->assertStringContainsString('cloud:hourly-audit',
             (string) file_get_contents(base_path('routes/console.php')));
+    }
+
+    /** نرخِ زیرِ قیمتِ روز بدونِ دخالتِ مدیر و با پرچمِ نوشتن اصلاح شود */
+    public function test_automatic_repricing_is_scheduled_with_apply(): void
+    {
+        $console = (string) file_get_contents(base_path('routes/console.php'));
+
+        $this->assertStringContainsString(
+            "Schedule::command('cloud:hourly-reprice --apply')",
+            $console,
+            'زمان‌بند فقط ممیزی می‌کند و نرخِ زیان‌ده را خودکار اصلاح نمی‌کند.'
+        );
+        $this->assertStringContainsString("->cron('5,20,35,50 * * * *')", $console,
+            'اصلاح باید پس از سینک‌های قیمت، چند بار در ساعت اجرا شود.');
     }
 }

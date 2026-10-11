@@ -344,9 +344,13 @@ class CustomerController extends Controller
         // نگهبان: جدول services تازه اضافه شده؛ روی سروری که هنوز مهاجرت
         // نکرده نباید پرونده ۵۰۰ شود
         if (Schema::hasTable('services')) {
-            // invoices و server را با هم می‌آوریم: صفحه برای هر سرویس «آخرین
-            // پرداخت» و IP را نشان می‌دهد و بدونِ این، N+1 می‌شد.
-            $load['services'] = fn ($q) => $q->with(['invoices', 'server'])->orderByDesc('id');
+            // invoices و مقصدِ تحویل را با هم می‌آوریم: صفحه برای هر سرویس
+            // «آخرین پرداخت»، IP/DNS، نامِ زیرساختِ هاست و شناسهٔ GPU نزدِ
+            // Salad را نشان می‌دهد. بی‌این eager-loadها هر ردیف چند پرس‌وجوی
+            // جدا می‌زد و پروندهٔ مشتریانِ پرسرویس کند می‌شد.
+            $load['services'] = fn ($q) => $q
+                ->with(['invoices', 'server', 'cloudPlan', 'cloudInstance'])
+                ->orderByDesc('id');
         }
 
         $customer->load($load);
